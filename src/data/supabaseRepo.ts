@@ -1,3 +1,4 @@
+import { addMonths, monthKeyString, parseMonthKey } from '../lib/dates'
 import { getSupabase } from '../lib/supabase'
 import type { CategoryType } from '../types/database.types'
 import type {
@@ -190,5 +191,57 @@ export const supabaseRepo: Repo = {
         getSupabase().from('categories').update({ sort_order: i }).eq('id', id),
       ),
     )
+  },
+
+  async listBudgets(monthKey: string) {
+    const { data, error } = await getSupabase()
+      .from('budgets')
+      .select('*')
+      .eq('month_key', monthKey)
+    if (error) throw error
+    return data
+  },
+
+  async upsertBudget(categoryId: string, monthKey: string, amount: number) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('budgets')
+      .upsert(
+        { user_id, category_id: categoryId, month_key: monthKey, amount },
+        { onConflict: 'user_id,category_id,month_key' },
+      )
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async deleteBudget(id: string) {
+    const { error } = await getSupabase().from('budgets').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  async copyBudgetsFromPreviousMonth(monthKey: string) {
+    const user_id = await currentUserId()
+    const prev = monthKeyString(addMonths(parseMonthKey(monthKey), -1))
+    const sb = getSupabase()
+    const { data: prevRows, error: e1 } = await sb
+      .from('budgets')
+      .select('category_id, amount')
+      .eq('month_key', prev)
+    if (e1) throw e1
+    const { data: curRows, error: e2 } = await sb
+      .from('budgets')
+      .select('category_id')
+      .eq('month_key', monthKey)
+    if (e2) throw e2
+    const existing = new Set((curRows ?? []).map((r) => r.category_id))
+    const toInsert = (prevRows ?? [])
+      .filter((r) => !existing.has(r.category_id))
+      .map((r) => ({ user_id, category_id: r.category_id, month_key: monthKey, amount: r.amount }))
+    if (toInsert.length === 0) return 0
+    const { error: e3 } = await sb.from('budgets').insert(toInsert)
+    if (e3) throw e3
+    return toInsert.length
   },
 }

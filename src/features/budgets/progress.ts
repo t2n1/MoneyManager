@@ -64,11 +64,8 @@ export function buildBudgetReport(
   })
   lines.sort((a, b) => b.ratio - a.ratio)
 
-  // Tổng không dùng ngưỡng "warn" 80% như từng dòng — chỉ báo "over" khi
-  // tổng chi vượt tổng hạn mức, còn lại "ok" (tránh báo động giả khi tổng
-  // gần 80-99% nhưng chưa có danh mục nào thực sự vượt).
-  const totalStatus: BudgetStatus =
-    totalBudgeted > 0 && totalSpent >= totalBudgeted ? 'over' : 'ok'
+  const totalRatio = totalBudgeted > 0 ? totalSpent / totalBudgeted : 0
+  const totalStatus = statusOf(totalRatio)
   return {
     lines,
     totalBudgeted,

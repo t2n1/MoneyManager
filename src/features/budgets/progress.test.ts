@@ -54,7 +54,7 @@ describe('buildBudgetReport (base = JPY)', () => {
     ])
     expect(r.totalBudgeted).toBe(15_000)
     expect(r.totalSpent).toBe(14_000)
-    expect(r.totalStatus).toBe('ok') // 14000/15000 = 0.933 < 1
+    expect(r.totalStatus).toBe('warn') // 14000/15000 = 0.933 → ≥80% = warn
     expect(r.overCount).toBe(1)
     expect(r.hasMissingRate).toBe(false)
   })

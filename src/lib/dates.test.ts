@@ -4,6 +4,8 @@ import {
   formatMonthLabel,
   getMonthRange,
   monthKeyForDate,
+  monthKeyString,
+  parseMonthKey,
   toISODate,
 } from './dates'
 
@@ -81,5 +83,20 @@ describe('toISODate / formatMonthLabel', () => {
 
   it('formatMonthLabel tiếng Việt', () => {
     expect(formatMonthLabel({ year: 2026, month: 7 })).toBe('Tháng 7/2026')
+  })
+})
+
+describe('monthKeyString / parseMonthKey', () => {
+  it('monthKeyString đệm 0 cho tháng < 10', () => {
+    expect(monthKeyString({ year: 2026, month: 7 })).toBe('2026-07')
+    expect(monthKeyString({ year: 2026, month: 12 })).toBe('2026-12')
+  })
+
+  it('parseMonthKey đảo ngược monthKeyString', () => {
+    expect(parseMonthKey('2026-07')).toEqual({ year: 2026, month: 7 })
+    expect(parseMonthKey(monthKeyString({ year: 2025, month: 1 }))).toEqual({
+      year: 2025,
+      month: 1,
+    })
   })
 })

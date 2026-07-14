@@ -42,3 +42,14 @@ export function addMonths(key: MonthKey, delta: number): MonthKey {
 export function formatMonthLabel(key: MonthKey): string {
   return `Tháng ${key.month}/${key.year}`
 }
+
+/** MonthKey → "YYYY-MM" (dùng cho budgets.month_key). */
+export function monthKeyString(key: MonthKey): string {
+  return `${key.year}-${pad(key.month)}`
+}
+
+/** "YYYY-MM" → MonthKey. */
+export function parseMonthKey(s: string): MonthKey {
+  const [year, month] = s.split('-').map(Number)
+  return { year, month }
+}

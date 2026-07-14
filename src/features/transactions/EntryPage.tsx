@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { useCreateTransaction } from '../../hooks/queries'
+import { Link } from 'react-router-dom'
+import { useBudgetAlert, useCreateTransaction } from '../../hooks/queries'
 import { TransactionForm } from './TransactionForm'
 
 /** Màn hình mặc định khi mở app — nhập một giao dịch phải < 5 giây. */
 export function EntryPage() {
   const create = useCreateTransaction()
+  const { overCount } = useBudgetAlert()
   const [toast, setToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -12,6 +14,14 @@ export function EntryPage() {
 
   return (
     <div className="flex h-[calc(100dvh-5rem)] flex-col p-3 lg:h-dvh lg:p-6">
+      {overCount > 0 && (
+        <Link
+          to="/reports?view=budget"
+          className="mb-2 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700"
+        >
+          ⚠️ {overCount} danh mục vượt ngân sách tháng này — xem chi tiết ›
+        </Link>
+      )}
       <TransactionForm
         submitLabel="Lưu"
         resetAfterSubmit

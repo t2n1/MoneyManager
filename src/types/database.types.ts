@@ -69,6 +69,16 @@ export type AccountBalanceRow = {
   balance: number
 }
 
+export type BudgetRow = {
+  id: string
+  user_id: string
+  category_id: string
+  month_key: string // "YYYY-MM"
+  amount: number // minor units theo base_currency
+  created_at: string
+  updated_at: string
+}
+
 type InsertOf<Row, Required extends keyof Row, Optional extends keyof Row> =
   Pick<Row, Required> & Partial<Pick<Row, Optional>>
 
@@ -128,6 +138,16 @@ export type Database = {
             | 'note'
           >
         >
+        Relationships: []
+      }
+      budgets: {
+        Row: BudgetRow
+        Insert: InsertOf<
+          BudgetRow,
+          'user_id' | 'category_id' | 'month_key' | 'amount',
+          'id'
+        >
+        Update: Partial<Pick<BudgetRow, 'amount'>>
         Relationships: []
       }
     }

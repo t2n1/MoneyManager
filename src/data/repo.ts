@@ -3,6 +3,7 @@ import type {
   AccountBalanceRow,
   AccountRow,
   AccountType,
+  BudgetRow,
   CategoryRow,
   CategoryType,
   ProfileRow,
@@ -82,4 +83,12 @@ export interface Repo {
   createCategory(input: NewCategory): Promise<CategoryRow>
   updateCategory(id: string, patch: CategoryPatch): Promise<CategoryRow>
   reorderCategories(orderedIds: string[]): Promise<void>
+
+  listBudgets(monthKey: string): Promise<BudgetRow[]>
+  /** Tạo mới hoặc cập nhật hạn mức (unique user_id+category_id+month_key). */
+  upsertBudget(categoryId: string, monthKey: string, amount: number): Promise<BudgetRow>
+  deleteBudget(id: string): Promise<void>
+  /** Chép hạn mức từ tháng liền trước vào monthKey; bỏ qua danh mục đã có hạn mức
+   *  ở tháng đích. Trả về số hạn mức đã chép. */
+  copyBudgetsFromPreviousMonth(monthKey: string): Promise<number>
 }

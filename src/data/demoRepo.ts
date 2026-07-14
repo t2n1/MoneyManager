@@ -1,8 +1,9 @@
-import { toISODate } from '../lib/dates'
+import { addMonths, monthKeyForDate, monthKeyString, parseMonthKey, toISODate } from '../lib/dates'
 import { filterTransactions } from '../features/transactions/filter'
 import type {
   AccountBalanceRow,
   AccountRow,
+  BudgetRow,
   CategoryRow,
   CategoryType,
   ProfileRow,
@@ -23,7 +24,7 @@ import type {
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
 // Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-const STORAGE_KEY = 'sct-demo-db-v2' // v2: đa tiền tệ (v1 cũ bị bỏ qua, tự seed lại)
+const STORAGE_KEY = 'sct-demo-db-v3' // v3: thêm budgets
 const DEMO_USER = 'demo-user'
 
 interface DemoDB {
@@ -31,6 +32,7 @@ interface DemoDB {
   accounts: AccountRow[]
   categories: CategoryRow[]
   transactions: TransactionRow[]
+  budgets: BudgetRow[]
 }
 
 const uuid = () => crypto.randomUUID()
@@ -142,6 +144,22 @@ function seed(): DemoDB {
     tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(39), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
   ]
 
+  const thisMonth = monthKeyString(monthKeyForDate(toISODate(new Date()), 1))
+  const budget = (categoryName: string, amount: number): BudgetRow => ({
+    id: uuid(),
+    user_id: DEMO_USER,
+    category_id: cat(categoryName, 'expense').id,
+    month_key: thisMonth,
+    amount,
+    created_at: nowISO(),
+    updated_at: nowISO(),
+  })
+  const budgets = [
+    budget('Ăn uống', 40_000), // ¥40.000
+    budget('Đi lại', 8_000), // ¥8.000
+    budget('Mua sắm', 20_000), // ¥20.000
+  ]
+
   return {
     profile: {
       user_id: DEMO_USER,
@@ -153,6 +171,7 @@ function seed(): DemoDB {
     accounts,
     categories,
     transactions,
+    budgets,
   }
 }
 
@@ -328,5 +347,64 @@ export const demoRepo: Repo = {
       if (cat) cat.sort_order = i
     })
     save(db)
+  },
+
+  async listBudgets(monthKey: string) {
+    return load().budgets.filter((b) => b.month_key === monthKey)
+  },
+
+  async upsertBudget(categoryId: string, monthKey: string, amount: number) {
+    const db = load()
+    const existing = db.budgets.find(
+      (b) => b.category_id === categoryId && b.month_key === monthKey,
+    )
+    if (existing) {
+      existing.amount = amount
+      existing.updated_at = nowISO()
+      save(db)
+      return existing
+    }
+    const row: BudgetRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      category_id: categoryId,
+      month_key: monthKey,
+      amount,
+      created_at: nowISO(),
+      updated_at: nowISO(),
+    }
+    db.budgets.push(row)
+    save(db)
+    return row
+  },
+
+  async deleteBudget(id: string) {
+    const db = load()
+    db.budgets = db.budgets.filter((b) => b.id !== id)
+    save(db)
+  },
+
+  async copyBudgetsFromPreviousMonth(monthKey: string) {
+    const db = load()
+    const prev = monthKeyString(addMonths(parseMonthKey(monthKey), -1))
+    const existingCats = new Set(
+      db.budgets.filter((b) => b.month_key === monthKey).map((b) => b.category_id),
+    )
+    const toCopy = db.budgets.filter(
+      (b) => b.month_key === prev && !existingCats.has(b.category_id),
+    )
+    for (const b of toCopy) {
+      db.budgets.push({
+        id: uuid(),
+        user_id: DEMO_USER,
+        category_id: b.category_id,
+        month_key: monthKey,
+        amount: b.amount,
+        created_at: nowISO(),
+        updated_at: nowISO(),
+      })
+    }
+    save(db)
+    return toCopy.length
   },
 }

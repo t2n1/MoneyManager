@@ -10,8 +10,10 @@ import {
   type TransactionPatch,
   type TxFilter,
 } from '../data'
-import { getMonthRange, type MonthKey } from '../lib/dates'
+import { getMonthRange, monthKeyForDate, monthKeyString, toISODate, type MonthKey } from '../lib/dates'
+import { buildBudgetReport, type BudgetReport } from '../features/budgets/progress'
 import { fetchRates } from '../lib/rates'
+import type { CurrencyCode } from '../lib/money'
 import type { TransactionRow } from '../types/database.types'
 import { useProfile } from './useProfile'
 
@@ -193,4 +195,81 @@ export function useReorderCategories() {
     mutationFn: (orderedIds: string[]) => repo.reorderCategories(orderedIds),
     onSettled: () => qc.invalidateQueries({ queryKey: ['categories'] }),
   })
+}
+
+// --- Ngân sách tháng (GĐ3) ---
+
+export function useBudgets(monthKey: string) {
+  return useQuery({
+    queryKey: ['budgets', monthKey],
+    queryFn: () => repo.listBudgets(monthKey),
+  })
+}
+
+function invalidateBudgets(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['budgets'] })
+}
+
+export function useUpsertBudget() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      categoryId,
+      monthKey,
+      amount,
+    }: {
+      categoryId: string
+      monthKey: string
+      amount: number
+    }) => repo.upsertBudget(categoryId, monthKey, amount),
+    onSettled: () => invalidateBudgets(qc),
+  })
+}
+
+export function useDeleteBudget() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => repo.deleteBudget(id),
+    onSettled: () => invalidateBudgets(qc),
+  })
+}
+
+export function useCopyBudgetsFromPreviousMonth() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (monthKey: string) => repo.copyBudgetsFromPreviousMonth(monthKey),
+    onSettled: () => invalidateBudgets(qc),
+  })
+}
+
+/** Kết hợp budgets + giao dịch tháng + tỷ giá → báo cáo tiến độ ngân sách. */
+export function useBudgetReport(monthKey: MonthKey): {
+  report: BudgetReport | undefined
+  isLoading: boolean
+} {
+  const monthKeyStr = monthKeyString(monthKey)
+  const budgetsQ = useBudgets(monthKeyStr)
+  const { data: monthTxs, isLoading: txLoading } = useMonthTransactions(monthKey)
+  const { data: accounts = [] } = useAccounts()
+  const { base, rates } = useRates()
+
+  const currencyOf = (id: string): CurrencyCode =>
+    accounts.find((a) => a.id === id)?.currency ?? base
+
+  const budgets = budgetsQ.data
+  const report =
+    budgets && monthTxs
+      ? buildBudgetReport(budgets, monthTxs, currencyOf, base, rates ?? {})
+      : undefined
+
+  return { report, isLoading: budgetsQ.isLoading || txLoading }
+}
+
+/** Số danh mục vượt ngân sách trong "tháng hiện tại" — cho badge cảnh báo. */
+export function useBudgetAlert(): { overCount: number; monthKey: MonthKey } {
+  const { data: profile } = useProfile()
+  const monthStartDay = profile?.month_start_day ?? 1
+  const monthKey = monthKeyForDate(toISODate(new Date()), monthStartDay)
+  const { report } = useBudgetReport(monthKey)
+  return { overCount: report?.overCount ?? 0, monthKey }
 }

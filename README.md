@@ -6,7 +6,9 @@ Dùng trên cả điện thoại và PC, cài được như PWA.
 ## Nguyên tắc cốt lõi
 
 - **Nhập một giao dịch < 5 giây** — mở app là vào thẳng màn hình nhập.
-- Tiền tệ chỉ VND, lưu dạng số nguyên (`bigint`) — không bao giờ dùng float.
+- Đa tiền tệ **JPY / VND / USD**: mỗi tài khoản một loại tiền; lưu số nguyên đơn vị nhỏ nhất
+  (`bigint` — yên/đồng/cent), không bao giờ dùng float. Tổng quan quy đổi về JPY bằng tỷ giá
+  tự động (open.er-api.com, cache 12h).
 - Không backend riêng — client gọi thẳng Supabase, bảo mật bằng Row Level Security.
 - Chi phí vận hành mục tiêu: 0 đồng (Supabase free tier + Vercel free tier).
 

@@ -8,7 +8,13 @@ Web app quản lý chi tiêu cá nhân tiếng Việt, lấy cảm hứng từ M
 
 **Nguyên tắc UX số 1:** nhập một giao dịch phải mất dưới 5 giây. Mở app là vào thẳng màn hình nhập.
 
-**Tiền tệ:** chỉ VND, lưu số nguyên đồng (`bigint`). Tuyệt đối không dùng float cho tiền.
+**Tiền tệ (cập nhật 2026-07-14):** đa tiền tệ — **JPY (chính), VND, USD**. Mỗi tài khoản một
+loại tiền cố định; tiền lưu `bigint` ở **đơn vị nhỏ nhất** (JPY = yên, VND = đồng, USD = cent).
+Tuyệt đối không dùng float cho tiền. Tổng quan/báo cáo quy đổi về `profiles.base_currency`
+(mặc định JPY) bằng tỷ giá tự động từ open.er-api.com (miễn phí, không cần key, có VND —
+ECB/frankfurter không có VND), cache localStorage 12h; thiếu tỷ giá thì hiển thị tách từng
+loại tiền. Chuyển khoản xuyên tệ: 1 dòng giao dịch với `amount` (tiền nguồn) + `to_amount`
+(tiền đích) — tỷ giá thực tế nằm ngay trong giao dịch.
 
 **Chi phí vận hành:** 0 đồng (Supabase free tier + Vercel free tier).
 
@@ -32,13 +38,17 @@ Web app quản lý chi tiêu cá nhân tiếng Việt, lấy cảm hứng từ M
 | 6 | Chống tham chiếu chéo user | Composite FK: `unique (id, user_id)` trên `categories`/`accounts`; `transactions` FK `(category_id, user_id)`. RLS lo phần đọc, FK lo phần ghi |
 | 7 | Xóa danh mục/tài khoản | Soft-archive (`is_archived`), không xóa cứng — giao dịch cũ giữ nguyên tham chiếu |
 | 8 | Offline | PWA chỉ cache app shell. KHÔNG làm offline queue ghi dữ liệu (ngoài phạm vi cả 3 giai đoạn) |
+| 9 | Đa tiền tệ (2026-07-14) | Tiền theo TÀI KHOẢN (`accounts.currency`), không theo giao dịch. Loại phương án tiền theo giao dịch (thêm bước chọn khi nhập, số dư hỗn hợp) |
+| 10 | Quy đổi báo cáo | Tự động về JPY qua open.er-api.com + cache 12h; fallback tách loại tiền khi thiếu tỷ giá |
+| 11 | CK xuyên tệ | Nhập số tiền 2 đầu (`amount` + `to_amount`), không cần bảng tỷ giá riêng |
+| 12 | Tài khoản mặc định | Tiền mặt (JPY), Ngân hàng (JPY), Đầu tư VN (VND), Dự trữ USD (USD) |
 
 ## 4. Database schema
 
 Chi tiết đầy đủ (DDL, RLS, trigger seed) nằm trong [supabase/migrations/0001_init.sql](../../../supabase/migrations/0001_init.sql). Tóm tắt:
 
-- **`profiles`** — 1-1 với `auth.users`: `display_name`, `month_start_day` (1–28, mặc định 1).
-- **`accounts`** — `name`, `type` (`cash`|`bank`), `initial_balance bigint`, `sort_order`, `is_archived`.
+- **`profiles`** — 1-1 với `auth.users`: `display_name`, `base_currency` (mặc định JPY), `month_start_day` (1–28, mặc định 1).
+- **`accounts`** — `name`, `type` (`cash`|`bank`), `currency` (ISO 4217), `initial_balance bigint` (minor units), `sort_order`, `is_archived`.
 - **`categories`** — `name`, `type` (`expense`|`income`), `icon` (emoji), `sort_order`, `is_archived`.
 - **`transactions`** — `type` (`expense`|`income`|`transfer`), `amount bigint > 0`, `category_id` (null khi transfer), `account_id`, `to_account_id` (chỉ khi transfer, khác `account_id`), `occurred_on date`, `note`. CHECK constraint ràng buộc hình dạng theo `type`.
 - **View `account_balances`** (`security_invoker`) — số dư = `initial_balance` + tổng giao dịch (income +, expense −, transfer − nguồn / + đích).

@@ -1,18 +1,26 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { resetDemoData } from '../../data/demoRepo'
-import { useAccountBalances, useProfile } from '../../hooks/queries'
+import { useAccountBalances, useProfile, useRates } from '../../hooks/queries'
 import { isDemoMode } from '../../lib/demo'
 import { getSupabase } from '../../lib/supabase'
-import { formatVND } from '../../lib/money'
+import { CURRENCIES, formatMoney } from '../../lib/money'
+import { convertToBase } from '../../lib/rates'
 
 export function SettingsPage() {
   const { data: profile } = useProfile()
   const { data: balances = [] } = useAccountBalances()
+  const { base, rates } = useRates()
   const qc = useQueryClient()
   const navigate = useNavigate()
 
-  const total = balances.reduce((s, b) => s + b.balance, 0)
+  // Tổng tài sản quy đổi về base; thiếu tỷ giá cho bất kỳ tài khoản nào → null
+  const total = balances.reduce<number | null>((sum, b) => {
+    if (sum === null) return null
+    const v = convertToBase(b.balance, b.currency, base, rates ?? {})
+    return v === null ? null : sum + v
+  }, 0)
+  const hasForeign = balances.some((b) => b.currency !== base)
 
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
@@ -47,21 +55,34 @@ export function SettingsPage() {
             <div key={b.id} className="flex items-center justify-between py-2">
               <span className="text-sm text-gray-800">
                 {b.type === 'cash' ? '💵' : '🏦'} {b.name}
+                <span className="ml-1 text-xs text-gray-400">{b.currency}</span>
               </span>
               <span
                 className={`text-sm font-semibold ${b.balance < 0 ? 'text-red-600' : 'text-gray-800'}`}
               >
-                {formatVND(b.balance)}
+                {formatMoney(b.balance, b.currency)}
               </span>
             </div>
           ))}
           <div className="flex items-center justify-between py-2">
-            <span className="text-sm font-semibold text-gray-800">Tổng</span>
-            <span className={`text-sm font-bold ${total < 0 ? 'text-red-600' : 'text-gray-900'}`}>
-              {formatVND(total)}
+            <span className="text-sm font-semibold text-gray-800">
+              Tổng ({CURRENCIES[base].label})
+            </span>
+            <span
+              className={`text-sm font-bold ${total !== null && total < 0 ? 'text-red-600' : 'text-gray-900'}`}
+            >
+              {total !== null
+                ? `${hasForeign ? '≈ ' : ''}${formatMoney(total, base)}`
+                : 'Đang tải tỷ giá…'}
             </span>
           </div>
         </div>
+        {hasForeign && rates && (
+          <p className="mt-2 text-xs text-gray-400">
+            Tỷ giá: ¥1 ≈ {rates.VND?.toFixed(2)} ₫ · $1 ≈ ¥
+            {rates.USD ? (1 / rates.USD).toFixed(1) : '?'} (open.er-api.com, cache 12h)
+          </p>
+        )}
       </section>
 
       <section className="rounded-xl bg-white p-3 shadow-sm">
@@ -80,7 +101,7 @@ export function SettingsPage() {
 
       <p className="text-center text-xs text-gray-400">
         Sổ Chi Tiêu · Giai đoạn 1 (MVP)
-        {profile && ` · Tháng bắt đầu ngày ${profile.month_start_day}`}
+        {profile && ` · Tháng bắt đầu ngày ${profile.month_start_day} · Quy đổi ${base}`}
       </p>
     </div>
   )

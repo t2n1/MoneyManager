@@ -4,6 +4,7 @@ import {
   useCategories,
   useDeleteTransaction,
   useMonthTransactions,
+  useRates,
   useUpdateTransaction,
 } from '../../hooks/queries'
 import {
@@ -13,7 +14,8 @@ import {
   toISODate,
   type MonthKey,
 } from '../../lib/dates'
-import { formatVND } from '../../lib/money'
+import { formatMoney, type CurrencyCode } from '../../lib/money'
+import { convertToBase, type Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
 import { TransactionForm } from './TransactionForm'
 
@@ -30,6 +32,47 @@ const AMOUNT_STYLE: Record<TransactionRow['type'], { color: string; sign: string
   transfer: { color: 'text-gray-500', sign: '' },
 }
 
+/**
+ * Tổng thu/chi quy đổi về base. Trả về:
+ * - {converted, hasForeign} khi đủ tỷ giá
+ * - null khi thiếu tỷ giá → caller fallback hiển thị tách loại tiền
+ */
+function sumInBase(
+  txs: TransactionRow[],
+  kind: 'income' | 'expense',
+  currencyOf: (accountId: string) => CurrencyCode,
+  base: CurrencyCode,
+  rates: Rates | undefined,
+): { value: number; hasForeign: boolean } | null {
+  let value = 0
+  let hasForeign = false
+  for (const t of txs) {
+    if (t.type !== kind) continue
+    const cur = currencyOf(t.account_id)
+    if (cur !== base) hasForeign = true
+    const v = convertToBase(t.amount, cur, base, rates ?? {})
+    if (v === null) return null
+    value += v
+  }
+  return { value, hasForeign }
+}
+
+/** Fallback: tổng theo từng loại tiền, ví dụ "¥3.280 · 1.500.000 ₫" */
+function sumPerCurrency(
+  txs: TransactionRow[],
+  kind: 'income' | 'expense',
+  currencyOf: (accountId: string) => CurrencyCode,
+): string {
+  const sums = new Map<CurrencyCode, number>()
+  for (const t of txs) {
+    if (t.type !== kind) continue
+    const cur = currencyOf(t.account_id)
+    sums.set(cur, (sums.get(cur) ?? 0) + t.amount)
+  }
+  if (sums.size === 0) return '0'
+  return [...sums.entries()].map(([cur, v]) => formatMoney(v, cur)).join(' · ')
+}
+
 export function LedgerPage() {
   const [monthKey, setMonthKey] = useState<MonthKey>(() => monthKeyForDate(toISODate(new Date())))
   const [editing, setEditing] = useState<TransactionRow | null>(null)
@@ -37,6 +80,7 @@ export function LedgerPage() {
   const { data: transactions = [], isLoading } = useMonthTransactions(monthKey)
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
+  const { base, rates } = useRates()
   const update = useUpdateTransaction()
   const remove = useDeleteTransaction()
 
@@ -53,17 +97,18 @@ export function LedgerPage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  const accountName = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? '?'
+  const accountOf = (id: string | null) => accounts.find((a) => a.id === id)
+  const accountName = (id: string | null) => accountOf(id)?.name ?? '?'
+  const currencyOf = (id: string): CurrencyCode => accountOf(id)?.currency ?? base
   const categoryOf = (id: string | null) => categories.find((c) => c.id === id)
 
   const totals = useMemo(() => {
     // Chuyển khoản KHÔNG tính vào thu/chi (quyết định thiết kế #2)
-    const income = transactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-    const expense = transactions
-      .filter((t) => t.type === 'expense')
-      .reduce((s, t) => s + t.amount, 0)
-    return { income, expense, diff: income - expense }
-  }, [transactions])
+    const income = sumInBase(transactions, 'income', currencyOf, base, rates)
+    const expense = sumInBase(transactions, 'expense', currencyOf, base, rates)
+    return { income, expense }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transactions, accounts, base, rates])
 
   const days = useMemo(() => {
     const map = new Map<string, TransactionRow[]>()
@@ -80,6 +125,9 @@ export function LedgerPage() {
     await remove.mutateAsync(tx.id)
     setEditing(null)
   }
+
+  const approx = (r: { value: number; hasForeign: boolean }) =>
+    `${r.hasForeign ? '≈ ' : ''}${formatMoney(r.value, base)}`
 
   return (
     <div className="p-3 lg:p-6">
@@ -104,22 +152,37 @@ export function LedgerPage() {
         </button>
       </div>
 
-      {/* Tổng quan tháng */}
+      {/* Tổng quan tháng (quy đổi về base; thiếu tỷ giá → tách loại tiền) */}
       <div className="mb-4 grid grid-cols-3 gap-2 rounded-xl bg-white p-3 text-center shadow-sm">
         <div>
           <div className="text-xs text-gray-500">Tổng thu</div>
-          <div className="text-sm font-semibold text-green-600">{formatVND(totals.income)}</div>
+          <div className="text-sm font-semibold text-green-600">
+            {totals.income ? approx(totals.income) : sumPerCurrency(transactions, 'income', currencyOf)}
+          </div>
         </div>
         <div>
           <div className="text-xs text-gray-500">Tổng chi</div>
-          <div className="text-sm font-semibold text-red-600">{formatVND(totals.expense)}</div>
+          <div className="text-sm font-semibold text-red-600">
+            {totals.expense
+              ? approx(totals.expense)
+              : sumPerCurrency(transactions, 'expense', currencyOf)}
+          </div>
         </div>
         <div>
           <div className="text-xs text-gray-500">Chênh lệch</div>
           <div
-            className={`text-sm font-semibold ${totals.diff < 0 ? 'text-red-600' : 'text-gray-800'}`}
+            className={`text-sm font-semibold ${
+              totals.income && totals.expense && totals.income.value - totals.expense.value < 0
+                ? 'text-red-600'
+                : 'text-gray-800'
+            }`}
           >
-            {formatVND(totals.diff)}
+            {totals.income && totals.expense
+              ? `${totals.income.hasForeign || totals.expense.hasForeign ? '≈ ' : ''}${formatMoney(
+                  totals.income.value - totals.expense.value,
+                  base,
+                )}`
+              : '—'}
           </div>
         </div>
       </div>
@@ -131,24 +194,28 @@ export function LedgerPage() {
         <p className="py-10 text-center text-gray-400">Chưa có giao dịch trong tháng này</p>
       ) : (
         days.map(([day, txs]) => {
-          const dayIncome = txs.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-          const dayExpense = txs
-            .filter((t) => t.type === 'expense')
-            .reduce((s, t) => s + t.amount, 0)
+          const dayIncome = sumInBase(txs, 'income', currencyOf, base, rates)
+          const dayExpense = sumInBase(txs, 'expense', currencyOf, base, rates)
           return (
             <section key={day} className="mb-3">
               <div className="mb-1 flex items-baseline justify-between px-1 text-xs text-gray-500">
                 <span className="font-medium">{formatDayHeader(day)}</span>
                 <span>
-                  {dayIncome > 0 && <span className="text-green-600">+{formatVND(dayIncome)}</span>}
-                  {dayIncome > 0 && dayExpense > 0 && ' · '}
-                  {dayExpense > 0 && <span className="text-red-600">-{formatVND(dayExpense)}</span>}
+                  {dayIncome && dayIncome.value > 0 && (
+                    <span className="text-green-600">+{approx(dayIncome)}</span>
+                  )}
+                  {dayIncome && dayIncome.value > 0 && dayExpense && dayExpense.value > 0 && ' · '}
+                  {dayExpense && dayExpense.value > 0 && (
+                    <span className="text-red-600">-{approx(dayExpense)}</span>
+                  )}
                 </span>
               </div>
               <div className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-sm">
                 {txs.map((tx) => {
                   const cat = categoryOf(tx.category_id)
                   const style = AMOUNT_STYLE[tx.type]
+                  const srcCur = currencyOf(tx.account_id)
+                  const dstCur = tx.to_account_id ? currencyOf(tx.to_account_id) : srcCur
                   return (
                     <button
                       key={tx.id}
@@ -170,9 +237,14 @@ export function LedgerPage() {
                           </span>
                         )}
                       </span>
-                      <span className={`text-sm font-semibold ${style.color}`}>
+                      <span className={`text-right text-sm font-semibold ${style.color}`}>
                         {style.sign}
-                        {formatVND(tx.amount)}
+                        {formatMoney(tx.amount, srcCur)}
+                        {tx.to_amount != null && (
+                          <span className="block text-xs font-normal text-gray-400">
+                            → +{formatMoney(tx.to_amount, dstCur)}
+                          </span>
+                        )}
                       </span>
                     </button>
                   )

@@ -11,8 +11,9 @@ import type { NewTransaction, Repo, TransactionPatch } from './repo'
 
 // Repo demo: dữ liệu lưu localStorage, seed giống hệt trigger handle_new_user
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
+// Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-const STORAGE_KEY = 'sct-demo-db-v1'
+const STORAGE_KEY = 'sct-demo-db-v2' // v2: đa tiền tệ (v1 cũ bị bỏ qua, tự seed lại)
 const DEMO_USER = 'demo-user'
 
 interface DemoDB {
@@ -32,12 +33,19 @@ function daysAgo(n: number): string {
 }
 
 function seed(): DemoDB {
-  const account = (name: string, type: AccountRow['type'], sort_order: number): AccountRow => ({
+  const account = (
+    name: string,
+    type: AccountRow['type'],
+    currency: AccountRow['currency'],
+    initial_balance: number,
+    sort_order: number,
+  ): AccountRow => ({
     id: uuid(),
     user_id: DEMO_USER,
     name,
     type,
-    initial_balance: type === 'cash' ? 500_000 : 8_000_000,
+    currency,
+    initial_balance,
     sort_order,
     is_archived: false,
     created_at: nowISO(),
@@ -59,7 +67,12 @@ function seed(): DemoDB {
     created_at: nowISO(),
   })
 
-  const accounts = [account('Tiền mặt', 'cash', 0), account('Ngân hàng', 'bank', 1)]
+  const accounts = [
+    account('Tiền mặt', 'cash', 'JPY', 30_000, 0), // ¥30.000
+    account('Ngân hàng', 'bank', 'JPY', 800_000, 1), // ¥800.000
+    account('Đầu tư VN', 'bank', 'VND', 50_000_000, 2), // 50.000.000 ₫
+    account('Dự trữ USD', 'bank', 'USD', 200_000, 3), // $2.000,00
+  ]
 
   const categories = [
     category('Ăn uống', 'expense', '🍜', 0),
@@ -81,40 +94,49 @@ function seed(): DemoDB {
 
   const cat = (name: string, type: CategoryType) =>
     categories.find((c) => c.name === name && c.type === type)!
-  const [cash, bank] = accounts
+  const [cash, bank, invest] = accounts
 
   const tx = (
     partial: Pick<TransactionRow, 'type' | 'amount' | 'occurred_on' | 'note'> &
-      Partial<Pick<TransactionRow, 'category_id' | 'account_id' | 'to_account_id'>>,
+      Partial<Pick<TransactionRow, 'category_id' | 'account_id' | 'to_account_id' | 'to_amount'>>,
   ): TransactionRow => ({
     id: uuid(),
     user_id: DEMO_USER,
     category_id: null,
     account_id: cash.id,
     to_account_id: null,
+    to_amount: null,
     created_at: nowISO(),
     updated_at: nowISO(),
     ...partial,
   })
 
   const transactions = [
-    tx({ type: 'expense', amount: 45_000, occurred_on: daysAgo(0), note: 'Bún bò', category_id: cat('Ăn uống', 'expense').id }),
-    tx({ type: 'expense', amount: 12_000, occurred_on: daysAgo(0), note: 'Gửi xe', category_id: cat('Đi lại', 'expense').id }),
-    tx({ type: 'expense', amount: 128_000, occurred_on: daysAgo(1), note: 'Ăn tối cùng bạn', category_id: cat('Ăn uống', 'expense').id }),
-    tx({ type: 'expense', amount: 259_000, occurred_on: daysAgo(1), note: 'Áo thun', category_id: cat('Mua sắm', 'expense').id, account_id: bank.id }),
-    tx({ type: 'expense', amount: 520_000, occurred_on: daysAgo(3), note: 'Tiền điện tháng này', category_id: cat('Hóa đơn & tiện ích', 'expense').id, account_id: bank.id }),
-    tx({ type: 'transfer', amount: 2_000_000, occurred_on: daysAgo(4), note: 'Rút tiền mặt', account_id: bank.id, to_account_id: cash.id }),
-    tx({ type: 'expense', amount: 89_000, occurred_on: daysAgo(5), note: 'Thuốc cảm', category_id: cat('Sức khỏe', 'expense').id }),
-    tx({ type: 'income', amount: 15_000_000, occurred_on: daysAgo(9), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
-    tx({ type: 'expense', amount: 65_000, occurred_on: daysAgo(32), note: 'Xem phim', category_id: cat('Giải trí', 'expense').id }),
-    tx({ type: 'expense', amount: 210_000, occurred_on: daysAgo(35), note: 'Siêu thị', category_id: cat('Mua sắm', 'expense').id, account_id: bank.id }),
-    tx({ type: 'income', amount: 15_000_000, occurred_on: daysAgo(39), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
+    // Chi tiêu hàng ngày bằng JPY
+    tx({ type: 'expense', amount: 850, occurred_on: daysAgo(0), note: 'Cơm trưa', category_id: cat('Ăn uống', 'expense').id }),
+    tx({ type: 'expense', amount: 210, occurred_on: daysAgo(0), note: 'Tàu điện', category_id: cat('Đi lại', 'expense').id }),
+    tx({ type: 'expense', amount: 3_280, occurred_on: daysAgo(1), note: 'Ăn tối cùng bạn', category_id: cat('Ăn uống', 'expense').id }),
+    tx({ type: 'expense', amount: 4_990, occurred_on: daysAgo(1), note: 'Áo khoác Uniqlo', category_id: cat('Mua sắm', 'expense').id, account_id: bank.id }),
+    tx({ type: 'expense', amount: 12_400, occurred_on: daysAgo(3), note: 'Tiền điện + gas', category_id: cat('Hóa đơn & tiện ích', 'expense').id, account_id: bank.id }),
+    tx({ type: 'expense', amount: 1_200, occurred_on: daysAgo(5), note: 'Thuốc cảm', category_id: cat('Sức khỏe', 'expense').id }),
+    tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(9), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
+    // Rút tiền mặt JPY (cùng loại tiền → to_amount null)
+    tx({ type: 'transfer', amount: 30_000, occurred_on: daysAgo(4), note: 'Rút tiền mặt', account_id: bank.id, to_account_id: cash.id }),
+    // Chuyển khoản XUYÊN TỆ: ¥50.000 → Đầu tư VN nhận 8.250.000 ₫
+    tx({ type: 'transfer', amount: 50_000, to_amount: 8_250_000, occurred_on: daysAgo(7), note: 'Nạp tài khoản đầu tư', account_id: bank.id, to_account_id: invest.id }),
+    // Thu nhập đầu tư bằng VND
+    tx({ type: 'income', amount: 1_500_000, occurred_on: daysAgo(6), note: 'Cổ tức', category_id: cat('Đầu tư', 'income').id, account_id: invest.id }),
+    // Tháng trước
+    tx({ type: 'expense', amount: 1_800, occurred_on: daysAgo(32), note: 'Xem phim', category_id: cat('Giải trí', 'expense').id }),
+    tx({ type: 'expense', amount: 6_700, occurred_on: daysAgo(35), note: 'Siêu thị', category_id: cat('Mua sắm', 'expense').id, account_id: bank.id }),
+    tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(39), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
   ]
 
   return {
     profile: {
       user_id: DEMO_USER,
       display_name: 'Người dùng demo',
+      base_currency: 'JPY',
       month_start_day: 1,
       created_at: nowISO(),
     },
@@ -165,7 +187,8 @@ export const demoRepo: Repo = {
           if (t.type === 'income' && t.account_id === a.id) return sum + t.amount
           if (t.type === 'expense' && t.account_id === a.id) return sum - t.amount
           if (t.type === 'transfer' && t.account_id === a.id) return sum - t.amount
-          if (t.type === 'transfer' && t.to_account_id === a.id) return sum + t.amount
+          if (t.type === 'transfer' && t.to_account_id === a.id)
+            return sum + (t.to_amount ?? t.amount)
           return sum
         }, 0)
         return {
@@ -173,6 +196,7 @@ export const demoRepo: Repo = {
           user_id: a.user_id,
           name: a.name,
           type: a.type,
+          currency: a.currency,
           is_archived: a.is_archived,
           sort_order: a.sort_order,
           balance: a.initial_balance + delta,

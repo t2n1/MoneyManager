@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { NewTransaction } from '../../data'
 import { toISODate } from '../../lib/dates'
-import { formatVND, parseVND } from '../../lib/money'
+import { CURRENCIES, formatMoney, parseMoney } from '../../lib/money'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
 import { useAccounts, useCategories } from '../../hooks/queries'
 import { NumPad, type NumPadKey } from './NumPad'
@@ -20,7 +20,7 @@ const AMOUNT_COLOR: Record<TransactionType, string> = {
   transfer: 'text-gray-600',
 }
 
-const MAX_AMOUNT_DIGITS = 12 // 999.999.999.999 ₫
+const MAX_AMOUNT_DIGITS = 12
 
 interface TransactionFormProps {
   /** Có giá trị = form sửa; không = form nhập mới */
@@ -42,6 +42,9 @@ export function TransactionForm({
 
   const [type, setType] = useState<TransactionType>(initial?.type ?? 'expense')
   const [digits, setDigits] = useState(initial ? String(initial.amount) : '')
+  const [toDigits, setToDigits] = useState(initial?.to_amount ? String(initial.to_amount) : '')
+  /** CK xuyên tệ trên mobile: numpad đang gõ vào ô nào */
+  const [activeField, setActiveField] = useState<'main' | 'to'>('main')
   const [categoryId, setCategoryId] = useState<string | null>(initial?.category_id ?? null)
   const [accountId, setAccountId] = useState<string | null>(
     initial?.account_id ?? localStorage.getItem(LAST_ACCOUNT_KEY),
@@ -64,23 +67,32 @@ export function TransactionForm({
       ? accountId
       : (activeAccounts[0]?.id ?? null)
 
+  const srcCurrency = activeAccounts.find((a) => a.id === effectiveAccountId)?.currency ?? 'JPY'
+  const dstCurrency = activeAccounts.find((a) => a.id === toAccountId)?.currency ?? srcCurrency
+  const crossCurrency = type === 'transfer' && !!toAccountId && dstCurrency !== srcCurrency
+
   const amount = digits === '' ? 0 : Number(digits)
+  const toAmount = toDigits === '' ? 0 : Number(toDigits)
+
   const canSave =
     amount > 0 &&
     !!effectiveAccountId &&
     !saving &&
     (type === 'transfer'
-      ? !!toAccountId && toAccountId !== effectiveAccountId
+      ? !!toAccountId && toAccountId !== effectiveAccountId && (!crossCurrency || toAmount > 0)
       : !!categoryId && visibleCategories.some((c) => c.id === categoryId))
 
   function switchType(next: TransactionType) {
     setType(next)
     setCategoryId(null)
     setToAccountId(null)
+    setToDigits('')
+    setActiveField('main')
   }
 
   function onNumPadKey(key: NumPadKey) {
-    setDigits((d) => {
+    const setter = activeField === 'to' && crossCurrency ? setToDigits : setDigits
+    setter((d) => {
       if (key === '⌫') return d.slice(0, -1)
       const next = (d + key).replace(/^0+(?=\d)/, '')
       return next.length > MAX_AMOUNT_DIGITS ? d : next
@@ -95,6 +107,7 @@ export function TransactionForm({
       await onSubmit({
         type,
         amount,
+        to_amount: crossCurrency ? toAmount : null,
         category_id: type === 'transfer' ? null : categoryId,
         account_id: effectiveAccountId,
         to_account_id: type === 'transfer' ? toAccountId : null,
@@ -104,9 +117,11 @@ export function TransactionForm({
       localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
       if (resetAfterSubmit) {
         setDigits('')
+        setToDigits('')
         setNote('')
         setCategoryId(null)
         setToAccountId(null)
+        setActiveField('main')
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lưu thất bại, thử lại.')
@@ -132,11 +147,48 @@ export function TransactionForm({
         .filter((a) => a.id !== excludeId)
         .map((a) => (
           <option key={a.id} value={a.id}>
-            {a.type === 'cash' ? '💵' : '🏦'} {a.name}
+            {a.type === 'cash' ? '💵' : '🏦'} {a.name} · {CURRENCIES[a.currency].symbol}
           </option>
         ))}
     </select>
   )
+
+  /** Ô số tiền: div hiển thị trên mobile (numpad gõ), input trên desktop */
+  const amountBox = (
+    field: 'main' | 'to',
+    value: number,
+    currency: typeof srcCurrency,
+    setDigitsFn: (v: string) => void,
+    label?: string,
+  ) => {
+    const isActive = crossCurrency && activeField === field
+    const ring = isActive ? 'ring-2 ring-green-500' : ''
+    return (
+      <div className="flex flex-col gap-0.5">
+        {label && <span className="px-1 text-xs text-gray-500">{label}</span>}
+        <button
+          type="button"
+          onClick={() => setActiveField(field)}
+          className={`rounded-xl bg-white px-4 py-3 text-right text-3xl font-bold shadow-sm ${AMOUNT_COLOR[type]} ${ring} lg:hidden`}
+        >
+          {formatMoney(value, currency)}
+        </button>
+        <input
+          inputMode="numeric"
+          value={value === 0 ? '' : formatMoney(value, currency)}
+          onChange={(e) => {
+            const parsed = String(parseMoney(e.target.value))
+            setDigitsFn(parsed === '0' ? '' : parsed.slice(0, MAX_AMOUNT_DIGITS))
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSubmit()
+          }}
+          placeholder={formatMoney(0, currency)}
+          className={`hidden rounded-xl bg-white px-4 py-3 text-right text-3xl font-bold shadow-sm outline-green-500 lg:block ${AMOUNT_COLOR[type]}`}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -156,29 +208,12 @@ export function TransactionForm({
         ))}
       </div>
 
-      {/* Số tiền: mobile hiển thị (numpad nhập), desktop là input gõ trực tiếp */}
-      <div
-        className={`rounded-xl bg-white px-4 py-3 text-right text-3xl font-bold shadow-sm ${AMOUNT_COLOR[type]} lg:hidden`}
-      >
-        {formatVND(amount)}
-      </div>
-      <input
-        // eslint-disable-next-line jsx-a11y/no-autofocus
-        autoFocus
-        inputMode="numeric"
-        value={digits === '' ? '' : formatVND(amount)}
-        onChange={(e) => {
-          const parsed = String(parseVND(e.target.value))
-          setDigits(parsed === '0' ? '' : parsed.slice(0, MAX_AMOUNT_DIGITS))
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') handleSubmit()
-        }}
-        placeholder="0 ₫"
-        className={`hidden rounded-xl bg-white px-4 py-3 text-right text-3xl font-bold shadow-sm outline-green-500 lg:block ${AMOUNT_COLOR[type]}`}
-      />
+      {/* Số tiền (nguồn); CK xuyên tệ có thêm ô "nhận được" */}
+      {amountBox('main', amount, srcCurrency, setDigits, crossCurrency ? 'Chuyển đi' : undefined)}
+      {crossCurrency &&
+        amountBox('to', toAmount, dstCurrency, setToDigits, `Nhận được (${dstCurrency})`)}
 
-      {/* Tài khoản + ngày + ghi chú */}
+      {/* Tài khoản + ngày */}
       <div className="flex flex-wrap items-center gap-2">
         {type === 'transfer' ? (
           <>

@@ -1,42 +1,57 @@
 import { describe, expect, it } from 'vitest'
-import { formatVND, parseVND } from './money'
+import { CURRENCIES, formatMoney, parseMoney } from './money'
 
-describe('formatVND', () => {
-  it('định dạng số 0', () => {
-    expect(formatVND(0)).toBe('0 ₫')
+// Tiền lưu ở ĐƠN VỊ NHỎ NHẤT (minor units): JPY = yên, VND = đồng, USD = cent.
+
+describe('formatMoney', () => {
+  it('JPY: prefix ¥, không thập phân, nhóm nghìn bằng dấu chấm', () => {
+    expect(formatMoney(0, 'JPY')).toBe('¥0')
+    expect(formatMoney(1234, 'JPY')).toBe('¥1.234')
+    expect(formatMoney(120000, 'JPY')).toBe('¥120.000')
   })
 
-  it('nhóm hàng nghìn bằng dấu chấm', () => {
-    expect(formatVND(1234000)).toBe('1.234.000 ₫')
-    expect(formatVND(50000)).toBe('50.000 ₫')
-    expect(formatVND(999)).toBe('999 ₫')
+  it('VND: suffix ₫, không thập phân', () => {
+    expect(formatMoney(1234000, 'VND')).toBe('1.234.000 ₫')
+    expect(formatMoney(0, 'VND')).toBe('0 ₫')
   })
 
-  it('xử lý giá trị rất lớn (gần 1 nghìn tỷ)', () => {
-    expect(formatVND(999999999999)).toBe('999.999.999.999 ₫')
+  it('USD: prefix $, 2 số thập phân kiểu Việt (phẩy)', () => {
+    expect(formatMoney(123456, 'USD')).toBe('$1.234,56')
+    expect(formatMoney(50, 'USD')).toBe('$0,50')
+    expect(formatMoney(0, 'USD')).toBe('$0,00')
   })
 
-  it('xử lý số âm (chênh lệch tháng)', () => {
-    expect(formatVND(-50000)).toBe('-50.000 ₫')
+  it('số âm: dấu trừ đứng trước tất cả', () => {
+    expect(formatMoney(-1234, 'JPY')).toBe('-¥1.234')
+    expect(formatMoney(-50000, 'VND')).toBe('-50.000 ₫')
+    expect(formatMoney(-123456, 'USD')).toBe('-$1.234,56')
+  })
+
+  it('giá trị rất lớn', () => {
+    expect(formatMoney(999999999999, 'VND')).toBe('999.999.999.999 ₫')
   })
 })
 
-describe('parseVND', () => {
-  it('bỏ qua dấu phân cách và ký hiệu tiền', () => {
-    expect(parseVND('1.234.000 ₫')).toBe(1234000)
-    expect(parseVND('1,234,000')).toBe(1234000)
+describe('parseMoney', () => {
+  it('chỉ giữ chữ số — kết quả là minor units (kiểu ATM)', () => {
+    expect(parseMoney('1.234.000 ₫')).toBe(1234000)
+    expect(parseMoney('$1.234,56')).toBe(123456)
+    expect(parseMoney('¥120.000')).toBe(120000)
+    expect(parseMoney('')).toBe(0)
+    expect(parseMoney('abc')).toBe(0)
   })
 
-  it('chuỗi rỗng hoặc không có chữ số → 0', () => {
-    expect(parseVND('')).toBe(0)
-    expect(parseVND('abc')).toBe(0)
+  it('round-trip với formatMoney cho cả 3 loại tiền', () => {
+    for (const c of ['JPY', 'VND', 'USD'] as const) {
+      expect(parseMoney(formatMoney(987654321, c))).toBe(987654321)
+    }
   })
+})
 
-  it('chỉ giữ chữ số', () => {
-    expect(parseVND('12a3')).toBe(123)
-  })
-
-  it('round-trip với formatVND', () => {
-    expect(parseVND(formatVND(999999999999))).toBe(999999999999)
+describe('CURRENCIES', () => {
+  it('đủ 3 loại tiền với decimals đúng', () => {
+    expect(CURRENCIES.JPY.decimals).toBe(0)
+    expect(CURRENCIES.VND.decimals).toBe(0)
+    expect(CURRENCIES.USD.decimals).toBe(2)
   })
 })

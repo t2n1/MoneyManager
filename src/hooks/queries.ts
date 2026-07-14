@@ -1,10 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { repo, type NewTransaction, type TransactionPatch } from '../data'
 import { getMonthRange, type MonthKey } from '../lib/dates'
+import { fetchRates } from '../lib/rates'
 import type { TransactionRow } from '../types/database.types'
 import { useProfile } from './useProfile'
 
 export { useProfile }
+
+/** Tỷ giá quy đổi về base currency của profile (cache 12h + localStorage). */
+export function useRates() {
+  const { data: profile } = useProfile()
+  const base = profile?.base_currency ?? 'JPY'
+  const query = useQuery({
+    queryKey: ['rates', base],
+    queryFn: () => fetchRates(base),
+    staleTime: 12 * 3600_000,
+    gcTime: 24 * 3600_000,
+    retry: 1,
+  })
+  return { base, rates: query.data, isLoading: query.isLoading }
+}
 
 export function useAccounts() {
   return useQuery({

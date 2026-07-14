@@ -7,6 +7,14 @@
 > demo mode. Task 3 (verify Google OAuth), Task 4 (verify seed/RLS thật) và Task 10
 > (deploy) vẫn chờ checklist A/B/C. Khi có `.env.local`, app tự chuyển sang Supabase —
 > không cần sửa UI.
+>
+> **Cập nhật 2 (2026-07-14): ĐA TIỀN TỆ.** Người dùng sống tại Nhật: JPY chính, VND
+> (tài khoản đầu tư VN), USD (dự trữ). Đã refactor: `accounts.currency` (tiền theo tài
+> khoản), `transactions.to_amount` (CK xuyên tệ nhập 2 số tiền), `profiles.base_currency`
+> (JPY); tiền lưu bigint minor units (USD = cent). Tổng quan quy đổi về JPY bằng tỷ giá
+> open.er-api.com (có VND, không cần key) cache 12h, fallback tách loại tiền. Migration
+> 0001 đã sửa trực tiếp (chưa từng deploy). 4 tài khoản seed: Tiền mặt JPY, Ngân hàng JPY,
+> Đầu tư VN VND, Dự trữ USD. `formatVND/parseVND` → `formatMoney/parseMoney(currency)`.
 
 ## Bối cảnh
 

@@ -9,7 +9,10 @@ import type {
 
 export interface NewTransaction {
   type: TransactionType
+  /** minor units theo currency của tài khoản nguồn */
   amount: number
+  /** CK xuyên tệ: minor units của tài khoản đích; null = cùng loại tiền */
+  to_amount: number | null
   category_id: string | null
   account_id: string
   to_account_id: string | null

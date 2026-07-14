@@ -16,6 +16,8 @@ create extension if not exists moddatetime with schema extensions;
 create table public.profiles (
   user_id uuid primary key references auth.users (id) on delete cascade,
   display_name text,
+  -- Tiền tệ quy đổi cho tổng quan/báo cáo (ISO 4217)
+  base_currency text not null default 'JPY' check (base_currency ~ '^[A-Z]{3}$'),
   -- Ngày bắt đầu "tháng" tùy chỉnh (GĐ3). 1..28 để tháng nào cũng hợp lệ.
   month_start_day int not null default 1 check (month_start_day between 1 and 28),
   created_at timestamptz not null default now()
@@ -26,6 +28,9 @@ create table public.accounts (
   user_id uuid not null references auth.users (id) on delete cascade,
   name text not null,
   type text not null check (type in ('cash', 'bank')),
+  -- Mỗi tài khoản một loại tiền cố định (ISO 4217); giao dịch theo tiền của tài khoản.
+  currency text not null default 'JPY' check (currency ~ '^[A-Z]{3}$'),
+  -- Đơn vị nhỏ nhất của currency: JPY = yên, VND = đồng, USD = cent
   initial_balance bigint not null default 0,
   sort_order int not null default 0,
   is_archived boolean not null default false,
@@ -50,8 +55,11 @@ create table public.transactions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
   type text not null check (type in ('expense', 'income', 'transfer')),
-  -- VND, số nguyên đồng. Không bao giờ dùng float.
+  -- Minor units theo currency của tài khoản nguồn. Không bao giờ dùng float.
   amount bigint not null check (amount > 0),
+  -- Chuyển khoản XUYÊN TỆ: số tiền nhận được ở tài khoản đích (minor units
+  -- theo currency của tài khoản đích). NULL = cùng loại tiền, dùng amount.
+  to_amount bigint check (to_amount > 0),
   category_id uuid,
   account_id uuid not null,
   to_account_id uuid,
@@ -77,6 +85,7 @@ create table public.transactions (
     (
       type <> 'transfer'
       and to_account_id is null
+      and to_amount is null
       and category_id is not null
     )
   )
@@ -129,6 +138,7 @@ select
   a.user_id,
   a.name,
   a.type,
+  a.currency,
   a.is_archived,
   a.sort_order,
   a.initial_balance
@@ -137,7 +147,8 @@ select
           when t.type = 'income'   and t.account_id    = a.id then  t.amount
           when t.type = 'expense'  and t.account_id    = a.id then -t.amount
           when t.type = 'transfer' and t.account_id    = a.id then -t.amount
-          when t.type = 'transfer' and t.to_account_id = a.id then  t.amount
+          -- Xuyên tệ: bên nhận cộng to_amount (minor units của tài khoản đích)
+          when t.type = 'transfer' and t.to_account_id = a.id then coalesce(t.to_amount, t.amount)
           else 0
         end
       ), 0) as balance
@@ -175,9 +186,11 @@ begin
     coalesce(new.raw_user_meta_data ->> 'full_name', split_part(new.email, '@', 1))
   );
 
-  insert into public.accounts (user_id, name, type, sort_order) values
-    (new.id, 'Tiền mặt',  'cash', 0),
-    (new.id, 'Ngân hàng', 'bank', 1);
+  insert into public.accounts (user_id, name, type, currency, sort_order) values
+    (new.id, 'Tiền mặt',   'cash', 'JPY', 0),
+    (new.id, 'Ngân hàng',  'bank', 'JPY', 1),
+    (new.id, 'Đầu tư VN',  'bank', 'VND', 2),
+    (new.id, 'Dự trữ USD', 'bank', 'USD', 3);
 
   insert into public.categories (user_id, name, type, icon, sort_order) values
     -- Danh mục chi

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { repo, type NewTransaction, type TransactionPatch } from '../data'
+import { repo, type DateRange, type NewTransaction, type TransactionPatch } from '../data'
 import { getMonthRange, type MonthKey } from '../lib/dates'
 import { fetchRates } from '../lib/rates'
 import type { TransactionRow } from '../types/database.types'
@@ -55,6 +55,15 @@ export function useMonthTransactions(monthKey: MonthKey) {
     enabled: !!profile,
   })
   return { range, ...query }
+}
+
+/** Giao dịch trong một khoảng ngày tùy ý (cho báo cáo nhiều tháng). */
+export function useRangeTransactions(range: DateRange, enabled = true) {
+  return useQuery({
+    queryKey: ['transactions', range.start, range.end],
+    queryFn: () => repo.listTransactions(range),
+    enabled,
+  })
 }
 
 function invalidateTransactionData(qc: ReturnType<typeof useQueryClient>) {

@@ -1,4 +1,5 @@
 import { toISODate } from '../lib/dates'
+import { filterTransactions } from '../features/transactions/filter'
 import type {
   AccountBalanceRow,
   AccountRow,
@@ -7,7 +8,16 @@ import type {
   ProfileRow,
   TransactionRow,
 } from '../types/database.types'
-import type { NewTransaction, Repo, TransactionPatch } from './repo'
+import type {
+  AccountPatch,
+  CategoryPatch,
+  NewAccount,
+  NewCategory,
+  NewTransaction,
+  Repo,
+  TransactionPatch,
+  TxFilter,
+} from './repo'
 
 // Repo demo: dữ liệu lưu localStorage, seed giống hệt trigger handle_new_user
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
@@ -217,6 +227,10 @@ export const demoRepo: Repo = {
       )
   },
 
+  async searchTransactions(filter: TxFilter) {
+    return filterTransactions(load().transactions, filter)
+  },
+
   async createTransaction(input: NewTransaction) {
     const db = load()
     const row: TransactionRow = {
@@ -243,6 +257,76 @@ export const demoRepo: Repo = {
   async deleteTransaction(id: string) {
     const db = load()
     db.transactions = db.transactions.filter((t) => t.id !== id)
+    save(db)
+  },
+
+  async createAccount(input: NewAccount) {
+    const db = load()
+    const sort_order = db.accounts.reduce((m, a) => Math.max(m, a.sort_order + 1), 0)
+    const row: AccountRow = {
+      ...input,
+      id: uuid(),
+      user_id: DEMO_USER,
+      sort_order,
+      is_archived: false,
+      created_at: nowISO(),
+    }
+    db.accounts.push(row)
+    save(db)
+    return row
+  },
+
+  async updateAccount(id: string, patch: AccountPatch) {
+    const db = load()
+    const idx = db.accounts.findIndex((a) => a.id === id)
+    if (idx < 0) throw new Error('Không tìm thấy tài khoản')
+    db.accounts[idx] = { ...db.accounts[idx], ...patch }
+    save(db)
+    return db.accounts[idx]
+  },
+
+  async reorderAccounts(orderedIds: string[]) {
+    const db = load()
+    orderedIds.forEach((id, i) => {
+      const acc = db.accounts.find((a) => a.id === id)
+      if (acc) acc.sort_order = i
+    })
+    save(db)
+  },
+
+  async createCategory(input: NewCategory) {
+    const db = load()
+    const sort_order = db.categories
+      .filter((c) => c.type === input.type)
+      .reduce((m, c) => Math.max(m, c.sort_order + 1), 0)
+    const row: CategoryRow = {
+      ...input,
+      id: uuid(),
+      user_id: DEMO_USER,
+      sort_order,
+      is_archived: false,
+      created_at: nowISO(),
+    }
+    db.categories.push(row)
+    save(db)
+    return row
+  },
+
+  async updateCategory(id: string, patch: CategoryPatch) {
+    const db = load()
+    const idx = db.categories.findIndex((c) => c.id === id)
+    if (idx < 0) throw new Error('Không tìm thấy danh mục')
+    db.categories[idx] = { ...db.categories[idx], ...patch }
+    save(db)
+    return db.categories[idx]
+  },
+
+  async reorderCategories(orderedIds: string[]) {
+    const db = load()
+    orderedIds.forEach((id, i) => {
+      const cat = db.categories.find((c) => c.id === id)
+      if (cat) cat.sort_order = i
+    })
     save(db)
   },
 }

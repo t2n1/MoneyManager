@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { resetDemoData } from '../../data/demoRepo'
 import { useAccountBalances, useProfile, useRates } from '../../hooks/queries'
 import { isDemoMode } from '../../lib/demo'
@@ -83,6 +83,28 @@ export function SettingsPage() {
             {rates.USD ? (1 / rates.USD).toFixed(1) : '?'} (open.er-api.com, cache 12h)
           </p>
         )}
+      </section>
+
+      <section className="overflow-hidden rounded-xl bg-white shadow-sm">
+        <h2 className="px-3 pt-3 text-sm font-semibold text-gray-500">Quản lý</h2>
+        <div className="mt-1 divide-y divide-gray-100">
+          <Link
+            to="/settings/accounts"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50"
+          >
+            <span className="text-xl">🏦</span>
+            <span className="flex-1">Tài khoản</span>
+            <span className="text-gray-300">›</span>
+          </Link>
+          <Link
+            to="/settings/categories"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50"
+          >
+            <span className="text-xl">🏷️</span>
+            <span className="flex-1">Danh mục</span>
+            <span className="text-gray-300">›</span>
+          </Link>
+        </div>
       </section>
 
       <section className="rounded-xl bg-white p-3 shadow-sm">

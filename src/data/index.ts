@@ -4,4 +4,14 @@ import type { Repo } from './repo'
 import { supabaseRepo } from './supabaseRepo'
 
 export const repo: Repo = isDemoMode ? demoRepo : supabaseRepo
-export type { DateRange, NewTransaction, Repo, TransactionPatch } from './repo'
+export type {
+  AccountPatch,
+  CategoryPatch,
+  DateRange,
+  NewAccount,
+  NewCategory,
+  NewTransaction,
+  Repo,
+  TransactionPatch,
+  TxFilter,
+} from './repo'

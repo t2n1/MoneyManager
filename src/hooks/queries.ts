@@ -1,5 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { repo, type DateRange, type NewTransaction, type TransactionPatch } from '../data'
+import {
+  repo,
+  type AccountPatch,
+  type CategoryPatch,
+  type DateRange,
+  type NewAccount,
+  type NewCategory,
+  type NewTransaction,
+  type TransactionPatch,
+  type TxFilter,
+} from '../data'
 import { getMonthRange, type MonthKey } from '../lib/dates'
 import { fetchRates } from '../lib/rates'
 import type { TransactionRow } from '../types/database.types'
@@ -66,9 +76,19 @@ export function useRangeTransactions(range: DateRange, enabled = true) {
   })
 }
 
+/** Tìm kiếm giao dịch theo bộ lọc (ghi chú, loại, danh mục, tài khoản, khoảng ngày). */
+export function useSearchTransactions(filter: TxFilter, enabled = true) {
+  return useQuery({
+    queryKey: ['search', filter],
+    queryFn: () => repo.searchTransactions(filter),
+    enabled,
+  })
+}
+
 function invalidateTransactionData(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['transactions'] })
   qc.invalidateQueries({ queryKey: ['balances'] })
+  qc.invalidateQueries({ queryKey: ['search'] })
 }
 
 export function useCreateTransaction() {
@@ -115,5 +135,62 @@ export function useDeleteTransaction() {
   return useMutation({
     mutationFn: (id: string) => repo.deleteTransaction(id),
     onSettled: () => invalidateTransactionData(qc),
+  })
+}
+
+// --- Quản lý tài khoản & danh mục (GĐ2) ---
+
+function invalidateAccounts(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['accounts'] })
+  qc.invalidateQueries({ queryKey: ['balances'] })
+}
+
+export function useCreateAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewAccount) => repo.createAccount(input),
+    onSettled: () => invalidateAccounts(qc),
+  })
+}
+
+export function useUpdateAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: AccountPatch }) =>
+      repo.updateAccount(id, patch),
+    onSettled: () => invalidateAccounts(qc),
+  })
+}
+
+export function useReorderAccounts() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (orderedIds: string[]) => repo.reorderAccounts(orderedIds),
+    onSettled: () => invalidateAccounts(qc),
+  })
+}
+
+export function useCreateCategory() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewCategory) => repo.createCategory(input),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['categories'] }),
+  })
+}
+
+export function useUpdateCategory() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: CategoryPatch }) =>
+      repo.updateCategory(id, patch),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['categories'] }),
+  })
+}
+
+export function useReorderCategories() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (orderedIds: string[]) => repo.reorderCategories(orderedIds),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['categories'] }),
   })
 }

@@ -24,6 +24,8 @@ import {
   addMonths,
   formatMonthLabel,
   getMonthRange,
+  monthKeyForDate,
+  toISODate,
   type MonthKey,
 } from '../../lib/dates'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
@@ -45,10 +47,6 @@ function formatCompact(minor: number, base: CurrencyCode): string {
 }
 
 export function ReportsPage() {
-  const [monthKey, setMonthKey] = useState<MonthKey>(() => {
-    const now = new Date()
-    return { year: now.getFullYear(), month: now.getMonth() + 1 }
-  })
   const [kind, setKind] = useState<'expense' | 'income'>('expense')
   const [searchParams] = useSearchParams()
   const [view, setView] = useState<'charts' | 'budget'>(
@@ -61,19 +59,22 @@ export function ReportsPage() {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
 
-  const { data: monthTxs = [] } = useMonthTransactions(monthKey)
+  const [monthKey, setMonthKey] = useState<MonthKey | null>(null)
+  const activeMonthKey = monthKey ?? monthKeyForDate(toISODate(new Date()), monthStartDay)
+
+  const { data: monthTxs = [] } = useMonthTransactions(activeMonthKey)
 
   // Khoảng 6 tháng gần nhất (tính cả tháng đang xem) cho biểu đồ cột
   const sixMonths = useMemo(
-    () => Array.from({ length: 6 }, (_, i) => addMonths(monthKey, i - 5)),
-    [monthKey],
+    () => Array.from({ length: 6 }, (_, i) => addMonths(activeMonthKey, i - 5)),
+    [activeMonthKey],
   )
   const sixMonthRange = useMemo(
     () => ({
       start: getMonthRange(sixMonths[0], monthStartDay).start,
-      end: getMonthRange(monthKey, monthStartDay).end,
+      end: getMonthRange(activeMonthKey, monthStartDay).end,
     }),
-    [sixMonths, monthKey, monthStartDay],
+    [sixMonths, activeMonthKey, monthStartDay],
   )
   const { data: rangeTxs = [] } = useRangeTransactions(sixMonthRange, !!profile && view === 'charts')
 
@@ -118,16 +119,16 @@ export function ReportsPage() {
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => setMonthKey((k) => addMonths(k, -1))}
+          onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, -1))}
           className="rounded-lg bg-white px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Tháng trước"
         >
           ←
         </button>
-        <h1 className="text-lg font-bold text-gray-800">{formatMonthLabel(monthKey)}</h1>
+        <h1 className="text-lg font-bold text-gray-800">{formatMonthLabel(activeMonthKey)}</h1>
         <button
           type="button"
-          onClick={() => setMonthKey((k) => addMonths(k, 1))}
+          onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))}
           className="rounded-lg bg-white px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Tháng sau"
         >
@@ -280,7 +281,7 @@ export function ReportsPage() {
         </>
       )}
 
-      {view === 'budget' && <BudgetView monthKey={monthKey} />}
+      {view === 'budget' && <BudgetView monthKey={activeMonthKey} />}
     </div>
   )
 }

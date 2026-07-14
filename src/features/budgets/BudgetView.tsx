@@ -75,7 +75,13 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           </span>
           <span className="text-sm text-gray-400">/ {formatMoney(report.totalBudgeted, base)}</span>
         </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100">
+        <div
+          className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(totalPct)}
+        >
           <div
             className={`h-full rounded-full ${BAR_COLOR[report.totalStatus]}`}
             style={{ width: `${Math.min(totalPct, 100)}%` }}
@@ -117,7 +123,13 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                       </span>
                       <span className={`text-xs ${TEXT_COLOR[line.status]}`}>{pct}%</span>
                     </div>
-                    <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100">
+                    <div
+                      className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={pct}
+                    >
                       <div
                         className={`h-full rounded-full ${BAR_COLOR[line.status]}`}
                         style={{ width: `${Math.min(line.ratio * 100, 100)}%` }}
@@ -157,6 +169,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
 
       {editing && (
         <BudgetEditSheet
+          key={editing.categoryId}
           monthKey={monthKeyStr}
           categoryId={editing.categoryId}
           categoryLabel={`${catOf(editing.categoryId)?.icon ?? '📦'} ${catOf(editing.categoryId)?.name ?? ''}`}

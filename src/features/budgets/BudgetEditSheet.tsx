@@ -38,6 +38,7 @@ export function BudgetEditSheet({
   }
 
   async function handleDelete() {
+    if (!window.confirm('Xóa hạn mức này?')) return
     if (budgetId) await remove.mutateAsync(budgetId)
     onClose()
   }

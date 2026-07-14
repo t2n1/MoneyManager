@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Bar,
   BarChart,
@@ -10,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { BudgetView } from '../budgets/BudgetView'
 import {
   useAccounts,
   useCategories,
@@ -48,6 +50,10 @@ export function ReportsPage() {
     return { year: now.getFullYear(), month: now.getMonth() + 1 }
   })
   const [kind, setKind] = useState<'expense' | 'income'>('expense')
+  const [searchParams] = useSearchParams()
+  const [view, setView] = useState<'charts' | 'budget'>(
+    searchParams.get('view') === 'budget' ? 'budget' : 'charts',
+  )
 
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
@@ -69,7 +75,7 @@ export function ReportsPage() {
     }),
     [sixMonths, monthKey, monthStartDay],
   )
-  const { data: rangeTxs = [] } = useRangeTransactions(sixMonthRange, !!profile)
+  const { data: rangeTxs = [] } = useRangeTransactions(sixMonthRange, !!profile && view === 'charts')
 
   const currencyOf = (id: string): CurrencyCode =>
     accounts.find((a) => a.id === id)?.currency ?? base
@@ -129,12 +135,32 @@ export function ReportsPage() {
         </button>
       </div>
 
-      {(breakdown.hasMissingRate || series.hasMissingRate) && (
+      {/* Chọn tab: Biểu đồ | Ngân sách */}
+      <div className="flex rounded-lg bg-gray-100 p-0.5 text-sm font-medium">
+        <button
+          type="button"
+          onClick={() => setView('charts')}
+          className={`flex-1 rounded-md py-1.5 ${view === 'charts' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'}`}
+        >
+          Biểu đồ
+        </button>
+        <button
+          type="button"
+          onClick={() => setView('budget')}
+          className={`flex-1 rounded-md py-1.5 ${view === 'budget' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'}`}
+        >
+          Ngân sách
+        </button>
+      </div>
+
+      {view === 'charts' && (breakdown.hasMissingRate || series.hasMissingRate) && (
         <div className="rounded-lg bg-amber-50 p-2 text-xs text-amber-700">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
 
+      {view === 'charts' && (
+        <>
       {/* Biểu đồ tròn theo danh mục */}
       <section className="rounded-xl bg-white p-3 shadow-sm">
         <div className="mb-2 flex items-center justify-between">
@@ -251,6 +277,10 @@ export function ReportsPage() {
           </span>
         </div>
       </section>
+        </>
+      )}
+
+      {view === 'budget' && <BudgetView monthKey={monthKey} />}
     </div>
   )
 }

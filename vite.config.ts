@@ -1,8 +1,44 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: 'auto',
+      workbox: {
+        // App shell: precache toàn bộ asset build; điều hướng offline về index.html
+        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        navigateFallback: '/index.html',
+        // API Supabase không cache — dữ liệu tiền bạc phải luôn tươi
+        navigateFallbackDenylist: [/^\/auth\//],
+      },
+      manifest: {
+        name: 'Sổ Chi Tiêu',
+        short_name: 'Sổ Chi Tiêu',
+        description: 'Quản lý chi tiêu cá nhân — nhập một giao dịch dưới 5 giây',
+        lang: 'vi',
+        dir: 'ltr',
+        display: 'standalone',
+        start_url: '/',
+        theme_color: '#16a34a',
+        background_color: '#f9fafb',
+        icons: [
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+          {
+            src: '/icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+    }),
+  ],
 })

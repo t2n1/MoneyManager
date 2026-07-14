@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Nút bấm trên mobile không bị delay/zoom khi chạm nhanh */
+html {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}

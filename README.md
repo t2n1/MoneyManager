@@ -21,10 +21,19 @@ React + Vite + TypeScript + Tailwind CSS + TanStack Query + Recharts + vite-plug
 - Implementation plan: [docs/superpowers/plans/2026-07-14-so-chi-tieu-plan.md](docs/superpowers/plans/2026-07-14-so-chi-tieu-plan.md)
 - Database migration: [supabase/migrations/0001_init.sql](supabase/migrations/0001_init.sql)
 
-## Chạy dev (sau khi scaffold — Task 2)
+## Chạy dev
 
 ```bash
 npm install
 cp .env.example .env.local   # điền VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY
 npm run dev
 ```
+
+## Lệnh
+
+| Lệnh | Mô tả |
+|------|-------|
+| `npm run dev` | Dev server (http://localhost:5173) |
+| `npm run build` | Build production (`tsc -b` + vite build) |
+| `npm run test` | Chạy unit tests (Vitest) |
+| `npm run lint` | Lint (Oxlint) |

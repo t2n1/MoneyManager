@@ -1,8 +1,11 @@
 import { Navigate, Outlet } from 'react-router-dom'
+import { isDemoMode } from '../../lib/demo'
 import { useAuth } from './AuthProvider'
 
 export function RequireAuth() {
   const { session, loading } = useAuth()
+
+  if (isDemoMode) return <Outlet />
 
   if (loading) {
     return (

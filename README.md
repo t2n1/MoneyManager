@@ -25,9 +25,14 @@ React + Vite + TypeScript + Tailwind CSS + TanStack Query + Recharts + vite-plug
 
 ```bash
 npm install
-cp .env.example .env.local   # điền VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY
 npm run dev
 ```
+
+**Chế độ demo:** không có `.env.local` (hoặc đặt `VITE_DEMO_MODE=true`), app tự chạy
+với dữ liệu mẫu lưu trong localStorage — không cần Supabase, không cần đăng nhập.
+
+**Chế độ thật:** copy `.env.example` thành `.env.local`, điền `VITE_SUPABASE_URL` +
+`VITE_SUPABASE_ANON_KEY` — app chuyển sang Supabase + đăng nhập Google.
 
 ## Lệnh
 

@@ -1,17 +1,19 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { isDemoMode } from '../../lib/demo'
+import { getSupabase } from '../../lib/supabase'
 import { useAuth } from './AuthProvider'
 
 export function LoginPage() {
   const { session, loading } = useAuth()
   const [error, setError] = useState<string | null>(null)
 
+  if (isDemoMode) return <Navigate to="/" replace />
   if (!loading && session) return <Navigate to="/" replace />
 
   async function signInWithGoogle() {
     setError(null)
-    const { error: err } = await supabase.auth.signInWithOAuth({
+    const { error: err } = await getSupabase().auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin },
     })

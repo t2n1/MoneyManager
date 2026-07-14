@@ -1,19 +1,21 @@
 // Types viết tay khớp với supabase/migrations/0001_init.sql.
 // Khi schema đổi: cập nhật file này cùng lúc với migration
 // (hoặc thay bằng `supabase gen types typescript` nếu cài CLI).
+// Lưu ý: dùng `type` chứ không dùng `interface` — supabase-js yêu cầu
+// index signature ngầm (Record<string, unknown>) mà interface không có.
 
 export type AccountType = 'cash' | 'bank'
 export type CategoryType = 'expense' | 'income'
 export type TransactionType = 'expense' | 'income' | 'transfer'
 
-export interface ProfileRow {
+export type ProfileRow = {
   user_id: string
   display_name: string | null
   month_start_day: number
   created_at: string
 }
 
-export interface AccountRow {
+export type AccountRow = {
   id: string
   user_id: string
   name: string
@@ -24,7 +26,7 @@ export interface AccountRow {
   created_at: string
 }
 
-export interface CategoryRow {
+export type CategoryRow = {
   id: string
   user_id: string
   name: string
@@ -35,7 +37,7 @@ export interface CategoryRow {
   created_at: string
 }
 
-export interface TransactionRow {
+export type TransactionRow = {
   id: string
   user_id: string
   type: TransactionType
@@ -49,7 +51,7 @@ export interface TransactionRow {
   updated_at: string
 }
 
-export interface AccountBalanceRow {
+export type AccountBalanceRow = {
   id: string
   user_id: string
   name: string
@@ -62,7 +64,7 @@ export interface AccountBalanceRow {
 type InsertOf<Row, Required extends keyof Row, Optional extends keyof Row> =
   Pick<Row, Required> & Partial<Pick<Row, Optional>>
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       profiles: {

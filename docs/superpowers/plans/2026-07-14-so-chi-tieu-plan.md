@@ -1,5 +1,13 @@
 # Plan: Web app "Sổ Chi Tiêu" — quản lý chi tiêu cá nhân
 
+> **Cập nhật 2026-07-14 (trong lúc thực thi):** người dùng quyết định chạy **demo mode
+> trước, chưa tạo Supabase project**. Đã thêm data layer trừu tượng `src/data/`
+> (interface `Repo` + `demoRepo` localStorage + `supabaseRepo`); `isDemoMode` bật khi
+> thiếu env Supabase. Auth bypass trong demo. Task 5–8 đã hoàn thành & verify trên
+> demo mode. Task 3 (verify Google OAuth), Task 4 (verify seed/RLS thật) và Task 10
+> (deploy) vẫn chờ checklist A/B/C. Khi có `.env.local`, app tự chuyển sang Supabase —
+> không cần sửa UI.
+
 ## Bối cảnh
 
 Xây dựng từ đầu (thư mục `D:\Antigravity\Money Manager` hiện trống, chưa có git) một web app quản lý chi tiêu cá nhân tiếng Việt, lấy cảm hứng từ Money Manager. Một người dùng duy nhất, dùng trên cả điện thoại và PC, cài như PWA. Dữ liệu trên Supabase (Postgres + Auth + Realtime), đăng nhập Google, không backend riêng — client gọi thẳng Supabase, bảo mật bằng RLS. Nguyên tắc UX số 1: **nhập một giao dịch < 5 giây, mở app vào thẳng màn hình nhập**. Tiền tệ chỉ VND, lưu `bigint`, không bao giờ dùng float.

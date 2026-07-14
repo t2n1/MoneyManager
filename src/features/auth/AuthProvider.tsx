@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { supabase } from '../../lib/supabase'
+import { isDemoMode } from '../../lib/demo'
+import { getSupabase } from '../../lib/supabase'
 
 interface AuthContextValue {
   session: Session | null
@@ -12,9 +13,12 @@ const AuthContext = createContext<AuthContextValue>({ session: null, loading: tr
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!isDemoMode)
 
   useEffect(() => {
+    if (isDemoMode) return // demo: không có phiên Supabase, RequireAuth tự cho qua
+
+    const supabase = getSupabase()
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       setLoading(false)

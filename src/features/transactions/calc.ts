@@ -31,3 +31,28 @@ export function evalExpression(expr: string): number | null {
   }
   return Math.round(acc)
 }
+
+export const MAX_AMOUNT_DIGITS = 12
+export const MAX_EXPR_LENGTH = 40
+
+/**
+ * Áp một phím bấm vào biểu thức, trả biểu thức mới.
+ * Phím: '0'..'9', '00', '000', '+', '−', '×', '÷', '⌫'.
+ */
+export function appendKey(expr: string, key: string): string {
+  if (key === '⌫') return expr.slice(0, -1)
+
+  const ops = OPERATORS as readonly string[]
+  if (ops.includes(key)) {
+    if (expr === '') return expr // không cho bắt đầu bằng dấu
+    if (ops.includes(expr[expr.length - 1])) return expr.slice(0, -1) + key // thay dấu cuối
+    if (expr.length + key.length > MAX_EXPR_LENGTH) return expr
+    return expr + key
+  }
+
+  if (!/^\d+$/.test(key)) return expr // phím lạ → bỏ qua
+  const currentNum = expr.match(/\d+$/)?.[0] ?? ''
+  if (currentNum.length + key.length > MAX_AMOUNT_DIGITS) return expr
+  if (expr.length + key.length > MAX_EXPR_LENGTH) return expr
+  return (expr + key).replace(/(^|[+−×÷])0+(?=\d)/g, '$1') // bỏ 0 vô nghĩa đầu mỗi số
+}

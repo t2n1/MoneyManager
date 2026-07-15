@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { evalExpression } from './calc'
+import { appendKey, evalExpression } from './calc'
 
 describe('evalExpression', () => {
   it('biểu thức trống → 0', () => {
@@ -42,5 +42,52 @@ describe('evalExpression', () => {
 
   it('cho phép kết quả âm', () => {
     expect(evalExpression('100−500')).toBe(-400)
+  })
+})
+
+describe('appendKey', () => {
+  it('không cho bắt đầu bằng dấu phép tính', () => {
+    expect(appendKey('', '+')).toBe('')
+    expect(appendKey('', '×')).toBe('')
+  })
+
+  it('gõ chữ số nối vào số hiện tại', () => {
+    expect(appendKey('', '5')).toBe('5')
+    expect(appendKey('5', '0')).toBe('50')
+    expect(appendKey('12', '000')).toBe('12000')
+  })
+
+  it('nút 00 và 000 khi trống → một số 0', () => {
+    expect(appendKey('', '00')).toBe('0')
+    expect(appendKey('', '000')).toBe('0')
+  })
+
+  it('bỏ số 0 vô nghĩa ở đầu mỗi số', () => {
+    expect(appendKey('0', '5')).toBe('5')
+    expect(appendKey('5+0', '3')).toBe('5+3')
+  })
+
+  it('bấm dấu sau số → nối dấu', () => {
+    expect(appendKey('5', '+')).toBe('5+')
+    expect(appendKey('5+', '3')).toBe('5+3')
+  })
+
+  it('bấm 2 dấu liền nhau → thay dấu cuối', () => {
+    expect(appendKey('5+', '×')).toBe('5×')
+  })
+
+  it('xóa lùi 1 ký tự (số hoặc dấu)', () => {
+    expect(appendKey('5+3', '⌫')).toBe('5+')
+    expect(appendKey('5+', '⌫')).toBe('5')
+    expect(appendKey('5', '⌫')).toBe('')
+  })
+
+  it('chặn vượt 12 chữ số cho một số', () => {
+    expect(appendKey('123456789012', '3')).toBe('123456789012')
+  })
+
+  it('chặn vượt độ dài tối đa của biểu thức', () => {
+    const long = '9'.repeat(40)
+    expect(appendKey(long, '1')).toBe(long)
   })
 })

@@ -1,22 +1,54 @@
-const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '000', '0', '⌫'] as const
+const NUM_OP_KEYS = [
+  '1', '2', '3', '÷',
+  '4', '5', '6', '×',
+  '7', '8', '9', '−',
+  '00', '0', '000', '+',
+] as const
 
-export type NumPadKey = (typeof KEYS)[number]
+const OP_SET = new Set(['+', '−', '×', '÷'])
 
-/** Bàn phím số custom cho mobile — có nút 000, không dùng bàn phím hệ thống. */
+export type NumPadKey = (typeof NUM_OP_KEYS)[number] | '⌫'
+
+const ARIA: Record<string, string> = {
+  '+': 'Cộng',
+  '−': 'Trừ',
+  '×': 'Nhân',
+  '÷': 'Chia',
+  '⌫': 'Xóa',
+}
+
+/** Bàn phím số + phép tính cho mobile — không dùng bàn phím hệ thống. */
 export function NumPad({ onKey }: { onKey: (key: NumPadKey) => void }) {
   return (
-    <div className="grid grid-cols-3 gap-1.5">
-      {KEYS.map((key) => (
-        <button
-          key={key}
-          type="button"
-          onClick={() => onKey(key)}
-          className="rounded-xl bg-white py-3.5 text-xl font-semibold text-gray-800 shadow-sm transition active:scale-95 active:bg-gray-200"
-          aria-label={key === '⌫' ? 'Xóa' : key}
-        >
-          {key}
-        </button>
-      ))}
+    <div className="flex flex-col gap-1.5">
+      <div className="grid grid-cols-4 gap-1.5">
+        {NUM_OP_KEYS.map((key) => {
+          const isOp = OP_SET.has(key)
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onKey(key)}
+              aria-label={ARIA[key] ?? key}
+              className={`rounded-xl py-3.5 text-xl font-semibold shadow-sm transition active:scale-95 ${
+                isOp
+                  ? 'bg-gray-100 text-green-700 active:bg-gray-300'
+                  : 'bg-white text-gray-800 active:bg-gray-200'
+              }`}
+            >
+              {key}
+            </button>
+          )
+        })}
+      </div>
+      <button
+        type="button"
+        onClick={() => onKey('⌫')}
+        aria-label={ARIA['⌫']}
+        className="w-full rounded-xl bg-white py-3.5 text-xl font-semibold text-gray-800 shadow-sm transition active:scale-95 active:bg-gray-200"
+      >
+        ⌫
+      </button>
     </div>
   )
 }

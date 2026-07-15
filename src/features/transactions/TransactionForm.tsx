@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import type { NewTransaction } from '../../data'
 import { toISODate } from '../../lib/dates'
-import { CURRENCIES, formatMoney, parseMoney } from '../../lib/money'
+import { CURRENCIES, formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
 import { useAccounts, useCategories } from '../../hooks/queries'
 import { NumPad, type NumPadKey } from './NumPad'
+import { appendKey, evalExpression, MAX_AMOUNT_DIGITS } from './calc'
 
 const LAST_ACCOUNT_KEY = 'sct-last-account'
 
@@ -20,7 +21,16 @@ const AMOUNT_COLOR: Record<TransactionType, string> = {
   transfer: 'text-gray-600',
 }
 
-const MAX_AMOUNT_DIGITS = 12
+const hasOperator = (expr: string) => /[+−×÷]/.test(expr)
+
+/** Biểu thức → chuỗi hiển thị: mỗi số định dạng như tiền, nối bằng dấu có khoảng trắng. */
+function formatExpr(expr: string, currency: CurrencyCode): string {
+  return expr
+    .replace(/\d+/g, (n) => formatMoney(Number(n), currency))
+    .replace(/([+−×÷])/g, ' $1 ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
 
 interface TransactionFormProps {
   /** Có giá trị = form sửa; không = form nhập mới */
@@ -71,8 +81,10 @@ export function TransactionForm({
   const dstCurrency = activeAccounts.find((a) => a.id === toAccountId)?.currency ?? srcCurrency
   const crossCurrency = type === 'transfer' && !!toAccountId && dstCurrency !== srcCurrency
 
-  const amount = digits === '' ? 0 : Number(digits)
-  const toAmount = toDigits === '' ? 0 : Number(toDigits)
+  const amountResult = evalExpression(digits)
+  const amount = amountResult ?? 0
+  const toAmountResult = evalExpression(toDigits)
+  const toAmount = toAmountResult ?? 0
 
   const canSave =
     amount > 0 &&
@@ -92,11 +104,7 @@ export function TransactionForm({
 
   function onNumPadKey(key: NumPadKey) {
     const setter = activeField === 'to' && crossCurrency ? setToDigits : setDigits
-    setter((d) => {
-      if (key === '⌫') return d.slice(0, -1)
-      const next = (d + key).replace(/^0+(?=\d)/, '')
-      return next.length > MAX_AMOUNT_DIGITS ? d : next
-    })
+    setter((d) => appendKey(d, key))
   }
 
   async function handleSubmit() {
@@ -156,26 +164,37 @@ export function TransactionForm({
   /** Ô số tiền: div hiển thị trên mobile (numpad gõ), input trên desktop */
   const amountBox = (
     field: 'main' | 'to',
-    value: number,
-    currency: typeof srcCurrency,
+    expr: string,
+    currency: CurrencyCode,
     setDigitsFn: (v: string) => void,
     label?: string,
   ) => {
     const isActive = crossCurrency && activeField === field
     const ring = isActive ? 'ring-2 ring-green-500' : ''
+    const result = evalExpression(expr)
+    const showExpr = hasOperator(expr)
+    const mobileText = showExpr ? formatExpr(expr, currency) : formatMoney(result ?? 0, currency)
+    const inputValue = result && result !== 0 ? formatMoney(result, currency) : ''
     return (
       <div className="flex flex-col gap-0.5">
         {label && <span className="px-1 text-xs text-gray-500">{label}</span>}
         <button
           type="button"
           onClick={() => setActiveField(field)}
-          className={`rounded-xl bg-white px-4 py-3 text-right text-3xl font-bold shadow-sm ${AMOUNT_COLOR[type]} ${ring} lg:hidden`}
+          className={`truncate rounded-xl bg-white px-4 py-3 text-right font-bold shadow-sm ${
+            showExpr ? 'text-xl' : 'text-3xl'
+          } ${AMOUNT_COLOR[type]} ${ring} lg:hidden`}
         >
-          {formatMoney(value, currency)}
+          {mobileText}
         </button>
+        {showExpr && result !== null && (
+          <span className="px-1 text-right text-sm text-gray-500 lg:hidden">
+            = {formatMoney(result, currency)}
+          </span>
+        )}
         <input
           inputMode="numeric"
-          value={value === 0 ? '' : formatMoney(value, currency)}
+          value={inputValue}
           onChange={(e) => {
             const parsed = String(parseMoney(e.target.value))
             setDigitsFn(parsed === '0' ? '' : parsed.slice(0, MAX_AMOUNT_DIGITS))
@@ -209,9 +228,9 @@ export function TransactionForm({
       </div>
 
       {/* Số tiền (nguồn); CK xuyên tệ có thêm ô "nhận được" */}
-      {amountBox('main', amount, srcCurrency, setDigits, crossCurrency ? 'Chuyển đi' : undefined)}
+      {amountBox('main', digits, srcCurrency, setDigits, crossCurrency ? 'Chuyển đi' : undefined)}
       {crossCurrency &&
-        amountBox('to', toAmount, dstCurrency, setToDigits, `Nhận được (${dstCurrency})`)}
+        amountBox('to', toDigits, dstCurrency, setToDigits, `Nhận được (${dstCurrency})`)}
 
       {/* Tài khoản + ngày */}
       <div className="flex flex-wrap items-center gap-2">

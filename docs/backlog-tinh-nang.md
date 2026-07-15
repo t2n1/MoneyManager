@@ -1,0 +1,307 @@
+# Backlog tính năng — để dành cho các giai đoạn sau
+
+> **Ngày ghi:** 2026-07-14 · **Trạng thái:** Ý tưởng chờ xử lý (chưa lên spec/plan)
+>
+> File này chỉ **gom ý tưởng** cho các giai đoạn sau. Khi bắt tay làm từng mục,
+> mỗi mục sẽ đi qua quy trình riêng: brainstorm → spec (`docs/superpowers/specs/`)
+> → plan (`docs/superpowers/plans/`) → cài đặt. Ở đây **không có** quyết định thiết
+> kế cuối cùng.
+
+## Ràng buộc luôn đúng (nhắc lại để khỏi quên khi làm sau)
+
+Mọi mục dưới đây khi triển khai vẫn phải theo các ràng buộc cố định của dự án:
+
+- Stack: React + Vite + TS + Tailwind + TanStack Query + Recharts + vite-plugin-pwa.
+- Không backend riêng — client gọi thẳng Supabase, bảo vệ bằng RLS.
+- Chạy 2 chế độ qua `isDemoMode`: `demoRepo` (localStorage) và `supabaseRepo` (Postgres).
+  **Mọi đọc/ghi đi qua interface `Repo`** (`src/data/repo.ts`) — tính năng mới phải
+  cài **cả 2 repo**.
+- Tiền lưu **minor units (`bigint`)**, không bao giờ dùng float.
+- Đa tiền tệ JPY (chính) / VND / USD — tiền tệ theo tài khoản, quy đổi base qua
+  `src/lib/rates.ts` (`convertToBase`).
+- Mọi truy vấn "tháng" đi qua `getMonthRange()` / `monthKeyForDate()` (tôn trọng
+  `month_start_day`).
+- UI tiếng Việt. Mobile = bottom tab bar; desktop ≥1024px = sidebar.
+- App phải mở nhanh — màn nặng (Recharts) phải lazy-load.
+- Chi phí vận hành 0đ (Supabase + Vercel free tier).
+- Mỗi tính năng 1 commit, message **không dấu**. Sau mỗi tính năng:
+  `npm run build` + `npm run lint` + `npm test` phải sạch.
+
+---
+
+## Các mục
+
+### A. Báo cáo theo năm
+
+Xem báo cáo tổng hợp cho **cả năm** (bên cạnh báo cáo tháng hiện có).
+
+- Ý tưởng: thêm chế độ "Năm" ở màn Báo cáo — tổng thu/chi/số dư 12 tháng, biểu đồ
+  cột theo tháng, cơ cấu danh mục cả năm.
+- Gợi ý kỹ thuật: cần helper `getYearRange()` (tôn trọng `month_start_day` như
+  `getMonthRange`) và hàm gộp 12 `monthKey`. Tái dùng `convertToBase` cho đa tiền tệ.
+- Liên quan: mở rộng segmented control ở `ReportsPage` (đang có `Biểu đồ | Ngân sách`).
+
+### B. Sổ giao dịch dạng lịch (calendar)
+
+Xem sổ giao dịch theo **giao diện lịch tháng** — mỗi ngày hiển thị tổng thu/chi,
+chạm vào ngày để xem danh sách giao dịch ngày đó.
+
+- Ý tưởng: lưới lịch 7 cột; ô ngày tô màu/nhãn theo net thu-chi; badge số giao dịch.
+- Gợi ý kỹ thuật: gom giao dịch theo `occurred_on`; chú ý ranh giới tháng tài chính
+  (`month_start_day`) khi tô "ngoài tháng". Component nặng → cân nhắc lazy-load.
+- Liên quan: có thể là chế độ xem thứ 2 của màn sổ giao dịch (list ⇄ calendar).
+
+### C. Khoản chi tự động (định kỳ: tuần / tháng / năm)
+
+Khoản chi lặp lại tự động theo chu kỳ tuần, tháng, năm.
+
+- **Trùng với GĐ3 mục 2 (Giao dịch định kỳ)** trong lộ trình hiện tại — nên gộp
+  chung khi làm. Cơ chế đã chốt sơ bộ: bảng `recurring_rules`, **catch-up khi mở
+  app** (không dùng cron).
+- Chu kỳ cần hỗ trợ: `weekly`, `monthly`, `yearly` (mục 2 GĐ3 gốc mới nói tháng —
+  đây mở rộng thêm tuần + năm).
+- Gợi ý kỹ thuật: rule lưu chu kỳ + ngày bắt đầu + lần sinh gần nhất; khi mở app
+  sinh bù các kỳ đã tới hạn. Cần cài cả 2 repo.
+
+### D. Chuyển khoản tự động (định kỳ: tuần / tháng / năm)
+
+Giống mục C nhưng cho **giao dịch chuyển khoản** (`transfer`, có `to_account_id`).
+
+- Nên **gộp cùng cơ chế `recurring_rules` ở mục C** — chỉ khác `type = 'transfer'`
+  và có tài khoản đích + `to_amount` (đa tiền tệ giữa 2 tài khoản khác loại tiền).
+- Gợi ý kỹ thuật: cùng đường sinh bù khi mở app; validate 2 tài khoản khi tạo rule.
+
+> **Ghi chú:** C + D + mục 2 GĐ3 hiện tại nên làm **thành một tính năng "Giao dịch
+> định kỳ"** chung (chi/thu/chuyển khoản, chu kỳ tuần/tháng/năm), tránh làm 3 lần.
+
+### E. Trang tổng tài sản (tách riêng khỏi trang danh mục tài khoản)
+
+Một **trang riêng** để xem **tổng tài sản** — tổng số dư mọi tài khoản, quy đổi về
+base currency.
+
+- Ý tưởng: tổng tài sản (base), phân rã theo tài khoản, theo loại tiền; có thể kèm
+  biểu đồ tỷ trọng.
+- Gợi ý kỹ thuật: cộng số dư các tài khoản qua `convertToBase`; cảnh báo khi thiếu
+  tỷ giá (giống `hasMissingRate` ở ngân sách). Số dư âm (nợ) xử lý sao — xem mục F.
+- Liên quan: có thể là trang con hoặc màn riêng gắn với khu vực "Tài khoản".
+
+### F. Chức năng nợ (cho bạn bè, công ty)
+
+Theo dõi **khoản nợ / cho vay** với người/đơn vị khác (bạn bè, công ty).
+
+- Ý tưởng: mỗi khoản nợ có đối tác, chiều (mình nợ / người ta nợ mình), số tiền,
+  hạn, trạng thái (đang nợ / đã tất toán), lịch sử trả từng phần.
+- Câu hỏi thiết kế cần chốt khi brainstorm:
+  - Nợ có tính vào **tổng tài sản** (mục E) không? (tài sản ròng = tài khoản ± nợ)
+  - Trả nợ có sinh **giao dịch** thật (ảnh hưởng số dư tài khoản) không?
+  - Có gắn với **tài khoản/danh mục** nào không?
+- Gợi ý kỹ thuật: bảng `debts` + có thể `debt_payments`; RLS như các bảng khác; đa
+  tiền tệ. Cài cả 2 repo + migration mới.
+
+### G. Danh mục mẹ / danh mục con (cho Thu và Chi)
+
+Cho phép **phân cấp danh mục 2 tầng**: danh mục mẹ chứa nhiều danh mục con, áp dụng
+cho cả nhóm **Thu** (`income`) và **Chi** (`expense`).
+
+- Ý tưởng: ví dụ mẹ "Ăn uống" → con "Đi chợ", "Nhà hàng", "Cà phê". Khi nhập giao
+  dịch chọn tới danh mục con; báo cáo/ngân sách có thể gộp theo mẹ.
+- Câu hỏi thiết kế cần chốt khi brainstorm:
+  - Giao dịch gắn vào **danh mục con** (mẹ chỉ để gom) hay cho phép gắn cả mẹ?
+  - **Ngân sách** (GĐ3 mục 1) đặt theo mẹ hay con? (ảnh hưởng `buildBudgetReport`)
+  - **Báo cáo** cơ cấu danh mục: hiển thị theo mẹ (gộp con) hay phẳng?
+  - Giới hạn đúng **2 tầng** hay cho lồng sâu hơn? (khuyến nghị: chốt 2 tầng cho gọn)
+  - Xử lý dữ liệu cũ: danh mục hiện tại thành mẹ (không cha) — migrate thế nào?
+- Gợi ý kỹ thuật: thêm cột `parent_id uuid null` (self-FK) vào bảng `categories`;
+  ràng buộc mẹ và con cùng `type` (income/con-income, expense/con-expense); chặn
+  vòng lặp / giới hạn độ sâu. Cập nhật cả 2 repo + migration mới. UI chọn danh mục
+  ở màn Nhập cần đổi thành dạng phân cấp (nhóm mẹ → chọn con).
+- Liên quan: đụng nhiều nơi — màn Nhập, màn Danh mục, Báo cáo (cơ cấu danh mục),
+  Ngân sách (mục 1). Cần cân nhắc kỹ trước khi làm vì lan rộng.
+
+### H. Xuất file Excel (.xlsx)
+
+Xuất dữ liệu giao dịch ra **file Excel** để mở/xử lý bằng Excel, Google Sheets…
+
+- **Liên quan trực tiếp GĐ3 mục 3 (Xuất CSV):** cần chốt **CSV vs Excel thật (.xlsx)**:
+  - CSV: nhẹ, không thêm thư viện, mở được bằng Excel — nhưng chỉ 1 sheet, không định
+    dạng, dễ lỗi dấu tiếng Việt nếu thiếu BOM UTF-8 (mục 3 gốc đã tính BOM).
+  - .xlsx thật: nhiều sheet, định dạng cột/tiền tệ, header đậm — nhưng cần thư viện
+    (VD `xlsx`/SheetJS hoặc `exceljs`) → **tăng bundle**, xung đột với ràng buộc
+    "app phải mở nhanh" → phải **lazy-load** đường xuất, chỉ tải lib khi bấm xuất.
+- Câu hỏi thiết kế cần chốt khi brainstorm:
+  - Làm **thay** mục 3 (chỉ Excel) hay **cả hai** (CSV nhanh + Excel đầy đủ)?
+  - Xuất gì: giao dịch theo tháng/năm đang xem? nhiều sheet (giao dịch / danh mục /
+    tài khoản / ngân sách)? tiền hiển thị theo đơn vị gốc hay quy đổi base?
+  - Chạy hoàn toàn **client-side** (giữ 0đ, không backend) — xác nhận lib chạy được
+    trong trình duyệt/PWA.
+- Gợi ý kỹ thuật: sinh file client-side, `Blob` + tải xuống; lazy-import thư viện
+  xlsx trong handler nút xuất để không nặng lần mở app. Không cần đụng schema/repo
+  ghi (chỉ đọc dữ liệu sẵn có).
+
+---
+
+> **Bổ sung 2026-07-14 — nhóm "Trải nghiệm nhập liệu" (I–P) & "Thấu hiểu tài chính"
+> (Q–W).** Phần lớn các mục dưới đây **chỉ đọc/tính toán từ dữ liệu sẵn có** hoặc là
+> UI thuần → nhẹ, ít đụng schema. Mục nào cần bảng/cột mới sẽ ghi rõ.
+
+## Nhóm trải nghiệm nhập liệu
+
+### I. Gợi ý thông minh khi mở màn Nhập
+
+Mở app là form đã **điền sẵn ngữ cảnh gần nhất** để rút thời gian nhập xuống ~2s.
+
+- Ý tưởng: mặc định chọn tài khoản + danh mục dùng gần nhất; autocomplete ghi chú
+  từ lịch sử `note`; có thể gợi ý danh mục theo ghi chú vừa gõ.
+- Gợi ý kỹ thuật: suy ra từ giao dịch gần đây (đọc thôi, **không đổi schema**). Cân
+  nhắc lưu "lựa chọn gần nhất" ở localStorage cho tức thì; gợi ý theo lịch sử tính
+  client-side. Không cần đụng repo ghi.
+- Liên quan: `EntryPage` / `TransactionForm`.
+
+### J. Mẫu giao dịch nhanh (favorites)
+
+Nút lưu sẵn các giao dịch hay lặp ("Cà phê 500¥", "Ăn trưa 800¥") — **chạm 1 phát
+điền sẵn** danh mục + số tiền + tài khoản.
+
+- Khác **mục C/D (định kỳ)**: mẫu nhanh **không tự sinh**, chỉ điền hộ khi người dùng
+  bấm; vẫn phải bấm Lưu.
+- Câu hỏi thiết kế cần chốt: mẫu lưu **cục bộ theo thiết bị** (localStorage, đơn giản,
+  không đồng bộ) hay **bảng `quick_templates`** (đồng bộ đa thiết bị, cần cài cả 2 repo
+  + migration)?
+- Gợi ý kỹ thuật: nếu chọn bảng → RLS như các bảng khác; nếu localStorage → không đụng
+  Supabase.
+
+### K. Hoàn tác sau khi lưu (undo)
+
+Toast "Đã lưu ✓ · Hoàn tác" giữ ~5s để **chống nhập nhầm** khi nhập vội (< 5s).
+
+- Gợi ý kỹ thuật: giữ id giao dịch vừa tạo; bấm Hoàn tác → `deleteTransaction(id)` +
+  invalidate query. Client-only, **không đổi schema**. Chú ý dọn timer như toast hiện có.
+- Liên quan: `EntryPage` (đã có sẵn cơ chế toast).
+
+### L. Máy tính trong ô số tiền
+
+NumPad hỗ trợ `+ − × ÷` để gõ biểu thức ("1200+800") — rất hay dùng khi gộp hóa đơn.
+
+- Gợi ý kỹ thuật: **UI thuần** trong `NumPad`; tính trên **minor units** (số nguyên),
+  tránh float; validate biểu thức. Không đụng data.
+
+### M. Nhập liên tục (batch)
+
+Sau khi lưu, **giữ nguyên tài khoản/ngày**, chỉ xóa số tiền + ghi chú để nhập một
+loạt món (đi chợ về nhập nhiều lần).
+
+- Gợi ý kỹ thuật: UI thuần ở `TransactionForm` (biến thể của `resetAfterSubmit` — reset
+  một phần). Có thể là một tùy chọn bật/tắt. Không đụng data.
+
+### N. Tách hóa đơn (split)
+
+Một lần trả → chia **nhiều danh mục** (siêu thị: đồ ăn + gia dụng).
+
+- Câu hỏi thiết kế cần chốt: lưu thành **nhiều giao dịch rời** (đơn giản, mỗi dòng 1
+  danh mục) hay **1 giao dịch có nhiều dòng con** (cần cột `group_id`/bảng con →
+  migration + đụng repo, báo cáo)?
+- Gợi ý kỹ thuật: khuyến nghị bản đầu làm **nhiều giao dịch rời cùng ngày/ghi chú** để
+  không đổi schema; nâng cấp "nhóm" sau nếu cần.
+- Liên quan: màn Nhập, Sổ giao dịch (hiển thị nhóm), Báo cáo.
+
+### O. App shortcuts (PWA)
+
+Giữ icon app → menu nhảy thẳng "Nhập chi / Nhập thu", đúng tinh thần "mở là nhập".
+
+- Gợi ý kỹ thuật: khai báo `shortcuts` trong manifest (`vite-plugin-pwa`); deep link tới
+  route Nhập với query định sẵn type. Không đụng data. Nhẹ.
+
+### P. Nhập bằng giọng nói
+
+Đọc để điền **ghi chú** (và có thể số tiền): nói "cà phê 500 yên".
+
+- Gợi ý kỹ thuật: Web Speech API (SpeechRecognition) — **0đ, chạy client**, không thư
+  viện. Kiểm tra hỗ trợ trình duyệt (tính năng tùy chọn, ẩn nếu không có). Parse tiếng
+  Việt số tiền là phần khó → có thể chỉ điền text trước.
+
+## Nhóm thấu hiểu tài chính
+
+### Q. Thẻ insight tự động (Tổng quan)
+
+Vài câu ngắn tự sinh: "Tháng này chi 320k¥, +18% so tháng trước", "Ăn uống chiếm 40%",
+"Cuối tuần chi gấp đôi ngày thường".
+
+- Gợi ý kỹ thuật: **rule-based, tính client-side** từ giao dịch tháng (đọc thôi). Tái
+  dùng `aggregate.ts` + `convertToBase`. Không đổi schema. Thiết kế tập luật rõ ràng,
+  test được.
+
+### R. Dự báo cuối tháng (run-rate)
+
+Dựa tốc độ chi tới thời điểm hiện tại → **ước tính tổng cuối tháng** và đối chiếu ngân
+sách: "Với đà này bạn sẽ chi ~450k¥, vượt ngân sách 50k".
+
+- Gợi ý kỹ thuật: run-rate = chi tới nay / số ngày đã qua × số ngày trong tháng tài
+  chính (tôn trọng `month_start_day` qua `getMonthRange`). Tính client-side, không đổi
+  schema. **Ăn khớp trực tiếp với ngân sách (GĐ3 mục 1)** — dùng lại `buildBudgetReport`.
+- Liên quan: màn Ngân sách / Tổng quan.
+
+### S. So sánh tháng (▲▼)
+
+Mỗi danh mục: tháng này vs tháng trước vs **trung bình 3 tháng**, kèm mũi tên tăng/giảm.
+
+- Gợi ý kỹ thuật: gộp nhiều `monthKey` (đọc), mở rộng `aggregate.ts`; đa tiền tệ qua
+  `convertToBase`. Không đổi schema. Liên quan mục **A (báo cáo năm)** — nên tái dùng
+  helper gộp tháng chung.
+
+### T. Radar khoản định kỳ (tự phát hiện)
+
+Quét lịch sử tìm giao dịch **lặp đều** (tiền nhà, thuê bao) → nhắc "bạn có ~X/tháng cho
+khoản định kỳ".
+
+- Gợi ý kỹ thuật: heuristic gom theo (danh mục + ghi chú tương tự + số tiền gần nhau +
+  khoảng cách ~1 tháng). Client-side, đọc thôi. **Feed cho mục C/D** — có thể đề xuất
+  "tạo giao dịch định kỳ" từ khoản phát hiện được.
+
+### U. Phát hiện bất thường
+
+Cảnh báo giao dịch **lớn bất thường** so với thói quen của danh mục đó ("chi 50k¥ Mua
+sắm — gấp 5 lần trung bình").
+
+- Gợi ý kỹ thuật: so với trung bình/median lịch sử danh mục (client-side). Ngưỡng cấu
+  hình đơn giản. Không đổi schema. Chú ý nhiễu khi ít dữ liệu.
+
+### V. Tỷ lệ tiết kiệm & streak "ngày không chi"
+
+Chỉ số sức khỏe: **(thu − chi)/thu** trong tháng; và chuỗi **ngày không chi tiêu** để
+tạo động lực.
+
+- Gợi ý kỹ thuật: tính từ giao dịch tháng (đọc). Streak = đếm ngày liên tiếp không có
+  giao dịch chi. Nhẹ, không đổi schema.
+
+### W. Dòng tiền tích lũy trong tháng
+
+Biểu đồ đường **số dư chạy theo ngày** trong tháng (thu cộng, chi trừ).
+
+- Gợi ý kỹ thuật: cộng dồn theo `occurred_on`; Recharts → màn nặng, **lazy-load** như
+  các biểu đồ hiện có. Đọc thôi, không đổi schema.
+
+---
+
+## Gợi ý gom nhóm khi làm sau (không bắt buộc)
+
+- **Nhóm "Giao dịch định kỳ":** C + D + mục 2 GĐ3 → 1 tính năng.
+- **Nhóm "Tài sản & nợ":** E + F → làm gần nhau vì nợ ảnh hưởng tổng tài sản.
+- **Nhóm "Xem dữ liệu":** A (báo cáo năm) + B (lịch) → mở rộng cách xem, ít đụng schema.
+- **Nhóm "Xuất dữ liệu":** H (Excel) + GĐ3 mục 3 (CSV) → chốt chung CSV vs .xlsx,
+  làm một lần cho đường xuất file.
+- **G (danh mục mẹ/con) là thay đổi nền:** đụng schema `categories` + màn Nhập +
+  Báo cáo + Ngân sách. Nếu định làm, nên làm **sớm** (trước khi các tính năng khác
+  bám thêm vào cấu trúc danh mục phẳng), hoặc chấp nhận migrate nhiều nơi sau này.
+- **Nhóm "Nhập nhanh hơn":** I (gợi ý thông minh) + J (mẫu nhanh) + K (hoàn tác) +
+  L (máy tính) + M (batch) → gói cải thiện màn Nhập, phần lớn UI thuần / đọc dữ liệu,
+  làm được sớm và độc lập. O (PWA shortcuts) + P (giọng nói) là phụ trợ, làm rời.
+- **Nhóm "Insight tính toán":** Q (thẻ insight) + R (dự báo cuối tháng) + S (so sánh
+  tháng) + U (bất thường) + V (tỷ lệ tiết kiệm) → **chỉ đọc/tính client-side, không
+  đổi schema**; nên gom vì dùng chung helper gộp tháng + `aggregate.ts` + `convertToBase`.
+  Ăn khớp với **A (báo cáo năm)** (helper gộp tháng) và **ngân sách GĐ3 mục 1** (R).
+- **T (radar định kỳ)** nên làm **kèm/nối C+D**: phát hiện xong thì đề xuất tạo rule
+  định kỳ.
+- **N (tách hóa đơn)** cần chốt schema (nhiều giao dịch rời vs. nhóm có `group_id`) —
+  cân nhắc cùng lúc với **G** nếu định đổi cấu trúc dữ liệu giao dịch.
+
+Thứ tự và spec chi tiết sẽ quyết định khi tới từng nhóm.

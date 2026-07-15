@@ -43,6 +43,10 @@ describe('evalExpression', () => {
   it('cho phép kết quả âm', () => {
     expect(evalExpression('100−500')).toBe(-400)
   })
+
+  it('tich qua lon (vuot nguong an toan) → null', () => {
+    expect(evalExpression('999999999999×999999999999')).toBe(null)
+  })
 })
 
 describe('appendKey', () => {

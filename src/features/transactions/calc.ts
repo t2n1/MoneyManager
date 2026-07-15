@@ -29,7 +29,8 @@ export function evalExpression(expr: string): number | null {
       acc /= num
     }
   }
-  return Math.round(acc)
+  const rounded = Math.round(acc)
+  return Number.isSafeInteger(rounded) ? rounded : null
 }
 
 export const MAX_AMOUNT_DIGITS = 12

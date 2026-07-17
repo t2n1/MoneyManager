@@ -216,7 +216,7 @@ export function SearchPage() {
       <p className="mb-2 px-1 text-xs text-gray-500">
         {isLoading ? 'Đang tìm…' : `${results.length} kết quả`}
       </p>
-      {(totals.income > 0 || totals.expense > 0) && (
+      {(totals.income > 0 || totals.expense > 0 || totals.hasMissingRate) && (
         <div className="mb-3 rounded-xl bg-white p-3 shadow-sm">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-500">Thu</span>

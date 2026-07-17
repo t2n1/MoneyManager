@@ -97,3 +97,37 @@ export function monthlySeries(
   }))
   return { points, hasMissingRate }
 }
+
+export interface IncomeExpenseSum {
+  /** minor units theo base currency */
+  income: number
+  expense: number
+  hasForeign: boolean
+  hasMissingRate: boolean
+}
+
+/** Tổng thu + tổng chi (đã quy đổi base). Chuyển khoản KHÔNG tính. */
+export function sumIncomeExpense(
+  txs: TransactionRow[],
+  currencyOf: CurrencyOf,
+  base: CurrencyCode,
+  rates: Rates,
+): IncomeExpenseSum {
+  let income = 0
+  let expense = 0
+  let hasForeign = false
+  let hasMissingRate = false
+  for (const t of txs) {
+    if (t.type === 'transfer') continue
+    const cur = currencyOf(t.account_id)
+    if (cur !== base) hasForeign = true
+    const v = convertToBase(t.amount, cur, base, rates)
+    if (v === null) {
+      hasMissingRate = true
+      continue
+    }
+    if (t.type === 'income') income += v
+    else expense += v
+  }
+  return { income, expense, hasForeign, hasMissingRate }
+}

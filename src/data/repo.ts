@@ -62,10 +62,14 @@ export interface TxFilter {
   accountIds?: string[]
 }
 
+/** Chỉ sửa được tên hiển thị + ngày bắt đầu tháng. Cố ý KHÔNG có base_currency. */
+export type ProfilePatch = Partial<Pick<ProfileRow, 'display_name' | 'month_start_day'>>
+
 // Toàn bộ đọc/ghi dữ liệu đi qua interface này.
 // 2 implementation: demoRepo (localStorage) và supabaseRepo (Postgres + RLS).
 export interface Repo {
   getProfile(): Promise<ProfileRow>
+  updateProfile(patch: ProfilePatch): Promise<ProfileRow>
   getAccounts(): Promise<AccountRow[]>
   getAccountBalances(): Promise<AccountBalanceRow[]>
   getCategories(): Promise<CategoryRow[]>

@@ -7,6 +7,7 @@ import {
   type NewAccount,
   type NewCategory,
   type NewTransaction,
+  type ProfilePatch,
   type TransactionPatch,
   type TxFilter,
 } from '../data'
@@ -18,6 +19,14 @@ import type { TransactionRow } from '../types/database.types'
 import { useProfile } from './useProfile'
 
 export { useProfile }
+
+export function useUpdateProfile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (patch: ProfilePatch) => repo.updateProfile(patch),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['profile'] }),
+  })
+}
 
 /** Tỷ giá quy đổi về base currency của profile (cache 12h + localStorage). */
 export function useRates() {

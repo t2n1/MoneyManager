@@ -7,6 +7,7 @@ import type {
   NewAccount,
   NewCategory,
   NewTransaction,
+  ProfilePatch,
   Repo,
   TransactionPatch,
   TxFilter,
@@ -39,6 +40,18 @@ async function nextSortOrder(
 export const supabaseRepo: Repo = {
   async getProfile() {
     const { data, error } = await getSupabase().from('profiles').select('*').single()
+    if (error) throw error
+    return data
+  },
+
+  async updateProfile(patch: ProfilePatch) {
+    const uid = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('profiles')
+      .update(patch)
+      .eq('user_id', uid)
+      .select()
+      .single()
     if (error) throw error
     return data
   },

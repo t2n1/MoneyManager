@@ -15,6 +15,7 @@ import type {
   NewAccount,
   NewCategory,
   NewTransaction,
+  ProfilePatch,
   Repo,
   TransactionPatch,
   TxFilter,
@@ -200,6 +201,13 @@ export function resetDemoData() {
 export const demoRepo: Repo = {
   async getProfile() {
     return load().profile
+  },
+
+  async updateProfile(patch: ProfilePatch) {
+    const db = load()
+    db.profile = { ...db.profile, ...patch }
+    save(db)
+    return db.profile
   },
 
   async getAccounts() {

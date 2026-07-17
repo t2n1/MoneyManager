@@ -11,6 +11,7 @@ export type {
   NewAccount,
   NewCategory,
   NewTransaction,
+  ProfilePatch,
   Repo,
   TransactionPatch,
   TxFilter,

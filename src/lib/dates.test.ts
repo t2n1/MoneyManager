@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   addMonths,
+  clampMonthStartDay,
   formatMonthLabel,
   getMonthRange,
   monthKeyForDate,
@@ -98,5 +99,25 @@ describe('monthKeyString / parseMonthKey', () => {
       year: 2025,
       month: 1,
     })
+  })
+})
+
+describe('clampMonthStartDay', () => {
+  it('giữ nguyên giá trị hợp lệ', () => {
+    expect(clampMonthStartDay(1)).toBe(1)
+    expect(clampMonthStartDay(15)).toBe(15)
+    expect(clampMonthStartDay(28)).toBe(28)
+  })
+  it('kẹp về biên', () => {
+    expect(clampMonthStartDay(0)).toBe(1)
+    expect(clampMonthStartDay(-5)).toBe(1)
+    expect(clampMonthStartDay(29)).toBe(28)
+    expect(clampMonthStartDay(31)).toBe(28)
+  })
+  it('làm tròn số thập phân', () => {
+    expect(clampMonthStartDay(15.6)).toBe(16)
+  })
+  it('giá trị không hữu hạn → 1', () => {
+    expect(clampMonthStartDay(NaN)).toBe(1)
   })
 })

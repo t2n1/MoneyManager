@@ -53,3 +53,9 @@ export function parseMonthKey(s: string): MonthKey {
   const [year, month] = s.split('-').map(Number)
   return { year, month }
 }
+
+/** Kẹp ngày bắt đầu tháng về 1–28 (làm tròn; giá trị không hữu hạn → 1). */
+export function clampMonthStartDay(n: number): number {
+  if (!Number.isFinite(n)) return 1
+  return Math.min(28, Math.max(1, Math.round(n)))
+}

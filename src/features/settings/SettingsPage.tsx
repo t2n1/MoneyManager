@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import { resetDemoData } from '../../data/demoRepo'
@@ -6,6 +7,7 @@ import { isDemoMode } from '../../lib/demo'
 import { getSupabase } from '../../lib/supabase'
 import { CURRENCIES, formatMoney } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
+import { ProfileEditSheet } from './ProfileEditSheet'
 
 export function SettingsPage() {
   const { data: profile } = useProfile()
@@ -13,6 +15,7 @@ export function SettingsPage() {
   const { base, rates } = useRates()
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const [editing, setEditing] = useState(false)
 
   // Tổng tài sản quy đổi về base; thiếu tỷ giá cho bất kỳ tài khoản nào → null
   const total = balances.reduce<number | null>((sum, b) => {
@@ -107,17 +110,31 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <section className="rounded-xl bg-white p-3 shadow-sm">
-        <h2 className="mb-2 text-sm font-semibold text-gray-500">Tài khoản đăng nhập</h2>
-        <p className="text-sm text-gray-800">{profile?.display_name ?? '—'}</p>
+      <section className="overflow-hidden rounded-xl bg-white shadow-sm">
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-gray-50"
+        >
+          <span className="text-xl">👤</span>
+          <span className="flex-1">
+            <span className="block text-sm text-gray-800">{profile?.display_name ?? '—'}</span>
+            <span className="block text-xs text-gray-400">
+              Tháng bắt đầu ngày {profile?.month_start_day ?? 1} · Tiền gốc {profile?.base_currency ?? '—'}
+            </span>
+          </span>
+          <span className="text-gray-300">›</span>
+        </button>
         {!isDemoMode && (
-          <button
-            type="button"
-            onClick={() => getSupabase().auth.signOut()}
-            className="mt-3 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
-          >
-            Đăng xuất
-          </button>
+          <div className="border-t border-gray-100 px-3 py-3">
+            <button
+              type="button"
+              onClick={() => getSupabase().auth.signOut()}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+            >
+              Đăng xuất
+            </button>
+          </div>
         )}
       </section>
 
@@ -125,6 +142,8 @@ export function SettingsPage() {
         Sổ Chi Tiêu · Giai đoạn 1 (MVP)
         {profile && ` · Tháng bắt đầu ngày ${profile.month_start_day} · Quy đổi ${base}`}
       </p>
+
+      {editing && profile && <ProfileEditSheet profile={profile} onClose={() => setEditing(false)} />}
     </div>
   )
 }

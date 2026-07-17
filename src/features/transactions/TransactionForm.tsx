@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { NewTransaction } from '../../data'
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
@@ -8,6 +8,18 @@ import { NumPad, type NumPadKey } from './NumPad'
 import { appendKey, evalExpression, MAX_AMOUNT_DIGITS } from './calc'
 
 const LAST_ACCOUNT_KEY = 'sct-last-account'
+const lastCategoryKey = (type: TransactionType) => `sct-last-category-${type}`
+
+/** id danh mục lần trước của loại `type`, chỉ trả khi còn hợp lệ (không lưu trữ). */
+function lastCategoryFor(
+  type: TransactionType,
+  categories: { id: string; type: TransactionType; is_archived: boolean }[],
+): string | null {
+  const id = localStorage.getItem(lastCategoryKey(type))
+  if (!id) return null
+  const c = categories.find((x) => x.id === id)
+  return c && c.type === type && !c.is_archived ? id : null
+}
 
 const TYPE_TABS: { value: TransactionType; label: string }[] = [
   { value: 'expense', label: 'Chi' },
@@ -55,7 +67,9 @@ export function TransactionForm({
   const [toDigits, setToDigits] = useState(initial?.to_amount ? String(initial.to_amount) : '')
   /** CK xuyên tệ trên mobile: numpad đang gõ vào ô nào */
   const [activeField, setActiveField] = useState<'main' | 'to'>('main')
-  const [categoryId, setCategoryId] = useState<string | null>(initial?.category_id ?? null)
+  const [categoryId, setCategoryId] = useState<string | null>(
+    initial?.category_id ?? lastCategoryFor(initial?.type ?? 'expense', categories),
+  )
   const [accountId, setAccountId] = useState<string | null>(
     initial?.account_id ?? localStorage.getItem(LAST_ACCOUNT_KEY),
   )
@@ -64,6 +78,13 @@ export function TransactionForm({
   const [note, setNote] = useState(initial?.note ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Điền sẵn danh mục lần trước khi categories tải xong (form mới, chưa chọn gì)
+  useEffect(() => {
+    if (initial || categoryId !== null || type === 'transfer') return
+    const last = lastCategoryFor(type, categories)
+    if (last) setCategoryId(last)
+  }, [categories, type, initial, categoryId])
 
   const activeAccounts = useMemo(() => accounts.filter((a) => !a.is_archived), [accounts])
   const visibleCategories = useMemo(
@@ -96,7 +117,7 @@ export function TransactionForm({
 
   function switchType(next: TransactionType) {
     setType(next)
-    setCategoryId(null)
+    setCategoryId(lastCategoryFor(next, categories))
     setToAccountId(null)
     setToDigits('')
     setActiveField('main')
@@ -123,6 +144,9 @@ export function TransactionForm({
         note: note.trim(),
       })
       localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
+      if (type !== 'transfer' && categoryId) {
+        localStorage.setItem(lastCategoryKey(type), categoryId)
+      }
       if (resetAfterSubmit) {
         setDigits('')
         setToDigits('')

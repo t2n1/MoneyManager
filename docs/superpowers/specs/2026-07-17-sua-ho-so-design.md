@@ -64,7 +64,8 @@ lỗ hổng rõ nhất của bản MVP.
 ### 5. Kiểm thử
 
 - Tách hàm thuần `clampMonthStartDay(n: number): number` — kẹp về 1–28, làm tròn,
-  xử lý giá trị không hợp lệ (NaN → 1). Đặt cạnh nơi dùng hoặc trong `lib/dates`.
+  xử lý giá trị không hợp lệ (NaN → 1). Đặt trong `src/lib/dates.ts` (cùng chỗ các
+  tiện ích ngày tháng), test trong `src/lib/dates.test.ts`.
 - 1 file test nhỏ cho hàm này (biên: 0, 1, 28, 29, 31, NaN, số thập phân).
 - Phần UI mỏng nên không viết test riêng.
 

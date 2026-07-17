@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useBudgetAlert, useCreateTransaction, useDeleteTransaction } from '../../hooks/queries'
+import type { TransactionType } from '../../types/database.types'
 import { TransactionForm } from './TransactionForm'
 
 /** Màn hình mặc định khi mở app — nhập một giao dịch phải < 5 giây. */
@@ -8,6 +9,10 @@ export function EntryPage() {
   const create = useCreateTransaction()
   const del = useDeleteTransaction()
   const { overCount } = useBudgetAlert()
+  const [searchParams] = useSearchParams()
+  const qType = searchParams.get('type')
+  const initialType: TransactionType | undefined =
+    qType === 'income' || qType === 'expense' ? qType : undefined
   const [toast, setToast] = useState<{ text: string; undoId?: string } | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -33,6 +38,7 @@ export function EntryPage() {
       <TransactionForm
         submitLabel="Lưu"
         resetAfterSubmit
+        initialType={initialType}
         onSubmit={async (values) => {
           const row = await create.mutateAsync(values)
           setToast({ text: 'Đã lưu ✓', undoId: row.id })

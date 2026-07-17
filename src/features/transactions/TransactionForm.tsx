@@ -51,6 +51,8 @@ interface TransactionFormProps {
   onSubmit: (values: NewTransaction) => Promise<void>
   /** Nhập nhanh: reset số tiền + ghi chú sau khi lưu để nhập tiếp */
   resetAfterSubmit?: boolean
+  /** Loại khởi tạo khi mở mới (vd từ lối tắt PWA) — bỏ qua nếu có `initial`. */
+  initialType?: TransactionType
 }
 
 export function TransactionForm({
@@ -58,17 +60,18 @@ export function TransactionForm({
   submitLabel,
   onSubmit,
   resetAfterSubmit,
+  initialType,
 }: TransactionFormProps) {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
 
-  const [type, setType] = useState<TransactionType>(initial?.type ?? 'expense')
+  const [type, setType] = useState<TransactionType>(initial?.type ?? initialType ?? 'expense')
   const [digits, setDigits] = useState(initial ? String(initial.amount) : '')
   const [toDigits, setToDigits] = useState(initial?.to_amount ? String(initial.to_amount) : '')
   /** CK xuyên tệ trên mobile: numpad đang gõ vào ô nào */
   const [activeField, setActiveField] = useState<'main' | 'to'>('main')
   const [categoryId, setCategoryId] = useState<string | null>(
-    initial?.category_id ?? lastCategoryFor(initial?.type ?? 'expense', categories),
+    initial?.category_id ?? lastCategoryFor(initial?.type ?? initialType ?? 'expense', categories),
   )
   const [accountId, setAccountId] = useState<string | null>(
     initial?.account_id ?? localStorage.getItem(LAST_ACCOUNT_KEY),

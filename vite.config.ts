@@ -38,6 +38,11 @@ export default defineConfig({
             purpose: 'maskable',
           },
         ],
+        // Giữ icon app → nhảy thẳng vào nhập chi/thu (mục O)
+        shortcuts: [
+          { name: 'Nhập chi', short_name: 'Chi', url: '/?type=expense' },
+          { name: 'Nhập thu', short_name: 'Thu', url: '/?type=income' },
+        ],
       },
     }),
   ],

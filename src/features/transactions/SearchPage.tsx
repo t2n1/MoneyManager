@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom'
 import type { TxFilter } from '../../data'
 import { useAccounts, useCategories, useRates, useSearchTransactions } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
-import { CURRENCIES } from '../../lib/money'
+import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
+import { sumIncomeExpense } from '../reports/aggregate'
 import { EditTransactionSheet } from './EditTransactionSheet'
 import { TransactionItem } from './TransactionItem'
 
@@ -31,7 +32,7 @@ function defaultFrom(): string {
 export function SearchPage() {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
-  const { base } = useRates()
+  const { base, rates } = useRates()
 
   const [text, setText] = useState('')
   const [debouncedText, setDebouncedText] = useState('')
@@ -74,6 +75,15 @@ export function SearchPage() {
 
   const accountOf = (id: string | null) => accounts.find((a) => a.id === id)
   const categoryOf = (id: string | null) => categories.find((c) => c.id === id)
+
+  const currencyOf = (id: string): CurrencyCode =>
+    accounts.find((a) => a.id === id)?.currency ?? base
+
+  const totals = useMemo(
+    () => sumIncomeExpense(results, currencyOf, base, rates ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [results, accounts, base, rates],
+  )
 
   const days = useMemo(() => {
     const map = new Map<string, TransactionRow[]>()
@@ -206,6 +216,29 @@ export function SearchPage() {
       <p className="mb-2 px-1 text-xs text-gray-500">
         {isLoading ? 'Đang tìm…' : `${results.length} kết quả`}
       </p>
+      {(totals.income > 0 || totals.expense > 0) && (
+        <div className="mb-3 rounded-xl bg-white p-3 shadow-sm">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">Thu</span>
+            <span className="font-semibold text-green-600">
+              {totals.hasForeign ? '≈ ' : ''}
+              {formatMoney(totals.income, base)}
+            </span>
+          </div>
+          <div className="mt-1 flex items-center justify-between text-sm">
+            <span className="text-gray-500">Chi</span>
+            <span className="font-semibold text-red-600">
+              {totals.hasForeign ? '≈ ' : ''}
+              {formatMoney(totals.expense, base)}
+            </span>
+          </div>
+          {totals.hasMissingRate && (
+            <p className="mt-2 text-xs text-amber-700">
+              Một phần ngoại tệ chưa quy đổi được (đang chờ tỷ giá).
+            </p>
+          )}
+        </div>
+      )}
       {days.length === 0 && !isLoading ? (
         <p className="py-10 text-center text-gray-400">Không có giao dịch khớp bộ lọc</p>
       ) : (

@@ -148,10 +148,10 @@ export function TransactionForm({
         localStorage.setItem(lastCategoryKey(type), categoryId)
       }
       if (resetAfterSubmit) {
+        // Nhập liên tục (M): giữ danh mục + tài khoản + ngày, chỉ xóa số tiền + ghi chú
         setDigits('')
         setToDigits('')
         setNote('')
-        setCategoryId(null)
         setToAccountId(null)
         setActiveField('main')
       }

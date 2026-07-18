@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { NewTransaction } from '../../data'
+import type { NewRecurringRule, NewTransaction } from '../../data'
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
+import type { RecurringFrequency } from '../../lib/recurring'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
 import { useAccounts, useCategories } from '../../hooks/queries'
 import { NumPad, type NumPadKey } from './NumPad'
@@ -58,6 +59,12 @@ interface TransactionFormProps {
   onContinue?: (values: NewTransaction) => Promise<void>
   /** Loại khởi tạo khi mở mới (vd từ lối tắt PWA) — bỏ qua nếu có `initial`. */
   initialType?: TransactionType
+  /**
+   * Màn Nhập: cho phép "Lặp lại". Khi người dùng chọn chu kỳ, submit gọi hàm
+   * này (tạo rule + catch-up sinh kỳ đầu) thay vì onSubmit. Không truyền
+   * (form sửa) → không hiện selector.
+   */
+  onSubmitRecurring?: (rule: NewRecurringRule) => Promise<void>
 }
 
 export function TransactionForm({
@@ -67,6 +74,7 @@ export function TransactionForm({
   continueLabel,
   onContinue,
   initialType,
+  onSubmitRecurring,
 }: TransactionFormProps) {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
@@ -85,6 +93,8 @@ export function TransactionForm({
   const [toAccountId, setToAccountId] = useState<string | null>(initial?.to_account_id ?? null)
   const [date, setDate] = useState(initial?.occurred_on ?? toISODate(new Date()))
   const [note, setNote] = useState(initial?.note ?? '')
+  // Lặp lại (chỉ form nhập mới): 'none' = không lặp, còn lại là chu kỳ
+  const [repeat, setRepeat] = useState<'none' | RecurringFrequency>('none')
   // Nút đang lưu: 'save' | 'continue' | null — để khóa cả hai nút và hiện "Đang lưu…"
   const [pending, setPending] = useState<'save' | 'continue' | null>(null)
   const saving = pending !== null
@@ -178,7 +188,23 @@ export function TransactionForm({
         occurred_on: date,
         note: note.trim(),
       }
-      await (keepGoing ? onContinue!(values) : onSubmit(values))
+      if (repeat !== 'none' && onSubmitRecurring) {
+        // Lặp lại: tạo rule (kỳ đầu do engine catch-up sinh, không tạo GD riêng)
+        await onSubmitRecurring({
+          type,
+          amount,
+          to_amount: crossCurrency ? toAmount : null,
+          category_id: type === 'transfer' ? null : categoryId,
+          account_id: effectiveAccountId,
+          to_account_id: type === 'transfer' ? toAccountId : null,
+          note: note.trim(),
+          frequency: repeat,
+          start_on: date,
+          end_on: null,
+        })
+      } else {
+        await (keepGoing ? onContinue!(values) : onSubmit(values))
+      }
       localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
       if (type !== 'transfer' && categoryId) {
         localStorage.setItem(lastCategoryKey(type), categoryId)
@@ -309,6 +335,19 @@ export function TransactionForm({
           onChange={(e) => setDate(e.target.value)}
           className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300"
         />
+        {!initial && onSubmitRecurring && (
+          <select
+            value={repeat}
+            onChange={(e) => setRepeat(e.target.value as 'none' | RecurringFrequency)}
+            aria-label="Lặp lại"
+            className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300"
+          >
+            <option value="none">Không lặp</option>
+            <option value="weekly">Hàng tuần</option>
+            <option value="monthly">Hàng tháng</option>
+            <option value="yearly">Hàng năm</option>
+          </select>
+        )}
       </div>
       <input
         value={note}
@@ -378,7 +417,7 @@ export function TransactionForm({
 
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-      {onContinue ? (
+      {onContinue && repeat === 'none' ? (
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"

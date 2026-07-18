@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, TriangleAlert } from 'lucide-react'
-import { useBudgetAlert, useCreateTransaction, useDeleteTransaction } from '../../hooks/queries'
+import {
+  useBudgetAlert,
+  useCreateRecurringRule,
+  useCreateTransaction,
+  useDeleteTransaction,
+  useRunRecurringCatchUp,
+} from '../../hooks/queries'
 import type { TransactionType } from '../../types/database.types'
 import { TransactionForm } from './TransactionForm'
 
@@ -10,6 +16,8 @@ export function EntryPage() {
   const navigate = useNavigate()
   const create = useCreateTransaction()
   const del = useDeleteTransaction()
+  const createRule = useCreateRecurringRule()
+  const catchUp = useRunRecurringCatchUp()
   const { overCount } = useBudgetAlert()
   const [searchParams] = useSearchParams()
   const qType = searchParams.get('type')
@@ -64,6 +72,17 @@ export function EntryPage() {
           setToast({ text: 'Đã lưu ✓', undoId: row.id })
           clearTimeout(toastTimer.current)
           toastTimer.current = setTimeout(() => setToast(null), 5000)
+        }}
+        // Lặp lại: tạo rule + sinh ngay kỳ đến hạn, toast rồi về Sổ GD
+        onSubmitRecurring={async (rule) => {
+          await createRule.mutateAsync(rule)
+          await catchUp.mutateAsync()
+          setToast({ text: 'Đã tạo quy tắc định kỳ ✓' })
+          clearTimeout(toastTimer.current)
+          toastTimer.current = setTimeout(() => {
+            setToast(null)
+            navigate('/')
+          }, 1200)
         }}
       />
       {toast && (

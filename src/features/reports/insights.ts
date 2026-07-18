@@ -79,3 +79,22 @@ export function buildInsights(
 
   return out
 }
+
+export interface Forecast {
+  /** dự báo tổng chi cuối tháng (base, minor units) */
+  projected: number
+  spentSoFar: number
+  daysElapsed: number
+  daysInMonth: number
+}
+
+/** Nội suy tuyến tính chi cả tháng theo tốc độ tới nay. Đầu vào không hợp lệ → null. */
+export function forecastMonthEnd(
+  spentSoFar: number,
+  daysElapsed: number,
+  daysInMonth: number,
+): Forecast | null {
+  if (daysElapsed < 1 || daysInMonth < 1) return null
+  const projected = Math.round((spentSoFar / daysElapsed) * daysInMonth)
+  return { projected, spentSoFar, daysElapsed, daysInMonth }
+}

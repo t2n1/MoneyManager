@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildInsights, noSpendStreak, savingsRate } from './insights'
+import { buildInsights, forecastMonthEnd, noSpendStreak, savingsRate } from './insights'
 import type { TransactionRow } from '../../types/database.types'
 
 const tx = (occurred_on: string, type: TransactionRow['type']): TransactionRow => ({
@@ -83,5 +83,16 @@ describe('buildInsights', () => {
       fmt,
     )
     expect(out).toEqual([])
+  })
+})
+
+describe('forecastMonthEnd', () => {
+  it('nội suy giữa tháng: chi 10.000 sau 10/30 ngày → 30.000', () => {
+    expect(forecastMonthEnd(10_000, 10, 30)?.projected).toBe(30_000)
+  })
+  it('daysElapsed = 0 → null', () => expect(forecastMonthEnd(5_000, 0, 30)).toBeNull())
+  it('daysInMonth = 0 → null', () => expect(forecastMonthEnd(5_000, 5, 0)).toBeNull())
+  it('hết tháng → projected ≈ spentSoFar', () => {
+    expect(forecastMonthEnd(30_000, 30, 30)?.projected).toBe(30_000)
   })
 })

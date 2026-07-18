@@ -59,3 +59,10 @@ export function clampMonthStartDay(n: number): number {
   if (!Number.isFinite(n)) return 1
   return Math.min(28, Math.max(1, Math.round(n)))
 }
+
+/** Số ngày nguyên giữa 2 ngày ISO 'YYYY-MM-DD' (bISO − aISO), theo mốc UTC 00:00. */
+export function daysBetween(aISO: string, bISO: string): number {
+  const a = Date.parse(aISO + 'T00:00:00Z')
+  const b = Date.parse(bISO + 'T00:00:00Z')
+  return Math.round((b - a) / 86_400_000)
+}

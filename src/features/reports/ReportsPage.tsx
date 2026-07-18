@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts'
 import { BudgetView } from '../budgets/BudgetView'
+import { InsightsView } from './InsightsView'
 import {
   useAccounts,
   useCategories,
@@ -30,7 +31,6 @@ import {
 } from '../../lib/dates'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { categoryBreakdown, monthlySeries } from './aggregate'
-import { buildInsights, noSpendStreak, savingsRate } from './insights'
 
 // Bảng màu cho lát bánh (lặp lại nếu > 12 danh mục)
 const PALETTE = [
@@ -50,8 +50,12 @@ function formatCompact(minor: number, base: CurrencyCode): string {
 export function ReportsPage() {
   const [kind, setKind] = useState<'expense' | 'income'>('expense')
   const [searchParams] = useSearchParams()
-  const [view, setView] = useState<'charts' | 'budget'>(
-    searchParams.get('view') === 'budget' ? 'budget' : 'charts',
+  const [view, setView] = useState<'charts' | 'insights' | 'budget'>(
+    searchParams.get('view') === 'budget'
+      ? 'budget'
+      : searchParams.get('view') === 'insights'
+        ? 'insights'
+        : 'charts',
   )
 
   const { data: profile } = useProfile()
@@ -114,33 +118,6 @@ export function ReportsPage() {
 
   const approx = breakdown.hasForeign ? '≈ ' : ''
 
-  // --- Sức khỏe tài chính + thẻ gợi ý (V, Q) ---
-  const expenseBreakdown = useMemo(
-    () => categoryBreakdown(monthTxs, 'expense', currencyOf, base, rates ?? {}),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [monthTxs, accounts, base, rates],
-  )
-  const thisPoint = series.points[series.points.length - 1]
-  const prevPoint = series.points[series.points.length - 2]
-  const rate = thisPoint ? savingsRate(thisPoint.income, thisPoint.expense) : null
-  const streak = useMemo(
-    () => noSpendStreak(monthTxs, toISODate(new Date()), monthStartDay),
-    [monthTxs, monthStartDay],
-  )
-  const topSlice = expenseBreakdown.slices[0]
-  const topCat = topSlice ? categoryOf(topSlice.categoryId) : undefined
-  const insights = buildInsights(
-    {
-      expenseThis: thisPoint?.expense ?? 0,
-      expensePrev: prevPoint?.expense ?? 0,
-      topCategoryName: topCat?.name ?? null,
-      topCategoryAmount: topSlice?.amount ?? 0,
-      expenseTotal: expenseBreakdown.total,
-    },
-    (m) => formatMoney(m, base),
-  )
-  const hasHealth = rate !== null || streak > 0 || insights.length > 0
-
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
       {/* Header chuyển tháng */}
@@ -175,6 +152,13 @@ export function ReportsPage() {
         </button>
         <button
           type="button"
+          onClick={() => setView('insights')}
+          className={`flex-1 rounded-md py-1.5 ${view === 'insights' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'}`}
+        >
+          Thấu hiểu
+        </button>
+        <button
+          type="button"
           onClick={() => setView('budget')}
           className={`flex-1 rounded-md py-1.5 ${view === 'budget' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'}`}
         >
@@ -190,36 +174,6 @@ export function ReportsPage() {
 
       {view === 'charts' && (
         <>
-      {/* Sức khỏe tài chính + thẻ gợi ý (V, Q) */}
-      {hasHealth && (
-        <section className="rounded-xl bg-white p-3 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-gray-500">Sức khỏe tài chính</h2>
-          <div className="mb-2 flex gap-2">
-            {rate !== null && (
-              <div className="flex-1 rounded-lg bg-gray-50 p-2 text-center">
-                <div className={`text-lg font-bold ${rate >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {Math.round(rate * 100)}%
-                </div>
-                <div className="text-[11px] text-gray-500">Tỷ lệ tiết kiệm</div>
-              </div>
-            )}
-            <div className="flex-1 rounded-lg bg-gray-50 p-2 text-center">
-              <div className="text-lg font-bold text-gray-800">{streak}</div>
-              <div className="text-[11px] text-gray-500">Ngày liên tiếp không chi</div>
-            </div>
-          </div>
-          {insights.length > 0 && (
-            <ul className="space-y-1">
-              {insights.map((i) => (
-                <li key={i.id} className="rounded-lg bg-green-50 px-2 py-1.5 text-xs text-gray-700">
-                  {i.text}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-
       {/* Biểu đồ tròn theo danh mục */}
       <section className="rounded-xl bg-white p-3 shadow-sm">
         <div className="mb-2 flex items-center justify-between">
@@ -338,6 +292,8 @@ export function ReportsPage() {
       </section>
         </>
       )}
+
+      {view === 'insights' && <InsightsView monthKey={activeMonthKey} />}
 
       {view === 'budget' && <BudgetView monthKey={activeMonthKey} />}
     </div>

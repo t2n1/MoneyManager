@@ -10,8 +10,10 @@ import {
   type NewCategory,
   type NewDebt,
   type NewDebtPayment,
+  type NewRecurringRule,
   type NewTransaction,
   type ProfilePatch,
+  type RecurringRulePatch,
   type TransactionPatch,
   type TxFilter,
 } from '../data'
@@ -20,6 +22,7 @@ import { buildBudgetReport, type BudgetReport } from '../features/budgets/progre
 import { fetchRates } from '../lib/rates'
 import type { CurrencyCode } from '../lib/money'
 import type { TransactionRow } from '../types/database.types'
+import { runRecurringCatchUp } from '../lib/recurring'
 import { useProfile } from './useProfile'
 
 export { useProfile }
@@ -413,6 +416,61 @@ export function useDeleteDebtPayment() {
     onSettled: () => {
       invalidateDebts(qc)
       invalidateTransactionData(qc)
+    },
+  })
+}
+
+// --- Giao dịch định kỳ (mục C+D) ---
+
+export function useRecurringRules() {
+  return useQuery({
+    queryKey: ['recurringRules'],
+    queryFn: () => repo.listRecurringRules(),
+    staleTime: 60_000,
+  })
+}
+
+function invalidateRecurringRules(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['recurringRules'] })
+}
+
+export function useCreateRecurringRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewRecurringRule) => repo.createRecurringRule(input),
+    onSettled: () => invalidateRecurringRules(qc),
+  })
+}
+
+export function useUpdateRecurringRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: RecurringRulePatch }) =>
+      repo.updateRecurringRule(id, patch),
+    onSettled: () => invalidateRecurringRules(qc),
+  })
+}
+
+export function useDeleteRecurringRule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => repo.deleteRecurringRule(id),
+    // Xóa rule set null recurring_rule_id trên giao dịch (mất badge) → làm mới giao dịch
+    onSettled: () => {
+      invalidateRecurringRules(qc)
+      invalidateTransactionData(qc)
+    },
+  })
+}
+
+/** Chạy catch-up sinh giao dịch định kỳ; mutateAsync trả về số giao dịch đã tạo. */
+export function useRunRecurringCatchUp() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => runRecurringCatchUp(repo, toISODate(new Date())),
+    onSuccess: (created) => {
+      invalidateRecurringRules(qc)
+      if (created > 0) invalidateTransactionData(qc)
     },
   })
 }

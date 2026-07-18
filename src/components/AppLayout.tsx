@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ChartColumn, NotebookText, Settings, Wallet } from 'lucide-react'
 import { isDemoMode } from '../lib/demo'
+import { useRunRecurringCatchUp } from '../hooks/queries'
 
 const TABS = [
   { to: '/', label: 'Sổ GD', Icon: NotebookText },
@@ -21,6 +22,10 @@ function isTypingTarget(e: KeyboardEvent) {
   )
 }
 
+// Catch-up định kỳ chỉ chạy 1 lần mỗi lần mở app (module-level để sống qua
+// StrictMode re-mount; bản thân engine cũng idempotent nên chạy lại vô hại)
+let recurringCatchUpDone = false
+
 export function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -29,6 +34,26 @@ export function AppLayout() {
   const onLedger = location.pathname === '/' || location.pathname === '/transactions'
   // Trang nhập giao dịch: ẩn thanh nav dưới để có tối đa không gian
   const onEntry = location.pathname === '/entry'
+
+  const catchUp = useRunRecurringCatchUp()
+  const [recurringToast, setRecurringToast] = useState<string | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  // Sinh các kỳ định kỳ đến hạn kể từ lần mở trước; N > 0 → toast
+  useEffect(() => {
+    if (recurringCatchUpDone) return
+    recurringCatchUpDone = true
+    catchUp
+      .mutateAsync()
+      .then((created) => {
+        if (created === 0) return
+        setRecurringToast(`Đã tạo ${created} giao dịch định kỳ`)
+        toastTimer.current = setTimeout(() => setRecurringToast(null), 5000)
+      })
+      .catch(() => {}) // mở app không được chết vì catch-up lỗi (offline…)
+    return () => clearTimeout(toastTimer.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Phím tắt desktop: 1–4 chuyển tab, N mở màn nhập
   useEffect(() => {
@@ -124,6 +149,14 @@ export function AppLayout() {
           </NavLink>
         ))}
       </nav>
+
+      {recurringToast && (
+        <div className="fixed inset-x-0 top-4 z-50 flex justify-center">
+          <div className="rounded-full bg-gray-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg">
+            {recurringToast}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

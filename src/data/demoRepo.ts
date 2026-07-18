@@ -88,6 +88,9 @@ function seed(): DemoDB {
     asset_group,
     is_hidden: false,
     include_in_totals: true,
+    credit_limit: null,
+    statement_day: null,
+    payment_due_day: null,
     sort_order,
     is_archived: false,
     created_at: nowISO(),
@@ -116,6 +119,13 @@ function seed(): DemoDB {
     account('Ngân hàng', 'bank', 'JPY', 800_000, 1, 'Tiêu dùng'), // ¥800.000
     account('Đầu tư VN', 'bank', 'VND', 50_000_000, 2, 'Đầu tư'), // 50.000.000 ₫
     account('Dự trữ USD', 'bank', 'USD', 200_000, 3, 'Dự phòng'), // $2.000,00
+    // Thẻ tín dụng: số dư ban đầu âm = đang nợ ¥45.000. Không thuộc nhóm tài sản.
+    {
+      ...account('Thẻ Rakuten', 'card', 'JPY', -45_000, 4, null),
+      credit_limit: 500_000,
+      statement_day: 27,
+      payment_due_day: 10,
+    },
   ]
 
   // Danh mục cha (một số có danh mục con để minh họa)
@@ -166,6 +176,7 @@ function seed(): DemoDB {
     account_id: cash.id,
     to_account_id: null,
     to_amount: null,
+    recurring_rule_id: null,
     created_at: nowISO(),
     updated_at: nowISO(),
     ...partial,
@@ -344,6 +355,7 @@ export const demoRepo: Repo = {
           asset_group: a.asset_group ?? null,
           is_hidden: a.is_hidden ?? false,
           include_in_totals: a.include_in_totals ?? true,
+          credit_limit: a.credit_limit ?? null,
           is_archived: a.is_archived,
           sort_order: a.sort_order,
           balance: a.initial_balance + delta,
@@ -374,6 +386,7 @@ export const demoRepo: Repo = {
       ...input,
       id: uuid(),
       user_id: DEMO_USER,
+      recurring_rule_id: null,
       created_at: nowISO(),
       updated_at: nowISO(),
     }
@@ -406,6 +419,9 @@ export const demoRepo: Repo = {
     const sort_order = db.accounts.reduce((m, a) => Math.max(m, a.sort_order + 1), 0)
     const row: AccountRow = {
       ...input,
+      credit_limit: input.credit_limit ?? null,
+      statement_day: input.statement_day ?? null,
+      payment_due_day: input.payment_due_day ?? null,
       id: uuid(),
       user_id: DEMO_USER,
       sort_order,
@@ -673,6 +689,7 @@ export const demoRepo: Repo = {
         ...input.transaction,
         id: uuid(),
         user_id: DEMO_USER,
+        recurring_rule_id: null,
         created_at: nowISO(),
         updated_at: nowISO(),
       }

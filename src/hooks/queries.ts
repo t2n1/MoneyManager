@@ -118,6 +118,7 @@ export function useCreateTransaction() {
         ...input,
         id: `optimistic-${Date.now()}`,
         user_id: 'me',
+        recurring_rule_id: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }

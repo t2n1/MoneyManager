@@ -12,6 +12,7 @@ function tx(p: Partial<TransactionRow> & Pick<TransactionRow, 'type'>): Transact
     category_id: null,
     account_id: 'a1',
     to_account_id: null,
+    recurring_rule_id: null,
     occurred_on: '2026-07-10',
     note: '',
     created_at: '',

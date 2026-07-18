@@ -5,8 +5,9 @@
 // index signature ngầm (Record<string, unknown>) mà interface không có.
 
 import type { CurrencyCode } from '../lib/money'
+import type { RecurringFrequency } from '../lib/recurring'
 
-export type AccountType = 'cash' | 'bank'
+export type AccountType = 'cash' | 'bank' | 'card'
 export type CategoryType = 'expense' | 'income'
 export type TransactionType = 'expense' | 'income' | 'transfer'
 /** i_owe = mình nợ người ta · owed_to_me = người ta nợ mình */
@@ -34,6 +35,12 @@ export type AccountRow = {
   is_hidden: boolean
   /** false = không cộng số dư vào Tổng tài sản (vẫn hiển thị riêng) */
   include_in_totals: boolean
+  /** Thẻ tín dụng: hạn mức (minor units theo currency thẻ); null = không đặt / không phải thẻ */
+  credit_limit: number | null
+  /** Thẻ tín dụng: ngày chốt sao kê hằng tháng (1..31); null = chưa đặt */
+  statement_day: number | null
+  /** Thẻ tín dụng: ngày đến hạn thanh toán hằng tháng (1..31); null = chưa đặt */
+  payment_due_day: number | null
   sort_order: number
   is_archived: boolean
   created_at: string
@@ -63,6 +70,8 @@ export type TransactionRow = {
   category_id: string | null
   account_id: string
   to_account_id: string | null
+  /** Rule định kỳ đã sinh giao dịch này; null = giao dịch nhập tay */
+  recurring_rule_id: string | null
   occurred_on: string
   note: string
   created_at: string
@@ -78,6 +87,8 @@ export type AccountBalanceRow = {
   asset_group: string | null
   is_hidden: boolean
   include_in_totals: boolean
+  /** Thẻ tín dụng: hạn mức (minor units); null = không đặt / không phải thẻ */
+  credit_limit: number | null
   is_archived: boolean
   sort_order: number
   balance: number
@@ -138,6 +149,30 @@ export type DebtPaymentRow = {
   created_at: string
 }
 
+export type RecurringRuleRow = {
+  id: string
+  user_id: string
+  type: TransactionType
+  /** minor units theo currency của tài khoản nguồn */
+  amount: number
+  /** CK xuyên tệ: minor units theo currency tài khoản đích; null = cùng loại tiền */
+  to_amount: number | null
+  category_id: string | null
+  account_id: string
+  to_account_id: string | null
+  note: string
+  frequency: RecurringFrequency
+  /** kỳ đến hạn đầu tiên; anchor cho ngày-trong-tháng / thứ-trong-tuần */
+  start_on: string
+  /** null = vô hạn */
+  end_on: string | null
+  is_paused: boolean
+  /** kỳ đến hạn cuối đã sinh; null = chưa sinh kỳ nào */
+  last_generated_on: string | null
+  created_at: string
+  updated_at: string
+}
+
 type InsertOf<Row, Required extends keyof Row, Optional extends keyof Row> =
   Pick<Row, Required> & Partial<Pick<Row, Optional>>
 
@@ -161,6 +196,9 @@ export type Database = {
           | 'asset_group'
           | 'is_hidden'
           | 'include_in_totals'
+          | 'credit_limit'
+          | 'statement_day'
+          | 'payment_due_day'
           | 'sort_order'
           | 'is_archived'
         >
@@ -174,6 +212,9 @@ export type Database = {
             | 'asset_group'
             | 'is_hidden'
             | 'include_in_totals'
+            | 'credit_limit'
+            | 'statement_day'
+            | 'payment_due_day'
             | 'sort_order'
             | 'is_archived'
           >
@@ -197,7 +238,7 @@ export type Database = {
         Insert: InsertOf<
           TransactionRow,
           'user_id' | 'type' | 'amount' | 'account_id',
-          'id' | 'to_amount' | 'category_id' | 'to_account_id' | 'occurred_on' | 'note'
+          'id' | 'to_amount' | 'category_id' | 'to_account_id' | 'occurred_on' | 'note' | 'recurring_rule_id'
         >
         Update: Partial<
           Pick<
@@ -256,6 +297,39 @@ export type Database = {
           'id' | 'paid_on' | 'transaction_id' | 'note'
         >
         Update: Partial<Pick<DebtPaymentRow, 'amount' | 'paid_on' | 'transaction_id' | 'note'>>
+        Relationships: []
+      }
+      recurring_rules: {
+        Row: RecurringRuleRow
+        Insert: InsertOf<
+          RecurringRuleRow,
+          'user_id' | 'type' | 'amount' | 'account_id' | 'frequency' | 'start_on',
+          | 'id'
+          | 'to_amount'
+          | 'category_id'
+          | 'to_account_id'
+          | 'note'
+          | 'end_on'
+          | 'is_paused'
+          | 'last_generated_on'
+        >
+        Update: Partial<
+          Pick<
+            RecurringRuleRow,
+            | 'type'
+            | 'amount'
+            | 'to_amount'
+            | 'category_id'
+            | 'account_id'
+            | 'to_account_id'
+            | 'note'
+            | 'frequency'
+            | 'start_on'
+            | 'end_on'
+            | 'is_paused'
+            | 'last_generated_on'
+          >
+        >
         Relationships: []
       }
     }

@@ -3,9 +3,13 @@ import { getSupabase } from '../lib/supabase'
 import type { CategoryType } from '../types/database.types'
 import type {
   AccountPatch,
+  AssetGroupSettingPatch,
   CategoryPatch,
+  DebtPatch,
   NewAccount,
   NewCategory,
+  NewDebt,
+  NewDebtPayment,
   NewTransaction,
   ProfilePatch,
   Repo,
@@ -180,7 +184,7 @@ export const supabaseRepo: Repo = {
     const sort_order = await nextSortOrder('categories', input.type)
     const { data, error } = await getSupabase()
       .from('categories')
-      .insert({ ...input, user_id, sort_order })
+      .insert({ ...input, parent_id: input.parent_id ?? null, user_id, sort_order })
       .select()
       .single()
     if (error) throw error
@@ -204,6 +208,86 @@ export const supabaseRepo: Repo = {
         getSupabase().from('categories').update({ sort_order: i }).eq('id', id),
       ),
     )
+  },
+
+  async getAssetGroupSettings() {
+    const { data, error } = await getSupabase()
+      .from('asset_group_settings')
+      .select('*')
+      .order('sort_order')
+    if (error) throw error
+    return data
+  },
+
+  async upsertAssetGroupSetting(name: string, patch: AssetGroupSettingPatch) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('asset_group_settings')
+      .upsert({ user_id, name, ...patch }, { onConflict: 'user_id,name' })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async renameAssetGroup(oldName: string, newName: string) {
+    const uid = await currentUserId()
+    const sb = getSupabase()
+    // Chuyển thành viên trước
+    const { error: e1 } = await sb
+      .from('accounts')
+      .update({ asset_group: newName })
+      .eq('user_id', uid)
+      .eq('asset_group', oldName)
+    if (e1) throw e1
+    // Gộp nếu newName đã có cài đặt; ngược lại đổi tên bản ghi cũ
+    const { data: target } = await sb
+      .from('asset_group_settings')
+      .select('id')
+      .eq('name', newName)
+      .maybeSingle()
+    if (target) {
+      const { error } = await sb.from('asset_group_settings').delete().eq('name', oldName)
+      if (error) throw error
+    } else {
+      const { error } = await sb
+        .from('asset_group_settings')
+        .update({ name: newName })
+        .eq('name', oldName)
+      if (error) throw error
+    }
+  },
+
+  async deleteAssetGroup(name: string, reassignTo: string | null) {
+    const uid = await currentUserId()
+    const sb = getSupabase()
+    const { error: e1 } = await sb
+      .from('accounts')
+      .update({ asset_group: reassignTo })
+      .eq('user_id', uid)
+      .eq('asset_group', name)
+    if (e1) throw e1
+    const { error: e2 } = await sb.from('asset_group_settings').delete().eq('name', name)
+    if (e2) throw e2
+  },
+
+  async reorderAssetGroups(orderedNames: string[]) {
+    const user_id = await currentUserId()
+    await getSupabase()
+      .from('asset_group_settings')
+      .upsert(
+        orderedNames.map((name, i) => ({ user_id, name, sort_order: i })),
+        { onConflict: 'user_id,name' },
+      )
+  },
+
+  async assignAccountsToGroup(accountIds: string[], group: string | null) {
+    if (accountIds.length === 0) return
+    const { error } = await getSupabase()
+      .from('accounts')
+      .update({ asset_group: group })
+      .in('id', accountIds)
+    if (error) throw error
   },
 
   async listBudgets(monthKey: string) {
@@ -256,5 +340,112 @@ export const supabaseRepo: Repo = {
     const { error: e3 } = await sb.from('budgets').insert(toInsert)
     if (e3) throw e3
     return toInsert.length
+  },
+
+  async getDebts() {
+    const { data, error } = await getSupabase()
+      .from('debts')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    return data
+  },
+
+  async getDebtPayments() {
+    const { data, error } = await getSupabase()
+      .from('debt_payments')
+      .select('*')
+      .order('paid_on', { ascending: false })
+    if (error) throw error
+    return data
+  },
+
+  async createDebt(input: NewDebt) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('debts')
+      .insert({ ...input, user_id })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async updateDebt(id: string, patch: DebtPatch) {
+    const { data, error } = await getSupabase()
+      .from('debts')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async deleteDebt(id: string) {
+    const sb = getSupabase()
+    // Xóa giao dịch liên kết trước (payments tự cascade khi xóa debt)
+    const { data: payments, error: e1 } = await sb
+      .from('debt_payments')
+      .select('transaction_id')
+      .eq('debt_id', id)
+    if (e1) throw e1
+    const txIds = (payments ?? [])
+      .map((p) => p.transaction_id)
+      .filter((t): t is string => !!t)
+    if (txIds.length > 0) {
+      const { error: e2 } = await sb.from('transactions').delete().in('id', txIds)
+      if (e2) throw e2
+    }
+    const { error: e3 } = await sb.from('debts').delete().eq('id', id)
+    if (e3) throw e3
+  },
+
+  async createDebtPayment(input: NewDebtPayment) {
+    const user_id = await currentUserId()
+    const sb = getSupabase()
+    let transaction_id: string | null = null
+    if (input.transaction) {
+      const { data: tx, error: eTx } = await sb
+        .from('transactions')
+        .insert({ ...input.transaction, user_id })
+        .select()
+        .single()
+      if (eTx) throw eTx
+      transaction_id = tx.id
+    }
+    const { data, error } = await sb
+      .from('debt_payments')
+      .insert({
+        user_id,
+        debt_id: input.debt_id,
+        amount: input.amount,
+        paid_on: input.paid_on,
+        transaction_id,
+        note: input.note,
+      })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async deleteDebtPayment(id: string) {
+    const sb = getSupabase()
+    const { data: payment, error: e1 } = await sb
+      .from('debt_payments')
+      .select('transaction_id')
+      .eq('id', id)
+      .single()
+    if (e1) throw e1
+    const { error: e2 } = await sb.from('debt_payments').delete().eq('id', id)
+    if (e2) throw e2
+    if (payment?.transaction_id) {
+      const { error: e3 } = await sb
+        .from('transactions')
+        .delete()
+        .eq('id', payment.transaction_id)
+      if (e3) throw e3
+    }
   },
 }

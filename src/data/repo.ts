@@ -3,9 +3,13 @@ import type {
   AccountBalanceRow,
   AccountRow,
   AccountType,
+  AssetGroupSettingRow,
   BudgetRow,
   CategoryRow,
   CategoryType,
+  DebtDirection,
+  DebtPaymentRow,
+  DebtRow,
   ProfileRow,
   TransactionRow,
   TransactionType,
@@ -38,6 +42,12 @@ export interface NewAccount {
   currency: CurrencyCode
   /** minor units theo currency đã chọn */
   initial_balance: number
+  /** Nhóm tài sản tự đặt (Tiêu dùng, Tiết kiệm, Đầu tư…); null = chưa phân nhóm */
+  asset_group: string | null
+  /** true = ẩn khỏi trang Tài sản */
+  is_hidden: boolean
+  /** false = không cộng vào Tổng tài sản */
+  include_in_totals: boolean
 }
 
 export type AccountPatch = Partial<NewAccount & { is_archived: boolean }>
@@ -46,6 +56,8 @@ export interface NewCategory {
   name: string
   type: CategoryType
   icon: string
+  /** null/bỏ trống = danh mục chính; id cha = danh mục con của cha đó */
+  parent_id?: string | null
 }
 
 export type CategoryPatch = Partial<NewCategory & { is_archived: boolean }>
@@ -64,6 +76,33 @@ export interface TxFilter {
 
 /** Chỉ sửa được tên hiển thị + ngày bắt đầu tháng. Cố ý KHÔNG có base_currency. */
 export type ProfilePatch = Partial<Pick<ProfileRow, 'display_name' | 'month_start_day'>>
+
+/** Thuộc tính nhóm tài sản có thể chỉnh (không đổi tên qua đây — dùng renameAssetGroup). */
+export type AssetGroupSettingPatch = Partial<
+  Pick<AssetGroupSettingRow, 'sort_order' | 'include_in_totals' | 'is_hidden'>
+>
+
+export interface NewDebt {
+  counterparty: string
+  direction: DebtDirection
+  currency: CurrencyCode
+  /** minor units theo currency của khoản nợ */
+  principal: number
+  due_on: string | null
+  note: string
+}
+
+export type DebtPatch = Partial<NewDebt & { status: 'open' | 'settled' }>
+
+export interface NewDebtPayment {
+  debt_id: string
+  /** minor units theo currency của khoản nợ */
+  amount: number
+  paid_on: string
+  note: string
+  /** Có chuyển tiền thật → giao dịch cần tạo (đi qua createTransaction); null = ghi nhận suông. */
+  transaction: NewTransaction | null
+}
 
 // Toàn bộ đọc/ghi dữ liệu đi qua interface này.
 // 2 implementation: demoRepo (localStorage) và supabaseRepo (Postgres + RLS).
@@ -88,6 +127,23 @@ export interface Repo {
   updateCategory(id: string, patch: CategoryPatch): Promise<CategoryRow>
   reorderCategories(orderedIds: string[]): Promise<void>
 
+  // --- Nhóm tài sản (thành viên = accounts.asset_group; đây là cài đặt riêng) ---
+  getAssetGroupSettings(): Promise<AssetGroupSettingRow[]>
+  /** Tạo mới hoặc cập nhật cài đặt của nhóm theo tên (unique user_id+name). */
+  upsertAssetGroupSetting(
+    name: string,
+    patch: AssetGroupSettingPatch,
+  ): Promise<AssetGroupSettingRow>
+  /** Đổi tên nhóm: cập nhật mọi tài khoản thuộc nhóm + di chuyển cài đặt.
+   *  newName đã tồn tại → gộp (giữ cài đặt của newName, bỏ cài đặt oldName). */
+  renameAssetGroup(oldName: string, newName: string): Promise<void>
+  /** Xóa nhóm: chuyển các tài khoản về reassignTo (null = chưa phân nhóm) rồi bỏ cài đặt. */
+  deleteAssetGroup(name: string, reassignTo: string | null): Promise<void>
+  /** Gán sort_order cho nhóm theo thứ tự tên truyền vào (upsert từng nhóm). */
+  reorderAssetGroups(orderedNames: string[]): Promise<void>
+  /** Gán nhiều tài khoản vào một nhóm (null = bỏ nhóm). */
+  assignAccountsToGroup(accountIds: string[], group: string | null): Promise<void>
+
   listBudgets(monthKey: string): Promise<BudgetRow[]>
   /** Tạo mới hoặc cập nhật hạn mức (unique user_id+category_id+month_key). */
   upsertBudget(categoryId: string, monthKey: string, amount: number): Promise<BudgetRow>
@@ -95,4 +151,18 @@ export interface Repo {
   /** Chép hạn mức từ tháng liền trước vào monthKey; bỏ qua danh mục đã có hạn mức
    *  ở tháng đích. Trả về số hạn mức đã chép. */
   copyBudgetsFromPreviousMonth(monthKey: string): Promise<number>
+
+  // --- Nợ / cho vay (mục F) ---
+  getDebts(): Promise<DebtRow[]>
+  /** Toàn bộ lịch sử trả của user (mọi khoản nợ); UI tự lọc theo debt_id. */
+  getDebtPayments(): Promise<DebtPaymentRow[]>
+  createDebt(input: NewDebt): Promise<DebtRow>
+  updateDebt(id: string, patch: DebtPatch): Promise<DebtRow>
+  /** Xóa khoản nợ + payments (cascade) + mọi giao dịch liên kết của payments. */
+  deleteDebt(id: string): Promise<void>
+  /** Ghi nhận trả: nếu input.transaction != null thì tạo giao dịch thật trước rồi
+   *  payment trỏ tới nó; ngược lại payment.transaction_id = null. */
+  createDebtPayment(input: NewDebtPayment): Promise<DebtPaymentRow>
+  /** Xóa 1 lần trả + giao dịch liên kết (nếu có) để hoàn số dư. */
+  deleteDebtPayment(id: string): Promise<void>
 }

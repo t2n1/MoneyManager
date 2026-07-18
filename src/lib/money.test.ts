@@ -4,10 +4,11 @@ import { CURRENCIES, formatMoney, parseMoney } from './money'
 // Tiền lưu ở ĐƠN VỊ NHỎ NHẤT (minor units): JPY = yên, VND = đồng, USD = cent.
 
 describe('formatMoney', () => {
-  it('JPY: prefix ¥, không thập phân, nhóm nghìn bằng dấu chấm', () => {
+  it('JPY: prefix ¥, không thập phân, nhóm nghìn bằng dấu phẩy (chuẩn Nhật)', () => {
     expect(formatMoney(0, 'JPY')).toBe('¥0')
-    expect(formatMoney(1234, 'JPY')).toBe('¥1.234')
-    expect(formatMoney(120000, 'JPY')).toBe('¥120.000')
+    expect(formatMoney(1234, 'JPY')).toBe('¥1,234')
+    expect(formatMoney(120000, 'JPY')).toBe('¥120,000')
+    expect(formatMoney(1255910, 'JPY')).toBe('¥1,255,910')
   })
 
   it('VND: suffix ₫, không thập phân', () => {
@@ -22,7 +23,7 @@ describe('formatMoney', () => {
   })
 
   it('số âm: dấu trừ đứng trước tất cả', () => {
-    expect(formatMoney(-1234, 'JPY')).toBe('-¥1.234')
+    expect(formatMoney(-1234, 'JPY')).toBe('-¥1,234')
     expect(formatMoney(-50000, 'VND')).toBe('-50.000 ₫')
     expect(formatMoney(-123456, 'USD')).toBe('-$1.234,56')
   })

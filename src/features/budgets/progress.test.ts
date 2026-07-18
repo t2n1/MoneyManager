@@ -82,6 +82,45 @@ describe('buildBudgetReport (base = JPY)', () => {
     expect(r.hasMissingRate).toBe(true)
   })
 
+  it('hạn mức ở cha gộp chi tiêu của các con', () => {
+    // Cây: food (cha) → restaurant, grocery (con). Chỉ đặt hạn mức ở cha.
+    const parentOf = (id: string) =>
+      id === 'restaurant' || id === 'grocery' ? 'food' : null
+    const txs = [
+      tx({ type: 'expense', amount: 3_000, category_id: 'restaurant' }),
+      tx({ type: 'expense', amount: 2_000, category_id: 'grocery' }),
+      tx({ type: 'expense', amount: 1_000, category_id: 'food' }), // chi trực tiếp trên cha
+    ]
+    const r = buildBudgetReport([budget('food', 10_000)], txs, currencyOf, 'JPY', RATES, parentOf)
+    expect(r.lines[0]).toEqual({
+      categoryId: 'food',
+      budgeted: 10_000,
+      spent: 6_000, // 3000 + 2000 + 1000
+      ratio: 0.6,
+      status: 'ok',
+    })
+    expect(r.totalSpent).toBe(6_000)
+  })
+
+  it('cha và con cùng có hạn mức → tổng chi không cộng đôi', () => {
+    const parentOf = (id: string) => (id === 'restaurant' ? 'food' : null)
+    const txs = [tx({ type: 'expense', amount: 4_000, category_id: 'restaurant' })]
+    const r = buildBudgetReport(
+      [budget('food', 10_000), budget('restaurant', 5_000)],
+      txs,
+      currencyOf,
+      'JPY',
+      RATES,
+      parentOf,
+    )
+    const food = r.lines.find((l) => l.categoryId === 'food')!
+    const restaurant = r.lines.find((l) => l.categoryId === 'restaurant')!
+    expect(food.spent).toBe(4_000) // gộp từ con
+    expect(restaurant.spent).toBe(4_000) // của chính nó
+    expect(r.totalBudgeted).toBe(15_000)
+    expect(r.totalSpent).toBe(4_000) // tính MỘT lần dù xuất hiện ở 2 dòng
+  })
+
   it('biên 100% là over, 99% là warn', () => {
     const r1 = buildBudgetReport(
       [budget('a', 100)],

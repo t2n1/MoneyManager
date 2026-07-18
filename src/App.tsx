@@ -15,11 +15,26 @@ const ReportsPage = lazy(() =>
 const SearchPage = lazy(() =>
   import('./features/transactions/SearchPage').then((m) => ({ default: m.SearchPage })),
 )
+const AssetsPage = lazy(() =>
+  import('./features/assets/AssetsPage').then((m) => ({ default: m.AssetsPage })),
+)
+const AccountDetailPage = lazy(() =>
+  import('./features/assets/AccountDetailPage').then((m) => ({ default: m.AccountDetailPage })),
+)
+const AssetGroupsPage = lazy(() =>
+  import('./features/assets/AssetGroupsPage').then((m) => ({ default: m.AssetGroupsPage })),
+)
 const AccountsPage = lazy(() =>
   import('./features/accounts/AccountsPage').then((m) => ({ default: m.AccountsPage })),
 )
 const CategoriesPage = lazy(() =>
   import('./features/categories/CategoriesPage').then((m) => ({ default: m.CategoriesPage })),
+)
+const DebtsPage = lazy(() =>
+  import('./features/debts/DebtsPage').then((m) => ({ default: m.DebtsPage })),
+)
+const DebtDetailPage = lazy(() =>
+  import('./features/debts/DebtDetailPage').then((m) => ({ default: m.DebtDetailPage })),
 )
 
 const Loading = () => <p className="p-6 text-center text-gray-400">Đang tải…</p>
@@ -31,13 +46,19 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<EntryPage />} />
+          <Route path="/" element={<LedgerPage />} />
           <Route path="/transactions" element={<LedgerPage />} />
+          <Route path="/entry" element={<EntryPage />} />
+          <Route path="/assets" element={lazyRoute(<AssetsPage />)} />
+          <Route path="/assets/:accountId" element={lazyRoute(<AccountDetailPage />)} />
           <Route path="/search" element={lazyRoute(<SearchPage />)} />
           <Route path="/reports" element={lazyRoute(<ReportsPage />)} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/accounts" element={lazyRoute(<AccountsPage />)} />
           <Route path="/settings/categories" element={lazyRoute(<CategoriesPage />)} />
+          <Route path="/settings/asset-groups" element={lazyRoute(<AssetGroupsPage />)} />
+          <Route path="/settings/debts" element={lazyRoute(<DebtsPage />)} />
+          <Route path="/settings/debts/:debtId" element={lazyRoute(<DebtDetailPage />)} />
         </Route>
       </Route>
     </Routes>

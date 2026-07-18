@@ -1,134 +1,127 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useAccounts, useCategories, useMonthTransactions, useRates } from '../../hooks/queries'
+import { Link, useSearchParams } from 'react-router-dom'
+import {
+  useAccounts,
+  useCategories,
+  useMonthTransactions,
+  useProfile,
+  useRangeTransactions,
+  useRates,
+} from '../../hooks/queries'
 import {
   addMonths,
   formatMonthLabel,
+  getMonthRange,
   monthKeyForDate,
   toISODate,
   type MonthKey,
 } from '../../lib/dates'
-import { formatMoney, type CurrencyCode } from '../../lib/money'
-import { convertToBase, type Rates } from '../../lib/rates'
+import type { CurrencyCode } from '../../lib/money'
+import { monthlySeries } from '../reports/aggregate'
 import type { TransactionRow } from '../../types/database.types'
+import { CalendarView } from './CalendarView'
+import { DailyView } from './DailyView'
 import { EditTransactionSheet } from './EditTransactionSheet'
-import { TransactionItem } from './TransactionItem'
+import { MonthlyView } from './MonthlyView'
+import { SummaryView } from './SummaryView'
 
-const WEEKDAYS = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy']
+const VIEWS = [
+  { key: 'daily', label: 'Ngày' },
+  { key: 'calendar', label: 'Lịch' },
+  { key: 'monthly', label: 'Tháng' },
+  { key: 'summary', label: 'Tổng hợp' },
+] as const
 
-function formatDayHeader(dateISO: string) {
-  const [y, m, d] = dateISO.split('-').map(Number)
-  return `${WEEKDAYS[new Date(y, m - 1, d).getDay()]}, ${d}/${m}`
-}
+type LedgerView = (typeof VIEWS)[number]['key']
 
-/**
- * Tổng thu/chi quy đổi về base. Trả về:
- * - {converted, hasForeign} khi đủ tỷ giá
- * - null khi thiếu tỷ giá → caller fallback hiển thị tách loại tiền
- */
-function sumInBase(
-  txs: TransactionRow[],
-  kind: 'income' | 'expense',
-  currencyOf: (accountId: string) => CurrencyCode,
-  base: CurrencyCode,
-  rates: Rates | undefined,
-): { value: number; hasForeign: boolean } | null {
-  let value = 0
-  let hasForeign = false
-  for (const t of txs) {
-    if (t.type !== kind) continue
-    const cur = currencyOf(t.account_id)
-    if (cur !== base) hasForeign = true
-    const v = convertToBase(t.amount, cur, base, rates ?? {})
-    if (v === null) return null
-    value += v
-  }
-  return { value, hasForeign }
-}
-
-/** Fallback: tổng theo từng loại tiền, ví dụ "¥3.280 · 1.500.000 ₫" */
-function sumPerCurrency(
-  txs: TransactionRow[],
-  kind: 'income' | 'expense',
-  currencyOf: (accountId: string) => CurrencyCode,
-): string {
-  const sums = new Map<CurrencyCode, number>()
-  for (const t of txs) {
-    if (t.type !== kind) continue
-    const cur = currencyOf(t.account_id)
-    sums.set(cur, (sums.get(cur) ?? 0) + t.amount)
-  }
-  if (sums.size === 0) return '0'
-  return [...sums.entries()].map(([cur, v]) => formatMoney(v, cur)).join(' · ')
-}
+const isView = (v: string | null): v is LedgerView => VIEWS.some((x) => x.key === v)
 
 export function LedgerPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const view: LedgerView = isView(searchParams.get('view')) ? (searchParams.get('view') as LedgerView) : 'daily'
+  const setView = (v: LedgerView) =>
+    setSearchParams(
+      (prev) => {
+        prev.set('view', v)
+        return prev
+      },
+      { replace: true },
+    )
+
   const [monthKey, setMonthKey] = useState<MonthKey>(() => monthKeyForDate(toISODate(new Date())))
   const [editing, setEditing] = useState<TransactionRow | null>(null)
 
+  const { data: profile } = useProfile()
+  const monthStartDay = profile?.month_start_day ?? 1
   const { data: transactions = [], isLoading } = useMonthTransactions(monthKey)
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const { base, rates } = useRates()
 
-  // Phím tắt desktop: ←/→ chuyển tháng
+  const yearNav = view === 'monthly'
+
+  // Phím tắt desktop: ←/→ chuyển kỳ (tháng, hoặc năm ở tab Tháng)
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       const el = e.target as HTMLElement | null
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'))
         return
-      if (e.key === 'ArrowLeft') setMonthKey((k) => addMonths(k, -1))
-      if (e.key === 'ArrowRight') setMonthKey((k) => addMonths(k, 1))
+      const step = yearNav ? 12 : 1
+      if (e.key === 'ArrowLeft') setMonthKey((k) => addMonths(k, -step))
+      if (e.key === 'ArrowRight') setMonthKey((k) => addMonths(k, step))
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [yearNav])
 
   const accountOf = (id: string | null) => accounts.find((a) => a.id === id)
   const currencyOf = (id: string): CurrencyCode => accountOf(id)?.currency ?? base
   const categoryOf = (id: string | null) => categories.find((c) => c.id === id)
 
-  const totals = useMemo(() => {
-    // Chuyển khoản KHÔNG tính vào thu/chi (quyết định thiết kế #2)
-    const income = sumInBase(transactions, 'income', currencyOf, base, rates)
-    const expense = sumInBase(transactions, 'expense', currencyOf, base, rates)
-    return { income, expense }
+  // Tab Tháng cần dữ liệu cả năm (12 tháng của monthKey.year)
+  const months = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => ({ year: monthKey.year, month: i + 1 })),
+    [monthKey.year],
+  )
+  const yearRange = useMemo(
+    () => ({
+      start: getMonthRange(months[0], monthStartDay).start,
+      end: getMonthRange(months[11], monthStartDay).end,
+    }),
+    [months, monthStartDay],
+  )
+  const { data: yearTxs = [], isLoading: yearLoading } = useRangeTransactions(
+    yearRange,
+    !!profile && yearNav,
+  )
+  const yearSeries = useMemo(
+    () => monthlySeries(yearTxs, months, monthStartDay, currencyOf, base, rates ?? {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transactions, accounts, base, rates])
+    [yearTxs, months, monthStartDay, accounts, base, rates],
+  )
+  const yearHasForeign = yearTxs.some((t) => currencyOf(t.account_id) !== base)
 
-  const days = useMemo(() => {
-    const map = new Map<string, TransactionRow[]>()
-    for (const t of transactions) {
-      const list = map.get(t.occurred_on) ?? []
-      list.push(t)
-      map.set(t.occurred_on, list)
-    }
-    return [...map.entries()] // đã sort desc từ repo
-  }, [transactions])
-
-  const approx = (r: { value: number; hasForeign: boolean }) =>
-    `${r.hasForeign ? '≈ ' : ''}${formatMoney(r.value, base)}`
+  const label = yearNav ? `Năm ${monthKey.year}` : formatMonthLabel(monthKey)
+  const step = yearNav ? 12 : 1
 
   return (
     <div className="p-3 lg:p-6">
-      {/* Header chuyển tháng + tìm kiếm */}
+      {/* Chuyển kỳ + tìm kiếm */}
       <div className="mb-3 flex items-center gap-2">
         <button
           type="button"
-          onClick={() => setMonthKey((k) => addMonths(k, -1))}
+          onClick={() => setMonthKey((k) => addMonths(k, -step))}
           className="rounded-lg bg-white px-3 py-1.5 text-lg shadow-sm active:scale-95"
-          aria-label="Tháng trước"
+          aria-label={yearNav ? 'Năm trước' : 'Tháng trước'}
         >
           ←
         </button>
-        <h1 className="flex-1 text-center text-lg font-bold text-gray-800">
-          {formatMonthLabel(monthKey)}
-        </h1>
+        <h1 className="flex-1 text-center text-lg font-bold text-gray-800">{label}</h1>
         <button
           type="button"
-          onClick={() => setMonthKey((k) => addMonths(k, 1))}
+          onClick={() => setMonthKey((k) => addMonths(k, step))}
           className="rounded-lg bg-white px-3 py-1.5 text-lg shadow-sm active:scale-95"
-          aria-label="Tháng sau"
+          aria-label={yearNav ? 'Năm sau' : 'Tháng sau'}
         >
           →
         </button>
@@ -141,79 +134,70 @@ export function LedgerPage() {
         </Link>
       </div>
 
-      {/* Tổng quan tháng (quy đổi về base; thiếu tỷ giá → tách loại tiền) */}
-      <div className="mb-4 grid grid-cols-3 gap-2 rounded-xl bg-white p-3 text-center shadow-sm">
-        <div>
-          <div className="text-xs text-gray-500">Tổng thu</div>
-          <div className="text-sm font-semibold text-green-600">
-            {totals.income ? approx(totals.income) : sumPerCurrency(transactions, 'income', currencyOf)}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-gray-500">Tổng chi</div>
-          <div className="text-sm font-semibold text-red-600">
-            {totals.expense
-              ? approx(totals.expense)
-              : sumPerCurrency(transactions, 'expense', currencyOf)}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-gray-500">Chênh lệch</div>
-          <div
-            className={`text-sm font-semibold ${
-              totals.income && totals.expense && totals.income.value - totals.expense.value < 0
-                ? 'text-red-600'
-                : 'text-gray-800'
+      {/* Tab đổi cách xem */}
+      <div className="mb-4 flex rounded-lg bg-gray-100 p-0.5 text-sm font-medium">
+        {VIEWS.map((v) => (
+          <button
+            key={v.key}
+            type="button"
+            onClick={() => setView(v.key)}
+            className={`flex-1 rounded-md py-1.5 transition ${
+              view === v.key ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
             }`}
           >
-            {totals.income && totals.expense
-              ? `${totals.income.hasForeign || totals.expense.hasForeign ? '≈ ' : ''}${formatMoney(
-                  totals.income.value - totals.expense.value,
-                  base,
-                )}`
-              : '—'}
-          </div>
-        </div>
+            {v.label}
+          </button>
+        ))}
       </div>
 
-      {/* Danh sách nhóm theo ngày */}
-      {isLoading ? (
-        <p className="py-10 text-center text-gray-400">Đang tải…</p>
-      ) : days.length === 0 ? (
-        <p className="py-10 text-center text-gray-400">Chưa có giao dịch trong tháng này</p>
-      ) : (
-        days.map(([day, txs]) => {
-          const dayIncome = sumInBase(txs, 'income', currencyOf, base, rates)
-          const dayExpense = sumInBase(txs, 'expense', currencyOf, base, rates)
-          return (
-            <section key={day} className="mb-3">
-              <div className="mb-1 flex items-baseline justify-between px-1 text-xs text-gray-500">
-                <span className="font-medium">{formatDayHeader(day)}</span>
-                <span>
-                  {dayIncome && dayIncome.value > 0 && (
-                    <span className="text-green-600">+{approx(dayIncome)}</span>
-                  )}
-                  {dayIncome && dayIncome.value > 0 && dayExpense && dayExpense.value > 0 && ' · '}
-                  {dayExpense && dayExpense.value > 0 && (
-                    <span className="text-red-600">-{approx(dayExpense)}</span>
-                  )}
-                </span>
-              </div>
-              <div className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-sm">
-                {txs.map((tx) => (
-                  <TransactionItem
-                    key={tx.id}
-                    tx={tx}
-                    categoryOf={categoryOf}
-                    accountOf={accountOf}
-                    base={base}
-                    onClick={() => setEditing(tx)}
-                  />
-                ))}
-              </div>
-            </section>
-          )
-        })
+      {view === 'daily' && (
+        <DailyView
+          transactions={transactions}
+          isLoading={isLoading}
+          accountOf={accountOf}
+          categoryOf={categoryOf}
+          currencyOf={currencyOf}
+          base={base}
+          rates={rates}
+          onEdit={setEditing}
+        />
+      )}
+
+      {view === 'calendar' && (
+        <CalendarView
+          transactions={transactions}
+          monthKey={monthKey}
+          accountOf={accountOf}
+          categoryOf={categoryOf}
+          currencyOf={currencyOf}
+          base={base}
+          rates={rates}
+          onEdit={setEditing}
+        />
+      )}
+
+      {view === 'monthly' && (
+        <MonthlyView
+          points={yearSeries.points}
+          base={base}
+          hasForeign={yearHasForeign}
+          isLoading={yearLoading}
+          onSelectMonth={(k) => {
+            setMonthKey(k)
+            setView('daily')
+          }}
+        />
+      )}
+
+      {view === 'summary' && (
+        <SummaryView
+          transactions={transactions}
+          categoryOf={categoryOf}
+          currencyOf={currencyOf}
+          base={base}
+          rates={rates}
+          isLoading={isLoading}
+        />
       )}
 
       {editing && <EditTransactionSheet tx={editing} onClose={() => setEditing(null)} />}

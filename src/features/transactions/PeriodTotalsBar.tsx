@@ -1,0 +1,54 @@
+import { useMemo } from 'react'
+import { formatMoney, type CurrencyCode } from '../../lib/money'
+import type { Rates } from '../../lib/rates'
+import type { TransactionRow } from '../../types/database.types'
+import { approxLabel, sumInBase, sumPerCurrency, type CurrencyOf } from './ledgerShared'
+
+interface Props {
+  transactions: TransactionRow[]
+  currencyOf: CurrencyOf
+  base: CurrencyCode
+  rates: Rates | undefined
+}
+
+/** Thẻ tổng Thu / Chi / Chênh lệch cho khoảng đang xem (quy đổi base, thiếu tỷ giá → tách loại tiền). */
+export function PeriodTotalsBar({ transactions, currencyOf, base, rates }: Props) {
+  const { income, expense } = useMemo(
+    () => ({
+      income: sumInBase(transactions, 'income', currencyOf, base, rates),
+      expense: sumInBase(transactions, 'expense', currencyOf, base, rates),
+    }),
+    [transactions, currencyOf, base, rates],
+  )
+
+  const net =
+    income && expense
+      ? `${income.hasForeign || expense.hasForeign ? '≈ ' : ''}${formatMoney(income.value - expense.value, base)}`
+      : '—'
+  const netNegative = !!(income && expense && income.value - expense.value < 0)
+
+  return (
+    <div className="grid grid-cols-3 gap-2 rounded-xl bg-white p-3 text-center shadow-sm">
+      <div>
+        <div className="text-xs text-gray-500">Thu</div>
+        <div className="mt-0.5 text-sm font-semibold tabular-nums text-green-600">
+          {income ? approxLabel(income, base) : sumPerCurrency(transactions, 'income', currencyOf)}
+        </div>
+      </div>
+      <div className="border-x border-gray-100">
+        <div className="text-xs text-gray-500">Chi</div>
+        <div className="mt-0.5 text-sm font-semibold tabular-nums text-red-600">
+          {expense ? approxLabel(expense, base) : sumPerCurrency(transactions, 'expense', currencyOf)}
+        </div>
+      </div>
+      <div>
+        <div className="text-xs text-gray-500">Chênh lệch</div>
+        <div
+          className={`mt-0.5 text-sm font-semibold tabular-nums ${netNegative ? 'text-red-600' : 'text-gray-800'}`}
+        >
+          {net}
+        </div>
+      </div>
+    </div>
+  )
+}

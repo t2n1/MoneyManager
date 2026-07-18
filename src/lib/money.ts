@@ -6,23 +6,33 @@ export type CurrencyCode = 'JPY' | 'VND' | 'USD'
 
 export const CURRENCIES: Record<
   CurrencyCode,
-  { symbol: string; decimals: number; label: string; position: 'prefix' | 'suffix' }
+  {
+    symbol: string
+    decimals: number
+    label: string
+    position: 'prefix' | 'suffix'
+    /** Dấu phân cách hàng nghìn (JPY dùng ',' theo chuẩn Nhật; VND/USD dùng '.') */
+    group: string
+    /** Dấu thập phân (chỉ dùng khi decimals > 0) */
+    decimal: string
+  }
 > = {
-  JPY: { symbol: '¥', decimals: 0, label: 'Yên Nhật', position: 'prefix' },
-  VND: { symbol: '₫', decimals: 0, label: 'Đồng Việt Nam', position: 'suffix' },
-  USD: { symbol: '$', decimals: 2, label: 'Đô la Mỹ', position: 'prefix' },
+  JPY: { symbol: '¥', decimals: 0, label: 'Yên Nhật', position: 'prefix', group: ',', decimal: '.' },
+  VND: { symbol: '₫', decimals: 0, label: 'Đồng Việt Nam', position: 'suffix', group: '.', decimal: ',' },
+  USD: { symbol: '$', decimals: 2, label: 'Đô la Mỹ', position: 'prefix', group: '.', decimal: ',' },
 }
 
-const groupThousands = (digits: string) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+const groupThousands = (digits: string, sep: string) =>
+  digits.replace(/\B(?=(\d{3})+(?!\d))/g, sep)
 
-/** minor units → chuỗi hiển thị: ¥1.234 · 1.234.000 ₫ · $1.234,56 */
+/** minor units → chuỗi hiển thị: ¥1,234 · 1.234.000 ₫ · $1.234,56 */
 export function formatMoney(minor: number, currency: CurrencyCode): string {
-  const { symbol, decimals, position } = CURRENCIES[currency]
+  const { symbol, decimals, position, group, decimal } = CURRENCIES[currency]
   const sign = minor < 0 ? '-' : ''
   const abs = Math.trunc(Math.abs(minor)).toString().padStart(decimals + 1, '0')
   const intPart = decimals > 0 ? abs.slice(0, -decimals) : abs
-  const fracPart = decimals > 0 ? `,${abs.slice(-decimals)}` : ''
-  const body = `${groupThousands(intPart)}${fracPart}`
+  const fracPart = decimals > 0 ? `${decimal}${abs.slice(-decimals)}` : ''
+  const body = `${groupThousands(intPart, group)}${fracPart}`
   return position === 'prefix' ? `${sign}${symbol}${body}` : `${sign}${body} ${symbol}`
 }
 

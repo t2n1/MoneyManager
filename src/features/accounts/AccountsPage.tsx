@@ -80,7 +80,19 @@ export function AccountsPage() {
             </div>
             <span className="text-xl">{a.type === 'cash' ? '💵' : '🏦'}</span>
             <button type="button" onClick={() => setEditing(a)} className="min-w-0 flex-1 text-left">
-              <span className="block truncate text-sm font-medium text-gray-800">{a.name}</span>
+              <span className="flex items-center gap-1 truncate text-sm font-medium text-gray-800">
+                <span className="truncate">{a.name}</span>
+                {a.is_hidden && (
+                  <span className="shrink-0 rounded bg-gray-100 px-1 text-[10px] text-gray-500">
+                    ẩn
+                  </span>
+                )}
+                {!a.include_in_totals && (
+                  <span className="shrink-0 rounded bg-gray-100 px-1 text-[10px] text-gray-500">
+                    ngoài tổng
+                  </span>
+                )}
+              </span>
               <span className="block text-xs text-gray-400">
                 {formatMoney(balanceOf(a.id), a.currency)} · {a.currency}
               </span>
@@ -145,15 +157,24 @@ interface FormProps {
 function AccountForm({ account, onClose }: FormProps) {
   const create = useCreateAccount()
   const update = useUpdateAccount()
+  const { data: accounts = [] } = useAccounts()
   const { data: balances = [] } = useAccountBalances()
 
   const [name, setName] = useState(account?.name ?? '')
   const [type, setType] = useState<AccountType>(account?.type ?? 'cash')
   const [currency, setCurrency] = useState<CurrencyCode>(account?.currency ?? 'JPY')
+  const [assetGroup, setAssetGroup] = useState(account?.asset_group ?? '')
+  const [isHidden, setIsHidden] = useState(account?.is_hidden ?? false)
+  const [includeInTotals, setIncludeInTotals] = useState(account?.include_in_totals ?? true)
   const [balanceDigits, setBalanceDigits] = useState(
     account ? String(account.initial_balance) : '',
   )
   const [saving, setSaving] = useState(false)
+
+  // Gợi ý các nhóm đã dùng để nhập nhanh, tránh trùng lặp do gõ khác nhau
+  const groupSuggestions = [
+    ...new Set(accounts.map((a) => a.asset_group?.trim()).filter((g): g is string => !!g)),
+  ].sort((a, b) => a.localeCompare(b, 'vi'))
 
   const initialBalance = balanceDigits === '' ? 0 : Number(balanceDigits)
   const canSave = name.trim().length > 0 && !saving
@@ -165,7 +186,15 @@ function AccountForm({ account, onClose }: FormProps) {
     if (!canSave) return
     setSaving(true)
     try {
-      const input: NewAccount = { name: name.trim(), type, currency, initial_balance: initialBalance }
+      const input: NewAccount = {
+        name: name.trim(),
+        type,
+        currency,
+        initial_balance: initialBalance,
+        asset_group: assetGroup.trim() || null,
+        is_hidden: isHidden,
+        include_in_totals: includeInTotals,
+      }
       if (account) await update.mutateAsync({ id: account.id, patch: input })
       else await create.mutateAsync(input)
       onClose()
@@ -223,6 +252,44 @@ function AccountForm({ account, onClose }: FormProps) {
           </div>
         </div>
 
+        <label className="mb-1 block text-xs font-medium text-gray-500">
+          Nhóm tài sản <span className="text-gray-400">(không bắt buộc)</span>
+        </label>
+        <input
+          value={assetGroup}
+          onChange={(e) => setAssetGroup(e.target.value)}
+          list="asset-group-suggestions"
+          placeholder="Ví dụ: Tiêu dùng, Tiết kiệm, Đầu tư"
+          className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-green-500"
+        />
+        <datalist id="asset-group-suggestions">
+          {groupSuggestions.map((g) => (
+            <option key={g} value={g} />
+          ))}
+        </datalist>
+
+        {/* Hiển thị trên trang Tài sản */}
+        <div className="mb-3 space-y-2 rounded-lg bg-gray-50 p-3">
+          <label className="flex items-center justify-between text-sm text-gray-700">
+            <span>
+              Tính vào Tổng tài sản
+              <span className="block text-xs text-gray-400">Cộng số dư vào tổng ở trang Tài sản</span>
+            </span>
+            <AccountToggle
+              checked={includeInTotals}
+              onChange={setIncludeInTotals}
+              label="Tính vào Tổng tài sản"
+            />
+          </label>
+          <label className="flex items-center justify-between text-sm text-gray-700">
+            <span>
+              Ẩn khỏi trang Tài sản
+              <span className="block text-xs text-gray-400">Vẫn dùng bình thường khi nhập giao dịch</span>
+            </span>
+            <AccountToggle checked={isHidden} onChange={setIsHidden} label="Ẩn khỏi trang Tài sản" />
+          </label>
+        </div>
+
         <label className="mb-1 block text-xs font-medium text-gray-500">Số dư ban đầu</label>
         <input
           inputMode="numeric"
@@ -260,5 +327,35 @@ function AccountForm({ account, onClose }: FormProps) {
         </div>
       </div>
     </div>
+  )
+}
+
+/** Công tắc bật/tắt nhỏ gọn cho form tài khoản. */
+function AccountToggle({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+  label: string
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+        checked ? 'bg-green-600' : 'bg-gray-300'
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
+          checked ? 'left-[18px]' : 'left-0.5'
+        }`}
+      />
+    </button>
   )
 }

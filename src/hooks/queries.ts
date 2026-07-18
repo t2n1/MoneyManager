@@ -2,10 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   repo,
   type AccountPatch,
+  type AssetGroupSettingPatch,
   type CategoryPatch,
   type DateRange,
+  type DebtPatch,
   type NewAccount,
   type NewCategory,
+  type NewDebt,
+  type NewDebtPayment,
   type NewTransaction,
   type ProfilePatch,
   type TransactionPatch,
@@ -206,6 +210,67 @@ export function useReorderCategories() {
   })
 }
 
+// --- Nhóm tài sản ---
+
+export function useAssetGroupSettings() {
+  return useQuery({
+    queryKey: ['assetGroupSettings'],
+    queryFn: () => repo.getAssetGroupSettings(),
+    staleTime: 5 * 60_000,
+  })
+}
+
+/** Đổi/gán nhóm ảnh hưởng cả accounts + balances + cài đặt nhóm. */
+function invalidateAssetGroups(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['assetGroupSettings'] })
+  qc.invalidateQueries({ queryKey: ['accounts'] })
+  qc.invalidateQueries({ queryKey: ['balances'] })
+}
+
+export function useUpsertAssetGroupSetting() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ name, patch }: { name: string; patch: AssetGroupSettingPatch }) =>
+      repo.upsertAssetGroupSetting(name, patch),
+    onSettled: () => invalidateAssetGroups(qc),
+  })
+}
+
+export function useRenameAssetGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ oldName, newName }: { oldName: string; newName: string }) =>
+      repo.renameAssetGroup(oldName, newName),
+    onSettled: () => invalidateAssetGroups(qc),
+  })
+}
+
+export function useDeleteAssetGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ name, reassignTo }: { name: string; reassignTo: string | null }) =>
+      repo.deleteAssetGroup(name, reassignTo),
+    onSettled: () => invalidateAssetGroups(qc),
+  })
+}
+
+export function useReorderAssetGroups() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (orderedNames: string[]) => repo.reorderAssetGroups(orderedNames),
+    onSettled: () => invalidateAssetGroups(qc),
+  })
+}
+
+export function useAssignAccountsToGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ accountIds, group }: { accountIds: string[]; group: string | null }) =>
+      repo.assignAccountsToGroup(accountIds, group),
+    onSettled: () => invalidateAssetGroups(qc),
+  })
+}
+
 // --- Ngân sách tháng (GĐ3) ---
 
 export function useBudgets(monthKey: string) {
@@ -260,18 +325,95 @@ export function useBudgetReport(monthKey: MonthKey): {
   const budgetsQ = useBudgets(monthKeyStr)
   const { data: monthTxs, isLoading: txLoading } = useMonthTransactions(monthKey)
   const { data: accounts = [] } = useAccounts()
+  const { data: categories = [] } = useCategories()
   const { base, rates } = useRates()
 
   const currencyOf = (id: string): CurrencyCode =>
     accounts.find((a) => a.id === id)?.currency ?? base
+  const parentOf = (categoryId: string): string | null =>
+    categories.find((c) => c.id === categoryId)?.parent_id ?? null
 
   const budgets = budgetsQ.data
   const report =
     budgets && monthTxs
-      ? buildBudgetReport(budgets, monthTxs, currencyOf, base, rates ?? {})
+      ? buildBudgetReport(budgets, monthTxs, currencyOf, base, rates ?? {}, parentOf)
       : undefined
 
   return { report, isLoading: budgetsQ.isLoading || txLoading }
+}
+
+// --- Nợ / cho vay (mục F) ---
+
+export function useDebts() {
+  return useQuery({
+    queryKey: ['debts'],
+    queryFn: () => repo.getDebts(),
+    staleTime: 60_000,
+  })
+}
+
+export function useDebtPayments() {
+  return useQuery({
+    queryKey: ['debtPayments'],
+    queryFn: () => repo.getDebtPayments(),
+    staleTime: 60_000,
+  })
+}
+
+function invalidateDebts(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['debts'] })
+  qc.invalidateQueries({ queryKey: ['debtPayments'] })
+}
+
+export function useCreateDebt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewDebt) => repo.createDebt(input),
+    onSettled: () => invalidateDebts(qc),
+  })
+}
+
+export function useUpdateDebt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: DebtPatch }) => repo.updateDebt(id, patch),
+    onSettled: () => invalidateDebts(qc),
+  })
+}
+
+export function useDeleteDebt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => repo.deleteDebt(id),
+    // Xóa nợ có thể xóa giao dịch liên kết → làm mới cả giao dịch + số dư
+    onSettled: () => {
+      invalidateDebts(qc)
+      invalidateTransactionData(qc)
+    },
+  })
+}
+
+export function useCreateDebtPayment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewDebtPayment) => repo.createDebtPayment(input),
+    // Có thể sinh giao dịch thật → làm mới giao dịch + số dư
+    onSettled: () => {
+      invalidateDebts(qc)
+      invalidateTransactionData(qc)
+    },
+  })
+}
+
+export function useDeleteDebtPayment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => repo.deleteDebtPayment(id),
+    onSettled: () => {
+      invalidateDebts(qc)
+      invalidateTransactionData(qc)
+    },
+  })
 }
 
 /** Số danh mục vượt ngân sách trong "tháng hiện tại" — cho badge cảnh báo. */

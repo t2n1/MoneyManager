@@ -5,6 +5,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Mở app ra mạng Wi-Fi để điện thoại cùng mạng vào được (không cần gõ --host)
+  server: {
+    host: true,
+    port: process.env.PORT ? Number(process.env.PORT) : 5173,
+  },
   plugins: [
     react(),
     tailwindcss(),

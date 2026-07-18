@@ -16,26 +16,78 @@ const EMOJI_CHOICES = [
   '🐶', '🎵', '💇', '🏋️', '📱', '💳', '🍰', '🍺', '⚽', '🌸', '🧸', '📦',
 ]
 
+/** Trạng thái mở form: thêm mới (có thể kèm cha) hoặc sửa một danh mục. */
+type FormState =
+  | { category: null; parent: CategoryRow | null }
+  | { category: CategoryRow; parent: CategoryRow | null }
+
 export function CategoriesPage() {
   const { data: categories = [] } = useCategories()
   const reorder = useReorderCategories()
   const update = useUpdateCategory()
   const [tab, setTab] = useState<CategoryType>('expense')
-  const [editing, setEditing] = useState<CategoryRow | 'new' | null>(null)
+  const [form, setForm] = useState<FormState | null>(null)
   const [showArchived, setShowArchived] = useState(false)
 
   const ofType = categories
     .filter((c) => c.type === tab)
     .sort((a, b) => a.sort_order - b.sort_order)
-  const active = ofType.filter((c) => !c.is_archived)
-  const archived = ofType.filter((c) => c.is_archived)
+  const activeCats = ofType.filter((c) => !c.is_archived)
+  const archivedCats = ofType.filter((c) => c.is_archived)
 
-  function move(index: number, delta: number) {
+  const parents = activeCats.filter((c) => !c.parent_id)
+  const parentIds = new Set(parents.map((p) => p.id))
+  const childrenOf = (id: string) => activeCats.filter((c) => c.parent_id === id)
+  // Con đang hoạt động nhưng cha không còn hiển thị (bảo hiểm cho dữ liệu cũ)
+  const orphans = activeCats.filter((c) => c.parent_id && !parentIds.has(c.parent_id))
+
+  const parentOptions = activeCats.filter((c) => !c.parent_id)
+  const parentById = (id: string | null | undefined) =>
+    id ? ofType.find((c) => c.id === id) ?? null : null
+
+  /** Gán lại thứ tự cho toàn bộ danh mục của loại đang xem theo cây đã sắp. */
+  function commitOrder(orderedParents: CategoryRow[], childrenFor: (id: string) => CategoryRow[]) {
+    const ids: string[] = []
+    for (const p of orderedParents) {
+      ids.push(p.id)
+      for (const ch of childrenFor(p.id)) ids.push(ch.id)
+    }
+    reorder.mutate([...ids, ...orphans.map((o) => o.id), ...archivedCats.map((a) => a.id)])
+  }
+
+  function moveParent(index: number, delta: number) {
     const target = index + delta
-    if (target < 0 || target >= active.length) return
-    const ids = active.map((c) => c.id)
-    ;[ids[index], ids[target]] = [ids[target], ids[index]]
-    reorder.mutate([...ids, ...archived.map((c) => c.id)])
+    if (target < 0 || target >= parents.length) return
+    const next = [...parents]
+    ;[next[index], next[target]] = [next[target], next[index]]
+    commitOrder(next, childrenOf)
+  }
+
+  function moveChild(parentId: string, index: number, delta: number) {
+    const sibs = childrenOf(parentId)
+    const target = index + delta
+    if (target < 0 || target >= sibs.length) return
+    const nextSibs = [...sibs]
+    ;[nextSibs[index], nextSibs[target]] = [nextSibs[target], nextSibs[index]]
+    commitOrder(parents, (id) => (id === parentId ? nextSibs : childrenOf(id)))
+  }
+
+  /** Lưu trữ: cha kéo theo tất cả con đang hoạt động (ẩn cả nhóm). */
+  function archive(c: CategoryRow) {
+    const targets = c.parent_id ? [c] : [c, ...childrenOf(c.id)]
+    Promise.all(targets.map((t) => update.mutateAsync({ id: t.id, patch: { is_archived: true } })))
+  }
+
+  /** Khôi phục: cha kéo theo con; con kéo theo cha (nếu cha đang bị ẩn). */
+  function restore(c: CategoryRow) {
+    const targets: CategoryRow[] = [c]
+    if (!c.parent_id) {
+      targets.push(...archivedCats.filter((x) => x.parent_id === c.id))
+    } else {
+      const parent = parentById(c.parent_id)
+      if (parent?.is_archived) targets.push(parent)
+    }
+    Promise.all(targets.map((t) => update.mutateAsync({ id: t.id, patch: { is_archived: false } })))
   }
 
   return (
@@ -51,7 +103,7 @@ export function CategoriesPage() {
         <h1 className="flex-1 text-lg font-bold text-gray-800">Danh mục</h1>
         <button
           type="button"
-          onClick={() => setEditing('new')}
+          onClick={() => setForm({ category: null, parent: null })}
           className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
         >
           + Thêm
@@ -74,65 +126,125 @@ export function CategoriesPage() {
         ))}
       </div>
 
-      <div className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-sm">
-        {active.map((c, i) => (
-          <div key={c.id} className="flex items-center gap-2 px-3 py-2.5">
-            <div className="flex flex-col">
-              <button
-                type="button"
-                onClick={() => move(i, -1)}
-                disabled={i === 0}
-                className="text-xs text-gray-400 disabled:opacity-20"
-                aria-label="Lên"
-              >
-                ▲
-              </button>
-              <button
-                type="button"
-                onClick={() => move(i, 1)}
-                disabled={i === active.length - 1}
-                className="text-xs text-gray-400 disabled:opacity-20"
-                aria-label="Xuống"
-              >
-                ▼
-              </button>
+      {/* Cây danh mục: cha → con */}
+      <div className="flex flex-col gap-2">
+        {parents.map((p, i) => {
+          const kids = childrenOf(p.id)
+          return (
+            <div key={p.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
+              {/* Danh mục cha */}
+              <div className="flex items-center gap-2 px-3 py-2.5">
+                <ReorderArrows index={i} count={parents.length} onMove={(d) => moveParent(i, d)} />
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xl">
+                  {p.icon}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setForm({ category: p, parent: null })}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <span className="block truncate text-sm font-semibold text-gray-800">{p.name}</span>
+                  {kids.length > 0 && (
+                    <span className="text-xs text-gray-400">{kids.length} danh mục con</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ category: null, parent: p })}
+                  className="rounded-lg bg-green-50 px-2 py-1 text-sm font-semibold text-green-700 active:scale-95"
+                  aria-label={`Thêm danh mục con cho ${p.name}`}
+                >
+                  ＋
+                </button>
+                <button
+                  type="button"
+                  onClick={() => archive(p)}
+                  className="rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-gray-100"
+                >
+                  Lưu trữ
+                </button>
+              </div>
+
+              {/* Danh mục con */}
+              {kids.length > 0 && (
+                <div className="ml-6 border-l-2 border-gray-100">
+                  {kids.map((ch, j) => (
+                    <div key={ch.id} className="flex items-center gap-2 py-2 pr-3 pl-2">
+                      <ReorderArrows
+                        index={j}
+                        count={kids.length}
+                        onMove={(d) => moveChild(p.id, j, d)}
+                      />
+                      <span className="text-lg">{ch.icon}</span>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ category: ch, parent: p })}
+                        className="min-w-0 flex-1 truncate text-left text-sm text-gray-700"
+                      >
+                        {ch.name}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => archive(ch)}
+                        className="rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-gray-100"
+                      >
+                        Lưu trữ
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+          )
+        })}
+
+        {/* Con mồ côi (dữ liệu cũ) — hiển thị như danh mục thường để không mất */}
+        {orphans.map((c) => (
+          <div key={c.id} className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm">
             <span className="text-xl">{c.icon}</span>
-            <button type="button" onClick={() => setEditing(c)} className="min-w-0 flex-1 text-left">
-              <span className="block truncate text-sm font-medium text-gray-800">{c.name}</span>
+            <button
+              type="button"
+              onClick={() => setForm({ category: c, parent: parentById(c.parent_id) })}
+              className="min-w-0 flex-1 truncate text-left text-sm text-gray-700"
+            >
+              {c.name}
             </button>
             <button
               type="button"
-              onClick={() => update.mutate({ id: c.id, patch: { is_archived: true } })}
+              onClick={() => archive(c)}
               className="rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-gray-100"
             >
               Lưu trữ
             </button>
           </div>
         ))}
-        {active.length === 0 && (
-          <p className="px-3 py-6 text-center text-sm text-gray-400">Chưa có danh mục</p>
+
+        {parents.length === 0 && orphans.length === 0 && (
+          <p className="rounded-xl bg-white px-3 py-6 text-center text-sm text-gray-400 shadow-sm">
+            Chưa có danh mục
+          </p>
         )}
       </div>
 
-      {archived.length > 0 && (
+      {archivedCats.length > 0 && (
         <div className="mt-3">
           <button
             type="button"
             onClick={() => setShowArchived((v) => !v)}
             className="mb-2 text-xs font-medium text-gray-500"
           >
-            {showArchived ? 'Ẩn đã lưu trữ ▲' : `Đã lưu trữ (${archived.length}) ▼`}
+            {showArchived ? 'Ẩn đã lưu trữ ▲' : `Đã lưu trữ (${archivedCats.length}) ▼`}
           </button>
           {showArchived && (
             <div className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-sm">
-              {archived.map((c) => (
+              {archivedCats.map((c) => (
                 <div key={c.id} className="flex items-center gap-2 px-3 py-2.5 opacity-60">
+                  {c.parent_id && <span className="text-gray-300">↳</span>}
                   <span className="text-xl">{c.icon}</span>
                   <span className="min-w-0 flex-1 truncate text-sm text-gray-700">{c.name}</span>
                   <button
                     type="button"
-                    onClick={() => update.mutate({ id: c.id, patch: { is_archived: false } })}
+                    onClick={() => restore(c)}
                     className="rounded-lg px-2 py-1 text-xs text-green-700 hover:bg-green-50"
                   >
                     Khôi phục
@@ -144,31 +256,93 @@ export function CategoriesPage() {
         </div>
       )}
 
-      {editing && (
+      {form && (
         <CategoryForm
-          category={editing === 'new' ? null : editing}
+          category={form.category}
+          parentContext={form.parent}
           defaultType={tab}
-          onClose={() => setEditing(null)}
+          parentOptions={parentOptions}
+          hasChildren={form.category ? childrenOf(form.category.id).length > 0 : false}
+          onClose={() => setForm(null)}
         />
       )}
     </div>
   )
 }
 
+function ReorderArrows({
+  index,
+  count,
+  onMove,
+}: {
+  index: number
+  count: number
+  onMove: (delta: number) => void
+}) {
+  return (
+    <div className="flex flex-col">
+      <button
+        type="button"
+        onClick={() => onMove(-1)}
+        disabled={index === 0}
+        className="text-xs text-gray-400 disabled:opacity-20"
+        aria-label="Lên"
+      >
+        ▲
+      </button>
+      <button
+        type="button"
+        onClick={() => onMove(1)}
+        disabled={index === count - 1}
+        className="text-xs text-gray-400 disabled:opacity-20"
+        aria-label="Xuống"
+      >
+        ▼
+      </button>
+    </div>
+  )
+}
+
 interface FormProps {
   category: CategoryRow | null
+  /** Cha ngữ cảnh: khi thêm con thì là cha được chọn; khi sửa là cha hiện tại. */
+  parentContext: CategoryRow | null
   defaultType: CategoryType
+  /** Danh mục cha có thể chọn (danh mục chính đang hoạt động, cả 2 loại). */
+  parentOptions: CategoryRow[]
+  /** Danh mục đang sửa có con hay không → nếu có thì không thể biến thành con. */
+  hasChildren: boolean
   onClose: () => void
 }
 
-function CategoryForm({ category, defaultType, onClose }: FormProps) {
+function CategoryForm({
+  category,
+  parentContext,
+  defaultType,
+  parentOptions,
+  hasChildren,
+  onClose,
+}: FormProps) {
   const create = useCreateCategory()
   const update = useUpdateCategory()
 
   const [name, setName] = useState(category?.name ?? '')
-  const [type, setType] = useState<CategoryType>(category?.type ?? defaultType)
   const [icon, setIcon] = useState(category?.icon ?? '📦')
+  const [parentId, setParentId] = useState<string | null>(
+    category?.parent_id ?? parentContext?.id ?? null,
+  )
+  // Loại khi là danh mục chính (con thì thừa kế loại của cha)
+  const [topType, setTopType] = useState<CategoryType>(
+    category?.type ?? parentContext?.type ?? defaultType,
+  )
   const [saving, setSaving] = useState(false)
+
+  const selectedParent = parentId ? parentOptions.find((p) => p.id === parentId) ?? null : null
+  const effectiveType: CategoryType = selectedParent ? selectedParent.type : topType
+  const listType = effectiveType
+  const availableParents = parentOptions.filter(
+    (p) => p.type === listType && p.id !== category?.id,
+  )
 
   const canSave = name.trim().length > 0 && !saving
 
@@ -176,7 +350,12 @@ function CategoryForm({ category, defaultType, onClose }: FormProps) {
     if (!canSave) return
     setSaving(true)
     try {
-      const input: NewCategory = { name: name.trim(), type, icon }
+      const input: NewCategory = {
+        name: name.trim(),
+        type: effectiveType,
+        icon,
+        parent_id: hasChildren ? null : parentId,
+      }
       if (category) await update.mutateAsync({ id: category.id, patch: input })
       else await create.mutateAsync(input)
       onClose()
@@ -184,6 +363,8 @@ function CategoryForm({ category, defaultType, onClose }: FormProps) {
       setSaving(false)
     }
   }
+
+  const title = category ? 'Sửa danh mục' : parentContext ? 'Thêm danh mục con' : 'Thêm danh mục'
 
   return (
     <div
@@ -194,9 +375,7 @@ function CategoryForm({ category, defaultType, onClose }: FormProps) {
         className="w-full max-w-md rounded-t-2xl bg-white p-4 lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-gray-800">
-          {category ? 'Sửa danh mục' : 'Thêm danh mục'}
-        </h2>
+        <h2 className="mb-3 text-base font-bold text-gray-800">{title}</h2>
 
         <div className="mb-3 flex items-center gap-3">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-2xl">
@@ -210,20 +389,50 @@ function CategoryForm({ category, defaultType, onClose }: FormProps) {
           />
         </div>
 
-        <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-gray-200 p-1">
-          {(['expense', 'income'] as CategoryType[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setType(t)}
-              className={`rounded-lg py-1.5 text-sm font-medium transition ${
-                type === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-              }`}
+        {/* Danh mục cha */}
+        {hasChildren ? (
+          <p className="mb-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
+            Danh mục này có danh mục con nên là danh mục chính.
+          </p>
+        ) : (
+          <label className="mb-3 block">
+            <span className="mb-1 block text-xs font-medium text-gray-500">Danh mục cha</span>
+            <select
+              value={parentId ?? ''}
+              onChange={(e) => setParentId(e.target.value || null)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-green-500"
             >
-              {t === 'expense' ? 'Chi' : 'Thu'}
-            </button>
-          ))}
-        </div>
+              <option value="">— Danh mục chính —</option>
+              {availableParents.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.icon} {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {/* Chi / Thu: chỉ khi là danh mục chính (con thừa kế loại của cha) */}
+        {selectedParent ? (
+          <p className="mb-3 text-xs text-gray-500">
+            Thuộc nhóm {selectedParent.type === 'expense' ? 'Chi' : 'Thu'} theo danh mục cha.
+          </p>
+        ) : (
+          <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-gray-200 p-1">
+            {(['expense', 'income'] as CategoryType[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTopType(t)}
+                className={`rounded-lg py-1.5 text-sm font-medium transition ${
+                  topType === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                }`}
+              >
+                {t === 'expense' ? 'Chi' : 'Thu'}
+              </button>
+            ))}
+          </div>
+        )}
 
         <p className="mb-1.5 text-xs font-medium text-gray-500">Biểu tượng</p>
         <div className="mb-3 grid grid-cols-8 gap-1">

@@ -9,6 +9,9 @@ import type { CurrencyCode } from '../lib/money'
 export type AccountType = 'cash' | 'bank'
 export type CategoryType = 'expense' | 'income'
 export type TransactionType = 'expense' | 'income' | 'transfer'
+/** i_owe = mình nợ người ta · owed_to_me = người ta nợ mình */
+export type DebtDirection = 'i_owe' | 'owed_to_me'
+export type DebtStatus = 'open' | 'settled'
 
 export type ProfileRow = {
   user_id: string
@@ -25,6 +28,12 @@ export type AccountRow = {
   type: AccountType
   currency: CurrencyCode
   initial_balance: number
+  /** Nhóm tài sản do người dùng tự đặt (Tiêu dùng, Tiết kiệm, Đầu tư…); null = chưa phân nhóm */
+  asset_group: string | null
+  /** true = ẩn khỏi trang Tài sản (vẫn dùng bình thường khi nhập giao dịch) */
+  is_hidden: boolean
+  /** false = không cộng số dư vào Tổng tài sản (vẫn hiển thị riêng) */
+  include_in_totals: boolean
   sort_order: number
   is_archived: boolean
   created_at: string
@@ -36,6 +45,8 @@ export type CategoryRow = {
   name: string
   type: CategoryType
   icon: string
+  /** null = danh mục chính (cha); có giá trị = danh mục con của cha đó (1 cấp) */
+  parent_id: string | null
   sort_order: number
   is_archived: boolean
   created_at: string
@@ -64,6 +75,9 @@ export type AccountBalanceRow = {
   name: string
   type: AccountType
   currency: CurrencyCode
+  asset_group: string | null
+  is_hidden: boolean
+  include_in_totals: boolean
   is_archived: boolean
   sort_order: number
   balance: number
@@ -77,6 +91,51 @@ export type BudgetRow = {
   amount: number // minor units theo base_currency
   created_at: string
   updated_at: string
+}
+
+/**
+ * Cài đặt cho một nhóm tài sản. Thành viên nhóm vẫn là chuỗi accounts.asset_group;
+ * bảng này chỉ lưu thuộc tính riêng của nhóm (thứ tự, có tính vào tổng, ẩn/hiện).
+ * `name` khớp với accounts.asset_group. Nhóm không có bản ghi → dùng mặc định.
+ */
+export type AssetGroupSettingRow = {
+  id: string
+  user_id: string
+  name: string
+  sort_order: number
+  /** false = không cộng vào Tổng tài sản (vẫn hiển thị riêng) */
+  include_in_totals: boolean
+  /** true = ẩn hẳn khỏi trang Tài sản (chỉ thấy trong trang quản lý) */
+  is_hidden: boolean
+  created_at: string
+}
+
+export type DebtRow = {
+  id: string
+  user_id: string
+  counterparty: string
+  direction: DebtDirection
+  currency: CurrencyCode
+  /** minor units theo currency của khoản nợ */
+  principal: number
+  due_on: string | null
+  status: DebtStatus
+  note: string
+  created_at: string
+  updated_at: string
+}
+
+export type DebtPaymentRow = {
+  id: string
+  user_id: string
+  debt_id: string
+  /** minor units theo currency của khoản nợ */
+  amount: number
+  paid_on: string
+  /** giao dịch thật nếu có chuyển tiền; null = ghi nhận suông */
+  transaction_id: string | null
+  note: string
+  created_at: string
 }
 
 type InsertOf<Row, Required extends keyof Row, Optional extends keyof Row> =
@@ -96,12 +155,27 @@ export type Database = {
         Insert: InsertOf<
           AccountRow,
           'user_id' | 'name' | 'type',
-          'id' | 'currency' | 'initial_balance' | 'sort_order' | 'is_archived'
+          | 'id'
+          | 'currency'
+          | 'initial_balance'
+          | 'asset_group'
+          | 'is_hidden'
+          | 'include_in_totals'
+          | 'sort_order'
+          | 'is_archived'
         >
         Update: Partial<
           Pick<
             AccountRow,
-            'name' | 'type' | 'currency' | 'initial_balance' | 'sort_order' | 'is_archived'
+            | 'name'
+            | 'type'
+            | 'currency'
+            | 'initial_balance'
+            | 'asset_group'
+            | 'is_hidden'
+            | 'include_in_totals'
+            | 'sort_order'
+            | 'is_archived'
           >
         >
         Relationships: []
@@ -111,10 +185,10 @@ export type Database = {
         Insert: InsertOf<
           CategoryRow,
           'user_id' | 'name' | 'type',
-          'id' | 'icon' | 'sort_order' | 'is_archived'
+          'id' | 'icon' | 'parent_id' | 'sort_order' | 'is_archived'
         >
         Update: Partial<
-          Pick<CategoryRow, 'name' | 'type' | 'icon' | 'sort_order' | 'is_archived'>
+          Pick<CategoryRow, 'name' | 'type' | 'icon' | 'parent_id' | 'sort_order' | 'is_archived'>
         >
         Relationships: []
       }
@@ -148,6 +222,40 @@ export type Database = {
           'id'
         >
         Update: Partial<Pick<BudgetRow, 'amount'>>
+        Relationships: []
+      }
+      asset_group_settings: {
+        Row: AssetGroupSettingRow
+        Insert: InsertOf<
+          AssetGroupSettingRow,
+          'user_id' | 'name',
+          'id' | 'sort_order' | 'include_in_totals' | 'is_hidden'
+        >
+        Update: Partial<
+          Pick<AssetGroupSettingRow, 'name' | 'sort_order' | 'include_in_totals' | 'is_hidden'>
+        >
+        Relationships: []
+      }
+      debts: {
+        Row: DebtRow
+        Insert: InsertOf<
+          DebtRow,
+          'user_id' | 'counterparty' | 'direction' | 'principal',
+          'id' | 'currency' | 'due_on' | 'status' | 'note'
+        >
+        Update: Partial<
+          Pick<DebtRow, 'counterparty' | 'direction' | 'currency' | 'principal' | 'due_on' | 'status' | 'note'>
+        >
+        Relationships: []
+      }
+      debt_payments: {
+        Row: DebtPaymentRow
+        Insert: InsertOf<
+          DebtPaymentRow,
+          'user_id' | 'debt_id' | 'amount',
+          'id' | 'paid_on' | 'transaction_id' | 'note'
+        >
+        Update: Partial<Pick<DebtPaymentRow, 'amount' | 'paid_on' | 'transaction_id' | 'note'>>
         Relationships: []
       }
     }

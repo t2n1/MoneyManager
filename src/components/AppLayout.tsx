@@ -1,10 +1,10 @@
 import { useEffect } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { isDemoMode } from '../lib/demo'
 
 const TABS = [
-  { to: '/', label: 'Nhập', icon: '✏️' },
-  { to: '/transactions', label: 'Sổ GD', icon: '📒' },
+  { to: '/', label: 'Sổ GD', icon: '📒' },
+  { to: '/assets', label: 'Tài sản', icon: '💰' },
   { to: '/reports', label: 'Báo cáo', icon: '📊' },
   { to: '/settings', label: 'Cài đặt', icon: '⚙️' },
 ]
@@ -22,14 +22,18 @@ function isTypingTarget(e: KeyboardEvent) {
 
 export function AppLayout() {
   const navigate = useNavigate()
+  const location = useLocation()
 
-  // Phím tắt desktop: 1–4 chuyển tab, N về màn nhập
+  // Nút "+" nổi chỉ hiện ở trang Sổ Giao dịch
+  const onLedger = location.pathname === '/' || location.pathname === '/transactions'
+
+  // Phím tắt desktop: 1–4 chuyển tab, N mở màn nhập
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (isTypingTarget(e) || e.ctrlKey || e.metaKey || e.altKey) return
       const index = Number(e.key) - 1
       if (index >= 0 && index < TABS.length) navigate(TABS[index].to)
-      if (e.key === 'n' || e.key === 'N') navigate('/')
+      if (e.key === 'n' || e.key === 'N') navigate('/entry')
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
@@ -48,9 +52,21 @@ export function AppLayout() {
           <span className="text-2xl">📒</span>
           <span className="text-lg font-bold text-gray-800">Sổ Chi Tiêu</span>
         </div>
+        <NavLink
+          to="/entry"
+          className="mb-3 flex items-center justify-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 active:scale-95"
+        >
+          <span className="text-lg leading-none">＋</span>
+          Nhập giao dịch
+        </NavLink>
         <nav className="flex flex-col gap-1">
           {TABS.map((tab, i) => (
-            <NavLink key={tab.to} to={tab.to} className={({ isActive }) => linkClass(isActive)}>
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              end={tab.to === '/'}
+              className={({ isActive }) => linkClass(isActive)}
+            >
               <span>{tab.icon}</span>
               <span className="flex-1">{tab.label}</span>
               <kbd className="rounded bg-gray-100 px-1.5 text-xs text-gray-400">{i + 1}</kbd>
@@ -69,12 +85,25 @@ export function AppLayout() {
         <Outlet />
       </main>
 
+      {/* Nút "+" nổi (mobile) → mở trang nhập; chỉ hiện ở Sổ GD */}
+      {onLedger && (
+        <button
+          type="button"
+          onClick={() => navigate('/entry')}
+          aria-label="Nhập giao dịch"
+          className="fixed bottom-20 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-green-600 text-3xl leading-none text-white shadow-lg transition hover:bg-green-700 active:scale-95 lg:hidden"
+        >
+          ＋
+        </button>
+      )}
+
       {/* Bottom tab bar mobile */}
       <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
         {TABS.map((tab) => (
           <NavLink
             key={tab.to}
             to={tab.to}
+            end={tab.to === '/'}
             className={({ isActive }) =>
               `flex flex-1 flex-col items-center gap-0.5 py-2 text-xs ${
                 isActive ? 'font-semibold text-green-700' : 'text-gray-500'

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useBudgetAlert, useCreateTransaction, useDeleteTransaction } from '../../hooks/queries'
 import type { TransactionType } from '../../types/database.types'
 import { TransactionForm } from './TransactionForm'
 
 /** Màn hình mặc định khi mở app — nhập một giao dịch phải < 5 giây. */
 export function EntryPage() {
+  const navigate = useNavigate()
   const create = useCreateTransaction()
   const del = useDeleteTransaction()
   const { overCount } = useBudgetAlert()
@@ -27,6 +28,18 @@ export function EntryPage() {
 
   return (
     <div className="flex h-[calc(100dvh-5rem)] flex-col p-3 lg:h-dvh lg:p-6">
+      <div className="mb-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="rounded-lg bg-white px-3 py-1.5 text-sm text-gray-600 shadow-sm active:scale-95"
+          aria-label="Đóng, quay lại Sổ giao dịch"
+        >
+          ← Đóng
+        </button>
+        <h1 className="flex-1 text-center text-base font-bold text-gray-800">Nhập giao dịch</h1>
+        <span className="w-[4.5rem]" />
+      </div>
       {overCount > 0 && (
         <Link
           to="/reports?view=budget"

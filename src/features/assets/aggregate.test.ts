@@ -1,0 +1,153 @@
+import { describe, expect, it } from 'vitest'
+import type { Rates } from '../../lib/rates'
+import type { AccountBalanceRow } from '../../types/database.types'
+import { assetBreakdown, UNGROUPED_LABEL, type AssetGroupSetting } from './aggregate'
+
+const setting = (
+  name: string,
+  p: Partial<Omit<AssetGroupSetting, 'name'>> = {},
+): AssetGroupSetting => ({
+  name,
+  sortOrder: 0,
+  includeInTotals: true,
+  hidden: false,
+  ...p,
+})
+
+// base = JPY: 1 ¥ = 165 ₫ = 0.0065 $
+const RATES: Rates = { JPY: 1, VND: 165, USD: 0.0065 }
+
+let seq = 0
+function acc(p: Partial<AccountBalanceRow> & Pick<AccountBalanceRow, 'balance'>): AccountBalanceRow {
+  return {
+    id: `a${seq++}`,
+    user_id: 'u',
+    name: 'Tài khoản',
+    type: 'bank',
+    currency: 'JPY',
+    asset_group: null,
+    is_hidden: false,
+    include_in_totals: true,
+    is_archived: false,
+    sort_order: 0,
+    ...p,
+  }
+}
+
+describe('assetBreakdown (base = JPY)', () => {
+  it('gộp số dư theo nhóm, quy đổi base, tính tỷ trọng', () => {
+    const balances = [
+      acc({ balance: 30_000, asset_group: 'Tiêu dùng' }),
+      acc({ balance: 70_000, asset_group: 'Tiêu dùng' }),
+      acc({ balance: 1_650_000, currency: 'VND', asset_group: 'Đầu tư' }), // → ¥10.000
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES)
+    expect(r.total).toBe(110_000)
+    expect(r.hasForeign).toBe(true)
+    expect(r.hasMissingRate).toBe(false)
+    expect(r.groups.map((g) => [g.name, g.total])).toEqual([
+      ['Tiêu dùng', 100_000],
+      ['Đầu tư', 10_000],
+    ])
+    expect(r.groups[0].share).toBeCloseTo(100_000 / 110_000)
+  })
+
+  it('tài khoản không có nhóm gộp vào "Chưa phân nhóm" và xếp cuối', () => {
+    const balances = [
+      acc({ balance: 5_000 }), // null → chưa phân nhóm
+      acc({ balance: 100_000, asset_group: 'Đầu tư' }),
+      acc({ balance: 1_000, asset_group: '  ' }), // chuỗi trắng → chưa phân nhóm
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES)
+    expect(r.groups[0].name).toBe('Đầu tư')
+    expect(r.groups[r.groups.length - 1].name).toBe(UNGROUPED_LABEL)
+    expect(r.groups.find((g) => g.name === UNGROUPED_LABEL)?.total).toBe(6_000)
+  })
+
+  it('bỏ qua tài khoản đã lưu trữ', () => {
+    const balances = [
+      acc({ balance: 50_000, asset_group: 'Tiêu dùng' }),
+      acc({ balance: 99_999, asset_group: 'Tiêu dùng', is_archived: true }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES)
+    expect(r.total).toBe(50_000)
+  })
+
+  it('thiếu tỷ giá → đánh dấu hasMissingRate, không cộng vào tổng', () => {
+    const balances = [
+      acc({ balance: 30_000, asset_group: 'Tiêu dùng' }),
+      acc({ balance: 200_000, currency: 'USD', asset_group: 'Dự phòng' }), // thiếu USD
+    ]
+    const r = assetBreakdown(balances, 'JPY', { JPY: 1, VND: 165 })
+    expect(r.hasMissingRate).toBe(true)
+    expect(r.total).toBe(30_000)
+    const duPhong = r.groups.find((g) => g.name === 'Dự phòng')!
+    expect(duPhong.total).toBe(0)
+    expect(duPhong.hasMissingRate).toBe(true)
+    expect(duPhong.accounts[0].baseValue).toBeNull()
+  })
+
+  it('nhóm includeInTotals=false: hiện riêng nhưng không cộng vào tổng', () => {
+    const balances = [
+      acc({ balance: 100_000, asset_group: 'Tiêu dùng' }),
+      acc({ balance: 40_000, asset_group: 'Cho vay' }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES, [setting('Cho vay', { includeInTotals: false })])
+    expect(r.total).toBe(100_000) // Cho vay bị loại
+    const choVay = r.groups.find((g) => g.name === 'Cho vay')!
+    expect(choVay.total).toBe(40_000) // vẫn có subtotal riêng
+    expect(choVay.includeInTotals).toBe(false)
+    expect(choVay.share).toBe(0)
+  })
+
+  it('nhóm hidden=true: vẫn trả về (để trang quản lý thấy) nhưng loại khỏi tổng', () => {
+    const balances = [
+      acc({ balance: 100_000, asset_group: 'Tiêu dùng' }),
+      acc({ balance: 999_999, currency: 'USD', asset_group: 'Bí mật' }),
+    ]
+    // USD thiếu tỷ giá nhưng nhóm ẩn → KHÔNG được đánh dấu hasMissingRate cho tổng
+    const r = assetBreakdown(balances, 'JPY', { JPY: 1, VND: 165 }, [setting('Bí mật', { hidden: true })])
+    expect(r.total).toBe(100_000)
+    expect(r.hasMissingRate).toBe(false)
+    expect(r.hasForeign).toBe(false)
+    expect(r.groups.find((g) => g.name === 'Bí mật')?.hidden).toBe(true)
+  })
+
+  it('tài khoản include_in_totals=false: không cộng vào tổng nhóm lẫn tổng chung', () => {
+    const balances = [
+      acc({ balance: 100_000, asset_group: 'Tiêu dùng' }),
+      acc({ balance: 40_000, asset_group: 'Tiêu dùng', include_in_totals: false }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES)
+    expect(r.total).toBe(100_000)
+    const g = r.groups.find((x) => x.name === 'Tiêu dùng')!
+    expect(g.total).toBe(100_000) // tài khoản ngoài-tổng bị loại khỏi total nhóm
+    expect(g.accounts).toHaveLength(2) // nhưng vẫn có trong danh sách để hiển thị
+  })
+
+  it('tài khoản is_hidden=true: loại khỏi tổng, không đánh dấu thiếu tỷ giá', () => {
+    const balances = [
+      acc({ balance: 100_000, asset_group: 'Tiêu dùng' }),
+      acc({ balance: 999_999, currency: 'USD', asset_group: 'Tiêu dùng', is_hidden: true }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', { JPY: 1, VND: 165 }) // thiếu USD
+    expect(r.total).toBe(100_000)
+    expect(r.hasMissingRate).toBe(false)
+    expect(r.hasForeign).toBe(false)
+    const hidden = r.groups[0].accounts.find((a) => a.hidden)
+    expect(hidden?.hidden).toBe(true)
+  })
+
+  it('tôn trọng thứ tự tùy chỉnh (sortOrder), Chưa phân nhóm vẫn cuối', () => {
+    const balances = [
+      acc({ balance: 10_000, asset_group: 'A' }),
+      acc({ balance: 90_000, asset_group: 'B' }), // giá trị lớn hơn nhưng order sau
+      acc({ balance: 5_000 }), // chưa phân nhóm
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES, [
+      setting('A', { sortOrder: 0 }),
+      setting('B', { sortOrder: 1 }),
+    ])
+    expect(r.groups.map((g) => g.name)).toEqual(['A', 'B', UNGROUPED_LABEL])
+  })
+})

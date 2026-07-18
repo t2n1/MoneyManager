@@ -37,6 +37,9 @@ export function buildBudgetReport(
   currencyOf: CurrencyOf,
   base: CurrencyCode,
   rates: Rates,
+  /** Tra cha của một danh mục (null nếu là danh mục chính). Mặc định: không có
+   *  cây → hành xử phẳng như cũ. Có cây → hạn mức ở cha gộp chi tiêu của các con. */
+  parentOf: (categoryId: string) => string | null = () => null,
 ): BudgetReport {
   const spentByCat = new Map<string, number>()
   let hasMissingRate = false
@@ -50,19 +53,34 @@ export function buildBudgetReport(
     spentByCat.set(t.category_id, (spentByCat.get(t.category_id) ?? 0) + v)
   }
 
+  // Gộp lên cha: mỗi khoản chi cộng vào chính danh mục của nó và (1 cấp) vào cha.
+  const rolledSpent = new Map<string, number>()
+  for (const [catId, v] of spentByCat) {
+    rolledSpent.set(catId, (rolledSpent.get(catId) ?? 0) + v)
+    const parent = parentOf(catId)
+    if (parent) rolledSpent.set(parent, (rolledSpent.get(parent) ?? 0) + v)
+  }
+
+  const budgetedIds = new Set(budgets.map((b) => b.category_id))
   let totalBudgeted = 0
-  let totalSpent = 0
   let overCount = 0
   const lines: BudgetLine[] = budgets.map((b) => {
-    const spent = spentByCat.get(b.category_id) ?? 0
+    const spent = rolledSpent.get(b.category_id) ?? 0
     const ratio = b.amount > 0 ? spent / b.amount : 0
     const status = statusOf(ratio)
     if (status === 'over') overCount++
     totalBudgeted += b.amount
-    totalSpent += spent
     return { categoryId: b.category_id, budgeted: b.amount, spent, ratio, status }
   })
   lines.sort((a, b) => b.ratio - a.ratio)
+
+  // Tổng chi tính MỘT lần mỗi khoản: đủ điều kiện nếu danh mục của nó có hạn mức
+  // hoặc cha của nó có hạn mức (tránh cộng đôi khi cả cha lẫn con đều đặt hạn mức).
+  let totalSpent = 0
+  for (const [catId, v] of spentByCat) {
+    const parent = parentOf(catId)
+    if (budgetedIds.has(catId) || (parent && budgetedIds.has(parent))) totalSpent += v
+  }
 
   const totalRatio = totalBudgeted > 0 ? totalSpent / totalBudgeted : 0
   const totalStatus = statusOf(totalRatio)

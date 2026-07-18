@@ -37,6 +37,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
 
   const catOf = (id: string) => categories.find((c) => c.id === id)
   const expenseCats = categories.filter((c) => c.type === 'expense' && !c.is_archived)
+  const childrenOf = (id: string) =>
+    categories.filter((c) => c.parent_id === id && !c.is_archived)
   const budgetedIds = new Set(budgets.map((b) => b.category_id))
   const unbudgeted = expenseCats.filter((c) => !budgetedIds.has(c.id))
 
@@ -103,6 +105,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             {report.lines.map((line) => {
               const cat = catOf(line.categoryId)
               const budget = budgets.find((b) => b.category_id === line.categoryId)
+              const kidCount = childrenOf(line.categoryId).length
               const pct = Math.round(line.ratio * 100)
               return (
                 <li key={line.categoryId}>
@@ -120,6 +123,9 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     <div className="flex items-baseline justify-between text-sm">
                       <span className="text-gray-700">
                         {cat?.icon ?? '📦'} {cat?.name ?? '?'}
+                        {kidCount > 0 && (
+                          <span className="ml-1 text-xs text-gray-400">(gồm {kidCount} mục con)</span>
+                        )}
                       </span>
                       <span className={`text-xs ${TEXT_COLOR[line.status]}`}>{pct}%</span>
                     </div>
@@ -159,6 +165,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                   onClick={() => setEditing({ categoryId: c.id, current: 0 })}
                   className="rounded-full border border-dashed border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
                 >
+                  {c.parent_id && <span className="text-gray-400">↳ </span>}
                   {c.icon} {c.name} +
                 </button>
               </li>

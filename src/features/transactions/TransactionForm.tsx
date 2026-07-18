@@ -81,6 +81,11 @@ export function TransactionForm({
   const [note, setNote] = useState(initial?.note ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Picker danh mục con: đang mở nhóm cha nào (null = màn danh mục chính)
+  const [drillId, setDrillId] = useState<string | null>(() => {
+    const cid = initial?.category_id ?? lastCategoryFor(initial?.type ?? initialType ?? 'expense', categories)
+    return categories.find((c) => c.id === cid)?.parent_id ?? null
+  })
 
   // Điền sẵn danh mục lần trước khi categories tải xong (form mới, chưa chọn gì)
   useEffect(() => {
@@ -90,10 +95,15 @@ export function TransactionForm({
   }, [categories, type, initial, categoryId])
 
   const activeAccounts = useMemo(() => accounts.filter((a) => !a.is_archived), [accounts])
-  const visibleCategories = useMemo(
+  const activeOfType = useMemo(
     () => categories.filter((c) => c.type === type && !c.is_archived),
     [categories, type],
   )
+  const topCategories = useMemo(() => activeOfType.filter((c) => !c.parent_id), [activeOfType])
+  const childrenOf = (id: string) => activeOfType.filter((c) => c.parent_id === id)
+  const selectedCat = categories.find((c) => c.id === categoryId) ?? null
+  const drillParent = drillId ? topCategories.find((c) => c.id === drillId) ?? null : null
+  const drillChildren = drillParent ? childrenOf(drillParent.id) : []
 
   // Tài khoản mặc định = dùng lần trước, fallback tài khoản đầu tiên
   const effectiveAccountId =
@@ -116,11 +126,13 @@ export function TransactionForm({
     !saving &&
     (type === 'transfer'
       ? !!toAccountId && toAccountId !== effectiveAccountId && (!crossCurrency || toAmount > 0)
-      : !!categoryId && visibleCategories.some((c) => c.id === categoryId))
+      : !!categoryId && activeOfType.some((c) => c.id === categoryId))
 
   function switchType(next: TransactionType) {
     setType(next)
-    setCategoryId(lastCategoryFor(next, categories))
+    const last = lastCategoryFor(next, categories)
+    setCategoryId(last)
+    setDrillId(categories.find((c) => c.id === last)?.parent_id ?? null)
     setToAccountId(null)
     setToDigits('')
     setActiveField('main')
@@ -288,23 +300,54 @@ export function TransactionForm({
       />
 
       {/* Danh mục (ẩn khi chuyển khoản) */}
-      {type !== 'transfer' && (
-        <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-4 gap-1.5 overflow-y-auto lg:grid-cols-5">
-          {visibleCategories.map((c) => (
+      {type !== 'transfer' &&
+        (drillParent ? (
+          /* Trong một nhóm cha → chọn danh mục con (bắt buộc) */
+          <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
             <button
-              key={c.id}
               type="button"
-              onClick={() => setCategoryId(c.id)}
-              className={`flex flex-col items-center gap-0.5 rounded-xl border-2 bg-white px-1 py-2 text-xs text-gray-700 transition active:scale-95 ${
-                categoryId === c.id ? 'border-green-500 bg-green-50' : 'border-transparent shadow-sm'
-              }`}
+              onClick={() => setDrillId(null)}
+              className="flex items-center gap-1.5 self-start rounded-lg bg-white px-2.5 py-1 text-xs font-medium text-gray-600 shadow-sm active:scale-95"
             >
-              <span className="text-xl leading-none">{c.icon}</span>
-              <span className="truncate w-full text-center">{c.name}</span>
+              ‹ <span className="text-base leading-none">{drillParent.icon}</span> {drillParent.name}
             </button>
-          ))}
-        </div>
-      )}
+            <div className="grid auto-rows-min grid-cols-4 gap-1.5 lg:grid-cols-5">
+              {drillChildren.map((c) => (
+                <CategoryTile
+                  key={c.id}
+                  icon={c.icon}
+                  name={c.name}
+                  selected={categoryId === c.id}
+                  onClick={() => setCategoryId(c.id)}
+                />
+              ))}
+              {drillChildren.length === 0 && (
+                <p className="col-span-full py-4 text-center text-xs text-gray-400">
+                  Nhóm này chưa có danh mục con
+                </p>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Màn danh mục chính */
+          <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-4 gap-1.5 overflow-y-auto lg:grid-cols-5">
+            {topCategories.map((c) => {
+              const kids = childrenOf(c.id)
+              const hasKids = kids.length > 0
+              return (
+                <CategoryTile
+                  key={c.id}
+                  icon={c.icon}
+                  name={c.name}
+                  // Cha có con: chọn selection đang nằm bên trong; cha không con: chọn trực tiếp
+                  selected={hasKids ? selectedCat?.parent_id === c.id : categoryId === c.id}
+                  hasChildren={hasKids}
+                  onClick={() => (hasKids ? setDrillId(c.id) : setCategoryId(c.id))}
+                />
+              )
+            })}
+          </div>
+        ))}
       {type === 'transfer' && <div className="flex-1" />}
 
       {/* NumPad chỉ trên mobile */}
@@ -323,5 +366,35 @@ export function TransactionForm({
         {saving ? 'Đang lưu…' : submitLabel}
       </button>
     </div>
+  )
+}
+
+function CategoryTile({
+  icon,
+  name,
+  selected,
+  hasChildren,
+  onClick,
+}: {
+  icon: string
+  name: string
+  selected: boolean
+  hasChildren?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative flex flex-col items-center gap-0.5 rounded-xl border-2 bg-white px-1 py-2 text-xs text-gray-700 transition active:scale-95 ${
+        selected ? 'border-green-500 bg-green-50' : 'border-transparent shadow-sm'
+      }`}
+    >
+      <span className="text-xl leading-none">{icon}</span>
+      <span className="w-full truncate text-center">{name}</span>
+      {hasChildren && (
+        <span className="absolute top-1 right-1 text-[10px] leading-none text-gray-400">›</span>
+      )}
+    </button>
   )
 }

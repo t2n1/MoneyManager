@@ -2,28 +2,16 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import { resetDemoData } from '../../data/demoRepo'
-import { useAccountBalances, useProfile, useRates } from '../../hooks/queries'
+import { useProfile } from '../../hooks/queries'
 import { isDemoMode } from '../../lib/demo'
 import { getSupabase } from '../../lib/supabase'
-import { CURRENCIES, formatMoney } from '../../lib/money'
-import { convertToBase } from '../../lib/rates'
 import { ProfileEditSheet } from './ProfileEditSheet'
 
 export function SettingsPage() {
   const { data: profile } = useProfile()
-  const { data: balances = [] } = useAccountBalances()
-  const { base, rates } = useRates()
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
-
-  // Tổng tài sản quy đổi về base; thiếu tỷ giá cho bất kỳ tài khoản nào → null
-  const total = balances.reduce<number | null>((sum, b) => {
-    if (sum === null) return null
-    const v = convertToBase(b.balance, b.currency, base, rates ?? {})
-    return v === null ? null : sum + v
-  }, 0)
-  const hasForeign = balances.some((b) => b.currency !== base)
 
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
@@ -51,43 +39,6 @@ export function SettingsPage() {
         </div>
       )}
 
-      <section className="rounded-xl bg-white p-3 shadow-sm">
-        <h2 className="mb-2 text-sm font-semibold text-gray-500">Số dư tài khoản</h2>
-        <div className="divide-y divide-gray-100">
-          {balances.map((b) => (
-            <div key={b.id} className="flex items-center justify-between py-2">
-              <span className="text-sm text-gray-800">
-                {b.type === 'cash' ? '💵' : '🏦'} {b.name}
-                <span className="ml-1 text-xs text-gray-400">{b.currency}</span>
-              </span>
-              <span
-                className={`text-sm font-semibold ${b.balance < 0 ? 'text-red-600' : 'text-gray-800'}`}
-              >
-                {formatMoney(b.balance, b.currency)}
-              </span>
-            </div>
-          ))}
-          <div className="flex items-center justify-between py-2">
-            <span className="text-sm font-semibold text-gray-800">
-              Tổng ({CURRENCIES[base].label})
-            </span>
-            <span
-              className={`text-sm font-bold ${total !== null && total < 0 ? 'text-red-600' : 'text-gray-900'}`}
-            >
-              {total !== null
-                ? `${hasForeign ? '≈ ' : ''}${formatMoney(total, base)}`
-                : 'Đang tải tỷ giá…'}
-            </span>
-          </div>
-        </div>
-        {hasForeign && rates && (
-          <p className="mt-2 text-xs text-gray-400">
-            Tỷ giá: ¥1 ≈ {rates.VND?.toFixed(2)} ₫ · $1 ≈ ¥
-            {rates.USD ? (1 / rates.USD).toFixed(1) : '?'} (open.er-api.com, cache 12h)
-          </p>
-        )}
-      </section>
-
       <section className="overflow-hidden rounded-xl bg-white shadow-sm">
         <h2 className="px-3 pt-3 text-sm font-semibold text-gray-500">Quản lý</h2>
         <div className="mt-1 divide-y divide-gray-100">
@@ -105,6 +56,22 @@ export function SettingsPage() {
           >
             <span className="text-xl">🏷️</span>
             <span className="flex-1">Danh mục</span>
+            <span className="text-gray-300">›</span>
+          </Link>
+          <Link
+            to="/settings/asset-groups"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50"
+          >
+            <span className="text-xl">💰</span>
+            <span className="flex-1">Nhóm tài sản</span>
+            <span className="text-gray-300">›</span>
+          </Link>
+          <Link
+            to="/settings/debts"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50"
+          >
+            <span className="text-xl">🤝</span>
+            <span className="flex-1">Nợ / cho vay</span>
             <span className="text-gray-300">›</span>
           </Link>
         </div>
@@ -140,7 +107,7 @@ export function SettingsPage() {
 
       <p className="text-center text-xs text-gray-400">
         Sổ Chi Tiêu · Giai đoạn 1 (MVP)
-        {profile && ` · Tháng bắt đầu ngày ${profile.month_start_day} · Quy đổi ${base}`}
+        {profile && ` · Tháng bắt đầu ngày ${profile.month_start_day} · Quy đổi ${profile.base_currency}`}
       </p>
 
       {editing && profile && <ProfileEditSheet profile={profile} onClose={() => setEditing(false)} />}

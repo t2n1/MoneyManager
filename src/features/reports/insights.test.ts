@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buildInsights, forecastMonthEnd, noSpendStreak, savingsRate } from './insights'
+import { buildInsights, detectAnomalies, forecastMonthEnd, median, noSpendStreak, savingsRate } from './insights'
 import type { TransactionRow } from '../../types/database.types'
+import type { Rates } from '../../lib/rates'
+import type { CurrencyCode } from '../../lib/money'
 
 const tx = (occurred_on: string, type: TransactionRow['type']): TransactionRow => ({
   id: occurred_on + type,
@@ -94,5 +96,61 @@ describe('forecastMonthEnd', () => {
   it('daysInMonth = 0 → null', () => expect(forecastMonthEnd(5_000, 5, 0)).toBeNull())
   it('hết tháng → projected ≈ spentSoFar', () => {
     expect(forecastMonthEnd(30_000, 30, 30)?.projected).toBe(30_000)
+  })
+})
+
+const RATES: Rates = { JPY: 1, VND: 165, USD: 0.0065 }
+const currencyOf = (id: string): CurrencyCode => (id === 'vnd' ? 'VND' : 'JPY')
+let aseq = 0
+const etx = (amount: number, category_id: string | null, extra: Partial<TransactionRow> = {}): TransactionRow => ({
+  id: `a${aseq++}`,
+  user_id: 'u',
+  type: 'expense',
+  amount,
+  to_amount: null,
+  category_id,
+  account_id: 'jpy',
+  to_account_id: null,
+  occurred_on: '2026-07-10',
+  note: '',
+  created_at: '',
+  updated_at: '',
+  ...extra,
+})
+
+describe('median', () => {
+  it('lẻ', () => expect(median([3, 1, 2])).toBe(2))
+  it('chẵn', () => expect(median([1, 2, 3, 4])).toBe(2.5))
+  it('rỗng → 0', () => expect(median([])).toBe(0))
+})
+
+describe('detectAnomalies (base = JPY)', () => {
+  it('khoản ≥3× trung vị bị gắn cờ; danh mục < minSamples bị bỏ', () => {
+    const history = [
+      etx(1000, 'shop'), etx(1000, 'shop'), etx(1000, 'shop'), etx(1000, 'shop'), etx(1000, 'shop'),
+      etx(500, 'food'), etx(500, 'food'), etx(500, 'food'), // chỉ 3 mẫu
+    ]
+    const current = [
+      etx(5000, 'shop'), // 5× median 1000 → bất thường
+      etx(1200, 'shop'), // 1.2× → không
+      etx(9000, 'food'), // food < 5 mẫu → bỏ qua
+    ]
+    const r = detectAnomalies(current, history, currencyOf, 'JPY', RATES)
+    expect(r.anomalies.map((a) => a.transactionId)).toEqual([current[0].id])
+    expect(r.anomalies[0].ratio).toBeCloseTo(5)
+    expect(r.hasMissingRate).toBe(false)
+  })
+  it('sắp theo ratio giảm dần', () => {
+    const history = Array.from({ length: 5 }, () => etx(1000, 'shop'))
+    const current = [etx(3000, 'shop'), etx(6000, 'shop')]
+    const r = detectAnomalies(current, history, currencyOf, 'JPY', RATES)
+    expect(r.anomalies.map((a) => Math.round(a.ratio))).toEqual([6, 3])
+  })
+  it('thiếu tỷ giá ở khoản hiện tại → cờ hasMissingRate, không gắn bất thường', () => {
+    const history = Array.from({ length: 5 }, () => etx(1000, 'shop'))
+    const current = [etx(1_000_000, 'shop', { account_id: 'vnd' })]
+    const r = detectAnomalies(current, history, currencyOf, 'JPY', { JPY: 1 })
+    expect(r.hasMissingRate).toBe(true)
+    expect(r.anomalies).toEqual([])
   })
 })

@@ -21,7 +21,7 @@ import {
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
 import { categoryBreakdown, categoryComparison, cumulativeDailyBalance, monthlySeries } from './aggregate'
-import { buildInsights, forecastMonthEnd, noSpendStreak, savingsRate } from './insights'
+import { buildInsights, detectAnomalies, forecastMonthEnd, noSpendStreak, savingsRate } from './insights'
 
 export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
   const { data: profile } = useProfile()
@@ -120,13 +120,26 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
   const cashflowData = cashflow.points.map((p) => ({ day: Number(p.date.slice(8)), balance: p.balance }))
   const hasCashflow = cashflow.points.some((p) => p.balance !== 0)
 
+  // --- Phát hiện chi bất thường (U) ---
+  const historyTxs = useMemo(
+    () => rangeTxs.filter((t) => t.occurred_on < range.start),
+    [rangeTxs, range.start],
+  )
+  const anomalyResult = useMemo(
+    () => detectAnomalies(monthTxs, historyTxs, currencyOf, base, r),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [monthTxs, historyTxs, accounts, base, rates],
+  )
+  const anomalies = anomalyResult.anomalies.slice(0, 5)
+
   const hasMissingRate =
     series.hasMissingRate ||
     expenseBreakdown.hasMissingRate ||
     forecastApprox ||
     comparison.hasMissingRate ||
-    cashflow.hasMissingRate
-  const hasAny = hasHealth || forecast || comparison.rows.length > 0 || hasCashflow
+    cashflow.hasMissingRate ||
+    anomalyResult.hasMissingRate
+  const hasAny = hasHealth || forecast || comparison.rows.length > 0 || hasCashflow || anomalies.length > 0
 
   return (
     <div className="flex flex-col gap-3">
@@ -258,6 +271,29 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
               </LineChart>
             </ResponsiveContainer>
           </div>
+        </section>
+      )}
+
+      {anomalies.length > 0 && (
+        <section className="rounded-xl bg-white p-3 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold text-gray-500">Chi tiêu bất thường</h2>
+          <ul className="space-y-1">
+            {anomalies.map((a) => {
+              const cat = categoryOf(a.categoryId)
+              return (
+                <li
+                  key={a.transactionId}
+                  className="flex items-center justify-between gap-2 rounded-lg bg-amber-50 px-2 py-1.5 text-xs"
+                >
+                  <span className="min-w-0 flex-1 truncate text-gray-700">
+                    {cat?.icon ?? '📦'} {cat?.name ?? '?'}
+                  </span>
+                  <span className="shrink-0 font-medium text-gray-800">{formatMoney(a.amount, base)}</span>
+                  <span className="shrink-0 text-amber-600">gấp {Math.round(a.ratio)}× thường ngày</span>
+                </li>
+              )
+            })}
+          </ul>
         </section>
       )}
 

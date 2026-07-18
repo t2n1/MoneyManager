@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Banknote, ChevronLeft, PenLine } from 'lucide-react'
 import {
   useDebtPayments,
   useDebts,
@@ -32,11 +33,11 @@ export function DebtDetailPage() {
 
   if (!debt) {
     return (
-      <div className="p-6 text-center text-sm text-gray-400">
+      <div className="p-6 text-center text-sm text-gray-400 dark:text-gray-500">
         {isLoading ? 'Đang tải…' : 'Không tìm thấy khoản nợ.'}
         {!isLoading && (
           <div className="mt-3">
-            <Link to="/settings/debts" className="text-green-700 underline">
+            <Link to="/settings/debts" className="text-green-700 dark:text-green-400 underline">
               Về danh sách
             </Link>
           </div>
@@ -78,16 +79,16 @@ export function DebtDetailPage() {
       <div className="mb-3 flex items-center gap-2">
         <Link
           to="/settings/debts"
-          className="rounded-lg bg-white px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >
-          ←
+          <ChevronLeft className="h-5 w-5" />
         </Link>
-        <h1 className="flex-1 truncate text-lg font-bold text-gray-800">{debt.counterparty}</h1>
+        <h1 className="flex-1 truncate text-lg font-bold text-gray-800 dark:text-gray-100">{debt.counterparty}</h1>
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-gray-600 shadow-sm active:scale-95"
+          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 shadow-sm active:scale-95"
         >
           Sửa
         </button>
@@ -126,41 +127,41 @@ export function DebtDetailPage() {
         <button
           type="button"
           onClick={toggleSettled}
-          className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm active:scale-95"
+          className="rounded-lg bg-white dark:bg-gray-900 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm active:scale-95"
         >
           {debt.status === 'open' ? 'Đánh dấu tất toán' : 'Mở lại'}
         </button>
         <button
           type="button"
           onClick={handleDelete}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+          className="rounded-lg px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
         >
           Xóa
         </button>
       </div>
 
       {debt.status === 'open' && fullyPaid && (
-        <p className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-700">
+        <p className="mt-3 rounded-lg bg-amber-50 dark:bg-amber-900/30 p-3 text-xs text-amber-700 dark:text-amber-300">
           Đã trả đủ. Bạn có thể "Đánh dấu tất toán" để đưa khoản này ra khỏi tổng nợ.
         </p>
       )}
 
       {/* Lịch sử trả */}
-      <h2 className="mb-2 mt-5 px-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+      <h2 className="mb-2 mt-5 px-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
         Lịch sử trả ({payments.length})
       </h2>
-      <div className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-sm">
+      <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
         {payments.map((p) => (
           <div key={p.id} className="flex items-center gap-2 px-3 py-2.5">
-            <span className="text-base">{p.transaction_id ? '💸' : '📝'}</span>
+            {p.transaction_id ? <Banknote className="h-4 w-4" /> : <PenLine className="h-4 w-4" />}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-gray-800">
+              <p className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
                 {formatMoney(p.amount, debt.currency)}
                 {!p.transaction_id && (
-                  <span className="ml-1 text-[10px] font-normal text-gray-400">(ghi nhận suông)</span>
+                  <span className="ml-1 text-[10px] font-normal text-gray-400 dark:text-gray-500">(ghi nhận suông)</span>
                 )}
               </p>
-              <p className="truncate text-xs text-gray-400">
+              <p className="truncate text-xs text-gray-400 dark:text-gray-500">
                 {p.paid_on}
                 {p.note && ` · ${p.note}`}
               </p>
@@ -168,14 +169,14 @@ export function DebtDetailPage() {
             <button
               type="button"
               onClick={() => handleDeletePayment(p.id, !!p.transaction_id)}
-              className="rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-gray-100"
+              className="rounded-lg px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Xóa
             </button>
           </div>
         ))}
         {payments.length === 0 && (
-          <p className="px-3 py-6 text-center text-sm text-gray-400">Chưa có lần trả nào</p>
+          <p className="px-3 py-6 text-center text-sm text-gray-400 dark:text-gray-500">Chưa có lần trả nào</p>
         )}
       </div>
 

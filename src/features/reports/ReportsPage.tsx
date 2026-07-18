@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -116,49 +117,49 @@ export function ReportsPage() {
         <button
           type="button"
           onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, -1))}
-          className="rounded-lg bg-white px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Tháng trước"
         >
-          ←
+          <ChevronLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-lg font-bold text-gray-800">{formatMonthLabel(activeMonthKey)}</h1>
+        <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">{formatMonthLabel(activeMonthKey)}</h1>
         <button
           type="button"
           onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))}
-          className="rounded-lg bg-white px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Tháng sau"
         >
-          →
+          <ChevronRight className="h-5 w-5" />
         </button>
       </div>
 
       {/* Chọn tab: Biểu đồ | Ngân sách */}
-      <div className="flex rounded-lg bg-gray-100 p-0.5 text-sm font-medium">
+      <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-sm font-medium">
         <button
           type="button"
           onClick={() => setView('charts')}
-          className={`flex-1 rounded-md py-1.5 ${view === 'charts' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'}`}
+          className={`flex-1 rounded-md py-1.5 ${view === 'charts' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
           Biểu đồ
         </button>
         <button
           type="button"
           onClick={() => setView('insights')}
-          className={`flex-1 rounded-md py-1.5 ${view === 'insights' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'}`}
+          className={`flex-1 rounded-md py-1.5 ${view === 'insights' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
           Thấu hiểu
         </button>
         <button
           type="button"
           onClick={() => setView('budget')}
-          className={`flex-1 rounded-md py-1.5 ${view === 'budget' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'}`}
+          className={`flex-1 rounded-md py-1.5 ${view === 'budget' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
           Ngân sách
         </button>
       </div>
 
       {view === 'charts' && (breakdown.hasMissingRate || series.hasMissingRate) && (
-        <div className="rounded-lg bg-amber-50 p-2 text-xs text-amber-700">
+        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
@@ -166,21 +167,21 @@ export function ReportsPage() {
       {view === 'charts' && (
         <>
       {/* Biểu đồ tròn theo danh mục */}
-      <section className="rounded-xl bg-white p-3 shadow-sm">
+      <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-500">Cơ cấu theo danh mục</h2>
-          <div className="flex rounded-lg bg-gray-100 p-0.5 text-xs font-medium">
+          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400">Cơ cấu theo danh mục</h2>
+          <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-xs font-medium">
             <button
               type="button"
               onClick={() => setKind('expense')}
-              className={`rounded-md px-3 py-1 ${kind === 'expense' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500'}`}
+              className={`rounded-md px-3 py-1 ${kind === 'expense' ? 'bg-white dark:bg-gray-900 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
             >
               Chi
             </button>
             <button
               type="button"
               onClick={() => setKind('income')}
-              className={`rounded-md px-3 py-1 ${kind === 'income' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500'}`}
+              className={`rounded-md px-3 py-1 ${kind === 'income' ? 'bg-white dark:bg-gray-900 text-green-600 dark:text-green-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
             >
               Thu
             </button>
@@ -188,7 +189,7 @@ export function ReportsPage() {
         </div>
 
         {pieData.length === 0 ? (
-          <p className="py-10 text-center text-sm text-gray-400">
+          <p className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">
             Chưa có {kind === 'expense' ? 'chi tiêu' : 'thu nhập'} trong tháng này
           </p>
         ) : (
@@ -216,8 +217,8 @@ export function ReportsPage() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-[10px] text-gray-400">Tổng</span>
-                <span className="text-sm font-bold text-gray-800">
+                <span className="text-[10px] text-gray-400 dark:text-gray-500">Tổng</span>
+                <span className="text-sm font-bold text-gray-800 dark:text-gray-100">
                   {approx}
                   {formatCompact(breakdown.total, base)}
                 </span>
@@ -231,11 +232,11 @@ export function ReportsPage() {
                     className="h-2.5 w-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: d.color }}
                   />
-                  <span className="min-w-0 flex-1 truncate text-gray-700">
+                  <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">
                     {d.icon} {d.name}
                   </span>
-                  <span className="shrink-0 text-xs text-gray-400">{d.pct.toFixed(0)}%</span>
-                  <span className="shrink-0 font-medium text-gray-800">
+                  <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500">{d.pct.toFixed(0)}%</span>
+                  <span className="shrink-0 font-medium text-gray-800 dark:text-gray-100">
                     {formatMoney(d.value, base)}
                   </span>
                 </li>
@@ -246,8 +247,8 @@ export function ReportsPage() {
       </section>
 
       {/* Biểu đồ cột thu/chi 6 tháng */}
-      <section className="rounded-xl bg-white p-3 shadow-sm">
-        <h2 className="mb-2 text-sm font-semibold text-gray-500">Thu / chi 6 tháng gần nhất</h2>
+      <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+        <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">Thu / chi 6 tháng gần nhất</h2>
         <div className="h-56 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={barData} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
@@ -272,7 +273,7 @@ export function ReportsPage() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="mt-1 flex justify-center gap-4 text-xs text-gray-500">
+        <div className="mt-1 flex justify-center gap-4 text-xs text-gray-500 dark:text-gray-400">
           <span className="flex items-center gap-1">
             <span className="h-2.5 w-2.5 rounded-full bg-green-600" /> Thu
           </span>

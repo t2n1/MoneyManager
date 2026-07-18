@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ChevronLeft, Search, X } from 'lucide-react'
+import { AccountTypeIcon } from '../../components/icons'
 import type { TxFilter } from '../../data'
 import { useAccounts, useCategories, useRates, useSearchTransactions } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
@@ -24,8 +26,9 @@ function nextDay(iso: string): string {
 
 function defaultFrom(): string {
   const d = new Date()
-  d.setMonth(d.getMonth() - 11)
+  // setDate(1) TRƯỚC setMonth: ngày 31 mà lùi sang tháng thiếu ngày sẽ bị tràn thêm 1 tháng
   d.setDate(1)
+  d.setMonth(d.getMonth() - 11)
   return toISODate(d)
 }
 
@@ -100,7 +103,7 @@ export function SearchPage() {
 
   const chip = (active: boolean) =>
     `rounded-full px-3 py-1 text-xs font-medium transition ${
-      active ? 'bg-green-600 text-white' : 'bg-white text-gray-600 shadow-sm'
+      active ? 'bg-green-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 shadow-sm'
     }`
 
   return (
@@ -109,26 +112,26 @@ export function SearchPage() {
       <div className="mb-3 flex items-center gap-2">
         <Link
           to="/transactions"
-          className="rounded-lg bg-white px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >
-          ←
+          <ChevronLeft className="h-5 w-5" />
         </Link>
-        <h1 className="flex-1 text-lg font-bold text-gray-800">Tìm kiếm</h1>
+        <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Tìm kiếm</h1>
       </div>
 
       {/* Ô tìm ghi chú */}
-      <div className="mb-2 flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-sm">
-        <span className="text-gray-400">🔍</span>
+      <div className="mb-2 flex items-center gap-2 rounded-xl bg-white dark:bg-gray-900 px-3 py-2 shadow-sm">
+        <Search className="h-5 w-5 text-gray-400 dark:text-gray-500" />
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Tìm theo ghi chú…"
-          className="flex-1 text-sm text-gray-800 outline-none"
+          className="flex-1 text-sm text-gray-800 dark:text-gray-100 outline-none"
         />
         {text && (
-          <button type="button" onClick={() => setText('')} className="text-gray-400" aria-label="Xóa">
-            ✕
+          <button type="button" onClick={() => setText('')} className="text-gray-400 dark:text-gray-500" aria-label="Xóa">
+            <X className="h-5 w-5" />
           </button>
         )}
       </div>
@@ -151,19 +154,19 @@ export function SearchPage() {
       </div>
 
       {/* Khoảng ngày */}
-      <div className="mb-2 flex items-center gap-2 text-sm text-gray-600">
+      <div className="mb-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
         <input
           type="date"
           value={from}
           onChange={(e) => setFrom(e.target.value)}
-          className="flex-1 rounded-lg border border-gray-300 bg-white px-2 py-1.5"
+          className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5"
         />
-        <span className="text-gray-400">→</span>
+        <span className="text-gray-400 dark:text-gray-500">→</span>
         <input
           type="date"
           value={to}
           onChange={(e) => setTo(e.target.value)}
-          className="flex-1 rounded-lg border border-gray-300 bg-white px-2 py-1.5"
+          className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5"
         />
       </div>
 
@@ -171,15 +174,15 @@ export function SearchPage() {
       <button
         type="button"
         onClick={() => setShowMore((v) => !v)}
-        className="mb-2 text-xs font-medium text-green-700"
+        className="mb-2 text-xs font-medium text-green-700 dark:text-green-400"
       >
         {showMore ? 'Ẩn bộ lọc ▲' : 'Lọc theo danh mục / tài khoản ▼'}
       </button>
       {showMore && (
-        <div className="mb-3 space-y-3 rounded-xl bg-gray-100 p-3">
+        <div className="mb-3 space-y-3 rounded-xl bg-gray-100 dark:bg-gray-800 p-3">
           {typeFilter !== 'transfer' && (
             <div>
-              <p className="mb-1.5 text-xs font-semibold text-gray-500">Danh mục</p>
+              <p className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">Danh mục</p>
               <div className="flex flex-wrap gap-1.5">
                 {visibleCategories.map((c) => (
                   <button
@@ -195,7 +198,7 @@ export function SearchPage() {
             </div>
           )}
           <div>
-            <p className="mb-1.5 text-xs font-semibold text-gray-500">Tài khoản</p>
+            <p className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">Tài khoản</p>
             <div className="flex flex-wrap gap-1.5">
               {accounts.map((a) => (
                 <button
@@ -204,7 +207,10 @@ export function SearchPage() {
                   onClick={() => setAccountIds((l) => toggle(l, a.id))}
                   className={chip(accountIds.includes(a.id))}
                 >
-                  {a.type === 'cash' ? '💵' : '🏦'} {a.name} · {CURRENCIES[a.currency].symbol}
+                  <span className="inline-flex items-center gap-1">
+                    <AccountTypeIcon type={a.type} className="h-4 w-4" /> {a.name} ·{' '}
+                    {CURRENCIES[a.currency].symbol}
+                  </span>
                 </button>
               ))}
             </div>
@@ -213,39 +219,39 @@ export function SearchPage() {
       )}
 
       {/* Kết quả */}
-      <p className="mb-2 px-1 text-xs text-gray-500">
+      <p className="mb-2 px-1 text-xs text-gray-500 dark:text-gray-400">
         {isLoading ? 'Đang tìm…' : `${results.length} kết quả`}
       </p>
       {(totals.income > 0 || totals.expense > 0 || totals.hasMissingRate) && (
-        <div className="mb-3 rounded-xl bg-white p-3 shadow-sm">
+        <div className="mb-3 rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500">Thu</span>
-            <span className="font-semibold text-green-600">
+            <span className="text-gray-500 dark:text-gray-400">Thu</span>
+            <span className="font-semibold text-green-600 dark:text-green-400">
               {totals.hasForeign ? '≈ ' : ''}
               {formatMoney(totals.income, base)}
             </span>
           </div>
           <div className="mt-1 flex items-center justify-between text-sm">
-            <span className="text-gray-500">Chi</span>
-            <span className="font-semibold text-red-600">
+            <span className="text-gray-500 dark:text-gray-400">Chi</span>
+            <span className="font-semibold text-red-600 dark:text-red-400">
               {totals.hasForeign ? '≈ ' : ''}
               {formatMoney(totals.expense, base)}
             </span>
           </div>
           {totals.hasMissingRate && (
-            <p className="mt-2 text-xs text-amber-700">
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
               Một phần ngoại tệ chưa quy đổi được (đang chờ tỷ giá).
             </p>
           )}
         </div>
       )}
       {days.length === 0 && !isLoading ? (
-        <p className="py-10 text-center text-gray-400">Không có giao dịch khớp bộ lọc</p>
+        <p className="py-10 text-center text-gray-400 dark:text-gray-500">Không có giao dịch khớp bộ lọc</p>
       ) : (
         days.map(([day, txs]) => (
           <section key={day} className="mb-3">
-            <div className="mb-1 px-1 text-xs font-medium text-gray-500">{day}</div>
-            <div className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-sm">
+            <div className="mb-1 px-1 text-xs font-medium text-gray-500 dark:text-gray-400">{day}</div>
+            <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
               {txs.map((tx) => (
                 <TransactionItem
                   key={tx.id}

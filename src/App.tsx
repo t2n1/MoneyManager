@@ -37,7 +37,7 @@ const DebtDetailPage = lazy(() =>
   import('./features/debts/DebtDetailPage').then((m) => ({ default: m.DebtDetailPage })),
 )
 
-const Loading = () => <p className="p-6 text-center text-gray-400">Đang tải…</p>
+const Loading = () => <p className="p-6 text-center text-gray-400 dark:text-gray-500">Đang tải…</p>
 const lazyRoute = (el: ReactNode) => <Suspense fallback={<Loading />}>{el}</Suspense>
 
 function App() {

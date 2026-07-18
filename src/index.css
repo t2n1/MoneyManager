@@ -1,7 +1,27 @@
 @import "tailwindcss";
 
+/* Bật dark mode theo class '.dark' trên <html> (Tailwind v4) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Nút bấm trên mobile không bị delay/zoom khi chạm nhanh */
 html {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Nền gốc + màu chữ mặc định để tránh nhấp nháy trắng khi ở chế độ tối */
+html.dark {
+  color-scheme: dark;
+  background-color: #0a0a0a;
+}
+
+/* Tooltip của biểu đồ (recharts) mặc định nền trắng — đổi sang tông tối */
+html.dark .recharts-default-tooltip {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+  color: #f3f4f6 !important; /* gray-100 */
+}
+html.dark .recharts-tooltip-label,
+html.dark .recharts-tooltip-item {
+  color: #f3f4f6 !important;
 }

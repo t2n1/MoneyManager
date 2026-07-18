@@ -148,34 +148,34 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
   return (
     <div className="flex flex-col gap-3">
       {hasMissingRate && (
-        <div className="rounded-lg bg-amber-50 p-2 text-xs text-amber-700">
+        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
 
       {hasHealth && (
-        <section className="rounded-xl bg-white p-3 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-gray-500">Sức khỏe tài chính</h2>
+        <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">Sức khỏe tài chính</h2>
           <div className="mb-2 flex gap-2">
             {rate !== null && (
-              <div className="flex-1 rounded-lg bg-gray-50 p-2 text-center">
-                <div className={`text-lg font-bold ${rate >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className="flex-1 rounded-lg bg-gray-50 dark:bg-gray-950 p-2 text-center">
+                <div className={`text-lg font-bold ${rate >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                   {Math.round(rate * 100)}%
                 </div>
-                <div className="text-[11px] text-gray-500">Tỷ lệ tiết kiệm</div>
+                <div className="text-[11px] text-gray-500 dark:text-gray-400">Tỷ lệ tiết kiệm</div>
               </div>
             )}
             {streak !== null && (
-              <div className="flex-1 rounded-lg bg-gray-50 p-2 text-center">
-                <div className="text-lg font-bold text-gray-800">{streak}</div>
-                <div className="text-[11px] text-gray-500">Ngày liên tiếp không chi</div>
+              <div className="flex-1 rounded-lg bg-gray-50 dark:bg-gray-950 p-2 text-center">
+                <div className="text-lg font-bold text-gray-800 dark:text-gray-100">{streak}</div>
+                <div className="text-[11px] text-gray-500 dark:text-gray-400">Ngày liên tiếp không chi</div>
               </div>
             )}
           </div>
           {insights.length > 0 && (
             <ul className="space-y-1">
               {insights.map((i) => (
-                <li key={i.id} className="rounded-lg bg-green-50 px-2 py-1.5 text-xs text-gray-700">
+                <li key={i.id} className="rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-300">
                   {i.text}
                 </li>
               ))}
@@ -185,56 +185,56 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
       )}
 
       {forecast && (
-        <section className="rounded-xl bg-white p-3 shadow-sm">
-          <h2 className="mb-1 text-sm font-semibold text-gray-500">Dự báo cuối tháng</h2>
-          <div className="text-2xl font-bold text-gray-800">
+        <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+          <h2 className="mb-1 text-sm font-semibold text-gray-500 dark:text-gray-400">Dự báo cuối tháng</h2>
+          <div className="text-2xl font-bold text-gray-800 dark:text-gray-100">
             {forecastApprox ? '≈ ' : ''}
             {formatMoney(forecast.projected, base)}
           </div>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Đã chi {formatMoney(forecast.spentSoFar, base)} sau {forecast.daysElapsed}/
             {forecast.daysInMonth} ngày
           </p>
           {totalBudgeted > 0 ? (
             forecast.projected > totalBudgeted ? (
-              <p className="mt-2 rounded-lg bg-red-50 px-2 py-1.5 text-xs text-red-600">
+              <p className="mt-2 rounded-lg bg-red-50 dark:bg-red-900/30 px-2 py-1.5 text-xs text-red-600 dark:text-red-400">
                 Với đà này bạn sẽ vượt ngân sách {formatMoney(forecast.projected - totalBudgeted, base)}.
               </p>
             ) : (
-              <p className="mt-2 rounded-lg bg-green-50 px-2 py-1.5 text-xs text-green-700">
+              <p className="mt-2 rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1.5 text-xs text-green-700 dark:text-green-400">
                 Với đà này bạn vẫn trong ngân sách ({formatMoney(totalBudgeted, base)}).
               </p>
             )
           ) : (
-            <p className="mt-2 text-xs text-gray-400">Đặt ngân sách tháng để so sánh với dự báo.</p>
+            <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">Đặt ngân sách tháng để so sánh với dự báo.</p>
           )}
         </section>
       )}
 
       {comparison.rows.length > 0 && (
-        <section className="rounded-xl bg-white p-3 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-gray-500">So sánh chi theo danh mục</h2>
+        <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">So sánh chi theo danh mục</h2>
           <ul className="space-y-2">
             {comparison.rows.map((row) => {
               const cat = categoryOf(row.categoryId)
               return (
                 <li key={row.categoryId} className="flex items-baseline justify-between gap-2">
-                  <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
+                  <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300">
                     {cat?.icon ?? '📦'} {cat?.name ?? '?'}
                   </span>
                   <div className="text-right">
-                    <div className="flex items-center justify-end gap-1 text-sm font-medium text-gray-800">
+                    <div className="flex items-center justify-end gap-1 text-sm font-medium text-gray-800 dark:text-gray-100">
                       {formatMoney(row.thisMonth, base)}
                       {row.isNew ? (
                         <span className="rounded bg-sky-50 px-1 text-[10px] text-sky-600">mới</span>
                       ) : row.deltaPct !== null && row.deltaPct !== 0 ? (
-                        <span className={`text-[11px] ${row.deltaPct > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                        <span className={`text-[11px] ${row.deltaPct > 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
                           {row.deltaPct > 0 ? '▲' : '▼'}
                           {Math.abs(row.deltaPct)}%
                         </span>
                       ) : null}
                     </div>
-                    <div className="text-[11px] text-gray-400">
+                    <div className="text-[11px] text-gray-400 dark:text-gray-500">
                       Trước {formatMoney(row.prevMonth, base)} · TB3 {formatMoney(row.avg3, base)}
                     </div>
                   </div>
@@ -246,8 +246,8 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
       )}
 
       {hasCashflow && (
-        <section className="rounded-xl bg-white p-3 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-gray-500">Dòng tiền tích lũy trong tháng</h2>
+        <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">Dòng tiền tích lũy trong tháng</h2>
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={cashflowData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
@@ -265,7 +265,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
                   tickLine={false}
                   width={44}
                 />
-                <ReferenceLine y={0} stroke="#e5e7eb" />
+                <ReferenceLine y={0} stroke="#9ca3af" />
                 <Tooltip
                   formatter={(v) => formatMoney(Number(v), base)}
                   labelFormatter={(l) => `Ngày ${l}`}
@@ -279,20 +279,20 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
       )}
 
       {anomalies.length > 0 && (
-        <section className="rounded-xl bg-white p-3 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-gray-500">Chi tiêu bất thường</h2>
+        <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">Chi tiêu bất thường</h2>
           <ul className="space-y-1">
             {anomalies.map((a) => {
               const cat = categoryOf(a.categoryId)
               return (
                 <li
                   key={a.transactionId}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-amber-50 px-2 py-1.5 text-xs"
+                  className="flex items-center justify-between gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/30 px-2 py-1.5 text-xs"
                 >
-                  <span className="min-w-0 flex-1 truncate text-gray-700">
+                  <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">
                     {cat?.icon ?? '📦'} {cat?.name ?? '?'}
                   </span>
-                  <span className="shrink-0 font-medium text-gray-800">{formatMoney(a.amount, base)}</span>
+                  <span className="shrink-0 font-medium text-gray-800 dark:text-gray-100">{formatMoney(a.amount, base)}</span>
                   <span className="shrink-0 text-amber-600">gấp {Math.round(a.ratio)}× thường ngày</span>
                 </li>
               )
@@ -302,7 +302,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
       )}
 
       {!hasAny && (
-        <p className="py-10 text-center text-sm text-gray-400">Chưa đủ dữ liệu để phân tích.</p>
+        <p className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">Chưa đủ dữ liệu để phân tích.</p>
       )}
     </div>
   )

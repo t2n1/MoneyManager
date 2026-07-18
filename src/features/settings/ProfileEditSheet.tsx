@@ -31,34 +31,34 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-t-2xl bg-gray-50 p-4 lg:rounded-2xl"
+        className="w-full max-w-lg rounded-t-2xl bg-gray-50 dark:bg-gray-950 p-4 lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-gray-800">Hồ sơ</h2>
+          <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">Hồ sơ</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100"
+            className="rounded-lg px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Đóng
           </button>
         </div>
 
-        <label className="block text-xs font-medium text-gray-500">Tên hiển thị</label>
+        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Tên hiển thị</label>
         <input
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Tên của bạn"
-          className="mt-1 w-full rounded-xl border border-gray-300 bg-white p-3 text-gray-800 focus:border-green-500 focus:outline-none"
+          className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-gray-800 dark:text-gray-100 focus:border-green-500 focus:outline-none"
         />
 
-        <label className="mt-3 block text-xs font-medium text-gray-500">Ngày bắt đầu tháng</label>
+        <label className="mt-3 block text-xs font-medium text-gray-500 dark:text-gray-400">Ngày bắt đầu tháng</label>
         <select
           value={day}
           onChange={(e) => setDay(Number(e.target.value))}
-          className="mt-1 w-full rounded-xl border border-gray-300 bg-white p-3 text-gray-800 focus:border-green-500 focus:outline-none"
+          className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-gray-800 dark:text-gray-100 focus:border-green-500 focus:outline-none"
         >
           {DAY_OPTIONS.map((d) => (
             <option key={d} value={d}>
@@ -66,15 +66,15 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
             </option>
           ))}
         </select>
-        <p className="mt-1 text-xs text-gray-400">Ảnh hưởng cách tính tháng trong báo cáo.</p>
+        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Ảnh hưởng cách tính tháng trong báo cáo.</p>
 
-        <label className="mt-3 block text-xs font-medium text-gray-500">Loại tiền gốc</label>
+        <label className="mt-3 block text-xs font-medium text-gray-500 dark:text-gray-400">Loại tiền gốc</label>
         <input
           value={`${profile.base_currency} · ${CURRENCIES[profile.base_currency].label}`}
           disabled
-          className="mt-1 w-full rounded-xl border border-gray-200 bg-gray-100 p-3 text-gray-400"
+          className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800 p-3 text-gray-400 dark:text-gray-500"
         />
-        <p className="mt-1 text-xs text-gray-400">Không đổi được.</p>
+        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Không đổi được.</p>
 
         <button
           type="button"

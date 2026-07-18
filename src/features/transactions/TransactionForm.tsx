@@ -28,9 +28,9 @@ const TYPE_TABS: { value: TransactionType; label: string }[] = [
 ]
 
 const AMOUNT_COLOR: Record<TransactionType, string> = {
-  expense: 'text-red-600',
-  income: 'text-green-600',
-  transfer: 'text-gray-600',
+  expense: 'text-red-600 dark:text-red-400',
+  income: 'text-green-600 dark:text-green-400',
+  transfer: 'text-gray-600 dark:text-gray-300',
 }
 
 const hasOperator = (expr: string) => /[+−×÷]/.test(expr)
@@ -47,10 +47,15 @@ function formatExpr(expr: string, currency: CurrencyCode): string {
 interface TransactionFormProps {
   /** Có giá trị = form sửa; không = form nhập mới */
   initial?: TransactionRow
+  /** Nhãn nút lưu chính (lưu rồi rời màn hình) */
   submitLabel: string
   onSubmit: (values: NewTransaction) => Promise<void>
-  /** Nhập nhanh: reset số tiền + ghi chú sau khi lưu để nhập tiếp */
-  resetAfterSubmit?: boolean
+  /**
+   * Nút phụ "lưu rồi nhập tiếp": có mặt → hiện nút thứ hai, lưu xong tự xóa
+   * số tiền + ghi chú để nhập giao dịch kế tiếp mà không rời màn hình.
+   */
+  continueLabel?: string
+  onContinue?: (values: NewTransaction) => Promise<void>
   /** Loại khởi tạo khi mở mới (vd từ lối tắt PWA) — bỏ qua nếu có `initial`. */
   initialType?: TransactionType
 }
@@ -59,7 +64,8 @@ export function TransactionForm({
   initial,
   submitLabel,
   onSubmit,
-  resetAfterSubmit,
+  continueLabel,
+  onContinue,
   initialType,
 }: TransactionFormProps) {
   const { data: accounts = [] } = useAccounts()
@@ -79,7 +85,9 @@ export function TransactionForm({
   const [toAccountId, setToAccountId] = useState<string | null>(initial?.to_account_id ?? null)
   const [date, setDate] = useState(initial?.occurred_on ?? toISODate(new Date()))
   const [note, setNote] = useState(initial?.note ?? '')
-  const [saving, setSaving] = useState(false)
+  // Nút đang lưu: 'save' | 'continue' | null — để khóa cả hai nút và hiện "Đang lưu…"
+  const [pending, setPending] = useState<'save' | 'continue' | null>(null)
+  const saving = pending !== null
   const [error, setError] = useState<string | null>(null)
   // Picker danh mục con: đang mở nhóm cha nào (null = màn danh mục chính)
   const [drillId, setDrillId] = useState<string | null>(() => {
@@ -94,7 +102,18 @@ export function TransactionForm({
     if (last) setCategoryId(last)
   }, [categories, type, initial, categoryId])
 
-  const activeAccounts = useMemo(() => accounts.filter((a) => !a.is_archived), [accounts])
+  // Tài khoản chọn được: đang hoạt động + tài khoản của GD đang sửa (kể cả đã
+  // lưu trữ) — nếu không, form sửa sẽ âm thầm gán GD sang tài khoản khác.
+  const activeAccounts = useMemo(() => {
+    const list = accounts.filter((a) => !a.is_archived)
+    for (const id of [initial?.account_id, initial?.to_account_id]) {
+      if (id && !list.some((a) => a.id === id)) {
+        const archived = accounts.find((a) => a.id === id)
+        if (archived) list.push(archived)
+      }
+    }
+    return list
+  }, [accounts, initial])
   const activeOfType = useMemo(
     () => categories.filter((c) => c.type === type && !c.is_archived),
     [categories, type],
@@ -143,12 +162,13 @@ export function TransactionForm({
     setter((d) => appendKey(d, key))
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(mode: 'save' | 'continue' = 'save') {
     if (!canSave || !effectiveAccountId) return
-    setSaving(true)
+    const keepGoing = mode === 'continue' && !!onContinue
+    setPending(mode)
     setError(null)
     try {
-      await onSubmit({
+      const values: NewTransaction = {
         type,
         amount,
         to_amount: crossCurrency ? toAmount : null,
@@ -157,13 +177,14 @@ export function TransactionForm({
         to_account_id: type === 'transfer' ? toAccountId : null,
         occurred_on: date,
         note: note.trim(),
-      })
+      }
+      await (keepGoing ? onContinue!(values) : onSubmit(values))
       localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
       if (type !== 'transfer' && categoryId) {
         localStorage.setItem(lastCategoryKey(type), categoryId)
       }
-      if (resetAfterSubmit) {
-        // Nhập liên tục (M): giữ danh mục + tài khoản + ngày, chỉ xóa số tiền + ghi chú
+      if (keepGoing) {
+        // Nhập liên tục: giữ danh mục + tài khoản + ngày, chỉ xóa số tiền + ghi chú
         setDigits('')
         setToDigits('')
         setNote('')
@@ -173,7 +194,7 @@ export function TransactionForm({
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lưu thất bại, thử lại.')
     } finally {
-      setSaving(false)
+      setPending(null)
     }
   }
 
@@ -185,7 +206,7 @@ export function TransactionForm({
     <select
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700"
+      className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300"
     >
       <option value="" disabled>
         Chọn tài khoản…
@@ -194,7 +215,7 @@ export function TransactionForm({
         .filter((a) => a.id !== excludeId)
         .map((a) => (
           <option key={a.id} value={a.id}>
-            {a.type === 'cash' ? '💵' : '🏦'} {a.name} · {CURRENCIES[a.currency].symbol}
+            {a.name} · {CURRENCIES[a.currency].symbol}
           </option>
         ))}
     </select>
@@ -216,18 +237,18 @@ export function TransactionForm({
     const inputValue = result && result !== 0 ? formatMoney(result, currency) : ''
     return (
       <div className="flex flex-col gap-0.5">
-        {label && <span className="px-1 text-xs text-gray-500">{label}</span>}
+        {label && <span className="px-1 text-xs text-gray-500 dark:text-gray-400">{label}</span>}
         <button
           type="button"
           onClick={() => setActiveField(field)}
-          className={`truncate rounded-xl bg-white px-4 py-3 text-right font-bold shadow-sm ${
+          className={`truncate rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 text-right font-bold shadow-sm ${
             showExpr ? 'text-xl' : 'text-3xl'
           } ${AMOUNT_COLOR[type]} ${ring} lg:hidden`}
         >
           {mobileText}
         </button>
         {showExpr && result !== null && (
-          <span className="px-1 text-right text-sm text-gray-500 lg:hidden">
+          <span className="px-1 text-right text-sm text-gray-500 dark:text-gray-400 lg:hidden">
             = {formatMoney(result, currency)}
           </span>
         )}
@@ -242,23 +263,23 @@ export function TransactionForm({
             if (e.key === 'Enter') handleSubmit()
           }}
           placeholder={formatMoney(0, currency)}
-          className={`hidden rounded-xl bg-white px-4 py-3 text-right text-3xl font-bold shadow-sm outline-green-500 lg:block ${AMOUNT_COLOR[type]}`}
+          className={`hidden rounded-xl bg-white dark:bg-gray-900 px-4 py-3 text-right text-3xl font-bold shadow-sm outline-green-500 lg:block ${AMOUNT_COLOR[type]}`}
         />
       </div>
     )
   }
 
   return (
-    <div className="flex h-full flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
       {/* Tab loại giao dịch */}
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-gray-200 p-1">
+      <div className="grid grid-cols-3 gap-1 rounded-xl bg-gray-200 dark:bg-gray-800 p-1">
         {TYPE_TABS.map((tab) => (
           <button
             key={tab.value}
             type="button"
             onClick={() => switchType(tab.value)}
             className={`rounded-lg py-1.5 text-sm font-medium transition ${
-              type === tab.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+              type === tab.value ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'
             }`}
           >
             {tab.label}
@@ -276,7 +297,7 @@ export function TransactionForm({
         {type === 'transfer' ? (
           <>
             {accountSelect(effectiveAccountId, setAccountId, toAccountId)}
-            <span className="text-gray-400">→</span>
+            <span className="text-gray-400 dark:text-gray-500">→</span>
             {accountSelect(toAccountId, setToAccountId, effectiveAccountId)}
           </>
         ) : (
@@ -286,7 +307,7 @@ export function TransactionForm({
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-700"
+          className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300"
         />
       </div>
       <input
@@ -296,7 +317,7 @@ export function TransactionForm({
           if (e.key === 'Enter') handleSubmit()
         }}
         placeholder="Ghi chú (tùy chọn)"
-        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-green-500"
+        className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 outline-green-500"
       />
 
       {/* Danh mục (ẩn khi chuyển khoản) */}
@@ -307,7 +328,7 @@ export function TransactionForm({
             <button
               type="button"
               onClick={() => setDrillId(null)}
-              className="flex items-center gap-1.5 self-start rounded-lg bg-white px-2.5 py-1 text-xs font-medium text-gray-600 shadow-sm active:scale-95"
+              className="flex items-center gap-1.5 self-start rounded-lg bg-white dark:bg-gray-900 px-2.5 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 shadow-sm active:scale-95"
             >
               ‹ <span className="text-base leading-none">{drillParent.icon}</span> {drillParent.name}
             </button>
@@ -322,7 +343,7 @@ export function TransactionForm({
                 />
               ))}
               {drillChildren.length === 0 && (
-                <p className="col-span-full py-4 text-center text-xs text-gray-400">
+                <p className="col-span-full py-4 text-center text-xs text-gray-400 dark:text-gray-500">
                   Nhóm này chưa có danh mục con
                 </p>
               )}
@@ -355,16 +376,37 @@ export function TransactionForm({
         <NumPad onKey={onNumPadKey} />
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={!canSave}
-        className="rounded-xl bg-green-600 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-700 disabled:opacity-40"
-      >
-        {saving ? 'Đang lưu…' : submitLabel}
-      </button>
+      {onContinue ? (
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => handleSubmit('continue')}
+            disabled={!canSave}
+            className="rounded-xl border border-green-600 bg-white py-3 text-base font-semibold text-green-700 shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-50 disabled:opacity-40 dark:bg-gray-900 dark:text-green-400 dark:enabled:hover:bg-gray-800"
+          >
+            {pending === 'continue' ? 'Đang lưu…' : continueLabel}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSubmit('save')}
+            disabled={!canSave}
+            className="rounded-xl bg-green-600 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-700 disabled:opacity-40"
+          >
+            {pending === 'save' ? 'Đang lưu…' : submitLabel}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => handleSubmit('save')}
+          disabled={!canSave}
+          className="rounded-xl bg-green-600 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-700 disabled:opacity-40"
+        >
+          {saving ? 'Đang lưu…' : submitLabel}
+        </button>
+      )}
     </div>
   )
 }
@@ -386,14 +428,14 @@ function CategoryTile({
     <button
       type="button"
       onClick={onClick}
-      className={`relative flex flex-col items-center gap-0.5 rounded-xl border-2 bg-white px-1 py-2 text-xs text-gray-700 transition active:scale-95 ${
-        selected ? 'border-green-500 bg-green-50' : 'border-transparent shadow-sm'
+      className={`relative flex flex-col items-center gap-0.5 rounded-xl border-2 bg-white dark:bg-gray-900 px-1 py-2 text-xs text-gray-700 dark:text-gray-300 transition active:scale-95 ${
+        selected ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-transparent shadow-sm'
       }`}
     >
       <span className="text-xl leading-none">{icon}</span>
       <span className="w-full truncate text-center">{name}</span>
       {hasChildren && (
-        <span className="absolute top-1 right-1 text-[10px] leading-none text-gray-400">›</span>
+        <span className="absolute top-1 right-1 text-[10px] leading-none text-gray-400 dark:text-gray-500">›</span>
       )}
     </button>
   )

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { ChevronLeft, TriangleAlert } from 'lucide-react'
 import { useBudgetAlert, useCreateTransaction, useDeleteTransaction } from '../../hooks/queries'
 import type { TransactionType } from '../../types/database.types'
 import { TransactionForm } from './TransactionForm'
@@ -27,32 +28,38 @@ export function EntryPage() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-5rem)] flex-col p-3 lg:h-dvh lg:p-6">
+    <div className="flex h-dvh flex-col overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:h-dvh lg:p-6">
       <div className="mb-2 flex items-center gap-2">
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="rounded-lg bg-white px-3 py-1.5 text-sm text-gray-600 shadow-sm active:scale-95"
+          className="flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 shadow-sm active:scale-95"
           aria-label="Đóng, quay lại Sổ giao dịch"
         >
-          ← Đóng
+          <ChevronLeft className="h-5 w-5" /> Đóng
         </button>
-        <h1 className="flex-1 text-center text-base font-bold text-gray-800">Nhập giao dịch</h1>
+        <h1 className="flex-1 text-center text-base font-bold text-gray-800 dark:text-gray-100">Nhập giao dịch</h1>
         <span className="w-[4.5rem]" />
       </div>
       {overCount > 0 && (
         <Link
           to="/reports?view=budget"
-          className="mb-2 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700"
+          className="mb-2 flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-900/30 px-3 py-2 text-xs font-medium text-red-700 dark:text-red-400"
         >
-          ⚠️ {overCount} danh mục vượt ngân sách tháng này — xem chi tiết ›
+          <TriangleAlert className="h-4 w-4" /> {overCount} danh mục vượt ngân sách tháng này — xem chi tiết ›
         </Link>
       )}
       <TransactionForm
         submitLabel="Lưu"
-        resetAfterSubmit
+        continueLabel="Tiếp tục"
         initialType={initialType}
+        // Lưu: ghi giao dịch rồi quay về Sổ GD
         onSubmit={async (values) => {
+          await create.mutateAsync(values)
+          navigate('/')
+        }}
+        // Tiếp tục: ghi giao dịch, hiện toast (kèm hoàn tác) rồi ở lại nhập tiếp
+        onContinue={async (values) => {
           const row = await create.mutateAsync(values)
           setToast({ text: 'Đã lưu ✓', undoId: row.id })
           clearTimeout(toastTimer.current)

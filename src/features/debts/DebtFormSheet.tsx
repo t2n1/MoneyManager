@@ -53,15 +53,15 @@ export function DebtFormSheet({ debt, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-t-2xl bg-white p-4 lg:rounded-2xl"
+        className="w-full max-w-md rounded-t-2xl bg-white dark:bg-gray-900 p-4 lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-gray-800">
+        <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-gray-100">
           {debt ? 'Sửa khoản nợ' : 'Thêm khoản nợ'}
         </h2>
 
         {/* Chiều */}
-        <div className="mb-3 grid grid-cols-2 gap-2 rounded-lg bg-gray-100 p-1">
+        <div className="mb-3 grid grid-cols-2 gap-2 rounded-lg bg-gray-100 dark:bg-gray-800 p-1">
           {(
             [
               ['i_owe', 'Mình nợ'],
@@ -73,7 +73,7 @@ export function DebtFormSheet({ debt, onClose }: Props) {
               type="button"
               onClick={() => setDirection(val)}
               className={`rounded-md py-1.5 text-sm font-medium transition ${
-                direction === val ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                direction === val ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'
               }`}
             >
               {label}
@@ -81,7 +81,7 @@ export function DebtFormSheet({ debt, onClose }: Props) {
           ))}
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500">
+        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
           {direction === 'i_owe' ? 'Chủ nợ (mình nợ ai)' : 'Con nợ (ai nợ mình)'}
         </label>
         <input
@@ -89,17 +89,17 @@ export function DebtFormSheet({ debt, onClose }: Props) {
           value={counterparty}
           onChange={(e) => setCounterparty(e.target.value)}
           placeholder="Tên người / công ty"
-          className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-green-500"
+          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
         />
 
         <div className="mb-3 grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Loại tiền</label>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Loại tiền</label>
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
               disabled={!!debt}
-              className="w-full rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-400"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-500"
             >
               {CURRENCY_LIST.map((c) => (
                 <option key={c} value={c}>
@@ -109,17 +109,17 @@ export function DebtFormSheet({ debt, onClose }: Props) {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Hạn (không bắt buộc)</label>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Hạn (không bắt buộc)</label>
             <input
               type="date"
               value={dueOn}
               onChange={(e) => setDueOn(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm outline-green-500"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm outline-green-500"
             />
           </div>
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500">Số tiền gốc</label>
+        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Số tiền gốc</label>
         <input
           inputMode="numeric"
           value={principal === 0 ? '' : formatMoney(principal, currency)}
@@ -128,26 +128,26 @@ export function DebtFormSheet({ debt, onClose }: Props) {
             setPrincipalDigits(parsed === '0' ? '' : parsed)
           }}
           placeholder={formatMoney(0, currency)}
-          className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-right text-lg font-semibold outline-green-500"
+          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
         />
 
-        <label className="mb-1 block text-xs font-medium text-gray-500">Ghi chú (không bắt buộc)</label>
+        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Ghi chú (không bắt buộc)</label>
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: mượn lúc chuyển nhà"
-          className="mb-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-green-500"
+          className="mb-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
         />
 
         {debt && (
-          <p className="mt-2 text-xs text-gray-400">Không đổi được loại tiền của khoản nợ đã tạo.</p>
+          <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">Không đổi được loại tiền của khoản nợ đã tạo.</p>
         )}
 
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-100"
+            className="rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Hủy
           </button>

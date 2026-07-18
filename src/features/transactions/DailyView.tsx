@@ -40,28 +40,28 @@ export function DailyView({
       />
 
       {isLoading ? (
-        <p className="py-10 text-center text-gray-400">Đang tải…</p>
+        <p className="py-10 text-center text-gray-400 dark:text-gray-500">Đang tải…</p>
       ) : days.length === 0 ? (
-        <p className="py-10 text-center text-gray-400">Chưa có giao dịch trong tháng này</p>
+        <p className="py-10 text-center text-gray-400 dark:text-gray-500">Chưa có giao dịch trong tháng này</p>
       ) : (
         days.map(([day, txs]) => {
           const dayIncome = sumInBase(txs, 'income', currencyOf, base, rates)
           const dayExpense = sumInBase(txs, 'expense', currencyOf, base, rates)
           return (
             <section key={day}>
-              <div className="mb-1 flex items-baseline justify-between px-1 text-xs text-gray-500">
+              <div className="mb-1 flex items-baseline justify-between px-1 text-xs text-gray-500 dark:text-gray-400">
                 <span className="font-medium">{formatDayHeader(day)}</span>
                 <span className="tabular-nums">
                   {dayIncome && dayIncome.value > 0 && (
-                    <span className="text-green-600">+{approxLabel(dayIncome, base)}</span>
+                    <span className="text-green-600 dark:text-green-400">+{approxLabel(dayIncome, base)}</span>
                   )}
                   {dayIncome && dayIncome.value > 0 && dayExpense && dayExpense.value > 0 && ' · '}
                   {dayExpense && dayExpense.value > 0 && (
-                    <span className="text-red-600">-{approxLabel(dayExpense, base)}</span>
+                    <span className="text-red-600 dark:text-red-400">-{approxLabel(dayExpense, base)}</span>
                   )}
                 </span>
               </div>
-              <div className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-sm">
+              <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
                 {txs.map((tx) => (
                   <TransactionItem
                     key={tx.id}

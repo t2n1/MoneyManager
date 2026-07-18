@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { Settings2 } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import { AccountTypeIcon } from '../../components/icons'
 import {
   useAccountBalances,
   useAssetGroupSettings,
@@ -72,12 +74,12 @@ export function AssetsPage() {
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
       <div className="flex items-center gap-2">
-        <h1 className="flex-1 text-lg font-bold text-gray-800">Tài sản</h1>
+        <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Tài sản</h1>
         <Link
           to="/settings/asset-groups"
-          className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm active:scale-95"
+          className="inline-flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 shadow-sm active:scale-95"
         >
-          ⚙️ Quản lý nhóm
+          <Settings2 className="h-4 w-4" /> Quản lý nhóm
         </Link>
       </div>
 
@@ -103,37 +105,37 @@ export function AssetsPage() {
 
       {/* Tài sản ròng (chỉ hiện khi có khoản nợ mở) */}
       {debts_.hasOpen && (
-        <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-700">Tài sản ròng</span>
-            <Link to="/settings/debts" className="text-xs font-medium text-green-700">
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tài sản ròng</span>
+            <Link to="/settings/debts" className="text-xs font-medium text-green-700 dark:text-green-400">
               Nợ / cho vay ›
             </Link>
           </div>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">
+          <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
             {breakdown.hasForeign || debts_.hasMissingRate ? '≈ ' : ''}
             {formatMoney(breakdown.total + debts_.net, base)}
           </p>
           <div className="mt-3 space-y-1.5 text-sm">
-            <div className="flex items-center justify-between text-gray-500">
+            <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
               <span>Tài sản gộp</span>
               <span className="tabular-nums">{formatMoney(breakdown.total, base)}</span>
             </div>
             {debts_.owedToMe > 0 && (
-              <div className="flex items-center justify-between text-green-600">
+              <div className="flex items-center justify-between text-green-600 dark:text-green-400">
                 <span>+ Cho vay còn lại</span>
                 <span className="tabular-nums">{formatMoney(debts_.owedToMe, base)}</span>
               </div>
             )}
             {debts_.iOwe > 0 && (
-              <div className="flex items-center justify-between text-red-600">
+              <div className="flex items-center justify-between text-red-600 dark:text-red-400">
                 <span>− Nợ phải trả</span>
                 <span className="tabular-nums">{formatMoney(debts_.iOwe, base)}</span>
               </div>
             )}
           </div>
           {debts_.hasMissingRate && (
-            <p className="mt-2 text-xs text-gray-400">
+            <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
               Một phần khoản nợ ngoại tệ chưa quy đổi được nên số ròng có thể thiếu.
             </p>
           )}
@@ -141,13 +143,13 @@ export function AssetsPage() {
       )}
 
       {/* Biểu đồ tròn + danh sách nhóm */}
-      <section className="rounded-2xl bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+      <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
           Cơ cấu theo nhóm
         </h2>
 
         {pieData.length === 0 ? (
-          <p className="py-10 text-center text-sm text-gray-400">
+          <p className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">
             {isLoading ? 'Đang tải…' : 'Chưa có tài sản để hiển thị'}
           </p>
         ) : (
@@ -175,10 +177,10 @@ export function AssetsPage() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold leading-none text-gray-800">
+                <span className="text-2xl font-bold leading-none text-gray-800 dark:text-gray-100">
                   {pieData.length}
                 </span>
-                <span className="mt-0.5 text-[11px] text-gray-400">nhóm</span>
+                <span className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">nhóm</span>
               </div>
             </div>
 
@@ -191,26 +193,26 @@ export function AssetsPage() {
                       className="h-2.5 w-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: colorOf(g.name) }}
                     />
-                    <span className="min-w-0 flex-1 truncate font-medium text-gray-700">
+                    <span className="min-w-0 flex-1 truncate font-medium text-gray-700 dark:text-gray-300">
                       {g.name}
                       {!g.includeInTotals && (
-                        <span className="ml-1 text-[10px] font-normal text-gray-400">
+                        <span className="ml-1 text-[10px] font-normal text-gray-400 dark:text-gray-500">
                           (ngoài tổng)
                         </span>
                       )}
                     </span>
                     {g.includeInTotals && (
-                      <span className="shrink-0 text-xs tabular-nums text-gray-400">
+                      <span className="shrink-0 text-xs tabular-nums text-gray-400 dark:text-gray-500">
                         {(g.share * 100).toFixed(0)}%
                       </span>
                     )}
-                    <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-900">
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
                       {g.hasMissingRate ? '≈ ' : ''}
                       {formatMoney(g.total, base)}
                     </span>
                   </div>
                   {/* thanh tỷ trọng */}
-                  <div className="mt-1.5 ml-[18px] h-1.5 overflow-hidden rounded-full bg-gray-100">
+                  <div className="mt-1.5 ml-[18px] h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                     <div
                       className="h-full rounded-full"
                       style={{
@@ -230,45 +232,45 @@ export function AssetsPage() {
       {visibleGroups.map((g) => (
         <section
           key={g.name}
-          className="overflow-hidden rounded-2xl bg-white shadow-sm"
+          className="overflow-hidden rounded-2xl bg-white dark:bg-gray-900 shadow-sm"
           style={{ borderLeft: `4px solid ${colorOf(g.name)}` }}
         >
           <div className="flex items-center justify-between px-4 py-3">
-            <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-gray-800">
+            <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100">
               <span className="truncate">{g.name}</span>
-              <span className="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+              <span className="shrink-0 rounded-full bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:text-gray-400">
                 {g.accounts.length}
               </span>
               {!g.includeInTotals && (
-                <span className="shrink-0 text-[10px] font-normal text-gray-400">(ngoài tổng)</span>
+                <span className="shrink-0 text-[10px] font-normal text-gray-400 dark:text-gray-500">(ngoài tổng)</span>
               )}
             </span>
-            <span className="shrink-0 pl-2 text-sm font-bold tabular-nums text-gray-900">
+            <span className="shrink-0 pl-2 text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
               {g.hasMissingRate ? '≈ ' : ''}
               {formatMoney(g.total, base)}
             </span>
           </div>
-          <div className="divide-y divide-gray-50 border-t border-gray-100">
+          <div className="divide-y divide-gray-50 border-t border-gray-100 dark:border-gray-800">
             {g.accounts.map((a) => (
               <Link
                 key={a.id}
                 to={`/assets/${a.id}`}
-                className="flex items-center gap-2 px-4 py-2.5 transition hover:bg-gray-50 active:bg-gray-100"
+                className="flex items-center gap-2 px-4 py-2.5 transition hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100"
               >
-                <span className="text-base">{a.type === 'cash' ? '💵' : '🏦'}</span>
-                <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
+                <AccountTypeIcon type={a.type} className="h-4 w-4" />
+                <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300">
                   {a.name}
-                  <span className="ml-1 text-xs text-gray-400">{a.currency}</span>
+                  <span className="ml-1 text-xs text-gray-400 dark:text-gray-500">{a.currency}</span>
                   {!a.includeInTotals && (
-                    <span className="ml-1 text-[10px] text-gray-400">(ngoài tổng)</span>
+                    <span className="ml-1 text-[10px] text-gray-400 dark:text-gray-500">(ngoài tổng)</span>
                   )}
                 </span>
                 <span
-                  className={`shrink-0 text-sm font-medium tabular-nums ${a.balance < 0 ? 'text-red-600' : 'text-gray-800'}`}
+                  className={`shrink-0 text-sm font-medium tabular-nums ${a.balance < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}
                 >
                   {formatMoney(a.balance, a.currency)}
                 </span>
-                <span className="shrink-0 text-gray-300">›</span>
+                <span className="shrink-0 text-gray-300 dark:text-gray-600">›</span>
               </Link>
             ))}
           </div>
@@ -276,7 +278,7 @@ export function AssetsPage() {
       ))}
 
       {breakdown.hasForeign && rates && (
-        <p className="text-center text-xs text-gray-400">
+        <p className="text-center text-xs text-gray-400 dark:text-gray-500">
           Tỷ giá: ¥1 ≈ {rates.VND?.toFixed(2)} ₫ · $1 ≈ ¥
           {rates.USD ? (1 / rates.USD).toFixed(1) : '?'} (open.er-api.com, cache 12h)
         </p>

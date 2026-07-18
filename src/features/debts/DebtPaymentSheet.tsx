@@ -89,16 +89,16 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-t-2xl bg-white p-4 lg:rounded-2xl"
+        className="w-full max-w-md rounded-t-2xl bg-white dark:bg-gray-900 p-4 lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-base font-bold text-gray-800">Ghi nhận trả</h2>
-        <p className="mb-3 text-xs text-gray-400">
+        <h2 className="mb-1 text-base font-bold text-gray-800 dark:text-gray-100">Ghi nhận trả</h2>
+        <p className="mb-3 text-xs text-gray-400 dark:text-gray-500">
           {debt.direction === 'i_owe' ? 'Mình trả' : 'Người ta trả'} · {debt.counterparty} · còn{' '}
           {formatMoney(Math.max(remaining, 0), debt.currency)}
         </p>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500">Số tiền trả</label>
+        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Số tiền trả</label>
         <input
           inputMode="numeric"
           autoFocus
@@ -108,23 +108,23 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
             setAmountDigits(parsed === '0' ? '' : parsed)
           }}
           placeholder={formatMoney(0, debt.currency)}
-          className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-right text-lg font-semibold outline-green-500"
+          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
         />
 
-        <label className="mb-1 block text-xs font-medium text-gray-500">Ngày trả</label>
+        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Ngày trả</label>
         <input
           type="date"
           value={paidOn}
           onChange={(e) => setPaidOn(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-green-500"
+          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500"
         />
 
         {/* Công tắc tạo giao dịch thật */}
-        <div className="mb-3 rounded-lg bg-gray-50 p-3">
-          <label className="flex items-center justify-between text-sm text-gray-700">
+        <div className="mb-3 rounded-lg bg-gray-50 dark:bg-gray-800 p-3">
+          <label className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
             <span>
               Có chuyển tiền thật
-              <span className="block text-xs text-gray-400">
+              <span className="block text-xs text-gray-400 dark:text-gray-500">
                 {debt.direction === 'i_owe' ? 'Tạo giao dịch chi (trừ số dư)' : 'Tạo giao dịch thu (cộng số dư)'}
               </span>
             </span>
@@ -148,7 +148,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           </label>
 
           {!canRecordReal && (
-            <p className="mt-2 text-xs text-amber-700">
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
               Chưa có tài khoản {debt.currency} (và danh mục phù hợp) để tạo giao dịch thật. Vẫn ghi
               nhận được lần trả (không đổi số dư).
             </p>
@@ -157,25 +157,25 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           {realOn && (
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Tài khoản</label>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Tài khoản</label>
                 <select
                   value={accountId}
                   onChange={(e) => setAccountId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm"
                 >
                   {matchingAccounts.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.type === 'cash' ? '💵' : '🏦'} {a.name}
+                      {a.name}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Danh mục</label>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Danh mục</label>
                 <select
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm"
                 >
                   {categoryOptions.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -188,19 +188,19 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           )}
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500">Ghi chú (không bắt buộc)</label>
+        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Ghi chú (không bắt buộc)</label>
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: trả đợt 1"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-green-500"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
         />
 
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-100"
+            className="rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Hủy
           </button>

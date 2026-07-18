@@ -1,10 +1,11 @@
+import { ArrowRightLeft } from 'lucide-react'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, CategoryRow, TransactionRow } from '../../types/database.types'
 
 const AMOUNT_STYLE: Record<TransactionRow['type'], { color: string; sign: string }> = {
-  expense: { color: 'text-red-600', sign: '-' },
-  income: { color: 'text-green-600', sign: '+' },
-  transfer: { color: 'text-gray-500', sign: '' },
+  expense: { color: 'text-red-600 dark:text-red-400', sign: '-' },
+  income: { color: 'text-green-600 dark:text-green-400', sign: '+' },
+  transfer: { color: 'text-gray-500 dark:text-gray-400', sign: '' },
 }
 
 interface Props {
@@ -27,25 +28,25 @@ export function TransactionItem({ tx, categoryOf, accountOf, base, onClick }: Pr
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-gray-50"
+      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-gray-50 dark:hover:bg-gray-800"
     >
-      <span className="text-xl">{tx.type === 'transfer' ? '🔁' : cat?.icon}</span>
+      <span className="text-xl">{tx.type === 'transfer' ? <ArrowRightLeft className="h-5 w-5" /> : cat?.icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm text-gray-800">
+        <span className="block truncate text-sm text-gray-800 dark:text-gray-100">
           {tx.type === 'transfer'
             ? `${accountName(tx.account_id)} → ${accountName(tx.to_account_id)}`
             : (cat?.name ?? '?')}
-          {tx.note && <span className="text-gray-400"> · {tx.note}</span>}
+          {tx.note && <span className="text-gray-400 dark:text-gray-500"> · {tx.note}</span>}
         </span>
         {tx.type !== 'transfer' && (
-          <span className="block text-xs text-gray-400">{accountName(tx.account_id)}</span>
+          <span className="block text-xs text-gray-400 dark:text-gray-500">{accountName(tx.account_id)}</span>
         )}
       </span>
       <span className={`text-right text-sm font-semibold ${style.color}`}>
         {style.sign}
         {formatMoney(tx.amount, srcCur)}
         {tx.to_amount != null && (
-          <span className="block text-xs font-normal text-gray-400">
+          <span className="block text-xs font-normal text-gray-400 dark:text-gray-500">
             → +{formatMoney(tx.to_amount, dstCur)}
           </span>
         )}

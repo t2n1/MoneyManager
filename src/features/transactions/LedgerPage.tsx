@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import {
   useAccounts,
   useCategories,
@@ -48,12 +49,15 @@ export function LedgerPage() {
       { replace: true },
     )
 
-  const [monthKey, setMonthKey] = useState<MonthKey>(() => monthKeyForDate(toISODate(new Date())))
+  // null = "kỳ hiện tại": tính lazy theo month_start_day (profile tải async,
+  // khởi tạo cứng trong useState sẽ chốt nhầm kỳ với ngày bắt đầu ≠ 1)
+  const [monthKey, setMonthKey] = useState<MonthKey | null>(null)
   const [editing, setEditing] = useState<TransactionRow | null>(null)
 
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
-  const { data: transactions = [], isLoading } = useMonthTransactions(monthKey)
+  const activeMonthKey = monthKey ?? monthKeyForDate(toISODate(new Date()), monthStartDay)
+  const { data: transactions = [], isLoading } = useMonthTransactions(activeMonthKey)
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const { base, rates } = useRates()
@@ -67,12 +71,13 @@ export function LedgerPage() {
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'))
         return
       const step = yearNav ? 12 : 1
-      if (e.key === 'ArrowLeft') setMonthKey((k) => addMonths(k, -step))
-      if (e.key === 'ArrowRight') setMonthKey((k) => addMonths(k, step))
+      const fallback = () => monthKeyForDate(toISODate(new Date()), monthStartDay)
+      if (e.key === 'ArrowLeft') setMonthKey((k) => addMonths(k ?? fallback(), -step))
+      if (e.key === 'ArrowRight') setMonthKey((k) => addMonths(k ?? fallback(), step))
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [yearNav])
+  }, [yearNav, monthStartDay])
 
   const accountOf = (id: string | null) => accounts.find((a) => a.id === id)
   const currencyOf = (id: string): CurrencyCode => accountOf(id)?.currency ?? base
@@ -80,8 +85,8 @@ export function LedgerPage() {
 
   // Tab Tháng cần dữ liệu cả năm (12 tháng của monthKey.year)
   const months = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => ({ year: monthKey.year, month: i + 1 })),
-    [monthKey.year],
+    () => Array.from({ length: 12 }, (_, i) => ({ year: activeMonthKey.year, month: i + 1 })),
+    [activeMonthKey.year],
   )
   const yearRange = useMemo(
     () => ({
@@ -101,7 +106,7 @@ export function LedgerPage() {
   )
   const yearHasForeign = yearTxs.some((t) => currencyOf(t.account_id) !== base)
 
-  const label = yearNav ? `Năm ${monthKey.year}` : formatMonthLabel(monthKey)
+  const label = yearNav ? `Năm ${activeMonthKey.year}` : formatMonthLabel(activeMonthKey)
   const step = yearNav ? 12 : 1
 
   return (
@@ -110,39 +115,39 @@ export function LedgerPage() {
       <div className="mb-3 flex items-center gap-2">
         <button
           type="button"
-          onClick={() => setMonthKey((k) => addMonths(k, -step))}
-          className="rounded-lg bg-white px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, -step))}
+          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label={yearNav ? 'Năm trước' : 'Tháng trước'}
         >
-          ←
+          <ChevronLeft className="h-5 w-5" />
         </button>
-        <h1 className="flex-1 text-center text-lg font-bold text-gray-800">{label}</h1>
+        <h1 className="flex-1 text-center text-lg font-bold text-gray-800 dark:text-gray-100">{label}</h1>
         <button
           type="button"
-          onClick={() => setMonthKey((k) => addMonths(k, step))}
-          className="rounded-lg bg-white px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, step))}
+          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label={yearNav ? 'Năm sau' : 'Tháng sau'}
         >
-          →
+          <ChevronRight className="h-5 w-5" />
         </button>
         <Link
           to="/search"
-          className="rounded-lg bg-white px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Tìm kiếm giao dịch"
         >
-          🔍
+          <Search className="h-5 w-5" />
         </Link>
       </div>
 
       {/* Tab đổi cách xem */}
-      <div className="mb-4 flex rounded-lg bg-gray-100 p-0.5 text-sm font-medium">
+      <div className="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-sm font-medium">
         {VIEWS.map((v) => (
           <button
             key={v.key}
             type="button"
             onClick={() => setView(v.key)}
             className={`flex-1 rounded-md py-1.5 transition ${
-              view === v.key ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
+              view === v.key ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'
             }`}
           >
             {v.label}
@@ -165,8 +170,11 @@ export function LedgerPage() {
 
       {view === 'calendar' && (
         <CalendarView
+          // remount khi đổi kỳ để reset ngày đang chọn (không giữ ngày của kỳ cũ)
+          key={`${activeMonthKey.year}-${activeMonthKey.month}-${monthStartDay}`}
           transactions={transactions}
-          monthKey={monthKey}
+          monthKey={activeMonthKey}
+          monthStartDay={monthStartDay}
           accountOf={accountOf}
           categoryOf={categoryOf}
           currencyOf={currencyOf}

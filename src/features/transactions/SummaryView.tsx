@@ -52,30 +52,30 @@ export function SummaryView({
   return (
     <div className="flex flex-col gap-3">
       {/* Chọn Chi / Thu */}
-      <div className="flex rounded-lg bg-gray-100 p-0.5 text-sm font-medium">
+      <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-sm font-medium">
         <button
           type="button"
           onClick={() => setKind('expense')}
-          className={`flex-1 rounded-md py-1.5 ${kind === 'expense' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500'}`}
+          className={`flex-1 rounded-md py-1.5 ${kind === 'expense' ? 'bg-white dark:bg-gray-900 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
           Chi
         </button>
         <button
           type="button"
           onClick={() => setKind('income')}
-          className={`flex-1 rounded-md py-1.5 ${kind === 'income' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500'}`}
+          className={`flex-1 rounded-md py-1.5 ${kind === 'income' ? 'bg-white dark:bg-gray-900 text-green-600 dark:text-green-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
           Thu
         </button>
       </div>
 
       {/* Tổng */}
-      <div className="rounded-xl bg-white p-4 text-center shadow-sm">
-        <div className="text-xs text-gray-500">
+      <div className="rounded-xl bg-white dark:bg-gray-900 p-4 text-center shadow-sm">
+        <div className="text-xs text-gray-500 dark:text-gray-400">
           Tổng {kind === 'expense' ? 'chi' : 'thu'} tháng này
         </div>
         <div
-          className={`mt-1 text-2xl font-bold tabular-nums ${kind === 'expense' ? 'text-red-600' : 'text-green-600'}`}
+          className={`mt-1 text-2xl font-bold tabular-nums ${kind === 'expense' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}
         >
           {approx}
           {formatMoney(breakdown.total, base)}
@@ -83,32 +83,32 @@ export function SummaryView({
       </div>
 
       {breakdown.hasMissingRate && (
-        <div className="rounded-lg bg-amber-50 p-2 text-xs text-amber-700">
+        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
 
       {isLoading ? (
-        <p className="py-10 text-center text-gray-400">Đang tải…</p>
+        <p className="py-10 text-center text-gray-400 dark:text-gray-500">Đang tải…</p>
       ) : rows.length === 0 ? (
-        <p className="py-10 text-center text-sm text-gray-400">
+        <p className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">
           Chưa có {kind === 'expense' ? 'chi tiêu' : 'thu nhập'} trong tháng này
         </p>
       ) : (
-        <ul className="flex flex-col gap-3 rounded-xl bg-white p-4 shadow-sm">
+        <ul className="flex flex-col gap-3 rounded-xl bg-white dark:bg-gray-900 p-4 shadow-sm">
           {rows.map((r) => (
             <li key={r.id}>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-base">{r.icon}</span>
-                <span className="min-w-0 flex-1 truncate font-medium text-gray-700">{r.name}</span>
-                <span className="shrink-0 text-xs tabular-nums text-gray-400">
+                <span className="min-w-0 flex-1 truncate font-medium text-gray-700 dark:text-gray-300">{r.name}</span>
+                <span className="shrink-0 text-xs tabular-nums text-gray-400 dark:text-gray-500">
                   {r.pct.toFixed(0)}%
                 </span>
-                <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-900">
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
                   {formatMoney(r.amount, base)}
                 </span>
               </div>
-              <div className="mt-1.5 ml-6 h-1.5 overflow-hidden rounded-full bg-gray-100">
+              <div className="mt-1.5 ml-6 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                 <div
                   className="h-full rounded-full"
                   style={{ width: `${Math.max(r.pct, 2)}%`, backgroundColor: r.color }}

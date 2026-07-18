@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ChevronLeft } from 'lucide-react'
 import type { NewCategory } from '../../data'
 import {
   useCategories,
@@ -95,12 +96,12 @@ export function CategoriesPage() {
       <div className="mb-3 flex items-center gap-2">
         <Link
           to="/settings"
-          className="rounded-lg bg-white px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >
-          ←
+          <ChevronLeft className="h-5 w-5" />
         </Link>
-        <h1 className="flex-1 text-lg font-bold text-gray-800">Danh mục</h1>
+        <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Danh mục</h1>
         <button
           type="button"
           onClick={() => setForm({ category: null, parent: null })}
@@ -111,14 +112,14 @@ export function CategoriesPage() {
       </div>
 
       {/* Chi / Thu */}
-      <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-gray-200 p-1">
+      <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-gray-200 dark:bg-gray-800 p-1">
         {(['expense', 'income'] as CategoryType[]).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
             className={`rounded-lg py-1.5 text-sm font-medium transition ${
-              tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+              tab === t ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'
             }`}
           >
             {t === 'expense' ? 'Chi' : 'Thu'}
@@ -131,11 +132,11 @@ export function CategoriesPage() {
         {parents.map((p, i) => {
           const kids = childrenOf(p.id)
           return (
-            <div key={p.id} className="overflow-hidden rounded-xl bg-white shadow-sm">
+            <div key={p.id} className="overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
               {/* Danh mục cha */}
               <div className="flex items-center gap-2 px-3 py-2.5">
                 <ReorderArrows index={i} count={parents.length} onMove={(d) => moveParent(i, d)} />
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xl">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-xl">
                   {p.icon}
                 </span>
                 <button
@@ -143,15 +144,15 @@ export function CategoriesPage() {
                   onClick={() => setForm({ category: p, parent: null })}
                   className="min-w-0 flex-1 text-left"
                 >
-                  <span className="block truncate text-sm font-semibold text-gray-800">{p.name}</span>
+                  <span className="block truncate text-sm font-semibold text-gray-800 dark:text-gray-100">{p.name}</span>
                   {kids.length > 0 && (
-                    <span className="text-xs text-gray-400">{kids.length} danh mục con</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{kids.length} danh mục con</span>
                   )}
                 </button>
                 <button
                   type="button"
                   onClick={() => setForm({ category: null, parent: p })}
-                  className="rounded-lg bg-green-50 px-2 py-1 text-sm font-semibold text-green-700 active:scale-95"
+                  className="rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1 text-sm font-semibold text-green-700 dark:text-green-400 active:scale-95"
                   aria-label={`Thêm danh mục con cho ${p.name}`}
                 >
                   ＋
@@ -159,7 +160,7 @@ export function CategoriesPage() {
                 <button
                   type="button"
                   onClick={() => archive(p)}
-                  className="rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-gray-100"
+                  className="rounded-lg px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   Lưu trữ
                 </button>
@@ -167,7 +168,7 @@ export function CategoriesPage() {
 
               {/* Danh mục con */}
               {kids.length > 0 && (
-                <div className="ml-6 border-l-2 border-gray-100">
+                <div className="ml-6 border-l-2 border-gray-100 dark:border-gray-800">
                   {kids.map((ch, j) => (
                     <div key={ch.id} className="flex items-center gap-2 py-2 pr-3 pl-2">
                       <ReorderArrows
@@ -179,14 +180,14 @@ export function CategoriesPage() {
                       <button
                         type="button"
                         onClick={() => setForm({ category: ch, parent: p })}
-                        className="min-w-0 flex-1 truncate text-left text-sm text-gray-700"
+                        className="min-w-0 flex-1 truncate text-left text-sm text-gray-700 dark:text-gray-300"
                       >
                         {ch.name}
                       </button>
                       <button
                         type="button"
                         onClick={() => archive(ch)}
-                        className="rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-gray-100"
+                        className="rounded-lg px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
                       >
                         Lưu trữ
                       </button>
@@ -200,19 +201,19 @@ export function CategoriesPage() {
 
         {/* Con mồ côi (dữ liệu cũ) — hiển thị như danh mục thường để không mất */}
         {orphans.map((c) => (
-          <div key={c.id} className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm">
+          <div key={c.id} className="flex items-center gap-2 rounded-xl bg-white dark:bg-gray-900 px-3 py-2.5 shadow-sm">
             <span className="text-xl">{c.icon}</span>
             <button
               type="button"
               onClick={() => setForm({ category: c, parent: parentById(c.parent_id) })}
-              className="min-w-0 flex-1 truncate text-left text-sm text-gray-700"
+              className="min-w-0 flex-1 truncate text-left text-sm text-gray-700 dark:text-gray-300"
             >
               {c.name}
             </button>
             <button
               type="button"
               onClick={() => archive(c)}
-              className="rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-gray-100"
+              className="rounded-lg px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Lưu trữ
             </button>
@@ -220,7 +221,7 @@ export function CategoriesPage() {
         ))}
 
         {parents.length === 0 && orphans.length === 0 && (
-          <p className="rounded-xl bg-white px-3 py-6 text-center text-sm text-gray-400 shadow-sm">
+          <p className="rounded-xl bg-white dark:bg-gray-900 px-3 py-6 text-center text-sm text-gray-400 dark:text-gray-500 shadow-sm">
             Chưa có danh mục
           </p>
         )}
@@ -231,21 +232,21 @@ export function CategoriesPage() {
           <button
             type="button"
             onClick={() => setShowArchived((v) => !v)}
-            className="mb-2 text-xs font-medium text-gray-500"
+            className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400"
           >
             {showArchived ? 'Ẩn đã lưu trữ ▲' : `Đã lưu trữ (${archivedCats.length}) ▼`}
           </button>
           {showArchived && (
-            <div className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-sm">
+            <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
               {archivedCats.map((c) => (
                 <div key={c.id} className="flex items-center gap-2 px-3 py-2.5 opacity-60">
-                  {c.parent_id && <span className="text-gray-300">↳</span>}
+                  {c.parent_id && <span className="text-gray-300 dark:text-gray-600">↳</span>}
                   <span className="text-xl">{c.icon}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-gray-700">{c.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300">{c.name}</span>
                   <button
                     type="button"
                     onClick={() => restore(c)}
-                    className="rounded-lg px-2 py-1 text-xs text-green-700 hover:bg-green-50"
+                    className="rounded-lg px-2 py-1 text-xs text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
                   >
                     Khôi phục
                   </button>
@@ -285,7 +286,7 @@ function ReorderArrows({
         type="button"
         onClick={() => onMove(-1)}
         disabled={index === 0}
-        className="text-xs text-gray-400 disabled:opacity-20"
+        className="text-xs text-gray-400 dark:text-gray-500 disabled:opacity-20"
         aria-label="Lên"
       >
         ▲
@@ -294,7 +295,7 @@ function ReorderArrows({
         type="button"
         onClick={() => onMove(1)}
         disabled={index === count - 1}
-        className="text-xs text-gray-400 disabled:opacity-20"
+        className="text-xs text-gray-400 dark:text-gray-500 disabled:opacity-20"
         aria-label="Xuống"
       >
         ▼
@@ -338,7 +339,13 @@ function CategoryForm({
   const [saving, setSaving] = useState(false)
 
   const selectedParent = parentId ? parentOptions.find((p) => p.id === parentId) ?? null : null
-  const effectiveType: CategoryType = selectedParent ? selectedParent.type : topType
+  // Cha đang có con: khóa loại — đổi Chi/Thu sẽ làm con lệch loại với cha
+  const typeLocked = hasChildren && !!category
+  const effectiveType: CategoryType = typeLocked
+    ? category.type
+    : selectedParent
+      ? selectedParent.type
+      : topType
   const listType = effectiveType
   const availableParents = parentOptions.filter(
     (p) => p.type === listType && p.id !== category?.id,
@@ -372,35 +379,35 @@ function CategoryForm({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-t-2xl bg-white p-4 lg:rounded-2xl"
+        className="w-full max-w-md rounded-t-2xl bg-white dark:bg-gray-900 p-4 lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-gray-800">{title}</h2>
+        <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-gray-100">{title}</h2>
 
         <div className="mb-3 flex items-center gap-3">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-2xl">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 text-2xl">
             {icon}
           </span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Tên danh mục"
-            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-green-500"
+            className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
           />
         </div>
 
         {/* Danh mục cha */}
         {hasChildren ? (
-          <p className="mb-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
+          <p className="mb-3 rounded-lg bg-gray-50 dark:bg-gray-950 px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
             Danh mục này có danh mục con nên là danh mục chính.
           </p>
         ) : (
           <label className="mb-3 block">
-            <span className="mb-1 block text-xs font-medium text-gray-500">Danh mục cha</span>
+            <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Danh mục cha</span>
             <select
               value={parentId ?? ''}
               onChange={(e) => setParentId(e.target.value || null)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-green-500"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 outline-green-500"
             >
               <option value="">— Danh mục chính —</option>
               {availableParents.map((p) => (
@@ -413,19 +420,24 @@ function CategoryForm({
         )}
 
         {/* Chi / Thu: chỉ khi là danh mục chính (con thừa kế loại của cha) */}
-        {selectedParent ? (
-          <p className="mb-3 text-xs text-gray-500">
+        {typeLocked ? (
+          <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+            Nhóm {effectiveType === 'expense' ? 'Chi' : 'Thu'} — không đổi được khi còn danh mục
+            con.
+          </p>
+        ) : selectedParent ? (
+          <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
             Thuộc nhóm {selectedParent.type === 'expense' ? 'Chi' : 'Thu'} theo danh mục cha.
           </p>
         ) : (
-          <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-gray-200 p-1">
+          <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-gray-200 dark:bg-gray-800 p-1">
             {(['expense', 'income'] as CategoryType[]).map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setTopType(t)}
                 className={`rounded-lg py-1.5 text-sm font-medium transition ${
-                  topType === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                  topType === t ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'
                 }`}
               >
                 {t === 'expense' ? 'Chi' : 'Thu'}
@@ -434,7 +446,7 @@ function CategoryForm({
           </div>
         )}
 
-        <p className="mb-1.5 text-xs font-medium text-gray-500">Biểu tượng</p>
+        <p className="mb-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">Biểu tượng</p>
         <div className="mb-3 grid grid-cols-8 gap-1">
           {EMOJI_CHOICES.map((e) => (
             <button
@@ -442,7 +454,7 @@ function CategoryForm({
               type="button"
               onClick={() => setIcon(e)}
               className={`flex aspect-square items-center justify-center rounded-lg text-xl ${
-                icon === e ? 'bg-green-100 ring-2 ring-green-500' : 'hover:bg-gray-100'
+                icon === e ? 'bg-green-100 dark:bg-green-900/40 ring-2 ring-green-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
             >
               {e}
@@ -454,7 +466,7 @@ function CategoryForm({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-100"
+            className="rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Hủy
           </button>

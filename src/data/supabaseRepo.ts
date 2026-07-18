@@ -1,3 +1,4 @@
+import { normalizeText } from '../features/transactions/filter'
 import { addMonths, monthKeyString, parseMonthKey } from '../lib/dates'
 import { getSupabase } from '../lib/supabase'
 import type { CategoryType } from '../types/database.types'
@@ -112,13 +113,16 @@ export const supabaseRepo: Repo = {
       const ids = filter.accountIds.map((id) => `"${id}"`).join(',')
       q = q.or(`account_id.in.(${ids}),to_account_id.in.(${ids})`)
     }
-    const text = filter.text?.trim()
-    if (text) q = q.ilike('note', `%${text}%`)
     const { data, error } = await q
       .order('occurred_on', { ascending: false })
       .order('created_at', { ascending: false })
     if (error) throw error
-    return data
+    // Khớp text ở client bằng normalizeText: ilike của Postgres phân biệt dấu
+    // tiếng Việt nên sẽ lệch kết quả so với demoRepo ("com trua" ≠ "Cơm trưa").
+    const text = filter.text?.trim()
+    if (!text) return data
+    const needle = normalizeText(text)
+    return data.filter((t) => normalizeText(t.note).includes(needle))
   },
 
   async createTransaction(input: NewTransaction) {
@@ -172,11 +176,12 @@ export const supabaseRepo: Repo = {
   },
 
   async reorderAccounts(orderedIds: string[]) {
-    await Promise.all(
+    const results = await Promise.all(
       orderedIds.map((id, i) =>
         getSupabase().from('accounts').update({ sort_order: i }).eq('id', id),
       ),
     )
+    for (const { error } of results) if (error) throw error
   },
 
   async createCategory(input: NewCategory) {
@@ -203,11 +208,12 @@ export const supabaseRepo: Repo = {
   },
 
   async reorderCategories(orderedIds: string[]) {
-    await Promise.all(
+    const results = await Promise.all(
       orderedIds.map((id, i) =>
         getSupabase().from('categories').update({ sort_order: i }).eq('id', id),
       ),
     )
+    for (const { error } of results) if (error) throw error
   },
 
   async getAssetGroupSettings() {
@@ -426,7 +432,11 @@ export const supabaseRepo: Repo = {
       })
       .select()
       .single()
-    if (error) throw error
+    if (error) {
+      // Bồi hoàn: payment thất bại thì xóa giao dịch vừa tạo, tránh lệch số dư
+      if (transaction_id) await sb.from('transactions').delete().eq('id', transaction_id)
+      throw error
+    }
     return data
   },
 

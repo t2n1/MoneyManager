@@ -1,6 +1,16 @@
 # Backlog tính năng — để dành cho các giai đoạn sau
 
-> **Ngày ghi:** 2026-07-14 · **Trạng thái:** Ý tưởng chờ xử lý (chưa lên spec/plan)
+> **Ngày ghi:** 2026-07-14 · **Cập nhật:** 2026-07-19 · **Trạng thái:** Ý tưởng chờ xử lý (chưa lên spec/plan)
+>
+> **Đã hoàn thành (giữ lại để tham chiếu):** B (lịch), E (trang tài sản), F (nợ/cho vay),
+> G (danh mục mẹ/con), I (gợi ý thông minh), K (hoàn tác sau lưu), L (máy tính),
+> M (nhập liên tục), O (PWA shortcuts), Q (thẻ insight), R (dự báo run-rate),
+> S (so sánh tháng), U (bất thường), V (tỷ lệ tiết kiệm + streak), W (dòng tiền tích lũy).
+> Tỷ giá tự động (fetch + cache) cũng đã có sẵn trong `src/lib/rates.ts`.
+>
+> **Còn lại chưa làm:** A (báo cáo năm), C+D (giao dịch định kỳ), H (xuất CSV/Excel),
+> J (mẫu giao dịch nhanh), N (tách hóa đơn), P (giọng nói), T (radar định kỳ),
+> và toàn bộ nhóm X–AT bổ sung 2026-07-19 bên dưới.
 >
 > File này chỉ **gom ý tưởng** cho các giai đoạn sau. Khi bắt tay làm từng mục,
 > mỗi mục sẽ đi qua quy trình riêng: brainstorm → spec (`docs/superpowers/specs/`)
@@ -282,6 +292,211 @@ Biểu đồ đường **số dư chạy theo ngày** trong tháng (thu cộng, 
 
 ---
 
+> **Bổ sung 2026-07-19 — rà soát so với app quản lý tài chính cùng loại.** Nhóm
+> "Độ tin cậy dữ liệu" (X–AC) là những thứ người dùng thật vấp sớm nhất; nhóm
+> "Mở rộng nghiệp vụ" (AD–AJ) tùy định hướng sản phẩm; nhóm "Trải nghiệm & tiện ích"
+> (AK–AT) nhẹ, làm rời được.
+
+## Nhóm độ tin cậy dữ liệu
+
+### X. Điều chỉnh số dư (reconcile)
+
+Số dư ví/tài khoản thực tế luôn lệch so với sổ — cần nút "Điều chỉnh về số thực tế".
+
+- Ý tưởng: nhập số dư thực tế → app tự tạo **giao dịch điều chỉnh** bù phần chênh;
+  giao dịch này **không tính vào thống kê chi tiêu** (báo cáo, ngân sách, insight).
+- Câu hỏi thiết kế: thêm `type = 'adjustment'` hay cờ `is_adjustment` trên giao dịch
+  thường? (ảnh hưởng mọi chỗ lọc theo `type` — calc, aggregate, báo cáo).
+- Gợi ý kỹ thuật: đặt ở `AccountDetailPage`; cài cả 2 repo + migration nếu thêm cột.
+
+### Y. Nhập CSV từ sao kê ngân hàng
+
+Chiều ngược của mục H: đọc file CSV sao kê → tạo hàng loạt giao dịch.
+
+- Ý tưởng: upload CSV → map cột (ngày/số tiền/ghi chú) → xem trước → xác nhận nhập;
+  nhớ mapping theo ngân hàng cho lần sau (localStorage).
+- Khó ở: format mỗi ngân hàng mỗi khác (JP/VN), encoding (Shift-JIS với ngân hàng Nhật),
+  chống nhập trùng (hash ngày+số tiền+ghi chú?).
+- Gợi ý kỹ thuật: parse client-side; lazy-load màn nhập. Làm **sau H** (xuất) vì cùng
+  hạ tầng đọc/ghi file.
+
+### Z. Sao lưu / khôi phục thủ công (JSON)
+
+Xuất toàn bộ dữ liệu ra 1 file JSON và nhập lại được — bảo hiểm cho demo mode
+(localStorage mất là mất hết) và cho cả Supabase (di chuyển tài khoản).
+
+- Gợi ý kỹ thuật: serialize qua các hàm đọc của `Repo`; nhập = ghi lại theo thứ tự
+  phụ thuộc (accounts → categories → transactions → debts…). Không đổi schema.
+
+### AA. Offline cho chế độ Supabase
+
+PWA đã cài nhưng mất mạng thì bản Supabase gần như không dùng được.
+
+- Bước rẻ: persist cache TanStack Query (`@tanstack/react-query-persist-client`) →
+  mở app offline vẫn **xem** được dữ liệu đã tải.
+- Bước đắt (cân nhắc kỹ): hàng đợi ghi offline + sync lại khi có mạng — phức tạp
+  (xung đột, thứ tự), chỉ làm nếu thật sự cần.
+
+### AB. Undo khi xóa (mở rộng mục K)
+
+K mới phủ "hoàn tác sau khi **lưu**"; xóa giao dịch/khoản nợ vẫn là mất luôn sau
+`window.confirm`.
+
+- Gợi ý kỹ thuật: toast "Đã xóa · Hoàn tác" ~5s; giữ bản ghi trong bộ nhớ, hết giờ mới
+  gọi delete thật (hoặc delete ngay + re-create khi undo — đơn giản hơn với repo hiện
+  tại). Client-only, không đổi schema.
+
+### AC. Khóa app bằng PIN
+
+Dữ liệu tài chính nhạy cảm — app mở là thấy hết.
+
+- Ý tưởng: PIN 4-6 số, hỏi khi mở app / quay lại sau X phút; tùy chọn trong Cài đặt.
+- Gợi ý kỹ thuật: client-side (hash PIN trong localStorage) — đủ cho mức cá nhân,
+  không phải bảo mật thật (dữ liệu Supabase đã có auth). Cân nhắc WebAuthn/biometric
+  sau. Không đổi schema.
+
+## Nhóm mở rộng nghiệp vụ
+
+### AD. Mục tiêu tiết kiệm (savings goals)
+
+Đích tiền + hạn + tiến độ ("Quỹ du lịch 300k¥ trước tháng 12 — đạt 60%").
+
+- Ý tưởng: gắn mục tiêu vào 1 tài khoản hoặc 1 nhóm tài sản; tiến độ = số dư hiện tại
+  / đích; hiển thị ở trang Tài sản.
+- Gợi ý kỹ thuật: bảng `savings_goals` (RLS như các bảng khác) + cài cả 2 repo.
+  Tính tiến độ tái dùng `getAccountBalances` + `convertToBase`.
+
+### AE. Cập nhật giá trị tài sản đầu tư
+
+Số dư hiện chỉ đổi qua giao dịch → vàng/chứng khoán/crypto không phản ánh được
+tăng giảm giá thị trường.
+
+- Ý tưởng: với tài khoản loại đầu tư, cho phép "cập nhật giá trị" định kỳ; phần chênh
+  ghi nhận là **lãi/lỗ chưa thực hiện**, tách khỏi dòng tiền thu/chi.
+- Câu hỏi thiết kế: bảng `valuations` riêng hay tái dùng giao dịch điều chỉnh (mục X)
+  với cờ riêng? Lãi/lỗ có vào báo cáo không hay chỉ vào tổng tài sản?
+- Liên quan: mục X (cùng khái niệm "chỉnh số dư ngoài dòng tiền") — nên thiết kế chung.
+
+### AF. Lịch sử tài sản ròng theo thời gian
+
+Biểu đồ tổng tài sản (± nợ) theo tháng — trả lời "mình đang giàu lên hay nghèo đi".
+
+- Khó ở: số dư quá khứ **tính lại được** từ giao dịch, nhưng tỷ giá quá khứ thì không
+  → cần snapshot. Gợi ý: lưu snapshot tổng tài sản (base) mỗi khi mở app sang kỳ mới,
+  bảng `networth_snapshots`.
+- Liên quan: mục AE (giá trị đầu tư ảnh hưởng net worth), trang Tài sản.
+
+### AG. Nợ có lãi suất / trả góp
+
+Mục F hiện chỉ có gốc (`principal`) — chưa mô tả được khoản vay trả góp có lãi.
+
+- Ý tưởng: thêm lãi suất + kỳ hạn + lịch trả dự kiến (amortization); nhắc kỳ tới hạn.
+- Chỉ làm khi có nhu cầu thật — độ phức tạp cao (cách tính lãi mỗi nơi mỗi khác).
+
+### AH. Ngân sách nâng cao
+
+- **Rollover:** hạn mức dư tháng này cộng sang tháng sau (opt-in từng danh mục).
+- **Ngân sách tổng tháng:** 1 con số trần cho toàn bộ chi (bên cạnh từng danh mục).
+- **Cảnh báo vượt:** banner/badge khi chạm 80%/100% hạn mức (hiện mới có thanh tiến độ,
+  người dùng phải tự vào xem).
+- Gợi ý kỹ thuật: rollover cần cột/flag trên `budgets` + logic ở `buildBudgetReport`;
+  cảnh báo tính client-side khi mở app, ăn khớp mục R (dự báo run-rate).
+
+### AI. Đính kèm ảnh hóa đơn
+
+Chụp/đính ảnh hóa đơn vào giao dịch.
+
+- Gợi ý kỹ thuật: Supabase Storage (free tier 1GB — cân nhắc nén ảnh client-side);
+  demo mode lưu base64/IndexedDB có giới hạn. Cột `attachment_url` trên transactions.
+  OCR tự đọc số tiền là bước sau nữa (tốn phí API → cân nhắc ràng buộc 0đ).
+
+### AJ. Sổ chung nhiều người (vợ chồng / gia đình)
+
+Nhiều user ghi chung một sổ, xem được giao dịch của nhau.
+
+- **Thay đổi nền lớn nhất backlog:** data model đang gắn mọi bảng vào `user_id` +
+  RLS theo user → cần khái niệm `ledger_id`/`household` + bảng thành viên + sửa RLS
+  toàn bộ. Chỉ làm nếu là định hướng sản phẩm; nếu làm, càng sớm càng đỡ migrate.
+
+## Nhóm trải nghiệm & tiện ích
+
+### AK. Chế độ riêng tư (ẩn số tiền)
+
+Nút mắt 👁 che mọi số tiền thành `•••` — mở app nơi công cộng không lộ số dư.
+
+- Gợi ý kỹ thuật: state toàn cục + format tiền đi qua 1 chỗ (`lib/money.ts`) nên chèn
+  được tập trung; lưu lựa chọn localStorage. UI thuần, rất nhẹ.
+
+### AL. Lọc theo khoảng số tiền khi tìm kiếm
+
+`TxFilter` hiện có text/loại/danh mục/tài khoản — thiếu **min–max số tiền** ("tìm các
+khoản trên 10k¥").
+
+- Gợi ý kỹ thuật: thêm `amountMin`/`amountMax` (minor units) vào `TxFilter` + 2 repo +
+  UI ở `SearchPage`. Chú ý đa tiền tệ: lọc theo số gốc của tài khoản hay quy đổi base?
+
+### AM. Loại trừ giao dịch khỏi thống kê
+
+Cờ "không tính vào báo cáo" cho giao dịch đặc thù (hoàn tiền, mua hộ, chuyển tiền
+cho chính mình khác app).
+
+- Gợi ý kỹ thuật: cột `exclude_from_stats boolean` + lọc ở các đường aggregate.
+  Liên quan mục X (giao dịch điều chỉnh cũng cần loại trừ) — nên chung một cơ chế.
+
+### AN. Nhắc nhở trong app
+
+- Nợ đến hạn: `due_on` đã có trong schema nhưng chưa có gì nhắc.
+- Vượt/sắp vượt ngân sách (xem AH).
+- Quên ghi sổ: "3 ngày chưa nhập giao dịch nào".
+- Gợi ý kỹ thuật: bước 1 là **badge/banner trong app** khi mở (client-side, đọc dữ liệu
+  sẵn có, không cần hạ tầng). Web Push để sau (mục AS).
+
+### AO. Onboarding người dùng mới
+
+User mới vào app trống không biết bắt đầu từ đâu.
+
+- Ý tưởng: checklist ngắn (tạo tài khoản → nhập giao dịch đầu → đặt hạn mức) hoặc
+  seed dữ liệu mẫu tùy chọn. UI thuần.
+
+### AP. Xuất PDF báo cáo tháng
+
+Báo cáo tháng dạng PDF để lưu trữ/chia sẻ.
+
+- Gợi ý kỹ thuật: đường rẻ nhất là CSS `@media print` + `window.print()` (0 thư viện);
+  lib PDF thật chỉ khi cần đẹp hơn (lazy-load như ràng buộc chung). Làm sau H.
+
+### AQ. Web Push notifications
+
+Đẩy nhắc nhở (mục AN) ra ngoài app khi app đóng.
+
+- Khó ở: cần server gửi push → đụng ràng buộc "không backend riêng". Supabase Edge
+  Functions + cron có free tier — cần xác nhận đủ 0đ. iOS PWA push có ràng buộc riêng.
+  Chỉ làm sau khi AN (badge trong app) chứng minh nhu cầu.
+
+### AR. Đa ngôn ngữ (i18n)
+
+UI hiện hardcode tiếng Việt. Nếu có người dùng Nhật/Anh → cần i18n.
+
+- Thay đổi lan rộng (mọi component) — chỉ làm nếu có nhu cầu thật. Nếu định làm,
+  làm sớm rẻ hơn làm muộn.
+
+### AS. Nhiều sổ (books)
+
+Tách "Cá nhân" / "Công việc" / "Du lịch 2027" thành các sổ riêng, chuyển qua lại.
+
+- Nhẹ hơn AJ (vẫn 1 user) nhưng cũng đụng schema rộng (`book_id` trên mọi bảng).
+  Cân nhắc có thật sự cần không — nhóm tài sản + danh mục đôi khi đã đủ.
+
+### AT. Trợ lý AI (nhập bằng ngôn ngữ tự nhiên / hỏi đáp)
+
+Gõ "cà phê 500" → tự tách số tiền + đoán danh mục; hỏi "tháng này ăn ngoài hết bao
+nhiêu?" → trả lời từ dữ liệu.
+
+- Đụng ràng buộc 0đ (cần API LLM trả phí) — để xa nhất. Bản rẻ: parse rule-based
+  cho cú pháp "ghi chú + số tiền" (không AI), ăn khớp mục P (giọng nói).
+
+---
+
 ## Gợi ý gom nhóm khi làm sau (không bắt buộc)
 
 - **Nhóm "Giao dịch định kỳ":** C + D + mục 2 GĐ3 → 1 tính năng.
@@ -303,5 +518,21 @@ Biểu đồ đường **số dư chạy theo ngày** trong tháng (thu cộng, 
   định kỳ.
 - **N (tách hóa đơn)** cần chốt schema (nhiều giao dịch rời vs. nhóm có `group_id`) —
   cân nhắc cùng lúc với **G** nếu định đổi cấu trúc dữ liệu giao dịch.
+
+**Bổ sung 2026-07-19 cho nhóm X–AT:**
+
+- **Nhóm "chỉnh số dư ngoài dòng tiền":** X (reconcile) + AE (giá trị đầu tư) +
+  AM (loại trừ khỏi thống kê) → cùng cần cơ chế "giao dịch/bút toán không tính vào
+  chi tiêu", nên chốt schema chung một lần.
+- **Nhóm "xuất nhập file":** H (Excel/CSV) → Y (nhập CSV) → AP (PDF) — làm theo thứ
+  tự đó, dùng chung hạ tầng file. Z (backup JSON) độc lập, làm được ngay.
+- **Nhóm "nhắc nhở":** AN (badge trong app) trước → AQ (Web Push) chỉ khi AN chứng
+  minh nhu cầu. AH (cảnh báo ngân sách) là một nguồn nhắc của AN.
+- **Nhóm "tài sản":** AD (mục tiêu) + AE (giá trị đầu tư) + AF (lịch sử net worth)
+  → cùng khu trang Tài sản, AF phụ thuộc AE nếu muốn số đúng.
+- **AJ (sổ chung) và AS (nhiều sổ) là thay đổi nền** như G trước đây — quyết định
+  sớm có làm hay không, vì càng để lâu càng khó migrate.
+- **Ưu tiên đề xuất cho đợt tới:** C+D (định kỳ) → H (xuất CSV) → X (reconcile) →
+  AB (undo xóa) + AK (ẩn số tiền) làm kèm vì rất nhẹ.
 
 Thứ tự và spec chi tiết sẽ quyết định khi tới từng nhóm.

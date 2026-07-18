@@ -28,23 +28,23 @@ export function PeriodTotalsBar({ transactions, currencyOf, base, rates }: Props
   const netNegative = !!(income && expense && income.value - expense.value < 0)
 
   return (
-    <div className="grid grid-cols-3 gap-2 rounded-xl bg-white p-3 text-center shadow-sm">
+    <div className="grid grid-cols-3 gap-2 rounded-xl bg-white dark:bg-gray-900 p-3 text-center shadow-sm">
       <div>
-        <div className="text-xs text-gray-500">Thu</div>
-        <div className="mt-0.5 text-sm font-semibold tabular-nums text-green-600">
+        <div className="text-xs text-gray-500 dark:text-gray-400">Thu</div>
+        <div className="mt-0.5 text-sm font-semibold tabular-nums text-green-600 dark:text-green-400">
           {income ? approxLabel(income, base) : sumPerCurrency(transactions, 'income', currencyOf)}
         </div>
       </div>
-      <div className="border-x border-gray-100">
-        <div className="text-xs text-gray-500">Chi</div>
-        <div className="mt-0.5 text-sm font-semibold tabular-nums text-red-600">
+      <div className="border-x border-gray-100 dark:border-gray-800">
+        <div className="text-xs text-gray-500 dark:text-gray-400">Chi</div>
+        <div className="mt-0.5 text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">
           {expense ? approxLabel(expense, base) : sumPerCurrency(transactions, 'expense', currencyOf)}
         </div>
       </div>
       <div>
-        <div className="text-xs text-gray-500">Chênh lệch</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">Chênh lệch</div>
         <div
-          className={`mt-0.5 text-sm font-semibold tabular-nums ${netNegative ? 'text-red-600' : 'text-gray-800'}`}
+          className={`mt-0.5 text-sm font-semibold tabular-nums ${netNegative ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}
         >
           {net}
         </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import { NotebookText } from 'lucide-react'
 import { isDemoMode } from '../../lib/demo'
 import { getSupabase } from '../../lib/supabase'
 import { useAuth } from './AuthProvider'
@@ -21,17 +22,17 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-gray-50 px-6">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-gray-50 dark:bg-gray-950 px-6">
       <div className="text-center">
-        <div className="text-5xl">📒</div>
-        <h1 className="mt-4 text-3xl font-bold text-gray-800">Sổ Chi Tiêu</h1>
-        <p className="mt-2 text-gray-500">Quản lý chi tiêu cá nhân, đồng bộ mọi thiết bị</p>
+        <NotebookText className="mx-auto h-14 w-14 text-green-600 dark:text-green-500" />
+        <h1 className="mt-4 text-3xl font-bold text-gray-800 dark:text-gray-100">Sổ Chi Tiêu</h1>
+        <p className="mt-2 text-gray-500 dark:text-gray-400">Quản lý chi tiêu cá nhân, đồng bộ mọi thiết bị</p>
       </div>
 
       <button
         type="button"
         onClick={signInWithGoogle}
-        className="flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-6 py-3 text-base font-medium text-gray-700 shadow-sm transition hover:bg-gray-100 active:scale-95"
+        className="flex items-center gap-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-6 py-3 text-base font-medium text-gray-700 dark:text-gray-300 shadow-sm transition hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95"
       >
         <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
           <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
@@ -42,7 +43,7 @@ export function LoginPage() {
         Đăng nhập với Google
       </button>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
     </div>
   )
 }

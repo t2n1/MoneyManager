@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { listDueDates, nextDueDate, nthDueDate } from './recurring'
+import { listDueDates, nextDueDate, nthDueDate, runRecurringCatchUp } from './recurring'
+import type { RecurringOccurrenceInput, RecurringRepo, RecurringRuleLike } from './recurring'
 
 describe('nthDueDate', () => {
   it('weekly: cộng đúng 7 ngày mỗi kỳ', () => {
@@ -85,5 +86,91 @@ describe('nextDueDate', () => {
     expect(
       nextDueDate({ frequency: 'monthly', start_on: '2026-01-15', end_on: '2026-02-20', last_generated_on: '2026-02-15' }),
     ).toBe(null)
+  })
+})
+
+function makeRule(over: Partial<RecurringRuleLike> = {}): RecurringRuleLike {
+  return {
+    id: 'r1',
+    type: 'expense',
+    amount: 1000,
+    to_amount: null,
+    category_id: 'c1',
+    account_id: 'a1',
+    to_account_id: null,
+    note: 'tien nha',
+    frequency: 'monthly',
+    start_on: '2026-05-01',
+    end_on: null,
+    is_paused: false,
+    last_generated_on: null,
+    ...over,
+  }
+}
+
+/** Repo giả in-memory: ghi lại các kỳ đã sinh + patch last_generated_on. */
+function makeFakeRepo(rules: RecurringRuleLike[], dupKeys: string[] = []) {
+  const inserted: RecurringOccurrenceInput[] = []
+  const patches: Record<string, string> = {}
+  const dups = new Set(dupKeys)
+  const repo: RecurringRepo = {
+    async listRecurringRules() {
+      return rules
+    },
+    async insertRecurringOccurrence(input) {
+      if (dups.has(`${input.recurring_rule_id}|${input.occurred_on}`)) return false
+      inserted.push(input)
+      return true
+    },
+    async updateRecurringRule(id, patch) {
+      patches[id] = patch.last_generated_on
+      return {}
+    },
+  }
+  return { repo, inserted, patches }
+}
+
+describe('runRecurringCatchUp', () => {
+  it('sinh đủ các kỳ lỡ với đúng ngày quá khứ + cập nhật last_generated_on', async () => {
+    const f = makeFakeRepo([makeRule()])
+    const created = await runRecurringCatchUp(f.repo, '2026-07-19')
+    expect(created).toBe(3)
+    expect(f.inserted.map((i) => i.occurred_on)).toEqual(['2026-05-01', '2026-06-01', '2026-07-01'])
+    expect(f.patches['r1']).toBe('2026-07-01')
+  })
+
+  it('kỳ trùng (thiết bị khác đã sinh) bỏ qua nhưng vẫn tiến last_generated_on', async () => {
+    const f = makeFakeRepo([makeRule()], ['r1|2026-05-01', 'r1|2026-06-01'])
+    const created = await runRecurringCatchUp(f.repo, '2026-07-19')
+    expect(created).toBe(1)
+    expect(f.inserted.map((i) => i.occurred_on)).toEqual(['2026-07-01'])
+    expect(f.patches['r1']).toBe('2026-07-01')
+  })
+
+  it('rule paused / start tương lai / quá end_on: không sinh, không patch', async () => {
+    const f = makeFakeRepo([
+      makeRule({ id: 'p', is_paused: true }),
+      makeRule({ id: 'f', start_on: '2026-08-01' }),
+      makeRule({ id: 'e', end_on: '2026-04-30' }),
+    ])
+    const created = await runRecurringCatchUp(f.repo, '2026-07-19')
+    expect(created).toBe(0)
+    expect(f.patches).toEqual({})
+  })
+
+  it('chép đúng nội dung rule vào giao dịch sinh ra', async () => {
+    const f = makeFakeRepo([makeRule({ frequency: 'weekly', start_on: '2026-07-13' })])
+    await runRecurringCatchUp(f.repo, '2026-07-19')
+    expect(f.inserted[0]).toEqual({
+      type: 'expense',
+      amount: 1000,
+      to_amount: null,
+      category_id: 'c1',
+      account_id: 'a1',
+      to_account_id: null,
+      occurred_on: '2026-07-13',
+      note: 'tien nha',
+      recurring_rule_id: 'r1',
+    })
   })
 })

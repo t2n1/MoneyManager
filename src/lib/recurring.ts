@@ -66,3 +66,69 @@ export function nextDueDate(rule: Omit<RuleSchedule, 'is_paused'>): string | nul
     return due
   }
 }
+
+// --- Engine catch-up ---
+// Types cấu trúc (không import data/repo hay database.types để tránh vòng
+// import); Repo thật của app thỏa RecurringRepo về mặt cấu trúc.
+
+/** Rule đầy đủ nội dung để sinh giao dịch (RecurringRuleRow thỏa type này). */
+export interface RecurringRuleLike extends RuleSchedule {
+  id: string
+  type: 'expense' | 'income' | 'transfer'
+  amount: number
+  to_amount: number | null
+  category_id: string | null
+  account_id: string
+  to_account_id: string | null
+  note: string
+}
+
+/** Giao dịch 1 kỳ cần sinh (NewRecurringOccurrence của repo thỏa type này). */
+export interface RecurringOccurrenceInput {
+  type: 'expense' | 'income' | 'transfer'
+  amount: number
+  to_amount: number | null
+  category_id: string | null
+  account_id: string
+  to_account_id: string | null
+  occurred_on: string
+  note: string
+  recurring_rule_id: string
+}
+
+/** Subset của Repo mà engine cần — test dùng fake, app truyền repo thật. */
+export interface RecurringRepo {
+  listRecurringRules(): Promise<RecurringRuleLike[]>
+  insertRecurringOccurrence(input: RecurringOccurrenceInput): Promise<boolean>
+  updateRecurringRule(id: string, patch: { last_generated_on: string }): Promise<unknown>
+}
+
+/**
+ * Catch-up khi mở app: sinh giao dịch cho MỌI kỳ đến hạn của mọi rule active
+ * (sinh bù tất cả kỳ lỡ, occurred_on = đúng ngày đến hạn quá khứ), kỳ trùng
+ * do thiết bị khác đã sinh thì bỏ qua. Trả về số giao dịch đã tạo.
+ */
+export async function runRecurringCatchUp(repo: RecurringRepo, todayISO: string): Promise<number> {
+  const rules = await repo.listRecurringRules()
+  let created = 0
+  for (const rule of rules) {
+    const dues = listDueDates(rule, todayISO)
+    if (dues.length === 0) continue
+    for (const due of dues) {
+      const ok = await repo.insertRecurringOccurrence({
+        type: rule.type,
+        amount: rule.amount,
+        to_amount: rule.to_amount,
+        category_id: rule.category_id,
+        account_id: rule.account_id,
+        to_account_id: rule.to_account_id,
+        occurred_on: due,
+        note: rule.note,
+        recurring_rule_id: rule.id,
+      })
+      if (ok) created++
+    }
+    await repo.updateRecurringRule(rule.id, { last_generated_on: dues[dues.length - 1] })
+  }
+  return created
+}

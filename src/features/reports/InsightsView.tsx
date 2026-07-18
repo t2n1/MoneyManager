@@ -117,7 +117,11 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [monthTxs, range.start, cashLastISO, accounts, base, rates],
   )
-  const cashflowData = cashflow.points.map((p) => ({ day: Number(p.date.slice(8)), balance: p.balance }))
+  // Nhãn trục X dạng d/M để không "tụt" về 1 ở ranh giới lịch khi month_start_day ≠ 1
+  const cashflowData = cashflow.points.map((p) => ({
+    label: `${Number(p.date.slice(8))}/${Number(p.date.slice(5, 7))}`,
+    balance: p.balance,
+  }))
   const hasCashflow = cashflow.points.some((p) => p.balance !== 0)
 
   // --- Phát hiện chi bất thường (U) ---
@@ -248,7 +252,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={cashflowData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                 <XAxis
-                  dataKey="day"
+                  dataKey="label"
                   tick={{ fontSize: 11, fill: '#9ca3af' }}
                   axisLine={false}
                   tickLine={false}

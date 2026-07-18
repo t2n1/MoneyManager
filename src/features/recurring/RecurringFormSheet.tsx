@@ -50,7 +50,18 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const activeAccounts = useMemo(() => accounts.filter((a) => !a.is_archived), [accounts])
+  // Tài khoản chọn được: đang hoạt động + tài khoản của rule đang sửa (kể cả đã
+  // lưu trữ) — nếu không, form sửa sẽ âm thầm gán rule sang tài khoản khác.
+  const activeAccounts = useMemo(() => {
+    const list = accounts.filter((a) => !a.is_archived)
+    for (const id of [rule?.account_id, rule?.to_account_id]) {
+      if (id && !list.some((a) => a.id === id)) {
+        const archived = accounts.find((a) => a.id === id)
+        if (archived) list.push(archived)
+      }
+    }
+    return list
+  }, [accounts, rule])
   const activeOfType = useMemo(
     () => categories.filter((c) => c.type === type && !c.is_archived),
     [categories, type],

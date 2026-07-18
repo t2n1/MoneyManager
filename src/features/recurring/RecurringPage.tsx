@@ -60,24 +60,32 @@ export function RecurringPage() {
   const categoryOf = (id: string | null) => categories.find((c) => c.id === id)
 
   async function togglePause(rule: RecurringRuleRow) {
-    if (rule.is_paused) {
-      // Bật lại: các kỳ rơi vào lúc tạm dừng KHÔNG sinh bù — đẩy last_generated_on
-      // lên hôm qua (nếu đang cũ hơn) rồi catch-up để kỳ đến hạn hôm nay sinh ngay
-      const yesterday = addDaysISO(toISODate(new Date()), -1)
-      const last =
-        rule.last_generated_on && rule.last_generated_on > yesterday
-          ? rule.last_generated_on
-          : yesterday
-      await update.mutateAsync({ id: rule.id, patch: { is_paused: false, last_generated_on: last } })
-      await catchUp.mutateAsync()
-    } else {
-      await update.mutateAsync({ id: rule.id, patch: { is_paused: true } })
+    try {
+      if (rule.is_paused) {
+        // Bật lại: các kỳ rơi vào lúc tạm dừng KHÔNG sinh bù — đẩy last_generated_on
+        // lên hôm qua (nếu đang cũ hơn) rồi catch-up để kỳ đến hạn hôm nay sinh ngay
+        const yesterday = addDaysISO(toISODate(new Date()), -1)
+        const last =
+          rule.last_generated_on && rule.last_generated_on > yesterday
+            ? rule.last_generated_on
+            : yesterday
+        await update.mutateAsync({ id: rule.id, patch: { is_paused: false, last_generated_on: last } })
+        await catchUp.mutateAsync()
+      } else {
+        await update.mutateAsync({ id: rule.id, patch: { is_paused: true } })
+      }
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Thao tac that bai, thu lai.')
     }
   }
 
   async function handleDelete(rule: RecurringRuleRow) {
     if (!window.confirm('Xóa quy tắc định kỳ này? Giao dịch đã sinh vẫn được giữ lại.')) return
-    await del.mutateAsync(rule.id)
+    try {
+      await del.mutateAsync(rule.id)
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Thao tac that bai, thu lai.')
+    }
   }
 
   return (

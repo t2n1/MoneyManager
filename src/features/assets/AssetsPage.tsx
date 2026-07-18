@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Settings2 } from 'lucide-react'
+import { CreditCard, Settings2 } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { AccountTypeIcon } from '../../components/icons'
 import {
@@ -71,6 +71,13 @@ export function AssetsPage() {
   const approx = breakdown.hasForeign ? '≈ ' : ''
   const accountCount = visibleGroups.reduce((n, g) => n + g.accounts.length, 0)
 
+  // Thẻ tín dụng: công nợ, hiển thị riêng và trừ vào Tài sản ròng
+  const visibleCards = breakdown.cards.filter((c) => !c.hidden)
+  const cardOwed = -breakdown.cardDebt // số dương = đang nợ thẻ (quy đổi base)
+  const showNetWorth = debts_.hasOpen || visibleCards.length > 0
+  const netApprox =
+    breakdown.hasForeign || debts_.hasMissingRate || breakdown.cardHasMissingRate ? '≈ ' : ''
+
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
       <div className="flex items-center gap-2">
@@ -103,8 +110,8 @@ export function AssetsPage() {
         )}
       </section>
 
-      {/* Tài sản ròng (chỉ hiện khi có khoản nợ mở) */}
-      {debts_.hasOpen && (
+      {/* Tài sản ròng (hiện khi có khoản nợ mở hoặc có thẻ tín dụng) */}
+      {showNetWorth && (
         <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tài sản ròng</span>
@@ -113,8 +120,8 @@ export function AssetsPage() {
             </Link>
           </div>
           <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-            {breakdown.hasForeign || debts_.hasMissingRate ? '≈ ' : ''}
-            {formatMoney(breakdown.total + debts_.net, base)}
+            {netApprox}
+            {formatMoney(breakdown.total + debts_.net + breakdown.cardDebt, base)}
           </p>
           <div className="mt-3 space-y-1.5 text-sm">
             <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
@@ -133,12 +140,72 @@ export function AssetsPage() {
                 <span className="tabular-nums">{formatMoney(debts_.iOwe, base)}</span>
               </div>
             )}
+            {cardOwed > 0 && (
+              <div className="flex items-center justify-between text-red-600 dark:text-red-400">
+                <span>− Nợ thẻ tín dụng</span>
+                <span className="tabular-nums">{formatMoney(cardOwed, base)}</span>
+              </div>
+            )}
           </div>
-          {debts_.hasMissingRate && (
+          {(debts_.hasMissingRate || breakdown.cardHasMissingRate) && (
             <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-              Một phần khoản nợ ngoại tệ chưa quy đổi được nên số ròng có thể thiếu.
+              Một phần công nợ ngoại tệ chưa quy đổi được nên số ròng có thể thiếu.
             </p>
           )}
+        </section>
+      )}
+
+      {/* Thẻ tín dụng */}
+      {visibleCards.length > 0 && (
+        <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
+          <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+            <CreditCard className="h-3.5 w-3.5" /> Thẻ tín dụng
+          </h2>
+          <ul className="space-y-3">
+            {visibleCards.map((c) => {
+              const owed = c.balance < 0 ? -c.balance : 0 // đang nợ (currency gốc)
+              const available = c.creditLimit != null ? c.creditLimit - owed : null
+              const usage =
+                c.creditLimit && c.creditLimit > 0 ? Math.min(owed / c.creditLimit, 1) : null
+              return (
+                <li key={c.id}>
+                  <Link
+                    to={`/assets/${c.id}`}
+                    className="block rounded-xl px-1 py-1 transition hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    <div className="flex items-center gap-2 text-sm">
+                      <CreditCard className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
+                      <span className="min-w-0 flex-1 truncate font-medium text-gray-700 dark:text-gray-300">
+                        {c.name}
+                        {!c.includeInTotals && (
+                          <span className="ml-1 text-[10px] font-normal text-gray-400 dark:text-gray-500">
+                            (ngoài tổng)
+                          </span>
+                        )}
+                      </span>
+                      <span className="shrink-0 text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">
+                        {owed > 0 ? `− ${formatMoney(owed, c.currency)}` : formatMoney(0, c.currency)}
+                      </span>
+                    </div>
+                    {usage != null && (
+                      <div className="mt-1.5 ml-6 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                        <div
+                          className={`h-full rounded-full ${usage >= 0.9 ? 'bg-red-500' : usage >= 0.7 ? 'bg-amber-500' : 'bg-green-600'}`}
+                          style={{ width: `${Math.max(usage * 100, owed > 0 ? 3 : 0)}%` }}
+                        />
+                      </div>
+                    )}
+                    {available != null && (
+                      <p className="mt-1 ml-6 text-xs text-gray-400 dark:text-gray-500">
+                        Còn dùng được {formatMoney(available, c.currency)} / hạn mức{' '}
+                        {formatMoney(c.creditLimit ?? 0, c.currency)}
+                      </p>
+                    )}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
         </section>
       )}
 

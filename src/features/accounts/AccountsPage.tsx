@@ -15,6 +15,13 @@ import type { AccountRow, AccountType } from '../../types/database.types'
 
 const CURRENCY_LIST = Object.keys(CURRENCIES) as CurrencyCode[]
 
+/** Giữ ô ngày trong tháng hợp lệ: chỉ chữ số, kẹp 1..31, cho phép rỗng. */
+function clampDay(raw: string): string {
+  const digits = raw.replace(/\D/g, '')
+  if (digits === '') return ''
+  return String(Math.min(Math.max(Number(digits), 1), 31))
+}
+
 export function AccountsPage() {
   const { data: accounts = [] } = useAccounts()
   const { data: balances = [] } = useAccountBalances()
@@ -168,17 +175,31 @@ function AccountForm({ account, onClose }: FormProps) {
   const [assetGroup, setAssetGroup] = useState(account?.asset_group ?? '')
   const [isHidden, setIsHidden] = useState(account?.is_hidden ?? false)
   const [includeInTotals, setIncludeInTotals] = useState(account?.include_in_totals ?? true)
+  // Với thẻ tín dụng, ô số dư nhập là SỐ ĐANG NỢ (dương); initial_balance lưu âm.
   const [balanceDigits, setBalanceDigits] = useState(
-    account ? String(account.initial_balance) : '',
+    account ? String(Math.abs(account.initial_balance)) : '',
+  )
+  const [creditLimitDigits, setCreditLimitDigits] = useState(
+    account?.credit_limit != null ? String(account.credit_limit) : '',
+  )
+  const [statementDay, setStatementDay] = useState(
+    account?.statement_day != null ? String(account.statement_day) : '',
+  )
+  const [paymentDueDay, setPaymentDueDay] = useState(
+    account?.payment_due_day != null ? String(account.payment_due_day) : '',
   )
   const [saving, setSaving] = useState(false)
+
+  const isCard = type === 'card'
 
   // Gợi ý các nhóm đã dùng để nhập nhanh, tránh trùng lặp do gõ khác nhau
   const groupSuggestions = [
     ...new Set(accounts.map((a) => a.asset_group?.trim()).filter((g): g is string => !!g)),
   ].sort((a, b) => a.localeCompare(b, 'vi'))
 
-  const initialBalance = balanceDigits === '' ? 0 : Number(balanceDigits)
+  // Độ lớn số tiền nhập (luôn dương); dấu quyết định khi lưu theo loại tài khoản
+  const balanceMagnitude = balanceDigits === '' ? 0 : Number(balanceDigits)
+  const initialBalance = isCard ? -balanceMagnitude : balanceMagnitude
   const canSave = name.trim().length > 0 && !saving
   // Đổi loại tiền tài khoản đã có giao dịch → số tiền cũ không tự quy đổi
   const hasActivity = account && balances.find((b) => b.id === account.id)?.balance !== account.initial_balance
@@ -193,9 +214,13 @@ function AccountForm({ account, onClose }: FormProps) {
         type,
         currency,
         initial_balance: initialBalance,
-        asset_group: assetGroup.trim() || null,
+        // Thẻ tín dụng không thuộc nhóm tài sản
+        asset_group: isCard ? null : assetGroup.trim() || null,
         is_hidden: isHidden,
         include_in_totals: includeInTotals,
+        credit_limit: isCard && creditLimitDigits !== '' ? Number(creditLimitDigits) : null,
+        statement_day: isCard && statementDay !== '' ? Number(statementDay) : null,
+        payment_due_day: isCard && paymentDueDay !== '' ? Number(paymentDueDay) : null,
       }
       if (account) await update.mutateAsync({ id: account.id, patch: input })
       else await create.mutateAsync(input)
@@ -236,6 +261,7 @@ function AccountForm({ account, onClose }: FormProps) {
             >
               <option value="cash">Tiền mặt</option>
               <option value="bank">Ngân hàng</option>
+              <option value="card">Thẻ tín dụng</option>
             </select>
           </div>
           <div>
@@ -254,33 +280,86 @@ function AccountForm({ account, onClose }: FormProps) {
           </div>
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-          Nhóm tài sản <span className="text-gray-400 dark:text-gray-500">(không bắt buộc)</span>
-        </label>
-        <input
-          value={assetGroup}
-          onChange={(e) => setAssetGroup(e.target.value)}
-          list="asset-group-suggestions"
-          placeholder="Ví dụ: Tiêu dùng, Tiết kiệm, Đầu tư"
-          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
-        />
-        <datalist id="asset-group-suggestions">
-          {groupSuggestions.map((g) => (
-            <option key={g} value={g} />
-          ))}
-        </datalist>
+        {!isCard && (
+          <>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+              Nhóm tài sản <span className="text-gray-400 dark:text-gray-500">(không bắt buộc)</span>
+            </label>
+            <input
+              value={assetGroup}
+              onChange={(e) => setAssetGroup(e.target.value)}
+              list="asset-group-suggestions"
+              placeholder="Ví dụ: Tiêu dùng, Tiết kiệm, Đầu tư"
+              className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
+            />
+            <datalist id="asset-group-suggestions">
+              {groupSuggestions.map((g) => (
+                <option key={g} value={g} />
+              ))}
+            </datalist>
+          </>
+        )}
+
+        {isCard && (
+          <>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+              Hạn mức tín dụng <span className="text-gray-400 dark:text-gray-500">(không bắt buộc)</span>
+            </label>
+            <input
+              inputMode="numeric"
+              value={creditLimitDigits === '' ? '' : formatMoney(Number(creditLimitDigits), currency)}
+              onChange={(e) => {
+                const parsed = String(parseMoney(e.target.value))
+                setCreditLimitDigits(parsed === '0' ? '' : parsed)
+              }}
+              placeholder={formatMoney(0, currency)}
+              className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-sm font-semibold outline-green-500"
+            />
+
+            <div className="mb-3 grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Ngày chốt sao kê
+                </label>
+                <input
+                  inputMode="numeric"
+                  value={statementDay}
+                  onChange={(e) => setStatementDay(clampDay(e.target.value))}
+                  placeholder="1–31"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Ngày đến hạn
+                </label>
+                <input
+                  inputMode="numeric"
+                  value={paymentDueDay}
+                  onChange={(e) => setPaymentDueDay(clampDay(e.target.value))}
+                  placeholder="1–31"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
+                />
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Hiển thị trên trang Tài sản */}
         <div className="mb-3 space-y-2 rounded-lg bg-gray-50 dark:bg-gray-950 p-3">
           <label className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
             <span>
-              Tính vào Tổng tài sản
-              <span className="block text-xs text-gray-400 dark:text-gray-500">Cộng số dư vào tổng ở trang Tài sản</span>
+              {isCard ? 'Trừ vào Tài sản ròng' : 'Tính vào Tổng tài sản'}
+              <span className="block text-xs text-gray-400 dark:text-gray-500">
+                {isCard
+                  ? 'Trừ số đang nợ khỏi Tài sản ròng ở trang Tài sản'
+                  : 'Cộng số dư vào tổng ở trang Tài sản'}
+              </span>
             </span>
             <AccountToggle
               checked={includeInTotals}
               onChange={setIncludeInTotals}
-              label="Tính vào Tổng tài sản"
+              label={isCard ? 'Trừ vào Tài sản ròng' : 'Tính vào Tổng tài sản'}
             />
           </label>
           <label className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
@@ -292,10 +371,12 @@ function AccountForm({ account, onClose }: FormProps) {
           </label>
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Số dư ban đầu</label>
+        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+          {isCard ? 'Số đang nợ hiện tại' : 'Số dư ban đầu'}
+        </label>
         <input
           inputMode="numeric"
-          value={initialBalance === 0 ? '' : formatMoney(initialBalance, currency)}
+          value={balanceMagnitude === 0 ? '' : formatMoney(balanceMagnitude, currency)}
           onChange={(e) => {
             const parsed = String(parseMoney(e.target.value))
             setBalanceDigits(parsed === '0' ? '' : parsed)
@@ -303,6 +384,11 @@ function AccountForm({ account, onClose }: FormProps) {
           placeholder={formatMoney(0, currency)}
           className="mb-2 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
         />
+        {isCard && (
+          <p className="mb-2 text-xs text-gray-400 dark:text-gray-500">
+            Nhập số bạn đang nợ thẻ (để 0 nếu chưa nợ). Chi tiêu bằng thẻ và trả thẻ ghi như giao dịch bình thường.
+          </p>
+        )}
 
         {currencyChanged && hasActivity && (
           <p className="mb-2 rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">

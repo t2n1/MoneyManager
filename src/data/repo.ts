@@ -48,6 +48,12 @@ export interface NewAccount {
   is_hidden: boolean
   /** false = không cộng vào Tổng tài sản */
   include_in_totals: boolean
+  /** Thẻ tín dụng: hạn mức (minor units theo currency thẻ); null = không đặt */
+  credit_limit?: number | null
+  /** Thẻ tín dụng: ngày chốt sao kê (1..31); null = chưa đặt */
+  statement_day?: number | null
+  /** Thẻ tín dụng: ngày đến hạn thanh toán (1..31); null = chưa đặt */
+  payment_due_day?: number | null
 }
 
 export type AccountPatch = Partial<NewAccount & { is_archived: boolean }>

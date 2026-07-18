@@ -107,14 +107,51 @@ export function AccountDetailPage() {
 
       {/* Số dư hiện tại */}
       <section className="mb-3 rounded-xl bg-white dark:bg-gray-900 p-4 shadow-sm">
-        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Số dư hiện tại</p>
+        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+          {account?.type === 'card' ? 'Đang nợ thẻ' : 'Số dư hiện tại'}
+        </p>
         <p
           className={`mt-1 text-2xl font-bold ${balance < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}
         >
-          {formatMoney(balance, currency)}
+          {account?.type === 'card'
+            ? balance < 0
+              ? `− ${formatMoney(-balance, currency)}`
+              : formatMoney(0, currency)
+            : formatMoney(balance, currency)}
         </p>
         {account?.asset_group && (
           <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Nhóm: {account.asset_group}</p>
+        )}
+
+        {account?.type === 'card' && (
+          <div className="mt-3 space-y-1.5 border-t border-gray-100 dark:border-gray-800 pt-3 text-sm">
+            {account.credit_limit != null && (
+              <>
+                <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
+                  <span>Còn dùng được</span>
+                  <span className="tabular-nums font-medium text-gray-800 dark:text-gray-100">
+                    {formatMoney(account.credit_limit - (balance < 0 ? -balance : 0), currency)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-gray-400 dark:text-gray-500">
+                  <span>Hạn mức</span>
+                  <span className="tabular-nums">{formatMoney(account.credit_limit, currency)}</span>
+                </div>
+              </>
+            )}
+            {account.statement_day != null && (
+              <div className="flex items-center justify-between text-gray-400 dark:text-gray-500">
+                <span>Ngày chốt sao kê</span>
+                <span className="tabular-nums">Ngày {account.statement_day}</span>
+              </div>
+            )}
+            {account.payment_due_day != null && (
+              <div className="flex items-center justify-between text-gray-400 dark:text-gray-500">
+                <span>Ngày đến hạn</span>
+                <span className="tabular-nums">Ngày {account.payment_due_day}</span>
+              </div>
+            )}
+          </div>
         )}
       </section>
 

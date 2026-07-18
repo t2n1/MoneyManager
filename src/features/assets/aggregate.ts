@@ -46,6 +46,27 @@ export interface AssetGroup {
   hidden: boolean
 }
 
+/**
+ * Thẻ tín dụng (accounts.type='card'). Là công nợ, KHÔNG thuộc nhóm tài sản:
+ * số dư thường âm = đang nợ. Không cộng vào Tổng tài sản (gộp); được trừ trong
+ * Tài sản ròng cùng nhóm với nợ/cho vay.
+ */
+export interface CardLiability {
+  id: string
+  name: string
+  currency: CurrencyCode
+  /** minor units gốc; âm = đang nợ, 0 = không nợ */
+  balance: number
+  /** minor units quy đổi base; null = thiếu tỷ giá */
+  baseValue: number | null
+  /** hạn mức minor units theo currency gốc; null = không đặt */
+  creditLimit: number | null
+  /** false = không trừ vào Tài sản ròng (vẫn hiển thị riêng) */
+  includeInTotals: boolean
+  /** true = ẩn khỏi trang Tài sản */
+  hidden: boolean
+}
+
 export interface AssetBreakdown {
   /** Đã bao gồm cả nhóm bị ẩn (hidden=true) — nơi hiển thị tự lọc. */
   groups: AssetGroup[]
@@ -55,6 +76,12 @@ export interface AssetBreakdown {
   hasForeign: boolean
   /** thiếu tỷ giá cho ít nhất một tài khoản được tính → tổng có thể thiếu */
   hasMissingRate: boolean
+  /** Thẻ tín dụng (chưa lưu trữ). Nơi hiển thị tự lọc ẩn. */
+  cards: CardLiability[]
+  /** tổng số dư thẻ quy đổi base (≤ 0 nếu đang nợ); chỉ cộng card !hidden && includeInTotals & có tỷ giá */
+  cardDebt: number
+  /** có thẻ (được tính) thiếu tỷ giá → cardDebt có thể thiếu */
+  cardHasMissingRate: boolean
 }
 
 /**
@@ -75,12 +102,38 @@ export function assetBreakdown(
 ): AssetBreakdown {
   const settingOf = new Map(settings.map((s) => [s.name, s]))
   const groups = new Map<string, AssetAccount[]>()
+  const cards: CardLiability[] = []
   let total = 0
   let hasForeign = false
   let hasMissingRate = false
+  let cardDebt = 0
+  let cardHasMissingRate = false
 
   for (const b of balances) {
     if (b.is_archived) continue
+
+    // Thẻ tín dụng: công nợ riêng, không lọt vào nhóm tài sản / Tổng tài sản.
+    if (b.type === 'card') {
+      const baseValue = convertToBase(b.balance, b.currency, base, rates)
+      const hidden = b.is_hidden ?? false
+      const includeInTotals = b.include_in_totals ?? true
+      cards.push({
+        id: b.id,
+        name: b.name,
+        currency: b.currency,
+        balance: b.balance,
+        baseValue,
+        creditLimit: b.credit_limit ?? null,
+        includeInTotals,
+        hidden,
+      })
+      if (!hidden && includeInTotals) {
+        if (baseValue === null) cardHasMissingRate = true
+        else cardDebt += baseValue
+      }
+      continue
+    }
+
     const key = b.asset_group?.trim() || UNGROUPED_LABEL
     const baseValue = convertToBase(b.balance, b.currency, base, rates)
     const account: AssetAccount = {
@@ -142,5 +195,7 @@ export function assetBreakdown(
     return b.total - a.total
   })
 
-  return { groups: result, total, hasForeign, hasMissingRate }
+  cards.sort((a, b) => (a.baseValue ?? 0) - (b.baseValue ?? 0))
+
+  return { groups: result, total, hasForeign, hasMissingRate, cards, cardDebt, cardHasMissingRate }
 }

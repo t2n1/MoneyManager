@@ -28,6 +28,7 @@ function acc(p: Partial<AccountBalanceRow> & Pick<AccountBalanceRow, 'balance'>)
     asset_group: null,
     is_hidden: false,
     include_in_totals: true,
+    credit_limit: null,
     is_archived: false,
     sort_order: 0,
     ...p,
@@ -149,5 +150,53 @@ describe('assetBreakdown (base = JPY)', () => {
       setting('B', { sortOrder: 1 }),
     ])
     expect(r.groups.map((g) => g.name)).toEqual(['A', 'B', UNGROUPED_LABEL])
+  })
+})
+
+describe('assetBreakdown — thẻ tín dụng (type=card)', () => {
+  it('thẻ không lọt vào nhóm tài sản, không cộng vào Tổng tài sản', () => {
+    const balances = [
+      acc({ balance: 100_000, asset_group: 'Tiêu dùng' }),
+      acc({ balance: -45_000, type: 'card', asset_group: null, credit_limit: 500_000 }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES)
+    expect(r.total).toBe(100_000) // thẻ không kéo tụt Tổng tài sản
+    expect(r.groups).toHaveLength(1)
+    expect(r.cards).toHaveLength(1)
+    expect(r.cardDebt).toBe(-45_000) // âm = đang nợ, để trừ vào Tài sản ròng
+    expect(r.cards[0].creditLimit).toBe(500_000)
+  })
+
+  it('cộng dồn nhiều thẻ, quy đổi base; thẻ ngoại tệ thiếu tỷ giá → cardHasMissingRate', () => {
+    const balances = [
+      acc({ balance: -45_000, type: 'card' }), // JPY
+      acc({ balance: -1_650_000, type: 'card', currency: 'VND' }), // → −¥10.000
+      acc({ balance: -20_000, type: 'card', currency: 'USD' }), // thiếu tỷ giá
+    ]
+    const r = assetBreakdown(balances, 'JPY', { JPY: 1, VND: 165 })
+    expect(r.cardDebt).toBe(-55_000) // −45.000 + −10.000; USD bỏ qua
+    expect(r.cardHasMissingRate).toBe(true)
+    expect(r.cards).toHaveLength(3)
+  })
+
+  it('thẻ ẩn hoặc ngoài-tổng: không trừ vào Tài sản ròng', () => {
+    const balances = [
+      acc({ balance: -30_000, type: 'card', is_hidden: true }),
+      acc({ balance: -20_000, type: 'card', include_in_totals: false }),
+      acc({ balance: -10_000, type: 'card' }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES)
+    expect(r.cardDebt).toBe(-10_000) // chỉ thẻ thứ 3 được tính
+    expect(r.cards).toHaveLength(3) // nhưng vẫn trả về đủ để hiển thị
+  })
+
+  it('bỏ qua thẻ đã lưu trữ', () => {
+    const balances = [
+      acc({ balance: -10_000, type: 'card' }),
+      acc({ balance: -99_999, type: 'card', is_archived: true }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES)
+    expect(r.cards).toHaveLength(1)
+    expect(r.cardDebt).toBe(-10_000)
   })
 })

@@ -96,6 +96,9 @@ Chạy **một lần khi mở app** (mount `AppLayout`, sau auth), dùng chung c
 - Sửa `start_on`/`frequency` của rule đã chạy: kỳ tới tính từ anchor mới nhưng chỉ
   sinh sau `last_generated_on` — không sinh bù lùi về trước đó.
 - Xóa giao dịch đã sinh → không sinh lại (engine đi theo `last_generated_on`).
+- Bật lại rule sau tạm dừng: các kỳ rơi vào lúc tạm dừng **không sinh bù** (khi
+  unpause, đẩy `last_generated_on` lên ngày hôm qua nếu đang cũ hơn) — "tạm dừng"
+  nghĩa là bỏ hẳn các kỳ đó.
 - Xóa rule → giao dịch cũ giữ nguyên (`recurring_rule_id` set null, mất badge).
 - Sửa/xóa giao dịch đã sinh không đụng rule.
 

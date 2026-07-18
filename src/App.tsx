@@ -36,6 +36,9 @@ const DebtsPage = lazy(() =>
 const DebtDetailPage = lazy(() =>
   import('./features/debts/DebtDetailPage').then((m) => ({ default: m.DebtDetailPage })),
 )
+const RecurringPage = lazy(() =>
+  import('./features/recurring/RecurringPage').then((m) => ({ default: m.RecurringPage })),
+)
 
 const Loading = () => <p className="p-6 text-center text-gray-400 dark:text-gray-500">Đang tải…</p>
 const lazyRoute = (el: ReactNode) => <Suspense fallback={<Loading />}>{el}</Suspense>
@@ -59,6 +62,7 @@ function App() {
           <Route path="/settings/asset-groups" element={lazyRoute(<AssetGroupsPage />)} />
           <Route path="/settings/debts" element={lazyRoute(<DebtsPage />)} />
           <Route path="/settings/debts/:debtId" element={lazyRoute(<DebtDetailPage />)} />
+          <Route path="/settings/recurring" element={lazyRoute(<RecurringPage />)} />
         </Route>
       </Route>
     </Routes>

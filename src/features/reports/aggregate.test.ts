@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
-import { categoryBreakdown, monthlySeries, sumIncomeExpense } from './aggregate'
+import { categoryBreakdown, categoryComparison, monthlySeries, sumIncomeExpense } from './aggregate'
 
 // base = JPY: 1 ¥ = 165 ₫ = 0.0065 $
 const RATES: Rates = { JPY: 1, VND: 165, USD: 0.0065 }
@@ -124,5 +124,41 @@ describe('sumIncomeExpense (base = JPY)', () => {
     const txs = [tx({ type: 'income', amount: 100 }), tx({ type: 'expense', amount: 40 })]
     const r = sumIncomeExpense(txs, currencyOf, 'JPY', RATES)
     expect(r).toEqual({ income: 100, expense: 40, hasForeign: false, hasMissingRate: false })
+  })
+})
+
+describe('categoryComparison (base = JPY)', () => {
+  const active = { year: 2026, month: 7 }
+  it('gom theo tháng/danh mục, avg3 chia 3 kể cả tháng thiếu, delta đúng dấu', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 1200, category_id: 'food', occurred_on: '2026-07-05' }),
+      tx({ type: 'expense', amount: 1000, category_id: 'food', occurred_on: '2026-06-05' }),
+      tx({ type: 'expense', amount: 800, category_id: 'food', occurred_on: '2026-05-05' }),
+      tx({ type: 'income', amount: 999, category_id: 'x', occurred_on: '2026-07-05' }), // bỏ (income)
+    ]
+    const r = categoryComparison(txs, active, 1, currencyOf, 'JPY', RATES)
+    // avg3 = (T6 1000 + T5 800 + T4 0) / 3 = 600 ; delta = (1200-1000)/1000 = 20%
+    expect(r.rows).toEqual([
+      { categoryId: 'food', thisMonth: 1200, prevMonth: 1000, avg3: 600, deltaPct: 20, isNew: false },
+    ])
+    expect(r.hasMissingRate).toBe(false)
+  })
+  it('danh mục mới (tháng trước = 0) → isNew, deltaPct null', () => {
+    const txs = [tx({ type: 'expense', amount: 500, category_id: 'new', occurred_on: '2026-07-05' })]
+    const r = categoryComparison(txs, active, 1, currencyOf, 'JPY', RATES)
+    expect(r.rows[0]).toMatchObject({ categoryId: 'new', prevMonth: 0, deltaPct: null, isNew: true })
+  })
+  it('sắp theo thisMonth giảm dần', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 300, category_id: 'a', occurred_on: '2026-07-05' }),
+      tx({ type: 'expense', amount: 900, category_id: 'b', occurred_on: '2026-07-05' }),
+    ]
+    const r = categoryComparison(txs, active, 1, currencyOf, 'JPY', RATES)
+    expect(r.rows.map((x) => x.categoryId)).toEqual(['b', 'a'])
+  })
+  it('thiếu tỷ giá → cờ hasMissingRate', () => {
+    const txs = [tx({ type: 'expense', amount: 1_650_000, category_id: 'x', occurred_on: '2026-07-05', account_id: 'vnd' })]
+    const r = categoryComparison(txs, active, 1, currencyOf, 'JPY', { JPY: 1 })
+    expect(r.hasMissingRate).toBe(true)
   })
 })

@@ -18,7 +18,7 @@ import {
 } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
-import { categoryBreakdown, monthlySeries } from './aggregate'
+import { categoryBreakdown, categoryComparison, monthlySeries } from './aggregate'
 import { buildInsights, forecastMonthEnd, noSpendStreak, savingsRate } from './insights'
 
 export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
@@ -58,6 +58,11 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
     () => categoryBreakdown(monthTxs, 'expense', currencyOf, base, r),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [monthTxs, accounts, base, rates],
+  )
+  const comparison = useMemo(
+    () => categoryComparison(rangeTxs, monthKey, monthStartDay, currencyOf, base, r),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rangeTxs, monthKey, monthStartDay, accounts, base, rates],
   )
 
   // --- Sức khỏe tài chính (V, Q) — chuyển từ ReportsPage ---
@@ -103,8 +108,9 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
   const forecast = isCurrentMonth ? forecastMonthEnd(spentSoFar, daysElapsed, daysInMonth) : null
   const totalBudgeted = report?.totalBudgeted ?? 0
 
-  const hasMissingRate = series.hasMissingRate || expenseBreakdown.hasMissingRate || forecastApprox
-  const hasAny = hasHealth || forecast
+  const hasMissingRate =
+    series.hasMissingRate || expenseBreakdown.hasMissingRate || forecastApprox || comparison.hasMissingRate
+  const hasAny = hasHealth || forecast || comparison.rows.length > 0
 
   return (
     <div className="flex flex-col gap-3">
@@ -169,6 +175,40 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
           ) : (
             <p className="mt-2 text-xs text-gray-400">Đặt ngân sách tháng để so sánh với dự báo.</p>
           )}
+        </section>
+      )}
+
+      {comparison.rows.length > 0 && (
+        <section className="rounded-xl bg-white p-3 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold text-gray-500">So sánh chi theo danh mục</h2>
+          <ul className="space-y-2">
+            {comparison.rows.map((row) => {
+              const cat = categoryOf(row.categoryId)
+              return (
+                <li key={row.categoryId} className="flex items-baseline justify-between gap-2">
+                  <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
+                    {cat?.icon ?? '📦'} {cat?.name ?? '?'}
+                  </span>
+                  <div className="text-right">
+                    <div className="flex items-center justify-end gap-1 text-sm font-medium text-gray-800">
+                      {formatMoney(row.thisMonth, base)}
+                      {row.isNew ? (
+                        <span className="rounded bg-sky-50 px-1 text-[10px] text-sky-600">mới</span>
+                      ) : row.deltaPct !== null && row.deltaPct !== 0 ? (
+                        <span className={`text-[11px] ${row.deltaPct > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                          {row.deltaPct > 0 ? '▲' : '▼'}
+                          {Math.abs(row.deltaPct)}%
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="text-[11px] text-gray-400">
+                      Trước {formatMoney(row.prevMonth, base)} · TB3 {formatMoney(row.avg3, base)}
+                    </div>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
         </section>
       )}
 

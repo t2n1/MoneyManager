@@ -1,7 +1,7 @@
 // Tổng hợp số liệu cho báo cáo — thuần, không phụ thuộc React, để unit-test được.
 // Mọi số tiền quy đổi về base currency qua convertToBase; thiếu tỷ giá → hasMissingRate.
 
-import { monthKeyForDate, type MonthKey } from '../../lib/dates'
+import { addMonths, monthKeyForDate, type MonthKey } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
@@ -130,4 +130,63 @@ export function sumIncomeExpense(
     else expense += v
   }
   return { income, expense, hasForeign, hasMissingRate }
+}
+
+export interface CategoryComparisonRow {
+  categoryId: string
+  thisMonth: number // base minor
+  prevMonth: number // base minor
+  avg3: number // TB tổng chi của M-1, M-2, M-3 (tháng thiếu tính 0)
+  deltaPct: number | null // (thisMonth - prevMonth)/prevMonth * 100; null nếu prevMonth = 0
+  isNew: boolean // prevMonth = 0 && thisMonth > 0
+}
+
+export interface CategoryComparison {
+  rows: CategoryComparisonRow[] // sắp theo thisMonth giảm dần
+  hasMissingRate: boolean
+}
+
+/**
+ * So sánh chi theo danh mục: tháng đang xem vs tháng trước vs TB 3 tháng trước.
+ * Chỉ tính expense có category_id; ▲▼% so tháng trước; avg3 là cột tham chiếu.
+ */
+export function categoryComparison(
+  txs: TransactionRow[],
+  activeMonth: MonthKey,
+  monthStartDay: number,
+  currencyOf: CurrencyOf,
+  base: CurrencyCode,
+  rates: Rates,
+): CategoryComparison {
+  const m0 = monthId(activeMonth)
+  const m1 = monthId(addMonths(activeMonth, -1))
+  const m2 = monthId(addMonths(activeMonth, -2))
+  const m3 = monthId(addMonths(activeMonth, -3))
+  const byCat = new Map<string, Map<string, number>>()
+  let hasMissingRate = false
+  for (const t of txs) {
+    if (t.type !== 'expense' || !t.category_id) continue
+    const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
+    if (v === null) {
+      hasMissingRate = true
+      continue
+    }
+    const mid = monthId(monthKeyForDate(t.occurred_on, monthStartDay))
+    if (mid !== m0 && mid !== m1 && mid !== m2 && mid !== m3) continue
+    const inner = byCat.get(t.category_id) ?? new Map<string, number>()
+    inner.set(mid, (inner.get(mid) ?? 0) + v)
+    byCat.set(t.category_id, inner)
+  }
+  const rows: CategoryComparisonRow[] = []
+  for (const [categoryId, inner] of byCat) {
+    const thisMonth = inner.get(m0) ?? 0
+    const prevMonth = inner.get(m1) ?? 0
+    const avg3 = Math.round(((inner.get(m1) ?? 0) + (inner.get(m2) ?? 0) + (inner.get(m3) ?? 0)) / 3)
+    if (thisMonth === 0 && prevMonth === 0 && avg3 === 0) continue
+    const deltaPct = prevMonth > 0 ? Math.round(((thisMonth - prevMonth) / prevMonth) * 100) : null
+    const isNew = prevMonth === 0 && thisMonth > 0
+    rows.push({ categoryId, thisMonth, prevMonth, avg3, deltaPct, isNew })
+  }
+  rows.sort((a, b) => b.thisMonth - a.thisMonth)
+  return { rows, hasMissingRate }
 }

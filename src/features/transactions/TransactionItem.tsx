@@ -1,4 +1,4 @@
-import { ArrowRightLeft } from 'lucide-react'
+import { ArrowRightLeft, Repeat } from 'lucide-react'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, CategoryRow, TransactionRow } from '../../types/database.types'
 
@@ -37,6 +37,12 @@ export function TransactionItem({ tx, categoryOf, accountOf, base, onClick }: Pr
             ? `${accountName(tx.account_id)} → ${accountName(tx.to_account_id)}`
             : (cat?.name ?? '?')}
           {tx.note && <span className="text-gray-400 dark:text-gray-500"> · {tx.note}</span>}
+          {tx.recurring_rule_id && (
+            <Repeat
+              aria-label="Giao dịch định kỳ"
+              className="ml-1 inline h-3 w-3 align-baseline text-gray-400 dark:text-gray-500"
+            />
+          )}
         </span>
         {tx.type !== 'transfer' && (
           <span className="block text-xs text-gray-400 dark:text-gray-500">{accountName(tx.account_id)}</span>

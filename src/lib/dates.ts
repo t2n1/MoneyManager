@@ -66,3 +66,10 @@ export function daysBetween(aISO: string, bISO: string): number {
   const b = Date.parse(bISO + 'T00:00:00Z')
   return Math.round((b - a) / 86_400_000)
 }
+
+/** Cộng/trừ số ngày vào ngày ISO 'YYYY-MM-DD', trả ISO mới (mốc UTC). */
+export function addDaysISO(iso: string, delta: number): string {
+  const d = new Date(iso + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + delta)
+  return d.toISOString().slice(0, 10)
+}

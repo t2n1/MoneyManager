@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
-import { categoryBreakdown, categoryComparison, monthlySeries, sumIncomeExpense } from './aggregate'
+import {
+  categoryBreakdown,
+  categoryComparison,
+  cumulativeDailyBalance,
+  monthlySeries,
+  sumIncomeExpense,
+} from './aggregate'
 
 // base = JPY: 1 ¥ = 165 ₫ = 0.0065 $
 const RATES: Rates = { JPY: 1, VND: 165, USD: 0.0065 }
@@ -160,5 +166,32 @@ describe('categoryComparison (base = JPY)', () => {
     const txs = [tx({ type: 'expense', amount: 1_650_000, category_id: 'x', occurred_on: '2026-07-05', account_id: 'vnd' })]
     const r = categoryComparison(txs, active, 1, currencyOf, 'JPY', { JPY: 1 })
     expect(r.hasMissingRate).toBe(true)
+  })
+})
+
+describe('cumulativeDailyBalance (base = JPY)', () => {
+  it('cộng dồn theo ngày, ngày trống giữ số dư, bỏ chuyển khoản', () => {
+    const txs = [
+      tx({ type: 'income', amount: 1000, occurred_on: '2026-07-01' }),
+      tx({ type: 'expense', amount: 300, occurred_on: '2026-07-02' }),
+      tx({ type: 'transfer', amount: 500, occurred_on: '2026-07-02', to_account_id: 'vnd' }), // bỏ
+      tx({ type: 'expense', amount: 200, occurred_on: '2026-07-04' }),
+    ]
+    const r = cumulativeDailyBalance(txs, '2026-07-01', '2026-07-04', currencyOf, 'JPY', RATES)
+    expect(r.points).toEqual([
+      { date: '2026-07-01', balance: 1000 },
+      { date: '2026-07-02', balance: 700 },
+      { date: '2026-07-03', balance: 700 },
+      { date: '2026-07-04', balance: 500 },
+    ])
+    expect(r.hasMissingRate).toBe(false)
+  })
+  it('thiếu tỷ giá → cờ hasMissingRate, khoản đó không tính', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 1_650_000, occurred_on: '2026-07-01', account_id: 'vnd' }),
+    ]
+    const r = cumulativeDailyBalance(txs, '2026-07-01', '2026-07-01', currencyOf, 'JPY', { JPY: 1 })
+    expect(r.hasMissingRate).toBe(true)
+    expect(r.points).toEqual([{ date: '2026-07-01', balance: 0 }])
   })
 })

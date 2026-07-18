@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  addDaysISO,
   addMonths,
   clampMonthStartDay,
   daysBetween,
@@ -109,6 +110,12 @@ describe('daysBetween', () => {
   it('qua ranh giới tháng', () => expect(daysBetween('2026-07-31', '2026-08-01')).toBe(1))
   it('cả tháng 7 = 31 ngày', () => expect(daysBetween('2026-07-01', '2026-08-01')).toBe(31))
   it('âm khi b trước a', () => expect(daysBetween('2026-07-11', '2026-07-10')).toBe(-1))
+})
+
+describe('addDaysISO', () => {
+  it('cộng 1 ngày', () => expect(addDaysISO('2026-07-10', 1)).toBe('2026-07-11'))
+  it('trừ 1 ngày qua ranh giới tháng', () => expect(addDaysISO('2026-08-01', -1)).toBe('2026-07-31'))
+  it('delta 0 giữ nguyên', () => expect(addDaysISO('2026-07-10', 0)).toBe('2026-07-10'))
 })
 
 describe('clampMonthStartDay', () => {

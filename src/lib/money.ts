@@ -41,3 +41,12 @@ export function parseMoney(input: string): number {
   const digits = input.replace(/\D/g, '')
   return digits === '' ? 0 : Number(digits)
 }
+
+/** minor units → nhãn ngắn cho trục biểu đồ (¥300k, 1.5M…). Giữ dấu âm. */
+export function formatCompact(minor: number, currency: CurrencyCode): string {
+  const major = minor / 10 ** CURRENCIES[currency].decimals
+  const abs = Math.abs(major)
+  if (abs >= 1_000_000) return `${(major / 1_000_000).toFixed(1)}M`
+  if (abs >= 1_000) return `${Math.round(major / 1_000)}k`
+  return String(Math.round(major))
+}

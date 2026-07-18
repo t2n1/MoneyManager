@@ -190,3 +190,50 @@ export function categoryComparison(
   rows.sort((a, b) => b.thisMonth - a.thisMonth)
   return { rows, hasMissingRate }
 }
+
+export interface CashflowPoint {
+  date: string
+  balance: number // base minor, tích lũy
+}
+
+export interface CumulativeCashflow {
+  points: CashflowPoint[]
+  hasMissingRate: boolean
+}
+
+/**
+ * Số dư chạy theo ngày (thu +, chi −, bắt đầu từ 0) từ startISO tới lastISO (đều gồm).
+ * Chuyển khoản KHÔNG tính. Ngày không có giao dịch giữ nguyên số dư.
+ */
+export function cumulativeDailyBalance(
+  txs: TransactionRow[],
+  startISO: string,
+  lastISO: string,
+  currencyOf: CurrencyOf,
+  base: CurrencyCode,
+  rates: Rates,
+): CumulativeCashflow {
+  const netByDay = new Map<string, number>()
+  let hasMissingRate = false
+  for (const t of txs) {
+    if (t.type === 'transfer') continue
+    const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
+    if (v === null) {
+      hasMissingRate = true
+      continue
+    }
+    const signed = t.type === 'income' ? v : -v
+    netByDay.set(t.occurred_on, (netByDay.get(t.occurred_on) ?? 0) + signed)
+  }
+  const points: CashflowPoint[] = []
+  let balance = 0
+  const cur = new Date(startISO + 'T00:00:00Z')
+  const last = new Date(lastISO + 'T00:00:00Z')
+  while (cur <= last) {
+    const iso = cur.toISOString().slice(0, 10)
+    balance += netByDay.get(iso) ?? 0
+    points.push({ date: iso, balance })
+    cur.setUTCDate(cur.getUTCDate() + 1)
+  }
+  return { points, hasMissingRate }
+}

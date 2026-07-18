@@ -29,7 +29,7 @@ import {
   toISODate,
   type MonthKey,
 } from '../../lib/dates'
-import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
+import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { categoryBreakdown, monthlySeries } from './aggregate'
 
 // Bảng màu cho lát bánh (lặp lại nếu > 12 danh mục)
@@ -37,15 +37,6 @@ const PALETTE = [
   '#16a34a', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899',
   '#14b8a6', '#f97316', '#6366f1', '#84cc16', '#06b6d4', '#a855f7',
 ]
-
-/** minor units → nhãn ngắn cho trục biểu đồ (¥300k, 1.5M…). */
-function formatCompact(minor: number, base: CurrencyCode): string {
-  const major = minor / 10 ** CURRENCIES[base].decimals
-  const abs = Math.abs(major)
-  if (abs >= 1_000_000) return `${(major / 1_000_000).toFixed(1)}M`
-  if (abs >= 1_000) return `${Math.round(major / 1_000)}k`
-  return String(Math.round(major))
-}
 
 export function ReportsPage() {
   const [kind, setKind] = useState<'expense' | 'income'>('expense')

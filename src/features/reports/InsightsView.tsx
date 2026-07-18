@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
   useAccounts,
   useBudgetReport,
@@ -9,6 +10,7 @@ import {
   useRates,
 } from '../../hooks/queries'
 import {
+  addDaysISO,
   addMonths,
   daysBetween,
   getMonthRange,
@@ -16,9 +18,9 @@ import {
   toISODate,
   type MonthKey,
 } from '../../lib/dates'
-import { formatMoney, type CurrencyCode } from '../../lib/money'
+import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
-import { categoryBreakdown, categoryComparison, monthlySeries } from './aggregate'
+import { categoryBreakdown, categoryComparison, cumulativeDailyBalance, monthlySeries } from './aggregate'
 import { buildInsights, forecastMonthEnd, noSpendStreak, savingsRate } from './insights'
 
 export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
@@ -108,9 +110,23 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
   const forecast = isCurrentMonth ? forecastMonthEnd(spentSoFar, daysElapsed, daysInMonth) : null
   const totalBudgeted = report?.totalBudgeted ?? 0
 
+  // --- Dòng tiền tích lũy trong tháng (W) ---
+  const cashLastISO = isCurrentMonth ? todayISO : addDaysISO(range.end, -1)
+  const cashflow = useMemo(
+    () => cumulativeDailyBalance(monthTxs, range.start, cashLastISO, currencyOf, base, r),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [monthTxs, range.start, cashLastISO, accounts, base, rates],
+  )
+  const cashflowData = cashflow.points.map((p) => ({ day: Number(p.date.slice(8)), balance: p.balance }))
+  const hasCashflow = cashflow.points.some((p) => p.balance !== 0)
+
   const hasMissingRate =
-    series.hasMissingRate || expenseBreakdown.hasMissingRate || forecastApprox || comparison.hasMissingRate
-  const hasAny = hasHealth || forecast || comparison.rows.length > 0
+    series.hasMissingRate ||
+    expenseBreakdown.hasMissingRate ||
+    forecastApprox ||
+    comparison.hasMissingRate ||
+    cashflow.hasMissingRate
+  const hasAny = hasHealth || forecast || comparison.rows.length > 0 || hasCashflow
 
   return (
     <div className="flex flex-col gap-3">
@@ -209,6 +225,39 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
               )
             })}
           </ul>
+        </section>
+      )}
+
+      {hasCashflow && (
+        <section className="rounded-xl bg-white p-3 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold text-gray-500">Dòng tiền tích lũy trong tháng</h2>
+          <div className="h-56 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={cashflowData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                <XAxis
+                  dataKey="day"
+                  tick={{ fontSize: 11, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={4}
+                />
+                <YAxis
+                  tickFormatter={(v: number) => formatCompact(v, base)}
+                  tick={{ fontSize: 11, fill: '#9ca3af' }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={44}
+                />
+                <ReferenceLine y={0} stroke="#e5e7eb" />
+                <Tooltip
+                  formatter={(v) => formatMoney(Number(v), base)}
+                  labelFormatter={(l) => `Ngày ${l}`}
+                  contentStyle={{ borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb' }}
+                />
+                <Line type="monotone" dataKey="balance" stroke="#0ea5e9" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </section>
       )}
 

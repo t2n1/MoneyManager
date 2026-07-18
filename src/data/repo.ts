@@ -1,3 +1,4 @@
+import type { RecurringFrequency } from '../lib/recurring'
 import type { CurrencyCode } from '../lib/money'
 import type {
   AccountBalanceRow,
@@ -11,6 +12,7 @@ import type {
   DebtPaymentRow,
   DebtRow,
   ProfileRow,
+  RecurringRuleRow,
   TransactionRow,
   TransactionType,
 } from '../types/database.types'
@@ -110,6 +112,31 @@ export interface NewDebtPayment {
   transaction: NewTransaction | null
 }
 
+export interface NewRecurringRule {
+  type: TransactionType
+  /** minor units theo currency của tài khoản nguồn */
+  amount: number
+  /** CK xuyên tệ: minor units của tài khoản đích; null = cùng loại tiền */
+  to_amount: number | null
+  category_id: string | null
+  account_id: string
+  to_account_id: string | null
+  /** chép vào giao dịch sinh ra */
+  note: string
+  frequency: RecurringFrequency
+  /** kỳ đến hạn đầu tiên (anchor) */
+  start_on: string
+  /** null = vô hạn */
+  end_on: string | null
+}
+
+export type RecurringRulePatch = Partial<
+  NewRecurringRule & { is_paused: boolean; last_generated_on: string | null }
+>
+
+/** Giao dịch do engine catch-up sinh — luôn mang recurring_rule_id. */
+export type NewRecurringOccurrence = NewTransaction & { recurring_rule_id: string }
+
 // Toàn bộ đọc/ghi dữ liệu đi qua interface này.
 // 2 implementation: demoRepo (localStorage) và supabaseRepo (Postgres + RLS).
 export interface Repo {
@@ -171,4 +198,13 @@ export interface Repo {
   createDebtPayment(input: NewDebtPayment): Promise<DebtPaymentRow>
   /** Xóa 1 lần trả + giao dịch liên kết (nếu có) để hoàn số dư. */
   deleteDebtPayment(id: string): Promise<void>
+
+  // --- Giao dịch định kỳ (mục C+D) ---
+  listRecurringRules(): Promise<RecurringRuleRow[]>
+  createRecurringRule(input: NewRecurringRule): Promise<RecurringRuleRow>
+  updateRecurringRule(id: string, patch: RecurringRulePatch): Promise<RecurringRuleRow>
+  /** Xóa rule: giao dịch đã sinh giữ nguyên (recurring_rule_id set null). */
+  deleteRecurringRule(id: string): Promise<void>
+  /** Sinh 1 kỳ cho engine catch-up: true = đã tạo, false = trùng (rule + ngày) bỏ qua. */
+  insertRecurringOccurrence(input: NewRecurringOccurrence): Promise<boolean>
 }

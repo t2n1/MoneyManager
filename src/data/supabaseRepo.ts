@@ -11,8 +11,11 @@ import type {
   NewCategory,
   NewDebt,
   NewDebtPayment,
+  NewRecurringOccurrence,
+  NewRecurringRule,
   NewTransaction,
   ProfilePatch,
+  RecurringRulePatch,
   Repo,
   TransactionPatch,
   TxFilter,
@@ -457,5 +460,53 @@ export const supabaseRepo: Repo = {
         .eq('id', payment.transaction_id)
       if (e3) throw e3
     }
+  },
+
+  async listRecurringRules() {
+    const { data, error } = await getSupabase()
+      .from('recurring_rules')
+      .select('*')
+      .order('created_at')
+    if (error) throw error
+    return data
+  },
+
+  async createRecurringRule(input: NewRecurringRule) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('recurring_rules')
+      .insert({ ...input, user_id })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async updateRecurringRule(id: string, patch: RecurringRulePatch) {
+    const { data, error } = await getSupabase()
+      .from('recurring_rules')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async deleteRecurringRule(id: string) {
+    // transactions.recurring_rule_id tự set null (FK on delete set null)
+    const { error } = await getSupabase().from('recurring_rules').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  async insertRecurringOccurrence(input: NewRecurringOccurrence) {
+    const user_id = await currentUserId()
+    const { error } = await getSupabase().from('transactions').insert({ ...input, user_id })
+    if (error) {
+      // 23505 = unique_violation: thiết bị khác đã sinh kỳ này → bỏ qua im lặng
+      if (error.code === '23505') return false
+      throw error
+    }
+    return true
   },
 }

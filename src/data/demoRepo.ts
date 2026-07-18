@@ -10,6 +10,7 @@ import type {
   DebtPaymentRow,
   DebtRow,
   ProfileRow,
+  RecurringRuleRow,
   TransactionRow,
 } from '../types/database.types'
 import type {
@@ -21,8 +22,11 @@ import type {
   NewCategory,
   NewDebt,
   NewDebtPayment,
+  NewRecurringOccurrence,
+  NewRecurringRule,
   NewTransaction,
   ProfilePatch,
+  RecurringRulePatch,
   Repo,
   TransactionPatch,
   TxFilter,
@@ -32,7 +36,7 @@ import type {
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
 // Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-const STORAGE_KEY = 'sct-demo-db-v9' // v9: thêm nợ / cho vay (debts + debt_payments)
+const STORAGE_KEY = 'sct-demo-db-v10' // v10: giao dịch định kỳ (recurring_rules)
 const DEMO_USER = 'demo-user'
 
 interface DemoDB {
@@ -44,6 +48,7 @@ interface DemoDB {
   assetGroupSettings: AssetGroupSettingRow[]
   debts: DebtRow[]
   debtPayments: DebtPaymentRow[]
+  recurringRules: RecurringRuleRow[]
 }
 
 // crypto.randomUUID() chỉ chạy trong secure context (HTTPS / localhost).
@@ -291,6 +296,7 @@ function seed(): DemoDB {
     assetGroupSettings,
     debts,
     debtPayments,
+    recurringRules: [],
   }
 }
 
@@ -720,5 +726,64 @@ export const demoRepo: Repo = {
     }
     db.debtPayments = db.debtPayments.filter((p) => p.id !== id)
     save(db)
+  },
+
+  async listRecurringRules() {
+    return (load().recurringRules ?? []).sort((a, b) => a.created_at.localeCompare(b.created_at))
+  },
+
+  async createRecurringRule(input: NewRecurringRule) {
+    const db = load()
+    db.recurringRules ??= []
+    const row: RecurringRuleRow = {
+      ...input,
+      id: uuid(),
+      user_id: DEMO_USER,
+      is_paused: false,
+      last_generated_on: null,
+      created_at: nowISO(),
+      updated_at: nowISO(),
+    }
+    db.recurringRules.push(row)
+    save(db)
+    return row
+  },
+
+  async updateRecurringRule(id: string, patch: RecurringRulePatch) {
+    const db = load()
+    db.recurringRules ??= []
+    const idx = db.recurringRules.findIndex((r) => r.id === id)
+    if (idx < 0) throw new Error('Không tìm thấy quy tắc định kỳ')
+    db.recurringRules[idx] = { ...db.recurringRules[idx], ...patch, updated_at: nowISO() }
+    save(db)
+    return db.recurringRules[idx]
+  },
+
+  async deleteRecurringRule(id: string) {
+    const db = load()
+    db.recurringRules = (db.recurringRules ?? []).filter((r) => r.id !== id)
+    // Khớp FK on delete set null: giao dịch đã sinh giữ nguyên, chỉ mất liên kết
+    db.transactions = db.transactions.map((t) =>
+      t.recurring_rule_id === id ? { ...t, recurring_rule_id: null } : t,
+    )
+    save(db)
+  },
+
+  async insertRecurringOccurrence(input: NewRecurringOccurrence) {
+    const db = load()
+    // Tự kiểm tra trùng (thay cho partial unique index phía Postgres)
+    const dup = db.transactions.some(
+      (t) => t.recurring_rule_id === input.recurring_rule_id && t.occurred_on === input.occurred_on,
+    )
+    if (dup) return false
+    db.transactions.push({
+      ...input,
+      id: uuid(),
+      user_id: DEMO_USER,
+      created_at: nowISO(),
+      updated_at: nowISO(),
+    })
+    save(db)
+    return true
   },
 }

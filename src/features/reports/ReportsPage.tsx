@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { downloadTextFile } from '../../lib/download'
+import { buildTransactionsCsv } from './csv'
 import { BudgetView } from '../budgets/BudgetView'
 import { RemittanceSection } from '../remittance/RemittanceSection'
 import { InsightsView } from './InsightsView'
@@ -120,6 +122,21 @@ export function ReportsPage() {
   const showMissingRate =
     period === 'year' ? yearMissingRate : view === 'charts' && monthMissingRate
 
+  function handleExportCsv() {
+    const txs = period === 'year' ? yearTxs : monthTxs
+    const sorted = [...txs].sort((a, b) => a.occurred_on.localeCompare(b.occurred_on))
+    const csv = buildTransactionsCsv(sorted, {
+      categoryName: (id) => categories.find((c) => c.id === id)?.name ?? '',
+      accountName: (id) => accounts.find((a) => a.id === id)?.name ?? '',
+      currencyOf,
+    })
+    const suffix =
+      period === 'year'
+        ? String(activeYear)
+        : `${activeMonthKey.year}-${String(activeMonthKey.month).padStart(2, '0')}`
+    downloadTextFile(`so-chi-tieu-${suffix}.csv`, csv, 'text/csv')
+  }
+
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
       {/* Header điều hướng tháng/năm */}
@@ -168,6 +185,19 @@ export function ReportsPage() {
           className={`flex-1 rounded-md py-1.5 ${period === 'year' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
           Năm
+        </button>
+      </div>
+
+      {/* Xuất CSV giao dịch của kỳ đang xem */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={handleExportCsv}
+          disabled={(period === 'year' ? yearTxs : monthTxs).length === 0}
+          className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Xuất CSV {period === 'year' ? 'năm' : 'tháng'}
         </button>
       </div>
 

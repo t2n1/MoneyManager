@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CreditCard, Settings2 } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
@@ -12,7 +12,7 @@ import {
 } from '../../hooks/queries'
 import { CURRENCIES, formatMoney } from '../../lib/money'
 import { debtSummary } from '../debts/aggregate'
-import { assetBreakdown, type AssetGroupSetting } from './aggregate'
+import { assetBreakdown, assetTypeGroups, type AssetGroupSetting } from './aggregate'
 
 // Bảng màu cho lát bánh (lặp lại nếu > 12 nhóm) — đồng bộ với ReportsPage
 const PALETTE = [
@@ -49,14 +49,26 @@ export function AssetsPage() {
     [balances, base, rates, settings],
   )
 
-  // Nhóm bị ẩn, hoặc không còn tài khoản hiện nào (tất cả tài khoản đều ẩn), không hiển thị
-  const visibleGroups = breakdown.groups
-    .filter((g) => !g.hidden)
-    .map((g) => ({ ...g, accounts: g.accounts.filter((a) => !a.hidden) }))
-    .filter((g) => g.accounts.length > 0)
+  // Chế độ xem cơ cấu: 'purpose' = theo mục đích (asset_group) · 'type' = theo loại tài khoản
+  const [groupMode, setGroupMode] = useState<'purpose' | 'type'>('purpose')
+
+  // Nhóm theo mục đích: bỏ nhóm ẩn / tài khoản ẩn, và nhóm rỗng
+  const purposeGroups = useMemo(
+    () =>
+      breakdown.groups
+        .filter((g) => !g.hidden)
+        .map((g) => ({ ...g, accounts: g.accounts.filter((a) => !a.hidden) }))
+        .filter((g) => g.accounts.length > 0),
+    [breakdown.groups],
+  )
+
+  // Nhóm theo loại tài khoản (Tiền mặt / Ngân hàng…) — cùng tập tài sản tính vào tổng
+  const typeGroups = useMemo(() => assetTypeGroups(breakdown), [breakdown])
+
+  const displayGroups = groupMode === 'purpose' ? purposeGroups : typeGroups
 
   // Biểu đồ tròn = cơ cấu của Tổng tài sản → chỉ nhóm được tính vào tổng
-  const pieData = visibleGroups
+  const pieData = displayGroups
     .filter((g) => g.includeInTotals && g.total > 0)
     .map((g, i) => ({
       name: g.name,
@@ -69,12 +81,15 @@ export function AssetsPage() {
     pieData.find((d) => d.name === name)?.color ?? '#cbd5e1'
 
   const approx = breakdown.hasForeign ? '≈ ' : ''
-  const accountCount = visibleGroups.reduce((n, g) => n + g.accounts.length, 0)
+  // Đếm tài khoản / nhóm ở khối Tổng tài sản luôn theo mục đích (mô tả toàn cảnh, không đổi theo chart)
+  const accountCount = purposeGroups.reduce((n, g) => n + g.accounts.length, 0)
 
   // Thẻ tín dụng: công nợ, hiển thị riêng và trừ vào Tài sản ròng
   const visibleCards = breakdown.cards.filter((c) => !c.hidden)
   const cardOwed = -breakdown.cardDebt // số dương = đang nợ thẻ (quy đổi base)
   const showNetWorth = debts_.hasOpen || visibleCards.length > 0
+  // Tra tài khoản nguồn trả thẻ (số dư cùng currency với thẻ) để đối chiếu đủ/thiếu
+  const balanceById = new Map(balances.map((b) => [b.id, b]))
   const netApprox =
     breakdown.hasForeign || debts_.hasMissingRate || breakdown.cardHasMissingRate ? '≈ ' : ''
 
@@ -100,7 +115,7 @@ export function AssetsPage() {
         </p>
         {!isLoading && (
           <p className="mt-2.5 text-xs text-green-50/80">
-            {accountCount} tài khoản · {visibleGroups.length} nhóm
+            {accountCount} tài khoản · {purposeGroups.length} nhóm
           </p>
         )}
         {breakdown.hasMissingRate && (
@@ -167,6 +182,9 @@ export function AssetsPage() {
               const available = c.creditLimit != null ? c.creditLimit - owed : null
               const usage =
                 c.creditLimit && c.creditLimit > 0 ? Math.min(owed / c.creditLimit, 1) : null
+              // Tài khoản nguồn trả thẻ (cùng currency) → đối chiếu đủ/thiếu khi đang nợ
+              const source = c.paymentAccountId ? balanceById.get(c.paymentAccountId) : undefined
+              const enough = source ? source.balance >= owed : false
               return (
                 <li key={c.id}>
                   <Link
@@ -201,6 +219,27 @@ export function AssetsPage() {
                         {formatMoney(c.creditLimit ?? 0, c.currency)}
                       </p>
                     )}
+                    {source && (
+                      <div className="mt-1 ml-6 flex items-center gap-1.5 text-xs">
+                        <span className="text-gray-400 dark:text-gray-500">
+                          Tự trả từ {source.name} · còn{' '}
+                          <span className="tabular-nums">{formatMoney(source.balance, c.currency)}</span>
+                        </span>
+                        {owed > 0 && (
+                          <span
+                            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                              enough
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                                : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                            }`}
+                          >
+                            {enough
+                              ? 'đủ trả'
+                              : `thiếu ${formatMoney(owed - source.balance, c.currency)}`}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </Link>
                 </li>
               )
@@ -211,9 +250,38 @@ export function AssetsPage() {
 
       {/* Biểu đồ tròn + danh sách nhóm */}
       <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-          Cơ cấu theo nhóm
-        </h2>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+            Cơ cấu tài sản
+          </h2>
+          <div
+            role="tablist"
+            aria-label="Chế độ xem cơ cấu"
+            className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-xs font-medium"
+          >
+            {(
+              [
+                ['purpose', 'Mục đích'],
+                ['type', 'Loại'],
+              ] as const
+            ).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                role="tab"
+                aria-selected={groupMode === mode}
+                onClick={() => setGroupMode(mode)}
+                className={`rounded-md px-2.5 py-1 transition ${
+                  groupMode === mode
+                    ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {pieData.length === 0 ? (
           <p className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">
@@ -247,13 +315,15 @@ export function AssetsPage() {
                 <span className="text-2xl font-bold leading-none text-gray-800 dark:text-gray-100">
                   {pieData.length}
                 </span>
-                <span className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">nhóm</span>
+                <span className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+                  {groupMode === 'purpose' ? 'nhóm' : 'loại'}
+                </span>
               </div>
             </div>
 
             {/* Chú giải kèm thanh tỷ trọng */}
             <ul className="flex-1 space-y-3 self-stretch">
-              {visibleGroups.map((g) => (
+              {displayGroups.map((g) => (
                 <li key={g.name}>
                   <div className="flex items-center gap-2 text-sm">
                     <span
@@ -296,7 +366,7 @@ export function AssetsPage() {
       </section>
 
       {/* Chi tiết từng nhóm và tài khoản bên trong */}
-      {visibleGroups.map((g) => (
+      {displayGroups.map((g) => (
         <section
           key={g.name}
           className="overflow-hidden rounded-2xl bg-white dark:bg-gray-900 shadow-sm"

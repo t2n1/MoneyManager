@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { Rates } from '../../lib/rates'
 import type { AccountBalanceRow } from '../../types/database.types'
-import { assetBreakdown, UNGROUPED_LABEL, type AssetGroupSetting } from './aggregate'
+import {
+  assetBreakdown,
+  assetTypeGroups,
+  UNGROUPED_LABEL,
+  type AssetGroupSetting,
+} from './aggregate'
 
 const setting = (
   name: string,
@@ -29,6 +34,7 @@ function acc(p: Partial<AccountBalanceRow> & Pick<AccountBalanceRow, 'balance'>)
     is_hidden: false,
     include_in_totals: true,
     credit_limit: null,
+    payment_account_id: null,
     is_archived: false,
     sort_order: 0,
     ...p,
@@ -198,5 +204,56 @@ describe('assetBreakdown — thẻ tín dụng (type=card)', () => {
     const r = assetBreakdown(balances, 'JPY', RATES)
     expect(r.cards).toHaveLength(1)
     expect(r.cardDebt).toBe(-10_000)
+  })
+
+  it('giữ tài khoản nguồn trả thẻ (paymentAccountId) trong CardLiability', () => {
+    const balances = [
+      acc({ balance: 800_000, id: 'bank1' }),
+      acc({ balance: -45_000, type: 'card', payment_account_id: 'bank1' }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES)
+    expect(r.cards[0].paymentAccountId).toBe('bank1')
+  })
+})
+
+describe('assetTypeGroups (gom theo loại tài khoản)', () => {
+  it('gom lại theo loại, xuyên nhóm mục đích, tổng lát == Tổng tài sản', () => {
+    const balances = [
+      acc({ balance: 30_000, type: 'bank', asset_group: 'Tiêu dùng' }),
+      acc({ balance: 20_000, type: 'cash', asset_group: 'Tiêu dùng' }),
+      acc({ balance: 50_000, type: 'bank', asset_group: 'Đầu tư' }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES)
+    const t = assetTypeGroups(r)
+    expect(t.map((g) => [g.name, g.total])).toEqual([
+      ['Ngân hàng', 80_000], // 30.000 + 50.000, gộp hai nhóm mục đích
+      ['Tiền mặt', 20_000],
+    ])
+    expect(t.reduce((s, g) => s + g.total, 0)).toBe(r.total)
+    expect(t[0].share).toBeCloseTo(80_000 / 100_000)
+  })
+
+  it('thẻ tín dụng không xuất hiện (là công nợ, đã tách sang cards)', () => {
+    const balances = [
+      acc({ balance: 100_000, type: 'bank', asset_group: 'Tiêu dùng' }),
+      acc({ balance: -45_000, type: 'card' }),
+    ]
+    const t = assetTypeGroups(assetBreakdown(balances, 'JPY', RATES))
+    expect(t.map((g) => g.name)).toEqual(['Ngân hàng'])
+  })
+
+  it('loại tài khoản ẩn / ngoài-tổng / nhóm ngoài-tổng khỏi cơ cấu', () => {
+    const balances = [
+      acc({ balance: 100_000, type: 'bank', asset_group: 'Tiêu dùng' }),
+      acc({ balance: 40_000, type: 'cash', asset_group: 'Tiêu dùng', is_hidden: true }),
+      acc({ balance: 30_000, type: 'cash', asset_group: 'Tiêu dùng', include_in_totals: false }),
+      acc({ balance: 999_000, type: 'bank', asset_group: 'Cho vay' }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES, [
+      setting('Cho vay', { includeInTotals: false }),
+    ])
+    const t = assetTypeGroups(r)
+    // chỉ còn 1 tài khoản ngân hàng 100.000 được tính
+    expect(t.map((g) => [g.name, g.total])).toEqual([['Ngân hàng', 100_000]])
   })
 })

@@ -36,7 +36,7 @@ import type {
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
 // Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-const STORAGE_KEY = 'sct-demo-db-v10' // v10: giao dịch định kỳ (recurring_rules)
+const STORAGE_KEY = 'sct-demo-db-v11' // v11: tự động trả thẻ (payment_account_id, card_autopay_through)
 const DEMO_USER = 'demo-user'
 
 interface DemoDB {
@@ -96,6 +96,8 @@ function seed(): DemoDB {
     credit_limit: null,
     statement_day: null,
     payment_due_day: null,
+    payment_account_id: null,
+    card_autopay_through: null,
     sort_order,
     is_archived: false,
     created_at: nowISO(),
@@ -132,6 +134,8 @@ function seed(): DemoDB {
       payment_due_day: 10,
     },
   ]
+  // Thẻ Rakuten (JPY) tự trả từ tài khoản Ngân hàng (JPY, cùng loại tiền)
+  accounts[4].payment_account_id = accounts[1].id
 
   // Danh mục cha (một số có danh mục con để minh họa)
   const anUong = category('Ăn uống', 'expense', '🍜')
@@ -251,6 +255,7 @@ function seed(): DemoDB {
     due_on: null,
     status: 'open',
     note: 'Cho mượn lúc chuyển nhà',
+    disbursement_transaction_id: null,
     created_at: nowISO(),
     updated_at: nowISO(),
   }
@@ -264,6 +269,7 @@ function seed(): DemoDB {
     due_on: daysAgo(-20), // hạn 20 ngày tới
     status: 'open',
     note: '',
+    disbursement_transaction_id: null,
     created_at: nowISO(),
     updated_at: nowISO(),
   }
@@ -362,6 +368,7 @@ export const demoRepo: Repo = {
           is_hidden: a.is_hidden ?? false,
           include_in_totals: a.include_in_totals ?? true,
           credit_limit: a.credit_limit ?? null,
+          payment_account_id: a.payment_account_id ?? null,
           is_archived: a.is_archived,
           sort_order: a.sort_order,
           balance: a.initial_balance + delta,
@@ -428,6 +435,8 @@ export const demoRepo: Repo = {
       credit_limit: input.credit_limit ?? null,
       statement_day: input.statement_day ?? null,
       payment_due_day: input.payment_due_day ?? null,
+      payment_account_id: input.payment_account_id ?? null,
+      card_autopay_through: input.card_autopay_through ?? null,
       id: uuid(),
       user_id: DEMO_USER,
       sort_order,
@@ -648,11 +657,26 @@ export const demoRepo: Repo = {
   async createDebt(input: NewDebt) {
     const db = load()
     db.debts ??= []
+    const { transaction, ...debtFields } = input
+    let disbursement_transaction_id: string | null = null
+    if (transaction) {
+      const tx: TransactionRow = {
+        ...transaction,
+        id: uuid(),
+        user_id: DEMO_USER,
+        recurring_rule_id: null,
+        created_at: nowISO(),
+        updated_at: nowISO(),
+      }
+      db.transactions.push(tx)
+      disbursement_transaction_id = tx.id
+    }
     const row: DebtRow = {
-      ...input,
+      ...debtFields,
       id: uuid(),
       user_id: DEMO_USER,
       status: 'open',
+      disbursement_transaction_id,
       created_at: nowISO(),
       updated_at: nowISO(),
     }
@@ -665,7 +689,9 @@ export const demoRepo: Repo = {
     const db = load()
     const idx = (db.debts ?? []).findIndex((d) => d.id === id)
     if (idx < 0) throw new Error('Không tìm thấy khoản nợ')
-    db.debts[idx] = { ...db.debts[idx], ...patch, updated_at: nowISO() }
+    // `transaction` chỉ dùng lúc tạo (giải ngân), không phải cột của debts.
+    const { transaction: _ignore, ...debtPatch } = patch
+    db.debts[idx] = { ...db.debts[idx], ...debtPatch, updated_at: nowISO() }
     save(db)
     return db.debts[idx]
   },
@@ -674,12 +700,14 @@ export const demoRepo: Repo = {
     const db = load()
     db.debts ??= []
     db.debtPayments ??= []
-    // Xóa giao dịch liên kết của các payment thuộc khoản nợ này
+    // Xóa giao dịch liên kết của các payment thuộc khoản nợ này + giao dịch giải ngân
     const txIds = new Set(
       db.debtPayments
         .filter((p) => p.debt_id === id && p.transaction_id)
         .map((p) => p.transaction_id as string),
     )
+    const disbursementTxId = db.debts.find((d) => d.id === id)?.disbursement_transaction_id
+    if (disbursementTxId) txIds.add(disbursementTxId)
     if (txIds.size > 0) db.transactions = db.transactions.filter((t) => !txIds.has(t.id))
     db.debtPayments = db.debtPayments.filter((p) => p.debt_id !== id)
     db.debts = db.debts.filter((d) => d.id !== id)

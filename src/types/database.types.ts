@@ -41,6 +41,10 @@ export type AccountRow = {
   statement_day: number | null
   /** Thẻ tín dụng: ngày đến hạn thanh toán hằng tháng (1..31); null = chưa đặt */
   payment_due_day: number | null
+  /** Thẻ tín dụng: tài khoản nguồn tự trả thẻ (cùng currency, không phải thẻ); null = không tự trả */
+  payment_account_id: string | null
+  /** Thẻ tín dụng: ngày đến hạn cuối đã tự sinh giao dịch trả; null = chưa sinh kỳ nào */
+  card_autopay_through: string | null
   sort_order: number
   is_archived: boolean
   created_at: string
@@ -89,6 +93,8 @@ export type AccountBalanceRow = {
   include_in_totals: boolean
   /** Thẻ tín dụng: hạn mức (minor units); null = không đặt / không phải thẻ */
   credit_limit: number | null
+  /** Thẻ tín dụng: tài khoản nguồn tự trả thẻ; null = không tự trả / không phải thẻ */
+  payment_account_id: string | null
   is_archived: boolean
   sort_order: number
   balance: number
@@ -132,6 +138,8 @@ export type DebtRow = {
   due_on: string | null
   status: DebtStatus
   note: string
+  /** giao dịch giải ngân lúc tạo (cho vay = chi, mình nợ = thu); null = không chuyển tiền thật */
+  disbursement_transaction_id: string | null
   created_at: string
   updated_at: string
 }
@@ -199,6 +207,8 @@ export type Database = {
           | 'credit_limit'
           | 'statement_day'
           | 'payment_due_day'
+          | 'payment_account_id'
+          | 'card_autopay_through'
           | 'sort_order'
           | 'is_archived'
         >
@@ -215,6 +225,8 @@ export type Database = {
             | 'credit_limit'
             | 'statement_day'
             | 'payment_due_day'
+            | 'payment_account_id'
+            | 'card_autopay_through'
             | 'sort_order'
             | 'is_archived'
           >
@@ -282,7 +294,7 @@ export type Database = {
         Insert: InsertOf<
           DebtRow,
           'user_id' | 'counterparty' | 'direction' | 'principal',
-          'id' | 'currency' | 'due_on' | 'status' | 'note'
+          'id' | 'currency' | 'due_on' | 'status' | 'note' | 'disbursement_transaction_id'
         >
         Update: Partial<
           Pick<DebtRow, 'counterparty' | 'direction' | 'currency' | 'principal' | 'due_on' | 'status' | 'note'>

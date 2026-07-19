@@ -371,19 +371,38 @@ export const supabaseRepo: Repo = {
 
   async createDebt(input: NewDebt) {
     const user_id = await currentUserId()
-    const { data, error } = await getSupabase()
+    const sb = getSupabase()
+    const { transaction, ...debtFields } = input
+    let disbursement_transaction_id: string | null = null
+    if (transaction) {
+      const { data: tx, error: eTx } = await sb
+        .from('transactions')
+        .insert({ ...transaction, user_id })
+        .select()
+        .single()
+      if (eTx) throw eTx
+      disbursement_transaction_id = tx.id
+    }
+    const { data, error } = await sb
       .from('debts')
-      .insert({ ...input, user_id })
+      .insert({ ...debtFields, user_id, disbursement_transaction_id })
       .select()
       .single()
-    if (error) throw error
+    if (error) {
+      // Bồi hoàn: tạo nợ thất bại thì xóa giao dịch giải ngân, tránh lệch số dư
+      if (disbursement_transaction_id)
+        await sb.from('transactions').delete().eq('id', disbursement_transaction_id)
+      throw error
+    }
     return data
   },
 
   async updateDebt(id: string, patch: DebtPatch) {
+    // `transaction` chỉ dùng lúc tạo (giải ngân), không phải cột của debts.
+    const { transaction: _ignore, ...debtPatch } = patch
     const { data, error } = await getSupabase()
       .from('debts')
-      .update(patch)
+      .update(debtPatch)
       .eq('id', id)
       .select()
       .single()
@@ -399,9 +418,17 @@ export const supabaseRepo: Repo = {
       .select('transaction_id')
       .eq('debt_id', id)
     if (e1) throw e1
-    const txIds = (payments ?? [])
-      .map((p) => p.transaction_id)
-      .filter((t): t is string => !!t)
+    // Kèm giao dịch giải ngân của chính khoản nợ (nếu có)
+    const { data: debt, error: eDebt } = await sb
+      .from('debts')
+      .select('disbursement_transaction_id')
+      .eq('id', id)
+      .single()
+    if (eDebt) throw eDebt
+    const txIds = [
+      ...(payments ?? []).map((p) => p.transaction_id),
+      debt?.disbursement_transaction_id ?? null,
+    ].filter((t): t is string => !!t)
     if (txIds.length > 0) {
       const { error: e2 } = await sb.from('transactions').delete().in('id', txIds)
       if (e2) throw e2

@@ -45,9 +45,12 @@ export function AppLayout() {
     recurringCatchUpDone = true
     catchUp
       .mutateAsync()
-      .then((created) => {
-        if (created === 0) return
-        setRecurringToast(`Đã tạo ${created} giao dịch định kỳ`)
+      .then(({ recurring, autopay }) => {
+        const parts: string[] = []
+        if (recurring > 0) parts.push(`${recurring} giao dịch định kỳ`)
+        if (autopay > 0) parts.push(`${autopay} lần tự trả thẻ`)
+        if (parts.length === 0) return
+        setRecurringToast(`Đã tạo ${parts.join(' · ')}`)
         toastTimer.current = setTimeout(() => setRecurringToast(null), 5000)
       })
       .catch(() => {}) // mở app không được chết vì catch-up lỗi (offline…)

@@ -10,6 +10,7 @@ import {
   useReorderAccounts,
   useUpdateAccount,
 } from '../../hooks/queries'
+import { toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, AccountType } from '../../types/database.types'
 
@@ -175,6 +176,7 @@ function AccountForm({ account, onClose }: FormProps) {
   const [assetGroup, setAssetGroup] = useState(account?.asset_group ?? '')
   const [isHidden, setIsHidden] = useState(account?.is_hidden ?? false)
   const [includeInTotals, setIncludeInTotals] = useState(account?.include_in_totals ?? true)
+  const [paymentAccountId, setPaymentAccountId] = useState(account?.payment_account_id ?? '')
   // Với thẻ tín dụng, ô số dư nhập là SỐ ĐANG NỢ (dương); initial_balance lưu âm.
   const [balanceDigits, setBalanceDigits] = useState(
     account ? String(Math.abs(account.initial_balance)) : '',
@@ -197,6 +199,13 @@ function AccountForm({ account, onClose }: FormProps) {
     ...new Set(accounts.map((a) => a.asset_group?.trim()).filter((g): g is string => !!g)),
   ].sort((a, b) => a.localeCompare(b, 'vi'))
 
+  // Tài khoản nguồn trả thẻ: không phải thẻ, cùng loại tiền với thẻ, chưa lưu trữ
+  const paymentSourceOptions = accounts.filter(
+    (a) => a.type !== 'card' && a.currency === currency && !a.is_archived && a.id !== account?.id,
+  )
+  // Tự trả cần đủ ngày chốt + đến hạn để tính số tiền theo sao kê
+  const autopayNeedsDays = paymentAccountId !== '' && (statementDay === '' || paymentDueDay === '')
+
   // Độ lớn số tiền nhập (luôn dương); dấu quyết định khi lưu theo loại tài khoản
   const balanceMagnitude = balanceDigits === '' ? 0 : Number(balanceDigits)
   const initialBalance = isCard ? -balanceMagnitude : balanceMagnitude
@@ -207,6 +216,15 @@ function AccountForm({ account, onClose }: FormProps) {
 
   async function handleSubmit() {
     if (!canSave) return
+    // Chỉ tự trả khi chọn tài khoản nguồn hợp lệ (cùng currency) + đủ ngày chốt/đến hạn
+    const validPaymentAccount =
+      isCard &&
+      paymentAccountId !== '' &&
+      statementDay !== '' &&
+      paymentDueDay !== '' &&
+      paymentSourceOptions.some((a) => a.id === paymentAccountId)
+        ? paymentAccountId
+        : null
     setSaving(true)
     try {
       const input: NewAccount = {
@@ -221,6 +239,11 @@ function AccountForm({ account, onClose }: FormProps) {
         credit_limit: isCard && creditLimitDigits !== '' ? Number(creditLimitDigits) : null,
         statement_day: isCard && statementDay !== '' ? Number(statementDay) : null,
         payment_due_day: isCard && paymentDueDay !== '' ? Number(paymentDueDay) : null,
+        payment_account_id: validPaymentAccount,
+        // Bật tự trả lần đầu → neo con trỏ từ hôm nay (không sinh bù quá khứ); đã bật thì giữ nguyên
+        card_autopay_through: validPaymentAccount
+          ? (account?.card_autopay_through ?? toISODate(new Date()))
+          : null,
       }
       if (account) await update.mutateAsync({ id: account.id, patch: input })
       else await create.mutateAsync(input)
@@ -342,6 +365,27 @@ function AccountForm({ account, onClose }: FormProps) {
                 />
               </div>
             </div>
+
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+              Tài khoản trả thẻ <span className="text-gray-400 dark:text-gray-500">(không bắt buộc)</span>
+            </label>
+            <select
+              value={paymentAccountId}
+              onChange={(e) => setPaymentAccountId(e.target.value)}
+              className="mb-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm"
+            >
+              <option value="">— Không tự trả —</option>
+              {paymentSourceOptions.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+            <p className="mb-3 text-xs text-gray-400 dark:text-gray-500">
+              {autopayNeedsDays
+                ? '⚠ Cần điền Ngày chốt sao kê và Ngày đến hạn để tự trả.'
+                : 'Vào ngày đến hạn, app tự tạo chuyển khoản từ tài khoản này sang thẻ, đúng bằng dư nợ chốt sao kê.'}
+            </p>
           </>
         )}
 

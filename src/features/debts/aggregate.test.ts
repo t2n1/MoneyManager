@@ -19,6 +19,7 @@ function debt(
     due_on: null,
     status: 'open' as DebtStatus,
     note: '',
+    disbursement_transaction_id: null,
     created_at: '2026-07-01T00:00:00Z',
     updated_at: '2026-07-01T00:00:00Z',
     ...partial,

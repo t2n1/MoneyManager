@@ -23,6 +23,7 @@ import { fetchRates } from '../lib/rates'
 import type { CurrencyCode } from '../lib/money'
 import type { TransactionRow } from '../types/database.types'
 import { runRecurringCatchUp } from '../lib/recurring'
+import { runCardAutopayCatchUp } from '../lib/cardAutopay'
 import { useProfile } from './useProfile'
 
 export { useProfile }
@@ -463,14 +464,23 @@ export function useDeleteRecurringRule() {
   })
 }
 
-/** Chạy catch-up sinh giao dịch định kỳ; mutateAsync trả về số giao dịch đã tạo. */
+/**
+ * Chạy catch-up khi mở app: sinh giao dịch định kỳ rồi tự động trả thẻ (theo thứ
+ * tự, vì tự trả thẻ đọc số dư sau khi định kỳ đã ghi). mutateAsync trả về số giao
+ * dịch đã tạo của từng loại.
+ */
 export function useRunRecurringCatchUp() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => runRecurringCatchUp(repo, toISODate(new Date())),
-    onSuccess: (created) => {
+    mutationFn: async () => {
+      const today = toISODate(new Date())
+      const recurring = await runRecurringCatchUp(repo, today)
+      const autopay = await runCardAutopayCatchUp(repo, today)
+      return { recurring, autopay }
+    },
+    onSuccess: ({ recurring, autopay }) => {
       invalidateRecurringRules(qc)
-      if (created > 0) invalidateTransactionData(qc)
+      if (recurring > 0 || autopay > 0) invalidateTransactionData(qc)
     },
   })
 }

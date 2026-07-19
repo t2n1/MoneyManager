@@ -56,6 +56,10 @@ export interface NewAccount {
   statement_day?: number | null
   /** Thẻ tín dụng: ngày đến hạn thanh toán (1..31); null = chưa đặt */
   payment_due_day?: number | null
+  /** Thẻ tín dụng: tài khoản nguồn tự trả thẻ (cùng currency); null = không tự trả */
+  payment_account_id?: string | null
+  /** Thẻ tín dụng: con trỏ kỳ đã tự trả; null = chưa sinh kỳ nào */
+  card_autopay_through?: string | null
 }
 
 export type AccountPatch = Partial<NewAccount & { is_archived: boolean }>
@@ -98,6 +102,9 @@ export interface NewDebt {
   principal: number
   due_on: string | null
   note: string
+  /** Giải ngân có chuyển tiền thật → giao dịch cần tạo (cho vay = chi, mình nợ = thu);
+   *  null = chỉ ghi nhận khoản nợ, không đổi số dư. */
+  transaction: NewTransaction | null
 }
 
 export type DebtPatch = Partial<NewDebt & { status: 'open' | 'settled' }>

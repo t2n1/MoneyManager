@@ -3,10 +3,17 @@
 
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
-import type { AccountBalanceRow } from '../../types/database.types'
+import type { AccountBalanceRow, AccountType } from '../../types/database.types'
 
 /** Nhãn hiển thị cho tài khoản chưa gán nhóm. */
 export const UNGROUPED_LABEL = 'Chưa phân nhóm'
+
+/** Nhãn tiếng Việt cho từng loại tài khoản (chế độ xem "Theo loại"). */
+export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
+  cash: 'Tiền mặt',
+  bank: 'Ngân hàng',
+  card: 'Thẻ tín dụng',
+}
 
 /** Cài đặt riêng của một nhóm (từ bảng asset_group_settings). */
 export interface AssetGroupSetting {
@@ -61,6 +68,8 @@ export interface CardLiability {
   baseValue: number | null
   /** hạn mức minor units theo currency gốc; null = không đặt */
   creditLimit: number | null
+  /** tài khoản nguồn tự trả thẻ; null = không tự trả */
+  paymentAccountId: string | null
   /** false = không trừ vào Tài sản ròng (vẫn hiển thị riêng) */
   includeInTotals: boolean
   /** true = ẩn khỏi trang Tài sản */
@@ -124,6 +133,7 @@ export function assetBreakdown(
         balance: b.balance,
         baseValue,
         creditLimit: b.credit_limit ?? null,
+        paymentAccountId: b.payment_account_id ?? null,
         includeInTotals,
         hidden,
       })
@@ -197,5 +207,53 @@ export function assetBreakdown(
 
   cards.sort((a, b) => (a.baseValue ?? 0) - (b.baseValue ?? 0))
 
-  return { groups: result, total, hasForeign, hasMissingRate, cards, cardDebt, cardHasMissingRate }
+  return {
+    groups: result,
+    total,
+    hasForeign,
+    hasMissingRate,
+    cards,
+    cardDebt,
+    cardHasMissingRate,
+  }
+}
+
+/**
+ * Gom lại các tài khoản đang tính vào Tổng tài sản theo LOẠI tài khoản
+ * (chế độ xem "Theo loại"): trả lời câu hỏi "tiền đang nằm ở đâu".
+ *
+ * Chỉ lấy đúng tập tài khoản đóng góp vào `breakdown.total` (nhóm & tài khoản
+ * không ẩn, tính-vào-tổng), nên tổng các lát == Tổng tài sản. Thẻ tín dụng
+ * (type='card') là công nợ, đã tách sang `breakdown.cards` nên không xuất hiện ở đây.
+ *
+ * Tái dùng shape AssetGroup để trang Tài sản hiển thị y hệt chế độ "Theo mục đích".
+ */
+export function assetTypeGroups(breakdown: AssetBreakdown): AssetGroup[] {
+  const byType = new Map<AccountType, AssetAccount[]>()
+  for (const g of breakdown.groups) {
+    if (!g.includeInTotals || g.hidden) continue
+    for (const a of g.accounts) {
+      if (a.hidden || !a.includeInTotals) continue
+      const list = byType.get(a.type)
+      if (list) list.push(a)
+      else byType.set(a.type, [a])
+    }
+  }
+
+  const result: AssetGroup[] = [...byType.entries()].map(([type, accounts]) => {
+    accounts.sort((a, b) => (b.baseValue ?? 0) - (a.baseValue ?? 0))
+    const groupTotal = accounts.reduce((s, a) => s + (a.baseValue ?? 0), 0)
+    return {
+      name: ACCOUNT_TYPE_LABELS[type],
+      total: groupTotal,
+      share: breakdown.total > 0 ? groupTotal / breakdown.total : 0,
+      accounts,
+      hasMissingRate: accounts.some((a) => a.baseValue === null),
+      includeInTotals: true,
+      hidden: false,
+    }
+  })
+
+  result.sort((a, b) => b.total - a.total)
+  return result
 }

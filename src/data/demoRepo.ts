@@ -140,33 +140,69 @@ function seed(): DemoDB {
   // Thẻ Rakuten (JPY) tự trả từ tài khoản Ngân hàng (JPY, cùng loại tiền)
   accounts[4].payment_account_id = accounts[1].id
 
-  // Danh mục cha (một số có danh mục con để minh họa)
+  // Danh mục cha + con — bộ chuẩn hoá kiểu "Money Manager" (dịch tiếng Việt).
+  const nhaO = category('Nhà ở', 'expense', '🏠')
   const anUong = category('Ăn uống', 'expense', '🍜')
-  const diLai = category('Đi lại', 'expense', '🚌')
-  const muaSam = category('Mua sắm', 'expense', '🛍️')
-  const hoaDon = category('Hóa đơn & tiện ích', 'expense', '🧾')
+  const giaoTe = category('Giao tế', 'expense', '👫')
+  const diLai = category('Đi lại', 'expense', '🚆')
+  const thoiTrang = category('Thời trang', 'expense', '🧥')
+  const soThich = category('Sở thích', 'expense', '🌱')
+  const sucKhoe = category('Sức khỏe', 'expense', '🧘')
+  const taiChinh = category('Tài chính & Đầu tư', 'expense', '📊')
+  const giaoDuc = category('Giáo dục', 'expense', '📔')
+  const quaTang = category('Quà tặng', 'expense', '🎁')
+  const khacChi = category('Khác', 'expense', '📦')
   const categories = [
+    nhaO,
+    category('Tiền nhà', 'expense', '🔑', nhaO.id),
+    category('Nội thất', 'expense', '🛋️', nhaO.id),
+    category('Đồ bếp', 'expense', '🍳', nhaO.id),
+    category('Đồ vệ sinh cá nhân', 'expense', '🧴', nhaO.id),
+    category('Điện', 'expense', '💡', nhaO.id),
+    category('Nước', 'expense', '🚰', nhaO.id),
+    category('Gas', 'expense', '🔥', nhaO.id),
     anUong,
+    category('Bữa sáng', 'expense', '🥐', anUong.id),
+    category('Bữa trưa', 'expense', '🍱', anUong.id),
+    category('Bữa tối', 'expense', '🍚', anUong.id),
+    category('Ăn ngoài', 'expense', '🍽️', anUong.id),
+    category('Đồ uống', 'expense', '🥤', anUong.id),
     category('Đi chợ', 'expense', '🛒', anUong.id),
-    category('Nhà hàng', 'expense', '🍽️', anUong.id),
-    category('Cà phê', 'expense', '☕', anUong.id),
+    giaoTe,
+    category('Bạn bè', 'expense', '🧑‍🤝‍🧑', giaoTe.id),
+    category('Tình cảm', 'expense', '💑', giaoTe.id),
     diLai,
-    category('Xăng xe', 'expense', '⛽', diLai.id),
-    category('Tàu / Xe buýt', 'expense', '🚆', diLai.id),
+    category('Xe buýt', 'expense', '🚌', diLai.id),
+    category('Tàu điện', 'expense', '🚉', diLai.id),
     category('Taxi', 'expense', '🚕', diLai.id),
-    muaSam,
-    category('Quần áo', 'expense', '👕', muaSam.id),
-    category('Đồ điện tử', 'expense', '📱', muaSam.id),
-    hoaDon,
-    category('Điện', 'expense', '💡', hoaDon.id),
-    category('Nước', 'expense', '🚰', hoaDon.id),
-    category('Internet / Điện thoại', 'expense', '🌐', hoaDon.id),
-    category('Nhà cửa', 'expense', '🏠'),
-    category('Sức khỏe', 'expense', '💊'),
-    category('Giải trí', 'expense', '🎮'),
-    category('Giáo dục', 'expense', '📚'),
-    category('Quà tặng & từ thiện', 'expense', '🎁'),
-    category('Khác', 'expense', '📦'),
+    category('Ô tô', 'expense', '🚗', diLai.id),
+    category('Luup', 'expense', '🛴', diLai.id),
+    thoiTrang,
+    category('Quần áo', 'expense', '👕', thoiTrang.id),
+    category('Giày dép', 'expense', '👟', thoiTrang.id),
+    category('Phụ kiện', 'expense', '👜', thoiTrang.id),
+    category('Mỹ phẩm', 'expense', '💄', thoiTrang.id),
+    category('Giặt là', 'expense', '🧺', thoiTrang.id),
+    soThich,
+    category('Cây cối', 'expense', '🪴', soThich.id),
+    category('Nhiếp ảnh', 'expense', '📷', soThich.id),
+    category('Đăng ký', 'expense', '📺', soThich.id),
+    category('Thể thao', 'expense', '⚽', soThich.id),
+    sucKhoe,
+    category('Gym', 'expense', '🏋️', sucKhoe.id),
+    category('Bệnh viện', 'expense', '🏥', sucKhoe.id),
+    category('Thuốc', 'expense', '💊', sucKhoe.id),
+    category('Thuốc lá', 'expense', '🚬', sucKhoe.id),
+    taiChinh,
+    giaoDuc,
+    category('Thi cử', 'expense', '📝', giaoDuc.id),
+    category('Học phí', 'expense', '🏫', giaoDuc.id),
+    category('Sách vở', 'expense', '📚', giaoDuc.id),
+    quaTang,
+    category('Quà', 'expense', '🎀', quaTang.id),
+    category('Hỗ trợ gia đình', 'expense', '👪', quaTang.id),
+    khacChi,
+    // Thu — giữ nguyên bộ hiện có
     category('Lương', 'income', '💰'),
     category('Thưởng', 'income', '🎉'),
     category('Được tặng', 'income', '🧧'),
@@ -196,12 +232,12 @@ function seed(): DemoDB {
 
   const transactions = [
     // Chi tiêu hàng ngày bằng JPY
-    tx({ type: 'expense', amount: 850, occurred_on: daysAgo(0), note: 'Cơm trưa', category_id: cat('Nhà hàng', 'expense').id }),
-    tx({ type: 'expense', amount: 210, occurred_on: daysAgo(0), note: 'Tàu điện', category_id: cat('Tàu / Xe buýt', 'expense').id }),
-    tx({ type: 'expense', amount: 3_280, occurred_on: daysAgo(1), note: 'Ăn tối cùng bạn', category_id: cat('Nhà hàng', 'expense').id }),
+    tx({ type: 'expense', amount: 850, occurred_on: daysAgo(0), note: 'Cơm trưa', category_id: cat('Bữa trưa', 'expense').id }),
+    tx({ type: 'expense', amount: 210, occurred_on: daysAgo(0), note: 'Tàu điện', category_id: cat('Tàu điện', 'expense').id }),
+    tx({ type: 'expense', amount: 3_280, occurred_on: daysAgo(1), note: 'Ăn tối cùng bạn', category_id: cat('Ăn ngoài', 'expense').id }),
     tx({ type: 'expense', amount: 4_990, occurred_on: daysAgo(1), note: 'Áo khoác Uniqlo', category_id: cat('Quần áo', 'expense').id, account_id: bank.id }),
     tx({ type: 'expense', amount: 12_400, occurred_on: daysAgo(3), note: 'Tiền điện + gas', category_id: cat('Điện', 'expense').id, account_id: bank.id }),
-    tx({ type: 'expense', amount: 1_200, occurred_on: daysAgo(5), note: 'Thuốc cảm', category_id: cat('Sức khỏe', 'expense').id }),
+    tx({ type: 'expense', amount: 1_200, occurred_on: daysAgo(5), note: 'Thuốc cảm', category_id: cat('Thuốc', 'expense').id }),
     tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(9), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
     // Rút tiền mặt JPY (cùng loại tiền → to_amount null)
     tx({ type: 'transfer', amount: 30_000, occurred_on: daysAgo(4), note: 'Rút tiền mặt', account_id: bank.id, to_account_id: cash.id }),
@@ -210,7 +246,7 @@ function seed(): DemoDB {
     // Thu nhập đầu tư bằng VND
     tx({ type: 'income', amount: 1_500_000, occurred_on: daysAgo(6), note: 'Cổ tức', category_id: cat('Đầu tư', 'income').id, account_id: invest.id }),
     // Tháng trước
-    tx({ type: 'expense', amount: 1_800, occurred_on: daysAgo(32), note: 'Xem phim', category_id: cat('Giải trí', 'expense').id }),
+    tx({ type: 'expense', amount: 1_800, occurred_on: daysAgo(32), note: 'Xem phim', category_id: cat('Đăng ký', 'expense').id }),
     tx({ type: 'expense', amount: 6_700, occurred_on: daysAgo(35), note: 'Siêu thị', category_id: cat('Đi chợ', 'expense').id, account_id: bank.id }),
     tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(39), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
   ]

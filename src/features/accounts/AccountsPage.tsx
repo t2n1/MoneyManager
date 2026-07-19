@@ -6,6 +6,7 @@ import type { NewAccount } from '../../data'
 import {
   useAccountBalances,
   useAccounts,
+  useAssetGroupSettings,
   useCreateAccount,
   useReorderAccounts,
   useUpdateAccount,
@@ -169,6 +170,7 @@ function AccountForm({ account, onClose }: FormProps) {
   const update = useUpdateAccount()
   const { data: accounts = [] } = useAccounts()
   const { data: balances = [] } = useAccountBalances()
+  const { data: groupSettings = [] } = useAssetGroupSettings()
 
   const [name, setName] = useState(account?.name ?? '')
   const [type, setType] = useState<AccountType>(account?.type ?? 'cash')
@@ -194,9 +196,15 @@ function AccountForm({ account, onClose }: FormProps) {
 
   const isCard = type === 'card'
 
-  // Gợi ý các nhóm đã dùng để nhập nhanh, tránh trùng lặp do gõ khác nhau
+  // Gợi ý nhóm để nhập nhanh: gộp nhóm đã tạo trong Cài đặt (kể cả nhóm rỗng)
+  // với nhóm đang được tài khoản dùng, tránh trùng lặp do gõ khác nhau
   const groupSuggestions = [
-    ...new Set(accounts.map((a) => a.asset_group?.trim()).filter((g): g is string => !!g)),
+    ...new Set(
+      [
+        ...groupSettings.map((s) => s.name.trim()),
+        ...accounts.map((a) => a.asset_group?.trim() ?? ''),
+      ].filter((g): g is string => !!g),
+    ),
   ].sort((a, b) => a.localeCompare(b, 'vi'))
 
   // Tài khoản nguồn trả thẻ: không phải thẻ, cùng loại tiền với thẻ, chưa lưu trữ

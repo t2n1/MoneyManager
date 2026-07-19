@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, Star, X } from 'lucide-react'
 import type { NewRecurringRule, NewTransaction } from '../../data'
 import { toISODate } from '../../lib/dates'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
@@ -10,6 +10,12 @@ import { AccountPicker } from '../../components/AccountPicker'
 import { NumPad, type NumPadKey } from './NumPad'
 import { appendKey, evalExpression, MAX_AMOUNT_DIGITS } from './calc'
 import { parseNl } from './parseNl'
+import {
+  addQuickTemplate,
+  deleteQuickTemplate,
+  useQuickTemplates,
+  type QuickTemplate,
+} from './quickTemplates'
 
 const LAST_ACCOUNT_KEY = 'sct-last-account'
 const lastCategoryKey = (type: TransactionType) => `sct-last-category-${type}`
@@ -72,6 +78,8 @@ interface TransactionFormProps {
   showExcludeOption?: boolean
   /** Hiện ô "nhập nhanh bằng lời" (chỉ màn nhập mới). Gõ câu → tự điền các trường. */
   enableNlInput?: boolean
+  /** Hiện hàng mẫu giao dịch nhanh (mục J) — chỉ màn nhập mới. */
+  enableTemplates?: boolean
 }
 
 export function TransactionForm({
@@ -84,9 +92,11 @@ export function TransactionForm({
   onSubmitRecurring,
   showExcludeOption,
   enableNlInput,
+  enableTemplates,
 }: TransactionFormProps) {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
+  const templates = useQuickTemplates()
 
   const [type, setType] = useState<TransactionType>(initial?.type ?? initialType ?? 'expense')
   const [digits, setDigits] = useState(initial ? String(initial.amount) : '')
@@ -191,6 +201,20 @@ export function TransactionForm({
     setNlText('')
   }
 
+  /** Áp một mẫu nhanh vào form (người dùng vẫn bấm Lưu để ghi). */
+  function applyTemplate(t: QuickTemplate) {
+    setType(t.type)
+    setDigits(t.amountMinor > 0 ? String(t.amountMinor) : '')
+    if (t.categoryId) {
+      setCategoryId(t.categoryId)
+      setDrillId(categories.find((c) => c.id === t.categoryId)?.parent_id ?? null)
+    }
+    if (t.accountId) setAccountId(t.accountId)
+    setNote(t.note)
+    setToAccountId(null)
+    setActiveField('main')
+  }
+
   const amountResult = evalExpression(digits)
   const amount = amountResult ?? 0
   const toAmountResult = evalExpression(toDigits)
@@ -203,6 +227,23 @@ export function TransactionForm({
     (type === 'transfer'
       ? !!toAccountId && toAccountId !== effectiveAccountId && (!crossCurrency || toAmount > 0)
       : !!categoryId && activeOfType.some((c) => c.id === categoryId))
+
+  // Lưu mẫu: chỉ với chi/thu đã đủ số tiền + danh mục
+  const canSaveTemplate = type !== 'transfer' && amount > 0 && !!categoryId
+  function saveCurrentAsTemplate() {
+    if (!canSaveTemplate) return
+    const suggested = selectedCat?.name ?? note.trim()
+    const label = window.prompt('Đặt tên mẫu (vd "Ăn trưa", "Vé tàu"):', suggested)?.trim()
+    if (!label) return
+    addQuickTemplate({
+      label,
+      type,
+      amountMinor: amount,
+      categoryId,
+      accountId: effectiveAccountId,
+      note: note.trim(),
+    })
+  }
 
   function switchType(next: TransactionType) {
     setType(next)
@@ -350,6 +391,48 @@ export function TransactionForm({
             </button>
           </div>
           {nlHint && <p className="px-1 text-xs text-gray-500 dark:text-gray-400">{nlHint}</p>}
+        </div>
+      )}
+
+      {/* Mẫu giao dịch nhanh (mục J): 1 chạm điền sẵn, hoặc lưu form hiện tại thành mẫu */}
+      {enableTemplates && (templates.length > 0 || canSaveTemplate) && (
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+          {templates.map((t) => {
+            const cur =
+              accounts.find((a) => a.id === t.accountId)?.currency ?? srcCurrency
+            return (
+              <span key={t.id} className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => applyTemplate(t)}
+                  className="flex items-center gap-1 rounded-full bg-white dark:bg-gray-900 py-1.5 pl-3 pr-6 text-xs font-medium text-gray-700 dark:text-gray-200 shadow-sm active:scale-95"
+                >
+                  <Star className="h-3 w-3 text-amber-400" fill="currentColor" />
+                  <span className="max-w-[9rem] truncate">{t.label}</span>
+                  <span className="text-gray-400 dark:text-gray-500">
+                    {formatMoney(t.amountMinor, cur)}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteQuickTemplate(t.id)}
+                  aria-label={`Xóa mẫu ${t.label}`}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-gray-300 hover:text-red-500 dark:text-gray-600"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )
+          })}
+          {canSaveTemplate && (
+            <button
+              type="button"
+              onClick={saveCurrentAsTemplate}
+              className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 active:scale-95"
+            >
+              <Star className="h-3 w-3" /> Lưu mẫu
+            </button>
+          )}
         </div>
       )}
 

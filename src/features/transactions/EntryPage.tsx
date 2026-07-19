@@ -94,6 +94,7 @@ export function EntryPage() {
         continueLabel="Tiếp tục"
         initialType={initialType}
         enableNlInput
+        enableTemplates
         // Lưu: ghi giao dịch rồi quay về Sổ GD
         onSubmit={async (values) => {
           await create.mutateAsync(values)

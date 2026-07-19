@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { BudgetRow, TransactionRow } from '../../types/database.types'
-import { buildBudgetReport } from './progress'
+import { buildBudgetReport, carryFromPreviousMonth } from './progress'
 
 // base = JPY: 1 ¥ = 165 ₫
 const RATES: Rates = { JPY: 1, VND: 165, USD: 0.0065 }
@@ -50,8 +50,8 @@ describe('buildBudgetReport (base = JPY)', () => {
     ]
     const r = buildBudgetReport(budgets, txs, currencyOf, 'JPY', RATES)
     expect(r.lines).toEqual([
-      { categoryId: 'trans', budgeted: 5_000, spent: 6_000, ratio: 1.2, status: 'over' },
-      { categoryId: 'food', budgeted: 10_000, spent: 8_000, ratio: 0.8, status: 'warn' },
+      { categoryId: 'trans', budgeted: 5_000, carried: 0, spent: 6_000, ratio: 1.2, status: 'over' },
+      { categoryId: 'food', budgeted: 10_000, carried: 0, spent: 8_000, ratio: 0.8, status: 'warn' },
     ])
     expect(r.totalBudgeted).toBe(15_000)
     expect(r.totalSpent).toBe(14_000)
@@ -63,7 +63,7 @@ describe('buildBudgetReport (base = JPY)', () => {
   it('danh mục có hạn mức nhưng chưa chi → spent 0, status ok', () => {
     const r = buildBudgetReport([budget('food', 10_000)], [], currencyOf, 'JPY', RATES)
     expect(r.lines).toEqual([
-      { categoryId: 'food', budgeted: 10_000, spent: 0, ratio: 0, status: 'ok' },
+      { categoryId: 'food', budgeted: 10_000, carried: 0, spent: 0, ratio: 0, status: 'ok' },
     ])
     expect(r.overCount).toBe(0)
   })
@@ -96,6 +96,7 @@ describe('buildBudgetReport (base = JPY)', () => {
     expect(r.lines[0]).toEqual({
       categoryId: 'food',
       budgeted: 10_000,
+      carried: 0,
       spent: 6_000, // 3000 + 2000 + 1000
       ratio: 0.6,
       status: 'ok',
@@ -120,6 +121,44 @@ describe('buildBudgetReport (base = JPY)', () => {
     expect(restaurant.spent).toBe(4_000) // của chính nó
     expect(r.totalBudgeted).toBe(15_000)
     expect(r.totalSpent).toBe(4_000) // tính MỘT lần dù xuất hiện ở 2 dòng
+  })
+
+  it('dồn hạn mức (AH): cộng phần chưa tiêu vào budgeted, chỉ khi rollover bật', () => {
+    const withRollover: BudgetRow = { ...budget('food', 10_000), rollover: true }
+    const carry = new Map([['food', 3_000]]) // tháng trước dư 3.000
+    const txs = [tx({ type: 'expense', amount: 10_000, category_id: 'food' })]
+    const r = buildBudgetReport([withRollover], txs, currencyOf, 'JPY', RATES, undefined, carry)
+    expect(r.lines[0]).toMatchObject({ budgeted: 13_000, carried: 3_000, status: 'ok' }) // 10000/13000 = 0.77
+    // Không bật rollover → không cộng → 10000/10000 = 100% over
+    const r2 = buildBudgetReport([budget('food', 10_000)], txs, currencyOf, 'JPY', RATES, undefined, carry)
+    expect(r2.lines[0]).toMatchObject({ budgeted: 10_000, carried: 0, status: 'over' })
+  })
+
+  it('carryFromPreviousMonth = max(0, hạn mức − đã chi)', () => {
+    const prevBudgets = [budget('food', 10_000), budget('trans', 5_000)]
+    const prevTxs = [
+      tx({ type: 'expense', amount: 4_000, category_id: 'food' }), // dư 6.000
+      tx({ type: 'expense', amount: 7_000, category_id: 'trans' }), // vượt → 0
+    ]
+    const carry = carryFromPreviousMonth(prevBudgets, prevTxs, currencyOf, 'JPY', RATES)
+    expect(carry.get('food')).toBe(6_000)
+    expect(carry.get('trans')).toBe(0)
+  })
+
+  it('warnCount đếm danh mục ≥80% & <100%', () => {
+    const r = buildBudgetReport(
+      [budget('a', 100), budget('b', 100), budget('c', 100)],
+      [
+        tx({ type: 'expense', amount: 85, category_id: 'a' }), // warn
+        tx({ type: 'expense', amount: 90, category_id: 'b' }), // warn
+        tx({ type: 'expense', amount: 120, category_id: 'c' }), // over
+      ],
+      currencyOf,
+      'JPY',
+      RATES,
+    )
+    expect(r.warnCount).toBe(2)
+    expect(r.overCount).toBe(1)
   })
 
   it('biên 100% là over, 99% là warn', () => {

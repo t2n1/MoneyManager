@@ -745,13 +745,14 @@ export const demoRepo: Repo = {
     return load().budgets.filter((b) => b.month_key === monthKey)
   },
 
-  async upsertBudget(categoryId: string, monthKey: string, amount: number) {
+  async upsertBudget(categoryId: string, monthKey: string, amount: number, rollover = false) {
     const db = load()
     const existing = db.budgets.find(
       (b) => b.category_id === categoryId && b.month_key === monthKey,
     )
     if (existing) {
       existing.amount = amount
+      existing.rollover = rollover
       existing.updated_at = nowISO()
       save(db)
       return existing
@@ -762,6 +763,7 @@ export const demoRepo: Repo = {
       category_id: categoryId,
       month_key: monthKey,
       amount,
+      rollover,
       created_at: nowISO(),
       updated_at: nowISO(),
     }
@@ -792,6 +794,7 @@ export const demoRepo: Repo = {
         category_id: b.category_id,
         month_key: monthKey,
         amount: b.amount,
+        rollover: b.rollover,
         created_at: nowISO(),
         updated_at: nowISO(),
       })

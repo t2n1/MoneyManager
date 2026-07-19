@@ -31,9 +31,12 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   const copy = useCopyBudgetsFromPreviousMonth()
 
   // Danh mục đang sửa hạn mức (null = đóng sheet)
-  const [editing, setEditing] = useState<{ categoryId: string; current: number; budgetId?: string } | null>(
-    null,
-  )
+  const [editing, setEditing] = useState<{
+    categoryId: string
+    current: number
+    rollover?: boolean
+    budgetId?: string
+  } | null>(null)
 
   const catOf = (id: string) => categories.find((c) => c.id === id)
   const expenseCats = categories.filter((c) => c.type === 'expense' && !c.is_archived)
@@ -65,11 +68,14 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
         <div className="mb-1 flex items-baseline justify-between">
           <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400">Tổng ngân sách</h2>
-          {report.overCount > 0 && (
-            <span className="text-xs font-medium text-red-600 dark:text-red-400">
-              {report.overCount} danh mục vượt
-            </span>
-          )}
+          <span className="flex gap-2 text-xs font-medium">
+            {report.warnCount > 0 && (
+              <span className="text-amber-600 dark:text-amber-400">{report.warnCount} sắp vượt</span>
+            )}
+            {report.overCount > 0 && (
+              <span className="text-red-600 dark:text-red-400">{report.overCount} danh mục vượt</span>
+            )}
+          </span>
         </div>
         <div className="flex items-baseline justify-between">
           <span className={`text-lg font-bold ${TEXT_COLOR[report.totalStatus]}`}>
@@ -114,7 +120,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     onClick={() =>
                       setEditing({
                         categoryId: line.categoryId,
-                        current: line.budgeted,
+                        current: budget?.amount ?? line.budgeted,
+                        rollover: budget?.rollover,
                         budgetId: budget?.id,
                       })
                     }
@@ -143,7 +150,14 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     </div>
                     <div className="mt-0.5 flex justify-between text-xs text-gray-400 dark:text-gray-500">
                       <span className={TEXT_COLOR[line.status]}>{formatMoney(line.spent, base)}</span>
-                      <span>{formatMoney(line.budgeted, base)}</span>
+                      <span>
+                        {formatMoney(line.budgeted, base)}
+                        {line.carried > 0 && (
+                          <span className="ml-1 text-green-600 dark:text-green-400">
+                            (dồn +{formatMoney(line.carried, base)})
+                          </span>
+                        )}
+                      </span>
                     </div>
                   </button>
                 </li>
@@ -181,6 +195,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           categoryId={editing.categoryId}
           categoryLabel={`${catOf(editing.categoryId)?.icon ?? '📦'} ${catOf(editing.categoryId)?.name ?? ''}`}
           current={editing.current}
+          currentRollover={editing.rollover}
           budgetId={editing.budgetId}
           onClose={() => setEditing(null)}
         />

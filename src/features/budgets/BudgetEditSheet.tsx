@@ -7,6 +7,7 @@ interface Props {
   categoryId: string
   categoryLabel: string
   current: number // minor units base; 0 = chưa có
+  currentRollover?: boolean
   budgetId?: string
   onClose: () => void
 }
@@ -17,6 +18,7 @@ export function BudgetEditSheet({
   categoryId,
   categoryLabel,
   current,
+  currentRollover,
   budgetId,
   onClose,
 }: Props) {
@@ -24,6 +26,7 @@ export function BudgetEditSheet({
   const upsert = useUpsertBudget()
   const remove = useDeleteBudget()
   const [raw, setRaw] = useState(current > 0 ? String(current) : '')
+  const [rollover, setRollover] = useState(currentRollover ?? false)
   const amount = parseMoney(raw)
 
   async function handleSave() {
@@ -33,7 +36,7 @@ export function BudgetEditSheet({
       onClose()
       return
     }
-    await upsert.mutateAsync({ categoryId, monthKey, amount })
+    await upsert.mutateAsync({ categoryId, monthKey, amount, rollover })
     onClose()
   }
 
@@ -73,6 +76,11 @@ export function BudgetEditSheet({
           className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-right text-lg font-semibold text-gray-800 dark:text-gray-100 focus:border-green-500 focus:outline-none"
         />
         <p className="mt-1 text-right text-sm text-gray-500 dark:text-gray-400">{formatMoney(amount, base)}</p>
+
+        <label className="mt-3 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+          <input type="checkbox" checked={rollover} onChange={(e) => setRollover(e.target.checked)} />
+          Dồn phần chưa tiêu sang tháng sau
+        </label>
 
         <div className="mt-4 flex gap-2">
           {budgetId && (

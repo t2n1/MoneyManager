@@ -151,6 +151,8 @@ export type BudgetRow = {
   category_id: string
   month_key: string // "YYYY-MM"
   amount: number // minor units theo base_currency
+  /** true = dồn phần hạn mức chưa tiêu tháng trước sang tháng này (mục AH). */
+  rollover?: boolean
   created_at: string
   updated_at: string
 }
@@ -335,9 +337,9 @@ export type Database = {
         Insert: InsertOf<
           BudgetRow,
           'user_id' | 'category_id' | 'month_key' | 'amount',
-          'id'
+          'id' | 'rollover'
         >
-        Update: Partial<Pick<BudgetRow, 'amount'>>
+        Update: Partial<Pick<BudgetRow, 'amount' | 'rollover'>>
         Relationships: []
       }
       asset_group_settings: {

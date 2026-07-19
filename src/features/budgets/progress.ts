@@ -10,7 +10,9 @@ export type BudgetStatus = 'ok' | 'warn' | 'over' // <80% / ≥80% / ≥100%
 
 export interface BudgetLine {
   categoryId: string
-  budgeted: number // minor units base
+  budgeted: number // minor units base (đã gồm phần dồn nếu có)
+  /** phần hạn mức dồn từ tháng trước (mục AH); 0 nếu không bật rollover */
+  carried: number
   spent: number // minor units base (đã quy đổi)
   ratio: number // spent / budgeted (0 nếu budgeted = 0)
   status: BudgetStatus
@@ -22,6 +24,8 @@ export interface BudgetReport {
   totalSpent: number
   totalStatus: BudgetStatus
   overCount: number
+  /** số danh mục ở ngưỡng cảnh báo ≥80% & <100% (mục AH) */
+  warnCount: number
   hasMissingRate: boolean
 }
 
@@ -40,6 +44,9 @@ export function buildBudgetReport(
   /** Tra cha của một danh mục (null nếu là danh mục chính). Mặc định: không có
    *  cây → hành xử phẳng như cũ. Có cây → hạn mức ở cha gộp chi tiêu của các con. */
   parentOf: (categoryId: string) => string | null = () => null,
+  /** Phần hạn mức chưa tiêu tháng trước, theo danh mục (mục AH). Chỉ cộng cho
+   *  hạn mức bật rollover. Mặc định rỗng → không dồn. */
+  carryByCat: Map<string, number> = new Map(),
 ): BudgetReport {
   const spentByCat = new Map<string, number>()
   let hasMissingRate = false
@@ -64,13 +71,17 @@ export function buildBudgetReport(
   const budgetedIds = new Set(budgets.map((b) => b.category_id))
   let totalBudgeted = 0
   let overCount = 0
+  let warnCount = 0
   const lines: BudgetLine[] = budgets.map((b) => {
+    const carried = b.rollover ? Math.max(0, carryByCat.get(b.category_id) ?? 0) : 0
+    const budgeted = b.amount + carried
     const spent = rolledSpent.get(b.category_id) ?? 0
-    const ratio = b.amount > 0 ? spent / b.amount : 0
+    const ratio = budgeted > 0 ? spent / budgeted : 0
     const status = statusOf(ratio)
     if (status === 'over') overCount++
-    totalBudgeted += b.amount
-    return { categoryId: b.category_id, budgeted: b.amount, spent, ratio, status }
+    else if (status === 'warn') warnCount++
+    totalBudgeted += budgeted
+    return { categoryId: b.category_id, budgeted, carried, spent, ratio, status }
   })
   lines.sort((a, b) => b.ratio - a.ratio)
 
@@ -90,6 +101,28 @@ export function buildBudgetReport(
     totalSpent,
     totalStatus,
     overCount,
+    warnCount,
     hasMissingRate,
   }
+}
+
+/**
+ * Phần hạn mức CHƯA TIÊU của tháng trước theo danh mục (để dồn sang tháng sau).
+ * leftover = max(0, hạn mức tháng trước − đã chi tháng trước). Chỉ cần cho danh mục
+ * bật rollover ở tháng hiện tại, nhưng tính hết cho gọn.
+ */
+export function carryFromPreviousMonth(
+  prevBudgets: BudgetRow[],
+  prevMonthTxs: TransactionRow[],
+  currencyOf: CurrencyOf,
+  base: CurrencyCode,
+  rates: Rates,
+  parentOf: (categoryId: string) => string | null = () => null,
+): Map<string, number> {
+  const prev = buildBudgetReport(prevBudgets, prevMonthTxs, currencyOf, base, rates, parentOf)
+  const carry = new Map<string, number>()
+  for (const line of prev.lines) {
+    carry.set(line.categoryId, Math.max(0, line.budgeted - line.spent))
+  }
+  return carry
 }

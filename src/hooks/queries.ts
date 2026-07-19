@@ -20,8 +20,8 @@ import {
   type TransactionPatch,
   type TxFilter,
 } from '../data'
-import { getMonthRange, monthKeyForDate, monthKeyString, toISODate, type MonthKey } from '../lib/dates'
-import { buildBudgetReport, type BudgetReport } from '../features/budgets/progress'
+import { addMonths, getMonthRange, monthKeyForDate, monthKeyString, toISODate, type MonthKey } from '../lib/dates'
+import { buildBudgetReport, carryFromPreviousMonth, type BudgetReport } from '../features/budgets/progress'
 import { fetchRates } from '../lib/rates'
 import type { CurrencyCode } from '../lib/money'
 import type { TransactionRow } from '../types/database.types'
@@ -370,11 +370,13 @@ export function useUpsertBudget() {
       categoryId,
       monthKey,
       amount,
+      rollover,
     }: {
       categoryId: string
       monthKey: string
       amount: number
-    }) => repo.upsertBudget(categoryId, monthKey, amount),
+      rollover?: boolean
+    }) => repo.upsertBudget(categoryId, monthKey, amount, rollover),
     onSettled: () => invalidateBudgets(qc),
   })
 }
@@ -401,8 +403,12 @@ export function useBudgetReport(monthKey: MonthKey): {
   isLoading: boolean
 } {
   const monthKeyStr = monthKeyString(monthKey)
+  const prevMonthKey = addMonths(monthKey, -1)
   const budgetsQ = useBudgets(monthKeyStr)
   const { data: monthTxs, isLoading: txLoading } = useMonthTransactions(monthKey)
+  // Dồn hạn mức (mục AH): cần budgets + giao dịch tháng trước để tính phần chưa tiêu
+  const prevBudgetsQ = useBudgets(monthKeyString(prevMonthKey))
+  const { data: prevMonthTxs } = useMonthTransactions(prevMonthKey)
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const { base, rates } = useRates()
@@ -413,9 +419,14 @@ export function useBudgetReport(monthKey: MonthKey): {
     categories.find((c) => c.id === categoryId)?.parent_id ?? null
 
   const budgets = budgetsQ.data
+  const hasRollover = !!budgets?.some((b) => b.rollover)
+  const carry =
+    hasRollover && prevBudgetsQ.data && prevMonthTxs
+      ? carryFromPreviousMonth(prevBudgetsQ.data, prevMonthTxs, currencyOf, base, rates ?? {}, parentOf)
+      : new Map<string, number>()
   const report =
     budgets && monthTxs
-      ? buildBudgetReport(budgets, monthTxs, currencyOf, base, rates ?? {}, parentOf)
+      ? buildBudgetReport(budgets, monthTxs, currencyOf, base, rates ?? {}, parentOf, carry)
       : undefined
 
   return { report, isLoading: budgetsQ.isLoading || txLoading }

@@ -261,7 +261,12 @@ export interface Repo {
 
   listBudgets(monthKey: string): Promise<BudgetRow[]>
   /** Tạo mới hoặc cập nhật hạn mức (unique user_id+category_id+month_key). */
-  upsertBudget(categoryId: string, monthKey: string, amount: number): Promise<BudgetRow>
+  upsertBudget(
+    categoryId: string,
+    monthKey: string,
+    amount: number,
+    rollover?: boolean,
+  ): Promise<BudgetRow>
   deleteBudget(id: string): Promise<void>
   /** Chép hạn mức từ tháng liền trước vào monthKey; bỏ qua danh mục đã có hạn mức
    *  ở tháng đích. Trả về số hạn mức đã chép. */

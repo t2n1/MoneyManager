@@ -20,6 +20,7 @@ import {
 import type { CurrencyCode } from '../../lib/money'
 import { monthlySeries } from '../reports/aggregate'
 import type { TransactionRow } from '../../types/database.types'
+import { RemindersBanner } from '../reminders/RemindersBanner'
 import { CalendarView } from './CalendarView'
 import { DailyView } from './DailyView'
 import { EditTransactionSheet } from './EditTransactionSheet'
@@ -111,6 +112,8 @@ export function LedgerPage() {
 
   return (
     <div className="p-3 lg:p-6">
+      <RemindersBanner />
+
       {/* Chuyển kỳ + tìm kiếm */}
       <div className="mb-3 flex items-center gap-2">
         <button

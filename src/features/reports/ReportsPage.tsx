@@ -1,19 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import {
-  Bar,
-  BarChart,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { BudgetView } from '../budgets/BudgetView'
 import { InsightsView } from './InsightsView'
+import { CategoryBreakdownCard } from './CategoryBreakdownCard'
+import { MonthlyBarsCard } from './MonthlyBarsCard'
 import {
   useAccounts,
   useCategories,
@@ -25,23 +16,20 @@ import {
 import {
   addMonths,
   formatMonthLabel,
+  formatYearLabel,
   getMonthRange,
+  getYearRange,
   monthKeyForDate,
   toISODate,
   type MonthKey,
 } from '../../lib/dates'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
-import { categoryBreakdown, monthlySeries } from './aggregate'
-
-// Bảng màu cho lát bánh (lặp lại nếu > 12 danh mục)
-const PALETTE = [
-  '#16a34a', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899',
-  '#14b8a6', '#f97316', '#6366f1', '#84cc16', '#06b6d4', '#a855f7',
-]
+import { categoryBreakdown, monthlySeries, sumIncomeExpense } from './aggregate'
 
 export function ReportsPage() {
   const [kind, setKind] = useState<'expense' | 'income'>('expense')
   const [searchParams] = useSearchParams()
+  const [period, setPeriod] = useState<'month' | 'year'>('month')
   const [view, setView] = useState<'charts' | 'insights' | 'budget'>(
     searchParams.get('view') === 'budget'
       ? 'budget'
@@ -56,9 +44,12 @@ export function ReportsPage() {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
 
+  const currencyOf = (id: string): CurrencyCode =>
+    accounts.find((a) => a.id === id)?.currency ?? base
+
+  // ----- Chế độ THÁNG -----
   const [monthKey, setMonthKey] = useState<MonthKey | null>(null)
   const activeMonthKey = monthKey ?? monthKeyForDate(toISODate(new Date()), monthStartDay)
-
   const { data: monthTxs = [] } = useMonthTransactions(activeMonthKey)
 
   // Khoảng 6 tháng gần nhất (tính cả tháng đang xem) cho biểu đồ cột
@@ -73,221 +64,228 @@ export function ReportsPage() {
     }),
     [sixMonths, activeMonthKey, monthStartDay],
   )
-  const { data: rangeTxs = [] } = useRangeTransactions(sixMonthRange, !!profile && view === 'charts')
-
-  const currencyOf = (id: string): CurrencyCode =>
-    accounts.find((a) => a.id === id)?.currency ?? base
-  const categoryOf = (id: string) => categories.find((c) => c.id === id)
+  const { data: rangeTxs = [] } = useRangeTransactions(
+    sixMonthRange,
+    !!profile && period === 'month' && view === 'charts',
+  )
 
   const breakdown = useMemo(
     () => categoryBreakdown(monthTxs, kind, currencyOf, base, rates ?? {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [monthTxs, kind, accounts, base, rates],
   )
-
   const series = useMemo(
     () => monthlySeries(rangeTxs, sixMonths, monthStartDay, currencyOf, base, rates ?? {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rangeTxs, sixMonths, monthStartDay, accounts, base, rates],
   )
 
-  const pieData = breakdown.slices.map((s, i) => {
-    const cat = categoryOf(s.categoryId)
-    return {
-      name: cat?.name ?? '?',
-      icon: cat?.icon ?? '📦',
-      value: s.amount,
-      color: PALETTE[i % PALETTE.length],
-      pct: breakdown.total > 0 ? (s.amount / breakdown.total) * 100 : 0,
-    }
-  })
+  // ----- Chế độ NĂM -----
+  const [year, setYear] = useState<number | null>(null)
+  const activeYear = year ?? monthKeyForDate(toISODate(new Date()), monthStartDay).year
+  const yearRange = useMemo(
+    () => getYearRange(activeYear, monthStartDay),
+    [activeYear, monthStartDay],
+  )
+  const { data: yearTxs = [] } = useRangeTransactions(yearRange, !!profile && period === 'year')
 
-  const barData = series.points.map((p) => ({
-    label: `${p.key.month}/${String(p.key.year).slice(2)}`,
-    income: p.income,
-    expense: p.expense,
-  }))
+  const twelveMonths = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => ({ year: activeYear, month: i + 1 })),
+    [activeYear],
+  )
+  const yearBreakdown = useMemo(
+    () => categoryBreakdown(yearTxs, kind, currencyOf, base, rates ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [yearTxs, kind, accounts, base, rates],
+  )
+  const yearSeries = useMemo(
+    () => monthlySeries(yearTxs, twelveMonths, monthStartDay, currencyOf, base, rates ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [yearTxs, twelveMonths, monthStartDay, accounts, base, rates],
+  )
+  const yearSums = useMemo(
+    () => sumIncomeExpense(yearTxs, currencyOf, base, rates ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [yearTxs, accounts, base, rates],
+  )
+  const yearNet = yearSums.income - yearSums.expense
+  const avgExpense = Math.round(yearSums.expense / 12)
+  const savingsRate = yearSums.income > 0 ? Math.round((yearNet / yearSums.income) * 100) : null
+  const yearApprox = yearSums.hasForeign ? '≈ ' : ''
 
-  const approx = breakdown.hasForeign ? '≈ ' : ''
+  const monthMissingRate = breakdown.hasMissingRate || series.hasMissingRate
+  const yearMissingRate =
+    yearBreakdown.hasMissingRate || yearSeries.hasMissingRate || yearSums.hasMissingRate
+  const showMissingRate =
+    period === 'year' ? yearMissingRate : view === 'charts' && monthMissingRate
 
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
-      {/* Header chuyển tháng */}
+      {/* Header điều hướng tháng/năm */}
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, -1))}
+          onClick={() =>
+            period === 'month'
+              ? setMonthKey((k) => addMonths(k ?? activeMonthKey, -1))
+              : setYear((y) => (y ?? activeYear) - 1)
+          }
           className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
-          aria-label="Tháng trước"
+          aria-label={period === 'month' ? 'Tháng trước' : 'Năm trước'}
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">{formatMonthLabel(activeMonthKey)}</h1>
+        <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">
+          {period === 'month' ? formatMonthLabel(activeMonthKey) : formatYearLabel(activeYear)}
+        </h1>
         <button
           type="button"
-          onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))}
+          onClick={() =>
+            period === 'month'
+              ? setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))
+              : setYear((y) => (y ?? activeYear) + 1)
+          }
           className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
-          aria-label="Tháng sau"
+          aria-label={period === 'month' ? 'Tháng sau' : 'Năm sau'}
         >
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
 
-      {/* Chọn tab: Biểu đồ | Ngân sách */}
+      {/* Nút gạt Tháng | Năm */}
       <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-sm font-medium">
         <button
           type="button"
-          onClick={() => setView('charts')}
-          className={`flex-1 rounded-md py-1.5 ${view === 'charts' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+          onClick={() => setPeriod('month')}
+          className={`flex-1 rounded-md py-1.5 ${period === 'month' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
-          Biểu đồ
+          Tháng
         </button>
         <button
           type="button"
-          onClick={() => setView('insights')}
-          className={`flex-1 rounded-md py-1.5 ${view === 'insights' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+          onClick={() => setPeriod('year')}
+          className={`flex-1 rounded-md py-1.5 ${period === 'year' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
-          Thấu hiểu
-        </button>
-        <button
-          type="button"
-          onClick={() => setView('budget')}
-          className={`flex-1 rounded-md py-1.5 ${view === 'budget' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
-        >
-          Ngân sách
+          Năm
         </button>
       </div>
 
-      {view === 'charts' && (breakdown.hasMissingRate || series.hasMissingRate) && (
+      {/* Tab chỉ hiện ở chế độ Tháng */}
+      {period === 'month' && (
+        <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-sm font-medium">
+          <button
+            type="button"
+            onClick={() => setView('charts')}
+            className={`flex-1 rounded-md py-1.5 ${view === 'charts' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+          >
+            Biểu đồ
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('insights')}
+            className={`flex-1 rounded-md py-1.5 ${view === 'insights' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+          >
+            Thấu hiểu
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('budget')}
+            className={`flex-1 rounded-md py-1.5 ${view === 'budget' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+          >
+            Ngân sách
+          </button>
+        </div>
+      )}
+
+      {showMissingRate && (
         <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
 
-      {view === 'charts' && (
+      {/* Nội dung THÁNG */}
+      {period === 'month' && view === 'charts' && (
         <>
-      {/* Biểu đồ tròn theo danh mục */}
-      <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400">Cơ cấu theo danh mục</h2>
-          <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-xs font-medium">
-            <button
-              type="button"
-              onClick={() => setKind('expense')}
-              className={`rounded-md px-3 py-1 ${kind === 'expense' ? 'bg-white dark:bg-gray-900 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
-            >
-              Chi
-            </button>
-            <button
-              type="button"
-              onClick={() => setKind('income')}
-              className={`rounded-md px-3 py-1 ${kind === 'income' ? 'bg-white dark:bg-gray-900 text-green-600 dark:text-green-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
-            >
-              Thu
-            </button>
-          </div>
-        </div>
-
-        {pieData.length === 0 ? (
-          <p className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">
-            Chưa có {kind === 'expense' ? 'chi tiêu' : 'thu nhập'} trong tháng này
-          </p>
-        ) : (
-          <div className="flex flex-col items-center gap-3 sm:flex-row">
-            <div className="relative h-48 w-48 shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={52}
-                    outerRadius={80}
-                    paddingAngle={1}
-                    strokeWidth={0}
-                  >
-                    {pieData.map((d) => (
-                      <Cell key={d.name} fill={d.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(v) => formatMoney(Number(v), base)}
-                    contentStyle={{ borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-[10px] text-gray-400 dark:text-gray-500">Tổng</span>
-                <span className="text-sm font-bold text-gray-800 dark:text-gray-100">
-                  {approx}
-                  {formatCompact(breakdown.total, base)}
-                </span>
-              </div>
-            </div>
-
-            <ul className="flex-1 space-y-1.5 self-stretch">
-              {pieData.map((d) => (
-                <li key={d.name} className="flex items-center gap-2 text-sm">
-                  <span
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: d.color }}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">
-                    {d.icon} {d.name}
-                  </span>
-                  <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500">{d.pct.toFixed(0)}%</span>
-                  <span className="shrink-0 font-medium text-gray-800 dark:text-gray-100">
-                    {formatMoney(d.value, base)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </section>
-
-      {/* Biểu đồ cột thu/chi 6 tháng */}
-      <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-        <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">Thu / chi 6 tháng gần nhất</h2>
-        <div className="h-56 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={barData} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <YAxis
-                tickFormatter={(v: number) => formatCompact(v, base)}
-                tick={{ fontSize: 11, fill: '#9ca3af' }}
-                axisLine={false}
-                tickLine={false}
-                width={44}
-              />
-              <Tooltip
-                formatter={(v, name) => [
-                  formatMoney(Number(v), base),
-                  name === 'income' ? 'Thu' : 'Chi',
-                ]}
-                labelFormatter={(l) => `Tháng ${l}`}
-                contentStyle={{ borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb' }}
-              />
-              <Bar dataKey="income" fill="#16a34a" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="expense" fill="#ef4444" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="mt-1 flex justify-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-          <span className="flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-green-600" /> Thu
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> Chi
-          </span>
-        </div>
-      </section>
+          <CategoryBreakdownCard
+            breakdown={breakdown}
+            categories={categories}
+            base={base}
+            kind={kind}
+            onKindChange={setKind}
+            periodNoun="tháng này"
+          />
+          <MonthlyBarsCard
+            series={series}
+            base={base}
+            title="Thu / chi 6 tháng gần nhất"
+            labelOf={(k) => `${k.month}/${String(k.year).slice(2)}`}
+          />
         </>
       )}
+      {period === 'month' && view === 'insights' && <InsightsView monthKey={activeMonthKey} />}
+      {period === 'month' && view === 'budget' && <BudgetView monthKey={activeMonthKey} />}
 
-      {view === 'insights' && <InsightsView monthKey={activeMonthKey} />}
+      {/* Nội dung NĂM */}
+      {period === 'year' && (
+        <>
+          <section className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Thu</p>
+              <p className="mt-1 text-sm font-bold text-green-600 dark:text-green-400">
+                {yearApprox}
+                {formatCompact(yearSums.income, base)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Chi</p>
+              <p className="mt-1 text-sm font-bold text-red-600 dark:text-red-400">
+                {yearApprox}
+                {formatCompact(yearSums.expense, base)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Số dư</p>
+              <p
+                className={`mt-1 text-sm font-bold ${yearNet >= 0 ? 'text-gray-800 dark:text-gray-100' : 'text-red-600 dark:text-red-400'}`}
+              >
+                {yearApprox}
+                {formatCompact(yearNet, base)}
+              </p>
+            </div>
+          </section>
 
-      {view === 'budget' && <BudgetView monthKey={activeMonthKey} />}
+          <section className="grid grid-cols-2 gap-2">
+            <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Chi TB/tháng</p>
+              <p className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-100">
+                {yearApprox}
+                {formatMoney(avgExpense, base)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Tỷ lệ tiết kiệm</p>
+              <p className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-100">
+                {savingsRate === null ? '—' : `${savingsRate}%`}
+              </p>
+            </div>
+          </section>
+
+          <CategoryBreakdownCard
+            breakdown={yearBreakdown}
+            categories={categories}
+            base={base}
+            kind={kind}
+            onKindChange={setKind}
+            periodNoun="năm này"
+          />
+          <MonthlyBarsCard
+            series={yearSeries}
+            base={base}
+            title="Thu / chi 12 tháng"
+            labelOf={(k) => String(k.month)}
+          />
+        </>
+      )}
     </div>
   )
 }

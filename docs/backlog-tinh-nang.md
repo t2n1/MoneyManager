@@ -1,6 +1,6 @@
 # Backlog tính năng — để dành cho các giai đoạn sau
 
-> **Ngày ghi:** 2026-07-14 · **Cập nhật:** 2026-07-19 · **Trạng thái:** Ý tưởng chờ xử lý (chưa lên spec/plan)
+> **Ngày ghi:** 2026-07-14 · **Cập nhật:** 2026-07-20 · **Trạng thái:** Đã ship hết mục khả thi (đợt "làm hết")
 >
 > **Đã hoàn thành (giữ lại để tham chiếu):** A (báo cáo năm), B (lịch), C+D (giao dịch
 > định kỳ), E (trang tài sản), F (nợ/cho vay), G (danh mục mẹ/con), H (xuất CSV),
@@ -11,15 +11,15 @@
 > Ngoài backlog: **Gửi tiền về VN** (remittance) và **tối ưu Nhật** (loại TK Nhật, danh
 > mục Nhật) cũng đã ship.
 >
-> **Đợt "làm hết" 2026-07-20 (nhánh feat/backlog-batch):** đã ship thêm
+> **Đợt "làm hết" 2026-07-20 (nhánh feat/backlog-batch) — ĐÃ XONG TOÀN BỘ mục khả thi:**
 > Z (sao lưu/khôi phục JSON), H (xuất CSV), AK (ẩn số tiền), AB (hoàn tác khi xóa),
 > AP (xuất PDF/in), AN (nhắc nhở trong app), AO (onboarding), AL (lọc theo số tiền),
-> AA (offline persist cache), Y (nhập CSV sao kê). Mỗi mục 1 commit, build/lint/test sạch.
+> AA (offline persist cache), Y (nhập CSV sao kê), AM (loại trừ thống kê), X (reconcile),
+> T (radar định kỳ), AD (mục tiêu tiết kiệm), AH (ngân sách nâng cao), AF (lịch sử net
+> worth), J (mẫu giao dịch nhanh), AG (nợ có lãi/trả góp). Do user tự làm song song:
+> AE (giá trị đầu tư), P (nhập nhanh bằng lời/parseNl). Mỗi mục 1 commit, build/lint/test sạch.
 >
-> **Còn lại chưa làm:** J (mẫu giao dịch nhanh), P (giọng nói), T (radar định kỳ),
-> và nhóm nghiệp vụ/độ-tin-cậy: X (reconcile), AM (loại trừ thống kê), AD (mục tiêu
-> tiết kiệm), AE (giá trị đầu tư), AF (lịch sử net worth), AG (nợ có lãi), AH (ngân sách
-> nâng cao). Đã chốt KHÔNG làm (nền lớn / phá 0đ): AJ (sổ chung), AS (nhiều sổ),
+> **Đã chốt KHÔNG làm (nền lớn / phá 0đ):** AJ (sổ chung), AS (nhiều sổ),
 > AR (i18n), AQ (web push), AT (trợ lý AI), AI-OCR (đọc hóa đơn tự động).
 >
 > File này chỉ **gom ý tưởng** cho các giai đoạn sau. Khi bắt tay làm từng mục,
@@ -177,7 +177,10 @@ Mở app là form đã **điền sẵn ngữ cảnh gần nhất** để rút th
   client-side. Không cần đụng repo ghi.
 - Liên quan: `EntryPage` / `TransactionForm`.
 
-### J. Mẫu giao dịch nhanh (favorites)
+### J. Mẫu giao dịch nhanh (favorites) — ✅ ĐÃ LÀM (2026-07-20)
+
+> Đã ship: store `src/features/transactions/quickTemplates.ts` (localStorage, chốt phương
+> án **cục bộ theo thiết bị** cho nhẹ), chip 1 chạm + nút "Lưu mẫu" ở màn Nhập GD.
 
 Nút lưu sẵn các giao dịch hay lặp ("Cà phê 500¥", "Ăn trưa 800¥") — **chạm 1 phát
 điền sẵn** danh mục + số tiền + tài khoản.
@@ -399,7 +402,11 @@ Biểu đồ tổng tài sản (± nợ) theo tháng — trả lời "mình đan
   bảng `networth_snapshots`.
 - Liên quan: mục AE (giá trị đầu tư ảnh hưởng net worth), trang Tài sản.
 
-### AG. Nợ có lãi suất / trả góp
+### AG. Nợ có lãi suất / trả góp — ✅ ĐÃ LÀM (2026-07-20)
+
+> Đã ship: cột `interest_bps` + `term_months` (migration 0021), lib `amortization.ts`
+> (công thức niên kim, thuần + test), lịch trả dự kiến ở màn chi tiết nợ (mỗi kỳ / tổng
+> lãi / tổng phải trả + bảng chi tiết từng kỳ). Nhắc kỳ tới hạn dùng lại `due_on` sẵn có.
 
 Mục F hiện chỉ có gốc (`principal`) — chưa mô tả được khoản vay trả góp có lãi.
 

@@ -1,6 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
+import { ChevronRight, Banknote } from 'lucide-react'
 import { repo, type NewTransaction } from '../../data'
-import { useDeleteTransaction, useUpdateTransaction } from '../../hooks/queries'
+import {
+  useDebtPayments,
+  useDeleteTransaction,
+  useUpdateTransaction,
+} from '../../hooks/queries'
 import { showUndoToast } from '../../lib/undoToast'
 import type { TransactionRow } from '../../types/database.types'
 import { TransactionForm } from './TransactionForm'
@@ -32,8 +38,16 @@ function toNewTransaction(t: TransactionRow): NewTransaction {
 /** Sheet sửa/xóa giao dịch (dùng chung cho Sổ GD và Tìm kiếm). */
 export function EditTransactionSheet({ tx, onClose }: Props) {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const update = useUpdateTransaction()
   const remove = useDeleteTransaction()
+
+  // Giao dịch sinh từ trả nợ → cho bấm về đúng khoản nợ. Nguồn sự thật là
+  // debt_payments.transaction_id (không chỉ dựa cờ is_debt_flow).
+  const { data: debtPayments = [] } = useDebtPayments()
+  const linkedDebtId = tx.is_debt_flow
+    ? debtPayments.find((p) => p.transaction_id === tx.id)?.debt_id
+    : undefined
 
   async function handleDelete() {
     const snapshot = tx
@@ -76,6 +90,20 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
             </button>
           </div>
         </div>
+        {linkedDebtId && (
+          <button
+            type="button"
+            onClick={() => {
+              navigate(`/settings/debts/${linkedDebtId}`)
+              onClose()
+            }}
+            className="mb-3 flex w-full items-center gap-2 rounded-xl bg-green-50 dark:bg-green-900/30 px-3 py-2.5 text-left text-sm font-medium text-green-800 dark:text-green-300 active:scale-[0.99]"
+          >
+            <Banknote className="h-4 w-4 shrink-0" />
+            <span className="flex-1">Giao dịch trả nợ · Xem khoản nợ</span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-green-500 dark:text-green-400" />
+          </button>
+        )}
         <TransactionForm
           key={tx.id}
           initial={tx}

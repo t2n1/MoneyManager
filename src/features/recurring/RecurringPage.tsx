@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRightLeft, ChevronLeft, Pause, Play, Plus, Trash2 } from 'lucide-react'
+import { ArrowRightLeft, ChevronLeft, Pause, Play, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import {
   useAccounts,
   useCategories,
+  useCreateRecurringRule,
   useDeleteRecurringRule,
+  useRangeTransactions,
   useRecurringRules,
   useRunRecurringCatchUp,
   useUpdateRecurringRule,
@@ -12,8 +14,26 @@ import {
 import { addDaysISO, toISODate } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import { nextDueDate, type RecurringFrequency } from '../../lib/recurring'
+import { detectRecurring, ruleKey, type RecurringSuggestion } from '../../lib/recurringRadar'
 import type { RecurringRuleRow } from '../../types/database.types'
 import { RecurringFormSheet } from './RecurringFormSheet'
+
+const RADAR_DISMISS_KEY = 'sct-radar-dismissed'
+
+function readDismissed(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(RADAR_DISMISS_KEY) ?? '[]') as string[]
+  } catch {
+    return []
+  }
+}
+
+/** Kỳ đến hạn kế tiếp sau lần cuối (để rule không sinh trùng giao dịch quá khứ). */
+function nextStartOn(lastDate: string, frequency: 'weekly' | 'monthly'): string {
+  if (frequency === 'weekly') return addDaysISO(lastDate, 7)
+  const [y, m, d] = lastDate.split('-').map(Number)
+  return toISODate(new Date(y, m, d))
+}
 
 const FREQ_LABEL: Record<RecurringFrequency, string> = {
   weekly: 'Hàng tuần',
@@ -51,13 +71,59 @@ export function RecurringPage() {
   const update = useUpdateRecurringRule()
   const del = useDeleteRecurringRule()
   const catchUp = useRunRecurringCatchUp()
+  const createRule = useCreateRecurringRule()
   const [sheet, setSheet] = useState<{ open: boolean; rule: RecurringRuleRow | null }>({
     open: false,
     rule: null,
   })
+  const [dismissed, setDismissed] = useState<string[]>(readDismissed)
 
   const accountOf = (id: string | null) => accounts.find((a) => a.id === id)
   const categoryOf = (id: string | null) => categories.find((c) => c.id === id)
+
+  // Radar (mục T): quét 180 ngày gần nhất tìm khoản lặp đều chưa có quy tắc.
+  const today = toISODate(new Date())
+  const radarRange = useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate() - 180)
+    return { start: toISODate(d), end: addDaysISO(today, 1) }
+  }, [today])
+  const { data: historyTxs = [] } = useRangeTransactions(radarRange)
+  const suggestions = useMemo(() => {
+    const existing = new Set(
+      rules.map((r) => ruleKey(r.type, r.account_id, r.category_id, r.amount)),
+    )
+    return detectRecurring(historyTxs, existing, today).filter((s) => !dismissed.includes(s.key))
+  }, [historyTxs, rules, today, dismissed])
+
+  function dismissSuggestion(key: string) {
+    const next = [...dismissed, key]
+    setDismissed(next)
+    try {
+      localStorage.setItem(RADAR_DISMISS_KEY, JSON.stringify(next))
+    } catch {
+      // bỏ qua
+    }
+  }
+
+  async function createFromSuggestion(s: RecurringSuggestion) {
+    try {
+      await createRule.mutateAsync({
+        type: s.type,
+        amount: s.amount,
+        to_amount: null,
+        category_id: s.category_id,
+        account_id: s.account_id,
+        to_account_id: null,
+        note: s.note,
+        frequency: s.frequency,
+        start_on: nextStartOn(s.lastDate, s.frequency),
+        end_on: null,
+      })
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Thao tac that bai, thu lai.')
+    }
+  }
 
   async function togglePause(rule: RecurringRuleRow) {
     try {
@@ -110,6 +176,53 @@ export function RecurringPage() {
           <Plus className="h-4 w-4" /> Thêm
         </button>
       </div>
+
+      {suggestions.length > 0 && (
+        <section className="overflow-hidden rounded-xl border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-900/20">
+          <h2 className="flex items-center gap-1.5 px-3 pt-3 text-sm font-bold text-green-800 dark:text-green-200">
+            <Sparkles className="h-4 w-4" /> Gợi ý khoản định kỳ
+          </h2>
+          <p className="px-3 pt-0.5 text-xs text-green-700/80 dark:text-green-300/80">
+            Phát hiện từ lịch sử — tạo quy tắc để tự sinh giao dịch kỳ tới.
+          </p>
+          <ul className="mt-2 divide-y divide-green-100 dark:divide-green-900/50">
+            {suggestions.map((s) => {
+              const acc = accountOf(s.account_id)
+              const cat = categoryOf(s.category_id)
+              return (
+                <li key={s.key} className="flex items-center gap-2 px-3 py-2.5">
+                  <span className="text-lg">{cat?.icon ?? '🔁'}</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block truncate text-sm text-gray-800 dark:text-gray-100">
+                      {cat?.name ?? '?'}
+                      {s.note && <span className="text-gray-400 dark:text-gray-500"> · {s.note}</span>}
+                    </span>
+                    <span className="block text-xs text-gray-500 dark:text-gray-400">
+                      {formatMoney(s.amount, acc?.currency ?? 'JPY')} ·{' '}
+                      {s.frequency === 'monthly' ? 'hàng tháng' : 'hàng tuần'} · {s.occurrences} lần
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => createFromSuggestion(s)}
+                    className="shrink-0 rounded-lg bg-green-600 px-2.5 py-1 text-xs font-semibold text-white active:scale-95"
+                  >
+                    Tạo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => dismissSuggestion(s.key)}
+                    aria-label="Bỏ qua gợi ý"
+                    className="shrink-0 rounded p-1 text-green-700/60 hover:text-green-700 dark:text-green-300/60"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
 
       {isLoading ? (
         <p className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">Đang tải…</p>

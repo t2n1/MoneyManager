@@ -29,6 +29,7 @@ export function CategoryBreakdownCard({
   const pieData = breakdown.slices.map((s, i) => {
     const cat = categories.find((c) => c.id === s.categoryId)
     return {
+      categoryId: s.categoryId,
       name: cat?.name ?? '?',
       icon: cat?.icon ?? '📦',
       value: s.amount,
@@ -79,7 +80,7 @@ export function CategoryBreakdownCard({
                   strokeWidth={0}
                 >
                   {pieData.map((d) => (
-                    <Cell key={d.name} fill={d.color} />
+                    <Cell key={d.categoryId} fill={d.color} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -99,7 +100,7 @@ export function CategoryBreakdownCard({
 
           <ul className="flex-1 space-y-1.5 self-stretch">
             {pieData.map((d) => (
-              <li key={d.name} className="flex items-center gap-2 text-sm">
+              <li key={d.categoryId} className="flex items-center gap-2 text-sm">
                 <span
                   className="h-2.5 w-2.5 shrink-0 rounded-full"
                   style={{ backgroundColor: d.color }}

@@ -264,7 +264,9 @@ export function ReportsPage() {
             </div>
             <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
               <p className="text-xs text-gray-500 dark:text-gray-400">Tỷ lệ tiết kiệm</p>
-              <p className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-100">
+              <p
+                className={`mt-1 text-sm font-bold ${savingsRate !== null && savingsRate < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}
+              >
                 {savingsRate === null ? '—' : `${savingsRate}%`}
               </p>
             </div>

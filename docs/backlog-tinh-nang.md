@@ -376,16 +376,19 @@ Dữ liệu tài chính nhạy cảm — app mở là thấy hết.
 - Gợi ý kỹ thuật: bảng `savings_goals` (RLS như các bảng khác) + cài cả 2 repo.
   Tính tiến độ tái dùng `getAccountBalances` + `convertToBase`.
 
-### AE. Cập nhật giá trị tài sản đầu tư
+### AE. Cập nhật giá trị tài sản đầu tư ✅ (migration 0016)
 
 Số dư hiện chỉ đổi qua giao dịch → vàng/chứng khoán/crypto không phản ánh được
 tăng giảm giá thị trường.
 
-- Ý tưởng: với tài khoản loại đầu tư, cho phép "cập nhật giá trị" định kỳ; phần chênh
-  ghi nhận là **lãi/lỗ chưa thực hiện**, tách khỏi dòng tiền thu/chi.
-- Câu hỏi thiết kế: bảng `valuations` riêng hay tái dùng giao dịch điều chỉnh (mục X)
-  với cờ riêng? Lãi/lỗ có vào báo cáo không hay chỉ vào tổng tài sản?
-- Liên quan: mục X (cùng khái niệm "chỉnh số dư ngoài dòng tiền") — nên thiết kế chung.
+- **Đã cài (2026-07-20):** loại tài khoản `investment`; bảng snapshot `account_valuations`
+  (giá thị trường theo ngày); view `account_balances` lộ `market_value`. Lãi/lỗ chưa
+  thực hiện = giá thị trường − vốn gốc, **chỉ vào Tổng tài sản / Net worth** (Báo cáo
+  thu/chi không đổi). UI: form TK có loại "Đầu tư", sheet "Cập nhật giá trị",
+  AccountDetail hiện vốn gốc/giá trị/lãi lỗ + lịch sử, trang Tài sản hiện lãi/lỗ tổng.
+  Spec: [`specs/2026-07-20-gia-tri-dau-tu-design.md`](./superpowers/specs/2026-07-20-gia-tri-dau-tu-design.md).
+- **Ngoài phạm vi v1:** lot-tracking / tách lãi đã-thực-hiện; tự lấy giá qua API.
+- Liên quan: mục X (cùng khái niệm "chỉnh số dư ngoài dòng tiền"); mục AF (lịch sử net worth).
 
 ### AF. Lịch sử tài sản ròng theo thời gian
 

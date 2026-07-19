@@ -7,7 +7,7 @@
 import type { CurrencyCode } from '../lib/money'
 import type { RecurringFrequency } from '../lib/recurring'
 
-export type AccountType = 'cash' | 'bank' | 'card' | 'ic' | 'ewallet'
+export type AccountType = 'cash' | 'bank' | 'card' | 'ic' | 'ewallet' | 'investment'
 export type CategoryType = 'expense' | 'income'
 export type TransactionType = 'expense' | 'income' | 'transfer'
 /** i_owe = mình nợ người ta · owed_to_me = người ta nợ mình */
@@ -111,7 +111,21 @@ export type AccountBalanceRow = {
   payment_account_id: string | null
   is_archived: boolean
   sort_order: number
+  /** Đầu tư: giá trị thị trường (snapshot mới nhất, minor units theo currency); null = chưa cập nhật / không phải đầu tư */
+  market_value: number | null
   balance: number
+}
+
+/** Đầu tư (mục AE): ảnh chụp giá trị thị trường của một tài khoản tại một ngày. */
+export type AccountValuationRow = {
+  id: string
+  user_id: string
+  account_id: string
+  valued_on: string
+  /** minor units theo currency của tài khoản; luôn ≥ 0 */
+  market_value: number
+  note: string
+  created_at: string
 }
 
 export type BudgetRow = {
@@ -372,6 +386,16 @@ export type Database = {
             | 'last_generated_on'
           >
         >
+        Relationships: []
+      }
+      account_valuations: {
+        Row: AccountValuationRow
+        Insert: InsertOf<
+          AccountValuationRow,
+          'user_id' | 'account_id' | 'market_value',
+          'id' | 'valued_on' | 'note'
+        >
+        Update: Partial<Pick<AccountValuationRow, 'valued_on' | 'market_value' | 'note'>>
         Relationships: []
       }
     }

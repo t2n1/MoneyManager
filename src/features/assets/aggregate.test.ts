@@ -37,9 +37,12 @@ function acc(p: Partial<AccountBalanceRow> & Pick<AccountBalanceRow, 'balance'>)
     is_hidden: false,
     include_in_totals: true,
     credit_limit: null,
+    statement_day: null,
+    payment_due_day: null,
     payment_account_id: null,
     is_archived: false,
     sort_order: 0,
+    market_value: null,
     ...p,
   }
 }
@@ -216,6 +219,79 @@ describe('assetBreakdown — thẻ tín dụng (type=card)', () => {
     ]
     const r = assetBreakdown(balances, 'JPY', RATES)
     expect(r.cards[0].paymentAccountId).toBe('bank1')
+  })
+})
+
+describe('assetBreakdown — tài khoản đầu tư (type=investment)', () => {
+  it('chưa cập nhật giá: tính theo vốn gốc, lãi/lỗ = 0', () => {
+    const balances = [
+      acc({ balance: 100_000, asset_group: 'Tiêu dùng' }),
+      acc({ balance: 1_000_000, type: 'investment', asset_group: 'Đầu tư' }), // market_value null
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES)
+    expect(r.total).toBe(1_100_000) // đầu tư tính bằng vốn gốc khi chưa có giá
+    expect(r.unrealizedPnl).toBe(0)
+    expect(r.pnlHasMissingRate).toBe(false)
+    const inv = r.groups.find((g) => g.name === 'Đầu tư')!.accounts[0]
+    expect(inv.value).toBe(1_000_000)
+    expect(inv.marketValue).toBeNull()
+    expect(inv.unrealizedPnlBase).toBeNull()
+  })
+
+  it('đã cập nhật giá: Tổng tài sản dùng giá thị trường, lãi/lỗ = giá − vốn gốc', () => {
+    const balances = [
+      acc({ balance: 100_000, asset_group: 'Tiêu dùng' }),
+      acc({ balance: 1_000_000, market_value: 1_250_000, type: 'investment', asset_group: 'Đầu tư' }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES)
+    expect(r.total).toBe(1_350_000) // 100.000 + 1.250.000 (giá thị trường)
+    expect(r.unrealizedPnl).toBe(250_000)
+    const inv = r.groups.find((g) => g.name === 'Đầu tư')!.accounts[0]
+    expect(inv.value).toBe(1_250_000)
+    expect(inv.marketValue).toBe(1_250_000)
+    expect(inv.unrealizedPnlBase).toBe(250_000)
+  })
+
+  it('lỗ chưa thực hiện: giá thị trường < vốn gốc', () => {
+    const balances = [
+      acc({ balance: 1_000_000, market_value: 900_000, type: 'investment', asset_group: 'Đầu tư' }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES)
+    expect(r.total).toBe(900_000)
+    expect(r.unrealizedPnl).toBe(-100_000)
+  })
+
+  it('đầu tư ngoại tệ: quy đổi cả giá & vốn gốc về base rồi tính lãi/lỗ', () => {
+    // VND: 1 ¥ = 165 ₫. Vốn gốc 1.650.000 ₫ → ¥10.000; giá 1.980.000 ₫ → ¥12.000
+    const balances = [
+      acc({ balance: 1_650_000, market_value: 1_980_000, currency: 'VND', type: 'investment', asset_group: 'Đầu tư' }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES)
+    expect(r.total).toBe(12_000)
+    expect(r.unrealizedPnl).toBe(2_000)
+    expect(r.hasForeign).toBe(true)
+  })
+
+  it('đầu tư có snapshot nhưng thiếu tỷ giá → pnlHasMissingRate, không cộng lãi/lỗ', () => {
+    const balances = [
+      acc({ balance: 100_000, asset_group: 'Tiêu dùng' }),
+      acc({ balance: 200_000, market_value: 250_000, currency: 'USD', type: 'investment', asset_group: 'Đầu tư' }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', { JPY: 1, VND: 165 }) // thiếu USD
+    expect(r.total).toBe(100_000) // đầu tư USD không quy đổi được → không cộng
+    expect(r.hasMissingRate).toBe(true)
+    expect(r.pnlHasMissingRate).toBe(true)
+    expect(r.unrealizedPnl).toBe(0)
+  })
+
+  it('đầu tư ẩn: không cộng vào tổng lẫn lãi/lỗ', () => {
+    const balances = [
+      acc({ balance: 100_000, asset_group: 'Tiêu dùng' }),
+      acc({ balance: 1_000_000, market_value: 1_300_000, type: 'investment', asset_group: 'Đầu tư', is_hidden: true }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES)
+    expect(r.total).toBe(100_000)
+    expect(r.unrealizedPnl).toBe(0)
   })
 })
 

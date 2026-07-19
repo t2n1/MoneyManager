@@ -15,6 +15,7 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   card: 'Thẻ tín dụng',
   ic: 'IC giao thông',
   ewallet: 'Ví điện tử',
+  investment: 'Đầu tư',
 }
 
 /** Cài đặt riêng của một nhóm (từ bảng asset_group_settings). */
@@ -30,10 +31,17 @@ export interface AssetAccount {
   name: string
   type: AccountBalanceRow['type']
   currency: CurrencyCode
-  /** minor units theo currency gốc của tài khoản */
+  /** minor units gốc — số dư sổ (với đầu tư = vốn gốc ròng: nạp − rút) */
   balance: number
-  /** minor units quy đổi base; null = thiếu tỷ giá */
+  /** Đầu tư: giá trị thị trường (minor units gốc, snapshot mới nhất); null = không phải đầu tư / chưa cập nhật */
+  marketValue: number | null
+  /** minor units gốc dùng để hiển thị & cộng tổng = marketValue ?? balance */
+  value: number
+  /** minor units quy đổi base của `value`; null = thiếu tỷ giá */
   baseValue: number | null
+  /** Đầu tư: lãi/lỗ chưa thực hiện quy đổi base (base(marketValue) − base(balance));
+   *  null = không phải đầu tư / chưa cập nhật / thiếu tỷ giá */
+  unrealizedPnlBase: number | null
   /** false = không cộng vào tổng (cấp tài khoản) */
   includeInTotals: boolean
   /** true = ẩn khỏi trang Tài sản (cấp tài khoản) */
@@ -95,6 +103,10 @@ export interface AssetBreakdown {
   cardDebt: number
   /** có thẻ (được tính) thiếu tỷ giá → cardDebt có thể thiếu */
   cardHasMissingRate: boolean
+  /** tổng lãi/lỗ đầu tư chưa thực hiện (base); chỉ cộng tài khoản đầu tư được tính, có snapshot & đủ tỷ giá */
+  unrealizedPnl: number
+  /** có tài khoản đầu tư (được tính) có snapshot nhưng thiếu tỷ giá → unrealizedPnl có thể thiếu */
+  pnlHasMissingRate: boolean
 }
 
 /**
@@ -121,6 +133,8 @@ export function assetBreakdown(
   let hasMissingRate = false
   let cardDebt = 0
   let cardHasMissingRate = false
+  let unrealizedPnl = 0
+  let pnlHasMissingRate = false
 
   for (const b of balances) {
     if (b.is_archived) continue
@@ -150,14 +164,27 @@ export function assetBreakdown(
     }
 
     const key = b.asset_group?.trim() || UNGROUPED_LABEL
-    const baseValue = convertToBase(b.balance, b.currency, base, rates)
+    // Đầu tư đã cập nhật giá → giá trị dùng cho tổng là giá thị trường; ngược lại là số dư sổ.
+    const isInvestment = b.type === 'investment'
+    const marketValue = isInvestment ? (b.market_value ?? null) : null
+    const value = marketValue ?? b.balance
+    const baseValue = convertToBase(value, b.currency, base, rates)
+    // Lãi/lỗ chưa thực hiện = base(giá thị trường) − base(vốn gốc). Chỉ khi có snapshot.
+    let unrealizedPnlBase: number | null = null
+    if (marketValue != null) {
+      const baseCost = convertToBase(b.balance, b.currency, base, rates)
+      unrealizedPnlBase = baseValue != null && baseCost != null ? baseValue - baseCost : null
+    }
     const account: AssetAccount = {
       id: b.id,
       name: b.name,
       type: b.type,
       currency: b.currency,
       balance: b.balance,
+      marketValue,
+      value,
       baseValue,
+      unrealizedPnlBase,
       includeInTotals: b.include_in_totals ?? true,
       hidden: b.is_hidden ?? false,
     }
@@ -180,6 +207,12 @@ export function assetBreakdown(
       total += groupTotal
       if (countedAccounts.some((a) => a.currency !== base)) hasForeign = true
       if (countedAccounts.some((a) => a.baseValue === null)) hasMissingRate = true
+      // Lãi/lỗ đầu tư: chỉ cộng tài khoản đầu tư đã có snapshot; thiếu tỷ giá → cảnh báo
+      for (const a of countedAccounts) {
+        if (a.marketValue == null) continue
+        if (a.unrealizedPnlBase == null) pnlHasMissingRate = true
+        else unrealizedPnl += a.unrealizedPnlBase
+      }
     }
 
     return {
@@ -220,6 +253,8 @@ export function assetBreakdown(
     cards,
     cardDebt,
     cardHasMissingRate,
+    unrealizedPnl,
+    pnlHasMissingRate,
   }
 }
 

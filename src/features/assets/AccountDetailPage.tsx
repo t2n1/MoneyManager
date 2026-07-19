@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, LineChart, Trash2 } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
 import type { TxFilter } from '../../data'
 import {
   useAccountBalances,
   useAccounts,
+  useAccountValuations,
   useCategories,
+  useDeleteValuation,
   useProfile,
   useRates,
   useSearchTransactions,
@@ -23,6 +25,8 @@ import { formatMoney } from '../../lib/money'
 import type { TransactionRow } from '../../types/database.types'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { TransactionItem } from '../transactions/TransactionItem'
+import { investmentStats } from './investment'
+import { ValuationFormSheet } from './ValuationFormSheet'
 
 export function AccountDetailPage() {
   const { accountId = '' } = useParams()
@@ -31,7 +35,10 @@ export function AccountDetailPage() {
   const { data: balances = [] } = useAccountBalances()
   const { data: categories = [] } = useCategories()
   const { base } = useRates()
+  const { data: valuations = [] } = useAccountValuations()
+  const deleteValuation = useDeleteValuation()
   const [editing, setEditing] = useState<TransactionRow | null>(null)
+  const [showValuation, setShowValuation] = useState(false)
 
   const monthStartDay = profile?.month_start_day ?? 1
   // null = "kỳ hiện tại": tính lazy vì profile tải async — khởi tạo cứng trong
@@ -40,7 +47,18 @@ export function AccountDetailPage() {
   const activeMonthKey = monthKey ?? monthKeyForDate(toISODate(new Date()), monthStartDay)
 
   const account = accounts.find((a) => a.id === accountId)
-  const balance = balances.find((b) => b.id === accountId)?.balance ?? 0
+  const balanceRow = balances.find((b) => b.id === accountId)
+  const balance = balanceRow?.balance ?? 0
+  const isInvestment = account?.type === 'investment'
+  // Đầu tư: vốn gốc = balance (sổ), giá thị trường = snapshot mới nhất (view market_value)
+  const invStats = investmentStats(balance, isInvestment ? (balanceRow?.market_value ?? null) : null)
+  const accountValuations = useMemo(
+    () =>
+      valuations
+        .filter((v) => v.account_id === accountId)
+        .sort((a, b) => b.valued_on.localeCompare(a.valued_on)),
+    [valuations, accountId],
+  )
 
   // Phím tắt desktop: ←/→ chuyển tháng
   useEffect(() => {
@@ -108,7 +126,11 @@ export function AccountDetailPage() {
       {/* Số dư hiện tại */}
       <section className="mb-3 rounded-xl bg-white dark:bg-gray-900 p-4 shadow-sm">
         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-          {account?.type === 'card' ? 'Đang nợ thẻ' : 'Số dư hiện tại'}
+          {account?.type === 'card'
+            ? 'Đang nợ thẻ'
+            : isInvestment
+              ? 'Giá trị hiện tại'
+              : 'Số dư hiện tại'}
         </p>
         <p
           className={`mt-1 text-2xl font-bold ${balance < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}
@@ -117,10 +139,55 @@ export function AccountDetailPage() {
             ? balance < 0
               ? `− ${formatMoney(-balance, currency)}`
               : formatMoney(0, currency)
-            : formatMoney(balance, currency)}
+            : isInvestment
+              ? formatMoney(invStats.marketValue ?? balance, currency)
+              : formatMoney(balance, currency)}
         </p>
         {account?.asset_group && (
           <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Nhóm: {account.asset_group}</p>
+        )}
+
+        {isInvestment && (
+          <div className="mt-3 space-y-1.5 border-t border-gray-100 dark:border-gray-800 pt-3 text-sm">
+            <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
+              <span>Vốn gốc (đã bỏ vào)</span>
+              <span className="tabular-nums font-medium text-gray-800 dark:text-gray-100">
+                {formatMoney(invStats.costBasis, currency)}
+              </span>
+            </div>
+            {invStats.unrealizedPnl == null ? (
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                Chưa cập nhật giá thị trường — đang tính theo vốn gốc.
+              </p>
+            ) : (
+              <div
+                className={`flex items-center justify-between font-medium ${
+                  invStats.unrealizedPnl >= 0
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-red-600 dark:text-red-400'
+                }`}
+              >
+                <span>Lãi/lỗ chưa thực hiện</span>
+                <span className="tabular-nums">
+                  {invStats.unrealizedPnl >= 0 ? '+' : '−'}
+                  {formatMoney(Math.abs(invStats.unrealizedPnl), currency)}
+                  {invStats.pnlPercent != null && (
+                    <span className="ml-1 text-xs">
+                      ({invStats.unrealizedPnl >= 0 ? '+' : '−'}
+                      {Math.abs(invStats.pnlPercent * 100).toFixed(1)}%)
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowValuation(true)}
+              className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white active:scale-95"
+            >
+              <LineChart className="h-3.5 w-3.5" /> Cập nhật giá trị
+            </button>
+          </div>
         )}
 
         {account?.type === 'card' && (
@@ -154,6 +221,40 @@ export function AccountDetailPage() {
           </div>
         )}
       </section>
+
+      {/* Lịch sử cập nhật giá trị (tài khoản đầu tư) */}
+      {isInvestment && accountValuations.length > 0 && (
+        <section className="mb-3 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
+          <h2 className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+            Lịch sử giá trị
+          </h2>
+          <ul className="mt-2 divide-y divide-gray-100 dark:divide-gray-800">
+            {accountValuations.map((v) => (
+              <li key={v.id} className="flex items-center gap-2 px-4 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm font-medium tabular-nums text-gray-800 dark:text-gray-100">
+                    {formatMoney(v.market_value, currency)}
+                  </span>
+                  <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">{v.valued_on}</span>
+                  {v.note && (
+                    <span className="block truncate text-xs text-gray-400 dark:text-gray-500">{v.note}</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Xóa bản ghi giá trị này?')) deleteValuation.mutate(v.id)
+                  }}
+                  className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-600 dark:hover:bg-gray-800"
+                  aria-label="Xóa bản ghi giá trị"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Chuyển tháng */}
       <div className="mb-3 flex items-center gap-2">
@@ -205,6 +306,13 @@ export function AccountDetailPage() {
       )}
 
       {editing && <EditTransactionSheet tx={editing} onClose={() => setEditing(null)} />}
+      {showValuation && account && (
+        <ValuationFormSheet
+          account={account}
+          currentValue={invStats.marketValue}
+          onClose={() => setShowValuation(false)}
+        />
+      )}
     </div>
   )
 }

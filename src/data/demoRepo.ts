@@ -4,6 +4,7 @@ import { filterTransactions, normalizeText } from '../features/transactions/filt
 import type {
   AccountBalanceRow,
   AccountRow,
+  AccountValuationRow,
   AssetGroupSettingRow,
   BudgetRow,
   CategoryRow,
@@ -28,6 +29,7 @@ import {
   type NewRecurringOccurrence,
   type NewRecurringRule,
   type NewTransaction,
+  type NewValuation,
   type ProfilePatch,
   type RecurringRulePatch,
   type Repo,
@@ -39,7 +41,7 @@ import {
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
 // Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-const STORAGE_KEY = 'sct-demo-db-v12' // v12: thẻ Rakuten trả ngày 27 (statement_day/payment_due_day)
+const STORAGE_KEY = 'sct-demo-db-v13' // v13: TK đầu tư (type=investment) + snapshot giá trị thị trường (mục AE)
 const DEMO_USER = 'demo-user'
 
 interface DemoDB {
@@ -52,6 +54,7 @@ interface DemoDB {
   debts: DebtRow[]
   debtPayments: DebtPaymentRow[]
   recurringRules: RecurringRuleRow[]
+  accountValuations: AccountValuationRow[]
 }
 
 // crypto.randomUUID() chỉ chạy trong secure context (HTTPS / localhost).
@@ -127,7 +130,7 @@ function seed(): DemoDB {
   const accounts = [
     account('Tiền mặt', 'cash', 'JPY', 30_000, 0, 'Tiêu dùng'), // ¥30.000
     account('Ngân hàng', 'bank', 'JPY', 800_000, 1, 'Tiêu dùng'), // ¥800.000
-    account('Đầu tư VN', 'bank', 'VND', 50_000_000, 2, 'Đầu tư'), // 50.000.000 ₫
+    account('Đầu tư VN', 'investment', 'VND', 50_000_000, 2, 'Đầu tư'), // 50.000.000 ₫ (vốn gốc)
     account('Dự trữ USD', 'bank', 'USD', 200_000, 3, 'Dự phòng'), // $2.000,00
     // Thẻ tín dụng: số dư ban đầu âm = đang nợ ¥45.000. Không thuộc nhóm tài sản.
     {
@@ -312,6 +315,20 @@ function seed(): DemoDB {
     created_at: nowISO(),
     updated_at: nowISO(),
   }
+  // Snapshot giá trị thị trường cho TK đầu tư (vốn gốc ròng ~59.750.000 ₫ → giá thị
+  // trường 65.000.000 ₫, lãi chưa thực hiện ~5.250.000 ₫).
+  const accountValuations: AccountValuationRow[] = [
+    {
+      id: uuid(),
+      user_id: DEMO_USER,
+      account_id: invest.id,
+      valued_on: daysAgo(1),
+      market_value: 65_000_000,
+      note: 'Cập nhật cuối tháng',
+      created_at: nowISO(),
+    },
+  ]
+
   const debts = [debtLent, debtOwed]
   const debtPayments: DebtPaymentRow[] = [
     {
@@ -342,6 +359,7 @@ function seed(): DemoDB {
     debts,
     debtPayments,
     recurringRules: [],
+    accountValuations,
   }
 }
 
@@ -385,6 +403,17 @@ export const demoRepo: Repo = {
 
   async getAccountBalances(): Promise<AccountBalanceRow[]> {
     const db = load()
+    const valuations = db.accountValuations ?? []
+    // Snapshot mới nhất mỗi tài khoản (valued_on desc, tiebreak created_at desc) — khớp view.
+    const latestValuation = (accountId: string): number | null => {
+      const rows = valuations
+        .filter((v) => v.account_id === accountId)
+        .sort(
+          (x, y) =>
+            y.valued_on.localeCompare(x.valued_on) || y.created_at.localeCompare(x.created_at),
+        )
+      return rows.length > 0 ? rows[0].market_value : null
+    }
     return db.accounts
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((a) => {
@@ -412,6 +441,7 @@ export const demoRepo: Repo = {
           payment_account_id: a.payment_account_id ?? null,
           is_archived: a.is_archived,
           sort_order: a.sort_order,
+          market_value: latestValuation(a.id),
           balance: a.initial_balance + delta,
         }
       })
@@ -504,6 +534,45 @@ export const demoRepo: Repo = {
       const acc = db.accounts.find((a) => a.id === id)
       if (acc) acc.sort_order = i
     })
+    save(db)
+  },
+
+  async getAccountValuations() {
+    return (load().accountValuations ?? [])
+      .slice()
+      .sort((a, b) => b.valued_on.localeCompare(a.valued_on))
+  },
+
+  async upsertValuation(input: NewValuation) {
+    const db = load()
+    db.accountValuations ??= []
+    // Đè theo (account_id, valued_on) — khớp unique của Postgres
+    const existing = db.accountValuations.find(
+      (v) => v.account_id === input.account_id && v.valued_on === input.valued_on,
+    )
+    if (existing) {
+      existing.market_value = input.market_value
+      existing.note = input.note
+      save(db)
+      return existing
+    }
+    const row: AccountValuationRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      account_id: input.account_id,
+      valued_on: input.valued_on,
+      market_value: input.market_value,
+      note: input.note,
+      created_at: nowISO(),
+    }
+    db.accountValuations.push(row)
+    save(db)
+    return row
+  },
+
+  async deleteValuation(id: string) {
+    const db = load()
+    db.accountValuations = (db.accountValuations ?? []).filter((v) => v.id !== id)
     save(db)
   },
 
@@ -902,6 +971,7 @@ export const demoRepo: Repo = {
       debts: db.debts ?? [],
       debtPayments: db.debtPayments ?? [],
       recurringRules: db.recurringRules ?? [],
+      accountValuations: db.accountValuations ?? [],
     }
   },
 
@@ -919,6 +989,7 @@ export const demoRepo: Repo = {
       debts: stamp(data.debts ?? []),
       debtPayments: stamp(data.debtPayments ?? []),
       recurringRules: stamp(data.recurringRules ?? []),
+      accountValuations: stamp(data.accountValuations ?? []),
     }
     save(db)
   },

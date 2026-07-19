@@ -295,6 +295,7 @@ function AccountForm({ account, onClose }: FormProps) {
               <option value="card">Thẻ tín dụng</option>
               <option value="ic">IC giao thông</option>
               <option value="ewallet">Ví điện tử</option>
+              <option value="investment">Đầu tư</option>
             </select>
           </div>
           <div>
@@ -441,6 +442,12 @@ function AccountForm({ account, onClose }: FormProps) {
         {isCard && (
           <p className="mb-2 text-xs text-gray-400 dark:text-gray-500">
             Nhập số bạn đang nợ thẻ (để 0 nếu chưa nợ). Chi tiêu bằng thẻ và trả thẻ ghi như giao dịch bình thường.
+          </p>
+        )}
+        {type === 'investment' && (
+          <p className="mb-2 text-xs text-gray-400 dark:text-gray-500">
+            Nhập vốn gốc ban đầu (tiền đã bỏ vào). Sau khi tạo, vào trang tài khoản để
+            “Cập nhật giá trị” theo giá thị trường — chênh lệch là lãi/lỗ chưa thực hiện.
           </p>
         )}
 

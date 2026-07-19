@@ -5,7 +5,7 @@
 // KHÔNG import data/repo hay database.types để tránh vòng import (giống recurring.ts).
 
 import type { AccountType } from '../types/database.types'
-import { addDaysISO, addMonths } from './dates'
+import { addDaysISO, addMonths, shiftWeekendToMonday } from './dates'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate()
@@ -18,6 +18,10 @@ function dayOfMonth(year: number, month: number, day: number): string {
 /**
  * Các ngày đến hạn (hằng tháng vào `dueDay`) CẦN SINH: sau `throughISO` (con trỏ
  * kỳ đã sinh) đến hết `todayISO` (inclusive). Kết quả tăng dần theo thời gian.
+ *
+ * Ngày đến hạn đã DỜI Thứ 7/CN sang Thứ 2 (`shiftWeekendToMonday`) — khớp ngày
+ * ngân hàng thực rút tiền và khớp hiển thị "ngày trả" ở trang Tài sản. Vì vậy
+ * `throughISO` (con trỏ) cũng là ngày ĐÃ DỜI của kỳ trước; so sánh đều theo ngày dời.
  */
 export function dueDatesToGenerate(dueDay: number, throughISO: string, todayISO: string): string[] {
   const out: string[] = []
@@ -25,7 +29,7 @@ export function dueDatesToGenerate(dueDay: number, throughISO: string, todayISO:
   let key = { year: ty, month: tm }
   // Chặn vòng lặp: tối đa ~50 năm kỳ tháng.
   for (let i = 0; i < 600; i++) {
-    const due = dayOfMonth(key.year, key.month, dueDay)
+    const due = shiftWeekendToMonday(dayOfMonth(key.year, key.month, dueDay))
     if (due > todayISO) break
     if (due > throughISO) out.push(due)
     key = addMonths(key, 1)

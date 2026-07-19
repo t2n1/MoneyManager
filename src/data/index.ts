@@ -19,6 +19,7 @@ export type {
   NewRecurringOccurrence,
   NewRecurringRule,
   NewTransaction,
+  NewValuation,
   ProfilePatch,
   RecurringRulePatch,
   Repo,

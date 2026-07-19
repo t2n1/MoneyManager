@@ -10,7 +10,9 @@ import {
   getYearRange,
   monthKeyForDate,
   monthKeyString,
+  nextCardDueDate,
   parseMonthKey,
+  shiftWeekendToMonday,
   toISODate,
 } from './dates'
 
@@ -166,5 +168,47 @@ describe('getYearRange', () => {
 describe('formatYearLabel', () => {
   it('nhãn năm tiếng Việt', () => {
     expect(formatYearLabel(2026)).toBe('Năm 2026')
+  })
+})
+
+describe('shiftWeekendToMonday', () => {
+  it('ngày thường giữ nguyên', () => {
+    expect(shiftWeekendToMonday('2026-07-27')).toBe('2026-07-27') // Thứ 2
+    expect(shiftWeekendToMonday('2026-02-27')).toBe('2026-02-27') // Thứ 6
+  })
+
+  it('Thứ 7 → Thứ 2 (+2 ngày)', () => {
+    expect(shiftWeekendToMonday('2026-06-27')).toBe('2026-06-29')
+  })
+
+  it('Chủ nhật → Thứ 2 (+1 ngày)', () => {
+    expect(shiftWeekendToMonday('2026-09-27')).toBe('2026-09-28')
+  })
+})
+
+describe('nextCardDueDate', () => {
+  it('ngày trả tháng này còn ở phía trước', () => {
+    expect(nextCardDueDate(27, '2026-07-20')).toBe('2026-07-27')
+  })
+
+  it('đã qua ngày trả → sang tháng sau', () => {
+    expect(nextCardDueDate(27, '2026-07-28')).toBe('2026-08-27')
+  })
+
+  it('rơi vào Thứ 7 → dời sang Thứ 2', () => {
+    expect(nextCardDueDate(27, '2026-06-01')).toBe('2026-06-29')
+  })
+
+  it('rơi vào Chủ nhật → dời sang Thứ 2', () => {
+    expect(nextCardDueDate(27, '2026-09-01')).toBe('2026-09-28')
+  })
+
+  it('ngày trả (đã dời) đúng bằng hôm nay → vẫn là kỳ tới', () => {
+    expect(nextCardDueDate(27, '2026-06-29')).toBe('2026-06-29')
+  })
+
+  it('kẹp về cuối tháng ngắn; cuối tháng rơi cuối tuần vẫn dời sang Thứ 2', () => {
+    // 31 → 28/02/2026 (Thứ 7) → 02/03/2026 (Thứ 2)
+    expect(nextCardDueDate(31, '2026-02-01')).toBe('2026-03-02')
   })
 })

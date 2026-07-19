@@ -12,6 +12,7 @@ import {
   type NewDebtPayment,
   type NewRecurringRule,
   type NewTransaction,
+  type NewValuation,
   type ProfilePatch,
   type RecurringRulePatch,
   type TransactionPatch,
@@ -187,6 +188,38 @@ export function useReorderAccounts() {
   return useMutation({
     mutationFn: (orderedIds: string[]) => repo.reorderAccounts(orderedIds),
     onSettled: () => invalidateAccounts(qc),
+  })
+}
+
+// --- Đầu tư: giá trị thị trường (mục AE) ---
+
+export function useAccountValuations() {
+  return useQuery({
+    queryKey: ['valuations'],
+    queryFn: () => repo.getAccountValuations(),
+    staleTime: 60_000,
+  })
+}
+
+function invalidateValuations(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['valuations'] })
+  // Số dư (view) lộ market_value → Tổng tài sản / Tài sản ròng phụ thuộc snapshot
+  qc.invalidateQueries({ queryKey: ['balances'] })
+}
+
+export function useUpsertValuation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewValuation) => repo.upsertValuation(input),
+    onSettled: () => invalidateValuations(qc),
+  })
+}
+
+export function useDeleteValuation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => repo.deleteValuation(id),
+    onSettled: () => invalidateValuations(qc),
   })
 }
 

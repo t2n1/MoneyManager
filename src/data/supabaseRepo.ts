@@ -4,6 +4,7 @@ import { addMonths, monthKeyString, parseMonthKey } from '../lib/dates'
 import { getSupabase } from '../lib/supabase'
 import type {
   AccountRow,
+  AccountValuationRow,
   AssetGroupSettingRow,
   BudgetRow,
   CategoryRow,
@@ -27,6 +28,7 @@ import {
   type NewRecurringOccurrence,
   type NewRecurringRule,
   type NewTransaction,
+  type NewValuation,
   type ProfilePatch,
   type RecurringRulePatch,
   type Repo,
@@ -46,6 +48,7 @@ type DataTable =
   | 'debts'
   | 'debt_payments'
   | 'recurring_rules'
+  | 'account_valuations'
 
 async function currentUserId(): Promise<string> {
   const {
@@ -211,6 +214,40 @@ export const supabaseRepo: Repo = {
       ),
     )
     for (const { error } of results) if (error) throw error
+  },
+
+  async getAccountValuations() {
+    const { data, error } = await getSupabase()
+      .from('account_valuations')
+      .select('*')
+      .order('valued_on', { ascending: false })
+    if (error) throw error
+    return data
+  },
+
+  async upsertValuation(input: NewValuation) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('account_valuations')
+      .upsert(
+        {
+          user_id,
+          account_id: input.account_id,
+          valued_on: input.valued_on,
+          market_value: input.market_value,
+          note: input.note,
+        },
+        { onConflict: 'account_id,valued_on' },
+      )
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async deleteValuation(id: string) {
+    const { error } = await getSupabase().from('account_valuations').delete().eq('id', id)
+    if (error) throw error
   },
 
   async createCategory(input: NewCategory) {
@@ -610,6 +647,7 @@ export const supabaseRepo: Repo = {
       debts,
       debtPayments,
       recurringRules,
+      accountValuations,
     ] = await Promise.all([
       this.getProfile(),
       selectAll<AccountRow>('accounts'),
@@ -620,6 +658,7 @@ export const supabaseRepo: Repo = {
       selectAll<DebtRow>('debts'),
       selectAll<DebtPaymentRow>('debt_payments'),
       selectAll<RecurringRuleRow>('recurring_rules'),
+      selectAll<AccountValuationRow>('account_valuations'),
     ])
     return {
       version: BACKUP_VERSION,
@@ -633,6 +672,7 @@ export const supabaseRepo: Repo = {
       debts,
       debtPayments,
       recurringRules,
+      accountValuations,
     }
   },
 
@@ -645,6 +685,7 @@ export const supabaseRepo: Repo = {
 
     // 1) Xóa dữ liệu hiện có theo thứ tự con → cha (tránh vướng FK)
     const deleteOrder: DataTable[] = [
+      'account_valuations',
       'debt_payments',
       'debts',
       'budgets',
@@ -822,6 +863,24 @@ export const supabaseRepo: Repo = {
               paid_on: p.paid_on,
               transaction_id: p.transaction_id,
               note: p.note,
+            })),
+          )
+        ).error,
+      )
+    }
+
+    // account_valuations: composite FK tới accounts → chèn sau accounts.
+    if (data.accountValuations?.length) {
+      ok(
+        (
+          await sb.from('account_valuations').insert(
+            data.accountValuations.map((v) => ({
+              id: v.id,
+              user_id: uid,
+              account_id: v.account_id,
+              valued_on: v.valued_on,
+              market_value: v.market_value,
+              note: v.note,
             })),
           )
         ).error,

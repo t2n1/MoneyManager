@@ -8,7 +8,8 @@ import {
   useUpdateRecurringRule,
 } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
-import { CURRENCIES, formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
+import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
+import { AccountPicker } from '../../components/AccountPicker'
 import type { RecurringFrequency } from '../../lib/recurring'
 import type { RecurringRuleRow, TransactionType } from '../../types/database.types'
 
@@ -124,29 +125,6 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
     }
   }
 
-  const accountSelect = (
-    value: string | null,
-    onChange: (id: string) => void,
-    excludeId?: string | null,
-  ) => (
-    <select
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm text-gray-700 dark:text-gray-300"
-    >
-      <option value="" disabled>
-        Chọn tài khoản…
-      </option>
-      {activeAccounts
-        .filter((a) => a.id !== excludeId)
-        .map((a) => (
-          <option key={a.id} value={a.id}>
-            {a.name} · {CURRENCIES[a.currency].symbol}
-          </option>
-        ))}
-    </select>
-  )
-
   const moneyInput = (
     digits: string,
     setDigits: (v: string) => void,
@@ -199,13 +177,29 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
           {type === 'transfer' ? 'Từ tài khoản' : 'Tài khoản'}
         </label>
-        <div className="mb-3">{accountSelect(effectiveAccountId, setAccountId, toAccountId)}</div>
+        <div className="mb-3">
+          <AccountPicker
+            accounts={activeAccounts}
+            value={effectiveAccountId}
+            onChange={setAccountId}
+            excludeId={toAccountId}
+            className="w-full"
+          />
+        </div>
         {type === 'transfer' && (
           <>
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
               Đến tài khoản
             </label>
-            <div className="mb-3">{accountSelect(toAccountId, setToAccountId, effectiveAccountId)}</div>
+            <div className="mb-3">
+              <AccountPicker
+                accounts={activeAccounts}
+                value={toAccountId}
+                onChange={setToAccountId}
+                excludeId={effectiveAccountId}
+                className="w-full"
+              />
+            </div>
           </>
         )}
 

@@ -10,26 +10,28 @@ import {
 } from './cardAutopay'
 
 describe('dueDatesToGenerate', () => {
-  it('sinh các kỳ hằng tháng sau con trỏ đến hết hôm nay', () => {
+  it('sinh các kỳ hằng tháng sau con trỏ đến hết hôm nay (dời cuối tuần sang T2)', () => {
+    // 10/1/2026 là Thứ 7 → dời 12/1; 10/2 và 10/3 là ngày thường → giữ nguyên
     expect(dueDatesToGenerate(10, '2026-01-01', '2026-03-15')).toEqual([
-      '2026-01-10',
+      '2026-01-12',
       '2026-02-10',
       '2026-03-10',
     ])
   })
 
-  it('loại kỳ đúng bằng con trỏ, dừng ở hôm nay', () => {
-    expect(dueDatesToGenerate(10, '2026-01-10', '2026-02-10')).toEqual(['2026-02-10'])
+  it('loại kỳ đúng bằng con trỏ (con trỏ là ngày đã dời), dừng ở hôm nay', () => {
+    expect(dueDatesToGenerate(10, '2026-01-12', '2026-02-10')).toEqual(['2026-02-10'])
   })
 
   it('chưa tới kỳ nào → rỗng', () => {
     expect(dueDatesToGenerate(10, '2026-03-11', '2026-03-20')).toEqual([])
   })
 
-  it('clamp ngày cuối tháng (31 → 28/29)', () => {
+  it('clamp ngày cuối tháng rồi dời cuối tuần', () => {
+    // 31/1 (T7)→2/2; 31→28/2 (T7)→2/3; 31/3 (T3) giữ nguyên
     expect(dueDatesToGenerate(31, '2026-01-01', '2026-03-31')).toEqual([
-      '2026-01-31',
-      '2026-02-28',
+      '2026-02-02',
+      '2026-03-02',
       '2026-03-31',
     ])
   })
@@ -125,11 +127,11 @@ describe('runCardAutopayCatchUp', () => {
       [ex('2025-12-20', 30_000), ex('2026-01-05', 20_000)],
     )
     const n = await runCardAutopayCatchUp(repo, '2026-03-15')
-    // Kỳ 10/1 trả nợ chốt 27/12 = 30.000; kỳ 10/2 trả nợ chốt 27/1 = 20.000
-    // (đã trừ lần trả 10/1); kỳ 10/3 chốt 27/2 nợ = 0 → bỏ qua
+    // Kỳ 10/1 (T7→dời 12/1) trả nợ chốt 27/12 = 30.000; kỳ 10/2 trả nợ chốt 27/1 =
+    // 20.000 (đã trừ lần trả 12/1); kỳ 10/3 chốt 27/2 nợ = 0 → bỏ qua
     expect(n).toBe(2)
     expect(created.map((c) => [c.occurred_on, c.amount])).toEqual([
-      ['2026-01-10', 30_000],
+      ['2026-01-12', 30_000],
       ['2026-02-10', 20_000],
     ])
     // Chuyển khoản nguồn→thẻ, ghi chú tự trả

@@ -4,6 +4,7 @@ import type {
   AccountBalanceRow,
   AccountRow,
   AccountType,
+  AccountValuationRow,
   AssetGroupSettingRow,
   BudgetRow,
   CategoryRow,
@@ -32,10 +33,12 @@ export interface BackupData {
   debts: DebtRow[]
   debtPayments: DebtPaymentRow[]
   recurringRules: RecurringRuleRow[]
+  /** Đầu tư (mục AE); vắng mặt ở backup v1. */
+  accountValuations?: AccountValuationRow[]
 }
 
-/** Phiên bản định dạng backup hiện hành. */
-export const BACKUP_VERSION = 1
+/** Phiên bản định dạng backup hiện hành. v2: thêm accountValuations (mục AE). */
+export const BACKUP_VERSION = 2
 
 export interface NewTransaction {
   type: TransactionType
@@ -177,6 +180,15 @@ export type RecurringRulePatch = Partial<
 /** Giao dịch do engine catch-up sinh — luôn mang recurring_rule_id. */
 export type NewRecurringOccurrence = NewTransaction & { recurring_rule_id: string }
 
+/** Đầu tư (mục AE): cập nhật giá trị thị trường của một tài khoản tại một ngày. */
+export interface NewValuation {
+  account_id: string
+  valued_on: string
+  /** minor units theo currency của tài khoản; ≥ 0 */
+  market_value: number
+  note: string
+}
+
 // Toàn bộ đọc/ghi dữ liệu đi qua interface này.
 // 2 implementation: demoRepo (localStorage) và supabaseRepo (Postgres + RLS).
 export interface Repo {
@@ -195,6 +207,13 @@ export interface Repo {
   updateAccount(id: string, patch: AccountPatch): Promise<AccountRow>
   /** Gán lại sort_order theo thứ tự id truyền vào. */
   reorderAccounts(orderedIds: string[]): Promise<void>
+
+  // --- Đầu tư: giá trị thị trường (mục AE) ---
+  /** Toàn bộ snapshot của user (mọi tài khoản); UI tự lọc theo account_id. */
+  getAccountValuations(): Promise<AccountValuationRow[]>
+  /** Tạo mới hoặc đè snapshot theo (account_id, valued_on). */
+  upsertValuation(input: NewValuation): Promise<AccountValuationRow>
+  deleteValuation(id: string): Promise<void>
 
   createCategory(input: NewCategory): Promise<CategoryRow>
   updateCategory(id: string, patch: CategoryPatch): Promise<CategoryRow>

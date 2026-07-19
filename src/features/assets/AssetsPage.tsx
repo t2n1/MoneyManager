@@ -12,6 +12,7 @@ import {
   useRates,
 } from '../../hooks/queries'
 import { CURRENCIES, formatMoney } from '../../lib/money'
+import { daysBetween, nextCardDueDate, toISODate } from '../../lib/dates'
 import { debtSummary } from '../debts/aggregate'
 import { assetBreakdown, assetTypeGroups, cardFunding, type AssetGroupSetting } from './aggregate'
 
@@ -20,6 +21,24 @@ const PALETTE = [
   '#16a34a', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899',
   '#14b8a6', '#f97316', '#6366f1', '#84cc16', '#06b6d4', '#a855f7',
 ]
+
+// Nhãn thứ trong tuần cho ngày đến hạn (đã dời cuối tuần nên chỉ rơi T2–T6)
+const WEEKDAY_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+
+/** "T2, 27/7" cho ngày đến hạn ISO. */
+function dueDateLabel(iso: string): string {
+  const [, m, d] = iso.split('-').map(Number)
+  const dow = new Date(iso + 'T00:00:00Z').getUTCDay()
+  return `${WEEKDAY_VI[dow]}, ${d}/${m}`
+}
+
+/** "hôm nay" · "ngày mai" · "còn N ngày" từ hôm nay đến hạn. */
+function dueRelativeLabel(todayISO: string, dueISO: string): string {
+  const n = daysBetween(todayISO, dueISO)
+  if (n <= 0) return 'hôm nay'
+  if (n === 1) return 'ngày mai'
+  return `còn ${n} ngày`
+}
 
 export function AssetsPage() {
   const { data: balances = [], isLoading } = useAccountBalances()
@@ -84,6 +103,11 @@ export function AssetsPage() {
   const approx = breakdown.hasForeign ? '≈ ' : ''
   // Đếm tài khoản / nhóm ở khối Tổng tài sản luôn theo mục đích (mô tả toàn cảnh, không đổi theo chart)
   const accountCount = purposeGroups.reduce((n, g) => n + g.accounts.length, 0)
+  // Đầu tư: có snapshot giá trị thị trường nào không → hiện dòng lãi/lỗ chưa thực hiện
+  const hasValuation = breakdown.groups.some((g) =>
+    g.accounts.some((a) => a.marketValue != null),
+  )
+  const pnl = breakdown.unrealizedPnl
 
   // Thẻ tín dụng: công nợ, hiển thị riêng và trừ vào Tài sản ròng
   const visibleCards = breakdown.cards.filter((c) => !c.hidden)
@@ -94,6 +118,7 @@ export function AssetsPage() {
     balances.map((b) => [b.id, { id: b.id, name: b.name, currency: b.currency, balance: b.balance }]),
   )
   const funding = cardFunding(visibleCards, cardSources)
+  const todayISO = toISODate(new Date())
   // Chỉ tổng gộp khi ≥2 thẻ chung nguồn và đang thực nợ (dòng "cần nạp thêm")
   const sharedSources = funding.groups.filter((g) => g.cardCount >= 2 && g.totalOwed > 0)
   const netApprox =
@@ -123,6 +148,16 @@ export function AssetsPage() {
         {!isLoading && (
           <p className="mt-2.5 text-xs text-green-50/80">
             {accountCount} tài khoản · {purposeGroups.length} nhóm
+          </p>
+        )}
+        {!isLoading && hasValuation && (
+          <p className="mt-2 text-xs text-green-50/90">
+            Lãi/lỗ đầu tư (chưa thực hiện):{' '}
+            <span className="font-semibold tabular-nums text-white">
+              {pnl >= 0 ? '+' : '−'}
+              {breakdown.pnlHasMissingRate ? '≈ ' : ''}
+              {formatMoney(Math.abs(pnl), base)}
+            </span>
           </p>
         )}
         {breakdown.hasMissingRate && (
@@ -225,19 +260,20 @@ export function AssetsPage() {
             {visibleCards.map((c) => {
               const owed = c.balance < 0 ? -c.balance : 0 // đang nợ (currency gốc)
               const available = c.creditLimit != null ? c.creditLimit - owed : null
-              const usage =
-                c.creditLimit && c.creditLimit > 0 ? Math.min(owed / c.creditLimit, 1) : null
               // Đối chiếu nguồn trả thẻ (đã phân bổ nếu dùng chung nguồn)
               const f = funding.byCard.get(c.id)
+              // Ngày đến hạn trả kế tiếp (đã dời T7/CN sang T2)
+              const dueISO = c.paymentDueDay != null ? nextCardDueDate(c.paymentDueDay, todayISO) : null
               return (
                 <li key={c.id}>
                   <Link
                     to={`/assets/${c.id}`}
-                    className="block rounded-xl px-1 py-1 transition hover:bg-gray-50 dark:hover:bg-gray-800"
+                    className="block rounded-xl px-2 py-2 transition hover:bg-gray-50 dark:hover:bg-gray-800"
                   >
-                    <div className="flex items-center gap-2 text-sm">
+                    {/* Tên thẻ + trạng thái đủ/thiếu tiền trả */}
+                    <div className="flex items-center gap-2">
                       <CreditCard className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
-                      <span className="min-w-0 flex-1 truncate font-medium text-gray-700 dark:text-gray-300">
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-700 dark:text-gray-300">
                         {c.name}
                         {!c.includeInTotals && (
                           <span className="ml-1 text-[10px] font-normal text-gray-400 dark:text-gray-500">
@@ -245,49 +281,70 @@ export function AssetsPage() {
                           </span>
                         )}
                       </span>
-                      <span className="shrink-0 text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">
-                        {owed > 0 ? `− ${formatMoney(owed, c.currency)}` : formatMoney(0, c.currency)}
-                      </span>
-                    </div>
-                    {usage != null && (
-                      <div className="mt-1.5 ml-6 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                        <div
-                          className={`h-full rounded-full ${usage >= 0.9 ? 'bg-red-500' : usage >= 0.7 ? 'bg-amber-500' : 'bg-green-600'}`}
-                          style={{ width: `${Math.max(usage * 100, owed > 0 ? 3 : 0)}%` }}
-                        />
-                      </div>
-                    )}
-                    {available != null && (
-                      <p className="mt-1 ml-6 text-xs text-gray-400 dark:text-gray-500">
-                        Còn dùng được {formatMoney(available, c.currency)} / hạn mức{' '}
-                        {formatMoney(c.creditLimit ?? 0, c.currency)}
-                      </p>
-                    )}
-                    {f && (
-                      <div className="mt-1 ml-6 flex items-center gap-1.5 text-xs">
-                        <span className="text-gray-400 dark:text-gray-500">
-                          Trả từ {f.sourceName}
-                          {!f.shared && (
-                            <>
-                              {' '}· số dư{' '}
-                              <span className="tabular-nums">
-                                {formatMoney(f.sourceBalance, c.currency)}
-                              </span>
-                            </>
-                          )}
+                      {owed > 0 && f && (
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                            f.enough
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                              : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                          }`}
+                        >
+                          {f.enough ? 'đủ trả' : `thiếu ${formatMoney(f.shortfall, c.currency)}`}
                         </span>
-                        {owed > 0 && (
-                          <span
-                            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                              f.enough
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-                                : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                            }`}
-                          >
-                            {f.enough ? 'đủ trả' : `thiếu ${formatMoney(f.shortfall, c.currency)}`}
+                      )}
+                    </div>
+
+                    {/* Số cần trả (nổi bật) + ngày đến hạn */}
+                    <div className="mt-1.5 ml-6 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                      {owed > 0 ? (
+                        <>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">Cần trả</span>
+                          <span className="text-xl font-bold tabular-nums text-red-600 dark:text-red-400">
+                            {formatMoney(owed, c.currency)}
                           </span>
+                        </>
+                      ) : (
+                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Chưa phát sinh nợ
+                        </span>
+                      )}
+                      {owed > 0 && dueISO && (
+                        <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">
+                          Đến hạn{' '}
+                          <span className="font-semibold text-gray-700 dark:text-gray-200">
+                            {dueDateLabel(dueISO)}
+                          </span>
+                          <span className="text-gray-400 dark:text-gray-500">
+                            {' '}· {dueRelativeLabel(todayISO, dueISO)}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Nguồn trả + hạn mức còn lại */}
+                    {(f || available != null) && (
+                      <p className="mt-1 ml-6 text-xs text-gray-400 dark:text-gray-500">
+                        {f && (
+                          <>
+                            Trả từ {f.sourceName}
+                            {!f.shared && (
+                              <>
+                                {' '}· số dư{' '}
+                                <span className="tabular-nums">
+                                  {formatMoney(f.sourceBalance, c.currency)}
+                                </span>
+                              </>
+                            )}
+                          </>
                         )}
-                      </div>
+                        {f && available != null && ' · '}
+                        {available != null && (
+                          <>
+                            còn dùng được{' '}
+                            <span className="tabular-nums">{formatMoney(available, c.currency)}</span>
+                          </>
+                        )}
+                      </p>
                     )}
                   </Link>
                 </li>
@@ -450,11 +507,23 @@ export function AssetsPage() {
                   {!a.includeInTotals && (
                     <span className="ml-1 text-[10px] text-gray-400 dark:text-gray-500">(ngoài tổng)</span>
                   )}
+                  {a.marketValue != null && a.marketValue !== a.balance && (
+                    <span
+                      className={`ml-1 text-[10px] tabular-nums ${
+                        a.marketValue > a.balance
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-red-600 dark:text-red-400'
+                      }`}
+                    >
+                      {a.marketValue > a.balance ? '▲' : '▼'}
+                      {formatMoney(Math.abs(a.marketValue - a.balance), a.currency)}
+                    </span>
+                  )}
                 </span>
                 <span
-                  className={`shrink-0 text-sm font-medium tabular-nums ${a.balance < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}
+                  className={`shrink-0 text-sm font-medium tabular-nums ${a.value < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}
                 >
-                  {formatMoney(a.balance, a.currency)}
+                  {formatMoney(a.value, a.currency)}
                 </span>
                 <span className="shrink-0 text-gray-300 dark:text-gray-600">›</span>
               </Link>

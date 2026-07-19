@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { NewRecurringRule, NewTransaction } from '../../data'
 import { toISODate } from '../../lib/dates'
-import { CURRENCIES, formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
+import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { RecurringFrequency } from '../../lib/recurring'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
 import { useAccounts, useCategories } from '../../hooks/queries'
+import { AccountPicker } from '../../components/AccountPicker'
 import { NumPad, type NumPadKey } from './NumPad'
 import { appendKey, evalExpression, MAX_AMOUNT_DIGITS } from './calc'
 
@@ -224,29 +225,6 @@ export function TransactionForm({
     }
   }
 
-  const accountSelect = (
-    value: string | null,
-    onChange: (id: string) => void,
-    excludeId?: string | null,
-  ) => (
-    <select
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300"
-    >
-      <option value="" disabled>
-        Chọn tài khoản…
-      </option>
-      {activeAccounts
-        .filter((a) => a.id !== excludeId)
-        .map((a) => (
-          <option key={a.id} value={a.id}>
-            {a.name} · {CURRENCIES[a.currency].symbol}
-          </option>
-        ))}
-    </select>
-  )
-
   /** Ô số tiền: div hiển thị trên mobile (numpad gõ), input trên desktop */
   const amountBox = (
     field: 'main' | 'to',
@@ -322,12 +300,26 @@ export function TransactionForm({
       <div className="flex flex-wrap items-center gap-2">
         {type === 'transfer' ? (
           <>
-            {accountSelect(effectiveAccountId, setAccountId, toAccountId)}
+            <AccountPicker
+              accounts={activeAccounts}
+              value={effectiveAccountId}
+              onChange={setAccountId}
+              excludeId={toAccountId}
+            />
             <span className="text-gray-400 dark:text-gray-500">→</span>
-            {accountSelect(toAccountId, setToAccountId, effectiveAccountId)}
+            <AccountPicker
+              accounts={activeAccounts}
+              value={toAccountId}
+              onChange={setToAccountId}
+              excludeId={effectiveAccountId}
+            />
           </>
         ) : (
-          accountSelect(effectiveAccountId, setAccountId)
+          <AccountPicker
+            accounts={activeAccounts}
+            value={effectiveAccountId}
+            onChange={setAccountId}
+          />
         )}
         <input
           type="date"

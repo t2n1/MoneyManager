@@ -70,6 +70,8 @@ export interface CardLiability {
   baseValue: number | null
   /** hạn mức minor units theo currency gốc; null = không đặt */
   creditLimit: number | null
+  /** ngày đến hạn trả hằng tháng (1..31); null = chưa đặt */
+  paymentDueDay: number | null
   /** tài khoản nguồn tự trả thẻ; null = không tự trả */
   paymentAccountId: string | null
   /** false = không trừ vào Tài sản ròng (vẫn hiển thị riêng) */
@@ -135,6 +137,7 @@ export function assetBreakdown(
         balance: b.balance,
         baseValue,
         creditLimit: b.credit_limit ?? null,
+        paymentDueDay: b.payment_due_day ?? null,
         paymentAccountId: b.payment_account_id ?? null,
         includeInTotals,
         hidden,

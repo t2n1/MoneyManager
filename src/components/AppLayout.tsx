@@ -4,6 +4,7 @@ import { ChartColumn, NotebookText, Settings, Wallet } from 'lucide-react'
 import { isDemoMode } from '../lib/demo'
 import { useRunRecurringCatchUp } from '../hooks/queries'
 import { usePrivacyMode } from '../lib/privacy'
+import { runUndo, useUndoToast } from '../lib/undoToast'
 import { PrivacyToggle } from './PrivacyToggle'
 
 const TABS = [
@@ -34,6 +35,7 @@ export function AppLayout() {
   // Đăng ký chế độ riêng tư ở gốc cây: bật/tắt sẽ re-render toàn bộ trang con
   // (formatMoney là hàm thuần nên component hiển thị tiền cần được render lại).
   const privacyOn = usePrivacyMode()
+  const undoToast = useUndoToast()
 
   // Nút "+" nổi chỉ hiện ở trang Sổ Giao dịch
   const onLedger = location.pathname === '/' || location.pathname === '/transactions'
@@ -167,6 +169,22 @@ export function AppLayout() {
         <div className="fixed inset-x-0 top-4 z-50 flex justify-center">
           <div className="rounded-full bg-gray-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg">
             {recurringToast}
+          </div>
+        </div>
+      )}
+
+      {/* Toast hoàn tác sau khi xóa (mục AB) */}
+      {undoToast && (
+        <div className={`fixed inset-x-0 z-50 flex justify-center px-4 ${onEntry ? 'bottom-4' : 'bottom-24 lg:bottom-6'}`}>
+          <div className="flex items-center gap-3 rounded-full bg-gray-900/95 py-2 pl-4 pr-2 text-sm font-medium text-white shadow-lg">
+            <span>{undoToast.message}</span>
+            <button
+              type="button"
+              onClick={() => runUndo()}
+              className="rounded-full bg-white/15 px-3 py-1 text-sm font-semibold text-white hover:bg-white/25 active:scale-95"
+            >
+              Hoàn tác
+            </button>
           </div>
         </div>
       )}

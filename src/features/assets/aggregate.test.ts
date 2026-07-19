@@ -286,6 +286,7 @@ describe('cardFunding (nhiều thẻ chung một nguồn)', () => {
     currency: 'JPY',
     baseValue: p.balance,
     creditLimit: null,
+    paymentDueDay: null,
     paymentAccountId: null,
     includeInTotals: true,
     hidden: false,

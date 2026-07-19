@@ -39,7 +39,7 @@ import {
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
 // Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-const STORAGE_KEY = 'sct-demo-db-v11' // v11: tự động trả thẻ (payment_account_id, card_autopay_through)
+const STORAGE_KEY = 'sct-demo-db-v12' // v12: thẻ Rakuten trả ngày 27 (statement_day/payment_due_day)
 const DEMO_USER = 'demo-user'
 
 interface DemoDB {
@@ -133,8 +133,8 @@ function seed(): DemoDB {
     {
       ...account('Thẻ Rakuten', 'card', 'JPY', -45_000, 4, null),
       credit_limit: 500_000,
-      statement_day: 27,
-      payment_due_day: 10,
+      statement_day: 31, // chốt cuối tháng (kẹp về ngày cuối)
+      payment_due_day: 27, // trả ngày 27 (dời T7/CN sang T2 khi hiển thị)
     },
   ]
   // Thẻ Rakuten (JPY) tự trả từ tài khoản Ngân hàng (JPY, cùng loại tiền)
@@ -371,6 +371,8 @@ export const demoRepo: Repo = {
           is_hidden: a.is_hidden ?? false,
           include_in_totals: a.include_in_totals ?? true,
           credit_limit: a.credit_limit ?? null,
+          statement_day: a.statement_day ?? null,
+          payment_due_day: a.payment_due_day ?? null,
           payment_account_id: a.payment_account_id ?? null,
           is_archived: a.is_archived,
           sort_order: a.sort_order,

@@ -1,4 +1,7 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { repo, type NewTransaction } from '../../data'
 import { useDeleteTransaction, useUpdateTransaction } from '../../hooks/queries'
+import { showUndoToast } from '../../lib/undoToast'
 import type { TransactionRow } from '../../types/database.types'
 import { TransactionForm } from './TransactionForm'
 
@@ -7,15 +10,42 @@ interface Props {
   onClose: () => void
 }
 
+/** TransactionRow → NewTransaction để tạo lại khi hoàn tác. */
+function toNewTransaction(t: TransactionRow): NewTransaction {
+  return {
+    type: t.type,
+    amount: t.amount,
+    to_amount: t.to_amount,
+    category_id: t.category_id,
+    account_id: t.account_id,
+    to_account_id: t.to_account_id,
+    occurred_on: t.occurred_on,
+    note: t.note,
+    is_remittance: t.is_remittance,
+    remit_service: t.remit_service,
+    remit_fee_jpy: t.remit_fee_jpy,
+    remit_received_vnd: t.remit_received_vnd,
+    is_debt_flow: t.is_debt_flow,
+  }
+}
+
 /** Sheet sửa/xóa giao dịch (dùng chung cho Sổ GD và Tìm kiếm). */
 export function EditTransactionSheet({ tx, onClose }: Props) {
+  const qc = useQueryClient()
   const update = useUpdateTransaction()
   const remove = useDeleteTransaction()
 
   async function handleDelete() {
-    if (!window.confirm('Xóa giao dịch này?')) return
-    await remove.mutateAsync(tx.id)
+    const snapshot = tx
+    await remove.mutateAsync(snapshot.id)
     onClose()
+    // Xóa xong mới cho hoàn tác: tạo lại giao dịch (id mới) nếu người dùng bấm.
+    showUndoToast('Đã xóa giao dịch', async () => {
+      await repo.createTransaction(toNewTransaction(snapshot))
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+      qc.invalidateQueries({ queryKey: ['balances'] })
+      qc.invalidateQueries({ queryKey: ['search'] })
+    })
   }
 
   return (

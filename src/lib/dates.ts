@@ -74,6 +74,31 @@ export function addDaysISO(iso: string, delta: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+/** Dời ngày rơi vào Thứ 7 / Chủ nhật sang Thứ 2 kế tiếp; ngày thường giữ nguyên. */
+export function shiftWeekendToMonday(iso: string): string {
+  const dow = new Date(iso + 'T00:00:00Z').getUTCDay() // 0 = CN, 6 = T7
+  if (dow === 6) return addDaysISO(iso, 2)
+  if (dow === 0) return addDaysISO(iso, 1)
+  return iso
+}
+
+/**
+ * Ngày trả thẻ kế tiếp (≥ todayISO) rơi vào `dueDay` (1–31) hằng tháng, đã kẹp về
+ * cuối tháng khi tháng ngắn hơn và dời Thứ 7/CN sang Thứ 2. Ví dụ dueDay=27, hôm nay
+ * sau ngày 27 → trả về ngày 27 (đã dời cuối tuần) của tháng sau.
+ */
+export function nextCardDueDate(dueDay: number, todayISO: string): string {
+  const [ty, tm] = todayISO.split('-').map(Number)
+  for (let i = 0; i < 14; i++) {
+    const k = addMonths({ year: ty, month: tm }, i)
+    const dim = new Date(k.year, k.month, 0).getDate() // số ngày của tháng k
+    const base = `${k.year}-${pad(k.month)}-${pad(Math.min(dueDay, dim))}`
+    const due = shiftWeekendToMonday(base)
+    if (due >= todayISO) return due
+  }
+  return shiftWeekendToMonday(`${ty}-${pad(tm)}-${pad(dueDay)}`)
+}
+
 /** Khoảng ngày của cả năm tài chính Y: từ đầu tháng (Y,1) tới cuối tháng (Y,12) (end loại trừ). */
 export function getYearRange(year: number, monthStartDay = 1): MonthRange {
   const start = getMonthRange({ year, month: 1 }, monthStartDay).start

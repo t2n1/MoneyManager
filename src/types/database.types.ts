@@ -103,6 +103,10 @@ export type AccountBalanceRow = {
   include_in_totals: boolean
   /** Thẻ tín dụng: hạn mức (minor units); null = không đặt / không phải thẻ */
   credit_limit: number | null
+  /** Thẻ tín dụng: ngày chốt sao kê hằng tháng (1..31); null = chưa đặt */
+  statement_day: number | null
+  /** Thẻ tín dụng: ngày đến hạn trả hằng tháng (1..31); null = chưa đặt */
+  payment_due_day: number | null
   /** Thẻ tín dụng: tài khoản nguồn tự trả thẻ; null = không tự trả / không phải thẻ */
   payment_account_id: string | null
   is_archived: boolean

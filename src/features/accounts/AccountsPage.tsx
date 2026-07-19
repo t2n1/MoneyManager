@@ -285,6 +285,8 @@ function AccountForm({ account, onClose }: FormProps) {
               <option value="cash">Tiền mặt</option>
               <option value="bank">Ngân hàng</option>
               <option value="card">Thẻ tín dụng</option>
+              <option value="ic">IC giao thông</option>
+              <option value="ewallet">Ví điện tử</option>
             </select>
           </div>
           <div>

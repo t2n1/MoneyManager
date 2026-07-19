@@ -220,6 +220,121 @@ export function assetBreakdown(
   }
 }
 
+/** Tài khoản nguồn (tối thiểu) để đối chiếu tiền trả thẻ. */
+export interface CardSourceLike {
+  id: string
+  name: string
+  currency: CurrencyCode
+  /** số dư minor units theo currency nguồn */
+  balance: number
+}
+
+/** Đối chiếu đủ/thiếu cho MỘT thẻ (đã dành phần cho các thẻ trước cùng nguồn). */
+export interface CardFundingItem {
+  sourceId: string
+  sourceName: string
+  currency: CurrencyCode
+  /** số dư nguồn hiện có (minor units) */
+  sourceBalance: number
+  /** dư nợ thẻ này (minor units; 0 nếu không nợ) */
+  owed: number
+  /** true = có ≥2 thẻ cùng rút từ nguồn này */
+  shared: boolean
+  /** đủ trả sau khi đã trừ phần các thẻ đứng trước cùng nguồn */
+  enough: boolean
+  /** còn thiếu bao nhiêu cho riêng thẻ này (0 nếu đủ) */
+  shortfall: number
+}
+
+/** Tổng hợp theo nguồn — cho dòng "cần nạp thêm" khi nhiều thẻ trả chung nguồn. */
+export interface CardSourceGroup {
+  sourceId: string
+  sourceName: string
+  currency: CurrencyCode
+  sourceBalance: number
+  /** tổng dư nợ mọi thẻ trả từ nguồn này */
+  totalOwed: number
+  /** số thẻ trả từ nguồn này */
+  cardCount: number
+  /** số thẻ đang thực nợ (owed>0) */
+  owingCount: number
+  enough: boolean
+  /** thiếu bao nhiêu để trả hết mọi thẻ (0 nếu đủ) */
+  shortfall: number
+}
+
+export interface CardFundingResult {
+  /** keyed theo card.id — chỉ gồm thẻ có nguồn hợp lệ (tồn tại & cùng currency) */
+  byCard: Map<string, CardFundingItem>
+  /** theo nguồn, giữ thứ tự xuất hiện của thẻ đầu tiên trỏ tới nguồn */
+  groups: CardSourceGroup[]
+}
+
+/**
+ * Đối chiếu tiền trả thẻ khi NHIỀU thẻ có thể rút chung MỘT tài khoản nguồn.
+ * Số dư nguồn được phân bổ TUẦN TỰ theo thứ tự `cards` truyền vào: thẻ trước "ăn"
+ * trước, thẻ sau chỉ đủ nếu còn dư. Nhờ vậy tổng thiếu của các thẻ đúng bằng thiếu
+ * gộp của nguồn — hết cảnh mỗi thẻ đều báo "đủ" trong khi cộng lại thì thiếu.
+ * Chỉ tính thẻ có paymentAccountId trỏ tới nguồn tồn tại & cùng currency với thẻ.
+ */
+export function cardFunding(
+  cards: CardLiability[],
+  sourceById: Map<string, CardSourceLike>,
+): CardFundingResult {
+  const owedOf = (c: CardLiability) => (c.balance < 0 ? -c.balance : 0)
+
+  // Gom thẻ theo nguồn hợp lệ, giữ nguyên thứ tự truyền vào.
+  const bySource = new Map<string, CardLiability[]>()
+  for (const c of cards) {
+    if (!c.paymentAccountId) continue
+    const src = sourceById.get(c.paymentAccountId)
+    if (!src || src.currency !== c.currency) continue
+    const list = bySource.get(src.id)
+    if (list) list.push(c)
+    else bySource.set(src.id, [c])
+  }
+
+  const byCard = new Map<string, CardFundingItem>()
+  const groups: CardSourceGroup[] = []
+
+  for (const [sourceId, list] of bySource) {
+    const src = sourceById.get(sourceId) as CardSourceLike
+    const shared = list.length >= 2
+    const totalOwed = list.reduce((s, c) => s + owedOf(c), 0)
+
+    let remaining = src.balance
+    for (const c of list) {
+      const owed = owedOf(c)
+      const avail = Math.max(remaining, 0)
+      byCard.set(c.id, {
+        sourceId,
+        sourceName: src.name,
+        currency: src.currency,
+        sourceBalance: src.balance,
+        owed,
+        shared,
+        enough: avail >= owed,
+        shortfall: Math.max(0, owed - avail),
+      })
+      remaining -= owed
+    }
+
+    groups.push({
+      sourceId,
+      sourceName: src.name,
+      currency: src.currency,
+      sourceBalance: src.balance,
+      totalOwed,
+      cardCount: list.length,
+      owingCount: list.filter((c) => owedOf(c) > 0).length,
+      enough: src.balance >= totalOwed,
+      shortfall: Math.max(0, totalOwed - src.balance),
+    })
+  }
+
+  return { byCard, groups }
+}
+
 /**
  * Gom lại các tài khoản đang tính vào Tổng tài sản theo LOẠI tài khoản
  * (chế độ xem "Theo loại"): trả lời câu hỏi "tiền đang nằm ở đâu".

@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Repeat } from 'lucide-react'
+import { ArrowRightLeft, HandCoins, Repeat } from 'lucide-react'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, CategoryRow, TransactionRow } from '../../types/database.types'
 
@@ -41,6 +41,12 @@ export function TransactionItem({ tx, categoryOf, accountOf, base, onClick }: Pr
             <Repeat
               aria-label="Giao dịch định kỳ"
               className="ml-1 inline h-3 w-3 align-baseline text-gray-400 dark:text-gray-500"
+            />
+          )}
+          {tx.is_debt_flow && (
+            <HandCoins
+              aria-label="Dòng tiền nợ/cho vay — không tính vào Thu/Chi"
+              className="ml-1 inline h-3 w-3 align-baseline text-amber-500 dark:text-amber-400"
             />
           )}
         </span>

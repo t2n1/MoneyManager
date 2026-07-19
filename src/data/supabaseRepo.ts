@@ -404,9 +404,10 @@ export const supabaseRepo: Repo = {
     const { transaction, ...debtFields } = input
     let disbursement_transaction_id: string | null = null
     if (transaction) {
+      // Giải ngân là dòng tiền cho vay → đánh dấu để báo cáo Chi/Thu bỏ qua.
       const { data: tx, error: eTx } = await sb
         .from('transactions')
-        .insert({ ...transaction, user_id })
+        .insert({ ...transaction, user_id, is_debt_flow: true })
         .select()
         .single()
       if (eTx) throw eTx
@@ -471,9 +472,10 @@ export const supabaseRepo: Repo = {
     const sb = getSupabase()
     let transaction_id: string | null = null
     if (input.transaction) {
+      // Trả nợ là dòng tiền nợ/cho vay → đánh dấu để báo cáo Chi/Thu bỏ qua.
       const { data: tx, error: eTx } = await sb
         .from('transactions')
-        .insert({ ...input.transaction, user_id })
+        .insert({ ...input.transaction, user_id, is_debt_flow: true })
         .select()
         .single()
       if (eTx) throw eTx

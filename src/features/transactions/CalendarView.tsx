@@ -63,7 +63,7 @@ export function CalendarView({
   const byDay = useMemo(() => {
     const map = new Map<string, DaySums>()
     for (const t of transactions) {
-      if (t.type === 'transfer') continue
+      if (t.type === 'transfer' || t.is_debt_flow) continue
       const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates ?? {})
       if (v === null) continue
       const cur = map.get(t.occurred_on) ?? { income: 0, expense: 0 }

@@ -4,8 +4,11 @@ import type { AccountBalanceRow } from '../../types/database.types'
 import {
   assetBreakdown,
   assetTypeGroups,
+  cardFunding,
   UNGROUPED_LABEL,
   type AssetGroupSetting,
+  type CardLiability,
+  type CardSourceLike,
 } from './aggregate'
 
 const setting = (
@@ -267,5 +270,84 @@ describe('assetTypeGroups (gom theo loại tài khoản)', () => {
     expect(t.map((g) => g.name).sort()).toEqual(['IC giao thông', 'Ngân hàng', 'Ví điện tử'])
     expect(t.find((g) => g.name === 'IC giao thông')!.total).toBe(3_000)
     expect(t.find((g) => g.name === 'Ví điện tử')!.total).toBe(5_000)
+  })
+})
+
+describe('cardFunding (nhiều thẻ chung một nguồn)', () => {
+  const src = (p: Partial<CardSourceLike> & Pick<CardSourceLike, 'id' | 'balance'>): CardSourceLike => ({
+    name: 'Ngân hàng',
+    currency: 'JPY',
+    ...p,
+  })
+  const card = (
+    p: Partial<CardLiability> & Pick<CardLiability, 'id' | 'balance'>,
+  ): CardLiability => ({
+    name: 'Thẻ',
+    currency: 'JPY',
+    baseValue: p.balance,
+    creditLimit: null,
+    paymentAccountId: null,
+    includeInTotals: true,
+    hidden: false,
+    ...p,
+  })
+
+  it('2 thẻ chung 1 nguồn: mỗi thẻ riêng lẻ đều "đủ" nhưng cộng lại thiếu', () => {
+    const sources = new Map([['bank', src({ id: 'bank', balance: 80_000 })]])
+    const cards = [
+      card({ id: 'c1', balance: -50_000, paymentAccountId: 'bank' }),
+      card({ id: 'c2', balance: -60_000, paymentAccountId: 'bank' }),
+    ]
+    const { byCard, groups } = cardFunding(cards, sources)
+
+    // c1 ăn trước → đủ; c2 chỉ còn 30k → thiếu 30k
+    expect(byCard.get('c1')).toMatchObject({ enough: true, shortfall: 0, shared: true })
+    expect(byCard.get('c2')).toMatchObject({ enough: false, shortfall: 30_000, shared: true })
+
+    // Tổng thiếu từng thẻ == thiếu gộp của nguồn
+    expect(groups).toHaveLength(1)
+    expect(groups[0]).toMatchObject({
+      totalOwed: 110_000,
+      sourceBalance: 80_000,
+      shortfall: 30_000,
+      enough: false,
+      cardCount: 2,
+      owingCount: 2,
+    })
+    const perCardShortfall = [...byCard.values()].reduce((s, f) => s + f.shortfall, 0)
+    expect(perCardShortfall).toBe(groups[0].shortfall)
+  })
+
+  it('đủ tiền cho cả hai thẻ → cả hai "đủ", nguồn đủ', () => {
+    const sources = new Map([['bank', src({ id: 'bank', balance: 200_000 })]])
+    const cards = [
+      card({ id: 'c1', balance: -50_000, paymentAccountId: 'bank' }),
+      card({ id: 'c2', balance: -60_000, paymentAccountId: 'bank' }),
+    ]
+    const { byCard, groups } = cardFunding(cards, sources)
+    expect(byCard.get('c1')!.enough).toBe(true)
+    expect(byCard.get('c2')!.enough).toBe(true)
+    expect(groups[0].enough).toBe(true)
+    expect(groups[0].shortfall).toBe(0)
+  })
+
+  it('một thẻ một nguồn: shared=false, badge như cũ', () => {
+    const sources = new Map([['bank', src({ id: 'bank', balance: 40_000 })]])
+    const cards = [card({ id: 'c1', balance: -50_000, paymentAccountId: 'bank' })]
+    const { byCard, groups } = cardFunding(cards, sources)
+    expect(byCard.get('c1')).toMatchObject({ shared: false, enough: false, shortfall: 10_000 })
+    expect(groups[0].cardCount).toBe(1)
+  })
+
+  it('bỏ qua thẻ không có nguồn hoặc nguồn khác currency', () => {
+    const sources = new Map([['bank', src({ id: 'bank', currency: 'JPY', balance: 100_000 })]])
+    const cards = [
+      card({ id: 'c1', balance: -10_000, paymentAccountId: null }), // không nguồn
+      card({ id: 'c2', balance: -10_000, currency: 'VND', paymentAccountId: 'bank' }), // lệch currency
+      card({ id: 'c3', balance: -10_000, paymentAccountId: 'missing' }), // nguồn không tồn tại
+    ]
+    const { byCard, groups } = cardFunding(cards, sources)
+    expect(byCard.size).toBe(0)
+    expect(groups).toHaveLength(0)
   })
 })

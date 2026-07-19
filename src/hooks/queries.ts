@@ -382,7 +382,11 @@ export function useCreateDebt() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: NewDebt) => repo.createDebt(input),
-    onSettled: () => invalidateDebts(qc),
+    // Có thể kèm giao dịch giải ngân → làm mới giao dịch + số dư
+    onSettled: () => {
+      invalidateDebts(qc)
+      invalidateTransactionData(qc)
+    },
   })
 }
 

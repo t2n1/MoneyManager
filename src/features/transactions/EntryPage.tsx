@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, Send, TriangleAlert } from 'lucide-react'
+import { ChevronLeft, HandCoins, Send, TriangleAlert, Users } from 'lucide-react'
 import {
   useBudgetAlert,
   useCreateRecurringRule,
@@ -10,6 +10,8 @@ import {
 } from '../../hooks/queries'
 import type { TransactionType } from '../../types/database.types'
 import { RemittanceFormSheet } from '../remittance/RemittanceFormSheet'
+import { DebtFormSheet } from '../debts/DebtFormSheet'
+import { SplitBillSheet } from './SplitBillSheet'
 import { TransactionForm } from './TransactionForm'
 
 /** Màn hình mặc định khi mở app — nhập một giao dịch phải < 5 giây. */
@@ -26,6 +28,8 @@ export function EntryPage() {
     qType === 'income' || qType === 'expense' ? qType : undefined
   const [toast, setToast] = useState<{ text: string; undoId?: string } | null>(null)
   const [remit, setRemit] = useState(false)
+  const [debtForm, setDebtForm] = useState(false)
+  const [splitBill, setSplitBill] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => () => clearTimeout(toastTimer.current), [])
@@ -49,10 +53,29 @@ export function EntryPage() {
           <ChevronLeft className="h-5 w-5" /> Đóng
         </button>
         <h1 className="flex-1 text-center text-base font-bold text-gray-800 dark:text-gray-100">Nhập giao dịch</h1>
+        <span className="w-[70px]" aria-hidden />
+      </div>
+      <div className="mb-2 flex flex-wrap justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => setSplitBill(true)}
+          className="flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-2.5 py-1.5 text-sm font-medium text-blue-700 dark:text-blue-400 shadow-sm active:scale-95"
+          aria-label="Trả hộ hoặc chia hóa đơn"
+        >
+          <Users className="h-4 w-4" /> Trả hộ
+        </button>
+        <button
+          type="button"
+          onClick={() => setDebtForm(true)}
+          className="flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-2.5 py-1.5 text-sm font-medium text-amber-700 dark:text-amber-400 shadow-sm active:scale-95"
+          aria-label="Ghi khoản nợ hoặc cho vay"
+        >
+          <HandCoins className="h-4 w-4" /> Ghi nợ
+        </button>
         <button
           type="button"
           onClick={() => setRemit(true)}
-          className="flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-sm font-medium text-green-700 dark:text-green-400 shadow-sm active:scale-95"
+          className="flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-2.5 py-1.5 text-sm font-medium text-green-700 dark:text-green-400 shadow-sm active:scale-95"
           aria-label="Gửi tiền về Việt Nam"
         >
           <Send className="h-4 w-4" /> Gửi về VN
@@ -111,6 +134,8 @@ export function EntryPage() {
         </div>
       )}
       {remit && <RemittanceFormSheet onClose={() => setRemit(false)} />}
+      {debtForm && <DebtFormSheet debt={null} onClose={() => setDebtForm(false)} />}
+      {splitBill && <SplitBillSheet onClose={() => setSplitBill(false)} />}
     </div>
   )
 }

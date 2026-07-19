@@ -25,7 +25,7 @@ export interface Sum {
  * Tổng thu/chi quy đổi về base. Trả về:
  * - {value, hasForeign} khi đủ tỷ giá
  * - null khi thiếu tỷ giá → caller fallback (tách loại tiền)
- * Chuyển khoản KHÔNG tính vào thu/chi.
+ * Chuyển khoản & dòng tiền nợ/cho vay (is_debt_flow) KHÔNG tính vào thu/chi.
  */
 export function sumInBase(
   txs: TransactionRow[],
@@ -37,7 +37,7 @@ export function sumInBase(
   let value = 0
   let hasForeign = false
   for (const t of txs) {
-    if (t.type !== kind) continue
+    if (t.type !== kind || t.is_debt_flow) continue
     const cur = currencyOf(t.account_id)
     if (cur !== base) hasForeign = true
     const v = convertToBase(t.amount, cur, base, rates ?? {})
@@ -55,7 +55,7 @@ export function sumPerCurrency(
 ): string {
   const sums = new Map<CurrencyCode, number>()
   for (const t of txs) {
-    if (t.type !== kind) continue
+    if (t.type !== kind || t.is_debt_flow) continue
     const cur = currencyOf(t.account_id)
     sums.set(cur, (sums.get(cur) ?? 0) + t.amount)
   }

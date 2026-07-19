@@ -36,6 +36,8 @@ export interface NewTransaction {
   remit_fee_jpy?: number | null
   /** Gửi tiền về VN: số VND người nhận nhận được (minor units VND). */
   remit_received_vnd?: number | null
+  /** Dòng tiền nợ/cho vay/trả hộ: true = báo cáo Chi/Thu bỏ qua (số dư vẫn tính). */
+  is_debt_flow?: boolean
 }
 
 export type TransactionPatch = Partial<NewTransaction>

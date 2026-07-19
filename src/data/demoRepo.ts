@@ -689,8 +689,10 @@ export const demoRepo: Repo = {
     const { transaction, ...debtFields } = input
     let disbursement_transaction_id: string | null = null
     if (transaction) {
+      // Giải ngân là dòng tiền cho vay → đánh dấu để báo cáo Chi/Thu bỏ qua.
       const tx: TransactionRow = {
         ...transaction,
+        is_debt_flow: true,
         id: uuid(),
         user_id: DEMO_USER,
         recurring_rule_id: null,
@@ -748,8 +750,10 @@ export const demoRepo: Repo = {
     db.debtPayments ??= []
     let transaction_id: string | null = null
     if (input.transaction) {
+      // Trả nợ là dòng tiền nợ/cho vay → đánh dấu để báo cáo Chi/Thu bỏ qua.
       const tx: TransactionRow = {
         ...input.transaction,
+        is_debt_flow: true,
         id: uuid(),
         user_id: DEMO_USER,
         recurring_rule_id: null,

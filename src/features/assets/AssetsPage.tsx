@@ -12,7 +12,7 @@ import {
 } from '../../hooks/queries'
 import { CURRENCIES, formatMoney } from '../../lib/money'
 import { debtSummary } from '../debts/aggregate'
-import { assetBreakdown, assetTypeGroups, type AssetGroupSetting } from './aggregate'
+import { assetBreakdown, assetTypeGroups, cardFunding, type AssetGroupSetting } from './aggregate'
 
 // Bảng màu cho lát bánh (lặp lại nếu > 12 nhóm) — đồng bộ với ReportsPage
 const PALETTE = [
@@ -88,8 +88,13 @@ export function AssetsPage() {
   const visibleCards = breakdown.cards.filter((c) => !c.hidden)
   const cardOwed = -breakdown.cardDebt // số dương = đang nợ thẻ (quy đổi base)
   const showNetWorth = debts_.hasOpen || visibleCards.length > 0
-  // Tra tài khoản nguồn trả thẻ (số dư cùng currency với thẻ) để đối chiếu đủ/thiếu
-  const balanceById = new Map(balances.map((b) => [b.id, b]))
+  // Đối chiếu tiền trả thẻ: phân bổ số dư nguồn cho các thẻ dùng chung → badge nhất quán
+  const cardSources = new Map(
+    balances.map((b) => [b.id, { id: b.id, name: b.name, currency: b.currency, balance: b.balance }]),
+  )
+  const funding = cardFunding(visibleCards, cardSources)
+  // Chỉ tổng gộp khi ≥2 thẻ chung nguồn và đang thực nợ (dòng "cần nạp thêm")
+  const sharedSources = funding.groups.filter((g) => g.cardCount >= 2 && g.totalOwed > 0)
   const netApprox =
     breakdown.hasForeign || debts_.hasMissingRate || breakdown.cardHasMissingRate ? '≈ ' : ''
 
@@ -176,15 +181,52 @@ export function AssetsPage() {
           <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
             <CreditCard className="h-3.5 w-3.5" /> Thẻ tín dụng
           </h2>
+
+          {/* Tổng theo ngân hàng nguồn — con số cần khi chuyển tiền vào để thanh toán */}
+          {sharedSources.length > 0 && (
+            <div className="mb-3 space-y-2">
+              {sharedSources.map((g) => (
+                <div
+                  key={g.sourceId}
+                  className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-800/50"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Trả {g.cardCount} thẻ từ {g.sourceName}
+                    </span>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        g.enough
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                      }`}
+                    >
+                      {g.enough ? 'đủ trả' : `cần nạp thêm ${formatMoney(g.shortfall, g.currency)}`}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>Tổng nợ {g.cardCount} thẻ</span>
+                    <span className="tabular-nums font-medium text-red-600 dark:text-red-400">
+                      − {formatMoney(g.totalOwed, g.currency)}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>Số dư {g.sourceName}</span>
+                    <span className="tabular-nums">{formatMoney(g.sourceBalance, g.currency)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <ul className="space-y-3">
             {visibleCards.map((c) => {
               const owed = c.balance < 0 ? -c.balance : 0 // đang nợ (currency gốc)
               const available = c.creditLimit != null ? c.creditLimit - owed : null
               const usage =
                 c.creditLimit && c.creditLimit > 0 ? Math.min(owed / c.creditLimit, 1) : null
-              // Tài khoản nguồn trả thẻ (cùng currency) → đối chiếu đủ/thiếu khi đang nợ
-              const source = c.paymentAccountId ? balanceById.get(c.paymentAccountId) : undefined
-              const enough = source ? source.balance >= owed : false
+              // Đối chiếu nguồn trả thẻ (đã phân bổ nếu dùng chung nguồn)
+              const f = funding.byCard.get(c.id)
               return (
                 <li key={c.id}>
                   <Link
@@ -219,23 +261,28 @@ export function AssetsPage() {
                         {formatMoney(c.creditLimit ?? 0, c.currency)}
                       </p>
                     )}
-                    {source && (
+                    {f && (
                       <div className="mt-1 ml-6 flex items-center gap-1.5 text-xs">
                         <span className="text-gray-400 dark:text-gray-500">
-                          Tự trả từ {source.name} · còn{' '}
-                          <span className="tabular-nums">{formatMoney(source.balance, c.currency)}</span>
+                          Tự trả từ {f.sourceName}
+                          {!f.shared && (
+                            <>
+                              {' '}· còn{' '}
+                              <span className="tabular-nums">
+                                {formatMoney(f.sourceBalance, c.currency)}
+                              </span>
+                            </>
+                          )}
                         </span>
                         {owed > 0 && (
                           <span
                             className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                              enough
+                              f.enough
                                 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                                 : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
                             }`}
                           >
-                            {enough
-                              ? 'đủ trả'
-                              : `thiếu ${formatMoney(owed - source.balance, c.currency)}`}
+                            {f.enough ? 'đủ trả' : `thiếu ${formatMoney(f.shortfall, c.currency)}`}
                           </span>
                         )}
                       </div>

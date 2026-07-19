@@ -80,10 +80,16 @@ Trong `src/data/repo.ts`, trong `export interface NewTransaction`, ngay sau dòn
   remit_received_vnd?: number | null
 ```
 
+- [ ] **Step 3b: Thêm 4 cột vào Database schema (BẮT BUỘC — nếu không `tsc -b` vỡ)**
+
+Client Supabase gõ theo `Database` (trong `src/types/database.types.ts`), Insert/Update của `transactions` liệt kê cột tường minh qua `InsertOf`. Phải thêm 4 khóa remit, nếu không `RejectExcessProperties` coi chúng là `never` và `.insert({...input})` lỗi kiểu. Trong `Database.public.Tables.transactions`:
+- Insert: thêm `| 'is_remittance' | 'remit_service' | 'remit_fee_jpy' | 'remit_received_vnd'` vào danh sách Optional keys của `InsertOf<TransactionRow, …>`.
+- Update: thêm `| 'is_remittance' | 'remit_service' | 'remit_fee_jpy' | 'remit_received_vnd'` vào `Pick<TransactionRow, …>`.
+
 - [ ] **Step 4: Typecheck + test**
 
 Run: `npx tsc -b && npx vitest run`
-Expected: `tsc -b` không lỗi (field optional nên các nơi tạo giao dịch cũ vẫn hợp lệ); toàn bộ test pass.
+Expected: `tsc -b` không lỗi (field optional + đã thêm vào Database schema); toàn bộ test pass.
 
 - [ ] **Step 5: Commit**
 

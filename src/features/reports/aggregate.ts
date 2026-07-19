@@ -34,7 +34,7 @@ export function categoryBreakdown(
   let hasForeign = false
   let hasMissingRate = false
   for (const t of txs) {
-    if (t.type !== kind || !t.category_id) continue
+    if (t.type !== kind || !t.category_id || t.is_debt_flow) continue
     const cur = currencyOf(t.account_id)
     if (cur !== base) hasForeign = true
     const v = convertToBase(t.amount, cur, base, rates)
@@ -80,7 +80,7 @@ export function monthlySeries(
   const expense = new Map<string, number>()
   let hasMissingRate = false
   for (const t of txs) {
-    if (t.type === 'transfer') continue
+    if (t.type === 'transfer' || t.is_debt_flow) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) {
       hasMissingRate = true
@@ -106,7 +106,7 @@ export interface IncomeExpenseSum {
   hasMissingRate: boolean
 }
 
-/** Tổng thu + tổng chi (đã quy đổi base). Chuyển khoản KHÔNG tính. */
+/** Tổng thu + tổng chi (đã quy đổi base). Chuyển khoản & dòng tiền nợ/cho vay (is_debt_flow) KHÔNG tính. */
 export function sumIncomeExpense(
   txs: TransactionRow[],
   currencyOf: CurrencyOf,
@@ -118,7 +118,7 @@ export function sumIncomeExpense(
   let hasForeign = false
   let hasMissingRate = false
   for (const t of txs) {
-    if (t.type === 'transfer') continue
+    if (t.type === 'transfer' || t.is_debt_flow) continue
     const cur = currencyOf(t.account_id)
     if (cur !== base) hasForeign = true
     const v = convertToBase(t.amount, cur, base, rates)
@@ -165,7 +165,7 @@ export function categoryComparison(
   const byCat = new Map<string, Map<string, number>>()
   let hasMissingRate = false
   for (const t of txs) {
-    if (t.type !== 'expense' || !t.category_id) continue
+    if (t.type !== 'expense' || !t.category_id || t.is_debt_flow) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) {
       hasMissingRate = true
@@ -203,7 +203,7 @@ export interface CumulativeCashflow {
 
 /**
  * Số dư chạy theo ngày (thu +, chi −, bắt đầu từ 0) từ startISO tới lastISO (đều gồm).
- * Chuyển khoản KHÔNG tính. Ngày không có giao dịch giữ nguyên số dư.
+ * Chuyển khoản & dòng tiền nợ/cho vay (is_debt_flow) KHÔNG tính. Ngày không có giao dịch giữ nguyên số dư.
  */
 export function cumulativeDailyBalance(
   txs: TransactionRow[],
@@ -216,7 +216,7 @@ export function cumulativeDailyBalance(
   const netByDay = new Map<string, number>()
   let hasMissingRate = false
   for (const t of txs) {
-    if (t.type === 'transfer') continue
+    if (t.type === 'transfer' || t.is_debt_flow) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) {
       hasMissingRate = true
@@ -233,6 +233,50 @@ export function cumulativeDailyBalance(
     const iso = cur.toISOString().slice(0, 10)
     balance += netByDay.get(iso) ?? 0
     points.push({ date: iso, balance })
+    cur.setUTCDate(cur.getUTCDate() + 1)
+  }
+  return { points, hasMissingRate }
+}
+
+export interface DailyExpensePoint {
+  date: string
+  expense: number // base minor, chi trong ngày (>= 0)
+}
+
+export interface DailyExpense {
+  points: DailyExpensePoint[]
+  hasMissingRate: boolean
+}
+
+/**
+ * Tổng chi theo từng ngày (base minor) từ startISO tới lastISO (đều gồm), 0 cho ngày trống.
+ * Chuyển khoản & dòng tiền nợ/cho vay KHÔNG tính. Nền cho heatmap và chi tích lũy vs ngân sách.
+ */
+export function dailyExpenseTotals(
+  txs: TransactionRow[],
+  startISO: string,
+  lastISO: string,
+  currencyOf: CurrencyOf,
+  base: CurrencyCode,
+  rates: Rates,
+): DailyExpense {
+  const byDay = new Map<string, number>()
+  let hasMissingRate = false
+  for (const t of txs) {
+    if (t.type !== 'expense' || t.is_debt_flow) continue
+    const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
+    if (v === null) {
+      hasMissingRate = true
+      continue
+    }
+    byDay.set(t.occurred_on, (byDay.get(t.occurred_on) ?? 0) + v)
+  }
+  const points: DailyExpensePoint[] = []
+  const cur = new Date(startISO + 'T00:00:00Z')
+  const last = new Date(lastISO + 'T00:00:00Z')
+  while (cur <= last) {
+    const iso = cur.toISOString().slice(0, 10)
+    points.push({ date: iso, expense: byDay.get(iso) ?? 0 })
     cur.setUTCDate(cur.getUTCDate() + 1)
   }
   return { points, hasMissingRate }

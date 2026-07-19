@@ -6,6 +6,7 @@ import {
   categoryBreakdown,
   categoryComparison,
   cumulativeDailyBalance,
+  dailyExpenseTotals,
   monthlySeries,
   sumIncomeExpense,
 } from './aggregate'
@@ -33,6 +34,50 @@ function tx(p: Partial<TransactionRow> & Pick<TransactionRow, 'type' | 'amount'>
     ...p,
   }
 }
+
+describe('is_debt_flow bị loại khỏi mọi báo cáo', () => {
+  it('categoryBreakdown bỏ qua giao dịch dòng tiền nợ/cho vay', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 1_500, category_id: 'food' }),
+      tx({ type: 'expense', amount: 1_500, category_id: 'food', is_debt_flow: true }), // trả hộ → bỏ
+    ]
+    const r = categoryBreakdown(txs, 'expense', currencyOf, 'JPY', RATES)
+    expect(r.slices).toEqual([{ categoryId: 'food', amount: 1_500 }])
+    expect(r.total).toBe(1_500)
+  })
+
+  it('sumIncomeExpense bỏ qua cả chiều thu (thu nợ) lẫn chi (cho vay)', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 1_500 }),
+      tx({ type: 'expense', amount: 1_500, is_debt_flow: true }), // cho vay → bỏ
+      tx({ type: 'income', amount: 1_500, is_debt_flow: true }), // thu nợ → bỏ
+    ]
+    const r = sumIncomeExpense(txs, currencyOf, 'JPY', RATES)
+    expect(r).toEqual({ income: 0, expense: 1_500, hasForeign: false, hasMissingRate: false })
+  })
+
+  it('monthlySeries & cumulativeDailyBalance bỏ qua dòng tiền nợ/cho vay', () => {
+    const months = [{ year: 2026, month: 7 }]
+    const txs = [
+      tx({ type: 'expense', amount: 1_500, occurred_on: '2026-07-10' }),
+      tx({ type: 'expense', amount: 1_500, occurred_on: '2026-07-10', is_debt_flow: true }), // bỏ
+    ]
+    const ms = monthlySeries(txs, months, 1, currencyOf, 'JPY', RATES)
+    expect(ms.points[0]).toEqual({ key: { year: 2026, month: 7 }, income: 0, expense: 1_500 })
+    const cf = cumulativeDailyBalance(txs, '2026-07-10', '2026-07-10', currencyOf, 'JPY', RATES)
+    expect(cf.points).toEqual([{ date: '2026-07-10', balance: -1_500 }])
+  })
+
+  it('categoryComparison bỏ qua dòng tiền nợ/cho vay', () => {
+    const active = { year: 2026, month: 7 }
+    const txs = [
+      tx({ type: 'expense', amount: 1_500, category_id: 'food', occurred_on: '2026-07-05' }),
+      tx({ type: 'expense', amount: 1_500, category_id: 'food', occurred_on: '2026-07-05', is_debt_flow: true }),
+    ]
+    const r = categoryComparison(txs, active, 1, currencyOf, 'JPY', RATES)
+    expect(r.rows[0]).toMatchObject({ categoryId: 'food', thisMonth: 1_500 })
+  })
+})
 
 describe('categoryBreakdown (base = JPY)', () => {
   it('gộp theo danh mục, quy đổi base, sắp xếp giảm dần', () => {
@@ -194,5 +239,32 @@ describe('cumulativeDailyBalance (base = JPY)', () => {
     const r = cumulativeDailyBalance(txs, '2026-07-01', '2026-07-01', currencyOf, 'JPY', { JPY: 1 })
     expect(r.hasMissingRate).toBe(true)
     expect(r.points).toEqual([{ date: '2026-07-01', balance: 0 }])
+  })
+})
+
+describe('dailyExpenseTotals (base = JPY)', () => {
+  it('cộng chi theo ngày, ngày trống = 0, bỏ thu/chuyển khoản/nợ', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 300, occurred_on: '2026-07-01' }),
+      tx({ type: 'expense', amount: 200, occurred_on: '2026-07-01' }),
+      tx({ type: 'income', amount: 9999, occurred_on: '2026-07-02' }), // bỏ (thu)
+      tx({ type: 'transfer', amount: 500, occurred_on: '2026-07-02', to_account_id: 'vnd' }), // bỏ
+      tx({ type: 'expense', amount: 400, occurred_on: '2026-07-03', is_debt_flow: true }), // bỏ (nợ)
+      tx({ type: 'expense', amount: 1_650_000, occurred_on: '2026-07-03', account_id: 'vnd' }), // ¥10.000
+    ]
+    const r = dailyExpenseTotals(txs, '2026-07-01', '2026-07-03', currencyOf, 'JPY', RATES)
+    expect(r.points).toEqual([
+      { date: '2026-07-01', expense: 500 },
+      { date: '2026-07-02', expense: 0 },
+      { date: '2026-07-03', expense: 10_000 },
+    ])
+    expect(r.hasMissingRate).toBe(false)
+  })
+
+  it('thiếu tỷ giá → cờ hasMissingRate, ngày đó = 0', () => {
+    const txs = [tx({ type: 'expense', amount: 1_650_000, occurred_on: '2026-07-01', account_id: 'vnd' })]
+    const r = dailyExpenseTotals(txs, '2026-07-01', '2026-07-01', currencyOf, 'JPY', { JPY: 1 })
+    expect(r.hasMissingRate).toBe(true)
+    expect(r.points).toEqual([{ date: '2026-07-01', expense: 0 }])
   })
 })

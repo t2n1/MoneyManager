@@ -2,15 +2,25 @@
 
 > **Ngày ghi:** 2026-07-14 · **Cập nhật:** 2026-07-19 · **Trạng thái:** Ý tưởng chờ xử lý (chưa lên spec/plan)
 >
-> **Đã hoàn thành (giữ lại để tham chiếu):** B (lịch), E (trang tài sản), F (nợ/cho vay),
-> G (danh mục mẹ/con), I (gợi ý thông minh), K (hoàn tác sau lưu), L (máy tính),
-> M (nhập liên tục), O (PWA shortcuts), Q (thẻ insight), R (dự báo run-rate),
+> **Đã hoàn thành (giữ lại để tham chiếu):** A (báo cáo năm), B (lịch), C+D (giao dịch
+> định kỳ), E (trang tài sản), F (nợ/cho vay), G (danh mục mẹ/con), H (xuất CSV),
+> I (gợi ý thông minh), K (hoàn tác sau lưu), L (máy tính), M (nhập liên tục),
+> N (tách hóa đơn), O (PWA shortcuts), Q (thẻ insight), R (dự báo run-rate),
 > S (so sánh tháng), U (bất thường), V (tỷ lệ tiết kiệm + streak), W (dòng tiền tích lũy).
 > Tỷ giá tự động (fetch + cache) cũng đã có sẵn trong `src/lib/rates.ts`.
+> Ngoài backlog: **Gửi tiền về VN** (remittance) và **tối ưu Nhật** (loại TK Nhật, danh
+> mục Nhật) cũng đã ship.
 >
-> **Còn lại chưa làm:** A (báo cáo năm), C+D (giao dịch định kỳ), H (xuất CSV/Excel),
-> J (mẫu giao dịch nhanh), N (tách hóa đơn), P (giọng nói), T (radar định kỳ),
-> và toàn bộ nhóm X–AT bổ sung 2026-07-19 bên dưới.
+> **Đợt "làm hết" 2026-07-20 (nhánh feat/backlog-batch):** đã ship thêm
+> Z (sao lưu/khôi phục JSON), H (xuất CSV), AK (ẩn số tiền), AB (hoàn tác khi xóa),
+> AP (xuất PDF/in), AN (nhắc nhở trong app), AO (onboarding), AL (lọc theo số tiền),
+> AA (offline persist cache), Y (nhập CSV sao kê). Mỗi mục 1 commit, build/lint/test sạch.
+>
+> **Còn lại chưa làm:** J (mẫu giao dịch nhanh), P (giọng nói), T (radar định kỳ),
+> và nhóm nghiệp vụ/độ-tin-cậy: X (reconcile), AM (loại trừ thống kê), AD (mục tiêu
+> tiết kiệm), AE (giá trị đầu tư), AF (lịch sử net worth), AG (nợ có lãi), AH (ngân sách
+> nâng cao). Đã chốt KHÔNG làm (nền lớn / phá 0đ): AJ (sổ chung), AS (nhiều sổ),
+> AR (i18n), AQ (web push), AT (trợ lý AI), AI-OCR (đọc hóa đơn tự động).
 >
 > File này chỉ **gom ý tưởng** cho các giai đoạn sau. Khi bắt tay làm từng mục,
 > mỗi mục sẽ đi qua quy trình riêng: brainstorm → spec (`docs/superpowers/specs/`)

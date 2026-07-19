@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, TriangleAlert } from 'lucide-react'
+import { ChevronLeft, Send, TriangleAlert } from 'lucide-react'
 import {
   useBudgetAlert,
   useCreateRecurringRule,
@@ -9,6 +9,7 @@ import {
   useRunRecurringCatchUp,
 } from '../../hooks/queries'
 import type { TransactionType } from '../../types/database.types'
+import { RemittanceFormSheet } from '../remittance/RemittanceFormSheet'
 import { TransactionForm } from './TransactionForm'
 
 /** Màn hình mặc định khi mở app — nhập một giao dịch phải < 5 giây. */
@@ -24,6 +25,7 @@ export function EntryPage() {
   const initialType: TransactionType | undefined =
     qType === 'income' || qType === 'expense' ? qType : undefined
   const [toast, setToast] = useState<{ text: string; undoId?: string } | null>(null)
+  const [remit, setRemit] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => () => clearTimeout(toastTimer.current), [])
@@ -47,7 +49,14 @@ export function EntryPage() {
           <ChevronLeft className="h-5 w-5" /> Đóng
         </button>
         <h1 className="flex-1 text-center text-base font-bold text-gray-800 dark:text-gray-100">Nhập giao dịch</h1>
-        <span className="w-[4.5rem]" />
+        <button
+          type="button"
+          onClick={() => setRemit(true)}
+          className="flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-sm font-medium text-green-700 dark:text-green-400 shadow-sm active:scale-95"
+          aria-label="Gửi tiền về Việt Nam"
+        >
+          <Send className="h-4 w-4" /> Gửi về VN
+        </button>
       </div>
       {overCount > 0 && (
         <Link
@@ -101,6 +110,7 @@ export function EntryPage() {
           </div>
         </div>
       )}
+      {remit && <RemittanceFormSheet onClose={() => setRemit(false)} />}
     </div>
   )
 }

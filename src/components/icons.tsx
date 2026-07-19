@@ -10,7 +10,7 @@ const ICONS: Record<AccountType, typeof Coins> = {
 }
 
 /**
- * Icon cho loại tài khoản: tiền mặt (Coins) / ngân hàng (Landmark) / thẻ tín dụng (CreditCard).
+ * Icon cho loại tài khoản: tiền mặt (Coins) / ngân hàng (Landmark) / thẻ tín dụng (CreditCard) / IC giao thông (TrainFront) / ví điện tử (Wallet).
  * Kế thừa màu theo `currentColor` nên tự đúng ở cả nền sáng lẫn tối.
  * Dùng ở danh sách/tiêu đề — KHÔNG dùng trong <option> native (không render được SVG).
  */

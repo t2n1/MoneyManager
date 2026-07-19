@@ -4,6 +4,7 @@
 // dư nợ tại ngày chốt sao kê. card_autopay_through là con trỏ kỳ đã sinh (chống trùng).
 // KHÔNG import data/repo hay database.types để tránh vòng import (giống recurring.ts).
 
+import type { AccountType } from '../types/database.types'
 import { addDaysISO, addMonths } from './dates'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -50,7 +51,7 @@ export function statementCloseFor(dueISO: string, statementDay: number): string 
 /** Phần tài khoản engine cần đọc (AccountRow thỏa type này). */
 export interface AccountLike {
   id: string
-  type: 'cash' | 'bank' | 'card'
+  type: AccountType
   currency: string
   initial_balance: number
   is_archived: boolean

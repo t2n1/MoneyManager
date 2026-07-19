@@ -10,6 +10,7 @@ import type {
   CategoryType,
   DebtPaymentRow,
   DebtRow,
+  NetWorthSnapshotRow,
   ProfileRow,
   RecurringRuleRow,
   SavingsGoalRow,
@@ -58,6 +59,7 @@ interface DemoDB {
   recurringRules: RecurringRuleRow[]
   accountValuations: AccountValuationRow[]
   savingsGoals: SavingsGoalRow[]
+  networthSnapshots: NetWorthSnapshotRow[]
 }
 
 // crypto.randomUUID() chỉ chạy trong secure context (HTTPS / localhost).
@@ -364,6 +366,7 @@ function seed(): DemoDB {
     recurringRules: [],
     accountValuations,
     savingsGoals: [],
+    networthSnapshots: [],
   }
 }
 
@@ -618,6 +621,31 @@ export const demoRepo: Repo = {
     const db = load()
     db.savingsGoals = (db.savingsGoals ?? []).filter((g) => g.id !== id)
     save(db)
+  },
+
+  async getNetWorthSnapshots() {
+    return (load().networthSnapshots ?? []).slice().sort((a, b) => a.snapshot_on.localeCompare(b.snapshot_on))
+  },
+
+  async upsertNetWorthSnapshot(snapshotOn: string, netWorth: number) {
+    const db = load()
+    db.networthSnapshots ??= []
+    const existing = db.networthSnapshots.find((s) => s.snapshot_on === snapshotOn)
+    if (existing) {
+      existing.net_worth = netWorth
+      save(db)
+      return existing
+    }
+    const row: NetWorthSnapshotRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      snapshot_on: snapshotOn,
+      net_worth: netWorth,
+      created_at: nowISO(),
+    }
+    db.networthSnapshots.push(row)
+    save(db)
+    return row
   },
 
   async createCategory(input: NewCategory) {
@@ -992,6 +1020,7 @@ export const demoRepo: Repo = {
       recurringRules: db.recurringRules ?? [],
       accountValuations: db.accountValuations ?? [],
       savingsGoals: db.savingsGoals ?? [],
+      networthSnapshots: db.networthSnapshots ?? [],
     }
   },
 
@@ -1011,6 +1040,7 @@ export const demoRepo: Repo = {
       recurringRules: stamp(data.recurringRules ?? []),
       accountValuations: stamp(data.accountValuations ?? []),
       savingsGoals: stamp(data.savingsGoals ?? []),
+      networthSnapshots: stamp(data.networthSnapshots ?? []),
     }
     save(db)
   },

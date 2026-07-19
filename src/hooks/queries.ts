@@ -264,6 +264,25 @@ export function useDeleteSavingsGoal() {
   })
 }
 
+// --- Lịch sử tài sản ròng (mục AF) ---
+
+export function useNetWorthSnapshots() {
+  return useQuery({
+    queryKey: ['networthSnapshots'],
+    queryFn: () => repo.getNetWorthSnapshots(),
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useUpsertNetWorthSnapshot() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ snapshotOn, netWorth }: { snapshotOn: string; netWorth: number }) =>
+      repo.upsertNetWorthSnapshot(snapshotOn, netWorth),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['networthSnapshots'] }),
+  })
+}
+
 export function useCreateCategory() {
   const qc = useQueryClient()
   return useMutation({

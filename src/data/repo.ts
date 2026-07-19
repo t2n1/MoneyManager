@@ -12,6 +12,7 @@ import type {
   DebtDirection,
   DebtPaymentRow,
   DebtRow,
+  NetWorthSnapshotRow,
   ProfileRow,
   RecurringRuleRow,
   SavingsGoalRow,
@@ -38,10 +39,12 @@ export interface BackupData {
   accountValuations?: AccountValuationRow[]
   /** Mục tiêu tiết kiệm (mục AD); vắng mặt ở backup v1/v2. */
   savingsGoals?: SavingsGoalRow[]
+  /** Lịch sử tài sản ròng (mục AF); vắng mặt ở backup v1–v3. */
+  networthSnapshots?: NetWorthSnapshotRow[]
 }
 
-/** Phiên bản định dạng backup hiện hành. v3: thêm savingsGoals (mục AD). */
-export const BACKUP_VERSION = 3
+/** Phiên bản định dạng backup hiện hành. v4: thêm networthSnapshots (mục AF). */
+export const BACKUP_VERSION = 4
 
 export interface NewTransaction {
   type: TransactionType
@@ -237,6 +240,11 @@ export interface Repo {
   createSavingsGoal(input: NewSavingsGoal): Promise<SavingsGoalRow>
   updateSavingsGoal(id: string, patch: SavingsGoalPatch): Promise<SavingsGoalRow>
   deleteSavingsGoal(id: string): Promise<void>
+
+  // --- Lịch sử tài sản ròng (mục AF) ---
+  getNetWorthSnapshots(): Promise<NetWorthSnapshotRow[]>
+  /** Ghi/đè snapshot net worth (base) theo ngày (unique user_id+snapshot_on). */
+  upsertNetWorthSnapshot(snapshotOn: string, netWorth: number): Promise<NetWorthSnapshotRow>
 
   createCategory(input: NewCategory): Promise<CategoryRow>
   updateCategory(id: string, patch: CategoryPatch): Promise<CategoryRow>

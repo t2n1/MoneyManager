@@ -4,6 +4,7 @@ import { CreditCard, Settings2 } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { AccountTypeIcon } from '../../components/icons'
 import { PrivacyToggle } from '../../components/PrivacyToggle'
+import { NetWorthHistorySection } from './NetWorthHistorySection'
 import { SavingsGoalsSection } from './SavingsGoalsSection'
 import {
   useAccountBalances,
@@ -124,6 +125,13 @@ export function AssetsPage() {
   const sharedSources = funding.groups.filter((g) => g.cardCount >= 2 && g.totalOwed > 0)
   const netApprox =
     breakdown.hasForeign || debts_.hasMissingRate || breakdown.cardHasMissingRate ? '≈ ' : ''
+  // Tài sản ròng để ghi lịch sử (mục AF): chỉ ghi khi số liệu tin cậy (không thiếu tỷ giá)
+  const netWorth = breakdown.total + debts_.net + breakdown.cardDebt
+  const netWorthReliable =
+    !isLoading &&
+    !breakdown.hasMissingRate &&
+    !debts_.hasMissingRate &&
+    !breakdown.cardHasMissingRate
 
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
@@ -215,6 +223,9 @@ export function AssetsPage() {
 
       {/* Mục tiêu tiết kiệm (mục AD) */}
       <SavingsGoalsSection />
+
+      {/* Lịch sử tài sản ròng (mục AF) */}
+      <NetWorthHistorySection base={base} currentNetWorth={netWorthReliable ? netWorth : null} />
 
       {/* Thẻ tín dụng */}
       {visibleCards.length > 0 && (

@@ -130,6 +130,16 @@ export type AccountValuationRow = {
   created_at: string
 }
 
+/** Lịch sử tài sản ròng (mục AF): ảnh chụp net worth base theo ngày. */
+export type NetWorthSnapshotRow = {
+  id: string
+  user_id: string
+  snapshot_on: string
+  /** tài sản ròng quy đổi base (minor units); có thể âm */
+  net_worth: number
+  created_at: string
+}
+
 /** Mục tiêu tiết kiệm (mục AD): đích cần đạt trên số dư một tài khoản. */
 export type SavingsGoalRow = {
   id: string
@@ -429,6 +439,16 @@ export type Database = {
         Update: Partial<
           Pick<SavingsGoalRow, 'name' | 'account_id' | 'target_amount' | 'target_date' | 'note' | 'sort_order'>
         >
+        Relationships: []
+      }
+      networth_snapshots: {
+        Row: NetWorthSnapshotRow
+        Insert: InsertOf<
+          NetWorthSnapshotRow,
+          'user_id' | 'net_worth',
+          'id' | 'snapshot_on'
+        >
+        Update: Partial<Pick<NetWorthSnapshotRow, 'net_worth' | 'snapshot_on'>>
         Relationships: []
       }
     }

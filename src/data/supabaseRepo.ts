@@ -10,6 +10,7 @@ import type {
   CategoryType,
   DebtPaymentRow,
   DebtRow,
+  NetWorthSnapshotRow,
   RecurringRuleRow,
   SavingsGoalRow,
   TransactionRow,
@@ -52,6 +53,7 @@ type DataTable =
   | 'recurring_rules'
   | 'account_valuations'
   | 'savings_goals'
+  | 'networth_snapshots'
 
 async function currentUserId(): Promise<string> {
   const {
@@ -293,6 +295,29 @@ export const supabaseRepo: Repo = {
   async deleteSavingsGoal(id: string) {
     const { error } = await getSupabase().from('savings_goals').delete().eq('id', id)
     if (error) throw error
+  },
+
+  async getNetWorthSnapshots() {
+    const { data, error } = await getSupabase()
+      .from('networth_snapshots')
+      .select('*')
+      .order('snapshot_on')
+    if (error) throw error
+    return data
+  },
+
+  async upsertNetWorthSnapshot(snapshotOn: string, netWorth: number) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('networth_snapshots')
+      .upsert(
+        { user_id, snapshot_on: snapshotOn, net_worth: netWorth },
+        { onConflict: 'user_id,snapshot_on' },
+      )
+      .select()
+      .single()
+    if (error) throw error
+    return data
   },
 
   async createCategory(input: NewCategory) {
@@ -672,6 +697,7 @@ export const supabaseRepo: Repo = {
       recurringRules,
       accountValuations,
       savingsGoals,
+      networthSnapshots,
     ] = await Promise.all([
       this.getProfile(),
       selectAll<AccountRow>('accounts'),
@@ -684,6 +710,7 @@ export const supabaseRepo: Repo = {
       selectAll<RecurringRuleRow>('recurring_rules'),
       selectAll<AccountValuationRow>('account_valuations'),
       selectAll<SavingsGoalRow>('savings_goals'),
+      selectAll<NetWorthSnapshotRow>('networth_snapshots'),
     ])
     return {
       version: BACKUP_VERSION,
@@ -699,6 +726,7 @@ export const supabaseRepo: Repo = {
       recurringRules,
       accountValuations,
       savingsGoals,
+      networthSnapshots,
     }
   },
 
@@ -713,6 +741,7 @@ export const supabaseRepo: Repo = {
     const deleteOrder: DataTable[] = [
       'account_valuations',
       'savings_goals',
+      'networth_snapshots',
       'debt_payments',
       'debts',
       'budgets',
@@ -930,6 +959,22 @@ export const supabaseRepo: Repo = {
               target_date: g.target_date,
               note: g.note,
               sort_order: g.sort_order,
+            })),
+          )
+        ).error,
+      )
+    }
+
+    // networth_snapshots: chỉ phụ thuộc user → chèn độc lập.
+    if (data.networthSnapshots?.length) {
+      ok(
+        (
+          await sb.from('networth_snapshots').insert(
+            data.networthSnapshots.map((s) => ({
+              id: s.id,
+              user_id: uid,
+              snapshot_on: s.snapshot_on,
+              net_worth: s.net_worth,
             })),
           )
         ).error,

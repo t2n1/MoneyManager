@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react'
-import { type CurrencyCode } from '../../lib/money'
+import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import { getMonthRange, toISODate, type MonthKey } from '../../lib/dates'
 import type { AccountRow, CategoryRow, TransactionRow } from '../../types/database.types'
 import {
   approxLabel,
-  formatCompact,
   formatDayHeader,
   sumInBase,
   WEEKDAYS_SHORT,
@@ -135,12 +134,12 @@ export function CalendarView({
                 >
                   {dayLabel(iso)}
                 </span>
-                <span className="mt-auto flex flex-col items-end gap-px overflow-hidden text-[9px] leading-tight tabular-nums">
+                <span className="mt-auto flex flex-col items-end gap-px text-[9px] leading-tight tabular-nums">
                   {sums && sums.income > 0 && (
-                    <span className="truncate text-green-600 dark:text-green-400">{formatCompact(sums.income, base)}</span>
+                    <span className="break-all text-green-600 dark:text-green-400">{formatMoney(sums.income, base)}</span>
                   )}
                   {sums && sums.expense > 0 && (
-                    <span className="truncate text-red-500">{formatCompact(sums.expense, base)}</span>
+                    <span className="break-all text-red-500">{formatMoney(sums.expense, base)}</span>
                   )}
                 </span>
               </button>

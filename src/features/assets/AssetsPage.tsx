@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { CreditCard, Settings2 } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { AccountTypeIcon } from '../../components/icons'
+import { PrivacyToggle } from '../../components/PrivacyToggle'
 import {
   useAccountBalances,
   useAssetGroupSettings,
@@ -102,6 +103,7 @@ export function AssetsPage() {
     <div className="flex flex-col gap-4 p-3 lg:p-6">
       <div className="flex items-center gap-2">
         <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Tài sản</h1>
+        <PrivacyToggle />
         <Link
           to="/settings/asset-groups"
           className="inline-flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 shadow-sm active:scale-95"
@@ -145,7 +147,7 @@ export function AssetsPage() {
           </p>
           <div className="mt-3 space-y-1.5 text-sm">
             <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
-              <span>Tài sản gộp</span>
+              <span>Tổng tài sản</span>
               <span className="tabular-nums">{formatMoney(breakdown.total, base)}</span>
             </div>
             {debts_.owedToMe > 0 && (
@@ -264,10 +266,10 @@ export function AssetsPage() {
                     {f && (
                       <div className="mt-1 ml-6 flex items-center gap-1.5 text-xs">
                         <span className="text-gray-400 dark:text-gray-500">
-                          Tự trả từ {f.sourceName}
+                          Trả từ {f.sourceName}
                           {!f.shared && (
                             <>
-                              {' '}· còn{' '}
+                              {' '}· số dư{' '}
                               <span className="tabular-nums">
                                 {formatMoney(f.sourceBalance, c.currency)}
                               </span>

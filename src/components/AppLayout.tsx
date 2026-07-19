@@ -3,6 +3,8 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ChartColumn, NotebookText, Settings, Wallet } from 'lucide-react'
 import { isDemoMode } from '../lib/demo'
 import { useRunRecurringCatchUp } from '../hooks/queries'
+import { usePrivacyMode } from '../lib/privacy'
+import { PrivacyToggle } from './PrivacyToggle'
 
 const TABS = [
   { to: '/', label: 'Sổ GD', Icon: NotebookText },
@@ -29,6 +31,9 @@ let recurringCatchUpDone = false
 export function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
+  // Đăng ký chế độ riêng tư ở gốc cây: bật/tắt sẽ re-render toàn bộ trang con
+  // (formatMoney là hàm thuần nên component hiển thị tiền cần được render lại).
+  const privacyOn = usePrivacyMode()
 
   // Nút "+" nổi chỉ hiện ở trang Sổ Giao dịch
   const onLedger = location.pathname === '/' || location.pathname === '/transactions'
@@ -83,7 +88,8 @@ export function AppLayout() {
       <aside className="hidden shrink-0 border-r border-gray-200 bg-white p-4 lg:flex lg:w-56 lg:flex-col dark:border-gray-800 dark:bg-gray-900">
         <div className="mb-6 flex items-center gap-2 px-2">
           <NotebookText className="h-6 w-6 text-green-600 dark:text-green-500" />
-          <span className="text-lg font-bold text-gray-800 dark:text-gray-100">Sổ Chi Tiêu</span>
+          <span className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Sổ Chi Tiêu</span>
+          <PrivacyToggle className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800" />
         </div>
         <NavLink
           to="/entry"
@@ -115,8 +121,12 @@ export function AppLayout() {
         )}
       </aside>
 
-      {/* Nội dung */}
-      <main className={`mx-auto w-full max-w-2xl flex-1 lg:pb-6 ${onEntry ? '' : 'pb-20'}`}>
+      {/* Nội dung — key theo chế độ riêng tư để bật/tắt render lại cây route
+          (Outlet trả về element ổn định tham chiếu nên không tự re-render). */}
+      <main
+        key={privacyOn ? 'priv-on' : 'priv-off'}
+        className={`mx-auto w-full max-w-2xl flex-1 lg:pb-6 ${onEntry ? '' : 'pb-20'}`}
+      >
         <Outlet />
       </main>
 

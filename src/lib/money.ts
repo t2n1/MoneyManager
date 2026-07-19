@@ -1,8 +1,15 @@
 // Tiền luôn lưu ở ĐƠN VỊ NHỎ NHẤT (minor units, khớp bigint trong DB):
 // JPY = yên, VND = đồng, USD = cent. Không bao giờ dùng float.
 // Nhập liệu kiểu ATM: chuỗi chữ số chính là minor units ("1050" USD → $10,50).
+import { isPrivacyEnabled } from './privacy'
 
 export type CurrencyCode = 'JPY' | 'VND' | 'USD'
+
+/** Chuỗi thay thế khi bật chế độ riêng tư, giữ đúng vị trí ký hiệu tiền tệ. */
+function maskMoney(currency: CurrencyCode): string {
+  const { symbol, position } = CURRENCIES[currency]
+  return position === 'prefix' ? `${symbol}••••` : `•••• ${symbol}`
+}
 
 export const CURRENCIES: Record<
   CurrencyCode,
@@ -27,6 +34,7 @@ const groupThousands = (digits: string, sep: string) =>
 
 /** minor units → chuỗi hiển thị: ¥1,234 · 1.234.000 ₫ · $1.234,56 */
 export function formatMoney(minor: number, currency: CurrencyCode): string {
+  if (isPrivacyEnabled()) return maskMoney(currency)
   const { symbol, decimals, position, group, decimal } = CURRENCIES[currency]
   const sign = minor < 0 ? '-' : ''
   const abs = Math.trunc(Math.abs(minor)).toString().padStart(decimals + 1, '0')
@@ -44,6 +52,7 @@ export function parseMoney(input: string): number {
 
 /** minor units → nhãn ngắn cho trục biểu đồ (¥300k, 1.5M…). Giữ dấu âm. */
 export function formatCompact(minor: number, currency: CurrencyCode): string {
+  if (isPrivacyEnabled()) return '•••'
   const major = minor / 10 ** CURRENCIES[currency].decimals
   const abs = Math.abs(major)
   if (abs >= 1_000_000) return `${(major / 1_000_000).toFixed(1)}M`

@@ -50,7 +50,7 @@ export function SavingsRateTrendCard({ series, labelOf }: Props) {
               <LabelList
                 dataKey="pct"
                 position="top"
-                formatter={(v: number | null) => (v === null ? '' : `${v}%`)}
+                formatter={(v: unknown) => (typeof v === 'number' ? `${v}%` : '')}
                 style={{ fontSize: 10, fill: '#6b7280' }}
               />
             </Bar>

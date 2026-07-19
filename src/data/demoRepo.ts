@@ -471,6 +471,10 @@ export const demoRepo: Repo = {
     return filterTransactions(load().transactions, filter)
   },
 
+  async getTransaction(id: string) {
+    return load().transactions.find((t) => t.id === id) ?? null
+  },
+
   async createTransaction(input: NewTransaction) {
     const db = load()
     const row: TransactionRow = {

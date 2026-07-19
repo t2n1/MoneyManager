@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Sparkles } from 'lucide-react'
 import type { NewRecurringRule, NewTransaction } from '../../data'
 import { toISODate } from '../../lib/dates'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
@@ -8,6 +9,7 @@ import { useAccounts, useCategories } from '../../hooks/queries'
 import { AccountPicker } from '../../components/AccountPicker'
 import { NumPad, type NumPadKey } from './NumPad'
 import { appendKey, evalExpression, MAX_AMOUNT_DIGITS } from './calc'
+import { parseNl } from './parseNl'
 
 const LAST_ACCOUNT_KEY = 'sct-last-account'
 const lastCategoryKey = (type: TransactionType) => `sct-last-category-${type}`
@@ -68,6 +70,8 @@ interface TransactionFormProps {
   onSubmitRecurring?: (rule: NewRecurringRule) => Promise<void>
   /** Hiện tùy chọn "Không tính vào thống kê" (mục AM) — dùng ở màn sửa, ẩn ở màn nhập nhanh. */
   showExcludeOption?: boolean
+  /** Hiện ô "nhập nhanh bằng lời" (chỉ màn nhập mới). Gõ câu → tự điền các trường. */
+  enableNlInput?: boolean
 }
 
 export function TransactionForm({
@@ -79,6 +83,7 @@ export function TransactionForm({
   initialType,
   onSubmitRecurring,
   showExcludeOption,
+  enableNlInput,
 }: TransactionFormProps) {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
@@ -104,6 +109,9 @@ export function TransactionForm({
   const [pending, setPending] = useState<'save' | 'continue' | null>(null)
   const saving = pending !== null
   const [error, setError] = useState<string | null>(null)
+  // Nhập nhanh bằng lời: câu đang gõ + tóm tắt những gì vừa nhận diện
+  const [nlText, setNlText] = useState('')
+  const [nlHint, setNlHint] = useState<string | null>(null)
   // Picker danh mục con: đang mở nhóm cha nào (null = màn danh mục chính)
   const [drillId, setDrillId] = useState<string | null>(() => {
     const cid = initial?.category_id ?? lastCategoryFor(initial?.type ?? initialType ?? 'expense', categories)
@@ -148,6 +156,40 @@ export function TransactionForm({
   const srcCurrency = activeAccounts.find((a) => a.id === effectiveAccountId)?.currency ?? 'JPY'
   const dstCurrency = activeAccounts.find((a) => a.id === toAccountId)?.currency ?? srcCurrency
   const crossCurrency = type === 'transfer' && !!toAccountId && dstCurrency !== srcCurrency
+
+  /** Phân tích câu nhập nhanh rồi điền sẵn các trường (người dùng vẫn xác nhận trước khi Lưu). */
+  function applyNl() {
+    const text = nlText.trim()
+    if (!text) return
+    const r = parseNl({
+      text,
+      categories: categories.filter((c) => !c.is_archived),
+      currency: srcCurrency,
+      todayISO: toISODate(new Date()),
+    })
+    if (r.type && r.type !== 'transfer') setType(r.type)
+    if (r.amountMinor != null) setDigits(String(r.amountMinor))
+    if (r.categoryId) {
+      setCategoryId(r.categoryId)
+      setDrillId(categories.find((c) => c.id === r.categoryId)?.parent_id ?? null)
+    }
+    if (r.dateISO) setDate(r.dateISO)
+    if (r.note) setNote(r.note)
+
+    // Tóm tắt cho người dùng đối chiếu; cảnh báo nếu thiếu số tiền / danh mục
+    const parts: string[] = []
+    if (r.amountMinor != null) parts.push(formatMoney(r.amountMinor, srcCurrency))
+    if (r.matchedCategoryName) parts.push(r.matchedCategoryName)
+    if (r.dateISO) parts.push(r.dateISO.slice(5).replace('-', '/'))
+    const missing: string[] = []
+    if (r.amountMinor == null) missing.push('số tiền')
+    if (!r.categoryId) missing.push('danh mục')
+    setNlHint(
+      (parts.length ? `Đã điền: ${parts.join(' · ')}` : 'Chưa nhận ra thông tin') +
+        (missing.length ? ` — thiếu ${missing.join(', ')}, kiểm tra lại` : ''),
+    )
+    setNlText('')
+  }
 
   const amountResult = evalExpression(digits)
   const amount = amountResult ?? 0
@@ -280,6 +322,37 @@ export function TransactionForm({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
+      {/* Nhập nhanh bằng lời: gõ "hôm qua trưa 850 yên" → tự điền các trường bên dưới */}
+      {enableNlInput && (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2 rounded-xl border border-green-300 bg-green-50 px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-green-500 dark:border-green-800 dark:bg-green-900/20">
+            <Sparkles className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
+            <input
+              value={nlText}
+              onChange={(e) => setNlText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  applyNl()
+                }
+              }}
+              placeholder='Gõ nhanh, vd "hôm qua trưa 850 yên"'
+              className="min-w-0 flex-1 bg-transparent text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none dark:text-gray-100 dark:placeholder:text-gray-500"
+              aria-label="Nhập nhanh bằng lời"
+            />
+            <button
+              type="button"
+              onClick={applyNl}
+              disabled={!nlText.trim()}
+              className="shrink-0 rounded-lg bg-green-600 px-2.5 py-1 text-xs font-semibold text-white active:scale-95 disabled:opacity-40"
+            >
+              Điền
+            </button>
+          </div>
+          {nlHint && <p className="px-1 text-xs text-gray-500 dark:text-gray-400">{nlHint}</p>}
+        </div>
+      )}
+
       {/* Tab loại giao dịch */}
       <div className="grid grid-cols-3 gap-1 rounded-xl bg-gray-200 dark:bg-gray-800 p-1">
         {TYPE_TABS.map((tab) => (

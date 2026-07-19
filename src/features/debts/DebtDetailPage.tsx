@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Banknote, ChevronLeft, PenLine } from 'lucide-react'
+import { Banknote, ChevronLeft, ChevronRight, PenLine } from 'lucide-react'
 import {
   useDebtPayments,
   useDebts,
   useDeleteDebt,
   useDeleteDebtPayment,
+  useTransaction,
   useUpdateDebt,
 } from '../../hooks/queries'
 import { formatMoney } from '../../lib/money'
+import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { DebtFormSheet } from './DebtFormSheet'
 import { DebtPaymentSheet } from './DebtPaymentSheet'
 import { paidOf, remainingOf } from './aggregate'
@@ -24,6 +26,7 @@ export function DebtDetailPage() {
 
   const [editing, setEditing] = useState(false)
   const [paying, setPaying] = useState(false)
+  const [viewingTxId, setViewingTxId] = useState<string | null>(null)
 
   const debt = debts.find((d) => d.id === debtId)
   const payments = useMemo(
@@ -151,30 +154,49 @@ export function DebtDetailPage() {
         Lịch sử trả ({payments.length})
       </h2>
       <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
-        {payments.map((p) => (
-          <div key={p.id} className="flex items-center gap-2 px-3 py-2.5">
-            {p.transaction_id ? <Banknote className="h-4 w-4" /> : <PenLine className="h-4 w-4" />}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
-                {formatMoney(p.amount, debt.currency)}
-                {!p.transaction_id && (
-                  <span className="ml-1 text-[10px] font-normal text-gray-400 dark:text-gray-500">(ghi nhận suông)</span>
-                )}
-              </p>
-              <p className="truncate text-xs text-gray-400 dark:text-gray-500">
-                {p.paid_on}
-                {p.note && ` · ${p.note}`}
-              </p>
+        {payments.map((p) => {
+          const info = (
+            <>
+              {p.transaction_id ? <Banknote className="h-4 w-4" /> : <PenLine className="h-4 w-4" />}
+              <div className="min-w-0 flex-1 text-left">
+                <p className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                  {formatMoney(p.amount, debt.currency)}
+                  {!p.transaction_id && (
+                    <span className="ml-1 text-[10px] font-normal text-gray-400 dark:text-gray-500">(ghi nhận suông)</span>
+                  )}
+                </p>
+                <p className="truncate text-xs text-gray-400 dark:text-gray-500">
+                  {p.paid_on}
+                  {p.note && ` · ${p.note}`}
+                </p>
+              </div>
+              {p.transaction_id && <ChevronRight className="h-4 w-4 text-gray-300 dark:text-gray-600" />}
+            </>
+          )
+          return (
+            <div key={p.id} className="flex items-center gap-2 px-3 py-2.5">
+              {p.transaction_id ? (
+                <button
+                  type="button"
+                  onClick={() => setViewingTxId(p.transaction_id)}
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded-lg -mx-1 px-1 py-0.5 active:scale-[0.99] hover:bg-gray-50 dark:hover:bg-gray-800"
+                  aria-label="Xem giao dịch liên kết"
+                >
+                  {info}
+                </button>
+              ) : (
+                <div className="flex min-w-0 flex-1 items-center gap-2">{info}</div>
+              )}
+              <button
+                type="button"
+                onClick={() => handleDeletePayment(p.id, !!p.transaction_id)}
+                className="rounded-lg px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                Xóa
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => handleDeletePayment(p.id, !!p.transaction_id)}
-              className="rounded-lg px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-            >
-              Xóa
-            </button>
-          </div>
-        ))}
+          )
+        })}
         {payments.length === 0 && (
           <p className="px-3 py-6 text-center text-sm text-gray-400 dark:text-gray-500">Chưa có lần trả nào</p>
         )}
@@ -184,6 +206,24 @@ export function DebtDetailPage() {
       {paying && (
         <DebtPaymentSheet debt={debt} remaining={remaining} onClose={() => setPaying(false)} />
       )}
+      {viewingTxId && (
+        <PaymentTxSheet txId={viewingTxId} onClose={() => setViewingTxId(null)} />
+      )}
     </div>
   )
+}
+
+/** Nạp giao dịch liên kết theo id rồi mở sheet sửa quen thuộc. */
+function PaymentTxSheet({ txId, onClose }: { txId: string; onClose: () => void }) {
+  const { data: tx, isLoading } = useTransaction(txId)
+  // Giao dịch đã bị xóa nơi khác — báo nhẹ rồi đóng (đặt trong effect, không side-effect khi render).
+  const missing = !isLoading && !tx
+  useEffect(() => {
+    if (missing) {
+      window.alert('Giao dịch liên kết không còn tồn tại (có thể đã bị xóa).')
+      onClose()
+    }
+  }, [missing, onClose])
+  if (!tx) return null
+  return <EditTransactionSheet tx={tx} onClose={onClose} />
 }

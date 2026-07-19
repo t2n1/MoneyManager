@@ -219,6 +219,8 @@ export interface Repo {
   getCategories(): Promise<CategoryRow[]>
   listTransactions(range: DateRange): Promise<TransactionRow[]>
   searchTransactions(filter: TxFilter): Promise<TransactionRow[]>
+  /** Lấy 1 giao dịch theo id; null nếu không tìm thấy (đã bị xóa). */
+  getTransaction(id: string): Promise<TransactionRow | null>
   createTransaction(input: NewTransaction): Promise<TransactionRow>
   updateTransaction(id: string, patch: TransactionPatch): Promise<TransactionRow>
   deleteTransaction(id: string): Promise<void>

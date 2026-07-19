@@ -98,6 +98,15 @@ export function useRangeTransactions(range: DateRange, enabled = true) {
   })
 }
 
+/** Một giao dịch theo id (vd: mở từ lịch sử trả nợ). null nếu đã bị xóa. */
+export function useTransaction(id: string | null) {
+  return useQuery({
+    queryKey: ['transaction', id],
+    queryFn: () => repo.getTransaction(id!),
+    enabled: !!id,
+  })
+}
+
 /** Tìm kiếm giao dịch theo bộ lọc (ghi chú, loại, danh mục, tài khoản, khoảng ngày). */
 export function useSearchTransactions(filter: TxFilter, enabled = true) {
   return useQuery({

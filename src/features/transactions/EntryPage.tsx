@@ -93,6 +93,7 @@ export function EntryPage() {
         submitLabel="Lưu"
         continueLabel="Tiếp tục"
         initialType={initialType}
+        enableNlInput
         // Lưu: ghi giao dịch rồi quay về Sổ GD
         onSubmit={async (values) => {
           await create.mutateAsync(values)

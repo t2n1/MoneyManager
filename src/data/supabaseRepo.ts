@@ -162,6 +162,16 @@ export const supabaseRepo: Repo = {
     return data.filter((t) => normalizeText(t.note).includes(needle))
   },
 
+  async getTransaction(id: string) {
+    const { data, error } = await getSupabase()
+      .from('transactions')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+    if (error) throw error
+    return data
+  },
+
   async createTransaction(input: NewTransaction) {
     const user_id = await currentUserId()
     const { data, error } = await getSupabase()

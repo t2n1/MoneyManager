@@ -7,7 +7,7 @@
 import type { CurrencyCode } from '../lib/money'
 import type { RecurringFrequency } from '../lib/recurring'
 
-export type AccountType = 'cash' | 'bank' | 'card'
+export type AccountType = 'cash' | 'bank' | 'card' | 'ic' | 'ewallet'
 export type CategoryType = 'expense' | 'income'
 export type TransactionType = 'expense' | 'income' | 'transfer'
 /** i_owe = mình nợ người ta · owed_to_me = người ta nợ mình */

@@ -256,4 +256,16 @@ describe('assetTypeGroups (gom theo loại tài khoản)', () => {
     // chỉ còn 1 tài khoản ngân hàng 100.000 được tính
     expect(t.map((g) => [g.name, g.total])).toEqual([['Ngân hàng', 100_000]])
   })
+
+  it('gom loại IC và Ví điện tử thành nhóm loại riêng', () => {
+    const balances = [
+      acc({ balance: 100_000, type: 'bank', asset_group: 'Tiêu dùng' }),
+      acc({ balance: 3_000, type: 'ic', asset_group: 'Tiêu dùng' }),
+      acc({ balance: 5_000, type: 'ewallet', asset_group: 'Tiêu dùng' }),
+    ]
+    const t = assetTypeGroups(assetBreakdown(balances, 'JPY', RATES))
+    expect(t.map((g) => g.name).sort()).toEqual(['IC giao thông', 'Ngân hàng', 'Ví điện tử'])
+    expect(t.find((g) => g.name === 'IC giao thông')!.total).toBe(3_000)
+    expect(t.find((g) => g.name === 'Ví điện tử')!.total).toBe(5_000)
+  })
 })

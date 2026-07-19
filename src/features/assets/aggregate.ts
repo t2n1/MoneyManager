@@ -13,6 +13,8 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   cash: 'Tiền mặt',
   bank: 'Ngân hàng',
   card: 'Thẻ tín dụng',
+  ic: 'IC giao thông',
+  ewallet: 'Ví điện tử',
 }
 
 /** Cài đặt riêng của một nhóm (từ bảng asset_group_settings). */

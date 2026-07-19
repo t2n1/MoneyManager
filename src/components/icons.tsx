@@ -1,10 +1,12 @@
-import { Coins, CreditCard, Landmark } from 'lucide-react'
+import { Coins, CreditCard, Landmark, TrainFront, Wallet } from 'lucide-react'
 import type { AccountType } from '../types/database.types'
 
 const ICONS: Record<AccountType, typeof Coins> = {
   cash: Coins,
   bank: Landmark,
   card: CreditCard,
+  ic: TrainFront,
+  ewallet: Wallet,
 }
 
 /**

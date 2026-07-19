@@ -258,7 +258,17 @@ export type Database = {
         Insert: InsertOf<
           TransactionRow,
           'user_id' | 'type' | 'amount' | 'account_id',
-          'id' | 'to_amount' | 'category_id' | 'to_account_id' | 'occurred_on' | 'note' | 'recurring_rule_id'
+          | 'id'
+          | 'to_amount'
+          | 'category_id'
+          | 'to_account_id'
+          | 'occurred_on'
+          | 'note'
+          | 'recurring_rule_id'
+          | 'is_remittance'
+          | 'remit_service'
+          | 'remit_fee_jpy'
+          | 'remit_received_vnd'
         >
         Update: Partial<
           Pick<
@@ -271,6 +281,10 @@ export type Database = {
             | 'to_account_id'
             | 'occurred_on'
             | 'note'
+            | 'is_remittance'
+            | 'remit_service'
+            | 'remit_fee_jpy'
+            | 'remit_received_vnd'
           >
         >
         Relationships: []

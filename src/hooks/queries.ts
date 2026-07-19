@@ -248,14 +248,6 @@ export function useReorderCategories() {
   })
 }
 
-export function useAddJapanCategoryPreset() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: () => repo.addJapanCategoryPreset(),
-    onSettled: () => qc.invalidateQueries({ queryKey: ['categories'] }),
-  })
-}
-
 // --- Nhóm tài sản ---
 
 export function useAssetGroupSettings() {

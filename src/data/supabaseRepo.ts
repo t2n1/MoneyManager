@@ -1,4 +1,3 @@
-import { planJapanPreset } from '../features/categories/japanPreset'
 import { normalizeText } from '../features/transactions/filter'
 import { addMonths, monthKeyString, parseMonthKey } from '../lib/dates'
 import { getSupabase } from '../lib/supabase'
@@ -280,34 +279,6 @@ export const supabaseRepo: Repo = {
       ),
     )
     for (const { error } of results) if (error) throw error
-  },
-
-  async addJapanCategoryPreset() {
-    const existing = await supabaseRepo.getCategories()
-    const plan = planJapanPreset(existing)
-    const keyOf = (name: string, type: string) => `${type}::${normalizeText(name)}`
-    const parentIdByKey = new Map<string, string>()
-    for (const c of existing) {
-      if (!c.parent_id) parentIdByKey.set(keyOf(c.name, c.type), c.id)
-    }
-    for (const p of plan.parentsToCreate) {
-      const created = await supabaseRepo.createCategory({
-        name: p.name,
-        type: p.type,
-        icon: p.icon,
-        parent_id: null,
-      })
-      parentIdByKey.set(keyOf(p.name, p.type), created.id)
-    }
-    for (const ch of plan.childrenToCreate) {
-      await supabaseRepo.createCategory({
-        name: ch.name,
-        type: ch.type,
-        icon: ch.icon,
-        parent_id: parentIdByKey.get(keyOf(ch.parentName, ch.type)) ?? null,
-      })
-    }
-    return plan.parentsToCreate.length + plan.childrenToCreate.length
   },
 
   async getAssetGroupSettings() {

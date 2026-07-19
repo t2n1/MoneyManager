@@ -220,8 +220,6 @@ export interface Repo {
   createCategory(input: NewCategory): Promise<CategoryRow>
   updateCategory(id: string, patch: CategoryPatch): Promise<CategoryRow>
   reorderCategories(orderedIds: string[]): Promise<void>
-  /** Bổ sung bộ danh mục kiểu Nhật: chỉ tạo mục còn thiếu (khớp tên+loại). Trả số đã thêm. */
-  addJapanCategoryPreset(): Promise<number>
 
   // --- Nhóm tài sản (thành viên = accounts.asset_group; đây là cài đặt riêng) ---
   getAssetGroupSettings(): Promise<AssetGroupSettingRow[]>

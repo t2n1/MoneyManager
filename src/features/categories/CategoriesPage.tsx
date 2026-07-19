@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import type { NewCategory } from '../../data'
 import {
+  useAddJapanCategoryPreset,
   useCategories,
   useCreateCategory,
   useReorderCategories,
@@ -26,6 +27,18 @@ export function CategoriesPage() {
   const { data: categories = [] } = useCategories()
   const reorder = useReorderCategories()
   const update = useUpdateCategory()
+  const addJapanPreset = useAddJapanCategoryPreset()
+
+  async function handleAddJapanPreset() {
+    if (addJapanPreset.isPending) return
+    if (!window.confirm('Thêm bộ danh mục kiểu Nhật (tiền nhà, vé tháng, thuế, NHK…)? Chỉ thêm mục còn thiếu, không đụng danh mục hiện có.')) return
+    try {
+      const added = await addJapanPreset.mutateAsync()
+      window.alert(added > 0 ? `Đã thêm ${added} danh mục.` : 'Bộ danh mục Nhật đã đầy đủ.')
+    } catch {
+      window.alert('Không thêm được. Vui lòng thử lại.')
+    }
+  }
   const [tab, setTab] = useState<CategoryType>('expense')
   const [form, setForm] = useState<FormState | null>(null)
   const [showArchived, setShowArchived] = useState(false)
@@ -126,6 +139,15 @@ export function CategoriesPage() {
           </button>
         ))}
       </div>
+
+      <button
+        type="button"
+        onClick={handleAddJapanPreset}
+        disabled={addJapanPreset.isPending}
+        className="mb-3 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-green-300 dark:border-green-800 px-3 py-2 text-sm font-medium text-green-700 dark:text-green-400 active:scale-95 disabled:opacity-50"
+      >
+        ✨ {addJapanPreset.isPending ? 'Đang thêm…' : 'Thêm bộ danh mục Nhật'}
+      </button>
 
       {/* Cây danh mục: cha → con */}
       <div className="flex flex-col gap-2">

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { BudgetView } from '../budgets/BudgetView'
+import { RemittanceSection } from '../remittance/RemittanceSection'
 import { InsightsView } from './InsightsView'
 import { CategoryBreakdownCard } from './CategoryBreakdownCard'
 import { MonthlyBarsCard } from './MonthlyBarsCard'
@@ -286,6 +287,7 @@ export function ReportsPage() {
             title="Thu / chi 12 tháng"
             labelOf={(k) => String(k.month)}
           />
+          <RemittanceSection txs={yearTxs} year={activeYear} />
         </>
       )}
     </div>

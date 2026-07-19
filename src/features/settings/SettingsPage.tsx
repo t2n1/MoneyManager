@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronRight, Handshake, Landmark, Layers, Repeat, Send, Tags, UserRound } from 'lucide-react'
+import { ChevronRight, Handshake, Landmark, Layers, Repeat, Tags, UserRound } from 'lucide-react'
 import { resetDemoData } from '../../data/demoRepo'
 import { useProfile } from '../../hooks/queries'
 import { isDemoMode } from '../../lib/demo'
@@ -82,14 +82,6 @@ export function SettingsPage() {
           >
             <Repeat className="h-5 w-5 text-gray-500 dark:text-gray-400" />
             <span className="flex-1">Giao dịch định kỳ</span>
-            <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
-          </Link>
-          <Link
-            to="/settings/remittance"
-            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
-          >
-            <Send className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-            <span className="flex-1">Gửi tiền về VN</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
         </div>

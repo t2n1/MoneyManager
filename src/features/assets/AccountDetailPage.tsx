@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, LineChart, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, LineChart, Scale, Trash2 } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
 import type { TxFilter } from '../../data'
 import {
@@ -26,6 +26,7 @@ import type { TransactionRow } from '../../types/database.types'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { TransactionItem } from '../transactions/TransactionItem'
 import { investmentStats } from './investment'
+import { ReconcileSheet } from './ReconcileSheet'
 import { ValuationFormSheet } from './ValuationFormSheet'
 
 export function AccountDetailPage() {
@@ -39,6 +40,7 @@ export function AccountDetailPage() {
   const deleteValuation = useDeleteValuation()
   const [editing, setEditing] = useState<TransactionRow | null>(null)
   const [showValuation, setShowValuation] = useState(false)
+  const [showReconcile, setShowReconcile] = useState(false)
 
   const monthStartDay = profile?.month_start_day ?? 1
   // null = "kỳ hiện tại": tính lazy vì profile tải async — khởi tạo cứng trong
@@ -145,6 +147,17 @@ export function AccountDetailPage() {
         </p>
         {account?.asset_group && (
           <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Nhóm: {account.asset_group}</p>
+        )}
+
+        {/* Điều chỉnh số dư (mục X) — cho ví/tài khoản thường, không cho đầu tư/thẻ */}
+        {account && !isInvestment && account.type !== 'card' && (
+          <button
+            type="button"
+            onClick={() => setShowReconcile(true)}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95"
+          >
+            <Scale className="h-3.5 w-3.5" /> Điều chỉnh số dư
+          </button>
         )}
 
         {isInvestment && (
@@ -311,6 +324,13 @@ export function AccountDetailPage() {
           account={account}
           currentValue={invStats.marketValue}
           onClose={() => setShowValuation(false)}
+        />
+      )}
+      {showReconcile && account && (
+        <ReconcileSheet
+          account={account}
+          currentBalance={balance}
+          onClose={() => setShowReconcile(false)}
         />
       )}
     </div>

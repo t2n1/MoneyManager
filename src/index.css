@@ -25,3 +25,18 @@ html.dark .recharts-tooltip-label,
 html.dark .recharts-tooltip-item {
   color: #f3f4f6 !important;
 }
+
+/* In / xuất PDF (mục AP): nền trắng, chữ đen, bỏ nền tối để tiết kiệm mực */
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  /* Buộc các thẻ nền tối sáng lại khi in */
+  .dark\:bg-gray-900,
+  .dark\:bg-gray-950,
+  .dark\:bg-gray-800 {
+    background: #fff !important;
+  }
+}

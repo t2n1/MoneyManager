@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Printer } from 'lucide-react'
 import { downloadTextFile } from '../../lib/download'
 import { buildTransactionsCsv } from './csv'
 import { BudgetView } from '../budgets/BudgetView'
@@ -139,8 +139,13 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
+      {/* Tiêu đề chỉ hiện khi in (thay cho thanh điều hướng bị ẩn) */}
+      <h1 className="hidden text-center text-xl font-bold text-gray-900 print:block">
+        Báo cáo {period === 'month' ? formatMonthLabel(activeMonthKey) : formatYearLabel(activeYear)}
+      </h1>
+
       {/* Header điều hướng tháng/năm */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between print:hidden">
         <button
           type="button"
           onClick={() =>
@@ -171,7 +176,7 @@ export function ReportsPage() {
       </div>
 
       {/* Nút gạt Tháng | Năm */}
-      <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-sm font-medium">
+      <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-sm font-medium print:hidden">
         <button
           type="button"
           onClick={() => setPeriod('month')}
@@ -188,8 +193,16 @@ export function ReportsPage() {
         </button>
       </div>
 
-      {/* Xuất CSV giao dịch của kỳ đang xem */}
-      <div className="flex justify-end">
+      {/* Xuất dữ liệu kỳ đang xem */}
+      <div className="flex justify-end gap-2 print:hidden">
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+        >
+          <Printer className="h-3.5 w-3.5" />
+          Xuất PDF / In
+        </button>
         <button
           type="button"
           onClick={handleExportCsv}
@@ -203,7 +216,7 @@ export function ReportsPage() {
 
       {/* Tab chỉ hiện ở chế độ Tháng */}
       {period === 'month' && (
-        <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-sm font-medium">
+        <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-sm font-medium print:hidden">
           <button
             type="button"
             onClick={() => setView('charts')}

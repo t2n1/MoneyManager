@@ -87,7 +87,7 @@ export function AppLayout() {
   return (
     <div className="min-h-dvh bg-gray-50 lg:flex dark:bg-gray-950">
       {/* Sidebar desktop */}
-      <aside className="hidden shrink-0 border-r border-gray-200 bg-white p-4 lg:flex lg:w-56 lg:flex-col dark:border-gray-800 dark:bg-gray-900">
+      <aside className="hidden shrink-0 border-r border-gray-200 bg-white p-4 lg:flex lg:w-56 lg:flex-col dark:border-gray-800 dark:bg-gray-900 print:hidden">
         <div className="mb-6 flex items-center gap-2 px-2">
           <NotebookText className="h-6 w-6 text-green-600 dark:text-green-500" />
           <span className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Sổ Chi Tiêu</span>
@@ -138,14 +138,14 @@ export function AppLayout() {
           type="button"
           onClick={() => navigate('/entry')}
           aria-label="Nhập giao dịch"
-          className="fixed bottom-20 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-green-600 text-3xl leading-none text-white shadow-lg transition hover:bg-green-700 active:scale-95 lg:hidden"
+          className="fixed bottom-20 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-green-600 text-3xl leading-none text-white shadow-lg transition hover:bg-green-700 active:scale-95 lg:hidden print:hidden"
         >
           ＋
         </button>
       )}
 
       {/* Bottom tab bar mobile — ẩn ở trang nhập giao dịch để lấy thêm không gian */}
-      <nav className={`fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-gray-800 dark:bg-gray-900 ${onEntry ? 'hidden' : 'flex'}`}>
+      <nav className={`fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-gray-800 dark:bg-gray-900 print:hidden ${onEntry ? 'hidden' : 'flex'}`}>
         {TABS.map((tab) => (
           <NavLink
             key={tab.to}

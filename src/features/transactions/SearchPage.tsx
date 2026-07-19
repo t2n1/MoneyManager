@@ -44,8 +44,17 @@ export function SearchPage() {
   const [to, setTo] = useState(() => toISODate(new Date()))
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [accountIds, setAccountIds] = useState<string[]>([])
+  const [amountMinStr, setAmountMinStr] = useState('')
+  const [amountMaxStr, setAmountMaxStr] = useState('')
   const [showMore, setShowMore] = useState(false)
   const [editing, setEditing] = useState<TransactionRow | null>(null)
+
+  // Nhập theo đơn vị chính của tiền gốc → quy ra minor units để so với amount đã lưu.
+  const baseFactor = 10 ** CURRENCIES[base].decimals
+  const toMinor = (s: string): number | undefined => {
+    const n = Number(s.replace(/[^\d.]/g, ''))
+    return s.trim() === '' || Number.isNaN(n) ? undefined : Math.round(n * baseFactor)
+  }
 
   // Debounce text 300ms (mỗi ký tự = 1 query khi chạy Supabase)
   useEffect(() => {
@@ -70,8 +79,11 @@ export function SearchPage() {
       types: typeFilter === 'all' ? undefined : [typeFilter],
       categoryIds: categoryIds.length > 0 ? categoryIds : undefined,
       accountIds: accountIds.length > 0 ? accountIds : undefined,
+      amountMin: toMinor(amountMinStr),
+      amountMax: toMinor(amountMaxStr),
     }),
-    [from, to, debouncedText, typeFilter, categoryIds, accountIds],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [from, to, debouncedText, typeFilter, categoryIds, accountIds, amountMinStr, amountMaxStr, baseFactor],
   )
 
   const { data: results = [], isLoading } = useSearchTransactions(filter)
@@ -197,6 +209,30 @@ export function SearchPage() {
               </div>
             </div>
           )}
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              Số tiền ({CURRENCIES[base].symbol})
+            </p>
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+              <input
+                type="number"
+                inputMode="numeric"
+                value={amountMinStr}
+                onChange={(e) => setAmountMinStr(e.target.value)}
+                placeholder="Tối thiểu"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5"
+              />
+              <span className="text-gray-400 dark:text-gray-500">→</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={amountMaxStr}
+                onChange={(e) => setAmountMaxStr(e.target.value)}
+                placeholder="Tối đa"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5"
+              />
+            </div>
+          </div>
           <div>
             <p className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">Tài khoản</p>
             <div className="flex flex-wrap gap-1.5">

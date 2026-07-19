@@ -140,6 +140,8 @@ export const supabaseRepo: Repo = {
       const ids = filter.accountIds.map((id) => `"${id}"`).join(',')
       q = q.or(`account_id.in.(${ids}),to_account_id.in.(${ids})`)
     }
+    if (filter.amountMin != null) q = q.gte('amount', filter.amountMin)
+    if (filter.amountMax != null) q = q.lte('amount', filter.amountMax)
     const { data, error } = await q
       .order('occurred_on', { ascending: false })
       .order('created_at', { ascending: false })

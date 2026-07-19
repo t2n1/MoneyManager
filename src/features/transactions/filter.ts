@@ -29,6 +29,9 @@ export function matchesFilter(t: TransactionRow, filter: TxFilter): boolean {
     if (!hit) return false
   }
 
+  if (filter.amountMin != null && t.amount < filter.amountMin) return false
+  if (filter.amountMax != null && t.amount > filter.amountMax) return false
+
   const text = filter.text?.trim()
   if (text) {
     if (!normalizeText(t.note).includes(normalizeText(text))) return false

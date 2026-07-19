@@ -51,6 +51,15 @@ describe('matchesFilter', () => {
   it('bộ lọc rỗng khớp tất cả', () => {
     expect(matchesFilter(tx({ type: 'income' }), RANGE)).toBe(true)
   })
+
+  it('lọc theo khoảng số tiền (AL)', () => {
+    const t = tx({ type: 'expense', amount: 10_000 })
+    expect(matchesFilter(t, { ...RANGE, amountMin: 5_000 })).toBe(true)
+    expect(matchesFilter(t, { ...RANGE, amountMin: 15_000 })).toBe(false)
+    expect(matchesFilter(t, { ...RANGE, amountMax: 15_000 })).toBe(true)
+    expect(matchesFilter(t, { ...RANGE, amountMax: 8_000 })).toBe(false)
+    expect(matchesFilter(t, { ...RANGE, amountMin: 5_000, amountMax: 15_000 })).toBe(true)
+  })
 })
 
 describe('filterTransactions', () => {

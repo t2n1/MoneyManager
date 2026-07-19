@@ -114,6 +114,9 @@ export interface TxFilter {
   categoryIds?: string[]
   /** Khớp account_id HOẶC to_account_id (cho chuyển khoản). */
   accountIds?: string[]
+  /** Lọc theo số tiền GỐC của giao dịch (minor units, theo currency tài khoản nguồn). */
+  amountMin?: number
+  amountMax?: number
 }
 
 /** Chỉ sửa được tên hiển thị + ngày bắt đầu tháng. Cố ý KHÔNG có base_currency. */

@@ -78,6 +78,14 @@ export type TransactionRow = {
   recurring_rule_id: string | null
   occurred_on: string
   note: string
+  /** Gửi tiền về VN: true = giao dịch này là một lần gửi tiền (mặc định false). */
+  is_remittance?: boolean
+  /** Gửi tiền về VN: dịch vụ chuyển (Wise/SBI Remit/Brastel/DCOM/Khác); null = không rõ. */
+  remit_service?: string | null
+  /** Gửi tiền về VN: phí dịch vụ (minor units JPY). */
+  remit_fee_jpy?: number | null
+  /** Gửi tiền về VN: số VND người nhận nhận được (minor units VND = đồng). */
+  remit_received_vnd?: number | null
   created_at: string
   updated_at: string
 }

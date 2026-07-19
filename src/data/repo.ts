@@ -28,6 +28,14 @@ export interface NewTransaction {
   to_account_id: string | null
   occurred_on: string
   note: string
+  /** Gửi tiền về VN: đánh dấu giao dịch là một lần gửi tiền. Bỏ trống = giao dịch thường. */
+  is_remittance?: boolean
+  /** Gửi tiền về VN: dịch vụ chuyển. */
+  remit_service?: string | null
+  /** Gửi tiền về VN: phí dịch vụ (minor units JPY). */
+  remit_fee_jpy?: number | null
+  /** Gửi tiền về VN: số VND người nhận nhận được (minor units VND). */
+  remit_received_vnd?: number | null
 }
 
 export type TransactionPatch = Partial<NewTransaction>

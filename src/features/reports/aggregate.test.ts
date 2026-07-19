@@ -46,6 +46,17 @@ describe('is_debt_flow bị loại khỏi mọi báo cáo', () => {
     expect(r.total).toBe(1_500)
   })
 
+  it('exclude_from_stats bị loại khỏi báo cáo (mục AM)', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 2_000, category_id: 'food' }),
+      tx({ type: 'expense', amount: 9_999, category_id: 'food', exclude_from_stats: true }), // hoàn tiền → bỏ
+    ]
+    const r = categoryBreakdown(txs, 'expense', currencyOf, 'JPY', RATES)
+    expect(r.total).toBe(2_000)
+    const s = sumIncomeExpense(txs, currencyOf, 'JPY', RATES)
+    expect(s.expense).toBe(2_000)
+  })
+
   it('sumIncomeExpense bỏ qua cả chiều thu (thu nợ) lẫn chi (cho vay)', () => {
     const txs = [
       tx({ type: 'expense', amount: 1_500 }),

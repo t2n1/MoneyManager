@@ -61,6 +61,8 @@ export interface NewTransaction {
   remit_received_vnd?: number | null
   /** Dòng tiền nợ/cho vay/trả hộ: true = báo cáo Chi/Thu bỏ qua (số dư vẫn tính). */
   is_debt_flow?: boolean
+  /** true = loại khỏi mọi thống kê (số dư vẫn tính). Mục AM/X. */
+  exclude_from_stats?: boolean
 }
 
 export type TransactionPatch = Partial<NewTransaction>

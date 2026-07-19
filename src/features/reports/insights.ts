@@ -22,7 +22,9 @@ export function noSpendStreak(
   today: string,
   monthStartDay: number,
 ): number {
-  const spendDays = new Set(txs.filter((t) => t.type === 'expense').map((t) => t.occurred_on))
+  const spendDays = new Set(
+    txs.filter((t) => t.type === 'expense' && !t.exclude_from_stats).map((t) => t.occurred_on),
+  )
   const { start } = getMonthRange(monthKeyForDate(today, monthStartDay), monthStartDay)
   let streak = 0
   // Dùng Date UTC chỉ để cộng/trừ ngày (không phải "giờ hiện tại")
@@ -137,7 +139,7 @@ export function detectAnomalies(
 ): { anomalies: Anomaly[]; hasMissingRate: boolean } {
   const history = new Map<string, number[]>()
   for (const t of historyTxs) {
-    if (t.type !== 'expense' || !t.category_id) continue
+    if (t.type !== 'expense' || !t.category_id || t.exclude_from_stats) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) continue
     const arr = history.get(t.category_id) ?? []
@@ -152,7 +154,7 @@ export function detectAnomalies(
   const anomalies: Anomaly[] = []
   let hasMissingRate = false
   for (const t of currentTxs) {
-    if (t.type !== 'expense' || !t.category_id) continue
+    if (t.type !== 'expense' || !t.category_id || t.exclude_from_stats) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) {
       hasMissingRate = true

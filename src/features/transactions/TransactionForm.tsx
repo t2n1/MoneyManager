@@ -66,6 +66,8 @@ interface TransactionFormProps {
    * (form sửa) → không hiện selector.
    */
   onSubmitRecurring?: (rule: NewRecurringRule) => Promise<void>
+  /** Hiện tùy chọn "Không tính vào thống kê" (mục AM) — dùng ở màn sửa, ẩn ở màn nhập nhanh. */
+  showExcludeOption?: boolean
 }
 
 export function TransactionForm({
@@ -76,6 +78,7 @@ export function TransactionForm({
   onContinue,
   initialType,
   onSubmitRecurring,
+  showExcludeOption,
 }: TransactionFormProps) {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
@@ -94,6 +97,7 @@ export function TransactionForm({
   const [toAccountId, setToAccountId] = useState<string | null>(initial?.to_account_id ?? null)
   const [date, setDate] = useState(initial?.occurred_on ?? toISODate(new Date()))
   const [note, setNote] = useState(initial?.note ?? '')
+  const [excludeFromStats, setExcludeFromStats] = useState(initial?.exclude_from_stats ?? false)
   // Lặp lại (chỉ form nhập mới): 'none' = không lặp, còn lại là chu kỳ
   const [repeat, setRepeat] = useState<'none' | RecurringFrequency>('none')
   // Nút đang lưu: 'save' | 'continue' | null — để khóa cả hai nút và hiện "Đang lưu…"
@@ -188,6 +192,7 @@ export function TransactionForm({
         to_account_id: type === 'transfer' ? toAccountId : null,
         occurred_on: date,
         note: note.trim(),
+        exclude_from_stats: type === 'transfer' ? false : excludeFromStats,
       }
       if (repeat !== 'none' && onSubmitRecurring) {
         // Lặp lại: tạo rule (kỳ đầu do engine catch-up sinh, không tạo GD riêng)
@@ -350,6 +355,17 @@ export function TransactionForm({
         placeholder="Ghi chú (tùy chọn)"
         className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 outline-green-500"
       />
+
+      {showExcludeOption && type !== 'transfer' && (
+        <label className="flex items-center gap-2 px-1 text-sm text-gray-600 dark:text-gray-300">
+          <input
+            type="checkbox"
+            checked={excludeFromStats}
+            onChange={(e) => setExcludeFromStats(e.target.checked)}
+          />
+          Không tính vào thống kê (hoàn tiền, mua hộ…)
+        </label>
+      )}
 
       {/* Danh mục (ẩn khi chuyển khoản) */}
       {type !== 'transfer' &&

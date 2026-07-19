@@ -34,7 +34,7 @@ export function categoryBreakdown(
   let hasForeign = false
   let hasMissingRate = false
   for (const t of txs) {
-    if (t.type !== kind || !t.category_id || t.is_debt_flow) continue
+    if (t.type !== kind || !t.category_id || t.is_debt_flow || t.exclude_from_stats) continue
     const cur = currencyOf(t.account_id)
     if (cur !== base) hasForeign = true
     const v = convertToBase(t.amount, cur, base, rates)
@@ -80,7 +80,7 @@ export function monthlySeries(
   const expense = new Map<string, number>()
   let hasMissingRate = false
   for (const t of txs) {
-    if (t.type === 'transfer' || t.is_debt_flow) continue
+    if (t.type === 'transfer' || t.is_debt_flow || t.exclude_from_stats) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) {
       hasMissingRate = true
@@ -118,7 +118,7 @@ export function sumIncomeExpense(
   let hasForeign = false
   let hasMissingRate = false
   for (const t of txs) {
-    if (t.type === 'transfer' || t.is_debt_flow) continue
+    if (t.type === 'transfer' || t.is_debt_flow || t.exclude_from_stats) continue
     const cur = currencyOf(t.account_id)
     if (cur !== base) hasForeign = true
     const v = convertToBase(t.amount, cur, base, rates)
@@ -165,7 +165,7 @@ export function categoryComparison(
   const byCat = new Map<string, Map<string, number>>()
   let hasMissingRate = false
   for (const t of txs) {
-    if (t.type !== 'expense' || !t.category_id || t.is_debt_flow) continue
+    if (t.type !== 'expense' || !t.category_id || t.is_debt_flow || t.exclude_from_stats) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) {
       hasMissingRate = true
@@ -216,7 +216,7 @@ export function cumulativeDailyBalance(
   const netByDay = new Map<string, number>()
   let hasMissingRate = false
   for (const t of txs) {
-    if (t.type === 'transfer' || t.is_debt_flow) continue
+    if (t.type === 'transfer' || t.is_debt_flow || t.exclude_from_stats) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) {
       hasMissingRate = true
@@ -263,7 +263,7 @@ export function dailyExpenseTotals(
   const byDay = new Map<string, number>()
   let hasMissingRate = false
   for (const t of txs) {
-    if (t.type !== 'expense' || t.is_debt_flow) continue
+    if (t.type !== 'expense' || t.is_debt_flow || t.exclude_from_stats) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) {
       hasMissingRate = true

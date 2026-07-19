@@ -88,6 +88,8 @@ export type TransactionRow = {
   remit_received_vnd?: number | null
   /** Dòng tiền nợ/cho vay/trả hộ: true = báo cáo Chi/Thu bỏ qua (số dư vẫn tính). */
   is_debt_flow?: boolean
+  /** true = loại khỏi mọi thống kê (báo cáo/ngân sách/insight); số dư vẫn tính. Mục AM/X. */
+  exclude_from_stats?: boolean
   created_at: string
   updated_at: string
 }
@@ -290,6 +292,7 @@ export type Database = {
           | 'remit_fee_jpy'
           | 'remit_received_vnd'
           | 'is_debt_flow'
+          | 'exclude_from_stats'
         >
         Update: Partial<
           Pick<
@@ -307,6 +310,7 @@ export type Database = {
             | 'remit_fee_jpy'
             | 'remit_received_vnd'
             | 'is_debt_flow'
+            | 'exclude_from_stats'
           >
         >
         Relationships: []

@@ -44,7 +44,7 @@ export function buildBudgetReport(
   const spentByCat = new Map<string, number>()
   let hasMissingRate = false
   for (const t of monthTxs) {
-    if (t.type !== 'expense' || !t.category_id) continue
+    if (t.type !== 'expense' || !t.category_id || t.exclude_from_stats) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) {
       hasMissingRate = true

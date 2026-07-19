@@ -791,6 +791,7 @@ export const supabaseRepo: Repo = {
               remit_fee_jpy: t.remit_fee_jpy,
               remit_received_vnd: t.remit_received_vnd,
               is_debt_flow: t.is_debt_flow,
+              exclude_from_stats: t.exclude_from_stats,
             })),
           )
         ).error,

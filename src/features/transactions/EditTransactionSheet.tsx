@@ -79,6 +79,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
         <TransactionForm
           key={tx.id}
           initial={tx}
+          showExcludeOption
           submitLabel="Cập nhật"
           onSubmit={async (values) => {
             await update.mutateAsync({ id: tx.id, patch: values })

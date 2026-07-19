@@ -73,3 +73,15 @@ export function addDaysISO(iso: string, delta: number): string {
   d.setUTCDate(d.getUTCDate() + delta)
   return d.toISOString().slice(0, 10)
 }
+
+/** Khoảng ngày của cả năm tài chính Y: từ đầu tháng (Y,1) tới cuối tháng (Y,12) (end loại trừ). */
+export function getYearRange(year: number, monthStartDay = 1): MonthRange {
+  const start = getMonthRange({ year, month: 1 }, monthStartDay).start
+  const end = getMonthRange({ year, month: 12 }, monthStartDay).end
+  return { start, end }
+}
+
+/** Nhãn năm hiển thị. */
+export function formatYearLabel(year: number): string {
+  return `Năm ${year}`
+}

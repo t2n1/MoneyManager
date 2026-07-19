@@ -5,7 +5,9 @@ import {
   clampMonthStartDay,
   daysBetween,
   formatMonthLabel,
+  formatYearLabel,
   getMonthRange,
+  getYearRange,
   monthKeyForDate,
   monthKeyString,
   parseMonthKey,
@@ -135,5 +137,34 @@ describe('clampMonthStartDay', () => {
   })
   it('giá trị không hữu hạn → 1', () => {
     expect(clampMonthStartDay(NaN)).toBe(1)
+  })
+})
+
+describe('getYearRange', () => {
+  it('năm dương lịch chuẩn (monthStartDay = 1)', () => {
+    expect(getYearRange(2026, 1)).toEqual({
+      start: '2026-01-01',
+      end: '2027-01-01',
+    })
+  })
+
+  it('năm tài chính bắt đầu ngày 25 (lệch sang năm sau)', () => {
+    expect(getYearRange(2026, 25)).toEqual({
+      start: '2026-01-25',
+      end: '2027-01-25',
+    })
+  })
+
+  it('mặc định monthStartDay = 1', () => {
+    expect(getYearRange(2030)).toEqual({
+      start: '2030-01-01',
+      end: '2031-01-01',
+    })
+  })
+})
+
+describe('formatYearLabel', () => {
+  it('nhãn năm tiếng Việt', () => {
+    expect(formatYearLabel(2026)).toBe('Năm 2026')
   })
 })

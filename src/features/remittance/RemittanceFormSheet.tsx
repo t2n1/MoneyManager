@@ -155,7 +155,7 @@ export function RemittanceFormSheet({ onClose }: { onClose: () => void }) {
         </div>
         <p className="mb-3 text-xs text-gray-400 dark:text-gray-500">
           {kind === 'transfer'
-            ? 'Tiền vẫn là của bạn ở VN — không giảm Tài sản ròng.'
+            ? 'Phần gốc vẫn là tài sản của bạn ở VN; chỉ phí làm giảm Tài sản ròng.'
             : 'Tiền cho gia đình — ghi nhận là chi (giảm Tài sản ròng).'}
         </p>
 

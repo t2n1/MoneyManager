@@ -25,6 +25,13 @@ export function DebtFormSheet({ debt, onClose }: Props) {
   const [principalDigits, setPrincipalDigits] = useState(debt ? String(debt.principal) : '')
   const [dueOn, setDueOn] = useState(debt?.due_on ?? '')
   const [note, setNote] = useState(debt?.note ?? '')
+  // Trả góp / lãi suất (mục AG) — %/năm và số kỳ, đều không bắt buộc
+  const [interestPct, setInterestPct] = useState(
+    debt?.interest_bps != null ? String(debt.interest_bps / 100) : '',
+  )
+  const [termMonths, setTermMonths] = useState(
+    debt?.term_months != null ? String(debt.term_months) : '',
+  )
   const [saving, setSaving] = useState(false)
 
   // --- Giải ngân (chỉ khi TẠO mới) ---
@@ -85,6 +92,8 @@ export function DebtFormSheet({ debt, onClose }: Props) {
             `${txType === 'expense' ? 'Cho vay' : 'Vay'} · ${counterparty.trim()}`,
         }
       }
+      const pct = Number(interestPct)
+      const term = Number(termMonths)
       const input: NewDebt = {
         counterparty: counterparty.trim(),
         direction,
@@ -92,6 +101,8 @@ export function DebtFormSheet({ debt, onClose }: Props) {
         principal,
         due_on: dueOn || null,
         note: note.trim(),
+        interest_bps: interestPct.trim() && !Number.isNaN(pct) ? Math.round(pct * 100) : null,
+        term_months: termMonths.trim() && !Number.isNaN(term) && term > 0 ? Math.round(term) : null,
         transaction,
       }
       if (debt) await update.mutateAsync({ id: debt.id, patch: input })
@@ -185,6 +196,34 @@ export function DebtFormSheet({ debt, onClose }: Props) {
           placeholder={formatMoney(0, currency)}
           className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
         />
+
+        {/* Trả góp / lãi suất (mục AG) — điền cả hai để xem lịch trả dự kiến */}
+        <div className="mb-3 grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+              Lãi suất %/năm (tùy chọn)
+            </label>
+            <input
+              inputMode="decimal"
+              value={interestPct}
+              onChange={(e) => setInterestPct(e.target.value.replace(/[^0-9.]/g, ''))}
+              placeholder="vd 5.5"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-right text-sm outline-green-500"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+              Số kỳ / tháng (tùy chọn)
+            </label>
+            <input
+              inputMode="numeric"
+              value={termMonths}
+              onChange={(e) => setTermMonths(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="vd 12"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-right text-sm outline-green-500"
+            />
+          </div>
+        </div>
 
         {/* Giải ngân: chỉ khi tạo mới */}
         {!debt && (

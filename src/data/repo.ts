@@ -146,6 +146,10 @@ export interface NewDebt {
   principal: number
   due_on: string | null
   note: string
+  /** lãi suất năm theo basis points (550 = 5.50%/năm); null = nợ thường (mục AG) */
+  interest_bps?: number | null
+  /** số kỳ trả góp (tháng); null = không trả góp (mục AG) */
+  term_months?: number | null
   /** Giải ngân có chuyển tiền thật → giao dịch cần tạo (cho vay = chi, mình nợ = thu);
    *  null = chỉ ghi nhận khoản nợ, không đổi số dư. */
   transaction: NewTransaction | null

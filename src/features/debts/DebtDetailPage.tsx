@@ -14,6 +14,8 @@ import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { DebtFormSheet } from './DebtFormSheet'
 import { DebtPaymentSheet } from './DebtPaymentSheet'
 import { paidOf, remainingOf } from './aggregate'
+import { buildSchedule } from './amortization'
+import type { DebtRow } from '../../types/database.types'
 
 export function DebtDetailPage() {
   const { debtId = '' } = useParams()
@@ -149,6 +151,9 @@ export function DebtDetailPage() {
         </p>
       )}
 
+      {/* Lịch trả góp dự kiến (mục AG) — chỉ khi có lãi suất + số kỳ */}
+      <AmortizationSection debt={debt} />
+
       {/* Lịch sử trả */}
       <h2 className="mb-2 mt-5 px-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
         Lịch sử trả ({payments.length})
@@ -226,4 +231,90 @@ function PaymentTxSheet({ txId, onClose }: { txId: string; onClose: () => void }
   }, [missing, onClose])
   if (!tx) return null
   return <EditTransactionSheet tx={tx} onClose={onClose} />
+}
+
+/** Lịch trả góp dự kiến (mục AG). Chỉ hiện khi khoản nợ có lãi suất + số kỳ.
+ *  Là ước tính theo niên kim — số dư thực tế vẫn tính từ các lần trả đã ghi. */
+function AmortizationSection({ debt }: { debt: DebtRow }) {
+  const [open, setOpen] = useState(false)
+  const bps = debt.interest_bps
+  const term = debt.term_months
+  const schedule = useMemo(() => {
+    if (bps == null || term == null || term <= 0) return null
+    const startISO = debt.due_on ?? debt.created_at.slice(0, 10)
+    return buildSchedule({ principalMinor: debt.principal, bps, termMonths: term, startISO })
+  }, [bps, term, debt.principal, debt.due_on, debt.created_at])
+
+  if (!schedule) return null
+  const cur = debt.currency
+
+  return (
+    <div className="mt-5">
+      <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+        Lịch trả dự kiến
+      </h2>
+      <div className="rounded-xl bg-white dark:bg-gray-900 p-4 shadow-sm">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500">Mỗi kỳ</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+              {formatMoney(schedule.monthly, cur)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500">Tổng lãi</p>
+            <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">
+              {formatMoney(schedule.totalInterest, cur)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500">Tổng phải trả</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+              {formatMoney(schedule.totalPaid, cur)}
+            </p>
+          </div>
+        </div>
+        <p className="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
+          {(bps! / 100).toString()}%/năm · {term} kỳ · ước tính theo niên kim (thực tế có thể lệch chút)
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="mt-3 text-xs font-medium text-green-700 dark:text-green-400"
+        >
+          {open ? 'Ẩn chi tiết từng kỳ ▲' : 'Xem chi tiết từng kỳ ▼'}
+        </button>
+
+        {open && (
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full text-right text-xs tabular-nums">
+              <thead>
+                <tr className="text-gray-400 dark:text-gray-500">
+                  <th className="py-1 pr-2 text-left font-medium">Kỳ</th>
+                  <th className="py-1 px-2 font-medium">Ngày</th>
+                  <th className="py-1 px-2 font-medium">Trả</th>
+                  <th className="py-1 px-2 font-medium">Lãi</th>
+                  <th className="py-1 pl-2 font-medium">Dư nợ</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-700 dark:text-gray-300">
+                {schedule.rows.map((r) => (
+                  <tr key={r.index} className="border-t border-gray-100 dark:border-gray-800">
+                    <td className="py-1 pr-2 text-left">{r.index}</td>
+                    <td className="py-1 px-2 text-gray-500 dark:text-gray-400">{r.dueOn.slice(2)}</td>
+                    <td className="py-1 px-2">{formatMoney(r.payment, cur)}</td>
+                    <td className="py-1 px-2 text-rose-600 dark:text-rose-400">
+                      {formatMoney(r.interest, cur)}
+                    </td>
+                    <td className="py-1 pl-2">{formatMoney(r.balance, cur)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }

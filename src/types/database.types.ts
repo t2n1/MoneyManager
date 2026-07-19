@@ -195,6 +195,10 @@ export type DebtRow = {
   due_on: string | null
   status: DebtStatus
   note: string
+  /** lãi suất năm theo basis points (550 = 5.50%/năm); null = nợ thường không tính lịch trả */
+  interest_bps: number | null
+  /** số kỳ trả góp (tháng); null = không trả góp */
+  term_months: number | null
   /** giao dịch giải ngân lúc tạo (cho vay = chi, mình nợ = thu); null = không chuyển tiền thật */
   disbursement_transaction_id: string | null
   created_at: string
@@ -369,10 +373,28 @@ export type Database = {
         Insert: InsertOf<
           DebtRow,
           'user_id' | 'counterparty' | 'direction' | 'principal',
-          'id' | 'currency' | 'due_on' | 'status' | 'note' | 'disbursement_transaction_id'
+          | 'id'
+          | 'currency'
+          | 'due_on'
+          | 'status'
+          | 'note'
+          | 'interest_bps'
+          | 'term_months'
+          | 'disbursement_transaction_id'
         >
         Update: Partial<
-          Pick<DebtRow, 'counterparty' | 'direction' | 'currency' | 'principal' | 'due_on' | 'status' | 'note'>
+          Pick<
+            DebtRow,
+            | 'counterparty'
+            | 'direction'
+            | 'currency'
+            | 'principal'
+            | 'due_on'
+            | 'status'
+            | 'note'
+            | 'interest_bps'
+            | 'term_months'
+          >
         >
         Relationships: []
       }

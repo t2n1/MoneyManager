@@ -302,6 +302,8 @@ function seed(): DemoDB {
     due_on: null,
     status: 'open',
     note: 'Cho mượn lúc chuyển nhà',
+    interest_bps: null,
+    term_months: null,
     disbursement_transaction_id: null,
     created_at: nowISO(),
     updated_at: nowISO(),
@@ -309,13 +311,15 @@ function seed(): DemoDB {
   const debtOwed: DebtRow = {
     id: uuid(),
     user_id: DEMO_USER,
-    counterparty: 'Tạm ứng công ty',
+    counterparty: 'Trả góp máy tính',
     direction: 'i_owe',
     currency: 'USD',
     principal: 50_000, // $500,00
     due_on: daysAgo(-20), // hạn 20 ngày tới
     status: 'open',
     note: '',
+    interest_bps: 1200, // 12%/năm — ví dụ trả góp có lãi (mục AG)
+    term_months: 6,
     disbursement_transaction_id: null,
     created_at: nowISO(),
     updated_at: nowISO(),
@@ -867,6 +871,8 @@ export const demoRepo: Repo = {
       id: uuid(),
       user_id: DEMO_USER,
       status: 'open',
+      interest_bps: input.interest_bps ?? null,
+      term_months: input.term_months ?? null,
       disbursement_transaction_id,
       created_at: nowISO(),
       updated_at: nowISO(),

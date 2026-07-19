@@ -12,6 +12,8 @@ const debt = (p: Partial<DebtRow>): DebtRow => ({
   due_on: null,
   status: 'open',
   note: '',
+  interest_bps: null,
+  term_months: null,
   disbursement_transaction_id: null,
   created_at: '',
   updated_at: '',

@@ -13,7 +13,13 @@ import {
   useUpsertAssetGroupSetting,
 } from '../../hooks/queries'
 import { formatMoney } from '../../lib/money'
-import { assetBreakdown, UNGROUPED_LABEL, type AssetGroup, type AssetGroupSetting } from './aggregate'
+import {
+  assetBreakdown,
+  UNGROUPED_LABEL,
+  type AssetAccount,
+  type AssetGroup,
+  type AssetGroupSetting,
+} from './aggregate'
 
 const NEW_GROUP = '__new__'
 
@@ -64,6 +70,8 @@ export function AssetGroupsPage() {
   const [deleting, setDeleting] = useState<AssetGroup | null>(null)
   const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
+  const [addingTo, setAddingTo] = useState<string | null>(null)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
 
   const settings: AssetGroupSetting[] = useMemo(
     () =>
@@ -146,6 +154,35 @@ export function AssetGroupsPage() {
     })
     setAdding(false)
     setNewName('')
+  }
+
+  // Tài khoản đang thuộc nhóm khác (kể cả Chưa phân nhóm) — nguồn để kéo vào nhóm này
+  function accountsOutside(groupName: string) {
+    return groups.flatMap((gr) => (gr.name === groupName ? [] : gr.accounts))
+  }
+
+  function togglePicked(id: string) {
+    setPicked((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function openAddAccounts(groupName: string) {
+    setAddingTo(groupName)
+    setPicked(new Set())
+  }
+
+  function submitAddAccounts(groupName: string) {
+    if (picked.size === 0) {
+      setAddingTo(null)
+      return
+    }
+    assign.mutate({ accountIds: [...picked], group: groupName })
+    setAddingTo(null)
+    setPicked(new Set())
   }
 
   function moveAccount(accountId: string, target: string) {
@@ -384,6 +421,26 @@ export function AssetGroupsPage() {
                         Không có tài khoản
                       </p>
                     )}
+
+                    {/* Thêm tài khoản từ nhóm khác vào nhóm này */}
+                    {!isUngrouped &&
+                      (addingTo === g.name ? (
+                        <AddAccountsPanel
+                          candidates={accountsOutside(g.name)}
+                          picked={picked}
+                          onToggle={togglePicked}
+                          onCancel={() => setAddingTo(null)}
+                          onConfirm={() => submitAddAccounts(g.name)}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openAddAccounts(g.name)}
+                          className="flex w-full items-center justify-center gap-1 px-3 py-2.5 text-xs font-semibold text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                        >
+                          <Plus className="h-4 w-4" /> Thêm tài khoản vào nhóm
+                        </button>
+                      ))}
                   </div>
                 )}
               </section>
@@ -403,6 +460,81 @@ export function AssetGroupsPage() {
           }}
         />
       )}
+    </div>
+  )
+}
+
+/** Bảng chọn nhiều tài khoản (từ nhóm khác) để kéo vào nhóm hiện tại. */
+function AddAccountsPanel({
+  candidates,
+  picked,
+  onToggle,
+  onCancel,
+  onConfirm,
+}: {
+  candidates: AssetAccount[]
+  picked: Set<string>
+  onToggle: (id: string) => void
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div className="bg-gray-50 dark:bg-gray-800/50 px-3 py-2">
+      {candidates.length === 0 ? (
+        <p className="py-2 text-center text-xs text-gray-400 dark:text-gray-500">
+          Không còn tài khoản nào ở nhóm khác để thêm.
+        </p>
+      ) : (
+        <div className="max-h-64 overflow-y-auto">
+          {candidates.map((a) => {
+            const checked = picked.has(a.id)
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => onToggle(a.id)}
+                className="flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-left hover:bg-white dark:hover:bg-gray-900"
+              >
+                <span
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                    checked
+                      ? 'border-green-600 bg-green-600 text-white'
+                      : 'border-gray-300 dark:border-gray-600'
+                  }`}
+                  aria-hidden
+                >
+                  {checked && '✓'}
+                </span>
+                <AccountTypeIcon type={a.type} className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300">
+                  {a.name}
+                </span>
+                <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
+                  {formatMoney(a.balance, a.currency)}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      <div className="mt-2 flex justify-end gap-1 border-t border-gray-200 dark:border-gray-700 pt-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-lg px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400"
+        >
+          Hủy
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={picked.size === 0}
+          className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+        >
+          Thêm{picked.size > 0 ? ` (${picked.size})` : ''}
+        </button>
+      </div>
     </div>
   )
 }

@@ -238,7 +238,7 @@ export function RemittanceFormSheet({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Số người nhận nhận (VND)</label>
+        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Số nhận (VND)</label>
         <input
           inputMode="numeric"
           value={received === 0 ? '' : formatMoney(received, 'VND')}

@@ -6,6 +6,7 @@ import { resetDemoData } from '../../data/demoRepo'
 import { useProfile } from '../../hooks/queries'
 import { isDemoMode } from '../../lib/demo'
 import { getSupabase } from '../../lib/supabase'
+import { BackupSection } from './BackupSection'
 import { ProfileEditSheet } from './ProfileEditSheet'
 import { ThemeToggle } from './ThemeToggle'
 
@@ -88,6 +89,8 @@ export function SettingsPage() {
       </section>
 
       <ThemeToggle />
+
+      <BackupSection />
 
       <section className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-900">
         <button

@@ -14,23 +14,25 @@ import type {
   RecurringRuleRow,
   TransactionRow,
 } from '../types/database.types'
-import type {
-  AccountPatch,
-  AssetGroupSettingPatch,
-  CategoryPatch,
-  DebtPatch,
-  NewAccount,
-  NewCategory,
-  NewDebt,
-  NewDebtPayment,
-  NewRecurringOccurrence,
-  NewRecurringRule,
-  NewTransaction,
-  ProfilePatch,
-  RecurringRulePatch,
-  Repo,
-  TransactionPatch,
-  TxFilter,
+import {
+  BACKUP_VERSION,
+  type AccountPatch,
+  type AssetGroupSettingPatch,
+  type BackupData,
+  type CategoryPatch,
+  type DebtPatch,
+  type NewAccount,
+  type NewCategory,
+  type NewDebt,
+  type NewDebtPayment,
+  type NewRecurringOccurrence,
+  type NewRecurringRule,
+  type NewTransaction,
+  type ProfilePatch,
+  type RecurringRulePatch,
+  type Repo,
+  type TransactionPatch,
+  type TxFilter,
 } from './repo'
 
 // Repo demo: dữ liệu lưu localStorage, seed giống hệt trigger handle_new_user
@@ -846,5 +848,40 @@ export const demoRepo: Repo = {
     })
     save(db)
     return true
+  },
+
+  async exportAll(): Promise<BackupData> {
+    const db = load()
+    return {
+      version: BACKUP_VERSION,
+      exported_at: nowISO(),
+      profile: db.profile,
+      accounts: db.accounts,
+      categories: db.categories,
+      transactions: db.transactions,
+      budgets: db.budgets,
+      assetGroupSettings: db.assetGroupSettings ?? [],
+      debts: db.debts ?? [],
+      debtPayments: db.debtPayments ?? [],
+      recurringRules: db.recurringRules ?? [],
+    }
+  },
+
+  async importAll(data: BackupData) {
+    // Giữ nguyên user_id demo để dữ liệu nhất quán với seed/reset.
+    const stamp = <T extends { user_id: string }>(rows: T[]): T[] =>
+      rows.map((r) => ({ ...r, user_id: DEMO_USER }))
+    const db: DemoDB = {
+      profile: { ...data.profile, user_id: DEMO_USER },
+      accounts: stamp(data.accounts ?? []),
+      categories: stamp(data.categories ?? []),
+      transactions: stamp(data.transactions ?? []),
+      budgets: stamp(data.budgets ?? []),
+      assetGroupSettings: stamp(data.assetGroupSettings ?? []),
+      debts: stamp(data.debts ?? []),
+      debtPayments: stamp(data.debtPayments ?? []),
+      recurringRules: stamp(data.recurringRules ?? []),
+    }
+    save(db)
   },
 }

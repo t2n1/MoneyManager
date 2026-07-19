@@ -2,27 +2,50 @@ import { planJapanPreset } from '../features/categories/japanPreset'
 import { normalizeText } from '../features/transactions/filter'
 import { addMonths, monthKeyString, parseMonthKey } from '../lib/dates'
 import { getSupabase } from '../lib/supabase'
-import type { CategoryType } from '../types/database.types'
 import type {
-  AccountPatch,
-  AssetGroupSettingPatch,
-  CategoryPatch,
-  DebtPatch,
-  NewAccount,
-  NewCategory,
-  NewDebt,
-  NewDebtPayment,
-  NewRecurringOccurrence,
-  NewRecurringRule,
-  NewTransaction,
-  ProfilePatch,
-  RecurringRulePatch,
-  Repo,
-  TransactionPatch,
-  TxFilter,
+  AccountRow,
+  AssetGroupSettingRow,
+  BudgetRow,
+  CategoryRow,
+  CategoryType,
+  DebtPaymentRow,
+  DebtRow,
+  RecurringRuleRow,
+  TransactionRow,
+} from '../types/database.types'
+import {
+  BACKUP_VERSION,
+  type AccountPatch,
+  type AssetGroupSettingPatch,
+  type BackupData,
+  type CategoryPatch,
+  type DebtPatch,
+  type NewAccount,
+  type NewCategory,
+  type NewDebt,
+  type NewDebtPayment,
+  type NewRecurringOccurrence,
+  type NewRecurringRule,
+  type NewTransaction,
+  type ProfilePatch,
+  type RecurringRulePatch,
+  type Repo,
+  type TransactionPatch,
+  type TxFilter,
 } from './repo'
 
 // Repo thật: mọi bảo mật nằm ở RLS phía Postgres.
+
+/** Các bảng dữ liệu người dùng (không gồm view account_balances). */
+type DataTable =
+  | 'accounts'
+  | 'categories'
+  | 'transactions'
+  | 'budgets'
+  | 'asset_group_settings'
+  | 'debts'
+  | 'debt_payments'
+  | 'recurring_rules'
 
 async function currentUserId(): Promise<string> {
   const {
@@ -566,5 +589,269 @@ export const supabaseRepo: Repo = {
       throw error
     }
     return true
+  },
+
+  async exportAll(): Promise<BackupData> {
+    const sb = getSupabase()
+    const selectAll = async <T>(table: DataTable): Promise<T[]> => {
+      const { data, error } = await sb.from(table).select('*')
+      if (error) throw error
+      return (data ?? []) as T[]
+    }
+    const [
+      profile,
+      accounts,
+      categories,
+      transactions,
+      budgets,
+      assetGroupSettings,
+      debts,
+      debtPayments,
+      recurringRules,
+    ] = await Promise.all([
+      this.getProfile(),
+      selectAll<AccountRow>('accounts'),
+      selectAll<CategoryRow>('categories'),
+      selectAll<TransactionRow>('transactions'),
+      selectAll<BudgetRow>('budgets'),
+      selectAll<AssetGroupSettingRow>('asset_group_settings'),
+      selectAll<DebtRow>('debts'),
+      selectAll<DebtPaymentRow>('debt_payments'),
+      selectAll<RecurringRuleRow>('recurring_rules'),
+    ])
+    return {
+      version: BACKUP_VERSION,
+      exported_at: new Date().toISOString(),
+      profile,
+      accounts,
+      categories,
+      transactions,
+      budgets,
+      assetGroupSettings,
+      debts,
+      debtPayments,
+      recurringRules,
+    }
+  },
+
+  async importAll(data: BackupData) {
+    const uid = await currentUserId()
+    const sb = getSupabase()
+    const ok = (error: { message: string } | null) => {
+      if (error) throw error
+    }
+
+    // 1) Xóa dữ liệu hiện có theo thứ tự con → cha (tránh vướng FK)
+    const deleteOrder: DataTable[] = [
+      'debt_payments',
+      'debts',
+      'budgets',
+      'transactions',
+      'recurring_rules',
+      'asset_group_settings',
+      'categories',
+      'accounts',
+    ]
+    for (const table of deleteOrder) {
+      ok((await sb.from(table).delete().eq('user_id', uid)).error)
+    }
+
+    // 2) Nhập lại theo thứ tự cha → con, giữ nguyên id, đóng dấu user_id hiện tại.
+    // accounts: payment_account_id là self-FK → chèn null trước, cập nhật sau.
+    if (data.accounts?.length) {
+      ok(
+        (
+          await sb.from('accounts').insert(
+            data.accounts.map((a) => ({
+              id: a.id,
+              user_id: uid,
+              name: a.name,
+              type: a.type,
+              currency: a.currency,
+              initial_balance: a.initial_balance,
+              asset_group: a.asset_group,
+              is_hidden: a.is_hidden,
+              include_in_totals: a.include_in_totals,
+              credit_limit: a.credit_limit,
+              statement_day: a.statement_day,
+              payment_due_day: a.payment_due_day,
+              payment_account_id: null,
+              card_autopay_through: a.card_autopay_through,
+              sort_order: a.sort_order,
+              is_archived: a.is_archived,
+            })),
+          )
+        ).error,
+      )
+    }
+
+    // categories: parent_id là self-FK → chèn danh mục cha trước, con sau.
+    const cats = data.categories ?? []
+    const catPayload = (c: CategoryRow) => ({
+      id: c.id,
+      user_id: uid,
+      name: c.name,
+      type: c.type,
+      icon: c.icon,
+      parent_id: c.parent_id,
+      sort_order: c.sort_order,
+      is_archived: c.is_archived,
+    })
+    const parents = cats.filter((c) => !c.parent_id)
+    const children = cats.filter((c) => c.parent_id)
+    if (parents.length) ok((await sb.from('categories').insert(parents.map(catPayload))).error)
+    if (children.length) ok((await sb.from('categories').insert(children.map(catPayload))).error)
+
+    if (data.recurringRules?.length) {
+      ok(
+        (
+          await sb.from('recurring_rules').insert(
+            data.recurringRules.map((r) => ({
+              id: r.id,
+              user_id: uid,
+              type: r.type,
+              amount: r.amount,
+              to_amount: r.to_amount,
+              category_id: r.category_id,
+              account_id: r.account_id,
+              to_account_id: r.to_account_id,
+              note: r.note,
+              frequency: r.frequency,
+              start_on: r.start_on,
+              end_on: r.end_on,
+              is_paused: r.is_paused,
+              last_generated_on: r.last_generated_on,
+            })),
+          )
+        ).error,
+      )
+    }
+
+    if (data.transactions?.length) {
+      ok(
+        (
+          await sb.from('transactions').insert(
+            data.transactions.map((t) => ({
+              id: t.id,
+              user_id: uid,
+              type: t.type,
+              amount: t.amount,
+              to_amount: t.to_amount,
+              category_id: t.category_id,
+              account_id: t.account_id,
+              to_account_id: t.to_account_id,
+              recurring_rule_id: t.recurring_rule_id,
+              occurred_on: t.occurred_on,
+              note: t.note,
+              is_remittance: t.is_remittance,
+              remit_service: t.remit_service,
+              remit_fee_jpy: t.remit_fee_jpy,
+              remit_received_vnd: t.remit_received_vnd,
+              is_debt_flow: t.is_debt_flow,
+            })),
+          )
+        ).error,
+      )
+    }
+
+    if (data.budgets?.length) {
+      ok(
+        (
+          await sb.from('budgets').insert(
+            data.budgets.map((b) => ({
+              id: b.id,
+              user_id: uid,
+              category_id: b.category_id,
+              month_key: b.month_key,
+              amount: b.amount,
+            })),
+          )
+        ).error,
+      )
+    }
+
+    if (data.assetGroupSettings?.length) {
+      ok(
+        (
+          await sb.from('asset_group_settings').insert(
+            data.assetGroupSettings.map((s) => ({
+              id: s.id,
+              user_id: uid,
+              name: s.name,
+              sort_order: s.sort_order,
+              include_in_totals: s.include_in_totals,
+              is_hidden: s.is_hidden,
+            })),
+          )
+        ).error,
+      )
+    }
+
+    if (data.debts?.length) {
+      ok(
+        (
+          await sb.from('debts').insert(
+            data.debts.map((d) => ({
+              id: d.id,
+              user_id: uid,
+              counterparty: d.counterparty,
+              direction: d.direction,
+              currency: d.currency,
+              principal: d.principal,
+              due_on: d.due_on,
+              status: d.status,
+              note: d.note,
+              disbursement_transaction_id: d.disbursement_transaction_id,
+            })),
+          )
+        ).error,
+      )
+    }
+
+    if (data.debtPayments?.length) {
+      ok(
+        (
+          await sb.from('debt_payments').insert(
+            data.debtPayments.map((p) => ({
+              id: p.id,
+              user_id: uid,
+              debt_id: p.debt_id,
+              amount: p.amount,
+              paid_on: p.paid_on,
+              transaction_id: p.transaction_id,
+              note: p.note,
+            })),
+          )
+        ).error,
+      )
+    }
+
+    // 3) Pass 2: khôi phục self-FK payment_account_id của thẻ tín dụng.
+    for (const a of data.accounts ?? []) {
+      if (a.payment_account_id) {
+        ok(
+          (
+            await sb
+              .from('accounts')
+              .update({ payment_account_id: a.payment_account_id })
+              .eq('id', a.id)
+          ).error,
+        )
+      }
+    }
+
+    // 4) Hồ sơ: khôi phục tên hiển thị, ngày bắt đầu tháng, tiền gốc.
+    ok(
+      (
+        await sb
+          .from('profiles')
+          .update({
+            display_name: data.profile.display_name,
+            month_start_day: data.profile.month_start_day,
+            base_currency: data.profile.base_currency,
+          })
+          .eq('user_id', uid)
+      ).error,
+    )
   },
 }

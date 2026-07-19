@@ -17,6 +17,26 @@ import type {
   TransactionType,
 } from '../types/database.types'
 
+/** Ảnh chụp toàn bộ dữ liệu người dùng để sao lưu / khôi phục (mục Z). */
+export interface BackupData {
+  /** Phiên bản định dạng file (tăng khi schema đổi cách nghiêm trọng). */
+  version: number
+  /** ISO timestamp lúc xuất. */
+  exported_at: string
+  profile: ProfileRow
+  accounts: AccountRow[]
+  categories: CategoryRow[]
+  transactions: TransactionRow[]
+  budgets: BudgetRow[]
+  assetGroupSettings: AssetGroupSettingRow[]
+  debts: DebtRow[]
+  debtPayments: DebtPaymentRow[]
+  recurringRules: RecurringRuleRow[]
+}
+
+/** Phiên bản định dạng backup hiện hành. */
+export const BACKUP_VERSION = 1
+
 export interface NewTransaction {
   type: TransactionType
   /** minor units theo currency của tài khoản nguồn */
@@ -226,4 +246,10 @@ export interface Repo {
   deleteRecurringRule(id: string): Promise<void>
   /** Sinh 1 kỳ cho engine catch-up: true = đã tạo, false = trùng (rule + ngày) bỏ qua. */
   insertRecurringOccurrence(input: NewRecurringOccurrence): Promise<boolean>
+
+  // --- Sao lưu / khôi phục (mục Z) ---
+  /** Gom toàn bộ dữ liệu người dùng thành một ảnh chụp để tải xuống. */
+  exportAll(): Promise<BackupData>
+  /** Ghi đè TOÀN BỘ dữ liệu bằng bản sao lưu (xóa hết rồi nhập lại). */
+  importAll(data: BackupData): Promise<void>
 }

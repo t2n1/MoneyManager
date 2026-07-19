@@ -12,6 +12,7 @@ import type {
   DebtRow,
   ProfileRow,
   RecurringRuleRow,
+  SavingsGoalRow,
   TransactionRow,
 } from '../types/database.types'
 import {
@@ -27,11 +28,13 @@ import {
   type NewDebtPayment,
   type NewRecurringOccurrence,
   type NewRecurringRule,
+  type NewSavingsGoal,
   type NewTransaction,
   type NewValuation,
   type ProfilePatch,
   type RecurringRulePatch,
   type Repo,
+  type SavingsGoalPatch,
   type TransactionPatch,
   type TxFilter,
 } from './repo'
@@ -54,6 +57,7 @@ interface DemoDB {
   debtPayments: DebtPaymentRow[]
   recurringRules: RecurringRuleRow[]
   accountValuations: AccountValuationRow[]
+  savingsGoals: SavingsGoalRow[]
 }
 
 // crypto.randomUUID() chỉ chạy trong secure context (HTTPS / localhost).
@@ -359,6 +363,7 @@ function seed(): DemoDB {
     debtPayments,
     recurringRules: [],
     accountValuations,
+    savingsGoals: [],
   }
 }
 
@@ -572,6 +577,46 @@ export const demoRepo: Repo = {
   async deleteValuation(id: string) {
     const db = load()
     db.accountValuations = (db.accountValuations ?? []).filter((v) => v.id !== id)
+    save(db)
+  },
+
+  async getSavingsGoals() {
+    return (load().savingsGoals ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)
+  },
+
+  async createSavingsGoal(input: NewSavingsGoal) {
+    const db = load()
+    db.savingsGoals ??= []
+    const sort_order = db.savingsGoals.reduce((m, g) => Math.max(m, g.sort_order + 1), 0)
+    const row: SavingsGoalRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      name: input.name,
+      account_id: input.account_id,
+      target_amount: input.target_amount,
+      target_date: input.target_date,
+      note: input.note,
+      sort_order,
+      created_at: nowISO(),
+    }
+    db.savingsGoals.push(row)
+    save(db)
+    return row
+  },
+
+  async updateSavingsGoal(id: string, patch: SavingsGoalPatch) {
+    const db = load()
+    db.savingsGoals ??= []
+    const idx = db.savingsGoals.findIndex((g) => g.id === id)
+    if (idx < 0) throw new Error('Không tìm thấy mục tiêu')
+    db.savingsGoals[idx] = { ...db.savingsGoals[idx], ...patch }
+    save(db)
+    return db.savingsGoals[idx]
+  },
+
+  async deleteSavingsGoal(id: string) {
+    const db = load()
+    db.savingsGoals = (db.savingsGoals ?? []).filter((g) => g.id !== id)
     save(db)
   },
 
@@ -943,6 +988,7 @@ export const demoRepo: Repo = {
       debtPayments: db.debtPayments ?? [],
       recurringRules: db.recurringRules ?? [],
       accountValuations: db.accountValuations ?? [],
+      savingsGoals: db.savingsGoals ?? [],
     }
   },
 
@@ -961,6 +1007,7 @@ export const demoRepo: Repo = {
       debtPayments: stamp(data.debtPayments ?? []),
       recurringRules: stamp(data.recurringRules ?? []),
       accountValuations: stamp(data.accountValuations ?? []),
+      savingsGoals: stamp(data.savingsGoals ?? []),
     }
     save(db)
   },

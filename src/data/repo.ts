@@ -14,6 +14,7 @@ import type {
   DebtRow,
   ProfileRow,
   RecurringRuleRow,
+  SavingsGoalRow,
   TransactionRow,
   TransactionType,
 } from '../types/database.types'
@@ -35,10 +36,12 @@ export interface BackupData {
   recurringRules: RecurringRuleRow[]
   /** Đầu tư (mục AE); vắng mặt ở backup v1. */
   accountValuations?: AccountValuationRow[]
+  /** Mục tiêu tiết kiệm (mục AD); vắng mặt ở backup v1/v2. */
+  savingsGoals?: SavingsGoalRow[]
 }
 
-/** Phiên bản định dạng backup hiện hành. v2: thêm accountValuations (mục AE). */
-export const BACKUP_VERSION = 2
+/** Phiên bản định dạng backup hiện hành. v3: thêm savingsGoals (mục AD). */
+export const BACKUP_VERSION = 3
 
 export interface NewTransaction {
   type: TransactionType
@@ -191,6 +194,18 @@ export interface NewValuation {
   note: string
 }
 
+/** Mục tiêu tiết kiệm (mục AD). */
+export interface NewSavingsGoal {
+  name: string
+  account_id: string
+  /** minor units theo currency của tài khoản; > 0 */
+  target_amount: number
+  target_date: string | null
+  note: string
+}
+
+export type SavingsGoalPatch = Partial<NewSavingsGoal>
+
 // Toàn bộ đọc/ghi dữ liệu đi qua interface này.
 // 2 implementation: demoRepo (localStorage) và supabaseRepo (Postgres + RLS).
 export interface Repo {
@@ -216,6 +231,12 @@ export interface Repo {
   /** Tạo mới hoặc đè snapshot theo (account_id, valued_on). */
   upsertValuation(input: NewValuation): Promise<AccountValuationRow>
   deleteValuation(id: string): Promise<void>
+
+  // --- Mục tiêu tiết kiệm (mục AD) ---
+  getSavingsGoals(): Promise<SavingsGoalRow[]>
+  createSavingsGoal(input: NewSavingsGoal): Promise<SavingsGoalRow>
+  updateSavingsGoal(id: string, patch: SavingsGoalPatch): Promise<SavingsGoalRow>
+  deleteSavingsGoal(id: string): Promise<void>
 
   createCategory(input: NewCategory): Promise<CategoryRow>
   updateCategory(id: string, patch: CategoryPatch): Promise<CategoryRow>

@@ -130,6 +130,21 @@ export type AccountValuationRow = {
   created_at: string
 }
 
+/** Mục tiêu tiết kiệm (mục AD): đích cần đạt trên số dư một tài khoản. */
+export type SavingsGoalRow = {
+  id: string
+  user_id: string
+  name: string
+  account_id: string
+  /** minor units theo currency của tài khoản; > 0 */
+  target_amount: number
+  /** hạn hoàn thành; null = không đặt */
+  target_date: string | null
+  note: string
+  sort_order: number
+  created_at: string
+}
+
 export type BudgetRow = {
   id: string
   user_id: string
@@ -400,6 +415,18 @@ export type Database = {
           'id' | 'valued_on' | 'note'
         >
         Update: Partial<Pick<AccountValuationRow, 'valued_on' | 'market_value' | 'note'>>
+        Relationships: []
+      }
+      savings_goals: {
+        Row: SavingsGoalRow
+        Insert: InsertOf<
+          SavingsGoalRow,
+          'user_id' | 'name' | 'account_id' | 'target_amount',
+          'id' | 'target_date' | 'note' | 'sort_order'
+        >
+        Update: Partial<
+          Pick<SavingsGoalRow, 'name' | 'account_id' | 'target_amount' | 'target_date' | 'note' | 'sort_order'>
+        >
         Relationships: []
       }
     }

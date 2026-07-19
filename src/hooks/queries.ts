@@ -11,10 +11,12 @@ import {
   type NewDebt,
   type NewDebtPayment,
   type NewRecurringRule,
+  type NewSavingsGoal,
   type NewTransaction,
   type NewValuation,
   type ProfilePatch,
   type RecurringRulePatch,
+  type SavingsGoalPatch,
   type TransactionPatch,
   type TxFilter,
 } from '../data'
@@ -220,6 +222,45 @@ export function useDeleteValuation() {
   return useMutation({
     mutationFn: (id: string) => repo.deleteValuation(id),
     onSettled: () => invalidateValuations(qc),
+  })
+}
+
+// --- Mục tiêu tiết kiệm (mục AD) ---
+
+export function useSavingsGoals() {
+  return useQuery({
+    queryKey: ['savingsGoals'],
+    queryFn: () => repo.getSavingsGoals(),
+    staleTime: 60_000,
+  })
+}
+
+function invalidateSavingsGoals(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['savingsGoals'] })
+}
+
+export function useCreateSavingsGoal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewSavingsGoal) => repo.createSavingsGoal(input),
+    onSettled: () => invalidateSavingsGoals(qc),
+  })
+}
+
+export function useUpdateSavingsGoal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: SavingsGoalPatch }) =>
+      repo.updateSavingsGoal(id, patch),
+    onSettled: () => invalidateSavingsGoals(qc),
+  })
+}
+
+export function useDeleteSavingsGoal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => repo.deleteSavingsGoal(id),
+    onSettled: () => invalidateSavingsGoals(qc),
   })
 }
 

@@ -11,6 +11,7 @@ import type {
   DebtPaymentRow,
   DebtRow,
   RecurringRuleRow,
+  SavingsGoalRow,
   TransactionRow,
 } from '../types/database.types'
 import {
@@ -26,11 +27,13 @@ import {
   type NewDebtPayment,
   type NewRecurringOccurrence,
   type NewRecurringRule,
+  type NewSavingsGoal,
   type NewTransaction,
   type NewValuation,
   type ProfilePatch,
   type RecurringRulePatch,
   type Repo,
+  type SavingsGoalPatch,
   type TransactionPatch,
   type TxFilter,
 } from './repo'
@@ -48,6 +51,7 @@ type DataTable =
   | 'debt_payments'
   | 'recurring_rules'
   | 'account_valuations'
+  | 'savings_goals'
 
 async function currentUserId(): Promise<string> {
   const {
@@ -246,6 +250,48 @@ export const supabaseRepo: Repo = {
 
   async deleteValuation(id: string) {
     const { error } = await getSupabase().from('account_valuations').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  async getSavingsGoals() {
+    const { data, error } = await getSupabase()
+      .from('savings_goals')
+      .select('*')
+      .order('sort_order')
+    if (error) throw error
+    return data
+  },
+
+  async createSavingsGoal(input: NewSavingsGoal) {
+    const user_id = await currentUserId()
+    const { data: existing } = await getSupabase()
+      .from('savings_goals')
+      .select('sort_order')
+      .order('sort_order', { ascending: false })
+      .limit(1)
+    const sort_order = (existing?.[0]?.sort_order ?? -1) + 1
+    const { data, error } = await getSupabase()
+      .from('savings_goals')
+      .insert({ ...input, user_id, sort_order })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async updateSavingsGoal(id: string, patch: SavingsGoalPatch) {
+    const { data, error } = await getSupabase()
+      .from('savings_goals')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async deleteSavingsGoal(id: string) {
+    const { error } = await getSupabase().from('savings_goals').delete().eq('id', id)
     if (error) throw error
   },
 
@@ -619,6 +665,7 @@ export const supabaseRepo: Repo = {
       debtPayments,
       recurringRules,
       accountValuations,
+      savingsGoals,
     ] = await Promise.all([
       this.getProfile(),
       selectAll<AccountRow>('accounts'),
@@ -630,6 +677,7 @@ export const supabaseRepo: Repo = {
       selectAll<DebtPaymentRow>('debt_payments'),
       selectAll<RecurringRuleRow>('recurring_rules'),
       selectAll<AccountValuationRow>('account_valuations'),
+      selectAll<SavingsGoalRow>('savings_goals'),
     ])
     return {
       version: BACKUP_VERSION,
@@ -644,6 +692,7 @@ export const supabaseRepo: Repo = {
       debtPayments,
       recurringRules,
       accountValuations,
+      savingsGoals,
     }
   },
 
@@ -657,6 +706,7 @@ export const supabaseRepo: Repo = {
     // 1) Xóa dữ liệu hiện có theo thứ tự con → cha (tránh vướng FK)
     const deleteOrder: DataTable[] = [
       'account_valuations',
+      'savings_goals',
       'debt_payments',
       'debts',
       'budgets',
@@ -853,6 +903,26 @@ export const supabaseRepo: Repo = {
               valued_on: v.valued_on,
               market_value: v.market_value,
               note: v.note,
+            })),
+          )
+        ).error,
+      )
+    }
+
+    // savings_goals: FK tới accounts → chèn sau accounts.
+    if (data.savingsGoals?.length) {
+      ok(
+        (
+          await sb.from('savings_goals').insert(
+            data.savingsGoals.map((g) => ({
+              id: g.id,
+              user_id: uid,
+              name: g.name,
+              account_id: g.account_id,
+              target_amount: g.target_amount,
+              target_date: g.target_date,
+              note: g.note,
+              sort_order: g.sort_order,
             })),
           )
         ).error,

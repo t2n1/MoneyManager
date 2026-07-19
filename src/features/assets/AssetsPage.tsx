@@ -4,6 +4,7 @@ import { CreditCard, Settings2 } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { AccountTypeIcon } from '../../components/icons'
 import { PrivacyToggle } from '../../components/PrivacyToggle'
+import { SavingsGoalsSection } from './SavingsGoalsSection'
 import {
   useAccountBalances,
   useAssetGroupSettings,
@@ -211,6 +212,9 @@ export function AssetsPage() {
           )}
         </section>
       )}
+
+      {/* Mục tiêu tiết kiệm (mục AD) */}
+      <SavingsGoalsSection />
 
       {/* Thẻ tín dụng */}
       {visibleCards.length > 0 && (

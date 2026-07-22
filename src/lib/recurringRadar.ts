@@ -45,7 +45,12 @@ function commonNote(notes: string[]): string {
   }
   let best = ''
   let bestN = 0
-  for (const [n, c] of count) if (c > bestN) ((best = n), (bestN = c))
+  for (const [n, c] of count) {
+    if (c > bestN) {
+      best = n
+      bestN = c
+    }
+  }
   return best
 }
 

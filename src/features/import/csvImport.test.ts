@@ -35,6 +35,11 @@ describe('parseDateToISO', () => {
     expect(parseDateToISO('linh tinh', 'ymd')).toBeNull()
     expect(parseDateToISO('2026/13/40', 'ymd')).toBeNull()
   })
+  it('ngày không tồn tại trong tháng → null', () => {
+    expect(parseDateToISO('2026/02/30', 'ymd')).toBeNull()
+    expect(parseDateToISO('2026/04/31', 'ymd')).toBeNull()
+    expect(parseDateToISO('2024/02/29', 'ymd')).toBe('2024-02-29') // năm nhuận
+  })
 })
 
 describe('parseAmountToMinor', () => {

@@ -65,7 +65,10 @@ export function parseDateToISO(input: string, order: DateOrder = 'ymd'): string 
     y = nc
   }
   if (y < 100) y += 2000
-  if (m < 1 || m > 12 || d < 1 || d > 31) return null
+  if (m < 1 || m > 12 || d < 1) return null
+  // Ngày phải có thật trong tháng đó (chặn 30/02, 31/04…): new Date(y, m, 0) = ngày cuối tháng m.
+  const lastDay = new Date(y, m, 0).getDate()
+  if (d > lastDay) return null
   return `${y.toString().padStart(4, '0')}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`
 }
 

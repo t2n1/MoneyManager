@@ -1,8 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Download, Printer } from 'lucide-react'
-import { downloadTextFile } from '../../lib/download'
-import { buildTransactionsCsv } from './csv'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { BudgetView } from '../budgets/BudgetView'
 import { RemittanceSection } from '../remittance/RemittanceSection'
 import { InsightsView } from './InsightsView'
@@ -29,10 +27,20 @@ import {
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { categoryBreakdown, monthlySeries, sumIncomeExpense } from './aggregate'
 
+/** Đọc 'YYYY-MM' thành MonthKey; null nếu không hợp lệ. */
+function parseYm(s: string | null): MonthKey | null {
+  if (!s) return null
+  const [y, m] = s.split('-').map(Number)
+  if (!y || !m || m < 1 || m > 12) return null
+  return { year: y, month: m }
+}
+
 export function ReportsPage() {
   const [kind, setKind] = useState<'expense' | 'income'>('expense')
-  const [searchParams] = useSearchParams()
-  const [period, setPeriod] = useState<'month' | 'year'>('month')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [period, setPeriod] = useState<'month' | 'year'>(
+    searchParams.get('period') === 'year' ? 'year' : 'month',
+  )
   const [view, setView] = useState<'charts' | 'insights' | 'budget'>(
     searchParams.get('view') === 'budget'
       ? 'budget'
@@ -51,9 +59,9 @@ export function ReportsPage() {
     accounts.find((a) => a.id === id)?.currency ?? base
 
   // ----- Chế độ THÁNG -----
-  const [monthKey, setMonthKey] = useState<MonthKey | null>(null)
+  const [monthKey, setMonthKey] = useState<MonthKey | null>(() => parseYm(searchParams.get('ym')))
   const activeMonthKey = monthKey ?? monthKeyForDate(toISODate(new Date()), monthStartDay)
-  const { data: monthTxs = [] } = useMonthTransactions(activeMonthKey)
+  const { data: monthTxs = [], isFetched: monthFetched } = useMonthTransactions(activeMonthKey)
 
   // Khoảng 6 tháng gần nhất (tính cả tháng đang xem) cho biểu đồ cột
   const sixMonths = useMemo(
@@ -84,7 +92,10 @@ export function ReportsPage() {
   )
 
   // ----- Chế độ NĂM -----
-  const [year, setYear] = useState<number | null>(null)
+  const [year, setYear] = useState<number | null>(() => {
+    const y = Number(searchParams.get('year'))
+    return Number.isFinite(y) && y > 0 ? y : null
+  })
   const activeYear = year ?? monthKeyForDate(toISODate(new Date()), monthStartDay).year
   const yearRange = useMemo(
     () => getYearRange(activeYear, monthStartDay),
@@ -122,20 +133,22 @@ export function ReportsPage() {
   const showMissingRate =
     period === 'year' ? yearMissingRate : view === 'charts' && monthMissingRate
 
-  function handleExportCsv() {
-    const txs = period === 'year' ? yearTxs : monthTxs
-    const sorted = [...txs].sort((a, b) => a.occurred_on.localeCompare(b.occurred_on))
-    const csv = buildTransactionsCsv(sorted, {
-      categoryName: (id) => categories.find((c) => c.id === id)?.name ?? '',
-      accountName: (id) => accounts.find((a) => a.id === id)?.name ?? '',
-      currencyOf,
-    })
-    const suffix =
-      period === 'year'
-        ? String(activeYear)
-        : `${activeMonthKey.year}-${String(activeMonthKey.month).padStart(2, '0')}`
-    downloadTextFile(`so-chi-tieu-${suffix}.csv`, csv, 'text/csv')
-  }
+  const printedRef = useRef(false)
+  const wantPrint = searchParams.get('print') === '1'
+  const printDataReady = period === 'year' ? yearTxs.length >= 0 && !!profile : monthFetched
+  useEffect(() => {
+    if (!wantPrint || printedRef.current || !printDataReady) return
+    printedRef.current = true
+    // Chờ biểu đồ (Recharts) vẽ xong rồi mới in
+    const t = setTimeout(() => {
+      window.print()
+      // Gỡ cờ print khỏi URL để không in lại khi điều hướng nội bộ
+      const next = new URLSearchParams(searchParams)
+      next.delete('print')
+      setSearchParams(next, { replace: true })
+    }, 700)
+    return () => clearTimeout(t)
+  }, [wantPrint, printDataReady, period, searchParams, setSearchParams])
 
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
@@ -190,27 +203,6 @@ export function ReportsPage() {
           className={`flex-1 rounded-md py-1.5 ${period === 'year' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
           Năm
-        </button>
-      </div>
-
-      {/* Xuất dữ liệu kỳ đang xem */}
-      <div className="flex justify-end gap-2 print:hidden">
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-        >
-          <Printer className="h-3.5 w-3.5" />
-          Xuất PDF / In
-        </button>
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          disabled={(period === 'year' ? yearTxs : monthTxs).length === 0}
-          className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-        >
-          <Download className="h-3.5 w-3.5" />
-          Xuất CSV {period === 'year' ? 'năm' : 'tháng'}
         </button>
       </div>
 

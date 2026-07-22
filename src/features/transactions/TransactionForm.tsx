@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Repeat, Sparkles, Star, X } from 'lucide-react'
+import { ChevronDown, Repeat, Sparkles, Star, X } from 'lucide-react'
 import type { NewRecurringRule, NewTransaction } from '../../data'
 import { toISODate } from '../../lib/dates'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
@@ -43,13 +43,19 @@ const AMOUNT_COLOR: Record<TransactionType, string> = {
   transfer: 'text-gray-600 dark:text-gray-300',
 }
 
-// Nút "Lặp lại" gọn: chạm để xoay vòng qua các chu kỳ
-const REPEAT_CYCLE: ('none' | RecurringFrequency)[] = ['none', 'weekly', 'monthly', 'yearly']
+// Nút "Lặp lại" gọn: chip hiện chu kỳ ngắn; menu bấm ra hiện nhãn đầy đủ
+const REPEAT_OPTIONS: ('none' | RecurringFrequency)[] = ['none', 'weekly', 'monthly', 'yearly']
 const REPEAT_LABEL: Record<'none' | RecurringFrequency, string> = {
   none: 'Không lặp',
   weekly: 'Tuần',
   monthly: 'Tháng',
   yearly: 'Năm',
+}
+const REPEAT_MENU_LABEL: Record<'none' | RecurringFrequency, string> = {
+  none: 'Không lặp',
+  weekly: 'Hàng tuần',
+  monthly: 'Hàng tháng',
+  yearly: 'Hàng năm',
 }
 
 const hasOperator = (expr: string) => /[+−×÷]/.test(expr)
@@ -124,6 +130,7 @@ export function TransactionForm({
   const [excludeFromStats, setExcludeFromStats] = useState(initial?.exclude_from_stats ?? false)
   // Lặp lại (chỉ form nhập mới): 'none' = không lặp, còn lại là chu kỳ
   const [repeat, setRepeat] = useState<'none' | RecurringFrequency>('none')
+  const [repeatOpen, setRepeatOpen] = useState(false)
   // Nút đang lưu: 'save' | 'continue' | null — để khóa cả hai nút và hiện "Đang lưu…"
   const [pending, setPending] = useState<'save' | 'continue' | null>(null)
   const saving = pending !== null
@@ -143,6 +150,16 @@ export function TransactionForm({
     const last = lastCategoryFor(type, categories)
     if (last) setCategoryId(last)
   }, [categories, type, initial, categoryId])
+
+  // Đóng menu "Lặp lại" khi bấm Esc
+  useEffect(() => {
+    if (!repeatOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setRepeatOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [repeatOpen])
 
   // Tài khoản chọn được: đang hoạt động + tài khoản của GD đang sửa (kể cả đã
   // lưu trữ) — nếu không, form sửa sẽ âm thầm gán GD sang tài khoản khác.
@@ -336,15 +353,18 @@ export function TransactionForm({
     const showExpr = hasOperator(expr)
     const mobileText = showExpr ? formatExpr(expr, currency) : formatMoney(result ?? 0, currency)
     const inputValue = result && result !== 0 ? formatMoney(result, currency) : ''
+    // Chưa nhập gì (0 và không có phép tính) → làm mờ như gợi ý, tránh nhầm là đã có số
+    const isEmpty = !showExpr && (result ?? 0) === 0
     return (
       <div className="flex flex-col gap-0.5">
         {label && <span className="px-1 text-xs text-gray-500 dark:text-gray-400">{label}</span>}
         <button
           type="button"
           onClick={() => setActiveField(field)}
+          aria-label={`${label ?? 'Số tiền'}: ${mobileText}`}
           className={`truncate rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 text-right font-bold shadow-sm ${
             showExpr ? 'text-xl' : 'text-3xl'
-          } ${AMOUNT_COLOR[type]} ${ring} lg:hidden`}
+          } ${isEmpty ? 'text-gray-300 dark:text-gray-600' : AMOUNT_COLOR[type]} ${ring} lg:hidden`}
         >
           {mobileText}
         </button>
@@ -475,13 +495,15 @@ export function TransactionForm({
               value={effectiveAccountId}
               onChange={setAccountId}
               excludeId={toAccountId}
+              className="min-w-[7rem] flex-1"
             />
-            <span className="text-gray-400 dark:text-gray-500">→</span>
+            <span className="shrink-0 text-gray-400 dark:text-gray-500">→</span>
             <AccountPicker
               accounts={activeAccounts}
               value={toAccountId}
               onChange={setToAccountId}
               excludeId={effectiveAccountId}
+              className="min-w-[7rem] flex-1"
             />
           </>
         ) : (
@@ -499,22 +521,60 @@ export function TransactionForm({
           className="w-[7.5rem] shrink-0 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300"
         />
         {!initial && onSubmitRecurring && (
-          <button
-            type="button"
-            onClick={() =>
-              setRepeat((r) => REPEAT_CYCLE[(REPEAT_CYCLE.indexOf(r) + 1) % REPEAT_CYCLE.length])
-            }
-            aria-label={`Lặp lại: ${REPEAT_LABEL[repeat]}. Chạm để đổi chu kỳ.`}
-            title="Chạm để đổi chu kỳ lặp"
-            className={`flex shrink-0 items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition active:scale-95 ${
-              repeat === 'none'
-                ? 'border-gray-300 bg-white text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400'
-                : 'border-green-500 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400'
-            }`}
-          >
-            <Repeat className="h-4 w-4 shrink-0" />
-            {repeat !== 'none' && <span>{REPEAT_LABEL[repeat]}</span>}
-          </button>
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setRepeatOpen((o) => !o)}
+              aria-haspopup="listbox"
+              aria-expanded={repeatOpen}
+              aria-label={`Lặp lại: ${REPEAT_MENU_LABEL[repeat]}`}
+              className={`flex items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition active:scale-95 ${
+                repeat === 'none'
+                  ? 'border-gray-300 bg-white text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400'
+                  : 'border-green-500 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400'
+              }`}
+            >
+              <Repeat className="h-4 w-4 shrink-0" />
+              {repeat !== 'none' && <span>{REPEAT_LABEL[repeat]}</span>}
+              <ChevronDown
+                className={`h-3.5 w-3.5 shrink-0 transition-transform ${repeatOpen ? 'rotate-180' : ''}`}
+                aria-hidden
+              />
+            </button>
+            {repeatOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setRepeatOpen(false)}
+                  aria-hidden
+                />
+                <div
+                  role="listbox"
+                  className="absolute right-0 z-50 mt-1 w-36 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+                >
+                  {REPEAT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      role="option"
+                      aria-selected={repeat === opt}
+                      onClick={() => {
+                        setRepeat(opt)
+                        setRepeatOpen(false)
+                      }}
+                      className={`flex w-full items-center px-3 py-2 text-left text-sm ${
+                        repeat === opt
+                          ? 'bg-green-50 font-medium text-green-700 dark:bg-green-900/20 dark:text-green-300'
+                          : 'text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      {REPEAT_MENU_LABEL[opt]}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         )}
       </div>
       <input

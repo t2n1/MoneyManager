@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Sparkles, Star, X } from 'lucide-react'
+import { Repeat, Sparkles, Star, X } from 'lucide-react'
 import type { NewRecurringRule, NewTransaction } from '../../data'
 import { toISODate } from '../../lib/dates'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
@@ -41,6 +41,15 @@ const AMOUNT_COLOR: Record<TransactionType, string> = {
   expense: 'text-red-600 dark:text-red-400',
   income: 'text-green-600 dark:text-green-400',
   transfer: 'text-gray-600 dark:text-gray-300',
+}
+
+// Nút "Lặp lại" gọn: chạm để xoay vòng qua các chu kỳ
+const REPEAT_CYCLE: ('none' | RecurringFrequency)[] = ['none', 'weekly', 'monthly', 'yearly']
+const REPEAT_LABEL: Record<'none' | RecurringFrequency, string> = {
+  none: 'Không lặp',
+  weekly: 'Tuần',
+  monthly: 'Tháng',
+  yearly: 'Năm',
 }
 
 const hasOperator = (expr: string) => /[+−×÷]/.test(expr)
@@ -480,26 +489,32 @@ export function TransactionForm({
             accounts={activeAccounts}
             value={effectiveAccountId}
             onChange={setAccountId}
+            className="min-w-0 flex-1"
           />
         )}
         <input
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300"
+          className="w-[7.5rem] shrink-0 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300"
         />
         {!initial && onSubmitRecurring && (
-          <select
-            value={repeat}
-            onChange={(e) => setRepeat(e.target.value as 'none' | RecurringFrequency)}
-            aria-label="Lặp lại"
-            className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300"
+          <button
+            type="button"
+            onClick={() =>
+              setRepeat((r) => REPEAT_CYCLE[(REPEAT_CYCLE.indexOf(r) + 1) % REPEAT_CYCLE.length])
+            }
+            aria-label={`Lặp lại: ${REPEAT_LABEL[repeat]}. Chạm để đổi chu kỳ.`}
+            title="Chạm để đổi chu kỳ lặp"
+            className={`flex shrink-0 items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition active:scale-95 ${
+              repeat === 'none'
+                ? 'border-gray-300 bg-white text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400'
+                : 'border-green-500 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400'
+            }`}
           >
-            <option value="none">Không lặp</option>
-            <option value="weekly">Hàng tuần</option>
-            <option value="monthly">Hàng tháng</option>
-            <option value="yearly">Hàng năm</option>
-          </select>
+            <Repeat className="h-4 w-4 shrink-0" />
+            {repeat !== 'none' && <span>{REPEAT_LABEL[repeat]}</span>}
+          </button>
         )}
       </div>
       <input
@@ -581,35 +596,46 @@ export function TransactionForm({
 
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-      {onContinue && repeat === 'none' ? (
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => handleSubmit('continue')}
-            disabled={!canSave}
-            className="rounded-xl border border-green-600 bg-white py-3 text-base font-semibold text-green-700 shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-50 disabled:opacity-40 dark:bg-gray-900 dark:text-green-400 dark:enabled:hover:bg-gray-800"
-          >
-            {pending === 'continue' ? 'Đang lưu…' : continueLabel}
-          </button>
+      {/* Hàng nút: ⌫ (chỉ mobile, thay cho hàng xóa lùi riêng) + Tiếp tục/Lưu */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => onNumPadKey('⌫')}
+          aria-label="Xóa"
+          className="flex shrink-0 items-center justify-center rounded-xl bg-white dark:bg-gray-800 px-5 text-lg font-semibold text-gray-800 dark:text-gray-100 shadow-sm transition active:scale-95 active:bg-gray-200 lg:hidden"
+        >
+          ⌫
+        </button>
+        {onContinue && repeat === 'none' ? (
+          <>
+            <button
+              type="button"
+              onClick={() => handleSubmit('continue')}
+              disabled={!canSave}
+              className="flex-1 rounded-xl border border-green-600 bg-white py-3 text-base font-semibold text-green-700 shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-50 disabled:opacity-40 dark:bg-gray-900 dark:text-green-400 dark:enabled:hover:bg-gray-800"
+            >
+              {pending === 'continue' ? 'Đang lưu…' : continueLabel}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSubmit('save')}
+              disabled={!canSave}
+              className="flex-1 rounded-xl bg-green-600 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-700 disabled:opacity-40"
+            >
+              {pending === 'save' ? 'Đang lưu…' : submitLabel}
+            </button>
+          </>
+        ) : (
           <button
             type="button"
             onClick={() => handleSubmit('save')}
             disabled={!canSave}
-            className="rounded-xl bg-green-600 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-700 disabled:opacity-40"
+            className="flex-1 rounded-xl bg-green-600 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-700 disabled:opacity-40"
           >
-            {pending === 'save' ? 'Đang lưu…' : submitLabel}
+            {saving ? 'Đang lưu…' : submitLabel}
           </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => handleSubmit('save')}
-          disabled={!canSave}
-          className="rounded-xl bg-green-600 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-700 disabled:opacity-40"
-        >
-          {saving ? 'Đang lưu…' : submitLabel}
-        </button>
-      )}
+        )}
+      </div>
     </div>
   )
 }

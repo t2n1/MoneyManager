@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import type { NewTransaction } from '../../data'
 import {
   useAccounts,
@@ -45,6 +46,7 @@ export function SplitBillSheet({ onClose }: Props) {
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showMore, setShowMore] = useState(false)
 
   // Điền mặc định khi dữ liệu về / thay đổi
   useEffect(() => {
@@ -138,8 +140,7 @@ export function SplitBillSheet({ onClose }: Props) {
       >
         <h2 className="mb-1 text-base font-bold text-gray-800 dark:text-gray-100">Trả hộ / chia bill</h2>
         <p className="mb-3 text-xs text-gray-400 dark:text-gray-500">
-          Mình trả cả hóa đơn, một phần là người khác nợ lại. App tự tách chi tiêu của
-          mình và khoản cho vay (phần cho vay không vào báo cáo Chi/Thu).
+          Phần cho vay không tính vào báo cáo Chi/Thu.
         </p>
 
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -230,23 +231,35 @@ export function SplitBillSheet({ onClose }: Props) {
           className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
         />
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Ngày</label>
-        <input
-          type="date"
-          value={occurredOn}
-          onChange={(e) => setOccurredOn(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500"
-        />
+        <button
+          type="button"
+          onClick={() => setShowMore((v) => !v)}
+          className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
+        >
+          <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
+          {showMore ? 'Ẩn bớt' : 'Thêm chi tiết'}
+        </button>
+        {showMore && (
+          <div className="mt-2">
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Ngày</label>
+            <input
+              type="date"
+              value={occurredOn}
+              onChange={(e) => setOccurredOn(e.target.value)}
+              className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500"
+            />
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-          Ghi chú (không bắt buộc)
-        </label>
-        <input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Ví dụ: ăn trưa cùng"
-          className="mb-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
-        />
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+              Ghi chú (không bắt buộc)
+            </label>
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Ví dụ: ăn trưa cùng"
+              className="mb-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
+            />
+          </div>
+        )}
 
         {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
 

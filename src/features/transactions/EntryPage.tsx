@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, HandCoins, Send, TriangleAlert, Users } from 'lucide-react'
+import { ChevronLeft, HandCoins, MoreHorizontal, Send, TriangleAlert, Users } from 'lucide-react'
 import {
   useBudgetAlert,
   useCreateRecurringRule,
@@ -30,9 +30,20 @@ export function EntryPage() {
   const [remit, setRemit] = useState(false)
   const [debtForm, setDebtForm] = useState(false)
   const [splitBill, setSplitBill] = useState(false)
+  const [moreMenu, setMoreMenu] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => () => clearTimeout(toastTimer.current), [])
+
+  // Đóng menu "⋯" khi bấm Esc
+  useEffect(() => {
+    if (!moreMenu) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMoreMenu(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [moreMenu])
 
   async function handleUndo(id: string) {
     clearTimeout(toastTimer.current)
@@ -55,7 +66,7 @@ export function EntryPage() {
         <h1 className="flex-1 text-center text-base font-bold text-gray-800 dark:text-gray-100">Nhập giao dịch</h1>
         <span className="w-[70px]" aria-hidden />
       </div>
-      <div className="mb-2 flex flex-wrap justify-end gap-2">
+      <div className="mb-2 flex items-center justify-end gap-2">
         <button
           type="button"
           onClick={() => setSplitBill(true)}
@@ -64,22 +75,51 @@ export function EntryPage() {
         >
           <Users className="h-4 w-4" /> Trả hộ
         </button>
-        <button
-          type="button"
-          onClick={() => setDebtForm(true)}
-          className="flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-2.5 py-1.5 text-sm font-medium text-amber-700 dark:text-amber-400 shadow-sm active:scale-95"
-          aria-label="Ghi khoản nợ hoặc cho vay"
-        >
-          <HandCoins className="h-4 w-4" /> Ghi nợ
-        </button>
-        <button
-          type="button"
-          onClick={() => setRemit(true)}
-          className="flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-2.5 py-1.5 text-sm font-medium text-green-700 dark:text-green-400 shadow-sm active:scale-95"
-          aria-label="Gửi tiền về Việt Nam"
-        >
-          <Send className="h-4 w-4" /> Gửi về VN
-        </button>
+        {/* Nút "⋯": gom 2 chức năng hiếm dùng (Ghi nợ, Gửi về VN) vào menu nhỏ */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setMoreMenu((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={moreMenu}
+            aria-label="Thêm: Ghi nợ, Gửi về VN"
+            className="flex items-center rounded-lg bg-white dark:bg-gray-900 px-2.5 py-1.5 text-gray-600 dark:text-gray-300 shadow-sm active:scale-95"
+          >
+            <MoreHorizontal className="h-5 w-5" />
+          </button>
+          {moreMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setMoreMenu(false)} aria-hidden />
+              <div
+                role="menu"
+                className="absolute right-0 z-50 mt-1 w-44 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreMenu(false)
+                    setDebtForm(true)
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-amber-700 hover:bg-gray-50 dark:text-amber-400 dark:hover:bg-gray-800"
+                >
+                  <HandCoins className="h-4 w-4" /> Ghi nợ / cho vay
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreMenu(false)
+                    setRemit(true)
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-green-700 hover:bg-gray-50 dark:text-green-400 dark:hover:bg-gray-800"
+                >
+                  <Send className="h-4 w-4" /> Gửi về VN
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
       {overCount > 0 && (
         <Link

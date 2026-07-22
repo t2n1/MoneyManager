@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import type { NewDebt, NewTransaction } from '../../data'
 import { useAccounts, useCategories, useCreateDebt, useUpdateDebt } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
@@ -33,6 +34,7 @@ export function DebtFormSheet({ debt, onClose }: Props) {
     debt?.term_months != null ? String(debt.term_months) : '',
   )
   const [saving, setSaving] = useState(false)
+  const [showMore, setShowMore] = useState(false)
 
   // --- Giải ngân (chỉ khi TẠO mới) ---
   // Cho vay = tiền RỜI tài khoản (chi); Mình nợ = tiền VÀO tài khoản (thu).
@@ -158,33 +160,6 @@ export function DebtFormSheet({ debt, onClose }: Props) {
           className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
         />
 
-        <div className="mb-3 grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Loại tiền</label>
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
-              disabled={!!debt}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-500"
-            >
-              {CURRENCY_LIST.map((c) => (
-                <option key={c} value={c}>
-                  {CURRENCIES[c].symbol} {c}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Hạn (không bắt buộc)</label>
-            <input
-              type="date"
-              value={dueOn}
-              onChange={(e) => setDueOn(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm outline-green-500"
-            />
-          </div>
-        </div>
-
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Số tiền gốc</label>
         <input
           inputMode="numeric"
@@ -196,34 +171,6 @@ export function DebtFormSheet({ debt, onClose }: Props) {
           placeholder={formatMoney(0, currency)}
           className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
         />
-
-        {/* Trả góp / lãi suất (mục AG) — điền cả hai để xem lịch trả dự kiến */}
-        <div className="mb-3 grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              Lãi suất %/năm (tùy chọn)
-            </label>
-            <input
-              inputMode="decimal"
-              value={interestPct}
-              onChange={(e) => setInterestPct(e.target.value.replace(/[^0-9.]/g, ''))}
-              placeholder="vd 5.5"
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-right text-sm outline-green-500"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              Số kỳ / tháng (tùy chọn)
-            </label>
-            <input
-              inputMode="numeric"
-              value={termMonths}
-              onChange={(e) => setTermMonths(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="vd 12"
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-right text-sm outline-green-500"
-            />
-          </div>
-        </div>
 
         {/* Giải ngân: chỉ khi tạo mới */}
         {!debt && (
@@ -300,13 +247,80 @@ export function DebtFormSheet({ debt, onClose }: Props) {
           </div>
         )}
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Ghi chú (không bắt buộc)</label>
-        <input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Ví dụ: mượn lúc chuyển nhà"
-          className="mb-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
-        />
+        <button
+          type="button"
+          onClick={() => setShowMore((v) => !v)}
+          className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
+        >
+          <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
+          {showMore ? 'Ẩn bớt' : 'Thêm chi tiết'}
+        </button>
+        {showMore && (
+          <div className="mt-2">
+            <div className="mb-3 grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Loại tiền</label>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
+                  disabled={!!debt}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-500"
+                >
+                  {CURRENCY_LIST.map((c) => (
+                    <option key={c} value={c}>
+                      {CURRENCIES[c].symbol} {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Hạn (không bắt buộc)</label>
+                <input
+                  type="date"
+                  value={dueOn}
+                  onChange={(e) => setDueOn(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm outline-green-500"
+                />
+              </div>
+            </div>
+
+            {/* Trả góp / lãi suất (mục AG) — điền cả hai để xem lịch trả dự kiến */}
+            <div className="mb-3 grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Lãi suất %/năm (tùy chọn)
+                </label>
+                <input
+                  inputMode="decimal"
+                  value={interestPct}
+                  onChange={(e) => setInterestPct(e.target.value.replace(/[^0-9.]/g, ''))}
+                  placeholder="vd 5.5"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-right text-sm outline-green-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Số kỳ / tháng (tùy chọn)
+                </label>
+                <input
+                  inputMode="numeric"
+                  value={termMonths}
+                  onChange={(e) => setTermMonths(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="vd 12"
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-right text-sm outline-green-500"
+                />
+              </div>
+            </div>
+
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Ghi chú (không bắt buộc)</label>
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Ví dụ: mượn lúc chuyển nhà"
+              className="mb-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
+            />
+          </div>
+        )}
 
         {debt && (
           <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">Không đổi được loại tiền của khoản nợ đã tạo.</p>

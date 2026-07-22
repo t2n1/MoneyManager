@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import type { NewTransaction } from '../../data'
 import {
   useAccounts,
@@ -31,7 +32,7 @@ export function RemittanceFormSheet({ onClose }: { onClose: () => void }) {
     [accounts],
   )
 
-  const [kind, setKind] = useState<Kind>('transfer')
+  const [kind, setKind] = useState<Kind>('expense')
   const [occurredOn, setOccurredOn] = useState(toISODate(new Date()))
   const [sourceId, setSourceId] = useState('')
   const [destId, setDestId] = useState('')
@@ -41,6 +42,7 @@ export function RemittanceFormSheet({ onClose }: { onClose: () => void }) {
   const [service, setService] = useState(SERVICES[0])
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
+  const [showMore, setShowMore] = useState(false)
 
   useEffect(() => {
     if (!sourceId && jpyAccounts[0]) setSourceId(jpyAccounts[0].id)
@@ -135,8 +137,8 @@ export function RemittanceFormSheet({ onClose }: { onClose: () => void }) {
         <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-gray-200 dark:bg-gray-800 p-1">
           {(
             [
-              ['transfer', 'Chuyển tài sản'],
               ['expense', 'Hỗ trợ gia đình'],
+              ['transfer', 'Chuyển tài sản'],
             ] as const
           ).map(([k, label]) => (
             <button
@@ -158,14 +160,6 @@ export function RemittanceFormSheet({ onClose }: { onClose: () => void }) {
             ? 'Phần gốc vẫn là tài sản của bạn ở VN; chỉ phí làm giảm Tài sản ròng.'
             : 'Tiền cho gia đình — ghi nhận là chi (giảm Tài sản ròng).'}
         </p>
-
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Ngày</label>
-        <input
-          type="date"
-          value={occurredOn}
-          onChange={(e) => setOccurredOn(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500"
-        />
 
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Từ tài khoản (JPY)</label>
         {jpyAccounts.length === 0 ? (
@@ -255,26 +249,46 @@ export function RemittanceFormSheet({ onClose }: { onClose: () => void }) {
           </p>
         )}
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Dịch vụ</label>
-        <select
-          value={service}
-          onChange={(e) => setService(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm"
+        <button
+          type="button"
+          onClick={() => setShowMore((v) => !v)}
+          className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
         >
-          {SERVICES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+          <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
+          {showMore ? 'Ẩn bớt' : 'Thêm chi tiết'}
+        </button>
+        {showMore && (
+          <div className="mt-2">
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Ngày</label>
+            <input
+              type="date"
+              value={occurredOn}
+              onChange={(e) => setOccurredOn(e.target.value)}
+              className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500"
+            />
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Người nhận / ghi chú (không bắt buộc)</label>
-        <input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Ví dụ: gửi mẹ"
-          className="mb-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
-        />
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Dịch vụ</label>
+            <select
+              value={service}
+              onChange={(e) => setService(e.target.value)}
+              className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm"
+            >
+              {SERVICES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Người nhận / ghi chú (không bắt buộc)</label>
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Ví dụ: gửi mẹ"
+              className="mb-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
+            />
+          </div>
+        )}
 
         <div className="mt-4 flex justify-end gap-2">
           <button

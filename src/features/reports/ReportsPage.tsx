@@ -101,7 +101,7 @@ export function ReportsPage() {
     () => getYearRange(activeYear, monthStartDay),
     [activeYear, monthStartDay],
   )
-  const { data: yearTxs = [] } = useRangeTransactions(yearRange, !!profile && period === 'year')
+  const { data: yearTxs = [], isFetched: yearFetched } = useRangeTransactions(yearRange, !!profile && period === 'year')
 
   const twelveMonths = useMemo(
     () => Array.from({ length: 12 }, (_, i) => ({ year: activeYear, month: i + 1 })),
@@ -135,12 +135,13 @@ export function ReportsPage() {
 
   const printedRef = useRef(false)
   const wantPrint = searchParams.get('print') === '1'
-  const printDataReady = period === 'year' ? yearTxs.length >= 0 && !!profile : monthFetched
+  const printDataReady = period === 'year' ? yearFetched : monthFetched
   useEffect(() => {
     if (!wantPrint || printedRef.current || !printDataReady) return
-    printedRef.current = true
-    // Chờ biểu đồ (Recharts) vẽ xong rồi mới in
+    // Chờ biểu đồ (Recharts) vẽ xong rồi mới in. Đặt cờ TRONG timeout (không đặt
+    // đồng bộ) để nếu StrictMode huỷ timeout lúc mount thì effect còn lên lịch lại được.
     const t = setTimeout(() => {
+      printedRef.current = true
       window.print()
       // Gỡ cờ print khỏi URL để không in lại khi điều hướng nội bộ
       const next = new URLSearchParams(searchParams)

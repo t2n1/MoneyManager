@@ -133,6 +133,8 @@ export function ReportsPage() {
   const showMissingRate =
     period === 'year' ? yearMissingRate : view === 'charts' && monthMissingRate
 
+  // In một lần cho mỗi lần mở trang. Cờ reset khi trang bị gỡ (rời khỏi /reports),
+  // nên muốn in lại phải điều hướng vào lại — đủ cho luồng hiện tại (in từ trang Dữ liệu).
   const printedRef = useRef(false)
   const wantPrint = searchParams.get('print') === '1'
   const printDataReady = period === 'year' ? yearFetched : monthFetched

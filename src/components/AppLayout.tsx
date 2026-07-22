@@ -127,7 +127,7 @@ export function AppLayout() {
           (Outlet trả về element ổn định tham chiếu nên không tự re-render). */}
       <main
         key={privacyOn ? 'priv-on' : 'priv-off'}
-        className={`mx-auto w-full max-w-2xl flex-1 lg:pb-6 ${onEntry ? '' : 'pb-20'}`}
+        className={`mx-auto w-full max-w-2xl flex-1 pt-[env(safe-area-inset-top)] lg:pt-0 lg:pb-6 ${onEntry ? '' : 'pb-20'}`}
       >
         <Outlet />
       </main>
@@ -166,7 +166,7 @@ export function AppLayout() {
       </nav>
 
       {recurringToast && (
-        <div className="fixed inset-x-0 top-4 z-50 flex justify-center">
+        <div className="fixed inset-x-0 top-[calc(1rem+env(safe-area-inset-top))] z-50 flex justify-center">
           <div className="rounded-full bg-gray-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg">
             {recurringToast}
           </div>

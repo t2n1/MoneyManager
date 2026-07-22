@@ -4,8 +4,13 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#16a34a" />
+    <!-- Mở toàn màn hình như app thật khi thêm vào Màn hình chính (iPhone) -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Sổ Chi Tiêu" />
     <title>Sổ Chi Tiêu</title>
     <script>
       // Áp giao diện Sáng/Tối ngay trước khi vẽ để tránh nhấp nháy màu sai
@@ -20,6 +25,26 @@
             var m = document.querySelector('meta[name="theme-color"]')
             if (m) m.setAttribute('content', '#0a0a0a')
           }
+        } catch (e) {}
+      })()
+
+      // Chặn chụm/xòe 2 ngón để phóng to trên iPhone (Safari bỏ qua user-scalable)
+      ;(function () {
+        try {
+          document.addEventListener(
+            'gesturestart',
+            function (e) {
+              e.preventDefault()
+            },
+            { passive: false },
+          )
+          document.addEventListener(
+            'gesturechange',
+            function (e) {
+              e.preventDefault()
+            },
+            { passive: false },
+          )
         } catch (e) {}
       })()
     </script>

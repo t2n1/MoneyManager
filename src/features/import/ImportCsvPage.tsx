@@ -153,7 +153,7 @@ export function ImportCsvPage() {
     <div className="flex flex-col gap-3 p-3 lg:p-6">
       <div className="flex items-center gap-2">
         <Link
-          to="/settings"
+          to="/settings/data"
           className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >

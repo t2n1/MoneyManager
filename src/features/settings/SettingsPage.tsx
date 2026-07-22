@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronRight, FileUp, Handshake, Landmark, Layers, Repeat, Tags, UserRound } from 'lucide-react'
+import { ChevronRight, Database, Handshake, Landmark, Layers, Repeat, Tags, UserRound } from 'lucide-react'
 import { resetDemoData } from '../../data/demoRepo'
 import { useProfile } from '../../hooks/queries'
 import { isDemoMode } from '../../lib/demo'
 import { getSupabase } from '../../lib/supabase'
-import { BackupSection } from './BackupSection'
 import { ProfileEditSheet } from './ProfileEditSheet'
 import { ThemeToggle } from './ThemeToggle'
 
@@ -85,20 +84,26 @@ export function SettingsPage() {
             <span className="flex-1">Giao dịch định kỳ</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
-          <Link
-            to="/settings/import"
-            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
-          >
-            <FileUp className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-            <span className="flex-1">Nhập giao dịch từ CSV</span>
-            <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
-          </Link>
         </div>
       </section>
 
       <ThemeToggle />
 
-      <BackupSection />
+      <section className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-900">
+        <Link
+          to="/settings/data"
+          className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
+        >
+          <Database className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+          <span className="flex-1">
+            <span className="block">Dữ liệu &amp; sao lưu</span>
+            <span className="block text-xs text-gray-400 dark:text-gray-500">
+              Xuất CSV / PDF · Sao lưu, khôi phục · Nhập CSV
+            </span>
+          </span>
+          <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
+        </Link>
+      </section>
 
       <section className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-900">
         <button

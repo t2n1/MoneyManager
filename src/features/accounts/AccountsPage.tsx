@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronLeft, ChevronUp } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
 import type { NewAccount } from '../../data'
 import {
@@ -51,7 +51,7 @@ export function AccountsPage() {
       <div className="mb-3 flex items-center gap-2">
         <Link
           to="/settings"
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >
           <ChevronLeft className="h-5 w-5" />
@@ -74,19 +74,19 @@ export function AccountsPage() {
                 type="button"
                 onClick={() => move(i, -1)}
                 disabled={i === 0}
-                className="text-xs text-gray-400 dark:text-gray-500 disabled:opacity-20"
+                className="inline-flex min-w-11 items-center justify-center py-0.5 text-gray-500 dark:text-gray-400 disabled:opacity-20"
                 aria-label="Lên"
               >
-                ▲
+                <ChevronUp className="h-5 w-5" />
               </button>
               <button
                 type="button"
                 onClick={() => move(i, 1)}
                 disabled={i === active.length - 1}
-                className="text-xs text-gray-400 dark:text-gray-500 disabled:opacity-20"
+                className="inline-flex min-w-11 items-center justify-center py-0.5 text-gray-500 dark:text-gray-400 disabled:opacity-20"
                 aria-label="Xuống"
               >
-                ▼
+                <ChevronDown className="h-5 w-5" />
               </button>
             </div>
             <AccountTypeIcon type={a.type} className="h-4 w-4" />
@@ -94,31 +94,31 @@ export function AccountsPage() {
               <span className="flex items-center gap-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100">
                 <span className="truncate">{a.name}</span>
                 {a.is_hidden && (
-                  <span className="shrink-0 rounded bg-gray-100 dark:bg-gray-800 px-1 text-[10px] text-gray-500 dark:text-gray-400">
+                  <span className="shrink-0 rounded bg-gray-100 dark:bg-gray-800 px-1 text-xs text-gray-500 dark:text-gray-400">
                     ẩn
                   </span>
                 )}
                 {!a.include_in_totals && (
-                  <span className="shrink-0 rounded bg-gray-100 dark:bg-gray-800 px-1 text-[10px] text-gray-500 dark:text-gray-400">
+                  <span className="shrink-0 rounded bg-gray-100 dark:bg-gray-800 px-1 text-xs text-gray-500 dark:text-gray-400">
                     ngoài tổng
                   </span>
                 )}
               </span>
-              <span className="block text-xs text-gray-400 dark:text-gray-500">
+              <span className="block text-xs text-gray-500 dark:text-gray-400">
                 {formatMoney(balanceOf(a.id), a.currency)} · {a.currency}
               </span>
             </button>
             <button
               type="button"
               onClick={() => update.mutate({ id: a.id, patch: { is_archived: true } })}
-              className="rounded-lg px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Lưu trữ
             </button>
           </div>
         ))}
         {active.length === 0 && (
-          <p className="px-3 py-6 text-center text-sm text-gray-400 dark:text-gray-500">Chưa có tài khoản</p>
+          <p className="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400">Chưa có tài khoản</p>
         )}
       </div>
 
@@ -127,9 +127,17 @@ export function AccountsPage() {
           <button
             type="button"
             onClick={() => setShowArchived((v) => !v)}
-            className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400"
+            className="mb-2 inline-flex min-h-11 items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
           >
-            {showArchived ? 'Ẩn đã lưu trữ ▲' : `Đã lưu trữ (${archived.length}) ▼`}
+            {showArchived ? (
+              <>
+                Ẩn đã lưu trữ <ChevronUp className="h-4 w-4" />
+              </>
+            ) : (
+              <>
+                Đã lưu trữ ({archived.length}) <ChevronDown className="h-4 w-4" />
+              </>
+            )}
           </button>
           {showArchived && (
             <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
@@ -142,7 +150,7 @@ export function AccountsPage() {
                   <button
                     type="button"
                     onClick={() => update.mutate({ id: a.id, patch: { is_archived: false } })}
-                    className="rounded-lg px-2 py-1 text-xs text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
                   >
                     Khôi phục
                   </button>
@@ -317,7 +325,7 @@ function AccountForm({ account, onClose }: FormProps) {
         {!isCard && (
           <>
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              Nhóm tài sản <span className="text-gray-400 dark:text-gray-500">(không bắt buộc)</span>
+              Nhóm tài sản <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>
             </label>
             <input
               value={assetGroup}
@@ -337,7 +345,7 @@ function AccountForm({ account, onClose }: FormProps) {
         {isCard && (
           <>
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              Hạn mức tín dụng <span className="text-gray-400 dark:text-gray-500">(không bắt buộc)</span>
+              Hạn mức tín dụng <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>
             </label>
             <input
               inputMode="numeric"
@@ -378,7 +386,7 @@ function AccountForm({ account, onClose }: FormProps) {
             </div>
 
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              Tài khoản trả thẻ <span className="text-gray-400 dark:text-gray-500">(không bắt buộc)</span>
+              Tài khoản trả thẻ <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>
             </label>
             <select
               value={paymentAccountId}
@@ -392,10 +400,15 @@ function AccountForm({ account, onClose }: FormProps) {
                 </option>
               ))}
             </select>
-            <p className="mb-3 text-xs text-gray-400 dark:text-gray-500">
-              {autopayNeedsDays
-                ? '⚠ Cần điền Ngày chốt sao kê và Ngày đến hạn để tự trả.'
-                : 'Vào ngày đến hạn, app tự tạo chuyển khoản từ tài khoản này sang thẻ, đúng bằng dư nợ chốt sao kê.'}
+            <p className="mb-3 flex items-start gap-1 text-xs text-gray-500 dark:text-gray-400">
+              {autopayNeedsDays ? (
+                <>
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>Cần điền Ngày chốt sao kê và Ngày đến hạn để tự trả.</span>
+                </>
+              ) : (
+                'Vào ngày đến hạn, app tự tạo chuyển khoản từ tài khoản này sang thẻ, đúng bằng dư nợ chốt sao kê.'
+              )}
             </p>
           </>
         )}
@@ -405,7 +418,7 @@ function AccountForm({ account, onClose }: FormProps) {
           <label className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
             <span>
               {isCard ? 'Trừ vào Tài sản ròng' : 'Tính vào Tổng tài sản'}
-              <span className="block text-xs text-gray-400 dark:text-gray-500">
+              <span className="block text-xs text-gray-500 dark:text-gray-400">
                 {isCard
                   ? 'Trừ số đang nợ khỏi Tài sản ròng ở trang Tài sản'
                   : 'Cộng số dư vào tổng ở trang Tài sản'}
@@ -420,7 +433,7 @@ function AccountForm({ account, onClose }: FormProps) {
           <label className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
             <span>
               Ẩn khỏi trang Tài sản
-              <span className="block text-xs text-gray-400 dark:text-gray-500">Vẫn dùng bình thường khi nhập giao dịch</span>
+              <span className="block text-xs text-gray-500 dark:text-gray-400">Vẫn dùng bình thường khi nhập giao dịch</span>
             </span>
             <AccountToggle checked={isHidden} onChange={setIsHidden} label="Ẩn khỏi trang Tài sản" />
           </label>
@@ -440,12 +453,12 @@ function AccountForm({ account, onClose }: FormProps) {
           className="mb-2 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
         />
         {isCard && (
-          <p className="mb-2 text-xs text-gray-400 dark:text-gray-500">
+          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
             Nhập số bạn đang nợ thẻ (để 0 nếu chưa nợ). Chi tiêu bằng thẻ và trả thẻ ghi như giao dịch bình thường.
           </p>
         )}
         {type === 'investment' && (
-          <p className="mb-2 text-xs text-gray-400 dark:text-gray-500">
+          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
             Nhập vốn gốc ban đầu (tiền đã bỏ vào). Sau khi tạo, vào trang tài khoản để
             “Cập nhật giá trị” theo giá thị trường — chênh lệch là lãi/lỗ chưa thực hiện.
           </p>
@@ -496,15 +509,19 @@ function AccountToggle({
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={`relative h-5 w-9 shrink-0 rounded-full transition ${
-        checked ? 'bg-green-600' : 'bg-gray-300'
-      }`}
+      className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center"
     >
       <span
-        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
-          checked ? 'left-[18px]' : 'left-0.5'
+        className={`relative block h-5 w-9 rounded-full transition ${
+          checked ? 'bg-green-600' : 'bg-gray-300'
         }`}
-      />
+      >
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
+            checked ? 'left-[18px]' : 'left-0.5'
+          }`}
+        />
+      </span>
     </button>
   )
 }

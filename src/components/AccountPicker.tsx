@@ -102,7 +102,7 @@ export function AccountPicker({
             </span>
           </>
         ) : (
-          <span className="text-gray-400 dark:text-gray-500">Chọn tài khoản…</span>
+          <span className="text-gray-500 dark:text-gray-400">Chọn tài khoản…</span>
         )}
         <ChevronDown
           className={`ml-auto h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
@@ -172,7 +172,7 @@ export function AccountPicker({
               )
             })}
             {options.length === 0 && (
-              <p className="px-3 py-4 text-center text-xs text-gray-400 dark:text-gray-500">
+              <p className="px-3 py-4 text-center text-xs text-gray-500 dark:text-gray-400">
                 Không có tài khoản
               </p>
             )}

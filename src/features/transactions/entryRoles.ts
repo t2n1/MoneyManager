@@ -17,6 +17,8 @@ export interface SplitValue {
 export interface DebtValue {
   direction: DebtDirection
   counterparty: string
+  /** id khoản nợ đang mở để cộng dồn (chọn người cũ); null = tạo khoản mới. */
+  existingDebtId: string | null
   /** Có tạo giao dịch giải ngân thật (đổi số dư) hay chỉ ghi sổ nợ. */
   withTransaction: boolean
   dueOn: string
@@ -43,6 +45,7 @@ export const initialSplit = (): SplitValue => ({ others: 0, counterparty: '' })
 export const initialDebt = (): DebtValue => ({
   direction: 'i_owe',
   counterparty: '',
+  existingDebtId: null,
   withTransaction: true,
   dueOn: '',
   interestPct: '',

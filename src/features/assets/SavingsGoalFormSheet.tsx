@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useCreateSavingsGoal, useDeleteSavingsGoal, useUpdateSavingsGoal } from '../../hooks/queries'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, SavingsGoalRow } from '../../types/database.types'
+import { confirmDialog } from '../../lib/dialog'
 
 interface Props {
   accounts: AccountRow[]
@@ -47,7 +48,8 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
   }
 
   async function handleDelete() {
-    if (!goal || !window.confirm('Xóa mục tiêu này?')) return
+    if (!goal) return
+    if (!(await confirmDialog({ title: 'Xóa mục tiêu này?', danger: true, confirmLabel: 'Xóa' }))) return
     setSaving(true)
     try {
       await del.mutateAsync(goal.id)
@@ -97,12 +99,12 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
         />
 
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-          Hạn hoàn thành <span className="text-gray-400 dark:text-gray-500">(không bắt buộc)</span>
+          Hạn hoàn thành <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>
         </label>
         <input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className={`mb-3 ${field}`} />
 
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-          Ghi chú <span className="text-gray-400 dark:text-gray-500">(không bắt buộc)</span>
+          Ghi chú <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>
         </label>
         <input value={note} onChange={(e) => setNote(e.target.value)} className={`mb-4 ${field}`} />
 

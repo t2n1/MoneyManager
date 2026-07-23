@@ -140,7 +140,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           className="mb-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 outline-green-500"
         />
 
-        <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
           Không đổi được loại tiền của khoản nợ đã tạo.
         </p>
 

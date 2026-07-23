@@ -58,7 +58,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
         <h2 className="mb-1 text-base font-bold text-gray-800 dark:text-gray-100">
           Cập nhật giá trị
         </h2>
-        <p className="mb-3 text-xs text-gray-400 dark:text-gray-500">
+        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
           {account.name} · giá trị thị trường hiện tại ({CURRENCIES[currency].label})
         </p>
 
@@ -87,7 +87,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
         />
 
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-          Ghi chú <span className="text-gray-400 dark:text-gray-500">(không bắt buộc)</span>
+          Ghi chú <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>
         </label>
         <input
           value={note}
@@ -95,7 +95,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
           placeholder="Ví dụ: theo giá đóng cửa"
           className="mb-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
         />
-        <p className="mb-3 text-xs text-gray-400 dark:text-gray-500">
+        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
           Chỉ ghi nhận giá trị — không tạo giao dịch, không đổi báo cáo thu/chi. Chênh lệch
           so với vốn gốc là lãi/lỗ chưa thực hiện.
         </p>

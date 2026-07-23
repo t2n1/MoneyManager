@@ -99,7 +99,7 @@ export function CalendarView({
     <div className="flex flex-col gap-3">
       <div className="rounded-xl bg-white dark:bg-gray-900 p-2 shadow-sm">
         {/* Nhãn thứ */}
-        <div className="grid grid-cols-7 text-center text-[11px] font-medium text-gray-400 dark:text-gray-500">
+        <div className="grid grid-cols-7 text-center text-[11px] font-medium text-gray-500 dark:text-gray-400">
           {WEEKDAYS_SHORT.map((w, i) => (
             <div key={w} className={`py-1 ${i === 0 ? 'text-red-400' : ''}`}>
               {w}
@@ -164,7 +164,7 @@ export function CalendarView({
             </span>
           </div>
           {selectedTxs.length === 0 ? (
-            <p className="rounded-xl bg-white dark:bg-gray-900 py-6 text-center text-sm text-gray-400 dark:text-gray-500 shadow-sm">
+            <p className="rounded-xl bg-white dark:bg-gray-900 py-6 text-center text-sm text-gray-500 dark:text-gray-400 shadow-sm">
               Không có giao dịch ngày này
             </p>
           ) : (

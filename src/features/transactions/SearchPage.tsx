@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronUp, Search, X } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
 import type { TxFilter } from '../../data'
 import { useAccounts, useCategories, useRates, useSearchTransactions } from '../../hooks/queries'
@@ -114,7 +114,7 @@ export function SearchPage() {
     list.includes(id) ? list.filter((x) => x !== id) : [...list, id]
 
   const chip = (active: boolean) =>
-    `rounded-full px-3 py-1 text-xs font-medium transition ${
+    `rounded-full px-3 py-2.5 text-xs font-medium transition ${
       active ? 'bg-green-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 shadow-sm'
     }`
 
@@ -124,7 +124,7 @@ export function SearchPage() {
       <div className="mb-3 flex items-center gap-2">
         <Link
           to="/transactions"
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >
           <ChevronLeft className="h-5 w-5" />
@@ -133,7 +133,7 @@ export function SearchPage() {
       </div>
 
       {/* Ô tìm ghi chú */}
-      <div className="mb-2 flex items-center gap-2 rounded-xl bg-white dark:bg-gray-900 px-3 py-2 shadow-sm">
+      <div className="mb-2 flex items-center gap-2 rounded-xl bg-white dark:bg-gray-900 px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-green-500">
         <Search className="h-5 w-5 text-gray-400 dark:text-gray-500" />
         <input
           value={text}
@@ -142,7 +142,7 @@ export function SearchPage() {
           className="flex-1 text-sm text-gray-800 dark:text-gray-100 outline-none"
         />
         {text && (
-          <button type="button" onClick={() => setText('')} className="text-gray-400 dark:text-gray-500" aria-label="Xóa">
+          <button type="button" onClick={() => setText('')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-gray-400 dark:text-gray-500" aria-label="Xóa">
             <X className="h-5 w-5" />
           </button>
         )}
@@ -186,9 +186,10 @@ export function SearchPage() {
       <button
         type="button"
         onClick={() => setShowMore((v) => !v)}
-        className="mb-2 text-xs font-medium text-green-700 dark:text-green-400"
+        className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400"
       >
-        {showMore ? 'Ẩn bộ lọc ▲' : 'Lọc theo danh mục / tài khoản ▼'}
+        {showMore ? 'Ẩn bộ lọc' : 'Lọc theo danh mục / tài khoản'}
+        {showMore ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
       {showMore && (
         <div className="mb-3 space-y-3 rounded-xl bg-gray-100 dark:bg-gray-800 p-3">
@@ -282,7 +283,7 @@ export function SearchPage() {
         </div>
       )}
       {days.length === 0 && !isLoading ? (
-        <p className="py-10 text-center text-gray-400 dark:text-gray-500">Không có giao dịch khớp bộ lọc</p>
+        <p className="py-10 text-center text-gray-500 dark:text-gray-400">Không có giao dịch khớp bộ lọc</p>
       ) : (
         days.map(([day, txs]) => (
           <section key={day} className="mb-3">

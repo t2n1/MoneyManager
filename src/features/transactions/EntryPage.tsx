@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, TriangleAlert } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, TriangleAlert } from 'lucide-react'
 import {
   useBudgetAlert,
   useCategories,
   useCreateCategory,
   useCreateDebt,
+  useCreateDebtPayment,
   useCreateRecurringRule,
   useCreateTransaction,
+  useDebts,
   useDeleteTransaction,
   useRunRecurringCatchUp,
 } from '../../hooks/queries'
@@ -22,8 +24,10 @@ export function EntryPage() {
   const create = useCreateTransaction()
   const del = useDeleteTransaction()
   const createDebt = useCreateDebt()
+  const createDebtPayment = useCreateDebtPayment()
   const createCat = useCreateCategory()
   const { data: categories = [] } = useCategories()
+  const { data: debts = [] } = useDebts()
   const createRule = useCreateRecurringRule()
   const catchUp = useRunRecurringCatchUp()
   const { overCount } = useBudgetAlert()
@@ -32,7 +36,7 @@ export function EntryPage() {
   const initialType: TransactionType | undefined =
     qType === 'income' || qType === 'expense' ? qType : undefined
   const initialRole = parseRoleParam(searchParams.get('role'))
-  const [toast, setToast] = useState<{ text: string; undoId?: string } | null>(null)
+  const [toast, setToast] = useState<{ text: string; undoId?: string; ok?: boolean } | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => () => clearTimeout(toastTimer.current), [])
@@ -50,9 +54,11 @@ export function EntryPage() {
     const deps: RoleSaveDeps = {
       createTransaction: (i) => create.mutateAsync(i),
       createDebt: (i) => createDebt.mutateAsync(i),
+      createDebtPayment: (i) => createDebtPayment.mutateAsync(i),
       deleteTransaction: (id) => del.mutateAsync(id),
       createCategory: (i) => createCat.mutateAsync(i),
       categories,
+      debts,
     }
     if (payload.role === 'split') await saveSplit(payload.base, payload.value, deps)
     else if (payload.role === 'debt') await saveDebtEntry(payload.base, payload.value, deps)
@@ -79,7 +85,8 @@ export function EntryPage() {
           to="/reports?view=budget"
           className="mb-2 flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-900/30 px-3 py-2 text-xs font-medium text-red-700 dark:text-red-400"
         >
-          <TriangleAlert className="h-4 w-4" /> {overCount} danh mục vượt ngân sách tháng này — xem chi tiết ›
+          <TriangleAlert className="h-4 w-4" /> {overCount} danh mục vượt ngân sách tháng này — xem chi tiết
+          <ChevronRight className="inline h-4 w-4" />
         </Link>
       )}
       <TransactionForm
@@ -99,7 +106,7 @@ export function EntryPage() {
         // Tiếp tục: ghi giao dịch, hiện toast (kèm hoàn tác) rồi ở lại nhập tiếp
         onContinue={async (values) => {
           const row = await create.mutateAsync(values)
-          setToast({ text: 'Đã lưu ✓', undoId: row.id })
+          setToast({ text: 'Đã lưu', undoId: row.id, ok: true })
           clearTimeout(toastTimer.current)
           toastTimer.current = setTimeout(() => setToast(null), 5000)
         }}
@@ -107,7 +114,7 @@ export function EntryPage() {
         onSubmitRecurring={async (rule) => {
           await createRule.mutateAsync(rule)
           await catchUp.mutateAsync()
-          setToast({ text: 'Đã tạo quy tắc định kỳ ✓' })
+          setToast({ text: 'Đã tạo quy tắc định kỳ', ok: true })
           clearTimeout(toastTimer.current)
           toastTimer.current = setTimeout(() => {
             setToast(null)
@@ -118,7 +125,10 @@ export function EntryPage() {
       {toast && (
         <div className="fixed inset-x-0 top-4 z-50 flex justify-center">
           <div className="flex items-center gap-3 rounded-full bg-gray-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg">
-            <span>{toast.text}</span>
+            <span className="flex items-center gap-1.5">
+              {toast.ok && <Check className="h-4 w-4" />}
+              {toast.text}
+            </span>
             {toast.undoId && (
               <button
                 type="button"

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react'
 import { useDebtPayments, useDebts, useRates } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney } from '../../lib/money'
 import type { DebtRow } from '../../types/database.types'
-import { debtSummary, remainingOf } from './aggregate'
+import { debtSummary, disbursedOf, remainingOf } from './aggregate'
 
 export function DebtsPage() {
   const { data: debts = [], isLoading } = useDebts()
@@ -46,20 +46,20 @@ export function DebtsPage() {
       {/* Tổng quan quy đổi base */}
       <div className="mb-4 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
-          <p className="text-xs font-medium text-gray-400 dark:text-gray-500">Mình nợ</p>
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Mình nợ</p>
           <p className="mt-1 text-lg font-bold tabular-nums text-red-600 dark:text-red-400">
             {isLoading ? '…' : `${approx}${formatMoney(summary.iOwe, base)}`}
           </p>
         </div>
         <div className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
-          <p className="text-xs font-medium text-gray-400 dark:text-gray-500">Cho vay</p>
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Cho vay</p>
           <p className="mt-1 text-lg font-bold tabular-nums text-green-600 dark:text-green-400">
             {isLoading ? '…' : `${approx}${formatMoney(summary.owedToMe, base)}`}
           </p>
         </div>
       </div>
       {summary.hasOpen && (
-        <p className="-mt-2 mb-4 px-1 text-xs text-gray-400 dark:text-gray-500">
+        <p className="-mt-2 mb-4 px-1 text-xs text-gray-500 dark:text-gray-400">
           {summary.net < 0 ? 'Nợ ròng' : 'Cho vay ròng'} {approx}
           {formatMoney(Math.abs(summary.net), base)} · quy đổi {CURRENCIES[base].label}
           {summary.hasMissingRate && ' · một phần chưa có tỷ giá'}
@@ -86,9 +86,10 @@ export function DebtsPage() {
           <button
             type="button"
             onClick={() => setShowSettled((v) => !v)}
-            className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400"
+            className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
           >
-            {showSettled ? 'Ẩn đã tất toán ▲' : `Đã tất toán (${settled.length}) ▼`}
+            {showSettled ? 'Ẩn đã tất toán' : `Đã tất toán (${settled.length})`}
+            {showSettled ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
           {showSettled && (
             <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
@@ -101,10 +102,10 @@ export function DebtsPage() {
                   <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300 line-through">
                     {d.counterparty}
                   </span>
-                  <span className="shrink-0 text-xs tabular-nums text-gray-400 dark:text-gray-500">
-                    {formatMoney(d.principal, d.currency)}
+                  <span className="shrink-0 text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                    {formatMoney(disbursedOf(d, payments), d.currency)}
                   </span>
-                  <span className="shrink-0 text-gray-300 dark:text-gray-600">›</span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
                 </Link>
               ))}
             </div>
@@ -126,13 +127,14 @@ interface SectionProps {
 function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionProps) {
   return (
     <section className="mb-4">
-      <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+      <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         {title}
       </h2>
       <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
         {debts.map((d) => {
           const remaining = Math.max(remainingOf(d, payments), 0)
-          const paidRatio = d.principal > 0 ? 1 - remaining / d.principal : 0
+          const disbursed = disbursedOf(d, payments)
+          const paidRatio = disbursed > 0 ? 1 - remaining / disbursed : 0
           const overdue = isOverdue(d)
           return (
             <Link
@@ -143,7 +145,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
               <div className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100">
                   {d.counterparty}
-                  {d.note && <span className="ml-1 text-xs font-normal text-gray-400 dark:text-gray-500">· {d.note}</span>}
+                  {d.note && <span className="ml-1 text-xs font-normal text-gray-500 dark:text-gray-400">· {d.note}</span>}
                 </span>
                 <span
                   className={`shrink-0 text-sm font-semibold tabular-nums ${
@@ -152,7 +154,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
                 >
                   {formatMoney(remaining, d.currency)}
                 </span>
-                <span className="shrink-0 text-gray-300 dark:text-gray-600">›</span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
               </div>
               <div className="mt-1.5 flex items-center gap-2">
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
@@ -161,12 +163,12 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
                     style={{ width: `${Math.min(Math.max(paidRatio * 100, 0), 100)}%` }}
                   />
                 </div>
-                <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
-                  gốc {formatMoney(d.principal, d.currency)}
+                <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                  gốc {formatMoney(disbursed, d.currency)}
                 </span>
                 {d.due_on && (
                   <span
-                    className={`shrink-0 rounded px-1 text-[10px] ${
+                    className={`shrink-0 rounded px-1 text-xs ${
                       overdue ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
                     }`}
                   >
@@ -178,7 +180,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
           )
         })}
         {debts.length === 0 && (
-          <p className="px-3 py-6 text-center text-sm text-gray-400 dark:text-gray-500">
+          <p className="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
             {loading ? 'Đang tải…' : emptyLabel}
           </p>
         )}

@@ -5,6 +5,7 @@ import { ChevronRight, Database, Handshake, Landmark, Layers, Repeat, Tags, User
 import { resetDemoData } from '../../data/demoRepo'
 import { useProfile } from '../../hooks/queries'
 import { isDemoMode } from '../../lib/demo'
+import { confirmDialog } from '../../lib/dialog'
 import { getSupabase } from '../../lib/supabase'
 import { ProfileEditSheet } from './ProfileEditSheet'
 import { ThemeToggle } from './ThemeToggle'
@@ -28,8 +29,16 @@ export function SettingsPage() {
           </p>
           <button
             type="button"
-            onClick={() => {
-              if (!window.confirm('Xóa toàn bộ dữ liệu demo và seed lại từ đầu?')) return
+            onClick={async () => {
+              if (
+                !(await confirmDialog({
+                  title: 'Xóa toàn bộ dữ liệu demo?',
+                  message: 'Sẽ seed lại từ đầu.',
+                  danger: true,
+                  confirmLabel: 'Xóa & seed lại',
+                }))
+              )
+                return
               resetDemoData()
               qc.clear()
               navigate('/')
@@ -97,7 +106,7 @@ export function SettingsPage() {
           <Database className="h-5 w-5 text-gray-500 dark:text-gray-400" />
           <span className="flex-1">
             <span className="block">Dữ liệu &amp; sao lưu</span>
-            <span className="block text-xs text-gray-400 dark:text-gray-500">
+            <span className="block text-xs text-gray-500 dark:text-gray-400">
               Xuất CSV / PDF · Sao lưu, khôi phục · Nhập CSV
             </span>
           </span>
@@ -114,7 +123,7 @@ export function SettingsPage() {
           <UserRound className="h-5 w-5 text-gray-500 dark:text-gray-400" />
           <span className="flex-1">
             <span className="block text-sm text-gray-800 dark:text-gray-100">{profile?.display_name ?? '—'}</span>
-            <span className="block text-xs text-gray-400 dark:text-gray-500">
+            <span className="block text-xs text-gray-500 dark:text-gray-400">
               Tháng bắt đầu ngày {profile?.month_start_day ?? 1} · Tiền gốc {profile?.base_currency ?? '—'}
             </span>
           </span>
@@ -124,8 +133,12 @@ export function SettingsPage() {
           <div className="border-t border-gray-100 px-3 py-3 dark:border-gray-800">
             <button
               type="button"
-              onClick={() => getSupabase().auth.signOut()}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+              onClick={async () => {
+                if (await confirmDialog({ title: 'Đăng xuất?', confirmLabel: 'Đăng xuất', danger: true })) {
+                  await getSupabase().auth.signOut()
+                }
+              }}
+              className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
             >
               Đăng xuất
             </button>
@@ -133,7 +146,7 @@ export function SettingsPage() {
         )}
       </section>
 
-      <p className="text-center text-xs text-gray-400 dark:text-gray-500">
+      <p className="text-center text-xs text-gray-500 dark:text-gray-400">
         Sổ Chi Tiêu · Giai đoạn 1 (MVP)
         {profile && ` · Tháng bắt đầu ngày ${profile.month_start_day} · Quy đổi ${profile.base_currency}`}
       </p>

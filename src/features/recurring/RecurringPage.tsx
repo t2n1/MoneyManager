@@ -12,6 +12,7 @@ import {
   useUpdateRecurringRule,
 } from '../../hooks/queries'
 import { addDaysISO, toISODate } from '../../lib/dates'
+import { confirmDialog, showToast } from '../../lib/dialog'
 import { formatMoney } from '../../lib/money'
 import { nextDueDate, type RecurringFrequency } from '../../lib/recurring'
 import { detectRecurring, ruleKey, type RecurringSuggestion } from '../../lib/recurringRadar'
@@ -121,7 +122,7 @@ export function RecurringPage() {
         end_on: null,
       })
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : 'Thao tac that bai, thu lai.')
+      showToast(e instanceof Error ? e.message : 'Thao tác thất bại, thử lại.', 'error')
     }
   }
 
@@ -141,16 +142,24 @@ export function RecurringPage() {
         await update.mutateAsync({ id: rule.id, patch: { is_paused: true } })
       }
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : 'Thao tac that bai, thu lai.')
+      showToast(e instanceof Error ? e.message : 'Thao tác thất bại, thử lại.', 'error')
     }
   }
 
   async function handleDelete(rule: RecurringRuleRow) {
-    if (!window.confirm('Xóa quy tắc định kỳ này? Giao dịch đã sinh vẫn được giữ lại.')) return
+    if (
+      !(await confirmDialog({
+        title: 'Xóa quy tắc định kỳ này?',
+        message: 'Giao dịch đã sinh vẫn được giữ lại.',
+        danger: true,
+        confirmLabel: 'Xóa',
+      }))
+    )
+      return
     try {
       await del.mutateAsync(rule.id)
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : 'Thao tac that bai, thu lai.')
+      showToast(e instanceof Error ? e.message : 'Thao tác thất bại, thử lại.', 'error')
     }
   }
 
@@ -195,7 +204,7 @@ export function RecurringPage() {
                   <div className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-gray-800 dark:text-gray-100">
                       {cat?.name ?? '?'}
-                      {s.note && <span className="text-gray-400 dark:text-gray-500"> · {s.note}</span>}
+                      {s.note && <span className="text-gray-500 dark:text-gray-400"> · {s.note}</span>}
                     </span>
                     <span className="block text-xs text-gray-500 dark:text-gray-400">
                       {formatMoney(s.amount, acc?.currency ?? 'JPY')} ·{' '}
@@ -213,7 +222,7 @@ export function RecurringPage() {
                     type="button"
                     onClick={() => dismissSuggestion(s.key)}
                     aria-label="Bỏ qua gợi ý"
-                    className="shrink-0 rounded p-1 text-green-700/60 hover:text-green-700 dark:text-green-300/60"
+                    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-green-700/60 hover:text-green-700 dark:text-green-300/60"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -225,9 +234,9 @@ export function RecurringPage() {
       )}
 
       {isLoading ? (
-        <p className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">Đang tải…</p>
+        <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Đang tải…</p>
       ) : rules.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-400 dark:text-gray-500">
+        <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
           Chưa có quy tắc nào. Thêm ở đây hoặc chọn "Lặp lại" khi nhập giao dịch.
         </p>
       ) : (
@@ -258,10 +267,10 @@ export function RecurringPage() {
                       ? `${acc?.name ?? '?'} → ${accountOf(rule.to_account_id)?.name ?? '?'}`
                       : (cat?.name ?? '?')}
                     {rule.note && (
-                      <span className="text-gray-400 dark:text-gray-500"> · {rule.note}</span>
+                      <span className="text-gray-500 dark:text-gray-400"> · {rule.note}</span>
                     )}
                   </span>
-                  <span className="block text-xs text-gray-400 dark:text-gray-500">
+                  <span className="block text-xs text-gray-500 dark:text-gray-400">
                     {scheduleLabel(rule)} ·{' '}
                     {rule.is_paused ? 'Tạm dừng' : next ? `kỳ tới ${fmtDate(next)}` : 'Đã kết thúc'}
                   </span>
@@ -273,17 +282,17 @@ export function RecurringPage() {
                   type="button"
                   onClick={() => togglePause(rule)}
                   aria-label={rule.is_paused ? 'Chạy lại' : 'Tạm dừng'}
-                  className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-800"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-800"
                 >
-                  {rule.is_paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                  {rule.is_paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDelete(rule)}
                   aria-label="Xóa"
-                  className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-800"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-800"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-5 w-5" />
                 </button>
               </div>
             )

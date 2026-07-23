@@ -93,7 +93,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-1 text-base font-bold text-gray-800 dark:text-gray-100">Ghi nhận trả</h2>
-        <p className="mb-3 text-xs text-gray-400 dark:text-gray-500">
+        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
           {debt.direction === 'i_owe' ? 'Mình trả' : 'Người ta trả'} · {debt.counterparty} · còn{' '}
           {formatMoney(Math.max(remaining, 0), debt.currency)}
         </p>
@@ -124,7 +124,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           <label className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
             <span>
               Có chuyển tiền thật
-              <span className="block text-xs text-gray-400 dark:text-gray-500">
+              <span className="block text-xs text-gray-500 dark:text-gray-400">
                 {debt.direction === 'i_owe' ? 'Tạo giao dịch chi (trừ số dư)' : 'Tạo giao dịch thu (cộng số dư)'}
               </span>
             </span>

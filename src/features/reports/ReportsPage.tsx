@@ -169,7 +169,7 @@ export function ReportsPage() {
               ? setMonthKey((k) => addMonths(k ?? activeMonthKey, -1))
               : setYear((y) => (y ?? activeYear) - 1)
           }
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label={period === 'month' ? 'Tháng trước' : 'Năm trước'}
         >
           <ChevronLeft className="h-5 w-5" />
@@ -184,7 +184,7 @@ export function ReportsPage() {
               ? setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))
               : setYear((y) => (y ?? activeYear) + 1)
           }
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label={period === 'month' ? 'Tháng sau' : 'Năm sau'}
         >
           <ChevronRight className="h-5 w-5" />
@@ -196,14 +196,14 @@ export function ReportsPage() {
         <button
           type="button"
           onClick={() => setPeriod('month')}
-          className={`flex-1 rounded-md py-1.5 ${period === 'month' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+          className={`flex-1 rounded-md py-2.5 ${period === 'month' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
           Tháng
         </button>
         <button
           type="button"
           onClick={() => setPeriod('year')}
-          className={`flex-1 rounded-md py-1.5 ${period === 'year' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+          className={`flex-1 rounded-md py-2.5 ${period === 'year' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
           Năm
         </button>
@@ -215,21 +215,21 @@ export function ReportsPage() {
           <button
             type="button"
             onClick={() => setView('charts')}
-            className={`flex-1 rounded-md py-1.5 ${view === 'charts' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+            className={`flex-1 rounded-md py-2.5 ${view === 'charts' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
           >
             Biểu đồ
           </button>
           <button
             type="button"
             onClick={() => setView('insights')}
-            className={`flex-1 rounded-md py-1.5 ${view === 'insights' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+            className={`flex-1 rounded-md py-2.5 ${view === 'insights' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
           >
             Thấu hiểu
           </button>
           <button
             type="button"
             onClick={() => setView('budget')}
-            className={`flex-1 rounded-md py-1.5 ${view === 'budget' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+            className={`flex-1 rounded-md py-2.5 ${view === 'budget' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
           >
             Ngân sách
           </button>

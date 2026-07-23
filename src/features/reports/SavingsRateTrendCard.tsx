@@ -57,7 +57,7 @@ export function SavingsRateTrendCard({ series, labelOf }: Props) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <p className="mt-1 text-center text-[11px] text-gray-400 dark:text-gray-500">
+      <p className="mt-1 text-center text-[11px] text-gray-500 dark:text-gray-400">
         Phần thu nhập giữ lại được mỗi tháng
       </p>
     </section>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Plus, Send, Trash2 } from 'lucide-react'
 import { useDeleteTransaction } from '../../hooks/queries'
 import { formatMoney } from '../../lib/money'
+import { confirmDialog } from '../../lib/dialog'
 import type { TransactionRow } from '../../types/database.types'
 import { remittanceStats } from './aggregate'
 
@@ -19,8 +20,16 @@ export function RemittanceSection({ txs, year }: { txs: TransactionRow[]; year: 
     [txs],
   )
 
-  function handleDelete(t: TransactionRow) {
-    if (!window.confirm('Xóa lần gửi này? Số dư tài khoản sẽ được hoàn lại.')) return
+  async function handleDelete(t: TransactionRow) {
+    if (
+      !(await confirmDialog({
+        title: 'Xóa lần gửi này?',
+        message: 'Số dư tài khoản sẽ được hoàn lại.',
+        danger: true,
+        confirmLabel: 'Xóa',
+      }))
+    )
+      return
     del.mutate(t.id)
   }
 

@@ -140,41 +140,102 @@ export function DebtDetailInputs({
   )
 }
 
+/** Người đã cho vay/nợ (khoản đang mở) — để gợi ý cộng dồn ở form Nhập. */
+export interface DebtPerson {
+  id: string
+  name: string
+  currency: CurrencyCode
+  /** số còn lại (minor units theo currency của khoản) */
+  remaining: number
+}
+
 /**
  * Ghi nợ / cho vay: tên đối tác + toggle chuyển tiền thật + (thêm) hạn/lãi/kỳ.
  * Chiều (Mình nợ / Cho vay) do form quản lý qua segmented. Loại tiền = tài khoản gốc.
+ * Chọn người đã có → cộng dồn vào khoản đang mở của họ (không tạo người trùng tên).
  */
 export function DebtFields({
   value,
   onChange,
   canRecordReal,
+  people,
 }: {
   value: DebtValue
   onChange: (v: DebtValue) => void
   /** Có tài khoản + danh mục phù hợp để tạo giao dịch thật không. */
   canRecordReal: boolean
+  /** Người đã cho vay/nợ (khoản đang mở, cùng chiều) — chọn để cộng dồn. */
+  people: DebtPerson[]
 }) {
   const [showMore, setShowMore] = useState(false)
   const realOn = canRecordReal && value.withTransaction
+  const selected = value.existingDebtId
+    ? people.find((p) => p.id === value.existingDebtId) ?? null
+    : null
   return (
     <div className={blockCls}>
+      {people.length > 0 && (
+        <div>
+          <label className={labelCls}>
+            {value.direction === 'i_owe' ? 'Chủ nợ đã có (cộng dồn)' : 'Người đã cho vay (cộng dồn)'}
+          </label>
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {people.map((p) => {
+              const active = value.existingDebtId === p.id
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    onChange(
+                      active
+                        ? { ...value, existingDebtId: null, counterparty: '' }
+                        : { ...value, existingDebtId: p.id, counterparty: p.name },
+                    )
+                  }
+                  className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${
+                    active
+                      ? 'border-green-600 bg-green-600 text-white'
+                      : 'border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200'
+                  }`}
+                >
+                  <span className="max-w-[9rem] truncate">{p.name}</span>
+                  <span className={`text-xs tabular-nums ${active ? 'text-white/80' : 'text-gray-400'}`}>
+                    {formatMoney(p.remaining, p.currency)}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div>
         <label className={labelCls}>
           {value.direction === 'i_owe' ? 'Chủ nợ (mình nợ ai)' : 'Con nợ (ai nợ mình)'}
         </label>
         <input
           value={value.counterparty}
-          onChange={(e) => onChange({ ...value, counterparty: e.target.value })}
+          onChange={(e) =>
+            // Gõ tay → bỏ liên kết người đã chọn (vẫn tự cộng dồn nếu trùng tên khi lưu).
+            onChange({ ...value, counterparty: e.target.value, existingDebtId: null })
+          }
           placeholder="Tên người / công ty"
           className={inputCls}
         />
+        {selected && (
+          <p className="mt-1 text-xs text-green-700 dark:text-green-400">
+            Cộng dồn vào khoản đang mở · còn lại {formatMoney(selected.remaining, selected.currency)}
+          </p>
+        )}
       </div>
 
       <div className="rounded-lg bg-white/70 p-2.5 dark:bg-gray-900/50">
         <label className="flex items-center justify-between gap-2 text-sm text-gray-700 dark:text-gray-300">
           <span>
             Có chuyển tiền thật
-            <span className="block text-xs text-gray-400 dark:text-gray-500">
+            <span className="block text-xs text-gray-500 dark:text-gray-400">
               {value.direction === 'owed_to_me'
                 ? 'Tạo giao dịch chi (trừ số dư tài khoản)'
                 : 'Tạo giao dịch thu (cộng số dư tài khoản)'}
@@ -205,21 +266,26 @@ export function DebtFields({
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={() => setShowMore((v) => !v)}
-        className="flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
-      >
-        <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
-        {showMore ? 'Ẩn bớt' : 'Thêm chi tiết (hạn, lãi suất)'}
-      </button>
-      {showMore && (
-        <DebtDetailInputs
-          dueOn={value.dueOn}
-          interestPct={value.interestPct}
-          termMonths={value.termMonths}
-          onChange={(patch) => onChange({ ...value, ...patch })}
-        />
+      {/* Cộng dồn → hạn/lãi lấy theo khoản cũ, không nhập lại. */}
+      {!selected && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowMore((v) => !v)}
+            className="flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
+          >
+            <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
+            {showMore ? 'Ẩn bớt' : 'Thêm chi tiết (hạn, lãi suất)'}
+          </button>
+          {showMore && (
+            <DebtDetailInputs
+              dueOn={value.dueOn}
+              interestPct={value.interestPct}
+              termMonths={value.termMonths}
+              onChange={(patch) => onChange({ ...value, ...patch })}
+            />
+          )}
+        </>
       )}
     </div>
   )
@@ -292,7 +358,7 @@ export function RemitFields({
         </div>
       </div>
       {rate > 0 && (
-        <p className="text-right text-xs text-gray-400 dark:text-gray-500">
+        <p className="text-right text-xs text-gray-500 dark:text-gray-400">
           Tỷ giá: 1 ¥ ≈ {rate.toFixed(1)} ₫
         </p>
       )}

@@ -36,11 +36,11 @@ export function TransactionItem({ tx, categoryOf, accountOf, base, onClick }: Pr
           {tx.type === 'transfer'
             ? `${accountName(tx.account_id)} → ${accountName(tx.to_account_id)}`
             : (cat?.name ?? '?')}
-          {tx.note && <span className="text-gray-400 dark:text-gray-500"> · {tx.note}</span>}
+          {tx.note && <span className="text-gray-500 dark:text-gray-400"> · {tx.note}</span>}
           {tx.recurring_rule_id && (
             <Repeat
               aria-label="Giao dịch định kỳ"
-              className="ml-1 inline h-3 w-3 align-baseline text-gray-400 dark:text-gray-500"
+              className="ml-1 inline h-3 w-3 align-baseline text-gray-500 dark:text-gray-400"
             />
           )}
           {tx.is_debt_flow && (
@@ -51,14 +51,14 @@ export function TransactionItem({ tx, categoryOf, accountOf, base, onClick }: Pr
           )}
         </span>
         {tx.type !== 'transfer' && (
-          <span className="block text-xs text-gray-400 dark:text-gray-500">{accountName(tx.account_id)}</span>
+          <span className="block text-xs text-gray-500 dark:text-gray-400">{accountName(tx.account_id)}</span>
         )}
       </span>
       <span className={`text-right text-sm font-semibold ${style.color}`}>
         {style.sign}
         {formatMoney(tx.amount, srcCur)}
         {tx.to_amount != null && (
-          <span className="block text-xs font-normal text-gray-400 dark:text-gray-500">
+          <span className="block text-xs font-normal text-gray-500 dark:text-gray-400">
             → +{formatMoney(tx.to_amount, dstCur)}
           </span>
         )}

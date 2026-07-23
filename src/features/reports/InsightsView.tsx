@@ -191,7 +191,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
             <div
               className={`text-lg font-bold ${
                 rate === null
-                  ? 'text-gray-400 dark:text-gray-500'
+                  ? 'text-gray-500 dark:text-gray-400'
                   : rate >= 0
                     ? 'text-green-600 dark:text-green-400'
                     : 'text-red-600 dark:text-red-400'
@@ -245,7 +245,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
                   </p>
                 )
               ) : (
-                <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                   Đặt ngân sách tháng để so sánh với dự báo.
                 </p>
               )}
@@ -338,7 +338,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
       )}
 
       {!hasAny && (
-        <p className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">Chưa đủ dữ liệu để phân tích.</p>
+        <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">Chưa đủ dữ liệu để phân tích.</p>
       )}
     </div>
   )

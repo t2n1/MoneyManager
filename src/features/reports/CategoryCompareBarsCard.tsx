@@ -69,7 +69,7 @@ export function CategoryCompareBarsCard({ rows, categories, base, limit = 8 }: P
           )
         })}
       </ul>
-      <div className="mt-3 flex items-center justify-end gap-3 text-[10px] text-gray-400 dark:text-gray-500">
+      <div className="mt-3 flex items-center justify-end gap-3 text-[10px] text-gray-500 dark:text-gray-400">
         <span className="flex items-center gap-1">
           <span className="h-2 w-3 rounded-sm bg-sky-500" /> Tháng này
         </span>

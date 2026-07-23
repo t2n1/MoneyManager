@@ -5,12 +5,33 @@ import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { DebtPaymentRow, DebtRow } from '../../types/database.types'
 
-/** Đã trả cho một khoản nợ (minor units theo currency của nợ). */
+/**
+ * Chênh lệch ròng của các bút toán trả (minor units). Lần trả DƯƠNG = trả bớt;
+ * lần trả ÂM = giải ngân thêm (cho vay/vay tiếp cùng người → tăng số còn lại).
+ */
 export function paidOf(debtId: string, payments: DebtPaymentRow[]): number {
   return payments.filter((p) => p.debt_id === debtId).reduce((s, p) => s + p.amount, 0)
 }
 
-/** Còn lại = principal − đã trả (minor units theo currency của nợ). Có thể ≤ 0. */
+/** Tổng đã trả THỰC = chỉ cộng các lần trả dương (bỏ qua lần giải ngân thêm). */
+export function repaidOf(debtId: string, payments: DebtPaymentRow[]): number {
+  return payments
+    .filter((p) => p.debt_id === debtId && p.amount > 0)
+    .reduce((s, p) => s + p.amount, 0)
+}
+
+/**
+ * Tổng đã cho vay/vay = gốc ban đầu + các lần giải ngân thêm (lần trả âm).
+ * Dùng làm "gốc" hiển thị khi một người được cộng dồn nhiều lần.
+ */
+export function disbursedOf(debt: DebtRow, payments: DebtPaymentRow[]): number {
+  const advances = payments
+    .filter((p) => p.debt_id === debt.id && p.amount < 0)
+    .reduce((s, p) => s - p.amount, 0)
+  return debt.principal + advances
+}
+
+/** Còn lại = gốc − chênh lệch ròng đã trả (minor units theo currency của nợ). Có thể ≤ 0. */
 export function remainingOf(debt: DebtRow, payments: DebtPaymentRow[]): number {
   return debt.principal - paidOf(debt.id, payments)
 }

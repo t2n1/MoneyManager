@@ -39,7 +39,7 @@ export function SavingsGoalsSection() {
       </div>
 
       {goals.length === 0 ? (
-        <p className="mt-3 text-center text-xs text-gray-400 dark:text-gray-500">
+        <p className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400">
           Chưa có mục tiêu nào. Đặt một đích tiết kiệm để theo dõi tiến độ.
         </p>
       ) : (
@@ -69,7 +69,7 @@ export function SavingsGoalsSection() {
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <div className="mt-1 flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
+                <div className="mt-1 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                   <span className="tabular-nums">
                     {formatMoney(current, currency)} / {formatMoney(g.target_amount, currency)}
                   </span>

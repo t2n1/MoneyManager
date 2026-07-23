@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Banknote, ChevronLeft, ChevronRight, PenLine } from 'lucide-react'
+import { Banknote, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, PenLine } from 'lucide-react'
 import {
   useDebtPayments,
   useDebts,
@@ -10,10 +10,11 @@ import {
   useUpdateDebt,
 } from '../../hooks/queries'
 import { formatMoney } from '../../lib/money'
+import { confirmDialog, showToast } from '../../lib/dialog'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { DebtEditSheet } from './DebtEditSheet'
 import { DebtPaymentSheet } from './DebtPaymentSheet'
-import { paidOf, remainingOf } from './aggregate'
+import { disbursedOf, remainingOf, repaidOf } from './aggregate'
 import { buildSchedule } from './amortization'
 import type { DebtRow } from '../../types/database.types'
 
@@ -38,7 +39,7 @@ export function DebtDetailPage() {
 
   if (!debt) {
     return (
-      <div className="p-6 text-center text-sm text-gray-400 dark:text-gray-500">
+      <div className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">
         {isLoading ? 'Đang tải…' : 'Không tìm thấy khoản nợ.'}
         {!isLoading && (
           <div className="mt-3">
@@ -52,13 +53,21 @@ export function DebtDetailPage() {
   }
 
   const remaining = Math.max(remainingOf(debt, allPayments), 0)
-  const paid = paidOf(debt.id, allPayments)
+  const paid = repaidOf(debt.id, allPayments)
+  const disbursed = disbursedOf(debt, allPayments)
   const isMine = debt.direction === 'i_owe'
   const dirLabel = isMine ? 'Mình nợ' : 'Cho vay'
   const fullyPaid = remaining <= 0
 
   async function handleDelete() {
-    if (!window.confirm(`Xóa khoản nợ "${debt!.counterparty}"? Mọi lần trả liên kết cũng bị xóa.`))
+    if (
+      !(await confirmDialog({
+        title: `Xóa khoản nợ "${debt!.counterparty}"?`,
+        message: 'Mọi lần trả liên kết cũng bị xóa.',
+        danger: true,
+        confirmLabel: 'Xóa',
+      }))
+    )
       return
     await deleteDebt.mutateAsync(debt!.id)
     navigate('/settings/debts')
@@ -73,9 +82,17 @@ export function DebtDetailPage() {
 
   async function handleDeletePayment(id: string, hasTx: boolean) {
     const msg = hasTx
-      ? 'Xóa lần trả này? Giao dịch liên kết cũng bị xóa (số dư tài khoản sẽ hoàn lại).'
-      : 'Xóa lần trả này?'
-    if (!window.confirm(msg)) return
+      ? 'Giao dịch liên kết cũng bị xóa (số dư tài khoản sẽ hoàn lại).'
+      : undefined
+    if (
+      !(await confirmDialog({
+        title: 'Xóa lần trả này?',
+        message: msg,
+        danger: true,
+        confirmLabel: 'Xóa',
+      }))
+    )
+      return
     await deletePayment.mutateAsync(id)
   }
 
@@ -113,14 +130,14 @@ export function DebtDetailPage() {
           {formatMoney(remaining, debt.currency)}
         </p>
         <p className="mt-2 text-xs text-white/80">
-          còn lại · gốc {formatMoney(debt.principal, debt.currency)} · đã trả{' '}
+          còn lại · gốc {formatMoney(disbursed, debt.currency)} · đã trả{' '}
           {formatMoney(paid, debt.currency)}
         </p>
         {debt.due_on && <p className="mt-1 text-xs text-white/80">Hạn: {debt.due_on}</p>}
         {debt.note && <p className="mt-1 text-xs text-white/80">{debt.note}</p>}
       </section>
 
-      {/* Hành động */}
+      {/* Hành động chính */}
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
@@ -136,12 +153,16 @@ export function DebtDetailPage() {
         >
           {debt.status === 'open' ? 'Đánh dấu tất toán' : 'Mở lại'}
         </button>
+      </div>
+
+      {/* Hành động phá hủy — tách riêng khỏi cụm chính để tránh bấm nhầm */}
+      <div className="mt-3 border-t border-gray-100 dark:border-gray-800 pt-3">
         <button
           type="button"
           onClick={handleDelete}
           className="rounded-lg px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
         >
-          Xóa
+          Xóa khoản nợ
         </button>
       </div>
 
@@ -154,23 +175,33 @@ export function DebtDetailPage() {
       {/* Lịch trả góp dự kiến (mục AG) — chỉ khi có lãi suất + số kỳ */}
       <AmortizationSection debt={debt} />
 
-      {/* Lịch sử trả */}
-      <h2 className="mb-2 mt-5 px-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-        Lịch sử trả ({payments.length})
+      {/* Lịch sử trả / cho vay thêm */}
+      <h2 className="mb-2 mt-5 px-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        Lịch sử ({payments.length})
       </h2>
       <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
         {payments.map((p) => {
+          // amount âm = lần giải ngân thêm (cho vay/vay tiếp); dương = trả bớt.
+          const isAdvance = p.amount < 0
+          const advanceLabel = isMine ? 'Vay thêm' : 'Cho vay thêm'
           const info = (
             <>
               {p.transaction_id ? <Banknote className="h-4 w-4" /> : <PenLine className="h-4 w-4" />}
               <div className="min-w-0 flex-1 text-left">
                 <p className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
-                  {formatMoney(p.amount, debt.currency)}
+                  {isAdvance ? (
+                    <span className="text-blue-600 dark:text-blue-400">
+                      + {formatMoney(-p.amount, debt.currency)}
+                      <span className="ml-1 text-[10px] font-normal text-blue-500/80">{advanceLabel}</span>
+                    </span>
+                  ) : (
+                    formatMoney(p.amount, debt.currency)
+                  )}
                   {!p.transaction_id && (
-                    <span className="ml-1 text-[10px] font-normal text-gray-400 dark:text-gray-500">(ghi nhận suông)</span>
+                    <span className="ml-1 text-[10px] font-normal text-gray-500 dark:text-gray-400">(ghi nhận suông)</span>
                   )}
                 </p>
-                <p className="truncate text-xs text-gray-400 dark:text-gray-500">
+                <p className="truncate text-xs text-gray-500 dark:text-gray-400">
                   {p.paid_on}
                   {p.note && ` · ${p.note}`}
                 </p>
@@ -195,7 +226,7 @@ export function DebtDetailPage() {
               <button
                 type="button"
                 onClick={() => handleDeletePayment(p.id, !!p.transaction_id)}
-                className="rounded-lg px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 Xóa
               </button>
@@ -203,7 +234,7 @@ export function DebtDetailPage() {
           )
         })}
         {payments.length === 0 && (
-          <p className="px-3 py-6 text-center text-sm text-gray-400 dark:text-gray-500">Chưa có lần trả nào</p>
+          <p className="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400">Chưa có lần trả nào</p>
         )}
       </div>
 
@@ -225,7 +256,7 @@ function PaymentTxSheet({ txId, onClose }: { txId: string; onClose: () => void }
   const missing = !isLoading && !tx
   useEffect(() => {
     if (missing) {
-      window.alert('Giao dịch liên kết không còn tồn tại (có thể đã bị xóa).')
+      showToast('Giao dịch liên kết không còn tồn tại (có thể đã bị xóa).', 'error')
       onClose()
     }
   }, [missing, onClose])
@@ -250,47 +281,48 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
 
   return (
     <div className="mt-5">
-      <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+      <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         Lịch trả dự kiến
       </h2>
       <div className="rounded-xl bg-white dark:bg-gray-900 p-4 shadow-sm">
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
-            <p className="text-[11px] text-gray-400 dark:text-gray-500">Mỗi kỳ</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">Mỗi kỳ</p>
             <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
               {formatMoney(schedule.monthly, cur)}
             </p>
           </div>
           <div>
-            <p className="text-[11px] text-gray-400 dark:text-gray-500">Tổng lãi</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">Tổng lãi</p>
             <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">
               {formatMoney(schedule.totalInterest, cur)}
             </p>
           </div>
           <div>
-            <p className="text-[11px] text-gray-400 dark:text-gray-500">Tổng phải trả</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">Tổng phải trả</p>
             <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
               {formatMoney(schedule.totalPaid, cur)}
             </p>
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
+        <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
           {(bps! / 100).toString()}%/năm · {term} kỳ · ước tính theo niên kim (thực tế có thể lệch chút)
         </p>
 
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="mt-3 text-xs font-medium text-green-700 dark:text-green-400"
+          className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400"
         >
-          {open ? 'Ẩn chi tiết từng kỳ ▲' : 'Xem chi tiết từng kỳ ▼'}
+          {open ? 'Ẩn chi tiết từng kỳ' : 'Xem chi tiết từng kỳ'}
+          {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
 
         {open && (
           <div className="mt-2 overflow-x-auto">
             <table className="w-full text-right text-xs tabular-nums">
               <thead>
-                <tr className="text-gray-400 dark:text-gray-500">
+                <tr className="text-gray-500 dark:text-gray-400">
                   <th className="py-1 pr-2 text-left font-medium">Kỳ</th>
                   <th className="py-1 px-2 font-medium">Ngày</th>
                   <th className="py-1 px-2 font-medium">Trả</th>

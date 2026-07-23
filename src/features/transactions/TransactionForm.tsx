@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Delete,
   HandCoins,
   type LucideIcon,
   Plus,
@@ -13,11 +16,14 @@ import {
 } from 'lucide-react'
 import type { NewRecurringRule, NewTransaction } from '../../data'
 import { toISODate } from '../../lib/dates'
+import { promptDialog } from '../../lib/dialog'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { RecurringFrequency } from '../../lib/recurring'
 import type { DebtDirection, TransactionRow, TransactionType } from '../../types/database.types'
-import { useAccounts, useCategories } from '../../hooks/queries'
+import { useAccounts, useCategories, useDebtPayments, useDebts } from '../../hooks/queries'
 import { AccountPicker } from '../../components/AccountPicker'
+import { remainingOf } from '../debts/aggregate'
+import type { DebtPerson } from './roleFields'
 import { NumPad, type NumPadKey } from './NumPad'
 import { appendKey, evalExpression, MAX_AMOUNT_DIGITS } from './calc'
 import { parseNl } from './parseNl'
@@ -219,6 +225,10 @@ export function TransactionForm({
   const [remitVal, setRemitVal] = useState<RemitValue>(initialRemit)
   const activeRole: EntryRole = enableRoles ? role : 'none'
 
+  // Người đã cho vay/nợ (khoản đang mở) — nguồn để gợi ý cộng dồn.
+  const { data: allDebts = [] } = useDebts()
+  const { data: allDebtPayments = [] } = useDebtPayments()
+
   // Điền sẵn danh mục lần trước khi categories tải xong (form mới, chưa chọn gì)
   useEffect(() => {
     if (initial || categoryId !== null || type === 'transfer') return
@@ -288,6 +298,26 @@ export function TransactionForm({
   const srcCurrency = activeAccounts.find((a) => a.id === effectiveAccountId)?.currency ?? 'JPY'
   const dstCurrency = activeAccounts.find((a) => a.id === toAccountId)?.currency ?? srcCurrency
   const crossCurrency = type === 'transfer' && !!toAccountId && dstCurrency !== srcCurrency
+
+  // Gợi ý cộng dồn: khoản đang mở cùng chiều + cùng loại tiền với tài khoản đang chọn
+  // (khác loại tiền không cộng dồn được nên không đưa vào danh sách).
+  const debtPeople = useMemo<DebtPerson[]>(() => {
+    if (!enableRoles) return []
+    return allDebts
+      .filter(
+        (d) =>
+          d.status === 'open' &&
+          d.direction === debtVal.direction &&
+          d.currency === srcCurrency &&
+          d.counterparty.trim().length > 0,
+      )
+      .map((d) => ({
+        id: d.id,
+        name: d.counterparty,
+        currency: d.currency,
+        remaining: Math.max(remainingOf(d, allDebtPayments), 0),
+      }))
+  }, [enableRoles, allDebts, allDebtPayments, debtVal.direction, srcCurrency])
 
   // Ghi nợ: có đủ tài khoản + danh mục để tạo giao dịch giải ngân thật không
   const canRecordReal = !!effectiveAccountId && activeOfType.length > 0
@@ -382,10 +412,17 @@ export function TransactionForm({
 
   // Lưu mẫu: chỉ với chi/thu đã đủ số tiền + danh mục
   const canSaveTemplate = type !== 'transfer' && amount > 0 && !!categoryId
-  function saveCurrentAsTemplate() {
+  async function saveCurrentAsTemplate() {
     if (!canSaveTemplate) return
     const suggested = selectedCat?.name ?? note.trim()
-    const label = window.prompt('Đặt tên mẫu (vd "Ăn trưa", "Vé tàu"):', suggested)?.trim()
+    const label = (
+      await promptDialog({
+        title: 'Đặt tên mẫu',
+        placeholder: 'vd "Ăn trưa", "Vé tàu"',
+        defaultValue: suggested,
+        confirmLabel: 'Lưu mẫu',
+      })
+    )?.trim()
     if (!label) return
     addQuickTemplate({
       label,
@@ -435,7 +472,8 @@ export function TransactionForm({
 
   /** Đổi chiều nợ (Mình nợ ↔ Cho vay) → đổi luôn loại giao dịch (thu ↔ chi). */
   function setDebtDirection(dir: DebtDirection) {
-    const next = { ...debtVal, direction: dir }
+    // Đổi chiều → bỏ chọn người cũ (danh sách gợi ý theo chiều nên có thể không còn hợp lệ).
+    const next = { ...debtVal, direction: dir, existingDebtId: null }
     setDebtVal(next)
     setTypeAndCat(roleTxType('debt', next))
   }
@@ -594,7 +632,7 @@ export function TransactionForm({
                 }
               }}
               placeholder='Gõ nhanh, vd "hôm qua trưa 850 yên"'
-              className="min-w-0 flex-1 bg-transparent text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none dark:text-gray-100 dark:placeholder:text-gray-500"
+              className="min-w-0 flex-1 bg-transparent text-sm text-gray-800 placeholder:text-gray-500 focus:outline-none dark:text-gray-100 dark:placeholder:text-gray-400"
               aria-label="Nhập nhanh bằng lời"
             />
             <button
@@ -625,7 +663,7 @@ export function TransactionForm({
                 >
                   <Star className="h-3 w-3 text-amber-400" fill="currentColor" />
                   <span className="max-w-[9rem] truncate">{t.label}</span>
-                  <span className="text-gray-400 dark:text-gray-500">
+                  <span className="text-gray-500 dark:text-gray-400">
                     {formatMoney(t.amountMinor, cur)}
                   </span>
                 </button>
@@ -720,7 +758,7 @@ export function TransactionForm({
               key={tab.value}
               type="button"
               onClick={() => switchType(tab.value)}
-              className={`rounded-lg py-1.5 text-sm font-medium transition ${
+              className={`rounded-lg py-2.5 text-sm font-medium transition ${
                 type === tab.value ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'
               }`}
             >
@@ -740,7 +778,7 @@ export function TransactionForm({
               key={val}
               type="button"
               onClick={() => setDebtDirection(val)}
-              className={`rounded-lg py-1.5 text-sm font-medium transition ${
+              className={`rounded-lg py-2.5 text-sm font-medium transition ${
                 debtVal.direction === val
                   ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
                   : 'text-gray-500 dark:text-gray-400'
@@ -762,7 +800,7 @@ export function TransactionForm({
               key={val}
               type="button"
               onClick={() => setRemitVal({ ...remitVal, kind: val, destId: '' })}
-              className={`rounded-lg py-1.5 text-sm font-medium transition ${
+              className={`rounded-lg py-2.5 text-sm font-medium transition ${
                 remitVal.kind === val
                   ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
                   : 'text-gray-500 dark:text-gray-400'
@@ -887,7 +925,12 @@ export function TransactionForm({
         <SplitFields value={splitVal} onChange={setSplitVal} total={amount} currency={srcCurrency} />
       )}
       {activeRole === 'debt' && (
-        <DebtFields value={debtVal} onChange={setDebtVal} canRecordReal={canRecordReal} />
+        <DebtFields
+          value={debtVal}
+          onChange={setDebtVal}
+          canRecordReal={canRecordReal}
+          people={debtPeople}
+        />
       )}
       {activeRole === 'remit' && (
         <RemitFields
@@ -931,7 +974,7 @@ export function TransactionForm({
               onClick={() => setDrillId(null)}
               className="flex items-center gap-1.5 self-start rounded-lg bg-white dark:bg-gray-900 px-2.5 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 shadow-sm active:scale-95"
             >
-              ‹ <span className="text-base leading-none">{drillParent.icon}</span> {drillParent.name}
+              <ChevronLeft className="h-4 w-4" /> <span className="text-base leading-none">{drillParent.icon}</span> {drillParent.name}
             </button>
             <div className="grid auto-rows-min grid-cols-4 gap-1.5 lg:grid-cols-5">
               {drillChildren.map((c) => (
@@ -944,7 +987,7 @@ export function TransactionForm({
                 />
               ))}
               {drillChildren.length === 0 && (
-                <p className="col-span-full py-4 text-center text-xs text-gray-400 dark:text-gray-500">
+                <p className="col-span-full py-4 text-center text-xs text-gray-500 dark:text-gray-400">
                   Nhóm này chưa có danh mục con
                 </p>
               )}
@@ -987,7 +1030,7 @@ export function TransactionForm({
           aria-label="Xóa"
           className="flex shrink-0 items-center justify-center rounded-xl bg-white dark:bg-gray-800 px-5 text-lg font-semibold text-gray-800 dark:text-gray-100 shadow-sm transition active:scale-95 active:bg-gray-200 lg:hidden"
         >
-          ⌫
+          <Delete className="h-5 w-5" />
         </button>
         {onContinue && repeat === 'none' && activeRole === 'none' ? (
           <>
@@ -1047,7 +1090,9 @@ function CategoryTile({
       <span className="text-xl leading-none">{icon}</span>
       <span className="w-full truncate text-center">{name}</span>
       {hasChildren && (
-        <span className="absolute top-1 right-1 text-[10px] leading-none text-gray-400 dark:text-gray-500">›</span>
+        <span className="absolute top-1 right-1 text-gray-400 dark:text-gray-500">
+          <ChevronRight className="h-3 w-3" />
+        </span>
       )}
     </button>
   )

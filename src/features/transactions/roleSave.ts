@@ -1,5 +1,5 @@
-import type { NewCategory, NewDebt, NewTransaction } from '../../data'
-import type { CategoryRow, DebtRow, TransactionRow } from '../../types/database.types'
+import type { NewCategory, NewDebt, NewDebtPayment, NewTransaction } from '../../data'
+import type { CategoryRow, DebtPaymentRow, DebtRow, TransactionRow } from '../../types/database.types'
 import type { CurrencyCode } from '../../lib/money'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
 
@@ -25,10 +25,13 @@ const GUI_TIEN_CAT = 'Gửi tiền về VN'
 export interface RoleSaveDeps {
   createTransaction: (input: NewTransaction) => Promise<TransactionRow>
   createDebt: (input: NewDebt) => Promise<DebtRow>
+  createDebtPayment: (input: NewDebtPayment) => Promise<DebtPaymentRow>
   deleteTransaction: (id: string) => Promise<unknown>
   createCategory: (input: NewCategory) => Promise<CategoryRow>
   /** Danh mục hiện có — để tìm/tạo "Gửi tiền về VN". */
   categories: { id: string; type: string; name: string }[]
+  /** Các khoản nợ hiện có — để cộng dồn khi cho vay/nợ tiếp cùng một người. */
+  debts: DebtRow[]
 }
 
 /**
@@ -96,6 +99,44 @@ export async function saveDebtEntry(
 ): Promise<void> {
   const counterparty = v.counterparty.trim()
   const txType = v.direction === 'owed_to_me' ? 'expense' : 'income'
+
+  // Cộng dồn: nếu chọn người cũ (existingDebtId) hoặc gõ trùng tên một khoản đang
+  // mở cùng chiều + cùng loại tiền → ghi thêm vào khoản đó thay vì tạo người mới.
+  const norm = (s: string) => s.trim().toLowerCase()
+  const target = deps.debts.find(
+    (d) =>
+      d.status === 'open' &&
+      d.direction === v.direction &&
+      d.currency === base.srcCurrency &&
+      (d.id === v.existingDebtId || (!!counterparty && norm(d.counterparty) === norm(counterparty))),
+  )
+  if (target) {
+    let addTx: NewTransaction | null = null
+    if (v.withTransaction) {
+      addTx = {
+        type: txType,
+        amount: base.amount,
+        to_amount: null,
+        category_id: base.categoryId,
+        account_id: base.accountId,
+        to_account_id: null,
+        occurred_on: base.occurredOn,
+        note:
+          base.note.trim() ||
+          `${txType === 'expense' ? 'Cho vay thêm' : 'Vay thêm'} · ${target.counterparty}`,
+      }
+    }
+    // amount âm = giải ngân thêm → làm tăng số còn lại của khoản nợ.
+    await deps.createDebtPayment({
+      debt_id: target.id,
+      amount: -base.amount,
+      paid_on: base.occurredOn,
+      note: base.note.trim(),
+      transaction: addTx,
+    })
+    return
+  }
+
   let transaction: NewTransaction | null = null
   if (v.withTransaction) {
     transaction = {

@@ -60,7 +60,7 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
         <h2 className="mb-1 text-base font-bold text-gray-800 dark:text-gray-100">
           Điều chỉnh số dư
         </h2>
-        <p className="mb-3 text-xs text-gray-400 dark:text-gray-500">
+        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
           {account.name} · số dư sổ hiện tại {formatMoney(currentBalance, currency)} (
           {CURRENCIES[currency].label})
         </p>
@@ -96,7 +96,7 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
               {formatMoney(Math.abs(diff), currency)}
             </span>
           </div>
-          <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             {diff === 0
               ? 'Số dư đã khớp — không cần điều chỉnh.'
               : `Sẽ tạo một giao dịch ${diff > 0 ? 'thu' : 'chi'} điều chỉnh (không tính vào thống kê).`}

@@ -66,15 +66,15 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
             </option>
           ))}
         </select>
-        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Ảnh hưởng cách tính tháng trong báo cáo.</p>
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Ảnh hưởng cách tính tháng trong báo cáo.</p>
 
         <label className="mt-3 block text-xs font-medium text-gray-500 dark:text-gray-400">Loại tiền gốc</label>
         <input
           value={`${profile.base_currency} · ${CURRENCIES[profile.base_currency].label}`}
           disabled
-          className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800 p-3 text-gray-400 dark:text-gray-500"
+          className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800 p-3 text-gray-500 dark:text-gray-400"
         />
-        <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Không đổi được.</p>
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Không đổi được.</p>
 
         <button
           type="button"

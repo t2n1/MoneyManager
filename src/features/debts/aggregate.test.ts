@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { DebtDirection, DebtPaymentRow, DebtRow, DebtStatus } from '../../types/database.types'
-import { debtSummary, paidOf, remainingOf } from './aggregate'
+import { debtSummary, disbursedOf, paidOf, remainingOf, repaidOf } from './aggregate'
 
 let seq = 0
 function debt(
@@ -56,6 +56,23 @@ describe('paidOf / remainingOf', () => {
   it('còn lại có thể bằng 0 khi trả đủ', () => {
     const d = debt({ id: 'd1', direction: 'i_owe', currency: 'JPY', principal: 10_000 })
     expect(remainingOf(d, [payment('d1', 10_000)])).toBe(0)
+  })
+})
+
+describe('cộng dồn — giải ngân thêm (payment âm)', () => {
+  it('lần trả âm là cho vay thêm → tăng gốc & số còn lại, không tính vào đã trả', () => {
+    const d = debt({ id: 'd1', direction: 'owed_to_me', currency: 'JPY', principal: 50_000 })
+    // cho vay thêm 30.000 (âm) rồi thu lại 20.000 (dương)
+    const payments = [payment('d1', -30_000), payment('d1', 20_000)]
+    expect(disbursedOf(d, payments)).toBe(80_000) // 50.000 gốc + 30.000 giải ngân thêm
+    expect(repaidOf('d1', payments)).toBe(20_000) // chỉ lần trả dương
+    expect(remainingOf(d, payments)).toBe(60_000) // 80.000 − 20.000
+  })
+
+  it('debtSummary cộng đúng số còn lại đã bao gồm giải ngân thêm', () => {
+    const debts = [debt({ id: 'd1', direction: 'owed_to_me', currency: 'JPY', principal: 40_000 })]
+    const s = debtSummary(debts, [payment('d1', -10_000)], BASE, RATES)
+    expect(s.owedToMe).toBe(50_000)
   })
 })
 

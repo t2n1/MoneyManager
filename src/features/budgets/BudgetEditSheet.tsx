@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useDeleteBudget, useRates, useUpsertBudget } from '../../hooks/queries'
 import { formatMoney, parseMoney } from '../../lib/money'
+import { confirmDialog } from '../../lib/dialog'
 
 interface Props {
   monthKey: string
@@ -41,7 +42,8 @@ export function BudgetEditSheet({
   }
 
   async function handleDelete() {
-    if (!window.confirm('Xóa hạn mức này?')) return
+    if (!(await confirmDialog({ title: 'Xóa hạn mức này?', danger: true, confirmLabel: 'Xóa' })))
+      return
     if (budgetId) await remove.mutateAsync(budgetId)
     onClose()
   }

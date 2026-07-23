@@ -37,7 +37,11 @@ export function MonthlyBarsCard({ series, base, title, labelOf }: Props) {
                 name === 'income' ? 'Thu' : 'Chi',
               ]}
               labelFormatter={(l) => `Tháng ${l}`}
-              contentStyle={{ borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb' }}
+              // Nền/viền/chữ tooltip do index.css xử lý theo dark mode (.recharts-default-tooltip)
+              contentStyle={{ borderRadius: 8, fontSize: 12 }}
+              // Con trỏ hover trung tính, dịu ở CẢ nền sáng lẫn tối (mặc định recharts
+              // là xám sáng, nháy chói trong dark mode)
+              cursor={{ fill: 'rgba(148,163,184,0.15)' }}
             />
             <Bar dataKey="income" fill="#16a34a" radius={[3, 3, 0, 0]} />
             <Bar dataKey="expense" fill="#ef4444" radius={[3, 3, 0, 0]} />

@@ -40,9 +40,9 @@ export function DailyView({
       />
 
       {isLoading ? (
-        <p className="py-10 text-center text-gray-400 dark:text-gray-500">Đang tải…</p>
+        <p className="py-10 text-center text-gray-500 dark:text-gray-400">Đang tải…</p>
       ) : days.length === 0 ? (
-        <p className="py-10 text-center text-gray-400 dark:text-gray-500">Chưa có giao dịch trong tháng này</p>
+        <p className="py-10 text-center text-gray-500 dark:text-gray-400">Chưa có giao dịch trong tháng này</p>
       ) : (
         days.map(([day, txs]) => {
           const dayIncome = sumInBase(txs, 'income', currencyOf, base, rates)

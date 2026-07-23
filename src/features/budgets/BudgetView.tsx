@@ -8,6 +8,7 @@ import {
 } from '../../hooks/queries'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
+import { showToast } from '../../lib/dialog'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import type { BudgetStatus } from './progress'
 
@@ -47,7 +48,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
 
   async function handleCopy() {
     const n = await copy.mutateAsync(monthKeyStr)
-    window.alert(n > 0 ? `Đã chép ${n} hạn mức từ tháng trước` : 'Tháng trước không có hạn mức để chép')
+    showToast(
+      n > 0 ? `Đã chép ${n} hạn mức từ tháng trước` : 'Tháng trước không có hạn mức để chép',
+      n > 0 ? 'success' : 'info',
+    )
   }
 
   if (isLoading || !report) {

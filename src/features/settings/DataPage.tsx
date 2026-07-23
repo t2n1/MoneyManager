@@ -93,7 +93,7 @@ function ExportSection() {
             onClick={() =>
               period === 'month' ? setMonthKey((k) => addMonths(k, -1)) : setYear((y) => y - 1)
             }
-            className="rounded-lg border border-gray-300 px-3 py-1.5 dark:border-gray-700"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-gray-300 px-3 py-1.5 dark:border-gray-700"
             aria-label={period === 'month' ? 'Tháng trước' : 'Năm trước'}
           >
             <ChevronLeft className="h-5 w-5" />
@@ -104,7 +104,7 @@ function ExportSection() {
             onClick={() =>
               period === 'month' ? setMonthKey((k) => addMonths(k, 1)) : setYear((y) => y + 1)
             }
-            className="rounded-lg border border-gray-300 px-3 py-1.5 dark:border-gray-700"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-gray-300 px-3 py-1.5 dark:border-gray-700"
             aria-label={period === 'month' ? 'Tháng sau' : 'Năm sau'}
           >
             <ChevronRight className="h-5 w-5" />
@@ -142,7 +142,7 @@ export function DataPage() {
       <div className="flex items-center gap-2">
         <Link
           to="/settings"
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >
           <ChevronLeft className="h-5 w-5" />

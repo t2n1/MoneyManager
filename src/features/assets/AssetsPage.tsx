@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CreditCard, Settings2 } from 'lucide-react'
+import { ChevronRight, CreditCard, Settings2 } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { AccountTypeIcon } from '../../components/icons'
 import { PrivacyToggle } from '../../components/PrivacyToggle'
@@ -181,8 +181,8 @@ export function AssetsPage() {
         <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tài sản ròng</span>
-            <Link to="/settings/debts" className="text-xs font-medium text-green-700 dark:text-green-400">
-              Nợ / cho vay ›
+            <Link to="/settings/debts" className="inline-flex items-center gap-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+              Nợ / cho vay <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
           <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
@@ -214,7 +214,7 @@ export function AssetsPage() {
             )}
           </div>
           {(debts_.hasMissingRate || breakdown.cardHasMissingRate) && (
-            <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               Một phần công nợ ngoại tệ chưa quy đổi được nên số ròng có thể thiếu.
             </p>
           )}
@@ -230,7 +230,7 @@ export function AssetsPage() {
       {/* Thẻ tín dụng */}
       {visibleCards.length > 0 && (
         <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
-          <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+          <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
             <CreditCard className="h-3.5 w-3.5" /> Thẻ tín dụng
           </h2>
 
@@ -287,11 +287,11 @@ export function AssetsPage() {
                   >
                     {/* Tên thẻ + trạng thái đủ/thiếu tiền trả */}
                     <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
+                      <CreditCard className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-700 dark:text-gray-300">
                         {c.name}
                         {!c.includeInTotals && (
-                          <span className="ml-1 text-[10px] font-normal text-gray-400 dark:text-gray-500">
+                          <span className="ml-1 text-[10px] font-normal text-gray-500 dark:text-gray-400">
                             (ngoài tổng)
                           </span>
                         )}
@@ -329,7 +329,7 @@ export function AssetsPage() {
                           <span className="font-semibold text-gray-700 dark:text-gray-200">
                             {dueDateLabel(dueISO)}
                           </span>
-                          <span className="text-gray-400 dark:text-gray-500">
+                          <span className="text-gray-500 dark:text-gray-400">
                             {' '}· {dueRelativeLabel(todayISO, dueISO)}
                           </span>
                         </span>
@@ -338,7 +338,7 @@ export function AssetsPage() {
 
                     {/* Nguồn trả + hạn mức còn lại */}
                     {(f || available != null) && (
-                      <p className="mt-1 ml-6 text-xs text-gray-400 dark:text-gray-500">
+                      <p className="mt-1 ml-6 text-xs text-gray-500 dark:text-gray-400">
                         {f && (
                           <>
                             Trả từ {f.sourceName}
@@ -372,7 +372,7 @@ export function AssetsPage() {
       {/* Biểu đồ tròn + danh sách nhóm */}
       <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
             Cơ cấu tài sản
           </h2>
           <div
@@ -392,7 +392,7 @@ export function AssetsPage() {
                 role="tab"
                 aria-selected={groupMode === mode}
                 onClick={() => setGroupMode(mode)}
-                className={`rounded-md px-2.5 py-1 transition ${
+                className={`rounded-md px-2.5 py-2.5 transition ${
                   groupMode === mode
                     ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm'
                     : 'text-gray-500 dark:text-gray-400'
@@ -405,7 +405,7 @@ export function AssetsPage() {
         </div>
 
         {pieData.length === 0 ? (
-          <p className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">
+          <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
             {isLoading ? 'Đang tải…' : 'Chưa có tài sản để hiển thị'}
           </p>
         ) : (
@@ -436,7 +436,7 @@ export function AssetsPage() {
                 <span className="text-2xl font-bold leading-none text-gray-800 dark:text-gray-100">
                   {pieData.length}
                 </span>
-                <span className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+                <span className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
                   {groupMode === 'purpose' ? 'nhóm' : 'loại'}
                 </span>
               </div>
@@ -454,13 +454,13 @@ export function AssetsPage() {
                     <span className="min-w-0 flex-1 truncate font-medium text-gray-700 dark:text-gray-300">
                       {g.name}
                       {!g.includeInTotals && (
-                        <span className="ml-1 text-[10px] font-normal text-gray-400 dark:text-gray-500">
+                        <span className="ml-1 text-[10px] font-normal text-gray-500 dark:text-gray-400">
                           (ngoài tổng)
                         </span>
                       )}
                     </span>
                     {g.includeInTotals && (
-                      <span className="shrink-0 text-xs tabular-nums text-gray-400 dark:text-gray-500">
+                      <span className="shrink-0 text-xs tabular-nums text-gray-500 dark:text-gray-400">
                         {(g.share * 100).toFixed(0)}%
                       </span>
                     )}
@@ -500,7 +500,7 @@ export function AssetsPage() {
                 {g.accounts.length}
               </span>
               {!g.includeInTotals && (
-                <span className="shrink-0 text-[10px] font-normal text-gray-400 dark:text-gray-500">(ngoài tổng)</span>
+                <span className="shrink-0 text-[10px] font-normal text-gray-500 dark:text-gray-400">(ngoài tổng)</span>
               )}
             </span>
             <span className="shrink-0 pl-2 text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
@@ -518,9 +518,9 @@ export function AssetsPage() {
                 <AccountTypeIcon type={a.type} className="h-4 w-4" />
                 <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300">
                   {a.name}
-                  <span className="ml-1 text-xs text-gray-400 dark:text-gray-500">{a.currency}</span>
+                  <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">{a.currency}</span>
                   {!a.includeInTotals && (
-                    <span className="ml-1 text-[10px] text-gray-400 dark:text-gray-500">(ngoài tổng)</span>
+                    <span className="ml-1 text-[10px] text-gray-500 dark:text-gray-400">(ngoài tổng)</span>
                   )}
                   {a.marketValue != null && a.marketValue !== a.balance && (
                     <span
@@ -540,7 +540,7 @@ export function AssetsPage() {
                 >
                   {formatMoney(a.value, a.currency)}
                 </span>
-                <span className="shrink-0 text-gray-300 dark:text-gray-600">›</span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
               </Link>
             ))}
           </div>
@@ -548,7 +548,7 @@ export function AssetsPage() {
       ))}
 
       {breakdown.hasForeign && rates && (
-        <p className="text-center text-xs text-gray-400 dark:text-gray-500">
+        <p className="text-center text-xs text-gray-500 dark:text-gray-400">
           Tỷ giá: ¥1 ≈ {rates.VND?.toFixed(2)} ₫ · $1 ≈ ¥
           {rates.USD ? (1 / rates.USD).toFixed(1) : '?'} (open.er-api.com, cache 12h)
         </p>

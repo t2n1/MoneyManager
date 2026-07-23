@@ -9,7 +9,7 @@ export function RequireAuth() {
 
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-gray-50 dark:bg-gray-950 text-gray-400 dark:text-gray-500">
+      <div className="flex min-h-dvh items-center justify-center bg-gray-50 dark:bg-gray-950 text-gray-500 dark:text-gray-400">
         Đang tải…
       </div>
     )

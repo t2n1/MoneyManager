@@ -28,6 +28,7 @@ import { TransactionItem } from '../transactions/TransactionItem'
 import { investmentStats } from './investment'
 import { ReconcileSheet } from './ReconcileSheet'
 import { ValuationFormSheet } from './ValuationFormSheet'
+import { confirmDialog } from '../../lib/dialog'
 
 export function AccountDetailPage() {
   const { accountId = '' } = useParams()
@@ -109,7 +110,7 @@ export function AccountDetailPage() {
       <div className="mb-3 flex items-center gap-2">
         <Link
           to="/assets"
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >
           <ChevronLeft className="h-5 w-5" />
@@ -146,7 +147,7 @@ export function AccountDetailPage() {
               : formatMoney(balance, currency)}
         </p>
         {account?.asset_group && (
-          <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Nhóm: {account.asset_group}</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Nhóm: {account.asset_group}</p>
         )}
 
         {/* Điều chỉnh số dư (mục X) — cho ví/tài khoản thường, không cho đầu tư/thẻ */}
@@ -169,7 +170,7 @@ export function AccountDetailPage() {
               </span>
             </div>
             {invStats.unrealizedPnl == null ? (
-              <p className="text-xs text-gray-400 dark:text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 Chưa cập nhật giá thị trường — đang tính theo vốn gốc.
               </p>
             ) : (
@@ -213,20 +214,20 @@ export function AccountDetailPage() {
                     {formatMoney(account.credit_limit - (balance < 0 ? -balance : 0), currency)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-gray-400 dark:text-gray-500">
+                <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
                   <span>Hạn mức</span>
                   <span className="tabular-nums">{formatMoney(account.credit_limit, currency)}</span>
                 </div>
               </>
             )}
             {account.statement_day != null && (
-              <div className="flex items-center justify-between text-gray-400 dark:text-gray-500">
+              <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
                 <span>Ngày chốt sao kê</span>
                 <span className="tabular-nums">Ngày {account.statement_day}</span>
               </div>
             )}
             {account.payment_due_day != null && (
-              <div className="flex items-center justify-between text-gray-400 dark:text-gray-500">
+              <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
                 <span>Ngày đến hạn</span>
                 <span className="tabular-nums">Ngày {account.payment_due_day}</span>
               </div>
@@ -238,7 +239,7 @@ export function AccountDetailPage() {
       {/* Lịch sử cập nhật giá trị (tài khoản đầu tư) */}
       {isInvestment && accountValuations.length > 0 && (
         <section className="mb-3 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
-          <h2 className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+          <h2 className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
             Lịch sử giá trị
           </h2>
           <ul className="mt-2 divide-y divide-gray-100 dark:divide-gray-800">
@@ -248,17 +249,18 @@ export function AccountDetailPage() {
                   <span className="text-sm font-medium tabular-nums text-gray-800 dark:text-gray-100">
                     {formatMoney(v.market_value, currency)}
                   </span>
-                  <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">{v.valued_on}</span>
+                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">{v.valued_on}</span>
                   {v.note && (
-                    <span className="block truncate text-xs text-gray-400 dark:text-gray-500">{v.note}</span>
+                    <span className="block truncate text-xs text-gray-500 dark:text-gray-400">{v.note}</span>
                   )}
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm('Xóa bản ghi giá trị này?')) deleteValuation.mutate(v.id)
+                  onClick={async () => {
+                    if (await confirmDialog({ title: 'Xóa bản ghi giá trị này?', danger: true, confirmLabel: 'Xóa' }))
+                      deleteValuation.mutate(v.id)
                   }}
-                  className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-600 dark:hover:bg-gray-800"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-gray-800"
                   aria-label="Xóa bản ghi giá trị"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -274,7 +276,7 @@ export function AccountDetailPage() {
         <button
           type="button"
           onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, -1))}
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Tháng trước"
         >
           <ChevronLeft className="h-5 w-5" />
@@ -285,7 +287,7 @@ export function AccountDetailPage() {
         <button
           type="button"
           onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))}
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Tháng sau"
         >
           <ChevronRight className="h-5 w-5" />
@@ -297,7 +299,7 @@ export function AccountDetailPage() {
         {isLoading ? 'Đang tải…' : `${results.length} giao dịch`}
       </p>
       {days.length === 0 && !isLoading ? (
-        <p className="py-10 text-center text-gray-400 dark:text-gray-500">Không có giao dịch trong tháng này</p>
+        <p className="py-10 text-center text-gray-500 dark:text-gray-400">Không có giao dịch trong tháng này</p>
       ) : (
         days.map(([day, txs]) => (
           <section key={day} className="mb-3">

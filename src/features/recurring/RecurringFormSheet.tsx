@@ -303,7 +303,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         />
 
         {rule && (
-          <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
             Thay đổi chỉ áp dụng cho các kỳ tương lai; giao dịch đã sinh giữ nguyên.
           </p>
         )}

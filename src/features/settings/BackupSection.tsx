@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Download, Upload } from 'lucide-react'
 import { BACKUP_VERSION, repo, type BackupData } from '../../data'
+import { confirmDialog } from '../../lib/dialog'
 
 type Status = { kind: 'idle' | 'ok' | 'error'; message: string }
 
@@ -64,9 +65,12 @@ export function BackupSection() {
       return
     }
     if (
-      !window.confirm(
-        'Khôi phục sẽ GHI ĐÈ toàn bộ dữ liệu hiện tại bằng dữ liệu trong file. Tiếp tục?',
-      )
+      !(await confirmDialog({
+        title: 'Khôi phục & GHI ĐÈ dữ liệu?',
+        message: 'Toàn bộ dữ liệu hiện tại sẽ bị thay bằng dữ liệu trong file.',
+        danger: true,
+        confirmLabel: 'Khôi phục',
+      }))
     )
       return
     setBusy(true)
@@ -86,7 +90,7 @@ export function BackupSection() {
       <h2 className="px-3 pt-3 text-sm font-semibold text-gray-500 dark:text-gray-400">
         Sao lưu &amp; khôi phục
       </h2>
-      <p className="px-3 pt-1 text-xs text-gray-400 dark:text-gray-500">
+      <p className="px-3 pt-1 text-xs text-gray-500 dark:text-gray-400">
         Xuất toàn bộ dữ liệu ra một file JSON để cất giữ, hoặc nhập lại từ file đã lưu.
       </p>
       <div className="flex flex-wrap gap-2 p-3">

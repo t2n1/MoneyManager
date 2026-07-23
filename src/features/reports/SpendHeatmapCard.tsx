@@ -46,7 +46,7 @@ export function SpendHeatmapCard({ points, base }: Props) {
       </h2>
       <div className="grid grid-cols-7 gap-1">
         {WEEKDAYS.map((w) => (
-          <div key={w} className="pb-0.5 text-center text-[10px] text-gray-400 dark:text-gray-500">
+          <div key={w} className="pb-0.5 text-center text-[10px] text-gray-500 dark:text-gray-400">
             {w}
           </div>
         ))}
@@ -66,7 +66,7 @@ export function SpendHeatmapCard({ points, base }: Props) {
           ),
         )}
       </div>
-      <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-gray-400 dark:text-gray-500">
+      <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-gray-500 dark:text-gray-400">
         <span>Ít</span>
         {LEVEL_BG.map((bg, i) => (
           <span key={i} className={`h-2.5 w-2.5 rounded-sm ${bg}`} />

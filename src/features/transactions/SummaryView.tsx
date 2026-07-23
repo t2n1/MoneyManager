@@ -56,14 +56,14 @@ export function SummaryView({
         <button
           type="button"
           onClick={() => setKind('expense')}
-          className={`flex-1 rounded-md py-1.5 ${kind === 'expense' ? 'bg-white dark:bg-gray-900 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+          className={`flex-1 rounded-md py-2.5 ${kind === 'expense' ? 'bg-white dark:bg-gray-900 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
           Chi
         </button>
         <button
           type="button"
           onClick={() => setKind('income')}
-          className={`flex-1 rounded-md py-1.5 ${kind === 'income' ? 'bg-white dark:bg-gray-900 text-green-600 dark:text-green-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+          className={`flex-1 rounded-md py-2.5 ${kind === 'income' ? 'bg-white dark:bg-gray-900 text-green-600 dark:text-green-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
           Thu
         </button>
@@ -89,9 +89,9 @@ export function SummaryView({
       )}
 
       {isLoading ? (
-        <p className="py-10 text-center text-gray-400 dark:text-gray-500">Đang tải…</p>
+        <p className="py-10 text-center text-gray-500 dark:text-gray-400">Đang tải…</p>
       ) : rows.length === 0 ? (
-        <p className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">
+        <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
           Chưa có {kind === 'expense' ? 'chi tiêu' : 'thu nhập'} trong tháng này
         </p>
       ) : (
@@ -101,7 +101,7 @@ export function SummaryView({
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-base">{r.icon}</span>
                 <span className="min-w-0 flex-1 truncate font-medium text-gray-700 dark:text-gray-300">{r.name}</span>
-                <span className="shrink-0 text-xs tabular-nums text-gray-400 dark:text-gray-500">
+                <span className="shrink-0 text-xs tabular-nums text-gray-500 dark:text-gray-400">
                   {r.pct.toFixed(0)}%
                 </span>
                 <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">

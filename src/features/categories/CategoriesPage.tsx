@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronUp, Plus } from 'lucide-react'
 import type { NewCategory } from '../../data'
 import {
   useCategories,
@@ -97,7 +97,7 @@ export function CategoriesPage() {
       <div className="mb-3 flex items-center gap-2">
         <Link
           to="/settings"
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >
           <ChevronLeft className="h-5 w-5" />
@@ -147,21 +147,21 @@ export function CategoriesPage() {
                 >
                   <span className="block truncate text-sm font-semibold text-gray-800 dark:text-gray-100">{p.name}</span>
                   {kids.length > 0 && (
-                    <span className="text-xs text-gray-400 dark:text-gray-500">{kids.length} danh mục con</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{kids.length} danh mục con</span>
                   )}
                 </button>
                 <button
                   type="button"
                   onClick={() => setForm({ category: null, parent: p })}
-                  className="rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1 text-sm font-semibold text-green-700 dark:text-green-400 active:scale-95"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1 text-green-700 dark:text-green-400 active:scale-95"
                   aria-label={`Thêm danh mục con cho ${p.name}`}
                 >
-                  ＋
+                  <Plus className="h-5 w-5" />
                 </button>
                 <button
                   type="button"
                   onClick={() => archive(p)}
-                  className="rounded-lg px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   Lưu trữ
                 </button>
@@ -188,7 +188,7 @@ export function CategoriesPage() {
                       <button
                         type="button"
                         onClick={() => archive(ch)}
-                        className="rounded-lg px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
                       >
                         Lưu trữ
                       </button>
@@ -214,7 +214,7 @@ export function CategoriesPage() {
             <button
               type="button"
               onClick={() => archive(c)}
-              className="rounded-lg px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Lưu trữ
             </button>
@@ -222,7 +222,7 @@ export function CategoriesPage() {
         ))}
 
         {parents.length === 0 && orphans.length === 0 && (
-          <p className="rounded-xl bg-white dark:bg-gray-900 px-3 py-6 text-center text-sm text-gray-400 dark:text-gray-500 shadow-sm">
+          <p className="rounded-xl bg-white dark:bg-gray-900 px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400 shadow-sm">
             Chưa có danh mục
           </p>
         )}
@@ -233,9 +233,17 @@ export function CategoriesPage() {
           <button
             type="button"
             onClick={() => setShowArchived((v) => !v)}
-            className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400"
+            className="mb-2 inline-flex min-h-11 items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
           >
-            {showArchived ? 'Ẩn đã lưu trữ ▲' : `Đã lưu trữ (${archivedCats.length}) ▼`}
+            {showArchived ? (
+              <>
+                Ẩn đã lưu trữ <ChevronUp className="h-4 w-4" />
+              </>
+            ) : (
+              <>
+                Đã lưu trữ ({archivedCats.length}) <ChevronDown className="h-4 w-4" />
+              </>
+            )}
           </button>
           {showArchived && (
             <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
@@ -247,7 +255,7 @@ export function CategoriesPage() {
                   <button
                     type="button"
                     onClick={() => restore(c)}
-                    className="rounded-lg px-2 py-1 text-xs text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
                   >
                     Khôi phục
                   </button>
@@ -287,19 +295,19 @@ function ReorderArrows({
         type="button"
         onClick={() => onMove(-1)}
         disabled={index === 0}
-        className="text-xs text-gray-400 dark:text-gray-500 disabled:opacity-20"
+        className="inline-flex min-w-11 items-center justify-center py-0.5 text-gray-500 dark:text-gray-400 disabled:opacity-20"
         aria-label="Lên"
       >
-        ▲
+        <ChevronUp className="h-5 w-5" />
       </button>
       <button
         type="button"
         onClick={() => onMove(1)}
         disabled={index === count - 1}
-        className="text-xs text-gray-400 dark:text-gray-500 disabled:opacity-20"
+        className="inline-flex min-w-11 items-center justify-center py-0.5 text-gray-500 dark:text-gray-400 disabled:opacity-20"
         aria-label="Xuống"
       >
-        ▼
+        <ChevronDown className="h-5 w-5" />
       </button>
     </div>
   )

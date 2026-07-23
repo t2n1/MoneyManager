@@ -36,7 +36,7 @@ export function ImportCsvPage() {
   const [dateOrder, setDateOrder] = useState<DateOrder>('ymd')
   const [negativeIsExpense, setNegativeIsExpense] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [result, setResult] = useState<string | null>(null)
+  const [result, setResult] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [lastBuffer, setLastBuffer] = useState<ArrayBuffer | null>(null)
 
   const account = accounts.find((a) => a.id === accountId)
@@ -135,12 +135,12 @@ export function ImportCsvPage() {
       qc.invalidateQueries({ queryKey: ['transactions'] })
       qc.invalidateQueries({ queryKey: ['balances'] })
       qc.invalidateQueries({ queryKey: ['search'] })
-      setResult(`Đã nhập ${done} giao dịch.`)
+      setResult({ kind: 'ok', text: `Đã nhập ${done} giao dịch.` })
       setRows([])
       setFileName('')
       setLastBuffer(null)
     } catch (err) {
-      setResult(`Nhập lỗi sau ${done} giao dịch: ${(err as Error).message}`)
+      setResult({ kind: 'error', text: `Nhập lỗi sau ${done} giao dịch: ${(err as Error).message}` })
     } finally {
       setBusy(false)
     }
@@ -165,10 +165,10 @@ export function ImportCsvPage() {
       </div>
 
       <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 py-4 text-sm font-medium text-gray-600 dark:text-gray-300">
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 py-4 text-sm font-medium text-gray-600 dark:text-gray-300 focus-within:ring-2 focus-within:ring-green-500">
           <Upload className="h-4 w-4" />
           {fileName || 'Chọn file CSV sao kê…'}
-          <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
+          <input type="file" accept=".csv,text/csv" className="sr-only" onChange={handleFile} />
         </label>
         <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
           <span>Mã hóa:</span>
@@ -252,7 +252,7 @@ export function ImportCsvPage() {
               </p>
               <div className="mt-2 max-h-64 overflow-auto text-xs">
                 <table className="w-full">
-                  <thead className="text-gray-400 dark:text-gray-500">
+                  <thead className="text-gray-500 dark:text-gray-400">
                     <tr>
                       <th className="py-1 text-left font-medium">Ngày</th>
                       <th className="py-1 text-left font-medium">Loại</th>
@@ -274,7 +274,7 @@ export function ImportCsvPage() {
                   </tbody>
                 </table>
                 {toImport.length > 20 && (
-                  <p className="mt-1 text-center text-gray-400 dark:text-gray-500">
+                  <p className="mt-1 text-center text-gray-500 dark:text-gray-400">
                     … và {toImport.length - 20} dòng nữa
                   </p>
                 )}
@@ -293,8 +293,14 @@ export function ImportCsvPage() {
       )}
 
       {result && (
-        <p className="rounded-lg bg-green-50 dark:bg-green-900/30 px-3 py-2 text-sm text-green-700 dark:text-green-300">
-          {result}
+        <p
+          className={`rounded-lg px-3 py-2 text-sm ${
+            result.kind === 'error'
+              ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+              : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+          }`}
+        >
+          {result.text}
         </p>
       )}
     </div>

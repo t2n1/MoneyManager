@@ -34,7 +34,7 @@ export function NetWorthHistorySection({ base, currentNetWorth }: Props) {
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
           Tài sản ròng theo thời gian
         </h2>
-        <p className="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">
+        <p className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
           Mở app đều đặn để app ghi lại tài sản ròng mỗi ngày — biểu đồ xu hướng sẽ hiện sau
           vài mốc.
         </p>

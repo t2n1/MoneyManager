@@ -121,7 +121,7 @@ export function LedgerPage() {
         <button
           type="button"
           onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, -step))}
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 text-lg shadow-sm active:scale-95"
           aria-label={yearNav ? 'Năm trước' : 'Tháng trước'}
         >
           <ChevronLeft className="h-5 w-5" />
@@ -130,14 +130,14 @@ export function LedgerPage() {
         <button
           type="button"
           onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, step))}
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 text-lg shadow-sm active:scale-95"
           aria-label={yearNav ? 'Năm sau' : 'Tháng sau'}
         >
           <ChevronRight className="h-5 w-5" />
         </button>
         <Link
           to="/search"
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 text-lg shadow-sm active:scale-95"
           aria-label="Tìm kiếm giao dịch"
         >
           <Search className="h-5 w-5" />
@@ -151,7 +151,7 @@ export function LedgerPage() {
             key={v.key}
             type="button"
             onClick={() => setView(v.key)}
-            className={`flex-1 rounded-md py-1.5 transition ${
+            className={`flex-1 rounded-md py-2.5 transition ${
               view === v.key ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'
             }`}
           >

@@ -139,7 +139,7 @@ export function AppLayout() {
           type="button"
           onClick={() => navigate('/entry')}
           aria-label="Nhập giao dịch"
-          className="fixed bottom-20 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-green-600 leading-none text-white shadow-lg transition hover:bg-green-700 active:scale-95 lg:hidden print:hidden"
+          className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-green-600 leading-none text-white shadow-lg transition hover:bg-green-700 active:scale-95 lg:hidden print:hidden"
         >
           <Plus className="h-6 w-6" />
         </button>

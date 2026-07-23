@@ -58,24 +58,46 @@ export async function saveSplit(base: RoleBase, v: SplitValue, deps: RoleSaveDep
       const row = await deps.createTransaction(ownTx)
       ownTxId = row.id
     }
-    await deps.createDebt({
-      counterparty,
-      direction: 'owed_to_me',
-      currency: base.srcCurrency,
-      principal: v.others,
-      due_on: null,
-      note: base.note.trim(),
-      transaction: {
-        type: 'expense',
-        amount: v.others,
-        to_amount: null,
-        category_id: base.categoryId,
-        account_id: base.accountId,
-        to_account_id: null,
-        occurred_on: base.occurredOn,
-        note: base.note.trim() || `Cho vay (trả hộ) · ${counterparty}`,
-      },
-    })
+    // Cộng dồn: chọn người đã cho vay (existingDebtId) hoặc gõ trùng tên một khoản
+    // owed_to_me đang mở cùng loại tiền → ghi thêm vào khoản đó thay vì tạo người mới.
+    const norm = (s: string) => s.trim().toLowerCase()
+    const target = deps.debts.find(
+      (d) =>
+        d.status === 'open' &&
+        d.direction === 'owed_to_me' &&
+        d.currency === base.srcCurrency &&
+        (d.id === v.existingDebtId || (!!counterparty && norm(d.counterparty) === norm(counterparty))),
+    )
+    const lendTx: NewTransaction = {
+      type: 'expense',
+      amount: v.others,
+      to_amount: null,
+      category_id: base.categoryId,
+      account_id: base.accountId,
+      to_account_id: null,
+      occurred_on: base.occurredOn,
+      note: base.note.trim() || `Cho vay (trả hộ) · ${counterparty}`,
+    }
+    if (target) {
+      // amount âm = giải ngân thêm → làm tăng số còn lại của khoản cho vay.
+      await deps.createDebtPayment({
+        debt_id: target.id,
+        amount: -v.others,
+        paid_on: base.occurredOn,
+        note: base.note.trim(),
+        transaction: lendTx,
+      })
+    } else {
+      await deps.createDebt({
+        counterparty,
+        direction: 'owed_to_me',
+        currency: base.srcCurrency,
+        principal: v.others,
+        due_on: null,
+        note: base.note.trim(),
+        transaction: lendTx,
+      })
+    }
   } catch (e) {
     if (ownTxId) {
       try {

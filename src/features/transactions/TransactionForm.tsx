@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ChevronDown,
   ChevronLeft,
@@ -301,23 +301,33 @@ export function TransactionForm({
 
   // Gợi ý cộng dồn: khoản đang mở cùng chiều + cùng loại tiền với tài khoản đang chọn
   // (khác loại tiền không cộng dồn được nên không đưa vào danh sách).
-  const debtPeople = useMemo<DebtPerson[]>(() => {
-    if (!enableRoles) return []
-    return allDebts
-      .filter(
-        (d) =>
-          d.status === 'open' &&
-          d.direction === debtVal.direction &&
-          d.currency === srcCurrency &&
-          d.counterparty.trim().length > 0,
-      )
-      .map((d) => ({
-        id: d.id,
-        name: d.counterparty,
-        currency: d.currency,
-        remaining: Math.max(remainingOf(d, allDebtPayments), 0),
-      }))
-  }, [enableRoles, allDebts, allDebtPayments, debtVal.direction, srcCurrency])
+  const peopleFor = useCallback(
+    (direction: DebtDirection): DebtPerson[] =>
+      allDebts
+        .filter(
+          (d) =>
+            d.status === 'open' &&
+            d.direction === direction &&
+            d.currency === srcCurrency &&
+            d.counterparty.trim().length > 0,
+        )
+        .map((d) => ({
+          id: d.id,
+          name: d.counterparty,
+          currency: d.currency,
+          remaining: Math.max(remainingOf(d, allDebtPayments), 0),
+        })),
+    [allDebts, allDebtPayments, srcCurrency],
+  )
+  const debtPeople = useMemo<DebtPerson[]>(
+    () => (enableRoles ? peopleFor(debtVal.direction) : []),
+    [enableRoles, peopleFor, debtVal.direction],
+  )
+  // Trả hộ luôn tạo khoản "người khác nợ mình" (owed_to_me) → gợi ý cộng dồn.
+  const splitPeople = useMemo<DebtPerson[]>(
+    () => (enableRoles ? peopleFor('owed_to_me') : []),
+    [enableRoles, peopleFor],
+  )
 
   // Ghi nợ: có đủ tài khoản + danh mục để tạo giao dịch giải ngân thật không
   const canRecordReal = !!effectiveAccountId && activeOfType.length > 0
@@ -922,7 +932,7 @@ export function TransactionForm({
         </p>
       )}
       {activeRole === 'split' && (
-        <SplitFields value={splitVal} onChange={setSplitVal} total={amount} currency={srcCurrency} />
+        <SplitFields value={splitVal} onChange={setSplitVal} total={amount} currency={srcCurrency} people={splitPeople} />
       )}
       {activeRole === 'debt' && (
         <DebtFields

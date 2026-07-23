@@ -47,14 +47,20 @@ export function SplitFields({
   onChange,
   total,
   currency,
+  people,
 }: {
   value: SplitValue
   onChange: (v: SplitValue) => void
   total: number
   currency: CurrencyCode
+  /** Người đã cho vay (khoản owed_to_me đang mở, cùng loại tiền) — chọn để cộng dồn. */
+  people: DebtPerson[]
 }) {
   const mine = total - value.others
   const over = value.others > total
+  const selected = value.existingDebtId
+    ? people.find((p) => p.id === value.existingDebtId) ?? null
+    : null
   return (
     <div className={blockCls}>
       <div>
@@ -80,14 +86,56 @@ export function SplitFields({
           )}
         </p>
       )}
+      {people.length > 0 && (
+        <div>
+          <label className={labelCls}>Người đã cho vay (cộng dồn)</label>
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {people.map((p) => {
+              const active = value.existingDebtId === p.id
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    onChange(
+                      active
+                        ? { ...value, existingDebtId: null, counterparty: '' }
+                        : { ...value, existingDebtId: p.id, counterparty: p.name },
+                    )
+                  }
+                  className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${
+                    active
+                      ? 'border-green-600 bg-green-600 text-white'
+                      : 'border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200'
+                  }`}
+                >
+                  <span className="max-w-[9rem] truncate">{p.name}</span>
+                  <span className={`text-xs tabular-nums ${active ? 'text-white/80' : 'text-gray-400'}`}>
+                    {formatMoney(p.remaining, p.currency)}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
       <div>
         <label className={labelCls}>Ai nợ mình</label>
         <input
           value={value.counterparty}
-          onChange={(e) => onChange({ ...value, counterparty: e.target.value })}
+          onChange={(e) =>
+            // Gõ tay → bỏ liên kết người đã chọn (vẫn tự cộng dồn nếu trùng tên khi lưu).
+            onChange({ ...value, counterparty: e.target.value, existingDebtId: null })
+          }
           placeholder="Tên người"
           className={inputCls}
         />
+        {selected && (
+          <p className="mt-1 text-xs text-green-700 dark:text-green-400">
+            Cộng dồn vào khoản đang mở · còn lại {formatMoney(selected.remaining, selected.currency)}
+          </p>
+        )}
       </div>
     </div>
   )

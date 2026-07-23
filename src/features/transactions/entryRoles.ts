@@ -13,6 +13,8 @@ export interface SplitValue {
   /** minor units — phần người khác nợ lại (đã bao trong Tổng đã trả). */
   others: number
   counterparty: string
+  /** id khoản cho vay đang mở để cộng dồn (chọn người cũ); null = tạo khoản mới. */
+  existingDebtId: string | null
 }
 export interface DebtValue {
   direction: DebtDirection
@@ -41,7 +43,7 @@ export interface RemitValue {
 
 export const SERVICES = ['Wise', 'SBI Remit', 'Brastel', 'DCOM', 'Khác'] as const
 
-export const initialSplit = (): SplitValue => ({ others: 0, counterparty: '' })
+export const initialSplit = (): SplitValue => ({ others: 0, counterparty: '', existingDebtId: null })
 export const initialDebt = (): DebtValue => ({
   direction: 'i_owe',
   counterparty: '',

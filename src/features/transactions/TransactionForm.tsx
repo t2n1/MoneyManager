@@ -626,7 +626,10 @@ export function TransactionForm({
   const roleMeta = activeRole === 'none' ? null : ROLE_META[activeRole]
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      {/* Vùng cuộn: mọi nội dung nhập. Đáy (NumPad + nút Lưu) được ghim riêng bên
+          dưới nên không bao giờ bị đẩy khuất — kể cả khi vai trò đặc biệt thêm field. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
       {/* Nhập nhanh bằng lời: gõ "hôm qua trưa 850 yên" → tự điền các trường bên dưới */}
       {enableNlInput && (
         <div className="flex flex-col gap-1">
@@ -978,7 +981,7 @@ export function TransactionForm({
         !hideCategoryGrid &&
         (drillParent ? (
           /* Trong một nhóm cha → chọn danh mục con (bắt buộc) */
-          <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
+          <div className="flex flex-col gap-1.5">
             <button
               type="button"
               onClick={() => setDrillId(null)}
@@ -1005,7 +1008,7 @@ export function TransactionForm({
           </div>
         ) : (
           /* Màn danh mục chính */
-          <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-4 gap-1.5 overflow-y-auto lg:grid-cols-5">
+          <div className="grid auto-rows-min grid-cols-4 gap-1.5 lg:grid-cols-5">
             {topCategories.map((c) => {
               const kids = childrenOf(c.id)
               const hasKids = kids.length > 0
@@ -1023,8 +1026,10 @@ export function TransactionForm({
             })}
           </div>
         ))}
-      {(type === 'transfer' || hideCategoryGrid) && <div className="flex-1" />}
+      </div>
 
+      {/* Đáy ghim: NumPad + lỗi + nút Lưu — luôn hiển thị, không bị nội dung đẩy khuất. */}
+      <div className="flex shrink-0 flex-col gap-1.5 pt-1.5">
       {/* NumPad chỉ trên mobile */}
       <div className="lg:hidden">
         <NumPad onKey={onNumPadKey} />
@@ -1071,6 +1076,7 @@ export function TransactionForm({
             {saving ? 'Đang lưu…' : submitLabel}
           </button>
         )}
+      </div>
       </div>
     </div>
   )

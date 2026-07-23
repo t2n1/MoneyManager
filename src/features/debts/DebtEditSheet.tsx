@@ -64,7 +64,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 lg:rounded-2xl"
+        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-gray-100">Sửa khoản nợ</h2>

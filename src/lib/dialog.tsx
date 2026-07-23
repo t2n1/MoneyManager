@@ -188,7 +188,7 @@ function DialogModal({ req }: { req: DialogReq }) {
         role="dialog"
         aria-modal="true"
         aria-label={req.title}
-        className="w-full max-w-md rounded-t-2xl bg-white dark:bg-gray-900 p-4 lg:rounded-2xl"
+        className="w-full max-w-md rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">{req.title}</h2>

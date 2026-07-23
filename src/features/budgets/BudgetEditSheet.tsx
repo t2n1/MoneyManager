@@ -54,7 +54,7 @@ export function BudgetEditSheet({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-t-2xl bg-gray-50 dark:bg-gray-950 p-4 lg:rounded-2xl"
+        className="w-full max-w-lg rounded-t-2xl bg-gray-50 dark:bg-gray-950 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">

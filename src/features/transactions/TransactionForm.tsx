@@ -76,6 +76,10 @@ const AMOUNT_COLOR: Record<TransactionType, string> = {
   transfer: 'text-gray-600 dark:text-gray-300',
 }
 
+/** Ô tiền mà NumPad mobile đang nhắm tới: ô chính, ô "nhận được" (CK xuyên tệ),
+ *  hoặc các ô tiền phụ của vai trò đặc biệt (trả hộ / gửi về VN). */
+type AmountTarget = 'main' | 'to' | 'split.others' | 'remit.fee' | 'remit.received'
+
 /** Vai trò đặc biệt: nhãn + icon + màu banner. */
 const ROLE_ORDER: SpecialRole[] = ['split', 'debt', 'remit']
 const ROLE_META: Record<SpecialRole, { label: string; Icon: LucideIcon; banner: string }> = {
@@ -129,6 +133,13 @@ function formatExpr(expr: string, currency: CurrencyCode): string {
     .replace(/([+−×÷])/g, ' $1 ')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+/** Áp một phím NumPad vào một số tiền (minor units) — cho ô tiền phụ của vai trò.
+ *  Đi qua chuỗi chữ số rồi tính lại; phím phép tính hầu như thành vô hại. */
+function applyNumKey(current: number, key: NumPadKey): number {
+  const next = appendKey(current === 0 ? '' : String(current), key)
+  return evalExpression(next) ?? current
 }
 
 interface TransactionFormProps {
@@ -187,8 +198,8 @@ export function TransactionForm({
   const [type, setType] = useState<TransactionType>(initial?.type ?? initialType ?? 'expense')
   const [digits, setDigits] = useState(initial ? String(initial.amount) : '')
   const [toDigits, setToDigits] = useState(initial?.to_amount ? String(initial.to_amount) : '')
-  /** CK xuyên tệ trên mobile: numpad đang gõ vào ô nào */
-  const [activeField, setActiveField] = useState<'main' | 'to'>('main')
+  /** Mobile: numpad đang gõ vào ô tiền nào (ô chính, "nhận được", hoặc ô phụ của vai trò) */
+  const [activeField, setActiveField] = useState<AmountTarget>('main')
   const [categoryId, setCategoryId] = useState<string | null>(
     initial?.category_id ?? lastCategoryFor(initial?.type ?? initialType ?? 'expense', categories),
   )
@@ -298,6 +309,9 @@ export function TransactionForm({
   const srcCurrency = activeAccounts.find((a) => a.id === effectiveAccountId)?.currency ?? 'JPY'
   const dstCurrency = activeAccounts.find((a) => a.id === toAccountId)?.currency ?? srcCurrency
   const crossCurrency = type === 'transfer' && !!toAccountId && dstCurrency !== srcCurrency
+  // Có nhiều ô tiền cùng nhận NumPad (CK xuyên tệ, hoặc vai trò có ô tiền phụ)
+  // → hiện viền ô đang chọn để biết numpad gõ vào đâu.
+  const multiAmount = crossCurrency || activeRole === 'split' || activeRole === 'remit'
 
   // Gợi ý cộng dồn: khoản đang mở cùng chiều + cùng loại tiền với tài khoản đang chọn
   // (khác loại tiền không cộng dồn được nên không đưa vào danh sách).
@@ -478,6 +492,7 @@ export function TransactionForm({
     setRole('none')
     setRoleMenu(false)
     setTypeAndCat('expense')
+    setActiveField('main') // tránh numpad còn nhắm ô tiền của vai trò vừa bỏ
   }
 
   /** Đổi chiều nợ (Mình nợ ↔ Cho vay) → đổi luôn loại giao dịch (thu ↔ chi). */
@@ -489,6 +504,19 @@ export function TransactionForm({
   }
 
   function onNumPadKey(key: NumPadKey) {
+    // Vai trò có ô tiền phụ: numpad gõ thẳng vào số của ô đang chọn
+    if (activeField === 'split.others') {
+      setSplitVal((v) => ({ ...v, others: applyNumKey(v.others, key) }))
+      return
+    }
+    if (activeField === 'remit.fee') {
+      setRemitVal((v) => ({ ...v, fee: applyNumKey(v.fee, key) }))
+      return
+    }
+    if (activeField === 'remit.received') {
+      setRemitVal((v) => ({ ...v, received: applyNumKey(v.received, key) }))
+      return
+    }
     const setter = activeField === 'to' && crossCurrency ? setToDigits : setDigits
     setter((d) => appendKey(d, key))
   }
@@ -580,7 +608,7 @@ export function TransactionForm({
     setDigitsFn: (v: string) => void,
     label?: string,
   ) => {
-    const isActive = crossCurrency && activeField === field
+    const isActive = multiAmount && activeField === field
     const ring = isActive ? 'ring-2 ring-green-500' : ''
     const result = evalExpression(expr)
     const showExpr = hasOperator(expr)
@@ -935,7 +963,15 @@ export function TransactionForm({
         </p>
       )}
       {activeRole === 'split' && (
-        <SplitFields value={splitVal} onChange={setSplitVal} total={amount} currency={srcCurrency} people={splitPeople} />
+        <SplitFields
+          value={splitVal}
+          onChange={setSplitVal}
+          total={amount}
+          currency={srcCurrency}
+          people={splitPeople}
+          othersActive={activeField === 'split.others'}
+          onFocusOthers={() => setActiveField('split.others')}
+        />
       )}
       {activeRole === 'debt' && (
         <DebtFields
@@ -952,6 +988,10 @@ export function TransactionForm({
           sent={amount}
           vndAccounts={vndAccounts}
           services={SERVICES}
+          feeActive={activeField === 'remit.fee'}
+          receivedActive={activeField === 'remit.received'}
+          onFocusFee={() => setActiveField('remit.fee')}
+          onFocusReceived={() => setActiveField('remit.received')}
         />
       )}
 

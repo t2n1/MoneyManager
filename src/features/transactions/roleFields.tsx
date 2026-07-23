@@ -13,31 +13,58 @@ const inputCls =
   'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 outline-green-500'
 const moneyInputCls =
   'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-right text-lg font-semibold text-gray-800 dark:text-gray-100 outline-green-500'
+// Nút tiền trên mobile (do NumPad app gõ) — giống ô số tiền chính, không bật bàn phím hệ thống.
+const moneyBoxCls =
+  'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-right text-lg font-semibold'
 // Bọc field vai trò: nền tint + viền trái theo màu để phân biệt với field gốc.
 const blockCls =
   'flex flex-col gap-2 rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/30'
 
-/** Ô nhập tiền (định dạng theo currency, gõ số thô). */
-function MoneyInput({
+/**
+ * Ô nhập tiền của vai trò. Trên mobile là nút chạm do NumPad của app điều khiển
+ * (đồng nhất với ô số tiền chính, không bật bàn phím hệ thống); trên desktop là
+ * input gõ số trực tiếp.
+ */
+function MoneyField({
   value,
   currency,
+  active,
+  onFocus,
   onChange,
   ariaLabel,
 }: {
   value: number
   currency: CurrencyCode
+  /** Đang là ô NumPad nhắm tới (mobile) → hiện viền. */
+  active: boolean
+  /** Chạm để NumPad gõ vào ô này (mobile). */
+  onFocus: () => void
+  /** Gõ trực tiếp (desktop). */
   onChange: (v: number) => void
   ariaLabel: string
 }) {
+  const isEmpty = value === 0
   return (
-    <input
-      inputMode="numeric"
-      aria-label={ariaLabel}
-      value={value === 0 ? '' : formatMoney(value, currency)}
-      onChange={(e) => onChange(parseMoney(e.target.value))}
-      placeholder={formatMoney(0, currency)}
-      className={moneyInputCls}
-    />
+    <>
+      <button
+        type="button"
+        onClick={onFocus}
+        aria-label={`${ariaLabel}: ${formatMoney(value, currency)}`}
+        className={`${moneyBoxCls} ${active ? 'ring-2 ring-green-500' : ''} ${
+          isEmpty ? 'text-gray-300 dark:text-gray-600' : 'text-gray-800 dark:text-gray-100'
+        } lg:hidden`}
+      >
+        {formatMoney(value, currency)}
+      </button>
+      <input
+        inputMode="numeric"
+        aria-label={ariaLabel}
+        value={value === 0 ? '' : formatMoney(value, currency)}
+        onChange={(e) => onChange(parseMoney(e.target.value))}
+        placeholder={formatMoney(0, currency)}
+        className={`${moneyInputCls} hidden lg:block`}
+      />
+    </>
   )
 }
 
@@ -48,6 +75,8 @@ export function SplitFields({
   total,
   currency,
   people,
+  othersActive,
+  onFocusOthers,
 }: {
   value: SplitValue
   onChange: (v: SplitValue) => void
@@ -55,6 +84,9 @@ export function SplitFields({
   currency: CurrencyCode
   /** Người đã cho vay (khoản owed_to_me đang mở, cùng loại tiền) — chọn để cộng dồn. */
   people: DebtPerson[]
+  /** Ô "Phần người khác nợ lại" đang được NumPad nhắm tới (mobile). */
+  othersActive: boolean
+  onFocusOthers: () => void
 }) {
   const mine = total - value.others
   const over = value.others > total
@@ -65,9 +97,11 @@ export function SplitFields({
     <div className={blockCls}>
       <div>
         <label className={labelCls}>Phần người khác nợ lại</label>
-        <MoneyInput
+        <MoneyField
           value={value.others}
           currency={currency}
+          active={othersActive}
+          onFocus={onFocusOthers}
           onChange={(v) => onChange({ ...value, others: v })}
           ariaLabel="Phần người khác nợ lại"
         />
@@ -349,6 +383,10 @@ export function RemitFields({
   sent,
   vndAccounts,
   services,
+  feeActive,
+  receivedActive,
+  onFocusFee,
+  onFocusReceived,
 }: {
   value: RemitValue
   onChange: (v: RemitValue) => void
@@ -356,6 +394,11 @@ export function RemitFields({
   sent: number
   vndAccounts: { id: string; name: string }[]
   services: readonly string[]
+  /** Ô Phí / Số nhận đang được NumPad nhắm tới (mobile). */
+  feeActive: boolean
+  receivedActive: boolean
+  onFocusFee: () => void
+  onFocusReceived: () => void
 }) {
   const [showMore, setShowMore] = useState(false)
   const rate = sent > 0 && value.received > 0 ? value.received / sent : 0
@@ -388,18 +431,22 @@ export function RemitFields({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>Phí (JPY)</label>
-          <MoneyInput
+          <MoneyField
             value={value.fee}
             currency="JPY"
+            active={feeActive}
+            onFocus={onFocusFee}
             onChange={(v) => onChange({ ...value, fee: v })}
             ariaLabel="Phí gửi tiền (JPY)"
           />
         </div>
         <div>
           <label className={labelCls}>Số nhận (VND)</label>
-          <MoneyInput
+          <MoneyField
             value={value.received}
             currency="VND"
+            active={receivedActive}
+            onFocus={onFocusReceived}
             onChange={(v) => onChange({ ...value, received: v })}
             ariaLabel="Số tiền người nhận nhận được (VND)"
           />

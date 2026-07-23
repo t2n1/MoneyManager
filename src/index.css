@@ -9,6 +9,15 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Khung app cố định chiều cao, cuộn nằm trong <main>. Chặn overscroll để trang
+   không rubber-band kéo theo thanh nav cố định dưới (hở dải an toàn trên iOS). */
+html,
+body,
+#root {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
 /* Focus ring bàn phím toàn cục (a11y): hiện khi điều hướng bằng Tab, ẩn khi
    bấm chuột. Dùng :where() → specificity 0 nên KHÔNG đè các focus tùy biến
    sẵn có (input outline-green-500…), chỉ lấp chỗ nút/link chưa có focus style. */

@@ -47,6 +47,14 @@ export function AppLayout() {
   const [recurringToast, setRecurringToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
+  // Cuộn nằm trong <main> (không phải cả trang) để thanh nav cố định dưới không
+  // bị "nhảy" khi rubber-band trên iOS. Đổi route → đưa main về đầu cho khớp
+  // hành vi cuộn-theo-window trước đây.
+  const mainRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    mainRef.current?.scrollTo(0, 0)
+  }, [location.pathname])
+
   // Sinh các kỳ định kỳ đến hạn kể từ lần mở trước; N > 0 → toast
   useEffect(() => {
     if (recurringCatchUpDone) return
@@ -86,7 +94,7 @@ export function AppLayout() {
     }`
 
   return (
-    <div className="min-h-dvh bg-gray-50 lg:flex dark:bg-gray-950">
+    <div className="flex h-dvh flex-col overflow-hidden bg-gray-50 lg:flex-row dark:bg-gray-950">
       {/* Sidebar desktop */}
       <aside className="hidden shrink-0 border-r border-gray-200 bg-white p-4 lg:flex lg:w-56 lg:flex-col dark:border-gray-800 dark:bg-gray-900 print:hidden">
         <div className="mb-6 flex items-center gap-2 px-2">
@@ -128,7 +136,8 @@ export function AppLayout() {
           (Outlet trả về element ổn định tham chiếu nên không tự re-render). */}
       <main
         key={privacyOn ? 'priv-on' : 'priv-off'}
-        className={`mx-auto w-full max-w-2xl flex-1 pt-[env(safe-area-inset-top)] lg:pt-0 lg:pb-6 ${onEntry ? '' : 'pb-20'}`}
+        ref={mainRef}
+        className={`mx-auto w-full min-h-0 max-w-2xl flex-1 overflow-y-auto pt-[env(safe-area-inset-top)] lg:pt-0 lg:pb-6 ${onEntry ? '' : 'pb-20'}`}
       >
         <Outlet />
       </main>

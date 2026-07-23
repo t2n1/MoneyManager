@@ -1,0 +1,326 @@
+import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
+import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
+import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
+
+/**
+ * Field riêng của từng vai trò (controlled). Field gốc (số tiền, tài khoản, ngày,
+ * ghi chú) + segmented chiều/kiểu do form Nhập quản lý; block chỉ chứa phần thêm.
+ */
+
+const labelCls = 'mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400'
+const inputCls =
+  'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 outline-green-500'
+const moneyInputCls =
+  'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-right text-lg font-semibold text-gray-800 dark:text-gray-100 outline-green-500'
+// Bọc field vai trò: nền tint + viền trái theo màu để phân biệt với field gốc.
+const blockCls =
+  'flex flex-col gap-2 rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/30'
+
+/** Ô nhập tiền (định dạng theo currency, gõ số thô). */
+function MoneyInput({
+  value,
+  currency,
+  onChange,
+  ariaLabel,
+}: {
+  value: number
+  currency: CurrencyCode
+  onChange: (v: number) => void
+  ariaLabel: string
+}) {
+  return (
+    <input
+      inputMode="numeric"
+      aria-label={ariaLabel}
+      value={value === 0 ? '' : formatMoney(value, currency)}
+      onChange={(e) => onChange(parseMoney(e.target.value))}
+      placeholder={formatMoney(0, currency)}
+      className={moneyInputCls}
+    />
+  )
+}
+
+/** Trả hộ / chia bill: phần người khác nợ lại + ai nợ mình (Chi luôn). */
+export function SplitFields({
+  value,
+  onChange,
+  total,
+  currency,
+}: {
+  value: SplitValue
+  onChange: (v: SplitValue) => void
+  total: number
+  currency: CurrencyCode
+}) {
+  const mine = total - value.others
+  const over = value.others > total
+  return (
+    <div className={blockCls}>
+      <div>
+        <label className={labelCls}>Phần người khác nợ lại</label>
+        <MoneyInput
+          value={value.others}
+          currency={currency}
+          onChange={(v) => onChange({ ...value, others: v })}
+          ariaLabel="Phần người khác nợ lại"
+        />
+      </div>
+      {total > 0 && value.others > 0 && (
+        <p className={`text-right text-xs ${over ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+          {over ? (
+            'Phần người khác không được lớn hơn tổng.'
+          ) : (
+            <>
+              Phần của mình (tính vào chi tiêu):{' '}
+              <span className="font-semibold text-gray-700 dark:text-gray-200">
+                {formatMoney(mine, currency)}
+              </span>
+            </>
+          )}
+        </p>
+      )}
+      <div>
+        <label className={labelCls}>Ai nợ mình</label>
+        <input
+          value={value.counterparty}
+          onChange={(e) => onChange({ ...value, counterparty: e.target.value })}
+          placeholder="Tên người"
+          className={inputCls}
+        />
+      </div>
+    </div>
+  )
+}
+
+/** Chi tiết nợ dùng chung cho cả nhập & sửa: hạn, lãi suất %/năm, số kỳ trả góp. */
+export function DebtDetailInputs({
+  dueOn,
+  interestPct,
+  termMonths,
+  onChange,
+}: {
+  dueOn: string
+  interestPct: string
+  termMonths: string
+  onChange: (patch: { dueOn?: string; interestPct?: string; termMonths?: string }) => void
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div className="col-span-2">
+        <label className={labelCls}>Hạn (không bắt buộc)</label>
+        <input
+          type="date"
+          value={dueOn}
+          onChange={(e) => onChange({ dueOn: e.target.value })}
+          className={inputCls}
+        />
+      </div>
+      <div>
+        <label className={labelCls}>Lãi suất %/năm</label>
+        <input
+          inputMode="decimal"
+          value={interestPct}
+          onChange={(e) => onChange({ interestPct: e.target.value.replace(/[^0-9.]/g, '') })}
+          placeholder="vd 5.5"
+          className={`${inputCls} text-right`}
+        />
+      </div>
+      <div>
+        <label className={labelCls}>Số kỳ / tháng</label>
+        <input
+          inputMode="numeric"
+          value={termMonths}
+          onChange={(e) => onChange({ termMonths: e.target.value.replace(/[^0-9]/g, '') })}
+          placeholder="vd 12"
+          className={`${inputCls} text-right`}
+        />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Ghi nợ / cho vay: tên đối tác + toggle chuyển tiền thật + (thêm) hạn/lãi/kỳ.
+ * Chiều (Mình nợ / Cho vay) do form quản lý qua segmented. Loại tiền = tài khoản gốc.
+ */
+export function DebtFields({
+  value,
+  onChange,
+  canRecordReal,
+}: {
+  value: DebtValue
+  onChange: (v: DebtValue) => void
+  /** Có tài khoản + danh mục phù hợp để tạo giao dịch thật không. */
+  canRecordReal: boolean
+}) {
+  const [showMore, setShowMore] = useState(false)
+  const realOn = canRecordReal && value.withTransaction
+  return (
+    <div className={blockCls}>
+      <div>
+        <label className={labelCls}>
+          {value.direction === 'i_owe' ? 'Chủ nợ (mình nợ ai)' : 'Con nợ (ai nợ mình)'}
+        </label>
+        <input
+          value={value.counterparty}
+          onChange={(e) => onChange({ ...value, counterparty: e.target.value })}
+          placeholder="Tên người / công ty"
+          className={inputCls}
+        />
+      </div>
+
+      <div className="rounded-lg bg-white/70 p-2.5 dark:bg-gray-900/50">
+        <label className="flex items-center justify-between gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <span>
+            Có chuyển tiền thật
+            <span className="block text-xs text-gray-400 dark:text-gray-500">
+              {value.direction === 'owed_to_me'
+                ? 'Tạo giao dịch chi (trừ số dư tài khoản)'
+                : 'Tạo giao dịch thu (cộng số dư tài khoản)'}
+            </span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={realOn}
+            aria-label="Có chuyển tiền thật"
+            disabled={!canRecordReal}
+            onClick={() => onChange({ ...value, withTransaction: !value.withTransaction })}
+            className={`relative h-5 w-9 shrink-0 rounded-full transition disabled:opacity-40 ${
+              realOn ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
+                realOn ? 'left-[18px]' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </label>
+        {!canRecordReal && (
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            Chưa có danh mục phù hợp để tạo giao dịch thật. Vẫn lưu được khoản nợ (không đổi số dư).
+          </p>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setShowMore((v) => !v)}
+        className="flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
+      >
+        <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
+        {showMore ? 'Ẩn bớt' : 'Thêm chi tiết (hạn, lãi suất)'}
+      </button>
+      {showMore && (
+        <DebtDetailInputs
+          dueOn={value.dueOn}
+          interestPct={value.interestPct}
+          termMonths={value.termMonths}
+          onChange={(patch) => onChange({ ...value, ...patch })}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Gửi về VN: TK đích VND (khi chuyển tài sản) + phí + số nhận + dịch vụ.
+ * Kiểu (Hỗ trợ / Chuyển tài sản) do form quản lý qua segmented. Nguồn = tài khoản gốc (JPY).
+ */
+export function RemitFields({
+  value,
+  onChange,
+  sent,
+  vndAccounts,
+  services,
+}: {
+  value: RemitValue
+  onChange: (v: RemitValue) => void
+  /** số gửi JPY (từ ô số tiền gốc) — để tính tỷ giá. */
+  sent: number
+  vndAccounts: { id: string; name: string }[]
+  services: readonly string[]
+}) {
+  const [showMore, setShowMore] = useState(false)
+  const rate = sent > 0 && value.received > 0 ? value.received / sent : 0
+  return (
+    <div className={blockCls}>
+      {value.kind === 'transfer' && (
+        <div>
+          <label className={labelCls}>Đến tài khoản VND</label>
+          {vndAccounts.length === 0 ? (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              Chưa có tài khoản VND. Tạo một tài khoản VND (vd "Tiền ở VN") hoặc chọn "Hỗ trợ gia đình".
+            </p>
+          ) : (
+            <select
+              value={value.destId}
+              onChange={(e) => onChange({ ...value, destId: e.target.value })}
+              className={inputCls}
+            >
+              <option value="">— chọn —</option>
+              {vndAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={labelCls}>Phí (JPY)</label>
+          <MoneyInput
+            value={value.fee}
+            currency="JPY"
+            onChange={(v) => onChange({ ...value, fee: v })}
+            ariaLabel="Phí gửi tiền (JPY)"
+          />
+        </div>
+        <div>
+          <label className={labelCls}>Số nhận (VND)</label>
+          <MoneyInput
+            value={value.received}
+            currency="VND"
+            onChange={(v) => onChange({ ...value, received: v })}
+            ariaLabel="Số tiền người nhận nhận được (VND)"
+          />
+        </div>
+      </div>
+      {rate > 0 && (
+        <p className="text-right text-xs text-gray-400 dark:text-gray-500">
+          Tỷ giá: 1 ¥ ≈ {rate.toFixed(1)} ₫
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setShowMore((v) => !v)}
+        className="flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
+      >
+        <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
+        {showMore ? 'Ẩn bớt' : 'Thêm chi tiết (dịch vụ)'}
+      </button>
+      {showMore && (
+        <div>
+          <label className={labelCls}>Dịch vụ</label>
+          <select
+            value={value.service}
+            onChange={(e) => onChange({ ...value, service: e.target.value })}
+            className={inputCls}
+          >
+            {services.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  )
+}

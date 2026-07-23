@@ -1,10 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, Repeat, Sparkles, Star, X } from 'lucide-react'
+import {
+  ChevronDown,
+  HandCoins,
+  type LucideIcon,
+  Plus,
+  Repeat,
+  Send,
+  Sparkles,
+  Star,
+  Users,
+  X,
+} from 'lucide-react'
 import type { NewRecurringRule, NewTransaction } from '../../data'
 import { toISODate } from '../../lib/dates'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { RecurringFrequency } from '../../lib/recurring'
-import type { TransactionRow, TransactionType } from '../../types/database.types'
+import type { DebtDirection, TransactionRow, TransactionType } from '../../types/database.types'
 import { useAccounts, useCategories } from '../../hooks/queries'
 import { AccountPicker } from '../../components/AccountPicker'
 import { NumPad, type NumPadKey } from './NumPad'
@@ -16,6 +27,22 @@ import {
   useQuickTemplates,
   type QuickTemplate,
 } from './quickTemplates'
+import {
+  type DebtValue,
+  type EntryRole,
+  initialDebt,
+  initialRemit,
+  initialSplit,
+  type RemitValue,
+  roleAmountLabel,
+  roleHidesCategoryGrid,
+  roleTxType,
+  SERVICES,
+  type SpecialRole,
+  type SplitValue,
+} from './entryRoles'
+import { DebtFields, RemitFields, SplitFields } from './roleFields'
+import type { RoleBase } from './roleSave'
 
 const LAST_ACCOUNT_KEY = 'sct-last-account'
 const lastCategoryKey = (type: TransactionType) => `sct-last-category-${type}`
@@ -42,6 +69,35 @@ const AMOUNT_COLOR: Record<TransactionType, string> = {
   income: 'text-green-600 dark:text-green-400',
   transfer: 'text-gray-600 dark:text-gray-300',
 }
+
+/** Vai trò đặc biệt: nhãn + icon + màu banner. */
+const ROLE_ORDER: SpecialRole[] = ['split', 'debt', 'remit']
+const ROLE_META: Record<SpecialRole, { label: string; Icon: LucideIcon; banner: string }> = {
+  split: {
+    label: 'Trả hộ / chia bill',
+    Icon: Users,
+    banner:
+      'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300',
+  },
+  debt: {
+    label: 'Cho vay / Ghi nợ',
+    Icon: HandCoins,
+    banner:
+      'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+  },
+  remit: {
+    label: 'Gửi về VN',
+    Icon: Send,
+    banner:
+      'border-green-300 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300',
+  },
+}
+
+/** Payload gửi lên EntryPage khi lưu một vai trò đặc biệt. */
+export type RoleSubmit =
+  | { role: 'split'; base: RoleBase; value: SplitValue }
+  | { role: 'debt'; base: RoleBase; value: DebtValue }
+  | { role: 'remit'; base: RoleBase; value: RemitValue }
 
 // Nút "Lặp lại" gọn: chip hiện chu kỳ ngắn; menu bấm ra hiện nhãn đầy đủ
 const REPEAT_OPTIONS: ('none' | RecurringFrequency)[] = ['none', 'weekly', 'monthly', 'yearly']
@@ -95,6 +151,12 @@ interface TransactionFormProps {
   enableNlInput?: boolean
   /** Hiện hàng mẫu giao dịch nhanh (mục J) — chỉ màn nhập mới. */
   enableTemplates?: boolean
+  /** Cho phép các "vai trò đặc biệt" (Trả hộ / Cho vay-Nợ / Gửi về VN) ngay trong form. */
+  enableRoles?: boolean
+  /** Vai trò mở sẵn (từ deep-link ?role=). Bỏ qua nếu !enableRoles. */
+  initialRole?: EntryRole
+  /** Lưu một vai trò đặc biệt (thay onSubmit). Bắt buộc khi enableRoles. */
+  onSubmitRole?: (payload: RoleSubmit) => Promise<void>
 }
 
 export function TransactionForm({
@@ -108,6 +170,9 @@ export function TransactionForm({
   showExcludeOption,
   enableNlInput,
   enableTemplates,
+  enableRoles,
+  initialRole,
+  onSubmitRole,
 }: TransactionFormProps) {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
@@ -144,6 +209,16 @@ export function TransactionForm({
     return categories.find((c) => c.id === cid)?.parent_id ?? null
   })
 
+  // Vai trò đặc biệt (chỉ khi enableRoles): 'none' = giao dịch thường
+  const [role, setRole] = useState<EntryRole>(
+    enableRoles && initialRole ? initialRole : 'none',
+  )
+  const [roleMenu, setRoleMenu] = useState(false)
+  const [splitVal, setSplitVal] = useState<SplitValue>(initialSplit)
+  const [debtVal, setDebtVal] = useState<DebtValue>(initialDebt)
+  const [remitVal, setRemitVal] = useState<RemitValue>(initialRemit)
+  const activeRole: EntryRole = enableRoles ? role : 'none'
+
   // Điền sẵn danh mục lần trước khi categories tải xong (form mới, chưa chọn gì)
   useEffect(() => {
     if (initial || categoryId !== null || type === 'transfer') return
@@ -151,15 +226,24 @@ export function TransactionForm({
     if (last) setCategoryId(last)
   }, [categories, type, initial, categoryId])
 
-  // Đóng menu "Lặp lại" khi bấm Esc
+  // Đóng menu "Lặp lại" / menu vai trò khi bấm Esc
   useEffect(() => {
-    if (!repeatOpen) return
+    if (!repeatOpen && !roleMenu) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setRepeatOpen(false)
+      if (e.key === 'Escape') {
+        setRepeatOpen(false)
+        setRoleMenu(false)
+      }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [repeatOpen])
+  }, [repeatOpen, roleMenu])
+
+  // Deep-link ?role=: đồng bộ loại giao dịch theo vai trò mở sẵn (chỉ khi mount)
+  useEffect(() => {
+    if (activeRole !== 'none') setTypeAndCat(roleTxType(activeRole, debtVal))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Tài khoản chọn được: đang hoạt động + tài khoản của GD đang sửa (kể cả đã
   // lưu trữ) — nếu không, form sửa sẽ âm thầm gán GD sang tài khoản khác.
@@ -173,6 +257,18 @@ export function TransactionForm({
     }
     return list
   }, [accounts, initial])
+  // Gửi về VN: nguồn chỉ được là tài khoản JPY (không phải thẻ); đích là TK VND.
+  const pickerAccounts = useMemo(
+    () =>
+      activeRole === 'remit'
+        ? activeAccounts.filter((a) => a.currency === 'JPY' && a.type !== 'card')
+        : activeAccounts,
+    [activeAccounts, activeRole],
+  )
+  const vndAccounts = useMemo(
+    () => activeAccounts.filter((a) => a.currency === 'VND' && a.type !== 'card'),
+    [activeAccounts],
+  )
   const activeOfType = useMemo(
     () => categories.filter((c) => c.type === type && !c.is_archived),
     [categories, type],
@@ -183,15 +279,20 @@ export function TransactionForm({
   const drillParent = drillId ? topCategories.find((c) => c.id === drillId) ?? null : null
   const drillChildren = drillParent ? childrenOf(drillParent.id) : []
 
-  // Tài khoản mặc định = dùng lần trước, fallback tài khoản đầu tiên
+  // Tài khoản mặc định = dùng lần trước, fallback tài khoản đầu tiên (trong danh sách hợp lệ)
   const effectiveAccountId =
-    accountId && activeAccounts.some((a) => a.id === accountId)
+    accountId && pickerAccounts.some((a) => a.id === accountId)
       ? accountId
-      : (activeAccounts[0]?.id ?? null)
+      : (pickerAccounts[0]?.id ?? null)
 
   const srcCurrency = activeAccounts.find((a) => a.id === effectiveAccountId)?.currency ?? 'JPY'
   const dstCurrency = activeAccounts.find((a) => a.id === toAccountId)?.currency ?? srcCurrency
   const crossCurrency = type === 'transfer' && !!toAccountId && dstCurrency !== srcCurrency
+
+  // Ghi nợ: có đủ tài khoản + danh mục để tạo giao dịch giải ngân thật không
+  const canRecordReal = !!effectiveAccountId && activeOfType.length > 0
+  // Vai trò tự khóa danh mục (remit / ghi sổ nợ) → ẩn lưới danh mục
+  const hideCategoryGrid = roleHidesCategoryGrid(activeRole, debtVal)
 
   /** Phân tích câu nhập nhanh rồi điền sẵn các trường (người dùng vẫn xác nhận trước khi Lưu). */
   function applyNl() {
@@ -246,13 +347,38 @@ export function TransactionForm({
   const toAmountResult = evalExpression(toDigits)
   const toAmount = toAmountResult ?? 0
 
+  const hasCategory = !!categoryId && activeOfType.some((c) => c.id === categoryId)
+  // Điều kiện riêng theo vai trò (số tiền gốc > 0 + tài khoản đã kiểm ở ngoài)
+  const roleValid = (() => {
+    switch (activeRole) {
+      case 'split':
+        return (
+          splitVal.others > 0 &&
+          splitVal.others <= amount &&
+          splitVal.counterparty.trim().length > 0 &&
+          hasCategory
+        )
+      case 'debt':
+        return (
+          debtVal.counterparty.trim().length > 0 &&
+          (!(canRecordReal && debtVal.withTransaction) || hasCategory)
+        )
+      case 'remit':
+        return remitVal.received > 0 && (remitVal.kind !== 'transfer' || !!remitVal.destId)
+      default:
+        return true
+    }
+  })()
+
   const canSave =
     amount > 0 &&
     !!effectiveAccountId &&
     !saving &&
-    (type === 'transfer'
-      ? !!toAccountId && toAccountId !== effectiveAccountId && (!crossCurrency || toAmount > 0)
-      : !!categoryId && activeOfType.some((c) => c.id === categoryId))
+    (activeRole !== 'none'
+      ? roleValid
+      : type === 'transfer'
+        ? !!toAccountId && toAccountId !== effectiveAccountId && (!crossCurrency || toAmount > 0)
+        : hasCategory)
 
   // Lưu mẫu: chỉ với chi/thu đã đủ số tiền + danh mục
   const canSaveTemplate = type !== 'transfer' && amount > 0 && !!categoryId
@@ -271,14 +397,47 @@ export function TransactionForm({
     })
   }
 
-  function switchType(next: TransactionType) {
+  /** Đổi loại giao dịch + điền lại danh mục lần trước của loại đó. */
+  function setTypeAndCat(next: TransactionType) {
     setType(next)
     const last = lastCategoryFor(next, categories)
     setCategoryId(last)
     setDrillId(categories.find((c) => c.id === last)?.parent_id ?? null)
+  }
+
+  function switchType(next: TransactionType) {
+    setTypeAndCat(next)
     setToAccountId(null)
     setToDigits('')
     setActiveField('main')
+  }
+
+  /** Bật một vai trò đặc biệt: khởi tạo field riêng + set loại theo vai trò. */
+  function enterRole(r: SpecialRole) {
+    setRole(r)
+    setRoleMenu(false)
+    const nextDebt = initialDebt()
+    if (r === 'split') setSplitVal(initialSplit())
+    if (r === 'debt') setDebtVal(nextDebt)
+    if (r === 'remit') setRemitVal(initialRemit())
+    setTypeAndCat(roleTxType(r, nextDebt))
+    setToAccountId(null)
+    setToDigits('')
+    setActiveField('main')
+  }
+
+  /** Bỏ vai trò, quay lại giao dịch thường (Chi). */
+  function exitRole() {
+    setRole('none')
+    setRoleMenu(false)
+    setTypeAndCat('expense')
+  }
+
+  /** Đổi chiều nợ (Mình nợ ↔ Cho vay) → đổi luôn loại giao dịch (thu ↔ chi). */
+  function setDebtDirection(dir: DebtDirection) {
+    const next = { ...debtVal, direction: dir }
+    setDebtVal(next)
+    setTypeAndCat(roleTxType('debt', next))
   }
 
   function onNumPadKey(key: NumPadKey) {
@@ -288,6 +447,32 @@ export function TransactionForm({
 
   async function handleSubmit(mode: 'save' | 'continue' = 'save') {
     if (!canSave || !effectiveAccountId) return
+
+    // Vai trò đặc biệt: dựng field gốc dùng chung rồi để EntryPage chạy orchestrator lưu
+    if (activeRole !== 'none' && onSubmitRole) {
+      setPending('save')
+      setError(null)
+      try {
+        const base: RoleBase = {
+          amount,
+          accountId: effectiveAccountId,
+          categoryId,
+          srcCurrency,
+          occurredOn: date,
+          note,
+        }
+        if (activeRole === 'split') await onSubmitRole({ role: 'split', base, value: splitVal })
+        else if (activeRole === 'debt') await onSubmitRole({ role: 'debt', base, value: debtVal })
+        else await onSubmitRole({ role: 'remit', base, value: remitVal })
+        localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Lưu thất bại, thử lại.')
+      } finally {
+        setPending(null)
+      }
+      return
+    }
+
     const keepGoing = mode === 'continue' && !!onContinue
     setPending(mode)
     setError(null)
@@ -390,6 +575,8 @@ export function TransactionForm({
     )
   }
 
+  const roleMeta = activeRole === 'none' ? null : ROLE_META[activeRole]
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
       {/* Nhập nhanh bằng lời: gõ "hôm qua trưa 850 yên" → tự điền các trường bên dưới */}
@@ -446,7 +633,7 @@ export function TransactionForm({
                   type="button"
                   onClick={() => deleteQuickTemplate(t.id)}
                   aria-label={`Xóa mẫu ${t.label}`}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-gray-300 hover:text-red-500 dark:text-gray-600"
+                  className="absolute right-0.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-gray-300 hover:text-red-500 dark:text-gray-600"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -465,24 +652,136 @@ export function TransactionForm({
         </div>
       )}
 
-      {/* Tab loại giao dịch */}
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-gray-200 dark:bg-gray-800 p-1">
-        {TYPE_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            type="button"
-            onClick={() => switchType(tab.value)}
-            className={`rounded-lg py-1.5 text-sm font-medium transition ${
-              type === tab.value ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'
-            }`}
+      {/* Vai trò đặc biệt: nút gọn (ẩn 95% ca thường) hoặc banner khi đang bật */}
+      {enableRoles &&
+        (roleMeta ? (
+          <div
+            className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${roleMeta.banner}`}
           >
-            {tab.label}
-          </button>
+            <roleMeta.Icon className="h-4 w-4 shrink-0" aria-hidden />
+            <span className="flex-1 text-sm font-semibold">{roleMeta.label}</span>
+            <button
+              type="button"
+              onClick={exitRole}
+              aria-label="Bỏ vai trò, quay lại giao dịch thường"
+              className="flex items-center gap-1 rounded-lg bg-white/70 px-2 py-1 text-xs font-medium active:scale-95 dark:bg-gray-900/50"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden /> Bỏ
+            </button>
+          </div>
+        ) : (
+          <div className="relative flex justify-end">
+            <button
+              type="button"
+              onClick={() => setRoleMenu((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={roleMenu}
+              style={{ touchAction: 'manipulation' }}
+              className="flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-600 shadow-sm active:scale-95 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+            >
+              <Plus className="h-4 w-4" aria-hidden /> Loại đặc biệt
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform ${roleMenu ? 'rotate-180' : ''}`}
+                aria-hidden
+              />
+            </button>
+            {roleMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setRoleMenu(false)} aria-hidden />
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+                >
+                  {ROLE_ORDER.map((r) => {
+                    const m = ROLE_META[r]
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => enterRole(r)}
+                        className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800"
+                      >
+                        <m.Icon className="h-4 w-4 shrink-0" aria-hidden /> {m.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+          </div>
         ))}
-      </div>
+
+      {/* Tab loại giao dịch thường, hoặc segmented riêng của vai trò */}
+      {activeRole === 'none' ? (
+        <div className="grid grid-cols-3 gap-1 rounded-xl bg-gray-200 dark:bg-gray-800 p-1">
+          {TYPE_TABS.map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => switchType(tab.value)}
+              className={`rounded-lg py-1.5 text-sm font-medium transition ${
+                type === tab.value ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      ) : activeRole === 'debt' ? (
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-gray-200 p-1 dark:bg-gray-800">
+          {(
+            [
+              ['i_owe', 'Mình nợ'],
+              ['owed_to_me', 'Cho vay'],
+            ] as [DebtDirection, string][]
+          ).map(([val, label]) => (
+            <button
+              key={val}
+              type="button"
+              onClick={() => setDebtDirection(val)}
+              className={`rounded-lg py-1.5 text-sm font-medium transition ${
+                debtVal.direction === val
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                  : 'text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : activeRole === 'remit' ? (
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-gray-200 p-1 dark:bg-gray-800">
+          {(
+            [
+              ['expense', 'Hỗ trợ gia đình'],
+              ['transfer', 'Chuyển tài sản'],
+            ] as [RemitValue['kind'], string][]
+          ).map(([val, label]) => (
+            <button
+              key={val}
+              type="button"
+              onClick={() => setRemitVal({ ...remitVal, kind: val, destId: '' })}
+              className={`rounded-lg py-1.5 text-sm font-medium transition ${
+                remitVal.kind === val
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                  : 'text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {/* Số tiền (nguồn); CK xuyên tệ có thêm ô "nhận được" */}
-      {amountBox('main', digits, srcCurrency, setDigits, crossCurrency ? 'Chuyển đi' : undefined)}
+      {amountBox(
+        'main',
+        digits,
+        srcCurrency,
+        setDigits,
+        roleAmountLabel(activeRole) ?? (crossCurrency ? 'Chuyển đi' : undefined),
+      )}
       {crossCurrency &&
         amountBox('to', toDigits, dstCurrency, setToDigits, `Nhận được (${dstCurrency})`)}
 
@@ -508,7 +807,7 @@ export function TransactionForm({
           </>
         ) : (
           <AccountPicker
-            accounts={activeAccounts}
+            accounts={pickerAccounts}
             value={effectiveAccountId}
             onChange={setAccountId}
             className="min-w-0 flex-1"
@@ -518,9 +817,10 @@ export function TransactionForm({
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
+          aria-label="Ngày giao dịch"
           className="w-[7.5rem] shrink-0 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300"
         />
-        {!initial && onSubmitRecurring && (
+        {!initial && onSubmitRecurring && activeRole === 'none' && (
           <div className="relative shrink-0">
             <button
               type="button"
@@ -577,6 +877,28 @@ export function TransactionForm({
           </div>
         )}
       </div>
+      {/* Field riêng của vai trò (nếu có) — nằm ngay dưới số tiền/tài khoản */}
+      {activeRole === 'remit' && pickerAccounts.length === 0 && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+          Chưa có tài khoản JPY. Hãy tạo một tài khoản JPY trước khi gửi tiền về VN.
+        </p>
+      )}
+      {activeRole === 'split' && (
+        <SplitFields value={splitVal} onChange={setSplitVal} total={amount} currency={srcCurrency} />
+      )}
+      {activeRole === 'debt' && (
+        <DebtFields value={debtVal} onChange={setDebtVal} canRecordReal={canRecordReal} />
+      )}
+      {activeRole === 'remit' && (
+        <RemitFields
+          value={remitVal}
+          onChange={setRemitVal}
+          sent={amount}
+          vndAccounts={vndAccounts}
+          services={SERVICES}
+        />
+      )}
+
       <input
         value={note}
         onChange={(e) => setNote(e.target.value)}
@@ -598,8 +920,9 @@ export function TransactionForm({
         </label>
       )}
 
-      {/* Danh mục (ẩn khi chuyển khoản) */}
+      {/* Danh mục (ẩn khi chuyển khoản hoặc vai trò tự khóa danh mục) */}
       {type !== 'transfer' &&
+        !hideCategoryGrid &&
         (drillParent ? (
           /* Trong một nhóm cha → chọn danh mục con (bắt buộc) */
           <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
@@ -647,14 +970,14 @@ export function TransactionForm({
             })}
           </div>
         ))}
-      {type === 'transfer' && <div className="flex-1" />}
+      {(type === 'transfer' || hideCategoryGrid) && <div className="flex-1" />}
 
       {/* NumPad chỉ trên mobile */}
       <div className="lg:hidden">
         <NumPad onKey={onNumPadKey} />
       </div>
 
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       {/* Hàng nút: ⌫ (chỉ mobile, thay cho hàng xóa lùi riêng) + Tiếp tục/Lưu */}
       <div className="flex gap-2">
@@ -666,7 +989,7 @@ export function TransactionForm({
         >
           ⌫
         </button>
-        {onContinue && repeat === 'none' ? (
+        {onContinue && repeat === 'none' && activeRole === 'none' ? (
           <>
             <button
               type="button"

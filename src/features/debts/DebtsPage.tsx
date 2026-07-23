@@ -5,14 +5,12 @@ import { useDebtPayments, useDebts, useRates } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney } from '../../lib/money'
 import type { DebtRow } from '../../types/database.types'
-import { DebtFormSheet } from './DebtFormSheet'
 import { debtSummary, remainingOf } from './aggregate'
 
 export function DebtsPage() {
   const { data: debts = [], isLoading } = useDebts()
   const { data: payments = [] } = useDebtPayments()
   const { base, rates } = useRates()
-  const [adding, setAdding] = useState(false)
   const [showSettled, setShowSettled] = useState(false)
 
   const summary = useMemo(
@@ -37,13 +35,12 @@ export function DebtsPage() {
           <ChevronLeft className="h-5 w-5" />
         </Link>
         <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Nợ / cho vay</h1>
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
+        <Link
+          to="/entry?role=debt"
           className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
         >
           + Thêm
-        </button>
+        </Link>
       </div>
 
       {/* Tổng quan quy đổi base */}
@@ -114,8 +111,6 @@ export function DebtsPage() {
           )}
         </div>
       )}
-
-      {adding && <DebtFormSheet debt={null} onClose={() => setAdding(false)} />}
     </div>
   )
 }

@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Plus, Send, Trash2 } from 'lucide-react'
 import { useDeleteTransaction } from '../../hooks/queries'
 import { formatMoney } from '../../lib/money'
 import type { TransactionRow } from '../../types/database.types'
 import { remittanceStats } from './aggregate'
-import { RemittanceFormSheet } from './RemittanceFormSheet'
 
 /**
  * Mục "Gửi tiền về VN" trong Báo cáo → Năm. Nhận giao dịch cả năm (đã tải sẵn),
@@ -12,7 +12,6 @@ import { RemittanceFormSheet } from './RemittanceFormSheet'
  */
 export function RemittanceSection({ txs, year }: { txs: TransactionRow[]; year: number }) {
   const del = useDeleteTransaction()
-  const [adding, setAdding] = useState(false)
 
   const stats = useMemo(() => remittanceStats(txs), [txs])
   const remittances = useMemo(
@@ -31,13 +30,12 @@ export function RemittanceSection({ txs, year }: { txs: TransactionRow[]; year: 
         <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
           <Send className="h-3.5 w-3.5" /> Gửi tiền về VN
         </h2>
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
+        <Link
+          to="/entry?role=remit"
           className="flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1 text-xs font-semibold text-white active:scale-95"
         >
           <Plus className="h-3.5 w-3.5" /> Gửi tiền
-        </button>
+        </Link>
       </div>
 
       {remittances.length === 0 ? (
@@ -107,8 +105,6 @@ export function RemittanceSection({ txs, year }: { txs: TransactionRow[]; year: 
           </ul>
         </>
       )}
-
-      {adding && <RemittanceFormSheet onClose={() => setAdding(false)} />}
     </section>
   )
 }

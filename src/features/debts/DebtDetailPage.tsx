@@ -11,7 +11,7 @@ import {
 } from '../../hooks/queries'
 import { formatMoney } from '../../lib/money'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
-import { DebtFormSheet } from './DebtFormSheet'
+import { DebtEditSheet } from './DebtEditSheet'
 import { DebtPaymentSheet } from './DebtPaymentSheet'
 import { paidOf, remainingOf } from './aggregate'
 import { buildSchedule } from './amortization'
@@ -207,7 +207,7 @@ export function DebtDetailPage() {
         )}
       </div>
 
-      {editing && <DebtFormSheet debt={debt} onClose={() => setEditing(false)} />}
+      {editing && <DebtEditSheet debt={debt} onClose={() => setEditing(false)} />}
       {paying && (
         <DebtPaymentSheet debt={debt} remaining={remaining} onClose={() => setPaying(false)} />
       )}

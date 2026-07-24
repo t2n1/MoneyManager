@@ -14,6 +14,12 @@ import {
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, AccountType } from '../../types/database.types'
+import { groupAccountsByType, type CurrencyTotal } from './groupByType'
+
+/** Ghép tổng theo loại tiền thành chuỗi hiển thị: "¥545,860" hoặc "¥X · ₫Y". */
+function formatTotals(totals: CurrencyTotal[]): string {
+  return totals.map((t) => formatMoney(t.total, t.currency)).join(' · ')
+}
 
 const CURRENCY_LIST = Object.keys(CURRENCIES) as CurrencyCode[]
 
@@ -36,12 +42,18 @@ export function AccountsPage() {
   const active = sorted.filter((a) => !a.is_archived)
   const archived = sorted.filter((a) => a.is_archived)
   const balanceOf = (id: string) => balances.find((b) => b.id === id)?.balance ?? 0
+  const groups = groupAccountsByType(active, balanceOf)
 
-  function move(index: number, delta: number) {
-    const target = index + delta
-    if (target < 0 || target >= active.length) return
+  // Di chuyển trong cùng một loại: hoán đổi vị trí hai tài khoản trong danh sách
+  // id toàn cục rồi lưu lại. Vì tài khoản cùng loại nằm liền nhau theo sort_order,
+  // các loại vẫn tự tách đúng.
+  function moveInGroup(groupAccounts: AccountRow[], indexInGroup: number, delta: number) {
+    const target = indexInGroup + delta
+    if (target < 0 || target >= groupAccounts.length) return
     const ids = active.map((a) => a.id)
-    ;[ids[index], ids[target]] = [ids[target], ids[index]]
+    const ai = ids.indexOf(groupAccounts[indexInGroup].id)
+    const bi = ids.indexOf(groupAccounts[target].id)
+    ;[ids[ai], ids[bi]] = [ids[bi], ids[ai]]
     // giữ tài khoản đã lưu trữ ở cuối
     reorder.mutate([...ids, ...archived.map((a) => a.id)])
   }
@@ -66,61 +78,76 @@ export function AccountsPage() {
         </button>
       </div>
 
-      <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
-        {active.map((a, i) => (
-          <div key={a.id} className="flex items-center gap-2 px-3 py-2.5">
-            <div className="flex flex-col">
-              <button
-                type="button"
-                onClick={() => move(i, -1)}
-                disabled={i === 0}
-                className="inline-flex min-w-11 items-center justify-center py-0.5 text-gray-500 dark:text-gray-400 disabled:opacity-20"
-                aria-label="Lên"
-              >
-                <ChevronUp className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => move(i, 1)}
-                disabled={i === active.length - 1}
-                className="inline-flex min-w-11 items-center justify-center py-0.5 text-gray-500 dark:text-gray-400 disabled:opacity-20"
-                aria-label="Xuống"
-              >
-                <ChevronDown className="h-5 w-5" />
-              </button>
-            </div>
-            <AccountTypeIcon type={a.type} className="h-4 w-4" />
-            <button type="button" onClick={() => setEditing(a)} className="min-w-0 flex-1 text-left">
-              <span className="flex items-center gap-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100">
-                <span className="truncate">{a.name}</span>
-                {a.is_hidden && (
-                  <span className="shrink-0 rounded bg-gray-100 dark:bg-gray-800 px-1 text-xs text-gray-500 dark:text-gray-400">
-                    ẩn
-                  </span>
-                )}
-                {!a.include_in_totals && (
-                  <span className="shrink-0 rounded bg-gray-100 dark:bg-gray-800 px-1 text-xs text-gray-500 dark:text-gray-400">
-                    ngoài tổng
-                  </span>
-                )}
-              </span>
-              <span className="block text-xs text-gray-500 dark:text-gray-400">
-                {formatMoney(balanceOf(a.id), a.currency)} · {a.currency}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => update.mutate({ id: a.id, patch: { is_archived: true } })}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-            >
-              Lưu trữ
-            </button>
-          </div>
-        ))}
-        {active.length === 0 && (
+      {active.length === 0 && (
+        <div className="overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
           <p className="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400">Chưa có tài khoản</p>
-        )}
-      </div>
+        </div>
+      )}
+
+      {groups.map((g) => (
+        <div key={g.type} className="mb-3">
+          <div className="mb-1.5 flex items-baseline justify-between px-1">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {g.label}
+            </h2>
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+              {formatTotals(g.totalsByCurrency)}
+            </span>
+          </div>
+          <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
+            {g.accounts.map((a, i) => (
+              <div key={a.id} className="flex items-center gap-2 px-3 py-2.5">
+                <div className="flex flex-col">
+                  <button
+                    type="button"
+                    onClick={() => moveInGroup(g.accounts, i, -1)}
+                    disabled={i === 0}
+                    className="inline-flex min-w-11 items-center justify-center py-0.5 text-gray-500 dark:text-gray-400 disabled:opacity-20"
+                    aria-label="Lên"
+                  >
+                    <ChevronUp className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveInGroup(g.accounts, i, 1)}
+                    disabled={i === g.accounts.length - 1}
+                    className="inline-flex min-w-11 items-center justify-center py-0.5 text-gray-500 dark:text-gray-400 disabled:opacity-20"
+                    aria-label="Xuống"
+                  >
+                    <ChevronDown className="h-5 w-5" />
+                  </button>
+                </div>
+                <AccountTypeIcon type={a.type} className="h-4 w-4" />
+                <button type="button" onClick={() => setEditing(a)} className="min-w-0 flex-1 text-left">
+                  <span className="flex items-center gap-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                    <span className="truncate">{a.name}</span>
+                    {a.is_hidden && (
+                      <span className="shrink-0 rounded bg-gray-100 dark:bg-gray-800 px-1 text-xs text-gray-500 dark:text-gray-400">
+                        ẩn
+                      </span>
+                    )}
+                    {!a.include_in_totals && (
+                      <span className="shrink-0 rounded bg-gray-100 dark:bg-gray-800 px-1 text-xs text-gray-500 dark:text-gray-400">
+                        ngoài tổng
+                      </span>
+                    )}
+                  </span>
+                  <span className="block text-xs text-gray-500 dark:text-gray-400">
+                    {formatMoney(balanceOf(a.id), a.currency)} · {a.currency}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => update.mutate({ id: a.id, patch: { is_archived: true } })}
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  Lưu trữ
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
 
       {archived.length > 0 && (
         <div className="mt-3">

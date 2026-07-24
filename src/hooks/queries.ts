@@ -202,6 +202,14 @@ export function useReorderAccounts() {
   })
 }
 
+export function useDeleteAccount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => repo.deleteAccount(id),
+    onSettled: () => invalidateAccounts(qc),
+  })
+}
+
 // --- Đầu tư: giá trị thị trường (mục AE) ---
 
 export function useAccountValuations() {
@@ -314,6 +322,17 @@ export function useReorderCategories() {
   return useMutation({
     mutationFn: (orderedIds: string[]) => repo.reorderCategories(orderedIds),
     onSettled: () => qc.invalidateQueries({ queryKey: ['categories'] }),
+  })
+}
+
+export function useDeleteCategory() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => repo.deleteCategory(id),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['categories'] })
+      qc.invalidateQueries({ queryKey: ['budgets'] })
+    },
   })
 }
 

@@ -259,6 +259,10 @@ export interface Repo {
   createCategory(input: NewCategory): Promise<CategoryRow>
   updateCategory(id: string, patch: CategoryPatch): Promise<CategoryRow>
   reorderCategories(orderedIds: string[]): Promise<void>
+  /** Xóa danh mục. Chỉ xóa khi không còn giao dịch / định kỳ / ngân sách nào
+   *  dùng nó. Danh mục cha có con: xóa cả cha lẫn con khi TẤT CẢ đều trống;
+   *  còn tham chiếu (ở cha hoặc bất kỳ con nào) → throw, không xóa gì. */
+  deleteCategory(id: string): Promise<void>
 
   // --- Nhóm tài sản (thành viên = accounts.asset_group; đây là cài đặt riêng) ---
   getAssetGroupSettings(): Promise<AssetGroupSettingRow[]>

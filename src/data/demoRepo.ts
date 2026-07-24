@@ -710,6 +710,25 @@ export const demoRepo: Repo = {
     save(db)
   },
 
+  async deleteCategory(id: string) {
+    const db = load()
+    const target = db.categories.find((c) => c.id === id)
+    if (!target) throw new Error('Không tìm thấy danh mục')
+    // Cha (parent_id null) có con → gom cha + tất cả con để xóa cả nhóm.
+    const childIds = target.parent_id
+      ? []
+      : db.categories.filter((c) => c.parent_id === id).map((c) => c.id)
+    const ids = new Set<string>([id, ...childIds])
+    if (db.transactions.some((t) => t.category_id != null && ids.has(t.category_id)))
+      throw new Error('Không xóa được: còn giao dịch dùng danh mục này. Hãy Lưu trữ thay vì Xóa.')
+    if ((db.recurringRules ?? []).some((r) => r.category_id != null && ids.has(r.category_id)))
+      throw new Error('Không xóa được: còn giao dịch định kỳ dùng danh mục này. Hãy Lưu trữ thay vì Xóa.')
+    if ((db.budgets ?? []).some((b) => ids.has(b.category_id)))
+      throw new Error('Không xóa được: còn ngân sách đặt cho danh mục này. Hãy Lưu trữ thay vì Xóa.')
+    db.categories = db.categories.filter((c) => !ids.has(c.id))
+    save(db)
+  },
+
   async getAssetGroupSettings() {
     return (load().assetGroupSettings ?? []).sort((a, b) => a.sort_order - b.sort_order)
   },

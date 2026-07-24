@@ -408,6 +408,45 @@ export const supabaseRepo: Repo = {
     for (const { error } of results) if (error) throw error
   },
 
+  async deleteCategory(id: string) {
+    const sb = getSupabase()
+    // Cha có con → gom id cha + con để kiểm tra & xóa cả nhóm (con cascade khi xóa cha).
+    const { data: children, error: eCh } = await sb
+      .from('categories')
+      .select('id')
+      .eq('parent_id', id)
+    if (eCh) throw eCh
+    const ids = [id, ...(children ?? []).map((c) => c.id)]
+
+    const tx = await sb
+      .from('transactions')
+      .select('id', { count: 'exact', head: true })
+      .in('category_id', ids)
+    if (tx.error) throw tx.error
+    if ((tx.count ?? 0) > 0)
+      throw new Error('Không xóa được: còn giao dịch dùng danh mục này. Hãy Lưu trữ thay vì Xóa.')
+
+    const rr = await sb
+      .from('recurring_rules')
+      .select('id', { count: 'exact', head: true })
+      .in('category_id', ids)
+    if (rr.error) throw rr.error
+    if ((rr.count ?? 0) > 0)
+      throw new Error('Không xóa được: còn giao dịch định kỳ dùng danh mục này. Hãy Lưu trữ thay vì Xóa.')
+
+    const bg = await sb
+      .from('budgets')
+      .select('id', { count: 'exact', head: true })
+      .in('category_id', ids)
+    if (bg.error) throw bg.error
+    if ((bg.count ?? 0) > 0)
+      throw new Error('Không xóa được: còn ngân sách đặt cho danh mục này. Hãy Lưu trữ thay vì Xóa.')
+
+    // Xóa cha → FK on delete cascade tự xóa con (đã kiểm tra con trống ở trên).
+    const { error } = await sb.from('categories').delete().eq('id', id)
+    if (error) throw error
+  },
+
   async getAssetGroupSettings() {
     const { data, error } = await getSupabase()
       .from('asset_group_settings')

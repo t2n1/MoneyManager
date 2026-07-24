@@ -82,3 +82,49 @@ describe('deleteAccount', () => {
     await expect(demoRepo.deleteAccount(bank.id)).rejects.toThrow(/thẻ/)
   })
 })
+
+describe('deleteCategory', () => {
+  it('xóa được danh mục trống', async () => {
+    const cat = await demoRepo.createCategory({ name: 'C', type: 'expense', icon: '📦' })
+    await demoRepo.deleteCategory(cat.id)
+    expect((await demoRepo.getCategories()).some((c) => c.id === cat.id)).toBe(false)
+  })
+
+  it('không xóa khi còn giao dịch', async () => {
+    const acc = await demoRepo.createAccount(accountInput())
+    const cat = await demoRepo.createCategory({ name: 'C', type: 'expense', icon: '📦' })
+    await demoRepo.createTransaction(expenseTx(acc.id, cat.id))
+    await expect(demoRepo.deleteCategory(cat.id)).rejects.toThrow(/giao dịch/)
+    expect((await demoRepo.getCategories()).some((c) => c.id === cat.id)).toBe(true)
+  })
+
+  it('xóa cha kèm các con trống', async () => {
+    const parent = await demoRepo.createCategory({ name: 'P', type: 'expense', icon: '📦' })
+    const child = await demoRepo.createCategory({
+      name: 'Con',
+      type: 'expense',
+      icon: '📦',
+      parent_id: parent.id,
+    })
+    await demoRepo.deleteCategory(parent.id)
+    const cats = await demoRepo.getCategories()
+    expect(cats.some((c) => c.id === parent.id)).toBe(false)
+    expect(cats.some((c) => c.id === child.id)).toBe(false)
+  })
+
+  it('không xóa cha khi một con còn giao dịch', async () => {
+    const acc = await demoRepo.createAccount(accountInput())
+    const parent = await demoRepo.createCategory({ name: 'P', type: 'expense', icon: '📦' })
+    const child = await demoRepo.createCategory({
+      name: 'Con',
+      type: 'expense',
+      icon: '📦',
+      parent_id: parent.id,
+    })
+    await demoRepo.createTransaction(expenseTx(acc.id, child.id))
+    await expect(demoRepo.deleteCategory(parent.id)).rejects.toThrow(/giao dịch/)
+    const cats = await demoRepo.getCategories()
+    expect(cats.some((c) => c.id === parent.id)).toBe(true)
+    expect(cats.some((c) => c.id === child.id)).toBe(true)
+  })
+})

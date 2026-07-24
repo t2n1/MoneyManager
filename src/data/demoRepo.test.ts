@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { demoRepo, resetDemoData } from './demoRepo'
-import type { NewAccount, NewTransaction } from './repo'
+import type { NewAccount, NewRecurringRule, NewTransaction } from './repo'
 
 // Vitest chạy môi trường node → không có localStorage. Cài bản giả trong bộ nhớ.
 beforeEach(() => {
@@ -80,6 +80,36 @@ describe('deleteAccount', () => {
     const bank = await demoRepo.createAccount(accountInput({ name: 'Ngân hàng', type: 'bank' }))
     await demoRepo.createAccount(accountInput({ name: 'Thẻ', type: 'card', payment_account_id: bank.id }))
     await expect(demoRepo.deleteAccount(bank.id)).rejects.toThrow(/thẻ/)
+  })
+
+  it('không xóa khi còn giao dịch định kỳ', async () => {
+    const acc = await demoRepo.createAccount(accountInput())
+    const cat = await demoRepo.createCategory({ name: 'C', type: 'expense', icon: '📦' })
+    const rule: NewRecurringRule = {
+      type: 'expense',
+      amount: 100,
+      to_amount: null,
+      category_id: cat.id,
+      account_id: acc.id,
+      to_account_id: null,
+      note: '',
+      frequency: 'monthly',
+      start_on: '2026-07-01',
+      end_on: null,
+    }
+    await demoRepo.createRecurringRule(rule)
+    await expect(demoRepo.deleteAccount(acc.id)).rejects.toThrow(/định kỳ/)
+  })
+
+  it('không xóa khi còn dữ liệu giá trị đầu tư', async () => {
+    const acc = await demoRepo.createAccount(accountInput({ name: 'TK đầu tư', type: 'investment' }))
+    await demoRepo.upsertValuation({
+      account_id: acc.id,
+      valued_on: '2026-07-01',
+      market_value: 100000,
+      note: '',
+    })
+    await expect(demoRepo.deleteAccount(acc.id)).rejects.toThrow(/giá trị đầu tư/)
   })
 })
 

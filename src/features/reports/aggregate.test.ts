@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
-import type { TransactionRow } from '../../types/database.types'
+import type { CategoryRow, TransactionRow } from '../../types/database.types'
 import {
   categoryBreakdown,
   categoryComparison,
+  categoryMonthlySeries,
   cumulativeDailyBalance,
   dailyExpenseTotals,
+  groupByParent,
   monthlySeries,
   sumIncomeExpense,
 } from './aggregate'
@@ -32,6 +34,20 @@ function tx(p: Partial<TransactionRow> & Pick<TransactionRow, 'type' | 'amount'>
     created_at: '',
     updated_at: '',
     ...p,
+  }
+}
+
+function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
+  return {
+    id: p.id,
+    user_id: 'u',
+    name: p.name ?? p.id,
+    type: p.type ?? 'expense',
+    icon: p.icon ?? '📦',
+    parent_id: p.parent_id ?? null,
+    sort_order: p.sort_order ?? 0,
+    is_archived: p.is_archived ?? false,
+    created_at: '',
   }
 }
 
@@ -277,5 +293,58 @@ describe('dailyExpenseTotals (base = JPY)', () => {
     const r = dailyExpenseTotals(txs, '2026-07-01', '2026-07-01', currencyOf, 'JPY', { JPY: 1 })
     expect(r.hasMissingRate).toBe(true)
     expect(r.points).toEqual([{ date: '2026-07-01', expense: 0 }])
+  })
+})
+
+describe('groupByParent', () => {
+  const cats = [
+    cat({ id: 'food' }),
+    cat({ id: 'coffee', parent_id: 'food' }),
+    cat({ id: 'lunch', parent_id: 'food' }),
+    cat({ id: 'transport' }),
+  ]
+
+  it('gộp con vào cha; total = trực tiếp + tổng con', () => {
+    const slices = [
+      { categoryId: 'food', amount: 100 },
+      { categoryId: 'coffee', amount: 300 },
+      { categoryId: 'lunch', amount: 200 },
+      { categoryId: 'transport', amount: 50 },
+    ]
+    expect(groupByParent(slices, cats)).toEqual([
+      {
+        parentId: 'food',
+        total: 600,
+        direct: 100,
+        children: [
+          { categoryId: 'coffee', amount: 300 },
+          { categoryId: 'lunch', amount: 200 },
+        ],
+      },
+      { parentId: 'transport', total: 50, direct: 50, children: [] },
+    ])
+  })
+
+  it('cha chỉ có con → direct = 0', () => {
+    expect(groupByParent([{ categoryId: 'coffee', amount: 300 }], cats)).toEqual([
+      { parentId: 'food', total: 300, direct: 0, children: [{ categoryId: 'coffee', amount: 300 }] },
+    ])
+  })
+
+  it('danh mục mồ côi thành cha riêng', () => {
+    expect(groupByParent([{ categoryId: 'ghost', amount: 40 }], cats)).toEqual([
+      { parentId: 'ghost', total: 40, direct: 40, children: [] },
+    ])
+  })
+
+  it('xếp cha theo total, con theo amount (giảm dần)', () => {
+    const slices = [
+      { categoryId: 'lunch', amount: 200 },
+      { categoryId: 'coffee', amount: 300 },
+      { categoryId: 'transport', amount: 1000 },
+    ]
+    const g = groupByParent(slices, cats)
+    expect(g.map((x) => x.parentId)).toEqual(['transport', 'food'])
+    expect(g[1].children.map((c) => c.categoryId)).toEqual(['coffee', 'lunch'])
   })
 })

@@ -4,7 +4,7 @@
 import { addMonths, monthKeyForDate, type MonthKey } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
-import type { TransactionRow } from '../../types/database.types'
+import type { CategoryRow, TransactionRow } from '../../types/database.types'
 
 export type CurrencyOf = (accountId: string) => CurrencyCode
 
@@ -49,6 +49,52 @@ export function categoryBreakdown(
     .map(([categoryId, amount]) => ({ categoryId, amount }))
     .sort((a, b) => b.amount - a.amount)
   return { slices, total, hasForeign, hasMissingRate }
+}
+
+export interface ParentGroup {
+  parentId: string
+  /** base minor: trực tiếp + tổng con */
+  total: number
+  /** base minor: giao dịch gán thẳng vào cha (>= 0) */
+  direct: number
+  /** con có số tiền > 0, xếp giảm dần */
+  children: CategorySlice[]
+}
+
+/**
+ * Gom slices phẳng thành nhóm theo cha (1 cấp).
+ * - Con (parent_id != null) cộng vào children của cha.
+ * - Cha (parent_id == null) hoặc danh mục mồ côi (không có trong categories)
+ *   → cộng vào `direct` của chính nó, coi là một cha đứng riêng.
+ * Cha xếp theo total giảm dần; con xếp theo amount giảm dần; bỏ cha total = 0.
+ */
+export function groupByParent(slices: CategorySlice[], categories: CategoryRow[]): ParentGroup[] {
+  const catById = new Map(categories.map((c) => [c.id, c]))
+  const groups = new Map<string, ParentGroup>()
+  const ensure = (parentId: string): ParentGroup => {
+    let g = groups.get(parentId)
+    if (!g) {
+      g = { parentId, total: 0, direct: 0, children: [] }
+      groups.set(parentId, g)
+    }
+    return g
+  }
+  for (const s of slices) {
+    const cat = catById.get(s.categoryId)
+    if (cat && cat.parent_id) {
+      const g = ensure(cat.parent_id)
+      g.children.push({ categoryId: s.categoryId, amount: s.amount })
+      g.total += s.amount
+    } else {
+      const g = ensure(s.categoryId)
+      g.direct += s.amount
+      g.total += s.amount
+    }
+  }
+  const result = [...groups.values()].filter((g) => g.total > 0)
+  for (const g of result) g.children.sort((a, b) => b.amount - a.amount)
+  result.sort((a, b) => b.total - a.total)
+  return result
 }
 
 export interface MonthlyPoint {

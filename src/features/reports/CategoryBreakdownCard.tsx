@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
+import type { MonthKey } from '../../lib/dates'
 import type { CategoryRow } from '../../types/database.types'
-import type { Breakdown } from './aggregate'
+import { groupByParent, type Breakdown, type CategoryMonthlyPoint } from './aggregate'
+import { CategoryLineChart } from './CategoryLineChart'
 
 // Bảng màu cho thanh danh mục (lặp lại nếu > 12). Màu chỉ để phân biệt nhanh —
 // nghĩa được truyền tải bằng NHÃN (tên + số tiền + %) nên không phụ thuộc màu.
@@ -9,8 +12,7 @@ const PALETTE = [
   '#14b8a6', '#f97316', '#6366f1', '#84cc16', '#06b6d4', '#a855f7',
 ]
 
-// Số danh mục hiển thị tối đa trước khi gộp phần còn lại thành "Khác" —
-// tránh danh sách quá dài mà vẫn giữ đúng tổng.
+// Số danh mục cha hiển thị tối đa trước khi gộp phần còn lại thành "Khác".
 const MAX_ROWS = 8
 
 interface Props {
@@ -20,15 +22,83 @@ interface Props {
   kind: 'expense' | 'income'
   onKindChange: (kind: 'expense' | 'income') => void
   periodNoun: string
+  /** Chuỗi tiền theo tháng cho tập danh mục (dùng vẽ đường xu hướng). */
+  lineSeries: (ids: string[]) => CategoryMonthlyPoint[]
+  /** Nhãn trục X của đường (theo khung tháng/năm đang xem). */
+  lineLabelOf: (k: MonthKey) => string
 }
 
-interface Row {
-  key: string
+interface ChildRow {
+  id: string
   name: string
   icon: string
   value: number
-  pct: number
+  pct: number // so với tổng của cha
+}
+
+interface ParentRow {
+  key: string // parentId hoặc '__other__'
+  name: string
+  icon: string
+  value: number
+  pct: number // so với tổng toàn khối
   color: string
+  clickable: boolean
+  parentId: string
+  childIds: string[]
+  children: ChildRow[]
+  direct: number
+  directPct: number // so với tổng của cha
+}
+
+// Khoá riêng cho dòng "(trực tiếp)" để không trùng id danh mục thật.
+const directKey = (parentId: string) => `${parentId}::direct`
+
+/** Một hàng danh mục: nhãn + % + số tiền + thanh tỉ lệ. */
+function BreakdownRow({
+  icon,
+  name,
+  pct,
+  value,
+  barPct,
+  color,
+  base,
+  selected = false,
+}: {
+  icon: string
+  name: string
+  pct: number
+  value: number
+  barPct: number
+  color: string
+  base: CurrencyCode
+  selected?: boolean
+}) {
+  return (
+    <div className={selected ? '-m-1 rounded-md bg-gray-100 p-1 dark:bg-gray-800' : ''}>
+      <div className="mb-1 flex items-baseline gap-2 text-sm">
+        <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">
+          {icon ? `${icon} ` : ''}
+          {name}
+        </span>
+        <span className="shrink-0 tabular-nums text-xs text-gray-500 dark:text-gray-400">
+          {pct.toFixed(0)}%
+        </span>
+        <span className="shrink-0 tabular-nums font-medium text-gray-800 dark:text-gray-100">
+          {formatMoney(value, base)}
+        </span>
+      </div>
+      <div
+        className="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
+        role="presentation"
+      >
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${Math.max(barPct, 1.5)}%`, backgroundColor: color }}
+        />
+      </div>
+    </div>
+  )
 }
 
 export function CategoryBreakdownCard({
@@ -38,29 +108,50 @@ export function CategoryBreakdownCard({
   kind,
   onKindChange,
   periodNoun,
+  lineSeries,
+  lineLabelOf,
 }: Props) {
   const total = breakdown.total
   const pctOf = (v: number) => (total > 0 ? (v / total) * 100 : 0)
 
-  const all: Row[] = breakdown.slices.map((s, i) => {
-    const cat = categories.find((c) => c.id === s.categoryId)
+  const groups = groupByParent(breakdown.slices, categories)
+  const findCat = (id: string) => categories.find((c) => c.id === id)
+
+  const all: ParentRow[] = groups.map((g, i) => {
+    const cat = findCat(g.parentId)
+    const childPctOf = (v: number) => (g.total > 0 ? (v / g.total) * 100 : 0)
     return {
-      key: s.categoryId,
+      key: g.parentId,
       name: cat?.name ?? '?',
       icon: cat?.icon ?? '📦',
-      value: s.amount,
-      pct: pctOf(s.amount),
+      value: g.total,
+      pct: pctOf(g.total),
       color: PALETTE[i % PALETTE.length],
+      clickable: true,
+      parentId: g.parentId,
+      childIds: g.children.map((c) => c.categoryId),
+      children: g.children.map((c) => {
+        const cc = findCat(c.categoryId)
+        return {
+          id: c.categoryId,
+          name: cc?.name ?? '?',
+          icon: cc?.icon ?? '📦',
+          value: c.amount,
+          pct: childPctOf(c.amount),
+        }
+      }),
+      direct: g.direct,
+      directPct: childPctOf(g.direct),
     }
   })
 
-  // Gộp phần đuôi thành "Khác" khi vượt ngưỡng (giữ tổng %/số tiền chính xác).
-  let rows = all
+  // Gộp đuôi thành "Khác" (không bấm/xổ được) khi vượt ngưỡng.
+  let parents = all
   if (all.length > MAX_ROWS + 1) {
     const head = all.slice(0, MAX_ROWS)
     const tail = all.slice(MAX_ROWS)
     const restValue = tail.reduce((sum, r) => sum + r.value, 0)
-    rows = [
+    parents = [
       ...head,
       {
         key: '__other__',
@@ -69,20 +160,47 @@ export function CategoryBreakdownCard({
         value: restValue,
         pct: pctOf(restValue),
         color: '#9ca3af',
+        clickable: false,
+        parentId: '',
+        childIds: [],
+        children: [],
+        direct: 0,
+        directPct: 0,
       },
     ]
   }
 
+  const [openKey, setOpenKey] = useState<string | null>(null)
+  const [selected, setSelected] = useState<{ key: string; ids: string[]; title: string } | null>(
+    null,
+  )
+  // Đổi tab Chi/Thu → đóng accordion, tránh trỏ vào danh mục không còn trong danh sách.
+  useEffect(() => {
+    setOpenKey(null)
+    setSelected(null)
+  }, [kind])
+
+  const lineColor = kind === 'expense' ? '#ef4444' : '#16a34a'
   const approx = breakdown.hasForeign ? '≈ ' : ''
 
+  const openParent = (p: ParentRow) => {
+    if (openKey === p.key) {
+      setOpenKey(null)
+      setSelected(null)
+    } else {
+      setOpenKey(p.key)
+      setSelected({ key: p.key, ids: [p.parentId, ...p.childIds], title: p.name })
+    }
+  }
+
   return (
-    <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+    <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400">
             Cơ cấu theo danh mục
           </h2>
-          {rows.length > 0 && (
+          {parents.length > 0 && (
             <p className="tabular-nums text-lg font-bold text-gray-800 dark:text-gray-100">
               {approx}
               {formatCompact(total, base)}
@@ -92,14 +210,14 @@ export function CategoryBreakdownCard({
         <div
           role="tablist"
           aria-label="Loại giao dịch"
-          className="flex shrink-0 rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-xs font-medium"
+          className="flex shrink-0 rounded-lg bg-gray-100 p-0.5 text-xs font-medium dark:bg-gray-800"
         >
           <button
             type="button"
             role="tab"
             aria-selected={kind === 'expense'}
             onClick={() => onKindChange('expense')}
-            className={`rounded-md px-3 py-2.5 ${kind === 'expense' ? 'bg-white dark:bg-gray-900 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+            className={`rounded-md px-3 py-2.5 ${kind === 'expense' ? 'bg-white text-red-600 shadow-sm dark:bg-gray-900 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}
           >
             Chi
           </button>
@@ -108,44 +226,116 @@ export function CategoryBreakdownCard({
             role="tab"
             aria-selected={kind === 'income'}
             onClick={() => onKindChange('income')}
-            className={`rounded-md px-3 py-2.5 ${kind === 'income' ? 'bg-white dark:bg-gray-900 text-green-600 dark:text-green-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+            className={`rounded-md px-3 py-2.5 ${kind === 'income' ? 'bg-white text-green-600 shadow-sm dark:bg-gray-900 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}
           >
             Thu
           </button>
         </div>
       </div>
 
-      {rows.length === 0 ? (
+      {parents.length === 0 ? (
         <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
           Chưa có {kind === 'expense' ? 'chi tiêu' : 'thu nhập'} trong {periodNoun}
         </p>
       ) : (
         <ul className="space-y-2.5">
-          {rows.map((r) => (
-            <li key={r.key}>
-              <div className="mb-1 flex items-baseline gap-2 text-sm">
-                <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">
-                  {r.icon ? `${r.icon} ` : ''}
-                  {r.name}
-                </span>
-                <span className="shrink-0 tabular-nums text-xs text-gray-500 dark:text-gray-400">
-                  {r.pct.toFixed(0)}%
-                </span>
-                <span className="shrink-0 tabular-nums font-medium text-gray-800 dark:text-gray-100">
-                  {formatMoney(r.value, base)}
-                </span>
-              </div>
-              <div
-                className="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
-                role="presentation"
-              >
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: `${Math.max(r.pct, 1.5)}%`, backgroundColor: r.color }}
-                />
-              </div>
-            </li>
-          ))}
+          {parents.map((p) => {
+            const isOpen = p.clickable && openKey === p.key
+            return (
+              <li key={p.key}>
+                {p.clickable ? (
+                  <button
+                    type="button"
+                    onClick={() => openParent(p)}
+                    aria-expanded={isOpen}
+                    className="block w-full text-left"
+                  >
+                    <BreakdownRow
+                      icon={p.icon}
+                      name={p.name}
+                      pct={p.pct}
+                      value={p.value}
+                      barPct={p.pct}
+                      color={p.color}
+                      base={base}
+                    />
+                  </button>
+                ) : (
+                  <BreakdownRow
+                    icon={p.icon}
+                    name={p.name}
+                    pct={p.pct}
+                    value={p.value}
+                    barPct={p.pct}
+                    color={p.color}
+                    base={base}
+                  />
+                )}
+
+                {isOpen && (
+                  <div className="mt-2 pl-3">
+                    {selected && (
+                      <CategoryLineChart
+                        points={lineSeries(selected.ids)}
+                        base={base}
+                        color={lineColor}
+                        labelOf={lineLabelOf}
+                        title={`Xu hướng — ${selected.title}`}
+                      />
+                    )}
+                    <ul className="mt-2 space-y-2">
+                      {p.children.map((c) => (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            onClick={() => setSelected({ key: c.id, ids: [c.id], title: c.name })}
+                            className="block w-full text-left"
+                          >
+                            <BreakdownRow
+                              icon={c.icon}
+                              name={c.name}
+                              pct={c.pct}
+                              value={c.value}
+                              barPct={c.pct}
+                              color={p.color}
+                              base={base}
+                              selected={selected?.key === c.id}
+                            />
+                          </button>
+                        </li>
+                      ))}
+                      {p.direct > 0 && (
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelected({
+                                key: directKey(p.parentId),
+                                ids: [p.parentId],
+                                title: `${p.name} (trực tiếp)`,
+                              })
+                            }
+                            className="block w-full text-left"
+                          >
+                            <BreakdownRow
+                              icon=""
+                              name="(trực tiếp)"
+                              pct={p.directPct}
+                              value={p.direct}
+                              barPct={p.directPct}
+                              color="#9ca3af"
+                              base={base}
+                              selected={selected?.key === directKey(p.parentId)}
+                            />
+                          </button>
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
     </section>

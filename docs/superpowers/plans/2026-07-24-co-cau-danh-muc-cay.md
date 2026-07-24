@@ -49,21 +49,21 @@ import type { CategoryRow, TransactionRow } from '../../types/database.types'
 
 Thêm vào cuối `src/features/reports/aggregate.test.ts`. Trước tiên bổ sung import và helper `cat` (đặt gần helper `tx` đầu file — xem Step 2a), rồi thêm khối describe:
 
-Step 2a — sửa import ở đầu file test:
+Step 2a — sửa import ở đầu file test (chỉ thêm những gì Task 1 dùng;
+`categoryMonthlySeries` + `MonthKey` sẽ thêm ở Task 2 để tránh import thừa làm
+`tsc --noEmit` báo lỗi ở trạng thái trung gian):
 
 ```ts
 import type { CategoryRow, TransactionRow } from '../../types/database.types'
 import {
   categoryBreakdown,
   categoryComparison,
-  categoryMonthlySeries,
   cumulativeDailyBalance,
   dailyExpenseTotals,
   groupByParent,
   monthlySeries,
   sumIncomeExpense,
 } from './aggregate'
-import type { MonthKey } from '../../lib/dates'
 ```
 
 Step 2b — thêm helper `cat` ngay sau helper `tx` (sau dòng `}` kết thúc hàm `tx`):
@@ -238,7 +238,31 @@ git commit -m "feat(bao-cao): groupByParent gom danh muc theo cha"
 
 - [ ] **Step 1: Viết test thất bại**
 
-Thêm vào cuối `src/features/reports/aggregate.test.ts` (import `categoryMonthlySeries` và `MonthKey` đã thêm ở Task 1 Step 2a):
+Trước hết, bổ sung import cho `aggregate.test.ts` (những thứ Task 2 cần, chưa có
+từ Task 1). Thêm `categoryMonthlySeries` vào danh sách import từ `./aggregate`
+(giữ thứ tự alphabet, chèn sau `categoryComparison`), và thêm dòng import
+`MonthKey`:
+
+```ts
+import type { MonthKey } from '../../lib/dates'
+```
+
+Danh sách import từ `./aggregate` sau khi thêm:
+
+```ts
+import {
+  categoryBreakdown,
+  categoryComparison,
+  categoryMonthlySeries,
+  cumulativeDailyBalance,
+  dailyExpenseTotals,
+  groupByParent,
+  monthlySeries,
+  sumIncomeExpense,
+} from './aggregate'
+```
+
+Rồi thêm khối test vào cuối `src/features/reports/aggregate.test.ts`:
 
 ```ts
 describe('categoryMonthlySeries', () => {

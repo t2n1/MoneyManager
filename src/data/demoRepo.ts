@@ -553,6 +553,22 @@ export const demoRepo: Repo = {
     save(db)
   },
 
+  async deleteAccount(id: string) {
+    const db = load()
+    if (db.transactions.some((t) => t.account_id === id || t.to_account_id === id))
+      throw new Error('Không xóa được: còn giao dịch dùng tài khoản này. Hãy Lưu trữ thay vì Xóa.')
+    if ((db.recurringRules ?? []).some((r) => r.account_id === id || r.to_account_id === id))
+      throw new Error('Không xóa được: còn giao dịch định kỳ dùng tài khoản này. Hãy Lưu trữ thay vì Xóa.')
+    if ((db.savingsGoals ?? []).some((g) => g.account_id === id))
+      throw new Error('Không xóa được: còn mục tiêu tiết kiệm gắn với tài khoản này.')
+    if (db.accounts.some((a) => a.payment_account_id === id))
+      throw new Error('Không xóa được: tài khoản này đang là nguồn trả cho một thẻ tín dụng.')
+    if ((db.accountValuations ?? []).some((v) => v.account_id === id))
+      throw new Error('Không xóa được: còn dữ liệu giá trị đầu tư của tài khoản này.')
+    db.accounts = db.accounts.filter((a) => a.id !== id)
+    save(db)
+  },
+
   async getAccountValuations() {
     return (load().accountValuations ?? [])
       .slice()

@@ -231,6 +231,52 @@ export const supabaseRepo: Repo = {
     for (const { error } of results) if (error) throw error
   },
 
+  async deleteAccount(id: string) {
+    const sb = getSupabase()
+    const tx = await sb
+      .from('transactions')
+      .select('id', { count: 'exact', head: true })
+      .or(`account_id.eq.${id},to_account_id.eq.${id}`)
+    if (tx.error) throw tx.error
+    if ((tx.count ?? 0) > 0)
+      throw new Error('Không xóa được: còn giao dịch dùng tài khoản này. Hãy Lưu trữ thay vì Xóa.')
+
+    const rr = await sb
+      .from('recurring_rules')
+      .select('id', { count: 'exact', head: true })
+      .or(`account_id.eq.${id},to_account_id.eq.${id}`)
+    if (rr.error) throw rr.error
+    if ((rr.count ?? 0) > 0)
+      throw new Error('Không xóa được: còn giao dịch định kỳ dùng tài khoản này. Hãy Lưu trữ thay vì Xóa.')
+
+    const sg = await sb
+      .from('savings_goals')
+      .select('id', { count: 'exact', head: true })
+      .eq('account_id', id)
+    if (sg.error) throw sg.error
+    if ((sg.count ?? 0) > 0)
+      throw new Error('Không xóa được: còn mục tiêu tiết kiệm gắn với tài khoản này.')
+
+    const card = await sb
+      .from('accounts')
+      .select('id', { count: 'exact', head: true })
+      .eq('payment_account_id', id)
+    if (card.error) throw card.error
+    if ((card.count ?? 0) > 0)
+      throw new Error('Không xóa được: tài khoản này đang là nguồn trả cho một thẻ tín dụng.')
+
+    const val = await sb
+      .from('account_valuations')
+      .select('id', { count: 'exact', head: true })
+      .eq('account_id', id)
+    if (val.error) throw val.error
+    if ((val.count ?? 0) > 0)
+      throw new Error('Không xóa được: còn dữ liệu giá trị đầu tư của tài khoản này.')
+
+    const { error } = await sb.from('accounts').delete().eq('id', id)
+    if (error) throw error
+  },
+
   async getAccountValuations() {
     const { data, error } = await getSupabase()
       .from('account_valuations')

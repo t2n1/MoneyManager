@@ -233,6 +233,10 @@ export interface Repo {
   updateAccount(id: string, patch: AccountPatch): Promise<AccountRow>
   /** Gán lại sort_order theo thứ tự id truyền vào. */
   reorderAccounts(orderedIds: string[]): Promise<void>
+  /** Xóa tài khoản. Chỉ xóa khi không còn giao dịch / định kỳ / mục tiêu /
+   *  giá trị đầu tư nào dùng nó, và nó không phải nguồn trả của thẻ nào.
+   *  Còn tham chiếu → throw Error với thông điệp tiếng Việt. */
+  deleteAccount(id: string): Promise<void>
 
   // --- Đầu tư: giá trị thị trường (mục AE) ---
   /** Toàn bộ snapshot của user (mọi tài khoản); UI tự lọc theo account_id. */

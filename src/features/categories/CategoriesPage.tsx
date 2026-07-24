@@ -5,9 +5,11 @@ import type { NewCategory } from '../../data'
 import {
   useCategories,
   useCreateCategory,
+  useDeleteCategory,
   useReorderCategories,
   useUpdateCategory,
 } from '../../hooks/queries'
+import { confirmDialog, showToast } from '../../lib/dialog'
 import type { CategoryRow, CategoryType } from '../../types/database.types'
 
 // Bảng emoji gợi ý khi thêm/sửa danh mục
@@ -335,6 +337,27 @@ function CategoryForm({
 }: FormProps) {
   const create = useCreateCategory()
   const update = useUpdateCategory()
+  const del = useDeleteCategory()
+
+  async function handleDelete() {
+    if (!category) return
+    const ok = await confirmDialog({
+      title: `Xóa danh mục «${category.name}»?`,
+      message: hasChildren
+        ? 'Không thể hoàn tác. Xóa cả các danh mục con bên trong (nếu tất cả đều trống).'
+        : 'Không thể hoàn tác. Chỉ xóa được khi không còn giao dịch nào dùng nó.',
+      confirmLabel: 'Xóa',
+      danger: true,
+    })
+    if (!ok) return
+    try {
+      await del.mutateAsync(category.id)
+      showToast('Đã xóa danh mục', 'success')
+      onClose()
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Không xóa được', 'error')
+    }
+  }
 
   const [name, setName] = useState(category?.name ?? '')
   const [icon, setIcon] = useState(category?.icon ?? '📦')
@@ -471,22 +494,34 @@ function CategoryForm({
           ))}
         </div>
 
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            Hủy
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!canSave}
-            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-          >
-            {saving ? 'Đang lưu…' : 'Lưu'}
-          </button>
+        <div className="flex items-center gap-2">
+          {category && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={del.isPending}
+              className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
+            >
+              Xóa
+            </button>
+          )}
+          <div className="ml-auto flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!canSave}
+              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            >
+              {saving ? 'Đang lưu…' : 'Lưu'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

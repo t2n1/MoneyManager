@@ -144,6 +144,49 @@ export function monthlySeries(
   return { points, hasMissingRate }
 }
 
+export interface CategoryMonthlyPoint {
+  key: MonthKey
+  /** base minor */
+  amount: number
+}
+
+export interface CategoryMonthlySeries {
+  points: CategoryMonthlyPoint[]
+  hasMissingRate: boolean
+}
+
+/**
+ * Số tiền (quy đổi base) theo từng tháng trong `months`, chỉ cho giao dịch có
+ * category_id thuộc `ids` và type === kind. Dùng vẽ đường xu hướng một danh mục.
+ * Bỏ is_debt_flow / exclude_from_stats. Tháng trống = 0.
+ */
+export function categoryMonthlySeries(
+  txs: TransactionRow[],
+  months: MonthKey[],
+  kind: 'expense' | 'income',
+  ids: Set<string>,
+  monthStartDay: number,
+  currencyOf: CurrencyOf,
+  base: CurrencyCode,
+  rates: Rates,
+): CategoryMonthlySeries {
+  const byMonth = new Map<string, number>()
+  let hasMissingRate = false
+  for (const t of txs) {
+    if (t.type !== kind || !t.category_id || t.is_debt_flow || t.exclude_from_stats) continue
+    if (!ids.has(t.category_id)) continue
+    const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
+    if (v === null) {
+      hasMissingRate = true
+      continue
+    }
+    const id = monthId(monthKeyForDate(t.occurred_on, monthStartDay))
+    byMonth.set(id, (byMonth.get(id) ?? 0) + v)
+  }
+  const points = months.map((key) => ({ key, amount: byMonth.get(monthId(key)) ?? 0 }))
+  return { points, hasMissingRate }
+}
+
 export interface IncomeExpenseSum {
   /** minor units theo base currency */
   income: number

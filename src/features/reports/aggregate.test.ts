@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { CurrencyCode } from '../../lib/money'
+import type { MonthKey } from '../../lib/dates'
 import type { Rates } from '../../lib/rates'
 import type { CategoryRow, TransactionRow } from '../../types/database.types'
 import {
   categoryBreakdown,
   categoryComparison,
+  categoryMonthlySeries,
   cumulativeDailyBalance,
   dailyExpenseTotals,
   groupByParent,
@@ -345,5 +347,46 @@ describe('groupByParent', () => {
     const g = groupByParent(slices, cats)
     expect(g.map((x) => x.parentId)).toEqual(['transport', 'food'])
     expect(g[1].children.map((c) => c.categoryId)).toEqual(['coffee', 'lunch'])
+  })
+})
+
+describe('categoryMonthlySeries', () => {
+  const months: MonthKey[] = [
+    { year: 2026, month: 6 },
+    { year: 2026, month: 7 },
+  ]
+
+  it('gom theo tháng, tháng trống = 0, lọc theo ids & kind', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 100, category_id: 'coffee', occurred_on: '2026-07-05' }),
+      tx({ type: 'expense', amount: 50, category_id: 'coffee', occurred_on: '2026-06-20' }),
+      tx({ type: 'expense', amount: 999, category_id: 'other', occurred_on: '2026-07-05' }), // ngoài ids
+      tx({ type: 'income', amount: 999, category_id: 'coffee', occurred_on: '2026-07-05' }), // sai kind
+    ]
+    const r = categoryMonthlySeries(txs, months, 'expense', new Set(['coffee']), 1, currencyOf, 'JPY', RATES)
+    expect(r.points).toEqual([
+      { key: { year: 2026, month: 6 }, amount: 50 },
+      { key: { year: 2026, month: 7 }, amount: 100 },
+    ])
+    expect(r.hasMissingRate).toBe(false)
+  })
+
+  it('bỏ is_debt_flow và exclude_from_stats', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 100, category_id: 'coffee', occurred_on: '2026-07-05' }),
+      tx({ type: 'expense', amount: 100, category_id: 'coffee', occurred_on: '2026-07-05', is_debt_flow: true }),
+      tx({ type: 'expense', amount: 100, category_id: 'coffee', occurred_on: '2026-07-05', exclude_from_stats: true }),
+    ]
+    const r = categoryMonthlySeries(txs, months, 'expense', new Set(['coffee']), 1, currencyOf, 'JPY', RATES)
+    expect(r.points[1].amount).toBe(100)
+  })
+
+  it('hasMissingRate khi thiếu tỷ giá', () => {
+    const currencyOfUsd = (id: string): CurrencyCode => (id === 'usd' ? 'USD' : 'JPY')
+    const noUsd: Rates = { JPY: 1, VND: 165 } // thiếu USD
+    const txs = [tx({ type: 'expense', amount: 100, category_id: 'coffee', account_id: 'usd', occurred_on: '2026-07-05' })]
+    const r = categoryMonthlySeries(txs, months, 'expense', new Set(['coffee']), 1, currencyOfUsd, 'JPY', noUsd)
+    expect(r.hasMissingRate).toBe(true)
+    expect(r.points[1].amount).toBe(0)
   })
 })

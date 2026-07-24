@@ -7,7 +7,6 @@ let seq = 0
 function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
   seq += 1
   return {
-    id: p.id,
     user_id: 'u',
     name: p.name ?? p.id,
     type: 'expense',

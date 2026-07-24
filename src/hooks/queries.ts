@@ -443,23 +443,21 @@ export function useBudgetReport(monthKey: MonthKey): {
 
   const currencyOf = (id: string): CurrencyCode =>
     accounts.find((a) => a.id === id)?.currency ?? base
-  // Mô hình hạn mức "1 cấp": danh mục MẸ (còn con chưa lưu trữ) không nhận hạn
-  // mức trực tiếp — hạn mức của nó là tổng các con. isParent giúp progress bỏ
-  // qua mọi hạn mức lỡ đặt ở danh mục mẹ.
-  const parentIds = new Set(
-    categories.filter((c) => c.parent_id && !c.is_archived).map((c) => c.parent_id as string),
-  )
-  const isParent = (categoryId: string): boolean => parentIds.has(categoryId)
+  // Model "đặt ở cha trước": hạn mức đặt ở danh mục CHA là trần chung cho cả
+  // nhóm (spent = tổng chi cha + con); hạn mức ở CON của nhóm đã có trần chỉ là
+  // mốc theo dõi. parentOf cho progress biết quan hệ cha–con để tính trần nhóm.
+  const parentById = new Map(categories.map((c) => [c.id, c.parent_id]))
+  const parentOf = (categoryId: string): string | null => parentById.get(categoryId) ?? null
 
   const budgets = budgetsQ.data
   const hasRollover = !!budgets?.some((b) => b.rollover)
   const carry =
     hasRollover && prevBudgetsQ.data && prevMonthTxs
-      ? carryFromPreviousMonth(prevBudgetsQ.data, prevMonthTxs, currencyOf, base, rates ?? {}, isParent)
+      ? carryFromPreviousMonth(prevBudgetsQ.data, prevMonthTxs, currencyOf, base, rates ?? {}, parentOf)
       : new Map<string, number>()
   const report =
     budgets && monthTxs
-      ? buildBudgetReport(budgets, monthTxs, currencyOf, base, rates ?? {}, isParent, carry)
+      ? buildBudgetReport(budgets, monthTxs, currencyOf, base, rates ?? {}, parentOf, carry)
       : undefined
 
   return { report, isLoading: budgetsQ.isLoading || txLoading }

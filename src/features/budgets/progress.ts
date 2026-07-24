@@ -22,6 +22,10 @@ export interface BudgetLine {
   spent: number // minor units base (đã quy đổi)
   ratio: number // spent / budgeted (0 nếu budgeted = 0)
   status: BudgetStatus
+  /** true = con của một nhóm đã có trần cha; chỉ là mốc theo dõi, KHÔNG cộng vào
+   *  tổng và không tính vào đếm sắp vượt/vượt. spent của marker chỉ là chi riêng
+   *  của con đó. */
+  isMarker: boolean
 }
 
 export interface BudgetReport {
@@ -33,6 +37,9 @@ export interface BudgetReport {
   /** số danh mục ở ngưỡng cảnh báo ≥80% & <100% (mục AH) */
   warnCount: number
   hasMissingRate: boolean
+  /** Chi (base, đã quy đổi) theo từng danh mục có phát sinh — để UI hiện chi của
+   *  con ngay cả khi con chưa đặt hạn mức. Không gộp lên cha. */
+  spentByCategory: Map<string, number>
 }
 
 export function buildBudgetReport(
@@ -41,11 +48,12 @@ export function buildBudgetReport(
   currencyOf: CurrencyOf,
   base: CurrencyCode,
   rates: Rates,
-  /** Cho biết một danh mục có phải là danh mục MẸ (đang có con) không. Mô hình
-   *  "1 cấp": chỉ danh mục LÁ mới nhận hạn mức trực tiếp — hạn mức đặt nhầm ở
-   *  danh mục mẹ (còn sót từ thiết kế cũ) bị bỏ qua để không trùng với hạn mức
-   *  con. Mặc định: không có danh mục mẹ nào (mọi hạn mức đều được tính). */
-  isParent: (categoryId: string) => boolean = () => false,
+  /** Cho biết danh mục CHA của một danh mục (null nếu là danh mục gốc). Dùng để
+   *  tính trần nhóm: hạn mức đặt ở CHA là trần chung, spent = tổng chi của cha +
+   *  mọi con. Hạn mức đặt ở CON của một nhóm đã có trần chỉ là mốc theo dõi
+   *  (isMarker), không cộng vào tổng. Mặc định: mọi danh mục là gốc → mỗi hạn
+   *  mức là một dòng độc lập (tương thích ngược). */
+  parentOf: (categoryId: string) => string | null = () => null,
   /** Phần hạn mức chưa tiêu tháng trước, theo danh mục (mục AH). Chỉ cộng cho
    *  hạn mức bật rollover. Mặc định rỗng → không dồn. */
   carryByCat: Map<string, number> = new Map(),
@@ -62,26 +70,37 @@ export function buildBudgetReport(
     spentByCat.set(t.category_id, (spentByCat.get(t.category_id) ?? 0) + v)
   }
 
-  // Mỗi hạn mức LÁ là một dòng độc lập; chi tiêu chỉ tính vào đúng danh mục của
-  // nó (không gộp lên cha). Vì không còn hạn mức cha-con chồng nhau nên tổng chi
-  // = tổng chi của các dòng, không cần chống trùng.
+  // Chi của cả nhóm = chi trực tiếp trên danh mục + chi của mọi con trực tiếp.
+  // (Danh mục chỉ tối đa 2 cấp nên không cần đệ quy sâu hơn.)
+  const groupSpent = (catId: string): number => {
+    let s = spentByCat.get(catId) ?? 0
+    for (const [cat, v] of spentByCat) if (parentOf(cat) === catId) s += v
+    return s
+  }
+  const budgetedIds = new Set(budgets.map((b) => b.category_id))
+
   let totalBudgeted = 0
   let totalSpent = 0
   let overCount = 0
   let warnCount = 0
   const lines: BudgetLine[] = []
   for (const b of budgets) {
-    if (isParent(b.category_id)) continue // hạn mức mẹ = tổng con, tính ở UI
+    const parent = parentOf(b.category_id)
+    // Con của một nhóm đã có trần cha → chỉ là mốc theo dõi, không vào tổng.
+    const isMarker = parent != null && budgetedIds.has(parent)
     const carried = b.rollover ? Math.max(0, carryByCat.get(b.category_id) ?? 0) : 0
     const budgeted = b.amount + carried
-    const spent = spentByCat.get(b.category_id) ?? 0
+    // Marker: chỉ tính chi riêng của con. Dòng tính-vào-tổng: cả nhóm (cha + con).
+    const spent = isMarker ? (spentByCat.get(b.category_id) ?? 0) : groupSpent(b.category_id)
     const ratio = budgeted > 0 ? spent / budgeted : 0
     const status = statusOf(ratio)
-    if (status === 'over') overCount++
-    else if (status === 'warn') warnCount++
-    totalBudgeted += budgeted
-    totalSpent += spent
-    lines.push({ categoryId: b.category_id, budgeted, carried, spent, ratio, status })
+    if (!isMarker) {
+      if (status === 'over') overCount++
+      else if (status === 'warn') warnCount++
+      totalBudgeted += budgeted
+      totalSpent += spent
+    }
+    lines.push({ categoryId: b.category_id, budgeted, carried, spent, ratio, status, isMarker })
   }
   lines.sort((a, b) => b.ratio - a.ratio)
 
@@ -95,6 +114,7 @@ export function buildBudgetReport(
     overCount,
     warnCount,
     hasMissingRate,
+    spentByCategory: spentByCat,
   }
 }
 
@@ -109,9 +129,9 @@ export function carryFromPreviousMonth(
   currencyOf: CurrencyOf,
   base: CurrencyCode,
   rates: Rates,
-  isParent: (categoryId: string) => boolean = () => false,
+  parentOf: (categoryId: string) => string | null = () => null,
 ): Map<string, number> {
-  const prev = buildBudgetReport(prevBudgets, prevMonthTxs, currencyOf, base, rates, isParent)
+  const prev = buildBudgetReport(prevBudgets, prevMonthTxs, currencyOf, base, rates, parentOf)
   const carry = new Map<string, number>()
   for (const line of prev.lines) {
     carry.set(line.categoryId, Math.max(0, line.budgeted - line.spent))

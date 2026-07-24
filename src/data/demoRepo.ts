@@ -270,9 +270,10 @@ function seed(): DemoDB {
     updated_at: nowISO(),
   })
   const budgets = [
-    budget('Ăn uống', 40_000), // ¥40.000 — hạn mức ở cha, gộp chi của các con
-    budget('Đi lại', 8_000), // ¥8.000 — hạn mức ở cha
-    budget('Quần áo', 20_000), // ¥20.000 — hạn mức ở một danh mục con
+    budget('Ăn uống', 40_000), // trần nhóm ở cha — gộp chi của mọi con
+    budget('Bữa trưa', 15_000), // mốc theo dõi ở con (không cộng vào tổng)
+    budget('Đi lại', 8_000), // trần nhóm ở cha
+    budget('Quần áo', 20_000), // con của nhóm chưa có trần → tính độc lập (tương thích)
   ]
 
   // Cài đặt nhóm mặc định: giữ đúng thứ tự đã seed cho 3 nhóm.

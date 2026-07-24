@@ -50,8 +50,8 @@ describe('buildBudgetReport (base = JPY)', () => {
     ]
     const r = buildBudgetReport(budgets, txs, currencyOf, 'JPY', RATES)
     expect(r.lines).toEqual([
-      { categoryId: 'trans', budgeted: 5_000, carried: 0, spent: 6_000, ratio: 1.2, status: 'over' },
-      { categoryId: 'food', budgeted: 10_000, carried: 0, spent: 8_000, ratio: 0.8, status: 'warn' },
+      { categoryId: 'trans', budgeted: 5_000, carried: 0, spent: 6_000, ratio: 1.2, status: 'over', isMarker: false },
+      { categoryId: 'food', budgeted: 10_000, carried: 0, spent: 8_000, ratio: 0.8, status: 'warn', isMarker: false },
     ])
     expect(r.totalBudgeted).toBe(15_000)
     expect(r.totalSpent).toBe(14_000)
@@ -63,7 +63,7 @@ describe('buildBudgetReport (base = JPY)', () => {
   it('danh mục có hạn mức nhưng chưa chi → spent 0, status ok', () => {
     const r = buildBudgetReport([budget('food', 10_000)], [], currencyOf, 'JPY', RATES)
     expect(r.lines).toEqual([
-      { categoryId: 'food', budgeted: 10_000, carried: 0, spent: 0, ratio: 0, status: 'ok' },
+      { categoryId: 'food', budgeted: 10_000, carried: 0, spent: 0, ratio: 0, status: 'ok', isMarker: false },
     ])
     expect(r.overCount).toBe(0)
   })
@@ -104,12 +104,28 @@ describe('buildBudgetReport (base = JPY)', () => {
     expect(r.totalSpent).toBe(7_000)
   })
 
-  it('mô hình 1 cấp: bỏ qua hạn mức lỡ đặt ở danh mục mẹ', () => {
-    // 'food' là mẹ (có con) → hạn mức của nó không thành dòng, không tính vào tổng.
-    const isParent = (id: string) => id === 'food'
+  // Model mới: hạn mức đặt ở CHA là trần chung cho cả nhóm; hạn mức đặt ở CON
+  // của một nhóm đã có trần chỉ là mốc theo dõi (isMarker), không cộng vào tổng.
+  // Cây dùng chung: food (cha) → restaurant, grocery (con).
+  const parentOf = (id: string): string | null =>
+    id === 'restaurant' || id === 'grocery' ? 'food' : null
+
+  it('cha có trần, con chưa đặt → một dòng nhóm, spent = tổng chi các con', () => {
     const txs = [
       tx({ type: 'expense', amount: 4_000, category_id: 'restaurant' }),
-      tx({ type: 'expense', amount: 1_000, category_id: 'food' }), // chi thẳng trên mẹ
+      tx({ type: 'expense', amount: 3_000, category_id: 'grocery' }),
+    ]
+    const r = buildBudgetReport([budget('food', 10_000)], txs, currencyOf, 'JPY', RATES, parentOf)
+    expect(r.lines).toHaveLength(1)
+    expect(r.lines[0]).toMatchObject({ categoryId: 'food', budgeted: 10_000, spent: 7_000, isMarker: false })
+    expect(r.totalBudgeted).toBe(10_000)
+    expect(r.totalSpent).toBe(7_000)
+  })
+
+  it('cha có trần + con cũng có hạn mức → tổng chỉ tính trần cha, con là marker', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 4_000, category_id: 'restaurant' }), // 80% so với mốc con
+      tx({ type: 'expense', amount: 3_000, category_id: 'grocery' }),
     ]
     const r = buildBudgetReport(
       [budget('food', 10_000), budget('restaurant', 5_000)],
@@ -117,13 +133,64 @@ describe('buildBudgetReport (base = JPY)', () => {
       currencyOf,
       'JPY',
       RATES,
-      isParent,
+      parentOf,
     )
-    expect(r.lines).toHaveLength(1)
-    expect(r.lines[0]).toMatchObject({ categoryId: 'restaurant', budgeted: 5_000, spent: 4_000 })
-    expect(r.totalBudgeted).toBe(5_000)
-    // Chi 1.000 thẳng trên mẹ không thuộc hạn mức nào nên không vào tổng chi.
-    expect(r.totalSpent).toBe(4_000)
+    const food = r.lines.find((l) => l.categoryId === 'food')!
+    const restaurant = r.lines.find((l) => l.categoryId === 'restaurant')!
+    expect(food).toMatchObject({ budgeted: 10_000, spent: 7_000, isMarker: false })
+    // Marker: spent chỉ tính chi riêng của con, không phải cả nhóm.
+    expect(restaurant).toMatchObject({ budgeted: 5_000, spent: 4_000, isMarker: true })
+    expect(r.totalBudgeted).toBe(10_000) // chỉ trần cha, không cộng mốc con
+    expect(r.totalSpent).toBe(7_000)
+    expect(r.warnCount).toBe(0) // mốc con 80% không tính vào warn
+    expect(r.overCount).toBe(0)
+  })
+
+  it('cha KHÔNG trần + hai con có hạn mức → hai dòng độc lập tính vào tổng (tương thích)', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 4_000, category_id: 'restaurant' }),
+      tx({ type: 'expense', amount: 3_000, category_id: 'grocery' }),
+    ]
+    const r = buildBudgetReport(
+      [budget('restaurant', 5_000), budget('grocery', 10_000)],
+      txs,
+      currencyOf,
+      'JPY',
+      RATES,
+      parentOf,
+    )
+    expect(r.lines.every((l) => !l.isMarker)).toBe(true)
+    expect(r.totalBudgeted).toBe(15_000)
+    expect(r.totalSpent).toBe(7_000)
+  })
+
+  it('trần cha < tổng chi các con → dòng nhóm ở trạng thái over', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 8_000, category_id: 'restaurant' }),
+      tx({ type: 'expense', amount: 5_000, category_id: 'grocery' }),
+    ]
+    const r = buildBudgetReport([budget('food', 10_000)], txs, currencyOf, 'JPY', RATES, parentOf)
+    expect(r.lines[0]).toMatchObject({ categoryId: 'food', spent: 13_000, status: 'over' })
+    expect(r.overCount).toBe(1)
+  })
+
+  it('spentByCategory trả về chi từng danh mục kể cả khi không có hạn mức', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 4_000, category_id: 'restaurant' }),
+      tx({ type: 'expense', amount: 3_000, category_id: 'grocery' }), // không đặt hạn mức
+    ]
+    const r = buildBudgetReport([budget('food', 10_000)], txs, currencyOf, 'JPY', RATES, parentOf)
+    expect(r.spentByCategory.get('restaurant')).toBe(4_000)
+    expect(r.spentByCategory.get('grocery')).toBe(3_000)
+  })
+
+  it('chi thẳng trên danh mục cha cũng cộng vào spent của nhóm', () => {
+    const txs = [
+      tx({ type: 'expense', amount: 4_000, category_id: 'restaurant' }),
+      tx({ type: 'expense', amount: 1_000, category_id: 'food' }), // chi thẳng trên cha
+    ]
+    const r = buildBudgetReport([budget('food', 10_000)], txs, currencyOf, 'JPY', RATES, parentOf)
+    expect(r.lines[0]).toMatchObject({ categoryId: 'food', spent: 5_000 })
   })
 
   it('dồn hạn mức (AH): cộng phần chưa tiêu vào budgeted, chỉ khi rollover bật', () => {

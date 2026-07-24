@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import {
   useBudgetReport,
   useBudgets,
@@ -10,7 +11,8 @@ import { monthKeyString, type MonthKey } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import { showToast } from '../../lib/dialog'
 import { BudgetEditSheet } from './BudgetEditSheet'
-import { statusOf, type BudgetLine, type BudgetStatus } from './progress'
+import { buildBudgetDisplay, type BudgetChildRow } from './budgetDisplay'
+import type { BudgetStatus } from './progress'
 
 const BAR_COLOR: Record<BudgetStatus, string> = {
   ok: 'bg-green-500',
@@ -21,6 +23,25 @@ const TEXT_COLOR: Record<BudgetStatus, string> = {
   ok: 'text-gray-800 dark:text-gray-100',
   warn: 'text-amber-600',
   over: 'text-red-600 dark:text-red-400',
+}
+
+/** Thanh tiến độ + % dùng chung. */
+function ProgressBar({ ratio, status }: { ratio: number; status: BudgetStatus }) {
+  const pct = Math.round(ratio * 100)
+  return (
+    <div
+      className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={pct}
+    >
+      <div
+        className={`h-full rounded-full ${BAR_COLOR[status]}`}
+        style={{ width: `${Math.min(ratio * 100, 100)}%` }}
+      />
+    </div>
+  )
 }
 
 export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
@@ -38,16 +59,25 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     rollover?: boolean
     budgetId?: string
   } | null>(null)
+  // Các nhóm cha đang xổ (mở accordion). Mặc định thu gọn.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const catOf = (id: string) => categories.find((c) => c.id === id)
-  const expenseCats = categories.filter((c) => c.type === 'expense' && !c.is_archived)
-  const childrenOf = (id: string) =>
-    categories.filter((c) => c.parent_id === id && !c.is_archived)
-  // Mô hình "1 cấp": chỉ danh mục LÁ mới đặt hạn mức. Danh mục mẹ (có con) không
-  // đặt trực tiếp — hạn mức của mẹ = tổng các con.
-  const isParent = (id: string) => childrenOf(id).length > 0
-  const budgetedIds = new Set(budgets.map((b) => b.category_id))
-  const unbudgeted = expenseCats.filter((c) => !budgetedIds.has(c.id) && !isParent(c.id))
+
+  // Mở sheet đặt/sửa hạn mức cho một danh mục (dùng amount gốc, không gồm phần dồn).
+  function openEdit(categoryId: string) {
+    const b = budgets.find((x) => x.category_id === categoryId)
+    setEditing({ categoryId, current: b?.amount ?? 0, rollover: b?.rollover, budgetId: b?.id })
+  }
+
+  function toggle(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   async function handleCopy() {
     const n = await copy.mutateAsync(monthKeyStr)
@@ -63,97 +93,42 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
 
   const totalPct = report.totalBudgeted > 0 ? (report.totalSpent / report.totalBudgeted) * 100 : 0
 
-  // Gộp các dòng hạn mức (đều là danh mục lá) để hiển thị: danh mục con nằm dưới
-  // danh mục mẹ với một dòng TỔNG (tự cộng); danh mục lá cấp 1 đứng riêng.
-  type Cat = (typeof categories)[number]
-  type DisplayItem =
-    | { kind: 'leaf'; ratio: number; line: BudgetLine }
-    | {
-        kind: 'group'
-        ratio: number
-        cat: Cat
-        budgeted: number
-        spent: number
-        status: BudgetStatus
-        children: BudgetLine[]
-      }
-  const lineOf = new Map(report.lines.map((l) => [l.categoryId, l]))
-  const shown = new Set<string>()
-  const items: DisplayItem[] = []
-  for (const c of expenseCats.filter((c) => !c.parent_id)) {
-    if (isParent(c.id)) {
-      const children = childrenOf(c.id)
-        .map((k) => lineOf.get(k.id))
-        .filter((l): l is BudgetLine => !!l)
-      if (children.length === 0) continue
-      children.forEach((l) => shown.add(l.categoryId))
-      const budgeted = children.reduce((s, l) => s + l.budgeted, 0)
-      const spent = children.reduce((s, l) => s + l.spent, 0)
-      const ratio = budgeted > 0 ? spent / budgeted : 0
-      items.push({ kind: 'group', ratio, cat: c, budgeted, spent, status: statusOf(ratio), children })
-    } else {
-      const line = lineOf.get(c.id)
-      if (line) {
-        shown.add(c.id)
-        items.push({ kind: 'leaf', ratio: line.ratio, line })
-      }
-    }
-  }
-  // Dòng còn sót (vd danh mục con có mẹ đã lưu trữ) → hiển thị lẻ để không mất.
-  for (const line of report.lines) {
-    if (shown.has(line.categoryId)) continue
-    items.push({ kind: 'leaf', ratio: line.ratio, line })
-  }
-  items.sort((a, b) => b.ratio - a.ratio)
+  const expenseCats = categories
+    .filter((c) => c.type === 'expense' && !c.is_archived)
+    .sort((a, b) => a.sort_order - b.sort_order)
+  const { items, unbudgeted } = buildBudgetDisplay(expenseCats, report)
 
-  const lineRow = (line: BudgetLine, indent = false) => {
-    const cat = catOf(line.categoryId)
-    const budget = budgets.find((b) => b.category_id === line.categoryId)
-    const pct = Math.round(line.ratio * 100)
+  // Một dòng con bên trong nhóm (khi xổ ra).
+  const childRow = (child: BudgetChildRow) => {
+    const pct = child.marker ? Math.round(child.marker.ratio * 100) : null
     return (
-      <li key={line.categoryId}>
-        <button
-          type="button"
-          onClick={() =>
-            setEditing({
-              categoryId: line.categoryId,
-              current: budget?.amount ?? line.budgeted,
-              rollover: budget?.rollover,
-              budgetId: budget?.id,
-            })
-          }
-          className={`w-full text-left ${indent ? 'pl-3' : ''}`}
-        >
+      <li key={child.cat.id}>
+        <button type="button" onClick={() => openEdit(child.cat.id)} className="w-full text-left">
           <div className="flex items-baseline justify-between text-sm">
             <span className="text-gray-700 dark:text-gray-300">
-              {indent && <span className="text-gray-400 dark:text-gray-500">↳ </span>}
-              {cat?.icon ?? '📦'} {cat?.name ?? '?'}
+              {child.cat.icon} {child.cat.name}
             </span>
-            <span className={`text-xs ${TEXT_COLOR[line.status]}`}>{pct}%</span>
+            {child.marker ? (
+              <span className={`text-xs ${TEXT_COLOR[child.marker.status]}`}>{pct}%</span>
+            ) : (
+              <span className="text-xs text-gray-400 dark:text-gray-500">Đặt mốc +</span>
+            )}
           </div>
-          <div
-            className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={pct}
-          >
-            <div
-              className={`h-full rounded-full ${BAR_COLOR[line.status]}`}
-              style={{ width: `${Math.min(line.ratio * 100, 100)}%` }}
-            />
-          </div>
-          <div className="mt-0.5 flex justify-between text-xs text-gray-400 dark:text-gray-500">
-            <span className={TEXT_COLOR[line.status]}>{formatMoney(line.spent, base)}</span>
-            <span>
-              {formatMoney(line.budgeted, base)}
-              {line.carried > 0 && (
-                <span className="ml-1 text-green-600 dark:text-green-400">
-                  (dồn +{formatMoney(line.carried, base)})
+          {child.marker ? (
+            <>
+              <ProgressBar ratio={child.marker.ratio} status={child.marker.status} />
+              <div className="mt-0.5 flex justify-between text-xs text-gray-400 dark:text-gray-500">
+                <span className={TEXT_COLOR[child.marker.status]}>
+                  {formatMoney(child.marker.spent, base)}
                 </span>
-              )}
-            </span>
-          </div>
+                <span>{formatMoney(child.marker.budgeted, base)}</span>
+              </div>
+            </>
+          ) : (
+            <div className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+              Đã chi {formatMoney(child.spent, base)}
+            </div>
+          )}
         </button>
       </li>
     )
@@ -184,20 +159,11 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           <span className={`text-lg font-bold ${TEXT_COLOR[report.totalStatus]}`}>
             {formatMoney(report.totalSpent, base)}
           </span>
-          <span className="text-sm text-gray-400 dark:text-gray-500">/ {formatMoney(report.totalBudgeted, base)}</span>
+          <span className="text-sm text-gray-400 dark:text-gray-500">
+            / {formatMoney(report.totalBudgeted, base)}
+          </span>
         </div>
-        <div
-          className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(totalPct)}
-        >
-          <div
-            className={`h-full rounded-full ${BAR_COLOR[report.totalStatus]}`}
-            style={{ width: `${Math.min(totalPct, 100)}%` }}
-          />
-        </div>
+        <ProgressBar ratio={totalPct / 100} status={report.totalStatus} />
         <button
           type="button"
           onClick={handleCopy}
@@ -207,44 +173,93 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </button>
       </section>
 
-      {/* Danh mục có hạn mức */}
+      {/* Danh mục / nhóm có hạn mức */}
       {items.length > 0 && (
         <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
           <ul className="space-y-3">
             {items.map((item) => {
-              if (item.kind === 'leaf') return lineRow(item.line)
+              if (item.kind === 'leaf') {
+                const pct = Math.round(item.line.ratio * 100)
+                return (
+                  <li key={item.cat.id}>
+                    <button
+                      type="button"
+                      onClick={() => openEdit(item.cat.id)}
+                      className="w-full text-left"
+                    >
+                      <div className="flex items-baseline justify-between text-sm">
+                        <span className="text-gray-700 dark:text-gray-300">
+                          {item.cat.icon} {item.cat.name}
+                        </span>
+                        <span className={`text-xs ${TEXT_COLOR[item.line.status]}`}>{pct}%</span>
+                      </div>
+                      <ProgressBar ratio={item.line.ratio} status={item.line.status} />
+                      <div className="mt-0.5 flex justify-between text-xs text-gray-400 dark:text-gray-500">
+                        <span className={TEXT_COLOR[item.line.status]}>
+                          {formatMoney(item.line.spent, base)}
+                        </span>
+                        <span>
+                          {formatMoney(item.line.budgeted, base)}
+                          {item.line.carried > 0 && (
+                            <span className="ml-1 text-green-600 dark:text-green-400">
+                              (dồn +{formatMoney(item.line.carried, base)})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </button>
+                  </li>
+                )
+              }
+
               const pct = Math.round(item.ratio * 100)
+              const isOpen = expanded.has(item.cat.id)
               return (
                 <li key={item.cat.id}>
-                  {/* Dòng tổng của danh mục mẹ — tự cộng từ các con, không sửa tay */}
-                  <div className="flex items-baseline justify-between text-sm">
-                    <span className="font-medium text-gray-800 dark:text-gray-100">
-                      {item.cat.icon ?? '📦'} {item.cat.name}
-                      <span className="ml-1 text-xs font-normal text-gray-400 dark:text-gray-500">
-                        ({item.children.length} mục con)
-                      </span>
-                    </span>
-                    <span className={`text-xs ${TEXT_COLOR[item.status]}`}>{pct}%</span>
+                  <div className="flex items-stretch gap-1">
+                    {/* Nút xổ/thu con */}
+                    <button
+                      type="button"
+                      onClick={() => toggle(item.cat.id)}
+                      aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
+                      aria-expanded={isOpen}
+                      className="shrink-0 rounded p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    >
+                      {isOpen ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </button>
+                    {/* Vùng chính: đặt/sửa trần nhóm */}
+                    <button
+                      type="button"
+                      onClick={() => openEdit(item.cat.id)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <div className="flex items-baseline justify-between text-sm">
+                        <span className="font-medium text-gray-800 dark:text-gray-100">
+                          {item.cat.icon} {item.cat.name}
+                          <span className="ml-1 text-xs font-normal text-gray-400 dark:text-gray-500">
+                            {item.capped ? 'trần nhóm' : `${item.children.length} mục con`}
+                          </span>
+                        </span>
+                        <span className={`text-xs ${TEXT_COLOR[item.status]}`}>{pct}%</span>
+                      </div>
+                      <ProgressBar ratio={item.ratio} status={item.status} />
+                      <div className="mt-0.5 flex justify-between text-xs text-gray-400 dark:text-gray-500">
+                        <span className={TEXT_COLOR[item.status]}>
+                          {formatMoney(item.spent, base)}
+                        </span>
+                        <span>{formatMoney(item.budgeted, base)}</span>
+                      </div>
+                    </button>
                   </div>
-                  <div
-                    className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
-                    role="progressbar"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={pct}
-                  >
-                    <div
-                      className={`h-full rounded-full ${BAR_COLOR[item.status]}`}
-                      style={{ width: `${Math.min(item.ratio * 100, 100)}%` }}
-                    />
-                  </div>
-                  <div className="mt-0.5 flex justify-between text-xs text-gray-400 dark:text-gray-500">
-                    <span className={TEXT_COLOR[item.status]}>{formatMoney(item.spent, base)}</span>
-                    <span>{formatMoney(item.budgeted, base)}</span>
-                  </div>
-                  <ul className="mt-2 space-y-2 border-l border-gray-100 dark:border-gray-800 pl-2">
-                    {item.children.map((line) => lineRow(line, true))}
-                  </ul>
+                  {isOpen && (
+                    <ul className="mt-2 space-y-2 border-l border-gray-100 dark:border-gray-800 pl-3">
+                      {item.children.map(childRow)}
+                    </ul>
+                  )}
                 </li>
               )
             })}
@@ -252,19 +267,20 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </section>
       )}
 
-      {/* Danh mục chưa đặt hạn mức */}
+      {/* Nhóm / lá chưa đặt hạn mức */}
       {unbudgeted.length > 0 && (
         <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">Chưa đặt hạn mức</h2>
+          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
+            Chưa đặt hạn mức
+          </h2>
           <ul className="flex flex-wrap gap-2">
             {unbudgeted.map((c) => (
               <li key={c.id}>
                 <button
                   type="button"
-                  onClick={() => setEditing({ categoryId: c.id, current: 0 })}
+                  onClick={() => openEdit(c.id)}
                   className="rounded-full border border-dashed border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
-                  {c.parent_id && <span className="text-gray-400 dark:text-gray-500">↳ </span>}
                   {c.icon} {c.name} +
                 </button>
               </li>

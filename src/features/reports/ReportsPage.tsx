@@ -25,7 +25,7 @@ import {
   type MonthKey,
 } from '../../lib/dates'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
-import { categoryBreakdown, monthlySeries, sumIncomeExpense } from './aggregate'
+import { categoryBreakdown, categoryMonthlySeries, monthlySeries, sumIncomeExpense } from './aggregate'
 
 /** Đọc 'YYYY-MM' thành MonthKey; null nếu không hợp lệ. */
 function parseYm(s: string | null): MonthKey | null {
@@ -153,6 +153,14 @@ export function ReportsPage() {
     return () => clearTimeout(t)
   }, [wantPrint, printDataReady, period, searchParams, setSearchParams])
 
+  // Đường xu hướng một danh mục — dùng lại dữ liệu nhiều tháng đã fetch (không gọi thêm mạng).
+  const lineSeriesMonth = (ids: string[]) =>
+    categoryMonthlySeries(rangeTxs, sixMonths, kind, new Set(ids), monthStartDay, currencyOf, base, rates ?? {}).points
+  const lineSeriesYear = (ids: string[]) =>
+    categoryMonthlySeries(yearTxs, twelveMonths, kind, new Set(ids), monthStartDay, currencyOf, base, rates ?? {}).points
+  const lineLabelMonth = (k: MonthKey) => `${k.month}/${String(k.year).slice(2)}`
+  const lineLabelYear = (k: MonthKey) => String(k.month)
+
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
       {/* Tiêu đề chỉ hiện khi in (thay cho thanh điều hướng bị ẩn) */}
@@ -252,6 +260,8 @@ export function ReportsPage() {
             kind={kind}
             onKindChange={setKind}
             periodNoun="tháng này"
+            lineSeries={lineSeriesMonth}
+            lineLabelOf={lineLabelMonth}
           />
           <MonthlyBarsCard
             series={series}
@@ -318,6 +328,8 @@ export function ReportsPage() {
             kind={kind}
             onKindChange={setKind}
             periodNoun="năm này"
+            lineSeries={lineSeriesYear}
+            lineLabelOf={lineLabelYear}
           />
           <MonthlyBarsCard
             series={yearSeries}

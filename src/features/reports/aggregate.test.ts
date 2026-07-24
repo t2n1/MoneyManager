@@ -5,7 +5,6 @@ import type { CategoryRow, TransactionRow } from '../../types/database.types'
 import {
   categoryBreakdown,
   categoryComparison,
-  categoryMonthlySeries,
   cumulativeDailyBalance,
   dailyExpenseTotals,
   groupByParent,

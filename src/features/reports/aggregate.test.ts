@@ -49,6 +49,8 @@ function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
     sort_order: p.sort_order ?? 0,
     is_archived: p.is_archived ?? false,
     created_at: '',
+    need_level: p.need_level ?? null,
+    cost_type: p.cost_type ?? null,
   }
 }
 

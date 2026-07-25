@@ -8,8 +8,10 @@ import type {
   BudgetRow,
   CategoryRow,
   CategoryType,
+  CostType,
   DebtPaymentRow,
   DebtRow,
+  NeedLevel,
   NetWorthSnapshotRow,
   ProfileRow,
   RecurringRuleRow,
@@ -120,6 +122,8 @@ function seed(): DemoDB {
     type: CategoryType,
     icon: string,
     parent_id: string | null = null,
+    need_level: NeedLevel | null = null,
+    cost_type: CostType | null = null,
   ): CategoryRow => ({
     id: uuid(),
     user_id: DEMO_USER,
@@ -130,6 +134,8 @@ function seed(): DemoDB {
     sort_order: catOrder++,
     is_archived: false,
     created_at: nowISO(),
+    need_level,
+    cost_type,
   })
 
   const accounts = [
@@ -681,6 +687,8 @@ export const demoRepo: Repo = {
     const row: CategoryRow = {
       ...input,
       parent_id: input.parent_id ?? null,
+      need_level: input.need_level ?? null,
+      cost_type: input.cost_type ?? null,
       id: uuid(),
       user_id: DEMO_USER,
       sort_order,

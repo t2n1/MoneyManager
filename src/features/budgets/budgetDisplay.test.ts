@@ -15,6 +15,8 @@ function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
     sort_order: seq,
     is_archived: false,
     created_at: '',
+    need_level: null,
+    cost_type: null,
     ...p,
   }
 }

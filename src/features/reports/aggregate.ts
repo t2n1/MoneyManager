@@ -370,3 +370,45 @@ export function dailyExpenseTotals(
   }
   return { points, hasMissingRate }
 }
+
+export interface ClassificationBreakdown {
+  needEssential: number
+  needFlexible: number
+  needUnclassified: number
+  costFixed: number
+  costVariable: number
+  costUnclassified: number
+  /** chi vừa flexible vừa variable — "van xả khẩn cấp" */
+  emergencyCut: number
+  totalExpense: number
+}
+
+/**
+ * Gom chi theo 2 trục độc lập từ slices (đã quy đổi base).
+ * Nhãn đọc trực tiếp từ danh mục của slice; thiếu nhãn → Unclassified.
+ */
+export function classificationBreakdown(
+  slices: CategorySlice[],
+  categories: CategoryRow[],
+): ClassificationBreakdown {
+  const byId = new Map(categories.map((c) => [c.id, c]))
+  const r: ClassificationBreakdown = {
+    needEssential: 0, needFlexible: 0, needUnclassified: 0,
+    costFixed: 0, costVariable: 0, costUnclassified: 0,
+    emergencyCut: 0, totalExpense: 0,
+  }
+  for (const s of slices) {
+    const c = byId.get(s.categoryId)
+    const need = c?.need_level ?? null
+    const cost = c?.cost_type ?? null
+    r.totalExpense += s.amount
+    if (need === 'essential') r.needEssential += s.amount
+    else if (need === 'flexible') r.needFlexible += s.amount
+    else r.needUnclassified += s.amount
+    if (cost === 'fixed') r.costFixed += s.amount
+    else if (cost === 'variable') r.costVariable += s.amount
+    else r.costUnclassified += s.amount
+    if (need === 'flexible' && cost === 'variable') r.emergencyCut += s.amount
+  }
+  return r
+}

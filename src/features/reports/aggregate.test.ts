@@ -7,6 +7,7 @@ import {
   categoryBreakdown,
   categoryComparison,
   categoryMonthlySeries,
+  classificationBreakdown,
   cumulativeDailyBalance,
   dailyExpenseTotals,
   groupByParent,
@@ -390,5 +391,48 @@ describe('categoryMonthlySeries', () => {
     const r = categoryMonthlySeries(txs, months, 'expense', new Set(['coffee']), 1, currencyOfUsd, 'JPY', noUsd)
     expect(r.hasMissingRate).toBe(true)
     expect(r.points[1].amount).toBe(0)
+  })
+})
+
+describe('classificationBreakdown', () => {
+  const cats = [
+    cat({ id: 'rent', need_level: 'essential', cost_type: 'fixed' }),
+    cat({ id: 'food', need_level: 'essential', cost_type: 'variable' }),
+    cat({ id: 'fun', need_level: 'flexible', cost_type: 'variable' }),
+    cat({ id: 'sub', need_level: 'flexible', cost_type: 'fixed' }),
+    cat({ id: 'other' }),
+  ]
+
+  it('gom theo cả hai trục và tính emergencyCut = flexible & variable', () => {
+    const r = classificationBreakdown(
+      [
+        { categoryId: 'rent', amount: 1000 },
+        { categoryId: 'food', amount: 400 },
+        { categoryId: 'fun', amount: 300 },
+        { categoryId: 'sub', amount: 100 },
+      ],
+      cats,
+    )
+    expect(r.needEssential).toBe(1400)
+    expect(r.needFlexible).toBe(400)
+    expect(r.needUnclassified).toBe(0)
+    expect(r.costFixed).toBe(1100)
+    expect(r.costVariable).toBe(700)
+    expect(r.emergencyCut).toBe(300) // chỉ 'fun'
+    expect(r.totalExpense).toBe(1800)
+  })
+
+  it('slice có danh mục thiếu nhãn hoặc không tra được → vào Unclassified', () => {
+    const r = classificationBreakdown(
+      [
+        { categoryId: 'other', amount: 500 },
+        { categoryId: 'ghost', amount: 200 }, // không có trong cats
+      ],
+      cats,
+    )
+    expect(r.needUnclassified).toBe(700)
+    expect(r.costUnclassified).toBe(700)
+    expect(r.emergencyCut).toBe(0)
+    expect(r.totalExpense).toBe(700)
   })
 })

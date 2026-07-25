@@ -6,6 +6,7 @@ import { RemittanceSection } from '../remittance/RemittanceSection'
 import { InsightsView } from './InsightsView'
 import { CategoryBreakdownCard } from './CategoryBreakdownCard'
 import { MonthlyBarsCard } from './MonthlyBarsCard'
+import { SpendClassificationCard } from './SpendClassificationCard'
 import {
   useAccounts,
   useCategories,
@@ -25,7 +26,13 @@ import {
   type MonthKey,
 } from '../../lib/dates'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
-import { categoryBreakdown, categoryMonthlySeries, monthlySeries, sumIncomeExpense } from './aggregate'
+import {
+  categoryBreakdown,
+  categoryMonthlySeries,
+  classificationBreakdown,
+  monthlySeries,
+  sumIncomeExpense,
+} from './aggregate'
 
 /** Đọc 'YYYY-MM' thành MonthKey; null nếu không hợp lệ. */
 function parseYm(s: string | null): MonthKey | null {
@@ -85,6 +92,15 @@ export function ReportsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [monthTxs, kind, accounts, base, rates],
   )
+  const monthSums = useMemo(
+    () => sumIncomeExpense(monthTxs, currencyOf, base, rates ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [monthTxs, accounts, base, rates],
+  )
+  const monthClass = useMemo(
+    () => classificationBreakdown(breakdown.slices, categories),
+    [breakdown, categories],
+  )
   const series = useMemo(
     () => monthlySeries(rangeTxs, sixMonths, monthStartDay, currencyOf, base, rates ?? {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -112,6 +128,10 @@ export function ReportsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [yearTxs, kind, accounts, base, rates],
   )
+  const yearClass = useMemo(
+    () => classificationBreakdown(yearBreakdown.slices, categories),
+    [yearBreakdown, categories],
+  )
   const yearSeries = useMemo(
     () => monthlySeries(yearTxs, twelveMonths, monthStartDay, currencyOf, base, rates ?? {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -122,6 +142,17 @@ export function ReportsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [yearTxs, accounts, base, rates],
   )
+  // Đếm danh mục Chi LÁ chưa phân loại (lá = không phải cha đang có con).
+  const unclassifiedCount = useMemo(() => {
+    const parentIds = new Set(categories.filter((c) => c.parent_id).map((c) => c.parent_id))
+    return categories.filter(
+      (c) =>
+        c.type === 'expense' &&
+        !c.is_archived &&
+        !parentIds.has(c.id) && // không phải cha có con
+        (c.need_level == null || c.cost_type == null),
+    ).length
+  }, [categories])
   const yearNet = yearSums.income - yearSums.expense
   const avgExpense = Math.round(yearSums.expense / 12)
   const savingsRate = yearSums.income > 0 ? Math.round((yearNet / yearSums.income) * 100) : null
@@ -263,6 +294,13 @@ export function ReportsPage() {
             lineSeries={lineSeriesMonth}
             lineLabelOf={lineLabelMonth}
           />
+          <SpendClassificationCard
+            data={monthClass}
+            income={monthSums.income}
+            base={base}
+            periodNoun="tháng này"
+            unclassifiedCount={unclassifiedCount}
+          />
           <MonthlyBarsCard
             series={series}
             base={base}
@@ -330,6 +368,13 @@ export function ReportsPage() {
             periodNoun="năm này"
             lineSeries={lineSeriesYear}
             lineLabelOf={lineLabelYear}
+          />
+          <SpendClassificationCard
+            data={yearClass}
+            income={yearSums.income}
+            base={base}
+            periodNoun="năm này"
+            unclassifiedCount={unclassifiedCount}
           />
           <MonthlyBarsCard
             series={yearSeries}

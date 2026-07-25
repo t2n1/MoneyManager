@@ -96,50 +96,55 @@ Một `<section>` mới đặt **sau** `CategoryBreakdownCard` trong tab Biểu 
 chế độ Tháng và Năm**. Cùng khung thẻ `rounded-xl bg-white … shadow-sm` +
 biến thể dark mode.
 
-Card gồm 3 phần. Mỗi trục (C1, C2) trình bày bằng **1 biểu đồ donut** (proportion
-tức thì) + **các dòng `BreakdownRow` bên dưới** làm chú giải + số liệu chính xác.
+Card gồm 3 phần. **Cách trình bày (đã chốt — kiểu lai):**
 
-**Biểu đồ donut (chung cho C1 & C2):**
+- **C1 (50/30/20)** → **thanh có vạch mục tiêu**, KHÔNG donut. Lý do: giá trị của
+  trục này là *so với mốc 50/30/20*, mà thanh thể hiện "value vs mốc" tốt hơn pie
+  (pie không vẽ được vạch mục tiêu). Mắt đọc độ dài thanh chính xác hơn góc lát.
+- **C2 (Cố định/Biến đổi)** → **1 donut** + các dòng thanh bên dưới. Chỉ 2–3 lát,
+  thuần tỉ lệ, không có mốc → donut cho cảm nhận tỉ trọng tức thì.
+
+**Quy ước donut (chỉ C2):**
 
 - Dùng `PieChart` của Recharts (đã là dependency) ở dạng **donut** (`innerRadius` >
-  0) để đặt nhãn ở tâm (C1: tổng Thu; C2: tổng Chi).
-- Số lát mỗi donut ≤ 4 → nằm trong ngưỡng an toàn của `no-pie-overuse`.
+  0), tâm ghi tổng Chi.
+- Số lát ≤ 3 → nằm trong ngưỡng an toàn của `no-pie-overuse`.
 - **Màu chỉ để phân biệt nhanh; ý nghĩa luôn có ở dòng text bên dưới** (tuân
   `color-not-only`): donut không phải nguồn thông tin duy nhất, các `BreakdownRow`
   là bản text thay thế cho screen-reader. Truyền `aria-label` mô tả tỉ lệ chính cho
   vùng biểu đồ.
-- Có tooltip khi chạm/hover hiện tên lát + số tiền + % (`tooltip-on-interact`).
-- Tôn trọng `prefers-reduced-motion`: tắt animation vẽ donut khi user bật giảm
-  chuyển động; số liệu ở rows vẫn đọc được ngay.
-- Responsive: hai donut xếp dọc trên mobile (mỗi donut full-width), có thể 2 cột từ
-  breakpoint `lg`. Đặt kích thước qua `aspect-ratio`/`ResponsiveContainer` để không
-  gây layout shift.
-- Bảng màu lấy từ `PALETTE` sẵn có: Nhu cầu/Cố định = xanh lá `#16a34a`, Sở
-  thích/Biến đổi = cam `#f59e0b`, Tiết kiệm = xanh dương `#0ea5e9`, Chưa phân loại =
-  xám `#9ca3af`.
+- Tooltip khi chạm/hover hiện tên lát + số tiền + % (`tooltip-on-interact`).
+- Tôn trọng `prefers-reduced-motion`: tắt animation vẽ donut; số liệu ở rows vẫn đọc
+  được ngay.
+- Đặt kích thước qua `ResponsiveContainer` + `aspect-ratio` để không gây layout shift.
 
-### C1. Trục 50/30/20 (Thiết yếu/Linh hoạt trên Thu nhập)
+**Bảng màu** (từ `PALETTE` sẵn có): Nhu cầu/Cố định = xanh lá `#16a34a`, Sở
+thích/Biến đổi = cam `#f59e0b`, Tiết kiệm = xanh dương `#0ea5e9`, Chưa phân loại =
+xám `#9ca3af`.
+
+### C1. Trục 50/30/20 (Thiết yếu/Linh hoạt trên Thu nhập) — dạng thanh
 
 - Mẫu số = **tổng Thu** trong kỳ (đã quy đổi base).
-- **Donut** với các lát: Nhu cầu, Sở thích, Tiết kiệm, (Chưa phân loại). Tâm donut
-  ghi tổng Thu.
-- 3 dòng `BreakdownRow` bên dưới: **Nhu cầu** (essential expense / income, mốc gợi ý
-  ≤50%), **Sở thích** (flexible expense / income, ≤30%), **Tiết kiệm** = (Thu − tổng
-  Chi) / Thu (≥20%).
-- Chi đã phát sinh nhưng danh mục **chưa phân loại** → 1 lát/dòng *Chưa phân loại*
-  màu xám.
-- Hiển thị mốc mục tiêu 50/30/20 (ví dụ chữ "mục tiêu ≤50%" cạnh mỗi dòng).
-- **Edge — kỳ không có Thu** (`income = 0`): ẩn donut + rows của C1, thay bằng thông
-  báo "Cần có thu nhập trong kỳ để tính tỷ lệ 50/30/20". Trục C2 vẫn hoạt động.
-- **Edge — Chi > Thu**: Tiết kiệm âm → không vẽ lát Tiết kiệm trên donut (giá trị âm
-  không hợp lệ cho lát), nhưng dòng text Tiết kiệm vẫn hiện số âm màu đỏ; % Nhu
-  cầu/Sở thích có thể >100% và hiển thị trung thực.
+- 3 dòng `BreakdownRow` (thanh): **Nhu cầu** (essential expense / income), **Sở
+  thích** (flexible expense / income), **Tiết kiệm** = (Thu − tổng Chi) / Thu.
+- Mỗi thanh có **vạch mục tiêu** overlay: Nhu cầu 50%, Sở thích 30%, Tiết kiệm 20%
+  (một đường dọc mảnh trên nền thanh + nhãn "mục tiêu ≤50%"). Thanh vượt mốc "xấu"
+  (Nhu cầu/Sở thích > mốc) đổi sang màu cảnh báo; Tiết kiệm dưới mốc thì nhạt/đỏ.
+  → cần mở rộng `BreakdownRow` để nhận prop tùy chọn `targetPct` (vẽ vạch) mà không
+  phá vỡ mọi nơi đang dùng nó (prop optional, mặc định không vẽ).
+- Chi **chưa phân loại** → 1 dòng *Chưa phân loại* màu xám.
+- **Edge — kỳ không có Thu** (`income = 0`): ẩn phần C1, thay bằng thông báo "Cần có
+  thu nhập trong kỳ để tính tỷ lệ 50/30/20". Trục C2 vẫn hoạt động.
+- **Edge — Chi > Thu**: Tiết kiệm âm → dòng Tiết kiệm hiện số âm màu đỏ; % Nhu
+  cầu/Sở thích có thể >100%, thanh kẹp ở 100% chiều dài nhưng nhãn % hiển thị trung
+  thực (vd "112%").
 
-### C2. Trục Cố định/Biến đổi (trên tổng Chi)
+### C2. Trục Cố định/Biến đổi (trên tổng Chi) — donut + thanh
 
 - Mẫu số = **tổng Chi** trong kỳ.
-- **Donut** với các lát: Cố định, Biến đổi, (Chưa phân loại). Tâm donut ghi tổng Chi.
-- 2 dòng `BreakdownRow`: **Cố định** và **Biến đổi**, kèm dòng *Chưa phân loại* nếu có.
+- **Donut** với các lát: Cố định, Biến đổi, (Chưa phân loại). Tâm ghi tổng Chi.
+- 2 dòng `BreakdownRow` bên dưới: **Cố định** và **Biến đổi**, kèm dòng *Chưa phân
+  loại* nếu có.
 
 ### C3. Insight "van xả khẩn cấp"
 
@@ -194,7 +199,9 @@ classificationBreakdown(
 | `src/types/database.types.ts` | thêm `need_level`, `cost_type` vào `CategoryRow`/`NewCategory` |
 | `src/features/reports/aggregate.ts` | thêm `classificationBreakdown()` thuần |
 | `src/features/reports/aggregate.test.ts` | thêm test cho hàm trên |
-| `src/features/reports/SpendClassificationCard.tsx` | mới — chỉ hiển thị, 2 donut (Recharts `PieChart`) + `BreakdownRow` |
+| `src/features/reports/BreakdownRow.tsx` | mới — tách `BreakdownRow` khỏi `CategoryBreakdownCard.tsx` thành component dùng chung; thêm prop optional `targetPct` (vẽ vạch mục tiêu; mặc định off) |
+| `src/features/reports/CategoryBreakdownCard.tsx` | import `BreakdownRow` từ file mới (bỏ bản cục bộ) |
+| `src/features/reports/SpendClassificationCard.tsx` | mới — C1 thanh (có vạch mục tiêu), C2 donut (Recharts `PieChart`) + thanh |
 | `src/features/reports/ReportsPage.tsx` | gắn card mới (tháng + năm), truyền income |
 | `src/features/categories/CategoriesPage.tsx` | thêm 2 control vào `CategoryForm` |
 | `src/features/categories/ClassifyCategoriesPage.tsx` | mới — màn phân loại nhanh |
@@ -206,7 +213,8 @@ classificationBreakdown(
 - Không tag theo từng giao dịch (để giai đoạn sau nếu cần).
 - Không có trục thứ ba hay cấu hình mốc 50/30/20 tùy chỉnh — dùng mốc chuẩn cố định.
 - Không đổi cấu trúc ngân sách hay luồng nhập giao dịch.
-- Không dùng biểu đồ pie cho >5 lát (mỗi donut ở đây ≤4 lát nên hợp lệ).
+- Không donut cho C1 (trục 50/30/20 cần vạch mục tiêu → dùng thanh). Chỉ C2 có donut
+  (≤3 lát, hợp `no-pie-overuse`).
 
 ## G. Rủi ro / lưu ý
 

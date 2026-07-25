@@ -32,6 +32,7 @@
 | `src/features/reports/CategoryBreakdownCard.tsx` | Import `BreakdownRow` từ file mới |
 | `src/features/reports/SpendClassificationCard.tsx` | Card mới: C1 thanh, C2 donut |
 | `src/features/reports/ReportsPage.tsx` | Gắn card (tháng + năm), truyền income |
+| `src/features/categories/ClassificationToggle.tsx` | Nút gạt 3 lựa chọn dùng chung (form + màn phân loại nhanh) |
 | `src/features/categories/CategoriesPage.tsx` | 2 control trong `CategoryForm` |
 | `src/features/categories/ClassifyCategoriesPage.tsx` | Màn phân loại nhanh |
 | `src/App.tsx` | Route `/settings/categories/classify` |
@@ -888,13 +889,25 @@ git commit -m "feat(bao-cao): gan card Co cau chi tieu vao thang va nam"
 
 ---
 
-### Task 6: 2 control phân loại trong `CategoryForm`
+### Task 6: Component `ClassificationToggle` dùng chung + gắn vào `CategoryForm`
 
 **Files:**
+- Create: `src/features/categories/ClassificationToggle.tsx`
 - Modify: `src/features/categories/CategoriesPage.tsx` (component `CategoryForm`)
 
 **Interfaces:**
 - Consumes: `NewCategory.need_level`/`cost_type` (Task 1).
+- Produces (Task 7 dùng lại):
+```ts
+const NEED_OPTIONS: readonly (readonly [NeedLevel | null, string])[]
+const COST_OPTIONS: readonly (readonly [CostType | null, string])[]
+function ClassificationToggle<T extends string | null>(props: {
+  label?: string
+  options: readonly (readonly [T, string])[]
+  value: T
+  onChange: (v: T) => void
+}): JSX.Element
+```
 
 - [ ] **Step 1: State + import type**
 
@@ -923,69 +936,105 @@ Trong `handleSubmit`, mở rộng `input`. Chỉ gắn nhãn cho danh mục Chi 
       }
 ```
 
-- [ ] **Step 3: UI 2 nút gạt (chỉ danh mục Chi lá)**
+- [ ] **Step 3: Tạo component dùng chung `ClassificationToggle.tsx`**
 
-Đặt ngay trước khối "Biểu tượng" (`<p className="mb-1.5 …">Biểu tượng</p>`). Dùng đúng mẫu segmented control 3 lựa chọn (kèm "Chưa"):
+Component này được Task 7 dùng lại, nên đặt ở file riêng ngay từ đầu (không viết
+inline hai lần).
+
+```tsx
+import type { CostType, NeedLevel } from '../../types/database.types'
+
+export const NEED_OPTIONS = [
+  ['essential', 'Thiết yếu'],
+  ['flexible', 'Linh hoạt'],
+  [null, 'Chưa'],
+] as const satisfies readonly (readonly [NeedLevel | null, string])[]
+
+export const COST_OPTIONS = [
+  ['fixed', 'Cố định'],
+  ['variable', 'Biến đổi'],
+  [null, 'Chưa'],
+] as const satisfies readonly (readonly [CostType | null, string])[]
+
+/** Nút gạt 3 lựa chọn cho một trục phân loại (kèm "Chưa" = bỏ trống). */
+export function ClassificationToggle<T extends string | null>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  /** Nhãn phía trên; bỏ trống thì không hiện nhãn */
+  label?: string
+  options: readonly (readonly [T, string])[]
+  value: T
+  onChange: (v: T) => void
+}) {
+  return (
+    <div>
+      {label && (
+        <p className="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
+      )}
+      <div className="grid grid-cols-3 gap-1 rounded-xl bg-gray-200 p-1 dark:bg-gray-800">
+        {options.map(([val, text]) => (
+          <button
+            key={text}
+            type="button"
+            onClick={() => onChange(val)}
+            aria-pressed={value === val}
+            className={`min-h-11 rounded-lg text-xs font-medium transition ${
+              value === val
+                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                : 'text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            {text}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+```
+
+- [ ] **Step 4: Dùng trong `CategoryForm` (chỉ danh mục Chi lá)**
+
+Thêm import ở đầu `CategoriesPage.tsx`:
+
+```ts
+import { ClassificationToggle, COST_OPTIONS, NEED_OPTIONS } from './ClassificationToggle'
+```
+
+Đặt khối sau ngay trước phần "Biểu tượng" (`<p className="mb-1.5 …">Biểu tượng</p>`):
 
 ```tsx
         {effectiveType === 'expense' && !hasChildren && (
           <div className="mb-3 space-y-2">
-            <div>
-              <p className="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">Tính chất</p>
-              <div className="grid grid-cols-3 gap-1 rounded-xl bg-gray-200 p-1 dark:bg-gray-800">
-                {([['essential', 'Thiết yếu'], ['flexible', 'Linh hoạt'], [null, 'Chưa']] as const).map(
-                  ([val, label]) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => setNeedLevel(val)}
-                      className={`rounded-lg py-1.5 text-xs font-medium transition ${
-                        needLevel === val
-                          ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                          : 'text-gray-500 dark:text-gray-400'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ),
-                )}
-              </div>
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">Loại chi</p>
-              <div className="grid grid-cols-3 gap-1 rounded-xl bg-gray-200 p-1 dark:bg-gray-800">
-                {([['fixed', 'Cố định'], ['variable', 'Biến đổi'], [null, 'Chưa']] as const).map(
-                  ([val, label]) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => setCostType(val)}
-                      className={`rounded-lg py-1.5 text-xs font-medium transition ${
-                        costType === val
-                          ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                          : 'text-gray-500 dark:text-gray-400'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ),
-                )}
-              </div>
-            </div>
+            <ClassificationToggle
+              label="Tính chất"
+              options={NEED_OPTIONS}
+              value={needLevel}
+              onChange={setNeedLevel}
+            />
+            <ClassificationToggle
+              label="Loại chi"
+              options={COST_OPTIONS}
+              value={costType}
+              onChange={setCostType}
+            />
           </div>
         )}
 ```
 
-- [ ] **Step 4: Build**
+- [ ] **Step 5: Build**
 
-Run: `npm run build`
-Expected: PASS.
+Run: `npx tsc -b && npm run lint`
+Expected: PASS cả hai.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/features/categories/CategoriesPage.tsx
-git commit -m "feat(danh-muc): them control Thiet yeu/Linh hoat + Co dinh/Bien doi vao form"
+git add src/features/categories/ClassificationToggle.tsx src/features/categories/CategoriesPage.tsx
+git commit -m "feat(danh-muc): component ClassificationToggle + gan vao form danh muc"
 ```
 
 ---
@@ -997,58 +1046,20 @@ git commit -m "feat(danh-muc): them control Thiet yeu/Linh hoat + Co dinh/Bien d
 - Modify: `src/App.tsx` (route), `src/features/settings/SettingsPage.tsx` (link)
 
 **Interfaces:**
-- Consumes: `useCategories`, `useUpdateCategory` (từ `../../hooks/queries` — đã dùng ở `CategoriesPage.tsx`).
+- Consumes: `useCategories`, `useUpdateCategory` (từ `../../hooks/queries` — đã dùng ở `CategoriesPage.tsx`); `ClassificationToggle`, `NEED_OPTIONS`, `COST_OPTIONS` (Task 6).
 
 - [ ] **Step 1: Tạo màn phân loại nhanh**
 
-Tạo `src/features/categories/ClassifyCategoriesPage.tsx`:
+Tạo `src/features/categories/ClassifyCategoriesPage.tsx`. Dùng lại
+`ClassificationToggle` của Task 6 — không viết lại markup nút gạt:
 
 ```tsx
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useCategories, useUpdateCategory } from '../../hooks/queries'
-import type { CategoryRow, CostType, NeedLevel } from '../../types/database.types'
-
-const NEED: [NeedLevel | null, string][] = [
-  ['essential', 'Thiết yếu'],
-  ['flexible', 'Linh hoạt'],
-  [null, 'Chưa'],
-]
-const COST: [CostType | null, string][] = [
-  ['fixed', 'Cố định'],
-  ['variable', 'Biến đổi'],
-  [null, 'Chưa'],
-]
-
-function Seg<T extends string | null>({
-  options,
-  value,
-  onChange,
-}: {
-  options: [T, string][]
-  value: T
-  onChange: (v: T) => void
-}) {
-  return (
-    <div className="grid grid-cols-3 gap-1 rounded-lg bg-gray-200 p-0.5 dark:bg-gray-800">
-      {options.map(([val, label]) => (
-        <button
-          key={label}
-          type="button"
-          onClick={() => onChange(val)}
-          className={`min-h-9 rounded-md text-xs font-medium transition ${
-            value === val
-              ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-              : 'text-gray-500 dark:text-gray-400'
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  )
-}
+import type { CategoryRow } from '../../types/database.types'
+import { ClassificationToggle, COST_OPTIONS, NEED_OPTIONS } from './ClassificationToggle'
 
 export function ClassifyCategoriesPage() {
   const { data: categories = [] } = useCategories()
@@ -1098,13 +1109,13 @@ export function ClassifyCategoriesPage() {
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Seg
-                options={NEED}
+              <ClassificationToggle
+                options={NEED_OPTIONS}
                 value={c.need_level}
                 onChange={(v) => update.mutate({ id: c.id, patch: { need_level: v } })}
               />
-              <Seg
-                options={COST}
+              <ClassificationToggle
+                options={COST_OPTIONS}
                 value={c.cost_type}
                 onChange={(v) => update.mutate({ id: c.id, patch: { cost_type: v } })}
               />

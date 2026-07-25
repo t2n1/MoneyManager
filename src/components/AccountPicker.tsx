@@ -38,6 +38,7 @@ export function AccountPicker({
   const { data: balances = [] } = useAccountBalances()
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{
     left: number
     anchor: number
@@ -64,10 +65,14 @@ export function AccountPicker({
     })
   }, [open, options.length])
 
-  // Đóng khi cuộn / đổi kích thước / bấm Esc.
+  // Đóng khi cuộn trang / đổi kích thước / bấm Esc. Bỏ qua cuộn phát sinh ngay
+  // trong panel, nếu không danh sách dài sẽ tự đóng khi kéo tới mục cuối.
   useEffect(() => {
     if (!open) return
-    const close = () => setOpen(false)
+    const close = (e?: Event) => {
+      if (e?.target instanceof Node && panelRef.current?.contains(e.target)) return
+      setOpen(false)
+    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false)
     }
@@ -114,6 +119,7 @@ export function AccountPicker({
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />
           <div
+            ref={panelRef}
             role="listbox"
             style={{
               position: 'fixed',

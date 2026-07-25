@@ -46,6 +46,8 @@ export interface AssetAccount {
   includeInTotals: boolean
   /** true = ẩn khỏi trang Tài sản (cấp tài khoản) */
   hidden: boolean
+  /** Thứ tự tùy chỉnh (accounts.sort_order) — dùng để sắp tài khoản trong nhóm. */
+  sortOrder: number
 }
 
 export interface AssetGroup {
@@ -187,6 +189,7 @@ export function assetBreakdown(
       unrealizedPnlBase,
       includeInTotals: b.include_in_totals ?? true,
       hidden: b.is_hidden ?? false,
+      sortOrder: b.sort_order ?? 0,
     }
     const list = groups.get(key)
     if (list) list.push(account)
@@ -201,7 +204,10 @@ export function assetBreakdown(
     // Tài khoản đóng góp vào total nhóm = không ẩn & tính-vào-tổng (cấp tài khoản)
     const countedAccounts = accounts.filter((a) => !a.hidden && a.includeInTotals)
     const groupTotal = countedAccounts.reduce((s, a) => s + (a.baseValue ?? 0), 0)
-    accounts.sort((a, b) => (b.baseValue ?? 0) - (a.baseValue ?? 0))
+    // Ưu tiên thứ tự tùy chỉnh (kéo–thả); hòa/chưa đặt → giá trị giảm dần.
+    accounts.sort(
+      (a, b) => a.sortOrder - b.sortOrder || (b.baseValue ?? 0) - (a.baseValue ?? 0),
+    )
 
     if (groupCounted) {
       total += groupTotal
@@ -396,7 +402,10 @@ export function assetTypeGroups(breakdown: AssetBreakdown): AssetGroup[] {
   }
 
   const result: AssetGroup[] = [...byType.entries()].map(([type, accounts]) => {
-    accounts.sort((a, b) => (b.baseValue ?? 0) - (a.baseValue ?? 0))
+    // Ưu tiên thứ tự tùy chỉnh (kéo–thả); hòa/chưa đặt → giá trị giảm dần.
+    accounts.sort(
+      (a, b) => a.sortOrder - b.sortOrder || (b.baseValue ?? 0) - (a.baseValue ?? 0),
+    )
     const groupTotal = accounts.reduce((s, a) => s + (a.baseValue ?? 0), 0)
     return {
       name: ACCOUNT_TYPE_LABELS[type],

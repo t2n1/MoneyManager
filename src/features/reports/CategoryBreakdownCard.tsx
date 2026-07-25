@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
+import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { MonthKey } from '../../lib/dates'
 import type { CategoryRow } from '../../types/database.types'
 import { groupByParent, type Breakdown, type CategoryMonthlyPoint } from './aggregate'
@@ -203,7 +203,7 @@ export function CategoryBreakdownCard({
           {parents.length > 0 && (
             <p className="tabular-nums text-lg font-bold text-gray-800 dark:text-gray-100">
               {approx}
-              {formatCompact(total, base)}
+              {formatMoney(total, base)}
             </p>
           )}
         </div>

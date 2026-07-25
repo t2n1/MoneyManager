@@ -1,13 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Plus } from 'lucide-react'
+import { Check, ChevronDown, ChevronLeft, ChevronRight, GripVertical, Plus } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
+import { DragList, type DragHandleProps } from '../../components/DragList'
 import {
   useAccountBalances,
+  useAccounts,
   useAssetGroupSettings,
   useAssignAccountsToGroup,
   useDeleteAssetGroup,
   useRenameAssetGroup,
+  useReorderAccounts,
   useReorderAssetGroups,
   useRates,
   useUpsertAssetGroupSetting,
@@ -56,6 +59,7 @@ function Toggle({
 
 export function AssetGroupsPage() {
   const { data: balances = [], isLoading } = useAccountBalances()
+  const { data: accounts = [] } = useAccounts()
   const { data: groupSettings = [] } = useAssetGroupSettings()
   const { base, rates } = useRates()
 
@@ -63,9 +67,11 @@ export function AssetGroupsPage() {
   const rename = useRenameAssetGroup()
   const remove = useDeleteAssetGroup()
   const reorder = useReorderAssetGroups()
+  const reorderAccounts = useReorderAccounts()
   const assign = useAssignAccountsToGroup()
 
-  const [expanded, setExpanded] = useState<string | null>(null)
+  // Mặc định mở sẵn tài khoản con của mọi nhóm; chỉ lưu nhóm bị THU GỌN.
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [renaming, setRenaming] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [deleting, setDeleting] = useState<AssetGroup | null>(null)
@@ -123,12 +129,146 @@ export function AssetGroupsPage() {
     return [...names].sort((a, b) => a.localeCompare(b, 'vi'))
   }, [namedGroups, settings])
 
-  function moveGroup(index: number, delta: number) {
-    const target = index + delta
-    if (target < 0 || target >= namedGroups.length) return
-    const names = namedGroups.map((g) => g.name)
-    ;[names[index], names[target]] = [names[target], names[index]]
-    reorder.mutate(names)
+  // Sắp lại tài khoản TRONG một nhóm: chỉ hoán vị các thành viên của nhóm giữa
+  // những chỗ chúng đang chiếm trong thứ tự toàn cục (theo sort_order), giữ nguyên
+  // vị trí mọi tài khoản khác (nhóm khác, thẻ). Lưu trữ luôn ở cuối.
+  function reorderAccountsInGroup(newChildIds: string[]) {
+    const activeSorted = accounts
+      .filter((a) => !a.is_archived)
+      .sort((a, b) => a.sort_order - b.sort_order)
+    const archivedIds = accounts.filter((a) => a.is_archived).map((a) => a.id)
+    const member = new Set(newChildIds)
+    const queue = [...newChildIds]
+    const globalIds = activeSorted.map((a) => (member.has(a.id) ? queue.shift()! : a.id))
+    reorderAccounts.mutate([...globalIds, ...archivedIds])
+  }
+
+  // Chuyển một tài khoản SANG nhóm khác tại vị trí `index`: đổi asset_group và
+  // chèn id vào thứ tự toàn cục ngay cạnh thành viên đích, giữ nguyên mọi TK khác.
+  function moveAccountToGroupAt(id: string, dst: string, index: number) {
+    const activeSorted = accounts
+      .filter((a) => !a.is_archived)
+      .sort((a, b) => a.sort_order - b.sort_order)
+    const archivedIds = accounts.filter((a) => a.is_archived).map((a) => a.id)
+    const base = activeSorted.map((a) => a.id).filter((x) => x !== id)
+    const targetChildren = (groups.find((g) => g.name === dst)?.accounts ?? [])
+      .map((a) => a.id)
+      .filter((x) => x !== id)
+    let insertAt: number
+    if (index < targetChildren.length) insertAt = base.indexOf(targetChildren[index])
+    else if (targetChildren.length > 0)
+      insertAt = base.indexOf(targetChildren[targetChildren.length - 1]) + 1
+    else insertAt = base.length
+    if (insertAt < 0) insertAt = base.length
+    const globalIds = [...base]
+    globalIds.splice(insertAt, 0, id)
+    assign.mutate({ accountIds: [id], group: dst === UNGROUPED_LABEL ? null : dst })
+    reorderAccounts.mutate([...globalIds, ...archivedIds])
+  }
+
+  // --- Kéo–thả tài khoản: trong nhóm & xuyên nhóm ---
+  // Bắt pointer trên phần tử gốc (ổn định) để hàng kéo có thể "nhảy" giữa các nhóm
+  // mà không mất capture. `dropAt` là vị trí xem trước; commit khi thả.
+  const rootRef = useRef<HTMLDivElement>(null)
+  const rowRefs = useRef(new Map<string, HTMLElement>())
+  const zoneRefs = useRef(new Map<string, HTMLElement>())
+  const dragPointer = useRef<number | null>(null)
+  const [dragAcc, setDragAcc] = useState<string | null>(null)
+  const [dropAt, setDropAt] = useState<{ group: string; index: number } | null>(null)
+
+  const accountById = useMemo(() => {
+    const m = new Map<string, AssetAccount>()
+    for (const g of groups) for (const a of g.accounts) m.set(a.id, a)
+    return m
+  }, [groups])
+
+  function setRow(id: string, el: HTMLElement | null) {
+    if (el) rowRefs.current.set(id, el)
+    else rowRefs.current.delete(id)
+  }
+  function setZone(name: string, el: HTMLElement | null) {
+    if (el) zoneRefs.current.set(name, el)
+    else zoneRefs.current.delete(name)
+  }
+
+  function groupOf(id: string) {
+    for (const g of groups) if (g.accounts.some((a) => a.id === id)) return g.name
+    return UNGROUPED_LABEL
+  }
+
+  // Thứ tự id hiển thị của một nhóm, đã áp xem trước khi đang kéo.
+  function displayIdsOf(name: string): string[] {
+    const base = (groups.find((g) => g.name === name)?.accounts ?? []).map((a) => a.id)
+    if (dragAcc == null) return base
+    const without = base.filter((id) => id !== dragAcc)
+    if (dropAt && dropAt.group === name) {
+      const i = Math.min(dropAt.index, without.length)
+      return [...without.slice(0, i), dragAcc, ...without.slice(i)]
+    }
+    return without
+  }
+
+  function onAccPointerDown(id: string, e: ReactPointerEvent) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    e.preventDefault()
+    rootRef.current?.setPointerCapture(e.pointerId)
+    dragPointer.current = e.pointerId
+    const gname = groupOf(id)
+    const idx = (groups.find((g) => g.name === gname)?.accounts ?? []).findIndex((a) => a.id === id)
+    setDragAcc(id)
+    setDropAt({ group: gname, index: Math.max(0, idx) })
+  }
+
+  function onAccPointerMove(e: ReactPointerEvent) {
+    if (dragAcc == null || e.pointerId !== dragPointer.current) return
+    const x = e.clientX
+    const y = e.clientY
+    let targetGroup: string | null = null
+    for (const [name, el] of zoneRefs.current) {
+      const r = el.getBoundingClientRect()
+      if (y >= r.top && y <= r.bottom && x >= r.left && x <= r.right) {
+        targetGroup = name
+        break
+      }
+    }
+    if (targetGroup == null) return // ngoài mọi nhóm → giữ xem trước cũ
+    const rowIds = displayIdsOf(targetGroup).filter((id) => id !== dragAcc)
+    let index = rowIds.length
+    for (let i = 0; i < rowIds.length; i++) {
+      const el = rowRefs.current.get(rowIds[i])
+      if (!el) continue
+      const r = el.getBoundingClientRect()
+      if (y < r.top + r.height / 2) {
+        index = i
+        break
+      }
+    }
+    setDropAt((prev) =>
+      prev && prev.group === targetGroup && prev.index === index
+        ? prev
+        : { group: targetGroup, index },
+    )
+  }
+
+  function onAccPointerEnd(e: ReactPointerEvent) {
+    if (dragAcc == null) return
+    if (dragPointer.current != null && e.pointerId !== dragPointer.current) return
+    const id = dragAcc
+    const at = dropAt
+    setDragAcc(null)
+    setDropAt(null)
+    dragPointer.current = null
+    if (!at) return
+    const src = groupOf(id)
+    if (at.group === src) {
+      const cur = (groups.find((g) => g.name === src)?.accounts ?? []).map((a) => a.id)
+      const without = cur.filter((x) => x !== id)
+      const j = Math.min(at.index, without.length)
+      const next = [...without.slice(0, j), id, ...without.slice(j)]
+      if (next.some((x, k) => x !== cur[k])) reorderAccountsInGroup(next)
+    } else {
+      moveAccountToGroupAt(id, at.group, at.index)
+    }
   }
 
   async function submitRename(oldName: string) {
@@ -206,8 +346,224 @@ export function AssetGroupsPage() {
     })
   }
 
+  // Vẽ một nhóm (dùng cho cả nhóm kéo–thả lẫn "Chưa phân nhóm" cố định cuối).
+  // `handle` có = nhóm sắp thứ tự được (hiện tay nắm); không có = cố định.
+  function renderGroup(g: AssetGroup, handle?: DragHandleProps, dragging = false): ReactNode {
+    const isUngrouped = g.name === UNGROUPED_LABEL
+    const isOpen = !collapsed.has(g.name)
+    return (
+      <section
+        ref={(el) => setZone(g.name, el)}
+        className={`overflow-hidden rounded-xl bg-white dark:bg-gray-900 ${
+          dragging ? 'shadow-lg ring-2 ring-green-500/40' : 'shadow-sm'
+        } ${dragAcc != null && dropAt?.group === g.name ? 'ring-2 ring-green-500/60' : ''}`}
+      >
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          {/* Tay nắm kéo–thả (không áp dụng cho Chưa phân nhóm) */}
+          {handle ? (
+            <button
+              type="button"
+              {...handle}
+              className="inline-flex min-h-11 min-w-11 shrink-0 cursor-grab touch-none items-center justify-center text-gray-400 active:cursor-grabbing"
+              aria-label={`Kéo để sắp thứ tự nhóm ${g.name}`}
+            >
+              <GripVertical className="h-5 w-5" />
+            </button>
+          ) : (
+            <div className="w-11" />
+          )}
+
+          <div className="min-w-0 flex-1">
+            {renaming === g.name ? (
+              <div className="flex items-center gap-1">
+                <input
+                  autoFocus
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') submitRename(g.name)
+                    if (e.key === 'Escape') setRenaming(null)
+                  }}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-2 py-1 text-sm outline-green-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => submitRename(g.name)}
+                  className="rounded-lg bg-green-600 px-2 py-1 text-xs font-semibold text-white"
+                >
+                  Lưu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRenaming(null)}
+                  className="rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400"
+                >
+                  Hủy
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  setCollapsed((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(g.name)) next.delete(g.name)
+                    else next.add(g.name)
+                    return next
+                  })
+                }
+                className="block w-full text-left"
+              >
+                <span className="flex items-center gap-1 text-sm font-semibold text-gray-800 dark:text-gray-100">
+                  <span className="min-w-0 truncate">{g.name}</span>
+                  {isOpen ? (
+                    <ChevronDown className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 shrink-0" />
+                  )}
+                </span>
+                <span className="block text-xs text-gray-500 dark:text-gray-400">
+                  {g.accounts.length} tài khoản · {g.hasMissingRate ? '≈ ' : ''}
+                  {formatMoney(g.total, base)}
+                </span>
+              </button>
+            )}
+          </div>
+
+          {!isUngrouped && renaming !== g.name && (
+            <div className="flex shrink-0 gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setRenaming(g.name)
+                  setRenameValue(g.name)
+                }}
+                className="rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                Đổi tên
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleting(g)}
+                className="rounded-lg px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+              >
+                Xóa
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Công tắc tính vào tổng / ẩn */}
+        <div className="flex items-center gap-4 border-t border-gray-100 dark:border-gray-800 px-3 py-2">
+          <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+            <Toggle
+              label="Tính vào tổng"
+              checked={g.includeInTotals}
+              onChange={(v) => upsert.mutate({ name: g.name, patch: { include_in_totals: v } })}
+            />
+            Tính vào tổng
+          </label>
+          <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+            <Toggle
+              label="Ẩn nhóm"
+              checked={g.hidden}
+              onChange={(v) => upsert.mutate({ name: g.name, patch: { is_hidden: v } })}
+            />
+            Ẩn
+          </label>
+        </div>
+
+        {/* Danh sách tài khoản (kéo–thả để sắp trong nhóm hoặc chuyển nhóm) */}
+        {isOpen && (
+          <div className="border-t border-gray-100 dark:border-gray-800">
+            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+              {displayIdsOf(g.name).map((id) => {
+                const a = accountById.get(id)
+                if (!a) return null
+                const isDragging = id === dragAcc
+                return (
+                  <div
+                    key={id}
+                    ref={(el) => setRow(id, el)}
+                    className={`flex items-center gap-1 px-3 py-2 ${
+                      isDragging ? 'bg-green-50 shadow-md dark:bg-green-900/20' : ''
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onPointerDown={(e) => onAccPointerDown(id, e)}
+                      style={{ touchAction: 'none' }}
+                      className="inline-flex min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-gray-300 active:cursor-grabbing dark:text-gray-600"
+                      aria-label={`Kéo để sắp thứ tự hoặc chuyển nhóm ${a.name}`}
+                    >
+                      <GripVertical className="h-4 w-4" />
+                    </button>
+                    <span className="flex min-w-0 flex-1 items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
+                      <AccountTypeIcon type={a.type} className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{a.name}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {formatMoney(a.balance, a.currency)}
+                      </span>
+                    </span>
+                    <select
+                      value={g.name}
+                      onChange={(e) => moveAccount(a.id, e.target.value)}
+                      className="shrink-0 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-xs"
+                      aria-label={`Chuyển ${a.name} sang nhóm khác`}
+                    >
+                      {allGroupNames.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                      <option value={UNGROUPED_LABEL}>{UNGROUPED_LABEL}</option>
+                      <option value={NEW_GROUP}>+ Nhóm mới…</option>
+                    </select>
+                  </div>
+                )
+              })}
+            </div>
+            {displayIdsOf(g.name).length === 0 && (
+              <p className="px-3 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
+                {dragAcc != null ? 'Thả vào đây để chuyển nhóm' : 'Không có tài khoản'}
+              </p>
+            )}
+
+            {/* Thêm tài khoản từ nhóm khác vào nhóm này */}
+            {!isUngrouped &&
+              (addingTo === g.name ? (
+                <AddAccountsPanel
+                  candidates={accountsOutside(g.name)}
+                  picked={picked}
+                  onToggle={togglePicked}
+                  onCancel={() => setAddingTo(null)}
+                  onConfirm={() => submitAddAccounts(g.name)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openAddAccounts(g.name)}
+                  className="flex w-full items-center justify-center gap-1 border-t border-gray-100 px-3 py-2.5 text-xs font-semibold text-green-700 hover:bg-green-50 dark:border-gray-800 dark:text-green-400 dark:hover:bg-green-900/20"
+                >
+                  <Plus className="h-4 w-4" /> Thêm tài khoản vào nhóm
+                </button>
+              ))}
+          </div>
+        )}
+      </section>
+    )
+  }
+
+  const ungroupedGroup = groups.find((g) => g.name === UNGROUPED_LABEL)
+
   return (
-    <div className="p-3 lg:p-6">
+    <div
+      ref={rootRef}
+      className="p-3 lg:p-6"
+      onPointerMove={onAccPointerMove}
+      onPointerUp={onAccPointerEnd}
+      onPointerCancel={onAccPointerEnd}
+    >
       <div className="mb-3 flex items-center gap-2">
         <Link
           to="/assets"
@@ -231,8 +587,9 @@ export function AssetGroupsPage() {
 
       <p className="mb-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 p-3 text-xs text-blue-800 dark:text-blue-300">
         Bật/tắt <b>Tính vào tổng</b> để một nhóm có được cộng vào Tổng tài sản hay không.
-        Bật <b>Ẩn</b> để giấu nhóm khỏi trang Tài sản (vẫn quản lý được ở đây). Kéo thứ tự
-        bằng nút lên/xuống.
+        Bật <b>Ẩn</b> để giấu nhóm khỏi trang Tài sản (vẫn quản lý được ở đây). Nhấn giữ
+        biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự nhóm, sắp tài khoản trong nhóm,
+        hoặc kéo tài khoản thả sang nhóm khác.
       </p>
 
       {adding && (
@@ -272,194 +629,18 @@ export function AssetGroupsPage() {
           Chưa có nhóm nào. Bấm "Thêm nhóm" để tạo, hoặc thêm tài khoản rồi gán nhóm.
         </p>
       ) : (
-        <div className="space-y-2">
-          {groups.map((g) => {
-            const isUngrouped = g.name === UNGROUPED_LABEL
-            const namedIndex = namedGroups.findIndex((x) => x.name === g.name)
-            const isOpen = expanded === g.name
-            return (
-              <section key={g.name} className="overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
-                <div className="flex items-center gap-2 px-3 py-2.5">
-                  {/* Nút sắp thứ tự (không áp dụng cho Chưa phân nhóm) */}
-                  {!isUngrouped ? (
-                    <div className="flex flex-col">
-                      <button
-                        type="button"
-                        onClick={() => moveGroup(namedIndex, -1)}
-                        disabled={namedIndex === 0}
-                        className="inline-flex min-h-11 min-w-11 items-center justify-center text-gray-500 dark:text-gray-400 disabled:opacity-20"
-                        aria-label="Lên"
-                      >
-                        <ChevronUp className="h-5 w-5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveGroup(namedIndex, 1)}
-                        disabled={namedIndex === namedGroups.length - 1}
-                        className="inline-flex min-h-11 min-w-11 items-center justify-center text-gray-500 dark:text-gray-400 disabled:opacity-20"
-                        aria-label="Xuống"
-                      >
-                        <ChevronDown className="h-5 w-5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="w-11" />
-                  )}
-
-                  <div className="min-w-0 flex-1">
-                    {renaming === g.name ? (
-                      <div className="flex items-center gap-1">
-                        <input
-                          autoFocus
-                          value={renameValue}
-                          onChange={(e) => setRenameValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') submitRename(g.name)
-                            if (e.key === 'Escape') setRenaming(null)
-                          }}
-                          className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-2 py-1 text-sm outline-green-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => submitRename(g.name)}
-                          className="rounded-lg bg-green-600 px-2 py-1 text-xs font-semibold text-white"
-                        >
-                          Lưu
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setRenaming(null)}
-                          className="rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400"
-                        >
-                          Hủy
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setExpanded(isOpen ? null : g.name)}
-                        className="block w-full text-left"
-                      >
-                        <span className="flex items-center gap-1 text-sm font-semibold text-gray-800 dark:text-gray-100">
-                          <span className="min-w-0 truncate">{g.name}</span>
-                          {isOpen ? (
-                            <ChevronDown className="h-4 w-4 shrink-0" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 shrink-0" />
-                          )}
-                        </span>
-                        <span className="block text-xs text-gray-500 dark:text-gray-400">
-                          {g.accounts.length} tài khoản · {g.hasMissingRate ? '≈ ' : ''}
-                          {formatMoney(g.total, base)}
-                        </span>
-                      </button>
-                    )}
-                  </div>
-
-                  {!isUngrouped && renaming !== g.name && (
-                    <div className="flex shrink-0 gap-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRenaming(g.name)
-                          setRenameValue(g.name)
-                        }}
-                        className="rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-                      >
-                        Đổi tên
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleting(g)}
-                        className="rounded-lg px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
-                      >
-                        Xóa
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Công tắc tính vào tổng / ẩn */}
-                <div className="flex items-center gap-4 border-t border-gray-100 dark:border-gray-800 px-3 py-2">
-                  <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
-                    <Toggle
-                      label="Tính vào tổng"
-                      checked={g.includeInTotals}
-                      onChange={(v) =>
-                        upsert.mutate({ name: g.name, patch: { include_in_totals: v } })
-                      }
-                    />
-                    Tính vào tổng
-                  </label>
-                  <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
-                    <Toggle
-                      label="Ẩn nhóm"
-                      checked={g.hidden}
-                      onChange={(v) => upsert.mutate({ name: g.name, patch: { is_hidden: v } })}
-                    />
-                    Ẩn
-                  </label>
-                </div>
-
-                {/* Danh sách tài khoản + chuyển nhóm */}
-                {isOpen && (
-                  <div className="divide-y divide-gray-100 dark:divide-gray-800 border-t border-gray-100 dark:border-gray-800">
-                    {g.accounts.map((a) => (
-                      <div key={a.id} className="flex items-center gap-2 px-3 py-2">
-                        <span className="flex min-w-0 flex-1 items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
-                          <AccountTypeIcon type={a.type} className="h-4 w-4 shrink-0" />
-                          <span className="truncate">{a.name}</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {formatMoney(a.balance, a.currency)}
-                          </span>
-                        </span>
-                        <select
-                          value={g.name}
-                          onChange={(e) => moveAccount(a.id, e.target.value)}
-                          className="shrink-0 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-xs"
-                          aria-label={`Chuyển ${a.name} sang nhóm khác`}
-                        >
-                          {allGroupNames.map((name) => (
-                            <option key={name} value={name}>
-                              {name}
-                            </option>
-                          ))}
-                          <option value={UNGROUPED_LABEL}>{UNGROUPED_LABEL}</option>
-                          <option value={NEW_GROUP}>+ Nhóm mới…</option>
-                        </select>
-                      </div>
-                    ))}
-                    {g.accounts.length === 0 && (
-                      <p className="px-3 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
-                        Không có tài khoản
-                      </p>
-                    )}
-
-                    {/* Thêm tài khoản từ nhóm khác vào nhóm này */}
-                    {!isUngrouped &&
-                      (addingTo === g.name ? (
-                        <AddAccountsPanel
-                          candidates={accountsOutside(g.name)}
-                          picked={picked}
-                          onToggle={togglePicked}
-                          onCancel={() => setAddingTo(null)}
-                          onConfirm={() => submitAddAccounts(g.name)}
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => openAddAccounts(g.name)}
-                          className="flex w-full items-center justify-center gap-1 px-3 py-2.5 text-xs font-semibold text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
-                        >
-                          <Plus className="h-4 w-4" /> Thêm tài khoản vào nhóm
-                        </button>
-                      ))}
-                  </div>
-                )}
-              </section>
-            )
-          })}
-        </div>
+        <>
+          <DragList
+            className="space-y-2"
+            ids={namedGroups.map((g) => g.name)}
+            onReorder={(names) => reorder.mutate(names)}
+            render={(name, handle, dragging) => {
+              const g = namedGroups.find((x) => x.name === name)
+              return g ? renderGroup(g, handle, dragging) : null
+            }}
+          />
+          {ungroupedGroup && <div className="mt-2">{renderGroup(ungroupedGroup)}</div>}
+        </>
       )}
 
       {deleting && (

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, CreditCard, Settings2 } from 'lucide-react'
+import { ChevronRight, CreditCard, GripVertical, Settings2 } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { AccountTypeIcon } from '../../components/icons'
 import { PrivacyToggle } from '../../components/PrivacyToggle'
@@ -8,15 +8,25 @@ import { NetWorthHistorySection } from './NetWorthHistorySection'
 import { SavingsGoalsSection } from './SavingsGoalsSection'
 import {
   useAccountBalances,
+  useAccounts,
   useAssetGroupSettings,
+  useAssignAccountsToGroup,
   useDebtPayments,
   useDebts,
   useRates,
+  useReorderAccounts,
 } from '../../hooks/queries'
 import { CURRENCIES, formatMoney } from '../../lib/money'
 import { daysBetween, nextCardDueDate, toISODate } from '../../lib/dates'
 import { debtSummary } from '../debts/aggregate'
-import { assetBreakdown, assetTypeGroups, cardFunding, type AssetGroupSetting } from './aggregate'
+import {
+  assetBreakdown,
+  assetTypeGroups,
+  cardFunding,
+  UNGROUPED_LABEL,
+  type AssetAccount,
+  type AssetGroupSetting,
+} from './aggregate'
 
 // Bảng màu cho lát bánh (lặp lại nếu > 12 nhóm) — đồng bộ với ReportsPage
 const PALETTE = [
@@ -88,6 +98,159 @@ export function AssetsPage() {
   const typeGroups = useMemo(() => assetTypeGroups(breakdown), [breakdown])
 
   const displayGroups = groupMode === 'purpose' ? purposeGroups : typeGroups
+  // Kéo–thả sắp thứ tự tài khoản bật ở CẢ hai chế độ. Nhưng chỉ "Mục đích" cho kéo
+  // XUYÊN nhóm (đổi asset_group); ở "Loại", kéo sang nhóm khác = đổi loại tài khoản
+  // (làm trong form), nên chỉ cho sắp TRONG cùng một loại.
+  const dragEnabled = displayGroups.length > 0
+  const allowCross = groupMode === 'purpose'
+
+  // --- Kéo–thả tài khoản ngay trên trang Tài sản (trong nhóm & xuyên nhóm) ---
+  const { data: allAccounts = [] } = useAccounts()
+  const reorderAccounts = useReorderAccounts()
+  const assign = useAssignAccountsToGroup()
+
+  const rootRef = useRef<HTMLDivElement>(null)
+  const rowRefs = useRef(new Map<string, HTMLElement>())
+  const zoneRefs = useRef(new Map<string, HTMLElement>())
+  const dragPointer = useRef<number | null>(null)
+  const [dragAcc, setDragAcc] = useState<string | null>(null)
+  const [dropAt, setDropAt] = useState<{ group: string; index: number } | null>(null)
+
+  const accountById = useMemo(() => {
+    const m = new Map<string, AssetAccount>()
+    for (const g of displayGroups) for (const a of g.accounts) m.set(a.id, a)
+    return m
+  }, [displayGroups])
+
+  function setRow(id: string, el: HTMLElement | null) {
+    if (el) rowRefs.current.set(id, el)
+    else rowRefs.current.delete(id)
+  }
+  function setZone(name: string, el: HTMLElement | null) {
+    if (el) zoneRefs.current.set(name, el)
+    else zoneRefs.current.delete(name)
+  }
+
+  function groupOf(id: string) {
+    for (const g of displayGroups) if (g.accounts.some((a) => a.id === id)) return g.name
+    return UNGROUPED_LABEL
+  }
+
+  // Thứ tự id hiển thị của một nhóm, đã áp xem trước khi đang kéo.
+  function displayIdsOf(name: string): string[] {
+    const base = (displayGroups.find((g) => g.name === name)?.accounts ?? []).map((a) => a.id)
+    if (dragAcc == null) return base
+    const without = base.filter((id) => id !== dragAcc)
+    if (dropAt && dropAt.group === name) {
+      const i = Math.min(dropAt.index, without.length)
+      return [...without.slice(0, i), dragAcc, ...without.slice(i)]
+    }
+    return without
+  }
+
+  // Sắp lại tài khoản TRONG một nhóm: hoán vị thành viên nhóm giữa các chỗ chúng
+  // đang chiếm trong thứ tự toàn cục (sort_order), giữ nguyên mọi tài khoản khác.
+  function reorderAccountsInGroup(newChildIds: string[]) {
+    const activeSorted = allAccounts
+      .filter((a) => !a.is_archived)
+      .sort((a, b) => a.sort_order - b.sort_order)
+    const archivedIds = allAccounts.filter((a) => a.is_archived).map((a) => a.id)
+    const member = new Set(newChildIds)
+    const queue = [...newChildIds]
+    const globalIds = activeSorted.map((a) => (member.has(a.id) ? queue.shift()! : a.id))
+    reorderAccounts.mutate([...globalIds, ...archivedIds])
+  }
+
+  // Chuyển một tài khoản SANG nhóm khác tại vị trí `index`: đổi asset_group và chèn
+  // id vào thứ tự toàn cục ngay cạnh thành viên đích, giữ nguyên mọi tài khoản khác.
+  function moveAccountToGroupAt(id: string, dst: string, index: number) {
+    const activeSorted = allAccounts
+      .filter((a) => !a.is_archived)
+      .sort((a, b) => a.sort_order - b.sort_order)
+    const archivedIds = allAccounts.filter((a) => a.is_archived).map((a) => a.id)
+    const base = activeSorted.map((a) => a.id).filter((x) => x !== id)
+    const targetChildren = (displayGroups.find((g) => g.name === dst)?.accounts ?? [])
+      .map((a) => a.id)
+      .filter((x) => x !== id)
+    let insertAt: number
+    if (index < targetChildren.length) insertAt = base.indexOf(targetChildren[index])
+    else if (targetChildren.length > 0)
+      insertAt = base.indexOf(targetChildren[targetChildren.length - 1]) + 1
+    else insertAt = base.length
+    if (insertAt < 0) insertAt = base.length
+    const globalIds = [...base]
+    globalIds.splice(insertAt, 0, id)
+    assign.mutate({ accountIds: [id], group: dst === UNGROUPED_LABEL ? null : dst })
+    reorderAccounts.mutate([...globalIds, ...archivedIds])
+  }
+
+  function onAccPointerDown(id: string, e: ReactPointerEvent) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    e.preventDefault()
+    rootRef.current?.setPointerCapture(e.pointerId)
+    dragPointer.current = e.pointerId
+    const gname = groupOf(id)
+    const idx = (displayGroups.find((g) => g.name === gname)?.accounts ?? []).findIndex(
+      (a) => a.id === id,
+    )
+    setDragAcc(id)
+    setDropAt({ group: gname, index: Math.max(0, idx) })
+  }
+
+  function onAccPointerMove(e: ReactPointerEvent) {
+    if (dragAcc == null || e.pointerId !== dragPointer.current) return
+    const x = e.clientX
+    const y = e.clientY
+    // Ở chế độ "Loại", không cho kéo xuyên nhóm → chỉ nhận vùng của nhóm nguồn.
+    const srcGroup = groupOf(dragAcc)
+    let targetGroup: string | null = null
+    for (const [name, el] of zoneRefs.current) {
+      if (!allowCross && name !== srcGroup) continue
+      const r = el.getBoundingClientRect()
+      if (y >= r.top && y <= r.bottom && x >= r.left && x <= r.right) {
+        targetGroup = name
+        break
+      }
+    }
+    if (targetGroup == null) return
+    const rowIds = displayIdsOf(targetGroup).filter((id) => id !== dragAcc)
+    let index = rowIds.length
+    for (let i = 0; i < rowIds.length; i++) {
+      const el = rowRefs.current.get(rowIds[i])
+      if (!el) continue
+      const r = el.getBoundingClientRect()
+      if (y < r.top + r.height / 2) {
+        index = i
+        break
+      }
+    }
+    setDropAt((prev) =>
+      prev && prev.group === targetGroup && prev.index === index
+        ? prev
+        : { group: targetGroup, index },
+    )
+  }
+
+  function onAccPointerEnd(e: ReactPointerEvent) {
+    if (dragAcc == null) return
+    if (dragPointer.current != null && e.pointerId !== dragPointer.current) return
+    const id = dragAcc
+    const at = dropAt
+    setDragAcc(null)
+    setDropAt(null)
+    dragPointer.current = null
+    if (!at) return
+    const src = groupOf(id)
+    if (at.group === src) {
+      const cur = (displayGroups.find((g) => g.name === src)?.accounts ?? []).map((a) => a.id)
+      const without = cur.filter((x) => x !== id)
+      const j = Math.min(at.index, without.length)
+      const next = [...without.slice(0, j), id, ...without.slice(j)]
+      if (next.some((x, k) => x !== cur[k])) reorderAccountsInGroup(next)
+    } else if (allowCross) {
+      moveAccountToGroupAt(id, at.group, at.index)
+    }
+  }
 
   // Biểu đồ tròn = cơ cấu của Tổng tài sản → chỉ nhóm được tính vào tổng
   const pieData = displayGroups
@@ -134,7 +297,13 @@ export function AssetsPage() {
     !breakdown.cardHasMissingRate
 
   return (
-    <div className="flex flex-col gap-4 p-3 lg:p-6">
+    <div
+      ref={rootRef}
+      className="flex flex-col gap-4 p-3 lg:p-6"
+      onPointerMove={onAccPointerMove}
+      onPointerUp={onAccPointerEnd}
+      onPointerCancel={onAccPointerEnd}
+    >
       <div className="flex items-center gap-2">
         <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Tài sản</h1>
         <PrivacyToggle />
@@ -487,65 +656,108 @@ export function AssetsPage() {
       </section>
 
       {/* Chi tiết từng nhóm và tài khoản bên trong */}
-      {displayGroups.map((g) => (
-        <section
-          key={g.name}
-          className="overflow-hidden rounded-2xl bg-white dark:bg-gray-900 shadow-sm"
-          style={{ borderLeft: `4px solid ${colorOf(g.name)}` }}
-        >
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100">
-              <span className="truncate">{g.name}</span>
-              <span className="shrink-0 rounded-full bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:text-gray-400">
-                {g.accounts.length}
+      {dragEnabled && (
+        <p className="-mb-1 px-1 text-xs text-gray-500 dark:text-gray-400">
+          Nhấn giữ <GripVertical className="inline h-3.5 w-3.5 align-text-bottom" /> rồi kéo để
+          sắp thứ tự tài khoản{allowCross ? ', hoặc kéo thả sang nhóm khác' : ' trong cùng một loại'}.
+        </p>
+      )}
+      {displayGroups.map((g) => {
+        const rowIds = dragEnabled ? displayIdsOf(g.name) : g.accounts.map((a) => a.id)
+        const isDropTarget = dragEnabled && dragAcc != null && dropAt?.group === g.name
+        return (
+          <section
+            key={g.name}
+            ref={dragEnabled ? (el) => setZone(g.name, el) : undefined}
+            className={`overflow-hidden rounded-2xl bg-white dark:bg-gray-900 shadow-sm ${
+              isDropTarget ? 'ring-2 ring-green-500/60' : ''
+            }`}
+            style={{ borderLeft: `4px solid ${colorOf(g.name)}` }}
+          >
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100">
+                <span className="truncate">{g.name}</span>
+                <span className="shrink-0 rounded-full bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                  {g.accounts.length}
+                </span>
+                {!g.includeInTotals && (
+                  <span className="shrink-0 text-[10px] font-normal text-gray-500 dark:text-gray-400">(ngoài tổng)</span>
+                )}
               </span>
-              {!g.includeInTotals && (
-                <span className="shrink-0 text-[10px] font-normal text-gray-500 dark:text-gray-400">(ngoài tổng)</span>
-              )}
-            </span>
-            <span className="shrink-0 pl-2 text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
-              {g.hasMissingRate ? '≈ ' : ''}
-              {formatMoney(g.total, base)}
-            </span>
-          </div>
-          <div className="divide-y divide-gray-50 border-t border-gray-100 dark:border-gray-800">
-            {g.accounts.map((a) => (
-              <Link
-                key={a.id}
-                to={`/assets/${a.id}`}
-                className="flex items-center gap-2 px-4 py-2.5 transition hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100"
-              >
-                <AccountTypeIcon type={a.type} className="h-4 w-4" />
-                <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300">
-                  {a.name}
-                  <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">{a.currency}</span>
-                  {!a.includeInTotals && (
-                    <span className="ml-1 text-[10px] text-gray-500 dark:text-gray-400">(ngoài tổng)</span>
-                  )}
-                  {a.marketValue != null && a.marketValue !== a.balance && (
-                    <span
-                      className={`ml-1 text-[10px] tabular-nums ${
-                        a.marketValue > a.balance
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-red-600 dark:text-red-400'
+              <span className="shrink-0 pl-2 text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                {g.hasMissingRate ? '≈ ' : ''}
+                {formatMoney(g.total, base)}
+              </span>
+            </div>
+            <div className="divide-y divide-gray-50 border-t border-gray-100 dark:border-gray-800 dark:divide-gray-800">
+              {rowIds.map((id) => {
+                const a = accountById.get(id) ?? g.accounts.find((x) => x.id === id)
+                if (!a) return null
+                const isDragging = dragEnabled && id === dragAcc
+                return (
+                  <div
+                    key={id}
+                    ref={dragEnabled ? (el) => setRow(id, el) : undefined}
+                    className={`flex items-center ${
+                      isDragging ? 'bg-green-50 shadow-md dark:bg-green-900/20' : ''
+                    }`}
+                  >
+                    {dragEnabled && (
+                      <button
+                        type="button"
+                        onPointerDown={(e) => onAccPointerDown(id, e)}
+                        style={{ touchAction: 'none' }}
+                        className="inline-flex min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-gray-300 active:cursor-grabbing dark:text-gray-600"
+                        aria-label={`Kéo để sắp thứ tự hoặc chuyển nhóm ${a.name}`}
+                      >
+                        <GripVertical className="h-4 w-4" />
+                      </button>
+                    )}
+                    <Link
+                      to={`/assets/${a.id}`}
+                      className={`flex min-w-0 flex-1 items-center gap-2 py-2.5 transition hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100 ${
+                        dragEnabled ? 'pr-4 pl-1' : 'px-4'
                       }`}
                     >
-                      {a.marketValue > a.balance ? '▲' : '▼'}
-                      {formatMoney(Math.abs(a.marketValue - a.balance), a.currency)}
-                    </span>
-                  )}
-                </span>
-                <span
-                  className={`shrink-0 text-sm font-medium tabular-nums ${a.value < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}
-                >
-                  {formatMoney(a.value, a.currency)}
-                </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
-              </Link>
-            ))}
-          </div>
-        </section>
-      ))}
+                      <AccountTypeIcon type={a.type} className="h-4 w-4" />
+                      <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300">
+                        {a.name}
+                        <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">{a.currency}</span>
+                        {!a.includeInTotals && (
+                          <span className="ml-1 text-[10px] text-gray-500 dark:text-gray-400">(ngoài tổng)</span>
+                        )}
+                        {a.marketValue != null && a.marketValue !== a.balance && (
+                          <span
+                            className={`ml-1 text-[10px] tabular-nums ${
+                              a.marketValue > a.balance
+                                ? 'text-green-600 dark:text-green-400'
+                                : 'text-red-600 dark:text-red-400'
+                            }`}
+                          >
+                            {a.marketValue > a.balance ? '▲' : '▼'}
+                            {formatMoney(Math.abs(a.marketValue - a.balance), a.currency)}
+                          </span>
+                        )}
+                      </span>
+                      <span
+                        className={`shrink-0 text-sm font-medium tabular-nums ${a.value < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}
+                      >
+                        {formatMoney(a.value, a.currency)}
+                      </span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
+                    </Link>
+                  </div>
+                )
+              })}
+              {dragEnabled && allowCross && rowIds.length === 0 && dragAcc != null && (
+                <p className="px-4 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
+                  Thả vào đây để chuyển sang nhóm này
+                </p>
+              )}
+            </div>
+          </section>
+        )
+      })}
 
       {breakdown.hasForeign && rates && (
         <p className="text-center text-xs text-gray-500 dark:text-gray-400">

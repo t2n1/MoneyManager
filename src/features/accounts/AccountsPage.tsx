@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, ChevronDown, ChevronLeft, ChevronUp } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronLeft, ChevronUp, GripVertical } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
+import { DragList } from '../../components/DragList'
 import type { NewAccount } from '../../data'
 import {
   useAccountBalances,
@@ -45,19 +46,16 @@ export function AccountsPage() {
   const archived = sorted.filter((a) => a.is_archived)
   const balanceOf = (id: string) => balances.find((b) => b.id === id)?.balance ?? 0
   const groups = groupAccountsByType(active, balanceOf)
+  const accountById = new Map(active.map((a) => [a.id, a]))
 
-  // Di chuyển trong cùng một loại: hoán đổi vị trí hai tài khoản trong danh sách
-  // id toàn cục rồi lưu lại. Vì tài khoản cùng loại nằm liền nhau theo sort_order,
-  // các loại vẫn tự tách đúng.
-  function moveInGroup(groupAccounts: AccountRow[], indexInGroup: number, delta: number) {
-    const target = indexInGroup + delta
-    if (target < 0 || target >= groupAccounts.length) return
-    const ids = active.map((a) => a.id)
-    const ai = ids.indexOf(groupAccounts[indexInGroup].id)
-    const bi = ids.indexOf(groupAccounts[target].id)
-    ;[ids[ai], ids[bi]] = [ids[bi], ids[ai]]
-    // giữ tài khoản đã lưu trữ ở cuối
-    reorder.mutate([...ids, ...archived.map((a) => a.id)])
+  // Sắp lại thứ tự tài khoản TRONG một loại (kéo–thả): chỉ hoán vị các thành viên
+  // của loại đó giữa những chỗ chúng đang chiếm trong thứ tự toàn cục (theo
+  // sort_order), giữ nguyên vị trí mọi tài khoản khác. Lưu trữ luôn ở cuối.
+  function reorderGroup(newGroupIds: string[]) {
+    const member = new Set(newGroupIds)
+    const queue = [...newGroupIds]
+    const globalIds = active.map((a) => (member.has(a.id) ? queue.shift()! : a.id))
+    reorder.mutate([...globalIds, ...archived.map((a) => a.id)])
   }
 
   return (
@@ -80,6 +78,13 @@ export function AccountsPage() {
         </button>
       </div>
 
+      {active.length > 0 && (
+        <p className="mb-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 p-3 text-xs text-blue-800 dark:text-blue-300">
+          Nhấn giữ biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự tài khoản trong cùng một
+          loại. Muốn đổi sang loại khác thì mở tài khoản và chỉnh mục <b>Loại</b>.
+        </p>
+      )}
+
       {active.length === 0 && (
         <div className="overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
           <p className="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400">Chưa có tài khoản</p>
@@ -96,57 +101,58 @@ export function AccountsPage() {
               {formatTotals(g.totalsByCurrency)}
             </span>
           </div>
-          <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
-            {g.accounts.map((a, i) => (
-              <div key={a.id} className="flex items-center gap-2 px-3 py-2.5">
-                <div className="flex flex-col">
-                  <button
-                    type="button"
-                    onClick={() => moveInGroup(g.accounts, i, -1)}
-                    disabled={i === 0}
-                    className="inline-flex min-w-11 items-center justify-center py-0.5 text-gray-500 dark:text-gray-400 disabled:opacity-20"
-                    aria-label="Lên"
+          <div className="overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
+            <DragList
+              className="divide-y divide-gray-100 dark:divide-gray-800"
+              ids={g.accounts.map((a) => a.id)}
+              onReorder={reorderGroup}
+              render={(id, handle, dragging) => {
+                const a = accountById.get(id)
+                if (!a) return null
+                return (
+                  <div
+                    className={`flex items-center gap-2 px-3 py-2.5 ${
+                      dragging ? 'bg-green-50 shadow-md dark:bg-green-900/20' : ''
+                    }`}
                   >
-                    <ChevronUp className="h-5 w-5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveInGroup(g.accounts, i, 1)}
-                    disabled={i === g.accounts.length - 1}
-                    className="inline-flex min-w-11 items-center justify-center py-0.5 text-gray-500 dark:text-gray-400 disabled:opacity-20"
-                    aria-label="Xuống"
-                  >
-                    <ChevronDown className="h-5 w-5" />
-                  </button>
-                </div>
-                <AccountTypeIcon type={a.type} className="h-4 w-4" />
-                <button type="button" onClick={() => setEditing(a)} className="min-w-0 flex-1 text-left">
-                  <span className="flex items-center gap-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100">
-                    <span className="truncate">{a.name}</span>
-                    {a.is_hidden && (
-                      <span className="shrink-0 rounded bg-gray-100 dark:bg-gray-800 px-1 text-xs text-gray-500 dark:text-gray-400">
-                        ẩn
+                    <button
+                      type="button"
+                      {...handle}
+                      className="inline-flex min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-gray-400 active:cursor-grabbing"
+                      aria-label={`Kéo để sắp thứ tự ${a.name}`}
+                    >
+                      <GripVertical className="h-5 w-5" />
+                    </button>
+                    <AccountTypeIcon type={a.type} className="h-4 w-4" />
+                    <button type="button" onClick={() => setEditing(a)} className="min-w-0 flex-1 text-left">
+                      <span className="flex items-center gap-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                        <span className="truncate">{a.name}</span>
+                        {a.is_hidden && (
+                          <span className="shrink-0 rounded bg-gray-100 dark:bg-gray-800 px-1 text-xs text-gray-500 dark:text-gray-400">
+                            ẩn
+                          </span>
+                        )}
+                        {!a.include_in_totals && (
+                          <span className="shrink-0 rounded bg-gray-100 dark:bg-gray-800 px-1 text-xs text-gray-500 dark:text-gray-400">
+                            ngoài tổng
+                          </span>
+                        )}
                       </span>
-                    )}
-                    {!a.include_in_totals && (
-                      <span className="shrink-0 rounded bg-gray-100 dark:bg-gray-800 px-1 text-xs text-gray-500 dark:text-gray-400">
-                        ngoài tổng
+                      <span className="block text-xs text-gray-500 dark:text-gray-400">
+                        {formatMoney(balanceOf(a.id), a.currency)} · {a.currency}
                       </span>
-                    )}
-                  </span>
-                  <span className="block text-xs text-gray-500 dark:text-gray-400">
-                    {formatMoney(balanceOf(a.id), a.currency)} · {a.currency}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => update.mutate({ id: a.id, patch: { is_archived: true } })}
-                  className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-                >
-                  Lưu trữ
-                </button>
-              </div>
-            ))}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => update.mutate({ id: a.id, patch: { is_archived: true } })}
+                      className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                      Lưu trữ
+                    </button>
+                  </div>
+                )
+              }}
+            />
           </div>
         </div>
       ))}

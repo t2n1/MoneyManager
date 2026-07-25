@@ -96,24 +96,49 @@ Một `<section>` mới đặt **sau** `CategoryBreakdownCard` trong tab Biểu 
 chế độ Tháng và Năm**. Cùng khung thẻ `rounded-xl bg-white … shadow-sm` +
 biến thể dark mode.
 
-Card gồm 3 phần:
+Card gồm 3 phần. Mỗi trục (C1, C2) trình bày bằng **1 biểu đồ donut** (proportion
+tức thì) + **các dòng `BreakdownRow` bên dưới** làm chú giải + số liệu chính xác.
+
+**Biểu đồ donut (chung cho C1 & C2):**
+
+- Dùng `PieChart` của Recharts (đã là dependency) ở dạng **donut** (`innerRadius` >
+  0) để đặt nhãn ở tâm (C1: tổng Thu; C2: tổng Chi).
+- Số lát mỗi donut ≤ 4 → nằm trong ngưỡng an toàn của `no-pie-overuse`.
+- **Màu chỉ để phân biệt nhanh; ý nghĩa luôn có ở dòng text bên dưới** (tuân
+  `color-not-only`): donut không phải nguồn thông tin duy nhất, các `BreakdownRow`
+  là bản text thay thế cho screen-reader. Truyền `aria-label` mô tả tỉ lệ chính cho
+  vùng biểu đồ.
+- Có tooltip khi chạm/hover hiện tên lát + số tiền + % (`tooltip-on-interact`).
+- Tôn trọng `prefers-reduced-motion`: tắt animation vẽ donut khi user bật giảm
+  chuyển động; số liệu ở rows vẫn đọc được ngay.
+- Responsive: hai donut xếp dọc trên mobile (mỗi donut full-width), có thể 2 cột từ
+  breakpoint `lg`. Đặt kích thước qua `aspect-ratio`/`ResponsiveContainer` để không
+  gây layout shift.
+- Bảng màu lấy từ `PALETTE` sẵn có: Nhu cầu/Cố định = xanh lá `#16a34a`, Sở
+  thích/Biến đổi = cam `#f59e0b`, Tiết kiệm = xanh dương `#0ea5e9`, Chưa phân loại =
+  xám `#9ca3af`.
 
 ### C1. Trục 50/30/20 (Thiết yếu/Linh hoạt trên Thu nhập)
 
 - Mẫu số = **tổng Thu** trong kỳ (đã quy đổi base).
-- 3 dòng, mỗi dòng là một `BreakdownRow` (tái dùng): **Nhu cầu** (essential expense
-  / income, mốc gợi ý ≤50%), **Sở thích** (flexible expense / income, ≤30%),
-  **Tiết kiệm** = (Thu − tổng Chi) / Thu (≥20%).
-- Chi đã phát sinh nhưng danh mục **chưa phân loại** → dòng *Chưa phân loại* màu xám.
-- Hiển thị mốc mục tiêu 50/30/20 (ví dụ một vạch mờ hoặc chữ "mục tiêu ≤50%").
-- **Edge — kỳ không có Thu** (`income = 0`): thay ba dòng bằng thông báo "Cần có thu
-  nhập trong kỳ để tính tỷ lệ 50/30/20". Trục C2 vẫn hoạt động bình thường.
-- **Edge — Chi > Thu**: Tiết kiệm âm → hiển thị số âm màu đỏ (giống savingsRate hiện
-  có), % Nhu cầu/Sở thích có thể >100% và vẫn hiển thị trung thực.
+- **Donut** với các lát: Nhu cầu, Sở thích, Tiết kiệm, (Chưa phân loại). Tâm donut
+  ghi tổng Thu.
+- 3 dòng `BreakdownRow` bên dưới: **Nhu cầu** (essential expense / income, mốc gợi ý
+  ≤50%), **Sở thích** (flexible expense / income, ≤30%), **Tiết kiệm** = (Thu − tổng
+  Chi) / Thu (≥20%).
+- Chi đã phát sinh nhưng danh mục **chưa phân loại** → 1 lát/dòng *Chưa phân loại*
+  màu xám.
+- Hiển thị mốc mục tiêu 50/30/20 (ví dụ chữ "mục tiêu ≤50%" cạnh mỗi dòng).
+- **Edge — kỳ không có Thu** (`income = 0`): ẩn donut + rows của C1, thay bằng thông
+  báo "Cần có thu nhập trong kỳ để tính tỷ lệ 50/30/20". Trục C2 vẫn hoạt động.
+- **Edge — Chi > Thu**: Tiết kiệm âm → không vẽ lát Tiết kiệm trên donut (giá trị âm
+  không hợp lệ cho lát), nhưng dòng text Tiết kiệm vẫn hiện số âm màu đỏ; % Nhu
+  cầu/Sở thích có thể >100% và hiển thị trung thực.
 
 ### C2. Trục Cố định/Biến đổi (trên tổng Chi)
 
 - Mẫu số = **tổng Chi** trong kỳ.
+- **Donut** với các lát: Cố định, Biến đổi, (Chưa phân loại). Tâm donut ghi tổng Chi.
 - 2 dòng `BreakdownRow`: **Cố định** và **Biến đổi**, kèm dòng *Chưa phân loại* nếu có.
 
 ### C3. Insight "van xả khẩn cấp"
@@ -169,7 +194,7 @@ classificationBreakdown(
 | `src/types/database.types.ts` | thêm `need_level`, `cost_type` vào `CategoryRow`/`NewCategory` |
 | `src/features/reports/aggregate.ts` | thêm `classificationBreakdown()` thuần |
 | `src/features/reports/aggregate.test.ts` | thêm test cho hàm trên |
-| `src/features/reports/SpendClassificationCard.tsx` | mới — chỉ hiển thị |
+| `src/features/reports/SpendClassificationCard.tsx` | mới — chỉ hiển thị, 2 donut (Recharts `PieChart`) + `BreakdownRow` |
 | `src/features/reports/ReportsPage.tsx` | gắn card mới (tháng + năm), truyền income |
 | `src/features/categories/CategoriesPage.tsx` | thêm 2 control vào `CategoryForm` |
 | `src/features/categories/ClassifyCategoriesPage.tsx` | mới — màn phân loại nhanh |
@@ -181,7 +206,7 @@ classificationBreakdown(
 - Không tag theo từng giao dịch (để giai đoạn sau nếu cần).
 - Không có trục thứ ba hay cấu hình mốc 50/30/20 tùy chỉnh — dùng mốc chuẩn cố định.
 - Không đổi cấu trúc ngân sách hay luồng nhập giao dịch.
-- Không thêm biểu đồ pie (2–3 nhóm dùng thanh tỉ lệ rõ hơn).
+- Không dùng biểu đồ pie cho >5 lát (mỗi donut ở đây ≤4 lát nên hợp lệ).
 
 ## G. Rủi ro / lưu ý
 

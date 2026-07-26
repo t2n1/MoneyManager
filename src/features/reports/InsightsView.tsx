@@ -1,8 +1,6 @@
 import { useMemo } from 'react'
-import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
   useAccounts,
-  useBudgetReport,
   useCategories,
   useMonthTransactions,
   useProfile,
@@ -13,25 +11,16 @@ import {
 import {
   addDaysISO,
   addMonths,
-  daysBetween,
   getMonthRange,
   monthKeyForDate,
   toISODate,
   type MonthKey,
 } from '../../lib/dates'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
-import { convertToBase } from '../../lib/rates'
-import {
-  categoryBreakdown,
-  categoryComparison,
-  cumulativeDailyBalance,
-  dailyExpenseTotals,
-  monthlySeries,
-} from './aggregate'
-import { buildInsights, detectAnomalies, forecastMonthEnd, noSpendStreak, savingsRate } from './insights'
+import { categoryBreakdown, categoryComparison, dailyExpenseTotals, monthlySeries } from './aggregate'
+import { buildInsights, detectAnomalies, noSpendStreak, savingsRate } from './insights'
+import { useMonthPace } from './monthPace'
 import { SavingsRateTrendCard } from './SavingsRateTrendCard'
-import { SpendVsBudgetCard } from './SpendVsBudgetCard'
-import { SpendHeatmapCard } from './SpendHeatmapCard'
 import { CategoryCompareBarsCard } from './CategoryCompareBarsCard'
 import { ParetoCard } from './ParetoCard'
 import { SpendSizeCard } from './SpendSizeCard'
@@ -53,7 +42,8 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const { data: monthTxs = [] } = useMonthTransactions(monthKey)
-  const { report } = useBudgetReport(monthKey)
+  // Dự báo cuối tháng dùng chung với tab Ngân sách (các khối nhịp chi nằm bên đó)
+  const { forecast, forecastApprox } = useMonthPace(monthKey)
 
   // 6 tháng gần nhất (gồm tháng đang xem) — nền cho so sánh (S) và bất thường (U)
   const sixMonths = useMemo(
@@ -113,49 +103,8 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
     (m) => formatMoney(m, base),
   )
 
-  // --- Dự báo cuối tháng (R) — chỉ tháng hiện tại ---
-  const range = getMonthRange(monthKey, monthStartDay)
-  const daysInMonth = daysBetween(range.start, range.end)
-  const daysElapsed = Math.min(daysBetween(range.start, todayISO) + 1, daysInMonth)
-  let spentSoFar = 0
-  let forecastApprox = false
-  for (const t of monthTxs) {
-    if (t.type !== 'expense' || t.is_debt_flow || t.occurred_on > todayISO) continue
-    const v = convertToBase(t.amount, currencyOf(t.account_id), base, r)
-    if (v === null) {
-      forecastApprox = true
-      continue
-    }
-    spentSoFar += v
-  }
-  const forecast = isCurrentMonth ? forecastMonthEnd(spentSoFar, daysElapsed, daysInMonth) : null
-  const totalBudgeted = report?.totalBudgeted ?? 0
-
-  // --- Chi từng ngày cho TRỌN tháng (heatmap + chi tích lũy vs ngân sách) ---
-  const monthLastISO = addDaysISO(range.end, -1)
-  const monthDaily = useMemo(
-    () => dailyExpenseTotals(monthTxs, range.start, monthLastISO, currencyOf, base, r),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [monthTxs, range.start, monthLastISO, accounts, base, rates],
-  )
-  const hasSpend = monthDaily.points.some((p) => p.expense > 0)
-  // Số ngày "đã trôi qua" để giới hạn đường thực chi: cả tháng nếu là tháng quá khứ
-  const paceDaysElapsed = isCurrentMonth ? daysElapsed : daysInMonth
-
-  // --- Dòng tiền tích lũy trong tháng (W) ---
-  const cashLastISO = isCurrentMonth ? todayISO : monthLastISO
-  const cashflow = useMemo(
-    () => cumulativeDailyBalance(monthTxs, range.start, cashLastISO, currencyOf, base, r),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [monthTxs, range.start, cashLastISO, accounts, base, rates],
-  )
-  const cashflowData = cashflow.points.map((p) => ({
-    label: `${Number(p.date.slice(8))}/${Number(p.date.slice(5, 7))}`,
-    balance: p.balance,
-  }))
-  const hasCashflow = cashflow.points.some((p) => p.balance !== 0)
-
   // --- Phát hiện chi bất thường (U) ---
+  const range = getMonthRange(monthKey, monthStartDay)
   const historyTxs = useMemo(
     () => rangeTxs.filter((t) => t.occurred_on < range.start),
     [rangeTxs, range.start],
@@ -213,19 +162,12 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
     expenseBreakdown.hasMissingRate ||
     forecastApprox ||
     comparison.hasMissingRate ||
-    cashflow.hasMissingRate ||
-    monthDaily.hasMissingRate ||
     anomalyResult.hasMissingRate
 
   // Thẻ tổng quan trên cùng — chỉ hiện khi có ít nhất một chỉ số
   const hasOverview = rate !== null || forecast !== null || (streak !== null && streak > 0)
   const hasAny =
-    hasOverview ||
-    hasSpend ||
-    comparison.rows.length > 0 ||
-    hasCashflow ||
-    anomalies.length > 0 ||
-    insights.length > 0
+    hasOverview || comparison.rows.length > 0 || anomalies.length > 0 || insights.length > 0
 
   const labelOf = (k: MonthKey) => `${k.month}/${String(k.year).slice(2)}`
 
@@ -269,82 +211,25 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
         </section>
       )}
 
-      {/* Xu hướng tỷ lệ tiết kiệm 6 tháng */}
-      <SavingsRateTrendCard series={series} labelOf={labelOf} />
-
-      {/* Chi tích lũy vs ngân sách + nhận định dự báo */}
-      {hasSpend && (
-        <div className="flex flex-col gap-2">
-          <SpendVsBudgetCard
-            points={monthDaily.points}
-            daysElapsed={paceDaysElapsed}
-            totalBudgeted={totalBudgeted}
-            base={base}
-          />
-          {forecast && (
-            <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Đã chi {formatMoney(forecast.spentSoFar, base)} sau {forecast.daysElapsed}/
-                {forecast.daysInMonth} ngày.
-              </p>
-              {totalBudgeted > 0 ? (
-                forecast.projected > totalBudgeted ? (
-                  <p className="mt-2 rounded-lg bg-red-50 dark:bg-red-900/30 px-2 py-1.5 text-xs text-red-600 dark:text-red-400">
-                    Với đà này bạn sẽ vượt ngân sách {formatMoney(forecast.projected - totalBudgeted, base)}.
-                  </p>
-                ) : (
-                  <p className="mt-2 rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1.5 text-xs text-green-700 dark:text-green-400">
-                    Với đà này bạn vẫn trong ngân sách ({formatMoney(totalBudgeted, base)}).
-                  </p>
-                )
-              ) : (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Đặt ngân sách tháng để so sánh với dự báo.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Dòng tiền tích lũy (net) trong tháng */}
-      {hasCashflow && (
+      {/* Gợi ý — đặt ngay đầu tab: đây là phần tóm tắt, không phải phụ lục */}
+      {insights.length > 0 && (
         <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
-            Dòng tiền tích lũy trong tháng
-          </h2>
-          <div className="h-52 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={cashflowData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval={4}
-                />
-                <YAxis
-                  tickFormatter={(v: number) => formatCompact(v, base)}
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={44}
-                />
-                <ReferenceLine y={0} stroke="#9ca3af" />
-                <Tooltip
-                  formatter={(v) => formatMoney(Number(v), base)}
-                  labelFormatter={(l) => `Ngày ${l}`}
-                  contentStyle={{ borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb' }}
-                />
-                <Line type="monotone" dataKey="balance" stroke="#0ea5e9" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">Gợi ý</h2>
+          <ul className="space-y-1">
+            {insights.map((i) => (
+              <li
+                key={i.id}
+                className="rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-300"
+              >
+                {i.text}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
-      {/* Lịch chi tiêu (heatmap) */}
-      {hasSpend && <SpendHeatmapCard points={monthDaily.points} base={base} />}
+      {/* Xu hướng tỷ lệ tiết kiệm 6 tháng */}
+      <SavingsRateTrendCard series={series} labelOf={labelOf} />
 
       {/* So sánh chi theo danh mục — bar ngang */}
       <CategoryCompareBarsCard rows={comparison.rows} categories={categories} base={base} />
@@ -401,23 +286,6 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
                 </li>
               )
             })}
-          </ul>
-        </section>
-      )}
-
-      {/* Gợi ý */}
-      {insights.length > 0 && (
-        <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">Gợi ý</h2>
-          <ul className="space-y-1">
-            {insights.map((i) => (
-              <li
-                key={i.id}
-                className="rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-300"
-              >
-                {i.text}
-              </li>
-            ))}
           </ul>
         </section>
       )}

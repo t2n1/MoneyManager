@@ -13,6 +13,7 @@ import { showToast } from '../../lib/dialog'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { buildBudgetDisplay, type BudgetChildRow } from './budgetDisplay'
 import type { BudgetStatus } from './progress'
+import { MonthPaceCharts, SpendPaceSection, useMonthPace } from '../reports/monthPace'
 
 const BAR_COLOR: Record<BudgetStatus, string> = {
   ok: 'bg-green-500',
@@ -51,6 +52,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   const { data: budgets = [] } = useBudgets(monthKeyStr)
   const { data: categories = [] } = useCategories()
   const copy = useCopyBudgetsFromPreviousMonth()
+  // Gọi trước mọi early-return để giữ đúng thứ tự hook
+  const pace = useMonthPace(monthKey)
 
   // Danh mục đang sửa hạn mức (null = đóng sheet)
   const [editing, setEditing] = useState<{
@@ -136,7 +139,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
 
   return (
     <div className="flex flex-col gap-3">
-      {report.hasMissingRate && (
+      {(report.hasMissingRate || pace.hasMissingRate) && (
         <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">
           Một phần chi ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
@@ -172,6 +175,9 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           Chép hạn mức tháng trước
         </button>
       </section>
+
+      {/* Đang đi nhanh hay chậm so với hạn mức — ngay dưới dòng tổng */}
+      <SpendPaceSection pace={pace} />
 
       {/* Danh mục / nhóm có hạn mức */}
       {items.length > 0 && (
@@ -288,6 +294,9 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           </ul>
         </section>
       )}
+
+      {/* Biểu đồ mô tả — dưới danh sách hạn mức vì không bấm được */}
+      <MonthPaceCharts pace={pace} />
 
       {editing && (
         <BudgetEditSheet

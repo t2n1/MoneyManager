@@ -1,8 +1,8 @@
 // Thẻ chỉ số sức khỏe tài chính — khuôn dùng chung cho MỌI chỉ số để đọc quen mắt:
 //   tên · kết luận · số lớn · thang đo màu · một câu nghĩa là gì · "cách tính" mở ra được.
 // Kết luận LUÔN có chữ (Tốt / Cần chú ý / Rủi ro) chứ không chỉ dựa vào màu.
-import { useState, type ReactNode } from 'react'
-import { ChevronDown } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { ExplainBox } from '../../components/ExplainBox'
 import { VERDICT_LABELS, type Verdict } from './health'
 
 export type Tone = 'bad' | 'warn' | 'good'
@@ -60,7 +60,6 @@ export function HealthMetricCard({
   meaning,
   how,
 }: Props) {
-  const [open, setOpen] = useState(false)
   const max = zones && zones.length > 0 ? zones[zones.length - 1].upTo : 0
   const showGauge = !!zones && zones.length > 0 && max > 0
   // Giá trị vượt trần thang thì ghim ở cuối (vd runway 80 tháng trên thang 0–24)
@@ -119,20 +118,7 @@ export function HealthMetricCard({
 
       <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-gray-300">{meaning}</p>
 
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="mt-2 inline-flex min-h-9 items-center gap-1 rounded-md text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-      >
-        Cách tính &amp; nên làm gì
-        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div className="mt-1 space-y-1.5 rounded-lg bg-gray-50 p-2.5 text-xs leading-relaxed text-gray-600 dark:bg-gray-950 dark:text-gray-400">
-          {how}
-        </div>
-      )}
+      <ExplainBox>{how}</ExplainBox>
     </section>
   )
 }

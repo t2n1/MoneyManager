@@ -1,0 +1,168 @@
+import { describe, expect, it } from 'vitest'
+import {
+  detectChangePoints,
+  lifestyleElasticity,
+  personalInflation,
+  rollingAverage,
+  yearOverYear,
+} from './trends'
+
+describe('rollingAverage', () => {
+  it('trả null cho tới khi đủ cửa sổ, rồi trung bình 3 phần tử gần nhất', () => {
+    expect(rollingAverage([3, 6, 9, 12], 3)).toEqual([null, null, 6, 9])
+  })
+
+  it('cửa sổ 1 = chính dãy đó', () => {
+    expect(rollingAverage([5, 7], 1)).toEqual([5, 7])
+  })
+
+  it('dãy ngắn hơn cửa sổ → toàn null', () => {
+    expect(rollingAverage([1, 2], 5)).toEqual([null, null])
+  })
+
+  it('cửa sổ không hợp lệ → toàn null thay vì chia cho 0', () => {
+    expect(rollingAverage([1, 2, 3], 0)).toEqual([null, null, null])
+  })
+})
+
+describe('yearOverYear', () => {
+  const pts = [
+    { key: { year: 2025, month: 11 }, value: 100 },
+    { key: { year: 2025, month: 12 }, value: 200 },
+    { key: { year: 2026, month: 11 }, value: 150 },
+    { key: { year: 2026, month: 12 }, value: 200 },
+  ]
+
+  it('ghép đúng cùng tháng năm trước và tính %', () => {
+    const r = yearOverYear(pts)
+    expect(r[2]).toEqual({
+      key: { year: 2026, month: 11 },
+      current: 150,
+      yearAgo: 100,
+      deltaPct: 50,
+    })
+    expect(r[3].deltaPct).toBe(0)
+  })
+
+  it('tháng chưa có dữ liệu năm ngoái → yearAgo null, không tính %', () => {
+    const r = yearOverYear(pts)
+    expect(r[0].yearAgo).toBeNull()
+    expect(r[0].deltaPct).toBeNull()
+  })
+
+  it('năm ngoái bằng 0 → không chia cho 0', () => {
+    const r = yearOverYear([
+      { key: { year: 2025, month: 3 }, value: 0 },
+      { key: { year: 2026, month: 3 }, value: 500 },
+    ])
+    expect(r[1].deltaPct).toBeNull()
+  })
+})
+
+describe('detectChangePoints', () => {
+  it('tìm đúng chỗ mức chi nhảy bậc', () => {
+    // 6 tháng quanh 100, rồi 6 tháng quanh 300
+    const v = [100, 105, 95, 102, 98, 100, 300, 305, 295, 302, 298, 300]
+    const cps = detectChangePoints(v)
+    expect(cps).toHaveLength(1)
+    expect(cps[0].index).toBe(6)
+    expect(cps[0].before).toBeCloseTo(100, 0)
+    expect(cps[0].after).toBeCloseTo(300, 0)
+  })
+
+  it('dãy chỉ dao động vặt → không báo gãy', () => {
+    expect(detectChangePoints([100, 103, 98, 101, 99, 102, 100, 97])).toEqual([])
+  })
+
+  it('hai bậc liên tiếp → hai điểm gãy theo thứ tự thời gian', () => {
+    const v = [
+      100, 102, 98, 101, // mức 1
+      200, 203, 197, 201, // mức 2
+      400, 402, 398, 401, // mức 3
+    ]
+    const cps = detectChangePoints(v)
+    expect(cps.map((c) => c.index)).toEqual([4, 8])
+  })
+
+  it('tôn trọng maxPoints và minSegment', () => {
+    const v = [10, 12, 8, 11, 100, 102, 98, 101, 200, 202, 198, 201]
+    expect(detectChangePoints(v)).toHaveLength(2)
+    expect(detectChangePoints(v, { maxPoints: 1 })).toHaveLength(1)
+    // đoạn tối thiểu 8 tháng → không đủ chỗ để cắt dãy 12 phần tử thành 2 đoạn
+    expect(detectChangePoints(v, { minSegment: 8 })).toEqual([])
+  })
+
+  it('dãy lên xuống đều đặn không phải "đổi mức" → không báo gãy', () => {
+    const v = [10, 90, 10, 90, 10, 90, 10, 90, 10, 90, 10, 90]
+    expect(detectChangePoints(v)).toEqual([])
+  })
+
+  it('dãy quá ngắn → mảng rỗng', () => {
+    expect(detectChangePoints([1, 5])).toEqual([])
+  })
+})
+
+describe('personalInflation', () => {
+  it('chỉ so những danh mục có mặt ở CẢ hai kỳ', () => {
+    const cur = new Map([
+      ['an', 220],
+      ['nha', 110],
+      ['hocphi', 500], // mới phát sinh năm nay → không nằm trong rổ
+    ])
+    const prev = new Map([
+      ['an', 200],
+      ['nha', 100],
+      ['dulich', 300], // năm nay không chi → không nằm trong rổ
+    ])
+    const r = personalInflation(cur, prev)
+    expect(r?.basketSize).toBe(2)
+    expect(r?.rate).toBeCloseTo(0.1) // 330/300 − 1
+    expect(r?.currentTotal).toBe(330)
+    expect(r?.previousTotal).toBe(300)
+  })
+
+  it('coverage cho biết rổ chung chiếm bao nhiêu phần tổng chi hiện tại', () => {
+    const r = personalInflation(new Map([['an', 100], ['moi', 300]]), new Map([['an', 100]]))
+    expect(r?.coverage).toBeCloseTo(0.25)
+  })
+
+  it('không có danh mục chung → null', () => {
+    expect(personalInflation(new Map([['a', 100]]), new Map([['b', 100]]))).toBeNull()
+  })
+
+  it('kỳ trước bằng 0 → null', () => {
+    expect(personalInflation(new Map([['a', 100]]), new Map([['a', 0]]))).toBeNull()
+  })
+})
+
+describe('lifestyleElasticity', () => {
+  const half = (a: number, b: number) => [a, a, a, b, b, b]
+
+  it('thu tăng 50%, chi tăng 25% → hệ số 0,5', () => {
+    const r = lifestyleElasticity(half(200, 300), half(100, 125))
+    expect(r?.incomeChangePct).toBeCloseTo(50)
+    expect(r?.expenseChangePct).toBeCloseTo(25)
+    expect(r?.elasticity).toBeCloseTo(0.5)
+    expect(r?.marginalSpend).toBeCloseTo(0.25) // thêm 100 thu → tiêu thêm 25
+  })
+
+  it('thu tăng mà chi tăng y hệt → hệ số 1 (mức sống phình theo)', () => {
+    const r = lifestyleElasticity(half(200, 400), half(150, 300))
+    expect(r?.elasticity).toBeCloseTo(1)
+  })
+
+  it('thu nhập gần như đứng yên → null (phép chia sẽ nổ)', () => {
+    expect(lifestyleElasticity(half(200, 202), half(100, 180))).toBeNull()
+  })
+
+  it('dưới 6 tháng dữ liệu → null', () => {
+    expect(lifestyleElasticity([100, 200, 300], [50, 60, 70])).toBeNull()
+  })
+
+  it('số tháng lẻ: hai nửa không chồng lấn phần tử giữa', () => {
+    const r = lifestyleElasticity([100, 100, 100, 999, 200, 200, 200], [50, 50, 50, 999, 75, 75, 75])
+    expect(r?.incomeBefore).toBe(100)
+    expect(r?.incomeAfter).toBe(200)
+    expect(r?.elasticity).toBeCloseTo(0.5)
+  })
+})

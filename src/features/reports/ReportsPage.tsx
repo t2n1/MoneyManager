@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { BudgetView } from '../budgets/BudgetView'
 import { RemittanceSection } from '../remittance/RemittanceSection'
 import { InsightsView } from './InsightsView'
+import { TrendsView } from './TrendsView'
 import { CategoryBreakdownCard } from './CategoryBreakdownCard'
 import { MonthlyBarsCard } from './MonthlyBarsCard'
 import { NetCashflowCard } from './NetCashflowCard'
@@ -37,6 +38,15 @@ import {
   sumIncomeExpense,
 } from './aggregate'
 
+type ReportView = 'charts' | 'trends' | 'insights' | 'budget'
+
+const VIEW_TABS: { key: ReportView; label: string }[] = [
+  { key: 'charts', label: 'Biểu đồ' },
+  { key: 'trends', label: 'Xu hướng' },
+  { key: 'insights', label: 'Thấu hiểu' },
+  { key: 'budget', label: 'Ngân sách' },
+]
+
 /** Đọc 'YYYY-MM' thành MonthKey; null nếu không hợp lệ. */
 function parseYm(s: string | null): MonthKey | null {
   if (!s) return null
@@ -51,13 +61,10 @@ export function ReportsPage() {
   const [period, setPeriod] = useState<'month' | 'year'>(
     searchParams.get('period') === 'year' ? 'year' : 'month',
   )
-  const [view, setView] = useState<'charts' | 'insights' | 'budget'>(
-    searchParams.get('view') === 'budget'
-      ? 'budget'
-      : searchParams.get('view') === 'insights'
-        ? 'insights'
-        : 'charts',
-  )
+  const [view, setView] = useState<ReportView>(() => {
+    const v = searchParams.get('view')
+    return v === 'budget' || v === 'insights' || v === 'trends' ? v : 'charts'
+  })
 
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
@@ -283,28 +290,22 @@ export function ReportsPage() {
 
       {/* Tab chỉ hiện ở chế độ Tháng */}
       {period === 'month' && (
-        <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-sm font-medium print:hidden">
-          <button
-            type="button"
-            onClick={() => setView('charts')}
-            className={`flex-1 rounded-md py-2.5 ${view === 'charts' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
-          >
-            Biểu đồ
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('insights')}
-            className={`flex-1 rounded-md py-2.5 ${view === 'insights' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
-          >
-            Thấu hiểu
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('budget')}
-            className={`flex-1 rounded-md py-2.5 ${view === 'budget' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
-          >
-            Ngân sách
-          </button>
+        <div className="flex rounded-lg bg-gray-100 p-0.5 text-sm font-medium dark:bg-gray-800 print:hidden">
+          {VIEW_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setView(tab.key)}
+              aria-current={view === tab.key ? 'page' : undefined}
+              className={`flex-1 rounded-md px-1 py-2.5 ${
+                view === tab.key
+                  ? 'bg-white text-gray-800 shadow-sm dark:bg-gray-900 dark:text-gray-100'
+                  : 'text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       )}
 
@@ -349,6 +350,7 @@ export function ReportsPage() {
           />
         </>
       )}
+      {period === 'month' && view === 'trends' && <TrendsView />}
       {period === 'month' && view === 'insights' && <InsightsView monthKey={activeMonthKey} />}
       {period === 'month' && view === 'budget' && <BudgetView monthKey={activeMonthKey} />}
 

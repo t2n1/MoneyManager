@@ -420,16 +420,12 @@ export function AssetsPage() {
         </section>
       )}
 
-      {/* Hiệu quả đầu tư: đóng góp vs tăng trưởng + XIRR sau thuế/lạm phát */}
-      <InvestmentPerformanceSection accounts={investmentAccounts} base={base} />
-
-      {/* Mục tiêu tiết kiệm (mục AD) */}
-      <SavingsGoalsSection />
-
-      {/* Lịch sử tài sản ròng (mục AF) */}
+      {/* Lịch sử tài sản ròng (mục AF) — đặt ngay dưới con số ròng: số hiện tại và
+          đường đi của chính nó phải liền nhau thì mới so được. */}
       <NetWorthHistorySection base={base} currentNetWorth={netWorthReliable ? netWorth : null} />
 
-      {/* Thẻ tín dụng */}
+      {/* Thẻ tín dụng — khối DUY NHẤT trên trang có hạn chót ("còn N ngày", "cần
+          nạp thêm"), nên đứng trên mọi khối chỉ để đọc. */}
       {visibleCards.length > 0 && (
         <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
           <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -571,6 +567,12 @@ export function AssetsPage() {
         </section>
       )}
 
+      {/* Hiệu quả đầu tư: đóng góp vs tăng trưởng + XIRR sau thuế/lạm phát */}
+      <InvestmentPerformanceSection accounts={investmentAccounts} base={base} />
+
+      {/* Mục tiêu tiết kiệm (mục AD) */}
+      <SavingsGoalsSection />
+
       {/* Biểu đồ tròn + danh sách nhóm */}
       <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-2">
@@ -639,43 +641,22 @@ export function AssetsPage() {
               </div>
             </div>
 
-            {/* Chú giải kèm thanh tỷ trọng */}
-            <ul className="flex-1 space-y-3 self-stretch">
+            {/* Chú giải chỉ giữ chấm màu + tên, đủ để đọc được lát bánh. Tổng tiền
+                và tỷ trọng nằm ở danh sách chi tiết ngay bên dưới — in hai lần thì
+                người đọc phải rà cùng bốn con số hai lượt mà không thêm thông tin. */}
+            <ul className="flex flex-1 flex-wrap justify-center gap-x-4 gap-y-2 self-center sm:justify-start">
               {displayGroups.map((g) => (
-                <li key={g.name}>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: colorOf(g.name) }}
-                    />
-                    <span className="min-w-0 flex-1 truncate font-medium text-gray-700 dark:text-gray-300">
-                      {g.name}
-                      {!g.includeInTotals && (
-                        <span className="ml-1 text-[10px] font-normal text-gray-500 dark:text-gray-400">
-                          (ngoài tổng)
-                        </span>
-                      )}
+                <li key={g.name} className="flex items-center gap-1.5 text-xs">
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: colorOf(g.name) }}
+                  />
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{g.name}</span>
+                  {!g.includeInTotals && (
+                    <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400">
+                      (ngoài tổng)
                     </span>
-                    {g.includeInTotals && (
-                      <span className="shrink-0 text-xs tabular-nums text-gray-500 dark:text-gray-400">
-                        {(g.share * 100).toFixed(0)}%
-                      </span>
-                    )}
-                    <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                      {g.hasMissingRate ? '≈ ' : ''}
-                      {formatMoney(g.total, base)}
-                    </span>
-                  </div>
-                  {/* thanh tỷ trọng */}
-                  <div className="mt-1.5 ml-[18px] h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${Math.max(g.includeInTotals ? g.share * 100 : 0, g.includeInTotals && g.total > 0 ? 3 : 0)}%`,
-                        backgroundColor: colorOf(g.name),
-                      }}
-                    />
-                  </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -712,6 +693,15 @@ export function AssetsPage() {
                   <span className="shrink-0 text-[10px] font-normal text-gray-500 dark:text-gray-400">(ngoài tổng)</span>
                 )}
               </span>
+              {/* Tỷ trọng trong Tổng tài sản — chuyển từ chú giải biểu đồ xuống đây,
+                  dạng chữ thôi: vẽ lại tỷ lệ bằng thanh ngang là việc biểu đồ tròn
+                  ngay trên đã làm. Nhóm ngoài tổng không có tỷ trọng vì mẫu số
+                  không chứa nó. */}
+              {g.includeInTotals && g.total > 0 && (
+                <span className="shrink-0 pl-2 text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                  {(g.share * 100).toFixed(0)}%
+                </span>
+              )}
               <span className="shrink-0 pl-2 text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
                 {g.hasMissingRate ? '≈ ' : ''}
                 {formatMoney(g.total, base)}

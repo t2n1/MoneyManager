@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Plus, Target } from 'lucide-react'
 import {
   useAccountBalances,
   useAccounts,
   useProfile,
   useRangeTransactions,
+  useRates,
   useSavingsGoals,
 } from '../../hooks/queries'
+import { earmarkedForGoals } from '../health/earmarked'
 import {
   addMonths,
   formatMonthLabel,
@@ -55,6 +58,15 @@ export function SavingsGoalsSection() {
     [speedMonths, monthStartDay],
   )
   const { data: txs = [] } = useRangeTransactions(speedRange, goals.length > 0 && !!profile)
+
+  // Tiền đã gom cho mục tiêu thì không còn sẵn cho lúc mất thu nhập. Trang Sức
+  // khỏe trừ đúng con số này khỏi quỹ dự phòng, nên tính bằng chung một hàm để
+  // hai trang không bao giờ nói hai số khác nhau.
+  const { base, rates } = useRates()
+  const earmarked = useMemo(
+    () => earmarkedForGoals(goals, balances, base, rates ?? {}),
+    [goals, balances, base, rates],
+  )
 
   const selectableAccounts = accounts.filter((a) => !a.is_archived)
 
@@ -157,6 +169,20 @@ export function SavingsGoalsSection() {
             )
           })}
         </ul>
+      )}
+
+      {earmarked.total > 0 && (
+        <p className="mt-3 border-t border-gray-100 pt-2.5 text-[11px] leading-relaxed text-gray-500 dark:border-gray-800 dark:text-gray-400">
+          <b className="tabular-nums text-gray-700 dark:text-gray-200">
+            {earmarked.hasMissingRate ? '≈ ' : ''}
+            {formatMoney(earmarked.total, base)}
+          </b>{' '}
+          trong số dư đang có chủ cho các mục tiêu trên. Trang{' '}
+          <Link to="/health" className="font-medium text-green-700 dark:text-green-400">
+            Sức khỏe tài chính
+          </Link>{' '}
+          trừ khoản này ra để biết quỹ dự phòng thật sự tự do còn bao nhiêu tháng.
+        </p>
       )}
 
       {sheet.open && (

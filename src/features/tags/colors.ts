@@ -24,6 +24,17 @@ export const TAG_CHIP_CLASS: Record<TagColorKey, string> = {
   pink: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
 }
 
+/** Tên màu tiếng Việt — cho aria-label của nút chọn màu (nút chỉ là chấm tròn). */
+export const TAG_COLOR_LABELS: Record<TagColorKey, string> = {
+  gray: 'xám',
+  red: 'đỏ',
+  amber: 'vàng',
+  green: 'xanh lá',
+  sky: 'xanh dương',
+  indigo: 'tím than',
+  pink: 'hồng',
+}
+
 /** Mã hex cho biểu đồ (recharts không nhận class Tailwind). */
 export const TAG_HEX: Record<TagColorKey, string> = {
   gray: '#9ca3af',

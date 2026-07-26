@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import type { TransactionRow } from '../../types/database.types'
 import {
   buildImportPreview,
+  detectInternalTransfers,
   parseAmountToMinor,
   parseCsvText,
   parseDateToISO,
+  type ImportItem,
   type ImportOptions,
 } from './csvImport'
 
@@ -78,5 +81,132 @@ describe('buildImportPreview', () => {
     expect(items[0]).toMatchObject({ amount: 850, type: 'expense', note: 'Cơm trưa' })
     expect(items[1]).toMatchObject({ amount: 280000, type: 'income' })
     expect(errorCount).toBe(2) // 'sai' + amount 0
+  })
+})
+
+describe('detectInternalTransfers', () => {
+  let seq = 0
+  const etx = (
+    p: Partial<TransactionRow> & Pick<TransactionRow, 'type' | 'amount' | 'occurred_on' | 'account_id'>,
+  ): TransactionRow => ({
+    id: `e${seq++}`,
+    user_id: 'u',
+    to_amount: null,
+    category_id: 'c1',
+    to_account_id: null,
+    recurring_rule_id: null,
+    note: '',
+    created_at: '',
+    updated_at: '',
+    ...p,
+  })
+
+  const item = (
+    occurred_on: string,
+    amount: number,
+    type: 'expense' | 'income',
+  ): ImportItem => ({
+    occurred_on,
+    amount,
+    type,
+    note: '',
+    key: `${occurred_on}|${type === 'expense' ? '-' : '+'}${amount}`,
+  })
+
+  const opts = {
+    importingAccountId: 'bank',
+    candidateAccountIds: new Set(['card', 'save']),
+  }
+
+  it('chi ở sao kê khớp với khoản thu cùng số tiền ở tài khoản khác', () => {
+    const found = detectInternalTransfers(
+      [item('2026-05-10', 50_000, 'expense')],
+      [etx({ id: 'x', type: 'income', amount: 50_000, occurred_on: '2026-05-10', account_id: 'save' })],
+      opts,
+    )
+    expect(found).toHaveLength(1)
+    expect(found[0].matchedTxId).toBe('x')
+    expect(found[0].dayGap).toBe(0)
+  })
+
+  it('chấp nhận lệch vài ngày nhưng không quá cửa sổ', () => {
+    const near = detectInternalTransfers(
+      [item('2026-05-13', 50_000, 'expense')],
+      [etx({ type: 'income', amount: 50_000, occurred_on: '2026-05-10', account_id: 'save' })],
+      opts,
+    )
+    expect(near).toHaveLength(1)
+
+    const far = detectInternalTransfers(
+      [item('2026-05-20', 50_000, 'expense')],
+      [etx({ type: 'income', amount: 50_000, occurred_on: '2026-05-10', account_id: 'save' })],
+      opts,
+    )
+    expect(far).toEqual([])
+  })
+
+  it('cùng chiều (chi ⇄ chi) không phải chuyển khoản', () => {
+    const found = detectInternalTransfers(
+      [item('2026-05-10', 50_000, 'expense')],
+      [etx({ type: 'expense', amount: 50_000, occurred_on: '2026-05-10', account_id: 'save' })],
+      opts,
+    )
+    expect(found).toEqual([])
+  })
+
+  it('giao dịch loại chuyển khoản khớp cả hai chiều', () => {
+    const found = detectInternalTransfers(
+      [item('2026-05-10', 50_000, 'income')],
+      [
+        etx({
+          type: 'transfer',
+          amount: 50_000,
+          occurred_on: '2026-05-10',
+          account_id: 'save',
+          category_id: null,
+          to_account_id: 'bank',
+        }),
+      ],
+      opts,
+    )
+    expect(found).toHaveLength(1)
+  })
+
+  it('bỏ qua tài khoản không nằm trong danh sách ứng viên (khác loại tiền)', () => {
+    const found = detectInternalTransfers(
+      [item('2026-05-10', 50_000, 'expense')],
+      [etx({ type: 'income', amount: 50_000, occurred_on: '2026-05-10', account_id: 'usd-acc' })],
+      opts,
+    )
+    expect(found).toEqual([])
+  })
+
+  it('bỏ qua chính tài khoản đang nhập (tránh tự khớp với chính mình)', () => {
+    const found = detectInternalTransfers(
+      [item('2026-05-10', 50_000, 'expense')],
+      [etx({ type: 'income', amount: 50_000, occurred_on: '2026-05-10', account_id: 'bank' })],
+      { ...opts, candidateAccountIds: new Set(['bank', 'save']) },
+    )
+    expect(found).toEqual([])
+  })
+
+  it('một giao dịch chỉ khớp một dòng, ưu tiên lệch ngày ít nhất', () => {
+    const found = detectInternalTransfers(
+      [item('2026-05-12', 50_000, 'expense'), item('2026-05-10', 50_000, 'expense')],
+      [etx({ id: 'only', type: 'income', amount: 50_000, occurred_on: '2026-05-10', account_id: 'save' })],
+      opts,
+    )
+    expect(found).toHaveLength(1)
+    // Dòng 12/5 xét trước và lệch 2 ngày, nhưng đã dùng hết giao dịch nên dòng 10/5 không còn
+    expect(found[0].key).toBe('2026-05-12|-50000')
+  })
+
+  it('số tiền khác nhau thì không khớp', () => {
+    const found = detectInternalTransfers(
+      [item('2026-05-10', 50_000, 'expense')],
+      [etx({ type: 'income', amount: 49_999, occurred_on: '2026-05-10', account_id: 'save' })],
+      opts,
+    )
+    expect(found).toEqual([])
   })
 })

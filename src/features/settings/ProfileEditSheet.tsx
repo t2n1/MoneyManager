@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useUpdateProfile } from '../../hooks/queries'
 import { clampMonthStartDay } from '../../lib/dates'
-import { CURRENCIES } from '../../lib/money'
+import { CURRENCIES, formatMoney } from '../../lib/money'
 import type { ProfileRow } from '../../types/database.types'
 
 interface Props {
@@ -16,11 +16,28 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
   const update = useUpdateProfile()
   const [name, setName] = useState(profile.display_name ?? '')
   const [day, setDay] = useState(clampMonthStartDay(profile.month_start_day))
+  // Ba tham số dưới đây mở khóa các chỉ số nâng cao; để trống thì app chỉ ẩn
+  // phần liên quan chứ không đoán bừa.
+  const [wage, setWage] = useState(profile.hourly_wage != null ? String(profile.hourly_wage) : '')
+  const [inflation, setInflation] = useState(
+    profile.annual_inflation_bps != null ? (profile.annual_inflation_bps / 100).toString() : '',
+  )
+  const [tax, setTax] = useState(((profile.capital_gains_tax_bps ?? 2032) / 100).toString())
+
+  /** "2,5" hoặc "2.5" → 250 bps; rỗng/không hợp lệ → null. */
+  function toBps(raw: string): number | null {
+    const n = Number(raw.replace(',', '.'))
+    if (raw.trim() === '' || !Number.isFinite(n)) return null
+    return Math.round(n * 100)
+  }
 
   async function handleSave() {
     await update.mutateAsync({
       display_name: name.trim() || null,
       month_start_day: clampMonthStartDay(day),
+      hourly_wage: wage.trim() === '' ? null : Number(wage),
+      annual_inflation_bps: toBps(inflation),
+      capital_gains_tax_bps: toBps(tax) ?? 2032,
     })
     onClose()
   }
@@ -75,6 +92,56 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800 p-3 text-gray-500 dark:text-gray-400"
         />
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Không đổi được.</p>
+
+        {/* Tham số cho các chỉ số nâng cao — để trống thì phần đó tự ẩn đi */}
+        <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          Cho báo cáo nâng cao
+        </h3>
+
+        <label className="mt-2 block text-xs font-medium text-gray-500 dark:text-gray-400">
+          Thu nhập mỗi giờ làm
+        </label>
+        <input
+          inputMode="numeric"
+          value={wage === '' ? '' : formatMoney(Number(wage), profile.base_currency)}
+          onChange={(e) => setWage(e.target.value.replace(/\D/g, ''))}
+          placeholder="Để trống nếu không dùng"
+          className="mt-1 w-full rounded-xl border border-gray-300 bg-white p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+        />
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          Để báo cáo quy đổi “món này = mấy giờ làm”. Lương tháng ÷ số giờ làm thực tế trong tháng.
+        </p>
+
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
+              Lạm phát năm (%)
+            </label>
+            <input
+              inputMode="decimal"
+              value={inflation}
+              onChange={(e) => setInflation(e.target.value)}
+              placeholder="2,5"
+              className="mt-1 w-full rounded-xl border border-gray-300 bg-white p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
+              Thuế lãi vốn (%)
+            </label>
+            <input
+              inputMode="decimal"
+              value={tax}
+              onChange={(e) => setTax(e.target.value)}
+              placeholder="20,32"
+              className="mt-1 w-full rounded-xl border border-gray-300 bg-white p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+            />
+          </div>
+        </div>
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          Dùng để tính lợi nhuận đầu tư sau thuế và sau trượt giá. Ở Nhật thuế lãi vốn là 20,32%;
+          lạm phát vài năm gần đây quanh 2–3%.
+        </p>
 
         <button
           type="button"

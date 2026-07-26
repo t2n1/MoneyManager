@@ -1,6 +1,6 @@
 // Nhập giao dịch từ CSV sao kê (mục Y). Thuần, không phụ thuộc DOM → test được.
 import type { CurrencyCode } from '../../lib/money'
-import type { TransactionType } from '../../types/database.types'
+import type { TransactionRow, TransactionType } from '../../types/database.types'
 
 /** Bóc tách CSV thành mảng 2 chiều: hỗ trợ trường bọc nháy kép, phẩy & xuống dòng bên trong. */
 export function parseCsvText(text: string): string[][] {
@@ -129,6 +129,83 @@ export interface ImportPreview {
   items: ImportItem[]
   /** số dòng bỏ qua vì lỗi (ngày/số tiền không đọc được) */
   errorCount: number
+}
+
+export interface TransferCandidate {
+  /** khóa của dòng CSV bị nghi là chuyển khoản nội bộ */
+  key: string
+  /** giao dịch đã có trong app khớp với nó */
+  matchedTxId: string
+  matchedAccountId: string
+  /** lệch bao nhiêu ngày giữa hai bên (0 = cùng ngày) */
+  dayGap: number
+}
+
+export interface TransferDetectOptions {
+  /** tài khoản đang nhập file sao kê */
+  importingAccountId: string
+  /** tài khoản có thể là đầu bên kia (phải CÙNG loại tiền để so số khớp) */
+  candidateAccountIds: Set<string>
+  /** cửa sổ ngày cho phép lệch (ngân hàng ghi nhận trễ) */
+  windowDays?: number
+}
+
+const dayDiff = (a: string, b: string) =>
+  Math.abs(Math.round((Date.parse(a) - Date.parse(b)) / 86_400_000))
+
+/**
+ * Tìm những dòng trong file sao kê thực chất là CHUYỂN TIỀN GIỮA VÍ CỦA MÌNH
+ * (trả thẻ, chuyển sang tài khoản tiết kiệm) chứ không phải chi tiêu thật.
+ * Nhập nguyên xi những dòng này vào sẽ thổi phồng cả Chi lẫn Thu.
+ *
+ * Dấu hiệu: có sẵn một giao dịch NGƯỢC CHIỀU, CÙNG SỐ TIỀN, ở một tài khoản khác
+ * cùng loại tiền, trong vòng `windowDays` ngày.
+ *
+ * Mỗi giao dịch đã có chỉ khớp tối đa một dòng CSV (ưu tiên lệch ngày ít nhất),
+ * để hai lần chuyển giống hệt nhau không cùng khớp vào một giao dịch.
+ */
+export function detectInternalTransfers(
+  items: ImportItem[],
+  existing: TransactionRow[],
+  opts: TransferDetectOptions,
+): TransferCandidate[] {
+  const windowDays = opts.windowDays ?? 3
+  // Giao dịch ứng viên: nằm ở tài khoản KHÁC, cùng loại tiền, không phải chính
+  // tài khoản đang nhập.
+  const pool = existing.filter(
+    (t) =>
+      t.account_id !== opts.importingAccountId &&
+      opts.candidateAccountIds.has(t.account_id) &&
+      (t.type === 'expense' || t.type === 'income' || t.type === 'transfer'),
+  )
+  const used = new Set<string>()
+  const out: TransferCandidate[] = []
+
+  for (const item of items) {
+    let best: { tx: TransactionRow; gap: number } | null = null
+    for (const t of pool) {
+      if (used.has(t.id)) continue
+      if (t.amount !== item.amount) continue
+      // Chi ở file ⇄ tiền vào ở nơi khác, và ngược lại. Chuyển khoản khớp cả hai chiều.
+      const opposite =
+        t.type === 'transfer' ||
+        (item.type === 'expense' && t.type === 'income') ||
+        (item.type === 'income' && t.type === 'expense')
+      if (!opposite) continue
+      const gap = dayDiff(item.occurred_on, t.occurred_on)
+      if (gap > windowDays) continue
+      if (!best || gap < best.gap) best = { tx: t, gap }
+    }
+    if (!best) continue
+    used.add(best.tx.id)
+    out.push({
+      key: item.key,
+      matchedTxId: best.tx.id,
+      matchedAccountId: best.tx.account_id,
+      dayGap: best.gap,
+    })
+  }
+  return out
 }
 
 /** Dựng danh sách giao dịch chuẩn hóa từ các dòng CSV theo cấu hình ánh xạ. */

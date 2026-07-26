@@ -11,7 +11,7 @@ import {
   useUpdateTag,
 } from '../../hooks/queries'
 import { confirmDialog, showToast } from '../../lib/dialog'
-import { TAG_CHIP_CLASS, TAG_COLOR_KEYS, tagColor } from './colors'
+import { TAG_CHIP_CLASS, TAG_COLOR_KEYS, TAG_COLOR_LABELS, tagColor } from './colors'
 
 export function TagsPage() {
   const { data: tags = [] } = useTags()
@@ -125,23 +125,33 @@ export function TagsPage() {
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {TAG_COLOR_KEYS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => updateTag.mutate({ id: t.id, patch: { color: c } })}
-                    aria-label={`Đổi màu nhãn ${t.name} sang ${c}`}
-                    aria-pressed={tagColor(t.color) === c}
-                    className={`min-h-9 rounded-full px-2.5 py-1 text-xs font-medium ${TAG_CHIP_CLASS[c]} ${
-                      tagColor(t.color) === c
-                        ? 'ring-2 ring-gray-800 dark:ring-gray-200'
-                        : 'opacity-60'
-                    }`}
-                  >
-                    {t.name}
-                  </button>
-                ))}
+              <div className="mt-2 flex items-center gap-2">
+                {/* Xem trước nhãn thật để biết chọn màu xong trông thế nào */}
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${TAG_CHIP_CLASS[tagColor(t.color)]}`}
+                >
+                  {t.name}
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {TAG_COLOR_KEYS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => updateTag.mutate({ id: t.id, patch: { color: c } })}
+                      aria-label={`Đổi màu nhãn ${t.name} sang ${TAG_COLOR_LABELS[c]}`}
+                      aria-pressed={tagColor(t.color) === c}
+                      className="inline-flex h-9 w-7 items-center justify-center"
+                    >
+                      <span
+                        className={`block h-5 w-5 rounded-full ${TAG_CHIP_CLASS[c]} ${
+                          tagColor(t.color) === c
+                            ? 'ring-2 ring-gray-800 dark:ring-gray-200'
+                            : 'opacity-70'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
             </li>
           ))}

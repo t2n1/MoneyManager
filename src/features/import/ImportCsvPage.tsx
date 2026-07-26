@@ -8,6 +8,7 @@ import { toISODate } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import {
   buildImportPreview,
+  detectInternalTransfers,
   parseCsvText,
   type DateOrder,
   type ImportItem,
@@ -107,11 +108,43 @@ export function ImportCsvPage() {
     return set
   }, [existing, accountId])
 
-  const toImport = useMemo(
-    () => preview.items.filter((it) => !existingKeys.has(it.key)),
-    [preview.items, existingKeys],
+  // Chuyển khoản nội bộ: dòng sao kê thực chất là tiền chạy giữa ví của chính
+  // mình (trả thẻ, chuyển sang tiết kiệm). Nhập nguyên xi sẽ thổi phồng Chi lẫn Thu.
+  const sameCurrencyIds = useMemo(
+    () =>
+      new Set(
+        accounts.filter((a) => a.currency === currency && a.id !== accountId).map((a) => a.id),
+      ),
+    [accounts, currency, accountId],
   )
-  const dupCount = preview.items.length - toImport.length
+  const transferCandidates = useMemo(
+    () =>
+      accountId
+        ? detectInternalTransfers(preview.items, existing, {
+            importingAccountId: accountId,
+            candidateAccountIds: sameCurrencyIds,
+          })
+        : [],
+    [preview.items, existing, accountId, sameCurrencyIds],
+  )
+  const [skipTransfers, setSkipTransfers] = useState(true)
+  const transferKeys = useMemo(
+    () => new Set(transferCandidates.map((c) => c.key)),
+    [transferCandidates],
+  )
+
+  const toImport = useMemo(
+    () =>
+      preview.items.filter(
+        (it) => !existingKeys.has(it.key) && !(skipTransfers && transferKeys.has(it.key)),
+      ),
+    [preview.items, existingKeys, skipTransfers, transferKeys],
+  )
+  const dupCount = preview.items.filter((it) => existingKeys.has(it.key)).length
+  const transferCount = preview.items.filter(
+    (it) => !existingKeys.has(it.key) && transferKeys.has(it.key),
+  ).length
+  const nameOfAccount = (id: string) => accounts.find((a) => a.id === id)?.name ?? 'tài khoản khác'
 
   async function handleImport() {
     if (!accountId || toImport.length === 0) return
@@ -248,8 +281,43 @@ export function ImportCsvPage() {
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 Sẽ nhập <strong>{toImport.length}</strong> giao dịch
                 {dupCount > 0 && ` · bỏ qua ${dupCount} trùng`}
+                {skipTransfers && transferCount > 0 && ` · bỏ qua ${transferCount} chuyển khoản`}
                 {preview.errorCount > 0 && ` · ${preview.errorCount} dòng lỗi`}
               </p>
+
+              {/* Cảnh báo chuyển khoản nội bộ */}
+              {transferCount > 0 && (
+                <div className="mt-2 rounded-lg bg-amber-50 p-2.5 dark:bg-amber-900/30">
+                  <label className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300">
+                    <input
+                      type="checkbox"
+                      checked={skipTransfers}
+                      onChange={(e) => setSkipTransfers(e.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      <b>{transferCount} dòng có vẻ là chuyển tiền giữa ví của bạn</b>, không phải
+                      chi tiêu thật — mỗi dòng đều có một giao dịch ngược chiều, cùng số tiền ở tài
+                      khoản khác. Nhập vào sẽ làm phồng cả Chi lẫn Thu, nên mặc định bỏ qua.
+                    </span>
+                  </label>
+                  <ul className="mt-1.5 space-y-0.5 pl-6 text-[11px] text-amber-700 dark:text-amber-400">
+                    {transferCandidates.slice(0, 5).map((c) => {
+                      const it = preview.items.find((x) => x.key === c.key)
+                      return (
+                        <li key={c.key} className="truncate">
+                          {it?.occurred_on} · {formatMoney(it?.amount ?? 0, currency)} ↔{' '}
+                          {nameOfAccount(c.matchedAccountId)}
+                          {c.dayGap > 0 && ` (lệch ${c.dayGap} ngày)`}
+                        </li>
+                      )
+                    })}
+                    {transferCandidates.length > 5 && (
+                      <li>…và {transferCandidates.length - 5} dòng nữa.</li>
+                    )}
+                  </ul>
+                </div>
+              )}
               <div className="mt-2 max-h-64 overflow-auto text-xs">
                 <table className="w-full">
                   <thead className="text-gray-500 dark:text-gray-400">

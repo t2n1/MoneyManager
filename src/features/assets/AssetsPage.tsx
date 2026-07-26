@@ -4,6 +4,7 @@ import { ChevronRight, CreditCard, GripVertical, Settings2 } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { AccountTypeIcon } from '../../components/icons'
 import { PrivacyToggle } from '../../components/PrivacyToggle'
+import { InvestmentPerformanceSection } from './InvestmentPerformanceSection'
 import { NetWorthHistorySection } from './NetWorthHistorySection'
 import { SavingsGoalsSection } from './SavingsGoalsSection'
 import {
@@ -115,6 +116,16 @@ export function AssetsPage() {
   const typeGroups = useMemo(() => assetTypeGroups(breakdown), [breakdown])
   // Nhóm theo đồng tiền (JPY / VND / USD) — đo mức phơi nhiễm tỷ giá
   const currencyGroups = useMemo(() => assetCurrencyGroups(breakdown), [breakdown])
+
+  // Tài khoản đầu tư đang tính vào tổng — đầu vào cho khu Hiệu quả đầu tư
+  const investmentAccounts = useMemo(
+    () =>
+      breakdown.groups
+        .filter((g) => g.includeInTotals && !g.hidden)
+        .flatMap((g) => g.accounts)
+        .filter((a) => a.type === 'investment' && !a.hidden && a.includeInTotals),
+    [breakdown.groups],
+  )
 
   const displayGroups =
     groupMode === 'purpose' ? purposeGroups : groupMode === 'type' ? typeGroups : currencyGroups
@@ -408,6 +419,9 @@ export function AssetsPage() {
           )}
         </section>
       )}
+
+      {/* Hiệu quả đầu tư: đóng góp vs tăng trưởng + XIRR sau thuế/lạm phát */}
+      <InvestmentPerformanceSection accounts={investmentAccounts} base={base} />
 
       {/* Mục tiêu tiết kiệm (mục AD) */}
       <SavingsGoalsSection />

@@ -11,7 +11,8 @@ import {
   useUpdateCategory,
 } from '../../hooks/queries'
 import { confirmDialog, showToast } from '../../lib/dialog'
-import type { CategoryRow, CategoryType } from '../../types/database.types'
+import type { CategoryRow, CategoryType, CostType, NeedLevel } from '../../types/database.types'
+import { ClassificationToggle, COST_OPTIONS, NEED_OPTIONS } from './ClassificationToggle'
 
 // Bảng emoji gợi ý khi thêm/sửa danh mục
 const EMOJI_CHOICES = [
@@ -500,6 +501,8 @@ function CategoryForm({
   const [topType, setTopType] = useState<CategoryType>(
     category?.type ?? parentContext?.type ?? defaultType,
   )
+  const [needLevel, setNeedLevel] = useState<NeedLevel | null>(category?.need_level ?? null)
+  const [costType, setCostType] = useState<CostType | null>(category?.cost_type ?? null)
   const [saving, setSaving] = useState(false)
 
   const selectedParent = parentId ? parentOptions.find((p) => p.id === parentId) ?? null : null
@@ -521,11 +524,14 @@ function CategoryForm({
     if (!canSave) return
     setSaving(true)
     try {
+      const isExpenseLeaf = effectiveType === 'expense' && !hasChildren
       const input: NewCategory = {
         name: name.trim(),
         type: effectiveType,
         icon,
         parent_id: hasChildren ? null : parentId,
+        need_level: isExpenseLeaf ? needLevel : null,
+        cost_type: isExpenseLeaf ? costType : null,
       }
       if (category) await update.mutateAsync({ id: category.id, patch: input })
       else await create.mutateAsync(input)
@@ -607,6 +613,23 @@ function CategoryForm({
                 {t === 'expense' ? 'Chi' : 'Thu'}
               </button>
             ))}
+          </div>
+        )}
+
+        {effectiveType === 'expense' && !hasChildren && (
+          <div className="mb-3 space-y-2">
+            <ClassificationToggle
+              label="Tính chất"
+              options={NEED_OPTIONS}
+              value={needLevel}
+              onChange={setNeedLevel}
+            />
+            <ClassificationToggle
+              label="Loại chi"
+              options={COST_OPTIONS}
+              value={costType}
+              onChange={setCostType}
+            />
           </div>
         )}
 

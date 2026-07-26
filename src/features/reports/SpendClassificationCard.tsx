@@ -18,14 +18,23 @@ const C = {
 interface Props {
   data: ClassificationBreakdown
   income: number
+  /** Tổng chi THẬT trong kỳ (từ sumIncomeExpense) — gồm cả chi chưa gán danh mục. */
+  expense: number
   base: CurrencyCode
   periodNoun: string
   unclassifiedCount: number
 }
 
 /** Thẻ báo cáo: cơ cấu chi tiêu theo 2 trục Thiết yếu/Linh hoạt và Cố định/Biến đổi. */
-export function SpendClassificationCard({ data, income, base, periodNoun, unclassifiedCount }: Props) {
-  const { totalExpense } = data
+export function SpendClassificationCard({ data, income, expense, base, periodNoun, unclassifiedCount }: Props) {
+  // `data` chỉ gom được chi CÓ danh mục (categoryBreakdown bỏ giao dịch thiếu category_id,
+  // vd hàng nhập từ CSV). Phần chênh so với tổng chi thật được gộp vào nhóm "Chưa phân loại"
+  // để mẫu số của cả 2 trục = tổng chi thật và Tiết kiệm không bị thổi phồng.
+  const totalExpense = Math.max(expense, data.totalExpense)
+  const noCategory = totalExpense - data.totalExpense
+  const needUnclassified = data.needUnclassified + noCategory
+  const costUnclassified = data.costUnclassified + noCategory
+
   const savings = income - totalExpense
   const pctOfIncome = (v: number) => (income > 0 ? (v / income) * 100 : 0)
   const pctOfExpense = (v: number) => (totalExpense > 0 ? (v / totalExpense) * 100 : 0)
@@ -42,7 +51,7 @@ export function SpendClassificationCard({ data, income, base, periodNoun, unclas
   const c2Slices = [
     { name: 'Cố định', value: data.costFixed, color: C.need },
     { name: 'Biến đổi', value: data.costVariable, color: C.want },
-    { name: 'Chưa phân loại', value: data.costUnclassified, color: C.unknown },
+    { name: 'Chưa phân loại', value: costUnclassified, color: C.unknown },
   ].filter((s) => s.value > 0)
 
   const reducedMotion =
@@ -93,11 +102,11 @@ export function SpendClassificationCard({ data, income, base, periodNoun, unclas
             barPct={Math.max(savingsPct, 0)} color={C.save} base={base}
             targetPct={20} warn={savingsUnder}
           />
-          {data.needUnclassified > 0 && (
+          {needUnclassified > 0 && (
             <BreakdownRow
               icon="" name="Chi chưa phân loại"
-              pct={pctOfIncome(data.needUnclassified)} value={data.needUnclassified}
-              barPct={pctOfIncome(data.needUnclassified)} color={C.unknown} base={base}
+              pct={pctOfIncome(needUnclassified)} value={needUnclassified}
+              barPct={pctOfIncome(needUnclassified)} color={C.unknown} base={base}
             />
           )}
         </div>
@@ -134,8 +143,11 @@ export function SpendClassificationCard({ data, income, base, periodNoun, unclas
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(v, n) => [formatMoney(Number(v), base), String(n)]}
-                  contentStyle={{ fontSize: 12 }}
+                  formatter={(v, n) => [
+                    `${formatMoney(Number(v), base)} · ${pctOfExpense(Number(v)).toFixed(0)}%`,
+                    String(n),
+                  ]}
+                  contentStyle={{ borderRadius: 8, fontSize: 12 }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -151,11 +163,11 @@ export function SpendClassificationCard({ data, income, base, periodNoun, unclas
               pct={pctOfExpense(data.costVariable)} value={data.costVariable}
               barPct={pctOfExpense(data.costVariable)} color={C.want} base={base}
             />
-            {data.costUnclassified > 0 && (
+            {costUnclassified > 0 && (
               <BreakdownRow
                 icon="" name="Chưa phân loại"
-                pct={pctOfExpense(data.costUnclassified)} value={data.costUnclassified}
-                barPct={pctOfExpense(data.costUnclassified)} color={C.unknown} base={base}
+                pct={pctOfExpense(costUnclassified)} value={costUnclassified}
+                barPct={pctOfExpense(costUnclassified)} color={C.unknown} base={base}
               />
             )}
           </div>

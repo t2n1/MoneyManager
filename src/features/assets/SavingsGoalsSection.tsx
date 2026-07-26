@@ -1,15 +1,31 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Plus, Target } from 'lucide-react'
-import { useAccountBalances, useAccounts, useSavingsGoals } from '../../hooks/queries'
+import {
+  useAccountBalances,
+  useAccounts,
+  useProfile,
+  useRangeTransactions,
+  useSavingsGoals,
+} from '../../hooks/queries'
+import {
+  addMonths,
+  formatMonthLabel,
+  getMonthRange,
+  monthKeyForDate,
+  toISODate,
+} from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import type { SavingsGoalRow } from '../../types/database.types'
+import { accountMonthlyGrowth, goalForecast } from './goals'
 import { SavingsGoalFormSheet } from './SavingsGoalFormSheet'
 
+/** Số tháng lịch sử dùng để đo tốc độ tích lũy. */
+const SPEED_MONTHS = 6
+
 /** Số ngày còn lại tới hạn (âm = quá hạn); null nếu không đặt hạn. */
-function daysLeft(targetDate: string | null): number | null {
+function daysLeft(targetDate: string | null, todayISO: string): number | null {
   if (!targetDate) return null
-  const today = new Date().toISOString().slice(0, 10)
-  return Math.round((Date.parse(targetDate) - Date.parse(today)) / 86_400_000)
+  return Math.round((Date.parse(targetDate) - Date.parse(todayISO)) / 86_400_000)
 }
 
 /** Khu "Mục tiêu tiết kiệm" trên trang Tài sản (mục AD). */
@@ -17,12 +33,33 @@ export function SavingsGoalsSection() {
   const { data: goals = [] } = useSavingsGoals()
   const { data: accounts = [] } = useAccounts()
   const { data: balances = [] } = useAccountBalances()
+  const { data: profile } = useProfile()
   const [sheet, setSheet] = useState<{ open: boolean; goal?: SavingsGoalRow }>({ open: false })
+
+  const monthStartDay = profile?.month_start_day ?? 1
+  const todayISO = toISODate(new Date())
+  const currentMonth = monthKeyForDate(todayISO, monthStartDay)
+
+  // Tốc độ tích lũy đo trên các tháng ĐÃ HOÀN TẤT — tháng đang chạy dở luôn thiếu
+  // tiền nên sẽ kéo tốc độ xuống và làm ngày dự kiến xa hơn thực tế.
+  const speedMonths = useMemo(
+    () =>
+      Array.from({ length: SPEED_MONTHS }, (_, i) => addMonths(currentMonth, i - SPEED_MONTHS)),
+    [currentMonth],
+  )
+  const speedRange = useMemo(
+    () => ({
+      start: getMonthRange(speedMonths[0], monthStartDay).start,
+      end: getMonthRange(speedMonths[speedMonths.length - 1], monthStartDay).end,
+    }),
+    [speedMonths, monthStartDay],
+  )
+  const { data: txs = [] } = useRangeTransactions(speedRange, goals.length > 0 && !!profile)
 
   const selectableAccounts = accounts.filter((a) => !a.is_archived)
 
   return (
-    <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
+    <section className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-900">
       <div className="flex items-center gap-2">
         <Target className="h-5 w-5 text-green-600 dark:text-green-400" />
         <h2 className="flex-1 text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -47,10 +84,17 @@ export function SavingsGoalsSection() {
           {goals.map((g) => {
             const bal = balances.find((b) => b.id === g.account_id)
             const currency = bal?.currency ?? 'JPY'
-            const current = Math.max(0, bal?.balance ?? 0)
-            const pct = g.target_amount > 0 ? Math.min(100, Math.round((current / g.target_amount) * 100)) : 0
-            const done = current >= g.target_amount
-            const dl = daysLeft(g.target_date)
+            const growth = accountMonthlyGrowth(g.account_id, txs, speedMonths, monthStartDay)
+            const f = goalForecast(
+              bal?.balance ?? 0,
+              g.target_amount,
+              growth,
+              currentMonth,
+              g.target_date,
+              monthStartDay,
+            )
+            const pct = Math.round(f.ratio * 100)
+            const dl = daysLeft(g.target_date, todayISO)
             return (
               <li key={g.id}>
                 <button
@@ -58,20 +102,24 @@ export function SavingsGoalsSection() {
                   onClick={() => setSheet({ open: true, goal: g })}
                   className="flex w-full items-center justify-between text-left"
                 >
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-100">{g.name}</span>
-                  <span className={`text-xs font-semibold ${done ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                    {g.name}
+                  </span>
+                  <span
+                    className={`text-xs font-semibold ${f.done ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}
+                  >
                     {pct}%
                   </span>
                 </button>
                 <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                   <div
-                    className={`h-full rounded-full ${done ? 'bg-green-500' : 'bg-green-400'}`}
+                    className={`h-full rounded-full ${f.done ? 'bg-green-500' : 'bg-green-400'}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
                 <div className="mt-1 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                   <span className="tabular-nums">
-                    {formatMoney(current, currency)} / {formatMoney(g.target_amount, currency)}
+                    {formatMoney(f.current, currency)} / {formatMoney(g.target_amount, currency)}
                   </span>
                   {dl != null && (
                     <span className={dl < 0 ? 'text-red-500' : ''}>
@@ -79,6 +127,32 @@ export function SavingsGoalsSection() {
                     </span>
                   )}
                 </div>
+
+                {/* Dự báo: bao giờ đạt với tốc độ hiện tại */}
+                {!f.done && (
+                  <p className="mt-1 text-[11px] leading-relaxed">
+                    {f.etaMonth === null ? (
+                      <span className="text-gray-400 dark:text-gray-500">
+                        {f.monthlyGrowth < 0
+                          ? `Số dư đang giảm ${formatMoney(-f.monthlyGrowth, currency)}/tháng — chưa tiến về đích.`
+                          : 'Chưa đo được tốc độ tích lũy. Chuyển tiền đều đặn vào tài khoản này để app dự báo ngày đạt.'}
+                      </span>
+                    ) : (
+                      <span
+                        className={
+                          f.vsDeadline === 'behind'
+                            ? 'text-amber-700 dark:text-amber-400'
+                            : 'text-gray-500 dark:text-gray-400'
+                        }
+                      >
+                        Đang thêm {formatMoney(f.monthlyGrowth, currency)}/tháng → dự kiến đạt{' '}
+                        <b>{formatMonthLabel(f.etaMonth).toLowerCase()}</b>
+                        {f.vsDeadline === 'behind' && ' — trễ hơn hạn bạn đặt'}
+                        {f.vsDeadline === 'ahead' && ' — kịp hạn'}.
+                      </span>
+                    )}
+                  </p>
+                )}
               </li>
             )
           })}

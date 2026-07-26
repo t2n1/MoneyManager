@@ -14,6 +14,12 @@ import { confirmDialog, showToast } from '../../lib/dialog'
 import type { CategoryRow, CategoryType, CostType, NeedLevel } from '../../types/database.types'
 import { ClassificationToggle, COST_OPTIONS, NEED_OPTIONS } from './ClassificationToggle'
 import { hasActiveChildren } from './leaf'
+import {
+  hasTaxCategories,
+  TAX_CHILDREN,
+  TAX_PARENT_ICON,
+  TAX_PARENT_NAME,
+} from '../tax/categories'
 
 // Bảng emoji gợi ý khi thêm/sửa danh mục
 const EMOJI_CHOICES = [
@@ -35,6 +41,37 @@ export function CategoriesPage() {
   const [tab, setTab] = useState<CategoryType>('expense')
   const [form, setForm] = useState<FormState | null>(null)
   const [showArchived, setShowArchived] = useState(false)
+  const [creatingTax, setCreatingTax] = useState(false)
+  const createCategory = useCreateCategory()
+
+  /**
+   * Tạo nhóm Thuế & An sinh (Nhật) trong một lần bấm. Con phải tạo SAU cha để
+   * lấy được parent_id; mọi khoản này đều là chi thiết yếu & cố định nên gán nhãn
+   * luôn, người dùng không phải vào màn Phân loại nữa.
+   */
+  async function createTaxCategories() {
+    if (creatingTax) return
+    setCreatingTax(true)
+    try {
+      const parent = await createCategory.mutateAsync({
+        name: TAX_PARENT_NAME,
+        type: 'expense',
+        icon: TAX_PARENT_ICON,
+      })
+      for (const child of TAX_CHILDREN) {
+        await createCategory.mutateAsync({
+          name: child.name,
+          type: 'expense',
+          icon: child.icon,
+          parent_id: parent.id,
+          need_level: 'essential',
+          cost_type: 'fixed',
+        })
+      }
+    } finally {
+      setCreatingTax(false)
+    }
+  }
 
   const ofType = categories
     .filter((c) => c.type === tab)
@@ -354,6 +391,25 @@ export function CategoriesPage() {
         Nhấn giữ biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự danh mục cha, sắp danh mục
         con trong một cha, hoặc kéo danh mục con thả sang cha khác.
       </p>
+
+      {/* Tạo nhanh bộ danh mục Thuế & An sinh (Nhật) — mở khóa chỉ số gánh nặng thuế */}
+      {tab === 'expense' && !hasTaxCategories(categories) && (
+        <div className="mb-3 rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+          <p className="text-xs text-gray-600 dark:text-gray-300">
+            Muốn biết mỗi năm mất bao nhiêu phần thu nhập cho 所得税・住民税・社会保険料? Tạo sẵn
+            nhóm <b>{TAX_PARENT_NAME}</b> với {TAX_CHILDREN.length} danh mục con theo phiếu lương
+            Nhật, rồi nhập lương <b>gộp</b> là khoản Thu và các khoản khấu trừ là khoản Chi.
+          </p>
+          <button
+            type="button"
+            onClick={createTaxCategories}
+            disabled={creatingTax}
+            className="mt-2 min-h-9 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white active:scale-95 disabled:opacity-40"
+          >
+            {creatingTax ? 'Đang tạo…' : 'Tạo bộ danh mục Thuế & An sinh'}
+          </button>
+        </div>
+      )}
 
       {/* Cây danh mục: cha → con */}
       <div className="flex flex-col gap-2">

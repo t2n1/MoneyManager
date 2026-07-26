@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, HeartPulse } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { BudgetView } from '../budgets/BudgetView'
 import { RemittanceSection } from '../remittance/RemittanceSection'
 import { InsightsView } from './InsightsView'
@@ -246,6 +247,21 @@ export function ReportsPage() {
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
+
+      {/* Lối vào trang khám tổng quát — không phụ thuộc tháng/năm đang xem */}
+      <Link
+        to="/health"
+        className="flex min-h-11 items-center justify-between gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm active:scale-[0.99] dark:bg-gray-900 print:hidden"
+      >
+        <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+          <HeartPulse className="h-4 w-4 text-rose-500" aria-hidden />
+          Sức khỏe tài chính
+        </span>
+        <span className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+          Quỹ dự phòng, nợ, rủi ro
+          <ChevronRight className="h-4 w-4" aria-hidden />
+        </span>
+      </Link>
 
       {/* Nút gạt Tháng | Năm */}
       <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-sm font-medium print:hidden">

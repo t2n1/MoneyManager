@@ -77,7 +77,8 @@ export function detectRecurring(
   const groups = new Map<string, TransactionRow[]>()
   for (const t of txs) {
     if (t.type !== 'expense' && t.type !== 'income') continue
-    if (t.is_debt_flow || t.exclude_from_stats || t.recurring_rule_id) continue
+    // Hoàn tiền là sự kiện một lần, không phải khoản lặp đều
+    if (t.is_debt_flow || t.exclude_from_stats || t.recurring_rule_id || t.is_refund) continue
     const key = ruleKey(t.type, t.account_id, t.category_id, t.amount)
     const arr = groups.get(key) ?? []
     arr.push(t)

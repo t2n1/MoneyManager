@@ -12,6 +12,9 @@ const ReportsPage = lazy(() =>
   import('./features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 )
 // Màn phụ (ít mở) → lazy để bundle khởi động gọn
+const HealthPage = lazy(() =>
+  import('./features/health/HealthPage').then((m) => ({ default: m.HealthPage })),
+)
 const SearchPage = lazy(() =>
   import('./features/transactions/SearchPage').then((m) => ({ default: m.SearchPage })),
 )
@@ -67,6 +70,7 @@ function App() {
           <Route path="/assets/:accountId" element={lazyRoute(<AccountDetailPage />)} />
           <Route path="/search" element={lazyRoute(<SearchPage />)} />
           <Route path="/reports" element={lazyRoute(<ReportsPage />)} />
+          <Route path="/health" element={lazyRoute(<HealthPage />)} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/accounts" element={lazyRoute(<AccountsPage />)} />
           <Route path="/settings/categories" element={lazyRoute(<CategoriesPage />)} />

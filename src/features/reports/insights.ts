@@ -22,8 +22,11 @@ export function noSpendStreak(
   today: string,
   monthStartDay: number,
 ): number {
+  // Hoàn tiền không phải "có chi tiêu" → không phá chuỗi ngày không chi
   const spendDays = new Set(
-    txs.filter((t) => t.type === 'expense' && !t.exclude_from_stats).map((t) => t.occurred_on),
+    txs
+      .filter((t) => t.type === 'expense' && !t.exclude_from_stats && !t.is_refund)
+      .map((t) => t.occurred_on),
   )
   const { start } = getMonthRange(monthKeyForDate(today, monthStartDay), monthStartDay)
   let streak = 0
@@ -139,7 +142,8 @@ export function detectAnomalies(
 ): { anomalies: Anomaly[]; hasMissingRate: boolean } {
   const history = new Map<string, number[]>()
   for (const t of historyTxs) {
-    if (t.type !== 'expense' || !t.category_id || t.exclude_from_stats) continue
+    // Hoàn tiền là chi âm — không phải "khoản chi bất thường"
+    if (t.type !== 'expense' || !t.category_id || t.exclude_from_stats || t.is_refund) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) continue
     const arr = history.get(t.category_id) ?? []
@@ -154,7 +158,8 @@ export function detectAnomalies(
   const anomalies: Anomaly[] = []
   let hasMissingRate = false
   for (const t of currentTxs) {
-    if (t.type !== 'expense' || !t.category_id || t.exclude_from_stats) continue
+    // Hoàn tiền là chi âm — không phải "khoản chi bất thường"
+    if (t.type !== 'expense' || !t.category_id || t.exclude_from_stats || t.is_refund) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) {
       hasMissingRate = true

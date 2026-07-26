@@ -4,7 +4,7 @@
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { BudgetRow, TransactionRow } from '../../types/database.types'
-import type { CurrencyOf } from '../reports/aggregate'
+import { expenseSign, type CurrencyOf } from '../reports/aggregate'
 
 export type BudgetStatus = 'ok' | 'warn' | 'over' // <80% / ≥80% / ≥100%
 
@@ -67,7 +67,8 @@ export function buildBudgetReport(
       hasMissingRate = true
       continue
     }
-    spentByCat.set(t.category_id, (spentByCat.get(t.category_id) ?? 0) + v)
+    // Hoàn tiền trả lại hạn mức đã tiêu của chính danh mục đó
+    spentByCat.set(t.category_id, (spentByCat.get(t.category_id) ?? 0) + v * expenseSign(t))
   }
 
   // Chi của cả nhóm = chi trực tiếp trên danh mục + chi của mọi con trực tiếp.

@@ -8,6 +8,14 @@ import type { CategoryRow, TransactionRow } from '../../types/database.types'
 
 export type CurrencyOf = (accountId: string) => CurrencyCode
 
+/**
+ * Dấu của một giao dịch CHI: hoàn tiền (trả hàng, hủy vé) là chi ÂM — tiền quay
+ * về ví nhưng không phải thu nhập, nên phải trừ khỏi chi của chính danh mục đó
+ * thay vì cộng vào thu. Mọi nơi cộng chi đều phải nhân với hệ số này.
+ */
+export const expenseSign = (t: Pick<TransactionRow, 'is_refund'>): 1 | -1 =>
+  t.is_refund ? -1 : 1
+
 export interface CategorySlice {
   categoryId: string
   /** minor units theo base currency */
@@ -37,16 +45,20 @@ export function categoryBreakdown(
     if (t.type !== kind || !t.category_id || t.is_debt_flow || t.exclude_from_stats) continue
     const cur = currencyOf(t.account_id)
     if (cur !== base) hasForeign = true
-    const v = convertToBase(t.amount, cur, base, rates)
-    if (v === null) {
+    const raw = convertToBase(t.amount, cur, base, rates)
+    if (raw === null) {
       hasMissingRate = true
       continue
     }
+    const v = kind === 'expense' ? raw * expenseSign(t) : raw
     map.set(t.category_id, (map.get(t.category_id) ?? 0) + v)
     total += v
   }
+  // Hoàn tiền có thể kéo một danh mục xuống ≤ 0 (trả lại nhiều hơn đã mua trong
+  // kỳ) — bỏ khỏi cơ cấu vì không vẽ được lát bánh âm.
   const slices = [...map.entries()]
     .map(([categoryId, amount]) => ({ categoryId, amount }))
+    .filter((s) => s.amount > 0)
     .sort((a, b) => b.amount - a.amount)
   return { slices, total, hasForeign, hasMissingRate }
 }
@@ -133,8 +145,8 @@ export function monthlySeries(
       continue
     }
     const id = monthId(monthKeyForDate(t.occurred_on, monthStartDay))
-    const target = t.type === 'income' ? income : expense
-    target.set(id, (target.get(id) ?? 0) + v)
+    if (t.type === 'income') income.set(id, (income.get(id) ?? 0) + v)
+    else expense.set(id, (expense.get(id) ?? 0) + v * expenseSign(t))
   }
   const points = months.map((key) => ({
     key,
@@ -226,7 +238,7 @@ export function categoryMonthlySeries(
       continue
     }
     const id = monthId(monthKeyForDate(t.occurred_on, monthStartDay))
-    byMonth.set(id, (byMonth.get(id) ?? 0) + v)
+    byMonth.set(id, (byMonth.get(id) ?? 0) + (kind === 'expense' ? v * expenseSign(t) : v))
   }
   const points = months.map((key) => ({ key, amount: byMonth.get(monthId(key)) ?? 0 }))
   return { points, hasMissingRate }
@@ -261,7 +273,7 @@ export function sumIncomeExpense(
       continue
     }
     if (t.type === 'income') income += v
-    else expense += v
+    else expense += v * expenseSign(t)
   }
   return { income, expense, hasForeign, hasMissingRate }
 }
@@ -308,7 +320,7 @@ export function categoryComparison(
     const mid = monthId(monthKeyForDate(t.occurred_on, monthStartDay))
     if (mid !== m0 && mid !== m1 && mid !== m2 && mid !== m3) continue
     const inner = byCat.get(t.category_id) ?? new Map<string, number>()
-    inner.set(mid, (inner.get(mid) ?? 0) + v)
+    inner.set(mid, (inner.get(mid) ?? 0) + v * expenseSign(t))
     byCat.set(t.category_id, inner)
   }
   const rows: CategoryComparisonRow[] = []
@@ -356,7 +368,7 @@ export function cumulativeDailyBalance(
       hasMissingRate = true
       continue
     }
-    const signed = t.type === 'income' ? v : -v
+    const signed = t.type === 'income' ? v : -v * expenseSign(t)
     netByDay.set(t.occurred_on, (netByDay.get(t.occurred_on) ?? 0) + signed)
   }
   const points: CashflowPoint[] = []
@@ -403,7 +415,7 @@ export function dailyExpenseTotals(
       hasMissingRate = true
       continue
     }
-    byDay.set(t.occurred_on, (byDay.get(t.occurred_on) ?? 0) + v)
+    byDay.set(t.occurred_on, (byDay.get(t.occurred_on) ?? 0) + v * expenseSign(t))
   }
   const points: DailyExpensePoint[] = []
   const cur = new Date(startISO + 'T00:00:00Z')

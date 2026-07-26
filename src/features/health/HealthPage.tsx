@@ -13,10 +13,12 @@ import {
   useProfile,
   useRangeTransactions,
   useRates,
+  useSavingsGoals,
 } from '../../hooks/queries'
 import { addMonths, getMonthRange, monthKeyForDate, toISODate, type MonthKey } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { taxCategoryIds } from '../tax/categories'
+import { earmarkedForGoals } from './earmarked'
 import { HealthMetricCard, type Zone } from './HealthMetricCard'
 import {
   debtServiceRatio,
@@ -51,6 +53,7 @@ export function HealthPage() {
   const { data: categories = [] } = useCategories()
   const { data: debts = [] } = useDebts()
   const { data: debtPayments = [] } = useDebtPayments()
+  const { data: goals = [] } = useSavingsGoals()
 
   const todayISO = toISODate(new Date())
   // 12 tháng đã hoàn tất, KHÔNG gồm tháng đang chạy dở
@@ -107,6 +110,19 @@ export function HealthPage() {
   // --- Tính từng chỉ số ---
   const fund = emergencyFundMonths(snap.liquidAssets, snap.monthlyFixedExpense)
   const fundVerdict = verdictFor(fund, 3, 6)
+  // Tiền đang gom cho mục tiêu thì không thực sự sẵn sàng cho lúc mất thu nhập
+  const earmarked = useMemo(
+    () => earmarkedForGoals(goals, balances, base, r),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [goals, balances, base, rates],
+  )
+  const freeFund = emergencyFundMonths(
+    Math.max(snap.liquidAssets - earmarked.total, 0),
+    snap.monthlyFixedExpense,
+  )
+  // Chỉ nói thêm khi việc trừ ra thật sự đổi kết luận hoặc đổi con số đáng kể
+  const showFree =
+    fund !== null && freeFund !== null && earmarked.total > 0 && fund - freeFund >= 0.1
 
   const liq = liquidityRatio(snap.liquidAssets, snap.debtDueWithin12m)
   const liqVerdict = snap.debtDueWithin12m <= 0 ? 'good' : verdictFor(liq, 1, 2)
@@ -124,6 +140,17 @@ export function HealthPage() {
     [snap.liquidAssets, snap.netFlows],
   )
   const runwayVerdict: Verdict = runway === null ? 'unknown' : verdictFor(runway.p50, 6, 18)
+  // Kịch bản thứ hai: cắt sạch chi linh hoạt. Cùng seed nên hai con số so được với nhau.
+  const runwayLean = useMemo(
+    () => monteCarloRunway(snap.liquidAssets, snap.essentialNetFlows),
+    [snap.liquidAssets, snap.essentialNetFlows],
+  )
+  // Chỉ hiện khi thực sự có gì để cắt và việc cắt tạo ra khác biệt
+  const showLean =
+    runway !== null &&
+    runwayLean !== null &&
+    snap.monthlyFlexibleExpense > 0 &&
+    (runwayLean.p50 > runway.p50 || runwayLean.survivalRate > runway.survivalRate)
 
   const burden = taxBurden(snap.taxAndSocial, snap.annualIncome)
   const burdenVerdict: Verdict = snap.taxAndSocial <= 0 ? 'unknown' : verdictFor(burden, 0.35, 0.25, false)
@@ -243,11 +270,29 @@ export function HealthPage() {
             </>
           )
         }
+        extra={
+          showFree ? (
+            <div className="mt-2 rounded-lg bg-sky-50 p-2 dark:bg-sky-900/30">
+              <p className="text-xs leading-relaxed text-gray-700 dark:text-gray-200">
+                Trong đó <b>{money(earmarked.total)}</b> đang để dành cho mục tiêu tiết kiệm. Trừ
+                phần đã có chủ thì quỹ dự phòng thật sự tự do là{' '}
+                <b>{months1(freeFund!)}</b>.{' '}
+                <Link to="/assets" className="font-medium text-green-700 dark:text-green-400">
+                  Xem mục tiêu
+                </Link>
+              </p>
+            </div>
+          ) : null
+        }
         how={
           <>
             <p>
               <b>Cách tính:</b> tiền mặt + ngân hàng + IC + ví điện tử, chia cho chi CỐ ĐỊNH trung
               bình mỗi tháng. Tiền đầu tư và tài sản cố định không tính vì không rút ra tiêu ngay được.
+            </p>
+            <p>
+              Nếu bạn có mục tiêu tiết kiệm gắn với một tài khoản lỏng, app tính thêm con số thứ hai
+              đã trừ phần tiền đang gom cho mục tiêu đó — vì tiêu vào nó nghĩa là bỏ mục tiêu.
             </p>
             <p>
               <b>Mốc:</b> dưới 3 tháng là rủi ro, 3–6 tháng tạm ổn, từ 6 tháng trở lên là tốt. Ở Nhật
@@ -357,6 +402,23 @@ export function HealthPage() {
             </>
           )
         }
+        extra={
+          showLean ? (
+            <div className="mt-2 rounded-lg bg-green-50 p-2 dark:bg-green-900/30">
+              <p className="text-xs leading-relaxed text-gray-700 dark:text-gray-200">
+                <b>Nếu cắt hết chi linh hoạt</b> (
+                {formatMoney(Math.round(snap.monthlyFlexibleExpense), base)}/tháng):{' '}
+                {runwayLean.survivalRate >= 0.95 ? (
+                  <>hầu như không còn cạn tiền trong {runwayLean.horizon} tháng tới.</>
+                ) : (
+                  <>
+                    cầm cự được <b>{months1(runwayLean.p50)}</b> thay vì {months1(runway!.p50)}.
+                  </>
+                )}
+              </p>
+            </div>
+          ) : null
+        }
         how={
           <>
             <p>
@@ -367,6 +429,24 @@ export function HealthPage() {
             <p>
               Khác với phép chia đơn giản ở chỗ nó tính cả những tháng đột biến, nên con số sát thực
               tế hơn. Càng nhiều tháng dữ liệu thì càng đáng tin.
+            </p>
+            <p>
+              Kịch bản "cắt chi linh hoạt" chạy lại đúng phép trên nhưng bỏ hết khoản thuộc danh mục
+              bạn đã đánh dấu <b>Linh hoạt</b>. Danh mục chưa phân loại vẫn bị coi là thiết yếu, nên
+              đây là con số thận trọng.
+              {snap.hasUnclassifiedNeed && (
+                <>
+                  {' '}
+                  Bạn còn danh mục chưa phân loại — vào{' '}
+                  <Link
+                    to="/settings/categories/classify"
+                    className="font-medium text-green-700 dark:text-green-400"
+                  >
+                    Phân loại nhanh
+                  </Link>{' '}
+                  để con số này sát hơn.
+                </>
+              )}
             </p>
           </>
         }

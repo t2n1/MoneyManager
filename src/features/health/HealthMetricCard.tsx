@@ -46,6 +46,8 @@ interface Props {
   zoneLabels?: string[]
   /** Một câu: con số này nghĩa là gì với cuộc sống của mình. */
   meaning: ReactNode
+  /** Khối phụ giữa câu giải nghĩa và "cách tính" — vd kịch bản thứ hai. */
+  extra?: ReactNode
   /** Cách tính + nên làm gì — giấu sau nút để thẻ không rối. */
   how: ReactNode
 }
@@ -58,6 +60,7 @@ export function HealthMetricCard({
   zones,
   zoneLabels,
   meaning,
+  extra,
   how,
 }: Props) {
   const max = zones && zones.length > 0 ? zones[zones.length - 1].upTo : 0
@@ -117,6 +120,8 @@ export function HealthMetricCard({
       )}
 
       <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-gray-300">{meaning}</p>
+
+      {extra}
 
       <ExplainBox>{how}</ExplainBox>
     </section>

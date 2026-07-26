@@ -32,6 +32,8 @@ export interface HealthSnapshot {
   monthlyFixedExpense: number
   /** tổng chi trung bình mỗi tháng */
   monthlyExpense: number
+  /** chi LINH HOẠT trung bình mỗi tháng — phần về lý thuyết cắt được khi túng */
+  monthlyFlexibleExpense: number
   /** thu nhập trung bình mỗi tháng */
   monthlyIncome: number
   /** tổng thu nhập cả kỳ (12 tháng) */
@@ -40,6 +42,12 @@ export interface HealthSnapshot {
   monthlyDebtPayment: number
   /** dòng tiền ròng từng tháng đã hoàn tất (đầu vào cho Monte Carlo) */
   netFlows: number[]
+  /**
+   * Như `netFlows` nhưng đã bỏ hết chi mang need_level='flexible' — kịch bản
+   * "thắt lưng buộc bụng". Danh mục CHƯA phân loại vẫn tính là thiết yếu để
+   * không hứa hão rằng cắt được thứ mình chưa hề gắn nhãn.
+   */
+  essentialNetFlows: number[]
   /** thu nhập theo danh mục (cho chỉ số tập trung thu nhập) */
   incomeSlices: { key: string; amount: number }[]
   /** tổng thuế + bảo hiểm xã hội đã nộp trong kỳ (nhóm danh mục Thuế & An sinh) */
@@ -48,6 +56,8 @@ export interface HealthSnapshot {
   monthsCounted: number
   /** true = có danh mục chi chưa gán cost_type → chi cố định có thể thiếu */
   hasUnclassifiedExpense: boolean
+  /** true = có khoản chi chưa gán need_level → kịch bản cắt chi đang bảo thủ */
+  hasUnclassifiedNeed: boolean
   /** thiếu tỷ giá ở đâu đó → các số là ước lượng thiếu */
   hasMissingRate: boolean
 }
@@ -127,11 +137,14 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
   const income = new Map<string, number>()
   const expense = new Map<string, number>()
   const fixedExpense = new Map<string, number>()
+  const flexExpense = new Map<string, number>()
   const incomeByCategory = new Map<string, number>()
   const costTypeOf = new Map(categories.map((c) => [c.id, c.cost_type]))
+  const needLevelOf = new Map(categories.map((c) => [c.id, c.need_level]))
   const taxIds = input.taxCategoryIds ?? new Set<string>()
   let taxAndSocial = 0
   let hasUnclassifiedExpense = false
+  let hasUnclassifiedNeed = false
 
   for (const t of txs) {
     if (t.type === 'transfer' || t.is_debt_flow || t.exclude_from_stats) continue
@@ -154,6 +167,10 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
     const cost = t.category_id ? costTypeOf.get(t.category_id) : null
     if (cost === 'fixed') fixedExpense.set(id, (fixedExpense.get(id) ?? 0) + signed)
     else if (!cost) hasUnclassifiedExpense = true
+    // Chỉ cắt thứ ĐƯỢC GẮN RÕ là linh hoạt; chưa gắn thì coi như không cắt được
+    const need = t.category_id ? needLevelOf.get(t.category_id) : null
+    if (need === 'flexible') flexExpense.set(id, (flexExpense.get(id) ?? 0) + signed)
+    else if (!need) hasUnclassifiedNeed = true
     if (t.category_id && taxIds.has(t.category_id)) taxAndSocial += signed
   }
 
@@ -176,6 +193,8 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
     const id = monthId(k)
     return (income.get(id) ?? 0) - (expense.get(id) ?? 0)
   })
+  // Cùng công thức nhưng cộng lại phần chi linh hoạt đã cắt
+  const essentialNetFlows = months.map((k, i) => netFlows[i] + (flexExpense.get(monthId(k)) ?? 0))
   const sum = (m: Map<string, number>) => [...m.values()].reduce((s, x) => s + x, 0)
   const avg = (total: number) => (monthsCounted > 0 ? total / monthsCounted : 0)
   const annualIncome = sum(income)
@@ -187,14 +206,17 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
     debtDueWithin12m: cardDebt + loanDueSoon,
     monthlyFixedExpense: avg(sum(fixedExpense)),
     monthlyExpense: avg(sum(expense)),
+    monthlyFlexibleExpense: avg(sum(flexExpense)),
     monthlyIncome: avg(annualIncome),
     annualIncome,
     monthlyDebtPayment: avg(debtPaid),
     netFlows,
+    essentialNetFlows,
     incomeSlices: [...incomeByCategory.entries()].map(([key, amount]) => ({ key, amount })),
     taxAndSocial,
     monthsCounted,
     hasUnclassifiedExpense,
+    hasUnclassifiedNeed,
     hasMissingRate,
   }
 }

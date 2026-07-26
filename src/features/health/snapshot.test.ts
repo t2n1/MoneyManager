@@ -299,3 +299,75 @@ describe('buildHealthSnapshot — dòng tiền', () => {
     expect(s.monthlyExpense).toBe(10_000)
   })
 })
+
+describe('buildHealthSnapshot — dòng tiền chỉ-chi-thiết-yếu', () => {
+  // Danh mục có cả hai trục: need_level quyết định cắt được hay không
+  const need = (id: string, need_level: CategoryRow['need_level']): CategoryRow => ({
+    ...cat(id, null),
+    need_level,
+  })
+  const CATS = [need('thiet-yeu', 'essential'), need('linh-hoat', 'flexible'), need('chua-gan', null)]
+
+  it('cắt đúng phần linh hoạt, giữ lại thiết yếu', () => {
+    const s = build({
+      categories: CATS,
+      txs: [
+        tx({ type: 'income', amount: 300_000, occurred_on: '2026-05-10', category_id: 'luong' }),
+        tx({ type: 'expense', amount: 200_000, occurred_on: '2026-05-11', category_id: 'thiet-yeu' }),
+        tx({ type: 'expense', amount: 150_000, occurred_on: '2026-05-12', category_id: 'linh-hoat' }),
+      ],
+    })
+    const may = s.netFlows[1]
+    const mayEssential = s.essentialNetFlows[1]
+    expect(may).toBe(-50_000) // 300k thu − 350k chi
+    expect(mayEssential).toBe(100_000) // 300k thu − 200k chi thiết yếu
+  })
+
+  it('danh mục CHƯA phân loại được coi là thiết yếu — không hứa hão là cắt được', () => {
+    const s = build({
+      categories: CATS,
+      txs: [
+        tx({ type: 'income', amount: 100_000, occurred_on: '2026-05-10', category_id: 'luong' }),
+        tx({ type: 'expense', amount: 80_000, occurred_on: '2026-05-11', category_id: 'chua-gan' }),
+      ],
+    })
+    expect(s.essentialNetFlows[1]).toBe(20_000)
+    expect(s.hasUnclassifiedNeed).toBe(true)
+  })
+
+  it('không có danh mục nào bị gắn linh hoạt → hai kịch bản trùng nhau', () => {
+    const s = build({
+      categories: [need('thiet-yeu', 'essential')],
+      txs: [
+        tx({ type: 'income', amount: 100_000, occurred_on: '2026-05-10', category_id: 'luong' }),
+        tx({ type: 'expense', amount: 40_000, occurred_on: '2026-05-11', category_id: 'thiet-yeu' }),
+      ],
+    })
+    expect(s.essentialNetFlows).toEqual(s.netFlows)
+    expect(s.monthlyFlexibleExpense).toBe(0)
+  })
+
+  it('hoàn tiền khoản linh hoạt không làm phồng phần cắt được', () => {
+    const s = build({
+      categories: CATS,
+      txs: [
+        tx({ type: 'expense', amount: 50_000, occurred_on: '2026-05-11', category_id: 'linh-hoat' }),
+        tx({
+          type: 'expense',
+          amount: 20_000,
+          occurred_on: '2026-05-12',
+          category_id: 'linh-hoat',
+          is_refund: true,
+        }),
+      ],
+    })
+    // chi linh hoạt ròng = 30k, chia đều 3 tháng
+    expect(s.monthlyFlexibleExpense).toBe(10_000)
+    expect(s.essentialNetFlows[1]).toBe(0)
+  })
+
+  it('mỗi tháng một phần tử, đúng thứ tự cũ → mới', () => {
+    const s = build({ categories: CATS })
+    expect(s.essentialNetFlows).toHaveLength(MONTHS.length)
+  })
+})

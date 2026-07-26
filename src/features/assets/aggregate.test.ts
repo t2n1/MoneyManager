@@ -42,6 +42,12 @@ function acc(p: Partial<AccountBalanceRow> & Pick<AccountBalanceRow, 'balance'>)
     payment_account_id: null,
     is_archived: false,
     sort_order: 0,
+    cost_basis: 0,
+    depreciation_months: null,
+    depreciation_from: null,
+    salvage_value: 0,
+    tax_shelter: null,
+    shelter_annual_limit: null,
     market_value: null,
     ...p,
   }

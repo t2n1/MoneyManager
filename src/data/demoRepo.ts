@@ -16,7 +16,9 @@ import type {
   ProfileRow,
   RecurringRuleRow,
   SavingsGoalRow,
+  TagRow,
   TransactionRow,
+  TransactionTagRow,
 } from '../types/database.types'
 import {
   BACKUP_VERSION,
@@ -32,12 +34,14 @@ import {
   type NewRecurringOccurrence,
   type NewRecurringRule,
   type NewSavingsGoal,
+  type NewTag,
   type NewTransaction,
   type NewValuation,
   type ProfilePatch,
   type RecurringRulePatch,
   type Repo,
   type SavingsGoalPatch,
+  type TagPatch,
   type TransactionPatch,
   type TxFilter,
 } from './repo'
@@ -46,7 +50,7 @@ import {
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
 // Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-const STORAGE_KEY = 'sct-demo-db-v13' // v13: TK đầu tư (type=investment) + snapshot giá trị thị trường (mục AE)
+const STORAGE_KEY = 'sct-demo-db-v14' // v14: gói báo cáo (hoàn tiền, nhãn, tài sản cố định, tham số profile)
 const DEMO_USER = 'demo-user'
 
 interface DemoDB {
@@ -62,6 +66,8 @@ interface DemoDB {
   accountValuations: AccountValuationRow[]
   savingsGoals: SavingsGoalRow[]
   networthSnapshots: NetWorthSnapshotRow[]
+  tags: TagRow[]
+  transactionTags: TransactionTagRow[]
 }
 
 // crypto.randomUUID() chỉ chạy trong secure context (HTTPS / localhost).
@@ -111,6 +117,11 @@ function seed(): DemoDB {
     payment_due_day: null,
     payment_account_id: null,
     card_autopay_through: null,
+    depreciation_months: null,
+    depreciation_from: null,
+    salvage_value: 0,
+    tax_shelter: null,
+    shelter_annual_limit: null,
     sort_order,
     is_archived: false,
     created_at: nowISO(),
@@ -366,6 +377,9 @@ function seed(): DemoDB {
       display_name: 'Người dùng demo',
       base_currency: 'JPY',
       month_start_day: 1,
+      hourly_wage: null,
+      annual_inflation_bps: null,
+      capital_gains_tax_bps: 2032,
       created_at: nowISO(),
     },
     accounts,
@@ -379,6 +393,8 @@ function seed(): DemoDB {
     accountValuations,
     savingsGoals: [],
     networthSnapshots: [],
+    tags: [],
+    transactionTags: [],
   }
 }
 
@@ -439,6 +455,8 @@ export const demoRepo: Repo = {
         // Cùng logic với view account_balances trong migration
         const delta = db.transactions.reduce((sum, t) => {
           if (t.type === 'income' && t.account_id === a.id) return sum + t.amount
+          // Hoàn tiền: tiền quay lại ví → cộng (khớp view account_balances)
+          if (t.type === 'expense' && t.account_id === a.id && t.is_refund) return sum + t.amount
           if (t.type === 'expense' && t.account_id === a.id) return sum - t.amount
           if (t.type === 'transfer' && t.account_id === a.id) return sum - t.amount
           if (t.type === 'transfer' && t.to_account_id === a.id)
@@ -460,6 +478,12 @@ export const demoRepo: Repo = {
           payment_account_id: a.payment_account_id ?? null,
           is_archived: a.is_archived,
           sort_order: a.sort_order,
+          cost_basis: a.initial_balance,
+          depreciation_months: a.depreciation_months ?? null,
+          depreciation_from: a.depreciation_from ?? null,
+          salvage_value: a.salvage_value ?? 0,
+          tax_shelter: a.tax_shelter ?? null,
+          shelter_annual_limit: a.shelter_annual_limit ?? null,
           market_value: latestValuation(a.id),
           balance: a.initial_balance + delta,
         }
@@ -489,8 +513,10 @@ export const demoRepo: Repo = {
 
   async createTransaction(input: NewTransaction) {
     const db = load()
+    // tag_ids không phải cột của transactions — tách ra thành liên kết riêng
+    const { tag_ids, ...fields } = input
     const row: TransactionRow = {
-      ...input,
+      ...fields,
       id: uuid(),
       user_id: DEMO_USER,
       recurring_rule_id: null,
@@ -498,6 +524,10 @@ export const demoRepo: Repo = {
       updated_at: nowISO(),
     }
     db.transactions.push(row)
+    db.transactionTags ??= []
+    for (const tagId of tag_ids ?? []) {
+      db.transactionTags.push({ transaction_id: row.id, tag_id: tagId, user_id: DEMO_USER })
+    }
     save(db)
     return row
   },
@@ -506,7 +536,14 @@ export const demoRepo: Repo = {
     const db = load()
     const idx = db.transactions.findIndex((t) => t.id === id)
     if (idx < 0) throw new Error('Không tìm thấy giao dịch')
-    db.transactions[idx] = { ...db.transactions[idx], ...patch, updated_at: nowISO() }
+    const { tag_ids, ...fields } = patch
+    db.transactions[idx] = { ...db.transactions[idx], ...fields, updated_at: nowISO() }
+    if (tag_ids) {
+      db.transactionTags = (db.transactionTags ?? []).filter((l) => l.transaction_id !== id)
+      for (const tagId of tag_ids) {
+        db.transactionTags.push({ transaction_id: id, tag_id: tagId, user_id: DEMO_USER })
+      }
+    }
     save(db)
     return db.transactions[idx]
   },
@@ -514,6 +551,7 @@ export const demoRepo: Repo = {
   async deleteTransaction(id: string) {
     const db = load()
     db.transactions = db.transactions.filter((t) => t.id !== id)
+    db.transactionTags = (db.transactionTags ?? []).filter((l) => l.transaction_id !== id)
     // Khớp FK on delete set null của Supabase: lần trả nợ liên kết trở thành "ghi nhận suông"
     db.debtPayments = (db.debtPayments ?? []).map((p) =>
       p.transaction_id === id ? { ...p, transaction_id: null } : p,
@@ -531,6 +569,11 @@ export const demoRepo: Repo = {
       payment_due_day: input.payment_due_day ?? null,
       payment_account_id: input.payment_account_id ?? null,
       card_autopay_through: input.card_autopay_through ?? null,
+      depreciation_months: input.depreciation_months ?? null,
+      depreciation_from: input.depreciation_from ?? null,
+      salvage_value: input.salvage_value ?? 0,
+      tax_shelter: input.tax_shelter ?? null,
+      shelter_annual_limit: input.shelter_annual_limit ?? null,
       id: uuid(),
       user_id: DEMO_USER,
       sort_order,
@@ -1059,6 +1102,65 @@ export const demoRepo: Repo = {
     return true
   },
 
+  // --- Nhãn ---
+
+  async getTags() {
+    return (load().tags ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)
+  },
+
+  async getTransactionTags() {
+    return (load().transactionTags ?? []).slice()
+  },
+
+  async createTag(input: NewTag) {
+    const db = load()
+    db.tags ??= []
+    const name = input.name.trim()
+    if (db.tags.some((t) => t.name === name)) throw new Error(`Nhãn "${name}" đã tồn tại`)
+    const row: TagRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      name,
+      color: input.color,
+      sort_order: db.tags.reduce((m, t) => Math.max(m, t.sort_order + 1), 0),
+      created_at: nowISO(),
+    }
+    db.tags.push(row)
+    save(db)
+    return row
+  },
+
+  async updateTag(id: string, patch: TagPatch) {
+    const db = load()
+    db.tags ??= []
+    const idx = db.tags.findIndex((t) => t.id === id)
+    if (idx < 0) throw new Error('Không tìm thấy nhãn')
+    const name = patch.name?.trim()
+    if (name && db.tags.some((t) => t.id !== id && t.name === name))
+      throw new Error(`Nhãn "${name}" đã tồn tại`)
+    db.tags[idx] = { ...db.tags[idx], ...patch, ...(name ? { name } : {}) }
+    save(db)
+    return db.tags[idx]
+  },
+
+  async deleteTag(id: string) {
+    const db = load()
+    db.tags = (db.tags ?? []).filter((t) => t.id !== id)
+    db.transactionTags = (db.transactionTags ?? []).filter((l) => l.tag_id !== id)
+    save(db)
+  },
+
+  async setTransactionTags(transactionId: string, tagIds: string[]) {
+    const db = load()
+    db.transactionTags = (db.transactionTags ?? []).filter(
+      (l) => l.transaction_id !== transactionId,
+    )
+    for (const tagId of tagIds) {
+      db.transactionTags.push({ transaction_id: transactionId, tag_id: tagId, user_id: DEMO_USER })
+    }
+    save(db)
+  },
+
   async exportAll(): Promise<BackupData> {
     const db = load()
     return {
@@ -1076,6 +1178,8 @@ export const demoRepo: Repo = {
       accountValuations: db.accountValuations ?? [],
       savingsGoals: db.savingsGoals ?? [],
       networthSnapshots: db.networthSnapshots ?? [],
+      tags: db.tags ?? [],
+      transactionTags: db.transactionTags ?? [],
     }
   },
 
@@ -1096,6 +1200,8 @@ export const demoRepo: Repo = {
       accountValuations: stamp(data.accountValuations ?? []),
       savingsGoals: stamp(data.savingsGoals ?? []),
       networthSnapshots: stamp(data.networthSnapshots ?? []),
+      tags: stamp(data.tags ?? []),
+      transactionTags: stamp(data.transactionTags ?? []),
     }
     save(db)
   },

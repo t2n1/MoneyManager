@@ -7,7 +7,9 @@
 import type { CurrencyCode } from '../lib/money'
 import type { RecurringFrequency } from '../lib/recurring'
 
-export type AccountType = 'cash' | 'bank' | 'card' | 'ic' | 'ewallet' | 'investment'
+export type AccountType = 'cash' | 'bank' | 'card' | 'ic' | 'ewallet' | 'investment' | 'fixed'
+/** Tài khoản ưu đãi thuế Nhật có hạn mức nạp theo năm (mục khối 7). */
+export type TaxShelter = 'nisa_tsumitate' | 'nisa_growth' | 'ideco'
 export type CategoryType = 'expense' | 'income'
 export type NeedLevel = 'essential' | 'flexible'
 export type CostType = 'fixed' | 'variable'
@@ -21,6 +23,12 @@ export type ProfileRow = {
   display_name: string | null
   base_currency: CurrencyCode
   month_start_day: number
+  /** Thu nhập mỗi giờ làm (minor units base) để quy đổi "món này = mấy giờ làm"; null = chưa khai. */
+  hourly_wage: number | null
+  /** Lạm phát năm (basis points, 250 = 2.50%) để tính lợi nhuận thực; null = chưa đặt. */
+  annual_inflation_bps: number | null
+  /** Thuế lãi vốn áp lên phần lời (basis points); mặc định 2032 = 20.32% (Nhật). */
+  capital_gains_tax_bps: number
   created_at: string
 }
 
@@ -47,9 +55,37 @@ export type AccountRow = {
   payment_account_id: string | null
   /** Thẻ tín dụng: ngày đến hạn cuối đã tự sinh giao dịch trả; null = chưa sinh kỳ nào */
   card_autopay_through: string | null
+  /** Tài sản cố định: số tháng khấu hao tuyến tính; null = không khấu hao tự động */
+  depreciation_months: number | null
+  /** Tài sản cố định: ngày mua (mốc bắt đầu khấu hao); null = chưa đặt */
+  depreciation_from: string | null
+  /** Tài sản cố định: giá trị còn lại khi hết vòng đời (minor units) */
+  salvage_value: number
+  /** Ưu đãi thuế Nhật (NISA/iDeCo) để theo dõi hạn mức năm; null = tài khoản thường */
+  tax_shelter: TaxShelter | null
+  /** Hạn mức nạp mỗi năm (minor units theo currency tài khoản); null = chưa đặt */
+  shelter_annual_limit: number | null
   sort_order: number
   is_archived: boolean
   created_at: string
+}
+
+/** Nhãn cắt ngang danh mục (vd "Về VN 2026", "Đám cưới"). */
+export type TagRow = {
+  id: string
+  user_id: string
+  name: string
+  /** Khóa màu trong bảng màu của app (xem features/tags/colors). */
+  color: string
+  sort_order: number
+  created_at: string
+}
+
+/** Liên kết nhiều–nhiều giữa giao dịch và nhãn. */
+export type TransactionTagRow = {
+  transaction_id: string
+  tag_id: string
+  user_id: string
 }
 
 export type CategoryRow = {
@@ -96,6 +132,8 @@ export type TransactionRow = {
   is_debt_flow?: boolean
   /** true = loại khỏi mọi thống kê (báo cáo/ngân sách/insight); số dư vẫn tính. Mục AM/X. */
   exclude_from_stats?: boolean
+  /** Hoàn tiền: giao dịch CHI mang dấu âm (tiền về ví, KHÔNG phải thu nhập). */
+  is_refund?: boolean
   created_at: string
   updated_at: string
 }
@@ -119,6 +157,18 @@ export type AccountBalanceRow = {
   payment_account_id: string | null
   is_archived: boolean
   sort_order: number
+  /** Giá gốc nhập tay (accounts.initial_balance) — tài sản cố định dùng làm giá mua */
+  cost_basis: number
+  /** Tài sản cố định: số tháng khấu hao tuyến tính; null = không khấu hao */
+  depreciation_months: number | null
+  /** Tài sản cố định: ngày mua; null = chưa đặt */
+  depreciation_from: string | null
+  /** Tài sản cố định: giá trị còn lại cuối vòng đời (minor units) */
+  salvage_value: number
+  /** Ưu đãi thuế Nhật; null = tài khoản thường */
+  tax_shelter: TaxShelter | null
+  /** Hạn mức nạp mỗi năm (minor units); null = chưa đặt */
+  shelter_annual_limit: number | null
   /** Đầu tư: giá trị thị trường (snapshot mới nhất, minor units theo currency); null = chưa cập nhật / không phải đầu tư */
   market_value: number | null
   balance: number
@@ -256,8 +306,27 @@ export type Database = {
     Tables: {
       profiles: {
         Row: ProfileRow
-        Insert: InsertOf<ProfileRow, 'user_id', 'display_name' | 'base_currency' | 'month_start_day'>
-        Update: Partial<Pick<ProfileRow, 'display_name' | 'base_currency' | 'month_start_day'>>
+        Insert: InsertOf<
+          ProfileRow,
+          'user_id',
+          | 'display_name'
+          | 'base_currency'
+          | 'month_start_day'
+          | 'hourly_wage'
+          | 'annual_inflation_bps'
+          | 'capital_gains_tax_bps'
+        >
+        Update: Partial<
+          Pick<
+            ProfileRow,
+            | 'display_name'
+            | 'base_currency'
+            | 'month_start_day'
+            | 'hourly_wage'
+            | 'annual_inflation_bps'
+            | 'capital_gains_tax_bps'
+          >
+        >
         Relationships: []
       }
       accounts: {
@@ -276,6 +345,11 @@ export type Database = {
           | 'payment_due_day'
           | 'payment_account_id'
           | 'card_autopay_through'
+          | 'depreciation_months'
+          | 'depreciation_from'
+          | 'salvage_value'
+          | 'tax_shelter'
+          | 'shelter_annual_limit'
           | 'sort_order'
           | 'is_archived'
         >
@@ -294,6 +368,11 @@ export type Database = {
             | 'payment_due_day'
             | 'payment_account_id'
             | 'card_autopay_through'
+            | 'depreciation_months'
+            | 'depreciation_from'
+            | 'salvage_value'
+            | 'tax_shelter'
+            | 'shelter_annual_limit'
             | 'sort_order'
             | 'is_archived'
           >
@@ -333,6 +412,7 @@ export type Database = {
           | 'remit_received_vnd'
           | 'is_debt_flow'
           | 'exclude_from_stats'
+          | 'is_refund'
         >
         Update: Partial<
           Pick<
@@ -351,6 +431,7 @@ export type Database = {
             | 'remit_received_vnd'
             | 'is_debt_flow'
             | 'exclude_from_stats'
+            | 'is_refund'
           >
         >
         Relationships: []
@@ -470,6 +551,18 @@ export type Database = {
         Update: Partial<
           Pick<SavingsGoalRow, 'name' | 'account_id' | 'target_amount' | 'target_date' | 'note' | 'sort_order'>
         >
+        Relationships: []
+      }
+      tags: {
+        Row: TagRow
+        Insert: InsertOf<TagRow, 'user_id' | 'name', 'id' | 'color' | 'sort_order'>
+        Update: Partial<Pick<TagRow, 'name' | 'color' | 'sort_order'>>
+        Relationships: []
+      }
+      transaction_tags: {
+        Row: TransactionTagRow
+        Insert: TransactionTagRow
+        Update: Partial<TransactionTagRow>
         Relationships: []
       }
       networth_snapshots: {

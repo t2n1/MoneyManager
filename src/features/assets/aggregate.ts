@@ -16,6 +16,7 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   ic: 'IC giao thông',
   ewallet: 'Ví điện tử',
   investment: 'Đầu tư',
+  fixed: 'Tài sản cố định',
 }
 
 /** Cài đặt riêng của một nhóm (từ bảng asset_group_settings). */

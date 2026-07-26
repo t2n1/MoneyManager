@@ -16,7 +16,9 @@ import {
   type NewValuation,
   type ProfilePatch,
   type RecurringRulePatch,
+  type NewTag,
   type SavingsGoalPatch,
+  type TagPatch,
   type TransactionPatch,
   type TxFilter,
 } from '../data'
@@ -120,6 +122,64 @@ function invalidateTransactionData(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['transactions'] })
   qc.invalidateQueries({ queryKey: ['balances'] })
   qc.invalidateQueries({ queryKey: ['search'] })
+  // Giao dịch có thể mang nhãn → liên kết nhãn đổi theo
+  qc.invalidateQueries({ queryKey: ['transactionTags'] })
+}
+
+// --- Nhãn cắt ngang danh mục ---
+
+export function useTags() {
+  return useQuery({
+    queryKey: ['tags'],
+    queryFn: () => repo.getTags(),
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useTransactionTags() {
+  return useQuery({
+    queryKey: ['transactionTags'],
+    queryFn: () => repo.getTransactionTags(),
+    staleTime: 60_000,
+  })
+}
+
+function invalidateTags(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['tags'] })
+  qc.invalidateQueries({ queryKey: ['transactionTags'] })
+}
+
+export function useCreateTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewTag) => repo.createTag(input),
+    onSettled: () => invalidateTags(qc),
+  })
+}
+
+export function useUpdateTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: TagPatch }) => repo.updateTag(id, patch),
+    onSettled: () => invalidateTags(qc),
+  })
+}
+
+export function useDeleteTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => repo.deleteTag(id),
+    onSettled: () => invalidateTags(qc),
+  })
+}
+
+export function useSetTransactionTags() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ transactionId, tagIds }: { transactionId: string; tagIds: string[] }) =>
+      repo.setTransactionTags(transactionId, tagIds),
+    onSettled: () => invalidateTags(qc),
+  })
 }
 
 export function useCreateTransaction() {

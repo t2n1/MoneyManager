@@ -18,7 +18,10 @@ import type {
   ProfileRow,
   RecurringRuleRow,
   SavingsGoalRow,
+  TagRow,
+  TaxShelter,
   TransactionRow,
+  TransactionTagRow,
   TransactionType,
 } from '../types/database.types'
 
@@ -43,10 +46,14 @@ export interface BackupData {
   savingsGoals?: SavingsGoalRow[]
   /** Lịch sử tài sản ròng (mục AF); vắng mặt ở backup v1–v3. */
   networthSnapshots?: NetWorthSnapshotRow[]
+  /** Nhãn giao dịch; vắng mặt ở backup v1–v4. */
+  tags?: TagRow[]
+  /** Liên kết giao dịch ↔ nhãn; vắng mặt ở backup v1–v4. */
+  transactionTags?: TransactionTagRow[]
 }
 
-/** Phiên bản định dạng backup hiện hành. v4: thêm networthSnapshots (mục AF). */
-export const BACKUP_VERSION = 4
+/** Phiên bản định dạng backup hiện hành. v5: thêm tags + transactionTags. */
+export const BACKUP_VERSION = 5
 
 export interface NewTransaction {
   type: TransactionType
@@ -71,6 +78,10 @@ export interface NewTransaction {
   is_debt_flow?: boolean
   /** true = loại khỏi mọi thống kê (số dư vẫn tính). Mục AM/X. */
   exclude_from_stats?: boolean
+  /** Hoàn tiền: giao dịch CHI mang dấu âm (tiền về ví, không phải thu nhập). */
+  is_refund?: boolean
+  /** Nhãn gắn kèm (ghi đè toàn bộ nhãn hiện có khi patch). Bỏ trống = không đổi. */
+  tag_ids?: string[]
 }
 
 export type TransactionPatch = Partial<NewTransaction>
@@ -103,6 +114,16 @@ export interface NewAccount {
   payment_account_id?: string | null
   /** Thẻ tín dụng: con trỏ kỳ đã tự trả; null = chưa sinh kỳ nào */
   card_autopay_through?: string | null
+  /** Tài sản cố định: số tháng khấu hao tuyến tính; null = không khấu hao */
+  depreciation_months?: number | null
+  /** Tài sản cố định: ngày mua (mốc khấu hao); null = chưa đặt */
+  depreciation_from?: string | null
+  /** Tài sản cố định: giá trị còn lại cuối vòng đời (minor units) */
+  salvage_value?: number
+  /** Ưu đãi thuế Nhật (NISA/iDeCo); null = tài khoản thường */
+  tax_shelter?: TaxShelter | null
+  /** Hạn mức nạp mỗi năm (minor units); null = chưa đặt */
+  shelter_annual_limit?: number | null
 }
 
 export type AccountPatch = Partial<NewAccount & { is_archived: boolean }>
@@ -135,8 +156,17 @@ export interface TxFilter {
   amountMax?: number
 }
 
-/** Chỉ sửa được tên hiển thị + ngày bắt đầu tháng. Cố ý KHÔNG có base_currency. */
-export type ProfilePatch = Partial<Pick<ProfileRow, 'display_name' | 'month_start_day'>>
+/** Cố ý KHÔNG có base_currency (đổi tiền gốc sẽ làm sai mọi số đã quy đổi). */
+export type ProfilePatch = Partial<
+  Pick<
+    ProfileRow,
+    | 'display_name'
+    | 'month_start_day'
+    | 'hourly_wage'
+    | 'annual_inflation_bps'
+    | 'capital_gains_tax_bps'
+  >
+>
 
 /** Thuộc tính nhóm tài sản có thể chỉnh (không đổi tên qua đây — dùng renameAssetGroup). */
 export type AssetGroupSettingPatch = Partial<
@@ -217,6 +247,15 @@ export interface NewSavingsGoal {
 }
 
 export type SavingsGoalPatch = Partial<NewSavingsGoal>
+
+/** Nhãn cắt ngang danh mục (vd "Về VN 2026"). */
+export interface NewTag {
+  name: string
+  /** Khóa màu trong bảng màu của app. */
+  color: string
+}
+
+export type TagPatch = Partial<NewTag & { sort_order: number }>
 
 // Toàn bộ đọc/ghi dữ liệu đi qua interface này.
 // 2 implementation: demoRepo (localStorage) và supabaseRepo (Postgres + RLS).
@@ -321,6 +360,17 @@ export interface Repo {
   deleteRecurringRule(id: string): Promise<void>
   /** Sinh 1 kỳ cho engine catch-up: true = đã tạo, false = trùng (rule + ngày) bỏ qua. */
   insertRecurringOccurrence(input: NewRecurringOccurrence): Promise<boolean>
+
+  // --- Nhãn cắt ngang danh mục ---
+  getTags(): Promise<TagRow[]>
+  /** Toàn bộ liên kết giao dịch ↔ nhãn của user; UI tự lọc. */
+  getTransactionTags(): Promise<TransactionTagRow[]>
+  createTag(input: NewTag): Promise<TagRow>
+  updateTag(id: string, patch: TagPatch): Promise<TagRow>
+  /** Xóa nhãn + mọi liên kết tới nó (giao dịch giữ nguyên). */
+  deleteTag(id: string): Promise<void>
+  /** Đặt lại TOÀN BỘ nhãn của một giao dịch (danh sách rỗng = gỡ hết). */
+  setTransactionTags(transactionId: string, tagIds: string[]): Promise<void>
 
   // --- Sao lưu / khôi phục (mục Z) ---
   /** Gom toàn bộ dữ liệu người dùng thành một ảnh chụp để tải xuống. */

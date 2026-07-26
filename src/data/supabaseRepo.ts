@@ -13,7 +13,9 @@ import type {
   NetWorthSnapshotRow,
   RecurringRuleRow,
   SavingsGoalRow,
+  TagRow,
   TransactionRow,
+  TransactionTagRow,
 } from '../types/database.types'
 import {
   BACKUP_VERSION,
@@ -29,12 +31,14 @@ import {
   type NewRecurringOccurrence,
   type NewRecurringRule,
   type NewSavingsGoal,
+  type NewTag,
   type NewTransaction,
   type NewValuation,
   type ProfilePatch,
   type RecurringRulePatch,
   type Repo,
   type SavingsGoalPatch,
+  type TagPatch,
   type TransactionPatch,
   type TxFilter,
 } from './repo'
@@ -54,6 +58,14 @@ type DataTable =
   | 'account_valuations'
   | 'savings_goals'
   | 'networth_snapshots'
+  | 'tags'
+  | 'transaction_tags'
+
+/** Bỏ `tag_ids` (bảng liên kết riêng) để payload chỉ còn cột thật của transactions. */
+function txColumns<T extends { tag_ids?: string[] }>(input: T): Omit<T, 'tag_ids'> {
+  const { tag_ids: _drop, ...rest } = input
+  return rest
+}
 
 async function currentUserId(): Promise<string> {
   const {
@@ -74,6 +86,16 @@ async function nextSortOrder(
     .order('sort_order', { ascending: false })
     .limit(1)
   const { data } = await (type ? base.eq('type', type) : base)
+  return (data?.[0]?.sort_order ?? -1) + 1
+}
+
+/** Thứ tự kế tiếp cho nhãn (bảng tags không có cột `type` nên tách khỏi nextSortOrder). */
+async function nextTagSortOrder(): Promise<number> {
+  const { data } = await getSupabase()
+    .from('tags')
+    .select('sort_order')
+    .order('sort_order', { ascending: false })
+    .limit(1)
   return (data?.[0]?.sort_order ?? -1) + 1
 }
 
@@ -174,23 +196,28 @@ export const supabaseRepo: Repo = {
 
   async createTransaction(input: NewTransaction) {
     const user_id = await currentUserId()
+    // tag_ids là bảng liên kết riêng, không phải cột của transactions
+    const { tag_ids, ...fields } = input
     const { data, error } = await getSupabase()
       .from('transactions')
-      .insert({ ...input, user_id })
+      .insert({ ...fields, user_id })
       .select()
       .single()
     if (error) throw error
+    if (tag_ids?.length) await this.setTransactionTags(data.id, tag_ids)
     return data
   },
 
   async updateTransaction(id: string, patch: TransactionPatch) {
+    const { tag_ids, ...fields } = patch
     const { data, error } = await getSupabase()
       .from('transactions')
-      .update(patch)
+      .update(fields)
       .eq('id', id)
       .select()
       .single()
     if (error) throw error
+    if (tag_ids) await this.setTransactionTags(id, tag_ids)
     return data
   },
 
@@ -612,7 +639,7 @@ export const supabaseRepo: Repo = {
       // Giải ngân là dòng tiền cho vay → đánh dấu để báo cáo Chi/Thu bỏ qua.
       const { data: tx, error: eTx } = await sb
         .from('transactions')
-        .insert({ ...transaction, user_id, is_debt_flow: true })
+        .insert({ ...txColumns(transaction), user_id, is_debt_flow: true })
         .select()
         .single()
       if (eTx) throw eTx
@@ -680,7 +707,7 @@ export const supabaseRepo: Repo = {
       // Trả nợ là dòng tiền nợ/cho vay → đánh dấu để báo cáo Chi/Thu bỏ qua.
       const { data: tx, error: eTx } = await sb
         .from('transactions')
-        .insert({ ...input.transaction, user_id, is_debt_flow: true })
+        .insert({ ...txColumns(input.transaction), user_id, is_debt_flow: true })
         .select()
         .single()
       if (eTx) throw eTx
@@ -764,13 +791,74 @@ export const supabaseRepo: Repo = {
 
   async insertRecurringOccurrence(input: NewRecurringOccurrence) {
     const user_id = await currentUserId()
-    const { error } = await getSupabase().from('transactions').insert({ ...input, user_id })
+    const { error } = await getSupabase()
+      .from('transactions')
+      .insert({ ...txColumns(input), user_id })
     if (error) {
       // 23505 = unique_violation: thiết bị khác đã sinh kỳ này → bỏ qua im lặng
       if (error.code === '23505') return false
       throw error
     }
     return true
+  },
+
+  // --- Nhãn ---
+
+  async getTags() {
+    const { data, error } = await getSupabase()
+      .from('tags')
+      .select('*')
+      .order('sort_order', { ascending: true })
+    if (error) throw error
+    return data ?? []
+  },
+
+  async getTransactionTags() {
+    const { data, error } = await getSupabase().from('transaction_tags').select('*')
+    if (error) throw error
+    return data ?? []
+  },
+
+  async createTag(input: NewTag) {
+    const user_id = await currentUserId()
+    const sort_order = await nextTagSortOrder()
+    const { data, error } = await getSupabase()
+      .from('tags')
+      .insert({ ...input, name: input.name.trim(), user_id, sort_order })
+      .select()
+      .single()
+    // 23505 = trùng unique(user_id, name)
+    if (error) throw error?.code === '23505' ? new Error(`Nhãn "${input.name.trim()}" đã tồn tại`) : error
+    return data
+  },
+
+  async updateTag(id: string, patch: TagPatch) {
+    const { data, error } = await getSupabase()
+      .from('tags')
+      .update(patch.name ? { ...patch, name: patch.name.trim() } : patch)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error?.code === '23505' ? new Error('Tên nhãn đã tồn tại') : error
+    return data
+  },
+
+  async deleteTag(id: string) {
+    // transaction_tags cascade theo FK → chỉ cần xóa nhãn
+    const { error } = await getSupabase().from('tags').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  async setTransactionTags(transactionId: string, tagIds: string[]) {
+    const user_id = await currentUserId()
+    const sb = getSupabase()
+    const del = await sb.from('transaction_tags').delete().eq('transaction_id', transactionId)
+    if (del.error) throw del.error
+    if (tagIds.length === 0) return
+    const { error } = await sb
+      .from('transaction_tags')
+      .insert(tagIds.map((tag_id) => ({ transaction_id: transactionId, tag_id, user_id })))
+    if (error) throw error
   },
 
   async exportAll(): Promise<BackupData> {
@@ -793,6 +881,8 @@ export const supabaseRepo: Repo = {
       accountValuations,
       savingsGoals,
       networthSnapshots,
+      tags,
+      transactionTags,
     ] = await Promise.all([
       this.getProfile(),
       selectAll<AccountRow>('accounts'),
@@ -806,6 +896,8 @@ export const supabaseRepo: Repo = {
       selectAll<AccountValuationRow>('account_valuations'),
       selectAll<SavingsGoalRow>('savings_goals'),
       selectAll<NetWorthSnapshotRow>('networth_snapshots'),
+      selectAll<TagRow>('tags'),
+      selectAll<TransactionTagRow>('transaction_tags'),
     ])
     return {
       version: BACKUP_VERSION,
@@ -822,6 +914,8 @@ export const supabaseRepo: Repo = {
       accountValuations,
       savingsGoals,
       networthSnapshots,
+      tags,
+      transactionTags,
     }
   },
 
@@ -837,6 +931,8 @@ export const supabaseRepo: Repo = {
       'account_valuations',
       'savings_goals',
       'networth_snapshots',
+      'transaction_tags',
+      'tags',
       'debt_payments',
       'debts',
       'budgets',
@@ -871,6 +967,11 @@ export const supabaseRepo: Repo = {
               payment_due_day: a.payment_due_day,
               payment_account_id: null,
               card_autopay_through: a.card_autopay_through,
+              depreciation_months: a.depreciation_months,
+              depreciation_from: a.depreciation_from,
+              salvage_value: a.salvage_value,
+              tax_shelter: a.tax_shelter,
+              shelter_annual_limit: a.shelter_annual_limit,
               sort_order: a.sort_order,
               is_archived: a.is_archived,
             })),
@@ -945,6 +1046,7 @@ export const supabaseRepo: Repo = {
               remit_received_vnd: t.remit_received_vnd,
               is_debt_flow: t.is_debt_flow,
               exclude_from_stats: t.exclude_from_stats,
+              is_refund: t.is_refund,
             })),
           )
         ).error,
@@ -1078,6 +1180,37 @@ export const supabaseRepo: Repo = {
       )
     }
 
+    // tags trước, rồi liên kết (composite FK tới cả transactions lẫn tags).
+    if (data.tags?.length) {
+      ok(
+        (
+          await sb.from('tags').insert(
+            data.tags.map((t) => ({
+              id: t.id,
+              user_id: uid,
+              name: t.name,
+              color: t.color,
+              sort_order: t.sort_order,
+            })),
+          )
+        ).error,
+      )
+    }
+
+    if (data.transactionTags?.length) {
+      ok(
+        (
+          await sb.from('transaction_tags').insert(
+            data.transactionTags.map((l) => ({
+              transaction_id: l.transaction_id,
+              tag_id: l.tag_id,
+              user_id: uid,
+            })),
+          )
+        ).error,
+      )
+    }
+
     // 3) Pass 2: khôi phục self-FK payment_account_id của thẻ tín dụng.
     for (const a of data.accounts ?? []) {
       if (a.payment_account_id) {
@@ -1101,6 +1234,9 @@ export const supabaseRepo: Repo = {
             display_name: data.profile.display_name,
             month_start_day: data.profile.month_start_day,
             base_currency: data.profile.base_currency,
+            hourly_wage: data.profile.hourly_wage ?? null,
+            annual_inflation_bps: data.profile.annual_inflation_bps ?? null,
+            capital_gains_tax_bps: data.profile.capital_gains_tax_bps ?? 2032,
           })
           .eq('user_id', uid)
       ).error,

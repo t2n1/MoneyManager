@@ -4,7 +4,7 @@
 // + "Van xả khẩn cấp": phần Linh hoạt × Biến đổi — khoản dễ cắt nhất khi cần gấp.
 import { Link } from 'react-router-dom'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
-import { formatMoney, type CurrencyCode } from '../../lib/money'
+import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { ClassificationBreakdown } from './aggregate'
 import { BreakdownRow } from './BreakdownRow'
 
@@ -123,7 +123,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
       ) : (
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div
-            className="mx-auto h-36 w-36 shrink-0"
+            className="relative mx-auto h-36 w-36 shrink-0"
             role="img"
             aria-label={`Cố định ${pctOfExpense(data.costFixed).toFixed(0)}%, biến đổi ${pctOfExpense(data.costVariable).toFixed(0)}% trên tổng chi`}
           >
@@ -151,6 +151,17 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
                 />
               </PieChart>
             </ResponsiveContainer>
+            {/* Tâm donut ghi tổng Chi (thiết kế §C2) — trùng thông tin với các BreakdownRow
+                bên dưới và aria-label ở trên, nên ẩn khỏi trình đọc màn hình để không đọc 3 lần. */}
+            <div
+              className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
+              aria-hidden="true"
+            >
+              <span className="text-[10px] leading-none text-gray-500 dark:text-gray-400">Tổng chi</span>
+              <span className="mt-0.5 text-sm font-bold leading-none tabular-nums text-gray-800 dark:text-gray-100">
+                {formatCompact(totalExpense, base)}
+              </span>
+            </div>
           </div>
           <div className="flex-1 space-y-2.5">
             <BreakdownRow

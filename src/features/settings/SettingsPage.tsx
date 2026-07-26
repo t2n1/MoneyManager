@@ -1,7 +1,18 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronRight, Database, Handshake, Landmark, Layers, Repeat, Scale, Tags, UserRound } from 'lucide-react'
+import {
+  ChevronRight,
+  Database,
+  Handshake,
+  Landmark,
+  Layers,
+  Repeat,
+  Scale,
+  Tag as TagIcon,
+  Tags,
+  UserRound,
+} from 'lucide-react'
 import { resetDemoData } from '../../data/demoRepo'
 import { useProfile } from '../../hooks/queries'
 import { isDemoMode } from '../../lib/demo'
@@ -75,6 +86,14 @@ export function SettingsPage() {
           >
             <Scale className="h-5 w-5 text-gray-500 dark:text-gray-400" />
             <span className="flex-1">Phân loại chi tiêu</span>
+            <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
+          </Link>
+          <Link
+            to="/settings/tags"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
+          >
+            <TagIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <span className="flex-1">Nhãn</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
           <Link

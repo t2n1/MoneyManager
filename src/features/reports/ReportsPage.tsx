@@ -18,7 +18,11 @@ import {
   useProfile,
   useRangeTransactions,
   useRates,
+  useTags,
+  useTransactionTags,
 } from '../../hooks/queries'
+import { tagBreakdown } from '../tags/aggregate'
+import { TagBreakdownCard } from './TagBreakdownCard'
 import {
   addMonths,
   formatMonthLabel,
@@ -71,6 +75,8 @@ export function ReportsPage() {
   const { base, rates } = useRates()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
+  const { data: tags = [] } = useTags()
+  const { data: tagLinks = [] } = useTransactionTags()
 
   const currencyOf = (id: string): CurrencyCode =>
     accounts.find((a) => a.id === id)?.currency ?? base
@@ -121,6 +127,11 @@ export function ReportsPage() {
     () => classificationBreakdown(monthExpenseBreakdown.slices, categories),
     [monthExpenseBreakdown, categories],
   )
+  const monthTags = useMemo(
+    () => tagBreakdown(monthTxs, tagLinks, tags, currencyOf, base, rates ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [monthTxs, tagLinks, tags, accounts, base, rates],
+  )
   const series = useMemo(
     () => monthlySeries(rangeTxs, sixMonths, monthStartDay, currencyOf, base, rates ?? {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,6 +171,11 @@ export function ReportsPage() {
   const yearClass = useMemo(
     () => classificationBreakdown(yearExpenseBreakdown.slices, categories),
     [yearExpenseBreakdown, categories],
+  )
+  const yearTags = useMemo(
+    () => tagBreakdown(yearTxs, tagLinks, tags, currencyOf, base, rates ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [yearTxs, tagLinks, tags, accounts, base, rates],
   )
   const yearSeries = useMemo(
     () => monthlySeries(yearTxs, twelveMonths, monthStartDay, currencyOf, base, rates ?? {}),
@@ -348,6 +364,12 @@ export function ReportsPage() {
             title="Dòng tiền ròng 6 tháng gần nhất"
             labelOf={(k) => `${k.month}/${String(k.year).slice(2)}`}
           />
+          <TagBreakdownCard
+            data={monthTags}
+            base={base}
+            periodNoun="tháng này"
+            noTags={tags.length === 0}
+          />
         </>
       )}
       {period === 'month' && view === 'trends' && <TrendsView />}
@@ -431,7 +453,13 @@ export function ReportsPage() {
             title="Dòng tiền ròng 12 tháng"
             labelOf={(k) => String(k.month)}
           />
-          <RemittanceSection txs={yearTxs} year={activeYear} />
+          <TagBreakdownCard
+            data={yearTags}
+            base={base}
+            periodNoun="năm này"
+            noTags={tags.length === 0}
+          />
+          <RemittanceSection txs={yearTxs} year={activeYear} annualIncome={yearSums.income} />
         </>
       )}
     </div>

@@ -20,8 +20,15 @@ import { promptDialog } from '../../lib/dialog'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { RecurringFrequency } from '../../lib/recurring'
 import type { DebtDirection, TransactionRow, TransactionType } from '../../types/database.types'
-import { useAccounts, useCategories, useDebtPayments, useDebts } from '../../hooks/queries'
+import {
+  useAccounts,
+  useCategories,
+  useDebtPayments,
+  useDebts,
+  useTransactionTags,
+} from '../../hooks/queries'
 import { AccountPicker } from '../../components/AccountPicker'
+import { TagPicker } from '../tags/TagPicker'
 import { remainingOf } from '../debts/aggregate'
 import type { DebtPerson } from './roleFields'
 import { NumPad, type NumPadKey } from './NumPad'
@@ -210,6 +217,18 @@ export function TransactionForm({
   const [date, setDate] = useState(initial?.occurred_on ?? toISODate(new Date()))
   const [note, setNote] = useState(initial?.note ?? '')
   const [excludeFromStats, setExcludeFromStats] = useState(initial?.exclude_from_stats ?? false)
+  // Hoàn tiền: giao dịch CHI mang dấu âm — tiền về ví nhưng không phải thu nhập
+  const [isRefund, setIsRefund] = useState(initial?.is_refund ?? false)
+  // Nhãn: form sửa nạp sẵn nhãn hiện có của giao dịch
+  const { data: allLinks = [] } = useTransactionTags()
+  const initialTagIds = useMemo(
+    () =>
+      initial ? allLinks.filter((l) => l.transaction_id === initial.id).map((l) => l.tag_id) : [],
+    [allLinks, initial],
+  )
+  const [tagIds, setTagIds] = useState<string[] | null>(null)
+  // null = chưa người dùng đụng vào → dùng nhãn sẵn có của giao dịch đang sửa
+  const effectiveTagIds = tagIds ?? initialTagIds
   // Lặp lại (chỉ form nhập mới): 'none' = không lặp, còn lại là chu kỳ
   const [repeat, setRepeat] = useState<'none' | RecurringFrequency>('none')
   const [repeatOpen, setRepeatOpen] = useState(false)
@@ -563,6 +582,8 @@ export function TransactionForm({
         occurred_on: date,
         note: note.trim(),
         exclude_from_stats: type === 'transfer' ? false : excludeFromStats,
+        is_refund: type === 'expense' ? isRefund : false,
+        tag_ids: effectiveTagIds,
       }
       if (repeat !== 'none' && onSubmitRecurring) {
         // Lặp lại: tạo rule (kỳ đầu do engine catch-up sinh, không tạo GD riêng)
@@ -1005,6 +1026,27 @@ export function TransactionForm({
         className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 outline-green-500"
       />
 
+      {activeRole === 'none' && <TagPicker value={effectiveTagIds} onChange={setTagIds} />}
+
+      {/* Hoàn tiền — chỉ có nghĩa với khoản CHI */}
+      {type === 'expense' && activeRole === 'none' && (
+        <label className="flex items-start gap-2 px-1 text-sm text-gray-600 dark:text-gray-300">
+          <input
+            type="checkbox"
+            checked={isRefund}
+            onChange={(e) => setIsRefund(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            Đây là khoản <b>hoàn tiền</b>
+            <span className="block text-xs text-gray-500 dark:text-gray-400">
+              Trả hàng, hủy vé, hoàn phí… Tiền quay lại ví và TRỪ vào chi của danh mục đã chọn, thay
+              vì bị tính thành thu nhập.
+            </span>
+          </span>
+        </label>
+      )}
+
       {showExcludeOption && type !== 'transfer' && (
         <label className="flex items-center gap-2 px-1 text-sm text-gray-600 dark:text-gray-300">
           <input
@@ -1012,7 +1054,7 @@ export function TransactionForm({
             checked={excludeFromStats}
             onChange={(e) => setExcludeFromStats(e.target.checked)}
           />
-          Không tính vào thống kê (hoàn tiền, mua hộ…)
+          Không tính vào thống kê (giao dịch nội bộ, ghi bù…)
         </label>
       )}
 

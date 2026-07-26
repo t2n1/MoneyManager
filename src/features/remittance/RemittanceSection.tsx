@@ -5,16 +5,40 @@ import { useDeleteTransaction } from '../../hooks/queries'
 import { formatMoney } from '../../lib/money'
 import { confirmDialog } from '../../lib/dialog'
 import type { TransactionRow } from '../../types/database.types'
-import { remittanceStats } from './aggregate'
+import { remittanceShareOfIncome, remittanceStats, remittanceTiming } from './aggregate'
 
 /**
  * Mục "Gửi tiền về VN" trong Báo cáo → Năm. Nhận giao dịch cả năm (đã tải sẵn),
  * tự lọc is_remittance để hiện tổng + lịch sử + xóa. Nút "Gửi tiền" mở form nhập.
  */
-export function RemittanceSection({ txs, year }: { txs: TransactionRow[]; year: number }) {
+export function RemittanceSection({
+  txs,
+  year,
+  annualIncome = 0,
+}: {
+  txs: TransactionRow[]
+  year: number
+  /** Tổng thu nhập cả năm quy đổi base — để biết kiều hối chiếm bao nhiêu phần. */
+  annualIncome?: number
+}) {
   const del = useDeleteTransaction()
 
   const stats = useMemo(() => remittanceStats(txs), [txs])
+  const timing = useMemo(() => remittanceTiming(txs, stats.avgRate), [txs, stats.avgRate])
+  const timingById = useMemo(
+    () => new Map(timing.map((t) => [t.transactionId, t])),
+    [timing],
+  )
+  const share = remittanceShareOfIncome(stats, annualIncome)
+  // Tổng lợi/thiệt do chọn thời điểm: các lần gửi giá tốt bù cho lần gửi giá xấu
+  const bestPick = timing.reduce<(typeof timing)[number] | null>(
+    (best, t) => (best === null || t.gainVsAvgVnd > best.gainVsAvgVnd ? t : best),
+    null,
+  )
+  const worstPick = timing.reduce<(typeof timing)[number] | null>(
+    (worst, t) => (worst === null || t.gainVsAvgVnd < worst.gainVsAvgVnd ? t : worst),
+    null,
+  )
   const remittances = useMemo(
     () => txs.filter((t) => t.is_remittance).sort((a, b) => (a.occurred_on < b.occurred_on ? 1 : -1)),
     [txs],
@@ -76,7 +100,35 @@ export function RemittanceSection({ txs, year }: { txs: TransactionRow[]; year: 
           </div>
           <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
             Tổng phí {formatMoney(stats.totalFeeJpy, 'JPY')} · {stats.count} lần gửi
+            {share !== null && (
+              <> · chiếm {Math.round(share * 100)}% thu nhập năm {year}</>
+            )}
           </p>
+
+          {/* Chọn thời điểm gửi được/mất bao nhiêu so với tỷ giá trung bình cả năm */}
+          {bestPick && worstPick && bestPick.transactionId !== worstPick.transactionId && (
+            <div className="mt-2 rounded-lg bg-gray-50 px-2.5 py-2 text-xs dark:bg-gray-950">
+              <p className="text-gray-600 dark:text-gray-300">
+                Lần gửi <b>được giá nhất</b> ({bestPick.date}, {bestPick.rate.toFixed(1)} ₫/¥) cho
+                thêm{' '}
+                <b className="text-green-700 dark:text-green-400">
+                  {formatMoney(bestPick.gainVsAvgVnd, 'VND')}
+                </b>{' '}
+                so với tỷ giá trung bình năm.
+              </p>
+              <p className="mt-0.5 text-gray-600 dark:text-gray-300">
+                Lần <b>thiệt nhất</b> ({worstPick.date}, {worstPick.rate.toFixed(1)} ₫/¥) mất{' '}
+                <b className="text-red-600 dark:text-red-400">
+                  {formatMoney(-worstPick.gainVsAvgVnd, 'VND')}
+                </b>
+                .
+              </p>
+              <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+                Khoảng cách giữa hai lần này là cái giá của việc chọn thời điểm. Chênh lệch lớn thì
+                lần sau nên chia nhỏ ra gửi nhiều đợt thay vì dồn một cục.
+              </p>
+            </div>
+          )}
 
           {/* Lịch sử */}
           <ul className="mt-3 divide-y divide-gray-100 dark:divide-gray-800 border-t border-gray-100 dark:border-gray-800">
@@ -85,6 +137,7 @@ export function RemittanceSection({ txs, year }: { txs: TransactionRow[]; year: 
               const sent = Math.max(t.amount - fee, 0)
               const received = t.remit_received_vnd ?? 0
               const rate = sent > 0 ? received / sent : 0
+              const vs = timingById.get(t.id)
               const isTransfer = t.type === 'transfer'
               return (
                 <li key={t.id} className="flex items-center gap-3 py-2.5">
@@ -94,7 +147,21 @@ export function RemittanceSection({ txs, year }: { txs: TransactionRow[]; year: 
                     </p>
                     <p className="truncate text-xs text-gray-400 dark:text-gray-500">
                       {t.occurred_on} · {t.remit_service ?? '—'}
-                      {rate > 0 ? ` · ${rate.toFixed(1)} ₫/¥` : ''} ·{' '}
+                      {rate > 0 ? ` · ${rate.toFixed(1)} ₫/¥` : ''}
+                      {vs && Math.abs(vs.vsAvgPct) >= 0.5 && (
+                        <span
+                          className={
+                            vs.vsAvgPct > 0
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400'
+                          }
+                        >
+                          {' '}
+                          ({vs.vsAvgPct > 0 ? '+' : ''}
+                          {vs.vsAvgPct.toFixed(1)}% so với TB)
+                        </span>
+                      )}{' '}
+                      ·{' '}
                       <span className={isTransfer ? 'text-sky-600 dark:text-sky-400' : 'text-amber-600 dark:text-amber-400'}>
                         {isTransfer ? 'Chuyển tài sản' : 'Hỗ trợ GĐ'}
                       </span>

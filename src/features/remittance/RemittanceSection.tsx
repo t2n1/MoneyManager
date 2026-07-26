@@ -123,7 +123,7 @@ export function RemittanceSection({
                 </b>
                 .
               </p>
-              <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+              <p className="mt-1 text-[0.6875rem] text-gray-400 dark:text-gray-500">
                 Khoảng cách giữa hai lần này là cái giá của việc chọn thời điểm. Chênh lệch lớn thì
                 lần sau nên chia nhỏ ra gửi nhiều đợt thay vì dồn một cục.
               </p>

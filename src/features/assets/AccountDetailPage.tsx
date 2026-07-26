@@ -266,7 +266,7 @@ export function AccountDetailPage() {
               )}
               {shelter.remaining === 0 && <> · đã dùng hết hạn mức</>}
             </p>
-            <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+            <p className="mt-0.5 text-[0.6875rem] text-gray-400 dark:text-gray-500">
               Hạn mức tính theo năm dương lịch và không dồn sang năm sau. Rút tiền ra giữa năm cũng
               không hoàn lại phần hạn mức đã dùng.
             </p>

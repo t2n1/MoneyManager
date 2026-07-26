@@ -58,7 +58,7 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
             <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-200">
               {item.note || 'Khoản định kỳ'}
             </span>
-            <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
+            <span className="shrink-0 text-[0.6875rem] text-gray-400 dark:text-gray-500">
               {FREQ_LABEL[item.frequency]}
             </span>
             <span className="w-20 shrink-0 text-right font-medium tabular-nums text-gray-800 dark:text-gray-100">
@@ -68,13 +68,13 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
         ))}
       </ul>
       {data.items.length > 6 && (
-        <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+        <p className="mt-1 text-[0.6875rem] text-gray-400 dark:text-gray-500">
           …và {data.items.length - 6} khoản nhỏ hơn.
         </p>
       )}
 
       {data.hasMissingRate && (
-        <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-300">
+        <p className="mt-2 text-[0.6875rem] text-amber-700 dark:text-amber-300">
           Một khoản ngoại tệ chưa quy đổi được nên tổng có thể thiếu.
         </p>
       )}

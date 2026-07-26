@@ -59,7 +59,7 @@ export function ParetoCard({ slices, categories, base, periodNoun }: Props) {
       </ul>
 
       {tail > 0 && (
-        <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+        <p className="mt-2 text-[0.6875rem] text-gray-500 dark:text-gray-400">
           {tail} danh mục còn lại gộp lại chỉ chiếm {Math.round((1 - pareto.share) * 100)}%.
         </p>
       )}

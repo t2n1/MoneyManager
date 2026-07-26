@@ -101,7 +101,7 @@ export function NetCashflowCard({ series, base, title, labelOf }: Props) {
       </div>
 
       {/* Tóm tắt bằng CHỮ — không để người dùng phải suy ra từ màu cột (a11y) */}
-      <p className="mt-2 text-center text-[11px] text-gray-500 dark:text-gray-400">
+      <p className="mt-2 text-center text-[0.6875rem] text-gray-500 dark:text-gray-400">
         Tổng ròng{' '}
         <span
           className={

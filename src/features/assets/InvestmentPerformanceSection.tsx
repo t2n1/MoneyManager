@@ -147,7 +147,7 @@ export function InvestmentPerformanceSection({ accounts, base }: Props) {
           <b className="tabular-nums">{money(Math.abs(growth))}</b>
         </span>
       </div>
-      <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+      <p className="mt-1 text-[0.6875rem] text-gray-500 dark:text-gray-400">
         Giá trị hiện tại {money(currentValue)}
         {perf.withdrawn > 0 && <> · đã rút ra {money(perf.withdrawn)} trong kỳ</>}.
       </p>
@@ -167,16 +167,16 @@ export function InvestmentPerformanceSection({ accounts, base }: Props) {
             >
               {row.value === null ? '—' : signPct(row.value)}
             </p>
-            <p className="mt-0.5 text-[11px] font-medium text-gray-600 dark:text-gray-300">
+            <p className="mt-0.5 text-[0.6875rem] font-medium text-gray-600 dark:text-gray-300">
               {row.label}
             </p>
-            <p className="mt-0.5 text-[10px] leading-tight text-gray-400 dark:text-gray-500">
+            <p className="mt-0.5 text-[0.625rem] leading-tight text-gray-400 dark:text-gray-500">
               {row.note}
             </p>
           </div>
         ))}
       </div>
-      <p className="mt-1 text-center text-[11px] text-gray-400 dark:text-gray-500">mỗi năm</p>
+      <p className="mt-1 text-center text-[0.6875rem] text-gray-400 dark:text-gray-500">mỗi năm</p>
 
       {perf.annualReturn === null && (
         <p className="mt-2 rounded-lg bg-gray-50 px-2.5 py-2 text-xs text-gray-500 dark:bg-gray-950 dark:text-gray-400">
@@ -187,13 +187,13 @@ export function InvestmentPerformanceSection({ accounts, base }: Props) {
       )}
 
       {hasMissingRate && (
-        <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-300">
+        <p className="mt-2 text-[0.6875rem] text-amber-700 dark:text-amber-300">
           Một phần dòng tiền ngoại tệ chưa quy đổi được nên tỷ suất có thể lệch.
         </p>
       )}
 
       {profile?.annual_inflation_bps == null && (
-        <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+        <p className="mt-2 text-[0.6875rem] text-gray-500 dark:text-gray-400">
           <Link to="/settings" className="font-medium text-green-700 dark:text-green-400">
             Khai mức lạm phát trong Cài đặt
           </Link>{' '}

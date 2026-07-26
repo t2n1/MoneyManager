@@ -157,7 +157,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
               className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
               aria-hidden="true"
             >
-              <span className="text-[10px] leading-none text-gray-500 dark:text-gray-400">Tổng chi</span>
+              <span className="text-[0.625rem] leading-none text-gray-500 dark:text-gray-400">Tổng chi</span>
               <span className="mt-0.5 text-sm font-bold leading-none tabular-nums text-gray-800 dark:text-gray-100">
                 {formatCompact(totalExpense, base)}
               </span>

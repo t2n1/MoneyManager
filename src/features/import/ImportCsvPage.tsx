@@ -301,7 +301,7 @@ export function ImportCsvPage() {
                       khoản khác. Nhập vào sẽ làm phồng cả Chi lẫn Thu, nên mặc định bỏ qua.
                     </span>
                   </label>
-                  <ul className="mt-1.5 space-y-0.5 pl-6 text-[11px] text-amber-700 dark:text-amber-400">
+                  <ul className="mt-1.5 space-y-0.5 pl-6 text-[0.6875rem] text-amber-700 dark:text-amber-400">
                     {transferCandidates.slice(0, 5).map((c) => {
                       const it = preview.items.find((x) => x.key === c.key)
                       return (

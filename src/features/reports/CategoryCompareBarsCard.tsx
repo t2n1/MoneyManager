@@ -37,12 +37,12 @@ export function CategoryCompareBarsCard({ rows, categories, base, limit = 8 }: P
                   {formatMoney(row.thisMonth, base)}
                 </span>
                 {row.isNew ? (
-                  <span className="shrink-0 rounded bg-sky-50 dark:bg-sky-900/40 px-1 text-[10px] text-sky-600 dark:text-sky-300">
+                  <span className="shrink-0 rounded bg-sky-50 dark:bg-sky-900/40 px-1 text-[0.625rem] text-sky-600 dark:text-sky-300">
                     mới
                   </span>
                 ) : row.deltaPct !== null && row.deltaPct !== 0 ? (
                   <span
-                    className={`shrink-0 text-[11px] ${row.deltaPct > 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}
+                    className={`shrink-0 text-[0.6875rem] ${row.deltaPct > 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}
                   >
                     {row.deltaPct > 0 ? '▲' : '▼'}
                     {Math.abs(row.deltaPct)}%
@@ -69,7 +69,7 @@ export function CategoryCompareBarsCard({ rows, categories, base, limit = 8 }: P
           )
         })}
       </ul>
-      <div className="mt-3 flex items-center justify-end gap-3 text-[10px] text-gray-500 dark:text-gray-400">
+      <div className="mt-3 flex items-center justify-end gap-3 text-[0.625rem] text-gray-500 dark:text-gray-400">
         <span className="flex items-center gap-1">
           <span className="h-2 w-3 rounded-sm bg-sky-500" /> Tháng này
         </span>

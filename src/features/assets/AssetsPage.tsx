@@ -445,7 +445,7 @@ export function AssetsPage() {
                       Trả {g.cardCount} thẻ từ {g.sourceName}
                     </span>
                     <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold ${
                         g.enough
                           ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                           : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
@@ -489,14 +489,14 @@ export function AssetsPage() {
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-700 dark:text-gray-300">
                         {c.name}
                         {!c.includeInTotals && (
-                          <span className="ml-1 text-[10px] font-normal text-gray-500 dark:text-gray-400">
+                          <span className="ml-1 text-[0.625rem] font-normal text-gray-500 dark:text-gray-400">
                             (ngoài tổng)
                           </span>
                         )}
                       </span>
                       {owed > 0 && f && (
                         <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold ${
                             f.enough
                               ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                               : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
@@ -635,7 +635,7 @@ export function AssetsPage() {
                 <span className="text-2xl font-bold leading-none text-gray-800 dark:text-gray-100">
                   {pieData.length}
                 </span>
-                <span className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                <span className="mt-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">
                   {GROUP_NOUN[groupMode]}
                 </span>
               </div>
@@ -653,7 +653,7 @@ export function AssetsPage() {
                   />
                   <span className="font-medium text-gray-700 dark:text-gray-300">{g.name}</span>
                   {!g.includeInTotals && (
-                    <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400">
+                    <span className="text-[0.625rem] font-normal text-gray-500 dark:text-gray-400">
                       (ngoài tổng)
                     </span>
                   )}
@@ -686,11 +686,11 @@ export function AssetsPage() {
             <div className="flex items-center justify-between px-4 py-3">
               <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100">
                 <span className="truncate">{g.name}</span>
-                <span className="shrink-0 rounded-full bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                <span className="shrink-0 rounded-full bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[0.625rem] font-medium text-gray-500 dark:text-gray-400">
                   {g.accounts.length}
                 </span>
                 {!g.includeInTotals && (
-                  <span className="shrink-0 text-[10px] font-normal text-gray-500 dark:text-gray-400">(ngoài tổng)</span>
+                  <span className="shrink-0 text-[0.625rem] font-normal text-gray-500 dark:text-gray-400">(ngoài tổng)</span>
                 )}
               </span>
               {/* Tỷ trọng trong Tổng tài sản — chuyển từ chú giải biểu đồ xuống đây,
@@ -742,11 +742,11 @@ export function AssetsPage() {
                         {a.name}
                         <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">{a.currency}</span>
                         {!a.includeInTotals && (
-                          <span className="ml-1 text-[10px] text-gray-500 dark:text-gray-400">(ngoài tổng)</span>
+                          <span className="ml-1 text-[0.625rem] text-gray-500 dark:text-gray-400">(ngoài tổng)</span>
                         )}
                         {a.marketValue != null && a.marketValue !== a.balance && (
                           <span
-                            className={`ml-1 text-[10px] tabular-nums ${
+                            className={`ml-1 text-[0.625rem] tabular-nums ${
                               a.marketValue > a.balance
                                 ? 'text-green-600 dark:text-green-400'
                                 : 'text-red-600 dark:text-red-400'

@@ -7,6 +7,9 @@
 html {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  /* Cỡ chữ toàn app: --app-font-scale do Cài đặt → Cỡ chữ đặt lên <html>.
+     Mọi cỡ chữ/khoảng cách theo rem của Tailwind co giãn theo 1rem này. */
+  font-size: calc(16px * var(--app-font-scale, 1));
 }
 
 /* Khung app cố định chiều cao, cuộn nằm trong <main>. Chặn overscroll để trang
@@ -36,7 +39,7 @@ html.dark
   input:not([type='checkbox']):not([type='radio']),
   select,
   textarea {
-    font-size: 16px;
+    font-size: max(16px, 1rem);
   }
 }
 

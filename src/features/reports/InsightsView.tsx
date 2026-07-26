@@ -194,19 +194,19 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
             >
               {rate === null ? '—' : `${Math.round(rate * 100)}%`}
             </div>
-            <div className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Tỷ lệ tiết kiệm</div>
+            <div className="mt-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">Tỷ lệ tiết kiệm</div>
           </div>
           <div className="rounded-xl bg-white dark:bg-gray-900 p-3 text-center shadow-sm">
             <div className="text-lg font-bold text-gray-800 dark:text-gray-100">
               {forecast ? `${forecastApprox ? '≈' : ''}${formatCompact(forecast.projected, base)}` : '—'}
             </div>
-            <div className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Dự báo cuối tháng</div>
+            <div className="mt-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">Dự báo cuối tháng</div>
           </div>
           <div className="rounded-xl bg-white dark:bg-gray-900 p-3 text-center shadow-sm">
             <div className="text-lg font-bold text-gray-800 dark:text-gray-100">
               {streak !== null ? streak : '—'}
             </div>
-            <div className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">Ngày không chi</div>
+            <div className="mt-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">Ngày không chi</div>
           </div>
         </section>
       )}

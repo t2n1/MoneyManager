@@ -28,6 +28,14 @@
         } catch (e) {}
       })()
 
+      // Áp cỡ chữ đã lưu ngay trước khi vẽ để tránh nhảy layout
+      ;(function () {
+        try {
+          var s = { sm: 0.9, md: 1, lg: 1.1, xl: 1.25 }[localStorage.getItem('font-scale')]
+          if (s) document.documentElement.style.setProperty('--app-font-scale', String(s))
+        } catch (e) {}
+      })()
+
       // Chặn chụm/xòe 2 ngón để phóng to trên iPhone (Safari bỏ qua user-scalable)
       ;(function () {
         try {

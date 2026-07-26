@@ -192,13 +192,13 @@ export function DebtDetailPage() {
                   {isAdvance ? (
                     <span className="text-blue-600 dark:text-blue-400">
                       + {formatMoney(-p.amount, debt.currency)}
-                      <span className="ml-1 text-[10px] font-normal text-blue-500/80">{advanceLabel}</span>
+                      <span className="ml-1 text-[0.625rem] font-normal text-blue-500/80">{advanceLabel}</span>
                     </span>
                   ) : (
                     formatMoney(p.amount, debt.currency)
                   )}
                   {!p.transaction_id && (
-                    <span className="ml-1 text-[10px] font-normal text-gray-500 dark:text-gray-400">(ghi nhận suông)</span>
+                    <span className="ml-1 text-[0.625rem] font-normal text-gray-500 dark:text-gray-400">(ghi nhận suông)</span>
                   )}
                 </p>
                 <p className="truncate text-xs text-gray-500 dark:text-gray-400">
@@ -287,25 +287,25 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
       <div className="rounded-xl bg-white dark:bg-gray-900 p-4 shadow-sm">
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">Mỗi kỳ</p>
+            <p className="text-[0.6875rem] text-gray-500 dark:text-gray-400">Mỗi kỳ</p>
             <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
               {formatMoney(schedule.monthly, cur)}
             </p>
           </div>
           <div>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">Tổng lãi</p>
+            <p className="text-[0.6875rem] text-gray-500 dark:text-gray-400">Tổng lãi</p>
             <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">
               {formatMoney(schedule.totalInterest, cur)}
             </p>
           </div>
           <div>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">Tổng phải trả</p>
+            <p className="text-[0.6875rem] text-gray-500 dark:text-gray-400">Tổng phải trả</p>
             <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
               {formatMoney(schedule.totalPaid, cur)}
             </p>
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+        <p className="mt-2 text-[0.6875rem] text-gray-500 dark:text-gray-400">
           {(bps! / 100).toString()}%/năm · {term} kỳ · ước tính theo niên kim (thực tế có thể lệch chút)
         </p>
 

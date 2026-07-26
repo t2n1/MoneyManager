@@ -72,7 +72,7 @@ export function HealthMetricCard({
     <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</h3>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${BADGE[verdict]}`}>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium ${BADGE[verdict]}`}>
           {VERDICT_LABELS[verdict]}
         </span>
       </div>
@@ -108,7 +108,7 @@ export function HealthMetricCard({
               {zoneLabels.map((label, i) => (
                 <span
                   key={label + i}
-                  className="absolute -translate-x-1/2 text-[10px] tabular-nums text-gray-400 dark:text-gray-500"
+                  className="absolute -translate-x-1/2 text-[0.625rem] tabular-nums text-gray-400 dark:text-gray-500"
                   style={{ left: `${(zones[i].upTo / max) * 100}%` }}
                 >
                   {label}

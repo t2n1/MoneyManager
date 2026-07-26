@@ -142,7 +142,7 @@ export function SavingsGoalsSection() {
 
                 {/* Dự báo: bao giờ đạt với tốc độ hiện tại */}
                 {!f.done && (
-                  <p className="mt-1 text-[11px] leading-relaxed">
+                  <p className="mt-1 text-[0.6875rem] leading-relaxed">
                     {f.etaMonth === null ? (
                       <span className="text-gray-400 dark:text-gray-500">
                         {f.monthlyGrowth < 0
@@ -172,7 +172,7 @@ export function SavingsGoalsSection() {
       )}
 
       {earmarked.total > 0 && (
-        <p className="mt-3 border-t border-gray-100 pt-2.5 text-[11px] leading-relaxed text-gray-500 dark:border-gray-800 dark:text-gray-400">
+        <p className="mt-3 border-t border-gray-100 pt-2.5 text-[0.6875rem] leading-relaxed text-gray-500 dark:border-gray-800 dark:text-gray-400">
           <b className="tabular-nums text-gray-700 dark:text-gray-200">
             {earmarked.hasMissingRate ? '≈ ' : ''}
             {formatMoney(earmarked.total, base)}

@@ -99,7 +99,7 @@ export function CalendarView({
     <div className="flex flex-col gap-3">
       <div className="rounded-xl bg-white dark:bg-gray-900 p-2 shadow-sm">
         {/* Nhãn thứ */}
-        <div className="grid grid-cols-7 text-center text-[11px] font-medium text-gray-500 dark:text-gray-400">
+        <div className="grid grid-cols-7 text-center text-[0.6875rem] font-medium text-gray-500 dark:text-gray-400">
           {WEEKDAYS_SHORT.map((w, i) => (
             <div key={w} className={`py-1 ${i === 0 ? 'text-red-400' : ''}`}>
               {w}
@@ -124,7 +124,7 @@ export function CalendarView({
                 }`}
               >
                 <span
-                  className={`text-[11px] leading-none ${
+                  className={`text-[0.6875rem] leading-none ${
                     isToday
                       ? 'flex h-4 w-4 items-center justify-center rounded-full bg-green-600 font-bold text-white'
                       : i % 7 === 0
@@ -134,7 +134,7 @@ export function CalendarView({
                 >
                   {dayLabel(iso)}
                 </span>
-                <span className="mt-auto flex flex-col items-end gap-px text-[9px] leading-tight tabular-nums">
+                <span className="mt-auto flex flex-col items-end gap-px text-[0.5625rem] leading-tight tabular-nums">
                   {sums && sums.income > 0 && (
                     <span className="break-all text-green-600 dark:text-green-400">{formatMoney(sums.income, base)}</span>
                   )}

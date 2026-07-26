@@ -39,7 +39,7 @@ function Card({
     <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</h2>
-        {hint && <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">{hint}</span>}
+        {hint && <span className="shrink-0 text-[0.6875rem] text-gray-400 dark:text-gray-500">{hint}</span>}
       </div>
       {children}
     </section>
@@ -356,7 +356,7 @@ export function TrendsView() {
               này chiếm {Math.round(inflation.coverage * 100)}% tổng chi năm nay.
             </p>
             {inflation.coverage < 0.5 && (
-              <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[0.6875rem] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
                 Rổ chung chỉ chiếm dưới một nửa chi tiêu nên con số này chỉ mang tính tham khảo — chi
                 tiêu năm nay khác năm ngoái khá nhiều.
               </p>
@@ -411,7 +411,7 @@ export function TrendsView() {
               <b>{Math.round(elasticity.marginalSpend * 100)} đồng</b> và giữ lại{' '}
               {Math.round((1 - elasticity.marginalSpend) * 100)} đồng.
             </p>
-            <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+            <p className="mt-2 text-[0.6875rem] text-gray-500 dark:text-gray-400">
               Trung bình mỗi tháng: thu {money(elasticity.incomeBefore)} →{' '}
               {money(elasticity.incomeAfter)}, chi {money(elasticity.expenseBefore)} →{' '}
               {money(elasticity.expenseAfter)}.
@@ -437,7 +437,7 @@ export function TrendsView() {
         )}
       </Card>
 
-      <p className="px-1 pb-2 text-center text-[11px] text-gray-400 dark:text-gray-500">
+      <p className="px-1 pb-2 text-center text-[0.6875rem] text-gray-400 dark:text-gray-500">
         Số liệu tính trên {monthsWithData} tháng có giao dịch, quy đổi về {base}.
       </p>
     </div>

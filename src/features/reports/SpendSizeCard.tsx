@@ -38,7 +38,7 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
           Một lần chi to cỡ nào
         </h2>
-        <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
+        <span className="shrink-0 text-[0.6875rem] text-gray-400 dark:text-gray-500">
           {data.count} lần chi {periodNoun}
         </span>
       </div>
@@ -55,9 +55,9 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
                 </span>
               </div>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
-                <span className="text-[11px] text-gray-400 dark:text-gray-500">{row.note}</span>
+                <span className="text-[0.6875rem] text-gray-400 dark:text-gray-500">{row.note}</span>
                 {hours !== null && (
-                  <span className="shrink-0 text-[11px] font-medium text-sky-600 dark:text-sky-400">
+                  <span className="shrink-0 text-[0.6875rem] font-medium text-sky-600 dark:text-sky-400">
                     ≈ {hoursLabel(hours)}
                   </span>
                 )}
@@ -68,14 +68,14 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
       </ul>
 
       {skewed && (
-        <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+        <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[0.6875rem] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
           Trung bình ({money(data.mean)}) cao hơn hẳn mức điển hình ({money(data.median)}) — vài
           khoản lớn đang kéo con số trung bình lên. Nhìn trung vị sẽ sát đời thực hơn.
         </p>
       )}
 
       {hourlyWage === null && (
-        <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+        <p className="mt-2 text-[0.6875rem] text-gray-500 dark:text-gray-400">
           Muốn thấy “món này = mấy giờ làm”?{' '}
           <Link to="/settings" className="font-medium text-green-700 dark:text-green-400">
             Khai lương theo giờ trong Cài đặt

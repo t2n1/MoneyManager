@@ -50,7 +50,7 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
         <p className="py-10 text-center text-gray-500 dark:text-gray-400">Đang tải…</p>
       ) : (
         <div className="overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
-          <div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-2 border-b border-gray-100 dark:border-gray-800 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          <div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-2 border-b border-gray-100 dark:border-gray-800 px-3 py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
             <span>Tháng</span>
             <span className="text-right">Thu</span>
             <span className="text-right">Chi</span>

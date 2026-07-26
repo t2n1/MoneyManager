@@ -31,7 +31,7 @@ export function AxisTargetsCard({ data, base }: Props) {
         </h2>
         <Link
           to="/settings?edit=profile"
-          className="shrink-0 text-[11px] font-medium text-green-700 dark:text-green-400"
+          className="shrink-0 text-[0.6875rem] font-medium text-green-700 dark:text-green-400"
         >
           Đổi mốc
         </Link>
@@ -80,7 +80,7 @@ export function AxisTargetsCard({ data, base }: Props) {
                   {l.direction === 'cap' ? 'trần' : 'sàn'} {formatMoney(l.target, base)}
                 </span>
               </div>
-              <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">{HINT[l.key]}</p>
+              <p className="mt-0.5 text-[0.6875rem] text-gray-400 dark:text-gray-500">{HINT[l.key]}</p>
             </li>
           )
         })}

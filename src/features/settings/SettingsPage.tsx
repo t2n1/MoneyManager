@@ -18,6 +18,7 @@ import { useProfile } from '../../hooks/queries'
 import { isDemoMode } from '../../lib/demo'
 import { confirmDialog } from '../../lib/dialog'
 import { getSupabase } from '../../lib/supabase'
+import { FontSizeToggle } from './FontSizeToggle'
 import { ProfileEditSheet } from './ProfileEditSheet'
 import { ThemeToggle } from './ThemeToggle'
 
@@ -126,6 +127,8 @@ export function SettingsPage() {
       </section>
 
       <ThemeToggle />
+
+      <FontSizeToggle />
 
       <section className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-900">
         <Link

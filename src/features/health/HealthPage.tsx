@@ -226,7 +226,7 @@ export function HealthPage() {
         ).map(([key, count, cls]) => (
           <div key={key} className="rounded-xl bg-white p-3 text-center shadow-sm dark:bg-gray-900">
             <p className={`text-xl font-bold tabular-nums ${cls}`}>{count}</p>
-            <p className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+            <p className="mt-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">
               {VERDICT_LABELS[key]}
             </p>
           </div>

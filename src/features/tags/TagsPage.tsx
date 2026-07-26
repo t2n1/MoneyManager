@@ -113,7 +113,7 @@ export function TagsPage() {
                   aria-label={`Tên nhãn ${t.name}`}
                   className="min-h-9 min-w-0 flex-1 rounded-lg border border-transparent px-2 py-1 text-sm text-gray-800 outline-green-500 hover:border-gray-300 dark:text-gray-100 dark:hover:border-gray-700"
                 />
-                <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
+                <span className="shrink-0 text-[0.6875rem] text-gray-400 dark:text-gray-500">
                   {usageOf(t.id)} giao dịch
                 </span>
                 <button

@@ -584,7 +584,7 @@ function AccountForm({ account, onClose }: FormProps) {
                   placeholder={formatMoney(0, currency)}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right text-sm outline-green-500 dark:border-gray-700"
                 />
-                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-[0.6875rem] text-gray-500 dark:text-gray-400">
                   App đếm tiền bạn chuyển vào tài khoản này trong năm và cho biết còn bao nhiêu hạn
                   mức chưa dùng.
                 </p>
@@ -636,7 +636,7 @@ function AccountForm({ account, onClose }: FormProps) {
               placeholder={formatMoney(0, currency)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right text-sm outline-green-500 dark:border-gray-700"
             />
-            <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-[0.6875rem] text-gray-500 dark:text-gray-400">
               Ví dụ xe 5 năm về 0: 60 tháng, còn lại 0. Xe vẫn bán được giá thì điền số bán ước tính.
               Bỏ trống ngày mua hoặc số tháng = không khấu hao tự động.
             </p>

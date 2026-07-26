@@ -68,7 +68,7 @@ export function TagBreakdownCard({
     <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Chi theo nhãn</h2>
-        <span className="shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
+        <span className="shrink-0 text-[0.6875rem] text-gray-400 dark:text-gray-500">
           {taggedPct}% chi tiêu có nhãn
         </span>
       </div>
@@ -98,7 +98,7 @@ export function TagBreakdownCard({
                     style={{ width: `${max > 0 ? (s.amount / max) * 100 : 0}%` }}
                   />
                 </div>
-                <span className="flex w-24 shrink-0 items-center justify-end gap-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+                <span className="flex w-24 shrink-0 items-center justify-end gap-0.5 text-[0.6875rem] text-gray-400 dark:text-gray-500">
                   {s.count} khoản
                   <ChevronRight className="h-3.5 w-3.5" aria-hidden />
                 </span>

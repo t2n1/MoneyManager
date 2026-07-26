@@ -38,8 +38,8 @@ export function ClassifyCategoriesPage() {
         chi tiêu ở Báo cáo. Thay đổi được lưu ngay.
       </p>
 
-      <label className="mb-3 flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-300">
-        <input type="checkbox" checked={onlyTodo} onChange={(e) => setOnlyTodo(e.target.checked)} />
+      <label className="mb-3 min-h-11 flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+        <input type="checkbox" className="h-5 w-5" checked={onlyTodo} onChange={(e) => setOnlyTodo(e.target.checked)} />
         Chỉ hiện chưa phân loại ({todoCount})
       </label>
 

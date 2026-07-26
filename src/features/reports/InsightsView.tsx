@@ -8,6 +8,7 @@ import {
   useProfile,
   useRangeTransactions,
   useRates,
+  useRecurringRules,
 } from '../../hooks/queries'
 import {
   addDaysISO,
@@ -32,6 +33,17 @@ import { SavingsRateTrendCard } from './SavingsRateTrendCard'
 import { SpendVsBudgetCard } from './SpendVsBudgetCard'
 import { SpendHeatmapCard } from './SpendHeatmapCard'
 import { CategoryCompareBarsCard } from './CategoryCompareBarsCard'
+import { ParetoCard } from './ParetoCard'
+import { SpendSizeCard } from './SpendSizeCard'
+import { SpendRhythmCard } from './SpendRhythmCard'
+import { SubscriptionsCard } from './SubscriptionsCard'
+import {
+  detectPaydays,
+  paydayEffect,
+  spendPercentiles,
+  subscriptionSummary,
+  weekdayProfile,
+} from './behavior'
 
 export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
   const { data: profile } = useProfile()
@@ -154,6 +166,47 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
     [monthTxs, historyTxs, accounts, base, rates],
   )
   const anomalies = anomalyResult.anomalies.slice(0, 5)
+
+  // --- Hành vi chi tiêu: tính trên cả 6 tháng để mẫu đủ lớn, không chỉ 1 tháng ---
+  const { data: recurringRules = [] } = useRecurringRules()
+  const sixMonthDaily = useMemo(
+    () =>
+      dailyExpenseTotals(
+        rangeTxs,
+        sixMonthRange.start,
+        addDaysISO(sixMonthRange.end, -1),
+        currencyOf,
+        base,
+        r,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rangeTxs, sixMonthRange, accounts, base, rates],
+  )
+  const sizes = useMemo(
+    () => spendPercentiles(rangeTxs, currencyOf, base, r),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rangeTxs, accounts, base, rates],
+  )
+  const PAYDAY_WINDOW = 3
+  const rhythm = useMemo(() => {
+    const paydays = detectPaydays(rangeTxs, currencyOf, base, r)
+    return {
+      payday: paydayEffect(sixMonthDaily.points, paydays, PAYDAY_WINDOW),
+      weekdays: weekdayProfile(sixMonthDaily.points),
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeTxs, sixMonthDaily, accounts, base, rates])
+  const subscriptions = useMemo(
+    () => subscriptionSummary(recurringRules, todayISO, currencyOf, base, r),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [recurringRules, todayISO, accounts, base, rates],
+  )
+  // Thu nhập trung bình tháng của 6 tháng có giao dịch — mẫu số cho tỷ trọng thuê bao
+  const activeIncomeMonths = series.points.filter((p) => p.income > 0)
+  const avgMonthlyIncome =
+    activeIncomeMonths.length > 0
+      ? activeIncomeMonths.reduce((s, p) => s + p.income, 0) / activeIncomeMonths.length
+      : 0
 
   const hasMissingRate =
     series.hasMissingRate ||
@@ -295,6 +348,38 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
 
       {/* So sánh chi theo danh mục — bar ngang */}
       <CategoryCompareBarsCard rows={comparison.rows} categories={categories} base={base} />
+
+      {/* Pareto 80/20 của tháng đang xem */}
+      <ParetoCard
+        slices={expenseBreakdown.slices}
+        categories={categories}
+        base={base}
+        periodNoun="tháng này"
+      />
+
+      {/* Độ lớn một khoản chi điển hình (6 tháng cho mẫu đủ lớn) */}
+      <SpendSizeCard
+        data={sizes}
+        base={base}
+        periodNoun="trong 6 tháng"
+        hourlyWage={profile?.hourly_wage ?? null}
+      />
+
+      {/* Nhịp chi tiêu: sau ngày lương & theo thứ */}
+      <SpendRhythmCard
+        payday={rhythm.payday}
+        weekdays={rhythm.weekdays}
+        base={base}
+        windowDays={PAYDAY_WINDOW}
+      />
+
+      {/* Khoản tự động trừ mỗi tháng */}
+      <SubscriptionsCard
+        data={subscriptions}
+        base={base}
+        monthlyIncome={avgMonthlyIncome}
+        hourlyWage={profile?.hourly_wage ?? null}
+      />
 
       {/* Chi tiêu bất thường */}
       {anomalies.length > 0 && (

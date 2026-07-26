@@ -11,7 +11,9 @@ import {
   useUpdateCategory,
 } from '../../hooks/queries'
 import { confirmDialog, showToast } from '../../lib/dialog'
-import type { CategoryRow, CategoryType } from '../../types/database.types'
+import type { CategoryRow, CategoryType, CostType, NeedLevel } from '../../types/database.types'
+import { ClassificationToggle, COST_OPTIONS, NEED_OPTIONS } from './ClassificationToggle'
+import { hasActiveChildren } from './leaf'
 
 // Bảng emoji gợi ý khi thêm/sửa danh mục
 const EMOJI_CHOICES = [
@@ -439,7 +441,7 @@ export function CategoriesPage() {
           parentContext={form.parent}
           defaultType={tab}
           parentOptions={parentOptions}
-          hasChildren={form.category ? childrenOf(form.category.id).length > 0 : false}
+          hasChildren={form.category ? hasActiveChildren(form.category.id, categories) : false}
           onClose={() => setForm(null)}
         />
       )}
@@ -500,6 +502,8 @@ function CategoryForm({
   const [topType, setTopType] = useState<CategoryType>(
     category?.type ?? parentContext?.type ?? defaultType,
   )
+  const [needLevel, setNeedLevel] = useState<NeedLevel | null>(category?.need_level ?? null)
+  const [costType, setCostType] = useState<CostType | null>(category?.cost_type ?? null)
   const [saving, setSaving] = useState(false)
 
   const selectedParent = parentId ? parentOptions.find((p) => p.id === parentId) ?? null : null
@@ -511,6 +515,12 @@ function CategoryForm({
       ? selectedParent.type
       : topType
   const listType = effectiveType
+  // Form cho phép gắn nhãn phân loại khi: đang là (hoặc sẽ là) danh mục Chi và
+  // không còn con đang hoạt động. Khác với `isExpenseLeaf`-style helper trong ./leaf
+  // (dùng cho Chi lá đã lưu, không tính danh mục lưu trữ): ở đây `category` có thể
+  // là null (đang tạo mới — chưa có is_archived), và khi sửa một danh mục Chi đã lưu
+  // trữ, form vẫn cho sửa nhãn để không mất dữ liệu — is_archived cố tình KHÔNG xét.
+  const canClassify = effectiveType === 'expense' && !hasChildren
   const availableParents = parentOptions.filter(
     (p) => p.type === listType && p.id !== category?.id,
   )
@@ -526,6 +536,8 @@ function CategoryForm({
         type: effectiveType,
         icon,
         parent_id: hasChildren ? null : parentId,
+        need_level: canClassify ? needLevel : null,
+        cost_type: canClassify ? costType : null,
       }
       if (category) await update.mutateAsync({ id: category.id, patch: input })
       else await create.mutateAsync(input)
@@ -607,6 +619,23 @@ function CategoryForm({
                 {t === 'expense' ? 'Chi' : 'Thu'}
               </button>
             ))}
+          </div>
+        )}
+
+        {canClassify && (
+          <div className="mb-3 space-y-2">
+            <ClassificationToggle
+              label="Tính chất"
+              options={NEED_OPTIONS}
+              value={needLevel}
+              onChange={setNeedLevel}
+            />
+            <ClassificationToggle
+              label="Loại chi"
+              options={COST_OPTIONS}
+              value={costType}
+              onChange={setCostType}
+            />
           </div>
         )}
 

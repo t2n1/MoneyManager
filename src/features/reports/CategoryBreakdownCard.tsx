@@ -4,6 +4,7 @@ import type { MonthKey } from '../../lib/dates'
 import type { CategoryRow } from '../../types/database.types'
 import { groupByParent, type Breakdown, type CategoryMonthlyPoint } from './aggregate'
 import { CategoryLineChart } from './CategoryLineChart'
+import { BreakdownRow } from './BreakdownRow'
 
 // Bảng màu cho thanh danh mục (lặp lại nếu > 12). Màu chỉ để phân biệt nhanh —
 // nghĩa được truyền tải bằng NHÃN (tên + số tiền + %) nên không phụ thuộc màu.
@@ -53,53 +54,6 @@ interface ParentRow {
 
 // Khoá riêng cho dòng "(trực tiếp)" để không trùng id danh mục thật.
 const directKey = (parentId: string) => `${parentId}::direct`
-
-/** Một hàng danh mục: nhãn + % + số tiền + thanh tỉ lệ. */
-function BreakdownRow({
-  icon,
-  name,
-  pct,
-  value,
-  barPct,
-  color,
-  base,
-  selected = false,
-}: {
-  icon: string
-  name: string
-  pct: number
-  value: number
-  barPct: number
-  color: string
-  base: CurrencyCode
-  selected?: boolean
-}) {
-  return (
-    <div className={selected ? '-m-1 rounded-md bg-gray-100 p-1 dark:bg-gray-800' : ''}>
-      <div className="mb-1 flex items-baseline gap-2 text-sm">
-        <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">
-          {icon ? `${icon} ` : ''}
-          {name}
-        </span>
-        <span className="shrink-0 tabular-nums text-xs text-gray-500 dark:text-gray-400">
-          {pct.toFixed(0)}%
-        </span>
-        <span className="shrink-0 tabular-nums font-medium text-gray-800 dark:text-gray-100">
-          {formatMoney(value, base)}
-        </span>
-      </div>
-      <div
-        className="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
-        role="presentation"
-      >
-        <div
-          className="h-full rounded-full"
-          style={{ width: `${Math.max(barPct, 1.5)}%`, backgroundColor: color }}
-        />
-      </div>
-    </div>
-  )
-}
 
 export function CategoryBreakdownCard({
   breakdown,

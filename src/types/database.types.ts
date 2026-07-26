@@ -9,6 +9,8 @@ import type { RecurringFrequency } from '../lib/recurring'
 
 export type AccountType = 'cash' | 'bank' | 'card' | 'ic' | 'ewallet' | 'investment'
 export type CategoryType = 'expense' | 'income'
+export type NeedLevel = 'essential' | 'flexible'
+export type CostType = 'fixed' | 'variable'
 export type TransactionType = 'expense' | 'income' | 'transfer'
 /** i_owe = mình nợ người ta · owed_to_me = người ta nợ mình */
 export type DebtDirection = 'i_owe' | 'owed_to_me'
@@ -61,6 +63,10 @@ export type CategoryRow = {
   sort_order: number
   is_archived: boolean
   created_at: string
+  /** Chỉ danh mục Chi lá: nhu cầu bắt buộc vs sở thích. null = chưa phân loại */
+  need_level: NeedLevel | null
+  /** Chỉ danh mục Chi lá: chi cố định vs biến đổi. null = chưa phân loại */
+  cost_type: CostType | null
 }
 
 export type TransactionRow = {
@@ -299,10 +305,13 @@ export type Database = {
         Insert: InsertOf<
           CategoryRow,
           'user_id' | 'name' | 'type',
-          'id' | 'icon' | 'parent_id' | 'sort_order' | 'is_archived'
+          'id' | 'icon' | 'parent_id' | 'sort_order' | 'is_archived' | 'need_level' | 'cost_type'
         >
         Update: Partial<
-          Pick<CategoryRow, 'name' | 'type' | 'icon' | 'parent_id' | 'sort_order' | 'is_archived'>
+          Pick<
+            CategoryRow,
+            'name' | 'type' | 'icon' | 'parent_id' | 'sort_order' | 'is_archived' | 'need_level' | 'cost_type'
+          >
         >
         Relationships: []
       }

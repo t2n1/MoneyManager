@@ -9,9 +9,11 @@ import type {
   BudgetRow,
   CategoryRow,
   CategoryType,
+  CostType,
   DebtDirection,
   DebtPaymentRow,
   DebtRow,
+  NeedLevel,
   NetWorthSnapshotRow,
   ProfileRow,
   RecurringRuleRow,
@@ -111,6 +113,9 @@ export interface NewCategory {
   icon: string
   /** null/bỏ trống = danh mục chính; id cha = danh mục con của cha đó */
   parent_id?: string | null
+  /** Chỉ danh mục Chi lá — xem CategoryRow */
+  need_level?: NeedLevel | null
+  cost_type?: CostType | null
 }
 
 export type CategoryPatch = Partial<NewCategory & { is_archived: boolean }>

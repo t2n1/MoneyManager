@@ -7,8 +7,10 @@ import {
   categoryBreakdown,
   categoryComparison,
   categoryMonthlySeries,
+  classificationBreakdown,
   cumulativeDailyBalance,
   dailyExpenseTotals,
+  foldUncategorized,
   groupByParent,
   monthlySeries,
   sumIncomeExpense,
@@ -49,6 +51,8 @@ function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
     sort_order: p.sort_order ?? 0,
     is_archived: p.is_archived ?? false,
     created_at: '',
+    need_level: p.need_level ?? null,
+    cost_type: p.cost_type ?? null,
   }
 }
 
@@ -388,5 +392,94 @@ describe('categoryMonthlySeries', () => {
     const r = categoryMonthlySeries(txs, months, 'expense', new Set(['coffee']), 1, currencyOfUsd, 'JPY', noUsd)
     expect(r.hasMissingRate).toBe(true)
     expect(r.points[1].amount).toBe(0)
+  })
+})
+
+describe('classificationBreakdown', () => {
+  const cats = [
+    cat({ id: 'rent', need_level: 'essential', cost_type: 'fixed' }),
+    cat({ id: 'food', need_level: 'essential', cost_type: 'variable' }),
+    cat({ id: 'fun', need_level: 'flexible', cost_type: 'variable' }),
+    cat({ id: 'sub', need_level: 'flexible', cost_type: 'fixed' }),
+    cat({ id: 'other' }),
+  ]
+
+  it('gom theo cả hai trục và tính emergencyCut = flexible & variable', () => {
+    const r = classificationBreakdown(
+      [
+        { categoryId: 'rent', amount: 1000 },
+        { categoryId: 'food', amount: 400 },
+        { categoryId: 'fun', amount: 300 },
+        { categoryId: 'sub', amount: 100 },
+      ],
+      cats,
+    )
+    expect(r.needEssential).toBe(1400)
+    expect(r.needFlexible).toBe(400)
+    expect(r.needUnclassified).toBe(0)
+    expect(r.costFixed).toBe(1100)
+    expect(r.costVariable).toBe(700)
+    expect(r.emergencyCut).toBe(300) // chỉ 'fun'
+    expect(r.totalExpense).toBe(1800)
+  })
+
+  it('slice có danh mục thiếu nhãn hoặc không tra được → vào Unclassified', () => {
+    const r = classificationBreakdown(
+      [
+        { categoryId: 'other', amount: 500 },
+        { categoryId: 'ghost', amount: 200 }, // không có trong cats
+      ],
+      cats,
+    )
+    expect(r.needUnclassified).toBe(700)
+    expect(r.costUnclassified).toBe(700)
+    expect(r.emergencyCut).toBe(0)
+    expect(r.totalExpense).toBe(700)
+  })
+})
+
+describe('foldUncategorized', () => {
+  const data = {
+    needEssential: 1000,
+    needFlexible: 400,
+    needUnclassified: 100,
+    costFixed: 900,
+    costVariable: 500,
+    costUnclassified: 100,
+    emergencyCut: 200,
+    totalExpense: 1500,
+  }
+
+  it('realExpense = data.totalExpense → không có gì để gộp, giữ nguyên output', () => {
+    const r = foldUncategorized(data, 1500)
+    expect(r).toEqual(data)
+  })
+
+  it('realExpense > data.totalExpense → phần chênh cộng vào cả hai bucket Unclassified', () => {
+    const r = foldUncategorized(data, 1800) // chênh 300 (vd chi không có category_id)
+    expect(r.needUnclassified).toBe(400) // 100 + 300
+    expect(r.costUnclassified).toBe(400) // 100 + 300
+    // các nhóm đã phân loại không đổi
+    expect(r.needEssential).toBe(1000)
+    expect(r.needFlexible).toBe(400)
+    expect(r.costFixed).toBe(900)
+    expect(r.costVariable).toBe(500)
+    expect(r.emergencyCut).toBe(200)
+  })
+
+  it('realExpense < data.totalExpense → không tạo bucket âm (clamp về data.totalExpense)', () => {
+    const r = foldUncategorized(data, 1000) // nhỏ hơn totalExpense 1500
+    expect(r.needUnclassified).toBe(100) // không trừ, giữ nguyên
+    expect(r.costUnclassified).toBe(100)
+    expect(r).toEqual(data)
+  })
+
+  it('bất biến: tổng 2 trục luôn khớp max(realExpense, data.totalExpense)', () => {
+    for (const real of [1500, 1800, 1000, 0]) {
+      const r = foldUncategorized(data, real)
+      const expected = Math.max(real, data.totalExpense)
+      expect(r.needEssential + r.needFlexible + r.needUnclassified).toBe(expected)
+      expect(r.costFixed + r.costVariable + r.costUnclassified).toBe(expected)
+    }
   })
 })

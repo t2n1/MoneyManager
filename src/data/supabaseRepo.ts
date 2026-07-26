@@ -890,6 +890,8 @@ export const supabaseRepo: Repo = {
       parent_id: c.parent_id,
       sort_order: c.sort_order,
       is_archived: c.is_archived,
+      need_level: c.need_level,
+      cost_type: c.cost_type,
     })
     const parents = cats.filter((c) => !c.parent_id)
     const children = cats.filter((c) => c.parent_id)

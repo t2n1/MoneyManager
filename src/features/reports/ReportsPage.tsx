@@ -6,6 +6,8 @@ import { RemittanceSection } from '../remittance/RemittanceSection'
 import { InsightsView } from './InsightsView'
 import { CategoryBreakdownCard } from './CategoryBreakdownCard'
 import { MonthlyBarsCard } from './MonthlyBarsCard'
+import { SpendClassificationCard } from './SpendClassificationCard'
+import { expenseLeaves } from '../categories/leaf'
 import {
   useAccounts,
   useCategories,
@@ -25,7 +27,13 @@ import {
   type MonthKey,
 } from '../../lib/dates'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
-import { categoryBreakdown, categoryMonthlySeries, monthlySeries, sumIncomeExpense } from './aggregate'
+import {
+  categoryBreakdown,
+  categoryMonthlySeries,
+  classificationBreakdown,
+  monthlySeries,
+  sumIncomeExpense,
+} from './aggregate'
 
 /** Đọc 'YYYY-MM' thành MonthKey; null nếu không hợp lệ. */
 function parseYm(s: string | null): MonthKey | null {
@@ -85,6 +93,25 @@ export function ReportsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [monthTxs, kind, accounts, base, rates],
   )
+  const monthSums = useMemo(
+    () => sumIncomeExpense(monthTxs, currencyOf, base, rates ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [monthTxs, accounts, base, rates],
+  )
+  // Thẻ "Cơ cấu chi tiêu" LUÔN dùng số CHI, không phụ thuộc nút gạt Chi/Thu ở thẻ trên.
+  // Khi đang xem Thu thì tính thêm một breakdown chi riêng (cùng dữ liệu đã tải, không gọi mạng).
+  const monthExpenseBreakdown = useMemo(
+    () =>
+      kind === 'expense'
+        ? breakdown
+        : categoryBreakdown(monthTxs, 'expense', currencyOf, base, rates ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [breakdown, kind, monthTxs, accounts, base, rates],
+  )
+  const monthClass = useMemo(
+    () => classificationBreakdown(monthExpenseBreakdown.slices, categories),
+    [monthExpenseBreakdown, categories],
+  )
   const series = useMemo(
     () => monthlySeries(rangeTxs, sixMonths, monthStartDay, currencyOf, base, rates ?? {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -112,6 +139,19 @@ export function ReportsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [yearTxs, kind, accounts, base, rates],
   )
+  // Như chế độ Tháng: thẻ Cơ cấu chi tiêu luôn ăn dữ liệu CHI.
+  const yearExpenseBreakdown = useMemo(
+    () =>
+      kind === 'expense'
+        ? yearBreakdown
+        : categoryBreakdown(yearTxs, 'expense', currencyOf, base, rates ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [yearBreakdown, kind, yearTxs, accounts, base, rates],
+  )
+  const yearClass = useMemo(
+    () => classificationBreakdown(yearExpenseBreakdown.slices, categories),
+    [yearExpenseBreakdown, categories],
+  )
   const yearSeries = useMemo(
     () => monthlySeries(yearTxs, twelveMonths, monthStartDay, currencyOf, base, rates ?? {}),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -122,12 +162,19 @@ export function ReportsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [yearTxs, accounts, base, rates],
   )
+  // Đếm danh mục Chi LÁ chưa phân loại (định nghĩa "lá" dùng chung với màn Phân loại).
+  const unclassifiedCount = useMemo(
+    () => expenseLeaves(categories).filter((c) => c.need_level == null || c.cost_type == null).length,
+    [categories],
+  )
   const yearNet = yearSums.income - yearSums.expense
   const avgExpense = Math.round(yearSums.expense / 12)
   const savingsRate = yearSums.income > 0 ? Math.round((yearNet / yearSums.income) * 100) : null
   const yearApprox = yearSums.hasForeign ? '≈ ' : ''
 
-  const monthMissingRate = breakdown.hasMissingRate || series.hasMissingRate
+  // monthSums nuôi phần Thu của thẻ Cơ cấu chi tiêu → thiếu tỷ giá ở đó cũng phải cảnh báo.
+  const monthMissingRate =
+    breakdown.hasMissingRate || monthSums.hasMissingRate || series.hasMissingRate
   const yearMissingRate =
     yearBreakdown.hasMissingRate || yearSeries.hasMissingRate || yearSums.hasMissingRate
   const showMissingRate =
@@ -263,6 +310,14 @@ export function ReportsPage() {
             lineSeries={lineSeriesMonth}
             lineLabelOf={lineLabelMonth}
           />
+          <SpendClassificationCard
+            data={monthClass}
+            income={monthSums.income}
+            expense={monthSums.expense}
+            base={base}
+            periodNoun="tháng này"
+            unclassifiedCount={unclassifiedCount}
+          />
           <MonthlyBarsCard
             series={series}
             base={base}
@@ -330,6 +385,14 @@ export function ReportsPage() {
             periodNoun="năm này"
             lineSeries={lineSeriesYear}
             lineLabelOf={lineLabelYear}
+          />
+          <SpendClassificationCard
+            data={yearClass}
+            income={yearSums.income}
+            expense={yearSums.expense}
+            base={base}
+            periodNoun="năm này"
+            unclassifiedCount={unclassifiedCount}
           />
           <MonthlyBarsCard
             series={yearSeries}

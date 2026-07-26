@@ -5,7 +5,7 @@ import { useCategories, useUpdateCategory } from '../../hooks/queries'
 import { showToast } from '../../lib/dialog'
 import type { CostType, NeedLevel } from '../../types/database.types'
 import { ClassificationToggle, COST_OPTIONS, NEED_OPTIONS } from './ClassificationToggle'
-import { expenseLeaves } from './leaf'
+import { expenseLeaves, groupLeavesByParent } from './leaf'
 
 type Axis = 'need_level' | 'cost_type'
 /** Giá trị người dùng vừa chọn, chờ máy chủ xác nhận (để toggle ăn ngay). */
@@ -22,6 +22,9 @@ export function ClassifyCategoriesPage() {
     ? leaves.filter((c) => c.need_level == null || c.cost_type == null)
     : leaves
   const todoCount = leaves.filter((c) => c.need_level == null || c.cost_type == null).length
+  // Nhóm theo cha để dễ đọc — lọc trước khi gom nên nhóm rỗng (mọi con bị lọc hết)
+  // sẽ tự biến mất, không hiện tiêu đề trơ trọi.
+  const groups = groupLeavesByParent(rows, categories)
 
   /** Giá trị đang hiển thị: ưu tiên lựa chọn đang chờ lưu (kể cả khi là null = "Chưa"). */
   const shown = <T extends NeedLevel | CostType | null>(id: string, axis: Axis, saved: T): T => {
@@ -81,29 +84,40 @@ export function ClassifyCategoriesPage() {
         Chỉ hiện chưa phân loại ({todoCount})
       </label>
 
-      <div className="flex flex-col gap-2">
-        {rows.map((c) => (
-          <div key={c.id} className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
-            <div className="mb-2 flex items-center gap-2">
-              <span className="text-lg">{c.icon}</span>
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100">
-                {c.name}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <ClassificationToggle
-                groupLabel={`Tính chất — ${c.name}`}
-                options={NEED_OPTIONS}
-                value={shown(c.id, 'need_level', c.need_level)}
-                onChange={(v) => save(c.id, 'need_level', v)}
-              />
-              <ClassificationToggle
-                groupLabel={`Loại chi — ${c.name}`}
-                options={COST_OPTIONS}
-                value={shown(c.id, 'cost_type', c.cost_type)}
-                onChange={(v) => save(c.id, 'cost_type', v)}
-              />
-            </div>
+      <div className="flex flex-col gap-3">
+        {groups.map((g) => (
+          <div key={g.parent ? g.parent.id : `leaf:${g.leaves[0].id}`} className="flex flex-col gap-2">
+            {/* Tiêu đề nhóm: nhãn đọc, không phải hàng bấm được (đối tượng bấm là 2 toggle bên dưới) */}
+            {g.parent && (
+              <div className="flex items-center gap-1.5 px-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                <span className="text-sm">{g.parent.icon}</span>
+                <span className="truncate">{g.parent.name}</span>
+              </div>
+            )}
+            {g.leaves.map((c) => (
+              <div key={c.id} className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-lg">{c.icon}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                    {c.name}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <ClassificationToggle
+                    groupLabel={`Tính chất — ${c.name}`}
+                    options={NEED_OPTIONS}
+                    value={shown(c.id, 'need_level', c.need_level)}
+                    onChange={(v) => save(c.id, 'need_level', v)}
+                  />
+                  <ClassificationToggle
+                    groupLabel={`Loại chi — ${c.name}`}
+                    options={COST_OPTIONS}
+                    value={shown(c.id, 'cost_type', c.cost_type)}
+                    onChange={(v) => save(c.id, 'cost_type', v)}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         ))}
         {rows.length === 0 && (

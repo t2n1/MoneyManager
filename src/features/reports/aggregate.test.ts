@@ -13,6 +13,8 @@ import {
   foldUncategorized,
   groupByParent,
   monthlySeries,
+  netFlowSeries,
+  netFlowSummary,
   sumIncomeExpense,
 } from './aggregate'
 
@@ -481,5 +483,65 @@ describe('foldUncategorized', () => {
       expect(r.needEssential + r.needFlexible + r.needUnclassified).toBe(expected)
       expect(r.costFixed + r.costVariable + r.costUnclassified).toBe(expected)
     }
+  })
+})
+
+describe('netFlowSeries & netFlowSummary', () => {
+  const key = (m: number): MonthKey => ({ year: 2026, month: m })
+  const series = (pts: [number, number, number][]) => ({
+    points: pts.map(([m, income, expense]) => ({ key: key(m), income, expense })),
+    hasMissingRate: false,
+  })
+
+  it('net = thu − chi từng tháng, cumulative dồn từ tháng đầu', () => {
+    const r = netFlowSeries(series([
+      [5, 300_000, 200_000], // +100.000
+      [6, 250_000, 400_000], // −150.000 → dồn −50.000
+      [7, 300_000, 100_000], // +200.000 → dồn +150.000
+    ]))
+    expect(r).toEqual([
+      { key: key(5), net: 100_000, cumulative: 100_000 },
+      { key: key(6), net: -150_000, cumulative: -50_000 },
+      { key: key(7), net: 200_000, cumulative: 150_000 },
+    ])
+  })
+
+  it('tháng trống (thu = chi = 0) cho net 0 và giữ nguyên cumulative', () => {
+    const r = netFlowSeries(series([
+      [6, 200_000, 50_000],
+      [7, 0, 0],
+    ]))
+    expect(r[1]).toEqual({ key: key(7), net: 0, cumulative: 150_000 })
+  })
+
+  it('chuỗi rỗng → mảng rỗng', () => {
+    expect(netFlowSeries(series([]))).toEqual([])
+  })
+
+  it('summary: tổng, trung bình/tháng, số tháng âm, tháng tệ nhất', () => {
+    const pts = netFlowSeries(series([
+      [5, 300_000, 200_000], // +100.000
+      [6, 250_000, 400_000], // −150.000
+      [7, 100_000, 150_000], // −50.000
+    ]))
+    const s = netFlowSummary(pts)
+    expect(s.total).toBe(-100_000) // = cumulative tháng cuối
+    expect(s.avg).toBe(-33_333) // làm tròn
+    expect(s.negativeMonths).toBe(2)
+    expect(s.worst).toEqual({ key: key(6), net: -150_000, cumulative: -50_000 })
+  })
+
+  it('summary: không có tháng âm → negativeMonths 0, worst là tháng thấp nhất', () => {
+    const pts = netFlowSeries(series([
+      [6, 300_000, 100_000], // +200.000
+      [7, 300_000, 250_000], // +50.000
+    ]))
+    const s = netFlowSummary(pts)
+    expect(s.negativeMonths).toBe(0)
+    expect(s.worst?.net).toBe(50_000)
+  })
+
+  it('summary của chuỗi rỗng: 0 và worst null (không chia cho 0)', () => {
+    expect(netFlowSummary([])).toEqual({ total: 0, avg: 0, negativeMonths: 0, worst: null })
   })
 })

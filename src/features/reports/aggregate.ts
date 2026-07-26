@@ -144,6 +144,51 @@ export function monthlySeries(
   return { points, hasMissingRate }
 }
 
+export interface NetFlowPoint {
+  key: MonthKey
+  /** base minor: thu − chi trong tháng, âm là tháng thâm hụt */
+  net: number
+  /** base minor: net dồn từ tháng đầu chuỗi tới tháng này */
+  cumulative: number
+}
+
+/**
+ * Dòng tiền ròng từng tháng (thu − chi) + đường dồn tích, dẫn xuất từ MonthlySeries
+ * nên không cần fetch thêm và thừa hưởng đúng bộ lọc của monthlySeries (bỏ chuyển
+ * khoản, dòng tiền nợ/cho vay, giao dịch loại khỏi thống kê).
+ */
+export function netFlowSeries(series: MonthlySeries): NetFlowPoint[] {
+  let cumulative = 0
+  return series.points.map((p) => {
+    const net = p.income - p.expense
+    cumulative += net
+    return { key: p.key, net, cumulative }
+  })
+}
+
+export interface NetFlowSummary {
+  /** base minor: tổng ròng cả chuỗi */
+  total: number
+  /** base minor: ròng trung bình mỗi tháng (làm tròn) */
+  avg: number
+  negativeMonths: number
+  /** tháng ròng thấp nhất; null nếu chuỗi rỗng */
+  worst: NetFlowPoint | null
+}
+
+/** Vài số tổng kết cho thẻ dòng tiền ròng. Chuỗi rỗng → toàn 0, worst null. */
+export function netFlowSummary(points: NetFlowPoint[]): NetFlowSummary {
+  if (points.length === 0) return { total: 0, avg: 0, negativeMonths: 0, worst: null }
+  const total = points[points.length - 1].cumulative
+  let worst = points[0]
+  let negativeMonths = 0
+  for (const p of points) {
+    if (p.net < 0) negativeMonths++
+    if (p.net < worst.net) worst = p
+  }
+  return { total, avg: Math.round(total / points.length), negativeMonths, worst }
+}
+
 export interface CategoryMonthlyPoint {
   key: MonthKey
   /** base minor */

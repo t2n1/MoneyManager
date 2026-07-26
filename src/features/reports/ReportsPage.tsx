@@ -6,6 +6,7 @@ import { RemittanceSection } from '../remittance/RemittanceSection'
 import { InsightsView } from './InsightsView'
 import { CategoryBreakdownCard } from './CategoryBreakdownCard'
 import { MonthlyBarsCard } from './MonthlyBarsCard'
+import { NetCashflowCard } from './NetCashflowCard'
 import { SpendClassificationCard } from './SpendClassificationCard'
 import { expenseLeaves } from '../categories/leaf'
 import {
@@ -324,6 +325,12 @@ export function ReportsPage() {
             title="Thu / chi 6 tháng gần nhất"
             labelOf={(k) => `${k.month}/${String(k.year).slice(2)}`}
           />
+          <NetCashflowCard
+            series={series}
+            base={base}
+            title="Dòng tiền ròng 6 tháng gần nhất"
+            labelOf={(k) => `${k.month}/${String(k.year).slice(2)}`}
+          />
         </>
       )}
       {period === 'month' && view === 'insights' && <InsightsView monthKey={activeMonthKey} />}
@@ -398,6 +405,12 @@ export function ReportsPage() {
             series={yearSeries}
             base={base}
             title="Thu / chi 12 tháng"
+            labelOf={(k) => String(k.month)}
+          />
+          <NetCashflowCard
+            series={yearSeries}
+            base={base}
+            title="Dòng tiền ròng 12 tháng"
             labelOf={(k) => String(k.month)}
           />
           <RemittanceSection txs={yearTxs} year={activeYear} />

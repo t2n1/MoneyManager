@@ -13,6 +13,7 @@ import {
 import { confirmDialog, showToast } from '../../lib/dialog'
 import type { CategoryRow, CategoryType, CostType, NeedLevel } from '../../types/database.types'
 import { ClassificationToggle, COST_OPTIONS, NEED_OPTIONS } from './ClassificationToggle'
+import { hasActiveChildren } from './leaf'
 
 // Bảng emoji gợi ý khi thêm/sửa danh mục
 const EMOJI_CHOICES = [
@@ -440,7 +441,7 @@ export function CategoriesPage() {
           parentContext={form.parent}
           defaultType={tab}
           parentOptions={parentOptions}
-          hasChildren={form.category ? childrenOf(form.category.id).length > 0 : false}
+          hasChildren={form.category ? hasActiveChildren(form.category.id, categories) : false}
           onClose={() => setForm(null)}
         />
       )}
@@ -514,6 +515,9 @@ function CategoryForm({
       ? selectedParent.type
       : topType
   const listType = effectiveType
+  // Chỉ danh mục Chi LÁ mới gắn được nhãn phân loại (cùng định nghĩa lá với
+  // `isExpenseLeaf` trong ./leaf: cha còn con ĐANG HOẠT ĐỘNG thì không phải lá).
+  const isExpenseLeaf = effectiveType === 'expense' && !hasChildren
   const availableParents = parentOptions.filter(
     (p) => p.type === listType && p.id !== category?.id,
   )
@@ -524,7 +528,6 @@ function CategoryForm({
     if (!canSave) return
     setSaving(true)
     try {
-      const isExpenseLeaf = effectiveType === 'expense' && !hasChildren
       const input: NewCategory = {
         name: name.trim(),
         type: effectiveType,
@@ -616,7 +619,7 @@ function CategoryForm({
           </div>
         )}
 
-        {effectiveType === 'expense' && !hasChildren && (
+        {isExpenseLeaf && (
           <div className="mb-3 space-y-2">
             <ClassificationToggle
               label="Tính chất"

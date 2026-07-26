@@ -17,14 +17,6 @@ export function hasActiveChildren(categoryId: string, categories: CategoryRow[])
   return activeParentIds(categories).has(categoryId)
 }
 
-/**
- * Danh mục Chi "lá": type = 'expense', chưa lưu trữ, và không còn con đang hoạt động.
- * Chỉ danh mục như vậy mới gắn được nhãn phân loại chi tiêu.
- */
-export function isExpenseLeaf(cat: CategoryRow, categories: CategoryRow[]): boolean {
-  return cat.type === 'expense' && !cat.is_archived && !hasActiveChildren(cat.id, categories)
-}
-
 /** Mọi danh mục Chi lá, sắp theo sort_order tăng dần. */
 export function expenseLeaves(categories: CategoryRow[]): CategoryRow[] {
   const parents = activeParentIds(categories)

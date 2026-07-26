@@ -515,9 +515,12 @@ function CategoryForm({
       ? selectedParent.type
       : topType
   const listType = effectiveType
-  // Chỉ danh mục Chi LÁ mới gắn được nhãn phân loại (cùng định nghĩa lá với
-  // `isExpenseLeaf` trong ./leaf: cha còn con ĐANG HOẠT ĐỘNG thì không phải lá).
-  const isExpenseLeaf = effectiveType === 'expense' && !hasChildren
+  // Form cho phép gắn nhãn phân loại khi: đang là (hoặc sẽ là) danh mục Chi và
+  // không còn con đang hoạt động. Khác với `isExpenseLeaf`-style helper trong ./leaf
+  // (dùng cho Chi lá đã lưu, không tính danh mục lưu trữ): ở đây `category` có thể
+  // là null (đang tạo mới — chưa có is_archived), và khi sửa một danh mục Chi đã lưu
+  // trữ, form vẫn cho sửa nhãn để không mất dữ liệu — is_archived cố tình KHÔNG xét.
+  const canClassify = effectiveType === 'expense' && !hasChildren
   const availableParents = parentOptions.filter(
     (p) => p.type === listType && p.id !== category?.id,
   )
@@ -533,8 +536,8 @@ function CategoryForm({
         type: effectiveType,
         icon,
         parent_id: hasChildren ? null : parentId,
-        need_level: isExpenseLeaf ? needLevel : null,
-        cost_type: isExpenseLeaf ? costType : null,
+        need_level: canClassify ? needLevel : null,
+        cost_type: canClassify ? costType : null,
       }
       if (category) await update.mutateAsync({ id: category.id, patch: input })
       else await create.mutateAsync(input)
@@ -619,7 +622,7 @@ function CategoryForm({
           </div>
         )}
 
-        {isExpenseLeaf && (
+        {canClassify && (
           <div className="mb-3 space-y-2">
             <ClassificationToggle
               label="Tính chất"

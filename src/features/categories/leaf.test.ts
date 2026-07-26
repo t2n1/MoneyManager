@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CategoryRow } from '../../types/database.types'
-import { expenseLeaves, hasActiveChildren, isExpenseLeaf } from './leaf'
+import { expenseLeaves, hasActiveChildren } from './leaf'
 
 function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
   return {
@@ -17,48 +17,6 @@ function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
     cost_type: p.cost_type ?? null,
   }
 }
-
-describe('isExpenseLeaf', () => {
-  it('danh mục Chi đứng riêng (không con) là lá', () => {
-    const c = cat({ id: 'an-uong' })
-    expect(isExpenseLeaf(c, [c])).toBe(true)
-  })
-
-  it('danh mục con của một cha vẫn là lá', () => {
-    const parent = cat({ id: 'so-thich' })
-    const child = cat({ id: 'gym', parent_id: 'so-thich' })
-    expect(isExpenseLeaf(child, [parent, child])).toBe(true)
-  })
-
-  it('cha đang có con chưa lưu trữ KHÔNG phải lá', () => {
-    const parent = cat({ id: 'so-thich' })
-    const child = cat({ id: 'gym', parent_id: 'so-thich' })
-    expect(isExpenseLeaf(parent, [parent, child])).toBe(false)
-  })
-
-  it('cha mà con duy nhất đã lưu trữ thì THÀNH lá', () => {
-    const parent = cat({ id: 'so-thich' })
-    const child = cat({ id: 'gym', parent_id: 'so-thich', is_archived: true })
-    expect(isExpenseLeaf(parent, [parent, child])).toBe(true)
-  })
-
-  it('cha còn ít nhất một con chưa lưu trữ vẫn không phải lá', () => {
-    const parent = cat({ id: 'so-thich' })
-    const gone = cat({ id: 'gym', parent_id: 'so-thich', is_archived: true })
-    const alive = cat({ id: 'phim', parent_id: 'so-thich' })
-    expect(isExpenseLeaf(parent, [parent, gone, alive])).toBe(false)
-  })
-
-  it('danh mục đã lưu trữ không phải lá (không cần phân loại)', () => {
-    const c = cat({ id: 'cu', is_archived: true })
-    expect(isExpenseLeaf(c, [c])).toBe(false)
-  })
-
-  it('danh mục Thu không phải lá Chi', () => {
-    const c = cat({ id: 'luong', type: 'income' })
-    expect(isExpenseLeaf(c, [c])).toBe(false)
-  })
-})
 
 describe('hasActiveChildren', () => {
   it('true khi còn con chưa lưu trữ', () => {

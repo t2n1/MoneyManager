@@ -15,12 +15,15 @@ export const COST_OPTIONS = [
 /** Nút gạt 3 lựa chọn cho một trục phân loại (kèm "Chưa" = bỏ trống). */
 export function ClassificationToggle<T extends string | null>({
   label,
+  groupLabel,
   options,
   value,
   onChange,
 }: {
   /** Nhãn phía trên; bỏ trống thì không hiện nhãn */
   label?: string
+  /** Tên nhóm cho screen-reader khi không có nhãn nhìn thấy (mặc định dùng `label`) */
+  groupLabel?: string
   options: readonly (readonly [T, string])[]
   value: T
   onChange: (v: T) => void
@@ -30,7 +33,11 @@ export function ClassificationToggle<T extends string | null>({
       {label && (
         <p className="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
       )}
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-gray-200 p-1 dark:bg-gray-800">
+      <div
+        role="group"
+        aria-label={groupLabel ?? label}
+        className="grid grid-cols-3 gap-1 rounded-xl bg-gray-200 p-1 dark:bg-gray-800"
+      >
         {options.map(([val, text]) => (
           <button
             key={text}

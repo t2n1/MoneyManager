@@ -165,6 +165,9 @@ export type ProfilePatch = Partial<
     | 'hourly_wage'
     | 'annual_inflation_bps'
     | 'capital_gains_tax_bps'
+    | 'target_essential_bps'
+    | 'target_flexible_bps'
+    | 'target_savings_bps'
   >
 >
 

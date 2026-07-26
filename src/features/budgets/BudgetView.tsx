@@ -1,19 +1,30 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import {
+  useAccounts,
   useBudgetReport,
   useBudgets,
   useCategories,
   useCopyBudgetsFromPreviousMonth,
+  useMonthTransactions,
+  useProfile,
   useRates,
 } from '../../hooks/queries'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
-import { formatMoney } from '../../lib/money'
+import { formatMoney, type CurrencyCode } from '../../lib/money'
+import {
+  categoryBreakdown,
+  classificationBreakdown,
+  foldUncategorized,
+  sumIncomeExpense,
+} from '../reports/aggregate'
 import { showToast } from '../../lib/dialog'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { buildBudgetDisplay, type BudgetChildRow } from './budgetDisplay'
 import type { BudgetStatus } from './progress'
 import { MonthPaceCharts, SpendPaceSection, useMonthPace } from '../reports/monthPace'
+import { axisProgress } from './axisTargets'
+import { AxisTargetsCard } from './AxisTargetsCard'
 
 const BAR_COLOR: Record<BudgetStatus, string> = {
   ok: 'bg-green-500',
@@ -54,6 +65,30 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   const copy = useCopyBudgetsFromPreviousMonth()
   // Gọi trước mọi early-return để giữ đúng thứ tự hook
   const pace = useMonthPace(monthKey)
+
+  // --- Cơ cấu chi so với mốc (thiết yếu / linh hoạt / tiết kiệm) ---
+  const { data: profile } = useProfile()
+  const { data: accounts = [] } = useAccounts()
+  const { data: monthTxs = [] } = useMonthTransactions(monthKey)
+  const { rates } = useRates()
+  const axis = useMemo(() => {
+    const currencyOf = (id: string): CurrencyCode =>
+      accounts.find((a) => a.id === id)?.currency ?? base
+    const r = rates ?? {}
+    const sums = sumIncomeExpense(monthTxs, currencyOf, base, r)
+    const expense = categoryBreakdown(monthTxs, 'expense', currencyOf, base, r)
+    // foldUncategorized: khoản chi thiếu danh mục vẫn phải nằm trong "chưa phân loại"
+    const cls = foldUncategorized(
+      classificationBreakdown(expense.slices, categories),
+      sums.expense,
+    )
+    return axisProgress(sums.income, cls, {
+      essentialBps: profile?.target_essential_bps ?? 5000,
+      flexibleBps: profile?.target_flexible_bps ?? 3000,
+      savingsBps: profile?.target_savings_bps ?? 2000,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthTxs, categories, accounts, base, rates, profile])
 
   // Danh mục đang sửa hạn mức (null = đóng sheet)
   const [editing, setEditing] = useState<{
@@ -144,6 +179,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           Một phần chi ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
+
+      {/* Cơ cấu chi theo trục — trả lời "chi thế này có lành mạnh không",
+          khác với dòng tổng bên dưới trả lời "có vượt hạn mức không" */}
+      {axis && <AxisTargetsCard data={axis} base={base} />}
 
       {/* Dòng tổng */}
       <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">

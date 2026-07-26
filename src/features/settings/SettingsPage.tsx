@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ChevronRight,
   Database,
@@ -25,7 +25,9 @@ export function SettingsPage() {
   const { data: profile } = useProfile()
   const qc = useQueryClient()
   const navigate = useNavigate()
-  const [editing, setEditing] = useState(false)
+  // ?edit=profile mở thẳng sheet Hồ sơ (link "Đổi mốc" từ tab Ngân sách)
+  const [searchParams] = useSearchParams()
+  const [editing, setEditing] = useState(() => searchParams.get('edit') === 'profile')
 
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">

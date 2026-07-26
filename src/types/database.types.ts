@@ -29,6 +29,12 @@ export type ProfileRow = {
   annual_inflation_bps: number | null
   /** Thuế lãi vốn áp lên phần lời (basis points); mặc định 2032 = 20.32% (Nhật). */
   capital_gains_tax_bps: number
+  /** Trần chi thiết yếu trên thu nhập tháng (basis points); mặc định 5000 = 50%. */
+  target_essential_bps: number
+  /** Trần chi linh hoạt trên thu nhập tháng (basis points); mặc định 3000 = 30%. */
+  target_flexible_bps: number
+  /** Sàn tiết kiệm trên thu nhập tháng (basis points); mặc định 2000 = 20%. Cần VƯỢT. */
+  target_savings_bps: number
   created_at: string
 }
 
@@ -315,6 +321,9 @@ export type Database = {
           | 'hourly_wage'
           | 'annual_inflation_bps'
           | 'capital_gains_tax_bps'
+          | 'target_essential_bps'
+          | 'target_flexible_bps'
+          | 'target_savings_bps'
         >
         Update: Partial<
           Pick<
@@ -325,6 +334,9 @@ export type Database = {
             | 'hourly_wage'
             | 'annual_inflation_bps'
             | 'capital_gains_tax_bps'
+            | 'target_essential_bps'
+            | 'target_flexible_bps'
+            | 'target_savings_bps'
           >
         >
         Relationships: []

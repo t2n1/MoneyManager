@@ -1,9 +1,10 @@
 // Tổng hợp tài sản theo nhóm — thuần, không phụ thuộc React, để unit-test được.
 // Mọi số dư quy đổi về base currency qua convertToBase; thiếu tỷ giá → hasMissingRate.
 
-import type { CurrencyCode } from '../../lib/money'
+import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { AccountBalanceRow, AccountType } from '../../types/database.types'
+import { depreciate } from './depreciation'
 
 /** Nhãn hiển thị cho tài khoản chưa gán nhóm. */
 export const UNGROUPED_LABEL = 'Chưa phân nhóm'
@@ -34,8 +35,10 @@ export interface AssetAccount {
   currency: CurrencyCode
   /** minor units gốc — số dư sổ (với đầu tư = vốn gốc ròng: nạp − rút) */
   balance: number
-  /** Đầu tư: giá trị thị trường (minor units gốc, snapshot mới nhất); null = không phải đầu tư / chưa cập nhật */
+  /** Đầu tư/tài sản cố định: giá trị hiện hành (snapshot nhập tay, hoặc giá sau khấu hao); null = dùng số dư sổ */
   marketValue: number | null
+  /** Tài sản cố định: khấu hao lũy kế quy đổi base (≥ 0); null = không khấu hao */
+  depreciatedBase: number | null
   /** minor units gốc dùng để hiển thị & cộng tổng = marketValue ?? balance */
   value: number
   /** minor units quy đổi base của `value`; null = thiếu tỷ giá */
@@ -106,6 +109,8 @@ export interface AssetBreakdown {
   cardDebt: number
   /** có thẻ (được tính) thiếu tỷ giá → cardDebt có thể thiếu */
   cardHasMissingRate: boolean
+  /** tổng khấu hao lũy kế của tài sản cố định (base, ≥ 0) */
+  depreciationTotal: number
   /** tổng lãi/lỗ đầu tư chưa thực hiện (base); chỉ cộng tài khoản đầu tư được tính, có snapshot & đủ tỷ giá */
   unrealizedPnl: number
   /** có tài khoản đầu tư (được tính) có snapshot nhưng thiếu tỷ giá → unrealizedPnl có thể thiếu */
@@ -127,6 +132,8 @@ export function assetBreakdown(
   base: CurrencyCode,
   rates: Rates,
   settings: AssetGroupSetting[] = [],
+  /** Hôm nay (ISO) để tính khấu hao tài sản cố định; bỏ trống = không khấu hao. */
+  todayISO?: string,
 ): AssetBreakdown {
   const settingOf = new Map(settings.map((s) => [s.name, s]))
   const groups = new Map<string, AssetAccount[]>()
@@ -138,6 +145,7 @@ export function assetBreakdown(
   let cardHasMissingRate = false
   let unrealizedPnl = 0
   let pnlHasMissingRate = false
+  let depreciationTotal = 0
 
   for (const b of balances) {
     if (b.is_archived) continue
@@ -167,17 +175,34 @@ export function assetBreakdown(
     }
 
     const key = b.asset_group?.trim() || UNGROUPED_LABEL
-    // Đầu tư đã cập nhật giá → giá trị dùng cho tổng là giá thị trường; ngược lại là số dư sổ.
     const isInvestment = b.type === 'investment'
-    const marketValue = isInvestment ? (b.market_value ?? null) : null
+    const isFixed = b.type === 'fixed'
+    // Định giá nhập tay (account_valuations) luôn thắng công thức — người dùng
+    // biết chiếc xe của mình bán được bao nhiêu, app thì không.
+    const snapshot = isInvestment || isFixed ? (b.market_value ?? null) : null
+    // Tài sản cố định chưa có snapshot: rơi về khấu hao tuyến tính nếu đã cấu hình.
+    const auto =
+      isFixed && snapshot == null && todayISO
+        ? depreciate({
+            costBasis: b.cost_basis ?? b.balance,
+            salvageValue: b.salvage_value ?? 0,
+            months: b.depreciation_months ?? null,
+            fromISO: b.depreciation_from ?? null,
+            todayISO,
+          })
+        : null
+    const marketValue = snapshot ?? auto?.currentValue ?? null
     const value = marketValue ?? b.balance
     const baseValue = convertToBase(value, b.currency, base, rates)
-    // Lãi/lỗ chưa thực hiện = base(giá thị trường) − base(vốn gốc). Chỉ khi có snapshot.
+    // Lãi/lỗ chưa thực hiện = base(giá thị trường) − base(vốn gốc). Chỉ cho ĐẦU TƯ:
+    // tài sản cố định mất giá là chuyện đương nhiên, gộp chung sẽ làm méo con số lãi/lỗ.
     let unrealizedPnlBase: number | null = null
-    if (marketValue != null) {
+    if (isInvestment && marketValue != null) {
       const baseCost = convertToBase(b.balance, b.currency, base, rates)
       unrealizedPnlBase = baseValue != null && baseCost != null ? baseValue - baseCost : null
     }
+    const depreciatedBase =
+      auto != null ? convertToBase(auto.accumulated, b.currency, base, rates) : null
     const account: AssetAccount = {
       id: b.id,
       name: b.name,
@@ -185,6 +210,7 @@ export function assetBreakdown(
       currency: b.currency,
       balance: b.balance,
       marketValue,
+      depreciatedBase,
       value,
       baseValue,
       unrealizedPnlBase,
@@ -216,7 +242,8 @@ export function assetBreakdown(
       if (countedAccounts.some((a) => a.baseValue === null)) hasMissingRate = true
       // Lãi/lỗ đầu tư: chỉ cộng tài khoản đầu tư đã có snapshot; thiếu tỷ giá → cảnh báo
       for (const a of countedAccounts) {
-        if (a.marketValue == null) continue
+        if (a.depreciatedBase != null) depreciationTotal += a.depreciatedBase
+        if (a.type !== 'investment' || a.marketValue == null) continue
         if (a.unrealizedPnlBase == null) pnlHasMissingRate = true
         else unrealizedPnl += a.unrealizedPnlBase
       }
@@ -260,6 +287,7 @@ export function assetBreakdown(
     cards,
     cardDebt,
     cardHasMissingRate,
+    depreciationTotal,
     unrealizedPnl,
     pnlHasMissingRate,
   }
@@ -410,6 +438,44 @@ export function assetTypeGroups(breakdown: AssetBreakdown): AssetGroup[] {
     const groupTotal = accounts.reduce((s, a) => s + (a.baseValue ?? 0), 0)
     return {
       name: ACCOUNT_TYPE_LABELS[type],
+      total: groupTotal,
+      share: breakdown.total > 0 ? groupTotal / breakdown.total : 0,
+      accounts,
+      hasMissingRate: accounts.some((a) => a.baseValue === null),
+      includeInTotals: true,
+      hidden: false,
+    }
+  })
+
+  result.sort((a, b) => b.total - a.total)
+  return result
+}
+
+/**
+ * Gom tài sản theo ĐỒNG TIỀN (chế độ xem "Tiền tệ"): trả lời "bao nhiêu phần tài
+ * sản của mình đang nằm ở JPY, bao nhiêu ở VND". Với người Việt ở Nhật thì đây là
+ * chỉ số rủi ro tỷ giá: gần 100% JPY nghĩa là kế hoạch về VN phụ thuộc hoàn toàn
+ * vào tỷ giá lúc chuyển tiền.
+ *
+ * Cùng tập tài khoản với assetTypeGroups nên tổng các lát == Tổng tài sản.
+ */
+export function assetCurrencyGroups(breakdown: AssetBreakdown): AssetGroup[] {
+  const byCurrency = new Map<CurrencyCode, AssetAccount[]>()
+  for (const g of breakdown.groups) {
+    if (!g.includeInTotals || g.hidden) continue
+    for (const a of g.accounts) {
+      if (a.hidden || !a.includeInTotals) continue
+      const list = byCurrency.get(a.currency)
+      if (list) list.push(a)
+      else byCurrency.set(a.currency, [a])
+    }
+  }
+
+  const result: AssetGroup[] = [...byCurrency.entries()].map(([currency, accounts]) => {
+    accounts.sort((a, b) => a.sortOrder - b.sortOrder || (b.baseValue ?? 0) - (a.baseValue ?? 0))
+    const groupTotal = accounts.reduce((s, a) => s + (a.baseValue ?? 0), 0)
+    return {
+      name: CURRENCIES[currency].label,
       total: groupTotal,
       share: breakdown.total > 0 ? groupTotal / breakdown.total : 0,
       accounts,

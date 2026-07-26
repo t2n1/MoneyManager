@@ -10,6 +10,7 @@ import {
   useCategories,
   useDeleteValuation,
   useProfile,
+  useRangeTransactions,
   useRates,
   useSearchTransactions,
 } from '../../hooks/queries'
@@ -25,7 +26,9 @@ import { formatMoney } from '../../lib/money'
 import type { TransactionRow } from '../../types/database.types'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { TransactionItem } from '../transactions/TransactionItem'
+import { depreciate } from './depreciation'
 import { investmentStats } from './investment'
+import { shelterUsage, TAX_SHELTER_LABELS } from './shelter'
 import { ReconcileSheet } from './ReconcileSheet'
 import { ValuationFormSheet } from './ValuationFormSheet'
 import { confirmDialog } from '../../lib/dialog'
@@ -53,8 +56,34 @@ export function AccountDetailPage() {
   const balanceRow = balances.find((b) => b.id === accountId)
   const balance = balanceRow?.balance ?? 0
   const isInvestment = account?.type === 'investment'
+  const isFixed = account?.type === 'fixed'
   // Đầu tư: vốn gốc = balance (sổ), giá thị trường = snapshot mới nhất (view market_value)
   const invStats = investmentStats(balance, isInvestment ? (balanceRow?.market_value ?? null) : null)
+
+  const todayISO = toISODate(new Date())
+  // Tài sản cố định: khấu hao tuyến tính (chỉ hiển thị, giá trị nhập tay vẫn thắng)
+  const dep = isFixed
+    ? depreciate({
+        costBasis: account?.initial_balance ?? 0,
+        salvageValue: account?.salvage_value ?? 0,
+        months: account?.depreciation_months ?? null,
+        fromISO: account?.depreciation_from ?? null,
+        todayISO,
+      })
+    : null
+
+  // Hạn mức nạp NISA/iDeCo — đếm chuyển khoản vào tài khoản trong năm dương lịch
+  const shelterYear = Number(todayISO.slice(0, 4))
+  const { data: yearTxs = [] } = useRangeTransactions(
+    { start: `${shelterYear}-01-01`, end: `${shelterYear + 1}-01-01` },
+    !!account?.tax_shelter,
+  )
+  const shelter = shelterUsage(
+    accountId,
+    yearTxs,
+    shelterYear,
+    account?.shelter_annual_limit ?? null,
+  )
   const accountValuations = useMemo(
     () =>
       valuations
@@ -131,7 +160,7 @@ export function AccountDetailPage() {
         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
           {account?.type === 'card'
             ? 'Đang nợ thẻ'
-            : isInvestment
+            : isInvestment || isFixed
               ? 'Giá trị hiện tại'
               : 'Số dư hiện tại'}
         </p>
@@ -144,14 +173,17 @@ export function AccountDetailPage() {
               : formatMoney(0, currency)
             : isInvestment
               ? formatMoney(invStats.marketValue ?? balance, currency)
-              : formatMoney(balance, currency)}
+              : isFixed
+                ? // Định giá nhập tay thắng công thức khấu hao
+                  formatMoney(balanceRow?.market_value ?? dep?.currentValue ?? balance, currency)
+                : formatMoney(balance, currency)}
         </p>
         {account?.asset_group && (
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Nhóm: {account.asset_group}</p>
         )}
 
         {/* Điều chỉnh số dư (mục X) — cho ví/tài khoản thường, không cho đầu tư/thẻ */}
-        {account && !isInvestment && account.type !== 'card' && (
+        {account && !isInvestment && !isFixed && account.type !== 'card' && (
           <button
             type="button"
             onClick={() => setShowReconcile(true)}
@@ -204,6 +236,83 @@ export function AccountDetailPage() {
           </div>
         )}
 
+        {/* Hạn mức nạp NISA / iDeCo trong năm */}
+        {isInvestment && account?.tax_shelter && (
+          <div className="mt-3 border-t border-gray-100 pt-3 dark:border-gray-800">
+            <div className="flex items-baseline justify-between gap-2 text-sm">
+              <span className="min-w-0 truncate text-gray-500 dark:text-gray-400">
+                {TAX_SHELTER_LABELS[account.tax_shelter]}
+              </span>
+              <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
+                năm {shelterYear}
+              </span>
+            </div>
+            <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+              <div
+                className={`h-full rounded-full ${
+                  (shelter.ratio ?? 0) >= 1 ? 'bg-amber-500' : 'bg-green-500'
+                }`}
+                style={{ width: `${Math.min(100, (shelter.ratio ?? 0) * 100)}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-xs text-gray-600 dark:text-gray-300">
+              Đã nạp <b>{formatMoney(shelter.used, currency)}</b>
+              {shelter.limit !== null && <> / {formatMoney(shelter.limit, currency)}</>}
+              {shelter.remaining !== null && shelter.remaining > 0 && (
+                <>
+                  {' '}
+                  · còn <b>{formatMoney(shelter.remaining, currency)}</b> hạn mức năm nay
+                </>
+              )}
+              {shelter.remaining === 0 && <> · đã dùng hết hạn mức</>}
+            </p>
+            <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+              Hạn mức tính theo năm dương lịch và không dồn sang năm sau. Rút tiền ra giữa năm cũng
+              không hoàn lại phần hạn mức đã dùng.
+            </p>
+          </div>
+        )}
+
+        {/* Tài sản cố định: khấu hao */}
+        {isFixed && (
+          <div className="mt-3 space-y-1.5 border-t border-gray-100 pt-3 text-sm dark:border-gray-800">
+            <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
+              <span>Giá mua</span>
+              <span className="font-medium tabular-nums text-gray-800 dark:text-gray-100">
+                {formatMoney(account?.initial_balance ?? 0, currency)}
+              </span>
+            </div>
+            {dep ? (
+              <>
+                <div className="flex items-center justify-between font-medium text-red-600 dark:text-red-400">
+                  <span>Đã khấu hao</span>
+                  <span className="tabular-nums">
+                    − {formatMoney(dep.accumulated, currency)}
+                    <span className="ml-1 text-xs">({Math.round(dep.elapsedRatio * 100)}%)</span>
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {dep.monthsLeft > 0
+                    ? `Còn ${dep.monthsLeft} tháng nữa là hết vòng đời khấu hao.`
+                    : 'Đã hết vòng đời khấu hao — giá trị giữ ở mức còn lại.'}
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Chưa đặt ngày mua / số tháng khấu hao nên giá trị giữ nguyên theo sổ. Sửa tài khoản
+                để bật khấu hao tự động.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowValuation(true)}
+              className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white active:scale-95"
+            >
+              <LineChart className="h-3.5 w-3.5" /> Cập nhật giá trị thực tế
+            </button>
+          </div>
+        )}
+
         {account?.type === 'card' && (
           <div className="mt-3 space-y-1.5 border-t border-gray-100 dark:border-gray-800 pt-3 text-sm">
             {account.credit_limit != null && (
@@ -237,7 +346,7 @@ export function AccountDetailPage() {
       </section>
 
       {/* Lịch sử cập nhật giá trị (tài khoản đầu tư) */}
-      {isInvestment && accountValuations.length > 0 && (
+      {(isInvestment || isFixed) && accountValuations.length > 0 && (
         <section className="mb-3 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
           <h2 className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
             Lịch sử giá trị

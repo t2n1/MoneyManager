@@ -16,7 +16,12 @@ import {
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
-import type { AccountRow, AccountType } from '../../types/database.types'
+import type { AccountRow, AccountType, TaxShelter } from '../../types/database.types'
+import {
+  SHELTER_DEFAULT_LIMIT_JPY,
+  TAX_SHELTER_LABELS,
+  TAX_SHELTER_LIST,
+} from '../assets/shelter'
 import { groupAccountsByType, type CurrencyTotal } from './groupByType'
 
 /** Ghép tổng theo loại tiền thành chuỗi hiển thị: "¥545,860" hoặc "¥X · ₫Y". */
@@ -254,9 +259,24 @@ function AccountForm({ account, onClose }: FormProps) {
   const [paymentDueDay, setPaymentDueDay] = useState(
     account?.payment_due_day != null ? String(account.payment_due_day) : '',
   )
+  // Tài sản cố định: khấu hao tuyến tính từ giá mua về giá trị còn lại
+  const [depMonths, setDepMonths] = useState(
+    account?.depreciation_months != null ? String(account.depreciation_months) : '',
+  )
+  const [depFrom, setDepFrom] = useState(account?.depreciation_from ?? '')
+  const [salvageDigits, setSalvageDigits] = useState(
+    account?.salvage_value ? String(account.salvage_value) : '',
+  )
+  // Tài khoản ưu đãi thuế Nhật: theo dõi hạn mức nạp theo năm
+  const [taxShelter, setTaxShelter] = useState<TaxShelter | ''>(account?.tax_shelter ?? '')
+  const [shelterLimitDigits, setShelterLimitDigits] = useState(
+    account?.shelter_annual_limit != null ? String(account.shelter_annual_limit) : '',
+  )
   const [saving, setSaving] = useState(false)
 
   const isCard = type === 'card'
+  const isFixed = type === 'fixed'
+  const isInvestment = type === 'investment'
 
   // Gợi ý nhóm để nhập nhanh: gộp nhóm đã tạo trong Cài đặt (kể cả nhóm rỗng)
   // với nhóm đang được tài khoản dùng, tránh trùng lặp do gõ khác nhau
@@ -314,6 +334,14 @@ function AccountForm({ account, onClose }: FormProps) {
         card_autopay_through: validPaymentAccount
           ? (account?.card_autopay_through ?? toISODate(new Date()))
           : null,
+        depreciation_months: isFixed && depMonths !== '' ? Number(depMonths) : null,
+        depreciation_from: isFixed && depFrom !== '' ? depFrom : null,
+        salvage_value: isFixed && salvageDigits !== '' ? Number(salvageDigits) : 0,
+        tax_shelter: isInvestment && taxShelter !== '' ? taxShelter : null,
+        shelter_annual_limit:
+          isInvestment && taxShelter !== '' && shelterLimitDigits !== ''
+            ? Number(shelterLimitDigits)
+            : null,
       }
       if (account) await update.mutateAsync({ id: account.id, patch: input })
       else await create.mutateAsync(input)
@@ -358,6 +386,7 @@ function AccountForm({ account, onClose }: FormProps) {
               <option value="ic">IC giao thông</option>
               <option value="ewallet">Ví điện tử</option>
               <option value="investment">Đầu tư</option>
+              <option value="fixed">Tài sản cố định</option>
             </select>
           </div>
           <div>
@@ -511,11 +540,107 @@ function AccountForm({ account, onClose }: FormProps) {
             Nhập số bạn đang nợ thẻ (để 0 nếu chưa nợ). Chi tiêu bằng thẻ và trả thẻ ghi như giao dịch bình thường.
           </p>
         )}
-        {type === 'investment' && (
+        {isInvestment && (
           <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
             Nhập vốn gốc ban đầu (tiền đã bỏ vào). Sau khi tạo, vào trang tài khoản để
             “Cập nhật giá trị” theo giá thị trường — chênh lệch là lãi/lỗ chưa thực hiện.
           </p>
+        )}
+
+        {/* Tài khoản ưu đãi thuế Nhật — theo dõi hạn mức nạp mỗi năm */}
+        {isInvestment && (
+          <div className="mb-3 rounded-lg bg-gray-50 p-2.5 dark:bg-gray-950">
+            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+              Ưu đãi thuế <span className="text-gray-400 dark:text-gray-500">(không bắt buộc)</span>
+            </label>
+            <select
+              value={taxShelter}
+              onChange={(e) => {
+                const next = e.target.value as TaxShelter | ''
+                setTaxShelter(next)
+                // Điền sẵn hạn mức pháp định để khỏi phải tra — vẫn sửa được
+                if (next && shelterLimitDigits === '' && currency === 'JPY') {
+                  setShelterLimitDigits(String(SHELTER_DEFAULT_LIMIT_JPY[next]))
+                }
+              }}
+              className="w-full rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            >
+              <option value="">Tài khoản thường</option>
+              {TAX_SHELTER_LIST.map((s) => (
+                <option key={s} value={s}>
+                  {TAX_SHELTER_LABELS[s]}
+                </option>
+              ))}
+            </select>
+            {taxShelter !== '' && (
+              <>
+                <label className="mb-1 mt-2 block text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Hạn mức nạp mỗi năm
+                </label>
+                <input
+                  inputMode="numeric"
+                  value={shelterLimitDigits === '' ? '' : formatMoney(Number(shelterLimitDigits), currency)}
+                  onChange={(e) => setShelterLimitDigits(e.target.value.replace(/\D/g, ''))}
+                  placeholder={formatMoney(0, currency)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right text-sm outline-green-500 dark:border-gray-700"
+                />
+                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                  App đếm tiền bạn chuyển vào tài khoản này trong năm và cho biết còn bao nhiêu hạn
+                  mức chưa dùng.
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Tài sản cố định — khấu hao tuyến tính */}
+        {isFixed && (
+          <div className="mb-3 rounded-lg bg-gray-50 p-2.5 dark:bg-gray-950">
+            <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+              Nhập <b>giá mua</b> ở ô số tiền phía trên. App sẽ tự giảm dần giá trị theo thời gian.
+              Bất cứ lúc nào bạn tự “Cập nhật giá trị” trong trang tài khoản thì con số nhập tay được
+              ưu tiên.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Ngày mua
+                </label>
+                <input
+                  type="date"
+                  value={depFrom}
+                  onChange={(e) => setDepFrom(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm outline-green-500 dark:border-gray-700 dark:bg-gray-900"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+                  Khấu hao (tháng)
+                </label>
+                <input
+                  inputMode="numeric"
+                  value={depMonths}
+                  onChange={(e) => setDepMonths(e.target.value.replace(/\D/g, ''))}
+                  placeholder="60"
+                  className="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm outline-green-500 dark:border-gray-700"
+                />
+              </div>
+            </div>
+            <label className="mb-1 mt-2 block text-xs font-medium text-gray-500 dark:text-gray-400">
+              Giá trị còn lại cuối vòng đời
+            </label>
+            <input
+              inputMode="numeric"
+              value={salvageDigits === '' ? '' : formatMoney(Number(salvageDigits), currency)}
+              onChange={(e) => setSalvageDigits(e.target.value.replace(/\D/g, ''))}
+              placeholder={formatMoney(0, currency)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right text-sm outline-green-500 dark:border-gray-700"
+            />
+            <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+              Ví dụ xe 5 năm về 0: 60 tháng, còn lại 0. Xe vẫn bán được giá thì điền số bán ước tính.
+              Bỏ trống ngày mua hoặc số tháng = không khấu hao tự động.
+            </p>
+          </div>
         )}
 
         {currencyChanged && hasActivity && (

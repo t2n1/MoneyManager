@@ -21,6 +21,7 @@ import { daysBetween, nextCardDueDate, toISODate } from '../../lib/dates'
 import { debtSummary } from '../debts/aggregate'
 import {
   assetBreakdown,
+  assetCurrencyGroups,
   assetTypeGroups,
   cardFunding,
   UNGROUPED_LABEL,
@@ -36,6 +37,21 @@ const PALETTE = [
 
 // Nhãn thứ trong tuần cho ngày đến hạn (đã dời cuối tuần nên chỉ rơi T2–T6)
 const WEEKDAY_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+
+/** Cách cắt lát cơ cấu tài sản: mục đích · loại tài khoản · đồng tiền. */
+type GroupMode = 'purpose' | 'type' | 'currency'
+
+const GROUP_MODES: readonly (readonly [GroupMode, string])[] = [
+  ['purpose', 'Mục đích'],
+  ['type', 'Loại'],
+  ['currency', 'Tiền tệ'],
+] as const
+
+const GROUP_NOUN: Record<GroupMode, string> = {
+  purpose: 'nhóm',
+  type: 'loại',
+  currency: 'loại tiền',
+}
 
 /** "T2, 27/7" cho ngày đến hạn ISO. */
 function dueDateLabel(iso: string): string {
@@ -53,6 +69,7 @@ function dueRelativeLabel(todayISO: string, dueISO: string): string {
 }
 
 export function AssetsPage() {
+  const todayISO = toISODate(new Date())
   const { data: balances = [], isLoading } = useAccountBalances()
   const { data: groupSettings = [] } = useAssetGroupSettings()
   const { data: debts = [] } = useDebts()
@@ -77,12 +94,12 @@ export function AssetsPage() {
   )
 
   const breakdown = useMemo(
-    () => assetBreakdown(balances, base, rates ?? {}, settings),
-    [balances, base, rates, settings],
+    () => assetBreakdown(balances, base, rates ?? {}, settings, todayISO),
+    [balances, base, rates, settings, todayISO],
   )
 
-  // Chế độ xem cơ cấu: 'purpose' = theo mục đích (asset_group) · 'type' = theo loại tài khoản
-  const [groupMode, setGroupMode] = useState<'purpose' | 'type'>('purpose')
+  // Chế độ xem cơ cấu: mục đích (asset_group) · loại tài khoản · đồng tiền
+  const [groupMode, setGroupMode] = useState<GroupMode>('purpose')
 
   // Nhóm theo mục đích: bỏ nhóm ẩn / tài khoản ẩn, và nhóm rỗng
   const purposeGroups = useMemo(
@@ -96,11 +113,14 @@ export function AssetsPage() {
 
   // Nhóm theo loại tài khoản (Tiền mặt / Ngân hàng…) — cùng tập tài sản tính vào tổng
   const typeGroups = useMemo(() => assetTypeGroups(breakdown), [breakdown])
+  // Nhóm theo đồng tiền (JPY / VND / USD) — đo mức phơi nhiễm tỷ giá
+  const currencyGroups = useMemo(() => assetCurrencyGroups(breakdown), [breakdown])
 
-  const displayGroups = groupMode === 'purpose' ? purposeGroups : typeGroups
-  // Kéo–thả sắp thứ tự tài khoản bật ở CẢ hai chế độ. Nhưng chỉ "Mục đích" cho kéo
-  // XUYÊN nhóm (đổi asset_group); ở "Loại", kéo sang nhóm khác = đổi loại tài khoản
-  // (làm trong form), nên chỉ cho sắp TRONG cùng một loại.
+  const displayGroups =
+    groupMode === 'purpose' ? purposeGroups : groupMode === 'type' ? typeGroups : currencyGroups
+  // Kéo–thả sắp thứ tự tài khoản bật ở mọi chế độ. Nhưng chỉ "Mục đích" cho kéo
+  // XUYÊN nhóm (đổi asset_group); ở "Loại"/"Tiền tệ", kéo sang nhóm khác nghĩa là
+  // đổi loại/đồng tiền tài khoản (làm trong form), nên chỉ cho sắp TRONG một nhóm.
   const dragEnabled = displayGroups.length > 0
   const allowCross = groupMode === 'purpose'
 
@@ -283,7 +303,6 @@ export function AssetsPage() {
     balances.map((b) => [b.id, { id: b.id, name: b.name, currency: b.currency, balance: b.balance }]),
   )
   const funding = cardFunding(visibleCards, cardSources)
-  const todayISO = toISODate(new Date())
   // Chỉ tổng gộp khi ≥2 thẻ chung nguồn và đang thực nợ (dòng "cần nạp thêm")
   const sharedSources = funding.groups.filter((g) => g.cardCount >= 2 && g.totalOwed > 0)
   const netApprox =
@@ -549,12 +568,7 @@ export function AssetsPage() {
             aria-label="Chế độ xem cơ cấu"
             className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-xs font-medium"
           >
-            {(
-              [
-                ['purpose', 'Mục đích'],
-                ['type', 'Loại'],
-              ] as const
-            ).map(([mode, label]) => (
+            {GROUP_MODES.map(([mode, label]) => (
               <button
                 key={mode}
                 type="button"
@@ -606,7 +620,7 @@ export function AssetsPage() {
                   {pieData.length}
                 </span>
                 <span className="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
-                  {groupMode === 'purpose' ? 'nhóm' : 'loại'}
+                  {GROUP_NOUN[groupMode]}
                 </span>
               </div>
             </div>

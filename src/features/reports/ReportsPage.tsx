@@ -26,6 +26,7 @@ import { TagBreakdownCard } from './TagBreakdownCard'
 import {
   addMonths,
   formatMonthLabel,
+  addDaysISO,
   formatYearLabel,
   getMonthRange,
   getYearRange,
@@ -85,6 +86,11 @@ export function ReportsPage() {
   const [monthKey, setMonthKey] = useState<MonthKey | null>(() => parseYm(searchParams.get('ym')))
   const activeMonthKey = monthKey ?? monthKeyForDate(toISODate(new Date()), monthStartDay)
   const { data: monthTxs = [], isFetched: monthFetched } = useMonthTransactions(activeMonthKey)
+  // Khoảng ngày của kỳ đang xem, dạng BAO GỒM cả hai đầu — dùng cho link sang Tìm kiếm
+  const monthRange = useMemo(
+    () => getMonthRange(activeMonthKey, monthStartDay),
+    [activeMonthKey, monthStartDay],
+  )
 
   // Khoảng 6 tháng gần nhất (tính cả tháng đang xem) cho biểu đồ cột
   const sixMonths = useMemo(
@@ -369,6 +375,8 @@ export function ReportsPage() {
             base={base}
             periodNoun="tháng này"
             noTags={tags.length === 0}
+            rangeFrom={monthRange.start}
+            rangeTo={addDaysISO(monthRange.end, -1)}
           />
         </>
       )}
@@ -458,6 +466,8 @@ export function ReportsPage() {
             base={base}
             periodNoun="năm này"
             noTags={tags.length === 0}
+            rangeFrom={yearRange.start}
+            rangeTo={addDaysISO(yearRange.end, -1)}
           />
           <RemittanceSection txs={yearTxs} year={activeYear} annualIncome={yearSums.income} />
         </>

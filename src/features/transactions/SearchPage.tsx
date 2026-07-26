@@ -1,13 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronLeft, ChevronUp, Search, X } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
 import type { TxFilter } from '../../data'
-import { useAccounts, useCategories, useRates, useSearchTransactions } from '../../hooks/queries'
+import {
+  useAccounts,
+  useCategories,
+  useRates,
+  useSearchTransactions,
+  useTags,
+  useTransactionTags,
+} from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
 import { sumIncomeExpense } from '../reports/aggregate'
+import { filterByTags } from '../tags/aggregate'
+import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
 import { EditTransactionSheet } from './EditTransactionSheet'
 import { TransactionItem } from './TransactionItem'
 
@@ -35,18 +44,31 @@ function defaultFrom(): string {
 export function SearchPage() {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
+  const { data: tags = [] } = useTags()
+  const { data: tagLinks = [] } = useTransactionTags()
   const { base, rates } = useRates()
+
+  // Deep-link từ thẻ "Chi theo nhãn": ?tags=id1,id2&from=…&to=… . Chỉ đọc một lần
+  // lúc mount — sau đó người dùng làm chủ bộ lọc, URL không kéo ngược lại nữa.
+  const [searchParams] = useSearchParams()
+  const initial = useState(() => ({
+    tagIds: (searchParams.get('tags') ?? '').split(',').filter(Boolean),
+    from: searchParams.get('from') || defaultFrom(),
+    to: searchParams.get('to') || toISODate(new Date()),
+  }))[0]
 
   const [text, setText] = useState('')
   const [debouncedText, setDebouncedText] = useState('')
   const [typeFilter, setTypeFilter] = useState<TransactionType | 'all'>('all')
-  const [from, setFrom] = useState(defaultFrom)
-  const [to, setTo] = useState(() => toISODate(new Date()))
+  const [from, setFrom] = useState(initial.from)
+  const [to, setTo] = useState(initial.to)
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [accountIds, setAccountIds] = useState<string[]>([])
+  const [tagIds, setTagIds] = useState<string[]>(initial.tagIds)
   const [amountMinStr, setAmountMinStr] = useState('')
   const [amountMaxStr, setAmountMaxStr] = useState('')
-  const [showMore, setShowMore] = useState(false)
+  // Mở sẵn khối lọc nếu vào từ deep-link, để thấy ngay mình đang lọc theo nhãn nào
+  const [showMore, setShowMore] = useState(initial.tagIds.length > 0)
   const [editing, setEditing] = useState<TransactionRow | null>(null)
 
   // Nhập theo đơn vị chính của tiền gốc → quy ra minor units để so với amount đã lưu.
@@ -86,7 +108,12 @@ export function SearchPage() {
     [from, to, debouncedText, typeFilter, categoryIds, accountIds, amountMinStr, amountMaxStr, baseFactor],
   )
 
-  const { data: results = [], isLoading } = useSearchTransactions(filter)
+  const { data: rawResults = [], isLoading } = useSearchTransactions(filter)
+  // Nhãn lọc sau cùng, phía client: bảng liên kết nhỏ và đã nằm sẵn trong cache
+  const results = useMemo(
+    () => filterByTags(rawResults, tagLinks, tagIds),
+    [rawResults, tagLinks, tagIds],
+  )
 
   const accountOf = (id: string | null) => accounts.find((a) => a.id === id)
   const categoryOf = (id: string | null) => categories.find((c) => c.id === id)
@@ -188,11 +215,41 @@ export function SearchPage() {
         onClick={() => setShowMore((v) => !v)}
         className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400"
       >
-        {showMore ? 'Ẩn bộ lọc' : 'Lọc theo danh mục / tài khoản'}
+        {showMore ? 'Ẩn bộ lọc' : 'Lọc theo danh mục / nhãn / tài khoản'}
         {showMore ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
       {showMore && (
         <div className="mb-3 space-y-3 rounded-xl bg-gray-100 dark:bg-gray-800 p-3">
+          {tags.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                Nhãn{' '}
+                <span className="font-normal text-gray-400 dark:text-gray-500">
+                  (chọn nhiều = khớp bất kỳ)
+                </span>
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {tags.map((t) => {
+                  const active = tagIds.includes(t.id)
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setTagIds((l) => toggle(l, t.id))}
+                      aria-pressed={active}
+                      className={`rounded-full px-3 py-2.5 text-xs font-medium transition ${
+                        active
+                          ? 'bg-green-600 text-white'
+                          : TAG_CHIP_CLASS[tagColor(t.color)]
+                      }`}
+                    >
+                      {t.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           {typeFilter !== 'transfer' && (
             <div>
               <p className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">Danh mục</p>
@@ -256,8 +313,27 @@ export function SearchPage() {
       )}
 
       {/* Kết quả */}
-      <p className="mb-2 px-1 text-xs text-gray-500 dark:text-gray-400">
-        {isLoading ? 'Đang tìm…' : `${results.length} kết quả`}
+      <p className="mb-2 flex flex-wrap items-center gap-x-2 px-1 text-xs text-gray-500 dark:text-gray-400">
+        <span>{isLoading ? 'Đang tìm…' : `${results.length} kết quả`}</span>
+        {/* Nhãn đang lọc phải thấy được cả khi khối bộ lọc đang thu gọn */}
+        {tagIds.length > 0 && (
+          <>
+            <span>
+              · lọc theo{' '}
+              {tagIds
+                .map((id) => tags.find((t) => t.id === id)?.name)
+                .filter(Boolean)
+                .join(', ')}
+            </span>
+            <button
+              type="button"
+              onClick={() => setTagIds([])}
+              className="font-medium text-green-700 dark:text-green-400"
+            >
+              Bỏ lọc nhãn
+            </button>
+          </>
+        )}
       </p>
       {(totals.income > 0 || totals.expense > 0 || totals.hasMissingRate) && (
         <div className="mb-3 rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">

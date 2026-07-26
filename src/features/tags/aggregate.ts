@@ -86,3 +86,24 @@ export function tagBreakdown(
 
   return { slices, taggedTotal, total, hasMissingRate }
 }
+
+/**
+ * Lọc giao dịch theo nhãn — khớp BẤT KỲ nhãn nào được chọn (OR), giống cách
+ * lọc danh mục ở màn Tìm kiếm. Chọn "Về VN 2026" + "Quà cáp" nghĩa là "cho tôi
+ * xem cả hai việc", không phải "khoản nào mang đồng thời cả hai nhãn".
+ *
+ * Lọc phía client vì bảng liên kết nhãn nhỏ và đã được tải sẵn cho báo cáo;
+ * đẩy xuống SQL sẽ cần một vòng truy vấn nữa mà không nhanh hơn.
+ */
+export function filterByTags(
+  txs: TransactionRow[],
+  links: TransactionTagRow[],
+  tagIds: string[],
+): TransactionRow[] {
+  if (tagIds.length === 0) return txs
+  const want = new Set(tagIds)
+  const hit = new Set(
+    links.filter((l) => want.has(l.tag_id)).map((l) => l.transaction_id),
+  )
+  return txs.filter((t) => hit.has(t.id))
+}

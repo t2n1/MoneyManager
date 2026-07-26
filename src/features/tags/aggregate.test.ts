@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { TagRow, TransactionRow, TransactionTagRow } from '../../types/database.types'
 import type { Rates } from '../../lib/rates'
-import { tagBreakdown } from './aggregate'
+import { filterByTags, tagBreakdown } from './aggregate'
 
 const RATES: Rates = { JPY: 1, VND: 165 }
 const currencyOf = () => 'JPY' as const
@@ -133,5 +133,37 @@ describe('tagBreakdown', () => {
     const missing = tagBreakdown([a], [link('a', 've-vn')], TAGS, () => 'USD', 'JPY', { JPY: 1 })
     expect(missing.hasMissingRate).toBe(true)
     expect(missing.slices).toEqual([])
+  })
+})
+
+describe('filterByTags', () => {
+  const a = tx({ type: 'expense', amount: 100, id: 'a' })
+  const b = tx({ type: 'expense', amount: 200, id: 'b' })
+  const c = tx({ type: 'income', amount: 300, id: 'c' })
+  const LINKS = [link('a', 've-vn'), link('b', 'qua'), link('c', 've-vn')]
+
+  it('danh sách nhãn rỗng = không lọc', () => {
+    expect(filterByTags([a, b, c], LINKS, [])).toEqual([a, b, c])
+  })
+
+  it('lọc đúng một nhãn, giữ nguyên thứ tự đầu vào', () => {
+    expect(filterByTags([a, b, c], LINKS, ['ve-vn'])).toEqual([a, c])
+  })
+
+  it('nhiều nhãn = khớp BẤT KỲ (OR), không phải giao', () => {
+    expect(filterByTags([a, b, c], LINKS, ['ve-vn', 'qua'])).toEqual([a, b, c])
+  })
+
+  it('giao dịch mang 2 nhãn chỉ xuất hiện một lần', () => {
+    const both = [...LINKS, link('a', 'qua')]
+    expect(filterByTags([a, b], both, ['ve-vn', 'qua'])).toEqual([a, b])
+  })
+
+  it('nhãn không có giao dịch nào → rỗng', () => {
+    expect(filterByTags([a, b, c], LINKS, ['khong-ton-tai'])).toEqual([])
+  })
+
+  it('bỏ qua link trỏ tới giao dịch ngoài tập đang xét', () => {
+    expect(filterByTags([b], LINKS, ['ve-vn'])).toEqual([])
   })
 })

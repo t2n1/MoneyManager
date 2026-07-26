@@ -412,3 +412,25 @@ export function classificationBreakdown(
   }
   return r
 }
+
+/**
+ * Gộp phần chi KHÔNG có category_id (vd hàng nhập CSV thiếu danh mục) vào cả 2
+ * bucket "Chưa phân loại" của `data`, để tổng mỗi trục khớp `realExpense` (tổng
+ * chi thật từ sumIncomeExpense) thay vì chỉ khớp `data.totalExpense` (tổng chi
+ * CÓ danh mục — do categoryBreakdown bỏ giao dịch thiếu category_id).
+ * `realExpense` nhỏ hơn `data.totalExpense` (không nên xảy ra) → không trừ, giữ nguyên `data`.
+ */
+export function foldUncategorized(
+  data: ClassificationBreakdown,
+  realExpense: number,
+): ClassificationBreakdown {
+  const totalExpense = Math.max(realExpense, data.totalExpense)
+  const noCategory = totalExpense - data.totalExpense
+  if (noCategory <= 0) return data
+  return {
+    ...data,
+    needUnclassified: data.needUnclassified + noCategory,
+    costUnclassified: data.costUnclassified + noCategory,
+    totalExpense,
+  }
+}

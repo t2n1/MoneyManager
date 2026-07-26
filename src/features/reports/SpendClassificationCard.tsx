@@ -5,7 +5,7 @@
 import { Link } from 'react-router-dom'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
-import type { ClassificationBreakdown } from './aggregate'
+import { foldUncategorized, type ClassificationBreakdown } from './aggregate'
 import { BreakdownRow } from './BreakdownRow'
 
 const C = {
@@ -30,18 +30,18 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
   // `data` chỉ gom được chi CÓ danh mục (categoryBreakdown bỏ giao dịch thiếu category_id,
   // vd hàng nhập từ CSV). Phần chênh so với tổng chi thật được gộp vào nhóm "Chưa phân loại"
   // để mẫu số của cả 2 trục = tổng chi thật và Tiết kiệm không bị thổi phồng.
-  const totalExpense = Math.max(expense, data.totalExpense)
-  const noCategory = totalExpense - data.totalExpense
-  const needUnclassified = data.needUnclassified + noCategory
-  const costUnclassified = data.costUnclassified + noCategory
+  const folded = foldUncategorized(data, expense)
+  const totalExpense = folded.totalExpense
+  const needUnclassified = folded.needUnclassified
+  const costUnclassified = folded.costUnclassified
 
   const savings = income - totalExpense
   const pctOfIncome = (v: number) => (income > 0 ? (v / income) * 100 : 0)
   const pctOfExpense = (v: number) => (totalExpense > 0 ? (v / totalExpense) * 100 : 0)
 
   // Trạng thái vượt/dưới mục tiêu — phải đọc được từ CHỮ, không chỉ dựa vào màu (yêu cầu a11y).
-  const essentialPct = pctOfIncome(data.needEssential)
-  const flexiblePct = pctOfIncome(data.needFlexible)
+  const essentialPct = pctOfIncome(folded.needEssential)
+  const flexiblePct = pctOfIncome(folded.needFlexible)
   const savingsPct = pctOfIncome(savings)
   const essentialOver = essentialPct > 50
   const flexibleOver = flexiblePct > 30
@@ -49,8 +49,8 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
 
   // Donut C2 (Cố định/Biến đổi) — chỉ lát > 0
   const c2Slices = [
-    { name: 'Cố định', value: data.costFixed, color: C.need },
-    { name: 'Biến đổi', value: data.costVariable, color: C.want },
+    { name: 'Cố định', value: folded.costFixed, color: C.need },
+    { name: 'Biến đổi', value: folded.costVariable, color: C.want },
     { name: 'Chưa phân loại', value: costUnclassified, color: C.unknown },
   ].filter((s) => s.value > 0)
 
@@ -84,14 +84,14 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
           <BreakdownRow
             icon=""
             name={essentialOver ? 'Nhu cầu (thiết yếu) — vượt mục tiêu' : 'Nhu cầu (thiết yếu)'}
-            pct={essentialPct} value={data.needEssential}
+            pct={essentialPct} value={folded.needEssential}
             barPct={essentialPct} color={C.need} base={base}
             targetPct={50} warn={essentialOver}
           />
           <BreakdownRow
             icon=""
             name={flexibleOver ? 'Sở thích (linh hoạt) — vượt mục tiêu' : 'Sở thích (linh hoạt)'}
-            pct={flexiblePct} value={data.needFlexible}
+            pct={flexiblePct} value={folded.needFlexible}
             barPct={flexiblePct} color={C.want} base={base}
             targetPct={30} warn={flexibleOver}
           />
@@ -125,7 +125,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
           <div
             className="relative mx-auto h-36 w-36 shrink-0"
             role="img"
-            aria-label={`Cố định ${pctOfExpense(data.costFixed).toFixed(0)}%, biến đổi ${pctOfExpense(data.costVariable).toFixed(0)}% trên tổng chi`}
+            aria-label={`Cố định ${pctOfExpense(folded.costFixed).toFixed(0)}%, biến đổi ${pctOfExpense(folded.costVariable).toFixed(0)}% trên tổng chi`}
           >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -166,13 +166,13 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
           <div className="flex-1 space-y-2.5">
             <BreakdownRow
               icon="" name="Cố định"
-              pct={pctOfExpense(data.costFixed)} value={data.costFixed}
-              barPct={pctOfExpense(data.costFixed)} color={C.need} base={base}
+              pct={pctOfExpense(folded.costFixed)} value={folded.costFixed}
+              barPct={pctOfExpense(folded.costFixed)} color={C.need} base={base}
             />
             <BreakdownRow
               icon="" name="Biến đổi"
-              pct={pctOfExpense(data.costVariable)} value={data.costVariable}
-              barPct={pctOfExpense(data.costVariable)} color={C.want} base={base}
+              pct={pctOfExpense(folded.costVariable)} value={folded.costVariable}
+              barPct={pctOfExpense(folded.costVariable)} color={C.want} base={base}
             />
             {costUnclassified > 0 && (
               <BreakdownRow
@@ -186,10 +186,10 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
       )}
 
       {/* Van xả khẩn cấp */}
-      {data.emergencyCut > 0 ? (
+      {folded.emergencyCut > 0 ? (
         <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-          Cần cắt giảm gấp? Có thể cắt tối đa <b>{formatMoney(data.emergencyCut, base)}</b> trong{' '}
-          {periodNoun} ở nhóm Linh hoạt × Biến đổi ({pctOfExpense(data.emergencyCut).toFixed(0)}% chi tiêu).
+          Cần cắt giảm gấp? Có thể cắt tối đa <b>{formatMoney(folded.emergencyCut, base)}</b> trong{' '}
+          {periodNoun} ở nhóm Linh hoạt × Biến đổi ({pctOfExpense(folded.emergencyCut).toFixed(0)}% chi tiêu).
         </p>
       ) : (
         totalExpense > 0 && (

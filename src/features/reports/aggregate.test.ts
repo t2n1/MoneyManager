@@ -10,6 +10,7 @@ import {
   classificationBreakdown,
   cumulativeDailyBalance,
   dailyExpenseTotals,
+  foldUncategorized,
   groupByParent,
   monthlySeries,
   sumIncomeExpense,
@@ -434,5 +435,51 @@ describe('classificationBreakdown', () => {
     expect(r.costUnclassified).toBe(700)
     expect(r.emergencyCut).toBe(0)
     expect(r.totalExpense).toBe(700)
+  })
+})
+
+describe('foldUncategorized', () => {
+  const data = {
+    needEssential: 1000,
+    needFlexible: 400,
+    needUnclassified: 100,
+    costFixed: 900,
+    costVariable: 500,
+    costUnclassified: 100,
+    emergencyCut: 200,
+    totalExpense: 1500,
+  }
+
+  it('realExpense = data.totalExpense → không có gì để gộp, giữ nguyên output', () => {
+    const r = foldUncategorized(data, 1500)
+    expect(r).toEqual(data)
+  })
+
+  it('realExpense > data.totalExpense → phần chênh cộng vào cả hai bucket Unclassified', () => {
+    const r = foldUncategorized(data, 1800) // chênh 300 (vd chi không có category_id)
+    expect(r.needUnclassified).toBe(400) // 100 + 300
+    expect(r.costUnclassified).toBe(400) // 100 + 300
+    // các nhóm đã phân loại không đổi
+    expect(r.needEssential).toBe(1000)
+    expect(r.needFlexible).toBe(400)
+    expect(r.costFixed).toBe(900)
+    expect(r.costVariable).toBe(500)
+    expect(r.emergencyCut).toBe(200)
+  })
+
+  it('realExpense < data.totalExpense → không tạo bucket âm (clamp về data.totalExpense)', () => {
+    const r = foldUncategorized(data, 1000) // nhỏ hơn totalExpense 1500
+    expect(r.needUnclassified).toBe(100) // không trừ, giữ nguyên
+    expect(r.costUnclassified).toBe(100)
+    expect(r).toEqual(data)
+  })
+
+  it('bất biến: tổng 2 trục luôn khớp max(realExpense, data.totalExpense)', () => {
+    for (const real of [1500, 1800, 1000, 0]) {
+      const r = foldUncategorized(data, real)
+      const expected = Math.max(real, data.totalExpense)
+      expect(r.needEssential + r.needFlexible + r.needUnclassified).toBe(expected)
+      expect(r.costFixed + r.costVariable + r.costUnclassified).toBe(expected)
+    }
   })
 })

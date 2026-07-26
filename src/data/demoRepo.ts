@@ -253,7 +253,7 @@ function seed(): DemoDB {
     tx({ type: 'expense', amount: 12_400, occurred_on: daysAgo(3), note: 'Tiền điện + gas', category_id: cat('Điện', 'expense').id, account_id: bank.id }),
     tx({ type: 'expense', amount: 1_200, occurred_on: daysAgo(5), note: 'Thuốc cảm', category_id: cat('Thuốc', 'expense').id }),
     tx({ type: 'expense', amount: 68_000, occurred_on: daysAgo(2), note: 'Tiền thuê nhà tháng này', category_id: cat('Tiền nhà', 'expense').id, account_id: bank.id }),
-    tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(9), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
+    tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(2), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
     // Rút tiền mặt JPY (cùng loại tiền → to_amount null)
     tx({ type: 'transfer', amount: 30_000, occurred_on: daysAgo(4), note: 'Rút tiền mặt', account_id: bank.id, to_account_id: cash.id }),
     // Chuyển khoản XUYÊN TỆ: ¥50.000 → Đầu tư VN nhận 8.250.000 ₫

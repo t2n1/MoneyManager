@@ -135,6 +135,21 @@ export interface DuplicateExisting extends HistoryTx {
 }
 
 /**
+ * Ghi chú sau khi GỘP dòng CSV vào giao dịch đã ghi tay: giữ nguyên chữ người dùng
+ * (thường rõ hơn tên trên sao kê), thêm tên trong file vào sau.
+ *
+ * Đã chứa tên đó rồi thì để nguyên, nên gộp hai lần cũng không nối chồng lên nhau.
+ */
+export function mergeNote(existing: string, fromFile: string): string {
+  const a = existing.trim()
+  const b = fromFile.trim()
+  if (a === '') return b
+  if (b === '') return a
+  if (normalizeText(a).includes(normalizeText(b))) return a
+  return `${a} · ${b}`
+}
+
+/**
  * Dòng CSV CÙNG NGÀY, CÙNG SỐ TIỀN, CÙNG CHIỀU với một giao dịch đã có trên chính
  * tài khoản đó nhưng GHI CHÚ KHÁC — gần như chắc chắn là khoản bạn đã ghi tay rồi,
  * chỉ khác cách gọi tên ("Cơm trưa" vs "ファミリーマート").

@@ -4,6 +4,7 @@ import {
   detectPossibleDuplicates,
   guessCategory,
   matchKeyword,
+  mergeNote,
   type DuplicateExisting,
   type HistoryTx,
   type KeywordCategory,
@@ -125,6 +126,28 @@ describe('từ khoá với chữ rộng/nửa rộng của sao kê Nhật', () =
   })
   it('từ khoá katakana thường khớp katakana nửa rộng của Rakuten', () => {
     expect(matchKeyword('ﾎﾃﾙｾﾞﾛｼﾌﾞﾔ', 'expense', cats)).toBe('hotel')
+  })
+})
+
+describe('mergeNote', () => {
+  it('giữ chữ người dùng, thêm tên trong file vào sau', () => {
+    expect(mergeNote('Cơm trưa', 'ファミリーマート')).toBe('Cơm trưa · ファミリーマート')
+  })
+
+  it('một bên trống thì lấy bên còn lại', () => {
+    expect(mergeNote('', 'ＴＥＭＵ')).toBe('ＴＥＭＵ')
+    expect(mergeNote('Nạp ví', '')).toBe('Nạp ví')
+    expect(mergeNote('  ', '  ')).toBe('')
+  })
+
+  it('ghi chú đã chứa tên đó rồi thì không thêm nữa (gộp hai lần vẫn thế)', () => {
+    const once = mergeNote('Nạp ví', '楽天キャッシュ　チャージ')
+    expect(mergeNote(once, '楽天キャッシュ　チャージ')).toBe(once)
+  })
+
+  it('so sánh không phân biệt hoa thường, dấu, hay chữ rộng/nửa rộng', () => {
+    expect(mergeNote('Mua hàng ＴＥＭＵ', 'TEMU')).toBe('Mua hàng ＴＥＭＵ')
+    expect(mergeNote('Đi ăn ở ﾎﾃﾙ', 'ホテル')).toBe('Đi ăn ở ﾎﾃﾙ')
   })
 })
 

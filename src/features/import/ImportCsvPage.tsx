@@ -18,7 +18,13 @@ import {
   type ImportItem,
   type SkipReason,
 } from './csvImport'
-import { buildNoteHistory, detectPossibleDuplicates, type CategorySource } from './classify'
+import {
+  buildNoteHistory,
+  detectPossibleDuplicates,
+  mergeNote,
+  type CategorySource,
+  type DuplicateCandidate,
+} from './classify'
 
 type Encoding = 'utf-8' | 'shift-jis'
 
@@ -76,9 +82,12 @@ export function ImportCsvPage() {
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [lastBuffer, setLastBuffer] = useState<ArrayBuffer | null>(null)
-  // Người dùng sửa/bỏ tick từng dòng ở bảng xem trước, khoá theo ImportItem.key.
+  // Người dùng sửa/bỏ tick từng dòng ở bảng xem trước, khoá theo ImportItem.rowId.
   const [rowCat, setRowCat] = useState<Record<string, string>>({})
   const [rowOn, setRowOn] = useState<Record<string, boolean>>({})
+  // Dòng chọn GỘP vào giao dịch đã ghi tay: không tạo khoản mới, chỉ thêm tên trong
+  // file vào ghi chú của khoản cũ.
+  const [rowMerge, setRowMerge] = useState<Record<string, boolean>>({})
 
   const account = accounts.find((a) => a.id === accountId)
   const currency = account?.currency ?? 'JPY'
@@ -106,6 +115,7 @@ export function ImportCsvPage() {
     // File mới → bỏ mọi lựa chọn của file cũ (khoá dòng không còn nghĩa gì)
     setRowCat({})
     setRowOn({})
+    setRowMerge({})
     const buf = await file.arrayBuffer()
     setLastBuffer(buf)
     setFileName(file.name)
@@ -224,8 +234,8 @@ export function ImportCsvPage() {
       accountId ? detectPossibleDuplicates(preview.items, existing, { accountId }) : [],
     [preview.items, existing, accountId],
   )
-  const suspectNote = useMemo(
-    () => new Map(dupSuspects.map((d) => [d.rowId, d.matchedNote])),
+  const suspectBy = useMemo(
+    () => new Map<string, DuplicateCandidate>(dupSuspects.map((d) => [d.rowId, d])),
     [dupSuspects],
   )
 
@@ -240,15 +250,19 @@ export function ImportCsvPage() {
   // Lựa chọn của người dùng gắn theo DÒNG (rowId), không theo nội dung: sao kê có thật
   // hai dòng giống hệt nhau, dùng key nội dung thì bỏ tick một dòng tắt luôn dòng kia.
   // Nghi trùng thì mặc định BỎ TICK — thà bỏ sót còn hơn nhập đôi; người dùng tự bật lại.
-  const isOn = (rowId: string) => rowOn[rowId] ?? !suspectNote.has(rowId)
+  const isOn = (rowId: string) => !rowMerge[rowId] && (rowOn[rowId] ?? !suspectBy.has(rowId))
   const catOf = (it: ImportItem) => rowCat[it.rowId] ?? it.category_id
   const toImport = candidates.filter((it) => isOn(it.rowId))
+  /** Dòng sẽ gộp vào khoản đã có (chỉ dòng nghi trùng mới gộp được). */
+  const toMerge = candidates.filter((it) => rowMerge[it.rowId] && suspectBy.has(it.rowId))
 
   const dupCount = dupRowIds.size
   const transferCount = preview.items.filter(
     (it) => !dupRowIds.has(it.rowId) && transferRowIds.has(it.rowId),
   ).length
-  const suspectCount = candidates.filter((it) => suspectNote.has(it.rowId)).length
+  const suspectCount = candidates.filter(
+    (it) => suspectBy.has(it.rowId) && !rowMerge[it.rowId],
+  ).length
   const nameOfAccount = (id: string) => accounts.find((a) => a.id === id)?.name ?? 'tài khoản khác'
   // Chi/thu BẮT BUỘC có danh mục (CHECK của bảng transactions) → thiếu thì chặn nhập
   const missingCatCount = toImport.filter((it) => !catOf(it)).length
@@ -264,11 +278,21 @@ export function ImportCsvPage() {
   ).length
 
   async function handleImport() {
-    if (!accountId || toImport.length === 0 || missingCatCount > 0) return
+    if (!accountId || (toImport.length === 0 && toMerge.length === 0) || missingCatCount > 0) return
     setBusy(true)
     setResult(null)
     let done = 0
+    let merged = 0
     try {
+      // Gộp trước: chỉ sửa ghi chú của khoản đã có, không tạo khoản mới. Ghi chú đã
+      // chứa tên trong file thì không cần gọi repo, nhưng vẫn tính là đã xử lý.
+      for (const it of toMerge) {
+        const s = suspectBy.get(it.rowId)
+        if (!s) continue
+        const next = mergeNote(s.matchedNote, it.note)
+        if (next !== s.matchedNote) await repo.updateTransaction(s.matchedTxId, { note: next })
+        merged++
+      }
       for (const it of toImport) {
         await repo.createTransaction({
           type: it.type,
@@ -285,14 +309,21 @@ export function ImportCsvPage() {
       qc.invalidateQueries({ queryKey: ['transactions'] })
       qc.invalidateQueries({ queryKey: ['balances'] })
       qc.invalidateQueries({ queryKey: ['search'] })
-      setResult({ kind: 'ok', text: `Đã nhập ${done} giao dịch.` })
+      setResult({
+        kind: 'ok',
+        text: `Đã nhập ${done} giao dịch${merged > 0 ? `, gộp ${merged} dòng vào khoản đã có` : ''}.`,
+      })
       setRows([])
       setFileName('')
       setLastBuffer(null)
       setRowCat({})
       setRowOn({})
+      setRowMerge({})
     } catch (err) {
-      setResult({ kind: 'error', text: `Nhập lỗi sau ${done} giao dịch: ${(err as Error).message}` })
+      setResult({
+        kind: 'error',
+        text: `Nhập lỗi sau ${merged} lần gộp và ${done} giao dịch: ${(err as Error).message}`,
+      })
     } finally {
       setBusy(false)
     }
@@ -465,6 +496,7 @@ export function ImportCsvPage() {
             <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 Sẽ nhập <strong>{toImport.length}</strong> giao dịch
+                {toMerge.length > 0 && ` · gộp ${toMerge.length} dòng vào khoản đã có`}
                 {dupCount > 0 && ` · bỏ qua ${dupCount} trùng`}
                 {skipTransfers && transferCount > 0 && ` · bỏ qua ${transferCount} chuyển khoản`}
                 {preview.skipped.length > 0 && ` · ${preview.skipped.length} dòng lỗi`}
@@ -503,7 +535,8 @@ export function ImportCsvPage() {
                 <p className="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
                   <b>{suspectCount} dòng nghi đã có trong sổ</b> — cùng ngày, cùng số tiền, cùng
                   chiều với một giao dịch bạn đã ghi, chỉ khác tên. Những dòng đó đã được{' '}
-                  <b>bỏ tick sẵn</b> ở bảng dưới; nếu đúng là khoản khác thì tick lại.
+                  <b>bỏ tick sẵn</b> ở bảng dưới. Nếu đúng là khoản khác thì tick lại; nếu đúng là
+                  khoản bạn đã ghi thì bấm <b>Gộp</b> để thêm tên trên sao kê vào ghi chú cũ.
                 </p>
               )}
 
@@ -557,18 +590,24 @@ export function ImportCsvPage() {
                     {candidates.slice(0, ROW_LIMIT).map((it: ImportItem) => {
                       const on = isOn(it.rowId)
                       const cat = catOf(it)
-                      const matched = suspectNote.get(it.rowId)
+                      const suspect = suspectBy.get(it.rowId)
+                      const willMerge = !!rowMerge[it.rowId]
                       return (
                         <tr
                           key={it.rowId}
                           className={`border-t border-gray-100 dark:border-gray-800 ${
-                            matched ? 'bg-amber-50 dark:bg-amber-900/20' : ''
-                          } ${on ? '' : 'opacity-50'}`}
+                            willMerge
+                              ? 'bg-sky-50 dark:bg-sky-900/20'
+                              : suspect
+                                ? 'bg-amber-50 dark:bg-amber-900/20'
+                                : ''
+                          } ${on || willMerge ? '' : 'opacity-50'}`}
                         >
                           <td className="py-1">
                             <input
                               type="checkbox"
                               checked={on}
+                              disabled={willMerge}
                               onChange={(e) =>
                                 setRowOn((prev) => ({ ...prev, [it.rowId]: e.target.checked }))
                               }
@@ -605,9 +644,28 @@ export function ImportCsvPage() {
                           </td>
                           <td className="py-1">
                             {it.note}
-                            {matched && (
+                            {suspect && (
                               <span className="block text-amber-700 dark:text-amber-400">
-                                nghi trùng với “{matched || 'không ghi chú'}”
+                                {willMerge ? 'sẽ gộp vào' : 'nghi trùng với'} “
+                                {suspect.matchedNote || 'không ghi chú'}”
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setRowMerge((prev) => ({ ...prev, [it.rowId]: !willMerge }))
+                                  }
+                                  className={`ml-1 rounded border px-1.5 py-0.5 align-middle active:scale-95 ${
+                                    willMerge
+                                      ? 'border-sky-500 bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200'
+                                      : 'border-amber-400 text-amber-800 dark:text-amber-300'
+                                  }`}
+                                >
+                                  {willMerge ? '✓ Gộp' : 'Gộp'}
+                                </button>
+                                {willMerge && (
+                                  <span className="block text-sky-700 dark:text-sky-300">
+                                    → {mergeNote(suspect.matchedNote, it.note)}
+                                  </span>
+                                )}
                               </span>
                             )}
                           </td>
@@ -627,10 +685,16 @@ export function ImportCsvPage() {
               <button
                 type="button"
                 onClick={handleImport}
-                disabled={busy || toImport.length === 0 || missingCatCount > 0}
+                disabled={
+                  busy || (toImport.length === 0 && toMerge.length === 0) || missingCatCount > 0
+                }
                 className="mt-3 w-full rounded-lg bg-green-600 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40 active:scale-95"
               >
-                {busy ? 'Đang nhập…' : `Nhập ${toImport.length} giao dịch`}
+                {busy
+                  ? 'Đang nhập…'
+                  : toMerge.length > 0
+                    ? `Nhập ${toImport.length} + gộp ${toMerge.length}`
+                    : `Nhập ${toImport.length} giao dịch`}
               </button>
             </section>
           )}

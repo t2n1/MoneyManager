@@ -99,6 +99,15 @@ export function nextCardDueDate(dueDay: number, todayISO: string): string {
   return shiftWeekendToMonday(`${ty}-${pad(tm)}-${pad(dueDay)}`)
 }
 
+const WEEKDAY_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+
+/** Nhãn ngày kèm thứ, kiểu "T2, 27/7" — dùng cho ngày trả thẻ đã dời cuối tuần. */
+export function formatDayLabel(iso: string): string {
+  const [, m, d] = iso.split('-').map(Number)
+  const dow = new Date(iso + 'T00:00:00Z').getUTCDay()
+  return `${WEEKDAY_VI[dow]}, ${d}/${m}`
+}
+
 /** Khoảng ngày của cả năm tài chính Y: từ đầu tháng (Y,1) tới cuối tháng (Y,12) (end loại trừ). */
 export function getYearRange(year: number, monthStartDay = 1): MonthRange {
   const start = getMonthRange({ year, month: 1 }, monthStartDay).start

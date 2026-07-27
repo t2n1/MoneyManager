@@ -9,10 +9,14 @@ import {
   type TxLike,
 } from './cardAutopay'
 
+/** Chỉ lấy ngày thực trừ tiền, cho gọn khi không cần xét ngày trên lịch. */
+const dueOnly = (dueDay: number, through: string, today: string) =>
+  dueDatesToGenerate(dueDay, through, today).map((p) => p.dueISO)
+
 describe('dueDatesToGenerate', () => {
   it('sinh các kỳ hằng tháng sau con trỏ đến hết hôm nay (dời cuối tuần sang T2)', () => {
     // 10/1/2026 là Thứ 7 → dời 12/1; 10/2 và 10/3 là ngày thường → giữ nguyên
-    expect(dueDatesToGenerate(10, '2026-01-01', '2026-03-15')).toEqual([
+    expect(dueOnly(10, '2026-01-01', '2026-03-15')).toEqual([
       '2026-01-12',
       '2026-02-10',
       '2026-03-10',
@@ -20,7 +24,7 @@ describe('dueDatesToGenerate', () => {
   })
 
   it('loại kỳ đúng bằng con trỏ (con trỏ là ngày đã dời), dừng ở hôm nay', () => {
-    expect(dueDatesToGenerate(10, '2026-01-12', '2026-02-10')).toEqual(['2026-02-10'])
+    expect(dueOnly(10, '2026-01-12', '2026-02-10')).toEqual(['2026-02-10'])
   })
 
   it('chưa tới kỳ nào → rỗng', () => {
@@ -29,10 +33,19 @@ describe('dueDatesToGenerate', () => {
 
   it('clamp ngày cuối tháng rồi dời cuối tuần', () => {
     // 31/1 (T7)→2/2; 31→28/2 (T7)→2/3; 31/3 (T3) giữ nguyên
-    expect(dueDatesToGenerate(31, '2026-01-01', '2026-03-31')).toEqual([
+    expect(dueOnly(31, '2026-01-01', '2026-03-31')).toEqual([
       '2026-02-02',
       '2026-03-02',
       '2026-03-31',
+    ])
+  })
+
+  it('giữ cả ngày trên lịch để suy ra mốc chốt, kể cả khi dời qua tháng sau', () => {
+    // Rakuten/PayPay: trả ngày 27. 27/2/2027 là Thứ 7 → thực trừ 1/3, nhưng kỳ này
+    // vẫn là kỳ THÁNG 2 (sao kê chốt 31/1), không phải kỳ tháng 3.
+    expect(dueDatesToGenerate(27, '2027-01-27', '2027-03-31')).toEqual([
+      { baseISO: '2027-02-27', dueISO: '2027-03-01' },
+      { baseISO: '2027-03-27', dueISO: '2027-03-29' },
     ])
   })
 })
@@ -48,6 +61,11 @@ describe('statementCloseFor', () => {
 
   it('qua ranh năm', () => {
     expect(statementCloseFor('2026-01-10', 27)).toBe('2025-12-27')
+  })
+
+  it('chốt cuối tháng: ngày trên lịch 27/2 → chốt 31/1 (không phải 28/2)', () => {
+    expect(statementCloseFor('2027-02-27', 31)).toBe('2027-01-31')
+    expect(statementCloseFor('2027-03-27', 31)).toBe('2027-02-28')
   })
 })
 
@@ -168,6 +186,28 @@ describe('runCardAutopayCatchUp', () => {
     expect(n).toBe(0)
     expect(created).toHaveLength(0)
     expect(acc.get('card')!.card_autopay_through).toBe('2026-03-15')
+  })
+
+  it('kiểu Rakuten/PayPay (chốt cuối tháng, trả 27): ngày trả dời qua tháng sau không trả trùng', async () => {
+    // 27/2/2027 là Thứ 7 → thực trừ 1/3. Kỳ này thanh toán sao kê chốt 31/1 =
+    // 10.000; kỳ 27/3 (T7 → 29/3) thanh toán sao kê chốt 28/2 = 20.000. Nếu lấy mốc
+    // chốt theo ngày ĐÃ DỜI thì cả hai kỳ đều tính vào sao kê 28/2 → trừ tiền 2 lần.
+    const rakuten = card({
+      statement_day: 31,
+      payment_due_day: 27,
+      card_autopay_through: '2027-01-27',
+    })
+    const { repo, created, acc } = makeRepo(
+      [rakuten, bank()],
+      [ex('2027-01-15', 10_000), ex('2027-02-10', 20_000)],
+    )
+    const n = await runCardAutopayCatchUp(repo, '2027-03-31')
+    expect(n).toBe(2)
+    expect(created.map((c) => [c.occurred_on, c.amount])).toEqual([
+      ['2027-03-01', 10_000],
+      ['2027-03-29', 20_000],
+    ])
+    expect(acc.get('card')!.card_autopay_through).toBe('2027-03-29')
   })
 
   it('bỏ qua thẻ thiếu tài khoản nguồn hoặc thiếu ngày', async () => {

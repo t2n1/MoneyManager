@@ -18,7 +18,7 @@ import {
   useReorderAccounts,
 } from '../../hooks/queries'
 import { CURRENCIES, formatMoney } from '../../lib/money'
-import { daysBetween, nextCardDueDate, toISODate } from '../../lib/dates'
+import { daysBetween, formatDayLabel, nextCardDueDate, toISODate } from '../../lib/dates'
 import { debtSummary } from '../debts/aggregate'
 import {
   assetBreakdown,
@@ -37,8 +37,6 @@ const PALETTE = [
 ]
 
 // Nhãn thứ trong tuần cho ngày đến hạn (đã dời cuối tuần nên chỉ rơi T2–T6)
-const WEEKDAY_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
-
 /** Cách cắt lát cơ cấu tài sản: mục đích · loại tài khoản · đồng tiền. */
 type GroupMode = 'purpose' | 'type' | 'currency'
 
@@ -52,13 +50,6 @@ const GROUP_NOUN: Record<GroupMode, string> = {
   purpose: 'nhóm',
   type: 'loại',
   currency: 'loại tiền',
-}
-
-/** "T2, 27/7" cho ngày đến hạn ISO. */
-function dueDateLabel(iso: string): string {
-  const [, m, d] = iso.split('-').map(Number)
-  const dow = new Date(iso + 'T00:00:00Z').getUTCDay()
-  return `${WEEKDAY_VI[dow]}, ${d}/${m}`
 }
 
 /** "hôm nay" · "ngày mai" · "còn N ngày" từ hôm nay đến hạn. */
@@ -525,7 +516,7 @@ export function AssetsPage() {
                         <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">
                           Đến hạn{' '}
                           <span className="font-semibold text-gray-700 dark:text-gray-200">
-                            {dueDateLabel(dueISO)}
+                            {formatDayLabel(dueISO)}
                           </span>
                           <span className="text-gray-500 dark:text-gray-400">
                             {' '}· {dueRelativeLabel(todayISO, dueISO)}

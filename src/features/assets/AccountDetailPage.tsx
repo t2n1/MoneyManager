@@ -16,9 +16,11 @@ import {
 } from '../../hooks/queries'
 import {
   addMonths,
+  formatDayLabel,
   formatMonthLabel,
   getMonthRange,
   monthKeyForDate,
+  nextCardDueDate,
   toISODate,
   type MonthKey,
 } from '../../lib/dates'
@@ -340,7 +342,15 @@ export function AccountDetailPage() {
             {account.payment_due_day != null && (
               <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
                 <span>Ngày đến hạn</span>
-                <span className="tabular-nums">Ngày {account.payment_due_day}</span>
+                {/* Ngày đặt trong cài đặt + ngày trả THẬT của kỳ tới (đã kẹp về cuối
+                    tháng ngắn và dời Thứ 7/CN sang Thứ 2) — hai ngày này có thể khác nhau */}
+                <span className="tabular-nums">
+                  Ngày {account.payment_due_day}
+                  <span className="text-gray-400 dark:text-gray-500">
+                    {' '}
+                    · kỳ tới {formatDayLabel(nextCardDueDate(account.payment_due_day, todayISO))}
+                  </span>
+                </span>
               </div>
             )}
           </div>

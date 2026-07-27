@@ -15,36 +15,55 @@ function dayOfMonth(year: number, month: number, day: number): string {
   return `${year}-${pad(month)}-${pad(Math.min(day, daysInMonth(year, month)))}`
 }
 
+/** Một kỳ trả thẻ. Tách hai ngày vì việc dời cuối tuần có thể nhảy sang tháng sau. */
+export interface DuePeriod {
+  /** ngày `dueDay` của tháng đó (đã kẹp cuối tháng), CHƯA dời cuối tuần */
+  baseISO: string
+  /** ngày ngân hàng thực rút tiền: đã dời Thứ 7/CN sang Thứ 2 */
+  dueISO: string
+}
+
 /**
- * Các ngày đến hạn (hằng tháng vào `dueDay`) CẦN SINH: sau `throughISO` (con trỏ
- * kỳ đã sinh) đến hết `todayISO` (inclusive). Kết quả tăng dần theo thời gian.
+ * Các kỳ trả thẻ (hằng tháng vào `dueDay`) CẦN SINH: sau `throughISO` (con trỏ kỳ
+ * đã sinh) đến hết `todayISO` (inclusive). Kết quả tăng dần theo thời gian.
  *
- * Ngày đến hạn đã DỜI Thứ 7/CN sang Thứ 2 (`shiftWeekendToMonday`) — khớp ngày
- * ngân hàng thực rút tiền và khớp hiển thị "ngày trả" ở trang Tài sản. Vì vậy
- * `throughISO` (con trỏ) cũng là ngày ĐÃ DỜI của kỳ trước; so sánh đều theo ngày dời.
+ * `dueISO` đã DỜI Thứ 7/CN sang Thứ 2 (`shiftWeekendToMonday`) — khớp ngày ngân hàng
+ * thực rút tiền và khớp hiển thị "ngày trả" ở trang Tài sản. Vì vậy `throughISO`
+ * (con trỏ) cũng là ngày ĐÃ DỜI của kỳ trước; so sánh đều theo ngày dời.
+ *
+ * `baseISO` giữ ngày trên lịch để biết kỳ này thuộc THÁNG nào: thẻ trả ngày 27 mà
+ * 27/2 rơi Thứ 7 thì tiền ra ngày 1/3, nhưng vẫn là kỳ tháng 2 (sao kê chốt 31/1).
  */
-export function dueDatesToGenerate(dueDay: number, throughISO: string, todayISO: string): string[] {
-  const out: string[] = []
+export function dueDatesToGenerate(
+  dueDay: number,
+  throughISO: string,
+  todayISO: string,
+): DuePeriod[] {
+  const out: DuePeriod[] = []
   const [ty, tm] = throughISO.split('-').map(Number)
   let key = { year: ty, month: tm }
   // Chặn vòng lặp: tối đa ~50 năm kỳ tháng.
   for (let i = 0; i < 600; i++) {
-    const due = shiftWeekendToMonday(dayOfMonth(key.year, key.month, dueDay))
-    if (due > todayISO) break
-    if (due > throughISO) out.push(due)
+    const baseISO = dayOfMonth(key.year, key.month, dueDay)
+    const dueISO = shiftWeekendToMonday(baseISO)
+    if (dueISO > todayISO) break
+    if (dueISO > throughISO) out.push({ baseISO, dueISO })
     key = addMonths(key, 1)
   }
   return out
 }
 
 /**
- * Ngày chốt sao kê áp cho kỳ đến hạn `dueISO`: ngày `statementDay` GẦN NHẤT TRƯỚC
- * `dueISO`. Ví dụ chốt 27, đến hạn 10 → chốt là ngày 27 tháng trước.
+ * Ngày chốt sao kê áp cho kỳ trả thẻ: ngày `statementDay` GẦN NHẤT TRƯỚC `baseISO`.
+ * Ví dụ chốt 27, trả ngày 10 → chốt là ngày 27 tháng trước.
+ *
+ * PHẢI truyền ngày trên lịch (`DuePeriod.baseISO`), KHÔNG phải ngày đã dời cuối tuần:
+ * ngày dời có thể sang tháng sau và làm mốc chốt nhảy lên một kỳ.
  */
-export function statementCloseFor(dueISO: string, statementDay: number): string {
-  const [y, m] = dueISO.split('-').map(Number)
+export function statementCloseFor(baseISO: string, statementDay: number): string {
+  const [y, m] = baseISO.split('-').map(Number)
   const sameMonth = dayOfMonth(y, m, statementDay)
-  if (sameMonth < dueISO) return sameMonth
+  if (sameMonth < baseISO) return sameMonth
   const prev = addMonths({ year: y, month: m }, -1)
   return dayOfMonth(prev.year, prev.month, statementDay)
 }
@@ -72,6 +91,9 @@ export interface TxLike {
   to_amount: number | null
   account_id: string
   to_account_id: string | null
+  occurred_on: string
+  /** để nhận ra giao dịch do chính engine sinh ra */
+  note?: string | null
 }
 
 /** Subset của Repo mà engine cần — test dùng fake, app truyền repo thật. */
@@ -102,25 +124,41 @@ export interface CardAutopayRepo {
 /** Ghi chú gắn cho giao dịch tự động trả thẻ (để người dùng nhận ra). */
 export const AUTOPAY_NOTE = 'Tự động trả thẻ'
 
-/** Số dư thẻ tính đến hết ngày `closeISO` (âm = đang nợ). */
-async function cardBalanceThrough(
+/**
+ * Số tiền phải trả cho kỳ có sao kê chốt ngày `closeISO`, tiền ra ngày `dueISO`:
+ * dư nợ tính đến hết ngày chốt, TRỪ những lần engine đã tự trả nằm sau ngày chốt.
+ *
+ * Phần trừ đó cần cho trường hợp ngày trả bị dời sang tháng sau (27/2 rơi Thứ 7 →
+ * tiền ra 1/3): lần trả đó nằm SAU mốc chốt của kỳ kế tiếp nên không được tính vào
+ * dư nợ, thiếu nó thì kỳ sau đòi lại đúng số đã trả. Lần trả tay của người dùng
+ * KHÔNG trừ — thẻ thật vẫn rút đủ số trên sao kê.
+ */
+async function statementOwed(
   repo: CardAutopayRepo,
   card: AccountLike,
   closeISO: string,
+  dueISO: string,
 ): Promise<number> {
   const txs = await repo.searchTransactions({
     start: '0001-01-01',
-    end: addDaysISO(closeISO, 1), // end LOẠI TRỪ → +1 ngày để bao gồm closeISO
+    end: addDaysISO(dueISO > closeISO ? dueISO : closeISO, 1), // end LOẠI TRỪ → +1 ngày
     accountIds: [card.id],
   })
   let bal = card.initial_balance
+  let paidAfterClose = 0
   for (const t of txs) {
+    if (t.occurred_on > closeISO) {
+      if (t.type === 'transfer' && t.to_account_id === card.id && t.note === AUTOPAY_NOTE)
+        paidAfterClose += t.to_amount ?? t.amount
+      continue
+    }
     if (t.type === 'income' && t.account_id === card.id) bal += t.amount
     else if (t.type === 'expense' && t.account_id === card.id) bal -= t.amount
     else if (t.type === 'transfer' && t.account_id === card.id) bal -= t.amount
     else if (t.type === 'transfer' && t.to_account_id === card.id) bal += t.to_amount ?? t.amount
   }
-  return bal
+  const owed = bal < 0 ? -bal : 0
+  return owed > paidAfterClose ? owed - paidAfterClose : 0
 }
 
 /**
@@ -153,10 +191,10 @@ export async function runCardAutopayCatchUp(
     const dues = dueDatesToGenerate(card.payment_due_day, through, todayISO)
 
     let cursor = through
-    for (const due of dues) {
-      const closeISO = statementCloseFor(due, card.statement_day)
-      const bal = await cardBalanceThrough(repo, card, closeISO)
-      const owed = bal < 0 ? -bal : 0
+    for (const { baseISO, dueISO: due } of dues) {
+      // Mốc chốt theo NGÀY TRÊN LỊCH của kỳ, không theo ngày đã dời cuối tuần
+      const closeISO = statementCloseFor(baseISO, card.statement_day)
+      const owed = await statementOwed(repo, card, closeISO, due)
       if (owed > 0) {
         const ok = await repo.insertCardAutopay({
           type: 'transfer',

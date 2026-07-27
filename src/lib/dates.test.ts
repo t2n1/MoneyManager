@@ -4,6 +4,7 @@ import {
   addMonths,
   clampMonthStartDay,
   daysBetween,
+  formatDayLabel,
   formatMonthLabel,
   formatYearLabel,
   getMonthRange,
@@ -120,6 +121,14 @@ describe('addDaysISO', () => {
   it('cộng 1 ngày', () => expect(addDaysISO('2026-07-10', 1)).toBe('2026-07-11'))
   it('trừ 1 ngày qua ranh giới tháng', () => expect(addDaysISO('2026-08-01', -1)).toBe('2026-07-31'))
   it('delta 0 giữ nguyên', () => expect(addDaysISO('2026-07-10', 0)).toBe('2026-07-10'))
+})
+
+describe('formatDayLabel', () => {
+  it('ghi kèm thứ, không đệm số 0', () => {
+    expect(formatDayLabel('2026-03-02')).toBe('T2, 2/3')
+    expect(formatDayLabel('2026-02-28')).toBe('T7, 28/2')
+    expect(formatDayLabel('2026-07-26')).toBe('CN, 26/7')
+  })
 })
 
 describe('clampMonthStartDay', () => {

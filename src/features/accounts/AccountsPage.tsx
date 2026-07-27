@@ -467,6 +467,10 @@ function AccountForm({ account, onClose }: FormProps) {
                 />
               </div>
             </div>
+            <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+              Đặt 31 nếu thẻ chốt vào ngày cuối tháng. Tháng ngắn hơn sẽ tính vào ngày cuối
+              tháng đó, và ngày đến hạn rơi vào Thứ 7 / Chủ nhật thì lùi sang Thứ 2.
+            </p>
 
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
               Tài khoản trả thẻ <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>

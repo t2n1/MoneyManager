@@ -1,6 +1,7 @@
 // Nhập giao dịch từ CSV sao kê (mục Y). Thuần, không phụ thuộc DOM → test được.
 import type { CurrencyCode } from '../../lib/money'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
+import { normalizeText } from '../transactions/filter'
 
 /** Bóc tách CSV thành mảng 2 chiều: hỗ trợ trường bọc nháy kép, phẩy & xuống dòng bên trong. */
 export function parseCsvText(text: string): string[][] {
@@ -104,6 +105,22 @@ export interface ColumnMapping {
   date: number
   amount: number
   note: number
+  /** cột tên danh mục trong file; bỏ trống = file không có cột này */
+  category?: number
+}
+
+/** Danh mục để ghép theo tên (chỉ phần csvImport cần biết). */
+export interface CategoryChoice {
+  id: string
+  name: string
+  type: Extract<TransactionType, 'expense' | 'income'>
+  is_archived: boolean
+}
+
+/** Danh mục dùng khi cột trong file trống/không khớp. null = người dùng chưa chọn. */
+export interface FallbackCategories {
+  expense: string | null
+  income: string | null
 }
 
 export interface ImportOptions {
@@ -113,6 +130,9 @@ export interface ImportOptions {
   /** true = số âm là chi tiêu, số dương là thu nhập. */
   negativeIsExpense: boolean
   currency: CurrencyCode
+  /** Danh mục hiện có của người dùng, để ghép với tên trong file. */
+  categories?: CategoryChoice[]
+  fallback?: FallbackCategories
 }
 
 export interface ImportItem {
@@ -121,6 +141,13 @@ export interface ImportItem {
   amount: number
   type: Extract<TransactionType, 'expense' | 'income'>
   note: string
+  /**
+   * Danh mục sẽ gắn khi lưu. null = chưa xác định được (chưa chọn danh mục mặc
+   * định) — bảng transactions BẮT BUỘC chi/thu có danh mục, nên UI phải chặn nhập.
+   */
+  category_id: string | null
+  /** true = tên danh mục đọc được từ file; false = phải dùng danh mục mặc định. */
+  categoryFromFile: boolean
   /** khóa chống trùng: ngày|amount có dấu|note */
   key: string
 }
@@ -208,11 +235,27 @@ export function detectInternalTransfers(
   return out
 }
 
+/**
+ * Bảng tra danh mục theo "chiều|tên đã bỏ dấu". Danh mục đã lưu trữ không tính;
+ * hai danh mục cùng tên thì lấy cái đầu tiên (repo trả về theo sort_order).
+ */
+function categoryIndex(categories: CategoryChoice[]): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const c of categories) {
+    if (c.is_archived) continue
+    const k = `${c.type}|${normalizeText(c.name)}`
+    if (!map.has(k)) map.set(k, c.id)
+  }
+  return map
+}
+
 /** Dựng danh sách giao dịch chuẩn hóa từ các dòng CSV theo cấu hình ánh xạ. */
 export function buildImportPreview(rows: string[][], opts: ImportOptions): ImportPreview {
   const dataRows = opts.hasHeader ? rows.slice(1) : rows
   const items: ImportItem[] = []
   let errorCount = 0
+  const catIndex = categoryIndex(opts.categories ?? [])
+  const fallback = opts.fallback ?? { expense: null, income: null }
   for (const r of dataRows) {
     const iso = parseDateToISO(r[opts.mapping.date] ?? '', opts.dateOrder)
     const rawAmount = parseAmountToMinor(r[opts.mapping.amount] ?? '', opts.currency)
@@ -224,11 +267,17 @@ export function buildImportPreview(rows: string[][], opts: ImportOptions): Impor
     const isExpense = opts.negativeIsExpense ? rawAmount < 0 : rawAmount > 0
     const amount = Math.abs(rawAmount)
     const type = isExpense ? 'expense' : 'income'
+    // Danh mục: ưu tiên tên trong file (phải cùng chiều Chi/Thu), không khớp thì
+    // rơi về danh mục mặc định người dùng chọn ở trang nhập.
+    const rawCat = opts.mapping.category === undefined ? '' : (r[opts.mapping.category] ?? '')
+    const fromFile = rawCat.trim() === '' ? null : (catIndex.get(`${type}|${normalizeText(rawCat)}`) ?? null)
     items.push({
       occurred_on: iso,
       amount,
       type,
       note,
+      category_id: fromFile ?? fallback[type],
+      categoryFromFile: fromFile !== null,
       key: `${iso}|${isExpense ? '-' : '+'}${amount}|${note}`,
     })
   }

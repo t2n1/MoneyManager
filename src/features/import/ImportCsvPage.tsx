@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, Upload } from 'lucide-react'
 import { repo } from '../../data'
-import { useAccounts, useRangeTransactions } from '../../hooks/queries'
+import { useAccounts, useCategories, useRangeTransactions } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
+import { normalizeText } from '../transactions/filter'
+import type { CategoryType } from '../../types/database.types'
 import {
   buildImportPreview,
   detectInternalTransfers,
@@ -22,9 +24,13 @@ function nextDay(iso: string): string {
   return toISODate(new Date(y, m - 1, d + 1))
 }
 
+/** Danh mục mặc định gợi ý sẵn: danh mục "Khác" mà mọi sổ đều có từ lúc tạo. */
+const DEFAULT_FALLBACK_NAME = 'Khác'
+
 export function ImportCsvPage() {
   const qc = useQueryClient()
   const { data: accounts = [] } = useAccounts()
+  const { data: categories = [] } = useCategories()
 
   const [rows, setRows] = useState<string[][]>([])
   const [fileName, setFileName] = useState('')
@@ -33,6 +39,11 @@ export function ImportCsvPage() {
   const [dateCol, setDateCol] = useState(0)
   const [amountCol, setAmountCol] = useState(1)
   const [noteCol, setNoteCol] = useState(2)
+  // -1 = file không có cột danh mục (mọi dòng dùng danh mục mặc định)
+  const [categoryCol, setCategoryCol] = useState(-1)
+  // null = chưa chạm vào ô → dùng gợi ý "Khác"; '' = người dùng cố ý bỏ trống
+  const [expenseCatPick, setExpenseCatPick] = useState<string | null>(null)
+  const [incomeCatPick, setIncomeCatPick] = useState<string | null>(null)
   const [hasHeader, setHasHeader] = useState(true)
   const [dateOrder, setDateOrder] = useState<DateOrder>('ymd')
   const [negativeIsExpense, setNegativeIsExpense] = useState(true)
@@ -44,6 +55,16 @@ export function ImportCsvPage() {
   const currency = account?.currency ?? 'JPY'
   const headerRow = rows[0] ?? []
   const columns = headerRow.map((h, i) => ({ i, label: hasHeader ? h || `Cột ${i + 1}` : `Cột ${i + 1}` }))
+
+  // Danh mục mặc định: người dùng chọn tay, chưa chọn thì lấy "Khác" của chiều đó.
+  const activeOfType = (t: CategoryType) => categories.filter((c) => c.type === t && !c.is_archived)
+  const suggestFallback = (t: CategoryType) =>
+    activeOfType(t).find((c) => normalizeText(c.name) === normalizeText(DEFAULT_FALLBACK_NAME))?.id ??
+    ''
+  const expenseCatId = expenseCatPick ?? suggestFallback('expense')
+  const incomeCatId = incomeCatPick ?? suggestFallback('income')
+  const categoryName = (id: string | null) =>
+    id ? (categories.find((c) => c.id === id)?.name ?? '—') : '—'
 
   function decodeAndParse(buf: ArrayBuffer, enc: Encoding) {
     const text = new TextDecoder(enc).decode(buf)
@@ -70,14 +91,35 @@ export function ImportCsvPage() {
     () =>
       rows.length > 0 && account
         ? buildImportPreview(rows, {
-            mapping: { date: dateCol, amount: amountCol, note: noteCol },
+            mapping: {
+              date: dateCol,
+              amount: amountCol,
+              note: noteCol,
+              ...(categoryCol >= 0 ? { category: categoryCol } : {}),
+            },
             dateOrder,
             hasHeader,
             negativeIsExpense,
             currency,
+            categories,
+            fallback: { expense: expenseCatId || null, income: incomeCatId || null },
           })
         : { items: [], errorCount: 0 },
-    [rows, account, dateCol, amountCol, noteCol, dateOrder, hasHeader, negativeIsExpense, currency],
+    [
+      rows,
+      account,
+      dateCol,
+      amountCol,
+      noteCol,
+      categoryCol,
+      dateOrder,
+      hasHeader,
+      negativeIsExpense,
+      currency,
+      categories,
+      expenseCatId,
+      incomeCatId,
+    ],
   )
 
   // Chống trùng: đối chiếu với giao dịch đã có của TÀI KHOẢN đích trong khoảng ngày nhập.
@@ -145,9 +187,12 @@ export function ImportCsvPage() {
     (it) => !existingKeys.has(it.key) && transferKeys.has(it.key),
   ).length
   const nameOfAccount = (id: string) => accounts.find((a) => a.id === id)?.name ?? 'tài khoản khác'
+  // Chi/thu BẮT BUỘC có danh mục (CHECK của bảng transactions) → thiếu thì chặn nhập
+  const missingCatCount = toImport.filter((it) => !it.category_id).length
+  const fallbackUsedCount = toImport.filter((it) => it.category_id && !it.categoryFromFile).length
 
   async function handleImport() {
-    if (!accountId || toImport.length === 0) return
+    if (!accountId || toImport.length === 0 || missingCatCount > 0) return
     setBusy(true)
     setResult(null)
     let done = 0
@@ -157,7 +202,7 @@ export function ImportCsvPage() {
           type: it.type,
           amount: it.amount,
           to_amount: null,
-          category_id: null,
+          category_id: it.category_id,
           account_id: accountId,
           to_account_id: null,
           occurred_on: it.occurred_on,
@@ -181,6 +226,29 @@ export function ImportCsvPage() {
 
   const selectCls =
     'rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm'
+
+  /** Options danh mục theo chiều: cha có con thì chỉ chọn được con (giống màn Nhập). */
+  function categoryOptions(t: CategoryType) {
+    const active = activeOfType(t)
+    return active
+      .filter((c) => !c.parent_id)
+      .map((parent) => {
+        const kids = active.filter((c) => c.parent_id === parent.id)
+        return kids.length > 0 ? (
+          <optgroup key={parent.id} label={`${parent.icon} ${parent.name}`}>
+            {kids.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.icon} {c.name}
+              </option>
+            ))}
+          </optgroup>
+        ) : (
+          <option key={parent.id} value={parent.id}>
+            {parent.icon} {parent.name}
+          </option>
+        )
+      })
+  }
 
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
@@ -255,6 +323,19 @@ export function ImportCsvPage() {
               </select>
             </label>
             <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+              Cột danh mục
+              <select
+                value={categoryCol}
+                onChange={(e) => setCategoryCol(Number(e.target.value))}
+                className={selectCls}
+              >
+                <option value={-1}>— Không có —</option>
+                {columns.map((c) => (
+                  <option key={c.i} value={c.i}>{c.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
               Thứ tự ngày
               <select value={dateOrder} onChange={(e) => setDateOrder(e.target.value as DateOrder)} className={selectCls}>
                 <option value="ymd">Năm/Tháng/Ngày</option>
@@ -274,6 +355,36 @@ export function ImportCsvPage() {
               />
               Số âm là chi tiêu (số dương là thu nhập)
             </label>
+
+            {/* Mọi giao dịch chi/thu buộc phải có danh mục. Tên trong file được ghép
+                với danh mục đã có; dòng nào không khớp thì dùng hai ô dưới đây. */}
+            <p className="col-span-2 -mb-1 mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {categoryCol >= 0
+                ? 'Danh mục dùng khi tên trong file không khớp danh mục nào của bạn:'
+                : 'Danh mục cho các dòng nhập vào (file không có cột danh mục):'}
+            </p>
+            <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+              Dòng Chi
+              <select
+                value={expenseCatId}
+                onChange={(e) => setExpenseCatPick(e.target.value)}
+                className={selectCls}
+              >
+                <option value="">— Chọn danh mục —</option>
+                {categoryOptions('expense')}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+              Dòng Thu
+              <select
+                value={incomeCatId}
+                onChange={(e) => setIncomeCatPick(e.target.value)}
+                className={selectCls}
+              >
+                <option value="">— Chọn danh mục —</option>
+                {categoryOptions('income')}
+              </select>
+            </label>
           </section>
 
           {account && (
@@ -283,7 +394,17 @@ export function ImportCsvPage() {
                 {dupCount > 0 && ` · bỏ qua ${dupCount} trùng`}
                 {skipTransfers && transferCount > 0 && ` · bỏ qua ${transferCount} chuyển khoản`}
                 {preview.errorCount > 0 && ` · ${preview.errorCount} dòng lỗi`}
+                {categoryCol >= 0 &&
+                  fallbackUsedCount > 0 &&
+                  ` · ${fallbackUsedCount} dòng dùng danh mục mặc định`}
               </p>
+
+              {missingCatCount > 0 && (
+                <p className="mt-2 rounded-lg bg-red-50 p-2.5 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                  <b>{missingCatCount} dòng chưa có danh mục.</b> Mỗi giao dịch chi/thu đều phải có
+                  danh mục, nên hãy chọn danh mục mặc định cho dòng Chi và dòng Thu ở trên.
+                </p>
+              )}
 
               {/* Cảnh báo chuyển khoản nội bộ */}
               {transferCount > 0 && (
@@ -325,6 +446,7 @@ export function ImportCsvPage() {
                       <th className="py-1 text-left font-medium">Ngày</th>
                       <th className="py-1 text-left font-medium">Loại</th>
                       <th className="py-1 text-right font-medium">Số tiền</th>
+                      <th className="py-1 text-left font-medium">Danh mục</th>
                       <th className="py-1 text-left font-medium">Ghi chú</th>
                     </tr>
                   </thead>
@@ -336,6 +458,18 @@ export function ImportCsvPage() {
                           {it.type === 'expense' ? 'Chi' : 'Thu'}
                         </td>
                         <td className="py-1 text-right tabular-nums">{formatMoney(it.amount, currency)}</td>
+                        {/* Danh mục mặc định hiện mờ hơn để thấy ngay dòng nào chưa khớp tên */}
+                        <td
+                          className={`py-1 ${
+                            it.category_id
+                              ? it.categoryFromFile
+                                ? ''
+                                : 'text-gray-400 dark:text-gray-500'
+                              : 'text-red-500'
+                          }`}
+                        >
+                          {it.category_id ? categoryName(it.category_id) : 'chưa có'}
+                        </td>
                         <td className="py-1">{it.note}</td>
                       </tr>
                     ))}
@@ -350,7 +484,7 @@ export function ImportCsvPage() {
               <button
                 type="button"
                 onClick={handleImport}
-                disabled={busy || toImport.length === 0}
+                disabled={busy || toImport.length === 0 || missingCatCount > 0}
                 className="mt-3 w-full rounded-lg bg-green-600 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40 active:scale-95"
               >
                 {busy ? 'Đang nhập…' : `Nhập ${toImport.length} giao dịch`}

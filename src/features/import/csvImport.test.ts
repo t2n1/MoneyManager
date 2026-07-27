@@ -84,6 +84,69 @@ describe('buildImportPreview', () => {
   })
 })
 
+describe('danh mục cho dòng CSV', () => {
+  const cats = [
+    { id: 'food', name: 'Ăn uống', type: 'expense' as const, is_archived: false },
+    { id: 'traffic', name: 'Đi lại', type: 'expense' as const, is_archived: false },
+    { id: 'salary', name: 'Lương', type: 'income' as const, is_archived: false },
+    { id: 'old', name: 'Cũ rồi', type: 'expense' as const, is_archived: true },
+    { id: 'khac-chi', name: 'Khác', type: 'expense' as const, is_archived: false },
+    { id: 'khac-thu', name: 'Khác', type: 'income' as const, is_archived: false },
+  ]
+  const opts = (over: Partial<ImportOptions> = {}): ImportOptions => ({
+    mapping: { date: 0, amount: 1, note: 2, category: 3 },
+    dateOrder: 'ymd',
+    hasHeader: true,
+    negativeIsExpense: true,
+    currency: 'JPY',
+    categories: cats,
+    fallback: { expense: 'khac-chi', income: 'khac-thu' },
+    ...over,
+  })
+  const head = ['Ngày', 'Số tiền', 'Ghi chú', 'Danh mục']
+
+  it('ghép tên trong file, bỏ qua hoa/thường và dấu', () => {
+    const rows = [
+      head,
+      ['2026-07-01', '-850', 'Cơm trưa', 'ăn uống'],
+      ['2026-07-02', '-300', 'Tàu', ' DI LAI '],
+      ['2026-07-03', '280000', 'Tháng 7', 'Lương'],
+    ]
+    const { items } = buildImportPreview(rows, opts())
+    expect(items.map((i) => i.category_id)).toEqual(['food', 'traffic', 'salary'])
+    expect(items.every((i) => i.categoryFromFile)).toBe(true)
+  })
+
+  it('tên lạ, ô trống, hoặc file không có cột danh mục → dùng danh mục mặc định', () => {
+    const rows = [head, ['2026-07-01', '-850', 'Cơm', 'Linh tinh'], ['2026-07-02', '-100', 'X', '']]
+    const withCol = buildImportPreview(rows, opts())
+    expect(withCol.items.map((i) => i.category_id)).toEqual(['khac-chi', 'khac-chi'])
+    expect(withCol.items.every((i) => i.categoryFromFile)).toBe(false)
+
+    const noCol = buildImportPreview(rows, opts({ mapping: { date: 0, amount: 1, note: 2 } }))
+    expect(noCol.items.map((i) => i.category_id)).toEqual(['khac-chi', 'khac-chi'])
+  })
+
+  it('danh mục khớp tên nhưng sai chiều Chi/Thu → về mặc định', () => {
+    // 'Lương' là danh mục Thu, dòng này là Chi → không được gắn
+    const rows = [head, ['2026-07-01', '-850', 'Cơm', 'Lương']]
+    const { items } = buildImportPreview(rows, opts())
+    expect(items[0]).toMatchObject({ category_id: 'khac-chi', categoryFromFile: false })
+  })
+
+  it('danh mục đã lưu trữ không được dùng', () => {
+    const rows = [head, ['2026-07-01', '-850', 'Cơm', 'Cũ rồi']]
+    const { items } = buildImportPreview(rows, opts())
+    expect(items[0].category_id).toBe('khac-chi')
+  })
+
+  it('chưa chọn danh mục mặc định → category_id null để UI chặn nhập', () => {
+    const rows = [head, ['2026-07-01', '-850', 'Cơm', 'Linh tinh'], ['2026-07-02', '9000', 'Thu', '']]
+    const { items } = buildImportPreview(rows, opts({ fallback: { expense: null, income: null } }))
+    expect(items.map((i) => i.category_id)).toEqual([null, null])
+  })
+})
+
 describe('detectInternalTransfers', () => {
   let seq = 0
   const etx = (
@@ -110,6 +173,8 @@ describe('detectInternalTransfers', () => {
     amount,
     type,
     note: '',
+    category_id: 'c1',
+    categoryFromFile: false,
     key: `${occurred_on}|${type === 'expense' ? '-' : '+'}${amount}`,
   })
 

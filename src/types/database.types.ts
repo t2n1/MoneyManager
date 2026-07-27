@@ -109,6 +109,11 @@ export type CategoryRow = {
   need_level: NeedLevel | null
   /** Chỉ danh mục Chi lá: chi cố định vs biến đổi. null = chưa phân loại */
   cost_type: CostType | null
+  /**
+   * Từ khoá nhận diện tên cửa hàng khi nhập CSV (mỗi từ khoá là một chuỗi con).
+   * Vắng mặt/rỗng = danh mục này không tự nhận diện gì. DB mặc định '{}'.
+   */
+  import_keywords?: string[] | null
 }
 
 export type TransactionRow = {
@@ -396,12 +401,27 @@ export type Database = {
         Insert: InsertOf<
           CategoryRow,
           'user_id' | 'name' | 'type',
-          'id' | 'icon' | 'parent_id' | 'sort_order' | 'is_archived' | 'need_level' | 'cost_type'
+          | 'id'
+          | 'icon'
+          | 'parent_id'
+          | 'sort_order'
+          | 'is_archived'
+          | 'need_level'
+          | 'cost_type'
+          | 'import_keywords'
         >
         Update: Partial<
           Pick<
             CategoryRow,
-            'name' | 'type' | 'icon' | 'parent_id' | 'sort_order' | 'is_archived' | 'need_level' | 'cost_type'
+            | 'name'
+            | 'type'
+            | 'icon'
+            | 'parent_id'
+            | 'sort_order'
+            | 'is_archived'
+            | 'need_level'
+            | 'cost_type'
+            | 'import_keywords'
           >
         >
         Relationships: []

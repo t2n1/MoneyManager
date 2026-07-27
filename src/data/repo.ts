@@ -137,6 +137,8 @@ export interface NewCategory {
   /** Chỉ danh mục Chi lá — xem CategoryRow */
   need_level?: NeedLevel | null
   cost_type?: CostType | null
+  /** Từ khoá nhận diện tên cửa hàng khi nhập CSV; bỏ trống = không nhận diện. */
+  import_keywords?: string[]
 }
 
 export type CategoryPatch = Partial<NewCategory & { is_archived: boolean }>

@@ -757,6 +757,7 @@ export const demoRepo: Repo = {
       parent_id: input.parent_id ?? null,
       need_level: input.need_level ?? null,
       cost_type: input.cost_type ?? null,
+      import_keywords: input.import_keywords ?? [],
       id: uuid(),
       user_id: DEMO_USER,
       sort_order,

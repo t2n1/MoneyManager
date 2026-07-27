@@ -33,6 +33,24 @@ type FormState =
   | { category: null; parent: CategoryRow | null }
   | { category: CategoryRow; parent: CategoryRow | null }
 
+/**
+ * "ファミマ, lawson ,, LAWSON" → ['ファミマ', 'lawson']: bỏ khoảng trắng, bỏ ô rỗng,
+ * bỏ trùng (so không phân biệt hoa thường) nhưng GIỮ NGUYÊN chữ người dùng gõ.
+ */
+function parseKeywords(raw: string): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const part of raw.split(',')) {
+    const kw = part.trim()
+    if (kw === '') continue
+    const low = kw.toLowerCase()
+    if (seen.has(low)) continue
+    seen.add(low)
+    out.push(kw)
+  }
+  return out
+}
+
 export function CategoriesPage() {
   const { data: categories = [] } = useCategories()
   const reorder = useReorderCategories()
@@ -560,6 +578,8 @@ function CategoryForm({
   )
   const [needLevel, setNeedLevel] = useState<NeedLevel | null>(category?.need_level ?? null)
   const [costType, setCostType] = useState<CostType | null>(category?.cost_type ?? null)
+  // Từ khoá nhận diện khi nhập CSV — nhập tự do, cách nhau bằng dấu phẩy
+  const [keywords, setKeywords] = useState((category?.import_keywords ?? []).join(', '))
   const [saving, setSaving] = useState(false)
 
   const selectedParent = parentId ? parentOptions.find((p) => p.id === parentId) ?? null : null
@@ -594,6 +614,8 @@ function CategoryForm({
         parent_id: hasChildren ? null : parentId,
         need_level: canClassify ? needLevel : null,
         cost_type: canClassify ? costType : null,
+        // Cha có con không gắn được vào giao dịch → không nhận diện gì
+        import_keywords: hasChildren ? [] : parseKeywords(keywords),
       }
       if (category) await update.mutateAsync({ id: category.id, patch: input })
       else await create.mutateAsync(input)
@@ -676,6 +698,26 @@ function CategoryForm({
               </button>
             ))}
           </div>
+        )}
+
+        {/* Từ khoá nhận diện khi nhập CSV sao kê — chỉ danh mục gắn được vào giao dịch */}
+        {!hasChildren && (
+          <label className="mb-3 block">
+            <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+              Từ khoá nhận diện khi nhập CSV{' '}
+              <span className="font-normal">(không bắt buộc)</span>
+            </span>
+            <input
+              value={keywords}
+              onChange={(e) => setKeywords(e.target.value)}
+              placeholder="ファミリーマート, lawson, seven"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
+            />
+            <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+              Cách nhau bằng dấu phẩy. Dòng nào trong file sao kê có chứa một trong các từ này
+              thì tự vào danh mục này. Không cần gõ dấu, không phân biệt hoa thường.
+            </span>
+          </label>
         )}
 
         {canClassify && (

@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, Upload } from 'lucide-react'
 import { repo } from '../../data'
 import { useAccounts, useCategories, useRangeTransactions } from '../../hooks/queries'
-import { toISODate } from '../../lib/dates'
+import { addDaysISO, toISODate } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import { normalizeText } from '../transactions/filter'
 import type { CategoryType } from '../../types/database.types'
@@ -42,6 +42,12 @@ const ROW_LIMIT = 100
 
 /** Số dòng lỗi kể tên trong cảnh báo (chọn sai cột thì cả file thành lỗi, đừng liệt kê hết). */
 const SKIP_LIMIT = 5
+
+/**
+ * Cửa sổ ngày cho việc nghi trùng với khoản đã ghi tay. Sao kê ghi theo lúc cửa hàng gửi
+ * dữ liệu bán hàng nên lệch một hai hôm so với ngày mua là thường.
+ */
+const SUSPECT_WINDOW_DAYS = 3
 
 /** Vì sao dòng đó không nhập được, nói bằng tiếng người. */
 const SKIP_LABEL: Record<SkipReason, string> = {
@@ -177,7 +183,9 @@ export function ImportCsvPage() {
     ],
   )
 
-  // Chống trùng: đối chiếu với giao dịch đã có của TÀI KHOẢN đích trong khoảng ngày nhập.
+  // Chống trùng: đối chiếu với giao dịch đã có của TÀI KHOẢN đích trong khoảng ngày nhập,
+  // NỚI RA hai đầu bằng cửa sổ nghi trùng — khoản ghi tay lệch 3 ngày so với dòng đầu/cuối
+  // file cũng phải nằm trong dữ liệu lấy về, không thì không bao giờ soi ra.
   const span = useMemo(() => {
     if (preview.items.length === 0) return null
     let min = preview.items[0].occurred_on
@@ -186,7 +194,10 @@ export function ImportCsvPage() {
       if (it.occurred_on < min) min = it.occurred_on
       if (it.occurred_on > max) max = it.occurred_on
     }
-    return { start: min, end: nextDay(max) }
+    return {
+      start: addDaysISO(min, -SUSPECT_WINDOW_DAYS),
+      end: nextDay(addDaysISO(max, SUSPECT_WINDOW_DAYS)),
+    }
   }, [preview.items])
 
   const { data: existing = [] } = useRangeTransactions(
@@ -231,7 +242,12 @@ export function ImportCsvPage() {
   // ghi chú khác (đã ghi tay "Cơm trưa", file ghi "ファミリーマート").
   const dupSuspects = useMemo(
     () =>
-      accountId ? detectPossibleDuplicates(preview.items, existing, { accountId }) : [],
+      accountId
+        ? detectPossibleDuplicates(preview.items, existing, {
+            accountId,
+            windowDays: SUSPECT_WINDOW_DAYS,
+          })
+        : [],
     [preview.items, existing, accountId],
   )
   const suspectBy = useMemo(
@@ -533,8 +549,9 @@ export function ImportCsvPage() {
               {/* Nghi nhập trùng với khoản đã ghi tay */}
               {suspectCount > 0 && (
                 <p className="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                  <b>{suspectCount} dòng nghi đã có trong sổ</b> — cùng ngày, cùng số tiền, cùng
-                  chiều với một giao dịch bạn đã ghi, chỉ khác tên. Những dòng đó đã được{' '}
+                  <b>{suspectCount} dòng nghi đã có trong sổ</b> — cùng số tiền, cùng chiều, ngày
+                  lệch không quá {SUSPECT_WINDOW_DAYS} ngày với một giao dịch bạn đã ghi, chỉ khác
+                  tên. Những dòng đó đã được{' '}
                   <b>bỏ tick sẵn</b> ở bảng dưới. Nếu đúng là khoản khác thì tick lại; nếu đúng là
                   khoản bạn đã ghi thì bấm <b>Gộp</b> để thêm tên trên sao kê vào ghi chú cũ.
                 </p>
@@ -648,6 +665,7 @@ export function ImportCsvPage() {
                               <span className="block text-amber-700 dark:text-amber-400">
                                 {willMerge ? 'sẽ gộp vào' : 'nghi trùng với'} “
                                 {suspect.matchedNote || 'không ghi chú'}”
+                                {suspect.dayGap > 0 && ` (lệch ${suspect.dayGap} ngày)`}
                                 <button
                                   type="button"
                                   onClick={() =>

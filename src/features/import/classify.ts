@@ -117,6 +117,8 @@ export interface DuplicateCandidate {
   matchedTxId: string
   /** ghi chú của giao dịch đã có, để người dùng tự nhận ra */
   matchedNote: string
+  /** lệch bao nhiêu ngày giữa hai bên (0 = cùng ngày) */
+  dayGap: number
 }
 
 export interface DuplicateItem {
@@ -150,36 +152,48 @@ export function mergeNote(existing: string, fromFile: string): string {
 }
 
 /**
- * Dòng CSV CÙNG NGÀY, CÙNG SỐ TIỀN, CÙNG CHIỀU với một giao dịch đã có trên chính
- * tài khoản đó nhưng GHI CHÚ KHÁC — gần như chắc chắn là khoản bạn đã ghi tay rồi,
- * chỉ khác cách gọi tên ("Cơm trưa" vs "ファミリーマート").
+ * Dòng CSV CÙNG SỐ TIỀN, CÙNG CHIỀU, NGÀY LỆCH KHÔNG QUÁ `windowDays` với một giao dịch
+ * đã có trên chính tài khoản đó nhưng GHI CHÚ KHÁC — gần như chắc chắn là khoản bạn đã
+ * ghi tay rồi, chỉ khác cách gọi tên ("Cơm trưa" vs "ファミリーマート").
  *
- * Trùng giống hệt cả ghi chú thì trang nhập đã lọc thẳng, không cần cảnh báo.
- * Mỗi giao dịch cũ chỉ khớp một dòng CSV, để một lần ghi tay không làm cả ba dòng
- * cùng giá bị nghi oan.
+ * Cho lệch ngày vì sao kê ghi theo lúc cửa hàng gửi dữ liệu bán hàng, còn người dùng ghi
+ * tay theo ngày mua — chênh nhau một hai hôm là thường.
+ *
+ * Trùng giống hệt cả ghi chú lẫn ngày thì trang nhập đã lọc thẳng, không cần cảnh báo.
+ * Mỗi giao dịch cũ chỉ khớp một dòng CSV (ưu tiên lệch ngày ít nhất), để một lần ghi tay
+ * không làm cả ba dòng cùng giá bị nghi oan.
  */
 export function detectPossibleDuplicates(
   items: DuplicateItem[],
   existing: DuplicateExisting[],
-  opts: { accountId: string },
+  opts: { accountId: string; windowDays?: number },
 ): DuplicateCandidate[] {
+  const windowDays = opts.windowDays ?? 3
   const pool = existing.filter(
     (t) => t.account_id === opts.accountId && (t.type === 'expense' || t.type === 'income'),
   )
   const used = new Set<string>()
   const out: DuplicateCandidate[] = []
   for (const it of items) {
-    const hit = pool.find(
-      (t) =>
-        !used.has(t.id) &&
-        t.type === it.type &&
-        t.amount === it.amount &&
-        t.occurred_on === it.occurred_on &&
-        normalizeText(t.note ?? '') !== normalizeText(it.note),
-    )
-    if (!hit) continue
-    used.add(hit.id)
-    out.push({ rowId: it.rowId, matchedTxId: hit.id, matchedNote: hit.note ?? '' })
+    let best: { tx: DuplicateExisting; gap: number } | null = null
+    for (const t of pool) {
+      if (used.has(t.id)) continue
+      if (t.type !== it.type || t.amount !== it.amount) continue
+      if (normalizeText(t.note ?? '') === normalizeText(it.note)) continue
+      const gap = Math.abs(
+        Math.round((Date.parse(it.occurred_on) - Date.parse(t.occurred_on)) / 86_400_000),
+      )
+      if (gap > windowDays) continue
+      if (!best || gap < best.gap) best = { tx: t, gap }
+    }
+    if (!best) continue
+    used.add(best.tx.id)
+    out.push({
+      rowId: it.rowId,
+      matchedTxId: best.tx.id,
+      matchedNote: best.tx.note ?? '',
+      dayGap: best.gap,
+    })
   }
   return out
 }

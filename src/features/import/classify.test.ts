@@ -177,7 +177,38 @@ describe('detectPossibleDuplicates', () => {
       [ex()],
       opts,
     )
-    expect(found).toEqual([{ rowId: 'k1', matchedTxId: 'e1', matchedNote: 'Cơm trưa' }])
+    expect(found).toEqual([{ rowId: 'k1', matchedTxId: 'e1', matchedNote: 'Cơm trưa', dayGap: 0 }])
+  })
+
+  it('lệch vài ngày vẫn nghi trùng, có kể lệch mấy ngày', () => {
+    // Sao kê ghi ngày cửa hàng gửi dữ liệu, người dùng ghi tay ngày mua → lệch 1–2 ngày
+    const found = detectPossibleDuplicates(
+      [item('k1', '2026-07-04', 680, 'ファミリーマート')],
+      [ex()], // giao dịch cũ ngày 2026-07-02
+      opts,
+    )
+    expect(found).toEqual([{ rowId: 'k1', matchedTxId: 'e1', matchedNote: 'Cơm trưa', dayGap: 2 }])
+  })
+
+  it('lệch quá cửa sổ thì không nghi', () => {
+    expect(
+      detectPossibleDuplicates([item('k1', '2026-07-07', 680, 'ファミマ')], [ex()], opts),
+    ).toEqual([])
+  })
+
+  it('nhiều khoản cũ khớp thì lấy khoản gần ngày nhất', () => {
+    const found = detectPossibleDuplicates(
+      [item('k1', '2026-07-03', 680, 'ファミマ')],
+      [ex({ id: 'xa', occurred_on: '2026-07-01' }), ex({ id: 'gan', occurred_on: '2026-07-02' })],
+      opts,
+    )
+    expect(found.map((f) => [f.matchedTxId, f.dayGap])).toEqual([['gan', 1]])
+  })
+
+  it('nới cửa sổ được qua tham số', () => {
+    const xa = [item('k1', '2026-07-09', 680, 'ファミマ')]
+    expect(detectPossibleDuplicates(xa, [ex()], opts)).toEqual([])
+    expect(detectPossibleDuplicates(xa, [ex()], { ...opts, windowDays: 7 })).toHaveLength(1)
   })
 
   it('hai dòng giống hệt nhau nghi trùng riêng biệt theo rowId', () => {
@@ -199,7 +230,7 @@ describe('detectPossibleDuplicates', () => {
 
   it('lệch ngày, lệch tiền, khác chiều, hoặc ví khác → không nghi', () => {
     expect(
-      detectPossibleDuplicates([item('k1', '2026-07-03', 680, 'ファミマ')], [ex()], opts),
+      detectPossibleDuplicates([item('k1', '2026-07-20', 680, 'ファミマ')], [ex()], opts),
     ).toEqual([])
     expect(
       detectPossibleDuplicates([item('k1', '2026-07-02', 681, 'ファミマ')], [ex()], opts),

@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { TransactionRow } from '../../types/database.types'
 import {
   buildImportPreview,
+  countExistingByKey,
   detectInternalTransfers,
+  findDuplicateRowIds,
   parseAmountToMinor,
   parseCsvText,
   parseDateToISO,
+  type ExistingTxLike,
   type ImportItem,
   type ImportOptions,
 } from './csvImport'
@@ -261,6 +264,60 @@ describe('danh mục cho dòng CSV', () => {
     const rows = [head, ['2026-07-01', '-850', 'Cơm', 'Linh tinh'], ['2026-07-02', '9000', 'Thu', '']]
     const { items } = buildImportPreview(rows, opts({ fallback: { expense: null, income: null } }))
     expect(items.map((i) => i.category_id)).toEqual([null, null])
+  })
+})
+
+describe('lọc trùng với sổ theo số bản', () => {
+  const head = ['Ngày', 'Số tiền', 'Ghi chú']
+  const opts: ImportOptions = {
+    mapping: { date: 0, amount: 1, note: 2 },
+    dateOrder: 'ymd',
+    hasHeader: true,
+    negativeIsExpense: true,
+    currency: 'JPY',
+  }
+  // Bốn lần qua trạm ETC 260 yên cùng ngày — sao kê Rakuten tháng 5/2026 có thật
+  const bonDong = buildImportPreview(
+    [head, ...Array.from({ length: 4 }, () => ['2026-03-14', '-260', 'ＥＴＣカード売上'])],
+    opts,
+  ).items
+  const ex = (n: number, over: Partial<ExistingTxLike> = {}): ExistingTxLike[] =>
+    Array.from({ length: n }, () => ({
+      account_id: 'card',
+      type: 'expense' as const,
+      amount: 260,
+      occurred_on: '2026-03-14',
+      note: 'ＥＴＣカード売上',
+      ...over,
+    }))
+
+  it('sổ đã có 1 bản → chỉ lọc 1 dòng, 3 dòng còn lại vẫn nhập', () => {
+    const dup = findDuplicateRowIds(bonDong, countExistingByKey(ex(1), 'card'))
+    expect(dup.size).toBe(1)
+    expect([...dup]).toEqual([bonDong[0].rowId])
+  })
+
+  it('sổ đã có đủ 4 bản → lọc cả 4 (nhập lại cùng file không sinh thêm)', () => {
+    const dup = findDuplicateRowIds(bonDong, countExistingByKey(ex(4), 'card'))
+    expect(dup.size).toBe(4)
+  })
+
+  it('giao dịch ở tài khoản khác không tính là trùng', () => {
+    const dup = findDuplicateRowIds(
+      bonDong,
+      countExistingByKey(ex(4, { account_id: 'bank' }), 'card'),
+    )
+    expect(dup.size).toBe(0)
+  })
+
+  it('khác ghi chú thì không phải trùng thật (để phần nghi trùng lo)', () => {
+    const dup = findDuplicateRowIds(bonDong, countExistingByKey(ex(4, { note: 'Phí cầu đường' }), 'card'))
+    expect(dup.size).toBe(0)
+  })
+
+  it('chuyển khoản trong sổ không tính (chỉ so chi/thu)', () => {
+    const dup = findDuplicateRowIds(bonDong, countExistingByKey(ex(4, { type: 'transfer' }), 'card'))
+    expect(dup.size).toBe(0)
   })
 })
 

@@ -10,7 +10,9 @@ import { normalizeText } from '../transactions/filter'
 import type { CategoryType } from '../../types/database.types'
 import {
   buildImportPreview,
+  countExistingByKey,
   detectInternalTransfers,
+  findDuplicateRowIds,
   parseCsvText,
   type DateOrder,
   type ImportItem,
@@ -182,16 +184,13 @@ export function ImportCsvPage() {
     !!span && !!accountId,
   )
 
-  const existingKeys = useMemo(() => {
-    const set = new Set<string>()
-    for (const t of existing) {
-      if (t.account_id !== accountId) continue
-      if (t.type !== 'expense' && t.type !== 'income') continue
-      const sign = t.type === 'expense' ? '-' : '+'
-      set.add(`${t.occurred_on}|${sign}${t.amount}|${t.note ?? ''}`)
-    }
-    return set
-  }, [existing, accountId])
+  // Lọc trùng theo SỐ BẢN đã có, không phải có/không: sao kê có nhiều dòng giống hệt
+  // nhau (4 lần qua trạm ETC cùng giá, cùng ngày), ghi tay một khoản không được làm
+  // biến mất cả bốn dòng.
+  const dupRowIds = useMemo(
+    () => findDuplicateRowIds(preview.items, countExistingByKey(existing, accountId)),
+    [preview.items, existing, accountId],
+  )
 
   // Chuyển khoản nội bộ: dòng sao kê thực chất là tiền chạy giữa ví của chính
   // mình (trả thẻ, chuyển sang tiết kiệm). Nhập nguyên xi sẽ thổi phồng Chi lẫn Thu.
@@ -234,9 +233,9 @@ export function ImportCsvPage() {
   const candidates = useMemo(
     () =>
       preview.items.filter(
-        (it) => !existingKeys.has(it.key) && !(skipTransfers && transferRowIds.has(it.rowId)),
+        (it) => !dupRowIds.has(it.rowId) && !(skipTransfers && transferRowIds.has(it.rowId)),
       ),
-    [preview.items, existingKeys, skipTransfers, transferRowIds],
+    [preview.items, dupRowIds, skipTransfers, transferRowIds],
   )
   // Lựa chọn của người dùng gắn theo DÒNG (rowId), không theo nội dung: sao kê có thật
   // hai dòng giống hệt nhau, dùng key nội dung thì bỏ tick một dòng tắt luôn dòng kia.
@@ -245,9 +244,9 @@ export function ImportCsvPage() {
   const catOf = (it: ImportItem) => rowCat[it.rowId] ?? it.category_id
   const toImport = candidates.filter((it) => isOn(it.rowId))
 
-  const dupCount = preview.items.filter((it) => existingKeys.has(it.key)).length
+  const dupCount = dupRowIds.size
   const transferCount = preview.items.filter(
-    (it) => !existingKeys.has(it.key) && transferRowIds.has(it.rowId),
+    (it) => !dupRowIds.has(it.rowId) && transferRowIds.has(it.rowId),
   ).length
   const suspectCount = candidates.filter((it) => suspectNote.has(it.rowId)).length
   const nameOfAccount = (id: string) => accounts.find((a) => a.id === id)?.name ?? 'tài khoản khác'

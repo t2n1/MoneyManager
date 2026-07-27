@@ -285,6 +285,52 @@ export function contentKey(
   return `${occurredOn}|${type === 'expense' ? '-' : '+'}${amount}|${note}`
 }
 
+/** Phần giao dịch đã có trong sổ mà việc lọc trùng cần đọc. */
+export interface ExistingTxLike {
+  account_id: string
+  type: TransactionType
+  amount: number
+  occurred_on: string
+  note: string | null
+}
+
+/**
+ * ĐẾM số bản đã có trong sổ cho từng khoá nội dung, chỉ tính tài khoản đang nhập.
+ *
+ * Đếm chứ không chỉ đánh dấu "đã có": sao kê có thật nhiều dòng giống hệt nhau (file
+ * Rakuten tháng 5/2026 có 4 lần qua trạm ETC 260 yên cùng ngày 14/3). Nếu chỉ xét
+ * có/không thì mới ghi tay MỘT khoản là cả 4 dòng bị coi là trùng và mất 780 yên.
+ */
+export function countExistingByKey(txs: ExistingTxLike[], accountId: string): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const t of txs) {
+    if (t.account_id !== accountId) continue
+    if (t.type !== 'expense' && t.type !== 'income') continue
+    const k = contentKey(t.occurred_on, t.type, t.amount, t.note ?? '')
+    counts.set(k, (counts.get(k) ?? 0) + 1)
+  }
+  return counts
+}
+
+/**
+ * rowId của những dòng trùng THẬT với sổ — chỉ đúng bằng số bản đã có, dòng thừa vẫn
+ * được nhập. Xét theo thứ tự trong file nên dòng trên bị lọc trước.
+ */
+export function findDuplicateRowIds(
+  items: ImportItem[],
+  existing: Map<string, number>,
+): Set<string> {
+  const left = new Map(existing)
+  const out = new Set<string>()
+  for (const it of items) {
+    const n = left.get(it.key) ?? 0
+    if (n <= 0) continue
+    left.set(it.key, n - 1)
+    out.add(it.rowId)
+  }
+  return out
+}
+
 /** Dựng danh sách giao dịch chuẩn hóa từ các dòng CSV theo cấu hình ánh xạ. */
 export function buildImportPreview(rows: string[][], opts: ImportOptions): ImportPreview {
   const dataRows = opts.hasHeader ? rows.slice(1) : rows

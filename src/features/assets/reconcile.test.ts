@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cardDebt, reconcilePlan } from './reconcile'
+import { ADJUST_CATEGORY_NAME, cardDebt, findAdjustCategory, reconcilePlan } from './reconcile'
 
 describe('reconcilePlan — ví/tài khoản thường', () => {
   it('số thật nhiều hơn sổ → giao dịch thu bù phần thiếu', () => {
@@ -53,6 +53,32 @@ describe('reconcilePlan — thẻ tín dụng (ô nhập là số ĐANG NỢ)', 
 
   it('khớp rồi → không chênh', () => {
     expect(reconcilePlan({ isCard: true, currentBalance: -50_000, entered: 50_000 }).diff).toBe(0)
+  })
+})
+
+describe('findAdjustCategory', () => {
+  const cat = (over: Partial<Parameters<typeof findAdjustCategory>[0][number]> = {}) => ({
+    id: 'c1',
+    name: ADJUST_CATEGORY_NAME,
+    type: 'expense' as const,
+    is_archived: false,
+    ...over,
+  })
+
+  it('chưa có danh mục bù → null (caller phải tạo)', () => {
+    expect(findAdjustCategory([cat({ name: 'Ăn uống' })], 'expense')).toBeNull()
+  })
+
+  it('tìm đúng theo tên + chiều', () => {
+    expect(findAdjustCategory([cat({ id: 'x' })], 'expense')?.id).toBe('x')
+  })
+
+  it('không lẫn chiều: danh mục Chi không dùng cho giao dịch Thu', () => {
+    expect(findAdjustCategory([cat({ type: 'expense' })], 'income')).toBeNull()
+  })
+
+  it('bỏ qua danh mục đã lưu trữ', () => {
+    expect(findAdjustCategory([cat({ is_archived: true })], 'expense')).toBeNull()
   })
 })
 

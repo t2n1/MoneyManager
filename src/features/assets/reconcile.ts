@@ -35,3 +35,29 @@ export function reconcilePlan({ isCard, currentBalance, entered }: ReconcileInpu
 export function cardDebt(balance: number): number {
   return Math.max(0, -balance)
 }
+
+// --- Danh mục cho giao dịch bù ---
+// Bảng transactions có CHECK: chi/thu BẮT BUỘC có danh mục (chỉ chuyển khoản mới
+// được để trống). Nên giao dịch bù phải gắn một danh mục — app tự tạo sẵn một
+// danh mục riêng cho việc này, mỗi chiều một cái, để sổ đọc ra nghĩa ngay.
+export const ADJUST_CATEGORY_NAME = 'Điều chỉnh số dư'
+export const ADJUST_CATEGORY_ICON = '⚖️'
+
+interface CategoryLike {
+  id: string
+  name: string
+  type: 'expense' | 'income'
+  is_archived: boolean
+}
+
+/** Danh mục bù đang dùng được cho chiều `kind`; null = chưa có, cần tạo. */
+export function findAdjustCategory<T extends CategoryLike>(
+  categories: T[],
+  kind: 'expense' | 'income',
+): T | null {
+  return (
+    categories.find(
+      (c) => c.type === kind && c.name === ADJUST_CATEGORY_NAME && !c.is_archived,
+    ) ?? null
+  )
+}

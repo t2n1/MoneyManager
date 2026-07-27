@@ -53,6 +53,26 @@ import {
 const STORAGE_KEY = 'sct-demo-db-v14' // v14: gói báo cáo (hoàn tiền, nhãn, tài sản cố định, tham số profile)
 const DEMO_USER = 'demo-user'
 
+/**
+ * Soi hình dạng giao dịch y như CHECK của bảng transactions (migration 0001):
+ *   transfer      → có to_account_id (khác account_id), KHÔNG có danh mục
+ *   expense/income → có danh mục, KHÔNG có to_account_id/to_amount
+ * Không có chốt này, demo nhận cả những dòng Postgres từ chối → bug chỉ nổ ở
+ * bản thật, còn test và kiểm tra tay trên demo thì xanh.
+ */
+function assertTxShape(input: Pick<NewTransaction, 'type' | 'category_id' | 'account_id' | 'to_account_id' | 'to_amount'>) {
+  if (input.type === 'transfer') {
+    if (!input.to_account_id) throw new Error('Chuyển khoản phải có tài khoản đích')
+    if (input.to_account_id === input.account_id)
+      throw new Error('Không chuyển khoản về chính nó')
+    if (input.category_id) throw new Error('Chuyển khoản không mang danh mục')
+    return
+  }
+  if (!input.category_id) throw new Error('Giao dịch thu/chi phải có danh mục')
+  if (input.to_account_id || input.to_amount)
+    throw new Error('Giao dịch thu/chi không có tài khoản đích')
+}
+
 interface DemoDB {
   profile: ProfileRow
   accounts: AccountRow[]
@@ -515,6 +535,7 @@ export const demoRepo: Repo = {
   },
 
   async createTransaction(input: NewTransaction) {
+    assertTxShape(input)
     const db = load()
     // tag_ids không phải cột của transactions — tách ra thành liên kết riêng
     const { tag_ids, ...fields } = input

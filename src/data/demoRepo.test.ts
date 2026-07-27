@@ -48,6 +48,47 @@ function expenseTx(accountId: string, categoryId: string): NewTransaction {
   }
 }
 
+describe('createTransaction — hình dạng dữ liệu (khớp CHECK của Postgres)', () => {
+  it('chi/thu KHÔNG có danh mục thì báo lỗi', async () => {
+    const acc = await demoRepo.createAccount(accountInput())
+    await expect(
+      demoRepo.createTransaction({ ...expenseTx(acc.id, ''), category_id: null }),
+    ).rejects.toThrow(/danh mục/i)
+  })
+
+  it('chuyển khoản CÓ danh mục thì báo lỗi', async () => {
+    const from = await demoRepo.createAccount(accountInput({ name: 'A' }))
+    const to = await demoRepo.createAccount(accountInput({ name: 'B' }))
+    const cat = (await demoRepo.getCategories()).find((c) => c.type === 'expense')!
+    await expect(
+      demoRepo.createTransaction({
+        ...expenseTx(from.id, cat.id),
+        type: 'transfer',
+        to_account_id: to.id,
+      }),
+    ).rejects.toThrow(/danh mục/i)
+  })
+
+  it('chuyển khoản về chính nó thì báo lỗi', async () => {
+    const acc = await demoRepo.createAccount(accountInput())
+    await expect(
+      demoRepo.createTransaction({
+        ...expenseTx(acc.id, ''),
+        type: 'transfer',
+        category_id: null,
+        to_account_id: acc.id,
+      }),
+    ).rejects.toThrow(/chính nó/i)
+  })
+
+  it('chi/thu có danh mục thì lưu được', async () => {
+    const acc = await demoRepo.createAccount(accountInput())
+    const cat = (await demoRepo.getCategories()).find((c) => c.type === 'expense')!
+    const row = await demoRepo.createTransaction(expenseTx(acc.id, cat.id))
+    expect(row.category_id).toBe(cat.id)
+  })
+})
+
 describe('deleteAccount', () => {
   it('xóa được tài khoản trống', async () => {
     const acc = await demoRepo.createAccount(accountInput())

@@ -1,9 +1,16 @@
 import { useState } from 'react'
-import { useCreateTransaction } from '../../hooks/queries'
+import { useCategories, useCreateCategory, useCreateTransaction } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
+import { showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow } from '../../types/database.types'
-import { cardDebt, reconcilePlan } from './reconcile'
+import {
+  ADJUST_CATEGORY_ICON,
+  ADJUST_CATEGORY_NAME,
+  cardDebt,
+  findAdjustCategory,
+  reconcilePlan,
+} from './reconcile'
 
 interface Props {
   account: AccountRow
@@ -22,6 +29,8 @@ interface Props {
  */
 export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
   const create = useCreateTransaction()
+  const createCategory = useCreateCategory()
+  const { data: categories = [] } = useCategories()
   const currency = account.currency as CurrencyCode
   const isCard = account.type === 'card'
   const shown = isCard ? cardDebt(currentBalance) : currentBalance
@@ -37,11 +46,21 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
     if (!canSave) return
     setSaving(true)
     try {
+      // Chi/thu bắt buộc có danh mục — dùng danh mục bù riêng, tạo lần đầu nếu chưa có
+      const categoryId =
+        findAdjustCategory(categories, type)?.id ??
+        (
+          await createCategory.mutateAsync({
+            name: ADJUST_CATEGORY_NAME,
+            type,
+            icon: ADJUST_CATEGORY_ICON,
+          })
+        ).id
       await create.mutateAsync({
         type,
         amount: Math.abs(diff),
         to_amount: null,
-        category_id: null,
+        category_id: categoryId,
         account_id: account.id,
         to_account_id: null,
         occurred_on: toISODate(new Date()),
@@ -49,6 +68,9 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
         exclude_from_stats: true,
       })
       onClose()
+    } catch (err) {
+      // Không nuốt lỗi: trước đây sheet chỉ đứng im, người dùng không biết vì sao
+      showToast(`Không lưu được: ${(err as Error).message}`, 'error')
     } finally {
       setSaving(false)
     }

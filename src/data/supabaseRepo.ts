@@ -802,6 +802,19 @@ export const supabaseRepo: Repo = {
     return true
   },
 
+  async insertCardAutopay(input: NewTransaction) {
+    const user_id = await currentUserId()
+    const { error } = await getSupabase()
+      .from('transactions')
+      .insert({ ...txColumns(input), user_id })
+    if (error) {
+      // 23505 = unique_violation: thiết bị khác đã sinh kỳ này → bỏ qua im lặng
+      if (error.code === '23505') return false
+      throw error
+    }
+    return true
+  },
+
   // --- Nhãn ---
 
   async getTags() {

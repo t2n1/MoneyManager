@@ -52,7 +52,7 @@ describe('statementCloseFor', () => {
 })
 
 // --- Fake repo cho engine ---
-type StoredTx = TxLike & { occurred_on: string }
+type StoredTx = TxLike & { occurred_on: string; note?: string }
 function makeRepo(accounts: AccountLike[], txs: StoredTx[]) {
   const store: StoredTx[] = txs.map((t) => ({ ...t }))
   const acc = new Map(accounts.map((a) => [a.id, { ...a }]))
@@ -72,11 +72,20 @@ function makeRepo(accounts: AccountLike[], txs: StoredTx[]) {
             (t.to_account_id != null && accountIds.includes(t.to_account_id))),
       )
     },
-    async createTransaction(input) {
+    async insertCardAutopay(input) {
+      // Giả lập partial unique index (to_account_id, occurred_on) của Postgres:
+      // thiết bị khác đã sinh kỳ này → báo trùng, KHÔNG ghi thêm dòng nào
+      const dup = store.some(
+        (t) =>
+          t.note === AUTOPAY_NOTE &&
+          t.to_account_id === input.to_account_id &&
+          t.occurred_on === input.occurred_on,
+      )
+      if (dup) return false
       const row = { ...input, occurred_on: input.occurred_on }
       store.push(row)
       created.push(row)
-      return row
+      return true
     },
     async updateAccount(id, patch) {
       const a = acc.get(id)
@@ -168,6 +177,19 @@ describe('runCardAutopayCatchUp', () => {
     const n = await runCardAutopayCatchUp(repo, '2026-03-15')
     expect(n).toBe(0)
     expect(created).toHaveLength(0)
+  })
+
+  it('2 thiết bị catch-up cùng lúc → chỉ 1 giao dịch cho mỗi kỳ', async () => {
+    // Cả hai lượt đọc con trỏ CŨ trước khi lượt nào kịp ghi con trỏ mới (đúng
+    // tình huống mở app ở 2 tab/2 máy gần như đồng thời).
+    const { repo, created, acc } = makeRepo([card(), bank()], [ex('2025-12-20', 30_000)])
+    const [a, b] = await Promise.all([
+      runCardAutopayCatchUp(repo, '2026-01-15'),
+      runCardAutopayCatchUp(repo, '2026-01-15'),
+    ])
+    expect(created.map((c) => [c.occurred_on, c.amount])).toEqual([['2026-01-12', 30_000]])
+    expect(a + b).toBe(1)
+    expect(acc.get('card')!.card_autopay_through).toBe('2026-01-12')
   })
 
   it('bỏ qua khi tài khoản nguồn đã lưu trữ', async () => {

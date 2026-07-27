@@ -364,6 +364,10 @@ export interface Repo {
   /** Sinh 1 kỳ cho engine catch-up: true = đã tạo, false = trùng (rule + ngày) bỏ qua. */
   insertRecurringOccurrence(input: NewRecurringOccurrence): Promise<boolean>
 
+  // --- Tự động trả thẻ (mục 0010) ---
+  /** Sinh 1 lần tự trả thẻ: true = đã tạo, false = trùng (thẻ + ngày đến hạn) bỏ qua. */
+  insertCardAutopay(input: NewTransaction): Promise<boolean>
+
   // --- Nhãn cắt ngang danh mục ---
   getTags(): Promise<TagRow[]>
   /** Toàn bộ liên kết giao dịch ↔ nhãn của user; UI tự lọc. */

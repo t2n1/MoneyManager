@@ -1105,6 +1105,30 @@ export const demoRepo: Repo = {
     return true
   },
 
+  async insertCardAutopay(input: NewTransaction) {
+    const db = load()
+    // Tự kiểm tra trùng (thay cho partial unique index phía Postgres): mỗi thẻ
+    // mỗi ngày đến hạn chỉ 1 lần tự trả
+    const dup = db.transactions.some(
+      (t) =>
+        t.note === input.note &&
+        t.to_account_id === input.to_account_id &&
+        t.occurred_on === input.occurred_on,
+    )
+    if (dup) return false
+    const { tag_ids: _drop, ...fields } = input
+    db.transactions.push({
+      ...fields,
+      id: uuid(),
+      user_id: DEMO_USER,
+      recurring_rule_id: null,
+      created_at: nowISO(),
+      updated_at: nowISO(),
+    })
+    save(db)
+    return true
+  },
+
   // --- Nhãn ---
 
   async getTags() {

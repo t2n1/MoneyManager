@@ -82,7 +82,11 @@ export interface CardAutopayRepo {
     end: string
     accountIds?: string[]
   }): Promise<TxLike[]>
-  createTransaction(input: {
+  /**
+   * Ghi 1 lần tự trả thẻ. Trả về false khi thiết bị khác đã sinh đúng kỳ này
+   * (partial unique index bắt trùng) — caller KHÔNG đếm là đã tạo.
+   */
+  insertCardAutopay(input: {
     type: 'transfer'
     amount: number
     to_amount: number | null
@@ -91,7 +95,7 @@ export interface CardAutopayRepo {
     to_account_id: string | null
     occurred_on: string
     note: string
-  }): Promise<unknown>
+  }): Promise<boolean>
   updateAccount(id: string, patch: { card_autopay_through: string }): Promise<unknown>
 }
 
@@ -125,6 +129,10 @@ async function cardBalanceThrough(
  * dư nợ tại ngày chốt sao kê của kỳ đó (đã trừ các lần trả trước vì occurred_on nằm
  * trước mốc chốt kế tiếp → không trùng). owed ≤ 0 thì bỏ qua nhưng vẫn tiến con trỏ.
  * Con trỏ null (mới bật) → khởi tạo = hôm nay, KHÔNG sinh bù quá khứ. Trả về số GD đã tạo.
+ *
+ * Con trỏ CHỈ chống trùng trong một lượt chạy: hai thiết bị mở app cùng lúc đều đọc
+ * con trỏ cũ trước khi bên nào kịp ghi con trỏ mới. Chốt chặn thật nằm ở partial
+ * unique index (to_account_id, occurred_on) — `insertCardAutopay` trả false khi trùng.
  */
 export async function runCardAutopayCatchUp(
   repo: CardAutopayRepo,
@@ -150,7 +158,7 @@ export async function runCardAutopayCatchUp(
       const bal = await cardBalanceThrough(repo, card, closeISO)
       const owed = bal < 0 ? -bal : 0
       if (owed > 0) {
-        await repo.createTransaction({
+        const ok = await repo.insertCardAutopay({
           type: 'transfer',
           amount: owed,
           to_amount: null, // nguồn cùng currency với thẻ → không cần to_amount
@@ -160,7 +168,7 @@ export async function runCardAutopayCatchUp(
           occurred_on: due,
           note: AUTOPAY_NOTE,
         })
-        created++
+        if (ok) created++
       }
       cursor = due
     }

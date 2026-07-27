@@ -15,6 +15,7 @@ import {
   type DateOrder,
   type ImportItem,
 } from './csvImport'
+import { buildNoteHistory, detectPossibleDuplicates, type CategorySource } from './classify'
 
 type Encoding = 'utf-8' | 'shift-jis'
 
@@ -26,6 +27,18 @@ function nextDay(iso: string): string {
 
 /** Danh mục mặc định gợi ý sẵn: danh mục "Khác" mà mọi sổ đều có từ lúc tạo. */
 const DEFAULT_FALLBACK_NAME = 'Khác'
+
+/** Số dòng hiện trong bảng xem trước (mỗi dòng có ô chọn danh mục nên đừng vẽ quá nhiều). */
+const ROW_LIMIT = 100
+
+/** Vì sao dòng đó có danh mục — nói thẳng để người dùng biết chỗ nào cần soi lại. */
+const SOURCE_LABEL: Record<CategorySource, string> = {
+  file: 'Từ file',
+  history: 'Lịch sử',
+  keyword: 'Từ khoá',
+  fallback: 'Mặc định',
+  none: 'Chưa có',
+}
 
 export function ImportCsvPage() {
   const qc = useQueryClient()
@@ -50,6 +63,9 @@ export function ImportCsvPage() {
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [lastBuffer, setLastBuffer] = useState<ArrayBuffer | null>(null)
+  // Người dùng sửa/bỏ tick từng dòng ở bảng xem trước, khoá theo ImportItem.key.
+  const [rowCat, setRowCat] = useState<Record<string, string>>({})
+  const [rowOn, setRowOn] = useState<Record<string, boolean>>({})
 
   const account = accounts.find((a) => a.id === accountId)
   const currency = account?.currency ?? 'JPY'
@@ -63,8 +79,6 @@ export function ImportCsvPage() {
     ''
   const expenseCatId = expenseCatPick ?? suggestFallback('expense')
   const incomeCatId = incomeCatPick ?? suggestFallback('income')
-  const categoryName = (id: string | null) =>
-    id ? (categories.find((c) => c.id === id)?.name ?? '—') : '—'
 
   function decodeAndParse(buf: ArrayBuffer, enc: Encoding) {
     const text = new TextDecoder(enc).decode(buf)
@@ -76,6 +90,9 @@ export function ImportCsvPage() {
     e.target.value = ''
     if (!file) return
     setResult(null)
+    // File mới → bỏ mọi lựa chọn của file cũ (khoá dòng không còn nghĩa gì)
+    setRowCat({})
+    setRowOn({})
     const buf = await file.arrayBuffer()
     setLastBuffer(buf)
     setFileName(file.name)
@@ -86,6 +103,19 @@ export function ImportCsvPage() {
     setEncoding(enc)
     if (lastBuffer) decodeAndParse(lastBuffer, enc)
   }
+
+  // Đoán danh mục theo lịch sử: học từ 13 tháng gần nhất (mốc cố định, KHÔNG theo
+  // khoảng ngày của file — nếu theo file sẽ thành vòng: preview → khoảng → lịch sử →
+  // preview). Không giới hạn theo ví: cùng cửa hàng có thể từng trả bằng ví khác.
+  const histRange = useMemo(() => {
+    const now = new Date()
+    return {
+      start: toISODate(new Date(now.getFullYear() - 1, now.getMonth() - 1, 1)),
+      end: nextDay(toISODate(now)),
+    }
+  }, [])
+  const { data: histTxs = [] } = useRangeTransactions(histRange, rows.length > 0 && !!accountId)
+  const noteHistory = useMemo(() => buildNoteHistory(histTxs), [histTxs])
 
   const preview = useMemo(
     () =>
@@ -103,6 +133,7 @@ export function ImportCsvPage() {
             currency,
             categories,
             fallback: { expense: expenseCatId || null, income: incomeCatId || null },
+            noteHistory,
           })
         : { items: [], errorCount: 0 },
     [
@@ -119,6 +150,7 @@ export function ImportCsvPage() {
       categories,
       expenseCatId,
       incomeCatId,
+      noteHistory,
     ],
   )
 
@@ -175,21 +207,49 @@ export function ImportCsvPage() {
     [transferCandidates],
   )
 
-  const toImport = useMemo(
+  // Nghi nhập trùng: cùng ngày + cùng tiền + cùng chiều với giao dịch đã có nhưng
+  // ghi chú khác (đã ghi tay "Cơm trưa", file ghi "ファミリーマート").
+  const dupSuspects = useMemo(
+    () =>
+      accountId ? detectPossibleDuplicates(preview.items, existing, { accountId }) : [],
+    [preview.items, existing, accountId],
+  )
+  const suspectNote = useMemo(
+    () => new Map(dupSuspects.map((d) => [d.key, d.matchedNote])),
+    [dupSuspects],
+  )
+
+  /** Dòng còn trong danh sách chờ nhập (chưa bị lọc trùng thật / chuyển khoản). */
+  const candidates = useMemo(
     () =>
       preview.items.filter(
         (it) => !existingKeys.has(it.key) && !(skipTransfers && transferKeys.has(it.key)),
       ),
     [preview.items, existingKeys, skipTransfers, transferKeys],
   )
+  // Nghi trùng thì mặc định BỎ TICK — thà bỏ sót còn hơn nhập đôi; người dùng tự bật lại.
+  const isOn = (key: string) => rowOn[key] ?? !suspectNote.has(key)
+  const catOf = (it: ImportItem) => rowCat[it.key] ?? it.category_id
+  const toImport = candidates.filter((it) => isOn(it.key))
+
   const dupCount = preview.items.filter((it) => existingKeys.has(it.key)).length
   const transferCount = preview.items.filter(
     (it) => !existingKeys.has(it.key) && transferKeys.has(it.key),
   ).length
+  const suspectCount = candidates.filter((it) => suspectNote.has(it.key)).length
   const nameOfAccount = (id: string) => accounts.find((a) => a.id === id)?.name ?? 'tài khoản khác'
   // Chi/thu BẮT BUỘC có danh mục (CHECK của bảng transactions) → thiếu thì chặn nhập
-  const missingCatCount = toImport.filter((it) => !it.category_id).length
-  const fallbackUsedCount = toImport.filter((it) => it.category_id && !it.categoryFromFile).length
+  const missingCatCount = toImport.filter((it) => !catOf(it)).length
+  // Dòng người dùng đã tự chọn danh mục thì không đếm vào "đoán" hay "mặc định" nữa
+  const guessedCount = toImport.filter(
+    (it) =>
+      !rowCat[it.key] &&
+      catOf(it) &&
+      (it.categorySource === 'history' || it.categorySource === 'keyword'),
+  ).length
+  const fallbackUsedCount = toImport.filter(
+    (it) => !rowCat[it.key] && catOf(it) && it.categorySource === 'fallback',
+  ).length
 
   async function handleImport() {
     if (!accountId || toImport.length === 0 || missingCatCount > 0) return
@@ -202,7 +262,7 @@ export function ImportCsvPage() {
           type: it.type,
           amount: it.amount,
           to_amount: null,
-          category_id: it.category_id,
+          category_id: catOf(it),
           account_id: accountId,
           to_account_id: null,
           occurred_on: it.occurred_on,
@@ -217,6 +277,8 @@ export function ImportCsvPage() {
       setRows([])
       setFileName('')
       setLastBuffer(null)
+      setRowCat({})
+      setRowOn({})
     } catch (err) {
       setResult({ kind: 'error', text: `Nhập lỗi sau ${done} giao dịch: ${(err as Error).message}` })
     } finally {
@@ -394,15 +456,23 @@ export function ImportCsvPage() {
                 {dupCount > 0 && ` · bỏ qua ${dupCount} trùng`}
                 {skipTransfers && transferCount > 0 && ` · bỏ qua ${transferCount} chuyển khoản`}
                 {preview.errorCount > 0 && ` · ${preview.errorCount} dòng lỗi`}
-                {categoryCol >= 0 &&
-                  fallbackUsedCount > 0 &&
-                  ` · ${fallbackUsedCount} dòng dùng danh mục mặc định`}
+                {guessedCount > 0 && ` · ${guessedCount} dòng đoán được danh mục`}
+                {fallbackUsedCount > 0 && ` · ${fallbackUsedCount} dòng dùng danh mục mặc định`}
               </p>
 
               {missingCatCount > 0 && (
                 <p className="mt-2 rounded-lg bg-red-50 p-2.5 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-300">
                   <b>{missingCatCount} dòng chưa có danh mục.</b> Mỗi giao dịch chi/thu đều phải có
                   danh mục, nên hãy chọn danh mục mặc định cho dòng Chi và dòng Thu ở trên.
+                </p>
+              )}
+
+              {/* Nghi nhập trùng với khoản đã ghi tay */}
+              {suspectCount > 0 && (
+                <p className="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                  <b>{suspectCount} dòng nghi đã có trong sổ</b> — cùng ngày, cùng số tiền, cùng
+                  chiều với một giao dịch bạn đã ghi, chỉ khác tên. Những dòng đó đã được{' '}
+                  <b>bỏ tick sẵn</b> ở bảng dưới; nếu đúng là khoản khác thì tick lại.
                 </p>
               )}
 
@@ -439,45 +509,87 @@ export function ImportCsvPage() {
                   </ul>
                 </div>
               )}
-              <div className="mt-2 max-h-64 overflow-auto text-xs">
+              <div className="mt-2 max-h-96 overflow-auto text-xs">
                 <table className="w-full">
                   <thead className="text-gray-500 dark:text-gray-400">
                     <tr>
+                      <th className="py-1 text-left font-medium">Nhập</th>
                       <th className="py-1 text-left font-medium">Ngày</th>
                       <th className="py-1 text-left font-medium">Loại</th>
                       <th className="py-1 text-right font-medium">Số tiền</th>
                       <th className="py-1 text-left font-medium">Danh mục</th>
+                      <th className="py-1 text-left font-medium">Nguồn</th>
                       <th className="py-1 text-left font-medium">Ghi chú</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {toImport.slice(0, 20).map((it: ImportItem, i) => (
-                      <tr key={i} className="border-t border-gray-100 dark:border-gray-800">
-                        <td className="py-1 tabular-nums">{it.occurred_on}</td>
-                        <td className={`py-1 ${it.type === 'expense' ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
-                          {it.type === 'expense' ? 'Chi' : 'Thu'}
-                        </td>
-                        <td className="py-1 text-right tabular-nums">{formatMoney(it.amount, currency)}</td>
-                        {/* Danh mục mặc định hiện mờ hơn để thấy ngay dòng nào chưa khớp tên */}
-                        <td
-                          className={`py-1 ${
-                            it.category_id
-                              ? it.categoryFromFile
-                                ? ''
-                                : 'text-gray-400 dark:text-gray-500'
-                              : 'text-red-500'
-                          }`}
+                    {candidates.slice(0, ROW_LIMIT).map((it: ImportItem) => {
+                      const on = isOn(it.key)
+                      const cat = catOf(it)
+                      const matched = suspectNote.get(it.key)
+                      return (
+                        <tr
+                          key={it.key}
+                          className={`border-t border-gray-100 dark:border-gray-800 ${
+                            matched ? 'bg-amber-50 dark:bg-amber-900/20' : ''
+                          } ${on ? '' : 'opacity-50'}`}
                         >
-                          {it.category_id ? categoryName(it.category_id) : 'chưa có'}
-                        </td>
-                        <td className="py-1">{it.note}</td>
-                      </tr>
-                    ))}
+                          <td className="py-1">
+                            <input
+                              type="checkbox"
+                              checked={on}
+                              onChange={(e) =>
+                                setRowOn((prev) => ({ ...prev, [it.key]: e.target.checked }))
+                              }
+                              aria-label={`Nhập dòng ${it.occurred_on} ${it.note}`}
+                            />
+                          </td>
+                          <td className="py-1 tabular-nums">{it.occurred_on}</td>
+                          <td
+                            className={`py-1 ${it.type === 'expense' ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}
+                          >
+                            {it.type === 'expense' ? 'Chi' : 'Thu'}
+                          </td>
+                          <td className="py-1 text-right tabular-nums">
+                            {formatMoney(it.amount, currency)}
+                          </td>
+                          <td className="py-1">
+                            <select
+                              value={cat ?? ''}
+                              onChange={(e) =>
+                                setRowCat((prev) => ({ ...prev, [it.key]: e.target.value }))
+                              }
+                              className={`max-w-32 rounded border px-1 py-0.5 ${
+                                cat
+                                  ? 'border-gray-300 dark:border-gray-700'
+                                  : 'border-red-400 text-red-500'
+                              } bg-white dark:bg-gray-900`}
+                            >
+                              <option value="">— chưa có —</option>
+                              {categoryOptions(it.type)}
+                            </select>
+                          </td>
+                          <td className="py-1 text-gray-500 dark:text-gray-400">
+                            {rowCat[it.key] ? 'Bạn chọn' : SOURCE_LABEL[it.categorySource]}
+                          </td>
+                          <td className="py-1">
+                            {it.note}
+                            {matched && (
+                              <span className="block text-amber-700 dark:text-amber-400">
+                                nghi trùng với “{matched || 'không ghi chú'}”
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
-                {toImport.length > 20 && (
+                {candidates.length > ROW_LIMIT && (
                   <p className="mt-1 text-center text-gray-500 dark:text-gray-400">
-                    … và {toImport.length - 20} dòng nữa
+                    Chỉ hiện {ROW_LIMIT} dòng đầu để trang không nặng — {candidates.length -
+                      ROW_LIMIT}{' '}
+                    dòng còn lại vẫn được nhập theo danh mục đã đoán.
                   </p>
                 )}
               </div>

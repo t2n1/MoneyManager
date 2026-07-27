@@ -114,14 +114,14 @@ describe('danh mục cho dòng CSV', () => {
     ]
     const { items } = buildImportPreview(rows, opts())
     expect(items.map((i) => i.category_id)).toEqual(['food', 'traffic', 'salary'])
-    expect(items.every((i) => i.categoryFromFile)).toBe(true)
+    expect(items.every((i) => i.categorySource === 'file')).toBe(true)
   })
 
   it('tên lạ, ô trống, hoặc file không có cột danh mục → dùng danh mục mặc định', () => {
     const rows = [head, ['2026-07-01', '-850', 'Cơm', 'Linh tinh'], ['2026-07-02', '-100', 'X', '']]
     const withCol = buildImportPreview(rows, opts())
     expect(withCol.items.map((i) => i.category_id)).toEqual(['khac-chi', 'khac-chi'])
-    expect(withCol.items.every((i) => i.categoryFromFile)).toBe(false)
+    expect(withCol.items.every((i) => i.categorySource === 'fallback')).toBe(true)
 
     const noCol = buildImportPreview(rows, opts({ mapping: { date: 0, amount: 1, note: 2 } }))
     expect(noCol.items.map((i) => i.category_id)).toEqual(['khac-chi', 'khac-chi'])
@@ -131,13 +131,37 @@ describe('danh mục cho dòng CSV', () => {
     // 'Lương' là danh mục Thu, dòng này là Chi → không được gắn
     const rows = [head, ['2026-07-01', '-850', 'Cơm', 'Lương']]
     const { items } = buildImportPreview(rows, opts())
-    expect(items[0]).toMatchObject({ category_id: 'khac-chi', categoryFromFile: false })
+    expect(items[0]).toMatchObject({ category_id: 'khac-chi', categorySource: 'fallback' })
   })
 
   it('danh mục đã lưu trữ không được dùng', () => {
     const rows = [head, ['2026-07-01', '-850', 'Cơm', 'Cũ rồi']]
     const { items } = buildImportPreview(rows, opts())
     expect(items[0].category_id).toBe('khac-chi')
+  })
+
+  it('file không có cột danh mục: đoán theo lịch sử rồi tới từ khoá', () => {
+    const rows = [
+      ['Ngày', 'Số tiền', 'Ghi chú'],
+      ['2026-07-01', '-850', 'Family Mart'], // đã từng ghi → theo lịch sử
+      ['2026-07-02', '-300', 'JR Suica charge'], // từ khoá 'suica' của Đi lại
+      ['2026-07-03', '-500', 'Cửa hàng lạ'], // không nguồn nào → mặc định
+    ]
+    const { items } = buildImportPreview(
+      rows,
+      opts({
+        mapping: { date: 0, amount: 1, note: 2 },
+        categories: cats.map((c) =>
+          c.id === 'traffic' ? { ...c, import_keywords: ['suica'] } : c,
+        ),
+        noteHistory: new Map([['expense|family mart', 'food']]),
+      }),
+    )
+    expect(items.map((i) => [i.category_id, i.categorySource])).toEqual([
+      ['food', 'history'],
+      ['traffic', 'keyword'],
+      ['khac-chi', 'fallback'],
+    ])
   })
 
   it('chưa chọn danh mục mặc định → category_id null để UI chặn nhập', () => {
@@ -174,7 +198,7 @@ describe('detectInternalTransfers', () => {
     type,
     note: '',
     category_id: 'c1',
-    categoryFromFile: false,
+    categorySource: 'fallback',
     key: `${occurred_on}|${type === 'expense' ? '-' : '+'}${amount}`,
   })
 

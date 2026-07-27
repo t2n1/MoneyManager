@@ -2,6 +2,7 @@
 import type { CurrencyCode } from '../../lib/money'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
 import { normalizeText } from '../transactions/filter'
+import { guessCategory, type CategorySource } from './classify'
 
 /** Bóc tách CSV thành mảng 2 chiều: hỗ trợ trường bọc nháy kép, phẩy & xuống dòng bên trong. */
 export function parseCsvText(text: string): string[][] {
@@ -115,6 +116,8 @@ export interface CategoryChoice {
   name: string
   type: Extract<TransactionType, 'expense' | 'income'>
   is_archived: boolean
+  /** từ khoá nhận diện tên cửa hàng, dùng khi file không có cột danh mục */
+  import_keywords?: string[] | null
 }
 
 /** Danh mục dùng khi cột trong file trống/không khớp. null = người dùng chưa chọn. */
@@ -133,6 +136,8 @@ export interface ImportOptions {
   /** Danh mục hiện có của người dùng, để ghép với tên trong file. */
   categories?: CategoryChoice[]
   fallback?: FallbackCategories
+  /** Bảng "ghi chú → danh mục đã dùng" từ `buildNoteHistory` (đoán theo lịch sử). */
+  noteHistory?: Map<string, string>
 }
 
 export interface ImportItem {
@@ -146,8 +151,8 @@ export interface ImportItem {
    * định) — bảng transactions BẮT BUỘC chi/thu có danh mục, nên UI phải chặn nhập.
    */
   category_id: string | null
-  /** true = tên danh mục đọc được từ file; false = phải dùng danh mục mặc định. */
-  categoryFromFile: boolean
+  /** Danh mục lấy từ đâu: cột trong file, lịch sử, từ khoá, hay mặc định. */
+  categorySource: CategorySource
   /** khóa chống trùng: ngày|amount có dấu|note */
   key: string
 }
@@ -267,17 +272,25 @@ export function buildImportPreview(rows: string[][], opts: ImportOptions): Impor
     const isExpense = opts.negativeIsExpense ? rawAmount < 0 : rawAmount > 0
     const amount = Math.abs(rawAmount)
     const type = isExpense ? 'expense' : 'income'
-    // Danh mục: ưu tiên tên trong file (phải cùng chiều Chi/Thu), không khớp thì
-    // rơi về danh mục mặc định người dùng chọn ở trang nhập.
+    // Danh mục: tên trong file (phải cùng chiều Chi/Thu) → lịch sử → từ khoá →
+    // danh mục mặc định người dùng chọn ở trang nhập.
     const rawCat = opts.mapping.category === undefined ? '' : (r[opts.mapping.category] ?? '')
     const fromFile = rawCat.trim() === '' ? null : (catIndex.get(`${type}|${normalizeText(rawCat)}`) ?? null)
+    const guess = guessCategory({
+      note,
+      type,
+      fromFile,
+      history: opts.noteHistory,
+      categories: opts.categories,
+      fallback: fallback[type],
+    })
     items.push({
       occurred_on: iso,
       amount,
       type,
       note,
-      category_id: fromFile ?? fallback[type],
-      categoryFromFile: fromFile !== null,
+      category_id: guess.category_id,
+      categorySource: guess.source,
       key: `${iso}|${isExpense ? '-' : '+'}${amount}|${note}`,
     })
   }

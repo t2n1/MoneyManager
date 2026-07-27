@@ -13,7 +13,7 @@ import {
   monthKeyString,
   nextCardDueDate,
   parseMonthKey,
-  shiftWeekendToMonday,
+  shiftToBusinessDay,
   toISODate,
 } from './dates'
 
@@ -180,18 +180,20 @@ describe('formatYearLabel', () => {
   })
 })
 
-describe('shiftWeekendToMonday', () => {
-  it('ngày thường giữ nguyên', () => {
-    expect(shiftWeekendToMonday('2026-07-27')).toBe('2026-07-27') // Thứ 2
-    expect(shiftWeekendToMonday('2026-02-27')).toBe('2026-02-27') // Thứ 6
+describe('shiftToBusinessDay', () => {
+  it('ngày lễ Nhật cũng bị dời, không chỉ cuối tuần', () => {
+    // 27/4/2030 rơi Thứ 7 → Thứ 2 là 29/4 = 昭和の日 → ngân hàng rút 30/4
+    expect(shiftToBusinessDay('2030-04-27')).toBe('2030-04-30')
+    // 3/5/2026 rơi Chủ nhật, sau đó 4, 5, 6/5 đều là ngày lễ → 7/5
+    expect(shiftToBusinessDay('2026-05-03')).toBe('2026-05-07')
+    // 1/1/2027 là Thứ 6, ngân hàng nghỉ Tết tới 3/1 → 4/1
+    expect(shiftToBusinessDay('2027-01-01')).toBe('2027-01-04')
   })
 
-  it('Thứ 7 → Thứ 2 (+2 ngày)', () => {
-    expect(shiftWeekendToMonday('2026-06-27')).toBe('2026-06-29')
-  })
-
-  it('Chủ nhật → Thứ 2 (+1 ngày)', () => {
-    expect(shiftWeekendToMonday('2026-09-27')).toBe('2026-09-28')
+  it('vẫn dời cuối tuần như cũ', () => {
+    expect(shiftToBusinessDay('2026-07-27')).toBe('2026-07-27') // Thứ 2
+    expect(shiftToBusinessDay('2026-06-27')).toBe('2026-06-29') // Thứ 7 → Thứ 2
+    expect(shiftToBusinessDay('2026-09-27')).toBe('2026-09-28') // CN → Thứ 2
   })
 })
 
@@ -214,6 +216,11 @@ describe('nextCardDueDate', () => {
 
   it('ngày trả (đã dời) đúng bằng hôm nay → vẫn là kỳ tới', () => {
     expect(nextCardDueDate(27, '2026-06-29')).toBe('2026-06-29')
+  })
+
+  it('gặp ngày lễ Nhật thì dời tiếp', () => {
+    // 27/4/2030 Thứ 7 → 29/4 là 昭和の日 → 30/4
+    expect(nextCardDueDate(27, '2030-04-01')).toBe('2030-04-30')
   })
 
   it('kẹp về cuối tháng ngắn; cuối tháng rơi cuối tuần vẫn dời sang Thứ 2', () => {

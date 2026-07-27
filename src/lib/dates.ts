@@ -1,6 +1,8 @@
 // "Tháng" của app có thể bắt đầu từ ngày bất kỳ (profiles.month_start_day, 1–28).
 // MỌI query theo tháng phải đi qua getMonthRange — không tự cộng trừ ngày ở nơi khác.
 
+import { isJpBankHoliday } from './jpHolidays'
+
 /** Tháng hiển thị, xác định bởi tháng dương lịch chứa ngày bắt đầu. month: 1–12. */
 export interface MonthKey {
   year: number
@@ -74,18 +76,24 @@ export function addDaysISO(iso: string, delta: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-/** Dời ngày rơi vào Thứ 7 / Chủ nhật sang Thứ 2 kế tiếp; ngày thường giữ nguyên. */
-export function shiftWeekendToMonday(iso: string): string {
-  const dow = new Date(iso + 'T00:00:00Z').getUTCDay() // 0 = CN, 6 = T7
-  if (dow === 6) return addDaysISO(iso, 2)
-  if (dow === 0) return addDaysISO(iso, 1)
-  return iso
+/**
+ * Ngày ngân hàng Nhật THỰC SỰ rút tiền: dời khỏi Thứ 7/Chủ nhật, ngày lễ, và kỳ nghỉ
+ * Tết 31/12–3/1 sang ngày làm việc kế tiếp. Rakuten và PayPay đều ghi
+ * "27日（休日の場合は翌営業日）" nên chỉ dời cuối tuần là chưa đủ: 27/4 rơi Thứ 7 thì
+ * Thứ 2 là 29/4 (昭和の日), tiền ra 30/4.
+ *
+ * Vòng lặp có chặn: chuỗi ngày ngân hàng nghỉ dài nhất (Tết, Tuần lễ Vàng) chưa tới 14 ngày.
+ */
+export function shiftToBusinessDay(iso: string): string {
+  let cur = iso
+  for (let i = 0; i < 14 && isJpBankHoliday(cur); i++) cur = addDaysISO(cur, 1)
+  return cur
 }
 
 /**
  * Ngày trả thẻ kế tiếp (≥ todayISO) rơi vào `dueDay` (1–31) hằng tháng, đã kẹp về
- * cuối tháng khi tháng ngắn hơn và dời Thứ 7/CN sang Thứ 2. Ví dụ dueDay=27, hôm nay
- * sau ngày 27 → trả về ngày 27 (đã dời cuối tuần) của tháng sau.
+ * cuối tháng khi tháng ngắn hơn và dời sang ngày ngân hàng làm việc. Ví dụ dueDay=27,
+ * hôm nay sau ngày 27 → trả về ngày 27 (đã dời) của tháng sau.
  */
 export function nextCardDueDate(dueDay: number, todayISO: string): string {
   const [ty, tm] = todayISO.split('-').map(Number)
@@ -93,10 +101,10 @@ export function nextCardDueDate(dueDay: number, todayISO: string): string {
     const k = addMonths({ year: ty, month: tm }, i)
     const dim = new Date(k.year, k.month, 0).getDate() // số ngày của tháng k
     const base = `${k.year}-${pad(k.month)}-${pad(Math.min(dueDay, dim))}`
-    const due = shiftWeekendToMonday(base)
+    const due = shiftToBusinessDay(base)
     if (due >= todayISO) return due
   }
-  return shiftWeekendToMonday(`${ty}-${pad(tm)}-${pad(dueDay)}`)
+  return shiftToBusinessDay(`${ty}-${pad(tm)}-${pad(dueDay)}`)
 }
 
 const WEEKDAY_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']

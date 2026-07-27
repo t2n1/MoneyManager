@@ -14,17 +14,18 @@ const dueOnly = (dueDay: number, through: string, today: string) =>
   dueDatesToGenerate(dueDay, through, today).map((p) => p.dueISO)
 
 describe('dueDatesToGenerate', () => {
-  it('sinh các kỳ hằng tháng sau con trỏ đến hết hôm nay (dời cuối tuần sang T2)', () => {
-    // 10/1/2026 là Thứ 7 → dời 12/1; 10/2 và 10/3 là ngày thường → giữ nguyên
+  it('sinh các kỳ hằng tháng sau con trỏ đến hết hôm nay (dời sang ngày làm việc)', () => {
+    // 10/1/2026 là Thứ 7, mà Thứ 2 (12/1) lại là 成人の日 → dời tới 13/1;
+    // 10/2 và 10/3 là ngày thường → giữ nguyên
     expect(dueOnly(10, '2026-01-01', '2026-03-15')).toEqual([
-      '2026-01-12',
+      '2026-01-13',
       '2026-02-10',
       '2026-03-10',
     ])
   })
 
   it('loại kỳ đúng bằng con trỏ (con trỏ là ngày đã dời), dừng ở hôm nay', () => {
-    expect(dueOnly(10, '2026-01-12', '2026-02-10')).toEqual(['2026-02-10'])
+    expect(dueOnly(10, '2026-01-13', '2026-02-10')).toEqual(['2026-02-10'])
   })
 
   it('chưa tới kỳ nào → rỗng', () => {
@@ -154,11 +155,11 @@ describe('runCardAutopayCatchUp', () => {
       [ex('2025-12-20', 30_000), ex('2026-01-05', 20_000)],
     )
     const n = await runCardAutopayCatchUp(repo, '2026-03-15')
-    // Kỳ 10/1 (T7→dời 12/1) trả nợ chốt 27/12 = 30.000; kỳ 10/2 trả nợ chốt 27/1 =
-    // 20.000 (đã trừ lần trả 12/1); kỳ 10/3 chốt 27/2 nợ = 0 → bỏ qua
+    // Kỳ 10/1 (T7, Thứ 2 là ngày lễ → dời 13/1) trả nợ chốt 27/12 = 30.000; kỳ 10/2
+    // trả nợ chốt 27/1 = 20.000 (đã trừ lần trả 13/1); kỳ 10/3 chốt 27/2 nợ = 0 → bỏ
     expect(n).toBe(2)
     expect(created.map((c) => [c.occurred_on, c.amount])).toEqual([
-      ['2026-01-12', 30_000],
+      ['2026-01-13', 30_000],
       ['2026-02-10', 20_000],
     ])
     // Chuyển khoản nguồn→thẻ, ghi chú tự trả
@@ -227,9 +228,9 @@ describe('runCardAutopayCatchUp', () => {
       runCardAutopayCatchUp(repo, '2026-01-15'),
       runCardAutopayCatchUp(repo, '2026-01-15'),
     ])
-    expect(created.map((c) => [c.occurred_on, c.amount])).toEqual([['2026-01-12', 30_000]])
+    expect(created.map((c) => [c.occurred_on, c.amount])).toEqual([['2026-01-13', 30_000]])
     expect(a + b).toBe(1)
-    expect(acc.get('card')!.card_autopay_through).toBe('2026-01-12')
+    expect(acc.get('card')!.card_autopay_through).toBe('2026-01-13')
   })
 
   it('bỏ qua khi tài khoản nguồn đã lưu trữ', async () => {

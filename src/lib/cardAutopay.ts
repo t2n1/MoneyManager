@@ -5,7 +5,7 @@
 // KHÔNG import data/repo hay database.types để tránh vòng import (giống recurring.ts).
 
 import type { AccountType } from '../types/database.types'
-import { addDaysISO, addMonths, shiftWeekendToMonday } from './dates'
+import { addDaysISO, addMonths, shiftToBusinessDay } from './dates'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate()
@@ -17,9 +17,9 @@ function dayOfMonth(year: number, month: number, day: number): string {
 
 /** Một kỳ trả thẻ. Tách hai ngày vì việc dời cuối tuần có thể nhảy sang tháng sau. */
 export interface DuePeriod {
-  /** ngày `dueDay` của tháng đó (đã kẹp cuối tháng), CHƯA dời cuối tuần */
+  /** ngày `dueDay` của tháng đó (đã kẹp cuối tháng), CHƯA dời ngày nghỉ */
   baseISO: string
-  /** ngày ngân hàng thực rút tiền: đã dời Thứ 7/CN sang Thứ 2 */
+  /** ngày ngân hàng thực rút tiền: đã dời T7/CN/ngày lễ sang ngày làm việc kế tiếp */
   dueISO: string
 }
 
@@ -27,9 +27,9 @@ export interface DuePeriod {
  * Các kỳ trả thẻ (hằng tháng vào `dueDay`) CẦN SINH: sau `throughISO` (con trỏ kỳ
  * đã sinh) đến hết `todayISO` (inclusive). Kết quả tăng dần theo thời gian.
  *
- * `dueISO` đã DỜI Thứ 7/CN sang Thứ 2 (`shiftWeekendToMonday`) — khớp ngày ngân hàng
- * thực rút tiền và khớp hiển thị "ngày trả" ở trang Tài sản. Vì vậy `throughISO`
- * (con trỏ) cũng là ngày ĐÃ DỜI của kỳ trước; so sánh đều theo ngày dời.
+ * `dueISO` đã DỜI ngày nghỉ sang ngày làm việc kế tiếp (`shiftToBusinessDay`) — khớp
+ * ngày ngân hàng thực rút tiền và khớp hiển thị "ngày trả" ở trang Tài sản. Vì vậy
+ * `throughISO` (con trỏ) cũng là ngày ĐÃ DỜI của kỳ trước; so sánh đều theo ngày dời.
  *
  * `baseISO` giữ ngày trên lịch để biết kỳ này thuộc THÁNG nào: thẻ trả ngày 27 mà
  * 27/2 rơi Thứ 7 thì tiền ra ngày 1/3, nhưng vẫn là kỳ tháng 2 (sao kê chốt 31/1).
@@ -45,7 +45,7 @@ export function dueDatesToGenerate(
   // Chặn vòng lặp: tối đa ~50 năm kỳ tháng.
   for (let i = 0; i < 600; i++) {
     const baseISO = dayOfMonth(key.year, key.month, dueDay)
-    const dueISO = shiftWeekendToMonday(baseISO)
+    const dueISO = shiftToBusinessDay(baseISO)
     if (dueISO > todayISO) break
     if (dueISO > throughISO) out.push({ baseISO, dueISO })
     key = addMonths(key, 1)

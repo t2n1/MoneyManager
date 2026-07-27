@@ -182,14 +182,16 @@ export function AccountDetailPage() {
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Nhóm: {account.asset_group}</p>
         )}
 
-        {/* Điều chỉnh số dư (mục X) — cho ví/tài khoản thường, không cho đầu tư/thẻ */}
-        {account && !isInvestment && !isFixed && account.type !== 'card' && (
+        {/* Điều chỉnh số dư (mục X) — cho ví/tài khoản thường và thẻ; đầu tư và tài
+            sản cố định đi đường "Cập nhật giá trị" (định giá theo ngày) thay vì bù */}
+        {account && !isInvestment && !isFixed && (
           <button
             type="button"
             onClick={() => setShowReconcile(true)}
             className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95"
           >
-            <Scale className="h-3.5 w-3.5" /> Điều chỉnh số dư
+            <Scale className="h-3.5 w-3.5" />{' '}
+            {account.type === 'card' ? 'Điều chỉnh số nợ' : 'Điều chỉnh số dư'}
           </button>
         )}
 

@@ -3,10 +3,11 @@ import { useCreateTransaction } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow } from '../../types/database.types'
+import { cardDebt, reconcilePlan } from './reconcile'
 
 interface Props {
   account: AccountRow
-  /** Số dư sổ hiện tại (minor units theo currency tài khoản). */
+  /** Số dư sổ hiện tại (minor units theo currency tài khoản). Thẻ đang nợ → âm. */
   currentBalance: number
   onClose: () => void
 }
@@ -15,16 +16,21 @@ interface Props {
  * Sheet "Điều chỉnh số dư" (mục X): nhập số dư THỰC TẾ → app tạo một giao dịch
  * điều chỉnh (thu/chi) bù phần chênh lệch. Giao dịch này mang exclude_from_stats=true
  * nên KHÔNG lọt vào báo cáo/ngân sách/insight, nhưng vẫn khớp lại số dư tài khoản.
+ *
+ * Thẻ tín dụng nhập theo SỐ ĐANG NỢ (dương) cho khớp cách app hiển thị thẻ ở mọi
+ * nơi khác; phần đổi dấu nằm trong reconcilePlan.
  */
 export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
   const create = useCreateTransaction()
   const currency = account.currency as CurrencyCode
+  const isCard = account.type === 'card'
+  const shown = isCard ? cardDebt(currentBalance) : currentBalance
 
-  const [digits, setDigits] = useState(String(currentBalance))
+  const [digits, setDigits] = useState(String(shown))
   const [saving, setSaving] = useState(false)
 
-  const actual = digits === '' ? 0 : Number(digits)
-  const diff = actual - currentBalance
+  const entered = digits === '' ? 0 : Number(digits)
+  const { diff, type } = reconcilePlan({ isCard, currentBalance, entered })
   const canSave = digits !== '' && diff !== 0 && !saving
 
   async function handleSubmit() {
@@ -32,14 +38,14 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
     setSaving(true)
     try {
       await create.mutateAsync({
-        type: diff > 0 ? 'income' : 'expense',
+        type,
         amount: Math.abs(diff),
         to_amount: null,
         category_id: null,
         account_id: account.id,
         to_account_id: null,
         occurred_on: toISODate(new Date()),
-        note: 'Điều chỉnh số dư',
+        note: isCard ? 'Điều chỉnh số nợ' : 'Điều chỉnh số dư',
         exclude_from_stats: true,
       })
       onClose()
@@ -58,20 +64,20 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-1 text-base font-bold text-gray-800 dark:text-gray-100">
-          Điều chỉnh số dư
+          {isCard ? 'Điều chỉnh số nợ' : 'Điều chỉnh số dư'}
         </h2>
         <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-          {account.name} · số dư sổ hiện tại {formatMoney(currentBalance, currency)} (
-          {CURRENCIES[currency].label})
+          {account.name} · {isCard ? 'sổ đang ghi nợ' : 'số dư sổ hiện tại'}{' '}
+          {formatMoney(shown, currency)} ({CURRENCIES[currency].label})
         </p>
 
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-          Số dư thực tế
+          {isCard ? 'Số đang nợ thực tế' : 'Số dư thực tế'}
         </label>
         <input
           autoFocus
           inputMode="numeric"
-          value={actual === 0 ? '' : formatMoney(actual, currency)}
+          value={entered === 0 ? '' : formatMoney(entered, currency)}
           onChange={(e) => {
             const parsed = String(parseMoney(e.target.value))
             setDigits(parsed === '0' ? '' : parsed)
@@ -82,7 +88,7 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
 
         <div className="mb-3 rounded-lg bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm">
           <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
-            <span>Chênh lệch</span>
+            <span>{isCard ? 'Nợ thay đổi' : 'Chênh lệch'}</span>
             <span
               className={`tabular-nums font-semibold ${
                 diff === 0
@@ -92,14 +98,19 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
                     : 'text-red-600 dark:text-red-400'
               }`}
             >
-              {diff > 0 ? '+' : diff < 0 ? '−' : ''}
+              {/* Thẻ: diff âm nghĩa là nợ TĂNG, nên đảo dấu hiển thị cho dễ đọc */}
+              {diff === 0 ? '' : (isCard ? diff < 0 : diff > 0) ? '+' : '−'}
               {formatMoney(Math.abs(diff), currency)}
             </span>
           </div>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             {diff === 0
-              ? 'Số dư đã khớp — không cần điều chỉnh.'
-              : `Sẽ tạo một giao dịch ${diff > 0 ? 'thu' : 'chi'} điều chỉnh (không tính vào thống kê).`}
+              ? isCard
+                ? 'Số nợ đã khớp — không cần điều chỉnh.'
+                : 'Số dư đã khớp — không cần điều chỉnh.'
+              : isCard
+                ? `Nợ thật ${diff > 0 ? 'ít' : 'nhiều'} hơn sổ — sẽ tạo một giao dịch bù trên thẻ (không tính vào thống kê).`
+                : `Sẽ tạo một giao dịch ${diff > 0 ? 'thu' : 'chi'} điều chỉnh (không tính vào thống kê).`}
           </p>
         </div>
 

@@ -523,7 +523,7 @@ function AccountForm({ account, onClose }: FormProps) {
         </div>
 
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-          {isCard ? 'Số đang nợ hiện tại' : 'Số dư ban đầu'}
+          {isCard ? 'Số nợ ban đầu' : 'Số dư ban đầu'}
         </label>
         <input
           inputMode="numeric"
@@ -537,7 +537,9 @@ function AccountForm({ account, onClose }: FormProps) {
         />
         {isCard && (
           <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-            Nhập số bạn đang nợ thẻ (để 0 nếu chưa nợ). Chi tiêu bằng thẻ và trả thẻ ghi như giao dịch bình thường.
+            Số nợ tại thời điểm bắt đầu ghi sổ (để 0 nếu chưa nợ). Chi tiêu bằng thẻ và trả
+            thẻ ghi như giao dịch bình thường. Muốn khớp lại nợ hiện tại thì mở thẻ trong
+            trang Tài sản và bấm “Điều chỉnh số nợ” — sửa ô này sẽ dịch cả lịch sử cũ.
           </p>
         )}
         {isInvestment && (

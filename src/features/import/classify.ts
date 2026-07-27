@@ -22,9 +22,9 @@ export interface HistoryTx {
   occurred_on: string
 }
 
-// normalizeText bỏ dấu theo kiểu tiếng Việt, và với chữ Nhật nó bỏ luôn dấu kéo dài
-// "ー" cùng dakuten ("ド" → "ト"). Không sao: hai bên so sánh đều đi qua cùng hàm này,
-// nên "ファミリーマート" trong file vẫn khớp "ファミリーマート" trong lịch sử.
+// normalizeText đưa chữ rộng/nửa rộng về cùng dạng, bỏ dấu theo kiểu tiếng Việt, và với
+// chữ Nhật nó bỏ luôn dấu kéo dài "ー" cùng dakuten ("ド" → "ト"). Không sao: hai bên so
+// sánh đều đi qua cùng hàm này, nên "ファミリーマート" trong file vẫn khớp lịch sử.
 const noteKey = (type: ImportType, note: string) => `${type}|${normalizeText(note)}`
 
 /**

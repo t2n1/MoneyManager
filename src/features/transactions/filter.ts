@@ -4,9 +4,17 @@
 import type { TxFilter } from '../../data'
 import type { TransactionRow } from '../../types/database.types'
 
-/** Bỏ dấu + viết thường: "Ăn Uống" → "an uong" (để tìm gần đúng). */
+/**
+ * Bỏ dấu + viết thường: "Ăn Uống" → "an uong" (để tìm gần đúng).
+ *
+ * NFKC trước để chữ KIỂU RỘNG và NỬA RỘNG của sao kê Nhật về cùng dạng với chữ gõ tay:
+ * "ＴＥＭＵ" → "temu", "ﾎﾃﾞﾙ" → "ホテル", "－" → "-". Không có nó thì gõ từ khoá "TEMU"
+ * bằng bàn phím thường sẽ không khớp dòng nào trong file PayPay. NFKC không đổi gì với
+ * chữ tiếng Việt.
+ */
 export function normalizeText(s: string): string {
   return s
+    .normalize('NFKC')
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .replace(/đ/gi, 'd')

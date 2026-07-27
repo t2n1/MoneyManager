@@ -28,6 +28,25 @@ describe('normalizeText', () => {
     expect(normalizeText('Ăn Uống')).toBe('an uong')
     expect(normalizeText('Đầu tư')).toBe('dau tu')
   })
+
+  it('chữ Latin kiểu rộng của sao kê Nhật khớp với chữ gõ thường', () => {
+    // Sao kê PayPay ghi "ＴＥＭＵ", "Ｎｅｔｆｌｉｘ" kiểu rộng
+    expect(normalizeText('ＴＥＭＵ')).toBe('temu')
+    expect(normalizeText('Ｎｅｔｆｌｉｘ')).toBe('netflix')
+    expect(normalizeText('ＡＭＡＺＯＮ．ＣＯ．ＪＰ')).toBe('amazon.co.jp')
+  })
+
+  it('katakana nửa rộng của Rakuten khớp với katakana thường', () => {
+    // Rakuten ghi "ﾎﾃﾞﾙ" nửa rộng, người dùng gõ "ホテル" kiểu thường
+    expect(normalizeText('ﾎﾃﾙ')).toBe(normalizeText('ホテル'))
+    expect(normalizeText('ﾄｳｷﾖｳﾃﾞﾝﾘﾖｸ')).toBe(normalizeText('トウキヨウデンリヨク'))
+    expect(normalizeText('ｾﾌﾞﾝｲﾚﾌﾞﾝ')).toBe(normalizeText('セブンイレブン'))
+  })
+
+  it('dấu gạch ngang kiểu rộng thành gạch ngang thường', () => {
+    // "セブン－イレブン" (Rakuten) vs "セブン-イレブン" (gõ tay)
+    expect(normalizeText('セブン－イレブン')).toBe(normalizeText('セブン-イレブン'))
+  })
 })
 
 describe('matchesFilter', () => {

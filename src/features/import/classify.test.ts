@@ -113,6 +113,21 @@ describe('guessCategory', () => {
   })
 })
 
+describe('từ khoá với chữ rộng/nửa rộng của sao kê Nhật', () => {
+  const cats = [
+    { id: 'shop', type: 'expense' as const, is_archived: false, import_keywords: ['temu'] },
+    { id: 'sub', type: 'expense' as const, is_archived: false, import_keywords: ['Netflix'] },
+    { id: 'hotel', type: 'expense' as const, is_archived: false, import_keywords: ['ホテル'] },
+  ]
+  it('từ khoá gõ chữ thường khớp tên cửa hàng kiểu rộng của PayPay', () => {
+    expect(matchKeyword('ＴＥＭＵ', 'expense', cats)).toBe('shop')
+    expect(matchKeyword('Ｎｅｔｆｌｉｘ', 'expense', cats)).toBe('sub')
+  })
+  it('từ khoá katakana thường khớp katakana nửa rộng của Rakuten', () => {
+    expect(matchKeyword('ﾎﾃﾙｾﾞﾛｼﾌﾞﾔ', 'expense', cats)).toBe('hotel')
+  })
+})
+
 describe('detectPossibleDuplicates', () => {
   const item = (rowId: string, occurred_on: string, amount: number, note: string) => ({
     rowId,

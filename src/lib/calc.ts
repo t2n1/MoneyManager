@@ -1,7 +1,20 @@
 // Logic thuần cho ô số tiền: gõ phím + tính biểu thức.
 // Tiền ở đơn vị nhỏ nhất (số nguyên); tính trái→phải, làm tròn kết quả cuối.
 
+import { formatMoney, type CurrencyCode } from './money'
+
 const OPERATORS = ['+', '−', '×', '÷'] as const
+
+export const hasOperator = (expr: string) => /[+−×÷]/.test(expr)
+
+/** Biểu thức → chuỗi hiển thị: mỗi số định dạng như tiền, nối bằng dấu có khoảng trắng. */
+export function formatExpr(expr: string, currency: CurrencyCode): string {
+  return expr
+    .replace(/\d+/g, (n) => formatMoney(Number(n), currency))
+    .replace(/([+−×÷])/g, ' $1 ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
 
 /**
  * Tính biểu thức trên số nguyên, trái→phải, làm tròn kết quả cuối.

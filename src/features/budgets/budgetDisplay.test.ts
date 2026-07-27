@@ -69,6 +69,28 @@ describe('buildBudgetDisplay', () => {
     expect(g.capped).toBe(true)
     expect(g.children.find((c) => c.cat.id === 'restaurant')!.marker).toEqual(marker)
     expect(g.children.find((c) => c.cat.id === 'grocery')!.marker).toBeNull()
+    expect(g.markerTotal).toBe(5_000)
+  })
+
+  it('tổng mốc con vượt trần cha → markerTotal > budgeted (để UI cảnh báo)', () => {
+    const r = report(
+      [
+        line('food', 10_000, 7_000),
+        line('restaurant', 6_000, 4_000, true),
+        line('grocery', 7_000, 3_000, true),
+      ],
+      { restaurant: 4_000, grocery: 3_000 },
+    )
+    const g = buildBudgetDisplay([food, restaurant, grocery], r).items[0]
+    if (g.kind !== 'group') throw new Error('phải là group')
+    expect(g).toMatchObject({ capped: true, budgeted: 10_000, markerTotal: 13_000 })
+  })
+
+  it('nhóm tổng-con: markerTotal = 0 vì hạn mức con chính là trần', () => {
+    const r = report([line('restaurant', 5_000, 4_000)], { restaurant: 4_000 })
+    const g = buildBudgetDisplay([food, restaurant, grocery], r).items[0]
+    if (g.kind !== 'group') throw new Error('phải là group')
+    expect(g).toMatchObject({ capped: false, budgeted: 5_000, markerTotal: 0 })
   })
 
   it('cha KHÔNG trần + con có hạn mức → nhóm tổng-con (capped false)', () => {
@@ -84,11 +106,11 @@ describe('buildBudgetDisplay', () => {
     expect(g.children).toHaveLength(2)
   })
 
-  it('cha không trần, con cũng không hạn mức → vào danh sách chưa đặt', () => {
+  it('cha không trần, con cũng không hạn mức → chưa đặt, kèm danh sách con', () => {
     const r = report([], { restaurant: 4_000 })
     const d = buildBudgetDisplay([food, restaurant, grocery], r)
     expect(d.items).toEqual([])
-    expect(d.unbudgeted).toEqual([food])
+    expect(d.unbudgeted).toEqual([{ cat: food, children: [restaurant, grocery] }])
   })
 
   it('lá độc lập có hạn mức → item leaf', () => {
@@ -101,11 +123,11 @@ describe('buildBudgetDisplay', () => {
     expect(d.items[0].cat).toEqual(other)
   })
 
-  it('lá độc lập chưa có hạn mức → vào danh sách chưa đặt', () => {
+  it('lá độc lập chưa có hạn mức → vào danh sách chưa đặt, không có con', () => {
     const other = cat({ id: 'other2', name: 'Khác' })
     const d = buildBudgetDisplay([other], report([]))
     expect(d.items).toEqual([])
-    expect(d.unbudgeted).toEqual([other])
+    expect(d.unbudgeted).toEqual([{ cat: other, children: [] }])
   })
 
   it('items sắp theo ratio giảm dần', () => {

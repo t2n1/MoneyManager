@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useCategories, useCreateCategory, useCreateTransaction } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
-import { CURRENCIES, formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
+import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
+import { MoneyField } from '../../components/MoneyField'
 import type { AccountRow } from '../../types/database.types'
 import {
   ADJUST_CATEGORY_ICON,
@@ -35,12 +36,11 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
   const isCard = account.type === 'card'
   const shown = isCard ? cardDebt(currentBalance) : currentBalance
 
-  const [digits, setDigits] = useState(String(shown))
+  const [entered, setEntered] = useState(shown)
   const [saving, setSaving] = useState(false)
 
-  const entered = digits === '' ? 0 : Number(digits)
   const { diff, type } = reconcilePlan({ isCard, currentBalance, entered })
-  const canSave = digits !== '' && diff !== 0 && !saving
+  const canSave = diff !== 0 && !saving
 
   async function handleSubmit() {
     if (!canSave) return
@@ -82,7 +82,7 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-1 text-base font-bold text-gray-800 dark:text-gray-100">
@@ -96,17 +96,16 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
           {isCard ? 'Số đang nợ thực tế' : 'Số dư thực tế'}
         </label>
-        <input
-          autoFocus
-          inputMode="numeric"
-          value={entered === 0 ? '' : formatMoney(entered, currency)}
-          onChange={(e) => {
-            const parsed = String(parseMoney(e.target.value))
-            setDigits(parsed === '0' ? '' : parsed)
-          }}
-          placeholder={formatMoney(0, currency)}
-          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500 dark:bg-gray-900 dark:text-gray-100"
-        />
+        <div className="mb-3">
+          <MoneyField
+            value={entered}
+            onChange={setEntered}
+            currency={currency}
+            ariaLabel={isCard ? 'Số đang nợ thực tế' : 'Số dư thực tế'}
+            onEnter={handleSubmit}
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500 dark:bg-gray-900 dark:text-gray-100"
+          />
+        </div>
 
         <div className="mb-3 rounded-lg bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm">
           <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">

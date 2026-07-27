@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useUpsertValuation } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
-import { CURRENCIES, formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
+import { CURRENCIES, type CurrencyCode } from '../../lib/money'
+import { MoneyField } from '../../components/MoneyField'
 import type { AccountRow } from '../../types/database.types'
 
 interface Props {
@@ -20,15 +21,12 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
   const upsert = useUpsertValuation()
   const currency = account.currency as CurrencyCode
 
-  const [valueDigits, setValueDigits] = useState(
-    currentValue != null ? String(currentValue) : '',
-  )
+  const [marketValue, setMarketValue] = useState(currentValue ?? 0)
   const [valuedOn, setValuedOn] = useState(toISODate(new Date()))
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const marketValue = valueDigits === '' ? 0 : Number(valueDigits)
-  const canSave = valueDigits !== '' && !saving
+  const canSave = marketValue > 0 && !saving
 
   async function handleSubmit() {
     if (!canSave) return
@@ -52,7 +50,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-1 text-base font-bold text-gray-800 dark:text-gray-100">
@@ -65,17 +63,16 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
           Giá trị hiện tại
         </label>
-        <input
-          autoFocus
-          inputMode="numeric"
-          value={marketValue === 0 ? '' : formatMoney(marketValue, currency)}
-          onChange={(e) => {
-            const parsed = String(parseMoney(e.target.value))
-            setValueDigits(parsed === '0' ? '' : parsed)
-          }}
-          placeholder={formatMoney(0, currency)}
-          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
-        />
+        <div className="mb-3">
+          <MoneyField
+            value={marketValue}
+            onChange={setMarketValue}
+            currency={currency}
+            ariaLabel="Giá trị hiện tại"
+            onEnter={handleSubmit}
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
+          />
+        </div>
 
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Ngày</label>
         <input

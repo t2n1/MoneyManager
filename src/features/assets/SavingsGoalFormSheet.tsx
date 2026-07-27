@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useCreateSavingsGoal, useDeleteSavingsGoal, useUpdateSavingsGoal } from '../../hooks/queries'
-import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
+import { type CurrencyCode } from '../../lib/money'
+import { MoneyField } from '../../components/MoneyField'
 import type { AccountRow, SavingsGoalRow } from '../../types/database.types'
 import { confirmDialog } from '../../lib/dialog'
 
@@ -19,13 +20,12 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
 
   const [name, setName] = useState(goal?.name ?? '')
   const [accountId, setAccountId] = useState(goal?.account_id ?? accounts[0]?.id ?? '')
-  const [digits, setDigits] = useState(goal ? String(goal.target_amount) : '')
+  const [target, setTarget] = useState(goal?.target_amount ?? 0)
   const [targetDate, setTargetDate] = useState(goal?.target_date ?? '')
   const [note, setNote] = useState(goal?.note ?? '')
   const [saving, setSaving] = useState(false)
 
   const currency = (accounts.find((a) => a.id === accountId)?.currency ?? 'JPY') as CurrencyCode
-  const target = digits === '' ? 0 : Number(digits)
   const canSave = name.trim() !== '' && !!accountId && target > 0 && !saving
 
   async function handleSubmit() {
@@ -67,7 +67,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-gray-100">
@@ -87,16 +87,16 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
         </select>
 
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Số tiền đích</label>
-        <input
-          inputMode="numeric"
-          value={target === 0 ? '' : formatMoney(target, currency)}
-          onChange={(e) => {
-            const parsed = String(parseMoney(e.target.value))
-            setDigits(parsed === '0' ? '' : parsed)
-          }}
-          placeholder={formatMoney(0, currency)}
-          className={`mb-3 text-right font-semibold ${field}`}
-        />
+        <div className="mb-3">
+          <MoneyField
+            value={target}
+            onChange={setTarget}
+            currency={currency}
+            ariaLabel="Số tiền đích"
+            onEnter={handleSubmit}
+            className={`text-right font-semibold ${field}`}
+          />
+        </div>
 
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
           Hạn hoàn thành <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>

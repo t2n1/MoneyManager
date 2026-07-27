@@ -31,14 +31,23 @@ export type BudgetDisplayItem =
       carried: number
       ratio: number
       status: BudgetStatus
+      /** Tổng các mốc con đã đặt — nhóm capped dùng để cảnh báo khi vượt trần cha.
+       *  Nhóm tổng-con (capped false) luôn 0 vì hạn mức con CHÍNH LÀ trần. */
+      markerTotal: number
       children: BudgetChildRow[]
     }
+
+export interface BudgetUnbudgetedGroup {
+  cat: CategoryRow
+  /** Các mục con (rỗng nếu là lá độc lập) — để đặt hạn mức thẳng cho con. */
+  children: CategoryRow[]
+}
 
 export interface BudgetDisplay {
   /** Nhóm/lá đã có hạn mức, sắp theo ratio giảm dần. */
   items: BudgetDisplayItem[]
   /** Danh mục cha + lá độc lập chưa có hạn mức nào (để chào "đặt hạn mức"). */
-  unbudgeted: CategoryRow[]
+  unbudgeted: BudgetUnbudgetedGroup[]
 }
 
 const ratioOf = (spent: number, budgeted: number) => (budgeted > 0 ? spent / budgeted : 0)
@@ -56,7 +65,7 @@ export function buildBudgetDisplay(
   const childrenOf = (id: string) => expenseCats.filter((c) => c.parent_id === id)
 
   const items: BudgetDisplayItem[] = []
-  const unbudgeted: CategoryRow[] = []
+  const unbudgeted: BudgetUnbudgetedGroup[] = []
 
   for (const c of expenseCats.filter((c) => !c.parent_id)) {
     const children = childrenOf(c.id)
@@ -65,7 +74,7 @@ export function buildBudgetDisplay(
       // Lá độc lập.
       const line = lineOf.get(c.id)
       if (line) items.push({ kind: 'leaf', cat: c, line })
-      else unbudgeted.push(c)
+      else unbudgeted.push({ cat: c, children: [] })
       continue
     }
 
@@ -88,6 +97,7 @@ export function buildBudgetDisplay(
         carried: capLine.carried,
         ratio: capLine.ratio,
         status: capLine.status,
+        markerTotal: childRows.reduce((s, k) => s + (k.marker?.budgeted ?? 0), 0),
         children: childRows,
       })
       continue
@@ -111,10 +121,11 @@ export function buildBudgetDisplay(
         carried: 0,
         ratio,
         status: statusOf(ratio),
+        markerTotal: 0,
         children: childRows,
       })
     } else {
-      unbudgeted.push(c)
+      unbudgeted.push({ cat: c, children })
     }
   }
 

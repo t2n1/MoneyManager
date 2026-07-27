@@ -96,16 +96,40 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     current: number
     rollover?: boolean
     budgetId?: string
+    hint?: string
   } | null>(null)
   // Các nhóm cha đang xổ (mở accordion). Mặc định thu gọn.
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const catOf = (id: string) => categories.find((c) => c.id === id)
 
+  // Câu giải thích hạn mức đang đặt thuộc loại nào — tránh nhầm "con cộng thêm vào cha".
+  function hintFor(categoryId: string): string | undefined {
+    const c = catOf(categoryId)
+    if (!c) return undefined
+    if (c.parent_id) {
+      const parent = catOf(c.parent_id)
+      const parentCapped = budgets.some((b) => b.category_id === c.parent_id)
+      return parentCapped
+        ? `Chỉ là mốc theo dõi bên trong trần của ${parent?.name ?? 'nhóm cha'} — không cộng thêm vào trần đó, cũng không cộng vào tổng ngân sách.`
+        : `${parent?.name ?? 'Nhóm cha'} chưa có trần chung, nên hạn mức này tính vào tổng ngân sách. Trần của nhóm = tổng hạn mức các mục con.`
+    }
+    const hasChildren = categories.some((k) => k.parent_id === categoryId && !k.is_archived)
+    return hasChildren
+      ? 'Trần chung cho cả nhóm: tính mọi khoản chi của các mục con và chi ghi thẳng vào nhóm.'
+      : undefined
+  }
+
   // Mở sheet đặt/sửa hạn mức cho một danh mục (dùng amount gốc, không gồm phần dồn).
   function openEdit(categoryId: string) {
     const b = budgets.find((x) => x.category_id === categoryId)
-    setEditing({ categoryId, current: b?.amount ?? 0, rollover: b?.rollover, budgetId: b?.id })
+    setEditing({
+      categoryId,
+      current: b?.amount ?? 0,
+      rollover: b?.rollover,
+      budgetId: b?.id,
+      hint: hintFor(categoryId),
+    })
   }
 
   function toggle(id: string) {
@@ -300,6 +324,13 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                       </div>
                     </button>
                   </div>
+                  {/* Mốc con chỉ chia nhỏ bên trong trần cha; cộng lại vượt trần thì nhắc. */}
+                  {item.capped && item.markerTotal > item.budgeted && (
+                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                      Mốc các mục con cộng lại {formatMoney(item.markerTotal, base)}, vượt trần nhóm{' '}
+                      {formatMoney(item.budgeted, base)}.
+                    </p>
+                  )}
                   {isOpen && (
                     <ul className="mt-2 space-y-2 border-l border-gray-100 dark:border-gray-800 pl-3">
                       {item.children.map(childRow)}
@@ -315,21 +346,60 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       {/* Nhóm / lá chưa đặt hạn mức */}
       {unbudgeted.length > 0 && (
         <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
+          <h2 className="mb-1 text-sm font-semibold text-gray-500 dark:text-gray-400">
             Chưa đặt hạn mức
           </h2>
-          <ul className="flex flex-wrap gap-2">
-            {unbudgeted.map((c) => (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  onClick={() => openEdit(c.id)}
-                  className="rounded-full border border-dashed border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  {c.icon} {c.name} +
-                </button>
-              </li>
-            ))}
+          <p className="mb-2 text-xs text-gray-400 dark:text-gray-500">
+            Bấm tên nhóm để đặt trần chung, hoặc xổ ra (▸) để đặt riêng cho từng mục con — khi đó
+            trần nhóm là tổng các con.
+          </p>
+          <ul className="flex flex-col gap-2">
+            {unbudgeted.map(({ cat: c, children }) => {
+              const isOpen = expanded.has(c.id)
+              return (
+                <li key={c.id}>
+                  <div className="flex items-center gap-1">
+                    {children.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => toggle(c.id)}
+                        aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
+                        aria-expanded={isOpen}
+                        className="shrink-0 rounded p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                      >
+                        {isOpen ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => openEdit(c.id)}
+                      className="rounded-full border border-dashed border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    >
+                      {c.icon} {c.name} +
+                    </button>
+                  </div>
+                  {isOpen && children.length > 0 && (
+                    <ul className="mt-2 flex flex-wrap gap-2 border-l border-gray-100 dark:border-gray-800 pl-3">
+                      {children.map((k) => (
+                        <li key={k.id}>
+                          <button
+                            type="button"
+                            onClick={() => openEdit(k.id)}
+                            className="rounded-full border border-dashed border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                          >
+                            {k.icon} {k.name} +
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </section>
       )}
@@ -346,6 +416,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           current={editing.current}
           currentRollover={editing.rollover}
           budgetId={editing.budgetId}
+          hint={editing.hint}
           onClose={() => setEditing(null)}
         />
       )}

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import type { NewDebtPayment, NewTransaction } from '../../data'
 import { useAccounts, useCategories, useCreateDebtPayment } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
-import { formatMoney, parseMoney } from '../../lib/money'
+import { formatMoney } from '../../lib/money'
+import { MoneyField } from '../../components/MoneyField'
 import type { DebtRow } from '../../types/database.types'
 
 interface Props {
@@ -33,7 +34,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
   const canRecordReal = matchingAccounts.length > 0 && categoryOptions.length > 0
   // Mặc định bật; realOn còn phụ thuộc canRecordReal (accounts/categories tải xong).
   const [withTransaction, setWithTransaction] = useState(true)
-  const [amountDigits, setAmountDigits] = useState(remaining > 0 ? String(remaining) : '')
+  const [amount, setAmount] = useState(Math.max(remaining, 0))
   const [paidOn, setPaidOn] = useState(toISODate(new Date()))
   const [accountId, setAccountId] = useState('')
   const [categoryId, setCategoryId] = useState('')
@@ -48,7 +49,6 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
     if (!categoryId && categoryOptions[0]) setCategoryId(categoryOptions[0].id)
   }, [categoryId, categoryOptions])
 
-  const amount = amountDigits === '' ? 0 : Number(amountDigits)
   const realOn = withTransaction && canRecordReal
   const canSave = amount > 0 && !saving && (!realOn || (!!accountId && !!categoryId))
 
@@ -89,7 +89,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-1 text-base font-bold text-gray-800 dark:text-gray-100">Ghi nhận trả</h2>
@@ -99,17 +99,16 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
         </p>
 
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Số tiền trả</label>
-        <input
-          inputMode="numeric"
-          autoFocus
-          value={amount === 0 ? '' : formatMoney(amount, debt.currency)}
-          onChange={(e) => {
-            const parsed = String(parseMoney(e.target.value))
-            setAmountDigits(parsed === '0' ? '' : parsed)
-          }}
-          placeholder={formatMoney(0, debt.currency)}
-          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
-        />
+        <div className="mb-3">
+          <MoneyField
+            value={amount}
+            onChange={setAmount}
+            currency={debt.currency}
+            ariaLabel="Số tiền trả"
+            onEnter={handleSave}
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
+          />
+        </div>
 
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Ngày trả</label>
         <input

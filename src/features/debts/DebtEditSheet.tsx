@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useUpdateDebt } from '../../hooks/queries'
-import { CURRENCIES, formatMoney, parseMoney } from '../../lib/money'
+import { CURRENCIES } from '../../lib/money'
+import { MoneyField } from '../../components/MoneyField'
 import type { DebtDirection, DebtRow } from '../../types/database.types'
 import { DebtDetailInputs } from '../transactions/roleFields'
 
@@ -19,7 +20,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
 
   const [counterparty, setCounterparty] = useState(debt.counterparty)
   const [direction, setDirection] = useState<DebtDirection>(debt.direction)
-  const [principalDigits, setPrincipalDigits] = useState(String(debt.principal))
+  const [principal, setPrincipal] = useState(debt.principal)
   const [dueOn, setDueOn] = useState(debt.due_on ?? '')
   const [note, setNote] = useState(debt.note ?? '')
   const [interestPct, setInterestPct] = useState(
@@ -30,7 +31,6 @@ export function DebtEditSheet({ debt, onClose }: Props) {
   )
   const [saving, setSaving] = useState(false)
 
-  const principal = principalDigits === '' ? 0 : Number(principalDigits)
   const canSave = counterparty.trim().length > 0 && principal > 0 && !saving
 
   async function handleSave() {
@@ -106,16 +106,16 @@ export function DebtEditSheet({ debt, onClose }: Props) {
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
           Số tiền gốc ({CURRENCIES[debt.currency].symbol})
         </label>
-        <input
-          inputMode="numeric"
-          value={principal === 0 ? '' : formatMoney(principal, debt.currency)}
-          onChange={(e) => {
-            const parsed = String(parseMoney(e.target.value))
-            setPrincipalDigits(parsed === '0' ? '' : parsed)
-          }}
-          placeholder={formatMoney(0, debt.currency)}
-          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-right text-lg font-semibold text-gray-800 dark:text-gray-100 outline-green-500"
-        />
+        <div className="mb-3">
+          <MoneyField
+            value={principal}
+            onChange={setPrincipal}
+            currency={debt.currency}
+            ariaLabel="Số tiền gốc"
+            onEnter={handleSave}
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-right text-lg font-semibold text-gray-800 dark:text-gray-100 outline-green-500"
+          />
+        </div>
 
         <div className="mb-3">
           <DebtDetailInputs

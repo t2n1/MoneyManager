@@ -9,6 +9,10 @@ Dùng trên cả điện thoại và PC, cài được như PWA.
 - Đa tiền tệ **JPY / VND / USD**: mỗi tài khoản một loại tiền; lưu số nguyên đơn vị nhỏ nhất
   (`bigint` — yên/đồng/cent), không bao giờ dùng float. Tổng quan quy đổi về JPY bằng tỷ giá
   tự động (open.er-api.com, cache 12h).
+- **Hễ có ô nhập tiền là hiện bàn phím số của app** — mọi ô tiền dùng chung
+  [`MoneyField`](src/components/MoneyField.tsx): trên điện thoại pad hiện ngay dưới ô (không
+  dùng bàn phím hệ thống), gõ được cả `+ − × ÷`; trên PC gõ thẳng vào ô. Thêm ô tiền mới thì
+  dùng component này, đừng viết `<input>` tiền riêng.
 - Không backend riêng — client gọi thẳng Supabase, bảo mật bằng Row Level Security.
 - Chi phí vận hành mục tiêu: 0 đồng (Supabase free tier + Vercel free tier).
 

@@ -15,7 +15,8 @@ import {
 } from '../../hooks/queries'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { toISODate } from '../../lib/dates'
-import { CURRENCIES, formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
+import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
+import { MoneyField } from '../../components/MoneyField'
 import type { AccountRow, AccountType, TaxShelter } from '../../types/database.types'
 import {
   SHELTER_DEFAULT_LIMIT_JPY,
@@ -247,12 +248,10 @@ function AccountForm({ account, onClose }: FormProps) {
   const [includeInTotals, setIncludeInTotals] = useState(account?.include_in_totals ?? true)
   const [paymentAccountId, setPaymentAccountId] = useState(account?.payment_account_id ?? '')
   // Với thẻ tín dụng, ô số dư nhập là SỐ ĐANG NỢ (dương); initial_balance lưu âm.
-  const [balanceDigits, setBalanceDigits] = useState(
-    account ? String(Math.abs(account.initial_balance)) : '',
+  const [balanceMagnitude, setBalanceMagnitude] = useState(
+    account ? Math.abs(account.initial_balance) : 0,
   )
-  const [creditLimitDigits, setCreditLimitDigits] = useState(
-    account?.credit_limit != null ? String(account.credit_limit) : '',
-  )
+  const [creditLimit, setCreditLimit] = useState(account?.credit_limit ?? 0)
   const [statementDay, setStatementDay] = useState(
     account?.statement_day != null ? String(account.statement_day) : '',
   )
@@ -264,14 +263,10 @@ function AccountForm({ account, onClose }: FormProps) {
     account?.depreciation_months != null ? String(account.depreciation_months) : '',
   )
   const [depFrom, setDepFrom] = useState(account?.depreciation_from ?? '')
-  const [salvageDigits, setSalvageDigits] = useState(
-    account?.salvage_value ? String(account.salvage_value) : '',
-  )
+  const [salvage, setSalvage] = useState(account?.salvage_value ?? 0)
   // Tài khoản ưu đãi thuế Nhật: theo dõi hạn mức nạp theo năm
   const [taxShelter, setTaxShelter] = useState<TaxShelter | ''>(account?.tax_shelter ?? '')
-  const [shelterLimitDigits, setShelterLimitDigits] = useState(
-    account?.shelter_annual_limit != null ? String(account.shelter_annual_limit) : '',
-  )
+  const [shelterLimit, setShelterLimit] = useState(account?.shelter_annual_limit ?? 0)
   const [saving, setSaving] = useState(false)
 
   const isCard = type === 'card'
@@ -296,8 +291,7 @@ function AccountForm({ account, onClose }: FormProps) {
   // Tự trả cần đủ ngày chốt + đến hạn để tính số tiền theo sao kê
   const autopayNeedsDays = paymentAccountId !== '' && (statementDay === '' || paymentDueDay === '')
 
-  // Độ lớn số tiền nhập (luôn dương); dấu quyết định khi lưu theo loại tài khoản
-  const balanceMagnitude = balanceDigits === '' ? 0 : Number(balanceDigits)
+  // Số tiền nhập luôn dương; dấu quyết định khi lưu theo loại tài khoản
   const initialBalance = isCard ? -balanceMagnitude : balanceMagnitude
   const canSave = name.trim().length > 0 && !saving
   // Đổi loại tiền tài khoản đã có giao dịch → số tiền cũ không tự quy đổi
@@ -326,7 +320,7 @@ function AccountForm({ account, onClose }: FormProps) {
         asset_group: isCard ? null : assetGroup.trim() || null,
         is_hidden: isHidden,
         include_in_totals: includeInTotals,
-        credit_limit: isCard && creditLimitDigits !== '' ? Number(creditLimitDigits) : null,
+        credit_limit: isCard && creditLimit > 0 ? creditLimit : null,
         statement_day: isCard && statementDay !== '' ? Number(statementDay) : null,
         payment_due_day: isCard && paymentDueDay !== '' ? Number(paymentDueDay) : null,
         payment_account_id: validPaymentAccount,
@@ -336,12 +330,10 @@ function AccountForm({ account, onClose }: FormProps) {
           : null,
         depreciation_months: isFixed && depMonths !== '' ? Number(depMonths) : null,
         depreciation_from: isFixed && depFrom !== '' ? depFrom : null,
-        salvage_value: isFixed && salvageDigits !== '' ? Number(salvageDigits) : 0,
+        salvage_value: isFixed ? salvage : 0,
         tax_shelter: isInvestment && taxShelter !== '' ? taxShelter : null,
         shelter_annual_limit:
-          isInvestment && taxShelter !== '' && shelterLimitDigits !== ''
-            ? Number(shelterLimitDigits)
-            : null,
+          isInvestment && taxShelter !== '' && shelterLimit > 0 ? shelterLimit : null,
       }
       if (account) await update.mutateAsync({ id: account.id, patch: input })
       else await create.mutateAsync(input)
@@ -430,16 +422,16 @@ function AccountForm({ account, onClose }: FormProps) {
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
               Hạn mức tín dụng <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>
             </label>
-            <input
-              inputMode="numeric"
-              value={creditLimitDigits === '' ? '' : formatMoney(Number(creditLimitDigits), currency)}
-              onChange={(e) => {
-                const parsed = String(parseMoney(e.target.value))
-                setCreditLimitDigits(parsed === '0' ? '' : parsed)
-              }}
-              placeholder={formatMoney(0, currency)}
-              className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-sm font-semibold outline-green-500"
-            />
+            <div className="mb-3">
+              <MoneyField
+                value={creditLimit}
+                onChange={setCreditLimit}
+                currency={currency}
+                autoOpen={false}
+                ariaLabel="Hạn mức tín dụng"
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-sm font-semibold outline-green-500"
+              />
+            </div>
 
             <div className="mb-3 grid grid-cols-2 gap-3">
               <div>
@@ -525,16 +517,15 @@ function AccountForm({ account, onClose }: FormProps) {
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
           {isCard ? 'Số nợ ban đầu' : 'Số dư ban đầu'}
         </label>
-        <input
-          inputMode="numeric"
-          value={balanceMagnitude === 0 ? '' : formatMoney(balanceMagnitude, currency)}
-          onChange={(e) => {
-            const parsed = String(parseMoney(e.target.value))
-            setBalanceDigits(parsed === '0' ? '' : parsed)
-          }}
-          placeholder={formatMoney(0, currency)}
-          className="mb-2 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
-        />
+        <div className="mb-2">
+          <MoneyField
+            value={balanceMagnitude}
+            onChange={setBalanceMagnitude}
+            currency={currency}
+            ariaLabel={isCard ? 'Số nợ ban đầu' : 'Số dư ban đầu'}
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
+          />
+        </div>
         {isCard && (
           <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
             Số nợ tại thời điểm bắt đầu ghi sổ (để 0 nếu chưa nợ). Chi tiêu bằng thẻ và trả
@@ -561,8 +552,8 @@ function AccountForm({ account, onClose }: FormProps) {
                 const next = e.target.value as TaxShelter | ''
                 setTaxShelter(next)
                 // Điền sẵn hạn mức pháp định để khỏi phải tra — vẫn sửa được
-                if (next && shelterLimitDigits === '' && currency === 'JPY') {
-                  setShelterLimitDigits(String(SHELTER_DEFAULT_LIMIT_JPY[next]))
+                if (next && shelterLimit === 0 && currency === 'JPY') {
+                  setShelterLimit(SHELTER_DEFAULT_LIMIT_JPY[next])
                 }
               }}
               className="w-full rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
@@ -579,11 +570,12 @@ function AccountForm({ account, onClose }: FormProps) {
                 <label className="mb-1 mt-2 block text-xs font-medium text-gray-500 dark:text-gray-400">
                   Hạn mức nạp mỗi năm
                 </label>
-                <input
-                  inputMode="numeric"
-                  value={shelterLimitDigits === '' ? '' : formatMoney(Number(shelterLimitDigits), currency)}
-                  onChange={(e) => setShelterLimitDigits(e.target.value.replace(/\D/g, ''))}
-                  placeholder={formatMoney(0, currency)}
+                <MoneyField
+                  value={shelterLimit}
+                  onChange={setShelterLimit}
+                  currency={currency}
+                  autoOpen={false}
+                  ariaLabel="Hạn mức nạp mỗi năm"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right text-sm outline-green-500 dark:border-gray-700"
                 />
                 <p className="mt-1 text-[0.6875rem] text-gray-500 dark:text-gray-400">
@@ -631,11 +623,12 @@ function AccountForm({ account, onClose }: FormProps) {
             <label className="mb-1 mt-2 block text-xs font-medium text-gray-500 dark:text-gray-400">
               Giá trị còn lại cuối vòng đời
             </label>
-            <input
-              inputMode="numeric"
-              value={salvageDigits === '' ? '' : formatMoney(Number(salvageDigits), currency)}
-              onChange={(e) => setSalvageDigits(e.target.value.replace(/\D/g, ''))}
-              placeholder={formatMoney(0, currency)}
+            <MoneyField
+              value={salvage}
+              onChange={setSalvage}
+              currency={currency}
+              autoOpen={false}
+              ariaLabel="Giá trị còn lại cuối vòng đời"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right text-sm outline-green-500 dark:border-gray-700"
             />
             <p className="mt-1 text-[0.6875rem] text-gray-500 dark:text-gray-400">

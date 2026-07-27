@@ -31,8 +31,14 @@ import { AccountPicker } from '../../components/AccountPicker'
 import { TagPicker } from '../tags/TagPicker'
 import { remainingOf } from '../debts/aggregate'
 import type { DebtPerson } from './roleFields'
-import { NumPad, type NumPadKey } from './NumPad'
-import { appendKey, evalExpression, MAX_AMOUNT_DIGITS } from './calc'
+import { NumPad, type NumPadKey } from '../../components/NumPad'
+import {
+  appendKey,
+  evalExpression,
+  formatExpr,
+  hasOperator,
+  MAX_AMOUNT_DIGITS,
+} from '../../lib/calc'
 import { parseNl } from './parseNl'
 import {
   addQuickTemplate,
@@ -129,17 +135,6 @@ const REPEAT_MENU_LABEL: Record<'none' | RecurringFrequency, string> = {
   weekly: 'Hàng tuần',
   monthly: 'Hàng tháng',
   yearly: 'Hàng năm',
-}
-
-const hasOperator = (expr: string) => /[+−×÷]/.test(expr)
-
-/** Biểu thức → chuỗi hiển thị: mỗi số định dạng như tiền, nối bằng dấu có khoảng trắng. */
-function formatExpr(expr: string, currency: CurrencyCode): string {
-  return expr
-    .replace(/\d+/g, (n) => formatMoney(Number(n), currency))
-    .replace(/([+−×÷])/g, ' $1 ')
-    .replace(/\s+/g, ' ')
-    .trim()
 }
 
 /** Áp một phím NumPad vào một số tiền (minor units) — cho ô tiền phụ của vai trò.

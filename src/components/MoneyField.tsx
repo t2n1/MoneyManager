@@ -1,0 +1,135 @@
+import { useEffect, useId, useState, useSyncExternalStore } from 'react'
+import { NumPad, type NumPadKey } from './NumPad'
+import { appendKey, evalExpression, formatExpr, hasOperator, MAX_AMOUNT_DIGITS } from '../lib/calc'
+import { formatMoney, parseMoney, type CurrencyCode } from '../lib/money'
+
+// Quy ước chung của app: hễ có ô nhập tiền thì hiện luôn bàn phím số của app
+// (mobile), không dùng bàn phím hệ thống. Trên desktop gõ thẳng vào input.
+//
+// Chỉ một pad được mở trong toàn app: mở ô này thì ô khác tự thu lại (form có
+// nhiều ô tiền — vd tài khoản thẻ: hạn mức tín dụng + số nợ ban đầu).
+let activePad: string | null = null
+const padListeners = new Set<() => void>()
+
+function setActivePad(id: string | null) {
+  activePad = id
+  for (const f of padListeners) f()
+}
+
+function subscribePad(f: () => void) {
+  padListeners.add(f)
+  return () => {
+    padListeners.delete(f)
+  }
+}
+
+interface Props {
+  /** Số tiền ở đơn vị nhỏ nhất (0 = chưa nhập). */
+  value: number
+  onChange: (value: number) => void
+  currency: CurrencyCode
+  /** Ô tiền chính của form → mở pad ngay khi hiện. Ô phụ thì để false. */
+  autoOpen?: boolean
+  /** Class cho ô (dùng chung cho hộp chạm mobile và input desktop). */
+  className?: string
+  ariaLabel?: string
+  /** Enter trên desktop (thường là lưu). */
+  onEnter?: () => void
+}
+
+/** Ô nhập tiền dùng chung: hộp chạm + bàn phím số của app (mobile), input (desktop). */
+export function MoneyField({
+  value,
+  onChange,
+  currency,
+  autoOpen = true,
+  className = '',
+  ariaLabel = 'Số tiền',
+  onEnter,
+}: Props) {
+  const id = useId()
+  const open = useSyncExternalStore(subscribePad, () => activePad === id)
+  // Biểu thức đang gõ ('' = trống). Cho phép + − × ÷ như ô tiền ở trang Nhập.
+  const [expr, setExpr] = useState(value > 0 ? String(value) : '')
+
+  useEffect(() => {
+    if (autoOpen) setActivePad(id)
+    return () => {
+      if (activePad === id) setActivePad(null)
+    }
+  }, [autoOpen, id])
+
+  // Giá trị bị đổi từ bên ngoài (vd nút "Tất cả", đổi loại tiền) → nạp lại biểu thức.
+  useEffect(() => {
+    setExpr((cur) => ((evalExpression(cur) ?? 0) === value ? cur : value > 0 ? String(value) : ''))
+  }, [value])
+
+  function emit(next: string) {
+    setExpr(next)
+    onChange(evalExpression(next) ?? 0)
+  }
+
+  const result = evalExpression(expr) ?? 0
+  const showExpr = hasOperator(expr)
+  const text = showExpr ? formatExpr(expr, currency) : formatMoney(result, currency)
+  const isEmpty = !showExpr && result === 0
+
+  return (
+    <div className="flex flex-col gap-1">
+      {/* Mobile: hộp chạm — pad của app gõ vào, không bật bàn phím hệ thống */}
+      <button
+        type="button"
+        onClick={() => setActivePad(id)}
+        aria-label={`${ariaLabel}: ${text}`}
+        className={`truncate lg:hidden ${className} ${isEmpty ? 'opacity-40' : ''} ${
+          open ? 'ring-2 ring-green-500' : ''
+        }`}
+      >
+        {text}
+      </button>
+      {showExpr && (
+        <span className="text-right text-xs text-gray-500 dark:text-gray-400 lg:hidden">
+          = {formatMoney(result, currency)}
+        </span>
+      )}
+
+      {/* Desktop: gõ trực tiếp */}
+      <input
+        inputMode="numeric"
+        value={result === 0 ? '' : formatMoney(result, currency)}
+        onChange={(e) => {
+          const parsed = String(parseMoney(e.target.value))
+          emit(parsed === '0' ? '' : parsed.slice(0, MAX_AMOUNT_DIGITS))
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onEnter?.()
+        }}
+        placeholder={formatMoney(0, currency)}
+        className={`hidden lg:block ${className}`}
+      />
+
+      {open && (
+        <div className="flex flex-col gap-1 lg:hidden">
+          <NumPad onKey={(key: NumPadKey) => emit(appendKey(expr, key))} />
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => emit(appendKey(expr, '⌫'))}
+              aria-label="Xóa"
+              className="flex-1 rounded-lg bg-white py-1.5 text-lg font-semibold text-gray-800 shadow-sm transition active:scale-95 active:bg-gray-200 dark:bg-gray-800 dark:text-gray-100"
+            >
+              ⌫
+            </button>
+            <button
+              type="button"
+              onClick={() => setActivePad(null)}
+              className="flex-1 rounded-lg bg-gray-100 py-1.5 text-sm font-medium text-gray-600 shadow-sm transition active:scale-95 dark:bg-gray-800 dark:text-gray-300"
+            >
+              Thu bàn phím
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

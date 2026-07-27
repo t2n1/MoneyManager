@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useDeleteBudget, useRates, useUpsertBudget } from '../../hooks/queries'
-import { formatMoney, parseMoney } from '../../lib/money'
+import { MoneyField } from '../../components/MoneyField'
 import { confirmDialog } from '../../lib/dialog'
 
 interface Props {
@@ -10,6 +10,8 @@ interface Props {
   current: number // minor units base; 0 = chưa có
   currentRollover?: boolean
   budgetId?: string
+  /** Câu giải thích hạn mức này là trần nhóm / mốc con / đặt riêng cho con. */
+  hint?: string
   onClose: () => void
 }
 
@@ -21,14 +23,14 @@ export function BudgetEditSheet({
   current,
   currentRollover,
   budgetId,
+  hint,
   onClose,
 }: Props) {
   const { base } = useRates()
   const upsert = useUpsertBudget()
   const remove = useDeleteBudget()
-  const [raw, setRaw] = useState(current > 0 ? String(current) : '')
+  const [amount, setAmount] = useState(current)
   const [rollover, setRollover] = useState(currentRollover ?? false)
-  const amount = parseMoney(raw)
 
   async function handleSave() {
     if (amount <= 0) {
@@ -54,7 +56,7 @@ export function BudgetEditSheet({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-t-2xl bg-gray-50 dark:bg-gray-950 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-gray-50 dark:bg-gray-950 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
@@ -68,16 +70,17 @@ export function BudgetEditSheet({
           </button>
         </div>
 
-        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Hạn mức tháng ({base})</label>
-        <input
-          autoFocus
-          inputMode="numeric"
-          value={raw}
-          onChange={(e) => setRaw(e.target.value)}
-          placeholder="0"
-          className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-right text-lg font-semibold text-gray-800 dark:text-gray-100 focus:border-green-500 focus:outline-none"
+        {hint && <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">{hint}</p>}
+
+        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Hạn mức tháng ({base})</label>
+        <MoneyField
+          value={amount}
+          onChange={setAmount}
+          currency={base}
+          ariaLabel="Hạn mức tháng"
+          onEnter={handleSave}
+          className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-right text-lg font-semibold text-gray-800 dark:text-gray-100 focus:border-green-500 focus:outline-none"
         />
-        <p className="mt-1 text-right text-sm text-gray-500 dark:text-gray-400">{formatMoney(amount, base)}</p>
 
         <label className="mt-3 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
           <input type="checkbox" checked={rollover} onChange={(e) => setRollover(e.target.checked)} />

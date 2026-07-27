@@ -8,8 +8,9 @@ import {
   useUpdateRecurringRule,
 } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
-import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
+import { type CurrencyCode } from '../../lib/money'
 import { AccountPicker } from '../../components/AccountPicker'
+import { MoneyField } from '../../components/MoneyField'
 import type { RecurringFrequency } from '../../lib/recurring'
 import type { RecurringRuleRow, TransactionType } from '../../types/database.types'
 
@@ -39,8 +40,8 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
   const catchUp = useRunRecurringCatchUp()
 
   const [type, setType] = useState<TransactionType>(rule?.type ?? 'expense')
-  const [amountDigits, setAmountDigits] = useState(rule ? String(rule.amount) : '')
-  const [toDigits, setToDigits] = useState(rule?.to_amount ? String(rule.to_amount) : '')
+  const [amount, setAmount] = useState(rule?.amount ?? 0)
+  const [toAmount, setToAmount] = useState(rule?.to_amount ?? 0)
   const [categoryId, setCategoryId] = useState<string | null>(rule?.category_id ?? null)
   const [accountId, setAccountId] = useState<string | null>(rule?.account_id ?? null)
   const [toAccountId, setToAccountId] = useState<string | null>(rule?.to_account_id ?? null)
@@ -78,9 +79,6 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
   const dstCurrency = activeAccounts.find((a) => a.id === toAccountId)?.currency ?? srcCurrency
   const crossCurrency = type === 'transfer' && !!toAccountId && dstCurrency !== srcCurrency
 
-  const amount = amountDigits === '' ? 0 : Number(amountDigits)
-  const toAmount = toDigits === '' ? 0 : Number(toDigits)
-
   const canSave =
     amount > 0 &&
     !!effectiveAccountId &&
@@ -94,7 +92,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
     setType(next)
     setCategoryId(null)
     setToAccountId(null)
-    setToDigits('')
+    setToAmount(0)
   }
 
   async function handleSave() {
@@ -126,18 +124,19 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
   }
 
   const moneyInput = (
-    digits: string,
-    setDigits: (v: string) => void,
+    value: number,
+    onChange: (v: number) => void,
     currency: CurrencyCode,
+    ariaLabel: string,
+    autoOpen = true,
   ) => (
-    <input
-      inputMode="numeric"
-      value={digits === '' ? '' : formatMoney(Number(digits), currency)}
-      onChange={(e) => {
-        const parsed = String(parseMoney(e.target.value))
-        setDigits(parsed === '0' ? '' : parsed)
-      }}
-      placeholder={formatMoney(0, currency)}
+    <MoneyField
+      value={value}
+      onChange={onChange}
+      currency={currency}
+      ariaLabel={ariaLabel}
+      autoOpen={autoOpen}
+      onEnter={handleSave}
       className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
     />
   )
@@ -242,13 +241,15 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
           Số tiền ({srcCurrency})
         </label>
-        <div className="mb-3">{moneyInput(amountDigits, setAmountDigits, srcCurrency)}</div>
+        <div className="mb-3">{moneyInput(amount, setAmount, srcCurrency, 'Số tiền')}</div>
         {crossCurrency && (
           <>
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
               Nhận được ({dstCurrency})
             </label>
-            <div className="mb-3">{moneyInput(toDigits, setToDigits, dstCurrency)}</div>
+            <div className="mb-3">
+              {moneyInput(toAmount, setToAmount, dstCurrency, 'Nhận được', false)}
+            </div>
           </>
         )}
 

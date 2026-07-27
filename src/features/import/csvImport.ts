@@ -171,8 +171,8 @@ export interface SkippedRow {
   /** số dòng trong file, đếm từ 1 và tính cả dòng tiêu đề */
   line: number
   reason: SkipReason
-  /** ô ghi chú của dòng đó, để nhận ra là khoản nào */
-  note: string
+  /** nội dung nhận ra dòng: ô ghi chú, hoặc ô ngày nếu ghi chú trống */
+  label: string
 }
 
 export interface ImportPreview {
@@ -272,6 +272,19 @@ function categoryIndex(categories: CategoryChoice[]): Map<string, string> {
   return map
 }
 
+/**
+ * Khoá theo NỘI DUNG, dùng để nhận ra khoản đã có trong sổ. Không phải định danh dòng
+ * (xem `ImportItem.rowId`) — hai dòng giống hệt nhau cùng chung một khoá này.
+ */
+export function contentKey(
+  occurredOn: string,
+  type: Extract<TransactionType, 'expense' | 'income'>,
+  amount: number,
+  note: string,
+): string {
+  return `${occurredOn}|${type === 'expense' ? '-' : '+'}${amount}|${note}`
+}
+
 /** Dựng danh sách giao dịch chuẩn hóa từ các dòng CSV theo cấu hình ánh xạ. */
 export function buildImportPreview(rows: string[][], opts: ImportOptions): ImportPreview {
   const dataRows = opts.hasHeader ? rows.slice(1) : rows
@@ -283,25 +296,39 @@ export function buildImportPreview(rows: string[][], opts: ImportOptions): Impor
   for (let i = 0; i < dataRows.length; i++) {
     const r = dataRows[i]
     const line = headerLines + i + 1
+    const rawDate = (r[opts.mapping.date] ?? '').trim()
+    const rawAmount = (r[opts.mapping.amount] ?? '').trim()
     const note = (r[opts.mapping.note] ?? '').trim()
-    const iso = parseDateToISO(r[opts.mapping.date] ?? '', opts.dateOrder)
-    const rawAmount = parseAmountToMinor(r[opts.mapping.amount] ?? '', opts.currency)
+    // Dòng phân cách trống trơn (sao kê Rakuten có) — không phải lỗi, bỏ im.
+    if (rawDate === '' && rawAmount === '' && note === '') continue
+    // Dòng CHỈ có ghi chú là phần nối của dòng trên: Rakuten tách mỗi khoản ETC làm
+    // hai dòng, dòng trên có ngày + tiền, dòng dưới là tên tuyến đường. Nối lại thì
+    // hết báo lỗi oan, mà hai lần qua trạm cùng giá cũng không còn giống hệt nhau.
+    const prev = items[items.length - 1]
+    if (rawDate === '' && rawAmount === '' && prev) {
+      prev.note = `${prev.note} ${note}`.replace(/\s+/gu, ' ').trim()
+      prev.key = contentKey(prev.occurred_on, prev.type, prev.amount, prev.note)
+      continue
+    }
+    const label = note || rawDate
+    const iso = parseDateToISO(rawDate, opts.dateOrder)
+    const minor = parseAmountToMinor(rawAmount, opts.currency)
     // Bỏ dòng nào thì phải nói rõ dòng nào và vì sao — sao kê PayPay có dòng trống
     // ô ngày (mục 再計算), im lặng bỏ là mất khoản tiền mà không ai biết.
     if (!iso) {
-      skipped.push({ line, reason: 'date', note })
+      skipped.push({ line, reason: 'date', label })
       continue
     }
-    if (rawAmount === null) {
-      skipped.push({ line, reason: 'amount', note })
+    if (minor === null) {
+      skipped.push({ line, reason: 'amount', label })
       continue
     }
-    if (rawAmount === 0) {
-      skipped.push({ line, reason: 'zero', note })
+    if (minor === 0) {
+      skipped.push({ line, reason: 'zero', label })
       continue
     }
-    const isExpense = opts.negativeIsExpense ? rawAmount < 0 : rawAmount > 0
-    const amount = Math.abs(rawAmount)
+    const isExpense = opts.negativeIsExpense ? minor < 0 : minor > 0
+    const amount = Math.abs(minor)
     const type = isExpense ? 'expense' : 'income'
     // Danh mục: tên trong file (phải cùng chiều Chi/Thu) → lịch sử → từ khoá →
     // danh mục mặc định người dùng chọn ở trang nhập.
@@ -322,7 +349,7 @@ export function buildImportPreview(rows: string[][], opts: ImportOptions): Impor
       note,
       category_id: guess.category_id,
       categorySource: guess.source,
-      key: `${iso}|${isExpense ? '-' : '+'}${amount}|${note}`,
+      key: contentKey(iso, type, amount, note),
       rowId: String(line),
     })
   }

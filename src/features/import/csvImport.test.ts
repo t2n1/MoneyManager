@@ -83,6 +83,62 @@ describe('buildImportPreview', () => {
     expect(skipped).toHaveLength(2) // 'sai' + amount 0
   })
 
+  it('dòng chỉ có ghi chú được nối vào dòng trên, không tính là lỗi', () => {
+    // Rakuten tách mỗi khoản ETC làm hai dòng: dòng trên có ngày + tiền, dòng dưới
+    // chỉ có tên tuyến đường.
+    const rows = [
+      ['Ngày', 'Số tiền', 'Ghi chú'],
+      ['2026-05-17', '-2040', 'ＥＴＣカード売上'],
+      ['', '', 'ﾀｶｲﾄﾞﾎﾝｾﾝ  ｶﾜｸﾞﾁｺ'],
+    ]
+    const { items, skipped } = buildImportPreview(rows, opts)
+    expect(skipped).toEqual([])
+    expect(items).toHaveLength(1)
+    expect(items[0].note).toBe('ＥＴＣカード売上 ﾀｶｲﾄﾞﾎﾝｾﾝ ｶﾜｸﾞﾁｺ')
+  })
+
+  it('hai khoản ETC cùng tiền khác tuyến đường → khoá nội dung khác nhau', () => {
+    const rows = [
+      ['Ngày', 'Số tiền', 'Ghi chú'],
+      ['2026-03-14', '-260', 'ＥＴＣカード売上'],
+      ['', '', 'ｵﾀﾞﾜﾗﾎﾝｾﾝ'],
+      ['2026-03-14', '-260', 'ＥＴＣカード売上'],
+      ['', '', 'ﾋﾗﾂｶﾎﾝｾﾝ'],
+    ]
+    const { items } = buildImportPreview(rows, opts)
+    expect(items).toHaveLength(2)
+    expect(items[0].key).not.toBe(items[1].key)
+  })
+
+  it('dòng trống hoàn toàn không phải lỗi', () => {
+    const { items, skipped } = buildImportPreview(
+      [['Ngày', 'Số tiền', 'Ghi chú'], ['2026-07-01', '-850', 'Cơm'], ['', '', '']],
+      opts,
+    )
+    expect(items).toHaveLength(1)
+    expect(skipped).toEqual([])
+  })
+
+  it('dòng chỉ có ghi chú mà chưa có dòng nào trước → vẫn là lỗi', () => {
+    const { skipped } = buildImportPreview(
+      [['Ngày', 'Số tiền', 'Ghi chú'], ['', '', 'lơ lửng']],
+      opts,
+    )
+    expect(skipped).toEqual([{ line: 2, reason: 'date', label: 'lơ lửng' }])
+  })
+
+  it('ghi chú trống thì cảnh báo lấy nội dung ô ngày để nhận ra dòng', () => {
+    // Khối "■ご利用キャンセルなど" của Rakuten nằm ở ô ngày, ô ghi chú trống
+    const rows = [
+      ['Ngày', 'Số tiền', 'Ghi chú'],
+      ['2026-05-04', '-600', 'Amazon'],
+      ['■ご利用キャンセルなど', '', ''],
+    ]
+    const { items, skipped } = buildImportPreview(rows, opts)
+    expect(items).toHaveLength(1)
+    expect(skipped).toEqual([{ line: 3, reason: 'date', label: '■ご利用キャンセルなど' }])
+  })
+
   it('dòng bị bỏ được kể rõ: số dòng trong file, lý do, ghi chú', () => {
     const rows = [
       ['Ngày', 'Số tiền', 'Ghi chú'],
@@ -95,15 +151,15 @@ describe('buildImportPreview', () => {
     expect(items).toHaveLength(1)
     // line = số dòng trong file (tính cả dòng tiêu đề) để người dùng mở file ra soi
     expect(skipped).toEqual([
-      { line: 3, reason: 'date', note: 'ＴＥＭＵ（再計算）' },
-      { line: 4, reason: 'amount', note: 'thiếu số tiền' },
-      { line: 5, reason: 'zero', note: 'bằng không' },
+      { line: 3, reason: 'date', label: 'ＴＥＭＵ（再計算）' },
+      { line: 4, reason: 'amount', label: 'thiếu số tiền' },
+      { line: 5, reason: 'zero', label: 'bằng không' },
     ])
   })
 
   it('không có dòng tiêu đề thì số dòng đếm từ 1', () => {
     const { skipped } = buildImportPreview([['', '100', 'X']], { ...opts, hasHeader: false })
-    expect(skipped).toEqual([{ line: 1, reason: 'date', note: 'X' }])
+    expect(skipped).toEqual([{ line: 1, reason: 'date', label: 'X' }])
   })
 
   it('hai dòng giống hệt nhau: cùng khoá nội dung nhưng khác rowId', () => {

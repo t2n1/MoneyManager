@@ -489,7 +489,7 @@ export function ImportCsvPage() {
                   <ul className="mt-1 space-y-0.5">
                     {preview.skipped.slice(0, SKIP_LIMIT).map((s) => (
                       <li key={s.line} className="truncate">
-                        Dòng {s.line}: {s.note || '(trống)'} — {SKIP_LABEL[s.reason]}
+                        Dòng {s.line}: {s.label || '(trống)'} — {SKIP_LABEL[s.reason]}
                       </li>
                     ))}
                     {preview.skipped.length > SKIP_LIMIT && (

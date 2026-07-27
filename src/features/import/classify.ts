@@ -112,15 +112,16 @@ export function guessCategory(input: GuessInput): {
 
 /** Dòng CSV nghi là đã có trong sổ (ghi tay trước đó với tên khác). */
 export interface DuplicateCandidate {
-  /** khóa dòng CSV */
-  key: string
+  /** dòng CSV bị nghi (theo `ImportItem.rowId`) */
+  rowId: string
   matchedTxId: string
   /** ghi chú của giao dịch đã có, để người dùng tự nhận ra */
   matchedNote: string
 }
 
 export interface DuplicateItem {
-  key: string
+  /** định danh theo dòng: hai dòng giống hệt nhau phải được kể riêng */
+  rowId: string
   occurred_on: string
   amount: number
   type: ImportType
@@ -163,7 +164,7 @@ export function detectPossibleDuplicates(
     )
     if (!hit) continue
     used.add(hit.id)
-    out.push({ key: it.key, matchedTxId: hit.id, matchedNote: hit.note ?? '' })
+    out.push({ rowId: it.rowId, matchedTxId: hit.id, matchedNote: hit.note ?? '' })
   }
   return out
 }

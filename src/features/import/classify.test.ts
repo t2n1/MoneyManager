@@ -114,8 +114,8 @@ describe('guessCategory', () => {
 })
 
 describe('detectPossibleDuplicates', () => {
-  const item = (key: string, occurred_on: string, amount: number, note: string) => ({
-    key,
+  const item = (rowId: string, occurred_on: string, amount: number, note: string) => ({
+    rowId,
     occurred_on,
     amount,
     type: 'expense' as const,
@@ -139,7 +139,18 @@ describe('detectPossibleDuplicates', () => {
       [ex()],
       opts,
     )
-    expect(found).toEqual([{ key: 'k1', matchedTxId: 'e1', matchedNote: 'Cơm trưa' }])
+    expect(found).toEqual([{ rowId: 'k1', matchedTxId: 'e1', matchedNote: 'Cơm trưa' }])
+  })
+
+  it('hai dòng giống hệt nhau nghi trùng riêng biệt theo rowId', () => {
+    // Sao kê PayPay có hai dòng プレミアムバンダイ 10.659 cùng ngày; người dùng đã ghi
+    // tay cả hai với tên khác → phải cảnh báo cả hai, không gộp thành một.
+    const found = detectPossibleDuplicates(
+      [item('r1', '2026-07-02', 680, 'ファミマ'), item('r2', '2026-07-02', 680, 'ファミマ')],
+      [ex({ id: 'e1' }), ex({ id: 'e2', note: 'Cà phê' })],
+      opts,
+    )
+    expect(found.map((f) => f.rowId)).toEqual(['r1', 'r2'])
   })
 
   it('ghi chú giống hệt thì không cảnh báo (trang nhập đã lọc trùng thật)', () => {
@@ -177,6 +188,6 @@ describe('detectPossibleDuplicates', () => {
       [ex()],
       opts,
     )
-    expect(found.map((f) => f.key)).toEqual(['k1'])
+    expect(found.map((f) => f.rowId)).toEqual(['k1'])
   })
 })

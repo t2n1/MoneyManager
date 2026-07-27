@@ -155,17 +155,35 @@ export interface ImportItem {
   categorySource: CategorySource
   /** khóa chống trùng: ngày|amount có dấu|note */
   key: string
+  /**
+   * Định danh theo DÒNG trong file, KHÔNG theo nội dung. Sao kê có thật hai dòng
+   * giống hệt nhau (mua hai lần cùng món, cùng ngày, cùng giá) — chúng dùng chung
+   * `key` nên nếu lấy `key` làm định danh thì bỏ tick một dòng sẽ tắt luôn dòng kia.
+   */
+  rowId: string
+}
+
+/** Vì sao một dòng CSV không nhập được. */
+export type SkipReason = 'date' | 'amount' | 'zero'
+
+/** Dòng bị bỏ, kể đủ để người dùng mở file ra soi và tự ghi tay nếu cần. */
+export interface SkippedRow {
+  /** số dòng trong file, đếm từ 1 và tính cả dòng tiêu đề */
+  line: number
+  reason: SkipReason
+  /** ô ghi chú của dòng đó, để nhận ra là khoản nào */
+  note: string
 }
 
 export interface ImportPreview {
   items: ImportItem[]
-  /** số dòng bỏ qua vì lỗi (ngày/số tiền không đọc được) */
-  errorCount: number
+  /** các dòng bỏ qua vì không đọc được ngày/số tiền — UI phải kể ra, không nuốt im */
+  skipped: SkippedRow[]
 }
 
 export interface TransferCandidate {
-  /** khóa của dòng CSV bị nghi là chuyển khoản nội bộ */
-  key: string
+  /** dòng CSV bị nghi là chuyển khoản nội bộ (theo `ImportItem.rowId`) */
+  rowId: string
   /** giao dịch đã có trong app khớp với nó */
   matchedTxId: string
   matchedAccountId: string
@@ -231,7 +249,7 @@ export function detectInternalTransfers(
     if (!best) continue
     used.add(best.tx.id)
     out.push({
-      key: item.key,
+      rowId: item.rowId,
       matchedTxId: best.tx.id,
       matchedAccountId: best.tx.account_id,
       dayGap: best.gap,
@@ -258,17 +276,30 @@ function categoryIndex(categories: CategoryChoice[]): Map<string, string> {
 export function buildImportPreview(rows: string[][], opts: ImportOptions): ImportPreview {
   const dataRows = opts.hasHeader ? rows.slice(1) : rows
   const items: ImportItem[] = []
-  let errorCount = 0
+  const skipped: SkippedRow[] = []
   const catIndex = categoryIndex(opts.categories ?? [])
   const fallback = opts.fallback ?? { expense: null, income: null }
-  for (const r of dataRows) {
+  const headerLines = opts.hasHeader ? 1 : 0
+  for (let i = 0; i < dataRows.length; i++) {
+    const r = dataRows[i]
+    const line = headerLines + i + 1
+    const note = (r[opts.mapping.note] ?? '').trim()
     const iso = parseDateToISO(r[opts.mapping.date] ?? '', opts.dateOrder)
     const rawAmount = parseAmountToMinor(r[opts.mapping.amount] ?? '', opts.currency)
-    if (!iso || rawAmount === null || rawAmount === 0) {
-      errorCount++
+    // Bỏ dòng nào thì phải nói rõ dòng nào và vì sao — sao kê PayPay có dòng trống
+    // ô ngày (mục 再計算), im lặng bỏ là mất khoản tiền mà không ai biết.
+    if (!iso) {
+      skipped.push({ line, reason: 'date', note })
       continue
     }
-    const note = (r[opts.mapping.note] ?? '').trim()
+    if (rawAmount === null) {
+      skipped.push({ line, reason: 'amount', note })
+      continue
+    }
+    if (rawAmount === 0) {
+      skipped.push({ line, reason: 'zero', note })
+      continue
+    }
     const isExpense = opts.negativeIsExpense ? rawAmount < 0 : rawAmount > 0
     const amount = Math.abs(rawAmount)
     const type = isExpense ? 'expense' : 'income'
@@ -292,7 +323,8 @@ export function buildImportPreview(rows: string[][], opts: ImportOptions): Impor
       category_id: guess.category_id,
       categorySource: guess.source,
       key: `${iso}|${isExpense ? '-' : '+'}${amount}|${note}`,
+      rowId: String(line),
     })
   }
-  return { items, errorCount }
+  return { items, skipped }
 }

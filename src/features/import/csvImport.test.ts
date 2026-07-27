@@ -76,11 +76,48 @@ describe('buildImportPreview', () => {
       ['sai', 'x', 'lỗi'],
       ['2026-07-03', '0', 'không tính'],
     ]
-    const { items, errorCount } = buildImportPreview(rows, opts)
+    const { items, skipped } = buildImportPreview(rows, opts)
     expect(items).toHaveLength(2)
     expect(items[0]).toMatchObject({ amount: 850, type: 'expense', note: 'Cơm trưa' })
     expect(items[1]).toMatchObject({ amount: 280000, type: 'income' })
-    expect(errorCount).toBe(2) // 'sai' + amount 0
+    expect(skipped).toHaveLength(2) // 'sai' + amount 0
+  })
+
+  it('dòng bị bỏ được kể rõ: số dòng trong file, lý do, ghi chú', () => {
+    const rows = [
+      ['Ngày', 'Số tiền', 'Ghi chú'],
+      ['2026-07-01', '-850', 'Cơm trưa'],
+      ['', '3476', 'ＴＥＭＵ（再計算）'], // sao kê PayPay có dòng trống ô ngày
+      ['2026-07-03', '', 'thiếu số tiền'],
+      ['2026-07-04', '0', 'bằng không'],
+    ]
+    const { items, skipped } = buildImportPreview(rows, opts)
+    expect(items).toHaveLength(1)
+    // line = số dòng trong file (tính cả dòng tiêu đề) để người dùng mở file ra soi
+    expect(skipped).toEqual([
+      { line: 3, reason: 'date', note: 'ＴＥＭＵ（再計算）' },
+      { line: 4, reason: 'amount', note: 'thiếu số tiền' },
+      { line: 5, reason: 'zero', note: 'bằng không' },
+    ])
+  })
+
+  it('không có dòng tiêu đề thì số dòng đếm từ 1', () => {
+    const { skipped } = buildImportPreview([['', '100', 'X']], { ...opts, hasHeader: false })
+    expect(skipped).toEqual([{ line: 1, reason: 'date', note: 'X' }])
+  })
+
+  it('hai dòng giống hệt nhau: cùng khoá nội dung nhưng khác rowId', () => {
+    const rows = [
+      ['Ngày', 'Số tiền', 'Ghi chú'],
+      ['2026-06-29', '-10659', 'プレミアムバンダイ'],
+      ['2026-06-29', '-10659', 'プレミアムバンダイ'],
+    ]
+    const { items } = buildImportPreview(rows, opts)
+    expect(items).toHaveLength(2)
+    // key theo nội dung → vẫn nhận ra khoản đã có trong sổ
+    expect(items[0].key).toBe(items[1].key)
+    // rowId theo dòng → tick và danh mục của hai dòng không dính nhau
+    expect(items[0].rowId).not.toBe(items[1].rowId)
   })
 })
 
@@ -188,6 +225,7 @@ describe('detectInternalTransfers', () => {
     ...p,
   })
 
+  let row = 0
   const item = (
     occurred_on: string,
     amount: number,
@@ -200,6 +238,7 @@ describe('detectInternalTransfers', () => {
     category_id: 'c1',
     categorySource: 'fallback',
     key: `${occurred_on}|${type === 'expense' ? '-' : '+'}${amount}`,
+    rowId: `r${row++}`,
   })
 
   const opts = {
@@ -280,14 +319,29 @@ describe('detectInternalTransfers', () => {
   })
 
   it('một giao dịch chỉ khớp một dòng, ưu tiên lệch ngày ít nhất', () => {
+    const som = item('2026-05-12', 50_000, 'expense')
     const found = detectInternalTransfers(
-      [item('2026-05-12', 50_000, 'expense'), item('2026-05-10', 50_000, 'expense')],
+      [som, item('2026-05-10', 50_000, 'expense')],
       [etx({ id: 'only', type: 'income', amount: 50_000, occurred_on: '2026-05-10', account_id: 'save' })],
       opts,
     )
     expect(found).toHaveLength(1)
     // Dòng 12/5 xét trước và lệch 2 ngày, nhưng đã dùng hết giao dịch nên dòng 10/5 không còn
-    expect(found[0].key).toBe('2026-05-12|-50000')
+    expect(found[0].rowId).toBe(som.rowId)
+  })
+
+  it('hai dòng giống hệt nhau được kể riêng theo rowId', () => {
+    const a = item('2026-05-10', 50_000, 'expense')
+    const b = item('2026-05-10', 50_000, 'expense')
+    const found = detectInternalTransfers(
+      [a, b],
+      [
+        etx({ type: 'income', amount: 50_000, occurred_on: '2026-05-10', account_id: 'save' }),
+        etx({ type: 'income', amount: 50_000, occurred_on: '2026-05-10', account_id: 'card' }),
+      ],
+      opts,
+    )
+    expect(found.map((f) => f.rowId)).toEqual([a.rowId, b.rowId])
   })
 
   it('số tiền khác nhau thì không khớp', () => {

@@ -14,6 +14,7 @@ import {
   parseCsvText,
   type DateOrder,
   type ImportItem,
+  type SkipReason,
 } from './csvImport'
 import { buildNoteHistory, detectPossibleDuplicates, type CategorySource } from './classify'
 
@@ -30,6 +31,16 @@ const DEFAULT_FALLBACK_NAME = 'Khác'
 
 /** Số dòng hiện trong bảng xem trước (mỗi dòng có ô chọn danh mục nên đừng vẽ quá nhiều). */
 const ROW_LIMIT = 100
+
+/** Số dòng lỗi kể tên trong cảnh báo (chọn sai cột thì cả file thành lỗi, đừng liệt kê hết). */
+const SKIP_LIMIT = 5
+
+/** Vì sao dòng đó không nhập được, nói bằng tiếng người. */
+const SKIP_LABEL: Record<SkipReason, string> = {
+  date: 'không đọc được ngày',
+  amount: 'không đọc được số tiền',
+  zero: 'số tiền bằng 0',
+}
 
 /** Vì sao dòng đó có danh mục — nói thẳng để người dùng biết chỗ nào cần soi lại. */
 const SOURCE_LABEL: Record<CategorySource, string> = {
@@ -135,7 +146,7 @@ export function ImportCsvPage() {
             fallback: { expense: expenseCatId || null, income: incomeCatId || null },
             noteHistory,
           })
-        : { items: [], errorCount: 0 },
+        : { items: [], skipped: [] },
     [
       rows,
       account,
@@ -202,8 +213,8 @@ export function ImportCsvPage() {
     [preview.items, existing, accountId, sameCurrencyIds],
   )
   const [skipTransfers, setSkipTransfers] = useState(true)
-  const transferKeys = useMemo(
-    () => new Set(transferCandidates.map((c) => c.key)),
+  const transferRowIds = useMemo(
+    () => new Set(transferCandidates.map((c) => c.rowId)),
     [transferCandidates],
   )
 
@@ -215,7 +226,7 @@ export function ImportCsvPage() {
     [preview.items, existing, accountId],
   )
   const suspectNote = useMemo(
-    () => new Map(dupSuspects.map((d) => [d.key, d.matchedNote])),
+    () => new Map(dupSuspects.map((d) => [d.rowId, d.matchedNote])),
     [dupSuspects],
   )
 
@@ -223,32 +234,34 @@ export function ImportCsvPage() {
   const candidates = useMemo(
     () =>
       preview.items.filter(
-        (it) => !existingKeys.has(it.key) && !(skipTransfers && transferKeys.has(it.key)),
+        (it) => !existingKeys.has(it.key) && !(skipTransfers && transferRowIds.has(it.rowId)),
       ),
-    [preview.items, existingKeys, skipTransfers, transferKeys],
+    [preview.items, existingKeys, skipTransfers, transferRowIds],
   )
+  // Lựa chọn của người dùng gắn theo DÒNG (rowId), không theo nội dung: sao kê có thật
+  // hai dòng giống hệt nhau, dùng key nội dung thì bỏ tick một dòng tắt luôn dòng kia.
   // Nghi trùng thì mặc định BỎ TICK — thà bỏ sót còn hơn nhập đôi; người dùng tự bật lại.
-  const isOn = (key: string) => rowOn[key] ?? !suspectNote.has(key)
-  const catOf = (it: ImportItem) => rowCat[it.key] ?? it.category_id
-  const toImport = candidates.filter((it) => isOn(it.key))
+  const isOn = (rowId: string) => rowOn[rowId] ?? !suspectNote.has(rowId)
+  const catOf = (it: ImportItem) => rowCat[it.rowId] ?? it.category_id
+  const toImport = candidates.filter((it) => isOn(it.rowId))
 
   const dupCount = preview.items.filter((it) => existingKeys.has(it.key)).length
   const transferCount = preview.items.filter(
-    (it) => !existingKeys.has(it.key) && transferKeys.has(it.key),
+    (it) => !existingKeys.has(it.key) && transferRowIds.has(it.rowId),
   ).length
-  const suspectCount = candidates.filter((it) => suspectNote.has(it.key)).length
+  const suspectCount = candidates.filter((it) => suspectNote.has(it.rowId)).length
   const nameOfAccount = (id: string) => accounts.find((a) => a.id === id)?.name ?? 'tài khoản khác'
   // Chi/thu BẮT BUỘC có danh mục (CHECK của bảng transactions) → thiếu thì chặn nhập
   const missingCatCount = toImport.filter((it) => !catOf(it)).length
   // Dòng người dùng đã tự chọn danh mục thì không đếm vào "đoán" hay "mặc định" nữa
   const guessedCount = toImport.filter(
     (it) =>
-      !rowCat[it.key] &&
+      !rowCat[it.rowId] &&
       catOf(it) &&
       (it.categorySource === 'history' || it.categorySource === 'keyword'),
   ).length
   const fallbackUsedCount = toImport.filter(
-    (it) => !rowCat[it.key] && catOf(it) && it.categorySource === 'fallback',
+    (it) => !rowCat[it.rowId] && catOf(it) && it.categorySource === 'fallback',
   ).length
 
   async function handleImport() {
@@ -455,7 +468,7 @@ export function ImportCsvPage() {
                 Sẽ nhập <strong>{toImport.length}</strong> giao dịch
                 {dupCount > 0 && ` · bỏ qua ${dupCount} trùng`}
                 {skipTransfers && transferCount > 0 && ` · bỏ qua ${transferCount} chuyển khoản`}
-                {preview.errorCount > 0 && ` · ${preview.errorCount} dòng lỗi`}
+                {preview.skipped.length > 0 && ` · ${preview.skipped.length} dòng lỗi`}
                 {guessedCount > 0 && ` · ${guessedCount} dòng đoán được danh mục`}
                 {fallbackUsedCount > 0 && ` · ${fallbackUsedCount} dòng dùng danh mục mặc định`}
               </p>
@@ -465,6 +478,25 @@ export function ImportCsvPage() {
                   <b>{missingCatCount} dòng chưa có danh mục.</b> Mỗi giao dịch chi/thu đều phải có
                   danh mục, nên hãy chọn danh mục mặc định cho dòng Chi và dòng Thu ở trên.
                 </p>
+              )}
+
+              {/* Dòng không nhập được — phải kể ra từng dòng, không nuốt im: sao kê
+                  PayPay có dòng trống ô ngày, im lặng bỏ là mất tiền mà không ai biết. */}
+              {preview.skipped.length > 0 && (
+                <div className="mt-2 rounded-lg bg-red-50 p-2.5 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                  <b>{preview.skipped.length} dòng không nhập được</b> — mở file ra xem rồi ghi tay
+                  nếu là khoản thật:
+                  <ul className="mt-1 space-y-0.5">
+                    {preview.skipped.slice(0, SKIP_LIMIT).map((s) => (
+                      <li key={s.line} className="truncate">
+                        Dòng {s.line}: {s.note || '(trống)'} — {SKIP_LABEL[s.reason]}
+                      </li>
+                    ))}
+                    {preview.skipped.length > SKIP_LIMIT && (
+                      <li>…và {preview.skipped.length - SKIP_LIMIT} dòng nữa.</li>
+                    )}
+                  </ul>
+                </div>
               )}
 
               {/* Nghi nhập trùng với khoản đã ghi tay */}
@@ -494,9 +526,9 @@ export function ImportCsvPage() {
                   </label>
                   <ul className="mt-1.5 space-y-0.5 pl-6 text-[0.6875rem] text-amber-700 dark:text-amber-400">
                     {transferCandidates.slice(0, 5).map((c) => {
-                      const it = preview.items.find((x) => x.key === c.key)
+                      const it = preview.items.find((x) => x.rowId === c.rowId)
                       return (
-                        <li key={c.key} className="truncate">
+                        <li key={c.rowId} className="truncate">
                           {it?.occurred_on} · {formatMoney(it?.amount ?? 0, currency)} ↔{' '}
                           {nameOfAccount(c.matchedAccountId)}
                           {c.dayGap > 0 && ` (lệch ${c.dayGap} ngày)`}
@@ -524,12 +556,12 @@ export function ImportCsvPage() {
                   </thead>
                   <tbody>
                     {candidates.slice(0, ROW_LIMIT).map((it: ImportItem) => {
-                      const on = isOn(it.key)
+                      const on = isOn(it.rowId)
                       const cat = catOf(it)
-                      const matched = suspectNote.get(it.key)
+                      const matched = suspectNote.get(it.rowId)
                       return (
                         <tr
-                          key={it.key}
+                          key={it.rowId}
                           className={`border-t border-gray-100 dark:border-gray-800 ${
                             matched ? 'bg-amber-50 dark:bg-amber-900/20' : ''
                           } ${on ? '' : 'opacity-50'}`}
@@ -539,7 +571,7 @@ export function ImportCsvPage() {
                               type="checkbox"
                               checked={on}
                               onChange={(e) =>
-                                setRowOn((prev) => ({ ...prev, [it.key]: e.target.checked }))
+                                setRowOn((prev) => ({ ...prev, [it.rowId]: e.target.checked }))
                               }
                               aria-label={`Nhập dòng ${it.occurred_on} ${it.note}`}
                             />
@@ -557,7 +589,7 @@ export function ImportCsvPage() {
                             <select
                               value={cat ?? ''}
                               onChange={(e) =>
-                                setRowCat((prev) => ({ ...prev, [it.key]: e.target.value }))
+                                setRowCat((prev) => ({ ...prev, [it.rowId]: e.target.value }))
                               }
                               className={`max-w-32 rounded border px-1 py-0.5 ${
                                 cat
@@ -570,7 +602,7 @@ export function ImportCsvPage() {
                             </select>
                           </td>
                           <td className="py-1 text-gray-500 dark:text-gray-400">
-                            {rowCat[it.key] ? 'Bạn chọn' : SOURCE_LABEL[it.categorySource]}
+                            {rowCat[it.rowId] ? 'Bạn chọn' : SOURCE_LABEL[it.categorySource]}
                           </td>
                           <td className="py-1">
                             {it.note}

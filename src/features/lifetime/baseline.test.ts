@@ -129,4 +129,43 @@ describe('suggestBaseline', () => {
     expect(s.byCategory[0].annualMinor).toBe(200_000)
     expect(s.byCategory[0].share).toBeCloseTo(1)
   })
+
+  it('bỏ giao dịch ở tương lai, giữ nguyên giao dịch bình thường', () => {
+    const txs = [
+      // Bình thường: occurred_on 2025-08-01 (mặc định) → được tính.
+      tx({ id: '1', amount: 100_000 }),
+      // Tương lai so với hôm nay 2026-07-29 (rule định kỳ sinh trước hạn, hoặc
+      // nhập nhầm năm) — phải bị loại, không được cộng vào chi.
+      tx({ id: '2', amount: 900_000, occurred_on: '2026-08-15' }),
+    ]
+    const s = suggestBaseline(txs, cats, currencyOf, 'JPY', '2026-07-29')
+    // Tính tay: khoản tương lai không kéo `oldest` (2025-08-01 vẫn cũ nhất) nên
+    // monthsCovered vẫn 12, hệ số vẫn 1 → annualExpenseMinor chỉ còn 100.000.
+    expect(s.annualExpenseMinor).toBe(100_000)
+  })
+
+  it('toàn bộ giao dịch đều ở tương lai thì trả 0, không phóng đại', () => {
+    const txs = [tx({ id: '1', amount: 900_000, occurred_on: '2026-08-15' })]
+    const s = suggestBaseline(txs, cats, currencyOf, 'JPY', '2026-07-29')
+    // Tính tay: không có giao dịch nào hợp lệ (kept rỗng) → phải trả 0. Nếu thiếu
+    // biên dưới, oldest = 2026-08-15, daysBetween(oldest, todayISO) = −17 ngày,
+    // Math.max(1, Math.round(−17/30.44)) = Math.max(1, −1) = 1 → hệ số quy năm
+    // hoá vọt lên 12 → annualExpenseMinor sẽ phóng thành 10.800.000 (900.000×12).
+    expect(s.annualIncomeMinor).toBe(0)
+    expect(s.annualExpenseMinor).toBe(0)
+    expect(s.byCategory).toEqual([])
+  })
+
+  it('bỏ dòng tiền nợ/cho vay (is_debt_flow) — không phải chi tiêu', () => {
+    const txs = [
+      tx({ id: '1', amount: 100_000, category_id: 'c-an' }),
+      // Cho vay/trả nợ là dịch chuyển tài sản, không phải chi tiêu — cùng quy
+      // ước loại trừ với mọi hàm ở reports/aggregate.ts.
+      tx({ id: '2', amount: 900_000, category_id: 'c-an', is_debt_flow: true }),
+    ]
+    const s = suggestBaseline(txs, cats, currencyOf, 'JPY', '2026-07-29')
+    expect(s.annualExpenseMinor).toBe(100_000)
+    expect(s.byCategory[0].categoryId).toBe('c-an')
+    expect(s.byCategory[0].annualMinor).toBe(100_000)
+  })
 })

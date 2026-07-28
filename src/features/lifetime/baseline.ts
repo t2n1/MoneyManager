@@ -45,14 +45,26 @@ export function suggestBaseline(
   currency: CurrencyCode,
   todayISO: string,
 ): BaselineSuggestion {
-  const kept = txs.filter(
-    (t) =>
+  const kept = txs.filter((t) => {
+    // Số ngày TỪ giao dịch ĐẾN hôm nay. Âm nghĩa là giao dịch ở TƯƠNG LAI (rule
+    // định kỳ sinh trước hạn, hoặc nhập nhầm năm) — phải loại, không chỉ chặn
+    // biên trên. Thiếu biên dưới này thì một giao dịch tương lai duy nhất có thể
+    // thành `oldest`, kéo `daysBetween(oldest, todayISO)` xuống ÂM, `Math.max(1,
+    // ...)` ép `spanMonths` về 1 → hệ số quy năm hoá vọt lên 12, phóng một khoản
+    // chi thành chi phí cả năm.
+    const days = daysBetween(t.occurred_on, todayISO)
+    return (
       currencyOf(t.account_id) === currency &&
       !t.exclude_from_stats &&
+      // Dòng tiền nợ/cho vay là DỊCH CHUYỂN tài sản, không phải chi tiêu — cùng
+      // quy ước loại trừ với mọi hàm họ hàng ở reports/aggregate.ts.
+      !t.is_debt_flow &&
       // Chuyển khoản không phải thu cũng không phải chi — cộng vào là đếm hai lần.
       (t.type === 'income' || t.type === 'expense') &&
-      daysBetween(t.occurred_on, todayISO) <= MAX_MONTHS * 31,
-  )
+      days >= 0 &&
+      days <= MAX_MONTHS * 31
+    )
+  })
 
   if (kept.length === 0) {
     return { annualIncomeMinor: 0, annualExpenseMinor: 0, monthsCovered: MAX_MONTHS, byCategory: [] }

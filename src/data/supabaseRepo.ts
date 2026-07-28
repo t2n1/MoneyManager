@@ -12,6 +12,9 @@ import type {
   CategoryType,
   DebtPaymentRow,
   DebtRow,
+  LifeEventRow,
+  LifePhaseRow,
+  LifeScenarioRow,
   NetWorthSnapshotRow,
   RecurringRuleRow,
   SavingsGoalRow,
@@ -26,10 +29,16 @@ import {
   type BackupData,
   type CategoryPatch,
   type DebtPatch,
+  type LifeEventPatch,
+  type LifePhasePatch,
+  type LifeScenarioPatch,
   type NewAccount,
   type NewCategory,
   type NewDebt,
   type NewDebtPayment,
+  type NewLifeEvent,
+  type NewLifePhase,
+  type NewLifeScenario,
   type NewRecurringOccurrence,
   type NewRecurringRule,
   type NewSavingsGoal,
@@ -62,6 +71,9 @@ type DataTable =
   | 'networth_snapshots'
   | 'tags'
   | 'transaction_tags'
+  | 'life_scenarios'
+  | 'life_phases'
+  | 'life_events'
 
 /** Bỏ `tag_ids` (bảng liên kết riêng) để payload chỉ còn cột thật của transactions. */
 function txColumns<T extends { tag_ids?: string[] }>(input: T): Omit<T, 'tag_ids'> {
@@ -379,6 +391,120 @@ export const supabaseRepo: Repo = {
 
   async deleteSavingsGoal(id: string) {
     const { error } = await getSupabase().from('savings_goals').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  async getLifeScenarios() {
+    const { data, error } = await getSupabase()
+      .from('life_scenarios')
+      .select('*')
+      .order('sort_order')
+    if (error) throw error
+    return data
+  },
+
+  async createLifeScenario(input: NewLifeScenario) {
+    const user_id = await currentUserId()
+    const { data: existing } = await getSupabase()
+      .from('life_scenarios')
+      .select('sort_order')
+      .order('sort_order', { ascending: false })
+      .limit(1)
+    const sort_order = (existing?.[0]?.sort_order ?? -1) + 1
+    const { data, error } = await getSupabase()
+      .from('life_scenarios')
+      .insert({ ...input, user_id, sort_order })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async updateLifeScenario(id: string, patch: LifeScenarioPatch) {
+    const { data, error } = await getSupabase()
+      .from('life_scenarios')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async deleteLifeScenario(id: string) {
+    const { error } = await getSupabase().from('life_scenarios').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  async getLifePhases() {
+    const { data, error } = await getSupabase()
+      .from('life_phases')
+      .select('*')
+      .order('start_year')
+    if (error) throw error
+    return data
+  },
+
+  async createLifePhase(input: NewLifePhase) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('life_phases')
+      .insert({ ...input, user_id })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async updateLifePhase(id: string, patch: LifePhasePatch) {
+    const { data, error } = await getSupabase()
+      .from('life_phases')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async deleteLifePhase(id: string) {
+    const { error } = await getSupabase().from('life_phases').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  async getLifeEvents() {
+    const { data, error } = await getSupabase()
+      .from('life_events')
+      .select('*')
+      .order('start_year')
+    if (error) throw error
+    return data
+  },
+
+  async createLifeEvent(input: NewLifeEvent) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('life_events')
+      .insert({ ...input, user_id })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async updateLifeEvent(id: string, patch: LifeEventPatch) {
+    const { data, error } = await getSupabase()
+      .from('life_events')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async deleteLifeEvent(id: string) {
+    const { error } = await getSupabase().from('life_events').delete().eq('id', id)
     if (error) throw error
   },
 
@@ -962,6 +1088,9 @@ export const supabaseRepo: Repo = {
       networthSnapshots,
       tags,
       transactionTags,
+      lifeScenarios,
+      lifePhases,
+      lifeEvents,
     ] = await Promise.all([
       this.getProfile(),
       selectAll<AccountRow>('accounts'),
@@ -977,6 +1106,9 @@ export const supabaseRepo: Repo = {
       selectAll<NetWorthSnapshotRow>('networth_snapshots'),
       selectAll<TagRow>('tags'),
       selectAll<TransactionTagRow>('transaction_tags'),
+      selectAll<LifeScenarioRow>('life_scenarios'),
+      selectAll<LifePhaseRow>('life_phases'),
+      selectAll<LifeEventRow>('life_events'),
     ])
     return {
       version: BACKUP_VERSION,
@@ -995,6 +1127,9 @@ export const supabaseRepo: Repo = {
       networthSnapshots,
       tags,
       transactionTags,
+      lifeScenarios,
+      lifePhases,
+      lifeEvents,
     }
   },
 

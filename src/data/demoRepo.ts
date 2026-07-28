@@ -14,6 +14,9 @@ import type {
   DebtPaymentRow,
   DebtRow,
   FxHistoryRow,
+  LifeEventRow,
+  LifePhaseRow,
+  LifeScenarioRow,
   NeedLevel,
   NetWorthSnapshotRow,
   NotificationStateRow,
@@ -31,10 +34,16 @@ import {
   type BackupData,
   type CategoryPatch,
   type DebtPatch,
+  type LifeEventPatch,
+  type LifePhasePatch,
+  type LifeScenarioPatch,
   type NewAccount,
   type NewCategory,
   type NewDebt,
   type NewDebtPayment,
+  type NewLifeEvent,
+  type NewLifePhase,
+  type NewLifeScenario,
   type NewRecurringOccurrence,
   type NewRecurringRule,
   type NewSavingsGoal,
@@ -96,6 +105,9 @@ interface DemoDB {
   notificationState?: NotificationStateRow[]
   /** Lịch sử tỷ giá; vắng mặt ở dữ liệu demo cũ. */
   fxHistory?: FxHistoryRow[]
+  lifeScenarios: LifeScenarioRow[]
+  lifePhases: LifePhaseRow[]
+  lifeEvents: LifeEventRow[]
 }
 
 // crypto.randomUUID() chỉ chạy trong secure context (HTTPS / localhost).
@@ -444,6 +456,9 @@ function seed(): DemoDB {
     networthSnapshots: [],
     tags: [],
     transactionTags: [],
+    lifeScenarios: [],
+    lifePhases: [],
+    lifeEvents: [],
   }
 }
 
@@ -745,6 +760,136 @@ export const demoRepo: Repo = {
   async deleteSavingsGoal(id: string) {
     const db = load()
     db.savingsGoals = (db.savingsGoals ?? []).filter((g) => g.id !== id)
+    save(db)
+  },
+
+  async getLifeScenarios() {
+    return (load().lifeScenarios ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)
+  },
+
+  async createLifeScenario(input: NewLifeScenario) {
+    const db = load()
+    db.lifeScenarios ??= []
+    const sort_order = db.lifeScenarios.reduce((m, s) => Math.max(m, s.sort_order + 1), 0)
+    const row: LifeScenarioRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      name: input.name,
+      display_currency: input.display_currency,
+      end_age: input.end_age,
+      real_return_bps: input.real_return_bps,
+      band_spread_bps: input.band_spread_bps,
+      starting_assets_minor: input.starting_assets_minor,
+      nominal_terms: input.nominal_terms,
+      is_primary: input.is_primary,
+      sort_order,
+      created_at: nowISO(),
+    }
+    db.lifeScenarios.push(row)
+    save(db)
+    return row
+  },
+
+  async updateLifeScenario(id: string, patch: LifeScenarioPatch) {
+    const db = load()
+    db.lifeScenarios ??= []
+    const idx = db.lifeScenarios.findIndex((s) => s.id === id)
+    if (idx < 0) throw new Error('Không tìm thấy kịch bản')
+    db.lifeScenarios[idx] = { ...db.lifeScenarios[idx], ...patch }
+    save(db)
+    return db.lifeScenarios[idx]
+  },
+
+  // Demo không có `on delete cascade` của Postgres nên phải tự xóa
+  // chặng + sự kiện thuộc kịch bản, tránh để lại dữ liệu mồ côi.
+  async deleteLifeScenario(id: string) {
+    const db = load()
+    db.lifeScenarios = (db.lifeScenarios ?? []).filter((s) => s.id !== id)
+    db.lifePhases = (db.lifePhases ?? []).filter((p) => p.scenario_id !== id)
+    db.lifeEvents = (db.lifeEvents ?? []).filter((e) => e.scenario_id !== id)
+    save(db)
+  },
+
+  async getLifePhases() {
+    return (load().lifePhases ?? []).slice().sort((a, b) => a.start_year - b.start_year)
+  },
+
+  async createLifePhase(input: NewLifePhase) {
+    const db = load()
+    db.lifePhases ??= []
+    const row: LifePhaseRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      scenario_id: input.scenario_id,
+      start_year: input.start_year,
+      label: input.label,
+      country: input.country,
+      currency: input.currency,
+      annual_income_minor: input.annual_income_minor,
+      annual_expense_minor: input.annual_expense_minor,
+      fx_to_display: input.fx_to_display,
+      created_at: nowISO(),
+    }
+    db.lifePhases.push(row)
+    save(db)
+    return row
+  },
+
+  async updateLifePhase(id: string, patch: LifePhasePatch) {
+    const db = load()
+    db.lifePhases ??= []
+    const idx = db.lifePhases.findIndex((p) => p.id === id)
+    if (idx < 0) throw new Error('Không tìm thấy chặng')
+    db.lifePhases[idx] = { ...db.lifePhases[idx], ...patch }
+    save(db)
+    return db.lifePhases[idx]
+  },
+
+  async deleteLifePhase(id: string) {
+    const db = load()
+    db.lifePhases = (db.lifePhases ?? []).filter((p) => p.id !== id)
+    save(db)
+  },
+
+  async getLifeEvents() {
+    return (load().lifeEvents ?? []).slice().sort((a, b) => a.start_year - b.start_year)
+  },
+
+  async createLifeEvent(input: NewLifeEvent) {
+    const db = load()
+    db.lifeEvents ??= []
+    const row: LifeEventRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      scenario_id: input.scenario_id,
+      start_year: input.start_year,
+      end_year: input.end_year,
+      kind: input.kind,
+      amount_minor: input.amount_minor,
+      currency: input.currency,
+      label: input.label,
+      note: input.note,
+      inflate: input.inflate,
+      created_at: nowISO(),
+    }
+    db.lifeEvents.push(row)
+    save(db)
+    return row
+  },
+
+  async updateLifeEvent(id: string, patch: LifeEventPatch) {
+    const db = load()
+    db.lifeEvents ??= []
+    const idx = db.lifeEvents.findIndex((e) => e.id === id)
+    if (idx < 0) throw new Error('Không tìm thấy sự kiện')
+    db.lifeEvents[idx] = { ...db.lifeEvents[idx], ...patch }
+    save(db)
+    return db.lifeEvents[idx]
+  },
+
+  async deleteLifeEvent(id: string) {
+    const db = load()
+    db.lifeEvents = (db.lifeEvents ?? []).filter((e) => e.id !== id)
     save(db)
   },
 
@@ -1332,6 +1477,9 @@ export const demoRepo: Repo = {
       networthSnapshots: db.networthSnapshots ?? [],
       tags: db.tags ?? [],
       transactionTags: db.transactionTags ?? [],
+      lifeScenarios: db.lifeScenarios ?? [],
+      lifePhases: db.lifePhases ?? [],
+      lifeEvents: db.lifeEvents ?? [],
     }
   },
 
@@ -1354,6 +1502,9 @@ export const demoRepo: Repo = {
       networthSnapshots: stamp(data.networthSnapshots ?? []),
       tags: stamp(data.tags ?? []),
       transactionTags: stamp(data.transactionTags ?? []),
+      lifeScenarios: stamp(data.lifeScenarios ?? []),
+      lifePhases: stamp(data.lifePhases ?? []),
+      lifeEvents: stamp(data.lifeEvents ?? []),
     }
     save(db)
   },

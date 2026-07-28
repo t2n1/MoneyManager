@@ -14,6 +14,9 @@ import type {
   DebtDirection,
   DebtPaymentRow,
   DebtRow,
+  LifeEventRow,
+  LifePhaseRow,
+  LifeScenarioRow,
   NeedLevel,
   NetWorthSnapshotRow,
   NotificationStateRow,
@@ -52,10 +55,16 @@ export interface BackupData {
   tags?: TagRow[]
   /** Liên kết giao dịch ↔ nhãn; vắng mặt ở backup v1–v4. */
   transactionTags?: TransactionTagRow[]
+  /** Lifetime — kịch bản (mục Lifetime); vắng mặt ở backup v1–v5. */
+  lifeScenarios?: LifeScenarioRow[]
+  /** Lifetime — chặng đời; vắng mặt ở backup v1–v5. */
+  lifePhases?: LifePhaseRow[]
+  /** Lifetime — sự kiện; vắng mặt ở backup v1–v5. */
+  lifeEvents?: LifeEventRow[]
 }
 
-/** Phiên bản định dạng backup hiện hành. v5: thêm tags + transactionTags. */
-export const BACKUP_VERSION = 5
+/** Phiên bản định dạng backup hiện hành. v6: thêm lifeScenarios/lifePhases/lifeEvents. */
+export const BACKUP_VERSION = 6
 
 export interface NewTransaction {
   type: TransactionType
@@ -254,6 +263,49 @@ export interface NewSavingsGoal {
 
 export type SavingsGoalPatch = Partial<NewSavingsGoal>
 
+/** Lifetime (mục Lifetime): một kịch bản đời. */
+export interface NewLifeScenario {
+  name: string
+  display_currency: string
+  end_age: number
+  real_return_bps: number
+  band_spread_bps: number
+  starting_assets_minor: number
+  nominal_terms: boolean
+  is_primary: boolean
+}
+
+export type LifeScenarioPatch = Partial<NewLifeScenario>
+
+/** Lifetime: chặng đời (thu chi nền của một kịch bản). */
+export interface NewLifePhase {
+  scenario_id: string
+  start_year: number
+  label: string
+  country: string | null
+  currency: string
+  annual_income_minor: number
+  annual_expense_minor: number
+  fx_to_display: number
+}
+
+export type LifePhasePatch = Partial<Omit<NewLifePhase, 'scenario_id'>>
+
+/** Lifetime: sự kiện (khoản có năm bắt đầu và tùy chọn năm kết thúc). */
+export interface NewLifeEvent {
+  scenario_id: string
+  start_year: number
+  end_year: number | null
+  kind: 'income' | 'expense'
+  amount_minor: number
+  currency: string
+  label: string
+  note: string
+  inflate: boolean
+}
+
+export type LifeEventPatch = Partial<Omit<NewLifeEvent, 'scenario_id'>>
+
 /** Nhãn cắt ngang danh mục (vd "Về VN 2026"). */
 export interface NewTag {
   name: string
@@ -300,6 +352,23 @@ export interface Repo {
   createSavingsGoal(input: NewSavingsGoal): Promise<SavingsGoalRow>
   updateSavingsGoal(id: string, patch: SavingsGoalPatch): Promise<SavingsGoalRow>
   deleteSavingsGoal(id: string): Promise<void>
+
+  // --- Lifetime: chiếu tài sản ròng cả đời ---
+  getLifeScenarios(): Promise<LifeScenarioRow[]>
+  createLifeScenario(input: NewLifeScenario): Promise<LifeScenarioRow>
+  updateLifeScenario(id: string, patch: LifeScenarioPatch): Promise<LifeScenarioRow>
+  /** Xóa kịch bản + mọi chặng/sự kiện của nó (cascade). */
+  deleteLifeScenario(id: string): Promise<void>
+  /** Toàn bộ chặng của mọi kịch bản; UI tự lọc theo scenario_id. */
+  getLifePhases(): Promise<LifePhaseRow[]>
+  createLifePhase(input: NewLifePhase): Promise<LifePhaseRow>
+  updateLifePhase(id: string, patch: LifePhasePatch): Promise<LifePhaseRow>
+  deleteLifePhase(id: string): Promise<void>
+  /** Toàn bộ sự kiện của mọi kịch bản; UI tự lọc theo scenario_id. */
+  getLifeEvents(): Promise<LifeEventRow[]>
+  createLifeEvent(input: NewLifeEvent): Promise<LifeEventRow>
+  updateLifeEvent(id: string, patch: LifeEventPatch): Promise<LifeEventRow>
+  deleteLifeEvent(id: string): Promise<void>
 
   // --- Lịch sử tài sản ròng (mục AF) ---
   getNetWorthSnapshots(): Promise<NetWorthSnapshotRow[]>

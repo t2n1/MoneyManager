@@ -32,29 +32,44 @@ interface Props {
 const VALUE_SIZE = 'text-[1.375rem]'
 const SUB_SIZE = 'text-[0.6875rem]'
 
-/** Một ô trong lưới — khuôn dùng chung cho cả bốn thẻ (brief Task 9 Step 1). */
+/**
+ * Một ô trong lưới — khuôn dùng chung cho cả bốn thẻ (brief Task 9 Step 1).
+ *
+ * Cảnh báo đỏ + icon (ràng buộc không-dựa-vào-màu-một-mình của dự án) áp theo HAI
+ * nguồn, gộp lại thành một cờ `warn` DUY NHẤT chứ không lặp lại JSX icon/màu ở từng
+ * chỗ gọi:
+ * - `amountMinor`: giá trị TIỀN đang hiển thị ở `value` (nếu thẻ đó hiện tiền). Âm thì
+ *   tự động cảnh báo — tính theo DẤU CỦA GIÁ TRỊ, không theo tên thẻ, nên thẻ tiền nào
+ *   thêm sau này (nếu có) cũng tự đúng mà không cần sửa lại quy tắc ở đây.
+ * - `alert`: cờ ép cảnh báo cho thẻ không phải tiền (vd. "nhánh xấu âm từ" hiện một
+ *   NĂM, không phải một số tiền, nên không có dấu để tự suy — bản thân việc năm đó
+ *   tồn tại đã là tin xấu).
+ */
 function InsightTile({
   label,
   value,
-  valueClassName,
-  icon,
+  amountMinor,
+  alert,
   sub,
 }: {
   label: string
   value: ReactNode
-  valueClassName?: string
-  icon?: ReactNode
+  /** Số tiền (minor units) đang hiển thị ở `value`, nếu `value` là một số tiền. */
+  amountMinor?: number
+  /** Ép cảnh báo cho ca không phải tiền (xem JSDoc trên). */
+  alert?: boolean
   sub?: string
 }) {
+  const warn = alert === true || (amountMinor != null && amountMinor < 0)
   return (
     <div className="min-w-0 rounded-lg bg-gray-50 dark:bg-gray-800 p-2.5">
       <p className="text-xs text-gray-600 dark:text-gray-300">{label}</p>
       <p
         className={`mt-0.5 flex items-center gap-1 ${VALUE_SIZE} font-medium tabular-nums ${
-          valueClassName ?? 'text-gray-800 dark:text-gray-100'
+          warn ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'
         }`}
       >
-        {icon}
+        {warn && <AlertCircle className="h-[1.1em] w-[1.1em] shrink-0" />}
         <span className="truncate">{value}</span>
       </p>
       {sub && (
@@ -83,9 +98,10 @@ export function InsightCards({ rows, input, birthYear, currency }: Props) {
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       <InsightTile
         label="Nhánh xấu âm từ"
-        icon={negativeYear !== null && <AlertCircle className="h-[1.1em] w-[1.1em] shrink-0" />}
+        // Giá trị là một NĂM (không phải tiền) nên không có dấu để tự suy — ép cảnh
+        // báo bằng `alert`, xem JSDoc InsightTile.
+        alert={negativeYear !== null}
         value={negativeYear !== null ? `Năm ${negativeYear}` : 'Không bao giờ âm'}
-        valueClassName={negativeYear !== null ? 'text-red-600 dark:text-red-400' : undefined}
         sub={negativeYear !== null ? `tuổi ${negativeYear - birthYear}` : undefined}
       />
 
@@ -101,6 +117,12 @@ export function InsightCards({ rows, input, birthYear, currency }: Props) {
       <InsightTile
         label={`Lúc ${input.endAge} tuổi`}
         value={atEndAge !== null ? formatMoney(atEndAge.center, currency) : 'Chưa có dữ liệu'}
+        // Tô đỏ theo dấu của NHÁNH TRUNG TÂM (`center`) — đúng cái đang hiện ở `value`.
+        // CỐ Ý không đọc dấu của `low` (biên dưới của dải, hiện ở `sub`): trung tâm
+        // dương mà biên dưới âm nghĩa là "có thể âm ở nhánh xấu", không phải "đang âm"
+        // — hai tin khác nhau, tô đỏ cả thẻ lúc đó sẽ nói quá tay. Dòng phụ luôn giữ
+        // màu trung tính (xem InsightTile), không tự đỏ theo `low`.
+        amountMinor={atEndAge?.center}
         sub={
           atEndAge !== null
             ? `${formatMoney(atEndAge.low, currency)} – ${formatMoney(atEndAge.high, currency)}`

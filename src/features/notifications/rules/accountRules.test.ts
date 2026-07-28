@@ -197,4 +197,149 @@ describe('account-shortfall', () => {
     const b = accountRules(input({ accounts: [source, nearCard] })).map((n) => n.key)
     expect(a).toEqual(b)
   })
+
+  // Biên 14 ngày: todayISO 2026-07-28 + 14 ngày = 2026-08-11 (tháng 7 có 31 ngày,
+  // 28 + 14 = 42, 42 - 31 = 11 → ngày 11 tháng 8). Dùng nguồn riêng, số dư cố tình
+  // thấp hơn nợ thẻ để sự có/không của thông báo lộ ra việc thẻ có được tính hay không.
+  const lowSrc = account({ id: 'srcB', name: 'Nguồn biên', balance: 10_000 })
+
+  it('thẻ đến hạn đúng ngày thứ 14 thì được tính (biên trên, dùng dấu <=)', () => {
+    // payment_due_day=11: ngày 11/07 đã qua nên nhảy sang tháng sau → 2026-08-11,
+    // rơi vào Thứ Ba nên không bị dời cuối tuần → đúng bằng untilISO.
+    const boundaryCard = account({
+      id: 'cardB1',
+      name: 'Thẻ đúng biên',
+      type: 'card',
+      balance: -20_000,
+      payment_due_day: 11,
+      payment_account_id: 'srcB',
+    })
+    const out = accountRules(input({ accounts: [lowSrc, boundaryCard] }))
+    const hit = out.find((n) => n.type === 'account-shortfall')
+    expect(hit?.key).toBe('account-shortfall:srcB')
+  })
+
+  it('thẻ đến hạn ngày thứ 15 thì CHƯA được tính (ngoài biên)', () => {
+    // payment_due_day=12: ngày kế tiếp là 2026-08-12 (Thứ Tư, không bị dời),
+    // tức 15 ngày kể từ hôm nay — vượt untilISO đúng 1 ngày.
+    const afterCard = account({
+      id: 'cardB2',
+      name: 'Thẻ ngoài biên',
+      type: 'card',
+      balance: -20_000,
+      payment_due_day: 12,
+      payment_account_id: 'srcB',
+    })
+    const out = accountRules(input({ accounts: [lowSrc, afterCard] }))
+    expect(out.filter((n) => n.type === 'account-shortfall')).toHaveLength(0)
+  })
+
+  it('nhiều thẻ chung nguồn khác currency: thẻ khác tiền không bị nêu tên trong detail', () => {
+    // cardFunding() (aggregate.ts) chỉ gộp thẻ CÙNG currency với nguồn vào totalOwed;
+    // detail phải nêu tên đúng những thẻ đã góp vào con số đó, không hơn không kém.
+    const srcJPY = account({ id: 'srcC', name: 'Nguồn JPY', balance: 0 })
+    const cardJPY = account({
+      id: 'cardC1',
+      name: 'Thẻ Yên',
+      type: 'card',
+      currency: 'JPY',
+      balance: -30_000,
+      payment_due_day: 5,
+      payment_account_id: 'srcC',
+    })
+    const cardUSD = account({
+      id: 'cardC2',
+      name: 'Thẻ Đô',
+      type: 'card',
+      currency: 'USD',
+      balance: -100,
+      payment_due_day: 5,
+      payment_account_id: 'srcC',
+    })
+    const out = accountRules(input({ accounts: [srcJPY, cardJPY, cardUSD] }))
+    const hit = out.find((n) => n.type === 'account-shortfall')
+    expect(hit?.detail).toContain('Thẻ Yên')
+    expect(hit?.detail).not.toContain('Thẻ Đô')
+  })
+})
+
+describe('account-shortfall — nhánh 2 (không thẻ nào trỏ tới, chỉ định kỳ chi)', () => {
+  it('định kỳ chi vượt số dư, không có thẻ nào trỏ tới thì báo', () => {
+    const acc = account({ id: 'plain', name: 'Ví chi tiêu', balance: 10_000 })
+    const bill = rule({
+      id: 'r10',
+      type: 'expense',
+      amount: 15_000,
+      account_id: 'plain',
+      note: 'Hóa đơn điện',
+      start_on: '2026-08-01',
+      last_generated_on: '2026-07-01',
+    })
+    const out = accountRules(input({ accounts: [acc], recurringRules: [bill] }))
+    const hit = out.find((n) => n.type === 'account-shortfall')
+    expect(hit?.key).toBe('account-shortfall:plain')
+    expect(hit?.detail).toContain('Hóa đơn điện')
+  })
+
+  it('số dư đủ trả định kỳ chi thì không báo', () => {
+    const acc = account({ id: 'plain', balance: 20_000 })
+    const bill = rule({
+      id: 'r11',
+      type: 'expense',
+      amount: 15_000,
+      account_id: 'plain',
+      start_on: '2026-08-01',
+      last_generated_on: '2026-07-01',
+    })
+    const out = accountRules(input({ accounts: [acc], recurringRules: [bill] }))
+    expect(out.filter((n) => n.type === 'account-shortfall')).toHaveLength(0)
+  })
+
+  it('định kỳ thu bù định kỳ chi (không báo động giả trước kỳ lương)', () => {
+    const acc = account({ id: 'plain', balance: 5_000 })
+    const bill = rule({
+      id: 'r12',
+      type: 'expense',
+      amount: 15_000,
+      account_id: 'plain',
+      start_on: '2026-08-01',
+      last_generated_on: '2026-07-01',
+    })
+    const salary = rule({
+      id: 'r13',
+      type: 'income',
+      amount: 10_000,
+      account_id: 'plain',
+      start_on: '2026-08-01',
+      last_generated_on: '2026-07-01',
+    })
+    const out = accountRules(input({ accounts: [acc], recurringRules: [bill, salary] }))
+    expect(out.filter((n) => n.type === 'account-shortfall')).toHaveLength(0)
+  })
+
+  it('tài khoản đã được nhánh thẻ xử lý thì không bị nhánh định kỳ xử lý lần hai', () => {
+    // Số dư cố tình thấp và có thêm định kỳ chi ngay trên 'src': nếu thiếu chặn
+    // sourcesSeen, riêng định kỳ chi (bỏ qua nợ thẻ) cũng đủ để nhánh 2 tự bắn thêm
+    // một thông báo trùng key — nhờ vậy phép thử này thật sự bắt được lỗi thiếu chặn.
+    const source = account({ id: 'src', name: 'Rakuten Bank', balance: 5_000 })
+    const nearCard = account({
+      id: 'card2',
+      name: 'Thẻ PayPay',
+      type: 'card',
+      balance: -45_000,
+      payment_due_day: 5,
+      payment_account_id: 'src',
+    })
+    const rent = rule({
+      id: 'r14',
+      type: 'expense',
+      amount: 10_000,
+      account_id: 'src',
+      note: 'Tiền nhà',
+      start_on: '2026-08-01',
+      last_generated_on: '2026-07-01',
+    })
+    const out = accountRules(input({ accounts: [source, nearCard], recurringRules: [rent] }))
+    expect(out.filter((n) => n.key === 'account-shortfall:src')).toHaveLength(1)
+  })
 })

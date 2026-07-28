@@ -133,8 +133,11 @@ export function accountRules(input: NotificationInput): AppNotification[] {
   const sourcesSeen = new Set<string>()
   for (const g of groups) {
     sourcesSeen.add(g.sourceId)
+    // Lọc thêm theo currency giống hệt cardFunding() (aggregate.ts): thẻ khác loại tiền
+    // với nguồn bị cardFunding loại khỏi totalOwed, nên cũng không được nêu tên ở đây —
+    // nếu không, chi tiết sẽ nhắc tới một thẻ mà số tiền không hề gồm nợ của nó.
     const cardNames = cards
-      .filter((c) => c.paymentAccountId === g.sourceId)
+      .filter((c) => c.paymentAccountId === g.sourceId && c.currency === g.currency)
       .map((c) => `${c.name} ${input.formatMoney(c.balance < 0 ? -c.balance : 0, c.currency)}`)
 
     pushShortfallIfNeeded(

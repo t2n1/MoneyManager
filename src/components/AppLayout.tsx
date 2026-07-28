@@ -15,7 +15,7 @@ import { NotificationBell } from '../features/notifications/NotificationBell'
 import { NotificationBoundary } from '../features/notifications/NotificationBoundary'
 import { useNotifications } from '../features/notifications/useNotifications'
 import { useUnreadCount } from '../features/notifications/useUnreadCount'
-import { splitStaleActionKeys } from '../features/notifications/state'
+import { planNotificationCleanup } from '../features/notifications/state'
 import { addDaysISO, toISODate } from '../lib/dates'
 
 const TABS = [
@@ -91,7 +91,7 @@ export function AppLayout() {
   const {
     allKeys,
     storedKeys,
-    isReady: notifReady,
+    inputsReady: notifInputsReady,
     engineFailed: notifEngineFailed,
   } = useNotifications()
   const deleteStates = useDeleteNotificationStates()
@@ -99,21 +99,35 @@ export function AppLayout() {
 
   // Mục E của spec: việc-cần-làm đã xong thì xóa luôn trạng thái, để lần sau tình
   // huống tái diễn là nó lại đỏ như mới. Trạng thái tin-để-biết không đụng tới.
-  // Chỉ chạy khi đã tải xong, để không xóa nhầm lúc danh sách còn rỗng.
+  //
+  // Cổng là `inputsReady` (mọi nguồn dữ liệu bộ luật đọc đã về), KHÔNG phải `isReady`
+  // (chỉ chờ profile + trạng thái đã đọc). Quyết định nằm ở hàm thuần
+  // planNotificationCleanup — trả null là lượt này ĐỪNG dọn, và chỉ khi khác null
+  // mới được chốt notifCleanupDone, kẻo chốt ở một lượt trả về sớm rồi không bao
+  // giờ dọn lại nữa.
   useEffect(() => {
-    if (notifCleanupDone || !notifReady) return
-    // Bộ luật vừa lỗi thì allKeys rỗng — tưởng mọi mã đã lưu đều "cũ" rồi xóa sạch
-    // trạng thái đã đọc, oan cho người dùng vì một lỗi không liên quan. Bỏ qua lượt này.
-    if (notifEngineFailed) return
+    const plan = planNotificationCleanup({
+      alreadyDone: notifCleanupDone,
+      inputsReady: notifInputsReady,
+      engineFailed: notifEngineFailed,
+      storedKeys,
+      allKeys,
+    })
+    if (!plan) return
     notifCleanupDone = true
 
-    const stale = splitStaleActionKeys(storedKeys, allKeys)
-    if (stale.length > 0) deleteStates.mutate(stale)
+    if (plan.staleKeys.length > 0) deleteStates.mutate(plan.staleKeys)
 
     // Dọn rác: bỏ dòng cũ hơn 12 tháng. Một câu delete, không cần đặt lịch.
     prune.mutate(`${addDaysISO(toISODate(new Date()), -365)}T00:00:00.000Z`)
+    // eslint-disable còn ở đây vì 4 mục: `storedKeys`, `allKeys` (mảng mới mỗi lần
+    // render) và `deleteStates`, `prune` (object mutation của react-query). Liệt kê
+    // chúng ra là effect chạy lại mỗi render — trong khi ý ở đây là CHẠY ĐÚNG MỘT
+    // LẦN mỗi lần mở app, và tới lượt `notifInputsReady` bật thì storedKeys/allKeys
+    // đã là bản cuối rồi. Quyết định thật nằm ở planNotificationCleanup (thuần, có
+    // test), nên việc tắt lint ở đây không còn che giấu logic nào.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notifReady, notifEngineFailed])
+  }, [notifInputsReady, notifEngineFailed])
 
   // Phím tắt desktop: 1–4 chuyển tab, N mở màn nhập
   useEffect(() => {

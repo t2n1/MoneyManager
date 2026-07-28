@@ -1,5 +1,38 @@
 import { describe, expect, it } from 'vitest'
-import { splitStaleActionKeys } from './state'
+import {
+  planNotificationCleanup,
+  splitStaleActionKeys,
+  unreadActionCount,
+  visibleInfos,
+} from './state'
+import type { AppNotification } from './types'
+
+function action(key: string): AppNotification {
+  const [type] = key.split(':')
+  return {
+    key,
+    kind: 'action',
+    type: type as AppNotification['type'],
+    severity: 'high',
+    title: key,
+    to: '/',
+  }
+}
+
+function info(key: string): AppNotification {
+  const [type] = key.split(':')
+  return {
+    key,
+    kind: 'info',
+    type: type as AppNotification['type'],
+    severity: 'low',
+    title: key,
+    to: '/',
+  }
+}
+
+/** Bộ ba tham số "mọi thứ đã sẵn sàng" — mỗi phép thử chỉ đổi thứ nó quan tâm. */
+const READY = { alreadyDone: false, inputsReady: true, engineFailed: false }
 
 describe('splitStaleActionKeys', () => {
   it('trả về mã việc-cần-làm đã lưu mà lượt này không còn sinh ra', () => {
@@ -32,5 +65,136 @@ describe('splitStaleActionKeys', () => {
 
   it('danh sách rỗng ra rỗng', () => {
     expect(splitStaleActionKeys([], [])).toEqual([])
+  })
+})
+
+describe('visibleInfos / unreadActionCount', () => {
+  it('tin-để-biết đã đọc từ lượt trước thì không hiện nữa', () => {
+    const out = visibleInfos(
+      [info('networth-record:2026-07'), info('stale-entry:2026-W31')],
+      new Set(['networth-record:2026-07']),
+      new Set(),
+    )
+    expect(out.map((n) => n.key)).toEqual(['stale-entry:2026-W31'])
+  })
+
+  it('tin-để-biết đã tắt thì mất hẳn', () => {
+    const out = visibleInfos(
+      [info('recurring-suggestion:abc')],
+      new Set(),
+      new Set(['recurring-suggestion:abc']),
+    )
+    expect(out).toEqual([])
+  })
+
+  it('chuông chỉ đếm việc-cần-làm CHƯA đọc', () => {
+    const actions = [action('budget-over:c1'), action('account-negative:a1')]
+    expect(unreadActionCount(actions, new Set())).toBe(2)
+    expect(unreadActionCount(actions, new Set(['budget-over:c1']))).toBe(1)
+    expect(unreadActionCount(actions, new Set(actions.map((n) => n.key)))).toBe(0)
+  })
+})
+
+describe('planNotificationCleanup', () => {
+  it('đủ điều kiện thì trả kế hoạch xóa mã đã xong', () => {
+    const plan = planNotificationCleanup({
+      ...READY,
+      storedKeys: ['budget-over:c1', 'account-negative:a1'],
+      allKeys: ['account-negative:a1'],
+    })
+    expect(plan).toEqual({ staleKeys: ['budget-over:c1'] })
+  })
+
+  it('mã còn sống thì KHÔNG bị coi là đã xong', () => {
+    const plan = planNotificationCleanup({
+      ...READY,
+      storedKeys: ['budget-over:c1'],
+      allKeys: ['budget-over:c1'],
+    })
+    expect(plan).toEqual({ staleKeys: [] })
+  })
+
+  // ĐÂY LÀ PHÉP THỬ CHẶN LỖI C1. Trước khi sửa, cổng dọn chỉ chờ profile + trạng
+  // thái đã đọc, còn allKeys do 13 luật trên 8 query KHÁC sinh ra. Ở đúng lượt
+  // render mà profile vừa có, useMonthTransactions còn chưa được phép chạy nên
+  // budgetReport = undefined, budgetRules trả [], allKeys khuyết hết mã budget-*
+  // → mọi dòng "đã đọc" của ngân sách bị xóa. Chốt lại chạy đúng một lần nên không
+  // bao giờ tự sửa: thông báo đã đọc đỏ lại như mới MỖI LẦN mở app, mãi mãi.
+  it('dữ liệu chưa tải xong (allKeys rỗng) thì TUYỆT ĐỐI không xóa gì', () => {
+    const plan = planNotificationCleanup({
+      ...READY,
+      inputsReady: false,
+      storedKeys: ['budget-over:c1', 'account-negative:a1'],
+      allKeys: [],
+    })
+    expect(plan).toBeNull()
+  })
+
+  it('dữ liệu chưa tải xong mà allKeys chỉ KHUYẾT một loại thì cũng không xóa', () => {
+    const plan = planNotificationCleanup({
+      ...READY,
+      inputsReady: false,
+      storedKeys: ['budget-over:c1', 'account-negative:a1'],
+      allKeys: ['account-negative:a1'],
+    })
+    expect(plan).toBeNull()
+  })
+
+  it('bộ luật vừa lỗi thì không xóa (allKeys rỗng vì lỗi, không phải vì đã xong)', () => {
+    const plan = planNotificationCleanup({
+      ...READY,
+      engineFailed: true,
+      storedKeys: ['budget-over:c1'],
+      allKeys: [],
+    })
+    expect(plan).toBeNull()
+  })
+
+  it('đã dọn lần này rồi thì thôi', () => {
+    const plan = planNotificationCleanup({
+      ...READY,
+      alreadyDone: true,
+      storedKeys: ['budget-over:c1'],
+      allKeys: [],
+    })
+    expect(plan).toBeNull()
+  })
+})
+
+// Mục I của spec đòi ba khẳng định về vòng đời; "tình huống tái diễn thì lại đỏ như
+// mới" là cái chưa từng có phép thử — và đúng là cái C1 làm hỏng.
+describe('vòng đời: hiện → đọc → xong → tái diễn', () => {
+  const key = 'budget-over:c1'
+  const actions = [action(key)]
+
+  it('bốn bước đi đúng như spec', () => {
+    // 1) Hiện lần đầu: chưa đọc → chuông đỏ 1.
+    let readKeys = new Set<string>()
+    expect(unreadActionCount(actions, readKeys)).toBe(1)
+
+    // 2) Mở tấm trượt → đánh dấu đã đọc → chuông về 0, dòng vẫn còn (mờ).
+    readKeys = new Set([key])
+    expect(unreadActionCount(actions, readKeys)).toBe(0)
+    expect(planNotificationCleanup({ ...READY, storedKeys: [key], allKeys: [key] })).toEqual({
+      staleKeys: [],
+    })
+
+    // 3) Người dùng xử lý xong (nâng hạn mức) → lượt sau bộ luật không sinh mã nữa
+    //    → trạng thái đã đọc bị xóa.
+    const plan = planNotificationCleanup({ ...READY, storedKeys: [key], allKeys: [] })
+    expect(plan).toEqual({ staleKeys: [key] })
+
+    // 4) Tháng sau lại vượt: DB không còn dòng nào cho mã này nên nó lại đỏ như mới.
+    const afterDelete = new Set<string>()
+    expect(unreadActionCount(actions, afterDelete)).toBe(1)
+  })
+
+  it('nếu bước 3 không xóa (vì chưa đủ dữ liệu) thì bước 4 vẫn mờ — đúng lỗi C1', () => {
+    // Diễn lại kịch bản C1 để thấy hậu quả nếu cổng dọn mở quá sớm rồi xóa oan:
+    // ở đây cổng ĐÓNG nên trạng thái đã đọc còn nguyên, việc-cần-làm vẫn im.
+    expect(
+      planNotificationCleanup({ ...READY, inputsReady: false, storedKeys: [key], allKeys: [] }),
+    ).toBeNull()
+    expect(unreadActionCount(actions, new Set([key]))).toBe(0)
   })
 })

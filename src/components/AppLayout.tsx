@@ -11,9 +11,10 @@ import { usePrivacyMode } from '../lib/privacy'
 import { runUndo, useUndoToast } from '../lib/undoToast'
 import { DialogHost } from '../lib/dialog'
 import { PrivacyToggle } from './PrivacyToggle'
-import { NotificationBell, useUnreadCount } from '../features/notifications/NotificationBell'
+import { NotificationBell } from '../features/notifications/NotificationBell'
 import { NotificationBoundary } from '../features/notifications/NotificationBoundary'
 import { useNotifications } from '../features/notifications/useNotifications'
+import { useUnreadCount } from '../features/notifications/useUnreadCount'
 import { splitStaleActionKeys } from '../features/notifications/state'
 import { addDaysISO, toISODate } from '../lib/dates'
 
@@ -87,7 +88,12 @@ export function AppLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const { allKeys, storedKeys, isReady: notifReady } = useNotifications()
+  const {
+    allKeys,
+    storedKeys,
+    isReady: notifReady,
+    engineFailed: notifEngineFailed,
+  } = useNotifications()
   const deleteStates = useDeleteNotificationStates()
   const prune = usePruneNotificationState()
 
@@ -96,6 +102,9 @@ export function AppLayout() {
   // Chỉ chạy khi đã tải xong, để không xóa nhầm lúc danh sách còn rỗng.
   useEffect(() => {
     if (notifCleanupDone || !notifReady) return
+    // Bộ luật vừa lỗi thì allKeys rỗng — tưởng mọi mã đã lưu đều "cũ" rồi xóa sạch
+    // trạng thái đã đọc, oan cho người dùng vì một lỗi không liên quan. Bỏ qua lượt này.
+    if (notifEngineFailed) return
     notifCleanupDone = true
 
     const stale = splitStaleActionKeys(storedKeys, allKeys)
@@ -104,7 +113,7 @@ export function AppLayout() {
     // Dọn rác: bỏ dòng cũ hơn 12 tháng. Một câu delete, không cần đặt lịch.
     prune.mutate(`${addDaysISO(toISODate(new Date()), -365)}T00:00:00.000Z`)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notifReady])
+  }, [notifReady, notifEngineFailed])
 
   // Phím tắt desktop: 1–4 chuyển tab, N mở màn nhập
   useEffect(() => {

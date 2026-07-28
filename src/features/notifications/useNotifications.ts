@@ -22,7 +22,7 @@ import { formatMoney } from '../../lib/money'
 import type { CurrencyCode } from '../../lib/money'
 import { usePrivacyMode } from '../../lib/privacy'
 import { buildNotifications } from './rules'
-import type { AppNotification, NotificationType } from './types'
+import type { AppNotification, NotificationResult, NotificationType } from './types'
 
 /** Cửa sổ dữ liệu cho radar định kỳ và tổng kết tháng. */
 const LOOKBACK_DAYS = 90
@@ -39,9 +39,13 @@ export interface UseNotificationsResult {
   allKeys: string[]
   storedKeys: string[]
   isReady: boolean
+  /** true nếu bộ luật vừa ném lỗi lượt này — AppLayout phải bỏ qua dọn dẹp (mục E). */
+  engineFailed: boolean
   markAllRead: () => void
   dismiss: (key: string) => void
 }
+
+const EMPTY_RESULT: NotificationResult = { actions: [], infos: [], hiddenCount: 0, allKeys: [] }
 
 export function useNotifications(): UseNotificationsResult {
   const todayISO = toISODate(new Date())
@@ -79,9 +83,12 @@ export function useNotifications(): UseNotificationsResult {
 
   const offTypes = (profile?.notif_off ?? []) as NotificationType[]
 
-  const result = useMemo(
-    () =>
-      buildNotifications({
+  // Bọc try/catch quanh bộ luật: đây là NƠI DUY NHẤT mọi lượt gọi useNotifications
+  // đi qua (kể cả 2 chỗ AppLayout gọi trực tiếp cho chấm đỏ + dọn dẹp, ngoài tầm
+  // của NotificationBoundary). Lỗi ở bộ luật thuần không được làm sập cả app.
+  const result = useMemo<NotificationResult>(() => {
+    try {
+      return buildNotifications({
         todayISO,
         monthStartDay,
         base,
@@ -97,26 +104,30 @@ export function useNotifications(): UseNotificationsResult {
         networthSnapshots,
         recentTxs,
         offTypes,
-      }),
+      })
+    } catch (error) {
+      console.error('Bộ luật thông báo lỗi, tạm ẩn thông báo:', error)
+      return EMPTY_RESULT
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      todayISO,
-      monthStartDay,
-      base,
-      rates,
-      currencyOf,
-      accounts,
-      categories,
-      debts,
-      recurringRules,
-      budgetReport,
-      savingsGoals,
-      networthSnapshots,
-      recentTxs,
-      profile?.notif_off,
-      privacyOn,
-    ],
-  )
+  }, [
+    todayISO,
+    monthStartDay,
+    base,
+    rates,
+    currencyOf,
+    accounts,
+    categories,
+    debts,
+    recurringRules,
+    budgetReport,
+    savingsGoals,
+    networthSnapshots,
+    recentTxs,
+    profile?.notif_off,
+    privacyOn,
+  ])
+  const engineFailed = result === EMPTY_RESULT
 
   const readKeys = useMemo(
     () => new Set(stateRows.filter((r) => r.read_at).map((r) => r.key)),
@@ -141,6 +152,7 @@ export function useNotifications(): UseNotificationsResult {
     allKeys: result.allKeys,
     storedKeys: stateRows.map((r) => r.key),
     isReady: !!profile && !stateLoading,
+    engineFailed,
     markAllRead: () => {
       const keys = [...result.actions, ...infos].map((n) => n.key).filter((k) => !readKeys.has(k))
       if (keys.length > 0) markRead.mutate(keys)

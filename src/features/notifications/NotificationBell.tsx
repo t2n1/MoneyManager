@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Bell } from 'lucide-react'
 import { useNotifications } from './useNotifications'
-import { NotificationSheet } from './NotificationSheet'
 import type { AppNotification } from './types'
 
-/** Số việc-cần-làm chưa đọc — cho chấm đỏ trên tab "Sổ GD". */
-export function useUnreadCount(): number {
-  return useNotifications().unreadCount
-}
+// Tấm trượt chỉ cần khi người dùng thực sự mở chuông → tách chunk riêng, không
+// nằm trong bundle khởi động (cùng ý tưởng lazy các trang phụ trong App.tsx).
+const NotificationSheet = lazy(() =>
+  import('./NotificationSheet').then((m) => ({ default: m.NotificationSheet })),
+)
 
 export function NotificationBell({ className = '' }: { className?: string }) {
   const [open, setOpen] = useState(false)
@@ -39,6 +39,16 @@ export function NotificationBell({ className = '' }: { className?: string }) {
     dismiss(key)
   }
 
+  // Đóng bằng Esc — theo đúng quy ước của dialog.tsx (hộp thoại dùng chung toàn app).
+  useEffect(() => {
+    if (!open) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
   if (!isReady) return null
 
   return (
@@ -65,16 +75,29 @@ export function NotificationBell({ className = '' }: { className?: string }) {
             onClick={() => setOpen(false)}
             className="absolute inset-0 cursor-default"
           />
-          <div className="relative w-full max-w-md rounded-t-2xl bg-gray-50 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-xl lg:rounded-2xl lg:pb-3 dark:bg-gray-900">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Thông báo"
+            className="relative w-full max-w-md rounded-t-2xl bg-gray-50 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-xl lg:rounded-2xl lg:pb-3 dark:bg-gray-900"
+          >
             <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-gray-300 lg:hidden dark:bg-gray-600" />
-            <NotificationSheet
-              actions={actions}
-              infos={infosAtOpen}
-              hiddenCount={hiddenCount}
-              readKeys={readAtOpen}
-              onDismiss={dismissNow}
-              onClose={() => setOpen(false)}
-            />
+            <Suspense
+              fallback={
+                <p className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">
+                  Đang tải…
+                </p>
+              }
+            >
+              <NotificationSheet
+                actions={actions}
+                infos={infosAtOpen}
+                hiddenCount={hiddenCount}
+                readKeys={readAtOpen}
+                onDismiss={dismissNow}
+                onClose={() => setOpen(false)}
+              />
+            </Suspense>
           </div>
         </div>
       )}

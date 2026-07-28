@@ -133,9 +133,9 @@ Lý do khác nhau: xem mục E (vòng đời).
 | 2 | `account-negative` | "Ví tiền mặt đang âm ¥1.200" | Số dư < 0. **Chỉ xét tài khoản tiền mặt/ngân hàng** — thẻ tín dụng mang số âm là bình thường, không báo. | high |
 | 3 | `debt-overdue` | "Anh Tuấn mượn ¥50.000 — quá hạn 6 ngày" | Khoản còn mở, qua ngày hẹn | high |
 | 4 | `debt-due-soon` | "Trả góp máy ảnh đến hạn trong 4 ngày" | Khoản còn mở, còn ≤ 7 ngày | medium |
-| 5 | `budget-over` | "Giải trí đã vượt ngân sách ¥3.200" | Chi tháng này > hạn mức | high |
+| 5 | `budget-over` | "Giải trí đã vượt ngân sách ¥3.200" | Mục **không có con** và chi tháng này > hạn mức | high |
 | 6 | `budget-pace` | "Ăn ngoài tiêu nhanh hơn nhịp — mới qua 42% tháng đã dùng 71% hạn mức" | Xem công thức bên dưới | medium |
-| 7 | `budget-parent-over` | "Nhóm Sinh hoạt: các mục con đã tiêu vượt trần nhóm ¥8.400" | Tổng chi thực tế của các mục con > trần của mục cha | medium |
+| 7 | `budget-parent-over` | "Nhóm Sinh hoạt vượt trần ¥8.400 — chủ yếu do Ăn ngoài và Giải trí" | Mục **có con** và chi cả nhóm > trần đặt ở cha | high |
 
 **Công thức mục 1 — nhìn trước 14 ngày, chỉ tính những khoản đã biết chắc:**
 
@@ -197,8 +197,21 @@ Chu kỳ tháng lấy theo `profiles.month_start_day`, **không** phải ngày 1
 
 ### C.4 Luật gộp và trần số lượng
 
-- **Không báo hai lần cùng một ý:** một mục ngân sách đã `budget-over` thì
-  `budget-pace` của chính mục đó không xuất hiện.
+- **Không báo hai lần cùng một ý:** một mục ngân sách đã vượt (`budget-over` hoặc
+  `budget-parent-over`) thì `budget-pace` của chính mục đó không xuất hiện.
+- **Mục 5 và mục 7 loại trừ nhau tuyệt đối**, chia theo việc mục đó có con hay không:
+  mục lá → `budget-over`; nhóm (mục có con) → `budget-parent-over`. Không danh mục nào
+  sinh cả hai.
+
+  Lý do phải ghi rõ chỗ này: trong [`progress.ts`](../../../src/features/budgets/progress.ts),
+  dòng ngân sách của một mục CHA có `spent` = chi riêng của cha **cộng chi của mọi con**.
+  Nên nếu để mục 7 là "tổng chi các con > trần cha" như bản thiết kế đầu, thì hễ mục 7 nổi
+  là mục 5 cũng nổi trên cùng danh mục đó — hai dòng, một ý, đúng cái spam mà mục tiêu số 3
+  đặt ra để tránh. Gộp lại thành một dòng cho nhóm, và dùng phần dòng phụ để nói **con nào
+  đang đẩy nhóm vượt** — vừa hết lặp, vừa cho thêm thứ dùng được.
+
+  Dòng phụ của mục 7 nêu **tối đa 2 mục con tiêu nhiều nhất** (giảm dần). Nhóm vượt mà các
+  con không tiêu gì (chi gán trực tiếp vào cha) thì bỏ hẳn phần "chủ yếu do".
 - **Gộp cùng loại:** từ 3 khoản nợ quá hạn trở lên → một dòng "3 khoản nợ quá hạn",
   bấm vào ra trang nợ. Mã của dòng gộp là `debt-overdue:group`; các mã lẻ
   `debt-overdue:<debtId>` không xuất hiện khi đang gộp. Trả bớt còn 2 khoản thì quay

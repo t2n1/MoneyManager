@@ -1147,6 +1147,9 @@ export const supabaseRepo: Repo = {
       'networth_snapshots',
       'transaction_tags',
       'tags',
+      'life_phases',
+      'life_events',
+      'life_scenarios',
       'debt_payments',
       'debts',
       'budgets',
@@ -1372,6 +1375,73 @@ export const supabaseRepo: Repo = {
               target_date: g.target_date,
               note: g.note,
               sort_order: g.sort_order,
+            })),
+          )
+        ).error,
+      )
+    }
+
+    // life_scenarios (cha) trước, rồi life_phases/life_events (composite FK
+    // (scenario_id, user_id) → life_scenarios) — chèn con trước cha sẽ bị chặn.
+    if (data.lifeScenarios?.length) {
+      ok(
+        (
+          await sb.from('life_scenarios').insert(
+            data.lifeScenarios.map((s) => ({
+              id: s.id,
+              user_id: uid,
+              name: s.name,
+              display_currency: s.display_currency,
+              end_age: s.end_age,
+              real_return_bps: s.real_return_bps,
+              band_spread_bps: s.band_spread_bps,
+              starting_assets_minor: s.starting_assets_minor,
+              nominal_terms: s.nominal_terms,
+              is_primary: s.is_primary,
+              sort_order: s.sort_order,
+            })),
+          )
+        ).error,
+      )
+    }
+
+    if (data.lifePhases?.length) {
+      ok(
+        (
+          await sb.from('life_phases').insert(
+            data.lifePhases.map((p) => ({
+              id: p.id,
+              user_id: uid,
+              scenario_id: p.scenario_id,
+              start_year: p.start_year,
+              label: p.label,
+              country: p.country,
+              currency: p.currency,
+              annual_income_minor: p.annual_income_minor,
+              annual_expense_minor: p.annual_expense_minor,
+              fx_to_display: p.fx_to_display,
+            })),
+          )
+        ).error,
+      )
+    }
+
+    if (data.lifeEvents?.length) {
+      ok(
+        (
+          await sb.from('life_events').insert(
+            data.lifeEvents.map((e) => ({
+              id: e.id,
+              user_id: uid,
+              scenario_id: e.scenario_id,
+              start_year: e.start_year,
+              end_year: e.end_year,
+              kind: e.kind,
+              amount_minor: e.amount_minor,
+              currency: e.currency,
+              label: e.label,
+              note: e.note,
+              inflate: e.inflate,
             })),
           )
         ).error,

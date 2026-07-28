@@ -1,5 +1,7 @@
 import { addMonths, monthKeyForDate, monthKeyString, parseMonthKey, toISODate } from '../lib/dates'
 import { filterTransactions } from '../features/transactions/filter'
+import type { CurrencyCode } from '../lib/money'
+import type { Rates } from '../lib/rates'
 import type {
   AccountBalanceRow,
   AccountRow,
@@ -11,8 +13,10 @@ import type {
   CostType,
   DebtPaymentRow,
   DebtRow,
+  FxHistoryRow,
   NeedLevel,
   NetWorthSnapshotRow,
+  NotificationStateRow,
   ProfileRow,
   RecurringRuleRow,
   SavingsGoalRow,
@@ -88,6 +92,10 @@ interface DemoDB {
   networthSnapshots: NetWorthSnapshotRow[]
   tags: TagRow[]
   transactionTags: TransactionTagRow[]
+  /** Trạng thái thông báo (mục AO); vắng mặt ở dữ liệu demo cũ. */
+  notificationState?: NotificationStateRow[]
+  /** Lịch sử tỷ giá; vắng mặt ở dữ liệu demo cũ. */
+  fxHistory?: FxHistoryRow[]
 }
 
 // crypto.randomUUID() chỉ chạy trong secure context (HTTPS / localhost).
@@ -403,6 +411,7 @@ function seed(): DemoDB {
       target_essential_bps: 5000,
       target_flexible_bps: 3000,
       target_savings_bps: 2000,
+      notif_off: [],
       created_at: nowISO(),
     },
     accounts,
@@ -745,6 +754,78 @@ export const demoRepo: Repo = {
     db.networthSnapshots.push(row)
     save(db)
     return row
+  },
+
+  async getNotificationState() {
+    return (load().notificationState ?? []).slice()
+  },
+
+  async markNotificationsRead(keys: string[]) {
+    if (keys.length === 0) return
+    const db = load()
+    db.notificationState ??= []
+    const now = nowISO()
+    for (const key of keys) {
+      if (db.notificationState.some((r) => r.key === key)) continue
+      db.notificationState.push({
+        user_id: DEMO_USER,
+        key,
+        read_at: now,
+        dismissed_at: null,
+        pushed_at: null,
+        created_at: now,
+      })
+    }
+    save(db)
+  },
+
+  async dismissNotification(key: string) {
+    const db = load()
+    db.notificationState ??= []
+    const now = nowISO()
+    const existing = db.notificationState.find((r) => r.key === key)
+    if (existing) {
+      existing.read_at ??= now
+      existing.dismissed_at = now
+    } else {
+      db.notificationState.push({
+        user_id: DEMO_USER,
+        key,
+        read_at: now,
+        dismissed_at: now,
+        pushed_at: null,
+        created_at: now,
+      })
+    }
+    save(db)
+  },
+
+  async deleteNotificationStates(keys: string[]) {
+    if (keys.length === 0) return
+    const db = load()
+    db.notificationState = (db.notificationState ?? []).filter((r) => !keys.includes(r.key))
+    save(db)
+  },
+
+  async pruneNotificationState(beforeISO: string) {
+    const db = load()
+    db.notificationState = (db.notificationState ?? []).filter((r) => r.created_at >= beforeISO)
+    save(db)
+  },
+
+  async recordFxRates(onDate: string, base: CurrencyCode, rates: Rates) {
+    const db = load()
+    db.fxHistory ??= []
+    const existing = db.fxHistory.find((r) => r.on_date === onDate && r.base === base)
+    if (existing) existing.rates = { ...rates } as Record<string, number>
+    else
+      db.fxHistory.push({
+        user_id: DEMO_USER,
+        on_date: onDate,
+        base,
+        rates: { ...rates } as Record<string, number>,
+      })
+    save(db)
   },
 
   async createCategory(input: NewCategory) {

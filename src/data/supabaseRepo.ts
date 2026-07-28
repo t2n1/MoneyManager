@@ -1,5 +1,7 @@
 import { normalizeText } from '../features/transactions/filter'
 import { addMonths, monthKeyString, parseMonthKey } from '../lib/dates'
+import type { CurrencyCode } from '../lib/money'
+import type { Rates } from '../lib/rates'
 import { getSupabase } from '../lib/supabase'
 import type {
   AccountRow,
@@ -401,6 +403,57 @@ export const supabaseRepo: Repo = {
       .single()
     if (error) throw error
     return data
+  },
+
+  async getNotificationState() {
+    const { data, error } = await getSupabase().from('notification_state').select('*')
+    if (error) throw error
+    return data
+  },
+
+  async markNotificationsRead(keys: string[]) {
+    if (keys.length === 0) return
+    const user_id = await currentUserId()
+    const now = new Date().toISOString()
+    // ignoreDuplicates: mã đã đọc từ trước thì giữ nguyên read_at cũ.
+    const { error } = await getSupabase()
+      .from('notification_state')
+      .upsert(
+        keys.map((key) => ({ user_id, key, read_at: now })),
+        { onConflict: 'user_id,key', ignoreDuplicates: true },
+      )
+    if (error) throw error
+  },
+
+  async dismissNotification(key: string) {
+    const user_id = await currentUserId()
+    const now = new Date().toISOString()
+    const { error } = await getSupabase()
+      .from('notification_state')
+      .upsert({ user_id, key, read_at: now, dismissed_at: now }, { onConflict: 'user_id,key' })
+    if (error) throw error
+  },
+
+  async deleteNotificationStates(keys: string[]) {
+    if (keys.length === 0) return
+    const { error } = await getSupabase().from('notification_state').delete().in('key', keys)
+    if (error) throw error
+  },
+
+  async pruneNotificationState(beforeISO: string) {
+    const { error } = await getSupabase()
+      .from('notification_state')
+      .delete()
+      .lt('created_at', beforeISO)
+    if (error) throw error
+  },
+
+  async recordFxRates(onDate: string, base: CurrencyCode, rates: Rates) {
+    const user_id = await currentUserId()
+    const { error } = await getSupabase()
+      .from('fx_history')
+      .upsert({ user_id, on_date: onDate, base, rates }, { onConflict: 'user_id,on_date,base' })
+    if (error) throw error
   },
 
   async createCategory(input: NewCategory) {

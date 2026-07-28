@@ -1,5 +1,6 @@
 import type { RecurringFrequency } from '../lib/recurring'
 import type { CurrencyCode } from '../lib/money'
+import type { Rates } from '../lib/rates'
 import type {
   AccountBalanceRow,
   AccountRow,
@@ -15,6 +16,7 @@ import type {
   DebtRow,
   NeedLevel,
   NetWorthSnapshotRow,
+  NotificationStateRow,
   ProfileRow,
   RecurringRuleRow,
   SavingsGoalRow,
@@ -168,6 +170,7 @@ export type ProfilePatch = Partial<
     | 'target_essential_bps'
     | 'target_flexible_bps'
     | 'target_savings_bps'
+    | 'notif_off'
   >
 >
 
@@ -378,6 +381,22 @@ export interface Repo {
   deleteTag(id: string): Promise<void>
   /** Đặt lại TOÀN BỘ nhãn của một giao dịch (danh sách rỗng = gỡ hết). */
   setTransactionTags(transactionId: string, tagIds: string[]): Promise<void>
+
+  // --- Thông báo (mục AO) ---
+  /** Toàn bộ trạng thái thông báo của user (mã + mốc đã đọc/đã tắt). */
+  getNotificationState(): Promise<NotificationStateRow[]>
+  /** Đánh dấu đã đọc nhiều mã cùng lúc. Mã đã có thì giữ read_at cũ. */
+  markNotificationsRead(keys: string[]): Promise<void>
+  /** Tắt hẳn một tin-để-biết (dismissed_at = bây giờ). */
+  dismissNotification(key: string): Promise<void>
+  /** Xóa trạng thái của các mã truyền vào — vòng đời việc-cần-làm (mục E của spec). */
+  deleteNotificationStates(keys: string[]): Promise<void>
+  /** Dọn rác: xóa dòng có created_at < beforeISO. */
+  pruneNotificationState(beforeISO: string): Promise<void>
+
+  // --- Lịch sử tỷ giá ---
+  /** Ghi/đè tỷ giá của một ngày (unique user_id + on_date + base). */
+  recordFxRates(onDate: string, base: CurrencyCode, rates: Rates): Promise<void>
 
   // --- Sao lưu / khôi phục (mục Z) ---
   /** Gom toàn bộ dữ liệu người dùng thành một ảnh chụp để tải xuống. */

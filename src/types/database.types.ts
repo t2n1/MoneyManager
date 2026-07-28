@@ -35,6 +35,8 @@ export type ProfileRow = {
   target_flexible_bps: number
   /** Sàn tiết kiệm trên thu nhập tháng (basis points); mặc định 2000 = 20%. Cần VƯỢT. */
   target_savings_bps: number
+  /** Loại thông báo đã tắt (mục AO); mảng rỗng = bật hết. */
+  notif_off: string[]
   created_at: string
 }
 
@@ -202,6 +204,26 @@ export type NetWorthSnapshotRow = {
   created_at: string
 }
 
+/** Trạng thái thông báo (mục AO): chỉ nhớ đã đọc / đã tắt, không lưu nội dung. */
+export type NotificationStateRow = {
+  user_id: string
+  key: string
+  read_at: string | null
+  dismissed_at: string | null
+  /** Chưa dùng; chừa cho push ở đợt sau. */
+  pushed_at: string | null
+  created_at: string
+}
+
+/** Lịch sử tỷ giá theo ngày — đợt này chỉ ghi, chưa có luật nào đọc. */
+export type FxHistoryRow = {
+  user_id: string
+  on_date: string
+  base: CurrencyCode
+  /** major units: 1 đơn vị base đổi được rates[X] đơn vị X. */
+  rates: Record<string, number>
+}
+
 /** Mục tiêu tiết kiệm (mục AD): đích cần đạt trên số dư một tài khoản. */
 export type SavingsGoalRow = {
   id: string
@@ -324,6 +346,7 @@ export type Database = {
           | 'target_essential_bps'
           | 'target_flexible_bps'
           | 'target_savings_bps'
+          | 'notif_off'
         >
         Update: Partial<
           Pick<
@@ -337,6 +360,7 @@ export type Database = {
             | 'target_essential_bps'
             | 'target_flexible_bps'
             | 'target_savings_bps'
+            | 'notif_off'
           >
         >
         Relationships: []
@@ -585,6 +609,22 @@ export type Database = {
           'id' | 'snapshot_on'
         >
         Update: Partial<Pick<NetWorthSnapshotRow, 'net_worth' | 'snapshot_on'>>
+        Relationships: []
+      }
+      notification_state: {
+        Row: NotificationStateRow
+        Insert: InsertOf<
+          NotificationStateRow,
+          'user_id' | 'key',
+          'read_at' | 'dismissed_at' | 'pushed_at' | 'created_at'
+        >
+        Update: Partial<Pick<NotificationStateRow, 'read_at' | 'dismissed_at' | 'pushed_at'>>
+        Relationships: []
+      }
+      fx_history: {
+        Row: FxHistoryRow
+        Insert: InsertOf<FxHistoryRow, 'user_id' | 'on_date' | 'base' | 'rates', never>
+        Update: Partial<Pick<FxHistoryRow, 'rates'>>
         Relationships: []
       }
     }

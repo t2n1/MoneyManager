@@ -199,3 +199,59 @@ describe('deleteCategory', () => {
     expect(cats.some((c) => c.id === child.id)).toBe(true)
   })
 })
+
+describe('trạng thái thông báo', () => {
+  it('đánh dấu đã đọc rồi đọc lại thấy read_at', async () => {
+    await demoRepo.markNotificationsRead(['budget-over:cat-1', 'stale-entry:2026-W31'])
+    const rows = await demoRepo.getNotificationState()
+    const over = rows.find((r) => r.key === 'budget-over:cat-1')
+    expect(over?.read_at).toBeTruthy()
+    expect(over?.dismissed_at).toBeNull()
+  })
+
+  it('đánh dấu đã đọc hai lần không tạo dòng trùng', async () => {
+    await demoRepo.markNotificationsRead(['budget-over:cat-2'])
+    await demoRepo.markNotificationsRead(['budget-over:cat-2'])
+    const rows = await demoRepo.getNotificationState()
+    expect(rows.filter((r) => r.key === 'budget-over:cat-2')).toHaveLength(1)
+  })
+
+  it('tắt một tin thì có dismissed_at', async () => {
+    await demoRepo.dismissNotification('recurring-suggestion:abc')
+    const rows = await demoRepo.getNotificationState()
+    expect(rows.find((r) => r.key === 'recurring-suggestion:abc')?.dismissed_at).toBeTruthy()
+  })
+
+  it('xóa trạng thái theo danh sách mã', async () => {
+    await demoRepo.markNotificationsRead(['account-negative:acc-1'])
+    await demoRepo.deleteNotificationStates(['account-negative:acc-1'])
+    const rows = await demoRepo.getNotificationState()
+    expect(rows.find((r) => r.key === 'account-negative:acc-1')).toBeUndefined()
+  })
+
+  it('dọn với mốc tương lai thì xóa hết', async () => {
+    await demoRepo.markNotificationsRead(['stale-entry:2026-W31', 'budget-over:cat-3'])
+    await demoRepo.pruneNotificationState('2099-01-01T00:00:00.000Z')
+    const rows = await demoRepo.getNotificationState()
+    expect(rows).toHaveLength(0)
+  })
+
+  it('dọn với mốc quá khứ thì giữ nguyên', async () => {
+    await demoRepo.markNotificationsRead(['stale-entry:2026-W31', 'budget-over:cat-3'])
+    await demoRepo.pruneNotificationState('2000-01-01T00:00:00.000Z')
+    const rows = await demoRepo.getNotificationState()
+    expect(rows).toHaveLength(2)
+  })
+})
+
+describe('lịch sử tỷ giá', () => {
+  it('ghi rồi ghi đè cùng ngày không tạo dòng trùng', async () => {
+    await demoRepo.recordFxRates('2026-07-28', 'JPY', { VND: 170 })
+    await demoRepo.recordFxRates('2026-07-28', 'JPY', { VND: 172 })
+    const raw = localStorage.getItem('sct-demo-db-v14')
+    const db = JSON.parse(raw ?? '{}') as { fxHistory?: { on_date: string; rates: Record<string, number> }[] }
+    const same = (db.fxHistory ?? []).filter((r) => r.on_date === '2026-07-28')
+    expect(same).toHaveLength(1)
+    expect(same[0].rates.VND).toBe(172)
+  })
+})

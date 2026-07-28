@@ -38,6 +38,10 @@ const ENTRY_POINTS = [
   // đồ thị import của bộ luật. Canh từ bây giờ để ràng buộc "module lá" có chốt tự động
   // suốt các task còn lại, thay vì trông vào review thủ công.
   'features/lifetime/project.ts',
+  // insights.ts (Task 4) chỉ được đi tới từ Task 12 qua lifetimeRules.ts, nhưng thêm vào
+  // đây ngay từ bây giờ để walk() phủ nó suốt tám task còn lại thay vì chỉ có phép quét
+  // thẳng canh (xem ENGINE_FILE_PATTERN ngay dưới).
+  'features/lifetime/insights.ts',
 ]
 
 /**

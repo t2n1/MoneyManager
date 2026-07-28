@@ -20,9 +20,13 @@ const row: YearRow = {
 }
 
 describe('buildYearCsv', () => {
-  it('dòng đầu là tiêu đề cột', () => {
+  // BOM + CRLF là bắt buộc (giống reports/csv.ts): tiêu đề cột không dấu nhưng THÂN
+  // file vẫn có dấu (nhãn sự kiện, tên chặng), thiếu BOM thì Excel vẫn hỏng font ở thân.
+  it('có BOM UTF-8, xuống dòng CRLF, dòng đầu là tiêu đề cột KHÔNG DẤU', () => {
     const csv = buildYearCsv([row], 'JPY')
-    expect(csv.split('\n')[0]).toBe(
+    expect(csv.charCodeAt(0)).toBe(0xfeff)
+    const lines = csv.slice(1).split('\r\n')
+    expect(lines[0]).toBe(
       'Nam,Tuoi,Noi o,Thu,Chi,Su kien,Tai san cuoi nam,Bi quan,Lac quan',
     )
   })
@@ -43,6 +47,7 @@ describe('buildYearCsv', () => {
 
   it('không có sự kiện thì ô sự kiện rỗng', () => {
     const csv = buildYearCsv([{ ...row, events: [] }], 'JPY')
-    expect(csv.split('\n')[1].split(',')[5]).toBe('')
+    const lines = csv.slice(1).split('\r\n')
+    expect(lines[1].split(',')[5]).toBe('')
   })
 })

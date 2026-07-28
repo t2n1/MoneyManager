@@ -18,8 +18,10 @@ export function minorToPlain(minor: number, currency: CurrencyCode): string {
   return `${neg}${abs.slice(0, -d)}.${abs.slice(-d)}`
 }
 
-/** Bọc trong dấu nháy kép nếu chứa , " hoặc xuống dòng; nhân đôi dấu nháy bên trong. */
-function escapeCsv(value: string): string {
+/** Bọc trong dấu nháy kép nếu chứa , " hoặc xuống dòng; nhân đôi dấu nháy bên trong.
+ * Export ra ngoài để `features/lifetime/yearCsv.ts` dùng chung — hai module xuất CSV
+ * trong repo phải theo đúng MỘT luật escape, không viết lại luật thứ hai rồi lệch dần. */
+export function escapeCsv(value: string): string {
   return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
 }
 

@@ -2,7 +2,7 @@
 // Recharts một mình không đọc được bằng screen reader (dù đã có aria-label mô tả), nên
 // bảng này liệt kê ĐÚNG những con số đã vẽ, dạng đọc được bằng bàn phím/screen reader.
 // Task 7 đã đặt nút mở NGAY DƯỚI đồ thị (không giấu trong menu) — xem LifetimePage.tsx.
-import { useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { AlertCircle, ArrowDownCircle, ArrowUpCircle, Download, X } from 'lucide-react'
 import { downloadTextFile } from '../../lib/download'
 import type { CurrencyCode } from '../../lib/currencies'
@@ -159,6 +159,18 @@ const TABLE_HEADERS = ['Năm', 'Tuổi', 'Nơi ở', 'Thu', 'Chi', 'Sự kiện'
 export function YearTableView({ rows, currency, onClose, scenarioName }: Props) {
   const [showAll, setShowAll] = useState(false)
   const switchLabelId = useId()
+
+  // Đóng bằng Esc — cùng quy ước với lib/dialog.tsx và NotificationBell.tsx (mọi
+  // "sheet"/dialog trong app đều đóng được bằng phím này, không chỉ bằng chuột/chạm).
+  // Component này CHÍNH LÀ bản dự phòng a11y của đồ thị, nên càng không được để người
+  // dùng bàn phím bị kẹt lại trong nó.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   const defaultIdx = useMemo(() => pickDefaultYearIdx(rows), [rows])
   const visibleRows = showAll ? rows : rows.filter((_, i) => defaultIdx.has(i))

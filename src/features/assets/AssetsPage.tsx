@@ -4,6 +4,7 @@ import { ChevronRight, CreditCard, GripVertical, Settings2 } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { AccountTypeIcon } from '../../components/icons'
 import { PrivacyToggle } from '../../components/PrivacyToggle'
+import { LifetimeSection } from '../lifetime/LifetimeSection'
 import { InvestmentPerformanceSection } from './InvestmentPerformanceSection'
 import { NetWorthHistorySection } from './NetWorthHistorySection'
 import { SavingsGoalsSection } from './SavingsGoalsSection'
@@ -423,6 +424,10 @@ export function AssetsPage() {
       {/* Lịch sử tài sản ròng (mục AF) — đặt ngay dưới con số ròng: số hiện tại và
           đường đi của chính nó phải liền nhau thì mới so được. */}
       <NetWorthHistorySection base={base} currentNetWorth={netWorthReliable ? netWorth : null} />
+
+      {/* Lifetime (mục Lifetime): chiếu tài sản ròng cả đời — phần kéo dài của con số
+          tài sản ròng ngay trên, nên đứng liền sau nó. */}
+      <LifetimeSection />
 
       {/* Thẻ tín dụng — khối DUY NHẤT trên trang có hạn chót ("còn N ngày", "cần
           nạp thêm"), nên đứng trên mọi khối chỉ để đọc. */}

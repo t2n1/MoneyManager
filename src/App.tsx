@@ -24,6 +24,10 @@ const AssetsPage = lazy(() =>
 const AccountDetailPage = lazy(() =>
   import('./features/assets/AccountDetailPage').then((m) => ({ default: m.AccountDetailPage })),
 )
+// Màn phụ (ít mở) → lazy, giống các trang khác trong nhóm này
+const LifetimePage = lazy(() =>
+  import('./features/lifetime/LifetimePage').then((m) => ({ default: m.LifetimePage })),
+)
 const AssetGroupsPage = lazy(() =>
   import('./features/assets/AssetGroupsPage').then((m) => ({ default: m.AssetGroupsPage })),
 )
@@ -76,6 +80,7 @@ function App() {
           <Route path="/entry" element={<EntryPage />} />
           <Route path="/assets" element={lazyRoute(<AssetsPage />)} />
           <Route path="/assets/:accountId" element={lazyRoute(<AccountDetailPage />)} />
+          <Route path="/lifetime" element={lazyRoute(<LifetimePage />)} />
           <Route path="/search" element={lazyRoute(<SearchPage />)} />
           <Route path="/reports" element={lazyRoute(<ReportsPage />)} />
           <Route path="/health" element={lazyRoute(<HealthPage />)} />

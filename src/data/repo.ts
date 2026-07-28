@@ -180,6 +180,9 @@ export type ProfilePatch = Partial<
     | 'target_flexible_bps'
     | 'target_savings_bps'
     | 'notif_off'
+    // birth_year (mục Lifetime, migration 0031): cột đã có ở DB Update type từ đầu,
+    // nhưng sót khỏi Pick này — không thêm thì màn Lifetime không lưu được năm sinh.
+    | 'birth_year'
   >
 >
 

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
+  Bell,
   ChevronRight,
   Database,
   Handshake,
@@ -97,6 +98,14 @@ export function SettingsPage() {
           >
             <TagIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
             <span className="flex-1">Nhãn</span>
+            <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
+          </Link>
+          <Link
+            to="/settings/notifications"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
+          >
+            <Bell className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <span className="flex-1">Thông báo</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
           <Link

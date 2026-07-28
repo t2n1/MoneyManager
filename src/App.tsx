@@ -56,6 +56,11 @@ const ImportCsvPage = lazy(() =>
 const DataPage = lazy(() =>
   import('./features/settings/DataPage').then((m) => ({ default: m.DataPage })),
 )
+const NotificationSettingsPage = lazy(() =>
+  import('./features/notifications/NotificationSettingsPage').then((m) => ({
+    default: m.NotificationSettingsPage,
+  })),
+)
 
 const Loading = () => <p className="p-6 text-center text-gray-400 dark:text-gray-500">Đang tải…</p>
 const lazyRoute = (el: ReactNode) => <Suspense fallback={<Loading />}>{el}</Suspense>
@@ -88,6 +93,7 @@ function App() {
           <Route path="/settings/recurring" element={lazyRoute(<RecurringPage />)} />
           <Route path="/settings/import" element={lazyRoute(<ImportCsvPage />)} />
           <Route path="/settings/data" element={lazyRoute(<DataPage />)} />
+          <Route path="/settings/notifications" element={lazyRoute(<NotificationSettingsPage />)} />
         </Route>
       </Route>
     </Routes>

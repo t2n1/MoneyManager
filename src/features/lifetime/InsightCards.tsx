@@ -123,9 +123,14 @@ export function InsightCards({ rows, input, birthYear, currency }: Props) {
         // — hai tin khác nhau, tô đỏ cả thẻ lúc đó sẽ nói quá tay. Dòng phụ luôn giữ
         // màu trung tính (xem InsightTile), không tự đỏ theo `low`.
         amountMinor={atEndAge?.center}
+        // "từ X đến Y" thay vì nối bằng dấu gạch — khi CẢ HAI đầu dải đều âm, chuỗi
+        // dạng "-¥8.137.758.694 – -¥2.954.848.430" có ba ký tự trông như dấu trừ liền
+        // nhau, và en-dash với hyphen gần như không phân biệt được ở cỡ chữ 11px. Viết
+        // thành câu thì không còn phụ thuộc vào việc mắt phân biệt được hai loại dấu
+        // gạch hay không (review Task 9, mục Important).
         sub={
           atEndAge !== null
-            ? `${formatMoney(atEndAge.low, currency)} – ${formatMoney(atEndAge.high, currency)}`
+            ? `từ ${formatMoney(atEndAge.low, currency)} đến ${formatMoney(atEndAge.high, currency)}`
             : undefined
         }
       />

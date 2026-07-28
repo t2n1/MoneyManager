@@ -69,7 +69,7 @@ Chia nhỏ theo nhóm luật, mỗi file một mối quan tâm và một file te
 
 | File | Luật |
 |------|------|
-| `rules/accountRules.ts` | 1, 2 |
+| `rules/accountRules.ts` | 1, 2 — dùng lại `cardFunding()` từ `features/assets/aggregate.ts` |
 | `rules/debtRules.ts` | 3, 4 |
 | `rules/budgetRules.ts` | 5, 6, 7 |
 | `rules/cardRules.ts` | 8 |
@@ -143,15 +143,29 @@ Lý do khác nhau: xem mục E (vòng đời).
 số dư hiện tại
   + thu vào chắc chắn   (chỉ các quy tắc định kỳ THU đổ vào chính tài khoản này,
                          đến hạn trong 14 ngày — thường là lương)
-  − phải trả            (tự trả thẻ theo cardAutopay.ts
-                         + quy tắc định kỳ CHI trừ khỏi tài khoản này
-                         + khoản nợ đến hạn trừ khỏi tài khoản này)
+  − dư nợ các thẻ       (mọi thẻ lấy tài khoản này làm nguồn trả,
+                         VÀ có ngày trả kế tiếp trong 14 ngày)
+  − quy tắc định kỳ CHI (trừ khỏi tài khoản này, đến hạn trong 14 ngày)
   < 0   →  báo thiếu
 ```
 
 Không đoán thu nhập từ lịch sử — không có quy tắc định kỳ thu thì coi như không có
 tiền vào. Việc tính thu vào là để tránh báo động giả mỗi tháng vào mấy ngày trước
 kỳ lương.
+
+**Phần dư nợ thẻ dùng lại [`cardFunding()`](../../../src/features/assets/aggregate.ts)
+đang có**, không tự tính lại. Hàm đó đã xử lý đúng ca khó: nhiều thẻ rút chung một
+tài khoản nguồn thì phân bổ tuần tự, nên tổng thiếu của các thẻ khớp với thiếu gộp
+của nguồn. Dùng lại còn để **chuông và trang Tài sản luôn nói cùng một con số** —
+hai chỗ vênh nhau thì người dùng không biết tin ai.
+
+Hệ quả: dư nợ lấy theo **số dư thẻ hiện tại**, không phải số dư tại ngày chốt sao kê.
+Nếu tiêu thêm sau ngày chốt thì con số này hơi cao hơn thực tế. Chấp nhận được vì
+thông báo chỉ nổi khi ngày trả còn ≤ 14 ngày — lúc đó hầu như đã qua ngày chốt rồi.
+
+**Không tính nợ/cho vay vào công thức này.** Bảng `debts` không có cột tài khoản, nên
+app không biết khoản nợ sẽ trả từ ví nào — không có cơ sở để trừ vào bất kỳ tài khoản
+nào. Nợ đến hạn đã có mục 3 và 4 lo.
 
 **Công thức mục 6 — cả ba điều kiện phải đúng:**
 
@@ -360,4 +374,13 @@ Ràng buộc phải giữ để chuyện đó còn khả thi:
 
 - `rules.ts` và mọi file trong `rules/` **chỉ được import kiểu dữ liệu và hàm thuần**
   — không React, không `window`, không `localStorage`, không `Date.now()`.
-- `NotificationInput` là interface dữ liệu thuần, không chứa hàm hay đối tượng React.
+- `NotificationInput` chỉ chứa dữ liệu thuần **và các hàm thuần được tiêm vào**, theo
+  đúng lối `buildBudgetReport(…, currencyOf, parentOf)` đang dùng.
+
+**Cụ thể: `formatMoney` phải được tiêm vào, không được import thẳng.**
+[`formatMoney`](../../../src/lib/money.ts) đọc trạng thái chế độ riêng tư toàn cục
+(`isPrivacyEnabled()`), nên import thẳng vào bộ luật là kéo theo trạng thái trình
+duyệt — Edge Function chạy sẽ hỏng. Vì vậy `NotificationInput` mang một trường
+`formatMoney: (minor: number, currency: CurrencyCode) => string`. Phía app tiêm hàm
+thật vào (nhờ đó bật chế độ riêng tư thì số tiền trong thông báo cũng bị che, đúng ý);
+phía Edge Function sau này tiêm bản định dạng riêng của nó.

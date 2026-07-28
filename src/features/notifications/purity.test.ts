@@ -40,9 +40,30 @@ const ENTRY_POINTS = [
   'features/lifetime/project.ts',
 ]
 
-/** Chỉ những file này bị soi TOÀN BỘ nội dung (mục J nói thẳng tên chúng). */
+/**
+ * Chỉ những file này bị soi TOÀN BỘ nội dung (mục J nói thẳng tên chúng), tức bị cấm
+ * cả `Date.now()` và `new Date()` không tham số — xem ENGINE_BANNED.
+ *
+ * Hai file của Lifetime nằm trong danh sách vì chúng là engine THUẦN: `project.ts` nhận
+ * năm hiện tại qua `input.currentYear`, `insights.ts` (Task 4) chỉ đọc lại `YearRow[]`
+ * đã chiếu. Cả hai phải cho ra cùng một kết quả với cùng input, dù chạy lúc nào — và
+ * lifetimeRules.ts sẽ gọi chúng từ Edge Function, nơi không có "hôm nay" của trình duyệt.
+ *
+ * CỐ Ý liệt kê ĐÚNG HAI FILE chứ không quét cả `features/lifetime/`: Task 7 sẽ tạo
+ * `useLifetime.ts` và file đó PHẢI gọi `new Date().getFullYear()` — đọc đồng hồ đúng
+ * một lần ở tầng UI rồi truyền xuống engine là thiết kế đã chốt, không phải chỗ hở.
+ * Quét cả thư mục là biến thiết kế đúng thành test đỏ, rồi người làm Task 7 sẽ chữa
+ * sai chỗ để cho xanh. Thêm file engine mới vào Lifetime thì thêm tên nó vào đây.
+ *
+ * `insights.ts` chưa tồn tại lúc viết dòng này — không sao, pattern chỉ được thử với
+ * những file phép thử ĐI TỚI được, nên tên chưa có file thì đơn giản là không khớp gì.
+ * Nhưng cũng vì thế, phép cấm chỉ có hiệu lực khi file NẰM TRONG đồ thị: `insights.ts`
+ * chỉ được đi tới từ Task 12 (qua lifetimeRules.ts). Task 4 tạo nó thì thêm luôn
+ * 'features/lifetime/insights.ts' vào ENTRY_POINTS để khoá ngay từ lúc viết, đừng đợi
+ * tám task nữa. (Không thêm sẵn được ở đây: walk() nổ khi một điểm vào chưa có file.)
+ */
 const ENGINE_FILE_PATTERN =
-  /^features\/notifications\/(types\.ts|rules\.ts|state\.ts|rules\/[^/]+\.ts)$/
+  /^(features\/notifications\/(types\.ts|rules\.ts|state\.ts|rules\/[^/]+\.ts)|features\/lifetime\/(project|insights)\.ts)$/
 
 /** Bỏ chú thích và nội dung chuỗi để token trong chú thích không bị tính là code. */
 function stripCommentsAndStrings(code: string): string {

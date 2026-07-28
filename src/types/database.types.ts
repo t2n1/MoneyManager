@@ -37,6 +37,8 @@ export type ProfileRow = {
   target_savings_bps: number
   /** Loại thông báo đã tắt (mục AO); mảng rỗng = bật hết. */
   notif_off: string[]
+  /** Năm sinh — cần cho Lifetime. null = chưa khai. */
+  birth_year: number | null
   created_at: string
 }
 
@@ -239,6 +241,60 @@ export type SavingsGoalRow = {
   created_at: string
 }
 
+/** Lifetime (mục Lifetime): một kịch bản đời. */
+export type LifeScenarioRow = {
+  id: string
+  user_id: string
+  name: string
+  display_currency: string
+  end_age: number
+  /** Lợi suất THỰC (đã trừ lạm phát), basis points. Âm được. */
+  real_return_bps: number
+  /** Nửa độ rộng dải dao động, basis points. */
+  band_spread_bps: number
+  starting_assets_minor: number
+  /** false = giá hôm nay (mặc định) */
+  nominal_terms: boolean
+  is_primary: boolean
+  sort_order: number
+  created_at: string
+}
+
+/** Chặng đời: thu chi NỀN. Không buộc theo quốc gia — xem migration 0031. */
+export type LifePhaseRow = {
+  id: string
+  user_id: string
+  scenario_id: string
+  start_year: number
+  label: string
+  /** 'JP' | 'US' | 'VN' | ... | null */
+  country: string | null
+  currency: string
+  annual_income_minor: number
+  annual_expense_minor: number
+  /** 1 đơn vị currency = bao nhiêu đơn vị display_currency, theo MAJOR units */
+  fx_to_display: number
+  created_at: string
+}
+
+/** Sự kiện: khoản có năm bắt đầu và (tùy chọn) năm kết thúc. Lương hưu cũng ở đây. */
+export type LifeEventRow = {
+  id: string
+  user_id: string
+  scenario_id: string
+  start_year: number
+  /** null = đến hết đời */
+  end_year: number | null
+  kind: 'income' | 'expense'
+  /** Số MỖI NĂM trong khoảng */
+  amount_minor: number
+  currency: string
+  label: string
+  note: string
+  inflate: boolean
+  created_at: string
+}
+
 export type BudgetRow = {
   id: string
   user_id: string
@@ -347,6 +403,7 @@ export type Database = {
           | 'target_flexible_bps'
           | 'target_savings_bps'
           | 'notif_off'
+          | 'birth_year'
         >
         Update: Partial<
           Pick<
@@ -361,6 +418,7 @@ export type Database = {
             | 'target_flexible_bps'
             | 'target_savings_bps'
             | 'notif_off'
+            | 'birth_year'
           >
         >
         Relationships: []
@@ -586,6 +644,85 @@ export type Database = {
         >
         Update: Partial<
           Pick<SavingsGoalRow, 'name' | 'account_id' | 'target_amount' | 'target_date' | 'note' | 'sort_order'>
+        >
+        Relationships: []
+      }
+      life_scenarios: {
+        Row: LifeScenarioRow
+        Insert: InsertOf<
+          LifeScenarioRow,
+          'user_id' | 'name',
+          | 'id'
+          | 'display_currency'
+          | 'end_age'
+          | 'real_return_bps'
+          | 'band_spread_bps'
+          | 'starting_assets_minor'
+          | 'nominal_terms'
+          | 'is_primary'
+          | 'sort_order'
+        >
+        Update: Partial<
+          Pick<
+            LifeScenarioRow,
+            | 'name'
+            | 'display_currency'
+            | 'end_age'
+            | 'real_return_bps'
+            | 'band_spread_bps'
+            | 'starting_assets_minor'
+            | 'nominal_terms'
+            | 'is_primary'
+            | 'sort_order'
+          >
+        >
+        Relationships: []
+      }
+      life_phases: {
+        Row: LifePhaseRow
+        Insert: InsertOf<
+          LifePhaseRow,
+          'user_id' | 'scenario_id' | 'start_year' | 'currency',
+          | 'id'
+          | 'label'
+          | 'country'
+          | 'annual_income_minor'
+          | 'annual_expense_minor'
+          | 'fx_to_display'
+        >
+        Update: Partial<
+          Pick<
+            LifePhaseRow,
+            | 'start_year'
+            | 'label'
+            | 'country'
+            | 'currency'
+            | 'annual_income_minor'
+            | 'annual_expense_minor'
+            | 'fx_to_display'
+          >
+        >
+        Relationships: []
+      }
+      life_events: {
+        Row: LifeEventRow
+        Insert: InsertOf<
+          LifeEventRow,
+          'user_id' | 'scenario_id' | 'start_year' | 'kind' | 'amount_minor' | 'currency' | 'label',
+          'id' | 'end_year' | 'note' | 'inflate'
+        >
+        Update: Partial<
+          Pick<
+            LifeEventRow,
+            | 'start_year'
+            | 'end_year'
+            | 'kind'
+            | 'amount_minor'
+            | 'currency'
+            | 'label'
+            | 'note'
+            | 'inflate'
+          >
         >
         Relationships: []
       }

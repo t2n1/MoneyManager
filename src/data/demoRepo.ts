@@ -428,6 +428,7 @@ function seed(): DemoDB {
       target_flexible_bps: 3000,
       target_savings_bps: 2000,
       notif_off: [],
+      birth_year: null,
       created_at: nowISO(),
     },
     accounts,

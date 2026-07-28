@@ -436,16 +436,26 @@ export const supabaseRepo: Repo = {
 
   async deleteNotificationStates(keys: string[]) {
     if (keys.length === 0) return
-    const { error } = await getSupabase().from('notification_state').delete().in('key', keys)
+    const user_id = await currentUserId()
+    // RLS đã chặn theo user rồi, nhưng key không unique toàn cục (PK là user_id+key)
+    // nên thêm .eq cho chắc — phòng khi RLS bị tắt nhầm thì vẫn không đụng dữ liệu người khác.
+    const { error } = await getSupabase()
+      .from('notification_state')
+      .delete()
+      .eq('user_id', user_id)
+      .in('key', keys)
     if (error) throw error
   },
 
   async pruneNotificationState(beforeISO: string) {
     // `is('dismissed_at', null)`: dòng ĐÃ TẮT không bao giờ bị dọn — "tắt là mất hẳn"
     // (mục C.2/E của spec). Giữ y hệt demoRepo.
+    // .eq('user_id', ...): phòng thủ thêm, không chỉ dựa vào RLS (xem deleteNotificationStates).
+    const user_id = await currentUserId()
     const { error } = await getSupabase()
       .from('notification_state')
       .delete()
+      .eq('user_id', user_id)
       .lt('created_at', beforeISO)
       .is('dismissed_at', null)
     if (error) throw error

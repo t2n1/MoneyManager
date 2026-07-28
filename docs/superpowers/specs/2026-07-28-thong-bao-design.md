@@ -343,7 +343,22 @@ Không phải thông báo — là phần soát ngay trên màn xem trước
 - Dòng nào có số tiền **> 3 lần trung vị chi của 90 ngày gần nhất** thì tô nền đỏ nhạt
   kèm nhãn "khoản lớn bất thường".
 - Chỉ tô màu để soát bằng mắt — **không chặn lưu**, không cần bấm xác nhận gì thêm.
-- Chưa đủ 90 ngày dữ liệu → không tô gì (thiếu dữ liệu thì im, không đoán).
+- Ít hơn 20 giao dịch chi trong cửa sổ → không tô gì (thiếu dữ liệu thì im, không đoán).
+- Dùng **trung vị** chứ không phải trung bình: một khoản tiền nhà to kéo lệch trung bình,
+  còn trung vị vẫn phản ánh "mức thường ngày".
+
+**Trung vị phải tính TRONG CÙNG MỘT LOẠI TIỀN với tài khoản đang nhập vào.** App đa tiền
+tệ và số tiền lưu theo đơn vị nhỏ nhất của từng loại, nên một bữa chợ ở Việt Nam
+(₫500.000) có giá trị SỐ lớn gấp trăm lần một bữa ăn ở Nhật (¥3.000) dù đời thực tương
+đương. Gộp chung mọi loại tiền thì trung vị rơi vào loại tiền nào có nhiều giao dịch hơn,
+và hậu quả rất tệ theo cả hai chiều:
+
+- Giao dịch VND nhiều hơn → trung vị ở mức đồng → nhập sao kê thẻ Nhật **không bao giờ**
+  có dòng nào bị tô, dù khoản đó lạ tới đâu. Tức là tính năng chết đúng ở chỗ cần nó nhất.
+- Giao dịch JPY nhiều hơn → nhập sao kê VND thì **gần như dòng nào cũng bị tô**, quen mắt
+  rồi là thôi không ai để ý nữa.
+
+Vì vậy phải lọc lịch sử theo loại tiền của tài khoản đích trước khi tính trung vị.
 
 ## H. Hỏng thì sao
 

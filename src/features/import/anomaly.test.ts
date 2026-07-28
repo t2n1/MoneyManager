@@ -40,7 +40,8 @@ describe('expenseMedian', () => {
   it('bỏ giao dịch thu và chuyển khoản', () => {
     const txs = Array.from({ length: 20 }, () => tx(1_000))
     const income = { ...tx(500_000), type: 'income' as const }
-    expect(expenseMedian([...txs, income], '2026-05-01')).toBe(1_000)
+    const transfer = { ...tx(500_000), type: 'transfer' as const }
+    expect(expenseMedian([...txs, income, transfer], '2026-05-01')).toBe(1_000)
   })
 })
 

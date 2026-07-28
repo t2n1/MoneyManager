@@ -1442,6 +1442,10 @@ export const supabaseRepo: Repo = {
               label: e.label,
               note: e.note,
               // Bản sao lưu tạo trước migration 0032 chưa có trường này → 1.
+              // ĐỪNG XOÁ `?? 1` vì thấy TypeScript bảo là dư: theo KIỂU thì nhánh này
+              // chết (`LifeEventRow.fx_to_display` không nullable), nhưng theo RUNTIME
+              // thì nó sống — file .json người dùng nạp vào là dữ liệu ngoài, xuất từ
+              // bản cũ thì thiếu hẳn trường này.
               fx_to_display: e.fx_to_display ?? 1,
               inflate: e.inflate,
             })),

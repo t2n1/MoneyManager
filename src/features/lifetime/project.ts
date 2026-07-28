@@ -82,8 +82,17 @@ export interface YearRow {
   /** Nhánh TRUNG TÂM: đúng `realReturnBps` đã nhập, không cộng trừ dải. */
   assetsEndMinor: number
   /**
-   * Biên DƯỚI của dải: `Math.min` của hai nhánh biên. Bất biến
-   * `assetsPessimisticMinor <= assetsOptimisticMinor` luôn đúng ở mọi dòng.
+   * Biên DƯỚI của dải: `Math.min` của CẢ BA nhánh. Bất biến
+   * `assetsPessimisticMinor <= assetsEndMinor <= assetsOptimisticMinor` luôn đúng ở
+   * mọi dòng.
+   *
+   * Phải trùm cả ba, KHÔNG được lấy min/max của riêng hai nhánh biên: khi tài sản
+   * xuyên qua 0 thì kết quả không còn đơn điệu theo lợi suất (lúc dương lợi suất cao
+   * là tốt, lúc âm nó phình nợ nhanh hơn), nên `r` nằm giữa `r±s` KHÔNG kéo theo
+   * `A(r)` nằm giữa `A(r−s)` và `A(r+s)`. Có phản ví dụ ở đúng giá trị mặc định của
+   * migration 0031 (`real_return_bps = 200`, `band_spread_bps = 150`): nhánh trung
+   * tâm chạy ra NGOÀI dải, và `<Area>` của Recharts sẽ vẽ đường trung tâm nằm dưới
+   * dải đúng ở đoạn cạn tiền.
    *
    * Cố ý KHÔNG đặt tên theo nhánh lợi suất (`Low`/`High`): ở vùng tài sản ÂM, nhánh
    * lợi suất CAO phình nợ nhanh hơn nên nó lại cho kết quả tệ hơn — tên theo nhánh
@@ -91,7 +100,7 @@ export interface YearRow {
    * và `<Area>` của Recharts vẽ dải lộn ngược.
    */
   assetsPessimisticMinor: number
-  /** Biên TRÊN của dải: `Math.max` của hai nhánh biên. Xem `assetsPessimisticMinor`. */
+  /** Biên TRÊN của dải: `Math.max` của CẢ BA nhánh. Xem `assetsPessimisticMinor`. */
   assetsOptimisticMinor: number
 }
 
@@ -229,9 +238,10 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
       events: yearEvents,
       netFlowMinor,
       assetsEndMinor: assets[0],
-      // min/max chứ không phải assets[1]/assets[2]: xem JSDoc của assetsPessimisticMinor.
-      assetsPessimisticMinor: Math.min(assets[1], assets[2]),
-      assetsOptimisticMinor: Math.max(assets[1], assets[2]),
+      // Trùm CẢ BA nhánh, kể cả nhánh trung tâm assets[0]: khi tài sản xuyên qua 0 thì
+      // trung tâm có thể chạy ra ngoài hai nhánh biên. Xem JSDoc assetsPessimisticMinor.
+      assetsPessimisticMinor: Math.min(assets[0], assets[1], assets[2]),
+      assetsOptimisticMinor: Math.max(assets[0], assets[1], assets[2]),
     })
   }
 

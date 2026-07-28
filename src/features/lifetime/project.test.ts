@@ -248,12 +248,59 @@ describe('projectLifetime', () => {
     // Chốt là kịch bản THẬT SỰ âm, không thì vòng lặp dưới kiểm một mảng toàn số dương.
     expect(rows.every((r) => r.assetsEndMinor < 0)).toBe(true)
     for (const r of rows) {
-      expect(r.assetsPessimisticMinor).toBeLessThanOrEqual(r.assetsOptimisticMinor)
+      expect(r.assetsPessimisticMinor).toBeLessThanOrEqual(r.assetsEndMinor)
+      expect(r.assetsEndMinor).toBeLessThanOrEqual(r.assetsOptimisticMinor)
     }
     // Và ở vùng âm, nhánh bi quan đúng là nhánh lợi suất CAO — trung tâm nằm giữa.
     const last = rows[rows.length - 1]
     expect(last.assetsPessimisticMinor).toBeLessThan(last.assetsEndMinor)
     expect(last.assetsOptimisticMinor).toBeGreaterThan(last.assetsEndMinor)
+  })
+
+  it('nhánh trung tâm không chạy ra ngoài dải khi tài sản xuyên qua 0', () => {
+    // Dải phải trùm CẢ BA nhánh. Lấy min/max của riêng hai nhánh biên là sai: khi tài
+    // sản xuyên qua 0, kết quả không còn đơn điệu theo lợi suất (dương thì lợi suất cao
+    // là tốt, âm thì nó phình nợ nhanh hơn), nên A(r) không nhất thiết nằm giữa
+    // A(r−s) và A(r+s).
+    //
+    // Kịch bản này là phản ví dụ THẬT ở đúng giá trị mặc định của migration 0031
+    // (real_return_bps 200, band_spread_bps 150): khởi điểm 10tr, thu 1tr, chi 4tr
+    // → dòng tiền −3tr/năm, tài sản xuyên 0 vào khoảng 2029.
+    const rows = projectLifetime(
+      baseInput({
+        endAge: 45,
+        startingAssetsMinor: 10_000_000,
+        realReturnBps: 200,
+        bandSpreadBps: 150,
+        phases: [
+          {
+            startYear: 2026,
+            label: 'Nhật',
+            country: 'JP',
+            currency: 'JPY',
+            annualIncomeMinor: 1_000_000,
+            annualExpenseMinor: 4_000_000,
+            fxToDisplay: 1,
+          },
+        ],
+      }),
+    )
+    // Kịch bản phải thật sự xuyên qua 0, không thì phản ví dụ không xuất hiện.
+    expect(rows.some((r) => r.assetsEndMinor > 0)).toBe(true)
+    expect(rows.some((r) => r.assetsEndMinor < 0)).toBe(true)
+
+    for (const r of rows) {
+      expect(r.assetsPessimisticMinor).toBeLessThanOrEqual(r.assetsEndMinor)
+      expect(r.assetsEndMinor).toBeLessThanOrEqual(r.assetsOptimisticMinor)
+    }
+
+    // Chốt sắc: năm 2033 nhánh TRUNG TÂM là nhánh tệ nhất trong cả ba, nên biên dưới
+    // phải bằng đúng nó. Bản chỉ lấy hai nhánh biên cho ra −14.017.157 > trung tâm
+    // −14.032.313, tức trung tâm nằm NGOÀI dải.
+    const y2033 = rows.find((r) => r.year === 2033)!
+    expect(y2033.assetsEndMinor).toBe(-14_032_313)
+    expect(y2033.assetsPessimisticMinor).toBe(y2033.assetsEndMinor)
+    expect(y2033.assetsOptimisticMinor).toBe(-13_986_970)
   })
 
   it('sự kiện dùng tỷ giá RIÊNG của nó, không mượn tỷ giá của chặng', () => {

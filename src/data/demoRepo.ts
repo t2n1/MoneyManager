@@ -855,6 +855,11 @@ export const demoRepo: Repo = {
     return (load().lifeEvents ?? [])
       // Bản ghi ghi trước migration 0032 chưa có fx_to_display. Mặc định 1 — sự kiện
       // cùng tiền với đơn vị hiển thị thì tỷ giá không được dùng tới.
+      //
+      // ĐỪNG XOÁ `?? 1` vì thấy TypeScript bảo là dư: theo KIỂU thì nhánh này chết
+      // (`LifeEventRow.fx_to_display` không nullable), nhưng theo RUNTIME thì nó sống —
+      // localStorage giữ JSON ghi từ bản cũ, và ở đó trường này thiếu hẳn. Bỏ đi là
+      // `undefined` chảy thẳng vào engine rồi thành NaN.
       .map((e) => ({ ...e, fx_to_display: e.fx_to_display ?? 1 }))
       .sort((a, b) => a.start_year - b.start_year)
   },

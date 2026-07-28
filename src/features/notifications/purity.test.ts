@@ -256,6 +256,44 @@ describe('độ thuần của bộ luật thông báo (đi theo đồ thị impo
     expect([...reached.keys()]).toContain('features/notifications/state.ts')
   })
 
+  /**
+   * Phép thử THỨ HAI, cố ý KHÔNG đi theo đồ thị import: quét thẳng mọi file trong
+   * SOURCES khớp ENGINE_FILE_PATTERN.
+   *
+   * Vì sao cần cả hai chứ không phải một: phép thử đi theo đồ thị (`walk()`) chỉ soi
+   * những file mà một ENTRY_POINT dẫn tới được. Nó phủ đúng thứ nó sinh ra để phủ —
+   * `React` / `localStorage` lọt vào qua một CHUỖI import — nhưng nó im lặng với file
+   * engine chưa ai import. `insights.ts` (Task 4) chỉ được đi tới từ Task 12 qua
+   * lifetimeRules.ts, nên nếu chỉ có `walk()` thì suốt tám task ở giữa, một
+   * `new Date()` viết vào `insights.ts` sẽ không có chốt nào bắt.
+   *
+   * Vòng quét thẳng này cắn ngay giây phút file được tạo, không phụ thuộc vào việc ai
+   * đó có nhớ thêm tên file vào ENTRY_POINTS hay không. Cả hai vẫn được giữ vì chúng
+   * phủ hai thứ khác nhau: đồ thị phủ "đi mấy chặng thì chạm trình duyệt", quét thẳng
+   * phủ "trong file này có token bị cấm".
+   */
+  it('mọi file engine đều sạch Date/localStorage — quét thẳng, không cần nằm trong đồ thị', () => {
+    const offenders: string[] = []
+    for (const [file, code] of SOURCES) {
+      if (!ENGINE_FILE_PATTERN.test(file)) continue
+      const clean = stripCommentsAndStrings(code)
+      for (const [name, re] of ENGINE_BANNED) {
+        if (re.test(clean)) offenders.push(`${file}: ${name}`)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it('vòng quét thẳng thật sự có soi file, không phải vòng lặp rỗng', () => {
+    // Không có khẳng định này thì một lần đổi ENGINE_FILE_PATTERN hỏng sẽ làm vòng trên
+    // xanh vĩnh viễn vì không khớp file nào — đúng kiểu lỗi mà nó sinh ra để chặn.
+    const scanned = [...SOURCES.keys()].filter((f) => ENGINE_FILE_PATTERN.test(f))
+    expect(scanned).toContain('features/notifications/rules.ts')
+    expect(scanned).toContain('features/lifetime/project.ts')
+    // useLifetime.ts (Task 7) CỐ Ý được đọc đồng hồ — không bao giờ được lọt vào đây.
+    expect(scanned).not.toContain('features/lifetime/useLifetime.ts')
+  })
+
   it('mọi file được miễn quét-cả-file đều có lý do và thật sự nằm trong đồ thị', () => {
     const { reached } = walk()
     for (const [file, reason] of WHOLE_FILE_EXEMPT) {

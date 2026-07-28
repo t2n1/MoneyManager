@@ -163,11 +163,11 @@ describe('planNotificationCleanup', () => {
 
 // Mục I của spec đòi ba khẳng định về vòng đời; "tình huống tái diễn thì lại đỏ như
 // mới" là cái chưa từng có phép thử — và đúng là cái C1 làm hỏng.
-describe('vòng đời: hiện → đọc → xong → tái diễn', () => {
+describe('vòng đời: hiện → đọc → còn nguyên → xong → tái diễn', () => {
   const key = 'budget-over:c1'
   const actions = [action(key)]
 
-  it('bốn bước đi đúng như spec', () => {
+  it('năm bước đi đúng như spec', () => {
     // 1) Hiện lần đầu: chưa đọc → chuông đỏ 1.
     let readKeys = new Set<string>()
     expect(unreadActionCount(actions, readKeys)).toBe(1)
@@ -179,14 +179,44 @@ describe('vòng đời: hiện → đọc → xong → tái diễn', () => {
       staleKeys: [],
     })
 
-    // 3) Người dùng xử lý xong (nâng hạn mức) → lượt sau bộ luật không sinh mã nữa
+    // 3) TÌNH HUỐNG CÒN NGUYÊN qua nhiều lần mở app: bộ luật vẫn sinh mã đó nên dọn
+    //    dẹp không được xóa gì, và chuông phải TIẾP TỤC im (đã đọc thì thôi kêu, chứ
+    //    không phải mỗi lần mở app lại đỏ lên một lần — luật "một việc báo một lần").
+    for (let day = 0; day < 3; day++) {
+      expect(planNotificationCleanup({ ...READY, storedKeys: [key], allKeys: [key] })).toEqual({
+        staleKeys: [],
+      })
+      expect(unreadActionCount(actions, readKeys)).toBe(0)
+    }
+
+    // 4) Người dùng xử lý xong (nâng hạn mức) → lượt sau bộ luật không sinh mã nữa
     //    → trạng thái đã đọc bị xóa.
     const plan = planNotificationCleanup({ ...READY, storedKeys: [key], allKeys: [] })
     expect(plan).toEqual({ staleKeys: [key] })
 
-    // 4) Tháng sau lại vượt: DB không còn dòng nào cho mã này nên nó lại đỏ như mới.
+    // 5) Tháng sau lại vượt: DB không còn dòng nào cho mã này nên nó lại đỏ như mới.
     const afterDelete = new Set<string>()
     expect(unreadActionCount(actions, afterDelete)).toBe(1)
+  })
+
+  it('tin-để-biết đã tắt thì KHÔNG bao giờ quay lại, kể cả khi tình hình tái diễn', () => {
+    const suggestion = 'recurring-suggestion:netflix'
+    const infos = [info(suggestion)]
+    const dismissed = new Set([suggestion])
+    // Bấm ✕ → mất ngay.
+    expect(visibleInfos(infos, new Set([suggestion]), dismissed)).toEqual([])
+
+    // Dọn dẹp việc-cần-làm KHÔNG được chạm vào dòng trạng thái của tin-để-biết, dù
+    // lượt này bộ luật có sinh lại mã đó (mẫu Netflix vẫn còn) hay không.
+    expect(
+      planNotificationCleanup({ ...READY, storedKeys: [suggestion], allKeys: [suggestion] }),
+    ).toEqual({ staleKeys: [] })
+    expect(planNotificationCleanup({ ...READY, storedKeys: [suggestion], allKeys: [] })).toEqual({
+      staleKeys: [],
+    })
+
+    // Nên lượt sau bộ luật sinh lại mã đó thì nó vẫn bị lọc đi — tắt là mất hẳn.
+    expect(visibleInfos(infos, new Set(), dismissed)).toEqual([])
   })
 
   it('nếu bước 3 không xóa (vì chưa đủ dữ liệu) thì bước 4 vẫn mờ — đúng lỗi C1', () => {

@@ -5,6 +5,7 @@ import { AlertTriangle, ChevronLeft, Pencil, Sparkles } from 'lucide-react'
 import { repo } from '../../data'
 import { useNetWorthSnapshots } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
+import { formatMoney } from '../../lib/money'
 import { InsightCards } from './InsightCards'
 import { LifetimeChartCard } from './LifetimeChartCard'
 import { ScenarioEditorSheet } from './ScenarioEditorSheet'
@@ -46,6 +47,9 @@ export function LifetimePage() {
     needsBirthYear,
     ensureFirstScenario,
     isCreatingFirstScenario,
+    netWorth,
+    netWorthReliable,
+    netWorthLoading,
   } = useLifetime()
 
   const [editorOpen, setEditorOpen] = useState(false)
@@ -97,9 +101,37 @@ export function LifetimePage() {
             (cưới, sinh con, nghỉ hưu…). Tạo kịch bản đầu tiên từ đúng chi tiêu thật của bạn —
             không cần khai tay từng con số.
           </p>
+
+          {/* Tài sản khởi điểm của kịch bản = tài sản ròng hiện tại (lỗi thứ 13 của kế
+              hoạch: bắt đầu từ 0 dù đang có tiền là ấn tượng đầu tiên tệ nhất có thể).
+              Hiện rõ số này ra đây để người dùng biết TRƯỚC khi bấm, không phải đoán. */}
+          {!netWorthLoading && profile && (
+            <p
+              className={`mt-2 rounded-lg p-2.5 text-xs ${
+                netWorthReliable
+                  ? 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
+                  : 'bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+              }`}
+            >
+              {netWorthReliable ? (
+                <>
+                  Tài sản khởi điểm sẽ lấy từ tài sản ròng hiện tại:{' '}
+                  <b className="tabular-nums">{formatMoney(netWorth, profile.base_currency)}</b>
+                  .
+                </>
+              ) : (
+                <>
+                  Một phần tài khoản/công nợ chưa quy đổi được tỷ giá nên chưa tính được tài sản
+                  ròng đáng tin. Tài sản khởi điểm sẽ để 0 — vào nút bút chì sau khi tạo để tự
+                  nhập lại cho đúng.
+                </>
+              )}
+            </p>
+          )}
+
           <button
             type="button"
-            disabled={creating}
+            disabled={creating || netWorthLoading}
             onClick={async () => {
               setCreating(true)
               try {
@@ -113,7 +145,9 @@ export function LifetimePage() {
             <Sparkles className="h-4 w-4" />
             {creating || isCreatingFirstScenario
               ? 'Đang tạo…'
-              : 'Tạo kịch bản từ chi tiêu thật của tôi'}
+              : netWorthLoading
+                ? 'Đang tính tài sản ròng…'
+                : 'Tạo kịch bản từ chi tiêu thật của tôi'}
           </button>
         </div>
       </div>

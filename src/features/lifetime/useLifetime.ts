@@ -3,9 +3,21 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { repo } from '../../data'
-import { useAccounts, useCategories, useProfile, useRangeTransactions } from '../../hooks/queries'
+import {
+  useAccountBalances,
+  useAccounts,
+  useAssetGroupSettings,
+  useCategories,
+  useDebtPayments,
+  useDebts,
+  useProfile,
+  useRangeTransactions,
+  useRates,
+} from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
 import { addDaysISO, toISODate } from '../../lib/dates'
+import { assetBreakdown, type AssetGroupSetting } from '../assets/aggregate'
+import { debtSummary } from '../debts/aggregate'
 import { suggestBaseline } from './baseline'
 import {
   projectLifetime,
@@ -113,6 +125,51 @@ export function useLifetime() {
   )
   const txsQ = useRangeTransactions(range, noScenarioYet)
 
+  // --- Tài sản ròng hiện tại → starting_assets_minor của kịch bản đầu tiên ---
+  // Lỗi thứ 13 của kế hoạch: bản chiếu đầu tiên KHÔNG được bắt đầu từ 0 nếu người dùng
+  // đang có tài sản thật — mở màn bằng một đồ thị "sắp cạn tiền" giả là ấn tượng đầu
+  // tiên tệ nhất có thể. Dùng ĐÚNG công thức `AssetsPage.tsx` đang dùng
+  // (`breakdown.total + debts.net + breakdown.cardDebt`, cùng điều kiện "đáng tin"),
+  // KHÔNG tự cộng lại từ đầu — hai chỗ tính hai lối khác nhau sẽ trôi lệch nhau theo
+  // thời gian, và người dùng sẽ thấy trang Tài sản báo một số còn Lifetime báo số khác.
+  const balancesQ = useAccountBalances()
+  const groupSettingsQ = useAssetGroupSettings()
+  const { base: baseCurrency, rates, isSuccess: ratesOk } = useRates()
+  const debtsQ = useDebts()
+  const debtPaymentsQ = useDebtPayments()
+
+  const settingsForBreakdown = useMemo<AssetGroupSetting[]>(
+    () =>
+      (groupSettingsQ.data ?? []).map((s) => ({
+        name: s.name,
+        sortOrder: s.sort_order,
+        includeInTotals: s.include_in_totals,
+        hidden: s.is_hidden,
+      })),
+    [groupSettingsQ.data],
+  )
+  const breakdown = useMemo(
+    () => assetBreakdown(balancesQ.data ?? [], baseCurrency, rates ?? {}, settingsForBreakdown, todayISO),
+    [balancesQ.data, baseCurrency, rates, settingsForBreakdown, todayISO],
+  )
+  const debtsAgg = useMemo(
+    () => debtSummary(debtsQ.data ?? [], debtPaymentsQ.data ?? [], baseCurrency, rates ?? {}),
+    [debtsQ.data, debtPaymentsQ.data, baseCurrency, rates],
+  )
+  const netWorth = breakdown.total + debtsAgg.net + breakdown.cardDebt
+  // Chưa tải xong: chưa biết gì cả, đừng vội kết luận đáng tin hay không.
+  const netWorthLoading =
+    !balancesQ.isSuccess ||
+    !groupSettingsQ.isSuccess ||
+    !ratesOk ||
+    !debtsQ.isSuccess ||
+    !debtPaymentsQ.isSuccess
+  // Đã tải xong NHƯNG thiếu tỷ giá cho một phần tài khoản/công nợ → tổng bị thiếu ÂM
+  // THẦM (không phải bằng 0, mà là một số THẤP HƠN THẬT). Đây là ca `netWorthReliable`
+  // ở AssetsPage.tsx tồn tại để bắt — không được lờ đi.
+  const netWorthMissingRate = breakdown.hasMissingRate || debtsAgg.hasMissingRate || breakdown.cardHasMissingRate
+  const netWorthReliable = !netWorthLoading && !netWorthMissingRate
+
   const createScenario = useMutation({ mutationFn: repo.createLifeScenario })
   const createPhase = useMutation({ mutationFn: repo.createLifePhase })
 
@@ -125,13 +182,17 @@ export function useLifetime() {
 
     const baseline = suggestBaseline(txsQ.data ?? [], categories, currencyOf, currency, todayISO)
 
+    // Đáng tin → dùng tài sản ròng hiện tại (cùng đơn vị `currency` = profile.base_currency,
+    // khớp `display_currency` mới tạo nên không cần quy đổi). Không đáng tin (thiếu tỷ giá,
+    // hoặc chưa tải xong) → 0, KHÔNG được điền một số thiếu rồi im lặng — LifetimePage hiện
+    // dòng chữ giải thích khi `!netWorthReliable` (xem ScenarioEditorSheet, Task 11, để sửa lại).
     const scenario = await createScenario.mutateAsync({
       name: 'Kịch bản của tôi',
       display_currency: currency,
       end_age: DEFAULT_END_AGE,
       real_return_bps: DEFAULT_REAL_RETURN_BPS,
       band_spread_bps: DEFAULT_BAND_SPREAD_BPS,
-      starting_assets_minor: 0,
+      starting_assets_minor: netWorthReliable ? netWorth : 0,
       nominal_terms: false,
       is_primary: true,
     })
@@ -171,5 +232,11 @@ export function useLifetime() {
     needsBirthYear: !!profileQ.data && profileQ.data.birth_year == null,
     ensureFirstScenario,
     isCreatingFirstScenario: createScenario.isPending || createPhase.isPending,
+    /** Tài sản ròng hiện tại (base currency) — số sẽ dùng làm `starting_assets_minor`
+     *  khi tạo kịch bản đầu tiên. `LifetimePage` hiện số này ở trạng thái "chưa có kịch
+     *  bản" để minh bạch, và hiện cảnh báo khi `netWorthReliable` là false. */
+    netWorth,
+    netWorthReliable,
+    netWorthLoading,
   }
 }

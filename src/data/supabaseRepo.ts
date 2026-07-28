@@ -441,10 +441,13 @@ export const supabaseRepo: Repo = {
   },
 
   async pruneNotificationState(beforeISO: string) {
+    // `is('dismissed_at', null)`: dòng ĐÃ TẮT không bao giờ bị dọn — "tắt là mất hẳn"
+    // (mục C.2/E của spec). Giữ y hệt demoRepo.
     const { error } = await getSupabase()
       .from('notification_state')
       .delete()
       .lt('created_at', beforeISO)
+      .is('dismissed_at', null)
     if (error) throw error
   },
 

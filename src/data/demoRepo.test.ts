@@ -264,6 +264,17 @@ describe('trạng thái thông báo', () => {
     expect(rows).toHaveLength(0)
   })
 
+  it('dòng ĐÃ TẮT thì dọn rác không xóa (tắt là mất hẳn)', async () => {
+    // Mốc dọn ở tương lai nên cả hai dòng đều "cũ hơn mốc"; chỉ dòng chưa tắt được xóa.
+    await demoRepo.markNotificationsRead(['stale-entry:2026-W31'])
+    await demoRepo.dismissNotification('recurring-suggestion:netflix')
+    await demoRepo.pruneNotificationState('2099-01-01T00:00:00.000Z')
+    const rows = await demoRepo.getNotificationState()
+    expect(rows.map((r) => r.key)).toEqual(['recurring-suggestion:netflix'])
+    // Nếu dọn cả dòng đã tắt thì 13 tháng sau gợi ý "tạo quy tắc Netflix" sống lại.
+    expect(rows[0].dismissed_at).toBeTruthy()
+  })
+
   it('dọn với mốc quá khứ thì giữ nguyên', async () => {
     await demoRepo.markNotificationsRead(['stale-entry:2026-W31', 'budget-over:cat-3'])
     await demoRepo.pruneNotificationState('2000-01-01T00:00:00.000Z')

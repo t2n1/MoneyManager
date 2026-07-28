@@ -392,7 +392,9 @@ export interface Repo {
   dismissNotification(key: string): Promise<void>
   /** Xóa trạng thái của các mã truyền vào — vòng đời việc-cần-làm (mục E của spec). */
   deleteNotificationStates(keys: string[]): Promise<void>
-  /** Dọn rác: xóa dòng có created_at < beforeISO. */
+  /** Dọn rác: xóa dòng có created_at < beforeISO **và chưa bị tắt**.
+   *  Dòng đã tắt (dismissed_at khác null) thì giữ mãi — mục C.2/E của spec hứa
+   *  "tắt là mất hẳn", dọn nó đi là 13 tháng sau gợi ý đã tắt sống lại. */
   pruneNotificationState(beforeISO: string): Promise<void>
 
   // --- Lịch sử tỷ giá ---

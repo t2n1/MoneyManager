@@ -810,7 +810,12 @@ export const demoRepo: Repo = {
 
   async pruneNotificationState(beforeISO: string) {
     const db = load()
-    db.notificationState = (db.notificationState ?? []).filter((r) => r.created_at >= beforeISO)
+    // Dòng ĐÃ TẮT thì không dọn dù cũ tới đâu: mục C.2 hứa "tắt là mất hẳn" và mục E
+    // nói rõ "đã tắt gợi ý tạo quy tắc Netflix thì phải tắt vĩnh viễn". Dọn cả dòng đã
+    // tắt là 13 tháng sau gợi ý đó sống lại. Dọn rác chỉ nhằm vào dòng đã-đọc-chưa-tắt.
+    db.notificationState = (db.notificationState ?? []).filter(
+      (r) => r.created_at >= beforeISO || r.dismissed_at != null,
+    )
     save(db)
   },
 

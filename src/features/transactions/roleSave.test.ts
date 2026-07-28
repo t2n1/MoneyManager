@@ -1,23 +1,33 @@
 import { describe, expect, it } from 'vitest'
-import type { DebtPaymentRow, DebtRow, TransactionRow } from '../../types/database.types'
-import type { NewDebt, NewDebtPayment } from '../../data'
-import { saveSplit } from './roleSave'
+import type {
+  CategoryRow,
+  DebtPaymentRow,
+  DebtRow,
+  TransactionRow,
+} from '../../types/database.types'
+import type { NewCategory, NewDebt, NewDebtPayment, NewTransaction } from '../../data'
+import { saveDebtEntry, saveSplit, saveWithFee } from './roleSave'
 import type { RoleBase, RoleSaveDeps } from './roleSave'
-import { initialSplit } from './entryRoles'
+import { initialDebt, initialSplit } from './entryRoles'
 
 /**
  * Trả hộ cùng một người đã cho vay trước đó phải CỘNG DỒN vào khoản đang mở
  * (ghi debt_payments amount ÂM = giải ngân thêm), KHÔNG tạo người trùng tên mới.
  */
 
-function makeDeps(debts: DebtRow[]) {
+function makeDeps(debts: DebtRow[], categories: RoleSaveDeps['categories'] = []) {
   const calls = {
-    createTransaction: [] as unknown[],
+    createTransaction: [] as NewTransaction[],
     createDebt: [] as NewDebt[],
     createDebtPayment: [] as NewDebtPayment[],
+    deleteTransaction: [] as string[],
+    createCategory: [] as NewCategory[],
   }
+  /** Tên giao dịch nào sẽ ném lỗi khi tạo — để thử nhánh hoàn tác. */
+  let failOn: ((input: NewTransaction) => boolean) | null = null
   const deps: RoleSaveDeps = {
     createTransaction: async (input) => {
+      if (failOn?.(input)) throw new Error('bùm')
       calls.createTransaction.push(input)
       return { id: `tx-${calls.createTransaction.length}` } as TransactionRow
     },
@@ -29,12 +39,18 @@ function makeDeps(debts: DebtRow[]) {
       calls.createDebtPayment.push(input)
       return { id: `pay-${calls.createDebtPayment.length}` } as DebtPaymentRow
     },
-    deleteTransaction: async () => undefined,
-    createCategory: async () => ({ id: 'cat' }) as never,
-    categories: [],
+    deleteTransaction: async (id) => {
+      calls.deleteTransaction.push(id)
+      return undefined
+    },
+    createCategory: async (input) => {
+      calls.createCategory.push(input)
+      return { id: 'cat-moi' } as CategoryRow
+    },
+    categories,
     debts,
   }
-  return { deps, calls }
+  return { deps, calls, setFailOn: (f: (input: NewTransaction) => boolean) => (failOn = f) }
 }
 
 const openLoan = (over: Partial<DebtRow> = {}): DebtRow =>
@@ -93,5 +109,121 @@ describe('saveSplit — cộng dồn Trả hộ vào khoản cho vay đang mở'
 
     expect(calls.createDebtPayment).toHaveLength(0)
     expect(calls.createDebt[0]).toMatchObject({ currency: 'USD', principal: 20 })
+  })
+})
+
+/**
+ * Phí là một giao dịch CHI RIÊNG vào danh mục "Tài chính" — không cộng vào số tiền
+ * chuyển, không cộng vào gốc nợ. Tạo phí trước, bút toán chính hỏng thì xóa phí đi.
+ */
+const cat = (id: string, name: string, type = 'expense') => ({ id, name, type })
+
+const transfer: NewTransaction = {
+  type: 'transfer',
+  amount: 100_000,
+  to_amount: null,
+  category_id: null,
+  account_id: 'acc-1',
+  to_account_id: 'acc-2',
+  occurred_on: '2026-07-28',
+  note: 'Chuyển sang tiết kiệm',
+}
+
+describe('saveWithFee — chuyển khoản kèm phí', () => {
+  it('tạo phí thành giao dịch chi riêng vào "Tài chính", rồi mới tạo chuyển khoản', async () => {
+    const { deps, calls } = makeDeps([], [cat('cat-tc', 'Tài chính')])
+    await saveWithFee(transfer, 440, 'Phí chuyển khoản', deps)
+
+    expect(calls.createCategory).toHaveLength(0)
+    expect(calls.createTransaction).toHaveLength(2)
+    // Phí đi trước — hỏng ở bút toán chính thì mới xóa lại được.
+    expect(calls.createTransaction[0]).toMatchObject({
+      type: 'expense',
+      amount: 440,
+      category_id: 'cat-tc',
+      account_id: 'acc-1',
+      occurred_on: '2026-07-28',
+      note: 'Phí chuyển khoản',
+      to_account_id: null,
+    })
+    expect(calls.createTransaction[1]).toMatchObject({ type: 'transfer', amount: 100_000 })
+  })
+
+  it('phí 0 → chỉ một bút toán, không đụng tới danh mục', async () => {
+    const { deps, calls } = makeDeps([], [cat('cat-tc', 'Tài chính')])
+    await saveWithFee(transfer, 0, 'Phí chuyển khoản', deps)
+
+    expect(calls.createTransaction).toHaveLength(1)
+    expect(calls.createTransaction[0]).toMatchObject({ type: 'transfer' })
+    expect(calls.createCategory).toHaveLength(0)
+  })
+
+  it('chuyển khoản hỏng → xóa lại bút toán phí, không để phí lơ lửng', async () => {
+    const { deps, calls, setFailOn } = makeDeps([], [cat('cat-tc', 'Tài chính')])
+    setFailOn((i) => i.type === 'transfer')
+
+    await expect(saveWithFee(transfer, 440, 'Phí chuyển khoản', deps)).rejects.toThrow('bùm')
+    expect(calls.deleteTransaction).toEqual(['tx-1'])
+  })
+
+  it('DB chưa áp migration 0030 → dùng lại danh mục tên cũ, không tạo trùng', async () => {
+    const { deps, calls } = makeDeps([], [cat('cat-cu', 'Tài chính & Đầu tư')])
+    await saveWithFee(transfer, 440, 'Phí chuyển khoản', deps)
+
+    expect(calls.createCategory).toHaveLength(0)
+    expect(calls.createTransaction[0]).toMatchObject({ category_id: 'cat-cu' })
+  })
+
+  it('không có danh mục nào khớp → tạo mới "Tài chính"', async () => {
+    const { deps, calls } = makeDeps([], [cat('cat-an', 'Ăn uống')])
+    await saveWithFee(transfer, 440, 'Phí chuyển khoản', deps)
+
+    expect(calls.createCategory[0]).toMatchObject({ name: 'Tài chính', type: 'expense' })
+    expect(calls.createTransaction[0]).toMatchObject({ category_id: 'cat-moi' })
+  })
+
+  it('danh mục THU trùng tên không được nhận nhầm', async () => {
+    const { deps, calls } = makeDeps([], [cat('cat-thu', 'Tài chính', 'income')])
+    await saveWithFee(transfer, 440, 'Phí chuyển khoản', deps)
+
+    expect(calls.createCategory).toHaveLength(1)
+    expect(calls.createTransaction[0]).toMatchObject({ category_id: 'cat-moi' })
+  })
+})
+
+describe('saveDebtEntry — cho vay kèm phí', () => {
+  const lend = { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'An', fee: 500 }
+
+  it('phí không cộng vào gốc nợ, đi riêng vào "Tài chính"', async () => {
+    const { deps, calls } = makeDeps([], [cat('cat-tc', 'Tài chính')])
+    await saveDebtEntry(base, lend, deps)
+
+    expect(calls.createDebt[0]).toMatchObject({ principal: 5000 }) // gốc giữ nguyên
+    expect(calls.createDebt[0].transaction).toMatchObject({ type: 'expense', amount: 5000 })
+    expect(calls.createTransaction).toHaveLength(1) // chỉ bút toán phí đi qua createTransaction
+    expect(calls.createTransaction[0]).toMatchObject({
+      type: 'expense',
+      amount: 500,
+      category_id: 'cat-tc',
+      note: 'Phí · An',
+    })
+  })
+
+  it('ghi khoản nợ hỏng → xóa lại bút toán phí', async () => {
+    const { deps, calls } = makeDeps([], [cat('cat-tc', 'Tài chính')])
+    deps.createDebt = async () => {
+      throw new Error('bùm')
+    }
+
+    await expect(saveDebtEntry(base, lend, deps)).rejects.toThrow('bùm')
+    expect(calls.deleteTransaction).toEqual(['tx-1'])
+  })
+
+  it('không nhập phí → không sinh bút toán phí nào', async () => {
+    const { deps, calls } = makeDeps([], [cat('cat-tc', 'Tài chính')])
+    await saveDebtEntry(base, { ...lend, fee: 0 }, deps)
+
+    expect(calls.createTransaction).toHaveLength(0)
+    expect(calls.createDebt).toHaveLength(1)
   })
 })

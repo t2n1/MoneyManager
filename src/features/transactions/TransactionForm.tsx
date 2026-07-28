@@ -60,7 +60,7 @@ import {
   type SpecialRole,
   type SplitValue,
 } from './entryRoles'
-import { DebtFields, RemitFields, SplitFields } from './roleFields'
+import { DebtFields, FeeField, RemitFields, SplitFields } from './roleFields'
 import type { RoleBase } from './roleSave'
 
 const LAST_ACCOUNT_KEY = 'sct-last-account'
@@ -91,7 +91,14 @@ const AMOUNT_COLOR: Record<TransactionType, string> = {
 
 /** Ô tiền mà NumPad mobile đang nhắm tới: ô chính, ô "nhận được" (CK xuyên tệ),
  *  hoặc các ô tiền phụ của vai trò đặc biệt (trả hộ / gửi về VN). */
-type AmountTarget = 'main' | 'to' | 'split.others' | 'remit.fee' | 'remit.received'
+type AmountTarget =
+  | 'main'
+  | 'to'
+  | 'split.others'
+  | 'remit.fee'
+  | 'remit.received'
+  | 'debt.fee'
+  | 'transfer.fee'
 
 /** Vai trò đặc biệt: nhãn + icon + màu banner. */
 const ROLE_ORDER: SpecialRole[] = ['split', 'debt', 'remit']
@@ -176,6 +183,12 @@ interface TransactionFormProps {
   initialRole?: EntryRole
   /** Lưu một vai trò đặc biệt (thay onSubmit). Bắt buộc khi enableRoles. */
   onSubmitRole?: (payload: RoleSubmit) => Promise<void>
+  /**
+   * Chuyển khoản có phí: lưu giao dịch chính + một giao dịch CHI riêng cho phí
+   * (danh mục "Tài chính"). Không truyền → không hiện nút "+ Phí" ở chuyển khoản
+   * (form sửa: phí đã là giao dịch riêng, sửa thẳng trên nó).
+   */
+  onSubmitWithFee?: (main: NewTransaction, fee: number, keepGoing: boolean) => Promise<void>
 }
 
 export function TransactionForm({
@@ -192,6 +205,7 @@ export function TransactionForm({
   enableRoles,
   initialRole,
   onSubmitRole,
+  onSubmitWithFee,
 }: TransactionFormProps) {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
@@ -209,6 +223,8 @@ export function TransactionForm({
     initial?.account_id ?? localStorage.getItem(LAST_ACCOUNT_KEY),
   )
   const [toAccountId, setToAccountId] = useState<string | null>(initial?.to_account_id ?? null)
+  /** Chuyển khoản: phí (minor units theo tài khoản nguồn) → giao dịch chi riêng. */
+  const [transferFee, setTransferFee] = useState(0)
   const [date, setDate] = useState(initial?.occurred_on ?? toISODate(new Date()))
   const [note, setNote] = useState(initial?.note ?? '')
   const [excludeFromStats, setExcludeFromStats] = useState(initial?.exclude_from_stats ?? false)
@@ -323,9 +339,16 @@ export function TransactionForm({
   const srcCurrency = activeAccounts.find((a) => a.id === effectiveAccountId)?.currency ?? 'JPY'
   const dstCurrency = activeAccounts.find((a) => a.id === toAccountId)?.currency ?? srcCurrency
   const crossCurrency = type === 'transfer' && !!toAccountId && dstCurrency !== srcCurrency
+  /**
+   * Ô "+ Phí" của chuyển khoản. Không cho khi đang đặt lịch lặp: rule chỉ sinh một
+   * giao dịch, phí sẽ rơi mất — thà không hiện còn hơn nhận số rồi âm thầm bỏ.
+   */
+  const showTransferFee =
+    type === 'transfer' && activeRole === 'none' && !!onSubmitWithFee && repeat === 'none'
   // Có nhiều ô tiền cùng nhận NumPad (CK xuyên tệ, hoặc vai trò có ô tiền phụ)
   // → hiện viền ô đang chọn để biết numpad gõ vào đâu.
-  const multiAmount = crossCurrency || activeRole === 'split' || activeRole === 'remit'
+  const multiAmount =
+    crossCurrency || activeRole === 'split' || activeRole === 'remit' || activeRole === 'debt'
 
   // Gợi ý cộng dồn: khoản đang mở cùng chiều + cùng loại tiền với tài khoản đang chọn
   // (khác loại tiền không cộng dồn được nên không đưa vào danh sách).
@@ -531,6 +554,14 @@ export function TransactionForm({
       setRemitVal((v) => ({ ...v, received: applyNumKey(v.received, key) }))
       return
     }
+    if (activeField === 'debt.fee') {
+      setDebtVal((v) => ({ ...v, fee: applyNumKey(v.fee, key) }))
+      return
+    }
+    if (activeField === 'transfer.fee') {
+      setTransferFee((v) => applyNumKey(v, key))
+      return
+    }
     const setter = activeField === 'to' && crossCurrency ? setToDigits : setDigits
     setter((d) => appendKey(d, key))
   }
@@ -594,6 +625,9 @@ export function TransactionForm({
           start_on: date,
           end_on: null,
         })
+      } else if (showTransferFee && transferFee > 0) {
+        // Chuyển khoản có phí → 2 bút toán, EntryPage lo thứ tự + hoàn tác
+        await onSubmitWithFee!(values, transferFee, keepGoing)
       } else {
         await (keepGoing ? onContinue!(values) : onSubmit(values))
       }
@@ -607,6 +641,7 @@ export function TransactionForm({
         setToDigits('')
         setNote('')
         setToAccountId(null)
+        setTransferFee(0)
         setActiveField('main')
       }
     } catch (e) {
@@ -972,6 +1007,17 @@ export function TransactionForm({
           </div>
         )}
       </div>
+      {/* Chuyển khoản: phí ngân hàng/dịch vụ → giao dịch chi riêng vào "Tài chính" */}
+      {showTransferFee && (
+        <FeeField
+          value={transferFee}
+          currency={srcCurrency}
+          active={activeField === 'transfer.fee'}
+          onFocus={() => setActiveField('transfer.fee')}
+          onChange={setTransferFee}
+          hint={'Ghi riêng thành khoản chi "Tài chính", trừ vào tài khoản nguồn.'}
+        />
+      )}
       {/* Field riêng của vai trò (nếu có) — nằm ngay dưới số tiền/tài khoản */}
       {activeRole === 'remit' && pickerAccounts.length === 0 && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
@@ -995,6 +1041,9 @@ export function TransactionForm({
           onChange={setDebtVal}
           canRecordReal={canRecordReal}
           people={debtPeople}
+          currency={srcCurrency}
+          feeActive={activeField === 'debt.fee'}
+          onFocusFee={() => setActiveField('debt.fee')}
         />
       )}
       {activeRole === 'remit' && (

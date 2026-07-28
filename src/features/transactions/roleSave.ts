@@ -22,6 +22,11 @@ export interface RoleBase {
 
 const GUI_TIEN_CAT = 'Gửi tiền về VN'
 
+/** Danh mục nhận mọi khoản PHÍ tài chính (phí chuyển khoản, phí cho vay…). */
+const PHI_CAT = 'Tài chính'
+/** Tên cũ trước migration 0030 — người dùng chưa áp migration vẫn dùng lại được. */
+const PHI_CAT_LEGACY = 'Tài chính & Đầu tư'
+
 export interface RoleSaveDeps {
   createTransaction: (input: NewTransaction) => Promise<TransactionRow>
   createDebt: (input: NewDebt) => Promise<DebtRow>
@@ -32,6 +37,82 @@ export interface RoleSaveDeps {
   categories: { id: string; type: string; name: string }[]
   /** Các khoản nợ hiện có — để cộng dồn khi cho vay/nợ tiếp cùng một người. */
   debts: DebtRow[]
+}
+
+/**
+ * Id danh mục "Tài chính". Ưu tiên tên mới, chấp nhận tên cũ "Tài chính & Đầu tư"
+ * (DB chưa áp migration 0030), cuối cùng mới tạo mới — giống cách saveRemit lo
+ * danh mục "Gửi tiền về VN".
+ */
+async function feeCategoryId(deps: RoleSaveDeps): Promise<string> {
+  const expense = deps.categories.filter((c) => c.type === 'expense')
+  const found =
+    expense.find((c) => c.name === PHI_CAT) ?? expense.find((c) => c.name === PHI_CAT_LEGACY)
+  if (found) return found.id
+  const created = await deps.createCategory({
+    name: PHI_CAT,
+    type: 'expense',
+    icon: '🏦',
+    parent_id: null,
+  })
+  return created.id
+}
+
+/**
+ * Ghi phí thành MỘT GIAO DỊCH CHI RIÊNG vào danh mục "Tài chính" — thấy được
+ * trong Sổ GD, vào báo cáo và ngân sách, sửa/xóa độc lập với giao dịch gốc.
+ * Trừ vào chính tài khoản nguồn, cùng ngày. Trả về id để hoàn tác khi bút toán
+ * chính hỏng. fee <= 0 = không có phí, không tạo gì.
+ */
+async function createFeeTx(
+  fee: number,
+  accountId: string,
+  occurredOn: string,
+  note: string,
+  deps: RoleSaveDeps,
+): Promise<string | null> {
+  if (fee <= 0) return null
+  const row = await deps.createTransaction({
+    type: 'expense',
+    amount: fee,
+    to_amount: null,
+    category_id: await feeCategoryId(deps),
+    account_id: accountId,
+    to_account_id: null,
+    occurred_on: occurredOn,
+    note,
+  })
+  return row.id
+}
+
+/** Xóa bút toán phí đã tạo khi phần chính hỏng. Nuốt lỗi xóa: đã ở nhánh lỗi rồi. */
+async function undoFeeTx(feeTxId: string | null, deps: RoleSaveDeps): Promise<void> {
+  if (!feeTxId) return
+  try {
+    await deps.deleteTransaction(feeTxId)
+  } catch {
+    /* để nguyên: người dùng có thể xóa tay nếu cần */
+  }
+}
+
+/**
+ * Chuyển khoản kèm phí: giao dịch chính (chuyển khoản) + một giao dịch chi riêng
+ * cho phí. Tạo phí TRƯỚC vì nó đơn giản, dễ hoàn tác; chính hỏng thì xóa phí đi
+ * để không còn phí lơ lửng không gắn với lần chuyển nào.
+ */
+export async function saveWithFee(
+  main: NewTransaction,
+  fee: number,
+  feeNote: string,
+  deps: RoleSaveDeps,
+): Promise<void> {
+  const feeTxId = await createFeeTx(fee, main.account_id, main.occurred_on, feeNote, deps)
+  try {
+    await deps.createTransaction(main)
+  } catch (e) {
+    await undoFeeTx(feeTxId, deps)
+    throw e
+  }
 }
 
 /**
@@ -119,6 +200,23 @@ export async function saveDebtEntry(
   v: DebtValue,
   deps: RoleSaveDeps,
 ): Promise<void> {
+  const who = v.counterparty.trim()
+  const feeTxId = await createFeeTx(
+    v.fee,
+    base.accountId,
+    base.occurredOn,
+    who ? `Phí · ${who}` : 'Phí giao dịch',
+    deps,
+  )
+  try {
+    await saveDebtCore(base, v, deps)
+  } catch (e) {
+    await undoFeeTx(feeTxId, deps)
+    throw e
+  }
+}
+
+async function saveDebtCore(base: RoleBase, v: DebtValue, deps: RoleSaveDeps): Promise<void> {
   const counterparty = v.counterparty.trim()
   const txType = v.direction === 'owed_to_me' ? 'expense' : 'income'
 

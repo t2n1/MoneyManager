@@ -68,6 +68,55 @@ function MoneyField({
   )
 }
 
+/**
+ * Ô "Phí" thu gọn: mặc định chỉ là nút "+ Phí" cho đỡ rối, chạm mới mở ô nhập.
+ * Đã có số thì luôn mở. Phí lưu thành một giao dịch CHI riêng vào danh mục
+ * "Tài chính" (không cộng vào số tiền chính) — chú thích ngay dưới ô để khỏi bất ngờ.
+ */
+export function FeeField({
+  value,
+  currency,
+  active,
+  onFocus,
+  onChange,
+  hint,
+}: {
+  value: number
+  currency: CurrencyCode
+  active: boolean
+  onFocus: () => void
+  onChange: (v: number) => void
+  /** Câu giải thích phí sẽ đi đâu. */
+  hint: string
+}) {
+  const [open, setOpen] = useState(false)
+  if (!open && value === 0) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="self-start rounded-lg border border-dashed border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-500 transition active:scale-95 dark:border-gray-600 dark:text-gray-400"
+      >
+        + Phí
+      </button>
+    )
+  }
+  return (
+    <div>
+      <label className={labelCls}>Phí ({currency})</label>
+      <MoneyField
+        value={value}
+        currency={currency}
+        active={active}
+        onFocus={onFocus}
+        onChange={onChange}
+        ariaLabel={`Phí (${currency})`}
+      />
+      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>
+    </div>
+  )
+}
+
 /** Trả hộ / chia bill: phần người khác nợ lại + ai nợ mình (Chi luôn). */
 export function SplitFields({
   value,
@@ -241,6 +290,9 @@ export function DebtFields({
   onChange,
   canRecordReal,
   people,
+  currency,
+  feeActive,
+  onFocusFee,
 }: {
   value: DebtValue
   onChange: (v: DebtValue) => void
@@ -248,6 +300,11 @@ export function DebtFields({
   canRecordReal: boolean
   /** Người đã cho vay/nợ (khoản đang mở, cùng chiều) — chọn để cộng dồn. */
   people: DebtPerson[]
+  /** Loại tiền tài khoản nguồn — phí trừ vào chính tài khoản đó. */
+  currency: CurrencyCode
+  /** Ô Phí đang được NumPad nhắm tới (mobile). */
+  feeActive: boolean
+  onFocusFee: () => void
 }) {
   const [showMore, setShowMore] = useState(false)
   const realOn = canRecordReal && value.withTransaction
@@ -347,6 +404,15 @@ export function DebtFields({
           </p>
         )}
       </div>
+
+      <FeeField
+        value={value.fee}
+        currency={currency}
+        active={feeActive}
+        onFocus={onFocusFee}
+        onChange={(v) => onChange({ ...value, fee: v })}
+        hint='Ghi riêng thành khoản chi "Tài chính", không cộng vào gốc nợ.'
+      />
 
       {/* Cộng dồn → hạn/lãi lấy theo khoản cũ, không nhập lại. */}
       {!selected && (

@@ -28,6 +28,11 @@ export interface DebtValue {
   interestPct: string
   /** số kỳ/tháng dạng chuỗi; '' = không. */
   termMonths: string
+  /**
+   * Phí giao dịch (minor units theo tài khoản nguồn); 0 = không có.
+   * Lưu thành một giao dịch CHI riêng vào danh mục "Tài chính", không cộng vào gốc nợ.
+   */
+  fee: number
 }
 export interface RemitValue {
   /** expense = Hỗ trợ gia đình; transfer = Chuyển tài sản (JPY→VND). */
@@ -52,6 +57,7 @@ export const initialDebt = (): DebtValue => ({
   dueOn: '',
   interestPct: '',
   termMonths: '',
+  fee: 0,
 })
 export const initialRemit = (): RemitValue => ({
   kind: 'expense',

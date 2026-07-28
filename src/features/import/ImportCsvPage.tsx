@@ -5,8 +5,8 @@ import { ChevronLeft, Upload } from 'lucide-react'
 import { repo } from '../../data'
 import { useAccounts, useRangeTransactions } from '../../hooks/queries'
 import { addDaysISO, toISODate } from '../../lib/dates'
-import { formatMoney } from '../../lib/money'
-import { expenseMedian, isUnusuallyLarge } from './anomaly'
+import { formatMoney, type CurrencyCode } from '../../lib/money'
+import { expenseMedianForCurrency, isUnusuallyLarge } from './anomaly'
 import {
   buildImportPreview,
   detectInternalTransfers,
@@ -88,27 +88,18 @@ export function ImportCsvPage() {
     [todayISO],
   )
   const { data: historyTxs = [] } = useRangeTransactions(historyRange)
-  // Map tài khoản -> loại tiền, để lọc lịch sử về ĐÚNG loại tiền đang nhập.
-  // Bắt buộc phải lọc: nếu trộn Yên và Đồng vào chung một trung vị, con số ra
-  // sẽ không có ý nghĩa gì cả — 500.000₫ (mua đồ ăn bình thường) so với vài
-  // nghìn Yên (bữa ăn Nhật bình thường) lệch nhau tới ~150 lần. Trộn chung thì
-  // hoặc là ngưỡng bị đẩy lên mức Đồng (nhập sao kê Nhật sẽ chẳng dòng nào
-  // được tô, dù bất thường cỡ nào), hoặc bị đẩy xuống mức Yên (nhập sao kê
-  // Việt Nam thì gần như dòng nào cũng bị tô, người dùng sẽ bỏ qua luôn nhãn
-  // này). Lọc theo loại tiền (không phải theo từng tài khoản) để mẫu đủ lớn,
-  // vì nhiều người có 2 thẻ Yên nhưng dòng tiền tương tự nhau.
-  const currencyByAccountId = useMemo(() => {
-    const map = new Map<string, string>()
+  // Tra loại tiền của một tài khoản — truyền dạng hàm cho anomaly.ts, cùng quy
+  // ước currencyOf đã dùng ở features/reports/aggregate.ts và bộ quy tắc
+  // thông báo. Việc LỌC theo loại tiền (vì sao phải lọc) được giải thích ngay
+  // tại `expenseMedianForCurrency` trong anomaly.ts.
+  const currencyOf = useMemo(() => {
+    const map = new Map<string, CurrencyCode>()
     for (const a of accounts) map.set(a.id, a.currency)
-    return map
+    return (id: string): CurrencyCode | undefined => map.get(id)
   }, [accounts])
-  const sameCurrencyHistoryTxs = useMemo(
-    () => historyTxs.filter((t) => currencyByAccountId.get(t.account_id) === currency),
-    [historyTxs, currencyByAccountId, currency],
-  )
   const median = useMemo(
-    () => expenseMedian(sameCurrencyHistoryTxs, historyRange.start),
-    [sameCurrencyHistoryTxs, historyRange.start],
+    () => expenseMedianForCurrency(historyTxs, currencyOf, currency, historyRange.start),
+    [historyTxs, currencyOf, currency, historyRange.start],
   )
 
   // Chống trùng: đối chiếu với giao dịch đã có của TÀI KHOẢN đích trong khoảng ngày nhập.

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { expenseMedian, isUnusuallyLarge } from './anomaly'
+import { expenseMedian, expenseMedianForCurrency, isUnusuallyLarge } from './anomaly'
+import type { CurrencyCode } from '../../lib/money'
 import type { TransactionRow } from '../../types/database.types'
 
-function tx(amount: number, occurred_on = '2026-07-01'): TransactionRow {
+function tx(amount: number, occurred_on = '2026-07-01', account_id = 'a'): TransactionRow {
   return {
     id: String(Math.random()),
     user_id: 'u',
@@ -10,7 +11,7 @@ function tx(amount: number, occurred_on = '2026-07-01'): TransactionRow {
     amount,
     to_amount: null,
     category_id: 'c',
-    account_id: 'a',
+    account_id,
     to_account_id: null,
     recurring_rule_id: null,
     occurred_on,
@@ -42,6 +43,45 @@ describe('expenseMedian', () => {
     const income = { ...tx(500_000), type: 'income' as const }
     const transfer = { ...tx(500_000), type: 'transfer' as const }
     expect(expenseMedian([...txs, income, transfer], '2026-05-01')).toBe(1_000)
+  })
+})
+
+describe('expenseMedianForCurrency', () => {
+  // currencyOf giả lập: 'jpy-acc' -> JPY, 'vnd-acc' -> VND, id khác -> undefined
+  // (chưa tra được loại tiền).
+  const currencyOf = (id: string): CurrencyCode | undefined => {
+    if (id === 'jpy-acc') return 'JPY'
+    if (id === 'vnd-acc') return 'VND'
+    return undefined
+  }
+
+  it('trung vị JPY không bị kéo lệch bởi VND dù VND nhiều và lớn hơn hẳn (đúng con lỗi cũ)', () => {
+    // VND đông hơn (30 dòng) và số tiền lớn hơn hẳn (500.000) — nếu KHÔNG lọc
+    // theo loại tiền, trung vị gộp sẽ rơi vào mức Đồng, làm ngưỡng vô nghĩa
+    // với sao kê Nhật. Test này phải FAIL nếu ai đó bỏ bộ lọc currency đi.
+    const jpyTxs = Array.from({ length: 20 }, () => tx(3_000, '2026-07-01', 'jpy-acc'))
+    const vndTxs = Array.from({ length: 30 }, () => tx(500_000, '2026-07-01', 'vnd-acc'))
+    const median = expenseMedianForCurrency([...jpyTxs, ...vndTxs], currencyOf, 'JPY', '2026-05-01')
+    expect(median).toBe(3_000)
+  })
+
+  it('tài khoản không tra được loại tiền thì bị loại khỏi mẫu, không tính nhầm vào loại tiền nào', () => {
+    const jpyTxs = Array.from({ length: 20 }, () => tx(3_000, '2026-07-01', 'jpy-acc'))
+    const unknownTxs = Array.from({ length: 30 }, () => tx(999_999, '2026-07-01', 'unknown-acc'))
+    const median = expenseMedianForCurrency(
+      [...jpyTxs, ...unknownTxs],
+      currencyOf,
+      'JPY',
+      '2026-05-01',
+    )
+    expect(median).toBe(3_000)
+  })
+
+  it('đủ 20 giao dịch tổng nhưng chưa đủ 20 giao dịch ĐÚNG loại tiền thì vẫn trả null', () => {
+    const jpyTxs = Array.from({ length: 15 }, () => tx(3_000, '2026-07-01', 'jpy-acc'))
+    const vndTxs = Array.from({ length: 30 }, () => tx(500_000, '2026-07-01', 'vnd-acc'))
+    const median = expenseMedianForCurrency([...jpyTxs, ...vndTxs], currencyOf, 'JPY', '2026-05-01')
+    expect(median).toBeNull()
   })
 })
 

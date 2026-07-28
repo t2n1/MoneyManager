@@ -309,6 +309,66 @@ describe('monthly-summary', () => {
     expect(hit?.title).toContain('thu 280000')
     expect(hit?.detail).toContain('98000')
   })
+
+  // Người dùng thật của app chạy ví JPY + chuyển tiền VND. Cộng thẳng 8.000.000 ₫
+  // vào 182.000 ¥ ra "chi ¥8.182.000" — số vô nghĩa, lại vênh hẳn với trang Báo cáo.
+  it('nhiều loại tiền thì quy đổi về base trước khi cộng', () => {
+    const out = rhythmRules(
+      input({
+        todayISO: '2026-08-01',
+        base: 'JPY',
+        rates: { VND: 160 }, // 1 ¥ = 160 ₫
+        currencyOf: (id) => (id === 'accVND' ? 'VND' : 'JPY'),
+        recentTxs: [
+          tx({ id: 't1', occurred_on: '2026-07-10', type: 'expense', amount: 182_000 }),
+          tx({
+            id: 't2',
+            occurred_on: '2026-07-20',
+            type: 'expense',
+            amount: 8_000_000,
+            account_id: 'accVND',
+          }),
+        ],
+      }),
+    )
+    const hit = out.find((n) => n.type === 'monthly-summary')
+    // 8.000.000 ₫ / 160 = 50.000 ¥ → tổng chi = 232.000 ¥ (KHÔNG phải 8.182.000)
+    expect(hit?.title).toBe('Tháng 7: chi 232000, thu 0')
+    expect(hit?.detail).toBe('Để dành -232000')
+  })
+
+  it('thiếu tỷ giá cho một loại tiền thì IM, không đăng tổng sai', () => {
+    const out = rhythmRules(
+      input({
+        todayISO: '2026-08-01',
+        base: 'JPY',
+        rates: {}, // không có tỷ giá VND
+        currencyOf: (id) => (id === 'accVND' ? 'VND' : 'JPY'),
+        recentTxs: [
+          tx({ id: 't1', occurred_on: '2026-07-10', type: 'expense', amount: 182_000 }),
+          tx({
+            id: 't2',
+            occurred_on: '2026-07-20',
+            type: 'expense',
+            amount: 8_000_000,
+            account_id: 'accVND',
+          }),
+        ],
+      }),
+    )
+    expect(out.filter((n) => n.type === 'monthly-summary')).toHaveLength(0)
+  })
+
+  it('chỉ một loại tiền, trùng base thì không cần tỷ giá vẫn báo', () => {
+    const out = rhythmRules(
+      input({
+        todayISO: '2026-08-01',
+        rates: {},
+        recentTxs: [tx({ id: 't1', occurred_on: '2026-07-10', type: 'expense', amount: 5_000 })],
+      }),
+    )
+    expect(out.filter((n) => n.type === 'monthly-summary')).toHaveLength(1)
+  })
 })
 
 describe('chung', () => {

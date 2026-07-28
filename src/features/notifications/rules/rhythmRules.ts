@@ -1,5 +1,6 @@
 // Luật nhịp và cột mốc (mục 9–13 của spec) — THUẦN.
 import { addMonths, daysBetween, getMonthRange, monthKeyForDate, monthKeyString } from '../../../lib/dates'
+import { convertToBase } from '../../../lib/rates'
 import { detectRecurring, ruleKey } from '../../../lib/recurringRadar'
 import type { AppNotification, NotificationInput } from '../types'
 
@@ -110,25 +111,37 @@ export function rhythmRules(input: NotificationInput): AppNotification[] {
     const prevRange = getMonthRange(prev, input.monthStartDay)
     let spent = 0
     let earned = 0
-    // Ghi chú: recentTxs cộng dồn theo số tiền gốc của tài khoản nguồn, CHƯA quy đổi
-    // ra base. Người dùng một loại tiền thì con số đúng; nhiều loại tiền thì đây chỉ
-    // là tổng thô (cộng lẫn các đơn vị tiền khác nhau). Chấp nhận được vì đây là tin
-    // để biết mức thấp — số chính xác (đã quy đổi) xem ở trang Báo cáo.
+    let missingRate = false
+    // Quy đổi từng giao dịch về base trước khi cộng (t.amount là minor units của
+    // loại tiền tài khoản nguồn) — giống buildBudgetReport/assetBreakdown. Không quy
+    // đổi thì một khoản ₫ cộng thẳng vào ¥ ra một con số vô nghĩa mang ký hiệu ¥,
+    // và số ở đây sẽ vênh với trang Báo cáo.
     for (const t of input.recentTxs) {
       if (t.occurred_on < prevRange.start || t.occurred_on >= prevRange.end) continue
       if (t.exclude_from_stats || t.is_debt_flow) continue
-      if (t.type === 'expense') spent += t.amount
-      else if (t.type === 'income') earned += t.amount
+      if (t.type !== 'expense' && t.type !== 'income') continue
+      const v = convertToBase(t.amount, input.currencyOf(t.account_id), input.base, input.rates)
+      if (v === null) {
+        missingRate = true
+        break
+      }
+      if (t.type === 'expense') spent += v
+      else earned += v
     }
-    out.push({
-      key: `monthly-summary:${monthKeyString(prev)}`,
-      kind: 'info',
-      type: 'monthly-summary',
-      severity: 'low',
-      title: `Tháng ${prev.month}: chi ${input.formatMoney(spent, input.base)}, thu ${input.formatMoney(earned, input.base)}`,
-      detail: `Để dành ${input.formatMoney(earned - spent, input.base)}`,
-      to: '/reports',
-    })
+    // Thiếu tỷ giá thì IM, không đăng tổng sai (mục H của spec: thiếu dữ liệu thì im).
+    // Khác với trang Tài sản/Ngân sách — ở đó còn tách được theo loại tiền, còn tin
+    // này chỉ có một dòng chữ nên đúng-một-phần cũng là sai.
+    if (!missingRate) {
+      out.push({
+        key: `monthly-summary:${monthKeyString(prev)}`,
+        kind: 'info',
+        type: 'monthly-summary',
+        severity: 'low',
+        title: `Tháng ${prev.month}: chi ${input.formatMoney(spent, input.base)}, thu ${input.formatMoney(earned, input.base)}`,
+        detail: `Để dành ${input.formatMoney(earned - spent, input.base)}`,
+        to: '/reports',
+      })
+    }
   }
 
   return out

@@ -4,8 +4,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, Upload } from 'lucide-react'
 import { repo } from '../../data'
 import { useAccounts, useRangeTransactions } from '../../hooks/queries'
-import { toISODate } from '../../lib/dates'
+import { addDaysISO, toISODate } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
+import { expenseMedian, isUnusuallyLarge } from './anomaly'
 import {
   buildImportPreview,
   detectInternalTransfers,
@@ -78,6 +79,18 @@ export function ImportCsvPage() {
           })
         : { items: [], errorCount: 0 },
     [rows, account, dateCol, amountCol, noteCol, dateOrder, hasHeader, negativeIsExpense, currency],
+  )
+
+  // Soát khoản lớn bất thường: trung vị số tiền CHI trong 90 ngày gần nhất.
+  const todayISO = toISODate(new Date())
+  const historyRange = useMemo(
+    () => ({ start: addDaysISO(todayISO, -90), end: addDaysISO(todayISO, 1) }),
+    [todayISO],
+  )
+  const { data: historyTxs = [] } = useRangeTransactions(historyRange)
+  const median = useMemo(
+    () => expenseMedian(historyTxs, historyRange.start),
+    [historyTxs, historyRange.start],
   )
 
   // Chống trùng: đối chiếu với giao dịch đã có của TÀI KHOẢN đích trong khoảng ngày nhập.
@@ -329,16 +342,30 @@ export function ImportCsvPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {toImport.slice(0, 20).map((it: ImportItem, i) => (
-                      <tr key={i} className="border-t border-gray-100 dark:border-gray-800">
-                        <td className="py-1 tabular-nums">{it.occurred_on}</td>
-                        <td className={`py-1 ${it.type === 'expense' ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
-                          {it.type === 'expense' ? 'Chi' : 'Thu'}
-                        </td>
-                        <td className="py-1 text-right tabular-nums">{formatMoney(it.amount, currency)}</td>
-                        <td className="py-1">{it.note}</td>
-                      </tr>
-                    ))}
+                    {toImport.slice(0, 20).map((it: ImportItem, i) => {
+                      // Tô đỏ để soát bằng mắt — KHÔNG chặn lưu (mục G của spec).
+                      const odd = it.type === 'expense' && isUnusuallyLarge(it.amount, median)
+                      return (
+                        <tr
+                          key={i}
+                          className={`border-t border-gray-100 dark:border-gray-800 ${odd ? 'bg-red-50 dark:bg-red-950/40' : ''}`}
+                        >
+                          <td className="py-1 tabular-nums">{it.occurred_on}</td>
+                          <td className={`py-1 ${it.type === 'expense' ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
+                            {it.type === 'expense' ? 'Chi' : 'Thu'}
+                          </td>
+                          <td className="py-1 text-right tabular-nums">
+                            {formatMoney(it.amount, currency)}
+                            {odd && (
+                              <span className="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-[0.625rem] font-semibold text-red-700 dark:bg-red-900/50 dark:text-red-300">
+                                khoản lớn bất thường
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-1">{it.note}</td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
                 {toImport.length > 20 && (

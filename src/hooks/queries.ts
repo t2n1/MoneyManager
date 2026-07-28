@@ -692,3 +692,49 @@ export function useBudgetAlert(): { overCount: number; monthKey: MonthKey } {
   const { report } = useBudgetReport(monthKey)
   return { overCount: report?.overCount ?? 0, monthKey }
 }
+
+// --- Thông báo (mục AO) ---
+
+export function useNotificationState() {
+  return useQuery({
+    queryKey: ['notificationState'],
+    queryFn: () => repo.getNotificationState(),
+    staleTime: 60_000,
+  })
+}
+
+function invalidateNotificationState(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['notificationState'] })
+}
+
+export function useMarkNotificationsRead() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (keys: string[]) => repo.markNotificationsRead(keys),
+    onSettled: () => invalidateNotificationState(qc),
+  })
+}
+
+export function useDismissNotification() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (key: string) => repo.dismissNotification(key),
+    onSettled: () => invalidateNotificationState(qc),
+  })
+}
+
+export function useDeleteNotificationStates() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (keys: string[]) => repo.deleteNotificationStates(keys),
+    onSettled: () => invalidateNotificationState(qc),
+  })
+}
+
+export function usePruneNotificationState() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (beforeISO: string) => repo.pruneNotificationState(beforeISO),
+    onSettled: () => invalidateNotificationState(qc),
+  })
+}

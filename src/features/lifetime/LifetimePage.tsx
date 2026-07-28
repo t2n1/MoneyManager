@@ -307,7 +307,7 @@ export function LifetimePage() {
         </div>
       )}
 
-      {/* STUB Task 9 — hiện chưa ra thẻ nào (trả null), xem InsightCards.tsx */}
+      {/* Bốn thẻ kết luận (Task 9) — xem InsightCards.tsx */}
       {input && profile?.birth_year != null && (
         <InsightCards
           rows={rows}

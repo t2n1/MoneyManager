@@ -31,7 +31,12 @@ function report(lines: BudgetLine[]): BudgetReport {
   }
 }
 
-function cat(id: string, name: string, parent_id: string | null = null): CategoryRow {
+function cat(
+  id: string,
+  name: string,
+  parent_id: string | null = null,
+  is_archived = false,
+): CategoryRow {
   return {
     id,
     user_id: 'u',
@@ -40,7 +45,7 @@ function cat(id: string, name: string, parent_id: string | null = null): Categor
     icon: '',
     parent_id,
     sort_order: 0,
-    is_archived: false,
+    is_archived,
     created_at: '',
     need_level: null,
     cost_type: null,
@@ -165,6 +170,32 @@ describe('budget-pace', () => {
     expect(out.filter((n) => n.type === 'budget-over')).toHaveLength(1)
   })
 
+  it('NHÓM tiêu nhanh hơn nhịp thì câu chữ cũng có "Nhóm", khớp nhánh đã vượt', () => {
+    const out = budgetRules(
+      input({
+        categories: [cat('p1', 'Sinh hoạt'), cat('c9', 'Ăn ngoài', 'p1')],
+        budgetReport: report([line({ categoryId: 'p1', spent: 28_400 })]),
+      }),
+    )
+    const hit = out.find((n) => n.type === 'budget-pace')
+    expect(hit?.title).toBe('Nhóm Sinh hoạt tiêu nhanh hơn nhịp')
+  })
+
+  it('mẫu số tỷ lệ 5% lấy từ report.totalBudgeted, không tự cộng lại', () => {
+    const rep = report([
+      line({ categoryId: 'c1', budgeted: 2_000, spent: 1_800 }),
+      line({ categoryId: 'c2', budgeted: 200_000, spent: 10_000 }),
+    ])
+    // Cố tình đặt tổng KHÁC tổng tự cộng (202.000): nếu luật tự cộng lại thì c1 chiếm
+    // 0,99% → im; nếu đọc report.totalBudgeted thì c1 chiếm 100% → báo. Chốt là luật
+    // dùng đúng con số mà trang Ngân sách đang hiện.
+    rep.totalBudgeted = 2_000
+    const out = budgetRules(input({ budgetReport: rep }))
+    expect(out.filter((n) => n.type === 'budget-pace' && n.key === 'budget-pace:c1')).toHaveLength(
+      1,
+    )
+  })
+
   it('mục con của nhóm có trần cha (isMarker) thì bỏ qua', () => {
     const out = budgetRules(
       input({
@@ -243,6 +274,42 @@ describe('budget-parent-over', () => {
     )
     expect(out.filter((n) => n.type === 'budget-over')).toHaveLength(1)
     expect(out.filter((n) => n.type === 'budget-parent-over')).toHaveLength(0)
+  })
+
+  it('mục chỉ còn con ĐÃ LƯU TRỮ thì tính là mục lá, ra budget-over', () => {
+    const out = budgetRules(
+      input({
+        // p1 từng là nhóm, nhưng con duy nhất đã lưu trữ → thực chất là mục lá.
+        categories: [cat('p1', 'Sinh hoạt'), cat('c1', 'Ăn ngoài', 'p1', true)],
+        budgetReport: report([line({ categoryId: 'p1', budgeted: 100_000, spent: 108_400 })]),
+      }),
+    )
+    // Nếu vẫn coi là nhóm: câu chữ ra "Nhóm Sinh hoạt vượt trần" mà không có phần "chủ
+    // yếu do", và nặng hơn — mang type budget-parent-over nên tắt "Vượt ngân sách tháng"
+    // trong cài đặt KHÔNG làm nó im.
+    expect(out.filter((n) => n.type === 'budget-parent-over')).toHaveLength(0)
+    const hit = out.find((n) => n.type === 'budget-over')
+    expect(hit?.key).toBe('budget-over:p1')
+    expect(hit?.title).toBe('Sinh hoạt đã vượt ngân sách 8400')
+  })
+
+  it('nhóm còn con chưa lưu trữ thì vẫn là nhóm', () => {
+    const out = budgetRules(
+      input({
+        categories: [
+          cat('p1', 'Sinh hoạt'),
+          cat('c1', 'Ăn ngoài', 'p1', true),
+          cat('c2', 'Giải trí', 'p1'),
+        ],
+        budgetReport: groupReport([
+          ['p1', 0],
+          ['c2', 108_400],
+        ]),
+      }),
+    )
+    expect(out.find((n) => n.type === 'budget-parent-over')?.title).toBe(
+      'Nhóm Sinh hoạt vượt trần 8400 — chủ yếu do Giải trí',
+    )
   })
 })
 

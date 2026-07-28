@@ -28,11 +28,20 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
   const elapsed = totalDays > 0 ? Math.min(1, Math.max(0, elapsedDays / totalDays)) : 0
 
   const realLines = report.lines.filter((l) => !l.isMarker && l.budgeted > 0)
-  const totalBudgeted = realLines.reduce((s, l) => s + l.budgeted, 0)
+  // Mẫu số của luật nhịp lấy THẲNG từ báo cáo, không tự cộng lại: report.totalBudgeted
+  // (progress.ts) cộng đúng cùng tập dòng này, nên tự cộng chỉ tạo thêm một chỗ có thể
+  // trôi lệch khỏi con số mà trang Ngân sách đang hiện.
+  const totalBudgeted = report.totalBudgeted
 
   for (const l of realLines) {
-    // Nhóm = mục có con. Quyết định mục 5 hay mục 7, hai loại LOẠI TRỪ NHAU tuyệt đối.
-    const children = input.categories.filter((c) => c.parent_id === l.categoryId)
+    // Nhóm = mục có con CHƯA lưu trữ. Quyết định mục 5 hay mục 7, hai loại LOẠI TRỪ NHAU
+    // tuyệt đối. Bỏ con đã lưu trữ là CỐ Ý: mục có đúng một con và con đó đã lưu trữ thì
+    // thực chất là mục lá — nếu vẫn coi là nhóm thì (a) câu chữ ra "Nhóm X vượt trần" mà
+    // không có phần "chủ yếu do" nào, và (b) nặng hơn: nó mang type budget-parent-over,
+    // nên tắt "Vượt ngân sách tháng" trong cài đặt KHÔNG làm nó im.
+    const children = input.categories.filter(
+      (c) => c.parent_id === l.categoryId && !c.is_archived,
+    )
 
     // --- Mục 5 (mục lá) / Mục 7 (nhóm): đã vượt ---
     // Dấu `>` chứ không phải `>=` (mục C.1 luật 5 của spec: chi tháng này > hạn mức).
@@ -89,7 +98,9 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
       kind: 'action',
       type: 'budget-pace',
       severity: 'medium',
-      title: `${nameOf(l.categoryId)} tiêu nhanh hơn nhịp`,
+      // Gọi tên y như nhánh "đã vượt" ở trên: cùng một danh mục mà lúc thì "Nhóm Sinh
+      // hoạt", lúc thì "Sinh hoạt" thì người dùng tưởng là hai chỗ khác nhau.
+      title: `${children.length > 0 ? 'Nhóm ' : ''}${nameOf(l.categoryId)} tiêu nhanh hơn nhịp`,
       detail: `Mới qua ${Math.round(elapsed * 100)}% tháng đã dùng ${Math.round(spentRatio * 100)}% hạn mức (${input.formatMoney(l.spent, input.base)} / ${input.formatMoney(l.budgeted, input.base)})`,
       to: BUDGET_ROUTE,
     })

@@ -79,11 +79,23 @@ describe('budget-over', () => {
     expect(hit?.title).toContain('Ăn ngoài')
   })
 
-  it('đúng bằng hạn mức tính là vượt', () => {
+  // Ranh giới hai phía của dấu `>`. Chỉ đếm số dòng thì câu chữ vô nghĩa
+  // "đã vượt ngân sách 0" lọt lưới, nên phải đọc luôn `title`.
+  it('đúng bằng hạn mức thì CHƯA báo vượt (không có dòng "vượt ngân sách 0")', () => {
     const out = budgetRules(
       input({ budgetReport: report([line({ categoryId: 'c1', spent: 40_000 })]) }),
     )
-    expect(out.filter((n) => n.type === 'budget-over')).toHaveLength(1)
+    expect(out.filter((n) => n.type === 'budget-over')).toHaveLength(0)
+    expect(out.map((n) => n.title)).not.toContain('Ăn ngoài đã vượt ngân sách 0')
+  })
+
+  it('vượt đúng 1 đơn vị thì đã báo, kèm đúng số vượt', () => {
+    const out = budgetRules(
+      input({ budgetReport: report([line({ categoryId: 'c1', spent: 40_001 })]) }),
+    )
+    const hits = out.filter((n) => n.type === 'budget-over')
+    expect(hits).toHaveLength(1)
+    expect(hits[0].title).toBe('Ăn ngoài đã vượt ngân sách 1')
   })
 
   it('chưa vượt thì không báo', () => {

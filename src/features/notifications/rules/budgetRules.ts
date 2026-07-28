@@ -35,7 +35,11 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
     const children = input.categories.filter((c) => c.parent_id === l.categoryId)
 
     // --- Mục 5 (mục lá) / Mục 7 (nhóm): đã vượt ---
-    if (l.spent >= l.budgeted) {
+    // Dấu `>` chứ không phải `>=` (mục C.1 luật 5 của spec: chi tháng này > hạn mức).
+    // Tiêu đúng bằng hạn mức thì chưa vượt — và nếu báo, câu chữ sẽ thành
+    // "đã vượt ngân sách ¥0", một dòng đỏ vô nghĩa giữ chỗ suốt tháng. Ca đúng 100%
+    // đã có mục 6 (tiêu nhanh hơn nhịp) lo, câu chữ hữu ích hơn.
+    if (l.spent > l.budgeted) {
       const over = input.formatMoney(l.spent - l.budgeted, input.base)
       const usage = `Đã tiêu ${input.formatMoney(l.spent, input.base)} / ${input.formatMoney(l.budgeted, input.base)}`
 

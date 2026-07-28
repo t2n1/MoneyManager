@@ -1,8 +1,19 @@
 // Sinh giả định thu/chi nền từ giao dịch THẬT. THUẦN.
-// Chỉ nhận giao dịch CÙNG MỘT loại tiền — caller lọc trước. Trộn tiền ở đây thì
-// phải kéo Rates vào, mà giả định của chặng vốn dĩ theo tiền bản địa.
+// Chỉ nhận giao dịch CÙNG MỘT loại tiền. `TransactionRow` thật (xem
+// `types/database.types.ts`, khớp `0001_init.sql`) KHÔNG có cột `currency` — tiền
+// của một giao dịch suy ra từ tài khoản nguồn, đúng như comment tại field `amount`:
+// "minor units theo currency của tài khoản nguồn". Vì vậy hàm này TỰ lọc bằng
+// `currencyOf(t.account_id)` thay vì phó mặc cho caller: chốt kiểm nằm trong hàm
+// thì mọi caller đều được bảo vệ, phó cho caller là mỗi caller mới lại một cơ hội
+// quên (quên thì trộn yên với đồng vào cùng một con số, sai hàng trăm lần và im
+// lặng). KHÔNG tự quy đổi (không kéo `Rates` vào) — giả định của chặng vốn dĩ theo
+// tiền bản địa, quy đổi là việc của tầng gọi (`convertLifetimeMinor` ở project.ts).
 import { daysBetween } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/currencies'
+// Dùng lại `CurrencyOf` đã có ở reports/aggregate.ts (cùng chữ ký với bản ở
+// ledgerShared.ts) thay vì khai kiểu mới — file nguồn thuần, không React, nên
+// import vào baseline.ts không kéo theo gì nặng.
+import type { CurrencyOf } from '../reports/aggregate'
 import type { CategoryRow, TransactionRow } from '../../types/database.types'
 
 export interface BaselineCategoryLine {
@@ -25,36 +36,21 @@ export interface BaselineSuggestion {
 
 const MAX_MONTHS = 12
 
-/**
- * `TransactionRow` thật (xem `types/database.types.ts`, khớp `0001_init.sql`)
- * KHÔNG có cột `currency` — tiền của một giao dịch suy ra từ tài khoản nguồn
- * (`currencyOf(account_id)`), đúng như comment "minor units theo currency của tài
- * khoản nguồn". Caller (màn Lifetime) phải tự lọc `txs` theo tài khoản trước khi
- * gọi hàm này — tham số `currency` ở đây chỉ để đối chiếu PHÒNG HỜ, không phải
- * nguồn sự thật. Khai kiểu mở rộng optional để đọc được field này nếu ai đó gắn
- * vào (test, hoặc tương lai) mà không nói dối kiểu dữ liệu thật.
- */
-type MaybeTaggedCurrency = TransactionRow & { currency?: CurrencyCode }
-
 export function suggestBaseline(
   txs: TransactionRow[],
   categories: CategoryRow[],
+  currencyOf: CurrencyOf,
   currency: CurrencyCode,
   todayISO: string,
 ): BaselineSuggestion {
-  const kept = txs.filter((t) => {
-    const row = t as MaybeTaggedCurrency
-    return (
-      // Không có cột currency thật (dữ liệu Supabase/demo) → coi như đã đúng tiền,
-      // tin caller đã lọc. Có gắn (test) mà khác thì loại — đúng ý "chỉ nhận cùng
-      // một loại tiền".
-      (row.currency === undefined || row.currency === currency) &&
+  const kept = txs.filter(
+    (t) =>
+      currencyOf(t.account_id) === currency &&
       !t.exclude_from_stats &&
       // Chuyển khoản không phải thu cũng không phải chi — cộng vào là đếm hai lần.
       (t.type === 'income' || t.type === 'expense') &&
-      daysBetween(t.occurred_on, todayISO) <= MAX_MONTHS * 31
-    )
-  })
+      daysBetween(t.occurred_on, todayISO) <= MAX_MONTHS * 31,
+  )
 
   if (kept.length === 0) {
     return { annualIncomeMinor: 0, annualExpenseMinor: 0, monthsCovered: MAX_MONTHS, byCategory: [] }

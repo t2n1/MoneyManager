@@ -1,6 +1,6 @@
 // Nạp dữ liệu Lifetime và memo hoá bản chiếu. Đây là chỗ DUY NHẤT gọi projectLifetime
 // cho phần UI — mọi màn con nhận YearRow[] qua prop, không tự chiếu lại.
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { repo } from '../../data'
 import {
@@ -16,6 +16,7 @@ import {
 } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
 import { addDaysISO, toISODate } from '../../lib/dates'
+import type { LifeScenarioRow } from '../../types/database.types'
 import { assetBreakdown, type AssetGroupSetting } from '../assets/aggregate'
 import { debtSummary } from '../debts/aggregate'
 import { suggestBaseline } from './baseline'
@@ -24,6 +25,7 @@ import {
   type LifetimeEvent,
   type LifetimeInput,
   type LifetimePhase,
+  type YearRow,
 } from './project'
 
 // Đủ trùm MAX_MONTHS (12) của suggestBaseline kể cả tháng lệch ngày.
@@ -47,7 +49,11 @@ export function useLifetime() {
   const phasesQ = useQuery({ queryKey: ['lifePhases'], queryFn: () => repo.getLifePhases() })
   const eventsQ = useQuery({ queryKey: ['lifeEvents'], queryFn: () => repo.getLifeEvents() })
 
-  const scenarios = scenariosQ.data ?? []
+  // useMemo (không phải `?? []` trần) để giữ NGUYÊN tham chiếu mảng rỗng qua các lần
+  // render khi scenariosQ.data còn undefined (đang tải) — projectScenario ở dưới nhận
+  // `scenarios` làm dep của useCallback, tham chiếu đổi mỗi render sẽ làm nó không bao
+  // giờ ổn định (oxlint react-hooks/exhaustive-deps từng bắt đúng ca này).
+  const scenarios = useMemo(() => scenariosQ.data ?? [], [scenariosQ.data])
   const active =
     scenarios.find((s) => s.id === activeId) ?? scenarios.find((s) => s.is_primary) ?? scenarios[0]
 
@@ -60,14 +66,13 @@ export function useLifetime() {
     [eventsQ.data, active?.id],
   )
 
-  // `input` được nhớ đệm và trả ra CÙNG với `rows` (thay vì chỉ trả `rows`) vì Task 9
-  // (`InsightCards`) cần đúng object này cho `minimumReturnBps(input)` — hàm đó tự dò
-  // lại `projectLifetime` với `realReturnBps` khác. Dựng lại `input` một lần nữa ở
-  // `LifetimePage` là lặp code và có thể lệch khỏi bản đã dùng để ra `rows`.
-  const input = useMemo<LifetimeInput | null>(() => {
-    const birthYear = profileQ.data?.birth_year
-    if (!active || !birthYear) return null
-    return {
+  // `buildInputFor` là chỗ DUY NHẤT ráp `LifetimeInput` từ một `LifeScenarioRow` — dùng
+  // chung cho `active` (ra `input`/`rows` bên dưới) VÀ cho `projectScenario` (chế độ so
+  // sánh, Task 8 Step 4). Lọc phases/events theo `scenario.id` ngay TRONG hàm này (đọc
+  // thẳng `phasesQ.data`/`eventsQ.data` chưa lọc), vì `phases`/`events` ở trên chỉ lọc
+  // sẵn cho `active` — kịch bản so sánh cần một scenario_id khác.
+  const buildInputFor = useCallback(
+    (scenario: LifeScenarioRow, birthYear: number): LifetimeInput => ({
       // Năm hiện tại đọc một lần ở tầng UI. project.ts KHÔNG được gọi Date.
       // Đây là ranh giới CÓ Ý: `useLifetime.ts` được đọc đồng hồ, `project.ts` và
       // `insights.ts` thì không. `purity.test.ts` canh đúng hai file kia theo TÊN chứ
@@ -76,41 +81,70 @@ export function useLifetime() {
       // `new Date()` ở đây rồi đi đọc đồng hồ trong engine.
       currentYear: new Date().getFullYear(),
       birthYear,
-      endAge: active.end_age,
-      displayCurrency: active.display_currency as CurrencyCode,
-      startingAssetsMinor: active.starting_assets_minor,
-      realReturnBps: active.real_return_bps,
-      bandSpreadBps: active.band_spread_bps,
+      endAge: scenario.end_age,
+      displayCurrency: scenario.display_currency as CurrencyCode,
+      startingAssetsMinor: scenario.starting_assets_minor,
+      realReturnBps: scenario.real_return_bps,
+      bandSpreadBps: scenario.band_spread_bps,
       inflationBps: profileQ.data?.annual_inflation_bps ?? 200,
-      nominalTerms: active.nominal_terms,
-      phases: phases.map(
-        (p): LifetimePhase => ({
-          startYear: p.start_year,
-          label: p.label,
-          country: p.country,
-          currency: p.currency as CurrencyCode,
-          annualIncomeMinor: p.annual_income_minor,
-          annualExpenseMinor: p.annual_expense_minor,
-          fxToDisplay: p.fx_to_display,
-        }),
-      ),
-      events: events.map(
-        (e): LifetimeEvent => ({
-          id: e.id,
-          startYear: e.start_year,
-          endYear: e.end_year,
-          kind: e.kind,
-          amountMinor: e.amount_minor,
-          currency: e.currency as CurrencyCode,
-          label: e.label,
-          fxToDisplay: e.fx_to_display,
-          inflate: e.inflate,
-        }),
-      ),
-    }
-  }, [active, phases, events, profileQ.data])
+      nominalTerms: scenario.nominal_terms,
+      phases: (phasesQ.data ?? [])
+        .filter((p) => p.scenario_id === scenario.id)
+        .map(
+          (p): LifetimePhase => ({
+            startYear: p.start_year,
+            label: p.label,
+            country: p.country,
+            currency: p.currency as CurrencyCode,
+            annualIncomeMinor: p.annual_income_minor,
+            annualExpenseMinor: p.annual_expense_minor,
+            fxToDisplay: p.fx_to_display,
+          }),
+        ),
+      events: (eventsQ.data ?? [])
+        .filter((e) => e.scenario_id === scenario.id)
+        .map(
+          (e): LifetimeEvent => ({
+            id: e.id,
+            startYear: e.start_year,
+            endYear: e.end_year,
+            kind: e.kind,
+            amountMinor: e.amount_minor,
+            currency: e.currency as CurrencyCode,
+            label: e.label,
+            fxToDisplay: e.fx_to_display,
+            inflate: e.inflate,
+          }),
+        ),
+    }),
+    [phasesQ.data, eventsQ.data, profileQ.data],
+  )
+
+  // `input` được nhớ đệm và trả ra CÙNG với `rows` (thay vì chỉ trả `rows`) vì Task 9
+  // (`InsightCards`) cần đúng object này cho `minimumReturnBps(input)` — hàm đó tự dò
+  // lại `projectLifetime` với `realReturnBps` khác. Dựng lại `input` một lần nữa ở
+  // `LifetimePage` là lặp code và có thể lệch khỏi bản đã dùng để ra `rows`.
+  const input = useMemo<LifetimeInput | null>(() => {
+    const birthYear = profileQ.data?.birth_year
+    if (!active || !birthYear) return null
+    return buildInputFor(active, birthYear)
+  }, [active, profileQ.data, buildInputFor])
 
   const rows = useMemo(() => (input ? projectLifetime(input) : []), [input])
+
+  // Chiếu một kịch bản BẤT KỲ theo id — dùng cho chế độ so sánh (Task 8 Step 4, nút "So
+  // sánh" ở LifetimePage). Đi qua đúng `buildInputFor` ở trên, không dựng input theo lối
+  // riêng — tránh đúng thứ bình luận `input` cảnh báo (hai công thức build input lệch
+  // nhau theo thời gian).
+  const projectScenario = useCallback(
+    (scenarioId: string): YearRow[] => {
+      const birthYear = profileQ.data?.birth_year
+      const scenario = scenarios.find((s) => s.id === scenarioId)
+      if (!scenario || !birthYear) return []
+      return projectLifetime(buildInputFor(scenario, birthYear))
+    },
+    [scenarios, profileQ.data, buildInputFor],
+  )
 
   // --- Tạo kịch bản đầu tiên từ chi tiêu thật (thay wizard, xem LifetimePage) ---
   // Chỉ cần nạp accounts/categories/giao dịch khi CHƯA có kịch bản nào — tránh kéo cả
@@ -223,6 +257,9 @@ export function useLifetime() {
     rows,
     /** `LifetimeInput` đã dùng để ra `rows` — Task 9 (`InsightCards`) cần nguyên bản này. */
     input,
+    /** Chiếu một kịch bản khác theo id, dùng cho chế độ so sánh ở `LifetimeChartCard`
+     *  (Task 8). Trả `[]` nếu id không khớp kịch bản nào hoặc chưa có năm sinh. */
+    projectScenario,
     profile: profileQ.data,
     isLoading: profileQ.isLoading || scenariosQ.isLoading || phasesQ.isLoading || eventsQ.isLoading,
     // `== null` (không phải `=== null`): dữ liệu demo/local cũ hơn migration 0031 có

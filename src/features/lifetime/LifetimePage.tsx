@@ -42,6 +42,7 @@ export function LifetimePage() {
     events,
     rows,
     input,
+    projectScenario,
     profile,
     isLoading,
     needsBirthYear,
@@ -55,6 +56,22 @@ export function LifetimePage() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const { data: historyRows = [] } = useNetWorthSnapshots()
+
+  // --- Chế độ so sánh (Task 8 Step 4) ---
+  const otherScenarios = useMemo(
+    () => scenarios.filter((s) => s.id !== activeId),
+    [scenarios, activeId],
+  )
+  const [compareId, setCompareId] = useState<string | null>(null)
+  const [comparePickerOpen, setComparePickerOpen] = useState(false)
+  // Đổi chip kịch bản đang xem có thể làm compareId trùng activeId (đang so với chính
+  // nó) — tự bỏ qua bằng cách suy ra thay vì nhớ thêm một effect reset state.
+  const effectiveCompareId = compareId && compareId !== activeId ? compareId : null
+  const compareRows = useMemo(
+    () => (effectiveCompareId ? projectScenario(effectiveCompareId) : null),
+    [effectiveCompareId, projectScenario],
+  )
+  const compareScenario = scenarios.find((s) => s.id === effectiveCompareId) ?? null
 
   // Điều kiện banner cảnh báo tỷ giá bằng 1 (BẮT BUỘC — xem task-7-brief.md): bất kỳ
   // chặng/sự kiện nào của kịch bản ĐANG CHỌN có tiền khác tiền hiển thị nhưng tỷ giá
@@ -220,12 +237,12 @@ export function LifetimePage() {
         </button>
       )}
 
-      {/* STUB Task 8 — hiện chưa vẽ gì (trả null), xem LifetimeChartCard.tsx */}
       <LifetimeChartCard
         rows={rows}
         historyRows={historyRows}
         currency={active.display_currency as CurrencyCode}
-        compare={null}
+        compare={compareRows}
+        compareCurrency={compareScenario ? (compareScenario.display_currency as CurrencyCode) : null}
       />
 
       <div className="flex gap-2">
@@ -239,13 +256,48 @@ export function LifetimePage() {
         </button>
         <button
           type="button"
-          disabled
-          title="Task 8 sẽ bật: so kịch bản đang chọn với một kịch bản khác"
-          className="min-h-11 flex-1 rounded-xl bg-white dark:bg-gray-900 px-3 text-sm font-medium text-gray-400 dark:text-gray-600 shadow-sm active:scale-95 disabled:opacity-60"
+          disabled={otherScenarios.length === 0}
+          title={
+            otherScenarios.length === 0 ? 'Cần ít nhất 2 kịch bản mới so sánh được' : undefined
+          }
+          onClick={() => {
+            if (effectiveCompareId) {
+              setCompareId(null)
+              setComparePickerOpen(false)
+            } else {
+              setComparePickerOpen((o) => !o)
+            }
+          }}
+          className={`min-h-11 flex-1 rounded-xl px-3 text-sm font-medium shadow-sm active:scale-95 disabled:opacity-60 ${
+            effectiveCompareId
+              ? 'bg-green-600 text-white'
+              : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 disabled:text-gray-400 dark:disabled:text-gray-600'
+          }`}
         >
-          So sánh
+          {effectiveCompareId ? 'Đang so sánh · Bấm để tắt' : 'So sánh'}
         </button>
       </div>
+
+      {comparePickerOpen && !effectiveCompareId && (
+        <div className="rounded-xl bg-white dark:bg-gray-900 p-2.5 shadow-sm">
+          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Chọn kịch bản để so sánh:</p>
+          <div className="flex flex-wrap gap-2">
+            {otherScenarios.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  setCompareId(s.id)
+                  setComparePickerOpen(false)
+                }}
+                className="min-h-11 shrink-0 whitespace-nowrap rounded-full border border-gray-300 dark:border-gray-700 px-4 text-sm font-medium text-gray-600 dark:text-gray-300 active:scale-95"
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* STUB Task 9 — hiện chưa ra thẻ nào (trả null), xem InsightCards.tsx */}
       {input && profile?.birth_year != null && (

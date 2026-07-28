@@ -47,7 +47,15 @@ export function useRates() {
   const base = profile?.base_currency ?? 'JPY'
   const query = useQuery({
     queryKey: ['rates', base],
-    queryFn: () => fetchRates(base),
+    queryFn: async () => {
+      const rates = await fetchRates(base)
+      // Tích lịch sử tỷ giá cho luật "tỷ giá đẹp" ở đợt sau. Ghi hỏng thì kệ —
+      // không được làm hỏng việc lấy tỷ giá (mục H của spec).
+      void Promise.resolve().then(() =>
+        repo.recordFxRates(toISODate(new Date()), base, rates)
+      ).catch(() => {})
+      return rates
+    },
     staleTime: 12 * 3600_000,
     gcTime: 24 * 3600_000,
     retry: 1,

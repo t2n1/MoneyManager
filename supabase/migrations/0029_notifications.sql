@@ -5,7 +5,7 @@
 -- fx_history chỉ tích dữ liệu cho luật "tỷ giá đẹp" ở đợt sau; đợt này không ai đọc nó.
 -- ============================================================
 
-create table public.notification_state (
+create table if not exists public.notification_state (
   user_id      uuid        not null references auth.users (id) on delete cascade,
   -- Mã thông báo. Việc-cần-làm: '<type>:<id>' (không kèm kỳ).
   -- Tin-để-biết: '<type>:<id>:<kỳ>'. Xem mục B của spec.
@@ -18,11 +18,12 @@ create table public.notification_state (
   primary key (user_id, key)
 );
 
-create index notification_state_cleanup_idx
+create index if not exists notification_state_cleanup_idx
   on public.notification_state (user_id, created_at);
 
 alter table public.notification_state enable row level security;
 
+drop policy if exists "own rows" on public.notification_state;
 create policy "own rows" on public.notification_state
   for all
   using (auth.uid() = user_id)
@@ -30,10 +31,10 @@ create policy "own rows" on public.notification_state
 
 -- Loại thông báo đã tắt; mảng rỗng = bật hết.
 alter table public.profiles
-  add column notif_off text[] not null default '{}';
+  add column if not exists notif_off text[] not null default '{}';
 
 -- Lịch sử tỷ giá theo ngày (một dòng mỗi ngày mỗi base).
-create table public.fx_history (
+create table if not exists public.fx_history (
   user_id uuid  not null references auth.users (id) on delete cascade,
   on_date date  not null,
   base    text  not null,
@@ -44,6 +45,7 @@ create table public.fx_history (
 
 alter table public.fx_history enable row level security;
 
+drop policy if exists "own rows" on public.fx_history;
 create policy "own rows" on public.fx_history
   for all
   using (auth.uid() = user_id)

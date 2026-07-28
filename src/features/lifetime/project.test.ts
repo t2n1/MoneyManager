@@ -124,6 +124,7 @@ describe('projectLifetime', () => {
             amountMinor: 500_000,
             currency: 'JPY',
             label: 'Học phí',
+            fxToDisplay: 1,
             inflate: false,
           },
         ],
@@ -151,6 +152,7 @@ describe('projectLifetime', () => {
             amountMinor: 1_100_000,
             currency: 'JPY',
             label: '年金',
+            fxToDisplay: 1,
             inflate: false,
           },
         ],
@@ -175,6 +177,7 @@ describe('projectLifetime', () => {
             amountMinor: 1_000_000,
             currency: 'JPY',
             label: 'Học phí',
+            fxToDisplay: 1,
             inflate: true,
           },
         ],
@@ -197,6 +200,7 @@ describe('projectLifetime', () => {
             amountMinor: 1_000_000,
             currency: 'JPY',
             label: '年金',
+            fxToDisplay: 1,
             inflate: false,
           },
         ],
@@ -210,11 +214,116 @@ describe('projectLifetime', () => {
     for (const r of rows) expect(r.expenseMinor).toBe(4_000_000)
   })
 
-  it('dải dao động: nhánh cao ≥ trung tâm ≥ nhánh thấp', () => {
+  it('dải dao động: nhánh lạc quan ≥ trung tâm ≥ nhánh bi quan', () => {
     const rows = projectLifetime(baseInput({ endAge: 60, realReturnBps: 300, bandSpreadBps: 150 }))
     const last = rows[rows.length - 1]
-    expect(last.assetsHighMinor).toBeGreaterThan(last.assetsEndMinor)
-    expect(last.assetsEndMinor).toBeGreaterThan(last.assetsLowMinor)
+    expect(last.assetsOptimisticMinor).toBeGreaterThan(last.assetsEndMinor)
+    expect(last.assetsEndMinor).toBeGreaterThan(last.assetsPessimisticMinor)
+  })
+
+  it('dải dao động giữ đúng thứ tự cả khi tài sản âm', () => {
+    // Cạn tiền: thu 1tr, chi 4tr, khởi điểm 0 → âm ngay năm đầu và âm mãi.
+    // Ở vùng ÂM, nhánh lợi suất CAO phình nợ nhanh hơn nên nó mới là nhánh bi quan.
+    // Gán hai trường theo nhánh lợi suất thì ở đúng đoạn cạn tiền chúng đảo chỗ, và
+    // <Area> của Recharts (Task 8) vẽ dải lộn ngược.
+    const rows = projectLifetime(
+      baseInput({
+        endAge: 40,
+        startingAssetsMinor: 0,
+        realReturnBps: 500,
+        bandSpreadBps: 300,
+        phases: [
+          {
+            startYear: 2026,
+            label: 'Nhật',
+            country: 'JP',
+            currency: 'JPY',
+            annualIncomeMinor: 1_000_000,
+            annualExpenseMinor: 4_000_000,
+            fxToDisplay: 1,
+          },
+        ],
+      }),
+    )
+    // Chốt là kịch bản THẬT SỰ âm, không thì vòng lặp dưới kiểm một mảng toàn số dương.
+    expect(rows.every((r) => r.assetsEndMinor < 0)).toBe(true)
+    for (const r of rows) {
+      expect(r.assetsPessimisticMinor).toBeLessThanOrEqual(r.assetsOptimisticMinor)
+    }
+    // Và ở vùng âm, nhánh bi quan đúng là nhánh lợi suất CAO — trung tâm nằm giữa.
+    const last = rows[rows.length - 1]
+    expect(last.assetsPessimisticMinor).toBeLessThan(last.assetsEndMinor)
+    expect(last.assetsOptimisticMinor).toBeGreaterThan(last.assetsEndMinor)
+  })
+
+  it('sự kiện dùng tỷ giá RIÊNG của nó, không mượn tỷ giá của chặng', () => {
+    // Ca thật: nhận 年金 ¥1.100.000/năm trong khi đã sang Mỹ. Đơn vị hiển thị USD,
+    // chặng cũng USD, chỉ sự kiện là JPY — không có tỷ giá nào của chặng dùng được.
+    // ¥1.100.000 × 0,00667 = $7.337 → 733.700 minor USD.
+    // Dùng tỷ giá 1 (lỗi cũ) sẽ ra 110.000.000 minor USD = $1,1 triệu, sai 150 lần.
+    const rows = projectLifetime(
+      baseInput({
+        endAge: 34,
+        displayCurrency: 'USD',
+        startingAssetsMinor: 0,
+        phases: [
+          {
+            startYear: 2026,
+            label: 'Mỹ',
+            country: 'US',
+            currency: 'USD',
+            annualIncomeMinor: 0,
+            annualExpenseMinor: 0,
+            fxToDisplay: 1,
+          },
+        ],
+        events: [
+          {
+            id: 'e1',
+            startYear: 2026,
+            endYear: null,
+            kind: 'income',
+            amountMinor: 1_100_000,
+            currency: 'JPY',
+            label: '年金',
+            fxToDisplay: 0.00667,
+            inflate: false,
+          },
+        ],
+      }),
+    )
+    expect(rows[0].events[0].amountDisplayMinor).toBe(733_700)
+    expect(rows[0].netFlowMinor).toBe(733_700)
+  })
+
+  it('giá danh nghĩa: tài sản tăng theo lợi suất DANH NGHĨA', () => {
+    // Không dòng tiền (thu = chi = 0, không sự kiện) để chỉ còn lợi suất tác động.
+    // r = 5%, i = 2% → danh nghĩa (1,05 × 1,02) − 1 = 7,1%/năm, làm tròn theo TỪNG năm:
+    //   1.000.000 → 1.071.000 → 1.147.041 → 1.228.481
+    // Vẫn dùng lợi suất thực 5% thì ra 1.050.000 / 1.102.500 / 1.157.625 — tức là
+    // dòng tiền tính bằng tiền tương lai còn tài sản tính bằng tiền hôm nay.
+    const rows = projectLifetime(
+      baseInput({
+        endAge: 34,
+        nominalTerms: true,
+        realReturnBps: 500,
+        inflationBps: 200,
+        bandSpreadBps: 0,
+        startingAssetsMinor: 1_000_000,
+        phases: [
+          {
+            startYear: 2026,
+            label: 'Nhật',
+            country: 'JP',
+            currency: 'JPY',
+            annualIncomeMinor: 0,
+            annualExpenseMinor: 0,
+            fxToDisplay: 1,
+          },
+        ],
+      }),
+    )
+    expect(rows.map((r) => r.assetsEndMinor)).toEqual([1_071_000, 1_147_041, 1_228_481])
   })
 
   it('tài sản âm được, không bị kẹp về 0', () => {

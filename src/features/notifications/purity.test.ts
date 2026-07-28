@@ -34,6 +34,10 @@ const ENTRY_POINTS = [
   // thì lần sau ai thêm một import cũng không ai biết.
   'features/notifications/state.ts',
   'features/import/anomaly.ts',
+  // Engine Lifetime: Task 12 sẽ cho lifetimeRules.ts gọi projectLifetime, tức nó vào
+  // đồ thị import của bộ luật. Canh từ bây giờ để ràng buộc "module lá" có chốt tự động
+  // suốt các task còn lại, thay vì trông vào review thủ công.
+  'features/lifetime/project.ts',
 ]
 
 /** Chỉ những file này bị soi TOÀN BỘ nội dung (mục J nói thẳng tên chúng). */

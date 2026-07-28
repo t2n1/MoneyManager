@@ -24,6 +24,14 @@ export interface LifetimeEvent {
   amountMinor: number
   currency: CurrencyCode
   label: string
+  /**
+   * 1 đơn vị `currency` của SỰ KIỆN = bao nhiêu đơn vị display, theo MAJOR units.
+   *
+   * Sự kiện mang tỷ giá RIÊNG, không mượn của chặng: 年金 giữ ¥ trong khi chặng Mỹ
+   * dùng $ và đơn vị hiển thị cũng là $ — lúc đó tỷ giá của chặng ($→$ = 1) vô dụng.
+   * Xem migration 0032.
+   */
+  fxToDisplay: number
   inflate: boolean
 }
 
@@ -38,7 +46,14 @@ export interface LifetimeInput {
   /** Nửa độ rộng dải: chạy lại với realReturn ± giá trị này. 0 = không có dải. */
   bandSpreadBps: number
   inflationBps: number
-  /** false = giá hôm nay: lạm phát KHÔNG phồng chi phí, chỉ trừ vào lợi suất. */
+  /**
+   * false = giá hôm nay (mặc định): `inflationBps` KHÔNG được dùng ở đâu cả — thu,
+   * chi và sự kiện đứng yên, tài sản tăng theo đúng `realReturnBps` đã nhập (lợi
+   * suất THỰC vốn đã trừ lạm phát sẵn, nên không trừ thêm lần nữa ở đây).
+   *
+   * true = giá danh nghĩa: lạm phát phồng thu/chi/sự kiện, VÀ lợi suất của cả ba
+   * nhánh đổi sang danh nghĩa (1+r)(1+i)−1 để cùng đơn vị với dòng tiền.
+   */
   nominalTerms: boolean
   phases: LifetimePhase[]
   events: LifetimeEvent[]
@@ -64,11 +79,20 @@ export interface YearRow {
   events: YearEvent[]
   /** (thu nền + thu sự kiện) − (chi nền + chi sự kiện) */
   netFlowMinor: number
+  /** Nhánh TRUNG TÂM: đúng `realReturnBps` đã nhập, không cộng trừ dải. */
   assetsEndMinor: number
-  /** Nhánh lợi suất thấp (realReturn − bandSpread). */
-  assetsLowMinor: number
-  /** Nhánh lợi suất cao (realReturn + bandSpread). */
-  assetsHighMinor: number
+  /**
+   * Biên DƯỚI của dải: `Math.min` của hai nhánh biên. Bất biến
+   * `assetsPessimisticMinor <= assetsOptimisticMinor` luôn đúng ở mọi dòng.
+   *
+   * Cố ý KHÔNG đặt tên theo nhánh lợi suất (`Low`/`High`): ở vùng tài sản ÂM, nhánh
+   * lợi suất CAO phình nợ nhanh hơn nên nó lại cho kết quả tệ hơn — tên theo nhánh
+   * thì hai trường đảo chỗ đúng ở đoạn cạn tiền, tức đoạn người dùng cần đọc nhất,
+   * và `<Area>` của Recharts vẽ dải lộn ngược.
+   */
+  assetsPessimisticMinor: number
+  /** Biên TRÊN của dải: `Math.max` của hai nhánh biên. Xem `assetsPessimisticMinor`. */
+  assetsOptimisticMinor: number
 }
 
 /**
@@ -94,13 +118,13 @@ export function convertLifetimeMinor(
 
 /** Chặng đang hiệu lực cho `year`: chặng muộn nhất có startYear <= year. */
 function phaseForYear(sorted: LifetimePhase[], year: number): LifetimePhase {
+  // Năm nằm trước chặng đầu tiên thì dùng chặng đầu tiên — thà lấy giả định gần
+  // nhất còn hơn để trống một quãng đầu đồ thị.
   let found = sorted[0]
   for (const p of sorted) {
     if (p.startYear <= year) found = p
     else break
   }
-  // Năm nằm trước chặng đầu tiên thì dùng chặng đầu tiên — thà lấy giả định gần
-  // nhất còn hơn để trống một quãng đầu đồ thị.
   return found
 }
 
@@ -126,8 +150,15 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
   if (lastYear < currentYear) return []
 
   const inflation = nominalTerms ? inflationBps / 10_000 : 0
+  // Lợi suất phải CÙNG ĐƠN VỊ với dòng tiền. Giá danh nghĩa thì thu/chi/sự kiện đã
+  // phồng theo lạm phát, nên lợi suất cũng phải là danh nghĩa: (1+r)(1+i)−1. Để
+  // nguyên lợi suất thực ở chế độ này là trừ lạm phát HAI LẦN — dòng tiền tính bằng
+  // tiền tương lai còn tài sản tính bằng tiền hôm nay, không tương ứng đơn vị nào.
   const rates = [realReturnBps, realReturnBps - bandSpreadBps, realReturnBps + bandSpreadBps].map(
-    (bps) => bps / 10_000,
+    (bps) => {
+      const real = bps / 10_000
+      return nominalTerms ? (1 + real) * (1 + inflation) - 1 : real
+    },
   )
   // Ba nhánh tài sản chạy song song trên CÙNG dòng tiền — chỉ khác lợi suất.
   const assets = [startingAssetsMinor, startingAssetsMinor, startingAssetsMinor]
@@ -159,18 +190,14 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
     for (const e of events) {
       if (e.startYear > year) continue
       if (e.endYear !== null && e.endYear < year) continue
-      const base = convertLifetimeMinor(e.amountMinor, e.currency, displayCurrency, 1)
-      // Sự kiện dùng tỷ giá của chặng đang hiệu lực nếu khác tiền hiển thị: 年金 giữ ¥
-      // trong khi chặng Mỹ dùng $, nên không thể mượn fx của chặng một cách vô điều kiện.
-      const converted =
-        e.currency === displayCurrency
-          ? base
-          : convertLifetimeMinor(
-              e.amountMinor,
-              e.currency,
-              displayCurrency,
-              e.currency === phase.currency ? phase.fxToDisplay : 1,
-            )
+      // Mỗi khoản tiền tự mang tỷ giá của nó, nên ở đây KHÔNG còn ca đặc biệt nào:
+      // cùng tiền hiển thị thì convertLifetimeMinor trả nguyên số và bỏ qua tỷ giá.
+      const converted = convertLifetimeMinor(
+        e.amountMinor,
+        e.currency,
+        displayCurrency,
+        e.fxToDisplay,
+      )
       yearEvents.push({
         id: e.id,
         label: e.label,
@@ -202,8 +229,9 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
       events: yearEvents,
       netFlowMinor,
       assetsEndMinor: assets[0],
-      assetsLowMinor: assets[1],
-      assetsHighMinor: assets[2],
+      // min/max chứ không phải assets[1]/assets[2]: xem JSDoc của assetsPessimisticMinor.
+      assetsPessimisticMinor: Math.min(assets[1], assets[2]),
+      assetsOptimisticMinor: Math.max(assets[1], assets[2]),
     })
   }
 

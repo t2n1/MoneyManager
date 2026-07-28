@@ -412,3 +412,26 @@ duyệt — Edge Function chạy sẽ hỏng. Vì vậy `NotificationInput` mang
 `formatMoney: (minor: number, currency: CurrencyCode) => string`. Phía app tiêm hàm
 thật vào (nhờ đó bật chế độ riêng tư thì số tiền trong thông báo cũng bị che, đúng ý);
 phía Edge Function sau này tiêm bản định dạng riêng của nó.
+
+## K. Đã biết, cố ý chưa sửa
+
+Ghi lại để lần sau đọc code không tưởng là lỗi. Sửa được cả, chỉ là không đáng ở đợt này.
+
+- **Số trên chuông đếm phần thu gọn.** Có 7 việc thì chuông báo 5, còn tiêu đề trong tấm
+  trượt ghi 7 — hai chỗ lệch nhau. Không mất gì (bấm xổ ra là đánh dấu đọc hết), nhưng con
+  số chưa thật thà. Đổi `unreadActionCount(actionsAll, …)` là xong.
+- **Dòng "đang âm" thắng dòng "thiếu tiền".** Một tài khoản vừa âm vừa là nguồn trả thẻ chỉ
+  ra một dòng (mục C.4). Dòng còn lại nói "đang âm ¥1.200", nên mất thông tin "14 ngày tới
+  phải trả ¥45.000" — mà không chỗ nào khác nói hộ.
+- **`stale-entry` không báo cho người bỏ ghi quá 90 ngày.** Đúng người cần nhắc nhất. Vì bộ
+  luật chỉ nhận 90 ngày dữ liệu nên không phân biệt được người mới với người bỏ lâu. Muốn
+  sửa: thêm `hasAnyTx` vào `NotificationInput`.
+- **Bộ luật chạy 5 lần mỗi lần vẽ lại** (5 chỗ gọi `useNotifications`). Gói vào context là hết.
+- **Mục A hứa "mở app chỉ chạy phần đếm số" — không đạt được.** Số trên chuông cần bộ luật,
+  nên bộ luật phải chạy lúc mở app. Chỉ tấm trượt là tải muộn.
+- **Chưa chạy migration 0029 thì không có dấu hiệu gì**, chỉ thấy "đã đọc" không lưu được.
+- **Bỏ mục con đã lưu trữ khỏi phép "là nhóm" làm đổi mã** `budget-parent-over:X` thành
+  `budget-over:X`. Ai đã đọc mã cũ sẽ thấy đỏ lại **một lần** sau khi cập nhật. Không tránh được.
+- **Dọn rác 12 tháng chạy trên dữ liệu đã lưu đệm**, nên trạng thái của việc vừa xong bị xoá
+  chậm một lần mở app. Hướng sai an toàn.
+- **`pushed_at` chưa ai ghi, chưa ai đọc** — mục F cố ý để sẵn cho push đợt sau.

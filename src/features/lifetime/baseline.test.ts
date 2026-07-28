@@ -114,4 +114,19 @@ describe('suggestBaseline', () => {
     const s = suggestBaseline(txs, cats, currencyOf, 'JPY', '2026-07-29')
     expect(s.byCategory[0].name).toBe('Danh mục đã xóa')
   })
+
+  it('hoàn tiền (is_refund) trừ khỏi chi, không cộng dồn theo Math.abs', () => {
+    const txs = [
+      // Mua 300.000, cùng danh mục.
+      tx({ id: '1', amount: 300_000, category_id: 'c-an' }),
+      // Hoàn 100.000 của đúng khoản trên — is_refund là chi ÂM.
+      tx({ id: '2', amount: 100_000, category_id: 'c-an', is_refund: true }),
+    ]
+    const s = suggestBaseline(txs, cats, currencyOf, 'JPY', '2026-07-29')
+    // Tính tay: 300.000 − 100.000 = 200.000 (HIỆU, không phải 400.000 tổng).
+    expect(s.annualExpenseMinor).toBe(200_000)
+    expect(s.byCategory[0].categoryId).toBe('c-an')
+    expect(s.byCategory[0].annualMinor).toBe(200_000)
+    expect(s.byCategory[0].share).toBeCloseTo(1)
+  })
 })

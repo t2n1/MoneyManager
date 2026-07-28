@@ -12,8 +12,10 @@ import { daysBetween } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/currencies'
 // Dùng lại `CurrencyOf` đã có ở reports/aggregate.ts (cùng chữ ký với bản ở
 // ledgerShared.ts) thay vì khai kiểu mới — file nguồn thuần, không React, nên
-// import vào baseline.ts không kéo theo gì nặng.
-import type { CurrencyOf } from '../reports/aggregate'
+// import vào baseline.ts không kéo theo gì nặng. `expenseSign` cũng dùng lại từ
+// đó: hoàn tiền (is_refund) là chi ÂM, trừ khỏi chi chứ không cộng dồn — dùng
+// chung helper để nếu luật hoàn tiền đổi thì chỉ phải sửa một chỗ.
+import { expenseSign, type CurrencyOf } from '../reports/aggregate'
 import type { CategoryRow, TransactionRow } from '../../types/database.types'
 
 export interface BaselineCategoryLine {
@@ -63,11 +65,16 @@ export function suggestBaseline(
   const monthsCovered = Math.min(MAX_MONTHS, spanMonths)
   const factor = 12 / monthsCovered
 
+  // Thu nhập KHÔNG áp expenseSign — helper đó là của riêng chi, một khoản thu
+  // gắn is_refund không có nghĩa xác định (schema chỉ ràng buộc is_refund kéo
+  // theo type = 'expense', xem migration 0026).
   const incomeSum = kept
     .filter((t) => t.type === 'income')
     .reduce((s, t) => s + Math.abs(t.amount), 0)
   const expenses = kept.filter((t) => t.type === 'expense')
-  const expenseSum = expenses.reduce((s, t) => s + Math.abs(t.amount), 0)
+  // Hoàn tiền (is_refund) là chi ÂM: phải TRỪ khỏi chi chứ không cộng dồn theo
+  // Math.abs, nếu không một khoản mua đã được hoàn vẫn bị tính là đã chi.
+  const expenseSum = expenses.reduce((s, t) => s + t.amount * expenseSign(t), 0)
 
   const nameOf = (id: string | null) =>
     categories.find((c) => c.id === id)?.name ?? 'Danh mục đã xóa'
@@ -75,7 +82,7 @@ export function suggestBaseline(
   const byCat = new Map<string, number>()
   for (const t of expenses) {
     const key = t.category_id ?? 'khong-danh-muc'
-    byCat.set(key, (byCat.get(key) ?? 0) + Math.abs(t.amount))
+    byCat.set(key, (byCat.get(key) ?? 0) + t.amount * expenseSign(t))
   }
 
   const byCategory: BaselineCategoryLine[] = [...byCat.entries()]

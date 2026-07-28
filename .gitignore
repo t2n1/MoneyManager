@@ -41,3 +41,6 @@ coverage/
 # Supabase local dev (nếu dùng CLI sau này)
 supabase/.temp/
 supabase/.branches/
+
+# Visual companion khi brainstorm (tam thoi, khong commit)
+.superpowers/

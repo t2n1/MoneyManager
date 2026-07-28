@@ -54,7 +54,7 @@ import {
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
 // Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-export const STORAGE_KEY = 'sct-demo-db-v14' // v14: gói báo cáo (hoàn tiền, nhãn, tài sản cố định, tham số profile)
+export const STORAGE_KEY = 'sct-demo-db-v15' // v15: bổ sung danh mục (Điện thoại, Bãi đỗ xe, Du lịch, Giấy tờ & Pháp lý, Bán đồ cũ; đổi tên Tài chính)
 const DEMO_USER = 'demo-user'
 
 /**
@@ -201,8 +201,12 @@ function seed(): DemoDB {
   const thoiTrang = category('Thời trang', 'expense', '🧥')
   const soThich = category('Sở thích', 'expense', '🌱')
   const sucKhoe = category('Sức khỏe', 'expense', '🧘')
-  const taiChinh = category('Tài chính & Đầu tư', 'expense', '📊')
+  // "Tài chính" không có con -> tự nó là danh mục lá, nên có nhãn 2 trục. Chỉ chứa
+  // PHÍ tài chính; mua đầu tư là chuyển khoản sang tài khoản đầu tư, không phải chi.
+  const taiChinh = category('Tài chính', 'expense', '🏦', null, 'essential', 'variable')
   const giaoDuc = category('Giáo dục', 'expense', '📔')
+  const duLich = category('Du lịch', 'expense', '🧳')
+  const giayTo = category('Giấy tờ & Pháp lý', 'expense', '📄')
   const quaTang = category('Quà tặng', 'expense', '🎁')
   const khacChi = category('Khác', 'expense', '📦')
   const categories = [
@@ -214,6 +218,7 @@ function seed(): DemoDB {
     category('Điện', 'expense', '💡', nhaO.id, 'essential', 'variable'),
     category('Nước', 'expense', '🚰', nhaO.id),
     category('Gas', 'expense', '🔥', nhaO.id),
+    category('Điện thoại', 'expense', '📱', nhaO.id, 'essential', 'fixed'),
     anUong,
     category('Bữa sáng', 'expense', '🥐', anUong.id),
     category('Bữa trưa', 'expense', '🍱', anUong.id, 'essential', 'variable'),
@@ -229,6 +234,7 @@ function seed(): DemoDB {
     category('Tàu điện', 'expense', '🚉', diLai.id, 'essential', 'variable'),
     category('Taxi', 'expense', '🚕', diLai.id),
     category('Ô tô', 'expense', '🚗', diLai.id),
+    category('Bãi đỗ xe', 'expense', '🅿️', diLai.id, 'essential', 'fixed'),
     category('Luup', 'expense', '🛴', diLai.id),
     thoiTrang,
     category('Quần áo', 'expense', '👕', thoiTrang.id, 'flexible', 'variable'),
@@ -251,15 +257,25 @@ function seed(): DemoDB {
     category('Thi cử', 'expense', '📝', giaoDuc.id),
     category('Học phí', 'expense', '🏫', giaoDuc.id),
     category('Sách vở', 'expense', '📚', giaoDuc.id),
+    duLich,
+    category('Vé máy bay', 'expense', '✈️', duLich.id, 'flexible', 'variable'),
+    category('Khách sạn', 'expense', '🏨', duLich.id),
+    category('Tham quan & ăn chơi', 'expense', '🎡', duLich.id),
+    category('Quà mang về', 'expense', '🍡', duLich.id),
+    giayTo,
+    category('Visa & lưu trú', 'expense', '🛂', giayTo.id, 'essential', 'variable'),
+    category('Hộ chiếu & lãnh sự', 'expense', '🛃', giayTo.id),
+    category('Dịch thuật & công chứng', 'expense', '✍️', giayTo.id),
     quaTang,
     category('Quà', 'expense', '🎀', quaTang.id),
     category('Hỗ trợ gia đình', 'expense', '👪', quaTang.id),
     khacChi,
-    // Thu — giữ nguyên bộ hiện có
+    // Thu
     category('Lương', 'income', '💰'),
     category('Thưởng', 'income', '🎉'),
     category('Được tặng', 'income', '🧧'),
     category('Đầu tư', 'income', '📈'),
+    category('Bán đồ cũ', 'income', '♻️'),
     category('Khác', 'income', '💵'),
   ]
 

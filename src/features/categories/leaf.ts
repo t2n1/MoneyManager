@@ -28,7 +28,7 @@ export function expenseLeaves(categories: CategoryRow[]): CategoryRow[] {
 /**
  * Một khối lá gom theo cha để hiển thị có tiêu đề nhóm (màn Phân loại nhanh).
  * `parent: null` = lá không có cha (danh mục chính không có con, ví dụ "Khác",
- * "Tài chính & Đầu tư") — đứng riêng, không dồn vào một nhóm gộp chung, để khỏi
+ * "Tài chính") — đứng riêng, không dồn vào một nhóm gộp chung, để khỏi
  * lẫn với chính danh mục lá tên "Khác" và để giữ đúng vị trí theo sort_order.
  */
 export interface LeafGroup {

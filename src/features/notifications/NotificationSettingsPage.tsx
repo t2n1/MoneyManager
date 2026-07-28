@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useProfile, useUpdateProfile } from '../../hooks/queries'
+import { showToast } from '../../lib/dialog'
 import { NOTIFICATION_META, NOTIFICATION_TYPES, type NotificationType } from './types'
 
 function Group({
@@ -22,28 +24,33 @@ function Group({
           const meta = NOTIFICATION_META[t]
           const on = !off.has(t)
           return (
-            <li key={t} className="min-h-11 flex items-start gap-3 px-3 py-3">
+            <li key={t} className="flex items-start gap-3 px-3 py-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-gray-800 dark:text-gray-100">
                   {meta.label}
                 </p>
                 <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{meta.hint}</p>
               </div>
+              {/* Nút bấm to bằng cả ô 44x44 để dễ trúng tay, hình vẽ công tắc bên trong vẫn nhỏ như cũ */}
               <button
                 type="button"
                 role="switch"
                 aria-checked={on}
                 aria-label={`${on ? 'Tắt' : 'Bật'} ${meta.label}`}
                 onClick={() => onToggle(t, !on)}
-                className={`mt-0.5 h-6 w-11 shrink-0 rounded-full transition ${
-                  on ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-700'
-                }`}
+                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full"
               >
                 <span
-                  className={`block h-5 w-5 rounded-full bg-white shadow transition ${
-                    on ? 'translate-x-[1.375rem]' : 'translate-x-0.5'
+                  className={`block h-6 w-11 rounded-full transition ${
+                    on ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-700'
                   }`}
-                />
+                >
+                  <span
+                    className={`block h-5 w-5 rounded-full bg-white shadow transition ${
+                      on ? 'translate-x-[1.375rem]' : 'translate-x-0.5'
+                    }`}
+                  />
+                </span>
               </button>
             </li>
           )
@@ -56,14 +63,31 @@ function Group({
 export function NotificationSettingsPage() {
   const { data: profile } = useProfile()
   const updateProfile = useUpdateProfile()
+  // Bản nháp chờ máy chủ xác nhận — bấm liên tiếp nhiều công tắc thì thay đổi
+  // trước không bị đè mất, vì công tắc sau tính tiếp từ bản nháp này chứ không
+  // phải từ dữ liệu cũ trên máy chủ.
+  const [pendingOff, setPendingOff] = useState<string[] | null>(null)
 
-  const off = new Set(profile?.notif_off ?? [])
+  const effectiveOff = pendingOff ?? profile?.notif_off ?? []
+  const off = new Set(effectiveOff)
 
   function toggle(type: NotificationType, on: boolean) {
-    const next = new Set(off)
+    const next = new Set(effectiveOff)
     if (on) next.delete(type)
     else next.add(type)
-    updateProfile.mutate({ notif_off: [...next] })
+    const nextArr = [...next]
+    setPendingOff(nextArr)
+    updateProfile.mutate(
+      { notif_off: nextArr },
+      {
+        onError: (e) =>
+          showToast(e instanceof Error ? e.message : 'Không lưu được cài đặt thông báo', 'error'),
+        onSettled: () =>
+          // Nếu đã có lần bấm mới hơn ghi đè bản nháp thì để lần đó tự dọn,
+          // tránh xoá nhầm thay đổi chưa kịp lưu.
+          setPendingOff((current) => (current === nextArr ? null : current)),
+      },
+    )
   }
 
   const actions = NOTIFICATION_TYPES.filter((t) => NOTIFICATION_META[t].kind === 'action')

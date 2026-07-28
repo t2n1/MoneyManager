@@ -29,13 +29,14 @@ export function arrangeNotifications(
   offTypes: NotificationType[],
 ): NotificationResult {
   const off = new Set(offTypes)
-  const kept = list.filter((n) => !off.has(n.type))
 
-  kept.sort((a, b) => {
+  const sorted = [...list].sort((a, b) => {
     const bySeverity = SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]
     if (bySeverity !== 0) return bySeverity
     return NOTIFICATION_TYPES.indexOf(a.type) - NOTIFICATION_TYPES.indexOf(b.type)
   })
+
+  const kept = sorted.filter((n) => !off.has(n.type))
 
   const actions = kept.filter((n) => n.kind === 'action')
   const infos = kept.filter((n) => n.kind === 'info')
@@ -49,7 +50,12 @@ export function arrangeNotifications(
     infosAll: infos,
     hiddenActionCount: Math.max(0, actions.length - ACTION_LIMIT),
     hiddenInfoCount: Math.max(0, infos.length - INFO_LIMIT),
-    allKeys: kept.map((n) => n.key),
+    // Lấy từ `sorted`, tức TRƯỚC khi lọc loại đã tắt — CỐ Ý. Dọn dẹp ở AppLayout coi
+    // "mã đã lưu mà không có trong allKeys" là việc đã xong và XÓA dòng trạng thái.
+    // Nếu allKeys lấy từ `kept` thì tắt "Vượt ngân sách tháng" trong cài đặt sẽ xóa
+    // sạch trạng thái đã đọc của budget-over:*, và bật lại là mọi mục đỏ như mới dù
+    // người dùng đã đọc từ lâu. Tắt một loại KHÔNG phải là đã xử lý xong việc đó.
+    allKeys: sorted.map((n) => n.key),
   }
 }
 

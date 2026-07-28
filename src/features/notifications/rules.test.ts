@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { arrangeNotifications, ACTION_LIMIT, INFO_LIMIT } from './rules'
+import { splitStaleActionKeys } from './state'
 import type { AppNotification, NotificationSeverity, NotificationType } from './types'
 
 function n(
@@ -37,13 +38,15 @@ describe('arrangeNotifications', () => {
     expect(out.infos).toHaveLength(1)
   })
 
-  it('bỏ loại đã tắt', () => {
+  it('bỏ loại đã tắt khỏi danh sách hiện, nhưng allKeys VẪN giữ mã của nó', () => {
     const out = arrangeNotifications(
       [n('stale-entry', 'low', 'info'), n('budget-over', 'high', 'action')],
       ['stale-entry'],
     )
     expect(out.infos).toHaveLength(0)
-    expect(out.allKeys).toEqual(['budget-over:x'])
+    // allKeys tính TRƯỚC khi lọc loại đã tắt: nó là đầu vào của việc dọn trạng thái,
+    // mà "tắt một loại" không có nghĩa là "việc đó đã xử lý xong".
+    expect(out.allKeys).toEqual(['budget-over:x', 'stale-entry:x'])
   })
 
   it('cắt trần 5 việc cần làm và 3 tin để biết, đếm phần bị cắt RIÊNG từng nhóm', () => {
@@ -107,12 +110,14 @@ describe('arrangeNotifications', () => {
     const out = arrangeNotifications(items, ['budget-over'])
     expect(out.actions).toHaveLength(4)
     expect(out.hiddenActionCount).toBe(0)
-    expect(out.allKeys).toEqual([
+    expect(out.actions.map((a) => a.key)).toEqual([
       'account-shortfall:0',
       'account-shortfall:1',
       'account-shortfall:2',
       'account-shortfall:3',
     ])
+    // allKeys gồm cả 4 mã của loại đã tắt.
+    expect(out.allKeys).toHaveLength(8)
   })
 
   it('danh sách rỗng ra kết quả rỗng, không nổ', () => {
@@ -126,5 +131,29 @@ describe('arrangeNotifications', () => {
       hiddenInfoCount: 0,
       allKeys: [],
     })
+  })
+})
+
+// Hai module nằm cách nhau nên không phép thử nào ghép chúng lại — mà chỗ SAI lại
+// nằm đúng ở mối ghép: arrangeNotifications sinh allKeys, splitStaleActionKeys đọc
+// allKeys rồi quyết định XÓA dòng trạng thái nào.
+describe('ghép arrangeNotifications với splitStaleActionKeys (vòng đời mục E)', () => {
+  it('tắt một loại trong cài đặt thì mã của loại đó KHÔNG bị coi là đã xong', () => {
+    const list = [n('budget-over', 'high', 'action', 'budget-over:c1')]
+    // Người dùng đã đọc dòng này (nên có dòng trạng thái trong DB).
+    const storedKeys = ['budget-over:c1']
+
+    // Rồi vào cài đặt tắt "Vượt ngân sách tháng".
+    const out = arrangeNotifications(list, ['budget-over'])
+    expect(out.actions).toHaveLength(0) // không hiện nữa — đúng ý người dùng
+
+    // Nhưng dọn dẹp KHÔNG được xóa trạng thái đã đọc: bật lại mà mất trạng thái là
+    // dòng cũ đỏ lại như mới dù đã đọc từ lâu.
+    expect(splitStaleActionKeys(storedKeys, out.allKeys)).toEqual([])
+  })
+
+  it('tình huống xử lý xong thật (bộ luật không sinh mã nữa) thì mới xóa', () => {
+    const out = arrangeNotifications([], [])
+    expect(splitStaleActionKeys(['budget-over:c1'], out.allKeys)).toEqual(['budget-over:c1'])
   })
 })

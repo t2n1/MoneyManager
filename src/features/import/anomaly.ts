@@ -12,10 +12,26 @@ export const ANOMALY_MIN_SAMPLES = 20
  * Trung vị số tiền CHI từ `sinceISO` trở đi. null = chưa đủ dữ liệu.
  * Dùng trung vị chứ không dùng trung bình: một khoản tiền nhà to là kéo lệch
  * trung bình, còn trung vị vẫn phản ánh "mức thường ngày".
+ *
+ * Loại `is_debt_flow`, `exclude_from_stats`, `is_refund` giống mọi module
+ * thống kê chi tiêu khác trong app (xem `features/reports/behavior.ts`):
+ * tiền cho vay/trả hộ không phải "chi tiêu" thật, `exclude_from_stats` là lời
+ * hứa với người dùng là khoản đó không được tính vào bất kỳ thống kê nào, và
+ * hoàn tiền không phải một lần chi. Vài khoản này thường có số tiền lớn (cho
+ * vay, mua hộ), nếu lọt vào mẫu sẽ kéo ngưỡng lên, khiến khoản bất thường
+ * thật sự không còn bị tô nữa.
  */
 export function expenseMedian(txs: TransactionRow[], sinceISO: string): number | null {
   const amounts = txs
-    .filter((t) => t.type === 'expense' && t.occurred_on >= sinceISO && t.amount > 0)
+    .filter(
+      (t) =>
+        t.type === 'expense' &&
+        !t.is_debt_flow &&
+        !t.exclude_from_stats &&
+        !t.is_refund &&
+        t.occurred_on >= sinceISO &&
+        t.amount > 0,
+    )
     .map((t) => t.amount)
     .sort((a, b) => a - b)
 

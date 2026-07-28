@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, Upload } from 'lucide-react'
@@ -87,7 +87,7 @@ export function ImportCsvPage() {
     () => ({ start: addDaysISO(todayISO, -90), end: addDaysISO(todayISO, 1) }),
     [todayISO],
   )
-  const { data: historyTxs = [] } = useRangeTransactions(historyRange)
+  const { data: historyTxs = [] } = useRangeTransactions(historyRange, !!accountId)
   // Tra loại tiền của một tài khoản — truyền dạng hàm cho anomaly.ts, cùng quy
   // ước currencyOf đã dùng ở features/reports/aggregate.ts và bộ quy tắc
   // thông báo. Việc LỌC theo loại tiền (vì sao phải lọc) được giải thích ngay
@@ -167,6 +167,22 @@ export function ImportCsvPage() {
     (it) => !existingKeys.has(it.key) && transferKeys.has(it.key),
   ).length
   const nameOfAccount = (id: string) => accounts.find((a) => a.id === id)?.name ?? 'tài khoản khác'
+
+  // Khoản lớn bất thường — viết predicate một lần, dùng lại cho cả dòng bảng
+  // (tô đỏ) lẫn phần đếm ở dưới, tránh lệch logic giữa hai chỗ.
+  const isAnomalyRow = useCallback(
+    (it: ImportItem) => it.type === 'expense' && isUnusuallyLarge(it.amount, median),
+    [median],
+  )
+  // Bảng chỉ hiện 20 dòng đầu (giữ nguyên thứ tự CSV, không sắp lại), nên
+  // khoản bất thường rơi vào dòng thứ 21 trở đi sẽ không được tô gì — đếm
+  // riêng phần bị ẩn này để còn báo cho người dùng biết mà cuộn xuống soát.
+  // Chỉ đếm từ dòng 21 trở đi: 20 dòng đầu đã tô đỏ tại chỗ rồi, đếm lại sẽ
+  // trùng.
+  const hiddenAnomalyCount = useMemo(
+    () => toImport.slice(20).filter(isAnomalyRow).length,
+    [toImport, isAnomalyRow],
+  )
 
   async function handleImport() {
     if (!accountId || toImport.length === 0) return
@@ -353,7 +369,7 @@ export function ImportCsvPage() {
                   <tbody>
                     {toImport.slice(0, 20).map((it: ImportItem, i) => {
                       // Tô đỏ để soát bằng mắt — KHÔNG chặn lưu (mục G của spec).
-                      const odd = it.type === 'expense' && isUnusuallyLarge(it.amount, median)
+                      const odd = isAnomalyRow(it)
                       return (
                         <tr
                           key={i}
@@ -380,6 +396,11 @@ export function ImportCsvPage() {
                 {toImport.length > 20 && (
                   <p className="mt-1 text-center text-gray-500 dark:text-gray-400">
                     … và {toImport.length - 20} dòng nữa
+                    {hiddenAnomalyCount > 0 && (
+                      <span className="font-semibold text-red-600 dark:text-red-400">
+                        , trong đó {hiddenAnomalyCount} khoản lớn bất thường
+                      </span>
+                    )}
                   </p>
                 )}
               </div>

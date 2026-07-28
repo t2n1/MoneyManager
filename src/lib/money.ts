@@ -2,31 +2,18 @@
 // JPY = yên, VND = đồng, USD = cent. Không bao giờ dùng float.
 // Nhập liệu kiểu ATM: chuỗi chữ số chính là minor units ("1050" USD → $10,50).
 import { isPrivacyEnabled } from './privacy'
+import { CURRENCIES, type CurrencyCode } from './currencies'
 
-export type CurrencyCode = 'JPY' | 'VND' | 'USD'
+// Bảng loại tiền sống ở module lá ./currencies (không import gì) để những nơi chỉ
+// cần bảng — assets/aggregate.ts, lib/rates.ts — không bị kéo theo lib/privacy.ts
+// (React + localStorage). Xuất lại ở đây để mọi chỗ import cũ khỏi phải sửa.
+export { CURRENCIES } from './currencies'
+export type { CurrencyCode } from './currencies'
 
 /** Chuỗi thay thế khi bật chế độ riêng tư, giữ đúng vị trí ký hiệu tiền tệ. */
 function maskMoney(currency: CurrencyCode): string {
   const { symbol, position } = CURRENCIES[currency]
   return position === 'prefix' ? `${symbol}••••` : `•••• ${symbol}`
-}
-
-export const CURRENCIES: Record<
-  CurrencyCode,
-  {
-    symbol: string
-    decimals: number
-    label: string
-    position: 'prefix' | 'suffix'
-    /** Dấu phân cách hàng nghìn (JPY dùng ',' theo chuẩn Nhật; VND/USD dùng '.') */
-    group: string
-    /** Dấu thập phân (chỉ dùng khi decimals > 0) */
-    decimal: string
-  }
-> = {
-  JPY: { symbol: '¥', decimals: 0, label: 'Yên Nhật', position: 'prefix', group: ',', decimal: '.' },
-  VND: { symbol: '₫', decimals: 0, label: 'Đồng Việt Nam', position: 'suffix', group: '.', decimal: ',' },
-  USD: { symbol: '$', decimals: 2, label: 'Đô la Mỹ', position: 'prefix', group: '.', decimal: ',' },
 }
 
 const groupThousands = (digits: string, sep: string) =>

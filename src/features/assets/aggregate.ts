@@ -1,7 +1,9 @@
 // Tổng hợp tài sản theo nhóm — thuần, không phụ thuộc React, để unit-test được.
 // Mọi số dư quy đổi về base currency qua convertToBase; thiếu tỷ giá → hasMissingRate.
 
-import { CURRENCIES, type CurrencyCode } from '../../lib/money'
+// Nhập từ module lá lib/currencies (KHÔNG phải lib/money): cardFunding() ở file này
+// được bộ luật thông báo gọi, mà money.ts kéo theo lib/privacy.ts (React + localStorage).
+import { CURRENCIES, type CurrencyCode } from '../../lib/currencies'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { AccountBalanceRow, AccountType } from '../../types/database.types'
 import { depreciate } from './depreciation'

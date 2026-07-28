@@ -3,7 +3,9 @@
 // Fallback: cache localStorage → lỗi mạng vẫn dùng tỷ giá cũ; chưa từng có → UI
 // tự tách tổng theo từng loại tiền (convertToBase trả null).
 
-import { CURRENCIES, type CurrencyCode } from './money'
+// Nhập từ module lá ./currencies (KHÔNG phải ./money): convertToBase được bộ luật
+// thông báo gọi, mà money.ts kéo theo lib/privacy.ts (React + localStorage).
+import { CURRENCIES, type CurrencyCode } from './currencies'
 
 /** major units: 1 đơn vị base đổi được rates[X] đơn vị X */
 export type Rates = Partial<Record<CurrencyCode, number>>

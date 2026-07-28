@@ -9,6 +9,8 @@ const ctx: PresetContext = {
   currentIncomeMinor: 6_000_000,
   currentExpenseMinor: 4_000_000,
   fxToDisplay: 1,
+  displayCurrency: 'JPY',
+  fxOf: () => 1,
 }
 
 function preset(id: string) {
@@ -86,5 +88,64 @@ describe('LIFE_PRESETS', () => {
   it('hỗ trợ bố mẹ mặc định tiền VND', () => {
     const r = preset('ho-tro-bo-me').build(ctx)
     expect(r.events[0].currency).toBe('VND')
+  })
+
+  it('sự kiện tiền khác ctx.currency lấy fx_to_display từ fxOf, KHÔNG lấy ctx.fxToDisplay', () => {
+    const usdCtx: PresetContext = {
+      ...ctx,
+      currency: 'USD',
+      displayCurrency: 'USD',
+      // Sentinel cố tình khác biệt: nếu code lỡ dùng nhầm ctx.fxToDisplay thay vì
+      // fxOf(tiền sự kiện) thì assertion dưới sẽ lộ ra ngay (999 không khớp gì cả).
+      fxToDisplay: 999,
+      fxOf: (currency) => {
+        if (currency === 'VND') return 0.000041
+        if (currency === 'JPY') return 0.0067
+        return null
+      },
+    }
+
+    const ho = preset('ho-tro-bo-me').build(usdCtx)
+    expect(ho.events[0].currency).toBe('VND')
+    expect(ho.events[0].fx_to_display).toBe(0.000041)
+    expect(ho.events[0].fx_to_display).not.toBe(999)
+
+    const hu = preset('nghi-huu').build(usdCtx)
+    const luong = hu.events.find((e) => e.kind === 'income')!
+    expect(luong.currency).toBe('JPY')
+    expect(luong.fx_to_display).toBe(0.0067)
+    expect(luong.fx_to_display).not.toBe(999)
+  })
+
+  it('fxOf không tra được (null) thì fx_to_display là 1 — giá trị cố ý, banner phát hiện được', () => {
+    const noRateCtx: PresetContext = {
+      ...ctx,
+      currency: 'USD',
+      displayCurrency: 'USD',
+      // Sentinel khác 1: nếu code lỡ giữ nguyên ctx.fxToDisplay thay vì fallback về 1
+      // khi fxOf() trả null, assertion dưới sẽ lộ ra (444 không khớp 1).
+      fxToDisplay: 444,
+      fxOf: () => null,
+    }
+    const r = preset('ho-tro-bo-me').build(noRateCtx)
+    expect(r.events[0].currency).toBe('VND')
+    expect(r.events[0].fx_to_display).toBe(1)
+  })
+
+  it('tiền sự kiện trùng displayCurrency thì fx_to_display là 1 (fxOf bị bỏ qua)', () => {
+    const jpyCtx: PresetContext = {
+      ...ctx,
+      currency: 'JPY',
+      displayCurrency: 'JPY',
+      // Sentinel khác 1: nếu code lỡ dùng ctx.fxToDisplay thay vì short-circuit 1 khi
+      // currency trùng displayCurrency, assertion dưới sẽ lộ ra (500 không khớp 1).
+      fxToDisplay: 500,
+      // Trả một số khác 1 để chứng minh nó KHÔNG được dùng khi tiền đã trùng display.
+      fxOf: () => 42,
+    }
+    const r = preset('nghi-huu').build(jpyCtx)
+    const luong = r.events.find((e) => e.kind === 'income')!
+    expect(luong.currency).toBe('JPY')
+    expect(luong.fx_to_display).toBe(1)
   })
 })

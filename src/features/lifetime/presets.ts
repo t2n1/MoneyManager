@@ -6,31 +6,34 @@
 // "số mặc định, kiểm tra lại". 児童手当 và học phí đổi theo luật hằng năm — app chỉ
 // giúp khỏi gõ từ số không, không hứa biết số đúng.
 import type { NewLifeEvent, NewLifePhase } from '../../data/repo'
+import type { CurrencyCode } from '../../lib/currencies'
 
 export interface PresetContext {
   scenarioId: string
   /** Năm sự kiện xảy ra (với sinh con: năm sinh của con). */
   year: number
-  /** Tiền của chặng đang hiệu lực — mẫu dùng làm mặc định. */
+  /** Tiền của chặng đang hiệu lực — mẫu dùng làm mặc định cho sự kiện không ép cứng tiền. */
   currency: string
   country: string | null
   currentIncomeMinor: number
   currentExpenseMinor: number
   /**
    * Tỷ giá của `currency` (chặng đang hiệu lực) sang tiền hiển thị của kịch bản,
-   * theo MAJOR units — xem convertLifetimeMinor ở project.ts.
-   *
-   * LƯU Ý QUAN TRỌNG (đã báo lại, chưa tự quyết): vài mẫu dưới đây ép cứng currency
-   * của SỰ KIỆN sang JPY (児童手当, lương hưu) hoặc VND (hỗ trợ bố mẹ) — khác với
-   * `currency` ở trên. fxToDisplay ở đây chỉ là tỷ giá của `currency`, KHÔNG phải
-   * tỷ giá của JPY/VND khi hai loại tiền đó không trùng `currency`. PresetContext
-   * hiện không mang theo tiền hiển thị (display currency) lẫn bảng tỷ giá đa loại
-   * tiền, nên module này KHÔNG ĐỦ DỮ LIỆU để tự tính đúng fx_to_display cho các sự
-   * kiện ép cứng currency trong trường hợp tổng quát (vd kịch bản dùng USD). Đã cố
-   * tình không tự đặt fx_to_display = 1 cho các sự kiện đó — xem ghi chú tại từng
-   * chỗ dùng JPY/VND cứng bên dưới.
+   * theo MAJOR units — dùng cho CHẶNG (NewLifePhase luôn cùng tiền với `currency`).
    */
   fxToDisplay: number
+  /** Tiền hiển thị của kịch bản — dùng để tính đúng fx_to_display cho SỰ KIỆN mang
+   * tiền khác `currency` (vài mẫu ép cứng JPY/VND bất kể chặng đang dùng tiền gì). */
+  displayCurrency: CurrencyCode
+  /**
+   * Tra tỷ giá MAJOR-sang-MAJOR từ `currency` bất kỳ sang `displayCurrency`. Trả
+   * `null` khi không tra được (vd thiếu cache tỷ giá cho đồng tiền đó).
+   *
+   * Nguồn số: việc của caller (dựng ctx), không phải của presets.ts. Điểm khởi đầu
+   * hợp lý là tỷ giá "hôm nay" từ `src/lib/rates.ts` (đã có sẵn fetch + cache) — đó
+   * vẫn chỉ là một giả định, nên `note` của sự kiện luôn nhắc "kiểm tra lại".
+   */
+  fxOf: (currency: CurrencyCode) => number | null
 }
 
 export interface PresetResult {
@@ -47,21 +50,39 @@ export interface LifePreset {
   build(ctx: PresetContext): PresetResult
 }
 
+/**
+ * fx_to_display ĐÚNG cho một sự kiện, tính theo tiền của CHÍNH sự kiện đó — không
+ * phải theo `ctx.currency` của chặng (vài mẫu ép cứng currency sang JPY/VND khác
+ * hẳn tiền chặng đang dùng, xem các chỗ gọi `ev()` bên dưới).
+ *
+ * - Tiền sự kiện trùng `displayCurrency`: convertLifetimeMinor (project.ts) short-
+ *   circuit ở `from === to` nên tỷ giá bị bỏ qua hoàn toàn — 1 ở đây đúng và vô hại.
+ * - Tiền sự kiện khác `displayCurrency`: tra qua `ctx.fxOf`. Nếu tra được thì dùng
+ *   luôn. Nếu KHÔNG tra được (trả `null`), CỐ Ý gán 1 thay vì bỏ cuộc: tổ hợp
+ *   "currency !== display_currency && fx_to_display === 1" là điều kiện banner cảnh
+ *   báo (Task 7) phát hiện được, còn một tỷ giá đoán bừa (khác 1) thì banner không
+ *   thấy và người dùng không bao giờ biết mẫu đã đoán sai. Thà sai một cách nhìn
+ *   thấy được còn hơn sai một cách im lặng — đây là bài học từ lỗi ở Task 3.
+ */
+function fxForEvent(ctx: PresetContext, currency: string): number {
+  if (currency === ctx.displayCurrency) return 1
+  return ctx.fxOf(currency as CurrencyCode) ?? 1
+}
+
 function ev(ctx: PresetContext, over: Partial<NewLifeEvent> & Pick<NewLifeEvent, 'label'>): NewLifeEvent {
+  const currency = over.currency ?? ctx.currency
   return {
     scenario_id: ctx.scenarioId,
     start_year: ctx.year,
     end_year: ctx.year,
     kind: 'expense',
     amount_minor: 0,
-    currency: ctx.currency,
+    currency,
     note: 'Số mặc định, kiểm tra lại',
-    // Mẫu lấy tiền của chặng đang hiệu lực nên tỷ giá của chặng là đúng. Sự kiện vẫn
-    // giữ tỷ giá RIÊNG của nó (migration 0032) — mẫu chỉ điền giá trị khởi đầu.
-    // Cảnh báo: default này CHỈ đúng khi `over.currency` (nếu có ép cứng) trùng với
-    // ctx.currency — xem phân tích ở PresetContext.fxToDisplay và từng chỗ gọi ev()
-    // với currency ép cứng JPY/VND bên dưới.
-    fx_to_display: ctx.fxToDisplay,
+    // Mẫu chỉ điền giá trị khởi đầu — sự kiện vẫn giữ tỷ giá RIÊNG của nó (migration
+    // 0032). Tính theo tiền của CHÍNH sự kiện (biến `currency` ở trên), không phải
+    // ctx.currency, nên đúng cả khi mẫu ép cứng currency sang JPY/VND — xem fxForEvent().
+    fx_to_display: fxForEvent(ctx, currency),
     inflate: true,
     ...over,
   }
@@ -113,11 +134,8 @@ export const LIFE_PRESETS: LifePreset[] = [
           end_year: ctx.year + 15,
           amount_minor: JIDO_TEATE_ANNUAL_JPY,
           // Trợ cấp của Nhật luôn trả bằng JPY, ép cứng bất kể ctx.currency. fx_to_display
-          // kế thừa ctx.fxToDisplay (tỷ giá của ctx.currency) CHỈ đúng khi ctx.currency
-          // cũng là JPY (trường hợp phổ biến: đang ở Nhật). Nếu kịch bản đổi sang tiền
-          // khác (vd chuyển qua Mỹ, ctx.currency='USD') con số này SAI — xem phân tích
-          // ở PresetContext.fxToDisplay. Chưa có cách tính đúng vì PresetContext không
-          // mang display currency lẫn bảng tỷ giá đa loại tiền.
+          // được ev()/fxForEvent() tính theo tiền JPY của CHÍNH sự kiện này (qua ctx.fxOf),
+          // không mượn tỷ giá của ctx.currency — đúng cả khi kịch bản dùng tiền khác.
           currency: 'JPY',
           // Trợ cấp cố định theo luật, không theo lạm phát.
           inflate: false,
@@ -192,9 +210,8 @@ export const LIFE_PRESETS: LifePreset[] = [
           kind: 'income',
           end_year: null,
           amount_minor: 1_100_000,
-          // 年金 luôn trả bằng JPY, ép cứng bất kể ctx.currency — cùng giới hạn với
-          // 児童手当 ở trên: fx_to_display kế thừa ctx.fxToDisplay chỉ đúng khi
-          // ctx.currency cũng là JPY. Xem phân tích ở PresetContext.fxToDisplay.
+          // 年金 luôn trả bằng JPY, ép cứng bất kể ctx.currency — cùng cách tính với
+          // 児童手当 ở trên: fx_to_display theo tiền JPY của sự kiện qua ctx.fxOf.
           currency: 'JPY',
           inflate: false,
         }),
@@ -219,8 +236,7 @@ export const LIFE_PRESETS: LifePreset[] = [
           fx_to_display: ctx.fxToDisplay,
         },
       ],
-      // Sự kiện này KHÔNG ép cứng currency — dùng đúng ctx.currency, nên fx_to_display
-      // kế thừa từ ev() luôn đúng, không dính giới hạn nêu ở JPY/VND phía trên.
+      // Sự kiện này KHÔNG ép cứng currency — dùng đúng ctx.currency.
       events: [ev(ctx, { label: 'Chi phí chuyển nhà, thủ tục', amount_minor: 2_500_000, inflate: false })],
     }),
   },
@@ -236,12 +252,10 @@ export const LIFE_PRESETS: LifePreset[] = [
           label: 'Hỗ trợ bố mẹ',
           end_year: ctx.year + 20,
           amount_minor: 60_000_000,
-          // Tiền gửi về luôn tính bằng VND, ép cứng bất kể ctx.currency — và khác
-          // Trợ cấp/Lương hưu ở chỗ: TRƯỜNG HỢP THƯỜNG GẶP NHẤT của mẫu này (người
-          // dùng ở Nhật, ctx.currency='JPY') đã là ép cứng-khác-ctx rồi, không phải
-          // ca hiếm. fx_to_display kế thừa ctx.fxToDisplay gần như luôn SAI cho mẫu
-          // này. Xem phân tích ở PresetContext.fxToDisplay — cần quyết định cách xử
-          // lý ở tầng gọi (UI) trước khi mẫu này có thể tính đúng.
+          // Tiền gửi về luôn tính bằng VND, ép cứng bất kể ctx.currency — đây là mẫu
+          // mà lệch tiền với ctx là TRƯỜNG HỢP THƯỜNG GẶP NHẤT (người dùng ở Nhật gửi
+          // tiền về VN), không phải ca hiếm. fx_to_display tính theo tiền VND của
+          // CHÍNH sự kiện qua ctx.fxOf (fxForEvent()), không mượn ctx.fxToDisplay.
           currency: 'VND',
         }),
       ],

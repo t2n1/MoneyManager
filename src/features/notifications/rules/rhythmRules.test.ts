@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { rhythmRules } from './rhythmRules'
+import { ruleKey } from '../../../lib/recurringRadar'
 import type { NotificationInput } from '../types'
 import type {
   NetWorthSnapshotRow,
+  RecurringRuleRow,
   SavingsGoalRow,
   TransactionRow,
 } from '../../../types/database.types'
@@ -20,6 +22,29 @@ function tx(over: Partial<TransactionRow> & { id: string; occurred_on: string })
     recurring_rule_id: null,
     occurred_on: over.occurred_on,
     note: over.note ?? '',
+    exclude_from_stats: over.exclude_from_stats,
+    is_debt_flow: over.is_debt_flow,
+    created_at: '',
+    updated_at: '',
+  }
+}
+
+function recurringRule(over: Partial<RecurringRuleRow> & { id: string }): RecurringRuleRow {
+  return {
+    id: over.id,
+    user_id: 'u',
+    type: over.type ?? 'expense',
+    amount: over.amount ?? 1_000,
+    to_amount: null,
+    category_id: over.category_id ?? 'cat',
+    account_id: over.account_id ?? 'acc',
+    to_account_id: null,
+    note: '',
+    frequency: over.frequency ?? 'monthly',
+    start_on: over.start_on ?? '2026-05-01',
+    end_on: null,
+    is_paused: false,
+    last_generated_on: null,
     created_at: '',
     updated_at: '',
   }
@@ -83,6 +108,36 @@ describe('stale-entry', () => {
   })
 })
 
+describe('recurring-suggestion', () => {
+  it('thấy khoản chi lặp đều hằng tháng (>= 3 lần, còn sống) thì gợi ý tạo quy tắc', () => {
+    const out = rhythmRules(
+      input({
+        recentTxs: [
+          tx({ id: 't1', occurred_on: '2026-05-01' }),
+          tx({ id: 't2', occurred_on: '2026-05-31' }),
+          tx({ id: 't3', occurred_on: '2026-06-30' }),
+        ],
+      }),
+    )
+    const hit = out.find((n) => n.type === 'recurring-suggestion')
+    expect(hit?.key).toBe(`recurring-suggestion:${ruleKey('expense', 'acc', 'cat', 1_000)}`)
+  })
+
+  it('đã có quy tắc định kỳ khớp đúng nhóm thì thôi gợi ý', () => {
+    const out = rhythmRules(
+      input({
+        recentTxs: [
+          tx({ id: 't1', occurred_on: '2026-05-01' }),
+          tx({ id: 't2', occurred_on: '2026-05-31' }),
+          tx({ id: 't3', occurred_on: '2026-06-30' }),
+        ],
+        recurringRules: [recurringRule({ id: 'r1' })],
+      }),
+    )
+    expect(out.filter((n) => n.type === 'recurring-suggestion')).toHaveLength(0)
+  })
+})
+
 describe('savings-milestone', () => {
   it('đạt 50% thì báo mốc 50', () => {
     const out = rhythmRules(
@@ -121,7 +176,7 @@ describe('savings-milestone', () => {
     expect(hit?.title).toContain('50%')
   })
 
-  it('mới 10% thì chưa có mốc nào', () => {
+  it('tài khoản không tồn tại thì coi như 0, không có mốc nào', () => {
     const out = rhythmRules(
       input({
         savingsGoals: [goal({ id: 'g1', target_amount: 1_000_000 })],
@@ -166,6 +221,32 @@ describe('networth-record', () => {
     )
     expect(out.filter((n) => n.type === 'networth-record')).toHaveLength(0)
   })
+
+  it('vượt bản ngay trước nhưng chưa vượt đỉnh cũ (mới hồi phục một phần) thì im', () => {
+    const out = rhythmRules(
+      input({
+        networthSnapshots: [
+          snapshot('2026-05-01', 5_000_000),
+          snapshot('2026-06-01', 3_000_000),
+          snapshot('2026-07-27', 4_000_000),
+        ],
+      }),
+    )
+    expect(out.filter((n) => n.type === 'networth-record')).toHaveLength(0)
+  })
+
+  it('hồi phục vượt luôn đỉnh cũ thì báo kỷ lục', () => {
+    const out = rhythmRules(
+      input({
+        networthSnapshots: [
+          snapshot('2026-05-01', 5_000_000),
+          snapshot('2026-06-01', 3_000_000),
+          snapshot('2026-07-27', 6_000_000),
+        ],
+      }),
+    )
+    expect(out.filter((n) => n.type === 'networth-record')).toHaveLength(1)
+  })
 })
 
 describe('monthly-summary', () => {
@@ -197,6 +278,36 @@ describe('monthly-summary', () => {
       }),
     )
     expect(out.filter((n) => n.type === 'monthly-summary')).toHaveLength(1)
+  })
+
+  it('bỏ qua giao dịch loại trừ thống kê và dòng tiền nợ khi cộng tổng', () => {
+    const out = rhythmRules(
+      input({
+        todayISO: '2026-08-01',
+        recentTxs: [
+          tx({ id: 't1', occurred_on: '2026-07-10', type: 'expense', amount: 182_000 }),
+          tx({ id: 't2', occurred_on: '2026-07-25', type: 'income', amount: 280_000 }),
+          tx({
+            id: 't3',
+            occurred_on: '2026-07-12',
+            type: 'expense',
+            amount: 999_000,
+            exclude_from_stats: true,
+          }),
+          tx({
+            id: 't4',
+            occurred_on: '2026-07-18',
+            type: 'expense',
+            amount: 500_000,
+            is_debt_flow: true,
+          }),
+        ],
+      }),
+    )
+    const hit = out.find((n) => n.type === 'monthly-summary')
+    expect(hit?.title).toContain('chi 182000')
+    expect(hit?.title).toContain('thu 280000')
+    expect(hit?.detail).toContain('98000')
   })
 })
 

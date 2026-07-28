@@ -9,6 +9,7 @@ import {
   type NotificationType,
 } from './types'
 import { accountRules } from './rules/accountRules'
+import { debtRules } from './rules/debtRules'
 
 export const ACTION_LIMIT = 5
 export const INFO_LIMIT = 3
@@ -47,6 +48,6 @@ export function arrangeNotifications(
 
 /** Gom mọi nhóm luật rồi sắp xếp. Các nhóm luật được thêm dần ở Task 3–7. */
 export function buildNotifications(input: NotificationInput): NotificationResult {
-  const all: AppNotification[] = [...accountRules(input)]
+  const all: AppNotification[] = [...accountRules(input), ...debtRules(input)]
   return arrangeNotifications(all, input.offTypes)
 }

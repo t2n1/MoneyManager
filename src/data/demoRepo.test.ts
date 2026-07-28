@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { demoRepo, resetDemoData } from './demoRepo'
+import { demoRepo, resetDemoData, STORAGE_KEY } from './demoRepo'
 import type { NewAccount, NewRecurringRule, NewTransaction } from './repo'
 
 // Vitest chạy môi trường node → không có localStorage. Cài bản giả trong bộ nhớ.
@@ -203,14 +203,14 @@ describe('deleteCategory', () => {
 // Đọc thẳng localStorage rồi ép read_at của một dòng trạng thái thông báo về
 // một mốc quá khứ xác định — tránh dựa vào khoảng cách đồng hồ thật giữa 2 lệnh gọi.
 function setStoredReadAt(key: string, readAtISO: string) {
-  const raw = localStorage.getItem('sct-demo-db-v14')
+  const raw = localStorage.getItem(STORAGE_KEY)
   const db = JSON.parse(raw ?? '{}') as {
     notificationState?: { key: string; read_at: string | null }[]
   }
   const row = (db.notificationState ?? []).find((r) => r.key === key)
   if (!row) throw new Error(`Không tìm thấy trạng thái của mã ${key}`)
   row.read_at = readAtISO
-  localStorage.setItem('sct-demo-db-v14', JSON.stringify(db))
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db))
 }
 
 describe('trạng thái thông báo', () => {
@@ -309,7 +309,7 @@ describe('lịch sử tỷ giá', () => {
   it('ghi rồi ghi đè cùng ngày không tạo dòng trùng', async () => {
     await demoRepo.recordFxRates('2026-07-28', 'JPY', { VND: 170 })
     await demoRepo.recordFxRates('2026-07-28', 'JPY', { VND: 172 })
-    const raw = localStorage.getItem('sct-demo-db-v14')
+    const raw = localStorage.getItem(STORAGE_KEY)
     const db = JSON.parse(raw ?? '{}') as { fxHistory?: { on_date: string; rates: Record<string, number> }[] }
     const same = (db.fxHistory ?? []).filter((r) => r.on_date === '2026-07-28')
     expect(same).toHaveLength(1)

@@ -37,6 +37,10 @@ export function useUpdateProfile() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (patch: ProfilePatch) => repo.updateProfile(patch),
+    // PHẢI return promise này (không phải gọi rồi bỏ qua): React Query đợi promise
+    // của onSettled này xong rồi mới chạy onSettled truyền vào .mutate() ở nơi gọi.
+    // NotificationSettingsPage dựa vào thứ tự đó để xoá bản nháp pendingOff ĐÚNG LÚC
+    // dữ liệu mới đã về cache — bỏ return sẽ làm công tắc nhảy giật về trạng thái cũ.
     onSettled: () => qc.invalidateQueries({ queryKey: ['profile'] }),
   })
 }

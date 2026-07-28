@@ -54,7 +54,7 @@ import {
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
 // Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-const STORAGE_KEY = 'sct-demo-db-v14' // v14: gói báo cáo (hoàn tiền, nhãn, tài sản cố định, tham số profile)
+export const STORAGE_KEY = 'sct-demo-db-v14' // v14: gói báo cáo (hoàn tiền, nhãn, tài sản cố định, tham số profile)
 const DEMO_USER = 'demo-user'
 
 /**

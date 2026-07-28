@@ -18,6 +18,8 @@ export const ACTION_LIMIT = 5
 export const INFO_LIMIT = 3
 
 const SEVERITY_RANK: Record<NotificationSeverity, number> = { high: 0, medium: 1, low: 2 }
+// Tra thứ tự một lần thay vì gọi indexOf() mỗi lần so sánh trong sort().
+const TYPE_RANK = new Map(NOTIFICATION_TYPES.map((t, i) => [t, i]))
 
 /**
  * Lọc loại đã tắt, xếp thứ tự (mức cao trước; cùng mức thì theo NOTIFICATION_TYPES),
@@ -33,7 +35,7 @@ export function arrangeNotifications(
   const sorted = [...list].sort((a, b) => {
     const bySeverity = SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]
     if (bySeverity !== 0) return bySeverity
-    return NOTIFICATION_TYPES.indexOf(a.type) - NOTIFICATION_TYPES.indexOf(b.type)
+    return TYPE_RANK.get(a.type)! - TYPE_RANK.get(b.type)!
   })
 
   const kept = sorted.filter((n) => !off.has(n.type))

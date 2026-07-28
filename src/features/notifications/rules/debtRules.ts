@@ -26,7 +26,7 @@ function lines(
     return [
       {
         key: `${type}:group`,
-        kind: 'action',
+        kind: 'action' as const,
         type,
         severity,
         title: many(list.length),

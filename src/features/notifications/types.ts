@@ -104,12 +104,12 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
   'budget-pace': {
     kind: 'action',
     label: 'Tiêu nhanh hơn nhịp',
-    hint: 'Mới qua nửa tháng đã dùng gần hết hạn mức — báo sớm để còn kịp ghìm lại.',
+    hint: 'Mới qua một phần ba tháng đã dùng gần hết hạn mức — báo sớm để còn kịp ghìm lại.',
   },
   'budget-parent-over': {
     kind: 'action',
     label: 'Nhóm vượt trần',
-    hint: 'Cả nhóm đã tiêu quá trần đặt ở mục cha; kèm mục con đang tiêu nhiều nhất.',
+    hint: 'Cả nhóm đã tiêu quá trần đặt ở mục cha; kèm tối đa 2 mục con đang tiêu nhiều nhất.',
   },
   'card-statement-day': {
     kind: 'info',

@@ -17,6 +17,11 @@ import {
 
 type Encoding = 'utf-8' | 'shift-jis'
 
+// Bảng xem trước chỉ hiện bấy nhiêu dòng đầu. Đặt tên riêng để không lẫn với
+// ANOMALY_MIN_SAMPLES trong anomaly.ts — hai hằng số cùng giá trị 20 nhưng
+// nghĩa khác hẳn nhau.
+const PREVIEW_ROWS = 20
+
 /** ISO ngày + 1 (mốc loại trừ cho truy vấn khoảng ngày). */
 function nextDay(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number)
@@ -174,13 +179,13 @@ export function ImportCsvPage() {
     (it: ImportItem) => it.type === 'expense' && isUnusuallyLarge(it.amount, median),
     [median],
   )
-  // Bảng chỉ hiện 20 dòng đầu (giữ nguyên thứ tự CSV, không sắp lại), nên
-  // khoản bất thường rơi vào dòng thứ 21 trở đi sẽ không được tô gì — đếm
-  // riêng phần bị ẩn này để còn báo cho người dùng biết mà cuộn xuống soát.
-  // Chỉ đếm từ dòng 21 trở đi: 20 dòng đầu đã tô đỏ tại chỗ rồi, đếm lại sẽ
-  // trùng.
+  // Bảng chỉ hiện PREVIEW_ROWS dòng đầu (giữ nguyên thứ tự CSV, không sắp lại),
+  // nên khoản bất thường rơi vào dòng sau đó sẽ không được tô gì — đếm riêng
+  // phần bị ẩn này để còn báo cho người dùng biết mà cuộn xuống soát.
+  // Chỉ đếm từ dòng PREVIEW_ROWS trở đi: các dòng trước đã tô đỏ tại chỗ rồi,
+  // đếm lại sẽ trùng.
   const hiddenAnomalyCount = useMemo(
-    () => toImport.slice(20).filter(isAnomalyRow).length,
+    () => toImport.slice(PREVIEW_ROWS).filter(isAnomalyRow).length,
     [toImport, isAnomalyRow],
   )
 
@@ -367,7 +372,7 @@ export function ImportCsvPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {toImport.slice(0, 20).map((it: ImportItem, i) => {
+                    {toImport.slice(0, PREVIEW_ROWS).map((it: ImportItem, i) => {
                       // Tô đỏ để soát bằng mắt — KHÔNG chặn lưu (mục G của spec).
                       const odd = isAnomalyRow(it)
                       return (
@@ -393,9 +398,9 @@ export function ImportCsvPage() {
                     })}
                   </tbody>
                 </table>
-                {toImport.length > 20 && (
+                {toImport.length > PREVIEW_ROWS && (
                   <p className="mt-1 text-center text-gray-500 dark:text-gray-400">
-                    … và {toImport.length - 20} dòng nữa
+                    … và {toImport.length - PREVIEW_ROWS} dòng nữa
                     {hiddenAnomalyCount > 0 && (
                       <span className="font-semibold text-red-600 dark:text-red-400">
                         , trong đó {hiddenAnomalyCount} khoản lớn bất thường

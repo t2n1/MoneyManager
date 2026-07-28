@@ -243,6 +243,14 @@ export function LifetimePage() {
         currency={active.display_currency as CurrencyCode}
         compare={compareRows}
         compareCurrency={compareScenario ? (compareScenario.display_currency as CurrencyCode) : null}
+        // networth_snapshots luôn ở base currency của profile, KHÔNG phải display_currency
+        // của kịch bản — bắt buộc phải truyền để thẻ tự phát hiện lệch và ẩn đường lịch
+        // sử thay vì vẽ sai đơn vị (xem JSDoc historyCurrency trong LifetimeChartCard).
+        // `profile` luôn có ở nhánh này trên thực tế (needsBirthYear đã lọc trước), nhưng
+        // vẫn phòng hờ bằng `?? active.display_currency` — coi như cùng đơn vị (không ẩn
+        // lịch sử oan) thay vì render lỗi nếu profile rơi vào ca undefined không lường
+        // trước, thà mất cảnh báo còn hơn crash cả thẻ.
+        historyCurrency={profile?.base_currency ?? (active.display_currency as CurrencyCode)}
       />
 
       <div className="flex gap-2">

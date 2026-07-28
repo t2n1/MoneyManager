@@ -46,14 +46,27 @@ describe('LIFE_PRESETS', () => {
     const r = preset('sinh-con').build({ ...ctx, year: 2029 })
     expect(r.phases).toHaveLength(0)
     expect(r.events.length).toBeGreaterThanOrEqual(4)
-    // Trợ cấp 児童手当: thu, tới năm con 15 tuổi, KHÔNG theo lạm phát
+    // Trợ cấp 児童手当 SAU CẢI CÁCH 10/2024: thu, tới hết cấp ba (18 tuổi), KHÔNG theo lạm phát
     const tro = r.events.find((e) => e.kind === 'income')!
-    expect(tro.end_year).toBe(2029 + 15)
+    expect(tro.end_year).toBe(2029 + 18)
     expect(tro.inflate).toBe(false)
     // Đại học: 4 năm, theo lạm phát
     const dh = r.events.find((e) => e.label.includes('đại học'))!
     expect(dh.end_year! - dh.start_year).toBe(3)
     expect(dh.inflate).toBe(true)
+  })
+
+  it('các bậc nuôi con không chồng lấn và không hở năm nào giữa các mốc tuổi', () => {
+    const r = preset('sinh-con').build(ctx)
+    // Chỉ xét các sự kiện CHI theo bậc tuổi (loại trợ cấp thu ra, nó chạy song song
+    // chứ không phải một bậc tuổi nối tiếp bậc khác).
+    const bands = r.events.filter((e) => e.kind === 'expense').sort((a, b) => a.start_year - b.start_year)
+    expect(bands.length).toBeGreaterThanOrEqual(4)
+    for (let i = 0; i < bands.length - 1; i++) {
+      // Bậc sau phải bắt đầu ĐÚNG một năm sau khi bậc trước kết thúc: không chồng lấn
+      // (bằng hoặc nhỏ hơn end_year của bậc trước) và không hở (lớn hơn end_year + 1).
+      expect(bands[i + 1].start_year).toBe(bands[i].end_year! + 1)
+    }
   })
 
   it('mọi khoảng sự kiện đều hợp lệ: end_year null hoặc >= start_year', () => {

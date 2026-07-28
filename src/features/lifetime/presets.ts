@@ -88,13 +88,22 @@ function ev(ctx: PresetContext, over: Partial<NewLifeEvent> & Pick<NewLifeEvent,
   }
 }
 
-// 児童手当 (tra 2026-07-29, nguồn: cổng thông tin こども家庭庁): 0–3 tuổi ¥15.000/tháng,
-// sau đó ¥10.000/tháng tới hết cấp ba. Lấy ¥12.000/tháng ≈ ¥144.000/năm làm số gộp.
+// 児童手当 SAU CẢI CÁCH 10/2024 (tra 2026-07-29, nguồn: cổng thông tin こども家庭庁):
+// cải cách bỏ ngưỡng thu nhập và kéo dài trợ cấp tới hết cấp ba (18 tuổi) — trước đó
+// chỉ tới hết cấp hai (15 tuổi). Mức: 0–2 tuổi ¥15.000/tháng, 3 tuổi trở lên (tiểu
+// học/cấp hai/cấp ba) ¥10.000/tháng (con thứ 3+ cao hơn, mẫu này không phân biệt thứ
+// tự con). Lấy ¥12.000/tháng ≈ ¥144.000/năm làm số gộp trung bình cả giai đoạn.
 const JIDO_TEATE_ANNUAL_JPY = 144_000
+// Trợ cấp chạy tới hết cấp ba — khớp comment trên, KHÔNG phải mốc 15 tuổi kiểu cũ.
+const JIDO_TEATE_END_AGE = 18
 // Chi phí nuôi con theo bậc (tra 2026-07-29, ước lượng từ khảo sát AIU 教育費):
 const CHILD_COST_0_6_JPY = 600_000
 const CHILD_COST_7_15_JPY = 900_000
-const CHILD_COST_16_18_JPY = 1_200_000
+// Đổi từ "16–18" thành "16–17": tuổi 18 đã tính vào chi phí đại học ngay dưới, tránh
+// tính tiền hai lần cho cùng một năm. Ranh giới 6/7, 15/16, 17/18 giữa các bậc là CHỦ
+// Ý khớp khít — bậc sau bắt đầu đúng năm liền sau khi bậc trước kết thúc, không chồng
+// lấn cũng không hở năm nào. Đừng "sửa lại cho tròn" mà vô tình lệch các mốc này.
+const CHILD_COST_16_17_JPY = 1_200_000
 const CHILD_COST_UNIVERSITY_JPY = 1_800_000
 
 export const LIFE_PRESETS: LifePreset[] = [
@@ -117,7 +126,17 @@ export const LIFE_PRESETS: LifePreset[] = [
           fx_to_display: ctx.fxToDisplay,
         },
       ],
-      events: [ev(ctx, { label: 'Chi phí cưới', amount_minor: 3_000_000, inflate: false })],
+      events: [
+        ev(ctx, {
+          label: 'Chi phí cưới',
+          // Ước lượng, chưa tra nguồn (2026-07-29) — chi phí tổ chức đám cưới trung bình.
+          amount_minor: 3_000_000,
+          // Số tiền là giá HÔM NAY cho một việc xảy ra ở năm tương lai — ở chế độ giá
+          // danh nghĩa nó phải phồng theo lạm phát như mọi giá cả khác (không phải số
+          // luật định như trợ cấp/lương hưu, cũng không phải nợ vay lãi cố định).
+          inflate: true,
+        }),
+      ],
     }),
   },
   {
@@ -131,7 +150,7 @@ export const LIFE_PRESETS: LifePreset[] = [
         ev(ctx, {
           label: 'Trợ cấp trẻ em (児童手当)',
           kind: 'income',
-          end_year: ctx.year + 15,
+          end_year: ctx.year + JIDO_TEATE_END_AGE,
           amount_minor: JIDO_TEATE_ANNUAL_JPY,
           // Trợ cấp của Nhật luôn trả bằng JPY, ép cứng bất kể ctx.currency. fx_to_display
           // được ev()/fxForEvent() tính theo tiền JPY của CHÍNH sự kiện này (qua ctx.fxOf),
@@ -152,10 +171,12 @@ export const LIFE_PRESETS: LifePreset[] = [
           amount_minor: CHILD_COST_7_15_JPY,
         }),
         ev(ctx, {
-          label: 'Nuôi con 16–18 tuổi',
+          label: 'Nuôi con 16–17 tuổi',
           start_year: ctx.year + 16,
-          end_year: ctx.year + 18,
-          amount_minor: CHILD_COST_16_18_JPY,
+          // Kết thúc ở +17 (KHÔNG phải +18) — năm con 18 tuổi đã tính vào "Con vào đại
+          // học" ngay dưới. Xem ghi chú tại CHILD_COST_16_17_JPY: chủ ý khớp khít.
+          end_year: ctx.year + 17,
+          amount_minor: CHILD_COST_16_17_JPY,
         }),
         ev(ctx, {
           label: 'Con vào đại học',
@@ -174,12 +195,23 @@ export const LIFE_PRESETS: LifePreset[] = [
     build: (ctx) => ({
       phases: [],
       events: [
-        ev(ctx, { label: 'Trả trước mua nhà', amount_minor: 5_000_000, inflate: false }),
+        ev(ctx, {
+          label: 'Trả trước mua nhà',
+          // Ước lượng, chưa tra nguồn (2026-07-29) — khoản trả trước khi mua nhà.
+          amount_minor: 5_000_000,
+          // Giá HÔM NAY cho việc xảy ra ở năm tương lai — phồng theo lạm phát ở chế độ
+          // danh nghĩa, giống "Chi phí cưới" (không phải số luật định, không phải nợ vay).
+          inflate: true,
+        }),
         ev(ctx, {
           label: 'Trả vay mua nhà',
+          // Thời hạn vay: ước lượng, chưa tra nguồn (2026-07-29) — giả định vay 35 năm,
+          // năm mua tính là năm trả đầu tiên nên còn 34 năm sau đó.
           end_year: ctx.year + 34,
+          // Số tiền trả mỗi năm: ước lượng, chưa tra nguồn (2026-07-29).
           amount_minor: 1_200_000,
-          // Khoản trả vay lãi cố định là số danh nghĩa — không tăng theo lạm phát.
+          // Khoản trả vay lãi cố định là số danh nghĩa — không tăng theo lạm phát, khác
+          // với "Chi phí cưới"/"Trả trước mua nhà" ở trên vốn là giá hôm nay phải phồng.
           inflate: false,
         }),
       ],
@@ -209,10 +241,13 @@ export const LIFE_PRESETS: LifePreset[] = [
           label: 'Lương hưu',
           kind: 'income',
           end_year: null,
+          // Ước lượng, chưa tra nguồn (2026-07-29) — mức lương hưu bình quân giả định.
           amount_minor: 1_100_000,
           // 年金 luôn trả bằng JPY, ép cứng bất kể ctx.currency — cùng cách tính với
           // 児童手当 ở trên: fx_to_display theo tiền JPY của sự kiện qua ctx.fxOf.
           currency: 'JPY',
+          // Mức do luật/chế độ lương hưu ấn định, không theo lạm phát thị trường —
+          // giống trợ cấp trẻ em, khác với các khoản "giá hôm nay" ở trên.
           inflate: false,
         }),
       ],
@@ -237,7 +272,17 @@ export const LIFE_PRESETS: LifePreset[] = [
         },
       ],
       // Sự kiện này KHÔNG ép cứng currency — dùng đúng ctx.currency.
-      events: [ev(ctx, { label: 'Chi phí chuyển nhà, thủ tục', amount_minor: 2_500_000, inflate: false })],
+      events: [
+        ev(ctx, {
+          label: 'Chi phí chuyển nhà, thủ tục',
+          // Ước lượng, chưa tra nguồn (2026-07-29) — chi phí chuyển nhà + thủ tục giấy
+          // tờ khi đổi nước sinh sống.
+          amount_minor: 2_500_000,
+          // Giá HÔM NAY cho việc xảy ra ở năm tương lai — phồng theo lạm phát ở chế độ
+          // danh nghĩa, cùng lý do với "Chi phí cưới"/"Trả trước mua nhà".
+          inflate: true,
+        }),
+      ],
     }),
   },
   {
@@ -250,7 +295,11 @@ export const LIFE_PRESETS: LifePreset[] = [
       events: [
         ev(ctx, {
           label: 'Hỗ trợ bố mẹ',
+          // Thời hạn 20 năm: ước lượng, chưa tra nguồn (2026-07-29) — không dựa trên số
+          // liệu tuổi thọ hay nhu cầu cụ thể nào, chỉ là một mốc tạm để mẫu có năm kết
+          // thúc thay vì chạy vô hạn.
           end_year: ctx.year + 20,
+          // Số tiền mỗi năm: ước lượng, chưa tra nguồn (2026-07-29).
           amount_minor: 60_000_000,
           // Tiền gửi về luôn tính bằng VND, ép cứng bất kể ctx.currency — đây là mẫu
           // mà lệch tiền với ctx là TRƯỜNG HỢP THƯỜNG GẶP NHẤT (người dùng ở Nhật gửi

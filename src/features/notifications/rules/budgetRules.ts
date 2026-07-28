@@ -31,17 +31,46 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
   const totalBudgeted = realLines.reduce((s, l) => s + l.budgeted, 0)
 
   for (const l of realLines) {
-    // --- Mục 5: đã vượt ---
+    // Nhóm = mục có con. Quyết định mục 5 hay mục 7, hai loại LOẠI TRỪ NHAU tuyệt đối.
+    const children = input.categories.filter((c) => c.parent_id === l.categoryId)
+
+    // --- Mục 5 (mục lá) / Mục 7 (nhóm): đã vượt ---
     if (l.spent >= l.budgeted) {
-      out.push({
-        key: `budget-over:${l.categoryId}`,
-        kind: 'action',
-        type: 'budget-over',
-        severity: 'high',
-        title: `${nameOf(l.categoryId)} đã vượt ngân sách ${input.formatMoney(l.spent - l.budgeted, input.base)}`,
-        detail: `Đã tiêu ${input.formatMoney(l.spent, input.base)} / ${input.formatMoney(l.budgeted, input.base)}`,
-        to: BUDGET_ROUTE,
-      })
+      const over = input.formatMoney(l.spent - l.budgeted, input.base)
+      const usage = `Đã tiêu ${input.formatMoney(l.spent, input.base)} / ${input.formatMoney(l.budgeted, input.base)}`
+
+      if (children.length > 0) {
+        // Nêu tối đa 2 mục con tiêu nhiều nhất — thứ duy nhất mục 7 nói thêm được so với
+        // mục 5. Không con nào tiêu (chi gán trực tiếp vào cha) → bỏ hẳn phần "chủ yếu do".
+        const topChildren = children
+          .map((c) => ({ name: c.name, spent: report.spentByCategory.get(c.id) ?? 0 }))
+          .filter((c) => c.spent > 0)
+          .sort((a, b) => b.spent - a.spent)
+          .slice(0, 2)
+        const blame =
+          topChildren.length > 0
+            ? ` — chủ yếu do ${topChildren.map((c) => c.name).join(' và ')}`
+            : ''
+        out.push({
+          key: `budget-parent-over:${l.categoryId}`,
+          kind: 'action',
+          type: 'budget-parent-over',
+          severity: 'high',
+          title: `Nhóm ${nameOf(l.categoryId)} vượt trần ${over}${blame}`,
+          detail: usage,
+          to: BUDGET_ROUTE,
+        })
+      } else {
+        out.push({
+          key: `budget-over:${l.categoryId}`,
+          kind: 'action',
+          type: 'budget-over',
+          severity: 'high',
+          title: `${nameOf(l.categoryId)} đã vượt ngân sách ${over}`,
+          detail: usage,
+          to: BUDGET_ROUTE,
+        })
+      }
       continue // đã vượt thì không nói thêm chuyện nhịp
     }
 
@@ -58,26 +87,6 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
       severity: 'medium',
       title: `${nameOf(l.categoryId)} tiêu nhanh hơn nhịp`,
       detail: `Mới qua ${Math.round(elapsed * 100)}% tháng đã dùng ${Math.round(spentRatio * 100)}% hạn mức (${input.formatMoney(l.spent, input.base)} / ${input.formatMoney(l.budgeted, input.base)})`,
-      to: BUDGET_ROUTE,
-    })
-  }
-
-  // --- Mục 7: tổng chi các mục con vượt trần cha ---
-  for (const l of realLines) {
-    const children = input.categories.filter((c) => c.parent_id === l.categoryId)
-    if (children.length === 0) continue
-    const childSpent = children.reduce(
-      (s, c) => s + (report.spentByCategory.get(c.id) ?? 0),
-      0,
-    )
-    if (childSpent <= l.budgeted) continue
-    out.push({
-      key: `budget-parent-over:${l.categoryId}`,
-      kind: 'action',
-      type: 'budget-parent-over',
-      severity: 'medium',
-      title: `Nhóm ${nameOf(l.categoryId)}: các mục con đã tiêu vượt trần ${input.formatMoney(childSpent - l.budgeted, input.base)}`,
-      detail: `Các con tiêu ${input.formatMoney(childSpent, input.base)} / trần nhóm ${input.formatMoney(l.budgeted, input.base)}`,
       to: BUDGET_ROUTE,
     })
   }

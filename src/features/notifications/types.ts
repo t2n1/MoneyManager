@@ -108,8 +108,8 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
   },
   'budget-parent-over': {
     kind: 'action',
-    label: 'Nhóm bị các mục con tiêu vượt trần',
-    hint: 'Tổng chi của các mục con đã vượt trần đặt ở mục cha.',
+    label: 'Nhóm vượt trần',
+    hint: 'Cả nhóm đã tiêu quá trần đặt ở mục cha; kèm mục con đang tiêu nhiều nhất.',
   },
   'card-statement-day': {
     kind: 'info',

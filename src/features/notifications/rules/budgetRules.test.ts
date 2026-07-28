@@ -164,29 +164,72 @@ describe('budget-pace', () => {
 })
 
 describe('budget-parent-over', () => {
-  it('tổng chi các con vượt trần cha thì báo', () => {
-    const parent = line({ categoryId: 'p1', budgeted: 100_000, spent: 108_400 })
-    const rep = report([parent])
-    rep.spentByCategory = new Map([
-      ['p1', 0],
-      ['c1', 60_000],
-      ['c2', 48_400],
-    ])
+  const groupCats = [
+    cat('p1', 'Sinh hoạt'),
+    cat('c1', 'Ăn ngoài', 'p1'),
+    cat('c2', 'Giải trí', 'p1'),
+  ]
+
+  function groupReport(spentByCategory: [string, number][]) {
+    const rep = report([line({ categoryId: 'p1', budgeted: 100_000, spent: 108_400 })])
+    rep.spentByCategory = new Map(spentByCategory)
+    return rep
+  }
+
+  it('nhóm vượt trần thì báo, kèm 2 mục con tiêu nhiều nhất theo thứ tự giảm dần', () => {
     const out = budgetRules(
       input({
-        categories: [cat('p1', 'Sinh hoạt'), cat('c1', 'Ăn ngoài', 'p1'), cat('c2', 'Giải trí', 'p1')],
-        budgetReport: rep,
+        categories: groupCats,
+        budgetReport: groupReport([
+          ['p1', 0],
+          ['c1', 48_400],
+          ['c2', 60_000],
+        ]),
       }),
     )
     const hit = out.find((n) => n.type === 'budget-parent-over')
     expect(hit?.key).toBe('budget-parent-over:p1')
-    expect(hit?.title).toContain('Sinh hoạt')
+    expect(hit?.severity).toBe('high')
+    // c2 tiêu nhiều hơn c1 nên phải đứng trước
+    expect(hit?.title).toBe('Nhóm Sinh hoạt vượt trần 8400 — chủ yếu do Giải trí và Ăn ngoài')
   })
 
-  it('mục cha không có con thì không sinh dòng nhóm', () => {
+  it('nhóm vượt trần mà các con không tiêu gì thì bỏ phần "chủ yếu do"', () => {
+    const out = budgetRules(
+      input({
+        categories: groupCats,
+        budgetReport: groupReport([
+          ['p1', 108_400],
+          ['c1', 0],
+          ['c2', 0],
+        ]),
+      }),
+    )
+    const hit = out.find((n) => n.type === 'budget-parent-over')
+    expect(hit?.title).toBe('Nhóm Sinh hoạt vượt trần 8400')
+  })
+
+  it('nhóm vượt trần thì KHÔNG đồng thời sinh budget-over cho cùng danh mục', () => {
+    const out = budgetRules(
+      input({
+        categories: groupCats,
+        budgetReport: groupReport([
+          ['p1', 0],
+          ['c1', 48_400],
+          ['c2', 60_000],
+        ]),
+      }),
+    )
+    expect(out.filter((n) => n.type === 'budget-over')).toHaveLength(0)
+    // Đúng MỘT thông báo cho danh mục p1, không phải hai
+    expect(out.filter((n) => n.key.endsWith(':p1'))).toHaveLength(1)
+  })
+
+  it('mục lá vượt hạn mức thì ra budget-over, KHÔNG ra budget-parent-over', () => {
     const out = budgetRules(
       input({ budgetReport: report([line({ categoryId: 'c1', spent: 43_200 })]) }),
     )
+    expect(out.filter((n) => n.type === 'budget-over')).toHaveLength(1)
     expect(out.filter((n) => n.type === 'budget-parent-over')).toHaveLength(0)
   })
 })

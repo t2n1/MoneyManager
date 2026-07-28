@@ -46,7 +46,7 @@ describe('arrangeNotifications', () => {
     expect(out.allKeys).toEqual(['budget-over:x'])
   })
 
-  it('cắt trần 5 việc cần làm và 3 tin để biết, đếm phần bị cắt', () => {
+  it('cắt trần 5 việc cần làm và 3 tin để biết, đếm phần bị cắt RIÊNG từng nhóm', () => {
     const actions = Array.from({ length: 7 }, (_, i) =>
       n('budget-over', 'high', 'action', `budget-over:${i}`),
     )
@@ -56,7 +56,35 @@ describe('arrangeNotifications', () => {
     const out = arrangeNotifications([...actions, ...infos], [])
     expect(out.actions).toHaveLength(ACTION_LIMIT)
     expect(out.infos).toHaveLength(INFO_LIMIT)
-    expect(out.hiddenCount).toBe(2 + 2)
+    // Hai con số PHẢI tách nhau: gộp thành một số rồi in dưới nhóm "Tin để biết" là
+    // báo một việc-cần-làm bị ẩn như thể chỉ là mẹo nhỏ (lỗi I4).
+    expect(out.hiddenActionCount).toBe(2)
+    expect(out.hiddenInfoCount).toBe(2)
+  })
+
+  it('chỉ việc cần làm quá trần thì hiddenInfoCount = 0 (không lẫn sang nhóm kia)', () => {
+    const actions = Array.from({ length: 7 }, (_, i) =>
+      n('budget-over', 'high', 'action', `budget-over:${i}`),
+    )
+    const out = arrangeNotifications([...actions, n('stale-entry', 'low', 'info')], [])
+    expect(out.hiddenActionCount).toBe(2)
+    expect(out.hiddenInfoCount).toBe(0)
+  })
+
+  it('trả luôn hai danh sách ĐẦY ĐỦ để tấm trượt xổ được phần bị cắt', () => {
+    const actions = Array.from({ length: 7 }, (_, i) =>
+      n('budget-over', 'high', 'action', `budget-over:${i}`),
+    )
+    const infos = Array.from({ length: 5 }, (_, i) =>
+      n('stale-entry', 'low', 'info', `stale-entry:${i}`),
+    )
+    const out = arrangeNotifications([...actions, ...infos], [])
+    expect(out.actionsAll).toHaveLength(7)
+    expect(out.infosAll).toHaveLength(5)
+    // Phần thu gọn phải là ĐOẠN ĐẦU của bản đầy đủ — tấm trượt lấy phần chênh làm
+    // danh sách xổ ra, lệch thứ tự là xổ ra tin đang hiện hoặc bỏ sót tin bị ẩn.
+    expect(out.actionsAll.slice(0, ACTION_LIMIT)).toEqual(out.actions)
+    expect(out.infosAll.slice(0, INFO_LIMIT)).toEqual(out.infos)
   })
 
   it('allKeys gồm cả tin bị cắt trần', () => {
@@ -78,7 +106,7 @@ describe('arrangeNotifications', () => {
     ]
     const out = arrangeNotifications(items, ['budget-over'])
     expect(out.actions).toHaveLength(4)
-    expect(out.hiddenCount).toBe(0)
+    expect(out.hiddenActionCount).toBe(0)
     expect(out.allKeys).toEqual([
       'account-shortfall:0',
       'account-shortfall:1',
@@ -89,6 +117,14 @@ describe('arrangeNotifications', () => {
 
   it('danh sách rỗng ra kết quả rỗng, không nổ', () => {
     const out = arrangeNotifications([], [])
-    expect(out).toEqual({ actions: [], infos: [], hiddenCount: 0, allKeys: [] })
+    expect(out).toEqual({
+      actions: [],
+      infos: [],
+      actionsAll: [],
+      infosAll: [],
+      hiddenActionCount: 0,
+      hiddenInfoCount: 0,
+      allKeys: [],
+    })
   })
 })

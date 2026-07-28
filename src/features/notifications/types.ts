@@ -173,12 +173,25 @@ export interface NotificationInput {
 }
 
 export interface NotificationResult {
-  /** Việc cần làm, đã xếp thứ tự và cắt trần. */
+  /** Việc cần làm, đã xếp thứ tự và cắt trần (phần hiện lúc còn thu gọn). */
   actions: AppNotification[]
-  /** Tin để biết, đã xếp thứ tự và cắt trần. */
+  /** Tin để biết, đã xếp thứ tự và cắt trần (phần hiện lúc còn thu gọn). */
   infos: AppNotification[]
-  /** Số tin bị cắt vì quá trần. */
-  hiddenCount: number
+  /**
+   * Việc cần làm ĐẦY ĐỦ, chưa cắt trần — để tấm trượt xổ được phần thừa ra
+   * (mục C.4: "bấm mới xổ"). `actions` luôn là đoạn đầu của mảng này.
+   */
+  actionsAll: AppNotification[]
+  /** Tin để biết ĐẦY ĐỦ, chưa cắt trần. `infos` luôn là đoạn đầu của mảng này. */
+  infosAll: AppNotification[]
+  /**
+   * Số VIỆC CẦN LÀM bị cắt vì quá trần. Tách riêng khỏi tin-để-biết vì hai nhóm hiện
+   * ở hai chỗ khác nhau — gộp một số rồi in dưới nhóm "Tin để biết" là nói dối người
+   * dùng: việc cần làm bị ẩn lại bị báo như thể chỉ là một mẹo nhỏ.
+   */
+  hiddenActionCount: number
+  /** Số TIN ĐỂ BIẾT bị cắt vì quá trần. */
+  hiddenInfoCount: number
   /** MỌI mã sinh ra ở lượt này, kể cả tin bị cắt trần — dùng cho vòng đời trạng thái. */
   allKeys: string[]
 }

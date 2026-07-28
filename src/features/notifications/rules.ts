@@ -41,10 +41,14 @@ export function arrangeNotifications(
   const infos = kept.filter((n) => n.kind === 'info')
 
   return {
+    // Trần ACTION_LIMIT / INFO_LIMIT là trần của phần THU GỌN, không phải trần cứng:
+    // tấm trượt giữ luôn hai mảng đầy đủ để bấm "xem thêm" là xổ ra (mục C.4).
     actions: actions.slice(0, ACTION_LIMIT),
     infos: infos.slice(0, INFO_LIMIT),
-    hiddenCount:
-      Math.max(0, actions.length - ACTION_LIMIT) + Math.max(0, infos.length - INFO_LIMIT),
+    actionsAll: actions,
+    infosAll: infos,
+    hiddenActionCount: Math.max(0, actions.length - ACTION_LIMIT),
+    hiddenInfoCount: Math.max(0, infos.length - INFO_LIMIT),
     allKeys: kept.map((n) => n.key),
   }
 }

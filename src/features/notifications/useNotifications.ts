@@ -33,9 +33,14 @@ const LOOKBACK_DAYS = 90
 const EMPTY: never[] = []
 
 export interface UseNotificationsResult {
+  /** Việc cần làm phần THU GỌN (tối đa ACTION_LIMIT). */
   actions: AppNotification[]
+  /** Tin để biết phần THU GỌN (tối đa INFO_LIMIT), đã bỏ tin đã đọc/đã tắt. */
   infos: AppNotification[]
-  hiddenCount: number
+  /** Việc cần làm ĐẦY ĐỦ — tấm trượt cần để xổ phần thừa (mục C.4). */
+  actionsAll: AppNotification[]
+  /** Tin để biết ĐẦY ĐỦ, cũng đã bỏ tin đã đọc/đã tắt. `infos` là đoạn đầu của nó. */
+  infosAll: AppNotification[]
   /** Số việc-cần-làm chưa đọc — con số đỏ trên chuông. */
   unreadCount: number
   /** Mã nào đã đọc (để UI làm mờ). */
@@ -56,10 +61,23 @@ export interface UseNotificationsResult {
   /** true nếu bộ luật vừa ném lỗi lượt này — AppLayout phải bỏ qua dọn dẹp (mục E). */
   engineFailed: boolean
   markAllRead: () => void
+  /**
+   * Đánh dấu đã đọc một nhóm mã cụ thể. Dùng khi người dùng bấm xổ phần bị cắt trần:
+   * lúc đó họ mới THẬT SỰ nhìn thấy mấy tin đó, nên mới được tính là đã đọc.
+   */
+  markRead: (keys: string[]) => void
   dismiss: (key: string) => void
 }
 
-const EMPTY_RESULT: NotificationResult = { actions: [], infos: [], hiddenCount: 0, allKeys: [] }
+const EMPTY_RESULT: NotificationResult = {
+  actions: [],
+  infos: [],
+  actionsAll: [],
+  infosAll: [],
+  hiddenActionCount: 0,
+  hiddenInfoCount: 0,
+  allKeys: [],
+}
 
 export function useNotifications(): UseNotificationsResult {
   const todayISO = toISODate(new Date())
@@ -180,6 +198,7 @@ export function useNotifications(): UseNotificationsResult {
   // (Mở tấm trượt lần này có đánh dấu đọc thì vẫn thấy tới khi đóng — xem NotificationSheet.)
   // Hai phép lọc là hàm thuần ở state.ts nên test được cả vòng đời (mục I).
   const infos = visibleInfos(result.infos, readKeys, dismissedKeys)
+  const infosAll = visibleInfos(result.infosAll, readKeys, dismissedKeys)
   const unreadCount = unreadActionCount(result.actions, readKeys)
 
   // Đủ để DỌN: mọi query mà 13 luật đọc đều đã THÀNH CÔNG, và budgetReport đã có
@@ -198,10 +217,17 @@ export function useNotifications(): UseNotificationsResult {
     snapshotsQ.isSuccess &&
     txsQ.isSuccess
 
+  // Đánh dấu đã đọc, bỏ sẵn mã đã đọc rồi để khỏi gọi mạng vô ích.
+  const markReadKeys = (keys: string[]) => {
+    const fresh = keys.filter((k) => !readKeys.has(k))
+    if (fresh.length > 0) markRead.mutate(fresh)
+  }
+
   return {
     actions: result.actions,
     infos,
-    hiddenCount: result.hiddenCount,
+    actionsAll: result.actionsAll,
+    infosAll,
     unreadCount,
     readKeys,
     allKeys: result.allKeys,
@@ -209,10 +235,12 @@ export function useNotifications(): UseNotificationsResult {
     isReady: !!profile && !stateLoading,
     inputsReady,
     engineFailed,
-    markAllRead: () => {
-      const keys = [...result.actions, ...infos].map((n) => n.key).filter((k) => !readKeys.has(k))
-      if (keys.length > 0) markRead.mutate(keys)
-    },
+    // CHỈ đánh dấu phần ĐANG HIỆN (thu gọn). Phần bị cắt trần người dùng chưa nhìn
+    // thấy nên chưa được coi là đã đọc — nếu đánh dấu luôn thì một tin-để-biết bị cắt
+    // sẽ mất vĩnh viễn mà chủ nó chưa từng thấy. Nó chỉ được đánh dấu khi người dùng
+    // bấm xổ ra (markRead ở NotificationSheet).
+    markAllRead: () => markReadKeys([...result.actions, ...infos].map((n) => n.key)),
+    markRead: markReadKeys,
     dismiss: (key: string) => dismissMutation.mutate(key),
   }
 }

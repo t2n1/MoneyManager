@@ -11,8 +11,18 @@ const NotificationSheet = lazy(() =>
 
 export function NotificationBell({ className = '' }: { className?: string }) {
   const [open, setOpen] = useState(false)
-  const { actions, infos, hiddenCount, unreadCount, readKeys, isReady, markAllRead, dismiss } =
-    useNotifications()
+  const {
+    actions,
+    actionsAll,
+    infos,
+    infosAll,
+    unreadCount,
+    readKeys,
+    isReady,
+    markAllRead,
+    markRead,
+    dismiss,
+  } = useNotifications()
 
   // Mở tấm trượt = đánh dấu đã đọc tất cả đang hiện. Nhưng danh sách phải GIỮ
   // NGUYÊN trước mắt tới khi đóng, để còn kịp bấm vào (mục D.2 của spec).
@@ -23,19 +33,25 @@ export function NotificationBell({ className = '' }: { className?: string }) {
   //  - infosAtOpen: useNotifications LỌC BỎ tin-để-biết đã đọc. Không chụp lại thì
   //    đánh dấu đọc xong là mấy tin đó biến mất ngay trước mắt — đúng cái phải tránh.
   //    Việc-cần-làm không cần chụp: hook giữ chúng trong danh sách dù đã đọc.
+  //    Chụp cả bản ĐẦY ĐỦ (infosAllAtOpen) vì tấm trượt xổ được phần bị cắt trần, và
+  //    xổ ra là đánh dấu đã đọc — không chụp thì mấy tin vừa xổ biến mất ngay.
   const [readAtOpen, setReadAtOpen] = useState<Set<string>>(new Set())
   const [infosAtOpen, setInfosAtOpen] = useState<AppNotification[]>([])
+  const [infosAllAtOpen, setInfosAllAtOpen] = useState<AppNotification[]>([])
   useEffect(() => {
     if (!open) return
     setReadAtOpen(new Set(readKeys))
     setInfosAtOpen(infos)
+    setInfosAllAtOpen(infosAll)
     markAllRead()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  // Bấm ✕ trên một tin để biết: bỏ khỏi bản đã chụp để nó mất ngay trước mắt.
+  // Bấm ✕ trên một tin để biết: bỏ khỏi CẢ HAI bản đã chụp để nó mất ngay trước mắt
+  // (và không quay lại khi bấm xổ phần bị cắt trần).
   function dismissNow(key: string) {
     setInfosAtOpen((list) => list.filter((n) => n.key !== key))
+    setInfosAllAtOpen((list) => list.filter((n) => n.key !== key))
     dismiss(key)
   }
 
@@ -91,9 +107,11 @@ export function NotificationBell({ className = '' }: { className?: string }) {
             >
               <NotificationSheet
                 actions={actions}
+                actionsAll={actionsAll}
                 infos={infosAtOpen}
-                hiddenCount={hiddenCount}
+                infosAll={infosAllAtOpen}
                 readKeys={readAtOpen}
+                onReveal={markRead}
                 onDismiss={dismissNow}
                 onClose={() => setOpen(false)}
               />

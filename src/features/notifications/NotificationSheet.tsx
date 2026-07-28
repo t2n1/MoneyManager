@@ -1,12 +1,20 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Bell, Settings2, X } from 'lucide-react'
+import { AlertTriangle, Bell, ChevronDown, Settings2, X } from 'lucide-react'
 import type { AppNotification } from './types'
 
 interface Props {
+  /** Việc cần làm phần thu gọn (đã cắt trần). */
   actions: AppNotification[]
+  /** Tin để biết phần thu gọn (đã cắt trần). */
   infos: AppNotification[]
-  hiddenCount: number
+  /** Việc cần làm ĐẦY ĐỦ — phần thừa nằm ở đây, bấm mới xổ (mục C.4). */
+  actionsAll: AppNotification[]
+  /** Tin để biết ĐẦY ĐỦ. */
+  infosAll: AppNotification[]
   readKeys: Set<string>
+  /** Người dùng vừa xổ phần bị cắt trần → giờ mới tính là đã đọc mấy mã này. */
+  onReveal: (keys: string[]) => void
   onDismiss: (key: string) => void
   onClose: () => void
 }
@@ -43,11 +51,14 @@ function Row({
         )}
       </Link>
       {onDismiss && (
+        // Bấm ✕ là MẤT HẲN, không quay lại (mục D.2) — nên vùng bấm phải đủ 44x44 như
+        // mọi nút khác trong app, kẻo chạm lệch một chút là tắt oan một tin.
+        // Hình ✕ vẫn nhỏ như cũ, chỉ vùng bấm to ra (cùng lối với trang cài đặt).
         <button
           type="button"
           onClick={onDismiss}
           aria-label="Bỏ qua tin này"
-          className="shrink-0 self-start rounded p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+          className="-my-2 -mr-2 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
         >
           <X className="h-4 w-4" />
         </button>
@@ -57,26 +68,84 @@ function Row({
 }
 
 /**
+ * Dòng "còn N tin nữa" — là NÚT thật, bấm là xổ phần bị cắt trần ra (mục C.4 của
+ * spec: "phần thừa gom vào dòng 'Còn N tin khác', bấm mới xổ").
+ *
+ * Mỗi nhóm một dòng riêng, không gộp số: việc-cần-làm bị ẩn mà báo dưới nhóm
+ * "Tin để biết" thì người dùng tưởng chỉ là mẹo nhỏ, bỏ qua luôn.
+ */
+function MoreButton({
+  count,
+  open,
+  label,
+  onToggle,
+}: {
+  count: number
+  open: boolean
+  label: string
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className="flex min-h-11 w-full items-center justify-center gap-1 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+    >
+      {open ? 'Thu gọn' : `Xem thêm ${count} ${label}`}
+      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+    </button>
+  )
+}
+
+/** Phần tử của `all` chưa nằm trong `shown` — đúng những gì nút "xem thêm" xổ ra. */
+function extraOf(all: AppNotification[], shown: AppNotification[]): AppNotification[] {
+  const seen = new Set(shown.map((n) => n.key))
+  return all.filter((n) => !seen.has(n.key))
+}
+
+/**
  * Nội dung tấm trượt. Việc-cần-làm KHÔNG có nút ✕ — nạp tiền/trả nợ/hết tháng thì
  * nó tự biến mất. Muốn khỏi thấy hẳn thì tắt cả loại trong cài đặt (mục D.2 spec).
  */
 export function NotificationSheet({
   actions,
   infos,
-  hiddenCount,
+  actionsAll,
+  infosAll,
   readKeys,
+  onReveal,
   onDismiss,
   onClose,
 }: Props) {
-  const empty = actions.length === 0 && infos.length === 0
+  // Mặc định LUÔN thu gọn mỗi lần mở: tấm trượt bị tháo hẳn khi đóng chuông nên
+  // useState chạy lại từ đầu, không cần dọn tay.
+  const [actionsOpen, setActionsOpen] = useState(false)
+  const [infosOpen, setInfosOpen] = useState(false)
+
+  const extraActions = extraOf(actionsAll, actions)
+  const extraInfos = extraOf(infosAll, infos)
+  const shownActions = actionsOpen ? actionsAll : actions
+  const shownInfos = infosOpen ? infosAll : infos
+  const empty = actionsAll.length === 0 && infosAll.length === 0
+
+  // Xổ ra = người dùng vừa nhìn thấy → giờ mới đánh dấu đã đọc. Quyết định có chủ ý
+  // (mục E): việc-cần-làm "đã đọc" chỉ mờ đi chứ không mất, nên đánh dấu ở đây là an
+  // toàn và làm số đỏ trên chuông tắt được. Nếu đánh dấu ngay lúc MỞ chuông thì một
+  // tin-để-biết bị cắt trần sẽ mất vĩnh viễn mà chủ nó chưa từng thấy; nếu KHÔNG bao
+  // giờ đánh dấu thì xem hết rồi chuông vẫn đỏ mãi. Xổ mới đánh dấu là chỗ đúng giữa.
+  function toggle(open: boolean, setOpen: (v: boolean) => void, extra: AppNotification[]) {
+    if (!open) onReveal(extra.map((n) => n.key))
+    setOpen(!open)
+  }
 
   return (
     <div className="flex max-h-[70vh] flex-col">
       <div className="mb-2 flex items-baseline gap-2 px-1">
         <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">Thông báo</h2>
-        {actions.length > 0 && (
+        {actionsAll.length > 0 && (
           <span className="text-xs text-gray-500 dark:text-gray-400">
-            {actions.length} việc cần làm
+            {actionsAll.length} việc cần làm
           </span>
         )}
         <Link
@@ -96,21 +165,29 @@ export function NotificationSheet({
           </p>
         )}
 
-        {actions.length > 0 && (
+        {shownActions.length > 0 && (
           <p className="pt-1 text-[0.625rem] font-bold uppercase tracking-wide text-gray-400">
             Việc cần làm
           </p>
         )}
-        {actions.map((n) => (
+        {shownActions.map((n) => (
           <Row key={n.key} n={n} read={readKeys.has(n.key)} onClose={onClose} />
         ))}
+        {extraActions.length > 0 && (
+          <MoreButton
+            count={extraActions.length}
+            open={actionsOpen}
+            label="việc cần làm"
+            onToggle={() => toggle(actionsOpen, setActionsOpen, extraActions)}
+          />
+        )}
 
-        {infos.length > 0 && (
+        {shownInfos.length > 0 && (
           <p className="pt-2 text-[0.625rem] font-bold uppercase tracking-wide text-gray-400">
             Tin để biết
           </p>
         )}
-        {infos.map((n) => (
+        {shownInfos.map((n) => (
           <Row
             key={n.key}
             n={n}
@@ -119,11 +196,13 @@ export function NotificationSheet({
             onClose={onClose}
           />
         ))}
-
-        {hiddenCount > 0 && (
-          <p className="py-2 text-center text-xs text-gray-500 dark:text-gray-400">
-            Còn {hiddenCount} tin khác — xử lý bớt rồi sẽ hiện tiếp
-          </p>
+        {extraInfos.length > 0 && (
+          <MoreButton
+            count={extraInfos.length}
+            open={infosOpen}
+            label="tin để biết"
+            onToggle={() => toggle(infosOpen, setInfosOpen, extraInfos)}
+          />
         )}
       </div>
     </div>

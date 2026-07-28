@@ -261,6 +261,41 @@ describe('account-shortfall', () => {
     expect(hit?.detail).toContain('Thẻ Yên')
     expect(hit?.detail).not.toContain('Thẻ Đô')
   })
+
+  // Một ví vừa đang âm vừa là nguồn trả thẻ = MỘT tình huống, phải ra MỘT dòng
+  // (spec C.4). Số "thiếu 46.200" đã gồm luôn số dư âm 1.200 bên trong `have`, nên
+  // hai dòng là nói hai lần cùng một chỗ tiền và ngốn 2/5 chỗ việc-cần-làm.
+  it('ví đang âm mà cũng là nguồn trả thẻ thì chỉ ra MỘT dòng (giữ "đang âm")', () => {
+    const negSrc = account({ id: 'srcN', name: 'Rakuten Bank', balance: -1_200 })
+    const dueCard = account({
+      id: 'cardN',
+      name: 'Rakuten Card',
+      type: 'card',
+      balance: -45_000,
+      payment_due_day: 5,
+      payment_account_id: 'srcN',
+    })
+    const out = accountRules(input({ accounts: [negSrc, dueCard] }))
+    expect(out.filter((n) => n.key.endsWith(':srcN'))).toHaveLength(1)
+    expect(out.map((n) => n.type)).toEqual(['account-negative'])
+  })
+
+  // Nguồn thuộc loại KHÔNG được mục 2 xét (đầu tư/cố định): chặn theo `sourceBalance < 0`
+  // sẽ làm cả hai mục im. Phải còn đúng dòng "thiếu tiền".
+  it('nguồn là tài khoản đầu tư đang âm thì vẫn báo thiếu tiền (mục 2 không xét loại này)', () => {
+    const invSrc = account({ id: 'srcI', name: 'Quỹ đầu tư', type: 'investment', balance: -1_200 })
+    const dueCard = account({
+      id: 'cardI',
+      name: 'Thẻ nối quỹ',
+      type: 'card',
+      balance: -45_000,
+      payment_due_day: 5,
+      payment_account_id: 'srcI',
+    })
+    const out = accountRules(input({ accounts: [invSrc, dueCard] }))
+    expect(out.map((n) => n.type)).toEqual(['account-shortfall'])
+    expect(out[0].key).toBe('account-shortfall:srcI')
+  })
 })
 
 describe('account-shortfall — nhánh 2 (không thẻ nào trỏ tới, chỉ định kỳ chi)', () => {

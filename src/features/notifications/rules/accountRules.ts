@@ -87,9 +87,15 @@ export function accountRules(input: NotificationInput): AppNotification[] {
   const out: AppNotification[] = []
 
   // --- Mục 2: tài khoản đang âm ---
+  // Ghi lại tài khoản nào ĐÃ có dòng "đang âm" để mục 1 khỏi nói lại về nó (spec C.4:
+  // một dòng cho mỗi tài khoản). Dùng tập id thật chứ không phải `balance < 0`: mục 2
+  // chỉ báo loại ví tiêu được, nên một tài khoản đầu tư/cố định âm mà lại là nguồn trả
+  // thẻ thì KHÔNG có dòng nào của mục 2 — chặn theo số dư sẽ làm nó im hẳn.
+  const negativeReported = new Set<string>()
   for (const a of input.accounts) {
     if (a.is_archived || !SPENDABLE_TYPES.has(a.type)) continue
     if (a.balance >= 0) continue
+    negativeReported.add(a.id)
     out.push({
       key: `account-negative:${a.id}`,
       kind: 'action',
@@ -132,7 +138,15 @@ export function accountRules(input: NotificationInput): AppNotification[] {
   // Mỗi tài khoản nguồn có thẻ đến hạn → một dòng. Cộng thêm định kỳ chi, trừ định kỳ thu.
   const sourcesSeen = new Set<string>()
   for (const g of groups) {
+    // `sourcesSeen.add` phải đứng TRƯỚC continue: đã có dòng cho nguồn này rồi thì
+    // nhánh định kỳ bên dưới cũng không được nhặt nó lên lần nữa.
     sourcesSeen.add(g.sourceId)
+    // Đã có dòng "đang âm" cho nguồn này thì thôi — cùng một cái ví, cùng một số tiền.
+    // Giữ dòng "đang âm" (chứ không giữ "thiếu tiền") vì đó là gốc của vấn đề: số dư
+    // âm trên ví tiêu được thường là ghi nhầm hoặc quên ghi một khoản thu, và chừng nào
+    // chưa sửa thì con số "thiếu bao nhiêu" cũng chưa đáng tin. Đây cũng đúng thứ tự ưu
+    // tiên mà nhánh định kỳ bên dưới đã áp ("đã có mục 2 lo") — một luật, một chỗ.
+    if (negativeReported.has(g.sourceId)) continue
     // Lọc thêm theo currency giống hệt cardFunding() (aggregate.ts): thẻ khác loại tiền
     // với nguồn bị cardFunding loại khỏi totalOwed, nên cũng không được nêu tên ở đây —
     // nếu không, chi tiết sẽ nhắc tới một thẻ mà số tiền không hề gồm nợ của nó.
@@ -154,7 +168,7 @@ export function accountRules(input: NotificationInput): AppNotification[] {
   for (const a of input.accounts) {
     if (a.is_archived || !SPENDABLE_TYPES.has(a.type)) continue
     if (sourcesSeen.has(a.id)) continue
-    if (a.balance < 0) continue // đã có mục 2 lo
+    if (negativeReported.has(a.id)) continue // đã có mục 2 lo
 
     pushShortfallIfNeeded(out, input, a, 0, [], untilISO)
   }

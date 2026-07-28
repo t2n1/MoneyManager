@@ -1441,6 +1441,8 @@ export const supabaseRepo: Repo = {
               currency: e.currency,
               label: e.label,
               note: e.note,
+              // Bản sao lưu tạo trước migration 0032 chưa có trường này → 1.
+              fx_to_display: e.fx_to_display ?? 1,
               inflate: e.inflate,
             })),
           )

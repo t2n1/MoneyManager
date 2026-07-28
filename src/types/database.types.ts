@@ -291,6 +291,11 @@ export type LifeEventRow = {
   currency: string
   label: string
   note: string
+  /**
+   * 1 đơn vị currency của SỰ KIỆN = bao nhiêu đơn vị display_currency, theo MAJOR
+   * units. Riêng của sự kiện, không mượn của chặng — xem migration 0032.
+   */
+  fx_to_display: number
   inflate: boolean
   created_at: string
 }
@@ -709,7 +714,7 @@ export type Database = {
         Insert: InsertOf<
           LifeEventRow,
           'user_id' | 'scenario_id' | 'start_year' | 'kind' | 'amount_minor' | 'currency' | 'label',
-          'id' | 'end_year' | 'note' | 'inflate'
+          'id' | 'end_year' | 'note' | 'fx_to_display' | 'inflate'
         >
         Update: Partial<
           Pick<
@@ -721,6 +726,7 @@ export type Database = {
             | 'currency'
             | 'label'
             | 'note'
+            | 'fx_to_display'
             | 'inflate'
           >
         >

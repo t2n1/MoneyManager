@@ -852,7 +852,11 @@ export const demoRepo: Repo = {
   },
 
   async getLifeEvents() {
-    return (load().lifeEvents ?? []).slice().sort((a, b) => a.start_year - b.start_year)
+    return (load().lifeEvents ?? [])
+      // Bản ghi ghi trước migration 0032 chưa có fx_to_display. Mặc định 1 — sự kiện
+      // cùng tiền với đơn vị hiển thị thì tỷ giá không được dùng tới.
+      .map((e) => ({ ...e, fx_to_display: e.fx_to_display ?? 1 }))
+      .sort((a, b) => a.start_year - b.start_year)
   },
 
   async createLifeEvent(input: NewLifeEvent) {
@@ -869,6 +873,7 @@ export const demoRepo: Repo = {
       currency: input.currency,
       label: input.label,
       note: input.note,
+      fx_to_display: input.fx_to_display,
       inflate: input.inflate,
       created_at: nowISO(),
     }

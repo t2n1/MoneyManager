@@ -301,6 +301,8 @@ export interface NewLifeEvent {
   currency: string
   label: string
   note: string
+  /** 1 đơn vị `currency` của sự kiện = bao nhiêu đơn vị display, theo MAJOR units. */
+  fx_to_display: number
   inflate: boolean
 }
 

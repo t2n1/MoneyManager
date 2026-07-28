@@ -21,6 +21,8 @@ import type { CurrencyCode } from '../../lib/money'
 import { monthlySeries } from '../reports/aggregate'
 import type { TransactionRow } from '../../types/database.types'
 import { RemindersBanner } from '../reminders/RemindersBanner'
+import { NotificationBell } from '../notifications/NotificationBell'
+import { NotificationBoundary } from '../notifications/NotificationBoundary'
 import { CalendarView } from './CalendarView'
 import { DailyView } from './DailyView'
 import { EditTransactionSheet } from './EditTransactionSheet'
@@ -112,7 +114,9 @@ export function LedgerPage() {
 
   return (
     <div className="p-3 lg:p-6">
-      <RemindersBanner />
+      <NotificationBoundary>
+        <RemindersBanner />
+      </NotificationBoundary>
 
       {/* Chuyển kỳ + tìm kiếm */}
       <div className="mb-3 flex items-center gap-2">
@@ -140,6 +144,9 @@ export function LedgerPage() {
         >
           <Search className="h-5 w-5" />
         </Link>
+        <NotificationBoundary>
+          <NotificationBell className="lg:hidden" />
+        </NotificationBoundary>
       </div>
 
       {/* Tab đổi cách xem */}

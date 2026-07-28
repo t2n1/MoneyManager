@@ -2,11 +2,20 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ChartColumn, NotebookText, Plus, Settings, Wallet } from 'lucide-react'
 import { isDemoMode } from '../lib/demo'
-import { useRunRecurringCatchUp } from '../hooks/queries'
+import {
+  useDeleteNotificationStates,
+  usePruneNotificationState,
+  useRunRecurringCatchUp,
+} from '../hooks/queries'
 import { usePrivacyMode } from '../lib/privacy'
 import { runUndo, useUndoToast } from '../lib/undoToast'
 import { DialogHost } from '../lib/dialog'
 import { PrivacyToggle } from './PrivacyToggle'
+import { NotificationBell, useUnreadCount } from '../features/notifications/NotificationBell'
+import { NotificationBoundary } from '../features/notifications/NotificationBoundary'
+import { useNotifications } from '../features/notifications/useNotifications'
+import { splitStaleActionKeys } from '../features/notifications/state'
+import { addDaysISO, toISODate } from '../lib/dates'
 
 const TABS = [
   { to: '/', label: 'Sổ GD', Icon: NotebookText },
@@ -30,6 +39,9 @@ function isTypingTarget(e: KeyboardEvent) {
 // StrictMode re-mount; bản thân engine cũng idempotent nên chạy lại vô hại)
 let recurringCatchUpDone = false
 
+// Dọn trạng thái thông báo — 1 lần mỗi lần mở app (module-level để sống qua StrictMode).
+let notifCleanupDone = false
+
 export function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -46,6 +58,7 @@ export function AppLayout() {
   const catchUp = useRunRecurringCatchUp()
   const [recurringToast, setRecurringToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const unread = useUnreadCount()
 
   // Cuộn nằm trong <main> (không phải cả trang) để thanh nav cố định dưới không
   // bị "nhảy" khi rubber-band trên iOS. Đổi route → đưa main về đầu cho khớp
@@ -74,6 +87,25 @@ export function AppLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const { allKeys, storedKeys, isReady: notifReady } = useNotifications()
+  const deleteStates = useDeleteNotificationStates()
+  const prune = usePruneNotificationState()
+
+  // Mục E của spec: việc-cần-làm đã xong thì xóa luôn trạng thái, để lần sau tình
+  // huống tái diễn là nó lại đỏ như mới. Trạng thái tin-để-biết không đụng tới.
+  // Chỉ chạy khi đã tải xong, để không xóa nhầm lúc danh sách còn rỗng.
+  useEffect(() => {
+    if (notifCleanupDone || !notifReady) return
+    notifCleanupDone = true
+
+    const stale = splitStaleActionKeys(storedKeys, allKeys)
+    if (stale.length > 0) deleteStates.mutate(stale)
+
+    // Dọn rác: bỏ dòng cũ hơn 12 tháng. Một câu delete, không cần đặt lịch.
+    prune.mutate(`${addDaysISO(toISODate(new Date()), -365)}T00:00:00.000Z`)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifReady])
+
   // Phím tắt desktop: 1–4 chuyển tab, N mở màn nhập
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -101,6 +133,9 @@ export function AppLayout() {
           <NotebookText className="h-6 w-6 text-green-600 dark:text-green-500" />
           <span className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Sổ Chi Tiêu</span>
           <PrivacyToggle className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800" />
+          <NotificationBoundary>
+            <NotificationBell className="hidden lg:inline-flex" />
+          </NotificationBoundary>
         </div>
         <NavLink
           to="/entry"
@@ -169,7 +204,12 @@ export function AppLayout() {
               }`
             }
           >
-            <tab.Icon className="h-6 w-6" />
+            <span className="relative">
+              <tab.Icon className="h-6 w-6" />
+              {tab.to === '/' && unread > 0 && (
+                <span className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-red-600 ring-2 ring-white dark:ring-gray-900" />
+              )}
+            </span>
             {tab.label}
           </NavLink>
         ))}

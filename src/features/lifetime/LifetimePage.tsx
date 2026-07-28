@@ -10,6 +10,7 @@ import { InsightCards } from './InsightCards'
 import { LifetimeChartCard } from './LifetimeChartCard'
 import { ScenarioEditorSheet } from './ScenarioEditorSheet'
 import { useLifetime } from './useLifetime'
+import { YearTableView } from './YearTableView'
 
 /** Ô nhập năm sinh khớp ràng buộc DB (migration 0031: `birth_year between 1900 and 2100`). */
 const MIN_BIRTH_YEAR = 1900
@@ -54,6 +55,7 @@ export function LifetimePage() {
   } = useLifetime()
 
   const [editorOpen, setEditorOpen] = useState(false)
+  const [tableOpen, setTableOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const { data: historyRows = [] } = useNetWorthSnapshots()
 
@@ -256,9 +258,8 @@ export function LifetimePage() {
       <div className="flex gap-2">
         <button
           type="button"
-          disabled
-          title="Task 10 sẽ bật: bảng chi tiết theo từng năm"
-          className="min-h-11 flex-1 rounded-xl bg-white dark:bg-gray-900 px-3 text-sm font-medium text-gray-400 dark:text-gray-600 shadow-sm active:scale-95 disabled:opacity-60"
+          onClick={() => setTableOpen(true)}
+          className="min-h-11 flex-1 rounded-xl bg-white dark:bg-gray-900 px-3 text-sm font-medium text-gray-600 dark:text-gray-300 shadow-sm active:scale-95"
         >
           Bảng theo năm
         </button>
@@ -314,6 +315,17 @@ export function LifetimePage() {
           input={input}
           birthYear={profile.birth_year}
           currency={active.display_currency as CurrencyCode}
+        />
+      )}
+
+      {/* Bảng theo năm (Task 10) — bản dự phòng a11y của đồ thị, nút mở NGAY DƯỚI đồ thị
+          (xem LifetimeChartCard ở trên), không giấu trong menu. */}
+      {tableOpen && (
+        <YearTableView
+          rows={rows}
+          currency={active.display_currency as CurrencyCode}
+          scenarioName={active.name}
+          onClose={() => setTableOpen(false)}
         />
       )}
 

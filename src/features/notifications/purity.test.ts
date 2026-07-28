@@ -55,15 +55,37 @@ const ENTRY_POINTS = [
  * Quét cả thư mục là biến thiết kế đúng thành test đỏ, rồi người làm Task 7 sẽ chữa
  * sai chỗ để cho xanh. Thêm file engine mới vào Lifetime thì thêm tên nó vào đây.
  *
- * `insights.ts` chưa tồn tại lúc viết dòng này — không sao, pattern chỉ được thử với
- * những file phép thử ĐI TỚI được, nên tên chưa có file thì đơn giản là không khớp gì.
- * Nhưng cũng vì thế, phép cấm chỉ có hiệu lực khi file NẰM TRONG đồ thị: `insights.ts`
- * chỉ được đi tới từ Task 12 (qua lifetimeRules.ts). Task 4 tạo nó thì thêm luôn
- * 'features/lifetime/insights.ts' vào ENTRY_POINTS để khoá ngay từ lúc viết, đừng đợi
- * tám task nữa. (Không thêm sẵn được ở đây: walk() nổ khi một điểm vào chưa có file.)
+ * `insights.ts` chưa tồn tại lúc viết dòng này — không sao, tên chưa có file thì không
+ * khớp với file nào cả. Task 4 tạo nó thì thêm luôn 'features/lifetime/insights.ts' vào
+ * ENTRY_POINTS để `walk()` cũng phủ nó (không thêm sẵn được: walk() nổ khi một điểm vào
+ * chưa có file). Riêng phép quét thẳng thì đã phủ nó ngay từ lúc file xuất hiện.
+ *
+ * CẨN THẬN với nhánh `rules/[^/]+\.ts`: `[^/]+` ăn luôn `accountRules.test`. Hồi pattern
+ * này chỉ được dùng trong `walk()` thì vô hại (file test không bao giờ bị ai import nên
+ * không vào đồ thị), nhưng phép quét thẳng chạy trên TOÀN BỘ SOURCES nên nó thành cái
+ * bẫy — xem `ENGINE_FILES_SCANNED` ngay dưới.
  */
 const ENGINE_FILE_PATTERN =
   /^(features\/notifications\/(types\.ts|rules\.ts|state\.ts|rules\/[^/]+\.ts)|features\/lifetime\/(project|insights)\.ts)$/
+
+/** '…/accountRules.test.ts' → true. Cả .ts và .tsx. */
+const isTestFile = (file: string) => /\.test\.tsx?$/.test(file)
+
+/**
+ * Tập file mà phép quét thẳng soi: khớp `ENGINE_FILE_PATTERN` và KHÔNG phải file test.
+ *
+ * File test được phép dựng mốc thời gian — `Date.now()` / `new Date()` trong
+ * `rhythmRules.test.ts` hay `cardRules.test.ts` là cách tự nhiên để dựng "hôm nay" cho
+ * một bộ luật về chu kỳ và ngày đến hạn. Ràng buộc của mục J nói về code CHẠY TRÊN Edge
+ * Function, không nói về phép thử của nó. Không loại ra thì phép quét thẳng sẽ gọi file
+ * test của người ta là "file bộ luật" rồi bắt họ bỏ mốc thời gian đi.
+ *
+ * Tính một lần ở đây, dùng cho cả hai `it()` bên dưới — hai phép thử phải soi ĐÚNG cùng
+ * một tập, không thì cái chốt chống-rỗng canh một tập khác cái tập thật sự bị quét.
+ */
+const ENGINE_FILES_SCANNED = [...SOURCES.keys()].filter(
+  (f) => ENGINE_FILE_PATTERN.test(f) && !isTestFile(f),
+)
 
 /** Bỏ chú thích và nội dung chuỗi để token trong chú thích không bị tính là code. */
 function stripCommentsAndStrings(code: string): string {
@@ -274,9 +296,8 @@ describe('độ thuần của bộ luật thông báo (đi theo đồ thị impo
    */
   it('mọi file engine đều sạch Date/localStorage — quét thẳng, không cần nằm trong đồ thị', () => {
     const offenders: string[] = []
-    for (const [file, code] of SOURCES) {
-      if (!ENGINE_FILE_PATTERN.test(file)) continue
-      const clean = stripCommentsAndStrings(code)
+    for (const file of ENGINE_FILES_SCANNED) {
+      const clean = stripCommentsAndStrings(SOURCES.get(file) as string)
       for (const [name, re] of ENGINE_BANNED) {
         if (re.test(clean)) offenders.push(`${file}: ${name}`)
       }
@@ -287,11 +308,16 @@ describe('độ thuần của bộ luật thông báo (đi theo đồ thị impo
   it('vòng quét thẳng thật sự có soi file, không phải vòng lặp rỗng', () => {
     // Không có khẳng định này thì một lần đổi ENGINE_FILE_PATTERN hỏng sẽ làm vòng trên
     // xanh vĩnh viễn vì không khớp file nào — đúng kiểu lỗi mà nó sinh ra để chặn.
-    const scanned = [...SOURCES.keys()].filter((f) => ENGINE_FILE_PATTERN.test(f))
-    expect(scanned).toContain('features/notifications/rules.ts')
-    expect(scanned).toContain('features/lifetime/project.ts')
-    // useLifetime.ts (Task 7) CỐ Ý được đọc đồng hồ — không bao giờ được lọt vào đây.
-    expect(scanned).not.toContain('features/lifetime/useLifetime.ts')
+    expect(ENGINE_FILES_SCANNED).toContain('features/notifications/rules.ts')
+    expect(ENGINE_FILES_SCANNED).toContain('features/lifetime/project.ts')
+    // Tập quét KHÔNG được chứa file test — xem ghi chú ở ENGINE_FILES_SCANNED. Chốt lại
+    // để tập đó không trôi lần nữa khi ai đó sửa pattern hoặc bộ lọc.
+    expect(ENGINE_FILES_SCANNED.filter(isTestFile)).toEqual([])
+    // useLifetime.ts (Task 7) CỐ Ý được đọc đồng hồ. Hỏi THẲNG pattern chứ không hỏi
+    // `ENGINE_FILES_SCANNED`: file đó chưa tồn tại, nên `not.toContain` sẽ xanh vì lý do
+    // sai (không có file) và chỉ thật sự kiểm được gì từ Task 7 — tức vô nghĩa đúng lúc
+    // cần nhất. Hỏi pattern thì đúng ngay bây giờ và không phụ thuộc file có hay không.
+    expect(ENGINE_FILE_PATTERN.test('features/lifetime/useLifetime.ts')).toBe(false)
   })
 
   it('mọi file được miễn quét-cả-file đều có lý do và thật sự nằm trong đồ thị', () => {

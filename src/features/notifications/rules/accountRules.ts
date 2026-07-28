@@ -4,6 +4,7 @@
 import { cardFunding, type CardLiability, type CardSourceLike } from '../../assets/aggregate'
 import { addDaysISO, nextCardDueDate } from '../../../lib/dates'
 import { nthDueDate } from '../../../lib/recurring'
+import type { CurrencyCode } from '../../../lib/money'
 import type { AppNotification, NotificationInput } from '../types'
 
 /** Nhìn trước bao nhiêu ngày cho mục "tài khoản sắp không đủ tiền". */
@@ -49,6 +50,37 @@ function recurringImpact(
   }
 
   return { outgoing, incoming, labels }
+}
+
+/**
+ * So sánh "phải trả owedBase + định kỳ" với "có sẵn balance + định kỳ thu"; nếu thiếu
+ * thì đẩy một thông báo account-shortfall vào `out`. Dùng chung cho hai trường hợp:
+ * tài khoản có thẻ trỏ tới (owedBase = tổng nợ thẻ) và tài khoản chỉ có định kỳ chi
+ * (owedBase = 0) — cùng một công thức thiếu/đủ, chỉ khác nguồn của owedBase và nhãn thêm.
+ */
+function pushShortfallIfNeeded(
+  out: AppNotification[],
+  input: NotificationInput,
+  account: { id: string; name: string; currency: CurrencyCode; balance: number },
+  owedBase: number,
+  extraLabels: string[],
+  untilISO: string,
+): void {
+  const impact = recurringImpact(input, account.id, untilISO)
+  const owe = owedBase + impact.outgoing
+  const have = account.balance + impact.incoming
+  if (have >= owe) return
+
+  out.push({
+    key: `account-shortfall:${account.id}`,
+    kind: 'action',
+    type: 'account-shortfall',
+    severity: 'high',
+    title: `${account.name} thiếu ${input.formatMoney(owe - have, account.currency)}`,
+    detail: `${SHORTFALL_HORIZON_DAYS} ngày tới phải trả ${input.formatMoney(owe, account.currency)} · ${[...extraLabels, ...impact.labels].join(' · ')}`,
+    onISO: untilISO,
+    to: `/assets/${account.id}`,
+  })
 }
 
 export function accountRules(input: NotificationInput): AppNotification[] {
@@ -101,25 +133,18 @@ export function accountRules(input: NotificationInput): AppNotification[] {
   const sourcesSeen = new Set<string>()
   for (const g of groups) {
     sourcesSeen.add(g.sourceId)
-    const impact = recurringImpact(input, g.sourceId, untilISO)
-    const owe = g.totalOwed + impact.outgoing
-    const have = g.sourceBalance + impact.incoming
-    if (have >= owe) continue
-
     const cardNames = cards
       .filter((c) => c.paymentAccountId === g.sourceId)
       .map((c) => `${c.name} ${input.formatMoney(c.balance < 0 ? -c.balance : 0, c.currency)}`)
 
-    out.push({
-      key: `account-shortfall:${g.sourceId}`,
-      kind: 'action',
-      type: 'account-shortfall',
-      severity: 'high',
-      title: `${g.sourceName} thiếu ${input.formatMoney(owe - have, g.currency)}`,
-      detail: `${SHORTFALL_HORIZON_DAYS} ngày tới phải trả ${input.formatMoney(owe, g.currency)} · ${[...cardNames, ...impact.labels].join(' · ')}`,
-      onISO: untilISO,
-      to: `/assets/${g.sourceId}`,
-    })
+    pushShortfallIfNeeded(
+      out,
+      input,
+      { id: g.sourceId, name: g.sourceName, currency: g.currency, balance: g.sourceBalance },
+      g.totalOwed,
+      cardNames,
+      untilISO,
+    )
   }
 
   // Tài khoản không có thẻ nào trỏ tới, nhưng có định kỳ chi vượt số dư.
@@ -127,20 +152,8 @@ export function accountRules(input: NotificationInput): AppNotification[] {
     if (a.is_archived || !SPENDABLE_TYPES.has(a.type)) continue
     if (sourcesSeen.has(a.id)) continue
     if (a.balance < 0) continue // đã có mục 2 lo
-    const impact = recurringImpact(input, a.id, untilISO)
-    if (impact.outgoing === 0) continue
-    const have = a.balance + impact.incoming
-    if (have >= impact.outgoing) continue
-    out.push({
-      key: `account-shortfall:${a.id}`,
-      kind: 'action',
-      type: 'account-shortfall',
-      severity: 'high',
-      title: `${a.name} thiếu ${input.formatMoney(impact.outgoing - have, a.currency)}`,
-      detail: `${SHORTFALL_HORIZON_DAYS} ngày tới phải trả ${input.formatMoney(impact.outgoing, a.currency)} · ${impact.labels.join(' · ')}`,
-      onISO: untilISO,
-      to: `/assets/${a.id}`,
-    })
+
+    pushShortfallIfNeeded(out, input, a, 0, [], untilISO)
   }
 
   return out

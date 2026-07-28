@@ -387,7 +387,8 @@ export interface Repo {
   getNotificationState(): Promise<NotificationStateRow[]>
   /** Đánh dấu đã đọc nhiều mã cùng lúc. Mã đã có thì giữ read_at cũ. */
   markNotificationsRead(keys: string[]): Promise<void>
-  /** Tắt hẳn một tin-để-biết (dismissed_at = bây giờ). */
+  /** Tắt hẳn một tin-để-biết. Bấm tắt tức là vừa nhìn thấy, nên đặt luôn
+   *  read_at = bây giờ (cả hai bản lưu đều vậy, kể cả khi đã có read_at cũ). */
   dismissNotification(key: string): Promise<void>
   /** Xóa trạng thái của các mã truyền vào — vòng đời việc-cần-làm (mục E của spec). */
   deleteNotificationStates(keys: string[]): Promise<void>

@@ -785,7 +785,8 @@ export const demoRepo: Repo = {
     const now = nowISO()
     const existing = db.notificationState.find((r) => r.key === key)
     if (existing) {
-      existing.read_at ??= now
+      // Bấm tắt tức là vừa nhìn thấy → luôn đặt lại read_at = bây giờ (khớp supabaseRepo).
+      existing.read_at = now
       existing.dismissed_at = now
     } else {
       db.notificationState.push({

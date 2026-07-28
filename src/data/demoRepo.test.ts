@@ -200,6 +200,19 @@ describe('deleteCategory', () => {
   })
 })
 
+// Đọc thẳng localStorage rồi ép read_at của một dòng trạng thái thông báo về
+// một mốc quá khứ xác định — tránh dựa vào khoảng cách đồng hồ thật giữa 2 lệnh gọi.
+function setStoredReadAt(key: string, readAtISO: string) {
+  const raw = localStorage.getItem('sct-demo-db-v14')
+  const db = JSON.parse(raw ?? '{}') as {
+    notificationState?: { key: string; read_at: string | null }[]
+  }
+  const row = (db.notificationState ?? []).find((r) => r.key === key)
+  if (!row) throw new Error(`Không tìm thấy trạng thái của mã ${key}`)
+  row.read_at = readAtISO
+  localStorage.setItem('sct-demo-db-v14', JSON.stringify(db))
+}
+
 describe('trạng thái thông báo', () => {
   it('đánh dấu đã đọc rồi đọc lại thấy read_at', async () => {
     await demoRepo.markNotificationsRead(['budget-over:cat-1', 'stale-entry:2026-W31'])
@@ -209,17 +222,32 @@ describe('trạng thái thông báo', () => {
     expect(over?.dismissed_at).toBeNull()
   })
 
-  it('đánh dấu đã đọc hai lần không tạo dòng trùng', async () => {
+  it('đánh dấu đã đọc hai lần không tạo dòng trùng, giữ nguyên read_at cũ', async () => {
     await demoRepo.markNotificationsRead(['budget-over:cat-2'])
+    setStoredReadAt('budget-over:cat-2', '2020-01-01T00:00:00.000Z')
     await demoRepo.markNotificationsRead(['budget-over:cat-2'])
     const rows = await demoRepo.getNotificationState()
-    expect(rows.filter((r) => r.key === 'budget-over:cat-2')).toHaveLength(1)
+    const matches = rows.filter((r) => r.key === 'budget-over:cat-2')
+    expect(matches).toHaveLength(1)
+    // Mã đã có thì giữ read_at cũ — không bị lần gọi thứ hai ghi đè.
+    expect(matches[0].read_at).toBe('2020-01-01T00:00:00.000Z')
   })
 
   it('tắt một tin thì có dismissed_at', async () => {
     await demoRepo.dismissNotification('recurring-suggestion:abc')
     const rows = await demoRepo.getNotificationState()
     expect(rows.find((r) => r.key === 'recurring-suggestion:abc')?.dismissed_at).toBeTruthy()
+  })
+
+  it('tắt một tin đã đọc từ trước thì đặt lại read_at = lúc tắt', async () => {
+    await demoRepo.markNotificationsRead(['recurring-suggestion:xyz'])
+    setStoredReadAt('recurring-suggestion:xyz', '2020-01-01T00:00:00.000Z')
+    await demoRepo.dismissNotification('recurring-suggestion:xyz')
+    const rows = await demoRepo.getNotificationState()
+    const row = rows.find((r) => r.key === 'recurring-suggestion:xyz')
+    // Bấm tắt = vừa nhìn thấy → read_at phải nhảy tới lúc tắt, không giữ mốc đã đọc cũ.
+    expect(row?.read_at).not.toBe('2020-01-01T00:00:00.000Z')
+    expect(row?.read_at).toBe(row?.dismissed_at)
   })
 
   it('xóa trạng thái theo danh sách mã', async () => {

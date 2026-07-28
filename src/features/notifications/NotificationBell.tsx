@@ -73,6 +73,8 @@ export function NotificationBell({ className = '' }: { className?: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={unreadCount > 0 ? `Thông báo, ${unreadCount} việc cần làm` : 'Thông báo'}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         className={`relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white px-3 shadow-sm active:scale-95 dark:bg-gray-900 ${className}`}
       >
         <Bell className="h-5 w-5" />
@@ -91,6 +93,9 @@ export function NotificationBell({ className = '' }: { className?: string }) {
             onClick={() => setOpen(false)}
             className="absolute inset-0 cursor-default"
           />
+          {/* aria-modal không kèm bẫy focus (focus vẫn ở nút chuông phía sau) — giống hệt
+              lib/dialog.tsx, cũng chỉ đóng bằng Esc, không bẫy. Cố tình nhất quán; nên
+              sửa quy ước này ở một chỗ chung sau này thay vì lệch nhau giữa hai nơi. */}
           <div
             role="dialog"
             aria-modal="true"

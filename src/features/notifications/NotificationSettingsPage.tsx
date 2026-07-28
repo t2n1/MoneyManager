@@ -23,20 +23,30 @@ function Group({
         {types.map((t) => {
           const meta = NOTIFICATION_META[t]
           const on = !off.has(t)
+          const labelId = `notif-toggle-label-${t}`
+          const hintId = `notif-toggle-hint-${t}`
           return (
             <li key={t} className="flex items-start gap-3 px-3 py-3">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                <p
+                  id={labelId}
+                  className="text-sm font-medium text-gray-800 dark:text-gray-100"
+                >
                   {meta.label}
                 </p>
-                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{meta.hint}</p>
+                <p id={hintId} className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {meta.hint}
+                </p>
               </div>
               {/* Nút bấm to bằng cả ô 44x44 để dễ trúng tay, hình vẽ công tắc bên trong vẫn nhỏ như cũ */}
+              {/* aria-labelledby trỏ vào tên loại thông báo (đối tượng), không phải "Tắt/Bật X"
+                  (hành động) — nếu không, trình đọc màn hình đọc trạng thái 2 lần, một lần bị đảo. */}
               <button
                 type="button"
                 role="switch"
                 aria-checked={on}
-                aria-label={`${on ? 'Tắt' : 'Bật'} ${meta.label}`}
+                aria-labelledby={labelId}
+                aria-describedby={hintId}
                 onClick={() => onToggle(t, !on)}
                 className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full"
               >

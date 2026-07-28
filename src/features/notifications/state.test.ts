@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  notificationInputsReady,
   planNotificationCleanup,
   splitStaleActionKeys,
   unreadActionCount,
+  visibleInfoLists,
   visibleInfos,
+  type NotificationInputsReady,
 } from './state'
 import type { AppNotification } from './types'
 
@@ -195,7 +198,11 @@ describe('vòng đời: hiện → đọc → còn nguyên → xong → tái di�
     expect(plan).toEqual({ staleKeys: [key] })
 
     // 5) Tháng sau lại vượt: DB không còn dòng nào cho mã này nên nó lại đỏ như mới.
-    const afterDelete = new Set<string>()
+    //    readKeys phải được SUY RA từ plan.staleKeys, không dựng tay một Set rỗng —
+    //    dựng tay thì bước này chỉ lặp lại khẳng định của bước 1 và mối nối thật
+    //    ("xóa đúng mã trong plan.staleKeys mới làm readKeys rỗng") không hề được thử.
+    const afterDelete = new Set([...readKeys].filter((k) => !plan!.staleKeys.includes(k)))
+    expect(afterDelete.size).toBe(0)
     expect(unreadActionCount(actions, afterDelete)).toBe(1)
   })
 
@@ -226,5 +233,68 @@ describe('vòng đời: hiện → đọc → còn nguyên → xong → tái di�
       planNotificationCleanup({ ...READY, inputsReady: false, storedKeys: [key], allKeys: [] }),
     ).toBeNull()
     expect(unreadActionCount(actions, new Set([key]))).toBe(0)
+  })
+})
+
+describe('notificationInputsReady', () => {
+  /** Mọi nguồn đã về. Mỗi phép thử dưới đây chỉ tắt ĐÚNG một cờ. */
+  const ALL: NotificationInputsReady = {
+    profileLoaded: true,
+    ratesOk: true,
+    accountRowsOk: true,
+    balancesOk: true,
+    categoriesOk: true,
+    debtsOk: true,
+    recurringRulesOk: true,
+    budgetReportComplete: true,
+    savingsGoalsOk: true,
+    networthSnapshotsOk: true,
+    recentTxsOk: true,
+    notificationStateOk: true,
+  }
+
+  it('đủ mọi nguồn thì mới true', () => {
+    expect(notificationInputsReady(ALL)).toBe(true)
+  })
+
+  // Đây là phép thử QUAN TRỌNG NHẤT của cả tính năng: lỗi C1 sống qua hai lượt sửa
+  // đúng vì cái phép AND này nằm trong hook, không ai test, nên thiếu `ratesOk` và
+  // `budgetReportComplete` mà không ai thấy. Vòng lặp dưới đây bắt buộc: thêm nguồn
+  // dữ liệu mới cho bộ luật mà quên thêm cờ là phép thử này đỏ ngay.
+  const flags = Object.keys(ALL) as Array<keyof NotificationInputsReady>
+  it.each(flags)('thiếu %s là false', (flag) => {
+    expect(notificationInputsReady({ ...ALL, [flag]: false })).toBe(false)
+  })
+
+  it('có đúng một cờ cho mỗi nguồn dữ liệu bộ luật đọc', () => {
+    // Chốt số lượng: đổi NotificationInput mà không đổi đây thì phép thử này đỏ,
+    // buộc người sửa phải đọc lại danh sách thay vì lặng lẽ bỏ sót một nguồn.
+    expect(flags).toHaveLength(12)
+  })
+})
+
+describe('visibleInfoLists', () => {
+  it('lọc TRƯỚC rồi mới cắt trần — 4 tin, đọc 3 tin đầu thì tin thứ 4 vẫn hiện', () => {
+    // Đúng lỗi I4-R: cắt trần trước thì phần thu gọn rỗng, cả khu "Tin để biết"
+    // chỉ còn trơ một nút xám "Xem thêm 1 tin để biết".
+    const infos = [info('a:1:2026-07'), info('b:2:2026-07'), info('c:3:2026-07'), info('d:4:2026-07')]
+    const read = new Set(['a:1:2026-07', 'b:2:2026-07', 'c:3:2026-07'])
+    const out = visibleInfoLists(infos, read, new Set(), 3)
+    expect(out.infosAll.map((n) => n.key)).toEqual(['d:4:2026-07'])
+    expect(out.infos.map((n) => n.key)).toEqual(['d:4:2026-07'])
+  })
+
+  it('tin đã tắt cũng bị lọc trước khi cắt trần', () => {
+    const infos = [info('a:1:2026-07'), info('b:2:2026-07'), info('c:3:2026-07'), info('d:4:2026-07')]
+    const out = visibleInfoLists(infos, new Set(), new Set(['a:1:2026-07', 'b:2:2026-07']), 3)
+    expect(out.infosAll).toHaveLength(2)
+    expect(out.infos.map((n) => n.key)).toEqual(['c:3:2026-07', 'd:4:2026-07'])
+  })
+
+  it('còn nhiều hơn trần thì phần thu gọn đúng bằng trần, bản đầy đủ giữ hết', () => {
+    const infos = [info('a:1:2026-07'), info('b:2:2026-07'), info('c:3:2026-07'), info('d:4:2026-07')]
+    const out = visibleInfoLists(infos, new Set(), new Set(), 3)
+    expect(out.infos).toHaveLength(3)
+    expect(out.infosAll).toHaveLength(4)
   })
 })

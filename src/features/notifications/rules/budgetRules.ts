@@ -15,6 +15,17 @@ const BUDGET_ROUTE = '/reports?view=budget'
 export function budgetRules(input: NotificationInput): AppNotification[] {
   const report = input.budgetReport
   if (!report) return [] // thiếu dữ liệu thì im, không đoán
+  // Thiếu tỷ giá cho một loại tiền nào đó → buildBudgetReport (progress.ts) đã BỎ ÂM
+  // THẦM giao dịch đó khỏi `spent`, tức mọi con số dưới đây đều là số THIẾU. Trang
+  // Ngân sách mà thông báo này trỏ tới xử lý ca đó bằng một dòng vàng "Một phần chi
+  // ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu" (BudgetView.tsx);
+  // một câu thông báo không có chỗ cho lời rào ấy, nên theo mục H của spec — thiếu dữ
+  // liệu thì IM — giống hệt cách tổng kết tháng ở rhythmRules xử lý.
+  //
+  // Đây cũng là chốt thứ hai chặn lỗi C1: dù cổng dọn có mở sớm, bộ luật cũng không
+  // sinh ra một mã tính từ số liệu thiếu, nên không có mã SAI để dọn dẹp lấy làm căn
+  // cứ ("không thấy trong allKeys thì coi như xong").
+  if (report.hasMissingRate) return []
 
   const out: AppNotification[] = []
   const nameOf = (id: string) =>

@@ -2,6 +2,10 @@
 import { addMonths, daysBetween, getMonthRange, monthKeyForDate, monthKeyString } from '../../../lib/dates'
 import { convertToBase } from '../../../lib/rates'
 import { detectRecurring, ruleKey } from '../../../lib/recurringRadar'
+// expenseSign lấy từ chính module mà trang Báo cáo dùng (sumIncomeExpense) — hai chỗ
+// phải ra CÙNG một con số, nên phải dùng CÙNG một hàm. reports/aggregate chỉ import
+// giá trị từ lib/dates và lib/rates, cả hai đã nằm trong đồ thị thuần (purity.test.ts).
+import { expenseSign } from '../../reports/aggregate'
 import type { AppNotification, NotificationInput } from '../types'
 
 /** Bao nhiêu ngày không ghi thì nhắc. */
@@ -125,7 +129,11 @@ export function rhythmRules(input: NotificationInput): AppNotification[] {
         missingRate = true
         break
       }
-      if (t.type === 'expense') spent += v
+      // Hoàn tiền (trả hàng, hủy vé) là chi ÂM — y như sumIncomeExpense ở trang Báo
+      // cáo, buildBudgetReport, health/snapshot và tags/aggregate. Bỏ hệ số này thì
+      // một cái áo ¥28.000 mua rồi trả lại làm câu tổng kết lệch 2× số hoàn tiền
+      // (chi ¥56.000) so với đúng trang /reports mà nó dẫn tới.
+      if (t.type === 'expense') spent += v * expenseSign(t)
       else earned += v
     }
     // Thiếu tỷ giá thì IM, không đăng tổng sai (mục H của spec: thiếu dữ liệu thì im).

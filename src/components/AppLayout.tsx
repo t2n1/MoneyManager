@@ -43,6 +43,10 @@ let recurringCatchUpDone = false
 // Dọn trạng thái thông báo — 1 lần mỗi lần mở app (module-level để sống qua StrictMode).
 let notifCleanupDone = false
 
+// Dọn rác 12 tháng — chốt RIÊNG, vì nó chạy được sớm hơn hẳn việc dọn trạng thái:
+// không phụ thuộc bất cứ thứ gì bộ luật sinh ra.
+let prunedThisOpen = false
+
 export function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -106,6 +110,15 @@ export function AppLayout() {
   // mới được chốt notifCleanupDone, kẻo chốt ở một lượt trả về sớm rồi không bao
   // giờ dọn lại nữa.
   useEffect(() => {
+    // Dọn rác 12 tháng đứng TRƯỚC cổng dọn trạng thái: nó là thu gom rác vô điều kiện,
+    // không đọc gì của bộ luật (AppLayout chỉ mount sau RequireAuth nên đã có phiên
+    // đăng nhập). Đặt nó sau `if (!plan) return` thì một query hỏng vĩnh viễn (RLS đổi,
+    // migration lệch) là cả cái install đó không bao giờ dọn rác nữa.
+    if (!prunedThisOpen) {
+      prunedThisOpen = true
+      prune.mutate(`${addDaysISO(toISODate(new Date()), -365)}T00:00:00.000Z`)
+    }
+
     const plan = planNotificationCleanup({
       alreadyDone: notifCleanupDone,
       inputsReady: notifInputsReady,
@@ -117,9 +130,6 @@ export function AppLayout() {
     notifCleanupDone = true
 
     if (plan.staleKeys.length > 0) deleteStates.mutate(plan.staleKeys)
-
-    // Dọn rác: bỏ dòng cũ hơn 12 tháng. Một câu delete, không cần đặt lịch.
-    prune.mutate(`${addDaysISO(toISODate(new Date()), -365)}T00:00:00.000Z`)
     // eslint-disable còn ở đây vì 4 mục: `storedKeys`, `allKeys` (mảng mới mỗi lần
     // render) và `deleteStates`, `prune` (object mutation của react-query). Liệt kê
     // chúng ra là effect chạy lại mỗi render — trong khi ý ở đây là CHẠY ĐÚNG MỘT

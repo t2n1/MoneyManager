@@ -64,7 +64,11 @@ export function useRates() {
     gcTime: 24 * 3600_000,
     retry: 1,
   })
-  return { base, rates: query.data, isLoading: query.isLoading }
+  // `isSuccess` được trả ra vì có nơi cần biết tỷ giá ĐÃ VỀ hay chưa, không chỉ
+  // "đã hết loading": `rates === undefined` sau khi query lỗi cũng là hết loading.
+  // Bộ luật thông báo dùng nó làm cổng dọn trạng thái (mục E) — dọn khi chưa có tỷ
+  // giá là xóa oan mọi thông báo tính từ tiền ngoại tệ.
+  return { base, rates: query.data, isLoading: query.isLoading, isSuccess: query.isSuccess }
 }
 
 export function useAccounts() {
@@ -520,17 +524,29 @@ export function useCopyBudgetsFromPreviousMonth() {
 export function useBudgetReport(monthKey: MonthKey): {
   report: BudgetReport | undefined
   isLoading: boolean
+  /**
+   * Báo cáo đã tính từ ĐỦ nguồn dữ liệu hay chưa. Khác hẳn `report !== undefined`:
+   * `report` có ngay khi budgets + giao dịch tháng về, nhưng nó vẫn được dựng với
+   * `rates ?? {}` và `carry` rỗng, nên thiếu tỷ giá là mọi giao dịch ngoại tệ bị
+   * BỎ ÂM THẦM khỏi `spent` (progress.ts), còn thiếu dữ liệu tháng trước là
+   * `budgeted` thiếu phần dồn. Số hiện tạm trên trang Ngân sách thì được (có dòng
+   * cảnh báo "có thể thiếu"), nhưng ai lấy báo cáo này để QUYẾT ĐỊNH thì phải chờ
+   * cờ này — xem cổng dọn trạng thái thông báo (mục E).
+   */
+  isComplete: boolean
 } {
   const monthKeyStr = monthKeyString(monthKey)
   const prevMonthKey = addMonths(monthKey, -1)
   const budgetsQ = useBudgets(monthKeyStr)
-  const { data: monthTxs, isLoading: txLoading } = useMonthTransactions(monthKey)
+  const { data: monthTxs, isLoading: txLoading, isSuccess: txOk } = useMonthTransactions(monthKey)
   // Dồn hạn mức (mục AH): cần budgets + giao dịch tháng trước để tính phần chưa tiêu
   const prevBudgetsQ = useBudgets(monthKeyString(prevMonthKey))
-  const { data: prevMonthTxs } = useMonthTransactions(prevMonthKey)
-  const { data: accounts = [] } = useAccounts()
-  const { data: categories = [] } = useCategories()
-  const { base, rates } = useRates()
+  const { data: prevMonthTxs, isSuccess: prevTxOk } = useMonthTransactions(prevMonthKey)
+  const accountsQ = useAccounts()
+  const categoriesQ = useCategories()
+  const { data: accounts = [] } = accountsQ
+  const { data: categories = [] } = categoriesQ
+  const { base, rates, isSuccess: ratesOk } = useRates()
 
   const currencyOf = (id: string): CurrencyCode =>
     accounts.find((a) => a.id === id)?.currency ?? base
@@ -551,7 +567,17 @@ export function useBudgetReport(monthKey: MonthKey): {
       ? buildBudgetReport(budgets, monthTxs, currencyOf, base, rates ?? {}, parentOf, carry)
       : undefined
 
-  return { report, isLoading: budgetsQ.isLoading || txLoading }
+  // Chỉ hỏi tháng trước khi thật sự có hạn mức bật dồn — người không dùng dồn thì
+  // không phải chờ hai query đó (chúng vẫn chạy, nhưng không được quyền chặn cờ).
+  const isComplete =
+    budgetsQ.isSuccess &&
+    txOk &&
+    accountsQ.isSuccess &&
+    categoriesQ.isSuccess &&
+    ratesOk &&
+    (!hasRollover || (prevBudgetsQ.isSuccess && prevTxOk))
+
+  return { report, isLoading: budgetsQ.isLoading || txLoading, isComplete }
 }
 
 // --- Nợ / cho vay (mục F) ---

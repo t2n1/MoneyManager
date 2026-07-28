@@ -172,26 +172,16 @@ export interface NotificationInput {
   offTypes: NotificationType[]
 }
 
+/**
+ * Kết quả của bộ luật: hai danh sách ĐẦY ĐỦ đã xếp thứ tự, CHƯA cắt trần và chưa
+ * lọc theo đã đọc/đã tắt-từng-tin. Bộ luật thuần không biết trạng thái đã đọc, nên
+ * phần thu gọn (ACTION_LIMIT/INFO_LIMIT) phải do useNotifications cắt SAU khi lọc.
+ */
 export interface NotificationResult {
-  /** Việc cần làm, đã xếp thứ tự và cắt trần (phần hiện lúc còn thu gọn). */
-  actions: AppNotification[]
-  /** Tin để biết, đã xếp thứ tự và cắt trần (phần hiện lúc còn thu gọn). */
-  infos: AppNotification[]
-  /**
-   * Việc cần làm ĐẦY ĐỦ, chưa cắt trần — để tấm trượt xổ được phần thừa ra
-   * (mục C.4: "bấm mới xổ"). `actions` luôn là đoạn đầu của mảng này.
-   */
+  /** Việc cần làm, đầy đủ. */
   actionsAll: AppNotification[]
-  /** Tin để biết ĐẦY ĐỦ, chưa cắt trần. `infos` luôn là đoạn đầu của mảng này. */
+  /** Tin để biết, đầy đủ. */
   infosAll: AppNotification[]
-  /**
-   * Số VIỆC CẦN LÀM bị cắt vì quá trần. Tách riêng khỏi tin-để-biết vì hai nhóm hiện
-   * ở hai chỗ khác nhau — gộp một số rồi in dưới nhóm "Tin để biết" là nói dối người
-   * dùng: việc cần làm bị ẩn lại bị báo như thể chỉ là một mẹo nhỏ.
-   */
-  hiddenActionCount: number
-  /** Số TIN ĐỂ BIẾT bị cắt vì quá trần. */
-  hiddenInfoCount: number
   /** MỌI mã sinh ra ở lượt này, kể cả tin bị cắt trần — dùng cho vòng đời trạng thái. */
   allKeys: string[]
 }

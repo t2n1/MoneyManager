@@ -18,7 +18,7 @@ describe('arrangeNotifications', () => {
       [n('budget-pace', 'medium', 'action'), n('account-negative', 'high', 'action')],
       [],
     )
-    expect(out.actions.map((a) => a.type)).toEqual(['account-negative', 'budget-pace'])
+    expect(out.actionsAll.map((a) => a.type)).toEqual(['account-negative', 'budget-pace'])
   })
 
   it('cùng mức thì xếp theo thứ tự trong NOTIFICATION_TYPES', () => {
@@ -26,7 +26,7 @@ describe('arrangeNotifications', () => {
       [n('budget-over', 'high', 'action'), n('account-shortfall', 'high', 'action')],
       [],
     )
-    expect(out.actions.map((a) => a.type)).toEqual(['account-shortfall', 'budget-over'])
+    expect(out.actionsAll.map((a) => a.type)).toEqual(['account-shortfall', 'budget-over'])
   })
 
   it('tách việc cần làm và tin để biết ra hai danh sách', () => {
@@ -34,8 +34,8 @@ describe('arrangeNotifications', () => {
       [n('stale-entry', 'low', 'info'), n('budget-over', 'high', 'action')],
       [],
     )
-    expect(out.actions).toHaveLength(1)
-    expect(out.infos).toHaveLength(1)
+    expect(out.actionsAll).toHaveLength(1)
+    expect(out.infosAll).toHaveLength(1)
   })
 
   it('bỏ loại đã tắt khỏi danh sách hiện, nhưng allKeys VẪN giữ mã của nó', () => {
@@ -43,38 +43,16 @@ describe('arrangeNotifications', () => {
       [n('stale-entry', 'low', 'info'), n('budget-over', 'high', 'action')],
       ['stale-entry'],
     )
-    expect(out.infos).toHaveLength(0)
+    expect(out.infosAll).toHaveLength(0)
     // allKeys tính TRƯỚC khi lọc loại đã tắt: nó là đầu vào của việc dọn trạng thái,
     // mà "tắt một loại" không có nghĩa là "việc đó đã xử lý xong".
     expect(out.allKeys).toEqual(['budget-over:x', 'stale-entry:x'])
   })
 
-  it('cắt trần 5 việc cần làm và 3 tin để biết, đếm phần bị cắt RIÊNG từng nhóm', () => {
-    const actions = Array.from({ length: 7 }, (_, i) =>
-      n('budget-over', 'high', 'action', `budget-over:${i}`),
-    )
-    const infos = Array.from({ length: 5 }, (_, i) =>
-      n('stale-entry', 'low', 'info', `stale-entry:${i}`),
-    )
-    const out = arrangeNotifications([...actions, ...infos], [])
-    expect(out.actions).toHaveLength(ACTION_LIMIT)
-    expect(out.infos).toHaveLength(INFO_LIMIT)
-    // Hai con số PHẢI tách nhau: gộp thành một số rồi in dưới nhóm "Tin để biết" là
-    // báo một việc-cần-làm bị ẩn như thể chỉ là mẹo nhỏ (lỗi I4).
-    expect(out.hiddenActionCount).toBe(2)
-    expect(out.hiddenInfoCount).toBe(2)
-  })
-
-  it('chỉ việc cần làm quá trần thì hiddenInfoCount = 0 (không lẫn sang nhóm kia)', () => {
-    const actions = Array.from({ length: 7 }, (_, i) =>
-      n('budget-over', 'high', 'action', `budget-over:${i}`),
-    )
-    const out = arrangeNotifications([...actions, n('stale-entry', 'low', 'info')], [])
-    expect(out.hiddenActionCount).toBe(2)
-    expect(out.hiddenInfoCount).toBe(0)
-  })
-
-  it('trả luôn hai danh sách ĐẦY ĐỦ để tấm trượt xổ được phần bị cắt', () => {
+  // Lỗi I4-R: bộ luật cắt sẵn 3 tin RỒI hook mới lọc tin đã đọc/đã tắt trong đúng
+  // 3 tin đó → đọc hết 3 tin đầu là phần thu gọn rỗng dù còn tin chưa xem. Trần phải
+  // do useNotifications áp SAU khi lọc, nên ở đây arrangeNotifications KHÔNG cắt.
+  it('KHÔNG cắt trần — trả đủ cả 7 việc và 5 tin (trần áp sau khi lọc đã đọc)', () => {
     const actions = Array.from({ length: 7 }, (_, i) =>
       n('budget-over', 'high', 'action', `budget-over:${i}`),
     )
@@ -84,10 +62,11 @@ describe('arrangeNotifications', () => {
     const out = arrangeNotifications([...actions, ...infos], [])
     expect(out.actionsAll).toHaveLength(7)
     expect(out.infosAll).toHaveLength(5)
-    // Phần thu gọn phải là ĐOẠN ĐẦU của bản đầy đủ — tấm trượt lấy phần chênh làm
-    // danh sách xổ ra, lệch thứ tự là xổ ra tin đang hiện hoặc bỏ sót tin bị ẩn.
-    expect(out.actionsAll.slice(0, ACTION_LIMIT)).toEqual(out.actions)
-    expect(out.infosAll.slice(0, INFO_LIMIT)).toEqual(out.infos)
+    expect(out.actionsAll.length).toBeGreaterThan(ACTION_LIMIT)
+    expect(out.infosAll.length).toBeGreaterThan(INFO_LIMIT)
+    // Thứ tự là thứ tự cuối cùng: bên hook chỉ .slice() đoạn đầu, không xếp lại.
+    expect(out.actionsAll.map((a) => a.key)).toEqual(actions.map((a) => a.key))
+    expect(out.infosAll.map((a) => a.key)).toEqual(infos.map((a) => a.key))
   })
 
   it('allKeys gồm cả tin bị cắt trần', () => {
@@ -98,7 +77,7 @@ describe('arrangeNotifications', () => {
     expect(out.allKeys).toHaveLength(7)
   })
 
-  it('lọc loại đã tắt TRƯỚC rồi mới cắt trần', () => {
+  it('loại đã tắt bị bỏ khỏi danh sách hiện nhưng vẫn còn trong allKeys', () => {
     const items = [
       ...Array.from({ length: 4 }, (_, i) =>
         n('budget-over', 'high', 'action', `budget-over:${i}`),
@@ -108,9 +87,7 @@ describe('arrangeNotifications', () => {
       ),
     ]
     const out = arrangeNotifications(items, ['budget-over'])
-    expect(out.actions).toHaveLength(4)
-    expect(out.hiddenActionCount).toBe(0)
-    expect(out.actions.map((a) => a.key)).toEqual([
+    expect(out.actionsAll.map((a) => a.key)).toEqual([
       'account-shortfall:0',
       'account-shortfall:1',
       'account-shortfall:2',
@@ -123,12 +100,8 @@ describe('arrangeNotifications', () => {
   it('danh sách rỗng ra kết quả rỗng, không nổ', () => {
     const out = arrangeNotifications([], [])
     expect(out).toEqual({
-      actions: [],
-      infos: [],
       actionsAll: [],
       infosAll: [],
-      hiddenActionCount: 0,
-      hiddenInfoCount: 0,
       allKeys: [],
     })
   })
@@ -145,7 +118,7 @@ describe('ghép arrangeNotifications với splitStaleActionKeys (vòng đời m�
 
     // Rồi vào cài đặt tắt "Vượt ngân sách tháng".
     const out = arrangeNotifications(list, ['budget-over'])
-    expect(out.actions).toHaveLength(0) // không hiện nữa — đúng ý người dùng
+    expect(out.actionsAll).toHaveLength(0) // không hiện nữa — đúng ý người dùng
 
     // Nhưng dọn dẹp KHÔNG được xóa trạng thái đã đọc: bật lại mà mất trạng thái là
     // dòng cũ đỏ lại như mới dù đã đọc từ lâu.

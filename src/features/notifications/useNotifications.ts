@@ -21,8 +21,8 @@ import { addDaysISO, monthKeyForDate, toISODate } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import type { CurrencyCode } from '../../lib/money'
 import { usePrivacyMode } from '../../lib/privacy'
-import { buildNotifications } from './rules'
-import { unreadActionCount, visibleInfos } from './state'
+import { ACTION_LIMIT, INFO_LIMIT, buildNotifications } from './rules'
+import { notificationInputsReady, unreadActionCount, visibleInfoLists } from './state'
 import type { AppNotification, NotificationResult, NotificationType } from './types'
 
 /** Cửa sổ dữ liệu cho radar định kỳ và tổng kết tháng. */
@@ -70,12 +70,8 @@ export interface UseNotificationsResult {
 }
 
 const EMPTY_RESULT: NotificationResult = {
-  actions: [],
-  infos: [],
   actionsAll: [],
   infosAll: [],
-  hiddenActionCount: 0,
-  hiddenInfoCount: 0,
   allKeys: [],
 }
 
@@ -88,7 +84,7 @@ export function useNotifications(): UseNotificationsResult {
 
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
-  const { base, rates } = useRates()
+  const { base, rates, isSuccess: ratesOk } = useRates()
   // Giữ nguyên object query (không destructure `data` ra ngay) vì `inputsReady` cần
   // biết từng query đã THÀNH CÔNG hay chưa, không chỉ "đã hết loading".
   const balancesQ = useAccountBalances()
@@ -105,7 +101,9 @@ export function useNotifications(): UseNotificationsResult {
   const recurringRules = rulesQ.data ?? EMPTY
   const savingsGoals = goalsQ.data ?? EMPTY
   const networthSnapshots = snapshotsQ.data ?? EMPTY
-  const { report: budgetReport } = useBudgetReport(monthKeyForDate(todayISO, monthStartDay))
+  const { report: budgetReport, isComplete: budgetReportComplete } = useBudgetReport(
+    monthKeyForDate(todayISO, monthStartDay),
+  )
 
   const range = useMemo(
     () => ({ start: addDaysISO(todayISO, -LOOKBACK_DAYS), end: addDaysISO(todayISO, 1) }),
@@ -197,25 +195,41 @@ export function useNotifications(): UseNotificationsResult {
   // Tin-để-biết: đã tắt → biến mất hẳn; đã đọc từ lượt TRƯỚC → cũng không hiện nữa.
   // (Mở tấm trượt lần này có đánh dấu đọc thì vẫn thấy tới khi đóng — xem NotificationSheet.)
   // Hai phép lọc là hàm thuần ở state.ts nên test được cả vòng đời (mục I).
-  const infos = visibleInfos(result.infos, readKeys, dismissedKeys)
-  const infosAll = visibleInfos(result.infosAll, readKeys, dismissedKeys)
-  const unreadCount = unreadActionCount(result.actions, readKeys)
+  //
+  // LỌC TRƯỚC, CẮT TRẦN SAU (lỗi I4-R) — thứ tự nằm trong visibleInfoLists để có
+  // phép thử canh, chứ không phải hai dòng rời ở đây.
+  const { infosAll, infos } = visibleInfoLists(
+    result.infosAll,
+    readKeys,
+    dismissedKeys,
+    INFO_LIMIT,
+  )
+  // Việc-cần-làm KHÔNG lọc theo đã đọc (đã đọc chỉ mờ đi chứ không mất) và không có
+  // nút ✕, nên ở nhóm này cắt trước hay sau đều ra một kết quả — vẫn cắt ở đây cho
+  // cùng một chỗ với nhóm kia.
+  const actions = result.actionsAll.slice(0, ACTION_LIMIT)
+  // Đếm trên bản ĐẦY ĐỦ, không phải phần thu gọn: có 7 việc mà chuông báo 5 là nói
+  // dối, và chính tấm trượt cũng đang in "7 việc cần làm" ở tiêu đề. Bấm mở rồi bấm
+  // "Xem thêm" vẫn tắt hết được số đỏ, chỉ thêm một cái chạm.
+  const unreadCount = unreadActionCount(result.actionsAll, readKeys)
 
-  // Đủ để DỌN: mọi query mà 13 luật đọc đều đã THÀNH CÔNG, và budgetReport đã có
-  // (nó chỉ khác undefined khi cả budgets lẫn giao dịch tháng đã về). Query lỗi cũng
-  // chặn dọn — đúng ý: hướng an toàn là không xóa gì (xem planNotificationCleanup).
-  const inputsReady =
-    !!profile &&
-    stateQ.isSuccess &&
-    budgetReport !== undefined &&
-    balancesQ.isSuccess &&
-    accountRowsQ.isSuccess &&
-    categoriesQ.isSuccess &&
-    debtsQ.isSuccess &&
-    rulesQ.isSuccess &&
-    goalsQ.isSuccess &&
-    snapshotsQ.isSuccess &&
-    txsQ.isSuccess
+  // Đủ để DỌN: MỌI nguồn dữ liệu bộ luật đọc đã về. Quyết định là hàm thuần
+  // notificationInputsReady (state.ts) — đúng chỗ lỗi C1 trốn được hai lượt sửa.
+  // Query lỗi cũng chặn dọn: hướng an toàn là không xóa gì (planNotificationCleanup).
+  const inputsReady = notificationInputsReady({
+    profileLoaded: !!profile,
+    ratesOk,
+    accountRowsOk: accountRowsQ.isSuccess,
+    balancesOk: balancesQ.isSuccess,
+    categoriesOk: categoriesQ.isSuccess,
+    debtsOk: debtsQ.isSuccess,
+    recurringRulesOk: rulesQ.isSuccess,
+    budgetReportComplete,
+    savingsGoalsOk: goalsQ.isSuccess,
+    networthSnapshotsOk: snapshotsQ.isSuccess,
+    recentTxsOk: txsQ.isSuccess,
+    notificationStateOk: stateQ.isSuccess,
+  })
 
   // Đánh dấu đã đọc, bỏ sẵn mã đã đọc rồi để khỏi gọi mạng vô ích.
   const markReadKeys = (keys: string[]) => {
@@ -224,7 +238,7 @@ export function useNotifications(): UseNotificationsResult {
   }
 
   return {
-    actions: result.actions,
+    actions,
     infos,
     actionsAll: result.actionsAll,
     infosAll,
@@ -239,7 +253,7 @@ export function useNotifications(): UseNotificationsResult {
     // thấy nên chưa được coi là đã đọc — nếu đánh dấu luôn thì một tin-để-biết bị cắt
     // sẽ mất vĩnh viễn mà chủ nó chưa từng thấy. Nó chỉ được đánh dấu khi người dùng
     // bấm xổ ra (markRead ở NotificationSheet).
-    markAllRead: () => markReadKeys([...result.actions, ...infos].map((n) => n.key)),
+    markAllRead: () => markReadKeys([...actions, ...infos].map((n) => n.key)),
     markRead: markReadKeys,
     dismiss: (key: string) => dismissMutation.mutate(key),
   }

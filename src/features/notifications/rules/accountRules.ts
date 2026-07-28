@@ -56,24 +56,43 @@ function recurringImpact(
   return { outgoing, incoming, labels }
 }
 
+interface AccountLike {
+  id: string
+  name: string
+  currency: CurrencyCode
+  balance: number
+}
+
+/** Số liệu của một ca thiếu tiền. `null` = không thiếu, không có gì phải nói. */
+interface ShortfallFacts {
+  /** Tổng phải trả trong tầm nhìn (theo loại tiền của ví). */
+  owe: number
+  /** Tổng có sẵn (số dư + định kỳ thu). */
+  have: number
+  /** Câu chi tiết đã dựng xong: "14 ngày tới phải trả X · <liệt kê>". */
+  detail: string
+}
+
 /**
- * So sánh "phải trả owedBase + định kỳ" với "có sẵn balance + định kỳ thu"; nếu thiếu
- * thì đẩy một thông báo account-shortfall vào `out`. Dùng chung cho hai trường hợp:
- * tài khoản có thẻ trỏ tới (owedBase = tổng nợ thẻ) và tài khoản chỉ có định kỳ chi
- * (owedBase = 0) — cùng một công thức thiếu/đủ, chỉ khác nguồn của owedBase và nhãn thêm.
+ * So sánh "phải trả owedBase + định kỳ" với "có sẵn balance + định kỳ thu". Dùng chung
+ * cho hai trường hợp: tài khoản có thẻ trỏ tới (owedBase = tổng nợ thẻ) và tài khoản chỉ
+ * có định kỳ chi (owedBase = 0) — cùng một công thức thiếu/đủ, chỉ khác nguồn của
+ * owedBase và nhãn thêm.
+ *
+ * Tách khỏi việc ĐẨY thông báo vì có ca cần con số mà không cần dòng riêng: ví đang âm
+ * đã có dòng của mục 2, nhưng nghĩa vụ 14 ngày tới của nó vẫn phải được nói ra.
  */
-function pushShortfallIfNeeded(
-  out: AppNotification[],
+function shortfallFacts(
   input: NotificationInput,
-  account: { id: string; name: string; currency: CurrencyCode; balance: number },
+  account: AccountLike,
   owedBase: number,
   extraLabels: string[],
   untilISO: string,
-): void {
+): ShortfallFacts | null {
   const impact = recurringImpact(input, account.id, untilISO)
   const owe = owedBase + impact.outgoing
   const have = account.balance + impact.incoming
-  if (have >= owe) return
+  if (have >= owe) return null
 
   // Dựng mảng phần liệt kê TRƯỚC rồi mới nối: nhánh 2 (chỉ có định kỳ, không thẻ) đi
   // với extraLabels rỗng, nên nối cứng " · " là ra câu treo lơ lửng
@@ -81,13 +100,32 @@ function pushShortfallIfNeeded(
   const parts = [...extraLabels, ...impact.labels]
   const listed = parts.length > 0 ? ` · ${parts.join(' · ')}` : ''
 
+  return {
+    owe,
+    have,
+    detail: `${SHORTFALL_HORIZON_DAYS} ngày tới phải trả ${input.formatMoney(owe, account.currency)}${listed}`,
+  }
+}
+
+/** Thiếu tiền thì đẩy một dòng account-shortfall vào `out`. */
+function pushShortfallIfNeeded(
+  out: AppNotification[],
+  input: NotificationInput,
+  account: AccountLike,
+  owedBase: number,
+  extraLabels: string[],
+  untilISO: string,
+): void {
+  const facts = shortfallFacts(input, account, owedBase, extraLabels, untilISO)
+  if (!facts) return
+
   out.push({
     key: `account-shortfall:${account.id}`,
     kind: 'action',
     type: 'account-shortfall',
     severity: 'high',
-    title: `${account.name} thiếu ${input.formatMoney(owe - have, account.currency)}`,
-    detail: `${SHORTFALL_HORIZON_DAYS} ngày tới phải trả ${input.formatMoney(owe, account.currency)}${listed}`,
+    title: `${account.name} thiếu ${input.formatMoney(facts.owe - facts.have, account.currency)}`,
+    detail: facts.detail,
     onISO: untilISO,
     to: `/assets/${account.id}`,
   })
@@ -151,27 +189,38 @@ export function accountRules(input: NotificationInput): AppNotification[] {
     // `sourcesSeen.add` phải đứng TRƯỚC continue: đã có dòng cho nguồn này rồi thì
     // nhánh định kỳ bên dưới cũng không được nhặt nó lên lần nữa.
     sourcesSeen.add(g.sourceId)
-    // Đã có dòng "đang âm" cho nguồn này thì thôi — cùng một cái ví, cùng một số tiền.
-    // Giữ dòng "đang âm" (chứ không giữ "thiếu tiền") vì đó là gốc của vấn đề: số dư
-    // âm trên ví tiêu được thường là ghi nhầm hoặc quên ghi một khoản thu, và chừng nào
-    // chưa sửa thì con số "thiếu bao nhiêu" cũng chưa đáng tin. Đây cũng đúng thứ tự ưu
-    // tiên mà nhánh định kỳ bên dưới đã áp ("đã có mục 2 lo") — một luật, một chỗ.
-    if (negativeReported.has(g.sourceId)) continue
     // Lọc thêm theo currency giống hệt cardFunding() (aggregate.ts): thẻ khác loại tiền
     // với nguồn bị cardFunding loại khỏi totalOwed, nên cũng không được nêu tên ở đây —
     // nếu không, chi tiết sẽ nhắc tới một thẻ mà số tiền không hề gồm nợ của nó.
     const cardNames = cards
       .filter((c) => c.paymentAccountId === g.sourceId && c.currency === g.currency)
       .map((c) => `${c.name} ${input.formatMoney(c.balance < 0 ? -c.balance : 0, c.currency)}`)
+    const source: AccountLike = {
+      id: g.sourceId,
+      name: g.sourceName,
+      currency: g.currency,
+      balance: g.sourceBalance,
+    }
 
-    pushShortfallIfNeeded(
-      out,
-      input,
-      { id: g.sourceId, name: g.sourceName, currency: g.currency, balance: g.sourceBalance },
-      g.totalOwed,
-      cardNames,
-      untilISO,
-    )
+    // Đã có dòng "đang âm" cho nguồn này thì KHÔNG thêm dòng thứ hai — cùng một cái ví,
+    // cùng một số tiền. Giữ dòng "đang âm" (chứ không giữ "thiếu tiền") vì đó là gốc của
+    // vấn đề: số dư âm trên ví tiêu được thường là ghi nhầm hoặc quên ghi một khoản thu,
+    // và chừng nào chưa sửa thì con số "thiếu bao nhiêu" cũng chưa đáng tin. Đây cũng
+    // đúng thứ tự ưu tiên mà nhánh định kỳ bên dưới đã áp ("đã có mục 2 lo").
+    //
+    // NHƯNG gộp dòng không được làm mất THÔNG TIN: câu "thiếu tiền" là chỗ duy nhất
+    // trong cả app nói ra "14 ngày tới phải trả ¥45.000 · Rakuten Card ¥45.000". Nên
+    // nối câu đó vào phần chi tiết của dòng "đang âm" thay vì bỏ đi.
+    if (negativeReported.has(g.sourceId)) {
+      const facts = shortfallFacts(input, source, g.totalOwed, cardNames, untilISO)
+      if (facts) {
+        const row = out.find((n) => n.key === `account-negative:${g.sourceId}`)
+        if (row) row.detail = `${facts.detail} · ${row.detail}`
+      }
+      continue
+    }
+
+    pushShortfallIfNeeded(out, input, source, g.totalOwed, cardNames, untilISO)
   }
 
   // Tài khoản không có thẻ nào trỏ tới, nhưng có định kỳ chi vượt số dư.

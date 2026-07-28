@@ -14,6 +14,12 @@ import { budgetRules } from './rules/budgetRules'
 import { cardRules } from './rules/cardRules'
 import { rhythmRules } from './rules/rhythmRules'
 
+/**
+ * Trần của phần ĐANG HIỆN lúc còn thu gọn (mục C.4). KHÔNG phải trần cứng và
+ * KHÔNG được áp ở đây: bộ luật không biết tin nào đã đọc / đã tắt, nên cắt trần
+ * trước khi lọc là cắt mất tin chưa ai xem. Việc cắt nằm ở useNotifications, ngay
+ * sau phép lọc.
+ */
 export const ACTION_LIMIT = 5
 export const INFO_LIMIT = 3
 
@@ -23,8 +29,10 @@ const TYPE_RANK = new Map(NOTIFICATION_TYPES.map((t, i) => [t, i]))
 
 /**
  * Lọc loại đã tắt, xếp thứ tự (mức cao trước; cùng mức thì theo NOTIFICATION_TYPES),
- * tách hai nhóm và cắt trần. Tách riêng khỏi buildNotifications để test được mà
- * không cần dựng cả cục dữ liệu đầu vào.
+ * tách hai nhóm. Tách riêng khỏi buildNotifications để test được mà không cần dựng
+ * cả cục dữ liệu đầu vào.
+ *
+ * Trả về danh sách ĐẦY ĐỦ, KHÔNG cắt trần — xem ACTION_LIMIT ở trên.
  */
 export function arrangeNotifications(
   list: AppNotification[],
@@ -44,14 +52,8 @@ export function arrangeNotifications(
   const infos = kept.filter((n) => n.kind === 'info')
 
   return {
-    // Trần ACTION_LIMIT / INFO_LIMIT là trần của phần THU GỌN, không phải trần cứng:
-    // tấm trượt giữ luôn hai mảng đầy đủ để bấm "xem thêm" là xổ ra (mục C.4).
-    actions: actions.slice(0, ACTION_LIMIT),
-    infos: infos.slice(0, INFO_LIMIT),
     actionsAll: actions,
     infosAll: infos,
-    hiddenActionCount: Math.max(0, actions.length - ACTION_LIMIT),
-    hiddenInfoCount: Math.max(0, infos.length - INFO_LIMIT),
     // Lấy từ `sorted`, tức TRƯỚC khi lọc loại đã tắt — CỐ Ý. Dọn dẹp ở AppLayout coi
     // "mã đã lưu mà không có trong allKeys" là việc đã xong và XÓA dòng trạng thái.
     // Nếu allKeys lấy từ `kept` thì tắt "Vượt ngân sách tháng" trong cài đặt sẽ xóa

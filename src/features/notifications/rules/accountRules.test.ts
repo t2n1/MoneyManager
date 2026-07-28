@@ -378,3 +378,56 @@ describe('account-shortfall — nhánh 2 (không thẻ nào trỏ tới, chỉ �
     expect(out.filter((n) => n.key === 'account-shortfall:src')).toHaveLength(1)
   })
 })
+
+describe('account-shortfall — dòng phụ phải đọc được và cộng lại đúng', () => {
+  it('một quy tắc định kỳ CHƯA ĐẶT TÊN thì không để dấu phân cách cụt ở cuối', () => {
+    const acc = account({ id: 'plain', name: 'Ví chi tiêu', balance: 0 })
+    const bill = rule({
+      id: 'r20',
+      type: 'expense',
+      amount: 50_000,
+      account_id: 'plain',
+      note: '', // người dùng không ghi ghi chú — rất thường gặp
+      start_on: '2026-08-01',
+      last_generated_on: '2026-07-01',
+    })
+    const hit = accountRules(input({ accounts: [acc], recurringRules: [bill] })).find(
+      (n) => n.type === 'account-shortfall',
+    )
+    // Trước khi sửa: '14 ngày tới phải trả 50000 · ' — treo lơ lửng.
+    expect(hit?.detail).toBe('14 ngày tới phải trả 50000 · Khoản định kỳ 50000')
+    expect(hit?.detail?.endsWith(' · ')).toBe(false)
+  })
+
+  it('các khoản liệt kê cộng lại ĐÚNG bằng tổng phải trả đã nêu', () => {
+    const acc = account({ id: 'plain', name: 'Ví chi tiêu', balance: 0 })
+    const named = rule({
+      id: 'r21',
+      type: 'expense',
+      amount: 17_000,
+      account_id: 'plain',
+      note: 'Tiền nhà',
+      start_on: '2026-08-01',
+      last_generated_on: '2026-07-01',
+    })
+    const unnamed = rule({
+      id: 'r22',
+      type: 'expense',
+      amount: 3_000,
+      account_id: 'plain',
+      note: '',
+      start_on: '2026-08-02',
+      last_generated_on: '2026-07-02',
+    })
+    const hit = accountRules(input({ accounts: [acc], recurringRules: [named, unnamed] })).find(
+      (n) => n.type === 'account-shortfall',
+    )
+    expect(hit?.detail).toBe('14 ngày tới phải trả 20000 · Tiền nhà 17000 · Khoản định kỳ 3000')
+    // Đọc lại số từ chính dòng phụ rồi cộng: phải khớp tổng đã in ra, nếu không thì
+    // người dùng không có cách nào đối chiếu con số họ đang nhìn.
+    const [head, ...listed] = (hit?.detail ?? '').split(' · ')
+    const total = Number(head.match(/(\d+)$/)?.[1])
+    const sum = listed.reduce((s, part) => s + Number(part.match(/(\d+)$/)?.[1]), 0)
+    expect(sum).toBe(total)
+  })
+})

@@ -43,7 +43,11 @@ function recurringImpact(
 
     if (r.type === 'expense') {
       outgoing += r.amount * hits
-      if (r.note) labels.push(`${r.note} ${input.formatMoney(r.amount * hits, input.currencyOf(accountId))}`)
+      // Quy tắc chưa đặt tên vẫn phải có nhãn: số tiền của nó ĐÃ cộng vào tổng, nên bỏ
+      // nhãn là người dùng không cộng lại được các khoản liệt kê thành con số đang đọc.
+      labels.push(
+        `${r.note || 'Khoản định kỳ'} ${input.formatMoney(r.amount * hits, input.currencyOf(accountId))}`,
+      )
     } else {
       incoming += r.amount * hits
     }
@@ -71,13 +75,19 @@ function pushShortfallIfNeeded(
   const have = account.balance + impact.incoming
   if (have >= owe) return
 
+  // Dựng mảng phần liệt kê TRƯỚC rồi mới nối: nhánh 2 (chỉ có định kỳ, không thẻ) đi
+  // với extraLabels rỗng, nên nối cứng " · " là ra câu treo lơ lửng
+  // "14 ngày tới phải trả ¥50.000 · " với dấu phân cách cụt ở cuối.
+  const parts = [...extraLabels, ...impact.labels]
+  const listed = parts.length > 0 ? ` · ${parts.join(' · ')}` : ''
+
   out.push({
     key: `account-shortfall:${account.id}`,
     kind: 'action',
     type: 'account-shortfall',
     severity: 'high',
     title: `${account.name} thiếu ${input.formatMoney(owe - have, account.currency)}`,
-    detail: `${SHORTFALL_HORIZON_DAYS} ngày tới phải trả ${input.formatMoney(owe, account.currency)} · ${[...extraLabels, ...impact.labels].join(' · ')}`,
+    detail: `${SHORTFALL_HORIZON_DAYS} ngày tới phải trả ${input.formatMoney(owe, account.currency)}${listed}`,
     onISO: untilISO,
     to: `/assets/${account.id}`,
   })

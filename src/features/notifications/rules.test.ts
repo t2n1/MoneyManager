@@ -67,6 +67,26 @@ describe('arrangeNotifications', () => {
     expect(out.allKeys).toHaveLength(7)
   })
 
+  it('lọc loại đã tắt TRƯỚC rồi mới cắt trần', () => {
+    const items = [
+      ...Array.from({ length: 4 }, (_, i) =>
+        n('budget-over', 'high', 'action', `budget-over:${i}`),
+      ),
+      ...Array.from({ length: 4 }, (_, i) =>
+        n('account-shortfall', 'high', 'action', `account-shortfall:${i}`),
+      ),
+    ]
+    const out = arrangeNotifications(items, ['budget-over'])
+    expect(out.actions).toHaveLength(4)
+    expect(out.hiddenCount).toBe(0)
+    expect(out.allKeys).toEqual([
+      'account-shortfall:0',
+      'account-shortfall:1',
+      'account-shortfall:2',
+      'account-shortfall:3',
+    ])
+  })
+
   it('danh sách rỗng ra kết quả rỗng, không nổ', () => {
     const out = arrangeNotifications([], [])
     expect(out).toEqual({ actions: [], infos: [], hiddenCount: 0, allKeys: [] })

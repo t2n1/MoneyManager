@@ -139,6 +139,71 @@ describe('recurring-suggestion', () => {
 })
 
 describe('savings-milestone', () => {
+  /** Tài khoản 'acc' với số dư cho trước — mọi ca mốc chỉ khác nhau ở số dư. */
+  function savingsAccount(balance: number) {
+    return {
+      id: 'acc',
+      user_id: 'u',
+      name: 'Tiết kiệm',
+      type: 'bank' as const,
+      currency: 'JPY' as const,
+      asset_group: null,
+      is_hidden: false,
+      include_in_totals: true,
+      credit_limit: null,
+      statement_day: null,
+      payment_due_day: null,
+      payment_account_id: null,
+      is_archived: false,
+      sort_order: 0,
+      cost_basis: 0,
+      depreciation_months: null,
+      depreciation_from: null,
+      salvage_value: 0,
+      tax_shelter: null,
+      shelter_annual_limit: null,
+      market_value: null,
+      balance,
+    }
+  }
+
+  /** Mốc cao nhất đạt được, hoặc undefined nếu chưa mốc nào. */
+  function milestoneFor(balance: number, target = 1_000_000) {
+    const out = rhythmRules(
+      input({
+        savingsGoals: [goal({ id: 'g1', target_amount: target })],
+        accounts: [savingsAccount(balance)],
+      }),
+    )
+    return out.find((n) => n.type === 'savings-milestone')
+  }
+
+  // Ba ca cho mỗi ngưỡng theo mục I: chưa tới · vượt · ĐÚNG NGAY RANH GIỚI.
+  it('đúng 25% thì đã tính là chạm mốc 25 (>=, không phải >)', () => {
+    expect(milestoneFor(250_000)?.key).toBe('savings-milestone:g1:25')
+  })
+
+  it('sát dưới 25% thì chưa mốc nào', () => {
+    expect(milestoneFor(249_999)).toBeUndefined()
+  })
+
+  it('đúng 100% thì báo mốc 100', () => {
+    expect(milestoneFor(1_000_000)?.key).toBe('savings-milestone:g1:100')
+  })
+
+  it('vượt 100% thì mã VẪN kẹp ở :100, không sinh mốc mới mỗi lần nạp thêm', () => {
+    // Mã đổi là "đã tắt" mất tác dụng — vượt mục tiêu rồi mà mỗi lần nạp thêm lại ra
+    // một mã mới thì tin đã tắt sống lại liên tục.
+    expect(milestoneFor(3_000_000)?.key).toBe('savings-milestone:g1:100')
+    expect(milestoneFor(1_000_001)?.key).toBe('savings-milestone:g1:100')
+  })
+
+  it('mục tiêu = 0 thì IM, không chia cho 0', () => {
+    // Chốt cả hai phía của guard `target_amount <= 0` (trước đây chưa có phép thử nào).
+    expect(milestoneFor(500_000, 0)).toBeUndefined()
+    expect(milestoneFor(500_000, -1)).toBeUndefined()
+  })
+
   it('đạt 50% thì báo mốc 50', () => {
     const out = rhythmRules(
       input({

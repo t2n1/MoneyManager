@@ -250,6 +250,28 @@ describe('trạng thái thông báo', () => {
     expect(row?.read_at).toBe(row?.dismissed_at)
   })
 
+  it('đánh dấu đã đọc một mã ĐÃ TẮT thì không xóa mất dismissed_at', async () => {
+    // Đây là lớp lệch DUY NHẤT giữa hai bản repo có thể làm một tin đã tắt vĩnh viễn
+    // sống lại: nếu markNotificationsRead ghi đè cả dòng (thay vì bỏ qua mã đã có) thì
+    // dismissed_at về null và lần tính sau tin đó hiện lại. Bản demo bỏ qua bằng
+    // `continue`, bản Supabase bằng `ignoreDuplicates: true` — cả hai đang đúng, nhưng
+    // không có phép thử nào ghim nên một lần "sửa cho hợp lý" là mất.
+    await demoRepo.dismissNotification('recurring-suggestion:netflix')
+    const rowsBefore = (await demoRepo.getNotificationState()).filter(
+      (r) => r.key === 'recurring-suggestion:netflix',
+    )
+    await demoRepo.markNotificationsRead(['recurring-suggestion:netflix'])
+    const rowsAfter = (await demoRepo.getNotificationState()).filter(
+      (r) => r.key === 'recurring-suggestion:netflix',
+    )
+    // Đúng MỘT dòng, và mọi dòng mang mã này vẫn còn dismissed_at — kiểm cả tập chứ
+    // không chỉ dòng đầu, kẻo một bản sinh dòng trùng chưa-tắt mà phép thử vẫn xanh.
+    expect(rowsAfter).toHaveLength(1)
+    expect(rowsAfter.every((r) => r.dismissed_at != null)).toBe(true)
+    expect(rowsAfter[0].dismissed_at).toBe(rowsBefore[0].dismissed_at)
+    expect(rowsAfter[0].read_at).toBe(rowsBefore[0].read_at)
+  })
+
   it('xóa trạng thái theo danh sách mã', async () => {
     await demoRepo.markNotificationsRead(['account-negative:acc-1'])
     await demoRepo.deleteNotificationStates(['account-negative:acc-1'])

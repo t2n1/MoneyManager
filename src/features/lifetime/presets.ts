@@ -5,6 +5,22 @@
 // MỌI SỐ MẶC ĐỊNH DƯỚI ĐÂY LÀ PHỎNG ĐOÁN, có ghi nguồn + ngày tra. UI phải dán nhãn
 // "số mặc định, kiểm tra lại". 児童手当 và học phí đổi theo luật hằng năm — app chỉ
 // giúp khỏi gõ từ số không, không hứa biết số đúng.
+//
+// QUY ƯỚC ĐƠN VỊ (bắt buộc, đọc trước khi thêm mẫu mới): mỗi số mặc định phải ĐI KÈM
+// đơn vị tiền mà ĐỘ LỚN của nó được viết cho — tên hằng số mang hậu tố `_JPY`/`_VND`, và
+// sự kiện phải ép cứng đúng `currency` đó.
+//
+// Bản trước để `ev()` rơi về `ctx.currency` (tiền của chặng đang hiệu lực) cho phần lớn
+// các số, dù mọi độ lớn đều được viết theo JPY. Đúng khi chặng là JPY; với một chặng VND
+// — hoàn toàn có thật với người dùng này (gửi tiền về VN, có thể về VN nghỉ hưu) — "Nuôi
+// con 0–6 tuổi" thành ₫600.000/năm, tức khoảng 24 đô một năm: sai 150 lần và KHÔNG có
+// guard nào bắt được, vì `fx_to_display` lúc đó hoàn toàn hợp lệ. Câu `note` "Số mặc
+// định, kiểm tra lại" không cứu được: nó nói về độ chính xác, không nói về đơn vị.
+//
+// Ép cứng JPY thì độ lớn luôn đúng NGHĨA, và việc quy về đơn vị hiển thị đi qua đúng cơ
+// chế đã có cho việc đó (`fx_to_display` của từng dòng, xem `fxForEvent`) — tra được thì
+// đúng, không tra được thì bằng 1 và banner cảnh báo bắt ngay. Sai một cách nhìn thấy
+// được, không sai âm thầm.
 import type { NewLifeEvent, NewLifePhase } from '../../data/repo'
 import type { CurrencyCode } from '../../lib/currencies'
 
@@ -106,6 +122,22 @@ const CHILD_COST_7_15_JPY = 900_000
 const CHILD_COST_16_17_JPY = 1_200_000
 const CHILD_COST_UNIVERSITY_JPY = 1_800_000
 
+// Bốn số dưới đây trước là literal viết thẳng trong `build()`. Đặt tên có hậu tố `_JPY`
+// vì độ lớn của chúng được viết theo yên — xem QUY ƯỚC ĐƠN VỊ ở đầu file.
+/** Chi phí tổ chức đám cưới. Ước lượng, chưa tra nguồn (2026-07-29). */
+const WEDDING_COST_JPY = 3_000_000
+/** Khoản trả trước khi mua nhà. Ước lượng, chưa tra nguồn (2026-07-29). */
+const HOUSE_DOWN_PAYMENT_JPY = 5_000_000
+/** Khoản trả vay mỗi năm. Ước lượng, chưa tra nguồn (2026-07-29). */
+const HOUSE_LOAN_ANNUAL_JPY = 1_200_000
+/** Mức lương hưu (年金) bình quân giả định. Ước lượng, chưa tra nguồn (2026-07-29). */
+const PENSION_ANNUAL_JPY = 1_100_000
+/** Chi phí chuyển nhà + thủ tục giấy tờ khi đổi nước sinh sống. Ước lượng, chưa tra
+ *  nguồn (2026-07-29). */
+const MOVING_COST_JPY = 2_500_000
+/** Tiền gửi về cho bố mẹ mỗi năm. Ước lượng, chưa tra nguồn (2026-07-29). */
+const PARENT_SUPPORT_ANNUAL_VND = 60_000_000
+
 export const LIFE_PRESETS: LifePreset[] = [
   {
     id: 'cuoi',
@@ -129,8 +161,11 @@ export const LIFE_PRESETS: LifePreset[] = [
       events: [
         ev(ctx, {
           label: 'Chi phí cưới',
-          // Ước lượng, chưa tra nguồn (2026-07-29) — chi phí tổ chức đám cưới trung bình.
-          amount_minor: 3_000_000,
+          amount_minor: WEDDING_COST_JPY,
+          // Ép cứng JPY vì độ lớn của WEDDING_COST_JPY viết theo yên (QUY ƯỚC ĐƠN VỊ ở
+          // đầu file). Không rơi về ctx.currency: một chặng VND sẽ biến ¥3.000.000 thành
+          // ₫3.000.000, tức ~120 đô cho một đám cưới.
+          currency: 'JPY',
           // Số tiền là giá HÔM NAY cho một việc xảy ra ở năm tương lai — ở chế độ giá
           // danh nghĩa nó phải phồng theo lạm phát như mọi giá cả khác (không phải số
           // luật định như trợ cấp/lương hưu, cũng không phải nợ vay lãi cố định).
@@ -159,16 +194,21 @@ export const LIFE_PRESETS: LifePreset[] = [
           // Trợ cấp cố định theo luật, không theo lạm phát.
           inflate: false,
         }),
+        // Bốn bậc chi phí nuôi con: ép cứng JPY vì cả bốn độ lớn tra từ khảo sát 教育費
+        // của Nhật (xem CHILD_COST_* ở trên và QUY ƯỚC ĐƠN VỊ ở đầu file). Rơi về
+        // ctx.currency thì một chặng VND biến ¥600.000/năm thành ₫600.000/năm (~24 đô).
         ev(ctx, {
           label: 'Nuôi con 0–6 tuổi',
           end_year: ctx.year + 6,
           amount_minor: CHILD_COST_0_6_JPY,
+          currency: 'JPY',
         }),
         ev(ctx, {
           label: 'Nuôi con 7–15 tuổi',
           start_year: ctx.year + 7,
           end_year: ctx.year + 15,
           amount_minor: CHILD_COST_7_15_JPY,
+          currency: 'JPY',
         }),
         ev(ctx, {
           label: 'Nuôi con 16–17 tuổi',
@@ -177,12 +217,14 @@ export const LIFE_PRESETS: LifePreset[] = [
           // học" ngay dưới. Xem ghi chú tại CHILD_COST_16_17_JPY: chủ ý khớp khít.
           end_year: ctx.year + 17,
           amount_minor: CHILD_COST_16_17_JPY,
+          currency: 'JPY',
         }),
         ev(ctx, {
           label: 'Con vào đại học',
           start_year: ctx.year + 18,
           end_year: ctx.year + 21,
           amount_minor: CHILD_COST_UNIVERSITY_JPY,
+          currency: 'JPY',
         }),
       ],
     }),
@@ -195,10 +237,11 @@ export const LIFE_PRESETS: LifePreset[] = [
     build: (ctx) => ({
       phases: [],
       events: [
+        // Cả hai ép cứng JPY — độ lớn viết theo yên, xem QUY ƯỚC ĐƠN VỊ ở đầu file.
         ev(ctx, {
           label: 'Trả trước mua nhà',
-          // Ước lượng, chưa tra nguồn (2026-07-29) — khoản trả trước khi mua nhà.
-          amount_minor: 5_000_000,
+          amount_minor: HOUSE_DOWN_PAYMENT_JPY,
+          currency: 'JPY',
           // Giá HÔM NAY cho việc xảy ra ở năm tương lai — phồng theo lạm phát ở chế độ
           // danh nghĩa, giống "Chi phí cưới" (không phải số luật định, không phải nợ vay).
           inflate: true,
@@ -208,8 +251,8 @@ export const LIFE_PRESETS: LifePreset[] = [
           // Thời hạn vay: ước lượng, chưa tra nguồn (2026-07-29) — giả định vay 35 năm,
           // năm mua tính là năm trả đầu tiên nên còn 34 năm sau đó.
           end_year: ctx.year + 34,
-          // Số tiền trả mỗi năm: ước lượng, chưa tra nguồn (2026-07-29).
-          amount_minor: 1_200_000,
+          amount_minor: HOUSE_LOAN_ANNUAL_JPY,
+          currency: 'JPY',
           // Khoản trả vay lãi cố định là số danh nghĩa — không tăng theo lạm phát, khác
           // với "Chi phí cưới"/"Trả trước mua nhà" ở trên vốn là giá hôm nay phải phồng.
           inflate: false,
@@ -241,8 +284,7 @@ export const LIFE_PRESETS: LifePreset[] = [
           label: 'Lương hưu',
           kind: 'income',
           end_year: null,
-          // Ước lượng, chưa tra nguồn (2026-07-29) — mức lương hưu bình quân giả định.
-          amount_minor: 1_100_000,
+          amount_minor: PENSION_ANNUAL_JPY,
           // 年金 luôn trả bằng JPY, ép cứng bất kể ctx.currency — cùng cách tính với
           // 児童手当 ở trên: fx_to_display theo tiền JPY của sự kiện qua ctx.fxOf.
           currency: 'JPY',
@@ -256,7 +298,12 @@ export const LIFE_PRESETS: LifePreset[] = [
   {
     id: 'chuyen-nuoc',
     label: 'Chuyển nước',
-    hint: 'Chặng mới với tiền và tỷ giá giả định khác, kèm chi phí chuyển một lần.',
+    // Câu hint cũ hứa "Chặng mới với tiền và tỷ giá giả định khác" — mẫu KHÔNG làm thế:
+    // `build()` dưới đây dựng chặng với đúng `ctx.currency`/`ctx.fxToDisplay` của chặng
+    // hiện tại và `country: null`. Nó không biết bạn chuyển sang nước nào nên không đoán
+    // được đơn vị tiền, và đoán một tỷ giá giả định cho một nước chưa rõ thì tệ hơn là
+    // không đoán. Nói ra đúng việc nó làm, kèm việc người dùng phải tự làm tiếp.
+    hint: 'Chặng mới giữ nguyên thu chi nền và tiền hiện tại — tự sửa quốc gia, tiền và tỷ giá của chặng sau khi tạo. Kèm chi phí chuyển một lần.',
     yearLabel: 'Năm chuyển',
     build: (ctx) => ({
       phases: [
@@ -271,13 +318,16 @@ export const LIFE_PRESETS: LifePreset[] = [
           fx_to_display: ctx.fxToDisplay,
         },
       ],
-      // Sự kiện này KHÔNG ép cứng currency — dùng đúng ctx.currency.
       events: [
         ev(ctx, {
           label: 'Chi phí chuyển nhà, thủ tục',
-          // Ước lượng, chưa tra nguồn (2026-07-29) — chi phí chuyển nhà + thủ tục giấy
-          // tờ khi đổi nước sinh sống.
-          amount_minor: 2_500_000,
+          amount_minor: MOVING_COST_JPY,
+          // Ép cứng JPY. Bản trước CỐ Ý để rơi về ctx.currency ("dùng đúng tiền của
+          // chặng"), nhưng độ lớn 2.500.000 vẫn được viết theo yên — nên với một chặng
+          // VND nó ra ₫2.500.000 (~100 đô) cho cả một lần chuyển nước. ¥2.500.000 quy
+          // sang đồng ra khoảng ₫425 triệu, tức đúng bậc độ lớn ở CẢ HAI nước; con số
+          // sai theo đơn vị thì không.
+          currency: 'JPY',
           // Giá HÔM NAY cho việc xảy ra ở năm tương lai — phồng theo lạm phát ở chế độ
           // danh nghĩa, cùng lý do với "Chi phí cưới"/"Trả trước mua nhà".
           inflate: true,
@@ -299,8 +349,7 @@ export const LIFE_PRESETS: LifePreset[] = [
           // liệu tuổi thọ hay nhu cầu cụ thể nào, chỉ là một mốc tạm để mẫu có năm kết
           // thúc thay vì chạy vô hạn.
           end_year: ctx.year + 20,
-          // Số tiền mỗi năm: ước lượng, chưa tra nguồn (2026-07-29).
-          amount_minor: 60_000_000,
+          amount_minor: PARENT_SUPPORT_ANNUAL_VND,
           // Tiền gửi về luôn tính bằng VND, ép cứng bất kể ctx.currency — đây là mẫu
           // mà lệch tiền với ctx là TRƯỜNG HỢP THƯỜNG GẶP NHẤT (người dùng ở Nhật gửi
           // tiền về VN), không phải ca hiếm. fx_to_display tính theo tiền VND của

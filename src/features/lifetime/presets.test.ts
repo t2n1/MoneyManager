@@ -85,9 +85,29 @@ describe('LIFE_PRESETS', () => {
     expect(luong.inflate).toBe(false)
   })
 
-  it('chuyển nước giữ nguyên tiền của ngữ cảnh cho sự kiện chi phí chuyển', () => {
+  // Kỳ vọng ĐỔI CÓ Ý ĐỊNH (trước là `toBe('USD')` — "giữ nguyên tiền của ngữ cảnh"):
+  // độ lớn 2.500.000 của chi phí chuyển được viết theo YÊN, nên rơi về ctx.currency là
+  // ra ₫2.500.000 (~100 đô) cho cả một lần chuyển nước ở chặng VND. Xem QUY ƯỚC ĐƠN VỊ
+  // ở đầu presets.ts: số mặc định phải mang đúng đơn vị mà độ lớn của nó viết cho.
+  it('chuyển nước ép cứng JPY cho chi phí chuyển — độ lớn viết theo yên', () => {
     const r = preset('chuyen-nuoc').build({ ...ctx, currency: 'USD' })
-    expect(r.events[0].currency).toBe('USD')
+    expect(r.events[0].currency).toBe('JPY')
+    // Chặng thì vẫn theo ctx.currency: nó mang thu/chi nền của chính chặng đó.
+    expect(r.phases[0].currency).toBe('USD')
+  })
+
+  // Canh QUY ƯỚC ĐƠN VỊ cho CẢ BỘ mẫu, không chỉ một mẫu: mọi sự kiện phải ép cứng
+  // currency, không dòng nào rơi về ctx.currency. Không có phép thử này thì mẫu thêm sau
+  // lại lặng lẽ lấy tiền của chặng cho một độ lớn viết theo yên.
+  it('không sự kiện nào của mẫu rơi về ctx.currency — mọi độ lớn tự mang đơn vị', () => {
+    // Chặng dùng USD — khác cả JPY lẫn VND, tức khác mọi đơn vị mà các số mặc định
+    // được viết cho. Dòng nào rơi về ctx.currency sẽ lộ ra là 'USD'.
+    const usdCtx: PresetContext = { ...ctx, currency: 'USD', displayCurrency: 'USD' }
+    for (const p of LIFE_PRESETS) {
+      for (const e of p.build(usdCtx).events) {
+        expect(['JPY', 'VND'], `${p.id} · ${e.label}`).toContain(e.currency)
+      }
+    }
   })
 
   it('mua nhà sinh chi một lần và khoản trả vay có hạn', () => {

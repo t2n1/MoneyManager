@@ -103,6 +103,32 @@ export interface NotificationInputsReady {
   notificationStateOk: boolean
 }
 
+/** Đúng hai cờ của một query TanStack mà quyết định dưới đây cần đọc. */
+export interface QueryOutcome {
+  isSuccess: boolean
+  isError: boolean
+}
+
+/**
+ * Ba query Lifetime ĐÃ NGÃ NGŨ chưa — dùng cho cờ `lifetimeOk` ở trên.
+ *
+ * "Ngã ngũ" = thành công HOẶC lỗi hẳn. Cờ ấy phải nghĩa là "ta đã BIẾT câu trả lời",
+ * KHÔNG phải "câu trả lời là có". Đòi `isSuccess` thì một lỗi vĩnh viễn ở ba bảng
+ * Lifetime (RLS cấu hình sai, mạng đứt, bảng chưa tồn tại ở một môi trường nào đó) làm
+ * `notificationInputsReady` false MÃI MÃI → `planNotificationCleanup` trả null mãi mãi
+ * → việc dọn dấu-đã-đọc DỪNG cho CẢ 13 loại thông báo, chỉ vì một tính năng mới. Lúc
+ * đó một việc-cần-làm đã xong vẫn giữ dòng đã-đọc, nên khi nó tái diễn thì hiện ra như
+ * đã đọc và không có chấm đỏ.
+ *
+ * Lỗi hẳn thì `input.lifetime` vẫn là undefined và luật Lifetime im — đúng hướng sai
+ * an toàn: tính năng mới không được quyền làm đông cứng vòng đời của những loại có
+ * trước nó. Còn ĐANG TẢI thì vẫn phải chờ, vì undefined-vì-đang-tải không phân biệt
+ * được với undefined-vì-chưa-có-kịch-bản.
+ */
+export function lifetimeQueriesSettled(queries: QueryOutcome[]): boolean {
+  return queries.every((q) => q.isSuccess || q.isError)
+}
+
 /**
  * Đủ dữ liệu để DỌN trạng thái chưa? Thiếu DÙ MỘT nguồn cũng là false — `allKeys`
  * lúc đó khuyết mã của nguồn chưa về, mà dọn dẹp XÓA theo "không thấy trong allKeys

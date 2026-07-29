@@ -23,13 +23,16 @@ import { addDaysISO, monthKeyForDate, toISODate } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import type { CurrencyCode } from '../../lib/money'
 import { usePrivacyMode } from '../../lib/privacy'
-import type { LifetimeEvent, LifetimeInput, LifetimePhase } from '../lifetime/project'
+import { buildLifetimeInput } from '../lifetime/buildInput'
 import { ACTION_LIMIT, INFO_LIMIT, buildNotifications } from './rules'
-import { notificationInputsReady, unreadActionCount, visibleInfoLists } from './state'
+import {
+  lifetimeQueriesSettled,
+  notificationInputsReady,
+  unreadActionCount,
+  visibleInfoLists,
+} from './state'
+import { RECENT_TXS_DAYS } from './types'
 import type { AppNotification, NotificationResult, NotificationType } from './types'
-
-/** Cửa sổ dữ liệu cho radar định kỳ và tổng kết tháng. */
-const LOOKBACK_DAYS = 90
 
 // Một mảng rỗng DÙNG CHUNG cho mọi query chưa có dữ liệu. Viết `data ?? []` tại chỗ
 // sẽ tạo mảng mới mỗi lần render, làm useMemo bên dưới tính lại liên tục.
@@ -108,8 +111,11 @@ export function useNotifications(): UseNotificationsResult {
     monthKeyForDate(todayISO, monthStartDay),
   )
 
+  // `RECENT_TXS_DAYS` (types.ts) là hằng số DUY NHẤT cho cửa sổ này: bộ luật đọc CHÍNH
+  // NÓ để biết `input.recentTxs` chứa bao nhiêu ngày. Trước đây chỗ này giữ 90 còn
+  // lifetimeRules.ts giữ 92, nên luật hứa một cửa sổ dài hơn dữ liệu thật sự có.
   const range = useMemo(
-    () => ({ start: addDaysISO(todayISO, -LOOKBACK_DAYS), end: addDaysISO(todayISO, 1) }),
+    () => ({ start: addDaysISO(todayISO, -RECENT_TXS_DAYS), end: addDaysISO(todayISO, 1) }),
     [todayISO],
   )
   const txsQ = useRangeTransactions(range, !!profile)
@@ -117,12 +123,23 @@ export function useNotifications(): UseNotificationsResult {
 
   // Kịch bản Lifetime cho luật lệch. Dùng ĐÚNG ba queryKey của useLifetime.ts nên hai
   // nơi chia CHUNG một bộ nhớ đệm — mở /lifetime rồi mở trang khác không gọi lại mạng.
+  // `enabled: !!profile` giống `useRangeTransactions(range, !!profile)` ở trên: chưa có
+  // profile thì chưa biết người dùng là ai, gọi ba lần mạng để rồi bỏ đi là vô ích.
   const scenariosQ = useQuery({
     queryKey: ['lifeScenarios'],
     queryFn: () => repo.getLifeScenarios(),
+    enabled: !!profile,
   })
-  const phasesQ = useQuery({ queryKey: ['lifePhases'], queryFn: () => repo.getLifePhases() })
-  const eventsQ = useQuery({ queryKey: ['lifeEvents'], queryFn: () => repo.getLifeEvents() })
+  const phasesQ = useQuery({
+    queryKey: ['lifePhases'],
+    queryFn: () => repo.getLifePhases(),
+    enabled: !!profile,
+  })
+  const eventsQ = useQuery({
+    queryKey: ['lifeEvents'],
+    queryFn: () => repo.getLifeEvents(),
+    enabled: !!profile,
+  })
 
   const stateQ = useNotificationState()
   const stateRows = stateQ.data ?? EMPTY
@@ -138,65 +155,26 @@ export function useNotifications(): UseNotificationsResult {
   /**
    * `LifetimeInput` của kịch bản CHÍNH, hoặc undefined.
    *
-   * undefined khi thiếu BẤT KỲ mảnh nào — chưa tải xong, chưa có kịch bản nào, chưa khai
-   * năm sinh, hoặc kịch bản chính chưa có chặng nào. Luật đã xử lý ca đó bằng cách im,
-   * nên ở đây KHÔNG được điền số mặc định để "có cái mà chiếu": đoán năm sinh hay đoán
-   * chi nền là báo cho người dùng một con số không phải của họ.
+   * Phép ráp là hàm THUẦN `buildLifetimeInput` (features/lifetime/buildInput.ts) — 16
+   * phép ánh xạ trường cộng luật chọn kịch bản chính, trước đây nằm ngay trong memo
+   * này mà không có phép thử nào (cơ sở dữ liệu demo không có kịch bản Lifetime nên
+   * nhánh code đó chưa từng chạy lúc xem trước). Ở đây chỉ còn phần React.
    *
-   * Năm hiện tại lấy từ `todayISO` (đã đọc đồng hồ một lần ở đầu hook) chứ không gọi
-   * `new Date()` lần nữa — hai lần đọc đồng hồ trong cùng một hook có thể rơi hai bên
-   * nửa đêm và cho ra hai năm khác nhau.
+   * Đồng hồ truyền vào qua `todayISO` (đã đọc một lần ở đầu hook) chứ không đọc lần
+   * nữa — hai lần đọc trong cùng một hook có thể rơi hai bên nửa đêm và ra hai năm.
    */
-  const lifetime = useMemo<LifetimeInput | undefined>(() => {
-    const birthYear = profile?.birth_year
-    if (!birthYear) return undefined
-    const scenarios = scenariosQ.data
-    const allPhases = phasesQ.data
-    const allEvents = eventsQ.data
-    if (!scenarios || !allPhases || !allEvents) return undefined
-    // `getLifeScenarios()` đã xếp theo `sort_order`, nên `scenarios[0]` chính là
-    // "sort_order nhỏ nhất" — cùng luật chọn kịch bản với useLifetime.ts.
-    const active = scenarios.find((s) => s.is_primary) ?? scenarios[0]
-    if (!active) return undefined
-    const phases: LifetimePhase[] = allPhases
-      .filter((p) => p.scenario_id === active.id)
-      .map((p) => ({
-        startYear: p.start_year,
-        label: p.label,
-        country: p.country,
-        currency: p.currency as CurrencyCode,
-        annualIncomeMinor: p.annual_income_minor,
-        annualExpenseMinor: p.annual_expense_minor,
-        fxToDisplay: p.fx_to_display,
-      }))
-    if (phases.length === 0) return undefined
-    const events: LifetimeEvent[] = allEvents
-      .filter((e) => e.scenario_id === active.id)
-      .map((e) => ({
-        id: e.id,
-        startYear: e.start_year,
-        endYear: e.end_year,
-        kind: e.kind,
-        amountMinor: e.amount_minor,
-        currency: e.currency as CurrencyCode,
-        label: e.label,
-        fxToDisplay: e.fx_to_display,
-        inflate: e.inflate,
-      }))
-    return {
-      currentYear: Number(todayISO.slice(0, 4)),
-      birthYear,
-      endAge: active.end_age,
-      displayCurrency: active.display_currency as CurrencyCode,
-      startingAssetsMinor: active.starting_assets_minor,
-      realReturnBps: active.real_return_bps,
-      bandSpreadBps: active.band_spread_bps,
-      inflationBps: profile?.annual_inflation_bps ?? 200,
-      nominalTerms: active.nominal_terms,
-      phases,
-      events,
-    }
-  }, [profile, scenariosQ.data, phasesQ.data, eventsQ.data, todayISO])
+  const lifetime = useMemo(
+    () =>
+      buildLifetimeInput({
+        scenarios: scenariosQ.data,
+        phases: phasesQ.data,
+        events: eventsQ.data,
+        birthYear: profile?.birth_year,
+        annualInflationBps: profile?.annual_inflation_bps,
+        todayISO,
+      }),
+    [profile, scenariosQ.data, phasesQ.data, eventsQ.data, todayISO],
+  )
 
   // Nhớ đệm để mảng giữ nguyên tham chiếu giữa các lần render — nếu không, memo
   // bên dưới tính lại mỗi render và mảng phụ thuộc không thể trung thực được.
@@ -305,9 +283,10 @@ export function useNotifications(): UseNotificationsResult {
     savingsGoalsOk: goalsQ.isSuccess,
     networthSnapshotsOk: snapshotsQ.isSuccess,
     recentTxsOk: txsQ.isSuccess,
-    // Cả BA query phải xong: `lifetime` là undefined khi thiếu bất kỳ mảnh nào, và
-    // undefined-vì-đang-tải trông giống hệt undefined-vì-chưa-có-kịch-bản.
-    lifetimeOk: scenariosQ.isSuccess && phasesQ.isSuccess && eventsQ.isSuccess,
+    // Cả BA query phải ĐÃ NGÃ NGŨ — thành công HOẶC lỗi hẳn, không phải chỉ thành
+    // công. Quyết định là hàm thuần `lifetimeQueriesSettled` (state.ts) để có phép thử
+    // canh; JSDoc của nó nói vì sao "lỗi hẳn" cũng phải tính là sẵn sàng.
+    lifetimeOk: lifetimeQueriesSettled([scenariosQ, phasesQ, eventsQ]),
     notificationStateOk: stateQ.isSuccess,
   })
 

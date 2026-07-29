@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  lifetimeQueriesSettled,
   notificationInputsReady,
   planNotificationCleanup,
   splitStaleActionKeys,
@@ -272,6 +273,31 @@ describe('notificationInputsReady', () => {
     // buộc người sửa phải đọc lại danh sách thay vì lặng lẽ bỏ sót một nguồn.
     // 13 kể từ khi `input.lifetime` (luật lệch Lifetime) thành nguồn dữ liệu thứ 13.
     expect(flags).toHaveLength(13)
+  })
+})
+
+describe('lifetimeQueriesSettled', () => {
+  const ok = { isSuccess: true, isError: false }
+  const loading = { isSuccess: false, isError: false }
+  const failed = { isSuccess: false, isError: true }
+
+  it('cả ba thành công thì true', () => {
+    expect(lifetimeQueriesSettled([ok, ok, ok])).toBe(true)
+  })
+
+  it('còn một query đang tải thì false', () => {
+    expect(lifetimeQueriesSettled([ok, loading, ok])).toBe(false)
+  })
+
+  // Ca chính của bản sửa: ba bảng Lifetime lỗi vĩnh viễn (RLS sai, mạng đứt, bảng chưa
+  // tồn tại) KHÔNG được làm đông cứng việc dọn dấu-đã-đọc của 12 loại thông báo kia.
+  it('lỗi hẳn cũng là ĐÃ NGÃ NGŨ — không được chặn dọn dẹp mãi mãi', () => {
+    expect(lifetimeQueriesSettled([failed, failed, failed])).toBe(true)
+    expect(lifetimeQueriesSettled([ok, failed, ok])).toBe(true)
+  })
+
+  it('mảng rỗng thì true — không có gì để chờ', () => {
+    expect(lifetimeQueriesSettled([])).toBe(true)
   })
 })
 

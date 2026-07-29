@@ -250,6 +250,7 @@ describe('notificationInputsReady', () => {
     savingsGoalsOk: true,
     networthSnapshotsOk: true,
     recentTxsOk: true,
+    lifetimeOk: true,
     notificationStateOk: true,
   }
 
@@ -269,7 +270,8 @@ describe('notificationInputsReady', () => {
   it('có đúng một cờ cho mỗi nguồn dữ liệu bộ luật đọc', () => {
     // Chốt số lượng: đổi NotificationInput mà không đổi đây thì phép thử này đỏ,
     // buộc người sửa phải đọc lại danh sách thay vì lặng lẽ bỏ sót một nguồn.
-    expect(flags).toHaveLength(12)
+    // 13 kể từ khi `input.lifetime` (luật lệch Lifetime) thành nguồn dữ liệu thứ 13.
+    expect(flags).toHaveLength(13)
   })
 })
 

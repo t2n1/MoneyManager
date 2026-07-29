@@ -91,6 +91,14 @@ export interface NotificationInputsReady {
   networthSnapshotsOk: boolean
   /** Giao dịch 90 ngày gần nhất — `input.recentTxs`. */
   recentTxsOk: boolean
+  /**
+   * Kịch bản / chặng / sự kiện Lifetime đã về chưa — `input.lifetime`. Cần cờ RIÊNG dù
+   * `lifetime` được phép là undefined một cách hợp lệ (chưa có kịch bản, chưa khai năm
+   * sinh): lúc CHƯA TẢI XONG nó cũng là undefined, luật im, và mã
+   * 'lifetime-drift:current' khuyết khỏi `allKeys` — đúng hình dạng lỗi C1, dọn dẹp sẽ
+   * xóa oan dòng đã-đọc của nó.
+   */
+  lifetimeOk: boolean
   /** Bảng trạng thái đã đọc/đã tắt: không có nó thì không biết đang dọn cái gì. */
   notificationStateOk: boolean
 }
@@ -113,6 +121,7 @@ export function notificationInputsReady(r: NotificationInputsReady): boolean {
     r.savingsGoalsOk &&
     r.networthSnapshotsOk &&
     r.recentTxsOk &&
+    r.lifetimeOk &&
     r.notificationStateOk
   )
 }

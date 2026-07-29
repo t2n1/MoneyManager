@@ -13,6 +13,7 @@ import { debtRules } from './rules/debtRules'
 import { budgetRules } from './rules/budgetRules'
 import { cardRules } from './rules/cardRules'
 import { rhythmRules } from './rules/rhythmRules'
+import { lifetimeRules } from './rules/lifetimeRules'
 
 /**
  * Trần của phần ĐANG HIỆN lúc còn thu gọn (mục C.4). KHÔNG phải trần cứng và
@@ -63,7 +64,7 @@ export function arrangeNotifications(
   }
 }
 
-/** Gom mọi nhóm luật rồi sắp xếp. Đủ cả năm nhóm luật (Task 3–7). */
+/** Gom mọi nhóm luật rồi sắp xếp. Đủ cả sáu nhóm luật (Task 3–7 + luật lệch Lifetime). */
 export function buildNotifications(input: NotificationInput): NotificationResult {
   const all: AppNotification[] = [
     ...accountRules(input),
@@ -71,6 +72,7 @@ export function buildNotifications(input: NotificationInput): NotificationResult
     ...budgetRules(input),
     ...cardRules(input),
     ...rhythmRules(input),
+    ...lifetimeRules(input),
   ]
   return arrangeNotifications(all, input.offTypes)
 }

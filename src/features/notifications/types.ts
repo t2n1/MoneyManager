@@ -4,6 +4,7 @@
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { BudgetReport } from '../budgets/progress'
+import type { LifetimeInput } from '../lifetime/project'
 import type {
   AccountBalanceRow,
   CategoryRow,
@@ -28,6 +29,7 @@ export type NotificationType =
   | 'savings-milestone'
   | 'networth-record'
   | 'monthly-summary'
+  | 'lifetime-drift'
 
 /** 'action' = việc cần làm (bám tới khi tình huống hết) · 'info' = tin để biết (đọc là mất). */
 export type NotificationKind = 'action' | 'info'
@@ -65,6 +67,9 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   'savings-milestone',
   'networth-record',
   'monthly-summary',
+  // Cuối mảng = hiển thị sau cùng trong nhóm việc-cần-làm: đây là tin ít gấp nhất
+  // (lệch kế hoạch cả đời, không phải "hết tiền tuần này").
+  'lifetime-drift',
 ]
 
 export interface NotificationTypeMeta {
@@ -141,6 +146,11 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     label: 'Tổng kết tháng',
     hint: 'Vào ngày đầu kỳ mới: tháng vừa rồi chi bao nhiêu, thu bao nhiêu, để dành bao nhiêu.',
   },
+  'lifetime-drift': {
+    kind: 'action',
+    label: 'Chi lệch kế hoạch Lifetime',
+    hint: 'Chi thực tế 3 tháng gần đây lệch khỏi giả định của kịch bản, kèm mốc âm dịch bao nhiêu năm.',
+  },
 }
 
 /** Dữ liệu đầu vào của bộ luật. Chỉ dữ liệu thuần + hàm thuần được tiêm vào. */
@@ -168,6 +178,11 @@ export interface NotificationInput {
   networthSnapshots: NetWorthSnapshotRow[]
   /** Giao dịch 90 ngày gần nhất. */
   recentTxs: TransactionRow[]
+  /**
+   * Bản chiếu Lifetime của kịch bản chính. undefined = chưa tải xong hoặc chưa có
+   * kịch bản / chưa khai năm sinh → luật im, không đoán.
+   */
+  lifetime?: LifetimeInput
   /** Loại đã tắt trong cài đặt. */
   offTypes: NotificationType[]
 }

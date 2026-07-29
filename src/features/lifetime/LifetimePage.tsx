@@ -90,7 +90,7 @@ export function LifetimePage() {
   }, [active, phases, events])
 
   if (isLoading) {
-    return <p className="p-6 text-center text-gray-400 dark:text-gray-500">Đang tải…</p>
+    return <p className="p-6 text-center text-gray-500 dark:text-gray-400">Đang tải…</p>
   }
 
   // --- Trạng thái 1: chưa khai năm sinh — không chiếu được gì nếu thiếu nó ---
@@ -178,7 +178,7 @@ export function LifetimePage() {
     // scenarios.length > 0 nên `active` (find + 2 tầng fallback trong useLifetime) luôn
     // có giá trị ở nhánh này — guard này chỉ để TS thu hẹp kiểu cho phần JSX bên dưới,
     // tránh phải chêm `!`/`as never` rải rác. Không phải trạng thái thật sẽ xảy ra.
-    return <p className="p-6 text-center text-gray-400 dark:text-gray-500">Đang tải…</p>
+    return <p className="p-6 text-center text-gray-500 dark:text-gray-400">Đang tải…</p>
   }
 
   return (
@@ -329,12 +329,20 @@ export function LifetimePage() {
         />
       )}
 
-      {/* STUB Task 11 — bấm bút chì/banner mở sheet này nhưng hiện chưa ra gì (trả null) */}
+      {/* Trình sửa kịch bản (Task 11) — mở từ nút bút chì ở header hoặc từ banner cảnh
+          báo tỷ giá. `profile` + ba giá trị tài sản ròng truyền XUỐNG chứ không để sheet
+          tự gọi `useLifetime()` lần hai: bản thứ hai mang `activeId` riêng (có thể chỉ
+          vào một kịch bản KHÁC cái đang sửa) và chiếu lại cả 60 năm kèm dải một lần nữa
+          song song với bản chiếu của trang này. */}
       {editorOpen && active && (
         <ScenarioEditorSheet
           scenario={active}
           phases={phases}
           events={events}
+          profile={profile}
+          netWorth={netWorth}
+          netWorthReliable={netWorthReliable}
+          netWorthLoading={netWorthLoading}
           onClose={() => setEditorOpen(false)}
         />
       )}

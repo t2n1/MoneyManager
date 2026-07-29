@@ -125,8 +125,15 @@ export function convertLifetimeMinor(
   return Math.round(fromMajor * fxMajor * 10 ** CURRENCIES[to].decimals)
 }
 
-/** Chặng đang hiệu lực cho `year`: chặng muộn nhất có startYear <= year. */
-function phaseForYear(sorted: LifetimePhase[], year: number): LifetimePhase {
+/**
+ * Chặng đang hiệu lực cho `year`: chặng muộn nhất có startYear <= year.
+ *
+ * Generic ở đúng một field (`startYear`) để tầng UI dùng lại được CÙNG một luật cho
+ * `LifePhaseRow` (chỉ cần ánh xạ `start_year` → `startYear`) thay vì chép lại hàm —
+ * ScenarioEditorSheet từng có bản chép thứ ba của luật này chỉ vì hàm chưa export.
+ * `sorted` phải đã sắp tăng theo `startYear`.
+ */
+export function phaseForYear<T extends { startYear: number }>(sorted: T[], year: number): T {
   // Năm nằm trước chặng đầu tiên thì dùng chặng đầu tiên — thà lấy giả định gần
   // nhất còn hơn để trống một quãng đầu đồ thị.
   let found = sorted[0]

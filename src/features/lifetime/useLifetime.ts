@@ -19,6 +19,7 @@ import { addDaysISO, toISODate } from '../../lib/dates'
 import type { LifeScenarioRow } from '../../types/database.types'
 import { assetBreakdown, type AssetGroupSetting } from '../assets/aggregate'
 import { debtSummary } from '../debts/aggregate'
+import type { CurrencyOf } from '../reports/aggregate'
 import { suggestBaseline } from './baseline'
 import {
   projectLifetime,
@@ -28,8 +29,28 @@ import {
   type YearRow,
 } from './project'
 
-// Đủ trùm MAX_MONTHS (12) của suggestBaseline kể cả tháng lệch ngày.
-const BASELINE_LOOKBACK_DAYS = 366
+/** Đủ trùm MAX_MONTHS (12) của suggestBaseline kể cả tháng lệch ngày.
+ *  Export vì `ScenarioEditorSheet` cũng nạp giao dịch cho `suggestBaseline` — hai
+ *  chỗ mà hai hằng số thì một ngày nào đó chúng lệch nhau và khối "Số này ở đâu ra"
+ *  báo một con số khác con số đã dùng để tạo kịch bản. */
+export const BASELINE_LOOKBACK_DAYS = 366
+
+/** Khoảng ngày cần nạp cho `suggestBaseline`, tính từ `todayISO`. Dùng chung với
+ *  `ScenarioEditorSheet` — xem `BASELINE_LOOKBACK_DAYS`. */
+export function baselineRange(todayISO: string): { start: string; end: string } {
+  return { start: addDaysISO(todayISO, -BASELINE_LOOKBACK_DAYS), end: addDaysISO(todayISO, 1) }
+}
+
+/** `(accountId) => tiền của tài khoản đó`, rơi về `fallback` khi không tra được —
+ *  đúng hình dạng `CurrencyOf` mà `suggestBaseline` tự lọc bằng (xem baseline.ts) và
+ *  đúng pattern sẵn có trong repo (vd `LedgerPage.tsx`). Dùng chung để hai chỗ gọi
+ *  `suggestBaseline` không lọc theo hai luật khác nhau. */
+export function makeCurrencyOf(
+  accounts: { id: string; currency: string }[],
+  fallback: CurrencyCode,
+): CurrencyOf {
+  return (id) => (accounts.find((a) => a.id === id)?.currency as CurrencyCode | undefined) ?? fallback
+}
 
 // Khớp default của DB (migration 0031) — dùng khi tạo kịch bản đầu tiên từ chi tiêu
 // thật, vì lúc đó người dùng chưa chỉnh gì nên cứ để đúng mặc định của cột.
@@ -153,10 +174,7 @@ export function useLifetime() {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const todayISO = toISODate(new Date())
-  const range = useMemo(
-    () => ({ start: addDaysISO(todayISO, -BASELINE_LOOKBACK_DAYS), end: addDaysISO(todayISO, 1) }),
-    [todayISO],
-  )
+  const range = useMemo(() => baselineRange(todayISO), [todayISO])
   const txsQ = useRangeTransactions(range, noScenarioYet)
 
   // --- Tài sản ròng hiện tại → starting_assets_minor của kịch bản đầu tiên ---
@@ -211,10 +229,13 @@ export function useLifetime() {
     const profile = profileQ.data
     if (!profile) return // needsBirthYear đứng trước bước này nên profile luôn đã tải
     const currency = profile.base_currency as CurrencyCode
-    const currencyOf = (id: string): CurrencyCode =>
-      (accounts.find((a) => a.id === id)?.currency as CurrencyCode | undefined) ?? currency
-
-    const baseline = suggestBaseline(txsQ.data ?? [], categories, currencyOf, currency, todayISO)
+    const baseline = suggestBaseline(
+      txsQ.data ?? [],
+      categories,
+      makeCurrencyOf(accounts, currency),
+      currency,
+      todayISO,
+    )
 
     // Đáng tin → dùng tài sản ròng hiện tại (cùng đơn vị `currency` = profile.base_currency,
     // khớp `display_currency` mới tạo nên không cần quy đổi). Không đáng tin (thiếu tỷ giá,

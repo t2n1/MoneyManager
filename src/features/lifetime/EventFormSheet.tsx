@@ -6,14 +6,23 @@ import type { LifeEventPatch, NewLifeEvent } from '../../data/repo'
 import { confirmDialog, promptDialog, showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
-import type { LifeEventRow } from '../../types/database.types'
+import type { LifeEventRow, LifePhaseRow } from '../../types/database.types'
 import { convertLifetimeMinor } from './project'
 import { LIFE_PRESETS, type PresetContext } from './presets'
+
+/** Khớp `check (start_year between 1900 and 2200)` và `check (end_year between 1900
+ *  and 2200)` của cả `life_phases` lẫn `life_events` (migration 0031). */
+const MIN_YEAR = 1900
+const MAX_YEAR = 2200
 
 interface Props {
   scenarioId: string
   /** Tiền hiển thị của kịch bản — quyết định ô tỷ giá có hiện hay không. */
   displayCurrency: CurrencyCode
+  /** Toàn bộ chặng của kịch bản. Cần cho nút "Chọn mẫu": vài mẫu (Cưới, Nghỉ hưu,
+   *  Chuyển nước) sinh cả một CHẶNG ở năm người dùng gõ, mà DB có
+   *  `unique (scenario_id, start_year)` nên trùng năm là nổ ở tầng dưới. */
+  phases: LifePhaseRow[]
   /** Có giá trị = sửa; không = tạo mới. */
   event?: LifeEventRow
   /** Dựng `PresetContext` cho một năm cụ thể — phần còn lại (chặng hiệu lực, tỷ
@@ -32,6 +41,7 @@ interface Props {
 export function EventFormSheet({
   scenarioId,
   displayCurrency,
+  phases,
   event,
   buildPresetCtx,
   initialPresetsOpen = false,
@@ -78,10 +88,11 @@ export function EventFormSheet({
   }, [busy, onClose])
 
   const yearNum = Number(startYear)
-  const yearValid = Number.isInteger(yearNum) && yearNum >= 1900 && yearNum <= 2200
+  const yearValid = Number.isInteger(yearNum) && yearNum >= MIN_YEAR && yearNum <= MAX_YEAR
   const endYearNum = Number(endYear)
   const endYearValid =
-    forever || (Number.isInteger(endYearNum) && endYearNum >= 1900 && endYearNum <= 2200 && endYearNum >= yearNum)
+    forever ||
+    (Number.isInteger(endYearNum) && endYearNum >= MIN_YEAR && endYearNum <= MAX_YEAR && endYearNum >= yearNum)
   const fxNum = Number(fx)
   const fxValid = Number.isFinite(fxNum) && fxNum > 0
   const labelValid = label.trim() !== ''
@@ -112,6 +123,10 @@ export function EventFormSheet({
       else await create.mutateAsync({ scenario_id: scenarioId, ...input })
       await invalidateEvents()
       onClose()
+    } catch (err) {
+      // Không có catch thì mọi lỗi tầng dưới (ràng buộc DB, mất mạng) thành một
+      // unhandled rejection: sheet cứ đứng đó, không toast, không câu nào.
+      showToast(err instanceof Error ? err.message : 'Không lưu được sự kiện.', 'error')
     } finally {
       setSaving(false)
     }
@@ -128,6 +143,8 @@ export function EventFormSheet({
       await del.mutateAsync(event.id)
       await invalidateEvents()
       onClose()
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không xóa được sự kiện.', 'error')
     } finally {
       setSaving(false)
     }
@@ -145,25 +162,57 @@ export function EventFormSheet({
     setBusy(false)
     if (raw === null) return
     const year = Number(raw)
-    if (!Number.isInteger(year) || year < 1900 || year > 2200) {
-      showToast('Năm không hợp lệ — nhập một số nguyên trong khoảng 1900–2200.', 'error')
+    if (!Number.isInteger(year) || year < MIN_YEAR || year > MAX_YEAR) {
+      showToast(`Năm không hợp lệ — nhập một số nguyên trong khoảng ${MIN_YEAR}–${MAX_YEAR}.`, 'error')
       return
     }
     setSaving(true)
     try {
       const ctx = buildPresetCtx(year)
       const built = preset.build(ctx)
+
+      // Kiểm TRƯỚC KHI GHI một dòng nào. Mẫu suy mọi mốc từ năm người dùng vừa gõ
+      // (Mua nhà cộng thêm 34 năm), nên nó dựng được cả năm trùng chặng đã có lẫn
+      // năm vượt 2200 — hai ràng buộc DB thật (`unique (scenario_id, start_year)`
+      // và `check (end_year between 1900 and 2200)`). Bắt sau khi ghi là vô nghĩa:
+      // demoRepo không kiểm gì nên chỉ Supabase thật mới đá về, lúc đó nửa chùm
+      // bản ghi đã vào rồi.
+      const dupYear = built.phases.find((p) => phases.some((e) => e.start_year === p.start_year))
+      if (dupYear) {
+        showToast(
+          `Kịch bản đã có một chặng khác bắt đầu năm ${dupYear.start_year} — mỗi năm chỉ được một chặng. Chọn năm khác cho mẫu này, hoặc sửa/xoá chặng đang ở năm đó trước.`,
+          'error',
+        )
+        return
+      }
+      const years = [
+        ...built.phases.map((p) => p.start_year),
+        ...built.events.flatMap((e) => (e.end_year === null ? [e.start_year] : [e.start_year, e.end_year])),
+      ]
+      const badYear = years.find((y) => y < MIN_YEAR || y > MAX_YEAR)
+      if (badYear !== undefined) {
+        showToast(
+          `Mẫu này sinh mốc năm ${badYear}, ngoài khoảng ${MIN_YEAR}–${MAX_YEAR} nên không lưu được. Chọn một năm sớm hơn.`,
+          'error',
+        )
+        return
+      }
+
       // Mẫu tạo THẬT bản ghi (không phải điền sẵn form) — sinh ra rồi là bản ghi
       // thường, sửa xoá như mọi dòng khác (xem presets.ts).
-      await Promise.all([
-        ...built.phases.map((p) => repo.createLifePhase(p)),
-        ...built.events.map((e) => repo.createLifeEvent(e)),
-      ])
+      //
+      // Chặng TRƯỚC, sự kiện SAU, và tuần tự chứ không Promise.all: chạy song song
+      // thì một lỗi ở chặng vẫn để lại đủ chùm sự kiện đứng một mình.
+      for (const p of built.phases) await repo.createLifePhase(p)
+      for (const e of built.events) await repo.createLifeEvent(e)
+
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['lifePhases'] }),
         qc.invalidateQueries({ queryKey: ['lifeEvents'] }),
       ])
       onClose()
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không tạo được bản ghi từ mẫu.', 'error')
     } finally {
       setSaving(false)
     }
@@ -176,9 +225,14 @@ export function EventFormSheet({
   // Chốt kiểm bắt buộc: xem trước quy đổi dùng đúng số tiền của dòng đang sửa.
   const amountPreview = showFx && fxValid ? convertLifetimeMinor(amount, currency, displayCurrency, fxNum) : null
 
+  const title = presetsOpen ? 'Chọn mẫu' : event ? 'Sửa sự kiện' : 'Sự kiện mới'
+
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center" onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
@@ -202,7 +256,7 @@ export function EventFormSheet({
                     type="button"
                     disabled={saving}
                     onClick={() => handlePickPreset(p.id)}
-                    className="min-h-11 w-full rounded-lg border border-gray-200 dark:border-gray-700 p-2.5 text-left active:scale-95 disabled:opacity-50"
+                    className="min-h-11 w-full rounded-lg bg-gray-50 dark:bg-gray-800 p-2.5 text-left active:scale-95 disabled:opacity-50"
                   >
                     <span className="block text-sm font-semibold text-gray-800 dark:text-gray-100">{p.label}</span>
                     <span className="block text-xs text-gray-500 dark:text-gray-400">{p.hint}</span>
@@ -217,9 +271,7 @@ export function EventFormSheet({
         ) : (
           <>
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">
-                {event ? 'Sửa sự kiện' : 'Sự kiện mới'}
-              </h2>
+              <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">{title}</h2>
               {!event && (
                 <button
                   type="button"
@@ -236,8 +288,14 @@ export function EventFormSheet({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Ví dụ: Học phí đại học"
-              className={`mb-3 ${field}`}
+              className={`mb-1 ${field}`}
             />
+            {!labelValid && (
+              <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+                Tên sự kiện không được để trống.
+              </p>
+            )}
+            {labelValid && <div className="mb-2" />}
 
             <label className={label_}>Loại</label>
             <div className="mb-3 flex gap-2">
@@ -246,7 +304,7 @@ export function EventFormSheet({
                 onClick={() => setKind('expense')}
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   kind === 'expense'
-                    ? 'bg-red-600 text-white'
+                    ? 'bg-green-600 text-white'
                     : 'border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300'
                 }`}
               >
@@ -358,9 +416,9 @@ export function EventFormSheet({
                 )}
                 {/* Chốt kiểm bắt buộc — xem PhaseFormSheet để biết vì sao dòng này
                     không phải tiện nghi: fx_to_display ngược chiều lib/rates.ts. */}
-                {fxValid && (
-                  <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-                    {formatMoney(amount, currency)} ≈ {formatMoney(amountPreview ?? 0, displayCurrency)}
+                {amountPreview !== null && (
+                  <p className="mb-3 text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                    {formatMoney(amount, currency)} ≈ {formatMoney(amountPreview, displayCurrency)}
                   </p>
                 )}
               </>

@@ -2,28 +2,42 @@
 // kiện, "số này ở đâu ra" (xem docs/superpowers/plans/2026-07-29-lifetime.md,
 // Task 11). STUB của Task 7 dừng ở đây; thân hàm bên dưới thay thế nó, giữ
 // nguyên chữ ký props để LifetimePage không phải sửa lại chỗ gọi.
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, Copy, Plus, Sparkles, X } from 'lucide-react'
 import { repo } from '../../data'
 import type { LifeScenarioPatch } from '../../data/repo'
 import { MoneyField } from '../../components/MoneyField'
 import { useAccounts, useCategories, useRangeTransactions, useUpdateProfile } from '../../hooks/queries'
-import { addDaysISO, toISODate } from '../../lib/dates'
-import { showToast } from '../../lib/dialog'
+import { toISODate } from '../../lib/dates'
+import { confirmDialog, showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase, fetchRates } from '../../lib/rates'
-import type { LifeEventRow, LifePhaseRow, LifeScenarioRow } from '../../types/database.types'
+import type {
+  LifeEventRow,
+  LifePhaseRow,
+  LifeScenarioRow,
+  ProfileRow,
+} from '../../types/database.types'
 import { suggestBaseline } from './baseline'
 import { EventFormSheet } from './EventFormSheet'
 import { PhaseFormSheet } from './PhaseFormSheet'
 import type { PresetContext } from './presets'
-import { useLifetime } from './useLifetime'
+import { phaseForYear } from './project'
+import { baselineRange, makeCurrencyOf } from './useLifetime'
 
 interface Props {
   scenario: LifeScenarioRow
   phases: LifePhaseRow[]
   events: LifeEventRow[]
+  /** Bốn giá trị dưới đây do `LifetimePage` truyền xuống, sheet KHÔNG gọi
+   *  `useLifetime()` lần hai: bản thứ hai mang `activeId` riêng nên `active` của nó
+   *  có thể chỉ vào một kịch bản KHÁC cái đang sửa, kèm theo cả một bản chiếu 60 năm
+   *  (có dải) tính song song với bản chiếu của trang. */
+  profile: ProfileRow | undefined
+  netWorth: number
+  netWorthReliable: boolean
+  netWorthLoading: boolean
   onClose: () => void
 }
 
@@ -37,36 +51,51 @@ const MIN_REAL_RETURN_PCT = -5
 const MAX_REAL_RETURN_PCT = 20
 const MIN_BAND_SPREAD_PCT = 0
 const MAX_BAND_SPREAD_PCT = 10
-/** Đủ trùm MAX_MONTHS (12) của suggestBaseline — cùng hằng số với useLifetime.ts. */
-const BASELINE_LOOKBACK_DAYS = 366
 
-/** Chặng đang hiệu lực cho `year`: chặng muộn nhất có start_year <= year, hoặc
- *  chặng đầu tiên nếu mọi chặng đều ở tương lai — cùng luật với `phaseForYear`
- *  (private) trong project.ts, viết lại ở đây vì hàm đó không export. */
-function currentPhaseOf(phases: LifePhaseRow[], year: number): LifePhaseRow | undefined {
-  const sorted = [...phases].sort((a, b) => a.start_year - b.start_year)
-  let found: LifePhaseRow | undefined = sorted[0]
-  for (const p of sorted) {
-    if (p.start_year <= year) found = p
-    else break
-  }
-  return found
-}
+/** Bậc nhân cho toán hạng BÊN TRÁI của dòng tỷ giá giả định. Cố ý không có 10:
+ *  nhảy thẳng 1 → 100 để ca thường gặp "1 đơn vị" (¥1 ≈ ₫172) không bị đổi thành
+ *  "10 đơn vị" chỉ vì lẻ một chữ số. */
+const FX_MULTIPLIERS = [1, 100, 1_000, 10_000, 100_000, 1_000_000] as const
 
-/** "1 ¥ ≈ $0,01" — tỷ giá giả định của một dòng, hiện ở danh sách chặng/sự kiện
- *  (khác với dòng xem trước quy đổi trong form, vốn dùng số tiền THẬT của dòng
- *  đang sửa — xem PhaseFormSheet/EventFormSheet). */
+/**
+ * "¥1 ≈ ₫172", "₫100.000 ≈ ¥570" — tỷ giá giả định của một dòng, hiện ở danh sách
+ * chặng/sự kiện (khác với dòng xem trước quy đổi trong form, vốn dùng số tiền THẬT
+ * của dòng đang sửa — xem PhaseFormSheet/EventFormSheet).
+ *
+ * Nhân CẢ HAI vế lên cho tới khi vế phải còn giữ được khoảng 3 chữ số có nghĩa. Bản
+ * đầu in cứng "1 đơn vị" bên trái rồi làm tròn vế phải theo minor unit của tiền hiển
+ * thị, nên VND→JPY ở 0,0057 in ra "₫1 ≈ ¥0" — mất sạch thông tin, đúng ở ca mà
+ * presets.ts gọi là "TRƯỜNG HỢP THƯỜNG GẶP NHẤT" của người dùng này (mẫu "Hỗ trợ bố
+ * mẹ ở VN" sinh ra chính nó). Tệ hơn: `fx === 1` (điều kiện hiện dấu amber) KHÔNG
+ * khớp 0,0057, nên một dòng đã khai ĐÚNG hiện ra y hệt một dòng chưa ai khai.
+ */
 function formatFxAssumption(fx: number, currency: CurrencyCode, display: CurrencyCode): string {
-  const oneUnitMinor = 10 ** CURRENCIES[currency].decimals
-  const convertedMinor = Math.round(fx * 10 ** CURRENCIES[display].decimals)
-  return `${formatMoney(oneUnitMinor, currency)} ≈ ${formatMoney(convertedMinor, display)}`
+  // Ngưỡng theo MAJOR units: vế phải phải đạt ít nhất 100 đơn vị NHỎ NHẤT của tiền
+  // hiển thị — ¥100/₫100 (0 chữ số thập phân) hay $1,00 (2 chữ số) — tức ~3 chữ số.
+  const minMajor = 100 * 10 ** -CURRENCIES[display].decimals
+  const mult =
+    FX_MULTIPLIERS.find((m) => m * fx >= minMajor) ?? FX_MULTIPLIERS[FX_MULTIPLIERS.length - 1]
+  const leftMinor = Math.round(mult * 10 ** CURRENCIES[currency].decimals)
+  const rightMinor = Math.round(mult * fx * 10 ** CURRENCIES[display].decimals)
+  return `${formatMoney(leftMinor, currency)} ≈ ${formatMoney(rightMinor, display)}`
 }
 
 const BAR_PALETTE = ['bg-green-500', 'bg-blue-400', 'bg-amber-400', 'bg-purple-400', 'bg-rose-400', 'bg-teal-400']
 
-export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props) {
+/** Token thẻ lồng của app cho một dòng danh sách bấm được. */
+const ROW_CARD = 'min-h-11 w-full rounded-lg bg-gray-50 dark:bg-gray-800 p-2.5 text-left active:scale-95'
+
+export function ScenarioEditorSheet({
+  scenario,
+  phases,
+  events,
+  profile,
+  netWorth,
+  netWorthReliable,
+  netWorthLoading,
+  onClose,
+}: Props) {
   const qc = useQueryClient()
-  const { profile, netWorth, netWorthReliable, netWorthLoading } = useLifetime()
   const updateProfileMut = useUpdateProfile()
 
   // --- Khối 1: Kịch bản ---
@@ -76,11 +105,22 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
   const [displayCurrency, setDisplayCurrency] = useState<CurrencyCode>(scenario.display_currency as CurrencyCode)
   const [assetsSign, setAssetsSign] = useState<1 | -1>(scenario.starting_assets_minor < 0 ? -1 : 1)
   const [assetsAbs, setAssetsAbs] = useState(Math.abs(scenario.starting_assets_minor))
+  // Đơn vị mà con số trong ô "Tài sản khởi điểm" ĐANG được tính theo.
+  // `starting_assets_minor` lưu THEO `display_currency`, nên đổi dropdown mà không
+  // quy đổi con số là biến ¥11.000.000 thành $110.000 (sai ~150 lần) mà không ai
+  // thấy — cả dòng amber ở đây lẫn banner Task 7 vốn chỉ nói về TỶ GIÁ, không nói
+  // một chữ nào về tài sản khởi điểm.
+  const [assetsCurrency, setAssetsCurrency] = useState<CurrencyCode>(
+    scenario.display_currency as CurrencyCode,
+  )
   const [realReturnPct, setRealReturnPct] = useState(String(scenario.real_return_bps / 100))
   const [bandSpreadPct, setBandSpreadPct] = useState(String(scenario.band_spread_bps / 100))
   const [nominalTerms, setNominalTerms] = useState(scenario.nominal_terms)
   const [savingScenario, setSavingScenario] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
+  // true trong lúc chờ hộp thoại xác nhận bỏ thay đổi — chặn Esc của sheet này đóng
+  // đè lên hộp thoại (dialog.tsx có Esc riêng; cùng lý do đã ghi ở PhaseFormSheet).
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false)
   // Danh sách dòng bị đặt lại tỷ giá về 1 sau khi đổi display_currency — hiện ra
   // để người dùng biết phải khai lại tỷ giá cho những dòng nào (quyết định đã
   // chốt: RESET chứ không chỉ cảnh báo, xem task-11-brief.md).
@@ -98,9 +138,25 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
   const canSaveScenario =
     nameValid && birthYearValid && endAgeValid && realReturnValid && bandSpreadValid && !savingScenario
 
+  const currencyChanged = displayCurrency !== scenario.display_currency
+  // Khối 1 KHÔNG tự lưu (khác khối 2–4, vốn ghi ngay khi sheet con đóng), nên đóng
+  // sheet giữa lúc đang sửa là mất trắng — và giả định tự nhiên của người dùng là
+  // "mình lưu rồi" vì mọi thứ khác trong sheet đúng là đã lưu thật.
+  const block1Dirty =
+    name !== scenario.name ||
+    birthYear !== String(profile?.birth_year ?? '') ||
+    endAge !== String(scenario.end_age) ||
+    currencyChanged ||
+    assetsSign !== (scenario.starting_assets_minor < 0 ? -1 : 1) ||
+    Math.abs(assetsAbs) !== Math.abs(scenario.starting_assets_minor) ||
+    realReturnPct !== String(scenario.real_return_bps / 100) ||
+    bandSpreadPct !== String(scenario.band_spread_bps / 100) ||
+    nominalTerms !== scenario.nominal_terms
+
   // Tỷ giá "hôm nay" cho tiền hiển thị ĐANG CHỌN trong form (có thể khác tiền đã
-  // lưu nếu người dùng vừa đổi dropdown) — dùng riêng cho nút "lấy lại tài sản
-  // ròng hiện tại" (số đó phải theo đúng đơn vị người dùng SẮP lưu).
+  // lưu nếu người dùng vừa đổi dropdown) — dùng cho nút "lấy lại tài sản ròng hiện
+  // tại" VÀ cho việc quy đổi tài sản khởi điểm khi đổi dropdown: cả hai con số đó
+  // phải theo đúng đơn vị người dùng SẮP lưu.
   const pendingRatesQ = useQuery({
     queryKey: ['lifetime-rates-for', displayCurrency],
     queryFn: () => fetchRates(displayCurrency),
@@ -116,6 +172,23 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
     if (!rates) return null
     return convertToBase(netWorth, base, displayCurrency, rates)
   })()
+
+  // Đổi dropdown tiền hiển thị → quy đổi luôn con số trong ô tài sản khởi điểm.
+  // Quy đổi từ `assetsCurrency` (đơn vị con số ĐANG theo) chứ không từ
+  // `scenario.display_currency`, nên đổi qua đổi lại nhiều lần vẫn cộng dồn đúng và
+  // không xoá mất con số người dùng vừa tự sửa. Thiếu tỷ giá thì KHÔNG nhân bừa:
+  // để nguyên số, `assetsStale` bật lên và dòng amber nói thẳng ra — sai một cách
+  // nhìn thấy được, cùng nguyên tắc với fx_to_display = 1.
+  const assetsStale = assetsCurrency !== displayCurrency
+  useEffect(() => {
+    if (assetsCurrency === displayCurrency) return
+    const rates = pendingRatesQ.data
+    if (!rates) return
+    const converted = convertToBase(assetsAbs, assetsCurrency, displayCurrency, rates)
+    if (converted === null) return
+    setAssetsAbs(Math.abs(converted))
+    setAssetsCurrency(displayCurrency)
+  }, [assetsAbs, assetsCurrency, displayCurrency, pendingRatesQ.data])
 
   // Tỷ giá "hôm nay" cho tiền hiển thị ĐÃ LƯU của kịch bản — dùng để dựng
   // `ctx.fxOf` cho mẫu (presets) và cho "Nhân bản kịch bản": cả hai thao tác đó
@@ -163,7 +236,6 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
         await updateProfileMut.mutateAsync({ birth_year: birthYearNum })
       }
 
-      const currencyChanged = displayCurrency !== scenario.display_currency
       await updateScenarioMut.mutateAsync({
         id: scenario.id,
         patch: {
@@ -172,7 +244,11 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
           end_age: endAgeNum,
           real_return_bps: Math.round(realReturnNum * 100),
           band_spread_bps: Math.round(bandSpreadNum * 100),
-          starting_assets_minor: assetsSign * assetsAbs,
+          // Math.abs: `assetsAbs` đi qua MoneyField, mà MoneyField cho gõ biểu thức
+          // (NumPad có phím −) nên "5 − 9" ra −4. Công tắc Dương/Âm là NGUỒN DUY
+          // NHẤT của dấu; cột này không có check nào ở DB nên số âm cứ thế lưu vào
+          // và công tắc lại đang chỉ "Dương".
+          starting_assets_minor: assetsSign * Math.abs(assetsAbs),
           nominal_terms: nominalTerms,
         },
       })
@@ -197,6 +273,9 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
         setResetNotice(null)
       }
 
+      // Con số trong ô giờ đã cùng đơn vị với display_currency vừa lưu (dù trước đó
+      // có quy đổi được hay không).
+      setAssetsCurrency(displayCurrency)
       await invalidateScenarioTree()
       await qc.invalidateQueries({ queryKey: ['profile'] })
       showToast('Đã lưu kịch bản.', 'success')
@@ -208,6 +287,16 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
   }
 
   async function handleDuplicate() {
+    // Bản sao dựng từ `scenario.*` (bản ĐÃ LƯU), nên nhân bản giữa lúc khối 1 còn
+    // sửa dở cho ra một bản sao KHÔNG mang thay đổi đó — rồi `onClose()` ở dưới
+    // đóng sheet mang luôn thay đổi đi. Chặn thẳng, đừng tạo bản sao lệch.
+    if (block1Dirty) {
+      showToast(
+        'Khối "Kịch bản" đang có thay đổi chưa lưu. Bản sao dựng từ bản đã lưu nên sẽ không mang thay đổi đó — bấm "Lưu thay đổi kịch bản" trước, hoặc đóng sheet để bỏ thay đổi.',
+        'error',
+      )
+      return
+    }
     setDuplicating(true)
     try {
       const copy = await createScenarioMut.mutateAsync({
@@ -252,7 +341,14 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
       showToast(`Đã nhân bản thành "${copy.name}" — chọn ở dải chip kịch bản để xem/sửa.`, 'success')
       onClose()
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Không nhân bản được kịch bản.', 'error')
+      // Kịch bản sao được tạo TRƯỚC khi chép chặng/sự kiện, nên lỗi giữa đường để
+      // lại một bản sao thiếu dòng. Không tự dọn hộ (xoá bản ghi thay người dùng
+      // nguy hiểm hơn), nhưng phải NÓI RA để họ biết có thứ cần xoá.
+      const detail = err instanceof Error ? err.message : 'lỗi không rõ'
+      showToast(
+        `Không nhân bản xong (${detail}). Có thể đã có một bản sao thiếu dòng trong dải chip kịch bản — kiểm và xoá nếu cần.`,
+        'error',
+      )
     } finally {
       setDuplicating(false)
     }
@@ -263,11 +359,16 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
   // `presets: true` = vào từ nút "Chọn mẫu" của khối Chặng đời — mở thẳng danh
   // sách mẫu thay vì form sự kiện trống (mẫu có thể sinh cả chặng lẫn sự kiện).
   const [eventSheet, setEventSheet] = useState<{ event?: LifeEventRow; presets?: boolean } | null>(null)
-  const sortedPhases = [...phases].sort((a, b) => a.start_year - b.start_year)
-  const sortedEvents = [...events].sort((a, b) => a.start_year - b.start_year)
+  const sortedPhases = useMemo(() => [...phases].sort((a, b) => a.start_year - b.start_year), [phases])
+  const sortedEvents = useMemo(() => [...events].sort((a, b) => a.start_year - b.start_year), [events])
 
   const currentYear = new Date().getFullYear() // đọc đồng hồ ở tầng UI — được phép (baseline.ts/project.ts thuần thì không).
-  const currentPhase = currentPhaseOf(phases, currentYear)
+  // CÙNG MỘT luật với engine: `phaseForYear` của project.ts, generic theo `startYear`
+  // nên chỉ cần bọc `start_year` của từng dòng lại (xem JSDoc ở đó).
+  const currentPhase = useMemo(
+    () => phaseForYear(sortedPhases.map((p) => ({ startYear: p.start_year, row: p })), currentYear)?.row,
+    [sortedPhases, currentYear],
+  )
 
   function buildPresetCtx(year: number): PresetContext {
     return {
@@ -287,16 +388,29 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const baselineBase = (profile?.base_currency as CurrencyCode | undefined) ?? 'JPY'
-  const currencyOf = (id: string): CurrencyCode =>
-    (accounts.find((a) => a.id === id)?.currency as CurrencyCode | undefined) ?? baselineBase
   const todayISO = toISODate(new Date())
-  const range = { start: addDaysISO(todayISO, -BASELINE_LOOKBACK_DAYS), end: addDaysISO(todayISO, 1) }
+  // Cùng khoảng ngày với useLifetime.ts — dùng chung helper thay vì chép lại hằng số
+  // (hai hằng số thì một ngày nào đó chúng lệch nhau và khối này báo một con số khác
+  // con số đã dùng để tạo kịch bản).
+  const range = useMemo(() => baselineRange(todayISO), [todayISO])
   const txsQ = useRangeTransactions(range)
   // Truyền NGUYÊN txs, không tự lọc theo tiền trước — suggestBaseline tự lọc
   // bằng currencyOf(t.account_id) (xem baseline.ts, sửa sau lỗi thứ 8 của plan).
-  const baseline = currentPhase
-    ? suggestBaseline(txsQ.data ?? [], categories, currencyOf, currentPhase.currency as CurrencyCode, todayISO)
-    : null
+  // useMemo vì hàm này lọc tới 366 ngày giao dịch: không nhớ đệm thì mỗi ký tự gõ
+  // vào ô tên / năm sinh / lợi suất / dải đều chạy lại cả vòng lọc đó.
+  const baseline = useMemo(
+    () =>
+      currentPhase
+        ? suggestBaseline(
+            txsQ.data ?? [],
+            categories,
+            makeCurrencyOf(accounts, baselineBase),
+            currentPhase.currency as CurrencyCode,
+            todayISO,
+          )
+        : null,
+    [currentPhase, txsQ.data, categories, accounts, baselineBase, todayISO],
+  )
   const positiveCats = baseline ? baseline.byCategory.filter((c) => c.share > 0) : []
   const totalPositiveShare = positiveCats.reduce((s, c) => s + c.share, 0)
   // Hoàn ròng (annualMinor âm) hiện thành DÒNG CHỮ, không vẽ đoạn — vẽ đoạn với
@@ -307,34 +421,71 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
   // khi tổng chi âm, xem cảnh báo ở task-11-brief.md).
   const top3 = baseline ? baseline.byCategory.slice(0, 3) : []
 
-  // Đóng bằng Esc — TRỪ khi một sheet con (chặng/sự kiện) đang mở đè lên: lúc đó
-  // Esc phải đóng sheet con trước (PhaseFormSheet/EventFormSheet tự có Esc riêng),
-  // không đóng luôn cả trình sửa kịch bản.
+  /** Đóng sheet — hỏi trước nếu khối 1 còn thay đổi chưa lưu (xem `block1Dirty`). */
+  async function handleDismiss() {
+    if (!block1Dirty) {
+      onClose()
+      return
+    }
+    setConfirmingDiscard(true)
+    const ok = await confirmDialog({
+      title: 'Bỏ thay đổi chưa lưu?',
+      message:
+        'Khối "Kịch bản" có thay đổi chưa bấm "Lưu thay đổi kịch bản" — đóng bây giờ là mất. Chặng đời và sự kiện đã lưu ngay lúc sửa nên không ảnh hưởng.',
+      confirmLabel: 'Bỏ thay đổi',
+      cancelLabel: 'Ở lại',
+      danger: true,
+    })
+    setConfirmingDiscard(false)
+    if (ok) onClose()
+  }
+
+  // `handleDismiss` được dựng lại mỗi render (nó đọc `block1Dirty`), nên giữ bản mới
+  // nhất trong một ref thay vì đưa vào deps của effect dưới — đưa vào deps thì mỗi
+  // ký tự gõ trong khối 1 sẽ gỡ rồi gắn lại listener keydown.
+  const dismissRef = useRef(handleDismiss)
+  dismissRef.current = handleDismiss
+
+  // Đóng bằng Esc — TRỪ khi một sheet con (chặng/sự kiện) hoặc hộp thoại xác nhận
+  // bỏ thay đổi đang mở đè lên: lúc đó Esc phải đóng cái ở trên trước (chúng tự có
+  // Esc riêng), không đóng luôn cả trình sửa kịch bản.
   useEffect(() => {
-    if (phaseSheet || eventSheet) return
+    if (phaseSheet || eventSheet || confirmingDiscard) return
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') void dismissRef.current()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [phaseSheet, eventSheet, onClose])
+  }, [phaseSheet, eventSheet, confirmingDiscard])
 
   const field =
     'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
   const label_ = 'mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400'
+  const errorLine = 'mb-2 text-xs text-red-600 dark:text-red-400'
 
   return (
     <>
-      <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 lg:items-center" onClick={onClose}>
+      <div
+        className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 lg:items-center"
+        onClick={() => void handleDismiss()}
+      >
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sửa kịch bản"
           className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">Sửa kịch bản</h2>
+            <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">
+              Sửa kịch bản
+              {block1Dirty && (
+                <span className="ml-2 text-xs font-medium text-amber-700 dark:text-amber-400">· chưa lưu</span>
+              )}
+            </h2>
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => void handleDismiss()}
               aria-label="Đóng"
               className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg active:scale-95 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
@@ -345,7 +496,13 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
           {/* --- Khối 1: Kịch bản --- */}
           <section className="mb-4 border-b border-gray-100 dark:border-gray-800 pb-4">
             <label className={label_}>Tên kịch bản</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className={`mb-3 ${field}`} />
+            <input value={name} onChange={(e) => setName(e.target.value)} className={`mb-1 ${field}`} />
+            {!nameValid && (
+              <p role="alert" className={errorLine}>
+                Tên kịch bản không được để trống.
+              </p>
+            )}
+            {nameValid && <div className="mb-2" />}
 
             <label className={label_}>Năm sinh</label>
             <input
@@ -355,7 +512,7 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
               className={`mb-1 ${field}`}
             />
             {!birthYearValid && (
-              <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+              <p role="alert" className={errorLine}>
                 Năm sinh phải trong khoảng {MIN_BIRTH_YEAR}–{MAX_BIRTH_YEAR}.
               </p>
             )}
@@ -369,7 +526,7 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
               className={`mb-1 ${field}`}
             />
             {!endAgeValid && (
-              <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+              <p role="alert" className={errorLine}>
                 Tuổi kết thúc phải trong khoảng {MIN_END_AGE}–{MAX_END_AGE}.
               </p>
             )}
@@ -387,13 +544,39 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
                 </option>
               ))}
             </select>
-            {displayCurrency !== scenario.display_currency && (
-              <p className="mb-3 flex items-start gap-1 text-xs text-amber-700 dark:text-amber-400">
+            {currencyChanged && (
+              <div className="mb-3 flex items-start gap-1 text-xs text-amber-700 dark:text-amber-400">
                 <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                Lưu sẽ đặt lại tỷ giá về 1 cho mọi chặng/sự kiện đang dùng tiền khác{' '}
-                {CURRENCIES[displayCurrency].label} — số cũ dù sao cũng đã tính theo đơn vị hiển thị khác nên
-                không còn đúng. Khai lại từng dòng ở khối "Chặng đời"/"Sự kiện" bên dưới sau khi lưu.
-              </p>
+                <div className="space-y-1">
+                  <p>
+                    Lưu sẽ đặt lại tỷ giá về 1 cho mọi chặng/sự kiện đang dùng tiền khác{' '}
+                    {CURRENCIES[displayCurrency].label} — số cũ dù sao cũng đã tính theo đơn vị hiển thị khác
+                    nên không còn đúng. Khai lại từng dòng ở khối "Chặng đời"/"Sự kiện" bên dưới sau khi lưu.
+                  </p>
+                  {/* Tài sản khởi điểm lưu THEO tiền hiển thị, nên đổi tiền là phải
+                      đổi cả con số. Nói ra bằng chữ để người dùng kiểm được, không
+                      im lặng sửa số dưới tay họ. */}
+                  {assetsStale ? (
+                    <p>
+                      Chưa có tỷ giá để quy đổi <b>tài sản khởi điểm</b>: con số trong ô vẫn đang tính theo{' '}
+                      {CURRENCIES[assetsCurrency].label} (
+                      <span className="tabular-nums">
+                        {formatMoney(assetsSign * Math.abs(assetsAbs), assetsCurrency)}
+                      </span>
+                      ). Sửa lại tay cho đúng {CURRENCIES[displayCurrency].label} trước khi lưu.
+                    </p>
+                  ) : (
+                    <p>
+                      Đã quy đổi <b>tài sản khởi điểm</b> sang {CURRENCIES[displayCurrency].label} theo tỷ giá
+                      hôm nay:{' '}
+                      <span className="tabular-nums">
+                        {formatMoney(assetsSign * Math.abs(assetsAbs), displayCurrency)}
+                      </span>{' '}
+                      — kiểm lại trước khi lưu.
+                    </p>
+                  )}
+                </div>
+              </div>
             )}
 
             <label className={label_}>Tài sản khởi điểm</label>
@@ -414,7 +597,7 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
                 onClick={() => setAssetsSign(-1)}
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   assetsSign === -1
-                    ? 'bg-red-600 text-white'
+                    ? 'bg-green-600 text-white'
                     : 'border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300'
                 }`}
               >
@@ -423,9 +606,18 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
             </div>
             <div className="mb-1">
               <MoneyField
-                value={assetsAbs}
-                onChange={setAssetsAbs}
-                currency={displayCurrency}
+                value={Math.abs(assetsAbs)}
+                // Math.abs: MoneyField cho gõ biểu thức ("5 − 9" ra −4) nhưng dấu ở
+                // đây do công tắc Dương/Âm quyết định — xem handleSaveScenario.
+                onChange={(v) => setAssetsAbs(Math.abs(v))}
+                // Đơn vị THẬT của con số, không phải đơn vị sắp lưu: khi thiếu tỷ giá
+                // để quy đổi thì hai thứ đó lệch nhau, và dán nhãn theo đơn vị mới là
+                // đúng cái làm người dùng tin con số đã đổi đơn vị (xem `assetsStale`).
+                currency={assetsCurrency}
+                // Ô phụ: khối 1 không có ô tiền CHÍNH nào (ô này nằm giữa một loạt ô
+                // chữ/số), tự bung NumPad ở đây là chèn bàn phím vào giữa form dài
+                // nhất của app — xem hợp đồng `autoOpen` trong MoneyField.tsx.
+                autoOpen={false}
                 ariaLabel="Tài sản khởi điểm"
                 className={`text-right font-semibold ${field}`}
               />
@@ -437,8 +629,13 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
                 if (netWorthInDisplay === null) return
                 setAssetsSign(netWorthInDisplay < 0 ? -1 : 1)
                 setAssetsAbs(Math.abs(netWorthInDisplay))
+                // Con số này đã tính theo tiền hiển thị đang chọn.
+                setAssetsCurrency(displayCurrency)
               }}
-              className="mb-3 min-h-11 text-left text-xs font-medium text-green-700 dark:text-green-400 disabled:text-gray-400 dark:disabled:text-gray-600"
+              // Lúc bị vô hiệu hoá, nhãn nút CHÍNH LÀ câu giải thích vì sao không
+              // lấy được số — nên không hạ tương phản xuống mức "chữ mờ" như nút
+              // disabled thường; đây là chữ phải đọc được.
+              className="mb-3 min-h-11 text-left text-xs font-medium text-green-700 dark:text-green-400 active:scale-95 disabled:text-gray-600 dark:disabled:text-gray-300"
             >
               {netWorthLoading
                 ? 'Đang tính tài sản ròng hiện tại…'
@@ -457,7 +654,7 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
               className={`mb-1 ${field}`}
             />
             {!realReturnValid && (
-              <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+              <p role="alert" className={errorLine}>
                 Lợi suất thực phải trong khoảng {MIN_REAL_RETURN_PCT}% đến {MAX_REAL_RETURN_PCT}%.
               </p>
             )}
@@ -471,7 +668,7 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
               className={`mb-1 ${field}`}
             />
             {!bandSpreadValid && (
-              <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+              <p role="alert" className={errorLine}>
                 Độ rộng dải phải trong khoảng {MIN_BAND_SPREAD_PCT}% đến {MAX_BAND_SPREAD_PCT}%.
               </p>
             )}
@@ -498,7 +695,7 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
                 <button
                   type="button"
                   onClick={() => setResetNotice(null)}
-                  className="mt-1.5 min-h-11 font-semibold underline underline-offset-2"
+                  className="mt-1.5 min-h-11 font-semibold underline underline-offset-2 active:scale-95"
                 >
                   Đã hiểu
                 </button>
@@ -536,15 +733,11 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
               <ul className="mb-2 flex flex-col gap-2">
                 {sortedPhases.map((p) => (
                   <li key={p.id}>
-                    <button
-                      type="button"
-                      onClick={() => setPhaseSheet({ phase: p })}
-                      className="min-h-11 w-full rounded-lg border border-gray-200 dark:border-gray-700 p-2.5 text-left active:scale-95"
-                    >
+                    <button type="button" onClick={() => setPhaseSheet({ phase: p })} className={ROW_CARD}>
                       <span className="block text-sm font-semibold text-gray-800 dark:text-gray-100">
                         {p.label} · {p.start_year}
                       </span>
-                      <span className="block text-xs text-gray-500 dark:text-gray-400">
+                      <span className="block text-xs tabular-nums text-gray-500 dark:text-gray-400">
                         Thu {formatMoney(p.annual_income_minor, p.currency as CurrencyCode)} · Chi{' '}
                         {formatMoney(p.annual_expense_minor, p.currency as CurrencyCode)}
                       </span>
@@ -556,7 +749,7 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
                           kiểm bằng preview: đổi hiển thị sang USD trong lúc chặng "Chuyển
                           sang Mỹ" cũng đã là USD lộ ra đúng ca này. */}
                       {p.currency !== scenario.display_currency && (
-                        <span className="mt-0.5 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+                        <span className="mt-0.5 flex items-center gap-1 text-xs tabular-nums text-gray-500 dark:text-gray-400">
                           {p.fx_to_display === 1 && (
                             <AlertCircle className="h-3 w-3 shrink-0 text-amber-500" aria-hidden="true" />
                           )}
@@ -600,11 +793,7 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
                   const suspicious = mismatch && e.fx_to_display === 1
                   return (
                     <li key={e.id}>
-                      <button
-                        type="button"
-                        onClick={() => setEventSheet({ event: e })}
-                        className="min-h-11 w-full rounded-lg border border-gray-200 dark:border-gray-700 p-2.5 text-left active:scale-95"
-                      >
+                      <button type="button" onClick={() => setEventSheet({ event: e })} className={ROW_CARD}>
                         <span className="flex items-center justify-between gap-2">
                           <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{e.label}</span>
                           <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-200">
@@ -617,8 +806,8 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
                         </span>
                         {mismatch && (
                           <span
-                            className={`mt-0.5 flex items-center gap-1 text-xs ${
-                              suspicious ? 'text-amber-700 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500'
+                            className={`mt-0.5 flex items-center gap-1 text-xs tabular-nums ${
+                              suspicious ? 'text-amber-700 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'
                             }`}
                           >
                             {suspicious && <AlertCircle className="h-3 w-3 shrink-0" aria-hidden="true" />}
@@ -628,7 +817,7 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
                           </span>
                         )}
                         {e.note && (
-                          <span className="mt-0.5 block text-xs italic text-gray-400 dark:text-gray-500">{e.note}</span>
+                          <span className="mt-0.5 block text-xs italic text-gray-500 dark:text-gray-400">{e.note}</span>
                         )}
                       </button>
                     </li>
@@ -655,8 +844,17 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
             ) : (
               <div className="space-y-2">
                 <p className="text-xs text-gray-600 dark:text-gray-300">
-                  Chi {formatMoney(baseline.annualExpenseMinor, currentPhase.currency as CurrencyCode)}/năm lấy từ{' '}
-                  {baseline.monthsCovered} tháng gần nhất của chặng "{currentPhase.label}".
+                  Chi{' '}
+                  {/* Tiền âm phải đỏ (token bắt buộc): chi nền âm là ca cả chặng toàn
+                      hoàn tiền — hiếm nhưng có, và để xám thì đọc thành chi dương. */}
+                  <span
+                    className={`tabular-nums ${
+                      baseline.annualExpenseMinor < 0 ? 'text-red-600 dark:text-red-400' : ''
+                    }`}
+                  >
+                    {formatMoney(baseline.annualExpenseMinor, currentPhase.currency as CurrencyCode)}
+                  </span>
+                  /năm lấy từ {baseline.monthsCovered} tháng gần nhất của chặng "{currentPhase.label}".
                 </p>
                 {positiveCats.length > 0 && (
                   <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
@@ -672,7 +870,13 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
                 )}
                 {refundCats.map((c) => (
                   <p key={c.categoryId} className="text-xs text-gray-500 dark:text-gray-400">
-                    {c.name}: hoàn ròng {formatMoney(-c.annualMinor, currentPhase.currency as CurrencyCode)}
+                    {c.name}: hoàn ròng{' '}
+                    {/* Màu theo dấu của con số ĐANG HIỆN. `refundCats` lọc annualMinor
+                        < 0 nên `-c.annualMinor` luôn dương và dòng này không đỏ — giữ
+                        điều kiện để nó không lệ thuộc vào bộ lọc ở trên. */}
+                    <span className={`tabular-nums ${-c.annualMinor < 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
+                      {formatMoney(-c.annualMinor, currentPhase.currency as CurrencyCode)}
+                    </span>
                   </p>
                 ))}
                 {top3.length > 0 && (
@@ -680,7 +884,13 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
                     {top3.map((c) => (
                       <li key={c.categoryId} className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
                         <span className="truncate">{c.name}</span>
-                        <span className="shrink-0 tabular-nums">
+                        {/* byCategory sắp giảm dần theo annualMinor, nên khi cả chặng
+                            toàn hoàn tiền thì top 3 chính là ba con số ÂM. */}
+                        <span
+                          className={`shrink-0 tabular-nums ${
+                            c.annualMinor < 0 ? 'text-red-600 dark:text-red-400' : ''
+                          }`}
+                        >
                           {formatMoney(c.annualMinor, currentPhase.currency as CurrencyCode)} ({Math.round(c.share * 100)}%)
                         </span>
                       </li>
@@ -706,6 +916,7 @@ export function ScenarioEditorSheet({ scenario, phases, events, onClose }: Props
         <EventFormSheet
           scenarioId={scenario.id}
           displayCurrency={scenario.display_currency as CurrencyCode}
+          phases={phases}
           event={eventSheet.event}
           buildPresetCtx={buildPresetCtx}
           initialPresetsOpen={eventSheet.presets ?? false}

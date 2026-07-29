@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
 import { repo } from '../../data'
 import type { LifePhasePatch, NewLifePhase } from '../../data/repo'
-import { confirmDialog } from '../../lib/dialog'
+import { confirmDialog, showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
 import type { LifePhaseRow } from '../../types/database.types'
@@ -66,13 +66,19 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
   const fxNum = Number(fx)
   const fxValid = Number.isFinite(fxNum) && fxNum > 0
   const labelValid = label.trim() !== ''
+  // DB có `check (annual_income_minor >= 0)` và `check (annual_expense_minor >= 0)`.
+  // MoneyField cho gõ biểu thức và NumPad có phím −, nên "5 − 9" ra −4 trên đường
+  // mobile: không bắt ở đây thì nút Lưu im lặng không làm gì (canSave vẫn true, DB
+  // đá về), hoặc nổ một lỗi Postgres thô. Cùng cách EventFormSheet đã làm cho
+  // amount_minor.
+  const incomeValid = income >= 0
+  const expenseValid = expense >= 0
 
-  const canSave = labelValid && yearValid && !yearDuplicate && (!showFx || fxValid) && !saving
+  const canSave =
+    labelValid && yearValid && !yearDuplicate && incomeValid && expenseValid && (!showFx || fxValid) && !saving
 
   async function invalidateAll() {
-    await Promise.all([
-      qc.invalidateQueries({ queryKey: ['lifePhases'] }),
-    ])
+    await qc.invalidateQueries({ queryKey: ['lifePhases'] })
   }
 
   async function handleSubmit() {
@@ -92,6 +98,10 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
       else await create.mutateAsync({ scenario_id: scenarioId, ...input })
       await invalidateAll()
       onClose()
+    } catch (err) {
+      // Không có catch thì mọi lỗi tầng dưới (ràng buộc DB, mất mạng) thành một
+      // unhandled rejection: sheet cứ đứng đó, không toast, không câu nào.
+      showToast(err instanceof Error ? err.message : 'Không lưu được chặng đời.', 'error')
     } finally {
       setSaving(false)
     }
@@ -108,6 +118,8 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
       await del.mutateAsync(phase.id)
       await invalidateAll()
       onClose()
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không xóa được chặng đời.', 'error')
     } finally {
       setSaving(false)
     }
@@ -122,23 +134,32 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
   const incomePreview = showFx && fxValid ? convertLifetimeMinor(income, currency, displayCurrency, fxNum) : null
   const expensePreview = showFx && fxValid ? convertLifetimeMinor(expense, currency, displayCurrency, fxNum) : null
 
+  const title = phase ? 'Sửa chặng đời' : 'Chặng đời mới'
+
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center" onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-gray-100">
-          {phase ? 'Sửa chặng đời' : 'Chặng đời mới'}
-        </h2>
+        <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-gray-100">{title}</h2>
 
         <label className={label_}>Tên chặng</label>
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="Ví dụ: Chuyển sang Mỹ"
-          className={`mb-3 ${field}`}
+          className={`mb-1 ${field}`}
         />
+        {!labelValid && (
+          <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+            Tên chặng không được để trống.
+          </p>
+        )}
+        {labelValid && <div className="mb-2" />}
 
         <label className={label_}>Năm bắt đầu</label>
         <input
@@ -183,14 +204,29 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
         </select>
 
         <label className={label_}>Thu nền mỗi năm</label>
-        <div className="mb-3">
+        {/* Ô tiền CHÍNH của form này → để `autoOpen` mặc định (bung NumPad ngay).
+            Ô "Chi nền" bên dưới là ô phụ: hai ô cùng tự bung thì ô mount SAU thắng,
+            nên bàn phím hiện ra dưới ô thứ hai — xem hợp đồng `autoOpen` ở MoneyField. */}
+        <div className="mb-1">
           <MoneyField value={income} onChange={setIncome} currency={currency} ariaLabel="Thu nền mỗi năm" className={`text-right font-semibold ${field}`} />
         </div>
+        {!incomeValid && (
+          <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+            Thu nền không được âm.
+          </p>
+        )}
+        {incomeValid && <div className="mb-2" />}
 
         <label className={label_}>Chi nền mỗi năm</label>
-        <div className="mb-3">
-          <MoneyField value={expense} onChange={setExpense} currency={currency} ariaLabel="Chi nền mỗi năm" className={`text-right font-semibold ${field}`} />
+        <div className="mb-1">
+          <MoneyField value={expense} onChange={setExpense} currency={currency} autoOpen={false} ariaLabel="Chi nền mỗi năm" className={`text-right font-semibold ${field}`} />
         </div>
+        {!expenseValid && (
+          <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+            Chi nền không được âm.
+          </p>
+        )}
+        {expenseValid && <div className="mb-2" />}
 
         {showFx && (
           <>
@@ -215,11 +251,11 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
             {/* Chốt kiểm bắt buộc: fx_to_display cố ý NGƯỢC chiều với lib/rates.ts, nên
                 gõ nhầm 150 thay vì 0,0067 sai hàng chục nghìn lần mà validate > 0
                 không bắt được. Dòng xem trước này là cách DUY NHẤT phát hiện ra. */}
-            {fxValid && (
-              <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-                Thu: {formatMoney(income, currency)} ≈ {formatMoney(incomePreview ?? 0, displayCurrency)}
+            {incomePreview !== null && expensePreview !== null && (
+              <p className="mb-3 text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                Thu: {formatMoney(income, currency)} ≈ {formatMoney(incomePreview, displayCurrency)}
                 <br />
-                Chi: {formatMoney(expense, currency)} ≈ {formatMoney(expensePreview ?? 0, displayCurrency)}
+                Chi: {formatMoney(expense, currency)} ≈ {formatMoney(expensePreview, displayCurrency)}
               </p>
             )}
           </>

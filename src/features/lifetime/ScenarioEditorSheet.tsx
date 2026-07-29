@@ -20,6 +20,7 @@ import type {
   ProfileRow,
 } from '../../types/database.types'
 import { suggestBaseline } from './baseline'
+import { pickActive } from './buildInput'
 import { EventFormSheet } from './EventFormSheet'
 import { PhaseFormSheet } from './PhaseFormSheet'
 import type { PresetContext } from './presets'
@@ -448,6 +449,14 @@ export function ScenarioEditorSheet({
       onClose()
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Không xóa được kịch bản.', 'error')
+      // ĐÓNG cả ở đường lỗi, cùng lý do với `finally` bên dưới: lệnh xoá có thể đã commit
+      // rồi mới lỗi (timeout mạng). Để sheet mở thì lần làm mới cache ngay sau đây rút
+      // dòng đang sửa đi, `active` lành về kịch bản còn lại, và sheet — vốn khởi tạo mọi ô
+      // của khối 1 bằng `useState(scenario.*)` — vẫn giữ giá trị của kịch bản ĐÃ XOÁ trong
+      // khi `scenario.id` đã trỏ sang kịch bản khác. Bấm "Lưu thay đổi kịch bản" lúc đó là
+      // ghi đè tên/tuổi/lợi suất/tài sản khởi điểm của kịch bản chết lên kịch bản còn
+      // sống. `key={active.id}` ở LifetimePage đỡ chung lớp lỗi này, đây là lớp thứ hai.
+      onClose()
     } finally {
       // `finally`: xoá kịch bản là một lệnh, nhưng lỗi vẫn có thể xảy ra SAU khi hàng
       // đã đi (timeout mạng trong lúc Postgres đã commit). Không làm mới thì dải chip
@@ -456,6 +465,22 @@ export function ScenarioEditorSheet({
       setDeleting(false)
     }
   }
+
+  /**
+   * "Đang là kịch bản chính" suy từ `pickActive` — CÙNG hàm mà `buildLifetimeInput` (bộ
+   * luật nhắc lệch) và thẻ Lifetime ở /assets dùng — chứ không đọc thẳng cờ
+   * `scenario.is_primary`. Hai nguồn thì chúng nói ngược nhau được: nếu lệnh bỏ cờ ở các
+   * kịch bản KHÁC trong `handleMakePrimary` lỗi giữa đường thì còn HAI dòng cùng
+   * `is_primary`, và `pickActive` chọn dòng có `sort_order` nhỏ hơn — có thể là dòng kia.
+   * Lúc đó cờ nói "tôi là chính" trong khi cả bộ luật lẫn thẻ ở /assets đang đọc kịch bản
+   * khác, và nhãn này khẳng định một điều không đúng.
+   *
+   * Dùng luôn cho câu chặn ở đầu `handleMakePrimary`: chặn theo cờ thì đúng ca lệch trên,
+   * nút hiện ra ("Đặt làm kịch bản chính") nhưng bấm vào lại thoát ngay — không có đường
+   * nào chữa được thế lệch. Chặn theo `pickActive` thì bấm lần nữa chạy lại đúng hai lệnh
+   * ghi đó và dọn được cờ dư.
+   */
+  const isEffectivePrimary = pickActive(scenarios)?.id === scenario.id
 
   /**
    * Đặt kịch bản này làm KỊCH BẢN CHÍNH. `is_primary` trước đây chỉ được ghi `true` một
@@ -470,7 +495,7 @@ export function ScenarioEditorSheet({
    * bày tỏ.
    */
   async function handleMakePrimary() {
-    if (scenario.is_primary) return
+    if (isEffectivePrimary) return
     setSettingPrimary(true)
     try {
       await repo.updateLifeScenario(scenario.id, { is_primary: true })
@@ -881,7 +906,7 @@ export function ScenarioEditorSheet({
             {/* Kịch bản chính + xoá. Đặt DƯỚI nút Lưu, cùng khối 1: cả hai là thao tác
                 trên chính kịch bản này, không phải trên chặng/sự kiện của nó. */}
             <div className="mt-2 flex items-center justify-between gap-2">
-              {scenario.is_primary ? (
+              {isEffectivePrimary ? (
                 <span className="flex min-h-11 items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400">
                   <Star className="h-4 w-4 shrink-0" aria-hidden="true" />
                   Đang là kịch bản chính

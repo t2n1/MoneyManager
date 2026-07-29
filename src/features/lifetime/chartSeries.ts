@@ -62,8 +62,17 @@ export interface ChartSeriesInput {
   historyCurrency: CurrencyCode
   /** `display_currency` của kịch bản đang so sánh; `null`/`undefined` = không biết. */
   compareCurrency: CurrencyCode | null | undefined
-  /** Có mảng `compare` khác null hay không (đã bật chế độ so sánh). */
-  hasCompare: boolean
+  /**
+   * Bản chiếu của kịch bản so sánh, ĐÚNG như chỗ gọi có: `null` = chưa bật so sánh, `[]`
+   * = đã bật nhưng kịch bản kia không chiếu ra năm nào.
+   *
+   * Nhận cả mảng chứ không nhận một `hasCompare: boolean` đã tính sẵn: bản trước nhận
+   * boolean và chỗ gọi tính nó bằng `compare !== null`, nên `[]` (mảng rỗng — khác `null`)
+   * đi qua thành "đang so sánh". Chỗ nào TÍNH câu rào thì chỗ đó phải là chỗ có phép thử;
+   * để phép tính nằm ở chỗ gọi là để nó nằm ngoài mọi phép thử, đúng thứ file này tồn tại
+   * để tránh (xem chú thích đầu file).
+   */
+  compareRows: YearRow[] | null
 }
 
 export interface ChartSeriesPlan {
@@ -74,6 +83,12 @@ export interface ChartSeriesPlan {
   historyHiddenNote: string | null
   /** Khác `null` = đường so sánh BỊ ẨN vì lệch đơn vị tiền. */
   compareHiddenNote: string | null
+  /**
+   * Khác `null` = đã bật so sánh nhưng bản chiếu của kịch bản kia RỖNG, nên không có gì
+   * để vẽ. Tách khỏi `compareHiddenNote` vì hai nguyên nhân khác nhau và câu chữ hướng
+   * người dùng đi hai nơi khác nhau (khai tỷ giá/đơn vị tiền ≠ thêm chặng đời).
+   */
+  compareEmptyNote: string | null
 }
 
 /**
@@ -88,13 +103,15 @@ export interface ChartSeriesPlan {
  * chặng/sự kiện, vốn tự mang `fx_to_display`), nên KHÔNG vẽ là lựa chọn duy nhất đúng —
  * và phải NÓI RA lý do, vì im lặng thì người dùng tưởng chưa có dữ liệu.
  *
- * `showBand = !showCompare` (không phải `!hasCompare`): dải bị ẩn khi đang so sánh vì
- * HAI DẢI chồng nhau không đọc được gì — nhưng khi đường so sánh đã bị ẩn vì lệch đơn
- * vị thì trên đồ thị chỉ còn MỘT kịch bản, không có gì chồng lên nhau, nên dải của
- * chính nó phải hiện lại.
+ * `showBand = !showCompare` (không phải `!compareRows`): dải bị ẩn khi đang so sánh vì
+ * HAI DẢI chồng nhau không đọc được gì — nhưng khi đường so sánh đã bị ẩn (lệch đơn vị,
+ * hoặc bản chiếu kia rỗng) thì trên đồ thị chỉ còn MỘT kịch bản, không có gì chồng lên
+ * nhau, nên dải của chính nó phải hiện lại. Đây là lý do bản chiếu RỖNG bắt buộc phải
+ * tính là "không so sánh": mất dải là mất luôn nhánh bi quan cùng vùng âm đỏ tính theo
+ * nó — cảnh báo tệ nhất của màn này tắt mà không có gì trên màn hình nói ra.
  */
 export function chartSeriesPlan(input: ChartSeriesInput): ChartSeriesPlan {
-  const { currency, historyCurrency, compareCurrency, hasCompare } = input
+  const { currency, historyCurrency, compareCurrency, compareRows } = input
 
   const showHistory = historyCurrency === currency
   // `compareCurrency == null` = chỗ gọi không truyền được đơn vị của bản so sánh. Coi
@@ -102,7 +119,11 @@ export function chartSeriesPlan(input: ChartSeriesInput): ChartSeriesPlan {
   // là xoá dữ liệu vì nghi ngờ. Prop này luôn được LifetimePage truyền, nên ca này chỉ
   // là phòng hờ.
   const currencyMismatch = compareCurrency != null && compareCurrency !== currency
-  const showCompare = hasCompare && !currencyMismatch
+  // Đã bật so sánh (`!== null`) nhưng không chiếu ra năm nào. `projectLifetime` trả `[]`
+  // cho kịch bản không có chặng nào hoặc có tuổi kết thúc đã qua, và `projectScenario`
+  // (useLifetime.ts) trả `[]` cho một id không còn khớp kịch bản nào.
+  const compareEmpty = compareRows !== null && compareRows.length === 0
+  const showCompare = compareRows !== null && !compareEmpty && !currencyMismatch
 
   return {
     showHistory,
@@ -111,9 +132,15 @@ export function chartSeriesPlan(input: ChartSeriesInput): ChartSeriesPlan {
     historyHiddenNote: showHistory
       ? null
       : `Lịch sử thật đang ẩn vì kịch bản này hiển thị bằng ${currency} còn lịch sử ghi theo ${historyCurrency} — chưa quy đổi được nên không vẽ để tránh sai đơn vị.`,
+    // `!compareEmpty`: bản chiếu rỗng thì KHÔNG có đường nào để mà ẩn vì đơn vị tiền —
+    // nói sai nguyên nhân còn tệ hơn không nói, vì nó bảo người dùng đi khai tỷ giá trong
+    // khi việc phải làm là thêm chặng đời cho kịch bản kia.
     compareHiddenNote:
-      hasCompare && currencyMismatch
+      compareRows !== null && !compareEmpty && currencyMismatch
         ? `Đường kịch bản so sánh đang ẩn vì nó hiển thị bằng ${compareCurrency} còn đồ thị này theo ${currency} — chưa quy đổi được nên không vẽ để tránh sai đơn vị.`
         : null,
+    compareEmptyNote: compareEmpty
+      ? 'Kịch bản so sánh chưa chiếu được năm nào nên không có đường nào để vẽ — kiểm chặng đời và tuổi kết thúc của kịch bản đó.'
+      : null,
   }
 }

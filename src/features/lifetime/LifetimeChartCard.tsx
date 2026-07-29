@@ -115,6 +115,7 @@ function buildAriaLabel(args: {
   showCompare: boolean
   historyHiddenNote: string | null
   compareHiddenNote: string | null
+  compareEmptyNote: string | null
 }): string {
   const { rows, historyRows, currency, markerYears } = args
   if (rows.length === 0) return 'Chưa có dữ liệu để chiếu tài sản ròng.'
@@ -151,6 +152,11 @@ function buildAriaLabel(args: {
 
   if (args.compareHiddenNote) {
     sentences.push(args.compareHiddenNote)
+  } else if (args.compareEmptyNote) {
+    // Bản chiếu so sánh rỗng: `compareEndRow` là null nên nhánh dưới im, và người dùng
+    // screen reader nghe xong không biết mình vừa bật so sánh với một kịch bản không chiếu
+    // ra gì. Cùng lý do với `historyHiddenNote` — cần biết TẠI SAO thiếu, không chỉ thiếu.
+    sentences.push(args.compareEmptyNote)
   } else if (args.showCompare && args.compareEndRow) {
     // Đơn vị của bản so sánh: chỉ tới nhánh này khi hai kịch bản CÙNG đơn vị (lệch thì
     // đã rơi vào compareHiddenNote ở trên), nên `?? currency` không đổi kết quả — để đó
@@ -205,12 +211,12 @@ export function LifetimeChartCard({
   // và kịch bản so sánh mang `compareCurrency` của riêng nó — cả hai ĐỘC LẬP với
   // `currency` (display_currency của kịch bản đang xem, tức đơn vị của trục tung). Luật
   // "chuỗi nào được vẽ" nằm ở `chartSeriesPlan`, xem JSDoc ở đó.
-  const plan = chartSeriesPlan({
-    currency,
-    historyCurrency,
-    compareCurrency,
-    hasCompare: compare !== null,
-  })
+  // Truyền NGUYÊN mảng `compare`, không tự tính `compare !== null` rồi truyền boolean: một
+  // bản chiếu RỖNG (`[]`) khác `null` nên nó từng đi qua thành "đang so sánh", và hệ quả là
+  // `showBand` tắt — dải dao động, chú giải của nó và số hạng biên dưới trong `minY` (tức
+  // vùng âm đỏ) biến mất, đổi lấy một đường so sánh không tồn tại. Phép tính đó nay nằm
+  // trong `chartSeriesPlan`, nơi có phép thử canh.
+  const plan = chartSeriesPlan({ currency, historyCurrency, compareCurrency, compareRows: compare })
   const { showHistory, showCompare, showBand } = plan
   const effectiveHistoryRows = showHistory ? historyRows : EMPTY_HISTORY
 
@@ -237,6 +243,7 @@ export function LifetimeChartCard({
         showCompare,
         historyHiddenNote: plan.historyHiddenNote,
         compareHiddenNote: plan.compareHiddenNote,
+        compareEmptyNote: plan.compareEmptyNote,
       }),
     [
       rows,
@@ -248,6 +255,7 @@ export function LifetimeChartCard({
       showCompare,
       plan.historyHiddenNote,
       plan.compareHiddenNote,
+      plan.compareEmptyNote,
     ],
   )
   const minY = useMemo(() => {
@@ -433,6 +441,13 @@ export function LifetimeChartCard({
         {compareMismatch && (
           <span className="text-amber-600 dark:text-amber-400">
             Đường so sánh ẩn — khác đơn vị tiền ({compareCurrency} ≠ {currency})
+          </span>
+        )}
+        {/* Bản chiếu của kịch bản so sánh rỗng — cùng lý do phải NÓI RA như hai câu trên:
+            im lặng thì bật "So sánh" xong không thấy đường nào và tưởng đồ thị hỏng. */}
+        {plan.compareEmptyNote && (
+          <span className="text-amber-600 dark:text-amber-400">
+            Kịch bản so sánh chưa chiếu được năm nào — kiểm chặng đời và tuổi kết thúc của nó
           </span>
         )}
       </div>

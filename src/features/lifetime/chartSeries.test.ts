@@ -35,7 +35,7 @@ describe('chartSeriesPlan', () => {
       currency: 'JPY',
       historyCurrency: 'JPY',
       compareCurrency: 'JPY',
-      hasCompare: true,
+      compareRows: [row(2026, 7_000_000)],
     })
     expect(plan.showHistory).toBe(true)
     expect(plan.showCompare).toBe(true)
@@ -50,7 +50,7 @@ describe('chartSeriesPlan', () => {
       currency: 'JPY',
       historyCurrency: 'JPY',
       compareCurrency: 'USD',
-      hasCompare: true,
+      compareRows: [row(2026, 7_000_000)],
     })
     expect(plan.showCompare).toBe(false)
     expect(plan.compareHiddenNote).not.toBeNull()
@@ -67,7 +67,7 @@ describe('chartSeriesPlan', () => {
       currency: 'JPY',
       historyCurrency: 'JPY',
       compareCurrency: 'USD',
-      hasCompare: true,
+      compareRows: [row(2026, 7_000_000)],
     })
     expect(mismatch.showBand).toBe(true)
 
@@ -75,7 +75,7 @@ describe('chartSeriesPlan', () => {
       currency: 'JPY',
       historyCurrency: 'JPY',
       compareCurrency: 'JPY',
-      hasCompare: true,
+      compareRows: [row(2026, 7_000_000)],
     })
     expect(sameCurrency.showBand).toBe(false)
   })
@@ -85,7 +85,7 @@ describe('chartSeriesPlan', () => {
       currency: 'JPY',
       historyCurrency: 'JPY',
       compareCurrency: null,
-      hasCompare: false,
+      compareRows: null,
     })
     expect(plan.showCompare).toBe(false)
     expect(plan.showBand).toBe(true)
@@ -99,7 +99,7 @@ describe('chartSeriesPlan', () => {
       currency: 'USD',
       historyCurrency: 'JPY',
       compareCurrency: 'USD',
-      hasCompare: true,
+      compareRows: [row(2026, 7_000_000)],
     })
     expect(plan.showHistory).toBe(false)
     expect(plan.historyHiddenNote).toContain('JPY')
@@ -108,12 +108,56 @@ describe('chartSeriesPlan', () => {
     expect(plan.compareHiddenNote).toBeNull()
   })
 
+  // ĐÂY là ca lỗi thật thứ hai của chuỗi so sánh: `projectScenario` trả `[]` cho một
+  // kịch bản đã bị XOÁ (compareId còn trỏ vào nó) hoặc cho một kịch bản không có chặng
+  // nào — mà `[]` khác `null`, nên bản trước coi là "đang so sánh" và TẮT dải dao động.
+  // Mất dải là mất cả chú giải của nó VÀ số hạng biên dưới trong `minY`, tức vùng âm đỏ
+  // co lại hoặc biến mất: cảnh báo nhánh bi quan tắt mà không câu nào nói ra.
+  it('bản chiếu so sánh RỖNG: không tính là so sánh, DẢI DAO ĐỘNG vẫn hiện', () => {
+    const plan = chartSeriesPlan({
+      currency: 'JPY',
+      historyCurrency: 'JPY',
+      compareCurrency: 'JPY',
+      compareRows: [],
+    })
+    expect(plan.showCompare).toBe(false)
+    expect(plan.showBand).toBe(true)
+    // Phải NÓI RA lý do, và nói đúng lý do: rỗng, không phải lệch đơn vị tiền.
+    expect(plan.compareEmptyNote).not.toBeNull()
+    expect(plan.compareHiddenNote).toBeNull()
+  })
+
+  // Rỗng VÀ lệch đơn vị cùng lúc (so với một kịch bản USD chưa có chặng nào): chỉ được
+  // nói một câu, và phải là câu rỗng — câu "khác đơn vị tiền" đẩy người dùng đi khai tỷ
+  // giá trong khi việc phải làm là thêm chặng đời cho kịch bản kia.
+  it('rỗng thì KHÔNG báo lý do lệch đơn vị tiền, dù đơn vị có lệch thật', () => {
+    const plan = chartSeriesPlan({
+      currency: 'JPY',
+      historyCurrency: 'JPY',
+      compareCurrency: 'USD',
+      compareRows: [],
+    })
+    expect(plan.compareHiddenNote).toBeNull()
+    expect(plan.compareEmptyNote).not.toBeNull()
+    expect(plan.showBand).toBe(true)
+  })
+
+  it('chưa bật so sánh thì KHÔNG có câu "rỗng" — không có gì để mà rỗng', () => {
+    const plan = chartSeriesPlan({
+      currency: 'JPY',
+      historyCurrency: 'JPY',
+      compareCurrency: null,
+      compareRows: null,
+    })
+    expect(plan.compareEmptyNote).toBeNull()
+  })
+
   it('thiếu compareCurrency (không biết đơn vị) thì vẫn vẽ — chưa biết khác với biết là lệch', () => {
     const plan = chartSeriesPlan({
       currency: 'JPY',
       historyCurrency: 'JPY',
       compareCurrency: undefined,
-      hasCompare: true,
+      compareRows: [row(2026, 7_000_000)],
     })
     expect(plan.showCompare).toBe(true)
     expect(plan.compareHiddenNote).toBeNull()

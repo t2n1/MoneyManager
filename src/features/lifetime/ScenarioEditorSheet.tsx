@@ -4,7 +4,7 @@
 // nguyên chữ ký props để LifetimePage không phải sửa lại chỗ gọi.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, Copy, Plus, Sparkles, X } from 'lucide-react'
+import { AlertCircle, Copy, Plus, Sparkles, Star, Trash2, X } from 'lucide-react'
 import { repo } from '../../data'
 import type { LifeScenarioPatch } from '../../data/repo'
 import { MoneyField } from '../../components/MoneyField'
@@ -28,6 +28,11 @@ import { baselineRange, makeCurrencyOf } from './useLifetime'
 
 interface Props {
   scenario: LifeScenarioRow
+  /** TOÀN BỘ kịch bản của người dùng — cần cho hai điều khiển ở khối 1: chặn xoá kịch
+   *  bản CUỐI CÙNG (xoá xong thì màn Lifetime không còn gì để chiếu), và đặt
+   *  `is_primary = false` cho các kịch bản KHÁC khi đổi kịch bản chính. Cả hai đều là
+   *  quyết định về tập kịch bản, không đọc được từ mỗi `scenario`. */
+  scenarios: LifeScenarioRow[]
   phases: LifePhaseRow[]
   events: LifeEventRow[]
   /** Bốn giá trị dưới đây do `LifetimePage` truyền xuống, sheet KHÔNG gọi
@@ -85,8 +90,18 @@ const BAR_PALETTE = ['bg-green-500', 'bg-blue-400', 'bg-amber-400', 'bg-purple-4
 /** Token thẻ lồng của app cho một dòng danh sách bấm được. */
 const ROW_CARD = 'min-h-11 w-full rounded-lg bg-gray-50 dark:bg-gray-800 p-2.5 text-left active:scale-95'
 
+/** Nút "thêm/chọn" xám của khối 2 & 3 (Thêm chặng · Chọn mẫu). Cùng lý do với
+ *  `ROW_CARD`: ba nút cùng vai trò thì cùng một chuỗi class, không gõ lại từng nút. */
+const ADD_BUTTON = 'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 active:scale-95'
+
+/** Nút phụ dưới nút Lưu của khối 1 (đặt kịch bản chính · xoá kịch bản) — phần chung;
+ *  màu chữ khác nhau nên nối thêm ở chỗ dùng. */
+const BLOCK1_ACTION =
+  'inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm font-medium active:scale-95 disabled:opacity-50'
+
 export function ScenarioEditorSheet({
   scenario,
+  scenarios,
   phases,
   events,
   profile,
@@ -127,9 +142,13 @@ export function ScenarioEditorSheet({
   const [nominalTerms, setNominalTerms] = useState(scenario.nominal_terms)
   const [savingScenario, setSavingScenario] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
-  // true trong lúc chờ hộp thoại xác nhận bỏ thay đổi — chặn Esc của sheet này đóng
-  // đè lên hộp thoại (dialog.tsx có Esc riêng; cùng lý do đã ghi ở PhaseFormSheet).
+  const [deleting, setDeleting] = useState(false)
+  const [settingPrimary, setSettingPrimary] = useState(false)
+  // true trong lúc chờ MỘT hộp thoại xác nhận nào đó (bỏ thay đổi, hoặc xoá kịch bản) —
+  // chặn Esc của sheet này đóng đè lên hộp thoại (dialog.tsx có Esc riêng; cùng lý do đã
+  // ghi ở PhaseFormSheet).
   const [confirmingDiscard, setConfirmingDiscard] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   // Danh sách dòng bị đặt lại tỷ giá về 1 sau khi đổi display_currency — hiện ra
   // để người dùng biết phải khai lại tỷ giá cho những dòng nào (quyết định đã
   // chốt: RESET chứ không chỉ cảnh báo, xem task-11-brief.md).
@@ -230,6 +249,7 @@ export function ScenarioEditorSheet({
     mutationFn: ({ id, patch }: { id: string; patch: LifeScenarioPatch }) => repo.updateLifeScenario(id, patch),
   })
   const createScenarioMut = useMutation({ mutationFn: repo.createLifeScenario })
+  const deleteScenarioMut = useMutation({ mutationFn: (id: string) => repo.deleteLifeScenario(id) })
 
   async function invalidateScenarioTree() {
     await Promise.all([
@@ -298,12 +318,19 @@ export function ScenarioEditorSheet({
       // theo `assetsCurrency` cũ — dán nhãn mới ở đây là tắt luôn dòng amber duy nhất
       // đang nói cho người dùng biết con số chưa đổi đơn vị và chưa được lưu.
       if (!assetsStale) setAssetsCurrency(displayCurrency)
-      await invalidateScenarioTree()
-      await qc.invalidateQueries({ queryKey: ['profile'] })
       showToast('Đã lưu kịch bản.', 'success')
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Không lưu được kịch bản.', 'error')
     } finally {
+      // Làm mới cache trong `finally`, KHÔNG ở cuối `try` — cùng lỗi đã vá một lần cho
+      // `handleDuplicate`. Hàm này ghi NHIỀU lần tuần tự: profile → kịch bản
+      // (`display_currency`) → từng lệnh đặt lại `fx_to_display`. Lỗi ở một lệnh đặt lại
+      // để DB mang tiền hiển thị MỚI trong khi vài dòng còn tỷ giá của tiền CŨ, còn cache
+      // giữ nguyên kịch bản cũ — lúc đó `mismatchCount` ở LifetimePage đếm theo
+      // `display_currency` CŨ và có thể ra 0, tức banner cảnh báo tắt ngóm suốt cả
+      // staleTime, đúng trên đường code vừa sinh ra những tỷ giá biết chắc là sai.
+      await invalidateScenarioTree()
+      await qc.invalidateQueries({ queryKey: ['profile'] })
       setSavingScenario(false)
     }
   }
@@ -381,6 +408,86 @@ export function ScenarioEditorSheet({
       )
     } finally {
       setDuplicating(false)
+    }
+  }
+
+  /** Kịch bản DUY NHẤT thì không cho xoá: xoá xong màn Lifetime rơi về trạng thái "chưa
+   *  có kịch bản nào" và nút tạo lại dựng một kịch bản khác hoàn toàn từ chi tiêu thật —
+   *  tức không phải một phép xoá, mà là xoá cả tính năng rồi khởi động lại. */
+  const isOnlyScenario = scenarios.length <= 1
+
+  /**
+   * Xoá kịch bản này (kèm mọi chặng/sự kiện của nó — cascade ở Postgres, tự dọn ở
+   * demoRepo). `repo.deleteLifeScenario` có từ lúc dựng lược đồ nhưng CHƯA CÓ CHỖ GỌI
+   * nào, trong khi `handleDuplicate` ở trên lại bảo người dùng "kiểm và xoá nếu cần" một
+   * bản sao dở dang, và `ensureFirstScenario` có thể sinh ra kịch bản thiếu chặng. Dải
+   * chip kịch bản trước đây chỉ có đường lớn thêm.
+   */
+  async function handleDeleteScenario() {
+    if (isOnlyScenario) {
+      showToast(
+        'Đây là kịch bản duy nhất — xoá đi thì màn Lifetime không còn gì để chiếu. Nhân bản hoặc tạo thêm một kịch bản khác trước, rồi hãy xoá cái này.',
+        'error',
+      )
+      return
+    }
+    setConfirmingDelete(true)
+    const ok = await confirmDialog({
+      title: `Xóa kịch bản "${scenario.name}"?`,
+      message: `Xóa luôn ${phases.length} chặng đời và ${events.length} sự kiện của kịch bản này. Không hoàn tác được. Các kịch bản khác không bị ảnh hưởng.`,
+      confirmLabel: 'Xóa',
+      cancelLabel: 'Giữ lại',
+      danger: true,
+    })
+    setConfirmingDelete(false)
+    if (!ok) return
+    setDeleting(true)
+    try {
+      await deleteScenarioMut.mutateAsync(scenario.id)
+      showToast(`Đã xóa kịch bản "${scenario.name}".`, 'success')
+      onClose()
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không xóa được kịch bản.', 'error')
+    } finally {
+      // `finally`: xoá kịch bản là một lệnh, nhưng lỗi vẫn có thể xảy ra SAU khi hàng
+      // đã đi (timeout mạng trong lúc Postgres đã commit). Không làm mới thì dải chip
+      // còn hiện một kịch bản không còn tồn tại, và bấm vào nó là một trang trống.
+      await invalidateScenarioTree()
+      setDeleting(false)
+    }
+  }
+
+  /**
+   * Đặt kịch bản này làm KỊCH BẢN CHÍNH. `is_primary` trước đây chỉ được ghi `true` một
+   * lần lúc tạo kịch bản đầu tiên và `false` cho mọi bản sao, không có đường nào đổi —
+   * nên sau khi nhân bản, bộ luật nhắc lệch (`buildLifetimeInput`) và thẻ Lifetime ở
+   * /assets vẫn dính vào bản gốc dù người dùng đã chuyển hẳn sang làm việc với bản sao.
+   *
+   * Đặt `true` cho kịch bản này TRƯỚC, rồi mới bỏ cờ ở các kịch bản khác. Lỗi giữa
+   * đường thì còn HAI kịch bản cùng `is_primary` — `pickActive` (buildInput.ts) xử lý
+   * được ca đó (lấy `sort_order` nhỏ nhất trong nhóm primary). Làm ngược lại (bỏ cờ
+   * trước) mà lỗi thì còn KHÔNG kịch bản nào primary, tức mất hẳn ý định người dùng vừa
+   * bày tỏ.
+   */
+  async function handleMakePrimary() {
+    if (scenario.is_primary) return
+    setSettingPrimary(true)
+    try {
+      await repo.updateLifeScenario(scenario.id, { is_primary: true })
+      await Promise.all(
+        scenarios
+          .filter((s) => s.id !== scenario.id && s.is_primary)
+          .map((s) => repo.updateLifeScenario(s.id, { is_primary: false })),
+      )
+      showToast(`"${scenario.name}" là kịch bản chính từ giờ.`, 'success')
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : 'Không đặt được kịch bản chính.',
+        'error',
+      )
+    } finally {
+      await invalidateScenarioTree()
+      setSettingPrimary(false)
     }
   }
 
@@ -480,13 +587,13 @@ export function ScenarioEditorSheet({
   // bỏ thay đổi đang mở đè lên: lúc đó Esc phải đóng cái ở trên trước (chúng tự có
   // Esc riêng), không đóng luôn cả trình sửa kịch bản.
   useEffect(() => {
-    if (phaseSheet || eventSheet || confirmingDiscard) return
+    if (phaseSheet || eventSheet || confirmingDiscard || confirmingDelete) return
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') void dismissRef.current()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [phaseSheet, eventSheet, confirmingDiscard])
+  }, [phaseSheet, eventSheet, confirmingDiscard, confirmingDelete])
 
   const field =
     'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
@@ -770,6 +877,52 @@ export function ScenarioEditorSheet({
                 {duplicating ? 'Đang nhân bản…' : 'Nhân bản'}
               </button>
             </div>
+
+            {/* Kịch bản chính + xoá. Đặt DƯỚI nút Lưu, cùng khối 1: cả hai là thao tác
+                trên chính kịch bản này, không phải trên chặng/sự kiện của nó. */}
+            <div className="mt-2 flex items-center justify-between gap-2">
+              {scenario.is_primary ? (
+                <span className="flex min-h-11 items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400">
+                  <Star className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  Đang là kịch bản chính
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleMakePrimary}
+                  disabled={settingPrimary}
+                  // Nhãn nói ra HỆ QUẢ, không chỉ tên thao tác: "kịch bản chính" một
+                  // mình không cho biết nó quyết định điều gì.
+                  title="Kịch bản chính là kịch bản mà thông báo nhắc lệch và thẻ Lifetime ở trang Tài sản đọc theo"
+                  className={`${BLOCK1_ACTION} px-3 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30`}
+                >
+                  <Star className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  {settingPrimary ? 'Đang đặt…' : 'Đặt làm kịch bản chính'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleDeleteScenario}
+                disabled={deleting || isOnlyScenario}
+                title={
+                  isOnlyScenario
+                    ? 'Không xóa được kịch bản duy nhất — tạo hoặc nhân bản thêm một kịch bản trước'
+                    : 'Xóa kịch bản này cùng mọi chặng đời và sự kiện của nó'
+                }
+                className={`${BLOCK1_ACTION} px-3 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30`}
+              >
+                <Trash2 className="h-4 w-4 shrink-0" />
+                {deleting ? 'Đang xóa…' : 'Xóa kịch bản'}
+              </button>
+            </div>
+            {/* Vì sao nút xoá bị mờ — nút disabled không đọc được `title` bằng chạm trên
+                mobile, nên nói ra bằng chữ thay vì để người dùng bấm mãi không ra gì. */}
+            {isOnlyScenario && (
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Đây là kịch bản duy nhất nên chưa xóa được — nhân bản hoặc tạo thêm một kịch bản
+                khác trước.
+              </p>
+            )}
           </section>
 
           {/* --- Khối 2: Chặng đời --- */}
@@ -815,14 +968,14 @@ export function ScenarioEditorSheet({
               <button
                 type="button"
                 onClick={() => setPhaseSheet({})}
-                className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 active:scale-95"
+                className={`${ADD_BUTTON} flex-1`}
               >
                 <Plus className="h-4 w-4" /> Thêm chặng
               </button>
               <button
                 type="button"
                 onClick={() => setEventSheet({ presets: true })}
-                className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 active:scale-95"
+                className={`${ADD_BUTTON} flex-1`}
               >
                 <Sparkles className="h-4 w-4" /> Chọn mẫu
               </button>
@@ -876,7 +1029,7 @@ export function ScenarioEditorSheet({
             <button
               type="button"
               onClick={() => setEventSheet({})}
-              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 active:scale-95"
+              className={`${ADD_BUTTON} w-full`}
             >
               <Plus className="h-4 w-4" /> Thêm sự kiện
             </button>

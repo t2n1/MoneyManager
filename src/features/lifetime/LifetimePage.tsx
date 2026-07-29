@@ -194,11 +194,21 @@ export function LifetimePage() {
             </p>
           )}
         </div>
+        {/* `disabled` khi chưa có `profile`: trình sửa lấy năm sinh từ đó, và thiếu nó
+            thì sheet thành một ngõ cụt — `birthYear` khởi tạo rỗng nên `birthYearValid`
+            false và nút Lưu tắt VĨNH VIỄN, `block1Dirty` true vĩnh viễn nên "Nhân bản"
+            bị chặn bằng toast bảo lưu trước (không lưu được), và đóng sheet thì bị hỏi
+            có bỏ thay đổi không (không có thay đổi nào). Ca này chỉ xảy ra khi query
+            profile LỖI — `needsBirthYear` ở trên chỉ bắt ca profile ĐÃ TẢI mà chưa khai. */}
         <button
           type="button"
           onClick={() => setEditorOpen(true)}
+          disabled={!profile}
           aria-label="Sửa kịch bản"
-          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 shadow-sm active:scale-95"
+          title={
+            profile ? undefined : 'Chưa tải được thông tin người dùng — thử lại sau khi có mạng'
+          }
+          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 shadow-sm active:scale-95 disabled:opacity-50"
         >
           <Pencil className="h-4 w-4 text-gray-600 dark:text-gray-300" />
         </button>
@@ -229,7 +239,10 @@ export function LifetimePage() {
         <button
           type="button"
           onClick={() => setEditorOpen(true)}
-          className="flex min-h-11 w-full items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/40 px-3 py-2 text-left text-sm text-amber-700 dark:text-amber-300 active:scale-95"
+          // Cùng lý do với nút bút chì ở header: không mở một sheet ngõ cụt. Banner vẫn
+          // HIỆN (câu cảnh báo đúng dù có sửa được ngay hay không), chỉ không bấm được.
+          disabled={!profile}
+          className="flex min-h-11 w-full items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/40 px-3 py-2 text-left text-sm text-amber-700 dark:text-amber-300 active:scale-95 disabled:active:scale-100"
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
@@ -334,9 +347,12 @@ export function LifetimePage() {
           tự gọi `useLifetime()` lần hai: bản thứ hai mang `activeId` riêng (có thể chỉ
           vào một kịch bản KHÁC cái đang sửa) và chiếu lại cả 60 năm kèm dải một lần nữa
           song song với bản chiếu của trang này. */}
-      {editorOpen && active && (
+      {editorOpen && active && profile && (
         <ScenarioEditorSheet
           scenario={active}
+          // Cả danh sách, không chỉ kịch bản đang sửa: khối 1 cần biết đây có phải kịch
+          // bản duy nhất (chặn xoá) và kịch bản nào khác đang là chính (đổi kịch bản chính).
+          scenarios={scenarios}
           phases={phases}
           events={events}
           profile={profile}

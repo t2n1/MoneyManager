@@ -16,11 +16,13 @@ import {
 } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
 import { addDaysISO, toISODate } from '../../lib/dates'
+import { showToast } from '../../lib/dialog'
 import type { LifeScenarioRow } from '../../types/database.types'
 import { assetBreakdown, type AssetGroupSetting } from '../assets/aggregate'
 import { debtSummary } from '../debts/aggregate'
 import type { CurrencyOf } from '../reports/aggregate'
 import { suggestBaseline } from './baseline'
+import { DEFAULT_INFLATION_BPS, pickActive } from './buildInput'
 import {
   projectLifetime,
   type LifetimeEvent,
@@ -75,8 +77,11 @@ export function useLifetime() {
   // `scenarios` làm dep của useCallback, tham chiếu đổi mỗi render sẽ làm nó không bao
   // giờ ổn định (oxlint react-hooks/exhaustive-deps từng bắt đúng ca này).
   const scenarios = useMemo(() => scenariosQ.data ?? [], [scenariosQ.data])
-  const active =
-    scenarios.find((s) => s.id === activeId) ?? scenarios.find((s) => s.is_primary) ?? scenarios[0]
+  // `pickActive` là hàm DÙNG CHUNG với `buildLifetimeInput` (buildInput.ts) — luật "kịch
+  // bản nào đang hiệu lực" phải là MỘT luật, không phải một bản ở đây và một bản ở đó.
+  // Bản cũ viết `find(is_primary) ?? scenarios[0]`, tức luật hoà (nhiều bản cùng
+  // is_primary, hoặc không bản nào) nằm ẩn trong câu `order by` của tầng dữ liệu.
+  const active = scenarios.find((s) => s.id === activeId) ?? pickActive(scenarios)
 
   const phases = useMemo(
     () => (phasesQ.data ?? []).filter((p) => p.scenario_id === active?.id),
@@ -107,7 +112,10 @@ export function useLifetime() {
       startingAssetsMinor: scenario.starting_assets_minor,
       realReturnBps: scenario.real_return_bps,
       bandSpreadBps: scenario.band_spread_bps,
-      inflationBps: profileQ.data?.annual_inflation_bps ?? 200,
+      // Hằng số dùng chung với `buildInput.ts` (buildInput.test.ts ghim giá trị) — hai
+      // con số cho cùng một giá trị rơi về, một cái có test một cái không, là cách bản
+      // chiếu của màn Lifetime và bản chiếu của bộ luật thông báo bắt đầu lệch nhau.
+      inflationBps: profileQ.data?.annual_inflation_bps ?? DEFAULT_INFLATION_BPS,
       nominalTerms: scenario.nominal_terms,
       phases: (phasesQ.data ?? [])
         .filter((p) => p.scenario_id === scenario.id)
@@ -225,47 +233,83 @@ export function useLifetime() {
   const createScenario = useMutation({ mutationFn: repo.createLifeScenario })
   const createPhase = useMutation({ mutationFn: repo.createLifePhase })
 
+  /**
+   * Tạo kịch bản đầu tiên: một dòng `life_scenarios` rồi một dòng `life_phases`. Hai
+   * lệnh ghi TUẦN TỰ (chặng cần `scenario.id`), nên có đúng một cửa sổ lỗi ở giữa —
+   * và đây là NÚT ĐẦU TIÊN người dùng mới bấm, không phải một đường hiếm.
+   *
+   * Không có `catch` thì lỗi ở `createPhase` là một unhandled rejection: một kịch bản
+   * KHÔNG có chặng nào đã nằm trong DB, không toast, không câu nào. Không làm mới
+   * `['lifeScenarios']` thì `scenarios.length === 0` vẫn đúng nên trang đứng nguyên ở
+   * trạng thái 2 và bấm lần nữa tạo thêm một kịch bản mồ côi — lặp vô hạn. Và
+   * `buildLifetimeInput` trả `undefined` cho kịch bản chính không có chặng, nên bộ luật
+   * thông báo cũng im: không một bề mặt nào nói cho người dùng biết chuyện gì đã xảy ra.
+   *
+   * Nên: làm mới cache trong `finally` GATED theo "dòng kịch bản đã vào DB chưa" (cùng
+   * khuôn `EventFormSheet.handlePickPreset` và `ScenarioEditorSheet.handleDuplicate`), và
+   * `setActiveId` luôn — kịch bản thiếu chặng vẫn phải hiện ra ở dải chip để người dùng
+   * vào nút bút chì mà thêm chặng hoặc xoá nó đi.
+   */
   async function ensureFirstScenario() {
     const profile = profileQ.data
     if (!profile) return // needsBirthYear đứng trước bước này nên profile luôn đã tải
     const currency = profile.base_currency as CurrencyCode
-    const baseline = suggestBaseline(
-      txsQ.data ?? [],
-      categories,
-      makeCurrencyOf(accounts, currency),
-      currency,
-      todayISO,
-    )
 
-    // Đáng tin → dùng tài sản ròng hiện tại (cùng đơn vị `currency` = profile.base_currency,
-    // khớp `display_currency` mới tạo nên không cần quy đổi). Không đáng tin (thiếu tỷ giá,
-    // hoặc chưa tải xong) → 0, KHÔNG được điền một số thiếu rồi im lặng — LifetimePage hiện
-    // dòng chữ giải thích khi `!netWorthReliable` (xem ScenarioEditorSheet, Task 11, để sửa lại).
-    const scenario = await createScenario.mutateAsync({
-      name: 'Kịch bản của tôi',
-      display_currency: currency,
-      end_age: DEFAULT_END_AGE,
-      real_return_bps: DEFAULT_REAL_RETURN_BPS,
-      band_spread_bps: DEFAULT_BAND_SPREAD_BPS,
-      starting_assets_minor: netWorthReliable ? netWorth : 0,
-      nominal_terms: false,
-      is_primary: true,
-    })
-    await createPhase.mutateAsync({
-      scenario_id: scenario.id,
-      start_year: new Date().getFullYear(),
-      label: 'Hiện tại',
-      country: null,
-      currency,
-      annual_income_minor: baseline.annualIncomeMinor,
-      annual_expense_minor: baseline.annualExpenseMinor,
-      // Chặng nền cùng tiền với hiển thị của chính kịch bản mới tạo → 1 là ĐÚNG, không
-      // phải giá trị mặc định bị bỏ quên (khác hẳn ca banner Task 7 cảnh báo).
-      fx_to_display: 1,
-    })
-    await qc.invalidateQueries({ queryKey: ['lifeScenarios'] })
-    await qc.invalidateQueries({ queryKey: ['lifePhases'] })
-    setActiveId(scenario.id)
+    // `null` cho tới khi dòng kịch bản THẬT SỰ vào DB — quyết định cả việc có phải làm
+    // mới cache hay không, lẫn câu chữ của toast lỗi (lỗi ngay ở dòng đầu không để lại
+    // gì, lỗi sau đó để lại một kịch bản thiếu chặng cần dọn).
+    let scenarioId: string | null = null
+    try {
+      const baseline = suggestBaseline(
+        txsQ.data ?? [],
+        categories,
+        makeCurrencyOf(accounts, currency),
+        currency,
+        todayISO,
+      )
+
+      // Đáng tin → dùng tài sản ròng hiện tại (cùng đơn vị `currency` = profile.base_currency,
+      // khớp `display_currency` mới tạo nên không cần quy đổi). Không đáng tin (thiếu tỷ giá,
+      // hoặc chưa tải xong) → 0, KHÔNG được điền một số thiếu rồi im lặng — LifetimePage hiện
+      // dòng chữ giải thích khi `!netWorthReliable` (xem ScenarioEditorSheet, Task 11, để sửa lại).
+      const scenario = await createScenario.mutateAsync({
+        name: 'Kịch bản của tôi',
+        display_currency: currency,
+        end_age: DEFAULT_END_AGE,
+        real_return_bps: DEFAULT_REAL_RETURN_BPS,
+        band_spread_bps: DEFAULT_BAND_SPREAD_BPS,
+        starting_assets_minor: netWorthReliable ? netWorth : 0,
+        nominal_terms: false,
+        is_primary: true,
+      })
+      scenarioId = scenario.id
+      await createPhase.mutateAsync({
+        scenario_id: scenario.id,
+        start_year: new Date().getFullYear(),
+        label: 'Hiện tại',
+        country: null,
+        currency,
+        annual_income_minor: baseline.annualIncomeMinor,
+        annual_expense_minor: baseline.annualExpenseMinor,
+        // Chặng nền cùng tiền với hiển thị của chính kịch bản mới tạo → 1 là ĐÚNG, không
+        // phải giá trị mặc định bị bỏ quên (khác hẳn ca banner Task 7 cảnh báo).
+        fx_to_display: 1,
+      })
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : 'lỗi không rõ'
+      showToast(
+        scenarioId === null
+          ? `Không tạo được kịch bản (${detail}). Chưa có gì được lưu — thử lại.`
+          : `Đã tạo kịch bản nhưng chưa tạo được chặng nền (${detail}). Kịch bản đang thiếu chặng nên chưa chiếu được gì — bấm nút bút chì để thêm một chặng, hoặc xoá kịch bản đó rồi thử lại.`,
+        'error',
+      )
+    } finally {
+      if (scenarioId !== null) {
+        await qc.invalidateQueries({ queryKey: ['lifeScenarios'] })
+        await qc.invalidateQueries({ queryKey: ['lifePhases'] })
+        setActiveId(scenarioId)
+      }
+    }
   }
 
   return {

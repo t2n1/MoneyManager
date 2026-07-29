@@ -26,8 +26,10 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
   // mảng là đi so chi tiêu 2026 với giả định của chặng Mỹ 2029 — sai hoàn toàn với
   // người dùng có kế hoạch chuyển nước. Dùng `phaseForYear` của project.ts chứ không
   // chép lại luật đó lần thứ tư — xem JSDoc của hàm ấy.
+  // `sorted.length === 0` đã return ở trên nên hàm này luôn trả một chặng ở đây; vẫn
+  // để `!phase` cho khớp chữ ký `T | undefined` của nó, và im thì đúng luật mục H.
   const phase = phaseForYear(sorted, currentYear)
-  if (phase.annualExpenseMinor <= 0) return []
+  if (!phase || phase.annualExpenseMinor <= 0) return []
 
   // Chỉ lấy chi thật CÙNG loại tiền với chặng: quy đổi ở đây cần Rates, mà thiếu tỷ
   // giá thì con số sẽ THIẾU ÂM THẦM — theo mục H của spec thông báo, thiếu dữ liệu

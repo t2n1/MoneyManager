@@ -167,6 +167,10 @@ export function EventFormSheet({
       return
     }
     setSaving(true)
+    // Đã có dòng nào THẬT SỰ vào DB chưa. Quyết định hai thứ: có phải làm mới cache
+    // hay không, và câu chữ của toast lỗi (mẫu ghi tuần tự nên lỗi giữa chùm để lại
+    // một mớ dở dang, khác hẳn lỗi ngay ở dòng đầu).
+    let wrote = false
     try {
       const ctx = buildPresetCtx(year)
       const built = preset.build(ctx)
@@ -203,16 +207,43 @@ export function EventFormSheet({
       //
       // Chặng TRƯỚC, sự kiện SAU, và tuần tự chứ không Promise.all: chạy song song
       // thì một lỗi ở chặng vẫn để lại đủ chùm sự kiện đứng một mình.
-      for (const p of built.phases) await repo.createLifePhase(p)
-      for (const e of built.events) await repo.createLifeEvent(e)
-
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ['lifePhases'] }),
-        qc.invalidateQueries({ queryKey: ['lifeEvents'] }),
-      ])
+      //
+      // Làm mới cache trong `finally` chứ không sau vòng ghi: đặt sau vòng ghi thì
+      // một lỗi giữa chùm (mất mạng, RLS, timeout) để lại chặng ĐÃ vào DB mà
+      // ['lifePhases'] không ai đụng — staleTime 30s (main.tsx) nên UI không biết
+      // gì. Hệ quả nặng hơn cả cái toast: bộ chặn trùng năm ngay ở trên và
+      // `yearDuplicate` của PhaseFormSheet đều đọc prop `phases`, tức đọc đúng cái
+      // cache cũ đó — thử lại mẫu này, hay gõ chính năm đó vào "Thêm chặng", sẽ lọt
+      // qua câu lỗi tử tế rồi đâm thẳng vào `unique (scenario_id, start_year)`. Bộ
+      // chặn chỉ đáng tin bằng độ tươi của dữ liệu nó đọc.
+      try {
+        for (const p of built.phases) {
+          await repo.createLifePhase(p)
+          wrote = true
+        }
+        for (const e of built.events) {
+          await repo.createLifeEvent(e)
+          wrote = true
+        }
+      } finally {
+        if (wrote) {
+          await Promise.all([
+            qc.invalidateQueries({ queryKey: ['lifePhases'] }),
+            qc.invalidateQueries({ queryKey: ['lifeEvents'] }),
+          ])
+        }
+      }
       onClose()
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Không tạo được bản ghi từ mẫu.', 'error')
+      const detail = err instanceof Error ? err.message : 'lỗi không rõ'
+      showToast(
+        wrote
+          ? // Ghi tuần tự nên lỗi giữa chùm để lại một mớ dòng ĐÃ vào — nói ra, cùng
+            // cách "Nhân bản kịch bản" đã làm, để người dùng biết có thứ cần dọn.
+            `Không tạo xong bản ghi từ mẫu (${detail}). Mẫu ghi từng dòng một nên có thể đã có vài chặng/sự kiện vào rồi — xem hai khối "Chặng đời"/"Sự kiện" và xoá dòng thừa nếu cần.`
+          : `Không tạo được bản ghi từ mẫu (${detail}).`,
+        'error',
+      )
     } finally {
       setSaving(false)
     }
@@ -291,7 +322,7 @@ export function EventFormSheet({
               className={`mb-1 ${field}`}
             />
             {!labelValid && (
-              <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+              <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
                 Tên sự kiện không được để trống.
               </p>
             )}
@@ -331,7 +362,7 @@ export function EventFormSheet({
               className={`mb-1 ${field}`}
             />
             {!yearValid && startYear !== '' && (
-              <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+              <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
                 Năm phải là số nguyên trong khoảng 1900–2200.
               </p>
             )}
@@ -351,7 +382,7 @@ export function EventFormSheet({
                   className={`mb-1 ${field}`}
                 />
                 {!endYearValid && (
-                  <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+                  <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
                     Năm kết thúc phải ≥ năm bắt đầu (hoặc bật "đến hết đời" ở trên).
                   </p>
                 )}
@@ -383,7 +414,7 @@ export function EventFormSheet({
               />
             </div>
             {!amountValid && (
-              <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+              <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
                 Số tiền không được âm.
               </p>
             )}
@@ -404,7 +435,7 @@ export function EventFormSheet({
                   className={`mb-1 ${field}`}
                 />
                 {!fxValid && (
-                  <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+                  <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
                     Tỷ giá phải là một số lớn hơn 0.
                   </p>
                 )}
@@ -440,7 +471,7 @@ export function EventFormSheet({
                   type="button"
                   onClick={handleDelete}
                   disabled={saving}
-                  className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 active:scale-95 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
+                  className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-red-700 dark:text-red-400 active:scale-95 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
                 >
                   Xóa
                 </button>

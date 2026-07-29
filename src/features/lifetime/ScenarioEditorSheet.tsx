@@ -113,6 +113,15 @@ export function ScenarioEditorSheet({
   const [assetsCurrency, setAssetsCurrency] = useState<CurrencyCode>(
     scenario.display_currency as CurrencyCode,
   )
+  // true khi con số trong ô tài sản khởi điểm do NGƯỜI DÙNG đặt (gõ tay, hoặc bấm
+  // "lấy lại theo tài sản ròng"); false khi nó chỉ vừa bị effect quy đổi tiền hiển
+  // thị viết lại. Cần phân biệt vì quy đổi làm tròn ở CẢ HAI chiều: đổi hiển thị
+  // JPY→USD→JPY trả về một con số có thể lệch vài đơn vị nhỏ nhất so với số đã lưu
+  // (¥→$ mất phần lẻ dưới cent, $→¥ mất phần lẻ dưới yên), nên so thẳng `!==` sẽ bật
+  // "· chưa lưu" và đòi xác nhận bỏ thay đổi cho một sửa đổi mà người dùng đã tự
+  // hoàn tác. Đổi hiển thị mà CHƯA đổi lại thì `currencyChanged` bên dưới vẫn bắt
+  // được, nên không mất dấu thay đổi thật nào.
+  const [assetsTouched, setAssetsTouched] = useState(false)
   const [realReturnPct, setRealReturnPct] = useState(String(scenario.real_return_bps / 100))
   const [bandSpreadPct, setBandSpreadPct] = useState(String(scenario.band_spread_bps / 100))
   const [nominalTerms, setNominalTerms] = useState(scenario.nominal_terms)
@@ -148,7 +157,9 @@ export function ScenarioEditorSheet({
     endAge !== String(scenario.end_age) ||
     currencyChanged ||
     assetsSign !== (scenario.starting_assets_minor < 0 ? -1 : 1) ||
-    Math.abs(assetsAbs) !== Math.abs(scenario.starting_assets_minor) ||
+    // `assetsTouched &&`: xem chú thích của state đó — không có nó thì một vòng
+    // JPY→USD→JPY làm lệch con số vài đơn vị nhỏ nhất và sheet báo "chưa lưu" oan.
+    (assetsTouched && Math.abs(assetsAbs) !== Math.abs(scenario.starting_assets_minor)) ||
     realReturnPct !== String(scenario.real_return_bps / 100) ||
     bandSpreadPct !== String(scenario.band_spread_bps / 100) ||
     nominalTerms !== scenario.nominal_terms
@@ -248,7 +259,16 @@ export function ScenarioEditorSheet({
           // (NumPad có phím −) nên "5 − 9" ra −4. Công tắc Dương/Âm là NGUỒN DUY
           // NHẤT của dấu; cột này không có check nào ở DB nên số âm cứ thế lưu vào
           // và công tắc lại đang chỉ "Dương".
-          starting_assets_minor: assetsSign * Math.abs(assetsAbs),
+          //
+          // BỎ HẲN trường này ra khỏi patch khi `assetsStale`: cột lưu THEO
+          // `display_currency`, nên ghi một con số còn đang tính theo tiền CŨ vào
+          // đây là biến ¥11.000.000 thành $110.000 (sai ~150 lần) đúng ở điểm khởi
+          // đầu bản chiếu — rồi lần lưu đó còn tự dán nhãn "đã quy đổi" và xoá mất
+          // dòng cảnh báo duy nhất. Không chặn lưu (quyết định đã chốt), chỉ không
+          // để lần lưu tẩy trắng một con số biết là sai: giữ nguyên giá trị cũ
+          // trong DB và giữ nguyên `assetsCurrency` bên dưới để dòng amber sống qua
+          // lần lưu, còn nhắc người dùng gõ lại bằng tay.
+          ...(assetsStale ? {} : { starting_assets_minor: assetsSign * Math.abs(assetsAbs) }),
           nominal_terms: nominalTerms,
         },
       })
@@ -273,9 +293,11 @@ export function ScenarioEditorSheet({
         setResetNotice(null)
       }
 
-      // Con số trong ô giờ đã cùng đơn vị với display_currency vừa lưu (dù trước đó
-      // có quy đổi được hay không).
-      setAssetsCurrency(displayCurrency)
+      // CHỈ khi con số trong ô thật sự đã theo đơn vị mới. `assetsStale` thì
+      // `starting_assets_minor` vừa bị bỏ khỏi patch (xem trên), nên ô vẫn đang tính
+      // theo `assetsCurrency` cũ — dán nhãn mới ở đây là tắt luôn dòng amber duy nhất
+      // đang nói cho người dùng biết con số chưa đổi đơn vị và chưa được lưu.
+      if (!assetsStale) setAssetsCurrency(displayCurrency)
       await invalidateScenarioTree()
       await qc.invalidateQueries({ queryKey: ['profile'] })
       showToast('Đã lưu kịch bản.', 'success')
@@ -309,35 +331,43 @@ export function ScenarioEditorSheet({
         nominal_terms: scenario.nominal_terms,
         is_primary: false,
       })
-      await Promise.all([
-        ...phases.map((p) =>
-          repo.createLifePhase({
-            scenario_id: copy.id,
-            start_year: p.start_year,
-            label: p.label,
-            country: p.country,
-            currency: p.currency,
-            annual_income_minor: p.annual_income_minor,
-            annual_expense_minor: p.annual_expense_minor,
-            fx_to_display: p.fx_to_display,
-          }),
-        ),
-        ...events.map((e) =>
-          repo.createLifeEvent({
-            scenario_id: copy.id,
-            start_year: e.start_year,
-            end_year: e.end_year,
-            kind: e.kind,
-            amount_minor: e.amount_minor,
-            currency: e.currency,
-            label: e.label,
-            note: e.note,
-            fx_to_display: e.fx_to_display,
-            inflate: e.inflate,
-          }),
-        ),
-      ])
-      await invalidateScenarioTree()
+      // Từ đây bản sao ĐÃ tồn tại trong DB, nên mọi đường ra — kể cả lỗi giữa lúc
+      // chép dòng — phải làm mới cache: `finally` chứ không phải cuối `try`. Đặt cuối
+      // `try` thì toast lỗi bảo người dùng "kiểm dải chip kịch bản", mà dải chip đọc
+      // từ ['lifeScenarios'] chưa ai làm mới nên bản sao dở dang KHÔNG có ở đó để mà
+      // kiểm — câu hướng dẫn chỉ vào một chỗ trống.
+      try {
+        await Promise.all([
+          ...phases.map((p) =>
+            repo.createLifePhase({
+              scenario_id: copy.id,
+              start_year: p.start_year,
+              label: p.label,
+              country: p.country,
+              currency: p.currency,
+              annual_income_minor: p.annual_income_minor,
+              annual_expense_minor: p.annual_expense_minor,
+              fx_to_display: p.fx_to_display,
+            }),
+          ),
+          ...events.map((e) =>
+            repo.createLifeEvent({
+              scenario_id: copy.id,
+              start_year: e.start_year,
+              end_year: e.end_year,
+              kind: e.kind,
+              amount_minor: e.amount_minor,
+              currency: e.currency,
+              label: e.label,
+              note: e.note,
+              fx_to_display: e.fx_to_display,
+              inflate: e.inflate,
+            }),
+          ),
+        ])
+      } finally {
+        await invalidateScenarioTree()
+      }
       showToast(`Đã nhân bản thành "${copy.name}" — chọn ở dải chip kịch bản để xem/sửa.`, 'success')
       onClose()
     } catch (err) {
@@ -461,7 +491,7 @@ export function ScenarioEditorSheet({
   const field =
     'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
   const label_ = 'mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400'
-  const errorLine = 'mb-2 text-xs text-red-600 dark:text-red-400'
+  const errorLine = 'mb-2 text-xs text-red-700 dark:text-red-400'
 
   return (
     <>
@@ -544,15 +574,24 @@ export function ScenarioEditorSheet({
                 </option>
               ))}
             </select>
-            {currencyChanged && (
+            {/* `|| assetsStale`: dòng cảnh báo tài sản khởi điểm phải SỐNG QUA lần
+                lưu. Lưu xong thì `scenario.display_currency` đã là tiền mới nên
+                `currencyChanged` tắt, mà `assetsStale` vẫn còn (ô chưa quy đổi được,
+                và trường đó cũng vừa bị bỏ khỏi patch) — treo cả khối vào riêng
+                `currencyChanged` là xoá đúng câu duy nhất còn nói con số đang sai đơn
+                vị. Banner Task 7 không đỡ hộ: nó chỉ đếm dòng có fx_to_display = 1,
+                không biết gì về tài sản khởi điểm. */}
+            {(currencyChanged || assetsStale) && (
               <div className="mb-3 flex items-start gap-1 text-xs text-amber-700 dark:text-amber-400">
                 <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 <div className="space-y-1">
-                  <p>
-                    Lưu sẽ đặt lại tỷ giá về 1 cho mọi chặng/sự kiện đang dùng tiền khác{' '}
-                    {CURRENCIES[displayCurrency].label} — số cũ dù sao cũng đã tính theo đơn vị hiển thị khác
-                    nên không còn đúng. Khai lại từng dòng ở khối "Chặng đời"/"Sự kiện" bên dưới sau khi lưu.
-                  </p>
+                  {currencyChanged && (
+                    <p>
+                      Lưu sẽ đặt lại tỷ giá về 1 cho mọi chặng/sự kiện đang dùng tiền khác{' '}
+                      {CURRENCIES[displayCurrency].label} — số cũ dù sao cũng đã tính theo đơn vị hiển thị khác
+                      nên không còn đúng. Khai lại từng dòng ở khối "Chặng đời"/"Sự kiện" bên dưới sau khi lưu.
+                    </p>
+                  )}
                   {/* Tài sản khởi điểm lưu THEO tiền hiển thị, nên đổi tiền là phải
                       đổi cả con số. Nói ra bằng chữ để người dùng kiểm được, không
                       im lặng sửa số dưới tay họ. */}
@@ -563,17 +602,20 @@ export function ScenarioEditorSheet({
                       <span className="tabular-nums">
                         {formatMoney(assetsSign * Math.abs(assetsAbs), assetsCurrency)}
                       </span>
-                      ). Sửa lại tay cho đúng {CURRENCIES[displayCurrency].label} trước khi lưu.
+                      ). Lưu kịch bản sẽ BỎ QUA ô này — ghi vào là ghi sai đơn vị. Sửa lại tay cho đúng{' '}
+                      {CURRENCIES[displayCurrency].label} rồi lưu lần nữa.
                     </p>
                   ) : (
-                    <p>
-                      Đã quy đổi <b>tài sản khởi điểm</b> sang {CURRENCIES[displayCurrency].label} theo tỷ giá
-                      hôm nay:{' '}
-                      <span className="tabular-nums">
-                        {formatMoney(assetsSign * Math.abs(assetsAbs), displayCurrency)}
-                      </span>{' '}
-                      — kiểm lại trước khi lưu.
-                    </p>
+                    currencyChanged && (
+                      <p>
+                        Đã quy đổi <b>tài sản khởi điểm</b> sang {CURRENCIES[displayCurrency].label} theo tỷ giá
+                        hôm nay:{' '}
+                        <span className="tabular-nums">
+                          {formatMoney(assetsSign * Math.abs(assetsAbs), displayCurrency)}
+                        </span>{' '}
+                        — kiểm lại trước khi lưu.
+                      </p>
+                    )
                   )}
                 </div>
               </div>
@@ -609,7 +651,10 @@ export function ScenarioEditorSheet({
                 value={Math.abs(assetsAbs)}
                 // Math.abs: MoneyField cho gõ biểu thức ("5 − 9" ra −4) nhưng dấu ở
                 // đây do công tắc Dương/Âm quyết định — xem handleSaveScenario.
-                onChange={(v) => setAssetsAbs(Math.abs(v))}
+                onChange={(v) => {
+                  setAssetsAbs(Math.abs(v))
+                  setAssetsTouched(true)
+                }}
                 // Đơn vị THẬT của con số, không phải đơn vị sắp lưu: khi thiếu tỷ giá
                 // để quy đổi thì hai thứ đó lệch nhau, và dán nhãn theo đơn vị mới là
                 // đúng cái làm người dùng tin con số đã đổi đơn vị (xem `assetsStale`).
@@ -629,6 +674,9 @@ export function ScenarioEditorSheet({
                 if (netWorthInDisplay === null) return
                 setAssetsSign(netWorthInDisplay < 0 ? -1 : 1)
                 setAssetsAbs(Math.abs(netWorthInDisplay))
+                // Người dùng CHỦ Ý đặt con số này, không phải effect quy đổi — tính là
+                // sửa thật để `block1Dirty` bắt được (xem `assetsTouched`).
+                setAssetsTouched(true)
                 // Con số này đã tính theo tiền hiển thị đang chọn.
                 setAssetsCurrency(displayCurrency)
               }}
@@ -849,7 +897,7 @@ export function ScenarioEditorSheet({
                       hoàn tiền — hiếm nhưng có, và để xám thì đọc thành chi dương. */}
                   <span
                     className={`tabular-nums ${
-                      baseline.annualExpenseMinor < 0 ? 'text-red-600 dark:text-red-400' : ''
+                      baseline.annualExpenseMinor < 0 ? 'text-red-700 dark:text-red-400' : ''
                     }`}
                   >
                     {formatMoney(baseline.annualExpenseMinor, currentPhase.currency as CurrencyCode)}
@@ -874,7 +922,7 @@ export function ScenarioEditorSheet({
                     {/* Màu theo dấu của con số ĐANG HIỆN. `refundCats` lọc annualMinor
                         < 0 nên `-c.annualMinor` luôn dương và dòng này không đỏ — giữ
                         điều kiện để nó không lệ thuộc vào bộ lọc ở trên. */}
-                    <span className={`tabular-nums ${-c.annualMinor < 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
+                    <span className={`tabular-nums ${-c.annualMinor < 0 ? 'text-red-700 dark:text-red-400' : ''}`}>
                       {formatMoney(-c.annualMinor, currentPhase.currency as CurrencyCode)}
                     </span>
                   </p>
@@ -888,7 +936,7 @@ export function ScenarioEditorSheet({
                             toàn hoàn tiền thì top 3 chính là ba con số ÂM. */}
                         <span
                           className={`shrink-0 tabular-nums ${
-                            c.annualMinor < 0 ? 'text-red-600 dark:text-red-400' : ''
+                            c.annualMinor < 0 ? 'text-red-700 dark:text-red-400' : ''
                           }`}
                         >
                           {formatMoney(c.annualMinor, currentPhase.currency as CurrencyCode)} ({Math.round(c.share * 100)}%)

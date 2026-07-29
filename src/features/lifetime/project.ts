@@ -132,8 +132,13 @@ export function convertLifetimeMinor(
  * `LifePhaseRow` (chỉ cần ánh xạ `start_year` → `startYear`) thay vì chép lại hàm —
  * ScenarioEditorSheet từng có bản chép thứ ba của luật này chỉ vì hàm chưa export.
  * `sorted` phải đã sắp tăng theo `startYear`.
+ *
+ * Trả `undefined` khi `sorted` rỗng — nói thẳng trong chữ ký thay vì hứa `T` rồi
+ * trả `sorted[0]`. tsconfig.app.json không bật `strict`, nên lời hứa sai đó không
+ * có ai bắt, mà hàm này giờ là hàm CÔNG KHAI: lifetimeRules.ts (bộ luật thông báo)
+ * và ScenarioEditorSheet đều gọi.
  */
-export function phaseForYear<T extends { startYear: number }>(sorted: T[], year: number): T {
+export function phaseForYear<T extends { startYear: number }>(sorted: T[], year: number): T | undefined {
   // Năm nằm trước chặng đầu tiên thì dùng chặng đầu tiên — thà lấy giả định gần
   // nhất còn hơn để trống một quãng đầu đồ thị.
   let found = sorted[0]
@@ -182,7 +187,11 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
   const out: YearRow[] = []
 
   for (let year = currentYear; year <= lastYear; year++) {
-    const phase = phaseForYear(sortedPhases, year)
+    // `?? sortedPhases[0]`: `phases.length === 0` đã return ở trên nên mảng này
+    // không rỗng và `phaseForYear` luôn trả một chặng — nhánh `??` là nhánh chết,
+    // chỉ để khớp `| undefined` trong chữ ký (xem JSDoc của hàm đó) mà không phải
+    // dựng thêm một câu `if` giả vờ xử lý ca không xảy ra.
+    const phase = phaseForYear(sortedPhases, year) ?? sortedPhases[0]
     const infl = (1 + inflation) ** (year - currentYear)
 
     const incomeMinor = Math.round(

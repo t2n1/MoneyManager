@@ -119,7 +119,7 @@ export function DebtDetailPage() {
       {/* Thẻ tổng quan */}
       <section
         className={`rounded-2xl p-5 text-white shadow-md ${
-          isMine ? 'bg-gradient-to-br from-rose-500 to-red-600' : 'bg-gradient-to-br from-green-600 to-emerald-700'
+          isMine ? 'bg-gradient-to-br from-rose-600 to-red-700' : 'bg-gradient-to-br from-green-700 to-emerald-800'
         }`}
       >
         <p className="text-sm font-medium text-white/85">

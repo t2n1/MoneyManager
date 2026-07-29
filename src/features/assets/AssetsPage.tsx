@@ -4,6 +4,7 @@ import { ChevronRight, CreditCard, GripVertical, Settings2 } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { AccountTypeIcon } from '../../components/icons'
 import { PrivacyToggle } from '../../components/PrivacyToggle'
+import { SegmentedControl } from '../../components/ui'
 import { LifetimeSection } from '../lifetime/LifetimeSection'
 import { InvestmentPerformanceSection } from './InvestmentPerformanceSection'
 import { NetWorthHistorySection } from './NetWorthHistorySection'
@@ -336,18 +337,18 @@ export function AssetsPage() {
       onPointerCancel={onAccPointerEnd}
     >
       <div className="flex items-center gap-2">
-        <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Tài sản</h1>
+        <h1 className="flex-1 text-lg font-bold text-fg-primary">Tài sản</h1>
         <PrivacyToggle />
         <Link
           to="/settings/asset-groups"
-          className="inline-flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 shadow-sm active:scale-95"
+          className="inline-flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-xs font-medium text-fg-secondary shadow-sm active:scale-95"
         >
           <Settings2 className="h-4 w-4" /> Quản lý nhóm
         </Link>
       </div>
 
       {/* Tổng tài sản */}
-      <section className="rounded-2xl bg-gradient-to-br from-green-600 to-emerald-700 p-5 text-white shadow-md">
+      <section className="rounded-2xl bg-gradient-to-br from-green-700 to-emerald-800 p-5 text-white shadow-md">
         <p className="text-sm font-medium text-green-50/90">
           Tổng tài sản · {CURRENCIES[base].label}
         </p>
@@ -390,7 +391,7 @@ export function AssetsPage() {
             {formatMoney(breakdown.total + debts_.net + breakdown.cardDebt, base)}
           </p>
           <div className="mt-3 space-y-1.5 text-sm">
-            <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
+            <div className="flex items-center justify-between text-fg-muted">
               <span>Tổng tài sản</span>
               <span className="tabular-nums">{formatMoney(breakdown.total, base)}</span>
             </div>
@@ -414,7 +415,7 @@ export function AssetsPage() {
             )}
           </div>
           {(debts_.hasMissingRate || breakdown.cardHasMissingRate) && (
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-2 text-xs text-fg-muted">
               Một phần công nợ ngoại tệ chưa quy đổi được nên số ròng có thể thiếu.
             </p>
           )}
@@ -433,7 +434,7 @@ export function AssetsPage() {
           nạp thêm"), nên đứng trên mọi khối chỉ để đọc. */}
       {visibleCards.length > 0 && (
         <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
-          <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
             <CreditCard className="h-3.5 w-3.5" /> Thẻ tín dụng
           </h2>
 
@@ -450,7 +451,7 @@ export function AssetsPage() {
                       Trả {g.cardCount} thẻ từ {g.sourceName}
                     </span>
                     <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold ${
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-semibold ${
                         g.enough
                           ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                           : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
@@ -459,13 +460,13 @@ export function AssetsPage() {
                       {g.enough ? 'đủ trả' : `cần nạp thêm ${formatMoney(g.shortfall, g.currency)}`}
                     </span>
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                  <div className="mt-2 flex items-center justify-between text-xs text-fg-muted">
                     <span>Tổng nợ {g.cardCount} thẻ</span>
                     <span className="tabular-nums font-medium text-money-out">
                       − {formatMoney(g.totalOwed, g.currency)}
                     </span>
                   </div>
-                  <div className="mt-1 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                  <div className="mt-1 flex items-center justify-between text-xs text-fg-muted">
                     <span>Số dư {g.sourceName}</span>
                     <span className="tabular-nums">{formatMoney(g.sourceBalance, g.currency)}</span>
                   </div>
@@ -490,18 +491,18 @@ export function AssetsPage() {
                   >
                     {/* Tên thẻ + trạng thái đủ/thiếu tiền trả */}
                     <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
+                      <CreditCard className="h-4 w-4 shrink-0 text-fg-muted" />
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-700 dark:text-gray-300">
                         {c.name}
                         {!c.includeInTotals && (
-                          <span className="ml-1 text-[0.625rem] font-normal text-gray-500 dark:text-gray-400">
+                          <span className="ml-1 text-3xs font-normal text-fg-muted">
                             (ngoài tổng)
                           </span>
                         )}
                       </span>
                       {owed > 0 && f && (
                         <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold ${
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-semibold ${
                             f.enough
                               ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                               : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
@@ -516,23 +517,23 @@ export function AssetsPage() {
                     <div className="mt-1.5 ml-6 flex flex-wrap items-baseline gap-x-2 gap-y-1">
                       {owed > 0 ? (
                         <>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">Cần trả</span>
+                          <span className="text-xs text-fg-muted">Cần trả</span>
                           <span className="text-xl font-bold tabular-nums text-money-out">
                             {formatMoney(owed, c.currency)}
                           </span>
                         </>
                       ) : (
-                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        <span className="text-sm font-medium text-fg-muted">
                           Chưa phát sinh nợ
                         </span>
                       )}
                       {owed > 0 && dueISO && (
-                        <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">
+                        <span className="ml-auto text-xs text-fg-muted">
                           Đến hạn{' '}
                           <span className="font-semibold text-gray-700 dark:text-gray-200">
                             {dueDateLabel(dueISO)}
                           </span>
-                          <span className="text-gray-500 dark:text-gray-400">
+                          <span className="text-fg-muted">
                             {' '}· {dueRelativeLabel(todayISO, dueISO)}
                           </span>
                         </span>
@@ -541,7 +542,7 @@ export function AssetsPage() {
 
                     {/* Nguồn trả + hạn mức còn lại */}
                     {(f || available != null) && (
-                      <p className="mt-1 ml-6 text-xs text-gray-500 dark:text-gray-400">
+                      <p className="mt-1 ml-6 text-xs text-fg-muted">
                         {f && (
                           <>
                             Trả từ {f.sourceName}
@@ -581,35 +582,21 @@ export function AssetsPage() {
       {/* Biểu đồ tròn + danh sách nhóm */}
       <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
             Cơ cấu tài sản
           </h2>
-          <div
-            role="tablist"
-            aria-label="Chế độ xem cơ cấu"
-            className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-xs font-medium"
-          >
-            {GROUP_MODES.map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                role="tab"
-                aria-selected={groupMode === mode}
-                onClick={() => setGroupMode(mode)}
-                className={`rounded-md px-2.5 py-2.5 transition ${
-                  groupMode === mode
-                    ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            items={GROUP_MODES.map(([mode, label]) => ({ value: mode, label }))}
+            value={groupMode}
+            onChange={setGroupMode}
+            label="Chế độ xem cơ cấu"
+            size="sm"
+            stretch={false}
+          />
         </div>
 
         {pieData.length === 0 ? (
-          <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+          <p className="py-10 text-center text-sm text-fg-muted">
             {isLoading ? 'Đang tải…' : 'Chưa có tài sản để hiển thị'}
           </p>
         ) : (
@@ -637,10 +624,10 @@ export function AssetsPage() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold leading-none text-gray-800 dark:text-gray-100">
+                <span className="text-2xl font-bold leading-none text-fg-primary">
                   {pieData.length}
                 </span>
-                <span className="mt-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+                <span className="mt-0.5 text-2xs text-fg-muted">
                   {GROUP_NOUN[groupMode]}
                 </span>
               </div>
@@ -658,7 +645,7 @@ export function AssetsPage() {
                   />
                   <span className="font-medium text-gray-700 dark:text-gray-300">{g.name}</span>
                   {!g.includeInTotals && (
-                    <span className="text-[0.625rem] font-normal text-gray-500 dark:text-gray-400">
+                    <span className="text-3xs font-normal text-fg-muted">
                       (ngoài tổng)
                     </span>
                   )}
@@ -671,7 +658,7 @@ export function AssetsPage() {
 
       {/* Chi tiết từng nhóm và tài khoản bên trong */}
       {dragEnabled && (
-        <p className="-mb-1 px-1 text-xs text-gray-500 dark:text-gray-400">
+        <p className="-mb-1 px-1 text-xs text-fg-muted">
           Nhấn giữ <GripVertical className="inline h-3.5 w-3.5 align-text-bottom" /> rồi kéo để
           sắp thứ tự tài khoản{allowCross ? ', hoặc kéo thả sang nhóm khác' : ' trong cùng một loại'}.
         </p>
@@ -689,13 +676,13 @@ export function AssetsPage() {
             style={{ borderLeft: `4px solid ${colorOf(g.name)}` }}
           >
             <div className="flex items-center justify-between px-4 py-3">
-              <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100">
+              <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-fg-primary">
                 <span className="truncate">{g.name}</span>
-                <span className="shrink-0 rounded-full bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[0.625rem] font-medium text-gray-500 dark:text-gray-400">
+                <span className="shrink-0 rounded-full bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-3xs font-medium text-fg-on-track">
                   {g.accounts.length}
                 </span>
                 {!g.includeInTotals && (
-                  <span className="shrink-0 text-[0.625rem] font-normal text-gray-500 dark:text-gray-400">(ngoài tổng)</span>
+                  <span className="shrink-0 text-3xs font-normal text-fg-muted">(ngoài tổng)</span>
                 )}
               </span>
               {/* Tỷ trọng trong Tổng tài sản — chuyển từ chú giải biểu đồ xuống đây,
@@ -703,7 +690,7 @@ export function AssetsPage() {
                   ngay trên đã làm. Nhóm ngoài tổng không có tỷ trọng vì mẫu số
                   không chứa nó. */}
               {g.includeInTotals && g.total > 0 && (
-                <span className="shrink-0 pl-2 text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                <span className="shrink-0 pl-2 text-xs tabular-nums text-fg-muted">
                   {(g.share * 100).toFixed(0)}%
                 </span>
               )}
@@ -712,7 +699,7 @@ export function AssetsPage() {
                 {formatMoney(g.total, base)}
               </span>
             </div>
-            <div className="divide-y divide-gray-50 border-t border-gray-100 dark:border-gray-800 dark:divide-gray-800">
+            <div className="divide-y divide-gray-50 border-t border-border-subtle dark:divide-gray-800">
               {rowIds.map((id) => {
                 const a = accountById.get(id) ?? g.accounts.find((x) => x.id === id)
                 if (!a) return null
@@ -745,13 +732,13 @@ export function AssetsPage() {
                       <AccountTypeIcon type={a.type} className="h-4 w-4" />
                       <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300">
                         {a.name}
-                        <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">{a.currency}</span>
+                        <span className="ml-1 text-xs text-fg-muted">{a.currency}</span>
                         {!a.includeInTotals && (
-                          <span className="ml-1 text-[0.625rem] text-gray-500 dark:text-gray-400">(ngoài tổng)</span>
+                          <span className="ml-1 text-3xs text-fg-muted">(ngoài tổng)</span>
                         )}
                         {a.marketValue != null && a.marketValue !== a.balance && (
                           <span
-                            className={`ml-1 text-[0.625rem] tabular-nums ${
+                            className={`ml-1 text-3xs tabular-nums ${
                               a.marketValue > a.balance
                                 ? 'text-money-in'
                                 : 'text-money-out'
@@ -763,7 +750,7 @@ export function AssetsPage() {
                         )}
                       </span>
                       <span
-                        className={`shrink-0 text-sm font-medium tabular-nums ${a.value < 0 ? 'text-money-out' : 'text-gray-800 dark:text-gray-100'}`}
+                        className={`shrink-0 text-sm font-medium tabular-nums ${a.value < 0 ? 'text-money-out' : 'text-fg-primary'}`}
                       >
                         {formatMoney(a.value, a.currency)}
                       </span>
@@ -773,7 +760,7 @@ export function AssetsPage() {
                 )
               })}
               {dragEnabled && allowCross && rowIds.length === 0 && dragAcc != null && (
-                <p className="px-4 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
+                <p className="px-4 py-3 text-center text-xs text-fg-muted">
                   Thả vào đây để chuyển sang nhóm này
                 </p>
               )}
@@ -783,7 +770,7 @@ export function AssetsPage() {
       })}
 
       {breakdown.hasForeign && rates && (
-        <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+        <p className="text-center text-xs text-fg-muted">
           Tỷ giá: ¥1 ≈ {rates.VND?.toFixed(2)} ₫ · $1 ≈ ¥
           {rates.USD ? (1 / rates.USD).toFixed(1) : '?'} (open.er-api.com, cache 12h)
         </p>

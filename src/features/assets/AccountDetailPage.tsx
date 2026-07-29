@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, LineChart, Scale, Trash2 } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
+import { Card, IconButton, Money, SectionTitle, iconButtonClass } from '../../components/ui'
 import type { TxFilter } from '../../data'
 import {
   useAccountBalances,
@@ -137,14 +138,10 @@ export function AccountDetailPage() {
     <div className="p-3 lg:p-6">
       {/* Header */}
       <div className="mb-3 flex items-center gap-2">
-        <Link
-          to="/assets"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
-          aria-label="Quay lại"
-        >
+        <Link to="/assets" className={iconButtonClass()} aria-label="Quay lại">
           <ChevronLeft className="h-5 w-5" />
         </Link>
-        <h1 className="flex-1 truncate text-lg font-bold text-gray-800 dark:text-gray-100">
+        <h1 className="flex-1 truncate text-lg font-bold text-fg-primary">
           {account ? (
             <span className="inline-flex items-center gap-1.5">
               <AccountTypeIcon type={account.type} className="h-5 w-5" /> {account.name}
@@ -156,30 +153,42 @@ export function AccountDetailPage() {
       </div>
 
       {/* Số dư hiện tại */}
-      <section className="mb-3 rounded-xl bg-white dark:bg-gray-900 p-4 shadow-sm">
-        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+      <Card as="section" padding="lg" className="mb-3">
+        <p className="text-sm font-medium text-fg-muted">
           {account?.type === 'card'
             ? 'Đang nợ thẻ'
             : isInvestment || isFixed
               ? 'Giá trị hiện tại'
               : 'Số dư hiện tại'}
         </p>
-        <p
-          className={`mt-1 text-2xl font-bold ${balance < 0 ? 'text-money-out' : 'text-gray-900 dark:text-gray-100'}`}
-        >
-          {account?.type === 'card'
-            ? balance < 0
-              ? `− ${formatMoney(-balance, currency)}`
-              : formatMoney(0, currency)
-            : isInvestment
-              ? formatMoney(invStats.marketValue ?? balance, currency)
-              : isFixed
-                ? // Định giá nhập tay thắng công thức khấu hao
-                  formatMoney(balanceRow?.market_value ?? dep?.currentValue ?? balance, currency)
-                : formatMoney(balance, currency)}
+        {/* Tô màu vẫn theo `balance` (số sổ) chứ không theo con số đang hiện: với tài
+            khoản đầu tư/cố định, số hiện là giá thị trường nhưng "âm hay không" là
+            chuyện của số dư sổ. Giữ đúng hành vi cũ. */}
+        <p className="mt-1 text-2xl font-bold">
+          {account?.type === 'card' ? (
+            <Money
+              amount={balance < 0 ? -balance : 0}
+              currency={currency}
+              tone={balance < 0 ? 'out' : 'neutral'}
+              showSign={balance < 0}
+            />
+          ) : (
+            <Money
+              amount={
+                isInvestment
+                  ? (invStats.marketValue ?? balance)
+                  : isFixed
+                    ? // Định giá nhập tay thắng công thức khấu hao
+                      (balanceRow?.market_value ?? dep?.currentValue ?? balance)
+                    : balance
+              }
+              currency={currency}
+              tone={balance < 0 ? 'out' : 'neutral'}
+            />
+          )}
         </p>
         {account?.asset_group && (
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Nhóm: {account.asset_group}</p>
+          <p className="mt-1 text-xs text-fg-muted">Nhóm: {account.asset_group}</p>
         )}
 
         {/* Điều chỉnh số dư (mục X) — cho ví/tài khoản thường và thẻ; đầu tư và tài
@@ -188,7 +197,7 @@ export function AccountDetailPage() {
           <button
             type="button"
             onClick={() => setShowReconcile(true)}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95"
           >
             <Scale className="h-3.5 w-3.5" />{' '}
             {account.type === 'card' ? 'Điều chỉnh số nợ' : 'Điều chỉnh số dư'}
@@ -196,32 +205,41 @@ export function AccountDetailPage() {
         )}
 
         {isInvestment && (
-          <div className="mt-3 space-y-1.5 border-t border-gray-100 dark:border-gray-800 pt-3 text-sm">
-            <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
+          <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-3 text-sm">
+            <div className="flex items-center justify-between text-fg-muted">
               <span>Vốn gốc (đã bỏ vào)</span>
-              <span className="tabular-nums font-medium text-gray-800 dark:text-gray-100">
-                {formatMoney(invStats.costBasis, currency)}
-              </span>
+              <Money
+                amount={invStats.costBasis}
+                currency={currency}
+                className="font-medium text-fg-primary"
+              />
             </div>
             {invStats.unrealizedPnl == null ? (
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-fg-muted">
                 Chưa cập nhật giá thị trường — đang tính theo vốn gốc.
               </p>
             ) : (
-              <div
-                className={`flex items-center justify-between font-medium ${
-                  invStats.unrealizedPnl >= 0
-                    ? 'text-money-in'
-                    : 'text-money-out'
-                }`}
-              >
-                <span>Lãi/lỗ chưa thực hiện</span>
-                <span className="tabular-nums">
-                  {invStats.unrealizedPnl >= 0 ? '+' : '−'}
-                  {formatMoney(Math.abs(invStats.unrealizedPnl), currency)}
+              <div className="flex items-center justify-between font-medium">
+                <span
+                  className={invStats.unrealizedPnl >= 0 ? 'text-money-in' : 'text-money-out'}
+                >
+                  Lãi/lỗ chưa thực hiện
+                </span>
+                <span>
+                  {/* Dấu ASCII của <Money> thay cho '−' (U+2212) viết tay: trang này
+                      trước đó trộn cả hai, mà formatMoney tự in '-' nên bề rộng chữ
+                      số lệch nhau dù đã tabular-nums. */}
+                  <Money
+                    amount={Math.abs(invStats.unrealizedPnl)}
+                    currency={currency}
+                    tone={invStats.unrealizedPnl >= 0 ? 'in' : 'out'}
+                    showSign
+                  />
                   {invStats.pnlPercent != null && (
-                    <span className="ml-1 text-xs">
-                      ({invStats.unrealizedPnl >= 0 ? '+' : '−'}
+                    <span
+                      className={`ml-1 text-xs tabular-nums ${invStats.unrealizedPnl >= 0 ? 'text-money-in' : 'text-money-out'}`}
+                    >
+                      ({invStats.unrealizedPnl >= 0 ? '+' : '-'}
                       {Math.abs(invStats.pnlPercent * 100).toFixed(1)}%)
                     </span>
                   )}
@@ -240,12 +258,12 @@ export function AccountDetailPage() {
 
         {/* Hạn mức nạp NISA / iDeCo trong năm */}
         {isInvestment && account?.tax_shelter && (
-          <div className="mt-3 border-t border-gray-100 pt-3 dark:border-gray-800">
+          <div className="mt-3 border-t border-border-subtle pt-3">
             <div className="flex items-baseline justify-between gap-2 text-sm">
-              <span className="min-w-0 truncate text-gray-500 dark:text-gray-400">
+              <span className="min-w-0 truncate text-fg-muted">
                 {TAX_SHELTER_LABELS[account.tax_shelter]}
               </span>
-              <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+              <span className="shrink-0 text-xs text-fg-muted">
                 năm {shelterYear}
               </span>
             </div>
@@ -257,7 +275,7 @@ export function AccountDetailPage() {
                 style={{ width: `${Math.min(100, (shelter.ratio ?? 0) * 100)}%` }}
               />
             </div>
-            <p className="mt-1.5 text-xs text-gray-600 dark:text-gray-300">
+            <p className="mt-1.5 text-xs text-fg-secondary">
               Đã nạp <b>{formatMoney(shelter.used, currency)}</b>
               {shelter.limit !== null && <> / {formatMoney(shelter.limit, currency)}</>}
               {shelter.remaining !== null && shelter.remaining > 0 && (
@@ -268,7 +286,7 @@ export function AccountDetailPage() {
               )}
               {shelter.remaining === 0 && <> · đã dùng hết hạn mức</>}
             </p>
-            <p className="mt-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+            <p className="mt-0.5 text-2xs text-fg-muted">
               Hạn mức tính theo năm dương lịch và không dồn sang năm sau. Rút tiền ra giữa năm cũng
               không hoàn lại phần hạn mức đã dùng.
             </p>
@@ -277,30 +295,34 @@ export function AccountDetailPage() {
 
         {/* Tài sản cố định: khấu hao */}
         {isFixed && (
-          <div className="mt-3 space-y-1.5 border-t border-gray-100 pt-3 text-sm dark:border-gray-800">
-            <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
+          <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-3 text-sm">
+            <div className="flex items-center justify-between text-fg-muted">
               <span>Giá mua</span>
-              <span className="font-medium tabular-nums text-gray-800 dark:text-gray-100">
-                {formatMoney(account?.initial_balance ?? 0, currency)}
-              </span>
+              <Money
+                amount={account?.initial_balance ?? 0}
+                currency={currency}
+                className="font-medium text-fg-primary"
+              />
             </div>
             {dep ? (
               <>
                 <div className="flex items-center justify-between font-medium text-money-out">
                   <span>Đã khấu hao</span>
-                  <span className="tabular-nums">
-                    − {formatMoney(dep.accumulated, currency)}
-                    <span className="ml-1 text-xs">({Math.round(dep.elapsedRatio * 100)}%)</span>
+                  <span>
+                    <Money amount={dep.accumulated} currency={currency} tone="out" showSign />
+                    <span className="ml-1 text-xs tabular-nums">
+                      ({Math.round(dep.elapsedRatio * 100)}%)
+                    </span>
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-fg-muted">
                   {dep.monthsLeft > 0
                     ? `Còn ${dep.monthsLeft} tháng nữa là hết vòng đời khấu hao.`
                     : 'Đã hết vòng đời khấu hao — giá trị giữ ở mức còn lại.'}
                 </p>
               </>
             ) : (
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-fg-muted">
                 Chưa đặt ngày mua / số tháng khấu hao nên giá trị giữ nguyên theo sổ. Sửa tài khoản
                 để bật khấu hao tự động.
               </p>
@@ -316,106 +338,103 @@ export function AccountDetailPage() {
         )}
 
         {account?.type === 'card' && (
-          <div className="mt-3 space-y-1.5 border-t border-gray-100 dark:border-gray-800 pt-3 text-sm">
+          <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-3 text-sm">
             {account.credit_limit != null && (
               <>
-                <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
+                <div className="flex items-center justify-between text-fg-muted">
                   <span>Còn dùng được</span>
-                  <span className="tabular-nums font-medium text-gray-800 dark:text-gray-100">
-                    {formatMoney(account.credit_limit - (balance < 0 ? -balance : 0), currency)}
-                  </span>
+                  <Money
+                    amount={account.credit_limit - (balance < 0 ? -balance : 0)}
+                    currency={currency}
+                    className="font-medium text-fg-primary"
+                  />
                 </div>
-                <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
+                <div className="flex items-center justify-between text-fg-muted">
                   <span>Hạn mức</span>
-                  <span className="tabular-nums">{formatMoney(account.credit_limit, currency)}</span>
+                  {/* Không đặt text-fg-primary: dòng này cố ý mờ hơn dòng trên */}
+                  <Money amount={account.credit_limit} currency={currency} className="text-fg-muted" />
                 </div>
               </>
             )}
             {account.statement_day != null && (
-              <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
+              <div className="flex items-center justify-between text-fg-muted">
                 <span>Ngày chốt sao kê</span>
                 <span className="tabular-nums">Ngày {account.statement_day}</span>
               </div>
             )}
             {account.payment_due_day != null && (
-              <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
+              <div className="flex items-center justify-between text-fg-muted">
                 <span>Ngày đến hạn</span>
                 <span className="tabular-nums">Ngày {account.payment_due_day}</span>
               </div>
             )}
           </div>
         )}
-      </section>
+      </Card>
 
       {/* Lịch sử cập nhật giá trị (tài khoản đầu tư) */}
       {(isInvestment || isFixed) && accountValuations.length > 0 && (
-        <section className="mb-3 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
-          <h2 className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            Lịch sử giá trị
-          </h2>
-          <ul className="mt-2 divide-y divide-gray-100 dark:divide-gray-800">
+        <Card as="section" padding="none" className="mb-3 overflow-hidden">
+          <SectionTitle className="px-4 pt-3">Lịch sử giá trị</SectionTitle>
+          <ul className="mt-2 divide-y divide-border-subtle">
             {accountValuations.map((v) => (
               <li key={v.id} className="flex items-center gap-2 px-4 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <span className="text-sm font-medium tabular-nums text-gray-800 dark:text-gray-100">
-                    {formatMoney(v.market_value, currency)}
-                  </span>
-                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">{v.valued_on}</span>
-                  {v.note && (
-                    <span className="block truncate text-xs text-gray-500 dark:text-gray-400">{v.note}</span>
-                  )}
+                  <Money
+                    amount={v.market_value}
+                    currency={currency}
+                    className="text-sm font-medium"
+                  />
+                  <span className="ml-2 text-xs text-fg-muted">{v.valued_on}</span>
+                  {v.note && <span className="block truncate text-xs text-fg-muted">{v.note}</span>}
                 </div>
-                <button
-                  type="button"
+                <IconButton
+                  variant="ghost"
                   onClick={async () => {
                     if (await confirmDialog({ title: 'Xóa bản ghi giá trị này?', danger: true, confirmLabel: 'Xóa' }))
                       deleteValuation.mutate(v.id)
                   }}
-                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-red-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-red-400"
+                  className="shrink-0 hover:text-money-out"
                   aria-label="Xóa bản ghi giá trị"
                 >
                   <Trash2 className="h-4 w-4" />
-                </button>
+                </IconButton>
               </li>
             ))}
           </ul>
-        </section>
+        </Card>
       )}
 
       {/* Chuyển tháng */}
       <div className="mb-3 flex items-center gap-2">
-        <button
-          type="button"
+        <IconButton
           onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, -1))}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Tháng trước"
         >
           <ChevronLeft className="h-5 w-5" />
-        </button>
-        <h2 className="flex-1 text-center text-sm font-bold text-gray-800 dark:text-gray-100">
+        </IconButton>
+        <h2 className="flex-1 text-center text-sm font-bold text-fg-primary">
           {formatMonthLabel(activeMonthKey)}
         </h2>
-        <button
-          type="button"
+        <IconButton
           onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Tháng sau"
         >
           <ChevronRight className="h-5 w-5" />
-        </button>
+        </IconButton>
       </div>
 
       {/* Lịch sử giao dịch trong tháng */}
-      <p className="mb-2 px-1 text-xs text-gray-500 dark:text-gray-400">
+      <p className="mb-2 px-1 text-xs text-fg-muted">
         {isLoading ? 'Đang tải…' : `${results.length} giao dịch`}
       </p>
       {days.length === 0 && !isLoading ? (
-        <p className="py-10 text-center text-gray-500 dark:text-gray-400">Không có giao dịch trong tháng này</p>
+        <p className="py-10 text-center text-fg-muted">Không có giao dịch trong tháng này</p>
       ) : (
         days.map(([day, txs]) => (
           <section key={day} className="mb-3">
-            <div className="mb-1 px-1 text-xs font-medium text-gray-500 dark:text-gray-400">{day}</div>
-            <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
+            <div className="mb-1 px-1 text-xs font-medium text-fg-muted">{day}</div>
+            <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
               {txs.map((tx) => (
                 <TransactionItem
                   key={tx.id}
@@ -426,7 +445,7 @@ export function AccountDetailPage() {
                   onClick={() => setEditing(tx)}
                 />
               ))}
-            </div>
+            </Card>
           </section>
         ))
       )}

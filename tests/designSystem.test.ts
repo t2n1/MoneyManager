@@ -117,12 +117,12 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
   // Mỗi số dưới đây là ĐỘ NỢ kỹ thuật đo được lúc dựng hệ thống. Gộp vào
   // primitive ở src/components/ui thì hạ số tương ứng.
   const CEILINGS: { needle: string; max: number; use: string }[] = [
-    { needle: 'text-[0.6875rem]', max: 51, use: 'text-2xs' },
-    { needle: 'text-[0.625rem]', max: 22, use: 'text-3xs' },
-    { needle: 'active:scale-95', max: 98, use: '<IconButton>' },
-    { needle: 'min-h-11 min-w-11', max: 31, use: '<IconButton> / iconButtonClass()' },
-    { needle: 'rounded-xl bg-white', max: 85, use: '<Card>' },
-    { needle: 'tabular-nums', max: 102, use: '<Money> (tự bật tabular-nums)' },
+    { needle: 'text-[0.6875rem]', max: 47, use: 'text-2xs' },
+    { needle: 'text-[0.625rem]', max: 16, use: 'text-3xs' },
+    { needle: 'active:scale-95', max: 94, use: '<IconButton>' },
+    { needle: 'min-h-11 min-w-11', max: 26, use: '<IconButton> / iconButtonClass()' },
+    { needle: 'rounded-xl bg-white', max: 82, use: '<Card>' },
+    { needle: 'tabular-nums', max: 97, use: '<Money> (tự bật tabular-nums)' },
   ]
 
   for (const { needle, max, use } of CEILINGS) {

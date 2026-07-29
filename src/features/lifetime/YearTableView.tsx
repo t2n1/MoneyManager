@@ -58,7 +58,7 @@ function slugifyFileName(name: string): string {
 function EventLine({ e, currency }: { e: YearEvent; currency: CurrencyCode }) {
   const isIncome = e.kind === 'income'
   const Icon = isIncome ? ArrowUpCircle : ArrowDownCircle
-  const tone = isIncome ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+  const tone = isIncome ? 'text-green-800 dark:text-green-400' : 'text-red-700 dark:text-red-400'
   return (
     <div className="flex items-center gap-1.5">
       <Icon className={`h-3.5 w-3.5 shrink-0 ${tone}`} />
@@ -88,13 +88,28 @@ function YearCard({ row, currency }: { row: YearRow; currency: CurrencyCode }) {
         <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
           {row.year} · {row.age} tuổi · {row.country ?? row.phaseLabel}
         </p>
-        <span className="flex shrink-0 items-center gap-1 tabular-nums text-sm font-semibold text-gray-800 dark:text-gray-100">
-          {negative && <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-600 dark:text-red-400" />}
+        {/* KHÔNG có icon cảnh báo ở con số này: `negative` đọc dấu của
+            `assetsPessimisticMinor`, còn đây là `assetsEndMinor` — dán icon vào đây là
+            gắn cảnh báo lên một con số có thể đang dương to. Icon đi cùng con số bi quan
+            ở dòng dưới, đúng con số nó nói về. */}
+        <span className="shrink-0 tabular-nums text-sm font-semibold text-gray-800 dark:text-gray-100">
           {formatMoney(row.assetsEndMinor, currency)}
         </span>
       </div>
       <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
         thu {formatMoney(row.incomeMinor, currency)} · chi {formatMoney(row.expenseMinor, currency)}
+      </p>
+      {/* Biên dưới của dải — con số THẬT SỰ quyết định nền đỏ và viền đỏ của thẻ này.
+          Trước đây nó không hiện ở đâu cả: với `band_spread_bps = 150` (mặc định
+          migration 0031) có một dải năm dài mà thẻ đỏ trong khi con số duy nhất nhìn
+          thấy được lại dương thoải mái, và không gì trên màn hình giải thích vì sao. */}
+      <p
+        className={`mt-0.5 flex items-center gap-1 text-xs tabular-nums ${
+          negative ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'
+        }`}
+      >
+        {negative && <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+        bi quan {formatMoney(row.assetsPessimisticMinor, currency)}
       </p>
       {row.events.length > 0 && (
         <div className="mt-1.5 space-y-1 border-t border-gray-200 dark:border-gray-800 pt-1.5 text-xs">
@@ -107,9 +122,21 @@ function YearCard({ row, currency }: { row: YearRow; currency: CurrencyCode }) {
   )
 }
 
+/** Ô TIỀN của bảng (sm+): canh phải + `tabular-nums` để các chữ số thẳng cột. Một hằng
+ *  số cho cả bốn ô thay vì gõ lại từng ô — bốn ô tiền lệch nhau một class là bốn cột số
+ *  không còn thẳng hàng, mà mắt rất khó bắt lỗi đó trên bảng 60 dòng. */
+const MONEY_CELL = 'p-1.5 align-top text-right tabular-nums'
+
 /** Một dòng bảng thật (sm+). Border trái đỏ đặt trên `<td>` đầu tiên chứ không phải
  * `<tr>` — trình duyệt không vẽ border trên `<tr>` một cách đáng tin cậy dưới
- * `border-collapse`, còn nền đỏ nhạt thì `<tr>` tô được bình thường nên vẫn đặt ở đó. */
+ * `border-collapse`, còn nền đỏ nhạt thì `<tr>` tô được bình thường nên vẫn đặt ở đó.
+ *
+ * Nền đỏ / viền đỏ / icon đều theo `assetsPessimisticMinor` (biên DƯỚI của dải), khớp
+ * `pickDefaultYearIdx` ở trên, `firstNegativeYear(rows, 'low')` của insights.ts và vùng
+ * đỏ của đồ thị. Con số đó có CỘT RIÊNG ("Bi quan") chứ không còn ẩn: `InsightCards`
+ * (thẻ "Lúc N tuổi") nói rõ trung tâm dương mà biên dưới âm là "có thể âm ở nhánh xấu",
+ * không phải "đang âm" — hai tin khác nhau thì phải thấy được cả hai con số, không thể
+ * tô đỏ theo một con số rồi chỉ cho xem con số kia. */
 function YearTableRow({ row, currency }: { row: YearRow; currency: CurrencyCode }) {
   const negative = row.assetsPessimisticMinor < 0
   return (
@@ -121,15 +148,11 @@ function YearTableRow({ row, currency }: { row: YearRow; currency: CurrencyCode 
       </td>
       <td className="p-1.5 align-top tabular-nums">{row.age}</td>
       <td className="p-1.5 align-top">{row.country ?? row.phaseLabel}</td>
-      <td className="p-1.5 align-top text-right tabular-nums">
-        {formatMoney(row.incomeMinor, currency)}
-      </td>
-      <td className="p-1.5 align-top text-right tabular-nums">
-        {formatMoney(row.expenseMinor, currency)}
-      </td>
+      <td className={MONEY_CELL}>{formatMoney(row.incomeMinor, currency)}</td>
+      <td className={MONEY_CELL}>{formatMoney(row.expenseMinor, currency)}</td>
       <td className="min-w-40 p-1.5 align-top">
         {row.events.length === 0 ? (
-          <span className="text-gray-400 dark:text-gray-600">—</span>
+          <span className="text-gray-500 dark:text-gray-400">—</span>
         ) : (
           <div className="space-y-0.5">
             {row.events.map((e) => (
@@ -138,17 +161,37 @@ function YearTableRow({ row, currency }: { row: YearRow; currency: CurrencyCode 
           </div>
         )}
       </td>
-      <td className="p-1.5 align-top text-right font-medium tabular-nums">
+      <td className={`${MONEY_CELL} font-medium`}>{formatMoney(row.assetsEndMinor, currency)}</td>
+      {/* Icon cảnh báo đi CÙNG con số bi quan, không cùng "Tài sản cuối năm": `negative`
+          đọc dấu của chính con số trong ô này. */}
+      <td
+        className={`${MONEY_CELL} ${
+          negative ? 'font-medium text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'
+        }`}
+      >
         <span className="inline-flex items-center gap-1">
-          {negative && <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-600 dark:text-red-400" />}
-          {formatMoney(row.assetsEndMinor, currency)}
+          {negative && <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+          {formatMoney(row.assetsPessimisticMinor, currency)}
         </span>
       </td>
     </tr>
   )
 }
 
-const TABLE_HEADERS = ['Năm', 'Tuổi', 'Nơi ở', 'Thu', 'Chi', 'Sự kiện', 'Tài sản cuối năm']
+const TABLE_HEADERS = [
+  'Năm',
+  'Tuổi',
+  'Nơi ở',
+  'Thu',
+  'Chi',
+  'Sự kiện',
+  'Tài sản cuối năm',
+  // Cột này là điều kiện tô đỏ của cả dòng — xem JSDoc `YearTableRow`.
+  'Bi quan',
+]
+/** Cột nào canh phải (số tiền). Trước đây là một biểu thức `h === … || h === …` viết
+ *  thẳng trong JSX; thêm cột thứ tư vào đó là lúc nó nên thành một tập. */
+const RIGHT_ALIGNED = new Set(['Thu', 'Chi', 'Tài sản cuối năm', 'Bi quan'])
 
 /**
  * Bảng chi tiết theo năm — bản dự phòng a11y của đồ thị Lifetime. Mặc định chỉ hiện
@@ -175,6 +218,10 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
   const defaultIdx = useMemo(() => pickDefaultYearIdx(rows), [rows])
   const visibleRows = showAll ? rows : rows.filter((_, i) => defaultIdx.has(i))
   const hiddenCount = rows.length - visibleRows.length
+  // Có dòng nào đang bị tô đỏ trong PHẦN ĐANG HIỆN — quyết định có cần câu giải thích ở
+  // chân bảng hay không. Đọc `visibleRows` chứ không `rows`: giải thích một màu không có
+  // trên màn hình chỉ là thêm chữ.
+  const hasPessimisticNegative = visibleRows.some((r) => r.assetsPessimisticMinor < 0)
 
   function handleExport() {
     const filename = `lifetime-${slugifyFileName(scenarioName ?? '')}.csv`
@@ -249,7 +296,7 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
         {/* Nội dung: cuộn dọc. Mobile = thẻ, sm+ = bảng thật trong overflow-x-auto. */}
         <div className="flex-1 overflow-y-auto px-3 pb-2">
           {rows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">
+            <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
               Chưa có dữ liệu để hiện.
             </p>
           ) : (
@@ -267,9 +314,7 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
                       {TABLE_HEADERS.map((h) => (
                         <th
                           key={h}
-                          className={`p-1.5 font-medium ${
-                            h === 'Thu' || h === 'Chi' || h === 'Tài sản cuối năm' ? 'text-right' : ''
-                          }`}
+                          className={`p-1.5 font-medium ${RIGHT_ALIGNED.has(h) ? 'text-right' : ''}`}
                         >
                           {h}
                         </th>
@@ -289,11 +334,22 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
 
         {/* Chân bảng — BẮT BUỘC nói rõ trạng thái ẩn/hiện, không được im lặng. */}
         {rows.length > 0 && (
-          <p className="shrink-0 border-t border-gray-200 dark:border-gray-800 p-2 text-center text-xs text-gray-500 dark:text-gray-400">
-            {hiddenCount > 0
-              ? `đang ẩn ${hiddenCount} năm không có sự kiện`
-              : `đang hiện đủ ${rows.length} năm`}
-          </p>
+          <div className="shrink-0 border-t border-gray-200 dark:border-gray-800 p-2 text-center text-xs text-gray-500 dark:text-gray-400">
+            <p>
+              {hiddenCount > 0
+                ? `đang ẩn ${hiddenCount} năm không có sự kiện`
+                : `đang hiện đủ ${rows.length} năm`}
+            </p>
+            {/* Nói ra ĐIỀU KIỆN tô đỏ. Không có câu này thì người đọc mặc định gán màu
+                đỏ cho con số to nhất trên dòng ("Tài sản cuối năm"), tức đọc thành "đang
+                âm" trong khi tin thật là "có thể âm ở nhánh xấu" — hai tin khác nhau. */}
+            {hasPessimisticNegative && (
+              <p className="mt-0.5">
+                Dòng tô đỏ = cột <b>Bi quan</b> (biên dưới của dải) xuống dưới 0, không phải tài
+                sản cuối năm âm.
+              </p>
+            )}
+          </div>
         )}
       </div>
     </div>

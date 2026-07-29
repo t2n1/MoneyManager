@@ -7,9 +7,18 @@ import { escapeCsv, minorToPlain } from '../reports/csv'
 import type { CurrencyCode } from '../../lib/currencies'
 import type { YearRow } from './project'
 
-// Hai cột cuối là hai BIÊN của dải, không phải hai nhánh lợi suất — nên "Bi quan" /
-// "Lac quan" chứ không phải "Nhanh thap" / "Nhanh cao" (xem YearRow ở Task 3).
-const HEADER = 'Nam,Tuoi,Noi o,Thu,Chi,Su kien,Tai san cuoi nam,Bi quan,Lac quan'
+// "Bi quan" / "Lac quan" là hai BIÊN của dải, không phải hai nhánh lợi suất — không
+// phải "Nhanh thap" / "Nhanh cao" (xem YearRow ở Task 3).
+//
+// `Loai tien` (cột CUỐI, mã ISO 4217) là BẮT BUỘC, theo đúng quy ước của
+// `reports/csv.ts` (`'Loại tiền'` / `'Loại tiền đích'`) — file này vốn đã dùng chung
+// escapeCsv/minorToPlain với nó. Thiếu cột đó thì một kịch bản JPY và một kịch bản USD
+// xuất ra hai file GIỐNG NHAU HOÀN TOÀN về cấu trúc, chỉ là những số nguyên trần theo
+// hai đơn vị khác nhau, và tên file (`lifetime-<ten-kich-ban>.csv`) không mang đơn vị.
+// Đứng cuối vì nó nói về CẢ NĂM cột tiền ở trước, không riêng cột nào — trong
+// reports/csv.ts mỗi cột tiền có cột loại tiền riêng đi liền sau nó, ở đây cả bảng chỉ
+// có một đơn vị duy nhất (`display_currency` của kịch bản).
+const HEADER = 'Nam,Tuoi,Noi o,Thu,Chi,Su kien,Tai san cuoi nam,Bi quan,Lac quan,Loai tien'
 
 export function buildYearCsv(rows: YearRow[], currency: CurrencyCode): string {
   const lines = [HEADER]
@@ -25,6 +34,11 @@ export function buildYearCsv(rows: YearRow[], currency: CurrencyCode): string {
         minorToPlain(r.assetsEndMinor, currency),
         minorToPlain(r.assetsPessimisticMinor, currency),
         minorToPlain(r.assetsOptimisticMinor, currency),
+        // Lặp ở MỌI dòng thay vì ghi một lần ở tiêu đề: file CSV bị lọc/sắp/nối với
+        // file khác trong Excel là chuyện thường, và một đơn vị nằm trong ô tiêu đề sẽ
+        // rụng mất ngay ở thao tác đầu tiên. Mã ISO 4217 không bao giờ chứa dấu phẩy
+        // nên không cần escapeCsv.
+        currency,
       ].join(','),
     )
   }

@@ -8,8 +8,9 @@
 > N (tách hóa đơn), O (PWA shortcuts), Q (thẻ insight), R (dự báo run-rate),
 > S (so sánh tháng), U (bất thường), V (tỷ lệ tiết kiệm + streak), W (dòng tiền tích lũy).
 > Tỷ giá tự động (fetch + cache) cũng đã có sẵn trong `src/lib/rates.ts`.
-> Ngoài backlog: **Gửi tiền về VN** (remittance) và **tối ưu Nhật** (loại TK Nhật, danh
-> mục Nhật) cũng đã ship.
+> Ngoài backlog: **Gửi tiền về VN** (remittance), **tối ưu Nhật** (loại TK Nhật, danh
+> mục Nhật) và **Lifetime** (chiếu tài sản ròng cả đời, 2026-07-29 — xem mục riêng ở
+> nhóm "mở rộng nghiệp vụ") cũng đã ship.
 >
 > **Đợt "làm hết" 2026-07-20 (nhánh feat/backlog-batch) — ĐÃ XONG TOÀN BỘ mục khả thi:**
 > Z (sao lưu/khôi phục JSON), H (xuất CSV), AK (ẩn số tiền), AB (hoàn tác khi xóa),
@@ -401,6 +402,31 @@ Biểu đồ tổng tài sản (± nợ) theo tháng — trả lời "mình đan
   → cần snapshot. Gợi ý: lưu snapshot tổng tài sản (base) mỗi khi mở app sang kỳ mới,
   bảng `networth_snapshots`.
 - Liên quan: mục AE (giá trị đầu tư ảnh hưởng net worth), trang Tài sản.
+
+### Lifetime — chiếu tài sản ròng cả đời — ✅ ĐÃ LÀM (2026-07-29)
+
+> Đã ship: ba bảng `life_scenarios` / `life_phases` / `life_events` + cột
+> `profiles.birth_year` (migration 0031, tỷ giá riêng cho sự kiện ở 0032), engine thuần
+> `features/lifetime/project.ts` + `insights.ts` (đều nằm trong `purity.test.ts`), màn
+> `/lifetime` với đồ thị + dải dao động, bảng theo năm + xuất CSV, 4 thẻ kết luận, trình
+> sửa kịch bản (nhân bản / xoá / đặt kịch bản chính), 6 mẫu sinh chùm chặng-sự kiện, và
+> luật nhắc lệch `lifetimeRules.ts` (loại thông báo `lifetime-drift`).
+
+**Ngoài backlog gốc** (mục này không có trong bản ghi 2026-07-14, sinh ra từ brainstorm
+riêng): chiếu tài sản ròng theo từng năm tới hết đời kiểu Zaim, dựa trên **chặng đời**
+(thu chi nền) + **sự kiện** (khoản có năm đầu/cuối).
+
+- Chặng đời **cố ý không buộc theo quốc gia**: cưới, sinh con, vợ nghỉ làm cũng đổi thu
+  chi nền y như đổi nước. `country` chỉ là thuộc tính, để trống được.
+- Lương hưu là **sự kiện**, không phải cột trên chặng — đóng 年金 ở Nhật nhưng nhận khi đã
+  sang Mỹ, gắn vào chặng là mô hình sai.
+- Điểm yếu đã biết: `fx_to_display` do người dùng tự khai (đoán tỷ giá năm 2050 thì số nào
+  cũng sai). Xử lý bằng "sai một cách nhìn thấy được": tỷ giá không tra được thì để 1 và
+  banner cảnh báo đếm đúng tổ hợp `currency ≠ display_currency && fx_to_display = 1`.
+- Spec: [`specs/2026-07-29-lifetime-design.md`](./superpowers/specs/2026-07-29-lifetime-design.md)
+  — kèm mục "Chỗ cố ý chưa làm".
+- Liên quan: mục AF (lịch sử net worth — đồ thị vẽ chuỗi thật đó liền nét trước phần
+  chiếu), mục AN (nhắc lệch dùng chuông trong app).
 
 ### AG. Nợ có lãi suất / trả góp — ✅ ĐÃ LÀM (2026-07-20)
 

@@ -1,6 +1,7 @@
 # Database Matrix — bản đồ dữ liệu & schema đích
 
-> **Ngày ghi:** 2026-07-14 · **Mục đích:** để **dữ liệu hiện có** và **dữ liệu các
+> **Ngày ghi:** 2026-07-14 · **Cập nhật:** 2026-07-29 (thêm nhánh Lifetime, migration
+> 0031 + 0032) · **Mục đích:** để **dữ liệu hiện có** và **dữ liệu các
 > tính năng tương lai** (backlog `docs/backlog-tinh-nang.md`) nối với nhau **một cách
 > nhất quán**, tránh trường hợp 2 tính năng cùng nhu cầu lại đẻ ra **2 luồng dữ liệu
 > khác nhau**.
@@ -41,6 +42,9 @@ luồng dữ liệu buộc phải dùng — chính là thứ ngăn việc tạo 
                          │ profiles (1-1 user)   │
                          │  base_currency        │
                          │  month_start_day      │
+                         │  birth_year (0031)    │
+                         │  annual_inflation_bps │
+                         │    (0026)             │
                          └───────────────────────┘
 
   ┌───────────────┐          ┌───────────────┐
@@ -67,6 +71,43 @@ luồng dữ liệu buộc phải dùng — chính là thứ ngăn việc tạo 
   └───────────────────┘      └───────────────────┘
 ```
 
+**Nhánh Lifetime** (migration 0031 + 0032) — ĐỘC LẬP với `transactions`: nó chiếu tương
+lai, không ghi nhận quá khứ. Không có khóa nào trỏ vào `accounts`/`categories`; nó chỉ
+ĐỌC `account_balances` + `debts` một lần (qua `assetBreakdown`, khi tạo kịch bản đầu
+tiên) để lấy `starting_assets_minor`, rồi từ đó tự đứng.
+
+```
+  ┌───────────────────────┐
+  │ profiles.birth_year   │  ← cần để đổi năm ↔ tuổi
+  └───────────────────────┘
+              │
+              ▼
+  ┌─────────────────────────────────────┐
+  │ life_scenarios                      │
+  │  display_currency (đơn vị đồ thị)    │
+  │  starting_assets_minor (minor, theo  │
+  │    display_currency)                 │
+  │  end_age · real_return_bps           │
+  │  band_spread_bps · nominal_terms     │
+  │  is_primary · sort_order             │
+  └────────┬──────────────────┬─────────┘
+           │ scenario_id      │ scenario_id
+           ▼                  ▼
+  ┌──────────────────┐  ┌──────────────────────┐
+  │ life_phases      │  │ life_events          │
+  │  start_year      │  │  start_year          │
+  │  (không end_year)│  │  end_year (null=hết  │
+  │  currency        │  │    đời)              │
+  │  annual_income_  │  │  kind: income|expense│
+  │    minor         │  │  amount_minor (MỖI   │
+  │  annual_expense_ │  │    NĂM, không phải   │
+  │    minor         │  │    tổng cả khoảng)   │
+  │  fx_to_display   │  │  currency            │
+  │  country (null   │  │  fx_to_display (0032)│
+  │    được)         │  │  inflate             │
+  └──────────────────┘  └──────────────────────┘
+```
+
 **Khóa nối hiện có** (dùng lại, không tạo mới cho cùng ý nghĩa):
 
 | Khóa | Nối gì | Ghi chú |
@@ -76,6 +117,8 @@ luồng dữ liệu buộc phải dùng — chính là thứ ngăn việc tạo 
 | `transactions.category_id` | → categories | chỉ khi `type≠'transfer'` |
 | `budgets.category_id` + `month_key` | → categories, "tháng" | `unique(user_id, category_id, month_key)` |
 | `transactions.occurred_on` | "tháng" qua `monthKeyForDate` | KHÔNG lưu month_key ở transactions |
+| `life_phases.scenario_id` + `user_id` | → life_scenarios `(id, user_id)` | composite FK, `on delete cascade`; `unique(scenario_id, start_year)` |
+| `life_events.scenario_id` + `user_id` | → life_scenarios `(id, user_id)` | composite FK, `on delete cascade` |
 
 > ⚠️ **Bất đối xứng tiền tệ cần nhớ:** `transactions.amount` theo **tệ tài khoản**;
 > `budgets.amount` theo **base_currency**. Mọi so sánh chi-tiêu-vs-ngân-sách phải
@@ -120,6 +163,7 @@ phải gom về cụm chung (Phần 3).
 | **U** Phát hiện bất thường | – | R | R | R | – | – | – |
 | **V** Tỷ lệ tiết kiệm / streak | R | R | R | R | – | – | – |
 | **W** Dòng tiền tích lũy | R | – | – | R | – | – | – |
+| **Lifetime** Chiếu tài sản cả đời | **+col `birth_year`** | R | R | R | – | R | **NEW `life_scenarios` + `life_phases` + `life_events`** (0031/0032) |
 
 **Đọc nhanh ma trận:**
 
@@ -281,6 +325,99 @@ Chỉ tạo **nếu** chọn phương án đồng bộ (xem Phần 5). Cột: `l
 
 Chỉ tạo nếu nâng tách hóa đơn lên "gom nhóm". `group_id uuid null`; các dòng cùng hóa
 đơn chung `group_id`.
+
+### Lifetime — ✅ ĐÃ CÓ (migration 0031 + 0032)
+
+Không còn là "schema đích": ba bảng dưới đây đã tồn tại thật. DDL ở
+`supabase/migrations/0031_lifetime.sql` và `0032_lifetime_event_fx.sql`; thiết kế ở
+[`specs/2026-07-29-lifetime-design.md`](./superpowers/specs/2026-07-29-lifetime-design.md).
+
+**Vì sao KHÔNG bám vào luồng nào có sẵn** (theo Quy tắc vàng ở Phần 0): đây là dữ liệu
+**giả định về tương lai**, không phải bản ghi về quá khứ. `transactions` là nguồn sự thật
+duy nhất cho tiền ĐÃ chuyển; một chặng đời hay một sự kiện thì chưa xảy ra và có thể không
+bao giờ xảy ra. Trộn hai loại vào một bảng là làm mọi câu tổng hợp hiện có phải học thêm
+một bộ lọc "chỉ lấy dòng thật". Chiều đọc một phía thì có: khi tạo kịch bản đầu tiên,
+`starting_assets_minor` lấy từ `account_balances` + `debts` qua **đúng công thức tài sản
+ròng của trang Tài sản** (`assetBreakdown` + `debtSummary`), không tự cộng lại.
+
+#### `profiles.birth_year` — +col (0031)
+
+`int null check (birth_year between 1900 and 2100)`. Cần để đổi qua lại **năm ↔ tuổi** ở
+mọi mốc (nghỉ hưu, tự do tài chính). Nullable: chưa khai thì màn `/lifetime` hỏi trước
+khi chiếu gì cả — **không đoán**.
+
+#### `life_scenarios`
+
+Một "phương án đời". Người dùng có nhiều bản để so (An toàn / Mạo hiểm / Về VN 2035).
+
+| Cột | Kiểu / ý nghĩa |
+|-----|----------------|
+| `name` | text — tên hiện ở dải chip kịch bản |
+| `display_currency` | ISO 4217 — **đơn vị của đồ thị và bảng năm**. Chặng nhập theo tiền bản địa rồi quy về đây |
+| `end_age` | int, default 90, `between 50 and 120` — chiếu tới tuổi này |
+| `real_return_bps` | int, default 200, `between -500 and 2000` — lợi suất **THỰC** (đã trừ lạm phát). Âm được: gửi ngân hàng Nhật thời lạm phát |
+| `band_spread_bps` | int, default 150, `between 0 and 1000` — **nửa** độ rộng dải dao động: chạy lại engine với `real_return ± giá trị này` |
+| `starting_assets_minor` | bigint minor, **theo `display_currency`** (không phải base_currency). Âm được = đang nợ ròng |
+| `nominal_terms` | boolean, default false — false = giá hôm nay (mặc định), true = giá danh nghĩa |
+| `is_primary` | boolean — kịch bản mà **luật nhắc lệch** và thẻ Lifetime ở trang Tài sản đọc theo. Luật hoà: nhiều bản cùng `is_primary`, hoặc không bản nào → lấy `sort_order` nhỏ nhất (`pickActive` trong `features/lifetime/buildInput.ts`, dùng chung cho cả tầng UI) |
+| `sort_order` | int — thứ tự dải chip |
+
+> ⚠️ `starting_assets_minor` theo `display_currency` là một **bất đối xứng tiền tệ nữa**
+> (xem cảnh báo ở Phần 1): đổi `display_currency` mà không quy đổi con số này là biến
+> ¥11.000.000 thành $110.000. Đường sửa ở UI phải quy đổi hoặc từ chối ghi.
+
+#### `life_phases`
+
+Thu chi **nền** của một quãng đời. **Không có `end_year`**: chặng sau bắt đầu thì chặng
+trước kết thúc.
+
+| Cột | Kiểu / ý nghĩa |
+|-----|----------------|
+| `scenario_id` | composite FK → `life_scenarios (id, user_id)`, cascade |
+| `start_year` | int `between 1900 and 2200`; **`unique (scenario_id, start_year)`** — hai chặng cùng năm thì engine không biết chọn cái nào |
+| `label` | text — "Hiện tại", "Cưới", "Chuyển sang Mỹ" |
+| `country` | text **null** — `'JP'`/`'US'`/`'VN'`/…, KHÔNG ràng buộc enum: chặng có thể là "Cưới". Chặng **cố ý không buộc theo quốc gia** |
+| `currency` | ISO 4217 — tiền bản địa của chặng, có thể khác `display_currency` |
+| `annual_income_minor` | bigint minor `>= 0`, **theo `currency` của chặng** |
+| `annual_expense_minor` | bigint minor `>= 0`, theo `currency` của chặng |
+| `fx_to_display` | numeric `> 0`, default 1 — xem ô "Quy ước `fx_to_display`" dưới |
+
+#### `life_events`
+
+Khoản có năm bắt đầu và **tùy chọn** năm kết thúc. Lương hưu là **sự kiện**, không phải
+cột trên chặng: người dùng đóng 年金 ở Nhật nhưng nhận khi đã sang Mỹ — gắn vào chặng là
+mô hình sai.
+
+| Cột | Kiểu / ý nghĩa |
+|-----|----------------|
+| `scenario_id` | composite FK → `life_scenarios (id, user_id)`, cascade |
+| `start_year` | int `between 1900 and 2200` |
+| `end_year` | int **null** = đến hết đời (lương hưu); ngược lại `check (end_year >= start_year)` |
+| `kind` | `income` \| `expense` |
+| `amount_minor` | bigint minor `>= 0` — số **MỖI NĂM** trong khoảng, KHÔNG phải tổng cả khoảng. Theo `currency` của chính sự kiện |
+| `currency` | ISO 4217 — của **sự kiện**, độc lập cả với chặng lẫn `display_currency` |
+| `label` · `note` | text; `note` mặc định `''` |
+| `fx_to_display` | numeric `> 0`, default 1 (**thêm ở 0032**) |
+| `inflate` | boolean, default true — có tăng theo lạm phát hay không. 年金 = false, học phí = true |
+
+#### Quy ước `fx_to_display` (đọc trước khi dùng cột này ở bất kỳ đâu)
+
+`fx_to_display` = **1 đơn vị `currency` của DÒNG ĐÓ = bao nhiêu đơn vị `display_currency`
+của kịch bản**, tính theo **MAJOR units**.
+
+- Đây là **CHIỀU NGƯỢC** với `Rates` của `src/lib/rates.ts` (nguyên tắc 0.3), vốn là "1
+  base đổi được `rates[X]` đơn vị X". Quy đổi giữa hai chiều là `1 / rate`. Không có
+  đường nào để `convertToBase` dùng trực tiếp cột này, và ngược lại.
+- Nó là **GIẢ ĐỊNH người dùng khai**, không phải tỷ giá spot: đoán USD/JPY năm 2050 thì
+  số nào cũng sai, nên app không giả vờ biết. Giá trị khởi đầu lấy từ tỷ giá hôm nay rồi
+  dán nhãn "giả định, sửa được".
+- **Tỷ giá không tra được thì lưu `1` — CÓ Ý.** Tổ hợp `currency ≠ display_currency &&
+  fx_to_display = 1` là điều kiện mà banner cảnh báo ở `/lifetime` đi bắt. Một tỷ giá đoán
+  bừa (khác 1) thì không guard nào thấy. Nguyên tắc: **buộc phải sai thì sai theo cách
+  guard của chính mình nhìn ra được.**
+- Đổi `currency` của một dòng là **xoá** `fx_to_display` của nó, không giữ lại: con số cũ
+  quy về một vế trái khác nên nó không còn nghĩa gì (`fxAfterCurrencyChange` trong
+  `features/lifetime/fxField.ts`).
 
 ---
 

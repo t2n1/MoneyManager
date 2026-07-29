@@ -270,8 +270,9 @@ $. Không hiện thì đọc nhầm.
 ## Nhắc lệch — `lifetimeRules.ts`
 
 Mỗi tháng: annualize chi tiêu thật 3 tháng gần nhất, so với `annual_expense` của chặng
-đang hiệu lực. Lệch quá ngưỡng (mặc định 15%, đặt được ở Cài đặt thông báo) thì báo —
-và báo kèm **hệ quả**, không chỉ con số:
+đang hiệu lực. Lệch quá ngưỡng (**15%, hằng số `DRIFT_THRESHOLD` trong code — không có ô
+đặt trong Cài đặt, xem "Chỗ cố ý chưa làm"**) thì báo — và báo kèm **hệ quả**, không chỉ
+con số:
 
 > Chi thực tế cao hơn kế hoạch 22%. Tài sản có thể âm ở 2058 thay vì 2081.
 
@@ -313,3 +314,16 @@ Theo khuôn logic-thuần-có-test của các feature khác:
 - Không có sheet "Giả định" gộp mở từ header: sẽ thành hai đường vào cùng một thiết
   lập.
 - Không có push thông báo — dùng chuông trong app như mục J.
+- **Ngưỡng nhắc lệch KHÔNG đặt được trong Cài đặt.** Bản nháp của mục "Nhắc lệch" ở trên
+  từng hứa "mặc định 15%, đặt được ở Cài đặt thông báo"; câu đó đã bỏ. `NotificationSettingsPage`
+  hiện chỉ có công tắc bật/tắt cho 13 loại thông báo — thêm một ô SỐ vào đó là dựng một
+  khuôn UI mới (nhập số, validate khoảng, lưu ở đâu: cột mới trên `profiles`?) cho đúng
+  một giá trị. Ngưỡng nằm ở `DRIFT_THRESHOLD` (`features/notifications/rules/lifetimeRules.ts`),
+  sửa được bằng một dòng code. Nếu sau này cần đặt được thật, làm cùng lúc với các ngưỡng
+  khác của bộ luật để chỉ dựng khuôn UI đó MỘT lần.
+- **Mốc sự kiện là `ReferenceLine` đứng, KHÔNG có tam giác dưới trục.** Mục "Đồ thị" ở
+  trên nói "đánh dấu tam giác dưới trục" — không làm. Tam giác cần một custom shape của
+  Recharts, và ở mật độ của đồ thị này (tới 60 năm trên chiều rộng điện thoại, các mốc sự
+  kiện có thể sát nhau) mấy hình tam giác chồng lên nhau đọc còn tệ hơn các đường đứt dọc.
+  Đây là thuần thẩm mỹ và không mất thông tin nào. Phần khả năng tiếp cận thì ĐÃ làm: câu
+  `aria-label` của thẻ đọc ra số mốc và các năm có mốc (xem `buildAriaLabel`).

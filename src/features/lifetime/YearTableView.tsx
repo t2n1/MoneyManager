@@ -58,7 +58,7 @@ function slugifyFileName(name: string): string {
 function EventLine({ e, currency }: { e: YearEvent; currency: CurrencyCode }) {
   const isIncome = e.kind === 'income'
   const Icon = isIncome ? ArrowUpCircle : ArrowDownCircle
-  const tone = isIncome ? 'text-green-800 dark:text-green-400' : 'text-red-700 dark:text-red-400'
+  const tone = isIncome ? 'text-money-in' : 'text-money-out'
   return (
     <div className="flex items-center gap-1.5">
       <Icon className={`h-3.5 w-3.5 shrink-0 ${tone}`} />
@@ -105,7 +105,7 @@ function YearCard({ row, currency }: { row: YearRow; currency: CurrencyCode }) {
           thấy được lại dương thoải mái, và không gì trên màn hình giải thích vì sao. */}
       <p
         className={`mt-0.5 flex items-center gap-1 text-xs tabular-nums ${
-          negative ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'
+          negative ? 'text-money-out' : 'text-gray-500 dark:text-gray-400'
         }`}
       >
         {negative && <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
@@ -166,7 +166,7 @@ function YearTableRow({ row, currency }: { row: YearRow; currency: CurrencyCode 
           đọc dấu của chính con số trong ô này. */}
       <td
         className={`${MONEY_CELL} ${
-          negative ? 'font-medium text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'
+          negative ? 'font-medium text-money-out' : 'text-gray-500 dark:text-gray-400'
         }`}
       >
         <span className="inline-flex items-center gap-1">
@@ -269,7 +269,7 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
           >
             <span
               className={`block h-6 w-11 shrink-0 rounded-full transition ${
-                !showAll ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-700'
+                !showAll ? 'bg-green-700' : 'bg-gray-300 dark:bg-gray-700'
               }`}
             >
               <span

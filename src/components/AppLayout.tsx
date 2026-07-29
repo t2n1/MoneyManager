@@ -172,7 +172,7 @@ export function AppLayout() {
         </div>
         <NavLink
           to="/entry"
-          className="mb-3 flex items-center justify-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 active:scale-95"
+          className="mb-3 flex items-center justify-center gap-2 rounded-lg bg-green-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-800 active:scale-95"
         >
           <Plus className="h-5 w-5" />
           Nhập giao dịch
@@ -216,7 +216,7 @@ export function AppLayout() {
           type="button"
           onClick={() => navigate('/entry')}
           aria-label="Nhập giao dịch"
-          className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-green-600 leading-none text-white shadow-lg transition hover:bg-green-700 active:scale-95 lg:hidden print:hidden"
+          className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-green-700 leading-none text-white shadow-lg transition hover:bg-green-800 active:scale-95 lg:hidden print:hidden"
         >
           <Plus className="h-6 w-6" />
         </button>

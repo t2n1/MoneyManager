@@ -37,6 +37,18 @@ Khai ở `src/index.css`. Đọc `--fg-muted` chứ đừng đọc `gray-500`: �
 | `surface` | white | gray-900 | — |
 | `surface-sunken` | gray-100 | gray-800 | track của segmented control |
 | `border-subtle` | gray-100 | gray-800 | — |
+| `accent` | green-700 | green-500 | nền nút chính, focus ring |
+| `fg-accent` | green-700 | green-400 | **chữ** màu nhấn (link, hành động phụ) |
+
+### `accent` vs `money-in` — cùng xanh, khác nghĩa
+
+Ba token xanh, đừng trộn:
+
+- `--accent` (green-700) — nền nút chính. Bậc 700 vì nút có **chữ trắng** đè lên, cần 4,5:1 với trắng; green-600 chỉ 3,22:1.
+- `--fg-accent` (green-700) — chữ "bấm được": link, nút text.
+- `--money-in` (green-800) — "đây là khoản thu".
+
+Cố ý **không** để nút dùng green-800: nút trùng màu số thu nhập thì mất phân biệt *hành động* với *giá trị*.
 
 Dùng qua tiện ích Tailwind: `text-fg-muted`, `bg-surface`, `border-border-subtle`.
 
@@ -101,9 +113,13 @@ Dấu dùng ASCII `-`/`+` cho khớp với chính `formatMoney`. Đừng trộn 
 
 **Ban cứng — phải bằng 0.** Dành cho thứ đã dọn sạch; tái xuất hiện là hồi quy.
 
-- `text-gray-400 dark:text-gray-500` (sai chiều)
+- `text-gray-400 dark:text-gray-500` (sai chiều sáng/tối)
 - `text-green-600 dark:text-green-400`, `text-red-600 dark:text-red-400` (trượt AA)
+- `text-green-800 dark:text-green-400`, `text-red-700 dark:text-red-400` (đúng màu nhưng **viết lại cặp bằng tay** — dùng `text-money-in`/`text-money-out`)
+- `bg-green-600` (nút: trắng trên nó chỉ 3,22:1)
 - `text-[0.5625rem]` (dưới sàn đọc được)
+
+Scanner **bỏ comment trước khi đếm** — nếu không thì chính lời giải thích "đừng dùng X" trong comment lại làm test đỏ, mà comment tại chỗ là nơi tốt nhất để ghi lý do.
 
 **Ngưỡng — chỉ được giảm.** Idiom còn nhiều chỗ chưa gộp. Đặt về 0 ngay thì phải refactor 92 file trong một lần, mà repo **không có test UI nào** (54 file test đều là logic thuần, không có `@testing-library`). Ngưỡng cho phép gộp dần mà vẫn chặn thêm mới.
 
@@ -111,9 +127,16 @@ Dấu dùng ASCII `-`/`+` cho khớp với chính `formatMoney`. Đừng trộn 
 
 ---
 
+## Màu biểu đồ: hằng số JS, không phải token
+
+Recharts nhận màu qua prop (`fill`, `stroke`) nên **không dùng được biến CSS**. Vì vậy màu biểu đồ vẫn là hằng số JS — đó là giới hạn của thư viện, không phải nợ kỹ thuật.
+
+Nhưng phải có **một nguồn duy nhất cho nét vẽ và chú giải**. Bẫy đã xảy ra thật: nét vẽ dùng hex cứng `#16a34a` (green-600 của Tailwind **v3**) còn chấm chú giải dùng class `bg-green-600` (v4 = `#00a63e`) → từ hồi nâng v4, chú giải chỉ sai màu chính cái nó gán nhãn. Đã sửa ở `MonthlyBarsCard`, `NetCashflowCard`, `SpendVsBudgetCard` bằng cách cho chấm đọc `style={{ backgroundColor: HANG_SO }}`.
+
+**Đừng đặt màu chú giải bằng class Tailwind.** Luôn trỏ vào đúng hằng số đã tô cho biểu đồ.
+
 ## Chưa làm
 
-- **Nút chính `bg-green-600` + `text-white` = 3,22:1**, trượt AA. ~59 chỗ. Sửa là đổi diện mạo mọi nút chính → cần quyết định riêng.
-- **`text-red-500` dùng cho số chi** ở `MonthlyView`, `CalendarView`, `ImportCsvPage`, `CategoryCompareBarsCard` (3,81:1) — thiếu cặp `dark:` nên phải xét từng chỗ.
-- **Màu nét biểu đồ** (`CategoryBreakdownCard` `lineColor`, `PALETTE`) vẫn là hex cứng, chưa vào token. Chữ chú giải trỏ tới nét vẽ nên phải đổi cùng lúc, không thì lệch màu.
+- **29 chỗ `text-green-700 dark:text-green-400` cần tách nghĩa** thành `fg-accent` (link, hành động — đa số) hoặc `money-in` (giá trị tiền — vài chỗ). Đây là **việc xét từng chỗ**, không quét máy móc được: link không phải thu nhập. Không gấp — 4,95:1 đã đạt AA, chỉ là chưa có tên.
+- **Hex v3 còn ở 12+ file biểu đồ** (`#16a34a`/`#ef4444` trong `CategoryBreakdownCard` `PALETTE`, `SummaryView`, `AssetsPage`, `LifetimeChartCard`…). Không sai contrast, nhưng là giá trị lạc thời so với palette v4.
 - Đã áp primitive vào `LedgerPage` + `ReportsPage`. 14 màn còn lại vẫn viết tay — ngưỡng trong guardrail chính là số nợ còn lại.

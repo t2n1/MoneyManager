@@ -139,7 +139,7 @@ export function InvestmentPerformanceSection({ accounts, base }: Props) {
         </span>
         <span
           className={`flex items-center gap-1.5 ${
-            growth >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
+            growth >= 0 ? 'text-money-in' : 'text-money-out'
           }`}
         >
           <span className="h-2 w-2 rounded-full bg-green-500" aria-hidden />
@@ -161,8 +161,8 @@ export function InvestmentPerformanceSection({ accounts, base }: Props) {
                 row.value === null
                   ? 'text-gray-500 dark:text-gray-400'
                   : row.value >= 0
-                    ? 'text-green-800 dark:text-green-400'
-                    : 'text-red-700 dark:text-red-400'
+                    ? 'text-money-in'
+                    : 'text-money-out'
               }`}
             >
               {row.value === null ? '—' : signPct(row.value)}

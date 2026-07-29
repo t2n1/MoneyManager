@@ -37,7 +37,7 @@ export function DebtsPage() {
         <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Nợ / cho vay</h1>
         <Link
           to="/entry?role=debt"
-          className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
+          className="rounded-lg bg-green-700 px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
         >
           + Thêm
         </Link>
@@ -47,13 +47,13 @@ export function DebtsPage() {
       <div className="mb-4 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
           <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Mình nợ</p>
-          <p className="mt-1 text-lg font-bold tabular-nums text-red-700 dark:text-red-400">
+          <p className="mt-1 text-lg font-bold tabular-nums text-money-out">
             {isLoading ? '…' : `${approx}${formatMoney(summary.iOwe, base)}`}
           </p>
         </div>
         <div className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
           <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Cho vay</p>
-          <p className="mt-1 text-lg font-bold tabular-nums text-green-800 dark:text-green-400">
+          <p className="mt-1 text-lg font-bold tabular-nums text-money-in">
             {isLoading ? '…' : `${approx}${formatMoney(summary.owedToMe, base)}`}
           </p>
         </div>
@@ -149,7 +149,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
                 </span>
                 <span
                   className={`shrink-0 text-sm font-semibold tabular-nums ${
-                    d.direction === 'i_owe' ? 'text-red-700 dark:text-red-400' : 'text-green-800 dark:text-green-400'
+                    d.direction === 'i_owe' ? 'text-money-out' : 'text-money-in'
                   }`}
                 >
                   {formatMoney(remaining, d.currency)}

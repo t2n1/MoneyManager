@@ -110,7 +110,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
 
         <div className="flex items-center justify-between gap-2">
           {goal ? (
-            <button type="button" onClick={handleDelete} disabled={saving} className="rounded-lg px-3 py-2 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50">
+            <button type="button" onClick={handleDelete} disabled={saving} className="rounded-lg px-3 py-2 text-sm font-medium text-money-out hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50">
               Xóa
             </button>
           ) : (
@@ -120,7 +120,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
             <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
               Hủy
             </button>
-            <button type="button" onClick={handleSubmit} disabled={!canSave} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50">
+            <button type="button" onClick={handleSubmit} disabled={!canSave} className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50">
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>
           </div>

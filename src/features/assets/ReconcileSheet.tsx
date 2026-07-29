@@ -115,8 +115,8 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
                 diff === 0
                   ? 'text-gray-500 dark:text-gray-400'
                   : diff > 0
-                    ? 'text-green-800 dark:text-green-400'
-                    : 'text-red-700 dark:text-red-400'
+                    ? 'text-money-in'
+                    : 'text-money-out'
               }`}
             >
               {/* Thẻ: diff âm nghĩa là nợ TĂNG, nên đảo dấu hiển thị cho dễ đọc */}
@@ -147,7 +147,7 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
             type="button"
             onClick={handleSubmit}
             disabled={!canSave}
-            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
+            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
           >
             {saving ? 'Đang lưu…' : 'Điều chỉnh'}
           </button>

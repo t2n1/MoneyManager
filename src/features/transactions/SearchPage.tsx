@@ -142,7 +142,7 @@ export function SearchPage() {
 
   const chip = (active: boolean) =>
     `rounded-full px-3 py-2.5 text-xs font-medium transition ${
-      active ? 'bg-green-600 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 shadow-sm'
+      active ? 'bg-green-700 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 shadow-sm'
     }`
 
   return (
@@ -239,7 +239,7 @@ export function SearchPage() {
                       aria-pressed={active}
                       className={`rounded-full px-3 py-2.5 text-xs font-medium transition ${
                         active
-                          ? 'bg-green-600 text-white'
+                          ? 'bg-green-700 text-white'
                           : TAG_CHIP_CLASS[tagColor(t.color)]
                       }`}
                     >
@@ -339,14 +339,14 @@ export function SearchPage() {
         <div className="mb-3 rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-500 dark:text-gray-400">Thu</span>
-            <span className="font-semibold text-green-800 dark:text-green-400">
+            <span className="font-semibold text-money-in">
               {totals.hasForeign ? '≈ ' : ''}
               {formatMoney(totals.income, base)}
             </span>
           </div>
           <div className="mt-1 flex items-center justify-between text-sm">
             <span className="text-gray-500 dark:text-gray-400">Chi</span>
-            <span className="font-semibold text-red-700 dark:text-red-400">
+            <span className="font-semibold text-money-out">
               {totals.hasForeign ? '≈ ' : ''}
               {formatMoney(totals.expense, base)}
             </span>

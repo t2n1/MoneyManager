@@ -328,7 +328,7 @@ export function EventFormSheet({
               className={`mb-1 ${field}`}
             />
             {!labelValid && (
-              <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+              <p role="alert" className="mb-2 text-xs text-money-out">
                 Tên sự kiện không được để trống.
               </p>
             )}
@@ -341,7 +341,7 @@ export function EventFormSheet({
                 onClick={() => setKind('expense')}
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   kind === 'expense'
-                    ? 'bg-green-600 text-white'
+                    ? 'bg-green-700 text-white'
                     : 'border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300'
                 }`}
               >
@@ -352,7 +352,7 @@ export function EventFormSheet({
                 onClick={() => setKind('income')}
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   kind === 'income'
-                    ? 'bg-green-600 text-white'
+                    ? 'bg-green-700 text-white'
                     : 'border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300'
                 }`}
               >
@@ -368,7 +368,7 @@ export function EventFormSheet({
               className={`mb-1 ${field}`}
             />
             {!yearValid && startYear !== '' && (
-              <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+              <p role="alert" className="mb-2 text-xs text-money-out">
                 Năm phải là số nguyên trong khoảng 1900–2200.
               </p>
             )}
@@ -388,7 +388,7 @@ export function EventFormSheet({
                   className={`mb-1 ${field}`}
                 />
                 {!endYearValid && (
-                  <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+                  <p role="alert" className="mb-2 text-xs text-money-out">
                     Năm kết thúc phải ≥ năm bắt đầu (hoặc bật "đến hết đời" ở trên).
                   </p>
                 )}
@@ -433,7 +433,7 @@ export function EventFormSheet({
                 />
                 {/* Ô RỖNG có câu riêng — cùng lý do đã ghi ở PhaseFormSheet. */}
                 {!fxValid && (
-                  <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+                  <p role="alert" className="mb-2 text-xs text-money-out">
                     {fx.trim() === ''
                       ? 'Chưa có tỷ giá. Đổi tiền của sự kiện là tỷ giá cũ hết nghĩa (nó quy về đơn vị khác) — khai lại rồi mới lưu được.'
                       : 'Tỷ giá phải là một số lớn hơn 0.'}
@@ -469,7 +469,7 @@ export function EventFormSheet({
               />
             </div>
             {!amountValid && (
-              <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+              <p role="alert" className="mb-2 text-xs text-money-out">
                 Số tiền không được âm.
               </p>
             )}
@@ -491,7 +491,7 @@ export function EventFormSheet({
                   type="button"
                   onClick={handleDelete}
                   disabled={saving}
-                  className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-red-700 dark:text-red-400 active:scale-95 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
+                  className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-money-out active:scale-95 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
                 >
                   Xóa
                 </button>
@@ -510,7 +510,7 @@ export function EventFormSheet({
                   type="button"
                   onClick={handleSubmit}
                   disabled={!canSave}
-                  className="min-h-11 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
+                  className="min-h-11 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
                 >
                   {saving ? 'Đang lưu…' : 'Lưu'}
                 </button>

@@ -475,8 +475,8 @@ export function LifetimeChartCard({
                 <span
                   className={
                     compareDiff >= 0
-                      ? 'font-semibold text-green-800 dark:text-green-400'
-                      : 'font-semibold text-red-700 dark:text-red-400'
+                      ? 'font-semibold text-money-in'
+                      : 'font-semibold text-money-out'
                   }
                 >
                   {compareDiff >= 0 ? '+' : ''}

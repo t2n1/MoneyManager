@@ -54,7 +54,7 @@ export function NetWorthHistorySection({ base, currentNetWorth }: Props) {
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
           Tài sản ròng theo thời gian
         </h2>
-        <span className={`text-xs font-semibold ${up ? 'text-green-800 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+        <span className={`text-xs font-semibold ${up ? 'text-money-in' : 'text-money-out'}`}>
           {up ? '▲' : '▼'} {formatMoney(Math.abs(delta), base)}
         </span>
       </div>

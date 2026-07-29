@@ -225,7 +225,7 @@ function DialogModal({ req }: { req: DialogReq }) {
             className={`rounded-lg px-4 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50 ${
               req.kind === 'confirm' && req.danger
                 ? 'bg-red-600 hover:bg-red-700'
-                : 'bg-green-600 hover:bg-green-700'
+                : 'bg-green-700 hover:bg-green-800'
             }`}
           >
             {req.confirmLabel}
@@ -241,7 +241,7 @@ function MessageToast({ toast: t }: { toast: ToastState }) {
     t.kind === 'error'
       ? 'bg-red-600'
       : t.kind === 'success'
-        ? 'bg-green-600'
+        ? 'bg-green-700'
         : 'bg-gray-900/95'
   const Icon = t.kind === 'error' ? AlertTriangle : t.kind === 'success' ? Check : null
 

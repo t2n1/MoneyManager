@@ -40,7 +40,7 @@ function Row({
   return (
     <div className={`flex gap-2 rounded-lg border px-3 py-2 ${tone} ${read ? 'opacity-50' : ''}`}>
       {n.severity === 'high' ? (
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-700 dark:text-red-400" />
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-money-out" />
       ) : (
         <Bell className="mt-0.5 h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
       )}

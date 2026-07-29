@@ -381,7 +381,7 @@ export function ImportCsvPage() {
                           className={`border-t border-gray-100 dark:border-gray-800 ${odd ? 'bg-red-50 dark:bg-red-950/40' : ''}`}
                         >
                           <td className="py-1 tabular-nums">{it.occurred_on}</td>
-                          <td className={`py-1 ${it.type === 'expense' ? 'text-red-500' : 'text-green-800 dark:text-green-400'}`}>
+                          <td className={`py-1 ${it.type === 'expense' ? 'text-money-out' : 'text-money-in'}`}>
                             {it.type === 'expense' ? 'Chi' : 'Thu'}
                           </td>
                           <td className="py-1 text-right tabular-nums">
@@ -402,7 +402,7 @@ export function ImportCsvPage() {
                   <p className="mt-1 text-center text-gray-500 dark:text-gray-400">
                     … và {toImport.length - PREVIEW_ROWS} dòng nữa
                     {hiddenAnomalyCount > 0 && (
-                      <span className="font-semibold text-red-700 dark:text-red-400">
+                      <span className="font-semibold text-money-out">
                         , trong đó {hiddenAnomalyCount} khoản lớn bất thường
                       </span>
                     )}
@@ -413,7 +413,7 @@ export function ImportCsvPage() {
                 type="button"
                 onClick={handleImport}
                 disabled={busy || toImport.length === 0}
-                className="mt-3 w-full rounded-lg bg-green-600 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40 active:scale-95"
+                className="mt-3 w-full rounded-lg bg-green-700 py-2.5 text-sm font-semibold text-white hover:bg-green-800 disabled:opacity-40 active:scale-95"
               >
                 {busy ? 'Đang nhập…' : `Nhập ${toImport.length} giao dịch`}
               </button>

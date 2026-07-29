@@ -100,7 +100,7 @@ export function AccountPicker({
           <>
             <AccountTypeIcon
               type={selected.type}
-              className="h-4 w-4 shrink-0 text-green-800 dark:text-green-400"
+              className="h-4 w-4 shrink-0 text-money-in"
             />
             <span className="truncate">
               {selected.name} · {CURRENCIES[selected.currency].symbol}
@@ -152,7 +152,7 @@ export function AccountPicker({
                     type={a.type}
                     className={`h-5 w-5 shrink-0 ${
                       isSel
-                        ? 'text-green-800 dark:text-green-400'
+                        ? 'text-money-in'
                         : 'text-gray-500 dark:text-gray-400'
                     }`}
                   />
@@ -168,7 +168,7 @@ export function AccountPicker({
                   {bal !== undefined && (
                     <span
                       className={`shrink-0 text-xs tabular-nums ${
-                        bal < 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'
+                        bal < 0 ? 'text-money-out' : 'text-gray-500 dark:text-gray-400'
                       }`}
                     >
                       {formatMoney(bal, a.currency)}

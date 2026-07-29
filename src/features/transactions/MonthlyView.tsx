@@ -23,14 +23,14 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
       <div className="grid grid-cols-3 gap-2 rounded-xl bg-white dark:bg-gray-900 p-3 text-center shadow-sm">
         <div>
           <div className="text-xs text-gray-500 dark:text-gray-400">Thu cả năm</div>
-          <div className="mt-0.5 text-sm font-semibold tabular-nums text-green-800 dark:text-green-400">
+          <div className="mt-0.5 text-sm font-semibold tabular-nums text-money-in">
             {approx}
             {formatMoney(yearIncome, base)}
           </div>
         </div>
         <div className="border-x border-gray-100 dark:border-gray-800">
           <div className="text-xs text-gray-500 dark:text-gray-400">Chi cả năm</div>
-          <div className="mt-0.5 text-sm font-semibold tabular-nums text-red-700 dark:text-red-400">
+          <div className="mt-0.5 text-sm font-semibold tabular-nums text-money-out">
             {approx}
             {formatMoney(yearExpense, base)}
           </div>
@@ -38,7 +38,7 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
         <div>
           <div className="text-xs text-gray-500 dark:text-gray-400">Còn lại</div>
           <div
-            className={`mt-0.5 text-sm font-semibold tabular-nums ${yearIncome - yearExpense < 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}
+            className={`mt-0.5 text-sm font-semibold tabular-nums ${yearIncome - yearExpense < 0 ? 'text-money-out' : 'text-gray-800 dark:text-gray-100'}`}
           >
             {approx}
             {formatMoney(yearIncome - yearExpense, base)}
@@ -68,15 +68,15 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
                   className="grid w-full grid-cols-[auto_1fr_1fr_1fr] items-center gap-2 px-3 py-2.5 text-right text-sm transition hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
                 >
                   <span className="text-left font-medium text-gray-700 dark:text-gray-300">Th {p.key.month}</span>
-                  <span className={`tabular-nums ${empty ? 'text-gray-300 dark:text-gray-600' : 'text-green-800 dark:text-green-400'}`}>
+                  <span className={`tabular-nums ${empty ? 'text-gray-300 dark:text-gray-600' : 'text-money-in'}`}>
                     {p.income > 0 ? formatMoney(p.income, base) : '–'}
                   </span>
-                  <span className={`tabular-nums ${empty ? 'text-gray-300 dark:text-gray-600' : 'text-red-500'}`}>
+                  <span className={`tabular-nums ${empty ? 'text-gray-300 dark:text-gray-600' : 'text-money-out'}`}>
                     {p.expense > 0 ? formatMoney(p.expense, base) : '–'}
                   </span>
                   <span
                     className={`tabular-nums font-medium ${
-                      empty ? 'text-gray-300 dark:text-gray-600' : net < 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'
+                      empty ? 'text-gray-300 dark:text-gray-600' : net < 0 ? 'text-money-out' : 'text-gray-800 dark:text-gray-100'
                     }`}
                   >
                     {empty ? '–' : formatMoney(net, base)}

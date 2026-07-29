@@ -65,7 +65,7 @@ export function RemittanceSection({
         </h2>
         <Link
           to="/entry?role=remit"
-          className="flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1 text-xs font-semibold text-white active:scale-95"
+          className="flex items-center gap-1 rounded-lg bg-green-700 px-2.5 py-1 text-xs font-semibold text-white active:scale-95"
         >
           <Plus className="h-3.5 w-3.5" /> Gửi tiền
         </Link>
@@ -118,7 +118,7 @@ export function RemittanceSection({
               </p>
               <p className="mt-0.5 text-gray-600 dark:text-gray-300">
                 Lần <b>thiệt nhất</b> ({worstPick.date}, {worstPick.rate.toFixed(1)} ₫/¥) mất{' '}
-                <b className="text-red-700 dark:text-red-400">
+                <b className="text-money-out">
                   {formatMoney(-worstPick.gainVsAvgVnd, 'VND')}
                 </b>
                 .
@@ -152,8 +152,8 @@ export function RemittanceSection({
                         <span
                           className={
                             vs.vsAvgPct > 0
-                              ? 'text-green-800 dark:text-green-400'
-                              : 'text-red-700 dark:text-red-400'
+                              ? 'text-money-in'
+                              : 'text-money-out'
                           }
                         >
                           {' '}

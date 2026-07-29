@@ -32,7 +32,28 @@ function sourceFiles(dir = SRC): string[] {
   return out
 }
 
-const FILES = sourceFiles().map((path) => ({ path, text: readFileSync(path, 'utf8') }))
+/**
+ * Bỏ comment trước khi đếm. Không bỏ thì chính lời giải thích "đừng dùng X" trong
+ * comment lại làm guardrail đỏ — mà comment tại chỗ là nơi TỐT NHẤT để nói lý do.
+ *
+ * Chỉ bỏ block `/* *\/` và dòng bắt đầu bằng `//` hoặc `*`; KHÔNG cắt `//` giữa dòng
+ * vì URL trong chuỗi (`https://…`) sẽ bị chặt mất phần sau.
+ */
+function stripComments(text: string): string {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .filter((l) => {
+      const t = l.trim()
+      return !t.startsWith('//') && !t.startsWith('*')
+    })
+    .join('\n')
+}
+
+const FILES = sourceFiles().map((path) => ({
+  path,
+  text: stripComments(readFileSync(path, 'utf8')),
+}))
 
 /** Số lần `needle` xuất hiện trong toàn bộ src, kèm danh sách file để báo lỗi cho rõ. */
 function occurrences(needle: string) {
@@ -67,6 +88,23 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     }
   })
 
+  // Lý do: đã có token `text-money-in`/`text-money-out` tự lật sáng/tối. Viết lại
+  // cặp màu bằng tay nghĩa là quyết định bị nhân bản ra nhiều chỗ — đúng cái đã dẫn
+  // tới 124 chỗ phải sửa một lượt hôm 2026-07-29.
+  it('dùng token cho màu tiền, không viết lại cặp sáng/tối bằng tay', () => {
+    for (const needle of ['text-green-800 dark:text-green-400', 'text-red-700 dark:text-red-400']) {
+      const { count, where } = occurrences(needle)
+      expect(count, `Dùng text-money-in / text-money-out.\n${where.join('\n')}`).toBe(0)
+    }
+  })
+
+  // Lý do: nút chính là nền có CHỮ TRẮNG đè lên → cần 4,5:1 với trắng. green-600
+  // (#00a63e) chỉ 3,22:1. Màu nhấn của app là green-700, khai ở token --accent.
+  it('không dùng green-600 làm nền nút', () => {
+    const { count, where } = occurrences('bg-green-600')
+    expect(count, `Trắng trên green-600 chỉ 3,22:1. Dùng bg-green-700.\n${where.join('\n')}`).toBe(0)
+  })
+
   // Lý do: 0.5625rem = 9px, mà --app-font-scale nhỏ nhất là 0.9 → 8,1px.
   // Sàn dưới là text-3xs (10px), token cố ý không có tên cho 9px.
   it('không có chữ nhỏ hơn sàn 10px', () => {
@@ -79,12 +117,12 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
   // Mỗi số dưới đây là ĐỘ NỢ kỹ thuật đo được lúc dựng hệ thống. Gộp vào
   // primitive ở src/components/ui thì hạ số tương ứng.
   const CEILINGS: { needle: string; max: number; use: string }[] = [
-    { needle: 'text-[0.6875rem]', max: 52, use: 'text-2xs' },
+    { needle: 'text-[0.6875rem]', max: 51, use: 'text-2xs' },
     { needle: 'text-[0.625rem]', max: 22, use: 'text-3xs' },
-    { needle: 'active:scale-95', max: 103, use: '<IconButton>' },
-    { needle: 'min-h-11 min-w-11', max: 32, use: '<IconButton> / iconButtonClass()' },
-    { needle: 'rounded-xl bg-white', max: 86, use: '<Card>' },
-    { needle: 'tabular-nums', max: 107, use: '<Money> (tự bật tabular-nums)' },
+    { needle: 'active:scale-95', max: 98, use: '<IconButton>' },
+    { needle: 'min-h-11 min-w-11', max: 31, use: '<IconButton> / iconButtonClass()' },
+    { needle: 'rounded-xl bg-white', max: 85, use: '<Card>' },
+    { needle: 'tabular-nums', max: 102, use: '<Money> (tự bật tabular-nums)' },
   ]
 
   for (const { needle, max, use } of CEILINGS) {

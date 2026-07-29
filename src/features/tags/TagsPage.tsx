@@ -84,12 +84,12 @@ export function TagsPage() {
           type="button"
           onClick={add}
           disabled={!draft.trim() || createTag.isPending}
-          className="min-h-11 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white active:scale-95 disabled:opacity-40"
+          className="min-h-11 rounded-lg bg-green-700 px-4 text-sm font-semibold text-white active:scale-95 disabled:opacity-40"
         >
           Thêm
         </button>
       </div>
-      {error && <p className="mb-3 text-xs text-red-700 dark:text-red-400">{error}</p>}
+      {error && <p className="mb-3 text-xs text-money-out">{error}</p>}
 
       {tags.length === 0 ? (
         <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">

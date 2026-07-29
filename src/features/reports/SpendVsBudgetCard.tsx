@@ -2,6 +2,11 @@ import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'rec
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { DailyExpensePoint } from './aggregate'
 
+// Một nguồn cho cả nét vẽ và chú giải — recharts nhận màu qua prop nên phải là hằng
+// số JS, không dùng được biến CSS của token.
+const ACTUAL = '#ef4444'
+const BUDGET = '#9ca3af'
+
 interface Props {
   /** chi từng ngày cho TRỌN tháng tài chính (0 cho ngày trống/tương lai) */
   points: DailyExpensePoint[]
@@ -59,7 +64,7 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base }: 
               <Line
                 type="monotone"
                 dataKey="budget"
-                stroke="#9ca3af"
+                stroke={BUDGET}
                 strokeWidth={1.5}
                 strokeDasharray="4 4"
                 dot={false}
@@ -69,7 +74,7 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base }: 
             <Line
               type="monotone"
               dataKey="actual"
-              stroke="#ef4444"
+              stroke={ACTUAL}
               strokeWidth={2}
               dot={false}
               connectNulls={false}
@@ -80,11 +85,11 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base }: 
       </div>
       <div className="mt-1 flex justify-center gap-4 text-xs text-gray-500 dark:text-gray-400">
         <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> Đã chi
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ACTUAL }} /> Đã chi
         </span>
         {totalBudgeted > 0 && (
           <span className="flex items-center gap-1">
-            <span className="h-0.5 w-3.5 rounded bg-gray-400" /> Ngân sách
+            <span className="h-0.5 w-3.5 rounded" style={{ backgroundColor: BUDGET }} /> Ngân sách
           </span>
         )}
       </div>

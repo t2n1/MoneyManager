@@ -184,7 +184,7 @@ export function LifetimePage() {
                 setCreating(false)
               }
             }}
-            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-3 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
+            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-green-700 px-3 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
           >
             <Sparkles className="h-4 w-4" />
             {creating || isCreatingFirstScenario
@@ -248,7 +248,7 @@ export function LifetimePage() {
             onClick={() => setActiveId(s.id)}
             className={`min-h-11 shrink-0 whitespace-nowrap rounded-full px-4 text-sm font-medium active:scale-95 ${
               s.id === activeId
-                ? 'bg-green-600 text-white'
+                ? 'bg-green-700 text-white'
                 : 'border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300'
             }`}
           >
@@ -317,7 +317,7 @@ export function LifetimePage() {
           }}
           className={`min-h-11 flex-1 rounded-xl px-3 text-sm font-medium shadow-sm active:scale-95 disabled:opacity-60 ${
             effectiveCompareId
-              ? 'bg-green-600 text-white'
+              ? 'bg-green-700 text-white'
               : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 disabled:text-gray-400 dark:disabled:text-gray-600'
           }`}
         >
@@ -436,7 +436,7 @@ function BirthYearCard() {
         type="button"
         disabled={!valid || saveMut.isPending}
         onClick={() => saveMut.mutate(year)}
-        className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-green-600 px-3 text-sm font-semibold text-white active:scale-95 disabled:opacity-40"
+        className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-green-700 px-3 text-sm font-semibold text-white active:scale-95 disabled:opacity-40"
       >
         {saveMut.isPending ? 'Đang lưu…' : 'Lưu năm sinh'}
       </button>

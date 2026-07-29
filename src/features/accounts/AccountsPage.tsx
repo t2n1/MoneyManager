@@ -78,7 +78,7 @@ export function AccountsPage() {
         <button
           type="button"
           onClick={() => setEditing('new')}
-          className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
+          className="rounded-lg bg-green-700 px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
         >
           + Thêm
         </button>
@@ -667,7 +667,7 @@ function AccountForm({ account, onClose }: FormProps) {
               type="button"
               onClick={handleSubmit}
               disabled={!canSave}
-              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+              className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
             >
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>
@@ -699,7 +699,7 @@ function AccountToggle({
     >
       <span
         className={`relative block h-5 w-9 rounded-full transition ${
-          checked ? 'bg-green-600' : 'bg-gray-300'
+          checked ? 'bg-green-700' : 'bg-gray-300'
         }`}
       >
         <span

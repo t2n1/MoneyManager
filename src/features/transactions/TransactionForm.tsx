@@ -84,8 +84,8 @@ const TYPE_TABS: { value: TransactionType; label: string }[] = [
 ]
 
 const AMOUNT_COLOR: Record<TransactionType, string> = {
-  expense: 'text-red-700 dark:text-red-400',
-  income: 'text-green-800 dark:text-green-400',
+  expense: 'text-money-out',
+  income: 'text-money-in',
   transfer: 'text-gray-600 dark:text-gray-300',
 }
 
@@ -713,7 +713,7 @@ export function TransactionForm({
       {enableNlInput && (
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2 rounded-xl border border-green-300 bg-green-50 px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-green-500 dark:border-green-800 dark:bg-green-900/20">
-            <Sparkles className="h-4 w-4 shrink-0 text-green-800 dark:text-green-400" />
+            <Sparkles className="h-4 w-4 shrink-0 text-money-in" />
             <input
               value={nlText}
               onChange={(e) => setNlText(e.target.value)}
@@ -731,7 +731,7 @@ export function TransactionForm({
               type="button"
               onClick={applyNl}
               disabled={!nlText.trim()}
-              className="shrink-0 rounded-lg bg-green-600 px-2.5 py-1 text-xs font-semibold text-white active:scale-95 disabled:opacity-40"
+              className="shrink-0 rounded-lg bg-green-700 px-2.5 py-1 text-xs font-semibold text-white active:scale-95 disabled:opacity-40"
             >
               Điền
             </button>
@@ -1161,7 +1161,7 @@ export function TransactionForm({
         <NumPad onKey={onNumPadKey} />
       </div>
 
-      {error && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{error}</p>}
+      {error && <p role="alert" className="text-sm text-money-out">{error}</p>}
 
       {/* Hàng nút: ⌫ (chỉ mobile, thay cho hàng xóa lùi riêng) + Tiếp tục/Lưu */}
       <div className="flex gap-2">
@@ -1187,7 +1187,7 @@ export function TransactionForm({
               type="button"
               onClick={() => handleSubmit('save')}
               disabled={!canSave}
-              className="flex-1 rounded-xl bg-green-600 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-700 disabled:opacity-40"
+              className="flex-1 rounded-xl bg-green-700 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-800 disabled:opacity-40"
             >
               {pending === 'save' ? 'Đang lưu…' : submitLabel}
             </button>
@@ -1197,7 +1197,7 @@ export function TransactionForm({
             type="button"
             onClick={() => handleSubmit('save')}
             disabled={!canSave}
-            className="flex-1 rounded-xl bg-green-600 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-700 disabled:opacity-40"
+            className="flex-1 rounded-xl bg-green-700 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-800 disabled:opacity-40"
           >
             {saving ? 'Đang lưu…' : submitLabel}
           </button>

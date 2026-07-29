@@ -48,7 +48,7 @@ export function AxisTargetsCard({ data, base }: Props) {
                 <span className="text-gray-700 dark:text-gray-300">{LABEL[l.key]}</span>
                 <span
                   className={`text-xs font-medium ${
-                    l.ok ? 'text-green-800 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
+                    l.ok ? 'text-money-in' : 'text-amber-600 dark:text-amber-400'
                   }`}
                 >
                   {Math.round(l.share * 100)}%

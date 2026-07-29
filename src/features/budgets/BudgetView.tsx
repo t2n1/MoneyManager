@@ -34,7 +34,7 @@ const BAR_COLOR: Record<BudgetStatus, string> = {
 const TEXT_COLOR: Record<BudgetStatus, string> = {
   ok: 'text-gray-800 dark:text-gray-100',
   warn: 'text-amber-600',
-  over: 'text-red-700 dark:text-red-400',
+  over: 'text-money-out',
 }
 
 /** Thanh tiến độ + % dùng chung. */
@@ -217,7 +217,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               <span className="text-amber-600 dark:text-amber-400">{report.warnCount} sắp vượt</span>
             )}
             {report.overCount > 0 && (
-              <span className="text-red-700 dark:text-red-400">{report.overCount} danh mục vượt</span>
+              <span className="text-money-out">{report.overCount} danh mục vượt</span>
             )}
           </span>
         </div>
@@ -270,7 +270,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                         <span>
                           {formatMoney(item.line.budgeted, base)}
                           {item.line.carried > 0 && (
-                            <span className="ml-1 text-green-800 dark:text-green-400">
+                            <span className="ml-1 text-money-in">
                               (dồn +{formatMoney(item.line.carried, base)})
                             </span>
                           )}

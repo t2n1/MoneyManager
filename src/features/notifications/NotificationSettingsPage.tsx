@@ -52,7 +52,7 @@ function Group({
               >
                 <span
                   className={`block h-6 w-11 rounded-full transition ${
-                    on ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-700'
+                    on ? 'bg-green-700' : 'bg-gray-300 dark:bg-gray-700'
                   }`}
                 >
                   <span

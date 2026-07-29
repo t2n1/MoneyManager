@@ -44,8 +44,8 @@ const FREQ_LABEL: Record<RecurringFrequency, string> = {
 const WEEKDAYS = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7']
 
 const AMOUNT_COLOR: Record<RecurringRuleRow['type'], string> = {
-  expense: 'text-red-700 dark:text-red-400',
-  income: 'text-green-800 dark:text-green-400',
+  expense: 'text-money-out',
+  income: 'text-money-in',
   transfer: 'text-gray-500 dark:text-gray-400',
 }
 
@@ -180,7 +180,7 @@ export function RecurringPage() {
         <button
           type="button"
           onClick={() => setSheet({ open: true, rule: null })}
-          className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm active:scale-95"
+          className="flex items-center gap-1 rounded-lg bg-green-700 px-3 py-1.5 text-sm font-semibold text-white shadow-sm active:scale-95"
         >
           <Plus className="h-4 w-4" /> Thêm
         </button>
@@ -214,7 +214,7 @@ export function RecurringPage() {
                   <button
                     type="button"
                     onClick={() => createFromSuggestion(s)}
-                    className="shrink-0 rounded-lg bg-green-600 px-2.5 py-1 text-xs font-semibold text-white active:scale-95"
+                    className="shrink-0 rounded-lg bg-green-700 px-2.5 py-1 text-xs font-semibold text-white active:scale-95"
                   >
                     Tạo
                   </button>

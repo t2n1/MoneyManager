@@ -89,14 +89,17 @@ export function NetCashflowCard({ series, base, title, labelOf }: Props) {
       </div>
 
       <div className="mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+        {/* Chấm/vạch chú giải lấy ĐÚNG hằng số đã tô cho biểu đồ, không dùng class
+            Tailwind: bảng màu v4 khác v3 nên class và hex cứng đã lệch nhau. */}
         <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-full bg-green-600" /> Ròng dương
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: POSITIVE }} /> Ròng
+          dương
         </span>
         <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> Ròng âm
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: NEGATIVE }} /> Ròng âm
         </span>
         <span className="flex items-center gap-1">
-          <span className="h-0.5 w-4 rounded bg-indigo-500" /> Tích lũy
+          <span className="h-0.5 w-4 rounded" style={{ backgroundColor: CUMULATIVE }} /> Tích lũy
         </span>
       </div>
 
@@ -106,8 +109,8 @@ export function NetCashflowCard({ series, base, title, labelOf }: Props) {
         <span
           className={
             summary.total < 0
-              ? 'font-semibold text-red-700 dark:text-red-400'
-              : 'font-semibold text-green-800 dark:text-green-400'
+              ? 'font-semibold text-money-out'
+              : 'font-semibold text-money-in'
           }
         >
           {formatMoney(summary.total, base)}

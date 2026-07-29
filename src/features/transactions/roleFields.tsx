@@ -156,7 +156,7 @@ export function SplitFields({
         />
       </div>
       {total > 0 && value.others > 0 && (
-        <p className={`text-right text-xs ${over ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+        <p className={`text-right text-xs ${over ? 'text-money-out' : 'text-gray-500 dark:text-gray-400'}`}>
           {over ? (
             'Phần người khác không được lớn hơn tổng.'
           ) : (
@@ -189,7 +189,7 @@ export function SplitFields({
                   }
                   className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${
                     active
-                      ? 'border-green-600 bg-green-600 text-white'
+                      ? 'border-green-600 bg-green-700 text-white'
                       : 'border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200'
                   }`}
                 >
@@ -335,7 +335,7 @@ export function DebtFields({
                   }
                   className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${
                     active
-                      ? 'border-green-600 bg-green-600 text-white'
+                      ? 'border-green-600 bg-green-700 text-white'
                       : 'border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200'
                   }`}
                 >
@@ -388,7 +388,7 @@ export function DebtFields({
             disabled={!canRecordReal}
             onClick={() => onChange({ ...value, withTransaction: !value.withTransaction })}
             className={`relative h-5 w-9 shrink-0 rounded-full transition disabled:opacity-40 ${
-              realOn ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'
+              realOn ? 'bg-green-700' : 'bg-gray-300 dark:bg-gray-600'
             }`}
           >
             <span

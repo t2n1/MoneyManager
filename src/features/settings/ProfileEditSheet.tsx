@@ -204,7 +204,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           type="button"
           onClick={handleSave}
           disabled={update.isPending}
-          className="mt-4 w-full rounded-xl bg-green-600 py-3 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-60"
+          className="mt-4 w-full rounded-xl bg-green-700 py-3 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-60"
         >
           Lưu
         </button>

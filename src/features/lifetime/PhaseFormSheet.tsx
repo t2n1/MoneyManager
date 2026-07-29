@@ -169,7 +169,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
           className={`mb-1 ${field}`}
         />
         {!labelValid && (
-          <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+          <p role="alert" className="mb-2 text-xs text-money-out">
             Tên chặng không được để trống.
           </p>
         )}
@@ -183,12 +183,12 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
           className={`mb-1 ${field}`}
         />
         {!yearValid && startYear !== '' && (
-          <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+          <p role="alert" className="mb-2 text-xs text-money-out">
             Năm phải là số nguyên trong khoảng 1900–2200.
           </p>
         )}
         {yearValid && yearDuplicate && (
-          <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+          <p role="alert" className="mb-2 text-xs text-money-out">
             Kịch bản đã có một chặng khác bắt đầu năm {yearNum} — mỗi năm chỉ được một chặng.
           </p>
         )}
@@ -234,7 +234,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
             {/* Ô RỖNG có câu riêng: đó là trạng thái `handleCurrencyChange` vừa đặt, và
                 "phải là một số lớn hơn 0" không nói được vì sao con số cũ biến mất. */}
             {!fxValid && (
-              <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+              <p role="alert" className="mb-2 text-xs text-money-out">
                 {fx.trim() === ''
                   ? 'Chưa có tỷ giá. Đổi tiền của chặng là tỷ giá cũ hết nghĩa (nó quy về đơn vị khác) — khai lại rồi mới lưu được.'
                   : 'Tỷ giá phải là một số lớn hơn 0.'}
@@ -267,7 +267,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
           <MoneyField value={income} onChange={setIncome} currency={currency} ariaLabel="Thu nền mỗi năm" className={`text-right font-semibold ${field}`} />
         </div>
         {!incomeValid && (
-          <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+          <p role="alert" className="mb-2 text-xs text-money-out">
             Thu nền không được âm.
           </p>
         )}
@@ -278,7 +278,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
           <MoneyField value={expense} onChange={setExpense} currency={currency} autoOpen={false} ariaLabel="Chi nền mỗi năm" className={`text-right font-semibold ${field}`} />
         </div>
         {!expenseValid && (
-          <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+          <p role="alert" className="mb-2 text-xs text-money-out">
             Chi nền không được âm.
           </p>
         )}
@@ -290,7 +290,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
               type="button"
               onClick={handleDelete}
               disabled={saving}
-              className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-red-700 dark:text-red-400 active:scale-95 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
+              className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-money-out active:scale-95 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
             >
               Xóa
             </button>
@@ -309,7 +309,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
               type="button"
               onClick={handleSubmit}
               disabled={!canSave}
-              className="min-h-11 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
+              className="min-h-11 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
             >
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>

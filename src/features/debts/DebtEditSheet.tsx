@@ -156,7 +156,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
           >
             {saving ? 'Đang lưu…' : 'Lưu'}
           </button>

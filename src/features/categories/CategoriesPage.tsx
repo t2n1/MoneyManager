@@ -365,7 +365,7 @@ export function CategoriesPage() {
         <button
           type="button"
           onClick={() => setForm({ category: null, parent: null })}
-          className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
+          className="rounded-lg bg-green-700 px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
         >
           + Thêm
         </button>
@@ -404,7 +404,7 @@ export function CategoriesPage() {
             type="button"
             onClick={createTaxCategories}
             disabled={creatingTax}
-            className="mt-2 min-h-9 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white active:scale-95 disabled:opacity-40"
+            className="mt-2 min-h-9 rounded-lg bg-green-700 px-3 py-1.5 text-xs font-semibold text-white active:scale-95 disabled:opacity-40"
           >
             {creatingTax ? 'Đang tạo…' : 'Tạo bộ danh mục Thuế & An sinh'}
           </button>
@@ -734,7 +734,7 @@ function CategoryForm({
               type="button"
               onClick={handleSubmit}
               disabled={!canSave}
-              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+              className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
             >
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>

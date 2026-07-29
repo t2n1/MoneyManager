@@ -135,7 +135,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
               disabled={!canRecordReal}
               onClick={() => setWithTransaction((v) => !v)}
               className={`relative h-5 w-9 shrink-0 rounded-full transition disabled:opacity-40 ${
-                realOn ? 'bg-green-600' : 'bg-gray-300'
+                realOn ? 'bg-green-700' : 'bg-gray-300'
               }`}
             >
               <span
@@ -207,7 +207,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
           >
             {saving ? 'Đang lưu…' : 'Ghi nhận'}
           </button>

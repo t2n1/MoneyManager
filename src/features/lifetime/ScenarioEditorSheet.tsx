@@ -623,7 +623,7 @@ export function ScenarioEditorSheet({
   const field =
     'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
   const label_ = 'mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400'
-  const errorLine = 'mb-2 text-xs text-red-700 dark:text-red-400'
+  const errorLine = 'mb-2 text-xs text-money-out'
 
   return (
     <>
@@ -760,7 +760,7 @@ export function ScenarioEditorSheet({
                 onClick={() => setAssetsSign(1)}
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   assetsSign === 1
-                    ? 'bg-green-600 text-white'
+                    ? 'bg-green-700 text-white'
                     : 'border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300'
                 }`}
               >
@@ -771,7 +771,7 @@ export function ScenarioEditorSheet({
                 onClick={() => setAssetsSign(-1)}
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   assetsSign === -1
-                    ? 'bg-green-600 text-white'
+                    ? 'bg-green-700 text-white'
                     : 'border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300'
                 }`}
               >
@@ -887,7 +887,7 @@ export function ScenarioEditorSheet({
                 type="button"
                 onClick={handleSaveScenario}
                 disabled={!canSaveScenario}
-                className="min-h-11 flex-1 rounded-lg bg-green-600 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
+                className="min-h-11 flex-1 rounded-lg bg-green-700 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
               >
                 {savingScenario ? 'Đang lưu…' : 'Lưu thay đổi kịch bản'}
               </button>
@@ -934,7 +934,7 @@ export function ScenarioEditorSheet({
                     ? 'Không xóa được kịch bản duy nhất — tạo hoặc nhân bản thêm một kịch bản trước'
                     : 'Xóa kịch bản này cùng mọi chặng đời và sự kiện của nó'
                 }
-                className={`${BLOCK1_ACTION} px-3 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30`}
+                className={`${BLOCK1_ACTION} px-3 text-money-out hover:bg-red-50 dark:hover:bg-red-900/30`}
               >
                 <Trash2 className="h-4 w-4 shrink-0" />
                 {deleting ? 'Đang xóa…' : 'Xóa kịch bản'}
@@ -1075,7 +1075,7 @@ export function ScenarioEditorSheet({
                       hoàn tiền — hiếm nhưng có, và để xám thì đọc thành chi dương. */}
                   <span
                     className={`tabular-nums ${
-                      baseline.annualExpenseMinor < 0 ? 'text-red-700 dark:text-red-400' : ''
+                      baseline.annualExpenseMinor < 0 ? 'text-money-out' : ''
                     }`}
                   >
                     {formatMoney(baseline.annualExpenseMinor, currentPhase.currency as CurrencyCode)}
@@ -1100,7 +1100,7 @@ export function ScenarioEditorSheet({
                     {/* Màu theo dấu của con số ĐANG HIỆN. `refundCats` lọc annualMinor
                         < 0 nên `-c.annualMinor` luôn dương và dòng này không đỏ — giữ
                         điều kiện để nó không lệ thuộc vào bộ lọc ở trên. */}
-                    <span className={`tabular-nums ${-c.annualMinor < 0 ? 'text-red-700 dark:text-red-400' : ''}`}>
+                    <span className={`tabular-nums ${-c.annualMinor < 0 ? 'text-money-out' : ''}`}>
                       {formatMoney(-c.annualMinor, currentPhase.currency as CurrencyCode)}
                     </span>
                   </p>
@@ -1114,7 +1114,7 @@ export function ScenarioEditorSheet({
                             toàn hoàn tiền thì top 3 chính là ba con số ÂM. */}
                         <span
                           className={`shrink-0 tabular-nums ${
-                            c.annualMinor < 0 ? 'text-red-700 dark:text-red-400' : ''
+                            c.annualMinor < 0 ? 'text-money-out' : ''
                           }`}
                         >
                           {formatMoney(c.annualMinor, currentPhase.currency as CurrencyCode)} ({Math.round(c.share * 100)}%)

@@ -43,7 +43,7 @@ export function LoginPage() {
         Đăng nhập với Google
       </button>
 
-      {error && <p className="text-sm text-red-700 dark:text-red-400">{error}</p>}
+      {error && <p className="text-sm text-money-out">{error}</p>}
     </div>
   )
 }

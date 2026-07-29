@@ -109,7 +109,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
             type="button"
             onClick={handleSubmit}
             disabled={!canSave}
-            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
+            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
           >
             {saving ? 'Đang lưu…' : 'Lưu'}
           </button>

@@ -243,7 +243,7 @@ export function TrendsView() {
             {yoyTotalPct !== null && (
               <p className="mb-2 text-xs text-gray-600 dark:text-gray-300">
                 12 tháng qua bạn chi <b>{money(last12Total)}</b>,{' '}
-                <b className={yoyTotalPct >= 0 ? 'text-red-700 dark:text-red-400' : 'text-green-800 dark:text-green-400'}>
+                <b className={yoyTotalPct >= 0 ? 'text-money-out' : 'text-money-in'}>
                   {signPct(yoyTotalPct)}
                 </b>{' '}
                 so với 12 tháng trước đó ({money(prev12Total)}).
@@ -269,8 +269,8 @@ export function TrendsView() {
                       p.deltaPct === null
                         ? 'text-gray-500 dark:text-gray-400'
                         : p.deltaPct >= 0
-                          ? 'text-red-700 dark:text-red-400'
-                          : 'text-green-800 dark:text-green-400'
+                          ? 'text-money-out'
+                          : 'text-money-in'
                     }`}
                   >
                     {p.deltaPct === null ? '—' : signPct(p.deltaPct)}
@@ -344,8 +344,8 @@ export function TrendsView() {
             <p
               className={`text-2xl font-bold tabular-nums ${
                 inflation.rate > 0
-                  ? 'text-red-700 dark:text-red-400'
-                  : 'text-green-800 dark:text-green-400'
+                  ? 'text-money-out'
+                  : 'text-money-in'
               }`}
             >
               {signPct(inflation.rate * 100)}
@@ -393,10 +393,10 @@ export function TrendsView() {
             <p
               className={`text-2xl font-bold tabular-nums ${
                 elasticity.elasticity >= 0.8
-                  ? 'text-red-700 dark:text-red-400'
+                  ? 'text-money-out'
                   : elasticity.elasticity >= 0.5
                     ? 'text-amber-600 dark:text-amber-400'
-                    : 'text-green-800 dark:text-green-400'
+                    : 'text-money-in'
               }`}
             >
               {elasticity.elasticity.toFixed(2).replace('.', ',')}

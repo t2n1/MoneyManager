@@ -3,6 +3,13 @@ import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { MonthKey } from '../../lib/dates'
 import type { MonthlySeries } from './aggregate'
 
+// MỘT nguồn cho cả cột và chấm chú giải. Trước đây cột dùng hex cứng còn chấm dùng
+// class `bg-green-600`, nên từ hồi nâng Tailwind v3 → v4 (green-600 đổi từ #16a34a
+// sang #00a63e) chú giải đã chỉ sai màu cột nó gán nhãn. Recharts nhận màu qua prop
+// `fill` nên không dùng được biến CSS của token — phải là hằng số JS.
+const INCOME = '#16a34a'
+const EXPENSE = '#ef4444'
+
 interface Props {
   series: MonthlySeries
   base: CurrencyCode
@@ -43,17 +50,17 @@ export function MonthlyBarsCard({ series, base, title, labelOf }: Props) {
               // là xám sáng, nháy chói trong dark mode)
               cursor={{ fill: 'rgba(148,163,184,0.15)' }}
             />
-            <Bar dataKey="income" fill="#16a34a" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="expense" fill="#ef4444" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="income" fill={INCOME} radius={[3, 3, 0, 0]} />
+            <Bar dataKey="expense" fill={EXPENSE} radius={[3, 3, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
       <div className="mt-1 flex justify-center gap-4 text-xs text-gray-500 dark:text-gray-400">
         <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-full bg-green-600" /> Thu
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: INCOME }} /> Thu
         </span>
         <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> Chi
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: EXPENSE }} /> Chi
         </span>
       </div>
     </section>

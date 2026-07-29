@@ -56,14 +56,14 @@ export function SummaryView({
         <button
           type="button"
           onClick={() => setKind('expense')}
-          className={`flex-1 rounded-md py-2.5 ${kind === 'expense' ? 'bg-white dark:bg-gray-900 text-red-700 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+          className={`flex-1 rounded-md py-2.5 ${kind === 'expense' ? 'bg-white dark:bg-gray-900 text-money-out shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
           Chi
         </button>
         <button
           type="button"
           onClick={() => setKind('income')}
-          className={`flex-1 rounded-md py-2.5 ${kind === 'income' ? 'bg-white dark:bg-gray-900 text-green-800 dark:text-green-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+          className={`flex-1 rounded-md py-2.5 ${kind === 'income' ? 'bg-white dark:bg-gray-900 text-money-in shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
         >
           Thu
         </button>
@@ -75,7 +75,7 @@ export function SummaryView({
           Tổng {kind === 'expense' ? 'chi' : 'thu'} tháng này
         </div>
         <div
-          className={`mt-1 text-2xl font-bold tabular-nums ${kind === 'expense' ? 'text-red-700 dark:text-red-400' : 'text-green-800 dark:text-green-400'}`}
+          className={`mt-1 text-2xl font-bold tabular-nums ${kind === 'expense' ? 'text-money-out' : 'text-money-in'}`}
         >
           {approx}
           {formatMoney(breakdown.total, base)}

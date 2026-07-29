@@ -54,9 +54,17 @@
   --border-subtle: var(--color-gray-100);
   --border-strong: var(--color-gray-200);
 
-  /* Nhấn (dùng cho focus ring, nút chính) */
-  --accent: var(--color-green-600);
-  --accent-hover: var(--color-green-700);
+  /* Nhấn (dùng cho focus ring, nút chính).
+     green-700 chứ không green-600: nút chính là nền có CHỮ TRẮNG đè lên, nên phải
+     đạt 4,5:1 với trắng. green-600 (#00a63e) chỉ 3,22:1; green-700 (#008236) đạt
+     4,95:1. Cũng không dùng green-800 — đó là --money-in, để nút trùng màu số thu
+     nhập thì mất phân biệt "hành động" với "giá trị". */
+  --accent: var(--color-green-700);
+  --accent-hover: var(--color-green-800);
+  /* Chữ màu nhấn (link, hành động phụ) — KHÁC --money-in. Cùng là xanh nhưng khác
+     nghĩa: đây là "bấm được", kia là "đây là khoản thu". Trộn hai thứ thì không còn
+     đổi riêng được màu link mà không đụng vào con số. green-700 trên trắng = 4,95:1. */
+  --fg-accent: var(--color-green-700);
 }
 
 .dark {
@@ -77,6 +85,7 @@
 
   --accent: var(--color-green-500);
   --accent-hover: var(--color-green-400);
+  --fg-accent: var(--color-green-400);
 }
 
 /* Map var ngữ nghĩa thành tiện ích Tailwind. `inline` để Tailwind nhả ra
@@ -97,6 +106,7 @@
   --color-border-strong: var(--border-strong);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  --color-fg-accent: var(--fg-accent);
 }
 
 /* Nút bấm trên mobile không bị delay/zoom khi chạm nhanh */
@@ -121,12 +131,15 @@ body,
    bấm chuột. Dùng :where() → specificity 0 nên KHÔNG đè các focus tùy biến
    sẵn có (input outline-green-500…), chỉ lấp chỗ nút/link chưa có focus style. */
 :where(a, button, [role="button"], [role="switch"], [role="tab"], summary):focus-visible {
-  outline: 2px solid #16a34a; /* green-600 */
+  /* Đọc token thay vì hex cứng. Trước đây là #16a34a — đó là green-600 của Tailwind
+     v3, giá trị đã lạc từ hồi nâng lên v4 (v4 green-600 là #00a63e). Chuẩn đòi chỉ
+     báo tiêu điểm đạt 3:1; #16a34a chỉ được 3,05:1, green-700 đạt 4,95:1. */
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 html.dark
   :where(a, button, [role="button"], [role="switch"], [role="tab"], summary):focus-visible {
-  outline-color: #22c55e; /* green-500 sáng hơn cho nền tối */
+  outline-color: var(--accent); /* .dark đã đặt --accent sáng hơn cho nền tối */
 }
 
 /* Chống iOS Safari tự phóng to khi focus ô nhập: buộc cỡ chữ ≥16px cho các

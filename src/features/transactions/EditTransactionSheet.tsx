@@ -77,7 +77,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
             <button
               type="button"
               onClick={handleDelete}
-              className="rounded-lg px-3 py-1.5 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-50"
+              className="rounded-lg px-3 py-1.5 text-sm font-medium text-money-out hover:bg-red-50"
             >
               Xóa
             </button>

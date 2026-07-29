@@ -126,7 +126,7 @@ export function CalendarView({
                 <span
                   className={`text-[0.6875rem] leading-none ${
                     isToday
-                      ? 'flex h-4 w-4 items-center justify-center rounded-full bg-green-600 font-bold text-white'
+                      ? 'flex h-4 w-4 items-center justify-center rounded-full bg-green-700 font-bold text-white'
                       : i % 7 === 0
                         ? 'text-red-400'
                         : 'text-gray-500 dark:text-gray-400'
@@ -136,10 +136,10 @@ export function CalendarView({
                 </span>
                 <span className="mt-auto flex flex-col items-end gap-px text-3xs leading-tight tabular-nums">
                   {sums && sums.income > 0 && (
-                    <span className="break-all text-green-800 dark:text-green-400">{formatMoney(sums.income, base)}</span>
+                    <span className="break-all text-money-in">{formatMoney(sums.income, base)}</span>
                   )}
                   {sums && sums.expense > 0 && (
-                    <span className="break-all text-red-500">{formatMoney(sums.expense, base)}</span>
+                    <span className="break-all text-money-out">{formatMoney(sums.expense, base)}</span>
                   )}
                 </span>
               </button>
@@ -155,11 +155,11 @@ export function CalendarView({
             <span className="font-medium">{formatDayHeader(selected)}</span>
             <span className="tabular-nums">
               {selIncome && selIncome.value > 0 && (
-                <span className="text-green-800 dark:text-green-400">+{approxLabel(selIncome, base)}</span>
+                <span className="text-money-in">+{approxLabel(selIncome, base)}</span>
               )}
               {selIncome && selIncome.value > 0 && selExpense && selExpense.value > 0 && ' · '}
               {selExpense && selExpense.value > 0 && (
-                <span className="text-red-700 dark:text-red-400">-{approxLabel(selExpense, base)}</span>
+                <span className="text-money-out">-{approxLabel(selExpense, base)}</span>
               )}
             </span>
           </div>

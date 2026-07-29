@@ -308,7 +308,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
             Thay đổi chỉ áp dụng cho các kỳ tương lai; giao dịch đã sinh giữ nguyên.
           </p>
         )}
-        {error && <p className="mt-2 text-sm text-red-700 dark:text-red-400">{error}</p>}
+        {error && <p className="mt-2 text-sm text-money-out">{error}</p>}
 
         <div className="mt-4 flex justify-end gap-2">
           <button
@@ -322,7 +322,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
           >
             {saving ? 'Đang lưu…' : 'Lưu'}
           </button>

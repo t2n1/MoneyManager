@@ -73,7 +73,7 @@ export function SavingsGoalsSection() {
   return (
     <section className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-900">
       <div className="flex items-center gap-2">
-        <Target className="h-5 w-5 text-green-800 dark:text-green-400" />
+        <Target className="h-5 w-5 text-money-in" />
         <h2 className="flex-1 text-sm font-semibold text-gray-700 dark:text-gray-300">
           Mục tiêu tiết kiệm
         </h2>
@@ -81,7 +81,7 @@ export function SavingsGoalsSection() {
           type="button"
           onClick={() => setSheet({ open: true })}
           disabled={selectableAccounts.length === 0}
-          className="inline-flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1 text-xs font-semibold text-white active:scale-95 disabled:opacity-40"
+          className="inline-flex items-center gap-1 rounded-lg bg-green-700 px-2.5 py-1 text-xs font-semibold text-white active:scale-95 disabled:opacity-40"
         >
           <Plus className="h-3.5 w-3.5" /> Thêm
         </button>
@@ -118,7 +118,7 @@ export function SavingsGoalsSection() {
                     {g.name}
                   </span>
                   <span
-                    className={`text-xs font-semibold ${f.done ? 'text-green-800 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}
+                    className={`text-xs font-semibold ${f.done ? 'text-money-in' : 'text-gray-500 dark:text-gray-400'}`}
                   >
                     {pct}%
                   </span>
@@ -134,7 +134,7 @@ export function SavingsGoalsSection() {
                     {formatMoney(f.current, currency)} / {formatMoney(g.target_amount, currency)}
                   </span>
                   {dl != null && (
-                    <span className={dl < 0 ? 'text-red-500' : ''}>
+                    <span className={dl < 0 ? 'text-money-out' : ''}>
                       {dl < 0 ? `Quá hạn ${-dl} ngày` : dl === 0 ? 'Đến hạn hôm nay' : `Còn ${dl} ngày`}
                     </span>
                   )}

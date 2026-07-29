@@ -92,7 +92,7 @@ export function BudgetEditSheet({
             <button
               type="button"
               onClick={handleDelete}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+              className="rounded-xl px-4 py-3 text-sm font-medium text-money-out hover:bg-red-50 dark:hover:bg-red-900/30"
             >
               Xóa
             </button>
@@ -100,7 +100,7 @@ export function BudgetEditSheet({
           <button
             type="button"
             onClick={handleSave}
-            className="flex-1 rounded-xl bg-green-600 py-3 text-sm font-semibold text-white active:scale-[0.99]"
+            className="flex-1 rounded-xl bg-green-700 py-3 text-sm font-semibold text-white active:scale-[0.99]"
           >
             Lưu
           </button>

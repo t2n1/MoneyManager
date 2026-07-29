@@ -165,7 +165,7 @@ export function AccountDetailPage() {
               : 'Số dư hiện tại'}
         </p>
         <p
-          className={`mt-1 text-2xl font-bold ${balance < 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}
+          className={`mt-1 text-2xl font-bold ${balance < 0 ? 'text-money-out' : 'text-gray-900 dark:text-gray-100'}`}
         >
           {account?.type === 'card'
             ? balance < 0
@@ -211,8 +211,8 @@ export function AccountDetailPage() {
               <div
                 className={`flex items-center justify-between font-medium ${
                   invStats.unrealizedPnl >= 0
-                    ? 'text-green-800 dark:text-green-400'
-                    : 'text-red-700 dark:text-red-400'
+                    ? 'text-money-in'
+                    : 'text-money-out'
                 }`}
               >
                 <span>Lãi/lỗ chưa thực hiện</span>
@@ -231,7 +231,7 @@ export function AccountDetailPage() {
             <button
               type="button"
               onClick={() => setShowValuation(true)}
-              className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white active:scale-95"
+              className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-green-700 px-3 py-1.5 text-xs font-semibold text-white active:scale-95"
             >
               <LineChart className="h-3.5 w-3.5" /> Cập nhật giá trị
             </button>
@@ -286,7 +286,7 @@ export function AccountDetailPage() {
             </div>
             {dep ? (
               <>
-                <div className="flex items-center justify-between font-medium text-red-700 dark:text-red-400">
+                <div className="flex items-center justify-between font-medium text-money-out">
                   <span>Đã khấu hao</span>
                   <span className="tabular-nums">
                     − {formatMoney(dep.accumulated, currency)}
@@ -308,7 +308,7 @@ export function AccountDetailPage() {
             <button
               type="button"
               onClick={() => setShowValuation(true)}
-              className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white active:scale-95"
+              className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-green-700 px-3 py-1.5 text-xs font-semibold text-white active:scale-95"
             >
               <LineChart className="h-3.5 w-3.5" /> Cập nhật giá trị thực tế
             </button>

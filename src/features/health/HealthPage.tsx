@@ -219,9 +219,9 @@ export function HealthPage() {
       <section className="grid grid-cols-3 gap-2">
         {(
           [
-            ['good', tally.good, 'text-green-800 dark:text-green-400'],
+            ['good', tally.good, 'text-money-in'],
             ['warn', tally.warn, 'text-amber-600 dark:text-amber-400'],
-            ['bad', tally.bad, 'text-red-700 dark:text-red-400'],
+            ['bad', tally.bad, 'text-money-out'],
           ] as const
         ).map(([key, count, cls]) => (
           <div key={key} className="rounded-xl bg-white p-3 text-center shadow-sm dark:bg-gray-900">

@@ -45,7 +45,7 @@ function Toggle({
       aria-label={label}
       onClick={() => onChange(!checked)}
       className={`relative h-5 w-9 shrink-0 rounded-full transition ${
-        checked ? 'bg-green-600' : 'bg-gray-300'
+        checked ? 'bg-green-700' : 'bg-gray-300'
       }`}
     >
       <span
@@ -389,7 +389,7 @@ export function AssetGroupsPage() {
                 <button
                   type="button"
                   onClick={() => submitRename(g.name)}
-                  className="rounded-lg bg-green-600 px-2 py-1 text-xs font-semibold text-white"
+                  className="rounded-lg bg-green-700 px-2 py-1 text-xs font-semibold text-white"
                 >
                   Lưu
                 </button>
@@ -445,7 +445,7 @@ export function AssetGroupsPage() {
               <button
                 type="button"
                 onClick={() => setDeleting(g)}
-                className="rounded-lg px-2 py-1 text-xs text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                className="rounded-lg px-2 py-1 text-xs text-money-out hover:bg-red-50 dark:hover:bg-red-900/30"
               >
                 Xóa
               </button>
@@ -579,7 +579,7 @@ export function AssetGroupsPage() {
             setAdding(true)
             setNewName('')
           }}
-          className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm active:scale-95"
+          className="flex items-center gap-1 rounded-lg bg-green-700 px-3 py-1.5 text-sm font-semibold text-white shadow-sm active:scale-95"
         >
           <Plus className="h-4 w-4" /> Thêm nhóm
         </button>
@@ -608,7 +608,7 @@ export function AssetGroupsPage() {
           <button
             type="button"
             onClick={submitNewGroup}
-            className="rounded-lg bg-green-600 px-2 py-1 text-xs font-semibold text-white"
+            className="rounded-lg bg-green-700 px-2 py-1 text-xs font-semibold text-white"
           >
             Lưu
           </button>
@@ -692,7 +692,7 @@ function AddAccountsPanel({
                 <span
                   className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                     checked
-                      ? 'border-green-600 bg-green-600 text-white'
+                      ? 'border-green-700 bg-green-700 text-white'
                       : 'border-gray-300 dark:border-gray-600'
                   }`}
                   aria-hidden
@@ -724,7 +724,7 @@ function AddAccountsPanel({
           type="button"
           onClick={onConfirm}
           disabled={picked.size === 0}
-          className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+          className="rounded-lg bg-green-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
         >
           Thêm{picked.size > 0 ? ` (${picked.size})` : ''}
         </button>

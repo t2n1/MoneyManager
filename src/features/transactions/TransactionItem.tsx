@@ -3,8 +3,8 @@ import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, CategoryRow, TransactionRow } from '../../types/database.types'
 
 const AMOUNT_STYLE: Record<TransactionRow['type'], { color: string; sign: string }> = {
-  expense: { color: 'text-red-700 dark:text-red-400', sign: '-' },
-  income: { color: 'text-green-800 dark:text-green-400', sign: '+' },
+  expense: { color: 'text-money-out', sign: '-' },
+  income: { color: 'text-money-in', sign: '+' },
   transfer: { color: 'text-gray-500 dark:text-gray-400', sign: '' },
 }
 

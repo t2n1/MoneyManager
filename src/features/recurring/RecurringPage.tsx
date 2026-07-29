@@ -44,8 +44,8 @@ const FREQ_LABEL: Record<RecurringFrequency, string> = {
 const WEEKDAYS = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7']
 
 const AMOUNT_COLOR: Record<RecurringRuleRow['type'], string> = {
-  expense: 'text-red-600 dark:text-red-400',
-  income: 'text-green-600 dark:text-green-400',
+  expense: 'text-red-700 dark:text-red-400',
+  income: 'text-green-800 dark:text-green-400',
   transfer: 'text-gray-500 dark:text-gray-400',
 }
 
@@ -282,7 +282,7 @@ export function RecurringPage() {
                   type="button"
                   onClick={() => togglePause(rule)}
                   aria-label={rule.is_paused ? 'Chạy lại' : 'Tạm dừng'}
-                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-800"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                 >
                   {rule.is_paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
                 </button>
@@ -290,7 +290,7 @@ export function RecurringPage() {
                   type="button"
                   onClick={() => handleDelete(rule)}
                   aria-label="Xóa"
-                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-800"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                 >
                   <Trash2 className="h-5 w-5" />
                 </button>

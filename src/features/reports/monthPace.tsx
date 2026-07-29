@@ -135,7 +135,7 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
           </p>
           {totalBudgeted > 0 ? (
             forecast.projected > totalBudgeted ? (
-              <p className="mt-2 rounded-lg bg-red-50 dark:bg-red-900/30 px-2 py-1.5 text-xs text-red-600 dark:text-red-400">
+              <p className="mt-2 rounded-lg bg-red-50 dark:bg-red-900/30 px-2 py-1.5 text-xs text-red-700 dark:text-red-400">
                 Với đà này bạn sẽ vượt ngân sách {formatMoney(forecast.projected - totalBudgeted, base)}.
               </p>
             ) : (

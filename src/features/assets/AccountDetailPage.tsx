@@ -165,7 +165,7 @@ export function AccountDetailPage() {
               : 'Số dư hiện tại'}
         </p>
         <p
-          className={`mt-1 text-2xl font-bold ${balance < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}
+          className={`mt-1 text-2xl font-bold ${balance < 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}
         >
           {account?.type === 'card'
             ? balance < 0
@@ -211,8 +211,8 @@ export function AccountDetailPage() {
               <div
                 className={`flex items-center justify-between font-medium ${
                   invStats.unrealizedPnl >= 0
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-red-600 dark:text-red-400'
+                    ? 'text-green-800 dark:text-green-400'
+                    : 'text-red-700 dark:text-red-400'
                 }`}
               >
                 <span>Lãi/lỗ chưa thực hiện</span>
@@ -245,7 +245,7 @@ export function AccountDetailPage() {
               <span className="min-w-0 truncate text-gray-500 dark:text-gray-400">
                 {TAX_SHELTER_LABELS[account.tax_shelter]}
               </span>
-              <span className="shrink-0 text-xs text-gray-400 dark:text-gray-500">
+              <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
                 năm {shelterYear}
               </span>
             </div>
@@ -268,7 +268,7 @@ export function AccountDetailPage() {
               )}
               {shelter.remaining === 0 && <> · đã dùng hết hạn mức</>}
             </p>
-            <p className="mt-0.5 text-[0.6875rem] text-gray-400 dark:text-gray-500">
+            <p className="mt-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">
               Hạn mức tính theo năm dương lịch và không dồn sang năm sau. Rút tiền ra giữa năm cũng
               không hoàn lại phần hạn mức đã dùng.
             </p>
@@ -286,7 +286,7 @@ export function AccountDetailPage() {
             </div>
             {dep ? (
               <>
-                <div className="flex items-center justify-between font-medium text-red-600 dark:text-red-400">
+                <div className="flex items-center justify-between font-medium text-red-700 dark:text-red-400">
                   <span>Đã khấu hao</span>
                   <span className="tabular-nums">
                     − {formatMoney(dep.accumulated, currency)}
@@ -371,7 +371,7 @@ export function AccountDetailPage() {
                     if (await confirmDialog({ title: 'Xóa bản ghi giá trị này?', danger: true, confirmLabel: 'Xóa' }))
                       deleteValuation.mutate(v.id)
                   }}
-                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-red-600 dark:text-gray-400 dark:hover:bg-gray-800"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-red-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-red-400"
                   aria-label="Xóa bản ghi giá trị"
                 >
                   <Trash2 className="h-4 w-4" />

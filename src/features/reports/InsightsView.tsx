@@ -188,8 +188,8 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
                 rate === null
                   ? 'text-gray-500 dark:text-gray-400'
                   : rate >= 0
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-red-600 dark:text-red-400'
+                    ? 'text-green-800 dark:text-green-400'
+                    : 'text-red-700 dark:text-red-400'
               }`}
             >
               {rate === null ? '—' : `${Math.round(rate * 100)}%`}

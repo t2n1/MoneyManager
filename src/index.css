@@ -3,6 +3,102 @@
 /* Bật dark mode theo class '.dark' trên <html> (Tailwind v4) */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ============================================================================
+   DESIGN TOKENS
+   Xem docs/design-system.md. Ba tầng: nguyên thuỷ (palette Tailwind) → ngữ nghĩa
+   (dưới đây) → component (props của src/components/ui).
+
+   Mục đích KHÔNG phải phát minh scale mới — app đã có scale ngầm nhất quán
+   (rounded-lg cho control, rounded-xl cho thẻ, 3 bậc font-weight, shadow-sm một
+   tầng). Việc của tầng này là ĐẶT TÊN cho nó và khoá các quyết định contrast lại
+   thành cấu trúc, để không ai chọn lại gray-400 rồi trượt AA lần nữa.
+   ============================================================================ */
+
+/* --- Bậc chữ còn thiếu ---------------------------------------------------
+   Scale mặc định của Tailwind không có bậc nào dưới text-xs (0.75rem), nên
+   trong code đã phải chêm 76 giá trị tuỳ ý: 52× 0.6875rem, 22× 0.625rem,
+   2× 0.5625rem. Đặt tên cho hai bậc đầu. CỐ Ý KHÔNG đặt tên cho 0.5625rem
+   (9px): với --app-font-scale=0.9 nó tụt xuống 8,1px, không đọc được — hai
+   chỗ đang dùng phải nâng lên text-3xs. Không có tên thì khó tái xuất hiện. */
+@theme {
+  --text-2xs: 0.6875rem; /* 11px */
+  --text-2xs--line-height: 1rem;
+  --text-3xs: 0.625rem; /* 10px — sàn dưới, đừng đi thấp hơn */
+  --text-3xs--line-height: 0.875rem;
+}
+
+/* --- Token ngữ nghĩa -----------------------------------------------------
+   Khai bằng CSS var thường (không phải trong @theme) vì giá trị phải ĐỔI theo
+   .dark; @theme là tĩnh. Rồi map vào tiện ích Tailwind bằng `@theme inline`
+   bên dưới, nên `text-fg-muted` / `bg-surface` tự lật màu theo chế độ.
+
+   Mọi tỉ số contrast ghi kèm là ĐO THẬT trên app (canvas pixel readback), không
+   phải tra bảng — palette v4 dùng oklch nên khác v3 đáng kể. */
+:root {
+  /* Chữ */
+  --fg-primary: var(--color-gray-800); /* 14,7:1 trên trắng */
+  --fg-secondary: var(--color-gray-600); /* 7,6:1 */
+  --fg-muted: var(--color-gray-500); /* 4,84:1 — SÀN cho chữ trên nền trắng/gray-50 */
+  --fg-on-track: var(--color-gray-600); /* nhãn trên nền gray-100: gray-500 chỉ 4,39:1 → trượt */
+  --fg-inverse: var(--color-white);
+
+  /* Tiền: đây là quyết định 2026-07-29, không được đổi lẻ ở từng chỗ.
+     green-600 cũ chỉ 3,22:1, red-600 cũ 4,33:1 trên gray-100 → cả hai trượt. */
+  --money-in: var(--color-green-800); /* 7,13:1 */
+  --money-out: var(--color-red-700); /* 6,42:1 */
+
+  /* Bề mặt */
+  --surface: var(--color-white); /* thẻ */
+  --surface-sunken: var(--color-gray-100); /* track của segmented control */
+  --surface-page: var(--color-gray-50);
+  --border-subtle: var(--color-gray-100);
+  --border-strong: var(--color-gray-200);
+
+  /* Nhấn (dùng cho focus ring, nút chính) */
+  --accent: var(--color-green-600);
+  --accent-hover: var(--color-green-700);
+}
+
+.dark {
+  --fg-primary: var(--color-gray-100);
+  --fg-secondary: var(--color-gray-300);
+  --fg-muted: var(--color-gray-400); /* ĐẢO chiều so với light: nền tối thì chữ phụ phải SÁNG hơn */
+  --fg-on-track: var(--color-gray-400); /* 5,64:1 trên gray-800 */
+  --fg-inverse: var(--color-gray-950);
+
+  --money-in: var(--color-green-400); /* 9,98:1 */
+  --money-out: var(--color-red-400); /* 6,14:1 */
+
+  --surface: var(--color-gray-900);
+  --surface-sunken: var(--color-gray-800);
+  --surface-page: var(--color-gray-950);
+  --border-subtle: var(--color-gray-800);
+  --border-strong: var(--color-gray-700);
+
+  --accent: var(--color-green-500);
+  --accent-hover: var(--color-green-400);
+}
+
+/* Map var ngữ nghĩa thành tiện ích Tailwind. `inline` để Tailwind nhả ra
+   `color: var(--fg-muted)` chứ không phải copy giá trị lúc build — có vậy thì
+   khi .dark đổi var, tiện ích mới đổi theo. */
+@theme inline {
+  --color-fg-primary: var(--fg-primary);
+  --color-fg-secondary: var(--fg-secondary);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-on-track: var(--fg-on-track);
+  --color-fg-inverse: var(--fg-inverse);
+  --color-money-in: var(--money-in);
+  --color-money-out: var(--money-out);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-page: var(--surface-page);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+}
+
 /* Nút bấm trên mobile không bị delay/zoom khi chạm nhanh */
 html {
   touch-action: manipulation;

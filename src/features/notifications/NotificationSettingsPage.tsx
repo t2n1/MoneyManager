@@ -16,7 +16,7 @@ function Group({
 }) {
   return (
     <section className="mb-5">
-      <h2 className="mb-2 px-1 text-[0.6875rem] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+      <h2 className="mb-2 px-1 text-[0.6875rem] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         {title}
       </h2>
       <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-white dark:divide-gray-800 dark:bg-gray-900">

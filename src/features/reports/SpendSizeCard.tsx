@@ -38,7 +38,7 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
           Một lần chi to cỡ nào
         </h2>
-        <span className="shrink-0 text-[0.6875rem] text-gray-400 dark:text-gray-500">
+        <span className="shrink-0 text-[0.6875rem] text-gray-500 dark:text-gray-400">
           {data.count} lần chi {periodNoun}
         </span>
       </div>
@@ -55,7 +55,7 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
                 </span>
               </div>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
-                <span className="text-[0.6875rem] text-gray-400 dark:text-gray-500">{row.note}</span>
+                <span className="text-[0.6875rem] text-gray-500 dark:text-gray-400">{row.note}</span>
                 {hours !== null && (
                   <span className="shrink-0 text-[0.6875rem] font-medium text-sky-600 dark:text-sky-400">
                     ≈ {hoursLabel(hours)}

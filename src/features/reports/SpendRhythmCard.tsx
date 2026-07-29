@@ -47,7 +47,7 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
               {money(payday.otherDays)}/ngày). Không có hiệu ứng ngày lương rõ rệt.
             </p>
           )}
-          <p className="mt-1 text-[0.6875rem] text-gray-400 dark:text-gray-500">
+          <p className="mt-1 text-[0.6875rem] text-gray-500 dark:text-gray-400">
             Dựa trên {payday.paydayCount} lần nhận lương, {payday.daysInWindow} ngày trong cửa sổ và{' '}
             {payday.daysOutside} ngày thường.
           </p>
@@ -64,7 +64,7 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
               const isWeekend = b.dow === 0 || b.dow === 6
               return (
                 <div key={b.dow} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                  <span className="text-[0.5625rem] tabular-nums text-gray-400 dark:text-gray-500">
+                  <span className="text-3xs tabular-nums text-gray-500 dark:text-gray-400">
                     {formatCompact(b.avg, base)}
                   </span>
                   <div

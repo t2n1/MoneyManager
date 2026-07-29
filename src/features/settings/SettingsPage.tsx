@@ -179,7 +179,7 @@ export function SettingsPage() {
                   await getSupabase().auth.signOut()
                 }
               }}
-              className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
+              className="rounded-lg border border-red-300 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
             >
               Đăng xuất
             </button>

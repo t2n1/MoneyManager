@@ -134,9 +134,9 @@ export function CalendarView({
                 >
                   {dayLabel(iso)}
                 </span>
-                <span className="mt-auto flex flex-col items-end gap-px text-[0.5625rem] leading-tight tabular-nums">
+                <span className="mt-auto flex flex-col items-end gap-px text-3xs leading-tight tabular-nums">
                   {sums && sums.income > 0 && (
-                    <span className="break-all text-green-600 dark:text-green-400">{formatMoney(sums.income, base)}</span>
+                    <span className="break-all text-green-800 dark:text-green-400">{formatMoney(sums.income, base)}</span>
                   )}
                   {sums && sums.expense > 0 && (
                     <span className="break-all text-red-500">{formatMoney(sums.expense, base)}</span>
@@ -155,11 +155,11 @@ export function CalendarView({
             <span className="font-medium">{formatDayHeader(selected)}</span>
             <span className="tabular-nums">
               {selIncome && selIncome.value > 0 && (
-                <span className="text-green-600 dark:text-green-400">+{approxLabel(selIncome, base)}</span>
+                <span className="text-green-800 dark:text-green-400">+{approxLabel(selIncome, base)}</span>
               )}
               {selIncome && selIncome.value > 0 && selExpense && selExpense.value > 0 && ' · '}
               {selExpense && selExpense.value > 0 && (
-                <span className="text-red-600 dark:text-red-400">-{approxLabel(selExpense, base)}</span>
+                <span className="text-red-700 dark:text-red-400">-{approxLabel(selExpense, base)}</span>
               )}
             </span>
           </div>

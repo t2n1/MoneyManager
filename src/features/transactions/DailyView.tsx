@@ -53,11 +53,11 @@ export function DailyView({
                 <span className="font-medium">{formatDayHeader(day)}</span>
                 <span className="tabular-nums">
                   {dayIncome && dayIncome.value > 0 && (
-                    <span className="text-green-600 dark:text-green-400">+{approxLabel(dayIncome, base)}</span>
+                    <span className="text-green-800 dark:text-green-400">+{approxLabel(dayIncome, base)}</span>
                   )}
                   {dayIncome && dayIncome.value > 0 && dayExpense && dayExpense.value > 0 && ' · '}
                   {dayExpense && dayExpense.value > 0 && (
-                    <span className="text-red-600 dark:text-red-400">-{approxLabel(dayExpense, base)}</span>
+                    <span className="text-red-700 dark:text-red-400">-{approxLabel(dayExpense, base)}</span>
                   )}
                 </span>
               </div>

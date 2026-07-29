@@ -105,7 +105,7 @@ export function NotificationBell({ className = '' }: { className?: string }) {
             <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-gray-300 lg:hidden dark:bg-gray-600" />
             <Suspense
               fallback={
-                <p className="py-6 text-center text-sm text-gray-400 dark:text-gray-500">
+                <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                   Đang tải…
                 </p>
               }

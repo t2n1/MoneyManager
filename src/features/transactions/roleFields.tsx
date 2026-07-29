@@ -156,7 +156,7 @@ export function SplitFields({
         />
       </div>
       {total > 0 && value.others > 0 && (
-        <p className={`text-right text-xs ${over ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+        <p className={`text-right text-xs ${over ? 'text-red-700 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
           {over ? (
             'Phần người khác không được lớn hơn tổng.'
           ) : (
@@ -194,7 +194,7 @@ export function SplitFields({
                   }`}
                 >
                   <span className="max-w-[9rem] truncate">{p.name}</span>
-                  <span className={`text-xs tabular-nums ${active ? 'text-white/80' : 'text-gray-400'}`}>
+                  <span className={`text-xs tabular-nums ${active ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
                     {formatMoney(p.remaining, p.currency)}
                   </span>
                 </button>
@@ -340,7 +340,7 @@ export function DebtFields({
                   }`}
                 >
                   <span className="max-w-[9rem] truncate">{p.name}</span>
-                  <span className={`text-xs tabular-nums ${active ? 'text-white/80' : 'text-gray-400'}`}>
+                  <span className={`text-xs tabular-nums ${active ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
                     {formatMoney(p.remaining, p.currency)}
                   </span>
                 </button>

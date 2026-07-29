@@ -124,7 +124,7 @@ export function AccountsPage() {
                     <button
                       type="button"
                       {...handle}
-                      className="inline-flex min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-gray-400 active:cursor-grabbing"
+                      className="inline-flex min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-gray-500 dark:text-gray-400 active:cursor-grabbing"
                       aria-label={`Kéo để sắp thứ tự ${a.name}`}
                     >
                       <GripVertical className="h-5 w-5" />
@@ -544,7 +544,7 @@ function AccountForm({ account, onClose }: FormProps) {
         {isInvestment && (
           <div className="mb-3 rounded-lg bg-gray-50 p-2.5 dark:bg-gray-950">
             <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-              Ưu đãi thuế <span className="text-gray-400 dark:text-gray-500">(không bắt buộc)</span>
+              Ưu đãi thuế <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>
             </label>
             <select
               value={taxShelter}
@@ -650,7 +650,7 @@ function AccountForm({ account, onClose }: FormProps) {
               type="button"
               onClick={handleDelete}
               disabled={del.isPending}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 disabled:opacity-50"
             >
               Xóa
             </button>

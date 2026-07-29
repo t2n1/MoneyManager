@@ -15,7 +15,7 @@ export function LifetimeSection() {
     <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
       <Link to="/lifetime" className="flex min-h-11 items-center gap-3 active:scale-95">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-50 dark:bg-green-900/30">
-          <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
+          <TrendingUp className="h-5 w-5 text-green-800 dark:text-green-400" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold text-gray-800 dark:text-gray-100">
@@ -28,8 +28,8 @@ export function LifetimeSection() {
             <span
               className={`mt-0.5 block text-xs font-medium ${
                 negativeYear
-                  ? 'text-red-600 dark:text-red-400'
-                  : 'text-green-600 dark:text-green-400'
+                  ? 'text-red-700 dark:text-red-400'
+                  : 'text-green-800 dark:text-green-400'
               }`}
             >
               {negativeYear

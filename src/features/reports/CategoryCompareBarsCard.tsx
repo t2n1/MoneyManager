@@ -42,7 +42,7 @@ export function CategoryCompareBarsCard({ rows, categories, base, limit = 8 }: P
                   </span>
                 ) : row.deltaPct !== null && row.deltaPct !== 0 ? (
                   <span
-                    className={`shrink-0 text-[0.6875rem] ${row.deltaPct > 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}
+                    className={`shrink-0 text-[0.6875rem] ${row.deltaPct > 0 ? 'text-red-500' : 'text-green-800 dark:text-green-400'}`}
                   >
                     {row.deltaPct > 0 ? '▲' : '▼'}
                     {Math.abs(row.deltaPct)}%

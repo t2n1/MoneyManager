@@ -48,11 +48,11 @@ export function AxisTargetsCard({ data, base }: Props) {
                 <span className="text-gray-700 dark:text-gray-300">{LABEL[l.key]}</span>
                 <span
                   className={`text-xs font-medium ${
-                    l.ok ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
+                    l.ok ? 'text-green-800 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
                   }`}
                 >
                   {Math.round(l.share * 100)}%
-                  <span className="ml-1 font-normal text-gray-400 dark:text-gray-500">
+                  <span className="ml-1 font-normal text-gray-500 dark:text-gray-400">
                     {l.direction === 'cap' ? 'tối đa' : 'tối thiểu'}{' '}
                     {Math.round(l.targetShare * 100)}%
                   </span>
@@ -72,7 +72,7 @@ export function AxisTargetsCard({ data, base }: Props) {
                   aria-hidden
                 />
               </div>
-              <div className="mt-0.5 flex justify-between text-xs text-gray-400 dark:text-gray-500">
+              <div className="mt-0.5 flex justify-between text-xs text-gray-500 dark:text-gray-400">
                 <span className={l.ok ? '' : 'text-amber-600 dark:text-amber-400'}>
                   {formatMoney(Math.round(l.actual), base)}
                 </span>
@@ -80,7 +80,7 @@ export function AxisTargetsCard({ data, base }: Props) {
                   {l.direction === 'cap' ? 'trần' : 'sàn'} {formatMoney(l.target, base)}
                 </span>
               </div>
-              <p className="mt-0.5 text-[0.6875rem] text-gray-400 dark:text-gray-500">{HINT[l.key]}</p>
+              <p className="mt-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">{HINT[l.key]}</p>
             </li>
           )
         })}

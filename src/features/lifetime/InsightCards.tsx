@@ -66,7 +66,7 @@ function InsightTile({
       <p className="text-xs text-gray-600 dark:text-gray-300">{label}</p>
       <p
         className={`mt-0.5 flex items-center gap-1 ${VALUE_SIZE} font-medium tabular-nums ${
-          warn ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'
+          warn ? 'text-red-700 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'
         }`}
       >
         {warn && <AlertCircle className="h-[1.1em] w-[1.1em] shrink-0" />}

@@ -161,7 +161,7 @@ export function SearchPage() {
 
       {/* Ô tìm ghi chú */}
       <div className="mb-2 flex items-center gap-2 rounded-xl bg-white dark:bg-gray-900 px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-green-500">
-        <Search className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+        <Search className="h-5 w-5 text-gray-500 dark:text-gray-400" />
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -169,7 +169,7 @@ export function SearchPage() {
           className="flex-1 text-sm text-gray-800 dark:text-gray-100 outline-none"
         />
         {text && (
-          <button type="button" onClick={() => setText('')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-gray-400 dark:text-gray-500" aria-label="Xóa">
+          <button type="button" onClick={() => setText('')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-gray-500 dark:text-gray-400" aria-label="Xóa">
             <X className="h-5 w-5" />
           </button>
         )}
@@ -200,7 +200,7 @@ export function SearchPage() {
           onChange={(e) => setFrom(e.target.value)}
           className="min-w-0 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5"
         />
-        <span className="text-gray-400 dark:text-gray-500">→</span>
+        <span className="text-gray-500 dark:text-gray-400">→</span>
         <input
           type="date"
           value={to}
@@ -224,7 +224,7 @@ export function SearchPage() {
             <div>
               <p className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
                 Nhãn{' '}
-                <span className="font-normal text-gray-400 dark:text-gray-500">
+                <span className="font-normal text-gray-500 dark:text-gray-400">
                   (chọn nhiều = khớp bất kỳ)
                 </span>
               </p>
@@ -280,7 +280,7 @@ export function SearchPage() {
                 placeholder="Tối thiểu"
                 className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5"
               />
-              <span className="text-gray-400 dark:text-gray-500">→</span>
+              <span className="text-gray-500 dark:text-gray-400">→</span>
               <input
                 type="number"
                 inputMode="numeric"
@@ -339,14 +339,14 @@ export function SearchPage() {
         <div className="mb-3 rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-500 dark:text-gray-400">Thu</span>
-            <span className="font-semibold text-green-600 dark:text-green-400">
+            <span className="font-semibold text-green-800 dark:text-green-400">
               {totals.hasForeign ? '≈ ' : ''}
               {formatMoney(totals.income, base)}
             </span>
           </div>
           <div className="mt-1 flex items-center justify-between text-sm">
             <span className="text-gray-500 dark:text-gray-400">Chi</span>
-            <span className="font-semibold text-red-600 dark:text-red-400">
+            <span className="font-semibold text-red-700 dark:text-red-400">
               {totals.hasForeign ? '≈ ' : ''}
               {formatMoney(totals.expense, base)}
             </span>

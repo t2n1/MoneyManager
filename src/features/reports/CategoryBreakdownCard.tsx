@@ -171,7 +171,7 @@ export function CategoryBreakdownCard({
             role="tab"
             aria-selected={kind === 'expense'}
             onClick={() => onKindChange('expense')}
-            className={`rounded-md px-3 py-2.5 ${kind === 'expense' ? 'bg-white text-red-600 shadow-sm dark:bg-gray-900 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}
+            className={`rounded-md px-3 py-2.5 transition ${kind === 'expense' ? 'bg-white text-red-700 shadow-sm dark:bg-gray-900 dark:text-red-400' : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
           >
             Chi
           </button>
@@ -180,7 +180,7 @@ export function CategoryBreakdownCard({
             role="tab"
             aria-selected={kind === 'income'}
             onClick={() => onKindChange('income')}
-            className={`rounded-md px-3 py-2.5 ${kind === 'income' ? 'bg-white text-green-600 shadow-sm dark:bg-gray-900 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}
+            className={`rounded-md px-3 py-2.5 transition ${kind === 'income' ? 'bg-white text-green-800 shadow-sm dark:bg-gray-900 dark:text-green-400' : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
           >
             Thu
           </button>

@@ -106,8 +106,8 @@ export function NetCashflowCard({ series, base, title, labelOf }: Props) {
         <span
           className={
             summary.total < 0
-              ? 'font-semibold text-red-600 dark:text-red-400'
-              : 'font-semibold text-green-600 dark:text-green-400'
+              ? 'font-semibold text-red-700 dark:text-red-400'
+              : 'font-semibold text-green-800 dark:text-green-400'
           }
         >
           {formatMoney(summary.total, base)}

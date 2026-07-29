@@ -395,19 +395,19 @@ export function AssetsPage() {
               <span className="tabular-nums">{formatMoney(breakdown.total, base)}</span>
             </div>
             {debts_.owedToMe > 0 && (
-              <div className="flex items-center justify-between text-green-600 dark:text-green-400">
+              <div className="flex items-center justify-between text-green-800 dark:text-green-400">
                 <span>+ Cho vay còn lại</span>
                 <span className="tabular-nums">{formatMoney(debts_.owedToMe, base)}</span>
               </div>
             )}
             {debts_.iOwe > 0 && (
-              <div className="flex items-center justify-between text-red-600 dark:text-red-400">
+              <div className="flex items-center justify-between text-red-700 dark:text-red-400">
                 <span>− Nợ phải trả</span>
                 <span className="tabular-nums">{formatMoney(debts_.iOwe, base)}</span>
               </div>
             )}
             {cardOwed > 0 && (
-              <div className="flex items-center justify-between text-red-600 dark:text-red-400">
+              <div className="flex items-center justify-between text-red-700 dark:text-red-400">
                 <span>− Nợ thẻ tín dụng</span>
                 <span className="tabular-nums">{formatMoney(cardOwed, base)}</span>
               </div>
@@ -461,7 +461,7 @@ export function AssetsPage() {
                   </div>
                   <div className="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                     <span>Tổng nợ {g.cardCount} thẻ</span>
-                    <span className="tabular-nums font-medium text-red-600 dark:text-red-400">
+                    <span className="tabular-nums font-medium text-red-700 dark:text-red-400">
                       − {formatMoney(g.totalOwed, g.currency)}
                     </span>
                   </div>
@@ -517,7 +517,7 @@ export function AssetsPage() {
                       {owed > 0 ? (
                         <>
                           <span className="text-xs text-gray-500 dark:text-gray-400">Cần trả</span>
-                          <span className="text-xl font-bold tabular-nums text-red-600 dark:text-red-400">
+                          <span className="text-xl font-bold tabular-nums text-red-700 dark:text-red-400">
                             {formatMoney(owed, c.currency)}
                           </span>
                         </>
@@ -753,8 +753,8 @@ export function AssetsPage() {
                           <span
                             className={`ml-1 text-[0.625rem] tabular-nums ${
                               a.marketValue > a.balance
-                                ? 'text-green-600 dark:text-green-400'
-                                : 'text-red-600 dark:text-red-400'
+                                ? 'text-green-800 dark:text-green-400'
+                                : 'text-red-700 dark:text-red-400'
                             }`}
                           >
                             {a.marketValue > a.balance ? '▲' : '▼'}
@@ -763,7 +763,7 @@ export function AssetsPage() {
                         )}
                       </span>
                       <span
-                        className={`shrink-0 text-sm font-medium tabular-nums ${a.value < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}
+                        className={`shrink-0 text-sm font-medium tabular-nums ${a.value < 0 ? 'text-red-700 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}
                       >
                         {formatMoney(a.value, a.currency)}
                       </span>

@@ -3,8 +3,8 @@ import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, CategoryRow, TransactionRow } from '../../types/database.types'
 
 const AMOUNT_STYLE: Record<TransactionRow['type'], { color: string; sign: string }> = {
-  expense: { color: 'text-red-600 dark:text-red-400', sign: '-' },
-  income: { color: 'text-green-600 dark:text-green-400', sign: '+' },
+  expense: { color: 'text-red-700 dark:text-red-400', sign: '-' },
+  income: { color: 'text-green-800 dark:text-green-400', sign: '+' },
   transfer: { color: 'text-gray-500 dark:text-gray-400', sign: '' },
 }
 
@@ -54,11 +54,11 @@ export function TransactionItem({ tx, categoryOf, accountOf, base, onClick }: Pr
           <span className="block text-xs text-gray-500 dark:text-gray-400">{accountName(tx.account_id)}</span>
         )}
       </span>
-      <span className={`text-right text-sm font-semibold ${style.color}`}>
+      <span className={`text-right text-sm font-semibold tabular-nums ${style.color}`}>
         {style.sign}
         {formatMoney(tx.amount, srcCur)}
         {tx.to_amount != null && (
-          <span className="block text-xs font-normal text-gray-500 dark:text-gray-400">
+          <span className="block text-xs font-normal tabular-nums text-gray-500 dark:text-gray-400">
             → +{formatMoney(tx.to_amount, dstCur)}
           </span>
         )}

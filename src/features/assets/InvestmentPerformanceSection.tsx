@@ -139,7 +139,7 @@ export function InvestmentPerformanceSection({ accounts, base }: Props) {
         </span>
         <span
           className={`flex items-center gap-1.5 ${
-            growth >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+            growth >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
           }`}
         >
           <span className="h-2 w-2 rounded-full bg-green-500" aria-hidden />
@@ -159,10 +159,10 @@ export function InvestmentPerformanceSection({ accounts, base }: Props) {
             <p
               className={`text-base font-bold tabular-nums ${
                 row.value === null
-                  ? 'text-gray-400 dark:text-gray-500'
+                  ? 'text-gray-500 dark:text-gray-400'
                   : row.value >= 0
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-red-600 dark:text-red-400'
+                    ? 'text-green-800 dark:text-green-400'
+                    : 'text-red-700 dark:text-red-400'
               }`}
             >
               {row.value === null ? '—' : signPct(row.value)}
@@ -170,13 +170,13 @@ export function InvestmentPerformanceSection({ accounts, base }: Props) {
             <p className="mt-0.5 text-[0.6875rem] font-medium text-gray-600 dark:text-gray-300">
               {row.label}
             </p>
-            <p className="mt-0.5 text-[0.625rem] leading-tight text-gray-400 dark:text-gray-500">
+            <p className="mt-0.5 text-[0.625rem] leading-tight text-gray-500 dark:text-gray-400">
               {row.note}
             </p>
           </div>
         ))}
       </div>
-      <p className="mt-1 text-center text-[0.6875rem] text-gray-400 dark:text-gray-500">mỗi năm</p>
+      <p className="mt-1 text-center text-[0.6875rem] text-gray-500 dark:text-gray-400">mỗi năm</p>
 
       {perf.annualReturn === null && (
         <p className="mt-2 rounded-lg bg-gray-50 px-2.5 py-2 text-xs text-gray-500 dark:bg-gray-950 dark:text-gray-400">

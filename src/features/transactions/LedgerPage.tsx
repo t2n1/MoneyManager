@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { IconButton, SegmentedControl, iconButtonClass } from '../../components/ui'
 import {
   useAccounts,
   useCategories,
@@ -120,28 +121,20 @@ export function LedgerPage() {
 
       {/* Chuyển kỳ + tìm kiếm */}
       <div className="mb-3 flex items-center gap-2">
-        <button
-          type="button"
+        <IconButton
           onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, -step))}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 text-lg shadow-sm active:scale-95"
           aria-label={yearNav ? 'Năm trước' : 'Tháng trước'}
         >
           <ChevronLeft className="h-5 w-5" />
-        </button>
-        <h1 className="flex-1 text-center text-lg font-bold text-gray-800 dark:text-gray-100">{label}</h1>
-        <button
-          type="button"
+        </IconButton>
+        <h1 className="flex-1 text-center text-lg font-bold text-fg-primary">{label}</h1>
+        <IconButton
           onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, step))}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 text-lg shadow-sm active:scale-95"
           aria-label={yearNav ? 'Năm sau' : 'Tháng sau'}
         >
           <ChevronRight className="h-5 w-5" />
-        </button>
-        <Link
-          to="/search"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 text-lg shadow-sm active:scale-95"
-          aria-label="Tìm kiếm giao dịch"
-        >
+        </IconButton>
+        <Link to="/search" className={iconButtonClass()} aria-label="Tìm kiếm giao dịch">
           <Search className="h-5 w-5" />
         </Link>
         <NotificationBoundary>
@@ -150,20 +143,13 @@ export function LedgerPage() {
       </div>
 
       {/* Tab đổi cách xem */}
-      <div className="mb-4 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-sm font-medium">
-        {VIEWS.map((v) => (
-          <button
-            key={v.key}
-            type="button"
-            onClick={() => setView(v.key)}
-            className={`flex-1 rounded-md py-2.5 transition ${
-              view === v.key ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'
-            }`}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        items={VIEWS.map((v) => ({ value: v.key, label: v.label }))}
+        value={view}
+        onChange={setView}
+        label="Cách xem sổ giao dịch"
+        className="mb-4"
+      />
 
       {view === 'daily' && (
         <DailyView

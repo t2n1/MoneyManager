@@ -27,10 +27,10 @@ const BADGE: Record<Verdict, string> = {
 }
 
 const VALUE: Record<Verdict, string> = {
-  good: 'text-green-600 dark:text-green-400',
+  good: 'text-green-800 dark:text-green-400',
   warn: 'text-amber-600 dark:text-amber-400',
-  bad: 'text-red-600 dark:text-red-400',
-  unknown: 'text-gray-400 dark:text-gray-500',
+  bad: 'text-red-700 dark:text-red-400',
+  unknown: 'text-gray-500 dark:text-gray-400',
 }
 
 interface Props {
@@ -108,7 +108,7 @@ export function HealthMetricCard({
               {zoneLabels.map((label, i) => (
                 <span
                   key={label + i}
-                  className="absolute -translate-x-1/2 text-[0.625rem] tabular-nums text-gray-400 dark:text-gray-500"
+                  className="absolute -translate-x-1/2 text-[0.625rem] tabular-nums text-gray-500 dark:text-gray-400"
                   style={{ left: `${(zones[i].upTo / max) * 100}%` }}
                 >
                   {label}

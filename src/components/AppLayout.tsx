@@ -165,7 +165,7 @@ export function AppLayout() {
         <div className="mb-6 flex items-center gap-2 px-2">
           <NotebookText className="h-6 w-6 text-green-600 dark:text-green-500" />
           <span className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Sổ Chi Tiêu</span>
-          <PrivacyToggle className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800" />
+          <PrivacyToggle className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800" />
           <NotificationBoundary>
             <NotificationBell className="hidden lg:inline-flex" />
           </NotificationBoundary>
@@ -187,7 +187,7 @@ export function AppLayout() {
             >
               <tab.Icon className="h-5 w-5" />
               <span className="flex-1">{tab.label}</span>
-              <kbd className="rounded bg-gray-100 px-1.5 text-xs text-gray-400 dark:bg-gray-800 dark:text-gray-500">
+              <kbd className="rounded bg-gray-100 px-1.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400">
                 {i + 1}
               </kbd>
             </NavLink>

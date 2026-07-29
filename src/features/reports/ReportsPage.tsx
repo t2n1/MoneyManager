@@ -2,6 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, HeartPulse } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import {
+  IconButton,
+  Money,
+  SegmentedControl,
+  StatTile,
+  type SegmentedItem,
+} from '../../components/ui'
 import { BudgetView } from '../budgets/BudgetView'
 import { RemittanceSection } from '../remittance/RemittanceSection'
 import { InsightsView } from './InsightsView'
@@ -34,7 +41,7 @@ import {
   toISODate,
   type MonthKey,
 } from '../../lib/dates'
-import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
+import { formatMoney, type CurrencyCode } from '../../lib/money'
 import {
   categoryBreakdown,
   categoryMonthlySeries,
@@ -44,12 +51,18 @@ import {
 } from './aggregate'
 
 type ReportView = 'charts' | 'trends' | 'insights' | 'budget'
+type ReportPeriod = 'month' | 'year'
 
-const VIEW_TABS: { key: ReportView; label: string }[] = [
-  { key: 'charts', label: 'Biểu đồ' },
-  { key: 'trends', label: 'Xu hướng' },
-  { key: 'insights', label: 'Thấu hiểu' },
-  { key: 'budget', label: 'Ngân sách' },
+const VIEW_TABS: readonly SegmentedItem<ReportView>[] = [
+  { value: 'charts', label: 'Biểu đồ' },
+  { value: 'trends', label: 'Xu hướng' },
+  { value: 'insights', label: 'Thấu hiểu' },
+  { value: 'budget', label: 'Ngân sách' },
+]
+
+const PERIOD_TABS: readonly SegmentedItem<ReportPeriod>[] = [
+  { value: 'month', label: 'Tháng' },
+  { value: 'year', label: 'Năm' },
 ]
 
 /** Đọc 'YYYY-MM' thành MonthKey; null nếu không hợp lệ. */
@@ -202,6 +215,11 @@ export function ReportsPage() {
   const avgExpense = Math.round(yearSums.expense / 12)
   const savingsRate = yearSums.income > 0 ? Math.round((yearNet / yearSums.income) * 100) : null
   const yearApprox = yearSums.hasForeign ? '≈ ' : ''
+  // Chưa fetch xong thì KHÔNG được vẽ số: `yearTxs` mặc định là mảng rỗng nên mọi tổng
+  // ra 0, mà "0" trong app tiền đọc y như số thật ("năm nay chi 0đ"). Hiện '—' cho tới
+  // khi biết chắc. Dùng isFetched chứ không phải isLoading: isLoading tắt khi có dữ liệu
+  // cache cũ, còn đây cần "đã về ít nhất một lần cho kỳ ĐANG xem".
+  const yearNum = (render: () => string) => (yearFetched ? render() : '—')
 
   // monthSums nuôi phần Thu của thẻ Cơ cấu chi tiêu → thiếu tỷ giá ở đó cũng phải cảnh báo.
   const monthMissingRate =
@@ -248,87 +266,64 @@ export function ReportsPage() {
 
       {/* Header điều hướng tháng/năm */}
       <div className="flex items-center justify-between print:hidden">
-        <button
-          type="button"
+        <IconButton
           onClick={() =>
             period === 'month'
               ? setMonthKey((k) => addMonths(k ?? activeMonthKey, -1))
               : setYear((y) => (y ?? activeYear) - 1)
           }
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label={period === 'month' ? 'Tháng trước' : 'Năm trước'}
         >
           <ChevronLeft className="h-5 w-5" />
-        </button>
-        <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">
+        </IconButton>
+        <h1 className="text-lg font-bold text-fg-primary">
           {period === 'month' ? formatMonthLabel(activeMonthKey) : formatYearLabel(activeYear)}
         </h1>
-        <button
-          type="button"
+        <IconButton
           onClick={() =>
             period === 'month'
               ? setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))
               : setYear((y) => (y ?? activeYear) + 1)
           }
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label={period === 'month' ? 'Tháng sau' : 'Năm sau'}
         >
           <ChevronRight className="h-5 w-5" />
-        </button>
+        </IconButton>
       </div>
 
       {/* Lối vào trang khám tổng quát — không phụ thuộc tháng/năm đang xem */}
       <Link
         to="/health"
-        className="flex min-h-11 items-center justify-between gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm active:scale-[0.99] dark:bg-gray-900 print:hidden"
+        className="flex min-h-11 items-center justify-between gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm transition hover:bg-gray-50 active:scale-[0.99] dark:bg-gray-900 dark:hover:bg-gray-800 print:hidden"
       >
         <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
           <HeartPulse className="h-4 w-4 text-rose-500" aria-hidden />
           Sức khỏe tài chính
         </span>
-        <span className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+        <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
           Quỹ dự phòng, nợ, rủi ro
           <ChevronRight className="h-4 w-4" aria-hidden />
         </span>
       </Link>
 
       {/* Nút gạt Tháng | Năm */}
-      <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-sm font-medium print:hidden">
-        <button
-          type="button"
-          onClick={() => setPeriod('month')}
-          className={`flex-1 rounded-md py-2.5 ${period === 'month' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
-        >
-          Tháng
-        </button>
-        <button
-          type="button"
-          onClick={() => setPeriod('year')}
-          className={`flex-1 rounded-md py-2.5 ${period === 'year' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
-        >
-          Năm
-        </button>
-      </div>
+      <SegmentedControl
+        items={PERIOD_TABS}
+        value={period}
+        onChange={setPeriod}
+        label="Kỳ báo cáo"
+        className="print:hidden"
+      />
 
       {/* Tab chỉ hiện ở chế độ Tháng */}
       {period === 'month' && (
-        <div className="flex rounded-lg bg-gray-100 p-0.5 text-sm font-medium dark:bg-gray-800 print:hidden">
-          {VIEW_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setView(tab.key)}
-              aria-current={view === tab.key ? 'page' : undefined}
-              className={`flex-1 rounded-md px-1 py-2.5 ${
-                view === tab.key
-                  ? 'bg-white text-gray-800 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                  : 'text-gray-500 dark:text-gray-400'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          items={VIEW_TABS}
+          value={view}
+          onChange={setView}
+          label="Nội dung báo cáo"
+          className="print:hidden"
+        />
       )}
 
       {showMissingRate && (
@@ -388,47 +383,62 @@ export function ReportsPage() {
       {period === 'year' && (
         <>
           <section className="grid grid-cols-3 gap-2">
-            <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Thu</p>
-              <p className="mt-1 text-sm font-bold text-green-600 dark:text-green-400">
-                {yearApprox}
-                {formatCompact(yearSums.income, base)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Chi</p>
-              <p className="mt-1 text-sm font-bold text-red-600 dark:text-red-400">
-                {yearApprox}
-                {formatCompact(yearSums.expense, base)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Số dư</p>
-              <p
-                className={`mt-1 text-sm font-bold ${yearNet >= 0 ? 'text-gray-800 dark:text-gray-100' : 'text-red-600 dark:text-red-400'}`}
-              >
-                {yearApprox}
-                {formatCompact(yearNet, base)}
-              </p>
-            </div>
+            <StatTile label="Thu">
+              {yearFetched ? (
+                <Money
+                  amount={yearSums.income}
+                  currency={base}
+                  tone="in"
+                  compact
+                  approx={yearSums.hasForeign}
+                />
+              ) : (
+                '—'
+              )}
+            </StatTile>
+            <StatTile label="Chi">
+              {yearFetched ? (
+                <Money
+                  amount={yearSums.expense}
+                  currency={base}
+                  tone="out"
+                  compact
+                  approx={yearSums.hasForeign}
+                />
+              ) : (
+                '—'
+              )}
+            </StatTile>
+            <StatTile label="Số dư">
+              {yearFetched ? (
+                // 'bySign' thay cho điều kiện màu viết tay: dương → màu thu, âm → màu chi.
+                <Money
+                  amount={yearNet}
+                  currency={base}
+                  tone={yearNet >= 0 ? 'neutral' : 'out'}
+                  compact
+                  approx={yearSums.hasForeign}
+                />
+              ) : (
+                '—'
+              )}
+            </StatTile>
           </section>
 
           <section className="grid grid-cols-2 gap-2">
-            <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Chi TB/tháng</p>
-              <p className="mt-1 text-sm font-bold text-gray-800 dark:text-gray-100">
-                {yearApprox}
-                {formatMoney(avgExpense, base)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Tỷ lệ tiết kiệm</p>
-              <p
-                className={`mt-1 text-sm font-bold ${savingsRate !== null && savingsRate < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'}`}
+            <StatTile label="Chi TB/tháng">
+              {yearNum(() => `${yearApprox}${formatMoney(avgExpense, base)}`)}
+            </StatTile>
+            <StatTile label="Tỷ lệ tiết kiệm">
+              {/* Không phải tiền nên không dùng <Money>; màu âm vẫn theo token chi. */}
+              <span
+                className={
+                  yearFetched && savingsRate !== null && savingsRate < 0 ? 'text-money-out' : ''
+                }
               >
-                {savingsRate === null ? '—' : `${savingsRate}%`}
-              </p>
-            </div>
+                {yearNum(() => (savingsRate === null ? '—' : `${savingsRate}%`))}
+              </span>
+            </StatTile>
           </section>
 
           <CategoryBreakdownCard

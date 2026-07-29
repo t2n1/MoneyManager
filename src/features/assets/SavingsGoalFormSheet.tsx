@@ -110,7 +110,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
 
         <div className="flex items-center justify-between gap-2">
           {goal ? (
-            <button type="button" onClick={handleDelete} disabled={saving} className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50">
+            <button type="button" onClick={handleDelete} disabled={saving} className="rounded-lg px-3 py-2 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50">
               Xóa
             </button>
           ) : (

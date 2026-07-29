@@ -47,13 +47,13 @@ export function DebtsPage() {
       <div className="mb-4 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
           <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Mình nợ</p>
-          <p className="mt-1 text-lg font-bold tabular-nums text-red-600 dark:text-red-400">
+          <p className="mt-1 text-lg font-bold tabular-nums text-red-700 dark:text-red-400">
             {isLoading ? '…' : `${approx}${formatMoney(summary.iOwe, base)}`}
           </p>
         </div>
         <div className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
           <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Cho vay</p>
-          <p className="mt-1 text-lg font-bold tabular-nums text-green-600 dark:text-green-400">
+          <p className="mt-1 text-lg font-bold tabular-nums text-green-800 dark:text-green-400">
             {isLoading ? '…' : `${approx}${formatMoney(summary.owedToMe, base)}`}
           </p>
         </div>
@@ -149,7 +149,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
                 </span>
                 <span
                   className={`shrink-0 text-sm font-semibold tabular-nums ${
-                    d.direction === 'i_owe' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                    d.direction === 'i_owe' ? 'text-red-700 dark:text-red-400' : 'text-green-800 dark:text-green-400'
                   }`}
                 >
                   {formatMoney(remaining, d.currency)}
@@ -169,7 +169,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
                 {d.due_on && (
                   <span
                     className={`shrink-0 rounded px-1 text-xs ${
-                      overdue ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                      overdue ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
                     }`}
                   >
                     hạn {d.due_on.slice(5)}

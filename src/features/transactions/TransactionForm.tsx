@@ -84,8 +84,8 @@ const TYPE_TABS: { value: TransactionType; label: string }[] = [
 ]
 
 const AMOUNT_COLOR: Record<TransactionType, string> = {
-  expense: 'text-red-600 dark:text-red-400',
-  income: 'text-green-600 dark:text-green-400',
+  expense: 'text-red-700 dark:text-red-400',
+  income: 'text-green-800 dark:text-green-400',
   transfer: 'text-gray-600 dark:text-gray-300',
 }
 
@@ -713,7 +713,7 @@ export function TransactionForm({
       {enableNlInput && (
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2 rounded-xl border border-green-300 bg-green-50 px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-green-500 dark:border-green-800 dark:bg-green-900/20">
-            <Sparkles className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
+            <Sparkles className="h-4 w-4 shrink-0 text-green-800 dark:text-green-400" />
             <input
               value={nlText}
               onChange={(e) => setNlText(e.target.value)}
@@ -926,7 +926,7 @@ export function TransactionForm({
               excludeId={toAccountId}
               className="min-w-[7rem] flex-1"
             />
-            <span className="shrink-0 text-gray-400 dark:text-gray-500">→</span>
+            <span className="shrink-0 text-gray-500 dark:text-gray-400">→</span>
             <AccountPicker
               accounts={activeAccounts}
               value={toAccountId}
@@ -1161,7 +1161,7 @@ export function TransactionForm({
         <NumPad onKey={onNumPadKey} />
       </div>
 
-      {error && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{error}</p>}
 
       {/* Hàng nút: ⌫ (chỉ mobile, thay cho hàng xóa lùi riêng) + Tiếp tục/Lưu */}
       <div className="flex gap-2">
@@ -1232,7 +1232,7 @@ function CategoryTile({
       <span className="text-xl leading-none">{icon}</span>
       <span className="w-full truncate text-center">{name}</span>
       {hasChildren && (
-        <span className="absolute top-1 right-1 text-gray-400 dark:text-gray-500">
+        <span className="absolute top-1 right-1 text-gray-500 dark:text-gray-400">
           <ChevronRight className="h-3 w-3" />
         </span>
       )}

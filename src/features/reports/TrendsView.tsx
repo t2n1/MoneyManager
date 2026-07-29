@@ -39,7 +39,7 @@ function Card({
     <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</h2>
-        {hint && <span className="shrink-0 text-[0.6875rem] text-gray-400 dark:text-gray-500">{hint}</span>}
+        {hint && <span className="shrink-0 text-[0.6875rem] text-gray-500 dark:text-gray-400">{hint}</span>}
       </div>
       {children}
     </section>
@@ -151,7 +151,7 @@ export function TrendsView() {
   const money = (v: number) => formatMoney(Math.round(v), base)
 
   if (!isFetched) {
-    return <p className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">Đang tải…</p>
+    return <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">Đang tải…</p>
   }
 
   if (monthsWithData === 0) {
@@ -243,7 +243,7 @@ export function TrendsView() {
             {yoyTotalPct !== null && (
               <p className="mb-2 text-xs text-gray-600 dark:text-gray-300">
                 12 tháng qua bạn chi <b>{money(last12Total)}</b>,{' '}
-                <b className={yoyTotalPct >= 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}>
+                <b className={yoyTotalPct >= 0 ? 'text-red-700 dark:text-red-400' : 'text-green-800 dark:text-green-400'}>
                   {signPct(yoyTotalPct)}
                 </b>{' '}
                 so với 12 tháng trước đó ({money(prev12Total)}).
@@ -261,16 +261,16 @@ export function TrendsView() {
                   <span className="flex-1 truncate text-right tabular-nums text-gray-700 dark:text-gray-200">
                     {money(p.current)}
                   </span>
-                  <span className="w-24 shrink-0 text-right tabular-nums text-gray-400 dark:text-gray-500">
+                  <span className="w-24 shrink-0 text-right tabular-nums text-gray-500 dark:text-gray-400">
                     năm ngoái {formatCompact(p.yearAgo ?? 0, base)}
                   </span>
                   <span
                     className={`w-16 shrink-0 text-right font-medium tabular-nums ${
                       p.deltaPct === null
-                        ? 'text-gray-400'
+                        ? 'text-gray-500 dark:text-gray-400'
                         : p.deltaPct >= 0
-                          ? 'text-red-600 dark:text-red-400'
-                          : 'text-green-600 dark:text-green-400'
+                          ? 'text-red-700 dark:text-red-400'
+                          : 'text-green-800 dark:text-green-400'
                     }`}
                   >
                     {p.deltaPct === null ? '—' : signPct(p.deltaPct)}
@@ -344,8 +344,8 @@ export function TrendsView() {
             <p
               className={`text-2xl font-bold tabular-nums ${
                 inflation.rate > 0
-                  ? 'text-red-600 dark:text-red-400'
-                  : 'text-green-600 dark:text-green-400'
+                  ? 'text-red-700 dark:text-red-400'
+                  : 'text-green-800 dark:text-green-400'
               }`}
             >
               {signPct(inflation.rate * 100)}
@@ -393,10 +393,10 @@ export function TrendsView() {
             <p
               className={`text-2xl font-bold tabular-nums ${
                 elasticity.elasticity >= 0.8
-                  ? 'text-red-600 dark:text-red-400'
+                  ? 'text-red-700 dark:text-red-400'
                   : elasticity.elasticity >= 0.5
                     ? 'text-amber-600 dark:text-amber-400'
-                    : 'text-green-600 dark:text-green-400'
+                    : 'text-green-800 dark:text-green-400'
               }`}
             >
               {elasticity.elasticity.toFixed(2).replace('.', ',')}
@@ -437,7 +437,7 @@ export function TrendsView() {
         )}
       </Card>
 
-      <p className="px-1 pb-2 text-center text-[0.6875rem] text-gray-400 dark:text-gray-500">
+      <p className="px-1 pb-2 text-center text-[0.6875rem] text-gray-500 dark:text-gray-400">
         Số liệu tính trên {monthsWithData} tháng có giao dịch, quy đổi về {base}.
       </p>
     </div>

@@ -49,7 +49,7 @@ export function TagPicker({ value, onChange }: Props) {
     <div>
       <label className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400">
         <TagIcon className="h-3.5 w-3.5" aria-hidden />
-        Nhãn <span className="text-gray-400 dark:text-gray-500">(không bắt buộc)</span>
+        Nhãn <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>
       </label>
       <div className="flex flex-wrap gap-1.5">
         {tags.map((t) => {

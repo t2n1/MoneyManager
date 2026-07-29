@@ -60,7 +60,7 @@ export function RemittanceSection({
   return (
     <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+        <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
           <Send className="h-3.5 w-3.5" /> Gửi tiền về VN
         </h2>
         <Link
@@ -72,7 +72,7 @@ export function RemittanceSection({
       </div>
 
       {remittances.length === 0 ? (
-        <p className="py-4 text-center text-sm text-gray-400 dark:text-gray-500">
+        <p className="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
           Chưa gửi tiền về VN trong năm {year}.
         </p>
       ) : (
@@ -98,7 +98,7 @@ export function RemittanceSection({
               </p>
             </div>
           </div>
-          <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             Tổng phí {formatMoney(stats.totalFeeJpy, 'JPY')} · {stats.count} lần gửi
             {share !== null && (
               <> · chiếm {Math.round(share * 100)}% thu nhập năm {year}</>
@@ -118,12 +118,12 @@ export function RemittanceSection({
               </p>
               <p className="mt-0.5 text-gray-600 dark:text-gray-300">
                 Lần <b>thiệt nhất</b> ({worstPick.date}, {worstPick.rate.toFixed(1)} ₫/¥) mất{' '}
-                <b className="text-red-600 dark:text-red-400">
+                <b className="text-red-700 dark:text-red-400">
                   {formatMoney(-worstPick.gainVsAvgVnd, 'VND')}
                 </b>
                 .
               </p>
-              <p className="mt-1 text-[0.6875rem] text-gray-400 dark:text-gray-500">
+              <p className="mt-1 text-[0.6875rem] text-gray-500 dark:text-gray-400">
                 Khoảng cách giữa hai lần này là cái giá của việc chọn thời điểm. Chênh lệch lớn thì
                 lần sau nên chia nhỏ ra gửi nhiều đợt thay vì dồn một cục.
               </p>
@@ -145,15 +145,15 @@ export function RemittanceSection({
                     <p className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
                       {formatMoney(sent, 'JPY')} → {formatMoney(received, 'VND')}
                     </p>
-                    <p className="truncate text-xs text-gray-400 dark:text-gray-500">
+                    <p className="truncate text-xs text-gray-500 dark:text-gray-400">
                       {t.occurred_on} · {t.remit_service ?? '—'}
                       {rate > 0 ? ` · ${rate.toFixed(1)} ₫/¥` : ''}
                       {vs && Math.abs(vs.vsAvgPct) >= 0.5 && (
                         <span
                           className={
                             vs.vsAvgPct > 0
-                              ? 'text-green-600 dark:text-green-400'
-                              : 'text-red-600 dark:text-red-400'
+                              ? 'text-green-800 dark:text-green-400'
+                              : 'text-red-700 dark:text-red-400'
                           }
                         >
                           {' '}
@@ -170,7 +170,7 @@ export function RemittanceSection({
                   <button
                     type="button"
                     onClick={() => handleDelete(t)}
-                    className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:text-gray-500 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                    className="rounded-lg p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/30 dark:hover:text-red-400"
                     aria-label="Xóa"
                   >
                     <Trash2 className="h-4 w-4" />

@@ -35,7 +35,7 @@ export function BreakdownRow({
           {name}
         </span>
         {targetPct != null && (
-          <span className="shrink-0 text-[0.625rem] text-gray-400 dark:text-gray-500">
+          <span className="shrink-0 text-[0.625rem] text-gray-500 dark:text-gray-400">
             mục tiêu {targetPct}%
           </span>
         )}

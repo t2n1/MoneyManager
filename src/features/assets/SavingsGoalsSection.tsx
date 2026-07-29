@@ -73,7 +73,7 @@ export function SavingsGoalsSection() {
   return (
     <section className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-900">
       <div className="flex items-center gap-2">
-        <Target className="h-5 w-5 text-green-600 dark:text-green-400" />
+        <Target className="h-5 w-5 text-green-800 dark:text-green-400" />
         <h2 className="flex-1 text-sm font-semibold text-gray-700 dark:text-gray-300">
           Mục tiêu tiết kiệm
         </h2>
@@ -118,7 +118,7 @@ export function SavingsGoalsSection() {
                     {g.name}
                   </span>
                   <span
-                    className={`text-xs font-semibold ${f.done ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}
+                    className={`text-xs font-semibold ${f.done ? 'text-green-800 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}
                   >
                     {pct}%
                   </span>
@@ -144,7 +144,7 @@ export function SavingsGoalsSection() {
                 {!f.done && (
                   <p className="mt-1 text-[0.6875rem] leading-relaxed">
                     {f.etaMonth === null ? (
-                      <span className="text-gray-400 dark:text-gray-500">
+                      <span className="text-gray-500 dark:text-gray-400">
                         {f.monthlyGrowth < 0
                           ? `Số dư đang giảm ${formatMoney(-f.monthlyGrowth, currency)}/tháng — chưa tiến về đích.`
                           : 'Chưa đo được tốc độ tích lũy. Chuyển tiền đều đặn vào tài khoản này để app dự báo ngày đạt.'}

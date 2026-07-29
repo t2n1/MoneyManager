@@ -381,7 +381,7 @@ export function ImportCsvPage() {
                           className={`border-t border-gray-100 dark:border-gray-800 ${odd ? 'bg-red-50 dark:bg-red-950/40' : ''}`}
                         >
                           <td className="py-1 tabular-nums">{it.occurred_on}</td>
-                          <td className={`py-1 ${it.type === 'expense' ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
+                          <td className={`py-1 ${it.type === 'expense' ? 'text-red-500' : 'text-green-800 dark:text-green-400'}`}>
                             {it.type === 'expense' ? 'Chi' : 'Thu'}
                           </td>
                           <td className="py-1 text-right tabular-nums">
@@ -402,7 +402,7 @@ export function ImportCsvPage() {
                   <p className="mt-1 text-center text-gray-500 dark:text-gray-400">
                     … và {toImport.length - PREVIEW_ROWS} dòng nữa
                     {hiddenAnomalyCount > 0 && (
-                      <span className="font-semibold text-red-600 dark:text-red-400">
+                      <span className="font-semibold text-red-700 dark:text-red-400">
                         , trong đó {hiddenAnomalyCount} khoản lớn bất thường
                       </span>
                     )}

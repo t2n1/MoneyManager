@@ -364,7 +364,7 @@ export function AssetGroupsPage() {
             <button
               type="button"
               {...handle}
-              className="inline-flex min-h-11 min-w-11 shrink-0 cursor-grab touch-none items-center justify-center text-gray-400 active:cursor-grabbing"
+              className="inline-flex min-h-11 min-w-11 shrink-0 cursor-grab touch-none items-center justify-center text-gray-500 dark:text-gray-400 active:cursor-grabbing"
               aria-label={`Kéo để sắp thứ tự nhóm ${g.name}`}
             >
               <GripVertical className="h-5 w-5" />
@@ -445,7 +445,7 @@ export function AssetGroupsPage() {
               <button
                 type="button"
                 onClick={() => setDeleting(g)}
-                className="rounded-lg px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                className="rounded-lg px-2 py-1 text-xs text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
               >
                 Xóa
               </button>

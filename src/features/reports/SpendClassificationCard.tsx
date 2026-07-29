@@ -73,7 +73,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
 
       {/* C1 — 50/30/20 trên thu nhập */}
       <h3 className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-        Thiết yếu vs Linh hoạt <span className="text-gray-400 dark:text-gray-500">(% thu nhập · quy tắc 50/30/20)</span>
+        Thiết yếu vs Linh hoạt <span className="text-gray-500 dark:text-gray-400">(% thu nhập · quy tắc 50/30/20)</span>
       </h3>
       {income <= 0 ? (
         <p className="mb-3 rounded-lg bg-gray-50 px-3 py-3 text-center text-xs text-gray-500 dark:bg-gray-950 dark:text-gray-400">
@@ -114,7 +114,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
 
       {/* C2 — Cố định vs Biến đổi trên tổng chi (donut + thanh) */}
       <h3 className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-        Cố định vs Biến đổi <span className="text-gray-400 dark:text-gray-500">(% chi tiêu)</span>
+        Cố định vs Biến đổi <span className="text-gray-500 dark:text-gray-400">(% chi tiêu)</span>
       </h3>
       {totalExpense <= 0 ? (
         <p className="rounded-lg bg-gray-50 px-3 py-3 text-center text-xs text-gray-500 dark:bg-gray-950 dark:text-gray-400">
@@ -193,7 +193,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
         </p>
       ) : (
         totalExpense > 0 && (
-          <p className="mt-3 text-center text-xs text-gray-400 dark:text-gray-500">
+          <p className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400">
             Phân loại chi tiêu để xem gợi ý cắt giảm khẩn cấp.
           </p>
         )

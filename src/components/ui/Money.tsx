@@ -1,0 +1,59 @@
+// Số tiền — primitive quan trọng nhất của design system: gom 106 chỗ rải rác đang
+// tự ghép `tabular-nums` + màu thu/chi bằng tay. Gom lại để hai thứ này thành cấu
+// trúc chứ không phải thói quen:
+//   1. tabular-nums LUÔN bật. Thiếu nó thì danh sách 20 dòng có chữ số nhảy ngang.
+//   2. Màu thu/chi lấy từ token --money-in/--money-out, tức là quyết định contrast
+//      nằm ở MỘT chỗ (src/index.css) thay vì 124 chỗ.
+// KHÔNG tự định dạng số: bọc formatMoney/formatCompact của lib/money để giữ nguyên
+// chế độ riêng tư (isPrivacyEnabled → mask) và quy ước dấu thập phân theo loại tiền.
+import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
+
+/** 'bySign' = suy ra từ dấu của `amount`; 'neutral' = màu chữ thường. */
+export type MoneyTone = 'in' | 'out' | 'neutral' | 'bySign'
+
+const TONE_CLASS: Record<Exclude<MoneyTone, 'bySign'>, string> = {
+  in: 'text-money-in',
+  out: 'text-money-out',
+  neutral: 'text-fg-primary',
+}
+
+interface Props {
+  /** Số tiền ở đơn vị nhỏ nhất (minor units) — cùng quy ước với formatMoney. */
+  amount: number
+  currency: CurrencyCode
+  tone?: MoneyTone
+  /**
+   * Thêm dấu +/- ở đầu. Chỉ dùng khi `amount` là số DƯƠNG và chiều thu/chi nằm ở
+   * `tone` (như dòng giao dịch: tiền lưu dương, chi thì hiện '-'). Với số đã có
+   * dấu thì để false — formatMoney tự in '-' rồi, bật lên sẽ ra '--'.
+   */
+  showSign?: boolean
+  /** Rút gọn: 569k / 1.2M. Dùng cho ô KPI hẹp. */
+  compact?: boolean
+  /** Tiền tố '≈ ' khi tổng có ngoại tệ quy đổi theo tỷ giá. */
+  approx?: boolean
+  className?: string
+}
+
+export function Money({
+  amount,
+  currency,
+  tone = 'neutral',
+  showSign = false,
+  compact = false,
+  approx = false,
+  className = '',
+}: Props) {
+  const resolved = tone === 'bySign' ? (amount < 0 ? 'out' : 'in') : tone
+  const body = compact ? formatCompact(amount, currency) : formatMoney(amount, currency)
+  // Dấu ASCII cho khớp với chính formatMoney (nó in '-'), không dùng '−' U+2212 —
+  // trộn hai glyph trong cùng một danh sách sẽ lệch bề rộng dù đã tabular-nums.
+  const prefix = showSign ? (resolved === 'out' ? '-' : '+') : ''
+  return (
+    <span className={`tabular-nums ${TONE_CLASS[resolved]} ${className}`.trim()}>
+      {approx ? '≈ ' : ''}
+      {prefix}
+      {body}
+    </span>
+  )
+}

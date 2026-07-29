@@ -257,7 +257,7 @@ export function CategoriesPage() {
           <button
             type="button"
             {...handle}
-            className="inline-flex min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-gray-400 active:cursor-grabbing"
+            className="inline-flex min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-gray-500 dark:text-gray-400 active:cursor-grabbing"
             aria-label={`Kéo để sắp thứ tự ${p.name}`}
           >
             <GripVertical className="h-5 w-5" />
@@ -717,7 +717,7 @@ function CategoryForm({
               type="button"
               onClick={handleDelete}
               disabled={del.isPending}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 disabled:opacity-50"
             >
               Xóa
             </button>

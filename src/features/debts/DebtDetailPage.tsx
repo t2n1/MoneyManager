@@ -160,7 +160,7 @@ export function DebtDetailPage() {
         <button
           type="button"
           onClick={handleDelete}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+          className="rounded-lg px-4 py-2 text-sm font-medium text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
         >
           Xóa khoản nợ
         </button>

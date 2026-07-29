@@ -68,7 +68,17 @@ export function LifetimePage() {
   const [comparePickerOpen, setComparePickerOpen] = useState(false)
   // Đổi chip kịch bản đang xem có thể làm compareId trùng activeId (đang so với chính
   // nó) — tự bỏ qua bằng cách suy ra thay vì nhớ thêm một effect reset state.
-  const effectiveCompareId = compareId && compareId !== activeId ? compareId : null
+  //
+  // Kiểm luôn compareId CÒN TỒN TẠI trong danh sách, không chỉ khác activeId: xoá kịch
+  // bản đang được chọn để so sánh (nút "Xóa kịch bản" ở khối 1 của trình sửa) để lại một
+  // compareId trỏ vào một dòng không còn nữa, và `projectScenario` trả `[]` cho nó. `[]`
+  // KHÔNG phải `null`, nên trước đây đồ thị vẫn coi là "đang so sánh": dải dao động cùng
+  // chú giải của nó biến mất, `minY` mất luôn số hạng biên dưới nên vùng đỏ co lại — tức
+  // cảnh báo về nhánh bi quan tắt ngóm mà không câu nào nói ra. Và nút "So sánh" vẫn ghi
+  // "Bấm để tắt" trong lúc `disabled` (chỉ còn 1 kịch bản) nên không tắt được nữa.
+  // `otherScenarios` đã lọc bỏ activeId, nên một phép `some` này canh cả hai điều kiện.
+  const effectiveCompareId =
+    compareId !== null && otherScenarios.some((s) => s.id === compareId) ? compareId : null
   const compareRows = useMemo(
     () => (effectiveCompareId ? projectScenario(effectiveCompareId) : null),
     [effectiveCompareId, projectScenario],
@@ -148,9 +158,24 @@ export function LifetimePage() {
             </p>
           )}
 
+          {/* Thiếu `profile` thì `ensureFirstScenario` không có `base_currency` để đặt tiền
+              hiển thị nên nó thoát ngay — và `needsBirthYear` (`!!profileQ.data && …`) là
+              FALSE khi query profile LỖI chứ không phải chưa khai, nên trang dừng đúng ở
+              đây. Nói ra bằng chữ, không chỉ làm mờ nút: nút disabled không đọc được
+              `title` bằng chạm trên mobile (cùng lý do đã ghi ở nút "Xóa kịch bản"). */}
+          {!profile && (
+            <p className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-900/40 p-2.5 text-xs text-amber-700 dark:text-amber-300">
+              Chưa tải được thông tin người dùng (năm sinh, tiền gốc) nên chưa tạo được kịch
+              bản — kiểm tra mạng rồi mở lại màn này.
+            </p>
+          )}
+
           <button
             type="button"
-            disabled={creating || netWorthLoading}
+            disabled={creating || netWorthLoading || !profile}
+            title={
+              profile ? undefined : 'Chưa tải được thông tin người dùng — thử lại sau khi có mạng'
+            }
             onClick={async () => {
               setCreating(true)
               try {
@@ -349,6 +374,13 @@ export function LifetimePage() {
           song song với bản chiếu của trang này. */}
       {editorOpen && active && profile && (
         <ScenarioEditorSheet
+          // `key`: sheet khởi tạo MỌI ô của khối 1 bằng `useState(scenario.*)`, tức chỉ
+          // đọc một lần lúc gắn. `active` có thể đổi danh tính trong lúc sheet đang mở
+          // (xoá kịch bản đang sửa mà lệnh xoá lỗi sau khi đã commit, hoặc một lần làm mới
+          // cache đổi kịch bản chính) — không có `key` thì React DÙNG LẠI instance cũ:
+          // `scenario.id` trỏ sang kịch bản mới còn các ô vẫn giữ số của kịch bản cũ, và
+          // lần lưu kế tiếp ghi số cũ lên kịch bản mới. Đổi `key` thì gắn lại từ đầu.
+          key={active.id}
           scenario={active}
           // Cả danh sách, không chỉ kịch bản đang sửa: khối 1 cần biết đây có phải kịch
           // bản duy nhất (chặn xoá) và kịch bản nào khác đang là chính (đổi kịch bản chính).

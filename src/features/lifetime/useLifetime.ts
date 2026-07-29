@@ -252,7 +252,19 @@ export function useLifetime() {
    */
   async function ensureFirstScenario() {
     const profile = profileQ.data
-    if (!profile) return // needsBirthYear đứng trước bước này nên profile luôn đã tải
+    if (!profile) {
+      // `needsBirthYear` chỉ bắt ca profile ĐÃ TẢI mà chưa khai năm sinh (`!!profileQ.data
+      // && …`), nên nó FALSE khi query profile LỖI — trang rơi vào trạng thái 2 và nút
+      // "Tạo kịch bản…" hiện ra bình thường. `return` trần trước đây làm nút đó thành một
+      // ngõ cụt im lặng: bấm, spinner nhá một nhịp, không có gì xảy ra, mãi mãi. Nút cũng
+      // đã bị `disabled` ở LifetimePage khi thiếu `profile`, đây là lớp thứ hai cho mọi
+      // chỗ gọi khác.
+      showToast(
+        'Chưa tải được thông tin người dùng (năm sinh, tiền gốc) nên chưa tạo được kịch bản — kiểm tra mạng rồi mở lại màn này.',
+        'error',
+      )
+      return
+    }
     const currency = profile.base_currency as CurrencyCode
 
     // `null` cho tới khi dòng kịch bản THẬT SỰ vào DB — quyết định cả việc có phải làm

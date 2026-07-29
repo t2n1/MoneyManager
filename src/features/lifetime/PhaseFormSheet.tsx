@@ -217,31 +217,11 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
           ))}
         </select>
 
-        <label className={label_}>Thu nền mỗi năm</label>
-        {/* Ô tiền CHÍNH của form này → để `autoOpen` mặc định (bung NumPad ngay).
-            Ô "Chi nền" bên dưới là ô phụ: hai ô cùng tự bung thì ô mount SAU thắng,
-            nên bàn phím hiện ra dưới ô thứ hai — xem hợp đồng `autoOpen` ở MoneyField. */}
-        <div className="mb-1">
-          <MoneyField value={income} onChange={setIncome} currency={currency} ariaLabel="Thu nền mỗi năm" className={`text-right font-semibold ${field}`} />
-        </div>
-        {!incomeValid && (
-          <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
-            Thu nền không được âm.
-          </p>
-        )}
-        {incomeValid && <div className="mb-2" />}
-
-        <label className={label_}>Chi nền mỗi năm</label>
-        <div className="mb-1">
-          <MoneyField value={expense} onChange={setExpense} currency={currency} autoOpen={false} ariaLabel="Chi nền mỗi năm" className={`text-right font-semibold ${field}`} />
-        </div>
-        {!expenseValid && (
-          <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
-            Chi nền không được âm.
-          </p>
-        )}
-        {expenseValid && <div className="mb-2" />}
-
+        {/* Khối tỷ giá đặt TRÊN hai ô tiền. Đo thật ở 375×812 với NumPad tự bung: khi khối
+            này nằm dưới, nhãn tỷ giá rơi xuống 803px trong khi vùng thấy được chỉ tới
+            812px — bị cắt ngang, và dòng xem trước quy đổi thì còn xa hơn nữa. Đặt lên
+            trên thì bàn số bung ra bên dưới không che được nó. Cùng lý do và cùng cách
+            xếp với EventFormSheet. */}
         {showFx && (
           <>
             <label className={`${label_} flex items-center gap-1`}>
@@ -278,6 +258,31 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
             )}
           </>
         )}
+
+        <label className={label_}>Thu nền mỗi năm</label>
+        {/* Ô tiền CHÍNH của form này → để `autoOpen` mặc định (bung NumPad ngay).
+            Ô "Chi nền" bên dưới là ô phụ: hai ô cùng tự bung thì ô mount SAU thắng,
+            nên bàn phím hiện ra dưới ô thứ hai — xem hợp đồng `autoOpen` ở MoneyField. */}
+        <div className="mb-1">
+          <MoneyField value={income} onChange={setIncome} currency={currency} ariaLabel="Thu nền mỗi năm" className={`text-right font-semibold ${field}`} />
+        </div>
+        {!incomeValid && (
+          <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+            Thu nền không được âm.
+          </p>
+        )}
+        {incomeValid && <div className="mb-2" />}
+
+        <label className={label_}>Chi nền mỗi năm</label>
+        <div className="mb-1">
+          <MoneyField value={expense} onChange={setExpense} currency={currency} autoOpen={false} ariaLabel="Chi nền mỗi năm" className={`text-right font-semibold ${field}`} />
+        </div>
+        {!expenseValid && (
+          <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+            Chi nền không được âm.
+          </p>
+        )}
+        {expenseValid && <div className="mb-2" />}
 
         <div className="flex items-center justify-between gap-2">
           {phase ? (

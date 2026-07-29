@@ -409,30 +409,14 @@ export function EventFormSheet({
               ))}
             </select>
 
-            <label className={label_}>Số tiền mỗi năm</label>
-            <div className="mb-1">
-              <MoneyField
-                value={amount}
-                onChange={setAmount}
-                currency={currency}
-                // `autoOpen={false}` — CÙNG lập luận với ô "Tài sản khởi điểm" của
-                // ScenarioEditorSheet. Ô tỷ giá và dòng XEM TRƯỚC QUY ĐỔI nằm NGAY DƯỚI
-                // ô này, và dòng xem trước là cách DUY NHẤT phát hiện tỷ giá bị đảo chiều
-                // (xem PhaseFormSheet) — từ khi ô tỷ giá tự xoá sau mỗi lần đổi tiền, nó
-                // cũng là chỗ duy nhất cho thấy tỷ giá vừa khai lại có đúng độ lớn hay
-                // không. NumPad tự bung sẽ đẩy đúng hai thứ đó xuống dưới màn hình.
-                autoOpen={false}
-                ariaLabel="Số tiền mỗi năm"
-                className={`text-right font-semibold ${field}`}
-              />
-            </div>
-            {!amountValid && (
-              <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
-                Số tiền không được âm.
-              </p>
-            )}
-            {amountValid && <div className="mb-2" />}
-
+            {/* Khối tỷ giá nằm TRÊN ô tiền, không phải dưới. Đo thật ở 375×812 với bàn số
+                đang bung: khi khối này ở dưới, nhãn tỷ giá rơi xuống 838px, ô nhập 858px và
+                dòng quy đổi 902px — trong khi vùng thấy được chỉ tới 812px. Tức là đúng lúc
+                người dùng nhập số tiền thì cả ba biến mất khỏi màn hình, mà dòng quy đổi là
+                cách DUY NHẤT phát hiện tỷ giá bị đảo chiều (xem PhaseFormSheet).
+                `autoOpen={false}` một mình KHÔNG đủ: nó chỉ chặn bàn số tự bung, còn người
+                dùng vẫn buộc phải bấm vào ô tiền để nhập. Đặt lên trên thì bàn số bung ra
+                bên dưới không che được nó nữa. */}
             {showFx && (
               <>
                 <label className={`${label_} flex items-center gap-1`}>
@@ -470,6 +454,26 @@ export function EventFormSheet({
                 )}
               </>
             )}
+
+            <label className={label_}>Số tiền mỗi năm</label>
+            <div className="mb-1">
+              <MoneyField
+                value={amount}
+                onChange={setAmount}
+                currency={currency}
+                // Vẫn `false` dù khối tỷ giá đã lên trên: bàn số tự bung giữa form đẩy mọi
+                // thứ phía sau xuống và chiếm 257px của một sheet vốn đã dài nhất app.
+                autoOpen={false}
+                ariaLabel="Số tiền mỗi năm"
+                className={`text-right font-semibold ${field}`}
+              />
+            </div>
+            {!amountValid && (
+              <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+                Số tiền không được âm.
+              </p>
+            )}
+            {amountValid && <div className="mb-2" />}
 
             <label className="mb-3 flex min-h-11 items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
               <input type="checkbox" checked={inflate} onChange={(e) => setInflate(e.target.checked)} className="h-4 w-4" />

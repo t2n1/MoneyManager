@@ -52,7 +52,10 @@
   --surface-sunken: var(--color-gray-100); /* track của segmented control */
   --surface-page: var(--color-gray-50);
   --border-subtle: var(--color-gray-100);
-  --border-strong: var(--color-gray-200);
+  /* gray-300 chứ không gray-200: đây là mô tả thực tế của code (66 chỗ dùng
+     border-gray-300/dark:border-gray-700, chỉ 3 chỗ dùng gray-200). Token phải
+     bám thực tế; đặt gray-200 rồi đổi 66 chỗ là đổi diện mạo, không phải đặt tên. */
+  --border-strong: var(--color-gray-300);
 
   /* Nhấn (dùng cho focus ring, nút chính).
      green-700 chứ không green-600: nút chính là nền có CHỮ TRẮNG đè lên, nên phải

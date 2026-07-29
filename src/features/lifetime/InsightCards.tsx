@@ -28,9 +28,9 @@ interface Props {
 // giãn được những gì tính theo em/rem từ font-size gốc của <html> (xem index.css) —
 // arbitrary theo px sẽ đứng yên khi người dùng phóng chữ. 1.375rem = 22px, 0.6875rem =
 // 11px ở cỡ mặc định (khớp quy ước sẵn có của `NetCashflowCard.tsx` dùng
-// `text-[0.6875rem]` cho 11px).
+// `text-2xs` cho 11px).
 const VALUE_SIZE = 'text-[1.375rem]'
-const SUB_SIZE = 'text-[0.6875rem]'
+const SUB_SIZE = 'text-2xs'
 
 /**
  * Một ô trong lưới — khuôn dùng chung cho cả bốn thẻ (brief Task 9 Step 1).
@@ -63,17 +63,17 @@ function InsightTile({
   const warn = alert === true || (amountMinor != null && amountMinor < 0)
   return (
     <div className="min-w-0 rounded-lg bg-gray-50 dark:bg-gray-800 p-2.5">
-      <p className="text-xs text-gray-600 dark:text-gray-300">{label}</p>
+      <p className="text-xs text-fg-secondary">{label}</p>
       <p
         className={`mt-0.5 flex items-center gap-1 ${VALUE_SIZE} font-medium tabular-nums ${
-          warn ? 'text-money-out' : 'text-gray-800 dark:text-gray-100'
+          warn ? 'text-money-out' : 'text-fg-primary'
         }`}
       >
         {warn && <AlertCircle className="h-[1.1em] w-[1.1em] shrink-0" />}
         <span className="truncate">{value}</span>
       </p>
       {sub && (
-        <p className={`mt-0.5 truncate ${SUB_SIZE} text-gray-500 dark:text-gray-400`}>{sub}</p>
+        <p className={`mt-0.5 truncate ${SUB_SIZE} text-fg-muted`}>{sub}</p>
       )}
     </div>
   )

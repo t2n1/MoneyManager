@@ -194,7 +194,7 @@ export function HealthPage() {
   ]
 
   if (!isFetched) {
-    return <p className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">Đang tính…</p>
+    return <p className="p-6 text-center text-sm text-fg-muted">Đang tính…</p>
   }
 
   return (
@@ -203,13 +203,13 @@ export function HealthPage() {
         <Link
           to="/reports"
           aria-label="Quay lại Báo cáo"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white shadow-sm active:scale-95 dark:bg-gray-900"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface shadow-sm active:scale-95 "
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>
         <div className="min-w-0 flex-1">
-          <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">Sức khỏe tài chính</h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <h1 className="text-lg font-bold text-fg-primary">Sức khỏe tài chính</h1>
+          <p className="text-xs text-fg-muted">
             Dựa trên {snap.monthsCounted} tháng gần nhất
           </p>
         </div>
@@ -224,9 +224,9 @@ export function HealthPage() {
             ['bad', tally.bad, 'text-money-out'],
           ] as const
         ).map(([key, count, cls]) => (
-          <div key={key} className="rounded-xl bg-white p-3 text-center shadow-sm dark:bg-gray-900">
+          <div key={key} className="rounded-xl bg-surface p-3 text-center shadow-sm ">
             <p className={`text-xl font-bold tabular-nums ${cls}`}>{count}</p>
-            <p className="mt-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+            <p className="mt-0.5 text-2xs text-fg-muted">
               {VERDICT_LABELS[key]}
             </p>
           </div>

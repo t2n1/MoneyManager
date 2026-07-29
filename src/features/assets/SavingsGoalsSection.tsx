@@ -71,7 +71,7 @@ export function SavingsGoalsSection() {
   const selectableAccounts = accounts.filter((a) => !a.is_archived)
 
   return (
-    <section className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-900">
+    <section className="rounded-2xl bg-surface p-4 shadow-sm ">
       <div className="flex items-center gap-2">
         <Target className="h-5 w-5 text-money-in" />
         <h2 className="flex-1 text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -88,7 +88,7 @@ export function SavingsGoalsSection() {
       </div>
 
       {goals.length === 0 ? (
-        <p className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-3 text-center text-xs text-fg-muted">
           Chưa có mục tiêu nào. Đặt một đích tiết kiệm để theo dõi tiến độ.
         </p>
       ) : (
@@ -114,22 +114,22 @@ export function SavingsGoalsSection() {
                   onClick={() => setSheet({ open: true, goal: g })}
                   className="flex w-full items-center justify-between text-left"
                 >
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                  <span className="text-sm font-medium text-fg-primary">
                     {g.name}
                   </span>
                   <span
-                    className={`text-xs font-semibold ${f.done ? 'text-money-in' : 'text-gray-500 dark:text-gray-400'}`}
+                    className={`text-xs font-semibold ${f.done ? 'text-money-in' : 'text-fg-muted'}`}
                   >
                     {pct}%
                   </span>
                 </button>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-surface-sunken">
                   <div
                     className={`h-full rounded-full ${f.done ? 'bg-green-500' : 'bg-green-400'}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <div className="mt-1 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <div className="mt-1 flex items-center justify-between text-xs text-fg-muted">
                   <span className="tabular-nums">
                     {formatMoney(f.current, currency)} / {formatMoney(g.target_amount, currency)}
                   </span>
@@ -142,9 +142,9 @@ export function SavingsGoalsSection() {
 
                 {/* Dự báo: bao giờ đạt với tốc độ hiện tại */}
                 {!f.done && (
-                  <p className="mt-1 text-[0.6875rem] leading-relaxed">
+                  <p className="mt-1 text-2xs leading-relaxed">
                     {f.etaMonth === null ? (
-                      <span className="text-gray-500 dark:text-gray-400">
+                      <span className="text-fg-muted">
                         {f.monthlyGrowth < 0
                           ? `Số dư đang giảm ${formatMoney(-f.monthlyGrowth, currency)}/tháng — chưa tiến về đích.`
                           : 'Chưa đo được tốc độ tích lũy. Chuyển tiền đều đặn vào tài khoản này để app dự báo ngày đạt.'}
@@ -154,7 +154,7 @@ export function SavingsGoalsSection() {
                         className={
                           f.vsDeadline === 'behind'
                             ? 'text-amber-700 dark:text-amber-400'
-                            : 'text-gray-500 dark:text-gray-400'
+                            : 'text-fg-muted'
                         }
                       >
                         Đang thêm {formatMoney(f.monthlyGrowth, currency)}/tháng → dự kiến đạt{' '}
@@ -172,7 +172,7 @@ export function SavingsGoalsSection() {
       )}
 
       {earmarked.total > 0 && (
-        <p className="mt-3 border-t border-gray-100 pt-2.5 text-[0.6875rem] leading-relaxed text-gray-500 dark:border-gray-800 dark:text-gray-400">
+        <p className="mt-3 border-t border-gray-100 pt-2.5 text-2xs leading-relaxed text-gray-500 dark:border-gray-800 dark:text-gray-400">
           <b className="tabular-nums text-gray-700 dark:text-gray-200">
             {earmarked.hasMissingRate ? '≈ ' : ''}
             {formatMoney(earmarked.total, base)}

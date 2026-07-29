@@ -25,8 +25,8 @@ export function MonthlyBarsCard({ series, base, title, labelOf }: Props) {
   }))
 
   return (
-    <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-      <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">{title}</h2>
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
+      <h2 className="mb-2 text-sm font-semibold text-fg-muted">{title}</h2>
       <div className="h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={barData} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
@@ -55,7 +55,7 @@ export function MonthlyBarsCard({ series, base, title, labelOf }: Props) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <div className="mt-1 flex justify-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+      <div className="mt-1 flex justify-center gap-4 text-xs text-fg-muted">
         <span className="flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: INCOME }} /> Thu
         </span>

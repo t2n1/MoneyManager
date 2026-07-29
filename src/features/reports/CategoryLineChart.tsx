@@ -16,7 +16,7 @@ export function CategoryLineChart({ points, base, color, labelOf, title }: Props
 
   return (
     <div className="mt-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 p-2">
-      <p className="mb-1 truncate text-xs font-medium text-gray-500 dark:text-gray-400">{title}</p>
+      <p className="mb-1 truncate text-xs font-medium text-fg-muted">{title}</p>
       <div className="h-40 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>

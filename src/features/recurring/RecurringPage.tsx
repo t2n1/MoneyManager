@@ -46,7 +46,7 @@ const WEEKDAYS = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'T
 const AMOUNT_COLOR: Record<RecurringRuleRow['type'], string> = {
   expense: 'text-money-out',
   income: 'text-money-in',
-  transfer: 'text-gray-500 dark:text-gray-400',
+  transfer: 'text-fg-muted',
 }
 
 const fmtDate = (iso: string) => {
@@ -169,12 +169,12 @@ export function RecurringPage() {
         <button
           type="button"
           onClick={() => navigate('/settings')}
-          className="flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-gray-600 dark:text-gray-300 shadow-sm active:scale-95"
+          className="flex items-center gap-1 rounded-lg bg-surface px-2 py-1.5 text-sm text-fg-secondary shadow-sm active:scale-95"
           aria-label="Quay lại Cài đặt"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">
+        <h1 className="flex-1 text-lg font-bold text-fg-primary">
           Giao dịch định kỳ
         </h1>
         <button
@@ -202,11 +202,11 @@ export function RecurringPage() {
                 <li key={s.key} className="flex items-center gap-2 px-3 py-2.5">
                   <span className="text-lg">{cat?.icon ?? '🔁'}</span>
                   <div className="min-w-0 flex-1">
-                    <span className="block truncate text-sm text-gray-800 dark:text-gray-100">
+                    <span className="block truncate text-sm text-fg-primary">
                       {cat?.name ?? '?'}
-                      {s.note && <span className="text-gray-500 dark:text-gray-400"> · {s.note}</span>}
+                      {s.note && <span className="text-fg-muted"> · {s.note}</span>}
                     </span>
-                    <span className="block text-xs text-gray-500 dark:text-gray-400">
+                    <span className="block text-xs text-fg-muted">
                       {formatMoney(s.amount, acc?.currency ?? 'JPY')} ·{' '}
                       {s.frequency === 'monthly' ? 'hàng tháng' : 'hàng tuần'} · {s.occurrences} lần
                     </span>
@@ -234,13 +234,13 @@ export function RecurringPage() {
       )}
 
       {isLoading ? (
-        <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Đang tải…</p>
+        <p className="py-8 text-center text-sm text-fg-muted">Đang tải…</p>
       ) : rules.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+        <p className="py-8 text-center text-sm text-fg-muted">
           Chưa có quy tắc nào. Thêm ở đây hoặc chọn "Lặp lại" khi nhập giao dịch.
         </p>
       ) : (
-        <div className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-white shadow-sm dark:divide-gray-800 dark:bg-gray-900">
+        <div className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-surface shadow-sm dark:divide-gray-800 ">
           {rules.map((rule) => {
             const acc = accountOf(rule.account_id)
             const cat = categoryOf(rule.category_id)
@@ -252,7 +252,7 @@ export function RecurringPage() {
               >
                 <span className="text-xl">
                   {rule.type === 'transfer' ? (
-                    <ArrowRightLeft className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                    <ArrowRightLeft className="h-5 w-5 text-fg-muted" />
                   ) : (
                     cat?.icon
                   )}
@@ -262,15 +262,15 @@ export function RecurringPage() {
                   onClick={() => setSheet({ open: true, rule })}
                   className="min-w-0 flex-1 text-left"
                 >
-                  <span className="block truncate text-sm text-gray-800 dark:text-gray-100">
+                  <span className="block truncate text-sm text-fg-primary">
                     {rule.type === 'transfer'
                       ? `${acc?.name ?? '?'} → ${accountOf(rule.to_account_id)?.name ?? '?'}`
                       : (cat?.name ?? '?')}
                     {rule.note && (
-                      <span className="text-gray-500 dark:text-gray-400"> · {rule.note}</span>
+                      <span className="text-fg-muted"> · {rule.note}</span>
                     )}
                   </span>
-                  <span className="block text-xs text-gray-500 dark:text-gray-400">
+                  <span className="block text-xs text-fg-muted">
                     {scheduleLabel(rule)} ·{' '}
                     {rule.is_paused ? 'Tạm dừng' : next ? `kỳ tới ${fmtDate(next)}` : 'Đã kết thúc'}
                   </span>

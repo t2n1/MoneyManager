@@ -11,7 +11,7 @@ const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
 
 // 0 = không chi; 1..4 tăng dần theo mức chi so với ngày chi cao nhất trong tháng
 const LEVEL_BG = [
-  'bg-gray-100 dark:bg-gray-800',
+  'bg-surface-sunken',
   'bg-amber-200 dark:bg-amber-900/70',
   'bg-amber-300 dark:bg-amber-700/80',
   'bg-orange-400 dark:bg-orange-600',
@@ -40,13 +40,13 @@ export function SpendHeatmapCard({ points, base }: Props) {
   const cells: (DailyExpensePoint | null)[] = [...Array(leading).fill(null), ...points]
 
   return (
-    <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-      <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
+      <h2 className="mb-2 text-sm font-semibold text-fg-muted">
         Lịch chi tiêu trong tháng
       </h2>
       <div className="grid grid-cols-7 gap-1">
         {WEEKDAYS.map((w) => (
-          <div key={w} className="pb-0.5 text-center text-[0.625rem] text-gray-500 dark:text-gray-400">
+          <div key={w} className="pb-0.5 text-center text-3xs text-fg-muted">
             {w}
           </div>
         ))}
@@ -57,7 +57,7 @@ export function SpendHeatmapCard({ points, base }: Props) {
             <div
               key={p.date}
               title={`${Number(p.date.slice(8))}/${Number(p.date.slice(5, 7))}: ${formatMoney(p.expense, base)}`}
-              className={`flex aspect-square items-center justify-center rounded text-[0.625rem] ${LEVEL_BG[levelOf(p.expense)]} ${
+              className={`flex aspect-square items-center justify-center rounded text-3xs ${LEVEL_BG[levelOf(p.expense)]} ${
                 levelOf(p.expense) >= 3 ? 'text-white' : 'text-gray-500 dark:text-gray-300'
               }`}
             >
@@ -66,7 +66,7 @@ export function SpendHeatmapCard({ points, base }: Props) {
           ),
         )}
       </div>
-      <div className="mt-2 flex items-center justify-end gap-1 text-[0.625rem] text-gray-500 dark:text-gray-400">
+      <div className="mt-2 flex items-center justify-end gap-1 text-3xs text-fg-muted">
         <span>Ít</span>
         {LEVEL_BG.map((bg, i) => (
           <span key={i} className={`h-2.5 w-2.5 rounded-sm ${bg}`} />

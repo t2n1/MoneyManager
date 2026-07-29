@@ -137,7 +137,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
       ariaLabel={ariaLabel}
       autoOpen={autoOpen}
       onEnter={handleSave}
-      className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
+      className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold outline-green-500"
     />
   )
 
@@ -147,15 +147,15 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-gray-100">
+        <h2 className="mb-3 text-base font-bold text-fg-primary">
           {rule ? 'Sửa quy tắc định kỳ' : 'Thêm quy tắc định kỳ'}
         </h2>
 
         {/* Loại giao dịch */}
-        <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg bg-gray-100 dark:bg-gray-800 p-1">
+        <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg bg-surface-sunken p-1">
           {TYPE_TABS.map((tab) => (
             <button
               key={tab.value}
@@ -163,8 +163,8 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
               onClick={() => switchType(tab.value)}
               className={`rounded-md py-1.5 text-sm font-medium transition ${
                 type === tab.value
-                  ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400'
+                  ? 'bg-surface text-gray-900 dark:text-gray-100 shadow-sm'
+                  : 'text-fg-muted'
               }`}
             >
               {tab.label}
@@ -173,7 +173,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         </div>
 
         {/* Tài khoản (+ đích nếu chuyển khoản) */}
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+        <label className="mb-1 block text-xs font-medium text-fg-muted">
           {type === 'transfer' ? 'Từ tài khoản' : 'Tài khoản'}
         </label>
         <div className="mb-3">
@@ -187,7 +187,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         </div>
         {type === 'transfer' && (
           <>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+            <label className="mb-1 block text-xs font-medium text-fg-muted">
               Đến tài khoản
             </label>
             <div className="mb-3">
@@ -205,13 +205,13 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         {/* Danh mục (ẩn khi chuyển khoản) */}
         {type !== 'transfer' && (
           <>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+            <label className="mb-1 block text-xs font-medium text-fg-muted">
               Danh mục
             </label>
             <select
               value={categoryId ?? ''}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm text-gray-700 dark:text-gray-300"
+              className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm text-gray-700 dark:text-gray-300"
             >
               <option value="" disabled>
                 Chọn danh mục…
@@ -238,13 +238,13 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         )}
 
         {/* Số tiền */}
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+        <label className="mb-1 block text-xs font-medium text-fg-muted">
           Số tiền ({srcCurrency})
         </label>
         <div className="mb-3">{moneyInput(amount, setAmount, srcCurrency, 'Số tiền')}</div>
         {crossCurrency && (
           <>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+            <label className="mb-1 block text-xs font-medium text-fg-muted">
               Nhận được ({dstCurrency})
             </label>
             <div className="mb-3">
@@ -256,13 +256,13 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         {/* Chu kỳ + ngày bắt đầu / kết thúc */}
         <div className="mb-3 grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+            <label className="mb-1 block text-xs font-medium text-fg-muted">
               Chu kỳ
             </label>
             <select
               value={frequency}
               onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm text-gray-700 dark:text-gray-300"
+              className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm text-gray-700 dark:text-gray-300"
             >
               {FREQ_OPTIONS.map((f) => (
                 <option key={f.value} value={f.value}>
@@ -272,39 +272,39 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+            <label className="mb-1 block text-xs font-medium text-fg-muted">
               Bắt đầu (kỳ đầu tiên)
             </label>
             <input
               type="date"
               value={startOn}
               onChange={(e) => setStartOn(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm outline-green-500"
+              className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm outline-green-500"
             />
           </div>
         </div>
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+        <label className="mb-1 block text-xs font-medium text-fg-muted">
           Kết thúc (không bắt buộc)
         </label>
         <input
           type="date"
           value={endOn}
           onChange={(e) => setEndOn(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm outline-green-500"
+          className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm outline-green-500"
         />
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+        <label className="mb-1 block text-xs font-medium text-fg-muted">
           Ghi chú (không bắt buộc)
         </label>
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: tiền nhà"
-          className="mb-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
+          className="mb-1 w-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
         />
 
         {rule && (
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-2 text-xs text-fg-muted">
             Thay đổi chỉ áp dụng cho các kỳ tương lai; giao dịch đã sinh giữ nguyên.
           </p>
         )}
@@ -314,7 +314,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Hủy
           </button>

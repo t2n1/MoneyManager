@@ -223,30 +223,30 @@ export function ImportCsvPage() {
   }
 
   const selectCls =
-    'rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm'
+    'rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm'
 
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
       <div className="flex items-center gap-2">
         <Link
           to="/settings/data"
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="rounded-lg bg-surface px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>
-        <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">
+        <h1 className="flex-1 text-lg font-bold text-fg-primary">
           Nhập giao dịch từ CSV
         </h1>
       </div>
 
-      <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 py-4 text-sm font-medium text-gray-600 dark:text-gray-300 focus-within:ring-2 focus-within:ring-green-500">
+      <section className="rounded-xl bg-surface p-3 shadow-sm">
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong py-4 text-sm font-medium text-fg-secondary focus-within:ring-2 focus-within:ring-green-500">
           <Upload className="h-4 w-4" />
           {fileName || 'Chọn file CSV sao kê…'}
           <input type="file" accept=".csv,text/csv" className="sr-only" onChange={handleFile} />
         </label>
-        <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+        <div className="mt-2 flex items-center gap-2 text-xs text-fg-muted">
           <span>Mã hóa:</span>
           <select
             value={encoding}
@@ -261,8 +261,8 @@ export function ImportCsvPage() {
 
       {rows.length > 0 && (
         <>
-          <section className="grid grid-cols-2 gap-2 rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-            <label className="col-span-2 flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+          <section className="grid grid-cols-2 gap-2 rounded-xl bg-surface p-3 shadow-sm">
+            <label className="col-span-2 flex flex-col gap-1 text-xs text-fg-muted">
               Nhập vào tài khoản
               <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className={selectCls}>
                 <option value="">— Chọn tài khoản —</option>
@@ -273,7 +273,7 @@ export function ImportCsvPage() {
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+            <label className="flex flex-col gap-1 text-xs text-fg-muted">
               Cột ngày
               <select value={dateCol} onChange={(e) => setDateCol(Number(e.target.value))} className={selectCls}>
                 {columns.map((c) => (
@@ -281,7 +281,7 @@ export function ImportCsvPage() {
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+            <label className="flex flex-col gap-1 text-xs text-fg-muted">
               Cột số tiền
               <select value={amountCol} onChange={(e) => setAmountCol(Number(e.target.value))} className={selectCls}>
                 {columns.map((c) => (
@@ -289,7 +289,7 @@ export function ImportCsvPage() {
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+            <label className="flex flex-col gap-1 text-xs text-fg-muted">
               Cột ghi chú
               <select value={noteCol} onChange={(e) => setNoteCol(Number(e.target.value))} className={selectCls}>
                 {columns.map((c) => (
@@ -297,7 +297,7 @@ export function ImportCsvPage() {
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+            <label className="flex flex-col gap-1 text-xs text-fg-muted">
               Thứ tự ngày
               <select value={dateOrder} onChange={(e) => setDateOrder(e.target.value as DateOrder)} className={selectCls}>
                 <option value="ymd">Năm/Tháng/Ngày</option>
@@ -305,11 +305,11 @@ export function ImportCsvPage() {
                 <option value="mdy">Tháng/Ngày/Năm</option>
               </select>
             </label>
-            <label className="col-span-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <label className="col-span-2 flex items-center gap-2 text-sm text-fg-secondary">
               <input type="checkbox" checked={hasHeader} onChange={(e) => setHasHeader(e.target.checked)} />
               Dòng đầu là tiêu đề cột
             </label>
-            <label className="col-span-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <label className="col-span-2 flex items-center gap-2 text-sm text-fg-secondary">
               <input
                 type="checkbox"
                 checked={negativeIsExpense}
@@ -320,8 +320,8 @@ export function ImportCsvPage() {
           </section>
 
           {account && (
-            <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+            <section className="rounded-xl bg-surface p-3 shadow-sm">
+              <p className="text-sm text-fg-secondary">
                 Sẽ nhập <strong>{toImport.length}</strong> giao dịch
                 {dupCount > 0 && ` · bỏ qua ${dupCount} trùng`}
                 {skipTransfers && transferCount > 0 && ` · bỏ qua ${transferCount} chuyển khoản`}
@@ -344,7 +344,7 @@ export function ImportCsvPage() {
                       khoản khác. Nhập vào sẽ làm phồng cả Chi lẫn Thu, nên mặc định bỏ qua.
                     </span>
                   </label>
-                  <ul className="mt-1.5 space-y-0.5 pl-6 text-[0.6875rem] text-amber-700 dark:text-amber-400">
+                  <ul className="mt-1.5 space-y-0.5 pl-6 text-2xs text-amber-700 dark:text-amber-400">
                     {transferCandidates.slice(0, 5).map((c) => {
                       const it = preview.items.find((x) => x.key === c.key)
                       return (
@@ -363,7 +363,7 @@ export function ImportCsvPage() {
               )}
               <div className="mt-2 max-h-64 overflow-auto text-xs">
                 <table className="w-full">
-                  <thead className="text-gray-500 dark:text-gray-400">
+                  <thead className="text-fg-muted">
                     <tr>
                       <th className="py-1 text-left font-medium">Ngày</th>
                       <th className="py-1 text-left font-medium">Loại</th>
@@ -378,7 +378,7 @@ export function ImportCsvPage() {
                       return (
                         <tr
                           key={i}
-                          className={`border-t border-gray-100 dark:border-gray-800 ${odd ? 'bg-red-50 dark:bg-red-950/40' : ''}`}
+                          className={`border-t border-border-subtle ${odd ? 'bg-red-50 dark:bg-red-950/40' : ''}`}
                         >
                           <td className="py-1 tabular-nums">{it.occurred_on}</td>
                           <td className={`py-1 ${it.type === 'expense' ? 'text-money-out' : 'text-money-in'}`}>
@@ -387,7 +387,7 @@ export function ImportCsvPage() {
                           <td className="py-1 text-right tabular-nums">
                             {formatMoney(it.amount, currency)}
                             {odd && (
-                              <span className="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-[0.625rem] font-semibold text-red-700 dark:bg-red-900/50 dark:text-red-300">
+                              <span className="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-3xs font-semibold text-red-700 dark:bg-red-900/50 dark:text-red-300">
                                 khoản lớn bất thường
                               </span>
                             )}
@@ -399,7 +399,7 @@ export function ImportCsvPage() {
                   </tbody>
                 </table>
                 {toImport.length > PREVIEW_ROWS && (
-                  <p className="mt-1 text-center text-gray-500 dark:text-gray-400">
+                  <p className="mt-1 text-center text-fg-muted">
                     … và {toImport.length - PREVIEW_ROWS} dòng nữa
                     {hiddenAnomalyCount > 0 && (
                       <span className="font-semibold text-money-out">

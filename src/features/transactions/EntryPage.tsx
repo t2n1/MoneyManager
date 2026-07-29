@@ -76,12 +76,12 @@ export function EntryPage() {
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 shadow-sm active:scale-95"
+          className="flex items-center gap-1 rounded-lg bg-surface px-3 py-1.5 text-sm text-fg-secondary shadow-sm active:scale-95"
           aria-label="Đóng, quay lại Sổ giao dịch"
         >
           <ChevronLeft className="h-5 w-5" /> Đóng
         </button>
-        <h1 className="flex-1 text-center text-base font-bold text-gray-800 dark:text-gray-100">Nhập giao dịch</h1>
+        <h1 className="flex-1 text-center text-base font-bold text-fg-primary">Nhập giao dịch</h1>
         <span className="w-[70px]" aria-hidden />
       </div>
       {overCount > 0 && (

@@ -148,14 +148,14 @@ export function CategoryBreakdownCard({
   }
 
   return (
-    <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+    <section className="rounded-xl bg-surface p-3 shadow-sm ">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+          <h2 className="text-sm font-semibold text-fg-muted">
             Cơ cấu theo danh mục
           </h2>
           {parents.length > 0 && (
-            <p className="tabular-nums text-lg font-bold text-gray-800 dark:text-gray-100">
+            <p className="tabular-nums text-lg font-bold text-fg-primary">
               {approx}
               {formatMoney(total, base)}
             </p>
@@ -164,14 +164,14 @@ export function CategoryBreakdownCard({
         <div
           role="tablist"
           aria-label="Loại giao dịch"
-          className="flex shrink-0 rounded-lg bg-gray-100 p-0.5 text-xs font-medium dark:bg-gray-800"
+          className="flex shrink-0 rounded-lg bg-surface-sunken p-0.5 text-xs font-medium "
         >
           <button
             type="button"
             role="tab"
             aria-selected={kind === 'expense'}
             onClick={() => onKindChange('expense')}
-            className={`rounded-md px-3 py-2.5 transition ${kind === 'expense' ? 'bg-white text-red-700 shadow-sm dark:bg-gray-900 dark:text-red-400' : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
+            className={`rounded-md px-3 py-2.5 transition ${kind === 'expense' ? 'bg-surface text-red-700 shadow-sm dark:text-red-400' : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
           >
             Chi
           </button>
@@ -180,7 +180,7 @@ export function CategoryBreakdownCard({
             role="tab"
             aria-selected={kind === 'income'}
             onClick={() => onKindChange('income')}
-            className={`rounded-md px-3 py-2.5 transition ${kind === 'income' ? 'bg-white text-green-800 shadow-sm dark:bg-gray-900 dark:text-green-400' : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
+            className={`rounded-md px-3 py-2.5 transition ${kind === 'income' ? 'bg-surface text-green-800 shadow-sm dark:text-green-400' : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
           >
             Thu
           </button>
@@ -188,7 +188,7 @@ export function CategoryBreakdownCard({
       </div>
 
       {parents.length === 0 ? (
-        <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+        <p className="py-10 text-center text-sm text-fg-muted">
           Chưa có {kind === 'expense' ? 'chi tiêu' : 'thu nhập'} trong {periodNoun}
         </p>
       ) : (

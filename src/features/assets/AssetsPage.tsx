@@ -341,7 +341,7 @@ export function AssetsPage() {
         <PrivacyToggle />
         <Link
           to="/settings/asset-groups"
-          className="inline-flex items-center gap-1 rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-xs font-medium text-fg-secondary shadow-sm active:scale-95"
+          className="inline-flex items-center gap-1 rounded-lg bg-surface px-3 py-1.5 text-xs font-medium text-fg-secondary shadow-sm active:scale-95"
         >
           <Settings2 className="h-4 w-4" /> Quản lý nhóm
         </Link>
@@ -379,7 +379,7 @@ export function AssetsPage() {
 
       {/* Tài sản ròng (hiện khi có khoản nợ mở hoặc có thẻ tín dụng) */}
       {showNetWorth && (
-        <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
+        <section className="rounded-2xl bg-surface p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tài sản ròng</span>
             <Link to="/settings/debts" className="inline-flex items-center gap-0.5 text-xs font-medium text-green-700 dark:text-green-400">
@@ -433,7 +433,7 @@ export function AssetsPage() {
       {/* Thẻ tín dụng — khối DUY NHẤT trên trang có hạn chót ("còn N ngày", "cần
           nạp thêm"), nên đứng trên mọi khối chỉ để đọc. */}
       {visibleCards.length > 0 && (
-        <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
+        <section className="rounded-2xl bg-surface p-4 shadow-sm">
           <h2 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
             <CreditCard className="h-3.5 w-3.5" /> Thẻ tín dụng
           </h2>
@@ -580,7 +580,7 @@ export function AssetsPage() {
       <SavingsGoalsSection />
 
       {/* Biểu đồ tròn + danh sách nhóm */}
-      <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
+      <section className="rounded-2xl bg-surface p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
             Cơ cấu tài sản
@@ -670,7 +670,7 @@ export function AssetsPage() {
           <section
             key={g.name}
             ref={dragEnabled ? (el) => setZone(g.name, el) : undefined}
-            className={`overflow-hidden rounded-2xl bg-white dark:bg-gray-900 shadow-sm ${
+            className={`overflow-hidden rounded-2xl bg-surface shadow-sm ${
               isDropTarget ? 'ring-2 ring-green-500/60' : ''
             }`}
             style={{ borderLeft: `4px solid ${colorOf(g.name)}` }}
@@ -678,7 +678,7 @@ export function AssetsPage() {
             <div className="flex items-center justify-between px-4 py-3">
               <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-fg-primary">
                 <span className="truncate">{g.name}</span>
-                <span className="shrink-0 rounded-full bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-3xs font-medium text-fg-on-track">
+                <span className="shrink-0 rounded-full bg-surface-sunken px-1.5 py-0.5 text-3xs font-medium text-fg-on-track">
                   {g.accounts.length}
                 </span>
                 {!g.includeInTotals && (

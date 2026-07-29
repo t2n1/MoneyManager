@@ -86,11 +86,11 @@ export function BackupSection() {
   }
 
   return (
-    <section className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-900">
-      <h2 className="px-3 pt-3 text-sm font-semibold text-gray-500 dark:text-gray-400">
+    <section className="overflow-hidden rounded-xl bg-surface shadow-sm ">
+      <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">
         Sao lưu &amp; khôi phục
       </h2>
-      <p className="px-3 pt-1 text-xs text-gray-500 dark:text-gray-400">
+      <p className="px-3 pt-1 text-xs text-fg-muted">
         Xuất toàn bộ dữ liệu ra một file JSON để cất giữ, hoặc nhập lại từ file đã lưu.
       </p>
       <div className="flex flex-wrap gap-2 p-3">

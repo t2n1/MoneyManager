@@ -58,9 +58,9 @@ export function RemittanceSection({
   }
 
   return (
-    <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
+    <section className="rounded-2xl bg-surface p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
           <Send className="h-3.5 w-3.5" /> Gửi tiền về VN
         </h2>
         <Link
@@ -72,7 +72,7 @@ export function RemittanceSection({
       </div>
 
       {remittances.length === 0 ? (
-        <p className="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+        <p className="py-4 text-center text-sm text-fg-muted">
           Chưa gửi tiền về VN trong năm {year}.
         </p>
       ) : (
@@ -80,25 +80,25 @@ export function RemittanceSection({
           {/* Tổng năm */}
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Đã gửi</p>
-              <p className="mt-0.5 text-sm font-bold tabular-nums text-gray-800 dark:text-gray-100">
+              <p className="text-xs text-fg-muted">Đã gửi</p>
+              <p className="mt-0.5 text-sm font-bold tabular-nums text-fg-primary">
                 {formatMoney(stats.totalSentJpy, 'JPY')}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Người nhận nhận</p>
-              <p className="mt-0.5 text-sm font-bold tabular-nums text-gray-800 dark:text-gray-100">
+              <p className="text-xs text-fg-muted">Người nhận nhận</p>
+              <p className="mt-0.5 text-sm font-bold tabular-nums text-fg-primary">
                 {formatMoney(stats.totalReceivedVnd, 'VND')}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Tỷ giá TB</p>
-              <p className="mt-0.5 text-sm font-bold tabular-nums text-gray-800 dark:text-gray-100">
+              <p className="text-xs text-fg-muted">Tỷ giá TB</p>
+              <p className="mt-0.5 text-sm font-bold tabular-nums text-fg-primary">
                 {stats.avgRate ? `${stats.avgRate.toFixed(1)} ₫/¥` : '—'}
               </p>
             </div>
           </div>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-xs text-fg-muted">
             Tổng phí {formatMoney(stats.totalFeeJpy, 'JPY')} · {stats.count} lần gửi
             {share !== null && (
               <> · chiếm {Math.round(share * 100)}% thu nhập năm {year}</>
@@ -107,8 +107,8 @@ export function RemittanceSection({
 
           {/* Chọn thời điểm gửi được/mất bao nhiêu so với tỷ giá trung bình cả năm */}
           {bestPick && worstPick && bestPick.transactionId !== worstPick.transactionId && (
-            <div className="mt-2 rounded-lg bg-gray-50 px-2.5 py-2 text-xs dark:bg-gray-950">
-              <p className="text-gray-600 dark:text-gray-300">
+            <div className="mt-2 rounded-lg bg-surface-page px-2.5 py-2 text-xs ">
+              <p className="text-fg-secondary">
                 Lần gửi <b>được giá nhất</b> ({bestPick.date}, {bestPick.rate.toFixed(1)} ₫/¥) cho
                 thêm{' '}
                 <b className="text-green-700 dark:text-green-400">
@@ -116,14 +116,14 @@ export function RemittanceSection({
                 </b>{' '}
                 so với tỷ giá trung bình năm.
               </p>
-              <p className="mt-0.5 text-gray-600 dark:text-gray-300">
+              <p className="mt-0.5 text-fg-secondary">
                 Lần <b>thiệt nhất</b> ({worstPick.date}, {worstPick.rate.toFixed(1)} ₫/¥) mất{' '}
                 <b className="text-money-out">
                   {formatMoney(-worstPick.gainVsAvgVnd, 'VND')}
                 </b>
                 .
               </p>
-              <p className="mt-1 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-2xs text-fg-muted">
                 Khoảng cách giữa hai lần này là cái giá của việc chọn thời điểm. Chênh lệch lớn thì
                 lần sau nên chia nhỏ ra gửi nhiều đợt thay vì dồn một cục.
               </p>
@@ -131,7 +131,7 @@ export function RemittanceSection({
           )}
 
           {/* Lịch sử */}
-          <ul className="mt-3 divide-y divide-gray-100 dark:divide-gray-800 border-t border-gray-100 dark:border-gray-800">
+          <ul className="mt-3 divide-y divide-border-subtle border-t border-border-subtle">
             {remittances.map((t) => {
               const fee = t.remit_fee_jpy ?? 0
               const sent = Math.max(t.amount - fee, 0)
@@ -142,10 +142,10 @@ export function RemittanceSection({
               return (
                 <li key={t.id} className="flex items-center gap-3 py-2.5">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                    <p className="truncate text-sm font-medium text-fg-primary">
                       {formatMoney(sent, 'JPY')} → {formatMoney(received, 'VND')}
                     </p>
-                    <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                    <p className="truncate text-xs text-fg-muted">
                       {t.occurred_on} · {t.remit_service ?? '—'}
                       {rate > 0 ? ` · ${rate.toFixed(1)} ₫/¥` : ''}
                       {vs && Math.abs(vs.vsAvgPct) >= 0.5 && (

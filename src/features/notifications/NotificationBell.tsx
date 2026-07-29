@@ -75,11 +75,11 @@ export function NotificationBell({ className = '' }: { className?: string }) {
         aria-label={unreadCount > 0 ? `Thông báo, ${unreadCount} việc cần làm` : 'Thông báo'}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className={`relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white px-3 shadow-sm active:scale-95 dark:bg-gray-900 ${className}`}
+        className={`relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface px-3 shadow-sm active:scale-95 ${className}`}
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[0.625rem] font-bold text-white">
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-3xs font-bold text-white">
             {unreadCount}
           </span>
         )}
@@ -105,7 +105,7 @@ export function NotificationBell({ className = '' }: { className?: string }) {
             <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-gray-300 lg:hidden dark:bg-gray-600" />
             <Suspense
               fallback={
-                <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                <p className="py-6 text-center text-sm text-fg-muted">
                   Đang tải…
                 </p>
               }

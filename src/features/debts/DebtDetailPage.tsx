@@ -39,7 +39,7 @@ export function DebtDetailPage() {
 
   if (!debt) {
     return (
-      <div className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+      <div className="p-6 text-center text-sm text-fg-muted">
         {isLoading ? 'Đang tải…' : 'Không tìm thấy khoản nợ.'}
         {!isLoading && (
           <div className="mt-3">
@@ -101,16 +101,16 @@ export function DebtDetailPage() {
       <div className="mb-3 flex items-center gap-2">
         <Link
           to="/settings/debts"
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="rounded-lg bg-surface px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>
-        <h1 className="flex-1 truncate text-lg font-bold text-gray-800 dark:text-gray-100">{debt.counterparty}</h1>
+        <h1 className="flex-1 truncate text-lg font-bold text-fg-primary">{debt.counterparty}</h1>
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 shadow-sm active:scale-95"
+          className="rounded-lg bg-surface px-3 py-1.5 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
         >
           Sửa
         </button>
@@ -149,14 +149,14 @@ export function DebtDetailPage() {
         <button
           type="button"
           onClick={toggleSettled}
-          className="rounded-lg bg-white dark:bg-gray-900 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm active:scale-95"
+          className="rounded-lg bg-surface px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm active:scale-95"
         >
           {debt.status === 'open' ? 'Đánh dấu tất toán' : 'Mở lại'}
         </button>
       </div>
 
       {/* Hành động phá hủy — tách riêng khỏi cụm chính để tránh bấm nhầm */}
-      <div className="mt-3 border-t border-gray-100 dark:border-gray-800 pt-3">
+      <div className="mt-3 border-t border-border-subtle pt-3">
         <button
           type="button"
           onClick={handleDelete}
@@ -176,10 +176,10 @@ export function DebtDetailPage() {
       <AmortizationSection debt={debt} />
 
       {/* Lịch sử trả / cho vay thêm */}
-      <h2 className="mb-2 mt-5 px-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+      <h2 className="mb-2 mt-5 px-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">
         Lịch sử ({payments.length})
       </h2>
-      <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
+      <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
         {payments.map((p) => {
           // amount âm = lần giải ngân thêm (cho vay/vay tiếp); dương = trả bớt.
           const isAdvance = p.amount < 0
@@ -188,20 +188,20 @@ export function DebtDetailPage() {
             <>
               {p.transaction_id ? <Banknote className="h-4 w-4" /> : <PenLine className="h-4 w-4" />}
               <div className="min-w-0 flex-1 text-left">
-                <p className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                <p className="truncate text-sm font-medium text-fg-primary">
                   {isAdvance ? (
                     <span className="text-blue-600 dark:text-blue-400">
                       + {formatMoney(-p.amount, debt.currency)}
-                      <span className="ml-1 text-[0.625rem] font-normal text-blue-500/80">{advanceLabel}</span>
+                      <span className="ml-1 text-3xs font-normal text-blue-500/80">{advanceLabel}</span>
                     </span>
                   ) : (
                     formatMoney(p.amount, debt.currency)
                   )}
                   {!p.transaction_id && (
-                    <span className="ml-1 text-[0.625rem] font-normal text-gray-500 dark:text-gray-400">(ghi nhận suông)</span>
+                    <span className="ml-1 text-3xs font-normal text-fg-muted">(ghi nhận suông)</span>
                   )}
                 </p>
-                <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                <p className="truncate text-xs text-fg-muted">
                   {p.paid_on}
                   {p.note && ` · ${p.note}`}
                 </p>
@@ -226,7 +226,7 @@ export function DebtDetailPage() {
               <button
                 type="button"
                 onClick={() => handleDeletePayment(p.id, !!p.transaction_id)}
-                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-xs text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 Xóa
               </button>
@@ -234,7 +234,7 @@ export function DebtDetailPage() {
           )
         })}
         {payments.length === 0 && (
-          <p className="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400">Chưa có lần trả nào</p>
+          <p className="px-3 py-6 text-center text-sm text-fg-muted">Chưa có lần trả nào</p>
         )}
       </div>
 
@@ -281,31 +281,31 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
 
   return (
     <div className="mt-5">
-      <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+      <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">
         Lịch trả dự kiến
       </h2>
-      <div className="rounded-xl bg-white dark:bg-gray-900 p-4 shadow-sm">
+      <div className="rounded-xl bg-surface p-4 shadow-sm">
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
-            <p className="text-[0.6875rem] text-gray-500 dark:text-gray-400">Mỗi kỳ</p>
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+            <p className="text-2xs text-fg-muted">Mỗi kỳ</p>
+            <p className="text-sm font-semibold text-fg-primary">
               {formatMoney(schedule.monthly, cur)}
             </p>
           </div>
           <div>
-            <p className="text-[0.6875rem] text-gray-500 dark:text-gray-400">Tổng lãi</p>
+            <p className="text-2xs text-fg-muted">Tổng lãi</p>
             <p className="text-sm font-semibold text-rose-600 dark:text-rose-400">
               {formatMoney(schedule.totalInterest, cur)}
             </p>
           </div>
           <div>
-            <p className="text-[0.6875rem] text-gray-500 dark:text-gray-400">Tổng phải trả</p>
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+            <p className="text-2xs text-fg-muted">Tổng phải trả</p>
+            <p className="text-sm font-semibold text-fg-primary">
               {formatMoney(schedule.totalPaid, cur)}
             </p>
           </div>
         </div>
-        <p className="mt-2 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+        <p className="mt-2 text-2xs text-fg-muted">
           {(bps! / 100).toString()}%/năm · {term} kỳ · ước tính theo niên kim (thực tế có thể lệch chút)
         </p>
 
@@ -322,7 +322,7 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
           <div className="mt-2 overflow-x-auto">
             <table className="w-full text-right text-xs tabular-nums">
               <thead>
-                <tr className="text-gray-500 dark:text-gray-400">
+                <tr className="text-fg-muted">
                   <th className="py-1 pr-2 text-left font-medium">Kỳ</th>
                   <th className="py-1 px-2 font-medium">Ngày</th>
                   <th className="py-1 px-2 font-medium">Trả</th>
@@ -332,9 +332,9 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
               </thead>
               <tbody className="text-gray-700 dark:text-gray-300">
                 {schedule.rows.map((r) => (
-                  <tr key={r.index} className="border-t border-gray-100 dark:border-gray-800">
+                  <tr key={r.index} className="border-t border-border-subtle">
                     <td className="py-1 pr-2 text-left">{r.index}</td>
-                    <td className="py-1 px-2 text-gray-500 dark:text-gray-400">{r.dueOn.slice(2)}</td>
+                    <td className="py-1 px-2 text-fg-muted">{r.dueOn.slice(2)}</td>
                     <td className="py-1 px-2">{formatMoney(r.payment, cur)}</td>
                     <td className="py-1 px-2 text-rose-600 dark:text-rose-400">
                       {formatMoney(r.interest, cur)}

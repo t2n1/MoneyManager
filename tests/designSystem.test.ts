@@ -105,6 +105,40 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     expect(count, `Trắng trên green-600 chỉ 3,22:1. Dùng bg-green-700.\n${where.join('\n')}`).toBe(0)
   })
 
+  // Lý do: 896 chỗ đã đổi sang token. Viết lại cặp sáng/tối bằng tay nghĩa là quyết
+  // định màu bị nhân bản trở lại. Chỉ ban những cặp TRÙNG KHỚP CHÍNH XÁC với token —
+  // các biến thể khác (gray-700/200, gray-700/300, gray-900/100) cố ý để tự do, vì
+  // gộp chúng vào token là đổi sắc độ chứ không phải đặt tên.
+  it('dùng token cho cặp màu sáng/tối đã có tên', () => {
+    const MAPPED: Record<string, string> = {
+      'text-gray-500 dark:text-gray-400': 'text-fg-muted',
+      'text-gray-800 dark:text-gray-100': 'text-fg-primary',
+      'text-gray-600 dark:text-gray-300': 'text-fg-secondary',
+      'bg-white dark:bg-gray-900': 'bg-surface',
+      'bg-gray-100 dark:bg-gray-800': 'bg-surface-sunken',
+      'bg-gray-50 dark:bg-gray-950': 'bg-surface-page',
+      'border-gray-100 dark:border-gray-800': 'border-border-subtle',
+      'border-gray-300 dark:border-gray-700': 'border-border-strong',
+      'divide-gray-100 dark:divide-gray-800': 'divide-border-subtle',
+    }
+    for (const [needle, token] of Object.entries(MAPPED)) {
+      const { count, where } = occurrences(needle)
+      expect(count, `Dùng ${token}.\n${where.join('\n')}`).toBe(0)
+    }
+  })
+
+  // Lý do: đã có tên text-2xs (11px) / text-3xs (10px). Giá trị tuỳ ý quay lại là
+  // scale lại bị chọc lỗ.
+  it('dùng bậc chữ đã đặt tên, không chêm giá trị tuỳ ý', () => {
+    for (const [needle, token] of [
+      ['text-[0.6875rem]', 'text-2xs'],
+      ['text-[0.625rem]', 'text-3xs'],
+    ]) {
+      const { count, where } = occurrences(needle)
+      expect(count, `Dùng ${token}.\n${where.join('\n')}`).toBe(0)
+    }
+  })
+
   // Lý do: 0.5625rem = 9px, mà --app-font-scale nhỏ nhất là 0.9 → 8,1px.
   // Sàn dưới là text-3xs (10px), token cố ý không có tên cho 9px.
   it('không có chữ nhỏ hơn sàn 10px', () => {
@@ -117,11 +151,12 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
   // Mỗi số dưới đây là ĐỘ NỢ kỹ thuật đo được lúc dựng hệ thống. Gộp vào
   // primitive ở src/components/ui thì hạ số tương ứng.
   const CEILINGS: { needle: string; max: number; use: string }[] = [
-    { needle: 'text-[0.6875rem]', max: 47, use: 'text-2xs' },
-    { needle: 'text-[0.625rem]', max: 16, use: 'text-3xs' },
     { needle: 'active:scale-95', max: 94, use: '<IconButton>' },
     { needle: 'min-h-11 min-w-11', max: 26, use: '<IconButton> / iconButtonClass()' },
-    { needle: 'rounded-xl bg-white', max: 82, use: '<Card>' },
+    // 85 chu khong 82: lượt chuẩn hoá đã kéo 29 thẻ TỪ dạng `rounded-xl bg-white …
+    // dark:bg-gray-900` VÀO dạng này, nên con số tăng mà tổng số thẻ viết tay không
+    // đổi. Không phải thêm thẻ mới. Gộp vào <Card> thì hạ tiếp.
+    { needle: 'rounded-xl bg-surface', max: 85, use: '<Card>' },
     { needle: 'tabular-nums', max: 97, use: '<Money> (tự bật tabular-nums)' },
   ]
 

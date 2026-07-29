@@ -5,7 +5,7 @@ import type { AccountRow, CategoryRow, TransactionRow } from '../../types/databa
 const AMOUNT_STYLE: Record<TransactionRow['type'], { color: string; sign: string }> = {
   expense: { color: 'text-money-out', sign: '-' },
   income: { color: 'text-money-in', sign: '+' },
-  transfer: { color: 'text-gray-500 dark:text-gray-400', sign: '' },
+  transfer: { color: 'text-fg-muted', sign: '' },
 }
 
 interface Props {
@@ -32,15 +32,15 @@ export function TransactionItem({ tx, categoryOf, accountOf, base, onClick }: Pr
     >
       <span className="text-xl">{tx.type === 'transfer' ? <ArrowRightLeft className="h-5 w-5" /> : cat?.icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm text-gray-800 dark:text-gray-100">
+        <span className="block truncate text-sm text-fg-primary">
           {tx.type === 'transfer'
             ? `${accountName(tx.account_id)} → ${accountName(tx.to_account_id)}`
             : (cat?.name ?? '?')}
-          {tx.note && <span className="text-gray-500 dark:text-gray-400"> · {tx.note}</span>}
+          {tx.note && <span className="text-fg-muted"> · {tx.note}</span>}
           {tx.recurring_rule_id && (
             <Repeat
               aria-label="Giao dịch định kỳ"
-              className="ml-1 inline h-3 w-3 align-baseline text-gray-500 dark:text-gray-400"
+              className="ml-1 inline h-3 w-3 align-baseline text-fg-muted"
             />
           )}
           {tx.is_debt_flow && (
@@ -51,14 +51,14 @@ export function TransactionItem({ tx, categoryOf, accountOf, base, onClick }: Pr
           )}
         </span>
         {tx.type !== 'transfer' && (
-          <span className="block text-xs text-gray-500 dark:text-gray-400">{accountName(tx.account_id)}</span>
+          <span className="block text-xs text-fg-muted">{accountName(tx.account_id)}</span>
         )}
       </span>
       <span className={`text-right text-sm font-semibold tabular-nums ${style.color}`}>
         {style.sign}
         {formatMoney(tx.amount, srcCur)}
         {tx.to_amount != null && (
-          <span className="block text-xs font-normal tabular-nums text-gray-500 dark:text-gray-400">
+          <span className="block text-xs font-normal tabular-nums text-fg-muted">
             → +{formatMoney(tx.to_amount, dstCur)}
           </span>
         )}

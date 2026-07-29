@@ -140,8 +140,8 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
   }
 
   const field =
-    'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
-  const label_ = 'mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400'
+    'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
+  const label_ = 'mb-1 block text-xs font-medium text-fg-muted'
 
   // Xem trước quy đổi — chốt bắt buộc: hiện NGAY khi đang gõ, dùng đúng số tiền
   // của dòng đang sửa (thu VÀ chi, vì chặng có hai con số chứ không phải một).
@@ -156,10 +156,10 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-gray-100">{title}</h2>
+        <h2 className="mb-3 text-base font-bold text-fg-primary">{title}</h2>
 
         <label className={label_}>Tên chặng</label>
         <input
@@ -195,7 +195,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
         {(!startYear || (yearValid && !yearDuplicate)) && <div className="mb-3" />}
 
         <label className={label_}>
-          Quốc gia <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>
+          Quốc gia <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
         <input
           value={country}
@@ -250,7 +250,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
                 gõ nhầm 150 thay vì 0,0067 sai hàng chục nghìn lần mà validate > 0
                 không bắt được. Dòng xem trước này là cách DUY NHẤT phát hiện ra. */}
             {incomePreview !== null && expensePreview !== null && (
-              <p className="mb-3 text-xs tabular-nums text-gray-500 dark:text-gray-400">
+              <p className="mb-3 text-xs tabular-nums text-fg-muted">
                 Thu: {formatMoney(income, currency)} ≈ {formatMoney(incomePreview, displayCurrency)}
                 <br />
                 Chi: {formatMoney(expense, currency)} ≈ {formatMoney(expensePreview, displayCurrency)}
@@ -301,7 +301,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
             <button
               type="button"
               onClick={onClose}
-              className="min-h-11 rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 active:scale-95 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted active:scale-95 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Hủy
             </button>

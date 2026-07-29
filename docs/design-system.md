@@ -56,7 +56,16 @@ Dùng qua tiện ích Tailwind: `text-fg-muted`, `bg-surface`, `border-border-su
 
 **1. Chiều màu ở dark mode bị đảo.** `text-gray-400 dark:text-gray-500` là **sai** — nền tối thì chữ phụ phải *sáng* hơn. Chiều đúng: `text-gray-500 dark:text-gray-400`. Đã dọn 64 chỗ.
 
-**2. `fg-muted` không đủ khi nền là gray-100.** gray-500 đạt 4,84:1 trên trắng nhưng chỉ **4,39:1** trên `surface-sunken` → trượt AA. Nhãn nằm trên track phải dùng `fg-on-track`.
+**2. `fg-muted` CHỈ an toàn trên nền trắng.** gray-500 đạt 4,84:1 trên trắng, nhưng:
+
+| nền | tỉ số | |
+|---|---|---|
+| trắng | 4,84 | ✓ |
+| gray-50 | 4,63 | ✓ |
+| gray-100 (`surface-sunken`) | 4,39 | ✗ |
+| gray-200 | 3,91 | ✗ |
+
+**Chữ mờ nằm trên bất kỳ nền lún nào phải dùng `fg-on-track`** (gray-600). Đây là lỗi hay gặp nhất: một lần sửa `ClassificationToggle` đã xoá 196 vi phạm cùng lúc. Kiểm bằng cách đo nền THỰC TẾ (leo cây DOM tìm background), đừng giả định là trắng.
 
 **3. Không có bậc xám nào mờ hơn gray-500 mà vẫn đạt AA.** Nên app **không có** bậc chữ "tam cấp" bằng màu. Muốn phân cấp thêm thì dùng **cỡ chữ**, đừng làm nhạt màu.
 
@@ -135,8 +144,23 @@ Nhưng phải có **một nguồn duy nhất cho nét vẽ và chú giải**. B�
 
 **Đừng đặt màu chú giải bằng class Tailwind.** Luôn trỏ vào đúng hằng số đã tô cho biểu đồ.
 
+## Cách đo contrast cho đúng
+
+Ba cái bẫy đã làm mình đọc sai số, ghi lại để khỏi mất thời gian lần nữa:
+
+**1. Đừng bật class `.dark` bằng JS rồi đo ngay.** Chrome cập nhật `background-color` nhưng **chưa** cập nhật biến CSS thừa kế trong cùng một task, nên ra những số vô nghĩa (gray-600 trên gray-800 = 1,94). Phải **tải trang thật** với `localStorage.theme = 'dark'`. Muốn quét nhiều route thì tải một lần ở dark rồi điều hướng bằng `history.pushState` + `PopStateEvent` — class giữ nguyên, DOM được style lại từ đầu.
+
+**2. Gradient không nằm ở `background-color`.** `bg-gradient-to-br` đặt `background-image`, nên hàm leo cây tìm nền sẽ bỏ qua nó và rơi về trắng → ra tỉ số 1,0 giả. Phải đọc các chặng màu từ `backgroundImage` và tính với chặng **sáng nhất** (ca xấu nhất cho chữ trắng).
+
+**3. Ngưỡng AA không phải luôn 4,5.** Chữ ≥24px, hoặc ≥18,66px mà bold, chỉ cần **3:1**. Bỏ qua điều này sẽ báo sai các con số lớn — ví dụ `≈ ¥1,973,890` ở 32px bold trên thẻ hero.
+
+Ngoài ra: bỏ emoji khỏi phép đo. Emoji tự mang màu, `color` thừa kế của chúng vô nghĩa.
+
 ## Chưa làm
 
-- **29 chỗ `text-green-700 dark:text-green-400` cần tách nghĩa** thành `fg-accent` (link, hành động — đa số) hoặc `money-in` (giá trị tiền — vài chỗ). Đây là **việc xét từng chỗ**, không quét máy móc được: link không phải thu nhập. Không gấp — 4,95:1 đã đạt AA, chỉ là chưa có tên.
-- **Hex v3 còn ở 12+ file biểu đồ** (`#16a34a`/`#ef4444` trong `CategoryBreakdownCard` `PALETTE`, `SummaryView`, `AssetsPage`, `LifetimeChartCard`…). Không sai contrast, nhưng là giá trị lạc thời so với palette v4.
-- Đã áp primitive vào `LedgerPage` + `ReportsPage`. 14 màn còn lại vẫn viết tay — ngưỡng trong guardrail chính là số nợ còn lại.
+- **Trạng thái rỗng dùng gray-300** (`TransactionForm` `¥0`, `MonthlyView` tháng trống, `roleFields`) — 1,47:1 ở light, 2,35:1 ở dark. Đây là **de-emphasize cố ý**: tháng trống gần như biến mất khỏi bảng để mắt quét nhanh. Sửa cho đạt AA sẽ đổi cách đọc bảng → là quyết định thẩm mỹ, không phải dọn dẹp.
+- **Toán tử NumPad**: green-700 trên nền gray-100 = **4,49:1**, thiếu 0,01. Nằm trong sai số làm tròn. Muốn sạch tuyệt đối thì dùng green-800 cho light.
+- **29 chỗ `text-green-700 dark:text-green-400` cần tách nghĩa** thành `fg-accent` (link, hành động — đa số) hoặc `money-in` (giá trị tiền — vài chỗ). Việc **xét từng chỗ**, không quét máy móc được: link không phải thu nhập. Không gấp — 4,95:1 đã đạt AA.
+- **Hex v3 còn ở 12+ file biểu đồ** (`#16a34a`/`#ef4444` trong `CategoryBreakdownCard` `PALETTE`, `SummaryView`, `AssetsPage`, `LifetimeChartCard`…). Không sai contrast, nhưng lạc thời so với palette v4.
+- **Chưa có primitive `Button`.** `IconButton` chỉ lo nút icon; 94 chỗ `active:scale-95` còn lại phần lớn là nút CÓ CHỮ. Đây là primitive giá trị nhất còn thiếu.
+- Đã áp primitive vào `LedgerPage`, `ReportsPage`, `AccountDetailPage`, `AssetsPage`, `AssetGroupsPage`. Các màn còn lại đã đổi sang token màu nhưng thẻ/nút vẫn viết tay — ngưỡng trong guardrail là số nợ còn lại.

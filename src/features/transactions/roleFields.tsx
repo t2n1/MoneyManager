@@ -8,14 +8,14 @@ import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
  * ghi chú) + segmented chiều/kiểu do form Nhập quản lý; block chỉ chứa phần thêm.
  */
 
-const labelCls = 'mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400'
+const labelCls = 'mb-1 block text-xs font-medium text-fg-muted'
 const inputCls =
-  'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 outline-green-500'
+  'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary outline-green-500'
 const moneyInputCls =
-  'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-right text-lg font-semibold text-gray-800 dark:text-gray-100 outline-green-500'
+  'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold text-fg-primary outline-green-500'
 // Nút tiền trên mobile (do NumPad app gõ) — giống ô số tiền chính, không bật bàn phím hệ thống.
 const moneyBoxCls =
-  'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-right text-lg font-semibold'
+  'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold'
 // Bọc field vai trò: nền tint + viền trái theo màu để phân biệt với field gốc.
 const blockCls =
   'flex flex-col gap-2 rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/30'
@@ -51,7 +51,7 @@ function MoneyField({
         onClick={onFocus}
         aria-label={`${ariaLabel}: ${formatMoney(value, currency)}`}
         className={`${moneyBoxCls} ${active ? 'ring-2 ring-green-500' : ''} ${
-          isEmpty ? 'text-gray-300 dark:text-gray-600' : 'text-gray-800 dark:text-gray-100'
+          isEmpty ? 'text-gray-300 dark:text-gray-600' : 'text-fg-primary'
         } lg:hidden`}
       >
         {formatMoney(value, currency)}
@@ -112,7 +112,7 @@ export function FeeField({
         onChange={onChange}
         ariaLabel={`Phí (${currency})`}
       />
-      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>
+      <p className="mt-1 text-xs text-fg-muted">{hint}</p>
     </div>
   )
 }
@@ -156,7 +156,7 @@ export function SplitFields({
         />
       </div>
       {total > 0 && value.others > 0 && (
-        <p className={`text-right text-xs ${over ? 'text-money-out' : 'text-gray-500 dark:text-gray-400'}`}>
+        <p className={`text-right text-xs ${over ? 'text-money-out' : 'text-fg-muted'}`}>
           {over ? (
             'Phần người khác không được lớn hơn tổng.'
           ) : (
@@ -190,11 +190,11 @@ export function SplitFields({
                   className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${
                     active
                       ? 'border-green-600 bg-green-700 text-white'
-                      : 'border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200'
+                      : 'border-gray-300 bg-surface text-gray-700 dark:border-gray-700 dark:text-gray-200'
                   }`}
                 >
                   <span className="max-w-[9rem] truncate">{p.name}</span>
-                  <span className={`text-xs tabular-nums ${active ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
+                  <span className={`text-xs tabular-nums ${active ? 'text-white/80' : 'text-fg-muted'}`}>
                     {formatMoney(p.remaining, p.currency)}
                   </span>
                 </button>
@@ -336,11 +336,11 @@ export function DebtFields({
                   className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${
                     active
                       ? 'border-green-600 bg-green-700 text-white'
-                      : 'border-gray-300 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200'
+                      : 'border-gray-300 bg-surface text-gray-700 dark:border-gray-700 dark:text-gray-200'
                   }`}
                 >
                   <span className="max-w-[9rem] truncate">{p.name}</span>
-                  <span className={`text-xs tabular-nums ${active ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
+                  <span className={`text-xs tabular-nums ${active ? 'text-white/80' : 'text-fg-muted'}`}>
                     {formatMoney(p.remaining, p.currency)}
                   </span>
                 </button>
@@ -370,11 +370,11 @@ export function DebtFields({
         )}
       </div>
 
-      <div className="rounded-lg bg-white/70 p-2.5 dark:bg-gray-900/50">
+      <div className="rounded-lg bg-surface/70 p-2.5 /50">
         <label className="flex items-center justify-between gap-2 text-sm text-gray-700 dark:text-gray-300">
           <span>
             Có chuyển tiền thật
-            <span className="block text-xs text-gray-500 dark:text-gray-400">
+            <span className="block text-xs text-fg-muted">
               {value.direction === 'owed_to_me'
                 ? 'Tạo giao dịch chi (trừ số dư tài khoản)'
                 : 'Tạo giao dịch thu (cộng số dư tài khoản)'}
@@ -420,7 +420,7 @@ export function DebtFields({
           <button
             type="button"
             onClick={() => setShowMore((v) => !v)}
-            className="flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
+            className="flex items-center gap-1 text-xs font-medium text-fg-muted"
           >
             <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
             {showMore ? 'Ẩn bớt' : 'Thêm chi tiết (hạn, lãi suất)'}
@@ -519,7 +519,7 @@ export function RemitFields({
         </div>
       </div>
       {rate > 0 && (
-        <p className="text-right text-xs text-gray-500 dark:text-gray-400">
+        <p className="text-right text-xs text-fg-muted">
           Tỷ giá: 1 ¥ ≈ {rate.toFixed(1)} ₫
         </p>
       )}
@@ -527,7 +527,7 @@ export function RemitFields({
       <button
         type="button"
         onClick={() => setShowMore((v) => !v)}
-        className="flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
+        className="flex items-center gap-1 text-xs font-medium text-fg-muted"
       >
         <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
         {showMore ? 'Ẩn bớt' : 'Thêm chi tiết (dịch vụ)'}

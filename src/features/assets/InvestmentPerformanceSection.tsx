@@ -122,18 +122,18 @@ export function InvestmentPerformanceSection({ accounts, base }: Props) {
   ]
 
   return (
-    <section className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-900">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+    <section className="rounded-2xl bg-surface p-4 shadow-sm ">
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-fg-muted">
         Hiệu quả đầu tư
       </h2>
 
       {/* Đóng góp vs tăng trưởng */}
-      <div className="mb-1 flex h-3 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+      <div className="mb-1 flex h-3 w-full overflow-hidden rounded-full bg-surface-sunken">
         <div className="h-full bg-sky-500" style={{ width: `${capitalPct}%` }} />
         <div className="h-full bg-green-500" style={{ width: `${100 - capitalPct}%` }} />
       </div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 text-xs">
-        <span className="flex items-center gap-1.5 text-gray-600 dark:text-gray-300">
+        <span className="flex items-center gap-1.5 text-fg-secondary">
           <span className="h-2 w-2 rounded-full bg-sky-500" aria-hidden />
           Tiền bạn bỏ vào <b className="tabular-nums">{money(costBasis)}</b>
         </span>
@@ -147,7 +147,7 @@ export function InvestmentPerformanceSection({ accounts, base }: Props) {
           <b className="tabular-nums">{money(Math.abs(growth))}</b>
         </span>
       </div>
-      <p className="mt-1 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+      <p className="mt-1 text-2xs text-fg-muted">
         Giá trị hiện tại {money(currentValue)}
         {perf.withdrawn > 0 && <> · đã rút ra {money(perf.withdrawn)} trong kỳ</>}.
       </p>
@@ -155,11 +155,11 @@ export function InvestmentPerformanceSection({ accounts, base }: Props) {
       {/* Ba mức lợi nhuận */}
       <div className="mt-3 grid grid-cols-3 gap-2">
         {rateRows.map((row) => (
-          <div key={row.label} className="rounded-xl bg-gray-50 p-2.5 text-center dark:bg-gray-950">
+          <div key={row.label} className="rounded-xl bg-surface-page p-2.5 text-center ">
             <p
               className={`text-base font-bold tabular-nums ${
                 row.value === null
-                  ? 'text-gray-500 dark:text-gray-400'
+                  ? 'text-fg-muted'
                   : row.value >= 0
                     ? 'text-money-in'
                     : 'text-money-out'
@@ -167,19 +167,19 @@ export function InvestmentPerformanceSection({ accounts, base }: Props) {
             >
               {row.value === null ? '—' : signPct(row.value)}
             </p>
-            <p className="mt-0.5 text-[0.6875rem] font-medium text-gray-600 dark:text-gray-300">
+            <p className="mt-0.5 text-2xs font-medium text-fg-secondary">
               {row.label}
             </p>
-            <p className="mt-0.5 text-[0.625rem] leading-tight text-gray-500 dark:text-gray-400">
+            <p className="mt-0.5 text-3xs leading-tight text-fg-muted">
               {row.note}
             </p>
           </div>
         ))}
       </div>
-      <p className="mt-1 text-center text-[0.6875rem] text-gray-500 dark:text-gray-400">mỗi năm</p>
+      <p className="mt-1 text-center text-2xs text-fg-muted">mỗi năm</p>
 
       {perf.annualReturn === null && (
-        <p className="mt-2 rounded-lg bg-gray-50 px-2.5 py-2 text-xs text-gray-500 dark:bg-gray-950 dark:text-gray-400">
+        <p className="mt-2 rounded-lg bg-surface-page px-2.5 py-2 text-xs text-fg-muted">
           {flows.length === 0
             ? 'Chưa tính được %/năm: cần ít nhất một lần bỏ tiền vào tài khoản đầu tư (số dư mở tài khoản hoặc giao dịch Chuyển khoản).'
             : 'Chưa quy ra %/năm được: lịch sử còn quá ngắn hoặc biến động quá lớn nên con số quy đổi ra cả năm sẽ vô nghĩa. Vài tháng nữa sẽ có.'}
@@ -187,13 +187,13 @@ export function InvestmentPerformanceSection({ accounts, base }: Props) {
       )}
 
       {hasMissingRate && (
-        <p className="mt-2 text-[0.6875rem] text-amber-700 dark:text-amber-300">
+        <p className="mt-2 text-2xs text-amber-700 dark:text-amber-300">
           Một phần dòng tiền ngoại tệ chưa quy đổi được nên tỷ suất có thể lệch.
         </p>
       )}
 
       {profile?.annual_inflation_bps == null && (
-        <p className="mt-2 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+        <p className="mt-2 text-2xs text-fg-muted">
           <Link to="/settings" className="font-medium text-green-700 dark:text-green-400">
             Khai mức lạm phát trong Cài đặt
           </Link>{' '}

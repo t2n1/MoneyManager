@@ -277,8 +277,8 @@ export function LifetimeChartCard({
 
   if (rows.length === 0) {
     return (
-      <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+      <section className="rounded-xl bg-surface p-3 shadow-sm">
+        <p className="text-center text-sm text-fg-muted">
           Chưa chiếu được — kiểm tra lại tuổi kết thúc của kịch bản.
         </p>
       </section>
@@ -301,8 +301,8 @@ export function LifetimeChartCard({
   const compareDiff = compare && compareEndRow && !compareMismatch ? compareAtEnd(rows, compare) : null
 
   return (
-    <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-      <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">Tài sản ròng cả đời</h2>
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
+      <h2 className="mb-2 text-sm font-semibold text-fg-muted">Tài sản ròng cả đời</h2>
 
       <div role="img" aria-label={ariaLabel} className="h-52 w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -408,7 +408,7 @@ export function LifetimeChartCard({
       {/* Legend là CHỮ, không bấm được — đánh đổi có ý thức (xem task-8-report.md):
           legend bấm được cần cao 44px, ba dòng ăn một phần ba chiều cao đồ thị trên
           điện thoại. Bật đường thứ hai đẩy sang nút "So sánh" ở LifetimePage. */}
-      <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400">
+      <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-fg-muted">
         {showHistory ? (
           <span className="flex items-center gap-1">
             <LegendSwatch color={COLOR_ACTUAL} /> Lịch sử thật
@@ -453,7 +453,7 @@ export function LifetimeChartCard({
       </div>
 
       {compare && compareEndRow && (
-        <p className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-2 text-center text-xs text-fg-muted">
           {compareMismatch ? (
             <>
               Cuối đời — kịch bản này:{' '}

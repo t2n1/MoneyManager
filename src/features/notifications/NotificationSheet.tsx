@@ -42,10 +42,10 @@ function Row({
       {n.severity === 'high' ? (
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-money-out" />
       ) : (
-        <Bell className="mt-0.5 h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
+        <Bell className="mt-0.5 h-4 w-4 shrink-0 text-fg-muted" />
       )}
       <Link to={n.to} onClick={onClose} className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{n.title}</p>
+        <p className="text-sm font-semibold text-fg-primary">{n.title}</p>
         {n.detail && (
           <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">{n.detail}</p>
         )}
@@ -58,7 +58,7 @@ function Row({
           type="button"
           onClick={onDismiss}
           aria-label="Bỏ qua tin này"
-          className="-my-2 -mr-2 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+          className="-my-2 -mr-2 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-fg-muted hover:text-gray-600 dark:hover:text-gray-200"
         >
           <X className="h-4 w-4" />
         </button>
@@ -142,9 +142,9 @@ export function NotificationSheet({
   return (
     <div className="flex max-h-[70vh] flex-col">
       <div className="mb-2 flex items-baseline gap-2 px-1">
-        <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">Thông báo</h2>
+        <h2 className="text-base font-bold text-fg-primary">Thông báo</h2>
         {actionsAll.length > 0 && (
-          <span className="text-xs text-gray-500 dark:text-gray-400">
+          <span className="text-xs text-fg-muted">
             {actionsAll.length} việc cần làm
           </span>
         )}
@@ -152,7 +152,7 @@ export function NotificationSheet({
           to="/settings/notifications"
           onClick={onClose}
           aria-label="Cài đặt thông báo"
-          className="ml-auto rounded p-1 text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+          className="ml-auto rounded p-1 text-fg-muted hover:text-gray-600 dark:hover:text-gray-200"
         >
           <Settings2 className="h-4 w-4" />
         </Link>
@@ -166,7 +166,7 @@ export function NotificationSheet({
         )}
 
         {shownActions.length > 0 && (
-          <p className="pt-1 text-[0.625rem] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          <p className="pt-1 text-3xs font-bold uppercase tracking-wide text-fg-muted">
             Việc cần làm
           </p>
         )}
@@ -183,7 +183,7 @@ export function NotificationSheet({
         )}
 
         {shownInfos.length > 0 && (
-          <p className="pt-2 text-[0.625rem] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          <p className="pt-2 text-3xs font-bold uppercase tracking-wide text-fg-muted">
             Tin để biết
           </p>
         )}

@@ -56,33 +56,33 @@ export function BudgetEditSheet({
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-gray-50 dark:bg-gray-950 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-surface-page p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">Hạn mức: {categoryLabel}</h2>
+          <h2 className="text-base font-bold text-fg-primary">Hạn mức: {categoryLabel}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Đóng
           </button>
         </div>
 
-        {hint && <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">{hint}</p>}
+        {hint && <p className="mb-2 text-xs text-fg-muted">{hint}</p>}
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Hạn mức tháng ({base})</label>
+        <label className="mb-1 block text-xs font-medium text-fg-muted">Hạn mức tháng ({base})</label>
         <MoneyField
           value={amount}
           onChange={setAmount}
           currency={base}
           ariaLabel="Hạn mức tháng"
           onEnter={handleSave}
-          className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-right text-lg font-semibold text-gray-800 dark:text-gray-100 focus:border-green-500 focus:outline-none"
+          className="w-full rounded-xl border border-border-strong bg-surface p-3 text-right text-lg font-semibold text-fg-primary focus:border-green-500 focus:outline-none"
         />
 
-        <label className="mt-3 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+        <label className="mt-3 flex items-center gap-2 text-sm text-fg-secondary">
           <input type="checkbox" checked={rollover} onChange={(e) => setRollover(e.target.checked)} />
           Dồn phần chưa tiêu sang tháng sau
         </label>

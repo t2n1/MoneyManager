@@ -28,26 +28,26 @@ export function BreakdownRow({
 }) {
   const barColor = warn ? '#dc2626' : color
   return (
-    <div className={selected ? '-m-1 rounded-md bg-gray-100 p-1 dark:bg-gray-800' : ''}>
+    <div className={selected ? '-m-1 rounded-md bg-surface-sunken p-1 ' : ''}>
       <div className="mb-1 flex items-baseline gap-2 text-sm">
         <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">
           {icon ? `${icon} ` : ''}
           {name}
         </span>
         {targetPct != null && (
-          <span className="shrink-0 text-[0.625rem] text-gray-500 dark:text-gray-400">
+          <span className="shrink-0 text-3xs text-fg-muted">
             mục tiêu {targetPct}%
           </span>
         )}
-        <span className="shrink-0 tabular-nums text-xs text-gray-500 dark:text-gray-400">
+        <span className="shrink-0 tabular-nums text-xs text-fg-muted">
           {pct.toFixed(0)}%
         </span>
-        <span className="shrink-0 tabular-nums font-medium text-gray-800 dark:text-gray-100">
+        <span className="shrink-0 tabular-nums font-medium text-fg-primary">
           {formatMoney(value, base)}
         </span>
       </div>
       <div
-        className="relative h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
+        className="relative h-2 w-full overflow-hidden rounded-full bg-surface-sunken"
         role="presentation"
       >
         <div

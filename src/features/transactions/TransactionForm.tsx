@@ -86,7 +86,7 @@ const TYPE_TABS: { value: TransactionType; label: string }[] = [
 const AMOUNT_COLOR: Record<TransactionType, string> = {
   expense: 'text-money-out',
   income: 'text-money-in',
-  transfer: 'text-gray-600 dark:text-gray-300',
+  transfer: 'text-fg-secondary',
 }
 
 /** Ô tiền mà NumPad mobile đang nhắm tới: ô chính, ô "nhận được" (CK xuyên tệ),
@@ -669,19 +669,19 @@ export function TransactionForm({
     const isEmpty = !showExpr && (result ?? 0) === 0
     return (
       <div className="flex flex-col gap-0.5">
-        {label && <span className="px-1 text-xs text-gray-500 dark:text-gray-400">{label}</span>}
+        {label && <span className="px-1 text-xs text-fg-muted">{label}</span>}
         <button
           type="button"
           onClick={() => setActiveField(field)}
           aria-label={`${label ?? 'Số tiền'}: ${mobileText}`}
-          className={`truncate rounded-xl bg-white dark:bg-gray-900 px-4 py-2.5 text-right font-bold shadow-sm ${
+          className={`truncate rounded-xl bg-surface px-4 py-2.5 text-right font-bold shadow-sm ${
             showExpr ? 'text-xl' : 'text-3xl'
           } ${isEmpty ? 'text-gray-300 dark:text-gray-600' : AMOUNT_COLOR[type]} ${ring} lg:hidden`}
         >
           {mobileText}
         </button>
         {showExpr && result !== null && (
-          <span className="px-1 text-right text-sm text-gray-500 dark:text-gray-400 lg:hidden">
+          <span className="px-1 text-right text-sm text-fg-muted lg:hidden">
             = {formatMoney(result, currency)}
           </span>
         )}
@@ -696,7 +696,7 @@ export function TransactionForm({
             if (e.key === 'Enter') handleSubmit()
           }}
           placeholder={formatMoney(0, currency)}
-          className={`hidden rounded-xl bg-white dark:bg-gray-900 px-4 py-3 text-right text-3xl font-bold shadow-sm outline-green-500 lg:block ${AMOUNT_COLOR[type]}`}
+          className={`hidden rounded-xl bg-surface px-4 py-3 text-right text-3xl font-bold shadow-sm outline-green-500 lg:block ${AMOUNT_COLOR[type]}`}
         />
       </div>
     )
@@ -736,7 +736,7 @@ export function TransactionForm({
               Điền
             </button>
           </div>
-          {nlHint && <p className="px-1 text-xs text-gray-500 dark:text-gray-400">{nlHint}</p>}
+          {nlHint && <p className="px-1 text-xs text-fg-muted">{nlHint}</p>}
         </div>
       )}
 
@@ -751,11 +751,11 @@ export function TransactionForm({
                 <button
                   type="button"
                   onClick={() => applyTemplate(t)}
-                  className="flex items-center gap-1 rounded-full bg-white dark:bg-gray-900 py-1.5 pl-3 pr-6 text-xs font-medium text-gray-700 dark:text-gray-200 shadow-sm active:scale-95"
+                  className="flex items-center gap-1 rounded-full bg-surface py-1.5 pl-3 pr-6 text-xs font-medium text-gray-700 dark:text-gray-200 shadow-sm active:scale-95"
                 >
                   <Star className="h-3 w-3 text-amber-400" fill="currentColor" />
                   <span className="max-w-[9rem] truncate">{t.label}</span>
-                  <span className="text-gray-500 dark:text-gray-400">
+                  <span className="text-fg-muted">
                     {formatMoney(t.amountMinor, cur)}
                   </span>
                 </button>
@@ -774,7 +774,7 @@ export function TransactionForm({
             <button
               type="button"
               onClick={saveCurrentAsTemplate}
-              className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 active:scale-95"
+              className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs font-medium text-fg-muted active:scale-95"
             >
               <Star className="h-3 w-3" /> Lưu mẫu
             </button>
@@ -794,7 +794,7 @@ export function TransactionForm({
               type="button"
               onClick={exitRole}
               aria-label="Bỏ vai trò, quay lại giao dịch thường"
-              className="flex items-center gap-1 rounded-lg bg-white/70 px-2 py-1 text-xs font-medium active:scale-95 dark:bg-gray-900/50"
+              className="flex items-center gap-1 rounded-lg bg-surface/70 px-2 py-1 text-xs font-medium active:scale-95 /50"
             >
               <X className="h-3.5 w-3.5" aria-hidden /> Bỏ
             </button>
@@ -807,7 +807,7 @@ export function TransactionForm({
               aria-haspopup="menu"
               aria-expanded={roleMenu}
               style={{ touchAction: 'manipulation' }}
-              className="flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-600 shadow-sm active:scale-95 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+              className="flex items-center gap-1 rounded-lg border border-gray-300 bg-surface px-2.5 py-1.5 text-sm font-medium text-gray-600 shadow-sm active:scale-95 dark:border-gray-700 dark:text-gray-300"
             >
               <Plus className="h-4 w-4" aria-hidden /> Loại đặc biệt
               <ChevronDown
@@ -820,7 +820,7 @@ export function TransactionForm({
                 <div className="fixed inset-0 z-40" onClick={() => setRoleMenu(false)} aria-hidden />
                 <div
                   role="menu"
-                  className="absolute right-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+                  className="absolute right-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-lg border border-gray-200 bg-surface py-1 shadow-lg dark:border-gray-700 "
                 >
                   {ROLE_ORDER.map((r) => {
                     const m = ROLE_META[r]
@@ -851,7 +851,7 @@ export function TransactionForm({
               type="button"
               onClick={() => switchType(tab.value)}
               className={`rounded-lg py-2.5 text-sm font-medium transition ${
-                type === tab.value ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'
+                type === tab.value ? 'bg-surface text-gray-900 dark:text-gray-100 shadow-sm' : 'text-fg-on-track hover:text-fg-primary'
               }`}
             >
               {tab.label}
@@ -872,8 +872,8 @@ export function TransactionForm({
               onClick={() => setDebtDirection(val)}
               className={`rounded-lg py-2.5 text-sm font-medium transition ${
                 debtVal.direction === val
-                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                  : 'text-gray-500 dark:text-gray-400'
+                  ? 'bg-surface text-gray-900 shadow-sm dark:text-gray-100'
+                  : 'text-fg-on-track hover:text-fg-primary'
               }`}
             >
               {label}
@@ -894,8 +894,8 @@ export function TransactionForm({
               onClick={() => setRemitVal({ ...remitVal, kind: val, destId: '' })}
               className={`rounded-lg py-2.5 text-sm font-medium transition ${
                 remitVal.kind === val
-                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                  : 'text-gray-500 dark:text-gray-400'
+                  ? 'bg-surface text-gray-900 shadow-sm dark:text-gray-100'
+                  : 'text-fg-on-track hover:text-fg-primary'
               }`}
             >
               {label}
@@ -926,7 +926,7 @@ export function TransactionForm({
               excludeId={toAccountId}
               className="min-w-[7rem] flex-1"
             />
-            <span className="shrink-0 text-gray-500 dark:text-gray-400">→</span>
+            <span className="shrink-0 text-fg-muted">→</span>
             <AccountPicker
               accounts={activeAccounts}
               value={toAccountId}
@@ -948,7 +948,7 @@ export function TransactionForm({
           value={date}
           onChange={(e) => setDate(e.target.value)}
           aria-label="Ngày giao dịch"
-          className="w-[7.5rem] shrink-0 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300"
+          className="w-[7.5rem] shrink-0 rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300"
         />
         {!initial && onSubmitRecurring && activeRole === 'none' && (
           <div className="relative shrink-0">
@@ -960,7 +960,7 @@ export function TransactionForm({
               aria-label={`Lặp lại: ${REPEAT_MENU_LABEL[repeat]}`}
               className={`flex items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition active:scale-95 ${
                 repeat === 'none'
-                  ? 'border-gray-300 bg-white text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400'
+                  ? 'border-gray-300 bg-surface text-gray-500 dark:border-gray-700 dark:text-gray-400'
                   : 'border-green-500 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400'
               }`}
             >
@@ -980,7 +980,7 @@ export function TransactionForm({
                 />
                 <div
                   role="listbox"
-                  className="absolute right-0 z-50 mt-1 w-36 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+                  className="absolute right-0 z-50 mt-1 w-36 overflow-hidden rounded-lg border border-gray-200 bg-surface py-1 shadow-lg dark:border-gray-700 "
                 >
                   {REPEAT_OPTIONS.map((opt) => (
                     <button
@@ -1067,14 +1067,14 @@ export function TransactionForm({
           if (e.key === 'Enter') handleSubmit()
         }}
         placeholder="Ghi chú (tùy chọn)"
-        className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 outline-green-500"
+        className="rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-gray-700 dark:text-gray-300 outline-green-500"
       />
 
       {activeRole === 'none' && <TagPicker value={effectiveTagIds} onChange={setTagIds} />}
 
       {/* Hoàn tiền — chỉ có nghĩa với khoản CHI */}
       {type === 'expense' && activeRole === 'none' && (
-        <label className="flex items-start gap-2 px-1 text-sm text-gray-600 dark:text-gray-300">
+        <label className="flex items-start gap-2 px-1 text-sm text-fg-secondary">
           <input
             type="checkbox"
             checked={isRefund}
@@ -1083,7 +1083,7 @@ export function TransactionForm({
           />
           <span>
             Đây là khoản <b>hoàn tiền</b>
-            <span className="block text-xs text-gray-500 dark:text-gray-400">
+            <span className="block text-xs text-fg-muted">
               Trả hàng, hủy vé, hoàn phí… Tiền quay lại ví và TRỪ vào chi của danh mục đã chọn, thay
               vì bị tính thành thu nhập.
             </span>
@@ -1092,7 +1092,7 @@ export function TransactionForm({
       )}
 
       {showExcludeOption && type !== 'transfer' && (
-        <label className="flex items-center gap-2 px-1 text-sm text-gray-600 dark:text-gray-300">
+        <label className="flex items-center gap-2 px-1 text-sm text-fg-secondary">
           <input
             type="checkbox"
             checked={excludeFromStats}
@@ -1111,7 +1111,7 @@ export function TransactionForm({
             <button
               type="button"
               onClick={() => setDrillId(null)}
-              className="flex items-center gap-1.5 self-start rounded-lg bg-white dark:bg-gray-900 px-2.5 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 shadow-sm active:scale-95"
+              className="flex items-center gap-1.5 self-start rounded-lg bg-surface px-2.5 py-1 text-xs font-medium text-fg-secondary shadow-sm active:scale-95"
             >
               <ChevronLeft className="h-4 w-4" /> <span className="text-base leading-none">{drillParent.icon}</span> {drillParent.name}
             </button>
@@ -1126,7 +1126,7 @@ export function TransactionForm({
                 />
               ))}
               {drillChildren.length === 0 && (
-                <p className="col-span-full py-4 text-center text-xs text-gray-500 dark:text-gray-400">
+                <p className="col-span-full py-4 text-center text-xs text-fg-muted">
                   Nhóm này chưa có danh mục con
                 </p>
               )}
@@ -1169,7 +1169,7 @@ export function TransactionForm({
           type="button"
           onClick={() => onNumPadKey('⌫')}
           aria-label="Xóa"
-          className="flex shrink-0 items-center justify-center rounded-xl bg-white dark:bg-gray-800 px-5 text-lg font-semibold text-gray-800 dark:text-gray-100 shadow-sm transition active:scale-95 active:bg-gray-200 lg:hidden"
+          className="flex shrink-0 items-center justify-center rounded-xl bg-white dark:bg-gray-800 px-5 text-lg font-semibold text-fg-primary shadow-sm transition active:scale-95 active:bg-gray-200 lg:hidden"
         >
           <Delete className="h-5 w-5" />
         </button>
@@ -1179,7 +1179,7 @@ export function TransactionForm({
               type="button"
               onClick={() => handleSubmit('continue')}
               disabled={!canSave}
-              className="flex-1 rounded-xl border border-green-600 bg-white py-3 text-base font-semibold text-green-700 shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-50 disabled:opacity-40 dark:bg-gray-900 dark:text-green-400 dark:enabled:hover:bg-gray-800"
+              className="flex-1 rounded-xl border border-green-600 bg-surface py-3 text-base font-semibold text-green-700 shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-50 disabled:opacity-40 dark:text-green-400 dark:enabled:hover:bg-gray-800"
             >
               {pending === 'continue' ? 'Đang lưu…' : continueLabel}
             </button>
@@ -1225,14 +1225,14 @@ function CategoryTile({
     <button
       type="button"
       onClick={onClick}
-      className={`relative flex flex-col items-center gap-0.5 rounded-xl border-2 bg-white dark:bg-gray-900 px-1 py-2 text-xs text-gray-700 dark:text-gray-300 transition active:scale-95 ${
+      className={`relative flex flex-col items-center gap-0.5 rounded-xl border-2 bg-surface px-1 py-2 text-xs text-gray-700 dark:text-gray-300 transition active:scale-95 ${
         selected ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-transparent shadow-sm'
       }`}
     >
       <span className="text-xl leading-none">{icon}</span>
       <span className="w-full truncate text-center">{name}</span>
       {hasChildren && (
-        <span className="absolute top-1 right-1 text-gray-500 dark:text-gray-400">
+        <span className="absolute top-1 right-1 text-fg-muted">
           <ChevronRight className="h-3 w-3" />
         </span>
       )}

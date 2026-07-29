@@ -14,7 +14,7 @@ export function PrivacyToggle({ className }: { className?: string }) {
       title={label}
       className={
         className ??
-        'flex h-9 w-9 items-center justify-center rounded-lg bg-white text-gray-500 shadow-sm active:scale-95 dark:bg-gray-900 dark:text-gray-400'
+        'flex h-9 w-9 items-center justify-center rounded-lg bg-surface text-gray-500 shadow-sm active:scale-95 dark:text-gray-400'
       }
     >
       {on ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}

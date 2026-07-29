@@ -23,7 +23,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="Quay lại"
-      className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 shadow-sm active:scale-95"
+      className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-surface px-3 py-1.5 shadow-sm active:scale-95"
     >
       <ChevronLeft className="h-5 w-5 text-gray-700 dark:text-gray-200" />
     </button>
@@ -100,7 +100,7 @@ export function LifetimePage() {
   }, [active, phases, events])
 
   if (isLoading) {
-    return <p className="p-6 text-center text-gray-500 dark:text-gray-400">Đang tải…</p>
+    return <p className="p-6 text-center text-fg-muted">Đang tải…</p>
   }
 
   // --- Trạng thái 1: chưa khai năm sinh — không chiếu được gì nếu thiếu nó ---
@@ -109,7 +109,7 @@ export function LifetimePage() {
       <div className="space-y-3 p-3">
         <div className="flex items-center gap-2">
           <BackButton onClick={() => navigate(-1)} />
-          <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">Lifetime</h1>
+          <h1 className="text-lg font-bold text-fg-primary">Lifetime</h1>
         </div>
         <BirthYearCard />
       </div>
@@ -122,10 +122,10 @@ export function LifetimePage() {
       <div className="space-y-3 p-3">
         <div className="flex items-center gap-2">
           <BackButton onClick={() => navigate(-1)} />
-          <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">Lifetime</h1>
+          <h1 className="text-lg font-bold text-fg-primary">Lifetime</h1>
         </div>
-        <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
+        <div className="rounded-xl bg-surface p-3 shadow-sm">
+          <p className="text-sm text-fg-secondary">
             Lifetime chiếu tài sản ròng của bạn tới hết đời, dựa trên thu chi nền và các mốc
             (cưới, sinh con, nghỉ hưu…). Tạo kịch bản đầu tiên từ đúng chi tiêu thật của bạn —
             không cần khai tay từng con số.
@@ -138,7 +138,7 @@ export function LifetimePage() {
             <p
               className={`mt-2 rounded-lg p-2.5 text-xs ${
                 netWorthReliable
-                  ? 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
+                  ? 'bg-gray-50 dark:bg-gray-800 text-fg-secondary'
                   : 'bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
               }`}
             >
@@ -203,7 +203,7 @@ export function LifetimePage() {
     // scenarios.length > 0 nên `active` (find + 2 tầng fallback trong useLifetime) luôn
     // có giá trị ở nhánh này — guard này chỉ để TS thu hẹp kiểu cho phần JSX bên dưới,
     // tránh phải chêm `!`/`as never` rải rác. Không phải trạng thái thật sẽ xảy ra.
-    return <p className="p-6 text-center text-gray-500 dark:text-gray-400">Đang tải…</p>
+    return <p className="p-6 text-center text-fg-muted">Đang tải…</p>
   }
 
   return (
@@ -212,9 +212,9 @@ export function LifetimePage() {
       <div className="flex items-center gap-2">
         <BackButton onClick={() => navigate(-1)} />
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-bold text-gray-800 dark:text-gray-100">Lifetime</h1>
+          <h1 className="truncate text-lg font-bold text-fg-primary">Lifetime</h1>
           {profile?.birth_year != null && (
-            <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+            <p className="truncate text-xs text-fg-muted">
               sinh {profile.birth_year} · chiếu đến tuổi {active.end_age}
             </p>
           )}
@@ -233,9 +233,9 @@ export function LifetimePage() {
           title={
             profile ? undefined : 'Chưa tải được thông tin người dùng — thử lại sau khi có mạng'
           }
-          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 shadow-sm active:scale-95 disabled:opacity-50"
+          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-surface px-3 py-1.5 shadow-sm active:scale-95 disabled:opacity-50"
         >
-          <Pencil className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+          <Pencil className="h-4 w-4 text-fg-secondary" />
         </button>
       </div>
 
@@ -249,7 +249,7 @@ export function LifetimePage() {
             className={`min-h-11 shrink-0 whitespace-nowrap rounded-full px-4 text-sm font-medium active:scale-95 ${
               s.id === activeId
                 ? 'bg-green-700 text-white'
-                : 'border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300'
+                : 'border border-border-strong text-fg-secondary'
             }`}
           >
             {s.name}
@@ -297,7 +297,7 @@ export function LifetimePage() {
         <button
           type="button"
           onClick={() => setTableOpen(true)}
-          className="min-h-11 flex-1 rounded-xl bg-white dark:bg-gray-900 px-3 text-sm font-medium text-gray-600 dark:text-gray-300 shadow-sm active:scale-95"
+          className="min-h-11 flex-1 rounded-xl bg-surface px-3 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
         >
           Bảng theo năm
         </button>
@@ -318,7 +318,7 @@ export function LifetimePage() {
           className={`min-h-11 flex-1 rounded-xl px-3 text-sm font-medium shadow-sm active:scale-95 disabled:opacity-60 ${
             effectiveCompareId
               ? 'bg-green-700 text-white'
-              : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 disabled:text-gray-400 dark:disabled:text-gray-600'
+              : 'bg-surface text-fg-secondary disabled:text-gray-400 dark:disabled:text-gray-600'
           }`}
         >
           {effectiveCompareId ? 'Đang so sánh · Bấm để tắt' : 'So sánh'}
@@ -326,8 +326,8 @@ export function LifetimePage() {
       </div>
 
       {comparePickerOpen && !effectiveCompareId && (
-        <div className="rounded-xl bg-white dark:bg-gray-900 p-2.5 shadow-sm">
-          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Chọn kịch bản để so sánh:</p>
+        <div className="rounded-xl bg-surface p-2.5 shadow-sm">
+          <p className="mb-2 text-xs text-fg-muted">Chọn kịch bản để so sánh:</p>
           <div className="flex flex-wrap gap-2">
             {otherScenarios.map((s) => (
               <button
@@ -337,7 +337,7 @@ export function LifetimePage() {
                   setCompareId(s.id)
                   setComparePickerOpen(false)
                 }}
-                className="min-h-11 shrink-0 whitespace-nowrap rounded-full border border-gray-300 dark:border-gray-700 px-4 text-sm font-medium text-gray-600 dark:text-gray-300 active:scale-95"
+                className="min-h-11 shrink-0 whitespace-nowrap rounded-full border border-border-strong px-4 text-sm font-medium text-fg-secondary active:scale-95"
               >
                 {s.name}
               </button>
@@ -411,15 +411,15 @@ function BirthYearCard() {
   const valid = Number.isInteger(year) && year >= MIN_BIRTH_YEAR && year <= MAX_BIRTH_YEAR
 
   return (
-    <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-      <p className="text-sm text-gray-600 dark:text-gray-300">
+    <div className="rounded-xl bg-surface p-3 shadow-sm">
+      <p className="text-sm text-fg-secondary">
         Lifetime chiếu tài sản ròng của bạn theo từng năm tới hết đời, nên cần năm sinh để đổi
         qua lại giữa "năm" và "tuổi" ở mỗi mốc trên đồ thị (nghỉ hưu, tự do tài chính…). Thiếu
         năm sinh thì không tính được tuổi, nên chưa chiếu được gì.
       </p>
       <label
         htmlFor="lifetime-birth-year"
-        className="mt-3 block text-xs font-medium text-gray-500 dark:text-gray-400"
+        className="mt-3 block text-xs font-medium text-fg-muted"
       >
         Năm sinh
       </label>
@@ -430,7 +430,7 @@ function BirthYearCard() {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="Ví dụ: 1994"
-        className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 outline-green-500"
+        className="mt-1 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary outline-green-500"
       />
       <button
         type="button"

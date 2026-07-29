@@ -97,9 +97,9 @@ export function CalendarView({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="rounded-xl bg-white dark:bg-gray-900 p-2 shadow-sm">
+      <div className="rounded-xl bg-surface p-2 shadow-sm">
         {/* Nhãn thứ */}
-        <div className="grid grid-cols-7 text-center text-[0.6875rem] font-medium text-gray-500 dark:text-gray-400">
+        <div className="grid grid-cols-7 text-center text-2xs font-medium text-fg-muted">
           {WEEKDAYS_SHORT.map((w, i) => (
             <div key={w} className={`py-1 ${i === 0 ? 'text-red-400' : ''}`}>
               {w}
@@ -124,12 +124,12 @@ export function CalendarView({
                 }`}
               >
                 <span
-                  className={`text-[0.6875rem] leading-none ${
+                  className={`text-2xs leading-none ${
                     isToday
                       ? 'flex h-4 w-4 items-center justify-center rounded-full bg-green-700 font-bold text-white'
                       : i % 7 === 0
                         ? 'text-red-400'
-                        : 'text-gray-500 dark:text-gray-400'
+                        : 'text-fg-muted'
                   }`}
                 >
                   {dayLabel(iso)}
@@ -151,7 +151,7 @@ export function CalendarView({
       {/* Chi tiết ngày được chọn */}
       {selected && (
         <section>
-          <div className="mb-1 flex items-baseline justify-between px-1 text-xs text-gray-500 dark:text-gray-400">
+          <div className="mb-1 flex items-baseline justify-between px-1 text-xs text-fg-muted">
             <span className="font-medium">{formatDayHeader(selected)}</span>
             <span className="tabular-nums">
               {selIncome && selIncome.value > 0 && (
@@ -164,11 +164,11 @@ export function CalendarView({
             </span>
           </div>
           {selectedTxs.length === 0 ? (
-            <p className="rounded-xl bg-white dark:bg-gray-900 py-6 text-center text-sm text-gray-500 dark:text-gray-400 shadow-sm">
+            <p className="rounded-xl bg-surface py-6 text-center text-sm text-fg-muted shadow-sm">
               Không có giao dịch ngày này
             </p>
           ) : (
-            <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
+            <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
               {selectedTxs.map((tx) => (
                 <TransactionItem
                   key={tx.id}

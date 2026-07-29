@@ -50,17 +50,17 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-base font-bold text-gray-800 dark:text-gray-100">
+        <h2 className="mb-1 text-base font-bold text-fg-primary">
           Cập nhật giá trị
         </h2>
-        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mb-3 text-xs text-fg-muted">
           {account.name} · giá trị thị trường hiện tại ({CURRENCIES[currency].label})
         </p>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+        <label className="mb-1 block text-xs font-medium text-fg-muted">
           Giá trị hiện tại
         </label>
         <div className="mb-3">
@@ -70,29 +70,29 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
             currency={currency}
             ariaLabel="Giá trị hiện tại"
             onEnter={handleSubmit}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
+            className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold outline-green-500"
           />
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Ngày</label>
+        <label className="mb-1 block text-xs font-medium text-fg-muted">Ngày</label>
         <input
           type="date"
           value={valuedOn}
           max={toISODate(new Date())}
           onChange={(e) => setValuedOn(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500"
+          className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500"
         />
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-          Ghi chú <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>
+        <label className="mb-1 block text-xs font-medium text-fg-muted">
+          Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: theo giá đóng cửa"
-          className="mb-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
+          className="mb-1 w-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
         />
-        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mb-3 text-xs text-fg-muted">
           Chỉ ghi nhận giá trị — không tạo giao dịch, không đổi báo cáo thu/chi. Chênh lệch
           so với vốn gốc là lãi/lỗ chưa thực hiện.
         </p>
@@ -101,7 +101,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Hủy
           </button>

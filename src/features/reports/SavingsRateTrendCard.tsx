@@ -22,8 +22,8 @@ export function SavingsRateTrendCard({ series, labelOf }: Props) {
   if (!hasAny) return null
 
   return (
-    <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-      <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
+      <h2 className="mb-2 text-sm font-semibold text-fg-muted">
         Xu hướng tỷ lệ tiết kiệm
       </h2>
       <div className="h-44 w-full">
@@ -57,7 +57,7 @@ export function SavingsRateTrendCard({ series, labelOf }: Props) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <p className="mt-1 text-center text-[0.6875rem] text-gray-500 dark:text-gray-400">
+      <p className="mt-1 text-center text-2xs text-fg-muted">
         Phần thu nhập giữ lại được mỗi tháng
       </p>
     </section>

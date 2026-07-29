@@ -23,13 +23,13 @@ export function ParetoCard({ slices, categories, base, periodNoun }: Props) {
   const tail = pareto.categoryCount - pareto.count
 
   return (
-    <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+    <section className="rounded-xl bg-surface p-3 shadow-sm ">
       <h2 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
         Ít danh mục, nhiều tiền
       </h2>
 
-      <p className="text-xs text-gray-600 dark:text-gray-300">
-        <b className="text-base text-gray-800 dark:text-gray-100">
+      <p className="text-xs text-fg-secondary">
+        <b className="text-base text-fg-primary">
           {pareto.count}/{pareto.categoryCount}
         </b>{' '}
         danh mục chiếm <b>{Math.round(pareto.share * 100)}%</b> chi tiêu {periodNoun} (
@@ -50,7 +50,7 @@ export function ParetoCard({ slices, categories, base, periodNoun }: Props) {
               <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-200">
                 {cat?.icon ?? '📦'} {cat?.name ?? 'Chưa rõ'}
               </span>
-              <span className="shrink-0 font-medium tabular-nums text-gray-800 dark:text-gray-100">
+              <span className="shrink-0 font-medium tabular-nums text-fg-primary">
                 {formatMoney(Math.round(amountOf(id)), base)}
               </span>
             </li>
@@ -59,7 +59,7 @@ export function ParetoCard({ slices, categories, base, periodNoun }: Props) {
       </ul>
 
       {tail > 0 && (
-        <p className="mt-2 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+        <p className="mt-2 text-2xs text-fg-muted">
           {tail} danh mục còn lại gộp lại chỉ chiếm {Math.round((1 - pareto.share) * 100)}%.
         </p>
       )}

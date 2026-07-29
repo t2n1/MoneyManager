@@ -66,12 +66,12 @@ export function ClassifyCategoriesPage() {
       <div className="mb-3 flex items-center gap-2">
         <Link
           to="/settings/categories"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white px-3 py-1.5 text-lg shadow-sm active:scale-95 dark:bg-gray-900"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface px-3 py-1.5 text-lg shadow-sm active:scale-95 "
           aria-label="Quay lại"
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>
-        <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Phân loại chi tiêu</h1>
+        <h1 className="flex-1 text-lg font-bold text-fg-primary">Phân loại chi tiêu</h1>
       </div>
 
       <p className="mb-3 rounded-xl bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
@@ -79,7 +79,7 @@ export function ClassifyCategoriesPage() {
         chi tiêu ở Báo cáo. Thay đổi được lưu ngay.
       </p>
 
-      <label className="mb-3 min-h-11 flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+      <label className="mb-3 min-h-11 flex items-center gap-2 text-xs font-medium text-fg-secondary">
         <input type="checkbox" className="h-5 w-5" checked={onlyTodo} onChange={(e) => setOnlyTodo(e.target.checked)} />
         Chỉ hiện chưa phân loại ({todoCount})
       </label>
@@ -89,16 +89,16 @@ export function ClassifyCategoriesPage() {
           <div key={g.parent ? g.parent.id : `leaf:${g.leaves[0].id}`} className="flex flex-col gap-2">
             {/* Tiêu đề nhóm: nhãn đọc, không phải hàng bấm được (đối tượng bấm là 2 toggle bên dưới) */}
             {g.parent && (
-              <div className="flex items-center gap-1.5 px-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              <div className="flex items-center gap-1.5 px-1 text-xs font-semibold text-fg-muted">
                 <span className="text-sm">{g.parent.icon}</span>
                 <span className="truncate">{g.parent.name}</span>
               </div>
             )}
             {g.leaves.map((c) => (
-              <div key={c.id} className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+              <div key={c.id} className="rounded-xl bg-surface p-3 shadow-sm ">
                 <div className="mb-2 flex items-center gap-2">
                   <span className="text-lg">{c.icon}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg-primary">
                     {c.name}
                   </span>
                 </div>
@@ -121,7 +121,7 @@ export function ClassifyCategoriesPage() {
           </div>
         ))}
         {rows.length === 0 && (
-          <p className="rounded-xl bg-white px-3 py-6 text-center text-sm text-gray-500 shadow-sm dark:bg-gray-900 dark:text-gray-400">
+          <p className="rounded-xl bg-surface px-3 py-6 text-center text-sm text-gray-500 shadow-sm dark:text-gray-400">
             {onlyTodo ? 'Đã phân loại hết 🎉' : 'Chưa có danh mục Chi'}
           </p>
         )}

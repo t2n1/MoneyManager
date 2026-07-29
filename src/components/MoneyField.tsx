@@ -88,7 +88,7 @@ export function MoneyField({
         {text}
       </button>
       {showExpr && (
-        <span className="text-right text-xs text-gray-500 dark:text-gray-400 lg:hidden">
+        <span className="text-right text-xs text-fg-muted lg:hidden">
           = {formatMoney(result, currency)}
         </span>
       )}
@@ -123,7 +123,7 @@ export function MoneyField({
             <button
               type="button"
               onClick={() => setActivePad(null)}
-              className="flex-1 rounded-lg bg-gray-100 py-1.5 text-sm font-medium text-gray-600 shadow-sm transition active:scale-95 dark:bg-gray-800 dark:text-gray-300"
+              className="flex-1 rounded-lg bg-surface-sunken py-1.5 text-sm font-medium text-gray-600 shadow-sm transition active:scale-95 dark:text-gray-300"
             >
               Thu bàn phím
             </button>

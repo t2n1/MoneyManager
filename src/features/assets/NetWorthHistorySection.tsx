@@ -30,11 +30,11 @@ export function NetWorthHistorySection({ base, currentNetWorth }: Props) {
 
   if (snapshots.length < 2) {
     return (
-      <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
+      <section className="rounded-2xl bg-surface p-4 shadow-sm">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
           Tài sản ròng theo thời gian
         </h2>
-        <p className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-2 text-center text-xs text-fg-muted">
           Mở app đều đặn để app ghi lại tài sản ròng mỗi ngày — biểu đồ xu hướng sẽ hiện sau
           vài mốc.
         </p>
@@ -49,7 +49,7 @@ export function NetWorthHistorySection({ base, currentNetWorth }: Props) {
   const up = delta >= 0
 
   return (
-    <section className="rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm">
+    <section className="rounded-2xl bg-surface p-4 shadow-sm">
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
           Tài sản ròng theo thời gian

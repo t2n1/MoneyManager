@@ -13,8 +13,8 @@ export function ThemeToggle() {
   const { pref, setTheme } = useTheme()
 
   return (
-    <section className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-900">
-      <h2 className="px-3 pt-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Giao diện</h2>
+    <section className="overflow-hidden rounded-xl bg-surface shadow-sm ">
+      <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">Giao diện</h2>
       <div className="flex gap-1 p-3">
         {OPTIONS.map((opt) => {
           const active = pref === opt.value

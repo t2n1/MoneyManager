@@ -182,11 +182,11 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
       {/* Tổng quan — các chỉ số then chốt */}
       {hasOverview && (
         <section className="grid grid-cols-3 gap-2">
-          <div className="rounded-xl bg-white dark:bg-gray-900 p-3 text-center shadow-sm">
+          <div className="rounded-xl bg-surface p-3 text-center shadow-sm">
             <div
               className={`text-lg font-bold ${
                 rate === null
-                  ? 'text-gray-500 dark:text-gray-400'
+                  ? 'text-fg-muted'
                   : rate >= 0
                     ? 'text-money-in'
                     : 'text-money-out'
@@ -194,27 +194,27 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
             >
               {rate === null ? '—' : `${Math.round(rate * 100)}%`}
             </div>
-            <div className="mt-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">Tỷ lệ tiết kiệm</div>
+            <div className="mt-0.5 text-2xs text-fg-muted">Tỷ lệ tiết kiệm</div>
           </div>
-          <div className="rounded-xl bg-white dark:bg-gray-900 p-3 text-center shadow-sm">
-            <div className="text-lg font-bold text-gray-800 dark:text-gray-100">
+          <div className="rounded-xl bg-surface p-3 text-center shadow-sm">
+            <div className="text-lg font-bold text-fg-primary">
               {forecast ? `${forecastApprox ? '≈' : ''}${formatCompact(forecast.projected, base)}` : '—'}
             </div>
-            <div className="mt-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">Dự báo cuối tháng</div>
+            <div className="mt-0.5 text-2xs text-fg-muted">Dự báo cuối tháng</div>
           </div>
-          <div className="rounded-xl bg-white dark:bg-gray-900 p-3 text-center shadow-sm">
-            <div className="text-lg font-bold text-gray-800 dark:text-gray-100">
+          <div className="rounded-xl bg-surface p-3 text-center shadow-sm">
+            <div className="text-lg font-bold text-fg-primary">
               {streak !== null ? streak : '—'}
             </div>
-            <div className="mt-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">Ngày không chi</div>
+            <div className="mt-0.5 text-2xs text-fg-muted">Ngày không chi</div>
           </div>
         </section>
       )}
 
       {/* Gợi ý — đặt ngay đầu tab: đây là phần tóm tắt, không phải phụ lục */}
       {insights.length > 0 && (
-        <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">Gợi ý</h2>
+        <section className="rounded-xl bg-surface p-3 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold text-fg-muted">Gợi ý</h2>
           <ul className="space-y-1">
             {insights.map((i) => (
               <li
@@ -268,8 +268,8 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
 
       {/* Chi tiêu bất thường */}
       {anomalies.length > 0 && (
-        <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">Chi tiêu bất thường</h2>
+        <section className="rounded-xl bg-surface p-3 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold text-fg-muted">Chi tiêu bất thường</h2>
           <ul className="space-y-1">
             {anomalies.map((a) => {
               const cat = categoryOf(a.categoryId)
@@ -281,7 +281,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
                   <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">
                     {cat?.icon ?? '📦'} {cat?.name ?? '?'}
                   </span>
-                  <span className="shrink-0 font-medium text-gray-800 dark:text-gray-100">{formatMoney(a.amount, base)}</span>
+                  <span className="shrink-0 font-medium text-fg-primary">{formatMoney(a.amount, base)}</span>
                   <span className="shrink-0 text-amber-600">gấp {Math.round(a.ratio)}× thường ngày</span>
                 </li>
               )
@@ -291,7 +291,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
       )}
 
       {!hasAny && (
-        <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">Chưa đủ dữ liệu để phân tích.</p>
+        <p className="py-10 text-center text-sm text-fg-muted">Chưa đủ dữ liệu để phân tích.</p>
       )}
     </div>
   )

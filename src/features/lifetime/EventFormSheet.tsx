@@ -256,8 +256,8 @@ export function EventFormSheet({
   }
 
   const field =
-    'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
-  const label_ = 'mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400'
+    'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
+  const label_ = 'mb-1 block text-xs font-medium text-fg-muted'
 
   // Chốt kiểm bắt buộc: xem trước quy đổi dùng đúng số tiền của dòng đang sửa.
   const amountPreview = showFx && fxValid ? convertLifetimeMinor(amount, currency, displayCurrency, fxNum) : null
@@ -270,7 +270,7 @@ export function EventFormSheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {presetsOpen ? (
@@ -282,9 +282,9 @@ export function EventFormSheet({
                 aria-label="Quay lại"
                 className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg active:scale-95 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
-                <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                <ChevronLeft className="h-5 w-5 text-fg-secondary" />
               </button>
-              <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">Chọn mẫu</h2>
+              <h2 className="text-base font-bold text-fg-primary">Chọn mẫu</h2>
             </div>
             <ul className="flex flex-col gap-2">
               {LIFE_PRESETS.map((p) => (
@@ -295,20 +295,20 @@ export function EventFormSheet({
                     onClick={() => handlePickPreset(p.id)}
                     className="min-h-11 w-full rounded-lg bg-gray-50 dark:bg-gray-800 p-2.5 text-left active:scale-95 disabled:opacity-50"
                   >
-                    <span className="block text-sm font-semibold text-gray-800 dark:text-gray-100">{p.label}</span>
-                    <span className="block text-xs text-gray-500 dark:text-gray-400">{p.hint}</span>
+                    <span className="block text-sm font-semibold text-fg-primary">{p.label}</span>
+                    <span className="block text-xs text-fg-muted">{p.hint}</span>
                   </button>
                 </li>
               ))}
             </ul>
             {saving && (
-              <p className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400">Đang tạo bản ghi từ mẫu…</p>
+              <p className="mt-3 text-center text-xs text-fg-muted">Đang tạo bản ghi từ mẫu…</p>
             )}
           </>
         ) : (
           <>
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">{title}</h2>
+              <h2 className="text-base font-bold text-fg-primary">{title}</h2>
               {!event && (
                 <button
                   type="button"
@@ -342,7 +342,7 @@ export function EventFormSheet({
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   kind === 'expense'
                     ? 'bg-green-700 text-white'
-                    : 'border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300'
+                    : 'border border-border-strong text-fg-secondary'
                 }`}
               >
                 Chi
@@ -353,7 +353,7 @@ export function EventFormSheet({
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   kind === 'income'
                     ? 'bg-green-700 text-white'
-                    : 'border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300'
+                    : 'border border-border-strong text-fg-secondary'
                 }`}
               >
                 Thu
@@ -448,7 +448,7 @@ export function EventFormSheet({
                 {/* Chốt kiểm bắt buộc — xem PhaseFormSheet để biết vì sao dòng này
                     không phải tiện nghi: fx_to_display ngược chiều lib/rates.ts. */}
                 {amountPreview !== null && (
-                  <p className="mb-3 text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                  <p className="mb-3 text-xs tabular-nums text-fg-muted">
                     {formatMoney(amount, currency)} ≈ {formatMoney(amountPreview, displayCurrency)}
                   </p>
                 )}
@@ -481,7 +481,7 @@ export function EventFormSheet({
             </label>
 
             <label className={label_}>
-              Ghi chú <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>
+              Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
             </label>
             <input value={note} onChange={(e) => setNote(e.target.value)} className={`mb-4 ${field}`} />
 
@@ -502,7 +502,7 @@ export function EventFormSheet({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="min-h-11 rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 active:scale-95 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted active:scale-95 hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   Hủy
                 </button>

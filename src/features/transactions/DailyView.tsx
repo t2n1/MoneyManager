@@ -40,16 +40,16 @@ export function DailyView({
       />
 
       {isLoading ? (
-        <p className="py-10 text-center text-gray-500 dark:text-gray-400">Đang tải…</p>
+        <p className="py-10 text-center text-fg-muted">Đang tải…</p>
       ) : days.length === 0 ? (
-        <p className="py-10 text-center text-gray-500 dark:text-gray-400">Chưa có giao dịch trong tháng này</p>
+        <p className="py-10 text-center text-fg-muted">Chưa có giao dịch trong tháng này</p>
       ) : (
         days.map(([day, txs]) => {
           const dayIncome = sumInBase(txs, 'income', currencyOf, base, rates)
           const dayExpense = sumInBase(txs, 'expense', currencyOf, base, rates)
           return (
             <section key={day}>
-              <div className="mb-1 flex items-baseline justify-between px-1 text-xs text-gray-500 dark:text-gray-400">
+              <div className="mb-1 flex items-baseline justify-between px-1 text-xs text-fg-muted">
                 <span className="font-medium">{formatDayHeader(day)}</span>
                 <span className="tabular-nums">
                   {dayIncome && dayIncome.value > 0 && (
@@ -61,7 +61,7 @@ export function DailyView({
                   )}
                 </span>
               </div>
-              <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
+              <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
                 {txs.map((tx) => (
                   <TransactionItem
                     key={tx.id}

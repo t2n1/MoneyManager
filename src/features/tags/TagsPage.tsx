@@ -58,11 +58,11 @@ export function TagsPage() {
         <Link
           to="/settings"
           aria-label="Quay lại"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white px-3 py-1.5 shadow-sm active:scale-95 dark:bg-gray-900"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface px-3 py-1.5 shadow-sm active:scale-95 "
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>
-        <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Nhãn</h1>
+        <h1 className="flex-1 text-lg font-bold text-fg-primary">Nhãn</h1>
       </div>
 
       <p className="mb-3 rounded-xl bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
@@ -92,13 +92,13 @@ export function TagsPage() {
       {error && <p className="mb-3 text-xs text-money-out">{error}</p>}
 
       {tags.length === 0 ? (
-        <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+        <p className="py-10 text-center text-sm text-fg-muted">
           Chưa có nhãn nào.
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
           {tags.map((t) => (
-            <li key={t.id} className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+            <li key={t.id} className="rounded-xl bg-surface p-3 shadow-sm ">
               <div className="flex items-center gap-2">
                 <input
                   defaultValue={t.name}
@@ -113,7 +113,7 @@ export function TagsPage() {
                   aria-label={`Tên nhãn ${t.name}`}
                   className="min-h-9 min-w-0 flex-1 rounded-lg border border-transparent px-2 py-1 text-sm text-gray-800 outline-green-500 hover:border-gray-300 dark:text-gray-100 dark:hover:border-gray-700"
                 />
-                <span className="shrink-0 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+                <span className="shrink-0 text-2xs text-fg-muted">
                   {usageOf(t.id)} giao dịch
                 </span>
                 <button

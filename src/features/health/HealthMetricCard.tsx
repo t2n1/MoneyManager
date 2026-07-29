@@ -23,14 +23,14 @@ const BADGE: Record<Verdict, string> = {
   good: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
   warn: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   bad: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  unknown: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+  unknown: 'bg-surface-sunken text-fg-on-track',
 }
 
 const VALUE: Record<Verdict, string> = {
   good: 'text-money-in',
   warn: 'text-amber-600 dark:text-amber-400',
   bad: 'text-money-out',
-  unknown: 'text-gray-500 dark:text-gray-400',
+  unknown: 'text-fg-muted',
 }
 
 interface Props {
@@ -69,10 +69,10 @@ export function HealthMetricCard({
   const markerPct = value === null ? null : Math.min(100, Math.max(0, (value / max) * 100))
 
   return (
-    <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+    <section className="rounded-xl bg-surface p-3 shadow-sm ">
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</h3>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium ${BADGE[verdict]}`}>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium ${BADGE[verdict]}`}>
           {VERDICT_LABELS[verdict]}
         </span>
       </div>
@@ -108,7 +108,7 @@ export function HealthMetricCard({
               {zoneLabels.map((label, i) => (
                 <span
                   key={label + i}
-                  className="absolute -translate-x-1/2 text-[0.625rem] tabular-nums text-gray-500 dark:text-gray-400"
+                  className="absolute -translate-x-1/2 text-3xs tabular-nums text-fg-muted"
                   style={{ left: `${(zones[i].upTo / max) * 100}%` }}
                 >
                   {label}
@@ -119,7 +119,7 @@ export function HealthMetricCard({
         </div>
       )}
 
-      <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-gray-300">{meaning}</p>
+      <p className="mt-2 text-xs leading-relaxed text-fg-secondary">{meaning}</p>
 
       {extra}
 

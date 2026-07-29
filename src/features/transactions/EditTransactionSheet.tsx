@@ -68,11 +68,11 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-gray-50 dark:bg-gray-950 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-surface-page p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">Sửa giao dịch</h2>
+          <h2 className="text-base font-bold text-fg-primary">Sửa giao dịch</h2>
           <div className="flex gap-2">
             <button
               type="button"
@@ -84,7 +84,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Đóng
             </button>

@@ -82,18 +82,18 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-base font-bold text-gray-800 dark:text-gray-100">
+        <h2 className="mb-1 text-base font-bold text-fg-primary">
           {isCard ? 'Điều chỉnh số nợ' : 'Điều chỉnh số dư'}
         </h2>
-        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mb-3 text-xs text-fg-muted">
           {account.name} · {isCard ? 'sổ đang ghi nợ' : 'số dư sổ hiện tại'}{' '}
           {formatMoney(shown, currency)} ({CURRENCIES[currency].label})
         </p>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+        <label className="mb-1 block text-xs font-medium text-fg-muted">
           {isCard ? 'Số đang nợ thực tế' : 'Số dư thực tế'}
         </label>
         <div className="mb-3">
@@ -103,17 +103,17 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
             currency={currency}
             ariaLabel={isCard ? 'Số đang nợ thực tế' : 'Số dư thực tế'}
             onEnter={handleSubmit}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500 dark:bg-gray-900 dark:text-gray-100"
+            className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold outline-green-500 dark:bg-gray-900 dark:text-gray-100"
           />
         </div>
 
         <div className="mb-3 rounded-lg bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm">
-          <div className="flex items-center justify-between text-gray-500 dark:text-gray-400">
+          <div className="flex items-center justify-between text-fg-muted">
             <span>{isCard ? 'Nợ thay đổi' : 'Chênh lệch'}</span>
             <span
               className={`tabular-nums font-semibold ${
                 diff === 0
-                  ? 'text-gray-500 dark:text-gray-400'
+                  ? 'text-fg-muted'
                   : diff > 0
                     ? 'text-money-in'
                     : 'text-money-out'
@@ -124,7 +124,7 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
               {formatMoney(Math.abs(diff), currency)}
             </span>
           </div>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-xs text-fg-muted">
             {diff === 0
               ? isCard
                 ? 'Số nợ đã khớp — không cần điều chỉnh.'
@@ -139,7 +139,7 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Hủy
           </button>

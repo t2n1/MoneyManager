@@ -59,7 +59,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
     }
   }
 
-  const field = 'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
+  const field = 'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
 
   return (
     <div
@@ -67,17 +67,17 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-gray-100">
+        <h2 className="mb-3 text-base font-bold text-fg-primary">
           {goal ? 'Sửa mục tiêu' : 'Mục tiêu tiết kiệm mới'}
         </h2>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Tên mục tiêu</label>
+        <label className="mb-1 block text-xs font-medium text-fg-muted">Tên mục tiêu</label>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ví dụ: Quỹ du lịch" className={`mb-3 ${field}`} />
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Theo dõi qua tài khoản</label>
+        <label className="mb-1 block text-xs font-medium text-fg-muted">Theo dõi qua tài khoản</label>
         <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className={`mb-3 ${field}`}>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
@@ -86,7 +86,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
           ))}
         </select>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Số tiền đích</label>
+        <label className="mb-1 block text-xs font-medium text-fg-muted">Số tiền đích</label>
         <div className="mb-3">
           <MoneyField
             value={target}
@@ -98,13 +98,13 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
           />
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-          Hạn hoàn thành <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>
+        <label className="mb-1 block text-xs font-medium text-fg-muted">
+          Hạn hoàn thành <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
         <input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className={`mb-3 ${field}`} />
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-          Ghi chú <span className="text-gray-500 dark:text-gray-400">(không bắt buộc)</span>
+        <label className="mb-1 block text-xs font-medium text-fg-muted">
+          Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
         <input value={note} onChange={(e) => setNote(e.target.value)} className={`mb-4 ${field}`} />
 
@@ -117,7 +117,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
             <span />
           )}
           <div className="flex gap-2">
-            <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800">
+            <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800">
               Hủy
             </button>
             <button type="button" onClick={handleSubmit} disabled={!canSave} className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50">

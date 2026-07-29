@@ -248,7 +248,7 @@ export function CategoriesPage() {
     return (
       <div
         ref={(el) => setZone(p.id, el)}
-        className={`overflow-hidden rounded-xl bg-white dark:bg-gray-900 ${
+        className={`overflow-hidden rounded-xl bg-surface ${
           dragging ? 'shadow-lg ring-2 ring-green-500/40' : 'shadow-sm'
         } ${isDropTarget ? 'ring-2 ring-green-500/60' : ''}`}
       >
@@ -257,12 +257,12 @@ export function CategoriesPage() {
           <button
             type="button"
             {...handle}
-            className="inline-flex min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-gray-500 dark:text-gray-400 active:cursor-grabbing"
+            className="inline-flex min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-fg-muted active:cursor-grabbing"
             aria-label={`Kéo để sắp thứ tự ${p.name}`}
           >
             <GripVertical className="h-5 w-5" />
           </button>
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-xl">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-xl">
             {p.icon}
           </span>
           <button
@@ -270,9 +270,9 @@ export function CategoriesPage() {
             onClick={() => setForm({ category: p, parent: null })}
             className="min-w-0 flex-1 text-left"
           >
-            <span className="block truncate text-sm font-semibold text-gray-800 dark:text-gray-100">{p.name}</span>
+            <span className="block truncate text-sm font-semibold text-fg-primary">{p.name}</span>
             {kids.length > 0 && (
-              <span className="text-xs text-gray-500 dark:text-gray-400">{kids.length} danh mục con</span>
+              <span className="text-xs text-fg-muted">{kids.length} danh mục con</span>
             )}
           </button>
           <button
@@ -286,7 +286,7 @@ export function CategoriesPage() {
           <button
             type="button"
             onClick={() => archive(p)}
-            className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Lưu trữ
           </button>
@@ -294,7 +294,7 @@ export function CategoriesPage() {
 
         {/* Danh mục con (kéo–thả để sắp trong cha hoặc chuyển sang cha khác) */}
         {(childIds.length > 0 || dragChild != null) && (
-          <div className="ml-6 border-l-2 border-gray-100 dark:border-gray-800">
+          <div className="ml-6 border-l-2 border-border-subtle">
             {childIds.map((cid) => {
               const ch = catById.get(cid)
               if (!ch) return null
@@ -327,7 +327,7 @@ export function CategoriesPage() {
                   <button
                     type="button"
                     onClick={() => archive(ch)}
-                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
                     Lưu trữ
                   </button>
@@ -335,7 +335,7 @@ export function CategoriesPage() {
               )
             })}
             {childIds.length === 0 && dragChild != null && (
-              <p className="px-3 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
+              <p className="px-3 py-3 text-center text-xs text-fg-muted">
                 Thả vào đây để chuyển sang nhóm này
               </p>
             )}
@@ -356,12 +356,12 @@ export function CategoriesPage() {
       <div className="mb-3 flex items-center gap-2">
         <Link
           to="/settings"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>
-        <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Danh mục</h1>
+        <h1 className="flex-1 text-lg font-bold text-fg-primary">Danh mục</h1>
         <button
           type="button"
           onClick={() => setForm({ category: null, parent: null })}
@@ -379,7 +379,7 @@ export function CategoriesPage() {
             type="button"
             onClick={() => setTab(t)}
             className={`rounded-lg py-1.5 text-sm font-medium transition ${
-              tab === t ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'
+              tab === t ? 'bg-surface text-gray-900 dark:text-gray-100 shadow-sm' : 'text-fg-on-track hover:text-fg-primary'
             }`}
           >
             {t === 'expense' ? 'Chi' : 'Thu'}
@@ -394,8 +394,8 @@ export function CategoriesPage() {
 
       {/* Tạo nhanh bộ danh mục Thuế & An sinh (Nhật) — mở khóa chỉ số gánh nặng thuế */}
       {tab === 'expense' && !hasTaxCategories(categories) && (
-        <div className="mb-3 rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
-          <p className="text-xs text-gray-600 dark:text-gray-300">
+        <div className="mb-3 rounded-xl bg-surface p-3 shadow-sm ">
+          <p className="text-xs text-fg-secondary">
             Muốn biết mỗi năm mất bao nhiêu phần thu nhập cho 所得税・住民税・社会保険料? Tạo sẵn
             nhóm <b>{TAX_PARENT_NAME}</b> với {TAX_CHILDREN.length} danh mục con theo phiếu lương
             Nhật, rồi nhập lương <b>gộp</b> là khoản Thu và các khoản khấu trừ là khoản Chi.
@@ -427,7 +427,7 @@ export function CategoriesPage() {
 
         {/* Con mồ côi (dữ liệu cũ) — hiển thị như danh mục thường để không mất */}
         {orphans.map((c) => (
-          <div key={c.id} className="flex items-center gap-2 rounded-xl bg-white dark:bg-gray-900 px-3 py-2.5 shadow-sm">
+          <div key={c.id} className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2.5 shadow-sm">
             <span className="text-xl">{c.icon}</span>
             <button
               type="button"
@@ -439,7 +439,7 @@ export function CategoriesPage() {
             <button
               type="button"
               onClick={() => archive(c)}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Lưu trữ
             </button>
@@ -447,7 +447,7 @@ export function CategoriesPage() {
         ))}
 
         {parents.length === 0 && orphans.length === 0 && (
-          <p className="rounded-xl bg-white dark:bg-gray-900 px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400 shadow-sm">
+          <p className="rounded-xl bg-surface px-3 py-6 text-center text-sm text-fg-muted shadow-sm">
             Chưa có danh mục
           </p>
         )}
@@ -458,7 +458,7 @@ export function CategoriesPage() {
           <button
             type="button"
             onClick={() => setShowArchived((v) => !v)}
-            className="mb-2 inline-flex min-h-11 items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
+            className="mb-2 inline-flex min-h-11 items-center gap-1 text-xs font-medium text-fg-muted"
           >
             {showArchived ? (
               <>
@@ -471,7 +471,7 @@ export function CategoriesPage() {
             )}
           </button>
           {showArchived && (
-            <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
+            <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
               {archivedCats.map((c) => (
                 <div key={c.id} className="flex items-center gap-2 px-3 py-2.5 opacity-60">
                   {c.parent_id && <span className="text-gray-300 dark:text-gray-600">↳</span>}
@@ -611,35 +611,35 @@ function CategoryForm({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-gray-100">{title}</h2>
+        <h2 className="mb-3 text-base font-bold text-fg-primary">{title}</h2>
 
         <div className="mb-3 flex items-center gap-3">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 text-2xl">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-sunken text-2xl">
             {icon}
           </span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Tên danh mục"
-            className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
+            className="flex-1 rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
           />
         </div>
 
         {/* Danh mục cha */}
         {hasChildren ? (
-          <p className="mb-3 rounded-lg bg-gray-50 dark:bg-gray-950 px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mb-3 rounded-lg bg-surface-page px-3 py-2 text-xs text-fg-muted">
             Danh mục này có danh mục con nên là danh mục chính.
           </p>
         ) : (
           <label className="mb-3 block">
-            <span className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Danh mục cha</span>
+            <span className="mb-1 block text-xs font-medium text-fg-muted">Danh mục cha</span>
             <select
               value={parentId ?? ''}
               onChange={(e) => setParentId(e.target.value || null)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 outline-green-500"
+              className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-gray-700 dark:text-gray-300 outline-green-500"
             >
               <option value="">— Danh mục chính —</option>
               {availableParents.map((p) => (
@@ -653,12 +653,12 @@ function CategoryForm({
 
         {/* Chi / Thu: chỉ khi là danh mục chính (con thừa kế loại của cha) */}
         {typeLocked ? (
-          <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mb-3 text-xs text-fg-muted">
             Nhóm {effectiveType === 'expense' ? 'Chi' : 'Thu'} — không đổi được khi còn danh mục
             con.
           </p>
         ) : selectedParent ? (
-          <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mb-3 text-xs text-fg-muted">
             Thuộc nhóm {selectedParent.type === 'expense' ? 'Chi' : 'Thu'} theo danh mục cha.
           </p>
         ) : (
@@ -669,7 +669,7 @@ function CategoryForm({
                 type="button"
                 onClick={() => setTopType(t)}
                 className={`rounded-lg py-1.5 text-sm font-medium transition ${
-                  topType === t ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'
+                  topType === t ? 'bg-surface text-gray-900 dark:text-gray-100 shadow-sm' : 'text-fg-on-track hover:text-fg-primary'
                 }`}
               >
                 {t === 'expense' ? 'Chi' : 'Thu'}
@@ -695,7 +695,7 @@ function CategoryForm({
           </div>
         )}
 
-        <p className="mb-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">Biểu tượng</p>
+        <p className="mb-1.5 text-xs font-medium text-fg-muted">Biểu tượng</p>
         <div className="mb-3 grid grid-cols-8 gap-1">
           {EMOJI_CHOICES.map((e) => (
             <button
@@ -726,7 +726,7 @@ function CategoryForm({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Hủy
             </button>

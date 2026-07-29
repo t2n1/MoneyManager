@@ -89,16 +89,16 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-base font-bold text-gray-800 dark:text-gray-100">Ghi nhận trả</h2>
-        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+        <h2 className="mb-1 text-base font-bold text-fg-primary">Ghi nhận trả</h2>
+        <p className="mb-3 text-xs text-fg-muted">
           {debt.direction === 'i_owe' ? 'Mình trả' : 'Người ta trả'} · {debt.counterparty} · còn{' '}
           {formatMoney(Math.max(remaining, 0), debt.currency)}
         </p>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Số tiền trả</label>
+        <label className="mb-1 block text-xs font-medium text-fg-muted">Số tiền trả</label>
         <div className="mb-3">
           <MoneyField
             value={amount}
@@ -106,16 +106,16 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
             currency={debt.currency}
             ariaLabel="Số tiền trả"
             onEnter={handleSave}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-right text-lg font-semibold outline-green-500"
+            className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold outline-green-500"
           />
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Ngày trả</label>
+        <label className="mb-1 block text-xs font-medium text-fg-muted">Ngày trả</label>
         <input
           type="date"
           value={paidOn}
           onChange={(e) => setPaidOn(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500"
+          className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500"
         />
 
         {/* Công tắc tạo giao dịch thật */}
@@ -123,7 +123,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           <label className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
             <span>
               Có chuyển tiền thật
-              <span className="block text-xs text-gray-500 dark:text-gray-400">
+              <span className="block text-xs text-fg-muted">
                 {debt.direction === 'i_owe' ? 'Tạo giao dịch chi (trừ số dư)' : 'Tạo giao dịch thu (cộng số dư)'}
               </span>
             </span>
@@ -156,11 +156,11 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           {realOn && (
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Tài khoản</label>
+                <label className="mb-1 block text-xs font-medium text-fg-muted">Tài khoản</label>
                 <select
                   value={accountId}
                   onChange={(e) => setAccountId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm"
+                  className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm"
                 >
                   {matchingAccounts.map((a) => (
                     <option key={a.id} value={a.id}>
@@ -170,11 +170,11 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Danh mục</label>
+                <label className="mb-1 block text-xs font-medium text-fg-muted">Danh mục</label>
                 <select
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-2 text-sm"
+                  className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm"
                 >
                   {categoryOptions.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -187,19 +187,19 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           )}
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Ghi chú (không bắt buộc)</label>
+        <label className="mb-1 block text-xs font-medium text-fg-muted">Ghi chú (không bắt buộc)</label>
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: trả đợt 1"
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-sm outline-green-500"
+          className="w-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
         />
 
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Hủy
           </button>

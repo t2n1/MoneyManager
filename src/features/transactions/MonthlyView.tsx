@@ -20,25 +20,25 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
   return (
     <div className="flex flex-col gap-3">
       {/* Tổng cả năm */}
-      <div className="grid grid-cols-3 gap-2 rounded-xl bg-white dark:bg-gray-900 p-3 text-center shadow-sm">
+      <div className="grid grid-cols-3 gap-2 rounded-xl bg-surface p-3 text-center shadow-sm">
         <div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">Thu cả năm</div>
+          <div className="text-xs text-fg-muted">Thu cả năm</div>
           <div className="mt-0.5 text-sm font-semibold tabular-nums text-money-in">
             {approx}
             {formatMoney(yearIncome, base)}
           </div>
         </div>
-        <div className="border-x border-gray-100 dark:border-gray-800">
-          <div className="text-xs text-gray-500 dark:text-gray-400">Chi cả năm</div>
+        <div className="border-x border-border-subtle">
+          <div className="text-xs text-fg-muted">Chi cả năm</div>
           <div className="mt-0.5 text-sm font-semibold tabular-nums text-money-out">
             {approx}
             {formatMoney(yearExpense, base)}
           </div>
         </div>
         <div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">Còn lại</div>
+          <div className="text-xs text-fg-muted">Còn lại</div>
           <div
-            className={`mt-0.5 text-sm font-semibold tabular-nums ${yearIncome - yearExpense < 0 ? 'text-money-out' : 'text-gray-800 dark:text-gray-100'}`}
+            className={`mt-0.5 text-sm font-semibold tabular-nums ${yearIncome - yearExpense < 0 ? 'text-money-out' : 'text-fg-primary'}`}
           >
             {approx}
             {formatMoney(yearIncome - yearExpense, base)}
@@ -47,16 +47,16 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
       </div>
 
       {isLoading && !active ? (
-        <p className="py-10 text-center text-gray-500 dark:text-gray-400">Đang tải…</p>
+        <p className="py-10 text-center text-fg-muted">Đang tải…</p>
       ) : (
-        <div className="overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
-          <div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-2 border-b border-gray-100 dark:border-gray-800 px-3 py-2 text-[0.6875rem] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <div className="overflow-hidden rounded-xl bg-surface shadow-sm">
+          <div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-2 border-b border-border-subtle px-3 py-2 text-2xs font-medium uppercase tracking-wide text-fg-muted">
             <span>Tháng</span>
             <span className="text-right">Thu</span>
             <span className="text-right">Chi</span>
             <span className="text-right">Còn lại</span>
           </div>
-          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          <div className="divide-y divide-border-subtle">
             {points.map((p) => {
               const net = p.income - p.expense
               const empty = p.income === 0 && p.expense === 0
@@ -76,7 +76,7 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
                   </span>
                   <span
                     className={`tabular-nums font-medium ${
-                      empty ? 'text-gray-300 dark:text-gray-600' : net < 0 ? 'text-money-out' : 'text-gray-800 dark:text-gray-100'
+                      empty ? 'text-gray-300 dark:text-gray-600' : net < 0 ? 'text-money-out' : 'text-fg-primary'
                     }`}
                   >
                     {empty ? '–' : formatMoney(net, base)}

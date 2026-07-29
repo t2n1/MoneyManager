@@ -64,13 +64,13 @@ export function DebtEditSheet({ debt, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-gray-800 dark:text-gray-100">Sửa khoản nợ</h2>
+        <h2 className="mb-3 text-base font-bold text-fg-primary">Sửa khoản nợ</h2>
 
         {/* Chiều */}
-        <div className="mb-3 grid grid-cols-2 gap-2 rounded-lg bg-gray-100 dark:bg-gray-800 p-1">
+        <div className="mb-3 grid grid-cols-2 gap-2 rounded-lg bg-surface-sunken p-1">
           {(
             [
               ['i_owe', 'Mình nợ'],
@@ -83,8 +83,8 @@ export function DebtEditSheet({ debt, onClose }: Props) {
               onClick={() => setDirection(val)}
               className={`rounded-md py-1.5 text-sm font-medium transition ${
                 direction === val
-                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                  : 'text-gray-500 dark:text-gray-400'
+                  ? 'bg-surface text-gray-900 shadow-sm dark:text-gray-100'
+                  : 'text-fg-muted'
               }`}
             >
               {label}
@@ -92,7 +92,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           ))}
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+        <label className="mb-1 block text-xs font-medium text-fg-muted">
           {direction === 'i_owe' ? 'Chủ nợ (mình nợ ai)' : 'Con nợ (ai nợ mình)'}
         </label>
         <input
@@ -100,10 +100,10 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           value={counterparty}
           onChange={(e) => setCounterparty(e.target.value)}
           placeholder="Tên người / công ty"
-          className="mb-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 outline-green-500"
+          className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary outline-green-500"
         />
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+        <label className="mb-1 block text-xs font-medium text-fg-muted">
           Số tiền gốc ({CURRENCIES[debt.currency].symbol})
         </label>
         <div className="mb-3">
@@ -113,7 +113,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
             currency={debt.currency}
             ariaLabel="Số tiền gốc"
             onEnter={handleSave}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-right text-lg font-semibold text-gray-800 dark:text-gray-100 outline-green-500"
+            className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold text-fg-primary outline-green-500"
           />
         </div>
 
@@ -130,17 +130,17 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           />
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+        <label className="mb-1 block text-xs font-medium text-fg-muted">
           Ghi chú (không bắt buộc)
         </label>
         <input
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: mượn lúc chuyển nhà"
-          className="mb-1 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-800 dark:text-gray-100 outline-green-500"
+          className="mb-1 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary outline-green-500"
         />
 
-        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-2 text-xs text-fg-muted">
           Không đổi được loại tiền của khoản nợ đã tạo.
         </p>
 
@@ -148,7 +148,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Hủy
           </button>

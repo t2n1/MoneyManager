@@ -16,10 +16,10 @@ function Group({
 }) {
   return (
     <section className="mb-5">
-      <h2 className="mb-2 px-1 text-[0.6875rem] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+      <h2 className="mb-2 px-1 text-2xs font-bold uppercase tracking-wide text-fg-muted">
         {title}
       </h2>
-      <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-white dark:divide-gray-800 dark:bg-gray-900">
+      <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-surface dark:divide-gray-800 ">
         {types.map((t) => {
           const meta = NOTIFICATION_META[t]
           const on = !off.has(t)
@@ -30,11 +30,11 @@ function Group({
               <div className="min-w-0 flex-1">
                 <p
                   id={labelId}
-                  className="text-sm font-medium text-gray-800 dark:text-gray-100"
+                  className="text-sm font-medium text-fg-primary"
                 >
                   {meta.label}
                 </p>
-                <p id={hintId} className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                <p id={hintId} className="mt-0.5 text-xs text-fg-muted">
                   {meta.hint}
                 </p>
               </div>
@@ -105,8 +105,8 @@ export function NotificationSettingsPage() {
 
   return (
     <div className="p-3 lg:p-6">
-      <h1 className="mb-1 text-lg font-bold text-gray-800 dark:text-gray-100">Thông báo</h1>
-      <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+      <h1 className="mb-1 text-lg font-bold text-fg-primary">Thông báo</h1>
+      <p className="mb-4 text-sm text-fg-muted">
         Tắt loại nào thì loại đó không hiện trong chuông nữa. Mặc định bật hết.
       </p>
       <Group title="Việc cần làm" types={actions} off={off} onToggle={toggle} />

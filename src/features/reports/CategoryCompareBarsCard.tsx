@@ -18,8 +18,8 @@ export function CategoryCompareBarsCard({ rows, categories, base, limit = 8 }: P
   const catOf = (id: string) => categories.find((c) => c.id === id)
 
   return (
-    <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-      <h2 className="mb-3 text-sm font-semibold text-gray-500 dark:text-gray-400">
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
+      <h2 className="mb-3 text-sm font-semibold text-fg-muted">
         So sánh chi theo danh mục
       </h2>
       <ul className="space-y-3">
@@ -33,16 +33,16 @@ export function CategoryCompareBarsCard({ rows, categories, base, limit = 8 }: P
                 <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">
                   {cat?.icon ?? '📦'} {cat?.name ?? '?'}
                 </span>
-                <span className="shrink-0 font-medium text-gray-800 dark:text-gray-100">
+                <span className="shrink-0 font-medium text-fg-primary">
                   {formatMoney(row.thisMonth, base)}
                 </span>
                 {row.isNew ? (
-                  <span className="shrink-0 rounded bg-sky-50 dark:bg-sky-900/40 px-1 text-[0.625rem] text-sky-600 dark:text-sky-300">
+                  <span className="shrink-0 rounded bg-sky-50 dark:bg-sky-900/40 px-1 text-3xs text-sky-600 dark:text-sky-300">
                     mới
                   </span>
                 ) : row.deltaPct !== null && row.deltaPct !== 0 ? (
                   <span
-                    className={`shrink-0 text-[0.6875rem] ${row.deltaPct > 0 ? 'text-money-out' : 'text-money-in'}`}
+                    className={`shrink-0 text-2xs ${row.deltaPct > 0 ? 'text-money-out' : 'text-money-in'}`}
                   >
                     {row.deltaPct > 0 ? '▲' : '▼'}
                     {Math.abs(row.deltaPct)}%
@@ -52,7 +52,7 @@ export function CategoryCompareBarsCard({ rows, categories, base, limit = 8 }: P
                 )}
               </div>
               {/* Thanh nền: bar tháng này; vạch dọc = trung bình 3 tháng để so sánh */}
-              <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+              <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-surface-sunken">
                 <div
                   className={`h-full rounded-full ${row.deltaPct !== null && row.deltaPct > 0 ? 'bg-red-400' : 'bg-sky-500'}`}
                   style={{ width: `${thisPct}%` }}
@@ -69,7 +69,7 @@ export function CategoryCompareBarsCard({ rows, categories, base, limit = 8 }: P
           )
         })}
       </ul>
-      <div className="mt-3 flex items-center justify-end gap-3 text-[0.625rem] text-gray-500 dark:text-gray-400">
+      <div className="mt-3 flex items-center justify-end gap-3 text-3xs text-fg-muted">
         <span className="flex items-center gap-1">
           <span className="h-2 w-3 rounded-sm bg-sky-500" /> Tháng này
         </span>

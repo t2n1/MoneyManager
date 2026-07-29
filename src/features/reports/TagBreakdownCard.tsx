@@ -33,11 +33,11 @@ export function TagBreakdownCard({
 
   if (noTags) {
     return (
-      <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+      <section className="rounded-xl bg-surface p-3 shadow-sm ">
         <h2 className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-200">
           Chi theo nhãn
         </h2>
-        <p className="text-xs text-gray-600 dark:text-gray-300">
+        <p className="text-xs text-fg-secondary">
           Nhãn dùng để gom những khoản cắt ngang nhiều danh mục — ví dụ “Về VN 2026” gồm vé máy bay,
           quà cáp và phong bì. Tạo nhãn ngay khi nhập giao dịch, hoặc{' '}
           <Link to="/settings/tags" className="font-medium text-green-700 dark:text-green-400">
@@ -51,11 +51,11 @@ export function TagBreakdownCard({
 
   if (data.slices.length === 0) {
     return (
-      <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+      <section className="rounded-xl bg-surface p-3 shadow-sm ">
         <h2 className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-200">
           Chi theo nhãn
         </h2>
-        <p className="text-xs text-gray-500 dark:text-gray-400">
+        <p className="text-xs text-fg-muted">
           Không có khoản chi nào mang nhãn {periodNoun}.
         </p>
       </section>
@@ -65,10 +65,10 @@ export function TagBreakdownCard({
   const taggedPct = data.total > 0 ? Math.round((data.taggedTotal / data.total) * 100) : 0
 
   return (
-    <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+    <section className="rounded-xl bg-surface p-3 shadow-sm ">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Chi theo nhãn</h2>
-        <span className="shrink-0 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+        <span className="shrink-0 text-2xs text-fg-muted">
           {taggedPct}% chi tiêu có nhãn
         </span>
       </div>
@@ -87,18 +87,18 @@ export function TagBreakdownCard({
                 >
                   {s.name}
                 </span>
-                <span className="shrink-0 text-xs font-semibold tabular-nums text-gray-800 dark:text-gray-100">
+                <span className="shrink-0 text-xs font-semibold tabular-nums text-fg-primary">
                   {money(s.amount)}
                 </span>
               </div>
               <div className="mt-1 flex items-center gap-2">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-sunken">
                   <div
                     className="h-full rounded-full bg-gray-400 dark:bg-gray-500"
                     style={{ width: `${max > 0 ? (s.amount / max) * 100 : 0}%` }}
                   />
                 </div>
-                <span className="flex w-24 shrink-0 items-center justify-end gap-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+                <span className="flex w-24 shrink-0 items-center justify-end gap-0.5 text-2xs text-fg-muted">
                   {s.count} khoản
                   <ChevronRight className="h-3.5 w-3.5" aria-hidden />
                 </span>

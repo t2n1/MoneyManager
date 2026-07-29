@@ -93,7 +93,7 @@ const ROW_CARD = 'min-h-11 w-full rounded-lg bg-gray-50 dark:bg-gray-800 p-2.5 t
 
 /** Nút "thêm/chọn" xám của khối 2 & 3 (Thêm chặng · Chọn mẫu). Cùng lý do với
  *  `ROW_CARD`: ba nút cùng vai trò thì cùng một chuỗi class, không gõ lại từng nút. */
-const ADD_BUTTON = 'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 active:scale-95'
+const ADD_BUTTON = 'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-surface-sunken text-sm font-medium text-gray-700 dark:text-gray-300 active:scale-95'
 
 /** Nút phụ dưới nút Lưu của khối 1 (đặt kịch bản chính · xoá kịch bản) — phần chung;
  *  màu chữ khác nhau nên nối thêm ở chỗ dùng. */
@@ -621,8 +621,8 @@ export function ScenarioEditorSheet({
   }, [phaseSheet, eventSheet, confirmingDiscard, confirmingDelete])
 
   const field =
-    'w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
-  const label_ = 'mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400'
+    'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
+  const label_ = 'mb-1 block text-xs font-medium text-fg-muted'
   const errorLine = 'mb-2 text-xs text-money-out'
 
   return (
@@ -635,11 +635,11 @@ export function ScenarioEditorSheet({
           role="dialog"
           aria-modal="true"
           aria-label="Sửa kịch bản"
-          className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+          className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">
+            <h2 className="text-base font-bold text-fg-primary">
               Sửa kịch bản
               {block1Dirty && (
                 <span className="ml-2 text-xs font-medium text-amber-700 dark:text-amber-400">· chưa lưu</span>
@@ -651,12 +651,12 @@ export function ScenarioEditorSheet({
               aria-label="Đóng"
               className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg active:scale-95 hover:bg-gray-100 dark:hover:bg-gray-800"
             >
-              <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+              <X className="h-5 w-5 text-fg-muted" />
             </button>
           </div>
 
           {/* --- Khối 1: Kịch bản --- */}
-          <section className="mb-4 border-b border-gray-100 dark:border-gray-800 pb-4">
+          <section className="mb-4 border-b border-border-subtle pb-4">
             <label className={label_}>Tên kịch bản</label>
             <input value={name} onChange={(e) => setName(e.target.value)} className={`mb-1 ${field}`} />
             {!nameValid && (
@@ -761,7 +761,7 @@ export function ScenarioEditorSheet({
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   assetsSign === 1
                     ? 'bg-green-700 text-white'
-                    : 'border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300'
+                    : 'border border-border-strong text-fg-secondary'
                 }`}
               >
                 Dương
@@ -772,7 +772,7 @@ export function ScenarioEditorSheet({
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   assetsSign === -1
                     ? 'bg-green-700 text-white'
-                    : 'border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300'
+                    : 'border border-border-strong text-fg-secondary'
                 }`}
               >
                 Âm (đang nợ ròng)
@@ -896,7 +896,7 @@ export function ScenarioEditorSheet({
                 onClick={handleDuplicate}
                 disabled={duplicating}
                 title="Tạo một bản sao độc lập từ kịch bản này để thử phương án khác"
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-700 px-3 text-sm font-medium text-gray-600 dark:text-gray-300 active:scale-95 disabled:opacity-50"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border-strong px-3 text-sm font-medium text-fg-secondary active:scale-95 disabled:opacity-50"
               >
                 <Copy className="h-4 w-4" />
                 {duplicating ? 'Đang nhân bản…' : 'Nhân bản'}
@@ -943,7 +943,7 @@ export function ScenarioEditorSheet({
             {/* Vì sao nút xoá bị mờ — nút disabled không đọc được `title` bằng chạm trên
                 mobile, nên nói ra bằng chữ thay vì để người dùng bấm mãi không ra gì. */}
             {isOnlyScenario && (
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-xs text-fg-muted">
                 Đây là kịch bản duy nhất nên chưa xóa được — nhân bản hoặc tạo thêm một kịch bản
                 khác trước.
               </p>
@@ -951,19 +951,19 @@ export function ScenarioEditorSheet({
           </section>
 
           {/* --- Khối 2: Chặng đời --- */}
-          <section className="mb-4 border-b border-gray-100 dark:border-gray-800 pb-4">
+          <section className="mb-4 border-b border-border-subtle pb-4">
             <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Chặng đời</h3>
             {sortedPhases.length === 0 ? (
-              <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Chưa có chặng nào.</p>
+              <p className="mb-2 text-xs text-fg-muted">Chưa có chặng nào.</p>
             ) : (
               <ul className="mb-2 flex flex-col gap-2">
                 {sortedPhases.map((p) => (
                   <li key={p.id}>
                     <button type="button" onClick={() => setPhaseSheet({ phase: p })} className={ROW_CARD}>
-                      <span className="block text-sm font-semibold text-gray-800 dark:text-gray-100">
+                      <span className="block text-sm font-semibold text-fg-primary">
                         {p.label} · {p.start_year}
                       </span>
-                      <span className="block text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                      <span className="block text-xs tabular-nums text-fg-muted">
                         Thu {formatMoney(p.annual_income_minor, p.currency as CurrencyCode)} · Chi{' '}
                         {formatMoney(p.annual_expense_minor, p.currency as CurrencyCode)}
                       </span>
@@ -975,7 +975,7 @@ export function ScenarioEditorSheet({
                           kiểm bằng preview: đổi hiển thị sang USD trong lúc chặng "Chuyển
                           sang Mỹ" cũng đã là USD lộ ra đúng ca này. */}
                       {p.currency !== scenario.display_currency && (
-                        <span className="mt-0.5 flex items-center gap-1 text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                        <span className="mt-0.5 flex items-center gap-1 text-xs tabular-nums text-fg-muted">
                           {p.fx_to_display === 1 && (
                             <AlertCircle className="h-3 w-3 shrink-0 text-amber-500" aria-hidden="true" />
                           )}
@@ -1008,10 +1008,10 @@ export function ScenarioEditorSheet({
           </section>
 
           {/* --- Khối 3: Sự kiện --- */}
-          <section className="mb-4 border-b border-gray-100 dark:border-gray-800 pb-4">
+          <section className="mb-4 border-b border-border-subtle pb-4">
             <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Sự kiện</h3>
             {sortedEvents.length === 0 ? (
-              <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">Chưa có sự kiện nào.</p>
+              <p className="mb-2 text-xs text-fg-muted">Chưa có sự kiện nào.</p>
             ) : (
               <ul className="mb-2 flex flex-col gap-2">
                 {sortedEvents.map((e) => {
@@ -1021,19 +1021,19 @@ export function ScenarioEditorSheet({
                     <li key={e.id}>
                       <button type="button" onClick={() => setEventSheet({ event: e })} className={ROW_CARD}>
                         <span className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{e.label}</span>
+                          <span className="text-sm font-semibold text-fg-primary">{e.label}</span>
                           <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-200">
                             {formatMoney(e.amount_minor, e.currency as CurrencyCode)}
                           </span>
                         </span>
-                        <span className="block text-xs text-gray-500 dark:text-gray-400">
+                        <span className="block text-xs text-fg-muted">
                           {e.kind === 'income' ? 'Thu' : 'Chi'} · {e.start_year}
                           {e.end_year !== null ? `–${e.end_year}` : ' – hết đời'} · {e.currency}
                         </span>
                         {mismatch && (
                           <span
                             className={`mt-0.5 flex items-center gap-1 text-xs tabular-nums ${
-                              suspicious ? 'text-amber-700 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'
+                              suspicious ? 'text-amber-700 dark:text-amber-400' : 'text-fg-muted'
                             }`}
                           >
                             {suspicious && <AlertCircle className="h-3 w-3 shrink-0" aria-hidden="true" />}
@@ -1043,7 +1043,7 @@ export function ScenarioEditorSheet({
                           </span>
                         )}
                         {e.note && (
-                          <span className="mt-0.5 block text-xs italic text-gray-500 dark:text-gray-400">{e.note}</span>
+                          <span className="mt-0.5 block text-xs italic text-fg-muted">{e.note}</span>
                         )}
                       </button>
                     </li>
@@ -1064,12 +1064,12 @@ export function ScenarioEditorSheet({
           <section>
             <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Số này ở đâu ra</h3>
             {!currentPhase || !baseline ? (
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-fg-muted">
                 Chưa có chặng nào — thêm một chặng để xem số liệu chi tiêu thật đứng sau giả định.
               </p>
             ) : (
               <div className="space-y-2">
-                <p className="text-xs text-gray-600 dark:text-gray-300">
+                <p className="text-xs text-fg-secondary">
                   Chi{' '}
                   {/* Tiền âm phải đỏ (token bắt buộc): chi nền âm là ca cả chặng toàn
                       hoàn tiền — hiếm nhưng có, và để xám thì đọc thành chi dương. */}
@@ -1083,7 +1083,7 @@ export function ScenarioEditorSheet({
                   /năm lấy từ {baseline.monthsCovered} tháng gần nhất của chặng "{currentPhase.label}".
                 </p>
                 {positiveCats.length > 0 && (
-                  <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                  <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-surface-sunken">
                     {positiveCats.map((c, i) => (
                       <div
                         key={c.categoryId}
@@ -1095,7 +1095,7 @@ export function ScenarioEditorSheet({
                   </div>
                 )}
                 {refundCats.map((c) => (
-                  <p key={c.categoryId} className="text-xs text-gray-500 dark:text-gray-400">
+                  <p key={c.categoryId} className="text-xs text-fg-muted">
                     {c.name}: hoàn ròng{' '}
                     {/* Màu theo dấu của con số ĐANG HIỆN. `refundCats` lọc annualMinor
                         < 0 nên `-c.annualMinor` luôn dương và dòng này không đỏ — giữ
@@ -1108,7 +1108,7 @@ export function ScenarioEditorSheet({
                 {top3.length > 0 && (
                   <ul className="space-y-0.5">
                     {top3.map((c) => (
-                      <li key={c.categoryId} className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
+                      <li key={c.categoryId} className="flex items-center justify-between text-xs text-fg-secondary">
                         <span className="truncate">{c.name}</span>
                         {/* byCategory sắp giảm dần theo annualMinor, nên khi cả chặng
                             toàn hoàn tiền thì top 3 chính là ba con số ÂM. */}

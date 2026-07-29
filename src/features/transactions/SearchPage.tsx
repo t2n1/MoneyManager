@@ -142,7 +142,7 @@ export function SearchPage() {
 
   const chip = (active: boolean) =>
     `rounded-full px-3 py-2.5 text-xs font-medium transition ${
-      active ? 'bg-green-700 text-white' : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 shadow-sm'
+      active ? 'bg-green-700 text-white' : 'bg-surface text-fg-secondary shadow-sm'
     }`
 
   return (
@@ -151,25 +151,25 @@ export function SearchPage() {
       <div className="mb-3 flex items-center gap-2">
         <Link
           to="/transactions"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface px-3 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>
-        <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Tìm kiếm</h1>
+        <h1 className="flex-1 text-lg font-bold text-fg-primary">Tìm kiếm</h1>
       </div>
 
       {/* Ô tìm ghi chú */}
-      <div className="mb-2 flex items-center gap-2 rounded-xl bg-white dark:bg-gray-900 px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-green-500">
-        <Search className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+      <div className="mb-2 flex items-center gap-2 rounded-xl bg-surface px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-green-500">
+        <Search className="h-5 w-5 text-fg-muted" />
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Tìm theo ghi chú…"
-          className="flex-1 text-sm text-gray-800 dark:text-gray-100 outline-none"
+          className="flex-1 text-sm text-fg-primary outline-none"
         />
         {text && (
-          <button type="button" onClick={() => setText('')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-gray-500 dark:text-gray-400" aria-label="Xóa">
+          <button type="button" onClick={() => setText('')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-fg-muted" aria-label="Xóa">
             <X className="h-5 w-5" />
           </button>
         )}
@@ -193,19 +193,19 @@ export function SearchPage() {
       </div>
 
       {/* Khoảng ngày */}
-      <div className="mb-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+      <div className="mb-2 flex items-center gap-2 text-sm text-fg-secondary">
         <input
           type="date"
           value={from}
           onChange={(e) => setFrom(e.target.value)}
-          className="min-w-0 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5"
+          className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-2 py-1.5"
         />
-        <span className="text-gray-500 dark:text-gray-400">→</span>
+        <span className="text-fg-muted">→</span>
         <input
           type="date"
           value={to}
           onChange={(e) => setTo(e.target.value)}
-          className="min-w-0 flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5"
+          className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-2 py-1.5"
         />
       </div>
 
@@ -219,12 +219,12 @@ export function SearchPage() {
         {showMore ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
       {showMore && (
-        <div className="mb-3 space-y-3 rounded-xl bg-gray-100 dark:bg-gray-800 p-3">
+        <div className="mb-3 space-y-3 rounded-xl bg-surface-sunken p-3">
           {tags.length > 0 && (
             <div>
-              <p className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              <p className="mb-1.5 text-xs font-semibold text-fg-muted">
                 Nhãn{' '}
-                <span className="font-normal text-gray-500 dark:text-gray-400">
+                <span className="font-normal text-fg-muted">
                   (chọn nhiều = khớp bất kỳ)
                 </span>
               </p>
@@ -252,7 +252,7 @@ export function SearchPage() {
           )}
           {typeFilter !== 'transfer' && (
             <div>
-              <p className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">Danh mục</p>
+              <p className="mb-1.5 text-xs font-semibold text-fg-muted">Danh mục</p>
               <div className="flex flex-wrap gap-1.5">
                 {visibleCategories.map((c) => (
                   <button
@@ -268,31 +268,31 @@ export function SearchPage() {
             </div>
           )}
           <div>
-            <p className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+            <p className="mb-1.5 text-xs font-semibold text-fg-muted">
               Số tiền ({CURRENCIES[base].symbol})
             </p>
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <div className="flex items-center gap-2 text-sm text-fg-secondary">
               <input
                 type="number"
                 inputMode="numeric"
                 value={amountMinStr}
                 onChange={(e) => setAmountMinStr(e.target.value)}
                 placeholder="Tối thiểu"
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5"
+                className="w-full rounded-lg border border-border-strong bg-surface px-2 py-1.5"
               />
-              <span className="text-gray-500 dark:text-gray-400">→</span>
+              <span className="text-fg-muted">→</span>
               <input
                 type="number"
                 inputMode="numeric"
                 value={amountMaxStr}
                 onChange={(e) => setAmountMaxStr(e.target.value)}
                 placeholder="Tối đa"
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5"
+                className="w-full rounded-lg border border-border-strong bg-surface px-2 py-1.5"
               />
             </div>
           </div>
           <div>
-            <p className="mb-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">Tài khoản</p>
+            <p className="mb-1.5 text-xs font-semibold text-fg-muted">Tài khoản</p>
             <div className="flex flex-wrap gap-1.5">
               {accounts.map((a) => (
                 <button
@@ -313,7 +313,7 @@ export function SearchPage() {
       )}
 
       {/* Kết quả */}
-      <p className="mb-2 flex flex-wrap items-center gap-x-2 px-1 text-xs text-gray-500 dark:text-gray-400">
+      <p className="mb-2 flex flex-wrap items-center gap-x-2 px-1 text-xs text-fg-muted">
         <span>{isLoading ? 'Đang tìm…' : `${results.length} kết quả`}</span>
         {/* Nhãn đang lọc phải thấy được cả khi khối bộ lọc đang thu gọn */}
         {tagIds.length > 0 && (
@@ -336,16 +336,16 @@ export function SearchPage() {
         )}
       </p>
       {(totals.income > 0 || totals.expense > 0 || totals.hasMissingRate) && (
-        <div className="mb-3 rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+        <div className="mb-3 rounded-xl bg-surface p-3 shadow-sm">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-500 dark:text-gray-400">Thu</span>
+            <span className="text-fg-muted">Thu</span>
             <span className="font-semibold text-money-in">
               {totals.hasForeign ? '≈ ' : ''}
               {formatMoney(totals.income, base)}
             </span>
           </div>
           <div className="mt-1 flex items-center justify-between text-sm">
-            <span className="text-gray-500 dark:text-gray-400">Chi</span>
+            <span className="text-fg-muted">Chi</span>
             <span className="font-semibold text-money-out">
               {totals.hasForeign ? '≈ ' : ''}
               {formatMoney(totals.expense, base)}
@@ -359,12 +359,12 @@ export function SearchPage() {
         </div>
       )}
       {days.length === 0 && !isLoading ? (
-        <p className="py-10 text-center text-gray-500 dark:text-gray-400">Không có giao dịch khớp bộ lọc</p>
+        <p className="py-10 text-center text-fg-muted">Không có giao dịch khớp bộ lọc</p>
       ) : (
         days.map(([day, txs]) => (
           <section key={day} className="mb-3">
-            <div className="mb-1 px-1 text-xs font-medium text-gray-500 dark:text-gray-400">{day}</div>
-            <div className="divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden rounded-xl bg-white dark:bg-gray-900 shadow-sm">
+            <div className="mb-1 px-1 text-xs font-medium text-fg-muted">{day}</div>
+            <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
               {txs.map((tx) => (
                 <TransactionItem
                   key={tx.id}

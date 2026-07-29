@@ -36,10 +36,10 @@ function Card({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+    <section className="rounded-xl bg-surface p-3 shadow-sm ">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</h2>
-        {hint && <span className="shrink-0 text-[0.6875rem] text-gray-500 dark:text-gray-400">{hint}</span>}
+        {hint && <span className="shrink-0 text-2xs text-fg-muted">{hint}</span>}
       </div>
       {children}
     </section>
@@ -49,7 +49,7 @@ function Card({
 /** Dòng thông báo khi chưa đủ số tháng để tính một chỉ số. */
 function NeedMore({ have, need }: { have: number; need: number }) {
   return (
-    <p className="rounded-lg bg-gray-50 px-3 py-3 text-center text-xs text-gray-500 dark:bg-gray-950 dark:text-gray-400">
+    <p className="rounded-lg bg-surface-page px-3 py-3 text-center text-xs text-fg-muted">
       Cần {need} tháng dữ liệu, hiện có {have}. Ghi chép thêm {need - have} tháng nữa là chỉ số này
       tự hiện ra.
     </p>
@@ -151,12 +151,12 @@ export function TrendsView() {
   const money = (v: number) => formatMoney(Math.round(v), base)
 
   if (!isFetched) {
-    return <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">Đang tải…</p>
+    return <p className="py-10 text-center text-sm text-fg-muted">Đang tải…</p>
   }
 
   if (monthsWithData === 0) {
     return (
-      <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+      <p className="py-10 text-center text-sm text-fg-muted">
         Chưa có giao dịch nào trong 24 tháng gần đây.
       </p>
     )
@@ -218,7 +218,7 @@ export function TrendsView() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+            <p className="mt-1 text-xs text-fg-secondary">
               Đường <span className="font-medium text-red-500">đậm</span> là mức chi trung bình{' '}
               {ROLL} tháng gần nhất — nhìn đường này để thấy xu hướng, đừng nhìn đường xám (tháng
               nào cũng nhấp nhô vì lý do vặt).
@@ -241,7 +241,7 @@ export function TrendsView() {
         ) : (
           <>
             {yoyTotalPct !== null && (
-              <p className="mb-2 text-xs text-gray-600 dark:text-gray-300">
+              <p className="mb-2 text-xs text-fg-secondary">
                 12 tháng qua bạn chi <b>{money(last12Total)}</b>,{' '}
                 <b className={yoyTotalPct >= 0 ? 'text-money-out' : 'text-money-in'}>
                   {signPct(yoyTotalPct)}
@@ -253,21 +253,21 @@ export function TrendsView() {
               {yoyRows.map((p) => (
                 <li
                   key={`${p.key.year}-${p.key.month}`}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-2 py-1.5 text-xs dark:bg-gray-950"
+                  className="flex items-center justify-between gap-2 rounded-lg bg-surface-page px-2 py-1.5 text-xs "
                 >
-                  <span className="w-12 shrink-0 text-gray-500 dark:text-gray-400">
+                  <span className="w-12 shrink-0 text-fg-muted">
                     {monthLabel(p.key)}
                   </span>
                   <span className="flex-1 truncate text-right tabular-nums text-gray-700 dark:text-gray-200">
                     {money(p.current)}
                   </span>
-                  <span className="w-24 shrink-0 text-right tabular-nums text-gray-500 dark:text-gray-400">
+                  <span className="w-24 shrink-0 text-right tabular-nums text-fg-muted">
                     năm ngoái {formatCompact(p.yearAgo ?? 0, base)}
                   </span>
                   <span
                     className={`w-16 shrink-0 text-right font-medium tabular-nums ${
                       p.deltaPct === null
-                        ? 'text-gray-500 dark:text-gray-400'
+                        ? 'text-fg-muted'
                         : p.deltaPct >= 0
                           ? 'text-money-out'
                           : 'text-money-in'
@@ -350,13 +350,13 @@ export function TrendsView() {
             >
               {signPct(inflation.rate * 100)}
             </p>
-            <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+            <p className="mt-1 text-xs text-fg-secondary">
               Cùng {inflation.basketSize} nhóm chi tiêu quen thuộc, năm nay bạn tốn{' '}
               {money(inflation.currentTotal)} so với {money(inflation.previousTotal)} năm ngoái. Rổ
               này chiếm {Math.round(inflation.coverage * 100)}% tổng chi năm nay.
             </p>
             {inflation.coverage < 0.5 && (
-              <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[0.6875rem] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-2xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
                 Rổ chung chỉ chiếm dưới một nửa chi tiêu nên con số này chỉ mang tính tham khảo — chi
                 tiêu năm nay khác năm ngoái khá nhiều.
               </p>
@@ -383,7 +383,7 @@ export function TrendsView() {
           monthsWithData < 6 ? (
             <NeedMore have={monthsWithData} need={6} />
           ) : (
-            <p className="rounded-lg bg-gray-50 px-3 py-3 text-center text-xs text-gray-500 dark:bg-gray-950 dark:text-gray-400">
+            <p className="rounded-lg bg-surface-page px-3 py-3 text-center text-xs text-fg-muted">
               Thu nhập của bạn gần như không đổi giữa hai nửa kỳ, chưa đo được độ co giãn. Chỉ số này
               hiện ra khi có đợt tăng/giảm lương rõ rệt.
             </p>
@@ -401,17 +401,17 @@ export function TrendsView() {
             >
               {elasticity.elasticity.toFixed(2).replace('.', ',')}
             </p>
-            <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+            <p className="mt-1 text-xs text-fg-secondary">
               Về <b>tốc độ</b>: thu nhập {signPct(elasticity.incomeChangePct)} thì chi tiêu{' '}
               {signPct(elasticity.expenseChangePct)} — chi chạy bằng{' '}
               {Math.round(elasticity.elasticity * 100)}% tốc độ của thu.
             </p>
-            <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+            <p className="mt-1 text-xs text-fg-secondary">
               Về <b>tiền mặt</b>: cứ thêm 100 đồng thu nhập, bạn tiêu thêm khoảng{' '}
               <b>{Math.round(elasticity.marginalSpend * 100)} đồng</b> và giữ lại{' '}
               {Math.round((1 - elasticity.marginalSpend) * 100)} đồng.
             </p>
-            <p className="mt-2 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+            <p className="mt-2 text-2xs text-fg-muted">
               Trung bình mỗi tháng: thu {money(elasticity.incomeBefore)} →{' '}
               {money(elasticity.incomeAfter)}, chi {money(elasticity.expenseBefore)} →{' '}
               {money(elasticity.expenseAfter)}.
@@ -437,7 +437,7 @@ export function TrendsView() {
         )}
       </Card>
 
-      <p className="px-1 pb-2 text-center text-[0.6875rem] text-gray-500 dark:text-gray-400">
+      <p className="px-1 pb-2 text-center text-2xs text-fg-muted">
         Số liệu tính trên {monthsWithData} tháng có giao dịch, quy đổi về {base}.
       </p>
     </div>

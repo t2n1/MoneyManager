@@ -94,7 +94,7 @@ export function AccountPicker({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300 ${className}`}
+        className={`flex items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300 ${className}`}
       >
         {selected ? (
           <>
@@ -107,10 +107,10 @@ export function AccountPicker({
             </span>
           </>
         ) : (
-          <span className="text-gray-500 dark:text-gray-400">Chọn tài khoản…</span>
+          <span className="text-fg-muted">Chọn tài khoản…</span>
         )}
         <ChevronDown
-          className={`ml-auto h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`ml-auto h-4 w-4 shrink-0 text-fg-muted transition-transform ${open ? 'rotate-180' : ''}`}
           aria-hidden
         />
       </button>
@@ -127,7 +127,7 @@ export function AccountPicker({
               width: Math.max(pos.width, 220),
               ...(pos.drop === 'down' ? { top: pos.anchor } : { bottom: pos.anchor }),
             }}
-            className="z-50 max-h-80 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 py-1 shadow-lg"
+            className="z-50 max-h-80 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-surface py-1 shadow-lg"
           >
             {options.map((a) => {
               const bal = balanceOf(a.id)
@@ -153,7 +153,7 @@ export function AccountPicker({
                     className={`h-5 w-5 shrink-0 ${
                       isSel
                         ? 'text-money-in'
-                        : 'text-gray-500 dark:text-gray-400'
+                        : 'text-fg-muted'
                     }`}
                   />
                   <span
@@ -168,7 +168,7 @@ export function AccountPicker({
                   {bal !== undefined && (
                     <span
                       className={`shrink-0 text-xs tabular-nums ${
-                        bal < 0 ? 'text-money-out' : 'text-gray-500 dark:text-gray-400'
+                        bal < 0 ? 'text-money-out' : 'text-fg-muted'
                       }`}
                     >
                       {formatMoney(bal, a.currency)}
@@ -178,7 +178,7 @@ export function AccountPicker({
               )
             })}
             {options.length === 0 && (
-              <p className="px-3 py-4 text-center text-xs text-gray-500 dark:text-gray-400">
+              <p className="px-3 py-4 text-center text-xs text-fg-muted">
                 Không có tài khoản
               </p>
             )}

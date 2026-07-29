@@ -15,7 +15,7 @@ export type TagColorKey = (typeof TAG_COLOR_KEYS)[number]
 
 /** Lớp Tailwind cho chip nhãn (nền nhạt + chữ đậm màu), có bản dark. */
 export const TAG_CHIP_CLASS: Record<TagColorKey, string> = {
-  gray: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  gray: 'bg-surface-sunken text-gray-700 dark:text-gray-300',
   red: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
   amber: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
   green: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',

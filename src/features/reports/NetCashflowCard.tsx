@@ -41,8 +41,8 @@ export function NetCashflowCard({ series, base, title, labelOf }: Props) {
   }))
 
   return (
-    <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-      <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">{title}</h2>
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
+      <h2 className="mb-2 text-sm font-semibold text-fg-muted">{title}</h2>
       <div className="h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
@@ -88,7 +88,7 @@ export function NetCashflowCard({ series, base, title, labelOf }: Props) {
         </ResponsiveContainer>
       </div>
 
-      <div className="mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+      <div className="mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-fg-muted">
         {/* Chấm/vạch chú giải lấy ĐÚNG hằng số đã tô cho biểu đồ, không dùng class
             Tailwind: bảng màu v4 khác v3 nên class và hex cứng đã lệch nhau. */}
         <span className="flex items-center gap-1">
@@ -104,7 +104,7 @@ export function NetCashflowCard({ series, base, title, labelOf }: Props) {
       </div>
 
       {/* Tóm tắt bằng CHỮ — không để người dùng phải suy ra từ màu cột (a11y) */}
-      <p className="mt-2 text-center text-[0.6875rem] text-gray-500 dark:text-gray-400">
+      <p className="mt-2 text-center text-2xs text-fg-muted">
         Tổng ròng{' '}
         <span
           className={

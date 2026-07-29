@@ -355,7 +355,7 @@ export function AssetGroupsPage() {
     return (
       <section
         ref={(el) => setZone(g.name, el)}
-        className={`overflow-hidden rounded-xl bg-white dark:bg-gray-900 ${
+        className={`overflow-hidden rounded-xl bg-surface ${
           dragging ? 'shadow-lg ring-2 ring-green-500/40' : 'shadow-sm'
         } ${dragAcc != null && dropAt?.group === g.name ? 'ring-2 ring-green-500/60' : ''}`}
       >
@@ -385,7 +385,7 @@ export function AssetGroupsPage() {
                     if (e.key === 'Enter') submitRename(g.name)
                     if (e.key === 'Escape') setRenaming(null)
                   }}
-                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-2 py-1 text-sm outline-green-500"
+                  className="w-full rounded-lg border border-border-strong px-2 py-1 text-sm outline-green-500"
                 />
                 <button
                   type="button"
@@ -509,7 +509,7 @@ export function AssetGroupsPage() {
                     <select
                       value={g.name}
                       onChange={(e) => moveAccount(a.id, e.target.value)}
-                      className="shrink-0 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1 text-xs"
+                      className="shrink-0 rounded-lg border border-border-strong bg-surface px-2 py-1 text-xs"
                       aria-label={`Chuyển ${a.name} sang nhóm khác`}
                     >
                       {allGroupNames.map((name) => (
@@ -590,7 +590,7 @@ export function AssetGroupsPage() {
       </p>
 
       {adding && (
-        <div className="mb-2 flex items-center gap-1 rounded-xl bg-white dark:bg-gray-900 px-3 py-2.5 shadow-sm">
+        <div className="mb-2 flex items-center gap-1 rounded-xl bg-surface px-3 py-2.5 shadow-sm">
           <input
             autoFocus
             value={newName}
@@ -600,7 +600,7 @@ export function AssetGroupsPage() {
               if (e.key === 'Escape') setAdding(false)
             }}
             placeholder="Tên nhóm mới…"
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-2 py-1 text-sm outline-green-500"
+            className="w-full rounded-lg border border-border-strong px-2 py-1 text-sm outline-green-500"
           />
           <button
             type="button"
@@ -750,7 +750,7 @@ function DeleteGroupSheet({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-1 text-base font-bold text-fg-primary">Xóa nhóm "{group.name}"</h2>
@@ -761,7 +761,7 @@ function DeleteGroupSheet({
         <select
           value={target}
           onChange={(e) => setTarget(e.target.value)}
-          className="mb-4 w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
+          className="mb-4 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
         >
           <option value="">{UNGROUPED_LABEL}</option>
           {otherGroups.map((name) => (

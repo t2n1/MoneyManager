@@ -188,12 +188,12 @@ function DialogModal({ req }: { req: DialogReq }) {
         role="dialog"
         aria-modal="true"
         aria-label={req.title}
-        className="w-full max-w-md rounded-t-2xl bg-white dark:bg-gray-900 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">{req.title}</h2>
+        <h2 className="text-base font-bold text-fg-primary">{req.title}</h2>
         {req.message && (
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{req.message}</p>
+          <p className="mt-1 text-sm text-fg-muted">{req.message}</p>
         )}
 
         {req.kind === 'prompt' && (
@@ -206,7 +206,7 @@ function DialogModal({ req }: { req: DialogReq }) {
               if (e.key === 'Enter') onConfirm()
             }}
             placeholder={req.placeholder}
-            className="mt-3 w-full rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-2 text-base outline-green-500 dark:bg-gray-900 dark:text-gray-100"
+            className="mt-3 w-full rounded-lg border border-border-strong px-3 py-2 text-base outline-green-500 dark:bg-gray-900 dark:text-gray-100"
           />
         )}
 
@@ -214,7 +214,7 @@ function DialogModal({ req }: { req: DialogReq }) {
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95"
+            className="rounded-lg px-4 py-2.5 text-sm font-medium text-fg-secondary hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95"
           >
             {req.kind === 'confirm' ? req.cancelLabel : 'Hủy'}
           </button>

@@ -66,7 +66,7 @@ const NotificationSettingsPage = lazy(() =>
   })),
 )
 
-const Loading = () => <p className="p-6 text-center text-gray-500 dark:text-gray-400">Đang tải…</p>
+const Loading = () => <p className="p-6 text-center text-fg-muted">Đang tải…</p>
 const lazyRoute = (el: ReactNode) => <Suspense fallback={<Loading />}>{el}</Suspense>
 
 function App() {

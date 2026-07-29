@@ -294,13 +294,13 @@ export function ReportsPage() {
       {/* Lối vào trang khám tổng quát — không phụ thuộc tháng/năm đang xem */}
       <Link
         to="/health"
-        className="flex min-h-11 items-center justify-between gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm transition hover:bg-gray-50 active:scale-[0.99] dark:bg-gray-900 dark:hover:bg-gray-800 print:hidden"
+        className="flex min-h-11 items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2.5 shadow-sm transition hover:bg-gray-50 active:scale-[0.99] dark:hover:bg-gray-800 print:hidden"
       >
         <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
           <HeartPulse className="h-4 w-4 text-rose-500" aria-hidden />
           Sức khỏe tài chính
         </span>
-        <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+        <span className="flex items-center gap-1 text-xs text-fg-muted">
           Quỹ dự phòng, nợ, rủi ro
           <ChevronRight className="h-4 w-4" aria-hidden />
         </span>

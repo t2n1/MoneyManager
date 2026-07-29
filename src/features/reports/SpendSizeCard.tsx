@@ -33,12 +33,12 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
   ]
 
   return (
-    <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+    <section className="rounded-xl bg-surface p-3 shadow-sm ">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
           Một lần chi to cỡ nào
         </h2>
-        <span className="shrink-0 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+        <span className="shrink-0 text-2xs text-fg-muted">
           {data.count} lần chi {periodNoun}
         </span>
       </div>
@@ -47,17 +47,17 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
         {rows.map((row) => {
           const hours = hoursOfWork(row.value, hourlyWage)
           return (
-            <li key={row.label} className="rounded-lg bg-gray-50 px-2.5 py-2 dark:bg-gray-950">
+            <li key={row.label} className="rounded-lg bg-surface-page px-2.5 py-2 ">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-xs text-gray-600 dark:text-gray-300">{row.label}</span>
-                <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-800 dark:text-gray-100">
+                <span className="text-xs text-fg-secondary">{row.label}</span>
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-fg-primary">
                   {money(row.value)}
                 </span>
               </div>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
-                <span className="text-[0.6875rem] text-gray-500 dark:text-gray-400">{row.note}</span>
+                <span className="text-2xs text-fg-muted">{row.note}</span>
                 {hours !== null && (
-                  <span className="shrink-0 text-[0.6875rem] font-medium text-sky-600 dark:text-sky-400">
+                  <span className="shrink-0 text-2xs font-medium text-sky-600 dark:text-sky-400">
                     ≈ {hoursLabel(hours)}
                   </span>
                 )}
@@ -68,14 +68,14 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
       </ul>
 
       {skewed && (
-        <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[0.6875rem] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+        <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-2xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
           Trung bình ({money(data.mean)}) cao hơn hẳn mức điển hình ({money(data.median)}) — vài
           khoản lớn đang kéo con số trung bình lên. Nhìn trung vị sẽ sát đời thực hơn.
         </p>
       )}
 
       {hourlyWage === null && (
-        <p className="mt-2 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+        <p className="mt-2 text-2xs text-fg-muted">
           Muốn thấy “món này = mấy giờ làm”?{' '}
           <Link to="/settings" className="font-medium text-green-700 dark:text-green-400">
             Khai lương theo giờ trong Cài đặt

@@ -12,16 +12,16 @@ export function LifetimeSection() {
   const negativeYear = hasScenario ? firstNegativeYear(rows, 'low') : null
 
   return (
-    <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
       <Link to="/lifetime" className="flex min-h-11 items-center gap-3 active:scale-95">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-50 dark:bg-green-900/30">
           <TrendingUp className="h-5 w-5 text-money-in" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-gray-800 dark:text-gray-100">
+          <span className="block text-sm font-semibold text-fg-primary">
             Lifetime
           </span>
-          <span className="block truncate text-xs text-gray-500 dark:text-gray-400">
+          <span className="block truncate text-xs text-fg-muted">
             Tài sản của bạn đủ đi hết đời không?
           </span>
           {hasScenario && (

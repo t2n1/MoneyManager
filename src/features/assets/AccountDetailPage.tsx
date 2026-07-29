@@ -267,7 +267,7 @@ export function AccountDetailPage() {
                 năm {shelterYear}
               </span>
             </div>
-            <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+            <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-surface-sunken">
               <div
                 className={`h-full rounded-full ${
                   (shelter.ratio ?? 0) >= 1 ? 'bg-amber-500' : 'bg-green-500'

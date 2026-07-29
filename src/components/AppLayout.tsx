@@ -159,13 +159,13 @@ export function AppLayout() {
     }`
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-gray-50 lg:flex-row dark:bg-gray-950">
+    <div className="flex h-dvh flex-col overflow-hidden bg-surface-page lg:flex-row ">
       {/* Sidebar desktop */}
-      <aside className="hidden shrink-0 border-r border-gray-200 bg-white p-4 lg:flex lg:w-56 lg:flex-col dark:border-gray-800 dark:bg-gray-900 print:hidden">
+      <aside className="hidden shrink-0 border-r border-gray-200 bg-surface p-4 lg:flex lg:w-56 lg:flex-col dark:border-gray-800 print:hidden">
         <div className="mb-6 flex items-center gap-2 px-2">
           <NotebookText className="h-6 w-6 text-green-600 dark:text-green-500" />
-          <span className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">Sổ Chi Tiêu</span>
-          <PrivacyToggle className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800" />
+          <span className="flex-1 text-lg font-bold text-fg-primary">Sổ Chi Tiêu</span>
+          <PrivacyToggle className="flex h-8 w-8 items-center justify-center rounded-lg text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800" />
           <NotificationBoundary>
             <NotificationBell className="hidden lg:inline-flex" />
           </NotificationBoundary>
@@ -187,7 +187,7 @@ export function AppLayout() {
             >
               <tab.Icon className="h-5 w-5" />
               <span className="flex-1">{tab.label}</span>
-              <kbd className="rounded bg-gray-100 px-1.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+              <kbd className="rounded bg-surface-sunken px-1.5 text-xs text-gray-600 dark:text-gray-400">
                 {i + 1}
               </kbd>
             </NavLink>
@@ -223,7 +223,7 @@ export function AppLayout() {
       )}
 
       {/* Bottom tab bar mobile — ẩn ở trang nhập giao dịch để lấy thêm không gian */}
-      <nav className={`fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-gray-800 dark:bg-gray-900 print:hidden ${onEntry ? 'hidden' : 'flex'}`}>
+      <nav className={`fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-gray-800 print:hidden ${onEntry ? 'hidden' : 'flex'}`}>
         {TABS.map((tab) => (
           <NavLink
             key={tab.to}
@@ -233,7 +233,7 @@ export function AppLayout() {
               `flex flex-1 flex-col items-center gap-0.5 py-2 text-xs ${
                 isActive
                 ? 'font-semibold text-green-700 dark:text-green-400'
-                : 'text-gray-500 dark:text-gray-400'
+                : 'text-fg-muted'
               }`
             }
           >

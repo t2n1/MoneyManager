@@ -1,4 +1,4 @@
-// Thẻ — gom idiom `rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm` xuất hiện
+// Thẻ — gom idiom `rounded-xl` + nền thẻ + `p-3 shadow-sm` xuất hiện
 // ~70 lần (27× kèm p-3, 11× p-4, 9× không padding, 5× text-center...).
 //
 // `elevation` là lý do chính component này tồn tại: hiện 29 thẻ trong features/reports

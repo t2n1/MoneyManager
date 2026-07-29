@@ -128,8 +128,8 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
         base={base}
       />
       {forecast && (
-        <div className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+        <div className="rounded-xl bg-surface p-3 shadow-sm">
+          <p className="text-xs text-fg-muted">
             Đã chi {formatMoney(forecast.spentSoFar, base)} sau {forecast.daysElapsed}/
             {forecast.daysInMonth} ngày.
           </p>
@@ -144,7 +144,7 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
               </p>
             )
           ) : (
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-2 text-xs text-fg-muted">
               Đặt ngân sách tháng để so sánh với dự báo.
             </p>
           )}
@@ -161,8 +161,8 @@ export function MonthPaceCharts({ pace }: { pace: MonthPace }) {
   return (
     <>
       {hasCashflow && (
-        <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
+        <section className="rounded-xl bg-surface p-3 shadow-sm">
+          <h2 className="mb-2 text-sm font-semibold text-fg-muted">
             Dòng tiền tích lũy trong tháng
           </h2>
           <div className="h-52 w-full">

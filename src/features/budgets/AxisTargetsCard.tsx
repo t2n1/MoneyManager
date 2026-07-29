@@ -24,14 +24,14 @@ interface Props {
 
 export function AxisTargetsCard({ data, base }: Props) {
   return (
-    <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+    <section className="rounded-xl bg-surface p-3 shadow-sm ">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+        <h2 className="text-sm font-semibold text-fg-muted">
           Cơ cấu chi so với mốc
         </h2>
         <Link
           to="/settings?edit=profile"
-          className="shrink-0 text-[0.6875rem] font-medium text-green-700 dark:text-green-400"
+          className="shrink-0 text-2xs font-medium text-green-700 dark:text-green-400"
         >
           Đổi mốc
         </Link>
@@ -52,13 +52,13 @@ export function AxisTargetsCard({ data, base }: Props) {
                   }`}
                 >
                   {Math.round(l.share * 100)}%
-                  <span className="ml-1 font-normal text-gray-500 dark:text-gray-400">
+                  <span className="ml-1 font-normal text-fg-muted">
                     {l.direction === 'cap' ? 'tối đa' : 'tối thiểu'}{' '}
                     {Math.round(l.targetShare * 100)}%
                   </span>
                 </span>
               </div>
-              <div className="relative mt-1 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+              <div className="relative mt-1 h-2 overflow-hidden rounded-full bg-surface-sunken">
                 <div
                   className={`h-full rounded-full ${
                     l.ok ? 'bg-green-500' : 'bg-amber-500'
@@ -72,7 +72,7 @@ export function AxisTargetsCard({ data, base }: Props) {
                   aria-hidden
                 />
               </div>
-              <div className="mt-0.5 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+              <div className="mt-0.5 flex justify-between text-xs text-fg-muted">
                 <span className={l.ok ? '' : 'text-amber-600 dark:text-amber-400'}>
                   {formatMoney(Math.round(l.actual), base)}
                 </span>
@@ -80,7 +80,7 @@ export function AxisTargetsCard({ data, base }: Props) {
                   {l.direction === 'cap' ? 'trần' : 'sàn'} {formatMoney(l.target, base)}
                 </span>
               </div>
-              <p className="mt-0.5 text-[0.6875rem] text-gray-500 dark:text-gray-400">{HINT[l.key]}</p>
+              <p className="mt-0.5 text-2xs text-fg-muted">{HINT[l.key]}</p>
             </li>
           )
         })}

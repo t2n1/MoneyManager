@@ -68,34 +68,34 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-t-2xl bg-gray-50 dark:bg-gray-950 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="w-full max-w-lg rounded-t-2xl bg-surface-page p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">Hồ sơ</h2>
+          <h2 className="text-base font-bold text-fg-primary">Hồ sơ</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Đóng
           </button>
         </div>
 
-        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Tên hiển thị</label>
+        <label className="block text-xs font-medium text-fg-muted">Tên hiển thị</label>
         <input
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Tên của bạn"
-          className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-gray-800 dark:text-gray-100 focus:border-green-500 focus:outline-none"
+          className="mt-1 w-full rounded-xl border border-border-strong bg-surface p-3 text-fg-primary focus:border-green-500 focus:outline-none"
         />
 
-        <label className="mt-3 block text-xs font-medium text-gray-500 dark:text-gray-400">Ngày bắt đầu tháng</label>
+        <label className="mt-3 block text-xs font-medium text-fg-muted">Ngày bắt đầu tháng</label>
         <select
           value={day}
           onChange={(e) => setDay(Number(e.target.value))}
-          className="mt-1 w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-gray-800 dark:text-gray-100 focus:border-green-500 focus:outline-none"
+          className="mt-1 w-full rounded-xl border border-border-strong bg-surface p-3 text-fg-primary focus:border-green-500 focus:outline-none"
         >
           {DAY_OPTIONS.map((d) => (
             <option key={d} value={d}>
@@ -103,22 +103,22 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
             </option>
           ))}
         </select>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Ảnh hưởng cách tính tháng trong báo cáo.</p>
+        <p className="mt-1 text-xs text-fg-muted">Ảnh hưởng cách tính tháng trong báo cáo.</p>
 
-        <label className="mt-3 block text-xs font-medium text-gray-500 dark:text-gray-400">Loại tiền gốc</label>
+        <label className="mt-3 block text-xs font-medium text-fg-muted">Loại tiền gốc</label>
         <input
           value={`${profile.base_currency} · ${CURRENCIES[profile.base_currency].label}`}
           disabled
-          className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800 p-3 text-gray-500 dark:text-gray-400"
+          className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-surface-sunken p-3 text-fg-muted"
         />
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Không đổi được.</p>
+        <p className="mt-1 text-xs text-fg-muted">Không đổi được.</p>
 
         {/* Tham số cho các chỉ số nâng cao — để trống thì phần đó tự ẩn đi */}
-        <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
           Cho báo cáo nâng cao
         </h3>
 
-        <label className="mt-2 block text-xs font-medium text-gray-500 dark:text-gray-400">
+        <label className="mt-2 block text-xs font-medium text-fg-muted">
           Thu nhập mỗi giờ làm
         </label>
         <input
@@ -126,15 +126,15 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           value={wage === '' ? '' : formatMoney(Number(wage), profile.base_currency)}
           onChange={(e) => setWage(e.target.value.replace(/\D/g, ''))}
           placeholder="Để trống nếu không dùng"
-          className="mt-1 w-full rounded-xl border border-gray-300 bg-white p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+          className="mt-1 w-full rounded-xl border border-gray-300 bg-surface p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:text-gray-100"
         />
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-xs text-fg-muted">
           Để báo cáo quy đổi “món này = mấy giờ làm”. Lương tháng ÷ số giờ làm thực tế trong tháng.
         </p>
 
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
+            <label className="block text-xs font-medium text-fg-muted">
               Lạm phát năm (%)
             </label>
             <input
@@ -142,11 +142,11 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
               value={inflation}
               onChange={(e) => setInflation(e.target.value)}
               placeholder="2,5"
-              className="mt-1 w-full rounded-xl border border-gray-300 bg-white p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              className="mt-1 w-full rounded-xl border border-gray-300 bg-surface p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:text-gray-100"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
+            <label className="block text-xs font-medium text-fg-muted">
               Thuế lãi vốn (%)
             </label>
             <input
@@ -154,17 +154,17 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
               value={tax}
               onChange={(e) => setTax(e.target.value)}
               placeholder="20,32"
-              className="mt-1 w-full rounded-xl border border-gray-300 bg-white p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+              className="mt-1 w-full rounded-xl border border-gray-300 bg-surface p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:text-gray-100"
             />
           </div>
         </div>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-xs text-fg-muted">
           Dùng để tính lợi nhuận đầu tư sau thuế và sau trượt giá. Ở Nhật thuế lãi vốn là 20,32%;
           lạm phát vài năm gần đây quanh 2–3%.
         </p>
 
         {/* Mốc cơ cấu chi — hiện ở đầu tab Ngân sách */}
-        <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
           Mốc cơ cấu chi (% thu nhập)
         </h3>
         <div className="mt-2 grid grid-cols-3 gap-2">
@@ -174,7 +174,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
             { label: 'Tiết kiệm', value: savings, set: setSavings, ph: '20' },
           ].map((f) => (
             <div key={f.label}>
-              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
+              <label className="block text-xs font-medium text-fg-muted">
                 {f.label}
               </label>
               <input
@@ -182,12 +182,12 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
                 value={f.value}
                 onChange={(e) => f.set(e.target.value)}
                 placeholder={f.ph}
-                className="mt-1 w-full rounded-xl border border-gray-300 bg-white p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+                className="mt-1 w-full rounded-xl border border-gray-300 bg-surface p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:text-gray-100"
               />
             </div>
           ))}
         </div>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-xs text-fg-muted">
           Mặc định là quy tắc 50/30/20. Hai mốc đầu là <b>trần</b> (chi dưới mức là tốt), tiết kiệm
           là <b>sàn</b> (vượt mức là tốt).
           {/* Không ép tổng = 100: có người muốn để đệm, nhưng lệch nhiều thì nhắc */}

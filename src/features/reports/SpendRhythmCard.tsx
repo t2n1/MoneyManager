@@ -23,12 +23,12 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
   const busiest = ordered.reduce((m, b) => (b.avg > m.avg ? b : m), ordered[0])
 
   return (
-    <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+    <section className="rounded-xl bg-surface p-3 shadow-sm ">
       <h2 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">Nhịp chi tiêu</h2>
 
       {payday && (
         <div className="mb-3">
-          <h3 className="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+          <h3 className="mb-1 text-xs font-medium text-fg-muted">
             {windowDays} ngày sau khi nhận lương
           </h3>
           {payday.ratio >= 1.3 ? (
@@ -42,12 +42,12 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
               {money(payday.afterPayday)} so với {money(payday.otherDays)}/ngày).
             </p>
           ) : (
-            <p className="rounded-lg bg-gray-50 px-2.5 py-2 text-xs text-gray-600 dark:bg-gray-950 dark:text-gray-300">
+            <p className="rounded-lg bg-surface-page px-2.5 py-2 text-xs text-fg-secondary">
               Mức chi sau lương ({money(payday.afterPayday)}/ngày) gần như ngày thường (
               {money(payday.otherDays)}/ngày). Không có hiệu ứng ngày lương rõ rệt.
             </p>
           )}
-          <p className="mt-1 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-2xs text-fg-muted">
             Dựa trên {payday.paydayCount} lần nhận lương, {payday.daysInWindow} ngày trong cửa sổ và{' '}
             {payday.daysOutside} ngày thường.
           </p>
@@ -56,7 +56,7 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
 
       {hasWeekdayData && (
         <div>
-          <h3 className="mb-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+          <h3 className="mb-1.5 text-xs font-medium text-fg-muted">
             Chi trung bình theo thứ
           </h3>
           <div className="flex items-end gap-1" role="img" aria-label={`Chi nhiều nhất vào ${WEEKDAY_LABELS[busiest.dow]}`}>
@@ -64,7 +64,7 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
               const isWeekend = b.dow === 0 || b.dow === 6
               return (
                 <div key={b.dow} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                  <span className="text-3xs tabular-nums text-gray-500 dark:text-gray-400">
+                  <span className="text-3xs tabular-nums text-fg-muted">
                     {formatCompact(b.avg, base)}
                   </span>
                   <div
@@ -78,10 +78,10 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
                     style={{ height: `${Math.max(3, (b.avg / maxAvg) * 56)}px` }}
                   />
                   <span
-                    className={`text-[0.625rem] ${
+                    className={`text-3xs ${
                       isWeekend
                         ? 'font-medium text-sky-600 dark:text-sky-400'
-                        : 'text-gray-500 dark:text-gray-400'
+                        : 'text-fg-muted'
                     }`}
                   >
                     {WEEKDAY_LABELS[b.dow]}
@@ -90,7 +90,7 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
               )
             })}
           </div>
-          <p className="mt-1.5 text-xs text-gray-600 dark:text-gray-300">
+          <p className="mt-1.5 text-xs text-fg-secondary">
             Tốn nhất là <b>{WEEKDAY_LABELS[busiest.dow]}</b> ({money(busiest.avg)}/ngày).
           </p>
         </div>

@@ -63,24 +63,24 @@ function ExportSection() {
   const label = period === 'month' ? formatMonthLabel(monthKey) : formatYearLabel(year)
 
   return (
-    <section className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-900">
-      <h2 className="px-3 pt-3 text-sm font-semibold text-gray-500 dark:text-gray-400">
+    <section className="overflow-hidden rounded-xl bg-surface shadow-sm ">
+      <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">
         Xuất báo cáo &amp; giao dịch
       </h2>
       <div className="p-3">
         {/* Nút gạt Tháng | Năm */}
-        <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5 text-sm font-medium">
+        <div className="flex rounded-lg bg-surface-sunken p-0.5 text-sm font-medium">
           <button
             type="button"
             onClick={() => setPeriod('month')}
-            className={`flex-1 rounded-md py-1.5 ${period === 'month' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+            className={`flex-1 rounded-md py-1.5 ${period === 'month' ? 'bg-surface text-fg-primary shadow-sm' : 'text-fg-on-track hover:text-fg-primary'}`}
           >
             Tháng
           </button>
           <button
             type="button"
             onClick={() => setPeriod('year')}
-            className={`flex-1 rounded-md py-1.5 ${period === 'year' ? 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+            className={`flex-1 rounded-md py-1.5 ${period === 'year' ? 'bg-surface text-fg-primary shadow-sm' : 'text-fg-on-track hover:text-fg-primary'}`}
           >
             Năm
           </button>
@@ -98,7 +98,7 @@ function ExportSection() {
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{label}</span>
+          <span className="text-sm font-semibold text-fg-primary">{label}</span>
           <button
             type="button"
             onClick={() =>
@@ -142,12 +142,12 @@ export function DataPage() {
       <div className="flex items-center gap-2">
         <Link
           to="/settings"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white dark:bg-gray-900 px-3 py-1.5 text-lg shadow-sm active:scale-95"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>
-        <h1 className="flex-1 text-lg font-bold text-gray-800 dark:text-gray-100">
+        <h1 className="flex-1 text-lg font-bold text-fg-primary">
           Dữ liệu &amp; sao lưu
         </h1>
       </div>
@@ -156,8 +156,8 @@ export function DataPage() {
 
       <BackupSection />
 
-      <section className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-900">
-        <h2 className="px-3 pt-3 text-sm font-semibold text-gray-500 dark:text-gray-400">
+      <section className="overflow-hidden rounded-xl bg-surface shadow-sm ">
+        <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">
           Nhập dữ liệu
         </h2>
         <div className="mt-1">
@@ -165,7 +165,7 @@ export function DataPage() {
             to="/settings/import"
             className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
           >
-            <FileUp className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <FileUp className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Nhập giao dịch từ CSV</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>

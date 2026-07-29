@@ -31,7 +31,7 @@ export function ClassificationToggle<T extends string | null>({
   return (
     <div>
       {label && (
-        <p className="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
+        <p className="mb-1 text-xs font-medium text-fg-muted">{label}</p>
       )}
       <div
         role="group"
@@ -44,10 +44,13 @@ export function ClassificationToggle<T extends string | null>({
             type="button"
             onClick={() => onChange(val)}
             aria-pressed={value === val}
+            // Mục không chọn dùng --fg-on-track (gray-600), KHÔNG phải --fg-muted:
+            // track ở đây là gray-200, ở đó gray-500 chỉ đạt 3,91:1 → trượt AA.
+            // gray-600 trên gray-200 = 6,88:1. Cùng lý do với nhãn tab trên gray-100.
             className={`min-h-11 rounded-lg text-xs font-medium transition ${
               value === val
-                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-900 dark:text-gray-100'
-                : 'text-gray-500 dark:text-gray-400'
+                ? 'bg-surface text-gray-900 shadow-sm dark:text-gray-100'
+                : 'text-fg-on-track hover:text-fg-primary'
             }`}
           >
             {text}

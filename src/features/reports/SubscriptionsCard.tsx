@@ -25,7 +25,7 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
   const hours = hoursOfWork(data.monthly, hourlyWage)
 
   return (
-    <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+    <section className="rounded-xl bg-surface p-3 shadow-sm ">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
           Tiền tự động trừ mỗi tháng
@@ -39,11 +39,11 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
         </Link>
       </div>
 
-      <p className="text-2xl font-bold tabular-nums text-gray-800 dark:text-gray-100">
+      <p className="text-2xl font-bold tabular-nums text-fg-primary">
         {money(data.monthly)}
-        <span className="ml-1 text-sm font-normal text-gray-500 dark:text-gray-400">/tháng</span>
+        <span className="ml-1 text-sm font-normal text-fg-muted">/tháng</span>
       </p>
-      <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-300">
+      <p className="mt-0.5 text-xs text-fg-secondary">
         Tức <b>{money(data.yearly)}</b> mỗi năm
         {shareOfIncome !== null && <> · {Math.round(shareOfIncome * 100)}% thu nhập</>}
         {hours !== null && <> · ≈ {hours.toFixed(1).replace('.', ',')} giờ làm mỗi tháng</>}.
@@ -53,28 +53,28 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
         {data.items.slice(0, 6).map((item) => (
           <li
             key={item.id}
-            className="flex items-center gap-2 rounded-lg bg-gray-50 px-2 py-1.5 text-xs dark:bg-gray-950"
+            className="flex items-center gap-2 rounded-lg bg-surface-page px-2 py-1.5 text-xs "
           >
             <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-200">
               {item.note || 'Khoản định kỳ'}
             </span>
-            <span className="shrink-0 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+            <span className="shrink-0 text-2xs text-fg-muted">
               {FREQ_LABEL[item.frequency]}
             </span>
-            <span className="w-20 shrink-0 text-right font-medium tabular-nums text-gray-800 dark:text-gray-100">
+            <span className="w-20 shrink-0 text-right font-medium tabular-nums text-fg-primary">
               {money(item.monthly)}
             </span>
           </li>
         ))}
       </ul>
       {data.items.length > 6 && (
-        <p className="mt-1 text-[0.6875rem] text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-2xs text-fg-muted">
           …và {data.items.length - 6} khoản nhỏ hơn.
         </p>
       )}
 
       {data.hasMissingRate && (
-        <p className="mt-2 text-[0.6875rem] text-amber-700 dark:text-amber-300">
+        <p className="mt-2 text-2xs text-amber-700 dark:text-amber-300">
           Một khoản ngoại tệ chưa quy đổi được nên tổng có thể thiếu.
         </p>
       )}

@@ -33,7 +33,7 @@ export function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
-      <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">Cài đặt</h1>
+      <h1 className="text-lg font-bold text-fg-primary">Cài đặt</h1>
 
       {isDemoMode && (
         <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
@@ -65,14 +65,14 @@ export function SettingsPage() {
         </div>
       )}
 
-      <section className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-900">
-        <h2 className="px-3 pt-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Quản lý</h2>
-        <div className="mt-1 divide-y divide-gray-100 dark:divide-gray-800">
+      <section className="overflow-hidden rounded-xl bg-surface shadow-sm ">
+        <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">Quản lý</h2>
+        <div className="mt-1 divide-y divide-border-subtle">
           <Link
             to="/settings/accounts"
             className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
           >
-            <Landmark className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <Landmark className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Tài khoản</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
@@ -80,7 +80,7 @@ export function SettingsPage() {
             to="/settings/categories"
             className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
           >
-            <Tags className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <Tags className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Danh mục</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
@@ -88,7 +88,7 @@ export function SettingsPage() {
             to="/settings/categories/classify"
             className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
           >
-            <Scale className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <Scale className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Phân loại chi tiêu</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
@@ -96,7 +96,7 @@ export function SettingsPage() {
             to="/settings/tags"
             className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
           >
-            <TagIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <TagIcon className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Nhãn</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
@@ -104,7 +104,7 @@ export function SettingsPage() {
             to="/settings/notifications"
             className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
           >
-            <Bell className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <Bell className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Thông báo</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
@@ -112,7 +112,7 @@ export function SettingsPage() {
             to="/settings/asset-groups"
             className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
           >
-            <Layers className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <Layers className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Nhóm tài sản</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
@@ -120,7 +120,7 @@ export function SettingsPage() {
             to="/settings/debts"
             className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
           >
-            <Handshake className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <Handshake className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Nợ / cho vay</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
@@ -128,7 +128,7 @@ export function SettingsPage() {
             to="/settings/recurring"
             className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
           >
-            <Repeat className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+            <Repeat className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Giao dịch định kỳ</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
@@ -139,15 +139,15 @@ export function SettingsPage() {
 
       <FontSizeToggle />
 
-      <section className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-900">
+      <section className="overflow-hidden rounded-xl bg-surface shadow-sm ">
         <Link
           to="/settings/data"
           className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
         >
-          <Database className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+          <Database className="h-5 w-5 text-fg-muted" />
           <span className="flex-1">
             <span className="block">Dữ liệu &amp; sao lưu</span>
-            <span className="block text-xs text-gray-500 dark:text-gray-400">
+            <span className="block text-xs text-fg-muted">
               Xuất CSV / PDF · Sao lưu, khôi phục · Nhập CSV
             </span>
           </span>
@@ -155,16 +155,16 @@ export function SettingsPage() {
         </Link>
       </section>
 
-      <section className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-900">
+      <section className="overflow-hidden rounded-xl bg-surface shadow-sm ">
         <button
           type="button"
           onClick={() => setEditing(true)}
           className="flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800"
         >
-          <UserRound className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+          <UserRound className="h-5 w-5 text-fg-muted" />
           <span className="flex-1">
-            <span className="block text-sm text-gray-800 dark:text-gray-100">{profile?.display_name ?? '—'}</span>
-            <span className="block text-xs text-gray-500 dark:text-gray-400">
+            <span className="block text-sm text-fg-primary">{profile?.display_name ?? '—'}</span>
+            <span className="block text-xs text-fg-muted">
               Tháng bắt đầu ngày {profile?.month_start_day ?? 1} · Tiền gốc {profile?.base_currency ?? '—'}
             </span>
           </span>
@@ -187,7 +187,7 @@ export function SettingsPage() {
         )}
       </section>
 
-      <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+      <p className="text-center text-xs text-fg-muted">
         Sổ Chi Tiêu · Giai đoạn 1 (MVP)
         {profile && ` · Tháng bắt đầu ngày ${profile.month_start_day} · Quy đổi ${profile.base_currency}`}
       </p>

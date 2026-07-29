@@ -32,7 +32,7 @@ const BAR_COLOR: Record<BudgetStatus, string> = {
   over: 'bg-red-500',
 }
 const TEXT_COLOR: Record<BudgetStatus, string> = {
-  ok: 'text-gray-800 dark:text-gray-100',
+  ok: 'text-fg-primary',
   warn: 'text-amber-600',
   over: 'text-money-out',
 }
@@ -42,7 +42,7 @@ function ProgressBar({ ratio, status }: { ratio: number; status: BudgetStatus })
   const pct = Math.round(ratio * 100)
   return (
     <div
-      className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
+      className="mt-1 h-2 overflow-hidden rounded-full bg-surface-sunken"
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={100}
@@ -150,7 +150,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   }
 
   if (isLoading || !report) {
-    return <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">Đang tải…</p>
+    return <p className="py-10 text-center text-sm text-fg-muted">Đang tải…</p>
   }
 
   const totalPct = report.totalBudgeted > 0 ? (report.totalSpent / report.totalBudgeted) * 100 : 0
@@ -173,13 +173,13 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             {child.marker ? (
               <span className={`text-xs ${TEXT_COLOR[child.marker.status]}`}>{pct}%</span>
             ) : (
-              <span className="text-xs text-gray-500 dark:text-gray-400">Đặt mốc +</span>
+              <span className="text-xs text-fg-muted">Đặt mốc +</span>
             )}
           </div>
           {child.marker ? (
             <>
               <ProgressBar ratio={child.marker.ratio} status={child.marker.status} />
-              <div className="mt-0.5 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+              <div className="mt-0.5 flex justify-between text-xs text-fg-muted">
                 <span className={TEXT_COLOR[child.marker.status]}>
                   {formatMoney(child.marker.spent, base)}
                 </span>
@@ -187,7 +187,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               </div>
             </>
           ) : (
-            <div className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+            <div className="mt-0.5 text-xs text-fg-muted">
               Đã chi {formatMoney(child.spent, base)}
             </div>
           )}
@@ -209,9 +209,9 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       {axis && <AxisTargetsCard data={axis} base={base} />}
 
       {/* Dòng tổng */}
-      <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+      <section className="rounded-xl bg-surface p-3 shadow-sm">
         <div className="mb-1 flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400">Tổng ngân sách</h2>
+          <h2 className="text-sm font-semibold text-fg-muted">Tổng ngân sách</h2>
           <span className="flex gap-2 text-xs font-medium">
             {report.warnCount > 0 && (
               <span className="text-amber-600 dark:text-amber-400">{report.warnCount} sắp vượt</span>
@@ -225,7 +225,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           <span className={`text-lg font-bold ${TEXT_COLOR[report.totalStatus]}`}>
             {formatMoney(report.totalSpent, base)}
           </span>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+          <span className="text-sm text-fg-muted">
             / {formatMoney(report.totalBudgeted, base)}
           </span>
         </div>
@@ -233,7 +233,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         <button
           type="button"
           onClick={handleCopy}
-          className="mt-3 rounded-lg border border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="mt-3 rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-gray-100 dark:hover:bg-gray-800"
         >
           Chép hạn mức tháng trước
         </button>
@@ -244,7 +244,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
 
       {/* Danh mục / nhóm có hạn mức */}
       {items.length > 0 && (
-        <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
+        <section className="rounded-xl bg-surface p-3 shadow-sm">
           <ul className="space-y-3">
             {items.map((item) => {
               if (item.kind === 'leaf') {
@@ -263,7 +263,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                         <span className={`text-xs ${TEXT_COLOR[item.line.status]}`}>{pct}%</span>
                       </div>
                       <ProgressBar ratio={item.line.ratio} status={item.line.status} />
-                      <div className="mt-0.5 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                      <div className="mt-0.5 flex justify-between text-xs text-fg-muted">
                         <span className={TEXT_COLOR[item.line.status]}>
                           {formatMoney(item.line.spent, base)}
                         </span>
@@ -292,7 +292,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                       onClick={() => toggle(item.cat.id)}
                       aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
                       aria-expanded={isOpen}
-                      className="shrink-0 rounded p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                      className="shrink-0 rounded p-0.5 text-fg-muted hover:text-gray-600 dark:hover:text-gray-200"
                     >
                       {isOpen ? (
                         <ChevronDown className="h-4 w-4" />
@@ -307,16 +307,16 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                       className="min-w-0 flex-1 text-left"
                     >
                       <div className="flex items-baseline justify-between text-sm">
-                        <span className="font-medium text-gray-800 dark:text-gray-100">
+                        <span className="font-medium text-fg-primary">
                           {item.cat.icon} {item.cat.name}
-                          <span className="ml-1 text-xs font-normal text-gray-500 dark:text-gray-400">
+                          <span className="ml-1 text-xs font-normal text-fg-muted">
                             {item.capped ? 'trần nhóm' : `${item.children.length} mục con`}
                           </span>
                         </span>
                         <span className={`text-xs ${TEXT_COLOR[item.status]}`}>{pct}%</span>
                       </div>
                       <ProgressBar ratio={item.ratio} status={item.status} />
-                      <div className="mt-0.5 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                      <div className="mt-0.5 flex justify-between text-xs text-fg-muted">
                         <span className={TEXT_COLOR[item.status]}>
                           {formatMoney(item.spent, base)}
                         </span>
@@ -332,7 +332,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     </p>
                   )}
                   {isOpen && (
-                    <ul className="mt-2 space-y-2 border-l border-gray-100 dark:border-gray-800 pl-3">
+                    <ul className="mt-2 space-y-2 border-l border-border-subtle pl-3">
                       {item.children.map(childRow)}
                     </ul>
                   )}
@@ -345,11 +345,11 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
 
       {/* Nhóm / lá chưa đặt hạn mức */}
       {unbudgeted.length > 0 && (
-        <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-          <h2 className="mb-1 text-sm font-semibold text-gray-500 dark:text-gray-400">
+        <section className="rounded-xl bg-surface p-3 shadow-sm">
+          <h2 className="mb-1 text-sm font-semibold text-fg-muted">
             Chưa đặt hạn mức
           </h2>
-          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mb-2 text-xs text-fg-muted">
             Bấm tên nhóm để đặt trần chung, hoặc xổ ra (▸) để đặt riêng cho từng mục con — khi đó
             trần nhóm là tổng các con.
           </p>
@@ -365,7 +365,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                         onClick={() => toggle(c.id)}
                         aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
                         aria-expanded={isOpen}
-                        className="shrink-0 rounded p-0.5 text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                        className="shrink-0 rounded p-0.5 text-fg-muted hover:text-gray-600 dark:hover:text-gray-200"
                       >
                         {isOpen ? (
                           <ChevronDown className="h-4 w-4" />
@@ -377,19 +377,19 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     <button
                       type="button"
                       onClick={() => openEdit(c.id)}
-                      className="rounded-full border border-dashed border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      className="rounded-full border border-dashed border-border-strong px-3 py-1.5 text-xs text-fg-secondary hover:bg-gray-50 dark:hover:bg-gray-800"
                     >
                       {c.icon} {c.name} +
                     </button>
                   </div>
                   {isOpen && children.length > 0 && (
-                    <ul className="mt-2 flex flex-wrap gap-2 border-l border-gray-100 dark:border-gray-800 pl-3">
+                    <ul className="mt-2 flex flex-wrap gap-2 border-l border-border-subtle pl-3">
                       {children.map((k) => (
                         <li key={k.id}>
                           <button
                             type="button"
                             onClick={() => openEdit(k.id)}
-                            className="rounded-full border border-dashed border-gray-300 dark:border-gray-700 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                            className="rounded-full border border-dashed border-border-strong px-3 py-1.5 text-xs text-fg-secondary hover:bg-gray-50 dark:hover:bg-gray-800"
                           >
                             {k.icon} {k.name} +
                           </button>

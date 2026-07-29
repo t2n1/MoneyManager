@@ -14,8 +14,8 @@ export function FontSizeToggle() {
   const { pref, setFontScale } = useFontScale()
 
   return (
-    <section className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-900">
-      <h2 className="px-3 pt-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Cỡ chữ</h2>
+    <section className="overflow-hidden rounded-xl bg-surface shadow-sm ">
+      <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">Cỡ chữ</h2>
       <div className="flex gap-1 p-3">
         {OPTIONS.map((opt) => {
           const active = pref === opt.value
@@ -43,7 +43,7 @@ export function FontSizeToggle() {
           )
         })}
       </div>
-      <p className="px-3 pb-3 text-xs text-gray-500 dark:text-gray-400">
+      <p className="px-3 pb-3 text-xs text-fg-muted">
         Áp dụng cho toàn bộ app. Chọn cỡ lớn sẽ hiển thị ít nội dung hơn trên mỗi màn hình.
       </p>
     </section>

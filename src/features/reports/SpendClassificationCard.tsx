@@ -58,9 +58,9 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
     typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
   return (
-    <section className="rounded-xl bg-white p-3 shadow-sm dark:bg-gray-900">
+    <section className="rounded-xl bg-surface p-3 shadow-sm ">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400">Cơ cấu chi tiêu</h2>
+        <h2 className="text-sm font-semibold text-fg-muted">Cơ cấu chi tiêu</h2>
         {unclassifiedCount > 0 && (
           <Link
             to="/settings/categories/classify"
@@ -72,11 +72,11 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
       </div>
 
       {/* C1 — 50/30/20 trên thu nhập */}
-      <h3 className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-        Thiết yếu vs Linh hoạt <span className="text-gray-500 dark:text-gray-400">(% thu nhập · quy tắc 50/30/20)</span>
+      <h3 className="mb-2 text-xs font-medium text-fg-muted">
+        Thiết yếu vs Linh hoạt <span className="text-fg-muted">(% thu nhập · quy tắc 50/30/20)</span>
       </h3>
       {income <= 0 ? (
-        <p className="mb-3 rounded-lg bg-gray-50 px-3 py-3 text-center text-xs text-gray-500 dark:bg-gray-950 dark:text-gray-400">
+        <p className="mb-3 rounded-lg bg-surface-page px-3 py-3 text-center text-xs text-fg-muted">
           Cần có thu nhập trong {periodNoun} để tính tỷ lệ 50/30/20.
         </p>
       ) : (
@@ -113,11 +113,11 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
       )}
 
       {/* C2 — Cố định vs Biến đổi trên tổng chi (donut + thanh) */}
-      <h3 className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-        Cố định vs Biến đổi <span className="text-gray-500 dark:text-gray-400">(% chi tiêu)</span>
+      <h3 className="mb-2 text-xs font-medium text-fg-muted">
+        Cố định vs Biến đổi <span className="text-fg-muted">(% chi tiêu)</span>
       </h3>
       {totalExpense <= 0 ? (
-        <p className="rounded-lg bg-gray-50 px-3 py-3 text-center text-xs text-gray-500 dark:bg-gray-950 dark:text-gray-400">
+        <p className="rounded-lg bg-surface-page px-3 py-3 text-center text-xs text-fg-muted">
           Chưa có chi tiêu trong {periodNoun}.
         </p>
       ) : (
@@ -157,8 +157,8 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
               className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
               aria-hidden="true"
             >
-              <span className="text-[0.625rem] leading-none text-gray-500 dark:text-gray-400">Tổng chi</span>
-              <span className="mt-0.5 text-sm font-bold leading-none tabular-nums text-gray-800 dark:text-gray-100">
+              <span className="text-3xs leading-none text-fg-muted">Tổng chi</span>
+              <span className="mt-0.5 text-sm font-bold leading-none tabular-nums text-fg-primary">
                 {formatCompact(totalExpense, base)}
               </span>
             </div>
@@ -193,7 +193,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
         </p>
       ) : (
         totalExpense > 0 && (
-          <p className="mt-3 text-center text-xs text-gray-500 dark:text-gray-400">
+          <p className="mt-3 text-center text-xs text-fg-muted">
             Phân loại chi tiêu để xem gợi ý cắt giảm khẩn cấp.
           </p>
         )

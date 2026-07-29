@@ -62,7 +62,7 @@ function EventLine({ e, currency }: { e: YearEvent; currency: CurrencyCode }) {
   return (
     <div className="flex items-center gap-1.5">
       <Icon className={`h-3.5 w-3.5 shrink-0 ${tone}`} />
-      <span className="min-w-0 flex-1 truncate text-gray-600 dark:text-gray-300">{e.label}</span>
+      <span className="min-w-0 flex-1 truncate text-fg-secondary">{e.label}</span>
       <span className={`shrink-0 tabular-nums font-medium ${tone}`}>
         {isIncome ? '+' : '−'}
         {formatMoney(e.amountDisplayMinor, currency)}
@@ -81,22 +81,22 @@ function YearCard({ row, currency }: { row: YearRow; currency: CurrencyCode }) {
       className={`rounded-lg p-2.5 ${
         negative
           ? 'border-l-[3px] border-red-600 bg-red-50 dark:bg-red-900/20'
-          : 'bg-white dark:bg-gray-900'
+          : 'bg-surface'
       }`}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+        <p className="text-sm font-semibold text-fg-primary">
           {row.year} · {row.age} tuổi · {row.country ?? row.phaseLabel}
         </p>
         {/* KHÔNG có icon cảnh báo ở con số này: `negative` đọc dấu của
             `assetsPessimisticMinor`, còn đây là `assetsEndMinor` — dán icon vào đây là
             gắn cảnh báo lên một con số có thể đang dương to. Icon đi cùng con số bi quan
             ở dòng dưới, đúng con số nó nói về. */}
-        <span className="shrink-0 tabular-nums text-sm font-semibold text-gray-800 dark:text-gray-100">
+        <span className="shrink-0 tabular-nums text-sm font-semibold text-fg-primary">
           {formatMoney(row.assetsEndMinor, currency)}
         </span>
       </div>
-      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+      <p className="mt-0.5 text-xs text-fg-muted">
         thu {formatMoney(row.incomeMinor, currency)} · chi {formatMoney(row.expenseMinor, currency)}
       </p>
       {/* Biên dưới của dải — con số THẬT SỰ quyết định nền đỏ và viền đỏ của thẻ này.
@@ -105,7 +105,7 @@ function YearCard({ row, currency }: { row: YearRow; currency: CurrencyCode }) {
           thấy được lại dương thoải mái, và không gì trên màn hình giải thích vì sao. */}
       <p
         className={`mt-0.5 flex items-center gap-1 text-xs tabular-nums ${
-          negative ? 'text-money-out' : 'text-gray-500 dark:text-gray-400'
+          negative ? 'text-money-out' : 'text-fg-muted'
         }`}
       >
         {negative && <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
@@ -152,7 +152,7 @@ function YearTableRow({ row, currency }: { row: YearRow; currency: CurrencyCode 
       <td className={MONEY_CELL}>{formatMoney(row.expenseMinor, currency)}</td>
       <td className="min-w-40 p-1.5 align-top">
         {row.events.length === 0 ? (
-          <span className="text-gray-500 dark:text-gray-400">—</span>
+          <span className="text-fg-muted">—</span>
         ) : (
           <div className="space-y-0.5">
             {row.events.map((e) => (
@@ -166,7 +166,7 @@ function YearTableRow({ row, currency }: { row: YearRow; currency: CurrencyCode 
           đọc dấu của chính con số trong ô này. */}
       <td
         className={`${MONEY_CELL} ${
-          negative ? 'font-medium text-money-out' : 'text-gray-500 dark:text-gray-400'
+          negative ? 'font-medium text-money-out' : 'text-fg-muted'
         }`}
       >
         <span className="inline-flex items-center gap-1">
@@ -237,21 +237,21 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
         role="dialog"
         aria-modal="true"
         aria-label="Bảng theo năm"
-        className="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-gray-50 dark:bg-gray-950 lg:rounded-2xl"
+        className="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-surface-page lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-gray-300 dark:bg-gray-700 lg:hidden" />
 
         {/* Header: tiêu đề + đóng */}
         <div className="flex shrink-0 items-center gap-2 p-3 pb-2">
-          <h2 className="flex-1 text-base font-bold text-gray-800 dark:text-gray-100">
+          <h2 className="flex-1 text-base font-bold text-fg-primary">
             Bảng theo năm
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Đóng bảng theo năm"
-            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 active:scale-95"
+            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-fg-muted active:scale-95"
           >
             <X className="h-5 w-5" />
           </button>
@@ -286,7 +286,7 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
           <button
             type="button"
             onClick={handleExport}
-            className="ml-auto flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm font-medium text-gray-600 dark:text-gray-300 active:scale-95"
+            className="ml-auto flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary active:scale-95"
           >
             <Download className="h-4 w-4" />
             Xuất CSV
@@ -296,7 +296,7 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
         {/* Nội dung: cuộn dọc. Mobile = thẻ, sm+ = bảng thật trong overflow-x-auto. */}
         <div className="flex-1 overflow-y-auto px-3 pb-2">
           {rows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            <p className="py-6 text-center text-sm text-fg-muted">
               Chưa có dữ liệu để hiện.
             </p>
           ) : (
@@ -310,7 +310,7 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
               <div className="hidden overflow-x-auto sm:block">
                 <table className="w-full border-collapse text-sm">
                   <thead>
-                    <tr className="text-left text-xs text-gray-500 dark:text-gray-400">
+                    <tr className="text-left text-xs text-fg-muted">
                       {TABLE_HEADERS.map((h) => (
                         <th
                           key={h}
@@ -334,7 +334,7 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
 
         {/* Chân bảng — BẮT BUỘC nói rõ trạng thái ẩn/hiện, không được im lặng. */}
         {rows.length > 0 && (
-          <div className="shrink-0 border-t border-gray-200 dark:border-gray-800 p-2 text-center text-xs text-gray-500 dark:text-gray-400">
+          <div className="shrink-0 border-t border-gray-200 dark:border-gray-800 p-2 text-center text-xs text-fg-muted">
             <p>
               {hiddenCount > 0
                 ? `đang ẩn ${hiddenCount} năm không có sự kiện`

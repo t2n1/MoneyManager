@@ -1,4 +1,6 @@
-import { defineConfig } from 'vite'
+// `defineConfig` lấy từ 'vitest/config' chứ không từ 'vite': bản của vite không biết
+// khoá `test` nên khai báo bên dưới sẽ đỏ kiểu. Đây là cách vitest tự hướng dẫn.
+import { defaultExclude, defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -9,6 +11,16 @@ export default defineConfig({
   server: {
     host: true,
     port: process.env.PORT ? Number(process.env.PORT) : 5173,
+  },
+  // Không có khối này thì vitest quét CẢ repo, kể cả các worktree trong
+  // .claude/worktrees (mỗi cái là một bản checkout đầy đủ của một nhánh khác). Ba
+  // worktree cũ đang nằm ở đó kéo theo hơn 100 file test của nhánh khác vào cùng
+  // một lần chạy, nên con số "npm test" không còn nói gì về bộ test THẬT trong src/
+  // và còn nhảy mỗi lần ai đó tạo/xoá worktree.
+  test: {
+    // Nối vào exclude mặc định của vitest, KHÔNG thay thế: `exclude` là ghi đè
+    // toàn phần, viết trần một mẫu ở đây là lẳng lặng bỏ mất node_modules/.git.
+    exclude: [...defaultExclude, '**/.claude/worktrees/**'],
   },
   plugins: [
     react(),

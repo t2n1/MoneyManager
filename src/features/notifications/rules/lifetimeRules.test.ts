@@ -105,11 +105,17 @@ describe('lifetimeRules', () => {
   })
 
   it('bỏ chuyển khoản và exclude_from_stats', () => {
-    // Chỉ còn khoản 2026-07-15 → cửa sổ 14 ngày, cần ≈ 4.000.000 × 14/365 = 153.425.
+    // Hai khoản CÒN LẠI cách nhau đủ xa để cửa sổ trải 44 ngày (2026-06-15 → hôm nay),
+    // tức qua được `MIN_WINDOW_DAYS`. Chốt này là BẮT BUỘC: nếu chỉ để lại một khoản
+    // 2026-07-15 (cửa sổ 14 ngày) thì luật im vì THIẾU DỮ LIỆU, và phép thử sẽ xanh
+    // ngay cả khi hai điều kiện loại trừ nó sinh ra để canh bị xóa sạch.
+    // Cần ≈ 4.000.000 × 44/365 = 482.192; hai khoản 241.000 = 482.000 ⇒ 3.998.409/năm,
+    // lệch 0,04% → im. Kéo một trong hai dòng 9.000.000 vào thì thành 78.657.500/năm.
     const txs = [
-      { ...tx(9_000_000, '2026-06-15'), type: 'transfer' } as TransactionRow,
-      { ...tx(9_000_000, '2026-06-16'), exclude_from_stats: true } as TransactionRow,
-      tx(153_000, '2026-07-15'),
+      { ...tx(9_000_000, '2026-06-15'), id: 'transfer', type: 'transfer' } as TransactionRow,
+      { ...tx(9_000_000, '2026-06-16'), id: 'excluded', exclude_from_stats: true } as TransactionRow,
+      tx(241_000, '2026-06-15'),
+      tx(241_000, '2026-07-15'),
     ]
     expect(lifetimeRules(input({ recentTxs: txs }))).toEqual([])
   })
@@ -141,29 +147,37 @@ describe('lifetimeRules', () => {
   })
 
   it('hoàn tiền là chi ÂM, trừ ra chứ không cộng vào', () => {
-    // Chi 300.000 rồi trả hàng lấy lại 147.000 → chi thật 153.000 trong 14 ngày
-    // ⇒ 3.989.143/năm, lệch 0,3% so với 4.000.000 → im.
-    // Nếu lấy Math.abs thẳng: 447.000 → 11.653.929/năm → báo "cao hơn 191%" oan.
+    // Chi 800.000 (2026-06-15) rồi trả hàng lấy lại 318.000 → chi thật 482.000 trên
+    // cửa sổ 44 ngày ⇒ 3.998.409/năm, lệch 0,04% so với 4.000.000 → im.
+    // Nếu KHÔNG áp expenseSign (cộng dồn 1.118.000): 9.274.318/năm → "cao hơn 132%" oan.
+    // Khoản chi phải nằm ở 2026-06-15 để cửa sổ trải đủ `MIN_WINDOW_DAYS` — cả hai
+    // khoản cùng ở 2026-07-15 thì luật im vì thiếu dữ liệu và phép thử vô nghĩa.
     const txs = [
-      tx(300_000, '2026-07-15'),
-      { ...tx(147_000, '2026-07-15'), id: 'refund', is_refund: true } as TransactionRow,
+      tx(800_000, '2026-06-15'),
+      { ...tx(318_000, '2026-07-15'), id: 'refund', is_refund: true } as TransactionRow,
     ]
     expect(lifetimeRules(input({ recentTxs: txs }))).toEqual([])
   })
 
   it('bỏ dòng tiền nợ: cho vay không phải chi tiêu', () => {
-    // Cho vay 9.000.000 (is_debt_flow) + chi thật 153.000 trong 14 ngày → vẫn im.
+    // Cho vay 9.000.000 (is_debt_flow) + chi thật 482.000 trên cửa sổ 44 ngày → im.
+    // Tính cả khoản cho vay thì thành 78.657.500/năm. Hai khoản chi cách nhau một tháng
+    // là để cửa sổ qua được `MIN_WINDOW_DAYS`, xem ghi chú ở phép thử chuyển khoản.
     const txs = [
-      { ...tx(9_000_000, '2026-07-15'), id: 'loan', is_debt_flow: true } as TransactionRow,
-      tx(153_000, '2026-07-15'),
+      { ...tx(9_000_000, '2026-06-15'), id: 'loan', is_debt_flow: true } as TransactionRow,
+      tx(241_000, '2026-06-15'),
+      tx(241_000, '2026-07-15'),
     ]
     expect(lifetimeRules(input({ recentTxs: txs }))).toEqual([])
   })
 
   it('bỏ giao dịch ghi ngày tương lai', () => {
-    // Khoản 2026-08-15 nằm SAU todayISO. Không chặn biên dưới thì nó vừa lọt vào tổng
-    // (vì days âm vẫn <= 92), vừa làm mẫu số sai theo.
-    const txs = [tx(9_000_000, '2026-08-15'), tx(153_000, '2026-07-15')]
+    // Khoản 2026-08-15 nằm SAU todayISO: không chặn biên dưới thì nó lọt vào tổng (days
+    // âm vẫn <= WINDOW_DAYS) và 482.000 thành 9.482.000 ⇒ 78.657.500/năm.
+    // Nửa còn lại của lỗi cũ — khoản tương lai làm `oldest` rồi kéo mẫu số xuống âm —
+    // nay do `MIN_WINDOW_DAYS` chặn (days âm thì < 30 nên luật im). Ca này canh nửa
+    // "lọt vào tổng", và cửa sổ vẫn phải trải 44 ngày để không im vì thiếu dữ liệu.
+    const txs = [tx(9_000_000, '2026-08-15'), tx(241_000, '2026-06-15'), tx(241_000, '2026-07-15')]
     expect(lifetimeRules(input({ recentTxs: txs }))).toEqual([])
   })
 
@@ -195,9 +209,84 @@ describe('lifetimeRules', () => {
   })
 
   it('nói rõ hệ quả: mốc âm dịch đi bao nhiêu', () => {
-    // Chi gấp ~3 lần giả định → mốc âm phải xuất hiện hoặc dịch sớm lại.
+    // Chi gấp ~3,65 lần giả định (3.000.000 trong 75 ngày ⇒ 14.600.000/năm) → mốc âm
+    // phải xuất hiện hoặc dịch sớm lại.
     const txs = [tx(1_000_000, '2026-05-15'), tx(1_000_000, '2026-06-15'), tx(1_000_000, '2026-07-15')]
     const out = lifetimeRules(input({ recentTxs: txs }))
     expect(out[0].detail).toMatch(/âm/)
+  })
+
+  it('im khi cửa sổ dữ liệu chưa trải đủ 30 ngày', () => {
+    // Một suất cơm ¥20.000 ghi HÔM NAY. Với sàn mẫu số 1 ngày của bản cũ:
+    // 20.000 × 365 = 7.300.000/năm → "Chi thực tế cao hơn kế hoạch 83%" kèm một cái
+    // năm âm rất cụ thể, dựng lên từ đúng một giao dịch.
+    expect(lifetimeRules(input({ recentTxs: [tx(20_000, '2026-07-29')] }))).toEqual([])
+
+    // Biên của ngưỡng. Cùng MỘT số tiền, chỉ khác ngày: 2026-07-01 là 28 ngày → im;
+    // 2026-06-29 là 30 ngày → nói. Cả hai đều vượt ngưỡng lệch 15% (13.035.714/năm và
+    // 12.166.667/năm so với 4.000.000), nên thứ DUY NHẤT phân biệt hai ca là số ngày.
+    expect(lifetimeRules(input({ recentTxs: [tx(1_000_000, '2026-07-01')] }))).toEqual([])
+    expect(lifetimeRules(input({ recentTxs: [tx(1_000_000, '2026-06-29')] }))).toHaveLength(1)
+  })
+
+  it('im khi hoàn tiền nhiều hơn chi: tổng cửa sổ ÂM thì không có gì để nói', () => {
+    // Mua TRƯỚC cửa sổ, trả hàng TRONG cửa sổ → tổng −300.000 trên 44 ngày.
+    // Không chặn thì ra −2.488.636/năm, tức "thấp hơn kế hoạch 162%" — mức giảm quá
+    // 100% là bất khả về số học, thông báo tự nói ngược chính nó. Tệ hơn: số chi ÂM đi
+    // vào projectLifetime biến chặng đó thành NGUỒN THU 2,5 triệu/năm, nên câu hệ quả
+    // cũng lộn ngược. Không kẹp về 0 vì "cả quý không chi gì" cũng là một câu sai.
+    const txs = [
+      tx(100_000, '2026-06-15'),
+      { ...tx(400_000, '2026-07-15'), id: 'refund', is_refund: true } as TransactionRow,
+    ]
+    expect(lifetimeRules(input({ recentTxs: txs }))).toEqual([])
+  })
+
+  it("đọc biên DƯỚI của dải ('low'), cùng nhánh với màn hình nó dẫn tới", () => {
+    // `bandSpreadBps: 0` của fixture chung làm hai nhánh trùng nhau, nên mọi phép thử
+    // khác đều KHÔNG thấy được sự khác biệt này. Ở đây dùng đúng mặc định của migration
+    // 0031 (band_spread_bps = 150).
+    const banded: LifetimeInput = {
+      ...lifetime,
+      bandSpreadBps: 150,
+      startingAssetsMinor: 100_000_000,
+    }
+    // Cửa sổ 2026-05-17 → 2026-07-29 là 73 ngày, và 365/73 = 5 chẵn: 1.600.000 × 5 =
+    // 8.000.000/năm đúng tròn, gấp đôi giả định 4.000.000 → vượt ngưỡng.
+    // Với chi 8.000.000: nhánh TRUNG TÂM không năm nào âm, còn biên DƯỚI âm từ 2083.
+    // Kế hoạch (4.000.000) thì cả hai nhánh đều không âm.
+    const txs = [tx(800_000, '2026-05-17'), tx(800_000, '2026-07-15')]
+    const out = lifetimeRules(input({ recentTxs: txs, lifetime: banded }))
+    expect(out).toHaveLength(1)
+    // Đọc 'center' thì câu này thành "Bản chiếu vẫn không năm nào âm." — trong khi
+    // /lifetime, LifetimeSection và InsightCards đều đang tô đỏ năm 2083.
+    expect(out[0].detail).toContain('âm từ 2083')
+  })
+
+  it('nói được ca đáng nói nhất: mốc âm của kế hoạch BIẾN MẤT', () => {
+    const overspending: LifetimeInput = {
+      ...lifetime,
+      phases: [{ ...lifetime.phases[0], annualExpenseMinor: 10_000_000 }],
+    }
+    // Kế hoạch: thu 6.000.000 − chi 10.000.000 = thiếu 4.000.000/năm; 10.000.000 vốn
+    // ban đầu (lợi suất 2%) đi 6.200.000 → 2.324.000 → −1.629.520, tức âm từ 2028.
+    // Chi thật: 1.200.000 trong 73 ngày ⇒ 6.000.000/năm, bằng đúng thu → không năm nào âm.
+    const txs = [tx(600_000, '2026-05-17'), tx(600_000, '2026-07-15')]
+    const out = lifetimeRules(input({ recentTxs: txs, lifetime: overspending }))
+    expect(out).toHaveLength(1)
+    // Hỏi `actualNeg === null` TRƯỚC `planNeg` thì câu này là "Bản chiếu vẫn không năm
+    // nào âm." — phủ nhận đúng cái tin tốt vừa xảy ra.
+    expect(out[0].detail).toContain('Mốc âm 2028 biến mất.')
+  })
+
+  it('nói ra con số đã suy và cửa sổ đã dùng, để người dùng kiểm lại được', () => {
+    // 1.600.000 trong 73 ngày ⇒ 8.000.000/năm (365/73 = 5 chẵn) → "cao hơn 100%".
+    const txs = [tx(800_000, '2026-05-17'), tx(800_000, '2026-07-15')]
+    const out = lifetimeRules(input({ recentTxs: txs, formatMoney: (m, c) => `${m} ${c}` }))
+    expect(out[0].title).toBe('Chi thực tế cao hơn kế hoạch 100%')
+    // Tiền in theo loại tiền CỦA CHẶNG, không phải `base` — chặng Mỹ dùng USD thì con
+    // số phải là USD.
+    expect(out[0].detail).toContain('8000000 JPY')
+    expect(out[0].detail).toContain('73 ngày')
   })
 })

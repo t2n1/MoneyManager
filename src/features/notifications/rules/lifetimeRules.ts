@@ -7,12 +7,30 @@ import { phaseForYear, projectLifetime } from '../../lifetime/project'
 // dùng CÙNG một hàm. reports/aggregate.ts thuần (không React, không localStorage) nên
 // import này không phá purity.test.ts.
 import { expenseSign } from '../../reports/aggregate'
+import { RECENT_TXS_DAYS } from '../types'
 import type { AppNotification, NotificationInput } from '../types'
 
 /** Lệch quá bao nhiêu phần mới đáng báo. */
 export const DRIFT_THRESHOLD = 0.15
-/** Cửa sổ chi thực tế dùng để so sánh. */
-const WINDOW_DAYS = 92
+/**
+ * Cửa sổ chi thực tế dùng để so sánh — ĐÚNG bằng cửa sổ mà `input.recentTxs` chứa.
+ * Trước đây chỗ này giữ 92 trong khi loader chỉ nạp 90 ngày, tức hai con số phải tự
+ * khớp bằng tay và dòng 91–92 ngày tuổi không bao giờ tồn tại. Xem `RECENT_TXS_DAYS`.
+ */
+const WINDOW_DAYS = RECENT_TXS_DAYS
+/**
+ * Cửa sổ phải trải ít nhất bấy nhiêu ngày mới được mở miệng.
+ *
+ * Phép quy năm hoá ở dưới chia theo SỐ NGÀY thật rồi nhân 365. Đó là phép đúng, nhưng
+ * nó chỉ đúng khi mẫu số đủ lớn: một suất cơm ¥20.000 ghi HÔM NAY, với mẫu số 1 ngày,
+ * ra 7.300.000/năm và luật đi báo "chi cao hơn kế hoạch 83%, tài sản có thể âm từ
+ * 2034" — một con số bịa kèm một cái năm rất cụ thể. Người ghi sổ thưa, người vừa bỏ
+ * quên một tuần, người mới dùng app đều rơi vào đúng hình dạng đó.
+ *
+ * Hướng sai an toàn là IM (mục H của spec thông báo): thiếu dữ liệu thì không nói,
+ * chứ không nói một con số phóng đại tới 365 lần.
+ */
+const MIN_WINDOW_DAYS = 30
 
 export function lifetimeRules(input: NotificationInput): AppNotification[] {
   const lt = input.lifetime
@@ -35,9 +53,10 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
   // giá thì con số sẽ THIẾU ÂM THẦM — theo mục H của spec thông báo, thiếu dữ liệu
   // thì im chứ không báo số sai.
   //
-  // Bốn điều kiện dưới đây phải khớp ĐÚNG bộ lọc của `suggestBaseline` (Task 5), vì
-  // luật này so con số thực tế với chính giả định nền mà hàm đó sinh ra. Lệch một
-  // điều kiện là so hai định nghĩa "chi tiêu" khác nhau rồi báo lệch oan:
+  // Bốn điều kiện dưới đây phải khớp ĐÚNG bộ LỌC của `suggestBaseline` (Task 5) — tức
+  // cùng một định nghĩa "giao dịch nào được tính là chi tiêu". Luật này so con số thực
+  // tế với `phase.annualExpenseMinor`, mà con số ấy thường do `suggestBaseline` sinh ra;
+  // lệch một điều kiện là so hai định nghĩa "chi tiêu" khác nhau rồi báo lệch oan:
   //   - `TransactionRow` KHÔNG có cột `currency`. Loại tiền nằm ở TÀI KHOẢN, tra qua
   //     `input.currencyOf(t.account_id)` — đúng cách mọi hàm gộp ở reports/aggregate.ts làm.
   //   - `expenseSign(t)`: hoàn tiền là chi ÂM. Lấy `Math.abs` thẳng là cộng khoản trả
@@ -45,6 +64,14 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
   //   - `!t.is_debt_flow`: cho vay / trả nợ gốc không phải chi tiêu (giống rhythmRules.ts).
   //   - `days >= 0`: chặn biên dưới. Không có nó, một khoản ghi ngày tương lai vừa lọt
   //     vào tổng, vừa kéo `oldest` xuống làm mẫu số `days` sai theo.
+  //
+  // NHƯNG phép QUY NĂM HOÁ bên dưới thì CỐ Ý KHÁC `suggestBaseline`, và đừng "sửa" cho
+  // giống: hàm kia làm tròn quãng dữ liệu về SỐ THÁNG (`Math.round(days / 30.44)`), nên
+  // 44 ngày thành "1 tháng" và nó phóng chi lên 45%. Chỗ này chia theo SỐ NGÀY thật —
+  // chính xác hơn. Được phép khác vì `phase.annualExpenseMinor` là một số ĐÃ LƯU và
+  // người dùng SỬA ĐƯỢC, không phải một lệnh gọi `suggestBaseline` trực tiếp: cái phải
+  // khớp là định nghĩa "chi tiêu", còn con số thì phải ĐÚNG chứ không phải GIỐNG. Cái
+  // giá của phép chia theo ngày là mẫu số nhỏ thì kết quả nổ — xem `MIN_WINDOW_DAYS`.
   // CỐ Ý không đặt tên biến này là `window`: file bộ luật phải chạy được trên Deno và
   // purity.test.ts cấm token `window.` ở bất kỳ đâu trong file engine — `window.length`
   // của một biến cục bộ vẫn khớp lệnh cấm đó (đã thấy đỏ thật khi đặt tên như vậy).
@@ -65,10 +92,22 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
     (m, t) => (t.occurred_on < m ? t.occurred_on : m),
     windowTxs[0].occurred_on,
   )
-  const days = Math.max(1, daysBetween(oldest, input.todayISO))
-  const actualAnnual = Math.round(
-    (windowTxs.reduce((s, t) => s + Math.abs(t.amount) * expenseSign(t), 0) / days) * 365,
-  )
+  // KHÔNG `Math.max(1, …)` nữa: một sàn 1 ngày không cứu được gì, nó chỉ biến "không
+  // đủ dữ liệu" thành "một con số phóng 365 lần". Đủ dữ liệu thì nói, không thì im.
+  const days = daysBetween(oldest, input.todayISO)
+  if (days < MIN_WINDOW_DAYS) return []
+
+  // `t.amount * expenseSign(t)`, KHÔNG bọc `Math.abs`: `amount` có `check (amount > 0)`
+  // nên hai lối cho cùng kết quả, nhưng bộ lọc trên hứa khớp `suggestBaseline` và hàm
+  // đó viết đúng như dòng này — để lệch là bắt người đọc sau đi truy một khác biệt
+  // không tồn tại.
+  const windowSum = windowTxs.reduce((s, t) => s + t.amount * expenseSign(t), 0)
+  // Hoàn tiền nhiều hơn chi (mua trước cửa sổ, trả hàng trong cửa sổ) làm tổng ÂM.
+  // KHÔNG kẹp về 0: "cả quý không chi gì" cũng là một lời khẳng định sai, và số âm
+  // nếu để chảy tiếp thì `drift` xuống dưới −100% (vô nghĩa về mặt số học) rồi
+  // `projectLifetime` biến chặng đó thành NGUỒN THU, làm câu hệ quả nói ngược hẳn.
+  if (windowSum <= 0) return []
+  const actualAnnual = Math.round((windowSum / days) * 365)
 
   const planned = phase.annualExpenseMinor
   const drift = (actualAnnual - planned) / planned
@@ -78,22 +117,40 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
   const planRows = projectLifetime(lt)
   const actualRows = projectLifetime({
     ...lt,
-    phases: lt.phases.map((p) =>
-      p.startYear === phase.startYear ? { ...p, annualExpenseMinor: actualAnnual } : p,
-    ),
+    // So bằng THAM CHIẾU (`p === phase`), không bằng `p.startYear`: `sorted` là bản sao
+    // của mảng nên nó giữ ĐÚNG các object của `lt.phases`, và `phase` là một trong số
+    // đó — so tham chiếu vừa chính xác vừa rẻ hơn. So theo giá trị chỉ an toàn nhờ
+    // `unique (scenario_id, start_year)` của Postgres; `demoRepo` không ràng buộc gì,
+    // nên dữ liệu demo có hai chặng cùng `start_year` sẽ bị GHI ĐÈ CẢ HAI.
+    phases: lt.phases.map((p) => (p === phase ? { ...p, annualExpenseMinor: actualAnnual } : p)),
   })
-  const planNeg = firstNegativeYear(planRows, 'center')
-  const actualNeg = firstNegativeYear(actualRows, 'center')
+  // 'low' = biên DƯỚI của dải, ĐÚNG nhánh mà mọi màn hình thông báo này dẫn tới đang
+  // đọc (LifetimeSection, LifetimeChartCard, InsightCards). Đọc 'center' ở đây là bấm
+  // vào thông báo "âm từ 2034" rồi rơi vào một trang ghi năm khác — với mặc định
+  // `band_spread_bps = 150` của migration 0031, hai nhánh lệch nhau hẳn nhiều năm.
+  const planNeg = firstNegativeYear(planRows, 'low')
+  const actualNeg = firstNegativeYear(actualRows, 'low')
 
   const pct = Math.abs(Math.round(drift * 100))
   const direction = drift > 0 ? 'cao hơn' : 'thấp hơn'
   const title = `Chi thực tế ${direction} kế hoạch ${pct}%`
 
-  let detail: string
-  if (actualNeg === null) detail = 'Bản chiếu vẫn không năm nào âm.'
-  else if (planNeg === null) detail = `Với mức chi này, tài sản có thể âm từ ${actualNeg}.`
-  else if (actualNeg !== planNeg) detail = `Mốc âm dịch từ ${planNeg} sang ${actualNeg}.`
-  else detail = `Mốc âm vẫn ở ${actualNeg}.`
+  // XÉT `planNeg` TRƯỚC: nếu hỏi `actualNeg === null` trước thì ca đáng nói nhất của cả
+  // luật này — chi thật thấp hơn kế hoạch đủ để mốc âm BIẾN MẤT — bị trả lời bằng câu
+  // "vẫn không năm nào âm", tức phủ nhận đúng cái tin tốt vừa xảy ra.
+  let consequence: string
+  if (actualNeg === null && planNeg !== null) consequence = `Mốc âm ${planNeg} biến mất.`
+  else if (actualNeg === null) consequence = 'Bản chiếu vẫn không năm nào âm.'
+  else if (planNeg === null) consequence = `Với mức chi này, tài sản có thể âm từ ${actualNeg}.`
+  else if (actualNeg !== planNeg) consequence = `Mốc âm dịch từ ${planNeg} sang ${actualNeg}.`
+  else consequence = `Mốc âm vẫn ở ${actualNeg}.`
+
+  // Nói RA con số và cửa sổ đã dùng. Không có nó thì "cao hơn 83%" là một tỷ lệ không
+  // ai kiểm lại được: người dùng không biết luật đã lấy bao nhiêu ngày và ra bao nhiêu
+  // một năm, nên cũng không phát hiện được lúc nó tính sai.
+  const detail =
+    `Quy năm ${input.formatMoney(actualAnnual, phase.currency)} theo ${days} ngày gần đây. ` +
+    consequence
 
   return [
     {

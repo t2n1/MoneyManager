@@ -31,6 +31,18 @@ export type NotificationType =
   | 'monthly-summary'
   | 'lifetime-drift'
 
+/**
+ * Cửa sổ giao dịch mà `NotificationInput.recentTxs` CHỨA THẬT.
+ *
+ * Một hằng số DUY NHẤT cho cả nơi NẠP (`useNotifications.ts`) và nơi ĐỌC
+ * (`rules/lifetimeRules.ts`, `rules/rhythmRules.ts`…). Trước đây hai chỗ giữ hai số
+ * (loader 90, luật 92) nên luật hứa một cửa sổ dài hơn dữ liệu thật sự có: dòng 91–92
+ * ngày tuổi không bao giờ tồn tại, mà hằng số và câu mô tả ở trang cài đặt vẫn nói
+ * như thể có. Đặt ở types.ts vì đây là file cả hai bên đã import, và nó thuần (chạy
+ * được trên Deno) nên bộ luật vẫn không chạm gì của trình duyệt.
+ */
+export const RECENT_TXS_DAYS = 90
+
 /** 'action' = việc cần làm (bám tới khi tình huống hết) · 'info' = tin để biết (đọc là mất). */
 export type NotificationKind = 'action' | 'info'
 export type NotificationSeverity = 'high' | 'medium' | 'low'
@@ -149,7 +161,9 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
   'lifetime-drift': {
     kind: 'action',
     label: 'Chi lệch kế hoạch Lifetime',
-    hint: 'Chi thực tế 3 tháng gần đây lệch khỏi giả định của kịch bản, kèm mốc âm dịch bao nhiêu năm.',
+    hint:
+      `Chi thực tế ${RECENT_TXS_DAYS} ngày gần đây lệch khỏi giả định của kịch bản, ` +
+      'kèm mốc âm dịch bao nhiêu năm.',
   },
 }
 
@@ -176,7 +190,7 @@ export interface NotificationInput {
   budgetReport?: BudgetReport
   savingsGoals: SavingsGoalRow[]
   networthSnapshots: NetWorthSnapshotRow[]
-  /** Giao dịch 90 ngày gần nhất. */
+  /** Giao dịch `RECENT_TXS_DAYS` ngày gần nhất. */
   recentTxs: TransactionRow[]
   /**
    * Bản chiếu Lifetime của kịch bản chính. undefined = chưa tải xong hoặc chưa có

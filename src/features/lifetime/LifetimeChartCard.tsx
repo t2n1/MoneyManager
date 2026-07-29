@@ -21,6 +21,7 @@ import {
 import type { CurrencyCode } from '../../lib/currencies'
 import { formatCompact, formatMoney } from '../../lib/money'
 import type { NetWorthSnapshotRow } from '../../types/database.types'
+import { buildChartData, chartSeriesPlan } from './chartSeries'
 import { compareAtEnd, firstNegativeYear } from './insights'
 import type { YearRow } from './project'
 
@@ -62,50 +63,6 @@ const COLOR_AXIS = '#9ca3af'
 // các useMemo phụ thuộc nó chạy lại vô ích dù nội dung không đổi.
 const EMPTY_HISTORY: NetWorthSnapshotRow[] = []
 
-interface ChartPoint {
-  year: number
-  actual: number | null
-  projected: number | null
-  band: [number, number] | null
-  compare: number | null
-}
-
-/** Gộp dữ liệu lịch sử + bản chiếu (+ bản so sánh) về một mảng theo năm cho Recharts. */
-function buildChartData(
-  rows: YearRow[],
-  historyRows: NetWorthSnapshotRow[],
-  compareRows: YearRow[] | null,
-): ChartPoint[] {
-  // Lịch sử ghi theo NGÀY (nhiều snapshot/năm) nhưng trục hoành của đồ thị này theo NĂM
-  // như bản chiếu — gộp về một điểm/năm, giữ bản ghi MỚI NHẤT trong năm đó (historyRows
-  // đã sắp theo snapshot_on tăng dần từ repo, nên gán đè tuần tự là đủ).
-  const historyByYear = new Map<number, number>()
-  for (const s of historyRows) {
-    historyByYear.set(Number(s.snapshot_on.slice(0, 4)), s.net_worth)
-  }
-
-  const rowByYear = new Map(rows.map((r) => [r.year, r]))
-  const compareByYear = compareRows ? new Map(compareRows.map((r) => [r.year, r])) : null
-
-  // Hợp cả năm có lịch sử lẫn năm có bản chiếu — lịch sử thường lùi về trước năm hiện
-  // tại, nên KHÔNG được chỉ lấy years của `rows` (sẽ cắt mất phần lịch sử thật).
-  const years = Array.from(new Set([...historyByYear.keys(), ...rows.map((r) => r.year)])).sort(
-    (a, b) => a - b,
-  )
-
-  return years.map((year) => {
-    const row = rowByYear.get(year)
-    const cRow = compareByYear?.get(year)
-    return {
-      year,
-      actual: historyByYear.get(year) ?? null,
-      projected: row ? row.assetsEndMinor : null,
-      band: row ? [row.assetsPessimisticMinor, row.assetsOptimisticMinor] : null,
-      compare: cRow ? cRow.assetsEndMinor : null,
-    }
-  })
-}
-
 /**
  * Năm sự kiện MỚI xuất hiện so với năm liền trước — đánh dấu mốc trên trục hoành.
  * `YearEvent` (project.ts) không mang `startYear` (bị lược khi build YearRow), nên đây
@@ -131,19 +88,35 @@ function eventStartYears(rows: YearRow[]): number[] {
   return years
 }
 
+/** Tối đa bao nhiêu năm mốc sự kiện được ĐỌC TÊN trong `aria-label` trước khi gộp phần
+ *  còn lại thành "và N mốc nữa". Một bản chiếu 60 năm có thể có hàng chục mốc; đọc hết
+ *  là biến câu mô tả thành một chuỗi số dài hơn cả phần nói về tiền. */
+const ARIA_MARKER_LIMIT = 8
+
 /** Câu mô tả cho `aria-label` — sinh từ dữ liệu THẬT, không phải câu trang trí cố định
  * (đồ thị Recharts một mình không đọc được bằng screen reader).
  *
- * `historyHiddenNote`: khác `null` khi lịch sử bị ẨN vì lệch đơn vị tiền (xem
- * `historyCurrency` trên `Props`) — lúc đó câu này thay hẳn cho câu "có N điểm lịch sử",
- * vì không có điểm nào được VẼ ra dù `historyRows` vẫn có dữ liệu. Người dùng screen
- * reader cũng cần biết TẠI SAO thiếu, không chỉ là thiếu. */
-function buildAriaLabel(
-  rows: YearRow[],
-  historyRows: NetWorthSnapshotRow[],
-  currency: CurrencyCode,
-  historyHiddenNote: string | null,
-): string {
+ * `historyHiddenNote` / `compareHiddenNote`: khác `null` khi chuỗi tương ứng bị ẨN vì
+ * lệch đơn vị tiền (xem `chartSeries.ts`) — lúc đó câu này thay hẳn cho câu mô tả chuỗi
+ * đó, vì không có gì được VẼ ra dù dữ liệu vẫn có. Người dùng screen reader cũng cần
+ * biết TẠI SAO thiếu, không chỉ là thiếu.
+ *
+ * `markerYears` và `compare*`: đồ thị có `ReferenceLine` cho từng năm sự kiện và (có thể)
+ * một đường kịch bản thứ hai. Bản trước không nhắc gì cả hai, nên người dùng screen
+ * reader nghe xong vẫn không biết trên đồ thị có mốc nào hay đang so với kịch bản nào —
+ * hai thứ mà người nhìn thấy ngay. */
+function buildAriaLabel(args: {
+  rows: YearRow[]
+  historyRows: NetWorthSnapshotRow[]
+  currency: CurrencyCode
+  markerYears: number[]
+  compareEndRow: YearRow | null
+  compareCurrency: CurrencyCode | null | undefined
+  showCompare: boolean
+  historyHiddenNote: string | null
+  compareHiddenNote: string | null
+}): string {
+  const { rows, historyRows, currency, markerYears } = args
   if (rows.length === 0) return 'Chưa có dữ liệu để chiếu tài sản ròng.'
 
   const startYear = rows[0].year
@@ -161,11 +134,33 @@ function buildAriaLabel(
       ? `Biên dưới của dải dao động âm từ năm ${negYear}.`
       : 'Biên dưới của dải dao động không xuống dưới 0.',
   ]
-  if (historyHiddenNote) {
-    sentences.push(historyHiddenNote)
+
+  if (markerYears.length > 0) {
+    const shown = markerYears.slice(0, ARIA_MARKER_LIMIT)
+    const rest = markerYears.length - shown.length
+    sentences.push(
+      `Có ${markerYears.length} mốc sự kiện trên trục năm: ${shown.join(', ')}${rest > 0 ? ` và ${rest} mốc nữa` : ''}.`,
+    )
+  }
+
+  if (args.historyHiddenNote) {
+    sentences.push(args.historyHiddenNote)
   } else if (historyRows.length > 0) {
     sentences.push(`Có ${historyRows.length} điểm lịch sử thật ghi nhận trước năm ${startYear}.`)
   }
+
+  if (args.compareHiddenNote) {
+    sentences.push(args.compareHiddenNote)
+  } else if (args.showCompare && args.compareEndRow) {
+    // Đơn vị của bản so sánh: chỉ tới nhánh này khi hai kịch bản CÙNG đơn vị (lệch thì
+    // đã rơi vào compareHiddenNote ở trên), nên `?? currency` không đổi kết quả — để đó
+    // cho ca `compareCurrency` không truyền được.
+    const cur = args.compareCurrency ?? currency
+    sentences.push(
+      `Có thêm đường kịch bản so sánh, cuối kỳ ${formatMoney(args.compareEndRow.assetsEndMinor, cur)}.`,
+    )
+  }
+
   return sentences.join(' ')
 }
 
@@ -184,6 +179,10 @@ function LegendSwatch({ color, dash }: { color: string; dash?: string }) {
  * động mờ bao quanh nhánh trung tâm, vùng âm tô đỏ nhạt. Bật `compare` thì ẩn dải (hai
  * dải chồng nhau không đọc được gì) và vẽ thêm một đường nét đứt `2 3` — khác hẳn `6 4`
  * của đường chính nên phân biệt được mà không cần màu (a11y mù màu).
+ *
+ * Đường nào ĐƯỢC VẼ do `chartSeriesPlan` (chartSeries.ts) quyết — hàm thuần có phép
+ * thử. Trục tung chỉ mang MỘT đơn vị tiền, nên chuỗi nào tính theo đơn vị khác thì bị
+ * ẩn kèm câu nói ra lý do, chứ không vẽ đè lên trục sai.
  */
 export function LifetimeChartCard({
   rows,
@@ -203,45 +202,75 @@ export function LifetimeChartCard({
   const animate = !reducedMotion
 
   // Lịch sử (`networth_snapshots`) luôn ở `historyCurrency` (base currency của profile),
-  // ĐỘC LẬP với `currency` (display_currency của kịch bản đang xem). Lệch nhau thì KHÔNG
-  // vẽ — không có tỷ giá giả định nào cho chuỗi lịch sử để tự quy đổi, và vẽ thẳng số của
-  // một đơn vị tiền lên trục của đơn vị khác là sai im lặng (đúng lớp lỗi C1 mà Task 3 đã
-  // vá cho phases/events). Nói RÕ lý do ẩn thay vì im lặng — im lặng thì người dùng tưởng
-  // chưa có dữ liệu lịch sử và đi tìm hiểu tại sao.
-  const showHistory = historyCurrency === currency
+  // và kịch bản so sánh mang `compareCurrency` của riêng nó — cả hai ĐỘC LẬP với
+  // `currency` (display_currency của kịch bản đang xem, tức đơn vị của trục tung). Luật
+  // "chuỗi nào được vẽ" nằm ở `chartSeriesPlan`, xem JSDoc ở đó.
+  const plan = chartSeriesPlan({
+    currency,
+    historyCurrency,
+    compareCurrency,
+    hasCompare: compare !== null,
+  })
+  const { showHistory, showCompare, showBand } = plan
   const effectiveHistoryRows = showHistory ? historyRows : EMPTY_HISTORY
-  const historyHiddenNote = showHistory
-    ? null
-    : `Lịch sử thật đang ẩn vì kịch bản này hiển thị bằng ${currency} còn lịch sử ghi theo ${historyCurrency} — chưa quy đổi được nên không vẽ để tránh sai đơn vị.`
 
   // Mọi useMemo phải gọi KHÔNG điều kiện (rules of hooks) — nhánh rows rỗng return ở
   // dưới, sau khi các hook này đã chạy; cả ba hàm build đều tự chịu được rows = [].
+  //
+  // `data` vẫn dựng cột `compare` kể cả khi `showCompare` là false: không có <Line> nào
+  // đọc cột đó nên Recharts không vẽ gì, và `minY` bên dưới đã bỏ hẳn số hạng compare.
   const data = useMemo(
     () => buildChartData(rows, effectiveHistoryRows, compare),
     [rows, effectiveHistoryRows, compare],
   )
   const markerYears = useMemo(() => eventStartYears(rows), [rows])
+  const compareEndRow = compare && compare.length > 0 ? compare[compare.length - 1] : null
   const ariaLabel = useMemo(
-    () => buildAriaLabel(rows, effectiveHistoryRows, currency, historyHiddenNote),
-    [rows, effectiveHistoryRows, currency, historyHiddenNote],
+    () =>
+      buildAriaLabel({
+        rows,
+        historyRows: effectiveHistoryRows,
+        currency,
+        markerYears,
+        compareEndRow,
+        compareCurrency,
+        showCompare,
+        historyHiddenNote: plan.historyHiddenNote,
+        compareHiddenNote: plan.compareHiddenNote,
+      }),
+    [
+      rows,
+      effectiveHistoryRows,
+      currency,
+      markerYears,
+      compareEndRow,
+      compareCurrency,
+      showCompare,
+      plan.historyHiddenNote,
+      plan.compareHiddenNote,
+    ],
   )
   const minY = useMemo(() => {
     let min = 0
     for (const d of data) {
       if (d.actual != null) min = Math.min(min, d.actual)
       if (d.projected != null) min = Math.min(min, d.projected)
-      if (d.compare != null) min = Math.min(min, d.compare)
-      // Dải bị ẨN khi đang so sánh (compare khác null) nên không tính vào miền âm lúc đó
-      // — không thì vùng đỏ có thể trải rộng hơn cả những gì đang thật sự hiển thị.
-      if (!compare && d.band) min = Math.min(min, d.band[0])
+      // CHỈ tính số hạng của chuỗi ĐANG ĐƯỢC VẼ. Trước đây `d.compare` luôn được tính:
+      // một chuỗi số USD (~110.000) trên trục ¥ kéo `minY` — và do đó cả vùng đỏ
+      // `ReferenceArea` — theo một đơn vị tiền khác hẳn đơn vị của trục.
+      if (showCompare && d.compare != null) min = Math.min(min, d.compare)
+      // Dải bị ẨN khi đang vẽ đường so sánh (hai dải chồng nhau không đọc được gì) nên
+      // không tính vào miền âm lúc đó — không thì vùng đỏ trải rộng hơn cả những gì
+      // đang thật sự hiển thị.
+      if (showBand && d.band) min = Math.min(min, d.band[0])
     }
     return min
-  }, [data, compare])
+  }, [data, showBand, showCompare])
 
   if (rows.length === 0) {
     return (
       <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
-        <p className="text-center text-sm text-gray-400 dark:text-gray-500">
+        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
           Chưa chiếu được — kiểm tra lại tuổi kết thúc của kịch bản.
         </p>
       </section>
@@ -253,11 +282,15 @@ export function LifetimeChartCard({
   // nhau (kiểu lấy số yên trừ số cent đô), một con số RÁC chứ không phải "chưa quy đổi
   // nhưng còn đọc được". Một con số rác có nhãn giải thích vẫn bị đọc thành kết luận —
   // nên khi lệch tiền tệ, KHÔNG tính/hiện hiệu số này; hiện hai giá trị cuối đời riêng,
-  // mỗi cái đúng đơn vị của nó, để người dùng tự so bằng mắt. Chỉ tính compareDiff khi
-  // chắc chắn cùng đơn vị (compareCurrency trùng currency).
-  const compareEndRow = compare && compare.length > 0 ? compare[compare.length - 1] : null
-  const currencyMismatch = compareCurrency != null && compareCurrency !== currency
-  const compareDiff = compare && compareEndRow && !currencyMismatch ? compareAtEnd(rows, compare) : null
+  // mỗi cái đúng đơn vị của nó, để người dùng tự so bằng mắt.
+  //
+  // `plan.compareHiddenNote !== null` chính là điều kiện "đang so sánh NHƯNG lệch đơn
+  // vị" — dùng lại nó thay vì tính `currencyMismatch` lần thứ hai ở đây. Bản trước có
+  // một biến `currencyMismatch` riêng, và nó chỉ rào được đúng hai chỗ (hiệu số + câu
+  // giải thích) trong khi ĐƯỜNG VẼ, `minY` và tooltip vẫn dùng số của đơn vị kia: câu
+  // chú thích nói "không trừ trực tiếp được" trong lúc đồ thị đã trừ chúng bằng mắt.
+  const compareMismatch = plan.compareHiddenNote !== null
+  const compareDiff = compare && compareEndRow && !compareMismatch ? compareAtEnd(rows, compare) : null
 
   return (
     <section className="rounded-xl bg-white dark:bg-gray-900 p-3 shadow-sm">
@@ -272,8 +305,10 @@ export function LifetimeChartCard({
               <ReferenceLine key={y} x={y} stroke={COLOR_AXIS} strokeDasharray="3 3" />
             ))}
 
-            {/* Dải dao động — ẨN khi đang so sánh, hai dải chồng nhau không đọc được. */}
-            {!compare && (
+            {/* Dải dao động — ẨN khi đang VẼ đường so sánh, hai dải chồng nhau không
+                đọc được gì. Đường so sánh bị ẩn vì lệch đơn vị thì dải hiện lại (xem
+                `showBand` trong chartSeries.ts). */}
+            {showBand && (
               <Area
                 dataKey="band"
                 stroke="none"
@@ -309,8 +344,10 @@ export function LifetimeChartCard({
             )}
 
             {/* So sánh: nét đứt `2 3` — khác hẳn `6 4` của đường chính, phân biệt được
-                không cần màu. */}
-            {compare && (
+                không cần màu. ẨN hẳn khi kịch bản so sánh dùng đơn vị tiền khác (xem
+                `showCompare`): trục tung chỉ mang MỘT đơn vị, vẽ chuỗi số của đơn vị
+                khác lên đó là sai im lặng — cùng lý do đã ẩn đường lịch sử ở trên. */}
+            {showCompare && (
               <Line
                 dataKey="compare"
                 stroke={COLOR_COMPARE}
@@ -338,8 +375,18 @@ export function LifetimeChartCard({
                     'Dải dao động',
                   ]
                 }
-                const label =
-                  name === 'actual' ? 'Lịch sử thật' : name === 'compare' ? 'Kịch bản so sánh' : 'Chiếu (trung tâm)'
+                // Đường so sánh mang ĐƠN VỊ RIÊNG của kịch bản nó (`compareCurrency`).
+                // Dán nhãn ¥ lên một con số đô là nói dối đúng ở chỗ người dùng đang
+                // đọc số. Chỉ tới nhánh compare khi `showCompare` (cùng đơn vị) nên hai
+                // giá trị này trùng nhau hôm nay — vẫn viết đúng nguồn để lần sau nới
+                // câu rào (vd thêm quy đổi thật) thì nhãn không lệch theo.
+                if (name === 'compare') {
+                  return [
+                    formatMoney(Number(value), compareCurrency ?? currency),
+                    'Kịch bản so sánh',
+                  ]
+                }
+                const label = name === 'actual' ? 'Lịch sử thật' : 'Chiếu (trung tâm)'
                 return [formatMoney(Number(value), currency), label]
               }}
               // Nền/viền/chữ tooltip do index.css xử lý theo dark mode (.recharts-default-tooltip)
@@ -366,7 +413,7 @@ export function LifetimeChartCard({
         <span className="flex items-center gap-1">
           <LegendSwatch color={COLOR_PROJECTED} dash="6 4" /> Chiếu (trung tâm)
         </span>
-        {!compare && (
+        {showBand && (
           <span className="flex items-center gap-1">
             <span
               className="inline-block h-2 w-5 rounded-sm"
@@ -375,16 +422,24 @@ export function LifetimeChartCard({
             Dải dao động
           </span>
         )}
-        {compare && (
+        {showCompare && (
           <span className="flex items-center gap-1">
             <LegendSwatch color={COLOR_COMPARE} dash="2 3" /> Kịch bản so sánh
+          </span>
+        )}
+        {/* Đường so sánh bị ẩn vì lệch đơn vị — cùng khuôn với câu "Lịch sử ẩn" ở trên
+            (chữ amber, nói ra hai đơn vị). Không có nó thì bật "So sánh" xong không thấy
+            đường nào và cũng không biết vì sao. */}
+        {compareMismatch && (
+          <span className="text-amber-600 dark:text-amber-400">
+            Đường so sánh ẩn — khác đơn vị tiền ({compareCurrency} ≠ {currency})
           </span>
         )}
       </div>
 
       {compare && compareEndRow && (
         <p className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
-          {currencyMismatch ? (
+          {compareMismatch ? (
             <>
               Cuối đời — kịch bản này:{' '}
               <span className="font-semibold text-gray-700 dark:text-gray-200">
@@ -395,7 +450,8 @@ export function LifetimeChartCard({
                 {formatMoney(compareEndRow.assetsEndMinor, compareCurrency as CurrencyCode)}
               </span>
               . Hai kịch bản dùng đơn vị tiền khác nhau ({currency} và {compareCurrency}) nên không trừ
-              trực tiếp được — tự so hai số này.
+              trực tiếp được, và cũng không vẽ chung một trục được — đồ thị trên chỉ có kịch bản
+              này, tự so hai số này.
             </>
           ) : (
             compareDiff !== null && (
@@ -404,8 +460,8 @@ export function LifetimeChartCard({
                 <span
                   className={
                     compareDiff >= 0
-                      ? 'font-semibold text-green-600 dark:text-green-400'
-                      : 'font-semibold text-red-600 dark:text-red-400'
+                      ? 'font-semibold text-green-800 dark:text-green-400'
+                      : 'font-semibold text-red-700 dark:text-red-400'
                   }
                 >
                   {compareDiff >= 0 ? '+' : ''}

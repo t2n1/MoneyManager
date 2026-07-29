@@ -7,6 +7,7 @@ import { confirmDialog, showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
 import type { LifePhaseRow } from '../../types/database.types'
+import { fxAfterCurrencyChange, isFxValid } from './fxField'
 import { convertLifetimeMinor } from './project'
 
 interface Props {
@@ -46,9 +47,22 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
   // Cùng tiền hiển thị thì tỷ giá luôn là 1 và KHÔNG hỏi — hiện ô này ra chỉ đúng
   // khi có gì đó cần quy đổi (quyết định đã chốt, áp dụng cả Phase lẫn Event).
   const showFx = currency !== displayCurrency
-  useEffect(() => {
-    if (!showFx) setFx('1')
-  }, [showFx])
+
+  /**
+   * Đổi tiền của CHẶNG NÀY → đặt lại ô tỷ giá ngay trong `onChange`, không qua effect.
+   *
+   * Bản trước là `useEffect(() => { if (!showFx) setFx('1') }, [showFx])`. Dep là BOOLEAN
+   * `showFx`, nên nó chỉ chạy khi bước vào/ra khỏi "cùng tiền hiển thị": đổi giữa HAI
+   * NGOẠI TỆ (VND → USD) để nguyên tỷ giá cũ, và tỷ giá đó giờ nói một câu khác hoàn
+   * toàn — xem `fxAfterCurrencyChange` để biết vì sao không guard nào bắt được.
+   *
+   * Đặt trong onChange thay vì effect có thêm một cái đúng: effect với dep `currency`
+   * cũng chạy ở lần mount, tức mở form sửa một chặng đã khai đúng tỷ giá là xoá mất nó.
+   */
+  function handleCurrencyChange(next: CurrencyCode) {
+    setCurrency(next)
+    setFx(fxAfterCurrencyChange(next, displayCurrency))
+  }
 
   // Đóng bằng Esc — trừ lúc đang chờ xác nhận xoá (xem comment `confirming` ở trên).
   useEffect(() => {
@@ -64,7 +78,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
   const yearValid = Number.isInteger(yearNum) && yearNum >= 1900 && yearNum <= 2200
   const yearDuplicate = yearValid && phases.some((p) => p.id !== phase?.id && p.start_year === yearNum)
   const fxNum = Number(fx)
-  const fxValid = Number.isFinite(fxNum) && fxNum > 0
+  const fxValid = isFxValid(fx)
   const labelValid = label.trim() !== ''
   // DB có `check (annual_income_minor >= 0)` và `check (annual_expense_minor >= 0)`.
   // MoneyField cho gõ biểu thức và NumPad có phím −, nên "5 − 9" ra −4 trên đường
@@ -155,7 +169,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
           className={`mb-1 ${field}`}
         />
         {!labelValid && (
-          <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+          <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
             Tên chặng không được để trống.
           </p>
         )}
@@ -169,12 +183,12 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
           className={`mb-1 ${field}`}
         />
         {!yearValid && startYear !== '' && (
-          <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+          <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
             Năm phải là số nguyên trong khoảng 1900–2200.
           </p>
         )}
         {yearValid && yearDuplicate && (
-          <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+          <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
             Kịch bản đã có một chặng khác bắt đầu năm {yearNum} — mỗi năm chỉ được một chặng.
           </p>
         )}
@@ -193,7 +207,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
         <label className={label_}>Tiền dùng ở chặng này</label>
         <select
           value={currency}
-          onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
+          onChange={(e) => handleCurrencyChange(e.target.value as CurrencyCode)}
           className={`mb-3 ${field}`}
         >
           {(Object.keys(CURRENCIES) as CurrencyCode[]).map((c) => (
@@ -211,7 +225,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
           <MoneyField value={income} onChange={setIncome} currency={currency} ariaLabel="Thu nền mỗi năm" className={`text-right font-semibold ${field}`} />
         </div>
         {!incomeValid && (
-          <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+          <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
             Thu nền không được âm.
           </p>
         )}
@@ -222,7 +236,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
           <MoneyField value={expense} onChange={setExpense} currency={currency} autoOpen={false} ariaLabel="Chi nền mỗi năm" className={`text-right font-semibold ${field}`} />
         </div>
         {!expenseValid && (
-          <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
+          <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
             Chi nền không được âm.
           </p>
         )}
@@ -237,9 +251,13 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
               )}
             </label>
             <input inputMode="decimal" value={fx} onChange={(e) => setFx(e.target.value)} className={`mb-1 ${field}`} />
+            {/* Ô RỖNG có câu riêng: đó là trạng thái `handleCurrencyChange` vừa đặt, và
+                "phải là một số lớn hơn 0" không nói được vì sao con số cũ biến mất. */}
             {!fxValid && (
-              <p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">
-                Tỷ giá phải là một số lớn hơn 0.
+              <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
+                {fx.trim() === ''
+                  ? 'Chưa có tỷ giá. Đổi tiền của chặng là tỷ giá cũ hết nghĩa (nó quy về đơn vị khác) — khai lại rồi mới lưu được.'
+                  : 'Tỷ giá phải là một số lớn hơn 0.'}
               </p>
             )}
             {fxValid && fxNum === 1 && (
@@ -267,7 +285,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
               type="button"
               onClick={handleDelete}
               disabled={saving}
-              className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 active:scale-95 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
+              className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-red-700 dark:text-red-400 active:scale-95 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
             >
               Xóa
             </button>

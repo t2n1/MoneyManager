@@ -7,6 +7,7 @@ import { confirmDialog, promptDialog, showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
 import type { LifeEventRow, LifePhaseRow } from '../../types/database.types'
+import { fxAfterCurrencyChange, isFxValid } from './fxField'
 import { convertLifetimeMinor } from './project'
 import { LIFE_PRESETS, type PresetContext } from './presets'
 
@@ -74,9 +75,14 @@ export function EventFormSheet({
 
   // Cùng tiền hiển thị thì tỷ giá luôn là 1 và KHÔNG hỏi.
   const showFx = currency !== displayCurrency
-  useEffect(() => {
-    if (!showFx) setFx('1')
-  }, [showFx])
+
+  /** Đổi tiền của SỰ KIỆN NÀY → đặt lại ô tỷ giá. Cùng luật với `PhaseFormSheet`, xem
+   *  `fxAfterCurrencyChange` để biết vì sao effect theo boolean `showFx` bỏ sót đúng ca
+   *  đổi giữa hai ngoại tệ (VND → USD) — và vì sao không guard nào bắt được ca đó. */
+  function handleCurrencyChange(next: CurrencyCode) {
+    setCurrency(next)
+    setFx(fxAfterCurrencyChange(next, displayCurrency))
+  }
 
   useEffect(() => {
     if (busy) return
@@ -94,7 +100,7 @@ export function EventFormSheet({
     forever ||
     (Number.isInteger(endYearNum) && endYearNum >= MIN_YEAR && endYearNum <= MAX_YEAR && endYearNum >= yearNum)
   const fxNum = Number(fx)
-  const fxValid = Number.isFinite(fxNum) && fxNum > 0
+  const fxValid = isFxValid(fx)
   const labelValid = label.trim() !== ''
   const amountValid = amount >= 0
 
@@ -393,7 +399,7 @@ export function EventFormSheet({
             <label className={label_}>Tiền của sự kiện này</label>
             <select
               value={currency}
-              onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
+              onChange={(e) => handleCurrencyChange(e.target.value as CurrencyCode)}
               className={`mb-3 ${field}`}
             >
               {(Object.keys(CURRENCIES) as CurrencyCode[]).map((c) => (
@@ -409,6 +415,13 @@ export function EventFormSheet({
                 value={amount}
                 onChange={setAmount}
                 currency={currency}
+                // `autoOpen={false}` — CÙNG lập luận với ô "Tài sản khởi điểm" của
+                // ScenarioEditorSheet. Ô tỷ giá và dòng XEM TRƯỚC QUY ĐỔI nằm NGAY DƯỚI
+                // ô này, và dòng xem trước là cách DUY NHẤT phát hiện tỷ giá bị đảo chiều
+                // (xem PhaseFormSheet) — từ khi ô tỷ giá tự xoá sau mỗi lần đổi tiền, nó
+                // cũng là chỗ duy nhất cho thấy tỷ giá vừa khai lại có đúng độ lớn hay
+                // không. NumPad tự bung sẽ đẩy đúng hai thứ đó xuống dưới màn hình.
+                autoOpen={false}
                 ariaLabel="Số tiền mỗi năm"
                 className={`text-right font-semibold ${field}`}
               />
@@ -434,9 +447,12 @@ export function EventFormSheet({
                   onChange={(e) => setFx(e.target.value)}
                   className={`mb-1 ${field}`}
                 />
+                {/* Ô RỖNG có câu riêng — cùng lý do đã ghi ở PhaseFormSheet. */}
                 {!fxValid && (
                   <p role="alert" className="mb-2 text-xs text-red-700 dark:text-red-400">
-                    Tỷ giá phải là một số lớn hơn 0.
+                    {fx.trim() === ''
+                      ? 'Chưa có tỷ giá. Đổi tiền của sự kiện là tỷ giá cũ hết nghĩa (nó quy về đơn vị khác) — khai lại rồi mới lưu được.'
+                      : 'Tỷ giá phải là một số lớn hơn 0.'}
                   </p>
                 )}
                 {fxValid && fxNum === 1 && (

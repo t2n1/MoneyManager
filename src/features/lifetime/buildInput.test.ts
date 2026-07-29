@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_INFLATION_BPS, buildLifetimeInput } from './buildInput'
+import { DEFAULT_INFLATION_BPS, buildLifetimeInput, pickActive } from './buildInput'
 import type { LifeEventRow, LifePhaseRow, LifeScenarioRow } from '../../types/database.types'
 
 const TODAY = '2026-07-29'
@@ -70,6 +70,50 @@ function args(over: Partial<Parameters<typeof buildLifetimeInput>[0]> = {}) {
     ...over,
   }
 }
+
+// `pickActive` được EXPORT vì `useLifetime.ts` (tầng UI) phải dùng đúng nó chứ không
+// phải bản riêng `find(is_primary) ?? scenarios[0]`. Canh trực tiếp theo TÊN, không chỉ
+// gián tiếp qua buildLifetimeInput: hợp đồng ở đây là "hai chỗ cùng một luật", nên phép
+// thử phải gãy nếu ai đó đổi luật cho một bên.
+describe('pickActive — luật dùng chung với useLifetime', () => {
+  it('is_primary thắng, dù sort_order lớn hơn', () => {
+    const chosen = pickActive([
+      scenario({ id: 'phu', is_primary: false, sort_order: 0 }),
+      scenario({ id: 'chinh', is_primary: true, sort_order: 9 }),
+    ])
+    expect(chosen?.id).toBe('chinh')
+  })
+
+  it('không bản nào is_primary → sort_order nhỏ nhất, KHÔNG phải phần tử đầu mảng', () => {
+    const chosen = pickActive([
+      scenario({ id: 'sau', is_primary: false, sort_order: 5 }),
+      scenario({ id: 'truoc', is_primary: false, sort_order: 1 }),
+    ])
+    expect(chosen?.id).toBe('truoc')
+  })
+
+  it('nhiều bản cùng is_primary → sort_order nhỏ nhất TRONG SỐ ĐÓ', () => {
+    const chosen = pickActive([
+      scenario({ id: 'a', is_primary: true, sort_order: 4 }),
+      scenario({ id: 'b', is_primary: true, sort_order: 2 }),
+      scenario({ id: 'c', is_primary: false, sort_order: 0 }),
+    ])
+    expect(chosen?.id).toBe('b')
+  })
+
+  it('mảng rỗng → undefined', () => {
+    expect(pickActive([])).toBeUndefined()
+  })
+
+  it('không sắp lại mảng đầu vào (không có tác dụng lề)', () => {
+    const input = [
+      scenario({ id: 'sau', is_primary: false, sort_order: 5 }),
+      scenario({ id: 'truoc', is_primary: false, sort_order: 1 }),
+    ]
+    pickActive(input)
+    expect(input.map((s) => s.id)).toEqual(['sau', 'truoc'])
+  })
+})
 
 describe('buildLifetimeInput — luật chọn kịch bản', () => {
   it('is_primary thắng, dù sort_order lớn hơn', () => {

@@ -45,8 +45,14 @@ export interface BuildLifetimeInputArgs {
  * nào cả, mà đây lại đúng là nhánh code chưa từng chạy khi xem trước.
  *
  * Hoà cả `sort_order` thì giữ thứ tự mảng đầu vào (`sort` của JS ổn định).
+ *
+ * EXPORT vì `useLifetime.ts` phải dùng ĐÚNG hàm này chứ không phải bản riêng của nó
+ * (`find(is_primary) ?? scenarios[0]`). Hai luật chỉ trùng nhau nhờ cả hai repo tình cờ
+ * `order by sort_order` — mà chính vì tin vào điều đó là sai nên hàm này mới tồn tại.
+ * Lệch nhau thì màn Lifetime hiện một kịch bản còn thông báo/thẻ ở /assets nói về kịch
+ * bản khác, không có gì trên màn hình cho thấy hai bên đang nói về hai thứ.
  */
-function pickActive(scenarios: LifeScenarioRow[]): LifeScenarioRow | undefined {
+export function pickActive(scenarios: LifeScenarioRow[]): LifeScenarioRow | undefined {
   const primaries = scenarios.filter((s) => s.is_primary)
   const pool = primaries.length > 0 ? primaries : scenarios
   return [...pool].sort((a, b) => a.sort_order - b.sort_order)[0]

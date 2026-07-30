@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, ChevronLeft, Sparkles } from 'lucide-react'
 import { repo } from '../../data'
@@ -264,6 +264,10 @@ export function EventFormSheet({
 
   const title = presetsOpen ? 'Chọn mẫu' : event ? 'Sửa sự kiện' : 'Sự kiện mới'
 
+  // `useId` chứ không phải id viết cứng — cùng lý do đã ghi ở PhaseFormSheet: id trùng
+  // thì `htmlFor` bắt vào ô đầu tiên khớp, tức nhãn trỏ SAI ô.
+  const uid = useId()
+
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center" onClick={onClose}>
       <div
@@ -320,8 +324,11 @@ export function EventFormSheet({
               )}
             </div>
 
-            <label className={label_}>Tên sự kiện</label>
+            <label htmlFor={`${uid}-label`} className={label_}>
+              Tên sự kiện
+            </label>
             <input
+              id={`${uid}-label`}
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Ví dụ: Học phí đại học"
@@ -334,10 +341,21 @@ export function EventFormSheet({
             )}
             {labelValid && <div className="mb-2" />}
 
-            <label className={label_}>Loại</label>
-            <div className="mb-3 flex gap-2">
+            {/* KHÔNG phải <label htmlFor>: đây là hai cái NÚT, không phải một form
+                control, nên không có gì để `for` trỏ vào. Cách đúng là nhãn nhóm
+                (`role="group"` + `aria-labelledby`) — cùng cách với `switchLabelId` ở
+                YearTableView.
+                `aria-pressed` là phần BẮT BUỘC, không phải thêm cho đẹp: trạng thái đang
+                chọn ở đây chỉ thể hiện bằng MÀU (bg-green-700 vs viền), nên thiếu nó thì
+                người dùng screen reader nghe được "Chi, Thu" mà không biết cái nào đang
+                bật — tệ hơn cả việc thiếu nhãn. */}
+            <span id={`${uid}-kind`} className={label_}>
+              Loại
+            </span>
+            <div role="group" aria-labelledby={`${uid}-kind`} className="mb-3 flex gap-2">
               <button
                 type="button"
+                aria-pressed={kind === 'expense'}
                 onClick={() => setKind('expense')}
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   kind === 'expense'
@@ -349,6 +367,7 @@ export function EventFormSheet({
               </button>
               <button
                 type="button"
+                aria-pressed={kind === 'income'}
                 onClick={() => setKind('income')}
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   kind === 'income'
@@ -360,8 +379,11 @@ export function EventFormSheet({
               </button>
             </div>
 
-            <label className={label_}>Năm bắt đầu</label>
+            <label htmlFor={`${uid}-start`} className={label_}>
+              Năm bắt đầu
+            </label>
             <input
+              id={`${uid}-start`}
               inputMode="decimal"
               value={startYear}
               onChange={(e) => setStartYear(e.target.value)}
@@ -380,8 +402,11 @@ export function EventFormSheet({
             </label>
             {!forever && (
               <>
-                <label className={label_}>Năm kết thúc</label>
+                <label htmlFor={`${uid}-end`} className={label_}>
+                  Năm kết thúc
+                </label>
                 <input
+                  id={`${uid}-end`}
                   inputMode="decimal"
                   value={endYear}
                   onChange={(e) => setEndYear(e.target.value)}
@@ -396,8 +421,11 @@ export function EventFormSheet({
               </>
             )}
 
-            <label className={label_}>Tiền của sự kiện này</label>
+            <label htmlFor={`${uid}-currency`} className={label_}>
+              Tiền của sự kiện này
+            </label>
             <select
+              id={`${uid}-currency`}
               value={currency}
               onChange={(e) => handleCurrencyChange(e.target.value as CurrencyCode)}
               className={`mb-3 ${field}`}
@@ -419,13 +447,14 @@ export function EventFormSheet({
                 bên dưới không che được nó nữa. */}
             {showFx && (
               <>
-                <label className={`${label_} flex items-center gap-1`}>
+                <label htmlFor={`${uid}-fx`} className={`${label_} flex items-center gap-1`}>
                   Tỷ giá giả định: 1 {CURRENCIES[currency].label} = ? {CURRENCIES[displayCurrency].label}
                   {fxValid && fxNum === 1 && (
                     <AlertCircle className="h-3.5 w-3.5 shrink-0 text-fg-warn" aria-hidden="true" />
                   )}
                 </label>
                 <input
+                  id={`${uid}-fx`}
                   inputMode="decimal"
                   value={fx}
                   onChange={(e) => setFx(e.target.value)}
@@ -455,7 +484,9 @@ export function EventFormSheet({
               </>
             )}
 
-            <label className={label_}>Số tiền mỗi năm</label>
+            {/* <span> chứ không <label htmlFor> — lý do đầy đủ ghi ở PhaseFormSheet:
+                MoneyField có hai ô (chạm/desktop) nên `for` luôn trỏ được vào ô đang ẩn. */}
+            <span className={label_}>Số tiền mỗi năm</span>
             <div className="mb-1">
               <MoneyField
                 value={amount}
@@ -480,10 +511,10 @@ export function EventFormSheet({
               Tăng theo lạm phát (giá hôm nay cho việc xảy ra ở tương lai)
             </label>
 
-            <label className={label_}>
+            <label htmlFor={`${uid}-note`} className={label_}>
               Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
             </label>
-            <input value={note} onChange={(e) => setNote(e.target.value)} className={`mb-4 ${field}`} />
+            <input id={`${uid}-note`} value={note} onChange={(e) => setNote(e.target.value)} className={`mb-4 ${field}`} />
 
             <div className="flex items-center justify-between gap-2">
               {event ? (

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
 import { repo } from '../../data'
@@ -150,6 +150,12 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
 
   const title = phase ? 'Sửa chặng đời' : 'Chặng đời mới'
 
+  // `useId` chứ không phải id viết cứng: hai sheet có thể cùng nằm trong DOM một lúc
+  // (sheet chặng mở từ trong ScenarioEditorSheet), và id trùng thì `htmlFor` bắt vào
+  // ô ĐẦU TIÊN khớp — nhãn trỏ sai ô còn tệ hơn không có nhãn. Cùng cách với
+  // MoneyField và YearTableView.
+  const uid = useId()
+
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center" onClick={onClose}>
       <div
@@ -161,8 +167,11 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
       >
         <h2 className="mb-3 text-base font-bold text-fg-primary">{title}</h2>
 
-        <label className={label_}>Tên chặng</label>
+        <label htmlFor={`${uid}-label`} className={label_}>
+          Tên chặng
+        </label>
         <input
+          id={`${uid}-label`}
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="Ví dụ: Chuyển sang Mỹ"
@@ -175,8 +184,11 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
         )}
         {labelValid && <div className="mb-2" />}
 
-        <label className={label_}>Năm bắt đầu</label>
+        <label htmlFor={`${uid}-start`} className={label_}>
+          Năm bắt đầu
+        </label>
         <input
+          id={`${uid}-start`}
           inputMode="decimal"
           value={startYear}
           onChange={(e) => setStartYear(e.target.value)}
@@ -194,18 +206,22 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
         )}
         {(!startYear || (yearValid && !yearDuplicate)) && <div className="mb-3" />}
 
-        <label className={label_}>
+        <label htmlFor={`${uid}-country`} className={label_}>
           Quốc gia <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
         <input
+          id={`${uid}-country`}
           value={country}
           onChange={(e) => setCountry(e.target.value)}
           placeholder="Ví dụ: JP, US, VN — để trống nếu không rõ"
           className={`mb-3 ${field}`}
         />
 
-        <label className={label_}>Tiền dùng ở chặng này</label>
+        <label htmlFor={`${uid}-currency`} className={label_}>
+          Tiền dùng ở chặng này
+        </label>
         <select
+          id={`${uid}-currency`}
           value={currency}
           onChange={(e) => handleCurrencyChange(e.target.value as CurrencyCode)}
           className={`mb-3 ${field}`}
@@ -224,13 +240,13 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
             xếp với EventFormSheet. */}
         {showFx && (
           <>
-            <label className={`${label_} flex items-center gap-1`}>
+            <label htmlFor={`${uid}-fx`} className={`${label_} flex items-center gap-1`}>
               Tỷ giá giả định: 1 {CURRENCIES[currency].label} = ? {CURRENCIES[displayCurrency].label}
               {fxValid && fxNum === 1 && (
                 <AlertCircle className="h-3.5 w-3.5 shrink-0 text-fg-warn" aria-hidden="true" />
               )}
             </label>
-            <input inputMode="decimal" value={fx} onChange={(e) => setFx(e.target.value)} className={`mb-1 ${field}`} />
+            <input id={`${uid}-fx`} inputMode="decimal" value={fx} onChange={(e) => setFx(e.target.value)} className={`mb-1 ${field}`} />
             {/* Ô RỖNG có câu riêng: đó là trạng thái `handleCurrencyChange` vừa đặt, và
                 "phải là một số lớn hơn 0" không nói được vì sao con số cũ biến mất. */}
             {!fxValid && (
@@ -259,7 +275,13 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
           </>
         )}
 
-        <label className={label_}>Thu nền mỗi năm</label>
+        {/* <span> chứ KHÔNG phải <label htmlFor>: MoneyField render CẢ HAI ô — nút chạm
+            (`lg:hidden`) và input desktop (`hidden lg:block`) — nên luôn có hai đích khả
+            dĩ, và `for` trỏ vào cái đang bị CSS ẩn thì bấm nhãn sẽ focus một ô vô hình.
+            Tên đọc được đã do `ariaLabel` của MoneyField lo, và nó còn tốt hơn nhãn thường
+            vì đọc kèm giá trị ("Thu nền mỗi năm: ¥5.000.000"). Dòng này là CHÚ THÍCH nhìn
+            bằng mắt, nên dùng thẻ đúng nghĩa thay vì <label> mồ côi. */}
+        <span className={label_}>Thu nền mỗi năm</span>
         {/* Ô tiền CHÍNH của form này → để `autoOpen` mặc định (bung NumPad ngay).
             Ô "Chi nền" bên dưới là ô phụ: hai ô cùng tự bung thì ô mount SAU thắng,
             nên bàn phím hiện ra dưới ô thứ hai — xem hợp đồng `autoOpen` ở MoneyField. */}
@@ -273,7 +295,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
         )}
         {incomeValid && <div className="mb-2" />}
 
-        <label className={label_}>Chi nền mỗi năm</label>
+        <span className={label_}>Chi nền mỗi năm</span>
         <div className="mb-1">
           <MoneyField value={expense} onChange={setExpense} currency={currency} autoOpen={false} ariaLabel="Chi nền mỗi năm" className={`text-right font-semibold ${field}`} />
         </div>

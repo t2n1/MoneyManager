@@ -93,8 +93,17 @@ export function MoneyField({
         </span>
       )}
 
-      {/* Desktop: gõ trực tiếp */}
+      {/* Desktop: gõ trực tiếp.
+          `aria-label` ở ĐÂY nữa, không chỉ ở nút chạm phía trên: hai ô này luôn CÙNG nằm
+          trong DOM, chỉ ẩn/hiện bằng `lg:hidden` / `hidden lg:block`. Nên trên desktop ô
+          thật sự dùng được là ô này — mà trước 2026-07-30 nó không có tên nào cả, tức mọi
+          ô nhập tiền trong app đều vô danh với screen reader ở màn rộng. Nhãn nhìn bằng mắt
+          nằm ngoài component nên không cứu được (cũng không dùng `htmlFor` được: có hai
+          đích, `for` sẽ trỏ vào ô đang bị CSS ẩn).
+          Khác nút chạm ở chỗ KHÔNG ghép giá trị vào tên: giá trị đã nằm trong `value` của
+          input, screen reader tự đọc — ghép vào nữa thì nghe hai lần. */}
       <input
+        aria-label={ariaLabel}
         inputMode="numeric"
         value={result === 0 ? '' : formatMoney(result, currency)}
         onChange={(e) => {

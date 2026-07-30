@@ -105,6 +105,21 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     expect(count, `Trắng trên green-600 chỉ 3,22:1. Dùng bg-green-700.\n${where.join('\n')}`).toBe(0)
   })
 
+  // Lý do: ba sheet Lifetime dùng chung hằng `label_` cho nhãn ô nhập. Trước
+  // 2026-07-30 cả 20 nhãn đó đều viết `<label className={label_}>` không có `htmlFor`
+  // và không bọc control — tức screen reader đọc ô nhập KHÔNG RA TÊN GÌ (đã đo bằng
+  // thuật toán tính accessible name trên app đang chạy: 7/8 ô ở ScenarioEditorSheet
+  // không có tên). Không thể kiểm bằng test render vì repo không có @testing-library,
+  // nên chặn ở mức nguồn: dạng `<label className={label_}>` (không kèm htmlFor) phải
+  // bằng 0. Nhãn cho NHÓM hoặc cho MoneyField thì dùng <span>, không dùng <label>.
+  it('nhãn ô nhập trong sheet Lifetime luôn có htmlFor', () => {
+    const { count, where } = occurrences('<label className={label_}')
+    expect(
+      count,
+      `<label> không có htmlFor thì không đọc được tên ô. Thêm htmlFor + id, hoặc dùng <span> nếu là nhãn nhóm.\n${where.join('\n')}`,
+    ).toBe(0)
+  })
+
   // Lý do: amber KHÔNG có sắc độ nào đạt AA cả hai chế độ (đo thật: amber-600 =
   // 3,20:1 trên trắng nhưng 5,55:1 trên gray-900; amber-700 thì 5,03:1 và 3,53:1).
   // Nên chọn sắc độ "trông vừa mắt" ở một chế độ là tự động trượt ở chế độ kia — đúng

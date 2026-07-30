@@ -2,7 +2,7 @@
 // kiện, "số này ở đâu ra" (xem docs/superpowers/plans/2026-07-29-lifetime.md,
 // Task 11). STUB của Task 7 dừng ở đây; thân hàm bên dưới thay thế nó, giữ
 // nguyên chữ ký props để LifetimePage không phải sửa lại chỗ gọi.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, Copy, Plus, Sparkles, Star, Trash2, X } from 'lucide-react'
 import { repo } from '../../data'
@@ -623,6 +623,11 @@ export function ScenarioEditorSheet({
   const field =
     'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
   const label_ = 'mb-1 block text-xs font-medium text-fg-muted'
+
+  // `useId` chứ không phải id viết cứng: sheet này mở ĐỒNG THỜI với PhaseFormSheet /
+  // EventFormSheet, và id trùng thì `htmlFor` bắt vào ô ĐẦU TIÊN khớp trong DOM — nhãn
+  // trỏ sai ô còn tệ hơn không có nhãn.
+  const uid = useId()
   const errorLine = 'mb-2 text-xs text-money-out'
 
   return (
@@ -657,8 +662,10 @@ export function ScenarioEditorSheet({
 
           {/* --- Khối 1: Kịch bản --- */}
           <section className="mb-4 border-b border-border-subtle pb-4">
-            <label className={label_}>Tên kịch bản</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className={`mb-1 ${field}`} />
+            <label htmlFor={`${uid}-name`} className={label_}>
+              Tên kịch bản
+            </label>
+            <input id={`${uid}-name`} value={name} onChange={(e) => setName(e.target.value)} className={`mb-1 ${field}`} />
             {!nameValid && (
               <p role="alert" className={errorLine}>
                 Tên kịch bản không được để trống.
@@ -666,8 +673,11 @@ export function ScenarioEditorSheet({
             )}
             {nameValid && <div className="mb-2" />}
 
-            <label className={label_}>Năm sinh</label>
+            <label htmlFor={`${uid}-birth`} className={label_}>
+              Năm sinh
+            </label>
             <input
+              id={`${uid}-birth`}
               inputMode="decimal"
               value={birthYear}
               onChange={(e) => setBirthYear(e.target.value)}
@@ -680,8 +690,11 @@ export function ScenarioEditorSheet({
             )}
             {birthYearValid && <div className="mb-2" />}
 
-            <label className={label_}>Tuổi kết thúc chiếu</label>
+            <label htmlFor={`${uid}-endage`} className={label_}>
+              Tuổi kết thúc chiếu
+            </label>
             <input
+              id={`${uid}-endage`}
               inputMode="decimal"
               value={endAge}
               onChange={(e) => setEndAge(e.target.value)}
@@ -694,8 +707,11 @@ export function ScenarioEditorSheet({
             )}
             {endAgeValid && <div className="mb-2" />}
 
-            <label className={label_}>Tiền hiển thị (đồ thị và bảng năm)</label>
+            <label htmlFor={`${uid}-display`} className={label_}>
+              Tiền hiển thị (đồ thị và bảng năm)
+            </label>
             <select
+              id={`${uid}-display`}
               value={displayCurrency}
               onChange={(e) => setDisplayCurrency(e.target.value as CurrencyCode)}
               className={`mb-3 ${field}`}
@@ -753,10 +769,19 @@ export function ScenarioEditorSheet({
               </div>
             )}
 
-            <label className={label_}>Tài sản khởi điểm</label>
-            <div className="mb-1 flex gap-2">
+            {/* Nhãn của một NHÓM (công tắc dấu + ô tiền), không của một control — nên
+                `role="group"` + `aria-labelledby`, không phải <label htmlFor>. Và
+                `aria-pressed` là bắt buộc chứ không phải thêm cho đẹp: Dương/Âm chỉ khác
+                nhau bằng MÀU, thiếu nó thì người dùng screen reader không biết tài sản đang
+                được coi là dương hay âm — mà đó là dấu của TOÀN BỘ bản chiếu. Cùng cách với
+                nhóm "Loại" ở EventFormSheet. */}
+            <span id={`${uid}-assets`} className={label_}>
+              Tài sản khởi điểm
+            </span>
+            <div role="group" aria-labelledby={`${uid}-assets`} className="mb-1 flex gap-2">
               <button
                 type="button"
+                aria-pressed={assetsSign === 1}
                 onClick={() => setAssetsSign(1)}
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   assetsSign === 1
@@ -768,6 +793,7 @@ export function ScenarioEditorSheet({
               </button>
               <button
                 type="button"
+                aria-pressed={assetsSign === -1}
                 onClick={() => setAssetsSign(-1)}
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   assetsSign === -1
@@ -826,8 +852,11 @@ export function ScenarioEditorSheet({
                     : `Lấy lại theo tài sản ròng hiện tại (${formatMoney(netWorthInDisplay, displayCurrency)})`}
             </button>
 
-            <label className={label_}>Lợi suất thực mỗi năm (%, đã trừ lạm phát — có thể âm)</label>
+            <label htmlFor={`${uid}-return`} className={label_}>
+              Lợi suất thực mỗi năm (%, đã trừ lạm phát — có thể âm)
+            </label>
             <input
+              id={`${uid}-return`}
               inputMode="decimal"
               value={realReturnPct}
               onChange={(e) => setRealReturnPct(e.target.value)}
@@ -840,8 +869,11 @@ export function ScenarioEditorSheet({
             )}
             {realReturnValid && <div className="mb-2" />}
 
-            <label className={label_}>Độ rộng dải dao động (%, nửa dải)</label>
+            <label htmlFor={`${uid}-band`} className={label_}>
+              Độ rộng dải dao động (%, nửa dải)
+            </label>
             <input
+              id={`${uid}-band`}
               inputMode="decimal"
               value={bandSpreadPct}
               onChange={(e) => setBandSpreadPct(e.target.value)}

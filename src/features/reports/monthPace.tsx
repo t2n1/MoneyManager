@@ -170,25 +170,27 @@ export function MonthPaceCharts({ pace }: { pace: MonthPace }) {
               <LineChart data={cashflowData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
+                  tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
                   axisLine={false}
                   tickLine={false}
                   interval={4}
                 />
                 <YAxis
                   tickFormatter={(v: number) => formatCompact(v, base)}
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
+                  tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
                   axisLine={false}
                   tickLine={false}
                   width={44}
                 />
-                <ReferenceLine y={0} stroke="#9ca3af" />
+                <ReferenceLine y={0} stroke="var(--fg-muted)" />
                 <Tooltip
                   formatter={(v) => formatMoney(Number(v), base)}
                   labelFormatter={(l) => `Ngày ${l}`}
                   contentStyle={{ borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb' }}
                 />
-                <Line type="monotone" dataKey="balance" stroke="#0ea5e9" strokeWidth={2} dot={false} />
+                {/* sky-600 chứ không sky-500: sky-500 chỉ 2,77:1 trên nền trắng, dưới
+                    ngưỡng 3:1 cho đối tượng đồ hoạ. sky-600 đạt 4,02:1 / 4,41:1. */}
+                <Line type="monotone" dataKey="balance" stroke="var(--color-sky-600)" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>

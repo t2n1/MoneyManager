@@ -43,14 +43,14 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base }: 
           <LineChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
+              tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
               interval={4}
             />
             <YAxis
               tickFormatter={(v: number) => formatCompact(v, base)}
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
+              tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
               width={44}

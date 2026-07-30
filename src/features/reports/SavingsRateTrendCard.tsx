@@ -31,18 +31,18 @@ export function SavingsRateTrendCard({ series, labelOf }: Props) {
           <BarChart data={data} margin={{ top: 16, right: 4, left: -20, bottom: 0 }}>
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
+              tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
               tickFormatter={(v: number) => `${v}%`}
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
+              tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
               width={44}
             />
-            <ReferenceLine y={0} stroke="#d1d5db" />
+            <ReferenceLine y={0} stroke="var(--fg-muted)" />
             <Bar dataKey="pct" radius={[3, 3, 0, 0]} isAnimationActive={false}>
               {data.map((d, i) => (
                 <Cell key={i} fill={(d.pct ?? 0) < 0 ? '#ef4444' : '#0ea5e9'} />
@@ -51,7 +51,7 @@ export function SavingsRateTrendCard({ series, labelOf }: Props) {
                 dataKey="pct"
                 position="top"
                 formatter={(v: unknown) => (typeof v === 'number' ? `${v}%` : '')}
-                style={{ fontSize: 10, fill: '#6b7280' }}
+                style={{ fontSize: 10, fill: 'var(--fg-muted)' }}
               />
             </Bar>
           </BarChart>

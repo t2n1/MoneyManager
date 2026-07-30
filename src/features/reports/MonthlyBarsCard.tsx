@@ -30,10 +30,10 @@ export function MonthlyBarsCard({ series, base, title, labelOf }: Props) {
       <div className="h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={barData} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--fg-muted)' }} axisLine={false} tickLine={false} />
             <YAxis
               tickFormatter={(v: number) => formatCompact(v, base)}
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
+              tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
               width={44}

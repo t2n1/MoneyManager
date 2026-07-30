@@ -61,9 +61,9 @@ export function NetWorthHistorySection({ base, currentNetWorth }: Props) {
       <div className="mt-2 h-40">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 5, right: 8, bottom: 0, left: 0 }}>
-            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--fg-muted)' }} axisLine={false} tickLine={false} />
             <YAxis
-              tick={{ fontSize: 10, fill: '#9ca3af' }}
+              tick={{ fontSize: 10, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
               width={44}

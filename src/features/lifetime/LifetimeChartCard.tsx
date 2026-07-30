@@ -50,13 +50,25 @@ interface Props {
 }
 
 // Brief mẫu dùng #111827 (gần đen) cho đường lịch sử — mù trên nền dark:bg-gray-900 của
-// thẻ. Đổi sang sky-500, đủ sáng ở cả hai nền như các thẻ report khác đang dùng
-// (#16a34a/#ef4444/#0ea5e9 đều đã qua thực chiến dark mode trong features/reports/).
-const COLOR_ACTUAL = '#0ea5e9'
-const COLOR_PROJECTED = '#16a34a'
-const COLOR_COMPARE = '#6b7280'
-const COLOR_NEGATIVE = '#ef4444'
-const COLOR_AXIS = '#9ca3af'
+// thẻ. Lượt sửa đầu đổi sang sky-500 và lập luận "đủ sáng ở cả hai nền như các thẻ
+// report khác đang dùng" — lập luận đó CHỈ kiểm dark mode. Đo lại 2026-07-30 (canvas
+// pixel readback) thì sky-500 chỉ 2,77:1 trên NỀN TRẮNG, dưới ngưỡng 3:1 của
+// WCAG 1.4.11 cho đối tượng đồ hoạ. Đây là đường DỮ LIỆU THẬT, đường quan trọng nhất.
+//
+// sky-600 đạt cả hai: 4,02:1 trên trắng, 4,41:1 trên gray-900. Nên chỗ này KHÔNG cần
+// token (khác --fg-warn của amber, nơi không sắc độ nào đạt cả hai) — một giá trị là đủ.
+const COLOR_ACTUAL = 'var(--color-sky-600)'
+const COLOR_PROJECTED = '#16a34a' // 3,30:1 trên trắng / 5,38:1 trên gray-900 — đạt 3:1 cả hai
+const COLOR_COMPARE = '#6b7280' // 4,83:1 / 3,67:1 — đạt
+const COLOR_NEGATIVE = '#ef4444' // chỉ dùng làm nền ReferenceArea ở fillOpacity 0,1
+
+// Vừa là NÉT (đường 0 và các mốc, cần 3:1) vừa là CHỮ nhãn trục 11px (cần 4,5:1).
+// Trước đây là #9ca3af = gray-400: 2,54:1 trên trắng — chính idiom mà guardrail
+// designSystem đã ban cho `text-gray-400`, nhưng ban theo CLASS nên không thấy hex
+// trong prop Recharts. Không sắc xám nào đạt 4,5:1 cả hai chế độ, nên phải là token:
+// --fg-muted = gray-500 light (4,84:1) / gray-400 dark (6,99:1).
+// var() CÓ resolve trong presentation attribute của SVG và lật theo .dark — đã kiểm.
+const COLOR_AXIS = 'var(--fg-muted)'
 
 // Tham chiếu ỔN ĐỊNH cho "không có lịch sử" — `[]` viết trực tiếp trong JSX/useMemo sẽ
 // tạo mảng MỚI mỗi lần render (oxlint react-hooks/exhaustive-deps bắt đúng ca này), làm

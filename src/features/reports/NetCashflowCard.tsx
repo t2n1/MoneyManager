@@ -48,19 +48,19 @@ export function NetCashflowCard({ series, base, title, labelOf }: Props) {
           <ComposedChart data={data} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
+              tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
               tickFormatter={(v: number) => formatCompact(v, base)}
-              tick={{ fontSize: 11, fill: '#9ca3af' }}
+              tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
               width={44}
             />
             {/* Mốc 0 phải rõ: đây là ranh giới dư / thâm hụt */}
-            <ReferenceLine y={0} stroke="#9ca3af" />
+            <ReferenceLine y={0} stroke="var(--fg-muted)" />
             <Tooltip
               formatter={(v, name) => [
                 formatMoney(Number(v), base),

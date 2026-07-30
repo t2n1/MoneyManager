@@ -181,14 +181,14 @@ export function TrendsView() {
                 <LineChart data={chartData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                   <XAxis
                     dataKey="label"
-                    tick={{ fontSize: 11, fill: '#9ca3af' }}
+                    tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
                     axisLine={false}
                     tickLine={false}
                     interval={Math.max(0, Math.floor(monthsWithData / 6) - 1)}
                   />
                   <YAxis
                     tickFormatter={(v: number) => formatCompact(v, base)}
-                    tick={{ fontSize: 11, fill: '#9ca3af' }}
+                    tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
                     axisLine={false}
                     tickLine={false}
                     width={44}
@@ -203,7 +203,7 @@ export function TrendsView() {
                   <Line
                     type="monotone"
                     dataKey="expense"
-                    stroke="#d1d5db"
+                    stroke="var(--fg-muted)"
                     strokeWidth={1.5}
                     dot={false}
                   />

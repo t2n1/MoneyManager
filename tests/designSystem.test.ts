@@ -145,6 +145,41 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     }
   })
 
+  // Lý do: màu đồ thị đi qua PROP của Recharts, không qua class Tailwind — nên MỌI
+  // guardrail đếm class ở trên đều không thấy chúng. Đó là điểm mù thật: trước
+  // 2026-07-30 có 21 chỗ đặt chữ nhãn trục bằng hex `#9ca3af` (gray-400) = 2,54:1 trên
+  // nền trắng — đúng cái idiom mà test `text-gray-400` phía trên đã ban, chỉ khác là
+  // viết bằng hex nên lọt qua. Hex còn KHÔNG lật được theo .dark, mà nhãn trục cần
+  // 4,5:1 ở CẢ HAI chế độ và không sắc xám nào đạt cả hai → buộc phải là var(--fg-muted).
+  //
+  // Chỉ ban dạng object-literal `fill: '#`; KHÔNG ban `fill="#` vì đó là path của logo
+  // Google ở LoginPage — màu thương hiệu, cố định là đúng.
+  it('chữ trong đồ thị dùng token, không dùng hex', () => {
+    const { count, where } = occurrences("fill: '#")
+    expect(
+      count,
+      `Hex không lật được dark mode. Dùng fill: 'var(--fg-muted)'.\n${where.join('\n')}`,
+    ).toBe(0)
+  })
+
+  // Lý do: nét trong đồ thị cần 3:1 (WCAG 1.4.11). Ba hex dưới đây ĐO THẬT là trượt
+  // trên nền trắng, nên không được dùng làm nét — kể cả khi trông ổn ở dark mode, vì
+  // "trông ổn ở một chế độ" chính là cách chúng lọt vào lần đầu.
+  it('không dùng hex trượt 3:1 làm nét trong đồ thị', () => {
+    const FAILS: Record<string, string> = {
+      '#9ca3af': '2,54:1 (gray-400)',
+      '#d1d5db': '1,47:1 (gray-300)',
+      '#0ea5e9': '2,77:1 (sky-500)',
+    }
+    for (const [hex, ratio] of Object.entries(FAILS)) {
+      const { count, where } = occurrences(`stroke="${hex}"`)
+      expect(
+        count,
+        `${hex} chỉ ${ratio} trên trắng. Dùng var(--fg-muted) hoặc var(--color-sky-600).\n${where.join('\n')}`,
+      ).toBe(0)
+    }
+  })
+
   // Lý do: đã có tên text-2xs (11px) / text-3xs (10px). Giá trị tuỳ ý quay lại là
   // scale lại bị chọc lỗ.
   it('dùng bậc chữ đã đặt tên, không chêm giá trị tuỳ ý', () => {

@@ -1,7 +1,8 @@
 # Database Matrix — bản đồ dữ liệu & schema đích
 
-> **Ngày ghi:** 2026-07-14 · **Cập nhật:** 2026-07-29 (thêm nhánh Lifetime, migration
-> 0031 + 0032) · **Mục đích:** để **dữ liệu hiện có** và **dữ liệu các
+> **Ngày ghi:** 2026-07-14 · **Cập nhật:** 2026-07-30 (kiểm lại toàn bộ với
+> `supabase/migrations/`: bổ sung 9 bảng tài liệu từng bỏ sót, và sửa 4 mục còn đánh
+> "NEW"/"đích" tuy đã ship từ migration 0006–0008) · **Mục đích:** để **dữ liệu hiện có** và **dữ liệu các
 > tính năng tương lai** (backlog `docs/backlog-tinh-nang.md`) nối với nhau **một cách
 > nhất quán**, tránh trường hợp 2 tính năng cùng nhu cầu lại đẻ ra **2 luồng dữ liệu
 > khác nhau**.
@@ -120,6 +121,30 @@ tiên) để lấy `starting_assets_minor`, rồi từ đó tự đứng.
 | `life_phases.scenario_id` + `user_id` | → life_scenarios `(id, user_id)` | composite FK, `on delete cascade`; `unique(scenario_id, start_year)` |
 | `life_events.scenario_id` + `user_id` | → life_scenarios `(id, user_id)` | composite FK, `on delete cascade` |
 
+### Bảng đã có mà tài liệu này từng bỏ sót
+
+Kiểm lại 2026-07-30 bằng cách đối chiếu **mọi** `create table` trong
+`supabase/migrations/` với nội dung tài liệu. Chín bảng dưới đây đã tồn tại thật nhưng
+chưa từng được ghi ở đâu trong Phần 1–4, nên **Quy tắc vàng ở Phần 0 không hoạt động
+với chúng**: ai tra tài liệu này trước khi thêm bảng sẽ không thấy chúng và có thể đẻ ra
+luồng trùng. Đó là lý do mục này tồn tại chứ không phải để liệt kê cho đủ.
+
+| Bảng | Migration | Giữ gì | Quy ước tiền |
+|------|:---------:|--------|--------------|
+| `debts` | 0007 (+0011/0014/0021/0023) | khoản nợ / cho vay với đối tác ngoài hệ thống tài khoản | `currency` riêng của khoản nợ |
+| `debt_payments` | 0007 | lịch sử trả từng phần; `transaction_id` **null được** | minor theo tệ của `debts` |
+| `recurring_rules` | 0008 | khuôn sinh giao dịch định kỳ | minor theo tệ tài khoản nguồn |
+| `asset_group_settings` | 0004 | nhóm tài sản do người dùng đặt: `include_in_totals`, `is_hidden`, `sort_order`; `unique (user_id, name)` | — (không giữ tiền) |
+| `account_valuations` | 0016 | giá trị thị trường của tài khoản đầu tư; `unique (account_id, valued_on)` = mỗi ngày một giá | `market_value` minor theo tệ **tài khoản**, `>= 0` |
+| `savings_goals` | 0018 | mục tiêu tiết kiệm gắn vào một tài khoản | `target_amount` minor theo tệ **tài khoản**, `> 0` |
+| `networth_snapshots` | 0020 | ảnh chụp tài sản ròng theo ngày; `unique (user_id, snapshot_on)` | `net_worth` minor theo **base_currency**, âm được |
+| `tags` + `transaction_tags` | 0026 | nhãn tự do gắn vào giao dịch (n-n) | — (không giữ tiền) |
+| `notification_state` | 0029 | `read_at` / `dismissed_at` theo `key`; PK `(user_id, key)` | — |
+| `fx_history` | 0029 | tỷ giá theo ngày, `rates jsonb`; PK `(user_id, on_date, base)` | **major** units, chiều "1 base đổi được bao nhiêu" — cùng chiều `lib/rates.ts`, **ngược** `fx_to_display` |
+
+> ⚠️ `fx_history.rates` và `life_*.fx_to_display` là **hai chiều ngược nhau** và cùng nói
+> về tỷ giá. Xem ô "Quy ước `fx_to_display`" ở Phần 4 trước khi nối hai thứ này.
+
 > ⚠️ **Bất đối xứng tiền tệ cần nhớ:** `transactions.amount` theo **tệ tài khoản**;
 > `budgets.amount` theo **base_currency**. Mọi so sánh chi-tiêu-vs-ngân-sách phải
 > `convertToBase` phía chi tiêu trước. Tính năng mới đụng tiền phải khai báo rõ "lưu
@@ -130,23 +155,28 @@ tiên) để lấy `starting_assets_minor`, rồi từ đó tự đứng.
 ## Phần 2 — Ma trận Tính năng × Bảng
 
 **Ký hiệu:** `R` = chỉ đọc · `W` = ghi (tạo/sửa/xóa) · `+col` = thêm cột vào bảng có
-sẵn · `NEW` = cần bảng mới · `L` = chỉ localStorage/manifest (không đụng Postgres) ·
-`–` = không đụng.
+sẵn · `NEW` = cần bảng mới · ✅ = **đã ship** (kèm số migration) · `L` = chỉ
+localStorage/manifest (không đụng Postgres) · `–` = không đụng.
+
+> Cột **Mới cần** dùng ✅ cho thứ đã tồn tại và `NEW` cho thứ còn là dự định. Trước
+> 2026-07-30 cột này còn ghi `NEW` cho `recurring_rules`, `debts` và `parent_id` tuy cả
+> ba đã ship ở 0006–0008 — tức tài liệu chỉ sai đúng ở chỗ người ta tra nó để quyết định
+> có tạo bảng mới hay không.
 
 Đọc **theo cột dọc**: cột nào có nhiều `W`/`NEW` là điểm nóng dễ đẻ luồng trùng →
 phải gom về cụm chung (Phần 3).
 
 | Tính năng | profiles | accounts | categories | transactions | budgets | acct_balances | **Mới cần** |
 |-----------|:--------:|:--------:|:----------:|:------------:|:-------:|:-------------:|-------------|
-| **GĐ3-2** Giao dịch định kỳ | – | R | R | **W** (sinh) | – | – | **NEW `recurring_rules`** |
+| **GĐ3-2** Giao dịch định kỳ | – | R | R | **W** (sinh) | – | – | ✅ `recurring_rules` (0008) |
 | **GĐ3-3** Xuất CSV | R | R | R | R | R | R | – |
 | **A** Báo cáo năm | R | R | R | R | R | – | – |
 | **B** Sổ lịch | R | – | R | R | – | – | – |
 | **C** Chi định kỳ | – | R | R | **W** (sinh) | – | – | ↳ dùng `recurring_rules` |
 | **D** Chuyển khoản định kỳ | – | R | – | **W** (sinh) | – | – | ↳ dùng `recurring_rules` |
 | **E** Tổng tài sản | R | R | – | – | – | R | – |
-| **F** Nợ / cho vay | R | R? | – | W? (trả nợ) | – | – | **NEW `debts` (+`debt_payments`)** |
-| **G** Danh mục mẹ/con | – | – | **+col `parent_id`** | R | R | – | (đổi nền categories) |
+| **F** Nợ / cho vay | R | R? | – | W? (trả nợ) | – | – | ✅ `debts` + `debt_payments` (0007) |
+| **G** Danh mục mẹ/con | – | – | ✅ `+col parent_id` (0006) | R | R | – | ✅ đã đổi nền categories (0006) |
 | **H** Xuất Excel | R | R | R | R | R | R | – |
 | **I** Gợi ý thông minh | R | R | R | R | – | – | `L` (lựa chọn gần nhất) |
 | **J** Mẫu giao dịch nhanh | – | R | R | – | – | – | `L` **hoặc** **NEW `quick_templates`** |
@@ -163,15 +193,16 @@ phải gom về cụm chung (Phần 3).
 | **U** Phát hiện bất thường | – | R | R | R | – | – | – |
 | **V** Tỷ lệ tiết kiệm / streak | R | R | R | R | – | – | – |
 | **W** Dòng tiền tích lũy | R | – | – | R | – | – | – |
-| **Lifetime** Chiếu tài sản cả đời | **+col `birth_year`** | R | R | R | – | R | **NEW `life_scenarios` + `life_phases` + `life_events`** (0031/0032) |
+| **Lifetime** Chiếu tài sản cả đời | ✅ `+col birth_year` (0031) | R | R | R | – | R | ✅ `life_scenarios` + `life_phases` + `life_events` (0031/0032) |
 
 **Đọc nhanh ma trận:**
 
 - **transactions** là điểm nóng nhất (nhiều `W`): định kỳ, tách hóa đơn, batch, undo,
   trả nợ đều ghi vào đây. → Mọi thứ sinh/ghi giao dịch **phải đi qua cùng
   `createTransaction`/`updateTransaction` của `Repo`**, không có "đường ghi tắt".
-- Chỉ **4 tính năng cần thực thể mới:** GĐ3-2/C/D (`recurring_rules`), F (`debts`),
-  J (tùy chọn `quick_templates`), G (`+col parent_id`). Tất cả phần còn lại là
+- Trong 4 tính năng từng cần thực thể mới, **3 đã ship**: `recurring_rules` (0008),
+  `debts` + `debt_payments` (0007), `categories.parent_id` (0006). **Còn đúng 1 chưa
+  quyết:** J — `quick_templates` hay localStorage (mục 5.8). Tất cả phần còn lại là
   **đọc/tính client-side hoặc UI thuần** → không được tạo bảng.
 - **T (radar)** KHÔNG có bảng riêng: nó phát hiện rồi đề xuất tạo `recurring_rules`.
 
@@ -256,11 +287,15 @@ bảng nếu muốn đồng bộ — vì nó đúng tinh thần "mọi dữ li�
 
 ## Phần 4 — Schema đích (mức khái niệm)
 
-Mô tả các thực thể tương lai ở mức khái niệm. **Chưa** viết migration — DDL để dành cho
-spec từng mục. Mọi bảng mặc định có: `id uuid pk`, `user_id`, RLS `"own rows"`,
-composite `unique(id, user_id)` nếu bị bảng khác tham chiếu.
+Mô tả thực thể ở mức khái niệm. Mọi bảng mặc định có: `id uuid pk`, `user_id`, RLS
+`"own rows"`, composite `unique(id, user_id)` nếu bị bảng khác tham chiếu.
 
-### `recurring_rules` — NEW (Cụm 1)
+> Ba mục đầu (`recurring_rules`, `debts`, `debt_payments`) và `categories.parent_id`
+> **KHÔNG còn là "đích"** — đã ship ở migration 0006–0008; DDL thật ở
+> `supabase/migrations/`, phần dưới đây giữ lại vì nó ghi *lý do* của hình dạng, thứ
+> migration không nói. Chỉ `quick_templates` và `transactions.group_id` còn là dự định.
+
+### `recurring_rules` — ✅ đã có (0008) · Cụm 1
 
 Khuôn sinh giao dịch định kỳ. Không giữ số dư; chỉ mô tả "sinh gì, bao lâu một lần".
 
@@ -285,7 +320,7 @@ category; ngược lại). **Không** thêm khóa vào `transactions` để "đ�
 rule" ở bản đầu (giữ giao dịch sinh ra = giao dịch thường); nếu sau cần truy vết,
 thêm `transactions.recurring_rule_id uuid null` — ghi tên đó ở đây để dùng thống nhất.
 
-### `debts` — NEW (Cụm 2)
+### `debts` — ✅ đã có (0007, mở rộng ở 0011/0014/0021/0023) · Cụm 2
 
 Khoản nợ/cho vay với đối tác ngoài hệ thống tài khoản.
 
@@ -299,7 +334,7 @@ Khoản nợ/cho vay với đối tác ngoài hệ thống tài khoản.
 | `status` | `open` \| `settled` |
 | `note` | text |
 
-### `debt_payments` — NEW (Cụm 2)
+### `debt_payments` — ✅ đã có (0007) · Cụm 2
 
 Lịch sử trả từng phần. **Trỏ tới giao dịch thật** để không tách nguồn sự thật về tiền.
 
@@ -310,18 +345,18 @@ Lịch sử trả từng phần. **Trỏ tới giao dịch thật** để không
 | `paid_on` | date |
 | `transaction_id` | fk transactions **null** — nối tới giao dịch sinh ra nếu lần trả này có chuyển tiền thật; null nếu chỉ ghi nhận |
 
-### `categories.parent_id` — +col (Cụm 3)
+### `categories.parent_id` — ✅ đã có (0006, sửa tiếp ở 0030) · Cụm 3
 
 `parent_id uuid null` self-FK. Ràng buộc: cùng `type` với cha; **đúng 2 tầng** (cha
 của một danh-mục-con phải có `parent_id is null`); chặn tự trỏ. Không đổi khóa
 `transactions.category_id` / `budgets.category_id`.
 
-### `quick_templates` — NEW (tùy chọn, Cụm 6)
+### `quick_templates` — NEW, CHƯA có (tùy chọn, Cụm 6)
 
 Chỉ tạo **nếu** chọn phương án đồng bộ (xem Phần 5). Cột: `label`, `type`, `amount`
 (minor, tệ tài khoản), `category_id`, `account_id`, `note`, `sort_order`.
 
-### `transactions.group_id` — +col (tùy chọn, Cụm 4)
+### `transactions.group_id` — +col, CHƯA có (tùy chọn, Cụm 4)
 
 Chỉ tạo nếu nâng tách hóa đơn lên "gom nhóm". `group_id uuid null`; các dòng cùng hóa
 đơn chung `group_id`.

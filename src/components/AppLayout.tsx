@@ -29,17 +29,6 @@ const TABS = [
   { to: '/settings', label: 'Cài đặt', Icon: Settings },
 ]
 
-function isTypingTarget(e: KeyboardEvent) {
-  const el = e.target as HTMLElement | null
-  return (
-    !!el &&
-    (el.tagName === 'INPUT' ||
-      el.tagName === 'TEXTAREA' ||
-      el.tagName === 'SELECT' ||
-      el.isContentEditable)
-  )
-}
-
 // Catch-up định kỳ chỉ chạy 1 lần mỗi lần mở app (module-level để sống qua
 // StrictMode re-mount; bản thân engine cũng idempotent nên chạy lại vô hại)
 let recurringCatchUpDone = false
@@ -143,18 +132,6 @@ export function AppLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifInputsReady, notifEngineFailed])
 
-  // Phím tắt desktop: 1–5 chuyển tab, N mở màn nhập
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (isTypingTarget(e) || e.ctrlKey || e.metaKey || e.altKey) return
-      const index = Number(e.key) - 1
-      if (index >= 0 && index < TABS.length) navigate(TABS[index].to)
-      if (e.key === 'n' || e.key === 'N') navigate('/entry')
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [navigate])
-
   const linkClass = (isActive: boolean) =>
     `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
       isActive
@@ -166,9 +143,15 @@ export function AppLayout() {
     <div className="flex h-dvh flex-col overflow-hidden bg-surface-page lg:flex-row ">
       {/* Sidebar desktop */}
       <aside className="hidden shrink-0 border-r border-gray-200 bg-surface p-4 lg:flex lg:w-56 lg:flex-col dark:border-gray-800 print:hidden">
-        <div className="mb-6 flex items-center gap-2 px-2">
-          <NotebookText className="h-6 w-6 text-green-600 dark:text-green-500" />
-          <span className="flex-1 text-lg font-bold text-fg-primary">Sổ Chi Tiêu</span>
+        {/* Tên app chiếm RIÊNG một hàng. Đặt chung hàng với hai nút tiện ích thì nó chỉ
+            còn 51px mà cần ~95px mới đủ một dòng ở text-lg bold, nên rớt thành 3 dòng
+            ("Sổ / Chi / Tiêu"). Đo trên preview 1280px: sidebar 224px → 175px lòng trong,
+            trừ icon 24 + nút 32 + chuông 44 + 3 khoảng cách 24 = còn đúng 51px. */}
+        <div className="mb-2 flex items-center gap-2 px-2">
+          <NotebookText className="h-6 w-6 shrink-0 text-green-600 dark:text-green-500" />
+          <span className="whitespace-nowrap text-lg font-bold text-fg-primary">Sổ Chi Tiêu</span>
+        </div>
+        <div className="mb-4 flex items-center justify-end gap-1 px-2">
           <PrivacyToggle className="flex h-8 w-8 items-center justify-center rounded-lg text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800" />
           <NotificationBoundary>
             <NotificationBell className="hidden lg:inline-flex" />
@@ -182,7 +165,7 @@ export function AppLayout() {
           Nhập giao dịch
         </NavLink>
         <nav className="flex flex-col gap-1">
-          {TABS.map((tab, i) => (
+          {TABS.map((tab) => (
             <NavLink
               key={tab.to}
               to={tab.to}
@@ -191,9 +174,6 @@ export function AppLayout() {
             >
               <tab.Icon className="h-5 w-5" />
               <span className="flex-1">{tab.label}</span>
-              <kbd className="rounded bg-surface-sunken px-1.5 text-xs text-gray-600 dark:text-gray-400">
-                {i + 1}
-              </kbd>
             </NavLink>
           ))}
         </nav>

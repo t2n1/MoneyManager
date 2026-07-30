@@ -292,3 +292,60 @@ file không còn trả lời ba câu hỏi khác nhau trong cùng một mạch c
 
 Kiểm chứng: `tsc` sạch · 841 test qua · build xanh · 8 đường chuyển tiếp đi thử thật trên
 preview đều tới đúng đích và tải đúng dữ liệu.
+
+---
+
+## 7. Việc phát sinh sau khi rà lại (cùng ngày)
+
+### 7.1 Năm deep-link nữa bị bỏ sót — §4 liệt kê thiếu
+
+Bảng "15 chỗ link nội bộ phải sửa" ở §4 **thiếu bộ luật thông báo**. Năm chỗ nữa còn trỏ
+đường cũ, tìm ra bằng grep tay:
+
+| File | Cũ | Mới |
+| --- | --- | --- |
+| `notifications/rules/budgetRules.ts:13` | `const BUDGET_ROUTE = '/reports?view=budget'` | `'/budget'` |
+| `notifications/rules/debtRules.ts:11` | `const DEBTS_ROUTE = '/settings/debts'` | `'/debts'` |
+| `notifications/rules/rhythmRules.ts:66` | `to: '/settings/recurring'` | `'/recurring'` |
+| `notifications/rules/accountRules.ts:130,154` | `` to: `/assets/${…}` `` | `` `/assets/account/${…}` `` |
+| `notifications/rules/cardRules.ts:40` | `` to: `/assets/${a.id}` `` | `` `/assets/account/${a.id}` `` |
+
+Cả 5 **vẫn chạy** nhờ route chuyển tiếp, nên 841 phép thử xanh y nguyên và không gì báo.
+Đó mới là chỗ đáng lo: route chuyển tiếp có mặt để bookmark và lịch sử trình duyệt của
+NGƯỜI DÙNG còn dùng được, không phải để làm đường ống nội bộ. Dùng nó bên trong app nghĩa
+là một ngày dọn route cũ là đứt link mà không có gì báo trước.
+
+### 7.2 Chốt tự động: `src/routeLinks.test.ts`
+
+Bốn phép thử đọc `App.tsx` bằng `import.meta.glob('?raw')` (cùng lối `purity.test.ts`),
+bóc mọi đường dẫn viết cứng trong `src`, rồi canh hai điều:
+
+1. **Mọi link trỏ vào một route thật** — bắt link mồ côi (route đã bị xoá/đổi tên).
+2. **Không link nào trỏ vào route chuyển tiếp** — bắt đúng loại lỗi ở §7.1.
+
+Hai chi tiết làm nó không bị mù:
+
+- **Bắt theo VỊ TRÍ, không quét bừa mọi chuỗi trông giống đường dẫn.** Chú thích trong
+  `App.tsx` nhắc `/settings/debts`, `/reports?view=budget` để giải thích vì sao có route
+  chuyển tiếp — quét bừa là chính những chú thích ĐÚNG đó làm phép thử đỏ. Và trong
+  `App.tsx` phải bỏ `path="…"` (định nghĩa route, không phải link).
+- **Segment nội suy (`${a.id}`) chỉ khớp segment động (`:accountId`), không khớp segment
+  tĩnh.** Nới ra là `/assets/${a.id}` được tính là khớp `/assets/groups`, tức bỏ qua đúng
+  cái bug vừa sửa.
+
+### 7.3 Bản đầu của chốt đó ĐÃ HỎNG — và chỉ phá hoại có chủ đích mới lộ
+
+Bản đầu chỉ bắt `to: '…'` viết thẳng, nên **bỏ sót 2 trong 5 lỗi**: `budgetRules` và
+`debtRules` gán qua hằng số (`to: DEBTS_ROUTE`). Dựng lại lỗi `debtRules` → phép thử **vẫn
+xanh**. Đã thêm dạng `const X = '/…'`, rồi chứng minh nó đỏ với cả ba hình dạng lỗi:
+
+| Lỗi dựng lại | Phép thử đỏ |
+| --- | --- |
+| `debtRules` → `/settings/debts` (hằng số → route chuyển tiếp) | ✔ `không link nào trỏ vào route chuyển tiếp` |
+| `rhythmRules` → `/settings/dinh-ky-khong-ton-tai` (link mồ côi) | ✔ `mọi link trỏ vào một route thật` |
+| `cardRules` → `` `/assets/${a.id}` `` (template → route chuyển tiếp) | ✔ `không link nào trỏ vào route chuyển tiếp` |
+
+Bài học đáng ghi hơn cả bản sửa: **một phép thử mới xanh chưa chứng minh gì.** Phải dựng
+lại đúng lỗi nó nói là mình canh, và thấy nó đỏ.
+
+Sau §7: 845 test (thêm 4) · `tsc` sạch · build xanh · lint giữ nguyên 6 cảnh báo cũ.

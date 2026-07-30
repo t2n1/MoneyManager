@@ -10,7 +10,7 @@ export const PACE_MIN_ELAPSED = 1 / 3
 /** Hạn mức phải chiếm ít nhất bấy nhiêu phần tổng hạn mức mới đáng báo. */
 export const PACE_MIN_SHARE = 0.05
 
-const BUDGET_ROUTE = '/reports?view=budget'
+const BUDGET_ROUTE = '/budget'
 
 export function budgetRules(input: NotificationInput): AppNotification[] {
   const report = input.budgetReport

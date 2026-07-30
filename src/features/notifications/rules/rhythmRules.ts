@@ -63,7 +63,7 @@ export function rhythmRules(input: NotificationInput): AppNotification[] {
       severity: 'low',
       title: `Thấy ${input.formatMoney(s.amount, input.currencyOf(s.account_id))} trả đều ${s.frequency === 'weekly' ? 'mỗi tuần' : 'mỗi tháng'}${s.note ? ` cho "${s.note}"` : ''}`,
       detail: 'Tạo quy tắc định kỳ để khỏi phải ghi tay mỗi kỳ?',
-      to: '/settings/recurring',
+      to: '/recurring',
     })
   }
 

@@ -8,7 +8,7 @@ export const DUE_SOON_DAYS = 7
 /** Từ bao nhiêu khoản trở lên thì gộp thành một dòng. */
 export const GROUP_FROM = 3
 
-const DEBTS_ROUTE = '/settings/debts'
+const DEBTS_ROUTE = '/debts'
 
 function label(d: DebtRow): string {
   return d.direction === 'i_owe' ? `Mình nợ ${d.counterparty}` : `${d.counterparty} nợ mình`

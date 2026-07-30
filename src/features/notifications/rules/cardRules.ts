@@ -37,7 +37,7 @@ export function cardRules(input: NotificationInput): AppNotification[] {
       title: `Hôm nay ${a.name} chốt sao kê`,
       detail: 'Mua từ mai sẽ trả vào kỳ tháng sau.',
       onISO: input.todayISO,
-      to: `/assets/${a.id}`,
+      to: `/assets/account/${a.id}`,
     })
   }
 

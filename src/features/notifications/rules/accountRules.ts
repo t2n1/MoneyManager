@@ -127,7 +127,7 @@ function pushShortfallIfNeeded(
     title: `${account.name} thiếu ${input.formatMoney(facts.owe - facts.have, account.currency)}`,
     detail: facts.detail,
     onISO: untilISO,
-    to: `/assets/${account.id}`,
+    to: `/assets/account/${account.id}`,
   })
 }
 
@@ -151,7 +151,7 @@ export function accountRules(input: NotificationInput): AppNotification[] {
       severity: 'high',
       title: `${a.name} đang âm ${input.formatMoney(-a.balance, a.currency)}`,
       detail: 'Thường là ghi nhầm hoặc quên ghi một khoản thu.',
-      to: `/assets/${a.id}`,
+      to: `/assets/account/${a.id}`,
     })
   }
 

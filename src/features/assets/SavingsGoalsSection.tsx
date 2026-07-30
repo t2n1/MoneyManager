@@ -153,7 +153,7 @@ export function SavingsGoalsSection() {
                       <span
                         className={
                           f.vsDeadline === 'behind'
-                            ? 'text-amber-700 dark:text-amber-400'
+                            ? 'text-fg-warn'
                             : 'text-fg-muted'
                         }
                       >

@@ -46,7 +46,7 @@ export function TransactionItem({ tx, categoryOf, accountOf, base, onClick }: Pr
           {tx.is_debt_flow && (
             <HandCoins
               aria-label="Dòng tiền nợ/cho vay — không tính vào Thu/Chi"
-              className="ml-1 inline h-3 w-3 align-baseline text-amber-500 dark:text-amber-400"
+              className="ml-1 inline h-3 w-3 align-baseline text-fg-warn"
             />
           )}
         </span>

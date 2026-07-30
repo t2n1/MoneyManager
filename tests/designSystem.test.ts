@@ -105,6 +105,20 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     expect(count, `Trắng trên green-600 chỉ 3,22:1. Dùng bg-green-700.\n${where.join('\n')}`).toBe(0)
   })
 
+  // Lý do: amber KHÔNG có sắc độ nào đạt AA cả hai chế độ (đo thật: amber-600 =
+  // 3,20:1 trên trắng nhưng 5,55:1 trên gray-900; amber-700 thì 5,03:1 và 3,53:1).
+  // Nên chọn sắc độ "trông vừa mắt" ở một chế độ là tự động trượt ở chế độ kia — đúng
+  // cái đã xảy ra ở 11 chỗ trước 2026-07-30. Chữ cảnh báo phải đi qua token.
+  it('không dùng amber-600/500 làm chữ (trượt AA ở light mode)', () => {
+    for (const needle of ['text-amber-600', 'text-amber-500']) {
+      const { count, where } = occurrences(needle)
+      expect(
+        count,
+        `${needle} chỉ ${needle.endsWith('600') ? '3,20' : '2,13'}:1 trên trắng. Dùng text-fg-warn.\n${where.join('\n')}`,
+      ).toBe(0)
+    }
+  })
+
   // Lý do: 896 chỗ đã đổi sang token. Viết lại cặp sáng/tối bằng tay nghĩa là quyết
   // định màu bị nhân bản trở lại. Chỉ ban những cặp TRÙNG KHỚP CHÍNH XÁC với token —
   // các biến thể khác (gray-700/200, gray-700/300, gray-900/100) cố ý để tự do, vì
@@ -120,6 +134,10 @@ describe('design system — ban cứng (phải bằng 0)', () => {
       'border-gray-100 dark:border-gray-800': 'border-border-subtle',
       'border-gray-300 dark:border-gray-700': 'border-border-strong',
       'divide-gray-100 dark:divide-gray-800': 'divide-border-subtle',
+      // Đúng y cặp của --fg-warn. Cố ý KHÔNG ban `text-amber-700 dark:text-amber-300`
+      // (14 chỗ, nằm trên nền amber-50/amber-900-40): đó là cặp KHÁC, gộp vào token là
+      // đổi sắc độ dark từ 300 sang 400 — đổi diện mạo, không phải đặt tên.
+      'text-amber-700 dark:text-amber-400': 'text-fg-warn',
     }
     for (const [needle, token] of Object.entries(MAPPED)) {
       const { count, where } = occurrences(needle)
@@ -184,6 +202,7 @@ describe('design system — token phải tồn tại', () => {
       '--fg-on-track',
       '--money-in',
       '--money-out',
+      '--fg-warn',
       '--surface',
       '--surface-sunken',
       '--border-subtle',

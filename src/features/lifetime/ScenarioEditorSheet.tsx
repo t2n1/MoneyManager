@@ -642,7 +642,7 @@ export function ScenarioEditorSheet({
             <h2 className="text-base font-bold text-fg-primary">
               Sửa kịch bản
               {block1Dirty && (
-                <span className="ml-2 text-xs font-medium text-amber-700 dark:text-amber-400">· chưa lưu</span>
+                <span className="ml-2 text-xs font-medium text-fg-warn">· chưa lưu</span>
               )}
             </h2>
             <button
@@ -714,7 +714,7 @@ export function ScenarioEditorSheet({
                 vị. Banner Task 7 không đỡ hộ: nó chỉ đếm dòng có fx_to_display = 1,
                 không biết gì về tài sản khởi điểm. */}
             {(currencyChanged || assetsStale) && (
-              <div className="mb-3 flex items-start gap-1 text-xs text-amber-700 dark:text-amber-400">
+              <div className="mb-3 flex items-start gap-1 text-xs text-fg-warn">
                 <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 <div className="space-y-1">
                   {currencyChanged && (
@@ -977,7 +977,7 @@ export function ScenarioEditorSheet({
                       {p.currency !== scenario.display_currency && (
                         <span className="mt-0.5 flex items-center gap-1 text-xs tabular-nums text-fg-muted">
                           {p.fx_to_display === 1 && (
-                            <AlertCircle className="h-3 w-3 shrink-0 text-amber-500" aria-hidden="true" />
+                            <AlertCircle className="h-3 w-3 shrink-0 text-fg-warn" aria-hidden="true" />
                           )}
                           Tỷ giá giả định:{' '}
                           {formatFxAssumption(p.fx_to_display, p.currency as CurrencyCode, scenario.display_currency as CurrencyCode)}{' '}
@@ -1033,7 +1033,7 @@ export function ScenarioEditorSheet({
                         {mismatch && (
                           <span
                             className={`mt-0.5 flex items-center gap-1 text-xs tabular-nums ${
-                              suspicious ? 'text-amber-700 dark:text-amber-400' : 'text-fg-muted'
+                              suspicious ? 'text-fg-warn' : 'text-fg-muted'
                             }`}
                           >
                             {suspicious && <AlertCircle className="h-3 w-3 shrink-0" aria-hidden="true" />}

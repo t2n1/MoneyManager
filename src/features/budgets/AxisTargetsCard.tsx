@@ -48,7 +48,7 @@ export function AxisTargetsCard({ data, base }: Props) {
                 <span className="text-gray-700 dark:text-gray-300">{LABEL[l.key]}</span>
                 <span
                   className={`text-xs font-medium ${
-                    l.ok ? 'text-money-in' : 'text-amber-600 dark:text-amber-400'
+                    l.ok ? 'text-money-in' : 'text-fg-warn'
                   }`}
                 >
                   {Math.round(l.share * 100)}%
@@ -73,7 +73,7 @@ export function AxisTargetsCard({ data, base }: Props) {
                 />
               </div>
               <div className="mt-0.5 flex justify-between text-xs text-fg-muted">
-                <span className={l.ok ? '' : 'text-amber-600 dark:text-amber-400'}>
+                <span className={l.ok ? '' : 'text-fg-warn'}>
                   {formatMoney(Math.round(l.actual), base)}
                 </span>
                 <span>

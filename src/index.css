@@ -68,6 +68,16 @@
      nghĩa: đây là "bấm được", kia là "đây là khoản thu". Trộn hai thứ thì không còn
      đổi riêng được màu link mà không đụng vào con số. green-700 trên trắng = 4,95:1. */
   --fg-accent: var(--color-green-700);
+
+  /* Chữ cảnh báo (sắp vượt hạn mức, tỷ giá giả định, đơn vị tiền lệch).
+     Amber là màu KHÔNG có sắc độ nào đạt cả hai chế độ — đo thật:
+       amber-500  2,13:1 trên trắng  /  8,31:1 trên gray-900
+       amber-600  3,20:1 trên trắng  /  5,55:1 trên gray-900
+       amber-700  5,03:1 trên trắng  /  3,53:1 trên gray-900
+     Nên nó BẮT BUỘC phải là token, không phải một lớp viết tay: chọn amber-600 vì
+     "trông vừa mắt ở dark" là tự động trượt AA ở light, và ngược lại. Đây chính là
+     cái bẫy đã có thật ở 11 chỗ trong app trước 2026-07-30. */
+  --fg-warn: var(--color-amber-700); /* 5,03:1 trên trắng; 4,81:1 trên gray-50; 4,85:1 trên amber-50 */
 }
 
 .dark {
@@ -89,6 +99,11 @@
   --accent: var(--color-green-500);
   --accent-hover: var(--color-green-400);
   --fg-accent: var(--color-green-400);
+
+  /* ĐẢO chiều như --fg-muted. amber-400 trên gray-900 = 10,30:1; trên gray-800 =
+     8,52:1; trên gray-950 = 11,69:1; trên amber-900/40 phủ gray-900 = 8,56:1 — tức
+     đạt AA trên MỌI nền nó thật sự xuất hiện, sàn là 8,52:1. */
+  --fg-warn: var(--color-amber-400);
 }
 
 /* Map var ngữ nghĩa thành tiện ích Tailwind. `inline` để Tailwind nhả ra
@@ -110,6 +125,7 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-fg-accent: var(--fg-accent);
+  --color-fg-warn: var(--fg-warn);
 }
 
 /* Nút bấm trên mobile không bị delay/zoom khi chạm nhanh */

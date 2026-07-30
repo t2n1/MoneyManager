@@ -414,7 +414,7 @@ export function LifetimeChartCard({
             <LegendSwatch color={COLOR_ACTUAL} /> Lịch sử thật
           </span>
         ) : (
-          <span className="text-amber-600 dark:text-amber-400">
+          <span className="text-fg-warn">
             Lịch sử ẩn — khác đơn vị tiền ({historyCurrency} ≠ {currency})
           </span>
         )}
@@ -439,14 +439,14 @@ export function LifetimeChartCard({
             (chữ amber, nói ra hai đơn vị). Không có nó thì bật "So sánh" xong không thấy
             đường nào và cũng không biết vì sao. */}
         {compareMismatch && (
-          <span className="text-amber-600 dark:text-amber-400">
+          <span className="text-fg-warn">
             Đường so sánh ẩn — khác đơn vị tiền ({compareCurrency} ≠ {currency})
           </span>
         )}
         {/* Bản chiếu của kịch bản so sánh rỗng — cùng lý do phải NÓI RA như hai câu trên:
             im lặng thì bật "So sánh" xong không thấy đường nào và tưởng đồ thị hỏng. */}
         {plan.compareEmptyNote && (
-          <span className="text-amber-600 dark:text-amber-400">
+          <span className="text-fg-warn">
             Kịch bản so sánh chưa chiếu được năm nào — kiểm chặng đời và tuổi kết thúc của nó
           </span>
         )}

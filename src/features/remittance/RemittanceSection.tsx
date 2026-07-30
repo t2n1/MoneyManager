@@ -162,7 +162,7 @@ export function RemittanceSection({
                         </span>
                       )}{' '}
                       ·{' '}
-                      <span className={isTransfer ? 'text-sky-600 dark:text-sky-400' : 'text-amber-600 dark:text-amber-400'}>
+                      <span className={isTransfer ? 'text-sky-600 dark:text-sky-400' : 'text-fg-warn'}>
                         {isTransfer ? 'Chuyển tài sản' : 'Hỗ trợ GĐ'}
                       </span>
                     </p>

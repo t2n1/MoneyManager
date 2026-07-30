@@ -192,7 +192,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           là <b>sàn</b> (vượt mức là tốt).
           {/* Không ép tổng = 100: có người muốn để đệm, nhưng lệch nhiều thì nhắc */}
           {Math.abs(axisSum - 100) > 0.5 && (
-            <span className="text-amber-600 dark:text-amber-400">
+            <span className="text-fg-warn">
               {' '}
               Tổng hiện là {Math.round(axisSum)}% — không bắt buộc bằng 100%, nhưng lệch nhiều thì
               ba mốc khó dùng chung.

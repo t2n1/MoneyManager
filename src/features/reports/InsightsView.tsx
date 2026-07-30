@@ -282,7 +282,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
                     {cat?.icon ?? '📦'} {cat?.name ?? '?'}
                   </span>
                   <span className="shrink-0 font-medium text-fg-primary">{formatMoney(a.amount, base)}</span>
-                  <span className="shrink-0 text-amber-600">gấp {Math.round(a.ratio)}× thường ngày</span>
+                  <span className="shrink-0 text-fg-warn">gấp {Math.round(a.ratio)}× thường ngày</span>
                 </li>
               )
             })}

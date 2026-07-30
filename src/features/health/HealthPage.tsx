@@ -220,7 +220,7 @@ export function HealthPage() {
         {(
           [
             ['good', tally.good, 'text-money-in'],
-            ['warn', tally.warn, 'text-amber-600 dark:text-amber-400'],
+            ['warn', tally.warn, 'text-fg-warn'],
             ['bad', tally.bad, 'text-money-out'],
           ] as const
         ).map(([key, count, cls]) => (

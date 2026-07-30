@@ -395,7 +395,7 @@ export function TrendsView() {
                 elasticity.elasticity >= 0.8
                   ? 'text-money-out'
                   : elasticity.elasticity >= 0.5
-                    ? 'text-amber-600 dark:text-amber-400'
+                    ? 'text-fg-warn'
                     : 'text-money-in'
               }`}
             >

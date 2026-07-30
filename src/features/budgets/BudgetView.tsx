@@ -33,7 +33,7 @@ const BAR_COLOR: Record<BudgetStatus, string> = {
 }
 const TEXT_COLOR: Record<BudgetStatus, string> = {
   ok: 'text-fg-primary',
-  warn: 'text-amber-600',
+  warn: 'text-fg-warn',
   over: 'text-money-out',
 }
 
@@ -214,7 +214,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           <h2 className="text-sm font-semibold text-fg-muted">Tổng ngân sách</h2>
           <span className="flex gap-2 text-xs font-medium">
             {report.warnCount > 0 && (
-              <span className="text-amber-600 dark:text-amber-400">{report.warnCount} sắp vượt</span>
+              <span className="text-fg-warn">{report.warnCount} sắp vượt</span>
             )}
             {report.overCount > 0 && (
               <span className="text-money-out">{report.overCount} danh mục vượt</span>
@@ -326,7 +326,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                   </div>
                   {/* Mốc con chỉ chia nhỏ bên trong trần cha; cộng lại vượt trần thì nhắc. */}
                   {item.capped && item.markerTotal > item.budgeted && (
-                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    <p className="mt-1 text-xs text-fg-warn">
                       Mốc các mục con cộng lại {formatMoney(item.markerTotal, base)}, vượt trần nhóm{' '}
                       {formatMoney(item.budgeted, base)}.
                     </p>

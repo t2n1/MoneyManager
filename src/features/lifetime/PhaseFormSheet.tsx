@@ -227,7 +227,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
             <label className={`${label_} flex items-center gap-1`}>
               Tỷ giá giả định: 1 {CURRENCIES[currency].label} = ? {CURRENCIES[displayCurrency].label}
               {fxValid && fxNum === 1 && (
-                <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden="true" />
+                <AlertCircle className="h-3.5 w-3.5 shrink-0 text-fg-warn" aria-hidden="true" />
               )}
             </label>
             <input inputMode="decimal" value={fx} onChange={(e) => setFx(e.target.value)} className={`mb-1 ${field}`} />
@@ -241,7 +241,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
               </p>
             )}
             {fxValid && fxNum === 1 && (
-              <p className="mb-2 flex items-start gap-1 text-xs text-amber-700 dark:text-amber-400">
+              <p className="mb-2 flex items-start gap-1 text-xs text-fg-warn">
                 <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 Tỷ giá 1:1 giữa hai tiền khác nhau gần như chắc chắn là ô chưa ai khai — kiểm tra lại.
               </p>

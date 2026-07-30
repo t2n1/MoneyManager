@@ -28,7 +28,7 @@ const BADGE: Record<Verdict, string> = {
 
 const VALUE: Record<Verdict, string> = {
   good: 'text-money-in',
-  warn: 'text-amber-600 dark:text-amber-400',
+  warn: 'text-fg-warn',
   bad: 'text-money-out',
   unknown: 'text-fg-muted',
 }

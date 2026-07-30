@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Repeat, Search } from 'lucide-react'
 import { IconButton, SegmentedControl, iconButtonClass } from '../../components/ui'
 import {
   useAccounts,
@@ -136,6 +136,13 @@ export function LedgerPage() {
         </IconButton>
         <Link to="/search" className={iconButtonClass()} aria-label="Tìm kiếm giao dịch">
           <Search className="h-5 w-5" />
+        </Link>
+        {/* Định kỳ dời từ Cài đặt về đây (nó là giao dịch tương lai, không phải cấu hình).
+            Đặt ở header chứ KHÔNG thành tab con thứ 5: 5 mục segmented control quá chật
+            trên mobile, và đây là danh sách quy tắc chứ không phải một cách xem cùng dữ
+            liệu như 4 tab kia. Xem docs/information-architecture.md §2.1. */}
+        <Link to="/recurring" className={iconButtonClass()} aria-label="Giao dịch định kỳ">
+          <Repeat className="h-5 w-5" />
         </Link>
         <NotificationBoundary>
           <NotificationBell className="lg:hidden" />

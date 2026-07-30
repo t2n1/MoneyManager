@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ChevronLeft, Pencil, Sparkles } from 'lucide-react'
+import { AlertTriangle, Pencil, Sparkles } from 'lucide-react'
 import { repo } from '../../data'
 import { useNetWorthSnapshots } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
@@ -16,24 +15,14 @@ import { YearTableView } from './YearTableView'
 const MIN_BIRTH_YEAR = 1900
 const MAX_BIRTH_YEAR = 2100
 
-/** Nút back dùng chung cho cả 3 trạng thái — điều hướng bằng `useNavigate(-1)` (brief). */
-function BackButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="Quay lại"
-      className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-surface px-3 py-1.5 shadow-sm active:scale-95"
-    >
-      <ChevronLeft className="h-5 w-5 text-gray-700 dark:text-gray-200" />
-    </button>
-  )
-}
-
-/** Vỏ màn Lifetime (mục Lifetime): chiếu tài sản ròng cả đời. Ba trạng thái — chưa
- * khai năm sinh, chưa có kịch bản, có dữ liệu — không có trạng thái nào để trống. */
-export function LifetimePage() {
-  const navigate = useNavigate()
+/** Lifetime (mục Lifetime): chiếu tài sản ròng cả đời. Ba trạng thái — chưa khai năm
+ * sinh, chưa có kịch bản, có dữ liệu — không có trạng thái nào để trống.
+ *
+ * Là tab con "Tương lai" của Tài sản (`/assets?view=future`), không còn trang riêng: trước
+ * đây đường vào duy nhất là một teaser chôn ở khối thứ 4 trên trang Tài sản. Vì vậy không
+ * có nút back và không tự đặt padding — vỏ AssetsPage lo cả hai.
+ * Xem docs/information-architecture.md §2.3. */
+export function LifetimeView() {
   const {
     scenarios,
     active,
@@ -106,9 +95,8 @@ export function LifetimePage() {
   // --- Trạng thái 1: chưa khai năm sinh — không chiếu được gì nếu thiếu nó ---
   if (needsBirthYear) {
     return (
-      <div className="space-y-3 p-3">
+      <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <BackButton onClick={() => navigate(-1)} />
           <h1 className="text-lg font-bold text-fg-primary">Lifetime</h1>
         </div>
         <BirthYearCard />
@@ -119,9 +107,8 @@ export function LifetimePage() {
   // --- Trạng thái 2: chưa có kịch bản nào — nút thay wizard ---
   if (scenarios.length === 0) {
     return (
-      <div className="space-y-3 p-3">
+      <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <BackButton onClick={() => navigate(-1)} />
           <h1 className="text-lg font-bold text-fg-primary">Lifetime</h1>
         </div>
         <div className="rounded-xl bg-surface p-3 shadow-sm">
@@ -207,10 +194,9 @@ export function LifetimePage() {
   }
 
   return (
-    <div className="space-y-3 p-3">
+    <div className="space-y-3">
       {/* Header: không có bánh răng — mọi thiết lập thuộc trình sửa kịch bản hoặc Cài đặt */}
       <div className="flex items-center gap-2">
-        <BackButton onClick={() => navigate(-1)} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-bold text-fg-primary">Lifetime</h1>
           {profile?.birth_year != null && (

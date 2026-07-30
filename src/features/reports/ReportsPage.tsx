@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, HeartPulse } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   IconButton,
   Money,
@@ -9,7 +8,6 @@ import {
   StatTile,
   type SegmentedItem,
 } from '../../components/ui'
-import { BudgetView } from '../budgets/BudgetView'
 import { RemittanceSection } from '../remittance/RemittanceSection'
 import { InsightsView } from './InsightsView'
 import { TrendsView } from './TrendsView'
@@ -50,15 +48,23 @@ import {
   sumIncomeExpense,
 } from './aggregate'
 
-type ReportView = 'charts' | 'trends' | 'insights' | 'budget'
+// Sức khỏe là 532 dòng tính toán mà 3 tab kia không cần — lazy để mở tab Biểu đồ (mặc
+// định) không phải tải nó.
+const HealthView = lazy(() =>
+  import('../health/HealthView').then((m) => ({ default: m.HealthView })),
+)
+
+type ReportView = 'charts' | 'trends' | 'insights' | 'health'
 type ReportPeriod = 'month' | 'year'
 
 const VIEW_TABS: readonly SegmentedItem<ReportView>[] = [
   { value: 'charts', label: 'Biểu đồ' },
   { value: 'trends', label: 'Xu hướng' },
   { value: 'insights', label: 'Thấu hiểu' },
-  { value: 'budget', label: 'Ngân sách' },
+  { value: 'health', label: 'Sức khỏe' },
 ]
+
+const isView = (v: string | null): v is ReportView => VIEW_TABS.some((t) => t.value === v)
 
 const PERIOD_TABS: readonly SegmentedItem<ReportPeriod>[] = [
   { value: 'month', label: 'Tháng' },
@@ -79,10 +85,24 @@ export function ReportsPage() {
   const [period, setPeriod] = useState<'month' | 'year'>(
     searchParams.get('period') === 'year' ? 'year' : 'month',
   )
-  const [view, setView] = useState<ReportView>(() => {
-    const v = searchParams.get('view')
-    return v === 'budget' || v === 'insights' || v === 'trends' ? v : 'charts'
-  })
+  // Tab giữ trong URL (không phải useState) — nếu không, đường chuyển tiếp
+  // `/health` → `/reports?view=health` sẽ để `view=health` kẹt lại trong thanh địa chỉ:
+  // bấm sang tab khác không xoá nó, và tải lại trang là quay về Sức khỏe dù đang xem
+  // Biểu đồ. Cũng nhờ vậy mà link vào thẳng một tab luôn ăn, kể cả khi đã ở /reports.
+  const view: ReportView = isView(searchParams.get('view')) ? (searchParams.get('view') as ReportView) : 'charts'
+  const setView = (v: ReportView) =>
+    setSearchParams(
+      (prev) => {
+        prev.set('view', v)
+        return prev
+      },
+      { replace: true },
+    )
+
+  // Biểu đồ đi theo nút gạt Tháng|Năm; Thấu hiểu chỉ theo tháng; Xu hướng và Sức khỏe tự
+  // chốt cửa sổ 12 tháng nên không có mũi chuyển kỳ nào.
+  const needsPeriodNav = view === 'charts' || view === 'insights'
+  const navPeriod: ReportPeriod = view === 'charts' ? period : 'month'
 
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
@@ -167,7 +187,10 @@ export function ReportsPage() {
     () => getYearRange(activeYear, monthStartDay),
     [activeYear, monthStartDay],
   )
-  const { data: yearTxs = [], isFetched: yearFetched } = useRangeTransactions(yearRange, !!profile && period === 'year')
+  const { data: yearTxs = [], isFetched: yearFetched } = useRangeTransactions(
+    yearRange,
+    !!profile && period === 'year' && view === 'charts',
+  )
 
   const twelveMonths = useMemo(
     () => Array.from({ length: 12 }, (_, i) => ({ year: activeYear, month: i + 1 })),
@@ -227,7 +250,7 @@ export function ReportsPage() {
   const yearMissingRate =
     yearBreakdown.hasMissingRate || yearSeries.hasMissingRate || yearSums.hasMissingRate
   const showMissingRate =
-    period === 'year' ? yearMissingRate : view === 'charts' && monthMissingRate
+    view === 'charts' && (period === 'year' ? yearMissingRate : monthMissingRate)
 
   // In một lần cho mỗi lần mở trang. Cờ reset khi trang bị gỡ (rời khỏi /reports),
   // nên muốn in lại phải điều hướng vào lại — đủ cho luồng hiện tại (in từ trang Dữ liệu).
@@ -264,66 +287,58 @@ export function ReportsPage() {
         Báo cáo {period === 'month' ? formatMonthLabel(activeMonthKey) : formatYearLabel(activeYear)}
       </h1>
 
-      {/* Header điều hướng tháng/năm */}
-      <div className="flex items-center justify-between print:hidden">
-        <IconButton
-          onClick={() =>
-            period === 'month'
-              ? setMonthKey((k) => addMonths(k ?? activeMonthKey, -1))
-              : setYear((y) => (y ?? activeYear) - 1)
-          }
-          aria-label={period === 'month' ? 'Tháng trước' : 'Năm trước'}
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </IconButton>
-        <h1 className="text-lg font-bold text-fg-primary">
-          {period === 'month' ? formatMonthLabel(activeMonthKey) : formatYearLabel(activeYear)}
-        </h1>
-        <IconButton
-          onClick={() =>
-            period === 'month'
-              ? setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))
-              : setYear((y) => (y ?? activeYear) + 1)
-          }
-          aria-label={period === 'month' ? 'Tháng sau' : 'Năm sau'}
-        >
-          <ChevronRight className="h-5 w-5" />
-        </IconButton>
-      </div>
-
-      {/* Lối vào trang khám tổng quát — không phụ thuộc tháng/năm đang xem */}
-      <Link
-        to="/health"
-        className="flex min-h-11 items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2.5 shadow-sm transition hover:bg-gray-50 active:scale-[0.99] dark:hover:bg-gray-800 print:hidden"
-      >
-        <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
-          <HeartPulse className="h-4 w-4 text-rose-500" aria-hidden />
-          Sức khỏe tài chính
-        </span>
-        <span className="flex items-center gap-1 text-xs text-fg-muted">
-          Quỹ dự phòng, nợ, rủi ro
-          <ChevronRight className="h-4 w-4" aria-hidden />
-        </span>
-      </Link>
-
-      {/* Nút gạt Tháng | Năm */}
+      {/* Tab nội dung đứng TRƯỚC mọi điều khiển kỳ, và luôn đủ 4 mục.
+          Trước đây dải này nằm DƯỚI nút gạt Tháng|Năm và tự ẩn khi gạt sang Năm (vì 3/4
+          tab chỉ tồn tại ở chế độ Tháng) — tức đổi kỳ là mất luôn thanh điều hướng, và
+          layout nhảy. Nay thứ bậc đúng chiều: tab = "đang xem cái gì" (đứng yên), điều
+          khiển kỳ = "lát nào" (đổi theo tab). Xem docs/information-architecture.md §2.4. */}
       <SegmentedControl
-        items={PERIOD_TABS}
-        value={period}
-        onChange={setPeriod}
-        label="Kỳ báo cáo"
+        items={VIEW_TABS}
+        value={view}
+        onChange={setView}
+        label="Nội dung báo cáo"
         className="print:hidden"
       />
 
-      {/* Tab chỉ hiện ở chế độ Tháng */}
-      {period === 'month' && (
+      {/* Kỳ báo cáo chỉ có nghĩa với Biểu đồ. Xu hướng (12 tháng), Sức khỏe (12 tháng đã
+          hoàn tất) và Thấu hiểu (tháng hiện tại) đều tự chốt cửa sổ thời gian của mình. */}
+      {view === 'charts' && (
         <SegmentedControl
-          items={VIEW_TABS}
-          value={view}
-          onChange={setView}
-          label="Nội dung báo cáo"
+          items={PERIOD_TABS}
+          value={period}
+          onChange={setPeriod}
+          label="Kỳ báo cáo"
           className="print:hidden"
         />
+      )}
+
+      {/* Mũi chuyển kỳ — Biểu đồ chuyển tháng hoặc năm, Thấu hiểu chỉ chuyển tháng */}
+      {needsPeriodNav && (
+        <div className="flex items-center justify-between print:hidden">
+          <IconButton
+            onClick={() =>
+              navPeriod === 'month'
+                ? setMonthKey((k) => addMonths(k ?? activeMonthKey, -1))
+                : setYear((y) => (y ?? activeYear) - 1)
+            }
+            aria-label={navPeriod === 'month' ? 'Tháng trước' : 'Năm trước'}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </IconButton>
+          <h1 className="text-lg font-bold text-fg-primary">
+            {navPeriod === 'month' ? formatMonthLabel(activeMonthKey) : formatYearLabel(activeYear)}
+          </h1>
+          <IconButton
+            onClick={() =>
+              navPeriod === 'month'
+                ? setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))
+                : setYear((y) => (y ?? activeYear) + 1)
+            }
+            aria-label={navPeriod === 'month' ? 'Tháng sau' : 'Năm sau'}
+          >
+            <ChevronRight className="h-5 w-5" />
+          </IconButton>
+        </div>
       )}
 
       {showMissingRate && (
@@ -333,7 +348,7 @@ export function ReportsPage() {
       )}
 
       {/* Nội dung THÁNG */}
-      {period === 'month' && view === 'charts' && (
+      {view === 'charts' && period === 'month' && (
         <>
           <CategoryBreakdownCard
             breakdown={breakdown}
@@ -375,12 +390,16 @@ export function ReportsPage() {
           />
         </>
       )}
-      {period === 'month' && view === 'trends' && <TrendsView />}
-      {period === 'month' && view === 'insights' && <InsightsView monthKey={activeMonthKey} />}
-      {period === 'month' && view === 'budget' && <BudgetView monthKey={activeMonthKey} />}
+      {view === 'trends' && <TrendsView />}
+      {view === 'insights' && <InsightsView monthKey={activeMonthKey} />}
+      {view === 'health' && (
+        <Suspense fallback={<p className="py-10 text-center text-sm text-fg-muted">Đang tính…</p>}>
+          <HealthView />
+        </Suspense>
+      )}
 
       {/* Nội dung NĂM */}
-      {period === 'year' && (
+      {view === 'charts' && period === 'year' && (
         <>
           <section className="grid grid-cols-3 gap-2">
             <StatTile label="Thu">

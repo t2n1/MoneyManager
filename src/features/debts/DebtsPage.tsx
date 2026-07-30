@@ -28,9 +28,9 @@ export function DebtsPage() {
     <div className="p-3 lg:p-6">
       <div className="mb-3 flex items-center gap-2">
         <Link
-          to="/settings"
+          to="/assets"
           className="rounded-lg bg-surface px-3 py-1.5 text-lg shadow-sm active:scale-95"
-          aria-label="Quay lại"
+          aria-label="Quay lại Tài sản"
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>
@@ -96,7 +96,7 @@ export function DebtsPage() {
               {settled.map((d) => (
                 <Link
                   key={d.id}
-                  to={`/settings/debts/${d.id}`}
+                  to={`/debts/${d.id}`}
                   className="flex items-center gap-2 px-3 py-2.5 opacity-70 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300 line-through">
@@ -139,7 +139,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
           return (
             <Link
               key={d.id}
-              to={`/settings/debts/${d.id}`}
+              to={`/debts/${d.id}`}
               className="block px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
             >
               <div className="flex items-center gap-2">

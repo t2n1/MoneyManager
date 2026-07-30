@@ -86,7 +86,7 @@ export function EntryPage() {
       </div>
       {overCount > 0 && (
         <Link
-          to="/reports?view=budget"
+          to="/budget"
           className="mb-2 flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-900/30 px-3 py-2 text-xs font-medium text-money-out"
         >
           <TriangleAlert className="h-4 w-4" /> {overCount} danh mục vượt ngân sách tháng này — xem chi tiết

@@ -43,7 +43,7 @@ export function DebtDetailPage() {
         {isLoading ? 'Đang tải…' : 'Không tìm thấy khoản nợ.'}
         {!isLoading && (
           <div className="mt-3">
-            <Link to="/settings/debts" className="text-green-700 dark:text-green-400 underline">
+            <Link to="/debts" className="text-green-700 dark:text-green-400 underline">
               Về danh sách
             </Link>
           </div>
@@ -70,7 +70,7 @@ export function DebtDetailPage() {
     )
       return
     await deleteDebt.mutateAsync(debt!.id)
-    navigate('/settings/debts')
+    navigate('/debts')
   }
 
   async function toggleSettled() {
@@ -100,7 +100,7 @@ export function DebtDetailPage() {
     <div className="p-3 lg:p-6">
       <div className="mb-3 flex items-center gap-2">
         <Link
-          to="/settings/debts"
+          to="/debts"
           className="rounded-lg bg-surface px-3 py-1.5 text-lg shadow-sm active:scale-95"
           aria-label="Quay lại"
         >

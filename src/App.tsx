@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useParams, useSearchParams } from 'react-router-dom'
 import { AppLayout } from './components/AppLayout'
 import { LoginPage } from './features/auth/LoginPage'
 import { RequireAuth } from './features/auth/RequireAuth'
@@ -12,9 +12,6 @@ const ReportsPage = lazy(() =>
   import('./features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 )
 // Màn phụ (ít mở) → lazy để bundle khởi động gọn
-const HealthPage = lazy(() =>
-  import('./features/health/HealthPage').then((m) => ({ default: m.HealthPage })),
-)
 const SearchPage = lazy(() =>
   import('./features/transactions/SearchPage').then((m) => ({ default: m.SearchPage })),
 )
@@ -23,10 +20,6 @@ const AssetsPage = lazy(() =>
 )
 const AccountDetailPage = lazy(() =>
   import('./features/assets/AccountDetailPage').then((m) => ({ default: m.AccountDetailPage })),
-)
-// Màn phụ (ít mở) → lazy, giống các trang khác trong nhóm này
-const LifetimePage = lazy(() =>
-  import('./features/lifetime/LifetimePage').then((m) => ({ default: m.LifetimePage })),
 )
 const AssetGroupsPage = lazy(() =>
   import('./features/assets/AssetGroupsPage').then((m) => ({ default: m.AssetGroupsPage })),
@@ -65,9 +58,43 @@ const NotificationSettingsPage = lazy(() =>
     default: m.NotificationSettingsPage,
   })),
 )
+const BudgetPage = lazy(() =>
+  import('./features/budgets/BudgetPage').then((m) => ({ default: m.BudgetPage })),
+)
 
 const Loading = () => <p className="p-6 text-center text-fg-muted">Đang tải…</p>
 const lazyRoute = (el: ReactNode) => <Suspense fallback={<Loading />}>{el}</Suspense>
+
+/** Ngân sách đã tách thành tab riêng `/budget`. Đường cũ `/reports?view=budget` cùng
+ *  PATH với Báo cáo nên không chuyển tiếp được bằng một `<Route>` riêng — phải xét ở đây.
+ *  Vẫn cần chuyển tiếp vì đường cũ còn nằm trong bookmark và lịch sử trình duyệt; giữ
+ *  nguyên `ym` để mở đúng tháng người dùng đã lưu. Hook `useSearchParams` gọi vô điều
+ *  kiện trước mọi nhánh nên thứ tự hook không đổi giữa các lần render. */
+function ReportsRoute() {
+  const [params] = useSearchParams()
+  if (params.get('view') === 'budget') {
+    const ym = params.get('ym')
+    return <Navigate to={ym ? `/budget?ym=${ym}` : '/budget'} replace />
+  }
+  return lazyRoute(<ReportsPage />)
+}
+
+/** `/settings/debts/:debtId` → `/debts/:debtId`: cần đọc param nên không dùng
+ *  `<Navigate>` tĩnh được. */
+function LegacyDebtRedirect() {
+  const { debtId } = useParams()
+  return <Navigate to={`/debts/${debtId}`} replace />
+}
+
+/** `/assets/:accountId` → `/assets/account/:accountId`. Chèn segment `account/` để
+ *  `/assets/groups` không còn nằm CÙNG CẤP với một segment động — trước đây nó chạy đúng
+ *  chỉ vì React Router xếp segment tĩnh trên segment động, một phụ thuộc không ai đọc
+ *  code thấy được. Route chuyển tiếp này vẫn nằm cùng cấp với `/assets/groups`, nhưng
+ *  đây là đường CŨ sắp chết nên không phải chỗ cần đọc rõ ràng lâu dài. */
+function LegacyAccountRedirect() {
+  const { accountId } = useParams()
+  return <Navigate to={`/assets/account/${accountId}`} replace />
+}
 
 function App() {
   return (
@@ -79,11 +106,14 @@ function App() {
           <Route path="/transactions" element={<LedgerPage />} />
           <Route path="/entry" element={<EntryPage />} />
           <Route path="/assets" element={lazyRoute(<AssetsPage />)} />
-          <Route path="/assets/:accountId" element={lazyRoute(<AccountDetailPage />)} />
-          <Route path="/lifetime" element={lazyRoute(<LifetimePage />)} />
+          <Route path="/assets/groups" element={lazyRoute(<AssetGroupsPage />)} />
+          <Route path="/assets/account/:accountId" element={lazyRoute(<AccountDetailPage />)} />
+          <Route path="/debts" element={lazyRoute(<DebtsPage />)} />
+          <Route path="/debts/:debtId" element={lazyRoute(<DebtDetailPage />)} />
+          <Route path="/recurring" element={lazyRoute(<RecurringPage />)} />
           <Route path="/search" element={lazyRoute(<SearchPage />)} />
-          <Route path="/reports" element={lazyRoute(<ReportsPage />)} />
-          <Route path="/health" element={lazyRoute(<HealthPage />)} />
+          <Route path="/budget" element={lazyRoute(<BudgetPage />)} />
+          <Route path="/reports" element={<ReportsRoute />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/accounts" element={lazyRoute(<AccountsPage />)} />
           <Route path="/settings/categories" element={lazyRoute(<CategoriesPage />)} />
@@ -92,13 +122,20 @@ function App() {
             element={lazyRoute(<ClassifyCategoriesPage />)}
           />
           <Route path="/settings/tags" element={lazyRoute(<TagsPage />)} />
-          <Route path="/settings/asset-groups" element={lazyRoute(<AssetGroupsPage />)} />
-          <Route path="/settings/debts" element={lazyRoute(<DebtsPage />)} />
-          <Route path="/settings/debts/:debtId" element={lazyRoute(<DebtDetailPage />)} />
-          <Route path="/settings/recurring" element={lazyRoute(<RecurringPage />)} />
           <Route path="/settings/import" element={lazyRoute(<ImportCsvPage />)} />
           <Route path="/settings/data" element={lazyRoute(<DataPage />)} />
           <Route path="/settings/notifications" element={lazyRoute(<NotificationSettingsPage />)} />
+
+          {/* Chuyển tiếp đường CŨ (docs/information-architecture.md §3.4). Bookmark, lịch
+              sử trình duyệt và ảnh chụp màn hình cũ đều còn trỏ vào đây — bỏ hẳn là người
+              dùng gặp trang trắng. */}
+          <Route path="/health" element={<Navigate to="/reports?view=health" replace />} />
+          <Route path="/lifetime" element={<Navigate to="/assets?view=future" replace />} />
+          <Route path="/settings/asset-groups" element={<Navigate to="/assets/groups" replace />} />
+          <Route path="/settings/debts" element={<Navigate to="/debts" replace />} />
+          <Route path="/settings/debts/:debtId" element={<LegacyDebtRedirect />} />
+          <Route path="/settings/recurring" element={<Navigate to="/recurring" replace />} />
+          <Route path="/assets/:accountId" element={<LegacyAccountRedirect />} />
         </Route>
       </Route>
     </Routes>

@@ -1,9 +1,13 @@
-// Trang "Sức khỏe tài chính" — khám tổng quát, mỗi chỉ số một thẻ cùng khuôn:
-// số lớn + thang màu + một câu nghĩa là gì. Dữ liệu lấy từ 12 tháng ĐÃ HOÀN TẤT
-// gần nhất (tháng đang chạy dở bị loại để không kéo trung bình xuống).
+// "Sức khỏe tài chính" — khám tổng quát, mỗi chỉ số một thẻ cùng khuôn: số lớn + thang
+// màu + một câu nghĩa là gì. Dữ liệu lấy từ 12 tháng ĐÃ HOÀN TẤT gần nhất (tháng đang
+// chạy dở bị loại để không kéo trung bình xuống).
+//
+// Là tab con thứ 4 của Báo cáo (`/reports?view=health`), không còn là trang riêng — trước
+// đây nó là màn 532 dòng mà đường vào duy nhất là một card chôn giữa trang Báo cáo. Vì
+// vậy component này KHÔNG có nút back và KHÔNG tự đặt padding: vỏ ReportsPage lo cả hai.
+// Xem docs/information-architecture.md §2.4.
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft } from 'lucide-react'
 import {
   useAccountBalances,
   useAccounts,
@@ -43,7 +47,7 @@ const num1 = (v: number) => v.toFixed(1).replace('.', ',')
 /** Trên 5 năm thì con số cụ thể vô nghĩa — nói "≥ 60 tháng" cho gọn. */
 const months1 = (v: number) => (v >= 60 ? '≥ 60 tháng' : `${num1(v)} tháng`)
 
-export function HealthPage() {
+export function HealthView() {
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
   const { base, rates } = useRates()
@@ -198,22 +202,10 @@ export function HealthPage() {
   }
 
   return (
-    <div className="flex flex-col gap-3 p-3 lg:p-6">
-      <div className="flex items-center gap-2">
-        <Link
-          to="/reports"
-          aria-label="Quay lại Báo cáo"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface shadow-sm active:scale-95 "
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-lg font-bold text-fg-primary">Sức khỏe tài chính</h1>
-          <p className="text-xs text-fg-muted">
-            Dựa trên {snap.monthsCounted} tháng gần nhất
-          </p>
-        </div>
-      </div>
+    <div className="flex flex-col gap-3">
+      {/* Cửa sổ thời gian nói ngay tại đây: tab này KHÔNG theo tháng/năm đang chọn ở tab
+          Biểu đồ, nên phải tự nói mình đọc dữ liệu nào. */}
+      <p className="text-xs text-fg-muted">Dựa trên {snap.monthsCounted} tháng gần nhất</p>
 
       {/* Tóm tắt một dòng để biết ngay có gì cần lo không */}
       <section className="grid grid-cols-3 gap-2">

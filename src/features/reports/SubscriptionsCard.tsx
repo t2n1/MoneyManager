@@ -31,7 +31,7 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
           Tiền tự động trừ mỗi tháng
         </h2>
         <Link
-          to="/settings/recurring"
+          to="/recurring"
           className="shrink-0 inline-flex items-center gap-0.5 text-xs font-medium text-green-700 dark:text-green-400"
         >
           {data.count} khoản

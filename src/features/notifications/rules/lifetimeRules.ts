@@ -125,7 +125,7 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
     phases: lt.phases.map((p) => (p === phase ? { ...p, annualExpenseMinor: actualAnnual } : p)),
   })
   // 'low' = biên DƯỚI của dải, ĐÚNG nhánh mà mọi màn hình thông báo này dẫn tới đang
-  // đọc (LifetimeSection, LifetimeChartCard, InsightCards). Đọc 'center' ở đây là bấm
+  // đọc (LifetimeChartCard, InsightCards). Đọc 'center' ở đây là bấm
   // vào thông báo "âm từ 2034" rồi rơi vào một trang ghi năm khác — với mặc định
   // `band_spread_bps = 150` của migration 0031, hai nhánh lệch nhau hẳn nhiều năm.
   const planNeg = firstNegativeYear(planRows, 'low')
@@ -161,7 +161,7 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
       severity: 'low',
       title,
       detail,
-      to: '/lifetime',
+      to: '/assets?view=future',
     },
   ]
 }

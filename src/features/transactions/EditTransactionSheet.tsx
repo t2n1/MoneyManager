@@ -94,7 +94,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
           <button
             type="button"
             onClick={() => {
-              navigate(`/settings/debts/${linkedDebtId}`)
+              navigate(`/debts/${linkedDebtId}`)
               onClose()
             }}
             className="mb-3 flex w-full items-center gap-2 rounded-xl bg-green-50 dark:bg-green-900/30 px-3 py-2.5 text-left text-sm font-medium text-green-800 dark:text-green-300 active:scale-[0.99]"

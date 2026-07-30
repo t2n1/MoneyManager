@@ -168,9 +168,9 @@ export function RecurringPage() {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => navigate('/settings')}
+          onClick={() => navigate('/')}
           className="flex items-center gap-1 rounded-lg bg-surface px-2 py-1.5 text-sm text-fg-secondary shadow-sm active:scale-95"
-          aria-label="Quay lại Cài đặt"
+          aria-label="Quay lại Sổ"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>

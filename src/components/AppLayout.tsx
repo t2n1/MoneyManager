@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { ChartColumn, NotebookText, Plus, Settings, Wallet } from 'lucide-react'
+import { ChartColumn, NotebookText, Plus, Settings, Target, Wallet } from 'lucide-react'
 import { isDemoMode } from '../lib/demo'
 import {
   useDeleteNotificationStates,
@@ -18,8 +18,12 @@ import { useUnreadCount } from '../features/notifications/useUnreadCount'
 import { planNotificationCleanup } from '../features/notifications/state'
 import { addDaysISO, toISODate } from '../lib/dates'
 
+// 5 tab, gom theo câu hỏi người dùng đang hỏi (docs/information-architecture.md §2).
+// Nhãn "Sổ" thay vì "Sổ GD": 5 tab thì mỗi ô hẹp hơn, mà "Ngân sách" là nhãn dài nhất
+// nên phải nhường chỗ.
 const TABS = [
-  { to: '/', label: 'Sổ GD', Icon: NotebookText },
+  { to: '/', label: 'Sổ', Icon: NotebookText },
+  { to: '/budget', label: 'Ngân sách', Icon: Target },
   { to: '/assets', label: 'Tài sản', Icon: Wallet },
   { to: '/reports', label: 'Báo cáo', Icon: ChartColumn },
   { to: '/settings', label: 'Cài đặt', Icon: Settings },
@@ -139,7 +143,7 @@ export function AppLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifInputsReady, notifEngineFailed])
 
-  // Phím tắt desktop: 1–4 chuyển tab, N mở màn nhập
+  // Phím tắt desktop: 1–5 chuyển tab, N mở màn nhập
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (isTypingTarget(e) || e.ctrlKey || e.metaKey || e.altKey) return

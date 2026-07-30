@@ -5,10 +5,7 @@ import {
   Bell,
   ChevronRight,
   Database,
-  Handshake,
   Landmark,
-  Layers,
-  Repeat,
   Scale,
   Tag as TagIcon,
   Tags,
@@ -108,32 +105,12 @@ export function SettingsPage() {
             <span className="flex-1">Thông báo</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
-          <Link
-            to="/settings/asset-groups"
-            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
-          >
-            <Layers className="h-5 w-5 text-fg-muted" />
-            <span className="flex-1">Nhóm tài sản</span>
-            <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
-          </Link>
-          <Link
-            to="/settings/debts"
-            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
-          >
-            <Handshake className="h-5 w-5 text-fg-muted" />
-            <span className="flex-1">Nợ / cho vay</span>
-            <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
-          </Link>
-          <Link
-            to="/settings/recurring"
-            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
-          >
-            <Repeat className="h-5 w-5 text-fg-muted" />
-            <span className="flex-1">Giao dịch định kỳ</span>
-            <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
-          </Link>
         </div>
       </section>
+
+      {/* Nhóm tài sản, Nợ/cho vay và Giao dịch định kỳ TỪNG nằm trong khối trên. Đã dời
+          sang đúng ngữ cảnh (Tài sản / Sổ) vì chúng là dữ liệu tài chính thật, không phải
+          cấu hình — xem docs/information-architecture.md §1.1. */}
 
       <ThemeToggle />
 

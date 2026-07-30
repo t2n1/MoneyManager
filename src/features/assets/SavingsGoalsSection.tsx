@@ -178,7 +178,7 @@ export function SavingsGoalsSection() {
             {formatMoney(earmarked.total, base)}
           </b>{' '}
           trong số dư đang có chủ cho các mục tiêu trên. Trang{' '}
-          <Link to="/health" className="font-medium text-green-700 dark:text-green-400">
+          <Link to="/reports?view=health" className="font-medium text-green-700 dark:text-green-400">
             Sức khỏe tài chính
           </Link>{' '}
           trừ khoản này ra để biết quỹ dự phòng thật sự tự do còn bao nhiêu tháng.

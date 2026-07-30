@@ -89,7 +89,7 @@ describe('lifetimeRules', () => {
     expect(out).toHaveLength(1)
     expect(out[0].type).toBe('lifetime-drift')
     expect(out[0].kind).toBe('action')
-    expect(out[0].to).toBe('/lifetime')
+    expect(out[0].to).toBe('/assets?view=future')
   })
 
   it('báo cả khi chi thực tế thấp hơn giả định quá ngưỡng', () => {
@@ -259,7 +259,7 @@ describe('lifetimeRules', () => {
     const out = lifetimeRules(input({ recentTxs: txs, lifetime: banded }))
     expect(out).toHaveLength(1)
     // Đọc 'center' thì câu này thành "Bản chiếu vẫn không năm nào âm." — trong khi
-    // /lifetime, LifetimeSection và InsightCards đều đang tô đỏ năm 2083.
+    // tab Tương lai của Tài sản và InsightCards đều đang tô đỏ năm 2083.
     expect(out[0].detail).toContain('âm từ 2083')
   })
 

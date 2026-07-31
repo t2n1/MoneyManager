@@ -4,6 +4,7 @@ import type { CurrencyCode } from '../lib/money'
 import type { Rates } from '../lib/rates'
 import { getSupabase } from '../lib/supabase'
 import { IMPORT_CHUNK_SIZE, chunk, validateBackupPayload } from './backupImport'
+import { fetchAllPages, type Page } from './paging'
 import type {
   AccountRow,
   AccountValuationRow,
@@ -161,36 +162,47 @@ export const supabaseRepo: Repo = {
   },
 
   async listTransactions({ start, end }) {
-    const { data, error } = await getSupabase()
-      .from('transactions')
-      .select('*')
-      .gte('occurred_on', start)
-      .lt('occurred_on', end)
-      .order('occurred_on', { ascending: false })
-      .order('created_at', { ascending: false })
-    if (error) throw error
-    return data
+    // Phân trang: khoảng thời gian rộng (báo cáo năm/nhiều năm) vượt 1.000 dòng là
+    // Supabase cắt im lặng. `id` làm chốt sắp xếp cuối để trang không lặp/sót.
+    return await fetchAllPages<TransactionRow>(async (from, to) =>
+      getSupabase()
+        .from('transactions')
+        .select('*')
+        .gte('occurred_on', start)
+        .lt('occurred_on', end)
+        .order('occurred_on', { ascending: false })
+        .order('created_at', { ascending: false })
+        .order('id')
+        .range(from, to),
+    )
   },
 
   async searchTransactions(filter: TxFilter) {
-    let q = getSupabase()
-      .from('transactions')
-      .select('*')
-      .gte('occurred_on', filter.start)
-      .lt('occurred_on', filter.end)
-    if (filter.types && filter.types.length > 0) q = q.in('type', filter.types)
-    if (filter.categoryIds && filter.categoryIds.length > 0)
-      q = q.in('category_id', filter.categoryIds)
-    if (filter.accountIds && filter.accountIds.length > 0) {
-      const ids = filter.accountIds.map((id) => `"${id}"`).join(',')
-      q = q.or(`account_id.in.(${ids}),to_account_id.in.(${ids})`)
+    // Dựng lại truy vấn cho TỪNG trang: builder của supabase-js là đối tượng có trạng thái,
+    // gọi `.range()` nhiều lần trên cùng một cái là dựa vào chi tiết nội bộ của thư viện.
+    const buildQuery = (from: number, to: number) => {
+      let q = getSupabase()
+        .from('transactions')
+        .select('*')
+        .gte('occurred_on', filter.start)
+        .lt('occurred_on', filter.end)
+      if (filter.types && filter.types.length > 0) q = q.in('type', filter.types)
+      if (filter.categoryIds && filter.categoryIds.length > 0)
+        q = q.in('category_id', filter.categoryIds)
+      if (filter.accountIds && filter.accountIds.length > 0) {
+        const ids = filter.accountIds.map((id) => `"${id}"`).join(',')
+        q = q.or(`account_id.in.(${ids}),to_account_id.in.(${ids})`)
+      }
+      if (filter.amountMin != null) q = q.gte('amount', filter.amountMin)
+      if (filter.amountMax != null) q = q.lte('amount', filter.amountMax)
+      return q
+        .order('occurred_on', { ascending: false })
+        .order('created_at', { ascending: false })
+        .order('id')
+        .range(from, to)
     }
-    if (filter.amountMin != null) q = q.gte('amount', filter.amountMin)
-    if (filter.amountMax != null) q = q.lte('amount', filter.amountMax)
-    const { data, error } = await q
-      .order('occurred_on', { ascending: false })
-      .order('created_at', { ascending: false })
-    if (error) throw error
+    // Phân trang: tìm kiếm trên khoảng rộng (sau khi nạp 9 năm lịch sử) dễ vượt 1.000 dòng.
+    const data = await fetchAllPages<TransactionRow>(async (from, to) => buildQuery(from, to))
     // Khớp text ở client bằng normalizeText: ilike của Postgres phân biệt dấu
     // tiếng Việt nên sẽ lệch kết quả so với demoRepo ("com trua" ≠ "Cơm trưa").
     const text = filter.text?.trim()
@@ -1082,9 +1094,15 @@ export const supabaseRepo: Repo = {
   async exportAll(): Promise<BackupData> {
     const sb = getSupabase()
     const selectAll = async <T>(table: DataTable): Promise<T[]> => {
-      const { data, error } = await sb.from(table).select('*')
-      if (error) throw error
-      return (data ?? []) as T[]
+      // Phân trang: `.select('*')` trần bị Supabase cắt ở 1.000 dòng mà không báo lỗi, nên
+      // backup của sổ đã nạp lịch sử Zaim (~14.000 giao dịch) sẽ thiếu dòng — và Khôi phục
+      // thì GHI ĐÈ, tức khôi phục từ file thiếu là xoá thật phần còn lại.
+      // `.order('id')`: phân trang không có thứ tự ổn định thì trang sau có thể trả lại
+      // dòng của trang trước và bỏ sót dòng khác.
+      return await fetchAllPages<T>(
+        async (from, to) =>
+          (await sb.from(table).select('*').order('id').range(from, to)) as Page<T>,
+      )
     }
     const [
       profile,

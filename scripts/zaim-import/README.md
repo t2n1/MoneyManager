@@ -11,9 +11,21 @@ Thiết kế: [`docs/superpowers/specs/2026-07-31-zaim-import-design.md`](../../
 
 ## Kiểm tra lại đợt nạp đã rồi (việc cần làm trước)
 
-1. Trong app: **Cài đặt → Dữ liệu → Sao lưu → Xuất dữ liệu**. Được file
+> **Phải deploy bản có sửa phân trang trước khi xuất backup.** Supabase cắt mỗi request ở
+> **1.000 dòng** (mặc định, xem Dashboard → Settings → API → Max rows) và cắt **im lặng**.
+> `exportAll` trước đây gọi `.select('*')` trần, nên với sổ ~14.000 giao dịch thì file
+> "Xuất dữ liệu" **chỉ chứa 1.000 giao dịch**. Xuất bằng bản cũ rồi chạy audit sẽ ra
+> "thiếu 13.000 dòng" — đó là ảo, do bản xuất bị cắt, không phải app mất dữ liệu.
+>
+> Nguy hơn: **Khôi phục ghi đè toàn bộ.** Nạp lại từ một file bị cắt như vậy là xoá thật
+> phần còn lại. Đã sửa ở `src/data/paging.ts` (đọc hết bằng `.range()`), nhưng chỉ có tác
+> dụng sau khi bản mới lên Vercel.
+
+1. Trong app (bản đã có sửa trên): **Cài đặt → Dữ liệu → Sao lưu → Xuất dữ liệu**. Được file
    `so-chi-tieu-backup-<ngày>.json`. Đây là ảnh chụp những gì **thật sự** đang nằm trong app
    — khác với file `-them-zaim.json` mà `run.mjs` tạo ra (file đó chỉ là thứ *đáng lẽ* phải vào).
+   Mở file, đếm nhanh số phần tử trong `transactions`: nếu đúng 1.000 thì bản đang chạy vẫn
+   là bản cũ, đừng dùng file đó để đối chiếu và **tuyệt đối đừng Khôi phục từ nó**.
 2. Chạy:
 
 ```bash

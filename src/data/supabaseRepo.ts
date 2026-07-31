@@ -3,6 +3,7 @@ import { addMonths, monthKeyString, parseMonthKey } from '../lib/dates'
 import type { CurrencyCode } from '../lib/money'
 import type { Rates } from '../lib/rates'
 import { getSupabase } from '../lib/supabase'
+import { IMPORT_CHUNK_SIZE, chunk, validateBackupPayload } from './backupImport'
 import type {
   AccountRow,
   AccountValuationRow,
@@ -1152,6 +1153,26 @@ export const supabaseRepo: Repo = {
       if (error) throw error
     }
 
+    // 0) Soát file TRƯỚC khi xoá. Bước 1 dưới đây xoá sạch dữ liệu hiện có, và mỗi bảng
+    // là một request riêng (không có transaction bao ngoài) — file hỏng ở giữa nghĩa là
+    // mất dữ liệu cũ rồi mới biết không chèn được.
+    const problems = validateBackupPayload(data)
+    if (problems.length)
+      throw new Error(
+        `File sao lưu có ${problems.length} vấn đề, chưa xoá gì cả:\n· ${problems.join('\n· ')}`,
+      )
+
+    // Chèn theo lô: 16.000 giao dịch trong MỘT request dễ vượt giới hạn kích thước body
+    // và statement timeout của Postgres, mà đứt thì đứt cả cục.
+    // Nhận thẳng hàm chèn (thay vì tên bảng) để TypeScript vẫn soi payload theo đúng cột
+    // của từng bảng — đổi sang `object[]` là mất luôn lớp bảo vệ đó.
+    const insertChunked = async <T>(
+      rows: T[],
+      insert: (part: T[]) => PromiseLike<{ error: { message: string } | null }>,
+    ) => {
+      for (const part of chunk(rows, IMPORT_CHUNK_SIZE)) ok((await insert(part)).error)
+    }
+
     // 1) Xóa dữ liệu hiện có theo thứ tự con → cha (tránh vướng FK)
     const deleteOrder: DataTable[] = [
       'account_valuations',
@@ -1178,9 +1199,7 @@ export const supabaseRepo: Repo = {
     // 2) Nhập lại theo thứ tự cha → con, giữ nguyên id, đóng dấu user_id hiện tại.
     // accounts: payment_account_id là self-FK → chèn null trước, cập nhật sau.
     if (data.accounts?.length) {
-      ok(
-        (
-          await sb.from('accounts').insert(
+      await insertChunked(
             data.accounts.map((a) => ({
               id: a.id,
               user_id: uid,
@@ -1204,8 +1223,7 @@ export const supabaseRepo: Repo = {
               sort_order: a.sort_order,
               is_archived: a.is_archived,
             })),
-          )
-        ).error,
+        (part) => sb.from('accounts').insert(part),
       )
     }
 
@@ -1225,13 +1243,11 @@ export const supabaseRepo: Repo = {
     })
     const parents = cats.filter((c) => !c.parent_id)
     const children = cats.filter((c) => c.parent_id)
-    if (parents.length) ok((await sb.from('categories').insert(parents.map(catPayload))).error)
-    if (children.length) ok((await sb.from('categories').insert(children.map(catPayload))).error)
+    if (parents.length) await insertChunked(parents.map(catPayload), (part) => sb.from('categories').insert(part))
+    if (children.length) await insertChunked(children.map(catPayload), (part) => sb.from('categories').insert(part))
 
     if (data.recurringRules?.length) {
-      ok(
-        (
-          await sb.from('recurring_rules').insert(
+      await insertChunked(
             data.recurringRules.map((r) => ({
               id: r.id,
               user_id: uid,
@@ -1248,15 +1264,12 @@ export const supabaseRepo: Repo = {
               is_paused: r.is_paused,
               last_generated_on: r.last_generated_on,
             })),
-          )
-        ).error,
+        (part) => sb.from('recurring_rules').insert(part),
       )
     }
 
     if (data.transactions?.length) {
-      ok(
-        (
-          await sb.from('transactions').insert(
+      await insertChunked(
             data.transactions.map((t) => ({
               id: t.id,
               user_id: uid,
@@ -1277,15 +1290,12 @@ export const supabaseRepo: Repo = {
               exclude_from_stats: t.exclude_from_stats,
               is_refund: t.is_refund,
             })),
-          )
-        ).error,
+        (part) => sb.from('transactions').insert(part),
       )
     }
 
     if (data.budgets?.length) {
-      ok(
-        (
-          await sb.from('budgets').insert(
+      await insertChunked(
             data.budgets.map((b) => ({
               id: b.id,
               user_id: uid,
@@ -1294,15 +1304,12 @@ export const supabaseRepo: Repo = {
               amount: b.amount,
               rollover: b.rollover,
             })),
-          )
-        ).error,
+        (part) => sb.from('budgets').insert(part),
       )
     }
 
     if (data.assetGroupSettings?.length) {
-      ok(
-        (
-          await sb.from('asset_group_settings').insert(
+      await insertChunked(
             data.assetGroupSettings.map((s) => ({
               id: s.id,
               user_id: uid,
@@ -1311,15 +1318,12 @@ export const supabaseRepo: Repo = {
               include_in_totals: s.include_in_totals,
               is_hidden: s.is_hidden,
             })),
-          )
-        ).error,
+        (part) => sb.from('asset_group_settings').insert(part),
       )
     }
 
     if (data.debts?.length) {
-      ok(
-        (
-          await sb.from('debts').insert(
+      await insertChunked(
             data.debts.map((d) => ({
               id: d.id,
               user_id: uid,
@@ -1332,15 +1336,12 @@ export const supabaseRepo: Repo = {
               note: d.note,
               disbursement_transaction_id: d.disbursement_transaction_id,
             })),
-          )
-        ).error,
+        (part) => sb.from('debts').insert(part),
       )
     }
 
     if (data.debtPayments?.length) {
-      ok(
-        (
-          await sb.from('debt_payments').insert(
+      await insertChunked(
             data.debtPayments.map((p) => ({
               id: p.id,
               user_id: uid,
@@ -1350,16 +1351,13 @@ export const supabaseRepo: Repo = {
               transaction_id: p.transaction_id,
               note: p.note,
             })),
-          )
-        ).error,
+        (part) => sb.from('debt_payments').insert(part),
       )
     }
 
     // account_valuations: composite FK tới accounts → chèn sau accounts.
     if (data.accountValuations?.length) {
-      ok(
-        (
-          await sb.from('account_valuations').insert(
+      await insertChunked(
             data.accountValuations.map((v) => ({
               id: v.id,
               user_id: uid,
@@ -1368,16 +1366,13 @@ export const supabaseRepo: Repo = {
               market_value: v.market_value,
               note: v.note,
             })),
-          )
-        ).error,
+        (part) => sb.from('account_valuations').insert(part),
       )
     }
 
     // savings_goals: FK tới accounts → chèn sau accounts.
     if (data.savingsGoals?.length) {
-      ok(
-        (
-          await sb.from('savings_goals').insert(
+      await insertChunked(
             data.savingsGoals.map((g) => ({
               id: g.id,
               user_id: uid,
@@ -1388,17 +1383,14 @@ export const supabaseRepo: Repo = {
               note: g.note,
               sort_order: g.sort_order,
             })),
-          )
-        ).error,
+        (part) => sb.from('savings_goals').insert(part),
       )
     }
 
     // life_scenarios (cha) trước, rồi life_phases/life_events (composite FK
     // (scenario_id, user_id) → life_scenarios) — chèn con trước cha sẽ bị chặn.
     if (data.lifeScenarios?.length) {
-      ok(
-        (
-          await sb.from('life_scenarios').insert(
+      await insertChunked(
             data.lifeScenarios.map((s) => ({
               id: s.id,
               user_id: uid,
@@ -1412,15 +1404,12 @@ export const supabaseRepo: Repo = {
               is_primary: s.is_primary,
               sort_order: s.sort_order,
             })),
-          )
-        ).error,
+        (part) => sb.from('life_scenarios').insert(part),
       )
     }
 
     if (data.lifePhases?.length) {
-      ok(
-        (
-          await sb.from('life_phases').insert(
+      await insertChunked(
             data.lifePhases.map((p) => ({
               id: p.id,
               user_id: uid,
@@ -1433,15 +1422,12 @@ export const supabaseRepo: Repo = {
               annual_expense_minor: p.annual_expense_minor,
               fx_to_display: p.fx_to_display,
             })),
-          )
-        ).error,
+        (part) => sb.from('life_phases').insert(part),
       )
     }
 
     if (data.lifeEvents?.length) {
-      ok(
-        (
-          await sb.from('life_events').insert(
+      await insertChunked(
             data.lifeEvents.map((e) => ({
               id: e.id,
               user_id: uid,
@@ -1461,32 +1447,26 @@ export const supabaseRepo: Repo = {
               fx_to_display: e.fx_to_display ?? 1,
               inflate: e.inflate,
             })),
-          )
-        ).error,
+        (part) => sb.from('life_events').insert(part),
       )
     }
 
     // networth_snapshots: chỉ phụ thuộc user → chèn độc lập.
     if (data.networthSnapshots?.length) {
-      ok(
-        (
-          await sb.from('networth_snapshots').insert(
+      await insertChunked(
             data.networthSnapshots.map((s) => ({
               id: s.id,
               user_id: uid,
               snapshot_on: s.snapshot_on,
               net_worth: s.net_worth,
             })),
-          )
-        ).error,
+        (part) => sb.from('networth_snapshots').insert(part),
       )
     }
 
     // tags trước, rồi liên kết (composite FK tới cả transactions lẫn tags).
     if (data.tags?.length) {
-      ok(
-        (
-          await sb.from('tags').insert(
+      await insertChunked(
             data.tags.map((t) => ({
               id: t.id,
               user_id: uid,
@@ -1494,22 +1474,18 @@ export const supabaseRepo: Repo = {
               color: t.color,
               sort_order: t.sort_order,
             })),
-          )
-        ).error,
+        (part) => sb.from('tags').insert(part),
       )
     }
 
     if (data.transactionTags?.length) {
-      ok(
-        (
-          await sb.from('transaction_tags').insert(
+      await insertChunked(
             data.transactionTags.map((l) => ({
               transaction_id: l.transaction_id,
               tag_id: l.tag_id,
               user_id: uid,
             })),
-          )
-        ).error,
+        (part) => sb.from('transaction_tags').insert(part),
       )
     }
 

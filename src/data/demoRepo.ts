@@ -1,5 +1,6 @@
 import { addMonths, monthKeyForDate, monthKeyString, parseMonthKey, toISODate } from '../lib/dates'
 import { filterTransactions } from '../features/transactions/filter'
+import { validateBackupPayload } from './backupImport'
 import type { CurrencyCode } from '../lib/money'
 import type { Rates } from '../lib/rates'
 import type {
@@ -1506,6 +1507,13 @@ export const demoRepo: Repo = {
   },
 
   async importAll(data: BackupData) {
+    // Soát y như bản thật: demoRepo không có FK/CHECK của Postgres, nên nếu bỏ bước này
+    // thì "đã thử ở demo thấy chạy" không chứng minh được gì về bản Supabase.
+    const problems = validateBackupPayload(data)
+    if (problems.length)
+      throw new Error(
+        `File sao lưu có ${problems.length} vấn đề, chưa xoá gì cả:\n· ${problems.join('\n· ')}`,
+      )
     // Giữ nguyên user_id demo để dữ liệu nhất quán với seed/reset.
     const stamp = <T extends { user_id: string }>(rows: T[]): T[] =>
       rows.map((r) => ({ ...r, user_id: DEMO_USER }))

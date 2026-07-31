@@ -355,3 +355,39 @@ describe('lịch sử tỷ giá', () => {
     expect(same[0].rates.VND).toBe(172)
   })
 })
+
+describe('khôi phục backup', () => {
+  /** Backup dựng từ chính dữ liệu demo hiện có -> chắc chắn hợp lệ. */
+  async function goodBackup() {
+    return await demoRepo.exportAll()
+  }
+
+  it('file lành -> khôi phục được', async () => {
+    const data = await goodBackup()
+    const soTruoc = (await demoRepo.exportAll()).transactions.length
+    await demoRepo.importAll(data)
+    expect((await demoRepo.exportAll()).transactions.length).toBe(soTruoc)
+  })
+
+  it('file hỏng -> BÁO LỖI và dữ liệu cũ CÒN NGUYÊN', async () => {
+    const data = await goodBackup()
+    const truoc = await demoRepo.exportAll()
+    expect(truoc.transactions.length).toBeGreaterThan(0)
+
+    // Giao dịch trỏ tới tài khoản không có trong file: đúng hình dạng lỗi mà file nạp
+    // Zaim có thể mắc (sửa tay bảng nối ví rồi quên tài khoản tương ứng).
+    data.transactions[0] = { ...data.transactions[0], account_id: 'khong-ton-tai' }
+    await expect(demoRepo.importAll(data)).rejects.toThrow(/tài khoản/i)
+
+    const sau = await demoRepo.exportAll()
+    expect(sau.transactions.length).toBe(truoc.transactions.length)
+    expect(sau.accounts.length).toBe(truoc.accounts.length)
+  })
+
+  it('file có số tiền 0 -> chặn trước khi xoá', async () => {
+    const data = await goodBackup()
+    data.transactions[0] = { ...data.transactions[0], amount: 0 }
+    await expect(demoRepo.importAll(data)).rejects.toThrow(/số tiền/i)
+    expect((await demoRepo.exportAll()).transactions.length).toBeGreaterThan(0)
+  })
+})

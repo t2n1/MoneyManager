@@ -240,6 +240,18 @@ export const supabaseRepo: Repo = {
     if (error) throw error
   },
 
+  async deleteTransactions(ids: string[]) {
+    if (ids.length === 0) return
+    // Chia lô: `id=in.(...)` nằm trên query string nên danh sách quá dài (hàng nghìn
+    // sau import) có thể vượt giới hạn độ dài URL. FK on delete của DB tự dọn nhãn liên
+    // kết và set null debt_payments, y như xóa lẻ.
+    for (let i = 0; i < ids.length; i += 100) {
+      const batch = ids.slice(i, i + 100)
+      const { error } = await getSupabase().from('transactions').delete().in('id', batch)
+      if (error) throw error
+    }
+  },
+
   async createAccount(input: NewAccount) {
     const user_id = await currentUserId()
     const sort_order = await nextSortOrder('accounts')

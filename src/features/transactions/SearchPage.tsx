@@ -6,19 +6,23 @@ import type { TxFilter } from '../../data'
 import {
   useAccounts,
   useCategories,
+  useDeleteTransactions,
   useRates,
   useSearchTransactions,
   useTags,
   useTransactionTags,
 } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
+import { confirmDialog, showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
 import { sumIncomeExpense } from '../reports/aggregate'
 import { filterByTags } from '../tags/aggregate'
 import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
 import { EditTransactionSheet } from './EditTransactionSheet'
+import { SelectionActionBar } from './SelectionActionBar'
 import { TransactionItem } from './TransactionItem'
+import { useTxSelection } from './useTxSelection'
 
 const TYPE_TABS: { value: TransactionType | 'all'; label: string }[] = [
   { value: 'all', label: 'Tất cả' },
@@ -136,6 +140,29 @@ export function SearchPage() {
     }
     return [...map.entries()]
   }, [results])
+
+  // Chọn nhiều để xóa hàng loạt (dọn giao dịch lỗi sau import).
+  const selection = useTxSelection()
+  const bulkDelete = useDeleteTransactions()
+  const resultIds = useMemo(() => results.map((t) => t.id), [results])
+  const allSelected = resultIds.length > 0 && resultIds.every((id) => selection.isSelected(id))
+
+  async function handleBulkDelete() {
+    const ids = selection.selectedIds
+    if (ids.length === 0) return
+    if (
+      !(await confirmDialog({
+        title: `Xóa ${ids.length} giao dịch?`,
+        message: 'Không hoàn tác được.',
+        danger: true,
+        confirmLabel: 'Xóa',
+      }))
+    )
+      return
+    await bulkDelete.mutateAsync(ids)
+    showToast(`Đã xóa ${ids.length} giao dịch`)
+    selection.exit()
+  }
 
   const toggle = (list: string[], id: string) =>
     list.includes(id) ? list.filter((x) => x !== id) : [...list, id]
@@ -313,28 +340,39 @@ export function SearchPage() {
       )}
 
       {/* Kết quả */}
-      <p className="mb-2 flex flex-wrap items-center gap-x-2 px-1 text-xs text-fg-muted">
-        <span>{isLoading ? 'Đang tìm…' : `${results.length} kết quả`}</span>
-        {/* Nhãn đang lọc phải thấy được cả khi khối bộ lọc đang thu gọn */}
-        {tagIds.length > 0 && (
-          <>
-            <span>
-              · lọc theo{' '}
-              {tagIds
-                .map((id) => tags.find((t) => t.id === id)?.name)
-                .filter(Boolean)
-                .join(', ')}
-            </span>
-            <button
-              type="button"
-              onClick={() => setTagIds([])}
-              className="font-medium text-green-700 dark:text-green-400"
-            >
-              Bỏ lọc nhãn
-            </button>
-          </>
+      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+        <p className="flex flex-wrap items-center gap-x-2 text-xs text-fg-muted">
+          <span>{isLoading ? 'Đang tìm…' : `${results.length} kết quả`}</span>
+          {/* Nhãn đang lọc phải thấy được cả khi khối bộ lọc đang thu gọn */}
+          {tagIds.length > 0 && (
+            <>
+              <span>
+                · lọc theo{' '}
+                {tagIds
+                  .map((id) => tags.find((t) => t.id === id)?.name)
+                  .filter(Boolean)
+                  .join(', ')}
+              </span>
+              <button
+                type="button"
+                onClick={() => setTagIds([])}
+                className="font-medium text-green-700 dark:text-green-400"
+              >
+                Bỏ lọc nhãn
+              </button>
+            </>
+          )}
+        </p>
+        {results.length > 0 && (
+          <button
+            type="button"
+            onClick={() => (selection.selecting ? selection.exit() : selection.enter())}
+            className="shrink-0 text-xs font-medium text-green-700 dark:text-green-400"
+          >
+            {selection.selecting ? 'Xong' : 'Chọn'}
+          </button>
         )}
-      </p>
+      </div>
       {(totals.income > 0 || totals.expense > 0 || totals.hasMissingRate) && (
         <div className="mb-3 rounded-xl bg-surface p-3 shadow-sm">
           <div className="flex items-center justify-between text-sm">
@@ -372,7 +410,9 @@ export function SearchPage() {
                   categoryOf={categoryOf}
                   accountOf={accountOf}
                   base={base}
-                  onClick={() => setEditing(tx)}
+                  onClick={() => (selection.selecting ? selection.toggle(tx.id) : setEditing(tx))}
+                  selecting={selection.selecting}
+                  selected={selection.isSelected(tx.id)}
                 />
               ))}
             </div>
@@ -380,7 +420,19 @@ export function SearchPage() {
         ))
       )}
 
+      {/* Chừa chỗ cho thanh thao tác cố định ở dưới, không che dòng cuối */}
+      {selection.selecting && <div className="h-20" />}
+
       {editing && <EditTransactionSheet tx={editing} onClose={() => setEditing(null)} />}
+
+      {selection.selecting && (
+        <SelectionActionBar
+          count={selection.count}
+          allSelected={allSelected}
+          onToggleAll={() => (allSelected ? selection.clear() : selection.selectAll(resultIds))}
+          onDelete={handleBulkDelete}
+        />
+      )}
     </div>
   )
 }

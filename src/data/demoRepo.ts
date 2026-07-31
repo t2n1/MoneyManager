@@ -624,6 +624,18 @@ export const demoRepo: Repo = {
     save(db)
   },
 
+  async deleteTransactions(ids: string[]) {
+    if (ids.length === 0) return
+    const db = load()
+    const drop = new Set(ids)
+    db.transactions = db.transactions.filter((t) => !drop.has(t.id))
+    db.transactionTags = (db.transactionTags ?? []).filter((l) => !drop.has(l.transaction_id))
+    db.debtPayments = (db.debtPayments ?? []).map((p) =>
+      p.transaction_id && drop.has(p.transaction_id) ? { ...p, transaction_id: null } : p,
+    )
+    save(db)
+  },
+
   async createAccount(input: NewAccount) {
     const db = load()
     const sort_order = db.accounts.reduce((m, a) => Math.max(m, a.sort_order + 1), 0)

@@ -15,6 +15,10 @@ interface Props {
   base: CurrencyCode
   rates: Rates | undefined
   onEdit: (tx: TransactionRow) => void
+  /** Chế độ chọn nhiều (mặc định tắt → hành vi cũ). */
+  selecting?: boolean
+  isSelected?: (id: string) => boolean
+  onToggleSelect?: (id: string) => void
 }
 
 /** Xem theo ngày: tổng tháng + danh sách giao dịch gộp theo từng ngày. */
@@ -27,6 +31,9 @@ export function DailyView({
   base,
   rates,
   onEdit,
+  selecting = false,
+  isSelected,
+  onToggleSelect,
 }: Props) {
   const days = useMemo(() => groupByDay(transactions), [transactions])
 
@@ -69,7 +76,9 @@ export function DailyView({
                     categoryOf={categoryOf}
                     accountOf={accountOf}
                     base={base}
-                    onClick={() => onEdit(tx)}
+                    onClick={() => (selecting ? onToggleSelect?.(tx.id) : onEdit(tx))}
+                    selecting={selecting}
+                    selected={isSelected?.(tx.id) ?? false}
                   />
                 ))}
               </div>

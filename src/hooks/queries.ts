@@ -246,6 +246,14 @@ export function useDeleteTransaction() {
   })
 }
 
+export function useDeleteTransactions() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (ids: string[]) => repo.deleteTransactions(ids),
+    onSettled: () => invalidateTransactionData(qc),
+  })
+}
+
 // --- Quản lý tài khoản & danh mục (GĐ2) ---
 
 function invalidateAccounts(qc: ReturnType<typeof useQueryClient>) {

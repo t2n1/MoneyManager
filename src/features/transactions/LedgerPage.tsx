@@ -5,11 +5,13 @@ import { IconButton, SegmentedControl, iconButtonClass } from '../../components/
 import {
   useAccounts,
   useCategories,
+  useDeleteTransactions,
   useMonthTransactions,
   useProfile,
   useRangeTransactions,
   useRates,
 } from '../../hooks/queries'
+import { confirmDialog, showToast } from '../../lib/dialog'
 import {
   addMonths,
   formatMonthLabel,
@@ -28,7 +30,9 @@ import { CalendarView } from './CalendarView'
 import { DailyView } from './DailyView'
 import { EditTransactionSheet } from './EditTransactionSheet'
 import { MonthlyView } from './MonthlyView'
+import { SelectionActionBar } from './SelectionActionBar'
 import { SummaryView } from './SummaryView'
+import { useTxSelection } from './useTxSelection'
 
 const VIEWS = [
   { key: 'daily', label: 'Ngày' },
@@ -86,6 +90,36 @@ export function LedgerPage() {
   const accountOf = (id: string | null) => accounts.find((a) => a.id === id)
   const currencyOf = (id: string): CurrencyCode => accountOf(id)?.currency ?? base
   const categoryOf = (id: string | null) => categories.find((c) => c.id === id)
+
+  // Chọn nhiều để xóa hàng loạt — chỉ ở tab "Ngày" (danh sách phẳng).
+  const selection = useTxSelection()
+  const bulkDelete = useDeleteTransactions()
+  const canSelect = view === 'daily'
+  const allSelected =
+    transactions.length > 0 && transactions.every((t) => selection.isSelected(t.id))
+
+  // Rời tab Ngày thì thoát chế độ chọn (Lịch/Tháng/Tổng hợp không phải danh sách).
+  useEffect(() => {
+    if (view !== 'daily') selection.exit()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view])
+
+  async function handleBulkDelete() {
+    const ids = selection.selectedIds
+    if (ids.length === 0) return
+    if (
+      !(await confirmDialog({
+        title: `Xóa ${ids.length} giao dịch?`,
+        message: 'Không hoàn tác được.',
+        danger: true,
+        confirmLabel: 'Xóa',
+      }))
+    )
+      return
+    await bulkDelete.mutateAsync(ids)
+    showToast(`Đã xóa ${ids.length} giao dịch`)
+    selection.exit()
+  }
 
   // Tab Tháng cần dữ liệu cả năm (12 tháng của monthKey.year)
   const months = useMemo(
@@ -159,16 +193,32 @@ export function LedgerPage() {
       />
 
       {view === 'daily' && (
-        <DailyView
-          transactions={transactions}
-          isLoading={isLoading}
-          accountOf={accountOf}
-          categoryOf={categoryOf}
-          currencyOf={currencyOf}
-          base={base}
-          rates={rates}
-          onEdit={setEditing}
-        />
+        <>
+          {transactions.length > 0 && (
+            <div className="mb-2 flex justify-end px-1">
+              <button
+                type="button"
+                onClick={() => (selection.selecting ? selection.exit() : selection.enter())}
+                className="text-xs font-medium text-green-700 dark:text-green-400"
+              >
+                {selection.selecting ? 'Xong' : 'Chọn'}
+              </button>
+            </div>
+          )}
+          <DailyView
+            transactions={transactions}
+            isLoading={isLoading}
+            accountOf={accountOf}
+            categoryOf={categoryOf}
+            currencyOf={currencyOf}
+            base={base}
+            rates={rates}
+            onEdit={setEditing}
+            selecting={selection.selecting}
+            isSelected={selection.isSelected}
+            onToggleSelect={selection.toggle}
+          />
+        </>
       )}
 
       {view === 'calendar' && (
@@ -211,7 +261,20 @@ export function LedgerPage() {
         />
       )}
 
+      {canSelect && selection.selecting && <div className="h-20" />}
+
       {editing && <EditTransactionSheet tx={editing} onClose={() => setEditing(null)} />}
+
+      {canSelect && selection.selecting && (
+        <SelectionActionBar
+          count={selection.count}
+          allSelected={allSelected}
+          onToggleAll={() =>
+            allSelected ? selection.clear() : selection.selectAll(transactions.map((t) => t.id))
+          }
+          onDelete={handleBulkDelete}
+        />
+      )}
     </div>
   )
 }

@@ -200,6 +200,45 @@ describe('deleteCategory', () => {
   })
 })
 
+describe('deleteTransactions (xóa hàng loạt)', () => {
+  const RANGE = { start: '2026-07-01', end: '2026-08-01' }
+
+  // Dữ liệu demo đã seed sẵn vài giao dịch tháng 7 → kiểm theo THÀNH VIÊN id mình tạo,
+  // không đếm cứng tổng.
+  it('xóa đúng tập id, giữ phần còn lại', async () => {
+    const acc = await demoRepo.createAccount(accountInput())
+    const cat = await demoRepo.createCategory({ name: 'C', type: 'expense', icon: '📦' })
+    const a = await demoRepo.createTransaction(expenseTx(acc.id, cat.id))
+    const b = await demoRepo.createTransaction(expenseTx(acc.id, cat.id))
+    const c = await demoRepo.createTransaction(expenseTx(acc.id, cat.id))
+
+    await demoRepo.deleteTransactions([a.id, c.id])
+    const ids = (await demoRepo.listTransactions(RANGE)).map((t) => t.id)
+    expect(ids).not.toContain(a.id)
+    expect(ids).not.toContain(c.id)
+    expect(ids).toContain(b.id)
+  })
+
+  it('rỗng thì không xóa gì', async () => {
+    const acc = await demoRepo.createAccount(accountInput())
+    const cat = await demoRepo.createCategory({ name: 'C', type: 'expense', icon: '📦' })
+    const tx = await demoRepo.createTransaction(expenseTx(acc.id, cat.id))
+    await demoRepo.deleteTransactions([])
+    const ids = (await demoRepo.listTransactions(RANGE)).map((t) => t.id)
+    expect(ids).toContain(tx.id)
+  })
+
+  it('gỡ luôn nhãn liên kết của giao dịch bị xóa', async () => {
+    const acc = await demoRepo.createAccount(accountInput())
+    const cat = await demoRepo.createCategory({ name: 'C', type: 'expense', icon: '📦' })
+    const tag = await demoRepo.createTag({ name: 'T', color: 'blue' })
+    const tx = await demoRepo.createTransaction({ ...expenseTx(acc.id, cat.id), tag_ids: [tag.id] })
+    await demoRepo.deleteTransactions([tx.id])
+    const links = await demoRepo.getTransactionTags()
+    expect(links.some((l) => l.transaction_id === tx.id)).toBe(false)
+  })
+})
+
 // Đọc thẳng localStorage rồi ép read_at của một dòng trạng thái thông báo về
 // một mốc quá khứ xác định — tránh dựa vào khoảng cách đồng hồ thật giữa 2 lệnh gọi.
 function setStoredReadAt(key: string, readAtISO: string) {

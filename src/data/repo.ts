@@ -335,6 +335,8 @@ export interface Repo {
   createTransaction(input: NewTransaction): Promise<TransactionRow>
   updateTransaction(id: string, patch: TransactionPatch): Promise<TransactionRow>
   deleteTransaction(id: string): Promise<void>
+  /** Xóa nhiều giao dịch cùng lúc (chọn nhiều rồi xóa). Rỗng → không làm gì. */
+  deleteTransactions(ids: string[]): Promise<void>
 
   createAccount(input: NewAccount): Promise<AccountRow>
   updateAccount(id: string, patch: AccountPatch): Promise<AccountRow>

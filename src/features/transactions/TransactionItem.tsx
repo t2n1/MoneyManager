@@ -1,4 +1,4 @@
-import { ArrowRightLeft, HandCoins, Repeat } from 'lucide-react'
+import { ArrowRightLeft, CheckCircle2, Circle, HandCoins, Repeat } from 'lucide-react'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, CategoryRow, TransactionRow } from '../../types/database.types'
 
@@ -14,10 +14,22 @@ interface Props {
   accountOf: (id: string | null) => AccountRow | undefined
   base: CurrencyCode
   onClick: () => void
+  /** Đang ở chế độ chọn nhiều → hiện ô tích, chạm dòng = tích/bỏ (trang tự lo onClick). */
+  selecting?: boolean
+  /** Dòng này đang được chọn. */
+  selected?: boolean
 }
 
 /** Một dòng giao dịch (dùng chung cho Sổ GD và Tìm kiếm). */
-export function TransactionItem({ tx, categoryOf, accountOf, base, onClick }: Props) {
+export function TransactionItem({
+  tx,
+  categoryOf,
+  accountOf,
+  base,
+  onClick,
+  selecting = false,
+  selected = false,
+}: Props) {
   const cat = categoryOf(tx.category_id)
   const style = AMOUNT_STYLE[tx.type]
   const srcCur = accountOf(tx.account_id)?.currency ?? base
@@ -28,8 +40,18 @@ export function TransactionItem({ tx, categoryOf, accountOf, base, onClick }: Pr
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-gray-50 dark:hover:bg-gray-800"
+      aria-pressed={selecting ? selected : undefined}
+      className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-gray-50 dark:hover:bg-gray-800 ${selected ? 'bg-green-50 dark:bg-green-900/20' : ''}`}
     >
+      {selecting && (
+        <span className="shrink-0">
+          {selected ? (
+            <CheckCircle2 className="h-5 w-5 text-green-700 dark:text-green-400" />
+          ) : (
+            <Circle className="h-5 w-5 text-fg-muted" />
+          )}
+        </span>
+      )}
       <span className="text-xl">{tx.type === 'transfer' ? <ArrowRightLeft className="h-5 w-5" /> : cat?.icon}</span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm text-fg-primary">

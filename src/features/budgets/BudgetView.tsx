@@ -37,12 +37,20 @@ const TEXT_COLOR: Record<BudgetStatus, string> = {
   over: 'text-money-out',
 }
 
-/** Thanh tiến độ + % dùng chung. */
-function ProgressBar({ ratio, status }: { ratio: number; status: BudgetStatus }) {
+/** Thanh tiến độ + % dùng chung. `className` để gọi chỗ nào tự đặt lề / flex-1. */
+function ProgressBar({
+  ratio,
+  status,
+  className = '',
+}: {
+  ratio: number
+  status: BudgetStatus
+  className?: string
+}) {
   const pct = Math.round(ratio * 100)
   return (
     <div
-      className="mt-1 h-2 overflow-hidden rounded-full bg-surface-sunken"
+      className={`h-2 overflow-hidden rounded-full bg-surface-sunken ${className}`.trim()}
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={100}
@@ -160,37 +168,85 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     .sort((a, b) => a.sort_order - b.sort_order)
   const { items, unbudgeted } = buildBudgetDisplay(expenseCats, report)
 
-  // Một dòng con bên trong nhóm (khi xổ ra).
+  // Thân của một dòng cha / lá độc lập: tên + % ở dòng trên, thanh + "đã chi / trần"
+  // ở dòng dưới. Hai dòng chứ không phải ba — nhóm xổ ra 8 con thì ba dòng mỗi mục
+  // thành bức tường, không đọc được cái nào so với cái nào.
+  const meterBody = (m: {
+    label: string
+    meta?: string
+    spent: number
+    budgeted: number
+    carried?: number
+    ratio: number
+    status: BudgetStatus
+  }) => (
+    <>
+      <div className="flex items-baseline justify-between gap-2 text-sm">
+        <span className="min-w-0 truncate font-medium text-fg-primary">
+          {m.label}
+          {m.meta && <span className="ml-1 text-2xs font-normal text-fg-muted">{m.meta}</span>}
+        </span>
+        {/* % nằm trong ô cố định, canh phải — cột thẳng nhờ bề rộng ô, nên không
+            cần tabular-nums viết tay (guardrail đếm idiom đó, dùng <Money> thay).
+            <Money> lại không diễn được màu theo trạng thái ngân sách: nó không có
+            tone 'warn' cũng không có tone chữ mờ. */}
+        <span className={`w-10 shrink-0 text-right text-xs font-medium ${TEXT_COLOR[m.status]}`}>
+          {Math.round(m.ratio * 100)}%
+        </span>
+      </div>
+      <div className="mt-1 flex items-center gap-2">
+        <ProgressBar ratio={m.ratio} status={m.status} className="min-w-0 flex-1" />
+        <span className="shrink-0 text-2xs text-fg-muted">
+          <span className={TEXT_COLOR[m.status]}>{formatMoney(m.spent, base)}</span>
+          {' / '}
+          {formatMoney(m.budgeted, base)}
+          {m.carried && m.carried > 0 ? (
+            <span className="ml-1 text-money-in">(dồn +{formatMoney(m.carried, base)})</span>
+          ) : null}
+        </span>
+      </div>
+    </>
+  )
+
+  // Một dòng con bên trong nhóm (khi xổ ra): GỌN MỘT DÒNG, không có thanh riêng.
+  // Con không được to hơn cha — trước đây con còn thò rộng hơn cha 12px nên nhìn
+  // vào không biết nhóm bắt đầu từ đâu. Cột % bên phải cố định bề rộng để 8 con
+  // xếp thành một cột thẳng, quét mắt là thấy mục nào căng.
+  // Chữ mờ ở đây dùng fg-on-track: khối con nằm trên nền lún, fg-muted trượt AA.
   const childRow = (child: BudgetChildRow) => {
-    const pct = child.marker ? Math.round(child.marker.ratio * 100) : null
+    const m = child.marker
     return (
       <li key={child.cat.id}>
-        <button type="button" onClick={() => openEdit(child.cat.id)} className="w-full text-left">
-          <div className="flex items-baseline justify-between text-sm">
-            <span className="text-gray-700 dark:text-gray-300">
-              {child.cat.icon} {child.cat.name}
-            </span>
-            {child.marker ? (
-              <span className={`text-xs ${TEXT_COLOR[child.marker.status]}`}>{pct}%</span>
-            ) : (
-              <span className="text-xs text-fg-muted">Đặt mốc +</span>
-            )}
-          </div>
-          {child.marker ? (
-            <>
-              <ProgressBar ratio={child.marker.ratio} status={child.marker.status} />
-              <div className="mt-0.5 flex justify-between text-xs text-fg-muted">
-                <span className={TEXT_COLOR[child.marker.status]}>
-                  {formatMoney(child.marker.spent, base)}
+        <button
+          type="button"
+          onClick={() => openEdit(child.cat.id)}
+          className="flex min-h-9 w-full items-center justify-between gap-2 text-left text-sm"
+        >
+          <span className="min-w-0 truncate text-fg-secondary">
+            {child.cat.icon} {child.cat.name}
+          </span>
+          <span className="flex shrink-0 items-center gap-2 text-2xs">
+            {m ? (
+              <>
+                <span className="text-fg-on-track">
+                  <span className={TEXT_COLOR[m.status]}>{formatMoney(m.spent, base)}</span>
+                  {' / '}
+                  {formatMoney(m.budgeted, base)}
                 </span>
-                <span>{formatMoney(child.marker.budgeted, base)}</span>
-              </div>
-            </>
-          ) : (
-            <div className="mt-0.5 text-xs text-fg-muted">
-              Đã chi {formatMoney(child.spent, base)}
-            </div>
-          )}
+                <span className={`w-10 text-right text-xs font-medium ${TEXT_COLOR[m.status]}`}>
+                  {Math.round(m.ratio * 100)}%
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-fg-on-track">{formatMoney(child.spent, base)}</span>
+                {/* fg-accent (green-700) trên nền lún chỉ 4,49:1 — thiếu 0,01 so với
+                    AA, đúng cái bẫy đã ghi trong docs/design-system.md. Cả dòng là
+                    nút rồi nên không cần màu để báo "bấm được". */}
+                <span className="w-10 text-right text-fg-on-track">mốc +</span>
+              </>
+            )}
+          </span>
         </button>
       </li>
     )
@@ -229,7 +285,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             / {formatMoney(report.totalBudgeted, base)}
           </span>
         </div>
-        <ProgressBar ratio={totalPct / 100} status={report.totalStatus} />
+        <ProgressBar ratio={totalPct / 100} status={report.totalStatus} className="mt-1" />
         <button
           type="button"
           onClick={handleCopy}
@@ -245,54 +301,40 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       {/* Danh mục / nhóm có hạn mức */}
       {items.length > 0 && (
         <section className="rounded-xl bg-surface p-3 shadow-sm">
-          <ul className="space-y-3">
+          <ul className="divide-y divide-border-subtle">
             {items.map((item) => {
               if (item.kind === 'leaf') {
-                const pct = Math.round(item.line.ratio * 100)
                 return (
-                  <li key={item.cat.id}>
+                  <li key={item.cat.id} className="py-2 first:pt-0 last:pb-0">
                     <button
                       type="button"
                       onClick={() => openEdit(item.cat.id)}
                       className="w-full text-left"
                     >
-                      <div className="flex items-baseline justify-between text-sm">
-                        <span className="text-gray-700 dark:text-gray-300">
-                          {item.cat.icon} {item.cat.name}
-                        </span>
-                        <span className={`text-xs ${TEXT_COLOR[item.line.status]}`}>{pct}%</span>
-                      </div>
-                      <ProgressBar ratio={item.line.ratio} status={item.line.status} />
-                      <div className="mt-0.5 flex justify-between text-xs text-fg-muted">
-                        <span className={TEXT_COLOR[item.line.status]}>
-                          {formatMoney(item.line.spent, base)}
-                        </span>
-                        <span>
-                          {formatMoney(item.line.budgeted, base)}
-                          {item.line.carried > 0 && (
-                            <span className="ml-1 text-money-in">
-                              (dồn +{formatMoney(item.line.carried, base)})
-                            </span>
-                          )}
-                        </span>
-                      </div>
+                      {meterBody({
+                        label: `${item.cat.icon} ${item.cat.name}`,
+                        spent: item.line.spent,
+                        budgeted: item.line.budgeted,
+                        carried: item.line.carried,
+                        ratio: item.line.ratio,
+                        status: item.line.status,
+                      })}
                     </button>
                   </li>
                 )
               }
 
-              const pct = Math.round(item.ratio * 100)
               const isOpen = expanded.has(item.cat.id)
               return (
-                <li key={item.cat.id}>
+                <li key={item.cat.id} className="py-2 first:pt-0 last:pb-0">
                   <div className="flex items-stretch gap-1">
-                    {/* Nút xổ/thu con */}
+                    {/* Nút xổ/thu con — kéo cao hết dòng cho dễ bấm, rộng 24px */}
                     <button
                       type="button"
                       onClick={() => toggle(item.cat.id)}
                       aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
                       aria-expanded={isOpen}
-                      className="shrink-0 rounded p-0.5 text-fg-muted hover:text-gray-600 dark:hover:text-gray-200"
+                      className="flex w-6 shrink-0 items-center justify-center rounded text-fg-muted hover:text-gray-600 dark:hover:text-gray-200"
                     >
                       {isOpen ? (
                         <ChevronDown className="h-4 w-4" />
@@ -306,33 +348,29 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                       onClick={() => openEdit(item.cat.id)}
                       className="min-w-0 flex-1 text-left"
                     >
-                      <div className="flex items-baseline justify-between text-sm">
-                        <span className="font-medium text-fg-primary">
-                          {item.cat.icon} {item.cat.name}
-                          <span className="ml-1 text-xs font-normal text-fg-muted">
-                            {item.capped ? 'trần nhóm' : `${item.children.length} mục con`}
-                          </span>
-                        </span>
-                        <span className={`text-xs ${TEXT_COLOR[item.status]}`}>{pct}%</span>
-                      </div>
-                      <ProgressBar ratio={item.ratio} status={item.status} />
-                      <div className="mt-0.5 flex justify-between text-xs text-fg-muted">
-                        <span className={TEXT_COLOR[item.status]}>
-                          {formatMoney(item.spent, base)}
-                        </span>
-                        <span>{formatMoney(item.budgeted, base)}</span>
-                      </div>
+                      {meterBody({
+                        label: `${item.cat.icon} ${item.cat.name}`,
+                        meta: item.capped ? 'trần nhóm' : `${item.children.length} mục con`,
+                        spent: item.spent,
+                        budgeted: item.budgeted,
+                        ratio: item.ratio,
+                        status: item.status,
+                      })}
                     </button>
                   </div>
                   {/* Mốc con chỉ chia nhỏ bên trong trần cha; cộng lại vượt trần thì nhắc. */}
                   {item.capped && item.markerTotal > item.budgeted && (
-                    <p className="mt-1 text-xs text-fg-warn">
+                    <p className="ml-7 mt-1 text-xs text-fg-warn">
                       Mốc các mục con cộng lại {formatMoney(item.markerTotal, base)}, vượt trần nhóm{' '}
                       {formatMoney(item.budgeted, base)}.
                     </p>
                   )}
+                  {/* Khối con: thụt vào PHẢI của tên cha + nền lún, để thấy rõ nhóm
+                      bắt đầu và kết thúc ở đâu. Vạch chia trong khối phải là
+                      border-strong, không phải border-subtle như danh sách ngoài:
+                      subtle = gray-100, đúng bằng màu nền lún ở light mode. */}
                   {isOpen && (
-                    <ul className="mt-2 space-y-2 border-l border-border-subtle pl-3">
+                    <ul className="ml-7 mt-2 divide-y divide-border-strong rounded-lg bg-surface-sunken px-3">
                       {item.children.map(childRow)}
                     </ul>
                   )}

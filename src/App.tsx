@@ -61,6 +61,9 @@ const NotificationSettingsPage = lazy(() =>
 const BudgetPage = lazy(() =>
   import('./features/budgets/BudgetPage').then((m) => ({ default: m.BudgetPage })),
 )
+const CategoryDetailPage = lazy(() =>
+  import('./features/reports/CategoryDetailPage').then((m) => ({ default: m.CategoryDetailPage })),
+)
 
 const Loading = () => <p className="p-6 text-center text-fg-muted">Đang tải…</p>
 const lazyRoute = (el: ReactNode) => <Suspense fallback={<Loading />}>{el}</Suspense>
@@ -114,6 +117,7 @@ function App() {
           <Route path="/search" element={lazyRoute(<SearchPage />)} />
           <Route path="/budget" element={lazyRoute(<BudgetPage />)} />
           <Route path="/reports" element={<ReportsRoute />} />
+          <Route path="/reports/category/:categoryId" element={lazyRoute(<CategoryDetailPage />)} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/accounts" element={lazyRoute(<AccountsPage />)} />
           <Route path="/settings/categories" element={lazyRoute(<CategoriesPage />)} />

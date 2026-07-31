@@ -36,6 +36,7 @@ import {
   getMonthRange,
   getYearRange,
   monthKeyForDate,
+  monthKeyString,
   toISODate,
   type MonthKey,
 } from '../../lib/dates'
@@ -359,6 +360,8 @@ export function ReportsPage() {
             periodNoun="tháng này"
             lineSeries={lineSeriesMonth}
             lineLabelOf={lineLabelMonth}
+            periodType="month"
+            periodKey={monthKeyString(activeMonthKey)}
           />
           <SpendClassificationCard
             data={monthClass}
@@ -469,6 +472,8 @@ export function ReportsPage() {
             periodNoun="năm này"
             lineSeries={lineSeriesYear}
             lineLabelOf={lineLabelYear}
+            periodType="year"
+            periodKey={String(activeYear)}
           />
           <SpendClassificationCard
             data={yearClass}

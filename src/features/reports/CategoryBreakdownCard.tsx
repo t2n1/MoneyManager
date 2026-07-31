@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { MonthKey } from '../../lib/dates'
 import type { CategoryRow } from '../../types/database.types'
@@ -27,6 +28,10 @@ interface Props {
   lineSeries: (ids: string[]) => CategoryMonthlyPoint[]
   /** Nhãn trục X của đường (theo khung tháng/năm đang xem). */
   lineLabelOf: (k: MonthKey) => string
+  /** Kỳ đang xem — để dựng link sang trang chi tiết danh mục. */
+  periodType: 'month' | 'year'
+  /** 'YYYY-MM' khi periodType=month, 'YYYY' khi =year. */
+  periodKey: string
 }
 
 interface ChildRow {
@@ -52,9 +57,6 @@ interface ParentRow {
   directPct: number // so với tổng của cha
 }
 
-// Khoá riêng cho dòng "(trực tiếp)" để không trùng id danh mục thật.
-const directKey = (parentId: string) => `${parentId}::direct`
-
 export function CategoryBreakdownCard({
   breakdown,
   categories,
@@ -64,6 +66,8 @@ export function CategoryBreakdownCard({
   periodNoun,
   lineSeries,
   lineLabelOf,
+  periodType,
+  periodKey,
 }: Props) {
   const total = breakdown.total
   const pctOf = (v: number) => (total > 0 ? (v / total) * 100 : 0)
@@ -125,27 +129,19 @@ export function CategoryBreakdownCard({
   }
 
   const [openKey, setOpenKey] = useState<string | null>(null)
-  const [selected, setSelected] = useState<{ key: string; ids: string[]; title: string } | null>(
-    null,
-  )
   // Đổi tab Chi/Thu → đóng accordion, tránh trỏ vào danh mục không còn trong danh sách.
   useEffect(() => {
     setOpenKey(null)
-    setSelected(null)
   }, [kind])
 
   const lineColor = kind === 'expense' ? '#ef4444' : '#16a34a'
   const approx = breakdown.hasForeign ? '≈ ' : ''
 
-  const openParent = (p: ParentRow) => {
-    if (openKey === p.key) {
-      setOpenKey(null)
-      setSelected(null)
-    } else {
-      setOpenKey(p.key)
-      setSelected({ key: p.key, ids: [p.parentId, ...p.childIds], title: p.name })
-    }
-  }
+  // Link sang trang chi tiết một danh mục, kèm đúng kỳ đang xem.
+  const detailHref = (id: string) =>
+    `/reports/category/${id}?period=${periodType}&${periodType === 'month' ? 'ym' : 'year'}=${encodeURIComponent(periodKey)}`
+
+  const toggleParent = (key: string) => setOpenKey((k) => (k === key ? null : key))
 
   return (
     <section className="rounded-xl bg-surface p-3 shadow-sm ">
@@ -194,55 +190,58 @@ export function CategoryBreakdownCard({
       ) : (
         <ul className="space-y-2.5">
           {parents.map((p) => {
-            const isOpen = p.clickable && openKey === p.key
+            // Cha có con → xổ tại chỗ. Cha không con → bấm là sang thẳng trang chi tiết.
+            const expandable = p.clickable && p.children.length > 0
+            const isOpen = expandable && openKey === p.key
+            const row = (
+              <BreakdownRow
+                icon={p.icon}
+                name={p.name}
+                pct={p.pct}
+                value={p.value}
+                barPct={p.pct}
+                color={p.color}
+                base={base}
+              />
+            )
             return (
               <li key={p.key}>
-                {p.clickable ? (
+                {!p.clickable ? (
+                  row
+                ) : expandable ? (
                   <button
                     type="button"
-                    onClick={() => openParent(p)}
+                    onClick={() => toggleParent(p.key)}
                     aria-expanded={isOpen}
                     className="block w-full text-left"
                   >
-                    <BreakdownRow
-                      icon={p.icon}
-                      name={p.name}
-                      pct={p.pct}
-                      value={p.value}
-                      barPct={p.pct}
-                      color={p.color}
-                      base={base}
-                    />
+                    {row}
                   </button>
                 ) : (
-                  <BreakdownRow
-                    icon={p.icon}
-                    name={p.name}
-                    pct={p.pct}
-                    value={p.value}
-                    barPct={p.pct}
-                    color={p.color}
-                    base={base}
-                  />
+                  <Link
+                    to={detailHref(p.parentId)}
+                    aria-label={`Xem chi tiết ${p.name}`}
+                    className="block w-full text-left"
+                  >
+                    {row}
+                  </Link>
                 )}
 
                 {isOpen && (
                   <div className="mt-2 pl-3">
-                    {selected && (
-                      <CategoryLineChart
-                        points={lineSeries(selected.ids)}
-                        base={base}
-                        color={lineColor}
-                        labelOf={lineLabelOf}
-                        title={`Xu hướng — ${selected.title}`}
-                      />
-                    )}
+                    <CategoryLineChart
+                      points={lineSeries([p.parentId, ...p.childIds])}
+                      base={base}
+                      color={lineColor}
+                      labelOf={lineLabelOf}
+                      title={`Xu hướng — ${p.name}`}
+                    />
                     <ul className="mt-2 space-y-2">
                       {p.children.map((c) => (
                         <li key={c.id}>
-                          <button
-                            type="button"
-                            onClick={() => setSelected({ key: c.id, ids: [c.id], title: c.name })}
+                          <Link
+                            to={detailHref(c.id)}
+                            aria-label={`Xem chi tiết ${c.name}`}
                             className="block w-full text-left"
                           >
                             <BreakdownRow
@@ -253,22 +252,15 @@ export function CategoryBreakdownCard({
                               barPct={c.pct}
                               color={p.color}
                               base={base}
-                              selected={selected?.key === c.id}
                             />
-                          </button>
+                          </Link>
                         </li>
                       ))}
                       {p.direct > 0 && (
                         <li>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setSelected({
-                                key: directKey(p.parentId),
-                                ids: [p.parentId],
-                                title: `${p.name} (trực tiếp)`,
-                              })
-                            }
+                          <Link
+                            to={detailHref(p.parentId)}
+                            aria-label={`Xem chi tiết ${p.name} (trực tiếp)`}
                             className="block w-full text-left"
                           >
                             <BreakdownRow
@@ -279,9 +271,8 @@ export function CategoryBreakdownCard({
                               barPct={p.directPct}
                               color="#9ca3af"
                               base={base}
-                              selected={selected?.key === directKey(p.parentId)}
                             />
-                          </button>
+                          </Link>
                         </li>
                       )}
                     </ul>

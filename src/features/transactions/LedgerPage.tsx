@@ -199,7 +199,8 @@ export function LedgerPage() {
               <button
                 type="button"
                 onClick={() => (selection.selecting ? selection.exit() : selection.enter())}
-                className="text-xs font-medium text-green-700 dark:text-green-400"
+                // -my-2 để vùng chạm 44px không đẩy danh sách xuống thêm
+                className="-my-2 inline-flex min-h-11 items-center justify-center px-2 text-xs font-medium text-green-700 dark:text-green-400"
               >
                 {selection.selecting ? 'Xong' : 'Chọn'}
               </button>

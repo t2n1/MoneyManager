@@ -55,8 +55,14 @@ const HealthView = lazy(() =>
   import('../health/HealthView').then((m) => ({ default: m.HealthView })),
 )
 
+// Nhiều năm là màn riêng (bảng theo năm + mùa vụ), và nó tải TOÀN BỘ lịch sử nên chỉ
+// nạp code khi người dùng thật sự gạt sang.
+const MultiYearView = lazy(() =>
+  import('./MultiYearView').then((m) => ({ default: m.MultiYearView })),
+)
+
 type ReportView = 'charts' | 'trends' | 'insights' | 'health'
-type ReportPeriod = 'month' | 'year'
+type ReportPeriod = 'month' | 'year' | 'multi'
 
 const VIEW_TABS: readonly SegmentedItem<ReportView>[] = [
   { value: 'charts', label: 'Biểu đồ' },
@@ -70,7 +76,11 @@ const isView = (v: string | null): v is ReportView => VIEW_TABS.some((t) => t.va
 const PERIOD_TABS: readonly SegmentedItem<ReportPeriod>[] = [
   { value: 'month', label: 'Tháng' },
   { value: 'year', label: 'Năm' },
+  { value: 'multi', label: 'Nhiều năm' },
 ]
+
+const isPeriod = (v: string | null): v is ReportPeriod =>
+  PERIOD_TABS.some((t) => t.value === v)
 
 /** Đọc 'YYYY-MM' thành MonthKey; null nếu không hợp lệ. */
 function parseYm(s: string | null): MonthKey | null {
@@ -83,9 +93,10 @@ function parseYm(s: string | null): MonthKey | null {
 export function ReportsPage() {
   const [kind, setKind] = useState<'expense' | 'income'>('expense')
   const [searchParams, setSearchParams] = useSearchParams()
-  const [period, setPeriod] = useState<'month' | 'year'>(
-    searchParams.get('period') === 'year' ? 'year' : 'month',
-  )
+  const [period, setPeriod] = useState<ReportPeriod>(() => {
+    const p = searchParams.get('period')
+    return isPeriod(p) ? p : 'month'
+  })
   // Tab giữ trong URL (không phải useState) — nếu không, đường chuyển tiếp
   // `/health` → `/reports?view=health` sẽ để `view=health` kẹt lại trong thanh địa chỉ:
   // bấm sang tab khác không xoá nó, và tải lại trang là quay về Sức khỏe dù đang xem
@@ -102,7 +113,8 @@ export function ReportsPage() {
 
   // Biểu đồ đi theo nút gạt Tháng|Năm; Thấu hiểu chỉ theo tháng; Xu hướng và Sức khỏe tự
   // chốt cửa sổ 12 tháng nên không có mũi chuyển kỳ nào.
-  const needsPeriodNav = view === 'charts' || view === 'insights'
+  // "Nhiều năm" là toàn bộ lịch sử nên không có kỳ trước/kỳ sau để chuyển.
+  const needsPeriodNav = (view === 'charts' && period !== 'multi') || view === 'insights'
   const navPeriod: ReportPeriod = view === 'charts' ? period : 'month'
 
   const { data: profile } = useProfile()
@@ -285,7 +297,12 @@ export function ReportsPage() {
     <div className="flex flex-col gap-4 p-3 lg:p-6">
       {/* Tiêu đề chỉ hiện khi in (thay cho thanh điều hướng bị ẩn) */}
       <h1 className="hidden text-center text-xl font-bold text-gray-900 print:block">
-        Báo cáo {period === 'month' ? formatMonthLabel(activeMonthKey) : formatYearLabel(activeYear)}
+        Báo cáo{' '}
+        {period === 'month'
+          ? formatMonthLabel(activeMonthKey)
+          : period === 'year'
+            ? formatYearLabel(activeYear)
+            : 'nhiều năm'}
       </h1>
 
       {/* Tab nội dung đứng TRƯỚC mọi điều khiển kỳ, và luôn đủ 4 mục.
@@ -505,6 +522,24 @@ export function ReportsPage() {
           />
           <RemittanceSection txs={yearTxs} year={activeYear} annualIncome={yearSums.income} />
         </>
+      )}
+
+      {view === 'charts' && period === 'multi' && (
+        <Suspense
+          fallback={
+            <p className="rounded-xl bg-surface p-6 text-center text-sm text-fg-muted shadow-sm">
+              Đang tải…
+            </p>
+          }
+        >
+          <MultiYearView
+            monthStartDay={monthStartDay}
+            base={base}
+            rates={rates ?? {}}
+            currencyOf={currencyOf}
+            enabled={!!profile}
+          />
+        </Suspense>
       )}
     </div>
   )

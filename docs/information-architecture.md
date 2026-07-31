@@ -107,10 +107,14 @@ vào cho một màn không có nav, mà bây giờ màn đó đã có nhãn tab 
 
 | Tab con | `?view=` | Nội dung |
 | --- | --- | --- |
-| **Biểu đồ** | `charts` (mặc định) | Nút gạt **Tháng \| Năm** nằm *trong* tab này · `CategoryBreakdownCard` · `SpendClassificationCard` · `MonthlyBarsCard` · `NetCashflowCard` · `TagBreakdownCard` · (chế độ Năm: thêm `RemittanceSection`) |
+| **Biểu đồ** | `charts` (mặc định) | Nút gạt **Tháng \| Năm \| Nhiều năm** nằm *trong* tab này · `CategoryBreakdownCard` · `SpendClassificationCard` · `MonthlyBarsCard` · `NetCashflowCard` · `TagBreakdownCard` · (chế độ Năm: thêm `RemittanceSection`) · (chế độ Nhiều năm: `MultiYearView` — bảng theo năm + `YearBarsCard` + `SeasonalityCard`, lazy-load vì nó tải TOÀN BỘ lịch sử) |
 | **Xu hướng** | `trends` | `TrendsView` (5 thẻ) |
 | **Thấu hiểu** | `insights` | `InsightsView` (6 thẻ) |
 | **Sức khỏe** | `health` | Nội dung `HealthPage` mount thẳng vào đây (bỏ back button) |
+
+**Nhiều năm** (thêm 2026-08-01) là kỳ thứ ba, không phải tab thứ năm: nó vẫn trả lời "xem lát
+thời gian nào", nên thuộc nhóm kỳ báo cáo. Nó không có mũi chuyển kỳ trước/sau vì đã là toàn
+bộ lịch sử. Chỉ có nghĩa từ khi sổ dài (nạp 9 năm từ Zaim).
 
 Đưa **Tháng | Năm** vào trong tab Biểu đồ là cách sửa gốc lỗi layout nhảy ở §1.4: kỳ báo cáo
 chỉ có nghĩa với Biểu đồ, còn Xu hướng (12 tháng), Thấu hiểu (tháng hiện tại) và Sức khỏe

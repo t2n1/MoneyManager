@@ -10,7 +10,14 @@ import { useRangeTransactions } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import { monthlySeries, type CurrencyOf } from './aggregate'
-import { monthKeysOf, multiYearInsights, seasonality, yearlyTotals } from './multiYear'
+import {
+  monthKeysOf,
+  multiYearInsights,
+  seasonality,
+  trailingTwelveMonths,
+  yearlyTotals,
+} from './multiYear'
+import { monthKeyForDate, toISODate } from '../../lib/dates'
 import { SeasonalityCard } from './SeasonalityCard'
 import { YearBarsCard } from './YearBarsCard'
 
@@ -39,6 +46,18 @@ export function MultiYearView({ monthStartDay, base, rates, currencyOf, enabled 
   const rows = useMemo(() => yearlyTotals(series), [series])
   const season = useMemo(() => seasonality(series), [series])
   const insights = useMemo(() => multiYearInsights(rows), [rows])
+
+  // Cột 12T chỉ có nghĩa khi năm cuối trong dãy CHƯA đủ 12 tháng: lúc đó nó là cột duy
+  // nhất so được với một năm đầy. Năm cuối đã đủ thì cửa sổ trượt trùng luôn năm đó —
+  // thêm cột nữa chỉ là vẽ lại cùng một số.
+  const currentKey = monthKeyForDate(toISODate(new Date()), monthStartDay)
+  const lastRow = rows[rows.length - 1]
+  const trailing = useMemo(
+    () =>
+      lastRow && lastRow.months < 12 ? trailingTwelveMonths(series, currentKey) : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [series, lastRow, currentKey.year, currentKey.month],
+  )
 
   // Chưa fetch xong thì KHÔNG vẽ số: `txs` mặc định rỗng nên mọi tổng ra 0, mà "0" trong
   // app tiền đọc y như số thật. Cùng quy ước với chế độ Năm ở ReportsPage.
@@ -95,7 +114,7 @@ export function MultiYearView({ monthStartDay, base, rates, currencyOf, enabled 
         </p>
       )}
 
-      <YearBarsCard rows={rows} base={base} />
+      <YearBarsCard rows={rows} base={base} trailing={trailing} />
 
       {insights.length > 0 && (
         <Card as="section">
@@ -163,6 +182,32 @@ export function MultiYearView({ monthStartDay, base, rates, currencyOf, enabled 
                   </td>
                 </tr>
               ))}
+              {/* Dòng 12 tháng gần nhất — cùng bảng để so ngay với các năm, nhưng tách
+                  bằng viền đậm vì nó KHÔNG phải một năm lịch. */}
+              {trailing && (
+                <tr className="border-t-2 border-border bg-surface-page">
+                  <th scope="row" className="px-3 py-2 text-left font-medium text-fg-primary">
+                    12 tháng gần nhất
+                    <span className="ml-1 text-xs font-normal text-fg-muted">
+                      (tới {trailing.to.month}/{trailing.to.year})
+                    </span>
+                  </th>
+                  <td className="px-3 py-2 text-right">
+                    <Money amount={trailing.income} currency={base} tone="in" compact />
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <Money amount={trailing.expense} currency={base} tone="out" compact />
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <Money amount={trailing.net} currency={base} tone="bySign" compact />
+                  </td>
+                  <td className="px-3 py-2 text-right text-fg-primary">
+                    {trailing.savingsRateBps === null
+                      ? '—'
+                      : `${(trailing.savingsRateBps / 100).toFixed(0)}%`}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

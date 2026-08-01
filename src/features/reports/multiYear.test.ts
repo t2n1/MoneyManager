@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { monthKeysOf, seasonality, yearSpan, yearlyTotals, multiYearInsights } from './multiYear'
+import {
+  monthKeysOf,
+  multiYearInsights,
+  seasonality,
+  trailingTwelveMonths,
+  yearSpan,
+  yearlyTotals,
+} from './multiYear'
 import type { MonthlySeries } from './aggregate'
 import type { TransactionRow } from '../../types/database.types'
 
@@ -162,5 +169,76 @@ describe('multiYearInsights', () => {
 
   it('ít hơn 2 năm -> không bịa so sánh', () => {
     expect(multiYearInsights(yearlyTotals(series(fullYear(2024, 100))))).toEqual([])
+  })
+})
+
+describe('trailingTwelveMonths', () => {
+  const AUG_2026 = { year: 2026, month: 8 }
+
+  it('gộp đúng 12 tháng hoàn tất gần nhất, bỏ tháng đang chạy dở', () => {
+    // 2025 đủ 12 tháng (thu 100/chi 60 mỗi tháng) + 2026 tháng 1-7 (thu 200/chi 100)
+    // + tháng 8 đang dở (chi 5). Cửa sổ = 8/2025..7/2026.
+    const rows: [number, number, number, number][] = [
+      ...(Array.from({ length: 12 }, (_, i) => [2025, i + 1, 100, 60]) as [
+        number,
+        number,
+        number,
+        number,
+      ][]),
+      ...(Array.from({ length: 7 }, (_, i) => [2026, i + 1, 200, 100]) as [
+        number,
+        number,
+        number,
+        number,
+      ][]),
+      [2026, 8, 0, 5],
+    ]
+    const r = trailingTwelveMonths(series(rows), AUG_2026)!
+    // 5 tháng cuối 2025 (8..12) + 7 tháng 2026
+    expect(r.income).toBe(5 * 100 + 7 * 200)
+    expect(r.expense).toBe(5 * 60 + 7 * 100)
+    expect(r.months).toBe(12)
+    expect(r.from).toEqual({ year: 2025, month: 8 })
+    expect(r.to).toEqual({ year: 2026, month: 7 })
+  })
+
+  it('cửa sổ vắt qua mốc tháng 1 vẫn đúng biên', () => {
+    const r = trailingTwelveMonths(series([[2025, 12, 10, 5]]), { year: 2026, month: 1 })!
+    expect(r.from).toEqual({ year: 2025, month: 1 })
+    expect(r.to).toEqual({ year: 2025, month: 12 })
+    expect(r.months).toBe(1)
+  })
+
+  it('KHÔNG tính tháng đang dở dù nó có số to', () => {
+    const rows: [number, number, number, number][] = [
+      [2026, 6, 100, 50],
+      [2026, 7, 100, 50],
+      [2026, 8, 0, 9_999],
+    ]
+    const r = trailingTwelveMonths(series(rows), AUG_2026)!
+    expect(r.expense).toBe(100)
+    expect(r.months).toBe(2)
+  })
+
+  it('tỷ lệ tiết kiệm null khi thu = 0, không phải 0%', () => {
+    const r = trailingTwelveMonths(series([[2026, 7, 0, 500]]), AUG_2026)!
+    expect(r.savingsRateBps).toBeNull()
+    expect(r.net).toBe(-500)
+  })
+
+  it('cửa sổ rỗng → null (đừng vẽ cột 0đ)', () => {
+    // Chỉ có dữ liệu cũ hơn 12 tháng
+    expect(trailingTwelveMonths(series([[2024, 1, 100, 50]]), AUG_2026)).toBeNull()
+    // Và chỉ có tháng đang dở
+    expect(trailingTwelveMonths(series([[2026, 8, 100, 50]]), AUG_2026)).toBeNull()
+  })
+
+  it('tháng rỗng trong cửa sổ không được đếm là tháng có dữ liệu', () => {
+    const rows: [number, number, number, number][] = [
+      [2026, 5, 100, 50],
+      [2026, 6, 0, 0],
+      [2026, 7, 100, 50],
+    ]
+    expect(trailingTwelveMonths(series(rows), AUG_2026)!.months).toBe(2)
   })
 })

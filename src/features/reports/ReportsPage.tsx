@@ -14,6 +14,8 @@ import { TrendsView } from './TrendsView'
 import { CategoryBreakdownCard } from './CategoryBreakdownCard'
 import { MonthlyBarsCard } from './MonthlyBarsCard'
 import { NetCashflowCard } from './NetCashflowCard'
+import { SavingsDonutCard } from './SavingsDonutCard'
+import { Section, SectionIndex, type IndexItem } from './SectionIndex'
 import { SpendClassificationCard } from './SpendClassificationCard'
 import { expenseLeaves } from '../categories/leaf'
 import {
@@ -81,6 +83,22 @@ const PERIOD_TABS: readonly SegmentedItem<ReportPeriod>[] = [
 
 const isPeriod = (v: string | null): v is ReportPeriod =>
   PERIOD_TABS.some((t) => t.value === v)
+
+// Mục lục của hai chế độ dài. Nhãn ngắn hơn tiêu đề thẻ vì đây là chip cuộn ngang:
+// "Cơ cấu chi tiêu" → "Cơ cấu", đủ để nhận ra mà không đẩy các mục sau ra ngoài màn.
+const MONTH_SECTIONS: readonly IndexItem[] = [
+  { id: 'sec-giu-lai', label: 'Giữ lại' },
+  { id: 'sec-danh-muc', label: 'Danh mục' },
+  { id: 'sec-co-cau', label: 'Cơ cấu' },
+  { id: 'sec-thu-chi', label: 'Thu/chi' },
+  { id: 'sec-dong-tien', label: 'Dòng tiền' },
+  { id: 'sec-nhan', label: 'Nhãn' },
+]
+
+const YEAR_SECTIONS: readonly IndexItem[] = [
+  ...MONTH_SECTIONS,
+  { id: 'sec-gui-tien', label: 'Gửi về VN' },
+]
 
 /** Đọc 'YYYY-MM' thành MonthKey; null nếu không hợp lệ. */
 function parseYm(s: string | null): MonthKey | null {
@@ -371,48 +389,68 @@ export function ReportsPage() {
       {/* Nội dung THÁNG */}
       {view === 'charts' && period === 'month' && (
         <>
-          <CategoryBreakdownCard
-            breakdown={breakdown}
-            categories={categories}
-            base={base}
-            kind={kind}
-            onKindChange={setKind}
-            periodNoun="tháng này"
-            lineSeries={lineSeriesMonth}
-            lineLabelOf={lineLabelMonth}
-            periodType="month"
-            periodKey={monthKeyString(activeMonthKey)}
-          />
-          <SpendClassificationCard
-            data={monthClass}
-            income={monthSums.income}
-            expense={monthSums.expense}
-            base={base}
-            periodNoun="tháng này"
-            unclassifiedCount={unclassifiedCount}
-          />
-          <MonthlyBarsCard
-            series={series}
-            base={base}
-            title="Thu / chi 6 tháng gần nhất"
-            labelOf={(k) => `${k.month}/${String(k.year).slice(2)}`}
-            currentKey={currentKey}
-          />
-          <NetCashflowCard
-            series={series}
-            base={base}
-            title="Dòng tiền ròng 6 tháng gần nhất"
-            labelOf={(k) => `${k.month}/${String(k.year).slice(2)}`}
-            currentKey={currentKey}
-          />
-          <TagBreakdownCard
-            data={monthTags}
-            base={base}
-            periodNoun="tháng này"
-            noTags={tags.length === 0}
-            rangeFrom={monthRange.start}
-            rangeTo={addDaysISO(monthRange.end, -1)}
-          />
+          <SectionIndex items={MONTH_SECTIONS} />
+          <Section id="sec-giu-lai">
+            <SavingsDonutCard
+              income={monthSums.income}
+              expense={monthSums.expense}
+              base={base}
+              periodNoun="tháng này"
+              approx={monthSums.hasForeign}
+            />
+          </Section>
+          <Section id="sec-danh-muc">
+            <CategoryBreakdownCard
+              breakdown={breakdown}
+              categories={categories}
+              base={base}
+              kind={kind}
+              onKindChange={setKind}
+              periodNoun="tháng này"
+              lineSeries={lineSeriesMonth}
+              lineLabelOf={lineLabelMonth}
+              periodType="month"
+              periodKey={monthKeyString(activeMonthKey)}
+            />
+          </Section>
+          <Section id="sec-co-cau">
+            <SpendClassificationCard
+              data={monthClass}
+              income={monthSums.income}
+              expense={monthSums.expense}
+              base={base}
+              periodNoun="tháng này"
+              unclassifiedCount={unclassifiedCount}
+            />
+          </Section>
+          <Section id="sec-thu-chi">
+            <MonthlyBarsCard
+              series={series}
+              base={base}
+              title="Thu / chi 6 tháng gần nhất"
+              labelOf={(k) => `${k.month}/${String(k.year).slice(2)}`}
+              currentKey={currentKey}
+            />
+          </Section>
+          <Section id="sec-dong-tien">
+            <NetCashflowCard
+              series={series}
+              base={base}
+              title="Dòng tiền ròng 6 tháng gần nhất"
+              labelOf={(k) => `${k.month}/${String(k.year).slice(2)}`}
+              currentKey={currentKey}
+            />
+          </Section>
+          <Section id="sec-nhan">
+            <TagBreakdownCard
+              data={monthTags}
+              base={base}
+              periodNoun="tháng này"
+              noTags={tags.length === 0}
+              rangeFrom={monthRange.start}
+              rangeTo={addDaysISO(monthRange.end, -1)}
+            />
+          </Section>
         </>
       )}
       {view === 'trends' && <TrendsView />}
@@ -485,49 +523,71 @@ export function ReportsPage() {
             </StatTile>
           </section>
 
-          <CategoryBreakdownCard
-            breakdown={yearBreakdown}
-            categories={categories}
-            base={base}
-            kind={kind}
-            onKindChange={setKind}
-            periodNoun="năm này"
-            lineSeries={lineSeriesYear}
-            lineLabelOf={lineLabelYear}
-            periodType="year"
-            periodKey={String(activeYear)}
-          />
-          <SpendClassificationCard
-            data={yearClass}
-            income={yearSums.income}
-            expense={yearSums.expense}
-            base={base}
-            periodNoun="năm này"
-            unclassifiedCount={unclassifiedCount}
-          />
-          <MonthlyBarsCard
-            series={yearSeries}
-            base={base}
-            title="Thu / chi 12 tháng"
-            labelOf={(k) => String(k.month)}
-            currentKey={currentKey}
-          />
-          <NetCashflowCard
-            series={yearSeries}
-            base={base}
-            title="Dòng tiền ròng 12 tháng"
-            labelOf={(k) => String(k.month)}
-            currentKey={currentKey}
-          />
-          <TagBreakdownCard
-            data={yearTags}
-            base={base}
-            periodNoun="năm này"
-            noTags={tags.length === 0}
-            rangeFrom={yearRange.start}
-            rangeTo={addDaysISO(yearRange.end, -1)}
-          />
-          <RemittanceSection txs={yearTxs} year={activeYear} annualIncome={yearSums.income} />
+          <SectionIndex items={YEAR_SECTIONS} />
+          <Section id="sec-giu-lai">
+            <SavingsDonutCard
+              income={yearSums.income}
+              expense={yearSums.expense}
+              base={base}
+              periodNoun="năm này"
+              approx={yearSums.hasForeign}
+            />
+          </Section>
+          <Section id="sec-danh-muc">
+            <CategoryBreakdownCard
+              breakdown={yearBreakdown}
+              categories={categories}
+              base={base}
+              kind={kind}
+              onKindChange={setKind}
+              periodNoun="năm này"
+              lineSeries={lineSeriesYear}
+              lineLabelOf={lineLabelYear}
+              periodType="year"
+              periodKey={String(activeYear)}
+            />
+          </Section>
+          <Section id="sec-co-cau">
+            <SpendClassificationCard
+              data={yearClass}
+              income={yearSums.income}
+              expense={yearSums.expense}
+              base={base}
+              periodNoun="năm này"
+              unclassifiedCount={unclassifiedCount}
+            />
+          </Section>
+          <Section id="sec-thu-chi">
+            <MonthlyBarsCard
+              series={yearSeries}
+              base={base}
+              title="Thu / chi 12 tháng"
+              labelOf={(k) => String(k.month)}
+              currentKey={currentKey}
+            />
+          </Section>
+          <Section id="sec-dong-tien">
+            <NetCashflowCard
+              series={yearSeries}
+              base={base}
+              title="Dòng tiền ròng 12 tháng"
+              labelOf={(k) => String(k.month)}
+              currentKey={currentKey}
+            />
+          </Section>
+          <Section id="sec-nhan">
+            <TagBreakdownCard
+              data={yearTags}
+              base={base}
+              periodNoun="năm này"
+              noTags={tags.length === 0}
+              rangeFrom={yearRange.start}
+              rangeTo={addDaysISO(yearRange.end, -1)}
+            />
+          </Section>
+          <Section id="sec-gui-tien">
+            <RemittanceSection txs={yearTxs} year={activeYear} annualIncome={yearSums.income} />
+          </Section>
         </>
       )}
 

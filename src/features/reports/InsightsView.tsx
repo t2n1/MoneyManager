@@ -20,8 +20,8 @@ import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { categoryBreakdown, categoryComparison, dailyExpenseTotals, monthlySeries } from './aggregate'
 import { buildInsights, detectAnomalies, noSpendStreak, savingsRate } from './insights'
 import { useMonthPace } from './monthPace'
-import { SavingsRateTrendCard } from './SavingsRateTrendCard'
 import { CategoryCompareBarsCard } from './CategoryCompareBarsCard'
+import { Section, SectionIndex, type IndexItem } from './SectionIndex'
 import { ParetoCard } from './ParetoCard'
 import { SpendSizeCard } from './SpendSizeCard'
 import { SpendRhythmCard } from './SpendRhythmCard'
@@ -33,6 +33,15 @@ import {
   subscriptionSummary,
   weekdayProfile,
 } from './behavior'
+
+// Nhãn ngắn cho hàng chip cuộn ngang ("Chi tiêu bất thường" → "Bất thường").
+const ALWAYS: readonly IndexItem[] = [
+  { id: 'ins-so-sanh', label: 'So sánh' },
+  { id: 'ins-pareto', label: '80/20' },
+  { id: 'ins-do-lon', label: 'Độ lớn' },
+  { id: 'ins-nhip', label: 'Nhịp chi' },
+  { id: 'ins-thue-bao', label: 'Định kỳ' },
+]
 
 export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
   const { data: profile } = useProfile()
@@ -169,7 +178,17 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
   const hasAny =
     hasOverview || comparison.rows.length > 0 || anomalies.length > 0 || insights.length > 0
 
-  const labelOf = (k: MonthKey) => `${k.month}/${String(k.year).slice(2)}`
+  // Ba khối đầu/cuối là có điều kiện, nên mục lục phải dùng CHÍNH những điều kiện đó —
+  // chip trỏ vào khối không render là chip bấm không đi đâu.
+  const sections = useMemo(
+    () => [
+      ...(hasOverview ? [{ id: 'ins-tong-quan', label: 'Tổng quan' }] : []),
+      ...(insights.length > 0 ? [{ id: 'ins-goi-y', label: 'Gợi ý' }] : []),
+      ...ALWAYS,
+      ...(anomalies.length > 0 ? [{ id: 'ins-bat-thuong', label: 'Bất thường' }] : []),
+    ],
+    [hasOverview, insights.length, anomalies.length],
+  )
 
   return (
     <div className="flex flex-col gap-3">
@@ -179,9 +198,11 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
         </div>
       )}
 
+      <SectionIndex items={sections} />
+
       {/* Tổng quan — các chỉ số then chốt */}
       {hasOverview && (
-        <section className="grid grid-cols-3 gap-2">
+        <section id="ins-tong-quan" className="scroll-mt-16 grid grid-cols-3 gap-2">
           <div className="rounded-xl bg-surface p-3 text-center shadow-sm">
             <div
               className={`text-lg font-bold ${
@@ -213,7 +234,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
 
       {/* Gợi ý — đặt ngay đầu tab: đây là phần tóm tắt, không phải phụ lục */}
       {insights.length > 0 && (
-        <section className="rounded-xl bg-surface p-3 shadow-sm">
+        <section id="ins-goi-y" className="scroll-mt-16 rounded-xl bg-surface p-3 shadow-sm">
           <h2 className="mb-2 text-sm font-semibold text-fg-muted">Gợi ý</h2>
           <ul className="space-y-1">
             {insights.map((i) => (
@@ -228,47 +249,59 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
         </section>
       )}
 
-      {/* Xu hướng tỷ lệ tiết kiệm 6 tháng */}
-      <SavingsRateTrendCard series={series} labelOf={labelOf} currentKey={currentKey} />
+      {/* Tỷ lệ tiết kiệm 6 tháng đã CHUYỂN sang tab Biểu đồ, nằm chung khung với cột
+          thu/chi (MonthlyBarsCard) trên trục phải. Trước đây nó là thẻ riêng ở đây: cùng
+          một chuỗi tháng vẽ hai lần ở hai tab, mà "giữ được mấy %" chỉ có nghĩa khi thấy
+          ngay bên cạnh thu và chi sinh ra nó. */}
 
       {/* So sánh chi theo danh mục — bar ngang */}
-      <CategoryCompareBarsCard rows={comparison.rows} categories={categories} base={base} />
+      <Section id="ins-so-sanh">
+        <CategoryCompareBarsCard rows={comparison.rows} categories={categories} base={base} />
+      </Section>
 
       {/* Pareto 80/20 của tháng đang xem */}
-      <ParetoCard
-        slices={expenseBreakdown.slices}
-        categories={categories}
-        base={base}
-        periodNoun="tháng này"
-      />
+      <Section id="ins-pareto">
+        <ParetoCard
+          slices={expenseBreakdown.slices}
+          categories={categories}
+          base={base}
+          periodNoun="tháng này"
+        />
+      </Section>
 
       {/* Độ lớn một khoản chi điển hình (6 tháng cho mẫu đủ lớn) */}
-      <SpendSizeCard
-        data={sizes}
-        base={base}
-        periodNoun="trong 6 tháng"
-        hourlyWage={profile?.hourly_wage ?? null}
-      />
+      <Section id="ins-do-lon">
+        <SpendSizeCard
+          data={sizes}
+          base={base}
+          periodNoun="trong 6 tháng"
+          hourlyWage={profile?.hourly_wage ?? null}
+        />
+      </Section>
 
       {/* Nhịp chi tiêu: sau ngày lương & theo thứ */}
-      <SpendRhythmCard
-        payday={rhythm.payday}
-        weekdays={rhythm.weekdays}
-        base={base}
-        windowDays={PAYDAY_WINDOW}
-      />
+      <Section id="ins-nhip">
+        <SpendRhythmCard
+          payday={rhythm.payday}
+          weekdays={rhythm.weekdays}
+          base={base}
+          windowDays={PAYDAY_WINDOW}
+        />
+      </Section>
 
       {/* Khoản tự động trừ mỗi tháng */}
-      <SubscriptionsCard
-        data={subscriptions}
-        base={base}
-        monthlyIncome={avgMonthlyIncome}
-        hourlyWage={profile?.hourly_wage ?? null}
-      />
+      <Section id="ins-thue-bao">
+        <SubscriptionsCard
+          data={subscriptions}
+          base={base}
+          monthlyIncome={avgMonthlyIncome}
+          hourlyWage={profile?.hourly_wage ?? null}
+        />
+      </Section>
 
       {/* Chi tiêu bất thường */}
       {anomalies.length > 0 && (
-        <section className="rounded-xl bg-surface p-3 shadow-sm">
+        <section id="ins-bat-thuong" className="scroll-mt-16 rounded-xl bg-surface p-3 shadow-sm">
           <h2 className="mb-2 text-sm font-semibold text-fg-muted">Chi tiêu bất thường</h2>
           <ul className="space-y-1">
             {anomalies.map((a) => {

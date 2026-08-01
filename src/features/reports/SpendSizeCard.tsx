@@ -3,6 +3,7 @@
 // đọc "bữa trưa này = 0,7 giờ làm" thấm hơn nhiều so với đọc con số tiền.
 import { Link } from 'react-router-dom'
 import { ExplainBox } from '../../components/ExplainBox'
+import { Money } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { hoursOfWork, type SpendPercentiles } from './behavior'
 
@@ -50,9 +51,11 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
             <li key={row.label} className="rounded-lg bg-surface-page px-2.5 py-2 ">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-xs text-fg-secondary">{row.label}</span>
-                <span className="shrink-0 text-sm font-semibold tabular-nums text-fg-primary">
-                  {money(row.value)}
-                </span>
+                <Money
+                  amount={Math.round(row.value)}
+                  currency={base}
+                  className="shrink-0 text-sm font-semibold"
+                />
               </div>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
                 <span className="text-2xs text-fg-muted">{row.note}</span>

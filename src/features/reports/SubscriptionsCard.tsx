@@ -4,6 +4,7 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { ExplainBox } from '../../components/ExplainBox'
+import { Money } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { SubscriptionSummary } from './behavior'
 import { hoursOfWork } from './behavior'
@@ -61,9 +62,11 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
             <span className="shrink-0 text-2xs text-fg-muted">
               {FREQ_LABEL[item.frequency]}
             </span>
-            <span className="w-20 shrink-0 text-right font-medium tabular-nums text-fg-primary">
-              {money(item.monthly)}
-            </span>
+            <Money
+              amount={Math.round(item.monthly)}
+              currency={base}
+              className="w-20 shrink-0 text-right font-medium"
+            />
           </li>
         ))}
       </ul>

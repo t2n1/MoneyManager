@@ -72,6 +72,64 @@ export function yearlyTotals(series: MonthlySeries): YearRow[] {
   return rows
 }
 
+/**
+ * Cửa sổ trượt 12 tháng, để đặt CẠNH các cột năm.
+ *
+ * Vì sao cần: năm đang chạy luôn thấp giả (tháng 8 thì cột 2026 chỉ có 8 tháng) nên đặt
+ * nó cạnh 2025 đủ 12 tháng là so sai — mắt đọc thành "năm nay tiêu ít hơn". Cột 12T là
+ * con số DUY NHẤT trong biểu đồ đó so được trực tiếp với một năm đầy.
+ */
+export interface TrailingRow {
+  income: number
+  expense: number
+  net: number
+  savingsRateBps: number | null
+  /** Số tháng CÓ dữ liệu trong cửa sổ (≤ 12) — cửa sổ luôn rộng 12 tháng lịch. */
+  months: number
+  /** Tháng đầu và tháng cuối của cửa sổ, để nói ra "12 tháng tới hết tháng 7/2026". */
+  from: MonthKey
+  to: MonthKey
+}
+
+const idx = (k: MonthKey) => k.year * 12 + k.month
+
+/**
+ * 12 tháng ĐÃ HOÀN TẤT gần nhất, tính lùi từ `currentKey` (tháng đang chạy dở) — tháng
+ * đó và mọi tháng sau nó đều bị loại, cùng quy ước với `completedPoints` ở verdicts.ts.
+ *
+ * Không có tháng nào có dữ liệu trong cửa sổ → null (đừng vẽ cột 0đ).
+ */
+export function trailingTwelveMonths(
+  series: MonthlySeries,
+  currentKey: MonthKey,
+): TrailingRow | null {
+  const end = idx(currentKey) - 1 // tháng hoàn tất gần nhất
+  const start = end - 11
+  let income = 0
+  let expense = 0
+  let months = 0
+  for (const p of series.points) {
+    const i = idx(p.key)
+    if (i < start || i > end) continue
+    income += p.income
+    expense += p.expense
+    if (p.income !== 0 || p.expense !== 0) months++
+  }
+  if (months === 0) return null
+  const net = income - expense
+  const toMonth = ((end - 1) % 12) + 1
+  const fromMonth = ((start - 1) % 12) + 1
+  return {
+    income,
+    expense,
+    net,
+    savingsRateBps: income > 0 ? Math.round((net / income) * 10_000) : null,
+    months,
+    from: { year: Math.floor((start - 1) / 12), month: fromMonth },
+    to: { year: Math.floor((end - 1) / 12), month: toMonth },
+  }
+}
+
 /** Một tháng trong lịch (1–12) của biểu đồ mùa vụ. */
 export interface SeasonMonth {
   month: number

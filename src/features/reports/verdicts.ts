@@ -125,6 +125,17 @@ export function netFlowVerdict(
   return { tone, total, negativeMonths, months: done.length }
 }
 
+/**
+ * Mức của một tỷ lệ tiết kiệm. Mốc 20% lấy từ quy tắc 50/30/20 mà thẻ "Cơ cấu chi tiêu"
+ * đang dùng. Tách riêng vì có hai chỗ chấm cùng con số này (thẻ donut mở đầu kỳ và
+ * biểu đồ 6 tháng) — hai chỗ mà lệch ngưỡng thì một chỗ khen còn chỗ kia cảnh báo.
+ */
+export function savingsRateTone(rate: number): NoteTone {
+  if (rate >= 0.2) return 'good'
+  if (rate > 0) return 'warn'
+  return 'bad'
+}
+
 export interface SavingsRateVerdict {
   tone: NoteTone
   /** (thu − chi) / thu trên toàn kỳ hoàn tất; 0,2 = giữ lại 20% */
@@ -171,6 +182,5 @@ export function savingsRateVerdict(
       trend = trendDelta > 0.03 ? 'up' : trendDelta < -0.03 ? 'down' : 'flat'
     }
   }
-  const tone: NoteTone = rate >= 0.2 ? 'good' : rate > 0 ? 'warn' : 'bad'
-  return { tone, rate, trend, trendDelta, months: done.length }
+  return { tone: savingsRateTone(rate), rate, trend, trendDelta, months: done.length }
 }

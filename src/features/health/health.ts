@@ -5,6 +5,20 @@
 /** Kết luận màu của một chỉ số. 'unknown' = chưa đủ dữ liệu để chấm. */
 export type Verdict = 'good' | 'warn' | 'bad' | 'unknown'
 
+/** Màu một vùng trên thang đo. Không có 'unknown': vùng luôn là một trong ba mức. */
+export type Tone = 'bad' | 'warn' | 'good'
+
+/**
+ * Một vùng trên thang đo, kéo dài tới mốc `upTo` (các mốc TĂNG DẦN, vùng đầu bắt
+ * đầu từ 0). Khai ở đây chứ không ở component vì thang đo vừa dùng để VẼ vừa dùng
+ * để CHẤM ĐIỂM — hai chỗ đọc cùng một mốc thì điểm không thể lệch khỏi thanh màu
+ * mà người dùng đang nhìn.
+ */
+export interface Zone {
+  upTo: number
+  tone: Tone
+}
+
 export const VERDICT_LABELS: Record<Verdict, string> = {
   good: 'Tốt',
   warn: 'Cần chú ý',
@@ -214,4 +228,154 @@ export function simpleRunway(liquidAssets: number, netFlows: number[]): number |
   const avg = netFlows.reduce((s, x) => s + x, 0) / netFlows.length
   if (avg >= 0) return null
   return liquidAssets / -avg
+}
+
+// ------------------------------------------------------------
+// Thang đo — MỘT nguồn cho cả thanh màu và điểm
+// ------------------------------------------------------------
+
+/**
+ * Thang đo của từng chỉ số. Trước đây các mảng này nằm trong `HealthView.tsx` và chỉ
+ * dùng để vẽ; đưa xuống đây để điểm tổng chấm trên ĐÚNG mốc đang vẽ. Chiều của thang
+ * đọc từ vùng đầu tiên: `bad` trước là "càng cao càng tốt", `good` trước là ngược lại.
+ */
+export const HEALTH_ZONES = {
+  fund: [
+    { upTo: 3, tone: 'bad' },
+    { upTo: 6, tone: 'warn' },
+    { upTo: 12, tone: 'good' },
+  ],
+  liquidity: [
+    { upTo: 1, tone: 'bad' },
+    { upTo: 2, tone: 'warn' },
+    { upTo: 4, tone: 'good' },
+  ],
+  dti: [
+    { upTo: 0.5, tone: 'good' },
+    { upTo: 1.5, tone: 'warn' },
+    { upTo: 3, tone: 'bad' },
+  ],
+  concentration: [
+    { upTo: 0.7, tone: 'good' },
+    { upTo: 0.95, tone: 'warn' },
+    { upTo: 1, tone: 'bad' },
+  ],
+  runway: [
+    { upTo: 6, tone: 'bad' },
+    { upTo: 18, tone: 'warn' },
+    { upTo: 60, tone: 'good' },
+  ],
+  taxBurden: [
+    { upTo: 0.25, tone: 'good' },
+    { upTo: 0.35, tone: 'warn' },
+    { upTo: 0.6, tone: 'bad' },
+  ],
+} as const satisfies Record<string, readonly Zone[]>
+
+// ------------------------------------------------------------
+// Điểm sức khỏe tổng
+// ------------------------------------------------------------
+
+/**
+ * Dải điểm của từng mức. Cùng ba mốc với `verdictFromScore` bên dưới, nên một chỉ số
+ * "Tốt" luôn ra ≥ 70 và ngược lại — điểm và nhãn màu không bao giờ nói khác nhau.
+ */
+const BANDS: Record<Tone, [number, number]> = {
+  bad: [0, 40],
+  warn: [40, 70],
+  good: [70, 100],
+}
+
+/**
+ * Đổi giá trị thô thành điểm 0–100 theo thang đo của chính chỉ số đó, nội suy tuyến
+ * tính TRONG từng vùng. Vì sao không chấm theo kết luận (Tốt=100/Chú ý=60/Rủi ro=20):
+ * điểm sẽ nhảy bậc, quỹ dự phòng từ 5,9 lên 6,0 tháng nhảy 40 điểm còn từ 6 lên 12
+ * tháng thì đứng im — người dùng cải thiện thật mà đồng hồ không nhích.
+ *
+ * Ngoài trần thang thì kẹp (runway 80 tháng trên thang 0–60 vẫn là 100, không phải >100).
+ */
+export function scoreFromZones(value: number | null, zones: readonly Zone[]): number | null {
+  if (value === null || !Number.isFinite(value) || zones.length === 0) return null
+  const lowerIsBetter = zones[0].tone === 'good'
+  const max = zones[zones.length - 1].upTo
+  if (value <= 0) return lowerIsBetter ? 100 : 0
+  if (value >= max) return lowerIsBetter ? 0 : 100
+
+  let from = 0
+  for (const z of zones) {
+    if (value <= z.upTo) {
+      const width = z.upTo - from
+      const t = width <= 0 ? 0 : (value - from) / width
+      const [lo, hi] = BANDS[z.tone]
+      return lowerIsBetter ? hi - t * (hi - lo) : lo + t * (hi - lo)
+    }
+    from = z.upTo
+  }
+  // Không tới được: `value >= max` đã chặn ở trên.
+  return lowerIsBetter ? 0 : 100
+}
+
+/** Ngưỡng của điểm tổng, khớp với dải điểm của từng mức. */
+export function verdictFromScore(score: number): Verdict {
+  if (score >= 70) return 'good'
+  if (score >= 40) return 'warn'
+  return 'bad'
+}
+
+export interface ScoreItem {
+  key: string
+  /** Tên chỉ số để nói ra được câu "kéo điểm xuống nhiều nhất là …". */
+  label: string
+  /** Điểm 0–100, hoặc null nếu chưa đủ dữ liệu → bị loại khỏi trung bình. */
+  score: number | null
+  /** Trọng số tương đối; chỉ cần cùng đơn vị với nhau, không cần cộng lại bằng 1. */
+  weight: number
+}
+
+export interface HealthScore {
+  /** 0–100 đã làm tròn. */
+  score: number
+  verdict: Verdict
+  /** Tỷ trọng các chỉ số chấm được (0..1). Dưới 1 nghĩa là điểm đang chấm thiếu. */
+  coverage: number
+  /** Số chỉ số chấm được / tổng số chỉ số. */
+  counted: number
+  total: number
+  /** Tên các chỉ số chưa chấm được — để nói thẳng điểm đang thiếu cái gì. */
+  missing: string[]
+  /** Chỉ số điểm thấp nhất trong số chấm được; hoà thì lấy chỉ số nặng hơn. */
+  weakest: ScoreItem | null
+}
+
+/**
+ * Trung bình có trọng số của các chỉ số chấm được. Chỉ số `null` bị LOẠI khỏi cả tử
+ * và mẫu, không phải tính 0 điểm: chưa phân loại danh mục là thiếu dữ liệu, không
+ * phải sức khỏe kém. Bù lại `coverage` nói ra điểm đang dựa trên bao nhiêu phần, để
+ * UI không trình bày một con số chấm trên 2/6 chỉ số như thể nó là kết luận đầy đủ.
+ *
+ * Không chỉ số nào chấm được → null (UI hiện "chưa đủ dữ liệu", KHÔNG hiện 0 điểm).
+ */
+export function healthScore(items: ScoreItem[]): HealthScore | null {
+  const counted = items.filter((i) => i.score !== null && i.weight > 0)
+  const totalWeight = items.reduce((s, i) => s + Math.max(i.weight, 0), 0)
+  const countedWeight = counted.reduce((s, i) => s + i.weight, 0)
+  if (counted.length === 0 || countedWeight <= 0) return null
+
+  const sum = counted.reduce((s, i) => s + i.score! * i.weight, 0)
+  const score = Math.round(sum / countedWeight)
+  let weakest = counted[0]
+  for (const i of counted) {
+    if (i.score! < weakest.score! || (i.score === weakest.score && i.weight > weakest.weight)) {
+      weakest = i
+    }
+  }
+  return {
+    score,
+    verdict: verdictFromScore(score),
+    coverage: totalWeight > 0 ? countedWeight / totalWeight : 0,
+    counted: counted.length,
+    total: items.length,
+    missing: items.filter((i) => i.score === null).map((i) => i.label),
+    weakest,
+  }
 }

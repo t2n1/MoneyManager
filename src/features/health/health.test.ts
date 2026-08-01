@@ -3,13 +3,19 @@ import {
   debtServiceRatio,
   debtToIncome,
   emergencyFundMonths,
+  healthScore,
+  HEALTH_ZONES,
   incomeConcentration,
   liquidityRatio,
   monteCarloRunway,
+  scoreFromZones,
   seededRandom,
   simpleRunway,
   taxBurden,
   verdictFor,
+  verdictFromScore,
+  type ScoreItem,
+  type Zone,
 } from './health'
 
 describe('verdictFor', () => {
@@ -178,5 +184,134 @@ describe('simpleRunway', () => {
 
   it('trung bình không âm → null (không có ngày cạn)', () => {
     expect(simpleRunway(600_000, [100_000, -50_000, 10_000])).toBeNull()
+  })
+})
+
+describe('scoreFromZones', () => {
+  const fund = HEALTH_ZONES.fund // càng cao càng tốt: bad ≤3, warn ≤6, good ≤12
+  const dti = HEALTH_ZONES.dti // càng thấp càng tốt: good ≤0,5, warn ≤1,5, bad ≤3
+
+  it('mốc giữa các vùng ra đúng biên của dải điểm', () => {
+    expect(scoreFromZones(0, fund)).toBe(0)
+    expect(scoreFromZones(3, fund)).toBe(40)
+    expect(scoreFromZones(6, fund)).toBe(70)
+    expect(scoreFromZones(12, fund)).toBe(100)
+  })
+
+  it('nội suy tuyến tính trong vùng, không nhảy bậc', () => {
+    // 4,5 tháng = giữa vùng warn (3→6) = giữa dải 40→70
+    expect(scoreFromZones(4.5, fund)).toBe(55)
+    // 9 tháng = giữa vùng good (6→12) = giữa dải 70→100
+    expect(scoreFromZones(9, fund)).toBe(85)
+  })
+
+  it('đảo chiều khi vùng đầu là good (càng thấp càng tốt)', () => {
+    expect(scoreFromZones(0, dti)).toBe(100)
+    expect(scoreFromZones(0.5, dti)).toBe(70)
+    expect(scoreFromZones(1.5, dti)).toBe(40)
+    expect(scoreFromZones(3, dti)).toBe(0)
+    expect(scoreFromZones(0.25, dti)).toBe(85)
+  })
+
+  it('vượt trần thang thì kẹp, không vượt 0–100', () => {
+    expect(scoreFromZones(80, HEALTH_ZONES.runway)).toBe(100)
+    expect(scoreFromZones(-5, fund)).toBe(0)
+    expect(scoreFromZones(9, dti)).toBe(0)
+  })
+
+  it('null hoặc số không hữu hạn → null (không phải 0 điểm)', () => {
+    expect(scoreFromZones(null, fund)).toBeNull()
+    expect(scoreFromZones(Number.POSITIVE_INFINITY, fund)).toBeNull()
+    expect(scoreFromZones(Number.NaN, fund)).toBeNull()
+  })
+
+  it('đơn điệu trên toàn thang của mọi chỉ số', () => {
+    for (const [name, zones] of Object.entries(HEALTH_ZONES)) {
+      const max = zones[zones.length - 1].upTo
+      const lowerIsBetter = zones[0].tone === 'good'
+      let prev = scoreFromZones(0, zones)!
+      for (let i = 1; i <= 100; i++) {
+        const s = scoreFromZones((max * i) / 100, zones)!
+        if (lowerIsBetter) expect(s, `${name} tại ${i}%`).toBeLessThanOrEqual(prev)
+        else expect(s, `${name} tại ${i}%`).toBeGreaterThanOrEqual(prev)
+        prev = s
+      }
+    }
+  })
+
+  it('không bao giờ chấm khác nhãn màu mà người dùng đang nhìn', () => {
+    // Cùng một giá trị: điểm quy ra kết luận phải trùng với verdictFor trên đúng
+    // hai mốc của thang. Đây là ràng buộc thật sự của thiết kế — nếu ai đó đổi dải
+    // BANDS hoặc ngưỡng verdictFromScore lệch nhau thì thẻ sẽ hiện "Tốt" mà điểm 62.
+    const cases: { zones: readonly Zone[]; warnAt: number; goodAt: number; higher: boolean }[] = [
+      { zones: HEALTH_ZONES.fund, warnAt: 3, goodAt: 6, higher: true },
+      { zones: HEALTH_ZONES.liquidity, warnAt: 1, goodAt: 2, higher: true },
+      { zones: HEALTH_ZONES.runway, warnAt: 6, goodAt: 18, higher: true },
+      { zones: HEALTH_ZONES.dti, warnAt: 1.5, goodAt: 0.5, higher: false },
+      { zones: HEALTH_ZONES.concentration, warnAt: 0.95, goodAt: 0.7, higher: false },
+      { zones: HEALTH_ZONES.taxBurden, warnAt: 0.35, goodAt: 0.25, higher: false },
+    ]
+    for (const { zones, warnAt, goodAt, higher } of cases) {
+      const max = zones[zones.length - 1].upTo
+      for (let i = 0; i <= 40; i++) {
+        const v = (max * i) / 40
+        const byScore = verdictFromScore(scoreFromZones(v, zones)!)
+        const byThreshold = verdictFor(v, warnAt, goodAt, higher)
+        expect(byScore, `giá trị ${v} trên thang ${max}`).toBe(byThreshold)
+      }
+    }
+  })
+})
+
+describe('healthScore', () => {
+  const item = (key: string, score: number | null, weight: number): ScoreItem => ({
+    key,
+    label: key,
+    score,
+    weight,
+  })
+
+  it('trung bình CÓ trọng số, không phải trung bình thường', () => {
+    const r = healthScore([item('a', 100, 30), item('b', 40, 10)])!
+    // (100×30 + 40×10) / 40 = 85 — trung bình thường sẽ ra 70
+    expect(r.score).toBe(85)
+    expect(r.verdict).toBe('good')
+  })
+
+  it('chỉ số thiếu dữ liệu bị loại khỏi CẢ tử và mẫu', () => {
+    const r = healthScore([item('a', 80, 25), item('b', null, 25), item('c', 60, 25)])!
+    expect(r.score).toBe(70) // chứ không phải (80+0+60)/3 = 47
+    expect(r.counted).toBe(2)
+    expect(r.total).toBe(3)
+    expect(r.missing).toEqual(['b'])
+    expect(r.coverage).toBeCloseTo(2 / 3)
+  })
+
+  it('coverage = 1 khi chấm được hết', () => {
+    const r = healthScore([item('a', 80, 25), item('b', 60, 75)])!
+    expect(r.coverage).toBe(1)
+    expect(r.missing).toEqual([])
+  })
+
+  it('weakest là điểm thấp nhất, hoà thì lấy chỉ số nặng hơn', () => {
+    expect(healthScore([item('a', 80, 10), item('b', 30, 10)])!.weakest!.key).toBe('b')
+    expect(healthScore([item('nhẹ', 30, 5), item('nặng', 30, 40)])!.weakest!.key).toBe('nặng')
+  })
+
+  it('không chỉ số nào chấm được → null (KHÔNG phải 0 điểm)', () => {
+    expect(healthScore([item('a', null, 25), item('b', null, 25)])).toBeNull()
+    expect(healthScore([])).toBeNull()
+  })
+
+  it('chỉ số trọng số 0 không kéo được điểm', () => {
+    const r = healthScore([item('a', 100, 20), item('b', 0, 0)])!
+    expect(r.score).toBe(100)
+  })
+
+  it('ngưỡng verdict khớp dải điểm', () => {
+    expect(verdictFromScore(70)).toBe('good')
+    expect(verdictFromScore(69)).toBe('warn')
+    expect(verdictFromScore(40)).toBe('warn')
+    expect(verdictFromScore(39)).toBe('bad')
   })
 })

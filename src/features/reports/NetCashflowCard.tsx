@@ -12,24 +12,29 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { VerdictNote } from '../../components/VerdictNote'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { MonthKey } from '../../lib/dates'
 import { netFlowSeries, netFlowSummary, type MonthlySeries } from './aggregate'
+import { netFlowVerdict } from './verdicts'
 
 interface Props {
   series: MonthlySeries
   base: CurrencyCode
   title: string
   labelOf: (key: MonthKey) => string
+  /** Tháng đang chạy dở — bị loại khỏi câu kết luận (biểu đồ và dòng tổng vẫn có nó). */
+  currentKey?: MonthKey | null
 }
 
 const POSITIVE = '#16a34a'
 const NEGATIVE = '#ef4444'
 const CUMULATIVE = '#6366f1'
 
-export function NetCashflowCard({ series, base, title, labelOf }: Props) {
+export function NetCashflowCard({ series, base, title, labelOf, currentKey = null }: Props) {
   const points = netFlowSeries(series)
   const summary = netFlowSummary(points)
+  const verdict = netFlowVerdict(series.points, currentKey)
   // Cả kỳ không có giao dịch nào → thẻ rỗng, ẩn đi cho gọn (giống SavingsRateTrendCard).
   const hasAny = points.some((p) => p.net !== 0)
   if (!hasAny) return null
@@ -118,6 +123,42 @@ export function NetCashflowCard({ series, base, title, labelOf }: Props) {
         · trung bình {formatMoney(summary.avg, base)}/tháng
         {summary.negativeMonths > 0 && ` · ${summary.negativeMonths} tháng thâm hụt`}
       </p>
+
+      {/* Dòng trên là SỐ (gồm cả tháng đang dở, khớp với biểu đồ). Dòng dưới là KẾT
+          LUẬN nên chỉ tính tháng đã hoàn tất — hai dòng có thể lệch nhau, và đó là
+          cố ý: "tổng ròng" phải khớp cái mắt đang thấy, còn kết luận thì không được
+          dựa vào một tháng mới đi được 3 ngày. */}
+      {verdict && (
+        <div className="mt-2">
+          <VerdictNote tone={verdict.tone}>
+            {/* Luôn mở đầu bằng "N tháng đã xong": con số ở đây gần như chắc chắn KHÁC
+                dòng tổng phía trên (dòng đó gồm cả tháng đang dở, để khớp biểu đồ), nên
+                phải nói ngay phạm vi, không thì trông như app tính sai. */}
+            {verdict.months} tháng đã xong:{' '}
+            {verdict.tone === 'bad' && (
+              <>
+                chi nhiều hơn thu <b>{formatMoney(Math.abs(verdict.total), base)}</b> — tài sản đang
+                bị bào mòn chứ không cộng dồn.
+              </>
+            )}
+            {verdict.tone === 'warn' && (
+              <>
+                dư <b>{formatMoney(verdict.total, base)}</b>, nhưng {verdict.negativeMonths} trong{' '}
+                {verdict.months} tháng thâm hụt — phần dư đến từ tháng thu trội, chưa phải từ nếp
+                chi tiêu đều đặn.
+              </>
+            )}
+            {verdict.tone === 'good' && (
+              <>
+                dư <b>{formatMoney(verdict.total, base)}</b>
+                {verdict.negativeMonths === 0
+                  ? ', không tháng nào thâm hụt.'
+                  : `, chỉ ${verdict.negativeMonths} tháng thâm hụt.`}
+              </>
+            )}
+          </VerdictNote>
+        </div>
+      )}
     </section>
   )
 }

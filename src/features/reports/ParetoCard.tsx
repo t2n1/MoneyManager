@@ -2,10 +2,13 @@
 // Ý nghĩa thực dụng: muốn tiết kiệm thì siết đúng mấy danh mục này, đụng vào
 // phần đuôi dài phía sau tốn công mà đổi lại chẳng bao nhiêu.
 import { ExplainBox } from '../../components/ExplainBox'
+import { VerdictNote } from '../../components/VerdictNote'
+import { Money } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { CategoryRow } from '../../types/database.types'
 import type { CategorySlice } from './aggregate'
 import { paretoCut } from './behavior'
+import { paretoTone } from './verdicts'
 
 interface Props {
   slices: CategorySlice[]
@@ -50,9 +53,11 @@ export function ParetoCard({ slices, categories, base, periodNoun }: Props) {
               <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-200">
                 {cat?.icon ?? '📦'} {cat?.name ?? 'Chưa rõ'}
               </span>
-              <span className="shrink-0 font-medium tabular-nums text-fg-primary">
-                {formatMoney(Math.round(amountOf(id)), base)}
-              </span>
+              <Money
+                amount={Math.round(amountOf(id))}
+                currency={base}
+                className="shrink-0 font-medium"
+              />
             </li>
           )
         })}
@@ -63,6 +68,25 @@ export function ParetoCard({ slices, categories, base, periodNoun }: Props) {
           {tail} danh mục còn lại gộp lại chỉ chiếm {Math.round((1 - pareto.share) * 100)}%.
         </p>
       )}
+
+      {/* Mức ở đây nói về khả năng HÀNH ĐỘNG, không phải sức khỏe — chi tập trung
+          không phải đức tính, nó chỉ có nghĩa là biết siết vào đâu. */}
+      <div className="mt-2">
+        <VerdictNote tone={paretoTone(pareto.count, pareto.categoryCount)}>
+          {paretoTone(pareto.count, pareto.categoryCount) === 'warn' ? (
+            <>
+              Tiền rò rỉ khá đều: phải gọi tên {pareto.count} trong {pareto.categoryCount} danh mục
+              mới đủ 80%. Cắt lẻ từng khoản sẽ tốn công mà đổi lại ít — hiệu quả hơn là đặt hạn mức
+              tổng.
+            </>
+          ) : (
+            <>
+              Chi khá tập trung: siết {pareto.count} danh mục trên là đã chạm được{' '}
+              {Math.round(pareto.share * 100)}% tiền ra.
+            </>
+          )}
+        </VerdictNote>
+      </div>
 
       <ExplainBox label="Cách đọc">
         <p>

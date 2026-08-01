@@ -131,6 +131,9 @@ export function ReportsPage() {
   // ----- Chế độ THÁNG -----
   const [monthKey, setMonthKey] = useState<MonthKey | null>(() => parseYm(searchParams.get('ym')))
   const activeMonthKey = monthKey ?? monthKeyForDate(toISODate(new Date()), monthStartDay)
+  // Tháng THẬT đang chạy dở (không phải tháng đang xem): các thẻ loại nó khỏi câu kết
+  // luận để không khen "chi giảm 60%" vào ngày mùng 3.
+  const currentKey = monthKeyForDate(toISODate(new Date()), monthStartDay)
   const { data: monthTxs = [], isFetched: monthFetched } = useMonthTransactions(activeMonthKey)
   // Khoảng ngày của kỳ đang xem, dạng BAO GỒM cả hai đầu — dùng cho link sang Tìm kiếm
   const monthRange = useMemo(
@@ -393,12 +396,14 @@ export function ReportsPage() {
             base={base}
             title="Thu / chi 6 tháng gần nhất"
             labelOf={(k) => `${k.month}/${String(k.year).slice(2)}`}
+            currentKey={currentKey}
           />
           <NetCashflowCard
             series={series}
             base={base}
             title="Dòng tiền ròng 6 tháng gần nhất"
             labelOf={(k) => `${k.month}/${String(k.year).slice(2)}`}
+            currentKey={currentKey}
           />
           <TagBreakdownCard
             data={monthTags}
@@ -505,12 +510,14 @@ export function ReportsPage() {
             base={base}
             title="Thu / chi 12 tháng"
             labelOf={(k) => String(k.month)}
+            currentKey={currentKey}
           />
           <NetCashflowCard
             series={yearSeries}
             base={base}
             title="Dòng tiền ròng 12 tháng"
             labelOf={(k) => String(k.month)}
+            currentKey={currentKey}
           />
           <TagBreakdownCard
             data={yearTags}

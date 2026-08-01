@@ -229,7 +229,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
       )}
 
       {/* Xu hướng tỷ lệ tiết kiệm 6 tháng */}
-      <SavingsRateTrendCard series={series} labelOf={labelOf} />
+      <SavingsRateTrendCard series={series} labelOf={labelOf} currentKey={currentKey} />
 
       {/* So sánh chi theo danh mục — bar ngang */}
       <CategoryCompareBarsCard rows={comparison.rows} categories={categories} base={base} />

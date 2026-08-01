@@ -144,15 +144,31 @@ Nhưng phải có **một nguồn duy nhất cho nét vẽ và chú giải**. B�
 
 **Đừng đặt màu chú giải bằng class Tailwind.** Luôn trỏ vào đúng hằng số đã tô cho biểu đồ.
 
+**Ngoại lệ: SVG viết tay.** Đồ hoạ không qua Recharts (vd `ScoreGauge`) thì `stroke-*` là class Tailwind bình thường, **lật được** theo `.dark` — nên ở đó phải dùng class, đừng viết hex. Ba sắc độ vùng thang đo sức khỏe khai một chỗ ở `src/features/health/zoneColors.ts` cho cả thanh ngang (`ZONE_BAR`) và cung đồng hồ (`ZONE_STROKE`); hai chỗ vẽ cùng một ý nghĩa thì không được lệch màu.
+
+Ba vùng đó là **đồ hoạ mang thông tin** nên cần 3:1 (WCAG 1.4.11). Bộ cũ (red-400 / amber-400 / green-500) đo thật là **2,89 / 1,72 / 2,22** trên trắng — trượt cả ba, vùng vàng gần như biến mất. Bộ hiện tại: light `red-600 / amber-600 / green-700` = 4,77 / 3,20 / 4,95; dark `red-400/70 / amber-500/70 / green-500/70` = 3,57 / 4,56 / 4,50. Vùng đỏ **phải** đổi bậc giữa hai chế độ: không bậc đỏ nào đạt 3:1 ở cả hai (red-400 chỉ 2,89 trên trắng, red-600 chỉ 2,27 trên gray-900 khi có alpha).
+
 ## Cách đo contrast cho đúng
 
-Ba cái bẫy đã làm mình đọc sai số, ghi lại để khỏi mất thời gian lần nữa:
+Bốn cái bẫy đã làm mình đọc sai số, ghi lại để khỏi mất thời gian lần nữa:
 
 **1. Đừng bật class `.dark` bằng JS rồi đo ngay.** Chrome cập nhật `background-color` nhưng **chưa** cập nhật biến CSS thừa kế trong cùng một task, nên ra những số vô nghĩa (gray-600 trên gray-800 = 1,94). Phải **tải trang thật** với `localStorage.theme = 'dark'`. Muốn quét nhiều route thì tải một lần ở dark rồi điều hướng bằng `history.pushState` + `PopStateEvent` — class giữ nguyên, DOM được style lại từ đầu.
 
 **2. Gradient không nằm ở `background-color`.** `bg-gradient-to-br` đặt `background-image`, nên hàm leo cây tìm nền sẽ bỏ qua nó và rơi về trắng → ra tỉ số 1,0 giả. Phải đọc các chặng màu từ `backgroundImage` và tính với chặng **sáng nhất** (ca xấu nhất cho chữ trắng).
 
 **3. Ngưỡng AA không phải luôn 4,5.** Chữ ≥24px, hoặc ≥18,66px mà bold, chỉ cần **3:1**. Bỏ qua điều này sẽ báo sai các con số lớn — ví dụ `≈ ¥1,973,890` ở 32px bold trên thẻ hero.
+
+**4. Đừng parse chuỗi màu, hãy vẽ ra pixel rồi đọc lại.** Tailwind v4 nên `getComputedStyle` trả về `oklab(0.637 0.214 0.101)`. Gán chuỗi đó cho `canvas.fillStyle` rồi đọc `fillStyle` **không** ra hex — cách bóc số bằng regex sẽ lấy `0.637, 0.214, 0.101` làm RGB, tức gần như đen, và mọi tỉ số ra ~20:1. Đúng cái đã xảy ra hôm 2026-08-01: bộ màu vùng thang đo được báo là 20,7:1 trong khi thật ra 2,89:1. Cách đúng:
+
+```js
+ctx.fillStyle = nenThat      // tô nền trước — bắt buộc nếu màu có alpha (vd /70)
+ctx.fillRect(0, 0, 1, 1)
+ctx.fillStyle = mauCanDo
+ctx.fillRect(0, 0, 1, 1)
+const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data  // màu THẬT, đã composite
+```
+
+Alpha là phần thứ hai của cái bẫy: `bg-red-500/70` trên gray-900 chỉ còn 2,76:1 chứ không phải 4,66:1 của red-500 đặc.
 
 Ngoài ra: bỏ emoji khỏi phép đo. Emoji tự mang màu, `color` thừa kế của chúng vô nghĩa.
 

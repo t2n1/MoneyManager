@@ -1,7 +1,9 @@
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { VerdictNote } from '../../components/VerdictNote'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { MonthKey } from '../../lib/dates'
 import type { MonthlySeries } from './aggregate'
+import { expenseTrend } from './verdicts'
 
 // MỘT nguồn cho cả cột và chấm chú giải. Trước đây cột dùng hex cứng còn chấm dùng
 // class `bg-green-600`, nên từ hồi nâng Tailwind v3 → v4 (green-600 đổi từ #16a34a
@@ -15,14 +17,20 @@ interface Props {
   base: CurrencyCode
   title: string
   labelOf: (key: MonthKey) => string
+  /**
+   * Tháng đang chạy dở — bị loại khỏi câu kết luận (biểu đồ vẫn vẽ nó). Không truyền
+   * thì mọi tháng trong chuỗi được coi là đã hoàn tất.
+   */
+  currentKey?: MonthKey | null
 }
 
-export function MonthlyBarsCard({ series, base, title, labelOf }: Props) {
+export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = null }: Props) {
   const barData = series.points.map((p) => ({
     label: labelOf(p.key),
     income: p.income,
     expense: p.expense,
   }))
+  const trend = expenseTrend(series.points, currentKey)
 
   return (
     <section className="rounded-xl bg-surface p-3 shadow-sm">
@@ -63,6 +71,30 @@ export function MonthlyBarsCard({ series, base, title, labelOf }: Props) {
           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: EXPENSE }} /> Chi
         </span>
       </div>
+
+      {/* Kết luận nói về THÁNG HOÀN TẤT gần nhất, không phải tháng đang dở — nên có
+          thể là cột kế cuối trên biểu đồ. Vì vậy câu chữ luôn gọi tên tháng ra. */}
+      {trend && (
+        <div className="mt-2">
+          <VerdictNote tone={trend.tone}>
+            Tháng {labelOf(trend.lastKey)} chi{' '}
+            <b>{formatMoney(Math.round(trend.last), base)}</b>
+            {trend.tone === 'info' ? ', đi ngang so với ' : ', '}
+            {trend.tone !== 'info' && (
+              <>
+                {trend.delta > 0 ? 'cao hơn' : 'thấp hơn'}{' '}
+                <b>{Math.abs(Math.round(trend.delta * 100))}%</b> so với{' '}
+              </>
+            )}
+            {/* Một tháng thì KHÔNG gọi là trung bình — nói "trung bình 1 tháng" đọc
+                như thể có nền dày, trong khi đó chỉ là so với đúng một tháng. */}
+            {trend.priorMonths === 1
+              ? 'tháng trước đó'
+              : `trung bình ${trend.priorMonths} tháng trước đó`}{' '}
+            ({formatMoney(Math.round(trend.avgPrior), base)}).
+          </VerdictNote>
+        </div>
+      )}
     </section>
   )
 }

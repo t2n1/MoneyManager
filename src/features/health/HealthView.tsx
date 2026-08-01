@@ -23,17 +23,22 @@ import { addMonths, getMonthRange, monthKeyForDate, toISODate, type MonthKey } f
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { taxCategoryIds } from '../tax/categories'
 import { earmarkedForGoals } from './earmarked'
-import { HealthMetricCard, type Zone } from './HealthMetricCard'
+import { HealthMetricCard } from './HealthMetricCard'
+import { HealthScoreCard } from './HealthScoreCard'
 import {
   debtServiceRatio,
   debtToIncome,
   emergencyFundMonths,
+  healthScore,
+  HEALTH_ZONES,
   incomeConcentration,
   liquidityRatio,
   monteCarloRunway,
+  scoreFromZones,
   taxBurden,
   verdictFor,
   VERDICT_LABELS,
+  type ScoreItem,
   type Verdict,
 } from './health'
 import { buildHealthSnapshot } from './snapshot'
@@ -166,36 +171,62 @@ export function HealthView() {
     bad: verdicts.filter((v) => v === 'bad').length,
   }
 
-  const fundZones: Zone[] = [
-    { upTo: 3, tone: 'bad' },
-    { upTo: 6, tone: 'warn' },
-    { upTo: 12, tone: 'good' },
+  // Thang đo lấy từ health.ts — cùng mốc với phép chấm điểm bên dưới, nên thanh màu
+  // trên thẻ và con số trên đồng hồ không thể nói khác nhau.
+  const fundZones = HEALTH_ZONES.fund
+  const liqZones = HEALTH_ZONES.liquidity
+  const dtiZones = HEALTH_ZONES.dti
+  const concZones = HEALTH_ZONES.concentration
+  const runwayZones = HEALTH_ZONES.runway
+  const burdenZones = HEALTH_ZONES.taxBurden
+
+  // --- Điểm tổng ---
+  // Trọng số theo mức độ "mất cái này thì hỏng chuyện đến đâu", không chia đều:
+  // quỹ dự phòng và số tháng cầm cự là hai thứ quyết định có sống qua được cú sốc
+  // hay không. Tập trung nguồn thu nặng (20) vì visa lao động gắn với một công ty —
+  // mất nguồn đó là mất cả thu nhập lẫn quyền ở lại.
+  const scoreItems: ScoreItem[] = [
+    {
+      key: 'fund',
+      label: 'Quỹ dự phòng',
+      weight: 25,
+      score: scoreFromZones(fund, fundZones),
+    },
+    {
+      key: 'runway',
+      label: 'Cầm cự được bao lâu',
+      weight: 20,
+      score: runway === null ? null : scoreFromZones(runway.p50, runwayZones),
+    },
+    {
+      key: 'conc',
+      label: 'Phụ thuộc một nguồn thu',
+      weight: 20,
+      score: conc === null ? null : scoreFromZones(conc.topShare, concZones),
+    },
+    {
+      key: 'dti',
+      label: 'Nợ trên thu nhập',
+      weight: 15,
+      // Không có nợ là điểm ĐẦY, không phải thiếu dữ liệu: mẫu số bằng 0 nhưng
+      // tình trạng thì rõ ràng tốt.
+      score: snap.totalDebt <= 0 ? 100 : scoreFromZones(dti, dtiZones),
+    },
+    {
+      key: 'liq',
+      label: 'Khả năng trả nợ ngắn hạn',
+      weight: 10,
+      score: snap.debtDueWithin12m <= 0 ? 100 : scoreFromZones(liq, liqZones),
+    },
+    {
+      key: 'burden',
+      label: 'Gánh nặng thuế & an sinh',
+      weight: 10,
+      score: snap.taxAndSocial <= 0 ? null : scoreFromZones(burden, burdenZones),
+    },
   ]
-  const liqZones: Zone[] = [
-    { upTo: 1, tone: 'bad' },
-    { upTo: 2, tone: 'warn' },
-    { upTo: 4, tone: 'good' },
-  ]
-  const dtiZones: Zone[] = [
-    { upTo: 0.5, tone: 'good' },
-    { upTo: 1.5, tone: 'warn' },
-    { upTo: 3, tone: 'bad' },
-  ]
-  const concZones: Zone[] = [
-    { upTo: 0.7, tone: 'good' },
-    { upTo: 0.95, tone: 'warn' },
-    { upTo: 1, tone: 'bad' },
-  ]
-  const runwayZones: Zone[] = [
-    { upTo: 6, tone: 'bad' },
-    { upTo: 18, tone: 'warn' },
-    { upTo: 60, tone: 'good' },
-  ]
-  const burdenZones: Zone[] = [
-    { upTo: 0.25, tone: 'good' },
-    { upTo: 0.35, tone: 'warn' },
-    { upTo: 0.6, tone: 'bad' },
-  ]
+  // Không cần useMemo: chỉ là trung bình có trọng số của 6 số đã tính xong ở trên.
+  const score = healthScore(scoreItems)
 
   if (!isFetched) {
     return <p className="p-6 text-center text-sm text-fg-muted">Đang tính…</p>
@@ -207,7 +238,11 @@ export function HealthView() {
           Biểu đồ, nên phải tự nói mình đọc dữ liệu nào. */}
       <p className="text-xs text-fg-muted">Dựa trên {snap.monthsCounted} tháng gần nhất</p>
 
-      {/* Tóm tắt một dòng để biết ngay có gì cần lo không */}
+      {/* Kết luận trước, chi tiết sau: một con số + đồng hồ để biết ngay tình hình chung */}
+      <HealthScoreCard result={score} items={scoreItems} monthsCounted={snap.monthsCounted} />
+
+      {/* Ba ô đếm nói CẤU TRÚC của điểm — điểm 65 vì mọi chỉ số đều lưng lửng, hay vì
+          5 chỉ số tốt và 1 chỉ số đang cháy? Hai trường hợp đó cần xử lý khác nhau. */}
       <section className="grid grid-cols-3 gap-2">
         {(
           [

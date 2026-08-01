@@ -3,21 +3,12 @@
 // Kết luận LUÔN có chữ (Tốt / Cần chú ý / Rủi ro) chứ không chỉ dựa vào màu.
 import type { ReactNode } from 'react'
 import { ExplainBox } from '../../components/ExplainBox'
-import { VERDICT_LABELS, type Verdict } from './health'
+import { VERDICT_LABELS, type Tone, type Verdict, type Zone } from './health'
+import { ZONE_BAR } from './zoneColors'
 
-export type Tone = 'bad' | 'warn' | 'good'
-
-/** Một vùng trên thang đo, kéo dài tới mốc `upTo` (mốc tăng dần). */
-export interface Zone {
-  upTo: number
-  tone: Tone
-}
-
-const BAR: Record<Tone, string> = {
-  bad: 'bg-red-400 dark:bg-red-500/70',
-  warn: 'bg-amber-400 dark:bg-amber-500/70',
-  good: 'bg-green-500 dark:bg-green-500/70',
-}
+// Thang đo khai ở health.ts vì điểm tổng chấm trên đúng mốc đang vẽ ở đây. Vẫn
+// xuất lại từ file này để các chỗ đang import `type Zone` từ thẻ không phải đổi.
+export type { Tone, Zone }
 
 const BADGE: Record<Verdict, string> = {
   good: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
@@ -41,7 +32,7 @@ interface Props {
   /** Vị trí trên thang; null = không vẽ thang (chưa đủ dữ liệu) */
   value: number | null
   /** Các vùng của thang, mốc tăng dần. Bỏ trống = không vẽ thang. */
-  zones?: Zone[]
+  zones?: readonly Zone[]
   /** Nhãn đặt dưới thang, canh theo mốc kết thúc từng vùng (trừ vùng cuối). */
   zoneLabels?: string[]
   /** Một câu: con số này nghĩa là gì với cuộc sống của mình. */
@@ -91,7 +82,7 @@ export function HealthMetricCard({
               return (
                 <div
                   key={z.upTo}
-                  className={`h-full ${BAR[z.tone]}`}
+                  className={`h-full ${ZONE_BAR[z.tone]}`}
                   style={{ width: `${((z.upTo - from) / max) * 100}%` }}
                 />
               )

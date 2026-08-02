@@ -1,5 +1,3 @@
-import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { DATA_TABLES, pageOrderFor, type DataTable } from './exportTables'
 
@@ -8,7 +6,14 @@ import { DATA_TABLES, pageOrderFor, type DataTable } from './exportTables'
 // `.order('id')` trên transaction_tags (bảng nối khoá kép, không có cột id) làm nút
 // "Xuất dữ liệu" hỏng hoàn toàn — mà lỗi chỉ lộ ra khi bấm vào app thật.
 
-const MIGRATIONS = join(process.cwd(), 'supabase', 'migrations')
+// Đọc file bằng import.meta.glob chứ không phải node:fs: tsconfig.app.json chỉ khai
+// `types: ["vite/client"]` nên mọi API của Node đều không có kiểu, và `tsc -b` lúc build
+// sẽ đỏ dù vitest chạy được ở máy.
+const MIGRATIONS = import.meta.glob('../../supabase/migrations/*.sql', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>
 
 /** Đọc mọi migration, dựng bản đồ bảng → tập cột. */
 function columnsByTable(): Map<string, Set<string>> {
@@ -19,17 +24,11 @@ function columnsByTable(): Map<string, Set<string>> {
     out.set(table, set)
   }
 
-  const files = readdirSync(MIGRATIONS)
-    .filter((f) => f.endsWith('.sql'))
-    .sort()
-
-  for (const file of files) {
+  for (const path of Object.keys(MIGRATIONS).sort()) {
     // Chuẩn hoá CRLF trước: file trên Windows kết thúc dòng bằng \r\n nên tách theo
     // ",\n" sẽ không khớp và cả khối cột bị đọc thành một dòng.
     // Bỏ chú thích cuối dòng để "-- add column x" không bị đọc thành DDL thật.
-    const sql = readFileSync(join(MIGRATIONS, file), 'utf8')
-      .replace(/\r\n/g, '\n')
-      .replace(/--[^\n]*/g, '')
+    const sql = MIGRATIONS[path].replace(/\r\n/g, '\n').replace(/--[^\n]*/g, '')
 
     // create table [if not exists] public.X ( ... );
     for (const m of sql.matchAll(
@@ -57,6 +56,11 @@ function columnsByTable(): Map<string, Set<string>> {
 const COLUMNS = columnsByTable()
 
 describe('bản đồ migration', () => {
+  it('tìm thấy file migration', () => {
+    // Glob không khớp gì thì mọi assert dưới đây thành xanh vô nghĩa.
+    expect(Object.keys(MIGRATIONS).length).toBeGreaterThan(20)
+  })
+
   it('đọc được cột của những bảng đã biết', () => {
     // Nếu parser hỏng thì mọi assert dưới đây thành xanh vô nghĩa (tập rỗng ⊂ mọi tập),
     // nên phải chốt vài cột chắc chắn có trước.

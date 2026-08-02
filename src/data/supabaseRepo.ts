@@ -4,6 +4,7 @@ import type { CurrencyCode } from '../lib/money'
 import type { Rates } from '../lib/rates'
 import { getSupabase } from '../lib/supabase'
 import { IMPORT_CHUNK_SIZE, chunk, validateBackupPayload } from './backupImport'
+import { pageOrderFor, type DataTable } from './exportTables'
 import { fetchAllPages, type Page } from './paging'
 import type {
   AccountRow,
@@ -57,25 +58,6 @@ import {
 } from './repo'
 
 // Repo thật: mọi bảo mật nằm ở RLS phía Postgres.
-
-/** Các bảng dữ liệu người dùng (không gồm view account_balances). */
-type DataTable =
-  | 'accounts'
-  | 'categories'
-  | 'transactions'
-  | 'budgets'
-  | 'asset_group_settings'
-  | 'debts'
-  | 'debt_payments'
-  | 'recurring_rules'
-  | 'account_valuations'
-  | 'savings_goals'
-  | 'networth_snapshots'
-  | 'tags'
-  | 'transaction_tags'
-  | 'life_scenarios'
-  | 'life_phases'
-  | 'life_events'
 
 /** Bỏ `tag_ids` (bảng liên kết riêng) để payload chỉ còn cột thật của transactions. */
 function txColumns<T extends { tag_ids?: string[] }>(input: T): Omit<T, 'tag_ids'> {
@@ -1097,12 +1079,15 @@ export const supabaseRepo: Repo = {
       // Phân trang: `.select('*')` trần bị Supabase cắt ở 1.000 dòng mà không báo lỗi, nên
       // backup của sổ đã nạp lịch sử Zaim (~14.000 giao dịch) sẽ thiếu dòng — và Khôi phục
       // thì GHI ĐÈ, tức khôi phục từ file thiếu là xoá thật phần còn lại.
-      // `.order('id')`: phân trang không có thứ tự ổn định thì trang sau có thể trả lại
-      // dòng của trang trước và bỏ sót dòng khác.
-      return await fetchAllPages<T>(
-        async (from, to) =>
-          (await sb.from(table).select('*').order('id').range(from, to)) as Page<T>,
-      )
+      // Khoá sắp xếp: phân trang không có thứ tự ổn định thì trang sau có thể trả lại
+      // dòng của trang trước và bỏ sót dòng khác. Thường là `id`, nhưng bảng nối khoá
+      // kép không có cột đó — xem exportTables.ts.
+      const [first, ...rest] = pageOrderFor(table)
+      return await fetchAllPages<T>(async (from, to) => {
+        let q = sb.from(table).select('*').order(first)
+        for (const col of rest) q = q.order(col)
+        return (await q.range(from, to)) as Page<T>
+      })
     }
     const [
       profile,

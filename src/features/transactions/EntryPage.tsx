@@ -102,7 +102,6 @@ export function EntryPage() {
         submitLabel="Lưu"
         continueLabel="Tiếp tục"
         initialType={initialType}
-        enableNlInput
         enableTemplates
         enableRoles
         initialRole={initialRole}

@@ -9,7 +9,6 @@ import {
   type LucideIcon,
   Repeat,
   Send,
-  Sparkles,
   Star,
   Users,
   X,
@@ -39,7 +38,6 @@ import {
   hasOperator,
   MAX_AMOUNT_DIGITS,
 } from '../../lib/calc'
-import { parseNl } from './parseNl'
 import {
   addQuickTemplate,
   deleteQuickTemplate,
@@ -173,8 +171,6 @@ interface TransactionFormProps {
   onSubmitRecurring?: (rule: NewRecurringRule) => Promise<void>
   /** Hiện tùy chọn "Không tính vào thống kê" (mục AM) — dùng ở màn sửa, ẩn ở màn nhập nhanh. */
   showExcludeOption?: boolean
-  /** Hiện ô "nhập nhanh bằng lời" (chỉ màn nhập mới). Gõ câu → tự điền các trường. */
-  enableNlInput?: boolean
   /** Hiện hàng mẫu giao dịch nhanh (mục J) — chỉ màn nhập mới. */
   enableTemplates?: boolean
   /** Cho phép các "vai trò đặc biệt" (Trả hộ / Cho vay-Nợ / Gửi về VN) ngay trong form. */
@@ -206,7 +202,6 @@ export function TransactionForm({
   initialType,
   onSubmitRecurring,
   showExcludeOption,
-  enableNlInput,
   enableTemplates,
   enableRoles,
   initialRole,
@@ -254,9 +249,6 @@ export function TransactionForm({
   const [pending, setPending] = useState<'save' | 'continue' | null>(null)
   const saving = pending !== null
   const [error, setError] = useState<string | null>(null)
-  // Nhập nhanh bằng lời: câu đang gõ + tóm tắt những gì vừa nhận diện
-  const [nlText, setNlText] = useState('')
-  const [nlHint, setNlHint] = useState<string | null>(null)
   // Picker danh mục con: đang mở nhóm cha nào (null = màn danh mục chính)
   const [drillId, setDrillId] = useState<string | null>(() => {
     const cid = initial?.category_id ?? lastCategoryFor(initial?.type ?? initialType ?? 'expense', categories)
@@ -406,40 +398,6 @@ export function TransactionForm({
   const canRecordReal = !!effectiveAccountId && activeOfType.length > 0
   // Vai trò tự khóa danh mục (remit / ghi sổ nợ) → ẩn lưới danh mục
   const hideCategoryGrid = roleHidesCategoryGrid(activeRole, debtVal)
-
-  /** Phân tích câu nhập nhanh rồi điền sẵn các trường (người dùng vẫn xác nhận trước khi Lưu). */
-  function applyNl() {
-    const text = nlText.trim()
-    if (!text) return
-    const r = parseNl({
-      text,
-      categories: categories.filter((c) => !c.is_archived),
-      currency: srcCurrency,
-      todayISO: toISODate(new Date()),
-    })
-    if (r.type && r.type !== 'transfer') setType(r.type)
-    if (r.amountMinor != null) setDigits(String(r.amountMinor))
-    if (r.categoryId) {
-      setCategoryId(r.categoryId)
-      setDrillId(categories.find((c) => c.id === r.categoryId)?.parent_id ?? null)
-    }
-    if (r.dateISO) setDate(r.dateISO)
-    if (r.note) setNote(r.note)
-
-    // Tóm tắt cho người dùng đối chiếu; cảnh báo nếu thiếu số tiền / danh mục
-    const parts: string[] = []
-    if (r.amountMinor != null) parts.push(formatMoney(r.amountMinor, srcCurrency))
-    if (r.matchedCategoryName) parts.push(r.matchedCategoryName)
-    if (r.dateISO) parts.push(r.dateISO.slice(5).replace('-', '/'))
-    const missing: string[] = []
-    if (r.amountMinor == null) missing.push('số tiền')
-    if (!r.categoryId) missing.push('danh mục')
-    setNlHint(
-      (parts.length ? `Đã điền: ${parts.join(' · ')}` : 'Chưa nhận ra thông tin') +
-        (missing.length ? ` — thiếu ${missing.join(', ')}, kiểm tra lại` : ''),
-    )
-    setNlText('')
-  }
 
   /** Áp một mẫu nhanh vào form (người dùng vẫn bấm Lưu để ghi). */
   function applyTemplate(t: QuickTemplate) {
@@ -793,37 +751,6 @@ export function TransactionForm({
       {/* Vùng cuộn: mọi nội dung nhập. Đáy (NumPad + nút Lưu) được ghim riêng bên
           dưới nên không bao giờ bị đẩy khuất — kể cả khi vai trò đặc biệt thêm field. */}
       <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
-      {/* Nhập nhanh bằng lời: gõ "hôm qua trưa 850 yên" → tự điền các trường bên dưới */}
-      {enableNlInput && (
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2 rounded-xl border border-green-300 bg-green-50 px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-green-500 dark:border-green-800 dark:bg-green-900/20">
-            <Sparkles className="h-4 w-4 shrink-0 text-money-in" />
-            <input
-              value={nlText}
-              onChange={(e) => setNlText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  applyNl()
-                }
-              }}
-              placeholder='Gõ nhanh, vd "hôm qua trưa 850 yên"'
-              className="min-w-0 flex-1 bg-transparent text-sm text-gray-800 placeholder:text-gray-500 focus:outline-none dark:text-gray-100 dark:placeholder:text-gray-400"
-              aria-label="Nhập nhanh bằng lời"
-            />
-            <button
-              type="button"
-              onClick={applyNl}
-              disabled={!nlText.trim()}
-              className="shrink-0 rounded-lg bg-green-700 px-2.5 py-1 text-xs font-semibold text-white active:scale-95 disabled:opacity-40"
-            >
-              Điền
-            </button>
-          </div>
-          {nlHint && <p className="px-1 text-xs text-fg-muted">{nlHint}</p>}
-        </div>
-      )}
-
       {/* Mẫu giao dịch nhanh (mục J): 1 chạm điền sẵn, hoặc lưu form hiện tại thành mẫu */}
       {enableTemplates && (templates.length > 0 || canSaveTemplate) && (
         <div className="flex gap-1.5 overflow-x-auto pb-0.5">

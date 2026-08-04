@@ -19,6 +19,8 @@
 > T (radar định kỳ), AD (mục tiêu tiết kiệm), AH (ngân sách nâng cao), AF (lịch sử net
 > worth), J (mẫu giao dịch nhanh), AG (nợ có lãi/trả góp). Do user tự làm song song:
 > AE (giá trị đầu tư), P (nhập nhanh bằng lời/parseNl). Mỗi mục 1 commit, build/lint/test sạch.
+> **2026-08-05:** "nhập nhanh bằng lời" (gõ câu → tự điền form, `parseNl`) đã **bỏ hẳn**
+> — xem mục P.
 >
 > **Đã chốt KHÔNG làm (nền lớn / phá 0đ):** AJ (sổ chung), AS (nhiều sổ),
 > AR (i18n), AQ (web push), AT (trợ lý AI), AI-OCR (đọc hóa đơn tự động).
@@ -242,6 +244,9 @@ Giữ icon app → menu nhảy thẳng "Nhập chi / Nhập thu", đúng tinh th
 - Gợi ý kỹ thuật: Web Speech API (SpeechRecognition) — **0đ, chạy client**, không thư
   viện. Kiểm tra hỗ trợ trình duyệt (tính năng tùy chọn, ẩn nếu không có). Parse tiếng
   Việt số tiền là phần khó → có thể chỉ điền text trước.
+- **Đã thử và bỏ (2026-08-05):** bản **gõ** câu tự nhiên (`parseNl` + ô "Gõ nhanh" trong
+  form Nhập) từng ship rồi xoá theo yêu cầu user. Nếu làm giọng nói sau này, đừng lấy
+  parser cũ làm điểm bắt đầu — nó không còn trong repo.
 
 ## Nhóm thấu hiểu tài chính
 

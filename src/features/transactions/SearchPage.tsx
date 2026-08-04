@@ -17,7 +17,7 @@ import { confirmDialog, showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
 import { sumIncomeExpense } from '../reports/aggregate'
-import { filterByTags } from '../tags/aggregate'
+import { filterByTags, tagsByTransaction } from '../tags/aggregate'
 import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
 import { EditTransactionSheet } from './EditTransactionSheet'
 import { SelectionActionBar } from './SelectionActionBar'
@@ -118,6 +118,8 @@ export function SearchPage() {
     () => filterByTags(rawResults, tagLinks, tagIds),
     [rawResults, tagLinks, tagIds],
   )
+  // Chip nhãn trên từng dòng — cùng cách trình bày với danh sách ở Sổ
+  const tagsOfTx = useMemo(() => tagsByTransaction(tagLinks, tags), [tagLinks, tags])
 
   const accountOf = (id: string | null) => accounts.find((a) => a.id === id)
   const categoryOf = (id: string | null) => categories.find((c) => c.id === id)
@@ -414,6 +416,7 @@ export function SearchPage() {
                   onClick={() => (selection.selecting ? selection.toggle(tx.id) : setEditing(tx))}
                   selecting={selection.selecting}
                   selected={selection.isSelected(tx.id)}
+                  tags={tagsOfTx.get(tx.id)}
                 />
               ))}
             </div>

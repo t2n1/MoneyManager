@@ -10,9 +10,12 @@ import {
   useProfile,
   useRangeTransactions,
   useRates,
+  useTags,
+  useTransactionTags,
 } from '../../hooks/queries'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import {
+  addDaysISO,
   addMonths,
   formatMonthLabel,
   getMonthRange,
@@ -22,6 +25,7 @@ import {
 } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { monthlySeries } from '../reports/aggregate'
+import { tagsByTransaction } from '../tags/aggregate'
 import type { TransactionRow } from '../../types/database.types'
 import { RemindersBanner } from '../reminders/RemindersBanner'
 import { NotificationBell } from '../notifications/NotificationBell'
@@ -68,7 +72,20 @@ export function LedgerPage() {
   const { data: transactions = [], isLoading } = useMonthTransactions(activeMonthKey)
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
+  const { data: tags = [] } = useTags()
+  const { data: tagLinks = [] } = useTransactionTags()
   const { base, rates } = useRates()
+
+  // Nhãn của từng giao dịch — dựng một lần cho cả tháng thay vì tra bảng liên
+  // kết trong mỗi dòng (danh sách có thể vài trăm dòng).
+  const tagsOfTx = useMemo(() => tagsByTransaction(tagLinks, tags), [tagLinks, tags])
+
+  // Kỳ đang xem, dạng ISO — thẻ "Chi theo nhãn" ở tab Tổng hợp cần để deep-link
+  // sang Tìm kiếm. `end` của getMonthRange là mốc mở [start, end) nên lùi 1 ngày.
+  const monthRange = useMemo(
+    () => getMonthRange(activeMonthKey, monthStartDay),
+    [activeMonthKey, monthStartDay],
+  )
 
   const yearNav = view === 'monthly'
 
@@ -218,6 +235,7 @@ export function LedgerPage() {
             selecting={selection.selecting}
             isSelected={selection.isSelected}
             onToggleSelect={selection.toggle}
+            tagsOfTx={tagsOfTx}
           />
         </>
       )}
@@ -235,6 +253,7 @@ export function LedgerPage() {
           base={base}
           rates={rates}
           onEdit={setEditing}
+          tagsOfTx={tagsOfTx}
         />
       )}
 
@@ -259,6 +278,10 @@ export function LedgerPage() {
           base={base}
           rates={rates}
           isLoading={isLoading}
+          tags={tags}
+          tagLinks={tagLinks}
+          rangeFrom={monthRange.start}
+          rangeTo={addDaysISO(monthRange.end, -1)}
         />
       )}
 

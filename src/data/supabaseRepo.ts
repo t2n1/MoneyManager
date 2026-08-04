@@ -1026,9 +1026,18 @@ export const supabaseRepo: Repo = {
   },
 
   async getTransactionTags() {
-    const { data, error } = await getSupabase().from('transaction_tags').select('*')
-    if (error) throw error
-    return data ?? []
+    // Phân trang: `.select('*')` trần bị Supabase cắt im lặng ở 1.000 dòng. Bảng này
+    // lớn theo số giao dịch được gắn nhãn, nên sổ đã nạp lịch sử Zaim sẽ thiếu liên
+    // kết — chip nhãn biến mất khỏi vài dòng và "Chi theo nhãn" cộng thiếu, không báo
+    // lỗi gì. Bảng nối khoá kép, không có cột `id` để làm chốt sắp xếp.
+    return await fetchAllPages<TransactionTagRow>(async (from, to) =>
+      getSupabase()
+        .from('transaction_tags')
+        .select('*')
+        .order('transaction_id')
+        .order('tag_id')
+        .range(from, to),
+    )
   },
 
   async createTag(input: NewTag) {

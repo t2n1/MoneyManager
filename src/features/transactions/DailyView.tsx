@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
-import type { AccountRow, CategoryRow, TransactionRow } from '../../types/database.types'
+import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
 import { approxLabel, formatDayHeader, groupByDay, sumInBase, type CurrencyOf } from './ledgerShared'
 import { PeriodTotalsBar } from './PeriodTotalsBar'
 import { TransactionItem } from './TransactionItem'
@@ -19,6 +19,8 @@ interface Props {
   selecting?: boolean
   isSelected?: (id: string) => boolean
   onToggleSelect?: (id: string) => void
+  /** Nhãn theo id giao dịch (xem `tagsByTransaction`) — để dòng nào có nhãn thì hiện chip. */
+  tagsOfTx?: Map<string, TagRow[]>
 }
 
 /** Xem theo ngày: tổng tháng + danh sách giao dịch gộp theo từng ngày. */
@@ -34,6 +36,7 @@ export function DailyView({
   selecting = false,
   isSelected,
   onToggleSelect,
+  tagsOfTx,
 }: Props) {
   const days = useMemo(() => groupByDay(transactions), [transactions])
 
@@ -79,6 +82,7 @@ export function DailyView({
                     onClick={() => (selecting ? onToggleSelect?.(tx.id) : onEdit(tx))}
                     selecting={selecting}
                     selected={isSelected?.(tx.id) ?? false}
+                    tags={tagsOfTx?.get(tx.id)}
                   />
                 ))}
               </div>

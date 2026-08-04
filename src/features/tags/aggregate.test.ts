@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { TagRow, TransactionRow, TransactionTagRow } from '../../types/database.types'
 import type { Rates } from '../../lib/rates'
-import { filterByTags, tagBreakdown } from './aggregate'
+import { filterByTags, tagBreakdown, tagsByTransaction } from './aggregate'
 
 const RATES: Rates = { JPY: 1, VND: 165 }
 const currencyOf = () => 'JPY' as const
@@ -133,6 +133,40 @@ describe('tagBreakdown', () => {
     const missing = tagBreakdown([a], [link('a', 've-vn')], TAGS, () => 'USD', 'JPY', { JPY: 1 })
     expect(missing.hasMissingRate).toBe(true)
     expect(missing.slices).toEqual([])
+  })
+})
+
+describe('tagsByTransaction', () => {
+  it('gom nhãn theo từng giao dịch', () => {
+    const m = tagsByTransaction([link('a', 've-vn'), link('b', 'qua')], TAGS)
+    expect(m.get('a')?.map((t) => t.name)).toEqual(['Về VN 2026'])
+    expect(m.get('b')?.map((t) => t.name)).toEqual(['Quà cáp'])
+  })
+
+  it('giao dịch nhiều nhãn: xếp theo thứ tự của danh sách nhãn, không theo thứ tự link', () => {
+    // link trả về "qua" trước, nhưng TAGS xếp "ve-vn" trước → chip hiện ổn định
+    const m = tagsByTransaction([link('a', 'qua'), link('a', 've-vn')], TAGS)
+    expect(m.get('a')?.map((t) => t.id)).toEqual(['ve-vn', 'qua'])
+  })
+
+  it('bỏ nhãn đã xóa (link mồ côi)', () => {
+    const m = tagsByTransaction([link('a', 'da-xoa'), link('a', 've-vn')], TAGS)
+    expect(m.get('a')?.map((t) => t.id)).toEqual(['ve-vn'])
+  })
+
+  it('link trùng chỉ hiện một chip', () => {
+    const m = tagsByTransaction([link('a', 've-vn'), link('a', 've-vn')], TAGS)
+    expect(m.get('a')).toHaveLength(1)
+  })
+
+  it('giao dịch không nhãn thì không có khóa trong map', () => {
+    const m = tagsByTransaction([link('a', 've-vn')], TAGS)
+    expect(m.has('b')).toBe(false)
+  })
+
+  it('chỉ còn link mồ côi thì không tạo mảng rỗng cho giao dịch đó', () => {
+    const m = tagsByTransaction([link('a', 'da-xoa')], TAGS)
+    expect(m.has('a')).toBe(false)
   })
 })
 

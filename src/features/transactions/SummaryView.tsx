@@ -1,8 +1,15 @@
 import { useMemo, useState } from 'react'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
-import type { CategoryRow, TransactionRow } from '../../types/database.types'
+import type {
+  CategoryRow,
+  TagRow,
+  TransactionRow,
+  TransactionTagRow,
+} from '../../types/database.types'
 import { categoryBreakdown } from '../reports/aggregate'
+import { TagBreakdownCard } from '../reports/TagBreakdownCard'
+import { tagBreakdown } from '../tags/aggregate'
 import type { CurrencyOf } from './ledgerShared'
 
 // Bảng màu đồng bộ với ReportsPage / AssetsPage
@@ -18,9 +25,15 @@ interface Props {
   base: CurrencyCode
   rates: Rates | undefined
   isLoading: boolean
+  tags: TagRow[]
+  tagLinks: TransactionTagRow[]
+  /** Đầu kỳ đang xem (ISO) — để bấm vào nhãn mở đúng những khoản đó ở Tìm kiếm. */
+  rangeFrom: string
+  /** Cuối kỳ đang xem (ISO, BAO GỒM ngày này). */
+  rangeTo: string
 }
 
-/** Cơ cấu thu/chi theo danh mục trong tháng (số đầy đủ + tỷ trọng). */
+/** Cơ cấu thu/chi theo danh mục trong tháng (số đầy đủ + tỷ trọng), kèm chi theo nhãn. */
 export function SummaryView({
   transactions,
   categoryOf,
@@ -28,12 +41,25 @@ export function SummaryView({
   base,
   rates,
   isLoading,
+  tags,
+  tagLinks,
+  rangeFrom,
+  rangeTo,
 }: Props) {
   const [kind, setKind] = useState<'expense' | 'income'>('expense')
 
   const breakdown = useMemo(
     () => categoryBreakdown(transactions, kind, currencyOf, base, rates ?? {}),
     [transactions, kind, currencyOf, base, rates],
+  )
+
+  // Nhãn chỉ tổng hợp phía CHI (xem tags/aggregate) nên chỉ tính khi đang xem Chi.
+  const tagData = useMemo(
+    () =>
+      kind === 'expense'
+        ? tagBreakdown(transactions, tagLinks, tags, currencyOf, base, rates ?? {})
+        : null,
+    [kind, transactions, tagLinks, tags, currencyOf, base, rates],
   )
 
   const approx = breakdown.hasForeign ? '≈ ' : ''
@@ -95,7 +121,13 @@ export function SummaryView({
           Chưa có {kind === 'expense' ? 'chi tiêu' : 'thu nhập'} trong tháng này
         </p>
       ) : (
-        <ul className="flex flex-col gap-3 rounded-xl bg-surface p-4 shadow-sm">
+        // Có hai cách chia dưới đây (danh mục rồi nhãn) nên khối này cần tên,
+        // không còn là danh sách duy nhất như trước.
+        <section className="rounded-xl bg-surface p-4 shadow-sm">
+        <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-200">
+          {kind === 'expense' ? 'Chi' : 'Thu'} theo danh mục
+        </h2>
+        <ul className="flex flex-col gap-3">
           {rows.map((r) => (
             <li key={r.id}>
               <div className="flex items-center gap-2 text-sm">
@@ -117,6 +149,20 @@ export function SummaryView({
             </li>
           ))}
         </ul>
+        </section>
+      )}
+
+      {/* Chi theo nhãn: cùng thẻ với Báo cáo, nhưng ở đây gắn với đúng kỳ đang
+          xem trong Sổ. Chỉ có ở phía Chi vì nhãn chỉ tổng hợp khoản chi. */}
+      {!isLoading && tagData && (
+        <TagBreakdownCard
+          data={tagData}
+          base={base}
+          periodNoun="tháng này"
+          noTags={tags.length === 0}
+          rangeFrom={rangeFrom}
+          rangeTo={rangeTo}
+        />
       )}
     </div>
   )

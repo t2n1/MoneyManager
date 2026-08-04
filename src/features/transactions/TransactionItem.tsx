@@ -1,6 +1,7 @@
 import { ArrowRightLeft, CheckCircle2, Circle, HandCoins, Repeat } from 'lucide-react'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
-import type { AccountRow, CategoryRow, TransactionRow } from '../../types/database.types'
+import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
+import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
 
 const AMOUNT_STYLE: Record<TransactionRow['type'], { color: string; sign: string }> = {
   expense: { color: 'text-money-out', sign: '-' },
@@ -18,6 +19,11 @@ interface Props {
   selecting?: boolean
   /** Dòng này đang được chọn. */
   selected?: boolean
+  /**
+   * Nhãn của giao dịch này (xem `tagsByTransaction`). Bỏ trống = không vẽ chip,
+   * để những màn chưa tải bảng liên kết nhãn giữ nguyên dáng cũ.
+   */
+  tags?: TagRow[]
 }
 
 /** Một dòng giao dịch (dùng chung cho Sổ GD và Tìm kiếm). */
@@ -29,6 +35,7 @@ export function TransactionItem({
   onClick,
   selecting = false,
   selected = false,
+  tags = [],
 }: Props) {
   const cat = categoryOf(tx.category_id)
   const style = AMOUNT_STYLE[tx.type]
@@ -72,8 +79,24 @@ export function TransactionItem({
             />
           )}
         </span>
-        {tx.type !== 'transfer' && (
-          <span className="block text-xs text-fg-muted">{accountName(tx.account_id)}</span>
+        {/* Dòng phụ: tài khoản + chip nhãn. Nhãn cắt ngang danh mục nên chỉ thấy
+            nó ở báo cáo là không đủ — phải thấy ngay trên dòng để biết khoản này
+            đã gắn nhãn hay chưa. Chip đứng cùng dòng tài khoản, tự xuống dòng khi
+            chật thay vì chiếm thêm một hàng cố định. */}
+        {(tx.type !== 'transfer' || tags.length > 0) && (
+          <span className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-fg-muted">
+            {tx.type !== 'transfer' && (
+              <span className="min-w-0 truncate">{accountName(tx.account_id)}</span>
+            )}
+            {tags.map((t) => (
+              <span
+                key={t.id}
+                className={`min-w-0 max-w-[9rem] truncate rounded-full px-1.5 py-px text-2xs font-medium ${TAG_CHIP_CLASS[tagColor(t.color)]}`}
+              >
+                {t.name}
+              </span>
+            ))}
+          </span>
         )}
       </span>
       <span className={`text-right text-sm font-semibold tabular-nums ${style.color}`}>

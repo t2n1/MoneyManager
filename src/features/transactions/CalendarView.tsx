@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import { getMonthRange, toISODate, type MonthKey } from '../../lib/dates'
-import type { AccountRow, CategoryRow, TransactionRow } from '../../types/database.types'
+import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
 import {
   approxLabel,
   formatDayHeader,
@@ -23,6 +23,8 @@ interface Props {
   base: CurrencyCode
   rates: Rates | undefined
   onEdit: (tx: TransactionRow) => void
+  /** Nhãn theo id giao dịch (xem `tagsByTransaction`) — để dòng nào có nhãn thì hiện chip. */
+  tagsOfTx?: Map<string, TagRow[]>
 }
 
 interface DaySums {
@@ -41,6 +43,7 @@ export function CalendarView({
   base,
   rates,
   onEdit,
+  tagsOfTx,
 }: Props) {
   // Lưới hiển thị đúng kỳ dữ liệu [start, end) — với monthStartDay ≠ 1 kỳ này
   // vắt sang tháng dương lịch kế tiếp, không phải 1..cuối tháng của monthKey
@@ -177,6 +180,7 @@ export function CalendarView({
                   accountOf={accountOf}
                   base={base}
                   onClick={() => onEdit(tx)}
+                  tags={tagsOfTx?.get(tx.id)}
                 />
               ))}
             </div>

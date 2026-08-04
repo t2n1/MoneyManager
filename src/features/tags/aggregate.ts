@@ -88,6 +88,35 @@ export function tagBreakdown(
 }
 
 /**
+ * Nhãn của từng giao dịch, để danh sách Sổ vẽ được chip nhãn trên mỗi dòng.
+ *
+ * Thứ tự nhãn lấy theo thứ tự của `tags` (đã sắp `sort_order` từ repo) để hai
+ * dòng mang cùng bộ nhãn luôn hiện giống nhau, chứ không theo thứ tự ngẫu nhiên
+ * mà bảng liên kết trả về. Nhãn đã xóa (còn liên kết mồ côi) và nhãn trùng trên
+ * cùng giao dịch bị bỏ, cùng quy ước với `tagBreakdown`.
+ */
+export function tagsByTransaction(
+  links: TransactionTagRow[],
+  tags: TagRow[],
+): Map<string, TagRow[]> {
+  const rank = new Map(tags.map((t, i) => [t.id, i]))
+  const tagById = new Map(tags.map((t) => [t.id, t]))
+  const out = new Map<string, TagRow[]>()
+
+  for (const l of links) {
+    const tag = tagById.get(l.tag_id)
+    if (!tag) continue
+    const list = out.get(l.transaction_id)
+    if (!list) out.set(l.transaction_id, [tag])
+    else if (!list.some((t) => t.id === tag.id)) list.push(tag)
+  }
+  for (const list of out.values()) {
+    list.sort((a, b) => rank.get(a.id)! - rank.get(b.id)!)
+  }
+  return out
+}
+
+/**
  * Lọc giao dịch theo nhãn — khớp BẤT KỲ nhãn nào được chọn (OR), giống cách
  * lọc danh mục ở màn Tìm kiếm. Chọn "Về VN 2026" + "Quà cáp" nghĩa là "cho tôi
  * xem cả hai việc", không phải "khoản nào mang đồng thời cả hai nhãn".

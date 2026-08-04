@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import type { TagRow, TransactionRow, TransactionTagRow } from '../../types/database.types'
 import type { Rates } from '../../lib/rates'
-import { filterByTags, tagBreakdown, tagsByTransaction } from './aggregate'
+import { filterByTags, pickerTags, tagBreakdown, tagsByTransaction } from './aggregate'
 
 const RATES: Rates = { JPY: 1, VND: 165 }
 const currencyOf = () => 'JPY' as const
 
-const tag = (id: string, name: string): TagRow => ({
+const tag = (id: string, name: string, p: Partial<TagRow> = {}): TagRow => ({
   id,
   user_id: 'u',
   name,
   color: 'sky',
   sort_order: 0,
+  is_archived: false,
   created_at: '',
+  ...p,
 })
 
 let seq = 0
@@ -167,6 +169,70 @@ describe('tagsByTransaction', () => {
   it('chỉ còn link mồ côi thì không tạo mảng rỗng cho giao dịch đó', () => {
     const m = tagsByTransaction([link('a', 'da-xoa')], TAGS)
     expect(m.has('a')).toBe(false)
+  })
+})
+
+describe('pickerTags', () => {
+  // 5 nhãn, sort_order tăng dần theo thứ tự khai báo (repo trả về đã sắp)
+  const FIVE = [
+    tag('t0', 'Cũ ít dùng', { sort_order: 0 }),
+    tag('t1', 'Cà phê', { sort_order: 1 }),
+    tag('t2', 'Quà cáp', { sort_order: 2 }),
+    tag('t3', 'Về VN', { sort_order: 3 }),
+    tag('t4', 'Mới tinh', { sort_order: 4 }),
+  ]
+  /** n liên kết cho một nhãn (chỉ số lượng mới ảnh hưởng xếp hạng) */
+  const uses = (tagId: string, n: number) =>
+    Array.from({ length: n }, (_, i) => link(`tx-${tagId}-${i}`, tagId))
+  const LINKS = [...uses('t3', 5), ...uses('t1', 3), ...uses('t2', 1)]
+
+  it('xếp theo mức dùng giảm dần, không theo thứ tự tạo', () => {
+    const r = pickerTags(FIVE, LINKS, [], 5)
+    // t3 (5 lần) > t1 (3) > t2 (1) > t0, t4 (0 lần, hòa thì theo sort_order)
+    expect(r.shown.map((t) => t.id)).toEqual(['t3', 't1', 't2', 't0', 't4'])
+    expect(r.rest).toEqual([])
+  })
+
+  it('cắt đúng limit, phần dư nằm ở rest', () => {
+    const r = pickerTags(FIVE, LINKS, [], 2)
+    expect(r.shown.map((t) => t.id)).toEqual(['t3', 't1'])
+    expect(r.rest.map((t) => t.id)).toEqual(['t2', 't0', 't4'])
+  })
+
+  it('nhãn đang chọn nằm ngoài top vẫn hiện, và ở CUỐI để chip khác không nhảy chỗ', () => {
+    const r = pickerTags(FIVE, LINKS, ['t4'], 2)
+    expect(r.shown.map((t) => t.id)).toEqual(['t3', 't1', 't4'])
+    // đã lên shown thì không được lặp lại trong rest
+    expect(r.rest.map((t) => t.id)).toEqual(['t2', 't0'])
+  })
+
+  it('chọn một nhãn đang hiện thì thứ tự shown không đổi', () => {
+    const before = pickerTags(FIVE, LINKS, [], 2).shown.map((t) => t.id)
+    const after = pickerTags(FIVE, LINKS, ['t1'], 2).shown.map((t) => t.id)
+    expect(after).toEqual(before)
+  })
+
+  it('chọn nhiều hơn limit thì hiện hết, không cắt mất nhãn đã chọn', () => {
+    const r = pickerTags(FIVE, LINKS, ['t0', 't2', 't4'], 1)
+    expect(r.shown.map((t) => t.id)).toEqual(['t3', 't2', 't0', 't4'])
+    expect(r.rest.map((t) => t.id)).toEqual(['t1'])
+  })
+
+  it('nhãn đã lưu trữ biến mất khỏi cả shown và rest', () => {
+    const tags = [...FIVE.slice(0, 3), tag('t3', 'Về VN', { sort_order: 3, is_archived: true })]
+    const r = pickerTags(tags, LINKS, [], 2)
+    expect(r.shown.map((t) => t.id)).toEqual(['t1', 't2'])
+    expect(r.rest.map((t) => t.id)).toEqual(['t0'])
+  })
+
+  it('nhãn đã lưu trữ NHƯNG đang chọn thì vẫn hiện (sửa giao dịch cũ phải bỏ được nhãn)', () => {
+    const tags = [...FIVE.slice(0, 3), tag('t3', 'Về VN', { sort_order: 3, is_archived: true })]
+    const r = pickerTags(tags, LINKS, ['t3'], 2)
+    expect(r.shown.map((t) => t.id)).toEqual(['t3', 't1'])
+  })
+
+  it('chưa có nhãn nào thì rỗng cả hai', () => {
+    expect(pickerTags([], [], [], 8)).toEqual({ shown: [], rest: [] })
   })
 })
 

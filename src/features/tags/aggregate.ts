@@ -116,6 +116,55 @@ export function tagsByTransaction(
   return out
 }
 
+export interface PickerTags {
+  /** Nhãn hiện thẳng trong form nhập (hàng chip rút gọn). */
+  shown: TagRow[]
+  /** Nhãn còn lại — chỉ thấy khi bấm "Tất cả". */
+  rest: TagRow[]
+}
+
+/**
+ * Chọn ra ít nhãn để form nhập không phình theo số nhãn. Đo trên 375×812: 40 nhãn
+ * vẽ thẳng thành 11 hàng chip cao 476px, gần bằng cả vùng cuộn của form (514px).
+ *
+ * Xếp theo MỨC DÙNG (số liên kết) giảm dần, hòa thì theo thứ tự `tags` (repo đã
+ * sắp `sort_order`) — nhãn tạo sau nhưng dùng hằng ngày phải lên trước, chứ không
+ * chìm xuống cuối như khi xếp thuần thứ tự tạo.
+ *
+ * Ba quy ước quan trọng:
+ *  - Nhãn ĐANG CHỌN nằm ngoài top vẫn được đưa vào `shown`, nhưng ở CUỐI chứ
+ *    không hoán lên đầu: bấm một chip không được làm các chip khác nhảy chỗ.
+ *  - Nhãn đã lưu trữ biến mất khỏi cả `shown` lẫn `rest`.
+ *  - Trừ khi nó đang được chọn — sửa một giao dịch cũ mang nhãn đã lưu trữ thì
+ *    vẫn phải thấy chip đó để bỏ được, không thì nhãn dính vào giao dịch vô hình.
+ *
+ * Mức dùng chỉ để xếp thứ tự nên liên kết trùng (demo không có UNIQUE) được đếm
+ * nguyên, không lọc lại cho đỡ tốn.
+ */
+export function pickerTags(
+  tags: TagRow[],
+  links: TransactionTagRow[],
+  selectedIds: string[],
+  limit: number,
+): PickerTags {
+  const selected = new Set(selectedIds)
+  const usage = new Map<string, number>()
+  for (const l of links) usage.set(l.tag_id, (usage.get(l.tag_id) ?? 0) + 1)
+
+  const ranked = tags
+    .map((t, i) => ({ t, i }))
+    .filter(({ t }) => !t.is_archived || selected.has(t.id))
+    .sort((a, b) => (usage.get(b.t.id) ?? 0) - (usage.get(a.t.id) ?? 0) || a.i - b.i)
+    .map(({ t }) => t)
+
+  const head = ranked.slice(0, Math.max(limit, 0))
+  const tail = ranked.slice(head.length)
+  return {
+    shown: [...head, ...tail.filter((t) => selected.has(t.id))],
+    rest: tail.filter((t) => !selected.has(t.id)),
+  }
+}
+
 /**
  * Lọc giao dịch theo nhãn — khớp BẤT KỲ nhãn nào được chọn (OR), giống cách
  * lọc danh mục ở màn Tìm kiếm. Chọn "Về VN 2026" + "Quà cáp" nghĩa là "cho tôi

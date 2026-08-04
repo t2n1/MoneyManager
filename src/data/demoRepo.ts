@@ -1425,7 +1425,10 @@ export const demoRepo: Repo = {
   // --- Nhãn ---
 
   async getTags() {
-    return (load().tags ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)
+    return (load().tags ?? [])
+      // is_archived thêm sau (migration 0033) → db demo cũ chưa có cột, ép về false
+      .map((t) => ({ ...t, is_archived: t.is_archived ?? false }))
+      .sort((a, b) => a.sort_order - b.sort_order)
   },
 
   async getTransactionTags() {
@@ -1443,6 +1446,7 @@ export const demoRepo: Repo = {
       name,
       color: input.color,
       sort_order: db.tags.reduce((m, t) => Math.max(m, t.sort_order + 1), 0),
+      is_archived: false,
       created_at: nowISO(),
     }
     db.tags.push(row)

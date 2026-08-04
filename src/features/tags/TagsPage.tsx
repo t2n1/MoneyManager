@@ -1,8 +1,8 @@
-// Quản lý nhãn: đổi tên, đổi màu, xóa. Tạo nhãn thì làm ngay trong form nhập
-// giao dịch cho nhanh, nên ở đây chỉ cần một ô thêm đơn giản.
+// Quản lý nhãn: đổi tên, đổi màu, lưu trữ, xóa. Tạo nhãn thì làm ngay trong form
+// nhập giao dịch cho nhanh, nên ở đây chỉ cần một ô thêm đơn giản.
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronLeft, Trash2 } from 'lucide-react'
 import {
   useCreateTag,
   useDeleteTag,
@@ -24,6 +24,9 @@ export function TagsPage() {
 
   const usageOf = (tagId: string) => links.filter((l) => l.tag_id === tagId).length
 
+  const active = tags.filter((t) => !t.is_archived)
+  const archived = tags.filter((t) => t.is_archived)
+
   async function add() {
     const name = draft.trim()
     if (!name) return
@@ -42,7 +45,9 @@ export function TagsPage() {
       title: `Xóa nhãn "${name}"?`,
       message:
         used > 0
-          ? `${used} giao dịch đang mang nhãn này. Giao dịch vẫn giữ nguyên, chỉ mất nhãn.`
+          ? `${used} giao dịch đang mang nhãn này. Giao dịch vẫn giữ nguyên, nhưng MẤT nhãn — ` +
+            'tổng chi theo nhãn này sẽ không còn cộng được. Chỉ muốn dẹp nó khỏi form nhập thì ' +
+            'bấm Lưu trữ thay vì Xóa.'
           : 'Nhãn này chưa gắn với giao dịch nào.',
       confirmLabel: 'Xóa',
       danger: true,
@@ -51,6 +56,87 @@ export function TagsPage() {
     await deleteTag.mutateAsync(id)
     showToast(`Đã xóa nhãn "${name}"`)
   }
+
+  function setArchived(id: string, name: string, is_archived: boolean) {
+    updateTag.mutate({ id, patch: { is_archived } })
+    showToast(is_archived ? `Đã lưu trữ nhãn "${name}"` : `Đã dùng lại nhãn "${name}"`)
+  }
+
+  /** Một dòng nhãn. Nhãn đã lưu trữ bỏ hàng chọn màu — nó không còn xuất hiện khi nhập. */
+  const row = (t: (typeof tags)[number]) => (
+    <li
+      key={t.id}
+      className={`rounded-xl bg-surface p-3 shadow-sm ${t.is_archived ? 'opacity-75' : ''}`}
+    >
+      <div className="flex items-center gap-2">
+        <input
+          defaultValue={t.name}
+          onBlur={(e) => {
+            const name = e.target.value.trim()
+            if (name && name !== t.name) {
+              updateTag.mutate({ id: t.id, patch: { name } })
+            } else {
+              e.target.value = t.name
+            }
+          }}
+          aria-label={`Tên nhãn ${t.name}`}
+          className="min-h-9 min-w-0 flex-1 rounded-lg border border-transparent px-2 py-1 text-sm text-gray-800 outline-green-500 hover:border-gray-300 dark:text-gray-100 dark:hover:border-gray-700"
+        />
+        <span className="shrink-0 text-2xs text-fg-muted">{usageOf(t.id)} giao dịch</span>
+        <button
+          type="button"
+          onClick={() => setArchived(t.id, t.name, !t.is_archived)}
+          aria-label={t.is_archived ? `Dùng lại nhãn ${t.name}` : `Lưu trữ nhãn ${t.name}`}
+          title={t.is_archived ? 'Dùng lại' : 'Lưu trữ (ẩn khỏi form nhập, giữ nguyên số liệu)'}
+          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-sunken"
+        >
+          {t.is_archived ? (
+            <ArchiveRestore className="h-4 w-4" />
+          ) : (
+            <Archive className="h-4 w-4" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => remove(t.id, t.name)}
+          aria-label={`Xóa nhãn ${t.name}`}
+          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+      {!t.is_archived && (
+        <div className="mt-2 flex items-center gap-2">
+          {/* Xem trước nhãn thật để biết chọn màu xong trông thế nào */}
+          <span
+            className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${TAG_CHIP_CLASS[tagColor(t.color)]}`}
+          >
+            {t.name}
+          </span>
+          <div className="flex flex-wrap gap-1">
+            {TAG_COLOR_KEYS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => updateTag.mutate({ id: t.id, patch: { color: c } })}
+                aria-label={`Đổi màu nhãn ${t.name} sang ${TAG_COLOR_LABELS[c]}`}
+                aria-pressed={tagColor(t.color) === c}
+                className="inline-flex h-9 w-7 items-center justify-center"
+              >
+                <span
+                  className={`block h-5 w-5 rounded-full ${TAG_CHIP_CLASS[c]} ${
+                    tagColor(t.color) === c
+                      ? 'ring-2 ring-gray-800 dark:ring-gray-200'
+                      : 'opacity-70'
+                  }`}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </li>
+  )
 
   return (
     <div className="p-3 lg:p-6">
@@ -68,6 +154,7 @@ export function TagsPage() {
       <p className="mb-3 rounded-xl bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
         Nhãn cắt ngang danh mục: một chuyến “Về VN 2026” gồm vé máy bay, quà và phong bì nằm ở ba
         danh mục khác nhau, nhưng cùng một nhãn thì cuối năm cộng được tổng chi phí cả chuyến.
+        Xong chuyến thì <b>lưu trữ</b> nhãn: nó ẩn khỏi form nhập nhưng số liệu vẫn còn.
       </p>
 
       <div className="mb-3 flex gap-2">
@@ -96,66 +183,29 @@ export function TagsPage() {
           Chưa có nhãn nào.
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {tags.map((t) => (
-            <li key={t.id} className="rounded-xl bg-surface p-3 shadow-sm ">
-              <div className="flex items-center gap-2">
-                <input
-                  defaultValue={t.name}
-                  onBlur={(e) => {
-                    const name = e.target.value.trim()
-                    if (name && name !== t.name) {
-                      updateTag.mutate({ id: t.id, patch: { name } })
-                    } else {
-                      e.target.value = t.name
-                    }
-                  }}
-                  aria-label={`Tên nhãn ${t.name}`}
-                  className="min-h-9 min-w-0 flex-1 rounded-lg border border-transparent px-2 py-1 text-sm text-gray-800 outline-green-500 hover:border-gray-300 dark:text-gray-100 dark:hover:border-gray-700"
-                />
-                <span className="shrink-0 text-2xs text-fg-muted">
-                  {usageOf(t.id)} giao dịch
-                </span>
-                <button
-                  type="button"
-                  onClick={() => remove(t.id, t.name)}
-                  aria-label={`Xóa nhãn ${t.name}`}
-                  className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                {/* Xem trước nhãn thật để biết chọn màu xong trông thế nào */}
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${TAG_CHIP_CLASS[tagColor(t.color)]}`}
-                >
-                  {t.name}
-                </span>
-                <div className="flex flex-wrap gap-1">
-                  {TAG_COLOR_KEYS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => updateTag.mutate({ id: t.id, patch: { color: c } })}
-                      aria-label={`Đổi màu nhãn ${t.name} sang ${TAG_COLOR_LABELS[c]}`}
-                      aria-pressed={tagColor(t.color) === c}
-                      className="inline-flex h-9 w-7 items-center justify-center"
-                    >
-                      <span
-                        className={`block h-5 w-5 rounded-full ${TAG_CHIP_CLASS[c]} ${
-                          tagColor(t.color) === c
-                            ? 'ring-2 ring-gray-800 dark:ring-gray-200'
-                            : 'opacity-70'
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <>
+          {active.length === 0 ? (
+            <p className="py-6 text-center text-sm text-fg-muted">
+              Mọi nhãn đang được lưu trữ. Dùng lại một nhãn để nó xuất hiện khi nhập giao dịch.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2">{active.map(row)}</ul>
+          )}
+
+          {archived.length > 0 && (
+            <section className="mt-5">
+              <h2 className="mb-1 flex items-center gap-1.5 px-1 text-sm font-semibold text-fg-secondary">
+                <Archive className="h-4 w-4" aria-hidden />
+                Đã lưu trữ ({archived.length})
+              </h2>
+              <p className="mb-2 px-1 text-xs text-fg-muted">
+                Không hiện khi nhập giao dịch nữa, nhưng vẫn còn nguyên trong Chi theo nhãn và lọc
+                ở Tìm kiếm.
+              </p>
+              <ul className="flex flex-col gap-2">{archived.map(row)}</ul>
+            </section>
+          )}
+        </>
       )}
     </div>
   )

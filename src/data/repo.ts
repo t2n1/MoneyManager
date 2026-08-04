@@ -318,7 +318,7 @@ export interface NewTag {
   color: string
 }
 
-export type TagPatch = Partial<NewTag & { sort_order: number }>
+export type TagPatch = Partial<NewTag & { sort_order: number; is_archived: boolean }>
 
 // Toàn bộ đọc/ghi dữ liệu đi qua interface này.
 // 2 implementation: demoRepo (localStorage) và supabaseRepo (Postgres + RLS).

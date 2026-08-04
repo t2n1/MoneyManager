@@ -88,6 +88,12 @@ export type TagRow = {
   /** Khóa màu trong bảng màu của app (xem features/tags/colors). */
   color: string
   sort_order: number
+  /**
+   * Đã lưu trữ = ẩn khỏi ô chọn nhãn khi nhập giao dịch, nhưng GIỮ NGUYÊN liên
+   * kết và số liệu lịch sử (khác hẳn xóa nhãn — xóa thì cascade mất hết). Dành
+   * cho nhãn hết việc như "Về VN 2026" sau khi đã về.
+   */
+  is_archived: boolean
   created_at: string
 }
 
@@ -734,8 +740,8 @@ export type Database = {
       }
       tags: {
         Row: TagRow
-        Insert: InsertOf<TagRow, 'user_id' | 'name', 'id' | 'color' | 'sort_order'>
-        Update: Partial<Pick<TagRow, 'name' | 'color' | 'sort_order'>>
+        Insert: InsertOf<TagRow, 'user_id' | 'name', 'id' | 'color' | 'sort_order' | 'is_archived'>
+        Update: Partial<Pick<TagRow, 'name' | 'color' | 'sort_order' | 'is_archived'>>
         Relationships: []
       }
       transaction_tags: {

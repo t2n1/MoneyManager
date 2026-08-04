@@ -37,6 +37,8 @@ export function EntryPage() {
     qType === 'income' || qType === 'expense' ? qType : undefined
   const initialRole = parseRoleParam(searchParams.get('role'))
   const [toast, setToast] = useState<{ text: string; undoId?: string; ok?: boolean } | null>(null)
+  /** Ô bên phải tiêu đề: chỗ TransactionForm portal nút "Loại đặc biệt" vào. */
+  const [roleSlot, setRoleSlot] = useState<HTMLDivElement | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => () => clearTimeout(toastTimer.current), [])
@@ -82,7 +84,10 @@ export function EntryPage() {
           <ChevronLeft className="h-5 w-5" /> Đóng
         </button>
         <h1 className="flex-1 text-center text-base font-bold text-fg-primary">Nhập giao dịch</h1>
-        <span className="w-[70px]" aria-hidden />
+        {/* Nút "Loại đặc biệt" do TransactionForm portal vào đây. Chiều rộng đặt cứng
+            (xấp xỉ nút "Đóng" bên trái) để tiêu đề không nhảy chỗ khi nút ẩn đi lúc
+            một vai trò đang bật. */}
+        <div ref={setRoleSlot} className="flex w-[84px] shrink-0 justify-end" />
       </div>
       {overCount > 0 && (
         <Link
@@ -101,6 +106,7 @@ export function EntryPage() {
         enableTemplates
         enableRoles
         initialRole={initialRole}
+        roleTriggerSlot={roleSlot}
         onSubmitRole={handleRole}
         // Chuyển khoản có phí: 2 bút toán → không kèm Hoàn tác một chạm (như vai trò)
         onSubmitWithFee={async (main, fee, keepGoing) => {

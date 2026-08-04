@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ChevronDown,
   ChevronLeft,
@@ -6,7 +7,6 @@ import {
   Delete,
   HandCoins,
   type LucideIcon,
-  Plus,
   Repeat,
   Send,
   Sparkles,
@@ -181,6 +181,12 @@ interface TransactionFormProps {
   enableRoles?: boolean
   /** Vai trò mở sẵn (từ deep-link ?role=). Bỏ qua nếu !enableRoles. */
   initialRole?: EntryRole
+  /**
+   * Nơi render nút mở "Loại đặc biệt" — ô trống bên phải tiêu đề màn Nhập. Nút đi
+   * portal ra ngoài form thay vì nhận qua prop `role`/`onRoleChange`: mọi logic bật
+   * vai trò (khởi tạo field, đổi loại, kéo về đầu) ở lại một chỗ trong form.
+   */
+  roleTriggerSlot?: HTMLElement | null
   /** Lưu một vai trò đặc biệt (thay onSubmit). Bắt buộc khi enableRoles. */
   onSubmitRole?: (payload: RoleSubmit) => Promise<void>
   /**
@@ -204,6 +210,7 @@ export function TransactionForm({
   enableTemplates,
   enableRoles,
   initialRole,
+  roleTriggerSlot,
   onSubmitRole,
   onSubmitWithFee,
 }: TransactionFormProps) {
@@ -535,8 +542,8 @@ export function TransactionForm({
   function enterRole(r: SpecialRole) {
     setRole(r)
     setRoleMenu(false)
-    // Nút mở vai trò nằm cuối vùng cuộn → sau khi chọn phải kéo về đầu, nếu không
-    // banner vai trò và ô số tiền nằm khuất phía trên.
+    // Kéo về đầu: vai trò dựng lại banner + ô số tiền ở trên, người dùng có thể đang
+    // cuộn ở giữa lưới danh mục lúc bấm.
     scrollRef.current?.scrollTo({ top: 0 })
     const nextDebt = initialDebt()
     if (r === 'split') setSplitVal(initialSplit())
@@ -676,6 +683,54 @@ export function TransactionForm({
     }
   }
 
+  /** Nút mở "Loại đặc biệt". Không nằm trong form mà portal ra ô trống bên phải tiêu
+   *  đề màn Nhập: khung ô tiền giữ nguyên là MỘT trường (chạm đâu cũng trỏ numpad vào
+   *  đó), và nút không tốn thêm hàng nào. Chỉ hiện khi chưa bật vai trò — bật rồi thì
+   *  banner trong form đã có nút "Bỏ". */
+  const roleTrigger = (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setRoleMenu((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={roleMenu}
+        aria-label="Loại đặc biệt"
+        style={{ touchAction: 'manipulation' }}
+        className="flex items-center gap-0.5 whitespace-nowrap rounded-lg bg-surface px-2.5 py-1.5 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
+      >
+        Đặc biệt
+        <ChevronDown
+          className={`h-3.5 w-3.5 shrink-0 transition-transform ${roleMenu ? 'rotate-180' : ''}`}
+          aria-hidden
+        />
+      </button>
+      {roleMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setRoleMenu(false)} aria-hidden />
+          <div
+            role="menu"
+            className="absolute right-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-lg border border-gray-200 bg-surface py-1 shadow-lg dark:border-gray-700"
+          >
+            {ROLE_ORDER.map((r) => {
+              const m = ROLE_META[r]
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => enterRole(r)}
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800"
+                >
+                  <m.Icon className="h-4 w-4 shrink-0" aria-hidden /> {m.label}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+
   /** Ô số tiền: div hiển thị trên mobile (numpad gõ), input trên desktop */
   const amountBox = (
     field: 'main' | 'to',
@@ -731,6 +786,10 @@ export function TransactionForm({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      {enableRoles &&
+        roleTriggerSlot &&
+        activeRole === 'none' &&
+        createPortal(roleTrigger, roleTriggerSlot)}
       {/* Vùng cuộn: mọi nội dung nhập. Đáy (NumPad + nút Lưu) được ghim riêng bên
           dưới nên không bao giờ bị đẩy khuất — kể cả khi vai trò đặc biệt thêm field. */}
       <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
@@ -1106,7 +1165,7 @@ export function TransactionForm({
 
       {/* Dưới lưới danh mục: những thứ tùy chọn/hiếm dùng. Danh mục là bước bắt buộc
           của mọi giao dịch nên phải nằm trong tầm nhìn đầu tiên — đo trên 375×812 thì
-          để Nhãn/Hoàn tiền/Loại đặc biệt ở trên chỉ còn 4/13 ô danh mục lọt màn. */}
+          để Nhãn/Hoàn tiền ở trên chỉ còn 4/13 ô danh mục lọt màn. */}
       {activeRole === 'none' && <TagPicker value={effectiveTagIds} onChange={setTagIds} />}
 
       {/* Hoàn tiền — chỉ có nghĩa với khoản CHI */}
@@ -1139,50 +1198,6 @@ export function TransactionForm({
         </label>
       )}
 
-      {/* Nút mở vai trò đặc biệt (ẩn 95% ca thường). Menu bung LÊN vì nút nằm cuối
-          vùng cuộn — bung xuống sẽ bị overflow của vùng cuộn cắt mất. */}
-      {enableRoles && !roleMeta && (
-        <div className="relative flex justify-end">
-          <button
-            type="button"
-            onClick={() => setRoleMenu((v) => !v)}
-            aria-haspopup="menu"
-            aria-expanded={roleMenu}
-            style={{ touchAction: 'manipulation' }}
-            className="flex items-center gap-1 rounded-lg border border-gray-300 bg-surface px-2.5 py-1.5 text-sm font-medium text-gray-600 shadow-sm active:scale-95 dark:border-gray-700 dark:text-gray-300"
-          >
-            <Plus className="h-4 w-4" aria-hidden /> Loại đặc biệt
-            <ChevronDown
-              className={`h-3.5 w-3.5 transition-transform ${roleMenu ? 'rotate-180' : ''}`}
-              aria-hidden
-            />
-          </button>
-          {roleMenu && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setRoleMenu(false)} aria-hidden />
-              <div
-                role="menu"
-                className="absolute bottom-full right-0 z-50 mb-1 w-52 overflow-hidden rounded-lg border border-gray-200 bg-surface py-1 shadow-lg dark:border-gray-700 "
-              >
-                {ROLE_ORDER.map((r) => {
-                  const m = ROLE_META[r]
-                  return (
-                    <button
-                      key={r}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => enterRole(r)}
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800"
-                    >
-                      <m.Icon className="h-4 w-4 shrink-0" aria-hidden /> {m.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </>
-          )}
-        </div>
-      )}
       </div>
 
       {/* Đáy ghim: NumPad + lỗi + nút Lưu — luôn hiển thị, không bị nội dung đẩy khuất. */}

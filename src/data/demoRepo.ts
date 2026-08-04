@@ -22,6 +22,7 @@ import type {
   NetWorthSnapshotRow,
   NotificationStateRow,
   ProfileRow,
+  PushSubscriptionRow,
   RecurringRuleRow,
   SavingsGoalRow,
   TagRow,
@@ -45,6 +46,7 @@ import {
   type NewLifeEvent,
   type NewLifePhase,
   type NewLifeScenario,
+  type NewPushSubscription,
   type NewRecurringOccurrence,
   type NewRecurringRule,
   type NewSavingsGoal,
@@ -106,6 +108,8 @@ interface DemoDB {
   notificationState?: NotificationStateRow[]
   /** Lịch sử tỷ giá; vắng mặt ở dữ liệu demo cũ. */
   fxHistory?: FxHistoryRow[]
+  /** Thiết bị đã đăng ký nhận push (migration 0034); vắng mặt ở dữ liệu demo cũ. */
+  pushSubscriptions?: PushSubscriptionRow[]
   lifeScenarios: LifeScenarioRow[]
   lifePhases: LifePhaseRow[]
   lifeEvents: LifeEventRow[]
@@ -442,6 +446,9 @@ function seed(): DemoDB {
       target_savings_bps: 2000,
       notif_off: [],
       birth_year: null,
+      push_hour: 8,
+      push_tz: 'Asia/Tokyo',
+      push_last_sent_at: null,
       created_at: nowISO(),
     },
     accounts,
@@ -1004,6 +1011,41 @@ export const demoRepo: Repo = {
     save(db)
   },
 
+  async getPushSubscriptions() {
+    return (load().pushSubscriptions ?? []).slice()
+  },
+
+  async savePushSubscription(input: NewPushSubscription) {
+    const db = load()
+    db.pushSubscriptions ??= []
+    const existing = db.pushSubscriptions.find((r) => r.endpoint === input.endpoint)
+    if (existing) {
+      // Đăng ký lại cùng endpoint = cập nhật khoá, KHÔNG thêm dòng thứ hai. Bản
+      // Supabase làm việc này bằng upsert onConflict; ở đây phải tự làm vì demoRepo
+      // không thực thi khoá chính.
+      existing.p256dh = input.p256dh
+      existing.auth = input.auth
+      existing.user_agent = input.userAgent
+    } else {
+      db.pushSubscriptions.push({
+        user_id: DEMO_USER,
+        endpoint: input.endpoint,
+        p256dh: input.p256dh,
+        auth: input.auth,
+        user_agent: input.userAgent,
+        created_at: new Date().toISOString(),
+        last_ok_at: null,
+      })
+    }
+    save(db)
+  },
+
+  async deletePushSubscription(endpoint: string) {
+    const db = load()
+    db.pushSubscriptions = (db.pushSubscriptions ?? []).filter((r) => r.endpoint !== endpoint)
+    save(db)
+  },
+
   async recordFxRates(onDate: string, base: CurrencyCode, rates: Rates) {
     const db = load()
     db.fxHistory ??= []
@@ -1522,7 +1564,21 @@ export const demoRepo: Repo = {
     const stamp = <T extends { user_id: string }>(rows: T[]): T[] =>
       rows.map((r) => ({ ...r, user_id: DEMO_USER }))
     const db: DemoDB = {
-      profile: { ...data.profile, user_id: DEMO_USER },
+      profile: {
+        ...data.profile,
+        user_id: DEMO_USER,
+        // File sao lưu cũ hơn migration 0034 không có ba cột giờ gửi push. Bản Supabase
+        // không đụng profiles khi khôi phục nên default của Postgres lo hộ, còn ở đây
+        // thiếu là `undefined` chảy thẳng vào ô chọn giờ trong Cài đặt.
+        //
+        // `??` trông như dư vì ProfileRow khai ba cột này là bắt buộc — nhưng kiểu đó
+        // nói về dữ liệu TRONG app, còn `data` là file người dùng chọn từ đĩa và có
+        // thể được xuất trước khi ba cột tồn tại. Đặt default TRƯỚC spread thì
+        // TypeScript đúng khi bảo là code chết (TS2783), nên phải viết từng cột.
+        push_hour: data.profile.push_hour ?? 8,
+        push_tz: data.profile.push_tz ?? 'Asia/Tokyo',
+        push_last_sent_at: data.profile.push_last_sent_at ?? null,
+      },
       accounts: stamp(data.accounts ?? []),
       categories: stamp(data.categories ?? []),
       transactions: stamp(data.transactions ?? []),

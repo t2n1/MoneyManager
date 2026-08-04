@@ -21,6 +21,7 @@ import type {
   NetWorthSnapshotRow,
   NotificationStateRow,
   ProfileRow,
+  PushSubscriptionRow,
   RecurringRuleRow,
   SavingsGoalRow,
   TagRow,
@@ -183,8 +184,24 @@ export type ProfilePatch = Partial<
     // birth_year (mục Lifetime, migration 0031): cột đã có ở DB Update type từ đầu,
     // nhưng sót khỏi Pick này — không thêm thì màn Lifetime không lưu được năm sinh.
     | 'birth_year'
+    // Giờ gửi push (migration 0034). KHÔNG có push_last_sent_at: cột đó chỉ edge
+    // function ghi bằng service role. Cho client sửa được là tự tay mở đường tắt
+    // push của chính mình (lùi mốc về tương lai) mà không nút nào giải thích nổi.
+    | 'push_hour'
+    | 'push_tz'
   >
 >
+
+/**
+ * Đăng ký nhận thông báo của một thiết bị. Ba trường đầu do trình duyệt cấp
+ * (`PushSubscription.toJSON()`), `userAgent` chỉ để người dùng nhận ra máy nào.
+ */
+export interface NewPushSubscription {
+  endpoint: string
+  p256dh: string
+  auth: string
+  userAgent: string | null
+}
 
 /** Thuộc tính nhóm tài sản có thể chỉnh (không đổi tên qua đây — dùng renameAssetGroup). */
 export type AssetGroupSettingPatch = Partial<
@@ -472,6 +489,17 @@ export interface Repo {
    *  Dòng đã tắt (dismissed_at khác null) thì giữ mãi — mục C.2/E của spec hứa
    *  "tắt là mất hẳn", dọn nó đi là 13 tháng sau gợi ý đã tắt sống lại. */
   pruneNotificationState(beforeISO: string): Promise<void>
+
+  // --- Đẩy thông báo ra ngoài app (migration 0034) ---
+  /** Mọi thiết bị của user này đã đồng ý nhận thông báo. */
+  getPushSubscriptions(): Promise<PushSubscriptionRow[]>
+  /**
+   * Ghi/đè đăng ký của MỘT thiết bị (khoá theo endpoint).
+   * Đăng ký lại cùng endpoint thì cập nhật khoá, không tạo dòng thứ hai.
+   */
+  savePushSubscription(input: NewPushSubscription): Promise<void>
+  /** Bỏ đăng ký một thiết bị. Endpoint không có trong bảng → không làm gì. */
+  deletePushSubscription(endpoint: string): Promise<void>
 
   // --- Lịch sử tỷ giá ---
   /** Ghi/đè tỷ giá của một ngày (unique user_id + on_date + base). */

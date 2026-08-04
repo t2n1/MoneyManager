@@ -391,3 +391,81 @@ describe('khôi phục backup', () => {
     expect((await demoRepo.exportAll()).transactions.length).toBeGreaterThan(0)
   })
 })
+
+describe('đăng ký push của thiết bị', () => {
+  const sub = {
+    endpoint: 'https://fcm.googleapis.com/fcm/send/abc',
+    p256dh: 'khoa-cong-khai',
+    auth: 'khoa-xac-thuc',
+    userAgent: 'iPhone',
+  }
+
+  it('lưu rồi đọc lại thấy đúng khoá', async () => {
+    await demoRepo.savePushSubscription(sub)
+    const rows = await demoRepo.getPushSubscriptions()
+    expect(rows).toHaveLength(1)
+    expect(rows[0].endpoint).toBe(sub.endpoint)
+    expect(rows[0].p256dh).toBe('khoa-cong-khai')
+    expect(rows[0].last_ok_at).toBeNull()
+  })
+
+  it('cùng endpoint đăng ký lại thì CẬP NHẬT khoá, không thêm dòng thứ hai', async () => {
+    await demoRepo.savePushSubscription(sub)
+    await demoRepo.savePushSubscription({ ...sub, p256dh: 'khoa-moi' })
+    const rows = await demoRepo.getPushSubscriptions()
+    expect(rows).toHaveLength(1)
+    expect(rows[0].p256dh).toBe('khoa-moi')
+  })
+
+  it('hai thiết bị khác endpoint thì giữ cả hai (điện thoại + laptop đều phải nhận)', async () => {
+    await demoRepo.savePushSubscription(sub)
+    await demoRepo.savePushSubscription({ ...sub, endpoint: 'https://updates.push.services.mozilla.com/xyz', userAgent: 'Firefox' })
+    expect(await demoRepo.getPushSubscriptions()).toHaveLength(2)
+  })
+
+  it('bỏ đăng ký một thiết bị thì thiết bị kia còn nguyên', async () => {
+    const other = { ...sub, endpoint: 'https://updates.push.services.mozilla.com/xyz' }
+    await demoRepo.savePushSubscription(sub)
+    await demoRepo.savePushSubscription(other)
+    await demoRepo.deletePushSubscription(sub.endpoint)
+    const rows = await demoRepo.getPushSubscriptions()
+    expect(rows.map((r) => r.endpoint)).toEqual([other.endpoint])
+  })
+
+  it('bỏ đăng ký endpoint không tồn tại thì im lặng, không nổ', async () => {
+    await demoRepo.savePushSubscription(sub)
+    await expect(demoRepo.deletePushSubscription('khong-co-that')).resolves.toBeUndefined()
+    expect(await demoRepo.getPushSubscriptions()).toHaveLength(1)
+  })
+
+  it('profile demo có sẵn giờ gửi mặc định 8 giờ Nhật', async () => {
+    const p = await demoRepo.getProfile()
+    expect(p.push_hour).toBe(8)
+    expect(p.push_tz).toBe('Asia/Tokyo')
+    expect(p.push_last_sent_at).toBeNull()
+  })
+
+  it('đổi giờ gửi và múi giờ thì lưu được', async () => {
+    const p = await demoRepo.updateProfile({ push_hour: 20, push_tz: 'America/Los_Angeles' })
+    expect(p.push_hour).toBe(20)
+    expect(p.push_tz).toBe('America/Los_Angeles')
+  })
+})
+
+describe('khôi phục file sao lưu cũ hơn migration 0034', () => {
+  it('file không có cột giờ gửi push thì điền mặc định, không để undefined', async () => {
+    const data = await demoRepo.exportAll()
+    // Dựng lại đúng hình dạng file xuất TRƯỚC khi có push: ba cột chưa tồn tại.
+    const old = { ...data, profile: { ...data.profile } }
+    delete (old.profile as Partial<typeof old.profile>).push_hour
+    delete (old.profile as Partial<typeof old.profile>).push_tz
+    delete (old.profile as Partial<typeof old.profile>).push_last_sent_at
+
+    await demoRepo.importAll(old)
+
+    const p = await demoRepo.getProfile()
+    expect(p.push_hour).toBe(8)
+    expect(p.push_tz).toBe('Asia/Tokyo')
+    expect(p.push_last_sent_at).toBeNull()
+  })
+})

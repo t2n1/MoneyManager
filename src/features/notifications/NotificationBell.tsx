@@ -1,7 +1,15 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Bell } from 'lucide-react'
 import { useNotifications } from './useNotifications'
 import type { AppNotification } from './types'
+
+/**
+ * Tham số mở tấm trượt từ bên ngoài. Push gộp nhiều việc không trỏ được vào một
+ * trang cụ thể (nó nói về 3 chuyện ở 3 chỗ), nên nó trỏ về đây — xem PUSH_LIST_ROUTE
+ * trong pushPlan.ts.
+ */
+const OPEN_PARAM = 'notif'
 
 // Tấm trượt chỉ cần khi người dùng thực sự mở chuông → tách chunk riêng, không
 // nằm trong bundle khởi động (cùng ý tưởng lazy các trang phụ trong App.tsx).
@@ -11,6 +19,19 @@ const NotificationSheet = lazy(() =>
 
 export function NotificationBell({ className = '' }: { className?: string }) {
   const [open, setOpen] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Vào app từ một thông báo đẩy gộp: mở sẵn tấm trượt, rồi DỌN tham số khỏi URL.
+  // Không dọn thì đóng tấm trượt xong bấm Back (hoặc mở lại app từ lịch sử) là nó
+  // bật lên lần nữa, và người dùng không hiểu vì sao.
+  useEffect(() => {
+    if (!searchParams.has(OPEN_PARAM)) return
+    setOpen(true)
+    const next = new URLSearchParams(searchParams)
+    next.delete(OPEN_PARAM)
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
   const {
     actions,
     actionsAll,

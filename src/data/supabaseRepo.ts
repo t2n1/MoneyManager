@@ -42,6 +42,7 @@ import {
   type NewLifeEvent,
   type NewLifePhase,
   type NewLifeScenario,
+  type NewPushSubscription,
   type NewRecurringOccurrence,
   type NewRecurringRule,
   type NewSavingsGoal,
@@ -591,6 +592,41 @@ export const supabaseRepo: Repo = {
       .eq('user_id', user_id)
       .lt('created_at', beforeISO)
       .is('dismissed_at', null)
+    if (error) throw error
+  },
+
+  async getPushSubscriptions() {
+    const { data, error } = await getSupabase().from('push_subscriptions').select('*')
+    if (error) throw error
+    return data
+  },
+
+  async savePushSubscription(input: NewPushSubscription) {
+    const user_id = await currentUserId()
+    // onConflict theo CẢ khoá chính: endpoint một mình không unique trong bảng, và
+    // cùng một endpoint về lý thuyết có thể đổi chủ nếu người dùng đăng xuất rồi
+    // đăng nhập tài khoản khác trên chính máy đó.
+    const { error } = await getSupabase().from('push_subscriptions').upsert(
+      {
+        user_id,
+        endpoint: input.endpoint,
+        p256dh: input.p256dh,
+        auth: input.auth,
+        user_agent: input.userAgent,
+      },
+      { onConflict: 'user_id,endpoint' },
+    )
+    if (error) throw error
+  },
+
+  async deletePushSubscription(endpoint: string) {
+    const user_id = await currentUserId()
+    // .eq('user_id'): phòng thủ thêm ngoài RLS, giống deleteNotificationStates.
+    const { error } = await getSupabase()
+      .from('push_subscriptions')
+      .delete()
+      .eq('user_id', user_id)
+      .eq('endpoint', endpoint)
     if (error) throw error
   },
 

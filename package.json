@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "bundle:rules": "node scripts/bundle-rules.mjs",
+    "setup:push": "node scripts/setup-push.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.3",
@@ -27,6 +29,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "esbuild": "^0.28.1",
     "oxlint": "^1.71.0",
     "tailwindcss": "^4.3.2",
     "typescript": "~6.0.2",

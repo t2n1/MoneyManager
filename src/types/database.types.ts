@@ -39,7 +39,35 @@ export type ProfileRow = {
   notif_off: string[]
   /** Năm sinh — cần cho Lifetime. null = chưa khai. */
   birth_year: number | null
+  /** Giờ gửi push mỗi ngày (0..23), tính theo `push_tz` chứ không phải UTC. */
+  push_hour: number
+  /**
+   * Múi giờ IANA để hiểu `push_hour` ('Asia/Tokyo', 'America/Los_Angeles').
+   * Lưu tên múi giờ chứ không lưu offset số: offset không biết DST.
+   */
+  push_tz: string
+  /** Lần gần nhất đã gửi push; null = chưa gửi lần nào. Chặn gửi hai lần một ngày. */
+  push_last_sent_at: string | null
   created_at: string
+}
+
+/**
+ * Một trình duyệt trên một thiết bị đã đồng ý nhận thông báo (migration 0034).
+ * Một người nhiều dòng (điện thoại + laptop) và đều phải nhận được.
+ */
+export type PushSubscriptionRow = {
+  user_id: string
+  /** URL do dịch vụ đẩy của trình duyệt cấp — chính nó là danh tính thiết bị. */
+  endpoint: string
+  /** Khoá công khai của thiết bị (base64url) để mã hoá nội dung aes128gcm. */
+  p256dh: string
+  /** Khoá xác thực của thiết bị (base64url). */
+  auth: string
+  /** Để người dùng nhận ra "máy nào" khi muốn tắt một thiết bị; null = không rõ. */
+  user_agent: string | null
+  created_at: string
+  /** Lần gửi thành công gần nhất; null = chưa gửi lần nào. */
+  last_ok_at: string | null
 }
 
 export type AccountRow = {
@@ -218,7 +246,11 @@ export type NotificationStateRow = {
   key: string
   read_at: string | null
   dismissed_at: string | null
-  /** Chưa dùng; chừa cho push ở đợt sau. */
+  /**
+   * Mốc đã đẩy push cho mã này; null = chưa từng đẩy. Chỉ edge function ghi cột này.
+   * Đây là thứ thực thi nguyên tắc "một việc báo một lần": mã việc-cần-làm không kèm
+   * kỳ, nên còn dòng này thì còn im, tới khi tình huống hết và mã bị dọn (mục E).
+   */
   pushed_at: string | null
   created_at: string
 }
@@ -415,6 +447,9 @@ export type Database = {
           | 'target_savings_bps'
           | 'notif_off'
           | 'birth_year'
+          | 'push_hour'
+          | 'push_tz'
+          | 'push_last_sent_at'
         >
         Update: Partial<
           Pick<
@@ -430,6 +465,9 @@ export type Database = {
             | 'target_savings_bps'
             | 'notif_off'
             | 'birth_year'
+            | 'push_hour'
+            | 'push_tz'
+            | 'push_last_sent_at'
           >
         >
         Relationships: []
@@ -774,6 +812,16 @@ export type Database = {
         Row: FxHistoryRow
         Insert: InsertOf<FxHistoryRow, 'user_id' | 'on_date' | 'base' | 'rates', never>
         Update: Partial<Pick<FxHistoryRow, 'rates'>>
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: PushSubscriptionRow
+        Insert: InsertOf<
+          PushSubscriptionRow,
+          'user_id' | 'endpoint' | 'p256dh' | 'auth',
+          'user_agent' | 'created_at' | 'last_ok_at'
+        >
+        Update: Partial<Pick<PushSubscriptionRow, 'p256dh' | 'auth' | 'user_agent' | 'last_ok_at'>>
         Relationships: []
       }
     }

@@ -1,0 +1,65 @@
+// Guard chống bundle cũ.
+//
+// supabase/functions/push-notify/_rules.js là bản gói của bộ luật thông báo, được
+// commit để thư mục function tự đủ (deploy từ bất kỳ checkout nào cũng ra đúng bộ luật
+// đang chạy trong app). Cái giá của việc commit file sinh tự động là nó ÂM THẦM cũ đi:
+// sửa một luật trong src/, đẩy lên, và thông báo đẩy vẫn theo luật của tuần trước —
+// không có lỗi nào, không có cảnh báo nào, chỉ có hai bộ luật khác nhau.
+//
+// Test này biến chuyện đó thành một dòng đỏ: gói lại trong bộ nhớ rồi so với file đã
+// commit. Khác một byte là đỏ.
+//
+// Ở tests/ chứ không src/: nó đọc filesystem và gọi esbuild qua `node:*` — xem lý do
+// dài hơn ở đầu tests/designSystem.test.ts.
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { describe, expect, it } from 'vitest'
+// @ts-expect-error — script build viết bằng .mjs thuần, không có khai báo kiểu.
+import { bundleRules, OUTFILE } from '../scripts/bundle-rules.mjs'
+
+// fileURLToPath, không phải `.pathname`: đường dẫn dự án có dấu cách ("Money Manager")
+// nên pathname đã percent-encode → ENOENT.
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
+
+describe('bundle bộ luật cho edge function', () => {
+  it('file đã commit KHỚP với bộ luật hiện tại trong src/', async () => {
+    const daCommit = readFileSync(join(ROOT, OUTFILE), 'utf8')
+    const goiLai = (await bundleRules({ write: false })) as string
+
+    // So bằng chứ không so "có chứa": đổi một hằng số trong luật cũng phải đỏ.
+    expect(goiLai).toBe(daCommit)
+  }, 30_000)
+
+  it('bundle xuất đủ những gì edge function gọi', async () => {
+    // Bớt một export ở serverBundle.ts thì function chết lúc chạy, và chỉ log Supabase
+    // mới thấy. Đây là chỗ bắt được sớm hơn.
+    const daCommit = readFileSync(join(ROOT, OUTFILE), 'utf8')
+    for (const ten of [
+      'buildNotifications',
+      'planPush',
+      'dueForPush',
+      'buildBudgetReport',
+      'carryFromPreviousMonth',
+      'buildLifetimeInput',
+      'monthKeyForDate',
+      'monthKeyString',
+      'addMonths',
+      'addDaysISO',
+      'toISODate',
+      'RECENT_TXS_DAYS',
+    ]) {
+      expect(daCommit, `thiếu export ${ten}`).toContain(ten)
+    }
+  })
+
+  it('bundle KHÔNG kéo theo thứ của trình duyệt hay của Node', async () => {
+    // esbuild chạy platform:'neutral' nên lẽ ra đã đỏ từ lúc gói, nhưng `localStorage`
+    // và `document` là biến toàn cục — esbuild để chúng đi qua không một lời nào. Trên
+    // Deno chúng không tồn tại, nên phải chặn ở đây.
+    const daCommit = readFileSync(join(ROOT, OUTFILE), 'utf8')
+    for (const cam of ['localStorage', 'document.', 'window.', 'require(', 'node:']) {
+      expect(daCommit, `bundle chứa ${cam} — không chạy được trên Deno`).not.toContain(cam)
+    }
+  })
+})

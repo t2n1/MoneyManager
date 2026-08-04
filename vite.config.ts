@@ -34,6 +34,11 @@ export default defineConfig({
         navigateFallback: '/index.html',
         // API Supabase không cache — dữ liệu tiền bạc phải luôn tươi
         navigateFallbackDenylist: [/^\/auth\//],
+        // Phần nhận Web Push (public/push-sw.js). Nhét thêm một file vào service
+        // worker do workbox sinh, thay vì đổi sang `injectManifest` — cách đó bắt tự
+        // tay dựng lại đúng phần precache + navigateFallback ngay trên, và làm sai là
+        // mất chế độ offline mà không có test nào bắt được.
+        importScripts: ['/push-sw.js'],
       },
       manifest: {
         name: 'Sổ Chi Tiêu',

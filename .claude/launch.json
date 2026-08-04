@@ -14,6 +14,14 @@
       "runtimeArgs": ["run", "dev", "--", "--mode", "demo"],
       "port": 5174,
       "autoPort": true
+    },
+    {
+      "// preview": "Phục vụ dist/ — CÁCH DUY NHẤT thử được push. `npm run dev` không sinh service worker nên không đăng ký được thiết bị. Dựng trước bằng: npx vite build --mode demo",
+      "name": "so-chi-tieu-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "preview"],
+      "port": 4173,
+      "autoPort": true
     }
   ]
 }

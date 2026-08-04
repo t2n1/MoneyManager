@@ -34,8 +34,10 @@ const { resolveAccountId, resolveCategoryId, catById, created } = buildResolvers
 // ---- Khóa chống trùng từ giao dịch đã có ----
 const existingKeys = new Set()
 for (const t of backup.transactions) {
-  if (t.type === 'expense' || t.type === 'income')
-    existingKeys.add(makeKey(t.occurred_on, t.type, t.amount, t.account_id, t.note ?? ''))
+  // Kể cả chuyển khoản: chạy lại script lần hai không được nhân đôi chúng.
+  existingKeys.add(
+    makeKey(t.occurred_on, t.type, t.amount, t.account_id, t.note ?? '', t.to_account_id ?? null),
+  )
 }
 
 // ---- Biến đổi ----
@@ -98,6 +100,7 @@ L.push(`  ${'trùng đã có'.padEnd(20)} ${fmt(stats.dup)}`)
 L.push(`  ${'danh mục bỏ qua'.padEnd(20)} ${fmt(stats.skipCategoryTotal)}`)
 for (const [k, n] of Object.entries(stats.skipCategory).sort((a, b) => b[1] - a[1]))
   L.push(`      ${k.padEnd(30)} ${fmt(n)}`)
+L.push(`  ${'chuyển tiền (Khác)'.padEnd(20)} ${fmt(stats.skipOutgoingTransfer)}`)
 
 // Ba nhóm dưới đây LẼ RA phải bằng 0. Khác 0 = mất dòng ngoài ý muốn, không phải
 // quyết định thiết kế -> in kèm ví dụ để tra ngược trong CSV.
@@ -126,6 +129,7 @@ const accounted =
   stats.badDate +
   nonJpyTotal +
   stats.skipCategoryTotal +
+  stats.skipOutgoingTransfer +
   stats.dup
 L.push('')
 L.push(

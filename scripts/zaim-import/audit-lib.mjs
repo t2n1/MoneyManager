@@ -13,7 +13,8 @@ export function monthKeyOf(date) {
   return (date ?? '').slice(0, 7)
 }
 
-const keyOf = (t) => makeKey(t.occurred_on, t.type, t.amount, t.account_id, t.note ?? '')
+const keyOf = (t) =>
+  makeKey(t.occurred_on, t.type, t.amount, t.account_id, t.note ?? '', t.to_account_id ?? null)
 
 /**
  * So bộ giao dịch KỲ VỌNG (dựng lại từ CSV) với bộ THỰC CÓ trong app.

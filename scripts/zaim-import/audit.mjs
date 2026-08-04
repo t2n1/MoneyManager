@@ -112,6 +112,7 @@ L.push(`  ${pad('tiền = 0 / ô rỗng', 26)}${num(fmt(stats.skipZero), 8)}`)
 L.push(`  ${pad('danh mục đã chốt bỏ', 26)}${num(fmt(stats.skipCategoryTotal), 8)}`)
 for (const [k, n] of Object.entries(stats.skipCategory).sort((a, b) => b[1] - a[1]))
   L.push(`      ${pad(k, 30)}${num(fmt(n), 6)}`)
+L.push(`  ${pad('chuyển tiền (Khác)', 26)}${num(fmt(stats.skipOutgoingTransfer), 8)}`)
 if (stats.badAmount) {
   L.push(`  ⚠ ${pad('tiền KHÔNG đọc được', 24)}${num(fmt(stats.badAmount), 8)}`)
   for (const s of stats.badAmountSamples) L.push(`      ${s.date}  "${s.raw}"  ${s.note}`)
@@ -134,6 +135,7 @@ const accounted =
   stats.badDate +
   nonJpyTotal +
   stats.skipCategoryTotal +
+  stats.skipOutgoingTransfer +
   stats.dup
 L.push(
   accounted === stats.total

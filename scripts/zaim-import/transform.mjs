@@ -1,6 +1,8 @@
 // Biến đổi THUẦN các dòng Zaim (đã tách CSV) -> giao dịch app. Không I/O -> test được.
 // Quy tắc theo docs/superpowers/specs/2026-07-31-zaim-import-design.md (mục 4).
 
+import { isOutgoingTransferExpense } from './mapping.mjs'
+
 /** Vị trí cột trong CSV Zaim (bản xuất UTF-8, 16 cột). */
 export const ZAIM_COL = {
   date: 0, // 日付  YYYY-MM-DD
@@ -15,6 +17,8 @@ export const ZAIM_COL = {
   currency: 9, // 通貨 (kỳ vọng JPY cho mọi dòng)
   income: 10, // 収入
   expense: 11, // 支出
+  transfer: 12, // 振替
+  balanceAdj: 13, // 残高調整
   aggFlag: 15, // 集計の設定
 }
 
@@ -74,8 +78,17 @@ export function parseYen(s) {
   return Math.trunc(Number(norm))
 }
 
-/** Khóa chống trùng: ngày | dấu+tiền | tài khoản | ghi chú. */
-export function makeKey(occurred_on, type, amount, account_id, note) {
+/**
+ * Khóa chống trùng: ngày | dấu+tiền | tài khoản | ghi chú.
+ *
+ * Chuyển khoản dùng dấu riêng `>` và ghi cả hai đầu tài khoản: cùng ngày, cùng số tiền,
+ * một khoản thu 5.000 vào Ví và một lần chuyển 5.000 từ Ví sang chỗ khác là hai chuyện
+ * khác nhau — trộn chung khóa thì lần nạp sau sẽ nuốt mất một trong hai.
+ * Khóa của expense/income giữ nguyên như cũ để không phá dữ liệu đã nạp.
+ */
+export function makeKey(occurred_on, type, amount, account_id, note, to_account_id = null) {
+  if (type === 'transfer')
+    return `${occurred_on}|>${amount}|${account_id}>${to_account_id}|${note}`
   return `${occurred_on}|${type === 'expense' ? '-' : '+'}${amount}|${account_id}|${note}`
 }
 
@@ -95,7 +108,7 @@ export function transformRows(rows, ctx) {
   const stats = {
     total: rows.length,
     imported: 0,
-    skipMethod: {}, // transfer / balance -> số dòng
+    skipMethod: {}, // 振替 (chuyển khoản) + balance (điều chỉnh số dư) -> số dòng
     skipZero: 0, // tiền = 0 hoặc ô rỗng (app cấm amount > 0)
     badAmount: 0, // CÓ nội dung nhưng không đọc ra số -> mất dòng, phải soi
     badAmountSamples: [], // vài ví dụ để tra lại trong CSV
@@ -105,6 +118,7 @@ export function transformRows(rows, ctx) {
     nonJpy: {}, // 'USD' -> số dòng (số tiền sẽ sai nếu nạp, nên bỏ)
     skipCategory: {}, // 'main>sub' -> số dòng (danh mục đánh dấu bỏ qua)
     skipCategoryTotal: 0,
+    skipOutgoingTransfer: 0, // chi rơi vào 'Khác' nhưng là chuyển tiền ra ngoài (送金/振込/ワイズ)
     dup: 0, // trùng giao dịch đã có
     refund: 0, // chi hoàn tiền
     excluded: 0, // loại khỏi thống kê
@@ -120,11 +134,13 @@ export function transformRows(rows, ctx) {
       continue
     }
     const method = row[ZAIM_COL.method]
+    // Chỉ nhận CHI (payment) và THU (income). 振替 (chuyển khoản) và balance (điều
+    // chỉnh số dư) đều là tiền luân chuyển nội bộ, không phải chi tiêu — bỏ hết vào
+    // skipMethod. Người dùng sẽ chỉnh số dư ví/thẻ một lần cho khớp hiện tại.
     if (method !== 'payment' && method !== 'income') {
       stats.skipMethod[method] = (stats.skipMethod[method] || 0) + 1
       continue
     }
-    const type = method === 'payment' ? 'expense' : 'income'
 
     // Tài khoản app ở kỳ này đều JPY: dòng tiền tệ khác sẽ vào sổ với số tiền sai
     // đơn vị, nên bỏ và đếm riêng thay vì nạp bừa.
@@ -133,6 +149,8 @@ export function transformRows(rows, ctx) {
       stats.nonJpy[currency] = (stats.nonJpy[currency] || 0) + 1
       continue
     }
+
+    const type = method === 'payment' ? 'expense' : 'income'
 
     const rawText = type === 'expense' ? row[ZAIM_COL.expense] : row[ZAIM_COL.income]
     const raw = parseYen(rawText)
@@ -168,6 +186,15 @@ export function transformRows(rows, ctx) {
     const wallet = type === 'expense' ? row[ZAIM_COL.fromWallet] : row[ZAIM_COL.toWallet]
     const account_id = ctx.resolveAccountId(wallet)
     const note = buildNote(row)
+
+    // Chi rơi vào catch-all 'Khác' mà ghi chú là chuyển tiền (gửi người/Wise/振込) thì
+    // đó là tiền luân chuyển, không phải chi tiêu — bỏ. Tiền nhà/học phí/điện nước trả
+    // bằng chuyển khoản nằm ở danh mục riêng nên KHÔNG bị đụng.
+    if (isOutgoingTransferExpense(type, row[ZAIM_COL.catMain], row[ZAIM_COL.catSub], note)) {
+      stats.skipOutgoingTransfer++
+      continue
+    }
+
     const occurred_on = row[ZAIM_COL.date]
     const key = makeKey(occurred_on, type, amount, account_id, note)
     if (ctx.existingKeys.has(key)) {

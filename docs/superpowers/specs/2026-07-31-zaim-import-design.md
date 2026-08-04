@@ -176,7 +176,28 @@ Vãng lai, Chi, Chi Invest, A Hà, Bé Chi, Lã Minh, Minh Credit, Nợ, Ví VN)
 
 **Còn lại** (mục 6 gạch đầu dòng "cặp không có trong bảng") → **Khác** đúng type. Gồm các
 cặp ít dùng ở mục D: `レジャー`, `音楽`, `映画・動画`, `リフォーム`, `住宅保険`, `宅配便`,
-`切手・はがき`, `免許教習`, `立替金返済`, và các `その他`/`未分類`/`使途不明金`.
+`切手・はがき`, `免許教習`, `立替金返済`, và `その他`/`未分類`. (`使途不明金` chuyển sang SKIP —
+xem 6.2.)
+
+### 6.2 Điều chỉnh 2026-08-04 — mục tiêu "chỉ thấy CHI TIÊU THỰC TẾ"
+
+Người dùng chốt: sổ để xem chi tiêu thật, nên siết lại phần thu và loại các dòng tiền
+luân chuyển. (Người dùng tự chỉnh số dư ví/thẻ một lần cho khớp hiện tại, nên số dư lịch
+sử không còn quan trọng.)
+
+1. **Thu chỉ giữ Lương (`給与所得`) + Thưởng (`賞与`).** Mọi thu khác — `その他`, `-`,
+   `立替金返済`, `臨時収入`, `事業所得` — đổi thành **SKIP**. Bao trọn: tiền chuyển vào
+   (`振込`/`送金`), người khác trả lại/cho mượn, lì xì, và nạp ví `チャージ` (vốn là `その他`).
+2. **`その他>使途不明金` → SKIP.** Đây là dòng Zaim tự sinh để cân số dư (お店/メモ trống,
+   số lớn từ ví KOME/お財布), không phải chi tiêu — bỏ như `現金の引出`.
+3. **Chuyển tiền lọt vào "Khác" → SKIP** (`isOutgoingTransferExpense`): chi mà danh mục
+   kết quả là **Khác** *và* ghi chú có `送金`/`振込`/`ワイズ` (gồm `振込手数料`) là chuyển
+   tiền ra ngoài, không phải chi tiêu. Chỉ xét khi danh mục ra 'Khác' — tiền nhà/học phí/
+   điện nước trả bằng chuyển khoản nằm ở danh mục riêng nên KHÔNG bị đụng.
+
+Kết quả: thu từ ~322 dòng còn 69 (chỉ Lương/Thưởng); "Khác" co từ ¥4,64M còn ~¥2,57M.
+`未分類` (Amazon/TAOBAO mua thật) vẫn để ở Khác — không tạo mục "Mua sắm" vì app phân loại
+theo MỤC ĐÍCH chứ không theo nơi mua.
 
 ## 7. Chống trùng
 

@@ -33,7 +33,9 @@ export const NEW_CATEGORIES = [
 const EXPENSE = {
   食費: { _default: 'Ăn uống', 食料品: 'Ăn uống>Đi chợ', 晩ご飯: 'Ăn uống>Bữa tối', 昼ご飯: 'Ăn uống>Bữa trưa', 朝ご飯: 'Ăn uống>Bữa sáng', カフェ: 'Ăn uống>Cafe' },
   交通: { _default: 'Đi lại', 会社交通費: 'SKIP', 電車: 'Đi lại>Tàu điện', 自転車: 'Đi lại', タクシー: 'Đi lại>Taxi', バス: 'Đi lại>Xe buýt' },
-  その他: { _default: 'Khác', 電子マネーにチャージ: 'SKIP', カードの引落: 'SKIP', 海外送金: 'SKIP', 立替金: 'SKIP', 現金の引出: 'SKIP' },
+  // 使途不明金 = Zaim tự sinh để cân số dư (お店/メモ trống, số lớn từ KOME/お財布), không
+  // phải chi tiêu -> SKIP như 現金の引出. Người dùng chỉnh số dư tay nên dòng cân sổ này bỏ được.
+  その他: { _default: 'Khác', 電子マネーにチャージ: 'SKIP', カードの引落: 'SKIP', 海外送金: 'SKIP', 立替金: 'SKIP', 現金の引出: 'SKIP', 使途不明金: 'SKIP' },
   交際費: { _default: 'Giao lưu', Gift: 'Quà tặng>Quà', Meetup: 'Giao lưu>Bạn bè' },
   日用雑貨: { _default: 'Khác', 'Household Supplies': 'Nhà ở>Đồ bếp' },
   エンタメ: { _default: 'Sở thích', Plant: 'Sở thích>Cây cối', 'Film Photography': 'Sở thích>Nhiếp ảnh', 書籍: 'Giáo dục>Sách vở', Sports: 'Sở thích>Thể thao', '映画・動画': 'Sở thích>Subscription', 音楽: 'Sở thích>Subscription', Watches: 'Thời trang>Phụ kiện', 'Đồ': 'Khác' },
@@ -50,14 +52,18 @@ const EXPENSE = {
   '-': { _default: 'Khác' },
 }
 
+// Sổ chỉ để thấy CHI TIÊU THỰC TẾ (chốt với người dùng 2026-08): phần THU chỉ giữ
+// Lương (給与所得) và Thưởng (賞与). Mọi loại thu còn lại — tiền chuyển vào (振込/送金),
+// người khác trả lại/cho mượn, lì xì, nạp ví (チャージ), thu nhập kinh doanh — đều là
+// tiền luân chuyển chứ không phải thu nhập, nên KHÔNG nhập ('SKIP').
 const INCOME = {
-  その他: { _default: 'Khác' },
   給与所得: { _default: 'Lương' },
-  '-': { _default: 'Khác' },
   賞与: { _default: 'Thưởng' },
+  その他: { _default: 'SKIP' },
+  '-': { _default: 'SKIP' },
   事業所得: { _default: 'SKIP' },
-  立替金返済: { _default: 'Khác' },
-  臨時収入: { _default: 'Khác' },
+  立替金返済: { _default: 'SKIP' },
+  臨時収入: { _default: 'SKIP' },
 }
 
 /**
@@ -66,6 +72,23 @@ const INCOME = {
  */
 export function resolveCategoryPath(type, main, sub) {
   return explainCategoryPath(type, main, sub).path
+}
+
+/** Ghi chú mang dấu hiệu CHUYỂN TIỀN ra ngoài: gửi người (送金), chuyển khoản NH (振込,
+ *  gồm cả 振込手数料), gửi qua Wise (ワイズ). */
+const OUTGOING_TRANSFER_RE = /送金|振込|ワイズ/
+
+/**
+ * Dòng CHI thực chất là CHUYỂN TIỀN ra ngoài (không phải chi tiêu) hay không.
+ *
+ * Chỉ tính khi danh mục rơi vào catch-all 'Khác' — vì tiền nhà/học phí/điện nước dù
+ * trả bằng 振込/送金 vẫn là chi thật và nằm ở danh mục riêng, KHÔNG được đụng. THU đã
+ * lọc theo Lương/Thưởng nên không bao giờ ra 'Khác', mặc nhiên false.
+ */
+export function isOutgoingTransferExpense(type, main, sub, note) {
+  if (type !== 'expense') return false
+  if (resolveCategoryPath('expense', main, sub) !== 'Khác') return false
+  return OUTGOING_TRANSFER_RE.test(note ?? '')
 }
 
 /**

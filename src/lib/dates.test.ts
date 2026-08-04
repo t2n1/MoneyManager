@@ -4,6 +4,8 @@ import {
   addMonths,
   clampMonthStartDay,
   daysBetween,
+  dueDateLabel,
+  dueRelativeLabel,
   formatMonthLabel,
   formatYearLabel,
   getMonthRange,
@@ -183,6 +185,23 @@ describe('shiftWeekendToMonday', () => {
 
   it('Chủ nhật → Thứ 2 (+1 ngày)', () => {
     expect(shiftWeekendToMonday('2026-09-27')).toBe('2026-09-28')
+  })
+})
+
+describe('dueDateLabel / dueRelativeLabel', () => {
+  it('gắn thứ trong tuần vào ngày đến hạn', () => {
+    expect(dueDateLabel('2026-08-27')).toBe('T5, 27/8') // 27/8/2026 là Thứ 5
+    expect(dueDateLabel('2026-06-29')).toBe('T2, 29/6') // đã dời từ T7 27/6
+  })
+
+  it('đếm ngược theo mốc hôm nay', () => {
+    expect(dueRelativeLabel('2026-08-27', '2026-08-27')).toBe('hôm nay')
+    expect(dueRelativeLabel('2026-08-26', '2026-08-27')).toBe('ngày mai')
+    expect(dueRelativeLabel('2026-08-04', '2026-08-27')).toBe('còn 23 ngày')
+  })
+
+  it('hạn đã qua vẫn đọc là "hôm nay", không ra số âm', () => {
+    expect(dueRelativeLabel('2026-08-28', '2026-08-27')).toBe('hôm nay')
   })
 })
 

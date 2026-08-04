@@ -369,6 +369,7 @@ describe('cardFunding (nhiều thẻ chung một nguồn)', () => {
     baseValue: p.balance,
     creditLimit: null,
     paymentDueDay: null,
+    statementDay: null,
     paymentAccountId: null,
     includeInTotals: true,
     hidden: false,

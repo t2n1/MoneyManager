@@ -170,6 +170,7 @@ export function accountRules(input: NotificationInput): AppNotification[] {
       baseValue: null,
       creditLimit: a.credit_limit,
       paymentDueDay: a.payment_due_day,
+      statementDay: a.statement_day,
       paymentAccountId: a.payment_account_id,
       includeInTotals: a.include_in_totals,
       hidden: a.is_hidden,

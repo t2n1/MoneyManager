@@ -17,6 +17,7 @@ import {
 } from '../../hooks/queries'
 import {
   addMonths,
+  dueDateLabel,
   formatMonthLabel,
   getMonthRange,
   monthKeyForDate,
@@ -31,6 +32,7 @@ import { depreciate } from './depreciation'
 import { investmentStats } from './investment'
 import { shelterUsage, TAX_SHELTER_LABELS } from './shelter'
 import { ReconcileSheet } from './ReconcileSheet'
+import { useCardStatements } from './useCardStatements'
 import { ValuationFormSheet } from './ValuationFormSheet'
 import { confirmDialog } from '../../lib/dialog'
 
@@ -85,6 +87,24 @@ export function AccountDetailPage() {
     shelterYear,
     account?.shelter_annual_limit ?? null,
   )
+  // Thẻ tín dụng: tách kỳ đã chốt (sắp bị rút) khỏi phần chưa chốt. Số lớn phía
+  // trên vẫn là TỔNG nợ — hai dòng này nói rõ tổng đó chia ra sao.
+  const cardForSplit = useMemo(
+    () =>
+      account?.type === 'card'
+        ? [
+            {
+              id: accountId,
+              balance,
+              statementDay: account.statement_day,
+              paymentDueDay: account.payment_due_day,
+            },
+          ]
+        : [],
+    [account?.type, account?.statement_day, account?.payment_due_day, accountId, balance],
+  )
+  const cardStatement = useCardStatements(cardForSplit, todayISO).get(accountId)
+
   const accountValuations = useMemo(
     () =>
       valuations
@@ -339,6 +359,31 @@ export function AccountDetailPage() {
 
         {account?.type === 'card' && (
           <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-3 text-sm">
+            {/* Chia kỳ đứng TRƯỚC hạn mức: câu hỏi "sắp mất bao nhiêu" gấp hơn
+                "còn quẹt được bao nhiêu". Chỉ hiện khi đủ ngày chốt + ngày trả. */}
+            {cardStatement?.billed != null && cardStatement.dueISO && (
+              <>
+                <div className="flex items-center justify-between text-fg-muted">
+                  <span>Kỳ này · đến hạn {dueDateLabel(cardStatement.dueISO)}</span>
+                  <Money
+                    amount={cardStatement.billed}
+                    currency={currency}
+                    tone={cardStatement.billed > 0 ? 'out' : 'neutral'}
+                    className="font-semibold"
+                  />
+                </div>
+                {(cardStatement.unbilled ?? 0) > 0 && (
+                  <div className="flex items-center justify-between text-fg-muted">
+                    <span>Chưa chốt · kỳ sau mới đòi</span>
+                    <Money
+                      amount={cardStatement.unbilled ?? 0}
+                      currency={currency}
+                      className="font-medium text-fg-primary"
+                    />
+                  </div>
+                )}
+              </>
+            )}
             {account.credit_limit != null && (
               <>
                 <div className="flex items-center justify-between text-fg-muted">

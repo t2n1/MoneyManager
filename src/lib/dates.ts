@@ -87,6 +87,24 @@ export function shiftWeekendToMonday(iso: string): string {
  * cuối tháng khi tháng ngắn hơn và dời Thứ 7/CN sang Thứ 2. Ví dụ dueDay=27, hôm nay
  * sau ngày 27 → trả về ngày 27 (đã dời cuối tuần) của tháng sau.
  */
+// Nhãn thứ trong tuần cho ngày đến hạn thẻ (đã dời cuối tuần nên chỉ rơi T2–T6)
+const WEEKDAY_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+
+/** "T2, 27/7" cho một ngày ISO — dùng cho ngày đến hạn trả thẻ. */
+export function dueDateLabel(iso: string): string {
+  const [, m, d] = iso.split('-').map(Number)
+  const dow = new Date(iso + 'T00:00:00Z').getUTCDay()
+  return `${WEEKDAY_VI[dow]}, ${d}/${m}`
+}
+
+/** "hôm nay" · "ngày mai" · "còn N ngày" từ hôm nay đến hạn. */
+export function dueRelativeLabel(todayISO: string, dueISO: string): string {
+  const n = daysBetween(todayISO, dueISO)
+  if (n <= 0) return 'hôm nay'
+  if (n === 1) return 'ngày mai'
+  return `còn ${n} ngày`
+}
+
 export function nextCardDueDate(dueDay: number, todayISO: string): string {
   const [ty, tm] = todayISO.split('-').map(Number)
   for (let i = 0; i < 14; i++) {

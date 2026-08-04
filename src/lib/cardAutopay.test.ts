@@ -151,6 +151,18 @@ describe('runCardAutopayCatchUp', () => {
     expect(acc.get('card')!.card_autopay_through).toBe('2026-03-10')
   })
 
+  it('hoàn tiền trên thẻ GIẢM số phải trả (khớp view account_balances)', async () => {
+    // Trước đây engine chép tay phép tính số dư và bỏ sót is_refund: khoản hoàn
+    // bị trừ như một lần chi nữa → rút 40.000 thay vì 20.000.
+    const refund = { ...ex('2025-12-22', 10_000), is_refund: true }
+    const { repo, created } = makeRepo(
+      [card(), bank()],
+      [ex('2025-12-20', 30_000), refund],
+    )
+    await runCardAutopayCatchUp(repo, '2026-01-15')
+    expect(created.map((c) => c.amount)).toEqual([20_000])
+  })
+
   it('owed ≤ 0 vẫn tiến con trỏ, không tạo giao dịch', async () => {
     const { repo, created, acc } = makeRepo([card(), bank()], []) // thẻ không nợ
     const n = await runCardAutopayCatchUp(repo, '2026-03-15')

@@ -88,6 +88,8 @@ export interface CardLiability {
   creditLimit: number | null
   /** ngày đến hạn trả hằng tháng (1..31); null = chưa đặt */
   paymentDueDay: number | null
+  /** ngày chốt sao kê hằng tháng; null = chưa đặt → không chia được kỳ */
+  statementDay: number | null
   /** tài khoản nguồn tự trả thẻ; null = không tự trả */
   paymentAccountId: string | null
   /** false = không trừ vào Tài sản ròng (vẫn hiển thị riêng) */
@@ -165,6 +167,7 @@ export function assetBreakdown(
         baseValue,
         creditLimit: b.credit_limit ?? null,
         paymentDueDay: b.payment_due_day ?? null,
+        statementDay: b.statement_day ?? null,
         paymentAccountId: b.payment_account_id ?? null,
         includeInTotals,
         hidden,
@@ -355,8 +358,16 @@ export interface CardFundingResult {
 export function cardFunding(
   cards: CardLiability[],
   sourceById: Map<string, CardSourceLike>,
+  /**
+   * Số thực sự bị rút ở kỳ tới, keyed theo card.id (từ `cardStatementSplit`).
+   * Thiếu key nào thì thẻ đó rơi về toàn bộ dư nợ. Cần override vì "đủ trả" phải
+   * đo theo số RÚT VÀO NGÀY ĐẾN HẠN, không phải nợ gộp cả phần chưa chốt — nếu
+   * không, thẻ mới quẹt to trong kỳ hiện tại sẽ báo "thiếu" oan.
+   */
+  owedById?: Map<string, number>,
 ): CardFundingResult {
-  const owedOf = (c: CardLiability) => (c.balance < 0 ? -c.balance : 0)
+  const owedOf = (c: CardLiability) =>
+    owedById?.get(c.id) ?? (c.balance < 0 ? -c.balance : 0)
 
   // Gom thẻ theo nguồn hợp lệ, giữ nguyên thứ tự truyền vào.
   const bySource = new Map<string, CardLiability[]>()

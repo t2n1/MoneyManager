@@ -5,6 +5,7 @@
 // KHÔNG import data/repo hay database.types để tránh vòng import (giống recurring.ts).
 
 import type { AccountType } from '../types/database.types'
+import { txBalanceDelta, type BalanceTxLike } from './cardBalance'
 import { addDaysISO, addMonths, shiftWeekendToMonday } from './dates'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -66,13 +67,7 @@ export interface AccountLike {
 }
 
 /** Phần giao dịch engine cần để tính số dư (TransactionRow thỏa type này). */
-export interface TxLike {
-  type: 'expense' | 'income' | 'transfer'
-  amount: number
-  to_amount: number | null
-  account_id: string
-  to_account_id: string | null
-}
+export type TxLike = BalanceTxLike
 
 /** Subset của Repo mà engine cần — test dùng fake, app truyền repo thật. */
 export interface CardAutopayRepo {
@@ -114,12 +109,7 @@ async function cardBalanceThrough(
     accountIds: [card.id],
   })
   let bal = card.initial_balance
-  for (const t of txs) {
-    if (t.type === 'income' && t.account_id === card.id) bal += t.amount
-    else if (t.type === 'expense' && t.account_id === card.id) bal -= t.amount
-    else if (t.type === 'transfer' && t.account_id === card.id) bal -= t.amount
-    else if (t.type === 'transfer' && t.to_account_id === card.id) bal += t.to_amount ?? t.amount
-  }
+  for (const t of txs) bal += txBalanceDelta(t, card.id)
   return bal
 }
 

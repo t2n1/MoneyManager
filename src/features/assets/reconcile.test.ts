@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { ADJUST_CATEGORY_NAME, cardDebt, findAdjustCategory, reconcilePlan } from './reconcile'
+import {
+  ADJUST_CATEGORY_NAME,
+  cardDebt,
+  defaultAdjustDate,
+  findAdjustCategory,
+  reconcilePlan,
+} from './reconcile'
 
 describe('reconcilePlan — ví/tài khoản thường', () => {
   it('số thật nhiều hơn sổ → giao dịch thu bù phần thiếu', () => {
@@ -89,5 +95,65 @@ describe('cardDebt', () => {
 
   it('trả dư (số dư dương) → coi như hết nợ', () => {
     expect(cardDebt(5_000)).toBe(0)
+  })
+})
+
+describe('defaultAdjustDate', () => {
+  it('ví/tài khoản thường → hôm nay', () => {
+    expect(
+      defaultAdjustDate({
+        isCard: false,
+        statementDay: 31,
+        paymentDueDay: 27,
+        todayISO: '2026-08-04',
+      }),
+    ).toBe('2026-08-04')
+  })
+
+  it('thẻ → lùi về ngày chốt của kỳ đến hạn kế tiếp', () => {
+    // Đến hạn 27/8 → chốt 31/7. Bù ghi 31/7 thì engine tự-trả nhìn thấy.
+    expect(
+      defaultAdjustDate({
+        isCard: true,
+        statementDay: 31,
+        paymentDueDay: 27,
+        todayISO: '2026-08-04',
+      }),
+    ).toBe('2026-07-31')
+  })
+
+  it('ngày chốt còn ở phía trước → kẹp về hôm nay, không ghi ngày tương lai', () => {
+    // Chốt ngày 5, đến hạn 25, hôm nay mùng 2: chốt 5/8 chưa tới. Giao dịch hôm
+    // nay vẫn nằm trước mốc chốt nên engine đã tính đúng.
+    expect(
+      defaultAdjustDate({
+        isCard: true,
+        statementDay: 5,
+        paymentDueDay: 25,
+        todayISO: '2026-08-02',
+      }),
+    ).toBe('2026-08-02')
+  })
+
+  it('thẻ thiếu ngày chốt hoặc ngày trả → hôm nay', () => {
+    const today = '2026-08-04'
+    expect(
+      defaultAdjustDate({ isCard: true, statementDay: null, paymentDueDay: 27, todayISO: today }),
+    ).toBe(today)
+    expect(
+      defaultAdjustDate({ isCard: true, statementDay: 31, paymentDueDay: null, todayISO: today }),
+    ).toBe(today)
+  })
+
+  it('ngày đến hạn dời cuối tuần vẫn ra đúng mốc chốt', () => {
+    // 27/6/2026 là T7 → dời 29/6; chốt gần nhất trước đó = 31/5
+    expect(
+      defaultAdjustDate({
+        isCard: true,
+        statementDay: 31,
+        paymentDueDay: 27,
+        todayISO: '2026-06-01',
+      }),
+    ).toBe('2026-05-31')
   })
 })

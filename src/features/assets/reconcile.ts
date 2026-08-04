@@ -1,6 +1,9 @@
 // Tính giao dịch bù cho sheet "Điều chỉnh số dư".
 // Thuần, không phụ thuộc React, để unit-test được.
 
+import { statementCloseFor } from '../../lib/cardAutopay'
+import { nextCardDueDate } from '../../lib/dates'
+
 export interface ReconcileInput {
   /** Thẻ tín dụng: ô nhập là SỐ ĐANG NỢ (luôn dương), số dư sổ mang dấu âm. */
   isCard: boolean
@@ -34,6 +37,38 @@ export function reconcilePlan({ isCard, currentBalance, entered }: ReconcileInpu
 /** Số nợ hiển thị của thẻ (dương). Thẻ trả dư (số dư > 0) coi như nợ 0. */
 export function cardDebt(balance: number): number {
   return Math.max(0, -balance)
+}
+
+export interface AdjustDateInput {
+  isCard: boolean
+  statementDay: number | null
+  paymentDueDay: number | null
+  todayISO: string
+}
+
+/**
+ * Ngày mặc định cho giao dịch bù. Ví/tài khoản thường: hôm nay.
+ *
+ * THẺ TÍN DỤNG thì không: engine tự-trả (`runCardAutopayCatchUp`) tính số phải
+ * trả bằng số dư TẠI NGÀY CHỐT SAO KÊ, mà ngày chốt của kỳ đến hạn kế tiếp
+ * thường đã nằm trong quá khứ. Khoản bù ghi ngày hôm nay rơi RA NGOÀI mốc đó →
+ * kỳ tới engine vẫn rút theo số nợ sai. Nên mặc định lùi về đúng ngày chốt.
+ *
+ * Kẹp không vượt quá hôm nay: khi ngày chốt còn ở phía trước (chốt ngày 5, đến
+ * hạn ngày 25, hôm nay mùng 2), giao dịch hôm nay vẫn nằm trước mốc chốt nên
+ * engine đã tính đúng — không cần ghi ngày tương lai vào sổ.
+ *
+ * Thẻ thiếu ngày chốt/ngày trả thì không có mốc nào để lùi → hôm nay.
+ */
+export function defaultAdjustDate({
+  isCard,
+  statementDay,
+  paymentDueDay,
+  todayISO,
+}: AdjustDateInput): string {
+  if (!isCard || statementDay == null || paymentDueDay == null) return todayISO
+  const closeISO = statementCloseFor(nextCardDueDate(paymentDueDay, todayISO), statementDay)
+  return closeISO < todayISO ? closeISO : todayISO
 }
 
 // --- Danh mục cho giao dịch bù ---

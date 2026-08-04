@@ -9,6 +9,7 @@ import {
   ADJUST_CATEGORY_ICON,
   ADJUST_CATEGORY_NAME,
   cardDebt,
+  defaultAdjustDate,
   findAdjustCategory,
   reconcilePlan,
 } from './reconcile'
@@ -36,7 +37,18 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
   const isCard = account.type === 'card'
   const shown = isCard ? cardDebt(currentBalance) : currentBalance
 
+  const todayISO = toISODate(new Date())
+  // Thẻ: lùi về ngày chốt sao kê để engine tự-trả nhìn thấy khoản bù (xem
+  // defaultAdjustDate). Người dùng vẫn sửa được nếu muốn ghi ngày khác.
+  const suggestedDate = defaultAdjustDate({
+    isCard,
+    statementDay: account.statement_day,
+    paymentDueDay: account.payment_due_day,
+    todayISO,
+  })
+
   const [entered, setEntered] = useState(shown)
+  const [occurredOn, setOccurredOn] = useState(suggestedDate)
   const [saving, setSaving] = useState(false)
 
   const { diff, type } = reconcilePlan({ isCard, currentBalance, entered })
@@ -63,7 +75,7 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
         category_id: categoryId,
         account_id: account.id,
         to_account_id: null,
-        occurred_on: toISODate(new Date()),
+        occurred_on: occurredOn,
         note: isCard ? 'Điều chỉnh số nợ' : 'Điều chỉnh số dư',
         exclude_from_stats: true,
       })
@@ -106,6 +118,27 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
             className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold outline-green-500 dark:bg-gray-900 dark:text-gray-100"
           />
         </div>
+
+        <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="reconcile-date">
+          Ghi vào ngày
+        </label>
+        <input
+          id="reconcile-date"
+          type="date"
+          value={occurredOn}
+          max={todayISO}
+          onChange={(e) => setOccurredOn(e.target.value)}
+          className="mb-1 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500"
+        />
+        {/* Chỉ giải thích khi ngày mặc định KHÁC hôm nay — tức là thẻ có đủ ngày
+            chốt/đến hạn và mốc chốt đã qua. Ví thường không cần đọc đoạn này. */}
+        <p className="mb-3 text-xs text-fg-muted">
+          {occurredOn === suggestedDate && suggestedDate !== todayISO
+            ? 'Mặc định là ngày chốt sao kê gần nhất, để lần tự trả thẻ kế tiếp rút đúng số.'
+            : occurredOn > suggestedDate && suggestedDate !== todayISO
+              ? 'Ghi sau ngày chốt sao kê: lần tự trả thẻ kế tiếp sẽ KHÔNG thấy khoản bù này.'
+              : 'Số dư khớp lại kể từ ngày này.'}
+        </p>
 
         <div className="mb-3 rounded-lg bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm">
           <div className="flex items-center justify-between text-fg-muted">

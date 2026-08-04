@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { SegmentedControl } from '../../components/ui'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
 
@@ -117,13 +118,24 @@ export function FeeField({
   )
 }
 
-/** Trả hộ / chia bill: phần người khác nợ lại + ai nợ mình (Chi luôn). */
+const SETTLE_ITEMS = [
+  { value: 'now' as const, label: 'Đã trả lại' },
+  { value: 'later' as const, label: 'Còn nợ' },
+]
+
+/**
+ * Trả hộ / chia bill: phần người khác + đã hoàn tiền chưa (Chi luôn).
+ * "Đã trả lại" → không sinh khoản nợ, chỉ cần biết tiền về ví nào.
+ * "Còn nợ" → tạo/cộng dồn khoản cho vay như trước.
+ */
 export function SplitFields({
   value,
   onChange,
   total,
   currency,
   people,
+  backAccounts,
+  sourceName,
   othersActive,
   onFocusOthers,
 }: {
@@ -133,26 +145,31 @@ export function SplitFields({
   currency: CurrencyCode
   /** Người đã cho vay (khoản owed_to_me đang mở, cùng loại tiền) — chọn để cộng dồn. */
   people: DebtPerson[]
-  /** Ô "Phần người khác nợ lại" đang được NumPad nhắm tới (mobile). */
+  /** Ví có thể nhận lại tiền (cùng loại tiền, khác tài khoản đã trả). */
+  backAccounts: { id: string; name: string }[]
+  /** Tên tài khoản đã trả — để nhãn "về chính ví đó" nói rõ là ví nào. */
+  sourceName: string
+  /** Ô "Phần người khác" đang được NumPad nhắm tới (mobile). */
   othersActive: boolean
   onFocusOthers: () => void
 }) {
   const mine = total - value.others
   const over = value.others > total
+  const settledNow = value.settle === 'now'
   const selected = value.existingDebtId
     ? people.find((p) => p.id === value.existingDebtId) ?? null
     : null
   return (
     <div className={blockCls}>
       <div>
-        <label className={labelCls}>Phần người khác nợ lại</label>
+        <label className={labelCls}>{settledNow ? 'Phần người khác trả lại' : 'Phần người khác nợ lại'}</label>
         <MoneyField
           value={value.others}
           currency={currency}
           active={othersActive}
           onFocus={onFocusOthers}
           onChange={(v) => onChange({ ...value, others: v })}
-          ariaLabel="Phần người khác nợ lại"
+          ariaLabel={settledNow ? 'Phần người khác trả lại' : 'Phần người khác nợ lại'}
         />
       </div>
       {total > 0 && value.others > 0 && (
@@ -169,7 +186,39 @@ export function SplitFields({
           )}
         </p>
       )}
-      {people.length > 0 && (
+
+      <SegmentedControl
+        items={SETTLE_ITEMS}
+        value={value.settle}
+        onChange={(settle) => onChange({ ...value, settle })}
+        label="Người khác đã trả lại tiền chưa"
+        size="sm"
+      />
+
+      {settledNow && (
+        <div>
+          <label className={labelCls}>Nhận lại vào</label>
+          <select
+            value={value.receivedAccountId}
+            onChange={(e) => onChange({ ...value, receivedAccountId: e.target.value })}
+            className={inputCls}
+          >
+            <option value="">Chính {sourceName || 'tài khoản đã trả'}</option>
+            {backAccounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-fg-muted">
+            {value.receivedAccountId
+              ? 'Thêm một chuyển khoản để tài khoản đã trả vẫn trừ đủ tổng (khớp sao kê thẻ).'
+              : 'Tiền ra tiền vào cùng một chỗ → chỉ ghi một dòng chi phần của mình.'}
+          </p>
+        </div>
+      )}
+
+      {!settledNow && people.length > 0 && (
         <div>
           <label className={labelCls}>Người đã cho vay (cộng dồn)</label>
           <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -204,7 +253,9 @@ export function SplitFields({
         </div>
       )}
       <div>
-        <label className={labelCls}>Ai nợ mình</label>
+        <label className={labelCls}>
+          {settledNow ? 'Chia với ai (không bắt buộc)' : 'Ai nợ mình'}
+        </label>
         <input
           value={value.counterparty}
           onChange={(e) =>
@@ -214,7 +265,7 @@ export function SplitFields({
           placeholder="Tên người"
           className={inputCls}
         />
-        {selected && (
+        {!settledNow && selected && (
           <p className="mt-1 text-xs text-green-700 dark:text-green-400">
             Cộng dồn vào khoản đang mở · còn lại {formatMoney(selected.remaining, selected.currency)}
           </p>

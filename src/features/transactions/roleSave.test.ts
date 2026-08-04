@@ -73,22 +73,26 @@ const base: RoleBase = {
   note: '',
 }
 
+/** Trả hộ còn nợ (settle='later') — nhánh cũ: luôn có khoản cho vay. */
+const later = () => ({ ...initialSplit(), settle: 'later' as const })
+
 describe('saveSplit — cộng dồn Trả hộ vào khoản cho vay đang mở', () => {
   it('chọn người cũ (existingDebtId) → ghi payment âm, không tạo khoản mới', async () => {
     const { deps, calls } = makeDeps([openLoan()])
-    await saveSplit(base, { ...initialSplit(), others: 2000, counterparty: 'An', existingDebtId: 'debt-a' }, deps)
+    await saveSplit(base, { ...later(), others: 2000, counterparty: 'An', existingDebtId: 'debt-a' }, deps)
 
     expect(calls.createDebt).toHaveLength(0)
     expect(calls.createDebtPayment).toHaveLength(1)
     expect(calls.createDebtPayment[0]).toMatchObject({ debt_id: 'debt-a', amount: -2000 })
     // 1 chi phần mình (5000-2000) + 1 giao dịch giải ngân thêm gắn trong payment.
     expect(calls.createTransaction).toHaveLength(1)
+    expect(calls.createTransaction[0]).toMatchObject({ type: 'expense', amount: 3000 })
     expect(calls.createDebtPayment[0].transaction).toMatchObject({ type: 'expense', amount: 2000 })
   })
 
   it('gõ trùng tên khoản đang mở (không bấm chip) → vẫn cộng dồn', async () => {
     const { deps, calls } = makeDeps([openLoan({ counterparty: 'An' })])
-    await saveSplit(base, { ...initialSplit(), others: 2000, counterparty: '  an  ' }, deps)
+    await saveSplit(base, { ...later(), others: 2000, counterparty: '  an  ' }, deps)
 
     expect(calls.createDebt).toHaveLength(0)
     expect(calls.createDebtPayment[0]).toMatchObject({ debt_id: 'debt-a', amount: -2000 })
@@ -96,7 +100,7 @@ describe('saveSplit — cộng dồn Trả hộ vào khoản cho vay đang mở'
 
   it('người mới → tạo khoản cho vay mới, không ghi payment', async () => {
     const { deps, calls } = makeDeps([openLoan({ counterparty: 'An' })])
-    await saveSplit(base, { ...initialSplit(), others: 2000, counterparty: 'Bình' }, deps)
+    await saveSplit(base, { ...later(), others: 2000, counterparty: 'Bình' }, deps)
 
     expect(calls.createDebtPayment).toHaveLength(0)
     expect(calls.createDebt).toHaveLength(1)
@@ -105,10 +109,117 @@ describe('saveSplit — cộng dồn Trả hộ vào khoản cho vay đang mở'
 
   it('không cộng dồn xuyên loại tiền (khoản JPY, tài khoản USD)', async () => {
     const { deps, calls } = makeDeps([openLoan({ counterparty: 'An', currency: 'JPY' })])
-    await saveSplit({ ...base, srcCurrency: 'USD' }, { ...initialSplit(), others: 20, counterparty: 'An' }, deps)
+    await saveSplit({ ...base, srcCurrency: 'USD' }, { ...later(), others: 20, counterparty: 'An' }, deps)
 
     expect(calls.createDebtPayment).toHaveLength(0)
     expect(calls.createDebt[0]).toMatchObject({ currency: 'USD', principal: 20 })
+  })
+})
+
+/**
+ * Trả hộ đã hoàn tiền NGAY (settle='now'): không có khoản nợ nào được tạo. Tài khoản
+ * đã trả phải trừ đủ TỔNG (khớp sao kê thẻ + số tự trả thẻ cuối kỳ), phần người kia
+ * hoàn lại đi vào ví nhận bằng một chuyển khoản — nên Chi báo cáo chỉ là phần của mình.
+ */
+describe('saveSplit — đã trả lại ngay (settle=now)', () => {
+  const now = (over: Partial<ReturnType<typeof initialSplit>> = {}) => ({
+    ...initialSplit(),
+    others: 3000,
+    counterparty: 'An',
+    ...over,
+  })
+
+  it('hoàn vào ví KHÁC → chi phần mình + chuyển khoản phần người kia, không tạo nợ', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveSplit(base, now({ receivedAccountId: 'acc-cash' }), deps)
+
+    expect(calls.createDebt).toHaveLength(0)
+    expect(calls.createDebtPayment).toHaveLength(0)
+    expect(calls.createTransaction).toHaveLength(2)
+    expect(calls.createTransaction[0]).toMatchObject({
+      type: 'expense',
+      amount: 2000, // 5000 − 3000
+      account_id: 'acc-1',
+      category_id: 'cat-1',
+      occurred_on: '2026-07-23',
+      note: 'Chia bill · An',
+    })
+    // Chuyển khoản: rời tài khoản đã trả → về ví nhận, không danh mục (không vào Chi).
+    expect(calls.createTransaction[1]).toMatchObject({
+      type: 'transfer',
+      amount: 3000,
+      account_id: 'acc-1',
+      to_account_id: 'acc-cash',
+      category_id: null,
+      note: 'Hoàn phần trả hộ · An',
+    })
+  })
+
+  it('tổng tiền rời tài khoản đã trả = đúng số đã quẹt (2000 chi + 3000 chuyển)', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveSplit(base, now({ receivedAccountId: 'acc-cash' }), deps)
+
+    const outOfSource = calls.createTransaction
+      .filter((t) => t.account_id === 'acc-1')
+      .reduce((s, t) => s + t.amount, 0)
+    expect(outOfSource).toBe(5000)
+  })
+
+  it('hoàn vào CHÍNH tài khoản đã trả → chỉ một dòng chi, không chuyển khoản', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveSplit(base, now({ receivedAccountId: '' }), deps)
+
+    expect(calls.createTransaction).toHaveLength(1)
+    expect(calls.createTransaction[0]).toMatchObject({ type: 'expense', amount: 2000 })
+  })
+
+  it('chọn ví nhận trùng tài khoản nguồn → cũng không sinh chuyển khoản', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveSplit(base, now({ receivedAccountId: 'acc-1' }), deps)
+
+    expect(calls.createTransaction).toHaveLength(1)
+    expect(calls.createTransaction[0]).toMatchObject({ type: 'expense' })
+  })
+
+  it('người kia hoàn TOÀN BỘ → không có dòng chi nào, chỉ chuyển khoản', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveSplit(base, now({ others: 5000, receivedAccountId: 'acc-cash' }), deps)
+
+    expect(calls.createTransaction).toHaveLength(1)
+    expect(calls.createTransaction[0]).toMatchObject({ type: 'transfer', amount: 5000 })
+  })
+
+  it('không gõ tên → vẫn lưu được, ghi chú không có dấu chấm giữa lơ lửng', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveSplit(base, now({ counterparty: '', receivedAccountId: 'acc-cash' }), deps)
+
+    expect(calls.createTransaction[0]).toMatchObject({ note: 'Chia bill' })
+    expect(calls.createTransaction[1]).toMatchObject({ note: 'Hoàn phần trả hộ' })
+  })
+
+  it('ghi chú người dùng gõ được giữ cho dòng chi', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveSplit({ ...base, note: ' KS Hakone ' }, now({ receivedAccountId: 'acc-cash' }), deps)
+
+    expect(calls.createTransaction[0]).toMatchObject({ note: 'KS Hakone' })
+  })
+
+  it('chuyển khoản hỏng → xóa lại dòng chi, không để số dư lệch một nửa', async () => {
+    const { deps, calls, setFailOn } = makeDeps([])
+    setFailOn((i) => i.type === 'transfer')
+
+    await expect(
+      saveSplit(base, now({ receivedAccountId: 'acc-cash' }), deps),
+    ).rejects.toThrow('bùm')
+    expect(calls.deleteTransaction).toEqual(['tx-1'])
+  })
+
+  it('có khoản cho vay đang mở cùng tên → KHÔNG cộng dồn vào đó', async () => {
+    const { deps, calls } = makeDeps([openLoan({ counterparty: 'An' })])
+    await saveSplit(base, now({ receivedAccountId: 'acc-cash' }), deps)
+
+    expect(calls.createDebtPayment).toHaveLength(0)
+    expect(calls.createDebt).toHaveLength(0)
   })
 })
 

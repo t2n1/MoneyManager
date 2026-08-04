@@ -8,13 +8,27 @@ import type { DebtDirection, TransactionType } from '../../types/database.types'
 export type EntryRole = 'none' | 'split' | 'debt' | 'remit'
 export type SpecialRole = Exclude<EntryRole, 'none'>
 
+/** Người kia đã hoàn tiền chưa — quyết định có sinh khoản cho vay hay không. */
+export type SplitSettle = 'now' | 'later'
+
 /** Giá trị field riêng của từng vai trò (controlled — form gốc giữ state). */
 export interface SplitValue {
-  /** minor units — phần người khác nợ lại (đã bao trong Tổng đã trả). */
+  /** minor units — phần người khác trả lại / nợ lại (đã bao trong Tổng đã trả). */
   others: number
   counterparty: string
   /** id khoản cho vay đang mở để cộng dồn (chọn người cũ); null = tạo khoản mới. */
   existingDebtId: string | null
+  /**
+   * 'now' = đã đưa lại tiền ngay → KHÔNG có khoản nợ nào tồn tại, chỉ ghi phần
+   * của mình + (nếu tiền về ví khác) một chuyển khoản. 'later' = còn nợ → tạo
+   * hoặc cộng dồn khoản cho vay như trước.
+   */
+  settle: SplitSettle
+  /**
+   * Ví nhận lại tiền khi settle='now'. '' = về chính tài khoản đã trả → không
+   * sinh chuyển khoản (tiền ra tiền vào cùng một chỗ, đã triệt tiêu).
+   */
+  receivedAccountId: string
 }
 export interface DebtValue {
   direction: DebtDirection
@@ -48,7 +62,15 @@ export interface RemitValue {
 
 export const SERVICES = ['Wise', 'SBI Remit', 'Brastel', 'DCOM', 'Khác'] as const
 
-export const initialSplit = (): SplitValue => ({ others: 0, counterparty: '', existingDebtId: null })
+// Mặc định 'now': ca thường ngày là người kia đưa lại tiền tại chỗ, lúc đó không
+// có món nợ nào để theo dõi. Chọn 'later' khi tiền về sau.
+export const initialSplit = (): SplitValue => ({
+  others: 0,
+  counterparty: '',
+  existingDebtId: null,
+  settle: 'now',
+  receivedAccountId: '',
+})
 export const initialDebt = (): DebtValue => ({
   direction: 'i_owe',
   counterparty: '',

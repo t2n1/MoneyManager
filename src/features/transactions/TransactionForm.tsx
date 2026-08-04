@@ -376,11 +376,24 @@ export function TransactionForm({
     () => (enableRoles ? peopleFor(debtVal.direction) : []),
     [enableRoles, peopleFor, debtVal.direction],
   )
-  // Trả hộ luôn tạo khoản "người khác nợ mình" (owed_to_me) → gợi ý cộng dồn.
+  // Trả hộ "còn nợ" tạo khoản "người khác nợ mình" (owed_to_me) → gợi ý cộng dồn.
   const splitPeople = useMemo<DebtPerson[]>(
     () => (enableRoles ? peopleFor('owed_to_me') : []),
     [enableRoles, peopleFor],
   )
+  // Ví có thể nhận lại tiền khi Trả hộ đã được hoàn ngay: cùng loại tiền với tài
+  // khoản đã trả (chuyển khoản xuyên tệ cần thêm số nhận — không đưa vào đây) và
+  // khác chính nó (về đúng chỗ đã trả thì không cần bút toán nào).
+  const splitBackAccounts = useMemo(
+    () =>
+      enableRoles
+        ? activeAccounts.filter(
+            (a) => !a.is_archived && a.currency === srcCurrency && a.id !== effectiveAccountId,
+          )
+        : [],
+    [enableRoles, activeAccounts, srcCurrency, effectiveAccountId],
+  )
+  const srcAccountName = activeAccounts.find((a) => a.id === effectiveAccountId)?.name ?? ''
 
   // Ghi nợ: có đủ tài khoản + danh mục để tạo giao dịch giải ngân thật không
   const canRecordReal = !!effectiveAccountId && activeOfType.length > 0
@@ -444,13 +457,19 @@ export function TransactionForm({
   // Điều kiện riêng theo vai trò (số tiền gốc > 0 + tài khoản đã kiểm ở ngoài)
   const roleValid = (() => {
     switch (activeRole) {
-      case 'split':
-        return (
-          splitVal.others > 0 &&
-          splitVal.others <= amount &&
-          splitVal.counterparty.trim().length > 0 &&
-          hasCategory
+      case 'split': {
+        if (splitVal.others <= 0 || splitVal.others > amount || !hasCategory) return false
+        if (splitVal.settle === 'later') return splitVal.counterparty.trim().length > 0
+        // Ví nhận có thể lạc khi đổi tài khoản/loại tiền sau khi đã chọn.
+        if (
+          splitVal.receivedAccountId &&
+          !splitBackAccounts.some((a) => a.id === splitVal.receivedAccountId)
         )
+          return false
+        // Người kia trả lại TẤT CẢ vào chính ví đã trả → không còn bút toán nào để
+        // ghi. Chặn ở đây thay vì lưu một cái không sinh ra gì.
+        return !(splitVal.others === amount && !splitVal.receivedAccountId)
+      }
       case 'debt':
         return (
           debtVal.counterparty.trim().length > 0 &&
@@ -993,6 +1012,8 @@ export function TransactionForm({
           total={amount}
           currency={srcCurrency}
           people={splitPeople}
+          backAccounts={splitBackAccounts}
+          sourceName={srcAccountName}
           othersActive={activeField === 'split.others'}
           onFocusOthers={() => setActiveField('split.others')}
         />

@@ -116,11 +116,15 @@ export async function saveWithFee(
 }
 
 /**
- * Trả hộ / chia bill: tách 2 bút toán — (1) chi phần của mình (vào báo cáo), và
- * (2) khoản cho vay phần người khác kèm giải ngân is_debt_flow (trừ số dư, KHÔNG
- * vào báo cáo Chi/Thu). Có bồi hoàn: tạo nợ hỏng thì xóa lại chi của mình.
+ * Trả hộ / chia bill. Hai nhánh theo `settle`:
+ *
+ * - `now` (đã đưa lại tiền ngay) → KHÔNG có khoản nợ nào. Xem `saveSplitSettled`.
+ * - `later` (còn nợ) → tách 2 bút toán: (1) chi phần của mình (vào báo cáo), và
+ *   (2) khoản cho vay phần người khác kèm giải ngân is_debt_flow (trừ số dư,
+ *   KHÔNG vào báo cáo Chi/Thu). Có bồi hoàn: tạo nợ hỏng thì xóa lại chi của mình.
  */
 export async function saveSplit(base: RoleBase, v: SplitValue, deps: RoleSaveDeps): Promise<void> {
+  if (v.settle === 'now') return saveSplitSettled(base, v, deps)
   const mine = base.amount - v.others
   const counterparty = v.counterparty.trim()
   let ownTxId: string | null = null
@@ -177,6 +181,69 @@ export async function saveSplit(base: RoleBase, v: SplitValue, deps: RoleSaveDep
         due_on: null,
         note: base.note.trim(),
         transaction: lendTx,
+      })
+    }
+  } catch (e) {
+    if (ownTxId) {
+      try {
+        await deps.deleteTransaction(ownTxId)
+      } catch {
+        /* để nguyên: người dùng có thể xóa tay nếu cần */
+      }
+    }
+    throw e
+  }
+}
+
+/**
+ * Trả hộ đã được hoàn tiền NGAY → không tạo khoản nợ nào (nó chưa từng tồn tại).
+ * Sinh tối đa 2 bút toán:
+ *
+ *   1. Chi phần của mình (tổng − phần người kia) → chỉ số này vào báo cáo Chi.
+ *   2. Nếu tiền về VÍ KHÁC: chuyển khoản phần người kia, tài khoản đã trả → ví đó.
+ *
+ * Bút toán (2) là thứ giữ số dư nguồn đúng: quẹt thẻ 10.000 rồi nhận lại 3.000
+ * tiền mặt thì thẻ phải trừ đủ 10.000 (khớp sao kê, khớp số tự trả thẻ cuối kỳ),
+ * còn 3.000 nằm ở ví tiền mặt. Chuyển khoản không tính vào Chi/Thu nên Chi vẫn là
+ * 7.000. Tiền về CHÍNH tài khoản đã trả → không sinh gì (ra vào cùng chỗ, triệt tiêu).
+ *
+ * Có bồi hoàn: chuyển khoản hỏng thì xóa lại dòng chi để không còn số dư sai lệch.
+ */
+async function saveSplitSettled(
+  base: RoleBase,
+  v: SplitValue,
+  deps: RoleSaveDeps,
+): Promise<void> {
+  const mine = base.amount - v.others
+  const who = v.counterparty.trim()
+  // '' hoặc trùng tài khoản nguồn = tiền về đúng chỗ đã trả → không cần bút toán.
+  const backTo =
+    v.receivedAccountId && v.receivedAccountId !== base.accountId ? v.receivedAccountId : null
+  let ownTxId: string | null = null
+  try {
+    if (mine > 0) {
+      const row = await deps.createTransaction({
+        type: 'expense',
+        amount: mine,
+        to_amount: null,
+        category_id: base.categoryId,
+        account_id: base.accountId,
+        to_account_id: null,
+        occurred_on: base.occurredOn,
+        note: base.note.trim() || (who ? `Chia bill · ${who}` : 'Chia bill'),
+      })
+      ownTxId = row.id
+    }
+    if (v.others > 0 && backTo) {
+      await deps.createTransaction({
+        type: 'transfer',
+        amount: v.others,
+        to_amount: null,
+        category_id: null,
+        account_id: base.accountId,
+        to_account_id: backTo,
+        occurred_on: base.occurredOn,
+        note: who ? `Hoàn phần trả hộ · ${who}` : 'Hoàn phần trả hộ',
       })
     }
   } catch (e) {

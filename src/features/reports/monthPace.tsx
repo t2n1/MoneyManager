@@ -66,11 +66,12 @@ export function useMonthPace(monthKey: MonthKey): MonthPace {
   const daysInMonth = daysBetween(range.start, range.end)
   const daysElapsed = Math.min(daysBetween(range.start, todayISO) + 1, daysInMonth)
 
-  // Dự báo cuối tháng: nội suy theo tốc độ chi tới hôm nay (bỏ dòng tiền trả nợ)
+  // Dự báo cuối tháng: nội suy theo tốc độ chi tới hôm nay
+  // (bỏ dòng tiền trả nợ và giao dịch nội bộ exclude_from_stats)
   let spentSoFar = 0
   let forecastApprox = false
   for (const t of monthTxs) {
-    if (t.type !== 'expense' || t.is_debt_flow || t.occurred_on > todayISO) continue
+    if (t.type !== 'expense' || t.is_debt_flow || t.exclude_from_stats || t.occurred_on > todayISO) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, r)
     if (v === null) {
       forecastApprox = true

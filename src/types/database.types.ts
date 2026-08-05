@@ -227,7 +227,45 @@ export type AccountValuationRow = {
   /** minor units theo currency của tài khoản; luôn ≥ 0 */
   market_value: number
   note: string
+  /** 'auto' = do edge function stock-refresh ghi; 'manual' = người dùng gõ tay (không bị cron đè) */
+  source: 'manual' | 'auto'
   created_at: string
+}
+
+/** Bảng giá cổ phiếu Việt Nam (công khai, không thuộc user nào) — migration 0035. */
+export type StockPriceRow = {
+  symbol: string
+  exchange: 'hose' | 'hnx' | 'upcom'
+  name: string
+  /** đồng/cổ; luôn > 0 */
+  price: number
+  /** giá tham chiếu phiên trước; null = không có */
+  prior_close: number | null
+  /** ngày PHIÊN của giá này (không phải ngày hút) */
+  trading_date: string
+  updated_at: string
+}
+
+export type StockTradeKind = 'buy' | 'sell' | 'adjust'
+
+/** Một lệnh mua/bán/điều chỉnh cổ phiếu — migration 0035. */
+export type StockTradeRow = {
+  id: string
+  user_id: string
+  account_id: string
+  symbol: string
+  kind: StockTradeKind
+  traded_on: string
+  /** số cổ; âm chỉ với kind='adjust' (gộp cổ phiếu) */
+  quantity: number
+  /** đồng/cổ; 0 với kind='adjust' */
+  price: number
+  fee: number
+  /** thuế bán 0,1%; 0 với mua và điều chỉnh */
+  tax: number
+  note: string
+  created_at: string
+  updated_at: string
 }
 
 /** Lịch sử tài sản ròng (mục AF): ảnh chụp net worth base theo ngày. */
@@ -681,7 +719,31 @@ export type Database = {
           'user_id' | 'account_id' | 'market_value',
           'id' | 'valued_on' | 'note'
         >
-        Update: Partial<Pick<AccountValuationRow, 'valued_on' | 'market_value' | 'note'>>
+        Update: Partial<Pick<AccountValuationRow, 'valued_on' | 'market_value' | 'note' | 'source'>>
+        Relationships: []
+      }
+      stock_prices: {
+        Row: StockPriceRow
+        Insert: InsertOf<
+          StockPriceRow,
+          'symbol' | 'exchange' | 'price' | 'trading_date',
+          'name' | 'prior_close' | 'updated_at'
+        >
+        Update: Partial<
+          Pick<StockPriceRow, 'exchange' | 'name' | 'price' | 'prior_close' | 'trading_date' | 'updated_at'>
+        >
+        Relationships: []
+      }
+      stock_trades: {
+        Row: StockTradeRow
+        Insert: InsertOf<
+          StockTradeRow,
+          'user_id' | 'account_id' | 'symbol' | 'kind' | 'quantity',
+          'id' | 'traded_on' | 'price' | 'fee' | 'tax' | 'note'
+        >
+        Update: Partial<
+          Pick<StockTradeRow, 'symbol' | 'kind' | 'traded_on' | 'quantity' | 'price' | 'fee' | 'tax' | 'note'>
+        >
         Relationships: []
       }
       savings_goals: {

@@ -414,6 +414,7 @@ function seed(): DemoDB {
       valued_on: daysAgo(1),
       market_value: 65_000_000,
       note: 'Cập nhật cuối tháng',
+      source: 'manual',
       created_at: nowISO(),
     },
   ]
@@ -745,6 +746,7 @@ export const demoRepo: Repo = {
       valued_on: input.valued_on,
       market_value: input.market_value,
       note: input.note,
+      source: 'manual',
       created_at: nowISO(),
     }
     db.accountValuations.push(row)

@@ -25,10 +25,11 @@ import {
   type MonthKey,
 } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
-import type { TransactionRow } from '../../types/database.types'
+import type { StockTradeRow, TransactionRow } from '../../types/database.types'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { TransactionItem } from '../transactions/TransactionItem'
 import { depreciate } from './depreciation'
+import { HoldingsSection } from './HoldingsSection'
 import { investmentStats } from './investment'
 import { shelterUsage, TAX_SHELTER_LABELS } from './shelter'
 import { ReconcileSheet } from './ReconcileSheet'
@@ -48,6 +49,7 @@ export function AccountDetailPage() {
   const [editing, setEditing] = useState<TransactionRow | null>(null)
   const [showValuation, setShowValuation] = useState(false)
   const [showReconcile, setShowReconcile] = useState(false)
+  const [tradeSheet, setTradeSheet] = useState<{ trade: StockTradeRow | null } | null>(null)
 
   const monthStartDay = profile?.month_start_day ?? 1
   // null = "kỳ hiện tại": tính lazy vì profile tải async — khởi tạo cứng trong
@@ -274,6 +276,17 @@ export function AccountDetailPage() {
               <LineChart className="h-3.5 w-3.5" /> Cập nhật giá trị
             </button>
           </div>
+        )}
+
+        {/* Danh mục cổ phiếu (chỉ tài khoản đầu tư VND — bảng giá SSI là đồng, tài
+            khoản JPY dùng khu này sẽ ra số vô nghĩa) */}
+        {isInvestment && account && account.currency === 'VND' && (
+          <HoldingsSection
+            account={account}
+            balance={balance}
+            onAddTrade={() => setTradeSheet({ trade: null })}
+            onEditTrade={(trade) => setTradeSheet({ trade })}
+          />
         )}
 
         {/* Hạn mức nạp NISA / iDeCo trong năm */}
@@ -510,6 +523,7 @@ export function AccountDetailPage() {
           onClose={() => setShowReconcile(false)}
         />
       )}
+      {tradeSheet && null /* TradeFormSheet nối ở Task 5 */}
     </div>
   )
 }

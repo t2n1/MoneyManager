@@ -19,6 +19,7 @@ import type {
   LifePhaseRow,
   LifeScenarioRow,
   NetWorthSnapshotRow,
+  NotificationStateRow,
   RecurringRuleRow,
   SavingsGoalRow,
   TagRow,
@@ -327,12 +328,17 @@ export const supabaseRepo: Repo = {
   },
 
   async getAccountValuations() {
-    const { data, error } = await getSupabase()
-      .from('account_valuations')
-      .select('*')
-      .order('valued_on', { ascending: false })
-    if (error) throw error
-    return data
+    // Phân trang: mỗi (tài khoản × ngày định giá) một dòng — cập nhật đều tay vài
+    // tài khoản là vài năm vượt 1.000. Bị cắt là XIRR tính trên chuỗi thiếu điểm cũ.
+    // `id` làm chốt sắp xếp cuối để trang không lặp/sót (valued_on không đơn trị).
+    return await fetchAllPages<AccountValuationRow>(async (from, to) =>
+      getSupabase()
+        .from('account_valuations')
+        .select('*')
+        .order('valued_on', { ascending: false })
+        .order('id')
+        .range(from, to),
+    )
   },
 
   async upsertValuation(input: NewValuation) {
@@ -517,12 +523,17 @@ export const supabaseRepo: Repo = {
   },
 
   async getNetWorthSnapshots() {
-    const { data, error } = await getSupabase()
-      .from('networth_snapshots')
-      .select('*')
-      .order('snapshot_on')
-    if (error) throw error
-    return data
+    // Phân trang: mỗi ngày mở app là một dòng snapshot (NetWorthHistorySection upsert
+    // theo ngày) → ~2,7 năm dùng là vượt 1.000 và biểu đồ tài sản lặng lẽ mất điểm CŨ
+    // nhất. snapshot_on unique theo user (UNIQUE user_id+snapshot_on) nên tự nó đã là
+    // khoá sắp xếp ổn định.
+    return await fetchAllPages<NetWorthSnapshotRow>(async (from, to) =>
+      getSupabase()
+        .from('networth_snapshots')
+        .select('*')
+        .order('snapshot_on')
+        .range(from, to),
+    )
   },
 
   async upsertNetWorthSnapshot(snapshotOn: string, netWorth: number) {
@@ -540,9 +551,13 @@ export const supabaseRepo: Repo = {
   },
 
   async getNotificationState() {
-    const { data, error } = await getSupabase().from('notification_state').select('*')
-    if (error) throw error
-    return data
+    // Phân trang + .order bắt buộc: dòng ĐÃ TẮT không bao giờ bị dọn (pruneNotificationState
+    // cố ý chừa ra) nên bảng này chỉ phình. Không .order thì quá 1.000 dòng PostgREST trả
+    // 1.000 dòng TÙY Ý — thông báo đã tắt sẽ thỉnh thoảng "sống lại". `key` unique theo
+    // user (PK user_id+key) nên là khoá sắp xếp ổn định.
+    return await fetchAllPages<NotificationStateRow>(async (from, to) =>
+      getSupabase().from('notification_state').select('*').order('key').range(from, to),
+    )
   },
 
   async markNotificationsRead(keys: string[]) {
@@ -772,12 +787,13 @@ export const supabaseRepo: Repo = {
 
   async reorderAssetGroups(orderedNames: string[]) {
     const user_id = await currentUserId()
-    await getSupabase()
+    const { error } = await getSupabase()
       .from('asset_group_settings')
       .upsert(
         orderedNames.map((name, i) => ({ user_id, name, sort_order: i })),
         { onConflict: 'user_id,name' },
       )
+    if (error) throw error
   },
 
   async assignAccountsToGroup(accountIds: string[], group: string | null) {
@@ -857,12 +873,16 @@ export const supabaseRepo: Repo = {
   },
 
   async getDebtPayments() {
-    const { data, error } = await getSupabase()
-      .from('debt_payments')
-      .select('*')
-      .order('paid_on', { ascending: false })
-    if (error) throw error
-    return data
+    // Phân trang: gom MỌI lần trả của MỌI khoản nợ — vay trả góp dài hạn + trả hộ
+    // tích lại nhiều năm là vượt 1.000. `id` chốt cuối vì paid_on không đơn trị.
+    return await fetchAllPages<DebtPaymentRow>(async (from, to) =>
+      getSupabase()
+        .from('debt_payments')
+        .select('*')
+        .order('paid_on', { ascending: false })
+        .order('id')
+        .range(from, to),
+    )
   },
 
   async createDebt(input: NewDebt) {
@@ -1382,6 +1402,10 @@ export const supabaseRepo: Repo = {
               due_on: d.due_on,
               status: d.status,
               note: d.note,
+              // `?? null`: backup xuất trước migration 0021 chưa có hai trường này.
+              // Thiếu chúng là khoản trả góp mất lãi suất + số kỳ, biến thành "nợ thường".
+              interest_bps: d.interest_bps ?? null,
+              term_months: d.term_months ?? null,
               disbursement_transaction_id: d.disbursement_transaction_id,
             })),
         (part) => sb.from('debts').insert(part),
@@ -1521,6 +1545,9 @@ export const supabaseRepo: Repo = {
               name: t.name,
               color: t.color,
               sort_order: t.sort_order,
+              // `?? false`: backup trước migration 0033. Thiếu trường này là mọi nhãn
+              // đã lưu trữ tràn lại vào ô chọn nhãn sau khi khôi phục.
+              is_archived: t.is_archived ?? false,
             })),
         (part) => sb.from('tags').insert(part),
       )
@@ -1551,7 +1578,14 @@ export const supabaseRepo: Repo = {
       }
     }
 
-    // 4) Hồ sơ: khôi phục tên hiển thị, ngày bắt đầu tháng, tiền gốc.
+    // 4) Hồ sơ: khôi phục TOÀN BỘ cột người dùng tự đặt. Liệt kê tay từng cột
+    // (không spread `data.profile`) vì file backup là dữ liệu ngoài — spread sẽ
+    // đẩy cả khoá lạ/`user_id`/`created_at` vào update. Mỗi lần thêm cột profile
+    // ở migration mới thì PHẢI thêm vào đây, nếu không Khôi phục sẽ lặng lẽ reset
+    // nó về giá trị hiện tại (bug đã xảy ra với birth_year/notif_off/axis targets).
+    // Các `??`: backup xuất trước migration tương ứng thì thiếu hẳn trường —
+    // rơi về default của migration.
+    // KHÔNG khôi phục `push_last_sent_at` (cột riêng của service role, xem ProfilePatch).
     ok(
       (
         await sb
@@ -1563,6 +1597,13 @@ export const supabaseRepo: Repo = {
             hourly_wage: data.profile.hourly_wage ?? null,
             annual_inflation_bps: data.profile.annual_inflation_bps ?? null,
             capital_gains_tax_bps: data.profile.capital_gains_tax_bps ?? 2032,
+            target_essential_bps: data.profile.target_essential_bps ?? 5000, // 0027
+            target_flexible_bps: data.profile.target_flexible_bps ?? 3000, // 0027
+            target_savings_bps: data.profile.target_savings_bps ?? 2000, // 0027
+            notif_off: data.profile.notif_off ?? [], // 0029
+            birth_year: data.profile.birth_year ?? null, // 0031 — thiếu là Lifetime ngừng chạy
+            push_hour: data.profile.push_hour ?? 8, // 0034
+            push_tz: data.profile.push_tz ?? 'Asia/Tokyo', // 0034
           })
           .eq('user_id', uid)
       ).error,

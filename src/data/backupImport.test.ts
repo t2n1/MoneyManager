@@ -111,6 +111,123 @@ describe('validateBackupPayload', () => {
     expect(p).toHaveLength(2)
   })
 
+  // --- Hình dạng theo CHECK của 0001: vi phạm là nổ 23514 SAU khi importAll đã xoá hết ---
+
+  it('chuyển khoản mang danh mục -> vi phạm shape CHECK', () => {
+    const d = base()
+    d.transactions.push({
+      id: 't2',
+      type: 'transfer',
+      amount: 100,
+      account_id: 'a1',
+      category_id: 'c2',
+      to_account_id: 'a2',
+      occurred_on: '2024-01-03',
+    } as unknown as BackupData['transactions'][number])
+    d.accounts.push({ id: 'a2', name: 'Bank' } as unknown as BackupData['accounts'][number])
+    expect(validateBackupPayload(d).join(' ')).toMatch(/không được mang danh mục/i)
+  })
+
+  it('chuyển khoản về chính nó', () => {
+    const d = base()
+    d.transactions.push({
+      id: 't2',
+      type: 'transfer',
+      amount: 100,
+      account_id: 'a1',
+      category_id: null,
+      to_account_id: 'a1',
+      occurred_on: '2024-01-03',
+    } as unknown as BackupData['transactions'][number])
+    expect(validateBackupPayload(d).join(' ')).toMatch(/nguồn và đích/i)
+  })
+
+  it('thu/chi thiếu danh mục', () => {
+    const d = base()
+    d.transactions[0].category_id = null
+    expect(validateBackupPayload(d).join(' ')).toMatch(/thiếu danh mục/i)
+  })
+
+  it('thu/chi mang to_account_id hoặc to_amount', () => {
+    const d = base()
+    d.transactions[0].to_account_id = 'a1'
+    ;(d.transactions[0] as { to_amount?: number }).to_amount = 50
+    const joined = validateBackupPayload(d).join(' ')
+    expect(joined).toMatch(/tài khoản đích/i)
+    expect(joined).toMatch(/to_amount/i)
+  })
+
+  // --- Khoá UNIQUE: vi phạm là nổ 23505 giữa chừng lúc chèn lại ---
+
+  it('trùng ngân sách (danh mục + tháng)', () => {
+    const d = base()
+    d.budgets = [
+      { id: 'b1', category_id: 'c2', month_key: '2024-01', amount: 100 },
+      { id: 'b2', category_id: 'c2', month_key: '2024-01', amount: 200 },
+    ] as unknown as BackupData['budgets']
+    expect(validateBackupPayload(d).join(' ')).toMatch(/trùng ngân sách/i)
+  })
+
+  it('trùng tên nhãn / trùng liên kết nhãn', () => {
+    const d = base()
+    d.tags = [
+      { id: 'g1', name: 'du lịch' },
+      { id: 'g2', name: 'du lịch' },
+    ] as unknown as BackupData['tags']
+    d.transactionTags = [
+      { transaction_id: 't1', tag_id: 'g1' },
+      { transaction_id: 't1', tag_id: 'g1' },
+    ] as unknown as BackupData['transactionTags']
+    const joined = validateBackupPayload(d).join(' ')
+    expect(joined).toMatch(/trùng tên nhãn/i)
+    expect(joined).toMatch(/trùng liên kết nhãn/i)
+  })
+
+  it('trùng định giá (tài khoản + ngày) và snapshot (ngày)', () => {
+    const d = base()
+    d.accountValuations = [
+      { id: 'v1', account_id: 'a1', valued_on: '2024-01-01', market_value: 1 },
+      { id: 'v2', account_id: 'a1', valued_on: '2024-01-01', market_value: 2 },
+    ] as unknown as BackupData['accountValuations']
+    d.networthSnapshots = [
+      { id: 's1', snapshot_on: '2024-01-01', net_worth: 1 },
+      { id: 's2', snapshot_on: '2024-01-01', net_worth: 2 },
+    ] as unknown as BackupData['networthSnapshots']
+    const joined = validateBackupPayload(d).join(' ')
+    expect(joined).toMatch(/trùng định giá/i)
+    expect(joined).toMatch(/trùng snapshot/i)
+  })
+
+  it('chặng đời: trùng (kịch bản + năm) và trỏ tới kịch bản không có', () => {
+    const d = base()
+    d.lifeScenarios = [{ id: 'sc1', name: 'Cơ sở' }] as unknown as BackupData['lifeScenarios']
+    d.lifePhases = [
+      { id: 'p1', scenario_id: 'sc1', start_year: 2030, label: 'Nhật' },
+      { id: 'p2', scenario_id: 'sc1', start_year: 2030, label: 'Mỹ' },
+      { id: 'p3', scenario_id: 'sc-lac', start_year: 2035, label: 'Về hưu' },
+    ] as unknown as BackupData['lifePhases']
+    const joined = validateBackupPayload(d).join(' ')
+    expect(joined).toMatch(/trùng chặng đời/i)
+    expect(joined).toMatch(/kịch bản không có/i)
+  })
+
+  it('quy tắc định kỳ / lần trả nợ / giải ngân trỏ tới bản ghi không có', () => {
+    const d = base()
+    d.recurringRules = [
+      { id: 'r1', account_id: 'a-lac', to_account_id: null, category_id: 'c2' },
+    ] as unknown as BackupData['recurringRules']
+    d.debts = [
+      { id: 'd1', counterparty: 'Anh Ba', disbursement_transaction_id: 't-lac' },
+    ] as unknown as BackupData['debts']
+    d.debtPayments = [
+      { id: 'dp1', debt_id: 'd1', transaction_id: 't-lac-2' },
+    ] as unknown as BackupData['debtPayments']
+    const p = validateBackupPayload(d)
+    expect(p.join(' ')).toMatch(/quy tắc định kỳ/i)
+    expect(p.join(' ')).toMatch(/giải ngân/i)
+    expect(p.join(' ')).toMatch(/lần trả nợ trỏ tới giao dịch/i)
+  })
+
   it('trả lỗi cho NHIỀU chỗ cùng lúc, không dừng ở lỗi đầu', () => {
     const d = base()
     d.transactions[0].account_id = 'x'

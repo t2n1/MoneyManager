@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { demoRepo, resetDemoData, STORAGE_KEY } from './demoRepo'
-import type { NewAccount, NewRecurringRule, NewTransaction } from './repo'
+import type { NewAccount, NewLifeScenario, NewRecurringRule, NewTransaction } from './repo'
 
 // Vitest chạy môi trường node → không có localStorage. Cài bản giả trong bộ nhớ.
 beforeEach(() => {
@@ -31,6 +31,22 @@ function accountInput(over: Partial<NewAccount> = {}): NewAccount {
     asset_group: null,
     is_hidden: false,
     include_in_totals: true,
+    ...over,
+  }
+}
+
+// Giá trị mặc định lấy đúng theo migration 0031 — demoRepo đọc thẳng từng trường của
+// input, nên truyền thiếu là ghi `undefined` vào hàng kịch bản.
+function scenarioInput(over: Partial<NewLifeScenario> = {}): NewLifeScenario {
+  return {
+    name: 'Cơ sở',
+    display_currency: 'JPY',
+    end_age: 90,
+    real_return_bps: 200,
+    band_spread_bps: 150,
+    starting_assets_minor: 0,
+    nominal_terms: false,
+    is_primary: false,
     ...over,
   }
 }
@@ -86,6 +102,79 @@ describe('createTransaction — hình dạng dữ liệu (khớp CHECK của Pos
     const cat = (await demoRepo.getCategories()).find((c) => c.type === 'expense')!
     const row = await demoRepo.createTransaction(expenseTx(acc.id, cat.id))
     expect(row.category_id).toBe(cat.id)
+  })
+
+  it('số tiền 0 hoặc âm thì báo lỗi (CHECK amount > 0)', async () => {
+    const acc = await demoRepo.createAccount(accountInput())
+    const cat = (await demoRepo.getCategories()).find((c) => c.type === 'expense')!
+    await expect(
+      demoRepo.createTransaction({ ...expenseTx(acc.id, cat.id), amount: 0 }),
+    ).rejects.toThrow(/số dương/i)
+    await expect(
+      demoRepo.createTransaction({ ...expenseTx(acc.id, cat.id), amount: -100 }),
+    ).rejects.toThrow(/số dương/i)
+  })
+})
+
+describe('updateTransaction — soi hình dạng SAU khi trộn patch (khớp CHECK của Postgres)', () => {
+  it('patch chi tiêu thành transfer mà vẫn giữ danh mục thì báo lỗi', async () => {
+    const from = await demoRepo.createAccount(accountInput({ name: 'A' }))
+    const to = await demoRepo.createAccount(accountInput({ name: 'B' }))
+    const cat = (await demoRepo.getCategories()).find((c) => c.type === 'expense')!
+    const tx = await demoRepo.createTransaction(expenseTx(from.id, cat.id))
+    // Đường sửa đổi type: bản thật nổ 23514, demo phải nổ y hệt.
+    await expect(
+      demoRepo.updateTransaction(tx.id, { type: 'transfer', to_account_id: to.id }),
+    ).rejects.toThrow(/danh mục/i)
+    // Patch đúng shape (bỏ danh mục) thì phải qua.
+    const ok = await demoRepo.updateTransaction(tx.id, {
+      type: 'transfer',
+      to_account_id: to.id,
+      category_id: null,
+    })
+    expect(ok.type).toBe('transfer')
+  })
+
+  it('patch chi tiêu gắn thêm to_account_id thì báo lỗi', async () => {
+    const acc = await demoRepo.createAccount(accountInput())
+    const cat = (await demoRepo.getCategories()).find((c) => c.type === 'expense')!
+    const tx = await demoRepo.createTransaction(expenseTx(acc.id, cat.id))
+    await expect(
+      demoRepo.updateTransaction(tx.id, { to_account_id: acc.id }),
+    ).rejects.toThrow(/tài khoản đích/i)
+  })
+
+  it('patch số tiền về 0 thì báo lỗi', async () => {
+    const acc = await demoRepo.createAccount(accountInput())
+    const cat = (await demoRepo.getCategories()).find((c) => c.type === 'expense')!
+    const tx = await demoRepo.createTransaction(expenseTx(acc.id, cat.id))
+    await expect(demoRepo.updateTransaction(tx.id, { amount: 0 })).rejects.toThrow(/số dương/i)
+  })
+})
+
+describe('lifePhases — UNIQUE (scenario_id, start_year) khớp 0031', () => {
+  it('hai chặng cùng năm trong một kịch bản thì báo lỗi, khác kịch bản thì được', async () => {
+    const sc = await demoRepo.createLifeScenario(scenarioInput())
+    const sc2 = await demoRepo.createLifeScenario(scenarioInput({ name: 'Kịch bản B' }))
+    const phase = {
+      scenario_id: sc.id,
+      start_year: 2030,
+      label: 'Nhật',
+      country: 'JP',
+      currency: 'JPY' as const,
+      annual_income_minor: 0,
+      annual_expense_minor: 0,
+      fx_to_display: 1,
+    }
+    await demoRepo.createLifePhase(phase)
+    await expect(demoRepo.createLifePhase({ ...phase, label: 'Mỹ' })).rejects.toThrow(/2030/)
+    // Cùng năm nhưng kịch bản khác — Postgres cho phép, demo cũng phải cho.
+    await expect(
+      demoRepo.createLifePhase({ ...phase, scenario_id: sc2.id }),
+    ).resolves.toBeTruthy()
+    // update dời một chặng đè lên năm của chặng khác cũng phải bị chặn.
+    const other = await demoRepo.createLifePhase({ ...phase, start_year: 2040 })
+    await expect(demoRepo.updateLifePhase(other.id, { start_year: 2030 })).rejects.toThrow(/2030/)
   })
 })
 

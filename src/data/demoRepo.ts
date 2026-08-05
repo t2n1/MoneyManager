@@ -567,11 +567,16 @@ export const demoRepo: Repo = {
   },
 
   async listTransactions({ start, end }) {
+    // `id` làm chốt cuối để khớp thứ tự với supabaseRepo (order occurred_on, created_at, id):
+    // dữ liệu nhập theo lô (Zaim) có created_at trùng nhau, thiếu chốt là hai chế độ
+    // hiển thị khác thứ tự.
     return load()
       .transactions.filter((t) => t.occurred_on >= start && t.occurred_on < end)
       .sort(
         (a, b) =>
-          b.occurred_on.localeCompare(a.occurred_on) || b.created_at.localeCompare(a.created_at),
+          b.occurred_on.localeCompare(a.occurred_on) ||
+          b.created_at.localeCompare(a.created_at) ||
+          a.id.localeCompare(b.id),
       )
   },
 
@@ -585,6 +590,9 @@ export const demoRepo: Repo = {
 
   async createTransaction(input: NewTransaction) {
     assertTxShape(input)
+    // CHECK amount > 0 của 0001: demo không chặn là bug chỉ nổ ở bản thật.
+    if (!(typeof input.amount === 'number' && Number.isFinite(input.amount) && input.amount > 0))
+      throw new Error('Số tiền phải là số dương')
     const db = load()
     // tag_ids không phải cột của transactions — tách ra thành liên kết riêng
     const { tag_ids, ...fields } = input
@@ -610,7 +618,14 @@ export const demoRepo: Repo = {
     const idx = db.transactions.findIndex((t) => t.id === id)
     if (idx < 0) throw new Error('Không tìm thấy giao dịch')
     const { tag_ids, ...fields } = patch
-    db.transactions[idx] = { ...db.transactions[idx], ...fields, updated_at: nowISO() }
+    const next = { ...db.transactions[idx], ...fields, updated_at: nowISO() }
+    // Soi hình dạng SAU khi trộn patch, y như CHECK của Postgres soi dòng kết quả.
+    // Đường sửa giao dịch có thể đổi cả type lẫn vai trò (roleSave/EditTransactionSheet)
+    // — chỉ soi lúc tạo là demo nhận những patch mà bản thật từ chối bằng 23514.
+    assertTxShape(next)
+    if (!(typeof next.amount === 'number' && Number.isFinite(next.amount) && next.amount > 0))
+      throw new Error('Số tiền phải là số dương')
+    db.transactions[idx] = next
     if (tag_ids) {
       db.transactionTags = (db.transactionTags ?? []).filter((l) => l.transaction_id !== id)
       for (const tagId of tag_ids) {
@@ -837,6 +852,10 @@ export const demoRepo: Repo = {
   async createLifePhase(input: NewLifePhase) {
     const db = load()
     db.lifePhases ??= []
+    // UNIQUE (scenario_id, start_year) của 0031: hai chặng cùng năm bắt đầu trong một
+    // kịch bản thì Postgres nổ 23505 — demo phải chặn y hệt, không thì bug chỉ nổ bản thật.
+    if (db.lifePhases.some((p) => p.scenario_id === input.scenario_id && p.start_year === input.start_year))
+      throw new Error(`Kịch bản đã có chặng bắt đầu năm ${input.start_year}`)
     const row: LifePhaseRow = {
       id: uuid(),
       user_id: DEMO_USER,
@@ -860,7 +879,11 @@ export const demoRepo: Repo = {
     db.lifePhases ??= []
     const idx = db.lifePhases.findIndex((p) => p.id === id)
     if (idx < 0) throw new Error('Không tìm thấy chặng')
-    db.lifePhases[idx] = { ...db.lifePhases[idx], ...patch }
+    const next = { ...db.lifePhases[idx], ...patch }
+    // Soi UNIQUE sau khi trộn patch, giống createLifePhase (dời chặng đè lên năm của chặng khác).
+    if (db.lifePhases.some((p) => p.id !== id && p.scenario_id === next.scenario_id && p.start_year === next.start_year))
+      throw new Error(`Kịch bản đã có chặng bắt đầu năm ${next.start_year}`)
+    db.lifePhases[idx] = next
     save(db)
     return db.lifePhases[idx]
   },

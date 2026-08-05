@@ -67,6 +67,18 @@ export function validateBackupPayload(data: BackupData): string[] {
   const transactionIds = ids(data.transactions, 'giao dịch')
   const debtIds = ids(data.debts, 'khoản nợ')
   const tagIds = ids(data.tags, 'nhãn')
+  const scenarioIds = ids(data.lifeScenarios, 'kịch bản Lifetime')
+  const recurringIds = ids(data.recurringRules, 'quy tắc định kỳ')
+
+  // Khoá UNIQUE của Postgres: file vi phạm sẽ nổ 23505 SAU khi importAll đã xoá
+  // sạch 16 bảng — nên phải bắt ở đây, trước khi xoá bất cứ thứ gì.
+  const uniques = (label: string) => {
+    const seen = new Set<string>()
+    return (key: string, sample: string) => {
+      if (seen.has(key)) p.add(`Trùng ${label}`, sample)
+      seen.add(key)
+    }
+  }
 
   // Tài khoản: thẻ trả tự động trỏ tới tài khoản thanh toán.
   for (const a of data.accounts ?? [])
@@ -89,34 +101,91 @@ export function validateBackupPayload(data: BackupData): string[] {
       p.add('Số tiền phải là số dương', `${t.occurred_on} → ${String(t.amount)}`)
     if (!DATE_RE.test(String(t.occurred_on)))
       p.add('Ngày sai định dạng YYYY-MM-DD', String(t.occurred_on))
+    // Hình dạng theo loại (CHECK của 0001): file vi phạm sẽ nổ 23514 lúc chèn —
+    // tức là SAU khi đã xoá hết dữ liệu cũ. Soát đủ cả hai nhánh ở đây.
     if (t.type === 'transfer') {
       if (!t.to_account_id) p.add('Chuyển khoản thiếu tài khoản đích', at)
       else if (!accountIds.has(t.to_account_id))
         p.add('Tài khoản đích không có trong file', `${at} → ${t.to_account_id}`)
+      if (t.to_account_id && t.to_account_id === t.account_id)
+        p.add('Chuyển khoản có nguồn và đích là một', at)
+      if (t.category_id) p.add('Chuyển khoản không được mang danh mục', at)
+    } else {
+      if (!t.category_id) p.add('Thu/chi thiếu danh mục', at)
+      if (t.to_account_id) p.add('Thu/chi không được có tài khoản đích', at)
+      if (t.to_amount != null) p.add('Thu/chi không được có to_amount', at)
     }
+    if (t.to_amount != null && (typeof t.to_amount !== 'number' || t.to_amount <= 0))
+      p.add('to_amount phải là số dương', `${at} → ${String(t.to_amount)}`)
+    if (t.recurring_rule_id && !recurringIds.has(t.recurring_rule_id))
+      p.add('Giao dịch trỏ tới quy tắc định kỳ không có trong file', `${at} → ${t.recurring_rule_id}`)
   }
 
-  for (const b of data.budgets ?? [])
+  const budgetKey = uniques('ngân sách (danh mục + tháng)')
+  for (const b of data.budgets ?? []) {
     if (!categoryIds.has(b.category_id))
       p.add('Ngân sách trỏ tới danh mục không có trong file', `${b.month_key} → ${b.category_id}`)
+    budgetKey(`${b.category_id}|${b.month_key}`, b.month_key)
+  }
 
-  for (const dp of data.debtPayments ?? [])
+  for (const r of data.recurringRules ?? []) {
+    if (!accountIds.has(r.account_id))
+      p.add('Quy tắc định kỳ trỏ tới tài khoản không có trong file', r.account_id)
+    if (r.to_account_id && !accountIds.has(r.to_account_id))
+      p.add('Quy tắc định kỳ trỏ tới tài khoản đích không có trong file', r.to_account_id)
+    if (r.category_id && !categoryIds.has(r.category_id))
+      p.add('Quy tắc định kỳ trỏ tới danh mục không có trong file', r.category_id)
+  }
+
+  for (const d of data.debts ?? [])
+    if (d.disbursement_transaction_id && !transactionIds.has(d.disbursement_transaction_id))
+      p.add('Khoản nợ trỏ tới giao dịch giải ngân không có trong file', d.counterparty)
+
+  for (const dp of data.debtPayments ?? []) {
     if (!debtIds.has(dp.debt_id))
       p.add('Lần trả nợ trỏ tới khoản nợ không có trong file', dp.debt_id)
+    if (dp.transaction_id && !transactionIds.has(dp.transaction_id))
+      p.add('Lần trả nợ trỏ tới giao dịch không có trong file', dp.transaction_id)
+  }
 
+  const ttKey = uniques('liên kết nhãn (giao dịch + nhãn)')
   for (const tt of data.transactionTags ?? []) {
     if (!transactionIds.has(tt.transaction_id))
       p.add('Nhãn gắn vào giao dịch không có trong file', tt.transaction_id)
     if (!tagIds.has(tt.tag_id)) p.add('Nhãn không có trong file', tt.tag_id)
+    ttKey(`${tt.transaction_id}|${tt.tag_id}`, tt.tag_id)
   }
 
-  for (const v of data.accountValuations ?? [])
+  const tagName = uniques('tên nhãn')
+  for (const t of data.tags ?? []) tagName(t.name, t.name)
+
+  const groupName = uniques('tên nhóm tài sản')
+  for (const s of data.assetGroupSettings ?? []) groupName(s.name, s.name)
+
+  const valKey = uniques('định giá (tài khoản + ngày)')
+  for (const v of data.accountValuations ?? []) {
     if (!accountIds.has(v.account_id))
       p.add('Định giá trỏ tới tài khoản không có trong file', v.account_id)
+    valKey(`${v.account_id}|${v.valued_on}`, v.valued_on)
+  }
+
+  const snapKey = uniques('snapshot tài sản (ngày)')
+  for (const s of data.networthSnapshots ?? []) snapKey(s.snapshot_on, s.snapshot_on)
 
   for (const g of data.savingsGoals ?? [])
     if (g.account_id && !accountIds.has(g.account_id))
       p.add('Mục tiêu tiết kiệm trỏ tới tài khoản không có trong file', g.account_id)
+
+  // Lifetime: con trỏ về kịch bản + UNIQUE (scenario_id, start_year) của life_phases.
+  const phaseKey = uniques('chặng đời (kịch bản + năm bắt đầu)')
+  for (const ph of data.lifePhases ?? []) {
+    if (!scenarioIds.has(ph.scenario_id))
+      p.add('Chặng đời trỏ tới kịch bản không có trong file', ph.label)
+    phaseKey(`${ph.scenario_id}|${ph.start_year}`, `${ph.label} (${ph.start_year})`)
+  }
+  for (const ev of data.lifeEvents ?? [])
+    if (!scenarioIds.has(ev.scenario_id))
+      p.add('Sự kiện đời trỏ tới kịch bản không có trong file', ev.label)
 
   return p.list()
 }

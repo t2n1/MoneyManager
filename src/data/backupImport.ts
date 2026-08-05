@@ -187,5 +187,25 @@ export function validateBackupPayload(data: BackupData): string[] {
     if (!scenarioIds.has(ev.scenario_id))
       p.add('Sự kiện đời trỏ tới kịch bản không có trong file', ev.label)
 
+  // Sổ lệnh cổ phiếu (v7): FK (account_id, user_id) -> accounts + CHECK stock_trades_shape
+  // của migration 0035. id trùng đã bắt ở khối `ids` phía trên (dùng chung accountIds).
+  ids(data.stockTrades, 'sổ lệnh cổ phiếu')
+  for (const st of data.stockTrades ?? []) {
+    const at = `${st.symbol} ${st.traded_on}`
+    if (!accountIds.has(st.account_id))
+      p.add('Lệnh cổ phiếu trỏ tới tài khoản không có trong file', `${at} → ${st.account_id}`)
+    // Hình dạng theo kind (CHECK stock_trades_shape): file vi phạm sẽ nổ 23514 lúc chèn —
+    // tức là SAU khi đã xoá hết dữ liệu cũ. Soát đủ cả hai nhánh ở đây.
+    if (st.kind === 'adjust') {
+      if (st.quantity === 0) p.add('Lệnh điều chỉnh phải có số cổ khác 0', at)
+      if (st.price !== 0) p.add('Lệnh điều chỉnh không được có giá khác 0', at)
+    } else {
+      if (typeof st.quantity !== 'number' || !Number.isFinite(st.quantity) || st.quantity <= 0)
+        p.add('Lệnh mua/bán phải có số cổ dương', `${at} → ${String(st.quantity)}`)
+      if (typeof st.price !== 'number' || !Number.isFinite(st.price) || st.price <= 0)
+        p.add('Lệnh mua/bán phải có giá dương', `${at} → ${String(st.price)}`)
+    }
+  }
+
   return p.list()
 }

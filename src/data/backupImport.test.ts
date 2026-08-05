@@ -257,6 +257,98 @@ describe('validateBackupPayload', () => {
     expect(validateBackupPayload(d).length).toBeGreaterThanOrEqual(2)
   })
 
+  // --- stockTrades (v7): FK (account_id, user_id) + UNIQUE id + CHECK stock_trades_shape ---
+
+  it('lệnh cổ phiếu trỏ tới tài khoản không có trong file', () => {
+    const d = base()
+    d.stockTrades = [
+      {
+        id: 's1',
+        account_id: 'a-khong-ton-tai',
+        symbol: 'FPT',
+        kind: 'buy',
+        traded_on: '2024-01-02',
+        quantity: 100,
+        price: 70_000,
+      },
+    ] as unknown as BackupData['stockTrades']
+    const p = validateBackupPayload(d)
+    expect(p.join(' ')).toMatch(/tài khoản/i)
+    expect(p.join(' ')).toContain('a-khong-ton-tai')
+  })
+
+  it('id trùng nhau trong sổ lệnh cổ phiếu', () => {
+    const d = base()
+    const row = {
+      id: 's1',
+      account_id: 'a1',
+      symbol: 'FPT',
+      kind: 'buy',
+      traded_on: '2024-01-02',
+      quantity: 100,
+      price: 70_000,
+    }
+    d.stockTrades = [row, { ...row }] as unknown as BackupData['stockTrades']
+    expect(validateBackupPayload(d)[0]).toMatch(/trùng id/i)
+  })
+
+  it('lệnh điều chỉnh nhưng giá khác 0 -> vi phạm shape CHECK', () => {
+    const d = base()
+    d.stockTrades = [
+      {
+        id: 's1',
+        account_id: 'a1',
+        symbol: 'FPT',
+        kind: 'adjust',
+        traded_on: '2024-01-02',
+        quantity: 50,
+        price: 1_000,
+      },
+    ] as unknown as BackupData['stockTrades']
+    expect(validateBackupPayload(d).join(' ')).toMatch(/điều chỉnh/i)
+  })
+
+  it('lệnh mua có số cổ bằng 0 -> vi phạm shape CHECK', () => {
+    const d = base()
+    d.stockTrades = [
+      {
+        id: 's1',
+        account_id: 'a1',
+        symbol: 'FPT',
+        kind: 'buy',
+        traded_on: '2024-01-02',
+        quantity: 0,
+        price: 70_000,
+      },
+    ] as unknown as BackupData['stockTrades']
+    expect(validateBackupPayload(d).join(' ')).toMatch(/số cổ|giá/i)
+  })
+
+  it('sổ lệnh cổ phiếu hợp lệ -> không vấn đề gì', () => {
+    const d = base()
+    d.stockTrades = [
+      {
+        id: 's1',
+        account_id: 'a1',
+        symbol: 'FPT',
+        kind: 'buy',
+        traded_on: '2024-01-02',
+        quantity: 100,
+        price: 70_000,
+      },
+      {
+        id: 's2',
+        account_id: 'a1',
+        symbol: 'FPT',
+        kind: 'adjust',
+        traded_on: '2024-01-03',
+        quantity: -50,
+        price: 0,
+      },
+    ] as unknown as BackupData['stockTrades']
+    expect(validateBackupPayload(d)).toEqual([])
+  })
+
   it('gom lỗi cùng loại lại, không in ra 14.000 dòng', () => {
     const d = base()
     d.transactions = Array.from({ length: 300 }, (_, i) => ({

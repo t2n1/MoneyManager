@@ -64,6 +64,15 @@ function expenseTx(accountId: string, categoryId: string): NewTransaction {
   }
 }
 
+// Seed có NHIỀU tài khoản investment ('Chứng khoán VN' và 'Đầu tư VN') — lấy đúng tên,
+// đừng lấy tài khoản investment đầu tiên tìm thấy (thứ tự trong seed có thể đổi).
+async function taiKhoanChungKhoanVN() {
+  const accounts = await demoRepo.getAccounts()
+  const acc = accounts.find((a) => a.name === 'Chứng khoán VN')
+  if (!acc) throw new Error('Seed thiếu tài khoản "Chứng khoán VN" — test sổ lệnh cần đúng tài khoản này')
+  return acc
+}
+
 describe('createTransaction — hình dạng dữ liệu (khớp CHECK của Postgres)', () => {
   it('chi/thu KHÔNG có danh mục thì báo lỗi', async () => {
     const acc = await demoRepo.createAccount(accountInput())
@@ -561,8 +570,7 @@ describe('khôi phục file sao lưu cũ hơn migration 0034', () => {
 
 describe('demoRepo: sổ lệnh cổ phiếu', () => {
   it('tạo, sửa, xoá một lệnh', async () => {
-    const accounts = await demoRepo.getAccounts()
-    const acc = accounts.find((a) => a.type === 'investment') ?? accounts[0]
+    const acc = await taiKhoanChungKhoanVN()
 
     const created = await demoRepo.createStockTrade({
       account_id: acc.id,
@@ -603,9 +611,7 @@ describe('demoRepo: sổ lệnh cổ phiếu', () => {
   })
 
   it('không xoá được tài khoản khi còn sổ lệnh', async () => {
-    const accounts = await demoRepo.getAccounts()
-    const acc = accounts.find((a) => a.type === 'investment')
-    if (!acc) return
+    const acc = await taiKhoanChungKhoanVN()
     await demoRepo.createStockTrade({
       account_id: acc.id,
       symbol: 'VNM',
@@ -625,8 +631,7 @@ describe('demoRepo: sổ lệnh cổ phiếu', () => {
   // tiền lệ commit a321239 với assertTxShape / UNIQUE life_phases). ---
 
   it('từ chối lệnh mua/bán có số cổ hoặc giá không dương', async () => {
-    const accounts = await demoRepo.getAccounts()
-    const acc = accounts.find((a) => a.type === 'investment') ?? accounts[0]
+    const acc = await taiKhoanChungKhoanVN()
     await expect(
       demoRepo.createStockTrade({
         account_id: acc.id,
@@ -656,8 +661,7 @@ describe('demoRepo: sổ lệnh cổ phiếu', () => {
   })
 
   it('từ chối lệnh điều chỉnh có số cổ bằng 0 hoặc giá khác 0', async () => {
-    const accounts = await demoRepo.getAccounts()
-    const acc = accounts.find((a) => a.type === 'investment') ?? accounts[0]
+    const acc = await taiKhoanChungKhoanVN()
     await expect(
       demoRepo.createStockTrade({
         account_id: acc.id,
@@ -687,8 +691,7 @@ describe('demoRepo: sổ lệnh cổ phiếu', () => {
   })
 
   it('sửa lệnh thành hình dạng sai cũng bị chặn (soi SAU khi trộn patch)', async () => {
-    const accounts = await demoRepo.getAccounts()
-    const acc = accounts.find((a) => a.type === 'investment') ?? accounts[0]
+    const acc = await taiKhoanChungKhoanVN()
     const created = await demoRepo.createStockTrade({
       account_id: acc.id,
       symbol: 'FPT',
@@ -704,8 +707,7 @@ describe('demoRepo: sổ lệnh cổ phiếu', () => {
   })
 
   it('chữ thường/khoảng trắng trong mã cổ phiếu được chuẩn hoá thành in hoa', async () => {
-    const accounts = await demoRepo.getAccounts()
-    const acc = accounts.find((a) => a.type === 'investment') ?? accounts[0]
+    const acc = await taiKhoanChungKhoanVN()
     const created = await demoRepo.createStockTrade({
       account_id: acc.id,
       symbol: ' fpt ',

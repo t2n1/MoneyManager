@@ -33,6 +33,7 @@ import { HoldingsSection } from './HoldingsSection'
 import { investmentStats } from './investment'
 import { shelterUsage, TAX_SHELTER_LABELS } from './shelter'
 import { ReconcileSheet } from './ReconcileSheet'
+import { TradeFormSheet } from './TradeFormSheet'
 import { useCardStatements } from './useCardStatements'
 import { ValuationFormSheet } from './ValuationFormSheet'
 import { confirmDialog } from '../../lib/dialog'
@@ -523,7 +524,13 @@ export function AccountDetailPage() {
           onClose={() => setShowReconcile(false)}
         />
       )}
-      {tradeSheet && null /* TradeFormSheet nối ở Task 5 */}
+      {tradeSheet && account && (
+        <TradeFormSheet
+          account={account}
+          trade={tradeSheet.trade}
+          onClose={() => setTradeSheet(null)}
+        />
+      )}
     </div>
   )
 }

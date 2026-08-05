@@ -3,19 +3,9 @@
 // Lãi suất truyền theo basis points/năm (550 = 5.50%/năm). Đây là ƯỚC TÍNH theo
 // công thức niên kim (equal payment); ngân hàng thực tế có thể làm tròn khác chút.
 
-/** Cộng thêm `n` tháng vào một ngày ISO (yyyy-mm-dd), giữ nguyên ngày trong tháng
- *  (kẹp về ngày cuối nếu tháng đích ngắn hơn). Không đụng múi giờ (tách chuỗi). */
-export function addMonthsISO(iso: string, n: number): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  const base = m - 1 + n
-  const year = y + Math.floor(base / 12)
-  const month = ((base % 12) + 12) % 12
-  const lastDay = new Date(year, month + 1, 0).getDate()
-  const day = Math.min(d, lastDay)
-  const mm = String(month + 1).padStart(2, '0')
-  const dd = String(day).padStart(2, '0')
-  return `${year}-${mm}-${dd}`
-}
+// addMonthsISO đã dời về lib/dates (bản kẹp cuối tháng); re-export để chỗ gọi cũ khỏi đổi.
+import { addMonthsISO } from '../../lib/dates'
+export { addMonthsISO }
 
 /**
  * Tiền trả mỗi kỳ (minor units) theo công thức niên kim.

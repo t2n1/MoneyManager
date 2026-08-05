@@ -2,7 +2,7 @@
 // số nền cho trang Sức khỏe tài chính. Thuần, không phụ thuộc React.
 // Mọi số tiền đã quy đổi về BASE currency (minor units).
 
-import { monthKeyForDate, type MonthKey } from '../../lib/dates'
+import { addMonthsISO, monthKeyForDate, type MonthKey } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type {
@@ -82,13 +82,9 @@ export interface SnapshotInput {
 }
 
 const monthId = (k: MonthKey) => `${k.year}-${k.month}`
+// addMonthsISO: dùng bản chung của lib/dates (kẹp cuối tháng). Bản chép tay cũ ở đây
+// dùng Date.UTC nên bị tràn (31/1 + 1 tháng = 3/3) — lệch với lịch trả góp.
 
-/** Ngày ISO cộng thêm n tháng (dùng để chốt mốc "12 tháng tới"). */
-function addMonthsISO(iso: string, n: number): string {
-  const [y, m, d] = iso.split('-').map(Number)
-  const dt = new Date(Date.UTC(y, m - 1 + n, d))
-  return dt.toISOString().slice(0, 10)
-}
 
 export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
   const { balances, debts, debtPayments, txs, categories, months, monthStartDay } = input

@@ -67,6 +67,22 @@ export function daysBetween(aISO: string, bISO: string): number {
   return Math.round((b - a) / 86_400_000)
 }
 
+/**
+ * Cộng thêm `n` tháng vào một ngày ISO (yyyy-mm-dd), giữ nguyên ngày trong tháng
+ * và KẸP về ngày cuối nếu tháng đích ngắn hơn (31/1 + 1 tháng = 28/2, không phải 3/3).
+ * Không đụng múi giờ (tách chuỗi). Đây là bản duy nhất — từng có bản chép tay dùng
+ * Date.UTC bị tràn tháng trong features/health, cho kết quả khác bản này.
+ */
+export function addMonthsISO(iso: string, n: number): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const base = m - 1 + n
+  const year = y + Math.floor(base / 12)
+  const month = ((base % 12) + 12) % 12
+  const lastDay = new Date(year, month + 1, 0).getDate()
+  const day = Math.min(d, lastDay)
+  return `${year}-${pad(month + 1)}-${pad(day)}`
+}
+
 /** Cộng/trừ số ngày vào ngày ISO 'YYYY-MM-DD', trả ISO mới (mốc UTC). */
 export function addDaysISO(iso: string, delta: number): string {
   const d = new Date(iso + 'T00:00:00Z')

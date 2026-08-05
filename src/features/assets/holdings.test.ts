@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { brokerCash, holdingsFromTrades, portfolioValue, type Trade } from './holdings'
+import { brokerCash, holdingsFromTrades, portfolioValue, sessionPrices, type Trade } from './holdings'
 
 /** Lệnh mua/bán gọn cho test — mặc định phí/thuế 0 để phép tính dễ nhẩm. */
 function mua(symbol: string, quantity: number, price: number, tradedOn = '2026-01-05', fee = 0): Trade {
@@ -176,5 +176,61 @@ describe('portfolioValue', () => {
   it('giá bằng 0 hoặc âm coi như thiếu giá', () => {
     const v = portfolioValue(holdings, new Map([['FPT', 0]]), 1_000)
     expect(v.missingPrices).toEqual(['FPT'])
+  })
+})
+
+describe('sessionPrices', () => {
+  it('bảng giá rỗng → session null, không giá, không mã cũ', () => {
+    expect(sessionPrices([])).toEqual({
+      session: null,
+      priceBySymbol: new Map(),
+      staleSymbols: new Set(),
+    })
+  })
+
+  it('mọi mã cùng một phiên → không mã nào bị coi là cũ', () => {
+    const r = sessionPrices([
+      { symbol: 'FPT', price: 70_000, trading_date: '2026-08-05' },
+      { symbol: 'HPG', price: 20_000, trading_date: '2026-08-05' },
+    ])
+    expect(r.session).toBe('2026-08-05')
+    expect(r.priceBySymbol).toEqual(
+      new Map([
+        ['FPT', 70_000],
+        ['HPG', 20_000],
+      ]),
+    )
+    expect(r.staleSymbols).toEqual(new Set())
+  })
+
+  it('một sàn hụt phiên: mã của sàn đó vào staleSymbols, session vẫn lấy theo sàn mới', () => {
+    const r = sessionPrices([
+      { symbol: 'FPT', price: 70_000, trading_date: '2026-08-05' }, // HOSE, phiên mới
+      { symbol: 'PVS', price: 15_000, trading_date: '2026-08-04' }, // HNX, hút hụt hôm nay
+    ])
+    expect(r.session).toBe('2026-08-05')
+    expect(r.staleSymbols).toEqual(new Set(['PVS']))
+    // Giá cũ vẫn có trong priceBySymbol — chỉ đánh dấu cũ, không xoá giá.
+    expect(r.priceBySymbol.get('PVS')).toBe(15_000)
+  })
+
+  it('giá 0 hoặc âm bị loại khỏi priceBySymbol dù đúng phiên mới nhất', () => {
+    const r = sessionPrices([
+      { symbol: 'FPT', price: 0, trading_date: '2026-08-05' },
+      { symbol: 'HPG', price: -1, trading_date: '2026-08-05' },
+    ])
+    expect(r.session).toBe('2026-08-05')
+    expect(r.priceBySymbol).toEqual(new Map())
+    expect(r.staleSymbols).toEqual(new Set())
+  })
+
+  it('session là ngày LỚN NHẤT, không phải dòng gặp đầu hay cuối', () => {
+    const r = sessionPrices([
+      { symbol: 'A', price: 1_000, trading_date: '2026-08-03' },
+      { symbol: 'B', price: 2_000, trading_date: '2026-08-05' },
+      { symbol: 'C', price: 3_000, trading_date: '2026-08-01' },
+    ])
+    expect(r.session).toBe('2026-08-05')
+    expect(r.staleSymbols).toEqual(new Set(['A', 'C']))
   })
 })

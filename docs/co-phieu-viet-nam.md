@@ -24,7 +24,8 @@ supabase/functions/stock-refresh/loadInput.ts  ← đọc account_balances + sto
 supabase/functions/stock-refresh/index.ts      ← việc 1: vòng qua 3 sàn, upsert stock_prices
                                                   việc 2: gọi _holdings.js + loadInput.ts, ghi account_valuations
 supabase/functions/stock-refresh/_holdings.js  ← gói từ src/features/assets/holdings.ts (holdingsFromTrades,
-                                                  brokerCash, portfolioValue) — cùng phép tính app đang dùng
+                                                  brokerCash, portfolioValue, sessionPrices) — cùng phép tính
+                                                  app đang dùng
 ```
 
 `parseBoard` tách khỏi `fetchBoard` để test bằng file mẫu
@@ -114,12 +115,24 @@ Bảng cho người đọc log sáu tháng sau, không có ngữ cảnh gì khá
 | `tien-chua-dau-tu-am` | `brokerCash` ra số âm: tổng tiền đã chi cho các lệnh mua (trừ tiền thu từ lệnh bán) nhiều hơn số dư sổ của tài khoản (nạp − rút). Thường là quên ghi giao dịch nạp tiền vào tài khoản chứng khoán trước khi ghi lệnh mua. | Kiểm tra tab giao dịch của tài khoản này: có thiếu lần chuyển tiền vào không? Ghi bổ sung giao dịch nạp tiền (không phải lệnh mua) cho khớp số đã bỏ ra mua cổ phiếu. |
 | `thieu-gia-moi-ma` | `portfolioValue` trả `marketValue = null` vì **mọi** mã đang giữ đều không có giá trong `stock_prices` (không phải sổ lệnh sai, cash cũng không âm). Thường là mã đã huỷ niêm yết, hoặc sàn không trả về mã đó trong lần hút gần nhất. | Tra mã đó trên SSI iBoard xem còn giao dịch không. Nếu là mã hợp lệ nhưng SSI đổi tên/mã, cập nhật lại `symbol` trong lệnh cho khớp. Nếu đã huỷ niêm yết, ghi lệnh `adjust` phù hợp hoặc chấp nhận tài khoản này tạm không tự chạy được. |
 | `nguoi-dung-da-go-tay` | Hàng `account_valuations` của đúng ngày phiên đó đã có sẵn với `source = 'manual'` — người dùng đã tự gõ số cho ngày này (sheet "Cập nhật giá trị"). Cron **cố ý** không đè lên: số người dùng gõ tay luôn thắng. | Không cần làm gì — đây là hành vi đúng, không phải lỗi. Nếu muốn để cron tự tính lại, xoá hàng `manual` đó (hoặc đổi `source` thành `'auto'`) rồi gọi lại function. |
+| `gia-le-phien-cu` | Ba sàn hút độc lập nên có lượt chỉ một/hai sàn thành công. `sessionPrices` lấy ngày phiên lớn nhất trong `stock_prices` làm mốc chung; tài khoản này đang giữ ít nhất một mã mà giá của nó vẫn còn ở ngày phiên CŨ hơn mốc đó — tức sàn của mã đó chưa hút được ở lượt này. Giá tuy có và > 0 (không rơi vào `thieu-gia-moi-ma`) nhưng là giá hôm qua, không phải hôm nay. | Xem `loi` của cùng lượt chạy đó có dòng nào báo sàn của mã này lỗi không. Nếu sàn đã hút lại được ở lượt sau, cron tự ghi bình thường — không cần làm gì. Nếu lặp lại nhiều ngày liền, kiểm `fetchBoard`/`prices.ts` cho sàn đó. |
 
-Ghi chú: nếu `loi` có một dòng bắt đầu bằng `ghi gia tri:`, nghĩa là toàn bộ việc 2
-đã throw sớm (đọc `stock_prices`/`loadPortfolioAccounts` lỗi, hoặc bảng giá rỗng) —
-lúc đó **không** tài khoản nào được xét, `daGhi` và `boQua` đều giữ giá trị mặc định
-(0 và rỗng) của lượt chạy đó. Việc 1 (hút giá) không bị ảnh hưởng vì nó chạy và log
-kết quả trước khi việc 2 bắt đầu.
+Ghi chú về lỗi trong `loi` ở việc 2 — hai dạng dòng khác nhau, ứng với hai tình huống
+khác nhau, đọc kỹ để khỏi hiểu lầm khi debug một lượt chạy dở dang:
+
+- **`ghi gia tri: <thông điệp>` = lỗi cả lượt, xảy ra TRƯỚC vòng lặp tài khoản** — đọc
+  `stock_prices` lỗi, `loadPortfolioAccounts` lỗi, hoặc bảng giá rỗng nên không tính
+  được `phien`. Việc 2 throw sớm, **không** tài khoản nào được xét: `daGhi` và `boQua`
+  giữ nguyên giá trị mặc định (0 và rỗng) của lượt chạy đó.
+- **`tài khoản <8 ký tự đầu id>…: <thông điệp>` = lỗi của RIÊNG một tài khoản** — mỗi
+  tài khoản có `try/catch` của mình (mạng chập chờn, hết kết nối pool, ...), nên lỗi
+  đó không làm chết cả lượt: những tài khoản khác — kể cả tài khoản đứng sau nó trong
+  danh sách — vẫn được xét và ghi bình thường. `daGhi` và `boQua` ở lượt chạy này là số
+  **thật** của các tài khoản đã chạy xong, không phải giá trị mặc định — chỉ tài khoản
+  bị lỗi là không có mặt trong cả hai.
+
+Việc 1 (hút giá) không bị ảnh hưởng bởi cả hai tình huống trên vì nó chạy và log kết
+quả trước khi việc 2 bắt đầu.
 
 ## Chạy thử tại máy
 
@@ -142,11 +155,11 @@ Gọi thiếu header `x-cron-secret` phải trả `401 Sai bí mật cron`.
 | `parseBoard` — đọc bảng giá thật của SSI, rơi về `priorClosePrice`/`refPrice`, bỏ mã không có giá dùng được | ✅ 6 test, chạy trên file mẫu thật (đã cắt còn 3 mã) |
 | `fetchBoard` gọi được SSI thật | ✅ đã đo `curl` tới `iboard-query.ssi.com.vn/stock/exchange/hose` ngày 2026-08-05, trả `200` |
 | Ghi vào `stock_prices` (upsert thật) | ❌ **chưa kiểm** — chưa có Supabase local để thử |
-| `_holdings.js` xuất đúng `holdingsFromTrades`/`brokerCash`/`portfolioValue`/`toISODate`, khớp `src/features/assets/holdings.ts` | ✅ `tests/pushBundle.test.ts` so byte-for-byte bundle gói lại với file đã commit, và kiểm đủ export |
+| `_holdings.js` xuất đúng `holdingsFromTrades`/`brokerCash`/`portfolioValue`/`sessionPrices`/`toISODate`, khớp `src/features/assets/holdings.ts` | ✅ `tests/pushBundle.test.ts` so byte-for-byte bundle gói lại với file đã commit, và kiểm đủ export |
 | `loadPortfolioAccounts` lọc đúng loại `investment` + `VND` + chưa lưu trữ + có sổ lệnh | ✅ đọc kỹ theo hợp đồng, khớp cột trong migration 0016/0026/0035 — **chưa chạy thật** với Postgres |
-| Van bỏ qua `so-lenh-co-lo-hong` / `tien-chua-dau-tu-am` / `thieu-gia-moi-ma` không ghi gì | ✅ đọc code — cả hai đều `continue` trước khối `upsert` |
+| Van bỏ qua `so-lenh-co-lo-hong` / `tien-chua-dau-tu-am` / `thieu-gia-moi-ma` / `gia-le-phien-cu` không ghi gì | ✅ đọc code — cả bốn đều `continue` trước khối `upsert`; `sessionPrices` có 5 test riêng ở `src/features/assets/holdings.test.ts` |
 | Số gõ tay (`source='manual'`) không bị đè | ✅ đọc code — đọc trước, so `source`, `continue` nếu là `manual`. **Chưa kiểm bằng UI + DB thật** (Step 4 của brief) |
-| `valued_on` = ngày phiên (không phải hôm nay) | ✅ đọc code — `phien` lấy từ `trading_date` lớn nhất trong `stock_prices`, không có chỗ nào dùng `new Date()` cho `valued_on` |
+| `valued_on` = ngày phiên (không phải hôm nay), và tính theo phiên MỚI NHẤT dù một sàn hụt | ✅ đọc code — `phien` = `session` từ `sessionPrices`, lấy `trading_date` lớn nhất trong `stock_prices`; không có chỗ nào dùng `new Date()` cho `valued_on`; mã ở phiên cũ hơn bị chặn bởi `gia-le-phien-cu`, không lọt vào `priceBySymbol` một cách âm thầm |
 | `supabase functions serve` tại máy + gọi thử `POST /stock-refresh` | ❌ **chưa kiểm** — máy dev chưa cài Supabase CLI / chưa chạy Supabase local |
 | Ghi thật vào `account_valuations`, xem "Tổng tài sản"/"Hiệu quả đầu tư" tự đúng trên UI | ❌ **chưa kiểm** — cần môi trường sống (xem mục dưới) |
 | `cron.schedule` đã chạy thật, `cron.job`/`cron.job_run_details` có hàng | ❌ **chưa kiểm** — cần deploy lên project Supabase thật |

@@ -143,6 +143,40 @@ export function brokerCash(accountBalance: number, trades: Trade[]): number {
  * `missingPrices`. Cùng cách app xử lý thiếu tỷ giá (`hasMissingRate`) — ra số gần đúng
  * kèm cảnh báo, thay vì âm thầm bỏ mã đó khỏi tổng.
  */
+export interface SessionPrices {
+  /** Ngày phiên mới nhất trong bảng giá; null = bảng giá rỗng. */
+  session: string | null
+  /** đồng/cổ, chỉ mã có giá > 0 */
+  priceBySymbol: Map<string, number>
+  /** Mã mà giá còn ở phiên CŨ hơn `session` — sàn của nó chưa hút được lần này. */
+  staleSymbols: Set<string>
+}
+
+/**
+ * Gom bảng giá thô (ba sàn, hút độc lập) thành một phiên duy nhất cho cả snapshot.
+ *
+ * `stock_prices` là MỘT bảng chung cho cả ba sàn, và ba sàn được hút độc lập (một sàn
+ * lỗi thì hai sàn còn lại vẫn ghi) — nên sau một lần chạy, không phải mọi hàng chắc
+ * chắn cùng `trading_date`. `session` lấy ngày lớn nhất coi như ngày của snapshot;
+ * mã nào còn kẹt ở ngày cũ hơn thì được nêu tên trong `staleSymbols` để nơi gọi tự
+ * quyết định bỏ qua — im lặng dùng giá hôm qua rồi đóng dấu "hôm nay" là nói dối.
+ */
+export function sessionPrices(
+  rows: { symbol: string; price: number; trading_date: string }[],
+): SessionPrices {
+  const session = rows.map((r) => r.trading_date).sort().at(-1) ?? null
+
+  const priceBySymbol = new Map<string, number>()
+  const staleSymbols = new Set<string>()
+
+  for (const r of rows) {
+    if (r.price > 0) priceBySymbol.set(r.symbol, r.price)
+    if (session !== null && r.trading_date < session) staleSymbols.add(r.symbol)
+  }
+
+  return { session, priceBySymbol, staleSymbols }
+}
+
 export function portfolioValue(
   holdings: Holding[],
   priceBySymbol: Map<string, number>,

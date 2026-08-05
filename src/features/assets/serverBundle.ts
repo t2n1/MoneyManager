@@ -11,8 +11,9 @@ export {
   brokerCash,
   holdingsFromTrades,
   portfolioValue,
+  sessionPrices,
 } from './holdings'
-export type { Holding, HoldingsResult, PortfolioValue, Trade } from './holdings'
+export type { Holding, HoldingsResult, PortfolioValue, SessionPrices, Trade } from './holdings'
 
 // Ngày tháng: bắt buộc đi qua đây, không tự cộng trừ ngày ở edge function.
 export { toISODate } from '../../lib/dates'

@@ -14,7 +14,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { fetchBoard, type Exchange, type PriceUpsert } from './prices.ts'
-import { brokerCash, holdingsFromTrades, portfolioValue } from './_holdings.js'
+import { brokerCash, holdingsFromTrades, portfolioValue, sessionPrices } from './_holdings.js'
 import { loadPortfolioAccounts } from './loadInput.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
@@ -75,61 +75,79 @@ Deno.serve(async (req) => {
       .select('symbol, price, trading_date')
     if (priceErr) throw priceErr
 
-    const priceBySymbol = new Map<string, number>(
-      (priceRows ?? []).map((p: any) => [p.symbol, Number(p.price)]),
+    // Ba sàn hút độc lập (một sàn lỗi thì hai sàn còn lại vẫn ghi) nên sau một lượt
+    // chạy, không phải mọi hàng của stock_prices chắc chắn cùng trading_date.
+    // sessionPrices gom về MỘT phiên (ngày lớn nhất, cũng là ngày mà snapshot này
+    // thuộc về) và nêu tên mã nào còn kẹt ở phiên cũ hơn — sàn của nó chưa hút được
+    // lần này.
+    const { session: phien, priceBySymbol, staleSymbols } = sessionPrices(
+      (priceRows ?? []).map((p: any) => ({
+        symbol: p.symbol as string,
+        price: Number(p.price),
+        trading_date: p.trading_date as string,
+      })),
     )
-    // Ngày phiên mới nhất trong bảng giá = ngày mà snapshot này thuộc về. Ngày lễ sàn
-    // không chạy nên SSI vẫn trả ngày phiên trước — dùng ngày phiên (không phải hôm
-    // nay) là thứ giữ cho lịch sử net worth không đầy những ngày trùng số.
-    const phien = (priceRows ?? [])
-      .map((p: any) => p.trading_date as string)
-      .sort()
-      .at(-1)
     if (!phien) throw new Error('Bảng giá rỗng, không biết ngày phiên')
 
     const accounts = await loadPortfolioAccounts(sb)
     for (const a of accounts) {
-      const { holdings, oversold } = holdingsFromTrades(a.trades)
-      // Sổ lệnh có lỗ hổng: giữ số cũ, không ghi số biết là sai.
-      if (oversold.length > 0) {
-        demBoQua(kq, 'so-lenh-co-lo-hong')
-        continue
-      }
-      const cash = brokerCash(a.balance, a.trades)
-      const { marketValue } = portfolioValue(holdings, priceBySymbol, cash)
-      if (marketValue === null) {
-        demBoQua(kq, cash < 0 ? 'tien-chua-dau-tu-am' : 'thieu-gia-moi-ma')
-        continue
-      }
+      // Một tài khoản lỗi (mạng chập chờn, hết kết nối pool) KHÔNG được làm chết cả
+      // lượt — tài khoản khác vẫn phải được xét và ghi, giống cách push-notify cô lập
+      // lỗi theo từng user.
+      try {
+        const { holdings, oversold } = holdingsFromTrades(a.trades)
+        // Sổ lệnh có lỗ hổng: giữ số cũ, không ghi số biết là sai.
+        if (oversold.length > 0) {
+          demBoQua(kq, 'so-lenh-co-lo-hong')
+          continue
+        }
+        // Mã đang giữ mà giá còn ở phiên cũ hơn (sàn của nó hụt lần hút này): giá vẫn
+        // có và > 0 nên portfolioValue không tự phát hiện được — phải chặn ở đây, kẻo
+        // ghi một số trông như mới nhưng thật ra dùng giá hôm qua, đóng dấu "hôm nay".
+        if (holdings.some((h) => staleSymbols.has(h.symbol))) {
+          demBoQua(kq, 'gia-le-phien-cu')
+          continue
+        }
+        const cash = brokerCash(a.balance, a.trades)
+        const { marketValue } = portfolioValue(holdings, priceBySymbol, cash)
+        if (marketValue === null) {
+          demBoQua(kq, cash < 0 ? 'tien-chua-dau-tu-am' : 'thieu-gia-moi-ma')
+          continue
+        }
 
-      // `ignoreDuplicates: false` = do update. Mệnh đề `where source = 'auto'` không
-      // biểu diễn được qua PostgREST, nên đọc trước rồi mới quyết: hàng người dùng gõ
-      // tay của đúng ngày đó phải được giữ nguyên (quyết định 4).
-      const { data: sanCo, error: docErr } = await sb
-        .from('account_valuations')
-        .select('id, source')
-        .eq('account_id', a.accountId)
-        .eq('valued_on', phien)
-        .maybeSingle()
-      if (docErr) throw docErr
-      if (sanCo && sanCo.source === 'manual') {
-        demBoQua(kq, 'nguoi-dung-da-go-tay')
-        continue
-      }
+        // `ignoreDuplicates: false` = do update. Mệnh đề `where source = 'auto'` không
+        // biểu diễn được qua PostgREST, nên đọc trước rồi mới quyết: hàng người dùng gõ
+        // tay của đúng ngày đó phải được giữ nguyên (quyết định 4).
+        const { data: sanCo, error: docErr } = await sb
+          .from('account_valuations')
+          .select('id, source')
+          .eq('account_id', a.accountId)
+          .eq('valued_on', phien)
+          .maybeSingle()
+        if (docErr) throw docErr
+        if (sanCo && sanCo.source === 'manual') {
+          demBoQua(kq, 'nguoi-dung-da-go-tay')
+          continue
+        }
 
-      const { error: ghiErr } = await sb.from('account_valuations').upsert(
-        {
-          user_id: a.userId,
-          account_id: a.accountId,
-          valued_on: phien,
-          market_value: marketValue,
-          note: `Tự tính theo giá phiên ${phien}`,
-          source: 'auto',
-        },
-        { onConflict: 'account_id,valued_on' },
-      )
-      if (ghiErr) throw ghiErr
-      kq.daGhi++
+        const { error: ghiErr } = await sb.from('account_valuations').upsert(
+          {
+            user_id: a.userId,
+            account_id: a.accountId,
+            valued_on: phien,
+            market_value: marketValue,
+            note: `Tự tính theo giá phiên ${phien}`,
+            source: 'auto',
+          },
+          { onConflict: 'account_id,valued_on' },
+        )
+        if (ghiErr) throw ghiErr
+        kq.daGhi++
+      } catch (err) {
+        kq.loi.push(
+          `tài khoản ${a.accountId.slice(0, 8)}…: ${err instanceof Error ? err.message : String(err)}`,
+        )
+      }
     }
   } catch (err) {
     kq.loi.push(`ghi gia tri: ${err instanceof Error ? err.message : String(err)}`)

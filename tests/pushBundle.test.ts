@@ -42,6 +42,7 @@ const EXPORTS_BAT_BUOC: Record<string, string[]> = {
     'holdingsFromTrades',
     'brokerCash',
     'portfolioValue',
+    'sessionPrices',
     'toISODate',
   ],
 }

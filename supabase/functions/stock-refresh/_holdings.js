@@ -52,6 +52,16 @@ function brokerCash(accountBalance, trades) {
   }
   return Math.round(accountBalance - spent);
 }
+function sessionPrices(rows) {
+  const session = rows.map((r) => r.trading_date).sort().at(-1) ?? null;
+  const priceBySymbol = /* @__PURE__ */ new Map();
+  const staleSymbols = /* @__PURE__ */ new Set();
+  for (const r of rows) {
+    if (r.price > 0) priceBySymbol.set(r.symbol, r.price);
+    if (session !== null && r.trading_date < session) staleSymbols.add(r.symbol);
+  }
+  return { session, priceBySymbol, staleSymbols };
+}
 function portfolioValue(holdings, priceBySymbol, cash) {
   let stockValue = 0;
   const missingPrices = [];
@@ -78,5 +88,6 @@ export {
   brokerCash,
   holdingsFromTrades,
   portfolioValue,
+  sessionPrices,
   toISODate
 };

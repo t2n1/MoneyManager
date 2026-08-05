@@ -12,12 +12,14 @@ import {
   type NewDebtPayment,
   type NewRecurringRule,
   type NewSavingsGoal,
+  type NewStockTrade,
   type NewTransaction,
   type NewValuation,
   type ProfilePatch,
   type RecurringRulePatch,
   type NewTag,
   type SavingsGoalPatch,
+  type StockTradePatch,
   type TagPatch,
   type TransactionPatch,
   type TxFilter,
@@ -323,6 +325,57 @@ export function useDeleteValuation() {
   return useMutation({
     mutationFn: (id: string) => repo.deleteValuation(id),
     onSettled: () => invalidateValuations(qc),
+  })
+}
+
+// --- Cổ phiếu Việt Nam: bảng giá + sổ lệnh (migration 0035) ---
+
+export function useStockPrices() {
+  return useQuery({
+    queryKey: ['stockPrices'],
+    queryFn: () => repo.getStockPrices(),
+    // Giá chỉ đổi sau khi sàn đóng cửa và cron chạy — 5 phút là dư sức tươi.
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useStockTrades() {
+  return useQuery({
+    queryKey: ['stockTrades'],
+    queryFn: () => repo.getStockTrades(),
+    staleTime: 60_000,
+  })
+}
+
+function invalidateStockTrades(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['stockTrades'] })
+  // Sổ lệnh đổi → tiền chưa đầu tư và giá trị danh mục đổi theo. Số dư (view) không
+  // đổi vì sổ lệnh không phải dòng tiền, nhưng snapshot giá trị thì có thể.
+  qc.invalidateQueries({ queryKey: ['valuations'] })
+}
+
+export function useCreateStockTrade() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewStockTrade) => repo.createStockTrade(input),
+    onSettled: () => invalidateStockTrades(qc),
+  })
+}
+
+export function useUpdateStockTrade() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: StockTradePatch }) =>
+      repo.updateStockTrade(id, patch),
+    onSettled: () => invalidateStockTrades(qc),
+  })
+}
+
+export function useDeleteStockTrade() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => repo.deleteStockTrade(id),
+    onSettled: () => invalidateStockTrades(qc),
   })
 }
 

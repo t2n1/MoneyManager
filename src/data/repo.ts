@@ -24,6 +24,9 @@ import type {
   PushSubscriptionRow,
   RecurringRuleRow,
   SavingsGoalRow,
+  StockPriceRow,
+  StockTradeKind,
+  StockTradeRow,
   TagRow,
   TaxShelter,
   TransactionRow,
@@ -62,10 +65,12 @@ export interface BackupData {
   lifePhases?: LifePhaseRow[]
   /** Lifetime — sự kiện; vắng mặt ở backup v1–v5. */
   lifeEvents?: LifeEventRow[]
+  /** Sổ lệnh cổ phiếu Việt Nam; vắng mặt ở backup v1–v6. */
+  stockTrades?: StockTradeRow[]
 }
 
-/** Phiên bản định dạng backup hiện hành. v6: thêm lifeScenarios/lifePhases/lifeEvents. */
-export const BACKUP_VERSION = 6
+/** Phiên bản định dạng backup hiện hành. v7: thêm stockTrades. */
+export const BACKUP_VERSION = 7
 
 export interface NewTransaction {
   type: TransactionType
@@ -271,6 +276,25 @@ export interface NewValuation {
   note: string
 }
 
+/** Một lệnh mua/bán/điều chỉnh cổ phiếu (migration 0035). Mọi số ở đồng. */
+export interface NewStockTrade {
+  account_id: string
+  /** mã cổ phiếu, chữ in (vd 'FPT') */
+  symbol: string
+  kind: StockTradeKind
+  traded_on: string
+  /** số cổ; âm chỉ hợp lệ với kind='adjust' */
+  quantity: number
+  /** đồng/cổ; 0 với kind='adjust' */
+  price: number
+  fee: number
+  tax: number
+  note: string
+}
+
+/** Không cho đổi account_id: chuyển lệnh sang tài khoản khác thì xoá rồi ghi lại. */
+export type StockTradePatch = Partial<Omit<NewStockTrade, 'account_id'>>
+
 /** Mục tiêu tiết kiệm (mục AD). */
 export interface NewSavingsGoal {
   name: string
@@ -370,6 +394,15 @@ export interface Repo {
   /** Tạo mới hoặc đè snapshot theo (account_id, valued_on). */
   upsertValuation(input: NewValuation): Promise<AccountValuationRow>
   deleteValuation(id: string): Promise<void>
+
+  // --- Cổ phiếu Việt Nam: bảng giá + sổ lệnh (migration 0035) ---
+  /** Bảng giá công khai (mọi mã, mọi sàn). Chỉ đọc — edge function stock-refresh ghi. */
+  getStockPrices(): Promise<StockPriceRow[]>
+  /** Toàn bộ sổ lệnh của user (mọi tài khoản); UI tự lọc theo account_id. */
+  getStockTrades(): Promise<StockTradeRow[]>
+  createStockTrade(input: NewStockTrade): Promise<StockTradeRow>
+  updateStockTrade(id: string, patch: StockTradePatch): Promise<StockTradeRow>
+  deleteStockTrade(id: string): Promise<void>
 
   // --- Mục tiêu tiết kiệm (mục AD) ---
   getSavingsGoals(): Promise<SavingsGoalRow[]>

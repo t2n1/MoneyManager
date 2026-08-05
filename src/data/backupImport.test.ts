@@ -1,6 +1,28 @@
-import { describe, it, expect } from 'vitest'
+import { beforeEach, describe, it, expect } from 'vitest'
 import { chunk, validateBackupPayload } from './backupImport'
+import { demoRepo, resetDemoData } from './demoRepo'
 import type { BackupData } from './repo'
+
+// Vitest chạy môi trường node → không có localStorage. Cài bản giả trong bộ nhớ
+// (giống demoRepo.test.ts) để test khôi phục v6 dưới đây dùng được demoRepo thật.
+beforeEach(() => {
+  const store = new Map<string, string>()
+  globalThis.localStorage = {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => {
+      store.set(k, v)
+    },
+    removeItem: (k: string) => {
+      store.delete(k)
+    },
+    clear: () => store.clear(),
+    key: (i: number) => [...store.keys()][i] ?? null,
+    get length() {
+      return store.size
+    },
+  } as Storage
+  resetDemoData()
+})
 
 /** Backup nhỏ nhất mà hợp lệ, để mỗi test chỉ phá đúng một chỗ. */
 function base(): BackupData {
@@ -248,5 +270,14 @@ describe('validateBackupPayload', () => {
     const p = validateBackupPayload(d)
     expect(p.length).toBeLessThanOrEqual(5)
     expect(p.join(' ')).toMatch(/300/)
+  })
+})
+
+describe('demoRepo.importAll: khôi phục file backup v6 (chưa có sổ lệnh cổ phiếu)', () => {
+  it('backup v6 (chưa có sổ lệnh cổ phiếu) vẫn nhập được', async () => {
+    const backup = await demoRepo.exportAll()
+    const cu = { ...backup, version: 6, stockTrades: undefined }
+    await expect(demoRepo.importAll(cu)).resolves.not.toThrow()
+    expect(await demoRepo.getStockTrades()).toEqual([])
   })
 })

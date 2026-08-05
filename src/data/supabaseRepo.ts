@@ -22,6 +22,8 @@ import type {
   NotificationStateRow,
   RecurringRuleRow,
   SavingsGoalRow,
+  StockPriceRow,
+  StockTradeRow,
   TagRow,
   TransactionRow,
   TransactionTagRow,
@@ -47,6 +49,7 @@ import {
   type NewRecurringOccurrence,
   type NewRecurringRule,
   type NewSavingsGoal,
+  type NewStockTrade,
   type NewTag,
   type NewTransaction,
   type NewValuation,
@@ -54,6 +57,7 @@ import {
   type RecurringRulePatch,
   type Repo,
   type SavingsGoalPatch,
+  type StockTradePatch,
   type TagPatch,
   type TransactionPatch,
   type TxFilter,
@@ -323,6 +327,17 @@ export const supabaseRepo: Repo = {
     if ((val.count ?? 0) > 0)
       throw new Error('Không xóa được: còn dữ liệu giá trị đầu tư của tài khoản này.')
 
+    // stock_trades có `on delete cascade` ở DB (migration 0035) — không chặn ở đây thì
+    // xoá tài khoản là XOÁ LUÔN sổ lệnh mà không ai hỏi, ngược hẳn với mọi bảng khác
+    // ở trên (transactions, recurring_rules, …) đều báo lỗi thay vì âm thầm cascade.
+    const st = await sb
+      .from('stock_trades')
+      .select('id', { count: 'exact', head: true })
+      .eq('account_id', id)
+    if (st.error) throw st.error
+    if ((st.count ?? 0) > 0)
+      throw new Error('Không xóa được: còn sổ lệnh cổ phiếu của tài khoản này.')
+
     const { error } = await sb.from('accounts').delete().eq('id', id)
     if (error) throw error
   },
@@ -363,6 +378,68 @@ export const supabaseRepo: Repo = {
 
   async deleteValuation(id: string) {
     const { error } = await getSupabase().from('account_valuations').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  async getStockPrices() {
+    // Cả sàn HOSE đã 400+ mã, ba sàn thì vượt trần 1.000 của PostgREST → phải phân
+    // trang, không thì bảng giá bị cắt và mã ở cuối bảng chữ cái mất giá im lặng.
+    return await fetchAllPages<StockPriceRow>(async (from, to) =>
+      getSupabase().from('stock_prices').select('*').order('symbol').range(from, to),
+    )
+  },
+
+  async getStockTrades() {
+    // `id` làm chốt sắp xếp cuối để hai trang liền nhau không lặp/sót (traded_on
+    // không đơn trị — xem src/data/paging.ts).
+    return await fetchAllPages<StockTradeRow>(async (from, to) =>
+      getSupabase()
+        .from('stock_trades')
+        .select('*')
+        .order('traded_on', { ascending: false })
+        .order('id')
+        .range(from, to),
+    )
+  },
+
+  async createStockTrade(input: NewStockTrade) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('stock_trades')
+      .insert({
+        user_id,
+        account_id: input.account_id,
+        symbol: input.symbol.trim().toUpperCase(),
+        kind: input.kind,
+        traded_on: input.traded_on,
+        quantity: input.quantity,
+        price: input.price,
+        fee: input.fee,
+        tax: input.tax,
+        note: input.note,
+      })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async updateStockTrade(id: string, patch: StockTradePatch) {
+    const { data, error } = await getSupabase()
+      .from('stock_trades')
+      .update({
+        ...patch,
+        ...(patch.symbol === undefined ? {} : { symbol: patch.symbol.trim().toUpperCase() }),
+      })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async deleteStockTrade(id: string) {
+    const { error } = await getSupabase().from('stock_trades').delete().eq('id', id)
     if (error) throw error
   },
 
@@ -1172,6 +1249,7 @@ export const supabaseRepo: Repo = {
       lifeScenarios,
       lifePhases,
       lifeEvents,
+      stockTrades,
     ] = await Promise.all([
       this.getProfile(),
       selectAll<AccountRow>('accounts'),
@@ -1190,6 +1268,7 @@ export const supabaseRepo: Repo = {
       selectAll<LifeScenarioRow>('life_scenarios'),
       selectAll<LifePhaseRow>('life_phases'),
       selectAll<LifeEventRow>('life_events'),
+      selectAll<StockTradeRow>('stock_trades'),
     ])
     return {
       version: BACKUP_VERSION,
@@ -1211,6 +1290,7 @@ export const supabaseRepo: Repo = {
       lifeScenarios,
       lifePhases,
       lifeEvents,
+      stockTrades,
     }
   },
 
@@ -1258,6 +1338,8 @@ export const supabaseRepo: Repo = {
       'recurring_rules',
       'asset_group_settings',
       'categories',
+      // stock_trades: composite FK tới accounts → xoá trước accounts.
+      'stock_trades',
       'accounts',
     ]
     for (const table of deleteOrder) {
@@ -1439,6 +1521,26 @@ export const supabaseRepo: Repo = {
               note: v.note,
             })),
         (part) => sb.from('account_valuations').insert(part),
+      )
+    }
+
+    // stock_trades: composite FK tới accounts → chèn sau accounts.
+    if (data.stockTrades?.length) {
+      await insertChunked(
+            data.stockTrades.map((t) => ({
+              id: t.id,
+              user_id: uid,
+              account_id: t.account_id,
+              symbol: t.symbol,
+              kind: t.kind,
+              traded_on: t.traded_on,
+              quantity: t.quantity,
+              price: t.price,
+              fee: t.fee,
+              tax: t.tax,
+              note: t.note,
+            })),
+        (part) => sb.from('stock_trades').insert(part),
       )
     }
 

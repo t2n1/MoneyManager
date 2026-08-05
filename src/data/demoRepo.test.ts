@@ -558,3 +558,165 @@ describe('khôi phục file sao lưu cũ hơn migration 0034', () => {
     expect(p.push_last_sent_at).toBeNull()
   })
 })
+
+describe('demoRepo: sổ lệnh cổ phiếu', () => {
+  it('tạo, sửa, xoá một lệnh', async () => {
+    const accounts = await demoRepo.getAccounts()
+    const acc = accounts.find((a) => a.type === 'investment') ?? accounts[0]
+
+    const created = await demoRepo.createStockTrade({
+      account_id: acc.id,
+      symbol: 'FPT',
+      kind: 'buy',
+      traded_on: '2026-08-01',
+      quantity: 100,
+      price: 70_000,
+      fee: 10_500,
+      tax: 0,
+      note: '',
+    })
+    expect(created.symbol).toBe('FPT')
+    expect(created.quantity).toBe(100)
+
+    const sua = await demoRepo.updateStockTrade(created.id, { quantity: 200 })
+    expect(sua.quantity).toBe(200)
+
+    await demoRepo.deleteStockTrade(created.id)
+    const conLai = await demoRepo.getStockTrades()
+    expect(conLai.find((t) => t.id === created.id)).toBeUndefined()
+  })
+
+  it('bảng giá seed có mã để xem thử không cần mạng', async () => {
+    const prices = await demoRepo.getStockPrices()
+    expect(prices.map((p) => p.symbol)).toContain('FPT')
+    expect(prices.every((p) => p.price > 0)).toBe(true)
+  })
+
+  it('sao lưu mang theo sổ lệnh và khôi phục lại được', async () => {
+    const backup = await demoRepo.exportAll()
+    expect(backup.version).toBe(7)
+    expect(Array.isArray(backup.stockTrades)).toBe(true)
+
+    await demoRepo.importAll(backup)
+    const sau = await demoRepo.getStockTrades()
+    expect(sau.length).toBe(backup.stockTrades?.length ?? 0)
+  })
+
+  it('không xoá được tài khoản khi còn sổ lệnh', async () => {
+    const accounts = await demoRepo.getAccounts()
+    const acc = accounts.find((a) => a.type === 'investment')
+    if (!acc) return
+    await demoRepo.createStockTrade({
+      account_id: acc.id,
+      symbol: 'VNM',
+      kind: 'buy',
+      traded_on: '2026-08-01',
+      quantity: 10,
+      price: 60_000,
+      fee: 0,
+      tax: 0,
+      note: '',
+    })
+    await expect(demoRepo.deleteAccount(acc.id)).rejects.toThrow(/sổ lệnh/i)
+  })
+
+  // --- Soi hình dạng y như CHECK stock_trades_shape của migration 0035: demo
+  // phải chặn cùng dữ liệu mà Postgres chặn, không thì bug chỉ nổ ở bản thật (xem
+  // tiền lệ commit a321239 với assertTxShape / UNIQUE life_phases). ---
+
+  it('từ chối lệnh mua/bán có số cổ hoặc giá không dương', async () => {
+    const accounts = await demoRepo.getAccounts()
+    const acc = accounts.find((a) => a.type === 'investment') ?? accounts[0]
+    await expect(
+      demoRepo.createStockTrade({
+        account_id: acc.id,
+        symbol: 'FPT',
+        kind: 'buy',
+        traded_on: '2026-08-01',
+        quantity: 0,
+        price: 70_000,
+        fee: 0,
+        tax: 0,
+        note: '',
+      }),
+    ).rejects.toThrow()
+    await expect(
+      demoRepo.createStockTrade({
+        account_id: acc.id,
+        symbol: 'FPT',
+        kind: 'sell',
+        traded_on: '2026-08-01',
+        quantity: 10,
+        price: 0,
+        fee: 0,
+        tax: 0,
+        note: '',
+      }),
+    ).rejects.toThrow()
+  })
+
+  it('từ chối lệnh điều chỉnh có số cổ bằng 0 hoặc giá khác 0', async () => {
+    const accounts = await demoRepo.getAccounts()
+    const acc = accounts.find((a) => a.type === 'investment') ?? accounts[0]
+    await expect(
+      demoRepo.createStockTrade({
+        account_id: acc.id,
+        symbol: 'FPT',
+        kind: 'adjust',
+        traded_on: '2026-08-01',
+        quantity: 0,
+        price: 0,
+        fee: 0,
+        tax: 0,
+        note: '',
+      }),
+    ).rejects.toThrow()
+    await expect(
+      demoRepo.createStockTrade({
+        account_id: acc.id,
+        symbol: 'FPT',
+        kind: 'adjust',
+        traded_on: '2026-08-01',
+        quantity: 50,
+        price: 1_000,
+        fee: 0,
+        tax: 0,
+        note: '',
+      }),
+    ).rejects.toThrow()
+  })
+
+  it('sửa lệnh thành hình dạng sai cũng bị chặn (soi SAU khi trộn patch)', async () => {
+    const accounts = await demoRepo.getAccounts()
+    const acc = accounts.find((a) => a.type === 'investment') ?? accounts[0]
+    const created = await demoRepo.createStockTrade({
+      account_id: acc.id,
+      symbol: 'FPT',
+      kind: 'buy',
+      traded_on: '2026-08-01',
+      quantity: 100,
+      price: 70_000,
+      fee: 0,
+      tax: 0,
+      note: '',
+    })
+    await expect(demoRepo.updateStockTrade(created.id, { price: 0 })).rejects.toThrow()
+  })
+
+  it('chữ thường/khoảng trắng trong mã cổ phiếu được chuẩn hoá thành in hoa', async () => {
+    const accounts = await demoRepo.getAccounts()
+    const acc = accounts.find((a) => a.type === 'investment') ?? accounts[0]
+    const created = await demoRepo.createStockTrade({
+      account_id: acc.id,
+      symbol: ' fpt ',
+      kind: 'buy',
+      traded_on: '2026-08-01',
+      quantity: 10,
+      price: 70_000,
+      fee: 0,
+      tax: 0,
+      note: '',
+    })
+    expect(created.symbol).toBe('FPT')
+  })
+})

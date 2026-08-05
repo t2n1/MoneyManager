@@ -25,6 +25,8 @@ import type {
   PushSubscriptionRow,
   RecurringRuleRow,
   SavingsGoalRow,
+  StockPriceRow,
+  StockTradeRow,
   TagRow,
   TransactionRow,
   TransactionTagRow,
@@ -50,6 +52,7 @@ import {
   type NewRecurringOccurrence,
   type NewRecurringRule,
   type NewSavingsGoal,
+  type NewStockTrade,
   type NewTag,
   type NewTransaction,
   type NewValuation,
@@ -57,6 +60,7 @@ import {
   type RecurringRulePatch,
   type Repo,
   type SavingsGoalPatch,
+  type StockTradePatch,
   type TagPatch,
   type TransactionPatch,
   type TxFilter,
@@ -66,7 +70,7 @@ import {
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
 // Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-export const STORAGE_KEY = 'sct-demo-db-v15' // v15: bổ sung danh mục (Điện thoại, Bãi đỗ xe, Du lịch, Giấy tờ & Pháp lý, Bán đồ cũ; đổi tên Tài chính)
+export const STORAGE_KEY = 'sct-demo-db-v16' // v16: thêm bảng giá + sổ lệnh cổ phiếu demo (stockPrices, stockTrades)
 const DEMO_USER = 'demo-user'
 
 /**
@@ -89,6 +93,23 @@ function assertTxShape(input: Pick<NewTransaction, 'type' | 'category_id' | 'acc
     throw new Error('Giao dịch thu/chi không có tài khoản đích')
 }
 
+/**
+ * Soi hình dạng lệnh y như CHECK `stock_trades_shape` của Postgres (migration 0035):
+ *   kind='adjust' → quantity khác 0, price = 0 (cổ phiếu thưởng/gộp không có giá)
+ *   kind='buy'/'sell' → quantity > 0, price > 0
+ * Không có chốt này, demo nhận cả những dòng Postgres từ chối → bug chỉ nổ ở bản thật
+ * (tiền lệ: assertTxShape ở trên, commit a321239).
+ */
+function assertStockTradeShape(input: Pick<NewStockTrade, 'kind' | 'quantity' | 'price'>) {
+  if (input.kind === 'adjust') {
+    if (input.quantity === 0) throw new Error('Điều chỉnh phải khác 0 cổ')
+    if (input.price !== 0) throw new Error('Điều chỉnh không được có giá')
+    return
+  }
+  if (!(input.quantity > 0)) throw new Error('Số cổ phải là số dương')
+  if (!(input.price > 0)) throw new Error('Giá phải là số dương')
+}
+
 interface DemoDB {
   profile: ProfileRow
   accounts: AccountRow[]
@@ -100,6 +121,8 @@ interface DemoDB {
   debtPayments: DebtPaymentRow[]
   recurringRules: RecurringRuleRow[]
   accountValuations: AccountValuationRow[]
+  stockTrades: StockTradeRow[]
+  stockPrices: StockPriceRow[]
   savingsGoals: SavingsGoalRow[]
   networthSnapshots: NetWorthSnapshotRow[]
   tags: TagRow[]
@@ -197,18 +220,22 @@ function seed(): DemoDB {
   const accounts = [
     account('Tiền mặt', 'cash', 'JPY', 30_000, 0, 'Tiêu dùng'), // ¥30.000
     account('Ngân hàng', 'bank', 'JPY', 800_000, 1, 'Tiêu dùng'), // ¥800.000
-    account('Đầu tư VN', 'investment', 'VND', 50_000_000, 2, 'Đầu tư'), // 50.000.000 ₫ (vốn gốc)
-    account('Dự trữ USD', 'bank', 'USD', 200_000, 3, 'Dự phòng'), // $2.000,00
+    // Tài khoản riêng cho sổ lệnh cổ phiếu Việt Nam (migration 0035) — tách khỏi
+    // 'Đầu tư VN' bên dưới vì tài khoản đó đã có giao dịch/định giá gắn sẵn; nếu dùng
+    // chung, test "xoá tài khoản còn sổ lệnh" sẽ luôn báo lỗi vì giao dịch trước.
+    account('Chứng khoán VN', 'investment', 'VND', 100_000_000, 2, 'Tài sản Việt Nam'), // 100.000.000 ₫ (vốn gốc)
+    account('Đầu tư VN', 'investment', 'VND', 50_000_000, 3, 'Đầu tư'), // 50.000.000 ₫ (vốn gốc)
+    account('Dự trữ USD', 'bank', 'USD', 200_000, 4, 'Dự phòng'), // $2.000,00
     // Thẻ tín dụng: số dư ban đầu âm = đang nợ ¥45.000. Không thuộc nhóm tài sản.
     {
-      ...account('Thẻ Rakuten', 'card', 'JPY', -45_000, 4, null),
+      ...account('Thẻ Rakuten', 'card', 'JPY', -45_000, 5, null),
       credit_limit: 500_000,
       statement_day: 31, // chốt cuối tháng (kẹp về ngày cuối)
       payment_due_day: 27, // trả ngày 27 (dời T7/CN sang T2 khi hiển thị)
     },
   ]
   // Thẻ Rakuten (JPY) tự trả từ tài khoản Ngân hàng (JPY, cùng loại tiền)
-  accounts[4].payment_account_id = accounts[1].id
+  accounts[5].payment_account_id = accounts[1].id
 
   // Danh mục cha + con — bộ chuẩn hoá kiểu "Money Manager" (dịch tiếng Việt).
   const nhaO = category('Nhà ở', 'expense', '🏠')
@@ -298,7 +325,7 @@ function seed(): DemoDB {
 
   const cat = (name: string, type: CategoryType) =>
     categories.find((c) => c.name === name && c.type === type)!
-  const [cash, bank, invest] = accounts
+  const [cash, bank, stockAcc, invest] = accounts
 
   const tx = (
     partial: Pick<TransactionRow, 'type' | 'amount' | 'occurred_on' | 'note'> &
@@ -367,8 +394,9 @@ function seed(): DemoDB {
   })
   const assetGroupSettings = [
     groupSetting('Tiêu dùng', 0),
-    groupSetting('Đầu tư', 1),
-    groupSetting('Dự phòng', 2),
+    groupSetting('Tài sản Việt Nam', 1),
+    groupSetting('Đầu tư', 2),
+    groupSetting('Dự phòng', 3),
   ]
 
   // Khoản nợ mẫu: mình cho bạn vay ¥50.000 (đã nhận lại ¥20.000) và mình nợ công ty $500.
@@ -419,6 +447,21 @@ function seed(): DemoDB {
     },
   ]
 
+  // Bảng giá cứng cho chế độ demo — xem thử khu Danh mục không cần mạng.
+  const stockPrices: StockPriceRow[] = [
+    { symbol: 'FPT', exchange: 'hose', name: 'Công ty Cổ phần FPT', price: 70_300, prior_close: 71_500, trading_date: '2026-08-05', updated_at: nowISO() },
+    { symbol: 'VNM', exchange: 'hose', name: 'Công ty Cổ phần Sữa Việt Nam', price: 58_600, prior_close: 59_500, trading_date: '2026-08-05', updated_at: nowISO() },
+    { symbol: 'HPG', exchange: 'hose', name: 'Công ty Cổ phần Tập đoàn Hòa Phát', price: 22_000, prior_close: 22_150, trading_date: '2026-08-05', updated_at: nowISO() },
+  ]
+
+  // Sổ lệnh mẫu — tài khoản 'Chứng khoán VN' riêng (investment/VND) đã seed ở trên.
+  const idChungKhoanVN = stockAcc.id
+  const stockTrades: StockTradeRow[] = [
+    { id: uuid(), user_id: DEMO_USER, account_id: idChungKhoanVN, symbol: 'FPT', kind: 'buy', traded_on: '2026-03-10', quantity: 500, price: 62_000, fee: 46_500, tax: 0, note: '', created_at: nowISO(), updated_at: nowISO() },
+    { id: uuid(), user_id: DEMO_USER, account_id: idChungKhoanVN, symbol: 'HPG', kind: 'buy', traded_on: '2026-04-02', quantity: 1_000, price: 21_000, fee: 31_500, tax: 0, note: '', created_at: nowISO(), updated_at: nowISO() },
+    { id: uuid(), user_id: DEMO_USER, account_id: idChungKhoanVN, symbol: 'FPT', kind: 'adjust', traded_on: '2026-06-20', quantity: 50, price: 0, fee: 0, tax: 0, note: 'Cổ phiếu thưởng 10%', created_at: nowISO(), updated_at: nowISO() },
+  ]
+
   const debts = [debtLent, debtOwed]
   const debtPayments: DebtPaymentRow[] = [
     {
@@ -461,6 +504,8 @@ function seed(): DemoDB {
     debtPayments,
     recurringRules: [],
     accountValuations,
+    stockTrades,
+    stockPrices,
     savingsGoals: [],
     networthSnapshots: [],
     tags: [],
@@ -716,6 +761,8 @@ export const demoRepo: Repo = {
       throw new Error('Không xóa được: tài khoản này đang là nguồn trả cho một thẻ tín dụng.')
     if ((db.accountValuations ?? []).some((v) => v.account_id === id))
       throw new Error('Không xóa được: còn dữ liệu giá trị đầu tư của tài khoản này.')
+    if ((db.stockTrades ?? []).some((t) => t.account_id === id))
+      throw new Error('Không xóa được: còn sổ lệnh cổ phiếu của tài khoản này.')
     db.accounts = db.accounts.filter((a) => a.id !== id)
     save(db)
   },
@@ -757,6 +804,72 @@ export const demoRepo: Repo = {
   async deleteValuation(id: string) {
     const db = load()
     db.accountValuations = (db.accountValuations ?? []).filter((v) => v.id !== id)
+    save(db)
+  },
+
+  async getStockPrices() {
+    return (load().stockPrices ?? []).slice().sort((a, b) => a.symbol.localeCompare(b.symbol))
+  },
+
+  async getStockTrades() {
+    return (load().stockTrades ?? [])
+      .slice()
+      .sort((a, b) => b.traded_on.localeCompare(a.traded_on) || b.created_at.localeCompare(a.created_at))
+  },
+
+  async createStockTrade(input: NewStockTrade) {
+    assertStockTradeShape(input)
+    const db = load()
+    db.stockTrades ??= []
+    const row: StockTradeRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      account_id: input.account_id,
+      symbol: input.symbol.trim().toUpperCase(),
+      kind: input.kind,
+      traded_on: input.traded_on,
+      quantity: input.quantity,
+      price: input.price,
+      fee: input.fee,
+      tax: input.tax,
+      note: input.note,
+      created_at: nowISO(),
+      updated_at: nowISO(),
+    }
+    db.stockTrades.push(row)
+    save(db)
+    return row
+  },
+
+  async updateStockTrade(id: string, patch: StockTradePatch) {
+    const db = load()
+    db.stockTrades ??= []
+    const idx = db.stockTrades.findIndex((t) => t.id === id)
+    if (idx < 0) throw new Error('Không tìm thấy lệnh này.')
+    const current = db.stockTrades[idx]
+    const next: StockTradeRow = {
+      ...current,
+      symbol: patch.symbol !== undefined ? patch.symbol.trim().toUpperCase() : current.symbol,
+      kind: patch.kind ?? current.kind,
+      traded_on: patch.traded_on ?? current.traded_on,
+      quantity: patch.quantity ?? current.quantity,
+      price: patch.price ?? current.price,
+      fee: patch.fee ?? current.fee,
+      tax: patch.tax ?? current.tax,
+      note: patch.note ?? current.note,
+      updated_at: nowISO(),
+    }
+    // Soi hình dạng SAU khi trộn patch, y như CHECK của Postgres soi dòng kết quả —
+    // sửa lệnh có thể đổi cả kind lẫn quantity/price, chỉ soi lúc tạo là không đủ.
+    assertStockTradeShape(next)
+    db.stockTrades[idx] = next
+    save(db)
+    return next
+  },
+
+  async deleteStockTrade(id: string) {
+    const db = load()
+    db.stockTrades = (db.stockTrades ?? []).filter((t) => t.id !== id)
     save(db)
   },
 
@@ -1567,6 +1680,7 @@ export const demoRepo: Repo = {
       debtPayments: db.debtPayments ?? [],
       recurringRules: db.recurringRules ?? [],
       accountValuations: db.accountValuations ?? [],
+      stockTrades: db.stockTrades ?? [],
       savingsGoals: db.savingsGoals ?? [],
       networthSnapshots: db.networthSnapshots ?? [],
       tags: db.tags ?? [],
@@ -1588,6 +1702,9 @@ export const demoRepo: Repo = {
     // Giữ nguyên user_id demo để dữ liệu nhất quán với seed/reset.
     const stamp = <T extends { user_id: string }>(rows: T[]): T[] =>
       rows.map((r) => ({ ...r, user_id: DEMO_USER }))
+    // stock_prices là dữ liệu công khai (server hút lại được) — KHÔNG có trong file sao
+    // lưu, nên giữ nguyên bảng giá hiện có thay vì xoá theo import.
+    const stockPrices = load().stockPrices ?? []
     const db: DemoDB = {
       profile: {
         ...data.profile,
@@ -1613,6 +1730,8 @@ export const demoRepo: Repo = {
       debtPayments: stamp(data.debtPayments ?? []),
       recurringRules: stamp(data.recurringRules ?? []),
       accountValuations: stamp(data.accountValuations ?? []),
+      stockTrades: stamp(data.stockTrades ?? []),
+      stockPrices,
       savingsGoals: stamp(data.savingsGoals ?? []),
       networthSnapshots: stamp(data.networthSnapshots ?? []),
       tags: stamp(data.tags ?? []),

@@ -7,7 +7,7 @@ import { useMemo } from 'react'
 import { Card, Money, SectionTitle } from '../../components/ui'
 import { useStockPrices, useStockTrades } from '../../hooks/queries'
 import type { AccountRow, StockTradeRow } from '../../types/database.types'
-import { brokerCash, holdingsFromTrades, portfolioValue, type Trade } from './holdings'
+import { brokerCash, holdingsFromTrades, portfolioValue, sessionPrices, type Trade } from './holdings'
 
 interface Props {
   account: AccountRow
@@ -31,10 +31,9 @@ export function HoldingsSection({ account, balance, onAddTrade, onEditTrade }: P
     [allTrades, account.id],
   )
 
-  const priceBySymbol = useMemo(
-    () => new Map(prices.map((p) => [p.symbol, p.price])),
-    [prices],
-  )
+  // Ba sàn hút giá độc lập — gom về một phiên chung qua sessionPrices() để "nay" luôn
+  // đúng nghĩa "phiên mới nhất", không lặng lẽ trộn giá hôm qua của sàn chưa hút được.
+  const { session, priceBySymbol, staleSymbols } = useMemo(() => sessionPrices(prices), [prices])
   const nameBySymbol = useMemo(() => new Map(prices.map((p) => [p.symbol, p.name])), [prices])
 
   const asTrades: Trade[] = useMemo(
@@ -61,14 +60,16 @@ export function HoldingsSection({ account, balance, onAddTrade, onEditTrade }: P
     [holdings, priceBySymbol, cash],
   )
 
-  // Ngày phiên của bảng giá: lấy mốc mới nhất trong số mã đang giữ.
-  const phien = useMemo(() => {
-    const days = holdings
-      .map((h) => prices.find((p) => p.symbol === h.symbol)?.trading_date)
-      .filter((d): d is string => !!d)
-      .sort()
-    return days.at(-1) ?? null
-  }, [holdings, prices])
+  // Mã đang giữ, có giá hợp lệ nhưng giá đó lại cũ hơn phiên chung — sàn của nó chưa
+  // hút được lần này. Loại khỏi đây những mã đã rơi vào missingPrices (giá <= 0 hoặc
+  // không có hàng): một mã chỉ nên bị nêu MỘT lần, và "chưa có giá" đã nói đủ rồi.
+  const staleHeld = useMemo(
+    () =>
+      holdings
+        .filter((h) => staleSymbols.has(h.symbol) && !value.missingPrices.includes(h.symbol))
+        .map((h) => h.symbol),
+    [holdings, staleSymbols, value.missingPrices],
+  )
 
   if (trades.length === 0) {
     return (
@@ -109,6 +110,10 @@ export function HoldingsSection({ account, balance, onAddTrade, onEditTrade }: P
         {holdings.map((h) => {
           const price = priceBySymbol.get(h.symbol)
           const thieuGia = price == null || price <= 0
+          // Có giá, nhưng giá đó ở phiên cũ hơn — không phải "thiếu", nhưng cũng không
+          // phải "nay". thieuGia đứng trước: mã đã bị nêu ở "chưa có giá" thì khỏi gắn
+          // thêm nhãn giá cũ, tránh nói hai lần về cùng một mã.
+          const giaCu = !thieuGia && staleSymbols.has(h.symbol)
           // priceVal chỉ dùng ở nhánh !thieuGia, nhưng khai một biến number chắc chắn
           // (thay vì number | undefined) để khỏi phải ép kiểu khi truyền vào <Money>.
           const priceVal = price ?? 0
@@ -130,7 +135,7 @@ export function HoldingsSection({ account, balance, onAddTrade, onEditTrade }: P
                     <span>· chưa có giá</span>
                   ) : (
                     <>
-                      <span>· nay</span>
+                      <span>· {giaCu ? 'giá cũ' : 'nay'}</span>
                       <Money amount={priceVal} currency={currency} className="text-2xs" />
                     </>
                   )}
@@ -193,7 +198,7 @@ export function HoldingsSection({ account, balance, onAddTrade, onEditTrade }: P
         )}
 
         <p className="pt-1 text-3xs text-fg-muted">
-          {phien ? `theo giá phiên ${ngayNgan(phien)}` : 'chưa có bảng giá'}
+          {session ? `theo giá phiên ${ngayNgan(session)}` : 'chưa có bảng giá'}
         </p>
       </div>
 
@@ -201,6 +206,14 @@ export function HoldingsSection({ account, balance, onAddTrade, onEditTrade }: P
         <p className="mt-2 text-2xs text-amber-700 dark:text-amber-300">
           Chưa có giá cho {value.missingPrices.join(', ')} — mấy mã này đang tạm tính theo
           giá vốn nên tổng có thể lệch.
+        </p>
+      )}
+
+      {staleHeld.length > 0 && (
+        <p className="mt-2 text-2xs text-amber-700 dark:text-amber-300">
+          {staleHeld.join(', ')} chưa có giá phiên {session ? ngayNgan(session) : 'mới nhất'} —
+          tổng trên đang tính theo giá phiên trước của mấy mã này, nên có thể khác số tài
+          khoản đã ghi.
         </p>
       )}
 

@@ -1,5 +1,6 @@
 import { addMonths, monthKeyForDate, monthKeyString, parseMonthKey, toISODate } from '../lib/dates'
 import { filterTransactions } from '../features/transactions/filter'
+import { brokerCash, holdingsFromTrades, portfolioValue, sessionPrices, type Trade } from '../features/assets/holdings'
 import { validateBackupPayload } from './backupImport'
 import type { CurrencyCode } from '../lib/money'
 import type { Rates } from '../lib/rates'
@@ -557,16 +558,76 @@ export const demoRepo: Repo = {
   async getAccountBalances(): Promise<AccountBalanceRow[]> {
     const db = load()
     const valuations = db.accountValuations ?? []
-    // Snapshot mới nhất mỗi tài khoản (valued_on desc, tiebreak created_at desc) — khớp view.
-    const latestValuation = (accountId: string): number | null => {
-      const rows = valuations
-        .filter((v) => v.account_id === accountId)
-        .sort(
-          (x, y) =>
-            y.valued_on.localeCompare(x.valued_on) || y.created_at.localeCompare(x.created_at),
-        )
-      return rows.length > 0 ? rows[0].market_value : null
+    const stockTrades = db.stockTrades ?? []
+
+    // Bảng giá gom về một phiên chung, cùng cách stock-refresh làm — dùng chung cho
+    // mọi tài khoản vì cùng một lượt "hút giá" chỉ có một phiên.
+    const { session, priceBySymbol, staleSymbols } = sessionPrices(db.stockPrices ?? [])
+
+    /**
+     * Snapshot 'auto' mà cron stock-refresh sẽ ghi cho tài khoản này NẾU nó chạy ngay
+     * bây giờ — chế độ demo không có cron nên phải tự dựng, bằng ĐÚNG các hàm thuần
+     * của holdings.ts (không chép lại phép tính), theo từng bước của
+     * supabase/functions/stock-refresh/index.ts. `null` ở bất cứ bước nào nghĩa là
+     * cron thật cũng sẽ bỏ qua tài khoản này — demo phải im lặng giống vậy, không bịa
+     * số. Điều kiện đủ chạy khớp loadInput.ts: investment, VND, chưa lưu trữ, có sổ lệnh.
+     */
+    function tuTinhAutoValuation(
+      a: AccountRow,
+      balance: number,
+    ): { valued_on: string; market_value: number; source: 'auto' } | null {
+      if (a.type !== 'investment' || a.currency !== 'VND' || a.is_archived) return null
+      const trades: Trade[] = stockTrades
+        .filter((t) => t.account_id === a.id)
+        .map((t) => ({
+          symbol: t.symbol,
+          kind: t.kind,
+          tradedOn: t.traded_on,
+          quantity: t.quantity,
+          price: t.price,
+          fee: t.fee,
+          tax: t.tax,
+        }))
+      if (trades.length === 0) return null
+      if (session === null) return null
+
+      const { holdings, oversold } = holdingsFromTrades(trades)
+      // Sổ lệnh có lỗ hổng: không ghi số biết là sai (giống cron bỏ qua).
+      if (oversold.length > 0) return null
+      // Mã đang giữ mà giá còn ở phiên cũ hơn: giá vẫn > 0 nên portfolioValue không tự
+      // phát hiện được, phải chặn ở đây (giống cron).
+      if (holdings.some((h) => staleSymbols.has(h.symbol))) return null
+
+      const cash = brokerCash(balance, trades)
+      const { marketValue } = portfolioValue(holdings, priceBySymbol, cash)
+      if (marketValue === null) return null
+
+      return { valued_on: session, market_value: marketValue, source: 'auto' }
     }
+
+    // Snapshot mới nhất mỗi tài khoản: gộp hàng thật (accountValuations) với snapshot
+    // 'auto' vừa tự tính, rồi áp đúng luật của view account_balances — valued_on mới
+    // nhất thắng, và ở CÙNG NGÀY thì 'manual' luôn thắng 'auto' (quyết định 4: cron
+    // không bao giờ đè hàng người dùng gõ tay). Không có synthetic thì y hệt trước đây.
+    const latestValuation = (
+      accountId: string,
+      synthetic: { valued_on: string; market_value: number; source: 'auto' } | null,
+    ): number | null => {
+      const rows: { valued_on: string; market_value: number; source: string; created_at: string }[] =
+        valuations
+          .filter((v) => v.account_id === accountId)
+          .map((v) => ({ valued_on: v.valued_on, market_value: v.market_value, source: v.source, created_at: v.created_at }))
+      if (synthetic) rows.push({ ...synthetic, created_at: '' })
+      if (rows.length === 0) return null
+      rows.sort((x, y) => {
+        const byDate = y.valued_on.localeCompare(x.valued_on)
+        if (byDate !== 0) return byDate
+        if (x.source !== y.source) return x.source === 'manual' ? -1 : 1
+        return y.created_at.localeCompare(x.created_at)
+      })
+      return rows[0].market_value
+    }
+
     return db.accounts
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((a) => {
@@ -581,6 +642,8 @@ export const demoRepo: Repo = {
             return sum + (t.to_amount ?? t.amount)
           return sum
         }, 0)
+        const balance = a.initial_balance + delta
+        const synthetic = tuTinhAutoValuation(a, balance)
         return {
           id: a.id,
           user_id: a.user_id,
@@ -602,8 +665,8 @@ export const demoRepo: Repo = {
           salvage_value: a.salvage_value ?? 0,
           tax_shelter: a.tax_shelter ?? null,
           shelter_annual_limit: a.shelter_annual_limit ?? null,
-          market_value: latestValuation(a.id),
-          balance: a.initial_balance + delta,
+          market_value: latestValuation(a.id, synthetic),
+          balance,
         }
       })
   },

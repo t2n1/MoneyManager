@@ -808,3 +808,157 @@ describe('demoRepo: sổ lệnh cổ phiếu', () => {
     expect(created.symbol).toBe('FPT')
   })
 })
+
+// getAccountBalances phải tự tính market_value cho tài khoản tự động theo dõi cổ
+// phiếu (investment/VND có sổ lệnh) — dùng ĐÚNG các hàm thuần của holdings.ts, y hệt
+// cách edge function stock-refresh tính, để demo không bịa ra một con số khác bản thật.
+//
+// Số đối chiếu tay cho seed 'Chứng khoán VN' (vốn gốc 100.000.000 ₫, không giao dịch
+// nào khác chạm vào tài khoản này nên balance = 100.000.000 ₫ nguyên):
+//   FPT: mua 500 cổ giá 62.000 + phí 46.500  -> costBasis 31.046.500, số cổ 500
+//        thưởng 10% (+50 cổ, costBasis không đổi) -> số cổ 550
+//   HPG: mua 1.000 cổ giá 21.000 + phí 31.500 -> costBasis 21.031.500, số cổ 1.000
+//   tiền đã bỏ ra mua = 31.046.500 + 21.031.500 = 52.078.000 ₫
+//   tiền còn chưa đầu tư (brokerCash) = 100.000.000 − 52.078.000 = 47.922.000 ₫
+//   giá phiên 2026-08-05: FPT 70.300 ₫/cổ, HPG 22.000 ₫/cổ (đều có giá, không mã nào thiếu)
+//   cổ phiếu theo giá hôm nay = 550×70.300 + 1.000×22.000 = 38.665.000 + 22.000.000 = 60.665.000 ₫
+//   market_value = 60.665.000 + 47.922.000 = 108.587.000 ₫
+describe('getAccountBalances — tự tính market_value cho tài khoản tự động theo dõi cổ phiếu (demo)', () => {
+  const MARKET_VALUE_SEED = 108_587_000
+
+  it('tài khoản seed có market_value = số tính tay từ sổ lệnh + bảng giá, không phải null', async () => {
+    const acc = await taiKhoanChungKhoanVN()
+    const balances = await demoRepo.getAccountBalances()
+    const row = balances.find((b) => b.id === acc.id)
+    expect(row?.market_value).toBe(MARKET_VALUE_SEED)
+  })
+
+  it('ghi thêm một lệnh mới thì market_value đổi theo (chứng minh số tính SỐNG, không phải seed một lần)', async () => {
+    const acc = await taiKhoanChungKhoanVN()
+    // Mua thêm VNM đúng giá phiên (58.600 ₫/cổ) nhưng có phí 5.000 ₫: tiền chưa đầu tư
+    // giảm đúng (100 × 58.600 + 5.000), cổ phiếu tăng đúng 100 × 58.600 — phần phí
+    // không đổi thành cổ phiếu nên tổng market_value giảm đúng bằng phí = 5.000 ₫.
+    await demoRepo.createStockTrade({
+      account_id: acc.id,
+      symbol: 'VNM',
+      kind: 'buy',
+      traded_on: '2026-08-01',
+      quantity: 100,
+      price: 58_600,
+      fee: 5_000,
+      tax: 0,
+      note: '',
+    })
+    const balances = await demoRepo.getAccountBalances()
+    const row = balances.find((b) => b.id === acc.id)
+    expect(row?.market_value).toBe(MARKET_VALUE_SEED - 5_000)
+  })
+
+  it('có định giá "manual" đúng ngày phiên (2026-08-05) thì số gõ tay thắng số tự tính', async () => {
+    const acc = await taiKhoanChungKhoanVN()
+    await demoRepo.upsertValuation({
+      account_id: acc.id,
+      valued_on: '2026-08-05',
+      market_value: 999_000_000,
+      note: 'Tôi tự chốt số khác',
+    })
+    const balances = await demoRepo.getAccountBalances()
+    const row = balances.find((b) => b.id === acc.id)
+    expect(row?.market_value).toBe(999_000_000)
+  })
+
+  it('có định giá "manual" ở ngày SAU phiên thì số đó thắng (mới hơn)', async () => {
+    const acc = await taiKhoanChungKhoanVN()
+    await demoRepo.upsertValuation({
+      account_id: acc.id,
+      valued_on: '2026-08-10',
+      market_value: 777_000_000,
+      note: 'Chốt cuối tuần',
+    })
+    const balances = await demoRepo.getAccountBalances()
+    const row = balances.find((b) => b.id === acc.id)
+    expect(row?.market_value).toBe(777_000_000)
+  })
+
+  it('sổ lệnh bán quá số đang giữ (oversold) -> market_value null, không bịa số sai', async () => {
+    const acc = await demoRepo.createAccount(
+      accountInput({ name: 'TK oversold', type: 'investment', currency: 'VND', initial_balance: 100_000_000 }),
+    )
+    // Bán 10 cổ FPT mà chưa từng mua -> holdingsFromTrades báo oversold.
+    await demoRepo.createStockTrade({
+      account_id: acc.id,
+      symbol: 'FPT',
+      kind: 'sell',
+      traded_on: '2026-08-01',
+      quantity: 10,
+      price: 70_000,
+      fee: 0,
+      tax: 0,
+      note: '',
+    })
+    const balances = await demoRepo.getAccountBalances()
+    const row = balances.find((b) => b.id === acc.id)
+    expect(row?.market_value).toBeNull()
+  })
+
+  it('mua nhiều hơn tiền đã nạp (brokerCash âm) -> market_value null', async () => {
+    const acc = await demoRepo.createAccount(
+      accountInput({ name: 'TK thiếu tiền', type: 'investment', currency: 'VND', initial_balance: 1_000_000 }),
+    )
+    // Mua 1.000 cổ giá 2.000 = 2.000.000 ₫, vượt vốn gốc 1.000.000 ₫ đã khai.
+    await demoRepo.createStockTrade({
+      account_id: acc.id,
+      symbol: 'FPT',
+      kind: 'buy',
+      traded_on: '2026-08-01',
+      quantity: 1_000,
+      price: 2_000,
+      fee: 0,
+      tax: 0,
+      note: '',
+    })
+    const balances = await demoRepo.getAccountBalances()
+    const row = balances.find((b) => b.id === acc.id)
+    expect(row?.market_value).toBeNull()
+  })
+
+  it('tài khoản KHÔNG phải investment thì không bị tự tính, dù có sổ lệnh gắn vào', async () => {
+    const acc = await demoRepo.createAccount(
+      accountInput({ name: 'TK ngân hàng có sổ lệnh lạc', type: 'bank', currency: 'VND', initial_balance: 100_000_000 }),
+    )
+    await demoRepo.createStockTrade({
+      account_id: acc.id,
+      symbol: 'FPT',
+      kind: 'buy',
+      traded_on: '2026-08-01',
+      quantity: 100,
+      price: 70_000,
+      fee: 0,
+      tax: 0,
+      note: '',
+    })
+    const balances = await demoRepo.getAccountBalances()
+    const row = balances.find((b) => b.id === acc.id)
+    expect(row?.market_value).toBeNull()
+  })
+
+  it('tài khoản investment nhưng KHÔNG phải VND thì không bị tự tính, dù có sổ lệnh gắn vào', async () => {
+    const acc = await demoRepo.createAccount(
+      accountInput({ name: 'TK đầu tư USD', type: 'investment', currency: 'USD', initial_balance: 100_000_000 }),
+    )
+    await demoRepo.createStockTrade({
+      account_id: acc.id,
+      symbol: 'FPT',
+      kind: 'buy',
+      traded_on: '2026-08-01',
+      quantity: 100,
+      price: 70_000,
+      fee: 0,
+      tax: 0,
+      note: '',
+    })
+    const balances = await demoRepo.getAccountBalances()
+    const row = balances.find((b) => b.id === acc.id)
+    expect(row?.market_value).toBeNull()
+  })
+})

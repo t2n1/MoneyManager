@@ -1,0 +1,8 @@
+# Bundle sinh tự động cho edge function (Deno) — PHẢI giữ LF ở cả working tree.
+#
+# Vì sao: esbuild luôn ghi LF, và tests/pushBundle.test.ts so TỪNG BYTE bản đã commit
+# với bản gói lại trong bộ nhớ (cố ý so bằng, để đổi một hằng số trong luật cũng đỏ).
+# Máy Windows thường có core.autocrlf=true, nên không có dòng này thì git đổi LF → CRLF
+# lúc checkout và test đỏ ngay sau khi clone, dù chẳng ai sửa gì. Đúng kiểu cảnh báo
+# sai làm người ta mất niềm tin vào cái chốt canh — rồi lần nó báo thật thì bỏ qua.
+supabase/functions/*/_*.js text eol=lf

@@ -1,0 +1,44 @@
+{
+ "HPG.VN": {
+  "timestamp": [
+   1785915909
+  ],
+  "symbol": "HPG.VN",
+  "end": null,
+  "close": [
+   22000
+  ],
+  "start": null,
+  "previousClose": null,
+  "chartPreviousClose": 22150,
+  "dataGranularity": 300
+ },
+ "FPT.VN": {
+  "timestamp": [
+   1785915907
+  ],
+  "symbol": "FPT.VN",
+  "end": null,
+  "close": [
+   70300
+  ],
+  "start": null,
+  "previousClose": null,
+  "chartPreviousClose": 71500,
+  "dataGranularity": 300
+ },
+ "VNM.VN": {
+  "timestamp": [
+   1785915918
+  ],
+  "symbol": "VNM.VN",
+  "end": null,
+  "close": [
+   58600
+  ],
+  "start": null,
+  "previousClose": null,
+  "chartPreviousClose": 59500,
+  "dataGranularity": 300
+ }
+}

@@ -1,7 +1,8 @@
 // Edge function stock-refresh — chạy mỗi chiều sau khi sàn Việt Nam đóng cửa.
 //
-// Hai việc: (1) hút bảng giá SSI vào stock_prices, (2) tính lại giá trị thị trường cho
-// từng tài khoản có sổ lệnh và ghi vào account_valuations.
+// Hai việc: (1) hút giá Yahoo cho các mã đã từng giao dịch, ghi vào stock_prices,
+// (2) tính lại giá trị thị trường cho từng tài khoản có sổ lệnh và ghi vào
+// account_valuations.
 //
 // Function này KHÔNG có phép tính riêng. Mọi phép tính gọi từ `_holdings.js` (gói từ
 // src/features/assets/serverBundle.ts) — cùng lý do như push-notify: hai bản sao của
@@ -13,9 +14,9 @@
 
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { fetchBoard, type Exchange, type PriceUpsert } from './prices.ts'
+import { fetchYahooPrices, type PriceUpsert } from './prices.ts'
 import { brokerCash, holdingsFromTrades, portfolioValue, sessionPrices } from './_holdings.js'
-import { loadPortfolioAccounts } from './loadInput.ts'
+import { loadPortfolioAccounts, loadTradedSymbols } from './loadInput.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -23,11 +24,9 @@ const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 // Không có nó thì bất kỳ ai biết URL cũng gọi được function và đốt hạn mức.
 const CRON_SECRET = Deno.env.get('PUSH_CRON_SECRET') ?? ''
 
-const EXCHANGES: Exchange[] = ['hose', 'hnx', 'upcom']
-
 interface KetQua {
-  /** Số mã đã ghi vào bảng giá, theo sàn. */
-  giaTheoSan: Record<string, number>
+  /** Số mã đã ghi được giá vào stock_prices ở lượt này (Yahoo, chỉ HOSE). */
+  soMaCoGia: number
   /** Số tài khoản đã ghi snapshot mới. */
   daGhi: number
   /** Vì sao những tài khoản còn lại bị bỏ qua — gom theo lý do để đọc log cho nhanh. */
@@ -57,7 +56,7 @@ Deno.serve(async (req) => {
   }
 
   const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
-  const kq: KetQua = { giaTheoSan: {}, daGhi: 0, boQua: {}, loi: [] }
+  const kq: KetQua = { soMaCoGia: 0, daGhi: 0, boQua: {}, loi: [] }
   // Việc 2 (ghi account_valuations) throw trước cả vòng lặp tài khoản — tức KHÔNG
   // phải lỗi của riêng một tài khoản mà cả khối ghi giá trị bị gãy. Tách cờ riêng
   // với `kq.loi` vì lỗi của TỪNG tài khoản (bên trong vòng lặp) vẫn được gom vào
@@ -66,25 +65,39 @@ Deno.serve(async (req) => {
   // thì không.
   let viec2Gay = false
 
-  // Hút từng sàn độc lập: một sàn lỗi thì hai sàn còn lại vẫn được ghi. Bảng giá thiếu
-  // một sàn còn dùng được; ném hết đi vì một sàn hỏng thì không.
-  for (const ex of EXCHANGES) {
-    try {
-      const rows: PriceUpsert[] = await fetchBoard(ex)
-      if (rows.length === 0) {
-        kq.loi.push(`${ex}: bảng giá rỗng`)
-        continue
+  // Yahoo không có "cả bảng giá của sàn" như SSI — giá giờ theo nhu cầu: hút đúng những
+  // mã đã từng xuất hiện trong sổ lệnh (loadTradedSymbols), kể cả mã đã bán sạch (rẻ,
+  // và giữ stock_prices có ích cho UI nếu còn tham chiếu tới mã đó).
+  try {
+    const symbols = await loadTradedSymbols(sb)
+    if (symbols.length === 0) {
+      // Cài đặt mới, chưa ai ghi lệnh nào — không có gì để hút. Đây là im lặng đúng,
+      // không phải lỗi: soMaCoGia giữ 0, kq.loi không thêm gì nên không kéo status
+      // xuống 500 (xem chetHoanToan cuối file).
+    } else {
+      // Chia lô bên trong fetchYahooPrices; lô nào hỏng góp lỗi riêng vào `errors`,
+      // không làm mất giá của các lô đã gọi thành công.
+      const { rows, errors } = await fetchYahooPrices(symbols)
+      for (const e of errors) kq.loi.push(`gia: ${e}`)
+
+      if (rows.length > 0) {
+        // Chia lô khi upsert: hàng trăm mã một câu là payload to và dễ timeout.
+        for (let i = 0; i < rows.length; i += 200) {
+          const part: (PriceUpsert & { updated_at: string })[] = rows
+            .slice(i, i + 200)
+            .map((r) => ({ ...r, updated_at: new Date().toISOString() }))
+          const { error } = await sb.from('stock_prices').upsert(part, { onConflict: 'symbol' })
+          if (error) throw error
+        }
+        kq.soMaCoGia = rows.length
+      } else if (errors.length === 0) {
+        // Có mã cần hút nhưng Yahoo không trả giá cho mã nào (khác lỗi mạng/HTTP — đó
+        // đã nằm trong `errors` ở trên).
+        kq.loi.push('gia: Yahoo không trả giá cho mã nào')
       }
-      // Chia lô: 400+ mã một câu upsert là payload to và dễ timeout.
-      for (let i = 0; i < rows.length; i += 200) {
-        const part = rows.slice(i, i + 200).map((r) => ({ ...r, updated_at: new Date().toISOString() }))
-        const { error } = await sb.from('stock_prices').upsert(part, { onConflict: 'symbol' })
-        if (error) throw error
-      }
-      kq.giaTheoSan[ex] = rows.length
-    } catch (err) {
-      kq.loi.push(`${ex}: ${err instanceof Error ? err.message : String(err)}`)
     }
+  } catch (err) {
+    kq.loi.push(`gia: ${err instanceof Error ? err.message : String(err)}`)
   }
 
   // --- Việc 2: tính lại giá trị thị trường và ghi vào account_valuations ---
@@ -94,10 +107,11 @@ Deno.serve(async (req) => {
       .select('symbol, price, trading_date')
     if (priceErr) throw priceErr
 
-    // Ba sàn hút độc lập (một sàn lỗi thì hai sàn còn lại vẫn ghi) nên sau một lượt
-    // chạy, không phải mọi hàng của stock_prices chắc chắn cùng trading_date.
+    // fetchYahooPrices chia lô và một lô lỗi không làm mất các lô khác, nên sau một
+    // lượt chạy, không phải mọi hàng của stock_prices chắc chắn cùng trading_date (ví
+    // dụ lô của một mã bị lỗi hôm nay, giá của nó vẫn còn của phiên hôm qua).
     // sessionPrices gom về MỘT phiên (ngày lớn nhất, cũng là ngày mà snapshot này
-    // thuộc về) và nêu tên mã nào còn kẹt ở phiên cũ hơn — sàn của nó chưa hút được
+    // thuộc về) và nêu tên mã nào còn kẹt ở phiên cũ hơn — lô của nó chưa hút được
     // lần này.
     const { session: phien, priceBySymbol, staleSymbols } = sessionPrices(
       (priceRows ?? []).map((p: any) => ({
@@ -174,12 +188,14 @@ Deno.serve(async (req) => {
   }
 
   console.log('stock-refresh', JSON.stringify(kq))
-  // 500 khi: (a) mọi sàn đều lỗi hút giá (việc 1 hoàn toàn không ra gì), HOẶC
-  // (b) việc 2 gãy TRƯỚC vòng lặp tài khoản (viec2Gay) — cả hai đều nghĩa là lượt
-  // chạy này không đáng tin, không phải "chạy tốt nhưng vài chỗ lẻ tẻ bị bỏ qua".
-  // Một sàn lỗi (còn hai sàn kia ghi được) hoặc một tài khoản lỗi riêng lẻ (đã có
-  // try/catch của nó trong vòng lặp) KHÔNG rơi vào đây — đó vẫn là lượt chạy có ích.
-  const chetHoanToan = kq.loi.length > 0 && Object.keys(kq.giaTheoSan).length === 0
+  // 500 khi: (a) việc 1 hoàn toàn không ghi được giá cho mã nào dù có lỗi xảy ra
+  // (soMaCoGia === 0 và kq.loi có gì đó — nếu chỉ vì "chưa ai ghi lệnh nào" thì kq.loi
+  // rỗng, KHÔNG rơi vào đây, xem chỗ set kq.soMaCoGia ở trên), HOẶC (b) việc 2 gãy
+  // TRƯỚC vòng lặp tài khoản (viec2Gay) — cả hai đều nghĩa là lượt chạy này không đáng
+  // tin, không phải "chạy tốt nhưng vài chỗ lẻ tẻ bị bỏ qua". Một lô Yahoo lỗi (còn lô
+  // khác ghi được, nên soMaCoGia > 0) hoặc một tài khoản lỗi riêng lẻ (đã có try/catch
+  // của nó trong vòng lặp) KHÔNG rơi vào đây — đó vẫn là lượt chạy có ích.
+  const chetHoanToan = kq.loi.length > 0 && kq.soMaCoGia === 0
   return new Response(JSON.stringify(kq), {
     status: chetHoanToan || viec2Gay ? 500 : 200,
     headers: { 'Content-Type': 'application/json' },

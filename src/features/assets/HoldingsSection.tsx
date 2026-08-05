@@ -7,6 +7,7 @@ import { useMemo } from 'react'
 import { Card, Money, SectionTitle } from '../../components/ui'
 import { useStockPrices, useStockTrades } from '../../hooks/queries'
 import type { AccountRow, StockTradeRow } from '../../types/database.types'
+import { HOSE_SYMBOLS } from './hoseSymbols'
 import { brokerCash, holdingsFromTrades, portfolioValue, sessionPrices, type Trade } from './holdings'
 
 interface Props {
@@ -34,7 +35,9 @@ export function HoldingsSection({ account, balance, onAddTrade, onEditTrade }: P
   // Ba sàn hút giá độc lập — gom về một phiên chung qua sessionPrices() để "nay" luôn
   // đúng nghĩa "phiên mới nhất", không lặng lẽ trộn giá hôm qua của sàn chưa hút được.
   const { session, priceBySymbol, staleSymbols } = useMemo(() => sessionPrices(prices), [prices])
-  const nameBySymbol = useMemo(() => new Map(prices.map((p) => [p.symbol, p.name])), [prices])
+  // stock_prices.name giờ luôn rỗng (Yahoo không trả tên công ty) — tên đọc từ danh sách
+  // tĩnh HOSE_SYMBOLS thay vì bảng giá.
+  const nameBySymbol = useMemo(() => new Map(HOSE_SYMBOLS), [])
 
   const asTrades: Trade[] = useMemo(
     () =>

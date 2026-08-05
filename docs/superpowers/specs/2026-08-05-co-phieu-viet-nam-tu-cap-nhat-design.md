@@ -62,6 +62,22 @@ và từ đó trở đi có hai nguồn sự thật về "tài khoản này đá
 
 Cả hai nguồn đều **miễn phí, không cần khoá** → giữ được ràng buộc 0đ của backlog.
 
+> **Đã đổi nguồn giá (2026-08-06):** SSI iBoard được chọn ở trên **không chạy được ở
+> production**. Đo trực tiếp từ function đã deploy (Supabase project vùng `ap-south-1`,
+> Mumbai): cả `iboard-query.ssi.com.vn/stock/exchange/{hose,hnx,upcom}` lẫn host khác
+> `iboard-api.ssi.com.vn` đều trả **403** "Security Check", kể cả khi giả dạng trình
+> duyệt đầy đủ (User-Agent + Referer + Origin + Accept) — tức chặn theo **dải IP trung
+> tâm dữ liệu**, không phải theo header, và không có cách né từ Supabase. Cùng URL gọi
+> từ máy cá nhân vẫn 200. Đã chuyển hẳn sang **Yahoo Finance** (mục "dự phòng" ở bảng
+> trên) làm nguồn chính, gọi qua endpoint `v8/finance/spark` (nhận nhiều mã một cuộc
+> gọi, khác `chart/` chỉ nhận một mã). Hệ quả: Yahoo chỉ phục vụ Việt Nam qua hậu tố
+> `.VN`, và hậu tố đó **chỉ là sàn HOSE** — **HNX/UPCOM giờ không có nguồn giá**. Một
+> tài khoản chỉ giữ mã HNX/UPCOM sẽ luôn "chưa có giá" và bị cron bỏ qua
+> (`thieu-gia-moi-ma`) thay vì ghi số sai. Yahoo cũng không trả tên công ty — tên đọc
+> từ danh sách tĩnh `src/features/assets/hoseSymbols.ts` (hút tay từ SSI, chạy ở máy cá
+> nhân chứ không phải edge function nên không đụng dải IP bị chặn). Chi tiết đầy đủ +
+> bằng chứng: [docs/co-phieu-viet-nam.md](../../co-phieu-viet-nam.md).
+
 ### Vì sao bắt buộc đi qua server (không lấy giá thẳng từ app)
 
 Đã kiểm tra header CORS:

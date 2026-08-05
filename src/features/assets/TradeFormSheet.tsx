@@ -7,14 +7,10 @@ import { useMemo, useState } from 'react'
 import { MoneyField } from '../../components/MoneyField'
 import { SegmentedControl } from '../../components/ui'
 import { confirmDialog } from '../../lib/dialog'
-import {
-  useCreateStockTrade,
-  useDeleteStockTrade,
-  useStockPrices,
-  useUpdateStockTrade,
-} from '../../hooks/queries'
+import { useCreateStockTrade, useDeleteStockTrade, useUpdateStockTrade } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import type { AccountRow, StockTradeKind, StockTradeRow } from '../../types/database.types'
+import { HOSE_SYMBOLS } from './hoseSymbols'
 
 /** Phí giao dịch phổ biến ở Việt Nam ~0,15% giá trị lệnh. */
 const FEE_RATE = 0.0015
@@ -38,7 +34,6 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
   const create = useCreateStockTrade()
   const update = useUpdateStockTrade()
   const remove = useDeleteStockTrade()
-  const { data: prices = [] } = useStockPrices()
 
   const [kind, setKind] = useState<StockTradeKind>(trade?.kind ?? 'buy')
   const [symbol, setSymbol] = useState(trade?.symbol ?? '')
@@ -60,14 +55,16 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
   const currency = account.currency
   const isAdjust = kind === 'adjust'
 
-  // Gợi ý tối đa 8 mã khi gõ — khớp cả mã và tên công ty.
+  // Gợi ý tối đa 8 mã khi gõ — khớp cả mã và tên công ty. Đọc từ danh sách tĩnh HOSE_SYMBOLS
+  // (không phải stock_prices): bảng giá giờ chỉ có mã ĐÃ từng giao dịch, nên nếu đọc từ đó
+  // ô gợi ý sẽ im lặng đúng lúc cần nhất — lần đầu gõ một mã CHƯA từng mua.
   const suggestions = useMemo(() => {
     const q = symbol.trim().toUpperCase()
-    if (q.length < 1 || prices.some((p) => p.symbol === q)) return []
-    return prices
-      .filter((p) => p.symbol.startsWith(q) || p.name.toUpperCase().includes(q))
-      .slice(0, 8)
-  }, [symbol, prices])
+    if (q.length < 1 || HOSE_SYMBOLS.some(([s]) => s === q)) return []
+    return HOSE_SYMBOLS.filter(
+      ([s, name]) => s.startsWith(q) || name.toUpperCase().includes(q),
+    ).slice(0, 8)
+  }, [symbol])
 
   // Phí/thuế gợi ý theo giá trị lệnh, tới khi người dùng tự sửa thì thôi.
   const grossValue = quantity * price
@@ -160,15 +157,15 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
         />
         {suggestions.length > 0 && (
           <ul className="mb-3 max-h-40 overflow-y-auto rounded-lg border border-border-subtle">
-            {suggestions.map((p) => (
-              <li key={p.symbol}>
+            {suggestions.map(([s, name]) => (
+              <li key={s}>
                 <button
                   type="button"
-                  onClick={() => setSymbol(p.symbol)}
+                  onClick={() => setSymbol(s)}
                   className="flex w-full items-baseline justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-surface-page"
                 >
-                  <b className="text-fg-primary">{p.symbol}</b>
-                  <span className="truncate text-2xs text-fg-muted">{p.name}</span>
+                  <b className="text-fg-primary">{s}</b>
+                  <span className="truncate text-2xs text-fg-muted">{name}</span>
                 </button>
               </li>
             ))}

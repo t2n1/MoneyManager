@@ -1,43 +1,104 @@
-# Hút bảng giá cổ phiếu Việt Nam (SSI iBoard)
+# Hút giá cổ phiếu Việt Nam (Yahoo Finance)
 
-Edge function `stock-refresh` chạy mỗi chiều sau khi ba sàn Việt Nam đóng cửa, làm
-hai việc: (1) hút bảng giá mới nhất và ghi vào `stock_prices`, (2) tính lại giá trị
-thị trường của từng tài khoản có sổ lệnh và ghi vào `account_valuations` — bảng mà
-cả app (tổng tài sản, lãi/lỗ chưa thực hiện, XIRR, biểu đồ, thông báo) đã đọc sẵn từ
-trước, nên không cần sửa gì ở phía đọc.
+Edge function `stock-refresh` chạy mỗi chiều sau khi sàn Việt Nam đóng cửa, làm
+hai việc: (1) hút giá mới nhất cho các mã đã từng giao dịch và ghi vào
+`stock_prices`, (2) tính lại giá trị thị trường của từng tài khoản có sổ lệnh và ghi
+vào `account_valuations` — bảng mà cả app (tổng tài sản, lãi/lỗ chưa thực hiện, XIRR,
+biểu đồ, thông báo) đã đọc sẵn từ trước, nên không cần sửa gì ở phía đọc.
+
+## Đã đổi nguồn giá: SSI → Yahoo Finance
+
+Bản đầu tiên dùng **SSI iBoard** (`iboard-query.ssi.com.vn/stock/exchange/{hose,hnx,upcom}`),
+đo tại máy cá nhân ngày 2026-08-05, trả 200 với đủ ba sàn. **Không chạy được ở
+production.** Đo trực tiếp từ function đã deploy (Supabase project vùng `ap-south-1`,
+Mumbai) ngày 2026-08-06:
+
+| Endpoint | Kết quả |
+|---|---|
+| `iboard-query.ssi.com.vn/stock/exchange/{hose,hnx,upcom}` | **403**, body là trang HTML "Security Check", cả ba sàn |
+| Cùng URL trên, kèm header giả trình duyệt đầy đủ (`User-Agent`, `Referer`, `Origin`, `Accept`) | **Vẫn 403** — không phải chặn theo header |
+| `iboard-api.ssi.com.vn` (host SSI khác) | **Cũng 403** |
+
+Cùng những URL đó gọi từ máy cá nhân (không phải dải IP trung tâm dữ liệu) vẫn trả
+200 — kết luận: SSI chặn theo **dải IP**, không phải theo cách gọi. Không có cách né
+từ phía Supabase. **SSI coi như chết cho việc này** — nếu định thử lại SSI, đọc kỹ
+mục này trước, đừng lặp lại phép đo đã làm.
+
+`query1.finance.yahoo.com/v8/finance/spark?symbols=...` gọi từ đúng function đó trả
+**200**, và — quan trọng — nhận được **nhiều mã trong một cuộc gọi** (khác
+`/v8/finance/chart/{SYMBOL}` chỉ nhận một mã một lần, và khác `v7/finance/quote` đòi
+xác thực, trả 401 nên không dùng được). Yahoo trở thành nguồn chính.
+
+### Giới hạn phải chấp nhận: chỉ còn HOSE
+
+Yahoo phục vụ cổ phiếu Việt Nam qua hậu tố `.VN`, và hậu tố đó **chỉ là sàn Hồ Chí
+Minh (HOSE)**. Đã thử PVS (HNX) và VGI (UPCOM) — cả hai trả "Not Found". Không có
+hậu tố nào khác thay thế cho HNX/UPCOM trên Yahoo.
+
+Chủ app hiện chỉ giữ cổ phiếu HOSE nên đây là quyết định **chấp nhận được**, không
+phải sơ sót — nhưng cần nói rõ vì nó là một giới hạn thật:
+
+> **Một mã HNX hoặc UPCOM sẽ KHÔNG có giá.** UI hiện "chưa có giá" cho mã đó (như mọi
+> mã thiếu giá khác), và nếu tài khoản chỉ giữ mã HNX/UPCOM, cron sẽ bỏ qua tài khoản
+> đó ở việc 2 (`thieu-gia-moi-ma`) thay vì ghi một con số sai — không có chỗ nào âm
+> thầm ghi giá 0 hay giá cũ.
+
+### Tên công ty: chuyển sang danh sách tĩnh
+
+Yahoo không trả tên công ty (SSI có, qua `companyNameVi`). Cột `stock_prices.name`
+giờ luôn rỗng. Ô gợi ý mã khi ghi lệnh (`TradeFormSheet`) và tên công ty hiển thị ở
+Danh mục (`HoldingsSection`) đọc từ danh sách tĩnh
+[`src/features/assets/hoseSymbols.ts`](../src/features/assets/hoseSymbols.ts) — 403
+mã HOSE (mã + tên), hút một lần từ máy cá nhân bằng
+[`scripts/harvest-hose-symbols.mjs`](../scripts/harvest-hose-symbols.mjs) (script đó
+vẫn gọi SSI vì SSI vẫn có danh sách mã cả sàn; script này chạy TAY, không phải ở edge
+function, nên không đụng dải IP bị chặn). Danh sách mã một sàn gần như không đổi,
+khác giá — nên hút tay vài tháng một lần là đủ, không cần tự động.
+
+Vì lý do y hệt (Yahoo chỉ có HOSE), danh sách tĩnh đó **cũng chỉ có mã HOSE** — liệt
+kê mã HNX/UPCOM ở đó sẽ gợi ý những mã mà app không lấy được giá.
 
 ## Đã chốt gì
 
 | Quyết định | Vì sao |
 |---|---|
-| Nguồn giá: **SSI iBoard** (`iboard-query.ssi.com.vn/stock/exchange/{hose,hnx,upcom}`) | Đo ngày 2026-08-05: trả đủ ba sàn, miễn phí, không cần khoá API, giá theo ĐỒNG. TCBS bị Cloudflare chặn, VNDirect trả rỗng. |
-| Giá lấy `matchedPrice`, rơi về `priorClosePrice` rồi `refPrice` | `matchedPrice` = 0 ngoài giờ giao dịch hoặc mã không khớp lệnh trong phiên. Không có giá nào dùng được thì **bỏ mã đó**, không ghi giá 0 — xem [prices.ts](../supabase/functions/stock-refresh/prices.ts). |
-| Chạy ở server, không gọi thẳng từ app | SSI trả `Access-Control-Allow-Origin: https://iboard.ssi.com.vn` — trình duyệt của app không gọi được. Đây là ràng buộc, không phải lựa chọn. |
-| Hút từng sàn độc lập | Một sàn lỗi (mạng, SSI đổi payload) thì hai sàn còn lại vẫn ghi được. |
+| Nguồn giá: **Yahoo Finance spark API** (`query1.finance.yahoo.com/v8/finance/spark`) | SSI bị chặn 403 ở dải IP Supabase (xem trên). Yahoo trả 200, nhận nhiều mã một lần. |
+| Giá lấy `close[0]`, không rơi về gì khác | Không phải số hữu hạn > 0 → **bỏ mã đó**, không ghi giá 0 — xem [prices.ts](../supabase/functions/stock-refresh/prices.ts). |
+| Chỉ còn sàn **HOSE** | Hậu tố `.VN` của Yahoo chính là HOSE; HNX/UPCOM không có nguồn giá thay thế. Xem cảnh báo ở trên. |
+| Giá theo nhu cầu, không còn "cả bảng giá sàn" | Yahoo không có endpoint kiểu "trả hết mã của sàn" như SSI — phải biết trước cần giá cho mã nào. |
+| Hút giá cho MỌI mã từng xuất hiện trong sổ lệnh, kể cả đã bán sạch | Rẻ (một cuộc gọi gộp), độc lập với phép tính nắm giữ, và giữ `stock_prices` có ích nếu UI còn tham chiếu tới mã đó. |
+| Chia lô khi gọi Yahoo (vài chục mã/lô) | URL không phình to với sổ lệnh dài, và một lô hỏng không kéo mất các lô đã gọi thành công. |
+| Chạy ở server, không gọi thẳng từ app | Cả SSI lẫn Yahoo đều không trả header CORS cho phép trình duyệt của app gọi thẳng. |
 | Dùng lại `PUSH_CRON_SECRET` | Nó là "bí mật cho cron" nói chung, không riêng gì push-notify — không cần sinh thêm secret khác. |
 
 ## Kiến trúc
 
 ```
-supabase/functions/stock-refresh/prices.ts     ← fetchBoard (gọi SSI) + parseBoard (hàm thuần, test được)
-supabase/functions/stock-refresh/loadInput.ts  ← đọc account_balances + stock_trades, xếp thành PortfolioAccount[]
-supabase/functions/stock-refresh/index.ts      ← việc 1: vòng qua 3 sàn, upsert stock_prices
-                                                  việc 2: gọi _holdings.js + loadInput.ts, ghi account_valuations
+supabase/functions/stock-refresh/prices.ts     ← fetchYahooPrices (chia lô gọi Yahoo, gom lỗi từng lô)
+                                                  + parseYahooSpark (hàm thuần, test được)
+supabase/functions/stock-refresh/loadInput.ts  ← đọc account_balances + stock_trades, xếp thành
+                                                  PortfolioAccount[]; loadTradedSymbols đọc mọi mã
+                                                  từng giao dịch (không lọc theo tài khoản) cho việc 1
+supabase/functions/stock-refresh/index.ts      ← việc 1: loadTradedSymbols → fetchYahooPrices → upsert
+                                                  stock_prices
+                                                  việc 2: gọi _holdings.js + loadInput.ts, ghi
+                                                  account_valuations
 supabase/functions/stock-refresh/_holdings.js  ← gói từ src/features/assets/holdings.ts (holdingsFromTrades,
                                                   brokerCash, portfolioValue, sessionPrices) — cùng phép tính
                                                   app đang dùng
 ```
 
-`parseBoard` tách khỏi `fetchBoard` để test bằng file mẫu
-([testdata/hose-sample.json](../supabase/functions/stock-refresh/testdata/hose-sample.json),
-đã cắt còn 3 mã), không cần mạng hay Deno.
+`parseYahooSpark` tách khỏi `fetchYahooPrices` để test bằng file mẫu
+([testdata/yahoo-spark-sample.json](../supabase/functions/stock-refresh/testdata/yahoo-spark-sample.json),
+hút thật từ FPT/VNM/HPG), không cần mạng hay Deno.
 
 `loadInput.ts` theo đúng khuôn của `push-notify/loadInput.ts`: chỉ đọc bảng và xếp dữ
-liệu vào đúng ô cho `_holdings.js`, không tự cộng trừ tiền hay ngày. Phép tính thật —
-gộp sổ lệnh ra số cổ/giá vốn (`holdingsFromTrades`), tiền chưa đầu tư (`brokerCash`),
-giá trị thị trường (`portfolioValue`) — nằm trong `_holdings.js`, cùng một hàm thuần
-mà trình duyệt gọi khi hiện trang Tài sản. Nhờ vậy chuông trong app và snapshot do
-cron ghi không bao giờ nói lệch nhau.
+liệu vào đúng ô, không tự cộng trừ tiền hay ngày. Phép tính thật — gộp sổ lệnh ra số
+cổ/giá vốn (`holdingsFromTrades`), tiền chưa đầu tư (`brokerCash`), giá trị thị
+trường (`portfolioValue`) — nằm trong `_holdings.js`, cùng một hàm thuần mà trình
+duyệt gọi khi hiện trang Tài sản. Nhờ vậy chuông trong app và snapshot do cron ghi
+không bao giờ nói lệch nhau. Việc 2 (từ `loadPortfolioAccounts` trở đi) **không đổi**
+khi chuyển nguồn giá — nó không quan tâm giá tới từ đâu, chỉ đọc `stock_prices`.
 
 ## Triển khai
 
@@ -95,15 +156,16 @@ supabase functions logs stock-refresh
 Mỗi lượt chạy log một dòng:
 
 ```
-stock-refresh {"giaTheoSan":{"hose":407,"hnx":210,"upcom":180},"daGhi":3,"boQua":{"nguoi-dung-da-go-tay":1},"loi":[]}
+stock-refresh {"soMaCoGia":42,"daGhi":3,"boQua":{"nguoi-dung-da-go-tay":1},"loi":[]}
 ```
 
-- `giaTheoSan` — số mã ghi được vào `stock_prices`, theo từng sàn (việc 1).
+- `soMaCoGia` — số mã ghi được giá vào `stock_prices` ở lượt này (việc 1; chỉ HOSE,
+  chỉ những mã từng xuất hiện trong sổ lệnh — xem `loadTradedSymbols`).
 - `daGhi` — số tài khoản vừa được ghi snapshot mới vào `account_valuations` (việc 2).
 - `boQua` — số tài khoản bị bỏ qua ở việc 2, gom theo lý do. Xem bảng dưới để biết
   từng lý do nghĩa là gì và có cần làm gì không.
-- `loi` — lỗi (hút giá một sàn, hoặc cả khối việc 2 nếu nó throw — xem ghi chú cuối
-  bảng).
+- `loi` — lỗi (một lô Yahoo hỏng dạng `gia: ...`, hoặc cả khối việc 2 nếu nó throw —
+  xem ghi chú cuối bảng).
 
 ### Ý nghĩa từng lý do trong `boQua`
 
@@ -113,9 +175,9 @@ Bảng cho người đọc log sáu tháng sau, không có ngữ cảnh gì khá
 |---|---|---|
 | `so-lenh-co-lo-hong` | `holdingsFromTrades` báo `oversold` khác rỗng: có lệnh bán (hoặc `adjust` âm) nhiều hơn số cổ đang giữ tại thời điểm đó. Sổ lệnh của tài khoản này có một lỗ hổng — thường là quên ghi một lệnh mua, hoặc ghi sai ngày làm đảo thứ tự mua/bán. | Mở tài khoản trong app, xem lại từng lệnh theo `symbol`, tìm lệnh mua bị thiếu hoặc ngày bị sai rồi sửa/ghi bổ sung. Cron sẽ tự ghi lại vào lần chạy kế tiếp, không cần gọi tay. |
 | `tien-chua-dau-tu-am` | `brokerCash` ra số âm: tổng tiền đã chi cho các lệnh mua (trừ tiền thu từ lệnh bán) nhiều hơn số dư sổ của tài khoản (nạp − rút). Thường là quên ghi giao dịch nạp tiền vào tài khoản chứng khoán trước khi ghi lệnh mua. | Kiểm tra tab giao dịch của tài khoản này: có thiếu lần chuyển tiền vào không? Ghi bổ sung giao dịch nạp tiền (không phải lệnh mua) cho khớp số đã bỏ ra mua cổ phiếu. |
-| `thieu-gia-moi-ma` | `portfolioValue` trả `marketValue = null` vì **mọi** mã đang giữ đều không có giá trong `stock_prices` (không phải sổ lệnh sai, cash cũng không âm). Thường là mã đã huỷ niêm yết, hoặc sàn không trả về mã đó trong lần hút gần nhất. | Tra mã đó trên SSI iBoard xem còn giao dịch không. Nếu là mã hợp lệ nhưng SSI đổi tên/mã, cập nhật lại `symbol` trong lệnh cho khớp. Nếu đã huỷ niêm yết, ghi lệnh `adjust` phù hợp hoặc chấp nhận tài khoản này tạm không tự chạy được. |
+| `thieu-gia-moi-ma` | `portfolioValue` trả `marketValue = null` vì **mọi** mã đang giữ đều không có giá trong `stock_prices` (không phải sổ lệnh sai, cash cũng không âm). Thường gặp nhất bây giờ: tài khoản chỉ giữ mã **HNX/UPCOM** (Yahoo không có giá cho hai sàn đó — xem mục "Giới hạn phải chấp nhận" ở trên). Cũng có thể là mã đã huỷ niêm yết. | Nếu mã thuộc HNX/UPCOM: đây là giới hạn đã biết, không có cách khắc phục tự động — ghi giá trị tài khoản đó bằng tay (sheet "Cập nhật giá trị") như trước khi có tính năng này. Nếu mã là HOSE nhưng SSI/Yahoo đổi mã, cập nhật lại `symbol` trong lệnh cho khớp. Nếu đã huỷ niêm yết, ghi lệnh `adjust` phù hợp hoặc chấp nhận tài khoản này tạm không tự chạy được. |
 | `nguoi-dung-da-go-tay` | Hàng `account_valuations` của đúng ngày phiên đó đã có sẵn với `source = 'manual'` — người dùng đã tự gõ số cho ngày này (sheet "Cập nhật giá trị"). Cron **cố ý** không đè lên: số người dùng gõ tay luôn thắng. | Không cần làm gì — đây là hành vi đúng, không phải lỗi. Nếu muốn để cron tự tính lại, xoá hàng `manual` đó (hoặc đổi `source` thành `'auto'`) rồi gọi lại function. |
-| `gia-le-phien-cu` | Ba sàn hút độc lập nên có lượt chỉ một/hai sàn thành công. `sessionPrices` lấy ngày phiên lớn nhất trong `stock_prices` làm mốc chung; tài khoản này đang giữ ít nhất một mã mà giá của nó vẫn còn ở ngày phiên CŨ hơn mốc đó — tức sàn của mã đó chưa hút được ở lượt này. Giá tuy có và > 0 (không rơi vào `thieu-gia-moi-ma`) nhưng là giá hôm qua, không phải hôm nay. | Xem `loi` của cùng lượt chạy đó có dòng nào báo sàn của mã này lỗi không. Nếu sàn đã hút lại được ở lượt sau, cron tự ghi bình thường — không cần làm gì. Nếu lặp lại nhiều ngày liền, kiểm `fetchBoard`/`prices.ts` cho sàn đó. |
+| `gia-le-phien-cu` | `fetchYahooPrices` chia lô và một lô lỗi không làm mất các lô khác, nên có lượt chỉ một phần số mã hút được giá mới. `sessionPrices` lấy ngày phiên lớn nhất trong `stock_prices` làm mốc chung; tài khoản này đang giữ ít nhất một mã mà giá của nó vẫn còn ở ngày phiên CŨ hơn mốc đó — tức lô của mã đó chưa hút được ở lượt này. Giá tuy có và > 0 (không rơi vào `thieu-gia-moi-ma`) nhưng là giá hôm qua, không phải hôm nay. | Xem `loi` của cùng lượt chạy đó có dòng `gia: ...` nào không. Nếu lô đã hút lại được ở lượt sau, cron tự ghi bình thường — không cần làm gì. Nếu lặp lại nhiều ngày liền, kiểm `fetchYahooPrices`/`prices.ts`. |
 
 Ghi chú về lỗi trong `loi` ở việc 2 — hai dạng dòng khác nhau, ứng với hai tình huống
 khác nhau, đọc kỹ để khỏi hiểu lầm khi debug một lượt chạy dở dang:
@@ -130,17 +192,23 @@ khác nhau, đọc kỹ để khỏi hiểu lầm khi debug một lượt chạy
   danh sách — vẫn được xét và ghi bình thường. `daGhi` và `boQua` ở lượt chạy này là số
   **thật** của các tài khoản đã chạy xong, không phải giá trị mặc định — chỉ tài khoản
   bị lỗi là không có mặt trong cả hai.
+- **`gia: <thông điệp>` = lỗi của MỘT lô Yahoo (việc 1)** — lô khác đã gọi thành công
+  vẫn có mặt trong `soMaCoGia`, không mất theo.
 
-Việc 1 (hút giá) không bị ảnh hưởng bởi cả hai tình huống trên vì nó chạy và log kết
-quả trước khi việc 2 bắt đầu.
+Việc 1 (hút giá) không bị ảnh hưởng bởi hai tình huống của việc 2 vì nó chạy và log
+kết quả trước khi việc 2 bắt đầu.
 
 ### Mã trạng thái HTTP trả về
 
 `200` là mặc định. Trả `500` ở đúng hai trường hợp, cả hai đều nghĩa là lượt chạy này
 **không đáng tin**, khác với "chạy tốt nhưng vài chỗ lẻ tẻ bị bỏ qua":
 
-- **Việc 1 chết hoàn toàn**: cả ba sàn đều lỗi, `giaTheoSan` rỗng. Một/hai sàn lỗi mà
-  sàn còn lại vẫn ghi được thì KHÔNG tính — bảng giá thiếu một sàn vẫn dùng được.
+- **Việc 1 chết hoàn toàn**: có mã cần hút giá (sổ lệnh không rỗng) nhưng
+  `soMaCoGia === 0` VÀ có lỗi trong `loi` — nghĩa là mọi lô Yahoo đều hỏng, hoặc
+  Yahoo không trả giá cho mã nào. **Không** tính vào đây trường hợp sổ lệnh rỗng
+  (cài mới, chưa ai ghi lệnh) — đó là im lặng đúng, `loi` không có gì nên không kéo
+  status xuống 500. Một lô lỗi mà lô khác vẫn ghi được (`soMaCoGia > 0`) cũng
+  **không** tính vào đây.
 - **Việc 2 gãy trước vòng lặp tài khoản** (dòng `ghi gia tri: <thông điệp>` trong
   `loi`): đọc `stock_prices` lỗi, `loadPortfolioAccounts` lỗi, hoặc bảng giá rỗng nên
   không tính được `phien`. Không tài khoản nào được xét trong lượt này.
@@ -162,21 +230,23 @@ curl -i -X POST http://localhost:54321/functions/v1/stock-refresh -H "x-cron-sec
 ```
 
 Trả về `200` với body kiểu
-`{"giaTheoSan":{"hose":407,"hnx":...,"upcom":...},"daGhi":3,"boQua":{},"loi":[]}`.
+`{"soMaCoGia":42,"daGhi":3,"boQua":{},"loi":[]}`.
 Gọi thiếu header `x-cron-secret` phải trả `401 Sai bí mật cron`.
 
 ## Chỗ đã kiểm và chỗ chưa
 
 | Phần | Trạng thái |
 |---|---|
-| `parseBoard` — đọc bảng giá thật của SSI, rơi về `priorClosePrice`/`refPrice`, bỏ mã không có giá dùng được | ✅ 6 test, chạy trên file mẫu thật (đã cắt còn 3 mã) |
-| `fetchBoard` gọi được SSI thật | ✅ đã đo `curl` tới `iboard-query.ssi.com.vn/stock/exchange/hose` ngày 2026-08-05, trả `200` |
+| `parseYahooSpark` — đọc payload spark thật của Yahoo (FPT/VNM/HPG), bóc hậu tố `.VN`, `trading_date` theo giờ Việt Nam, bỏ mã giá null/0/âm, `prior_close` null khi `chartPreviousClose` thiếu/hỏng, payload lạ không nổ | ✅ 11 test, chạy trên file mẫu thật `testdata/yahoo-spark-sample.json` |
+| `fetchYahooPrices` gọi được Yahoo thật, chia lô | ✅ đã đo `curl` tới `query1.finance.yahoo.com/v8/finance/spark` từ function đã deploy (region Mumbai) ngày 2026-08-06, trả `200`, nhiều mã một lần |
 | Ghi vào `stock_prices` (upsert thật) | ❌ **chưa kiểm** — chưa có Supabase local để thử |
 | `_holdings.js` xuất đúng `holdingsFromTrades`/`brokerCash`/`portfolioValue`/`sessionPrices`/`toISODate`, khớp `src/features/assets/holdings.ts` | ✅ `tests/pushBundle.test.ts` so byte-for-byte bundle gói lại với file đã commit, và kiểm đủ export |
 | `loadPortfolioAccounts` lọc đúng loại `investment` + `VND` + chưa lưu trữ + có sổ lệnh | ✅ đọc kỹ theo hợp đồng, khớp cột trong migration 0016/0026/0035 — **chưa chạy thật** với Postgres |
+| `loadTradedSymbols` gom đúng mã duy nhất, không lọc theo tài khoản | ✅ đọc code — dedupe qua `Set`, không phân biệt tài khoản đủ điều kiện hay không, khớp bảng `stock_trades` — **chưa chạy thật** với Postgres |
 | Van bỏ qua `so-lenh-co-lo-hong` / `tien-chua-dau-tu-am` / `thieu-gia-moi-ma` / `gia-le-phien-cu` không ghi gì | ✅ đọc code — cả bốn đều `continue` trước khối `upsert`; `sessionPrices` có 5 test riêng ở `src/features/assets/holdings.test.ts` |
 | Số gõ tay (`source='manual'`) không bị đè | ✅ đọc code — đọc trước, so `source`, `continue` nếu là `manual`. **Chưa kiểm bằng UI + DB thật** (Step 4 của brief) |
-| `valued_on` = ngày phiên (không phải hôm nay), và tính theo phiên MỚI NHẤT dù một sàn hụt | ✅ đọc code — `phien` = `session` từ `sessionPrices`, lấy `trading_date` lớn nhất trong `stock_prices`; không có chỗ nào dùng `new Date()` cho `valued_on`; mã ở phiên cũ hơn bị chặn bởi `gia-le-phien-cu`, không lọt vào `priceBySymbol` một cách âm thầm |
+| `valued_on` = ngày phiên (không phải hôm nay), và tính theo phiên MỚI NHẤT dù một lô hụt | ✅ đọc code — `phien` = `session` từ `sessionPrices`, lấy `trading_date` lớn nhất trong `stock_prices`; không có chỗ nào dùng `new Date()` cho `valued_on` hay cho `trading_date` (đổi từ `timestamp` Yahoo qua `Intl.DateTimeFormat` với `timeZone: 'Asia/Ho_Chi_Minh'`); mã ở phiên cũ hơn bị chặn bởi `gia-le-phien-cu`, không lọt vào `priceBySymbol` một cách âm thầm |
+| Cài mới (chưa ai ghi lệnh) không lỗi | ✅ đọc code — `loadTradedSymbols` trả mảng rỗng → việc 1 không làm gì, không đẩy `loi`, `soMaCoGia` giữ 0, status vẫn `200` |
 | `supabase functions serve` tại máy + gọi thử `POST /stock-refresh` | ❌ **chưa kiểm** — máy dev chưa cài Supabase CLI / chưa chạy Supabase local |
 | Ghi thật vào `account_valuations`, xem "Tổng tài sản"/"Hiệu quả đầu tư" tự đúng trên UI | ❌ **chưa kiểm** — cần môi trường sống (xem mục dưới) |
 | `cron.schedule` đã chạy thật, `cron.job`/`cron.job_run_details` có hàng | ❌ **chưa kiểm** — cần deploy lên project Supabase thật |

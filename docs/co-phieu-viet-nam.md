@@ -134,6 +134,23 @@ khác nhau, đọc kỹ để khỏi hiểu lầm khi debug một lượt chạy
 Việc 1 (hút giá) không bị ảnh hưởng bởi cả hai tình huống trên vì nó chạy và log kết
 quả trước khi việc 2 bắt đầu.
 
+### Mã trạng thái HTTP trả về
+
+`200` là mặc định. Trả `500` ở đúng hai trường hợp, cả hai đều nghĩa là lượt chạy này
+**không đáng tin**, khác với "chạy tốt nhưng vài chỗ lẻ tẻ bị bỏ qua":
+
+- **Việc 1 chết hoàn toàn**: cả ba sàn đều lỗi, `giaTheoSan` rỗng. Một/hai sàn lỗi mà
+  sàn còn lại vẫn ghi được thì KHÔNG tính — bảng giá thiếu một sàn vẫn dùng được.
+- **Việc 2 gãy trước vòng lặp tài khoản** (dòng `ghi gia tri: <thông điệp>` trong
+  `loi`): đọc `stock_prices` lỗi, `loadPortfolioAccounts` lỗi, hoặc bảng giá rỗng nên
+  không tính được `phien`. Không tài khoản nào được xét trong lượt này.
+
+Lỗi của **một** tài khoản riêng lẻ (dòng `tài khoản <id>…: <thông điệp>` trong `loi`,
+xem bảng ở trên) KHÔNG kéo status xuống 500 — những tài khoản khác trong lượt đó vẫn
+được ghi bình thường, nên đây vẫn là một lượt chạy có ích. Thiếu một trong ba biến môi
+trường bắt buộc (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PUSH_CRON_SECRET`) cũng
+trả `500` kèm `loi` nói rõ tên biến còn thiếu, trước khi chạm tới cả hai việc.
+
 ## Chạy thử tại máy
 
 ```bash

@@ -252,6 +252,66 @@ describe('deleteAccount', () => {
   })
 })
 
+// Ép source của một hàng account_valuations thẳng trong localStorage — mô phỏng hàng
+// do cron stock-refresh đã ghi (source='auto') trước khi người dùng gõ tay đè lên.
+function setStoredValuationSource(accountId: string, valuedOn: string, source: 'manual' | 'auto') {
+  const raw = localStorage.getItem(STORAGE_KEY)
+  const db = JSON.parse(raw ?? '{}') as {
+    accountValuations?: { account_id: string; valued_on: string; source: string }[]
+  }
+  const row = (db.accountValuations ?? []).find(
+    (v) => v.account_id === accountId && v.valued_on === valuedOn,
+  )
+  if (!row) throw new Error('Không tìm thấy hàng account_valuations để ép source')
+  row.source = source
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db))
+}
+
+describe('upsertValuation — số gõ tay luôn thắng số máy tính (quyết định 4)', () => {
+  it('upsert lần đầu (chưa có hàng nào) -> source luôn là manual', async () => {
+    const acc = await demoRepo.createAccount(accountInput({ name: 'TK đầu tư', type: 'investment' }))
+    const row = await demoRepo.upsertValuation({
+      account_id: acc.id,
+      valued_on: '2026-08-01',
+      market_value: 100_000,
+      note: '',
+    })
+    expect(row.source).toBe('manual')
+  })
+
+  it('gõ tay đè lên hàng đã có source=auto -> claim lại thành manual, không để cron đè tiếp', async () => {
+    const acc = await demoRepo.createAccount(accountInput({ name: 'TK đầu tư', type: 'investment' }))
+    // Hàng do cron ghi trước đó.
+    await demoRepo.upsertValuation({
+      account_id: acc.id,
+      valued_on: '2026-08-01',
+      market_value: 1_000_000,
+      note: 'Tự tính theo giá phiên',
+    })
+    setStoredValuationSource(acc.id, '2026-08-01', 'auto')
+    const truocKhiSua = (await demoRepo.getAccountValuations()).find(
+      (v) => v.account_id === acc.id && v.valued_on === '2026-08-01',
+    )
+    expect(truocKhiSua?.source).toBe('auto') // xác nhận đã ép được trạng thái giả lập
+
+    // Người dùng mở sheet "Cập nhật giá trị" và tự sửa lại số cho đúng ngày đó.
+    const sau = await demoRepo.upsertValuation({
+      account_id: acc.id,
+      valued_on: '2026-08-01',
+      market_value: 2_000_000,
+      note: 'Tôi tự sửa lại',
+    })
+    expect(sau.source).toBe('manual')
+    expect(sau.market_value).toBe(2_000_000)
+
+    // Đọc lại từ "DB" để chắc là đã lưu, không chỉ đúng ở giá trị trả về.
+    const doc = (await demoRepo.getAccountValuations()).find(
+      (v) => v.account_id === acc.id && v.valued_on === '2026-08-01',
+    )
+    expect(doc?.source).toBe('manual')
+  })
+})
+
 describe('deleteCategory', () => {
   it('xóa được danh mục trống', async () => {
     const cat = await demoRepo.createCategory({ name: 'C', type: 'expense', icon: '📦' })
@@ -608,6 +668,32 @@ describe('demoRepo: sổ lệnh cổ phiếu', () => {
     await demoRepo.importAll(backup)
     const sau = await demoRepo.getStockTrades()
     expect(sau.length).toBe(backup.stockTrades?.length ?? 0)
+  })
+
+  it('sao lưu/khôi phục KHÔNG được đổi source của định giá — hàng auto phải vẫn là auto', async () => {
+    // Nếu đường khôi phục quên cột `source`, mọi hàng do cron ghi (auto) sẽ biến thành
+    // manual sau một lần khôi phục, và từ đó cron không bao giờ tính lại được nữa —
+    // xem Fix 2 của đợt sửa lỗi cuối (backup restore silently rewrites source).
+    const acc = await taiKhoanChungKhoanVN()
+    await demoRepo.upsertValuation({
+      account_id: acc.id,
+      valued_on: '2026-08-01',
+      market_value: 500_000,
+      note: 'Tự tính theo giá phiên',
+    })
+    setStoredValuationSource(acc.id, '2026-08-01', 'auto')
+
+    const backup = await demoRepo.exportAll()
+    const truocKhiXuat = backup.accountValuations?.find(
+      (v) => v.account_id === acc.id && v.valued_on === '2026-08-01',
+    )
+    expect(truocKhiXuat?.source).toBe('auto')
+
+    await demoRepo.importAll(backup)
+    const sauKhiNhap = (await demoRepo.getAccountValuations()).find(
+      (v) => v.account_id === acc.id && v.valued_on === '2026-08-01',
+    )
+    expect(sauKhiNhap?.source).toBe('auto')
   })
 
   it('không xoá được tài khoản khi còn sổ lệnh', async () => {

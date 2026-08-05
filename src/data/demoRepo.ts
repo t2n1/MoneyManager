@@ -783,6 +783,10 @@ export const demoRepo: Repo = {
     if (existing) {
       existing.market_value = input.market_value
       existing.note = input.note
+      // Người gõ tay luôn thắng (quyết định 4): dù hàng này đang là 'auto' do cron ghi,
+      // một lần sửa tay phải claim lại nó — không thì lần cron chạy kế tiếp vẫn thấy
+      // 'auto' và đè mất số vừa sửa.
+      existing.source = 'manual'
       save(db)
       return existing
     }

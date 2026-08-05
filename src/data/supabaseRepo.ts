@@ -367,6 +367,12 @@ export const supabaseRepo: Repo = {
           valued_on: input.valued_on,
           market_value: input.market_value,
           note: input.note,
+          // Người gõ tay luôn thắng (quyết định 4). Bắt buộc phải ghi rõ 'manual' ở ĐÂY
+          // dù cột có default cùng giá trị: default chỉ áp dụng cho hàng MỚI — hàng đã
+          // có sẵn (ví dụ cron vừa ghi 'auto' cho đúng ngày này) thì upsert là UPDATE,
+          // default không chạy, và thiếu dòng này sẽ để nguyên 'auto' cũ. Lần cron chạy
+          // kế tiếp sẽ thấy 'auto' và đè mất số người dùng vừa sửa.
+          source: 'manual',
         },
         { onConflict: 'account_id,valued_on' },
       )
@@ -1519,6 +1525,11 @@ export const supabaseRepo: Repo = {
               valued_on: v.valued_on,
               market_value: v.market_value,
               note: v.note,
+              // Phải gửi rõ `source` — thiếu dòng này thì mọi hàng khôi phục rơi về
+              // default 'manual' của cột, kể cả hàng exportAll xuất ra là 'auto' (do
+              // cron ghi). Từ đó cron thấy 'manual' và không bao giờ tính lại nữa
+              // (quyết định 4 đọc ngược: khôi phục không phải là gõ tay).
+              source: v.source,
             })),
         (part) => sb.from('account_valuations').insert(part),
       )

@@ -109,9 +109,9 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
     if (!trade) return
     if (
       !(await confirmDialog({
-        title: `Xoá lệnh ${trade.symbol} ngày ${trade.traded_on}?`,
+        title: `Xóa lệnh ${trade.symbol} ngày ${trade.traded_on}?`,
         danger: true,
-        confirmLabel: 'Xoá',
+        confirmLabel: 'Xóa',
       }))
     )
       return
@@ -273,7 +273,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
               disabled={saving}
               className="mr-auto rounded-lg px-3 py-2 text-sm text-money-out disabled:opacity-50"
             >
-              Xoá
+              Xóa
             </button>
           )}
           <button

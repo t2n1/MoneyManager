@@ -40,12 +40,31 @@ function demBoQua(kq: KetQua, lyDo: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.headers.get('x-cron-secret') !== CRON_SECRET || !CRON_SECRET) {
+  // Thiếu biến môi trường thì phải nói RÕ thiếu cái gì — không để nó rơi xuống throw
+  // mù mờ từ bên trong createClient() (đúng cách push-notify/index.ts đã làm).
+  const thieu = [
+    ['SUPABASE_URL', SUPABASE_URL],
+    ['SUPABASE_SERVICE_ROLE_KEY', SERVICE_ROLE_KEY],
+    ['PUSH_CRON_SECRET', CRON_SECRET],
+  ]
+    .filter(([, v]) => !v)
+    .map(([k]) => k)
+  if (thieu.length > 0)
+    return Response.json({ loi: `Thiếu biến môi trường: ${thieu.join(', ')}` }, { status: 500 })
+
+  if (req.headers.get('x-cron-secret') !== CRON_SECRET) {
     return new Response('Sai bí mật cron', { status: 401 })
   }
 
   const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
   const kq: KetQua = { giaTheoSan: {}, daGhi: 0, boQua: {}, loi: [] }
+  // Việc 2 (ghi account_valuations) throw trước cả vòng lặp tài khoản — tức KHÔNG
+  // phải lỗi của riêng một tài khoản mà cả khối ghi giá trị bị gãy. Tách cờ riêng
+  // với `kq.loi` vì lỗi của TỪNG tài khoản (bên trong vòng lặp) vẫn được gom vào
+  // `loi` như bình thường mà không nên biến cả lượt chạy thành thất bại — một sàn
+  // hỏng hay một tài khoản lỗi vẫn là "lượt chạy có ích", còn việc 2 gãy hoàn toàn
+  // thì không.
+  let viec2Gay = false
 
   // Hút từng sàn độc lập: một sàn lỗi thì hai sàn còn lại vẫn được ghi. Bảng giá thiếu
   // một sàn còn dùng được; ném hết đi vì một sàn hỏng thì không.
@@ -150,12 +169,19 @@ Deno.serve(async (req) => {
       }
     }
   } catch (err) {
+    viec2Gay = true
     kq.loi.push(`ghi gia tri: ${err instanceof Error ? err.message : String(err)}`)
   }
 
   console.log('stock-refresh', JSON.stringify(kq))
+  // 500 khi: (a) mọi sàn đều lỗi hút giá (việc 1 hoàn toàn không ra gì), HOẶC
+  // (b) việc 2 gãy TRƯỚC vòng lặp tài khoản (viec2Gay) — cả hai đều nghĩa là lượt
+  // chạy này không đáng tin, không phải "chạy tốt nhưng vài chỗ lẻ tẻ bị bỏ qua".
+  // Một sàn lỗi (còn hai sàn kia ghi được) hoặc một tài khoản lỗi riêng lẻ (đã có
+  // try/catch của nó trong vòng lặp) KHÔNG rơi vào đây — đó vẫn là lượt chạy có ích.
+  const chetHoanToan = kq.loi.length > 0 && Object.keys(kq.giaTheoSan).length === 0
   return new Response(JSON.stringify(kq), {
-    status: kq.loi.length > 0 && Object.keys(kq.giaTheoSan).length === 0 ? 500 : 200,
+    status: chetHoanToan || viec2Gay ? 500 : 200,
     headers: { 'Content-Type': 'application/json' },
   })
 })

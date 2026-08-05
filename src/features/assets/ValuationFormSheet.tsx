@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useUpsertValuation } from '../../hooks/queries'
+import { useMemo, useState } from 'react'
+import { useStockTrades, useUpsertValuation } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
@@ -20,6 +20,17 @@ interface Props {
 export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
   const upsert = useUpsertValuation()
   const currency = account.currency as CurrencyCode
+
+  // Tự động chạy hay không: khớp đúng điều kiện cron stock-refresh dùng (loadInput.ts)
+  // — investment + VND + có ít nhất một dòng sổ lệnh. Không có nút bật/tắt riêng.
+  const { data: allTrades = [] } = useStockTrades()
+  const tuDongChay = useMemo(
+    () =>
+      account.type === 'investment' &&
+      currency === 'VND' &&
+      allTrades.some((t) => t.account_id === account.id),
+    [account.type, account.id, currency, allTrades],
+  )
 
   const [marketValue, setMarketValue] = useState(currentValue ?? 0)
   const [valuedOn, setValuedOn] = useState(toISODate(new Date()))
@@ -96,6 +107,14 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
           Chỉ ghi nhận giá trị — không tạo giao dịch, không đổi báo cáo thu/chi. Chênh lệch
           so với vốn gốc là lãi/lỗ chưa thực hiện.
         </p>
+
+        {tuDongChay && (
+          <p className="mb-3 text-xs text-fg-muted">
+            Tài khoản này đang tự tính giá trị mỗi chiều theo sổ lệnh. Số bạn gõ ở đây sẽ
+            được giữ nguyên cho đúng ngày này — app tự tính lại bình thường từ những ngày
+            sau.
+          </p>
+        )}
 
         <div className="mt-1 flex justify-end gap-2">
           <button

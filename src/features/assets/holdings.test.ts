@@ -106,6 +106,15 @@ describe('holdingsFromTrades', () => {
     expect(holdings).toEqual([])
   })
 
+  it('gộp cổ phiếu quá tay (điều chỉnh âm lớn hơn số đang giữ) → vào oversold, giữ về 0', () => {
+    const { holdings, oversold } = holdingsFromTrades([
+      mua('SSI', 500, 30_000, '2026-01-05'),
+      dieuChinh('SSI', -1_000), // gộp 1.000 cổ trong khi chỉ đang giữ 500
+    ])
+    expect(oversold).toEqual(['SSI'])
+    expect(holdings).toEqual([]) // quantity bị kẹp về 0, costBasis cũng về 0 nên rời khỏi danh mục
+  })
+
   it('nhiều mã: sắp theo giá vốn giảm dần', () => {
     const { holdings } = holdingsFromTrades([
       mua('HPG', 100, 20_000, '2026-01-05'),

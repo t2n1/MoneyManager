@@ -3,6 +3,7 @@ import { useCategories, useCreateCategory, useCreateTransaction } from '../../ho
 import { toISODate } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
+import { ActionButton } from '../../components/ui'
 import { MoneyField } from '../../components/MoneyField'
 import type { AccountRow } from '../../types/database.types'
 import {
@@ -176,14 +177,9 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
           >
             Hủy
           </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!canSave}
-            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
-          >
+          <ActionButton variant="primary" onClick={handleSubmit} disabled={!canSave}>
             {saving ? 'Đang lưu…' : 'Điều chỉnh'}
-          </button>
+          </ActionButton>
         </div>
       </div>
     </div>

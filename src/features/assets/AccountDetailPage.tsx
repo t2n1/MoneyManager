@@ -2,7 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, LineChart, Scale, Trash2 } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
-import { Card, IconButton, Money, SectionTitle, iconButtonClass } from '../../components/ui'
+import {
+  ActionButton,
+  Card,
+  IconButton,
+  Money,
+  SectionTitle,
+  iconButtonClass,
+} from '../../components/ui'
 import type { TxFilter } from '../../data'
 import {
   useAccountBalances,
@@ -28,6 +35,8 @@ import { formatMoney } from '../../lib/money'
 import type { StockTradeRow, TransactionRow } from '../../types/database.types'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { TransactionItem } from '../transactions/TransactionItem'
+import { CardMonthAdjustSheet } from './CardMonthAdjustSheet'
+import { cardMonthCharge, monthDueDate } from './cardMonthCharge'
 import { depreciate } from './depreciation'
 import { HoldingsSection } from './HoldingsSection'
 import { investmentStats } from './investment'
@@ -50,6 +59,7 @@ export function AccountDetailPage() {
   const [editing, setEditing] = useState<TransactionRow | null>(null)
   const [showValuation, setShowValuation] = useState(false)
   const [showReconcile, setShowReconcile] = useState(false)
+  const [showMonthAdjust, setShowMonthAdjust] = useState(false)
   const [tradeSheet, setTradeSheet] = useState<{ trade: StockTradeRow | null } | null>(null)
 
   const monthStartDay = profile?.month_start_day ?? 1
@@ -157,6 +167,22 @@ export function AccountDetailPage() {
 
   const currency = account?.currency ?? base
 
+  // Sao kê theo tháng của thẻ: tổng tiền quẹt tính trên ĐÚNG rổ giao dịch đang
+  // hiện bên dưới, nên con số luôn bằng tổng những dòng người dùng nhìn thấy.
+  const isCard = account?.type === 'card'
+  const monthCharged = useMemo(
+    () => (isCard ? cardMonthCharge(accountId, results) : 0),
+    [isCard, accountId, results],
+  )
+  const monthDueISO =
+    isCard && account
+      ? monthDueDate({
+          rangeEndISO: range.end,
+          statementDay: account.statement_day,
+          paymentDueDay: account.payment_due_day,
+        })
+      : null
+
   return (
     <div className="p-3 lg:p-6">
       {/* Header */}
@@ -217,14 +243,10 @@ export function AccountDetailPage() {
         {/* Điều chỉnh số dư (mục X) — cho ví/tài khoản thường và thẻ; đầu tư và tài
             sản cố định đi đường "Cập nhật giá trị" (định giá theo ngày) thay vì bù */}
         {account && !isInvestment && !isFixed && (
-          <button
-            type="button"
-            onClick={() => setShowReconcile(true)}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-gray-50 dark:hover:bg-gray-800 active:scale-95"
-          >
+          <ActionButton onClick={() => setShowReconcile(true)} className="mt-3">
             <Scale className="h-3.5 w-3.5" />{' '}
             {account.type === 'card' ? 'Điều chỉnh số nợ' : 'Điều chỉnh số dư'}
-          </button>
+          </ActionButton>
         )}
 
         {isInvestment && (
@@ -483,6 +505,47 @@ export function AccountDetailPage() {
         </IconButton>
       </div>
 
+      {/* Sao kê tháng của thẻ — con số để đối chiếu với app thẻ thật (chọn tháng
+          nào thấy tổng tháng đó), kèm nút bù chênh lệch ghi vào chính tháng đó. */}
+      {isCard && account && (
+        <Card as="section" padding="lg" className="mb-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-fg-muted">
+              Quẹt trong {formatMonthLabel(activeMonthKey).toLowerCase()}
+            </span>
+            {isLoading ? (
+              <span className="text-fg-muted">—</span>
+            ) : (
+              <Money
+                amount={monthCharged}
+                currency={currency}
+                tone={monthCharged > 0 ? 'out' : 'neutral'}
+                className="text-base font-bold"
+              />
+            )}
+          </div>
+          {monthDueISO ? (
+            <div className="mt-1.5 flex items-center justify-between text-sm text-fg-muted">
+              <span>Bị rút ngày</span>
+              <span>{dueDateLabel(monthDueISO)}</span>
+            </div>
+          ) : (
+            account.statement_day != null &&
+            account.statement_day < 28 && (
+              // Chốt giữa tháng thì kỳ sao kê không trùng tháng lịch — nói thẳng
+              // thay vì suy ra một ngày rút sai.
+              <p className="mt-1.5 text-xs text-fg-muted">
+                Thẻ này chốt ngày {account.statement_day} nên kỳ sao kê không trùng tháng lịch. Số
+                sắp bị rút xem ở mục "Kỳ này" phía trên.
+              </p>
+            )
+          )}
+          <ActionButton onClick={() => setShowMonthAdjust(true)} className="mt-3">
+            <Scale className="h-3.5 w-3.5" /> Chỉnh cho khớp
+          </ActionButton>
+        </Card>
+      )}
+
       {/* Lịch sử giao dịch trong tháng */}
       <p className="mb-2 px-1 text-xs text-fg-muted">
         {isLoading ? 'Đang tải…' : `${results.length} giao dịch`}
@@ -522,6 +585,15 @@ export function AccountDetailPage() {
           account={account}
           currentBalance={balance}
           onClose={() => setShowReconcile(false)}
+        />
+      )}
+      {showMonthAdjust && account && (
+        <CardMonthAdjustSheet
+          account={account}
+          monthKey={activeMonthKey}
+          charged={monthCharged}
+          rangeEndISO={range.end}
+          onClose={() => setShowMonthAdjust(false)}
         />
       )}
       {tradeSheet && account && (

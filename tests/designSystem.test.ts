@@ -219,7 +219,9 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
   // Mỗi số dưới đây là ĐỘ NỢ kỹ thuật đo được lúc dựng hệ thống. Gộp vào
   // primitive ở src/components/ui thì hạ số tương ứng.
   const CEILINGS: { needle: string; max: number; use: string }[] = [
-    { needle: 'active:scale-95', max: 94, use: '<IconButton>' },
+    // 93 chứ không 94: <ActionButton> gom dáng nút-có-chữ (viền mảnh / nền xanh),
+    // kéo 4 chỗ viết tay ở AccountDetailPage + hai sheet điều chỉnh về một mối.
+    { needle: 'active:scale-95', max: 93, use: '<IconButton> / <ActionButton>' },
     { needle: 'min-h-11 min-w-11', max: 26, use: '<IconButton> / iconButtonClass()' },
     // 85 chu khong 82: lượt chuẩn hoá đã kéo 29 thẻ TỪ dạng `rounded-xl bg-white …
     // dark:bg-gray-900` VÀO dạng này, nên con số tăng mà tổng số thẻ viết tay không

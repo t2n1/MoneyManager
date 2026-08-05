@@ -46,6 +46,24 @@ describe('parseYahooSpark', () => {
     }
   })
 
+  it('timestamp cuối ngày UTC nhưng đã sang phiên mới ở Việt Nam → trading_date phải nhảy ngày, bắt lỗi nếu lỡ tính theo UTC', () => {
+    // 1785951000 = 2026-08-05T17:30:00Z (UTC), nhưng Asia/Ho_Chi_Minh (UTC+7) đã là
+    // 2026-08-06 00:30 — khác ngày với UTC. Nếu code lỡ dùng
+    // new Date(ts * 1000).toISOString().slice(0, 10) (bỏ qua múi giờ) thì sẽ ra
+    // '2026-08-05', sai phiên. Mọi timestamp khác trong file mẫu đều rơi vào buổi
+    // chiều giờ Việt Nam nên không phân biệt được hai cách tính — ca này mới bắt được.
+    const json = {
+      'GGG.VN': {
+        timestamp: [1785951000],
+        close: [10_000],
+        chartPreviousClose: 9_800,
+      },
+    }
+    const rows = parseYahooSpark(json)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].trading_date).toBe('2026-08-06')
+  })
+
   it('close null → bỏ mã đó, không ghi giá', () => {
     const json = {
       'AAA.VN': {

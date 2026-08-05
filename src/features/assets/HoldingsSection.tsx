@@ -32,8 +32,10 @@ export function HoldingsSection({ account, balance, onAddTrade, onEditTrade }: P
     [allTrades, account.id],
   )
 
-  // Ba sàn hút giá độc lập — gom về một phiên chung qua sessionPrices() để "nay" luôn
-  // đúng nghĩa "phiên mới nhất", không lặng lẽ trộn giá hôm qua của sàn chưa hút được.
+  // Yahoo trả giá theo từng lô (CHUNK_SIZE mã một lần gọi) và một lô lỗi không kéo sập
+  // các lô khác — nên vẫn có thể lẫn giá cũ của lô chưa hút được. sessionPrices() gom
+  // về một phiên chung để "nay" luôn đúng nghĩa "phiên mới nhất", không lặng lẽ trộn
+  // giá hôm qua của mã chưa hút kịp.
   const { session, priceBySymbol, staleSymbols } = useMemo(() => sessionPrices(prices), [prices])
   // stock_prices.name giờ luôn rỗng (Yahoo không trả tên công ty) — tên đọc từ danh sách
   // tĩnh HOSE_SYMBOLS thay vì bảng giá.

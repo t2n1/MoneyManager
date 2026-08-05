@@ -7,7 +7,8 @@
 // không có lỗi nào, không có cảnh báo nào, chỉ có hai bộ luật khác nhau.
 //
 // Test này biến chuyện đó thành một dòng đỏ: gói lại trong bộ nhớ rồi so với file đã
-// commit. Khác một byte là đỏ.
+// commit. Khác một byte là đỏ. Cùng test này canh cả supabase/functions/stock-refresh
+// (bộ luật danh mục cổ phiếu).
 //
 // Ở tests/ chứ không src/: nó đọc filesystem và gọi esbuild qua `node:*` — xem lý do
 // dài hơn ở đầu tests/designSystem.test.ts.
@@ -16,50 +17,60 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error — script build viết bằng .mjs thuần, không có khai báo kiểu.
-import { bundleRules, OUTFILE } from '../scripts/bundle-rules.mjs'
+import { BUNDLES, bundleAll } from '../scripts/bundle-rules.mjs'
 
 // fileURLToPath, không phải `.pathname`: đường dẫn dự án có dấu cách ("Money Manager")
 // nên pathname đã percent-encode → ENOENT.
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 
+const EXPORTS_BAT_BUOC: Record<string, string[]> = {
+  'supabase/functions/push-notify/_rules.js': [
+    'buildNotifications',
+    'planPush',
+    'dueForPush',
+    'buildBudgetReport',
+    'carryFromPreviousMonth',
+    'buildLifetimeInput',
+    'monthKeyForDate',
+    'monthKeyString',
+    'addMonths',
+    'addDaysISO',
+    'toISODate',
+    'RECENT_TXS_DAYS',
+  ],
+  'supabase/functions/stock-refresh/_holdings.js': [
+    'holdingsFromTrades',
+    'brokerCash',
+    'portfolioValue',
+    'toISODate',
+  ],
+}
+
 describe('bundle bộ luật cho edge function', () => {
   it('file đã commit KHỚP với bộ luật hiện tại trong src/', async () => {
-    const daCommit = readFileSync(join(ROOT, OUTFILE), 'utf8')
-    const goiLai = (await bundleRules({ write: false })) as string
+    const goiLai = await bundleAll({ write: false })
+    for (const { outfile } of BUNDLES) {
+      const daCommit = readFileSync(join(ROOT, outfile), 'utf8')
+      // So bằng chứ không so "có chứa": đổi một hằng số trong luật cũng phải đỏ.
+      expect(goiLai.get(outfile), `${outfile} đã cũ — chạy npm run bundle:rules`).toBe(daCommit)
+    }
+  }, 60_000)
 
-    // So bằng chứ không so "có chứa": đổi một hằng số trong luật cũng phải đỏ.
-    expect(goiLai).toBe(daCommit)
-  }, 30_000)
-
-  it('bundle xuất đủ những gì edge function gọi', async () => {
-    // Bớt một export ở serverBundle.ts thì function chết lúc chạy, và chỉ log Supabase
-    // mới thấy. Đây là chỗ bắt được sớm hơn.
-    const daCommit = readFileSync(join(ROOT, OUTFILE), 'utf8')
-    for (const ten of [
-      'buildNotifications',
-      'planPush',
-      'dueForPush',
-      'buildBudgetReport',
-      'carryFromPreviousMonth',
-      'buildLifetimeInput',
-      'monthKeyForDate',
-      'monthKeyString',
-      'addMonths',
-      'addDaysISO',
-      'toISODate',
-      'RECENT_TXS_DAYS',
-    ]) {
-      expect(daCommit, `thiếu export ${ten}`).toContain(ten)
+  it('bundle xuất đủ những gì edge function gọi', () => {
+    for (const { outfile } of BUNDLES) {
+      const daCommit = readFileSync(join(ROOT, outfile), 'utf8')
+      for (const ten of EXPORTS_BAT_BUOC[outfile]) {
+        expect(daCommit, `${outfile} thiếu export ${ten}`).toContain(ten)
+      }
     }
   })
 
-  it('bundle KHÔNG kéo theo thứ của trình duyệt hay của Node', async () => {
-    // esbuild chạy platform:'neutral' nên lẽ ra đã đỏ từ lúc gói, nhưng `localStorage`
-    // và `document` là biến toàn cục — esbuild để chúng đi qua không một lời nào. Trên
-    // Deno chúng không tồn tại, nên phải chặn ở đây.
-    const daCommit = readFileSync(join(ROOT, OUTFILE), 'utf8')
-    for (const cam of ['localStorage', 'document.', 'window.', 'require(', 'node:']) {
-      expect(daCommit, `bundle chứa ${cam} — không chạy được trên Deno`).not.toContain(cam)
+  it('bundle KHÔNG kéo theo thứ của trình duyệt hay của Node', () => {
+    for (const { outfile } of BUNDLES) {
+      const daCommit = readFileSync(join(ROOT, outfile), 'utf8')
+      for (const cam of ['localStorage', 'document.', 'window.', 'require(', 'node:']) {
+        expect(daCommit, `${outfile} chứa ${cam} — không chạy được trên Deno`).not.toContain(cam)
+      }
     }
   })
 })

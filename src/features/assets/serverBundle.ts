@@ -17,3 +17,7 @@ export type { Holding, HoldingsResult, PortfolioValue, SessionPrices, Trade } fr
 
 // Ngày tháng: bắt buộc đi qua đây, không tự cộng trừ ngày ở edge function.
 export { toISODate } from '../../lib/dates'
+
+// Danh sách mã HOSE tĩnh: edge function hút giá cho CẢ sàn (không chỉ mã đã giao dịch)
+// và điền tên công ty vào stock_prices.name — xem prices.ts và docs/co-phieu-viet-nam.md.
+export { HOSE_SYMBOLS } from './hoseSymbols'

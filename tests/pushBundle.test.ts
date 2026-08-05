@@ -44,6 +44,7 @@ const EXPORTS_BAT_BUOC: Record<string, string[]> = {
     'portfolioValue',
     'sessionPrices',
     'toISODate',
+    'HOSE_SYMBOLS',
   ],
 }
 

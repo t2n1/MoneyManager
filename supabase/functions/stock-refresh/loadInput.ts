@@ -87,11 +87,14 @@ export async function loadPortfolioAccounts(sb: SupabaseClient): Promise<Portfol
  * Mọi mã đã từng xuất hiện trong sổ lệnh — không lọc theo tài khoản "đủ điều kiện tự
  * chạy" (khác `loadPortfolioAccounts`), không phân biệt còn giữ hay đã bán sạch.
  *
- * Từ khi giá chuyển sang Yahoo (không còn "cả bảng giá của sàn" như SSI), việc 1 (hút
- * giá) cần biết CẦN HÚT GIÁ CHO MÃ NÀO — đây chính là danh sách đó. Hút dư vài chục mã
- * đã bán sạch gần như 0đ trong một cuộc gọi gộp, và giữ việc 1 độc lập khỏi phép tính
- * nắm giữ của việc 2 (một tài khoản không đủ điều kiện tự chạy vẫn có thể còn cần giá
- * cho mã trong sổ lệnh của nó, ví dụ để hiện trên UI).
+ * ĐỔI VAI TRÒ (2026-08-06): việc 1 giờ hút giá cho CẢ sàn HOSE (HOSE_SYMBOLS), không
+ * chỉ mã trong sổ lệnh — một mã vừa mua hôm nay nhờ vậy có giá ngay, không phải đợi
+ * lượt cron kế tiếp. Hàm này KHÔNG còn quyết định mã nào ĐƯỢC hút (đó là việc của
+ * HOSE_SYMBOLS) — nó chỉ còn quyết định ƯU TIÊN gọi Yahoo trước cho mã nào
+ * (buildFetchOrder trong prices.ts): 403 mã là hơn 20 lô gọi tuần tự, nếu Yahoo giới
+ * hạn tốc độ giữa chừng thì lô gọi SAU là lô hỏng, nên mã người dùng thực sự đang giữ
+ * phải được xếp trước. Đừng xoá hàm này chỉ vì thấy universe đã có sẵn mọi mã — nó vẫn
+ * còn việc, chỉ là việc khác trước.
  */
 export async function loadTradedSymbols(sb: SupabaseClient): Promise<string[]> {
   const rows = await readAll(sb, 'stock_trades')

@@ -1,8 +1,8 @@
 // Edge function stock-refresh — chạy mỗi chiều sau khi sàn Việt Nam đóng cửa.
 //
-// Hai việc: (1) hút giá Yahoo cho các mã đã từng giao dịch, ghi vào stock_prices,
-// (2) tính lại giá trị thị trường cho từng tài khoản có sổ lệnh và ghi vào
-// account_valuations.
+// Hai việc: (1) hút giá Yahoo cho CẢ sàn HOSE (mã đã giao dịch được gọi trước, xem
+// buildFetchOrder trong prices.ts), ghi vào stock_prices, (2) tính lại giá trị thị
+// trường cho từng tài khoản có sổ lệnh và ghi vào account_valuations.
 //
 // Function này KHÔNG có phép tính riêng. Mọi phép tính gọi từ `_holdings.js` (gói từ
 // src/features/assets/serverBundle.ts) — cùng lý do như push-notify: hai bản sao của
@@ -14,8 +14,8 @@
 
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { fetchYahooPrices, type PriceUpsert } from './prices.ts'
-import { brokerCash, holdingsFromTrades, portfolioValue, sessionPrices } from './_holdings.js'
+import { buildFetchOrder, fetchYahooPrices, type PriceUpsert } from './prices.ts'
+import { brokerCash, holdingsFromTrades, HOSE_SYMBOLS, portfolioValue, sessionPrices } from './_holdings.js'
 import { loadPortfolioAccounts, loadTradedSymbols } from './loadInput.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
@@ -65,36 +65,38 @@ Deno.serve(async (req) => {
   // thì không.
   let viec2Gay = false
 
-  // Yahoo không có "cả bảng giá của sàn" như SSI — giá giờ theo nhu cầu: hút đúng những
-  // mã đã từng xuất hiện trong sổ lệnh (loadTradedSymbols), kể cả mã đã bán sạch (rẻ,
-  // và giữ stock_prices có ích cho UI nếu còn tham chiếu tới mã đó).
+  // Hút giá cho CẢ sàn HOSE (HOSE_SYMBOLS), không chỉ mã trong sổ lệnh — một mã vừa mua
+  // hôm nay nhờ vậy có giá ngay, không phải đợi lượt cron kế tiếp. Mã đang/đã giao dịch
+  // (loadTradedSymbols) được xếp GỌI TRƯỚC (buildFetchOrder): hơn 20 lô gọi tuần tự, nếu
+  // Yahoo giới hạn tốc độ giữa chừng thì lô gọi sau là lô hỏng, nên mã người dùng thực sự
+  // đang giữ không được để may rủi theo thứ tự cả sàn.
   try {
-    const symbols = await loadTradedSymbols(sb)
-    if (symbols.length === 0) {
-      // Cài đặt mới, chưa ai ghi lệnh nào — không có gì để hút. Đây là im lặng đúng,
-      // không phải lỗi: soMaCoGia giữ 0, kq.loi không thêm gì nên không kéo status
-      // xuống 500 (xem chetHoanToan cuối file).
-    } else {
-      // Chia lô bên trong fetchYahooPrices; lô nào hỏng góp lỗi riêng vào `errors`,
-      // không làm mất giá của các lô đã gọi thành công.
-      const { rows, errors } = await fetchYahooPrices(symbols)
-      for (const e of errors) kq.loi.push(`gia: ${e}`)
+    const daGiao = await loadTradedSymbols(sb)
+    const symbols = buildFetchOrder(
+      daGiao,
+      HOSE_SYMBOLS.map(([ma]) => ma),
+    )
+    // Chia lô bên trong fetchYahooPrices; lô nào hỏng góp lỗi riêng vào `errors`. Hết
+    // ngân sách thời gian (FETCH_BUDGET_MS) cũng dừng sạch giữa chừng thay vì throw —
+    // cả hai loại đều góp dòng vào `errors`, nhưng `hetNganSach` tách riêng để log/đọc
+    // không lẫn "một lô bị Yahoo từ chối" với "hết giờ, còn lô chưa kịp gọi".
+    const { rows, errors, hetNganSach } = await fetchYahooPrices(symbols)
+    for (const e of errors) kq.loi.push(`gia: ${e}`)
 
-      if (rows.length > 0) {
-        // Chia lô khi upsert: hàng trăm mã một câu là payload to và dễ timeout.
-        for (let i = 0; i < rows.length; i += 200) {
-          const part: (PriceUpsert & { updated_at: string })[] = rows
-            .slice(i, i + 200)
-            .map((r) => ({ ...r, updated_at: new Date().toISOString() }))
-          const { error } = await sb.from('stock_prices').upsert(part, { onConflict: 'symbol' })
-          if (error) throw error
-        }
-        kq.soMaCoGia = rows.length
-      } else if (errors.length === 0) {
-        // Có mã cần hút nhưng Yahoo không trả giá cho mã nào (khác lỗi mạng/HTTP — đó
-        // đã nằm trong `errors` ở trên).
-        kq.loi.push('gia: Yahoo không trả giá cho mã nào')
+    if (rows.length > 0) {
+      // Chia lô khi upsert: hàng trăm mã một câu là payload to và dễ timeout.
+      for (let i = 0; i < rows.length; i += 200) {
+        const part: (PriceUpsert & { updated_at: string })[] = rows
+          .slice(i, i + 200)
+          .map((r) => ({ ...r, updated_at: new Date().toISOString() }))
+        const { error } = await sb.from('stock_prices').upsert(part, { onConflict: 'symbol' })
+        if (error) throw error
       }
+      kq.soMaCoGia = rows.length
+    } else if (errors.length === 0 && !hetNganSach) {
+      // Có mã cần hút nhưng Yahoo không trả giá cho mã nào (khác lỗi mạng/HTTP hay hết
+      // ngân sách — cả hai đã nằm trong `errors` ở trên).
+      kq.loi.push('gia: Yahoo không trả giá cho mã nào')
     }
   } catch (err) {
     kq.loi.push(`gia: ${err instanceof Error ? err.message : String(err)}`)
@@ -192,9 +194,10 @@ Deno.serve(async (req) => {
   // (soMaCoGia === 0 và kq.loi có gì đó — nếu chỉ vì "chưa ai ghi lệnh nào" thì kq.loi
   // rỗng, KHÔNG rơi vào đây, xem chỗ set kq.soMaCoGia ở trên), HOẶC (b) việc 2 gãy
   // TRƯỚC vòng lặp tài khoản (viec2Gay) — cả hai đều nghĩa là lượt chạy này không đáng
-  // tin, không phải "chạy tốt nhưng vài chỗ lẻ tẻ bị bỏ qua". Một lô Yahoo lỗi (còn lô
-  // khác ghi được, nên soMaCoGia > 0) hoặc một tài khoản lỗi riêng lẻ (đã có try/catch
-  // của nó trong vòng lặp) KHÔNG rơi vào đây — đó vẫn là lượt chạy có ích.
+  // tin, không phải "chạy tốt nhưng vài chỗ lẻ tẻ bị bỏ qua". Một lô Yahoo lỗi, hết ngân
+  // sách thời gian giữa chừng (còn lô đã gọi trước đó vẫn ghi được, nên soMaCoGia > 0),
+  // hoặc một tài khoản lỗi riêng lẻ (đã có try/catch của nó trong vòng lặp) KHÔNG rơi
+  // vào đây — đó vẫn là lượt chạy có ích.
   const chetHoanToan = kq.loi.length > 0 && kq.soMaCoGia === 0
   return new Response(JSON.stringify(kq), {
     status: chetHoanToan || viec2Gay ? 500 : 200,

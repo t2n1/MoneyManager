@@ -17,13 +17,35 @@
 // một mã HNX/UPCOM sẽ không có giá, hiện "chưa có giá" trên UI, và bị việc 2 bỏ qua
 // tài khoản đó (`thieu-gia-moi-ma`) thay vì ghi một con số sai.
 //
-// parseYahooSpark tách khỏi fetchYahooPrices để test được bằng file mẫu, không cần mạng.
+// Bug nghiêm trọng đã sửa (2026-08-06): CHUNK_SIZE từng là 40, nhưng Yahoo giới hạn
+// CỨNG 20 mã/lô (HTTP 400 "Number of symbols needs to be less than or equal to 20" —
+// xem chỗ khai báo CHUNK_SIZE). Với 40, MỌI lô đều hỏng — chưa từng có giá nào được
+// hút thật sự kể từ khi chuyển sang Yahoo cho tới khi sửa.
+//
+// Hút cả sàn HOSE, không chỉ mã đã giao dịch: trước đây chỉ hút mã trong sổ lệnh
+// (loadTradedSymbols), nghĩa là một mã vừa mua hôm nay chưa có giá cho tới lượt cron kế
+// tiếp — hiện "chưa có giá" ngay ngày ghi lệnh. Hút cả HOSE_SYMBOLS (403 mã) thì mã nào
+// cũng có giá sẵn ngay khi ghi vào sổ lệnh. Đổi lại là ~21 lô một lượt thay vì vài lô —
+// bù bằng buildFetchOrder (mã đang giữ luôn được gọi trước) và FETCH_BUDGET_MS (dừng
+// sạch nếu Yahoo chậm/treo, không kéo cả invocation vượt giới hạn wall-clock).
+//
+// parseYahooSpark, chunkSymbols, buildFetchOrder tách khỏi fetchYahooPrices để test
+// được bằng file mẫu / dữ liệu giả, không cần mạng.
+
+import { HOSE_SYMBOLS } from './_holdings.js'
 
 /** Luôn 'hose' — hậu tố `.VN` của Yahoo CHÍNH LÀ sàn Hồ Chí Minh, không phải chỗ tạm. */
 export interface PriceUpsert {
   symbol: string
   exchange: 'hose'
-  /** Yahoo không trả tên công ty — luôn rỗng. UI lấy tên từ src/features/assets/hoseSymbols.ts. */
+  /**
+   * Tên công ty, điền từ danh sách tĩnh HOSE_SYMBOLS (Yahoo không trả tên công ty).
+   * Rỗng nếu mã không có trong danh sách đó — mã mới lên sàn sau lần hút danh sách gần
+   * nhất, hoặc gõ nhầm trong sổ lệnh; Yahoo vẫn có thể trả giá nên hàng giá vẫn giữ,
+   * chỉ riêng tên là không biết. UI (HoldingsSection, TradeFormSheet) đã tự tra
+   * HOSE_SYMBOLS từ trước và không đọc cột này — điền ở đây là để `stock_prices` tự
+   * mô tả được chính nó, không phải để phục vụ UI.
+   */
   name: string
   /** đồng/cổ; luôn > 0 */
   price: number
@@ -32,11 +54,25 @@ export interface PriceUpsert {
   trading_date: string
 }
 
+/** Tên công ty tra theo mã, dựng một lần từ danh sách tĩnh HOSE_SYMBOLS. */
+const TEN_CONG_TY: ReadonlyMap<string, string> = new Map(HOSE_SYMBOLS)
+
 const SPARK_URL = 'https://query1.finance.yahoo.com/v8/finance/spark'
-// Vài chục mã một lô: đủ nhỏ để URL không quá dài (query string có giới hạn thực tế ở
-// nhiều hạ tầng, dù Yahoo không công bố con số), và một lô hỏng (mạng, rate limit) chỉ
-// mất đúng số mã của lô đó, không kéo sập các lô khác đã gọi xong.
-const CHUNK_SIZE = 40
+// Đo trực tiếp ngày 2026-08-06: gọi Yahoo với 403, 250, 150, 100, 60 mã một lần đều trả
+// HTTP 400, body:
+//   {"spark":{"result":null,"error":{"code":"Bad Request",
+//   "description":"Number of symbols needs to be less than or equal to 20"}}}
+// Yahoo tự nói rõ giới hạn: TỐI ĐA 20 mã một cuộc gọi. CHUNK_SIZE=40 (bản trước) khiến
+// MỌI lô đều hỏng — không có mã nào từng được hút thật sự cho tới khi sửa. Đừng tăng
+// con số này lên trên 20 mà không đo lại — xem chunkSymbols.test (prices.test.ts) canh
+// đúng ranh giới này.
+const CHUNK_SIZE = 20
+// Ngân sách cho CẢ khối hút giá (mọi lô cộng lại), không phải cho một lô. 403 mã ở
+// CHUNK_SIZE=20 là 21 lô tuần tự, thực đo ~0,6s/lô nên tổng khoảng 13s — nhưng edge
+// function có giới hạn wall-clock, và Yahoo chậm/treo giữa chừng vẫn có thể xảy ra.
+// Hết ngân sách thì DỪNG SẠCH (không gọi thêm lô nào nữa) và báo thật đã hút được bao
+// nhiêu, thay vì để cả invocation chết vì vượt giới hạn của Supabase.
+const FETCH_BUDGET_MS = 90_000
 // Không giả dạng bot — trước đây UA tự xưng "so-chi-tieu stock-refresh", nhiều hạ tầng
 // chặn thẳng UA tự xưng bot. Yahoo không đòi hỏi gì đặc biệt nhưng không có lý do để lộ.
 const BROWSER_UA =
@@ -104,7 +140,7 @@ export function parseYahooSpark(json: unknown): PriceUpsert[] {
     out.push({
       symbol,
       exchange: 'hose',
-      name: '',
+      name: TEN_CONG_TY.get(symbol) ?? '',
       price,
       prior_close: positive(r.chartPreviousClose),
       trading_date: isoDateInVietnam(ts),
@@ -113,35 +149,127 @@ export function parseYahooSpark(json: unknown): PriceUpsert[] {
   return out
 }
 
+/**
+ * Chia một danh sách mã thành các lô tối đa `size` phần tử, giữ nguyên thứ tự. Hàm
+ * thuần, tách khỏi fetchYahooPrices để test được đúng RANH GIỚI lô mà không cần gọi
+ * mạng — đây là bài canh chống lại lỗi ngày 2026-08-06 (CHUNK_SIZE=40 cũ vượt giới hạn
+ * 20 mã/lô của Yahoo, khiến mọi lô đều hỏng).
+ */
+export function chunkSymbols(symbols: string[], size: number = CHUNK_SIZE): string[][] {
+  const out: string[][] = []
+  for (let i = 0; i < symbols.length; i += size) out.push(symbols.slice(i, i + size))
+  return out
+}
+
+/**
+ * Ghép thứ tự hút giá: mã ĐANG/ĐÃ giao dịch (`heldSymbols`, từ `loadTradedSymbols`)
+ * đứng TRƯỚC, phần còn lại của sàn (`universeSymbols`, từ HOSE_SYMBOLS) đứng SAU.
+ *
+ * Vì sao thứ tự quan trọng: hút cả sàn là hơn 20 lô gọi tuần tự; nếu Yahoo giới hạn tốc
+ * độ hoặc mạng chập chờn giữa chừng, lô nào gọi SAU sẽ là lô hỏng. Mã người dùng thực sự
+ * đang giữ mới là mã cần có giá — không thể để nó may rủi theo thứ tự alphabet của cả
+ * sàn. `loadTradedSymbols` vì vậy giờ quyết định ƯU TIÊN gọi trước, không còn quyết định
+ * mã nào ĐƯỢC hút hay không (đó là việc của universeSymbols = cả sàn) — đừng tưởng nó là
+ * thứ thừa nếu thấy universe đã có sẵn mọi mã.
+ *
+ * Không lặp mã: một mã vừa giữ vừa có trong universe chỉ xuất hiện một lần (ở đầu, không
+ * lặp lại ở phần sau). Mã giữ nhưng KHÔNG có trong universe (đã hủy niêm yết, gõ sai mã,
+ * hoặc lọt HNX/UPCOM vào sổ lệnh) vẫn được xếp ở đầu — hút thử vẫn rẻ hơn bỏ sót, và
+ * Yahoo tự bỏ qua mã nó không biết (xem parseYahooSpark).
+ */
+export function buildFetchOrder(heldSymbols: string[], universeSymbols: string[]): string[] {
+  const chuan = (s: string) => s.trim().toUpperCase()
+  const held: string[] = []
+  const heldSet = new Set<string>()
+  for (const s of heldSymbols.map(chuan)) {
+    if (s && !heldSet.has(s)) {
+      heldSet.add(s)
+      held.push(s)
+    }
+  }
+
+  const rest: string[] = []
+  const seenRest = new Set<string>()
+  for (const s of universeSymbols.map(chuan)) {
+    if (s && !heldSet.has(s) && !seenRest.has(s)) {
+      seenRest.add(s)
+      rest.push(s)
+    }
+  }
+
+  return [...held, ...rest]
+}
+
 /** Kết quả một lượt gọi Yahoo cho nhiều mã, có thể bị chia thành nhiều lô. */
 export interface YahooFetchResult {
   rows: PriceUpsert[]
   /** Lỗi của TỪNG lô bị hỏng — lô khác vẫn có mặt trong `rows`, không mất theo. */
   errors: string[]
+  /**
+   * true nếu dừng giữa chừng vì hết ngân sách thời gian (FETCH_BUDGET_MS) — KHÔNG phải
+   * vì một lô bị lỗi. Tách riêng khỏi `errors` (dù cũng góp một dòng vào đó để không
+   * mất thông tin khi log) để người gọi phân biệt được "Yahoo từ chối một lô" với "hết
+   * giờ, còn lô chưa kịp gọi".
+   */
+  hetNganSach: boolean
+}
+
+/** Tuỳ chọn cho fetchYahooPrices — chỉ dùng để test (đồng hồ giả, ngân sách giả). */
+interface FetchYahooOptions {
+  /** Mặc định FETCH_BUDGET_MS (90s). */
+  budgetMs?: number
+  /** Mặc định Date.now — tiêm vào để test canh mốc thời gian mà không cần sleep thật. */
+  now?: () => number
 }
 
 /**
- * Gọi Yahoo cho một danh sách mã KHÔNG hậu tố, chia lô để URL không phình to và để một
- * lô hỏng không kéo mất các lô đã gọi thành công. Mỗi lô lỗi (HTTP không phải 2xx, hoặc
- * mạng đứt) bị bắt riêng và góp vào `errors` — người gọi (index.ts) tự quyết ghi log,
- * không throw làm mất luôn những lô đã có kết quả.
+ * Gọi Yahoo cho một danh sách mã KHÔNG hậu tố, chia lô (chunkSymbols) để URL không
+ * phình to và để một lô hỏng không kéo mất các lô đã gọi thành công. Mỗi lô lỗi (HTTP
+ * không phải 2xx, hoặc mạng đứt) bị bắt riêng và góp vào `errors` — người gọi
+ * (index.ts) tự quyết ghi log, không throw làm mất luôn những lô đã có kết quả.
+ *
+ * Có ngân sách thời gian cho CẢ khối (không phải từng lô): hết ngân sách thì DỪNG SẠCH
+ * trước khi gọi lô tiếp theo, không cắt ngang một lô đang chạy — trả về đúng những gì
+ * đã hút được, `hetNganSach: true`, và một dòng trong `errors` nói rõ đã hút xong bao
+ * nhiêu lô để phân biệt với lỗi của một lô cụ thể.
  */
-export async function fetchYahooPrices(symbols: string[]): Promise<YahooFetchResult> {
+export async function fetchYahooPrices(
+  symbols: string[],
+  opts: FetchYahooOptions = {},
+): Promise<YahooFetchResult> {
+  const budgetMs = opts.budgetMs ?? FETCH_BUDGET_MS
+  const now = opts.now ?? Date.now
+
   const rows: PriceUpsert[] = []
   const errors: string[] = []
+  const chunks = chunkSymbols(symbols)
+  const start = now()
+  let hetNganSach = false
+  let soLoDaGoi = 0
 
-  for (let i = 0; i < symbols.length; i += CHUNK_SIZE) {
-    const chunk = symbols.slice(i, i + CHUNK_SIZE)
+  for (const chunk of chunks) {
+    if (now() - start >= budgetMs) {
+      hetNganSach = true
+      break
+    }
+
     const query = chunk.map((s) => `${s}.VN`).join(',')
     const url = `${SPARK_URL}?symbols=${encodeURIComponent(query)}&range=1d&interval=1d`
     try {
       const res = await fetch(url, { headers: { 'User-Agent': BROWSER_UA } })
-      if (!res.ok) throw new Error(`Yahoo spark: HTTP ${res.status} (lô ${i / CHUNK_SIZE + 1})`)
+      if (!res.ok) throw new Error(`Yahoo spark: HTTP ${res.status} (lô ${soLoDaGoi + 1}/${chunks.length})`)
       rows.push(...parseYahooSpark(await res.json()))
     } catch (err) {
       errors.push(err instanceof Error ? err.message : String(err))
     }
+    soLoDaGoi++
   }
 
-  return { rows, errors }
+  if (hetNganSach) {
+    errors.push(
+      `hết ngân sách thời gian hút giá sau ${soLoDaGoi}/${chunks.length} lô (đã hút ${rows.length} mã)`,
+    )
+  }
+
+  return { rows, errors, hetNganSach }
 }

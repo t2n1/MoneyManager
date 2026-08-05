@@ -42,6 +42,12 @@ create policy "read for authenticated" on public.stock_prices
   for select to authenticated
   using (true);
 
+-- Đảm bảo updated_at luôn cập nhật khi cập nhật giá, không phụ thuộc vào edge function
+-- Nếu cron quên stamp, cơ sở dữ liệu tự ghi mốc thời gian chứ không để timestamp cũ
+create trigger stock_prices_moddatetime
+  before update on public.stock_prices
+  for each row execute function extensions.moddatetime (updated_at);
+
 -- ------------------------------------------------------------
 -- 2. Sổ lệnh
 -- ------------------------------------------------------------

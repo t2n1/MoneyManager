@@ -717,7 +717,7 @@ export type Database = {
         Insert: InsertOf<
           AccountValuationRow,
           'user_id' | 'account_id' | 'market_value',
-          'id' | 'valued_on' | 'note'
+          'id' | 'valued_on' | 'note' | 'source'
         >
         Update: Partial<Pick<AccountValuationRow, 'valued_on' | 'market_value' | 'note' | 'source'>>
         Relationships: []

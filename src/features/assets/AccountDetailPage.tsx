@@ -278,17 +278,6 @@ export function AccountDetailPage() {
           </div>
         )}
 
-        {/* Danh mục cổ phiếu (chỉ tài khoản đầu tư VND — bảng giá SSI là đồng, tài
-            khoản JPY dùng khu này sẽ ra số vô nghĩa) */}
-        {isInvestment && account && account.currency === 'VND' && (
-          <HoldingsSection
-            account={account}
-            balance={balance}
-            onAddTrade={() => setTradeSheet({ trade: null })}
-            onEditTrade={(trade) => setTradeSheet({ trade })}
-          />
-        )}
-
         {/* Hạn mức nạp NISA / iDeCo trong năm */}
         {isInvestment && account?.tax_shelter && (
           <div className="mt-3 border-t border-border-subtle pt-3">
@@ -429,6 +418,17 @@ export function AccountDetailPage() {
           </div>
         )}
       </Card>
+
+      {/* Danh mục cổ phiếu (chỉ tài khoản đầu tư VND — bảng giá SSI là đồng, tài
+          khoản JPY dùng khu này sẽ ra số vô nghĩa) */}
+      {isInvestment && account && account.currency === 'VND' && (
+        <HoldingsSection
+          account={account}
+          balance={balance}
+          onAddTrade={() => setTradeSheet({ trade: null })}
+          onEditTrade={(trade) => setTradeSheet({ trade })}
+        />
+      )}
 
       {/* Lịch sử cập nhật giá trị (tài khoản đầu tư) */}
       {(isInvestment || isFixed) && accountValuations.length > 0 && (

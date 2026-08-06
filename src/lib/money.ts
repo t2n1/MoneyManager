@@ -2,7 +2,7 @@
 // JPY = yên, VND = đồng, USD = cent. Không bao giờ dùng float.
 // Nhập liệu kiểu ATM: chuỗi chữ số chính là minor units ("1050" USD → $10,50).
 import { isPrivacyEnabled } from './privacy'
-import { CURRENCIES, type CurrencyCode } from './currencies'
+import { CURRENCIES, groupThousands, type CurrencyCode } from './currencies'
 
 // Bảng loại tiền sống ở module lá ./currencies (không import gì) để những nơi chỉ
 // cần bảng — assets/aggregate.ts, lib/rates.ts — không bị kéo theo lib/privacy.ts
@@ -15,9 +15,6 @@ function maskMoney(currency: CurrencyCode): string {
   const { symbol, position } = CURRENCIES[currency]
   return position === 'prefix' ? `${symbol}••••` : `•••• ${symbol}`
 }
-
-const groupThousands = (digits: string, sep: string) =>
-  digits.replace(/\B(?=(\d{3})+(?!\d))/g, sep)
 
 /** minor units → chuỗi hiển thị: ¥1,234 · 1.234.000 ₫ · $1.234,56 */
 export function formatMoney(minor: number, currency: CurrencyCode): string {

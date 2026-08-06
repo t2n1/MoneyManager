@@ -8,30 +8,28 @@ import { useMemo } from 'react'
 import { toISODate } from '../lib/dates'
 import { freshnessSummary, type FreshnessSummary } from '../lib/freshness'
 import type { CurrencyCode } from '../lib/currencies'
+import { readRatesMeta } from '../lib/rates'
 import { sessionPrices } from '../features/assets/holdings'
 import { useAccountValuations, useRates, useStockPrices } from './queries'
 
 /**
- * Mốc lấy tỷ giá THẬT gần nhất, đọc từ cache của lib/rates.ts.
+ * Tuổi của con số tỷ giá đang dùng.
  *
- * Cố ý KHÔNG dùng `dataUpdatedAt` của react-query: khi mạng lỗi, `fetchRates` lùi về
- * tỷ giá cũ trong localStorage và react-query vẫn ghi nhận "vừa lấy xong" — đúng cái
- * trường hợp mà dòng nhãn này sinh ra để lộ. `fetchedAt` chỉ được ghi khi gọi mạng
- * thành công thật.
+ * Ưu tiên `sourceUpdatedAt` (lúc NGUỒN cập nhật tỷ giá) hơn `fetchedAt` (lúc mình tải
+ * về): hai mốc này khác nhau, và cảnh báo "tỷ giá đã cũ" ở trang Cài đặt đo theo mốc
+ * đầu. Dùng khác mốc thì trang Tài sản có thể báo "vừa xong" trong khi Cài đặt báo "đã
+ * cũ" — cùng một con số mà hai chỗ nói ngược nhau.
  *
- * Khi `readRatesMeta` của lib/rates.ts về nhánh chính thì thay cả thân hàm này bằng
- * `readRatesMeta(base)?.fetchedAt ?? null`.
+ * Cố ý KHÔNG dùng `dataUpdatedAt` của react-query: khi mạng lỗi, `fetchRates` lùi về tỷ
+ * giá cũ trong cache mà react-query vẫn ghi nhận "vừa lấy xong" — đúng cái trường hợp
+ * dòng nhãn này sinh ra để lộ.
  */
 function readRatesFetchedAt(base: CurrencyCode): number | null {
-  try {
-    const raw = localStorage.getItem(`sct-rates-${base}`)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as { fetchedAt?: unknown }
-    return typeof parsed.fetchedAt === 'number' ? parsed.fetchedAt : null
-  } catch {
-    // localStorage bị chặn, hoặc JSON hỏng → coi như chưa biết tuổi, không làm sập trang.
-    return null
-  }
+  const meta = readRatesMeta(base)
+  if (!meta) return null
+  // fetchedAt = 0 là bản ghi cũ chưa có mốc — coi như không biết tuổi còn hơn báo
+  // "56 năm trước" (0 là mốc thời gian Unix).
+  return meta.sourceUpdatedAt ?? (meta.fetchedAt > 0 ? meta.fetchedAt : null)
 }
 
 /** Chỉ nguồn tỷ giá — cho trang Báo cáo. */

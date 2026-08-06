@@ -5,16 +5,17 @@
 // (có khi cả năm). Nhìn vào không có gì phân biệt, nên người đọc mặc định coi tất cả
 // đều mới.
 //
-// Module này KHÔNG tự đọc cache tỷ giá: nó nhận mốc thời gian qua tham số. Lý do là một
-// phiên khác đang dựng `readRatesMeta` trong lib/rates.ts — nhận qua tham số thì hai bên
-// không giẫm chân nhau, và khi hàm kia xong chỉ việc truyền vào, module này không phải sửa.
+// Module này KHÔNG tự đọc cache tỷ giá: nó nhận mốc thời gian qua tham số, nên test được
+// mà không cần localStorage, và nơi gọi (hooks/useDataFreshness.ts) tự chọn nguồn mốc.
+import { STALE_RATE_DAYS } from './rates'
 
 const MIN = 60_000
 const HOUR = 3_600_000
 const DAY = 86_400_000
 
-/** Ngưỡng tỷ giá bị coi là cũ. Khớp STALE_RATE_DAYS của lib/rates.ts. */
-export const STALE_RATE_DAYS = 3
+// Ngưỡng "tỷ giá đã cũ" lấy thẳng từ lib/rates.ts, không khai lại: cảnh báo ở trang Cài
+// đặt dùng cùng con số này, hai bản sao sẽ trôi khỏi nhau lúc nào không biết.
+export { STALE_RATE_DAYS }
 /** Ngưỡng giá trị tự khai bị coi là cũ — một quý. */
 export const STALE_VALUATION_DAYS = 90
 

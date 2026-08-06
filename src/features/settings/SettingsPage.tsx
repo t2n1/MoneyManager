@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
+  ArrowLeftRight,
   Bell,
   ChevronRight,
   Database,
@@ -11,10 +12,13 @@ import {
   Tags,
   UserRound,
 } from 'lucide-react'
+import { Card } from '../../components/ui/Card'
 import { resetDemoData } from '../../data/demoRepo'
-import { useProfile } from '../../hooks/queries'
+import { useProfile, useRates } from '../../hooks/queries'
 import { isDemoMode } from '../../lib/demo'
 import { confirmDialog } from '../../lib/dialog'
+import type { CurrencyCode } from '../../lib/money'
+import { formatRateLine, rateAgeDays, readRatesMeta, STALE_RATE_DAYS } from '../../lib/rates'
 import { getSupabase } from '../../lib/supabase'
 import { FontSizeToggle } from './FontSizeToggle'
 import { ProfileEditSheet } from './ProfileEditSheet'
@@ -27,6 +31,22 @@ export function SettingsPage() {
   // ?edit=profile mở thẳng sheet Hồ sơ (link "Đổi mốc" từ tab Ngân sách)
   const [searchParams] = useSearchParams()
   const [editing, setEditing] = useState(() => searchParams.get('edit') === 'profile')
+
+  const { base, rates } = useRates()
+  // Đọc thẳng localStorage trong lúc render (không phải state): `rates` đổi tham
+  // chiếu mỗi lần query trả về, nên mốc thời gian cũng được đọc lại đúng lúc đó.
+  const rateMeta = rates ? readRatesMeta(base) : null
+  // formatRateLine tự trả null cho chính `base` và cho số rác, nên không lọc trước.
+  const rateLines = rates
+    ? (Object.entries(rates) as [CurrencyCode, number][])
+        .map(([c, r]) => formatRateLine(base, c, r))
+        .filter((line): line is string => line !== null)
+    : []
+  const ageDays =
+    rateMeta?.sourceUpdatedAt === undefined
+      ? null
+      : rateAgeDays(rateMeta.sourceUpdatedAt, Date.now())
+  const rateStale = ageDays !== null && ageDays >= STALE_RATE_DAYS
 
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
@@ -163,6 +183,50 @@ export function SettingsPage() {
           </div>
         )}
       </section>
+
+      {rateLines.length > 0 && (
+        <Card as="section" className="overflow-hidden">
+          <div className="flex items-start gap-3">
+            <ArrowLeftRight className="mt-0.5 h-5 w-5 shrink-0 text-fg-muted" />
+            <div className="flex-1">
+              <p className="text-sm text-fg-primary">Tỷ giá quy đổi</p>
+              {rateLines.map((line) => (
+                // CỐ Ý không có tabular-nums: khối này chỉ 1-2 dòng ngắn, không phải
+                // cột số cần thẳng hàng, mà ngưỡng `tabular-nums` ở
+                // tests/designSystem.test.ts đã kín (97). Cũng không dùng <Money> —
+                // nó che số khi bật chế độ riêng tư, trái ngược mục đích của khối này.
+                <p key={line} className="mt-0.5 text-sm text-fg-muted">
+                  {line}
+                </p>
+              ))}
+              {ageDays !== null && !rateStale && (
+                <p className="mt-1 text-xs text-fg-muted">
+                  {ageDays === 0
+                    ? 'Cập nhật hôm nay'
+                    : ageDays === 1
+                      ? 'Cập nhật hôm qua'
+                      : `Cập nhật ${ageDays} ngày trước`}
+                </p>
+              )}
+              {rateStale && (
+                <div className="mt-2 rounded-lg bg-amber-50 p-2 dark:bg-amber-900/30">
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Cập nhật {ageDays} ngày trước — mạng hoặc nguồn tỷ giá đang lỗi, số quy
+                    đổi có thể sai.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => qc.invalidateQueries({ queryKey: ['rates'] })}
+                    className="mt-2 rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/40"
+                  >
+                    Thử lấy lại
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
 
       <p className="text-center text-xs text-fg-muted">
         Sổ Chi Tiêu · Giai đoạn 1 (MVP)

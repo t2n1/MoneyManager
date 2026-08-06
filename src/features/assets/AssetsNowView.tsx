@@ -9,10 +9,11 @@ import { Link } from 'react-router-dom'
 import { ChevronRight, GripVertical } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { AccountTypeIcon } from '../../components/icons'
-import { SegmentedControl } from '../../components/ui'
+import { SegmentedControl, Sparkline } from '../../components/ui'
 import {
   useAccounts,
   useAssignAccountsToGroup,
+  useNetWorthSnapshots,
   useReorderAccounts,
 } from '../../hooks/queries'
 import { CURRENCIES, formatMoney } from '../../lib/money'
@@ -58,6 +59,21 @@ export function AssetsNowView() {
 
   // Chế độ xem cơ cấu: mục đích (asset_group) · loại tài khoản · đồng tiền
   const [groupMode, setGroupMode] = useState<GroupMode>('purpose')
+
+  // Xu hướng tài sản ròng cho đường tí hon cạnh con số lớn. Lấy 12 mốc gần nhất — ảnh
+  // chụp ghi mỗi lần mở app nên số mốc KHÔNG bằng số tháng; vì vậy nhãn ghi "12 mốc",
+  // không ghi "12 tháng".
+  const { data: snapshots = [] } = useNetWorthSnapshots()
+  const trend = useMemo(() => {
+    const last = snapshots.slice(-12)
+    if (last.length < 2) return null
+    const values = last.map((s) => s.net_worth)
+    const first = values[0]
+    // Mốc đầu bằng 0 (hoặc âm) thì phần trăm vô nghĩa — bỏ hẳn con số delta, đường vẫn vẽ.
+    if (first <= 0) return { values, deltaPct: 0, hasDelta: false }
+    const deltaPct = Math.round(((values[values.length - 1] - first) / first) * 100)
+    return { values, deltaPct, hasDelta: true }
+  }, [snapshots])
 
   const displayGroups =
     groupMode === 'purpose' ? purposeGroups : groupMode === 'type' ? typeGroups : currencyGroups
@@ -296,10 +312,26 @@ export function AssetsNowView() {
                 Nợ / cho vay <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-              {netApprox}
-              {formatMoney(netWorth, base)}
-            </p>
+            {/* Số lớn + đường xu hướng tí hon ngay cạnh, theo cách permtrack nhét đồ thị
+                nhỏ vào cùng dòng với con số: nhìn một cái là biết đang lên hay xuống mà
+                không phải mở tab "Diễn biến". */}
+            <div className="mt-1 flex items-end justify-between gap-3">
+              <p className="text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                {netApprox}
+                {formatMoney(netWorth, base)}
+              </p>
+              {trend && (
+                <div className="flex shrink-0 flex-col items-end gap-0.5">
+                  <Sparkline values={trend.values} label="Tài sản ròng gần đây" />
+                  {/* Không tabular-nums: đây là một nhãn ngắn đứng một mình, không phải
+                      cột số cần thẳng hàng giữa các dòng. */}
+                  <span className="text-2xs text-fg-muted">
+                    {trend.hasDelta && `${trend.deltaPct > 0 ? '+' : ''}${trend.deltaPct}% · `}
+                    {trend.values.length} mốc gần nhất
+                  </span>
+                </div>
+              )}
+            </div>
             <div className="mt-3 space-y-1.5 text-sm">
               <div className="flex items-center justify-between text-fg-muted">
                 <span>Tổng tài sản</span>

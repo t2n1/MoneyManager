@@ -5,6 +5,7 @@ export { Card, type CardElevation, type CardPadding } from './Card'
 export { IconButton, iconButtonClass, type IconButtonVariant } from './IconButton'
 export { Money, type MoneyTone } from './Money'
 export { SectionTitle, type TitleRole } from './SectionTitle'
+export { Sparkline } from './Sparkline'
 export { StatTile } from './StatTile'
 export {
   SegmentedControl,

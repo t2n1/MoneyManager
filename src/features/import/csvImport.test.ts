@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { TransactionRow } from '../../types/database.types'
 import {
   buildImportPreview,
+  detectColumnMapping,
   detectInternalTransfers,
   parseAmountToMinor,
   parseCsvText,
@@ -9,6 +10,68 @@ import {
   type ImportItem,
   type ImportOptions,
 } from './csvImport'
+
+/**
+ * Tự đoán cột theo NỘI DUNG: cột ngày = nhiều ô đọc ra ngày nhất, cột tiền =
+ * cột số đầu tiên còn lại, cột ghi chú = cột chữ nhiều nhất. Trước đây mặc định
+ * cứng 0/1/2 nên với sao kê thật (PayPay tiền ở cột 6, Rakuten cột 5) luôn sai,
+ * người dùng lần nào cũng phải tự trỏ lại.
+ */
+describe('detectColumnMapping', () => {
+  it('kiểu Rakuten: ngày cột 0, chữ ở giữa, tiền ở cột 4', () => {
+    const rows = [
+      ['利用日', '利用店名', '利用者', '支払方法', '利用金額'],
+      ['2026/07/01', 'コンビニ', '本人', '1回', '580'],
+      ['2026/07/02', 'スーパー', '本人', '1回', '1,230'],
+      ['2026/07/03', '駅売店', '本人', '1回', '210'],
+    ]
+    expect(detectColumnMapping(rows, true)).toEqual({ date: 0, amount: 4, note: 1 })
+  })
+
+  it('tiền nằm giữa hai cột chữ vẫn tìm ra', () => {
+    const rows = [
+      ['日付', '金額', '内容'],
+      ['2026/07/01', '580', 'コンビニ'],
+      ['2026/07/02', '210', '電車'],
+    ]
+    expect(detectColumnMapping(rows, true)).toEqual({ date: 0, amount: 1, note: 2 })
+  })
+
+  it('hai cột số (tiền + số dư): lấy cột số ĐẦU TIÊN sau khi loại cột ngày', () => {
+    const rows = [
+      ['日付', '内容', '金額', '残高'],
+      ['2026/07/01', 'ATM', '-10000', '90000'],
+      ['2026/07/02', '給料', '280000', '370000'],
+    ]
+    expect(detectColumnMapping(rows, true)).toEqual({ date: 0, amount: 2, note: 1 })
+  })
+
+  it('không có cột ngày nào đọc được → null (giữ mặc định cũ)', () => {
+    const rows = [
+      ['a', 'b'],
+      ['xin chào', 'thế giới'],
+      ['không', 'ngày tháng'],
+    ]
+    expect(detectColumnMapping(rows, true)).toBeNull()
+  })
+
+  it('không có tiêu đề: hasHeader=false vẫn đoán được', () => {
+    const rows = [
+      ['2026/07/01', '580', 'コンビニ'],
+      ['2026/07/02', '210', '電車'],
+    ]
+    expect(detectColumnMapping(rows, false)).toEqual({ date: 0, amount: 1, note: 2 })
+  })
+
+  it('chỉ có ngày + tiền (2 cột): ghi chú trỏ về cột tiền, không nổ', () => {
+    const rows = [
+      ['日付', '金額'],
+      ['2026/07/01', '580'],
+      ['2026/07/02', '210'],
+    ]
+    expect(detectColumnMapping(rows, true)).toEqual({ date: 0, amount: 1, note: 1 })
+  })
+})
 
 describe('parseCsvText', () => {
   it('bóc tách trường bọc nháy có phẩy bên trong', () => {

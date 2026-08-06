@@ -9,6 +9,7 @@ import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { expenseMedianForCurrency, isUnusuallyLarge } from './anomaly'
 import {
   buildImportPreview,
+  detectColumnMapping,
   detectInternalTransfers,
   parseCsvText,
   type DateOrder,
@@ -53,7 +54,16 @@ export function ImportCsvPage() {
 
   function decodeAndParse(buf: ArrayBuffer, enc: Encoding) {
     const text = new TextDecoder(enc).decode(buf)
-    setRows(parseCsvText(text))
+    const parsed = parseCsvText(text)
+    setRows(parsed)
+    // Đoán cột theo nội dung (đoán lại cả khi đổi mã hóa — chữ hết vỡ thì mới đọc
+    // được cột). Không đoán được thì giữ nguyên như đang có.
+    const guess = detectColumnMapping(parsed, hasHeader)
+    if (guess) {
+      setDateCol(guess.date)
+      setAmountCol(guess.amount)
+      setNoteCol(guess.note)
+    }
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {

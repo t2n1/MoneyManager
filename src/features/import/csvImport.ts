@@ -106,6 +106,56 @@ export interface ColumnMapping {
   note: number
 }
 
+/**
+ * Tự đoán cột ngày/tiền/ghi chú theo NỘI DUNG các ô (mặc định cứng 0/1/2 hầu như
+ * luôn sai với sao kê thật — PayPay để tiền ở cột 6, Rakuten cột 5):
+ *
+ * - Cột ngày: tỉ lệ ô đọc ra ngày cao nhất, phải quá nửa.
+ * - Cột tiền: cột SỐ đầu tiên (trái nhất) trong các cột còn lại — sao kê thẻ hay
+ *   xếp số tiền trước các cột số phụ (phí, số dư).
+ * - Cột ghi chú: cột còn lại nhiều ô chữ (không phải ngày/số) nhất.
+ *
+ * Trả null khi không đoán được (thiếu cột ngày/cột số) — giữ mặc định cũ.
+ */
+export function detectColumnMapping(rows: string[][], hasHeader: boolean): ColumnMapping | null {
+  const data = (hasHeader ? rows.slice(1) : rows).slice(0, 50)
+  if (data.length === 0) return null
+  const nCols = Math.max(0, ...data.map((r) => r.length))
+  if (nCols < 2) return null
+
+  // Ô "ra dáng tiền": toàn chữ số (cho phép , . dấu âm, ký hiệu tiền) — nếu chỉ
+  // dựa parseAmountToMinor thì "1回" (trả 1 lần) cũng lọt vì nó vứt hết chữ.
+  const isMoneyLike = (cell: string) => /^[-−+]?[0-9][0-9.,]*$/.test(cell.replace(/[¥￥$₫円\s]/g, ''))
+
+  const stats = Array.from({ length: nCols }, (_, c) => {
+    let dates = 0
+    let numbers = 0
+    let nonEmpty = 0
+    for (const r of data) {
+      const cell = (r[c] ?? '').trim()
+      if (!cell) continue
+      nonEmpty++
+      if (parseDateToISO(cell)) dates++
+      else if (isMoneyLike(cell) && parseAmountToMinor(cell, 'JPY') !== null) numbers++
+    }
+    return { c, dates, numbers, nonEmpty, texts: nonEmpty - dates - numbers }
+  })
+
+  const usable = stats.filter((s) => s.nonEmpty > 0)
+  const dateCol = [...usable].sort((a, b) => b.dates - a.dates)[0]
+  if (!dateCol || dateCol.dates * 2 <= dateCol.nonEmpty) return null
+
+  const amountCol = usable.find(
+    (s) => s.c !== dateCol.c && s.numbers * 2 > s.nonEmpty,
+  )
+  if (!amountCol) return null
+
+  const noteCol = usable
+    .filter((s) => s.c !== dateCol.c && s.c !== amountCol.c)
+    .sort((a, b) => b.texts - a.texts)[0]
+  return { date: dateCol.c, amount: amountCol.c, note: noteCol?.c ?? amountCol.c }
+}
+
 export interface ImportOptions {
   mapping: ColumnMapping
   dateOrder: DateOrder

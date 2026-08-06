@@ -228,6 +228,16 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // đổi. Không phải thêm thẻ mới. Gộp vào <Card> thì hạ tiếp.
     { needle: 'rounded-xl bg-surface', max: 85, use: '<Card>' },
     { needle: 'tabular-nums', max: 97, use: '<Money> (tự bật tabular-nums)' },
+    // 35 (đo 2026-08-06): cặp xanh nhấn viết tay. Nợ này TĂNG từ 29 lúc dựng hệ thống
+    // — quy ước mới chưa thắng thói quen cũ, nên phải có trần. Mỗi chỗ cần XÉT NGHĨA
+    // khi gộp: link/hành động → text-fg-accent, giá trị tiền → text-money-in
+    // (docs/design-system.md mục "Chưa làm"). Không quét máy móc được.
+    { needle: 'text-green-700 dark:text-green-400', max: 35, use: 'text-fg-accent (link/hành động) hoặc text-money-in (tiền) — xét nghĩa từng chỗ' },
+    // Hex xanh/đỏ đời Tailwind v3 trong hằng số biểu đồ — không sai contrast nhưng
+    // lệch palette v4 (green-600 v4 = #00a63e). Cũng tăng từ lúc dựng hệ thống (12+
+    // file → 16 file). Thay dần khi đụng tới file, đừng thêm chỗ mới.
+    { needle: "'#16a34a'", max: 14, use: 'màu palette v4 cho hằng số biểu đồ (vd var(--color-green-700) khi vẽ SVG tay)' },
+    { needle: "'#ef4444'", max: 13, use: 'màu palette v4 cho hằng số biểu đồ' },
   ]
 
   for (const { needle, max, use } of CEILINGS) {

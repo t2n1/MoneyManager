@@ -2,7 +2,8 @@
 
 Ba tầng: **nguyên thuỷ** (palette Tailwind v4) → **ngữ nghĩa** (`src/index.css`) → **component** (`src/components/ui`).
 
-Ràng buộc được kiểm tự động bằng `src/designSystem.test.ts` — không phải tài liệu để đọc rồi quên.
+Ràng buộc được kiểm tự động bằng `tests/designSystem.test.ts` — không phải tài liệu để đọc rồi quên.
+(Ở `tests/` chứ không phải `src/`: file đó đọc filesystem bằng `node:fs`, xem chú thích đầu file.)
 
 ---
 
@@ -12,7 +13,7 @@ Trước khi dựng tầng này, app đã có một hệ thống **ngầm và kh
 
 | Trục | Thực tế đang dùng | Kết luận |
 |---|---|---|
-| Bán kính | `rounded-lg` 278 · `rounded-xl` 130 · `rounded-full` 78 | 3 tầng rõ: control / thẻ / pill. `rounded-2xl` (31) và `rounded-md` (16) là lạc |
+| Bán kính | `rounded-lg` 278 · `rounded-xl` 130 · `rounded-full` 78 · `rounded-2xl` ~30 | 4 tầng: control / thẻ / pill / **hero+sheet**. `rounded-2xl` không phải lạc — nó dùng nhất quán cho thẻ hero (Tổng tài sản, Nợ ròng…) và ~20 sheet trượt lên (`rounded-t-2xl` mobile). Chỉ `rounded-md` (16) là lạc |
 | Độ nổi | `shadow-sm` 163 · còn lại ≤ 10 | thực chất một tầng |
 | Trọng lượng | `medium` 227 · `semibold` 166 · `bold` 83 | 3 bậc |
 | Khoảng cách | `gap-2` 174 · `gap-1` 88 · `gap-3` 43 | 4 giá trị chiếm hầu hết |
@@ -118,7 +119,7 @@ Dấu dùng ASCII `-`/`+` cho khớp với chính `formatMoney`. Đừng trộn 
 
 ## Guardrail
 
-`src/designSystem.test.ts`, chạy trong `npm test`. Hai loại luật:
+`tests/designSystem.test.ts`, chạy trong `npm test`. Hai loại luật:
 
 **Ban cứng — phải bằng 0.** Dành cho thứ đã dọn sạch; tái xuất hiện là hồi quy.
 
@@ -176,7 +177,7 @@ Ngoài ra: bỏ emoji khỏi phép đo. Emoji tự mang màu, `color` thừa k�
 
 - **Trạng thái rỗng dùng gray-300** (`TransactionForm` `¥0`, `MonthlyView` tháng trống, `roleFields`) — 1,47:1 ở light, 2,35:1 ở dark. Đây là **de-emphasize cố ý**: tháng trống gần như biến mất khỏi bảng để mắt quét nhanh. Sửa cho đạt AA sẽ đổi cách đọc bảng → là quyết định thẩm mỹ, không phải dọn dẹp.
 - **Toán tử NumPad**: green-700 trên nền gray-100 = **4,49:1**, thiếu 0,01. Nằm trong sai số làm tròn. Muốn sạch tuyệt đối thì dùng green-800 cho light.
-- **29 chỗ `text-green-700 dark:text-green-400` cần tách nghĩa** thành `fg-accent` (link, hành động — đa số) hoặc `money-in` (giá trị tiền — vài chỗ). Việc **xét từng chỗ**, không quét máy móc được: link không phải thu nhập. Không gấp — 4,95:1 đã đạt AA.
-- **Hex v3 còn ở 12+ file biểu đồ** (`#16a34a`/`#ef4444` trong `CategoryBreakdownCard` `PALETTE`, `SummaryView`, `AssetsPage`, `LifetimeChartCard`…). Không sai contrast, nhưng lạc thời so với palette v4.
-- **Chưa có primitive `Button`.** `IconButton` chỉ lo nút icon; 94 chỗ `active:scale-95` còn lại phần lớn là nút CÓ CHỮ. Đây là primitive giá trị nhất còn thiếu.
+- **35 chỗ `text-green-700 dark:text-green-400` cần tách nghĩa** thành `fg-accent` (link, hành động — đa số) hoặc `money-in` (giá trị tiền — vài chỗ). Việc **xét từng chỗ**, không quét máy móc được: link không phải thu nhập. Không gấp — 4,95:1 đã đạt AA. *(Đo lại 2026-08-06: con số TĂNG từ 29 → 35 kể từ lúc dựng hệ thống, nên đã thêm trần trong guardrail để không phình tiếp.)*
+- **Hex v3 còn ở 16 file biểu đồ** (`#16a34a`/`#ef4444` trong `CategoryBreakdownCard` `PALETTE`, `SummaryView`, `AssetsNowView`, `LifetimeChartCard`…). Không sai contrast, nhưng lạc thời so với palette v4. *(Cũng tăng từ 12+ → 16 file; đã thêm trần trong guardrail.)*
+- **`ActionButton` đã có** (gom dáng nút-có-chữ) nhưng mới áp vào vài chỗ — 93 chỗ `active:scale-95` viết tay là số nợ còn lại trong guardrail, gộp dần và hạ trần theo.
 - Đã áp primitive vào `LedgerPage`, `ReportsPage`, `AccountDetailPage`, `AssetsPage`, `AssetGroupsPage`. Các màn còn lại đã đổi sang token màu nhưng thẻ/nút vẫn viết tay — ngưỡng trong guardrail là số nợ còn lại.

@@ -704,7 +704,8 @@ function CategoryForm({
         )}
 
         <p className="mb-1.5 text-xs font-medium text-fg-muted">Biểu tượng</p>
-        <div className="mb-3 grid grid-cols-8 gap-1">
+        {/* 7 cột (không phải 8): trên 375px mỗi ô ~45px — đủ 44px vùng chạm */}
+        <div className="mb-3 grid grid-cols-7 gap-1">
           {EMOJI_CHOICES.map((e) => (
             <button
               key={e}

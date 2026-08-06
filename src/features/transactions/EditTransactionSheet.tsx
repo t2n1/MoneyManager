@@ -77,14 +77,14 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
             <button
               type="button"
               onClick={handleDelete}
-              className="rounded-lg px-3 py-1.5 text-sm font-medium text-money-out hover:bg-red-50"
+              className="min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium text-money-out hover:bg-red-50"
             >
               Xóa
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="min-h-11 rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Đóng
             </button>

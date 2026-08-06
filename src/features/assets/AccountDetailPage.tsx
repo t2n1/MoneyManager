@@ -616,6 +616,8 @@ export function AccountDetailPage() {
         <ReconcileSheet
           account={account}
           currentBalance={balance}
+          billedPending={cardStatement?.billed ?? null}
+          billedDueISO={cardStatement?.dueISO ?? null}
           onClose={() => setShowReconcile(false)}
         />
       )}

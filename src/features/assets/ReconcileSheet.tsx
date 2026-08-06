@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useCategories, useCreateCategory, useCreateTransaction } from '../../hooks/queries'
-import { toISODate } from '../../lib/dates'
+import { dayMonthLabel, toISODate } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { ActionButton } from '../../components/ui'
 import { MoneyField } from '../../components/MoneyField'
 import type { AccountRow } from '../../types/database.types'
-import {
 import { useEscClose } from '../../hooks/useEscClose'
+import {
   ADJUST_CATEGORY_ICON,
   ADJUST_CATEGORY_NAME,
   cardDebt,
@@ -20,6 +20,10 @@ interface Props {
   account: AccountRow
   /** Số dư sổ hiện tại (minor units theo currency tài khoản). Thẻ đang nợ → âm. */
   currentBalance: number
+  /** Thẻ: nợ ĐÃ CHỐT chờ rút (cardStatementSplit.billed). null/0 = không có. */
+  billedPending?: number | null
+  /** Ngày sẽ bị rút phần đã chốt — để câu cảnh báo nói rõ mốc. */
+  billedDueISO?: string | null
   onClose: () => void
 }
 
@@ -31,7 +35,13 @@ interface Props {
  * Thẻ tín dụng nhập theo SỐ ĐANG NỢ (dương) cho khớp cách app hiển thị thẻ ở mọi
  * nơi khác; phần đổi dấu nằm trong reconcilePlan.
  */
-export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
+export function ReconcileSheet({
+  account,
+  currentBalance,
+  billedPending,
+  billedDueISO,
+  onClose,
+}: Props) {
   useEscClose(onClose)
   const create = useCreateTransaction()
   const createCategory = useCreateCategory()
@@ -107,6 +117,17 @@ export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
           {account.name} · {isCard ? 'sổ đang ghi nợ' : 'số dư sổ hiện tại'}{' '}
           {formatMoney(shown, currency)} ({CURRENCIES[currency].label})
         </p>
+
+        {/* Bẫy hay gặp: điều chỉnh tổng nợ mà quên kỳ đã chốt chờ rút → dòng
+            "Kỳ này" về 0 như thể không phải trả, người dùng tưởng app hỏng. */}
+        {isCard && (billedPending ?? 0) > 0 && (
+          <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+            Thẻ đang có kỳ <b>đã chốt chờ rút</b>: {formatMoney(billedPending ?? 0, currency)}
+            {billedDueISO ? ` vào ${dayMonthLabel(billedDueISO)}` : ''}. Số "đang nợ thực tế" phải
+            gồm cả khoản này — nhập thiếu thì dòng "Kỳ này" sẽ về {formatMoney(0, currency)} như
+            thể không phải trả.
+          </p>
+        )}
 
         <label className="mb-1 block text-xs font-medium text-fg-muted">
           {isCard ? 'Số đang nợ thực tế' : 'Số dư thực tế'}

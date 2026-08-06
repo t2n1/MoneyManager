@@ -94,7 +94,7 @@ export function AccountPicker({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`flex items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300 ${className}`}
+        className={`flex min-h-11 items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300 ${className}`}
       >
         {selected ? (
           <>

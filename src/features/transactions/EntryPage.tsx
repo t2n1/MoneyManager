@@ -78,7 +78,7 @@ export function EntryPage() {
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="flex items-center gap-1 rounded-lg bg-surface px-3 py-1.5 text-sm text-fg-secondary shadow-sm active:scale-95"
+          className="flex min-h-11 items-center gap-1 rounded-lg bg-surface px-3 py-1.5 text-sm text-fg-secondary shadow-sm active:scale-95"
           aria-label="Đóng, quay lại Sổ giao dịch"
         >
           <ChevronLeft className="h-5 w-5" /> Đóng

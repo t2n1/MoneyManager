@@ -654,7 +654,7 @@ export function TransactionForm({
         aria-expanded={roleMenu}
         aria-label="Loại đặc biệt"
         style={{ touchAction: 'manipulation' }}
-        className="flex items-center gap-0.5 whitespace-nowrap rounded-lg bg-surface px-2.5 py-1.5 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
+        className="flex min-h-11 items-center gap-0.5 whitespace-nowrap rounded-lg bg-surface px-2.5 py-1.5 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
       >
         Đặc biệt
         <ChevronDown
@@ -925,7 +925,7 @@ export function TransactionForm({
               aria-haspopup="listbox"
               aria-expanded={repeatOpen}
               aria-label={`Lặp lại: ${REPEAT_MENU_LABEL[repeat]}`}
-              className={`flex items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition active:scale-95 ${
+              className={`flex min-h-11 items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition active:scale-95 ${
                 repeat === 'none'
                   ? 'border-gray-300 bg-surface text-gray-500 dark:border-gray-700 dark:text-gray-400'
                   : 'border-green-500 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400'

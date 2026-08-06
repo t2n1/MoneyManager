@@ -1,8 +1,9 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronLeft, ChevronUp, GripVertical, Plus } from 'lucide-react'
+import { Archive, ChevronDown, ChevronLeft, ChevronUp, GripVertical, Plus } from 'lucide-react'
 import type { NewCategory } from '../../data'
 import { DragList, type DragHandleProps } from '../../components/DragList'
+import { IconButton } from '../../components/ui'
 import {
   useCategories,
   useCreateCategory,
@@ -283,13 +284,16 @@ export function CategoriesPage() {
           >
             <Plus className="h-5 w-5" />
           </button>
-          <button
-            type="button"
+          {/* Icon thay chữ: ~60 dòng mỗi dòng lặp chữ "Lưu trữ" là một bức tường chữ.
+              Hành động đảo ngược được (khôi phục ở khối "Đã lưu trữ") nên icon là đủ. */}
+          <IconButton
+            variant="ghost"
             onClick={() => archive(p)}
-            className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+            aria-label={`Lưu trữ ${p.name}`}
+            title="Lưu trữ"
           >
-            Lưu trữ
-          </button>
+            <Archive className="h-4 w-4" />
+          </IconButton>
         </div>
 
         {/* Danh mục con (kéo–thả để sắp trong cha hoặc chuyển sang cha khác) */}
@@ -324,13 +328,14 @@ export function CategoriesPage() {
                   >
                     {ch.name}
                   </button>
-                  <button
-                    type="button"
+                  <IconButton
+                    variant="ghost"
                     onClick={() => archive(ch)}
-                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+                    aria-label={`Lưu trữ ${ch.name}`}
+                    title="Lưu trữ"
                   >
-                    Lưu trữ
-                  </button>
+                    <Archive className="h-4 w-4" />
+                  </IconButton>
                 </div>
               )
             })}
@@ -436,13 +441,14 @@ export function CategoriesPage() {
             >
               {c.name}
             </button>
-            <button
-              type="button"
+            <IconButton
+              variant="ghost"
               onClick={() => archive(c)}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+              aria-label={`Lưu trữ ${c.name}`}
+              title="Lưu trữ"
             >
-              Lưu trữ
-            </button>
+              <Archive className="h-4 w-4" />
+            </IconButton>
           </div>
         ))}
 

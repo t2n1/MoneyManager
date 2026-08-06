@@ -259,6 +259,16 @@ export function ImportCsvPage() {
           {fileName || 'Chọn file CSV sao kê…'}
           <input type="file" accept=".csv,text/csv" className="sr-only" onChange={handleFile} />
         </label>
+        {/* Trang trống trơn thì người chưa dùng lần nào không biết file của mình có hợp
+            không cho tới khi thử. Một câu nói rõ: đọc được CSV bất kỳ, đã thử với sao kê
+            thẻ Nhật phổ biến. */}
+        {!fileName && (
+          <p className="mt-2 text-xs text-fg-muted">
+            Đọc được CSV sao kê của mọi ngân hàng/thẻ — chọn file xong bạn tự trỏ cột ngày,
+            cột tiền, cột ghi chú. Đã dùng tốt với sao kê Rakuten Card và PayPay Card (UTF-8);
+            file ngân hàng Nhật đời cũ mở ra lỗi font thì đổi mã hóa sang Shift-JIS.
+          </p>
+        )}
         <div className="mt-2 flex items-center gap-2 text-xs text-fg-muted">
           <span>Mã hóa:</span>
           <select

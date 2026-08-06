@@ -31,7 +31,7 @@ export function NumPad({ onKey }: { onKey: (key: NumPadKey) => void }) {
             type="button"
             onClick={() => onKey(key)}
             aria-label={ARIA[key] ?? key}
-            className={`rounded-lg py-1.5 text-lg font-semibold shadow-sm transition active:scale-95 ${
+            className={`flex min-h-11 items-center justify-center rounded-lg py-1.5 text-lg font-semibold shadow-sm transition active:scale-95 ${
               isOp
                 ? 'bg-surface-sunken text-green-700 dark:text-green-400 active:bg-gray-300'
                 : 'bg-white dark:bg-gray-800 text-fg-primary active:bg-gray-200'

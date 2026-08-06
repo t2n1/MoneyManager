@@ -173,9 +173,20 @@ export function SplitFields({
         />
       </div>
       {total > 0 && value.others > 0 && (
-        <p className={`text-right text-xs ${over ? 'text-money-out' : 'text-fg-muted'}`}>
+        <p className={`text-right text-xs ${over && !settledNow ? 'text-money-out' : 'text-fg-muted'}`}>
           {over ? (
-            'Phần người khác không được lớn hơn tổng.'
+            settledNow ? (
+              // Đưa dư khi trả lại ngay: hợp lệ — phần dư ghi thành khoản THU.
+              <>
+                Người kia đưa dư{' '}
+                <span className="font-semibold text-money-in">
+                  {formatMoney(value.others - total, currency)}
+                </span>{' '}
+                — phần dư ghi thành khoản thu, chi của mình {formatMoney(0, currency)}.
+              </>
+            ) : (
+              'Phần người khác nợ không được lớn hơn tổng.'
+            )
           ) : (
             <>
               Phần của mình (tính vào chi tiêu):{' '}

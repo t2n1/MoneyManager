@@ -26,6 +26,8 @@ const GUI_TIEN_CAT = 'Gửi tiền về VN'
 const PHI_CAT = 'Tài chính'
 /** Tên cũ trước migration 0030 — người dùng chưa áp migration vẫn dùng lại được. */
 const PHI_CAT_LEGACY = 'Tài chính & Đầu tư'
+/** Danh mục THU nhận phần đưa dư của Trả hộ (seed có sẵn "Khác" 💵). */
+const THU_KHAC_CAT = 'Khác'
 
 export interface RoleSaveDeps {
   createTransaction: (input: NewTransaction) => Promise<TransactionRow>
@@ -53,6 +55,19 @@ async function feeCategoryId(deps: RoleSaveDeps): Promise<string> {
     name: PHI_CAT,
     type: 'expense',
     icon: '🏦',
+    parent_id: null,
+  })
+  return created.id
+}
+
+/** Id danh mục thu "Khác" — tìm trước, chưa có mới tạo (như feeCategoryId). */
+async function otherIncomeCategoryId(deps: RoleSaveDeps): Promise<string> {
+  const found = deps.categories.find((c) => c.type === 'income' && c.name === THU_KHAC_CAT)
+  if (found) return found.id
+  const created = await deps.createCategory({
+    name: THU_KHAC_CAT,
+    type: 'income',
+    icon: '💵',
     parent_id: null,
   })
   return created.id
@@ -197,29 +212,35 @@ export async function saveSplit(base: RoleBase, v: SplitValue, deps: RoleSaveDep
 
 /**
  * Trả hộ đã được hoàn tiền NGAY → không tạo khoản nợ nào (nó chưa từng tồn tại).
- * Sinh tối đa 2 bút toán:
+ * Sinh tối đa 3 bút toán:
  *
- *   1. Chi phần của mình (tổng − phần người kia) → chỉ số này vào báo cáo Chi.
- *   2. Nếu tiền về VÍ KHÁC: chuyển khoản phần người kia, tài khoản đã trả → ví đó.
+ *   1. Chi phần của mình (tổng − phần người kia, nếu còn) → chỉ số này vào báo cáo Chi.
+ *   2. Nếu tiền về VÍ KHÁC: chuyển khoản phần người kia (tối đa bằng tổng),
+ *      tài khoản đã trả → ví đó.
+ *   3. Người kia đưa DƯ (nhiều hơn tổng): phần dư thành khoản THU "Khác" vào ví nhận.
  *
  * Bút toán (2) là thứ giữ số dư nguồn đúng: quẹt thẻ 10.000 rồi nhận lại 3.000
  * tiền mặt thì thẻ phải trừ đủ 10.000 (khớp sao kê, khớp số tự trả thẻ cuối kỳ),
  * còn 3.000 nằm ở ví tiền mặt. Chuyển khoản không tính vào Chi/Thu nên Chi vẫn là
  * 7.000. Tiền về CHÍNH tài khoản đã trả → không sinh gì (ra vào cùng chỗ, triệt tiêu).
+ * Chuyển khoản chỉ chở tối đa bằng TỔNG — phần dư đi bằng dòng thu (3), nếu không
+ * tài khoản đã trả sẽ bị trừ lố hơn số thật sự quẹt.
  *
- * Có bồi hoàn: chuyển khoản hỏng thì xóa lại dòng chi để không còn số dư sai lệch.
+ * Có bồi hoàn: một bút toán hỏng thì xóa lại các bút toán đã tạo trước nó.
  */
 async function saveSplitSettled(
   base: RoleBase,
   v: SplitValue,
   deps: RoleSaveDeps,
 ): Promise<void> {
-  const mine = base.amount - v.others
+  const mine = base.amount - v.others // < 0 = người kia đưa dư
+  const excess = Math.max(-mine, 0)
+  const backAmount = Math.min(v.others, base.amount)
   const who = v.counterparty.trim()
-  // '' hoặc trùng tài khoản nguồn = tiền về đúng chỗ đã trả → không cần bút toán.
+  // '' hoặc trùng tài khoản nguồn = tiền về đúng chỗ đã trả → không cần chuyển khoản.
   const backTo =
     v.receivedAccountId && v.receivedAccountId !== base.accountId ? v.receivedAccountId : null
-  let ownTxId: string | null = null
+  const createdIds: string[] = []
   try {
     if (mine > 0) {
       const row = await deps.createTransaction({
@@ -232,12 +253,12 @@ async function saveSplitSettled(
         occurred_on: base.occurredOn,
         note: base.note.trim() || (who ? `Chia bill · ${who}` : 'Chia bill'),
       })
-      ownTxId = row.id
+      createdIds.push(row.id)
     }
-    if (v.others > 0 && backTo) {
-      await deps.createTransaction({
+    if (backAmount > 0 && backTo) {
+      const row = await deps.createTransaction({
         type: 'transfer',
-        amount: v.others,
+        amount: backAmount,
         to_amount: null,
         category_id: null,
         account_id: base.accountId,
@@ -245,11 +266,24 @@ async function saveSplitSettled(
         occurred_on: base.occurredOn,
         note: who ? `Hoàn phần trả hộ · ${who}` : 'Hoàn phần trả hộ',
       })
+      createdIds.push(row.id)
+    }
+    if (excess > 0) {
+      await deps.createTransaction({
+        type: 'income',
+        amount: excess,
+        to_amount: null,
+        category_id: await otherIncomeCategoryId(deps),
+        account_id: backTo ?? base.accountId,
+        to_account_id: null,
+        occurred_on: base.occurredOn,
+        note: who ? `Trả hộ nhận dư · ${who}` : 'Trả hộ nhận dư',
+      })
     }
   } catch (e) {
-    if (ownTxId) {
+    for (const id of createdIds.reverse()) {
       try {
-        await deps.deleteTransaction(ownTxId)
+        await deps.deleteTransaction(id)
       } catch {
         /* để nguyên: người dùng có thể xóa tay nếu cần */
       }

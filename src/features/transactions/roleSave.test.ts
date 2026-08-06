@@ -224,6 +224,72 @@ describe('saveSplit — đã trả lại ngay (settle=now)', () => {
 })
 
 /**
+ * Người kia đưa DƯ tiền (others > tổng, chỉ có ở settle='now'): phần dư ghi thành
+ * khoản THU vào ví nhận. Chi của mình = 0, tài khoản đã trả vẫn trừ đủ tổng
+ * (chuyển khoản tối đa bằng tổng — phần dư đi bằng dòng thu, không phải chuyển khoản).
+ */
+describe('saveSplit — người kia đưa dư tiền (settle=now)', () => {
+  const nowOver = (over: Partial<ReturnType<typeof initialSplit>> = {}) => ({
+    ...initialSplit(),
+    others: 6000, // tổng chỉ 5000 → dư 1000
+    counterparty: 'An',
+    ...over,
+  })
+  const catsThu = [{ id: 'cat-thu-khac', name: 'Khác', type: 'income' }]
+
+  it('dư về ví KHÁC → chuyển khoản đủ tổng + khoản thu phần dư vào ví đó, không có dòng chi', async () => {
+    const { deps, calls } = makeDeps([], catsThu)
+    await saveSplit(base, nowOver({ receivedAccountId: 'acc-cash' }), deps)
+
+    expect(calls.createTransaction).toHaveLength(2)
+    expect(calls.createTransaction[0]).toMatchObject({
+      type: 'transfer',
+      amount: 5000, // chỉ bằng tổng — tài khoản đã trả trừ đủ, không trừ lố
+      account_id: 'acc-1',
+      to_account_id: 'acc-cash',
+    })
+    expect(calls.createTransaction[1]).toMatchObject({
+      type: 'income',
+      amount: 1000,
+      account_id: 'acc-cash',
+      category_id: 'cat-thu-khac',
+      note: 'Trả hộ nhận dư · An',
+    })
+  })
+
+  it('dư về CHÍNH ví đã trả → chỉ một khoản thu phần dư', async () => {
+    const { deps, calls } = makeDeps([], catsThu)
+    await saveSplit(base, nowOver({ receivedAccountId: '' }), deps)
+
+    expect(calls.createTransaction).toHaveLength(1)
+    expect(calls.createTransaction[0]).toMatchObject({
+      type: 'income',
+      amount: 1000,
+      account_id: 'acc-1',
+    })
+  })
+
+  it('chưa có danh mục thu "Khác" → tự tạo rồi dùng', async () => {
+    const { deps, calls } = makeDeps([], [])
+    await saveSplit(base, nowOver({}), deps)
+
+    expect(calls.createCategory).toHaveLength(1)
+    expect(calls.createCategory[0]).toMatchObject({ name: 'Khác', type: 'income' })
+    expect(calls.createTransaction[0]).toMatchObject({ type: 'income', category_id: 'cat-moi' })
+  })
+
+  it('khoản thu hỏng → xóa lại chuyển khoản đã tạo, không để số dư lệch', async () => {
+    const { deps, calls, setFailOn } = makeDeps([], catsThu)
+    setFailOn((i) => i.type === 'income')
+
+    await expect(
+      saveSplit(base, nowOver({ receivedAccountId: 'acc-cash' }), deps),
+    ).rejects.toThrow('bùm')
+    expect(calls.deleteTransaction).toEqual(['tx-1'])
+  })
+})
+
+/**
  * Phí là một giao dịch CHI RIÊNG vào danh mục "Tài chính" — không cộng vào số tiền
  * chuyển, không cộng vào gốc nợ. Tạo phí trước, bút toán chính hỏng thì xóa phí đi.
  */

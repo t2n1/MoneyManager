@@ -592,6 +592,7 @@ export function AccountDetailPage() {
           account={account}
           monthKey={activeMonthKey}
           charged={monthCharged}
+          rangeStartISO={range.start}
           rangeEndISO={range.end}
           onClose={() => setShowMonthAdjust(false)}
         />

@@ -86,21 +86,39 @@ describe('monthDueDate', () => {
 
 describe('monthAdjustDate', () => {
   it('tháng đã qua → ngày cuối tháng đó', () => {
-    expect(monthAdjustDate({ rangeEndISO: '2026-07-01', todayISO: '2026-08-06' })).toBe(
-      '2026-06-30',
-    )
+    expect(
+      monthAdjustDate({
+        rangeStartISO: '2026-06-01',
+        rangeEndISO: '2026-07-01',
+        todayISO: '2026-08-06',
+      }),
+    ).toBe('2026-06-30')
   })
 
   it('tháng đang xem là tháng này → hôm nay', () => {
-    expect(monthAdjustDate({ rangeEndISO: '2026-09-01', todayISO: '2026-08-06' })).toBe(
-      '2026-08-06',
-    )
+    expect(
+      monthAdjustDate({
+        rangeStartISO: '2026-08-01',
+        rangeEndISO: '2026-09-01',
+        todayISO: '2026-08-06',
+      }),
+    ).toBe('2026-08-06')
   })
 
-  it('tháng tương lai vẫn kẹp về hôm nay, không ghi ngày tương lai', () => {
-    expect(monthAdjustDate({ rangeEndISO: '2026-12-01', todayISO: '2026-08-06' })).toBe(
-      '2026-08-06',
-    )
+  it('tháng chưa tới → ngày cuối tháng ĐÓ, không tụt về hôm nay', () => {
+    expect(
+      monthAdjustDate({
+        rangeStartISO: '2026-09-01',
+        rangeEndISO: '2026-10-01',
+        todayISO: '2026-08-06',
+      }),
+    ).toBe('2026-09-30')
+  })
+
+  it('ngày đầu và ngày cuối kỳ vẫn coi là trong kỳ', () => {
+    const range = { rangeStartISO: '2026-08-01', rangeEndISO: '2026-09-01' }
+    expect(monthAdjustDate({ ...range, todayISO: '2026-08-01' })).toBe('2026-08-01')
+    expect(monthAdjustDate({ ...range, todayISO: '2026-08-31' })).toBe('2026-08-31')
   })
 })
 

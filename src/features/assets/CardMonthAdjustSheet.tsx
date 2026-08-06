@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useCategories, useCreateCategory, useCreateTransaction } from '../../hooks/queries'
-import { formatMonthLabel, toISODate, type MonthKey } from '../../lib/dates'
+import { addDaysISO, formatMonthLabel, toISODate, type MonthKey } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { ActionButton, Money } from '../../components/ui'
@@ -14,6 +14,8 @@ interface Props {
   monthKey: MonthKey
   /** Tổng tiền quẹt app đang tính cho tháng này (dương). */
   charged: number
+  /** Ngày đầu khoảng đang xem (`getMonthRange().start`). */
+  rangeStartISO: string
   /** Ngày đầu tháng kế của khoảng đang xem (mốc loại trừ của `getMonthRange`). */
   rangeEndISO: string
   onClose: () => void
@@ -26,14 +28,22 @@ interface Props {
  * Khác `ReconcileSheet` ở chỗ nó chỉnh MỘT THÁNG chứ không chỉnh tổng nợ hôm nay
  * — sai ở tháng 6 thì bù vào tháng 6, không đẩy hết chênh lệch về hôm nay.
  */
-export function CardMonthAdjustSheet({ account, monthKey, charged, rangeEndISO, onClose }: Props) {
+export function CardMonthAdjustSheet({
+  account,
+  monthKey,
+  charged,
+  rangeStartISO,
+  rangeEndISO,
+  onClose,
+}: Props) {
   const create = useCreateTransaction()
   const createCategory = useCreateCategory()
   const { data: categories = [] } = useCategories()
   const currency = account.currency as CurrencyCode
 
   const todayISO = toISODate(new Date())
-  const suggestedDate = monthAdjustDate({ rangeEndISO, todayISO })
+  const lastDayISO = addDaysISO(rangeEndISO, -1)
+  const suggestedDate = monthAdjustDate({ rangeStartISO, rangeEndISO, todayISO })
   const monthLabel = formatMonthLabel(monthKey)
 
   const [entered, setEntered] = useState(charged)
@@ -108,18 +118,21 @@ export function CardMonthAdjustSheet({ account, monthKey, charged, rangeEndISO, 
         <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="month-adjust-date">
           Ghi vào ngày
         </label>
+        {/* Kẹp trong kỳ: khoản bù rơi sang tháng khác thì tháng này vẫn lệch */}
         <input
           id="month-adjust-date"
           type="date"
           value={occurredOn}
-          max={todayISO}
+          min={rangeStartISO}
+          max={lastDayISO}
           onChange={(e) => setOccurredOn(e.target.value)}
           className="mb-1 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500"
         />
         <p className="mb-3 text-xs text-fg-muted">
-          {occurredOn === suggestedDate
-            ? `Mặc định là ngày cuối cùng của ${monthLabel.toLowerCase()}, để khoản bù nằm đúng trong kỳ.`
-            : 'Đổi ngày thì khoản bù có thể rơi sang tháng khác — số của tháng này sẽ vẫn lệch.'}
+          {suggestedDate === todayISO
+            ? `Ghi vào hôm nay — vẫn nằm trong ${monthLabel.toLowerCase()}.`
+            : `Ghi vào ngày cuối ${monthLabel.toLowerCase()}, để khoản bù nằm đúng trong kỳ.`}{' '}
+          Chỉ chọn được ngày trong {monthLabel.toLowerCase()}.
         </p>
 
         <div className="mb-3 rounded-lg bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm">

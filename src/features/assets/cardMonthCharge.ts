@@ -60,20 +60,30 @@ export function monthDueDate({
 }
 
 export interface MonthAdjustDateInput {
+  /** Ngày đầu khoảng đang xem (`getMonthRange().start`). */
+  rangeStartISO: string
   rangeEndISO: string
   todayISO: string
 }
 
 /**
- * Ngày ghi giao dịch bù: ngày cuối cùng của tháng đang xem, kẹp không quá hôm nay.
+ * Ngày ghi giao dịch bù — LUÔN nằm trong tháng đang xem.
  *
- * Nằm TRONG kỳ nên máy tự-trả-thẻ (`runCardAutopayCatchUp`, tính theo số dư tại
- * ngày chốt) nhìn thấy khoản bù và rút đúng số. Kẹp về hôm nay để tháng hiện tại
- * — và tháng tương lai — không sinh giao dịch ghi ngày chưa tới.
+ * Phải nằm trong kỳ thì máy tự-trả-thẻ (`runCardAutopayCatchUp`, tính theo số dư
+ * tại ngày chốt) mới thấy khoản bù, và tổng "quẹt trong tháng N" mới khớp lại.
+ *
+ * Hôm nay rơi vào giữa kỳ thì lấy hôm nay, khỏi ghi ngày chưa tới một cách vô cớ.
+ * Hôm nay nằm NGOÀI kỳ — tháng đã qua hoặc tháng chưa tới — thì lấy ngày cuối kỳ.
+ * Bản đầu kẹp cả tháng tương lai về hôm nay, thành ra bù tháng 9 lại ghi vào tháng
+ * 8: sai tháng, mà tháng 9 vẫn lệch y như cũ.
  */
-export function monthAdjustDate({ rangeEndISO, todayISO }: MonthAdjustDateInput): string {
+export function monthAdjustDate({
+  rangeStartISO,
+  rangeEndISO,
+  todayISO,
+}: MonthAdjustDateInput): string {
   const lastDay = addDaysISO(rangeEndISO, -1)
-  return lastDay > todayISO ? todayISO : lastDay
+  return todayISO >= rangeStartISO && todayISO <= lastDay ? todayISO : lastDay
 }
 
 export interface MonthAdjustPlan {

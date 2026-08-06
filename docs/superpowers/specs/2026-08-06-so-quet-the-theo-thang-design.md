@@ -105,10 +105,11 @@ bù phần chênh:
 - `diff < 0` (app đang dư) → **thu** trên thẻ, số tiền `|diff|`
 - `diff === 0` → nút khóa
 
-Ngày ghi: **ngày cuối cùng của tháng đó, nhưng không quá hôm nay**
-(`min(range.end − 1 ngày, todayISO)`). Nằm trong kỳ nên máy tự-trả-thẻ
-(`runCardAutopayCatchUp`, mốc theo ngày chốt) nhìn thấy và rút đúng số. Người
-dùng vẫn sửa được ngày.
+Ngày ghi: **luôn nằm trong tháng đang xem**. Hôm nay rơi giữa kỳ thì lấy hôm nay;
+hôm nay nằm ngoài kỳ (tháng đã qua hoặc tháng chưa tới) thì lấy ngày cuối kỳ
+(`range.end − 1 ngày`). Nằm trong kỳ nên máy tự-trả-thẻ
+(`runCardAutopayCatchUp`, mốc theo ngày chốt) nhìn thấy và rút đúng số. Ô ngày
+kẹp `min`/`max` trong kỳ nên sửa tay cũng không lọt sang tháng khác.
 
 Dùng lại danh mục bù sẵn có (`ADJUST_CATEGORY_NAME`, `findAdjustCategory`), ghi
 chú `Điều chỉnh sao kê tháng M/YYYY`, `exclude_from_stats: true` để không lọt vào
@@ -135,5 +136,7 @@ Toàn bộ phần tính nằm trong tệp thuần để test không cần dựng
 - **Không lưu được** (mất mạng, RLS): hiện toast lỗi, giữ sheet mở — theo đúng
   `ReconcileSheet`.
 - **Thẻ chưa có ngày chốt/ngày trả**: khối mới vẫn hiện, chỉ thiếu dòng ngày rút.
-- **Tháng tương lai**: `monthAdjustDate` kẹp về hôm nay nên không ghi ngày tương
-  lai vào sổ.
+- **Tháng chưa tới**: khoản bù ghi ngày cuối tháng đó, tức là ngày tương lai.
+  Bản đầu kẹp về hôm nay, hoá ra bù tháng 9 lại rơi vào tháng 8 — sai tháng mà
+  tháng 9 vẫn lệch. Giao dịch ngày tương lai vẫn vào tổng nợ thẻ ngay, nhưng
+  `useCardStatements` xếp nó vào phần "chưa chốt · kỳ sau mới đòi".

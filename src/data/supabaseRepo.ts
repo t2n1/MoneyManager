@@ -177,6 +177,8 @@ export const supabaseRepo: Repo = {
       if (filter.types && filter.types.length > 0) q = q.in('type', filter.types)
       if (filter.categoryIds && filter.categoryIds.length > 0)
         q = q.in('category_id', filter.categoryIds)
+      // `.is` chứ không `.in`: SQL không so NULL bằng IN được.
+      if (filter.uncategorized === true) q = q.is('category_id', null)
       if (filter.accountIds && filter.accountIds.length > 0) {
         const ids = filter.accountIds.map((id) => `"${id}"`).join(',')
         q = q.or(`account_id.in.(${ids}),to_account_id.in.(${ids})`)

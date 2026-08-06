@@ -59,6 +59,8 @@ export function SearchPage() {
     tagIds: (searchParams.get('tags') ?? '').split(',').filter(Boolean),
     from: searchParams.get('from') || defaultFrom(),
     to: searchParams.get('to') || toISODate(new Date()),
+    // Từ bảng "khoản chưa gắn danh mục" ở tab Thấu hiểu: ?uncat=1&from=…&to=…
+    uncat: searchParams.get('uncat') === '1',
   }))[0]
 
   const [text, setText] = useState('')
@@ -69,10 +71,11 @@ export function SearchPage() {
   const [categoryIds, setCategoryIds] = useState<string[]>([])
   const [accountIds, setAccountIds] = useState<string[]>([])
   const [tagIds, setTagIds] = useState<string[]>(initial.tagIds)
+  const [uncategorized, setUncategorized] = useState(initial.uncat)
   const [amountMinStr, setAmountMinStr] = useState('')
   const [amountMaxStr, setAmountMaxStr] = useState('')
   // Mở sẵn khối lọc nếu vào từ deep-link, để thấy ngay mình đang lọc theo nhãn nào
-  const [showMore, setShowMore] = useState(initial.tagIds.length > 0)
+  const [showMore, setShowMore] = useState(initial.tagIds.length > 0 || initial.uncat)
   const [editing, setEditing] = useState<TransactionRow | null>(null)
 
   // Nhập theo đơn vị chính của tiền gốc → quy ra minor units để so với amount đã lưu.
@@ -107,9 +110,12 @@ export function SearchPage() {
       accountIds: accountIds.length > 0 ? accountIds : undefined,
       amountMin: toMinor(amountMinStr),
       amountMax: toMinor(amountMaxStr),
+      // undefined khi tắt: để khoá này không xuất hiện trong queryKey của react-query,
+      // nhờ vậy bật rồi tắt lại là dùng luôn cache cũ chứ không gọi mạng thêm lần nữa.
+      uncategorized: uncategorized || undefined,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [from, to, debouncedText, typeFilter, categoryIds, accountIds, amountMinStr, amountMaxStr, baseFactor],
+    [from, to, debouncedText, typeFilter, categoryIds, accountIds, amountMinStr, amountMaxStr, baseFactor, uncategorized],
   )
 
   const { data: rawResults = [], isLoading } = useSearchTransactions(filter)
@@ -338,6 +344,19 @@ export function SearchPage() {
               ))}
             </div>
           </div>
+
+          {/* Chỉ khoản chưa gắn danh mục — cửa vào từ bảng "còn tồn" ở tab Thấu hiểu,
+              và cũng để tự dọn tay khi muốn. Ô tích chứ không phải chip: đây là bật/tắt
+              một điều kiện, không phải chọn trong một tập. */}
+          <label className="flex min-h-11 items-center gap-2 text-xs text-fg-secondary">
+            <input
+              type="checkbox"
+              checked={uncategorized}
+              onChange={(e) => setUncategorized(e.target.checked)}
+              className="h-4 w-4 accent-[var(--accent)]"
+            />
+            Chỉ khoản chưa gắn danh mục
+          </label>
         </div>
       )}
 

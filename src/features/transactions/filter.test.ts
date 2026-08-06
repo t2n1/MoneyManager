@@ -62,6 +62,33 @@ describe('matchesFilter', () => {
   })
 })
 
+describe('lọc chưa gắn danh mục', () => {
+  it('uncategorized=true chỉ giữ giao dịch không có danh mục', () => {
+    const txs = [
+      tx({ type: 'expense', note: 'chua gan', category_id: null }),
+      tx({ type: 'expense', note: 'da gan', category_id: 'c1' }),
+    ]
+    const r = filterTransactions(txs, { ...RANGE, uncategorized: true })
+    expect(r.map((t) => t.note)).toEqual(['chua gan'])
+  })
+
+  it('không đặt uncategorized thì giữ nguyên mọi giao dịch', () => {
+    const txs = [
+      tx({ type: 'expense', category_id: null }),
+      tx({ type: 'expense', category_id: 'c1' }),
+    ]
+    expect(filterTransactions(txs, RANGE)).toHaveLength(2)
+  })
+
+  it('uncategorized=false cũng không lọc gì — chỉ true mới bật', () => {
+    const txs = [
+      tx({ type: 'expense', category_id: null }),
+      tx({ type: 'expense', category_id: 'c1' }),
+    ]
+    expect(filterTransactions(txs, { ...RANGE, uncategorized: false })).toHaveLength(2)
+  })
+})
+
 describe('filterTransactions', () => {
   it('loại ngoài khoảng ngày, sắp xếp giảm dần', () => {
     const txs = [

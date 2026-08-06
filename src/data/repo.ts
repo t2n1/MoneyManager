@@ -171,6 +171,14 @@ export interface TxFilter {
   /** Lọc theo số tiền GỐC của giao dịch (minor units, theo currency tài khoản nguồn). */
   amountMin?: number
   amountMax?: number
+  /**
+   * Chỉ lấy giao dịch CHƯA gắn danh mục (category_id null).
+   *
+   * Đứng riêng chứ không nhét vào `categoryIds` bằng một giá trị đặc biệt kiểu 'null':
+   * `categoryIds` dịch thành `.in('category_id', ...)` ở phía Supabase, mà SQL không so
+   * NULL bằng IN được — phải là `.is('category_id', null)`.
+   */
+  uncategorized?: boolean
 }
 
 /** Cố ý KHÔNG có base_currency (đổi tiền gốc sẽ làm sai mọi số đã quy đổi). */

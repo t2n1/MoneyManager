@@ -18,6 +18,10 @@ export function normalizeText(s: string): string {
 export function matchesFilter(t: TransactionRow, filter: TxFilter): boolean {
   if (filter.types && filter.types.length > 0 && !filter.types.includes(t.type)) return false
 
+  // Chỉ `true` mới bật lọc — `false` phải giữ nguyên mọi giao dịch, vì nơi gọi hay
+  // truyền thẳng state của ô tích vào đây.
+  if (filter.uncategorized === true && t.category_id != null) return false
+
   if (filter.categoryIds && filter.categoryIds.length > 0) {
     if (!t.category_id || !filter.categoryIds.includes(t.category_id)) return false
   }

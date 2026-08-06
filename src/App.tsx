@@ -1,6 +1,7 @@
 import { lazy, Suspense, type ReactNode } from 'react'
 import { Navigate, Route, Routes, useParams, useSearchParams } from 'react-router-dom'
 import { AppLayout } from './components/AppLayout'
+import { PageSkeleton } from './components/PageSkeleton'
 import { LoginPage } from './features/auth/LoginPage'
 import { RequireAuth } from './features/auth/RequireAuth'
 import { SettingsPage } from './features/settings/SettingsPage'
@@ -65,8 +66,13 @@ const CategoryDetailPage = lazy(() =>
   import('./features/reports/CategoryDetailPage').then((m) => ({ default: m.CategoryDetailPage })),
 )
 
-const Loading = () => <p className="p-6 text-center text-fg-muted">Đang tải…</p>
-const lazyRoute = (el: ReactNode) => <Suspense fallback={<Loading />}>{el}</Suspense>
+/**
+ * Bọc route lazy bằng khung xương hợp dáng trang sắp hiện, thay cho một dòng "Đang tải…"
+ * dùng chung. `kind` mặc định 'cards' vì phần lớn trang lazy là lưới thẻ.
+ */
+const lazyRoute = (el: ReactNode, kind: 'list' | 'cards' | 'table' = 'cards') => (
+  <Suspense fallback={<PageSkeleton kind={kind} />}>{el}</Suspense>
+)
 
 /** Ngân sách đã tách thành tab riêng `/budget`. Đường cũ `/reports?view=budget` cùng
  *  PATH với Báo cáo nên không chuyển tiếp được bằng một `<Route>` riêng — phải xét ở đây.
@@ -111,21 +117,21 @@ function App() {
           <Route path="/assets" element={lazyRoute(<AssetsPage />)} />
           <Route path="/assets/groups" element={lazyRoute(<AssetGroupsPage />)} />
           <Route path="/assets/account/:accountId" element={lazyRoute(<AccountDetailPage />)} />
-          <Route path="/debts" element={lazyRoute(<DebtsPage />)} />
+          <Route path="/debts" element={lazyRoute(<DebtsPage />, 'table')} />
           <Route path="/debts/:debtId" element={lazyRoute(<DebtDetailPage />)} />
-          <Route path="/recurring" element={lazyRoute(<RecurringPage />)} />
-          <Route path="/search" element={lazyRoute(<SearchPage />)} />
+          <Route path="/recurring" element={lazyRoute(<RecurringPage />, 'table')} />
+          <Route path="/search" element={lazyRoute(<SearchPage />, 'list')} />
           <Route path="/budget" element={lazyRoute(<BudgetPage />)} />
           <Route path="/reports" element={<ReportsRoute />} />
           <Route path="/reports/category/:categoryId" element={lazyRoute(<CategoryDetailPage />)} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/settings/accounts" element={lazyRoute(<AccountsPage />)} />
-          <Route path="/settings/categories" element={lazyRoute(<CategoriesPage />)} />
+          <Route path="/settings/accounts" element={lazyRoute(<AccountsPage />, 'table')} />
+          <Route path="/settings/categories" element={lazyRoute(<CategoriesPage />, 'table')} />
           <Route
             path="/settings/categories/classify"
             element={lazyRoute(<ClassifyCategoriesPage />)}
           />
-          <Route path="/settings/tags" element={lazyRoute(<TagsPage />)} />
+          <Route path="/settings/tags" element={lazyRoute(<TagsPage />, 'table')} />
           <Route path="/settings/import" element={lazyRoute(<ImportCsvPage />)} />
           <Route path="/settings/data" element={lazyRoute(<DataPage />)} />
           <Route path="/settings/notifications" element={lazyRoute(<NotificationSettingsPage />)} />

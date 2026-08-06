@@ -65,6 +65,19 @@ phải sơ sót — nhưng cần nói rõ vì nó là một giới hạn thật:
 > đó ở việc 2 (`thieu-gia-moi-ma`) thay vì ghi một con số sai — không có chỗ nào âm
 > thầm ghi giá 0 hay giá cũ.
 
+### 15 mã HOSE mà Yahoo cũng không có (đo 2026-08-06)
+
+Ngay trong HOSE, Yahoo phủ 388/403 mã. Mười lăm mã dưới đây gọi ra không có giá — toàn
+tên nhỏ, thanh khoản thấp; không có mã vốn hoá lớn nào:
+
+`BTT` `COM` `CRV` `HTV` `HU1` `LGC` `NAV` `PNC` `SFC` `SMA` `TDW` `TIX` `TMS` `TTE` `TVT`
+
+Mua trúng một trong số đó thì hành xử giống hệt mã HNX/UPCOM ở trên: UI báo "chưa có giá",
+cron bỏ qua tài khoản với lý do `thieu-gia-moi-ma`, không ghi số sai. Danh sách này đo một
+lần nên có thể đổi — Yahoo thêm/bớt mã theo thời gian. Kiểm lại bằng cách so số
+`soMaCoGia` trong log với `HOSE_SYMBOL_COUNT` trong `src/features/assets/hoseSymbols.ts`:
+chênh nhau nhiều hơn con số này là có chuyện.
+
 ### Tên công ty: chuyển sang danh sách tĩnh
 
 Yahoo không trả tên công ty (SSI có, qua `companyNameVi`). Ô gợi ý mã khi ghi lệnh
@@ -197,7 +210,27 @@ npm run bundle:rules && supabase functions deploy stock-refresh --project-ref <p
 `--no-verify-jwt` vì cron không phải người dùng đăng nhập, không có JWT — đó là lý do
 có `x-cron-secret`.
 
-### 2. Hẹn cron mỗi ngày
+### 2. Bật `pg_cron` và `pg_net`
+
+```sql
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+```
+
+`pg_cron` tạo schema `cron` (hẹn giờ trong database), `pg_net` tạo schema `net` (gọi HTTP
+từ database). Thiếu bước này thì bước sau nổ ngay dòng đầu:
+
+```
+ERROR: 3F000: schema "cron" does not exist
+```
+
+Bản đầu của tài liệu này bỏ sót bước trên vì cho rằng cron đã sẵn sàng từ `push-notify`
+([docs/push-notification.md](push-notification.md) có đúng hai dòng này). Nhưng
+`push-notify` chưa từng được deploy lên project, nên chưa ai bật — và người đầu tiên hẹn
+cron đã vấp (2026-08-06). Chạy `create extension if not exists` nhiều lần không sao, nên
+cứ chạy kể cả khi nghĩ là đã có.
+
+### 3. Hẹn cron mỗi ngày
 
 ```sql
 select cron.schedule(
@@ -337,7 +370,7 @@ Gọi thiếu header `x-cron-secret` phải trả `401 Sai bí mật cron`.
 | `buildFetchOrder` xếp mã đang giữ lên trước, không trùng, giữ cả mã giữ mà không có trong universe | ✅ test |
 | `fetchYahooPrices` gọi được Yahoo thật (với `CHUNK_SIZE` cũ, đã sai) | ✅ đã đo `curl` tới `query1.finance.yahoo.com/v8/finance/spark` từ function đã deploy (region Mumbai) ngày 2026-08-06, trả `200` với ≤20 mã, **400** với >20 mã (xem mục "Giới hạn cứng" ở trên) |
 | `fetchYahooPrices` dừng sạch khi hết `FETCH_BUDGET_MS`, báo `hetNganSach` tách khỏi lỗi lô | ✅ test với `fetch` giả lập + đồng hồ giả (không gọi mạng thật) |
-| Ghi vào `stock_prices` (upsert thật) | ❌ **chưa kiểm** — chưa có Supabase local để thử |
+| Ghi vào `stock_prices` (upsert thật) | ✅ **đã chạy thật** trên project 2026-08-06: gọi `POST /stock-refresh` trả `{"soMaCoGia":388,"daGhi":0,"boQua":{},"loi":[]}`. `loi` rỗng nghĩa là không lô nào hỏng và mọi `upsert` đều qua (code `throw` khi upsert lỗi). 388/403 mã có giá — 15 mã còn lại Yahoo không có, xem mục dưới |
 | `_holdings.js` xuất đúng `holdingsFromTrades`/`brokerCash`/`portfolioValue`/`sessionPrices`/`toISODate`/`HOSE_SYMBOLS`, khớp `src/features/assets/holdings.ts` + `hoseSymbols.ts` | ✅ `tests/pushBundle.test.ts` so byte-for-byte bundle gói lại với file đã commit, và kiểm đủ export |
 | `loadPortfolioAccounts` lọc đúng loại `investment` + `VND` + chưa lưu trữ + có sổ lệnh | ✅ đọc kỹ theo hợp đồng, khớp cột trong migration 0016/0026/0035 — **chưa chạy thật** với Postgres |
 | `loadTradedSymbols` gom đúng mã duy nhất, không lọc theo tài khoản (giờ chỉ còn quyết định THỨ TỰ ưu tiên, không còn quyết định mã nào được hút) | ✅ đọc code — dedupe qua `Set`, không phân biệt tài khoản đủ điều kiện hay không, khớp bảng `stock_trades` — **chưa chạy thật** với Postgres |
@@ -345,17 +378,18 @@ Gọi thiếu header `x-cron-secret` phải trả `401 Sai bí mật cron`.
 | Số gõ tay (`source='manual'`) không bị đè | ✅ đọc code — đọc trước, so `source`, `continue` nếu là `manual`. **Chưa kiểm bằng UI + DB thật** (Step 4 của brief) |
 | `valued_on` = ngày phiên (không phải hôm nay), và tính theo phiên MỚI NHẤT dù một lô hụt | ✅ đọc code — `phien` = `session` từ `sessionPrices`, lấy `trading_date` lớn nhất trong `stock_prices`; không có chỗ nào dùng `new Date()` cho `valued_on` hay cho `trading_date` (đổi từ `timestamp` Yahoo qua `Intl.DateTimeFormat` với `timeZone: 'Asia/Ho_Chi_Minh'`); mã ở phiên cũ hơn bị chặn bởi `gia-le-phien-cu`, không lọt vào `priceBySymbol` một cách âm thầm |
 | Cài mới (chưa ai ghi lệnh) không lỗi | ✅ đọc code — `loadTradedSymbols` trả mảng rỗng nhưng `buildFetchOrder` vẫn trả về cả `HOSE_SYMBOLS` (universe không rỗng) → việc 1 vẫn chạy bình thường, không có ca đặc biệt "sổ lệnh rỗng" nữa; `loadPortfolioAccounts` trả mảng rỗng nên vòng lặp tài khoản ở việc 2 không chạy, `daGhi`/`boQua` giữ 0/rỗng, status vẫn `200` |
-| `supabase functions serve` tại máy + gọi thử `POST /stock-refresh` | ❌ **chưa kiểm** — máy dev chưa cài Supabase CLI / chưa chạy Supabase local |
+| Gọi thật `POST /stock-refresh` | ✅ **đã chạy thật** trên project 2026-08-06 (không qua `supabase functions serve` — máy dev không có Docker nên không chạy Supabase local được; gọi thẳng function đã deploy còn sát thực tế hơn) |
 | Ghi thật vào `account_valuations`, xem "Tổng tài sản"/"Hiệu quả đầu tư" tự đúng trên UI | ❌ **chưa kiểm** — cần môi trường sống (xem mục dưới) |
 | `cron.schedule` đã chạy thật, `cron.job`/`cron.job_run_details` có hàng | ❌ **chưa kiểm** — cần deploy lên project Supabase thật |
 
 ### Chưa làm được ở máy này — cần kiểm khi có môi trường sống
 
-`supabase` CLI không cài trên máy này và không có Postgres local đang chạy, nên toàn
-bộ phần seed dữ liệu qua UI, gọi function thật, đọc `account_valuations` bằng SQL,
-deploy, và `cron.schedule` **chưa chạy được** — chỉ kiểm bằng đọc code kỹ theo đúng
-hợp đồng của `holdings.ts` và `prices.ts`. Việc cần làm trước khi tin tưởng cron chạy
-production, theo đúng thứ tự Step 3–7 của kế hoạch gốc:
+Cập nhật 2026-08-06: `supabase` CLI **có** (chạy qua `npx supabase`, không cần cài), và
+function đã được deploy + gọi thật trên project — nửa hút giá coi như đã chứng minh. Thứ
+vẫn chưa chạy là Docker (nên không dựng được Supabase local) và **nửa ghi `account_valuations`**,
+vì nửa đó chỉ chạy khi có tài khoản đủ tư cách, mà muốn vậy phải có sổ lệnh thật.
+
+Việc còn lại trước khi tin tưởng cron chạy production:
 
 1. Seed một tài khoản `investment`/VND, nạp 100.000.000đ, ghi lệnh mua 1.000 FPT giá
    70.000 phí 105.000. Gọi function, kỳ vọng `"daGhi":1` và

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMemo, useState } from 'react'
+import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeftRight,
@@ -33,9 +33,21 @@ export function SettingsPage() {
   const [editing, setEditing] = useState(() => searchParams.get('edit') === 'profile')
 
   const { base, rates } = useRates()
+  // Đăng ký theo dõi việc ĐANG LẤY tỷ giá, không phải giá trị tỷ giá: React Query giữ
+  // nguyên tham chiếu `data` khi số mới trùng số cũ, nên chỉ dựa vào `rates` thì bấm
+  // "Thử lấy lại" xong component không render lại và cảnh báo không tắt dù đã lấy được
+  // mốc mới. Số này đổi 0 → 1 → 0 quanh mỗi lượt lấy, nên lượt nào xong cũng có render.
+  const ratesFetching = useIsFetching({ queryKey: ['rates'] })
   // Đọc thẳng localStorage trong lúc render (không phải state): `rates` đổi tham
   // chiếu mỗi lần query trả về, nên mốc thời gian cũng được đọc lại đúng lúc đó.
-  const rateMeta = rates ? readRatesMeta(base) : null
+  const rateMeta = useMemo(() => {
+    // `ratesFetching` CÓ Ở ĐÂY LÀ CỐ Ý: nó là tín hiệu "vừa lấy xong, đọc lại đi",
+    // dù bản thân giá trị của nó không dùng để tính ra kết quả. Dòng `void` này chỉ
+    // để oxlint(exhaustive-deps) thấy biến có được tham chiếu trong thân hàm, tránh
+    // báo "unnecessary dependency" — nếu bỏ dòng này lint sẽ cảnh báo lại.
+    void ratesFetching
+    return rates ? readRatesMeta(base) : null
+  }, [rates, base, ratesFetching])
   // formatRateLine tự trả null cho chính `base` và cho số rác, nên không lọc trước.
   const rateLines = rates
     ? (Object.entries(rates) as [CurrencyCode, number][])

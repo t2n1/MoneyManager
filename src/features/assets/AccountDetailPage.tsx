@@ -23,7 +23,9 @@ import {
   useSearchTransactions,
 } from '../../hooks/queries'
 import {
+  addDaysISO,
   addMonths,
+  dayMonthLabel,
   dueDateLabel,
   formatMonthLabel,
   getMonthRange,
@@ -117,6 +119,11 @@ export function AccountDetailPage() {
     [account?.type, account?.statement_day, account?.payment_due_day, accountId, balance],
   )
   const cardStatement = useCardStatements(cardForSplit, todayISO).get(accountId)
+  // Phần "chưa chốt" là tiền quẹt từ HÔM SAU ngày chốt — nói ra ngày đó để không
+  // ai phải đoán nó thuộc tháng nào.
+  const unbilledFromISO = cardStatement?.closeISO
+    ? addDaysISO(cardStatement.closeISO, 1)
+    : null
 
   const accountValuations = useMemo(
     () =>
@@ -398,8 +405,18 @@ export function AccountDetailPage() {
                   />
                 </div>
                 {(cardStatement.unbilled ?? 0) > 0 && (
-                  <div className="flex items-center justify-between text-fg-muted">
-                    <span>Chưa chốt · kỳ sau mới đòi</span>
+                  <div className="flex items-center justify-between gap-2 text-fg-muted">
+                    {/* Nói rõ khoảng ngày: "kỳ sau mới đòi" không cho biết đây là
+                        tiền quẹt tháng nào, dễ tưởng trùng tháng đang xem bên dưới */}
+                    <span>
+                      Chưa chốt
+                      {unbilledFromISO && ` · từ ${dayMonthLabel(unbilledFromISO)}`}
+                      {/* Bỏ thứ ở đây: dòng này còn cả tháng rưỡi nữa mới tới, thứ
+                          chỉ làm nhãn dài thêm và đẩy sang hai dòng ở cỡ chữ lớn */}
+                      {cardStatement.nextDueISO
+                        ? ` · đòi ${dayMonthLabel(cardStatement.nextDueISO)}`
+                        : ' · kỳ sau mới đòi'}
+                    </span>
                     <Money
                       amount={cardStatement.unbilled ?? 0}
                       currency={currency}

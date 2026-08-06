@@ -34,6 +34,21 @@ describe('cardStatementSplit', () => {
     expect(r.totalOwed).toBe(191_925)
     expect(r.billed).toBe(1_540)
     expect(r.unbilled).toBe(190_385)
+    // Phần chưa chốt bị rút ở lần đến hạn SAU 27/8: 27/9 rơi CN → dời sang T2 28/9
+    expect(r.nextDueISO).toBe('2026-09-28')
+  })
+
+  it('ngày đòi phần chưa chốt không trùng ngày đến hạn kỳ này', () => {
+    // 27/6/2026 rơi T7 → kỳ này dời sang T2 29/6; lần sau phải là 27/7, không
+    // được đếm từ 29/6 rồi ra lại chính nó
+    const r = cardStatementSplit({
+      ...base,
+      todayISO: '2026-06-20',
+      balance: -10_000,
+      txs: [],
+    })
+    expect(r.dueISO).toBe('2026-06-29')
+    expect(r.nextDueISO).toBe('2026-07-27')
   })
 
   it('giao dịch ĐÚNG ngày chốt thuộc kỳ này, hôm sau thuộc kỳ sau', () => {

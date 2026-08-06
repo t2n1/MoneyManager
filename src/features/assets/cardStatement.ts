@@ -11,7 +11,7 @@
 
 import { statementCloseFor } from '../../lib/cardAutopay'
 import { txBalanceDelta, type BalanceTxLike } from '../../lib/cardBalance'
-import { nextCardDueDate } from '../../lib/dates'
+import { addDaysISO, nextCardDueDate } from '../../lib/dates'
 
 export interface CardStatementTx extends BalanceTxLike {
   occurred_on: string
@@ -44,6 +44,15 @@ export interface CardStatementSplit {
   billed: number | null
   /** Phần quẹt sau ngày chốt, kỳ sau mới đòi. null khi `billed` null. */
   unbilled: number | null
+  /**
+   * Ngày sẽ bị rút phần `unbilled` — tức lần đến hạn NGAY SAU `dueISO`, đã dời
+   * T7/CN. null khi `unbilled` null.
+   *
+   * Có mặt để dòng "Chưa chốt" nói được nó thuộc khoảng nào: chỉ hai chữ "kỳ sau"
+   * thì người đọc không biết phần đó là tiền quẹt tháng nào, và dễ tưởng nó trùng
+   * với tháng đang xem ở thanh chuyển tháng bên dưới.
+   */
+  nextDueISO: string | null
 }
 
 /**
@@ -66,7 +75,7 @@ export function cardStatementSplit({
 
   if (statementDay == null || paymentDueDay == null) {
     const dueISO = paymentDueDay != null ? nextCardDueDate(paymentDueDay, todayISO) : null
-    return { totalOwed, dueISO, closeISO: null, billed: null, unbilled: null }
+    return { totalOwed, dueISO, closeISO: null, billed: null, unbilled: null, nextDueISO: null }
   }
 
   const dueISO = nextCardDueDate(paymentDueDay, todayISO)
@@ -80,5 +89,8 @@ export function cardStatementSplit({
   const billedRaw = balanceAtClose < 0 ? -balanceAtClose : 0
 
   const billed = Math.min(billedRaw, totalOwed)
-  return { totalOwed, dueISO, closeISO, billed, unbilled: totalOwed - billed }
+  // Lần đến hạn kế tiếp tính từ hôm sau `dueISO` — `dueISO` đã dời cuối tuần nên
+  // đếm từ chính nó có thể ra lại đúng ngày đó.
+  const nextDueISO = nextCardDueDate(paymentDueDay, addDaysISO(dueISO, 1))
+  return { totalOwed, dueISO, closeISO, billed, unbilled: totalOwed - billed, nextDueISO }
 }

@@ -113,6 +113,12 @@ export function dueDateLabel(iso: string): string {
   return `${WEEKDAY_VI[dow]}, ${d}/${m}`
 }
 
+/** "1/8" cho một ngày ISO — dùng khi chỉ cần mốc ngày, không cần thứ. */
+export function dayMonthLabel(iso: string): string {
+  const [, m, d] = iso.split('-').map(Number)
+  return `${d}/${m}`
+}
+
 /** "hôm nay" · "ngày mai" · "còn N ngày" từ hôm nay đến hạn. */
 export function dueRelativeLabel(todayISO: string, dueISO: string): string {
   const n = daysBetween(todayISO, dueISO)

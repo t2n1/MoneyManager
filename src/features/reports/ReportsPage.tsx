@@ -16,6 +16,8 @@ import { TrendsView } from './TrendsView'
 import { CategoryBreakdownCard } from './CategoryBreakdownCard'
 import { MonthlyBarsCard } from './MonthlyBarsCard'
 import { NetCashflowCard } from './NetCashflowCard'
+import { headlineOf } from './headline'
+import { PeriodHeadline } from './PeriodHeadline'
 import { SavingsDonutCard } from './SavingsDonutCard'
 import { Section, SectionIndex, type IndexItem } from './SectionIndex'
 import { SpendClassificationCard } from './SpendClassificationCard'
@@ -113,6 +115,7 @@ function parseYm(s: string | null): MonthKey | null {
 export function ReportsPage() {
   const ratesFreshness = useRatesFreshness()
   const [kind, setKind] = useState<'expense' | 'income'>('expense')
+  // Câu tổng của kỳ — dựng ở dưới, sau khi có monthSums/yearSums.
   const [searchParams, setSearchParams] = useSearchParams()
   const [period, setPeriod] = useState<ReportPeriod>(() => {
     const p = searchParams.get('period')
@@ -281,6 +284,29 @@ export function ReportsPage() {
   // cache cũ, còn đây cần "đã về ít nhất một lần cho kỳ ĐANG xem".
   const yearNum = (render: () => string) => (yearFetched ? render() : '—')
 
+  // Câu tổng đầu trang. Chi kỳ trước lấy từ `series` (6 tháng gần nhất, đã tải cho biểu
+  // đồ cột) — điểm kế cuối chính là tháng liền trước, nên không phải gọi thêm dữ liệu.
+  const priorMonthExpense =
+    series.points.length >= 2 ? series.points[series.points.length - 2].expense : null
+  const monthHeadline = monthFetched
+    ? headlineOf({
+        income: monthSums.income,
+        expense: monthSums.expense,
+        priorExpense: priorMonthExpense,
+        periodNoun: 'tháng này',
+      })
+    : null
+  // Chế độ NĂM không so với năm trước: dữ liệu năm trước không được tải ở trang này, và
+  // gọi thêm một năm giao dịch chỉ để lấy một con số so sánh là không đáng.
+  const yearHeadline = yearFetched
+    ? headlineOf({
+        income: yearSums.income,
+        expense: yearSums.expense,
+        priorExpense: null,
+        periodNoun: 'năm này',
+      })
+    : null
+
   // monthSums nuôi phần Thu của thẻ Cơ cấu chi tiêu → thiếu tỷ giá ở đó cũng phải cảnh báo.
   const monthMissingRate =
     breakdown.hasMissingRate || monthSums.hasMissingRate || series.hasMissingRate
@@ -396,6 +422,15 @@ export function ReportsPage() {
       {/* Nội dung THÁNG */}
       {view === 'charts' && period === 'month' && (
         <>
+          {/* Câu tổng đứng TRƯỚC mục lục: nó là kết luận của cả kỳ, không phải một khối
+              để nhảy tới. */}
+          <PeriodHeadline
+            headline={monthHeadline}
+            income={monthSums.income}
+            expense={monthSums.expense}
+            base={base}
+            approx={monthSums.hasForeign}
+          />
           <SectionIndex items={MONTH_SECTIONS} />
           {/* Lưới hai cột từ `lg` trở lên. `lg:items-start` là BẮT BUỘC: thiếu nó thì
               hai thẻ cạnh nhau bị kéo cao bằng nhau, thẻ ngắn thừa ra một mảng trống.
@@ -535,6 +570,14 @@ export function ReportsPage() {
             </StatTile>
           </section>
 
+          {/* Chế độ Năm đã có năm ô thống kê ngay trên, nên chỉ lấy CÂU, tắt ô số. */}
+          <PeriodHeadline
+            headline={yearHeadline}
+            income={yearSums.income}
+            expense={yearSums.expense}
+            base={base}
+            tiles={false}
+          />
           <SectionIndex items={YEAR_SECTIONS} />
           <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-3">
             <Section id="sec-giu-lai">

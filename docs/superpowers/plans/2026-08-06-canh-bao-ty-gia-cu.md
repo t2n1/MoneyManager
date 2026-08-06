@@ -451,6 +451,15 @@ function formatMajor(major: number, currency: CurrencyCode): string {
 }
 
 /**
+ * Vế MỐC của một dòng tỷ giá: "¥1", "1 ₫", "$1". Luôn 0 số lẻ — dùng formatMajor
+ * ở đây thì USD ra "$1,00", thừa và làm dòng khó đọc.
+ */
+function formatOne(currency: CurrencyCode): string {
+  const { symbol, position } = CURRENCIES[currency]
+  return position === 'prefix' ? `${symbol}1` : `1 ${symbol}`
+}
+
+/**
  * Một dòng tỷ giá đọc được: "¥1 = 165 ₫", "$1 = ¥158".
  * Lật chiều khi rate < 1, vì viết xuôi sẽ ra "¥1 = 0,0063 $" — không ai đọc nổi.
  * null = không có gì để hiện (cùng loại tiền, hoặc nguồn trả số rác).
@@ -463,8 +472,8 @@ export function formatRateLine(
   if (code === base) return null
   if (!Number.isFinite(rate) || rate <= 0) return null
   return rate >= 1
-    ? `${formatMajor(1, base)} = ${formatMajor(rate, code)}`
-    : `${formatMajor(1, code)} = ${formatMajor(1 / rate, base)}`
+    ? `${formatOne(base)} = ${formatMajor(rate, code)}`
+    : `${formatOne(code)} = ${formatMajor(1 / rate, base)}`
 }
 ```
 
@@ -572,13 +581,16 @@ Chèn ngay **sau** thẻ `</section>` ở dòng 165 (khối hồ sơ / đăng xu
 
 ```tsx
       {rateLines.length > 0 && (
-        <section className="overflow-hidden rounded-xl bg-surface p-3 shadow-sm">
+        <Card as="section" className="overflow-hidden">
           <div className="flex items-start gap-3">
             <ArrowLeftRight className="mt-0.5 h-5 w-5 shrink-0 text-fg-muted" />
             <div className="flex-1">
               <p className="text-sm text-fg-primary">Tỷ giá quy đổi</p>
+              {/* CỐ Ý không có `tabular-nums`: ngưỡng trong tests/designSystem.test.ts
+                  đã kịch, mà <Money> — thứ ngưỡng đó bảo dùng — che số khi bật chế độ
+                  riêng tư. Hai dòng chữ khác nhau nên thẳng hàng chữ số gần như vô ích. */}
               {rateLines.map((line) => (
-                <p key={line} className="mt-0.5 text-sm tabular-nums text-fg-muted">
+                <p key={line} className="mt-0.5 text-sm text-fg-muted">
                   {line}
                 </p>
               ))}
@@ -608,11 +620,16 @@ Chèn ngay **sau** thẻ `</section>` ở dòng 165 (khối hồ sơ / đăng xu
               )}
             </div>
           </div>
-        </section>
+        </Card>
       )}
 ```
 
 `qc` đã có sẵn ở dòng 25 (`const qc = useQueryClient()`) — không khai lại.
+
+Thêm `import { Card } from '../../components/ui/Card'` vào khối import. Dùng
+`<Card>` chứ không viết tay `rounded-xl bg-surface`: ngưỡng cho chuỗi class đó
+trong `tests/designSystem.test.ts` đã kịch, và `<Card>` chính là primitive mà
+phép thử đó chỉ tên.
 
 - [ ] **Step 4: Kiểm biên dịch + lint**
 

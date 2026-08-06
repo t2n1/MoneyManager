@@ -83,6 +83,13 @@ hồ máy) → trả `0`, không trả số âm.
 
 Ngưỡng cảnh báo `STALE_RATE_DAYS = 3` export từ đây để UI và test dùng chung.
 
+### Cập nhật ngoại lệ trong `purity.test.ts`
+
+`lib/rates.ts` đang nằm trong `WHOLE_FILE_EXEMPT` với lý do "localStorage…chỉ nằm
+trong thân `fetchRates()`". Thêm `readRatesMeta` là câu đó hết đúng — phải sửa
+lại lý do cho khớp. Phép thử vẫn xanh (nó chỉ soi dòng ở cột 0), nhưng để lý do
+sai là bẫy cho người đọc sau.
+
 ### Tương thích ngược
 
 Cache đang nằm trong máy người dùng chưa có `sourceUpdatedAt` → `undefined` →
@@ -98,11 +105,24 @@ Hàm thuần trong `rates.ts`, export, có test:
 formatRateLine(base: CurrencyCode, code: CurrencyCode, rate: number): string
 ```
 
-- `rate >= 1` → `1 ¥ = 165 ₫`
-- `rate < 1` → lật ngược: `1 $ = 158 ¥`
+- `rate >= 1` → `¥1 = 165 ₫`
+- `rate < 1` → lật ngược: `$1 = ¥158`
+- `rate` không hữu hạn hoặc `<= 0` (nguồn trả rác) → `null`, UI bỏ dòng đó.
 
-Không lật thì USD ra `1 ¥ = 0,0063 $`, nhìn không hiểu gì. Số hiển thị làm tròn
-theo `decimals` của loại tiền đích, dùng `formatMoney` sẵn có.
+Không lật thì USD ra `¥1 = 0,0063 $`, nhìn không hiểu gì. Số làm tròn theo
+`decimals` của loại tiền đích, ký hiệu đặt theo `position` của nó.
+
+**KHÔNG dùng `formatMoney`**, vì hai lẽ:
+
+1. `purity.test.ts` cấm đồ thị import của bộ luật thông báo đi tới `lib/money.ts`
+   (nó kéo theo React qua `lib/privacy.ts`), mà `rates.ts` nằm trong đồ thị đó.
+2. `formatMoney` che số khi bật chế độ riêng tư (`money.ts:24`). Tỷ giá là số
+   công khai của thị trường, không phải tiền của người dùng — che nó thành
+   `¥••••` là vô nghĩa.
+
+Để khỏi chép lại logic nhóm nghìn: chuyển `groupThousands` từ `money.ts` xuống
+`lib/currencies.ts` (module lá, không import gì) và export. `money.ts` nhập lại
+từ đó, `rates.ts` cũng vậy. Hành vi `formatMoney` không đổi.
 
 ## Giao diện — `src/features/settings/SettingsPage.tsx`
 

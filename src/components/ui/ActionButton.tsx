@@ -11,8 +11,9 @@ import type { ButtonHTMLAttributes } from 'react'
 
 export type ActionButtonVariant = 'outline' | 'primary'
 
+// min-h-11 = 44px: chuẩn vùng chạm, nằm ở BASE để mọi nút chữ tự đạt không cần nhớ.
 const BASE =
-  'inline-flex items-center justify-center gap-1.5 rounded-lg transition active:scale-95 disabled:opacity-50'
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg transition active:scale-95 disabled:opacity-50'
 
 const VARIANT: Record<ActionButtonVariant, string> = {
   outline:

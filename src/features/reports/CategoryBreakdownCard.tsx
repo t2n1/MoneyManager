@@ -213,7 +213,7 @@ export function CategoryBreakdownCard({
                     type="button"
                     onClick={() => toggleParent(p.key)}
                     aria-expanded={isOpen}
-                    className="block w-full text-left"
+                    className="flex min-h-11 w-full flex-col justify-center text-left"
                   >
                     {row}
                   </button>
@@ -221,7 +221,7 @@ export function CategoryBreakdownCard({
                   <Link
                     to={detailHref(p.parentId)}
                     aria-label={`Xem chi tiết ${p.name}`}
-                    className="block w-full text-left"
+                    className="flex min-h-11 w-full flex-col justify-center text-left"
                   >
                     {row}
                   </Link>
@@ -242,7 +242,7 @@ export function CategoryBreakdownCard({
                           <Link
                             to={detailHref(c.id)}
                             aria-label={`Xem chi tiết ${c.name}`}
-                            className="block w-full text-left"
+                            className="flex min-h-11 w-full flex-col justify-center text-left"
                           >
                             <BreakdownRow
                               icon={c.icon}
@@ -261,7 +261,7 @@ export function CategoryBreakdownCard({
                           <Link
                             to={detailHref(p.parentId)}
                             aria-label={`Xem chi tiết ${p.name} (trực tiếp)`}
-                            className="block w-full text-left"
+                            className="flex min-h-11 w-full flex-col justify-center text-left"
                           >
                             <BreakdownRow
                               icon=""

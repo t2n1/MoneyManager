@@ -214,7 +214,7 @@ function DialogModal({ req }: { req: DialogReq }) {
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg px-4 py-2.5 text-sm font-medium text-fg-secondary hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95"
+            className="min-h-11 rounded-lg px-4 py-2.5 text-sm font-medium text-fg-secondary hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95"
           >
             {req.kind === 'confirm' ? req.cancelLabel : 'Hủy'}
           </button>
@@ -222,7 +222,7 @@ function DialogModal({ req }: { req: DialogReq }) {
             type="button"
             onClick={onConfirm}
             disabled={req.kind === 'prompt' && value.trim() === ''}
-            className={`rounded-lg px-4 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50 ${
+            className={`min-h-11 rounded-lg px-4 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50 ${
               req.kind === 'confirm' && req.danger
                 ? 'bg-red-600 hover:bg-red-700'
                 : 'bg-green-700 hover:bg-green-800'

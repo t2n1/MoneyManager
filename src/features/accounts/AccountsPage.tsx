@@ -151,7 +151,7 @@ export function AccountsPage() {
                     <button
                       type="button"
                       onClick={() => update.mutate({ id: a.id, patch: { is_archived: true } })}
-                      className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+                      className="inline-flex min-h-11 items-center justify-center min-h-11 rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
                     >
                       Lưu trữ
                     </button>
@@ -659,7 +659,7 @@ function AccountForm({ account, onClose }: FormProps) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               Hủy
             </button>
@@ -667,7 +667,7 @@ function AccountForm({ account, onClose }: FormProps) {
               type="button"
               onClick={handleSubmit}
               disabled={!canSave}
-              className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+              className="min-h-11 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
             >
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>

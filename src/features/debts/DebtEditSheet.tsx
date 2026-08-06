@@ -148,7 +148,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Hủy
           </button>
@@ -156,7 +156,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            className="min-h-11 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
           >
             {saving ? 'Đang lưu…' : 'Lưu'}
           </button>

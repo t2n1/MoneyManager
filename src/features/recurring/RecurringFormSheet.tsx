@@ -161,7 +161,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
               key={tab.value}
               type="button"
               onClick={() => switchType(tab.value)}
-              className={`rounded-md py-1.5 text-sm font-medium transition ${
+              className={`min-h-11 rounded-md py-1.5 text-sm font-medium transition ${
                 type === tab.value
                   ? 'bg-surface text-gray-900 dark:text-gray-100 shadow-sm'
                   : 'text-fg-muted'
@@ -314,7 +314,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Hủy
           </button>
@@ -322,7 +322,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            className="min-h-11 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
           >
             {saving ? 'Đang lưu…' : 'Lưu'}
           </button>

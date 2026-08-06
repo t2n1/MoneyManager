@@ -397,7 +397,7 @@ export function AssetGroupsPage() {
                 <button
                   type="button"
                   onClick={() => setRenaming(null)}
-                  className="rounded-lg px-2 py-1 text-xs text-fg-muted"
+                  className="min-h-11 rounded-lg px-2 py-1 text-xs text-fg-muted"
                 >
                   Hủy
                 </button>
@@ -439,7 +439,7 @@ export function AssetGroupsPage() {
                   setRenaming(g.name)
                   setRenameValue(g.name)
                 }}
-                className="rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="min-h-11 rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 Đổi tên
               </button>
@@ -612,7 +612,7 @@ export function AssetGroupsPage() {
           <button
             type="button"
             onClick={() => setAdding(false)}
-            className="rounded-lg px-2 py-1 text-xs text-fg-muted"
+            className="min-h-11 rounded-lg px-2 py-1 text-xs text-fg-muted"
           >
             Hủy
           </button>
@@ -713,7 +713,7 @@ function AddAccountsPanel({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg px-3 py-1.5 text-xs text-fg-muted"
+          className="min-h-11 rounded-lg px-3 py-1.5 text-xs text-fg-muted"
         >
           Hủy
         </button>
@@ -775,14 +775,14 @@ function DeleteGroupSheet({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             Hủy
           </button>
           <button
             type="button"
             onClick={() => onConfirm(target || null)}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white active:scale-95"
+            className="min-h-11 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white active:scale-95"
           >
             Xóa nhóm
           </button>

@@ -346,15 +346,20 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
+      {/* Tiêu đề trên màn hình — mọi trang khác đều mở đầu bằng tên trang 18px;
+          Báo cáo là trang duy nhất từng mở thẳng bằng dải tab, phá nhịp và người
+          dùng máy đọc màn hình không nghe được tên trang. Bản in có h1 riêng bên
+          dưới (kèm kỳ đang xem) nên bản màn hình ẩn khi in. */}
+      <h1 className="text-lg font-bold text-fg-primary print:hidden">Báo cáo</h1>
       {/* Tiêu đề chỉ hiện khi in (thay cho thanh điều hướng bị ẩn) */}
-      <h1 className="hidden text-center text-xl font-bold text-gray-900 print:block">
+      <p className="hidden text-center text-xl font-bold text-gray-900 print:block">
         Báo cáo{' '}
         {period === 'month'
           ? formatMonthLabel(activeMonthKey)
           : period === 'year'
             ? formatYearLabel(activeYear)
             : 'nhiều năm'}
-      </h1>
+      </p>
 
       {/* Tab nội dung đứng TRƯỚC mọi điều khiển kỳ, và luôn đủ 4 mục.
           Trước đây dải này nằm DƯỚI nút gạt Tháng|Năm và tự ẩn khi gạt sang Năm (vì 3/4

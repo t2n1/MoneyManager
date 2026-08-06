@@ -260,12 +260,23 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </div>
       )}
 
+      {/* PC chia 2 cột (cùng lối ReportsPage/AssetsNowView): trái = điều khiển (trục,
+          tổng, hạn mức), phải = biểu đồ mô tả. Trên mobile hai wrapper là
+          display:contents nên các khối vẫn là con trực tiếp của flex-col ngoài —
+          thứ tự đọc giữ bằng order-*: nhịp chi (order-3) vẫn nằm ngay dưới dòng
+          tổng (order-2) như chú thích ở SpendPaceSection yêu cầu. */}
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4">
+      <div className="contents lg:flex lg:flex-col lg:gap-3">
       {/* Cơ cấu chi theo trục — trả lời "chi thế này có lành mạnh không",
           khác với dòng tổng bên dưới trả lời "có vượt hạn mức không" */}
-      {axis && <AxisTargetsCard data={axis} base={base} />}
+      {axis && (
+        <div className="order-1">
+          <AxisTargetsCard data={axis} base={base} />
+        </div>
+      )}
 
       {/* Dòng tổng */}
-      <section className="rounded-xl bg-surface p-3 shadow-sm">
+      <section className="order-2 rounded-xl bg-surface p-3 shadow-sm">
         <div className="mb-1 flex items-baseline justify-between">
           <h2 className="text-sm font-semibold text-fg-muted">Tổng ngân sách</h2>
           <span className="flex gap-2 text-xs font-medium">
@@ -295,12 +306,9 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </button>
       </section>
 
-      {/* Đang đi nhanh hay chậm so với hạn mức — ngay dưới dòng tổng */}
-      <SpendPaceSection pace={pace} />
-
       {/* Danh mục / nhóm có hạn mức */}
       {items.length > 0 && (
-        <section className="rounded-xl bg-surface p-3 shadow-sm">
+        <section className="order-4 rounded-xl bg-surface p-3 shadow-sm">
           <ul className="divide-y divide-border-subtle">
             {items.map((item) => {
               if (item.kind === 'leaf') {
@@ -383,7 +391,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
 
       {/* Nhóm / lá chưa đặt hạn mức */}
       {unbudgeted.length > 0 && (
-        <section className="rounded-xl bg-surface p-3 shadow-sm">
+        <section className="order-5 rounded-xl bg-surface p-3 shadow-sm">
           <h2 className="mb-1 text-sm font-semibold text-fg-muted">
             Chưa đặt hạn mức
           </h2>
@@ -442,8 +450,26 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </section>
       )}
 
-      {/* Biểu đồ mô tả — dưới danh sách hạn mức vì không bấm được */}
-      <MonthPaceCharts pace={pace} />
+      </div>
+
+      {/* Cột phải (PC): biểu đồ. Wrapper gate theo đúng điều kiện các component con
+          tự ẩn — không thì div rỗng vẫn chiếm một suất gap trên mobile. */}
+      <div className="contents lg:flex lg:flex-col lg:gap-3">
+      {/* Đang đi nhanh hay chậm so với hạn mức — trên mobile ngay dưới dòng tổng */}
+      {pace.hasSpend && (
+        <div className="order-3">
+          <SpendPaceSection pace={pace} />
+        </div>
+      )}
+
+      {/* Biểu đồ mô tả — dưới danh sách hạn mức (mobile) vì không bấm được */}
+      {(pace.hasCashflow || pace.hasSpend) && (
+        <div className="order-6 flex flex-col gap-3">
+          <MonthPaceCharts pace={pace} />
+        </div>
+      )}
+      </div>
+      </div>
 
       {editing && (
         <BudgetEditSheet

@@ -14,7 +14,6 @@ import { PrivacyToggle } from './PrivacyToggle'
 import { NotificationBell } from '../features/notifications/NotificationBell'
 import { NotificationBoundary } from '../features/notifications/NotificationBoundary'
 import { useNotifications } from '../features/notifications/useNotifications'
-import { useUnreadCount } from '../features/notifications/useUnreadCount'
 import { planNotificationCleanup } from '../features/notifications/state'
 import { addDaysISO, toISODate } from '../lib/dates'
 
@@ -27,6 +26,20 @@ const TABS = [
   { to: '/assets', label: 'Tài sản', Icon: Wallet },
   { to: '/reports', label: 'Báo cáo', Icon: ChartColumn },
   { to: '/settings', label: 'Cài đặt', Icon: Settings },
+]
+
+// Tiêu đề tab trình duyệt theo trang. Không đổi thì bookmark, lịch sử và hai tab mở
+// cạnh nhau đều là "Sổ Chi Tiêu" — không phân biệt được đang ở đâu. Tiền tố khớp cả
+// trang con (/settings/accounts → "Cài đặt"). Trang gốc "/" giữ nguyên tên app.
+const PAGE_TITLES: [prefix: string, title: string][] = [
+  ['/entry', 'Nhập giao dịch'],
+  ['/search', 'Tìm kiếm'],
+  ['/debts', 'Nợ / cho vay'],
+  ['/recurring', 'Giao dịch định kỳ'],
+  ['/budget', 'Ngân sách'],
+  ['/assets', 'Tài sản'],
+  ['/reports', 'Báo cáo'],
+  ['/settings', 'Cài đặt'],
 ]
 
 // Catch-up định kỳ chỉ chạy 1 lần mỗi lần mở app (module-level để sống qua
@@ -56,7 +69,6 @@ export function AppLayout() {
   const catchUp = useRunRecurringCatchUp()
   const [recurringToast, setRecurringToast] = useState<string | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  const unread = useUnreadCount()
 
   // Cuộn nằm trong <main> (không phải cả trang) để thanh nav cố định dưới không
   // bị "nhảy" khi rubber-band trên iOS. Đổi route → đưa main về đầu cho khớp
@@ -64,6 +76,13 @@ export function AppLayout() {
   const mainRef = useRef<HTMLElement>(null)
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0)
+  }, [location.pathname])
+
+  useEffect(() => {
+    const hit = PAGE_TITLES.find(
+      ([p]) => location.pathname === p || location.pathname.startsWith(`${p}/`),
+    )
+    document.title = hit ? `${hit[1]} — Sổ Chi Tiêu` : 'Sổ Chi Tiêu'
   }, [location.pathname])
 
   // Sinh các kỳ định kỳ đến hạn kể từ lần mở trước; N > 0 → toast
@@ -226,12 +245,10 @@ export function AppLayout() {
               }`
             }
           >
-            <span className="relative">
-              <tab.Icon className="h-6 w-6" />
-              {tab.to === '/' && unread > 0 && (
-                <span className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-red-600 ring-2 ring-white dark:ring-gray-900" />
-              )}
-            </span>
+            {/* Không gắn chấm đỏ thông báo vào icon tab: chấm trên tab "Sổ" đọc thành
+                "có gì mới trong Sổ" trong khi thật ra là thông báo của chuông — mà
+                chuông (trong header trang Sổ và sidebar desktop) đã có badge số đếm. */}
+            <tab.Icon className="h-6 w-6" />
             {tab.label}
           </NavLink>
         ))}

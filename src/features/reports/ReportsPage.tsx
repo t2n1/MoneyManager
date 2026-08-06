@@ -15,6 +15,7 @@ import { InsightsView } from './InsightsView'
 import { TrendsView } from './TrendsView'
 import { CategoryBreakdownCard } from './CategoryBreakdownCard'
 import { MonthlyBarsCard } from './MonthlyBarsCard'
+import { MonthStrip } from './MonthStrip'
 import { NetCashflowCard } from './NetCashflowCard'
 import { headlineOf } from './headline'
 import { PeriodHeadline } from './PeriodHeadline'
@@ -177,7 +178,7 @@ export function ReportsPage() {
     }),
     [sixMonths, activeMonthKey, monthStartDay],
   )
-  const { data: rangeTxs = [] } = useRangeTransactions(
+  const { data: rangeTxs = [], isFetched: rangeFetched } = useRangeTransactions(
     sixMonthRange,
     !!profile && period === 'month' && view === 'charts',
   )
@@ -407,6 +408,24 @@ export function ReportsPage() {
             <ChevronRight className="h-5 w-5" />
           </IconButton>
         </div>
+      )}
+
+      {/* Dải tháng — chỉ ở chế độ THÁNG, và dùng đúng 6 tháng đã tải cho biểu đồ cột nên
+          không phát sinh thêm request nào. Đứng dưới mũi chuyển kỳ: mũi tên để nhích từng
+          tháng, dải để nhảy thẳng và để so tháng nào nặng nhẹ. */}
+      {needsPeriodNav && navPeriod === 'month' && (
+        <MonthStrip
+          // Chưa tải xong thì amount = null → dải hiện "—". Truyền thẳng p.expense sẽ ra
+          // "0" ở MỌI tháng trong lúc chờ, mà "0" trong app tiền đọc y như số thật.
+          items={series.points.map((p) => ({
+            key: p.key,
+            amount: rangeFetched ? p.expense : null,
+          }))}
+          active={activeMonthKey}
+          onPick={setMonthKey}
+          base={base}
+          label="Chọn tháng xem báo cáo — số dưới mỗi tháng là tổng chi"
+        />
       )}
 
       {showMissingRate && (

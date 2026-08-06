@@ -91,20 +91,62 @@ export function buildInsights(
 export interface Forecast {
   /** dự báo tổng chi cuối tháng (base, minor units) */
   projected: number
+  /** cận dưới / cận trên của khoảng dự báo. Không đo được độ chênh thì cả hai = projected. */
+  low: number
+  high: number
+  /** Có khoảng thật để nói không (false = chỉ có một con số). */
+  hasRange: boolean
   spentSoFar: number
   daysElapsed: number
   daysInMonth: number
 }
 
-/** Nội suy tuyến tính chi cả tháng theo tốc độ tới nay. Đầu vào không hợp lệ → null. */
+/**
+ * Nội suy tuyến tính chi cả tháng theo tốc độ tới nay, kèm KHOẢNG chứ không chỉ một điểm.
+ *
+ * Vì sao cần khoảng: một con số đơn đọc như thể chắc chắn, trong khi nó chỉ là phép chia
+ * cho vài ngày đầu tháng. Người chi đều mỗi ngày và người dồn hết vào hai ngày cuối tuần
+ * có thể ra CÙNG một con số dự báo, nhưng độ tin cậy khác hẳn nhau. permtrack nói "tháng
+ * 8 – tháng 9 tuỳ nhịp" thay vì một mốc, và đó là cách nói trung thực hơn.
+ *
+ * Cách đo: phần đã chi là số THẬT, không có sai số. Sai số chỉ nằm ở phần còn lại của
+ * tháng, ước bằng độ lệch chuẩn chi mỗi ngày nhân căn bậc hai số ngày còn lại (sai số của
+ * một tổng cộng dồn lớn theo căn bậc hai số hạng, không theo số hạng).
+ *
+ * `dailySpend` là chi từng ngày đã trôi. Thiếu nó thì vẫn chạy, chỉ là không có khoảng.
+ */
 export function forecastMonthEnd(
   spentSoFar: number,
   daysElapsed: number,
   daysInMonth: number,
+  dailySpend?: number[],
 ): Forecast | null {
   if (daysElapsed < 1 || daysInMonth < 1) return null
   const projected = Math.round((spentSoFar / daysElapsed) * daysInMonth)
-  return { projected, spentSoFar, daysElapsed, daysInMonth }
+  const daysLeft = Math.max(0, daysInMonth - daysElapsed)
+
+  // Dưới 2 ngày dữ liệu thì không có "độ chênh" để nói, và hết ngày rồi thì không còn gì
+  // để đoán — cả hai trường hợp trả về một điểm.
+  if (!dailySpend || dailySpend.length < 2 || daysLeft === 0) {
+    return { projected, low: projected, high: projected, hasRange: false, spentSoFar, daysElapsed, daysInMonth }
+  }
+
+  const mean = dailySpend.reduce((s, v) => s + v, 0) / dailySpend.length
+  const variance =
+    dailySpend.reduce((s, v) => s + (v - mean) ** 2, 0) / dailySpend.length
+  const margin = Math.sqrt(variance) * Math.sqrt(daysLeft)
+
+  return {
+    projected,
+    // Cận dưới không xuống dưới số ĐÃ chi: tiền tiêu rồi không lấy lại được, một khoảng
+    // gợi ý "có thể cuối tháng chi ít hơn số đang chi" là khoảng nói dối.
+    low: Math.max(spentSoFar, Math.round(projected - margin)),
+    high: Math.round(projected + margin),
+    hasRange: margin >= 1,
+    spentSoFar,
+    daysElapsed,
+    daysInMonth,
+  }
 }
 
 /** Trung vị của mảng số. Mảng rỗng → 0. */

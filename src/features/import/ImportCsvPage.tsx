@@ -86,6 +86,19 @@ export function ImportCsvPage() {
     [rows, account, dateCol, amountCol, noteCol, dateOrder, hasHeader, negativeIsExpense, currency],
   )
 
+  // Khoản nhỏ nhất / lớn nhất đọc được — để người dùng tự soát xem có chọn nhầm cột tiền
+  // hay nhầm đơn vị không. Tính trên TOÀN BỘ dòng, không chỉ 10 dòng bảng xem trước.
+  const amountRange = useMemo(() => {
+    if (preview.items.length === 0) return null
+    let min = preview.items[0].amount
+    let max = min
+    for (const it of preview.items) {
+      if (it.amount < min) min = it.amount
+      if (it.amount > max) max = it.amount
+    }
+    return { min, max }
+  }, [preview.items])
+
   // Soát khoản lớn bất thường: trung vị số tiền CHI trong 90 ngày gần nhất.
   const todayISO = toISODate(new Date())
   const historyRange = useMemo(
@@ -327,6 +340,19 @@ export function ImportCsvPage() {
                 {skipTransfers && transferCount > 0 && ` · bỏ qua ${transferCount} chuyển khoản`}
                 {preview.errorCount > 0 && ` · ${preview.errorCount} dòng lỗi`}
               </p>
+
+              {/* Soát đơn vị tiền: mượn cách permtrack ghi thẳng "số này do bên ngoài khai,
+                  có thể sai đơn vị". Ở đây nói được cụ thể hơn — bày luôn khoản nhỏ nhất và
+                  lớn nhất đọc được, vì chọn nhầm cột tiền hay nhầm đơn vị thì hai đầu này
+                  lệch ngay, mà nhìn bảng xem trước 10 dòng đầu thì không thấy. */}
+              {amountRange && (
+                <p className="mt-1.5 text-2xs text-fg-muted">
+                  Số tiền đọc được chạy từ <b>{formatMoney(amountRange.min, currency)}</b> tới{' '}
+                  <b>{formatMoney(amountRange.max, currency)}</b>. Nếu hai con số này trông sai
+                  cỡ (một bữa trưa thành tiền triệu) thì thường là chọn nhầm cột số tiền, hoặc
+                  file ghi tiền theo đơn vị khác — sửa ở trên rồi xem lại.
+                </p>
+              )}
 
               {/* Cảnh báo chuyển khoản nội bộ */}
               {transferCount > 0 && (

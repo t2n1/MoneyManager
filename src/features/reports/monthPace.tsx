@@ -79,14 +79,23 @@ export function useMonthPace(monthKey: MonthKey): MonthPace {
     }
     spentSoFar += v
   }
-  const forecast = isCurrentMonth ? forecastMonthEnd(spentSoFar, daysElapsed, daysInMonth) : null
-
   const monthLastISO = addDaysISO(range.end, -1)
   const monthDaily = useMemo(
     () => dailyExpenseTotals(monthTxs, range.start, monthLastISO, currencyOf, base, r),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [monthTxs, range.start, monthLastISO, accounts, base, rates],
   )
+
+  // Dự báo đứng SAU monthDaily vì nó cần chi từng ngày để đo độ chênh — chỉ lấy những
+  // ngày ĐÃ trôi, ngày chưa tới thì bằng 0 và sẽ kéo độ chênh xuống sai.
+  const forecast = isCurrentMonth
+    ? forecastMonthEnd(
+        spentSoFar,
+        daysElapsed,
+        daysInMonth,
+        monthDaily.points.slice(0, daysElapsed).map((p) => p.expense),
+      )
+    : null
 
   // Dòng tiền tích lũy chỉ vẽ tới hôm nay ở tháng hiện tại (tránh đường phẳng cuối tháng)
   const cashLastISO = isCurrentMonth ? todayISO : monthLastISO
@@ -134,10 +143,27 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
             Đã chi {formatMoney(forecast.spentSoFar, base)} sau {forecast.daysElapsed}/
             {forecast.daysInMonth} ngày.
           </p>
+          {/* Nói KHOẢNG chứ không một con số: cùng một mức chi trung bình, người tiêu đều
+              mỗi ngày và người dồn vào cuối tuần cho ra độ tin cậy khác hẳn nhau. */}
+          {forecast.hasRange && (
+            <p className="mt-1 text-xs text-fg-secondary">
+              Cuối tháng ước chừng <b>{formatMoney(forecast.low, base)}</b> –{' '}
+              <b>{formatMoney(forecast.high, base)}</b>, sát nhất là{' '}
+              {formatMoney(forecast.projected, base)}.
+            </p>
+          )}
           {totalBudgeted > 0 ? (
-            forecast.projected > totalBudgeted ? (
+            // So cận DƯỚI với ngân sách, không so con số giữa: chỉ nói "sẽ vượt" khi ngay
+            // cả kịch bản chi ít nhất cũng vượt. Nói chắc rồi tháng sau không vượt thì
+            // lần sau người dùng thôi tin cả thẻ này.
+            forecast.low > totalBudgeted ? (
               <p className="mt-2 rounded-lg bg-red-50 dark:bg-red-900/30 px-2 py-1.5 text-xs text-money-out">
                 Với đà này bạn sẽ vượt ngân sách {formatMoney(forecast.projected - totalBudgeted, base)}.
+              </p>
+            ) : forecast.high > totalBudgeted ? (
+              <p className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-900/30 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300">
+                Có thể vượt ngân sách ({formatMoney(totalBudgeted, base)}) — còn tuỳ mấy ngày
+                cuối tháng chi thế nào.
               </p>
             ) : (
               <p className="mt-2 rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1.5 text-xs text-green-700 dark:text-green-400">

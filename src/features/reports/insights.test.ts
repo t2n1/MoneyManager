@@ -98,6 +98,58 @@ describe('forecastMonthEnd', () => {
   it('hết tháng → projected ≈ spentSoFar', () => {
     expect(forecastMonthEnd(30_000, 30, 30)?.projected).toBe(30_000)
   })
+
+  describe('khoảng dự báo', () => {
+    it('không truyền chi từng ngày → khoảng thu về đúng một điểm', () => {
+      const f = forecastMonthEnd(10_000, 10, 30)
+      expect(f?.low).toBe(f?.projected)
+      expect(f?.high).toBe(f?.projected)
+      expect(f?.hasRange).toBe(false)
+    })
+
+    it('chi giống hệt nhau mọi ngày → không có gì để nói về độ chênh, thu về một điểm', () => {
+      const yHet = Array.from({ length: 10 }, () => 1_000)
+      const f = forecastMonthEnd(10_000, 10, 30, yHet)
+      expect(f?.hasRange).toBe(false)
+      expect(f?.low).toBe(f?.projected)
+    })
+
+    it('chi gần đều → có khoảng nhưng hẹp', () => {
+      const ganDeu = [980, 1_020, 1_000, 990, 1_010, 1_000, 995, 1_005, 1_000, 1_000]
+      const f = forecastMonthEnd(10_000, 10, 30, ganDeu)
+      expect(f?.hasRange).toBe(true)
+      expect(f!.high - f!.low).toBeLessThan(f!.projected * 0.05)
+    })
+
+    it('chi lúc nhiều lúc ít → khoảng rộng hẳn ra', () => {
+      const lechNhau = [0, 0, 9_000, 0, 0, 9_000, 0, 0, 0, 2_000]
+      const deu = Array.from({ length: 10 }, () => 2_000)
+      const fLech = forecastMonthEnd(20_000, 10, 30, lechNhau)
+      const fDeu = forecastMonthEnd(20_000, 10, 30, deu)
+      expect(fLech!.high - fLech!.low).toBeGreaterThan(fDeu!.high - fDeu!.low)
+    })
+
+    it('khoảng luôn ôm lấy con số dự báo', () => {
+      const f = forecastMonthEnd(20_000, 10, 30, [0, 0, 9_000, 0, 0, 9_000, 0, 0, 0, 2_000])
+      expect(f!.low).toBeLessThanOrEqual(f!.projected)
+      expect(f!.high).toBeGreaterThanOrEqual(f!.projected)
+    })
+
+    it('cận dưới không bao giờ thấp hơn số ĐÃ chi — tiền tiêu rồi không lấy lại được', () => {
+      const f = forecastMonthEnd(20_000, 10, 30, [20_000, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+      expect(f!.low).toBeGreaterThanOrEqual(20_000)
+    })
+
+    it('ngày cuối tháng → hết ngày để đoán, khoảng đóng lại', () => {
+      const f = forecastMonthEnd(30_000, 30, 30, Array.from({ length: 30 }, () => 1_000))
+      expect(f?.low).toBe(f?.high)
+      expect(f?.hasRange).toBe(false)
+    })
+
+    it('số ngày truyền vào lệch với daysElapsed → vẫn tính, không ném lỗi', () => {
+      expect(forecastMonthEnd(10_000, 10, 30, [1_000, 1_000])?.projected).toBe(30_000)
+    })
+  })
 })
 
 const RATES: Rates = { JPY: 1, VND: 165, USD: 0.0065 }

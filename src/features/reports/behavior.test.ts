@@ -93,6 +93,19 @@ describe('spendPercentiles', () => {
     expect(r?.count).toBe(5)
   })
 
+  it('p5 < trung vị < p95 — khoảng chứa 90% số lần chi', () => {
+    const r = spendPercentiles(mk([100, 200, 300, 400, 500]), currencyOf, 'JPY', RATES)
+    expect(r!.p5).toBeLessThan(r!.median)
+    expect(r!.median).toBeLessThan(r!.p95)
+    expect(r?.p5).toBeCloseTo(120)
+    expect(r?.p95).toBeCloseTo(480)
+  })
+
+  it('trả kèm từng khoản đã sắp tăng dần, để dựng cột phân bố', () => {
+    const r = spendPercentiles(mk([300, 100, 500]), currencyOf, 'JPY', RATES)
+    expect(r?.values).toEqual([100, 300, 500])
+  })
+
   it('một khoản khổng lồ kéo trung bình lệch khỏi trung vị', () => {
     const r = spendPercentiles(mk([100, 100, 100, 100, 10_000]), currencyOf, 'JPY', RATES)
     expect(r?.median).toBe(100)

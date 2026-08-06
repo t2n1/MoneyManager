@@ -64,6 +64,11 @@ export interface SpendPercentiles {
   max: number
   /** trung bình — để đối chiếu với trung vị: lệch nhiều = có vài khoản khổng lồ kéo lên */
   mean: number
+  /** Phân vị 5 và 95 — khoảng chứa 90% số lần chi, đã bỏ hai đuôi cực trị. */
+  p5: number
+  p95: number
+  /** Từng khoản chi đã quy đổi, đã sắp tăng dần — để dựng cột phân bố. */
+  values: number[]
 }
 
 function quantile(sorted: number[], q: number): number {
@@ -102,6 +107,9 @@ export function spendPercentiles(
     p90: quantile(values, 0.9),
     max: values[values.length - 1],
     mean: values.reduce((s, x) => s + x, 0) / values.length,
+    p5: quantile(values, 0.05),
+    p95: quantile(values, 0.95),
+    values,
   }
 }
 

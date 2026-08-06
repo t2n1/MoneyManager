@@ -115,12 +115,11 @@ export function roleAmountLabel(role: EntryRole): string | null {
 }
 
 /** Vai trò tự khóa/tự chọn danh mục → ẩn lưới danh mục lớn của form. */
-export function roleHidesCategoryGrid(role: EntryRole, debt: DebtValue): boolean {
+export function roleHidesCategoryGrid(role: EntryRole): boolean {
   // Remit tự chọn danh mục "Gửi tiền về VN" (hoặc transfer không danh mục).
-  if (role === 'remit') return true
-  // Ghi sổ nợ không chuyển tiền thật → không cần danh mục.
-  if (role === 'debt' && !debt.withTransaction) return true
-  return false
+  // Debt tự gán "Cho vay"/"Đi vay" (roleSave) — giao dịch is_debt_flow không vào
+  // báo cáo nên bắt người dùng chọn danh mục chỉ gây hiểu lầm.
+  return role === 'remit' || role === 'debt'
 }
 
 /** Ép ?role= từ URL về EntryRole hợp lệ. */

@@ -395,10 +395,10 @@ export function TransactionForm({
   )
   const srcAccountName = activeAccounts.find((a) => a.id === effectiveAccountId)?.name ?? ''
 
-  // Ghi nợ: có đủ tài khoản + danh mục để tạo giao dịch giải ngân thật không
-  const canRecordReal = !!effectiveAccountId && activeOfType.length > 0
-  // Vai trò tự khóa danh mục (remit / ghi sổ nợ) → ẩn lưới danh mục
-  const hideCategoryGrid = roleHidesCategoryGrid(activeRole, debtVal)
+  // Ghi nợ: có tài khoản để tạo giao dịch giải ngân thật không (danh mục tự gán)
+  const canRecordReal = !!effectiveAccountId
+  // Vai trò tự khóa danh mục (remit / debt) → ẩn lưới danh mục
+  const hideCategoryGrid = roleHidesCategoryGrid(activeRole)
 
   /** Áp một mẫu nhanh vào form (người dùng vẫn bấm Lưu để ghi). */
   function applyTemplate(t: QuickTemplate) {
@@ -446,10 +446,7 @@ export function TransactionForm({
         return !(splitVal.others === amount && !splitVal.receivedAccountId)
       }
       case 'debt':
-        return (
-          debtVal.counterparty.trim().length > 0 &&
-          (!(canRecordReal && debtVal.withTransaction) || hasCategory)
-        )
+        return debtVal.counterparty.trim().length > 0
       case 'remit':
         return remitVal.received > 0 && (remitVal.kind !== 'transfer' || !!remitVal.destId)
       default:
@@ -466,6 +463,54 @@ export function TransactionForm({
       : type === 'transfer'
         ? !!toAccountId && toAccountId !== effectiveAccountId && (!crossCurrency || toAmount > 0)
         : hasCategory)
+
+  /**
+   * Vai trò đặc biệt: nút Lưu mờ thì phải NÓI vì sao — form dài, điều kiện nằm rải
+   * rác, không nhắc thì người dùng điền đủ mắt thấy mà nút vẫn chết. Trả null khi
+   * không thiếu gì (hoặc giao dịch thường — các điều kiện của nó đã hiện ngay tại chỗ).
+   */
+  const roleMissing = ((): string | null => {
+    if (activeRole === 'none' || saving) return null
+    if (amount <= 0) {
+      // Không .toLowerCase() nhãn gốc: "(JPY)" sẽ thành "(jpy)".
+      const label = { split: 'tổng đã trả', debt: 'số tiền gốc', remit: 'số gửi (JPY)' }[activeRole]
+      return `Còn thiếu: ${label}.`
+    }
+    switch (activeRole) {
+      case 'split': {
+        if (splitVal.others <= 0)
+          return splitVal.settle === 'now'
+            ? 'Còn thiếu: phần người khác trả lại.'
+            : 'Còn thiếu: phần người khác nợ lại.'
+        if (splitVal.settle === 'later') {
+          if (splitVal.others > amount) return 'Phần người khác nợ đang lớn hơn tổng — giảm bớt lại.'
+          if (!splitVal.counterparty.trim()) return 'Còn thiếu: tên người nợ mình (ô "Ai nợ mình").'
+          if (!hasCategory) return 'Còn thiếu: chọn danh mục ở lưới phía trên.'
+          return null
+        }
+        if (splitNeedsCategory && !hasCategory) return 'Còn thiếu: chọn danh mục ở lưới phía trên.'
+        if (
+          splitVal.receivedAccountId &&
+          !splitBackAccounts.some((a) => a.id === splitVal.receivedAccountId)
+        )
+          return 'Ví "Nhận lại vào" không còn hợp lệ — chọn lại.'
+        if (splitVal.others === amount && !splitVal.receivedAccountId)
+          return 'Người kia trả đủ vào chính ví đã trả → không có gì để ghi. Chọn ví khác ở "Nhận lại vào", hoặc bấm Bỏ nếu không cần ghi.'
+        return null
+      }
+      case 'debt':
+        return debtVal.counterparty.trim()
+          ? null
+          : debtVal.direction === 'i_owe'
+            ? 'Còn thiếu: tên chủ nợ (mình nợ ai).'
+            : 'Còn thiếu: tên người vay (ai nợ mình).'
+      case 'remit':
+        if (remitVal.kind === 'transfer' && !remitVal.destId)
+          return 'Còn thiếu: chọn tài khoản VND nhận tiền.'
+        if (remitVal.received <= 0) return 'Còn thiếu: số nhận (VND).'
+        return null
+    }
+  })()
 
   // Lưu mẫu: chỉ với chi/thu đã đủ số tiền + danh mục
   const canSaveTemplate = type !== 'transfer' && amount > 0 && !!categoryId
@@ -687,7 +732,7 @@ export function TransactionForm({
                   type="button"
                   role="menuitem"
                   onClick={() => enterRole(r)}
-                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800"
+                  className="flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800"
                 >
                   <m.Icon className="h-4 w-4 shrink-0" aria-hidden /> {m.label}
                 </button>
@@ -724,7 +769,7 @@ export function TransactionForm({
           aria-label={`${label ?? 'Số tiền'}: ${mobileText}`}
           className={`truncate rounded-xl bg-surface px-4 py-2.5 text-right font-bold shadow-sm ${
             showExpr ? 'text-xl' : 'text-3xl'
-          } ${isEmpty ? 'text-gray-300 dark:text-gray-600' : AMOUNT_COLOR[type]} ${ring} lg:hidden`}
+          } ${isEmpty ? 'text-fg-muted' : AMOUNT_COLOR[type]} ${ring} lg:hidden`}
         >
           {mobileText}
         </button>
@@ -788,7 +833,7 @@ export function TransactionForm({
                   type="button"
                   onClick={() => deleteQuickTemplate(t.id)}
                   aria-label={`Xóa mẫu ${t.label}`}
-                  className="absolute right-0.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-gray-300 hover:text-red-500 dark:text-gray-600"
+                  className="absolute right-0.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-gray-300 after:absolute after:-inset-2 hover:text-red-500 dark:text-gray-600"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -803,11 +848,12 @@ export function TransactionForm({
         <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${roleMeta.banner}`}>
           <roleMeta.Icon className="h-4 w-4 shrink-0" aria-hidden />
           <span className="flex-1 text-sm font-semibold">{roleMeta.label}</span>
+          {/* after:-inset mở rộng vùng chạm lên ~44px mà không phồng banner. */}
           <button
             type="button"
             onClick={exitRole}
             aria-label="Bỏ vai trò, quay lại giao dịch thường"
-            className="flex items-center gap-1 rounded-lg bg-surface/70 px-2 py-1 text-xs font-medium active:scale-95 /50"
+            className="relative flex items-center gap-1 rounded-lg bg-surface/70 px-2 py-1 text-xs font-medium active:scale-95 after:absolute after:-inset-x-2 after:-inset-y-2.5"
           >
             <X className="h-3.5 w-3.5" aria-hidden /> Bỏ
           </button>
@@ -988,6 +1034,7 @@ export function TransactionForm({
           onFocus={() => setActiveField('transfer.fee')}
           onChange={setTransferFee}
           hint={'Ghi riêng thành khoản chi "Tài chính", trừ vào tài khoản nguồn.'}
+          onEnter={() => handleSubmit()}
         />
       )}
       {/* Field riêng của vai trò (nếu có) — nằm ngay dưới số tiền/tài khoản */}
@@ -1007,6 +1054,7 @@ export function TransactionForm({
           sourceName={srcAccountName}
           othersActive={activeField === 'split.others'}
           onFocusOthers={() => setActiveField('split.others')}
+          onEnter={() => handleSubmit()}
         />
       )}
       {activeRole === 'debt' && (
@@ -1018,6 +1066,7 @@ export function TransactionForm({
           currency={srcCurrency}
           feeActive={activeField === 'debt.fee'}
           onFocusFee={() => setActiveField('debt.fee')}
+          onEnter={() => handleSubmit()}
         />
       )}
       {activeRole === 'remit' && (
@@ -1031,18 +1080,8 @@ export function TransactionForm({
           receivedActive={activeField === 'remit.received'}
           onFocusFee={() => setActiveField('remit.fee')}
           onFocusReceived={() => setActiveField('remit.received')}
+          onEnter={() => handleSubmit()}
         />
-      )}
-
-      {/* Vai trò cần danh mục nhưng lưới nằm sâu bên dưới các ô của vai trò —
-          không nhắc thì nút Lưu cứ mờ mà không rõ vì sao. */}
-      {activeRole !== 'none' &&
-        !hideCategoryGrid &&
-        !hasCategory &&
-        (activeRole !== 'split' || splitNeedsCategory) && (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-          Còn thiếu một bước: cuộn xuống chọn danh mục cho khoản này ở lưới bên dưới.
-        </p>
       )}
 
       {/* Danh mục (ẩn khi chuyển khoản hoặc vai trò tự khóa danh mục) */}
@@ -1161,12 +1200,16 @@ export function TransactionForm({
 
       {/* Đáy ghim: NumPad + lỗi + nút Lưu — luôn hiển thị, không bị nội dung đẩy khuất. */}
       <div className="flex shrink-0 flex-col gap-1.5 pt-1.5">
-      {/* NumPad chỉ trên mobile */}
+      {/* NumPad chỉ trên mobile. Ô tiền phụ không nhận phép tính → mờ ÷×−+. */}
       <div className="lg:hidden">
-        <NumPad onKey={onNumPadKey} />
+        <NumPad onKey={onNumPadKey} opsDisabled={activeField !== 'main' && activeField !== 'to'} />
       </div>
 
       {error && <p role="alert" className="text-sm text-money-out">{error}</p>}
+      {/* Lý do nút Lưu còn mờ — ghim cạnh nút để không bao giờ bị cuộn khuất. */}
+      {!error && roleMissing && !canSave && (
+        <p className="px-1 text-xs text-fg-warn">{roleMissing}</p>
+      )}
 
       {/* Hàng nút: ⌫ (chỉ mobile, thay cho hàng xóa lùi riêng) + Tiếp tục/Lưu */}
       <div className="flex gap-2">

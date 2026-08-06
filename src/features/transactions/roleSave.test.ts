@@ -368,6 +368,65 @@ describe('saveWithFee — chuyển khoản kèm phí', () => {
   })
 })
 
+/**
+ * Giao dịch giải ngân của vai trò nợ KHÔNG bắt người dùng chọn danh mục nữa
+ * (is_debt_flow không vào báo cáo — bắt chọn "Lương" khi đi vay là vô nghĩa).
+ * Thay vào đó tự tìm/tạo danh mục cố định: chi "Cho vay", thu "Đi vay".
+ */
+describe('saveDebtEntry — danh mục tự gán', () => {
+  it('cho vay → giải ngân vào danh mục chi "Cho vay" có sẵn, bỏ qua danh mục form', async () => {
+    const { deps, calls } = makeDeps([], [cat('cat-chovay', 'Cho vay')])
+    await saveDebtEntry(base, { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'An' }, deps)
+
+    expect(calls.createCategory).toHaveLength(0)
+    expect(calls.createDebt[0].transaction).toMatchObject({
+      type: 'expense',
+      category_id: 'cat-chovay',
+    })
+  })
+
+  it('mình nợ → danh mục thu "Đi vay", chưa có thì tự tạo', async () => {
+    const { deps, calls } = makeDeps([], [cat('cat-chovay', 'Cho vay')])
+    await saveDebtEntry(base, { ...initialDebt(), direction: 'i_owe' as const, counterparty: 'Ngân hàng' }, deps)
+
+    expect(calls.createCategory).toHaveLength(1)
+    expect(calls.createCategory[0]).toMatchObject({ name: 'Đi vay', type: 'income' })
+    expect(calls.createDebt[0].transaction).toMatchObject({ type: 'income', category_id: 'cat-moi' })
+  })
+
+  it('danh mục trùng tên nhưng khác loại không được nhận nhầm', async () => {
+    const { deps, calls } = makeDeps([], [cat('cat-thu', 'Cho vay', 'income')])
+    await saveDebtEntry(base, { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'An' }, deps)
+
+    expect(calls.createCategory[0]).toMatchObject({ name: 'Cho vay', type: 'expense' })
+    expect(calls.createDebt[0].transaction).toMatchObject({ category_id: 'cat-moi' })
+  })
+
+  it('chỉ ghi sổ (không chuyển tiền thật) → không đụng tới danh mục', async () => {
+    const { deps, calls } = makeDeps([], [])
+    await saveDebtEntry(
+      base,
+      { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'An', withTransaction: false },
+      deps,
+    )
+
+    expect(calls.createCategory).toHaveLength(0)
+    expect(calls.createDebt[0].transaction).toBeNull()
+  })
+
+  it('cộng dồn người cũ có chuyển tiền thật → giao dịch thêm cũng vào danh mục tự gán', async () => {
+    const { deps, calls } = makeDeps([openLoan({ counterparty: 'An' })], [cat('cat-chovay', 'Cho vay')])
+    await saveDebtEntry(
+      base,
+      { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'An' },
+      deps,
+    )
+
+    expect(calls.createDebt).toHaveLength(0)
+    expect(calls.createDebtPayment[0].transaction).toMatchObject({ category_id: 'cat-chovay' })
+  })
+})
+
 describe('saveDebtEntry — cho vay kèm phí', () => {
   const lend = { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'An', fee: 500 }
 

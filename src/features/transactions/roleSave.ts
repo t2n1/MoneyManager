@@ -60,6 +60,23 @@ async function feeCategoryId(deps: RoleSaveDeps): Promise<string> {
   return created.id
 }
 
+/**
+ * Danh mục cho giao dịch giải ngân của vai trò nợ — tự tìm/tạo, KHÔNG bắt người
+ * dùng chọn: giao dịch mang cờ is_debt_flow nên không vào báo cáo Thu/Chi, bắt
+ * chọn "Lương/Thưởng" khi đi vay chỉ gây hiểu lầm. Chi = "Cho vay", thu = "Đi vay".
+ */
+async function debtCategoryId(
+  direction: 'owed_to_me' | 'i_owe',
+  deps: RoleSaveDeps,
+): Promise<string> {
+  const type = direction === 'owed_to_me' ? 'expense' : 'income'
+  const name = direction === 'owed_to_me' ? 'Cho vay' : 'Đi vay'
+  const found = deps.categories.find((c) => c.type === type && c.name === name)
+  if (found) return found.id
+  const created = await deps.createCategory({ name, type, icon: '🤝', parent_id: null })
+  return created.id
+}
+
 /** Id danh mục thu "Khác" — tìm trước, chưa có mới tạo (như feeCategoryId). */
 async function otherIncomeCategoryId(deps: RoleSaveDeps): Promise<string> {
   const found = deps.categories.find((c) => c.type === 'income' && c.name === THU_KHAC_CAT)
@@ -320,6 +337,8 @@ export async function saveDebtEntry(
 async function saveDebtCore(base: RoleBase, v: DebtValue, deps: RoleSaveDeps): Promise<void> {
   const counterparty = v.counterparty.trim()
   const txType = v.direction === 'owed_to_me' ? 'expense' : 'income'
+  // Danh mục tự gán cho giải ngân — form không hỏi nữa (base.categoryId bị bỏ qua).
+  const categoryId = v.withTransaction ? await debtCategoryId(v.direction, deps) : null
 
   // Cộng dồn: nếu chọn người cũ (existingDebtId) hoặc gõ trùng tên một khoản đang
   // mở cùng chiều + cùng loại tiền → ghi thêm vào khoản đó thay vì tạo người mới.
@@ -338,7 +357,7 @@ async function saveDebtCore(base: RoleBase, v: DebtValue, deps: RoleSaveDeps): P
         type: txType,
         amount: base.amount,
         to_amount: null,
-        category_id: base.categoryId,
+        category_id: categoryId,
         account_id: base.accountId,
         to_account_id: null,
         occurred_on: base.occurredOn,
@@ -364,7 +383,7 @@ async function saveDebtCore(base: RoleBase, v: DebtValue, deps: RoleSaveDeps): P
       type: txType,
       amount: base.amount,
       to_amount: null,
-      category_id: base.categoryId,
+      category_id: categoryId,
       account_id: base.accountId,
       to_account_id: null,
       occurred_on: base.occurredOn,

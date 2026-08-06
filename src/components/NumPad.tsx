@@ -20,7 +20,14 @@ const ARIA: Record<string, string> = {
 
 /** Bàn phím số + phép tính cho mobile — không dùng bàn phím hệ thống.
  *  Nút xóa lùi (⌫) nằm chung hàng với Tiếp tục/Lưu ở TransactionForm để đỡ tốn chiều cao. */
-export function NumPad({ onKey }: { onKey: (key: NumPadKey) => void }) {
+export function NumPad({
+  onKey,
+  opsDisabled = false,
+}: {
+  onKey: (key: NumPadKey) => void
+  /** Ô đang nhập không nhận phép tính (ô tiền phụ) → mờ ÷×−+ thay vì bấm mà im lặng. */
+  opsDisabled?: boolean
+}) {
   return (
     <div className="grid grid-cols-4 gap-1">
       {NUM_OP_KEYS.map((key) => {
@@ -30,11 +37,12 @@ export function NumPad({ onKey }: { onKey: (key: NumPadKey) => void }) {
             key={key}
             type="button"
             onClick={() => onKey(key)}
+            disabled={isOp && opsDisabled}
             aria-label={ARIA[key] ?? key}
-            className={`flex min-h-11 items-center justify-center rounded-lg py-1.5 text-lg font-semibold shadow-sm transition active:scale-95 ${
+            className={`flex min-h-11 items-center justify-center rounded-lg py-1.5 text-lg font-semibold shadow-sm transition enabled:active:scale-95 disabled:opacity-40 ${
               isOp
-                ? 'bg-surface-sunken text-green-700 dark:text-green-400 active:bg-gray-300'
-                : 'bg-white dark:bg-gray-800 text-fg-primary active:bg-gray-200'
+                ? 'bg-surface-sunken text-green-700 dark:text-green-400 enabled:active:bg-gray-300'
+                : 'bg-white dark:bg-gray-800 text-fg-primary enabled:active:bg-gray-200'
             }`}
           >
             {key}

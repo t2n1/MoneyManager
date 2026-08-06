@@ -16,10 +16,10 @@ import {
   useNetWorthSnapshots,
   useReorderAccounts,
 } from '../../hooks/queries'
-import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
-import { convertFromBase } from '../../lib/rates'
+import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import { UNGROUPED_LABEL, type AssetAccount } from './aggregate'
 import { CardsSection } from './CardsSection'
+import { makeMoneyView } from './moneyView'
 import { useAssetsData } from './useAssetsData'
 
 // Bảng màu cho lát bánh (lặp lại nếu > 12 nhóm) — đồng bộ với ReportsPage
@@ -61,22 +61,22 @@ export function AssetsNowView() {
   // Chế độ xem cơ cấu: mục đích (asset_group) · loại tài khoản · đồng tiền
   const [groupMode, setGroupMode] = useState<GroupMode>('purpose')
 
-  // Xem thử hai con số lớn (Tổng tài sản · Tài sản ròng) bằng đồng tiền khác — chỉ để
-  // ước chừng theo tỷ giá cache, nên không lưu: mở lại trang là về tiền gốc.
+  // Xem thử CẢ TRANG bằng đồng tiền khác — chỉ để ước chừng theo tỷ giá cache, nên
+  // không lưu: mở lại trang là về tiền gốc.
   // null = theo tiền gốc (không giữ mã cứng, vì base tải async từ profile).
   const [viewCur, setViewCur] = useState<CurrencyCode | null>(null)
   const displayCur = viewCur ?? base
-  const isConverted = displayCur !== base
   // Đồng tiền bấm được: tiền gốc luôn được; tiền khác cần tỷ giá dùng được.
   const canView = (c: CurrencyCode) => {
     if (c === base) return true
     const r = rates?.[c]
     return r != null && Number.isFinite(r) && r > 0
   }
-  // Một số tiền tính theo base → đồng tiền đang xem. Nút đã chặn khi thiếu tỷ giá
-  // nên nhánh null gần như không xảy ra; phòng hờ thì giữ nguyên số gốc.
-  const inView = (minor: number) =>
-    isConverted ? (convertFromBase(minor, base, displayCur, rates ?? {}) ?? minor) : minor
+  // Bộ quy đổi dùng chung cho MỌI con số trên tab: tổng, nhóm, dòng tài khoản, thẻ.
+  const mv = useMemo(
+    () => makeMoneyView(base, displayCur, rates ?? {}),
+    [base, displayCur, rates],
+  )
 
   // Xu hướng tài sản ròng cho đường tí hon cạnh con số lớn. Lấy 12 mốc gần nhất — ảnh
   // chụp ghi mỗi lần mở app nên số mốc KHÔNG bằng số tháng; vì vậy nhãn ghi "12 mốc",
@@ -262,8 +262,6 @@ export function AssetsNowView() {
   const colorOf = (name: string) =>
     pieData.find((d) => d.name === name)?.color ?? '#cbd5e1'
 
-  // Đang xem thử bằng tiền khác thì mọi con số đều là ước chừng → luôn có ≈
-  const approx = breakdown.hasForeign || isConverted ? '≈ ' : ''
   // Đếm tài khoản / nhóm ở khối Tổng tài sản luôn theo mục đích (mô tả toàn cảnh, không đổi theo chart)
   const accountCount = purposeGroups.reduce((n, g) => n + g.accounts.length, 0)
   // Đầu tư: có snapshot giá trị thị trường nào không → hiện dòng lãi/lỗ chưa thực hiện
@@ -276,10 +274,10 @@ export function AssetsNowView() {
   const visibleCards = breakdown.cards.filter((c) => !c.hidden)
   const cardOwed = -breakdown.cardDebt // số dương = đang nợ thẻ (quy đổi base)
   const showNetWorth = debtsSummary.hasOpen || visibleCards.length > 0
+  // Cờ ước chừng sẵn có của số ròng (chưa tính chuyện xem thử bằng tiền khác —
+  // mv.fmt tự cộng thêm ≈ khi có quy đổi)
   const netApprox =
-    breakdown.hasForeign || debtsSummary.hasMissingRate || breakdown.cardHasMissingRate || isConverted
-      ? '≈ '
-      : ''
+    breakdown.hasForeign || debtsSummary.hasMissingRate || breakdown.cardHasMissingRate
 
   return (
     <div
@@ -329,7 +327,7 @@ export function AssetsNowView() {
             </div>
           </div>
           <p className="mt-1.5 text-[2rem] font-bold leading-none tracking-tight tabular-nums">
-            {isLoading ? '…' : `${approx}${formatMoney(inView(breakdown.total), displayCur)}`}
+            {isLoading ? '…' : mv.fmt(breakdown.total, base, breakdown.hasForeign)}
           </p>
           {!isLoading && (
             <p className="mt-2.5 text-xs text-green-50/80">
@@ -341,8 +339,7 @@ export function AssetsNowView() {
               Lãi/lỗ đầu tư (chưa thực hiện):{' '}
               <span className="font-semibold tabular-nums text-white">
                 {pnl >= 0 ? '+' : '−'}
-                {breakdown.pnlHasMissingRate || isConverted ? '≈ ' : ''}
-                {formatMoney(Math.abs(inView(pnl)), displayCur)}
+                {mv.fmt(Math.abs(pnl), base, breakdown.pnlHasMissingRate)}
               </span>
             </p>
           )}
@@ -367,8 +364,7 @@ export function AssetsNowView() {
                 không phải mở tab "Diễn biến". */}
             <div className="mt-1 flex items-end justify-between gap-3">
               <p className="text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                {netApprox}
-                {formatMoney(inView(netWorth), displayCur)}
+                {mv.fmt(netWorth, base, netApprox)}
               </p>
               {trend && (
                 <div className="flex shrink-0 flex-col items-end gap-0.5">
@@ -385,28 +381,24 @@ export function AssetsNowView() {
             <div className="mt-3 space-y-1.5 text-sm">
               <div className="flex items-center justify-between text-fg-muted">
                 <span>Tổng tài sản</span>
-                <span className="tabular-nums">{formatMoney(inView(breakdown.total), displayCur)}</span>
+                <span className="tabular-nums">{mv.fmt(breakdown.total)}</span>
               </div>
               {debtsSummary.owedToMe > 0 && (
                 <div className="flex items-center justify-between text-money-in">
                   <span>+ Cho vay còn lại</span>
-                  <span className="tabular-nums">
-                    {formatMoney(inView(debtsSummary.owedToMe), displayCur)}
-                  </span>
+                  <span className="tabular-nums">{mv.fmt(debtsSummary.owedToMe)}</span>
                 </div>
               )}
               {debtsSummary.iOwe > 0 && (
                 <div className="flex items-center justify-between text-money-out">
                   <span>− Nợ phải trả</span>
-                  <span className="tabular-nums">
-                    {formatMoney(inView(debtsSummary.iOwe), displayCur)}
-                  </span>
+                  <span className="tabular-nums">{mv.fmt(debtsSummary.iOwe)}</span>
                 </div>
               )}
               {cardOwed > 0 && (
                 <div className="flex items-center justify-between text-money-out">
                   <span>− Nợ thẻ tín dụng</span>
-                  <span className="tabular-nums">{formatMoney(inView(cardOwed), displayCur)}</span>
+                  <span className="tabular-nums">{mv.fmt(cardOwed)}</span>
                 </div>
               )}
             </div>
@@ -427,6 +419,7 @@ export function AssetsNowView() {
           base={base}
           rates={rates ?? {}}
           todayISO={todayISO}
+          view={mv}
         />
   
         {/* Biểu đồ tròn + danh sách nhóm */}
@@ -468,7 +461,7 @@ export function AssetsNowView() {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(v) => formatMoney(Number(v), base)}
+                      formatter={(v) => mv.fmt(Number(v))}
                       contentStyle={{ borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb' }}
                     />
                   </PieChart>
@@ -546,8 +539,7 @@ export function AssetsNowView() {
                 </span>
               )}
               <span className="shrink-0 pl-2 text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
-                {g.hasMissingRate ? '≈ ' : ''}
-                {formatMoney(g.total, base)}
+                {mv.fmt(g.total, base, g.hasMissingRate)}
               </span>
             </div>
             <div className="divide-y divide-gray-50 border-t border-border-subtle dark:divide-gray-800">
@@ -596,14 +588,14 @@ export function AssetsNowView() {
                             }`}
                           >
                             {a.marketValue > a.balance ? '▲' : '▼'}
-                            {formatMoney(Math.abs(a.marketValue - a.balance), a.currency)}
+                            {mv.fmt(Math.abs(a.marketValue - a.balance), a.currency)}
                           </span>
                         )}
                       </span>
                       <span
                         className={`shrink-0 text-sm font-medium tabular-nums ${a.value < 0 ? 'text-money-out' : 'text-fg-primary'}`}
                       >
-                        {formatMoney(a.value, a.currency)}
+                        {mv.fmt(a.value, a.currency)}
                       </span>
                       <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
                     </Link>
@@ -620,7 +612,7 @@ export function AssetsNowView() {
         )
       })}
 
-      {(breakdown.hasForeign || isConverted) && rates && (
+      {(breakdown.hasForeign || mv.converted) && rates && (
         <p className="text-center text-xs text-fg-muted">
           Tỷ giá: ¥1 ≈ {rates.VND?.toFixed(2)} ₫ · $1 ≈ ¥
           {rates.USD ? (1 / rates.USD).toFixed(1) : '?'} (open.er-api.com, cache 12h)

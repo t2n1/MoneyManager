@@ -13,11 +13,11 @@ import { ChevronDown, CreditCard } from 'lucide-react'
 import { Money } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
 import { dueDateLabel, dueRelativeLabel } from '../../lib/dates'
-import { formatMoney } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { AccountBalanceRow } from '../../types/database.types'
 import { cardFunding, type CardLiability } from './aggregate'
 import { cardsSummary } from './cardsSummary'
+import type { MoneyView } from './moneyView'
 import { useCardStatements } from './useCardStatements'
 
 interface Props {
@@ -28,9 +28,11 @@ interface Props {
   base: CurrencyCode
   rates: Rates
   todayISO: string
+  /** Bộ "xem thử bằng tiền khác" của tab Hiện tại — mọi số tiền hiển thị đi qua đây. */
+  view: MoneyView
 }
 
-export function CardsSection({ cards, balances, base, rates, todayISO }: Props) {
+export function CardsSection({ cards, balances, base, rates, todayISO, view }: Props) {
   const [open, setOpen] = useState(false)
 
   // Chia dư nợ thành kỳ đã chốt (sắp bị rút) và phần chưa chốt
@@ -50,6 +52,8 @@ export function CardsSection({ cards, balances, base, rates, todayISO }: Props) 
   // Chỉ tổng gộp khi ≥2 thẻ chung nguồn và đang thực nợ (dòng "cần nạp thêm")
   const sharedSources = funding.groups.filter((g) => g.cardCount >= 2 && g.totalOwed > 0)
   const summary = cardsSummary(cards, statements, funding, base, rates)
+  // Dòng tổng "Kỳ này" theo đồng tiền đang xem (null = chưa phát sinh nợ)
+  const billedView = summary.billedBase == null ? null : view.view(summary.billedBase)
 
   // Hook phải chạy vô điều kiện nên mới thoát ở đây, không thoát sớm phía trên.
   if (cards.length === 0) return null
@@ -75,7 +79,7 @@ export function CardsSection({ cards, balances, base, rates, todayISO }: Props) 
           {summary.shortCount > 0 && (
             <span className="ml-auto shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-2xs font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
               {summary.singleShortfall
-                ? `thiếu ${formatMoney(summary.singleShortfall.amount, summary.singleShortfall.currency)}`
+                ? `thiếu ${view.fmt(summary.singleShortfall.amount, summary.singleShortfall.currency)}`
                 : `${summary.shortCount} thẻ thiếu tiền`}
             </span>
           )}
@@ -88,16 +92,16 @@ export function CardsSection({ cards, balances, base, rates, todayISO }: Props) 
 
         {/* Dòng tổng — con số duy nhất cần khi không mở chi tiết */}
         <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          {summary.billedBase == null ? (
+          {billedView == null ? (
             <span className="text-sm font-medium text-fg-muted">Chưa phát sinh nợ</span>
           ) : (
             <>
               <span className="text-xs text-fg-muted">Kỳ này</span>
               <Money
-                amount={summary.billedBase}
-                currency={base}
+                amount={billedView.amount}
+                currency={billedView.currency}
                 tone="out"
-                approx={summary.approx}
+                approx={summary.approx || billedView.approx}
                 className="text-xl font-bold"
               />
               {summary.nextDueISO && (
@@ -137,19 +141,19 @@ export function CardsSection({ cards, balances, base, rates, todayISO }: Props) 
                           : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
                       }`}
                     >
-                      {g.enough ? 'đủ trả' : `cần nạp thêm ${formatMoney(g.shortfall, g.currency)}`}
+                      {g.enough ? 'đủ trả' : `cần nạp thêm ${view.fmt(g.shortfall, g.currency)}`}
                     </span>
                   </div>
                   <div className="mt-2 flex items-center justify-between text-xs text-fg-muted">
                     {/* Đã là tổng KỲ NÀY (cardFunding nhận override billed), không phải nợ gộp */}
                     <span>Kỳ này {g.cardCount} thẻ</span>
                     <span className="tabular-nums font-medium text-money-out">
-                      − {formatMoney(g.totalOwed, g.currency)}
+                      − {view.fmt(g.totalOwed, g.currency)}
                     </span>
                   </div>
                   <div className="mt-1 flex items-center justify-between text-xs text-fg-muted">
                     <span>Số dư {g.sourceName}</span>
-                    <span className="tabular-nums">{formatMoney(g.sourceBalance, g.currency)}</span>
+                    <span className="tabular-nums">{view.fmt(g.sourceBalance, g.currency)}</span>
                   </div>
                 </div>
               ))}
@@ -169,6 +173,9 @@ export function CardsSection({ cards, balances, base, rates, todayISO }: Props) 
               const f = funding.byCard.get(c.id)
               // Ngày đến hạn trả kế tiếp (đã dời T7/CN sang T2)
               const dueISO = st?.dueISO ?? null
+              // Hai con số nổi bật của thẻ, theo đồng tiền đang xem
+              const mainView = view.view(billed ?? owed, c.currency)
+              const unbilledView = view.view(unbilled, c.currency)
               return (
                 <li key={c.id}>
                   <Link
@@ -194,7 +201,7 @@ export function CardsSection({ cards, balances, base, rates, todayISO }: Props) 
                               : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
                           }`}
                         >
-                          {f.enough ? 'đủ trả' : `thiếu ${formatMoney(f.shortfall, c.currency)}`}
+                          {f.enough ? 'đủ trả' : `thiếu ${view.fmt(f.shortfall, c.currency)}`}
                         </span>
                       )}
                     </div>
@@ -209,9 +216,10 @@ export function CardsSection({ cards, balances, base, rates, todayISO }: Props) 
                             {billed != null ? 'Kỳ này' : 'Cần trả'}
                           </span>
                           <Money
-                            amount={billed ?? owed}
-                            currency={c.currency}
+                            amount={mainView.amount}
+                            currency={mainView.currency}
                             tone={(billed ?? owed) > 0 ? 'out' : 'neutral'}
+                            approx={mainView.approx}
                             className="text-xl font-bold"
                           />
                         </>
@@ -237,9 +245,14 @@ export function CardsSection({ cards, balances, base, rates, todayISO }: Props) 
                     {billed != null && unbilled > 0 && (
                       <p className="mt-1 ml-6 text-xs text-fg-muted">
                         Chưa chốt{' '}
-                        <Money amount={unbilled} currency={c.currency} className="font-medium" />
+                        <Money
+                          amount={unbilledView.amount}
+                          currency={unbilledView.currency}
+                          approx={unbilledView.approx}
+                          className="font-medium"
+                        />
                         {billed > 0
-                          ? ` · tổng nợ ${formatMoney(owed, c.currency)}`
+                          ? ` · tổng nợ ${view.fmt(owed, c.currency)}`
                           : ' — kỳ sau mới đòi'}
                       </p>
                     )}
@@ -254,7 +267,7 @@ export function CardsSection({ cards, balances, base, rates, todayISO }: Props) 
                               <>
                                 {' '}· số dư{' '}
                                 <span className="tabular-nums">
-                                  {formatMoney(f.sourceBalance, c.currency)}
+                                  {view.fmt(f.sourceBalance, c.currency)}
                                 </span>
                               </>
                             )}
@@ -265,7 +278,7 @@ export function CardsSection({ cards, balances, base, rates, todayISO }: Props) 
                           <>
                             còn dùng được{' '}
                             <span className="tabular-nums">
-                              {formatMoney(available, c.currency)}
+                              {view.fmt(available, c.currency)}
                             </span>
                           </>
                         )}

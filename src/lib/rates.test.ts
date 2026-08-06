@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  convertBetween,
   convertFromBase,
   convertToBase,
   formatRateLine,
@@ -69,6 +70,30 @@ describe('convertFromBase (base = JPY)', () => {
     expect(convertFromBase(100, 'JPY', 'VND', { VND: 0 })).toBeNull()
     expect(convertFromBase(100, 'JPY', 'VND', { VND: -5 })).toBeNull()
     expect(convertFromBase(100, 'JPY', 'VND', { VND: Number.NaN })).toBeNull()
+  })
+})
+
+describe('convertBetween (base = JPY)', () => {
+  it('cùng loại tiền → giữ nguyên, không đi qua base', () => {
+    expect(convertBetween(1234, 'VND', 'VND', 'JPY', RATES)).toBe(1234)
+  })
+
+  it('từ base đi ra = convertFromBase', () => {
+    expect(convertBetween(10000, 'JPY', 'VND', 'JPY', RATES)).toBe(1650000)
+  })
+
+  it('về base = convertToBase', () => {
+    expect(convertBetween(1650000, 'VND', 'JPY', 'JPY', RATES)).toBe(10000)
+  })
+
+  it('hai tiền ngoại đi qua base: USD → VND', () => {
+    // $65,00 → ¥10.000 → 1.650.000 ₫
+    expect(convertBetween(6500, 'USD', 'VND', 'JPY', RATES)).toBe(1650000)
+  })
+
+  it('thiếu tỷ giá ở một trong hai chặng → null', () => {
+    expect(convertBetween(6500, 'USD', 'VND', 'JPY', { USD: 0.0065 })).toBeNull()
+    expect(convertBetween(6500, 'USD', 'VND', 'JPY', { VND: 165 })).toBeNull()
   })
 })
 

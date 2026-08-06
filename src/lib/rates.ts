@@ -129,6 +129,23 @@ export function convertFromBase(
 }
 
 /**
+ * Đổi minor units giữa HAI đồng tiền bất kỳ, đi qua base — vì bảng tỷ giá chỉ có
+ * chiều base → X. Trả null nếu thiếu tỷ giá ở một trong hai chặng.
+ */
+export function convertBetween(
+  minor: number,
+  from: CurrencyCode,
+  to: CurrencyCode,
+  base: CurrencyCode,
+  rates: Rates,
+): number | null {
+  if (from === to) return minor
+  const inBase = convertToBase(minor, from, base, rates)
+  if (inBase == null) return null
+  return convertFromBase(inBase, base, to, rates)
+}
+
+/**
  * major units → chuỗi có ký hiệu tiền. CỐ Ý không dùng formatMoney: nó che số khi
  * bật chế độ riêng tư, mà tỷ giá là số công khai của thị trường chứ không phải
  * tiền của người dùng — và rates.ts cũng bị cấm nhập money.ts (purity.test.ts).

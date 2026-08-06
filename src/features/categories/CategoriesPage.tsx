@@ -253,8 +253,10 @@ export function CategoriesPage() {
           dragging ? 'shadow-lg ring-2 ring-green-500/40' : 'shadow-sm'
         } ${isDropTarget ? 'ring-2 ring-green-500/60' : ''}`}
       >
-        {/* Danh mục cha */}
-        <div className="flex items-center gap-2 px-3 py-2.5">
+        {/* Danh mục cha. Đệm dọc mỏng thôi: các nút bên trong đã cao 44px (chuẩn
+            vùng chạm) tự quyết chiều cao hàng — đệm dày nữa chỉ thêm khí chết,
+            danh sách ~60 hàng dài ra cả nghìn px. */}
+        <div className="flex items-center gap-2 px-3 py-1">
           <button
             type="button"
             {...handle}
@@ -307,7 +309,7 @@ export function CategoriesPage() {
                 <div
                   key={cid}
                   ref={(el) => setChildRow(cid, el)}
-                  className={`flex items-center gap-2 py-2 pr-3 pl-2 ${
+                  className={`flex items-center gap-2 py-0.5 pr-3 pl-2 ${
                     isDragging ? 'bg-green-50 shadow-md dark:bg-green-900/20' : ''
                   }`}
                 >
@@ -432,7 +434,7 @@ export function CategoriesPage() {
 
         {/* Con mồ côi (dữ liệu cũ) — hiển thị như danh mục thường để không mất */}
         {orphans.map((c) => (
-          <div key={c.id} className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2.5 shadow-sm">
+          <div key={c.id} className="flex items-center gap-2 rounded-xl bg-surface px-3 py-1 shadow-sm">
             <span className="text-xl">{c.icon}</span>
             <button
               type="button"
@@ -479,7 +481,7 @@ export function CategoriesPage() {
           {showArchived && (
             <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
               {archivedCats.map((c) => (
-                <div key={c.id} className="flex items-center gap-2 px-3 py-2.5 opacity-60">
+                <div key={c.id} className="flex items-center gap-2 px-3 py-1 opacity-60">
                   {c.parent_id && <span className="text-gray-300 dark:text-gray-600">↳</span>}
                   <span className="text-xl">{c.icon}</span>
                   <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300">{c.name}</span>

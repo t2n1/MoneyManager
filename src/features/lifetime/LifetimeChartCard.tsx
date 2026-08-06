@@ -77,28 +77,29 @@ const COLOR_AXIS = 'var(--fg-muted)'
 const EMPTY_HISTORY: NetWorthSnapshotRow[] = []
 
 /**
- * Năm sự kiện MỚI xuất hiện so với năm liền trước — đánh dấu mốc trên trục hoành.
+ * Năm sự kiện MỚI xuất hiện so với năm liền trước → TÊN các sự kiện mới của năm đó.
+ * Khoá của map chính là các năm cần vẽ mốc trên trục hoành; giá trị là tên để tooltip
+ * đọc ra — không có nó thì mốc chỉ là một vạch đứt vô danh, muốn biết vạch 2046 là gì
+ * phải mở Bảng theo năm.
  * `YearEvent` (project.ts) không mang `startYear` (bị lược khi build YearRow), nên đây
  * là suy luận từ chênh lệch tập id sự kiện giữa hai năm liền kề, không đọc thẳng được.
  * Năm đầu tiên (rows[0]) không bao giờ sinh mốc — không có "năm trước" để so, và đó là
  * điểm bắt đầu bản chiếu chứ không phải một sự kiện giữa đời.
  */
-function eventStartYears(rows: YearRow[]): number[] {
-  const years: number[] = []
+function newEventLabelsByYear(rows: YearRow[]): Map<number, string[]> {
+  const map = new Map<number, string[]>()
   let prevIds = new Set((rows[0]?.events ?? []).map((e) => e.id))
   for (let i = 1; i < rows.length; i++) {
-    const ids = new Set(rows[i].events.map((e) => e.id))
-    let isNew = false
-    for (const id of ids) {
-      if (!prevIds.has(id)) {
-        isNew = true
-        break
-      }
+    const fresh = rows[i].events.filter((e) => !prevIds.has(e.id))
+    if (fresh.length > 0) {
+      map.set(
+        rows[i].year,
+        fresh.map((e) => e.label),
+      )
     }
-    if (isNew) years.push(rows[i].year)
-    prevIds = ids
+    prevIds = new Set(rows[i].events.map((e) => e.id))
   }
-  return years
+  return map
 }
 
 /** Tối đa bao nhiêu năm mốc sự kiện được ĐỌC TÊN trong `aria-label` trước khi gộp phần
@@ -144,9 +145,11 @@ function buildAriaLabel(args: {
   const sentences = [
     `Tài sản ròng từ năm ${startYear} đến năm ${endYear}.`,
     `Nhánh trung tâm đạt đỉnh ${formatMoney(peak.assetsEndMinor, currency)} quanh năm ${peak.year}, cuối kỳ còn ${formatMoney(endValue, currency)}.`,
+    // "Nhánh bi quan" — cùng từ với thẻ kết luận ("Nếu bi quan, âm từ") và cột "Bi quan"
+    // của bảng theo năm, kèm định vị "mép dưới dải dao động" cho người nghe hình dung.
     negYear
-      ? `Biên dưới của dải dao động âm từ năm ${negYear}.`
-      : 'Biên dưới của dải dao động không xuống dưới 0.',
+      ? `Nhánh bi quan (mép dưới của dải dao động) âm từ năm ${negYear}.`
+      : 'Nhánh bi quan (mép dưới của dải dao động) không xuống dưới 0.',
   ]
 
   if (markerYears.length > 0) {
@@ -242,7 +245,8 @@ export function LifetimeChartCard({
     () => buildChartData(rows, effectiveHistoryRows, compare),
     [rows, effectiveHistoryRows, compare],
   )
-  const markerYears = useMemo(() => eventStartYears(rows), [rows])
+  const eventLabels = useMemo(() => newEventLabelsByYear(rows), [rows])
+  const markerYears = useMemo(() => [...eventLabels.keys()], [eventLabels])
   const compareEndRow = compare && compare.length > 0 ? compare[compare.length - 1] : null
   const ariaLabel = useMemo(
     () =>
@@ -393,7 +397,13 @@ export function LifetimeChartCard({
               width={44}
             />
             <Tooltip
-              labelFormatter={(l) => `Năm ${l}`}
+              // Năm có mốc sự kiện thì đọc luôn TÊN sự kiện mới của năm đó — mốc trên
+              // đồ thị chỉ là một vạch đứt, tooltip là chỗ duy nhất nói vạch đó là gì
+              // mà không phải rời đồ thị đi mở Bảng theo năm.
+              labelFormatter={(l) => {
+                const names = eventLabels.get(Number(l))
+                return names ? `Năm ${l} · ${names.join(', ')}` : `Năm ${l}`
+              }}
               formatter={(value, name) => {
                 if (name === 'band' && Array.isArray(value)) {
                   return [

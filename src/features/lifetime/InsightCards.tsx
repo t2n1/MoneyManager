@@ -6,6 +6,7 @@
 // hai chỗ sẽ trôi lệch nhau theo thời gian).
 import type { ReactNode } from 'react'
 import { AlertCircle } from 'lucide-react'
+import { ExplainBox } from '../../components/ExplainBox'
 import type { CurrencyCode } from '../../lib/currencies'
 import { formatMoney } from '../../lib/money'
 import {
@@ -95,9 +96,12 @@ export function InsightCards({ rows, input, birthYear, currency }: Props) {
   const fire = fireYear(rows)
 
   return (
+    <>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       <InsightTile
-        label="Nhánh xấu âm từ"
+        // "Bi quan" — dùng ĐÚNG từ mà bảng theo năm (cột "Bi quan") và khối "Cách đọc"
+        // bên dưới dùng, không gọi cùng một thứ bằng "nhánh xấu" ở đây và "bi quan" ở kia.
+        label="Nếu bi quan, âm từ"
         // Giá trị là một NĂM (không phải tiền) nên không có dấu để tự suy — ép cảnh
         // báo bằng `alert`, xem JSDoc InsightTile.
         alert={negativeYear !== null}
@@ -110,8 +114,23 @@ export function InsightCards({ rows, input, birthYear, currency }: Props) {
         // null nghĩa là đã dò tới 10% (biên trên của khoảng dò trong minimumReturnBps)
         // mà vẫn không đủ — hiện "10%" ở đây sẽ nói dối rằng 10% là đáp án, nên PHẢI
         // đổi hẳn sang câu chữ, không được rơi về một con số mặc định nào (brief).
-        value={minReturn !== null ? `${(minReturn / 100).toFixed(2)}%` : 'Không đủ dù lợi suất cao'}
-        sub={minReturn !== null ? 'để không năm nào âm' : undefined}
+        // 0 cũng đổi sang câu chữ: "0%" đọc như lỗi hiển thị trong khi nó là TIN TỐT
+        // (thu chi tự đủ, không cần đầu tư sinh lời). `minReturn / 100` không toFixed:
+        // bps là số nguyên nên chia 100 tối đa 2 chữ số lẻ, và "2%" đọc sạch hơn "2.00%".
+        value={
+          minReturn === null
+            ? 'Không đủ dù lợi suất cao'
+            : minReturn === 0
+              ? 'Không cần'
+              : `${minReturn / 100}%`
+        }
+        sub={
+          minReturn === null
+            ? undefined
+            : minReturn === 0
+              ? 'thu chi tự đủ, không năm nào âm'
+              : 'để không năm nào âm'
+        }
       />
 
       <InsightTile
@@ -146,5 +165,31 @@ export function InsightCards({ rows, input, birthYear, currency }: Props) {
         }
       />
     </div>
+
+    {/* Khối "cách đọc" gấp mở — cùng khuôn ExplainBox của các thẻ báo cáo. Bốn ô trên
+        cố ý không có nút bấm (bảng tóm tắt để đọc), nên lời giải thích cho từ chuyên
+        ngành ("bi quan", "quy tắc 4%"…) nằm ở một nút duy nhất dưới lưới thay vì rải
+        icon vào từng ô. Trong tile, sub bị `truncate` nên KHÔNG nhét giải thích vào đó. */}
+    <ExplainBox label="Cách đọc 4 ô này">
+      <p>
+        <b>Nếu bi quan, âm từ</b> — năm đầu tiên tài sản xuống dưới 0 nếu mọi thứ diễn ra
+        theo mép dưới của dải dao động trên đồ thị (hướng xấu). "Không bao giờ âm" là tin
+        tốt.
+      </p>
+      <p>
+        <b>Lợi suất tối thiểu</b> — tiền đầu tư cần sinh lời ít nhất bao nhiêu mỗi năm để
+        không năm nào bị âm.
+      </p>
+      <p>
+        <b>Lúc {input.endAge} tuổi</b> — tài sản ròng dự kiến ở tuổi cuối của kịch bản;
+        dòng nhỏ bên dưới là khoảng từ hướng xấu (bi quan) đến hướng tốt (lạc quan).
+      </p>
+      <p>
+        <b>Tự do tài chính</b> — năm đầu tiên mà chỉ cần rút {DEFAULT_SWR_BPS / 100}% tài
+        sản mỗi năm là đủ chi tiêu (giới tài chính gọi là "quy tắc {DEFAULT_SWR_BPS / 100}%"),
+        tức về lý thuyết không cần đi làm nữa cũng đủ sống.
+      </p>
+    </ExplainBox>
+    </>
   )
 }

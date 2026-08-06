@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Pencil, Sparkles } from 'lucide-react'
+import { AlertTriangle, Pencil, Sparkles, Star } from 'lucide-react'
+import { Card, Money } from '../../components/ui'
 import { repo } from '../../data'
 import { useNetWorthSnapshots } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
 import { formatMoney } from '../../lib/money'
+import { pickActive } from './buildInput'
 import { InsightCards } from './InsightCards'
 import { LifetimeChartCard } from './LifetimeChartCard'
 import { ScenarioEditorSheet } from './ScenarioEditorSheet'
@@ -47,6 +49,17 @@ export function LifetimeView() {
   const [tableOpen, setTableOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const { data: historyRows = [] } = useNetWorthSnapshots()
+
+  // Chặng ĐANG hiệu lực (chặng bắt đầu gần nhất tính đến năm nay) — nguồn của dòng
+  // giả định ngay dưới dải chip. Bản chiếu 60 năm mà không nói nó dựa trên thu/chi
+  // bao nhiêu là một hộp đen: muốn kiểm chứng phải mở trình sửa mới biết.
+  const currentPhase = useMemo(() => {
+    if (!input) return null
+    const sorted = [...input.phases].sort((a, b) => a.startYear - b.startYear)
+    let cur = sorted[0] ?? null
+    for (const p of sorted) if (p.startYear <= input.currentYear) cur = p
+    return cur
+  }, [input])
 
   // --- Chế độ so sánh (Task 8 Step 4) ---
   const otherScenarios = useMemo(
@@ -93,27 +106,19 @@ export function LifetimeView() {
   }
 
   // --- Trạng thái 1: chưa khai năm sinh — không chiếu được gì nếu thiếu nó ---
+  // Không có tiêu đề "Lifetime" riêng (cả 3 trạng thái): tab "Tương lai" ngay trên đã là
+  // tên màn này, và vỏ AssetsPage đã có <h1> "Tài sản" — thêm một <h1> nữa vừa lặp vừa
+  // sai cấp đề mục (hai tab kia đều chỉ dùng <h2> cho khối con).
   if (needsBirthYear) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-bold text-fg-primary">Lifetime</h1>
-        </div>
-        <BirthYearCard />
-      </div>
-    )
+    return <BirthYearCard />
   }
 
   // --- Trạng thái 2: chưa có kịch bản nào — nút thay wizard ---
   if (scenarios.length === 0) {
     return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-bold text-fg-primary">Lifetime</h1>
-        </div>
-        <div className="rounded-xl bg-surface p-3 shadow-sm">
+      <div className="rounded-xl bg-surface p-3 shadow-sm">
           <p className="text-sm text-fg-secondary">
-            Lifetime chiếu tài sản ròng của bạn tới hết đời, dựa trên thu chi nền và các mốc
+            Tab này chiếu tài sản ròng của bạn tới hết đời, dựa trên thu chi nền và các mốc
             (cưới, sinh con, nghỉ hưu…). Tạo kịch bản đầu tiên từ đúng chi tiêu thật của bạn —
             không cần khai tay từng con số.
           </p>
@@ -180,7 +185,6 @@ export function LifetimeView() {
                 ? 'Đang tính tài sản ròng…'
                 : 'Tạo kịch bản từ chi tiêu thật của tôi'}
           </button>
-        </div>
       </div>
     )
   }
@@ -195,13 +199,14 @@ export function LifetimeView() {
 
   return (
     <div className="space-y-3">
-      {/* Header: không có bánh răng — mọi thiết lập thuộc trình sửa kịch bản hoặc Cài đặt */}
+      {/* Header: chỉ còn dòng tóm tắt + nút bút chì — tab "Tương lai" ngay trên đã là
+          tiêu đề (xem ghi chú ở trạng thái 1), và không có bánh răng: mọi thiết lập
+          thuộc trình sửa kịch bản hoặc Cài đặt. */}
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-bold text-fg-primary">Lifetime</h1>
           {profile?.birth_year != null && (
             <p className="truncate text-xs text-fg-muted">
-              sinh {profile.birth_year} · chiếu đến tuổi {active.end_age}
+              Sinh {profile.birth_year} · chiếu đến tuổi {active.end_age}
             </p>
           )}
         </div>
@@ -225,23 +230,70 @@ export function LifetimeView() {
         </button>
       </div>
 
-      {/* Dải chip kịch bản, cuộn ngang */}
+      {/* Dải chip kịch bản, cuộn ngang. Kịch bản CHÍNH (cái mà thông báo nhắc lệch và
+          thẻ ở trang Tài sản đọc theo) mang ngôi sao ngay trên chip — trước đây muốn
+          biết cái nào là chính phải mở trình sửa từng cái. Suy từ `pickActive` (một
+          luật với engine/bộ luật thông báo), không đọc thẳng cờ `is_primary` — cùng
+          lý do đã ghi ở `isEffectivePrimary` trong ScenarioEditorSheet. */}
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {scenarios.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => setActiveId(s.id)}
-            className={`min-h-11 shrink-0 whitespace-nowrap rounded-full px-4 text-sm font-medium active:scale-95 ${
-              s.id === activeId
-                ? 'bg-green-700 text-white'
-                : 'border border-border-strong text-fg-secondary'
-            }`}
-          >
-            {s.name}
-          </button>
-        ))}
+        {scenarios.map((s) => {
+          const isPrimary = pickActive(scenarios)?.id === s.id
+          return (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setActiveId(s.id)}
+              className={`inline-flex min-h-11 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-4 text-sm font-medium active:scale-95 ${
+                s.id === activeId
+                  ? 'bg-green-700 text-white'
+                  : 'border border-border-strong text-fg-secondary'
+              }`}
+            >
+              {isPrimary && <Star className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+              {s.name}
+              {isPrimary && <span className="sr-only">(kịch bản chính)</span>}
+            </button>
+          )
+        })}
       </div>
+
+      {/* Dòng giả định — nói rõ bản chiếu dựa trên số nào ngay trên màn, không bắt
+          người xem mở trình sửa mới biết. Chỉ tóm CHẶNG HIỆN TẠI (xem `currentPhase`);
+          chi tiết từng chặng/sự kiện vẫn thuộc trình sửa. Tiền hiện theo ĐƠN VỊ CỦA
+          CHẶNG (phase.currency), không phải display_currency — đó là số người dùng đã
+          khai, chưa nhân tỷ giá. `disabled` khi thiếu profile cùng lý do nút bút chì.
+          Nút nằm TRONG <Card> (không tự ghép rounded-xl bg-surface — designSystem.test
+          canh idiom đó), nên nút tự lo padding/bo góc của chính nó. */}
+      <Card padding="none">
+        <button
+          type="button"
+          onClick={() => setEditorOpen(true)}
+          disabled={!profile}
+          className="flex min-h-11 w-full items-center rounded-xl px-3 py-2 text-left text-xs text-fg-muted active:scale-95 disabled:active:scale-100"
+        >
+          <span>
+            {currentPhase ? (
+              <>
+                Giả định: thu{' '}
+                <Money
+                  amount={currentPhase.annualIncomeMinor}
+                  currency={currentPhase.currency}
+                  className="text-xs font-medium"
+                />{' '}
+                · chi{' '}
+                <Money
+                  amount={currentPhase.annualExpenseMinor}
+                  currency={currentPhase.currency}
+                  className="text-xs font-medium"
+                />{' '}
+                mỗi năm · lợi suất {active.real_return_bps / 100}%/năm — bấm để chỉnh
+              </>
+            ) : (
+              <>Kịch bản chưa có chặng thu chi nào nên chưa chiếu được — bấm để thêm</>
+            )}
+          </span>
+        </button>
+      </Card>
 
       {/* Banner cảnh báo tỷ giá bằng 1 — BẮT BUỘC, không có nút tắt (xem task-7-brief.md).
           Đặt NGAY TRÊN đồ thị: phải đọc được trước khi đọc số. Trên mobile chỉ hiện SỐ
@@ -287,12 +339,11 @@ export function LifetimeView() {
         >
           Bảng theo năm
         </button>
+        {/* KHÔNG disabled khi mới có 1 kịch bản: lý do nằm trong `title` thì chạm trên
+            mobile không đọc được (cùng quy tắc đã ghi ở nút bút chì) — người dùng chỉ
+            thấy một nút mờ không rõ vì sao. Để bấm được, và ô mở ra nói rõ cần gì. */}
         <button
           type="button"
-          disabled={otherScenarios.length === 0}
-          title={
-            otherScenarios.length === 0 ? 'Cần ít nhất 2 kịch bản mới so sánh được' : undefined
-          }
           onClick={() => {
             if (effectiveCompareId) {
               setCompareId(null)
@@ -301,10 +352,8 @@ export function LifetimeView() {
               setComparePickerOpen((o) => !o)
             }
           }}
-          className={`min-h-11 flex-1 rounded-xl px-3 text-sm font-medium shadow-sm active:scale-95 disabled:opacity-60 ${
-            effectiveCompareId
-              ? 'bg-green-700 text-white'
-              : 'bg-surface text-fg-secondary disabled:text-gray-400 dark:disabled:text-gray-600'
+          className={`min-h-11 flex-1 rounded-xl px-3 text-sm font-medium shadow-sm active:scale-95 ${
+            effectiveCompareId ? 'bg-green-700 text-white' : 'bg-surface text-fg-secondary'
           }`}
         >
           {effectiveCompareId ? 'Đang so sánh · Bấm để tắt' : 'So sánh'}
@@ -313,22 +362,31 @@ export function LifetimeView() {
 
       {comparePickerOpen && !effectiveCompareId && (
         <div className="rounded-xl bg-surface p-2.5 shadow-sm">
-          <p className="mb-2 text-xs text-fg-muted">Chọn kịch bản để so sánh:</p>
-          <div className="flex flex-wrap gap-2">
-            {otherScenarios.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => {
-                  setCompareId(s.id)
-                  setComparePickerOpen(false)
-                }}
-                className="min-h-11 shrink-0 whitespace-nowrap rounded-full border border-border-strong px-4 text-sm font-medium text-fg-secondary active:scale-95"
-              >
-                {s.name}
-              </button>
-            ))}
-          </div>
+          {otherScenarios.length === 0 ? (
+            <p className="text-xs text-fg-secondary">
+              Cần ít nhất 2 kịch bản mới so sánh được. Bấm nút bút chì phía trên, chọn "Nhân
+              bản" để tạo kịch bản thứ hai, chỉnh vài con số rồi quay lại đây.
+            </p>
+          ) : (
+            <>
+              <p className="mb-2 text-xs text-fg-muted">Chọn kịch bản để so sánh:</p>
+              <div className="flex flex-wrap gap-2">
+                {otherScenarios.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      setCompareId(s.id)
+                      setComparePickerOpen(false)
+                    }}
+                    className="min-h-11 shrink-0 whitespace-nowrap rounded-full border border-border-strong px-4 text-sm font-medium text-fg-secondary active:scale-95"
+                  >
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -399,7 +457,7 @@ function BirthYearCard() {
   return (
     <div className="rounded-xl bg-surface p-3 shadow-sm">
       <p className="text-sm text-fg-secondary">
-        Lifetime chiếu tài sản ròng của bạn theo từng năm tới hết đời, nên cần năm sinh để đổi
+        Tab này chiếu tài sản ròng của bạn theo từng năm tới hết đời, nên cần năm sinh để đổi
         qua lại giữa "năm" và "tuổi" ở mỗi mốc trên đồ thị (nghỉ hưu, tự do tài chính…). Thiếu
         năm sinh thì không tính được tuổi, nên chưa chiếu được gì.
       </p>

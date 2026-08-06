@@ -39,7 +39,14 @@ export function formatCompact(minor: number, currency: CurrencyCode): string {
   if (isPrivacyEnabled()) return '•••'
   const major = minor / 10 ** CURRENCIES[currency].decimals
   const abs = Math.abs(major)
-  if (abs >= 1_000_000) return `${(major / 1_000_000).toFixed(1)}M`
+  // Bỏ đuôi ".0" khi số chẵn: trục tung ghi "300M" chứ không "300.0M" — phần lẻ
+  // bằng 0 là nhiễu, nhất là khi 5-6 nhãn trục xếp dọc cùng lúc.
+  //
+  // Có bậc B (tỷ): bản chiếu Lifetime theo VND chạm hàng trăm tỷ, thiếu bậc này thì
+  // trục tung ghi "110000M" — về mặt kỹ thuật đúng, về mặt đọc là một chuỗi phải
+  // ngồi đếm chữ số.
+  if (abs >= 1_000_000_000) return `${(major / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`
+  if (abs >= 1_000_000) return `${(major / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
   if (abs >= 1_000) return `${Math.round(major / 1_000)}k`
   return String(Math.round(major))
 }

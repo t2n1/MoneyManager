@@ -869,8 +869,10 @@ export function ScenarioEditorSheet({
             )}
             {realReturnValid && <div className="mb-2" />}
 
+            {/* KHÔNG viết "nửa dải" — đó là từ của người viết engine. Nói bằng điều
+                người dùng thấy trên đồ thị: hai nhánh bi quan/lạc quan lệch bao nhiêu. */}
             <label htmlFor={`${uid}-band`} className={label_}>
-              Độ rộng dải dao động (%, nửa dải)
+              Dải dao động: lợi suất lệch ± bao nhiêu %/năm (vẽ nhánh bi quan/lạc quan)
             </label>
             <input
               id={`${uid}-band`}
@@ -886,15 +888,20 @@ export function ScenarioEditorSheet({
             )}
             {bandSpreadValid && <div className="mb-2" />}
 
-            <label className="mb-3 flex min-h-11 items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            {/* KHÔNG viết "giá danh nghĩa" trần — từ chuyên ngành. Nói bằng hệ quả người
+                dùng thấy: số tương lai có cộng lạm phát hay quy hết về giá hôm nay. */}
+            <label className="mb-1 flex min-h-11 items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
               <input
                 type="checkbox"
                 checked={nominalTerms}
                 onChange={(e) => setNominalTerms(e.target.checked)}
                 className="h-4 w-4"
               />
-              Tính theo giá danh nghĩa (mặc định: giá hôm nay)
+              Hiện số tiền tương lai đã cộng lạm phát (mặc định: quy hết về giá hôm nay)
             </label>
+            <p className="mb-3 text-xs text-fg-muted">
+              Tỷ lệ lạm phát lấy từ Cài đặt → Hồ sơ.
+            </p>
 
             {resetNotice && (resetNotice.phaseLabels.length > 0 || resetNotice.eventLabels.length > 0) && (
               <div className="mb-3 rounded-lg bg-amber-50 dark:bg-amber-900/40 p-2.5 text-xs text-amber-700 dark:text-amber-300">
@@ -1114,6 +1121,16 @@ export function ScenarioEditorSheet({
                   </span>
                   /năm lấy từ {baseline.monthsCovered} tháng gần nhất của chặng "{currentPhase.label}".
                 </p>
+                {/* Dưới 3 tháng thì con số quy năm còn dao động mạnh (một tháng lệch là
+                    cả năm lệch theo ×12) — bản chiếu 60 năm dựng trên nó phải nói rõ độ
+                    tin, không được để người dùng coi như số đã ổn định. */}
+                {baseline.monthsCovered < 3 && (
+                  <p className="flex items-start gap-1 text-xs text-fg-warn">
+                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    Mới có {baseline.monthsCovered} tháng ghi chép nên số nền này còn dễ lệch mạnh
+                    — bản chiếu sẽ chính xác dần khi bạn ghi thêm.
+                  </p>
+                )}
                 {positiveCats.length > 0 && (
                   <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-surface-sunken">
                     {positiveCats.map((c, i) => (

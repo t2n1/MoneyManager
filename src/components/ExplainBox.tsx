@@ -18,7 +18,7 @@ export function ExplainBox({ label = 'Cách tính & nên làm gì', children }: 
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="mt-2 inline-flex min-h-9 items-center gap-1 rounded-md text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+        className="mt-2 inline-flex min-h-11 items-center gap-1 rounded-md text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
       >
         {label}
         <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />

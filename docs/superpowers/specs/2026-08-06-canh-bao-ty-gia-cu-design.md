@@ -121,7 +121,10 @@ vì cùng chủ đề tiền tệ. Dùng `useRates()` để lấy `base` + `rate
 
 - Một dòng cho mỗi loại tiền trong `rates` khác `base` (tối đa 2 — app chỉ có
   JPY/VND/USD).
-- Dòng cuối xám: `Cập nhật hôm nay` / `Cập nhật hôm qua` / `Cập nhật N ngày trước`.
+- Dòng cuối xám, theo `rateAgeDays`: `0` → `Cập nhật hôm nay`, `1` → `Cập nhật
+  hôm qua`, `≥2` → `Cập nhật N ngày trước`.
+- `readRatesMeta` trả `null`, hoặc trả về nhưng thiếu `sourceUpdatedAt` (cache
+  ghi trước bản này) → **bỏ hẳn dòng cuối**, chỉ hiện các dòng tỷ giá.
 
 ### Khi cũ quá 3 ngày
 

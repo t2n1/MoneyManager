@@ -201,7 +201,10 @@ export function SettingsPage() {
           <div className="flex items-start gap-3">
             <ArrowLeftRight className="mt-0.5 h-5 w-5 shrink-0 text-fg-muted" />
             <div className="flex-1">
-              <p className="text-sm text-fg-primary">Tỷ giá quy đổi</p>
+              {/* h2 để có tên landmark cho <Card as="section">, đồng bộ với khối "Quản
+                  lý" — nhưng KHÔNG copy class px-3 pt-3 của khối đó: Card đã có p-3
+                  sẵn, copy vào sẽ đúp lề. */}
+              <h2 className="text-sm font-semibold text-fg-muted">Tỷ giá quy đổi</h2>
               {rateLines.map((line) => (
                 // CỐ Ý không có tabular-nums: khối này chỉ 1-2 dòng ngắn, không phải
                 // cột số cần thẳng hàng, mà ngưỡng `tabular-nums` ở
@@ -228,10 +231,15 @@ export function SettingsPage() {
                   </p>
                   <button
                     type="button"
+                    disabled={ratesFetching > 0}
                     onClick={() => qc.invalidateQueries({ queryKey: ['rates'] })}
-                    className="mt-2 rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/40"
+                    className="mt-2 rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/40"
                   >
-                    Thử lấy lại
+                    {/* Offline, bấm nút này refetch rồi lại rơi vào catch của fetchRates
+                        (trả nguyên cache cũ) — màn hình không đổi gì cả nên nút coi như
+                        hỏng. Khoá nút + đổi chữ lúc đang lấy để người dùng biết đã bấm
+                        trúng, dù kết quả cuối có thể vẫn là cache cũ. */}
+                    {ratesFetching > 0 ? 'Đang lấy…' : 'Thử lấy lại'}
                   </button>
                 </div>
               )}

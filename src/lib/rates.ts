@@ -64,9 +64,19 @@ export function readRatesMeta(base: CurrencyCode): RatesCache | null {
     const raw = localStorage.getItem(CACHE_KEY(base))
     if (raw === null) return null
     const parsed = JSON.parse(raw) as Partial<RatesCache>
+    // `typeof [] === 'object'` và không null, nên chỉ check vậy vẫn lọt mảng hoặc
+    // object có khoá lạ (VD "0" từ mảng, hay "EUR" khi CURRENCIES không có).
+    // Object.entries(rates) ở SettingsPage sẽ tra CURRENCIES[code] ra undefined
+    // rồi crash trắng trang — nên chỉ giữ khoá thật là mã tiền, giá trị là số.
     if (typeof parsed?.rates !== 'object' || parsed.rates === null) return null
+    const rawRates = parsed.rates as Record<string, unknown>
+    const rates: Rates = {}
+    for (const code of Object.keys(CURRENCIES) as CurrencyCode[]) {
+      const value = rawRates[code]
+      if (typeof value === 'number') rates[code] = value
+    }
     return {
-      rates: parsed.rates,
+      rates,
       fetchedAt: typeof parsed.fetchedAt === 'number' ? parsed.fetchedAt : 0,
       ...(typeof parsed.sourceUpdatedAt === 'number'
         ? { sourceUpdatedAt: parsed.sourceUpdatedAt }

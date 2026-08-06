@@ -116,6 +116,21 @@ describe('readRatesMeta', () => {
     expect(meta?.sourceUpdatedAt).toBe(222)
   })
 
+  it('rates là mảng (JSON hỏng dạng khác) → {} chứ không crash', () => {
+    localStorage.setItem('sct-rates-JPY', JSON.stringify({ rates: [1, 2, 3], fetchedAt: 1 }))
+    const meta = readRatesMeta('JPY')
+    expect(meta?.rates).toEqual({})
+  })
+
+  it('khoá lạ không phải mã tiền → bị loại, khoá hợp lệ vẫn giữ', () => {
+    localStorage.setItem(
+      'sct-rates-JPY',
+      JSON.stringify({ rates: { EUR: 0.006, VND: 165 }, fetchedAt: 1 }),
+    )
+    const meta = readRatesMeta('JPY')
+    expect(meta?.rates).toEqual({ VND: 165 })
+  })
+
   it('mỗi base có khoá riêng', () => {
     localStorage.setItem(
       'sct-rates-VND',

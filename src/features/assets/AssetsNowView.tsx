@@ -16,7 +16,8 @@ import {
   useNetWorthSnapshots,
   useReorderAccounts,
 } from '../../hooks/queries'
-import { CURRENCIES, formatMoney } from '../../lib/money'
+import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
+import { convertFromBase } from '../../lib/rates'
 import { UNGROUPED_LABEL, type AssetAccount } from './aggregate'
 import { CardsSection } from './CardsSection'
 import { useAssetsData } from './useAssetsData'
@@ -59,6 +60,23 @@ export function AssetsNowView() {
 
   // Chế độ xem cơ cấu: mục đích (asset_group) · loại tài khoản · đồng tiền
   const [groupMode, setGroupMode] = useState<GroupMode>('purpose')
+
+  // Xem thử hai con số lớn (Tổng tài sản · Tài sản ròng) bằng đồng tiền khác — chỉ để
+  // ước chừng theo tỷ giá cache, nên không lưu: mở lại trang là về tiền gốc.
+  // null = theo tiền gốc (không giữ mã cứng, vì base tải async từ profile).
+  const [viewCur, setViewCur] = useState<CurrencyCode | null>(null)
+  const displayCur = viewCur ?? base
+  const isConverted = displayCur !== base
+  // Đồng tiền bấm được: tiền gốc luôn được; tiền khác cần tỷ giá dùng được.
+  const canView = (c: CurrencyCode) => {
+    if (c === base) return true
+    const r = rates?.[c]
+    return r != null && Number.isFinite(r) && r > 0
+  }
+  // Một số tiền tính theo base → đồng tiền đang xem. Nút đã chặn khi thiếu tỷ giá
+  // nên nhánh null gần như không xảy ra; phòng hờ thì giữ nguyên số gốc.
+  const inView = (minor: number) =>
+    isConverted ? (convertFromBase(minor, base, displayCur, rates ?? {}) ?? minor) : minor
 
   // Xu hướng tài sản ròng cho đường tí hon cạnh con số lớn. Lấy 12 mốc gần nhất — ảnh
   // chụp ghi mỗi lần mở app nên số mốc KHÔNG bằng số tháng; vì vậy nhãn ghi "12 mốc",
@@ -244,7 +262,8 @@ export function AssetsNowView() {
   const colorOf = (name: string) =>
     pieData.find((d) => d.name === name)?.color ?? '#cbd5e1'
 
-  const approx = breakdown.hasForeign ? '≈ ' : ''
+  // Đang xem thử bằng tiền khác thì mọi con số đều là ước chừng → luôn có ≈
+  const approx = breakdown.hasForeign || isConverted ? '≈ ' : ''
   // Đếm tài khoản / nhóm ở khối Tổng tài sản luôn theo mục đích (mô tả toàn cảnh, không đổi theo chart)
   const accountCount = purposeGroups.reduce((n, g) => n + g.accounts.length, 0)
   // Đầu tư: có snapshot giá trị thị trường nào không → hiện dòng lãi/lỗ chưa thực hiện
@@ -258,7 +277,9 @@ export function AssetsNowView() {
   const cardOwed = -breakdown.cardDebt // số dương = đang nợ thẻ (quy đổi base)
   const showNetWorth = debtsSummary.hasOpen || visibleCards.length > 0
   const netApprox =
-    breakdown.hasForeign || debtsSummary.hasMissingRate || breakdown.cardHasMissingRate ? '≈ ' : ''
+    breakdown.hasForeign || debtsSummary.hasMissingRate || breakdown.cardHasMissingRate || isConverted
+      ? '≈ '
+      : ''
 
   return (
     <div
@@ -275,11 +296,40 @@ export function AssetsNowView() {
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-3">
         {/* Tổng tài sản */}
         <section className="rounded-2xl bg-gradient-to-br from-green-700 to-emerald-800 p-5 text-white shadow-md">
-          <p className="text-sm font-medium text-green-50/90">
-            Tổng tài sản · {CURRENCIES[base].label}
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-medium text-green-50/90">
+              Tổng tài sản · {CURRENCIES[displayCur].label}
+            </p>
+            {/* Xem thử bằng tiền khác — đổi cả Tổng tài sản lẫn Tài sản ròng bên cạnh.
+                Không phải đổi base thật: chỉ ước chừng theo tỷ giá cache, có ≈ đi kèm. */}
+            <div
+              role="group"
+              aria-label="Xem thử bằng tiền khác"
+              className="flex shrink-0 rounded-lg bg-black/20 p-0.5"
+            >
+              {(Object.keys(CURRENCIES) as CurrencyCode[]).map((c) => {
+                const active = displayCur === c
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    aria-pressed={active}
+                    disabled={!canView(c)}
+                    onClick={() => setViewCur(c === base ? null : c)}
+                    className={`min-h-8 min-w-9 rounded-md px-2 text-xs font-semibold transition disabled:opacity-40 ${
+                      active
+                        ? 'bg-white text-green-800 shadow-sm'
+                        : 'text-green-50/90 hover:text-white'
+                    }`}
+                  >
+                    {CURRENCIES[c].symbol}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
           <p className="mt-1.5 text-[2rem] font-bold leading-none tracking-tight tabular-nums">
-            {isLoading ? '…' : `${approx}${formatMoney(breakdown.total, base)}`}
+            {isLoading ? '…' : `${approx}${formatMoney(inView(breakdown.total), displayCur)}`}
           </p>
           {!isLoading && (
             <p className="mt-2.5 text-xs text-green-50/80">
@@ -291,8 +341,8 @@ export function AssetsNowView() {
               Lãi/lỗ đầu tư (chưa thực hiện):{' '}
               <span className="font-semibold tabular-nums text-white">
                 {pnl >= 0 ? '+' : '−'}
-                {breakdown.pnlHasMissingRate ? '≈ ' : ''}
-                {formatMoney(Math.abs(pnl), base)}
+                {breakdown.pnlHasMissingRate || isConverted ? '≈ ' : ''}
+                {formatMoney(Math.abs(inView(pnl)), displayCur)}
               </span>
             </p>
           )}
@@ -318,7 +368,7 @@ export function AssetsNowView() {
             <div className="mt-1 flex items-end justify-between gap-3">
               <p className="text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
                 {netApprox}
-                {formatMoney(netWorth, base)}
+                {formatMoney(inView(netWorth), displayCur)}
               </p>
               {trend && (
                 <div className="flex shrink-0 flex-col items-end gap-0.5">
@@ -335,24 +385,28 @@ export function AssetsNowView() {
             <div className="mt-3 space-y-1.5 text-sm">
               <div className="flex items-center justify-between text-fg-muted">
                 <span>Tổng tài sản</span>
-                <span className="tabular-nums">{formatMoney(breakdown.total, base)}</span>
+                <span className="tabular-nums">{formatMoney(inView(breakdown.total), displayCur)}</span>
               </div>
               {debtsSummary.owedToMe > 0 && (
                 <div className="flex items-center justify-between text-money-in">
                   <span>+ Cho vay còn lại</span>
-                  <span className="tabular-nums">{formatMoney(debtsSummary.owedToMe, base)}</span>
+                  <span className="tabular-nums">
+                    {formatMoney(inView(debtsSummary.owedToMe), displayCur)}
+                  </span>
                 </div>
               )}
               {debtsSummary.iOwe > 0 && (
                 <div className="flex items-center justify-between text-money-out">
                   <span>− Nợ phải trả</span>
-                  <span className="tabular-nums">{formatMoney(debtsSummary.iOwe, base)}</span>
+                  <span className="tabular-nums">
+                    {formatMoney(inView(debtsSummary.iOwe), displayCur)}
+                  </span>
                 </div>
               )}
               {cardOwed > 0 && (
                 <div className="flex items-center justify-between text-money-out">
                   <span>− Nợ thẻ tín dụng</span>
-                  <span className="tabular-nums">{formatMoney(cardOwed, base)}</span>
+                  <span className="tabular-nums">{formatMoney(inView(cardOwed), displayCur)}</span>
                 </div>
               )}
             </div>
@@ -566,7 +620,7 @@ export function AssetsNowView() {
         )
       })}
 
-      {breakdown.hasForeign && rates && (
+      {(breakdown.hasForeign || isConverted) && rates && (
         <p className="text-center text-xs text-fg-muted">
           Tỷ giá: ¥1 ≈ {rates.VND?.toFixed(2)} ₫ · $1 ≈ ¥
           {rates.USD ? (1 / rates.USD).toFixed(1) : '?'} (open.er-api.com, cache 12h)

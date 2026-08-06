@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  convertFromBase,
   convertToBase,
   formatRateLine,
   rateAgeDays,
@@ -33,6 +34,41 @@ describe('convertToBase (base = JPY)', () => {
 
   it('thiếu rate → null (UI fallback tách loại tiền)', () => {
     expect(convertToBase(100, 'VND', 'JPY', { JPY: 1 })).toBeNull()
+  })
+})
+
+describe('convertFromBase (base = JPY)', () => {
+  it('cùng loại tiền → giữ nguyên', () => {
+    expect(convertFromBase(1234, 'JPY', 'JPY', RATES)).toBe(1234)
+  })
+
+  it('JPY → VND (major × rate)', () => {
+    // ¥10.000 × 165 = 1.650.000 ₫
+    expect(convertFromBase(10000, 'JPY', 'VND', RATES)).toBe(1650000)
+  })
+
+  it('JPY → USD (major × rate → cent)', () => {
+    // ¥10.000 × 0.0065 = $65,00 = 6500 cents
+    expect(convertFromBase(10000, 'JPY', 'USD', RATES)).toBe(6500)
+  })
+
+  it('làm tròn về số nguyên minor units của tiền đích', () => {
+    // ¥1 × 0.0065 = $0,0065 = 0,65 cent → 1 cent
+    expect(convertFromBase(1, 'JPY', 'USD', RATES)).toBe(1)
+  })
+
+  it('số âm quy đổi giữ dấu (nợ thẻ, lãi/lỗ)', () => {
+    expect(convertFromBase(-10000, 'JPY', 'VND', RATES)).toBe(-1650000)
+  })
+
+  it('thiếu rate → null', () => {
+    expect(convertFromBase(100, 'JPY', 'VND', { JPY: 1 })).toBeNull()
+  })
+
+  it('rate rác (0, âm, NaN) → null, không ra Infinity', () => {
+    expect(convertFromBase(100, 'JPY', 'VND', { VND: 0 })).toBeNull()
+    expect(convertFromBase(100, 'JPY', 'VND', { VND: -5 })).toBeNull()
+    expect(convertFromBase(100, 'JPY', 'VND', { VND: Number.NaN })).toBeNull()
   })
 })
 

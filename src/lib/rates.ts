@@ -111,6 +111,24 @@ export function convertToBase(
 }
 
 /**
+ * Đổi minor units của `base` sang minor units của `to` — chiều ngược của
+ * convertToBase, cho nút "xem thử bằng tiền khác" trên trang Tài sản.
+ * Trả null nếu thiếu tỷ giá hoặc nguồn trả số rác — caller giữ nguyên base.
+ */
+export function convertFromBase(
+  minor: number,
+  base: CurrencyCode,
+  to: CurrencyCode,
+  rates: Rates,
+): number | null {
+  if (to === base) return minor
+  const rate = rates[to]
+  if (!rate || !Number.isFinite(rate) || rate <= 0) return null
+  const baseMajor = minor / 10 ** CURRENCIES[base].decimals
+  return Math.round(baseMajor * rate * 10 ** CURRENCIES[to].decimals)
+}
+
+/**
  * major units → chuỗi có ký hiệu tiền. CỐ Ý không dùng formatMoney: nó che số khi
  * bật chế độ riêng tư, mà tỷ giá là số công khai của thị trường chứ không phải
  * tiền của người dùng — và rates.ts cũng bị cấm nhập money.ts (purity.test.ts).

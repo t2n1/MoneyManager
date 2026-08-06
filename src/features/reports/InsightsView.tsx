@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Card } from '../../components/ui'
 import { VerdictNote } from '../../components/VerdictNote'
 import {
   useAccounts,
@@ -312,7 +313,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
       {/* Nhịp chi tiêu: tuần này vs tuần trước, sau ngày lương & theo thứ */}
       <Section id="ins-nhip">
         {pace && (
-          <div className="mb-2 rounded-xl bg-surface p-3 shadow-sm">
+          <Card as="section" className="mb-2">
             <h2 className="mb-2 text-sm font-semibold text-fg-muted">Tuần này so với tuần trước</h2>
             <VerdictNote tone={pace.tone}>
               Ngày {pace.dayOfWeek}/7 — đã chi <b>{formatMoney(pace.spent, base)}</b>
@@ -337,7 +338,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
                 đang dở mà đem so với tuần đủ thì lúc nào cũng ra “đang tiêu ít hơn”.
               </p>
             )}
-          </div>
+          </Card>
         )}
         <SpendRhythmCard
           payday={rhythm.payday}

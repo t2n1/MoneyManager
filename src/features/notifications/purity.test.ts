@@ -160,8 +160,8 @@ const BROWSER_BANNED = [
 const WHOLE_FILE_EXEMPT = new Map<string, string>([
   [
     'lib/rates.ts',
-    'localStorage/Date.now() chỉ nằm trong thân fetchRates(); bộ luật chỉ gọi ' +
-      'convertToBase nên nhập module này không chạy dòng nào chạm trình duyệt.',
+    'localStorage/Date.now() chỉ nằm trong thân fetchRates() và readRatesMeta(); ' +
+      'bộ luật chỉ gọi convertToBase nên nhập module này không chạy dòng nào chạm trình duyệt.',
   ],
 ])
 

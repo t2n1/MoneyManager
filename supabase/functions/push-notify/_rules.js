@@ -113,10 +113,98 @@ function convertToBase(minor, from, base, rates) {
   return Math.round(baseMajor * 10 ** CURRENCIES[base].decimals);
 }
 
-// src/lib/dates.ts
+// src/lib/jpHolidays.ts
+function addDaysISO(isoDate, delta) {
+  const d = /* @__PURE__ */ new Date(isoDate + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
 var pad = (n) => String(n).padStart(2, "0");
+var iso = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
+var dow = (isoDate) => (/* @__PURE__ */ new Date(isoDate + "T00:00:00Z")).getUTCDay();
+function nthMonday(year, month, nth) {
+  const firstDow = dow(iso(year, month, 1));
+  const first = 1 + (8 - firstDow) % 7;
+  return first + (nth - 1) * 7;
+}
+function equinoxDay(year, base) {
+  return Math.floor(base + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
+}
+function baseHolidays(year) {
+  return [
+    iso(year, 1, 1),
+    // 元日
+    iso(year, 1, nthMonday(year, 1, 2)),
+    // 成人の日
+    iso(year, 2, 11),
+    // 建国記念の日
+    iso(year, 2, 23),
+    // 天皇誕生日
+    iso(year, 3, equinoxDay(year, 20.8431)),
+    // 春分の日
+    iso(year, 4, 29),
+    // 昭和の日
+    iso(year, 5, 3),
+    // 憲法記念日
+    iso(year, 5, 4),
+    // みどりの日
+    iso(year, 5, 5),
+    // こどもの日
+    iso(year, 7, nthMonday(year, 7, 3)),
+    // 海の日
+    iso(year, 8, 11),
+    // 山の日
+    iso(year, 9, nthMonday(year, 9, 3)),
+    // 敬老の日
+    iso(year, 9, equinoxDay(year, 23.2488)),
+    // 秋分の日
+    iso(year, 10, nthMonday(year, 10, 2)),
+    // スポーツの日
+    iso(year, 11, 3),
+    // 文化の日
+    iso(year, 11, 23)
+    // 勤労感謝の日
+  ];
+}
+var cache = /* @__PURE__ */ new Map();
+function holidaysOf(year) {
+  const cached = cache.get(year);
+  if (cached) return cached;
+  const set = new Set(baseHolidays(year));
+  for (const day of [...set].sort()) {
+    if (dow(day) !== 0) continue;
+    let d = addDaysISO(day, 1);
+    while (set.has(d)) d = addDaysISO(d, 1);
+    set.add(d);
+  }
+  for (const day of [...set]) {
+    const gap = addDaysISO(day, 1);
+    if (set.has(gap) || dow(gap) === 0) continue;
+    if (set.has(addDaysISO(gap, 1))) set.add(gap);
+  }
+  cache.set(year, set);
+  return set;
+}
+function isJapaneseHoliday(isoDate) {
+  return holidaysOf(Number(isoDate.slice(0, 4))).has(isoDate);
+}
+function isBankClosed(isoDate) {
+  const d = dow(isoDate);
+  if (d === 0 || d === 6) return true;
+  const md = isoDate.slice(5);
+  if (md === "12-31" || md === "01-02" || md === "01-03") return true;
+  return isJapaneseHoliday(isoDate);
+}
+function shiftToBusinessDay(isoDate) {
+  let d = isoDate;
+  for (let i = 0; i < 10 && isBankClosed(d); i++) d = addDaysISO(d, 1);
+  return d;
+}
+
+// src/lib/dates.ts
+var pad2 = (n) => String(n).padStart(2, "0");
 function toISODate(d) {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 function getMonthRange(key, monthStartDay = 1) {
   const start = new Date(key.year, key.month - 1, monthStartDay);
@@ -133,34 +221,28 @@ function addMonths(key, delta) {
   return { year: d.getFullYear(), month: d.getMonth() + 1 };
 }
 function monthKeyString(key) {
-  return `${key.year}-${pad(key.month)}`;
+  return `${key.year}-${pad2(key.month)}`;
 }
 function daysBetween(aISO, bISO) {
   const a = Date.parse(aISO + "T00:00:00Z");
   const b = Date.parse(bISO + "T00:00:00Z");
   return Math.round((b - a) / 864e5);
 }
-function addDaysISO(iso, delta) {
-  const d = /* @__PURE__ */ new Date(iso + "T00:00:00Z");
+function addDaysISO2(iso2, delta) {
+  const d = /* @__PURE__ */ new Date(iso2 + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() + delta);
   return d.toISOString().slice(0, 10);
-}
-function shiftWeekendToMonday(iso) {
-  const dow = (/* @__PURE__ */ new Date(iso + "T00:00:00Z")).getUTCDay();
-  if (dow === 6) return addDaysISO(iso, 2);
-  if (dow === 0) return addDaysISO(iso, 1);
-  return iso;
 }
 function nextCardDueDate(dueDay, todayISO) {
   const [ty, tm] = todayISO.split("-").map(Number);
   for (let i = 0; i < 14; i++) {
     const k = addMonths({ year: ty, month: tm }, i);
     const dim = new Date(k.year, k.month, 0).getDate();
-    const base = `${k.year}-${pad(k.month)}-${pad(Math.min(dueDay, dim))}`;
-    const due = shiftWeekendToMonday(base);
+    const base = `${k.year}-${pad2(k.month)}-${pad2(Math.min(dueDay, dim))}`;
+    const due = shiftToBusinessDay(base);
     if (due >= todayISO) return due;
   }
-  return shiftWeekendToMonday(`${ty}-${pad(tm)}-${pad(dueDay)}`);
+  return shiftToBusinessDay(`${ty}-${pad2(tm)}-${pad2(dueDay)}`);
 }
 
 // src/features/assets/depreciation.ts
@@ -216,19 +298,19 @@ function cardFunding(cards, sourceById, owedById) {
 }
 
 // src/lib/recurring.ts
-var pad2 = (n) => String(n).padStart(2, "0");
+var pad3 = (n) => String(n).padStart(2, "0");
 var daysInMonth = (year, month) => new Date(year, month, 0).getDate();
 function nthDueDate(startISO, frequency, n) {
   const [y, m, d] = startISO.split("-").map(Number);
-  if (frequency === "weekly") return addDaysISO(startISO, 7 * n);
+  if (frequency === "weekly") return addDaysISO2(startISO, 7 * n);
   if (frequency === "monthly") {
     const total = m - 1 + n;
     const year2 = y + Math.floor(total / 12);
     const month = total % 12 + 1;
-    return `${year2}-${pad2(month)}-${pad2(Math.min(d, daysInMonth(year2, month)))}`;
+    return `${year2}-${pad3(month)}-${pad3(Math.min(d, daysInMonth(year2, month)))}`;
   }
   const year = y + n;
-  return `${year}-${pad2(m)}-${pad2(Math.min(d, daysInMonth(year, m)))}`;
+  return `${year}-${pad3(m)}-${pad3(Math.min(d, daysInMonth(year, m)))}`;
 }
 
 // src/features/notifications/rules/accountRules.ts
@@ -307,7 +389,7 @@ function accountRules(input) {
       to: `/assets/account/${a.id}`
     });
   }
-  const untilISO = addDaysISO(input.todayISO, SHORTFALL_HORIZON_DAYS);
+  const untilISO = addDaysISO2(input.todayISO, SHORTFALL_HORIZON_DAYS);
   const cards = input.accounts.filter((a) => a.type === "card" && !a.is_archived && a.payment_due_day != null).filter((a) => nextCardDueDate(a.payment_due_day, input.todayISO) <= untilISO).map((a) => ({
     id: a.id,
     name: a.name,
@@ -486,7 +568,7 @@ function budgetRules(input) {
 }
 
 // src/features/notifications/rules/cardRules.ts
-var pad3 = (n) => String(n).padStart(2, "0");
+var pad4 = (n) => String(n).padStart(2, "0");
 var daysInMonth2 = (year, month) => new Date(year, month, 0).getDate();
 function cardRules(input) {
   const [y, m, d] = input.todayISO.split("-").map(Number);
@@ -498,7 +580,7 @@ function cardRules(input) {
     const closeDay = Math.min(a.statement_day, lastDay);
     if (d !== closeDay) continue;
     out.push({
-      key: `card-statement-day:${a.id}:${y}-${pad3(m)}`,
+      key: `card-statement-day:${a.id}:${y}-${pad4(m)}`,
       kind: "info",
       type: "card-statement-day",
       severity: "low",
@@ -587,8 +669,8 @@ var expenseSign = (t) => t.is_refund ? -1 : 1;
 var STALE_DAYS = 3;
 var MILESTONES = [25, 50, 75, 100];
 var RECORD_MIN_SNAPSHOTS = 3;
-function isoWeekKey(iso) {
-  const d = /* @__PURE__ */ new Date(iso + "T00:00:00Z");
+function isoWeekKey(iso2) {
+  const d = /* @__PURE__ */ new Date(iso2 + "T00:00:00Z");
   const day = (d.getUTCDay() + 6) % 7;
   d.setUTCDate(d.getUTCDate() - day + 3);
   const isoYear = d.getUTCFullYear();
@@ -923,19 +1005,19 @@ function missingRateCurrencies(accountCurrencies, base, rates) {
 function earliestNeededDate(todayISO, monthStartDay, recentDays) {
   const thisMonth = monthKeyForDate(todayISO, monthStartDay);
   const prevMonthStart = getMonthRange(
-    monthKeyForDate(addDaysISO(getMonthRange(thisMonth, monthStartDay).start, -1), monthStartDay),
+    monthKeyForDate(addDaysISO2(getMonthRange(thisMonth, monthStartDay).start, -1), monthStartDay),
     monthStartDay
   ).start;
-  const recentStart = addDaysISO(todayISO, -recentDays);
+  const recentStart = addDaysISO2(todayISO, -recentDays);
   return prevMonthStart < recentStart ? prevMonthStart : recentStart;
 }
 function splitTxWindows(txs, todayISO, monthStartDay, recentDays) {
   const thisMonth = monthKeyForDate(todayISO, monthStartDay);
   const prevMonth = monthKeyForDate(
-    addDaysISO(getMonthRange(thisMonth, monthStartDay).start, -1),
+    addDaysISO2(getMonthRange(thisMonth, monthStartDay).start, -1),
     monthStartDay
   );
-  const recentStart = addDaysISO(todayISO, -recentDays);
+  const recentStart = addDaysISO2(todayISO, -recentDays);
   const monthTxs = [];
   const prevMonthTxs = [];
   const recentTxs = [];
@@ -1164,7 +1246,7 @@ export {
   PUSH_LIST_ROUTE,
   PUSH_TAG,
   RECENT_TXS_DAYS,
-  addDaysISO,
+  addDaysISO2 as addDaysISO,
   addMonths,
   buildBudgetReport,
   buildLifetimeInput,

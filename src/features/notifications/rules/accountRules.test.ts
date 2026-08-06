@@ -204,17 +204,19 @@ describe('account-shortfall', () => {
   const lowSrc = account({ id: 'srcB', name: 'Nguồn biên', balance: 10_000 })
 
   it('thẻ đến hạn đúng ngày thứ 14 thì được tính (biên trên, dùng dấu <=)', () => {
-    // payment_due_day=11: ngày 11/07 đã qua nên nhảy sang tháng sau → 2026-08-11,
-    // rơi vào Thứ Ba nên không bị dời cuối tuần → đúng bằng untilISO.
+    // Mốc riêng cho ca này: today 2026-07-27 + 14 = 2026-08-10 (Thứ 2, không lễ).
+    // payment_due_day=10: ngày 10/07 đã qua nên nhảy sang tháng sau → đúng bằng
+    // untilISO. (Không mượn mốc 2026-08-11 của các ca khác được: đó là 山の日,
+    // ngân hàng đóng cửa nên không ngày đến hạn nào rơi đúng vào đấy.)
     const boundaryCard = account({
       id: 'cardB1',
       name: 'Thẻ đúng biên',
       type: 'card',
       balance: -20_000,
-      payment_due_day: 11,
+      payment_due_day: 10,
       payment_account_id: 'srcB',
     })
-    const out = accountRules(input({ accounts: [lowSrc, boundaryCard] }))
+    const out = accountRules(input({ todayISO: '2026-07-27', accounts: [lowSrc, boundaryCard] }))
     const hit = out.find((n) => n.type === 'account-shortfall')
     expect(hit?.key).toBe('account-shortfall:srcB')
   })

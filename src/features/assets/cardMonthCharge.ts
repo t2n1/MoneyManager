@@ -12,7 +12,8 @@
 // Thuần, không phụ thuộc React, để unit-test được.
 
 import { dayOfMonth, statementCloseFor } from '../../lib/cardAutopay'
-import { addDaysISO, addMonths, shiftWeekendToMonday, type MonthKey } from '../../lib/dates'
+import { addDaysISO, addMonths, type MonthKey } from '../../lib/dates'
+import { shiftToBusinessDay } from '../../lib/jpHolidays'
 import { txBalanceDelta, type BalanceTxLike } from '../../lib/cardBalance'
 
 export type MonthChargeTx = BalanceTxLike
@@ -84,7 +85,7 @@ export function cardBillingRange({
     start: addDaysISO(prevClose, 1),
     end: addDaysISO(closeISO, 1),
     closeISO,
-    dueISO: shiftWeekendToMonday(dueRaw),
+    dueISO: shiftToBusinessDay(dueRaw),
   }
 }
 

@@ -14,7 +14,6 @@ import {
   monthKeyString,
   nextCardDueDate,
   parseMonthKey,
-  shiftWeekendToMonday,
   toISODate,
 } from './dates'
 
@@ -173,21 +172,6 @@ describe('formatYearLabel', () => {
   })
 })
 
-describe('shiftWeekendToMonday', () => {
-  it('ngày thường giữ nguyên', () => {
-    expect(shiftWeekendToMonday('2026-07-27')).toBe('2026-07-27') // Thứ 2
-    expect(shiftWeekendToMonday('2026-02-27')).toBe('2026-02-27') // Thứ 6
-  })
-
-  it('Thứ 7 → Thứ 2 (+2 ngày)', () => {
-    expect(shiftWeekendToMonday('2026-06-27')).toBe('2026-06-29')
-  })
-
-  it('Chủ nhật → Thứ 2 (+1 ngày)', () => {
-    expect(shiftWeekendToMonday('2026-09-27')).toBe('2026-09-28')
-  })
-})
-
 describe('dueDateLabel / dueRelativeLabel', () => {
   it('gắn thứ trong tuần vào ngày đến hạn', () => {
     expect(dueDateLabel('2026-08-27')).toBe('T5, 27/8') // 27/8/2026 là Thứ 5
@@ -229,5 +213,17 @@ describe('nextCardDueDate', () => {
   it('kẹp về cuối tháng ngắn; cuối tháng rơi cuối tuần vẫn dời sang Thứ 2', () => {
     // 31 → 28/02/2026 (Thứ 7) → 02/03/2026 (Thứ 2)
     expect(nextCardDueDate(31, '2026-02-01')).toBe('2026-03-02')
+  })
+
+  it('dời qua cả ngày lễ Nhật, không chỉ cuối tuần', () => {
+    // 27/4/2030 là T7 → 29/4 nhưng đó là 昭和の日 → 30/4 (T3)
+    expect(nextCardDueDate(27, '2030-04-01')).toBe('2030-04-30')
+    // 20/9/2026 là CN → 21/9 敬老の日, 22/9 国民の休日, 23/9 秋分の日 → 24/9 (T5)
+    expect(nextCardDueDate(20, '2026-09-01')).toBe('2026-09-24')
+  })
+
+  it('dời qua kỳ nghỉ Tết dương sang năm mới', () => {
+    // 31/12/2026 ngân hàng đóng, 1–3/1/2027 cũng đóng → 4/1/2027 (T2)
+    expect(nextCardDueDate(31, '2026-12-01')).toBe('2027-01-04')
   })
 })

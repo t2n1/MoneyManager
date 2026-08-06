@@ -10,26 +10,39 @@ import {
 } from './cardAutopay'
 
 describe('dueDatesToGenerate', () => {
-  it('sinh các kỳ hằng tháng sau con trỏ đến hết hôm nay (dời cuối tuần sang T2)', () => {
-    // 10/1/2026 là Thứ 7 → dời 12/1; 10/2 và 10/3 là ngày thường → giữ nguyên
+  const pay = (r: ReturnType<typeof dueDatesToGenerate>) => r.map((d) => d.payISO)
+
+  it('sinh các kỳ hằng tháng sau con trỏ đến hết hôm nay', () => {
+    // 10/1/2026 là T7 → 12/1 nhưng đó là 成人の日 → 13/1; 10/2 và 10/3 ngày thường
     expect(dueDatesToGenerate(10, '2026-01-01', '2026-03-15')).toEqual([
-      '2026-01-12',
-      '2026-02-10',
-      '2026-03-10',
+      { periodISO: '2026-01-10', payISO: '2026-01-13' },
+      { periodISO: '2026-02-10', payISO: '2026-02-10' },
+      { periodISO: '2026-03-10', payISO: '2026-03-10' },
     ])
   })
 
-  it('loại kỳ đúng bằng con trỏ (con trỏ là ngày đã dời), dừng ở hôm nay', () => {
-    expect(dueDatesToGenerate(10, '2026-01-12', '2026-02-10')).toEqual(['2026-02-10'])
+  it('loại kỳ đúng bằng con trỏ, dừng ở hôm nay', () => {
+    expect(pay(dueDatesToGenerate(10, '2026-01-10', '2026-02-10'))).toEqual(['2026-02-10'])
+  })
+
+  it('con trỏ CŨ (ngày đã dời, lưu từ bản trước) vẫn loại đúng kỳ đó', () => {
+    // Bản cũ chỉ dời cuối tuần nên đã lưu con trỏ 12/1; kỳ tháng 1 phải bị loại,
+    // nếu không app sinh lần trả thứ hai cho chính kỳ đã trả.
+    expect(pay(dueDatesToGenerate(10, '2026-01-12', '2026-02-10'))).toEqual(['2026-02-10'])
   })
 
   it('chưa tới kỳ nào → rỗng', () => {
     expect(dueDatesToGenerate(10, '2026-03-11', '2026-03-20')).toEqual([])
   })
 
-  it('clamp ngày cuối tháng rồi dời cuối tuần', () => {
+  it('chưa tới NGÀY RÚT thì chưa sinh, dù ngày danh nghĩa đã qua', () => {
+    // Kỳ 10/1 rút 13/1; hôm nay 12/1 → chưa rút, chưa ghi
+    expect(dueDatesToGenerate(10, '2026-01-01', '2026-01-12')).toEqual([])
+  })
+
+  it('clamp ngày cuối tháng rồi dời sang ngày làm việc', () => {
     // 31/1 (T7)→2/2; 31→28/2 (T7)→2/3; 31/3 (T3) giữ nguyên
-    expect(dueDatesToGenerate(31, '2026-01-01', '2026-03-31')).toEqual([
+    expect(pay(dueDatesToGenerate(31, '2026-01-01', '2026-03-31'))).toEqual([
       '2026-02-02',
       '2026-03-02',
       '2026-03-31',
@@ -136,11 +149,11 @@ describe('runCardAutopayCatchUp', () => {
       [ex('2025-12-20', 30_000), ex('2026-01-05', 20_000)],
     )
     const n = await runCardAutopayCatchUp(repo, '2026-03-15')
-    // Kỳ 10/1 (T7→dời 12/1) trả nợ chốt 27/12 = 30.000; kỳ 10/2 trả nợ chốt 27/1 =
-    // 20.000 (đã trừ lần trả 12/1); kỳ 10/3 chốt 27/2 nợ = 0 → bỏ qua
+    // Kỳ 10/1 (T7 → 12/1 lại là 成人の日 → rút 13/1) trả nợ chốt 27/12 = 30.000; kỳ
+    // 10/2 trả nợ chốt 27/1 = 20.000 (đã trừ lần trả 13/1); kỳ 10/3 chốt 27/2 nợ = 0
     expect(n).toBe(2)
     expect(created.map((c) => [c.occurred_on, c.amount])).toEqual([
-      ['2026-01-12', 30_000],
+      ['2026-01-13', 30_000],
       ['2026-02-10', 20_000],
     ])
     // Chuyển khoản nguồn→thẻ, ghi chú tự trả
@@ -199,9 +212,10 @@ describe('runCardAutopayCatchUp', () => {
       runCardAutopayCatchUp(repo, '2026-01-15'),
       runCardAutopayCatchUp(repo, '2026-01-15'),
     ])
-    expect(created.map((c) => [c.occurred_on, c.amount])).toEqual([['2026-01-12', 30_000]])
+    expect(created.map((c) => [c.occurred_on, c.amount])).toEqual([['2026-01-13', 30_000]])
     expect(a + b).toBe(1)
-    expect(acc.get('card')!.card_autopay_through).toBe('2026-01-12')
+    // Con trỏ lưu ngày DANH NGHĨA (10/1), không phải ngày rút (13/1)
+    expect(acc.get('card')!.card_autopay_through).toBe('2026-01-10')
   })
 
   it('bỏ qua khi tài khoản nguồn đã lưu trữ', async () => {

@@ -6,34 +6,53 @@
 
 import type { AccountType } from '../types/database.types'
 import { txBalanceDelta, type BalanceTxLike } from './cardBalance'
-import { addDaysISO, addMonths, shiftWeekendToMonday } from './dates'
+import { addDaysISO, addMonths } from './dates'
+import { shiftToBusinessDay } from './jpHolidays'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate()
 
-/** Ngày trong tháng, clamp về cuối tháng khi tháng ngắn hơn. month: 1–12. */
 /** Ngày `day` của tháng, kẹp về ngày cuối khi tháng ngắn hơn (31 → 30 / 28). */
 export function dayOfMonth(year: number, month: number, day: number): string {
   return `${year}-${pad(month)}-${pad(Math.min(day, daysInMonth(year, month)))}`
 }
 
+export interface CardDueDate {
+  /** Ngày `dueDay` danh nghĩa của kỳ, CHƯA dời. Dùng làm con trỏ và mốc chốt. */
+  periodISO: string
+  /** Ngày tiền thực rời tài khoản: đã dời qua T7/CN, ngày lễ, nghỉ Tết dương. */
+  payISO: string
+}
+
 /**
- * Các ngày đến hạn (hằng tháng vào `dueDay`) CẦN SINH: sau `throughISO` (con trỏ
- * kỳ đã sinh) đến hết `todayISO` (inclusive). Kết quả tăng dần theo thời gian.
+ * Các kỳ đến hạn (hằng tháng vào `dueDay`) CẦN SINH: sau `throughISO` (con trỏ kỳ
+ * đã sinh) đến hết `todayISO`. Kết quả tăng dần theo thời gian.
  *
- * Ngày đến hạn đã DỜI Thứ 7/CN sang Thứ 2 (`shiftWeekendToMonday`) — khớp ngày
- * ngân hàng thực rút tiền và khớp hiển thị "ngày trả" ở trang Tài sản. Vì vậy
- * `throughISO` (con trỏ) cũng là ngày ĐÃ DỜI của kỳ trước; so sánh đều theo ngày dời.
+ * Con trỏ so theo `periodISO` (ngày CHƯA dời), không theo ngày rút thật. Lý do:
+ * ngày rút phụ thuộc lịch nghỉ, mà lịch nghỉ có thể đổi giữa hai lần chạy — hồi
+ * app mới chỉ dời cuối tuần, kỳ 27/4/2024 rút 29/4; thêm ngày lễ vào thì thành
+ * 30/4. So theo ngày rút thì 30/4 > con trỏ 29/4 → sinh lại lần trả thứ hai cho
+ * chính kỳ đã trả. So theo ngày danh nghĩa 27/4 thì không bao giờ nhúc nhích.
+ *
+ * Con trỏ cũ (lưu từ trước, là ngày ĐÃ dời) vẫn an toàn: ngày dời luôn ≥ ngày
+ * danh nghĩa của cùng kỳ nên kỳ đó vẫn bị loại, mà kỳ sau cách cả tháng nên không
+ * bị loại nhầm.
  */
-export function dueDatesToGenerate(dueDay: number, throughISO: string, todayISO: string): string[] {
-  const out: string[] = []
+export function dueDatesToGenerate(
+  dueDay: number,
+  throughISO: string,
+  todayISO: string,
+): CardDueDate[] {
+  const out: CardDueDate[] = []
   const [ty, tm] = throughISO.split('-').map(Number)
   let key = { year: ty, month: tm }
   // Chặn vòng lặp: tối đa ~50 năm kỳ tháng.
   for (let i = 0; i < 600; i++) {
-    const due = shiftWeekendToMonday(dayOfMonth(key.year, key.month, dueDay))
-    if (due > todayISO) break
-    if (due > throughISO) out.push(due)
+    const periodISO = dayOfMonth(key.year, key.month, dueDay)
+    const payISO = shiftToBusinessDay(periodISO)
+    // Cắt theo ngày RÚT: chưa tới ngày tiền rời tài khoản thì chưa ghi giao dịch.
+    if (payISO > todayISO) break
+    if (periodISO > throughISO) out.push({ periodISO, payISO })
     key = addMonths(key, 1)
   }
   return out
@@ -144,8 +163,10 @@ export async function runCardAutopayCatchUp(
     const dues = dueDatesToGenerate(card.payment_due_day, through, todayISO)
 
     let cursor = through
-    for (const due of dues) {
-      const closeISO = statementCloseFor(due, card.statement_day)
+    for (const { periodISO, payISO } of dues) {
+      // Mốc chốt suy từ ngày danh nghĩa: dời qua lễ có thể vượt qua chính ngày
+      // chốt và làm engine lấy nhầm kỳ sau.
+      const closeISO = statementCloseFor(periodISO, card.statement_day)
       const bal = await cardBalanceThrough(repo, card, closeISO)
       const owed = bal < 0 ? -bal : 0
       if (owed > 0) {
@@ -156,12 +177,12 @@ export async function runCardAutopayCatchUp(
           category_id: null,
           account_id: source.id,
           to_account_id: card.id,
-          occurred_on: due,
+          occurred_on: payISO,
           note: AUTOPAY_NOTE,
         })
         if (ok) created++
       }
-      cursor = due
+      cursor = periodISO
     }
 
     if (cursor !== card.card_autopay_through) {

@@ -252,168 +252,174 @@ export function AssetsNowView() {
       onPointerUp={onAccPointerEnd}
       onPointerCancel={onAccPointerEnd}
     >
-      {/* Tổng tài sản */}
-      <section className="rounded-2xl bg-gradient-to-br from-green-700 to-emerald-800 p-5 text-white shadow-md">
-        <p className="text-sm font-medium text-green-50/90">
-          Tổng tài sản · {CURRENCIES[base].label}
-        </p>
-        <p className="mt-1.5 text-[2rem] font-bold leading-none tracking-tight tabular-nums">
-          {isLoading ? '…' : `${approx}${formatMoney(breakdown.total, base)}`}
-        </p>
-        {!isLoading && (
-          <p className="mt-2.5 text-xs text-green-50/80">
-            {accountCount} tài khoản · {purposeGroups.length} nhóm
+      {/* Lưới hai cột trên PC cho các khối CHỈ ĐỂ ĐỌC ở đầu trang. Danh sách nhóm tài
+          khoản phía dưới cố ý ĐỨNG NGOÀI lưới: nó kéo–thả để sắp thứ tự, mà phép tính
+          vị trí thả giả định các dòng xếp dọc — chia hai cột là thả sai chỗ.
+          `lg:items-start` để thẻ ngắn không bị kéo cao bằng thẻ dài bên cạnh. */}
+      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-3">
+        {/* Tổng tài sản */}
+        <section className="rounded-2xl bg-gradient-to-br from-green-700 to-emerald-800 p-5 text-white shadow-md">
+          <p className="text-sm font-medium text-green-50/90">
+            Tổng tài sản · {CURRENCIES[base].label}
           </p>
-        )}
-        {!isLoading && hasValuation && (
-          <p className="mt-2 text-xs text-green-50/90">
-            Lãi/lỗ đầu tư (chưa thực hiện):{' '}
-            <span className="font-semibold tabular-nums text-white">
-              {pnl >= 0 ? '+' : '−'}
-              {breakdown.pnlHasMissingRate ? '≈ ' : ''}
-              {formatMoney(Math.abs(pnl), base)}
-            </span>
+          <p className="mt-1.5 text-[2rem] font-bold leading-none tracking-tight tabular-nums">
+            {isLoading ? '…' : `${approx}${formatMoney(breakdown.total, base)}`}
           </p>
-        )}
-        {breakdown.hasMissingRate && (
-          <p className="mt-2 text-xs text-green-100">
-            Một phần tài sản ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên tổng có thể thiếu.
-          </p>
-        )}
-      </section>
-
-      {/* Tài sản ròng (hiện khi có khoản nợ mở hoặc có thẻ tín dụng) */}
-      {showNetWorth && (
-        <section className="rounded-2xl bg-surface p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tài sản ròng</span>
-            <Link to="/debts" className="inline-flex items-center gap-0.5 text-xs font-medium text-green-700 dark:text-green-400">
-              Nợ / cho vay <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
-            {netApprox}
-            {formatMoney(netWorth, base)}
-          </p>
-          <div className="mt-3 space-y-1.5 text-sm">
-            <div className="flex items-center justify-between text-fg-muted">
-              <span>Tổng tài sản</span>
-              <span className="tabular-nums">{formatMoney(breakdown.total, base)}</span>
-            </div>
-            {debtsSummary.owedToMe > 0 && (
-              <div className="flex items-center justify-between text-money-in">
-                <span>+ Cho vay còn lại</span>
-                <span className="tabular-nums">{formatMoney(debtsSummary.owedToMe, base)}</span>
-              </div>
-            )}
-            {debtsSummary.iOwe > 0 && (
-              <div className="flex items-center justify-between text-money-out">
-                <span>− Nợ phải trả</span>
-                <span className="tabular-nums">{formatMoney(debtsSummary.iOwe, base)}</span>
-              </div>
-            )}
-            {cardOwed > 0 && (
-              <div className="flex items-center justify-between text-money-out">
-                <span>− Nợ thẻ tín dụng</span>
-                <span className="tabular-nums">{formatMoney(cardOwed, base)}</span>
-              </div>
-            )}
-          </div>
-          {(debtsSummary.hasMissingRate || breakdown.cardHasMissingRate) && (
-            <p className="mt-2 text-xs text-fg-muted">
-              Một phần công nợ ngoại tệ chưa quy đổi được nên số ròng có thể thiếu.
+          {!isLoading && (
+            <p className="mt-2.5 text-xs text-green-50/80">
+              {accountCount} tài khoản · {purposeGroups.length} nhóm
+            </p>
+          )}
+          {!isLoading && hasValuation && (
+            <p className="mt-2 text-xs text-green-50/90">
+              Lãi/lỗ đầu tư (chưa thực hiện):{' '}
+              <span className="font-semibold tabular-nums text-white">
+                {pnl >= 0 ? '+' : '−'}
+                {breakdown.pnlHasMissingRate ? '≈ ' : ''}
+                {formatMoney(Math.abs(pnl), base)}
+              </span>
+            </p>
+          )}
+          {breakdown.hasMissingRate && (
+            <p className="mt-2 text-xs text-green-100">
+              Một phần tài sản ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên tổng có thể thiếu.
             </p>
           )}
         </section>
-      )}
-
-      {/* Thẻ tín dụng — khối DUY NHẤT trên trang có hạn chót ("còn N ngày", "cần
-          nạp thêm"), nên đứng trên mọi khối chỉ để đọc. Thu gọn mặc định, xem
-          CardsSection. */}
-      <CardsSection
-        cards={visibleCards}
-        balances={balances}
-        base={base}
-        rates={rates ?? {}}
-        todayISO={todayISO}
-      />
-
-      {/* Biểu đồ tròn + danh sách nhóm */}
-      <section className="rounded-2xl bg-surface p-4 shadow-sm">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
-            Cơ cấu tài sản
-          </h2>
-          <SegmentedControl
-            items={GROUP_MODES.map(([mode, label]) => ({ value: mode, label }))}
-            value={groupMode}
-            onChange={setGroupMode}
-            label="Chế độ xem cơ cấu"
-            size="sm"
-            stretch={false}
-          />
-        </div>
-
-        {pieData.length === 0 ? (
-          <p className="py-10 text-center text-sm text-fg-muted">
-            {isLoading ? 'Đang tải…' : 'Chưa có tài sản để hiển thị'}
-          </p>
-        ) : (
-          <div className="flex flex-col items-center gap-5 sm:flex-row sm:gap-6">
-            <div className="relative h-44 w-44 shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={54}
-                    outerRadius={82}
-                    paddingAngle={pieData.length > 1 ? 2 : 0}
-                    strokeWidth={0}
-                  >
-                    {pieData.map((d) => (
-                      <Cell key={d.name} fill={d.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(v) => formatMoney(Number(v), base)}
-                    contentStyle={{ borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold leading-none text-fg-primary">
-                  {pieData.length}
-                </span>
-                <span className="mt-0.5 text-2xs text-fg-muted">
-                  {GROUP_NOUN[groupMode]}
-                </span>
-              </div>
+  
+        {/* Tài sản ròng (hiện khi có khoản nợ mở hoặc có thẻ tín dụng) */}
+        {showNetWorth && (
+          <section className="rounded-2xl bg-surface p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tài sản ròng</span>
+              <Link to="/debts" className="inline-flex items-center gap-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+                Nợ / cho vay <ChevronRight className="h-4 w-4" />
+              </Link>
             </div>
-
-            {/* Chú giải chỉ giữ chấm màu + tên, đủ để đọc được lát bánh. Tổng tiền
-                và tỷ trọng nằm ở danh sách chi tiết ngay bên dưới — in hai lần thì
-                người đọc phải rà cùng bốn con số hai lượt mà không thêm thông tin. */}
-            <ul className="flex flex-1 flex-wrap justify-center gap-x-4 gap-y-2 self-center sm:justify-start">
-              {displayGroups.map((g) => (
-                <li key={g.name} className="flex items-center gap-1.5 text-xs">
-                  <span
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: colorOf(g.name) }}
-                  />
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{g.name}</span>
-                  {!g.includeInTotals && (
-                    <span className="text-3xs font-normal text-fg-muted">
-                      (ngoài tổng)
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+              {netApprox}
+              {formatMoney(netWorth, base)}
+            </p>
+            <div className="mt-3 space-y-1.5 text-sm">
+              <div className="flex items-center justify-between text-fg-muted">
+                <span>Tổng tài sản</span>
+                <span className="tabular-nums">{formatMoney(breakdown.total, base)}</span>
+              </div>
+              {debtsSummary.owedToMe > 0 && (
+                <div className="flex items-center justify-between text-money-in">
+                  <span>+ Cho vay còn lại</span>
+                  <span className="tabular-nums">{formatMoney(debtsSummary.owedToMe, base)}</span>
+                </div>
+              )}
+              {debtsSummary.iOwe > 0 && (
+                <div className="flex items-center justify-between text-money-out">
+                  <span>− Nợ phải trả</span>
+                  <span className="tabular-nums">{formatMoney(debtsSummary.iOwe, base)}</span>
+                </div>
+              )}
+              {cardOwed > 0 && (
+                <div className="flex items-center justify-between text-money-out">
+                  <span>− Nợ thẻ tín dụng</span>
+                  <span className="tabular-nums">{formatMoney(cardOwed, base)}</span>
+                </div>
+              )}
+            </div>
+            {(debtsSummary.hasMissingRate || breakdown.cardHasMissingRate) && (
+              <p className="mt-2 text-xs text-fg-muted">
+                Một phần công nợ ngoại tệ chưa quy đổi được nên số ròng có thể thiếu.
+              </p>
+            )}
+          </section>
         )}
-      </section>
+  
+        {/* Thẻ tín dụng — khối DUY NHẤT trên trang có hạn chót ("còn N ngày", "cần
+            nạp thêm"), nên đứng trên mọi khối chỉ để đọc. Thu gọn mặc định, xem
+            CardsSection. */}
+        <CardsSection
+          cards={visibleCards}
+          balances={balances}
+          base={base}
+          rates={rates ?? {}}
+          todayISO={todayISO}
+        />
+  
+        {/* Biểu đồ tròn + danh sách nhóm */}
+        <section className="rounded-2xl bg-surface p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+              Cơ cấu tài sản
+            </h2>
+            <SegmentedControl
+              items={GROUP_MODES.map(([mode, label]) => ({ value: mode, label }))}
+              value={groupMode}
+              onChange={setGroupMode}
+              label="Chế độ xem cơ cấu"
+              size="sm"
+              stretch={false}
+            />
+          </div>
+  
+          {pieData.length === 0 ? (
+            <p className="py-10 text-center text-sm text-fg-muted">
+              {isLoading ? 'Đang tải…' : 'Chưa có tài sản để hiển thị'}
+            </p>
+          ) : (
+            <div className="flex flex-col items-center gap-5 sm:flex-row sm:gap-6">
+              <div className="relative h-44 w-44 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={54}
+                      outerRadius={82}
+                      paddingAngle={pieData.length > 1 ? 2 : 0}
+                      strokeWidth={0}
+                    >
+                      {pieData.map((d) => (
+                        <Cell key={d.name} fill={d.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v) => formatMoney(Number(v), base)}
+                      contentStyle={{ borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-2xl font-bold leading-none text-fg-primary">
+                    {pieData.length}
+                  </span>
+                  <span className="mt-0.5 text-2xs text-fg-muted">
+                    {GROUP_NOUN[groupMode]}
+                  </span>
+                </div>
+              </div>
+  
+              {/* Chú giải chỉ giữ chấm màu + tên, đủ để đọc được lát bánh. Tổng tiền
+                  và tỷ trọng nằm ở danh sách chi tiết ngay bên dưới — in hai lần thì
+                  người đọc phải rà cùng bốn con số hai lượt mà không thêm thông tin. */}
+              <ul className="flex flex-1 flex-wrap justify-center gap-x-4 gap-y-2 self-center sm:justify-start">
+                {displayGroups.map((g) => (
+                  <li key={g.name} className="flex items-center gap-1.5 text-xs">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: colorOf(g.name) }}
+                    />
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{g.name}</span>
+                    {!g.includeInTotals && (
+                      <span className="text-3xs font-normal text-fg-muted">
+                        (ngoài tổng)
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      </div>
 
       {/* Chi tiết từng nhóm và tài khoản bên trong */}
       {dragEnabled && (

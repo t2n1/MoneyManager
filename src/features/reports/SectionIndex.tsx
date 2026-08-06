@@ -13,9 +13,18 @@ import { pickActive } from './sectionActive'
  * Bọc một khối để mục lục nhảy tới được. `scroll-mt-16` (64px) vì mục lục dính cao 57px
  * (chip 44px + đệm) — thiếu một pixel là tiêu đề thẻ nằm khuất dưới nó sau khi nhảy.
  */
-export function Section({ id, children }: { id: string; children: ReactNode }) {
+export function Section({
+  id,
+  className = '',
+  children,
+}: {
+  id: string
+  /** Dùng cho `lg:col-span-2` — thẻ có biểu đồ ngang dài chiếm cả hai cột của lưới PC. */
+  className?: string
+  children: ReactNode
+}) {
   return (
-    <div id={id} className="scroll-mt-16">
+    <div id={id} className={`scroll-mt-16 ${className}`.trim()}>
       {children}
     </div>
   )
@@ -98,7 +107,12 @@ export function SectionIndex({ items }: Props) {
       aria-label="Mục lục trang"
       // Dính vào đầu vùng cuộn (<main> là vùng cuộn, không phải cả trang — xem AppLayout).
       // -mx-3 để nền trải hết bề ngang, nếu không thì nội dung lộ ra hai bên khi cuộn dưới.
-      className="sticky top-0 z-10 -mx-3 border-b border-border-subtle bg-surface-page px-3 py-1.5 lg:-mx-6 lg:px-6 print:hidden"
+      //
+      // `lg:hidden`: từ `lg` các thẻ xếp HAI CỘT, nên hai khối cạnh nhau có cùng mép
+      // trên. `pickActive` chọn khối cuối cùng đã qua vạch, tức là khối bên trái của mỗi
+      // cặp KHÔNG bao giờ sáng lên được. Mà trên màn rộng trang cũng chỉ còn nửa chiều
+      // cao, cuộn tay là thấy hết — mục lục hết việc để làm.
+      className="sticky top-0 z-10 -mx-3 border-b border-border-subtle bg-surface-page px-3 py-1.5 lg:hidden lg:-mx-6 lg:px-6 print:hidden"
     >
       <div ref={listRef} className="flex gap-1.5 overflow-x-auto">
         {items.map((item, i) => {

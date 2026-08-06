@@ -12,7 +12,8 @@ const pad = (n: number) => String(n).padStart(2, '0')
 const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate()
 
 /** Ngày trong tháng, clamp về cuối tháng khi tháng ngắn hơn. month: 1–12. */
-function dayOfMonth(year: number, month: number, day: number): string {
+/** Ngày `day` của tháng, kẹp về ngày cuối khi tháng ngắn hơn (31 → 30 / 28). */
+export function dayOfMonth(year: number, month: number, day: number): string {
   return `${year}-${pad(month)}-${pad(Math.min(day, daysInMonth(year, month)))}`
 }
 

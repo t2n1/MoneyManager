@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import { useCategories, useCreateCategory, useCreateTransaction } from '../../hooks/queries'
-import { addDaysISO, formatMonthLabel, toISODate, type MonthKey } from '../../lib/dates'
+import {
+  addDaysISO,
+  dayMonthLabel,
+  formatMonthLabel,
+  toISODate,
+  type MonthKey,
+} from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { ActionButton, Money } from '../../components/ui'
@@ -45,6 +51,9 @@ export function CardMonthAdjustSheet({
   const lastDayISO = addDaysISO(rangeEndISO, -1)
   const suggestedDate = monthAdjustDate({ rangeStartISO, rangeEndISO, todayISO })
   const monthLabel = formatMonthLabel(monthKey)
+  // "1/8 – 31/8": kỳ sao kê thường KHÁC tháng lịch cùng tên, nên chỗ nào nhắc tới
+  // khoảng thời gian đều ghi ngày ra thay vì mượn tên tháng.
+  const periodLabel = `${dayMonthLabel(rangeStartISO)} – ${dayMonthLabel(lastDayISO)}`
 
   const [entered, setEntered] = useState(charged)
   const [occurredOn, setOccurredOn] = useState(suggestedDate)
@@ -97,7 +106,7 @@ export function CardMonthAdjustSheet({
       >
         <h2 className="mb-1 text-base font-bold text-fg-primary">Chỉnh cho khớp sao kê</h2>
         <p className="mb-3 text-xs text-fg-muted">
-          {account.name} · {monthLabel.toLowerCase()} · app đang tính{' '}
+          {account.name} · sao kê {monthLabel.toLowerCase()} ({periodLabel}) · app đang tính{' '}
           {formatMoney(charged, currency)}
         </p>
 
@@ -130,9 +139,9 @@ export function CardMonthAdjustSheet({
         />
         <p className="mb-3 text-xs text-fg-muted">
           {suggestedDate === todayISO
-            ? `Ghi vào hôm nay — vẫn nằm trong ${monthLabel.toLowerCase()}.`
-            : `Ghi vào ngày cuối ${monthLabel.toLowerCase()}, để khoản bù nằm đúng trong kỳ.`}{' '}
-          Chỉ chọn được ngày trong {monthLabel.toLowerCase()}.
+            ? 'Ghi vào hôm nay — vẫn nằm trong kỳ.'
+            : `Ghi vào ngày chốt kỳ (${dayMonthLabel(lastDayISO)}), để khoản bù nằm đúng trong kỳ.`}{' '}
+          Chỉ chọn được ngày trong kỳ {periodLabel}.
         </p>
 
         <div className="mb-3 rounded-lg bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm">

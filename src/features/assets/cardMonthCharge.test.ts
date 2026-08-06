@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cardBillingRange,
   cardMonthCharge,
   monthAdjustDate,
   monthAdjustPlan,
-  monthDueDate,
   type MonthChargeTx,
 } from './cardMonthCharge'
 
@@ -50,37 +50,59 @@ describe('cardMonthCharge', () => {
   })
 })
 
-describe('monthDueDate', () => {
-  // rangeEnd là ngày đầu tháng kế (loại trừ) — tháng 6/2026 → '2026-07-01'
-  it('kỳ chốt cuối tháng 6, trả ngày 27 → 27/7', () => {
-    expect(monthDueDate({ rangeEndISO: '2026-07-01', statementDay: 31, paymentDueDay: 27 })).toBe(
-      '2026-07-27',
-    )
+describe('cardBillingRange', () => {
+  const sep = { year: 2026, month: 9 }
+
+  it('PayPay/Rakuten (chốt cuối tháng, trả 27): tháng 9 = tiền quẹt tháng 8', () => {
+    // Đúng thứ người dùng thấy khi bấm "9月" trong app thẻ
+    expect(cardBillingRange({ monthKey: sep, statementDay: 31, paymentDueDay: 27 })).toEqual({
+      start: '2026-08-01',
+      end: '2026-09-01',
+      closeISO: '2026-08-31',
+      dueISO: '2026-09-28', // 27/9 rơi CN → dời T2
+    })
   })
 
-  it('dời ngày trả rơi vào cuối tuần sang Thứ 2', () => {
-    // 27/6/2026 là Thứ 7 → 29/6 (T2)
-    expect(monthDueDate({ rangeEndISO: '2026-06-01', statementDay: 31, paymentDueDay: 27 })).toBe(
-      '2026-06-29',
-    )
+  it('thẻ chốt giữa tháng: kỳ vắt qua hai tháng lịch', () => {
+    // Chốt 15, trả 10 → kỳ bị rút 10/9 là tiền quẹt 16/7–15/8
+    expect(cardBillingRange({ monthKey: sep, statementDay: 15, paymentDueDay: 10 })).toEqual({
+      start: '2026-07-16',
+      end: '2026-08-16',
+      closeISO: '2026-08-15',
+      dueISO: '2026-09-10',
+    })
   })
 
-  it('chưa đặt ngày trả → null', () => {
-    expect(monthDueDate({ rangeEndISO: '2026-07-01', statementDay: 31, paymentDueDay: null })).toBe(
-      null,
-    )
+  it('chốt TRƯỚC ngày trả trong cùng tháng thì kỳ nằm ngay tháng đó', () => {
+    // Chốt 5, trả 27 → kỳ bị rút 27/9 là tiền quẹt 6/8–5/9
+    expect(cardBillingRange({ monthKey: sep, statementDay: 5, paymentDueDay: 27 })).toEqual({
+      start: '2026-08-06',
+      end: '2026-09-06',
+      closeISO: '2026-09-05',
+      dueISO: '2026-09-28',
+    })
   })
 
-  it('thẻ chốt giữa tháng → null (kỳ không trùng tháng lịch)', () => {
-    expect(monthDueDate({ rangeEndISO: '2026-07-01', statementDay: 15, paymentDueDay: 27 })).toBe(
-      null,
-    )
+  it('tháng ngắn: chốt 31 kẹp về ngày cuối tháng 2', () => {
+    const r = cardBillingRange({ monthKey: { year: 2027, month: 3 }, statementDay: 31, paymentDueDay: 27 })
+    expect(r?.closeISO).toBe('2027-02-28')
+    expect(r?.start).toBe('2027-02-01')
   })
 
-  it('chưa đặt ngày chốt vẫn suy ra được ngày trả', () => {
-    expect(monthDueDate({ rangeEndISO: '2026-07-01', statementDay: null, paymentDueDay: 27 })).toBe(
-      '2026-07-27',
-    )
+  it('ngày trả rơi cuối tuần: kỳ vẫn tính theo ngày CHƯA dời', () => {
+    // 27/6/2026 là T7 → rút 29/6, nhưng mốc chốt vẫn suy từ 27/6 nên kỳ là tháng 5
+    const r = cardBillingRange({ monthKey: { year: 2026, month: 6 }, statementDay: 31, paymentDueDay: 27 })
+    expect(r).toEqual({
+      start: '2026-05-01',
+      end: '2026-06-01',
+      closeISO: '2026-05-31',
+      dueISO: '2026-06-29',
+    })
+  })
+
+  it('thiếu ngày chốt hoặc ngày trả → null', () => {
+    expect(cardBillingRange({ monthKey: sep, statementDay: null, paymentDueDay: 27 })).toBe(null)
+    expect(cardBillingRange({ monthKey: sep, statementDay: 31, paymentDueDay: null })).toBe(null)
   })
 })
 

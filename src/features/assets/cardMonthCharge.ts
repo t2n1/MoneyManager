@@ -1,13 +1,18 @@
-// Số tiền QUẸT trong một "tháng" của thẻ tín dụng — con số để đối chiếu với sao
-// kê thật (PayPay Card, Rakuten Card: mở app, chọn tháng, thấy tổng tiền tháng đó).
+// Kỳ sao kê của thẻ tín dụng và số tiền QUẸT trong kỳ đó — để đối chiếu 1-1 với
+// app thẻ thật (PayPay Card, Rakuten Card).
+//
+// App thẻ đánh số kỳ theo THÁNG BỊ RÚT TIỀN, không phải tháng quẹt: bấm "tháng 9"
+// ra các khoản quẹt tháng 8, vì chúng bị rút ngày 27/9. `cardBillingRange` dựng
+// đúng khoảng đó để hai bên chọn cùng một số tháng là thấy cùng một danh sách.
 //
 // Khác với `cardStatement.ts`: tệp kia chia dư nợ HÔM NAY thành "đã chốt / chưa
-// chốt". Tệp này nhìn theo tháng người dùng đang xem, dùng đúng rổ giao dịch mà
+// chốt". Tệp này nhìn theo kỳ người dùng đang chọn, dùng đúng rổ giao dịch mà
 // trang chi tiết đã tải — nên con số luôn bằng tổng những dòng hiện trên màn hình.
 //
 // Thuần, không phụ thuộc React, để unit-test được.
 
-import { addDaysISO, nextCardDueDate } from '../../lib/dates'
+import { dayOfMonth, statementCloseFor } from '../../lib/cardAutopay'
+import { addDaysISO, addMonths, shiftWeekendToMonday, type MonthKey } from '../../lib/dates'
 import { txBalanceDelta, type BalanceTxLike } from '../../lib/cardBalance'
 
 export type MonthChargeTx = BalanceTxLike
@@ -32,31 +37,55 @@ export function cardMonthCharge(cardId: string, txs: MonthChargeTx[]): number {
   return charged
 }
 
-export interface MonthDueInput {
-  /** Ngày đầu tháng kế của khoảng đang xem (mốc loại trừ của `getMonthRange`). */
-  rangeEndISO: string
+export interface BillingRangeInput {
+  /** Tháng BỊ RÚT TIỀN — đúng số tháng mà app thẻ hiển thị. */
+  monthKey: MonthKey
   statementDay: number | null
   paymentDueDay: number | null
 }
 
+export interface CardBillingRange {
+  /** Ngày quẹt sớm nhất thuộc kỳ này (hôm sau ngày chốt kỳ trước). */
+  start: string
+  /** Mốc loại trừ cho truy vấn: hôm sau ngày chốt. */
+  end: string
+  /** Ngày chốt sao kê của kỳ = ngày quẹt cuối cùng còn được tính. */
+  closeISO: string
+  /** Ngày tiền rời tài khoản, đã dời T7/CN sang T2. */
+  dueISO: string
+}
+
 /**
- * Ngày thẻ bị rút tiền cho tháng đang xem; null khi không nói chắc được.
+ * Kỳ sao kê bị rút trong tháng `monthKey`.
  *
- * `rangeEndISO` chính là ngày sau ngày cuối kỳ, nên `nextCardDueDate` từ mốc đó
- * ra đúng lần trả kế tiếp (kỳ chốt cuối tháng 6 + trả ngày 27 → 27/7), đã dời
- * T7/CN sang T2 giống mọi chỗ khác trong app.
+ * Chốt 31 + trả 27, tháng 9/2026 → quẹt 1/8–31/8, rút 28/9 (27/9 rơi CN).
+ * Chốt 15 + trả 10, tháng 9/2026 → quẹt 16/7–15/8, rút 10/9.
  *
- * Thẻ chốt GIỮA tháng (`statementDay < 28`) thì kỳ sao kê không trùng tháng lịch
- * — suy ngày rút từ tháng lịch sẽ sai, nên trả null để nơi hiển thị ẩn dòng đó đi.
+ * Mốc chốt lấy từ NGÀY TRẢ CHƯA DỜI cuối tuần: dời rồi mới suy ngược thì thẻ trả
+ * ngày 31 có lần bị đẩy sang tháng sau, kéo cả kỳ lệch đi một tháng.
+ *
+ * Thiếu ngày chốt hoặc ngày trả thì không dựng được kỳ → null, nơi gọi rơi về
+ * tháng lịch như tài khoản thường.
  */
-export function monthDueDate({
-  rangeEndISO,
+export function cardBillingRange({
+  monthKey,
   statementDay,
   paymentDueDay,
-}: MonthDueInput): string | null {
-  if (paymentDueDay == null) return null
-  if (statementDay != null && statementDay < 28) return null
-  return nextCardDueDate(paymentDueDay, rangeEndISO)
+}: BillingRangeInput): CardBillingRange | null {
+  if (statementDay == null || paymentDueDay == null) return null
+  const dueRaw = dayOfMonth(monthKey.year, monthKey.month, paymentDueDay)
+  const closeISO = statementCloseFor(dueRaw, statementDay)
+  const prev = addMonths(monthKey, -1)
+  const prevClose = statementCloseFor(
+    dayOfMonth(prev.year, prev.month, paymentDueDay),
+    statementDay,
+  )
+  return {
+    start: addDaysISO(prevClose, 1),
+    end: addDaysISO(closeISO, 1),
+    closeISO,
+    dueISO: shiftWeekendToMonday(dueRaw),
+  }
 }
 
 export interface MonthAdjustDateInput {

@@ -38,7 +38,7 @@ import type { StockTradeRow, TransactionRow } from '../../types/database.types'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { TransactionItem } from '../transactions/TransactionItem'
 import { CardMonthAdjustSheet } from './CardMonthAdjustSheet'
-import { cardMonthCharge, monthDueDate } from './cardMonthCharge'
+import { cardBillingRange, cardMonthCharge } from './cardMonthCharge'
 import { depreciate } from './depreciation'
 import { HoldingsSection } from './HoldingsSection'
 import { investmentStats } from './investment'
@@ -147,8 +147,19 @@ export function AccountDetailPage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [monthStartDay])
 
+  // Thẻ tín dụng đánh số kỳ theo THÁNG BỊ RÚT TIỀN cho khớp app thẻ (PayPay/Rakuten
+  // bấm "tháng 9" ra tiền quẹt tháng 8). Thẻ thiếu ngày chốt/ngày trả, và mọi loại
+  // tài khoản khác, vẫn dùng tháng lịch như cũ.
+  const billing = account
+    ? cardBillingRange({
+        monthKey: activeMonthKey,
+        statementDay: account.type === 'card' ? account.statement_day : null,
+        paymentDueDay: account.type === 'card' ? account.payment_due_day : null,
+      })
+    : null
+
   // Lịch sử của tài khoản này trong "tháng" đang xem (khớp account_id HOẶC to_account_id).
-  const range = getMonthRange(activeMonthKey, monthStartDay)
+  const range = billing ?? getMonthRange(activeMonthKey, monthStartDay)
   const filter: TxFilter = useMemo(
     () => ({
       start: range.start,
@@ -181,14 +192,6 @@ export function AccountDetailPage() {
     () => (isCard ? cardMonthCharge(accountId, results) : 0),
     [isCard, accountId, results],
   )
-  const monthDueISO =
-    isCard && account
-      ? monthDueDate({
-          rangeEndISO: range.end,
-          statementDay: account.statement_day,
-          paymentDueDay: account.payment_due_day,
-        })
-      : null
 
   return (
     <div className="p-3 lg:p-6">
@@ -511,8 +514,13 @@ export function AccountDetailPage() {
         >
           <ChevronLeft className="h-5 w-5" />
         </IconButton>
+        {/* Thẻ: nói "sao kê" chứ không chỉ số tháng — bên dưới là giao dịch của
+            THÁNG TRƯỚC, y như app thẻ, nên tiêu đề phải tự nó giải thích được */}
         <h2 className="flex-1 text-center text-sm font-bold text-fg-primary">
-          {formatMonthLabel(activeMonthKey)}
+          {billing ? 'Sao kê ' : ''}
+          {billing
+            ? formatMonthLabel(activeMonthKey).toLowerCase()
+            : formatMonthLabel(activeMonthKey)}
         </h2>
         <IconButton
           onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))}
@@ -522,13 +530,15 @@ export function AccountDetailPage() {
         </IconButton>
       </div>
 
-      {/* Sao kê tháng của thẻ — con số để đối chiếu với app thẻ thật (chọn tháng
-          nào thấy tổng tháng đó), kèm nút bù chênh lệch ghi vào chính tháng đó. */}
+      {/* Sao kê của thẻ — con số để đối chiếu với app thẻ thật (chọn cùng số tháng
+          là thấy cùng danh sách), kèm nút bù chênh lệch ghi vào chính kỳ đó. */}
       {isCard && account && (
         <Card as="section" padding="lg" className="mb-3">
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center justify-between gap-2 text-sm">
             <span className="text-fg-muted">
-              Quẹt trong {formatMonthLabel(activeMonthKey).toLowerCase()}
+              {billing
+                ? `Quẹt ${dayMonthLabel(billing.start)} – ${dayMonthLabel(billing.closeISO)}`
+                : `Quẹt trong ${formatMonthLabel(activeMonthKey).toLowerCase()}`}
             </span>
             {isLoading ? (
               <span className="text-fg-muted">—</span>
@@ -541,21 +551,18 @@ export function AccountDetailPage() {
               />
             )}
           </div>
-          {monthDueISO ? (
+          {billing ? (
             <div className="mt-1.5 flex items-center justify-between text-sm text-fg-muted">
               <span>Bị rút ngày</span>
-              <span>{dueDateLabel(monthDueISO)}</span>
+              <span>{dueDateLabel(billing.dueISO)}</span>
             </div>
           ) : (
-            account.statement_day != null &&
-            account.statement_day < 28 && (
-              // Chốt giữa tháng thì kỳ sao kê không trùng tháng lịch — nói thẳng
-              // thay vì suy ra một ngày rút sai.
-              <p className="mt-1.5 text-xs text-fg-muted">
-                Thẻ này chốt ngày {account.statement_day} nên kỳ sao kê không trùng tháng lịch. Số
-                sắp bị rút xem ở mục "Kỳ này" phía trên.
-              </p>
-            )
+            // Thiếu ngày chốt hoặc ngày trả thì không dựng được kỳ — nói thẳng
+            // thay vì suy ra một ngày rút sai.
+            <p className="mt-1.5 text-xs text-fg-muted">
+              Thẻ chưa có đủ ngày chốt sao kê và ngày đến hạn nên app đang đếm theo tháng lịch. Sửa
+              tài khoản để xem đúng kỳ như app thẻ.
+            </p>
           )}
           <ActionButton onClick={() => setShowMonthAdjust(true)} className="mt-3">
             <Scale className="h-3.5 w-3.5" /> Chỉnh cho khớp
@@ -568,7 +575,9 @@ export function AccountDetailPage() {
         {isLoading ? 'Đang tải…' : `${results.length} giao dịch`}
       </p>
       {days.length === 0 && !isLoading ? (
-        <p className="py-10 text-center text-fg-muted">Không có giao dịch trong tháng này</p>
+        <p className="py-10 text-center text-fg-muted">
+          Không có giao dịch trong {billing ? 'kỳ này' : 'tháng này'}
+        </p>
       ) : (
         days.map(([day, txs]) => (
           <section key={day} className="mb-3">

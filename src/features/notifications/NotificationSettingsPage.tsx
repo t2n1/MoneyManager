@@ -122,10 +122,10 @@ function PushSection() {
       <h2 className="mb-2 px-1 text-2xs font-bold uppercase tracking-wide text-fg-muted">
         Đẩy ra ngoài app
       </h2>
-      {/* padding="none" vì các hàng bên trong tự có px-3 py-3 và có đường kẻ chia —
+      {/* padding="none" vì các hàng bên trong tự có px-3 py-2 và có đường kẻ chia —
           giống hệt <ul> của Group bên dưới. */}
       <Card padding="none" className="overflow-hidden">
-        <div className="flex items-start gap-3 px-3 py-3">
+        <div className="flex items-start gap-3 px-3 py-2">
           <div className="min-w-0 flex-1">
             <p id="push-toggle-label" className="text-sm font-medium text-fg-primary">
               Nhận thông báo trên máy này
@@ -219,7 +219,8 @@ function Group({
           const labelId = `notif-toggle-label-${t}`
           const hintId = `notif-toggle-hint-${t}`
           return (
-            <li key={t} className="flex items-start gap-3 px-3 py-3">
+            // py-2 thôi: khối chữ 2 dòng + nút gạt 44px đã tự cao ~54px rồi
+            <li key={t} className="flex items-start gap-3 px-3 py-2">
               <div className="min-w-0 flex-1">
                 <p
                   id={labelId}

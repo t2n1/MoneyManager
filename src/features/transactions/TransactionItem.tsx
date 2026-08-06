@@ -48,7 +48,9 @@ export function TransactionItem({
       type="button"
       onClick={onClick}
       aria-pressed={selecting ? selected : undefined}
-      className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-gray-50 dark:hover:bg-gray-800 ${selected ? 'bg-green-50 dark:bg-green-900/20' : ''}`}
+      // py-1.5: nội dung 2 dòng đã cao 38px, cả hàng ~50px — vẫn quá 44px vùng chạm,
+      // nhưng danh sách dài nhất app (Sổ, chi tiết TK, tìm kiếm) đặc hơn ~15%.
+      className={`flex w-full items-center gap-3 px-3 py-1.5 text-left transition hover:bg-gray-50 dark:hover:bg-gray-800 ${selected ? 'bg-green-50 dark:bg-green-900/20' : ''}`}
     >
       {selecting && (
         <span className="shrink-0">

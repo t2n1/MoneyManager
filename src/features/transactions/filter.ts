@@ -20,7 +20,12 @@ export function matchesFilter(t: TransactionRow, filter: TxFilter): boolean {
 
   // Chỉ `true` mới bật lọc — `false` phải giữ nguyên mọi giao dịch, vì nơi gọi hay
   // truyền thẳng state của ô tích vào đây.
-  if (filter.uncategorized === true && t.category_id != null) return false
+  //
+  // Loại luôn chuyển khoản: nó không bao giờ có danh mục, nên để lại thì danh sách "còn
+  // phải gắn" toàn việc không thể làm — và số ở đây sẽ lệch với số bảng `uncategorized.ts`
+  // đếm, dù hai bên trả lời cùng một câu hỏi.
+  if (filter.uncategorized === true && (t.category_id != null || t.type === 'transfer'))
+    return false
 
   if (filter.categoryIds && filter.categoryIds.length > 0) {
     if (!t.category_id || !filter.categoryIds.includes(t.category_id)) return false

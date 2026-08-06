@@ -80,6 +80,15 @@ describe('lọc chưa gắn danh mục', () => {
     expect(filterTransactions(txs, RANGE)).toHaveLength(2)
   })
 
+  it('loại chuyển khoản — nó vốn không có danh mục, để lại thì thành việc không thể làm', () => {
+    const txs = [
+      tx({ type: 'expense', note: 'chi chua gan', category_id: null }),
+      tx({ type: 'transfer', note: 'chuyen khoan', category_id: null }),
+    ]
+    const r = filterTransactions(txs, { ...RANGE, uncategorized: true })
+    expect(r.map((t) => t.note)).toEqual(['chi chua gan'])
+  })
+
   it('uncategorized=false cũng không lọc gì — chỉ true mới bật', () => {
     const txs = [
       tx({ type: 'expense', category_id: null }),

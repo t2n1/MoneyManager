@@ -29,6 +29,8 @@ import { ParetoCard } from './ParetoCard'
 import { SpendSizeCard } from './SpendSizeCard'
 import { SpendRhythmCard } from './SpendRhythmCard'
 import { SubscriptionsCard } from './SubscriptionsCard'
+import { UncategorizedBacklogCard } from './UncategorizedBacklogCard'
+import { uncategorizedByMonth } from './uncategorized'
 import {
   detectPaydays,
   paydayEffect,
@@ -185,6 +187,10 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
     })
   }, [isCurrentMonth, sixMonthDaily, todayISO, dayOfWeek])
 
+  // --- Khoản chưa gắn danh mục, theo tháng, cũ nhất trước ---
+  // Dùng đúng 6 tháng đã tải cho các khối khác — không gọi thêm dữ liệu chỉ để đếm.
+  const backlogRows = useMemo(() => uncategorizedByMonth(rangeTxs), [rangeTxs])
+
   const subscriptions = useMemo(
     () => subscriptionSummary(recurringRules, todayISO, currencyOf, base, r),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -216,9 +222,10 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
       ...(hasOverview ? [{ id: 'ins-tong-quan', label: 'Tổng quan' }] : []),
       ...(insights.length > 0 ? [{ id: 'ins-goi-y', label: 'Gợi ý' }] : []),
       ...ALWAYS,
+      ...(backlogRows.length > 0 ? [{ id: 'ins-chua-gan', label: 'Chưa gắn' }] : []),
       ...(anomalies.length > 0 ? [{ id: 'ins-bat-thuong', label: 'Bất thường' }] : []),
     ],
-    [hasOverview, insights.length, anomalies.length],
+    [hasOverview, insights.length, anomalies.length, backlogRows.length],
   )
 
   return (
@@ -347,6 +354,14 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
           windowDays={PAYDAY_WINDOW}
         />
       </Section>
+
+      {/* Việc còn tồn: khoản chưa gắn danh mục. Đặt SAU các khối "đọc để hiểu" vì đây là
+          khối duy nhất đòi người dùng đi làm một việc. */}
+      {backlogRows.length > 0 && (
+        <Section id="ins-chua-gan">
+          <UncategorizedBacklogCard rows={backlogRows} monthsWindow={6} />
+        </Section>
+      )}
 
       {/* Khoản tự động trừ mỗi tháng */}
       <Section id="ins-thue-bao">

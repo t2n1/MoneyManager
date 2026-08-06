@@ -172,7 +172,10 @@ export interface TxFilter {
   amountMin?: number
   amountMax?: number
   /**
-   * Chỉ lấy giao dịch CHƯA gắn danh mục (category_id null).
+   * Chỉ lấy giao dịch CHƯA gắn danh mục (category_id null), KHÔNG tính chuyển khoản.
+   *
+   * Chuyển khoản bị loại vì nó vốn không có danh mục — gộp vào đây thì danh sách "việc
+   * còn phải làm" luôn có sẵn một đống việc không thể làm.
    *
    * Đứng riêng chứ không nhét vào `categoryIds` bằng một giá trị đặc biệt kiểu 'null':
    * `categoryIds` dịch thành `.in('category_id', ...)` ở phía Supabase, mà SQL không so

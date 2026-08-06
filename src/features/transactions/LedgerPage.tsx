@@ -164,8 +164,11 @@ export function LedgerPage() {
   const label = yearNav ? `Năm ${activeMonthKey.year}` : formatMonthLabel(activeMonthKey)
   const step = yearNav ? 12 : 1
 
+  // Sổ GD giữ một cột hẹp kể cả trên PC (khung ngoài của AppLayout đã nới lên 6xl):
+  // danh sách giao dịch kéo ngang cả màn thì mắt phải rà rất xa mới nối được ngày với
+  // số tiền ở đầu kia dòng.
   return (
-    <div className="p-3 lg:p-6">
+    <div className="mx-auto w-full max-w-2xl p-3 lg:p-6">
       <NotificationBoundary>
         <RemindersBanner />
       </NotificationBoundary>

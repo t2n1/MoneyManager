@@ -185,11 +185,16 @@ export function AppLayout() {
       </aside>
 
       {/* Nội dung — key theo chế độ riêng tư để bật/tắt render lại cây route
-          (Outlet trả về element ổn định tham chiếu nên không tự re-render). */}
+          (Outlet trả về element ổn định tham chiếu nên không tự re-render).
+
+          max-w-6xl chứ không 2xl: 2xl (672px) là bề ngang của điện thoại, nên trên màn
+          1440 sau khi trừ thanh bên vẫn còn hơn 500px bỏ trống. Trang nào CẦN hẹp thì
+          tự bọc `max-w-2xl` ở khối ngoài cùng của nó (Sổ GD, Nhập, Cài đặt) — để mỗi
+          trang tự khai bề ngang của mình thay vì layout đoán hộ cho tất cả. */}
       <main
         key={privacyOn ? 'priv-on' : 'priv-off'}
         ref={mainRef}
-        className={`mx-auto w-full min-h-0 max-w-2xl flex-1 overflow-y-auto pt-[env(safe-area-inset-top)] lg:pt-0 lg:pb-6 ${onEntry ? '' : 'pb-20'}`}
+        className={`mx-auto w-full min-h-0 max-w-6xl flex-1 overflow-y-auto pt-[env(safe-area-inset-top)] lg:pt-0 lg:pb-6 ${onEntry ? '' : 'pb-20'}`}
       >
         <Outlet />
       </main>

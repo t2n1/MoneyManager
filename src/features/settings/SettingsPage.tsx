@@ -28,8 +28,10 @@ export function SettingsPage() {
   const [searchParams] = useSearchParams()
   const [editing, setEditing] = useState(() => searchParams.get('edit') === 'profile')
 
+  // Cài đặt giữ một cột hẹp: đây là danh sách nhóm tuỳ chọn, kéo rộng ra thì nhãn và
+  // ô bật/tắt rời nhau hai đầu màn hình.
   return (
-    <div className="flex flex-col gap-4 p-3 lg:p-6">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-3 lg:p-6">
       <h1 className="text-lg font-bold text-fg-primary">Cài đặt</h1>
 
       {isDemoMode && (

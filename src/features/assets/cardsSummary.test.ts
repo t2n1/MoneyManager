@@ -20,7 +20,15 @@ function card(over: Partial<CardLiability> & { id: string }): CardLiability {
 }
 
 function split(over: Partial<CardStatementSplit>): CardStatementSplit {
-  return { totalOwed: 0, dueISO: null, closeISO: null, billed: null, unbilled: null, ...over }
+  return {
+    totalOwed: 0,
+    dueISO: null,
+    closeISO: null,
+    billed: null,
+    unbilled: null,
+    nextDueISO: null,
+    ...over,
+  }
 }
 
 /** funding rỗng = không thẻ nào có nguồn trả hợp lệ → không badge thiếu tiền */

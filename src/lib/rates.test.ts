@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { convertToBase, rateAgeDays, readRatesMeta, STALE_RATE_DAYS } from './rates'
+import {
+  convertToBase,
+  formatRateLine,
+  rateAgeDays,
+  readRatesMeta,
+  STALE_RATE_DAYS,
+} from './rates'
 
 // rates: 1 đơn vị base đổi được bao nhiêu đơn vị ngoại tệ (major units),
 // đúng format của open.er-api.com với base = JPY.
@@ -117,5 +123,40 @@ describe('readRatesMeta', () => {
     )
     expect(readRatesMeta('JPY')).toBeNull()
     expect(readRatesMeta('VND')?.sourceUpdatedAt).toBe(2)
+  })
+})
+
+describe('formatRateLine', () => {
+  it('tỷ giá >= 1 → viết xuôi, làm tròn theo decimals của tiền đích', () => {
+    // 1 yên đổi được 165,43 đồng; VND không có số lẻ
+    expect(formatRateLine('JPY', 'VND', 165.432222)).toBe('¥1 = 165 ₫')
+  })
+
+  it('tỷ giá < 1 → lật ngược cho khỏi ra 0,00xx', () => {
+    // 1 yên = 0,006345 đô → lật thành 1 đô = 157,6 yên
+    expect(formatRateLine('JPY', 'USD', 0.006345)).toBe('$1 = ¥158')
+  })
+
+  it('nhóm hàng nghìn theo đúng dấu của từng loại tiền', () => {
+    // VND dùng dấu chấm ngăn nghìn, không có số lẻ
+    expect(formatRateLine('JPY', 'VND', 1234.4)).toBe('¥1 = 1.234 ₫')
+    // Nhánh lật ngược cũng phải nhóm nghìn: 1/0,0000379 ≈ 26.385
+    expect(formatRateLine('VND', 'USD', 0.0000379)).toBe('$1 = 26.385 ₫')
+  })
+
+  it('USD ở vế giá trị → 2 số lẻ, dấu phẩy thập phân', () => {
+    // Con số không có thật ngoài đời, ở đây chỉ để soi nhánh decimals = 2
+    expect(formatRateLine('VND', 'USD', 2.5)).toBe('1 ₫ = $2,50')
+  })
+
+  it('cùng loại tiền → null (không có gì để nói)', () => {
+    expect(formatRateLine('JPY', 'JPY', 1)).toBeNull()
+  })
+
+  it('số rác từ nguồn → null, không ra Infinity', () => {
+    expect(formatRateLine('JPY', 'VND', 0)).toBeNull()
+    expect(formatRateLine('JPY', 'VND', -5)).toBeNull()
+    expect(formatRateLine('JPY', 'VND', Number.NaN)).toBeNull()
+    expect(formatRateLine('JPY', 'VND', Number.POSITIVE_INFINITY)).toBeNull()
   })
 })

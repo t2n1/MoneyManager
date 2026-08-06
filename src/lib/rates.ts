@@ -5,7 +5,7 @@
 
 // Nhập từ module lá ./currencies (KHÔNG phải ./money): convertToBase được bộ luật
 // thông báo gọi, mà money.ts kéo theo lib/privacy.ts (React + localStorage).
-import { CURRENCIES, type CurrencyCode } from './currencies'
+import { CURRENCIES, groupThousands, type CurrencyCode } from './currencies'
 
 /** major units: 1 đơn vị base đổi được rates[X] đơn vị X */
 export type Rates = Partial<Record<CurrencyCode, number>>
@@ -98,4 +98,42 @@ export function convertToBase(
   const fromMajor = minor / 10 ** CURRENCIES[from].decimals
   const baseMajor = fromMajor / rate
   return Math.round(baseMajor * 10 ** CURRENCIES[base].decimals)
+}
+
+/**
+ * major units → chuỗi có ký hiệu tiền. CỐ Ý không dùng formatMoney: nó che số khi
+ * bật chế độ riêng tư, mà tỷ giá là số công khai của thị trường chứ không phải
+ * tiền của người dùng — và rates.ts cũng bị cấm nhập money.ts (purity.test.ts).
+ */
+function formatMajor(major: number, currency: CurrencyCode): string {
+  const { symbol, decimals, position, group, decimal } = CURRENCIES[currency]
+  const [intPart, fracPart] = major.toFixed(decimals).split('.')
+  const body = `${groupThousands(intPart, group)}${fracPart ? decimal + fracPart : ''}`
+  return position === 'prefix' ? `${symbol}${body}` : `${body} ${symbol}`
+}
+
+/**
+ * Vế MỐC của một dòng tỷ giá: "¥1", "1 ₫", "$1". Luôn 0 số lẻ — dùng formatMajor
+ * ở đây thì USD ra "$1,00", thừa và làm dòng khó đọc.
+ */
+function formatOne(currency: CurrencyCode): string {
+  const { symbol, position } = CURRENCIES[currency]
+  return position === 'prefix' ? `${symbol}1` : `1 ${symbol}`
+}
+
+/**
+ * Một dòng tỷ giá đọc được: "¥1 = 165 ₫", "$1 = ¥158".
+ * Lật chiều khi rate < 1, vì viết xuôi sẽ ra "¥1 = 0,0063 $" — không ai đọc nổi.
+ * null = không có gì để hiện (cùng loại tiền, hoặc nguồn trả số rác).
+ */
+export function formatRateLine(
+  base: CurrencyCode,
+  code: CurrencyCode,
+  rate: number,
+): string | null {
+  if (code === base) return null
+  if (!Number.isFinite(rate) || rate <= 0) return null
+  return rate >= 1
+    ? `${formatOne(base)} = ${formatMajor(rate, code)}`
+    : `${formatOne(code)} = ${formatMajor(1 / rate, base)}`
 }

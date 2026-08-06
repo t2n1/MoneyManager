@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { VerdictNote } from '../../components/VerdictNote'
 import {
   useAccounts,
   useCategories,
@@ -20,6 +21,7 @@ import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { categoryBreakdown, categoryComparison, dailyExpenseTotals, monthlySeries } from './aggregate'
 import { buildInsights, detectAnomalies, noSpendStreak, savingsRate } from './insights'
 import { useMonthPace } from './monthPace'
+import { weekPace } from './weekPace'
 import { CategoryCompareBarsCard } from './CategoryCompareBarsCard'
 import { Section, SectionIndex, type IndexItem } from './SectionIndex'
 import { ParetoCard } from './ParetoCard'
@@ -154,6 +156,34 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rangeTxs, sixMonthDaily, accounts, base, rates])
+  // --- Nhịp chi tuần này vs tuần trước, cắt tới cùng số ngày ---
+  //
+  // Chỉ có nghĩa khi đang xem tháng HIỆN TẠI: xem tháng cũ thì "tuần này" không nằm
+  // trong kỳ, câu chữ sẽ nói về một tuần không liên quan tới thứ trên màn hình.
+  //
+  // Tuần bắt đầu từ thứ Hai. getDay() trả 0 cho Chủ nhật nên phải xoay, nếu không thì
+  // Chủ nhật thành ngày ĐẦU tuần và cửa sổ so sánh lệch cả tuần.
+  const dayOfWeek = ((new Date(todayISO).getDay() + 6) % 7) + 1
+  const pace = useMemo(() => {
+    if (!isCurrentMonth) return null
+    const expenseOn = new Map(sixMonthDaily.points.map((p) => [p.date, p.expense]))
+    const thisWeekStart = addDaysISO(todayISO, -(dayOfWeek - 1))
+    const lastWeekStart = addDaysISO(thisWeekStart, -7)
+    const week = (startISO: string) =>
+      Array.from({ length: 7 }, (_, i) => expenseOn.get(addDaysISO(startISO, i)) ?? 0)
+    const lastWeek = week(lastWeekStart)
+    // Cả tuần trước không có NGÀY NÀO trong dữ liệu → coi như chưa có tuần trước để so.
+    // Khác với "tuần trước chi 0đ": chỗ đó weekPace tự trả deltaPct null.
+    const hasLastWeek = lastWeek.some(
+      (_, i) => expenseOn.has(addDaysISO(lastWeekStart, i)),
+    )
+    return weekPace({
+      thisWeek: week(thisWeekStart),
+      lastWeek: hasLastWeek ? lastWeek : [],
+      dayOfWeek,
+    })
+  }, [isCurrentMonth, sixMonthDaily, todayISO, dayOfWeek])
+
   const subscriptions = useMemo(
     () => subscriptionSummary(recurringRules, todayISO, currencyOf, base, r),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -279,8 +309,36 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
         />
       </Section>
 
-      {/* Nhịp chi tiêu: sau ngày lương & theo thứ */}
+      {/* Nhịp chi tiêu: tuần này vs tuần trước, sau ngày lương & theo thứ */}
       <Section id="ins-nhip">
+        {pace && (
+          <div className="mb-2 rounded-xl bg-surface p-3 shadow-sm">
+            <h2 className="mb-2 text-sm font-semibold text-fg-muted">Tuần này so với tuần trước</h2>
+            <VerdictNote tone={pace.tone}>
+              Ngày {pace.dayOfWeek}/7 — đã chi <b>{formatMoney(pace.spent, base)}</b>
+              {pace.deltaPct === null ? (
+                <>. Tuần trước tính tới ngày này chưa chi gì nên không so được.</>
+              ) : pace.deltaPct === 0 ? (
+                <>, đúng bằng nhịp tuần trước ({formatMoney(pace.priorSameDays, base)}).</>
+              ) : (
+                <>
+                  , {pace.deltaPct > 0 ? 'nhanh hơn' : 'chậm hơn'} nhịp tuần trước{' '}
+                  <b>{Math.abs(pace.deltaPct)}%</b> ({formatMoney(pace.priorSameDays, base)} cùng{' '}
+                  {pace.dayOfWeek} ngày đầu tuần).
+                </>
+              )}
+            </VerdictNote>
+            {/* Nói rõ đang so trên nền mấy ngày — nếu không, người đọc mặc định đang so
+                với TRỌN tuần trước và sẽ thấy con số quá thấp một cách vô lý.
+                Không có so sánh nào thì cũng không có gì phải giải thích. */}
+            {pace.deltaPct !== null && (
+              <p className="mt-1.5 text-2xs text-fg-muted">
+                Chỉ so tới ngày thứ {pace.dayOfWeek} của tuần trước, không so với cả 7 ngày — tuần
+                đang dở mà đem so với tuần đủ thì lúc nào cũng ra “đang tiêu ít hơn”.
+              </p>
+            )}
+          </div>
+        )}
         <SpendRhythmCard
           payday={rhythm.payday}
           weekdays={rhythm.weekdays}

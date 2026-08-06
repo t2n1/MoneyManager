@@ -71,6 +71,14 @@ export function defaultAdjustDate({
   return closeISO < todayISO ? closeISO : todayISO
 }
 
+/**
+ * Ghi chú gắn cho khoản bù TỔNG NỢ thẻ — cũng là dấu hiệu để tổng "Quẹt trong
+ * kỳ" (cardMonthCharge) nhận ra và bỏ qua nó: khoản bù tổng nợ không phải tiền
+ * quẹt, cộng vào sẽ ra số không có trên sao kê thật nào. Khoản bù của "Chỉnh
+ * cho khớp" mang ghi chú khác nên vẫn được tính như thiết kế.
+ */
+export const CARD_RECONCILE_NOTE = 'Điều chỉnh số nợ'
+
 // --- Danh mục cho giao dịch bù ---
 // Bảng transactions có CHECK: chi/thu BẮT BUỘC có danh mục (chỉ chuyển khoản mới
 // được để trống). Nên giao dịch bù phải gắn một danh mục — app tự tạo sẵn một

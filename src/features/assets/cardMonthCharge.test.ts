@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   cardBillingRange,
   cardMonthCharge,
+  cardMonthReconcileNet,
   monthAdjustDate,
   monthAdjustPlan,
   type MonthChargeTx,
 } from './cardMonthCharge'
+import { CARD_RECONCILE_NOTE } from './reconcile'
 
 const ex = (amount: number, p: Partial<MonthChargeTx> = {}): MonthChargeTx => ({
   type: 'expense',
@@ -47,6 +49,45 @@ describe('cardMonthCharge', () => {
 
   it('không có giao dịch nào thì bằng 0', () => {
     expect(cardMonthCharge('card', [])).toBe(0)
+  })
+
+  it('bỏ qua khoản "Điều chỉnh số nợ" — nó không phải tiền quẹt', () => {
+    // Khoản bù tổng nợ (ReconcileSheet) ghi lùi về ngày chốt sẽ rơi vào kỳ;
+    // cộng nó vào thì tổng "Quẹt" ra số âm không có trên sao kê thật nào.
+    const txs = [
+      ex(112_760),
+      ex(1_312_870, { type: 'income', note: CARD_RECONCILE_NOTE }),
+    ]
+    expect(cardMonthCharge('card', txs)).toBe(112_760)
+  })
+
+  it('vẫn tính khoản bù của "Chỉnh cho khớp" (ghi chú khác)', () => {
+    // Không tính thì chỉnh xong tổng tháng vẫn lệch y như cũ
+    const txs = [ex(112_760), ex(3_000, { note: 'Điều chỉnh sao kê tháng 8/2026' })]
+    expect(cardMonthCharge('card', txs)).toBe(115_760)
+  })
+})
+
+describe('cardMonthReconcileNet', () => {
+  it('cộng ảnh hưởng của các khoản "Điều chỉnh số nợ" trong rổ (dương = bớt nợ)', () => {
+    const txs = [
+      ex(112_760),
+      ex(1_312_870, { type: 'income', note: CARD_RECONCILE_NOTE }),
+    ]
+    expect(cardMonthReconcileNet('card', txs)).toBe(1_312_870)
+  })
+
+  it('khoản bù chiều CHI (nợ thật nhiều hơn sổ) ra số âm', () => {
+    expect(cardMonthReconcileNet('card', [ex(5_000, { note: CARD_RECONCILE_NOTE })])).toBe(-5_000)
+  })
+
+  it('không có khoản bù nào thì bằng 0', () => {
+    expect(cardMonthReconcileNet('card', [ex(112_760)])).toBe(0)
+  })
+
+  it('bỏ qua khoản bù của tài khoản khác', () => {
+    const txs = [ex(9_999, { account_id: 'other', note: CARD_RECONCILE_NOTE })]
+    expect(cardMonthReconcileNet('card', txs)).toBe(0)
   })
 })
 

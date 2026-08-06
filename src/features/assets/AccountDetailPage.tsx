@@ -39,7 +39,7 @@ import type { StockTradeRow, TransactionRow } from '../../types/database.types'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { TransactionItem } from '../transactions/TransactionItem'
 import { CardMonthAdjustSheet } from './CardMonthAdjustSheet'
-import { cardBillingRange, cardMonthCharge } from './cardMonthCharge'
+import { cardBillingRange, cardMonthCharge, cardMonthReconcileNet } from './cardMonthCharge'
 import { depreciate } from './depreciation'
 import { HoldingsSection } from './HoldingsSection'
 import { investmentStats } from './investment'
@@ -191,6 +191,13 @@ export function AccountDetailPage() {
   const isCard = account?.type === 'card'
   const monthCharged = useMemo(
     () => (isCard ? cardMonthCharge(accountId, results) : 0),
+    [isCard, accountId, results],
+  )
+  // Khoản bù "Điều chỉnh số nợ" rơi vào kỳ (thường ghi lùi về ngày chốt) — đã bị
+  // loại khỏi tổng "Quẹt" nên phải hiện thành dòng riêng, kẻo dòng giao dịch có
+  // mà tổng lại như không.
+  const monthReconcileNet = useMemo(
+    () => (isCard ? cardMonthReconcileNet(accountId, results) : 0),
     [isCard, accountId, results],
   )
 
@@ -557,6 +564,20 @@ export function AccountDetailPage() {
               />
             )}
           </div>
+          {monthReconcileNet !== 0 && (
+            <div className="mt-1.5 flex items-center justify-between gap-2 text-sm text-fg-muted">
+              {/* Khoản bù không phải tiền quẹt nên không nằm trong tổng trên —
+                  nhưng nó có trong danh sách bên dưới, phải nói rõ kẻo tưởng cộng sót */}
+              <span>Khoản bù nợ (không tính vào quẹt)</span>
+              <Money
+                amount={Math.abs(monthReconcileNet)}
+                currency={currency}
+                tone={monthReconcileNet > 0 ? 'in' : 'out'}
+                showSign
+                className="font-medium"
+              />
+            </div>
+          )}
           {billing ? (
             <div className="mt-1.5 flex items-center justify-between text-sm text-fg-muted">
               <span>Bị rút ngày</span>

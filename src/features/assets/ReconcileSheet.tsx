@@ -10,6 +10,7 @@ import { useEscClose } from '../../hooks/useEscClose'
 import {
   ADJUST_CATEGORY_ICON,
   ADJUST_CATEGORY_NAME,
+  CARD_RECONCILE_NOTE,
   cardDebt,
   defaultAdjustDate,
   findAdjustCategory,
@@ -89,7 +90,7 @@ export function ReconcileSheet({
         account_id: account.id,
         to_account_id: null,
         occurred_on: occurredOn,
-        note: isCard ? 'Điều chỉnh số nợ' : 'Điều chỉnh số dư',
+        note: isCard ? CARD_RECONCILE_NOTE : 'Điều chỉnh số dư',
         exclude_from_stats: true,
       })
       onClose()

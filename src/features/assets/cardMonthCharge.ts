@@ -15,8 +15,13 @@ import { dayOfMonth, statementCloseFor } from '../../lib/cardAutopay'
 import { addDaysISO, addMonths, type MonthKey } from '../../lib/dates'
 import { shiftToBusinessDay } from '../../lib/jpHolidays'
 import { txBalanceDelta, type BalanceTxLike } from '../../lib/cardBalance'
+import { CARD_RECONCILE_NOTE } from './reconcile'
 
-export type MonthChargeTx = BalanceTxLike
+export type MonthChargeTx = BalanceTxLike & { note?: string | null }
+
+/** Khoản bù tổng nợ do "Điều chỉnh số nợ" tạo — nhận diện bằng ghi chú. */
+const isCardReconcile = (t: MonthChargeTx, cardId: string) =>
+  t.account_id === cardId && t.type !== 'transfer' && t.note === CARD_RECONCILE_NOTE
 
 /**
  * Tổng tiền quẹt trong rổ `txs` (đã lọc sẵn theo tháng ở nơi gọi).
@@ -26,16 +31,31 @@ export type MonthChargeTx = BalanceTxLike
  * trả hay chưa — trừ nó ra sẽ ra số không có ở bất kỳ đâu trên sao kê thật.
  *
  * Chuyển tiền RA KHỎI thẻ (rút tiền mặt) vẫn tính: nó có trên sao kê.
- * Giao dịch `exclude_from_stats` cũng tính — kể cả khoản bù do chính tính năng
- * này tạo ra, nếu không số vừa chỉnh sẽ không khớp lại.
+ * Khoản bù của "Chỉnh cho khớp" cũng tính — không tính thì chỉnh xong tổng
+ * tháng vẫn lệch y như cũ. Riêng khoản bù TỔNG NỢ ("Điều chỉnh số nợ", thường
+ * ghi lùi về ngày chốt nên rơi vào kỳ) thì loại: nó không phải tiền quẹt, cộng
+ * vào là tổng ra số âm không có trên sao kê thật nào — hiển thị thành dòng
+ * riêng bằng `cardMonthReconcileNet`.
  */
 export function cardMonthCharge(cardId: string, txs: MonthChargeTx[]): number {
   let charged = 0
   for (const t of txs) {
     if (t.type === 'transfer' && t.to_account_id === cardId) continue
+    if (isCardReconcile(t, cardId)) continue
     charged -= txBalanceDelta(t, cardId)
   }
   return charged
+}
+
+/**
+ * Tổng ảnh hưởng của các khoản "Điều chỉnh số nợ" trong rổ `txs` lên nợ thẻ:
+ * dương = bớt nợ (bù chiều thu), âm = thêm nợ. Trang chi tiết dùng để hiện
+ * khoản bù thành dòng riêng dưới tổng "Quẹt trong kỳ".
+ */
+export function cardMonthReconcileNet(cardId: string, txs: MonthChargeTx[]): number {
+  let net = 0
+  for (const t of txs) if (isCardReconcile(t, cardId)) net += txBalanceDelta(t, cardId)
+  return net
 }
 
 export interface BillingRangeInput {

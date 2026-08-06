@@ -7,8 +7,10 @@
 import { lazy, Suspense } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Settings2 } from 'lucide-react'
+import { DataFreshness } from '../../components/DataFreshness'
 import { PrivacyToggle } from '../../components/PrivacyToggle'
 import { SegmentedControl, type SegmentedItem } from '../../components/ui'
+import { useAssetsFreshness } from '../../hooks/useDataFreshness'
 import { AssetsNowView } from './AssetsNowView'
 
 // Hai tab kia ít mở hơn tab mặc định, và Lifetime kéo theo 8 module tính toán riêng →
@@ -33,6 +35,7 @@ const isView = (v: string | null): v is AssetsView => VIEW_TABS.some((t) => t.va
 const Loading = () => <p className="py-10 text-center text-sm text-fg-muted">Đang tải…</p>
 
 export function AssetsPage() {
+  const freshness = useAssetsFreshness()
   // Giữ tab trong URL (không phải useState) để link chia sẻ và đường chuyển tiếp
   // `/lifetime` → `/assets?view=future` mở đúng tab.
   const [searchParams, setSearchParams] = useSearchParams()
@@ -63,6 +66,10 @@ export function AssetsPage() {
           </Link>
         )}
       </div>
+
+      {/* Tuổi dữ liệu đứng NGAY DƯỚI tiêu đề, trên nút gạt tab: cả ba tab đều đọc cùng
+          tỷ giá và cùng bảng giá cổ phiếu, nên đây là thông tin của cả trang. */}
+      <DataFreshness summary={freshness} />
 
       <SegmentedControl
         items={VIEW_TABS}

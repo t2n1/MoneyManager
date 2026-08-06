@@ -8,6 +8,8 @@ import {
   StatTile,
   type SegmentedItem,
 } from '../../components/ui'
+import { DataFreshness } from '../../components/DataFreshness'
+import { useRatesFreshness } from '../../hooks/useDataFreshness'
 import { RemittanceSection } from '../remittance/RemittanceSection'
 import { InsightsView } from './InsightsView'
 import { TrendsView } from './TrendsView'
@@ -109,6 +111,7 @@ function parseYm(s: string | null): MonthKey | null {
 }
 
 export function ReportsPage() {
+  const ratesFreshness = useRatesFreshness()
   const [kind, setKind] = useState<'expense' | 'income'>('expense')
   const [searchParams, setSearchParams] = useSearchParams()
   const [period, setPeriod] = useState<ReportPeriod>(() => {
@@ -385,6 +388,10 @@ export function ReportsPage() {
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
+
+      {/* Tuổi tỷ giá — mọi con số quy đổi trên trang này đều dựa vào nó. Đứng dưới cảnh
+          báo THIẾU tỷ giá ở trên: thiếu hẳn là chuyện nặng hơn cũ, nên nó lên trước. */}
+      <DataFreshness summary={ratesFreshness} />
 
       {/* Nội dung THÁNG */}
       {view === 'charts' && period === 'month' && (

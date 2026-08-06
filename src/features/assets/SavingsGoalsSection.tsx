@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Target } from 'lucide-react'
+import { EstimateMark } from '../../components/EstimateMark'
 import {
   useAccountBalances,
   useAccounts,
@@ -159,6 +160,7 @@ export function SavingsGoalsSection() {
                       >
                         Đang thêm {formatMoney(f.monthlyGrowth, currency)}/tháng → dự kiến đạt{' '}
                         <b>{formatMonthLabel(f.etaMonth).toLowerCase()}</b>
+                        <EstimateMark reason="Suy ra từ tốc độ để dành gần đây; để dành nhanh hay chậm hơn thì tháng này đổi theo." />
                         {f.vsDeadline === 'behind' && ' — trễ hơn hạn bạn đặt'}
                         {f.vsDeadline === 'ahead' && ' — kịp hạn'}.
                       </span>

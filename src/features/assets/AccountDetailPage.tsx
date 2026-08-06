@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, LineChart, Scale, Trash2 } from 'lucide-react'
+import { EstimateMark } from '../../components/EstimateMark'
 import { AccountTypeIcon } from '../../components/icons'
 import {
   ActionButton,
@@ -244,6 +245,11 @@ export function AccountDetailPage() {
               currency={currency}
               tone={balance < 0 ? 'out' : 'neutral'}
             />
+          )}
+          {/* Chỉ gắn dấu khi con số ĐANG hiện thật sự do công thức khấu hao suy ra:
+              có định giá nhập tay thì đó là số người dùng tự khai, không phải app đoán. */}
+          {isFixed && balanceRow?.market_value == null && dep != null && (
+            <EstimateMark reason="Suy ra từ ngày mua và số tháng khấu hao bạn đã đặt, không phải giá thị trường." />
           )}
         </p>
         {account?.asset_group && (

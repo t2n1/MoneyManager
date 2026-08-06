@@ -18,6 +18,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { EstimateMark } from '../../components/EstimateMark'
 import type { CurrencyCode } from '../../lib/currencies'
 import { formatCompact, formatMoney } from '../../lib/money'
 import type { NetWorthSnapshotRow } from '../../types/database.types'
@@ -314,7 +315,12 @@ export function LifetimeChartCard({
 
   return (
     <section className="rounded-xl bg-surface p-3 shadow-sm">
-      <h2 className="mb-2 text-sm font-semibold text-fg-muted">Tài sản ròng cả đời</h2>
+      {/* Dấu ≈ đặt ở TIÊU ĐỀ, không rải vào từng con số: cả khối này là số chiếu theo
+          kịch bản, gắn dấu vào mỗi chỗ thì thành nhiễu mà không thêm nghĩa. */}
+      <h2 className="mb-2 text-sm font-semibold text-fg-muted">
+        Tài sản ròng cả đời
+        <EstimateMark reason="Toàn bộ khối này là số chiếu theo kịch bản bạn đặt, không phải số đã xảy ra." />
+      </h2>
 
       <div role="img" aria-label={ariaLabel} className="h-52 w-full">
         <ResponsiveContainer width="100%" height="100%">

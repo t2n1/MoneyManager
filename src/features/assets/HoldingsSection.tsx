@@ -4,6 +4,7 @@
 // File riêng (không nhét vào AccountDetailPage) vì trang đó đã hơn 500 dòng. Mọi phép
 // tính nằm ở holdings.ts — ở đây chỉ đọc dữ liệu và bày ra.
 import { useMemo } from 'react'
+import { EstimateMark } from '../../components/EstimateMark'
 import { Card, Money, SectionTitle } from '../../components/ui'
 import { useStockPrices, useStockTrades } from '../../hooks/queries'
 import type { AccountRow, StockTradeRow } from '../../types/database.types'
@@ -148,6 +149,9 @@ export function HoldingsSection({ account, balance, onAddTrade, onEditTrade }: P
               </div>
               <div className="shrink-0 text-right">
                 <Money amount={giaTri} currency={currency} className="text-sm font-semibold" />
+                {/* Giá trị tính từ giá phiên CŨ — dòng trái đã ghi "giá cũ", dấu này nói
+                    thêm rằng con số bên phải cũng chỉ là ước tính theo giá đó. */}
+                {giaCu && <EstimateMark reason="Tính theo giá của phiên trước, chưa có giá phiên mới nhất." />}
                 <p className="text-2xs">
                   <Money
                     amount={Math.abs(lai)}

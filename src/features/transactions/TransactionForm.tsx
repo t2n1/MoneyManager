@@ -27,6 +27,7 @@ import {
   useTransactionTags,
 } from '../../hooks/queries'
 import { AccountPicker } from '../../components/AccountPicker'
+import { IconButton } from '../../components/ui'
 import { TagPicker } from '../tags/TagPicker'
 import { remainingOf } from '../debts/aggregate'
 import type { DebtPerson } from './roleFields'
@@ -419,20 +420,29 @@ export function TransactionForm({
   const toAmount = toAmountResult ?? 0
 
   const hasCategory = !!categoryId && activeOfType.some((c) => c.id === categoryId)
+  // Trả hộ "đã trả lại" mà người kia đưa đủ/đưa dư → không còn dòng chi nào của
+  // mình, danh mục không dùng tới. Còn lại (kể cả "còn nợ") vẫn cần danh mục.
+  const splitNeedsCategory = splitVal.settle === 'later' || amount - splitVal.others > 0
   // Điều kiện riêng theo vai trò (số tiền gốc > 0 + tài khoản đã kiểm ở ngoài)
   const roleValid = (() => {
     switch (activeRole) {
       case 'split': {
-        if (splitVal.others <= 0 || splitVal.others > amount || !hasCategory) return false
-        if (splitVal.settle === 'later') return splitVal.counterparty.trim().length > 0
+        if (splitVal.others <= 0) return false
+        if (splitVal.settle === 'later') {
+          // Còn nợ: phần nợ không thể vượt tổng bill ("đưa dư" chỉ có khi đưa ngay).
+          if (splitVal.others > amount || !hasCategory) return false
+          return splitVal.counterparty.trim().length > 0
+        }
+        // Đã trả lại ngay: cho phép đưa DƯ (> tổng) — phần dư ghi thành khoản thu.
+        if (splitNeedsCategory && !hasCategory) return false
         // Ví nhận có thể lạc khi đổi tài khoản/loại tiền sau khi đã chọn.
         if (
           splitVal.receivedAccountId &&
           !splitBackAccounts.some((a) => a.id === splitVal.receivedAccountId)
         )
           return false
-        // Người kia trả lại TẤT CẢ vào chính ví đã trả → không còn bút toán nào để
-        // ghi. Chặn ở đây thay vì lưu một cái không sinh ra gì.
+        // Người kia trả lại ĐÚNG BẰNG tổng vào chính ví đã trả → không còn bút toán
+        // nào để ghi. Chặn ở đây thay vì lưu một cái không sinh ra gì.
         return !(splitVal.others === amount && !splitVal.receivedAccountId)
       }
       case 'debt':
@@ -749,10 +759,14 @@ export function TransactionForm({
         activeRole === 'none' &&
         createPortal(roleTrigger, roleTriggerSlot)}
       {/* Vùng cuộn: mọi nội dung nhập. Đáy (NumPad + nút Lưu) được ghim riêng bên
-          dưới nên không bao giờ bị đẩy khuất — kể cả khi vai trò đặc biệt thêm field. */}
-      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
-      {/* Mẫu giao dịch nhanh (mục J): 1 chạm điền sẵn, hoặc lưu form hiện tại thành mẫu */}
-      {enableTemplates && (templates.length > 0 || canSaveTemplate) && (
+          dưới nên không bao giờ bị đẩy khuất — kể cả khi vai trò đặc biệt thêm field.
+          Trên lg không có numpad, vùng này thôi giành hết chỗ trống (flex-initial)
+          để nút Lưu nằm ngay dưới nội dung thay vì ghim tận đáy màn hình. */}
+      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto lg:flex-initial">
+      {/* Mẫu giao dịch nhanh (mục J): 1 chạm điền sẵn. Chỉ hiện khi ĐÃ có mẫu —
+          nút "Lưu mẫu" nằm cố định cạnh ô ghi chú, không chèn hàng vào đây giữa
+          chừng làm cả trang tụt xuống ngay lúc tay đang bấm danh mục. */}
+      {enableTemplates && templates.length > 0 && (
         <div className="flex gap-1.5 overflow-x-auto pb-0.5">
           {templates.map((t) => {
             const cur =
@@ -781,15 +795,6 @@ export function TransactionForm({
               </span>
             )
           })}
-          {canSaveTemplate && (
-            <button
-              type="button"
-              onClick={saveCurrentAsTemplate}
-              className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-gray-300 dark:border-gray-600 px-3 py-1.5 text-xs font-medium text-fg-muted active:scale-95"
-            >
-              <Star className="h-3 w-3" /> Lưu mẫu
-            </button>
-          )}
         </div>
       )}
 
@@ -1029,15 +1034,16 @@ export function TransactionForm({
         />
       )}
 
-      <input
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') handleSubmit()
-        }}
-        placeholder="Ghi chú (tùy chọn)"
-        className="rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-gray-700 dark:text-gray-300 outline-green-500"
-      />
+      {/* Vai trò cần danh mục nhưng lưới nằm sâu bên dưới các ô của vai trò —
+          không nhắc thì nút Lưu cứ mờ mà không rõ vì sao. */}
+      {activeRole !== 'none' &&
+        !hideCategoryGrid &&
+        !hasCategory &&
+        (activeRole !== 'split' || splitNeedsCategory) && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+          Còn thiếu một bước: cuộn xuống chọn danh mục cho khoản này ở lưới bên dưới.
+        </p>
+      )}
 
       {/* Danh mục (ẩn khi chuyển khoản hoặc vai trò tự khóa danh mục) */}
       {type !== 'transfer' &&
@@ -1090,9 +1096,35 @@ export function TransactionForm({
           </div>
         ))}
 
-      {/* Dưới lưới danh mục: những thứ tùy chọn/hiếm dùng. Danh mục là bước bắt buộc
-          của mọi giao dịch nên phải nằm trong tầm nhìn đầu tiên — đo trên 375×812 thì
-          để Nhãn/Hoàn tiền ở trên chỉ còn 4/13 ô danh mục lọt màn. */}
+      {/* Dưới lưới danh mục: những thứ tùy chọn/hiếm dùng (ghi chú, nhãn, hoàn tiền).
+          Danh mục là bước bắt buộc của mọi giao dịch nên phải nằm trong tầm nhìn đầu
+          tiên — ghi chú chen ở trên vừa tách hai bước bắt buộc (tiền → danh mục),
+          vừa dễ chạm nhầm làm bàn phím hệ thống bật lên che numpad. */}
+      <div className="flex gap-1.5">
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSubmit()
+          }}
+          placeholder="Ghi chú (tùy chọn)"
+          className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-gray-700 dark:text-gray-300 outline-green-500"
+        />
+        {/* "Lưu mẫu" ở ô cố định cạnh ghi chú: không nhảy layout như khi tự chèn
+            hàng chip ở đầu form. Mờ đi (thay vì ẩn) khi chưa đủ số tiền + danh mục. */}
+        {enableTemplates && activeRole === 'none' && (
+          <IconButton
+            onClick={saveCurrentAsTemplate}
+            disabled={!canSaveTemplate}
+            aria-label="Lưu thành mẫu nhanh"
+            title="Lưu thành mẫu nhanh (cần số tiền + danh mục)"
+            className="shrink-0 disabled:opacity-40"
+          >
+            <Star className="h-4 w-4 text-amber-400" fill={canSaveTemplate ? 'currentColor' : 'none'} />
+          </IconButton>
+        )}
+      </div>
+
       {activeRole === 'none' && <TagPicker value={effectiveTagIds} onChange={setTagIds} />}
 
       {/* Hoàn tiền — chỉ có nghĩa với khoản CHI */}

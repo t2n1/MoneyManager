@@ -13,6 +13,7 @@ import { AccountPicker } from '../../components/AccountPicker'
 import { MoneyField } from '../../components/MoneyField'
 import type { RecurringFrequency } from '../../lib/recurring'
 import type { RecurringRuleRow, TransactionType } from '../../types/database.types'
+import { useEscClose } from '../../hooks/useEscClose'
 
 const TYPE_TABS: { value: TransactionType; label: string }[] = [
   { value: 'expense', label: 'Chi' },
@@ -33,6 +34,7 @@ interface Props {
 
 /** Sheet thêm/sửa một quy tắc định kỳ. */
 export function RecurringFormSheet({ rule, onClose }: Props) {
+  useEscClose(onClose)
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const create = useCreateRecurringRule()

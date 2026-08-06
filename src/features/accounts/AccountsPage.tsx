@@ -24,6 +24,7 @@ import {
   TAX_SHELTER_LIST,
 } from '../assets/shelter'
 import { groupAccountsByType, type CurrencyTotal } from './groupByType'
+import { useEscClose } from '../../hooks/useEscClose'
 
 /** Ghép tổng theo loại tiền thành chuỗi hiển thị: "¥545,860" hoặc "¥X · ₫Y". */
 function formatTotals(totals: CurrencyTotal[]): string {
@@ -215,6 +216,7 @@ interface FormProps {
 }
 
 function AccountForm({ account, onClose }: FormProps) {
+  useEscClose(onClose)
   const create = useCreateAccount()
   const update = useUpdateAccount()
   const del = useDeleteAccount()

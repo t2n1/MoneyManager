@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronLeft, ChevronRight, GripVertical, Plus } fro
 import { AccountTypeIcon } from '../../components/icons'
 import { DragList, type DragHandleProps } from '../../components/DragList'
 import { iconButtonClass } from '../../components/ui'
+import { useEscClose } from '../../hooks/useEscClose'
 import {
   useAccountBalances,
   useAccounts,
@@ -741,6 +742,7 @@ function DeleteGroupSheet({
   onClose: () => void
   onConfirm: (reassignTo: string | null) => void
 }) {
+  useEscClose(onClose)
   // '' = Chưa phân nhóm (null); tên khác = gộp vào nhóm đó
   const [target, setTarget] = useState('')
 

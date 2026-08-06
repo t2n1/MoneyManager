@@ -4,6 +4,7 @@ import { type CurrencyCode } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
 import type { AccountRow, SavingsGoalRow } from '../../types/database.types'
 import { confirmDialog } from '../../lib/dialog'
+import { useEscClose } from '../../hooks/useEscClose'
 
 interface Props {
   accounts: AccountRow[]
@@ -14,6 +15,7 @@ interface Props {
 
 /** Sheet tạo/sửa mục tiêu tiết kiệm (mục AD). */
 export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
+  useEscClose(onClose)
   const create = useCreateSavingsGoal()
   const update = useUpdateSavingsGoal()
   const del = useDeleteSavingsGoal()

@@ -7,6 +7,7 @@ import { ActionButton } from '../../components/ui'
 import { MoneyField } from '../../components/MoneyField'
 import type { AccountRow } from '../../types/database.types'
 import {
+import { useEscClose } from '../../hooks/useEscClose'
   ADJUST_CATEGORY_ICON,
   ADJUST_CATEGORY_NAME,
   cardDebt,
@@ -31,6 +32,7 @@ interface Props {
  * nơi khác; phần đổi dấu nằm trong reconcilePlan.
  */
 export function ReconcileSheet({ account, currentBalance, onClose }: Props) {
+  useEscClose(onClose)
   const create = useCreateTransaction()
   const createCategory = useCreateCategory()
   const { data: categories = [] } = useCategories()

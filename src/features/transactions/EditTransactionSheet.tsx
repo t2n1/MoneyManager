@@ -10,6 +10,7 @@ import {
 import { showUndoToast } from '../../lib/undoToast'
 import type { TransactionRow } from '../../types/database.types'
 import { TransactionForm } from './TransactionForm'
+import { useEscClose } from '../../hooks/useEscClose'
 
 interface Props {
   tx: TransactionRow
@@ -37,6 +38,7 @@ function toNewTransaction(t: TransactionRow): NewTransaction {
 
 /** Sheet sửa/xóa giao dịch (dùng chung cho Sổ GD và Tìm kiếm). */
 export function EditTransactionSheet({ tx, onClose }: Props) {
+  useEscClose(onClose)
   const qc = useQueryClient()
   const navigate = useNavigate()
   const update = useUpdateTransaction()

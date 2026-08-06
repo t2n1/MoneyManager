@@ -137,6 +137,8 @@ export function TagPicker({ value, onChange }: Props) {
                 void addTag()
               }
               if (e.key === 'Escape') {
+                // Chặn để sheet mẹ (useEscClose) không đóng theo khi chỉ muốn hủy ô nhãn
+                e.preventDefault()
                 setDraft('')
                 setAdding(false)
               }

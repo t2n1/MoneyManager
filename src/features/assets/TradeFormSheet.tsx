@@ -11,6 +11,7 @@ import { useCreateStockTrade, useDeleteStockTrade, useUpdateStockTrade } from '.
 import { toISODate } from '../../lib/dates'
 import type { AccountRow, StockTradeKind, StockTradeRow } from '../../types/database.types'
 import { HOSE_SYMBOLS } from './hoseSymbols'
+import { useEscClose } from '../../hooks/useEscClose'
 
 /** Phí giao dịch phổ biến ở Việt Nam ~0,15% giá trị lệnh. */
 const FEE_RATE = 0.0015
@@ -31,6 +32,7 @@ interface Props {
 }
 
 export function TradeFormSheet({ account, trade, onClose }: Props) {
+  useEscClose(onClose)
   const create = useCreateStockTrade()
   const update = useUpdateStockTrade()
   const remove = useDeleteStockTrade()

@@ -4,6 +4,7 @@ import { toISODate } from '../../lib/dates'
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
 import type { AccountRow } from '../../types/database.types'
+import { useEscClose } from '../../hooks/useEscClose'
 
 interface Props {
   account: AccountRow
@@ -18,6 +19,7 @@ interface Props {
  * (account_id, valued_on): cập nhật lại cùng ngày sẽ đè giá trị cũ.
  */
 export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
+  useEscClose(onClose)
   const upsert = useUpsertValuation()
   const currency = account.currency as CurrencyCode
 

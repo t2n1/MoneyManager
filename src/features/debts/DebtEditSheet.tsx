@@ -4,6 +4,7 @@ import { CURRENCIES } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
 import type { DebtDirection, DebtRow } from '../../types/database.types'
 import { DebtDetailInputs } from '../transactions/roleFields'
+import { useEscClose } from '../../hooks/useEscClose'
 
 interface Props {
   debt: DebtRow
@@ -16,6 +17,7 @@ interface Props {
  * còn cho luồng sửa từ trang chi tiết Nợ; dùng lại DebtDetailInputs với form nhập.
  */
 export function DebtEditSheet({ debt, onClose }: Props) {
+  useEscClose(onClose)
   const update = useUpdateDebt()
 
   const [counterparty, setCounterparty] = useState(debt.counterparty)

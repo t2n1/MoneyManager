@@ -164,10 +164,15 @@ function DialogModal({ req }: { req: DialogReq }) {
       requestAnimationFrame(() => inputRef.current?.select())
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') finish(req.kind === 'confirm' ? false : null)
+      if (e.key === 'Escape') {
+        // Hộp thoại nằm TRÊN sheet: chặn sự kiện (pha capture) để sheet bên dưới
+        // (useEscClose) không đóng cùng lúc.
+        e.preventDefault()
+        finish(req.kind === 'confirm' ? false : null)
+      }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
   }, [req])
 
   const onConfirm = () => {

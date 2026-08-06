@@ -4,6 +4,7 @@ import { Archive, ChevronDown, ChevronLeft, ChevronUp, GripVertical, Plus } from
 import type { NewCategory } from '../../data'
 import { DragList, type DragHandleProps } from '../../components/DragList'
 import { IconButton } from '../../components/ui'
+import { useEscClose } from '../../hooks/useEscClose'
 import {
   useCategories,
   useCreateCategory,
@@ -533,6 +534,7 @@ function CategoryForm({
   hasChildren,
   onClose,
 }: FormProps) {
+  useEscClose(onClose)
   const create = useCreateCategory()
   const update = useUpdateCategory()
   const del = useDeleteCategory()

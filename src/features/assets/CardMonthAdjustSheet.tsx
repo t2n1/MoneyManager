@@ -10,6 +10,7 @@ import {
 import { showToast } from '../../lib/dialog'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { ActionButton, Money } from '../../components/ui'
+import { useEscClose } from '../../hooks/useEscClose'
 import { MoneyField } from '../../components/MoneyField'
 import type { AccountRow } from '../../types/database.types'
 import { monthAdjustDate, monthAdjustPlan } from './cardMonthCharge'
@@ -42,6 +43,7 @@ export function CardMonthAdjustSheet({
   rangeEndISO,
   onClose,
 }: Props) {
+  useEscClose(onClose)
   const create = useCreateTransaction()
   const createCategory = useCreateCategory()
   const { data: categories = [] } = useCategories()

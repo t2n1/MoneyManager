@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useDeleteBudget, useRates, useUpsertBudget } from '../../hooks/queries'
+import { useEscClose } from '../../hooks/useEscClose'
 import { MoneyField } from '../../components/MoneyField'
 import { confirmDialog } from '../../lib/dialog'
 
@@ -26,6 +27,7 @@ export function BudgetEditSheet({
   hint,
   onClose,
 }: Props) {
+  useEscClose(onClose)
   const { base } = useRates()
   const upsert = useUpsertBudget()
   const remove = useDeleteBudget()

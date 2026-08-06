@@ -3,6 +3,7 @@ import { useUpdateProfile } from '../../hooks/queries'
 import { clampMonthStartDay } from '../../lib/dates'
 import { CURRENCIES, formatMoney } from '../../lib/money'
 import type { ProfileRow } from '../../types/database.types'
+import { useEscClose } from '../../hooks/useEscClose'
 
 interface Props {
   profile: ProfileRow
@@ -13,6 +14,7 @@ const DAY_OPTIONS = Array.from({ length: 28 }, (_, i) => i + 1)
 
 /** Sheet sửa tên hiển thị + ngày bắt đầu tháng. Loại tiền gốc chỉ hiển thị. */
 export function ProfileEditSheet({ profile, onClose }: Props) {
+  useEscClose(onClose)
   const update = useUpdateProfile()
   const [name, setName] = useState(profile.display_name ?? '')
   const [day, setDay] = useState(clampMonthStartDay(profile.month_start_day))

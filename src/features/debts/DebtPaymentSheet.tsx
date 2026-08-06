@@ -5,6 +5,7 @@ import { toISODate } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
 import type { DebtRow } from '../../types/database.types'
+import { useEscClose } from '../../hooks/useEscClose'
 
 interface Props {
   debt: DebtRow
@@ -15,6 +16,7 @@ interface Props {
 
 /** Sheet ghi nhận một lần trả nợ. Tùy chọn tạo giao dịch thật (đổi số dư tài khoản). */
 export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
+  useEscClose(onClose)
   const createPayment = useCreateDebtPayment()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()

@@ -46,7 +46,7 @@ describe('noSpendStreak', () => {
 
 describe('buildInsights', () => {
   const fmt = (m: number) => `¥${m}`
-  it('có tháng trước → câu so sánh đúng dấu + câu tỷ trọng', () => {
+  it('có tháng trước → câu so sánh đúng chiều + câu tỷ trọng', () => {
     const out = buildInsights(
       {
         expenseThis: 1200,
@@ -57,15 +57,32 @@ describe('buildInsights', () => {
       },
       fmt,
     )
-    expect(out.some((i) => i.text.includes('+20%'))).toBe(true)
+    expect(out.some((i) => i.text.includes('nhiều hơn tháng trước 20%'))).toBe(true)
     expect(out.some((i) => i.text.includes('Ăn uống') && i.text.includes('50%'))).toBe(true)
   })
-  it('chi giảm → dấu trừ', () => {
+  it('chi giảm → "ít hơn"', () => {
     const out = buildInsights(
       { expenseThis: 800, expensePrev: 1000, topCategoryName: null, topCategoryAmount: 0, expenseTotal: 0 },
       fmt,
     )
-    expect(out.some((i) => i.text.includes('-20%'))).toBe(true)
+    expect(out.some((i) => i.text.includes('ít hơn tháng trước 20%'))).toBe(true)
+  })
+  // Cùng quy tắc với câu tổng trang Báo cáo (headline.ts): từ 200% trở lên thì đọc
+  // theo SỐ LẦN — "+970%" đúng số học nhưng não không quy được ra cái gì.
+  it('tăng từ 200% trở lên → đọc "gấp X lần", không đọc phần trăm', () => {
+    const out = buildInsights(
+      { expenseThis: 10_700, expensePrev: 1000, topCategoryName: null, topCategoryAmount: 0, expenseTotal: 0 },
+      fmt,
+    )
+    expect(out.some((i) => i.text.includes('gấp 10,7 lần tháng trước'))).toBe(true)
+    expect(out.some((i) => i.text.includes('%'))).toBe(false)
+  })
+  it('bằng đúng tháng trước → "ngang tháng trước", không phải "+0%"', () => {
+    const out = buildInsights(
+      { expenseThis: 1000, expensePrev: 1000, topCategoryName: null, topCategoryAmount: 0, expenseTotal: 0 },
+      fmt,
+    )
+    expect(out.some((i) => i.text.includes('ngang tháng trước'))).toBe(true)
   })
   it('tháng trước = 0 → bỏ câu so sánh', () => {
     const out = buildInsights(
@@ -148,6 +165,27 @@ describe('forecastMonthEnd', () => {
 
     it('số ngày truyền vào lệch với daysElapsed → vẫn tính, không ném lỗi', () => {
       expect(forecastMonthEnd(10_000, 10, 30, [1_000, 1_000])?.projected).toBe(30_000)
+    })
+  })
+
+  describe('tách khoản cố định (fixedSoFar)', () => {
+    it('tiền nhà trả đầu tháng không bị nhân theo ngày — chỉ nội suy phần biến đổi', () => {
+      // 74.000 sau 6/30 ngày, trong đó 68.000 là tiền nhà (cố định)
+      // → 68.000 + (6.000/6)×30 = 98.000, KHÔNG phải 370.000 như nội suy trơn
+      expect(forecastMonthEnd(74_000, 6, 30, undefined, 68_000)?.projected).toBe(98_000)
+    })
+    it('không truyền fixedSoFar → nguyên hành vi cũ', () => {
+      expect(forecastMonthEnd(74_000, 6, 30)?.projected).toBe(370_000)
+    })
+    it('toàn bộ là cố định → dự báo đúng bằng số đã chi', () => {
+      expect(forecastMonthEnd(68_000, 6, 30, undefined, 68_000)?.projected).toBe(68_000)
+    })
+    it('fixedSoFar lớn hơn spentSoFar (dữ liệu lệch) → kẹp lại, dự báo = số đã chi', () => {
+      expect(forecastMonthEnd(50_000, 5, 30, undefined, 60_000)?.projected).toBe(50_000)
+    })
+    it('cận dưới của khoảng vẫn không thấp hơn số đã chi', () => {
+      const f = forecastMonthEnd(74_000, 6, 30, [1_000, 1_000, 1_000, 1_000, 1_000, 1_000], 68_000)
+      expect(f!.low).toBeGreaterThanOrEqual(74_000)
     })
   })
 })

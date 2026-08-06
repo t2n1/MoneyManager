@@ -8,17 +8,21 @@ const ACTUAL = '#ef4444'
 const BUDGET = '#9ca3af'
 
 interface Props {
-  /** chi từng ngày cho TRỌN tháng tài chính (0 cho ngày trống/tương lai) */
+  /** chi từng ngày cho TRỌN tháng tài chính (0 cho ngày trống/tương lai).
+   *  Khi totalBudgeted > 0, caller phải truyền chi CÙNG PHẠM VI với ngân sách
+   *  (chỉ các mục đã đặt hạn mức) — hai đường khác phạm vi thì không so được. */
   points: DailyExpensePoint[]
   /** số ngày đã trôi qua (tháng hiện tại); = độ dài tháng nếu là tháng quá khứ */
   daysElapsed: number
   /** tổng ngân sách tháng (base minor); 0 = chưa đặt ngân sách */
   totalBudgeted: number
   base: CurrencyCode
+  /** Ghi chú phạm vi dưới chú giải — vd "Chỉ tính 3 mục đã đặt hạn mức" */
+  scopeNote?: string
 }
 
 /** Chi tích lũy thực tế vs đường ngân sách tuyến tính — thấy đang đi nhanh/chậm hơn kế hoạch. */
-export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base }: Props) {
+export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base, scopeNote }: Props) {
   const days = points.length
   if (days === 0) return null
   let cum = 0
@@ -93,6 +97,9 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base }: 
           </span>
         )}
       </div>
+      {scopeNote && (
+        <p className="mt-1 text-center text-2xs text-fg-muted">{scopeNote}</p>
+      )}
     </section>
   )
 }

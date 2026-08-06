@@ -66,11 +66,15 @@ export function headlineOf(input: HeadlineInput): Headline | null {
  * Lý do: kỳ trước chi ít thì phần trăm phình ra thành những con số như "nhiều hơn 970%"
  * — đúng về số học nhưng não không quy được ra cái gì. "gấp 10,7 lần" thì hình dung được
  * ngay. Mốc 200% vì dưới đó phần trăm vẫn còn dễ đọc ("nhiều hơn 80%").
+ *
+ * Export vì tab Thấu hiểu (buildInsights) nói CÙNG một phép so sánh — hai chỗ mà hai
+ * cách đọc ("+970%" vs "gấp 10,7 lần") thì người dùng tưởng là hai con số khác nhau.
+ * `noun` để chỗ so theo tháng nói "tháng trước" thay vì "kỳ trước".
  */
-function compareClause(deltaPct: number): string {
+export function compareClause(deltaPct: number, noun = 'kỳ trước'): string {
   if (deltaPct >= 200) {
     const times = (1 + deltaPct / 100).toFixed(1).replace('.', ',')
-    return `gấp ${times} lần kỳ trước`
+    return `gấp ${times} lần ${noun}`
   }
-  return `${deltaPct > 0 ? 'nhiều hơn' : 'ít hơn'} kỳ trước ${Math.abs(deltaPct)}%`
+  return `${deltaPct > 0 ? 'nhiều hơn' : 'ít hơn'} ${noun} ${Math.abs(deltaPct)}%`
 }

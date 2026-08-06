@@ -6,6 +6,7 @@ import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
 import type { CurrencyOf } from './aggregate'
+import { compareClause } from './headline'
 
 /** (thu − chi) / thu. income <= 0 → null. Có thể âm nếu chi > thu. */
 export function savingsRate(income: number, expense: number): number | null {
@@ -70,10 +71,14 @@ export function buildInsights(
 
   if (expensePrev > 0 && expenseThis > 0) {
     const pct = Math.round(((expenseThis - expensePrev) / expensePrev) * 100)
-    const sign = pct >= 0 ? '+' : ''
+    // Cùng cách đọc với câu tổng trang Báo cáo (compareClause): ≥200% nói "gấp X lần",
+    // còn lại nói hơn/kém %. Hai chỗ nói hai kiểu về CÙNG một phép so thì như hai số khác.
     out.push({
       id: 'vs-prev',
-      text: `Tháng này chi ${fmt(expenseThis)}, ${sign}${pct}% so với tháng trước.`,
+      text:
+        pct === 0
+          ? `Tháng này chi ${fmt(expenseThis)}, ngang tháng trước.`
+          : `Tháng này chi ${fmt(expenseThis)}, ${compareClause(pct, 'tháng trước')}.`,
     })
   }
 
@@ -114,15 +119,29 @@ export interface Forecast {
  * một tổng cộng dồn lớn theo căn bậc hai số hạng, không theo số hạng).
  *
  * `dailySpend` là chi từng ngày đã trôi. Thiếu nó thì vẫn chạy, chỉ là không có khoảng.
+ * Khi truyền `fixedSoFar` thì nên truyền chuỗi ngày CHỈ GỒM phần biến đổi — độ chênh
+ * của khoản trả một-lần không nói gì về mấy ngày còn lại.
+ *
+ * `fixedSoFar`: phần trong `spentSoFar` thuộc danh mục chi CỐ ĐỊNH (tiền nhà, đăng ký…).
+ * Khoản cố định trả MỘT lần mỗi tháng — nhân nó theo tốc độ ngày là dự báo phình gấp
+ * nhiều lần ngay sau hôm trả (tiền nhà 68k trả ngày 6 → nội suy trơn ra ~350k/tháng).
+ * Nên phần cố định đã trả được cộng NGUYÊN, chỉ phần biến đổi mới nội suy. Mặt trái
+ * chấp nhận được: khoản cố định CHƯA tới ngày trả thì dự báo thiếu phần đó — thiếu
+ * một khoản biết trước vẫn trung thực hơn thừa gấp năm lần.
  */
 export function forecastMonthEnd(
   spentSoFar: number,
   daysElapsed: number,
   daysInMonth: number,
   dailySpend?: number[],
+  fixedSoFar = 0,
 ): Forecast | null {
   if (daysElapsed < 1 || daysInMonth < 1) return null
-  const projected = Math.round((spentSoFar / daysElapsed) * daysInMonth)
+  // Kẹp vào [0, spentSoFar]: cố định là một PHẦN của đã-chi, dữ liệu lệch thì thà
+  // dự báo = số đã chi còn hơn ra số âm hay số vượt quá cái đã xảy ra.
+  const fixed = Math.min(Math.max(fixedSoFar, 0), spentSoFar)
+  const variable = spentSoFar - fixed
+  const projected = Math.round(fixed + (variable / daysElapsed) * daysInMonth)
   const daysLeft = Math.max(0, daysInMonth - daysElapsed)
 
   // Dưới 2 ngày dữ liệu thì không có "độ chênh" để nói, và hết ngày rồi thì không còn gì

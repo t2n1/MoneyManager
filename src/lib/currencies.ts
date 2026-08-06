@@ -28,3 +28,11 @@ export const CURRENCIES: Record<
   VND: { symbol: '₫', decimals: 0, label: 'Đồng Việt Nam', position: 'suffix', group: '.', decimal: ',' },
   USD: { symbol: '$', decimals: 2, label: 'Đô la Mỹ', position: 'prefix', group: '.', decimal: ',' },
 }
+
+/**
+ * Chèn dấu phân cách hàng nghìn vào chuỗi CHỮ SỐ (không dấu, không phần thập phân).
+ * Ở đây chứ không ở money.ts vì lib/rates.ts cũng cần mà nó bị cấm nhập money.ts
+ * (xem features/notifications/purity.test.ts).
+ */
+export const groupThousands = (digits: string, sep: string) =>
+  digits.replace(/\B(?=(\d{3})+(?!\d))/g, sep)

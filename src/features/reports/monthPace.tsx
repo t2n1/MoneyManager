@@ -36,6 +36,8 @@ export interface MonthPace {
   hasSpend: boolean
   /** Số ngày tính vào đường thực chi: tới hôm nay nếu là tháng hiện tại, cả tháng nếu đã qua */
   paceDaysElapsed: number
+  /** Tổng số ngày của tháng đang xem — cùng với paceDaysElapsed cho ra "đã trôi bao nhiêu phần tháng" */
+  paceDaysInMonth: number
   totalBudgeted: number
   /** Số dòng hạn mức tính vào tổng (nhóm/lá độc lập — KHÔNG tính mốc con) */
   budgetedCount: number
@@ -194,6 +196,7 @@ export function useMonthPace(monthKey: MonthKey): MonthPace {
     monthDaily,
     hasSpend: monthDaily.points.some((p) => p.expense > 0),
     paceDaysElapsed: isCurrentMonth ? daysElapsed : daysInMonth,
+    paceDaysInMonth: daysInMonth,
     totalBudgeted: report?.totalBudgeted ?? 0,
     budgetedCount: budgetRoots.size,
     budgetDaily,

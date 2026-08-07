@@ -19,12 +19,39 @@ import {
   sumIncomeExpense,
 } from '../reports/aggregate'
 import { showToast } from '../../lib/dialog'
+import { Card } from '../../components/ui/Card'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { buildBudgetDisplay, type BudgetChildRow } from './budgetDisplay'
+import { pickAttention, sortBudgetItems, type BudgetSortMode } from './budgetSort'
+import { ClassificationToggle } from '../categories/ClassificationToggle'
 import type { BudgetStatus } from './progress'
 import { MonthPaceCharts, SpendPaceSection, useMonthPace } from '../reports/monthPace'
 import { axisProgress } from './axisTargets'
 import { AxisTargetsCard } from './AxisTargetsCard'
+
+const SORT_KEY = 'budget.sort'
+const SORT_OPTIONS = [
+  ['pace', 'Nhịp'],
+  ['money', 'Tiền'],
+  ['manual', 'Cài đặt'],
+] as const satisfies readonly (readonly [BudgetSortMode, string])[]
+const SORT_HINT: Record<BudgetSortMode, string> = {
+  pace: 'Mục tiêu nhanh hơn nhịp tháng lên đầu (tháng đã qua thì bằng % đã dùng).',
+  money: 'Vượt nhiều tiền nhất lên đầu, rồi tới mục còn ít tiền để tiêu nhất.',
+  manual: 'Đúng thứ tự danh mục trong Cài đặt — đứng yên cả tháng cho dễ nhớ chỗ.',
+}
+
+/** Mặc định 'manual': danh sách đứng yên để nhớ được chỗ, còn việc gấp thì đã có
+ *  khối "Cần để ý" ghim trên đầu lo. Đổi kiểu sắp là ý thích cá nhân nên giữ ở
+ *  máy (localStorage), không nhét vào hồ sơ người dùng. */
+function readSortMode(): BudgetSortMode {
+  try {
+    const v = localStorage.getItem(SORT_KEY)
+    return SORT_OPTIONS.some(([m]) => m === v) ? (v as BudgetSortMode) : 'manual'
+  } catch {
+    return 'manual'
+  }
+}
 
 const BAR_COLOR: Record<BudgetStatus, string> = {
   ok: 'bg-green-500',
@@ -108,6 +135,16 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   } | null>(null)
   // Các nhóm cha đang xổ (mở accordion). Mặc định thu gọn.
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [sortMode, setSortMode] = useState<BudgetSortMode>(readSortMode)
+
+  function changeSort(m: BudgetSortMode) {
+    setSortMode(m)
+    try {
+      localStorage.setItem(SORT_KEY, m)
+    } catch {
+      // Trình duyệt chặn lưu (chế độ riêng tư) — chỉ mất lựa chọn khi mở lại.
+    }
+  }
 
   const catOf = (id: string) => categories.find((c) => c.id === id)
 
@@ -167,6 +204,13 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     .filter((c) => c.type === 'expense' && !c.is_archived)
     .sort((a, b) => a.sort_order - b.sort_order)
   const { items, unbudgeted } = buildBudgetDisplay(expenseCats, report)
+
+  // Phần tháng đã trôi qua (0…1) — mốc để biết tiêu thế là nhanh hay chậm.
+  // Tháng đã qua thì paceDaysElapsed = cả tháng → bằng 1, nhịp rơi về đúng % đã dùng.
+  const monthProgress =
+    pace.paceDaysInMonth > 0 ? pace.paceDaysElapsed / pace.paceDaysInMonth : 1
+  const sortedItems = sortBudgetItems(items, sortMode, monthProgress)
+  const attention = pickAttention(items, monthProgress)
 
   // Thân của một dòng cha / lá độc lập: tên + % ở dòng trên, thanh + "đã chi / trần"
   // ở dòng dưới. Hai dòng chứ không phải ba — nhóm xổ ra 8 con thì ba dòng mỗi mục
@@ -306,11 +350,63 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </button>
       </section>
 
+      {/* Cần để ý — ghim ngay dưới dòng tổng (cùng order-2 nên xếp sau nó theo thứ tự
+          DOM, trước khối nhịp chi order-3). Đây là phần trả lời "hôm nay phải làm gì",
+          khác với danh sách bên dưới trả lời "toàn cảnh tháng này ra sao". */}
+      {attention.length > 0 && (
+        <Card as="section" className="order-2">
+          <h2 className="text-sm font-semibold text-fg-muted">
+            Cần để ý ({attention.length})
+          </h2>
+          <p className="mb-2 text-xs text-fg-muted">
+            Đã quá trần, hoặc đang tiêu nhanh hơn nhịp tháng. Khoản cố định đã trả xong
+            (tiền nhà, bảo hiểm…) không tính — không còn gì để phanh.
+          </p>
+          <ul className="divide-y divide-border-subtle">
+            {attention.map((a) => (
+              <li key={a.item.cat.id}>
+                <button
+                  type="button"
+                  onClick={() => openEdit(a.item.cat.id)}
+                  className="flex min-h-11 w-full items-center justify-between gap-2 text-left text-sm"
+                >
+                  <span className="min-w-0 truncate font-medium text-fg-primary">
+                    {a.item.cat.icon} {a.item.cat.name}
+                  </span>
+                  <span
+                    className={`shrink-0 text-xs font-medium ${
+                      a.reason === 'over' ? 'text-money-out' : 'text-fg-warn'
+                    }`}
+                  >
+                    {a.reason === 'over'
+                      ? `vượt ${formatMoney(a.over, base)}`
+                      : `nhanh gấp ${a.pace.toFixed(1).replace('.', ',')} lần`}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       {/* Danh mục / nhóm có hạn mức */}
       {items.length > 0 && (
         <section className="order-4 rounded-xl bg-surface p-3 shadow-sm">
+          {/* Nút chọn kiểu sắp xếp: chỉ hiện khi có từ 2 mục trở lên — một mục thì
+              sắp kiểu gì cũng thế, bày thêm nút chỉ tổ rối. */}
+          {items.length > 1 && (
+            <div className="mb-2">
+              <ClassificationToggle
+                groupLabel="Sắp xếp hạn mức"
+                options={SORT_OPTIONS}
+                value={sortMode}
+                onChange={changeSort}
+              />
+              <p className="mt-1 text-2xs text-fg-muted">{SORT_HINT[sortMode]}</p>
+            </div>
+          )}
           <ul className="divide-y divide-border-subtle">
-            {items.map((item) => {
+            {sortedItems.map((item) => {
               if (item.kind === 'leaf') {
                 return (
                   <li key={item.cat.id} className="py-2 first:pt-0 last:pb-0">

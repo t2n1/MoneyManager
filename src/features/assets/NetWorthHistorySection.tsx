@@ -2,16 +2,19 @@ import { useEffect, useRef } from 'react'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useNetWorthSnapshots, useUpsertNetWorthSnapshot } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
-import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
+import { formatCompact } from '../../lib/money'
+import type { MoneyView } from './moneyView'
 
 interface Props {
-  base: CurrencyCode
   /** Tài sản ròng hiện tại (base minor); null = chưa tin cậy (thiếu tỷ giá) → không ghi. */
   currentNetWorth: number | null
+  /** Bộ "xem thử bằng tiền khác" của trang Tài sản — mọi số hiển thị đi qua đây.
+      Snapshot vẫn GHI theo base minor như cũ; chỉ lúc vẽ mới quy đổi. */
+  view: MoneyView
 }
 
 /** Khu "Tài sản ròng theo thời gian" (mục AF): ghi snapshot/ngày + biểu đồ đường. */
-export function NetWorthHistorySection({ base, currentNetWorth }: Props) {
+export function NetWorthHistorySection({ currentNetWorth, view }: Props) {
   const { data: snapshots = [], isLoading } = useNetWorthSnapshots()
   const upsert = useUpsertNetWorthSnapshot()
   const recordedRef = useRef(false)
@@ -55,7 +58,7 @@ export function NetWorthHistorySection({ base, currentNetWorth }: Props) {
           Tài sản ròng theo thời gian
         </h2>
         <span className={`text-xs font-semibold ${up ? 'text-money-in' : 'text-money-out'}`}>
-          {up ? '▲' : '▼'} {formatMoney(Math.abs(delta), base)}
+          {up ? '▲' : '▼'} {view.fmt(Math.abs(delta))}
         </span>
       </div>
       <div className="mt-2 h-40">
@@ -67,9 +70,12 @@ export function NetWorthHistorySection({ base, currentNetWorth }: Props) {
               axisLine={false}
               tickLine={false}
               width={44}
-              tickFormatter={(v: number) => formatCompact(v, base)}
+              tickFormatter={(v: number) => {
+                const t = view.view(v)
+                return formatCompact(t.amount, t.currency)
+              }}
             />
-            <Tooltip formatter={(v) => formatMoney(Number(v), base)} labelFormatter={(l) => `Ngày ${l}`} />
+            <Tooltip formatter={(v) => view.fmt(Number(v))} labelFormatter={(l) => `Ngày ${l}`} />
             <Line
               type="monotone"
               dataKey="value"

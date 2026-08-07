@@ -19,6 +19,7 @@ import {
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import { UNGROUPED_LABEL, type AssetAccount } from './aggregate'
 import { CardsSection } from './CardsSection'
+import { CurrencyViewToggle } from './CurrencyViewToggle'
 import { makeMoneyView } from './moneyView'
 import { useAssetsData } from './useAssetsData'
 
@@ -43,7 +44,13 @@ const GROUP_NOUN: Record<GroupMode, string> = {
   currency: 'loại tiền',
 }
 
-export function AssetsNowView() {
+interface Props {
+  /** "Xem thử bằng tiền khác" — state sống ở AssetsPage, dùng chung với tab Diễn biến. */
+  viewCur: CurrencyCode | null
+  onViewCurChange: (c: CurrencyCode | null) => void
+}
+
+export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
   const {
     todayISO,
     isLoading,
@@ -61,17 +68,8 @@ export function AssetsNowView() {
   // Chế độ xem cơ cấu: mục đích (asset_group) · loại tài khoản · đồng tiền
   const [groupMode, setGroupMode] = useState<GroupMode>('purpose')
 
-  // Xem thử CẢ TRANG bằng đồng tiền khác — chỉ để ước chừng theo tỷ giá cache, nên
-  // không lưu: mở lại trang là về tiền gốc.
-  // null = theo tiền gốc (không giữ mã cứng, vì base tải async từ profile).
-  const [viewCur, setViewCur] = useState<CurrencyCode | null>(null)
+  // Đồng tiền đang xem (null = theo tiền gốc, vì base tải async từ profile).
   const displayCur = viewCur ?? base
-  // Đồng tiền bấm được: tiền gốc luôn được; tiền khác cần tỷ giá dùng được.
-  const canView = (c: CurrencyCode) => {
-    if (c === base) return true
-    const r = rates?.[c]
-    return r != null && Number.isFinite(r) && r > 0
-  }
   // Bộ quy đổi dùng chung cho MỌI con số trên tab: tổng, nhóm, dòng tài khoản, thẻ.
   const mv = useMemo(
     () => makeMoneyView(base, displayCur, rates ?? {}),
@@ -298,33 +296,15 @@ export function AssetsNowView() {
             <p className="text-sm font-medium text-green-50/90">
               Tổng tài sản · {CURRENCIES[displayCur].label}
             </p>
-            {/* Xem thử bằng tiền khác — đổi cả Tổng tài sản lẫn Tài sản ròng bên cạnh.
+            {/* Xem thử bằng tiền khác — đổi mọi con số của tab này VÀ tab Diễn biến.
                 Không phải đổi base thật: chỉ ước chừng theo tỷ giá cache, có ≈ đi kèm. */}
-            <div
-              role="group"
-              aria-label="Xem thử bằng tiền khác"
-              className="flex shrink-0 rounded-lg bg-black/20 p-0.5"
-            >
-              {(Object.keys(CURRENCIES) as CurrencyCode[]).map((c) => {
-                const active = displayCur === c
-                return (
-                  <button
-                    key={c}
-                    type="button"
-                    aria-pressed={active}
-                    disabled={!canView(c)}
-                    onClick={() => setViewCur(c === base ? null : c)}
-                    className={`min-h-8 min-w-9 rounded-md px-2 text-xs font-semibold transition disabled:opacity-40 ${
-                      active
-                        ? 'bg-white text-green-800 shadow-sm'
-                        : 'text-green-50/90 hover:text-white'
-                    }`}
-                  >
-                    {CURRENCIES[c].symbol}
-                  </button>
-                )
-              })}
-            </div>
+            <CurrencyViewToggle
+              base={base}
+              rates={rates}
+              value={displayCur}
+              onChange={onViewCurChange}
+              variant="onGreen"
+            />
           </div>
           <p className="mt-1.5 text-[2rem] font-bold leading-none tracking-tight tabular-nums">
             {isLoading ? '…' : mv.fmt(breakdown.total, base, breakdown.hasForeign)}

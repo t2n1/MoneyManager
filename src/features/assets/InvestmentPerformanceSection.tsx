@@ -6,9 +6,10 @@ import { Link } from 'react-router-dom'
 import { ExplainBox } from '../../components/ExplainBox'
 import { useAccounts, useProfile, useRangeTransactions, useRates } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
-import { formatMoney, type CurrencyCode } from '../../lib/money'
+import type { CurrencyCode } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
 import type { AssetAccount } from './aggregate'
+import type { MoneyView } from './moneyView'
 import { investmentPerformance, type CashFlow } from './xirr'
 
 /** Lịch sử đầu tư hiếm khi dài hơn 10 năm với app ghi tay — đủ để XIRR chuẩn. */
@@ -20,9 +21,11 @@ interface Props {
   /** Tài khoản đầu tư đang được tính vào tổng tài sản. */
   accounts: AssetAccount[]
   base: CurrencyCode
+  /** Bộ "xem thử bằng tiền khác" — chỉ áp lúc HIỂN THỊ; XIRR vẫn tính theo base. */
+  view: MoneyView
 }
 
-export function InvestmentPerformanceSection({ accounts, base }: Props) {
+export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
   const { data: profile } = useProfile()
   const { data: accountRows = [] } = useAccounts()
   const { rates } = useRates()
@@ -98,7 +101,7 @@ export function InvestmentPerformanceSection({ accounts, base }: Props) {
 
   if (accounts.length === 0) return null
 
-  const money = (v: number) => formatMoney(Math.round(v), base)
+  const money = (v: number) => view.fmt(Math.round(v))
   // Thanh tỷ trọng: vốn gốc theo SỔ vs phần lời — khớp với trang chi tiết tài khoản
   const growth = currentValue - costBasis
   const barTotal = Math.max(1, costBasis + Math.max(0, growth))

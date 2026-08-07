@@ -18,9 +18,9 @@ import {
   monthKeyForDate,
   toISODate,
 } from '../../lib/dates'
-import { formatMoney } from '../../lib/money'
 import type { SavingsGoalRow } from '../../types/database.types'
 import { accountMonthlyGrowth, goalForecast } from './goals'
+import type { MoneyView } from './moneyView'
 import { SavingsGoalFormSheet } from './SavingsGoalFormSheet'
 
 /** Số tháng lịch sử dùng để đo tốc độ tích lũy. */
@@ -32,8 +32,13 @@ function daysLeft(targetDate: string | null, todayISO: string): number | null {
   return Math.round((Date.parse(targetDate) - Date.parse(todayISO)) / 86_400_000)
 }
 
+interface Props {
+  /** Bộ "xem thử bằng tiền khác" — chỉ áp lúc hiển thị, dự báo vẫn tính theo tiền tài khoản. */
+  view: MoneyView
+}
+
 /** Khu "Mục tiêu tiết kiệm" trên trang Tài sản (mục AD). */
-export function SavingsGoalsSection() {
+export function SavingsGoalsSection({ view }: Props) {
   const { data: goals = [] } = useSavingsGoals()
   const { data: accounts = [] } = useAccounts()
   const { data: balances = [] } = useAccountBalances()
@@ -132,7 +137,7 @@ export function SavingsGoalsSection() {
                 </div>
                 <div className="mt-1 flex items-center justify-between text-xs text-fg-muted">
                   <span className="tabular-nums">
-                    {formatMoney(f.current, currency)} / {formatMoney(g.target_amount, currency)}
+                    {view.fmt(f.current, currency)} / {view.fmt(g.target_amount, currency)}
                   </span>
                   {dl != null && (
                     <span className={dl < 0 ? 'text-money-out' : ''}>
@@ -147,7 +152,7 @@ export function SavingsGoalsSection() {
                     {f.etaMonth === null ? (
                       <span className="text-fg-muted">
                         {f.monthlyGrowth < 0
-                          ? `Số dư đang giảm ${formatMoney(-f.monthlyGrowth, currency)}/tháng — chưa tiến về đích.`
+                          ? `Số dư đang giảm ${view.fmt(-f.monthlyGrowth, currency)}/tháng — chưa tiến về đích.`
                           : 'Chưa đo được tốc độ tích lũy. Chuyển tiền đều đặn vào tài khoản này để app dự báo ngày đạt.'}
                       </span>
                     ) : (
@@ -158,7 +163,7 @@ export function SavingsGoalsSection() {
                             : 'text-fg-muted'
                         }
                       >
-                        Đang thêm {formatMoney(f.monthlyGrowth, currency)}/tháng → dự kiến đạt{' '}
+                        Đang thêm {view.fmt(f.monthlyGrowth, currency)}/tháng → dự kiến đạt{' '}
                         <b>{formatMonthLabel(f.etaMonth).toLowerCase()}</b>
                         <EstimateMark reason="Suy ra từ tốc độ để dành gần đây; để dành nhanh hay chậm hơn thì tháng này đổi theo." />
                         {f.vsDeadline === 'behind' && ' — trễ hơn hạn bạn đặt'}
@@ -176,8 +181,7 @@ export function SavingsGoalsSection() {
       {earmarked.total > 0 && (
         <p className="mt-3 border-t border-gray-100 pt-2.5 text-2xs leading-relaxed text-gray-500 dark:border-gray-800 dark:text-gray-400">
           <b className="tabular-nums text-gray-700 dark:text-gray-200">
-            {earmarked.hasMissingRate ? '≈ ' : ''}
-            {formatMoney(earmarked.total, base)}
+            {view.fmt(earmarked.total, base, earmarked.hasMissingRate)}
           </b>{' '}
           trong số dư đang có chủ cho các mục tiêu trên. Trang{' '}
           <Link to="/reports?view=health" className="font-medium text-green-700 dark:text-green-400">

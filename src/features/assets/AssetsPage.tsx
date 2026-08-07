@@ -4,13 +4,14 @@
 //   Diễn biến — "tôi đang tiến bộ không"    (lịch sử ròng, hiệu quả đầu tư, mục tiêu)
 //   Tương lai — "sau này thế nào"           (Lifetime)
 // Xem docs/information-architecture.md §2.3.
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Settings2 } from 'lucide-react'
 import { DataFreshness } from '../../components/DataFreshness'
 import { PrivacyToggle } from '../../components/PrivacyToggle'
 import { SegmentedControl, type SegmentedItem } from '../../components/ui'
 import { useAssetsFreshness } from '../../hooks/useDataFreshness'
+import type { CurrencyCode } from '../../lib/money'
 import { AssetsNowView } from './AssetsNowView'
 
 // Hai tab kia ít mở hơn tab mặc định, và Lifetime kéo theo 8 module tính toán riêng →
@@ -36,6 +37,11 @@ const Loading = () => <p className="py-10 text-center text-sm text-fg-muted">Đa
 
 export function AssetsPage() {
   const freshness = useAssetsFreshness()
+  // "Xem thử bằng tiền khác" — sống ở vỏ trang để hai tab Hiện tại/Diễn biến dùng
+  // chung một lựa chọn (đổi ở tab này, qua tab kia vẫn giữ). null = theo tiền gốc;
+  // không lưu vì chỉ là ước chừng. Tab Tương lai KHÔNG theo nút này — Lifetime có
+  // "tiền hiển thị" riêng theo kịch bản với tỷ giá giả định tự khai.
+  const [viewCur, setViewCur] = useState<CurrencyCode | null>(null)
   // Giữ tab trong URL (không phải useState) để link chia sẻ và đường chuyển tiếp
   // `/lifetime` → `/assets?view=future` mở đúng tab.
   const [searchParams, setSearchParams] = useSearchParams()
@@ -78,10 +84,10 @@ export function AssetsPage() {
         label="Nội dung trang Tài sản"
       />
 
-      {view === 'now' && <AssetsNowView />}
+      {view === 'now' && <AssetsNowView viewCur={viewCur} onViewCurChange={setViewCur} />}
       {view === 'trend' && (
         <Suspense fallback={<Loading />}>
-          <AssetsTrendView />
+          <AssetsTrendView viewCur={viewCur} onViewCurChange={setViewCur} />
         </Suspense>
       )}
       {view === 'future' && (

@@ -28,7 +28,7 @@ self.addEventListener('push', (event) => {
     payload = {}
   }
 
-  const title = payload.title || 'Sổ Chi Tiêu'
+  const title = payload.title || 'Sổ Gạo'
 
   event.waitUntil(
     self.registration.showNotification(title, {

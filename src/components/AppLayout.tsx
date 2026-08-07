@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ChartColumn, NotebookText, Plus, Settings, Target, Wallet } from 'lucide-react'
 import { isDemoMode } from '../lib/demo'
+import { useAuth } from '../features/auth/AuthProvider'
+import { AppLogo } from './AppLogo'
 import {
   useDeleteNotificationStates,
   usePruneNotificationState,
@@ -29,7 +31,7 @@ const TABS = [
 ]
 
 // Tiêu đề tab trình duyệt theo trang. Không đổi thì bookmark, lịch sử và hai tab mở
-// cạnh nhau đều là "Sổ Chi Tiêu" — không phân biệt được đang ở đâu. Tiền tố khớp cả
+// cạnh nhau đều là "Sổ Gạo" — không phân biệt được đang ở đâu. Tiền tố khớp cả
 // trang con (/settings/accounts → "Cài đặt"). Trang gốc "/" giữ nguyên tên app.
 const PAGE_TITLES: [prefix: string, title: string][] = [
   ['/entry', 'Nhập giao dịch'],
@@ -60,6 +62,9 @@ export function AppLayout() {
   // (formatMoney là hàm thuần nên component hiển thị tiền cần được render lại).
   const privacyOn = usePrivacyMode()
   const undoToast = useUndoToast()
+  // Email cho chân sidebar desktop (demo thì không có phiên → hiện chú thích demo)
+  const { session } = useAuth()
+  const email = session?.user?.email
 
   // Nút "+" nổi chỉ hiện ở trang Sổ Giao dịch
   const onLedger = location.pathname === '/' || location.pathname === '/transactions'
@@ -82,7 +87,7 @@ export function AppLayout() {
     const hit = PAGE_TITLES.find(
       ([p]) => location.pathname === p || location.pathname.startsWith(`${p}/`),
     )
-    document.title = hit ? `${hit[1]} — Sổ Chi Tiêu` : 'Sổ Chi Tiêu'
+    document.title = hit ? `${hit[1]} — Sổ Gạo` : 'Sổ Gạo'
   }, [location.pathname])
 
   // Sinh các kỳ định kỳ đến hạn kể từ lần mở trước; N > 0 → toast
@@ -152,7 +157,7 @@ export function AppLayout() {
   }, [notifInputsReady, notifEngineFailed])
 
   const linkClass = (isActive: boolean) =>
-    `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+    `relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${
       isActive
         ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
         : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
@@ -160,17 +165,16 @@ export function AppLayout() {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-surface-page lg:flex-row ">
-      {/* Sidebar desktop */}
-      <aside className="hidden shrink-0 border-r border-gray-200 bg-surface p-4 lg:flex lg:w-56 lg:flex-col dark:border-gray-800 print:hidden">
-        {/* Tên app chiếm RIÊNG một hàng. Đặt chung hàng với hai nút tiện ích thì nó chỉ
-            còn 51px mà cần ~95px mới đủ một dòng ở text-lg bold, nên rớt thành 3 dòng
-            ("Sổ / Chi / Tiêu"). Đo trên preview 1280px: sidebar 224px → 175px lòng trong,
-            trừ icon 24 + nút 32 + chuông 44 + 3 khoảng cách 24 = còn đúng 51px. */}
-        <div className="mb-2 flex items-center gap-2 px-2">
-          <NotebookText className="h-6 w-6 shrink-0 text-green-600 dark:text-green-500" />
-          <span className="whitespace-nowrap text-lg font-bold text-fg-primary">Sổ Chi Tiêu</span>
-        </div>
-        <div className="mb-4 flex items-center justify-end gap-1 px-2">
+      {/* Sidebar desktop — thẻ nổi: tách khỏi mép màn hình, bo góc lớn, bóng đổ nhẹ */}
+      <aside className="hidden shrink-0 rounded-2xl border border-border-subtle bg-surface p-3 shadow-lg shadow-gray-950/5 lg:m-3 lg:mr-0 lg:flex lg:w-60 lg:flex-col dark:shadow-black/40 print:hidden">
+        {/* Một hàng đủ logo + tên + 2 nút tiện ích: "Sổ Gạo" ngắn (~60px ở text-lg bold)
+            nên khác với tên cũ "Sổ Chi Tiêu" (~95px), không còn cảnh rớt 3 dòng.
+            Lòng trong 216px − logo 32 − mắt 32 − chuông 44 − 3 khe ≈ 84px > 60px. */}
+        <div className="mb-3 flex items-center gap-2 px-1 pt-1">
+          <AppLogo className="h-8 w-8 shrink-0" />
+          <span className="min-w-0 flex-1 truncate whitespace-nowrap text-lg font-bold text-fg-primary">
+            Sổ Gạo
+          </span>
           <PrivacyToggle className="flex h-8 w-8 items-center justify-center rounded-lg text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800" />
           <NotificationBoundary>
             <NotificationBell className="hidden lg:inline-flex" />
@@ -178,11 +182,14 @@ export function AppLayout() {
         </div>
         <NavLink
           to="/entry"
-          className="mb-3 flex items-center justify-center gap-2 rounded-lg bg-green-700 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-800 active:scale-95"
+          className="mb-4 flex items-center justify-center gap-2 rounded-xl bg-green-700 px-3 py-2.5 text-sm font-semibold text-white shadow-md shadow-green-700/25 transition hover:bg-green-800 active:scale-95"
         >
           <Plus className="h-5 w-5" />
           Nhập giao dịch
         </NavLink>
+        <div className="mb-1.5 px-3 text-2xs font-semibold uppercase tracking-widest text-fg-muted">
+          Menu
+        </div>
         <nav className="flex flex-col gap-1">
           {TABS.map((tab) => (
             <NavLink
@@ -191,16 +198,38 @@ export function AppLayout() {
               end={tab.to === '/'}
               className={({ isActive }) => linkClass(isActive)}
             >
-              <tab.Icon className="h-5 w-5" />
-              <span className="flex-1">{tab.label}</span>
+              {({ isActive }) => (
+                <>
+                  {/* Vạch xanh sát mép trái thẻ (-left-3 = ăn hết p-3) đánh dấu mục đang mở */}
+                  {isActive && (
+                    <span
+                      aria-hidden
+                      className="absolute -left-3 bottom-2 top-2 w-1 rounded-r-full bg-accent"
+                    />
+                  )}
+                  <tab.Icon className="h-5 w-5" />
+                  <span className="flex-1">{tab.label}</span>
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
-        {isDemoMode && (
-          <div className="mt-auto rounded-lg bg-amber-50 p-3 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-            Chế độ demo — dữ liệu chỉ lưu trên trình duyệt này
-          </div>
-        )}
+        <div className="mt-auto border-t border-border-subtle px-1 pb-1 pt-3">
+          {isDemoMode ? (
+            <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              Chế độ demo — dữ liệu chỉ lưu trên trình duyệt này
+            </div>
+          ) : (
+            email && (
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-100 text-xs font-semibold text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                  {email[0].toUpperCase()}
+                </div>
+                <span className="min-w-0 truncate text-xs text-fg-muted">{email}</span>
+              </div>
+            )
+          )}
+        </div>
       </aside>
 
       {/* Nội dung — key theo chế độ riêng tư để bật/tắt render lại cây route
@@ -213,7 +242,7 @@ export function AppLayout() {
       <main
         key={privacyOn ? 'priv-on' : 'priv-off'}
         ref={mainRef}
-        className={`mx-auto w-full min-h-0 max-w-6xl flex-1 overflow-y-auto pt-[env(safe-area-inset-top)] lg:pt-0 lg:pb-6 ${onEntry ? '' : 'pb-20'}`}
+        className={`mx-auto w-full min-h-0 max-w-6xl flex-1 overflow-y-auto pt-[env(safe-area-inset-top)] lg:pt-0 lg:pb-6 ${onEntry ? '' : 'pb-28'}`}
       >
         <Outlet />
       </main>
@@ -224,23 +253,24 @@ export function AppLayout() {
           type="button"
           onClick={() => navigate('/entry')}
           aria-label="Nhập giao dịch"
-          className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-green-700 leading-none text-white shadow-lg transition hover:bg-green-800 active:scale-95 lg:hidden print:hidden"
+          className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-green-700 leading-none text-white shadow-lg transition hover:bg-green-800 active:scale-95 lg:hidden print:hidden"
         >
           <Plus className="h-6 w-6" />
         </button>
       )}
 
-      {/* Bottom tab bar mobile — ẩn ở trang nhập giao dịch để lấy thêm không gian */}
-      <nav className={`fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-gray-800 print:hidden ${onEntry ? 'hidden' : 'flex'}`}>
+      {/* Bottom tab bar mobile — thẻ nổi tách khỏi mép như sidebar desktop; ẩn ở trang
+          nhập giao dịch để lấy thêm không gian. bottom = max(12px, dải an toàn iPhone). */}
+      <nav className={`fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 gap-1 rounded-2xl border border-border-subtle bg-surface p-1.5 shadow-lg shadow-gray-950/10 lg:hidden dark:shadow-black/50 print:hidden ${onEntry ? 'hidden' : 'flex'}`}>
         {TABS.map((tab) => (
           <NavLink
             key={tab.to}
             to={tab.to}
             end={tab.to === '/'}
             className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-0.5 py-2 text-xs ${
+              `flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-xs transition ${
                 isActive
-                ? 'font-semibold text-green-700 dark:text-green-400'
+                ? 'bg-green-100 font-semibold text-green-800 dark:bg-green-900/40 dark:text-green-300'
                 : 'text-fg-muted'
               }`
             }

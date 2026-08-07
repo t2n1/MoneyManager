@@ -1,6 +1,6 @@
-# Sổ Chi Tiêu
+# Sổ Gạo
 
-Web app quản lý chi tiêu cá nhân tiếng Việt, lấy cảm hứng từ Money Manager.
+Web app quản lý chi tiêu cá nhân tiếng Việt (tên cũ: Sổ Chi Tiêu), lấy cảm hứng từ Money Manager.
 Dùng trên cả điện thoại và PC, cài được như PWA.
 
 ## Nguyên tắc cốt lõi

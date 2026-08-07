@@ -252,7 +252,7 @@ export function SettingsPage() {
       )}
 
       <p className="text-center text-xs text-fg-muted">
-        Sổ Chi Tiêu · Giai đoạn 1 (MVP)
+        Sổ Gạo · Giai đoạn 1 (MVP)
         {profile && ` · Tháng bắt đầu ngày ${profile.month_start_day} · Quy đổi ${profile.base_currency}`}
       </p>
 

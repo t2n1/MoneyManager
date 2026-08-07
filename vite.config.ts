@@ -41,14 +41,14 @@ export default defineConfig({
         importScripts: ['/push-sw.js'],
       },
       manifest: {
-        name: 'Sổ Chi Tiêu',
-        short_name: 'Sổ Chi Tiêu',
+        name: 'Sổ Gạo',
+        short_name: 'Sổ Gạo',
         description: 'Quản lý chi tiêu cá nhân — nhập một giao dịch dưới 5 giây',
         lang: 'vi',
         dir: 'ltr',
         display: 'standalone',
         start_url: '/',
-        theme_color: '#16a34a',
+        theme_color: '#008236',
         background_color: '#f9fafb',
         icons: [
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },

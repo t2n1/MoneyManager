@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { NotebookText } from 'lucide-react'
 import { isDemoMode } from '../../lib/demo'
+import { AppLogo } from '../../components/AppLogo'
 import { getSupabase } from '../../lib/supabase'
 import { useAuth } from './AuthProvider'
 
@@ -24,8 +24,8 @@ export function LoginPage() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-surface-page px-6">
       <div className="text-center">
-        <NotebookText className="mx-auto h-14 w-14 text-green-600 dark:text-green-500" />
-        <h1 className="mt-4 text-3xl font-bold text-fg-primary">Sổ Chi Tiêu</h1>
+        <AppLogo className="mx-auto h-16 w-16 drop-shadow-md" />
+        <h1 className="mt-4 text-3xl font-bold text-fg-primary">Sổ Gạo</h1>
         <p className="mt-2 text-fg-muted">Quản lý chi tiêu cá nhân, đồng bộ mọi thiết bị</p>
       </div>
 

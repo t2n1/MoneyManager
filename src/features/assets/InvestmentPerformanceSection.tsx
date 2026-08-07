@@ -126,9 +126,16 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
 
   return (
     <section className="rounded-2xl bg-surface p-4 shadow-sm ">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-fg-muted">
-        Hiệu quả đầu tư
-      </h2>
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+          Hiệu quả đầu tư
+        </h2>
+        {/* Khu này nói về TIỀN (bỏ vào bao nhiêu, sinh ra bao nhiêu, %/năm). Câu
+            "đang giữ mã nào" nằm ở trang Đầu tư. */}
+        <Link to="/invest" className="shrink-0 text-2xs font-medium text-fg-accent">
+          Danh mục cổ phiếu
+        </Link>
+      </div>
 
       {/* Đóng góp vs tăng trưởng */}
       <div className="mb-1 flex h-3 w-full overflow-hidden rounded-full bg-surface-sunken">

@@ -22,6 +22,9 @@ const AssetsPage = lazy(() =>
 const AccountDetailPage = lazy(() =>
   import('./features/assets/AccountDetailPage').then((m) => ({ default: m.AccountDetailPage })),
 )
+const InvestPage = lazy(() =>
+  import('./features/assets/InvestPage').then((m) => ({ default: m.InvestPage })),
+)
 const AssetGroupsPage = lazy(() =>
   import('./features/assets/AssetGroupsPage').then((m) => ({ default: m.AssetGroupsPage })),
 )
@@ -116,6 +119,7 @@ function App() {
           <Route path="/entry" element={<EntryPage />} />
           <Route path="/assets" element={lazyRoute(<AssetsPage />)} />
           <Route path="/assets/groups" element={lazyRoute(<AssetGroupsPage />)} />
+          <Route path="/invest" element={lazyRoute(<InvestPage />, 'list')} />
           <Route path="/assets/account/:accountId" element={lazyRoute(<AccountDetailPage />)} />
           <Route path="/debts" element={lazyRoute(<DebtsPage />, 'table')} />
           <Route path="/debts/:debtId" element={lazyRoute(<DebtDetailPage />)} />

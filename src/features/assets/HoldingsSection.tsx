@@ -4,6 +4,7 @@
 // File riêng (không nhét vào AccountDetailPage) vì trang đó đã hơn 500 dòng. Mọi phép
 // tính nằm ở holdings.ts — ở đây chỉ đọc dữ liệu và bày ra.
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { EstimateMark } from '../../components/EstimateMark'
 import { Card, Money, SectionTitle } from '../../components/ui'
 import { useStockPrices, useStockTrades } from '../../hooks/queries'
@@ -103,13 +104,20 @@ export function HoldingsSection({ account, balance, onAddTrade, onEditTrade }: P
     <Card as="section" className="mb-3">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <SectionTitle>Danh mục</SectionTitle>
-        <button
-          type="button"
-          onClick={onAddTrade}
-          className="text-xs font-semibold text-green-700 dark:text-green-400"
-        >
-          + Ghi lệnh
-        </button>
+        <span className="flex shrink-0 items-baseline gap-3">
+          {/* Khu này chỉ nói về MỘT tài khoản; "tôi giữ tổng bao nhiêu mã này" nằm ở
+              trang Đầu tư. Đặt link ngay đây vì đó là lúc câu hỏi kia nảy ra. */}
+          <Link to="/invest" className="text-xs font-medium text-fg-accent">
+            Cả danh mục
+          </Link>
+          <button
+            type="button"
+            onClick={onAddTrade}
+            className="text-xs font-semibold text-green-700 dark:text-green-400"
+          >
+            + Ghi lệnh
+          </button>
+        </span>
       </div>
 
       <ul className="divide-y divide-border-subtle">

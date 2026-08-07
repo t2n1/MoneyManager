@@ -7,6 +7,9 @@ import { addDaysISO } from './dates'
 
 export type RecurringFrequency = 'weekly' | 'monthly' | 'yearly'
 
+/** 'auto' = tới hạn tự sinh giao dịch · 'remind' = chỉ nhắc (migration 0037). */
+export type RecurringMode = 'auto' | 'remind'
+
 /** Phần lịch của một rule — subset của RecurringRuleRow, đủ cho toán ngày. */
 export interface RuleSchedule {
   frequency: RecurringFrequency
@@ -67,6 +70,73 @@ export function nextDueDate(rule: Omit<RuleSchedule, 'is_paused'>): string | nul
   }
 }
 
+// --- Khoản cần thanh toán (mode = 'remind', migration 0037) ---
+
+/** Phần một rule kiểu nhắc cần có để biết "đang tới hạn chưa". */
+export interface BillRuleLike extends RuleSchedule {
+  id: string
+  mode?: RecurringMode
+  remind_days_before?: number
+}
+
+export interface BillStatus {
+  ruleId: string
+  /** Kỳ CHƯA XÁC NHẬN sớm nhất — chính là kỳ người dùng cần ghi tiếp theo. */
+  dueISO: string
+  /**
+   * Số ngày từ hôm nay tới `dueISO`. Âm = đã quá hạn bấy nhiêu ngày.
+   * 0 = đúng hôm nay.
+   */
+  daysLeft: number
+  /**
+   * Số kỳ đã tới hạn mà chưa xác nhận. 0 = kỳ sắp tới, chưa tới ngày.
+   *
+   * Có riêng con số này vì "quá hạn 3 kỳ" khác hẳn "quá hạn 90 ngày": người lỡ ba
+   * tháng gửi tiền về nhà cần biết là BA lần, không phải một lần cũ.
+   */
+  overdueCount: number
+}
+
+/** Khoảng cách ngày (b − a) theo lịch, cả hai là ISO 'YYYY-MM-DD'. */
+function daysBetweenISO(aISO: string, bISO: string): number {
+  const a = Date.parse(aISO + 'T00:00:00Z')
+  const b = Date.parse(bISO + 'T00:00:00Z')
+  return Math.round((b - a) / 86_400_000)
+}
+
+/**
+ * Các khoản kiểu NHẮC đang cần để ý: đã quá hạn, tới hạn hôm nay, hoặc sắp tới hạn
+ * trong `remind_days_before` ngày.
+ *
+ * Rule `mode` khác 'remind', đang tạm dừng, hoặc đã hết kỳ (quá `end_on`) → không có
+ * dòng nào. Kết quả xếp theo `dueISO` tăng dần: cái trễ nhất lên đầu.
+ */
+export function billStatuses(rules: BillRuleLike[], todayISO: string): BillStatus[] {
+  const out: BillStatus[] = []
+
+  for (const rule of rules) {
+    if (rule.mode !== 'remind' || rule.is_paused) continue
+    // nextDueDate bỏ qua is_paused (đã lọc ở trên) và trả kỳ chưa xong sớm nhất.
+    const dueISO = nextDueDate(rule)
+    if (dueISO === null) continue
+
+    const daysLeft = daysBetweenISO(todayISO, dueISO)
+    // Chưa tới ngày và cũng chưa vào tầm nhắc → im.
+    if (daysLeft > (rule.remind_days_before ?? 0)) continue
+
+    out.push({
+      ruleId: rule.id,
+      dueISO,
+      daysLeft,
+      // listDueDates trả đúng các kỳ ≤ hôm nay còn chưa xong — cùng một phép đếm mà
+      // engine catch-up dùng, nên hai bên không thể lệch nhau về "kỳ nào còn nợ".
+      overdueCount: listDueDates(rule, todayISO).length,
+    })
+  }
+
+  return out.sort((a, b) => (a.dueISO < b.dueISO ? -1 : a.dueISO > b.dueISO ? 1 : 0))
+}
+
 // --- Engine catch-up ---
 // Types cấu trúc (không import data/repo hay database.types để tránh vòng
 // import); Repo thật của app thỏa RecurringRepo về mặt cấu trúc.
@@ -81,6 +151,11 @@ export interface RecurringRuleLike extends RuleSchedule {
   account_id: string
   to_account_id: string | null
   note: string
+  /**
+   * Vắng mặt = 'auto' — dữ liệu cũ (và mọi fake trong test viết trước 0037) không
+   * có cột này, mà mặc định phải là hành vi CŨ, không phải im lặng ngừng sinh.
+   */
+  mode?: RecurringMode
 }
 
 /** Giao dịch 1 kỳ cần sinh (NewRecurringOccurrence của repo thỏa type này). */
@@ -107,11 +182,17 @@ export interface RecurringRepo {
  * Catch-up khi mở app: sinh giao dịch cho MỌI kỳ đến hạn của mọi rule active
  * (sinh bù tất cả kỳ lỡ, occurred_on = đúng ngày đến hạn quá khứ), kỳ trùng
  * do thiết bị khác đã sinh thì bỏ qua. Trả về số giao dịch đã tạo.
+ *
+ * Rule `mode = 'remind'` bị BỎ QUA hoàn toàn — kể cả việc đẩy `last_generated_on`.
+ * Đẩy con trỏ ở đây là xoá mất lời nhắc mà không ghi khoản nào: người dùng mở app
+ * một cái là "gửi tiền về cho má" tự coi như xong. Con trỏ của kiểu nhắc CHỈ được
+ * đẩy khi người dùng bấm xác nhận.
  */
 export async function runRecurringCatchUp(repo: RecurringRepo, todayISO: string): Promise<number> {
   const rules = await repo.listRecurringRules()
   let created = 0
   for (const rule of rules) {
+    if (rule.mode === 'remind') continue
     const dues = listDueDates(rule, todayISO)
     if (dues.length === 0) continue
     for (const due of dues) {

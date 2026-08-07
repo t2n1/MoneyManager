@@ -10,6 +10,7 @@ var NOTIFICATION_TYPES = [
   "account-negative",
   "debt-overdue",
   "debt-due-soon",
+  "bill-due",
   "budget-over",
   "budget-pace",
   "budget-parent-over",
@@ -44,6 +45,11 @@ var NOTIFICATION_META = {
     kind: "action",
     label: "N\u1EE3 / cho vay s\u1EAFp \u0111\u1EBFn h\u1EA1n",
     hint: "C\xF2n 7 ng\xE0y ho\u1EB7c \xEDt h\u01A1n l\xE0 t\u1EDBi ng\xE0y h\u1EB9n."
+  },
+  "bill-due": {
+    kind: "action",
+    label: "Kho\u1EA3n c\u1EA7n thanh to\xE1n",
+    hint: "Quy t\u1EAFc \u0111\u1ECBnh k\u1EF3 ki\u1EC3u NH\u1EAEC t\u1EDBi h\u1EA1n m\xE0 ch\u01B0a ghi (vd g\u1EEDi ti\u1EC1n v\u1EC1 nh\xE0). B\xE1m t\u1EDBi khi b\u1EA1n x\xE1c nh\u1EADn \u0111\xE3 ghi \u2014 app kh\xF4ng t\u1EF1 ghi h\u1ED9 v\xEC s\u1ED1 ti\u1EC1n m\u1ED7i l\u1EA7n m\u1ED9t kh\xE1c."
   },
   "budget-over": {
     kind: "action",
@@ -318,6 +324,50 @@ function nthDueDate(startISO, frequency, n) {
   const year = y + n;
   return `${year}-${pad3(m)}-${pad3(Math.min(d, daysInMonth(year, m)))}`;
 }
+function listDueDates(rule, todayISO) {
+  if (rule.is_paused) return [];
+  const out = [];
+  for (let n = 0; ; n++) {
+    const due = nthDueDate(rule.start_on, rule.frequency, n);
+    if (due > todayISO) break;
+    if (rule.end_on && due > rule.end_on) break;
+    if (rule.last_generated_on && due <= rule.last_generated_on) continue;
+    out.push(due);
+  }
+  return out;
+}
+function nextDueDate(rule) {
+  for (let n = 0; ; n++) {
+    const due = nthDueDate(rule.start_on, rule.frequency, n);
+    if (rule.end_on && due > rule.end_on) return null;
+    if (rule.last_generated_on && due <= rule.last_generated_on) continue;
+    return due;
+  }
+}
+function daysBetweenISO(aISO, bISO) {
+  const a = Date.parse(aISO + "T00:00:00Z");
+  const b = Date.parse(bISO + "T00:00:00Z");
+  return Math.round((b - a) / 864e5);
+}
+function billStatuses(rules, todayISO) {
+  const out = [];
+  for (const rule of rules) {
+    if (rule.mode !== "remind" || rule.is_paused) continue;
+    const dueISO = nextDueDate(rule);
+    if (dueISO === null) continue;
+    const daysLeft = daysBetweenISO(todayISO, dueISO);
+    if (daysLeft > (rule.remind_days_before ?? 0)) continue;
+    out.push({
+      ruleId: rule.id,
+      dueISO,
+      daysLeft,
+      // listDueDates trả đúng các kỳ ≤ hôm nay còn chưa xong — cùng một phép đếm mà
+      // engine catch-up dùng, nên hai bên không thể lệch nhau về "kỳ nào còn nợ".
+      overdueCount: listDueDates(rule, todayISO).length
+    });
+  }
+  return out.sort((a, b) => a.dueISO < b.dueISO ? -1 : a.dueISO > b.dueISO ? 1 : 0);
+}
 
 // src/features/notifications/rules/accountRules.ts
 var SHORTFALL_HORIZON_DAYS = 14;
@@ -502,6 +552,41 @@ function debtRules(input) {
       (n) => `${n} kho\u1EA3n n\u1EE3 s\u1EAFp \u0111\u1EBFn h\u1EA1n`
     )
   ];
+}
+
+// src/features/notifications/rules/billRules.ts
+function billRules(input) {
+  const ruleById = new Map(input.recurringRules.map((r) => [r.id, r]));
+  const out = [];
+  for (const b of billStatuses(input.recurringRules, input.todayISO)) {
+    const rule = ruleById.get(b.ruleId);
+    if (!rule) continue;
+    const money = input.formatMoney(rule.amount, input.currencyOf(rule.account_id));
+    const ten = rule.note.trim() || "Kho\u1EA3n \u0111\u1ECBnh k\u1EF3";
+    out.push({
+      // dueISO trong mã: xác nhận xong kỳ này thì kỳ sau là một tin MỚI, không bị
+      // "đã đọc" của kỳ trước làm im.
+      key: `bill-due:${b.ruleId}:${b.dueISO}`,
+      kind: "action",
+      type: "bill-due",
+      // Quá hạn là mức đỏ: nó nổi lên cả dải nhắc ở đầu Sổ, vì quên gửi tiền về nhà
+      // không phải thứ chờ tới lúc mở chuông mới biết.
+      severity: b.daysLeft < 0 ? "high" : b.daysLeft === 0 ? "medium" : "low",
+      title: b.daysLeft < 0 ? `Ch\u01B0a ghi "${ten}" ${money}` : b.daysLeft === 0 ? `H\xF4m nay t\u1EDBi h\u1EA1n "${ten}" ${money}` : `${b.daysLeft} ng\xE0y n\u1EEFa t\u1EDBi h\u1EA1n "${ten}" ${money}`,
+      detail: detailOf(b.daysLeft, b.overdueCount),
+      onISO: b.dueISO,
+      // Mở thẳng form đã điền sẵn theo quy tắc + đúng kỳ đang nợ. Dẫn về danh sách
+      // quy tắc thì người dùng còn phải tự tìm lại đúng dòng vừa được nhắc.
+      to: `/entry?rule=${b.ruleId}&on=${b.dueISO}`
+    });
+  }
+  return out;
+}
+function detailOf(daysLeft, overdueCount) {
+  if (daysLeft > 0) return "Ghi tr\u01B0\u1EDBc c\u0169ng \u0111\u01B0\u1EE3c \u2014 b\u1EA5m \u0111\u1EC3 m\u1EDF form \u0111\xE3 \u0111i\u1EC1n s\u1EB5n.";
+  if (overdueCount > 1) return `\u0110ang n\u1EE3 ${overdueCount} k\u1EF3 ch\u01B0a ghi. B\u1EA5m \u0111\u1EC3 ghi k\u1EF3 c\u0169 nh\u1EA5t.`;
+  if (daysLeft === 0) return "B\u1EA5m \u0111\u1EC3 m\u1EDF form \u0111\xE3 \u0111i\u1EC1n s\u1EB5n, s\u1EEDa s\u1ED1 ti\u1EC1n r\u1ED3i l\u01B0u.";
+  return `Qu\xE1 h\u1EA1n ${-daysLeft} ng\xE0y. B\u1EA5m \u0111\u1EC3 m\u1EDF form \u0111\xE3 \u0111i\u1EC1n s\u1EB5n.`;
 }
 
 // src/features/notifications/rules/budgetRules.ts
@@ -1060,6 +1145,7 @@ function buildNotifications(input) {
   const all = [
     ...accountRules(input),
     ...debtRules(input),
+    ...billRules(input),
     ...budgetRules(input),
     ...tagRules(input),
     ...cardRules(input),

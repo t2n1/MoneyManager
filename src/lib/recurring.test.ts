@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { listDueDates, nextDueDate, nthDueDate, runRecurringCatchUp } from './recurring'
-import type { RecurringOccurrenceInput, RecurringRepo, RecurringRuleLike } from './recurring'
+import { billStatuses, listDueDates, nextDueDate, nthDueDate, runRecurringCatchUp } from './recurring'
+import type {
+  BillRuleLike,
+  RecurringOccurrenceInput,
+  RecurringRepo,
+  RecurringRuleLike,
+} from './recurring'
 
 describe('nthDueDate', () => {
   it('weekly: cộng đúng 7 ngày mỗi kỳ', () => {
@@ -172,5 +177,91 @@ describe('runRecurringCatchUp', () => {
       note: 'tien nha',
       recurring_rule_id: 'r1',
     })
+  })
+})
+
+// --- Khoản cần thanh toán (mode = 'remind', migration 0037) ---
+
+function makeBill(over: Partial<BillRuleLike> = {}): BillRuleLike {
+  return {
+    id: 'b1',
+    mode: 'remind',
+    remind_days_before: 0,
+    frequency: 'monthly',
+    start_on: '2026-05-10',
+    end_on: null,
+    is_paused: false,
+    last_generated_on: null,
+    ...over,
+  }
+}
+
+describe('billStatuses', () => {
+  it('chỉ tính rule kiểu nhắc — rule tự sinh không phải việc phải làm tay', () => {
+    const auto = makeBill({ id: 'a', mode: 'auto' })
+    const khongKhai = makeBill({ id: 'k', mode: undefined })
+    expect(billStatuses([auto, khongKhai], '2026-08-10')).toEqual([])
+  })
+
+  it('quá hạn: daysLeft âm và đếm ĐỦ số kỳ còn nợ', () => {
+    // Kỳ 10/5, 10/6, 10/7, 10/8 đều chưa xác nhận
+    const r = billStatuses([makeBill()], '2026-08-10')
+    expect(r).toHaveLength(1)
+    expect(r[0].dueISO).toBe('2026-05-10')
+    expect(r[0].daysLeft).toBe(-92)
+    expect(r[0].overdueCount).toBe(4)
+  })
+
+  it('đúng ngày đến hạn thì báo, daysLeft = 0', () => {
+    const r = billStatuses([makeBill({ last_generated_on: '2026-07-10' })], '2026-08-10')
+    expect(r[0].dueISO).toBe('2026-08-10')
+    expect(r[0].daysLeft).toBe(0)
+    expect(r[0].overdueCount).toBe(1)
+  })
+
+  it('chưa tới ngày và chưa vào tầm nhắc → im', () => {
+    const bill = makeBill({ last_generated_on: '2026-07-10' })
+    expect(billStatuses([bill], '2026-08-07')).toEqual([])
+  })
+
+  it('remind_days_before mở tầm nhắc ra đúng bấy nhiêu ngày', () => {
+    const bill = makeBill({ last_generated_on: '2026-07-10', remind_days_before: 3 })
+    // 7/8 cách hạn 3 ngày → vào tầm; 6/8 cách 4 ngày → chưa
+    expect(billStatuses([bill], '2026-08-07')).toHaveLength(1)
+    expect(billStatuses([bill], '2026-08-07')[0].daysLeft).toBe(3)
+    expect(billStatuses([bill], '2026-08-06')).toEqual([])
+  })
+
+  it('sắp tới hạn (chưa quá) thì overdueCount = 0', () => {
+    const bill = makeBill({ last_generated_on: '2026-07-10', remind_days_before: 5 })
+    expect(billStatuses([bill], '2026-08-08')[0].overdueCount).toBe(0)
+  })
+
+  it('đã xác nhận hết tới kỳ gần nhất → im cho tới kỳ sau', () => {
+    const bill = makeBill({ last_generated_on: '2026-08-10' })
+    expect(billStatuses([bill], '2026-08-10')).toEqual([])
+  })
+
+  it('tạm dừng thì không nhắc', () => {
+    expect(billStatuses([makeBill({ is_paused: true })], '2026-08-10')).toEqual([])
+  })
+
+  it('quá end_on thì hết nhắc hẳn', () => {
+    const bill = makeBill({ last_generated_on: '2026-06-10', end_on: '2026-06-30' })
+    expect(billStatuses([bill], '2026-08-10')).toEqual([])
+  })
+
+  it('nhiều khoản: trễ nhất lên đầu', () => {
+    const cu = makeBill({ id: 'cu', start_on: '2026-05-10' })
+    const moi = makeBill({ id: 'moi', start_on: '2026-08-01' })
+    expect(billStatuses([moi, cu], '2026-08-10').map((b) => b.ruleId)).toEqual(['cu', 'moi'])
+  })
+
+  it('catch-up KHÔNG đụng tới rule kiểu nhắc — không sinh, cũng không đẩy con trỏ', async () => {
+    const f = makeFakeRepo([makeRule({ id: 'r1', mode: 'remind' })])
+    const created = await runRecurringCatchUp(f.repo, '2026-07-19')
+    expect(created).toBe(0)
+    // Đẩy con trỏ ở đây là xoá lời nhắc mà không ghi khoản nào
+    expect(f.patches).toEqual({})
   })
 })

@@ -11,7 +11,7 @@ import { toISODate } from '../../lib/dates'
 import { type CurrencyCode } from '../../lib/money'
 import { AccountPicker } from '../../components/AccountPicker'
 import { MoneyField } from '../../components/MoneyField'
-import type { RecurringFrequency } from '../../lib/recurring'
+import type { RecurringFrequency, RecurringMode } from '../../lib/recurring'
 import type { RecurringRuleRow, TransactionType } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
 
@@ -20,6 +20,17 @@ const TYPE_TABS: { value: TransactionType; label: string }[] = [
   { value: 'income', label: 'Thu' },
   { value: 'transfer', label: 'Chuyển khoản' },
 ]
+
+/** Hai kiểu quy tắc — xem migration 0037. */
+const MODE_OPTIONS: readonly (readonly [RecurringMode, string])[] = [
+  ['auto', 'App tự ghi'],
+  ['remind', 'Chỉ nhắc tôi'],
+]
+const MODE_HINT: Record<RecurringMode, string> = {
+  auto: 'Dành cho khoản tự động rời tài khoản (tiền nhà chuyển tự động, phí thuê bao). Tới hạn là app ghi luôn.',
+  remind:
+    'Dành cho khoản phải tự tay làm (gửi tiền về nhà). App không ghi gì cả, chỉ nhắc — bạn ghi xong mới tính là xong.',
+}
 
 const FREQ_OPTIONS: { value: RecurringFrequency; label: string }[] = [
   { value: 'weekly', label: 'Hàng tuần' },
@@ -51,6 +62,8 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
   const [startOn, setStartOn] = useState(rule?.start_on ?? toISODate(new Date()))
   const [endOn, setEndOn] = useState(rule?.end_on ?? '')
   const [note, setNote] = useState(rule?.note ?? '')
+  const [mode, setMode] = useState<RecurringMode>(rule?.mode ?? 'auto')
+  const [remindDays, setRemindDays] = useState(String(rule?.remind_days_before ?? 0))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -113,6 +126,9 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         frequency,
         start_on: startOn,
         end_on: endOn || null,
+        mode,
+        // Chỉ có nghĩa với kiểu nhắc; kiểu tự ghi luôn để 0 cho khỏi lưu số rác.
+        remind_days_before: mode === 'remind' ? Number(remindDays) || 0 : 0,
       }
       if (rule) await update.mutateAsync({ id: rule.id, patch: input })
       else await create.mutateAsync(input)
@@ -252,6 +268,44 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
             <div className="mb-3">
               {moneyInput(toAmount, setToAmount, dstCurrency, 'Nhận được', false)}
             </div>
+          </>
+        )}
+
+        {/* Kiểu quy tắc — quyết định lớn nhất của cả form, nên đứng trước chu kỳ:
+            "app tự ghi hộ" và "app chỉ nhắc" là hai thứ khác hẳn nhau. */}
+        <label className="mb-1 block text-xs font-medium text-fg-muted">Khi tới hạn</label>
+        <div className="mb-1 flex overflow-hidden rounded-lg border border-border-strong">
+          {MODE_OPTIONS.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setMode(value)}
+              aria-pressed={mode === value}
+              className={`min-h-11 flex-1 px-2 text-sm font-medium ${
+                mode === value
+                  ? 'bg-green-700 text-white'
+                  : 'text-fg-secondary hover:bg-surface-sunken'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="mb-3 text-xs text-fg-muted">{MODE_HINT[mode]}</p>
+
+        {mode === 'remind' && (
+          <>
+            <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="remind-days">
+              Nhắc trước mấy ngày
+            </label>
+            <input
+              id="remind-days"
+              inputMode="numeric"
+              value={remindDays}
+              onChange={(e) => setRemindDays(e.target.value.replace(/[^\d]/g, '').slice(0, 2))}
+              placeholder="0"
+              className="mb-3 w-24 rounded-lg border border-border-strong px-3 py-2 text-right text-base outline-green-500 sm:text-sm"
+            />
           </>
         )}
 

@@ -1,4 +1,4 @@
-import type { RecurringFrequency } from '../lib/recurring'
+import type { RecurringFrequency, RecurringMode } from '../lib/recurring'
 import type { CurrencyCode } from '../lib/money'
 import type { Rates } from '../lib/rates'
 import type {
@@ -271,6 +271,10 @@ export interface NewRecurringRule {
   start_on: string
   /** null = vô hạn */
   end_on: string | null
+  /** Bỏ trống = 'auto' (tới hạn tự sinh giao dịch). Xem migration 0037. */
+  mode?: RecurringMode
+  /** Chỉ dùng với mode = 'remind'; bỏ trống = 0 (nhắc đúng ngày đến hạn). */
+  remind_days_before?: number
 }
 
 export type RecurringRulePatch = Partial<

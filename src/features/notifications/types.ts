@@ -21,6 +21,7 @@ export type NotificationType =
   | 'account-negative'
   | 'debt-overdue'
   | 'debt-due-soon'
+  | 'bill-due'
   | 'budget-over'
   | 'budget-pace'
   | 'budget-parent-over'
@@ -72,6 +73,7 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   'account-negative',
   'debt-overdue',
   'debt-due-soon',
+  'bill-due',
   'budget-over',
   'budget-pace',
   'budget-parent-over',
@@ -115,6 +117,13 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     kind: 'action',
     label: 'Nợ / cho vay sắp đến hạn',
     hint: 'Còn 7 ngày hoặc ít hơn là tới ngày hẹn.',
+  },
+  'bill-due': {
+    kind: 'action',
+    label: 'Khoản cần thanh toán',
+    hint:
+      'Quy tắc định kỳ kiểu NHẮC tới hạn mà chưa ghi (vd gửi tiền về nhà). Bám tới ' +
+      'khi bạn xác nhận đã ghi — app không tự ghi hộ vì số tiền mỗi lần một khác.',
   },
   'budget-over': {
     kind: 'action',

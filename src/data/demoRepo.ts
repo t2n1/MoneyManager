@@ -1588,7 +1588,15 @@ export const demoRepo: Repo = {
   },
 
   async listRecurringRules() {
-    return (load().recurringRules ?? []).sort((a, b) => a.created_at.localeCompare(b.created_at))
+    return (load().recurringRules ?? [])
+      // mode/remind_days_before thêm ở 0037 → db demo cũ chưa có cột. Mặc định phải
+      // là hành vi CŨ ('auto'), không phải im lặng ngừng sinh giao dịch.
+      .map((r) => ({
+        ...r,
+        mode: r.mode ?? ('auto' as const),
+        remind_days_before: r.remind_days_before ?? 0,
+      }))
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
   },
 
   async createRecurringRule(input: NewRecurringRule) {
@@ -1600,6 +1608,8 @@ export const demoRepo: Repo = {
       user_id: DEMO_USER,
       is_paused: false,
       last_generated_on: null,
+      mode: input.mode ?? 'auto',
+      remind_days_before: input.remind_days_before ?? 0,
       created_at: nowISO(),
       updated_at: nowISO(),
     }

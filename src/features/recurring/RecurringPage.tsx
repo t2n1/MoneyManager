@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRightLeft, ChevronLeft, Pause, Play, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import {
   useAccounts,
@@ -14,7 +14,7 @@ import {
 import { addDaysISO, toISODate } from '../../lib/dates'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { formatMoney } from '../../lib/money'
-import { nextDueDate, type RecurringFrequency } from '../../lib/recurring'
+import { billStatuses, nextDueDate, type RecurringFrequency } from '../../lib/recurring'
 import { detectRecurring, ruleKey, type RecurringSuggestion } from '../../lib/recurringRadar'
 import type { RecurringRuleRow } from '../../types/database.types'
 import { RecurringFormSheet } from './RecurringFormSheet'
@@ -96,6 +96,12 @@ export function RecurringPage() {
     )
     return detectRecurring(historyTxs, existing, today).filter((s) => !dismissed.includes(s.key))
   }, [historyTxs, rules, today, dismissed])
+
+  // Khoản kiểu NHẮC đang tới hạn / quá hạn — tra theo id để gắn vào đúng dòng.
+  const billByRule = useMemo(
+    () => new Map(billStatuses(rules, today).map((b) => [b.ruleId, b])),
+    [rules, today],
+  )
 
   function dismissSuggestion(key: string) {
     const next = [...dismissed, key]
@@ -245,11 +251,10 @@ export function RecurringPage() {
             const acc = accountOf(rule.account_id)
             const cat = categoryOf(rule.category_id)
             const next = nextDueDate(rule)
+            const bill = billByRule.get(rule.id)
             return (
-              <div
-                key={rule.id}
-                className={`flex items-center gap-2 px-3 py-3 ${rule.is_paused ? 'opacity-50' : ''}`}
-              >
+              <div key={rule.id} className={rule.is_paused ? 'opacity-50' : ''}>
+              <div className="flex items-center gap-2 px-3 py-3">
                 <span className="text-xl">
                   {rule.type === 'transfer' ? (
                     <ArrowRightLeft className="h-5 w-5 text-fg-muted" />
@@ -273,6 +278,7 @@ export function RecurringPage() {
                   <span className="block text-xs text-fg-muted">
                     {scheduleLabel(rule)} ·{' '}
                     {rule.is_paused ? 'Tạm dừng' : next ? `kỳ tới ${fmtDate(next)}` : 'Đã kết thúc'}
+                    {rule.mode === 'remind' && ' · chỉ nhắc'}
                   </span>
                 </button>
                 <span className={`text-sm font-semibold ${AMOUNT_COLOR[rule.type]}`}>
@@ -294,6 +300,33 @@ export function RecurringPage() {
                 >
                   <Trash2 className="h-5 w-5" />
                 </button>
+              </div>
+
+              {/* Khoản kiểu NHẮC đang tới hạn — dải riêng chiếm hết bề ngang thay vì
+                  một nút chen vào hàng trên: đây là việc phải làm, không phải một
+                  thao tác phụ ngang hàng với nút tạm dừng / xoá. */}
+              {bill && (
+                <Link
+                  to={`/entry?rule=${rule.id}&on=${bill.dueISO}`}
+                  className={`flex items-center gap-2 px-3 py-2 text-xs font-medium ${
+                    bill.daysLeft < 0
+                      ? 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50'
+                      : 'bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-200 dark:hover:bg-amber-900/50'
+                  }`}
+                >
+                  <span className="min-w-0 flex-1">
+                    {bill.daysLeft < 0
+                      ? `Chưa ghi kỳ ${fmtDate(bill.dueISO)}`
+                      : bill.daysLeft === 0
+                        ? `Hôm nay tới hạn kỳ ${fmtDate(bill.dueISO)}`
+                        : `${bill.daysLeft} ngày nữa tới hạn kỳ ${fmtDate(bill.dueISO)}`}
+                    {bill.overdueCount > 1 && ` · đang nợ ${bill.overdueCount} kỳ`}
+                  </span>
+                  <span className="shrink-0 rounded-lg bg-white/70 px-2 py-1 dark:bg-black/20">
+                    Ghi khoản này
+                  </span>
+                </Link>
+              )}
               </div>
             )
           })}

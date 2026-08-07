@@ -11,9 +11,11 @@ import {
   useCreateTransaction,
   useDebts,
   useDeleteTransaction,
+  useRecurringRules,
   useRunRecurringCatchUp,
+  useUpdateRecurringRule,
 } from '../../hooks/queries'
-import type { TransactionType } from '../../types/database.types'
+import type { TransactionRow, TransactionType } from '../../types/database.types'
 import { parseRoleParam } from './entryRoles'
 import { saveDebtEntry, saveRemit, saveSplit, saveWithFee, type RoleSaveDeps } from './roleSave'
 import { TransactionForm, type RoleSubmit } from './TransactionForm'
@@ -36,6 +38,53 @@ export function EntryPage() {
   const initialType: TransactionType | undefined =
     qType === 'income' || qType === 'expense' ? qType : undefined
   const initialRole = parseRoleParam(searchParams.get('role'))
+
+  // --- Ghi một khoản định kỳ kiểu NHẮC (migration 0037) ---
+  // `?rule=<id>&on=<kỳ>`: mở form đã điền sẵn theo quy tắc, và khi lưu xong thì đẩy
+  // con trỏ `last_generated_on` sang đúng kỳ đó. Hai việc phải đi liền nhau — ghi mà
+  // không đẩy con trỏ thì lời nhắc còn nguyên, đẩy mà không ghi thì mất khoản chi.
+  const billRuleId = searchParams.get('rule')
+  const billDueISO = searchParams.get('on')
+  const { data: recurringRules = [], isPending: rulesPending } = useRecurringRules()
+  const updateRule = useUpdateRecurringRule()
+  const billRule = billRuleId ? recurringRules.find((r) => r.id === billRuleId) : undefined
+  // Điền sẵn bằng một TransactionRow giả — TransactionForm chỉ đọc `initial` để gieo
+  // giá trị ban đầu, và không có `onSubmitRecurring` nên nó cũng không hiện lại ô
+  // "Lặp lại" (khoản này ĐÃ là một quy tắc rồi).
+  const billPrefill: TransactionRow | undefined =
+    billRule && billDueISO
+      ? {
+          id: '',
+          user_id: '',
+          type: billRule.type,
+          amount: billRule.amount,
+          to_amount: billRule.to_amount,
+          category_id: billRule.category_id,
+          account_id: billRule.account_id,
+          to_account_id: billRule.to_account_id,
+          recurring_rule_id: null,
+          // Ngày mặc định là NGÀY ĐẾN HẠN, không phải hôm nay: khoản quá hạn 3 tháng
+          // mà ghi vào hôm nay thì tháng đó trong báo cáo thiếu, tháng này thừa.
+          occurred_on: billDueISO,
+          note: billRule.note,
+          created_at: '',
+          updated_at: '',
+        }
+      : undefined
+
+  // TransactionForm gieo state trong useState (chạy MỘT lần), nên `initial` tới muộn
+  // là không vào nữa: form sẽ hiện trống với ngày hôm nay, người dùng ghi nhầm kỳ mà
+  // không biết. Có `?rule=` thì phải đợi danh sách quy tắc về rồi mới dựng form.
+  const waitingForRule = !!billRuleId && rulesPending
+
+  /** Đẩy con trỏ sang kỳ vừa ghi. Gọi SAU khi giao dịch đã lưu thành công. */
+  async function markBillDone() {
+    if (!billRule || !billDueISO) return
+    await updateRule.mutateAsync({
+      id: billRule.id,
+      patch: { last_generated_on: billDueISO },
+    })
+  }
   const [toast, setToast] = useState<{ text: string; undoId?: string; ok?: boolean } | null>(null)
   /** Ô bên phải tiêu đề: chỗ TransactionForm portal nút "Loại đặc biệt" vào. */
   const [roleSlot, setRoleSlot] = useState<HTMLDivElement | null>(null)
@@ -83,7 +132,9 @@ export function EntryPage() {
         >
           <ChevronLeft className="h-5 w-5" /> Đóng
         </button>
-        <h1 className="flex-1 text-center text-base font-bold text-fg-primary">Nhập giao dịch</h1>
+        <h1 className="flex-1 text-center text-base font-bold text-fg-primary">
+          {billRule ? 'Ghi khoản đến hạn' : 'Nhập giao dịch'}
+        </h1>
         {/* Nút "Loại đặc biệt" do TransactionForm portal vào đây. Chiều rộng đặt cứng
             (xấp xỉ nút "Đóng" bên trái) để tiêu đề không nhảy chỗ khi nút ẩn đi lúc
             một vai trò đang bật. */}
@@ -98,9 +149,19 @@ export function EntryPage() {
           <ChevronRight className="inline h-4 w-4" />
         </Link>
       )}
+      {waitingForRule ? (
+        <p className="py-10 text-center text-sm text-fg-muted">Đang tải khoản đến hạn…</p>
+      ) : (
       <TransactionForm
-        submitLabel="Lưu"
-        continueLabel="Tiếp tục"
+        // Khoá theo kỳ: mở lời nhắc khác trong cùng một lần vào màn (từ chuông sang
+        // chuông) phải gieo lại form, không giữ số của kỳ trước.
+        key={billRule && billDueISO ? `bill-${billRule.id}-${billDueISO}` : 'new'}
+        submitLabel={billRule ? 'Ghi và đánh dấu đã trả' : 'Lưu'}
+        // Khoản đến hạn KHÔNG có "Tiếp tục": nút đó lưu rồi ở lại nhập tiếp, mà con
+        // trỏ kỳ chỉ được đẩy ở nhánh "Lưu" — bấm nhầm là ghi xong mà lời nhắc vẫn
+        // còn nguyên. Xác nhận một khoản là việc một lần, không phải nhập liên tục.
+        continueLabel={billRule ? undefined : 'Tiếp tục'}
+        initial={billPrefill}
         initialType={initialType}
         enableTemplates
         enableRoles
@@ -121,10 +182,11 @@ export function EntryPage() {
         // Lưu: ghi giao dịch rồi quay về Sổ GD
         onSubmit={async (values) => {
           await create.mutateAsync(values)
+          await markBillDone()
           navigate('/')
         }}
         // Tiếp tục: ghi giao dịch, hiện toast (kèm hoàn tác) rồi ở lại nhập tiếp
-        onContinue={async (values) => {
+        onContinue={billRule ? undefined : async (values) => {
           const row = await create.mutateAsync(values)
           setToast({ text: 'Đã lưu', undoId: row.id, ok: true })
           clearTimeout(toastTimer.current)
@@ -142,6 +204,7 @@ export function EntryPage() {
           }, 1200)
         }}
       />
+      )}
       {toast && (
         <div className="fixed inset-x-0 top-4 z-50 flex justify-center">
           <div className="flex items-center gap-3 rounded-full bg-gray-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg">

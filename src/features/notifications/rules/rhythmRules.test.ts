@@ -45,6 +45,8 @@ function recurringRule(over: Partial<RecurringRuleRow> & { id: string }): Recurr
     end_on: null,
     is_paused: false,
     last_generated_on: null,
+    mode: 'auto',
+    remind_days_before: 0,
     created_at: '',
     updated_at: '',
   }

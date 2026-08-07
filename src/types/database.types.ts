@@ -487,11 +487,28 @@ export type RecurringRuleRow = {
   /** null = vô hạn */
   end_on: string | null
   is_paused: boolean
-  /** kỳ đến hạn cuối đã sinh; null = chưa sinh kỳ nào */
+  /**
+   * Kỳ đến hạn cuối ĐÃ XONG; null = chưa kỳ nào.
+   *
+   * Với `mode = 'auto'` nghĩa là "đã sinh giao dịch tới kỳ này"; với `'remind'`
+   * nghĩa là "người dùng đã xác nhận trả tới kỳ này". Một cột cho hai nghĩa vì cả
+   * hai đều là con trỏ "xong tới đâu" và mọi phép toán ngày dùng nó y hệt nhau.
+   */
   last_generated_on: string | null
+  /** Xem migration 0037. */
+  mode: RecurringMode
+  /** Chỉ dùng với `mode = 'remind'`: nhắc trước ngày đến hạn bấy nhiêu ngày. */
+  remind_days_before: number
   created_at: string
   updated_at: string
 }
+
+/**
+ * 'auto' = tới hạn TỰ SINH giao dịch (khoản tự động rời tài khoản).
+ * 'remind' = chỉ nhắc, người dùng tự ghi rồi xác nhận (khoản phải tự tay làm, số
+ * tiền có thể khác nhau mỗi lần — vd gửi tiền về nhà).
+ */
+export type RecurringMode = 'auto' | 'remind'
 
 type InsertOf<Row, Required extends keyof Row, Optional extends keyof Row> =
   Pick<Row, Required> & Partial<Pick<Row, Optional>>
@@ -722,6 +739,8 @@ export type Database = {
           | 'end_on'
           | 'is_paused'
           | 'last_generated_on'
+          | 'mode'
+          | 'remind_days_before'
         >
         Update: Partial<
           Pick<
@@ -738,6 +757,8 @@ export type Database = {
             | 'end_on'
             | 'is_paused'
             | 'last_generated_on'
+            | 'mode'
+            | 'remind_days_before'
           >
         >
         Relationships: []

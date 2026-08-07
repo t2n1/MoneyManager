@@ -48,6 +48,8 @@ function rule(over: Partial<RecurringRuleRow> & { id: string }): RecurringRuleRo
     end_on: null,
     is_paused: over.is_paused ?? false,
     last_generated_on: over.last_generated_on ?? '2026-06-30',
+    mode: over.mode ?? 'auto',
+    remind_days_before: over.remind_days_before ?? 0,
     created_at: '',
     updated_at: '',
   }

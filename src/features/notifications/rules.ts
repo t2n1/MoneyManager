@@ -10,6 +10,7 @@ import {
 } from './types'
 import { accountRules } from './rules/accountRules'
 import { debtRules } from './rules/debtRules'
+import { billRules } from './rules/billRules'
 import { budgetRules } from './rules/budgetRules'
 import { tagRules } from './rules/tagRules'
 import { cardRules } from './rules/cardRules'
@@ -70,6 +71,7 @@ export function buildNotifications(input: NotificationInput): NotificationResult
   const all: AppNotification[] = [
     ...accountRules(input),
     ...debtRules(input),
+    ...billRules(input),
     ...budgetRules(input),
     ...tagRules(input),
     ...cardRules(input),

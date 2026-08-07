@@ -122,14 +122,44 @@ export type TagRow = {
    * cho nhãn hết việc như "Về VN 2026" sau khi đã về.
    */
   is_archived: boolean
+  /**
+   * Trần chi cho nhãn (minor units theo BASE currency, như budgets.amount);
+   * null = không đặt trần. Xem migration 0036.
+   */
+  budget_amount: number | null
+  /** Kỳ của trần. Chỉ có nghĩa khi `budget_amount` khác null. */
+  budget_period: TagBudgetPeriod
   created_at: string
 }
+
+/**
+ * 'total' = trần cho cả đời nhãn, không reset (nhãn theo dịp: "Về VN 2026").
+ * 'monthly' = trần mỗi tháng, hết tháng reset (nhãn lặp đều: "Cà phê").
+ */
+export type TagBudgetPeriod = 'total' | 'monthly'
 
 /** Liên kết nhiều–nhiều giữa giao dịch và nhãn. */
 export type TransactionTagRow = {
   transaction_id: string
   tag_id: string
   user_id: string
+}
+
+/**
+ * Một lần "giao dịch chi X mang nhãn Y" — đủ để cộng tổng chi cả đời của nhãn mà
+ * không phải kéo nguyên bảng transactions về máy.
+ *
+ * Có `transaction_id` vì một giao dịch mang hai nhãn sẽ ra HAI dòng: nơi tính phải
+ * biết chúng là cùng một khoản tiền, kẻo tổng "đã tiêu có gắn nhãn" đếm đúp.
+ */
+export type TagSpendRow = {
+  tag_id: string
+  transaction_id: string
+  /** minor units theo currency của tài khoản nguồn — nơi tính tự quy đổi về base. */
+  amount: number
+  account_id: string
+  occurred_on: string
+  is_refund: boolean
 }
 
 export type CategoryRow = {
@@ -840,8 +870,17 @@ export type Database = {
       }
       tags: {
         Row: TagRow
-        Insert: InsertOf<TagRow, 'user_id' | 'name', 'id' | 'color' | 'sort_order' | 'is_archived'>
-        Update: Partial<Pick<TagRow, 'name' | 'color' | 'sort_order' | 'is_archived'>>
+        Insert: InsertOf<
+          TagRow,
+          'user_id' | 'name',
+          'id' | 'color' | 'sort_order' | 'is_archived' | 'budget_amount' | 'budget_period'
+        >
+        Update: Partial<
+          Pick<
+            TagRow,
+            'name' | 'color' | 'sort_order' | 'is_archived' | 'budget_amount' | 'budget_period'
+          >
+        >
         Relationships: []
       }
       transaction_tags: {

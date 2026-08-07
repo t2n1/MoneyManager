@@ -13,6 +13,7 @@ var NOTIFICATION_TYPES = [
   "budget-over",
   "budget-pace",
   "budget-parent-over",
+  "tag-budget-over",
   "card-statement-day",
   "recurring-suggestion",
   "stale-entry",
@@ -58,6 +59,11 @@ var NOTIFICATION_META = {
     kind: "action",
     label: "Nh\xF3m v\u01B0\u1EE3t tr\u1EA7n",
     hint: "C\u1EA3 nh\xF3m \u0111\xE3 ti\xEAu qu\xE1 tr\u1EA7n \u0111\u1EB7t \u1EDF m\u1EE5c cha; k\xE8m t\u1ED1i \u0111a 2 m\u1EE5c con \u0111ang ti\xEAu nhi\u1EC1u nh\u1EA5t."
+  },
+  "tag-budget-over": {
+    kind: "action",
+    label: "Nh\xE3n v\u01B0\u1EE3t tr\u1EA7n",
+    hint: "Chi mang m\u1ED9t nh\xE3n \u0111\xE3 qu\xE1 tr\u1EA7n \u0111\u1EB7t cho nh\xE3n \u0111\xF3 (c\u1EA3 \u0111\u1EE3t ho\u1EB7c th\xE1ng n\xE0y, t\xF9y nh\xE3n)."
   },
   "card-statement-day": {
     kind: "info",
@@ -567,6 +573,37 @@ function budgetRules(input) {
   return out;
 }
 
+// src/features/notifications/rules/tagRules.ts
+function tagRules(input) {
+  if (!input.tagBudgets) return [];
+  const out = [];
+  for (const l of input.tagBudgets) {
+    if (l.status !== "over") continue;
+    const over = Math.round(l.spent - l.budget);
+    out.push({
+      // Kỳ 'monthly' phải có phần kỳ trong mã, nếu không thì tháng sau vẫn im vì
+      // người dùng đã đọc tin của tháng này. Kỳ 'total' KHÔNG có kỳ — nó vượt một
+      // lần rồi vượt mãi, và đọc xong là xong, không có mốc nào để hiện lại.
+      key: l.period === "monthly" ? `tag-budget-over:${l.tagId}:${monthKeyOf(input)}` : `tag-budget-over:${l.tagId}`,
+      kind: "action",
+      type: "tag-budget-over",
+      severity: "medium",
+      title: `Nh\xE3n "${l.name}" v\u01B0\u1EE3t tr\u1EA7n ${input.formatMoney(over, input.base)}`,
+      detail: l.period === "monthly" ? `Th\xE1ng n\xE0y ${input.formatMoney(Math.round(l.spent), input.base)} / tr\u1EA7n ${input.formatMoney(l.budget, input.base)}.` : `C\u1EA3 \u0111\u1EE3t ${input.formatMoney(Math.round(l.spent), input.base)} / d\u1EF1 tr\xF9 ${input.formatMoney(l.budget, input.base)}.`,
+      to: "/budget"
+    });
+  }
+  return out;
+}
+function monthKeyOf(input) {
+  const [y, m, d] = input.todayISO.split("-").map(Number);
+  const shift = d < input.monthStartDay ? -1 : 0;
+  const total = y * 12 + (m - 1) + shift;
+  const year = Math.floor(total / 12);
+  const month = total % 12 + 1;
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
 // src/features/notifications/rules/cardRules.ts
 var pad4 = (n) => String(n).padStart(2, "0");
 var daysInMonth2 = (year, month) => new Date(year, month, 0).getDate();
@@ -1024,6 +1061,7 @@ function buildNotifications(input) {
     ...accountRules(input),
     ...debtRules(input),
     ...budgetRules(input),
+    ...tagRules(input),
     ...cardRules(input),
     ...rhythmRules(input),
     ...lifetimeRules(input)
@@ -1206,6 +1244,61 @@ function carryFromPreviousMonth(prevBudgets, prevMonthTxs, currencyOf, base, rat
   return carry;
 }
 
+// src/features/tags/budget.ts
+var spendSign = (r) => r.is_refund ? -1 : 1;
+function tagSpendTotals(rows, currencyOf, base, rates, within = () => true) {
+  const byTag = /* @__PURE__ */ new Map();
+  const seen = /* @__PURE__ */ new Set();
+  let hasMissingRate = false;
+  for (const r of rows) {
+    if (!within(r.occurred_on)) continue;
+    const pair = `${r.tag_id}\0${r.transaction_id}`;
+    if (seen.has(pair)) continue;
+    seen.add(pair);
+    const raw = convertToBase(r.amount, currencyOf(r.account_id), base, rates);
+    if (raw === null) {
+      hasMissingRate = true;
+      continue;
+    }
+    byTag.set(r.tag_id, (byTag.get(r.tag_id) ?? 0) + raw * spendSign(r));
+  }
+  return { byTag, hasMissingRate };
+}
+function buildTagBudgetReport({
+  tags,
+  rows,
+  currencyOf,
+  base,
+  rates,
+  monthStart,
+  monthEnd
+}) {
+  const budgeted = tags.filter((t) => t.budget_amount != null && t.budget_amount > 0);
+  if (budgeted.length === 0) return { lines: [], hasMissingRate: false };
+  const inMonth = (iso2) => iso2 >= monthStart && iso2 < monthEnd;
+  const all = tagSpendTotals(rows, currencyOf, base, rates);
+  const month = tagSpendTotals(rows, currencyOf, base, rates, inMonth);
+  const lines2 = budgeted.map((t) => {
+    const period = t.budget_period;
+    const spent = (period === "monthly" ? month.byTag : all.byTag).get(t.id) ?? 0;
+    const budget = t.budget_amount;
+    const ratio = spent / budget;
+    return {
+      tagId: t.id,
+      name: t.name,
+      color: t.color,
+      period,
+      spent,
+      budget,
+      ratio,
+      remaining: budget - spent,
+      status: statusOf(ratio)
+    };
+  });
+  lines2.sort((a, b) => b.ratio - a.ratio);
+  return { lines: lines2, hasMissingRate: all.hasMissingRate || month.hasMissingRate };
+}
+
 // src/features/lifetime/buildInput.ts
 var DEFAULT_INFLATION_BPS = 200;
 function pickActive(scenarios) {
@@ -1286,10 +1379,12 @@ export {
   buildBudgetReport,
   buildLifetimeInput,
   buildNotifications,
+  buildTagBudgetReport,
   carryFromPreviousMonth,
   dueForPush,
   earliestNeededDate,
   fetchAllPages,
+  getMonthRange,
   localPartsIn,
   missingRateCurrencies,
   monthKeyForDate,

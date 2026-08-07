@@ -29,6 +29,7 @@ import type {
   StockPriceRow,
   StockTradeRow,
   TagRow,
+  TagSpendRow,
   TransactionRow,
   TransactionTagRow,
 } from '../types/database.types'
@@ -1673,13 +1674,40 @@ export const demoRepo: Repo = {
 
   async getTags() {
     return (load().tags ?? [])
-      // is_archived thêm sau (migration 0033) → db demo cũ chưa có cột, ép về false
-      .map((t) => ({ ...t, is_archived: t.is_archived ?? false }))
+      // is_archived thêm sau (migration 0033), budget_* thêm sau nữa (0036) → db demo
+      // cũ chưa có cột, ép về mặc định thay vì để undefined lọt lên tầng trên
+      .map((t) => ({
+        ...t,
+        is_archived: t.is_archived ?? false,
+        budget_amount: t.budget_amount ?? null,
+        budget_period: t.budget_period ?? 'total',
+      }))
       .sort((a, b) => a.sort_order - b.sort_order)
   },
 
   async getTransactionTags() {
     return (load().transactionTags ?? []).slice()
+  },
+
+  async getTagSpend() {
+    const db = load()
+    const txById = new Map(db.transactions.map((t) => [t.id, t]))
+    const out: TagSpendRow[] = []
+    for (const l of db.transactionTags ?? []) {
+      const t = txById.get(l.transaction_id)
+      // Chỉ khoản CHI còn tính vào thống kê — cùng bộ lọc với tagBreakdown, để tổng
+      // cả đời và tổng một tháng không bao giờ đếm theo hai luật khác nhau.
+      if (!t || t.type !== 'expense' || t.is_debt_flow || t.exclude_from_stats) continue
+      out.push({
+        tag_id: l.tag_id,
+        transaction_id: t.id,
+        amount: t.amount,
+        account_id: t.account_id,
+        occurred_on: t.occurred_on,
+        is_refund: t.is_refund ?? false,
+      })
+    }
+    return out
   },
 
   async createTag(input: NewTag) {
@@ -1694,6 +1722,8 @@ export const demoRepo: Repo = {
       color: input.color,
       sort_order: db.tags.reduce((m, t) => Math.max(m, t.sort_order + 1), 0),
       is_archived: false,
+      budget_amount: input.budget_amount ?? null,
+      budget_period: input.budget_period ?? 'total',
       created_at: nowISO(),
     }
     db.tags.push(row)

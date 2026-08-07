@@ -25,6 +25,7 @@ import type {
   StockPriceRow,
   StockTradeRow,
   TagRow,
+  TagSpendRow,
   TransactionRow,
   TransactionTagRow,
 } from '../types/database.types'
@@ -1179,6 +1180,50 @@ export const supabaseRepo: Repo = {
         .order('transaction_id')
         .order('tag_id')
         .range(from, to),
+    )
+  },
+
+  async getTagSpend() {
+    // Đi TỪ bảng nối: tập giao dịch có nhãn nhỏ hơn hẳn sổ, nên đây là cách kéo đủ
+    // dữ liệu cho trần "cả đời nhãn" mà không tải nguyên bảng transactions.
+    // `!inner` để giao dịch đã xoá (liên kết mồ côi) không thành dòng rỗng.
+    type Joined = {
+      tag_id: string
+      transactions: {
+        id: string
+        amount: number
+        account_id: string
+        occurred_on: string
+        is_refund: boolean | null
+      } | null
+    }
+    const rows = await fetchAllPages<Joined>(async (from, to) =>
+      getSupabase()
+        .from('transaction_tags')
+        .select(
+          'tag_id, transactions!inner(id, amount, account_id, occurred_on, is_refund)',
+        )
+        // Cùng bộ lọc với tagBreakdown ở client: chỉ khoản CHI còn tính thống kê.
+        .eq('transactions.type', 'expense')
+        .not('transactions.is_debt_flow', 'is', true)
+        .not('transactions.exclude_from_stats', 'is', true)
+        .order('transaction_id')
+        .order('tag_id')
+        .range(from, to),
+    )
+    return rows.flatMap<TagSpendRow>((r) =>
+      r.transactions
+        ? [
+            {
+              tag_id: r.tag_id,
+              transaction_id: r.transactions.id,
+              amount: r.transactions.amount,
+              account_id: r.transactions.account_id,
+              occurred_on: r.transactions.occurred_on,
+              is_refund: r.transactions.is_refund ?? false,
+            },
+          ]
+        : [],
     )
   },
 

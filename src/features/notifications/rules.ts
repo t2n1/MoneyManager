@@ -11,6 +11,7 @@ import {
 import { accountRules } from './rules/accountRules'
 import { debtRules } from './rules/debtRules'
 import { budgetRules } from './rules/budgetRules'
+import { tagRules } from './rules/tagRules'
 import { cardRules } from './rules/cardRules'
 import { rhythmRules } from './rules/rhythmRules'
 import { lifetimeRules } from './rules/lifetimeRules'
@@ -70,6 +71,7 @@ export function buildNotifications(input: NotificationInput): NotificationResult
     ...accountRules(input),
     ...debtRules(input),
     ...budgetRules(input),
+    ...tagRules(input),
     ...cardRules(input),
     ...rhythmRules(input),
     ...lifetimeRules(input),

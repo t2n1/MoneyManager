@@ -19,6 +19,8 @@ import type { BudgetStatus } from './progress'
 import { MonthPaceCharts, SpendPaceSection, useMonthPace } from '../reports/monthPace'
 import { AxisTargetsCard } from './AxisTargetsCard'
 import { useAxisProgress } from './useAxisProgress'
+import { TagBudgetsCard } from '../tags/TagBudgetsCard'
+import { useTagBudgets } from '../tags/useTagBudgets'
 
 const SORT_KEY = 'budget.sort'
 const SORT_OPTIONS = [
@@ -94,6 +96,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
 
   // --- Cơ cấu chi so với mốc (thiết yếu / linh hoạt / tiết kiệm) ---
   const axis = useAxisProgress(monthKey)
+  // --- Trần theo nhãn (cắt ngang danh mục) ---
+  const tagBudgets = useTagBudgets(monthKey)
 
   // Danh mục đang sửa hạn mức (null = đóng sheet)
   const [editing, setEditing] = useState<{
@@ -454,6 +458,13 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           </ul>
         </section>
       )}
+
+      {/* Ngân sách theo nhãn — SAU danh sách danh mục vì danh mục mới là công cụ
+          chính hằng tháng; nhãn là trần cắt ngang, dùng cho dịp/dự án. Cùng order-4
+          nên nó xếp ngay sau danh sách đó theo thứ tự DOM. */}
+      <div className="order-4">
+        <TagBudgetsCard data={tagBudgets} base={base} />
+      </div>
 
       {/* Nhóm / lá chưa đặt hạn mức */}
       {unbudgeted.length > 0 && (

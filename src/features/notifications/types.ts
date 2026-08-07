@@ -4,6 +4,7 @@
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { BudgetReport } from '../budgets/progress'
+import type { TagBudgetLine } from '../tags/budget'
 import type { LifetimeInput } from '../lifetime/project'
 import type {
   AccountBalanceRow,
@@ -23,6 +24,7 @@ export type NotificationType =
   | 'budget-over'
   | 'budget-pace'
   | 'budget-parent-over'
+  | 'tag-budget-over'
   | 'card-statement-day'
   | 'recurring-suggestion'
   | 'stale-entry'
@@ -73,6 +75,7 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   'budget-over',
   'budget-pace',
   'budget-parent-over',
+  'tag-budget-over',
   'card-statement-day',
   'recurring-suggestion',
   'stale-entry',
@@ -127,6 +130,11 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     kind: 'action',
     label: 'Nhóm vượt trần',
     hint: 'Cả nhóm đã tiêu quá trần đặt ở mục cha; kèm tối đa 2 mục con đang tiêu nhiều nhất.',
+  },
+  'tag-budget-over': {
+    kind: 'action',
+    label: 'Nhãn vượt trần',
+    hint: 'Chi mang một nhãn đã quá trần đặt cho nhãn đó (cả đợt hoặc tháng này, tùy nhãn).',
   },
   'card-statement-day': {
     kind: 'info',
@@ -188,6 +196,14 @@ export interface NotificationInput {
   recurringRules: RecurringRuleRow[]
   /** undefined = chưa tải xong; các luật ngân sách im. */
   budgetReport?: BudgetReport
+  /**
+   * Tiến độ trần theo nhãn, đã tính sẵn ở nơi gọi. undefined = chưa tải xong (hoặc
+   * chưa nhãn nào đặt trần) → luật nhãn im.
+   *
+   * Tính sẵn chứ không tự tính trong luật: trần kiểu 'total' cần chi CẢ ĐỜI nhãn, mà
+   * `recentTxs` chỉ có 90 ngày. Tự tính ở đây là lặng lẽ ra một con số nhỏ hơn thật.
+   */
+  tagBudgets?: TagBudgetLine[]
   savingsGoals: SavingsGoalRow[]
   networthSnapshots: NetWorthSnapshotRow[]
   /** Giao dịch `RECENT_TXS_DAYS` ngày gần nhất. */

@@ -31,11 +31,22 @@ export { dueForPush, localPartsIn } from '../../lib/pushSchedule'
 // hai hàm bên dưới mới là phần thuần, và edge function gọi thẳng chúng.
 export { buildBudgetReport, carryFromPreviousMonth } from '../budgets/progress'
 
+// Trần theo nhãn. Edge function phải tự dựng: trần kiểu 'total' cần chi CẢ ĐỜI nhãn,
+// mà cửa sổ giao dịch của push chỉ có RECENT_TXS_DAYS ngày.
+export { buildTagBudgetReport } from '../tags/budget'
+
 // Dựng lại `lifetime` từ kịch bản/chặng/biến cố (đúng hàm useNotifications dùng).
 export { buildLifetimeInput } from '../lifetime/buildInput'
 
 // Ngày tháng: bắt buộc đi qua đây, không tự cộng trừ ngày ở edge function.
-export { addDaysISO, addMonths, monthKeyForDate, monthKeyString, toISODate } from '../../lib/dates'
+export {
+  addDaysISO,
+  addMonths,
+  getMonthRange,
+  monthKeyForDate,
+  monthKeyString,
+  toISODate,
+} from '../../lib/dates'
 
 // Đọc HẾT bảng, không để PostgREST cắt im lặng ở dòng thứ 1.000. Sổ đã nạp 9 năm
 // Zaim (~14.000 giao dịch) nên cửa sổ 90 ngày vẫn có thể vượt trần — và cắt ở đây là

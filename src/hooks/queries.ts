@@ -142,6 +142,8 @@ function invalidateTransactionData(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['search'] })
   // Giao dịch có thể mang nhãn → liên kết nhãn đổi theo
   qc.invalidateQueries({ queryKey: ['transactionTags'] })
+  // Và tổng chi cả đời của nhãn — nó đọc chính số tiền vừa đổi, không chỉ liên kết.
+  qc.invalidateQueries({ queryKey: ['tagSpend'] })
 }
 
 // --- Nhãn cắt ngang danh mục ---
@@ -162,9 +164,23 @@ export function useTransactionTags() {
   })
 }
 
+/**
+ * Chi theo nhãn CẢ ĐỜI SỔ — chỉ cần cho trần nhãn kiểu 'total'. `enabled` để màn
+ * nào không có nhãn nào đặt trần thì không tốn truy vấn nào.
+ */
+export function useTagSpend(enabled = true) {
+  return useQuery({
+    queryKey: ['tagSpend'],
+    queryFn: () => repo.getTagSpend(),
+    staleTime: 60_000,
+    enabled,
+  })
+}
+
 function invalidateTags(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['tags'] })
   qc.invalidateQueries({ queryKey: ['transactionTags'] })
+  qc.invalidateQueries({ queryKey: ['tagSpend'] })
 }
 
 export function useCreateTag() {

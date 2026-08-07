@@ -6,15 +6,24 @@ import { Archive, ArchiveRestore, ChevronLeft, Trash2 } from 'lucide-react'
 import {
   useCreateTag,
   useDeleteTag,
+  useRates,
   useTags,
   useTransactionTags,
   useUpdateTag,
 } from '../../hooks/queries'
 import { confirmDialog, showToast } from '../../lib/dialog'
+import type { TagBudgetPeriod, TagRow } from '../../types/database.types'
 import { TAG_CHIP_CLASS, TAG_COLOR_KEYS, TAG_COLOR_LABELS, tagColor } from './colors'
+
+/** Hai kiểu kỳ của trần nhãn — xem migration 0036. */
+const PERIODS: readonly (readonly [TagBudgetPeriod, string, string])[] = [
+  ['total', 'Cả đợt', 'Trần cho toàn bộ đời nhãn, không reset — hợp với nhãn theo dịp'],
+  ['monthly', 'Mỗi tháng', 'Trần cho từng tháng, hết tháng reset — hợp với nhãn lặp đều'],
+]
 
 export function TagsPage() {
   const { data: tags = [] } = useTags()
+  const { base } = useRates()
   const { data: links = [] } = useTransactionTags()
   const createTag = useCreateTag()
   const updateTag = useUpdateTag()
@@ -62,6 +71,18 @@ export function TagsPage() {
     showToast(is_archived ? `Đã lưu trữ nhãn "${name}"` : `Đã dùng lại nhãn "${name}"`)
   }
 
+  /**
+   * Lưu trần chi. Ô rỗng (hoặc số ≤ 0) = BỎ trần, không phải "trần bằng 0" —
+   * trần 0 nghĩa là cấm tiêu, chẳng ai đặt, mà gõ nhầm rồi xoá đi là chuyện thường.
+   */
+  function saveBudget(t: TagRow, raw: string) {
+    const digits = raw.replace(/[^\d]/g, '')
+    const next = digits === '' ? null : Number(digits)
+    const value = next != null && next > 0 ? next : null
+    if (value === t.budget_amount) return
+    updateTag.mutate({ id: t.id, patch: { budget_amount: value } })
+  }
+
   /** Một dòng nhãn. Nhãn đã lưu trữ bỏ hàng chọn màu — nó không còn xuất hiện khi nhập. */
   const row = (t: (typeof tags)[number]) => (
     <li
@@ -105,6 +126,44 @@ export function TagsPage() {
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
+      {/* Trần chi — hiện cho CẢ nhãn đã lưu trữ: chuyến đi xong rồi vẫn cần xem
+          tổng cuối cùng so với dự trù, và có khi còn cần sửa lại con số dự trù. */}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <label className="text-xs text-fg-muted" htmlFor={`budget-${t.id}`}>
+          Trần chi
+        </label>
+        <input
+          id={`budget-${t.id}`}
+          inputMode="numeric"
+          defaultValue={t.budget_amount != null ? String(t.budget_amount) : ''}
+          onBlur={(e) => saveBudget(t, e.target.value)}
+          placeholder="không đặt"
+          // text-base (16px) để Safari iOS không phóng to trang khi bấm vào ô
+          className="min-h-9 w-28 rounded-lg border border-border-strong px-2 py-1 text-right text-base outline-green-500 sm:text-sm"
+        />
+        <span className="text-xs text-fg-muted">{base}</span>
+        {t.budget_amount != null && (
+          <div className="flex overflow-hidden rounded-lg border border-border-strong">
+            {PERIODS.map(([value, label, title]) => (
+              <button
+                key={value}
+                type="button"
+                title={title}
+                onClick={() => updateTag.mutate({ id: t.id, patch: { budget_period: value } })}
+                aria-pressed={t.budget_period === value}
+                className={`min-h-9 px-2 text-xs font-medium ${
+                  t.budget_period === value
+                    ? 'bg-green-700 text-white'
+                    : 'text-fg-secondary hover:bg-surface-sunken'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {!t.is_archived && (
         <div className="mt-2 flex items-center gap-2">
           {/* Xem trước nhãn thật để biết chọn màu xong trông thế nào */}

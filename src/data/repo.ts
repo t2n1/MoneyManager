@@ -27,7 +27,9 @@ import type {
   StockPriceRow,
   StockTradeKind,
   StockTradeRow,
+  TagBudgetPeriod,
   TagRow,
+  TagSpendRow,
   TaxShelter,
   TransactionRow,
   TransactionTagRow,
@@ -368,6 +370,10 @@ export interface NewTag {
   name: string
   /** Khóa màu trong bảng màu của app. */
   color: string
+  /** Trần chi (minor units theo base currency); null = không đặt. */
+  budget_amount?: number | null
+  /** Kỳ của trần; chỉ có nghĩa khi `budget_amount` khác null. */
+  budget_period?: TagBudgetPeriod
 }
 
 export type TagPatch = Partial<NewTag & { sort_order: number; is_archived: boolean }>
@@ -514,6 +520,14 @@ export interface Repo {
   getTransactionTags(): Promise<TransactionTagRow[]>
   createTag(input: NewTag): Promise<TagRow>
   updateTag(id: string, patch: TagPatch): Promise<TagRow>
+  /**
+   * Mọi lần "khoản chi X mang nhãn Y", cả đời sổ. Dành cho trần nhãn kiểu 'total':
+   * nó cần tổng từ lúc tạo nhãn tới nay, trong khi mọi màn khác chỉ tải theo tháng.
+   *
+   * Trả dòng gầy (không phải TransactionRow) và chỉ gồm giao dịch CÓ nhãn — tập này
+   * nhỏ hơn hẳn sổ giao dịch, nên không cần kéo cả bảng về máy.
+   */
+  getTagSpend(): Promise<TagSpendRow[]>
   /** Xóa nhãn + mọi liên kết tới nó (giao dịch giữ nguyên). */
   deleteTag(id: string): Promise<void>
   /** Đặt lại TOÀN BỘ nhãn của một giao dịch (danh sách rỗng = gỡ hết). */

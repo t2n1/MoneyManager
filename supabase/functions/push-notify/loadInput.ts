@@ -11,9 +11,11 @@ import {
   addMonths,
   buildBudgetReport,
   buildLifetimeInput,
+  buildTagBudgetReport,
   carryFromPreviousMonth,
   earliestNeededDate,
   fetchAllPages,
+  getMonthRange,
   missingRateCurrencies,
   monthKeyForDate,
   monthKeyString,
@@ -186,6 +188,47 @@ export async function loadNotificationInput(
     carry,
   )
 
+  // --- Trần theo nhãn ---
+  // Đọc CẢ ĐỜI sổ chứ không dùng cửa sổ giao dịch ở trên: trần kiểu 'total' hỏi
+  // "cả chuyến đã tiêu bao nhiêu", mà chuyến đó có thể bắt đầu từ năm ngoái.
+  // Chỉ đọc khi thật sự có nhãn đặt trần — người không dùng tính năng này không
+  // phải trả giá một lượt quét bảng nối ở mỗi lượt push.
+  const tags = await readAll(sb, 'tags', userId)
+  const hasTagBudget = tags.some((t: Row) => t.budget_amount != null && t.budget_amount > 0)
+  const tagSpendRows = hasTagBudget
+    ? await fetchAllPages<Row>((from: number, to: number) =>
+        sb
+          .from('transaction_tags')
+          .select('tag_id, transactions!inner(id, amount, account_id, occurred_on, is_refund)')
+          .eq('user_id', userId)
+          .eq('transactions.type', 'expense')
+          .not('transactions.is_debt_flow', 'is', true)
+          .not('transactions.exclude_from_stats', 'is', true)
+          .order('transaction_id', { ascending: true })
+          .order('tag_id', { ascending: true })
+          .range(from, to),
+      )
+    : []
+  const monthRange = getMonthRange(thisMonth, monthStartDay)
+  const tagBudgets = buildTagBudgetReport({
+    tags,
+    // Làm phẳng hình dạng lồng của PostgREST về đúng TagSpendRow — không phải phép
+    // tính, chỉ là đổi hình dạng, nên vẫn giữ được ràng buộc "không tính gì ở đây".
+    rows: tagSpendRows.map((r: Row) => ({
+      tag_id: r.tag_id,
+      transaction_id: r.transactions.id,
+      amount: r.transactions.amount,
+      account_id: r.transactions.account_id,
+      occurred_on: r.transactions.occurred_on,
+      is_refund: r.transactions.is_refund ?? false,
+    })),
+    currencyOf,
+    base,
+    rates,
+    monthStart: monthRange.start,
+    monthEnd: monthRange.end,
+  }).lines
+
   // --- Lifetime ---
   const [scenarios, phases, events] = await Promise.all([
     readAll(sb, 'life_scenarios', userId),
@@ -215,6 +258,7 @@ export async function loadNotificationInput(
       debts,
       recurringRules,
       budgetReport,
+      tagBudgets,
       savingsGoals,
       networthSnapshots,
       recentTxs,

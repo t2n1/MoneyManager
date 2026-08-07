@@ -120,46 +120,48 @@ export function CardsSection({ cards, balances, base, rates, todayISO, view }: P
         </div>
       </button>
 
+      {/* Tổng theo ngân hàng nguồn — hiện sẵn cả khi thu gọn: "còn thiếu bao nhiêu
+          sau khi trừ tiền bank" là con số cần biết TRƯỚC khi chuyển tiền, giấu sau
+          một cú bấm thì dễ lỡ. Bấm mở chỉ xổ thêm chi tiết từng thẻ. */}
+      {sharedSources.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {sharedSources.map((g) => (
+            <div
+              key={g.sourceId}
+              className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-800/50"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Trả {g.cardCount} thẻ từ {g.sourceName}
+                </span>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-semibold ${
+                    g.enough
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                      : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                  }`}
+                >
+                  {g.enough ? 'đủ trả' : `cần nạp thêm ${view.fmt(g.shortfall, g.currency)}`}
+                </span>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs text-fg-muted">
+                {/* Đã là tổng KỲ NÀY (cardFunding nhận override billed), không phải nợ gộp */}
+                <span>Kỳ này {g.cardCount} thẻ</span>
+                <span className="tabular-nums font-medium text-money-out">
+                  − {view.fmt(g.totalOwed, g.currency)}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-xs text-fg-muted">
+                <span>Số dư {g.sourceName}</span>
+                <span className="tabular-nums">{view.fmt(g.sourceBalance, g.currency)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {open && (
         <div className="mt-3">
-          {/* Tổng theo ngân hàng nguồn — con số cần khi chuyển tiền vào để thanh toán */}
-          {sharedSources.length > 0 && (
-            <div className="mb-3 space-y-2">
-              {sharedSources.map((g) => (
-                <div
-                  key={g.sourceId}
-                  className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-800/50"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      Trả {g.cardCount} thẻ từ {g.sourceName}
-                    </span>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-semibold ${
-                        g.enough
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-                          : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                      }`}
-                    >
-                      {g.enough ? 'đủ trả' : `cần nạp thêm ${view.fmt(g.shortfall, g.currency)}`}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-xs text-fg-muted">
-                    {/* Đã là tổng KỲ NÀY (cardFunding nhận override billed), không phải nợ gộp */}
-                    <span>Kỳ này {g.cardCount} thẻ</span>
-                    <span className="tabular-nums font-medium text-money-out">
-                      − {view.fmt(g.totalOwed, g.currency)}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-xs text-fg-muted">
-                    <span>Số dư {g.sourceName}</span>
-                    <span className="tabular-nums">{view.fmt(g.sourceBalance, g.currency)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
           <ul className="space-y-3">
             {cards.map((c) => {
               const st = statements.get(c.id)

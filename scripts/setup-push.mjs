@@ -7,6 +7,13 @@
 //
 // Chạy:  npm run setup:push
 // Kiểm script mà không sinh khoá thật:  node scripts/setup-push.mjs --dry-run
+//
+// Lệnh in ra cố tình VIẾT MỘT DÒNG và bọc từng cặp trong nháy kép. Máy chính của repo
+// này chạy PowerShell, mà PowerShell không hiểu dấu `\` nối dòng của bash: dán khối
+// nhiều dòng vào là nó chạy từng dòng rời rạc và nuốt mất cặp ở giữa — đúng một lần đã
+// làm thiếu VAPID_PRIVATE_KEY, và function chỉ báo lỗi khi đã deploy xong.
+// `npx supabase@latest` thay cho `supabase` vì repo chưa từng cài Supabase CLI, và
+// `npm i -g supabase` bị chính nhà làm Supabase chặn.
 
 import { generateKeyPairSync, randomBytes } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
@@ -96,18 +103,18 @@ vào chat, vào issue, hay commit vào git.
 
     VITE_VAPID_PUBLIC_KEY=${khoa.congKhai}
 
-② Secret cho Supabase (chạy sau \`supabase login\`):
+   Đặt xong PHẢI Redeploy. Vercel không tự build lại khi đổi biến, mà khoá được
+   nướng vào bundle lúc build — không redeploy thì bản đang chạy vẫn rỗng.
 
-supabase secrets set --project-ref ${ref ?? '<project-ref>'} \\
-  VAPID_PUBLIC_KEY=${khoa.congKhai} \\
-  VAPID_PRIVATE_KEY=${khoa.riengTu} \\
-  VAPID_SUBJECT=mailto:khoi@i-catholic.org \\
-  PUSH_CRON_SECRET=${cronSecret}
+② Secret cho Supabase (chạy sau \`npx supabase@latest login\`).
+   MỘT DÒNG, đừng bẻ dòng:
+
+npx supabase@latest secrets set --project-ref ${ref ?? '<project-ref>'} "VAPID_PUBLIC_KEY=${khoa.congKhai}" "VAPID_PRIVATE_KEY=${khoa.riengTu}" "VAPID_SUBJECT=mailto:khoi@i-catholic.org" "PUSH_CRON_SECRET=${cronSecret}"
 
 ③ Deploy function:
 
     npm run bundle:rules
-    supabase functions deploy push-notify --project-ref ${ref ?? '<project-ref>'} --no-verify-jwt
+    npx supabase@latest functions deploy push-notify --project-ref ${ref ?? '<project-ref>'} --no-verify-jwt
 
 ④ Hẹn cron — dán vào Supabase SQL Editor:
 

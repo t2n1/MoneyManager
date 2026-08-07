@@ -64,6 +64,15 @@ Kiểm script mà không sinh khoá thật: `node scripts/setup-push.mjs --dry-r
 
 Dán khối ① (Vercel) và ② (`supabase secrets set`) mà script vừa in.
 
+Khối ② in ra **một dòng** và bọc từng cặp trong nháy kép — dán nguyên, đừng bẻ dòng cho
+đẹp. PowerShell không hiểu dấu `\` nối dòng của bash, dán khối nhiều dòng vào là mất cặp
+ở giữa mà không báo gì; lúc đó function vẫn deploy được và chỉ chết khi cron gọi tới.
+
+Sau khi thêm biến trên Vercel phải **Redeploy**. Vercel không tự build lại khi đổi biến,
+mà mọi biến `VITE_*` được nướng vào bundle lúc build. Cách kiểm chắc nhất là mở
+`/assets/NotificationSettingsPage-*.js` của bản đang chạy: hàm đọc khoá phải trả về khoá
+thật chứ không phải chuỗi rỗng. Tên file đổi cũng là dấu hiệu đã build lại.
+
 `SUPABASE_URL` và `SUPABASE_SERVICE_ROLE_KEY` Supabase tự cấp, không cần đặt.
 
 Đổi khoá VAPID sau này sẽ làm **mọi thiết bị đã đăng ký hết hiệu lực** — ai đang bật
@@ -76,12 +85,16 @@ tới nay đều dán vào SQL Editor). Edge function thì không dán được,
 nhập CLI và chỉ rõ project:
 
 ```bash
-supabase login
+npx supabase@latest login
 ```
 
 ```bash
-npm run bundle:rules && supabase functions deploy push-notify --project-ref <project-ref> --no-verify-jwt
+npm run bundle:rules && npx supabase@latest functions deploy push-notify --project-ref <project-ref> --no-verify-jwt
 ```
+
+Dùng `npx` vì repo không cài Supabase CLI, và `npm i -g supabase` bị chính nhà làm
+Supabase chặn. Muốn gõ `supabase` trơn thì cài qua Scoop (`scoop bucket add supabase
+https://github.com/supabase/scoop-bucket.git && scoop install supabase`).
 
 `<project-ref>` là phần đầu của `VITE_SUPABASE_URL` (`https://<project-ref>.supabase.co`).
 Dùng `--project-ref` thay vì `supabase init` + `link` để không thêm file cấu hình CLI vào
@@ -189,11 +202,19 @@ select endpoint, user_agent, created_at, last_ok_at from push_subscriptions;
 | Service worker sinh đúng, không mất offline | ✅ `importScripts("/push-sw.js")` + `navigateFallback` còn nguyên trong `dist/sw.js` |
 | Công tắc + ô chọn giờ trong Cài đặt | ✅ đo trên preview, đổi giờ lưu và sống qua reload |
 | Deep link `?notif=1` mở tấm trượt | ✅ đo trên preview, tham số được dọn khỏi URL |
-| **Edge function chạy trên Deno** | ❌ **chưa kiểm** — máy dev không có Deno, và deploy cần quyền |
-| **`npm:web-push` trên Supabase Edge Runtime** | ❌ **chưa kiểm** — xem bên dưới |
-| **Thông báo tới được iPhone thật** | ❌ **chưa kiểm** — cần máy thật + khoá VAPID |
+| Edge function chạy trên Deno | ✅ đã deploy thật (2026-08-07), gọi bằng secret sai trả đúng 401 |
+| `npm:web-push` trên Supabase Edge Runtime | ✅ **nạp** được trên runtime thật — nhưng gửi thật thì chưa, xem bên dưới |
+| Khoá công khai có trong bản web trên mạng | ✅ đọc thẳng bundle của Vercel, hàm đọc khoá trả về khoá thật |
+| **Thông báo tới được iPhone thật** | ❌ **chưa kiểm** — hạ tầng đã đủ, chỉ còn thiếu máy thật đăng ký |
 
 ### Nếu `npm:web-push` không chạy trên Edge Runtime
+
+Lo này **đã bớt một nửa**: function deploy lên chạy thật, gọi bằng secret sai thì trả về
+JSON 401 của chính nó. Import nằm ở đầu file nên nạp hỏng là function chết trước khi
+chạy được dòng nào — trả lời được nghĩa là `npm:web-push` đã nạp xong.
+
+Nửa còn lại vẫn treo: nạp được không có nghĩa là `sendNotification` mã hoá đúng. Cái đó
+chỉ chứng minh được khi có một máy thật đăng ký và nhận được thông báo.
 
 `web-push` dùng `node:crypto` (`createECDH`, `createCipheriv`) và `node:https`. Lớp
 tương thích Node của Deno hỗ trợ chúng, nhưng chưa xác minh trên đúng phiên bản runtime

@@ -46,6 +46,16 @@ function tx(amount: number, occurred_on: string): TransactionRow {
   } as TransactionRow
 }
 
+/** Khoản THU trên cùng tài khoản JPY — đối trọng của `tx` (chi). */
+function txIn(amount: number, occurred_on: string): TransactionRow {
+  return { ...tx(amount, occurred_on), id: `i-${occurred_on}-${amount}`, type: 'income' } as TransactionRow
+}
+
+/** Ba khoản chi 275.000 (05-15 → 07-15, cửa sổ 75 ngày) ⇒ 4.014.500/năm — lệch 0,4%
+ *  so với giả định 4.000.000 nên luật CHI im. Dùng làm nền cho các phép thử về THU:
+ *  vừa neo cửa sổ đủ 30 ngày, vừa bảo đảm thông báo duy nhất (nếu có) là về thu. */
+const quietExpenses = [tx(275_000, '2026-05-15'), tx(275_000, '2026-06-15'), tx(275_000, '2026-07-15')]
+
 function input(over: Partial<NotificationInput> = {}): NotificationInput {
   return {
     todayISO: '2026-07-29',
@@ -277,6 +287,83 @@ describe('lifetimeRules', () => {
     // Hỏi `actualNeg === null` TRƯỚC `planNeg` thì câu này là "Bản chiếu vẫn không năm
     // nào âm." — phủ nhận đúng cái tin tốt vừa xảy ra.
     expect(out[0].detail).toContain('Mốc âm 2028 biến mất.')
+  })
+
+  it('báo khi thu thực tế thấp hơn kế hoạch quá ngưỡng', () => {
+    // Thu 3 × 200.000 = 600.000 trên cửa sổ 75 ngày ⇒ 2.920.000/năm so với kế hoạch
+    // 6.000.000 → thấp hơn 51%. Chi giữ ở mức im (xem `quietExpenses`) nên thông báo
+    // duy nhất phải là về THU.
+    const txs = [...quietExpenses, txIn(200_000, '2026-05-15'), txIn(200_000, '2026-06-15'), txIn(200_000, '2026-07-15')]
+    const out = lifetimeRules(input({ recentTxs: txs }))
+    expect(out).toHaveLength(1)
+    expect(out[0].key).toBe('lifetime-drift:income')
+    expect(out[0].type).toBe('lifetime-drift')
+    expect(out[0].title).toBe('Thu thực tế thấp hơn kế hoạch 51%')
+    expect(out[0].to).toBe('/assets?view=future')
+  })
+
+  it('báo khi thu thực tế cao hơn kế hoạch quá ngưỡng', () => {
+    // 3 × 700.000 = 2.100.000 trên 75 ngày ⇒ 10.220.000/năm → cao hơn 70%.
+    const txs = [...quietExpenses, txIn(700_000, '2026-05-15'), txIn(700_000, '2026-06-15'), txIn(700_000, '2026-07-15')]
+    const out = lifetimeRules(input({ recentTxs: txs }))
+    expect(out).toHaveLength(1)
+    expect(out[0].title).toBe('Thu thực tế cao hơn kế hoạch 70%')
+  })
+
+  it('im về thu khi sổ KHÔNG có khoản thu nào — thiếu dữ liệu là im, không đoán "mất thu nhập"', () => {
+    // Kế hoạch thu 6.000.000 nhưng sổ chỉ có chi: rất nhiều người không ghi lương vào
+    // app. Suy "thu thực tế = 0" từ chỗ trống rồi báo "thấp hơn kế hoạch 100%" là báo
+    // oan vĩnh viễn cho họ (mục H của spec: thiếu dữ liệu thì im).
+    expect(lifetimeRules(input({ recentTxs: quietExpenses }))).toEqual([])
+  })
+
+  it('báo khi kế hoạch để thu 0 mà sổ CÓ thu nhập đáng kể', () => {
+    // Đúng ca người dùng gặp thật (2026-08): kịch bản đầu tiên chép thu = 0 từ sổ chưa
+    // ghi lương, sau đó lương ĐÃ được ghi mà kế hoạch vẫn 0 — bản chiếu âm oan toàn bộ.
+    // Thu 3 × 411.000 = 1.233.000 trên 75 ngày ⇒ 5.999.400/năm.
+    const zeroIncome: LifetimeInput = {
+      ...lifetime,
+      phases: [{ ...lifetime.phases[0], annualIncomeMinor: 0 }],
+    }
+    const txs = [...quietExpenses, txIn(411_000, '2026-05-15'), txIn(411_000, '2026-06-15'), txIn(411_000, '2026-07-15')]
+    const out = lifetimeRules(input({ recentTxs: txs, lifetime: zeroIncome }))
+    expect(out).toHaveLength(1)
+    expect(out[0].key).toBe('lifetime-drift:income')
+    expect(out[0].title).toBe('Sổ có thu nhập, kế hoạch đang để thu 0')
+    // Kế hoạch (thu 0, chi 4M, vốn 10M) âm trong vài năm; thu thật ~6M > chi → hết âm.
+    // Câu hệ quả phải nói được tin tốt đó.
+    expect(out[0].detail).toMatch(/biến mất/)
+  })
+
+  it('im khi kế hoạch thu 0 và thu trong sổ chỉ lặt vặt', () => {
+    // 30.000 trên 75 ngày ⇒ 146.000/năm — dưới 15% của chi kế hoạch (600.000). Vài
+    // khoản bán đồ cũ không phải "thu nhập bị bỏ quên", báo là nhiễu.
+    const zeroIncome: LifetimeInput = {
+      ...lifetime,
+      phases: [{ ...lifetime.phases[0], annualIncomeMinor: 0 }],
+    }
+    const txs = [...quietExpenses, txIn(30_000, '2026-06-15')]
+    expect(lifetimeRules(input({ recentTxs: txs, lifetime: zeroIncome }))).toEqual([])
+  })
+
+  it('mã của thông báo thu ổn định để một việc chỉ báo một lần', () => {
+    const txs = [...quietExpenses, txIn(200_000, '2026-05-15'), txIn(200_000, '2026-06-15'), txIn(200_000, '2026-07-15')]
+    const a = lifetimeRules(input({ recentTxs: txs }))
+    const b = lifetimeRules(input({ recentTxs: txs, todayISO: '2026-07-30' }))
+    expect(a[0].key).toBe(b[0].key)
+  })
+
+  it('chi và thu cùng lệch thì ra HAI thông báo, chi đứng trước', () => {
+    // Chi 3 × 500.000 ⇒ 7.300.000/năm (cao hơn 83%); thu 3 × 200.000 ⇒ 2.920.000/năm
+    // (thấp hơn 51%) — hai chuyện khác nhau, mỗi cái một thông báo với mã riêng.
+    const txs = [
+      tx(500_000, '2026-05-15'), tx(500_000, '2026-06-15'), tx(500_000, '2026-07-15'),
+      txIn(200_000, '2026-05-15'), txIn(200_000, '2026-06-15'), txIn(200_000, '2026-07-15'),
+    ]
+    const out = lifetimeRules(input({ recentTxs: txs }))
+    expect(out).toHaveLength(2)
+    expect(out[0].key).toBe('lifetime-drift:current')
+    expect(out[1].key).toBe('lifetime-drift:income')
   })
 
   it('nói ra con số đã suy và cửa sổ đã dùng, để người dùng kiểm lại được', () => {

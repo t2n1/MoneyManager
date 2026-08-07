@@ -2,7 +2,7 @@
 // Năm hiện tại suy từ input.todayISO, KHÔNG đọc đồng hồ hệ thống.
 import { daysBetween } from '../../../lib/dates'
 import { firstNegativeYear } from '../../lifetime/insights'
-import { phaseForYear, projectLifetime } from '../../lifetime/project'
+import { phaseForYear, projectLifetime, type YearRow } from '../../lifetime/project'
 // Cùng lý do như rhythmRules.ts: "chi tiêu" phải là CÙNG một định nghĩa ở mọi nơi, nên
 // dùng CÙNG một hàm. reports/aggregate.ts thuần (không React, không localStorage) nên
 // import này không phá purity.test.ts.
@@ -75,10 +75,13 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
   // CỐ Ý không đặt tên biến này là `window`: file bộ luật phải chạy được trên Deno và
   // purity.test.ts cấm token `window.` ở bất kỳ đâu trong file engine — `window.length`
   // của một biến cục bộ vẫn khớp lệnh cấm đó (đã thấy đỏ thật khi đặt tên như vậy).
+  // Lấy CẢ chi lẫn thu trong một lần lọc: hai luật dưới đây (chi lệch, thu lệch) phải
+  // đo trên CÙNG một cửa sổ ngày, nếu không "chi cao hơn 20%" và "thu thấp hơn 20%"
+  // là hai câu nói về hai quãng thời gian khác nhau mà không ai nhìn ra.
   const windowTxs = input.recentTxs.filter((t) => {
     const days = daysBetween(t.occurred_on, input.todayISO)
     return (
-      t.type === 'expense' &&
+      (t.type === 'expense' || t.type === 'income') &&
       !t.exclude_from_stats &&
       !t.is_debt_flow &&
       input.currencyOf(t.account_id) === phase.currency &&
@@ -88,6 +91,9 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
   })
   if (windowTxs.length === 0) return []
 
+  // `oldest` lấy trên CẢ hai loại (cùng khuôn `suggestBaseline`): cửa sổ là "từ lúc sổ
+  // có hoạt động", không phải "từ khoản chi đầu tiên" — khoản thu thưa (lương tháng)
+  // mà chia theo quãng của riêng nó thì mẫu số co lại và con số quy năm nổ tung.
   const oldest = windowTxs.reduce(
     (m, t) => (t.occurred_on < m ? t.occurred_on : m),
     windowTxs[0].occurred_on,
@@ -97,71 +103,122 @@ export function lifetimeRules(input: NotificationInput): AppNotification[] {
   const days = daysBetween(oldest, input.todayISO)
   if (days < MIN_WINDOW_DAYS) return []
 
-  // `t.amount * expenseSign(t)`, KHÔNG bọc `Math.abs`: `amount` có `check (amount > 0)`
-  // nên hai lối cho cùng kết quả, nhưng bộ lọc trên hứa khớp `suggestBaseline` và hàm
-  // đó viết đúng như dòng này — để lệch là bắt người đọc sau đi truy một khác biệt
-  // không tồn tại.
-  const windowSum = windowTxs.reduce((s, t) => s + t.amount * expenseSign(t), 0)
-  // Hoàn tiền nhiều hơn chi (mua trước cửa sổ, trả hàng trong cửa sổ) làm tổng ÂM.
-  // KHÔNG kẹp về 0: "cả quý không chi gì" cũng là một lời khẳng định sai, và số âm
-  // nếu để chảy tiếp thì `drift` xuống dưới −100% (vô nghĩa về mặt số học) rồi
-  // `projectLifetime` biến chặng đó thành NGUỒN THU, làm câu hệ quả nói ngược hẳn.
-  if (windowSum <= 0) return []
-  const actualAnnual = Math.round((windowSum / days) * 365)
-
-  const planned = phase.annualExpenseMinor
-  const drift = (actualAnnual - planned) / planned
-  if (Math.abs(drift) < DRIFT_THRESHOLD) return []
-
-  // Chiếu lại lần hai với chi phí THẬT để nói được hệ quả, không chỉ con số lệch.
-  const planRows = projectLifetime(lt)
-  const actualRows = projectLifetime({
-    ...lt,
-    // So bằng THAM CHIẾU (`p === phase`), không bằng `p.startYear`: `sorted` là bản sao
-    // của mảng nên nó giữ ĐÚNG các object của `lt.phases`, và `phase` là một trong số
-    // đó — so tham chiếu vừa chính xác vừa rẻ hơn. So theo giá trị chỉ an toàn nhờ
-    // `unique (scenario_id, start_year)` của Postgres; `demoRepo` không ràng buộc gì,
-    // nên dữ liệu demo có hai chặng cùng `start_year` sẽ bị GHI ĐÈ CẢ HAI.
-    phases: lt.phases.map((p) => (p === phase ? { ...p, annualExpenseMinor: actualAnnual } : p)),
-  })
+  // Chiếu bản KẾ HOẠCH đúng một lần cho cả hai luật, và chỉ khi có luật lên tiếng —
+  // projectLifetime chạy 3 nhánh × ~60 năm, không phải phép cộng rẻ.
+  let planRowsCache: YearRow[] | null = null
+  const planRows = () => (planRowsCache ??= projectLifetime(lt))
   // 'low' = biên DƯỚI của dải, ĐÚNG nhánh mà mọi màn hình thông báo này dẫn tới đang
   // đọc (LifetimeChartCard, InsightCards). Đọc 'center' ở đây là bấm
   // vào thông báo "âm từ 2034" rồi rơi vào một trang ghi năm khác — với mặc định
   // `band_spread_bps = 150` của migration 0031, hai nhánh lệch nhau hẳn nhiều năm.
-  const planNeg = firstNegativeYear(planRows, 'low')
-  const actualNeg = firstNegativeYear(actualRows, 'low')
-
-  const pct = Math.abs(Math.round(drift * 100))
-  const direction = drift > 0 ? 'cao hơn' : 'thấp hơn'
-  const title = `Chi thực tế ${direction} kế hoạch ${pct}%`
-
+  //
   // XÉT `planNeg` TRƯỚC: nếu hỏi `actualNeg === null` trước thì ca đáng nói nhất của cả
-  // luật này — chi thật thấp hơn kế hoạch đủ để mốc âm BIẾN MẤT — bị trả lời bằng câu
+  // luật này — thực tế tốt hơn kế hoạch đủ để mốc âm BIẾN MẤT — bị trả lời bằng câu
   // "vẫn không năm nào âm", tức phủ nhận đúng cái tin tốt vừa xảy ra.
-  let consequence: string
-  if (actualNeg === null && planNeg !== null) consequence = `Mốc âm ${planNeg} biến mất.`
-  else if (actualNeg === null) consequence = 'Bản chiếu vẫn không năm nào âm.'
-  else if (planNeg === null) consequence = `Với mức chi này, tài sản có thể âm từ ${actualNeg}.`
-  else if (actualNeg !== planNeg) consequence = `Mốc âm dịch từ ${planNeg} sang ${actualNeg}.`
-  else consequence = `Mốc âm vẫn ở ${actualNeg}.`
+  function consequenceOf(actualRows: YearRow[]): string {
+    const planNeg = firstNegativeYear(planRows(), 'low')
+    const actualNeg = firstNegativeYear(actualRows, 'low')
+    if (actualNeg === null && planNeg !== null) return `Mốc âm ${planNeg} biến mất.`
+    if (actualNeg === null) return 'Bản chiếu vẫn không năm nào âm.'
+    if (planNeg === null) return `Với mức này, tài sản có thể âm từ ${actualNeg}.`
+    if (actualNeg !== planNeg) return `Mốc âm dịch từ ${planNeg} sang ${actualNeg}.`
+    return `Mốc âm vẫn ở ${actualNeg}.`
+  }
 
-  // Nói RA con số và cửa sổ đã dùng. Không có nó thì "cao hơn 83%" là một tỷ lệ không
-  // ai kiểm lại được: người dùng không biết luật đã lấy bao nhiêu ngày và ra bao nhiêu
-  // một năm, nên cũng không phát hiện được lúc nó tính sai.
-  const detail =
-    `Quy năm ${input.formatMoney(actualAnnual, phase.currency)} theo ${days} ngày gần đây. ` +
-    consequence
+  const out: AppNotification[] = []
 
-  return [
-    {
-      // Việc-cần-làm → mã KHÔNG chứa kỳ, để một việc chỉ báo một lần tới khi hết.
-      key: 'lifetime-drift:current',
-      kind: 'action',
-      type: 'lifetime-drift',
-      severity: 'low',
-      title,
-      detail,
-      to: '/assets?view=future',
-    },
-  ]
+  // --- Luật 1: CHI lệch kế hoạch ---
+  // `t.amount * expenseSign(t)`, KHÔNG bọc `Math.abs`: `amount` có `check (amount > 0)`
+  // nên hai lối cho cùng kết quả, nhưng bộ lọc trên hứa khớp `suggestBaseline` và hàm
+  // đó viết đúng như dòng này — để lệch là bắt người đọc sau đi truy một khác biệt
+  // không tồn tại.
+  const expenseSum = windowTxs
+    .filter((t) => t.type === 'expense')
+    .reduce((s, t) => s + t.amount * expenseSign(t), 0)
+  // Hoàn tiền nhiều hơn chi (mua trước cửa sổ, trả hàng trong cửa sổ) làm tổng ÂM.
+  // KHÔNG kẹp về 0: "cả quý không chi gì" cũng là một lời khẳng định sai, và số âm
+  // nếu để chảy tiếp thì `drift` xuống dưới −100% (vô nghĩa về mặt số học) rồi
+  // `projectLifetime` biến chặng đó thành NGUỒN THU, làm câu hệ quả nói ngược hẳn.
+  if (expenseSum > 0) {
+    const actualAnnual = Math.round((expenseSum / days) * 365)
+    const planned = phase.annualExpenseMinor
+    const drift = (actualAnnual - planned) / planned
+    if (Math.abs(drift) >= DRIFT_THRESHOLD) {
+      // Chiếu lại lần hai với chi phí THẬT để nói được hệ quả, không chỉ con số lệch.
+      const actualRows = projectLifetime({
+        ...lt,
+        // So bằng THAM CHIẾU (`p === phase`), không bằng `p.startYear`: `sorted` là bản
+        // sao của mảng nên nó giữ ĐÚNG các object của `lt.phases`, và `phase` là một
+        // trong số đó — so tham chiếu vừa chính xác vừa rẻ hơn. So theo giá trị chỉ an
+        // toàn nhờ `unique (scenario_id, start_year)` của Postgres; `demoRepo` không
+        // ràng buộc gì, nên dữ liệu demo có hai chặng cùng `start_year` sẽ bị GHI ĐÈ CẢ HAI.
+        phases: lt.phases.map((p) => (p === phase ? { ...p, annualExpenseMinor: actualAnnual } : p)),
+      })
+      const pct = Math.abs(Math.round(drift * 100))
+      const direction = drift > 0 ? 'cao hơn' : 'thấp hơn'
+      out.push({
+        // Việc-cần-làm → mã KHÔNG chứa kỳ, để một việc chỉ báo một lần tới khi hết.
+        key: 'lifetime-drift:current',
+        kind: 'action',
+        type: 'lifetime-drift',
+        severity: 'low',
+        title: `Chi thực tế ${direction} kế hoạch ${pct}%`,
+        // Nói RA con số và cửa sổ đã dùng. Không có nó thì "cao hơn 83%" là một tỷ lệ
+        // không ai kiểm lại được: người dùng không biết luật đã lấy bao nhiêu ngày và
+        // ra bao nhiêu một năm, nên cũng không phát hiện được lúc nó tính sai.
+        detail:
+          `Quy năm ${input.formatMoney(actualAnnual, phase.currency)} theo ${days} ngày gần đây. ` +
+          consequenceOf(actualRows),
+        to: '/assets?view=future',
+      })
+    }
+  }
+
+  // --- Luật 2: THU lệch kế hoạch ---
+  // Chỉ lên tiếng khi sổ CÓ khoản thu (`incomeSum > 0`). Sổ không có khoản thu nào
+  // KHÔNG phải bằng chứng "mất thu nhập" — rất nhiều người chỉ ghi chi, không ghi
+  // lương; suy "thu = 0" từ chỗ trống rồi báo "thấp hơn kế hoạch 100%" là báo oan
+  // vĩnh viễn cho họ (mục H của spec: thiếu dữ liệu thì im). Khoản thu không áp
+  // `expenseSign` — is_refund chỉ có nghĩa với chi (cùng lý do với `suggestBaseline`).
+  const incomeSum = windowTxs
+    .filter((t) => t.type === 'income')
+    .reduce((s, t) => s + t.amount, 0)
+  if (incomeSum > 0) {
+    const actualAnnual = Math.round((incomeSum / days) * 365)
+    const planned = phase.annualIncomeMinor
+    let title: string | null = null
+    if (planned > 0) {
+      const drift = (actualAnnual - planned) / planned
+      if (Math.abs(drift) >= DRIFT_THRESHOLD) {
+        const pct = Math.abs(Math.round(drift * 100))
+        title = `Thu thực tế ${drift > 0 ? 'cao hơn' : 'thấp hơn'} kế hoạch ${pct}%`
+      }
+    } else if (actualAnnual >= DRIFT_THRESHOLD * phase.annualExpenseMinor) {
+      // Kế hoạch để thu ≤ 0 mà sổ có thu thật — đúng ca "kịch bản đầu tiên chép thu = 0
+      // từ sổ chưa ghi lương" đã gặp ngoài đời (2026-08): cả bản chiếu âm oan mà không
+      // một bề mặt nào lên tiếng. Ngưỡng đáng nói mượn theo chi kế hoạch (15% của chi):
+      // kế hoạch thu 0 thì không có mẫu số riêng để đo phần trăm lệch, còn vài khoản
+      // bán đồ cũ lặt vặt thì không phải "thu nhập bị bỏ quên".
+      title = 'Sổ có thu nhập, kế hoạch đang để thu 0'
+    }
+    if (title !== null) {
+      const actualRows = projectLifetime({
+        ...lt,
+        phases: lt.phases.map((p) => (p === phase ? { ...p, annualIncomeMinor: actualAnnual } : p)),
+      })
+      out.push({
+        key: 'lifetime-drift:income',
+        kind: 'action',
+        type: 'lifetime-drift',
+        severity: 'low',
+        title,
+        detail:
+          `Quy năm ${input.formatMoney(actualAnnual, phase.currency)} theo ${days} ngày gần đây. ` +
+          consequenceOf(actualRows),
+        to: '/assets?view=future',
+      })
+    }
+  }
+
+  return out
 }

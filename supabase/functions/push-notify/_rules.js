@@ -91,8 +91,8 @@ var NOTIFICATION_META = {
   },
   "lifetime-drift": {
     kind: "action",
-    label: "Chi l\u1EC7ch k\u1EBF ho\u1EA1ch Lifetime",
-    hint: `Chi th\u1EF1c t\u1EBF ${RECENT_TXS_DAYS} ng\xE0y g\u1EA7n \u0111\xE2y l\u1EC7ch kh\u1ECFi gi\u1EA3 \u0111\u1ECBnh c\u1EE7a k\u1ECBch b\u1EA3n, k\xE8m m\u1ED1c \xE2m d\u1ECBch bao nhi\xEAu n\u0103m.`
+    label: "Thu chi l\u1EC7ch k\u1EBF ho\u1EA1ch Lifetime",
+    hint: `Thu ho\u1EB7c chi th\u1EF1c t\u1EBF ${RECENT_TXS_DAYS} ng\xE0y g\u1EA7n \u0111\xE2y l\u1EC7ch kh\u1ECFi gi\u1EA3 \u0111\u1ECBnh c\u1EE7a k\u1ECBch b\u1EA3n (k\u1EC3 c\u1EA3 khi k\u1EBF ho\u1EA1ch \u0111\u1EC3 thu 0 m\xE0 s\u1ED5 c\xF3 thu nh\u1EADp), k\xE8m m\u1ED1c \xE2m d\u1ECBch bao nhi\xEAu n\u0103m.`
   }
 };
 
@@ -909,7 +909,7 @@ function lifetimeRules(input) {
   if (!phase || phase.annualExpenseMinor <= 0) return [];
   const windowTxs = input.recentTxs.filter((t) => {
     const days2 = daysBetween(t.occurred_on, input.todayISO);
-    return t.type === "expense" && !t.exclude_from_stats && !t.is_debt_flow && input.currencyOf(t.account_id) === phase.currency && days2 >= 0 && days2 <= WINDOW_DAYS;
+    return (t.type === "expense" || t.type === "income") && !t.exclude_from_stats && !t.is_debt_flow && input.currencyOf(t.account_id) === phase.currency && days2 >= 0 && days2 <= WINDOW_DAYS;
   });
   if (windowTxs.length === 0) return [];
   const oldest = windowTxs.reduce(
@@ -918,46 +918,81 @@ function lifetimeRules(input) {
   );
   const days = daysBetween(oldest, input.todayISO);
   if (days < MIN_WINDOW_DAYS) return [];
-  const windowSum = windowTxs.reduce((s, t) => s + t.amount * expenseSign(t), 0);
-  if (windowSum <= 0) return [];
-  const actualAnnual = Math.round(windowSum / days * 365);
-  const planned = phase.annualExpenseMinor;
-  const drift = (actualAnnual - planned) / planned;
-  if (Math.abs(drift) < DRIFT_THRESHOLD) return [];
-  const planRows = projectLifetime(lt);
-  const actualRows = projectLifetime({
-    ...lt,
-    // So bằng THAM CHIẾU (`p === phase`), không bằng `p.startYear`: `sorted` là bản sao
-    // của mảng nên nó giữ ĐÚNG các object của `lt.phases`, và `phase` là một trong số
-    // đó — so tham chiếu vừa chính xác vừa rẻ hơn. So theo giá trị chỉ an toàn nhờ
-    // `unique (scenario_id, start_year)` của Postgres; `demoRepo` không ràng buộc gì,
-    // nên dữ liệu demo có hai chặng cùng `start_year` sẽ bị GHI ĐÈ CẢ HAI.
-    phases: lt.phases.map((p) => p === phase ? { ...p, annualExpenseMinor: actualAnnual } : p)
-  });
-  const planNeg = firstNegativeYear(planRows, "low");
-  const actualNeg = firstNegativeYear(actualRows, "low");
-  const pct = Math.abs(Math.round(drift * 100));
-  const direction = drift > 0 ? "cao h\u01A1n" : "th\u1EA5p h\u01A1n";
-  const title = `Chi th\u1EF1c t\u1EBF ${direction} k\u1EBF ho\u1EA1ch ${pct}%`;
-  let consequence;
-  if (actualNeg === null && planNeg !== null) consequence = `M\u1ED1c \xE2m ${planNeg} bi\u1EBFn m\u1EA5t.`;
-  else if (actualNeg === null) consequence = "B\u1EA3n chi\u1EBFu v\u1EABn kh\xF4ng n\u0103m n\xE0o \xE2m.";
-  else if (planNeg === null) consequence = `V\u1EDBi m\u1EE9c chi n\xE0y, t\xE0i s\u1EA3n c\xF3 th\u1EC3 \xE2m t\u1EEB ${actualNeg}.`;
-  else if (actualNeg !== planNeg) consequence = `M\u1ED1c \xE2m d\u1ECBch t\u1EEB ${planNeg} sang ${actualNeg}.`;
-  else consequence = `M\u1ED1c \xE2m v\u1EABn \u1EDF ${actualNeg}.`;
-  const detail = `Quy n\u0103m ${input.formatMoney(actualAnnual, phase.currency)} theo ${days} ng\xE0y g\u1EA7n \u0111\xE2y. ` + consequence;
-  return [
-    {
-      // Việc-cần-làm → mã KHÔNG chứa kỳ, để một việc chỉ báo một lần tới khi hết.
-      key: "lifetime-drift:current",
-      kind: "action",
-      type: "lifetime-drift",
-      severity: "low",
-      title,
-      detail,
-      to: "/assets?view=future"
+  let planRowsCache = null;
+  const planRows = () => planRowsCache ??= projectLifetime(lt);
+  function consequenceOf(actualRows) {
+    const planNeg = firstNegativeYear(planRows(), "low");
+    const actualNeg = firstNegativeYear(actualRows, "low");
+    if (actualNeg === null && planNeg !== null) return `M\u1ED1c \xE2m ${planNeg} bi\u1EBFn m\u1EA5t.`;
+    if (actualNeg === null) return "B\u1EA3n chi\u1EBFu v\u1EABn kh\xF4ng n\u0103m n\xE0o \xE2m.";
+    if (planNeg === null) return `V\u1EDBi m\u1EE9c n\xE0y, t\xE0i s\u1EA3n c\xF3 th\u1EC3 \xE2m t\u1EEB ${actualNeg}.`;
+    if (actualNeg !== planNeg) return `M\u1ED1c \xE2m d\u1ECBch t\u1EEB ${planNeg} sang ${actualNeg}.`;
+    return `M\u1ED1c \xE2m v\u1EABn \u1EDF ${actualNeg}.`;
+  }
+  const out = [];
+  const expenseSum = windowTxs.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount * expenseSign(t), 0);
+  if (expenseSum > 0) {
+    const actualAnnual = Math.round(expenseSum / days * 365);
+    const planned = phase.annualExpenseMinor;
+    const drift = (actualAnnual - planned) / planned;
+    if (Math.abs(drift) >= DRIFT_THRESHOLD) {
+      const actualRows = projectLifetime({
+        ...lt,
+        // So bằng THAM CHIẾU (`p === phase`), không bằng `p.startYear`: `sorted` là bản
+        // sao của mảng nên nó giữ ĐÚNG các object của `lt.phases`, và `phase` là một
+        // trong số đó — so tham chiếu vừa chính xác vừa rẻ hơn. So theo giá trị chỉ an
+        // toàn nhờ `unique (scenario_id, start_year)` của Postgres; `demoRepo` không
+        // ràng buộc gì, nên dữ liệu demo có hai chặng cùng `start_year` sẽ bị GHI ĐÈ CẢ HAI.
+        phases: lt.phases.map((p) => p === phase ? { ...p, annualExpenseMinor: actualAnnual } : p)
+      });
+      const pct = Math.abs(Math.round(drift * 100));
+      const direction = drift > 0 ? "cao h\u01A1n" : "th\u1EA5p h\u01A1n";
+      out.push({
+        // Việc-cần-làm → mã KHÔNG chứa kỳ, để một việc chỉ báo một lần tới khi hết.
+        key: "lifetime-drift:current",
+        kind: "action",
+        type: "lifetime-drift",
+        severity: "low",
+        title: `Chi th\u1EF1c t\u1EBF ${direction} k\u1EBF ho\u1EA1ch ${pct}%`,
+        // Nói RA con số và cửa sổ đã dùng. Không có nó thì "cao hơn 83%" là một tỷ lệ
+        // không ai kiểm lại được: người dùng không biết luật đã lấy bao nhiêu ngày và
+        // ra bao nhiêu một năm, nên cũng không phát hiện được lúc nó tính sai.
+        detail: `Quy n\u0103m ${input.formatMoney(actualAnnual, phase.currency)} theo ${days} ng\xE0y g\u1EA7n \u0111\xE2y. ` + consequenceOf(actualRows),
+        to: "/assets?view=future"
+      });
     }
-  ];
+  }
+  const incomeSum = windowTxs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  if (incomeSum > 0) {
+    const actualAnnual = Math.round(incomeSum / days * 365);
+    const planned = phase.annualIncomeMinor;
+    let title = null;
+    if (planned > 0) {
+      const drift = (actualAnnual - planned) / planned;
+      if (Math.abs(drift) >= DRIFT_THRESHOLD) {
+        const pct = Math.abs(Math.round(drift * 100));
+        title = `Thu th\u1EF1c t\u1EBF ${drift > 0 ? "cao h\u01A1n" : "th\u1EA5p h\u01A1n"} k\u1EBF ho\u1EA1ch ${pct}%`;
+      }
+    } else if (actualAnnual >= DRIFT_THRESHOLD * phase.annualExpenseMinor) {
+      title = "S\u1ED5 c\xF3 thu nh\u1EADp, k\u1EBF ho\u1EA1ch \u0111ang \u0111\u1EC3 thu 0";
+    }
+    if (title !== null) {
+      const actualRows = projectLifetime({
+        ...lt,
+        phases: lt.phases.map((p) => p === phase ? { ...p, annualIncomeMinor: actualAnnual } : p)
+      });
+      out.push({
+        key: "lifetime-drift:income",
+        kind: "action",
+        type: "lifetime-drift",
+        severity: "low",
+        title,
+        detail: `Quy n\u0103m ${input.formatMoney(actualAnnual, phase.currency)} theo ${days} ng\xE0y g\u1EA7n \u0111\xE2y. ` + consequenceOf(actualRows),
+        to: "/assets?view=future"
+      });
+    }
+  }
+  return out;
 }
 
 // src/features/notifications/rules.ts

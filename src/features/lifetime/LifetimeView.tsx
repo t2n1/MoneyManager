@@ -280,6 +280,12 @@ export function LifetimeView() {
                   currency={currentPhase.currency}
                   className="text-xs font-medium"
                 />{' '}
+                {/* Thu 0 kèm chi > 0 thường là "sổ chưa ghi lương" chứ không phải kế
+                    hoạch thật (đã gặp ngoài đời: cả bản chiếu âm oan) — nhắc ngay trên
+                    màn, nhưng bằng câu hỏi vì nghỉ hưu/nghỉ việc thì thu 0 là thật. */}
+                {currentPhase.annualIncomeMinor === 0 && currentPhase.annualExpenseMinor > 0 && (
+                  <span className="font-medium text-fg-warn">(sổ chưa ghi khoản thu nào?) </span>
+                )}
                 · chi{' '}
                 <Money
                   amount={currentPhase.annualExpenseMinor}

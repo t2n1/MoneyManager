@@ -19,6 +19,7 @@ import type {
   LifeScenarioRow,
   ProfileRow,
 } from '../../types/database.types'
+import { Money } from '../../components/ui'
 import { suggestBaseline } from './baseline'
 import { pickActive } from './buildInput'
 import { EventFormSheet } from './EventFormSheet'
@@ -583,6 +584,38 @@ export function ScenarioEditorSheet({
   // khi tổng chi âm, xem cảnh báo ở task-11-brief.md).
   const top3 = baseline ? baseline.byCategory.slice(0, 3) : []
 
+  // Chặng đang dùng đúng số sổ thì nút "Lấy số này vào chặng" thành vô nghĩa — thay
+  // bằng một câu xác nhận, đỡ một cú bấm không đổi gì.
+  const phaseMatchesBaseline =
+    !!currentPhase &&
+    !!baseline &&
+    currentPhase.annual_income_minor === baseline.annualIncomeMinor &&
+    currentPhase.annual_expense_minor === baseline.annualExpenseMinor
+
+  const [pullingBaseline, setPullingBaseline] = useState(false)
+  /** Ghi thu/chi nền vừa đếm từ sổ vào chặng đang hiệu lực — đường tắt cho ca "kịch
+   *  bản tạo lúc sổ chưa có dữ liệu (vd thu = 0 vì chưa ghi lương), giờ sổ đã đủ". */
+  async function handlePullBaseline() {
+    if (!currentPhase || !baseline || pullingBaseline) return
+    setPullingBaseline(true)
+    try {
+      await repo.updateLifePhase(currentPhase.id, {
+        annual_income_minor: baseline.annualIncomeMinor,
+        annual_expense_minor: baseline.annualExpenseMinor,
+      })
+      showToast(`Đã cập nhật thu chi của chặng "${currentPhase.label}" theo sổ.`, 'success')
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : 'Không cập nhật được chặng theo sổ.',
+        'error',
+      )
+    } finally {
+      // Chỉ cần làm mới chặng — kịch bản/sự kiện không đổi trong đường này.
+      await qc.invalidateQueries({ queryKey: ['lifePhases'] })
+      setPullingBaseline(false)
+    }
+  }
+
   /** Đóng sheet — hỏi trước nếu khối 1 còn thay đổi chưa lưu (xem `block1Dirty`). */
   async function handleDismiss() {
     if (!block1Dirty) {
@@ -1109,18 +1142,35 @@ export function ScenarioEditorSheet({
             ) : (
               <div className="space-y-2">
                 <p className="text-xs text-fg-secondary">
-                  Chi{' '}
+                  Sổ {baseline.monthsCovered} tháng gần nhất, quy ra năm: thu{' '}
+                  <Money
+                    amount={baseline.annualIncomeMinor}
+                    currency={currentPhase.currency as CurrencyCode}
+                    className="text-xs"
+                  />{' '}
+                  · chi{' '}
                   {/* Tiền âm phải đỏ (token bắt buộc): chi nền âm là ca cả chặng toàn
                       hoàn tiền — hiếm nhưng có, và để xám thì đọc thành chi dương. */}
-                  <span
-                    className={`tabular-nums ${
-                      baseline.annualExpenseMinor < 0 ? 'text-money-out' : ''
-                    }`}
-                  >
-                    {formatMoney(baseline.annualExpenseMinor, currentPhase.currency as CurrencyCode)}
-                  </span>
-                  /năm lấy từ {baseline.monthsCovered} tháng gần nhất của chặng "{currentPhase.label}".
+                  <Money
+                    amount={baseline.annualExpenseMinor}
+                    currency={currentPhase.currency as CurrencyCode}
+                    tone={baseline.annualExpenseMinor < 0 ? 'out' : 'neutral'}
+                    className="text-xs"
+                  />
+                  .
                 </p>
+                {/* Sổ chỉ có chi mà không có thu là ca sinh ra "bản chiếu phá sản oan"
+                    ngoài đời (2026-08): người nhập sao kê thẻ thì sổ toàn khoản chi,
+                    lương không bao giờ được ghi. Phải nói RÕ vì sao app đếm ra 0 và
+                    ghi thế nào thì nó mới đếm được. */}
+                {baseline.annualIncomeMinor === 0 && baseline.annualExpenseMinor > 0 && (
+                  <p className="flex items-start gap-1 text-xs text-fg-warn">
+                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    Sổ 12 tháng qua không có khoản nào ghi loại "Thu nhập" nên app đếm thu = 0.
+                    Có lương hay thu nhập khác thì ghi vào sổ dạng "Thu nhập" (nhập sao kê thẻ
+                    không có nó đâu), hoặc sửa tay số thu của chặng ở khối Chặng đời.
+                  </p>
+                )}
                 {/* Dưới 3 tháng thì con số quy năm còn dao động mạnh (một tháng lệch là
                     cả năm lệch theo ×12) — bản chiếu 60 năm dựng trên nó phải nói rõ độ
                     tin, không được để người dùng coi như số đã ổn định. */}
@@ -1130,6 +1180,25 @@ export function ScenarioEditorSheet({
                     Mới có {baseline.monthsCovered} tháng ghi chép nên số nền này còn dễ lệch mạnh
                     — bản chiếu sẽ chính xác dần khi bạn ghi thêm.
                   </p>
+                )}
+                {/* Đường tắt "sổ đã đủ, kéo số mới vào kế hoạch" — không có nó thì
+                    cách duy nhất là mở chặng ra gõ lại hai con số bằng tay. Khi chặng
+                    ĐÃ khớp sổ thì nút là một cú bấm không đổi gì → thay bằng câu xác
+                    nhận. Ghi ngay không hỏi lại: hai con số sẽ ghi hiện ngay dòng
+                    trên, và sửa lại được ở khối Chặng đời. */}
+                {phaseMatchesBaseline ? (
+                  <p className="text-xs text-fg-muted">
+                    Chặng "{currentPhase.label}" đang dùng đúng hai số này.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void handlePullBaseline()}
+                    disabled={pullingBaseline}
+                    className={`${ADD_BUTTON} w-full disabled:opacity-60`}
+                  >
+                    {pullingBaseline ? 'Đang cập nhật…' : `Lấy hai số này vào chặng "${currentPhase.label}"`}
+                  </button>
                 )}
                 {positiveCats.length > 0 && (
                   <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-surface-sunken">

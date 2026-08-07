@@ -160,10 +160,10 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
   },
   'lifetime-drift': {
     kind: 'action',
-    label: 'Chi lệch kế hoạch Lifetime',
+    label: 'Thu chi lệch kế hoạch Lifetime',
     hint:
-      `Chi thực tế ${RECENT_TXS_DAYS} ngày gần đây lệch khỏi giả định của kịch bản, ` +
-      'kèm mốc âm dịch bao nhiêu năm.',
+      `Thu hoặc chi thực tế ${RECENT_TXS_DAYS} ngày gần đây lệch khỏi giả định của kịch bản ` +
+      '(kể cả khi kế hoạch để thu 0 mà sổ có thu nhập), kèm mốc âm dịch bao nhiêu năm.',
   },
 }
 

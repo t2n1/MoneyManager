@@ -307,6 +307,18 @@ export function useLifetime() {
         // phải giá trị mặc định bị bỏ quên (khác hẳn ca banner Task 7 cảnh báo).
         fx_to_display: 1,
       })
+      // Sổ có chi mà không có một khoản "Thu nhập" nào (người nhập sao kê thẻ thường
+      // vậy — sao kê toàn khoản chi, lương không bao giờ được ghi): kịch bản vừa tạo
+      // sẽ chiếu "âm từ năm sau" ngay màn đầu tiên. KHÔNG chặn tạo (số 0 là thật theo
+      // sổ, và người thất nghiệp/nghỉ hưu có thật), nhưng phải nói ngay tại lúc con số
+      // được chép vào — để im là người dùng tưởng app tính sai (đã xảy ra 2026-08).
+      if (baseline.annualIncomeMinor === 0 && baseline.annualExpenseMinor > 0) {
+        showToast(
+          'Sổ 12 tháng qua không có khoản thu nào nên kịch bản tạm coi thu = 0 — bấm dòng "Giả định" để nhập thu nhập của bạn.',
+          'info',
+          8000,
+        )
+      }
     } catch (err) {
       const detail = err instanceof Error ? err.message : 'lỗi không rõ'
       showToast(

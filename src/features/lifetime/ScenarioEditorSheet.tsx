@@ -665,18 +665,23 @@ export function ScenarioEditorSheet({
 
   return (
     <>
+      {/* Mobile: bottom sheet một cột như cũ. Từ lg: choán TOÀN màn hình, bốn khối
+          trải thành ba cột (kịch bản · chặng+sự kiện · số này ở đâu ra) — mỗi cột tự
+          cuộn riêng để form dài của khối 1 không đẩy hai danh sách ra khỏi tầm mắt.
+          `lg:overflow-y-hidden` (không phải `lg:overflow-hidden`): phải thắng đúng
+          thuộc tính mà `overflow-y-auto` của mobile đã đặt. */}
       <div
-        className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 lg:items-center"
+        className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 lg:items-stretch"
         onClick={() => void handleDismiss()}
       >
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Sửa kịch bản"
-          className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+          className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:flex lg:h-full lg:max-h-none lg:max-w-none lg:flex-col lg:overflow-y-hidden lg:rounded-none lg:px-8 lg:py-5"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="mb-3 flex items-center justify-between gap-2 lg:mx-auto lg:w-full lg:max-w-6xl lg:shrink-0">
             <h2 className="text-base font-bold text-fg-primary">
               Sửa kịch bản
               {block1Dirty && (
@@ -693,8 +698,17 @@ export function ScenarioEditorSheet({
             </button>
           </div>
 
+          {/* Thân ba cột (chỉ từ lg). `lg:min-h-0` bắt buộc: item flex mặc định
+              min-height auto, không có nó thì lưới cao theo nội dung và cả trang cuộn
+              thay vì từng cột. */}
+          <div className="lg:mx-auto lg:grid lg:min-h-0 lg:w-full lg:max-w-6xl lg:flex-1 lg:grid-cols-3 lg:items-stretch lg:gap-8">
           {/* --- Khối 1: Kịch bản --- */}
-          <section className="mb-4 border-b border-border-subtle pb-4">
+          <section className="mb-4 border-b border-border-subtle pb-4 lg:mb-0 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:pb-2 lg:pr-1">
+            {/* Mobile không cần tiêu đề (khối 1 mở màn ngay dưới tựa sheet), nhưng lên
+                ba cột thì cột nào cũng phải có tên. */}
+            <h3 className="mb-2 hidden text-sm font-semibold text-gray-700 lg:block dark:text-gray-300">
+              Kịch bản
+            </h3>
             <label htmlFor={`${uid}-name`} className={label_}>
               Tên kịch bản
             </label>
@@ -1022,6 +1036,9 @@ export function ScenarioEditorSheet({
             )}
           </section>
 
+          {/* Cột giữa: chặng đời + sự kiện chung một cột — cùng là "dòng thời gian
+              người dùng khai", và gộp lại thì ba cột mới cân nhau. */}
+          <div className="lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-border-subtle lg:pb-2 lg:pl-8 lg:pr-1">
           {/* --- Khối 2: Chặng đời --- */}
           <section className="mb-4 border-b border-border-subtle pb-4">
             <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Chặng đời</h3>
@@ -1080,7 +1097,9 @@ export function ScenarioEditorSheet({
           </section>
 
           {/* --- Khối 3: Sự kiện --- */}
-          <section className="mb-4 border-b border-border-subtle pb-4">
+          {/* `lg:` bỏ gạch chân + đệm đáy: trên ba cột nó là khối CUỐI của cột giữa
+              (khối 4 đã sang cột phải), gạch ngăn cách thành gạch mồ côi. */}
+          <section className="mb-4 border-b border-border-subtle pb-4 lg:mb-0 lg:border-b-0 lg:pb-0">
             <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Sự kiện</h3>
             {sortedEvents.length === 0 ? (
               <p className="mb-2 text-xs text-fg-muted">Chưa có sự kiện nào.</p>
@@ -1132,8 +1151,10 @@ export function ScenarioEditorSheet({
             </button>
           </section>
 
+          </div>
+
           {/* --- Khối 4: Số này ở đâu ra — LUÔN MỞ, số nền sai thì cả bản chiếu sai theo --- */}
-          <section>
+          <section className="lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-border-subtle lg:pb-2 lg:pl-8 lg:pr-1">
             <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Số này ở đâu ra</h3>
             {!currentPhase || !baseline ? (
               <p className="text-xs text-fg-muted">
@@ -1244,6 +1265,7 @@ export function ScenarioEditorSheet({
               </div>
             )}
           </section>
+          </div>
         </div>
       </div>
 

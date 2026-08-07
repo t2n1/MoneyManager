@@ -6,7 +6,7 @@ import type {
   TransactionRow,
 } from '../../types/database.types'
 import type { NewCategory, NewDebt, NewDebtPayment, NewTransaction } from '../../data'
-import { saveDebtEntry, saveSplit, saveWithFee } from './roleSave'
+import { debtFlowCategoryId, saveDebtEntry, saveSplit, saveWithFee } from './roleSave'
 import type { RoleBase, RoleSaveDeps } from './roleSave'
 import { initialDebt, initialSplit } from './entryRoles'
 
@@ -424,6 +424,35 @@ describe('saveDebtEntry — danh mục tự gán', () => {
 
     expect(calls.createDebt).toHaveLength(0)
     expect(calls.createDebtPayment[0].transaction).toMatchObject({ category_id: 'cat-chovay' })
+  })
+})
+
+/**
+ * Bảng tên danh mục 🤝 cho dòng tiền nợ — dùng chung form Nhập (giải ngân) và
+ * sheet Ghi nhận trả (DebtPaymentSheet): 4 cái tự mô tả để dòng sổ đọc được ngay.
+ */
+describe('debtFlowCategoryId — trả/thu nợ', () => {
+  it('mình trả nợ (i_owe) → danh mục chi "Trả nợ", chưa có thì tự tạo', async () => {
+    const { deps, calls } = makeDeps([], [cat('cat-chovay', 'Cho vay')])
+    const id = await debtFlowCategoryId('repay', 'i_owe', deps)
+
+    expect(calls.createCategory[0]).toMatchObject({ name: 'Trả nợ', type: 'expense', icon: '🤝' })
+    expect(id).toBe('cat-moi')
+  })
+
+  it('người ta trả mình (owed_to_me) → danh mục thu "Thu nợ" có sẵn, không tạo trùng', async () => {
+    const { deps, calls } = makeDeps([], [cat('cat-thuno', 'Thu nợ', 'income')])
+    const id = await debtFlowCategoryId('repay', 'owed_to_me', deps)
+
+    expect(calls.createCategory).toHaveLength(0)
+    expect(id).toBe('cat-thuno')
+  })
+
+  it('danh mục trùng tên nhưng khác loại không được nhận nhầm', async () => {
+    const { deps, calls } = makeDeps([], [cat('cat-sai', 'Trả nợ', 'income')])
+    await debtFlowCategoryId('repay', 'i_owe', deps)
+
+    expect(calls.createCategory[0]).toMatchObject({ name: 'Trả nợ', type: 'expense' })
   })
 })
 

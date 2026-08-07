@@ -1010,7 +1010,7 @@ export function TransactionForm({
                         setRepeat(opt)
                         setRepeatOpen(false)
                       }}
-                      className={`flex w-full items-center px-3 py-2 text-left text-sm ${
+                      className={`flex min-h-11 w-full items-center px-3 py-2 text-left text-sm ${
                         repeat === opt
                           ? 'bg-green-50 font-medium text-green-700 dark:bg-green-900/20 dark:text-green-300'
                           : 'text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800'

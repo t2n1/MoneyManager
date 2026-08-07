@@ -27,6 +27,8 @@ import type { CurrencyCode } from '../../lib/money'
 import { monthlySeries } from '../reports/aggregate'
 import { tagsByTransaction } from '../tags/aggregate'
 import type { TransactionRow } from '../../types/database.types'
+import { AxisStrip } from '../budgets/AxisStrip'
+import { useAxisProgress } from '../budgets/useAxisProgress'
 import { RemindersBanner } from '../reminders/RemindersBanner'
 import { NotificationBell } from '../notifications/NotificationBell'
 import { NotificationBoundary } from '../notifications/NotificationBoundary'
@@ -75,6 +77,7 @@ export function LedgerPage() {
   const { data: tags = [] } = useTags()
   const { data: tagLinks = [] } = useTransactionTags()
   const { base, rates } = useRates()
+  const axis = useAxisProgress(activeMonthKey)
 
   // Nhãn của từng giao dịch — dựng một lần cho cả tháng thay vì tra bảng liên
   // kết trong mỗi dòng (danh sách có thể vài trăm dòng).
@@ -211,6 +214,10 @@ export function LedgerPage() {
         label="Cách xem sổ giao dịch"
         className="mb-4"
       />
+
+      {/* Cơ cấu chi so với mốc — chỉ ở tab Ngày. Tab Tháng đang điều hướng theo NĂM
+          nên "tháng này chi thế nào" vô nghĩa ở đó; Lịch và Tổng hợp đã kín màn. */}
+      {view === 'daily' && axis && <AxisStrip data={axis} monthKey={activeMonthKey} />}
 
       {view === 'daily' && (
         <>

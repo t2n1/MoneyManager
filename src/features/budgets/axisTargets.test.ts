@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ClassificationBreakdown } from '../reports/aggregate'
-import { axisProgress, DEFAULT_AXIS_TARGETS } from './axisTargets'
+import { axisProgress, baselineIncome, DEFAULT_AXIS_TARGETS } from './axisTargets'
 
 const cls = (p: Partial<ClassificationBreakdown> = {}): ClassificationBreakdown => ({
   needEssential: 0,
@@ -91,5 +91,84 @@ describe('axisProgress', () => {
     })!
     expect(r.lines[1].target).toBe(0)
     expect(r.lines[1].ok).toBe(false)
+  })
+
+  it('không truyền nền thì thu thực tế vừa là mẫu số vừa là số đã nhận', () => {
+    const r = axisProgress(1_000_000, cls({ totalExpense: 800_000 }), DEFAULT_AXIS_TARGETS)!
+    expect(r.estimated).toBe(false)
+    expect(r.income).toBe(1_000_000)
+    expect(r.actualIncome).toBe(1_000_000)
+  })
+
+  it('chưa tới ngày lương: thu = 0 nhưng có nền thì vẫn tính, và đánh dấu ước tính', () => {
+    const r = axisProgress(
+      0,
+      cls({ needEssential: 200_000, totalExpense: 200_000 }),
+      DEFAULT_AXIS_TARGETS,
+      1_000_000,
+    )!
+    expect(r.estimated).toBe(true)
+    expect(r.income).toBe(1_000_000)
+    // Số đã thực nhận vẫn là 0 — khối phải nói được là chưa có đồng nào về
+    expect(r.actualIncome).toBe(0)
+    expect(r.lines[0].share).toBeCloseTo(0.2)
+    expect(r.lines[0].target).toBe(500_000)
+    // Tiết kiệm dự kiến tính trên nền, không phải trên 0
+    expect(r.lines[2].actual).toBe(800_000)
+  })
+
+  it('lương đã về cao hơn nền thì dùng số thật, không ước tính nữa', () => {
+    const r = axisProgress(
+      1_200_000,
+      cls({ totalExpense: 600_000 }),
+      DEFAULT_AXIS_TARGETS,
+      1_000_000,
+    )!
+    expect(r.estimated).toBe(false)
+    expect(r.income).toBe(1_200_000)
+    expect(r.lines[2].actual).toBe(600_000)
+  })
+
+  it('nền cũng bằng 0 (chưa có gì để dựa vào) thì vẫn không hiện', () => {
+    expect(axisProgress(0, cls(), DEFAULT_AXIS_TARGETS, 0)).toBeNull()
+    expect(axisProgress(0, cls(), DEFAULT_AXIS_TARGETS, null)).toBeNull()
+  })
+})
+
+describe('baselineIncome', () => {
+  it('trung bình thu của các tháng có dữ liệu', () => {
+    expect(
+      baselineIncome([
+        { income: 300_000, expense: 200_000 },
+        { income: 300_000, expense: 200_000 },
+        { income: 600_000, expense: 200_000 },
+      ]),
+    ).toBe(400_000)
+  })
+
+  it('tháng trống trơn là KHÔNG CÓ DỮ LIỆU, không phải thu = 0', () => {
+    // Mới cài app tháng trước: hai tháng đầu rỗng. Nếu cộng chúng vào, nền tụt
+    // xuống 100k và khối sẽ báo chi vượt trần trong khi người ta chẳng tiêu gì lạ.
+    expect(
+      baselineIncome([
+        { income: 0, expense: 0 },
+        { income: 0, expense: 0 },
+        { income: 300_000, expense: 200_000 },
+      ]),
+    ).toBe(300_000)
+  })
+
+  it('tháng có chi mà không có thu VẪN tính — nghỉ không lương là thu = 0 thật', () => {
+    expect(
+      baselineIncome([
+        { income: 0, expense: 150_000 },
+        { income: 400_000, expense: 200_000 },
+      ]),
+    ).toBe(200_000)
+  })
+
+  it('không tháng nào có dữ liệu → null', () => {
+    expect(baselineIncome([])).toBeNull()
+    expect(baselineIncome([{ income: 0, expense: 0 }])).toBeNull()
   })
 })

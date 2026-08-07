@@ -3,7 +3,7 @@
 // tiến độ · số tiền / mốc) để mắt không phải học lại cách đọc.
 import { Link } from 'react-router-dom'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
-import type { AxisKey, AxisProgress } from './axisTargets'
+import { BASELINE_MONTHS, type AxisKey, type AxisProgress } from './axisTargets'
 
 const LABEL: Record<AxisKey, string> = {
   essential: 'Thiết yếu',
@@ -36,6 +36,16 @@ export function AxisTargetsCard({ data, base }: Props) {
           Đổi mốc
         </Link>
       </div>
+
+      {/* Mẫu số đang là số ƯỚC TÍNH — phải nói ngay dưới tiêu đề, trước khi mắt
+          đọc tới các tỷ lệ, chứ không phải chú thích cuối thẻ. */}
+      {data.estimated && (
+        <p className="mb-2 text-2xs text-fg-muted">
+          Tháng này mới nhận {formatMoney(Math.round(data.actualIncome), base)} — các tỷ lệ
+          dưới đây tính tạm trên {formatMoney(data.income, base)}, mức thu trung bình{' '}
+          {BASELINE_MONTHS} tháng gần đây.
+        </p>
+      )}
 
       <ul className="space-y-3">
         {data.lines.map((l) => {

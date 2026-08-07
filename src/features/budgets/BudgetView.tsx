@@ -1,23 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import {
-  useAccounts,
   useBudgetReport,
   useBudgets,
   useCategories,
   useCopyBudgetsFromPreviousMonth,
-  useMonthTransactions,
-  useProfile,
   useRates,
 } from '../../hooks/queries'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
-import { formatMoney, type CurrencyCode } from '../../lib/money'
-import {
-  categoryBreakdown,
-  classificationBreakdown,
-  foldUncategorized,
-  sumIncomeExpense,
-} from '../reports/aggregate'
+import { formatMoney } from '../../lib/money'
 import { showToast } from '../../lib/dialog'
 import { Card } from '../../components/ui/Card'
 import { BudgetEditSheet } from './BudgetEditSheet'
@@ -26,8 +17,8 @@ import { pickAttention, sortBudgetItems, type BudgetSortMode } from './budgetSor
 import { ClassificationToggle } from '../categories/ClassificationToggle'
 import type { BudgetStatus } from './progress'
 import { MonthPaceCharts, SpendPaceSection, useMonthPace } from '../reports/monthPace'
-import { axisProgress } from './axisTargets'
 import { AxisTargetsCard } from './AxisTargetsCard'
+import { useAxisProgress } from './useAxisProgress'
 
 const SORT_KEY = 'budget.sort'
 const SORT_OPTIONS = [
@@ -102,28 +93,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   const pace = useMonthPace(monthKey)
 
   // --- Cơ cấu chi so với mốc (thiết yếu / linh hoạt / tiết kiệm) ---
-  const { data: profile } = useProfile()
-  const { data: accounts = [] } = useAccounts()
-  const { data: monthTxs = [] } = useMonthTransactions(monthKey)
-  const { rates } = useRates()
-  const axis = useMemo(() => {
-    const currencyOf = (id: string): CurrencyCode =>
-      accounts.find((a) => a.id === id)?.currency ?? base
-    const r = rates ?? {}
-    const sums = sumIncomeExpense(monthTxs, currencyOf, base, r)
-    const expense = categoryBreakdown(monthTxs, 'expense', currencyOf, base, r)
-    // foldUncategorized: khoản chi thiếu danh mục vẫn phải nằm trong "chưa phân loại"
-    const cls = foldUncategorized(
-      classificationBreakdown(expense.slices, categories),
-      sums.expense,
-    )
-    return axisProgress(sums.income, cls, {
-      essentialBps: profile?.target_essential_bps ?? 5000,
-      flexibleBps: profile?.target_flexible_bps ?? 3000,
-      savingsBps: profile?.target_savings_bps ?? 2000,
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthTxs, categories, accounts, base, rates, profile])
+  const axis = useAxisProgress(monthKey)
 
   // Danh mục đang sửa hạn mức (null = đóng sheet)
   const [editing, setEditing] = useState<{

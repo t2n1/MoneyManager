@@ -29,6 +29,7 @@ import type {
   SavingsGoalRow,
   StockPriceRow,
   StockTradeRow,
+  TagGroupRow,
   TagRow,
   TagSpendRow,
   TransactionRow,
@@ -58,6 +59,7 @@ import {
   type NewStockTrade,
   type NewPlannedExpense,
   type NewTag,
+  type NewTagGroup,
   type PlannedExpensePatch,
   type NewTransaction,
   type NewValuation,
@@ -66,6 +68,7 @@ import {
   type Repo,
   type SavingsGoalPatch,
   type StockTradePatch,
+  type TagGroupPatch,
   type TagPatch,
   type TransactionPatch,
   type TxFilter,
@@ -132,6 +135,7 @@ interface DemoDB {
   networthSnapshots: NetWorthSnapshotRow[]
   tags: TagRow[]
   transactionTags: TransactionTagRow[]
+  tagGroups?: TagGroupRow[]
   /** Trạng thái thông báo (mục AO); vắng mặt ở dữ liệu demo cũ. */
   notificationState?: NotificationStateRow[]
   /** Lịch sử tỷ giá; vắng mặt ở dữ liệu demo cũ. */
@@ -1689,13 +1693,15 @@ export const demoRepo: Repo = {
 
   async getTags() {
     return (load().tags ?? [])
-      // is_archived thêm sau (migration 0033), budget_* thêm sau nữa (0036) → db demo
-      // cũ chưa có cột, ép về mặc định thay vì để undefined lọt lên tầng trên
+      // is_archived thêm sau (migration 0033), budget_* thêm sau nữa (0036),
+      // group_id sau nữa (0039) → db demo cũ chưa có cột, ép về mặc định thay vì
+      // để undefined lọt lên tầng trên
       .map((t) => ({
         ...t,
         is_archived: t.is_archived ?? false,
         budget_amount: t.budget_amount ?? null,
         budget_period: t.budget_period ?? 'total',
+        group_id: t.group_id ?? null,
       }))
       .sort((a, b) => a.sort_order - b.sort_order)
   },
@@ -1775,6 +1781,50 @@ export const demoRepo: Repo = {
     save(db)
   },
 
+  async getTagGroups() {
+    return [...(load().tagGroups ?? [])].sort((a, b) => a.sort_order - b.sort_order)
+  },
+
+  async createTagGroup(input: NewTagGroup) {
+    const db = load()
+    db.tagGroups ??= []
+    const name = input.name.trim()
+    // Postgres có unique(user_id, name); demoRepo không thực thi ràng buộc nào nên
+    // phải tự chặn, không thì "thử ở demo thấy chạy" không nói gì về bản thật.
+    if (db.tagGroups.some((g) => g.name === name)) throw new Error(`Nhóm "${name}" đã tồn tại`)
+    const row: TagGroupRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      name,
+      sort_order: db.tagGroups.reduce((m, g) => Math.max(m, g.sort_order + 1), 0),
+      created_at: nowISO(),
+    }
+    db.tagGroups.push(row)
+    save(db)
+    return row
+  },
+
+  async updateTagGroup(id: string, patch: TagGroupPatch) {
+    const db = load()
+    db.tagGroups ??= []
+    const idx = db.tagGroups.findIndex((g) => g.id === id)
+    if (idx < 0) throw new Error('Không tìm thấy nhóm nhãn')
+    const name = patch.name?.trim()
+    if (name && db.tagGroups.some((g) => g.id !== id && g.name === name))
+      throw new Error(`Nhóm "${name}" đã tồn tại`)
+    db.tagGroups[idx] = { ...db.tagGroups[idx], ...patch, ...(name ? { name } : {}) }
+    save(db)
+    return db.tagGroups[idx]
+  },
+
+  async deleteTagGroup(id: string) {
+    const db = load()
+    db.tagGroups = (db.tagGroups ?? []).filter((g) => g.id !== id)
+    // Bắt chước `on delete set null` của FK: nhãn ở lại, chỉ rơi ra khỏi nhóm.
+    db.tags = (db.tags ?? []).map((t) => (t.group_id === id ? { ...t, group_id: null } : t))
+    save(db)
+  },
+
   async createTag(input: NewTag) {
     const db = load()
     db.tags ??= []
@@ -1786,7 +1836,7 @@ export const demoRepo: Repo = {
       name,
       color: input.color,
       sort_order: db.tags.reduce((m, t) => Math.max(m, t.sort_order + 1), 0),
-      group_id: null,
+      group_id: input.group_id ?? null,
       is_archived: false,
       budget_amount: input.budget_amount ?? null,
       budget_period: input.budget_period ?? 'total',
@@ -1846,6 +1896,7 @@ export const demoRepo: Repo = {
       stockTrades: db.stockTrades ?? [],
       savingsGoals: db.savingsGoals ?? [],
       networthSnapshots: db.networthSnapshots ?? [],
+      tagGroups: db.tagGroups ?? [],
       tags: db.tags ?? [],
       transactionTags: db.transactionTags ?? [],
       lifeScenarios: db.lifeScenarios ?? [],
@@ -1897,6 +1948,7 @@ export const demoRepo: Repo = {
       stockPrices,
       savingsGoals: stamp(data.savingsGoals ?? []),
       networthSnapshots: stamp(data.networthSnapshots ?? []),
+      tagGroups: stamp(data.tagGroups ?? []),
       tags: stamp(data.tags ?? []),
       transactionTags: stamp(data.transactionTags ?? []),
       lifeScenarios: stamp(data.lifeScenarios ?? []),

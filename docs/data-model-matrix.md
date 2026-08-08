@@ -138,6 +138,7 @@ luồng trùng. Đó là lý do mục này tồn tại chứ không phải để
 | `account_valuations` | 0016 | giá trị thị trường của tài khoản đầu tư; `unique (account_id, valued_on)` = mỗi ngày một giá | `market_value` minor theo tệ **tài khoản**, `>= 0` |
 | `savings_goals` | 0018 | mục tiêu tiết kiệm gắn vào một tài khoản | `target_amount` minor theo tệ **tài khoản**, `> 0` |
 | `networth_snapshots` | 0020 | ảnh chụp tài sản ròng theo ngày; `unique (user_id, snapshot_on)` | `net_worth` minor theo **base_currency**, âm được |
+| `tag_groups` | 0039 | nhóm nhãn ("Với ai?", "Ở đâu?"); `tags.group_id` null = ngoài nhóm (mục "Khác"), xoá nhóm thì nhãn rơi về null | — (không giữ tiền) |
 | `tags` + `transaction_tags` | 0026 | nhãn tự do gắn vào giao dịch (n-n) | — (không giữ tiền) |
 | `notification_state` | 0029 | `read_at` / `dismissed_at` theo `key`; PK `(user_id, key)` | — |
 | `fx_history` | 0029 | tỷ giá theo ngày, `rates jsonb`; PK `(user_id, on_date, base)` | **major** units, chiều "1 base đổi được bao nhiêu" — cùng chiều `lib/rates.ts`, **ngược** `fx_to_display` |

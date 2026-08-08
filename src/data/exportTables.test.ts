@@ -73,6 +73,12 @@ describe('bản đồ migration', () => {
     expect(COLUMNS.get('transactions')).toContain('is_remittance')
   })
 
+  it('đọc được bảng nhóm nhãn của 0039', () => {
+    expect(COLUMNS.get('tag_groups')).toContain('name')
+    expect(COLUMNS.get('tag_groups')).toContain('sort_order')
+    expect(COLUMNS.get('tags')).toContain('group_id')
+  })
+
   it('transaction_tags KHÔNG có cột id', () => {
     // Đây là tiền đề của cả bài: nếu ngày nào đó bảng có id thật thì test này đỏ và
     // người sửa sẽ biết có thể bỏ ngoại lệ trong PAGE_ORDER đi.

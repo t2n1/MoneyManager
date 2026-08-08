@@ -1786,6 +1786,7 @@ export const demoRepo: Repo = {
       name,
       color: input.color,
       sort_order: db.tags.reduce((m, t) => Math.max(m, t.sort_order + 1), 0),
+      group_id: null,
       is_archived: false,
       budget_amount: input.budget_amount ?? null,
       budget_period: input.budget_period ?? 'total',

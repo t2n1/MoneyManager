@@ -108,6 +108,18 @@ export type AccountRow = {
   created_at: string
 }
 
+/**
+ * Nhóm nhãn — một CÂU HỎI mà nhãn là câu trả lời ("Với ai?" → "Người yêu").
+ * Người dùng tự tạo; migration 0039 seed sẵn "Với ai?" và "Ở đâu?".
+ */
+export type TagGroupRow = {
+  id: string
+  user_id: string
+  name: string
+  sort_order: number
+  created_at: string
+}
+
 /** Nhãn cắt ngang danh mục (vd "Về VN 2026", "Đám cưới"). */
 export type TagRow = {
   id: string
@@ -116,6 +128,11 @@ export type TagRow = {
   /** Khóa màu trong bảng màu của app (xem features/tags/colors). */
   color: string
   sort_order: number
+  /**
+   * Nhóm của nhãn; null = ngoài nhóm. Nhãn ngoài nhóm vẫn dùng bình thường, chỉ
+   * nằm ở mục "Khác" cuối ô chọn nhãn. Xem migration 0039.
+   */
+  group_id: string | null
   /**
    * Đã lưu trữ = ẩn khỏi ô chọn nhãn khi nhập giao dịch, nhưng GIỮ NGUYÊN liên
    * kết và số liệu lịch sử (khác hẳn xóa nhãn — xóa thì cascade mất hết). Dành
@@ -916,17 +933,23 @@ export type Database = {
         >
         Relationships: []
       }
+      tag_groups: {
+        Row: TagGroupRow
+        Insert: InsertOf<TagGroupRow, 'user_id' | 'name', 'id' | 'sort_order'>
+        Update: Partial<Pick<TagGroupRow, 'name' | 'sort_order'>>
+        Relationships: []
+      }
       tags: {
         Row: TagRow
         Insert: InsertOf<
           TagRow,
           'user_id' | 'name',
-          'id' | 'color' | 'sort_order' | 'is_archived' | 'budget_amount' | 'budget_period'
+          'id' | 'color' | 'sort_order' | 'is_archived' | 'budget_amount' | 'budget_period' | 'group_id'
         >
         Update: Partial<
           Pick<
             TagRow,
-            'name' | 'color' | 'sort_order' | 'is_archived' | 'budget_amount' | 'budget_period'
+            'name' | 'color' | 'sort_order' | 'is_archived' | 'budget_amount' | 'budget_period' | 'group_id'
           >
         >
         Relationships: []

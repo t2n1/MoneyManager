@@ -12,6 +12,7 @@ const tag = (id: string, name: string, p: Partial<TagRow> = {}): TagRow => ({
   name,
   color: 'sky',
   sort_order: 0,
+  group_id: null,
   is_archived: false,
   budget_amount: null,
   budget_period: 'total',

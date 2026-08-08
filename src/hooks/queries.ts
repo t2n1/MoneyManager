@@ -20,9 +20,11 @@ import {
   type ProfilePatch,
   type RecurringRulePatch,
   type NewTag,
+  type NewTagGroup,
   type SavingsGoalPatch,
   type StockTradePatch,
   type TagPatch,
+  type TagGroupPatch,
   type TransactionPatch,
   type TxFilter,
 } from '../data'
@@ -185,6 +187,14 @@ export function useDeletePlannedExpense() {
 
 // --- Nhãn cắt ngang danh mục ---
 
+export function useTagGroups() {
+  return useQuery({
+    queryKey: ['tagGroups'],
+    queryFn: () => repo.getTagGroups(),
+    staleTime: 5 * 60_000,
+  })
+}
+
 export function useTags() {
   return useQuery({
     queryKey: ['tags'],
@@ -216,6 +226,7 @@ export function useTagSpend(enabled = true) {
 
 function invalidateTags(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['tags'] })
+  qc.invalidateQueries({ queryKey: ['tagGroups'] })
   qc.invalidateQueries({ queryKey: ['transactionTags'] })
   qc.invalidateQueries({ queryKey: ['tagSpend'] })
 }
@@ -240,6 +251,31 @@ export function useDeleteTag() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => repo.deleteTag(id),
+    onSettled: () => invalidateTags(qc),
+  })
+}
+
+export function useCreateTagGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewTagGroup) => repo.createTagGroup(input),
+    onSettled: () => invalidateTags(qc),
+  })
+}
+
+export function useUpdateTagGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: TagGroupPatch }) =>
+      repo.updateTagGroup(id, patch),
+    onSettled: () => invalidateTags(qc),
+  })
+}
+
+export function useDeleteTagGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => repo.deleteTagGroup(id),
     onSettled: () => invalidateTags(qc),
   })
 }

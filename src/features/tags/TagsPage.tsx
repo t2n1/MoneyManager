@@ -5,14 +5,19 @@ import { Link } from 'react-router-dom'
 import { Archive, ArchiveRestore, ChevronLeft, Trash2 } from 'lucide-react'
 import {
   useCreateTag,
+  useCreateTagGroup,
   useDeleteTag,
+  useDeleteTagGroup,
   useRates,
+  useTagGroups,
   useTags,
   useTransactionTags,
   useUpdateTag,
+  useUpdateTagGroup,
 } from '../../hooks/queries'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import type { TagBudgetPeriod, TagRow } from '../../types/database.types'
+import { ActionButton } from '../../components/ui/ActionButton'
 import { TAG_CHIP_CLASS, TAG_COLOR_KEYS, TAG_COLOR_LABELS, tagColor } from './colors'
 
 /** Hai kiểu kỳ của trần nhãn — xem migration 0036. */
@@ -30,22 +35,79 @@ export function TagsPage() {
   const deleteTag = useDeleteTag()
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const { data: groups = [] } = useTagGroups()
+  const createGroup = useCreateTagGroup()
+  const updateGroup = useUpdateTagGroup()
+  const deleteGroup = useDeleteTagGroup()
+  const [groupDraft, setGroupDraft] = useState('')
+  const [groupError, setGroupError] = useState<string | null>(null)
+  const [newTagGroup, setNewTagGroup] = useState<string>('')
 
   const usageOf = (tagId: string) => links.filter((l) => l.tag_id === tagId).length
 
   const active = tags.filter((t) => !t.is_archived)
   const archived = tags.filter((t) => t.is_archived)
 
+  /** Nhóm theo thứ tự sort_order, rồi tới mục "Khác". Chỉ nhãn CHƯA lưu trữ —
+   *  nhãn đã lưu trữ giữ nguyên một khối riêng ở cuối trang, cắt ngang mọi nhóm. */
+  const sections: { key: string; title: string; groupId: string | null; rows: TagRow[] }[] = [
+    ...groups.map((g) => ({
+      key: g.id,
+      title: g.name,
+      groupId: g.id,
+      rows: active.filter((t) => t.group_id === g.id),
+    })),
+    {
+      key: '__other__',
+      title: 'Khác',
+      groupId: null,
+      rows: active.filter((t) => !t.group_id || !groups.some((g) => g.id === t.group_id)),
+    },
+  ]
+
   async function add() {
     const name = draft.trim()
     if (!name) return
     setError(null)
     try {
-      await createTag.mutateAsync({ name, color: TAG_COLOR_KEYS[tags.length % TAG_COLOR_KEYS.length] })
+      await createTag.mutateAsync({
+        name,
+        color: TAG_COLOR_KEYS[tags.length % TAG_COLOR_KEYS.length],
+        group_id: newTagGroup || null,
+      })
       setDraft('')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Không tạo được nhãn')
     }
+  }
+
+  async function addGroup() {
+    const name = groupDraft.trim()
+    if (!name) return
+    setGroupError(null)
+    try {
+      await createGroup.mutateAsync({ name })
+      setGroupDraft('')
+    } catch (e) {
+      setGroupError(e instanceof Error ? e.message : 'Không tạo được nhóm')
+    }
+  }
+
+  async function removeGroup(id: string, name: string) {
+    const inGroup = tags.filter((t) => t.group_id === id).length
+    const ok = await confirmDialog({
+      title: `Xóa nhóm "${name}"?`,
+      message:
+        inGroup > 0
+          ? `${inGroup} nhãn đang ở nhóm này. Nhãn KHÔNG bị xóa — chúng chuyển sang mục ` +
+            '"Khác", giao dịch và trần chi giữ nguyên.'
+          : 'Nhóm này chưa có nhãn nào.',
+      confirmLabel: 'Xóa nhóm',
+      danger: true,
+    })
+    if (!ok) return
+    await deleteGroup.mutateAsync(id)
+    showToast(`Đã xóa nhóm "${name}"`)
   }
 
   async function remove(id: string, name: string) {
@@ -129,6 +191,24 @@ export function TagsPage() {
       {/* Trần chi — hiện cho CẢ nhãn đã lưu trữ: chuyến đi xong rồi vẫn cần xem
           tổng cuối cùng so với dự trù, và có khi còn cần sửa lại con số dự trù. */}
       <div className="mt-2 flex flex-wrap items-center gap-2">
+        <label className="text-xs text-fg-muted" htmlFor={`group-${t.id}`}>
+          Nhóm
+        </label>
+        <select
+          id={`group-${t.id}`}
+          value={t.group_id ?? ''}
+          onChange={(e) =>
+            updateTag.mutate({ id: t.id, patch: { group_id: e.target.value || null } })
+          }
+          className="min-h-9 rounded-lg border border-border-strong bg-surface px-2 py-1 text-sm text-fg-primary outline-green-500"
+        >
+          <option value="">— Khác —</option>
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
         <label className="text-xs text-fg-muted" htmlFor={`budget-${t.id}`}>
           Trần chi
         </label>
@@ -213,7 +293,8 @@ export function TagsPage() {
       <p className="mb-3 rounded-xl bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
         Nhãn cắt ngang danh mục: một chuyến “Về VN 2026” gồm vé máy bay, quà và phong bì nằm ở ba
         danh mục khác nhau, nhưng cùng một nhãn thì cuối năm cộng được tổng chi phí cả chuyến.
-        Xong chuyến thì <b>lưu trữ</b> nhãn: nó ẩn khỏi form nhập nhưng số liệu vẫn còn.
+        Xếp nhãn vào <b>nhóm</b> để lúc nhập đỡ phải lục: nhóm “Với ai?”, “Ở đâu?” mỗi nhóm một
+        hàng chip. Xong chuyến thì <b>lưu trữ</b> nhãn: nó ẩn khỏi form nhập nhưng số liệu vẫn còn.
       </p>
 
       <div className="mb-3 flex gap-2">
@@ -226,6 +307,19 @@ export function TagsPage() {
           placeholder="Tên nhãn mới…"
           className="min-h-11 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-green-500 dark:border-gray-700 dark:bg-gray-900"
         />
+        <select
+          value={newTagGroup}
+          onChange={(e) => setNewTagGroup(e.target.value)}
+          aria-label="Nhóm cho nhãn mới"
+          className="min-h-11 rounded-lg border border-gray-300 bg-surface px-2 text-sm text-fg-primary outline-green-500 dark:border-gray-700"
+        >
+          <option value="">— Khác —</option>
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
           onClick={add}
@@ -248,7 +342,56 @@ export function TagsPage() {
               Mọi nhãn đang được lưu trữ. Dùng lại một nhãn để nó xuất hiện khi nhập giao dịch.
             </p>
           ) : (
-            <ul className="flex flex-col gap-2">{active.map(row)}</ul>
+            <div className="flex flex-col gap-5">
+              {sections.map((s) =>
+                // Mục "Khác" rỗng thì biến mất; nhóm thật thì luôn hiện, kể cả rỗng —
+                // không thì nhóm vừa tạo vô hình, không rõ xếp vào đâu.
+                s.groupId === null && s.rows.length === 0 ? null : (
+                  <section key={s.key}>
+                    <div className="mb-1 flex items-center gap-2 px-1">
+                      {s.groupId ? (
+                        <input
+                          defaultValue={s.title}
+                          onBlur={(e) => {
+                            const name = e.target.value.trim()
+                            if (name && name !== s.title) {
+                              updateGroup.mutate({ id: s.groupId!, patch: { name } })
+                            } else {
+                              e.target.value = s.title
+                            }
+                          }}
+                          aria-label={`Tên nhóm ${s.title}`}
+                          className="min-h-9 min-w-0 flex-1 rounded-lg border border-transparent px-2 py-1 text-sm font-semibold text-fg-secondary outline-green-500 hover:border-gray-300 dark:hover:border-gray-700"
+                        />
+                      ) : (
+                        <h2 className="min-h-9 flex-1 px-2 py-1 text-sm font-semibold text-fg-secondary">
+                          {s.title}
+                        </h2>
+                      )}
+                      <span className="shrink-0 text-2xs text-fg-muted">{s.rows.length} nhãn</span>
+                      {s.groupId && (
+                        <button
+                          type="button"
+                          onClick={() => removeGroup(s.groupId!, s.title)}
+                          aria-label={`Xóa nhóm ${s.title}`}
+                          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    {s.rows.length === 0 ? (
+                      <p className="px-2 text-xs text-fg-muted">
+                        Chưa có nhãn nào trong nhóm này. Đổi ô “Nhóm” ở một nhãn bên dưới để xếp
+                        nó vào đây.
+                      </p>
+                    ) : (
+                      <ul className="flex flex-col gap-2">{s.rows.map(row)}</ul>
+                    )}
+                  </section>
+                ),
+              )}
+            </div>
           )}
 
           {archived.length > 0 && (
@@ -264,6 +407,33 @@ export function TagsPage() {
               <ul className="flex flex-col gap-2">{archived.map(row)}</ul>
             </section>
           )}
+
+          <section className="mt-6">
+            <h2 className="mb-1 px-1 text-sm font-semibold text-fg-secondary">Nhóm nhãn</h2>
+            <p className="mb-2 px-1 text-xs text-fg-muted">
+              Nhóm là CÂU HỎI, nhãn là câu trả lời: nhóm “Với ai?” chứa “Người yêu”, “Bạn bè”.
+              Khi nhập giao dịch, mỗi nhóm hiện thành một hàng chip riêng.
+            </p>
+            <div className="flex gap-2">
+              <input
+                value={groupDraft}
+                onChange={(e) => setGroupDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void addGroup()
+                }}
+                placeholder="Tên nhóm mới…"
+                className="min-h-11 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-green-500 dark:border-gray-700 dark:bg-gray-900"
+              />
+              <ActionButton
+                variant="primary"
+                onClick={addGroup}
+                disabled={!groupDraft.trim() || createGroup.isPending}
+              >
+                Thêm nhóm
+              </ActionButton>
+            </div>
+            {groupError && <p className="mt-2 text-xs text-money-out">{groupError}</p>}
+          </section>
         </>
       )}
     </div>

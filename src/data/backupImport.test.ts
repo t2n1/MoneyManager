@@ -365,6 +365,46 @@ describe('validateBackupPayload', () => {
   })
 })
 
+describe('soát nhóm nhãn (v8)', () => {
+  it('báo lỗi khi nhãn trỏ tới nhóm không có trong file', () => {
+    const data = {
+      ...base(),
+      tagGroups: [],
+      tags: [
+        {
+          id: 'tag-1',
+          user_id: 'u',
+          name: 'Tokyo',
+          color: 'sky',
+          sort_order: 0,
+          is_archived: false,
+          budget_amount: null,
+          budget_period: 'total' as const,
+          group_id: 'khong-co',
+          created_at: '',
+        },
+      ],
+    }
+    expect(validateBackupPayload(data).join(' ')).toContain('Nhóm nhãn không có trong file')
+  })
+
+  it('báo lỗi khi hai nhóm trùng tên', () => {
+    const g = (id: string, name: string) => ({
+      id,
+      user_id: 'u',
+      name,
+      sort_order: 0,
+      created_at: '',
+    })
+    const data = { ...base(), tagGroups: [g('a', 'Với ai?'), g('b', 'Với ai?')] }
+    expect(validateBackupPayload(data).join(' ')).toContain('Trùng tên nhóm nhãn')
+  })
+
+  it('file cũ không có tagGroups vẫn hợp lệ', () => {
+    expect(validateBackupPayload(base())).toEqual([])
+  })
+})
+
 describe('demoRepo.importAll: khôi phục file backup v6 (chưa có sổ lệnh cổ phiếu)', () => {
   it('backup v6 (chưa có sổ lệnh cổ phiếu) vẫn nhập được', async () => {
     const backup = await demoRepo.exportAll()

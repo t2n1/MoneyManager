@@ -24,6 +24,7 @@ import type {
   SavingsGoalRow,
   StockPriceRow,
   StockTradeRow,
+  TagGroupRow,
   TagRow,
   TagSpendRow,
   TransactionRow,
@@ -53,6 +54,7 @@ import {
   type NewStockTrade,
   type NewPlannedExpense,
   type NewTag,
+  type NewTagGroup,
   type PlannedExpensePatch,
   type NewTransaction,
   type NewValuation,
@@ -61,6 +63,7 @@ import {
   type Repo,
   type SavingsGoalPatch,
   type StockTradePatch,
+  type TagGroupPatch,
   type TagPatch,
   type TransactionPatch,
   type TxFilter,
@@ -1266,6 +1269,52 @@ export const supabaseRepo: Repo = {
     if (error) throw error
   },
 
+  async getTagGroups() {
+    const { data, error } = await getSupabase()
+      .from('tag_groups')
+      .select('*')
+      .order('sort_order', { ascending: true })
+    if (error) throw error
+    return data ?? []
+  },
+
+  async createTagGroup(input: NewTagGroup) {
+    const user_id = await currentUserId()
+    const name = input.name.trim()
+    const { data: rows, error: readErr } = await getSupabase()
+      .from('tag_groups')
+      .select('sort_order')
+      .order('sort_order', { ascending: false })
+      .limit(1)
+    if (readErr) throw readErr
+    const sort_order = (rows?.[0]?.sort_order ?? -1) + 1
+    const { data, error } = await getSupabase()
+      .from('tag_groups')
+      .insert({ name, user_id, sort_order })
+      .select()
+      .single()
+    // 23505 = trùng unique(user_id, name)
+    if (error) throw error?.code === '23505' ? new Error(`Nhóm "${name}" đã tồn tại`) : error
+    return data
+  },
+
+  async updateTagGroup(id: string, patch: TagGroupPatch) {
+    const { data, error } = await getSupabase()
+      .from('tag_groups')
+      .update(patch.name ? { ...patch, name: patch.name.trim() } : patch)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error?.code === '23505' ? new Error('Tên nhóm đã tồn tại') : error
+    return data
+  },
+
+  async deleteTagGroup(id: string) {
+    // tags.group_id có `on delete set null` (0039) → nhãn ở lại, chỉ rơi khỏi nhóm.
+    const { error } = await getSupabase().from('tag_groups').delete().eq('id', id)
+    if (error) throw error
+  },
+
   async createTag(input: NewTag) {
     const user_id = await currentUserId()
     const sort_order = await nextTagSortOrder()
@@ -1337,6 +1386,7 @@ export const supabaseRepo: Repo = {
       accountValuations,
       savingsGoals,
       networthSnapshots,
+      tagGroups,
       tags,
       transactionTags,
       lifeScenarios,
@@ -1356,6 +1406,7 @@ export const supabaseRepo: Repo = {
       selectAll<AccountValuationRow>('account_valuations'),
       selectAll<SavingsGoalRow>('savings_goals'),
       selectAll<NetWorthSnapshotRow>('networth_snapshots'),
+      selectAll<TagGroupRow>('tag_groups'),
       selectAll<TagRow>('tags'),
       selectAll<TransactionTagRow>('transaction_tags'),
       selectAll<LifeScenarioRow>('life_scenarios'),
@@ -1378,6 +1429,7 @@ export const supabaseRepo: Repo = {
       accountValuations,
       savingsGoals,
       networthSnapshots,
+      tagGroups,
       tags,
       transactionTags,
       lifeScenarios,
@@ -1421,6 +1473,7 @@ export const supabaseRepo: Repo = {
       'networth_snapshots',
       'transaction_tags',
       'tags',
+      'tag_groups',
       'life_phases',
       'life_events',
       'life_scenarios',
@@ -1736,19 +1789,38 @@ export const supabaseRepo: Repo = {
       )
     }
 
-    // tags trước, rồi liên kết (composite FK tới cả transactions lẫn tags).
+    // nhóm trước, rồi nhãn (FK group_id), rồi liên kết (composite FK tới cả
+    // transactions lẫn tags).
+    if (data.tagGroups?.length) {
+      await insertChunked(
+        data.tagGroups.map((g) => ({
+          id: g.id,
+          user_id: uid,
+          name: g.name,
+          sort_order: g.sort_order,
+        })),
+        (part) => sb.from('tag_groups').insert(part),
+      )
+    }
+
     if (data.tags?.length) {
       await insertChunked(
-            data.tags.map((t) => ({
-              id: t.id,
-              user_id: uid,
-              name: t.name,
-              color: t.color,
-              sort_order: t.sort_order,
-              // `?? false`: backup trước migration 0033. Thiếu trường này là mọi nhãn
-              // đã lưu trữ tràn lại vào ô chọn nhãn sau khi khôi phục.
-              is_archived: t.is_archived ?? false,
-            })),
+        data.tags.map((t) => ({
+          id: t.id,
+          user_id: uid,
+          name: t.name,
+          color: t.color,
+          sort_order: t.sort_order,
+          // `?? false`: backup trước migration 0033. Thiếu trường này là mọi nhãn
+          // đã lưu trữ tràn lại vào ô chọn nhãn sau khi khôi phục.
+          is_archived: t.is_archived ?? false,
+          // `?? null` / `?? 'total'`: backup trước 0036. Trước đây hai cột này bị bỏ
+          // quên hẳn ở đây — khôi phục xong là mất sạch trần chi theo nhãn.
+          budget_amount: t.budget_amount ?? null,
+          budget_period: t.budget_period ?? 'total',
+          // `?? null`: backup trước 0039.
+          group_id: t.group_id ?? null,
+        })),
         (part) => sb.from('tags').insert(part),
       )
     }

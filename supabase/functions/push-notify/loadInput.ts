@@ -92,7 +92,7 @@ export async function loadNotificationInput(
   const base = profile.base_currency
   const monthStartDay = profile.month_start_day
 
-  const [accounts, categories, debts, recurringRules, savingsGoals, networthSnapshots] =
+  const [accounts, categories, debts, recurringRules, savingsGoals, plannedExpenses, networthSnapshots] =
     await Promise.all([
       // account_balances là VIEW (không có cột id để sắp) — sắp theo name cho ổn định.
       fetchAllPages<Row>((from: number, to: number) =>
@@ -107,6 +107,7 @@ export async function loadNotificationInput(
       readAll(sb, 'debts', userId),
       readAll(sb, 'recurring_rules', userId),
       readAll(sb, 'savings_goals', userId),
+      readAll(sb, 'planned_expenses', userId),
       readAll(sb, 'networth_snapshots', userId),
     ])
 
@@ -260,6 +261,7 @@ export async function loadNotificationInput(
       budgetReport,
       tagBudgets,
       savingsGoals,
+      plannedExpenses,
       networthSnapshots,
       recentTxs,
       lifetime,

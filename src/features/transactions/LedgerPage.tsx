@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Repeat, Search } from 'lucide-react'
+import { CalendarClock, ChevronLeft, ChevronRight, Repeat, Search } from 'lucide-react'
 import { IconButton, SegmentedControl, iconButtonClass } from '../../components/ui'
 import {
   useAccounts,
@@ -198,6 +198,9 @@ export function LedgerPage() {
             Đặt ở header chứ KHÔNG thành tab con thứ 5: 5 mục segmented control quá chật
             trên mobile, và đây là danh sách quy tắc chứ không phải một cách xem cùng dữ
             liệu như 4 tab kia. Xem docs/information-architecture.md §2.1. */}
+        <Link to="/planned" className={iconButtonClass()} aria-label="Khoản sắp chi">
+          <CalendarClock className="h-5 w-5" />
+        </Link>
         <Link to="/recurring" className={iconButtonClass()} aria-label="Giao dịch định kỳ">
           <Repeat className="h-5 w-5" />
         </Link>

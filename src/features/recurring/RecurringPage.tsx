@@ -183,6 +183,11 @@ export function RecurringPage() {
         <h1 className="flex-1 text-lg font-bold text-fg-primary">
           Giao dịch định kỳ
         </h1>
+        {/* Khoản MỘT LẦN là anh em với khoản lặp mãi — ai đang ở đây tìm chỗ ghi
+            "đóng phí vệ sinh 20/8" thì phải thấy lối sang. */}
+        <Link to="/planned" className="shrink-0 text-xs font-medium text-fg-accent">
+          Sắp chi
+        </Link>
         <button
           type="button"
           onClick={() => setSheet({ open: true, rule: null })}

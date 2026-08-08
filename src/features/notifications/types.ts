@@ -11,6 +11,7 @@ import type {
   CategoryRow,
   DebtRow,
   NetWorthSnapshotRow,
+  PlannedExpenseRow,
   RecurringRuleRow,
   SavingsGoalRow,
   TransactionRow,
@@ -22,6 +23,7 @@ export type NotificationType =
   | 'debt-overdue'
   | 'debt-due-soon'
   | 'bill-due'
+  | 'planned-due'
   | 'budget-over'
   | 'budget-pace'
   | 'budget-parent-over'
@@ -74,6 +76,7 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   'debt-overdue',
   'debt-due-soon',
   'bill-due',
+  'planned-due',
   'budget-over',
   'budget-pace',
   'budget-parent-over',
@@ -124,6 +127,13 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     hint:
       'Quy tắc định kỳ kiểu NHẮC tới hạn mà chưa ghi (vd gửi tiền về nhà). Bám tới ' +
       'khi bạn xác nhận đã ghi — app không tự ghi hộ vì số tiền mỗi lần một khác.',
+  },
+  'planned-due': {
+    kind: 'action',
+    label: 'Khoản sắp chi tới hạn',
+    hint:
+      'Một khoản trong danh sách Sắp chi đã tới hạn (hoặc sắp tới, tuỳ bạn đặt nhắc ' +
+      'trước mấy ngày). Bám tới khi bạn đánh dấu đã chi hoặc bỏ.',
   },
   'budget-over': {
     kind: 'action',
@@ -213,6 +223,8 @@ export interface NotificationInput {
    * `recentTxs` chỉ có 90 ngày. Tự tính ở đây là lặng lẽ ra một con số nhỏ hơn thật.
    */
   tagBudgets?: TagBudgetLine[]
+  /** Khoản sắp chi. undefined = chưa tải xong → luật im. */
+  plannedExpenses?: PlannedExpenseRow[]
   savingsGoals: SavingsGoalRow[]
   networthSnapshots: NetWorthSnapshotRow[]
   /** Giao dịch `RECENT_TXS_DAYS` ngày gần nhất. */

@@ -510,6 +510,33 @@ export type RecurringRuleRow = {
  */
 export type RecurringMode = 'auto' | 'remind'
 
+/** 'day' = đúng ngày này · 'month' = chỉ biết tháng (due_on neo vào ngày 1). */
+export type DuePrecision = 'day' | 'month'
+/** 'planned' = còn phải chi · 'done' = đã chi (có transaction_id) · 'dropped' = bỏ. */
+export type PlannedStatus = 'planned' | 'done' | 'dropped'
+
+/** Một khoản CHƯA tiêu mà sẽ phải tiêu — xem migration 0038. */
+export type PlannedExpenseRow = {
+  id: string
+  user_id: string
+  title: string
+  /** ước tính, minor units theo `currency`; 0 = chưa biết bao nhiêu */
+  amount: number
+  currency: CurrencyCode
+  due_on: string
+  due_precision: DuePrecision
+  /** null = không nhắc; 0 = nhắc đúng ngày đến hạn */
+  remind_days_before: number | null
+  category_id: string | null
+  account_id: string | null
+  status: PlannedStatus
+  /** giao dịch đã ghi khi chi thật; null = chưa chi */
+  transaction_id: string | null
+  note: string
+  created_at: string
+  updated_at: string
+}
+
 type InsertOf<Row, Required extends keyof Row, Optional extends keyof Row> =
   Pick<Row, Required> & Partial<Pick<Row, Optional>>
 
@@ -900,6 +927,40 @@ export type Database = {
           Pick<
             TagRow,
             'name' | 'color' | 'sort_order' | 'is_archived' | 'budget_amount' | 'budget_period'
+          >
+        >
+        Relationships: []
+      }
+      planned_expenses: {
+        Row: PlannedExpenseRow
+        Insert: InsertOf<
+          PlannedExpenseRow,
+          'user_id' | 'title' | 'due_on',
+          | 'id'
+          | 'amount'
+          | 'currency'
+          | 'due_precision'
+          | 'remind_days_before'
+          | 'category_id'
+          | 'account_id'
+          | 'status'
+          | 'transaction_id'
+          | 'note'
+        >
+        Update: Partial<
+          Pick<
+            PlannedExpenseRow,
+            | 'title'
+            | 'amount'
+            | 'currency'
+            | 'due_on'
+            | 'due_precision'
+            | 'remind_days_before'
+            | 'category_id'
+            | 'account_id'
+            | 'status'
+            | 'transaction_id'
+            | 'note'
           >
         >
         Relationships: []

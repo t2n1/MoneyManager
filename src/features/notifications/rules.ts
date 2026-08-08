@@ -11,6 +11,7 @@ import {
 import { accountRules } from './rules/accountRules'
 import { debtRules } from './rules/debtRules'
 import { billRules } from './rules/billRules'
+import { plannedRules } from './rules/plannedRules'
 import { budgetRules } from './rules/budgetRules'
 import { tagRules } from './rules/tagRules'
 import { cardRules } from './rules/cardRules'
@@ -72,6 +73,7 @@ export function buildNotifications(input: NotificationInput): NotificationResult
     ...accountRules(input),
     ...debtRules(input),
     ...billRules(input),
+    ...plannedRules(input),
     ...budgetRules(input),
     ...tagRules(input),
     ...cardRules(input),

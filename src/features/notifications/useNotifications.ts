@@ -17,6 +17,7 @@ import {
   useRangeTransactions,
   useRates,
   useRecurringRules,
+  usePlannedExpenses,
   useSavingsGoals,
 } from '../../hooks/queries'
 import { addDaysISO, monthKeyForDate, toISODate } from '../../lib/dates'
@@ -114,6 +115,7 @@ export function useNotifications(): UseNotificationsResult {
   // Trần theo nhãn — cùng kỳ tháng với ngân sách danh mục. Không nhãn nào đặt trần
   // thì `lines` rỗng và luật nhãn im, không tốn truy vấn nào (xem useTagBudgets).
   const tagBudgets = useTagBudgets(monthKeyForDate(todayISO, monthStartDay))
+  const { data: plannedExpenses } = usePlannedExpenses()
 
   // `RECENT_TXS_DAYS` (types.ts) là hằng số DUY NHẤT cho cửa sổ này: bộ luật đọc CHÍNH
   // NÓ để biết `input.recentTxs` chứa bao nhiêu ngày. Trước đây chỗ này giữ 90 còn
@@ -209,6 +211,7 @@ export function useNotifications(): UseNotificationsResult {
         recurringRules,
         budgetReport,
         tagBudgets: tagBudgets.lines,
+        plannedExpenses,
         savingsGoals,
         networthSnapshots,
         recentTxs,
@@ -235,6 +238,7 @@ export function useNotifications(): UseNotificationsResult {
     recurringRules,
     budgetReport,
     tagBudgets,
+    plannedExpenses,
     savingsGoals,
     networthSnapshots,
     recentTxs,

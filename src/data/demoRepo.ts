@@ -21,6 +21,7 @@ import type {
   LifeScenarioRow,
   NeedLevel,
   NetWorthSnapshotRow,
+  PlannedExpenseRow,
   NotificationStateRow,
   ProfileRow,
   PushSubscriptionRow,
@@ -55,7 +56,9 @@ import {
   type NewRecurringRule,
   type NewSavingsGoal,
   type NewStockTrade,
+  type NewPlannedExpense,
   type NewTag,
+  type PlannedExpensePatch,
   type NewTransaction,
   type NewValuation,
   type ProfilePatch,
@@ -138,6 +141,8 @@ interface DemoDB {
   lifeScenarios: LifeScenarioRow[]
   lifePhases: LifePhaseRow[]
   lifeEvents: LifeEventRow[]
+  /** Khoản sắp chi (migration 0038); vắng mặt ở dữ liệu demo cũ. */
+  plannedExpenses?: PlannedExpenseRow[]
 }
 
 // crypto.randomUUID() chỉ chạy trong secure context (HTTPS / localhost).
@@ -1718,6 +1723,56 @@ export const demoRepo: Repo = {
       })
     }
     return out
+  },
+
+  async getPlannedExpenses() {
+    return (load().plannedExpenses ?? [])
+      .slice()
+      .sort(
+        (a: PlannedExpenseRow, b: PlannedExpenseRow) =>
+          a.due_on.localeCompare(b.due_on) || a.created_at.localeCompare(b.created_at),
+      )
+  },
+
+  async createPlannedExpense(input: NewPlannedExpense) {
+    const db = load()
+    db.plannedExpenses ??= []
+    const row: PlannedExpenseRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      title: input.title,
+      amount: input.amount,
+      currency: input.currency,
+      due_on: input.due_on,
+      due_precision: input.due_precision ?? 'day',
+      remind_days_before: input.remind_days_before ?? null,
+      category_id: input.category_id ?? null,
+      account_id: input.account_id ?? null,
+      status: 'planned',
+      transaction_id: null,
+      note: input.note ?? '',
+      created_at: nowISO(),
+      updated_at: nowISO(),
+    }
+    db.plannedExpenses.push(row)
+    save(db)
+    return row
+  },
+
+  async updatePlannedExpense(id: string, patch: PlannedExpensePatch) {
+    const db = load()
+    db.plannedExpenses ??= []
+    const idx = db.plannedExpenses.findIndex((p) => p.id === id)
+    if (idx < 0) throw new Error('Không tìm thấy khoản sắp chi')
+    db.plannedExpenses[idx] = { ...db.plannedExpenses[idx], ...patch, updated_at: nowISO() }
+    save(db)
+    return db.plannedExpenses[idx]
+  },
+
+  async deletePlannedExpense(id: string) {
+    const db = load()
+    db.plannedExpenses = (db.plannedExpenses ?? []).filter((p) => p.id !== id)
+    save(db)
   },
 
   async createTag(input: NewTag) {

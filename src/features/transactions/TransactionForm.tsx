@@ -7,13 +7,14 @@ import {
   Delete,
   HandCoins,
   type LucideIcon,
+  Bell,
   Repeat,
   Send,
   Star,
   Users,
   X,
 } from 'lucide-react'
-import type { NewRecurringRule, NewTransaction } from '../../data'
+import type { NewPlannedExpense, NewRecurringRule, NewTransaction } from '../../data'
 import { toISODate } from '../../lib/dates'
 import { promptDialog } from '../../lib/dialog'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
@@ -192,7 +193,23 @@ interface TransactionFormProps {
    * (form sửa: phí đã là giao dịch riêng, sửa thẳng trên nó).
    */
   onSubmitWithFee?: (main: NewTransaction, fee: number, keepGoing: boolean) => Promise<void>
+  /**
+   * "Nhắc sau": KHÔNG ghi giao dịch, mà tạo một khoản sắp chi đến hạn vào đúng ngày
+   * đang chọn (migration 0038). Dành cho việc mình biết sẽ phải chi mà chưa chi —
+   * gõ y như đang nhập, chỉ khác cái nút. Không truyền → không hiện nút.
+   */
+  onSubmitPlanned?: (input: NewPlannedExpense) => Promise<void>
 }
+
+/**
+ * Dáng chip bật/tắt cạnh ô ngày (nút "Lặp lại" và nút "Nhắc sau").
+ *
+ * Gom lại vì hai nút đứng SÁT nhau: chép tay hai bản thì sớm muộn một cái quên
+ * `transition` hoặc `active:scale-95` và bấm vào thấy hai kiểu phản hồi khác nhau.
+ */
+const CHIP_BASE =
+  'flex min-h-11 shrink-0 items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition active:scale-95'
+const CHIP_OFF = 'border-gray-300 bg-surface text-gray-500 dark:border-gray-700 dark:text-gray-400'
 
 export function TransactionForm({
   initial,
@@ -209,6 +226,7 @@ export function TransactionForm({
   roleTriggerSlot,
   onSubmitRole,
   onSubmitWithFee,
+  onSubmitPlanned,
 }: TransactionFormProps) {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
@@ -223,7 +241,10 @@ export function TransactionForm({
     initial?.category_id ?? lastCategoryFor(initial?.type ?? initialType ?? 'expense', categories),
   )
   const [accountId, setAccountId] = useState<string | null>(
-    initial?.account_id ?? localStorage.getItem(LAST_ACCOUNT_KEY),
+    // `||` chứ không `??`: khoản sắp chi có thể chưa gán tài khoản, và bản điền sẵn
+    // dựng từ nó mang account_id = ''. Chuỗi rỗng không phải một tài khoản — `??` giữ
+    // nguyên nó và nút Lưu khoá vĩnh viễn mà không dòng nào nói vì sao.
+    initial?.account_id || localStorage.getItem(LAST_ACCOUNT_KEY),
   )
   const [toAccountId, setToAccountId] = useState<string | null>(initial?.to_account_id ?? null)
   /** Chuyển khoản: phí (minor units theo tài khoản nguồn) → giao dịch chi riêng. */
@@ -246,6 +267,8 @@ export function TransactionForm({
   // Lặp lại (chỉ form nhập mới): 'none' = không lặp, còn lại là chu kỳ
   const [repeat, setRepeat] = useState<'none' | RecurringFrequency>('none')
   const [repeatOpen, setRepeatOpen] = useState(false)
+  /** true = bấm lưu sẽ tạo KHOẢN SẮP CHI thay vì ghi giao dịch. */
+  const [remindLater, setRemindLater] = useState(false)
   // Nút đang lưu: 'save' | 'continue' | null — để khóa cả hai nút và hiện "Đang lưu…"
   const [pending, setPending] = useState<'save' | 'continue' | null>(null)
   const saving = pending !== null
@@ -455,14 +478,21 @@ export function TransactionForm({
   })()
 
   const canSave =
-    amount > 0 &&
+    // "Nhắc sau" KHÔNG đòi số tiền: một lời nhắc có thể là "tìm nhà mới" — việc có
+    // thật mà chưa ai đoán nổi giá. Ghi giao dịch thì vẫn đòi, vì một bút toán 0 đồng
+    // không có nghĩa gì.
+    (remindLater || amount > 0) &&
     !!effectiveAccountId &&
     !saving &&
     (activeRole !== 'none'
       ? roleValid
-      : type === 'transfer'
-        ? !!toAccountId && toAccountId !== effectiveAccountId && (!crossCurrency || toAmount > 0)
-        : hasCategory)
+      : remindLater
+        ? // Lời nhắc chỉ cần một cái TÊN — lấy từ ghi chú hoặc từ danh mục. Bắt chọn
+          // danh mục ở đây là đòi phân loại một khoản chưa xảy ra.
+          note.trim().length > 0 || hasCategory
+        : type === 'transfer'
+          ? !!toAccountId && toAccountId !== effectiveAccountId && (!crossCurrency || toAmount > 0)
+          : hasCategory)
 
   /**
    * Vai trò đặc biệt: nút Lưu mờ thì phải NÓI vì sao — form dài, điều kiện nằm rải
@@ -611,6 +641,10 @@ export function TransactionForm({
     setter((d) => appendKey(d, key))
   }
 
+  // Bật "Nhắc sau" thì nút không còn lưu giao dịch nữa — để nguyên chữ "Lưu" là nói
+  // dối về việc nút sắp làm.
+  const effectiveSubmitLabel = remindLater ? 'Tạo lời nhắc' : submitLabel
+
   async function handleSubmit(mode: 'save' | 'continue' = 'save') {
     if (!canSave || !effectiveAccountId) return
 
@@ -656,7 +690,25 @@ export function TransactionForm({
         is_refund: type === 'expense' ? isRefund : false,
         tag_ids: effectiveTagIds,
       }
-      if (repeat !== 'none' && onSubmitRecurring) {
+      if (remindLater && onSubmitPlanned) {
+        // Chưa chi đồng nào: không có giao dịch nào được ghi ở nhánh này.
+        await onSubmitPlanned({
+          // Ghi chú là thứ người dùng tự đặt nên ưu tiên; không có thì mượn tên danh
+          // mục, vì một dòng nhắc không tên thì nhắc xong cũng không biết là cái gì.
+          title:
+            note.trim() ||
+            categories.find((c) => c.id === categoryId)?.name ||
+            'Khoản sắp chi',
+          amount,
+          currency: srcCurrency,
+          due_on: date,
+          due_precision: 'day',
+          // Mặc định nhắc đúng ngày; muốn nhắc sớm hơn thì sửa ở màn Sắp chi.
+          remind_days_before: 0,
+          category_id: categoryId,
+          account_id: effectiveAccountId,
+        })
+      } else if (repeat !== 'none' && onSubmitRecurring) {
         // Lặp lại: tạo rule (kỳ đầu do engine catch-up sinh, không tạo GD riêng)
         await onSubmitRecurring({
           type,
@@ -968,7 +1020,27 @@ export function TransactionForm({
           aria-label="Ngày giao dịch"
           className="w-[7.5rem] shrink-0 rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300"
         />
-        {!initial && onSubmitRecurring && activeRole === 'none' && (
+        {/* "Nhắc sau" — chỉ với khoản CHI mới: nhắc mình đi thu tiền là chuyện khác
+            hẳn, và chuyển khoản thì không có gì để nhắc. Bật lên là nút lưu đổi nghĩa,
+            nên chữ trên nút cũng phải đổi (xem submitLabel bên dưới). */}
+        {!initial && onSubmitPlanned && activeRole === 'none' && type === 'expense' && (
+          <button
+            type="button"
+            onClick={() => setRemindLater((v) => !v)}
+            aria-pressed={remindLater}
+            aria-label={remindLater ? 'Tắt nhắc sau' : 'Nhắc sau thay vì ghi ngay'}
+            title="Chưa chi — chỉ nhắc tôi vào ngày này"
+            className={`${CHIP_BASE} ${
+              remindLater
+                ? 'border-amber-500 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-900/30 dark:text-amber-300'
+                : CHIP_OFF
+            }`}
+          >
+            <Bell className="h-4 w-4 shrink-0" />
+            {remindLater && <span>Nhắc sau</span>}
+          </button>
+        )}
+        {!initial && onSubmitRecurring && activeRole === 'none' && !remindLater && (
           <div className="relative shrink-0">
             <button
               type="button"
@@ -976,9 +1048,9 @@ export function TransactionForm({
               aria-haspopup="listbox"
               aria-expanded={repeatOpen}
               aria-label={`Lặp lại: ${REPEAT_MENU_LABEL[repeat]}`}
-              className={`flex min-h-11 items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition active:scale-95 ${
+              className={`${CHIP_BASE} ${
                 repeat === 'none'
-                  ? 'border-gray-300 bg-surface text-gray-500 dark:border-gray-700 dark:text-gray-400'
+                  ? CHIP_OFF
                   : 'border-green-500 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400'
               }`}
             >
@@ -1221,7 +1293,9 @@ export function TransactionForm({
         >
           <Delete className="h-5 w-5" />
         </button>
-        {onContinue && repeat === 'none' && activeRole === 'none' ? (
+        {/* "Nhắc sau" cũng ẩn nút Tiếp tục, cùng lý do với "Lặp lại": nút đó nghĩa là
+            "lưu rồi nhập tiếp", mà ở chế độ này không có giao dịch nào được lưu cả. */}
+        {onContinue && repeat === 'none' && activeRole === 'none' && !remindLater ? (
           <>
             <button
               type="button"
@@ -1237,7 +1311,7 @@ export function TransactionForm({
               disabled={!canSave}
               className="flex-1 rounded-xl bg-green-700 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-800 disabled:opacity-40"
             >
-              {pending === 'save' ? 'Đang lưu…' : submitLabel}
+              {pending === 'save' ? 'Đang lưu…' : effectiveSubmitLabel}
             </button>
           </>
         ) : (
@@ -1247,7 +1321,7 @@ export function TransactionForm({
             disabled={!canSave}
             className="flex-1 rounded-xl bg-green-700 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-800 disabled:opacity-40"
           >
-            {saving ? 'Đang lưu…' : submitLabel}
+            {saving ? 'Đang lưu…' : effectiveSubmitLabel}
           </button>
         )}
       </div>

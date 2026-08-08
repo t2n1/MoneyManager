@@ -38,6 +38,8 @@ const PAGE_TITLES: [prefix: string, title: string][] = [
   ['/search', 'Tìm kiếm'],
   ['/debts', 'Nợ / cho vay'],
   ['/recurring', 'Giao dịch định kỳ'],
+  ['/planned', 'Sắp chi'],
+  ['/invest', 'Đầu tư'],
   ['/budget', 'Ngân sách'],
   ['/assets', 'Tài sản'],
   ['/reports', 'Báo cáo'],

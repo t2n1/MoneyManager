@@ -11,6 +11,7 @@ var NOTIFICATION_TYPES = [
   "debt-overdue",
   "debt-due-soon",
   "bill-due",
+  "planned-due",
   "budget-over",
   "budget-pace",
   "budget-parent-over",
@@ -50,6 +51,11 @@ var NOTIFICATION_META = {
     kind: "action",
     label: "Kho\u1EA3n c\u1EA7n thanh to\xE1n",
     hint: "Quy t\u1EAFc \u0111\u1ECBnh k\u1EF3 ki\u1EC3u NH\u1EAEC t\u1EDBi h\u1EA1n m\xE0 ch\u01B0a ghi (vd g\u1EEDi ti\u1EC1n v\u1EC1 nh\xE0). B\xE1m t\u1EDBi khi b\u1EA1n x\xE1c nh\u1EADn \u0111\xE3 ghi \u2014 app kh\xF4ng t\u1EF1 ghi h\u1ED9 v\xEC s\u1ED1 ti\u1EC1n m\u1ED7i l\u1EA7n m\u1ED9t kh\xE1c."
+  },
+  "planned-due": {
+    kind: "action",
+    label: "Kho\u1EA3n s\u1EAFp chi t\u1EDBi h\u1EA1n",
+    hint: "M\u1ED9t kho\u1EA3n trong danh s\xE1ch S\u1EAFp chi \u0111\xE3 t\u1EDBi h\u1EA1n (ho\u1EB7c s\u1EAFp t\u1EDBi, tu\u1EF3 b\u1EA1n \u0111\u1EB7t nh\u1EAFc tr\u01B0\u1EDBc m\u1EA5y ng\xE0y). B\xE1m t\u1EDBi khi b\u1EA1n \u0111\xE1nh d\u1EA5u \u0111\xE3 chi ho\u1EB7c b\u1ECF."
   },
   "budget-over": {
     kind: "action",
@@ -587,6 +593,52 @@ function detailOf(daysLeft, overdueCount) {
   if (overdueCount > 1) return `\u0110ang n\u1EE3 ${overdueCount} k\u1EF3 ch\u01B0a ghi. B\u1EA5m \u0111\u1EC3 ghi k\u1EF3 c\u0169 nh\u1EA5t.`;
   if (daysLeft === 0) return "B\u1EA5m \u0111\u1EC3 m\u1EDF form \u0111\xE3 \u0111i\u1EC1n s\u1EB5n, s\u1EEDa s\u1ED1 ti\u1EC1n r\u1ED3i l\u01B0u.";
   return `Qu\xE1 h\u1EA1n ${-daysLeft} ng\xE0y. B\u1EA5m \u0111\u1EC3 m\u1EDF form \u0111\xE3 \u0111i\u1EC1n s\u1EB5n.`;
+}
+
+// src/features/planned/planned.ts
+function daysUntil(fromISO, toISO) {
+  const a = Date.parse(fromISO + "T00:00:00Z");
+  const b = Date.parse(toISO + "T00:00:00Z");
+  return Math.round((b - a) / 864e5);
+}
+function plannedDue(rows, todayISO) {
+  const out = [];
+  for (const r of rows) {
+    if (r.status !== "planned") continue;
+    if (r.remind_days_before === null) continue;
+    const daysLeft = daysUntil(todayISO, r.due_on);
+    if (daysLeft > r.remind_days_before) continue;
+    out.push({
+      id: r.id,
+      title: r.title,
+      dueISO: r.due_on,
+      daysLeft,
+      amount: r.amount,
+      currency: r.currency
+    });
+  }
+  return out.sort((a, b) => a.dueISO < b.dueISO ? -1 : a.dueISO > b.dueISO ? 1 : 0);
+}
+
+// src/features/notifications/rules/plannedRules.ts
+function plannedRules(input) {
+  if (!input.plannedExpenses) return [];
+  return plannedDue(input.plannedExpenses, input.todayISO).map((d) => {
+    const money = d.amount > 0 ? ` ${input.formatMoney(d.amount, d.currency)}` : "";
+    return {
+      // KHÔNG có phần kỳ trong mã: khoản một lần chỉ tới hạn đúng một lần, và đọc
+      // xong vẫn phải bám tới khi được đánh dấu đã chi (kind = 'action').
+      key: `planned-due:${d.id}`,
+      kind: "action",
+      type: "planned-due",
+      // Quá hạn là mức đỏ — nổi lên cả dải nhắc ở đầu Sổ.
+      severity: d.daysLeft < 0 ? "high" : d.daysLeft === 0 ? "medium" : "low",
+      title: d.daysLeft < 0 ? `Ch\u01B0a chi "${d.title}"${money}` : d.daysLeft === 0 ? `H\xF4m nay t\u1EDBi h\u1EA1n "${d.title}"${money}` : `${d.daysLeft} ng\xE0y n\u1EEFa t\u1EDBi h\u1EA1n "${d.title}"${money}`,
+      detail: d.daysLeft < 0 ? `Qu\xE1 h\u1EA1n ${-d.daysLeft} ng\xE0y. B\u1EA5m \u0111\u1EC3 ghi kho\u1EA3n n\xE0y.` : "B\u1EA5m \u0111\u1EC3 ghi kho\u1EA3n n\xE0y, ho\u1EB7c d\u1EDDi h\u1EA1n / b\u1ECF n\u1EBFu kh\xF4ng c\u1EA7n n\u1EEFa.",
+      onISO: d.dueISO,
+      to: "/planned"
+    };
+  });
 }
 
 // src/features/notifications/rules/budgetRules.ts
@@ -1146,6 +1198,7 @@ function buildNotifications(input) {
     ...accountRules(input),
     ...debtRules(input),
     ...billRules(input),
+    ...plannedRules(input),
     ...budgetRules(input),
     ...tagRules(input),
     ...cardRules(input),

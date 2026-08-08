@@ -19,7 +19,10 @@ import type {
   LifeScenarioRow,
   NeedLevel,
   NetWorthSnapshotRow,
+  PlannedExpenseRow,
   NotificationStateRow,
+  DuePrecision,
+  PlannedStatus,
   ProfileRow,
   PushSubscriptionRow,
   RecurringRuleRow,
@@ -370,6 +373,26 @@ export interface NewLifeEvent {
 export type LifeEventPatch = Partial<Omit<NewLifeEvent, 'scenario_id'>>
 
 /** Nhãn cắt ngang danh mục (vd "Về VN 2026"). */
+/** Khoản sắp chi (migration 0038). */
+export interface NewPlannedExpense {
+  title: string
+  /** ước tính (minor units theo `currency`); 0 = chưa biết */
+  amount: number
+  currency: CurrencyCode
+  due_on: string
+  /** Bỏ trống = 'day'. 'month' đòi `due_on` là ngày 1 của tháng. */
+  due_precision?: DuePrecision
+  /** null / bỏ trống = không nhắc; 0 = nhắc đúng ngày. */
+  remind_days_before?: number | null
+  category_id?: string | null
+  account_id?: string | null
+  note?: string
+}
+
+export type PlannedExpensePatch = Partial<
+  NewPlannedExpense & { status: PlannedStatus; transaction_id: string | null }
+>
+
 export interface NewTag {
   name: string
   /** Khóa màu trong bảng màu của app. */
@@ -522,6 +545,12 @@ export interface Repo {
   getTags(): Promise<TagRow[]>
   /** Toàn bộ liên kết giao dịch ↔ nhãn của user; UI tự lọc. */
   getTransactionTags(): Promise<TransactionTagRow[]>
+  // --- Khoản sắp chi (migration 0038) ---
+  getPlannedExpenses(): Promise<PlannedExpenseRow[]>
+  createPlannedExpense(input: NewPlannedExpense): Promise<PlannedExpenseRow>
+  updatePlannedExpense(id: string, patch: PlannedExpensePatch): Promise<PlannedExpenseRow>
+  deletePlannedExpense(id: string): Promise<void>
+
   createTag(input: NewTag): Promise<TagRow>
   updateTag(id: string, patch: TagPatch): Promise<TagRow>
   /**

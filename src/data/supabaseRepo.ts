@@ -51,7 +51,9 @@ import {
   type NewRecurringRule,
   type NewSavingsGoal,
   type NewStockTrade,
+  type NewPlannedExpense,
   type NewTag,
+  type PlannedExpensePatch,
   type NewTransaction,
   type NewValuation,
   type ProfilePatch,
@@ -1225,6 +1227,43 @@ export const supabaseRepo: Repo = {
           ]
         : [],
     )
+  },
+
+  async getPlannedExpenses() {
+    const { data, error } = await getSupabase()
+      .from('planned_expenses')
+      .select('*')
+      .order('due_on', { ascending: true })
+      .order('created_at', { ascending: true })
+    if (error) throw error
+    return data ?? []
+  },
+
+  async createPlannedExpense(input: NewPlannedExpense) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('planned_expenses')
+      .insert({ ...input, title: input.title.trim(), user_id })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async updatePlannedExpense(id: string, patch: PlannedExpensePatch) {
+    const { data, error } = await getSupabase()
+      .from('planned_expenses')
+      .update(patch.title ? { ...patch, title: patch.title.trim() } : patch)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async deletePlannedExpense(id: string) {
+    const { error } = await getSupabase().from('planned_expenses').delete().eq('id', id)
+    if (error) throw error
   },
 
   async createTag(input: NewTag) {

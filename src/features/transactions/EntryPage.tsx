@@ -10,11 +10,15 @@ import {
   useCreateRecurringRule,
   useCreateTransaction,
   useDebts,
+  useCreatePlannedExpense,
   useDeleteTransaction,
+  usePlannedExpenses,
   useRecurringRules,
+  useUpdatePlannedExpense,
   useRunRecurringCatchUp,
   useUpdateRecurringRule,
 } from '../../hooks/queries'
+import { toISODate } from '../../lib/dates'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
 import { parseRoleParam } from './entryRoles'
 import { saveDebtEntry, saveRemit, saveSplit, saveWithFee, type RoleSaveDeps } from './roleSave'
@@ -77,6 +81,45 @@ export function EntryPage() {
   // không biết. Có `?rule=` thì phải đợi danh sách quy tắc về rồi mới dựng form.
   const waitingForRule = !!billRuleId && rulesPending
 
+  // --- Ghi một KHOẢN SẮP CHI (migration 0038) ---
+  // `?planned=<id>`: mở form đã điền sẵn; lưu xong thì đánh dấu khoản đó là đã chi và
+  // gắn vào đúng bút toán vừa tạo.
+  const plannedId = searchParams.get('planned')
+  const { data: plannedRows = [], isPending: plannedPending } = usePlannedExpenses()
+  const createPlanned = useCreatePlannedExpense()
+  const updatePlanned = useUpdatePlannedExpense()
+  const planned = plannedId ? plannedRows.find((p) => p.id === plannedId) : undefined
+  const plannedPrefill: TransactionRow | undefined = planned
+    ? {
+        id: '',
+        user_id: '',
+        type: 'expense',
+        amount: planned.amount,
+        to_amount: null,
+        category_id: planned.category_id,
+        account_id: planned.account_id ?? '',
+        to_account_id: null,
+        recurring_rule_id: null,
+        // HÔM NAY, không phải ngày đến hạn: ngày đến hạn là một KẾ HOẠCH, còn cái đang
+        // ghi là lúc tiền thật sự rời ví. (Khác khoản định kỳ kiểu nhắc — ở đó kỳ nào
+        // ra kỳ đó mới đúng báo cáo tháng.)
+        occurred_on: toISODate(new Date()),
+        note: planned.title,
+        created_at: '',
+        updated_at: '',
+      }
+    : undefined
+  const waitingForPlanned = !!plannedId && plannedPending
+
+  /** Đánh dấu khoản sắp chi là đã chi. Gọi SAU khi giao dịch đã lưu thành công. */
+  async function markPlannedDone(transactionId: string) {
+    if (!planned) return
+    await updatePlanned.mutateAsync({
+      id: planned.id,
+      patch: { status: 'done', transaction_id: transactionId },
+    })
+  }
+
   /** Đẩy con trỏ sang kỳ vừa ghi. Gọi SAU khi giao dịch đã lưu thành công. */
   async function markBillDone() {
     if (!billRule || !billDueISO) return
@@ -133,7 +176,7 @@ export function EntryPage() {
           <ChevronLeft className="h-5 w-5" /> Đóng
         </button>
         <h1 className="flex-1 text-center text-base font-bold text-fg-primary">
-          {billRule ? 'Ghi khoản đến hạn' : 'Nhập giao dịch'}
+          {billRule || planned ? 'Ghi khoản đến hạn' : 'Nhập giao dịch'}
         </h1>
         {/* Nút "Loại đặc biệt" do TransactionForm portal vào đây. Chiều rộng đặt cứng
             (xấp xỉ nút "Đóng" bên trái) để tiêu đề không nhảy chỗ khi nút ẩn đi lúc
@@ -149,19 +192,25 @@ export function EntryPage() {
           <ChevronRight className="inline h-4 w-4" />
         </Link>
       )}
-      {waitingForRule ? (
+      {waitingForRule || waitingForPlanned ? (
         <p className="py-10 text-center text-sm text-fg-muted">Đang tải khoản đến hạn…</p>
       ) : (
       <TransactionForm
         // Khoá theo kỳ: mở lời nhắc khác trong cùng một lần vào màn (từ chuông sang
         // chuông) phải gieo lại form, không giữ số của kỳ trước.
-        key={billRule && billDueISO ? `bill-${billRule.id}-${billDueISO}` : 'new'}
-        submitLabel={billRule ? 'Ghi và đánh dấu đã trả' : 'Lưu'}
+        key={
+          billRule && billDueISO
+            ? `bill-${billRule.id}-${billDueISO}`
+            : planned
+              ? `planned-${planned.id}`
+              : 'new'
+        }
+        submitLabel={billRule || planned ? 'Ghi và đánh dấu đã chi' : 'Lưu'}
         // Khoản đến hạn KHÔNG có "Tiếp tục": nút đó lưu rồi ở lại nhập tiếp, mà con
         // trỏ kỳ chỉ được đẩy ở nhánh "Lưu" — bấm nhầm là ghi xong mà lời nhắc vẫn
         // còn nguyên. Xác nhận một khoản là việc một lần, không phải nhập liên tục.
-        continueLabel={billRule ? undefined : 'Tiếp tục'}
-        initial={billPrefill}
+        continueLabel={billRule || planned ? undefined : 'Tiếp tục'}
+        initial={billPrefill ?? plannedPrefill}
         initialType={initialType}
         enableTemplates
         enableRoles
@@ -181,12 +230,23 @@ export function EntryPage() {
         }}
         // Lưu: ghi giao dịch rồi quay về Sổ GD
         onSubmit={async (values) => {
-          await create.mutateAsync(values)
+          const row = await create.mutateAsync(values)
           await markBillDone()
+          await markPlannedDone(row.id)
           navigate('/')
         }}
+        // "Nhắc sau": chưa chi đồng nào, chỉ tạo một khoản sắp chi rồi về Sổ.
+        onSubmitPlanned={async (input) => {
+          await createPlanned.mutateAsync(input)
+          setToast({ text: 'Đã tạo lời nhắc', ok: true })
+          clearTimeout(toastTimer.current)
+          toastTimer.current = setTimeout(() => {
+            setToast(null)
+            navigate('/planned')
+          }, 1000)
+        }}
         // Tiếp tục: ghi giao dịch, hiện toast (kèm hoàn tác) rồi ở lại nhập tiếp
-        onContinue={billRule ? undefined : async (values) => {
+        onContinue={billRule || planned ? undefined : async (values) => {
           const row = await create.mutateAsync(values)
           setToast({ text: 'Đã lưu', undoId: row.id, ok: true })
           clearTimeout(toastTimer.current)

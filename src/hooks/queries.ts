@@ -10,11 +10,13 @@ import {
   type NewCategory,
   type NewDebt,
   type NewDebtPayment,
+  type NewPlannedExpense,
   type NewRecurringRule,
   type NewSavingsGoal,
   type NewStockTrade,
   type NewTransaction,
   type NewValuation,
+  type PlannedExpensePatch,
   type ProfilePatch,
   type RecurringRulePatch,
   type NewTag,
@@ -144,6 +146,41 @@ function invalidateTransactionData(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['transactionTags'] })
   // Và tổng chi cả đời của nhãn — nó đọc chính số tiền vừa đổi, không chỉ liên kết.
   qc.invalidateQueries({ queryKey: ['tagSpend'] })
+}
+
+// --- Khoản sắp chi (migration 0038) ---
+
+export function usePlannedExpenses() {
+  return useQuery({
+    queryKey: ['plannedExpenses'],
+    queryFn: () => repo.getPlannedExpenses(),
+    staleTime: 60_000,
+  })
+}
+
+export function useCreatePlannedExpense() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewPlannedExpense) => repo.createPlannedExpense(input),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['plannedExpenses'] }),
+  })
+}
+
+export function useUpdatePlannedExpense() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: PlannedExpensePatch }) =>
+      repo.updatePlannedExpense(id, patch),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['plannedExpenses'] }),
+  })
+}
+
+export function useDeletePlannedExpense() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => repo.deletePlannedExpense(id),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['plannedExpenses'] }),
+  })
 }
 
 // --- Nhãn cắt ngang danh mục ---

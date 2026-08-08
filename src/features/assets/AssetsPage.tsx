@@ -4,12 +4,13 @@
 //   Diễn biến — "tôi đang tiến bộ không"    (lịch sử ròng, hiệu quả đầu tư, mục tiêu)
 //   Tương lai — "sau này thế nào"           (Lifetime)
 // Xem docs/information-architecture.md §2.3.
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Settings2 } from 'lucide-react'
+import { LineChart, Settings2 } from 'lucide-react'
 import { DataFreshness } from '../../components/DataFreshness'
 import { PrivacyToggle } from '../../components/PrivacyToggle'
-import { SegmentedControl, type SegmentedItem } from '../../components/ui'
+import { iconButtonClass, SegmentedControl, type SegmentedItem } from '../../components/ui'
+import { useAccounts } from '../../hooks/queries'
 import { useAssetsFreshness } from '../../hooks/useDataFreshness'
 import type { CurrencyCode } from '../../lib/money'
 import { AssetsNowView } from './AssetsNowView'
@@ -37,6 +38,16 @@ const Loading = () => <p className="py-10 text-center text-sm text-fg-muted">Đa
 
 export function AssetsPage() {
   const freshness = useAssetsFreshness()
+  // Lối vào trang Đầu tư. Điều kiện phải TRÙNG KHÍT với useInvestData (đầu tư + VND +
+  // chưa lưu trữ) — icon dẫn tới một trang nói "chưa có tài khoản chứng khoán nào" thì
+  // tệ hơn là không có icon. useAccounts đã nằm trong cache của tab Hiện tại nên đây
+  // không thêm lượt gọi mạng nào.
+  const { data: accounts = [] } = useAccounts()
+  const hasStockAccount = useMemo(
+    () =>
+      accounts.some((a) => a.type === 'investment' && a.currency === 'VND' && !a.is_archived),
+    [accounts],
+  )
   // "Xem thử bằng tiền khác" — sống ở vỏ trang để hai tab Hiện tại/Diễn biến dùng
   // chung một lựa chọn (đổi ở tab này, qua tab kia vẫn giữ). null = theo tiền gốc;
   // không lưu vì chỉ là ước chừng. Tab Tương lai KHÔNG theo nút này — Lifetime có
@@ -61,6 +72,15 @@ export function AssetsPage() {
       <div className="flex items-center gap-2">
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Tài sản</h1>
         <PrivacyToggle />
+        {/* Danh mục cổ phiếu là trang riêng, không phải tab con: nó gộp MỌI tài khoản
+            chứng khoán nên không thuộc về "Hiện tại" hay "Diễn biến" hơn cái nào. Đặt
+            icon ở header giống /planned và /recurring ở tab Sổ — trước đây chỉ vào được
+            bằng link 11px nằm sâu hai lớp. */}
+        {hasStockAccount && (
+          <Link to="/invest" className={iconButtonClass()} aria-label="Danh mục cổ phiếu">
+            <LineChart className="h-5 w-5" />
+          </Link>
+        )}
         {/* "Quản lý nhóm" chỉ cấu hình cách cắt lát của tab Hiện tại — ở hai tab kia nó
             là nút không liên quan tới thứ đang xem. */}
         {view === 'now' && (

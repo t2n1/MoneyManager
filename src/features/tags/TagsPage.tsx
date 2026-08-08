@@ -19,6 +19,7 @@ import { confirmDialog, showToast } from '../../lib/dialog'
 import type { TagBudgetPeriod, TagRow } from '../../types/database.types'
 import { ActionButton } from '../../components/ui/ActionButton'
 import { TAG_CHIP_CLASS, TAG_COLOR_KEYS, TAG_COLOR_LABELS, tagColor } from './colors'
+import { QuickSortStrip, readQuickSortDone, writeQuickSortDone } from './QuickSortStrip'
 
 /** Hai kiểu kỳ của trần nhãn — xem migration 0036. */
 const PERIODS: readonly (readonly [TagBudgetPeriod, string, string])[] = [
@@ -42,6 +43,7 @@ export function TagsPage() {
   const [groupDraft, setGroupDraft] = useState('')
   const [groupError, setGroupError] = useState<string | null>(null)
   const [newTagGroup, setNewTagGroup] = useState<string>('')
+  const [quickSortDone, setQuickSortDone] = useState(readQuickSortDone)
 
   const usageOf = (tagId: string) => links.filter((l) => l.tag_id === tagId).length
 
@@ -297,6 +299,8 @@ export function TagsPage() {
         hàng chip. Xong chuyến thì <b>lưu trữ</b> nhãn: nó ẩn khỏi form nhập nhưng số liệu vẫn còn.
       </p>
 
+      {!quickSortDone && <QuickSortStrip onDone={() => setQuickSortDone(true)} />}
+
       <div className="mb-3 flex gap-2">
         <input
           value={draft}
@@ -414,6 +418,18 @@ export function TagsPage() {
               Nhóm là CÂU HỎI, nhãn là câu trả lời: nhóm “Với ai?” chứa “Người yêu”, “Bạn bè”.
               Khi nhập giao dịch, mỗi nhóm hiện thành một hàng chip riêng.
             </p>
+            {quickSortDone && (
+              <button
+                type="button"
+                onClick={() => {
+                  writeQuickSortDone(false)
+                  setQuickSortDone(false)
+                }}
+                className="mb-2 min-h-9 px-1 text-xs font-medium text-fg-accent"
+              >
+                Mở lại dải xếp nhãn vào nhóm
+              </button>
+            )}
             <div className="flex gap-2">
               <input
                 value={groupDraft}

@@ -121,8 +121,8 @@ export function SearchPage() {
   const { data: rawResults = [], isLoading } = useSearchTransactions(filter)
   // Nhãn lọc sau cùng, phía client: bảng liên kết nhỏ và đã nằm sẵn trong cache
   const results = useMemo(
-    () => filterByTags(rawResults, tagLinks, tagIds),
-    [rawResults, tagLinks, tagIds],
+    () => filterByTags(rawResults, tagLinks, tagIds, tags),
+    [rawResults, tagLinks, tagIds, tags],
   )
   // Chip nhãn trên từng dòng — cùng cách trình bày với danh sách ở Sổ
   const tagsOfTx = useMemo(() => tagsByTransaction(tagLinks, tags), [tagLinks, tags])

@@ -356,12 +356,21 @@ export function TagsPage() {
                       {s.groupId ? (
                         <input
                           defaultValue={s.title}
-                          onBlur={(e) => {
+                          onBlur={async (e) => {
                             const name = e.target.value.trim()
+                            const input = e.target
                             if (name && name !== s.title) {
-                              updateGroup.mutate({ id: s.groupId!, patch: { name } })
+                              setGroupError(null)
+                              try {
+                                await updateGroup.mutateAsync({ id: s.groupId!, patch: { name } })
+                              } catch (err) {
+                                setGroupError(
+                                  err instanceof Error ? err.message : 'Không đổi được tên nhóm',
+                                )
+                                input.value = s.title
+                              }
                             } else {
-                              e.target.value = s.title
+                              input.value = s.title
                             }
                           }}
                           aria-label={`Tên nhóm ${s.title}`}

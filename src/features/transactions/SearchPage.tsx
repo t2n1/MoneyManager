@@ -69,6 +69,9 @@ export function SearchPage() {
         title: 'Khác',
         list: tags.filter((t) => !t.group_id || !known.has(t.group_id)),
       },
+    // Bỏ mọi section rỗng, KỂ CẢ nhóm có tên: khác ô chọn nhãn khi nhập (nhóm rỗng
+    // vẫn hiện để còn chỗ thêm nhãn đầu tiên), ở đây là bộ lọc — nhóm rỗng không có
+    // gì để lọc nên chỉ là tiêu đề chết, cố tình khác chứ không phải thiếu sót.
     ].filter((s) => s.list.length > 0)
   }, [tags, tagGroups])
 
@@ -141,8 +144,8 @@ export function SearchPage() {
   const { data: rawResults = [], isLoading } = useSearchTransactions(filter)
   // Nhãn lọc sau cùng, phía client: bảng liên kết nhỏ và đã nằm sẵn trong cache
   const results = useMemo(
-    () => filterByTags(rawResults, tagLinks, tagIds, tags),
-    [rawResults, tagLinks, tagIds, tags],
+    () => filterByTags(rawResults, tagLinks, tagIds, tags, tagGroups),
+    [rawResults, tagLinks, tagIds, tags, tagGroups],
   )
   // Chip nhãn trên từng dòng — cùng cách trình bày với danh sách ở Sổ
   const tagsOfTx = useMemo(() => tagsByTransaction(tagLinks, tags), [tagLinks, tags])

@@ -6,7 +6,12 @@
 
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
-import type { TagRow, TransactionRow, TransactionTagRow } from '../../types/database.types'
+import type {
+  TagGroupRow,
+  TagRow,
+  TransactionRow,
+  TransactionTagRow,
+} from '../../types/database.types'
 import { expenseSign, type CurrencyOf } from '../reports/aggregate'
 
 export interface TagSlice {
@@ -179,7 +184,9 @@ const OTHER_GROUP = '__other__'
  * Nhãn ngoài nhóm (mục "Khác") gộp chung thành một nhóm ảo, tức OR với nhau — giữ
  * nguyên hành vi cũ cho sổ chưa xếp nhóm bao giờ, và giữ cho deep-link `?tags=a,b`
  * từ thẻ "Chi theo nhãn" không đổi nghĩa. Nhãn không có trong `tags` (liên kết mồ
- * côi) cũng rơi vào nhóm ảo đó.
+ * côi) cũng rơi vào nhóm ảo đó — cùng nhóm ảo đó còn có nhãn mà `group_id` trỏ tới
+ * một nhóm đã bị xóa (không còn trong `groups`), giống ba nơi hiển thị khác (ô
+ * chọn nhãn, trang Nhãn, màn Tìm kiếm) đều coi group_id mồ côi là chưa xếp nhóm.
  *
  * Lọc phía client vì bảng liên kết nhãn nhỏ và đã được tải sẵn cho báo cáo;
  * đẩy xuống SQL sẽ cần một vòng truy vấn nữa mà không nhanh hơn.
@@ -189,10 +196,14 @@ export function filterByTags(
   links: TransactionTagRow[],
   tagIds: string[],
   tags: TagRow[],
+  groups: TagGroupRow[],
 ): TransactionRow[] {
   if (tagIds.length === 0) return txs
 
-  const groupOf = new Map(tags.map((t) => [t.id, t.group_id ?? OTHER_GROUP]))
+  const known = new Set(groups.map((g) => g.id))
+  const groupOf = new Map(
+    tags.map((t) => [t.id, t.group_id && known.has(t.group_id) ? t.group_id : OTHER_GROUP]),
+  )
   const buckets = new Map<string, Set<string>>()
   for (const id of tagIds) {
     const key = groupOf.get(id) ?? OTHER_GROUP

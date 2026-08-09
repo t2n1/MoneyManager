@@ -22,7 +22,7 @@ import {
 const WINDOW = 24
 const ROLL = 3
 
-const monthLabel = (k: MonthKey) => `${String(k.year).slice(2)}/${k.month}`
+const monthLabel = (k: MonthKey) => `${k.year}/${k.month}`
 const signPct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1).replace('.', ',')}%`
 
 /** Khung thẻ chung của tab này. */

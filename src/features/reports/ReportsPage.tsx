@@ -341,7 +341,7 @@ export function ReportsPage() {
     categoryMonthlySeries(rangeTxs, sixMonths, kind, new Set(ids), monthStartDay, currencyOf, base, rates ?? {}).points
   const lineSeriesYear = (ids: string[]) =>
     categoryMonthlySeries(yearTxs, twelveMonths, kind, new Set(ids), monthStartDay, currencyOf, base, rates ?? {}).points
-  const lineLabelMonth = (k: MonthKey) => `${String(k.year).slice(2)}/${k.month}`
+  const lineLabelMonth = (k: MonthKey) => `${k.year}/${k.month}`
   const lineLabelYear = (k: MonthKey) => String(k.month)
 
   return (
@@ -498,7 +498,7 @@ export function ReportsPage() {
                 series={series}
                 base={base}
                 title="Thu / chi 6 tháng gần nhất"
-                labelOf={(k) => `${String(k.year).slice(2)}/${k.month}`}
+                labelOf={(k) => `${k.year}/${k.month}`}
                 currentKey={currentKey}
               />
             </Section>
@@ -507,7 +507,7 @@ export function ReportsPage() {
                 series={series}
                 base={base}
                 title="Dòng tiền ròng 6 tháng gần nhất"
-                labelOf={(k) => `${String(k.year).slice(2)}/${k.month}`}
+                labelOf={(k) => `${k.year}/${k.month}`}
                 currentKey={currentKey}
               />
             </Section>

@@ -72,7 +72,7 @@ export function MonthStrip({ items, active, onPick, base, label }: Props) {
             }`}
           >
             <span className="text-2xs leading-tight">
-              {String(it.key.year).slice(2)}/{it.key.month}
+              {it.key.year}/{it.key.month}
             </span>
             {/* Tháng đang chọn có nền màu nhấn nên <Money> phải nhường màu cho chữ trắng —
                 token màu tiền trên nền xanh sẽ không đọc được. */}

@@ -156,7 +156,7 @@ export function CategoryDetailPage() {
 
   const lineColor = kind === 'expense' ? '#ef4444' : '#16a34a'
   const labelOf = (k: MonthKey) =>
-    period === 'month' ? `${String(k.year).slice(2)}/${k.month}` : String(k.month)
+    period === 'month' ? `${k.year}/${k.month}` : String(k.month)
   const periodLabel =
     period === 'month' ? formatMonthLabel(activeMonthKey) : formatYearLabel(activeYear)
 

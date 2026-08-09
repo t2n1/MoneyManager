@@ -42,7 +42,7 @@ export function addMonths(key: MonthKey, delta: number): MonthKey {
 }
 
 export function formatMonthLabel(key: MonthKey): string {
-  return `Tháng ${key.month}/${key.year}`
+  return `${key.year}/${pad(key.month)}`
 }
 
 /** MonthKey → "YYYY-MM" (dùng cho budgets.month_key). */
@@ -95,17 +95,17 @@ export function addDaysISO(iso: string, delta: number): string {
 // Nhãn thứ trong tuần cho ngày đến hạn thẻ (đã dời sang ngày làm việc nên chỉ rơi T2–T6)
 const WEEKDAY_VI = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
 
-/** "T2, 27/7" cho một ngày ISO — dùng cho ngày đến hạn trả thẻ. */
+/** "T2, 7/27" (tháng/ngày) cho một ngày ISO — dùng cho ngày đến hạn trả thẻ. */
 export function dueDateLabel(iso: string): string {
   const [, m, d] = iso.split('-').map(Number)
   const dow = new Date(iso + 'T00:00:00Z').getUTCDay()
-  return `${WEEKDAY_VI[dow]}, ${d}/${m}`
+  return `${WEEKDAY_VI[dow]}, ${m}/${d}`
 }
 
-/** "1/8" cho một ngày ISO — dùng khi chỉ cần mốc ngày, không cần thứ. */
+/** "8/1" (tháng/ngày) cho một ngày ISO — dùng khi chỉ cần mốc ngày, không cần thứ. */
 export function dayMonthLabel(iso: string): string {
   const [, m, d] = iso.split('-').map(Number)
-  return `${d}/${m}`
+  return `${m}/${d}`
 }
 
 /** "hôm nay" · "ngày mai" · "còn N ngày" từ hôm nay đến hạn. */

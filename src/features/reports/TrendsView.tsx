@@ -22,7 +22,7 @@ import {
 const WINDOW = 24
 const ROLL = 3
 
-const monthLabel = (k: MonthKey) => `${k.month}/${String(k.year).slice(2)}`
+const monthLabel = (k: MonthKey) => `${String(k.year).slice(2)}/${k.month}`
 const signPct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1).replace('.', ',')}%`
 
 /** Khung thẻ chung của tab này. */
@@ -313,7 +313,7 @@ export function TrendsView() {
                         : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                     }`}
                   >
-                    <b>Từ tháng {monthLabel(at.key)}</b>: mức chi {up ? 'tăng' : 'giảm'} từ{' '}
+                    <b>Từ {monthLabel(at.key)}</b>: mức chi {up ? 'tăng' : 'giảm'} từ{' '}
                     {money(cp.before)} lên {money(cp.after)}/tháng
                     {pct !== null && ` (${signPct(pct)})`} và giữ nguyên mức mới sau đó.
                   </li>

@@ -25,9 +25,9 @@ const OUTLOOK_MONTHS = 3
 
 const MONTH_LABEL = (key: string) => {
   const [y, m] = key.split('-')
-  return `Tháng ${Number(m)}/${y}`
+  return `${y}/${m.padStart(2, '0')}`
 }
-const ngay = (iso: string) => `${Number(iso.slice(8, 10))}/${Number(iso.slice(5, 7))}`
+const ngay = (iso: string) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}`
 
 export function PlannedPage() {
   const { data: rows = [], isLoading } = usePlannedExpenses()

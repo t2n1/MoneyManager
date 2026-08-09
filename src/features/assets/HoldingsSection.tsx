@@ -23,7 +23,7 @@ interface Props {
 const pct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1).replace('.', ',')}%`
 
 /** Ngày ISO → dd/mm để đọc nhanh. */
-const ngayNgan = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
+const ngayNgan = (iso: string) => `${iso.slice(5, 7)}/${iso.slice(8, 10)}`
 
 export function HoldingsSection({ account, balance, onAddTrade, onEditTrade }: Props) {
   const { data: allTrades = [] } = useStockTrades()

@@ -111,7 +111,7 @@ export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = nul
                   ? [`${Number(v)}%`, 'Giữ lại']
                   : [formatMoney(Number(v), base), name === 'income' ? 'Thu' : 'Chi']
               }
-              labelFormatter={(l) => `Tháng ${l}`}
+              labelFormatter={(l) => String(l)}
               // Nền/viền/chữ tooltip do index.css xử lý theo dark mode (.recharts-default-tooltip)
               contentStyle={{ borderRadius: 8, fontSize: 12 }}
               // Con trỏ hover trung tính, dịu ở CẢ nền sáng lẫn tối (mặc định recharts
@@ -155,7 +155,7 @@ export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = nul
       {trend && (
         <div className="mt-2">
           <VerdictNote tone={trend.tone}>
-            Tháng {labelOf(trend.lastKey)} chi{' '}
+            {labelOf(trend.lastKey)} chi{' '}
             <b>{formatMoney(Math.round(trend.last), base)}</b>
             {trend.tone === 'info' ? ', đi ngang so với ' : ', '}
             {trend.tone !== 'info' && (

@@ -204,7 +204,7 @@ export function useMonthPace(monthKey: MonthKey): MonthPace {
     budgetForecast,
     forecastApprox,
     cashflowData: cashflow.points.map((p) => ({
-      label: `${Number(p.date.slice(8))}/${Number(p.date.slice(5, 7))}`,
+      label: `${Number(p.date.slice(5, 7))}/${Number(p.date.slice(8))}`,
       balance: p.balance,
     })),
     hasCashflow: cashflow.points.some((p) => p.balance !== 0),
@@ -319,7 +319,7 @@ export function MonthPaceCharts({ pace }: { pace: MonthPace }) {
                 <ReferenceLine y={0} stroke="var(--fg-muted)" />
                 <Tooltip
                   formatter={(v) => formatMoney(Number(v), base)}
-                  labelFormatter={(l) => `Ngày ${l}`}
+                  labelFormatter={(l) => String(l)}
                   contentStyle={{ borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb' }}
                 />
                 {/* sky-600 chứ không sky-500: sky-500 chỉ 2,77:1 trên nền trắng, dưới

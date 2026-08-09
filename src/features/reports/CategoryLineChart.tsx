@@ -30,7 +30,7 @@ export function CategoryLineChart({ points, base, color, labelOf, title }: Props
             />
             <Tooltip
               formatter={(v) => [formatMoney(Number(v), base), 'Số tiền']}
-              labelFormatter={(l) => `Tháng ${l}`}
+              labelFormatter={(l) => String(l)}
               contentStyle={{ borderRadius: 8, fontSize: 12 }}
               cursor={{ stroke: 'rgba(148,163,184,0.4)' }}
             />

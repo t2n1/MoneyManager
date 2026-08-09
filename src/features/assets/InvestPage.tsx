@@ -19,7 +19,7 @@ const VND = 'VND' as const
 const pct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1).replace('.', ',')}%`
 const share = (v: number) => `${(v * 100).toFixed(1).replace('.', ',')}%`
 /** ISO → dd/mm/yy — sổ lệnh trải nhiều năm nên phải có năm. */
-const ngay = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}`
+const ngay = (iso: string) => `${iso.slice(2, 4)}/${iso.slice(5, 7)}/${iso.slice(8, 10)}`
 
 const KIND_LABEL: Record<StockTradeRow['kind'], string> = {
   buy: 'Mua',

@@ -56,7 +56,7 @@ export function SpendHeatmapCard({ points, base }: Props) {
           ) : (
             <div
               key={p.date}
-              title={`${Number(p.date.slice(8))}/${Number(p.date.slice(5, 7))}: ${formatMoney(p.expense, base)}`}
+              title={`${Number(p.date.slice(5, 7))}/${Number(p.date.slice(8))}: ${formatMoney(p.expense, base)}`}
               className={`flex aspect-square items-center justify-center rounded text-3xs ${LEVEL_BG[levelOf(p.expense)]} ${
                 levelOf(p.expense) >= 3 ? 'text-white' : 'text-gray-500 dark:text-gray-300'
               }`}

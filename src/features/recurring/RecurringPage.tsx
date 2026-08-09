@@ -51,16 +51,16 @@ const AMOUNT_COLOR: Record<RecurringRuleRow['type'], string> = {
 
 const fmtDate = (iso: string) => {
   const [y, m, d] = iso.split('-')
-  return `${Number(d)}/${Number(m)}/${y}`
+  return `${y}/${Number(m)}/${Number(d)}`
 }
 
-/** "Hàng tháng · ngày 25" / "Hàng tuần · Thứ 2" / "Hàng năm · 25/12" */
+/** "Hàng tháng · ngày 25" / "Hàng tuần · Thứ 2" / "Hàng năm · 12/25" (tháng/ngày) */
 function scheduleLabel(rule: RecurringRuleRow): string {
   const [, m, d] = rule.start_on.split('-').map(Number)
   if (rule.frequency === 'weekly')
     return `${FREQ_LABEL.weekly} · ${WEEKDAYS[new Date(rule.start_on + 'T00:00:00').getDay()]}`
   if (rule.frequency === 'monthly') return `${FREQ_LABEL.monthly} · ngày ${d}`
-  return `${FREQ_LABEL.yearly} · ${d}/${m}`
+  return `${FREQ_LABEL.yearly} · ${m}/${d}`
 }
 
 /** Màn quản lý giao dịch định kỳ (Cài đặt → Giao dịch định kỳ). */

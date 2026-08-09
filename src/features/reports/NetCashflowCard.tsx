@@ -71,7 +71,7 @@ export function NetCashflowCard({ series, base, title, labelOf, currentKey = nul
                 formatMoney(Number(v), base),
                 name === 'net' ? 'Ròng tháng' : 'Tích lũy',
               ]}
-              labelFormatter={(l) => `Tháng ${l}`}
+              labelFormatter={(l) => String(l)}
               // Nền/viền/chữ tooltip do index.css xử lý theo dark mode (.recharts-default-tooltip)
               contentStyle={{ borderRadius: 8, fontSize: 12 }}
               cursor={{ fill: 'rgba(148,163,184,0.15)' }}

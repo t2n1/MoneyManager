@@ -63,7 +63,7 @@ describe('cardMonthCharge', () => {
 
   it('vẫn tính khoản bù của "Chỉnh cho khớp" (ghi chú khác)', () => {
     // Không tính thì chỉnh xong tổng tháng vẫn lệch y như cũ
-    const txs = [ex(112_760), ex(3_000, { note: 'Điều chỉnh sao kê tháng 8/2026' })]
+    const txs = [ex(112_760), ex(3_000, { note: 'Điều chỉnh sao kê 2026/08' })]
     expect(cardMonthCharge('card', txs)).toBe(115_760)
   })
 })

@@ -9,6 +9,7 @@ import {
   useDeleteTransactions,
   useRates,
   useSearchTransactions,
+  useTagGroups,
   useTags,
   useTransactionTags,
 } from '../../hooks/queries'
@@ -49,8 +50,30 @@ export function SearchPage() {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const { data: tags = [] } = useTags()
+  const { data: tagGroups = [] } = useTagGroups()
   const { data: tagLinks = [] } = useTransactionTags()
   const { base, rates } = useRates()
+
+  /** Nhãn của màn lọc chia theo nhóm. Khác ô chọn nhãn khi nhập ở hai điểm:
+   *  hiện CẢ nhãn đã lưu trữ (lọc lịch sử vẫn cần chúng), và không cắt top-N. */
+  const tagSections = useMemo(() => {
+    const known = new Set(tagGroups.map((g) => g.id))
+    return [
+      ...tagGroups.map((g) => ({
+        key: g.id,
+        title: g.name,
+        list: tags.filter((t) => t.group_id === g.id),
+      })),
+      {
+        key: '__other__',
+        title: 'Khác',
+        list: tags.filter((t) => !t.group_id || !known.has(t.group_id)),
+      },
+    // Bỏ mọi section rỗng, KỂ CẢ nhóm có tên: khác ô chọn nhãn khi nhập (nhóm rỗng
+    // vẫn hiện để còn chỗ thêm nhãn đầu tiên), ở đây là bộ lọc — nhóm rỗng không có
+    // gì để lọc nên chỉ là tiêu đề chết, cố tình khác chứ không phải thiếu sót.
+    ].filter((s) => s.list.length > 0)
+  }, [tags, tagGroups])
 
   // Deep-link từ thẻ "Chi theo nhãn": ?tags=id1,id2&from=…&to=… . Chỉ đọc một lần
   // lúc mount — sau đó người dùng làm chủ bộ lọc, URL không kéo ngược lại nữa.
@@ -121,8 +144,8 @@ export function SearchPage() {
   const { data: rawResults = [], isLoading } = useSearchTransactions(filter)
   // Nhãn lọc sau cùng, phía client: bảng liên kết nhỏ và đã nằm sẵn trong cache
   const results = useMemo(
-    () => filterByTags(rawResults, tagLinks, tagIds),
-    [rawResults, tagLinks, tagIds],
+    () => filterByTags(rawResults, tagLinks, tagIds, tags, tagGroups),
+    [rawResults, tagLinks, tagIds, tags, tagGroups],
   )
   // Chip nhãn trên từng dòng — cùng cách trình bày với danh sách ở Sổ
   const tagsOfTx = useMemo(() => tagsByTransaction(tagLinks, tags), [tagLinks, tags])
@@ -255,33 +278,40 @@ export function SearchPage() {
       </button>
       {showMore && (
         <div className="mb-3 space-y-3 rounded-xl bg-surface-sunken p-3">
-          {tags.length > 0 && (
+          {tagSections.length > 0 && (
             <div>
               <p className="mb-1.5 text-xs font-semibold text-fg-muted">
                 Nhãn{' '}
                 <span className="font-normal text-fg-muted">
-                  (chọn nhiều = khớp bất kỳ)
+                  (trong cùng nhóm = khớp bất kỳ · khác nhóm = phải khớp đủ)
                 </span>
               </p>
-              <div className="flex flex-wrap gap-1.5">
-                {tags.map((t) => {
-                  const active = tagIds.includes(t.id)
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setTagIds((l) => toggle(l, t.id))}
-                      aria-pressed={active}
-                      className={`rounded-full px-3 py-2.5 text-xs font-medium transition ${
-                        active
-                          ? 'bg-green-700 text-white'
-                          : TAG_CHIP_CLASS[tagColor(t.color)]
-                      }`}
-                    >
-                      {t.name}
-                    </button>
-                  )
-                })}
+              <div className="flex flex-col gap-2">
+                {tagSections.map((s) => (
+                  <div key={s.key}>
+                    <p className="mb-1 text-2xs font-semibold text-fg-muted">{s.title}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {s.list.map((t) => {
+                        const active = tagIds.includes(t.id)
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setTagIds((l) => toggle(l, t.id))}
+                            aria-pressed={active}
+                            className={`rounded-full px-3 py-2.5 text-xs font-medium transition ${
+                              active
+                                ? 'bg-green-700 text-white'
+                                : TAG_CHIP_CLASS[tagColor(t.color)]
+                            }`}
+                          >
+                            {t.name}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -372,7 +402,7 @@ export function SearchPage() {
                 {tagIds
                   .map((id) => tags.find((t) => t.id === id)?.name)
                   .filter(Boolean)
-                  .join(', ')}
+                  .join(' + ')}
               </span>
               <button
                 type="button"

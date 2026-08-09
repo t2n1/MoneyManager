@@ -31,6 +31,7 @@ import type {
   StockTradeKind,
   StockTradeRow,
   TagBudgetPeriod,
+  TagGroupRow,
   TagRow,
   TagSpendRow,
   TaxShelter,
@@ -72,10 +73,12 @@ export interface BackupData {
   lifeEvents?: LifeEventRow[]
   /** Sổ lệnh cổ phiếu Việt Nam; vắng mặt ở backup v1–v6. */
   stockTrades?: StockTradeRow[]
+  /** Nhóm nhãn (migration 0039); vắng mặt ở backup v1–v7. */
+  tagGroups?: TagGroupRow[]
 }
 
-/** Phiên bản định dạng backup hiện hành. v7: thêm stockTrades. */
-export const BACKUP_VERSION = 7
+/** Phiên bản định dạng backup hiện hành. v8: thêm tagGroups. */
+export const BACKUP_VERSION = 8
 
 export interface NewTransaction {
   type: TransactionType
@@ -401,9 +404,17 @@ export interface NewTag {
   budget_amount?: number | null
   /** Kỳ của trần; chỉ có nghĩa khi `budget_amount` khác null. */
   budget_period?: TagBudgetPeriod
+  /** Nhóm của nhãn (xem migration 0039); bỏ trống = ngoài nhóm (mục "Khác"). */
+  group_id?: string | null
 }
 
 export type TagPatch = Partial<NewTag & { sort_order: number; is_archived: boolean }>
+
+export interface NewTagGroup {
+  name: string
+}
+
+export type TagGroupPatch = Partial<NewTagGroup & { sort_order: number }>
 
 // Toàn bộ đọc/ghi dữ liệu đi qua interface này.
 // 2 implementation: demoRepo (localStorage) và supabaseRepo (Postgres + RLS).
@@ -542,6 +553,12 @@ export interface Repo {
   insertCardAutopay(input: NewTransaction): Promise<boolean>
 
   // --- Nhãn cắt ngang danh mục ---
+  /** Nhóm nhãn, đã sắp theo sort_order tăng dần. */
+  getTagGroups(): Promise<TagGroupRow[]>
+  createTagGroup(input: NewTagGroup): Promise<TagGroupRow>
+  updateTagGroup(id: string, patch: TagGroupPatch): Promise<TagGroupRow>
+  /** Xóa nhóm; nhãn trong nhóm rơi về `group_id: null` (KHÔNG bị xóa theo). */
+  deleteTagGroup(id: string): Promise<void>
   getTags(): Promise<TagRow[]>
   /** Toàn bộ liên kết giao dịch ↔ nhãn của user; UI tự lọc. */
   getTransactionTags(): Promise<TransactionTagRow[]>

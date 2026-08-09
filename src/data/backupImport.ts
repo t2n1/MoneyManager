@@ -67,6 +67,7 @@ export function validateBackupPayload(data: BackupData): string[] {
   const transactionIds = ids(data.transactions, 'giao dịch')
   const debtIds = ids(data.debts, 'khoản nợ')
   const tagIds = ids(data.tags, 'nhãn')
+  const tagGroupIds = ids(data.tagGroups, 'nhóm nhãn')
   const scenarioIds = ids(data.lifeScenarios, 'kịch bản Lifetime')
   const recurringIds = ids(data.recurringRules, 'quy tắc định kỳ')
 
@@ -158,6 +159,14 @@ export function validateBackupPayload(data: BackupData): string[] {
 
   const tagName = uniques('tên nhãn')
   for (const t of data.tags ?? []) tagName(t.name, t.name)
+
+  const tagGroupName = uniques('tên nhóm nhãn')
+  for (const g of data.tagGroups ?? []) tagGroupName(g.name, g.name)
+
+  // group_id là FK; file trỏ sai sẽ nổ 23503 SAU khi importAll đã xoá sạch dữ liệu cũ.
+  for (const t of data.tags ?? [])
+    if (t.group_id && !tagGroupIds.has(t.group_id))
+      p.add('Nhóm nhãn không có trong file', `${t.name} → ${t.group_id}`)
 
   const groupName = uniques('tên nhóm tài sản')
   for (const s of data.assetGroupSettings ?? []) groupName(s.name, s.name)

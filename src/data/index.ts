@@ -22,6 +22,7 @@ export type {
   NewSavingsGoal,
   NewStockTrade,
   NewTag,
+  NewTagGroup,
   NewTransaction,
   NewValuation,
   PlannedExpensePatch,
@@ -31,6 +32,7 @@ export type {
   Repo,
   StockTradePatch,
   TagPatch,
+  TagGroupPatch,
   TransactionPatch,
   TxFilter,
 } from './repo'

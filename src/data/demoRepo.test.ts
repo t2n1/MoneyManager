@@ -662,7 +662,7 @@ describe('demoRepo: sổ lệnh cổ phiếu', () => {
 
   it('sao lưu mang theo sổ lệnh và khôi phục lại được', async () => {
     const backup = await demoRepo.exportAll()
-    expect(backup.version).toBe(7)
+    expect(backup.version).toBe(8)
     expect(Array.isArray(backup.stockTrades)).toBe(true)
 
     await demoRepo.importAll(backup)
@@ -960,5 +960,64 @@ describe('getAccountBalances — tự tính market_value cho tài khoản tự �
     const balances = await demoRepo.getAccountBalances()
     const row = balances.find((b) => b.id === acc.id)
     expect(row?.market_value).toBeNull()
+  })
+})
+
+describe('nhóm nhãn (migration 0039)', () => {
+  it('tạo nhóm và đọc lại theo sort_order', async () => {
+    const a = await demoRepo.createTagGroup({ name: 'Với ai?' })
+    const b = await demoRepo.createTagGroup({ name: 'Ở đâu?' })
+    const list = await demoRepo.getTagGroups()
+    expect(list.map((g) => g.name)).toEqual(['Với ai?', 'Ở đâu?'])
+    expect(a.sort_order).toBeLessThan(b.sort_order)
+  })
+
+  it('chặn trùng tên nhóm — Postgres có unique(user_id, name), demo phải tự làm', async () => {
+    await demoRepo.createTagGroup({ name: 'Với ai?' })
+    await expect(demoRepo.createTagGroup({ name: 'Với ai?' })).rejects.toThrow('đã tồn tại')
+  })
+
+  it('chặn trùng tên khi ĐỔI TÊN nhóm', async () => {
+    await demoRepo.createTagGroup({ name: 'Với ai?' })
+    const b = await demoRepo.createTagGroup({ name: 'Ở đâu?' })
+    await expect(demoRepo.updateTagGroup(b.id, { name: 'Với ai?' })).rejects.toThrow('đã tồn tại')
+  })
+
+  it('cắt khoảng trắng thừa ở tên nhóm', async () => {
+    const g = await demoRepo.createTagGroup({ name: '  Với ai?  ' })
+    expect(g.name).toBe('Với ai?')
+  })
+
+  it('tạo nhãn kèm nhóm; nhãn không khai nhóm thì group_id = null', async () => {
+    const g = await demoRepo.createTagGroup({ name: 'Với ai?' })
+    const withGroup = await demoRepo.createTag({ name: 'Người yêu', color: 'pink', group_id: g.id })
+    const without = await demoRepo.createTag({ name: 'Về VN 2026', color: 'sky' })
+    expect(withGroup.group_id).toBe(g.id)
+    expect(without.group_id).toBeNull()
+  })
+
+  it('xoá nhóm THẢ nhãn ra chứ không xoá nhãn, và giữ nguyên liên kết giao dịch', async () => {
+    const g = await demoRepo.createTagGroup({ name: 'Ở đâu?' })
+    const tag = await demoRepo.createTag({ name: 'Tokyo', color: 'sky', group_id: g.id })
+    const acc = await demoRepo.createAccount(accountInput())
+    const cat = (await demoRepo.getCategories()).find((c) => c.type === 'expense')!
+    const tx = await demoRepo.createTransaction(expenseTx(acc.id, cat.id))
+    await demoRepo.setTransactionTags(tx.id, [tag.id])
+
+    await demoRepo.deleteTagGroup(g.id)
+
+    const tags = await demoRepo.getTags()
+    expect(tags.map((t) => t.name)).toContain('Tokyo')
+    expect(tags.find((t) => t.id === tag.id)?.group_id).toBeNull()
+    expect(await demoRepo.getTransactionTags()).toHaveLength(1)
+  })
+
+  it('db demo cũ (chưa có cột group_id) đọc ra null chứ không undefined', async () => {
+    const tag = await demoRepo.createTag({ name: 'Cũ', color: 'gray' })
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)!)
+    for (const t of raw.tags) delete t.group_id
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(raw))
+    const back = (await demoRepo.getTags()).find((t) => t.id === tag.id)!
+    expect(back.group_id).toBeNull()
   })
 })

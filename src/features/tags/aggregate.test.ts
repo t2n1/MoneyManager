@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { TagRow, TransactionRow, TransactionTagRow } from '../../types/database.types'
+import type { TagGroupRow, TagRow, TransactionRow, TransactionTagRow } from '../../types/database.types'
 import type { Rates } from '../../lib/rates'
 import { filterByTags, pickerTags, tagBreakdown, tagsByTransaction } from './aggregate'
 
@@ -12,6 +12,7 @@ const tag = (id: string, name: string, p: Partial<TagRow> = {}): TagRow => ({
   name,
   color: 'sky',
   sort_order: 0,
+  group_id: null,
   is_archived: false,
   budget_amount: null,
   budget_period: 'total',
@@ -243,29 +244,114 @@ describe('filterByTags', () => {
   const b = tx({ type: 'expense', amount: 200, id: 'b' })
   const c = tx({ type: 'income', amount: 300, id: 'c' })
   const LINKS = [link('a', 've-vn'), link('b', 'qua'), link('c', 've-vn')]
+  // Nhãn ngoài nhóm (mục Khác) — giữ đúng hành vi cũ.
+  const FLAT = [tag('ve-vn', 'Về VN 2026'), tag('qua', 'Quà cáp')]
 
   it('danh sách nhãn rỗng = không lọc', () => {
-    expect(filterByTags([a, b, c], LINKS, [])).toEqual([a, b, c])
+    expect(filterByTags([a, b, c], LINKS, [], FLAT, [])).toEqual([a, b, c])
   })
 
   it('lọc đúng một nhãn, giữ nguyên thứ tự đầu vào', () => {
-    expect(filterByTags([a, b, c], LINKS, ['ve-vn'])).toEqual([a, c])
+    expect(filterByTags([a, b, c], LINKS, ['ve-vn'], FLAT, [])).toEqual([a, c])
   })
 
-  it('nhiều nhãn = khớp BẤT KỲ (OR), không phải giao', () => {
-    expect(filterByTags([a, b, c], LINKS, ['ve-vn', 'qua'])).toEqual([a, b, c])
+  it('nhiều nhãn CÙNG mục = khớp BẤT KỲ (OR)', () => {
+    expect(filterByTags([a, b, c], LINKS, ['ve-vn', 'qua'], FLAT, [])).toEqual([a, b, c])
   })
 
   it('giao dịch mang 2 nhãn chỉ xuất hiện một lần', () => {
     const both = [...LINKS, link('a', 'qua')]
-    expect(filterByTags([a, b], both, ['ve-vn', 'qua'])).toEqual([a, b])
+    expect(filterByTags([a, b], both, ['ve-vn', 'qua'], FLAT, [])).toEqual([a, b])
   })
 
   it('nhãn không có giao dịch nào → rỗng', () => {
-    expect(filterByTags([a, b, c], LINKS, ['khong-ton-tai'])).toEqual([])
+    expect(filterByTags([a, b, c], LINKS, ['khong-ton-tai'], FLAT, [])).toEqual([])
   })
 
   it('bỏ qua link trỏ tới giao dịch ngoài tập đang xét', () => {
-    expect(filterByTags([b], LINKS, ['ve-vn'])).toEqual([])
+    expect(filterByTags([b], LINKS, ['ve-vn'], FLAT, [])).toEqual([])
+  })
+
+  describe('hai nhóm khác nhau = VÀ', () => {
+    const TAGS = [
+      tag('nguoi-yeu', 'Người yêu', { group_id: 'g-who' }),
+      tag('ban-be', 'Bạn bè', { group_id: 'g-who' }),
+      tag('tokyo', 'Tokyo', { group_id: 'g-where' }),
+      tag('osaka', 'Osaka', { group_id: 'g-where' }),
+    ]
+    const group = (id: string, name: string, sort_order: number): TagGroupRow => ({
+      id,
+      user_id: 'u',
+      name,
+      sort_order,
+      created_at: '',
+    })
+    const GROUPS = [group('g-who', 'Với ai?', 0), group('g-where', 'Ở đâu?', 1)]
+    // x: người yêu + Tokyo · y: người yêu + Osaka · z: bạn bè + Tokyo · w: chỉ Tokyo
+    const x = tx({ type: 'expense', amount: 1, id: 'x' })
+    const y = tx({ type: 'expense', amount: 1, id: 'y' })
+    const z = tx({ type: 'expense', amount: 1, id: 'z' })
+    const w = tx({ type: 'expense', amount: 1, id: 'w' })
+    const L = [
+      link('x', 'nguoi-yeu'),
+      link('x', 'tokyo'),
+      link('y', 'nguoi-yeu'),
+      link('y', 'osaka'),
+      link('z', 'ban-be'),
+      link('z', 'tokyo'),
+      link('w', 'tokyo'),
+    ]
+    const ALL = [x, y, z, w]
+
+    it('người yêu + Tokyo = khoản có ĐỦ CẢ HAI', () => {
+      expect(filterByTags(ALL, L, ['nguoi-yeu', 'tokyo'], TAGS, GROUPS)).toEqual([x])
+    })
+
+    it('trong cùng nhóm vẫn là HOẶC: Tokyo + Osaka = cả hai nơi', () => {
+      expect(filterByTags(ALL, L, ['tokyo', 'osaka'], TAGS, GROUPS)).toEqual([x, y, z, w])
+    })
+
+    it('kết hợp: (người yêu HOẶC bạn bè) VÀ Tokyo', () => {
+      expect(filterByTags(ALL, L, ['nguoi-yeu', 'ban-be', 'tokyo'], TAGS, GROUPS)).toEqual([x, z])
+    })
+
+    it('nhãn ở mục Khác gộp thành MỘT nhóm ảo, OR với nhau', () => {
+      const tags2 = [...TAGS, tag('ve-vn', 'Về VN 2026'), tag('dam-cuoi', 'Đám cưới')]
+      const l2 = [...L, link('w', 've-vn'), link('y', 'dam-cuoi')]
+      expect(filterByTags(ALL, l2, ['ve-vn', 'dam-cuoi'], tags2, GROUPS)).toEqual([y, w])
+    })
+
+    it('nhãn mục Khác VÀ nhãn có nhóm: vẫn giao nhau', () => {
+      const tags2 = [...TAGS, tag('ve-vn', 'Về VN 2026')]
+      const l2 = [...L, link('w', 've-vn'), link('x', 've-vn')]
+      expect(filterByTags(ALL, l2, ['ve-vn', 'nguoi-yeu'], tags2, GROUPS)).toEqual([x])
+    })
+
+    it('nhãn không có trong danh sách tags rơi vào nhóm ảo mục Khác', () => {
+      expect(filterByTags(ALL, L, ['tokyo', 'la-hoac'], TAGS, GROUPS)).toEqual([])
+    })
+
+    it('nhãn có group_id trỏ tới nhóm ĐÃ XÓA gộp vào nhóm ảo Khác, OR với nhãn chưa xếp nhóm', () => {
+      // "mo-coi" có group_id trỏ tới nhóm không còn trong GROUPS; "ve-vn" chưa xếp nhóm.
+      // Cả hai phải rơi vào CÙNG nhóm ảo Khác nên OR với nhau → khớp cả x lẫn y. Nếu
+      // group_id mồ côi bị tính thành bucket riêng thì hóa VÀ → rỗng (bug đã sửa, và
+      // đây là điểm filterByTags trước kia lệch khỏi ô chọn nhãn / trang Nhãn / Tìm kiếm).
+      const tags2 = [
+        ...TAGS,
+        tag('mo-coi', 'Mồ côi', { group_id: 'g-da-xoa' }),
+        tag('ve-vn', 'Về VN 2026'),
+      ]
+      const l2 = [...L, link('x', 'mo-coi'), link('y', 've-vn')]
+      expect(filterByTags(ALL, l2, ['mo-coi', 've-vn'], tags2, GROUPS)).toEqual([x, y])
+    })
+
+    it('nhãn đã lưu trữ vẫn lọc được (lưu trữ chỉ ẩn khỏi form nhập)', () => {
+      const tags2 = [
+        tag('cu', 'Nhãn cũ', { group_id: 'g-who', is_archived: true }),
+        ...TAGS.filter((t) => t.group_id === 'g-where'),
+      ]
+      const l2 = [...L, link('w', 'cu')]
+      expect(filterByTags(ALL, l2, ['cu', 'tokyo'], tags2, GROUPS)).toEqual([w])
+    })
   })
 })

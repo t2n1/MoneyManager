@@ -11,6 +11,7 @@ const tag = (over: Partial<TagRow> & { id: string }): TagRow => ({
   name: `Nhãn ${over.id}`,
   color: 'green',
   sort_order: 0,
+  group_id: null,
   is_archived: false,
   budget_amount: null,
   budget_period: 'total',

@@ -45,6 +45,29 @@ export function parseDensity(raw: string | null | undefined): DensityPref {
   return raw === 'visual' || raw === 'full' ? raw : DEFAULT_DENSITY
 }
 
+/**
+ * Chế độ mà HỒ SƠ đang nói, hoặc `null` khi nó chưa nói gì.
+ *
+ * Khác `parseDensity` ở đúng một chỗ, và chỗ đó là một lỗi đã xảy ra thật: `undefined`
+ * phải ra `null`, KHÔNG ra giá trị mặc định.
+ *
+ * Vì sao: `useProfile` đặt `staleTime: Infinity` và cache được lưu xuống localStorage
+ * (24h), nên một máy có thể đang giữ bản hồ sơ tải TRƯỚC migration 0040 — bản đó không
+ * có cột `density_pref`. Nếu coi "thiếu cột" là "visual" thì `useDensitySync` sẽ ghi đè
+ * bản sao ở máy về Gọn, kể cả khi người dùng đã chọn Đầy đủ ở máy khác. Và vì hồ sơ
+ * không tự refetch (staleTime Infinity), nó ép như vậy suốt cho tới khi cache hết hạn.
+ *
+ * Trả `null` thì bản sao ở máy được giữ nguyên, và giá trị thật thắng ngay khi có lượt
+ * fetch hồ sơ mới (đăng nhập lại, invalidate sau khi bấm đổi, hoặc cache hết hạn).
+ *
+ * Chuỗi RÁC thì vẫn về mặc định: DB có `check in ('visual','full')` nên giá trị lạ là
+ * bất thường, và lúc đó mặc định là ứng xử an toàn — khác hẳn với "cột chưa tồn tại".
+ */
+export function densityFromProfile(raw: unknown): DensityPref | null {
+  if (typeof raw !== 'string') return null
+  return parseDensity(raw)
+}
+
 function readMirror(): DensityPref {
   try {
     return parseDensity(localStorage.getItem(STORAGE_KEY))

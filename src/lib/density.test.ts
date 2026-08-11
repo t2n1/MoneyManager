@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_DENSITY,
+  densityFromProfile,
   getMirroredDensity,
   parseDensity,
   resetDensityCache,
@@ -57,6 +58,38 @@ describe('parseDensity', () => {
   it('mặc định là Gọn — phải KHỚP `default \'visual\'` của cột ở migration 0040', () => {
     // Lệch nhau thì người dùng mới thấy app nhảy chế độ ngay khi hồ sơ về.
     expect(DEFAULT_DENSITY).toBe('visual')
+  })
+})
+
+describe('densityFromProfile', () => {
+  it('đọc đúng hai giá trị hợp lệ từ cột hồ sơ', () => {
+    expect(densityFromProfile('visual')).toBe('visual')
+    expect(densityFromProfile('full')).toBe('full')
+  })
+
+  it('THIẾU cột → null, không phải mặc định', () => {
+    // Đây là lỗi thật, phát hiện khi chạy app với Supabase thật: cache hồ sơ trên máy
+    // được lưu TRƯỚC migration 0040 nên không có cột `density_pref`. Nếu coi
+    // undefined là 'visual' thì useDensitySync ghi đè bản sao về Gọn, kể cả khi người
+    // dùng đã chọn Đầy đủ ở máy khác — và vì useProfile đặt staleTime: Infinity, nó
+    // ép như vậy tới khi cache hết hạn (24h).
+    //
+    // Đổi `densityFromProfile` về `parseDensity` là test này đỏ.
+    expect(densityFromProfile(undefined)).toBeNull()
+    expect(densityFromProfile(null)).toBeNull()
+  })
+
+  it('giá trị không phải chuỗi cũng là "chưa nói gì"', () => {
+    expect(densityFromProfile(0)).toBeNull()
+    expect(densityFromProfile(false)).toBeNull()
+    expect(densityFromProfile({})).toBeNull()
+  })
+
+  it('chuỗi RÁC thì về mặc định — khác hẳn thiếu cột', () => {
+    // DB có check in ('visual','full') nên giá trị lạ là bất thường; lúc đó mặc định
+    // là ứng xử an toàn. Nhưng "cột chưa tồn tại" thì phải để bản sao ở máy quyết.
+    expect(densityFromProfile('compact')).toBe(DEFAULT_DENSITY)
+    expect(densityFromProfile('')).toBe(DEFAULT_DENSITY)
   })
 })
 

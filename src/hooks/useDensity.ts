@@ -1,8 +1,8 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { showToast } from '../lib/dialog'
 import {
+  densityFromProfile,
   getMirroredDensity,
-  parseDensity,
   setMirroredDensity,
   subscribeDensity,
   type DensityPref,
@@ -44,7 +44,10 @@ export function useDensity(): { pref: DensityPref; visual: boolean } {
  */
 export function useDensitySync() {
   const { data: profile } = useProfile()
-  const fromProfile = profile ? parseDensity(profile.density_pref) : null
+  // densityFromProfile, KHÔNG phải parseDensity: hồ sơ thiếu cột (bản cache tải trước
+  // migration 0040) phải ra null = "chưa nói gì", không phải giá trị mặc định. Xem
+  // chú thích ở src/lib/density.ts — dùng parseDensity ở đây là ép chế độ về Gọn.
+  const fromProfile = densityFromProfile(profile?.density_pref)
 
   useEffect(() => {
     if (fromProfile !== null) setMirroredDensity(fromProfile)

@@ -67,7 +67,13 @@ describe('sao lưu — khôi phục không được bỏ sót cột hồ sơ', (
    * check ở DB). Luật chỉ đòi hai điều — cột có mặt làm khoá, và giá trị đọc từ file.
    */
   const updateBlock = (() => {
-    const from = supabaseRepo.lastIndexOf(".from('profiles')\n          .update({")
+    // Tìm bằng regex có `\s*`, KHÔNG so khớp chuỗi có `\n` viết cứng: repo đặt
+    // core.autocrlf=true nên cùng một dòng nguồn ra `\n` hay `\r\n` tuỳ file đã bị git
+    // viết lại hay chưa. Bản đầu của luật này so khớp cứng và đỏ ngay lúc merge sang
+    // master — chỉ vì checkout đổi xuống dòng, không vì code sai.
+    const marker = /\.from\('profiles'\)\s*\.update\(\{/g
+    let from = -1
+    for (const m of supabaseRepo.matchAll(marker)) from = m.index
     expect(from, "không tìm thấy khối .from('profiles').update({…}) của importAll").toBeGreaterThan(-1)
     const open = supabaseRepo.indexOf('{', supabaseRepo.indexOf('.update(', from))
     let depth = 0

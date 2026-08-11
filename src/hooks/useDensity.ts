@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react'
+import { useIsMutating } from '@tanstack/react-query'
 import { showToast } from '../lib/dialog'
 import {
   densityFromProfile,
@@ -7,7 +8,7 @@ import {
   subscribeDensity,
   type DensityPref,
 } from '../lib/density'
-import { useProfile, useUpdateProfile } from './queries'
+import { PROFILE_MUTATION_KEY, useProfile, useUpdateProfile } from './queries'
 
 /**
  * Ba hook cho ba vai, cố ý KHÔNG gộp thành một:
@@ -41,6 +42,10 @@ export function useDensity(): { pref: DensityPref; visual: boolean } {
  * Máy mới (bản sao còn trống) vẫn có một nhịp hiện chế độ mặc định trước khi hồ sơ về.
  * Chấp nhận: chặn render để đợi thì cả app trắng màn, mà lúc đó phần lớn màn hình đang
  * hiện khung xương chờ chính hồ sơ đó rồi.
+ *
+ * Đây là chỗ làm nên việc "đổi ở máy này, máy kia thấy": hồ sơ có `staleTime` hữu hạn
+ * (useProfile.ts) nên nhấc máy khác lên — cold start hoặc focus lại cửa sổ — là có lượt
+ * tải mới, rồi effect này ghi giá trị đó vào bản sao.
  */
 export function useDensitySync() {
   const { data: profile } = useProfile()
@@ -49,9 +54,17 @@ export function useDensitySync() {
   // chú thích ở src/lib/density.ts — dùng parseDensity ở đây là ép chế độ về Gọn.
   const fromProfile = densityFromProfile(profile?.density_pref)
 
+  // Đang có lượt ghi hồ sơ chạy thì ĐỪNG bơm. Từ khi hồ sơ có staleTime hữu hạn
+  // (useProfile.ts), một lượt tải nền bắt đầu TRƯỚC lúc bấm có thể về SAU và mang giá
+  // trị cũ — không chặn thì công tắc vừa bấm lật ngược rồi lật lại, thấy rõ trên màn
+  // Cài đặt. Bản sao ở máy chính là "bản nháp" của cài đặt này, giống cách
+  // NotificationSettingsPage cho `pendingOff` thắng hồ sơ trong lúc chờ.
+  const dangGhi = useIsMutating({ mutationKey: PROFILE_MUTATION_KEY }) > 0
+
   useEffect(() => {
+    if (dangGhi) return
     if (fromProfile !== null) setMirroredDensity(fromProfile)
-  }, [fromProfile])
+  }, [fromProfile, dangGhi])
 }
 
 /** Đọc + ghi, cho nút trong Cài đặt. `saving` để khoá nút trong lúc gửi. */

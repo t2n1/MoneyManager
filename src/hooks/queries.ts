@@ -39,9 +39,15 @@ import { useProfile } from './useProfile'
 
 export { useProfile }
 
+/** Khoá để nơi khác đếm được "đang có lượt ghi hồ sơ chạy" bằng `useIsMutating`. */
+export const PROFILE_MUTATION_KEY = ['profile-update'] as const
+
 export function useUpdateProfile() {
   const qc = useQueryClient()
   return useMutation({
+    // mutationKey KHÔNG dùng để cache gì cả — nó chỉ để `useDensitySync` biết mà tạm
+    // ngừng bơm giá trị từ hồ sơ vào bản sao trong lúc đang gửi. Xem useDensity.ts.
+    mutationKey: PROFILE_MUTATION_KEY,
     mutationFn: (patch: ProfilePatch) => repo.updateProfile(patch),
     // PHẢI return promise này (không phải gọi rồi bỏ qua): React Query đợi promise
     // của onSettled này xong rồi mới chạy onSettled truyền vào .mutate() ở nơi gọi.

@@ -189,6 +189,18 @@ Nguồn sự thật là **hồ sơ người dùng** (`profiles.density_pref`, mi
 
 Gộp ba cái thành một thì mỗi chỗ đọc cũng kéo theo một `useQuery(['profile'])` và một `useMutation`. `setMirroredDensity` thoát ngay khi trùng giá trị — không chặn thì mỗi lần hồ sơ refetch là cả cây render lại.
 
+### Hai bẫy của "cột hồ sơ mới", đã đạp cả hai
+
+**1. Thiếu cột ≠ giá trị mặc định.** Cache hồ sơ được persist xuống localStorage (24h). Một máy có thể đang giữ bản tải TRƯỚC migration — bản đó không có `density_pref`. Coi `undefined` là `'visual'` thì `useDensitySync` **ghi đè lựa chọn của người dùng** về Gọn. Dùng `densityFromProfile()`: không phải chuỗi → `null` = "hồ sơ chưa nói gì", để bản sao ở máy quyết. Chuỗi RÁC thì vẫn về mặc định (DB có `check`, giá trị lạ là bất thường — khác hẳn cột chưa tồn tại).
+
+**2. `staleTime: Infinity` giết đồng bộ giữa máy.** `useProfile` từng đặt vậy với lý do "hồ sơ hầu như không đổi". Lý do đó hết đúng khi hồ sơ mang một cài đặt người dùng đổi được: đổi trên điện thoại thì laptop không bao giờ tải lại, hiện chế độ cũ cả ngày. Đã đổi sang **60 giây**. React Query không hẹn giờ — nó chỉ tải lại khi có observer mới mount hoặc khi cửa sổ được focus lại, nên phiên đang dùng liên tục gần như không thêm lượt nào, còn đúng lúc cần (nhấc máy khác lên) thì luôn có bản mới.
+
+Kèm theo: `useDensitySync` **tạm ngừng bơm khi đang có lượt ghi hồ sơ** (`useIsMutating` với `PROFILE_MUTATION_KEY`). Từ khi `staleTime` hữu hạn, một lượt tải nền bắt đầu trước lúc bấm có thể về sau và mang giá trị cũ → công tắc lật ngược rồi lật lại. Bản sao ở máy chính là "bản nháp" của cài đặt này, giống cách `NotificationSettingsPage` cho `pendingOff` thắng hồ sơ trong lúc chờ.
+
+Đo trên app thật (localhost + Supabase thật): ghi `full` từ "máy A", rồi dựng "máy B" (bản sao `visual`, cache hồ sơ cũ 10 phút nói `visual`) → tải lại thì máy B nhận `full`. Lùi `staleTime` về `Infinity` rồi chạy lại đúng phép thử đó: máy B **đứng ở `visual`** — tức phép thử phân biệt được, không phải xanh vì may.
+
+Phạm vi đã kiểm: đường **mount** (mở app / tải lại). Đường **focus** (tab đang mở sẵn) chưa kiểm được — sự kiện `visibilitychange` phát bằng tay không làm đổi trạng thái focus nội bộ của React Query nên bộ đếm request nằm im, và đó là giới hạn của phép thử chứ không phải bằng chứng app sai.
+
 Đo trên app đang chạy: hồ sơ `full` + bản sao `visual` → sau khi tải, bản sao thành `full` và trang Báo cáo về đúng 1.694 ký tự của chế độ Đầy đủ. Chặn lượt ghi hồ sơ cho lỗi → bản sao đổi tức thì rồi trả về cũ, kèm toast.
 
 |  | Gọn (`visual`) | Đầy đủ (`full`) |

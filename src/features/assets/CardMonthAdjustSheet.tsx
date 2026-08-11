@@ -112,9 +112,10 @@ export function CardMonthAdjustSheet({
           {formatMoney(charged, currency)}
         </p>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">
           Tổng thật trên sao kê
-        </label>
+        </span>
         <div className="mb-3">
           <MoneyField
             value={entered}

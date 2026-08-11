@@ -282,7 +282,9 @@ export function ImportCsvPage() {
         )}
         <div className="mt-2 flex items-center gap-2 text-xs text-fg-muted">
           <span>Mã hóa:</span>
+          {/* "Mã hóa:" là <span> chứ không <label htmlFor>, nên tên ô phải đi qua aria-label */}
           <select
+            aria-label="Mã hóa file"
             value={encoding}
             onChange={(e) => changeEncoding(e.target.value as Encoding)}
             className={selectCls}

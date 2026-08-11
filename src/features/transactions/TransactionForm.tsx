@@ -833,7 +833,14 @@ export function TransactionForm({
             = {formatMoney(result, currency)}
           </span>
         )}
+        {/* `aria-label` ở ĐÂY nữa, không chỉ ở nút chạm phía trên: hai ô luôn cùng nằm
+            trong DOM, chỉ ẩn/hiện bằng `lg:hidden` / `hidden lg:block` — nên trên desktop
+            ô thật sự dùng được là ô này, mà nó đang KHÔNG có tên nào. Nhãn nhìn bằng mắt
+            là <span> nên `htmlFor` không cứu được. MoneyField đã sửa đúng chỗ này hôm
+            2026-07-30; bản copy trong file này bị bỏ sót. Không ghép giá trị vào tên như
+            nút chạm: giá trị đã nằm trong `value`, ghép nữa thì đọc hai lần. */}
         <input
+          aria-label={label ?? 'Số tiền'}
           inputMode="numeric"
           value={inputValue}
           onChange={(e) => {
@@ -992,19 +999,26 @@ export function TransactionForm({
       <div className="flex flex-wrap items-center gap-2">
         {type === 'transfer' ? (
           <>
+            {/* `ariaLabel` bắt buộc ở đây: hai picker đứng cạnh nhau, chỉ cách nhau một
+                mũi tên "→" mang aria-hidden — không có nó thì cả hai đọc ra y như nhau
+                ("Ví MoMo · ¥, button") và không biết đâu là nguồn đâu là đích. */}
             <AccountPicker
               accounts={activeAccounts}
               value={effectiveAccountId}
               onChange={setAccountId}
               excludeId={toAccountId}
+              ariaLabel="Từ tài khoản"
               className="min-w-[7rem] flex-1"
             />
-            <span className="shrink-0 text-fg-muted">→</span>
+            <span aria-hidden className="shrink-0 text-fg-muted">
+              →
+            </span>
             <AccountPicker
               accounts={activeAccounts}
               value={toAccountId}
               onChange={setToAccountId}
               excludeId={effectiveAccountId}
+              ariaLabel="Đến tài khoản"
               className="min-w-[7rem] flex-1"
             />
           </>
@@ -1013,6 +1027,7 @@ export function TransactionForm({
             accounts={pickerAccounts}
             value={effectiveAccountId}
             onChange={setAccountId}
+            ariaLabel="Tài khoản"
             className="min-w-0 flex-1"
           />
         )}
@@ -1215,7 +1230,10 @@ export function TransactionForm({
           tiên — ghi chú chen ở trên vừa tách hai bước bắt buộc (tiền → danh mục),
           vừa dễ chạm nhầm làm bàn phím hệ thống bật lên che numpad. */}
       <div className="flex gap-1.5">
+        {/* Không có nhãn nhìn bằng mắt (cố ý — form Nhập ưu tiên gọn), nên tên ô phải đi
+            qua `aria-label`. Placeholder KHÔNG phải tên: nó mất ngay khi bắt đầu gõ. */}
         <input
+          aria-label="Ghi chú"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           onKeyDown={(e) => {

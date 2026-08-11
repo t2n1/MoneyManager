@@ -227,6 +227,7 @@ export function SearchPage() {
       <div className="mb-2 flex items-center gap-2 rounded-xl bg-surface px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-green-500">
         <Search className="h-5 w-5 text-fg-muted" />
         <input
+          aria-label="Tìm theo ghi chú"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Tìm theo ghi chú…"
@@ -258,14 +259,20 @@ export function SearchPage() {
 
       {/* Khoảng ngày */}
       <div className="mb-2 flex items-center gap-2 text-sm text-fg-secondary">
+        {/* Hai ô ngày chỉ phân biệt nhau bằng mũi tên "→" ở giữa — mà mũi tên là trang trí,
+            screen reader nghe cả hai y như nhau ("date"). Tên phải nằm trên từng ô. */}
         <input
+          aria-label="Từ ngày"
           type="date"
           value={from}
           onChange={(e) => setFrom(e.target.value)}
           className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-2 py-1.5"
         />
-        <span className="text-fg-muted">→</span>
+        <span aria-hidden className="text-fg-muted">
+          →
+        </span>
         <input
+          aria-label="Đến ngày"
           type="date"
           value={to}
           onChange={(e) => setTo(e.target.value)}

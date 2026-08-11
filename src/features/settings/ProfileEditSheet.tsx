@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { useUpdateProfile } from '../../hooks/queries'
 import { clampMonthStartDay } from '../../lib/dates'
@@ -16,6 +16,7 @@ const DAY_OPTIONS = Array.from({ length: 28 }, (_, i) => i + 1)
 /** Sheet sửa tên hiển thị + ngày bắt đầu tháng. Loại tiền gốc chỉ hiển thị. */
 export function ProfileEditSheet({ profile, onClose }: Props) {
   useEscClose(onClose)
+  const uid = useId()
   const update = useUpdateProfile()
   const [name, setName] = useState(profile.display_name ?? '')
   const [day, setDay] = useState(clampMonthStartDay(profile.month_start_day))
@@ -91,8 +92,11 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           </button>
         </div>
 
-        <label className="block text-xs font-medium text-fg-muted">Tên hiển thị</label>
+        <label htmlFor={`${uid}-name`} className="block text-xs font-medium text-fg-muted">
+          Tên hiển thị
+        </label>
         <input
+          id={`${uid}-name`}
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -100,8 +104,11 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           className="mt-1 w-full rounded-xl border border-border-strong bg-surface p-3 text-fg-primary focus:border-green-500 focus:outline-none"
         />
 
-        <label className="mt-3 block text-xs font-medium text-fg-muted">Ngày bắt đầu tháng</label>
+        <label htmlFor={`${uid}-day`} className="mt-3 block text-xs font-medium text-fg-muted">
+          Ngày bắt đầu tháng
+        </label>
         <select
+          id={`${uid}-day`}
           value={day}
           onChange={(e) => setDay(Number(e.target.value))}
           className="mt-1 w-full rounded-xl border border-border-strong bg-surface p-3 text-fg-primary focus:border-green-500 focus:outline-none"
@@ -114,8 +121,11 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
         </select>
         <p className="mt-1 text-xs text-fg-muted">Ảnh hưởng cách tính tháng trong báo cáo.</p>
 
-        <label className="mt-3 block text-xs font-medium text-fg-muted">Loại tiền gốc</label>
+        <label htmlFor={`${uid}-base`} className="mt-3 block text-xs font-medium text-fg-muted">
+          Loại tiền gốc
+        </label>
         <input
+          id={`${uid}-base`}
           value={`${profile.base_currency} · ${CURRENCIES[profile.base_currency].label}`}
           disabled
           className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-surface-sunken p-3 text-fg-muted"
@@ -127,10 +137,11 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           Cho báo cáo nâng cao
         </h3>
 
-        <label className="mt-2 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-wage`} className="mt-2 block text-xs font-medium text-fg-muted">
           Thu nhập mỗi giờ làm
         </label>
         <input
+          id={`${uid}-wage`}
           inputMode="numeric"
           value={wage === '' ? '' : formatMoney(Number(wage), profile.base_currency)}
           onChange={(e) => setWage(e.target.value.replace(/\D/g, ''))}
@@ -143,10 +154,11 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
 
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-infl`} className="block text-xs font-medium text-fg-muted">
               Lạm phát năm (%)
             </label>
             <input
+              id={`${uid}-infl`}
               inputMode="decimal"
               value={inflation}
               onChange={(e) => setInflation(e.target.value)}
@@ -155,10 +167,11 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-tax`} className="block text-xs font-medium text-fg-muted">
               Thuế lãi vốn (%)
             </label>
             <input
+              id={`${uid}-tax`}
               inputMode="decimal"
               value={tax}
               onChange={(e) => setTax(e.target.value)}
@@ -177,16 +190,19 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           Mốc cơ cấu chi (% thu nhập)
         </h3>
         <div className="mt-2 grid grid-cols-3 gap-2">
+          {/* `slug` chứ không dùng `label` làm id: id HTML không được chứa khoảng trắng,
+              mà nhãn ở đây là "Thiết yếu" / "Tiết kiệm". */}
           {[
-            { label: 'Thiết yếu', value: essential, set: setEssential, ph: '50' },
-            { label: 'Linh hoạt', value: flexible, set: setFlexible, ph: '30' },
-            { label: 'Tiết kiệm', value: savings, set: setSavings, ph: '20' },
+            { slug: 'essential', label: 'Thiết yếu', value: essential, set: setEssential, ph: '50' },
+            { slug: 'flexible', label: 'Linh hoạt', value: flexible, set: setFlexible, ph: '30' },
+            { slug: 'savings', label: 'Tiết kiệm', value: savings, set: setSavings, ph: '20' },
           ].map((f) => (
-            <div key={f.label}>
-              <label className="block text-xs font-medium text-fg-muted">
+            <div key={f.slug}>
+              <label htmlFor={`${uid}-${f.slug}`} className="block text-xs font-medium text-fg-muted">
                 {f.label}
               </label>
               <input
+                id={`${uid}-${f.slug}`}
                 inputMode="decimal"
                 value={f.value}
                 onChange={(e) => f.set(e.target.value)}

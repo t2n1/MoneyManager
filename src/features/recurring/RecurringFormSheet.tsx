@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import type { NewRecurringRule } from '../../data'
 import {
@@ -47,6 +47,7 @@ interface Props {
 /** Sheet thêm/sửa một quy tắc định kỳ. */
 export function RecurringFormSheet({ rule, onClose }: Props) {
   useEscClose(onClose)
+  const uid = useId()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const create = useCreateRecurringRule()
@@ -192,29 +193,34 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         </div>
 
         {/* Tài khoản (+ đích nếu chuyển khoản) */}
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        {/* <span> chứ không <label htmlFor>: AccountPicker là <button>, mà tên đọc được
+            của <button> tính từ NỘI DUNG — `<label for>` không đặt tên cho nó. Tên đi vào
+            qua `ariaLabel` (chữ sr-only bên trong nút). */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">
           {type === 'transfer' ? 'Từ tài khoản' : 'Tài khoản'}
-        </label>
+        </span>
         <div className="mb-3">
           <AccountPicker
             accounts={activeAccounts}
             value={effectiveAccountId}
             onChange={setAccountId}
             excludeId={toAccountId}
+            ariaLabel={type === 'transfer' ? 'Từ tài khoản' : 'Tài khoản'}
             className="w-full"
           />
         </div>
         {type === 'transfer' && (
           <>
-            <label className="mb-1 block text-xs font-medium text-fg-muted">
+            <span className="mb-1 block text-xs font-medium text-fg-muted">
               Đến tài khoản
-            </label>
+            </span>
             <div className="mb-3">
               <AccountPicker
                 accounts={activeAccounts}
                 value={toAccountId}
                 onChange={setToAccountId}
                 excludeId={effectiveAccountId}
+                ariaLabel="Đến tài khoản"
                 className="w-full"
               />
             </div>
@@ -224,10 +230,11 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         {/* Danh mục (ẩn khi chuyển khoản) */}
         {type !== 'transfer' && (
           <>
-            <label className="mb-1 block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-cat`} className="mb-1 block text-xs font-medium text-fg-muted">
               Danh mục
             </label>
             <select
+              id={`${uid}-cat`}
               value={categoryId ?? ''}
               onChange={(e) => setCategoryId(e.target.value)}
               className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm text-gray-700 dark:text-gray-300"
@@ -257,15 +264,16 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         )}
 
         {/* Số tiền */}
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">
           Số tiền ({srcCurrency})
-        </label>
+        </span>
         <div className="mb-3">{moneyInput(amount, setAmount, srcCurrency, 'Số tiền')}</div>
         {crossCurrency && (
           <>
-            <label className="mb-1 block text-xs font-medium text-fg-muted">
+            <span className="mb-1 block text-xs font-medium text-fg-muted">
               Nhận được ({dstCurrency})
-            </label>
+            </span>
             <div className="mb-3">
               {moneyInput(toAmount, setToAmount, dstCurrency, 'Nhận được', false)}
             </div>
@@ -274,8 +282,14 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
 
         {/* Kiểu quy tắc — quyết định lớn nhất của cả form, nên đứng trước chu kỳ:
             "app tự ghi hộ" và "app chỉ nhắc" là hai thứ khác hẳn nhau. */}
-        <label className="mb-1 block text-xs font-medium text-fg-muted">Khi tới hạn</label>
-        <div className="mb-1 flex overflow-hidden rounded-lg border border-border-strong">
+        {/* Nhãn cho một HÀNG NÚT, không cho một ô — nên <span> + role="group" mang tên,
+            đúng cách SegmentedControl đang làm ở chỗ khác. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">Khi tới hạn</span>
+        <div
+          role="group"
+          aria-label="Khi tới hạn"
+          className="mb-1 flex overflow-hidden rounded-lg border border-border-strong"
+        >
           {MODE_OPTIONS.map(([value, label]) => (
             <button
               key={value}
@@ -296,11 +310,12 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
 
         {mode === 'remind' && (
           <>
-            <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="remind-days">
+            {/* id sinh động thay cho "remind-days" viết cứng — cùng lý do ghi ở uid trên. */}
+            <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor={`${uid}-remind`}>
               Nhắc trước mấy ngày
             </label>
             <input
-              id="remind-days"
+              id={`${uid}-remind`}
               inputMode="numeric"
               value={remindDays}
               onChange={(e) => setRemindDays(e.target.value.replace(/[^\d]/g, '').slice(0, 2))}
@@ -313,10 +328,11 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         {/* Chu kỳ + ngày bắt đầu / kết thúc */}
         <div className="mb-3 grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-freq`} className="mb-1 block text-xs font-medium text-fg-muted">
               Chu kỳ
             </label>
             <select
+              id={`${uid}-freq`}
               value={frequency}
               onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}
               className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm text-gray-700 dark:text-gray-300"
@@ -329,10 +345,11 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-start`} className="mb-1 block text-xs font-medium text-fg-muted">
               Bắt đầu (kỳ đầu tiên)
             </label>
             <input
+              id={`${uid}-start`}
               type="date"
               value={startOn}
               onChange={(e) => setStartOn(e.target.value)}
@@ -340,20 +357,22 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
             />
           </div>
         </div>
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-end`} className="mb-1 block text-xs font-medium text-fg-muted">
           Kết thúc (không bắt buộc)
         </label>
         <input
+          id={`${uid}-end`}
           type="date"
           value={endOn}
           onChange={(e) => setEndOn(e.target.value)}
           className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm outline-green-500"
         />
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">
           Ghi chú (không bắt buộc)
         </label>
         <input
+          id={`${uid}-note`}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: tiền nhà"

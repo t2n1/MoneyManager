@@ -133,18 +133,64 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     expect(count, `Trắng trên green-600 chỉ 3,22:1. Dùng bg-green-700.\n${where.join('\n')}`).toBe(0)
   })
 
-  // Lý do: ba sheet Lifetime dùng chung hằng `label_` cho nhãn ô nhập. Trước
-  // 2026-07-30 cả 20 nhãn đó đều viết `<label className={label_}>` không có `htmlFor`
-  // và không bọc control — tức screen reader đọc ô nhập KHÔNG RA TÊN GÌ (đã đo bằng
-  // thuật toán tính accessible name trên app đang chạy: 7/8 ô ở ScenarioEditorSheet
-  // không có tên). Không thể kiểm bằng test render vì repo không có @testing-library,
-  // nên chặn ở mức nguồn: dạng `<label className={label_}>` (không kèm htmlFor) phải
-  // bằng 0. Nhãn cho NHÓM hoặc cho MoneyField thì dùng <span>, không dùng <label>.
-  it('nhãn ô nhập trong sheet Lifetime luôn có htmlFor', () => {
-    const { count, where } = occurrences('<label className={label_}')
+  // Lý do: <label> mồ côi — không có `htmlFor` và cũng không BỌC control nào — thì
+  // screen reader đọc ra một nhãn rỗng và ô nhập bên dưới KHÔNG có tên gì (đã đo bằng
+  // thuật toán tính accessible name trên app đang chạy hôm 2026-07-30: 7/8 ô ở
+  // ScenarioEditorSheet không có tên).
+  //
+  // Trước 2026-08-11 chỗ này chỉ chặn được đúng MỘT dạng (`<label className={label_}>`
+  // của ba sheet Lifetime) và phần còn lại nằm dưới một NGƯỠNG đếm `<label className`.
+  // Ngưỡng đó chỉ là đại diện gần đúng: nó đếm cả nhãn hợp lệ và bỏ sót nhãn viết
+  // `className` sau `htmlFor`. Nay 71 nhãn mồ côi đã dọn hết nên thay bằng luật THẬT —
+  // phân loại từng <label> đúng như spec, phải bằng 0.
+  //
+  // "labelable element" theo spec HTML: button, input, meter, output, progress, select,
+  // textarea. `button` NẰM TRONG danh sách — nên <label> bọc một <button role="switch">
+  // là hợp lệ, vừa đặt tên vừa thành vùng chạm. Bốn nhãn công tắc (AccountsPage,
+  // AssetGroupsPage) sống nhờ điều đó; đổi chúng sang <div> là mất vùng chạm.
+  it('không có <label> mồ côi (không htmlFor, không bọc control)', () => {
+    // Component tự dựng mà BÊN TRONG là một thẻ labelable → <label> bọc nó vẫn hợp lệ,
+    // nhưng đọc nguồn thì không thấy. Khai tên ở đây thay vì bỏ qua mọi `<Hoa…` —
+    // bỏ qua tất thì <label> bọc <Guide> (chỉ có chữ) cũng lọt.
+    //   AccountToggle (AccountsPage:707) và Toggle (AssetGroupsPage:34): cả hai render
+    //   <button type="button" role="switch" aria-label>.
+    const BOC_CONTROL_BEN_TRONG = ['AccountToggle', 'Toggle']
+    const moCoi: string[] = []
+    for (const file of sourceFiles()) {
+      // Che comment nhưng GIỮ số ký tự, để số dòng báo lỗi vẫn đúng. Cần vì chính các
+      // comment giải thích "chỗ này dùng <span> chứ không <label>" lại chứa chữ `<label`.
+      const raw = readFileSync(file, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+        .replace(/\/\/[^\n]*/g, (m) => m.replace(/[^\n]/g, ' '))
+      const re = /<label\b/g
+      let m: RegExpExecArray | null
+      while ((m = re.exec(raw))) {
+        const start = m.index
+        // Thẻ mở = tới dấu `>` đầu tiên NGOÀI mọi ngoặc nhọn (thuộc tính JSX như
+        // htmlFor={`${uid}-x`} có `>` bên trong không tính).
+        let i = start + '<label'.length
+        let depth = 0
+        for (; i < raw.length; i++) {
+          const c = raw[i]
+          if (c === '{') depth++
+          else if (c === '}') depth--
+          else if (c === '>' && depth === 0) break
+        }
+        const openTag = raw.slice(start, i + 1)
+        if (/\bhtmlFor\b/.test(openTag)) continue
+        const close = raw.indexOf('</label>', i)
+        const body = close === -1 ? '' : raw.slice(i + 1, close)
+        if (/<(input|select|textarea|button|meter|output|progress)\b/.test(body)) continue
+        if (BOC_CONTROL_BEN_TRONG.some((c) => new RegExp(`<${c}\\b`).test(body))) continue
+        moCoi.push(`${file.slice(SRC.length + 1)}:${raw.slice(0, start).split('\n').length}`)
+      }
+    }
     expect(
-      count,
-      `<label> không có htmlFor thì không đọc được tên ô. Thêm htmlFor + id, hoặc dùng <span> nếu là nhãn nhóm.\n${where.join('\n')}`,
+      moCoi.length,
+      `<label> mồ côi: không đọc được tên ô. Cách sửa:\n` +
+        `  · nhãn cho MỘT ô  → htmlFor + id sinh bằng useId (mẫu: EventFormSheet)\n` +
+        `  · nhãn cho NHÓM / cho MoneyField → <span>, tên ô đi qua aria-label\n` +
+        moCoi.join('\n'),
     ).toBe(0)
   })
 
@@ -333,15 +379,9 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // hero và sheet trượt lên; phần còn lại là tuỳ tiện. `rounded-md` thì lạc hẳn.
     { needle: 'rounded-2xl', max: 36, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
     { needle: 'rounded-md', max: 13, use: 'rounded-lg (scale chuẩn)' },
-    // <label> mồ côi: nhãn không có htmlFor và không bọc control → trình đọc màn hình
-    // đọc ra một nhãn rỗng, ô nhập thì KHÔNG có tên. Không ban cứng được vì dạng bọc
-    // control là hợp lệ, nên đếm tất rồi chỉ cho giảm.
-    //
-    // 106 là con số thật của master. Nhánh fix/toan-bo-audit đã hạ nó xuống 19 bằng cách
-    // dọn 69 nhãn: nhãn cho MỘT control thì thêm htmlFor + useId (mẫu: EventFormSheet),
-    // nhãn cho NHÓM chip thì đổi sang <span>. Đợt này chỉ lấy 2 chỗ ở roleFields; phần
-    // còn lại là nợ đã biết, có mẫu sẵn để dọn dần.
-    { needle: '<label className', max: 106, use: 'htmlFor + useId (mẫu: EventFormSheet); nhãn nhóm thì dùng <span>' },
+    // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
+    // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
+    // đúng theo spec nên không cần đại diện gần đúng nữa.
   ]
 
   for (const { needle, max, use } of CEILINGS) {

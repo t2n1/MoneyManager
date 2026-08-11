@@ -83,7 +83,8 @@ export function BudgetEditSheet({
 
         {hint && <p className="mb-2 text-xs text-fg-muted">{hint}</p>}
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">Hạn mức tháng ({base})</label>
+        {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">Hạn mức tháng ({base})</span>
         <MoneyField
           value={amount}
           onChange={setAmount}

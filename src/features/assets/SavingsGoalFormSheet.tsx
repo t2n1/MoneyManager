@@ -66,7 +66,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 lg:items-center"
+      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center"
       onClick={onClose}
     >
       <div

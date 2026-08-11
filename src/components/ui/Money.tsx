@@ -8,13 +8,20 @@
 // chế độ riêng tư (isPrivacyEnabled → mask) và quy ước dấu thập phân theo loại tiền.
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 
-/** 'bySign' = suy ra từ dấu của `amount`; 'neutral' = màu chữ thường. */
-export type MoneyTone = 'in' | 'out' | 'neutral' | 'bySign'
+/** 'bySign' = suy ra từ dấu của `amount`; 'neutral' = màu chữ thường;
+ *  'onAccent' = số nằm TRÊN nền --accent (ô đang chọn của dải tháng…). */
+export type MoneyTone = 'in' | 'out' | 'neutral' | 'bySign' | 'onAccent'
 
 const TONE_CLASS: Record<Exclude<MoneyTone, 'bySign'>, string> = {
   in: 'text-money-in',
   out: 'text-money-out',
   neutral: 'text-fg-primary',
+  // Phải là một TONE, không phải việc của `className`: component luôn nhả
+  // TONE_CLASS[resolved], nên truyền thêm class màu từ ngoài là hai utility cùng
+  // hạng đấu nhau và thứ tự trong CSS build ra quyết định — thực tế text-fg-primary
+  // thắng, đo được 2,01:1 trên nền accent ở dark. Giữ đúng lời hứa ở đầu file:
+  // quyết định contrast nằm ở MỘT chỗ.
+  onAccent: 'text-fg-on-accent',
 }
 
 interface Props {

@@ -41,21 +41,28 @@ function Toggle({
   label: string
 }) {
   return (
+    // Vùng chạm 44×44 ở NÚT, đường ray 20×36 ở <span> bên trong — đo được 36×20 khi ray
+    // nằm thẳng trên nút. Đây là đúng khuôn ba công tắc kia đã dùng (AccountsPage,
+    // YearTableView, NotificationSettingsPage), không phải cách mới.
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={`relative h-5 w-9 shrink-0 rounded-full transition ${
-        checked ? 'bg-green-700' : 'bg-gray-300'
-      }`}
+      className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center"
     >
       <span
-        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
-          checked ? 'left-[18px]' : 'left-0.5'
+        className={`relative block h-5 w-9 rounded-full transition ${
+          checked ? 'bg-green-700' : 'bg-gray-300'
         }`}
-      />
+      >
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
+            checked ? 'left-[18px]' : 'left-0.5'
+          }`}
+        />
+      </span>
     </button>
   )
 }
@@ -415,7 +422,9 @@ export function AssetGroupsPage() {
                     return next
                   })
                 }
-                className="block w-full text-left"
+                // flex-col, KHÔNG items-center: bên trong là hai dòng xếp dọc (tên nhóm +
+                // "N tài khoản · tổng"). min-h-11 để vùng chạm đủ 44px (đo được 172×36).
+                className="flex min-h-11 w-full flex-col justify-center text-left"
               >
                 <span className="flex items-center gap-1 text-sm font-semibold text-fg-primary">
                   <span className="min-w-0 truncate">{g.name}</span>
@@ -749,7 +758,7 @@ function DeleteGroupSheet({
 
   return (
     <div
-      className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 lg:items-center"
+      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center"
       onClick={onClose}
     >
       <div

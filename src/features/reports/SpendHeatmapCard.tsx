@@ -50,21 +50,31 @@ export function SpendHeatmapCard({ points, base }: Props) {
             {w}
           </div>
         ))}
-        {cells.map((p, i) =>
-          p === null ? (
-            <div key={`b${i}`} />
-          ) : (
+        {cells.map((p, i) => {
+          if (p === null) return <div key={`b${i}`} />
+          const level = levelOf(p.expense)
+          return (
             <div
               key={p.date}
               title={`${Number(p.date.slice(5, 7))}/${Number(p.date.slice(8))}: ${formatMoney(p.expense, base)}`}
-              className={`flex aspect-square items-center justify-center rounded text-3xs ${LEVEL_BG[levelOf(p.expense)]} ${
-                levelOf(p.expense) >= 3 ? 'text-white' : 'text-gray-500 dark:text-gray-300'
+              // Màu CHỮ ngày, đo thật trên từng nền của LEVEL_BG (canvas pixel readback).
+              // Trước đây cả 5 bậc đều trượt AA ở light: bậc 0–2 dùng gray-500 (4,39 /
+              // 3,89 / 3,34) và bậc 3–4 dùng text-white (2,38 / 3,81 — bậc 3 tệ nhất app).
+              //   bậc 0–2 "nguội": token fg-secondary — đúng cặp gray-600 (light) /
+              //     gray-300 (dark) đã đo: 6,87 / 6,07 / 5,22 và 9,96 / 7,94 / 4,54.
+              //     KHÔNG dùng fg-on-track — ở dark nó là gray-400, chỉ 2,57 trên
+              //     amber-700/80. Cũng không viết tay cặp sáng/tối (tests/designSystem).
+              //   bậc 3–4 "nóng": gray-950 đạt ở CẢ HAI chế độ (light 8,47 / 5,29; dark
+              //     5,62 / 5,29) nên không cần biến thể dark: và không phải đổi nền nào.
+              // Giữ hai bậc mực (nguội nhạt / nóng đậm) để ngày không chi vẫn im tiếng.
+              className={`flex aspect-square items-center justify-center rounded text-3xs ${LEVEL_BG[level]} ${
+                level >= 3 ? 'text-gray-950' : 'text-fg-secondary'
               }`}
             >
               {Number(p.date.slice(8))}
             </div>
-          ),
-        )}
+          )
+        })}
       </div>
       <div className="mt-2 flex items-center justify-end gap-1 text-3xs text-fg-muted">
         <span>Ít</span>

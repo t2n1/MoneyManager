@@ -19,7 +19,7 @@ export function CategoryLineChart({ points, base, color, labelOf, title }: Props
       <p className="mb-1 truncate text-xs font-medium text-fg-muted">{title}</p>
       <div className="h-40 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+          <LineChart data={data} margin={{ top: 8, right: 14, left: -8, bottom: 0 }}>
             <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--fg-muted)' }} axisLine={false} tickLine={false} />
             <YAxis
               tickFormatter={(v: number) => formatCompact(v, base)}

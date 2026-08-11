@@ -64,10 +64,23 @@
      nhập thì mất phân biệt "hành động" với "giá trị". */
   --accent: var(--color-green-700);
   --accent-hover: var(--color-green-800);
+  /* Chữ ĐÈ LÊN nền --accent. Phải là token riêng vì --accent gánh HAI vai khác nhau:
+     nền nút (cần tương phản với chữ đè lên) và màu chữ/ring (cần tương phản với nền
+     trang). Ở light green-700 làm được cả hai nên không ai thấy vấn đề; ở dark
+     --accent lật thành green-500 cho vai "màu chữ", và lúc đó chữ TRẮNG trên nó chỉ
+     còn 2,22:1 — đo thật ở dải tháng trang Báo cáo. Đây đúng là cái bẫy amber ghi ở
+     trên, lặp lại với accent: "trông vừa mắt ở dark" thì tự động trượt ở light và
+     ngược lại. Light: trắng trên green-700 = 4,95:1. */
+  --fg-on-accent: var(--color-white);
   /* Chữ màu nhấn (link, hành động phụ) — KHÁC --money-in. Cùng là xanh nhưng khác
      nghĩa: đây là "bấm được", kia là "đây là khoản thu". Trộn hai thứ thì không còn
      đổi riêng được màu link mà không đụng vào con số. green-700 trên trắng = 4,95:1. */
   --fg-accent: var(--color-green-700);
+  /* Chữ màu nhấn đặt trên --surface-sunken (gray-100), không phải trên nền trắng.
+     Cần token RIÊNG vì cùng đúng lý do --fg-on-track phải là gray-600 chứ gray-500:
+     nền gray-100 ăn bớt tương phản. Đo thật: green-700 trên gray-100 = 4,49:1 — trượt
+     4,5 đúng một li (phím phép tính của bàn số); green-800 ≈ 6,6:1. */
+  --fg-accent-on-track: var(--color-green-800);
 
   /* Chữ cảnh báo (sắp vượt hạn mức, tỷ giá giả định, đơn vị tiền lệch).
      Amber là màu KHÔNG có sắc độ nào đạt cả hai chế độ — đo thật:
@@ -99,6 +112,11 @@
   --accent: var(--color-green-500);
   --accent-hover: var(--color-green-400);
   --fg-accent: var(--color-green-400);
+  /* Nền tương ứng ở dark là surface-sunken = gray-800; green-400 trên đó dư sáng. */
+  --fg-accent-on-track: var(--color-green-400);
+  /* ĐẢO chiều: nền accent ở dark là green-500 (sáng) nên chữ đè lên phải TỐI.
+     gray-950 trên green-500 = 9,08:1; trắng trên green-500 chỉ 2,22:1. */
+  --fg-on-accent: var(--color-gray-950);
 
   /* ĐẢO chiều như --fg-muted. amber-400 trên gray-900 = 10,30:1; trên gray-800 =
      8,52:1; trên gray-950 = 11,69:1; trên amber-900/40 phủ gray-900 = 8,56:1 — tức
@@ -125,6 +143,8 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-fg-accent: var(--fg-accent);
+  --color-fg-accent-on-track: var(--fg-accent-on-track);
+  --color-fg-on-accent: var(--fg-on-accent);
   --color-fg-warn: var(--fg-warn);
 }
 

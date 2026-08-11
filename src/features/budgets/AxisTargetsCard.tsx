@@ -34,9 +34,11 @@ export function AxisTargetsCard({ data, base }: Props) {
         <h2 className="text-sm font-semibold text-fg-muted">
           Cơ cấu chi so với mốc
         </h2>
+        {/* -my-3 để vùng chạm 44px không đẩy hàng tiêu đề giãn ra (cùng mẹo với nút
+            "Chọn" ở LedgerPage) — đo được 42×16 khi để trần. */}
         <Link
           to="/settings?edit=profile"
-          className="shrink-0 text-2xs font-medium text-green-700 dark:text-green-400"
+          className="-my-3 inline-flex min-h-11 shrink-0 items-center text-2xs font-medium text-green-700 dark:text-green-400"
         >
           Đổi mốc
         </Link>

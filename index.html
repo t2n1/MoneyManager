@@ -5,7 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <!-- KHÔNG đặt maximum-scale/user-scalable=no: chặn phóng to là trượt WCAG 1.4.4, và
+         với app tiền thì người dùng cần soi con số. Lý do khoá ban đầu là chặn iOS Safari
+         tự phóng khi focus ô nhập — nhưng nguyên nhân đó đã xử ở gốc trong src/index.css
+         (@media max-width:1023px buộc input/select/textarea ≥16px), nên không cần khoá nữa.
+         Nút Cài đặt → Cỡ chữ vẫn giữ, giờ là tiện thêm chứ không còn là đường thoát duy nhất. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#008236" />
     <!-- Mở toàn màn hình như app thật khi thêm vào Màn hình chính (iPhone) -->
     <meta name="mobile-web-app-capable" content="yes" />

@@ -291,10 +291,14 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
           vị trí thả giả định các dòng xếp dọc — chia hai cột là thả sai chỗ.
           `lg:items-start` để thẻ ngắn không bị kéo cao bằng thẻ dài bên cạnh. */}
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-3">
-        {/* Tổng tài sản */}
+        {/* Tổng tài sản.
+            Chữ phụ trên thẻ này dùng text-green-50 TRƠN, không alpha: nền là gradient
+            green-700→emerald-800 nên chặng sáng nhất (green-700) mới là chặng phải đo.
+            green-50 trên đó = 4,72:1; từng là /90 (4,14:1) và /80 (3,58:1) — cả hai trượt
+            AA. Muốn nhạt hơn thì đổi sắc độ chứ đừng hạ độ mờ. */}
         <section className="rounded-2xl bg-gradient-to-br from-green-700 to-emerald-800 p-5 text-white shadow-md">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-green-50/90">
+            <p className="text-sm font-medium text-green-50">
               Tổng tài sản · {CURRENCIES[displayCur].label}
             </p>
             {/* Xem thử bằng tiền khác — đổi mọi con số của tab này VÀ tab Diễn biến.
@@ -311,12 +315,12 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
             {isLoading ? '…' : mv.fmt(breakdown.total, base, breakdown.hasForeign)}
           </p>
           {!isLoading && (
-            <p className="mt-2.5 text-xs text-green-50/80">
+            <p className="mt-2.5 text-xs text-green-50">
               {accountCount} tài khoản · {purposeGroups.length} nhóm
             </p>
           )}
           {!isLoading && hasValuation && (
-            <p className="mt-2 text-xs text-green-50/90">
+            <p className="mt-2 text-xs text-green-50">
               Lãi/lỗ đầu tư (chưa thực hiện):{' '}
               <span className="font-semibold tabular-nums text-white">
                 {pnl >= 0 ? '+' : '−'}

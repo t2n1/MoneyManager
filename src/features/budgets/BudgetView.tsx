@@ -343,39 +343,56 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             )}
           </span>
         </div>
-        <div className="flex items-baseline justify-between">
-          <span className={`text-lg font-bold ${TEXT_COLOR[report.totalStatus]}`}>
-            {formatMoney(report.totalSpent, base)}
-          </span>
-          <span className="text-sm text-fg-muted">
-            / {formatMoney(report.totalBudgeted, base)}
-          </span>
-        </div>
-        <ProgressBar ratio={totalPct / 100} status={report.totalStatus} className="mt-1" />
-        {/* Câu trả lời cho "giờ còn tiêu được bao nhiêu" — số đã chi ở trên chỉ nói
-            chuyện đã rồi. Chia thêm cho số ngày còn lại vì đó mới là thứ dùng được
-            hôm nay; tháng đã qua thì không chia (chẳng còn ngày nào để tiêu). */}
-        {report.totalBudgeted > 0 &&
-          (totalRemaining > 0 ? (
-            <p className="mt-1.5 text-xs text-fg-secondary">
-              Còn <b className="font-semibold text-fg-primary">{formatMoney(totalRemaining, base)}</b>
-              {/* Gọn giữ ĐỦ BA con số (còn lại · mỗi ngày · số ngày) và chỉ bỏ mệnh đề
-                  giải thích — đây là câu dùng được hôm nay, không phải chữ hướng dẫn. */}
-              {totalAllowance
-                ? visual
-                  ? ` · ${formatMoney(totalAllowance.perDay, base)}/ngày × ${totalAllowance.daysLeft} ngày`
-                  : ` cho ${totalAllowance.daysLeft} ngày nữa — tiêu ${formatMoney(totalAllowance.perDay, base)}/ngày thì vừa đủ.`
-                : visual
-                  ? ''
-                  : ' trong tổng hạn mức.'}
+        {/* THỨ BẬC: số CÒN LẠI là con số lớn nhất của màn, số ĐÃ CHI xuống dòng phụ.
+            Trước đây ngược lại — đã chi ở text-lg/700 (18px) còn "Còn ¥…" ở text-xs/600
+            (12px), tức con số nhỏ nhất màn hình lại là câu trả lời duy nhất người ta mở
+            màn Ngân sách để hỏi, còn số to nhất chỉ kể chuyện đã rồi. Đo trên demo:
+            18px/700 so với 12px/600.
+            Khi CHƯA đặt hạn mức (totalBudgeted = 0) thì không có "còn lại" nào để nói,
+            lúc đó số đã chi mới là số chính — giữ nguyên như cũ. */}
+        {report.totalBudgeted > 0 ? (
+          <>
+            <div className="flex items-baseline gap-2">
+              <span
+                className={`text-3xl font-bold leading-none tracking-tight tabular-nums ${
+                  totalRemaining < 0 ? 'text-money-out' : TEXT_COLOR[report.totalStatus]
+                }`}
+              >
+                {formatMoney(Math.abs(totalRemaining), base)}
+              </span>
+              <span className="text-xs text-fg-secondary">
+                {totalRemaining > 0 ? 'còn lại' : totalRemaining === 0 ? 'vừa đủ' : 'đã vượt'}
+              </span>
+            </div>
+            <p className="mt-1.5 text-sm text-fg-secondary">
+              Đã chi <b className="font-semibold text-fg-primary">{formatMoney(report.totalSpent, base)}</b>{' '}
+              / {formatMoney(report.totalBudgeted, base)}
             </p>
-          ) : totalRemaining === 0 ? (
-            <p className="mt-1.5 text-xs text-fg-warn">Vừa chạm đúng tổng hạn mức.</p>
-          ) : (
-            <p className="mt-1.5 text-xs text-money-out">
-              Đã vượt tổng hạn mức {formatMoney(-totalRemaining, base)}.
-            </p>
-          ))}
+            <ProgressBar ratio={totalPct / 100} status={report.totalStatus} className="mt-1" />
+            {/* Chia cho số ngày còn lại vì đó mới là thứ dùng được hôm nay; tháng đã qua
+                thì không chia (chẳng còn ngày nào để tiêu). Không nhắc lại con số "còn
+                lại" nữa — nó đã là số lớn nhất ngay trên đầu thẻ. */}
+            {totalRemaining > 0 && totalAllowance && (
+              <p className="mt-1.5 text-xs text-fg-secondary">
+                {visual
+                  ? `${formatMoney(totalAllowance.perDay, base)}/ngày × ${totalAllowance.daysLeft} ngày`
+                  : `Cho ${totalAllowance.daysLeft} ngày nữa — tiêu ${formatMoney(totalAllowance.perDay, base)}/ngày thì vừa đủ.`}
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="flex items-baseline justify-between">
+              <span className={`text-lg font-bold ${TEXT_COLOR[report.totalStatus]}`}>
+                {formatMoney(report.totalSpent, base)}
+              </span>
+              <span className="text-sm text-fg-muted">
+                / {formatMoney(report.totalBudgeted, base)}
+              </span>
+            </div>
+            <ProgressBar ratio={totalPct / 100} status={report.totalStatus} className="mt-1" />
+          </>
+        )}
         <button
           type="button"
           onClick={handleCopy}
@@ -467,13 +484,16 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               return (
                 <li key={item.cat.id} className="py-2 first:pt-0 last:pb-0">
                   <div className="flex items-stretch gap-1">
-                    {/* Nút xổ/thu con — kéo cao hết dòng cho dễ bấm, rộng 24px */}
+                    {/* Nút xổ/thu con — kéo cao hết dòng cho dễ bấm. Rộng 36px (w-9) chứ
+                        không 24px: đo được 24×40, hụt vùng chạm ở trục ngang. 36 là bề
+                        rộng nút icon hẹp mà app đang dùng sẵn (min-w-9 ở các tay kéo sắp
+                        thứ tự) — theo quy ước có rồi, không đặt cỡ mới. */}
                     <button
                       type="button"
                       onClick={() => toggle(item.cat.id)}
                       aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
                       aria-expanded={isOpen}
-                      className="flex w-6 shrink-0 items-center justify-center rounded text-fg-muted hover:text-gray-600 dark:hover:text-gray-200"
+                      className="flex w-9 shrink-0 items-center justify-center rounded text-fg-muted hover:text-gray-600 dark:hover:text-gray-200"
                     >
                       {isOpen ? (
                         <ChevronDown className="h-4 w-4" />
@@ -485,7 +505,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     <button
                       type="button"
                       onClick={() => openEdit(item.cat.id)}
-                      className="min-w-0 flex-1 text-left"
+                      className="min-h-11 min-w-0 flex-1 text-left"
                     >
                       {meterBody({
                         label: `${item.cat.icon} ${item.cat.name}`,
@@ -549,7 +569,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                         onClick={() => toggle(c.id)}
                         aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
                         aria-expanded={isOpen}
-                        className="shrink-0 rounded p-0.5 text-fg-muted hover:text-gray-600 dark:hover:text-gray-200"
+                        // 20×20 là quá nhỏ để bấm; min-h-11 min-w-9 là cỡ nút icon hẹp
+                        // app đang dùng sẵn. -my-2 để vùng chạm cao 44px không đẩy dòng
+                        // giãn ra (cùng mẹo với nút "Chọn" ở LedgerPage).
+                        className="-my-2 flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded text-fg-muted hover:text-gray-600 dark:hover:text-gray-200"
                       >
                         {isOpen ? (
                           <ChevronDown className="h-4 w-4" />

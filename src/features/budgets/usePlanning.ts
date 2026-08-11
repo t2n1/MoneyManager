@@ -131,7 +131,7 @@ export function usePlanning(monthKey: MonthKey): PlanningData {
       declared: plan?.expected_income ?? null,
       baseline,
       commitments,
-      gaps: coverageGaps(commitments.byCategory, budgetedByCat),
+      gaps: coverageGaps(commitments.byCategory, budgetedByCat, parentOf),
       suggestions: suggestLimits(perMonth),
       budgetedByCat,
       budgetIdByCat: new Map(budgets.map((b) => [b.category_id, b.id])),

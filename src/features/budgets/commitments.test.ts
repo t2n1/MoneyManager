@@ -226,3 +226,86 @@ describe('coverageGaps', () => {
     expect(gaps.map((g) => g.categoryId)).toEqual(['rent', 'fun', 'transport'])
   })
 })
+
+describe('coverageGaps — trần đặt ở nhóm cha', () => {
+  // "Đi lại" là nhóm có trần chung; "Sửa xe" và "Taxi" là con của nó. "Ăn ngoài" đứng
+  // riêng, không thuộc nhóm nào.
+  const parentOf = (id: string) =>
+    id === 'suaxe' || id === 'taxi' ? 'dilai' : null
+
+  it('cam kết ở con tính vào trần cha, không réo con', () => {
+    const gaps = coverageGaps(
+      new Map([['suaxe', 45_000]]),
+      new Map([['dilai', 50_000]]),
+      parentOf,
+    )
+    expect(gaps).toEqual([])
+  })
+
+  it('vượt trần nhóm thì báo Ở NHÓM, kèm đúng số của cả nhóm', () => {
+    const gaps = coverageGaps(
+      new Map([['suaxe', 45_000]]),
+      new Map([['dilai', 20_000]]),
+      parentOf,
+    )
+    expect(gaps).toEqual([
+      { categoryId: 'dilai', committed: 45_000, budgeted: 20_000, short: 25_000 },
+    ])
+  })
+
+  it('nhiều con cộng lại mới vượt — so lẻ từng đứa thì cả hai đều lọt', () => {
+    const gaps = coverageGaps(
+      new Map([['suaxe', 30_000], ['taxi', 30_000]]),
+      new Map([['dilai', 50_000]]),
+      parentOf,
+    )
+    expect(gaps).toEqual([
+      { categoryId: 'dilai', committed: 60_000, budgeted: 50_000, short: 10_000 },
+    ])
+  })
+
+  it('cam kết ghi thẳng vào nhóm cộng chung với cam kết của con', () => {
+    const gaps = coverageGaps(
+      new Map([['dilai', 20_000], ['taxi', 45_000]]),
+      new Map([['dilai', 50_000]]),
+      parentOf,
+    )
+    expect(gaps[0]).toMatchObject({ categoryId: 'dilai', committed: 65_000, short: 15_000 })
+  })
+
+  it('cha CHƯA có trần thì không leo — con tự chịu trách nhiệm', () => {
+    const gaps = coverageGaps(
+      new Map([['suaxe', 45_000]]),
+      new Map([['suaxe', 10_000]]),
+      parentOf,
+    )
+    expect(gaps).toEqual([
+      { categoryId: 'suaxe', committed: 45_000, budgeted: 10_000, short: 35_000 },
+    ])
+  })
+
+  it('mốc con KHÔNG phải ràng buộc: vỡ mốc mà trần nhóm còn phủ đủ thì im', () => {
+    // Trần nhóm 50.000, mốc con Taxi 10.000, cam kết ở Taxi 30.000. Mốc vỡ nhưng kế
+    // hoạch chưa hỏng — đó là chuyện của mặt theo dõi khi tiền ra thật.
+    const gaps = coverageGaps(
+      new Map([['taxi', 30_000]]),
+      new Map([['dilai', 50_000], ['taxi', 10_000]]),
+      parentOf,
+    )
+    expect(gaps).toEqual([])
+  })
+
+  it('danh mục ngoài nhóm vẫn so ở chính nó', () => {
+    const gaps = coverageGaps(
+      new Map([['anngoai', 12_000], ['suaxe', 5_000]]),
+      new Map([['dilai', 50_000]]),
+      parentOf,
+    )
+    expect(gaps.map((g) => g.categoryId)).toEqual(['anngoai'])
+  })
+
+  it('không truyền parentOf thì giữ nguyên cách cũ (phẳng)', () => {
+    const gaps = coverageGaps(new Map([['suaxe', 45_000]]), new Map([['dilai', 50_000]]))
+    expect(gaps[0]).toMatchObject({ categoryId: 'suaxe', budgeted: 0, short: 45_000 })
+  })
+})

@@ -146,7 +146,9 @@ export function collectCommitments(
 }
 
 export interface CoverageGap {
+  /** danh mục MANG TRẦN đang hụt — nhóm cha nếu cam kết rơi vào con của nhóm có trần */
   categoryId: string
+  /** tổng cam kết tính vào trần đó (đã gộp cam kết của các con) */
   committed: number
   /** hạn mức đang đặt cho danh mục này (0 = chưa đặt) */
   budgeted: number
@@ -155,21 +157,41 @@ export interface CoverageGap {
 }
 
 /**
- * Danh mục có cam kết vượt quá hạn mức đang đặt.
+ * Trần nào đang không phủ nổi cam kết.
  *
- * Đối chiếu ở ĐÚNG danh mục của cam kết, không leo lên cha: một khoản cam kết ghi vào
- * danh mục con mà cha có trần chung thì trần cha vẫn có thể phủ được, nhưng ta không
- * biết phần còn lại của trần ấy đã hứa cho con nào. Báo dư còn sửa được; báo thiếu thì
- * người dùng yên tâm nhầm cho tới lúc tiền ra thật.
+ * Cam kết LEO LÊN CHA đúng theo luật của `buildBudgetReport`: đặt trần ở nhóm cha nghĩa
+ * là trần chung cho cả nhóm, và mọi khoản chi của các con đều tính vào đó. Nên cam kết
+ * ghi ở con phải cộng vào trần cha, không so với con.
+ *
+ * Bản đầu cố ý so ở đúng danh mục của cam kết, lý do là "báo dư còn sửa được, báo thiếu
+ * thì người dùng yên tâm nhầm". Lý do đó sai với người đặt trần theo NHÓM: mọi cam kết
+ * của mọi con đều bị réo "chưa có hạn mức" trong khi trần nhóm phủ thừa sức — và một
+ * cảnh báo lúc nào cũng kêu thì chẳng ai đọc nữa, tức là mất luôn cả lần nó đúng.
+ *
+ * Chỉ leo MỘT bậc: danh mục của app tối đa hai cấp (cùng lý do với `groupSpent`).
+ *
+ * Mốc con KHÔNG được xét: hạn mức đặt ở con của nhóm đã có trần chỉ là mốc theo dõi bên
+ * trong trần ấy, không phải một ràng buộc riêng của kế hoạch. Vỡ mốc con mà trần nhóm
+ * vẫn phủ đủ thì kế hoạch chưa hỏng — đó là chuyện của mặt theo dõi khi tiền ra thật.
  *
  * Vắng mặt trong `budgetedByCat` = chưa đặt hạn mức = 0, tức là thiếu TOÀN BỘ.
  */
 export function coverageGaps(
   byCategory: Map<string, number>,
   budgetedByCat: Map<string, number>,
+  parentOf: (categoryId: string) => string | null = () => null,
 ): CoverageGap[] {
-  const out: CoverageGap[] = []
+  // Gộp về danh mục MANG TRẦN trước rồi mới so: hai con của cùng một nhóm mỗi đứa một
+  // khoản, so lẻ từng đứa thì cả hai đều "lọt" trong khi cộng lại đã vượt trần nhóm.
+  const rolled = new Map<string, number>()
   for (const [categoryId, committed] of byCategory) {
+    const parent = parentOf(categoryId)
+    const root = parent !== null && budgetedByCat.has(parent) ? parent : categoryId
+    rolled.set(root, (rolled.get(root) ?? 0) + committed)
+  }
+
+  const out: CoverageGap[] = []
+  for (const [categoryId, committed] of rolled) {
     const budgeted = budgetedByCat.get(categoryId) ?? 0
     if (committed > budgeted) {
       out.push({ categoryId, committed, budgeted, short: committed - budgeted })

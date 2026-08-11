@@ -79,6 +79,10 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
         budgeted: data.budgetedByCat.get(c.id) ?? 0,
         suggestion: data.suggestions.get(c.id) ?? null,
         committed: data.commitments.byCategory.get(c.id) ?? 0,
+        // Cam kết chỉ đáng tô màu cảnh báo khi TRẦN GOVERNING nó thật sự hụt. Danh mục
+        // con nằm dưới trần nhóm còn dư thì con số này chỉ là thông tin — tô đỏ hết
+        // thì cả danh sách lúc nào cũng đỏ, và màu cảnh báo hết nghĩa.
+        thieu: data.gaps.some((g) => g.categoryId === c.id || g.categoryId === c.parent_id),
       }))
       .filter((r) => r.budgeted > 0 || (r.suggestion?.average ?? 0) > 0 || r.committed > 0)
       .sort((a, b) => {
@@ -325,23 +329,34 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
 
               {data.gaps.length > 0 && (
                 <ul className="mt-2 flex flex-col gap-1.5">
-                  {data.gaps.map((g) => (
-                    <li key={g.categoryId}>
-                      <button
-                        type="button"
-                        onClick={() => setEditing(g.categoryId)}
-                        className="flex min-h-11 w-full items-center gap-2 rounded-lg bg-amber-50 px-2 py-1.5 text-left text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-                      >
-                        <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
-                        <span className="min-w-0 flex-1">
-                          Hạn mức {catOf(g.categoryId)?.name ?? 'danh mục'} đang{' '}
-                          {formatMoney(g.budgeted, base)}, không phủ nổi{' '}
-                          {formatMoney(g.committed, base)} đã cam kết.{' '}
-                          <span className="underline">Nâng lên {formatMoney(g.committed, base)}</span>
-                        </span>
-                      </button>
-                    </li>
-                  ))}
+                  {data.gaps.map((g) => {
+                    // Cam kết đã gộp lên danh mục MANG TRẦN, nên chỗ báo có thể là một
+                    // nhóm. Gọi đúng tên loại trần thì người đọc biết mình sắp sửa cái gì.
+                    const laNhom = categories.some(
+                      (k) => k.parent_id === g.categoryId && !k.is_archived,
+                    )
+                    return (
+                      <li key={g.categoryId}>
+                        <button
+                          type="button"
+                          onClick={() => setEditing(g.categoryId)}
+                          className="flex min-h-11 w-full items-center gap-2 rounded-lg bg-amber-50 px-2 py-1.5 text-left text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                        >
+                          <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
+                          <span className="min-w-0 flex-1">
+                            {laNhom ? 'Trần nhóm' : 'Hạn mức'}{' '}
+                            {catOf(g.categoryId)?.name ?? 'danh mục'} đang{' '}
+                            {formatMoney(g.budgeted, base)}, không phủ nổi{' '}
+                            {formatMoney(g.committed, base)} đã cam kết
+                            {laNhom && ' của cả nhóm'}.{' '}
+                            <span className="underline">
+                              Nâng lên {formatMoney(g.committed, base)}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </Card>
@@ -387,7 +402,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                             ? `TB 3 tháng ${formatMoney(r.suggestion.average, base)} · cao nhất ${formatMoney(r.suggestion.max, base)}`
                             : 'chưa có lịch sử'}
                           {r.committed > 0 && (
-                            <span className="text-fg-warn">
+                            <span className={r.thieu ? 'text-fg-warn' : undefined}>
                               {' · '}
                               {formatMoney(r.committed, base)} đã cam kết
                             </span>

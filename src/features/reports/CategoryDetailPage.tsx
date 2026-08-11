@@ -150,9 +150,14 @@ export function CategoryDetailPage() {
       { replace: true },
     )
 
-  const backTo =
-    `/reports?view=charts&period=${period}&` +
-    (period === 'month' ? `ym=${monthKeyString(activeMonthKey)}` : `year=${activeYear}`)
+  // Màn này giờ có hai đường vào. Không có `from` thì mặc định về Báo cáo như cũ —
+  // vào từ Ngân sách mà bấm Quay lại lại rơi sang tab khác thì coi như lạc.
+  const fromBudget = searchParams.get('from') === 'budget'
+  const axisParam = searchParams.get('axis')
+  const backTo = fromBudget
+    ? `/budget?ym=${monthKeyString(activeMonthKey)}` + (axisParam ? `&axis=${axisParam}` : '')
+    : `/reports?view=charts&period=${period}&` +
+      (period === 'month' ? `ym=${monthKeyString(activeMonthKey)}` : `year=${activeYear}`)
 
   const lineColor = kind === 'expense' ? '#ef4444' : '#16a34a'
   const labelOf = (k: MonthKey) =>
@@ -165,10 +170,10 @@ export function CategoryDetailPage() {
     return (
       <div className="p-3 lg:p-6">
         <Link
-          to="/reports?view=charts"
+          to={backTo}
           className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-green-700 dark:text-green-400"
         >
-          <ChevronLeft className="h-5 w-5" /> Về báo cáo
+          <ChevronLeft className="h-5 w-5" /> {fromBudget ? 'Về ngân sách' : 'Về báo cáo'}
         </Link>
         <p className="py-16 text-center text-sm text-fg-muted">Không tìm thấy danh mục này.</p>
       </div>
@@ -182,7 +187,7 @@ export function CategoryDetailPage() {
         <Link
           to={backTo}
           className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface px-3 shadow-sm active:scale-95"
-          aria-label="Quay lại báo cáo"
+          aria-label={fromBudget ? 'Quay lại ngân sách' : 'Quay lại báo cáo'}
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>

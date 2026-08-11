@@ -1,6 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import type { ClassificationBreakdown } from '../reports/aggregate'
-import { axisProgress, baselineIncome, DEFAULT_AXIS_TARGETS } from './axisTargets'
+import type { CategoryRow } from '../../types/database.types'
+import { axisProgress, axisSlices, baselineIncome, DEFAULT_AXIS_TARGETS } from './axisTargets'
+
+function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
+  return {
+    id: p.id,
+    user_id: 'u',
+    name: p.name ?? p.id,
+    type: p.type ?? 'expense',
+    icon: p.icon ?? '📦',
+    parent_id: p.parent_id ?? null,
+    sort_order: p.sort_order ?? 0,
+    is_archived: p.is_archived ?? false,
+    created_at: '',
+    need_level: p.need_level ?? null,
+    cost_type: p.cost_type ?? null,
+  }
+}
 
 const cls = (p: Partial<ClassificationBreakdown> = {}): ClassificationBreakdown => ({
   needEssential: 0,
@@ -132,6 +149,84 @@ describe('axisProgress', () => {
   it('nền cũng bằng 0 (chưa có gì để dựa vào) thì vẫn không hiện', () => {
     expect(axisProgress(0, cls(), DEFAULT_AXIS_TARGETS, 0)).toBeNull()
     expect(axisProgress(0, cls(), DEFAULT_AXIS_TARGETS, null)).toBeNull()
+  })
+
+  it('không truyền danh mục thì mỗi dòng có slices rỗng, không phải undefined', () => {
+    const r = axisProgress(1_000_000, cls({ needEssential: 100 }), DEFAULT_AXIS_TARGETS)!
+    // Chỗ gọi nào cũng .length được — không phải thêm `?.` rải rác
+    expect(r.lines.map((l) => l.slices)).toEqual([[], [], []])
+  })
+
+  it('slices về đúng dòng của nó', () => {
+    const parts = axisSlices(
+      [
+        { categoryId: 'rent', amount: 300 },
+        { categoryId: 'fun', amount: 50 },
+      ],
+      [cat({ id: 'rent', need_level: 'essential' }), cat({ id: 'fun', need_level: 'flexible' })],
+    )
+    const r = axisProgress(
+      1_000_000,
+      cls({ needEssential: 300, needFlexible: 50, totalExpense: 350 }),
+      DEFAULT_AXIS_TARGETS,
+      null,
+      parts,
+    )!
+    expect(r.lines[0].slices).toEqual([{ categoryId: 'rent', amount: 300 }])
+    expect(r.lines[1].slices).toEqual([{ categoryId: 'fun', amount: 50 }])
+    expect(r.lines[2].slices).toEqual([])
+  })
+})
+
+describe('axisSlices', () => {
+  const cats = [
+    cat({ id: 'rent', need_level: 'essential' }),
+    cat({ id: 'food', need_level: 'essential' }),
+    cat({ id: 'fun', need_level: 'flexible' }),
+    cat({ id: 'misc' }), // chưa phân loại
+  ]
+
+  it('chia danh mục về đúng trục, mỗi trục xếp giảm dần', () => {
+    const r = axisSlices(
+      [
+        { categoryId: 'food', amount: 200 },
+        { categoryId: 'rent', amount: 900 },
+        { categoryId: 'fun', amount: 50 },
+      ],
+      cats,
+    )
+    expect(r.essential.map((s) => s.categoryId)).toEqual(['rent', 'food'])
+    expect(r.flexible.map((s) => s.categoryId)).toEqual(['fun'])
+  })
+
+  it('tổng mỗi trục khớp đúng số của dòng trục', () => {
+    const slices = [
+      { categoryId: 'rent', amount: 900 },
+      { categoryId: 'food', amount: 200 },
+      { categoryId: 'fun', amount: 50 },
+      { categoryId: 'misc', amount: 77 },
+    ]
+    const r = axisSlices(slices, cats)
+    const sum = (xs: { amount: number }[]) => xs.reduce((s, x) => s + x.amount, 0)
+    expect(sum(r.essential)).toBe(1100)
+    expect(sum(r.flexible)).toBe(50)
+  })
+
+  it('danh mục chưa phân loại không lọt vào trục nào', () => {
+    const r = axisSlices([{ categoryId: 'misc', amount: 77 }], cats)
+    expect(r.essential).toEqual([])
+    expect(r.flexible).toEqual([])
+  })
+
+  it('danh mục không còn trong danh sách (đã xoá) cũng không lọt vào đâu', () => {
+    const r = axisSlices([{ categoryId: 'ghost', amount: 10 }], cats)
+    expect(r.essential).toEqual([])
+    expect(r.flexible).toEqual([])
+  })
+
+  it('tiết kiệm luôn rỗng — nó là hiệu, không phải tổng của danh mục nào', () => {
+    const r = axisSlices([{ categoryId: 'rent', amount: 900 }], cats)
+    expect(r.savings).toEqual([])
   })
 })
 

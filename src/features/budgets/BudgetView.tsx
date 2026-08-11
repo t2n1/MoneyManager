@@ -326,7 +326,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           khác với dòng tổng bên dưới trả lời "có vượt hạn mức không" */}
       {axis && (
         <div className="order-1">
-          <AxisTargetsCard data={axis} base={base} />
+          <AxisTargetsCard data={axis} base={base} monthKey={monthKey} />
         </div>
       )}
 

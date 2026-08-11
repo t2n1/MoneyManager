@@ -5,7 +5,8 @@
 // không" — và nó dùng lại đúng need_level đã gắn cho danh mục lá, nên người
 // dùng không phải khai báo thêm lần nào nữa.
 
-import type { ClassificationBreakdown } from '../reports/aggregate'
+import type { CategorySlice, ClassificationBreakdown } from '../reports/aggregate'
+import type { CategoryRow } from '../../types/database.types'
 
 export type AxisKey = 'essential' | 'flexible' | 'savings'
 
@@ -39,6 +40,38 @@ export interface AxisLine {
   direction: 'cap' | 'floor'
   /** đã đạt mốc chưa (bằng đúng mốc = đạt) */
   ok: boolean
+  /** danh mục đã góp vào trục này, giảm dần; rỗng = không xổ ra được */
+  slices: CategorySlice[]
+}
+
+/** Danh mục lá của từng trục. `savings` luôn rỗng — xem `axisSlices`. */
+export type AxisSliceMap = Record<AxisKey, CategorySlice[]>
+
+/**
+ * Chia các lát chi theo trục, để dòng trục xổ ra được "đã chi vào đâu".
+ *
+ * Trả về danh mục LÁ đúng như `categoryBreakdown` cho ra, không gộp lên cha: trục đã là
+ * một tầng gộp rồi, gộp thêm tầng nữa là phải chạm ba lần mới thấy giao dịch.
+ *
+ * `savings` luôn rỗng và đó không phải thiếu sót: tiết kiệm = thu − tổng chi, nó không
+ * phải tổng của danh mục nào cả nên chẳng có gì để liệt kê. Danh mục chưa gắn
+ * `need_level` cũng không vào đâu hết — chúng nằm ở dòng "chưa phân loại".
+ */
+export function axisSlices(
+  slices: CategorySlice[],
+  categories: CategoryRow[],
+): AxisSliceMap {
+  const byId = new Map(categories.map((c) => [c.id, c]))
+  const r: AxisSliceMap = { essential: [], flexible: [], savings: [] }
+  for (const s of slices) {
+    const need = byId.get(s.categoryId)?.need_level ?? null
+    if (need === 'essential') r.essential.push(s)
+    else if (need === 'flexible') r.flexible.push(s)
+  }
+  // Tự sắp chứ không tin thứ tự người gọi đưa vào: hàm thuần thì phải tự đứng được.
+  r.essential.sort((a, b) => b.amount - a.amount)
+  r.flexible.sort((a, b) => b.amount - a.amount)
+  return r
 }
 
 export interface AxisProgress {
@@ -98,6 +131,7 @@ export function axisProgress(
   data: ClassificationBreakdown,
   targets: AxisTargets,
   baseline: number | null = null,
+  parts: AxisSliceMap | null = null,
 ): AxisProgress | null {
   // Nền chỉ đắp phần THIẾU: lương đã về (hoặc có thưởng) thì thu thật luôn thắng.
   const basis = baseline !== null && baseline > income ? baseline : income
@@ -119,6 +153,7 @@ export function axisProgress(
       targetShare,
       direction,
       ok: direction === 'cap' ? actual <= target : actual >= target,
+      slices: parts?.[key] ?? [],
     }
   }
 

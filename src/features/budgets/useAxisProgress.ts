@@ -30,6 +30,7 @@ import {
 } from '../reports/aggregate'
 import {
   axisProgress,
+  axisSlices,
   baselineIncome,
   BASELINE_MONTHS,
   type AxisProgress,
@@ -102,6 +103,9 @@ export function useAxisProgress(monthKey: MonthKey): AxisProgress | null {
         savingsBps: profile?.target_savings_bps ?? 2000,
       },
       baseline,
+      // Cùng một `expense.slices` đã dùng để cộng tổng — dòng trục và danh sách xổ ra
+      // không thể lệch nhau.
+      axisSlices(expense.slices, categories),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [

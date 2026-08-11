@@ -34,7 +34,12 @@ export function TagBudgetsCard({ data, base }: Props) {
     <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-fg-muted">Ngân sách theo nhãn</h2>
-        <Link to="/settings/tags" className="shrink-0 text-2xs font-medium text-fg-accent">
+        {/* -my-3 để vùng chạm 44px không đẩy hàng tiêu đề giãn ra — cùng mẹo với
+            "Đổi mốc" ở AxisTargetsCard. Để trần thì đo được 41×16, không bấm nổi. */}
+        <Link
+          to="/settings/tags"
+          className="-my-3 inline-flex min-h-11 shrink-0 items-center text-2xs font-medium text-fg-accent"
+        >
           Đổi trần
         </Link>
       </div>

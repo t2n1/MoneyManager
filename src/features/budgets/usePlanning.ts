@@ -30,6 +30,8 @@ import { baselineIncome, BASELINE_MONTHS } from './axisTargets'
 import { collectCommitments, coverageGaps, type CommitmentReport, type CoverageGap } from './commitments'
 import { planSummary, type PlanSummary } from './planning'
 import { suggestLimits, type Suggestion } from './suggest'
+import { tagPlanLines, type TagPlanLine } from '../tags/budget'
+import { useTagBudgets } from '../tags/useTagBudgets'
 
 export interface PlanningData {
   summary: PlanSummary
@@ -45,6 +47,10 @@ export interface PlanningData {
   budgetedByCat: Map<string, number>
   /** id dòng hạn mức theo danh mục — sheet cần nó để xoá được */
   budgetIdByCat: Map<string, string>
+  /** trần theo nhãn quy về "tháng này còn tiêu được bao nhiêu" */
+  tagPlan: TagPlanLine[]
+  /** riêng cờ thiếu tỷ giá của phần nhãn — nó tính trên chi CẢ ĐỜI, khác nguồn với cam kết */
+  tagHasMissingRate: boolean
   hasMissingRate: boolean
 }
 
@@ -66,6 +72,9 @@ export function usePlanning(monthKey: MonthKey): PlanningData {
   const { data: plan } = useMonthPlan(monthKeyStr)
   const { data: rules = [] } = useRecurringRules()
   const { data: planned = [] } = usePlannedExpenses()
+  // Dựng cho ĐÚNG tháng đang lập: trần kỳ 'monthly' phải soi vào tháng đó (chưa tiêu
+  // gì → còn nguyên trần), còn kỳ 'total' vốn tính cả đời nên không phụ thuộc kỳ nào.
+  const tagBudgets = useTagBudgets(monthKey)
 
   const monthStartDay = profile?.month_start_day ?? 1
   const currentKey = monthKeyForDate(toISODate(new Date()), monthStartDay)
@@ -135,6 +144,8 @@ export function usePlanning(monthKey: MonthKey): PlanningData {
       suggestions: suggestLimits(perMonth),
       budgetedByCat,
       budgetIdByCat: new Map(budgets.map((b) => [b.category_id, b.id])),
+      tagPlan: tagPlanLines(tagBudgets.lines),
+      tagHasMissingRate: tagBudgets.hasMissingRate,
       hasMissingRate: commitments.hasMissingRate,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -147,6 +158,7 @@ export function usePlanning(monthKey: MonthKey): PlanningData {
     plan,
     rules,
     planned,
+    tagBudgets,
     categories,
     accounts,
     base,

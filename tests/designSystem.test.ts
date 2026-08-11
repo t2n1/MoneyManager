@@ -62,8 +62,12 @@ function stripComments(text: string): string {
  * "3 tháng gần đây: 2026-06 ¥42.100 · …" ở ô đặt hạn mức, và "định kỳ ×2 → Nhà ở" ở
  * danh sách cam kết. Cả hai chính là thứ khiến khối đó đáng nhìn; bọc <Guide> thì ở
  * chế độ Gọn ô đặt hạn mức lại thành ô trống, đúng cái lỗi đợt này đi sửa.
+ *
+ * 52 (2026-08-12): khối trần-theo-nhãn của mặt lập kế hoạch có câu cảnh báo thiếu tỷ
+ * giá, y hệt câu đã có ở TagBudgetsCard. Cảnh báo "số đang tính thiếu" mà ẩn ở chế độ
+ * Gọn thì người dùng đọc một con số sai mà không biết — đúng loại phải ở lại.
  */
-const PROSE_MAX = 51
+const PROSE_MAX = 52
 
 const FILES = sourceFiles().map((path) => ({
   path,

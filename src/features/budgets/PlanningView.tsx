@@ -21,6 +21,7 @@ import { formatMoney } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { monthlyNeeded } from '../assets/goals'
+import { TagPlanCard } from '../tags/TagPlanCard'
 import type { AxisKey } from './axisTargets'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { ExpectedIncomeSheet } from './ExpectedIncomeSheet'
@@ -425,9 +426,21 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
             )}
           </Card>
 
+          {/* 5 — Trần theo nhãn. Đứng SAU danh sách hạn mức vì danh mục mới là thứ
+              chia tiền; nhãn là ràng buộc thứ hai đè lên cùng số tiền ấy. Tự ẩn khi
+              chưa nhãn nào đặt trần, nên người không dùng tính năng này vẫn thấy đúng
+              bốn khối như cũ. */}
+          <div className="order-5">
+            <TagPlanCard
+              lines={data.tagPlan}
+              base={base}
+              hasMissingRate={data.tagHasMissingRate}
+            />
+          </div>
+
           {/* Cả dòng là chữ để DẠY nên bọc <Guide> từ ngoài: bọc mỗi phần chữ thì ở
               chế độ Gọn còn trơ lại một cái icon không nói gì. */}
-          <Guide className="order-5 flex items-start gap-1.5 px-1 text-2xs text-fg-muted">
+          <Guide className="order-6 flex items-start gap-1.5 px-1 text-2xs text-fg-muted">
             <PiggyBank className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
             <span>
               Kế hoạch không cần chốt: tháng {monthLabel} bắt đầu là trang này tự chuyển sang

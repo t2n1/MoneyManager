@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Rates } from '../../lib/rates'
 import type { TagRow, TagSpendRow } from '../../types/database.types'
-import { buildTagBudgetReport, tagSpendTotals } from './budget'
+import { buildTagBudgetReport, tagPlanLines, tagSpendTotals, type TagBudgetLine } from './budget'
 
 const MONTH_START = '2026-08-01'
 const MONTH_END = '2026-09-01'
@@ -224,5 +224,72 @@ describe('buildTagBudgetReport', () => {
       {},
     )
     expect(r.hasMissingRate).toBe(true)
+  })
+})
+
+describe('tagPlanLines', () => {
+  const line = (over: Partial<TagBudgetLine> & { tagId: string }): TagBudgetLine => ({
+    name: `Nhãn ${over.tagId}`,
+    color: 'green',
+    period: 'total',
+    spent: 0,
+    budget: 100,
+    ratio: 0,
+    remaining: 100,
+    status: 'ok',
+    ...over,
+  })
+
+  it("kỳ 'monthly' ở tháng chưa tới có NGUYÊN trần để chia", () => {
+    // Báo cáo dựng cho tháng chưa bắt đầu → spent = 0, remaining = trần.
+    const r = tagPlanLines([
+      line({ tagId: 't', period: 'monthly', budget: 20_000, spent: 0, remaining: 20_000 }),
+    ])
+    expect(r[0]).toMatchObject({ available: 20_000, exhausted: false })
+  })
+
+  it("kỳ 'total' chỉ còn phần chưa tiêu của cả đợt, không phải nguyên trần", () => {
+    // Chuyến đi 300k đã tiêu 250k thì tháng sau còn 50k, dù trần vẫn ghi 300k.
+    const r = tagPlanLines([
+      line({ tagId: 't', period: 'total', budget: 300_000, spent: 250_000, remaining: 50_000 }),
+    ])
+    expect(r[0]).toMatchObject({ available: 50_000, budget: 300_000, exhausted: false })
+  })
+
+  it("kỳ 'total' đã vượt → còn 0 đồng, không phải số âm", () => {
+    const r = tagPlanLines([
+      line({ tagId: 't', period: 'total', budget: 300_000, spent: 320_000, remaining: -20_000 }),
+    ])
+    expect(r[0].available).toBe(0)
+    expect(r[0].exhausted).toBe(true)
+    // Phần vượt vẫn đọc được để hiện ra, chỉ là không đem đi cộng.
+    expect(r[0].spent - r[0].budget).toBe(20_000)
+  })
+
+  it("tiêu đúng bằng trần cũng là cạn", () => {
+    const r = tagPlanLines([
+      line({ tagId: 't', period: 'total', budget: 300_000, spent: 300_000, remaining: 0 }),
+    ])
+    expect(r[0]).toMatchObject({ available: 0, exhausted: true })
+  })
+
+  it("kỳ 'monthly' KHÔNG bao giờ bị coi là cạn — nó reset đầu kỳ", () => {
+    const r = tagPlanLines([
+      line({ tagId: 't', period: 'monthly', budget: 20_000, spent: 20_000, remaining: 0 }),
+    ])
+    expect(r[0].exhausted).toBe(false)
+  })
+
+  it('đợt sắp cạn nằm trên đầu, trần tháng trôi xuống dưới', () => {
+    const r = tagPlanLines([
+      line({ tagId: 'thang', period: 'monthly', budget: 20_000, spent: 0, remaining: 20_000 }),
+      line({ tagId: 'con-nhieu', period: 'total', budget: 100_000, spent: 10_000, remaining: 90_000 }),
+      line({ tagId: 'sap-can', period: 'total', budget: 300_000, spent: 280_000, remaining: 20_000 }),
+    ])
+    expect(r.map((x) => x.tagId)).toEqual(['sap-can', 'con-nhieu', 'thang'])
+  })
+
+  it('không có nhãn nào đặt trần → không có dòng nào', () => {
+    expect(tagPlanLines([])).toEqual([])
   })
 })

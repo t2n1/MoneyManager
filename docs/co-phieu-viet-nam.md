@@ -78,6 +78,17 @@ lần nên có thể đổi — Yahoo thêm/bớt mã theo thời gian. Kiểm l
 `soMaCoGia` trong log với `HOSE_SYMBOL_COUNT` trong `src/features/assets/hoseSymbols.ts`:
 chênh nhau nhiều hơn con số này là có chuyện.
 
+**Đo lại 2026-08-11: bảng `stock_prices` có đủ 403 hàng** — 368 hàng ở `trading_date`
+`2026-08-06` và 35 hàng ở `2026-08-05`. Tức mọi mã trong `HOSE_SYMBOLS` đều đã có giá tại
+một thời điểm nào đó, kể cả 15 mã trong danh sách trên. Không suy ra được "một cuộc gọi phủ
+403/403": các hàng có thể tích lại qua vài lượt gọi trong ngày 08-06, mã hụt lượt này được
+lượt khác lấp. Con số 388 ở trên vẫn là phép đo thật của **một** lượt.
+
+Điều đáng chú ý hơn là 35 hàng đứng ở phiên cũ hơn: chúng có cùng `max(updated_at)` với
+nhóm 368 hàng, nên **đã được ghi trong cùng lượt** — không phải lô hỏng. Đó là mã thanh
+khoản mỏng: phiên 08-06 không có giao dịch nào nên bar cuối cùng Yahoo trả về vẫn là 08-05.
+Xem hệ quả ở dòng `gia-le-phien-cu` trong bảng lý do dưới.
+
 ### Tên công ty: chuyển sang danh sách tĩnh
 
 Yahoo không trả tên công ty (SSI có, qua `companyNameVi`). Ô gợi ý mã khi ghi lệnh
@@ -232,39 +243,172 @@ cứ chạy kể cả khi nghĩ là đã có.
 
 ### 3. Hẹn cron mỗi ngày
 
-```sql
-select cron.schedule(
-  'stock-refresh-daily',
-  -- 08:45 UTC = 15:45 giờ Việt Nam, thứ Hai–thứ Sáu. Sau khi sàn đóng cửa (15:00) và
-  -- khớp lệnh ATC xong. Việt Nam KHÔNG có giờ mùa hè nên một mốc UTC cố định là đủ —
-  -- khác push (mục J) phải lưu giờ + múi giờ vì chủ app đổi nước và Mỹ có DST. Ở đây
-  -- múi giờ neo vào SÀN GIAO DỊCH, không vào người dùng.
-  '45 8 * * 1-5',
-  $$ select net.http_post(
-       url := 'https://<ref>.supabase.co/functions/v1/stock-refresh',
-       headers := '{"Content-Type": "application/json", "x-cron-secret": "<PUSH_CRON_SECRET>"}'::jsonb
-     ) $$
-);
+```bash
+npm run setup:stock-cron
 ```
 
-`<ref>` là mã project Supabase, `<PUSH_CRON_SECRET>` là giá trị thật của secret cùng
-tên — điền lúc deploy, theo đúng lệ ở [docs/push-notification.md](push-notification.md).
+Script [scripts/setup-stock-cron.mjs](../scripts/setup-stock-cron.mjs) hỏi
+`PUSH_CRON_SECRET` (không hiện lên màn hình, không ghi ra đâu), **gọi thật
+`POST /stock-refresh` để chứng minh secret đó đúng**, rồi mới in khối `cron.schedule` đã
+điền sẵn cả project-ref lẫn secret. Secret sai thì nó KHÔNG in SQL.
 
-Xem lịch đã hẹn:
+Mẫu SQL viết tay đã bị bỏ khỏi tài liệu này, vì hai chỗ trong đó đã gãy thật:
+
+**① Chuỗi giữ chỗ dán y nguyên → cron nổ đúng giờ nhưng không ghi gì, và không tín hiệu
+nào ở phía database lộ ra.** Ngày 2026-08-11, job `stock-refresh-daily` được hẹn với
+`'x-cron-secret', '<PUSH_CRON_SECRET>'` còn nguyên trong `cron.job.command`. Hệ quả:
+
+- `cron.job` có hàng, `active = true` — trông như đã xong;
+- `cron.job_run_details.status` = `succeeded` — vì `net.http_post` chỉ **xếp hàng** rồi
+  trả `id` ngay, nó không biết gì về HTTP response;
+- function chặn ở dòng so secret ([index.ts:54](../supabase/functions/stock-refresh/index.ts:54))
+  và trả `401`, không chạm tới Yahoo, không ghi hàng nào.
+
+Chỗ **duy nhất** lộ ra là `stock_prices.updated_at`: trigger `stock_prices_moddatetime`
+bump cột đó trên **mọi** UPDATE, kể cả upsert ghi lại đúng giá trị cũ — nên nó là mốc
+"lần cuối có câu ghi chạm vào bảng". Đọc `trading_date` sẽ KHÔNG lộ: Yahoo trả giá của
+phiên cũ thì `trading_date` cũng không đổi, hai tình huống rất khác nhau trông giống nhau.
+
+> **Khi debug một lượt cron im lặng: đo `max(updated_at)`, đừng đo `trading_date`.**
+
+**② Thiếu `timeout_milliseconds`.** Mẫu cũ bỏ trống tham số này nên nhận mặc định của
+`pg_net` — thấp hơn nhiều so với `FETCH_BUDGET_MS` (90s) của riêng khối hút giá. Kiểm mặc
+định thật trên project bằng:
 
 ```sql
-select * from cron.job;
+select unnest(string_to_array(pg_get_function_arguments(oid), ', ')) as tham_so
+from pg_proc where proname = 'http_post' and pronamespace = 'net'::regnamespace;
 ```
 
-Phải thấy một hàng `jobname = 'stock-refresh-daily'`.
+Script đặt `timeout_milliseconds := 120000` tường minh nên không phụ thuộc mặc định.
+`setup-push.mjs` cũng đặt tường minh (60000) — chỉ tài liệu này từng bỏ sót.
 
-Xem lịch sử chạy (mỗi lần cron gọi function là một hàng — `status`, thời gian chạy,
-lỗi nếu `net.http_post` thất bại; **không** thấy nội dung `KetQua` ở đây, cái đó nằm
-trong log của function, xem mục dưới):
+**③ Chuỗi dán vào ô nhập kín bị terminal chèn rác.** Windows Terminal (và iTerm, và nhiều
+terminal khác) bọc nội dung dán giữa `ESC[200~` và `ESC[201~` — bracketed paste. `readline`
+không phải lúc nào cũng bóc hai dãy đó ra, và vì ô nhập **cố tình không hiện gì**, trên màn
+hình không có một dấu hiệu nào: chỉ thấy `401` rồi đi nghi mình copy sai secret. `donDauVao()`
+trong script bóc chúng cùng mọi ký tự điều khiển khác, và **nói ra đã bỏ bao nhiêu ký tự**
+thay vì im lặng dọn.
+
+Bị 401 mà muốn phân biệt "dán bị bẩn" với "copy sai giá trị":
+
+```bash
+node scripts/setup-stock-cron.mjs --kiem-o-nhap
+```
+
+Không gọi mạng, không in secret — chỉ mấy con số: số ký tự (43 với secret do `setup-push.mjs`
+sinh, tức 32 byte base64url), số ký tự đã dọn bỏ, số ký tự nằm ngoài bộ base64url, và có phải
+64 ký tự hex hay không. `43 / 0 / 0` nghĩa là chuỗi vào sạch và đúng hình dạng ⇒ giá trị phía
+function mới là chỗ khác nhau, không phải ô nhập.
+
+**④ Copy cột DIGEST thay vì giá trị secret.** Trang Dashboard → Edge Functions → Secrets hiện
+một cột **digest** cạnh mỗi secret; giá trị thật chỉ ra khi bấm biểu tượng con mắt. Copy cột
+digest được đúng **64 ký tự hex** — và vì hex nằm trọn trong bộ base64url, phép kiểm "có ký tự
+lạ không" **không** bắt được: nó chỉ trông như một secret dài hơn bình thường. Đã xảy ra thật
+ngày 2026-08-11, sau khi đã loại trừ bẫy ③.
+
+`canhBaoHinhDang()` trong script nêu ca này ra, và nhánh 401 nói thẳng "gần chắc là copy cột
+digest". Cố ý chỉ **cảnh báo**, không chặn: secret sinh bằng `openssl rand -hex 32` cũng đúng
+hình dạng đó và hoàn toàn hợp lệ — trọng tài thật vẫn là cuộc gọi tới function.
+
+### Đổi secret: dùng script, và nhớ CẢ HAI job
+
+Nếu trang Secrets không cho hiện giá trị thật (chỉ có cột digest), đường duy nhất là đặt
+secret mới:
+
+```bash
+npx supabase@latest login
+```
+
+```bash
+npm run secret:cron
+```
+
+[scripts/doi-cron-secret.mjs](../scripts/doi-cron-secret.mjs) sinh secret 43 ký tự base64url
+(cùng cách với `setup-push.mjs`), đặt lên Supabase qua CLI — truyền thẳng cho tiến trình con
+nên **không** vào lịch sử shell — gọi thử `stock-refresh` để chứng minh function đã đọc được
+giá trị mới, rồi in SQL hẹn lại cả hai job.
+
+> **`PUSH_CRON_SECRET` được HAI cron job nhúng vào `cron.job.command`:
+> `stock-refresh-daily` và `push-notify-hourly`.** Đổi secret mà chỉ hẹn lại một job là đẩy
+> job kia vào đúng bẫy ① — cron vẫn nổ, `job_run_details` vẫn `succeeded`, mà function trả
+> 401 và không làm gì. Script giữ hai job trong một danh sách (`CAC_JOB`) chính vì lý do đó,
+> và `--dry-run` có bài kiểm canh đúng con số hai.
+
+Edge function đọc `Deno.env.get('PUSH_CRON_SECRET')` lúc khởi động nguội, nên đặt secret mới
+không chắc làm isolate đang chạy thấy ngay — script thử lại 3 lượt cách nhau 20 giây rồi mới
+kết luận là cần deploy lại. Tín hiệu để đọc: **secret sai thì 401 về gần như tức thì** (chặn
+trước khi chạm Yahoo), **secret đúng thì chạy tới ~90 giây**. Chậm ở bước đó là dấu hiệu tốt.
+
+#### Gọi Supabase CLI từ Node trên Windows: phải có `shell: true`
+
+Đo ngày 2026-08-11, cùng một lệnh `supabase --version`:
+
+| Cách gọi | Kết quả |
+|---|---|
+| `execFileSync('npx.cmd', ...)` | **EINVAL** — Node chặn spawn `.cmd`/`.bat` khi không qua shell |
+| `execFileSync('npx', ...)` | **ENOENT** |
+| `execFileSync('npx', ..., { shell: true })` | ✅ chạy, `supabase 2.113.0` |
+
+Bản đầu của `doi-cron-secret.mjs` dùng cách thứ nhất. Tệ hơn cách gọi sai là **chỗ bắt lỗi chỉ
+đọc `err.status`** — với lỗi spawn thì trường đó `undefined`, nên nó in `CLI thất bại (mã thoát ?)`
+và bị đọc thành "chưa login", mất một lượt đi sai hướng. Thông điệp lỗi khi gọi tiến trình
+ngoài **phải kèm `err.code`**, không chỉ mã thoát.
+
+Kéo theo một quyết định: `shell: true` đặt mọi tham số lên command line của `cmd.exe`, chỗ
+tiến trình khác của cùng người dùng đọc được. Nên secret **không** đi qua argv mà qua
+`supabase secrets set --env-file <file tạm>`, file nằm trong thư mục `mkdtemp` riêng và bị xoá
+trong `finally`. `coSecretTrongArgv()` trong script là guard chạy thật: sửa lại thành truyền
+qua argv là script tự throw, không âm thầm làm.
+
+Về lịch `45 8 * * 1-5`: 08:45 UTC = 15:45 giờ Việt Nam, thứ Hai–thứ Sáu, sau khi sàn đóng
+cửa (15:00) và khớp lệnh ATC xong. Việt Nam KHÔNG có giờ mùa hè nên một mốc UTC cố định là
+đủ — khác push (mục J) phải lưu giờ + múi giờ vì chủ app đổi nước và Mỹ có DST. Ở đây múi
+giờ neo vào **sàn giao dịch**, không vào người dùng.
+
+Chạy `cron.schedule` lại với cùng `jobname` sẽ **ghi đè** job cũ, không tạo hàng thứ hai —
+nên dán lại nhiều lần không sao.
+
+### 4. Kiểm — bốn câu, chạy TỪNG câu
+
+SQL Editor chỉ hiện kết quả của câu **cuối** trong ô, nên dán cả bốn câu một lượt sẽ chỉ
+thấy một bảng và tưởng ba câu kia không trả gì.
 
 ```sql
-select * from cron.job_run_details order by start_time desc limit 20;
+-- ① Lịch đã vào, VÀ không còn chuỗi giữ chỗ nào trong command (bẫy ① ở trên).
+select active, command not like '%<%>%' as khong_con_giu_cho
+from cron.job where jobname = 'stock-refresh-daily';
 ```
+
+```sql
+-- ② Đã có câu ghi nào chạm vào bảng giá chưa. Đọc lan_ghi_cuoi, KHÔNG phải trading_date.
+select trading_date, count(*) as so_ma, max(updated_at) as lan_ghi_cuoi
+from public.stock_prices group by trading_date order by trading_date desc limit 5;
+```
+
+```sql
+-- ③ Cron đã nổ vào những ngày nào. `status = succeeded` ở đây CHỈ nghĩa là net.http_post
+--    xếp hàng xong — nó không biết gì về HTTP response, xem bẫy ① ở trên. Cũng KHÔNG thấy
+--    nội dung `KetQua` ở đây, cái đó nằm trong log của function (mục dưới).
+select d.status, d.return_message, d.start_time, d.end_time
+from cron.job_run_details d join cron.job j using (jobid)
+where j.jobname = 'stock-refresh-daily' order by d.start_time desc limit 15;
+```
+
+```sql
+-- ④ Sự thật về phía HTTP: 200 hay 401/timeout. pg_net tự dọn bảng này sau vài giờ nên nó
+--    chỉ soi được lượt gần nhất — không có hàng KHÔNG chứng minh được "chưa từng gọi".
+select id, status_code, error_msg, created
+from net._http_response order by created desc limit 10;
+```
+
+Ba tổ hợp thường gặp và nghĩa của chúng:
+
+| ① | ③ | ④ | Nghĩa |
+|---|---|---|---|
+| `khong_con_giu_cho = false` | `succeeded` | `401` | Bẫy ① — secret là chuỗi giữ chỗ. Chạy lại `npm run setup:stock-cron`. |
+| `true` | không có hàng cho phiên vừa qua | — | Cron không nổ. Kiểm `active`, kiểm `pg_cron` đã bật. |
+| `true` | `succeeded` | `status_code` rỗng + `error_msg` timeout | Bẫy ② — `timeout_milliseconds` quá thấp. |
 
 ## Cách xem log
 
@@ -298,7 +442,7 @@ Bảng cho người đọc log sáu tháng sau, không có ngữ cảnh gì khá
 | `tien-chua-dau-tu-am` | `brokerCash` ra số âm: tổng tiền đã chi cho các lệnh mua (trừ tiền thu từ lệnh bán) nhiều hơn số dư sổ của tài khoản (nạp − rút). Thường là quên ghi giao dịch nạp tiền vào tài khoản chứng khoán trước khi ghi lệnh mua. | Kiểm tra tab giao dịch của tài khoản này: có thiếu lần chuyển tiền vào không? Ghi bổ sung giao dịch nạp tiền (không phải lệnh mua) cho khớp số đã bỏ ra mua cổ phiếu. |
 | `thieu-gia-moi-ma` | `portfolioValue` trả `marketValue = null` vì **mọi** mã đang giữ đều không có giá trong `stock_prices` (không phải sổ lệnh sai, cash cũng không âm). Thường gặp nhất bây giờ: tài khoản chỉ giữ mã **HNX/UPCOM** (Yahoo không có giá cho hai sàn đó — xem mục "Giới hạn phải chấp nhận" ở trên). Cũng có thể là mã đã huỷ niêm yết. | Nếu mã thuộc HNX/UPCOM: đây là giới hạn đã biết, không có cách khắc phục tự động — ghi giá trị tài khoản đó bằng tay (sheet "Cập nhật giá trị") như trước khi có tính năng này. Nếu mã là HOSE nhưng SSI/Yahoo đổi mã, cập nhật lại `symbol` trong lệnh cho khớp. Nếu đã huỷ niêm yết, ghi lệnh `adjust` phù hợp hoặc chấp nhận tài khoản này tạm không tự chạy được. |
 | `nguoi-dung-da-go-tay` | Hàng `account_valuations` của đúng ngày phiên đó đã có sẵn với `source = 'manual'` — người dùng đã tự gõ số cho ngày này (sheet "Cập nhật giá trị"). Cron **cố ý** không đè lên: số người dùng gõ tay luôn thắng. | Không cần làm gì — đây là hành vi đúng, không phải lỗi. Nếu muốn để cron tự tính lại, xoá hàng `manual` đó (hoặc đổi `source` thành `'auto'`) rồi gọi lại function. |
-| `gia-le-phien-cu` | `fetchYahooPrices` chia lô (và có thể dừng sớm vì hết ngân sách thời gian) nên có lượt chỉ một phần số mã hút được giá mới. `sessionPrices` lấy ngày phiên lớn nhất trong `stock_prices` làm mốc chung; tài khoản này đang giữ ít nhất một mã mà giá của nó vẫn còn ở ngày phiên CŨ hơn mốc đó — tức lô của mã đó chưa hút được ở lượt này. Giá tuy có và > 0 (không rơi vào `thieu-gia-moi-ma`) nhưng là giá hôm qua, không phải hôm nay. | Xem `loi` của cùng lượt chạy đó có dòng `gia: ...` nào không (lỗi lô hay hết ngân sách). Nếu lô đã hút lại được ở lượt sau, cron tự ghi bình thường — không cần làm gì. Nếu lặp lại nhiều ngày liền, kiểm `fetchYahooPrices`/`prices.ts` — có thể ngân sách 90s đã không đủ, cần tăng `FETCH_BUDGET_MS`. |
+| `gia-le-phien-cu` | `sessionPrices` lấy ngày phiên lớn nhất trong `stock_prices` làm mốc chung; tài khoản này đang giữ ít nhất một mã mà giá của nó vẫn còn ở ngày phiên CŨ hơn mốc đó. Giá tuy có và > 0 (không rơi vào `thieu-gia-moi-ma`) nhưng thuộc phiên trước, không phải phiên mới nhất. **Hai nguyên nhân rất khác nhau, xem cột bên.** | **(a) Lô hụt — tạm thời.** `fetchYahooPrices` chia lô và có thể dừng sớm vì hết ngân sách thời gian, nên một lượt chỉ hút được một phần số mã. Xem `loi` của cùng lượt đó có dòng `gia: ...` nào không. Lượt sau hút lại được thì cron tự ghi, không cần làm gì; lặp lại nhiều ngày liền thì kiểm `FETCH_BUDGET_MS`. **(b) Mã thanh khoản mỏng — VĨNH VIỄN.** Phiên đó mã không có giao dịch nào nên bar cuối cùng Yahoo trả về đã là phiên trước; `updated_at` của nó **mới** (bằng với các mã khác) trong khi `trading_date` thì cũ. Đo 2026-08-11 có 35/403 mã như vậy. Tài khoản giữ một trong số đó sẽ bị bỏ qua **mọi lượt**, không tự khỏi. Phân biệt (a) với (b) bằng `updated_at`: mới = (b), cũ = (a). Với (b), cách duy nhất hiện có là gõ giá trị tay (sheet "Cập nhật giá trị"). |
 
 Ghi chú về lỗi trong `loi` ở việc 2 — hai dạng dòng khác nhau, ứng với hai tình huống
 khác nhau, đọc kỹ để khỏi hiểu lầm khi debug một lượt chạy dở dang:
@@ -380,7 +524,10 @@ Gọi thiếu header `x-cron-secret` phải trả `401 Sai bí mật cron`.
 | Cài mới (chưa ai ghi lệnh) không lỗi | ✅ đọc code — `loadTradedSymbols` trả mảng rỗng nhưng `buildFetchOrder` vẫn trả về cả `HOSE_SYMBOLS` (universe không rỗng) → việc 1 vẫn chạy bình thường, không có ca đặc biệt "sổ lệnh rỗng" nữa; `loadPortfolioAccounts` trả mảng rỗng nên vòng lặp tài khoản ở việc 2 không chạy, `daGhi`/`boQua` giữ 0/rỗng, status vẫn `200` |
 | Gọi thật `POST /stock-refresh` | ✅ **đã chạy thật** trên project 2026-08-06 (không qua `supabase functions serve` — máy dev không có Docker nên không chạy Supabase local được; gọi thẳng function đã deploy còn sát thực tế hơn) |
 | Ghi thật vào `account_valuations`, xem "Tổng tài sản"/"Hiệu quả đầu tư" tự đúng trên UI | ❌ **chưa kiểm** — cần môi trường sống (xem mục dưới) |
-| `cron.schedule` đã chạy thật, `cron.job`/`cron.job_run_details` có hàng | ❌ **chưa kiểm** — cần deploy lên project Supabase thật |
+| `cron.schedule` đã chạy thật, `cron.job` có hàng | ✅ **đã đo 2026-08-11**: `jobid = 1`, `jobname = 'stock-refresh-daily'`, `schedule = '45 8 * * 1-5'`, `active = true` |
+| Cron thật sự GHI được giá | ❌ **chưa** — job đầu tiên (2026-08-11) hẹn với chuỗi giữ chỗ `<PUSH_CRON_SECRET>` còn nguyên trong `command`, nên mỗi lượt nổ đều bị function trả `401` và không ghi hàng nào. Xem bẫy ① ở mục "Hẹn cron". Hẹn lại bằng `npm run setup:stock-cron` — script gọi thử để chứng minh secret trước khi in SQL |
+| Bảng giá đã từng được ghi bằng cron | ❌ **chưa** — đo 2026-08-11: `max(updated_at)` của `stock_prices` là `2026-08-06 08:45:06`, tức lần gọi TAY hôm 08-06 (`.304973` micro-giây ⇒ đến từ trigger `moddatetime`/`now()`, không phải `new Date().toISOString()` của JS vốn chỉ có mili-giây). Không lượt cron nào ghi được gì kể từ đó |
+| Mặc định `timeout_milliseconds` của `pg_net` trên project này | ❌ **chưa đo xong** — `pg_get_function_arguments` bị cắt ở giao diện. Không còn quan trọng: script đặt `120000` tường minh |
 
 ### Chưa làm được ở máy này — cần kiểm khi có môi trường sống
 
@@ -401,7 +548,8 @@ Việc còn lại trước khi tin tưởng cron chạy production:
    sau khi kiểm xong.
 4. Mở trang Tài sản, xác nhận tài khoản chứng khoán hiện theo giá thị trường và khu
    "Hiệu quả đầu tư" ra lãi/lỗ mà không cần bấm gì.
-5. Deploy (`npm run bundle:rules && supabase functions deploy stock-refresh
-   --no-verify-jwt`), hẹn `cron.schedule` như trên, rồi kiểm `select * from cron.job;`
-   có hàng `stock-refresh-daily`, và một ngày sau kiểm
-   `cron.job_run_details` có chạy thành công.
+5. Hẹn lại cron bằng `npm run setup:stock-cron` (script tự chứng minh secret trước khi in
+   SQL — bước đã gãy hôm 2026-08-11 vì dán chuỗi giữ chỗ). Rồi chạy bốn câu kiểm ở mục
+   "Hẹn cron → ④ Kiểm". Bằng chứng cuối cùng, một phiên sau: `max(updated_at)` của
+   `stock_prices` phải nhảy sang mốc của phiên đó — **không** đọc `trading_date` để kết
+   luận, nó không phân biệt được "cron không ghi" với "Yahoo trả giá phiên cũ".

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { ChevronDown } from 'lucide-react'
 import { SegmentedControl } from '../../components/ui'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
@@ -130,7 +131,7 @@ export function FeeField({
         ariaLabel={`Phí (${currency})`}
         onEnter={onEnter}
       />
-      <p className="mt-1 text-xs text-fg-muted">{hint}</p>
+      <Guide className="mt-1 text-xs text-fg-muted">{hint}</Guide>
     </div>
   )
 }
@@ -282,11 +283,11 @@ export function SplitFields({
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-fg-muted">
+          <Guide className="mt-1 text-xs text-fg-muted">
             {value.receivedAccountId
               ? 'Thêm một chuyển khoản để tài khoản đã trả vẫn trừ đủ tổng (khớp sao kê thẻ).'
               : 'Tiền ra tiền vào cùng một chỗ → chỉ ghi một dòng chi phần của mình.'}
-          </p>
+          </Guide>
         </div>
       )}
 
@@ -470,11 +471,11 @@ export function DebtFields({
         <label className="flex cursor-pointer items-center justify-between gap-2 text-sm text-gray-700 dark:text-gray-300">
           <span>
             Có chuyển tiền thật
-            <span className="block text-xs text-fg-muted">
+            <Guide as="span" className="block text-xs text-fg-muted">
               {value.direction === 'owed_to_me'
                 ? 'Tạo giao dịch chi (trừ số dư tài khoản)'
                 : 'Tạo giao dịch thu (cộng số dư tài khoản)'}
-            </span>
+            </Guide>
           </span>
           <button
             type="button"

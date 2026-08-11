@@ -33,7 +33,12 @@ export function PeriodHeadline({
   tiles = true,
 }: Props) {
   if (!headline) return null
-  if (!tiles) return <VerdictNote tone={headline.tone}>{headline.text}</VerdictNote>
+  if (!tiles)
+    return (
+      <VerdictNote tone={headline.tone} short={headline.short}>
+        {headline.text}
+      </VerdictNote>
+    )
   return (
     <section className="flex flex-col gap-2">
       <div className="grid grid-cols-3 gap-2">
@@ -51,7 +56,9 @@ export function PeriodHeadline({
           </span>
         </StatTile>
       </div>
-      <VerdictNote tone={headline.tone}>{headline.text}</VerdictNote>
+      <VerdictNote tone={headline.tone} short={headline.short}>
+        {headline.text}
+      </VerdictNote>
     </section>
   )
 }

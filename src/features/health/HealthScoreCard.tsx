@@ -7,6 +7,7 @@
 //
 // Thẻ KHÔNG tự tính gì: mọi phép tính ở health.ts để test được (health.test.ts).
 import { ExplainBox } from '../../components/ExplainBox'
+import { FullOnly } from '../../components/Guide'
 import { VerdictNote } from '../../components/VerdictNote'
 import { VERDICT_LABELS, type HealthScore, type ScoreItem } from './health'
 import { ScoreGauge } from './ScoreGauge'
@@ -45,30 +46,35 @@ export function HealthScoreCard({ result, items, monthsCounted }: Props) {
           </div>
 
           <div className="mt-3 space-y-1.5">
-            <VerdictNote tone={NOTE_TONE[result.verdict]}>
-              {result.verdict === 'good' && (
-                <>
-                  Nhìn chung ổn: <b>{result.score}/100</b> trên {monthsCounted} tháng gần nhất.{' '}
-                  {/* Điểm tổng cao vẫn có thể che một chỉ số đang cháy — trung bình là
-                      như vậy. Nói "giữ nguyên là đủ" trong trường hợp đó là nói sai. */}
-                  {weakestScore !== null && weakestScore < 40
-                    ? 'Nhưng có một chỗ lệch hẳn khỏi mức an toàn — xem dòng dưới.'
-                    : 'Giữ nguyên nếp đang có là đủ.'}
-                </>
-              )}
-              {result.verdict === 'warn' && (
-                <>
-                  Ở mức cần chú ý: <b>{result.score}/100</b>. Chưa có gì gấp, nhưng có chỗ đang mỏng —
-                  xem chỉ số yếu nhất bên dưới.
-                </>
-              )}
-              {result.verdict === 'bad' && (
-                <>
-                  Đang có rủi ro thật: <b>{result.score}/100</b>. Nên xử lý chỉ số yếu nhất trước khi
-                  tính tới mục tiêu dài hạn.
-                </>
-              )}
-            </VerdictNote>
+            {/* Ở chế độ Gọn thì bỏ HẲN câu này, không nén thành chip: đồng hồ ngay trên
+                đã hiện cả điểm lẫn chữ Tốt/Cần chú ý/Rủi ro, thêm chip nữa là nói lần
+                thứ ba. Ba dòng dưới thì giữ — chúng nói thứ đồng hồ không nói được. */}
+            <FullOnly>
+              <VerdictNote tone={NOTE_TONE[result.verdict]}>
+                {result.verdict === 'good' && (
+                  <>
+                    Nhìn chung ổn: <b>{result.score}/100</b> trên {monthsCounted} tháng gần nhất.{' '}
+                    {/* Điểm tổng cao vẫn có thể che một chỉ số đang cháy — trung bình là
+                        như vậy. Nói "giữ nguyên là đủ" trong trường hợp đó là nói sai. */}
+                    {weakestScore !== null && weakestScore < 40
+                      ? 'Nhưng có một chỗ lệch hẳn khỏi mức an toàn — xem dòng dưới.'
+                      : 'Giữ nguyên nếp đang có là đủ.'}
+                  </>
+                )}
+                {result.verdict === 'warn' && (
+                  <>
+                    Ở mức cần chú ý: <b>{result.score}/100</b>. Chưa có gì gấp, nhưng có chỗ đang
+                    mỏng — xem chỉ số yếu nhất bên dưới.
+                  </>
+                )}
+                {result.verdict === 'bad' && (
+                  <>
+                    Đang có rủi ro thật: <b>{result.score}/100</b>. Nên xử lý chỉ số yếu nhất trước
+                    khi tính tới mục tiêu dài hạn.
+                  </>
+                )}
+              </VerdictNote>
+            </FullOnly>
 
             {result.weakest && weakestScore !== null && (
               <VerdictNote
@@ -76,6 +82,7 @@ export function HealthScoreCard({ result, items, monthsCounted }: Props) {
                 // nó tồn tại để nói ra cái mà trung bình đang làm mờ đi.
                 tone={weakestScore >= 70 ? 'info' : weakestScore >= 40 ? 'warn' : 'bad'}
                 label="Kéo điểm xuống nhiều nhất"
+                short={`Yếu nhất: ${result.weakest.label} ${Math.round(weakestScore)}/100`}
               >
                 {result.weakest.label} — {Math.round(weakestScore)}/100.
               </VerdictNote>
@@ -84,7 +91,11 @@ export function HealthScoreCard({ result, items, monthsCounted }: Props) {
             {/* Điểm chấm thiếu chỉ số thì phải NÓI RA, không thì một con số dựa trên 2/6
                 chỉ số vẫn được đọc như kết luận đầy đủ. */}
             {result.counted < result.total && (
-              <VerdictNote tone="info" label={`Chấm trên ${result.counted}/${result.total} chỉ số`}>
+              <VerdictNote
+                tone="info"
+                label={`Chấm trên ${result.counted}/${result.total} chỉ số`}
+                short={`Chấm ${result.counted}/${result.total} chỉ số`}
+              >
                 Chưa tính được: {result.missing.join(', ')}.
               </VerdictNote>
             )}

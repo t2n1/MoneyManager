@@ -4,6 +4,7 @@
 // tiến độ · số tiền / trần) để mắt không phải học lại cách đọc — chỉ khác một chữ
 // nhỏ nói kỳ của trần, vì đó mới là thứ phân biệt hai khối.
 import { Link } from 'react-router-dom'
+import { Guide } from '../../components/Guide'
 import { Card, Money } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { BudgetStatus } from '../budgets/progress'
@@ -94,10 +95,10 @@ export function TagBudgetsCard({ data, base }: Props) {
       {/* Nhãn chồng nhau được: một khoản mang hai nhãn thì cả hai đều tính đủ khoản
           đó. Không nói ra thì người dùng cộng các dòng lại rồi thấy nhiều hơn tổng
           chi và tưởng app sai. */}
-      <p className="mt-2 text-2xs text-fg-muted">
+      <Guide className="mt-2 text-2xs text-fg-muted">
         Một khoản mang nhiều nhãn được tính đủ cho từng nhãn, nên các dòng ở đây cộng
         lại có thể lớn hơn tổng chi.
-      </p>
+      </Guide>
     </Card>
   )
 }

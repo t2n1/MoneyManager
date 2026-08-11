@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ChevronDown, ChevronLeft, ChevronUp, GripVertical } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
@@ -86,10 +87,10 @@ export function AccountsPage() {
       </div>
 
       {active.length > 0 && (
-        <p className="mb-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 p-3 text-xs text-blue-800 dark:text-blue-300">
+        <Guide className="mb-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 p-3 text-xs text-blue-800 dark:text-blue-300">
           Nhấn giữ biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự tài khoản trong cùng một
           loại. Muốn đổi sang loại khác thì mở tài khoản và chỉnh mục <b>Loại</b>.
-        </p>
+        </Guide>
       )}
 
       {active.length === 0 && (
@@ -529,17 +530,17 @@ function AccountForm({ account, onClose }: FormProps) {
           />
         </div>
         {isCard && (
-          <p className="mb-2 text-xs text-fg-muted">
+          <Guide className="mb-2 text-xs text-fg-muted">
             Số nợ tại thời điểm bắt đầu ghi sổ (để 0 nếu chưa nợ). Chi tiêu bằng thẻ và trả
             thẻ ghi như giao dịch bình thường. Muốn khớp lại nợ hiện tại thì mở thẻ trong
             trang Tài sản và bấm “Điều chỉnh số nợ” — sửa ô này sẽ dịch cả lịch sử cũ.
-          </p>
+          </Guide>
         )}
         {isInvestment && (
-          <p className="mb-2 text-xs text-fg-muted">
+          <Guide className="mb-2 text-xs text-fg-muted">
             Nhập vốn gốc ban đầu (tiền đã bỏ vào). Sau khi tạo, vào trang tài khoản để
             “Cập nhật giá trị” theo giá thị trường — chênh lệch là lãi/lỗ chưa thực hiện.
-          </p>
+          </Guide>
         )}
 
         {/* Tài khoản ưu đãi thuế Nhật — theo dõi hạn mức nạp mỗi năm */}
@@ -580,10 +581,10 @@ function AccountForm({ account, onClose }: FormProps) {
                   ariaLabel="Hạn mức nạp mỗi năm"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right text-sm outline-green-500 dark:border-gray-700"
                 />
-                <p className="mt-1 text-2xs text-fg-muted">
+                <Guide className="mt-1 text-2xs text-fg-muted">
                   App đếm tiền bạn chuyển vào tài khoản này trong năm và cho biết còn bao nhiêu hạn
                   mức chưa dùng.
-                </p>
+                </Guide>
               </>
             )}
           </div>
@@ -592,11 +593,11 @@ function AccountForm({ account, onClose }: FormProps) {
         {/* Tài sản cố định — khấu hao tuyến tính */}
         {isFixed && (
           <div className="mb-3 rounded-lg bg-surface-page p-2.5 ">
-            <p className="mb-2 text-xs text-fg-muted">
+            <Guide className="mb-2 text-xs text-fg-muted">
               Nhập <b>giá mua</b> ở ô số tiền phía trên. App sẽ tự giảm dần giá trị theo thời gian.
               Bất cứ lúc nào bạn tự “Cập nhật giá trị” trong trang tài khoản thì con số nhập tay được
               ưu tiên.
-            </p>
+            </Guide>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-fg-muted">
@@ -633,10 +634,10 @@ function AccountForm({ account, onClose }: FormProps) {
               ariaLabel="Giá trị còn lại cuối vòng đời"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right text-sm outline-green-500 dark:border-gray-700"
             />
-            <p className="mt-1 text-2xs text-fg-muted">
+            <Guide className="mt-1 text-2xs text-fg-muted">
               Ví dụ xe 5 năm về 0: 60 tháng, còn lại 0. Xe vẫn bán được giá thì điền số bán ước tính.
               Bỏ trống ngày mua hoặc số tháng = không khấu hao tự động.
-            </p>
+            </Guide>
           </div>
         )}
 

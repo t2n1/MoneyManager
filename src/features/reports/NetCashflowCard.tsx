@@ -71,7 +71,7 @@ export function NetCashflowCard({ series, base, title, labelOf, currentKey = nul
                 formatMoney(Number(v), base),
                 name === 'net' ? 'Ròng tháng' : 'Tích lũy',
               ]}
-              labelFormatter={(l) => `Tháng ${l}`}
+              labelFormatter={(l) => String(l)}
               // Nền/viền/chữ tooltip do index.css xử lý theo dark mode (.recharts-default-tooltip)
               contentStyle={{ borderRadius: 8, fontSize: 12 }}
               cursor={{ fill: 'rgba(148,163,184,0.15)' }}
@@ -130,7 +130,16 @@ export function NetCashflowCard({ series, base, title, labelOf, currentKey = nul
           dựa vào một tháng mới đi được 3 ngày. */}
       {verdict && (
         <div className="mt-2">
-          <VerdictNote tone={verdict.tone}>
+          <VerdictNote
+            tone={verdict.tone}
+            short={
+              verdict.tone === 'bad'
+                ? `Âm ${formatMoney(Math.abs(verdict.total), base)} / ${verdict.months} tháng`
+                : verdict.tone === 'warn'
+                  ? `Dư ${formatMoney(verdict.total, base)} nhưng ${verdict.negativeMonths}/${verdict.months} tháng âm`
+                  : `Dư ${formatMoney(verdict.total, base)} / ${verdict.months} tháng`
+            }
+          >
             {/* Luôn mở đầu bằng "N tháng đã xong": con số ở đây gần như chắc chắn KHÁC
                 dòng tổng phía trên (dòng đó gồm cả tháng đang dở, để khớp biểu đồ), nên
                 phải nói ngay phạm vi, không thì trông như app tính sai. */}

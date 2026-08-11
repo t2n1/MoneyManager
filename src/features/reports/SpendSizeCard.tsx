@@ -2,6 +2,7 @@
 // Kèm quy đổi ra GIỜ LÀM nếu người dùng đã khai lương theo giờ trong Cài đặt —
 // đọc "bữa trưa này = 0,7 giờ làm" thấm hơn nhiều so với đọc con số tiền.
 import { Link } from 'react-router-dom'
+import { Guide } from '../../components/Guide'
 import { ExplainBox } from '../../components/ExplainBox'
 import { Money } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
@@ -115,19 +116,22 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
 
       {skewed && (
         <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-2xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-          Trung bình ({money(data.mean)}) cao hơn hẳn mức điển hình ({money(data.median)}) — vài
-          khoản lớn đang kéo con số trung bình lên. Nhìn trung vị sẽ sát đời thực hơn.
+          Trung bình ({money(data.mean)}) cao hơn hẳn mức điển hình ({money(data.median)}).
+          <Guide as="span">
+            {' '}
+            Vài khoản lớn đang kéo con số trung bình lên — nhìn trung vị sẽ sát đời thực hơn.
+          </Guide>
         </p>
       )}
 
       {hourlyWage === null && (
-        <p className="mt-2 text-2xs text-fg-muted">
+        <Guide className="mt-2 text-2xs text-fg-muted">
           Muốn thấy “món này = mấy giờ làm”?{' '}
           <Link to="/settings" className="font-medium text-green-700 dark:text-green-400">
             Khai lương theo giờ trong Cài đặt
           </Link>
           .
-        </p>
+        </Guide>
       )}
 
       <ExplainBox label="Cách đọc">

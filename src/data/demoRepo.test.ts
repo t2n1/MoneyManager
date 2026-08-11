@@ -670,6 +670,26 @@ describe('demoRepo: sổ lệnh cổ phiếu', () => {
     expect(sau.length).toBe(backup.stockTrades?.length ?? 0)
   })
 
+  it('sao lưu/khôi phục mang theo Cách trình bày (density_pref)', async () => {
+    // Cột của migration 0040. Đường khôi phục liệt kê TỪNG cột hồ sơ, nên một cột mới
+    // rất dễ bị bỏ sót mà không ai thấy: khôi phục vẫn chạy, chỉ âm thầm về mặc định.
+    await demoRepo.updateProfile({ density_pref: 'full' })
+    const backup = await demoRepo.exportAll()
+    expect(backup.profile.density_pref).toBe('full')
+
+    await demoRepo.updateProfile({ density_pref: 'visual' })
+    await demoRepo.importAll(backup)
+    expect((await demoRepo.getProfile()).density_pref).toBe('full')
+  })
+
+  it('khôi phục bản lưu cũ (chưa có density_pref) thì về mặc định, không phải undefined', async () => {
+    const backup = await demoRepo.exportAll()
+    // Bản lưu xuất trước migration 0040 — trường không tồn tại.
+    delete (backup.profile as { density_pref?: string }).density_pref
+    await demoRepo.importAll(backup)
+    expect((await demoRepo.getProfile()).density_pref).toBe('visual')
+  })
+
   it('sao lưu/khôi phục KHÔNG được đổi source của định giá — hàng auto phải vẫn là auto', async () => {
     // Nếu đường khôi phục quên cột `source`, mọi hàng do cron ghi (auto) sẽ biến thành
     // manual sau một lần khôi phục, và từ đó cron không bao giờ tính lại được nữa —

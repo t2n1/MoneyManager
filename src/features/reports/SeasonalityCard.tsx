@@ -1,4 +1,5 @@
 import { ExplainBox } from '../../components/ExplainBox'
+import { Guide } from '../../components/Guide'
 import { Card } from '../../components/ui'
 import type { Seasonality } from './multiYear'
 
@@ -37,12 +38,12 @@ export function SeasonalityCard({ data }: Props) {
               {peak.indexPct.toFixed(0)}%
             </span>
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-fg-muted">
+          <Guide className="mt-1 text-xs leading-relaxed text-fg-muted">
             Nghĩa là: tháng {peak.month} thường tốn{' '}
             <strong>{(peak.indexPct - 100).toFixed(0)}% nhiều hơn</strong> một tháng bình thường
             {trough ? `, còn tháng ${trough.month} là tháng nhẹ nhất` : ''}. Biết trước thì đầu
             tháng {peak.month} nên để dành thêm.
-          </p>
+          </Guide>
         </>
       )}
 

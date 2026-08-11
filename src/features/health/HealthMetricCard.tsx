@@ -1,20 +1,29 @@
 // Thẻ chỉ số sức khỏe tài chính — khuôn dùng chung cho MỌI chỉ số để đọc quen mắt:
 //   tên · kết luận · số lớn · thang đo màu · một câu nghĩa là gì · "cách tính" mở ra được.
 // Kết luận LUÔN có chữ (Tốt / Cần chú ý / Rủi ro) chứ không chỉ dựa vào màu.
+//
+// Ở chế độ Gọn (src/lib/density.ts) thẻ rút về bốn thứ đầu: tên, huy hiệu, số lớn,
+// thang màu. Đó cũng là lý do khuôn này chịu được chế độ Gọn mà không phải thiết kế
+// lại — nó vốn đã đặt kết luận vào huy hiệu và đồ hoạ, chữ chỉ là phần diễn giải thêm.
 import type { ReactNode } from 'react'
 import { ExplainBox } from '../../components/ExplainBox'
+import { Guide } from '../../components/Guide'
 import { VERDICT_LABELS, type Tone, type Verdict, type Zone } from './health'
-import { ZONE_BAR } from './zoneColors'
+import { STATUS_CHIP, STATUS_FILL } from '../../components/ui/statusColors'
 
 // Thang đo khai ở health.ts vì điểm tổng chấm trên đúng mốc đang vẽ ở đây. Vẫn
 // xuất lại từ file này để các chỗ đang import `type Zone` từ thẻ không phải đổi.
 export type { Tone, Zone }
 
+// Huy hiệu Tốt/Cần chú ý/Rủi ro. Bộ màu này TỪNG khai tại đây; đã dời sang tầng
+// primitive (components/ui/statusColors) khi chế độ Gọn cần đúng dáng pill đó ở nhiều
+// màn khác. 'unknown' của thang sức khỏe = 'info' của primitive: nó không biết gì về
+// việc chấm điểm, chỉ biết "chưa có gì để nói".
 const BADGE: Record<Verdict, string> = {
-  good: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  warn: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  bad: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  unknown: 'bg-surface-sunken text-fg-on-track',
+  good: STATUS_CHIP.good,
+  warn: STATUS_CHIP.warn,
+  bad: STATUS_CHIP.bad,
+  unknown: STATUS_CHIP.info,
 }
 
 const VALUE: Record<Verdict, string> = {
@@ -82,7 +91,7 @@ export function HealthMetricCard({
               return (
                 <div
                   key={z.upTo}
-                  className={`h-full ${ZONE_BAR[z.tone]}`}
+                  className={`h-full ${STATUS_FILL[z.tone]}`}
                   style={{ width: `${((z.upTo - from) / max) * 100}%` }}
                 />
               )
@@ -110,7 +119,16 @@ export function HealthMetricCard({
         </div>
       )}
 
-      <p className="mt-2 text-xs leading-relaxed text-fg-secondary">{meaning}</p>
+      {/* Chế độ Gọn bỏ câu giải nghĩa — nhưng CHỈ khi thẻ đã tự nói được: có số lớn,
+          thang màu và huy hiệu thì câu đó là phần "nghĩa là gì", đúng loại chữ để dạy.
+          Chỉ số CHƯA chấm được thì phải giữ: lúc đó thẻ chỉ có "—", và câu này là chỗ
+          duy nhất nói vì sao cùng đường đi sửa (thường là một <Link> phân loại danh
+          mục). Ẩn nó đi là để lại một thẻ trắng không cách nào thoát. */}
+      {verdict === 'unknown' ? (
+        <p className="mt-2 text-xs leading-relaxed text-fg-secondary">{meaning}</p>
+      ) : (
+        <Guide className="mt-2 text-xs leading-relaxed text-fg-secondary">{meaning}</Guide>
+      )}
 
       {extra}
 

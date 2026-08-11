@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { Card } from '../../components/ui/Card'
+import { useDensity } from '../../hooks/useDensity'
 import { useProfile, useUpdateProfile } from '../../hooks/queries'
 import { showToast } from '../../lib/dialog'
 import { BLOCKER_MESSAGE } from './pushEligibility'
@@ -68,6 +70,9 @@ function timezoneOptions(current: string): string[] {
 }
 
 function PushSection() {
+  // Xem chú thích ở Group: câu mô tả có id được aria-describedby trỏ vào, nên ẩn chữ
+  // và bỏ tham chiếu phải đi cùng nhau.
+  const { visual } = useDensity()
   const { data: profile } = useProfile()
   const updateProfile = useUpdateProfile()
   const [state, setState] = useState<PushState | null>(null)
@@ -130,16 +135,18 @@ function PushSection() {
             <p id="push-toggle-label" className="text-sm font-medium text-fg-primary">
               Nhận thông báo trên máy này
             </p>
-            <p id="push-toggle-hint" className="mt-0.5 text-xs text-fg-muted">
-              Chỉ đẩy nhóm “Việc cần làm”, mỗi ngày một lần, mỗi việc chỉ một lần. Bật/tắt
-              riêng cho từng máy.
-            </p>
+            {!visual && (
+              <p id="push-toggle-hint" className="mt-0.5 text-xs text-fg-muted">
+                Chỉ đẩy nhóm “Việc cần làm”, mỗi ngày một lần, mỗi việc chỉ một lần. Bật/tắt
+                riêng cho từng máy.
+              </p>
+            )}
           </div>
           <Switch
             on={state?.subscribed ?? false}
             disabled={!canToggle || busy}
             labelledBy="push-toggle-label"
-            describedBy="push-toggle-hint"
+            describedBy={visual ? undefined : 'push-toggle-hint'}
             onToggle={toggle}
           />
         </div>
@@ -185,10 +192,10 @@ function PushSection() {
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-fg-muted">
+            <Guide className="mt-1 text-xs text-fg-muted">
               Giờ gửi tính theo nơi này, không phải theo máy — đổi nước thì sửa ở đây một lần,
               không phải sửa lại giờ.
-            </p>
+            </Guide>
           </div>
         )}
       </Card>
@@ -207,6 +214,11 @@ function Group({
   off: Set<string>
   onToggle: (t: NotificationType, on: boolean) => void
 }) {
+  // Không dùng <Guide> ở đây mà đọc thẳng chế độ: câu mô tả có `id` được
+  // `aria-describedby` của nút gạt trỏ vào, nên phải TẮT CẢ HAI cùng lúc. Để <Guide>
+  // ẩn <p> mà vẫn giữ describedBy là tạo tham chiếu treo tới id không còn tồn tại.
+  const { visual } = useDensity()
+
   return (
     <section className="mb-5">
       <h2 className="mb-2 px-1 text-2xs font-bold uppercase tracking-wide text-fg-muted">
@@ -228,9 +240,11 @@ function Group({
                 >
                   {meta.label}
                 </p>
-                <p id={hintId} className="mt-0.5 text-xs text-fg-muted">
-                  {meta.hint}
-                </p>
+                {!visual && (
+                  <p id={hintId} className="mt-0.5 text-xs text-fg-muted">
+                    {meta.hint}
+                  </p>
+                )}
               </div>
               {/* Nút bấm to bằng cả ô 44x44 để dễ trúng tay, hình vẽ công tắc bên trong vẫn nhỏ như cũ */}
               {/* aria-labelledby trỏ vào tên loại thông báo (đối tượng), không phải "Tắt/Bật X"
@@ -238,7 +252,7 @@ function Group({
               <Switch
                 on={on}
                 labelledBy={labelId}
-                describedBy={hintId}
+                describedBy={visual ? undefined : hintId}
                 onToggle={() => onToggle(t, !on)}
               />
             </li>
@@ -285,9 +299,9 @@ export function NotificationSettingsPage() {
   return (
     <div className="p-3 lg:p-6">
       <h1 className="mb-1 text-lg font-bold text-fg-primary">Thông báo</h1>
-      <p className="mb-4 text-sm text-fg-muted">
+      <Guide className="mb-4 text-sm text-fg-muted">
         Tắt loại nào thì loại đó không hiện trong chuông nữa. Mặc định bật hết.
-      </p>
+      </Guide>
       <PushSection />
       <Group title="Việc cần làm" types={actions} off={off} onToggle={toggle} />
       <Group title="Tin để biết" types={infos} off={off} onToggle={toggle} />

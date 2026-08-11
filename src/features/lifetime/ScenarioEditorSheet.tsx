@@ -3,6 +3,7 @@
 // Task 11). STUB của Task 7 dừng ở đây; thân hàm bên dưới thay thế nó, giữ
 // nguyên chữ ký props để LifetimePage không phải sửa lại chỗ gọi.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, Copy, Plus, Sparkles, Star, Trash2, X } from 'lucide-react'
 import { repo } from '../../data'
@@ -1158,7 +1159,8 @@ export function ScenarioEditorSheet({
             <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Số này ở đâu ra</h3>
             {!currentPhase || !baseline ? (
               <p className="text-xs text-fg-muted">
-                Chưa có chặng nào — thêm một chặng để xem số liệu chi tiêu thật đứng sau giả định.
+                Chưa có chặng nào.
+                <Guide as="span"> Thêm một chặng để xem số liệu chi tiêu thật đứng sau giả định.</Guide>
               </p>
             ) : (
               <div className="space-y-2">

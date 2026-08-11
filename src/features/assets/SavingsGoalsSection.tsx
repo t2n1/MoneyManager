@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { Plus, Target } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
@@ -95,7 +96,8 @@ export function SavingsGoalsSection({ view }: Props) {
 
       {goals.length === 0 ? (
         <p className="mt-3 text-center text-xs text-fg-muted">
-          Chưa có mục tiêu nào. Đặt một đích tiết kiệm để theo dõi tiến độ.
+          Chưa có mục tiêu nào.
+          <Guide as="span"> Đặt một đích tiết kiệm để theo dõi tiến độ.</Guide>
         </p>
       ) : (
         <ul className="mt-3 flex flex-col gap-3">

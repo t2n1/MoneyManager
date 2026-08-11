@@ -10,10 +10,10 @@ export const WEEKDAYS_SHORT = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
 
 export type CurrencyOf = (accountId: string) => CurrencyCode
 
-/** 'YYYY-MM-DD' → "Thứ hai, 7/7". */
+/** 'YYYY-MM-DD' → "Thứ hai, 7/7" (tháng/ngày). */
 export function formatDayHeader(dateISO: string): string {
   const [y, m, d] = dateISO.split('-').map(Number)
-  return `${WEEKDAYS[new Date(y, m - 1, d).getDay()]}, ${d}/${m}`
+  return `${WEEKDAYS[new Date(y, m - 1, d).getDay()]}, ${m}/${d}`
 }
 
 export interface Sum {

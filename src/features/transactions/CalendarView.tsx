@@ -92,10 +92,10 @@ export function CalendarView({
     ...periodDays,
   ]
 
-  /** Nhãn ô: số ngày; ngày 1 hiện "1/8" để khỏi lẫn khi kỳ vắt sang tháng sau */
+  /** Nhãn ô: số ngày; ngày 1 hiện "8/1" (tháng/ngày) để khỏi lẫn khi kỳ vắt sang tháng sau */
   const dayLabel = (iso: string) => {
     const day = Number(iso.slice(8, 10))
-    return day === 1 && monthStartDay !== 1 ? `1/${Number(iso.slice(5, 7))}` : String(day)
+    return day === 1 && monthStartDay !== 1 ? `${Number(iso.slice(5, 7))}/1` : String(day)
   }
 
   return (

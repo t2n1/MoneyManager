@@ -1,4 +1,5 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { Archive, ChevronDown, ChevronLeft, ChevronUp, GripVertical, Plus } from 'lucide-react'
 import type { NewCategory } from '../../data'
@@ -395,19 +396,19 @@ export function CategoriesPage() {
         ))}
       </div>
 
-      <p className="mb-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 p-3 text-xs text-blue-800 dark:text-blue-300">
+      <Guide className="mb-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 p-3 text-xs text-blue-800 dark:text-blue-300">
         Nhấn giữ biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự danh mục cha, sắp danh mục
         con trong một cha, hoặc kéo danh mục con thả sang cha khác.
-      </p>
+      </Guide>
 
       {/* Tạo nhanh bộ danh mục Thuế & An sinh (Nhật) — mở khóa chỉ số gánh nặng thuế */}
       {tab === 'expense' && !hasTaxCategories(categories) && (
         <div className="mb-3 rounded-xl bg-surface p-3 shadow-sm ">
-          <p className="text-xs text-fg-secondary">
+          <Guide className="text-xs text-fg-secondary">
             Muốn biết mỗi năm mất bao nhiêu phần thu nhập cho 所得税・住民税・社会保険料? Tạo sẵn
             nhóm <b>{TAX_PARENT_NAME}</b> với {TAX_CHILDREN.length} danh mục con theo phiếu lương
             Nhật, rồi nhập lương <b>gộp</b> là khoản Thu và các khoản khấu trừ là khoản Chi.
-          </p>
+          </Guide>
           <button
             type="button"
             onClick={createTaxCategories}

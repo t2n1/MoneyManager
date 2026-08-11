@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { Plus, Send, Trash2 } from 'lucide-react'
 import { useDeleteTransaction } from '../../hooks/queries'
@@ -123,10 +124,10 @@ export function RemittanceSection({
                 </b>
                 .
               </p>
-              <p className="mt-1 text-2xs text-fg-muted">
+              <Guide className="mt-1 text-2xs text-fg-muted">
                 Khoảng cách giữa hai lần này là cái giá của việc chọn thời điểm. Chênh lệch lớn thì
                 lần sau nên chia nhỏ ra gửi nhiều đợt thay vì dồn một cục.
-              </p>
+              </Guide>
             </div>
           )}
 

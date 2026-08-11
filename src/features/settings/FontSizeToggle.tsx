@@ -1,4 +1,6 @@
+import { Card } from '../../components/ui'
 import { useFontScale } from '../../hooks/useFontScale'
+import { Guide } from '../../components/Guide'
 import type { FontScalePref } from '../../lib/fontScale'
 
 // Cỡ chữ chữ "A" trên nút cố định theo px để mẫu thử không đổi khi đổi cỡ chữ,
@@ -14,7 +16,7 @@ export function FontSizeToggle() {
   const { pref, setFontScale } = useFontScale()
 
   return (
-    <section className="overflow-hidden rounded-xl bg-surface shadow-sm ">
+    <Card as="section" padding="none" className="overflow-hidden">
       <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">Cỡ chữ</h2>
       <div className="flex gap-1 p-3">
         {OPTIONS.map((opt) => {
@@ -43,9 +45,9 @@ export function FontSizeToggle() {
           )
         })}
       </div>
-      <p className="px-3 pb-3 text-xs text-fg-muted">
+      <Guide className="px-3 pb-3 text-xs text-fg-muted">
         Áp dụng cho toàn bộ app. Chọn cỡ lớn sẽ hiển thị ít nội dung hơn trên mỗi màn hình.
-      </p>
-    </section>
+      </Guide>
+    </Card>
   )
 }

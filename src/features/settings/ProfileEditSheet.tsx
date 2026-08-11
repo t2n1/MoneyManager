@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { useUpdateProfile } from '../../hooks/queries'
 import { clampMonthStartDay } from '../../lib/dates'
 import { CURRENCIES, formatMoney } from '../../lib/money'
@@ -130,9 +131,9 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           placeholder="Để trống nếu không dùng"
           className="mt-1 w-full rounded-xl border border-gray-300 bg-surface p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:text-gray-100"
         />
-        <p className="mt-1 text-xs text-fg-muted">
+        <Guide className="mt-1 text-xs text-fg-muted">
           Để báo cáo quy đổi “món này = mấy giờ làm”. Lương tháng ÷ số giờ làm thực tế trong tháng.
-        </p>
+        </Guide>
 
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
@@ -160,10 +161,10 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
             />
           </div>
         </div>
-        <p className="mt-1 text-xs text-fg-muted">
+        <Guide className="mt-1 text-xs text-fg-muted">
           Dùng để tính lợi nhuận đầu tư sau thuế và sau trượt giá. Ở Nhật thuế lãi vốn là 20,32%;
           lạm phát vài năm gần đây quanh 2–3%.
-        </p>
+        </Guide>
 
         {/* Mốc cơ cấu chi — hiện ở đầu tab Ngân sách */}
         <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
@@ -189,18 +190,19 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
             </div>
           ))}
         </div>
-        <p className="mt-1 text-xs text-fg-muted">
+        <Guide className="mt-1 text-xs text-fg-muted">
           Mặc định là quy tắc 50/30/20. Hai mốc đầu là <b>trần</b> (chi dưới mức là tốt), tiết kiệm
           là <b>sàn</b> (vượt mức là tốt).
-          {/* Không ép tổng = 100: có người muốn để đệm, nhưng lệch nhiều thì nhắc */}
-          {Math.abs(axisSum - 100) > 0.5 && (
-            <span className="text-fg-warn">
-              {' '}
-              Tổng hiện là {Math.round(axisSum)}% — không bắt buộc bằng 100%, nhưng lệch nhiều thì
-              ba mốc khó dùng chung.
-            </span>
-          )}
-        </p>
+        </Guide>
+        {/* Không ép tổng = 100: có người muốn để đệm, nhưng lệch nhiều thì nhắc. Dòng này
+            đứng RIÊNG, không nằm trong <Guide> ở trên: nó nói về con số vừa gõ, nên chế độ
+            Gọn cũng phải thấy — gộp vào khối hướng dẫn là mất cảnh báo. */}
+        {Math.abs(axisSum - 100) > 0.5 && (
+          <p className="mt-1 text-xs text-fg-warn">
+            Tổng hiện là {Math.round(axisSum)}% — không bắt buộc bằng 100%, nhưng lệch nhiều thì ba
+            mốc khó dùng chung.
+          </p>
+        )}
 
         <button
           type="button"

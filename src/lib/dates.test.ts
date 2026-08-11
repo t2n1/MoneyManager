@@ -89,8 +89,8 @@ describe('toISODate / formatMonthLabel', () => {
     expect(toISODate(new Date(2026, 0, 5))).toBe('2026-01-05')
   })
 
-  it('formatMonthLabel tiếng Việt', () => {
-    expect(formatMonthLabel({ year: 2026, month: 7 })).toBe('Tháng 7/2026')
+  it('formatMonthLabel năm/tháng', () => {
+    expect(formatMonthLabel({ year: 2026, month: 7 })).toBe('2026/07')
   })
 })
 
@@ -174,8 +174,8 @@ describe('formatYearLabel', () => {
 
 describe('dueDateLabel / dueRelativeLabel', () => {
   it('gắn thứ trong tuần vào ngày đến hạn', () => {
-    expect(dueDateLabel('2026-08-27')).toBe('T5, 27/8') // 27/8/2026 là Thứ 5
-    expect(dueDateLabel('2026-06-29')).toBe('T2, 29/6') // đã dời từ T7 27/6
+    expect(dueDateLabel('2026-08-27')).toBe('T5, 8/27') // 2026/8/27 là Thứ 5
+    expect(dueDateLabel('2026-06-29')).toBe('T2, 6/29') // đã dời từ T7 6/27
   })
 
   it('đếm ngược theo mốc hôm nay', () => {

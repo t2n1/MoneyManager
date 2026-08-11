@@ -213,6 +213,8 @@ export type ProfilePatch = Partial<
     // push của chính mình (lùi mốc về tương lai) mà không nút nào giải thích nổi.
     | 'push_hour'
     | 'push_tz'
+    // Cách trình bày Gọn/Đầy đủ (migration 0040)
+    | 'density_pref'
   >
 >
 

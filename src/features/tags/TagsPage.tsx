@@ -1,6 +1,7 @@
 // Quản lý nhãn: đổi tên, đổi màu, lưu trữ, xóa. Tạo nhãn thì làm ngay trong form
 // nhập giao dịch cho nhanh, nên ở đây chỉ cần một ô thêm đơn giản.
 import { useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { Archive, ArchiveRestore, ChevronLeft, Trash2 } from 'lucide-react'
 import {
@@ -292,12 +293,12 @@ export function TagsPage() {
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Nhãn</h1>
       </div>
 
-      <p className="mb-3 rounded-xl bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+      <Guide className="mb-3 rounded-xl bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
         Nhãn cắt ngang danh mục: một chuyến “Về VN 2026” gồm vé máy bay, quà và phong bì nằm ở ba
         danh mục khác nhau, nhưng cùng một nhãn thì cuối năm cộng được tổng chi phí cả chuyến.
         Xếp nhãn vào <b>nhóm</b> để lúc nhập đỡ phải lục: nhóm “Với ai?”, “Ở đâu?” mỗi nhóm một
         hàng chip. Xong chuyến thì <b>lưu trữ</b> nhãn: nó ẩn khỏi form nhập nhưng số liệu vẫn còn.
-      </p>
+      </Guide>
 
       {!quickSortDone && <QuickSortStrip onDone={() => setQuickSortDone(true)} />}
 
@@ -395,8 +396,11 @@ export function TagsPage() {
                     </div>
                     {s.rows.length === 0 ? (
                       <p className="px-2 text-xs text-fg-muted">
-                        Chưa có nhãn nào trong nhóm này. Đổi ô “Nhóm” ở một nhãn bên dưới để xếp
-                        nó vào đây.
+                        Chưa có nhãn nào trong nhóm này.
+                        <Guide as="span">
+                          {' '}
+                          Đổi ô “Nhóm” ở một nhãn bên dưới để xếp nó vào đây.
+                        </Guide>
                       </p>
                     ) : (
                       <ul className="flex flex-col gap-2">{s.rows.map(row)}</ul>
@@ -413,20 +417,20 @@ export function TagsPage() {
                 <Archive className="h-4 w-4" aria-hidden />
                 Đã lưu trữ ({archived.length})
               </h2>
-              <p className="mb-2 px-1 text-xs text-fg-muted">
+              <Guide className="mb-2 px-1 text-xs text-fg-muted">
                 Không hiện khi nhập giao dịch nữa, nhưng vẫn còn nguyên trong Chi theo nhãn và lọc
                 ở Tìm kiếm.
-              </p>
+              </Guide>
               <ul className="flex flex-col gap-2">{archived.map(row)}</ul>
             </section>
           )}
 
           <section className="mt-6">
             <h2 className="mb-1 px-1 text-sm font-semibold text-fg-secondary">Nhóm nhãn</h2>
-            <p className="mb-2 px-1 text-xs text-fg-muted">
+            <Guide className="mb-2 px-1 text-xs text-fg-muted">
               Nhóm là CÂU HỎI, nhãn là câu trả lời: nhóm “Với ai?” chứa “Người yêu”, “Bạn bè”.
               Khi nhập giao dịch, mỗi nhóm hiện thành một hàng chip riêng.
-            </p>
+            </Guide>
             {quickSortDone && (
               <button
                 type="button"

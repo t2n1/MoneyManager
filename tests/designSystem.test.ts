@@ -50,6 +50,16 @@ function stripComments(text: string): string {
     .join('\n')
 }
 
+/**
+ * Trần cho văn xuôi chưa đi qua cổng của chế độ Gọn — xem test cuối file.
+ *
+ * 49 (2026-08-11): đo sau khi bọc 35 đoạn vào <Guide>. Con số còn lại KHÔNG phải nợ
+ * cần dọn hết: đã xét từng chỗ, phần lớn là cảnh báo dữ liệu (thiếu tỷ giá, chưa quy
+ * đổi), dòng số liệu, câu giải thích ô đang bị vô hiệu, và trạng thái rỗng mà câu chữ
+ * là đường đi tiếp duy nhất. Bọc chúng lại là bỏ chức năng, không phải bớt chữ.
+ */
+const PROSE_MAX = 49
+
 const FILES = sourceFiles().map((path) => ({
   path,
   text: stripComments(readFileSync(path, 'utf8')),
@@ -226,7 +236,11 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // 85 chu khong 82: lượt chuẩn hoá đã kéo 29 thẻ TỪ dạng `rounded-xl bg-white …
     // dark:bg-gray-900` VÀO dạng này, nên con số tăng mà tổng số thẻ viết tay không
     // đổi. Không phải thêm thẻ mới. Gộp vào <Card> thì hạ tiếp.
-    { needle: 'rounded-xl bg-surface', max: 85, use: '<Card>' },
+    //
+    // 83 (2026-08-11): ba khối tuỳ chọn trong Cài đặt (Giao diện / Cách trình bày / Cỡ
+    // chữ) đã gộp về <Card as="section" padding="none">. Phải đổi cả ba cùng lúc —
+    // chúng nằm liền nhau nên để lẻ một cái viết tay là cái đó lệch dáng.
+    { needle: 'rounded-xl bg-surface', max: 83, use: '<Card>' },
     { needle: 'tabular-nums', max: 97, use: '<Money> (tự bật tabular-nums)' },
     // 35 (đo 2026-08-06): cặp xanh nhấn viết tay. Nợ này TĂNG từ 29 lúc dựng hệ thống
     // — quy ước mới chưa thắng thói quen cũ, nên phải có trần. Mỗi chỗ cần XÉT NGHĨA
@@ -283,5 +297,126 @@ describe('design system — token phải tồn tại', () => {
     expect(css).toContain('@theme inline')
     expect(css).toContain('--color-fg-muted: var(--fg-muted)')
     expect(css).toContain('--color-money-in: var(--money-in)')
+  })
+})
+
+// ============================================================================
+// Chế độ trình bày Gọn / Đầy đủ (src/lib/density.ts)
+//
+// Cả tính năng dựa trên MỘT quy ước: chữ chỉ để dạy thì đi qua <Guide>/<FullOnly>/
+// <ExplainBox>, còn lại thì không. Quy ước sống được hay không phụ thuộc việc đoạn chữ
+// TIẾP THEO ai viết có nhớ nó — mà repo không có test render nào để bắt. Nên chặn ở
+// mức nguồn, đúng cách các luật trên đang làm.
+// ============================================================================
+describe('chế độ Gọn — chữ để dạy phải đi qua cổng', () => {
+  // Khối hướng dẫn nền xanh (`bg-blue-50` + chữ blue-800) là dạng chữ để dạy THUẦN
+  // KHIẾT nhất trong app: 5 chỗ, chỗ nào cũng chỉ nói cách dùng màn hình, không mang
+  // một con số nào. Đã đổi hết sang <Guide>. Viết lại bằng <p> nghĩa là chế độ Gọn
+  // lặng lẽ hở một lỗ, mà nhìn màn hình ở chế độ Đầy đủ thì không thấy gì sai.
+  it('khối hướng dẫn nền xanh luôn là <Guide>, không phải <p>', () => {
+    const { count, where } = occurrences('<p className="mb-3 rounded-xl bg-blue-50')
+    expect(
+      count,
+      `Khối hướng dẫn phải dùng <Guide> để chế độ Gọn ẩn được.\n${where.join('\n')}`,
+    ).toBe(0)
+  })
+
+  // Ba sắc độ trạng thái (đỏ/vàng/xanh đạt 3:1 cho ĐỒ HOẠ) khai một chỗ ở
+  // components/ui/statusColors.ts. Trước đây chúng nằm ở features/health với tên
+  // zoneColors và chỉ tab Sức khỏe dùng; chế độ Gọn kéo chúng ra khắp app (chấm trạng
+  // thái, chip kết luận, thanh nợ). Viết lại cặp sáng/tối bằng tay ở chỗ khác là mở
+  // lại đúng cái bẫy đã ghi ở docs/design-system.md: hai chỗ vẽ cùng một ý nghĩa mà
+  // lệch màu. Trừ chính file khai — ở đó cặp màu LÀ nội dung.
+  it('không viết lại sắc độ trạng thái bằng tay ngoài statusColors.ts', () => {
+    const needles = [
+      'bg-red-600 dark:bg-red-400/70',
+      'bg-amber-600 dark:bg-amber-500/70',
+      'bg-green-700 dark:bg-green-500/70',
+    ]
+    for (const needle of needles) {
+      const where: string[] = []
+      let count = 0
+      for (const f of FILES) {
+        if (f.path.endsWith('statusColors.ts')) continue
+        const n = f.text.split(needle).length - 1
+        if (n > 0) {
+          count += n
+          where.push(`${f.path.replace(SRC, '')} (${n})`)
+        }
+      }
+      expect(
+        count,
+        `Đọc STATUS_FILL từ components/ui thay vì viết lại.\n${where.join('\n')}`,
+      ).toBe(0)
+    }
+  })
+
+  // VerdictNote ở chế độ Gọn nén câu kết luận thành chip. Không có `short` (hoặc chí
+  // ít `label`) thì chip rơi về một từ chung ("Cần chú ý") — vẫn còn màu, nhưng MẤT
+  // con số, tức là mất đúng thứ khiến chip đáng nhìn. Đây là hỏng âm thầm: ở chế độ
+  // Đầy đủ màn hình vẫn đẹp như thường.
+  //
+  // Trần là 1 chứ không 0: một chỗ ở HealthScoreCard cố ý không có, vì nó nằm trong
+  // <FullOnly> — đồng hồ ngay trên đã hiện cả điểm lẫn chữ Tốt/Cần chú ý/Rủi ro nên ở
+  // chế độ Gọn câu đó bị bỏ hẳn, không nén thành chip.
+  it('mỗi <VerdictNote> có short (hoặc label) để nén thành chip', () => {
+    let count = 0
+    const where: string[] = []
+    for (const f of FILES) {
+      // Cắt từ mỗi thẻ mở tới dấu '>' đầu tiên KHÔNG nằm trong {…}: prop `short` hay
+      // là biểu thức nhiều dòng có chứa cả '>' (toán tử so sánh, JSX lồng).
+      for (const m of f.text.matchAll(/<VerdictNote\b/g)) {
+        let i = m.index + m[0].length
+        let depth = 0
+        while (i < f.text.length) {
+          const c = f.text[i]
+          if (c === '{') depth++
+          else if (c === '}') depth--
+          else if (c === '>' && depth === 0) break
+          i++
+        }
+        const props = f.text.slice(m.index, i)
+        if (!props.includes('short') && !props.includes('label')) {
+          count++
+          where.push(`${f.path.replace(SRC, '')} (dòng ${f.text.slice(0, m.index).split('\n').length})`)
+        }
+      }
+    }
+    expect(
+      count,
+      count > 1
+        ? `Thiếu prop short → chip ở chế độ Gọn mất con số.\n${where.join('\n')}`
+        : `Đã xuống ${count} — hạ ngưỡng trong file test này.`,
+    ).toBeLessThanOrEqual(1)
+  })
+
+  // Trần cho đoạn văn xuôi CHƯA đi qua cổng: <p> mang class chữ phụ (`fg-muted`) mà
+  // bên trong là ≥45 ký tự chữ thật (đã bỏ mọi {biểu thức}).
+  //
+  // Không thể đặt 0: phần lớn số còn lại là thứ PHẢI ở lại — cảnh báo thiếu tỷ giá,
+  // dòng số liệu, câu giải thích ô đang bị vô hiệu, trạng thái rỗng không còn đường
+  // đi tiếp. Xét từng chỗ mới biết, không quét máy móc được. Trần chỉ để chặn việc
+  // thêm văn xuôi mới mà quên bọc <Guide>.
+  it('văn xuôi trong <p class="…fg-muted…"> không vượt trần', () => {
+    const PROSE = /<p className="([^"]*fg-muted[^"]*)"\s*>([\s\S]*?)<\/p>/g
+    // Bỏ: phụ đề dữ liệu (truncate), trạng thái rỗng căn giữa (py-*), nhãn in đậm
+    const SKIP = ['truncate', 'py-6', 'py-8', 'py-10', 'font-semibold', 'font-medium']
+    let count = 0
+    const where: string[] = []
+    for (const f of FILES) {
+      for (const m of f.text.matchAll(PROSE)) {
+        if (SKIP.some((s) => m[1].includes(s))) continue
+        const chu = m[2].replace(/\{[^{}]*\}/g, '').replace(/\s+/g, ' ').trim()
+        if (chu.length < 45) continue
+        count++
+        where.push(`${f.path.replace(SRC, '')}: ${chu.slice(0, 60)}…`)
+      }
+    }
+    expect(
+      count,
+      count > PROSE_MAX
+        ? `Thêm ${count - PROSE_MAX} đoạn văn xuôi mới. Nếu là chữ để DẠY thì bọc <Guide>; nếu là cảnh báo/dữ liệu thì để nguyên và nâng trần kèm lý do.\n${where.join('\n')}`
+        : `Đã xuống ${count} — hạ PROSE_MAX xuống ${count}.`,
+    ).toBeLessThanOrEqual(PROSE_MAX)
   })
 })

@@ -5,6 +5,7 @@
 // giữ tổng bao nhiêu VNM" hay "mã nào chiếm nhiều nhất trong danh mục". Đó là câu của
 // người, không phải câu của tài khoản.
 import { useMemo, useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, Plus } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
@@ -19,7 +20,7 @@ const VND = 'VND' as const
 const pct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1).replace('.', ',')}%`
 const share = (v: number) => `${(v * 100).toFixed(1).replace('.', ',')}%`
 /** ISO → dd/mm/yy — sổ lệnh trải nhiều năm nên phải có năm. */
-const ngay = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(2, 4)}`
+const ngay = (iso: string) => `${iso.slice(2, 4)}/${iso.slice(5, 7)}/${iso.slice(8, 10)}`
 
 const KIND_LABEL: Record<StockTradeRow['kind'], string> = {
   buy: 'Mua',
@@ -193,7 +194,8 @@ export function InvestPage() {
         <SectionTitle>Đang giữ ({p.positions.length} mã)</SectionTitle>
         {p.positions.length === 0 ? (
           <p className="mt-2 text-xs text-fg-muted">
-            Chưa giữ mã nào. Ghi lệnh mua để app tự lấy giá và tính lời/lỗ.
+            Chưa giữ mã nào.
+            <Guide as="span"> Ghi lệnh mua để app tự lấy giá và tính lời/lỗ.</Guide>
           </p>
         ) : (
           <ul className="mt-1 divide-y divide-border-subtle">

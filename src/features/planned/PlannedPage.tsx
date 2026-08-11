@@ -5,9 +5,18 @@
 // của tháng này; Lifetime nói chuyện chục năm. Khoảng giữa — vài tháng tới — trước
 // đây trống.
 import { useMemo, useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { Bell, BellOff, Check, ChevronLeft, Plus, X } from 'lucide-react'
-import { ActionButton, Card, iconButtonClass, Money, SectionTitle } from '../../components/ui'
+import {
+  ActionButton,
+  Card,
+  iconButtonClass,
+  Money,
+  SectionTitle,
+  StatusDot,
+  type StatusTone,
+} from '../../components/ui'
 import {
   useCategories,
   usePlannedExpenses,
@@ -23,11 +32,36 @@ import { PlannedFormSheet } from './PlannedFormSheet'
 /** Cửa sổ của con số ở đầu màn. 3 tháng = đủ xa để lo, đủ gần để tin. */
 const OUTLOOK_MONTHS = 3
 
+/** Trong bao nhiêu ngày thì coi là "sắp tới rồi" — mức vàng của chấm trạng thái. */
+const SOON_DAYS = 7
+
+/**
+ * Mức của một khoản sắp chi, đọc từ số ngày còn lại.
+ *
+ * Chỉ xét mốc NGÀY. Khoản ghi độ chính xác 'month' (due_on là ngày 1 theo quy ước lưu
+ * trữ) không có hạn thật để so — chấm nó thành đỏ/vàng là bịa ra độ chính xác mà dữ
+ * liệu không có, đúng cái mà dòng ngày bên dưới đã cố ý tránh.
+ */
+function plannedTone(precision: PlannedExpenseRow['due_precision'], daysLeft: number): StatusTone {
+  if (precision !== 'day') return 'info'
+  if (daysLeft < 0) return 'bad'
+  if (daysLeft <= SOON_DAYS) return 'warn'
+  return 'good'
+}
+
+/** Nhãn đọc thành tiếng cho chấm — màu không phải kênh duy nhất. */
+function plannedToneLabel(tone: StatusTone, daysLeft: number): string {
+  if (tone === 'bad') return `Quá hạn ${-daysLeft} ngày`
+  if (tone === 'warn') return daysLeft === 0 ? 'Đến hạn hôm nay' : `Còn ${daysLeft} ngày`
+  if (tone === 'good') return `Còn ${daysLeft} ngày`
+  return 'Chưa có ngày cụ thể'
+}
+
 const MONTH_LABEL = (key: string) => {
   const [y, m] = key.split('-')
-  return `Tháng ${Number(m)}/${y}`
+  return `${y}/${m.padStart(2, '0')}`
 }
-const ngay = (iso: string) => `${Number(iso.slice(8, 10))}/${Number(iso.slice(5, 7))}`
+const ngay = (iso: string) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}`
 
 export function PlannedPage() {
   const { data: rows = [], isLoading } = usePlannedExpenses()
@@ -77,9 +111,13 @@ export function PlannedPage() {
       ) : months.length === 0 ? (
         <Card as="section">
           <p className="text-sm text-fg-muted">
-            Chưa có khoản nào. Thêm những thứ bạn biết là sắp phải chi — sửa nhà, chuyển
-            nhà, đóng phí — để không phải nhớ trong đầu. Khoản nào cần app kêu thì bật
-            "Nhắc tôi"; khoản chỉ để nhìn thì thôi.
+            Chưa có khoản nào.
+            <Guide as="span">
+              {' '}
+              Thêm những thứ bạn biết là sắp phải chi — sửa nhà, chuyển nhà, đóng phí — để không
+              phải nhớ trong đầu. Khoản nào cần app kêu thì bật "Nhắc tôi"; khoản chỉ để nhìn thì
+              thôi.
+            </Guide>
           </p>
         </Card>
       ) : (
@@ -120,6 +158,12 @@ export function PlannedPage() {
                   const cat = catOf(p.category_id)
                   return (
                     <li key={p.id} className="flex items-center gap-2 py-2">
+                      {/* Chấm đứng TRƯỚC tên, không phải sau con số: mắt quét một cột
+                          dọc là thấy ngay dòng nào gấp, không phải đọc từng dòng ngày. */}
+                      <StatusDot
+                        tone={plannedTone(p.due_precision, left)}
+                        label={plannedToneLabel(plannedTone(p.due_precision, left), left)}
+                      />
                       <button
                         type="button"
                         onClick={() => setSheet({ planned: p })}

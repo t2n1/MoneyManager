@@ -189,7 +189,7 @@ export function MultiYearView({ monthStartDay, base, rates, currencyOf, enabled 
                   <th scope="row" className="px-3 py-2 text-left font-medium text-fg-primary">
                     12 tháng gần nhất
                     <span className="ml-1 text-xs font-normal text-fg-muted">
-                      (tới {trailing.to.month}/{trailing.to.year})
+                      (tới {trailing.to.year}/{trailing.to.month})
                     </span>
                   </th>
                   <td className="px-3 py-2 text-right">

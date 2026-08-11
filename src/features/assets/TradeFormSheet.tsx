@@ -4,6 +4,7 @@
 // Phí và thuế được TÍNH GỢI Ý rồi cho sửa: người dùng không nhớ chính xác phí của công
 // ty chứng khoán, nhưng bỏ trống thì giá vốn thấp hơn thực tế và lãi trông đẹp hơn thật.
 import { useMemo, useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
 import { SegmentedControl } from '../../components/ui'
 import { confirmDialog } from '../../lib/dialog'
@@ -142,11 +143,11 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
         </div>
 
         {isAdjust && (
-          <p className="mb-3 rounded-lg bg-surface-page px-2.5 py-2 text-2xs text-fg-muted">
+          <Guide className="mb-3 rounded-lg bg-surface-page px-2.5 py-2 text-2xs text-fg-muted">
             Dùng khi được thưởng cổ phiếu, nhận cổ tức bằng cổ phiếu, hoặc chia tách. Số cổ
             tăng mà không tốn tiền nên giá vốn trung bình tự giảm. Gộp cổ phiếu thì nhập số
             âm.
-          </p>
+          </Guide>
         )}
 
         <label className="mb-1 block text-xs font-medium text-fg-muted">Mã cổ phiếu</label>
@@ -259,10 +260,10 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           className="mb-3 w-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
         />
 
-        <p className="mb-3 text-xs text-fg-muted">
+        <Guide className="mb-3 text-xs text-fg-muted">
           Lệnh không tạo giao dịch thu/chi và không đổi số dư — nó chỉ nói tiền trong tài
           khoản đang nằm ở cổ phiếu nào.
-        </p>
+        </Guide>
 
         <div className="mt-1 flex items-center justify-end gap-2">
           {trade && (

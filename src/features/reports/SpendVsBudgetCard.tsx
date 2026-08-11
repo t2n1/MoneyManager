@@ -1,4 +1,5 @@
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Guide } from '../../components/Guide'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { DailyExpensePoint } from './aggregate'
 
@@ -30,7 +31,7 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base, sc
     cum += p.expense
     const dayNo = i + 1
     return {
-      label: `${Number(p.date.slice(8))}/${Number(p.date.slice(5, 7))}`,
+      label: `${Number(p.date.slice(5, 7))}/${Number(p.date.slice(8))}`,
       // đường thực chi chỉ vẽ tới hôm nay
       actual: dayNo <= daysElapsed ? cum : null,
       budget: totalBudgeted > 0 ? Math.round((totalBudgeted * dayNo) / days) : null,
@@ -61,7 +62,7 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base, sc
             />
             <Tooltip
               formatter={(v, name) => [formatMoney(Number(v), base), name === 'actual' ? 'Đã chi' : 'Ngân sách']}
-              labelFormatter={(l) => `Ngày ${l}`}
+              labelFormatter={(l) => String(l)}
               contentStyle={{ borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb' }}
             />
             {totalBudgeted > 0 && (
@@ -98,7 +99,7 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base, sc
         )}
       </div>
       {scopeNote && (
-        <p className="mt-1 text-center text-2xs text-fg-muted">{scopeNote}</p>
+        <Guide className="mt-1 text-center text-2xs text-fg-muted">{scopeNote}</Guide>
       )}
     </section>
   )

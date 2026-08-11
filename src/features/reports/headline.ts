@@ -23,6 +23,12 @@ export interface Headline {
   /** Chi hơn/kém kỳ trước bao nhiêu phần trăm. null khi không so được. */
   deltaPct: number | null
   text: string
+  /**
+   * Bản vài chữ cho chế độ Gọn (src/lib/density.ts) — giữ đúng con số quyết định, bỏ
+   * mọi mệnh đề giải thích. Ở đây chứ không ở component vì `text` cũng ở đây: hai bản
+   * của cùng một kết luận mà nằm hai file thì sớm muộn nói lệch nhau.
+   */
+  short: string
 }
 
 /** Trả null khi kỳ chưa có gì để nói (không thu, không chi). */
@@ -57,7 +63,31 @@ export function headlineOf(input: HeadlineInput): Headline | null {
     parts.push(`chi ${compareClause(deltaPct)}`)
   }
 
-  return { tone, ratePct, deltaPct, text: `${parts.join(', ')}.` }
+  const shortRate =
+    ratePct === null
+      ? 'Chưa có thu'
+      : ratePct < 0
+        ? `Chi vượt thu ${Math.abs(ratePct)}%`
+        : `Giữ lại ${ratePct}%`
+  const short =
+    deltaPct !== null && deltaPct !== 0 ? `${shortRate} · chi ${shortCompare(deltaPct)}` : shortRate
+
+  return { tone, ratePct, deltaPct, text: `${parts.join(', ')}.`, short }
+}
+
+/**
+ * Bản ngắn của `compareClause` cho chip ở chế độ Gọn: bỏ tên kỳ, chỉ còn chiều và số.
+ *
+ * Giữ nguyên mốc 200% → đọc theo SỐ LẦN của `compareClause`, vì lý do không đổi khi câu
+ * ngắn lại: "+970%" vẫn là con số não không quy ra được cái gì. Dấu dùng ASCII `+`/`-`
+ * cho khớp `formatMoney`, không dùng U+2212 — hai glyph lệch bề rộng.
+ */
+export function shortCompare(deltaPct: number): string {
+  if (deltaPct >= 200) {
+    const times = (1 + deltaPct / 100).toFixed(1).replace('.', ',')
+    return `gấp ${times} lần`
+  }
+  return `${deltaPct > 0 ? '+' : '-'}${Math.abs(deltaPct)}%`
 }
 
 /**

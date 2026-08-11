@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import {
   useBudgetReport,
@@ -14,6 +15,7 @@ import { Card } from '../../components/ui/Card'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { buildBudgetDisplay, type BudgetChildRow } from './budgetDisplay'
 import { pickAttention, sortBudgetItems, type BudgetSortMode } from './budgetSort'
+import { dailyAllowance } from './dailyAllowance'
 import { ClassificationToggle } from '../categories/ClassificationToggle'
 import type { BudgetStatus } from './progress'
 import { MonthPaceCharts, SpendPaceSection, useMonthPace } from '../reports/monthPace'
@@ -56,6 +58,10 @@ const TEXT_COLOR: Record<BudgetStatus, string> = {
   warn: 'text-fg-warn',
   over: 'text-money-out',
 }
+
+/** Tiền còn được tiêu; âm = đã vượt đúng chừng đó. Làm tròn trước khi so 0: chi
+ *  ngoại tệ quy đổi ra số lẻ, để nguyên thì "vừa đủ" hiện thành "vượt ¥0". */
+const restOf = (budgeted: number, spent: number) => Math.round(budgeted - spent)
 
 /** Thanh tiến độ + % dùng chung. `className` để gọi chỗ nào tự đặt lề / flex-1. */
 function ProgressBar({
@@ -173,6 +179,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   }
 
   const totalPct = report.totalBudgeted > 0 ? (report.totalSpent / report.totalBudgeted) * 100 : 0
+  const totalRemaining = restOf(report.totalBudgeted, report.totalSpent)
+  const totalAllowance = pace.isCurrentMonth
+    ? dailyAllowance(totalRemaining, pace.paceDaysElapsed, pace.paceDaysInMonth)
+    : null
 
   const expenseCats = categories
     .filter((c) => c.type === 'expense' && !c.is_archived)
@@ -197,19 +207,32 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     carried?: number
     ratio: number
     status: BudgetStatus
-  }) => (
+  }) => {
+    const rest = restOf(m.budgeted, m.spent)
+    return (
     <>
       <div className="flex items-baseline justify-between gap-2 text-sm">
         <span className="min-w-0 truncate font-medium text-fg-primary">
           {m.label}
           {m.meta && <span className="ml-1 text-2xs font-normal text-fg-muted">{m.meta}</span>}
         </span>
-        {/* % nằm trong ô cố định, canh phải — cột thẳng nhờ bề rộng ô, nên không
-            cần tabular-nums viết tay (guardrail đếm idiom đó, dùng <Money> thay).
-            <Money> lại không diễn được màu theo trạng thái ngân sách: nó không có
-            tone 'warn' cũng không có tone chữ mờ. */}
-        <span className={`w-10 shrink-0 text-right text-xs font-medium ${TEXT_COLOR[m.status]}`}>
-          {Math.round(m.ratio * 100)}%
+        <span className="flex shrink-0 items-baseline gap-2">
+          {/* "Còn bao nhiêu" ở chỗ thoáng nhất của dòng: khoảng trống giữa tên và %.
+              Không thêm dòng thứ ba — nhóm xổ ra 8 con thì ba dòng mỗi mục thành
+              bức tường (xem chú thích ngay trên). */}
+          {m.budgeted > 0 && (
+            <span className={`text-2xs ${rest < 0 ? 'text-money-out' : 'text-fg-muted'}`}>
+              {rest < 0 ? 'vượt ' : 'còn '}
+              {formatMoney(Math.abs(rest), base)}
+            </span>
+          )}
+          {/* % nằm trong ô cố định, canh phải — cột thẳng nhờ bề rộng ô, nên không
+              cần tabular-nums viết tay (guardrail đếm idiom đó, dùng <Money> thay).
+              <Money> lại không diễn được màu theo trạng thái ngân sách: nó không có
+              tone 'warn' cũng không có tone chữ mờ. */}
+          <span className={`w-10 text-right text-xs font-medium ${TEXT_COLOR[m.status]}`}>
+            {Math.round(m.ratio * 100)}%
+          </span>
         </span>
       </div>
       <div className="mt-1 flex items-center gap-2">
@@ -224,7 +247,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </span>
       </div>
     </>
-  )
+    )
+  }
 
   // Một dòng con bên trong nhóm (khi xổ ra): GỌN MỘT DÒNG, không có thanh riêng.
   // Con không được to hơn cha — trước đây con còn thò rộng hơn cha 12px nên nhìn
@@ -246,10 +270,15 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           <span className="flex shrink-0 items-center gap-2 text-2xs">
             {m ? (
               <>
+                {/* Con nói "đã chi · CÒN bao nhiêu", cha nói "đã chi / TRẦN": thêm cụm
+                    thứ ba vào dòng con thì tên chỉ còn 81px ở máy 375px — đo được
+                    "🧹 Đồ dùn…". Trần ở đây vẫn suy ra được (đã chi + còn), mà bấm vào
+                    là thấy nguyên số; còn "còn bao nhiêu" thì không nhẩm ra được. */}
                 <span className="text-fg-on-track">
                   <span className={TEXT_COLOR[m.status]}>{formatMoney(m.spent, base)}</span>
-                  {' / '}
-                  {formatMoney(m.budgeted, base)}
+                  {' · '}
+                  {restOf(m.budgeted, m.spent) < 0 ? 'vượt ' : 'còn '}
+                  {formatMoney(Math.abs(restOf(m.budgeted, m.spent)), base)}
                 </span>
                 <span className={`w-10 text-right text-xs font-medium ${TEXT_COLOR[m.status]}`}>
                   {Math.round(m.ratio * 100)}%
@@ -315,6 +344,24 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           </span>
         </div>
         <ProgressBar ratio={totalPct / 100} status={report.totalStatus} className="mt-1" />
+        {/* Câu trả lời cho "giờ còn tiêu được bao nhiêu" — số đã chi ở trên chỉ nói
+            chuyện đã rồi. Chia thêm cho số ngày còn lại vì đó mới là thứ dùng được
+            hôm nay; tháng đã qua thì không chia (chẳng còn ngày nào để tiêu). */}
+        {report.totalBudgeted > 0 &&
+          (totalRemaining > 0 ? (
+            <p className="mt-1.5 text-xs text-fg-secondary">
+              Còn <b className="font-semibold text-fg-primary">{formatMoney(totalRemaining, base)}</b>
+              {totalAllowance
+                ? ` cho ${totalAllowance.daysLeft} ngày nữa — tiêu ${formatMoney(totalAllowance.perDay, base)}/ngày thì vừa đủ.`
+                : ' trong tổng hạn mức.'}
+            </p>
+          ) : totalRemaining === 0 ? (
+            <p className="mt-1.5 text-xs text-fg-warn">Vừa chạm đúng tổng hạn mức.</p>
+          ) : (
+            <p className="mt-1.5 text-xs text-money-out">
+              Đã vượt tổng hạn mức {formatMoney(-totalRemaining, base)}.
+            </p>
+          ))}
         <button
           type="button"
           onClick={handleCopy}
@@ -332,10 +379,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           <h2 className="text-sm font-semibold text-fg-muted">
             Cần để ý ({attention.length})
           </h2>
-          <p className="mb-2 text-xs text-fg-muted">
+          <Guide className="mb-2 text-xs text-fg-muted">
             Đã quá trần, hoặc đang tiêu nhanh hơn nhịp tháng. Khoản cố định đã trả xong
             (tiền nhà, bảo hiểm…) không tính — không còn gì để phanh.
-          </p>
+          </Guide>
           <ul className="divide-y divide-border-subtle">
             {attention.map((a) => (
               <li key={a.item.cat.id}>
@@ -376,7 +423,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 value={sortMode}
                 onChange={changeSort}
               />
-              <p className="mt-1 text-2xs text-fg-muted">{SORT_HINT[sortMode]}</p>
+              <Guide className="mt-1 text-2xs text-fg-muted">{SORT_HINT[sortMode]}</Guide>
             </div>
           )}
           <ul className="divide-y divide-border-subtle">
@@ -472,10 +519,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           <h2 className="mb-1 text-sm font-semibold text-fg-muted">
             Chưa đặt hạn mức
           </h2>
-          <p className="mb-2 text-xs text-fg-muted">
+          <Guide className="mb-2 text-xs text-fg-muted">
             Bấm tên nhóm để đặt trần chung, hoặc xổ ra (▸) để đặt riêng cho từng mục con — khi đó
             trần nhóm là tổng các con.
-          </p>
+          </Guide>
           <ul className="flex flex-col gap-2">
             {unbudgeted.map(({ cat: c, children }) => {
               const isOpen = expanded.has(c.id)

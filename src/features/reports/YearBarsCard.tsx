@@ -78,7 +78,7 @@ export function YearBarsCard({ rows, base, trailing = null }: Props) {
               ]}
               labelFormatter={(l) => {
                 if (l === LTM_LABEL && trailing)
-                  return `12 tháng tới hết ${trailing.to.month}/${trailing.to.year}`
+                  return `12 tháng tới hết ${trailing.to.year}/${trailing.to.month}`
                 const row = data.find((d) => d.label === l)
                 return row?.partial ? `Năm ${l} (thiếu tháng)` : `Năm ${l}`
               }}
@@ -104,10 +104,13 @@ export function YearBarsCard({ rows, base, trailing = null }: Props) {
           so được với năm đủ. Nói thẳng ra chứ đừng để người đọc tự phát hiện. */}
       {trailing && lastYear && (
         <div className="mt-2">
-          <VerdictNote tone="info">
+          <VerdictNote
+            tone="info"
+            short={`${lastYear.year} mới có ${lastYear.months} tháng — so bằng cột ${LTM_LABEL}`}
+          >
             Cột <b>{lastYear.year}</b> mới có {lastYear.months} tháng dữ liệu nên thấp hơn thực tế.
-            Cột <b>{LTM_LABEL}</b> là 12 tháng đã xong gần nhất ({trailing.from.month}/
-            {trailing.from.year}–{trailing.to.month}/{trailing.to.year}) — đây là cột duy nhất so
+            Cột <b>{LTM_LABEL}</b> là 12 tháng đã xong gần nhất ({trailing.from.year}/
+            {trailing.from.month}–{trailing.to.year}/{trailing.to.month}) — đây là cột duy nhất so
             trực tiếp được với một năm đầy.
           </VerdictNote>
         </div>

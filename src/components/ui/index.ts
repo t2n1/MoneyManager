@@ -7,6 +7,14 @@ export { Money, type MoneyTone } from './Money'
 export { SectionTitle, type TitleRole } from './SectionTitle'
 export { Sparkline } from './Sparkline'
 export { StatTile } from './StatTile'
+export { StatusChip } from './StatusChip'
+export { StatusDot } from './StatusDot'
+export {
+  STATUS_CHIP,
+  STATUS_FILL,
+  STATUS_STROKE,
+  type StatusTone,
+} from './statusColors'
 export {
   SegmentedControl,
   type SegmentedItem,

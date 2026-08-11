@@ -37,7 +37,9 @@ export const TAG_COLOR_LABELS: Record<TagColorKey, string> = {
 
 /** Mã hex cho biểu đồ (recharts không nhận class Tailwind). */
 export const TAG_HEX: Record<TagColorKey, string> = {
-  gray: '#9ca3af',
+  // var(--fg-muted) thay vì #9ca3af: gray-400 chỉ 2,54:1 trên trắng. Đây là màu vẽ
+  // biểu đồ nên cần 3:1, và var() lật được theo .dark (khác hex cứng).
+  gray: 'var(--fg-muted)',
   red: '#ef4444',
   amber: '#f59e0b',
   green: '#16a34a',

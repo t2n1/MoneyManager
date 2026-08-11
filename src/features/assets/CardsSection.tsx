@@ -128,7 +128,7 @@ export function CardsSection({ cards, balances, base, rates, todayISO, view }: P
           {sharedSources.map((g) => (
             <div
               key={g.sourceId}
-              className="rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-800/50"
+              className="rounded-xl border border-border-subtle bg-gray-50 p-3 dark:bg-gray-800/50"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-700 dark:text-gray-300">

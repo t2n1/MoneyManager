@@ -210,7 +210,9 @@ interface TransactionFormProps {
  */
 const CHIP_BASE =
   'flex min-h-11 shrink-0 items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition active:scale-95'
-const CHIP_OFF = 'border-gray-300 bg-surface text-gray-500 dark:border-gray-700 dark:text-gray-400'
+// Token chứ không viết lại cặp sáng/tối bằng tay (từ nhánh fix/toan-bo-audit). Master
+// đã gom về một hằng số nên đổi ở đây là đủ, khỏi sửa từng chip như bản trên nhánh.
+const CHIP_OFF = 'border-border-strong bg-surface text-fg-muted'
 
 export function TransactionForm({
   initial,
@@ -886,7 +888,7 @@ export function TransactionForm({
                   type="button"
                   onClick={() => deleteQuickTemplate(t.id)}
                   aria-label={`Xóa mẫu ${t.label}`}
-                  className="absolute right-0.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-gray-300 after:absolute after:-inset-2 hover:text-red-500 dark:text-gray-600"
+                  className="absolute right-0.5 top-1/2 -translate-y-1/2 rounded-full p-2 text-gray-300 after:absolute after:-inset-2 hover:text-money-out dark:text-gray-600"
                 >
                   <X className="h-3 w-3" />
                 </button>

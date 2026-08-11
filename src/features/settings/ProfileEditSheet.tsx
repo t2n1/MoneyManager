@@ -135,7 +135,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           value={wage === '' ? '' : formatMoney(Number(wage), profile.base_currency)}
           onChange={(e) => setWage(e.target.value.replace(/\D/g, ''))}
           placeholder="Để trống nếu không dùng"
-          className="mt-1 w-full rounded-xl border border-gray-300 bg-surface p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:text-gray-100"
+          className="mt-1 w-full rounded-xl border border-border-strong bg-surface p-3 text-right text-fg-primary focus:border-green-500 focus:outline-none"
         />
         <Guide className="mt-1 text-xs text-fg-muted">
           Để báo cáo quy đổi “món này = mấy giờ làm”. Lương tháng ÷ số giờ làm thực tế trong tháng.
@@ -151,7 +151,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
               value={inflation}
               onChange={(e) => setInflation(e.target.value)}
               placeholder="2,5"
-              className="mt-1 w-full rounded-xl border border-gray-300 bg-surface p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:text-gray-100"
+              className="mt-1 w-full rounded-xl border border-border-strong bg-surface p-3 text-right text-fg-primary focus:border-green-500 focus:outline-none"
             />
           </div>
           <div>
@@ -163,7 +163,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
               value={tax}
               onChange={(e) => setTax(e.target.value)}
               placeholder="20,32"
-              className="mt-1 w-full rounded-xl border border-gray-300 bg-surface p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:text-gray-100"
+              className="mt-1 w-full rounded-xl border border-border-strong bg-surface p-3 text-right text-fg-primary focus:border-green-500 focus:outline-none"
             />
           </div>
         </div>
@@ -191,7 +191,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
                 value={f.value}
                 onChange={(e) => f.set(e.target.value)}
                 placeholder={f.ph}
-                className="mt-1 w-full rounded-xl border border-gray-300 bg-surface p-3 text-right text-gray-800 focus:border-green-500 focus:outline-none dark:border-gray-700 dark:text-gray-100"
+                className="mt-1 w-full rounded-xl border border-border-strong bg-surface p-3 text-right text-fg-primary focus:border-green-500 focus:outline-none"
               />
             </div>
           ))}

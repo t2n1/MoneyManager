@@ -6,7 +6,9 @@ import type { DailyExpensePoint } from './aggregate'
 // Một nguồn cho cả nét vẽ và chú giải — recharts nhận màu qua prop nên phải là hằng
 // số JS, không dùng được biến CSS của token.
 const ACTUAL = '#ef4444'
-const BUDGET = '#9ca3af'
+// var(--fg-muted) chứ không #9ca3af: gray-400 chỉ 2,54:1 trên trắng, mà đây là NÉT
+// biểu đồ (đồ hoạ mang thông tin, cần 3:1) kèm chấm chú giải. Tiền lệ: LifetimeChartCard.
+const BUDGET = 'var(--fg-muted)'
 
 interface Props {
   /** chi từng ngày cho TRỌN tháng tài chính (0 cho ngày trống/tương lai).

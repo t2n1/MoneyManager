@@ -125,14 +125,14 @@ export function MoneyField({
               type="button"
               onClick={() => emit(appendKey(expr, '⌫'))}
               aria-label="Xóa"
-              className="flex-1 rounded-lg bg-white py-1.5 text-lg font-semibold text-gray-800 shadow-sm transition active:scale-95 active:bg-gray-200 dark:bg-gray-800 dark:text-gray-100"
+              className="flex-1 rounded-lg bg-white py-1.5 text-lg font-semibold text-fg-primary shadow-sm transition active:scale-95 active:bg-gray-200 dark:bg-gray-800"
             >
               ⌫
             </button>
             <button
               type="button"
               onClick={() => setActivePad(null)}
-              className="flex-1 rounded-lg bg-surface-sunken py-1.5 text-sm font-medium text-gray-600 shadow-sm transition active:scale-95 dark:text-gray-300"
+              className="flex-1 rounded-lg bg-surface-sunken py-1.5 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95"
             >
               Thu bàn phím
             </button>

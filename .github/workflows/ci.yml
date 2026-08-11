@@ -1,0 +1,35 @@
+# CI tối thiểu: lint + test + build trên mỗi push/PR.
+#
+# Vì sao cần: repo có một file SINH TỰ ĐỘNG được test byte-compare canh
+# (supabase/functions/push-notify/_rules.js) — không có CI thì guard đó chỉ chạy khi ai
+# đó nhớ gõ `npm test`, tức là đúng lúc dễ quên nhất (sửa nhanh một luật rồi push).
+#
+# Build cũng phải chạy: `tsc --noEmit` xanh mà build vẫn có thể đỏ (file trong src/ lỡ
+# dùng API Node — đã xảy ra thật).
+#
+# Còn một lý do nữa, phát hiện 2026-08-11: repo đặt core.autocrlf=true, nên vài guardrail
+# từng đỏ chỉ vì checkout đổi kiểu xuống dòng — CI chạy trên ubuntu (LF thuần) bắt được
+# ngay loại lệch đó, thay vì để nó nổ trên máy người khác sau khi clone.
+#
+# Lấy từ nhánh fix/toan-bo-audit (commit ac2cde7), đã sửa lại phần chú thích cho khớp
+# master: bản gốc còn nhắc supabase/setup_all.sql, thứ đến từ một commit không lấy.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build

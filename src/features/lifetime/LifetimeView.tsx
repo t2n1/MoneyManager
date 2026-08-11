@@ -480,7 +480,7 @@ function BirthYearCard() {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="Ví dụ: 1994"
-        className="mt-1 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary outline-green-500"
+        className="mt-1 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary"
       />
       <button
         type="button"

@@ -152,13 +152,13 @@ function PushSection() {
         </div>
 
         {blocker !== 'ok' && (
-          <p className="border-t border-gray-100 px-3 py-3 text-xs text-fg-muted dark:border-gray-800">
+          <p className="border-t border-border-subtle px-3 py-3 text-xs text-fg-muted">
             {BLOCKER_MESSAGE[blocker]}
           </p>
         )}
 
         {profile && (
-          <div className="border-t border-gray-100 px-3 py-3 dark:border-gray-800">
+          <div className="border-t border-border-subtle px-3 py-3">
             <label htmlFor="push-hour" className="block text-xs font-medium text-fg-muted">
               Giờ gửi mỗi ngày
             </label>
@@ -224,7 +224,7 @@ function Group({
       <h2 className="mb-2 px-1 text-2xs font-bold uppercase tracking-wide text-fg-muted">
         {title}
       </h2>
-      <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-surface dark:divide-gray-800 ">
+      <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface ">
         {types.map((t) => {
           const meta = NOTIFICATION_META[t]
           const on = !off.has(t)

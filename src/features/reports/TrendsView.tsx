@@ -230,7 +230,7 @@ export function TrendsView() {
               </ResponsiveContainer>
             </div>
             <p className="mt-1 text-xs text-fg-secondary">
-              Đường <span className="font-medium text-red-500">đậm</span> là mức chi trung bình{' '}
+              Đường <span className="font-medium text-money-out">đậm</span> là mức chi trung bình{' '}
               {ROLL} tháng gần nhất — nhìn đường này để thấy xu hướng, đừng nhìn đường xám (tháng
               nào cũng nhấp nhô vì lý do vặt).
             </p>

@@ -253,7 +253,7 @@ export function RecurringPage() {
           <Guide as="span"> Thêm ở đây hoặc chọn "Lặp lại" khi nhập giao dịch.</Guide>
         </p>
       ) : (
-        <div className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-surface shadow-sm dark:divide-gray-800 ">
+        <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm ">
           {rules.map((rule) => {
             const acc = accountOf(rule.account_id)
             const cat = categoryOf(rule.category_id)
@@ -295,7 +295,7 @@ export function RecurringPage() {
                   type="button"
                   onClick={() => togglePause(rule)}
                   aria-label={rule.is_paused ? 'Chạy lại' : 'Tạm dừng'}
-                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   {rule.is_paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
                 </button>
@@ -303,7 +303,7 @@ export function RecurringPage() {
                   type="button"
                   onClick={() => handleDelete(rule)}
                   aria-label="Xóa"
-                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   <Trash2 className="h-5 w-5" />
                 </button>

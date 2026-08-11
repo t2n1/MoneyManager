@@ -122,7 +122,7 @@ export function ClassifyCategoriesPage() {
           </div>
         ))}
         {rows.length === 0 && (
-          <p className="rounded-xl bg-surface px-3 py-6 text-center text-sm text-gray-500 shadow-sm dark:text-gray-400">
+          <p className="rounded-xl bg-surface px-3 py-6 text-center text-sm text-fg-muted shadow-sm">
             {onlyTodo ? 'Đã phân loại hết 🎉' : 'Chưa có danh mục Chi'}
           </p>
         )}

@@ -93,7 +93,7 @@ function ExportSection() {
             onClick={() =>
               period === 'month' ? setMonthKey((k) => addMonths(k, -1)) : setYear((y) => y - 1)
             }
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-gray-300 px-3 py-1.5 dark:border-gray-700"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-border-strong px-3 py-1.5"
             aria-label={period === 'month' ? 'Tháng trước' : 'Năm trước'}
           >
             <ChevronLeft className="h-5 w-5" />
@@ -104,7 +104,7 @@ function ExportSection() {
             onClick={() =>
               period === 'month' ? setMonthKey((k) => addMonths(k, 1)) : setYear((y) => y + 1)
             }
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-gray-300 px-3 py-1.5 dark:border-gray-700"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-border-strong px-3 py-1.5"
             aria-label={period === 'month' ? 'Tháng sau' : 'Năm sau'}
           >
             <ChevronRight className="h-5 w-5" />
@@ -117,7 +117,7 @@ function ExportSection() {
             type="button"
             onClick={handleCsv}
             disabled={txs.length === 0}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+            className="flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 dark:text-gray-200 dark:hover:bg-gray-800"
           >
             <Download className="h-4 w-4" />
             Tải CSV
@@ -125,7 +125,7 @@ function ExportSection() {
           <button
             type="button"
             onClick={handlePdf}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+            className="flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800"
           >
             <Printer className="h-4 w-4" />
             Xuất PDF / In
@@ -163,7 +163,7 @@ export function DataPage() {
         <div className="mt-1">
           <Link
             to="/settings/import"
-            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-fg-primary hover:bg-gray-50 dark:hover:bg-gray-800"
           >
             <FileUp className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Nhập giao dịch từ CSV</span>

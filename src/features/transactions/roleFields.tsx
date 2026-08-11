@@ -113,7 +113,7 @@ export function FeeField({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`self-start rounded-lg border border-dashed border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-500 transition active:scale-95 dark:border-gray-600 dark:text-gray-400 ${smallBtnTap}`}
+        className={`self-start rounded-lg border border-dashed border-gray-300 px-2.5 py-1.5 text-xs font-medium text-fg-muted transition active:scale-95 dark:border-gray-600 ${smallBtnTap}`}
       >
         + Phí
       </button>
@@ -168,7 +168,7 @@ function PeopleChips({
             className={`relative flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-sm after:absolute after:inset-x-0 after:-inset-y-1 ${
               active
                 ? 'border-green-600 bg-green-700 text-white'
-                : 'border-gray-300 bg-surface text-gray-700 dark:border-gray-700 dark:text-gray-200'
+                : 'border-border-strong bg-surface text-gray-700 dark:text-gray-200'
             }`}
           >
             <span className="max-w-[9rem] truncate">{p.name}</span>
@@ -293,7 +293,10 @@ export function SplitFields({
 
       {!settledNow && people.length > 0 && (
         <div>
-          <label className={labelCls}>Người đã cho vay (cộng dồn)</label>
+          {/* <span> chứ không <label>: đây là nhãn cho NHÓM chip, không có control nào
+              để htmlFor trỏ vào — <label> mồ côi thì trình đọc màn hình đọc ra một nhãn
+              rỗng. Lấy từ nhánh fix/toan-bo-audit (đợt dọn 69 nhãn mồ côi). */}
+          <span className={labelCls}>Người đã cho vay (cộng dồn)</span>
           <PeopleChips
             people={people}
             selectedId={value.existingDebtId}
@@ -427,9 +430,11 @@ export function DebtFields({
     <div className={blockCls('debt')}>
       {people.length > 0 && (
         <div>
-          <label className={labelCls}>
+          {/* <span>, không phải <label>: nhãn cho NHÓM chip nên không có control để
+              htmlFor trỏ vào. Từ nhánh fix/toan-bo-audit. */}
+          <span className={labelCls}>
             {value.direction === 'i_owe' ? 'Chủ nợ đã có (cộng dồn)' : 'Người đã cho vay (cộng dồn)'}
-          </label>
+          </span>
           <PeopleChips
             people={people}
             selectedId={value.existingDebtId}

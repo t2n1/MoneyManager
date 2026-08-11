@@ -79,6 +79,24 @@ function occurrences(needle: string) {
   return { count, where }
 }
 
+/**
+ * Số DÒNG chứa đồng thời cả `a` lẫn `b`. Vá đường lách của luật cặp-màu-liền-kề:
+ * `text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100` — chèn một class xen
+ * giữa là thoát khỏi phép so chuỗi liền. Từng có 48 chỗ lách kiểu này.
+ */
+function sameLineOccurrences(a: string, b: string) {
+  let count = 0
+  const where: string[] = []
+  for (const f of FILES) {
+    const n = f.text.split('\n').filter((l) => l.includes(a) && l.includes(b)).length
+    if (n > 0) {
+      count += n
+      where.push(`${f.path.replace(SRC, '')} (${n})`)
+    }
+  }
+  return { count, where }
+}
+
 describe('design system — ban cứng (phải bằng 0)', () => {
   // Lý do: gray-400 trên nền trắng chỉ 2,5:1, cần 4,5:1. Chiều đúng là
   // `text-gray-500 dark:text-gray-400` — nền tối thì chữ phụ phải SÁNG hơn.
@@ -167,7 +185,52 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     for (const [needle, token] of Object.entries(MAPPED)) {
       const { count, where } = occurrences(needle)
       expect(count, `Dùng ${token}.\n${where.join('\n')}`).toBe(0)
+      // Cùng cặp nhưng bị chèn class xen giữa (đường lách của phép so chuỗi liền):
+      // soi theo DÒNG chứa cả hai vế. Từng có 48 chỗ lách kiểu này.
+      const [light, dark] = needle.split(' ')
+      const inter = sameLineOccurrences(light, dark)
+      expect(
+        inter.count,
+        `Cặp ${light} + ${dark} bị tách rời trên cùng dòng — vẫn là viết tay cặp màu đã có token ${token}.\n${inter.where.join('\n')}`,
+      ).toBe(0)
     }
+  })
+
+  // LUẬT NÀY CỐ Ý CHƯA BẬT — đọc lý do trước khi bật.
+  //
+  // Nhánh fix/toan-bo-audit ban `outline-green-500` và `focus:border-green-500` vì ở ĐÓ,
+  // commit bef36fd đã nới vòng focus toàn cục ra phủ cả input/select/textarea. Trên
+  // master thì :focus-visible ở index.css chỉ phủ `a, button, [role="button"],
+  // [role="switch"], [role="tab"], summary` — KHÔNG có input. Bật ban này mà chưa nới
+  // ring thì 57 ô nhập mất sạch chỉ báo tiêu điểm: tệ hơn hẳn một ring 2,3:1.
+  //
+  // Muốn bật: nới :focus-visible ở index.css ra input/select/textarea TRƯỚC, đo lại
+  // tương phản ring bằng cách vẽ ra pixel, rồi mới xoá 57 chỗ tự chế và mở khối này.
+  it.skip('không tự chế focus style trượt chuẩn — ring toàn cục đã lo', () => {
+    for (const needle of ['outline-green-500', 'focus:border-green-500']) {
+      const { count, where } = occurrences(needle)
+      expect(count, `${needle} trượt 3:1. Xoá đi — ring token ở index.css tự lấp.\n${where.join('\n')}`).toBe(0)
+    }
+  })
+
+  // Lý do: red-400 trên trắng chỉ 2,89:1 và red-500 chỉ 4,05:1 — cả hai trượt 4,5:1
+  // cho chữ ở light mode. Chúng CHỈ hợp lệ sau tiền tố dark:. Đếm bằng hiệu:
+  // "text-red-400" đếm cả bản có dark: đứng trước, nên trừ đi là ra số dùng trần.
+  it('không dùng red-400/red-500 làm chữ ở light mode', () => {
+    for (const shade of ['text-red-400', 'text-red-500']) {
+      const bare = occurrences(shade).count - occurrences(`dark:${shade}`).count
+      expect(
+        bare,
+        `${shade} không có dark: đứng trước — trượt AA ở light. Dùng text-money-out hoặc red-700.`,
+      ).toBe(0)
+    }
+  })
+
+  // Lý do: #9ca3af là gray-400 (2,54:1) viết bằng hex — từng lọt vào fill của donut
+  // và nét ngân sách vì guardrail cũ chỉ ban dạng stroke="...". Ban ở MỌI dạng.
+  it('không còn hex gray-400 ở bất kỳ dạng nào', () => {
+    const { count, where } = occurrences('#9ca3af')
+    expect(count, `gray-400 hex chỉ 2,54:1. Dùng var(--color-gray-500) trở lên.\n${where.join('\n')}`).toBe(0)
   })
 
   // Lý do: màu đồ thị đi qua PROP của Recharts, không qua class Tailwind — nên MỌI
@@ -254,6 +317,31 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // file → 16 file). Thay dần khi đụng tới file, đừng thêm chỗ mới.
     { needle: "'#16a34a'", max: 14, use: 'màu palette v4 cho hằng số biểu đồ (vd var(--color-green-700) khi vẽ SVG tay)' },
     { needle: "'#ef4444'", max: 13, use: 'màu palette v4 cho hằng số biểu đồ' },
+    // ---- Bốn luật lấy từ nhánh fix/toan-bo-audit (2026-08-11) ----------------------
+    //
+    // Trần ở đây ĐO TRÊN MASTER, không copy số của nhánh: nhánh đó đã gộp 40+ màn vào
+    // bộ primitive riêng của nó nên số của nó thấp hơn nhiều (vd active:scale-95 còn 68
+    // so với 93 ở đây). Copy số sang là test đỏ ngay mà chẳng chỉ ra lỗi nào thật.
+    //
+    // Vẫn đáng thêm dù trần đang cao: việc của ngưỡng là chặn MỌC THÊM, không phải
+    // chứng nhận đã sạch.
+    //
+    // Nút chính viết tay. Token là `bg-accent` (green-700) — dùng qua <ActionButton
+    // variant="primary"> thì không bị đếm.
+    { needle: 'bg-green-700', max: 63, use: '<ActionButton variant="primary"> hoặc bg-accent' },
+    // Hai bán kính ngoài scale 4 tầng (docs §Bán kính). `rounded-2xl` có chủ đích ở thẻ
+    // hero và sheet trượt lên; phần còn lại là tuỳ tiện. `rounded-md` thì lạc hẳn.
+    { needle: 'rounded-2xl', max: 36, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
+    { needle: 'rounded-md', max: 13, use: 'rounded-lg (scale chuẩn)' },
+    // <label> mồ côi: nhãn không có htmlFor và không bọc control → trình đọc màn hình
+    // đọc ra một nhãn rỗng, ô nhập thì KHÔNG có tên. Không ban cứng được vì dạng bọc
+    // control là hợp lệ, nên đếm tất rồi chỉ cho giảm.
+    //
+    // 106 là con số thật của master. Nhánh fix/toan-bo-audit đã hạ nó xuống 19 bằng cách
+    // dọn 69 nhãn: nhãn cho MỘT control thì thêm htmlFor + useId (mẫu: EventFormSheet),
+    // nhãn cho NHÓM chip thì đổi sang <span>. Đợt này chỉ lấy 2 chỗ ở roleFields; phần
+    // còn lại là nợ đã biết, có mẫu sẵn để dọn dần.
+    { needle: '<label className', max: 106, use: 'htmlFor + useId (mẫu: EventFormSheet); nhãn nhóm thì dùng <span>' },
   ]
 
   for (const { needle, max, use } of CEILINGS) {

@@ -166,7 +166,7 @@ export function TagsPage() {
             }
           }}
           aria-label={`Tên nhãn ${t.name}`}
-          className="min-h-9 min-w-0 flex-1 rounded-lg border border-transparent px-2 py-1 text-sm text-gray-800 outline-green-500 hover:border-gray-300 dark:text-gray-100 dark:hover:border-gray-700"
+          className="min-h-9 min-w-0 flex-1 rounded-lg border border-transparent px-2 py-1 text-sm text-fg-primary outline-green-500 hover:border-gray-300 dark:hover:border-gray-700"
         />
         <span className="shrink-0 text-2xs text-fg-muted">{usageOf(t.id)} giao dịch</span>
         <button
@@ -310,13 +310,13 @@ export function TagsPage() {
             if (e.key === 'Enter') void add()
           }}
           placeholder="Tên nhãn mới…"
-          className="min-h-11 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-green-500 dark:border-gray-700 dark:bg-gray-900"
+          className="min-h-11 flex-1 rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500 dark:bg-gray-900"
         />
         <select
           value={newTagGroup}
           onChange={(e) => setNewTagGroup(e.target.value)}
           aria-label="Nhóm cho nhãn mới"
-          className="min-h-11 rounded-lg border border-gray-300 bg-surface px-2 text-sm text-fg-primary outline-green-500 dark:border-gray-700"
+          className="min-h-11 rounded-lg border border-border-strong bg-surface px-2 text-sm text-fg-primary outline-green-500"
         >
           <option value="">— Khác —</option>
           {groups.map((g) => (
@@ -451,7 +451,7 @@ export function TagsPage() {
                   if (e.key === 'Enter') void addGroup()
                 }}
                 placeholder="Tên nhóm mới…"
-                className="min-h-11 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-green-500 dark:border-gray-700 dark:bg-gray-900"
+                className="min-h-11 flex-1 rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500 dark:bg-gray-900"
               />
               <ActionButton
                 variant="primary"

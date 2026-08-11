@@ -101,10 +101,13 @@ export function CalendarView({
   return (
     <div className="flex flex-col gap-3">
       <div className="rounded-xl bg-surface p-2 shadow-sm">
-        {/* Nhãn thứ */}
+        {/* Nhãn thứ. Chủ nhật đỏ là quy ước LỊCH, không phải "tiền ra" — nhưng mượn
+            --money-out vì đó là sắc đỏ DUY NHẤT của app đạt AA ở cả hai chế độ
+            (red-400 trơ chỉ 2,89:1 trên trắng). Thêm token đỏ thứ hai cho một quy ước
+            lịch là phát minh scale mới cho đúng một chỗ. */}
         <div className="grid grid-cols-7 text-center text-2xs font-medium text-fg-muted">
           {WEEKDAYS_SHORT.map((w, i) => (
-            <div key={w} className={`py-1 ${i === 0 ? 'text-red-400' : ''}`}>
+            <div key={w} className={`py-1 ${i === 0 ? 'text-money-out' : ''}`}>
               {w}
             </div>
           ))}
@@ -131,7 +134,7 @@ export function CalendarView({
                     isToday
                       ? 'flex h-4 w-4 items-center justify-center rounded-full bg-green-700 font-bold text-white'
                       : i % 7 === 0
-                        ? 'text-red-400'
+                        ? 'text-money-out'
                         : 'text-fg-muted'
                   }`}
                 >

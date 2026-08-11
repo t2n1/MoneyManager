@@ -181,7 +181,7 @@ export function SavingsGoalsSection({ view }: Props) {
       )}
 
       {earmarked.total > 0 && (
-        <p className="mt-3 border-t border-gray-100 pt-2.5 text-2xs leading-relaxed text-gray-500 dark:border-gray-800 dark:text-gray-400">
+        <p className="mt-3 border-t border-border-subtle pt-2.5 text-2xs leading-relaxed text-fg-muted">
           <b className="tabular-nums text-gray-700 dark:text-gray-200">
             {view.fmt(earmarked.total, base, earmarked.hasMissingRate)}
           </b>{' '}

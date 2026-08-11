@@ -191,7 +191,7 @@ export function TagPicker({ value, onChange }: Props) {
                       }
                     }}
                     placeholder="Tên nhãn mới"
-                    className="min-h-9 w-36 rounded-full border border-gray-300 px-2.5 py-1 text-xs outline-green-500 dark:border-gray-700 dark:bg-gray-900"
+                    className="min-h-9 w-36 rounded-full border border-border-strong px-2.5 py-1 text-xs outline-green-500 dark:bg-gray-900"
                   />
                 ) : (
                   <button

@@ -103,7 +103,7 @@ export function SettingsPage() {
         <div className="mt-1 divide-y divide-border-subtle">
           <Link
             to="/settings/accounts"
-            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-fg-primary hover:bg-gray-50 dark:hover:bg-gray-800"
           >
             <Landmark className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Tài khoản</span>
@@ -111,7 +111,7 @@ export function SettingsPage() {
           </Link>
           <Link
             to="/settings/categories"
-            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-fg-primary hover:bg-gray-50 dark:hover:bg-gray-800"
           >
             <Tags className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Danh mục</span>
@@ -119,7 +119,7 @@ export function SettingsPage() {
           </Link>
           <Link
             to="/settings/categories/classify"
-            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-fg-primary hover:bg-gray-50 dark:hover:bg-gray-800"
           >
             <Scale className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Phân loại chi tiêu</span>
@@ -127,7 +127,7 @@ export function SettingsPage() {
           </Link>
           <Link
             to="/settings/tags"
-            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-fg-primary hover:bg-gray-50 dark:hover:bg-gray-800"
           >
             <TagIcon className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Nhãn</span>
@@ -135,7 +135,7 @@ export function SettingsPage() {
           </Link>
           <Link
             to="/settings/notifications"
-            className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-fg-primary hover:bg-gray-50 dark:hover:bg-gray-800"
           >
             <Bell className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Thông báo</span>
@@ -157,7 +157,7 @@ export function SettingsPage() {
       <section className="overflow-hidden rounded-xl bg-surface shadow-sm ">
         <Link
           to="/settings/data"
-          className="flex items-center gap-3 px-3 py-3 text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-800"
+          className="flex items-center gap-3 px-3 py-3 text-sm text-fg-primary hover:bg-gray-50 dark:hover:bg-gray-800"
         >
           <Database className="h-5 w-5 text-fg-muted" />
           <span className="flex-1">
@@ -186,7 +186,7 @@ export function SettingsPage() {
           <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
         </button>
         {!isDemoMode && (
-          <div className="border-t border-gray-100 px-3 py-3 dark:border-gray-800">
+          <div className="border-t border-border-subtle px-3 py-3">
             <button
               type="button"
               onClick={async () => {

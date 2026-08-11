@@ -546,7 +546,7 @@ export function AssetGroupsPage() {
                 <button
                   type="button"
                   onClick={() => openAddAccounts(g.name)}
-                  className="flex w-full items-center justify-center gap-1 border-t border-gray-100 px-3 py-2.5 text-xs font-semibold text-green-700 hover:bg-green-50 dark:border-gray-800 dark:text-green-400 dark:hover:bg-green-900/20"
+                  className="flex w-full items-center justify-center gap-1 border-t border-border-subtle px-3 py-2.5 text-xs font-semibold text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20"
                 >
                   <Plus className="h-4 w-4" /> Thêm tài khoản vào nhóm
                 </button>

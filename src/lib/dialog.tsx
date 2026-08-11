@@ -211,7 +211,7 @@ function DialogModal({ req }: { req: DialogReq }) {
               if (e.key === 'Enter') onConfirm()
             }}
             placeholder={req.placeholder}
-            className="mt-3 w-full rounded-lg border border-border-strong px-3 py-2 text-base outline-green-500 dark:bg-gray-900 dark:text-gray-100"
+            className="mt-3 w-full rounded-lg border border-border-strong px-3 py-2 text-base dark:bg-gray-900 dark:text-gray-100"
           />
         )}
 

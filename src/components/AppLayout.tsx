@@ -178,7 +178,7 @@ export function AppLayout() {
     `relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${
       isActive
         ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
-        : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+        : 'text-fg-secondary hover:bg-surface-sunken'
     }`
 
   return (

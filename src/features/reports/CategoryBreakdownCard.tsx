@@ -117,7 +117,7 @@ export function CategoryBreakdownCard({
         icon: '',
         value: restValue,
         pct: pctOf(restValue),
-        color: '#9ca3af',
+        color: 'var(--color-gray-500)',
         clickable: false,
         parentId: '',
         childIds: [],
@@ -269,7 +269,7 @@ export function CategoryBreakdownCard({
                               pct={p.directPct}
                               value={p.direct}
                               barPct={p.directPct}
-                              color="#9ca3af"
+                              color="var(--color-gray-500)"
                               base={base}
                             />
                           </Link>

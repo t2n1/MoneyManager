@@ -140,7 +140,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
   }
 
   const field =
-    'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
+    'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm dark:text-gray-100'
   const label_ = 'mb-1 block text-xs font-medium text-fg-muted'
 
   // Xem trước quy đổi — chốt bắt buộc: hiện NGAY khi đang gõ, dùng đúng số tiền

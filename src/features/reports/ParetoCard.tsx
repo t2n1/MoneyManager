@@ -47,7 +47,7 @@ export function ParetoCard({ slices, categories, base, periodNoun }: Props) {
               key={id}
               className="flex items-center gap-2 rounded-lg bg-amber-50 px-2 py-1.5 text-xs dark:bg-amber-900/20"
             >
-              <span className="w-4 shrink-0 text-center font-medium text-amber-700 tabular-nums dark:text-amber-400">
+              <span className="w-4 shrink-0 text-center font-medium text-fg-warn tabular-nums">
                 {i + 1}
               </span>
               <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-200">

@@ -559,7 +559,7 @@ function AccountForm({ account, onClose }: FormProps) {
                   setShelterLimit(SHELTER_DEFAULT_LIMIT_JPY[next])
                 }
               }}
-              className="w-full rounded-lg border border-gray-300 bg-surface px-2 py-2 text-sm dark:border-gray-700 "
+              className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm "
             >
               <option value="">Tài khoản thường</option>
               {TAX_SHELTER_LIST.map((s) => (
@@ -579,7 +579,7 @@ function AccountForm({ account, onClose }: FormProps) {
                   currency={currency}
                   autoOpen={false}
                   ariaLabel="Hạn mức nạp mỗi năm"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right text-sm outline-green-500 dark:border-gray-700"
+                  className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-sm outline-green-500"
                 />
                 <Guide className="mt-1 text-2xs text-fg-muted">
                   App đếm tiền bạn chuyển vào tài khoản này trong năm và cho biết còn bao nhiêu hạn
@@ -607,7 +607,7 @@ function AccountForm({ account, onClose }: FormProps) {
                   type="date"
                   value={depFrom}
                   onChange={(e) => setDepFrom(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm outline-green-500 dark:border-gray-700 dark:bg-gray-900"
+                  className="w-full rounded-lg border border-border-strong px-2 py-2 text-sm outline-green-500 dark:bg-gray-900"
                 />
               </div>
               <div>
@@ -619,7 +619,7 @@ function AccountForm({ account, onClose }: FormProps) {
                   value={depMonths}
                   onChange={(e) => setDepMonths(e.target.value.replace(/\D/g, ''))}
                   placeholder="60"
-                  className="w-full rounded-lg border border-gray-300 px-2 py-2 text-sm outline-green-500 dark:border-gray-700"
+                  className="w-full rounded-lg border border-border-strong px-2 py-2 text-sm outline-green-500"
                 />
               </div>
             </div>
@@ -632,7 +632,7 @@ function AccountForm({ account, onClose }: FormProps) {
               currency={currency}
               autoOpen={false}
               ariaLabel="Giá trị còn lại cuối vòng đời"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-right text-sm outline-green-500 dark:border-gray-700"
+              className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-sm outline-green-500"
             />
             <Guide className="mt-1 text-2xs text-fg-muted">
               Ví dụ xe 5 năm về 0: 60 tháng, còn lại 0. Xe vẫn bán được giá thì điền số bán ước tính.

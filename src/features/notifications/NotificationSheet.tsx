@@ -90,7 +90,7 @@ function MoreButton({
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      className="flex min-h-11 w-full items-center justify-center gap-1 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+      className="flex min-h-11 w-full items-center justify-center gap-1 rounded-lg text-xs font-medium text-fg-muted hover:bg-surface-sunken hover:text-fg-secondary"
     >
       {open ? 'Thu gọn' : `Xem thêm ${count} ${label}`}
       <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />

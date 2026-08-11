@@ -14,7 +14,8 @@ const C = {
   need: '#16a34a',
   want: '#f59e0b',
   save: '#0ea5e9',
-  unknown: '#9ca3af',
+  // var(--fg-muted): gray-400 chỉ 2,54:1, không đạt 3:1 cho đồ hoạ mang thông tin.
+  unknown: 'var(--fg-muted)',
 } as const
 
 interface Props {

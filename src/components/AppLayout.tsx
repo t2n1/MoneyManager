@@ -12,8 +12,10 @@ import {
 import { usePrivacyMode } from '../lib/privacy'
 import { useDensitySync } from '../hooks/useDensity'
 import { runUndo, useUndoToast } from '../lib/undoToast'
+import { dismissErrorToast, useErrorToast } from '../lib/errorToast'
 import { DialogHost } from '../lib/dialog'
 import { PrivacyToggle } from './PrivacyToggle'
+import { QueryErrorBanner } from './QueryErrorBanner'
 import { NotificationBell } from '../features/notifications/NotificationBell'
 import { NotificationBoundary } from '../features/notifications/NotificationBoundary'
 import { useNotifications } from '../features/notifications/useNotifications'
@@ -58,6 +60,12 @@ let notifCleanupDone = false
 // không phụ thuộc bất cứ thứ gì bộ luật sinh ra.
 let prunedThisOpen = false
 
+/** Nút trong toast (Hoàn tác / Đóng): nằm trên nền toast ĐẶC nên không dùng được
+ *  <ActionButton> — hai dáng của nó đều tính trên nền thẻ. Gom một hằng số ở đây để
+ *  hai toast không trôi khác nhau, và để `active:scale-95` chỉ viết một lần. */
+const TOAST_BTN =
+  'rounded-full bg-white/15 px-3 py-1 text-sm font-semibold text-white transition hover:bg-white/25 active:scale-95'
+
 export function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -72,6 +80,9 @@ export function AppLayout() {
   // Email cho chân sidebar desktop (demo thì không có phiên → hiện chú thích demo)
   const { session } = useAuth()
   const email = session?.user?.email
+  // Lưới an toàn lỗi: query/mutation thất bại ở BẤT KỲ đâu cũng nổi một toast, thay vì
+  // im lặng để người dùng tưởng đã lưu được. Lấy từ nhánh fix/toan-bo-audit.
+  const errorToast = useErrorToast()
 
   // Nút "+" nổi chỉ hiện ở trang Sổ Giao dịch
   const onLedger = location.pathname === '/' || location.pathname === '/transactions'
@@ -251,6 +262,8 @@ export function AppLayout() {
         ref={mainRef}
         className={`mx-auto w-full min-h-0 max-w-6xl flex-1 overflow-y-auto pt-[env(safe-area-inset-top)] lg:pt-0 lg:pb-6 ${onEntry ? '' : 'pb-28'}`}
       >
+        {/* Lưới an toàn: query lỗi không được hiển thị như "không có dữ liệu" */}
+        <QueryErrorBanner />
         <Outlet />
       </main>
 
@@ -307,9 +320,26 @@ export function AppLayout() {
             <button
               type="button"
               onClick={() => runUndo()}
-              className="rounded-full bg-white/15 px-3 py-1 text-sm font-semibold text-white hover:bg-white/25 active:scale-95"
+              className={TOAST_BTN}
             >
               Hoàn tác
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toast lỗi mutation toàn cục (main.tsx MutationCache.onError) — lưu hỏng
+          không bao giờ được im lặng. Đặt trên toast hoàn tác một bậc để không đè nhau. */}
+      {errorToast && (
+        <div className={`fixed inset-x-0 z-50 flex justify-center px-4 ${onEntry ? 'bottom-20' : 'bottom-40 lg:bottom-20'}`}>
+          <div className="flex items-center gap-3 rounded-full bg-red-700/95 py-2 pl-4 pr-2 text-sm font-medium text-white shadow-lg">
+            <span className="max-w-[70vw] truncate">{errorToast.message}</span>
+            <button
+              type="button"
+              onClick={dismissErrorToast}
+              className={TOAST_BTN}
+            >
+              Đóng
             </button>
           </div>
         </div>

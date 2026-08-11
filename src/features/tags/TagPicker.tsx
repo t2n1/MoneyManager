@@ -97,13 +97,21 @@ export function TagPicker({ value, onChange }: Props) {
     } else {
       // Xoay vòng bảng màu theo số nhãn hiện có để các nhãn không trùng màu nhau
       const palette = ['sky', 'green', 'amber', 'pink', 'indigo', 'red', 'gray']
-      const created = await createTag.mutateAsync({
-        name,
-        color: palette[tags.length % palette.length],
-        // Tạo ngay trong mục đang đứng: nhãn mới sinh ra đã đúng chỗ, không đẻ
-        // thêm việc "vào Cài đặt xếp lại sau".
-        group_id: groupId || null,
-      })
+      // try/catch: tạo nhãn hỏng (trùng tên trên DB, offline) thì GIỮ ô nhập +
+      // bản nháp để sửa lại, thay vì unhandled rejection và mất chữ vừa gõ.
+      // `return` TRƯỚC khi dọn draft ở dưới — đó mới là chỗ giữ lại chữ vừa gõ.
+      let created
+      try {
+        created = await createTag.mutateAsync({
+          name,
+          color: palette[tags.length % palette.length],
+          // Tạo ngay trong mục đang đứng: nhãn mới sinh ra đã đúng chỗ, không đẻ
+          // thêm việc "vào Cài đặt xếp lại sau".
+          group_id: groupId || null,
+        })
+      } catch {
+        return
+      }
       onChange([...value, created.id])
     }
     setDraft('')

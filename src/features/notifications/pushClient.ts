@@ -47,8 +47,41 @@ export function readPushEnv(): PushEnv {
 
 async function currentSubscription(): Promise<PushSubscription | null> {
   if (!('serviceWorker' in navigator)) return null
-  const registration = await navigator.serviceWorker.ready
+  // KHÔNG dùng `navigator.serviceWorker.ready` ở đường ĐỌC: promise đó không bao giờ
+  // resolve khi trang chưa đăng ký service worker nào (npm run dev không sinh SW) →
+  // getPushState treo vĩnh viễn, PushSection kẹt ở state=null và công tắc bị disable
+  // không lời giải thích. getRegistration() trả undefined ngay trong trường hợp đó.
+  // Giá phải trả: lần ghé ĐẦU TIÊN của bản prod, nếu SW còn đang cài thì đọc ra
+  // "chưa đăng ký" — chấp nhận được vì lần đầu thì đúng là chưa đăng ký thật.
+  const registration = await navigator.serviceWorker.getRegistration()
+  if (!registration) return null
   return registration.pushManager.getSubscription()
+}
+
+/**
+ * `navigator.serviceWorker.ready` nhưng có trần chờ — cho đường GHI (bật thông báo).
+ * Không có SW (bản dev) thì báo lỗi rõ ràng sau `ms` thay vì treo mãi.
+ */
+async function serviceWorkerReady(ms = 3000): Promise<ServiceWorkerRegistration> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                'Trang này không có service worker (bản dev không sinh SW) — hãy thử trên bản build.',
+              ),
+            ),
+          ms,
+        )
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export async function getPushState(): Promise<PushState> {
@@ -74,7 +107,7 @@ export async function subscribeThisDevice(): Promise<void> {
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') throw new Error('Bạn chưa cho phép hiện thông báo.')
 
-  const registration = await navigator.serviceWorker.ready
+  const registration = await serviceWorkerReady()
 
   // Có thể đã đăng ký từ trước (bật lại sau khi tắt, hoặc đăng ký còn sót). Dùng lại
   // đăng ký cũ thay vì subscribe lần nữa — trình duyệt sẽ từ chối nếu khoá khác.

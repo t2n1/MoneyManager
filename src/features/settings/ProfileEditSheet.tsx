@@ -51,17 +51,23 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
   }
 
   async function handleSave() {
-    await update.mutateAsync({
-      display_name: name.trim() || null,
-      month_start_day: clampMonthStartDay(day),
-      hourly_wage: wage.trim() === '' ? null : Number(wage),
-      annual_inflation_bps: toBps(inflation),
-      capital_gains_tax_bps: toBps(tax) ?? 2032,
-      // Kẹp 0–100%: giá trị ngoài khoảng làm mọi thanh tiến độ thành vô nghĩa
-      target_essential_bps: clampBps(toBps(essential), 5000),
-      target_flexible_bps: clampBps(toBps(flexible), 3000),
-      target_savings_bps: clampBps(toBps(savings), 2000),
-    })
+    // try/catch: lưu hỏng thì GIỮ sheet mở (toast lỗi toàn cục đã báo),
+    // không đóng sheet như thể đã lưu xong.
+    try {
+      await update.mutateAsync({
+        display_name: name.trim() || null,
+        month_start_day: clampMonthStartDay(day),
+        hourly_wage: wage.trim() === '' ? null : Number(wage),
+        annual_inflation_bps: toBps(inflation),
+        capital_gains_tax_bps: toBps(tax) ?? 2032,
+        // Kẹp 0–100%: giá trị ngoài khoảng làm mọi thanh tiến độ thành vô nghĩa
+        target_essential_bps: clampBps(toBps(essential), 5000),
+        target_flexible_bps: clampBps(toBps(flexible), 3000),
+        target_savings_bps: clampBps(toBps(savings), 2000),
+      })
+    } catch {
+      return
+    }
     onClose()
   }
 

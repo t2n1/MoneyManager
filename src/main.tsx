@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
 import { StrictMode, type ReactNode } from 'react'
@@ -8,8 +8,20 @@ import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './features/auth/AuthProvider.tsx'
 import { isDemoMode } from './lib/demo'
+import { describeError, showErrorToast } from './lib/errorToast'
 
 const queryClient = new QueryClient({
+  // Lưới an toàn: MỌI mutation thất bại đều hiện toast lỗi. Trước đây ~36 chỗ
+  // `.mutate()` không có onError — lưu hỏng là im lặng tuyệt đối, người dùng
+  // tưởng đã lưu xong. Nơi gọi nào tự catch/onError thì cứ xử lý tinh hơn;
+  // toast này bảo đảm "thất bại thì ít nhất phải THẤY".
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      // describeError chứ không `instanceof Error`: lỗi Supabase là object thường nên
+      // cách kia cho ra "Lưu không được: [object Object]" — đã thấy trên app đang chạy.
+      showErrorToast(`Lưu không được: ${describeError(error)}`)
+    },
+  }),
   defaultOptions: {
     queries: {
       retry: 1,

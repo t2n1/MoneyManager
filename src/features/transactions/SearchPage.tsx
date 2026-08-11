@@ -190,7 +190,13 @@ export function SearchPage() {
       }))
     )
       return
-    await bulkDelete.mutateAsync(ids)
+    // try/catch: xóa hàng loạt hỏng thì GIỮ lựa chọn (toast lỗi toàn cục đã báo),
+    // không hiện "Đã xóa N giao dịch" sai.
+    try {
+      await bulkDelete.mutateAsync(ids)
+    } catch {
+      return
+    }
     showToast(`Đã xóa ${ids.length} giao dịch`)
     selection.exit()
   }

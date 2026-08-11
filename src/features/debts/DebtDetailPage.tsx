@@ -69,15 +69,24 @@ export function DebtDetailPage() {
       }))
     )
       return
-    await deleteDebt.mutateAsync(debt!.id)
+    // try/catch: xóa hỏng thì Ở LẠI trang (toast lỗi toàn cục đã báo),
+    // không điều hướng đi như thể đã xóa xong.
+    try {
+      await deleteDebt.mutateAsync(debt!.id)
+    } catch {
+      return
+    }
     navigate('/debts')
   }
 
   async function toggleSettled() {
-    await updateDebt.mutateAsync({
-      id: debt!.id,
-      patch: { status: debt!.status === 'open' ? 'settled' : 'open' },
-    })
+    // .catch: toast lỗi toàn cục đã báo; ở đây chỉ cần không unhandled rejection.
+    await updateDebt
+      .mutateAsync({
+        id: debt!.id,
+        patch: { status: debt!.status === 'open' ? 'settled' : 'open' },
+      })
+      .catch(() => {})
   }
 
   async function handleDeletePayment(id: string, hasTx: boolean) {
@@ -93,7 +102,7 @@ export function DebtDetailPage() {
       }))
     )
       return
-    await deletePayment.mutateAsync(id)
+    await deletePayment.mutateAsync(id).catch(() => {})
   }
 
   return (

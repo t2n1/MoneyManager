@@ -54,7 +54,19 @@ describe('bundle bộ luật cho edge function', () => {
     for (const { outfile } of BUNDLES) {
       const daCommit = readFileSync(join(ROOT, outfile), 'utf8')
       // So bằng chứ không so "có chứa": đổi một hằng số trong luật cũng phải đỏ.
-      expect(goiLai.get(outfile), `${outfile} đã cũ — chạy npm run bundle:rules`).toBe(daCommit)
+      //
+      // Chuẩn hoá CRLF→LF trước khi so (lấy từ nhánh fix/toan-bo-audit): checkout trên
+      // Windows với autocrlf=true đổi line ending của file ĐÃ COMMIT, còn esbuild luôn
+      // xuất LF — khác biệt đó do git, không phải bộ luật lệch. `.gitattributes` đã ép
+      // LF cho file này, nhưng một checkout cũ (worktree, clone tạo trước khi có luật
+      // đó) vẫn mang CRLF và test sẽ đỏ oan ngay sau khi clone. Đúng kiểu cảnh báo sai
+      // làm người ta mất niềm tin vào chốt canh — hôm nay tôi đã tự đạp phải một lần
+      // với guardrail sao lưu, xem tests/backupCompleteness.test.ts.
+      const chuanHoa = (s: string) => s.replaceAll('\r\n', '\n')
+      expect(
+        chuanHoa(goiLai.get(outfile) ?? ''),
+        `${outfile} đã cũ — chạy npm run bundle:rules`,
+      ).toBe(chuanHoa(daCommit))
     }
   }, 60_000)
 

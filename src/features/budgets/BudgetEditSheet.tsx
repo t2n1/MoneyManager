@@ -34,21 +34,30 @@ export function BudgetEditSheet({
   const [amount, setAmount] = useState(current)
   const [rollover, setRollover] = useState(currentRollover ?? false)
 
+  // try/catch quanh mutateAsync: lưu hỏng thì GIỮ sheet mở (toast lỗi toàn cục đã
+  // báo), không được vừa đóng sheet vừa im lặng như trước — người dùng tưởng đã lưu.
   async function handleSave() {
-    if (amount <= 0) {
-      // Nhập 0/để trống + đang có hạn mức → coi như xóa
-      if (budgetId) await remove.mutateAsync(budgetId)
-      onClose()
+    try {
+      if (amount <= 0) {
+        // Nhập 0/để trống + đang có hạn mức → coi như xóa
+        if (budgetId) await remove.mutateAsync(budgetId)
+      } else {
+        await upsert.mutateAsync({ categoryId, monthKey, amount, rollover })
+      }
+    } catch {
       return
     }
-    await upsert.mutateAsync({ categoryId, monthKey, amount, rollover })
     onClose()
   }
 
   async function handleDelete() {
     if (!(await confirmDialog({ title: 'Xóa hạn mức này?', danger: true, confirmLabel: 'Xóa' })))
       return
-    if (budgetId) await remove.mutateAsync(budgetId)
+    try {
+      if (budgetId) await remove.mutateAsync(budgetId)
+    } catch {
+      return
+    }
     onClose()
   }
 

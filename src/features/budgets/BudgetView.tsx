@@ -169,7 +169,13 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   }
 
   async function handleCopy() {
-    const n = await copy.mutateAsync(monthKeyStr)
+    // try/catch: chép hỏng thì đừng hiện toast kết quả sai (toast lỗi toàn cục đã báo).
+    let n: number
+    try {
+      n = await copy.mutateAsync(monthKeyStr)
+    } catch {
+      return
+    }
     showToast(
       n > 0 ? `Đã chép ${n} hạn mức từ tháng trước` : 'Tháng trước không có hạn mức để chép',
       n > 0 ? 'success' : 'info',

@@ -53,7 +53,13 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
 
   async function handleDelete() {
     const snapshot = tx
-    await remove.mutateAsync(snapshot.id)
+    // try/catch: xóa hỏng thì GIỮ sheet mở (toast lỗi toàn cục đã báo) —
+    // không được hiện "Đã xóa · Hoàn tác" cho một giao dịch còn nguyên.
+    try {
+      await remove.mutateAsync(snapshot.id)
+    } catch {
+      return
+    }
     onClose()
     // Xóa xong mới cho hoàn tác: tạo lại giao dịch (id mới) nếu người dùng bấm.
     showUndoToast('Đã xóa giao dịch', async () => {

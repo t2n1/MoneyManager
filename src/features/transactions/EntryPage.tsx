@@ -137,7 +137,14 @@ export function EntryPage() {
 
   async function handleUndo(id: string) {
     clearTimeout(toastTimer.current)
-    await del.mutateAsync(id)
+    // try/catch: hoàn tác hỏng (offline…) mà không bắt thì unhandled rejection và
+    // KHÔNG toast gì cả — người dùng tưởng đã hoàn tác. Toast lỗi chi tiết đã có
+    // MutationCache.onError toàn cục lo; ở đây chỉ cần đừng hiện "Đã hoàn tác" sai.
+    try {
+      await del.mutateAsync(id)
+    } catch {
+      return
+    }
     setToast({ text: 'Đã hoàn tác' })
     toastTimer.current = setTimeout(() => setToast(null), 1500)
   }

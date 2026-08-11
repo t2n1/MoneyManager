@@ -104,3 +104,31 @@ export function goalForecast(
   }
   return { ...base, monthsLeft, etaMonth, vsDeadline }
 }
+
+/**
+ * Cần bỏ vào bao nhiêu MỖI THÁNG để kịp hạn — con số duy nhất mà một mục tiêu nhiều
+ * năm gửi được sang trang Ngân sách hàng tháng.
+ *
+ * `goalForecast` đi theo chiều ngược lại ("với đà này thì bao giờ tới"), hữu ích để
+ * nhìn lại nhưng vô dụng lúc lập kế hoạch: nó nói tương lai sẽ ra sao chứ không nói
+ * tháng này phải để riêng bao nhiêu.
+ *
+ * null khi không đặt hạn (không có gì để chia), đã đủ, hoặc hạn đã trôi qua — lúc đó
+ * "mỗi tháng bao nhiêu" không còn nghĩa gì, chuyện cần nói là mục tiêu đã trễ.
+ *
+ * Tính CẢ tháng đến hạn (+1) và làm tròn LÊN: chia đúng số học rồi làm tròn xuống thì
+ * tháng cuối vẫn hụt, mà hụt một đồng cũng là không kịp.
+ */
+export function monthlyNeeded(
+  remaining: number,
+  targetDate: string | null,
+  fromMonth: MonthKey,
+  monthStartDay: number,
+): number | null {
+  if (!targetDate || remaining <= 0) return null
+  const deadline = monthKeyForDate(targetDate, monthStartDay)
+  const months =
+    deadline.year * 12 + deadline.month - (fromMonth.year * 12 + fromMonth.month) + 1
+  if (months <= 0) return null
+  return Math.ceil(remaining / months)
+}

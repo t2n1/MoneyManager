@@ -19,6 +19,7 @@ import type {
   LifeEventRow,
   LifePhaseRow,
   LifeScenarioRow,
+  MonthPlanRow,
   NetWorthSnapshotRow,
   NotificationStateRow,
   RecurringRuleRow,
@@ -956,6 +957,40 @@ export const supabaseRepo: Repo = {
     return toInsert.length
   },
 
+  async getMonthPlan(monthKey: string) {
+    // maybeSingle: chưa khai thu dự kiến là chuyện BÌNH THƯỜNG của gần hết các tháng,
+    // không phải lỗi. `single()` sẽ ném PGRST116 và mặt lập kế hoạch chết cứng.
+    const { data, error } = await getSupabase()
+      .from('month_plans')
+      .select('*')
+      .eq('month_key', monthKey)
+      .maybeSingle()
+    if (error) throw error
+    return data
+  },
+
+  async upsertMonthPlan(monthKey: string, expectedIncome: number) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('month_plans')
+      .upsert(
+        { user_id, month_key: monthKey, expected_income: expectedIncome },
+        { onConflict: 'user_id,month_key' },
+      )
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async deleteMonthPlan(monthKey: string) {
+    const { error } = await getSupabase()
+      .from('month_plans')
+      .delete()
+      .eq('month_key', monthKey)
+    if (error) throw error
+  },
+
   async getDebts() {
     const { data, error } = await getSupabase()
       .from('debts')
@@ -1394,6 +1429,7 @@ export const supabaseRepo: Repo = {
       lifePhases,
       lifeEvents,
       stockTrades,
+      monthPlans,
     ] = await Promise.all([
       this.getProfile(),
       selectAll<AccountRow>('accounts'),
@@ -1414,6 +1450,7 @@ export const supabaseRepo: Repo = {
       selectAll<LifePhaseRow>('life_phases'),
       selectAll<LifeEventRow>('life_events'),
       selectAll<StockTradeRow>('stock_trades'),
+      selectAll<MonthPlanRow>('month_plans'),
     ])
     return {
       version: BACKUP_VERSION,
@@ -1437,6 +1474,7 @@ export const supabaseRepo: Repo = {
       lifePhases,
       lifeEvents,
       stockTrades,
+      monthPlans,
     }
   },
 
@@ -1787,6 +1825,19 @@ export const supabaseRepo: Repo = {
               net_worth: s.net_worth,
             })),
         (part) => sb.from('networth_snapshots').insert(part),
+      )
+    }
+
+    // month_plans: chỉ phụ thuộc user (không FK sang danh mục) → chèn độc lập.
+    if (data.monthPlans?.length) {
+      await insertChunked(
+        data.monthPlans.map((p) => ({
+          id: p.id,
+          user_id: uid,
+          month_key: p.month_key,
+          expected_income: p.expected_income,
+        })),
+        (part) => sb.from('month_plans').insert(part),
       )
     }
 

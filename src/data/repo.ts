@@ -18,6 +18,7 @@ import type {
   LifePhaseRow,
   LifeScenarioRow,
   NeedLevel,
+  MonthPlanRow,
   NetWorthSnapshotRow,
   PlannedExpenseRow,
   NotificationStateRow,
@@ -75,10 +76,12 @@ export interface BackupData {
   stockTrades?: StockTradeRow[]
   /** Nhóm nhãn (migration 0039); vắng mặt ở backup v1–v7. */
   tagGroups?: TagGroupRow[]
+  /** Thu dự kiến từng tháng (migration 0041); vắng mặt ở backup v1–v8. */
+  monthPlans?: MonthPlanRow[]
 }
 
-/** Phiên bản định dạng backup hiện hành. v8: thêm tagGroups. */
-export const BACKUP_VERSION = 8
+/** Phiên bản định dạng backup hiện hành. v9: thêm monthPlans. */
+export const BACKUP_VERSION = 9
 
 export interface NewTransaction {
   type: TransactionType
@@ -526,6 +529,13 @@ export interface Repo {
   /** Chép hạn mức từ tháng liền trước vào monthKey; bỏ qua danh mục đã có hạn mức
    *  ở tháng đích. Trả về số hạn mức đã chép. */
   copyBudgetsFromPreviousMonth(monthKey: string): Promise<number>
+
+  /** Thu dự kiến người dùng khai cho `monthKey`; null = chưa khai (dùng số trung bình). */
+  getMonthPlan(monthKey: string): Promise<MonthPlanRow | null>
+  /** Khai/sửa thu dự kiến (unique user_id+month_key). */
+  upsertMonthPlan(monthKey: string, expectedIncome: number): Promise<MonthPlanRow>
+  /** Bỏ số khai tay, quay về trung bình 3 tháng. Không có dòng thì im lặng bỏ qua. */
+  deleteMonthPlan(monthKey: string): Promise<void>
 
   // --- Nợ / cho vay (mục F) ---
   getDebts(): Promise<DebtRow[]>

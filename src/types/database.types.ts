@@ -444,6 +444,22 @@ export type BudgetRow = {
 }
 
 /**
+ * Thu dự kiến của một tháng, do người dùng khai tay (migration 0041).
+ *
+ * Vắng dòng KHÔNG phải "thu bằng 0" — nó nghĩa là "chưa khai", và mặt lập kế hoạch
+ * rơi về trung bình 3 tháng đã hoàn tất. Còn `expected_income = 0` là con số thật:
+ * tháng nghỉ không lương.
+ */
+export type MonthPlanRow = {
+  id: string
+  user_id: string
+  month_key: string // "YYYY-MM"
+  expected_income: number // minor units theo base_currency
+  created_at: string
+  updated_at: string
+}
+
+/**
  * Cài đặt cho một nhóm tài sản. Thành viên nhóm vẫn là chuỗi accounts.asset_group;
  * bảng này chỉ lưu thuộc tính riêng của nhóm (thứ tự, có tính vào tổng, ẩn/hiện).
  * `name` khớp với accounts.asset_group. Nhóm không có bản ghi → dùng mặc định.
@@ -726,6 +742,12 @@ export type Database = {
           'id' | 'rollover'
         >
         Update: Partial<Pick<BudgetRow, 'amount' | 'rollover'>>
+        Relationships: []
+      }
+      month_plans: {
+        Row: MonthPlanRow
+        Insert: InsertOf<MonthPlanRow, 'user_id' | 'month_key' | 'expected_income', 'id'>
+        Update: Partial<Pick<MonthPlanRow, 'expected_income'>>
         Relationships: []
       }
       asset_group_settings: {

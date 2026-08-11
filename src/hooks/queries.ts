@@ -676,6 +676,37 @@ export function useCopyBudgetsFromPreviousMonth() {
   })
 }
 
+// --- Thu dự kiến của tháng (migration 0041) ---
+
+/** Thu dự kiến người dùng khai; `null` = chưa khai → dùng trung bình 3 tháng. */
+export function useMonthPlan(monthKey: string) {
+  return useQuery({
+    queryKey: ['month-plan', monthKey],
+    queryFn: () => repo.getMonthPlan(monthKey),
+  })
+}
+
+function invalidateMonthPlans(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['month-plan'] })
+}
+
+export function useUpsertMonthPlan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ monthKey, expectedIncome }: { monthKey: string; expectedIncome: number }) =>
+      repo.upsertMonthPlan(monthKey, expectedIncome),
+    onSettled: () => invalidateMonthPlans(qc),
+  })
+}
+
+export function useDeleteMonthPlan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (monthKey: string) => repo.deleteMonthPlan(monthKey),
+    onSettled: () => invalidateMonthPlans(qc),
+  })
+}
+
 /** Kết hợp budgets + giao dịch tháng + tỷ giá → báo cáo tiến độ ngân sách. */
 export function useBudgetReport(monthKey: MonthKey): {
   report: BudgetReport | undefined

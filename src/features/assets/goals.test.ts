@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TransactionRow } from '../../types/database.types'
-import { accountMonthlyGrowth, goalForecast } from './goals'
+import { accountMonthlyGrowth, goalForecast, monthlyNeeded } from './goals'
 
 let seq = 0
 function tx(
@@ -148,5 +148,35 @@ describe('goalForecast', () => {
     const f = goalForecast(100_000, 1_000_000, null, now, null, 1)
     expect(f.monthlyGrowth).toBe(0)
     expect(f.etaMonth).toBeNull()
+  })
+})
+
+describe('monthlyNeeded', () => {
+  const thang9 = { year: 2026, month: 9 }
+
+  it('chia đều số còn thiếu cho các tháng còn lại, tính cả tháng đến hạn', () => {
+    // 9,10,11,12 = 4 tháng → 300.000 mỗi tháng.
+    expect(monthlyNeeded(1_200_000, '2026-12-20', thang9, 1)).toBe(300_000)
+  })
+
+  it('hạn ngay trong tháng đang lập → phải đủ luôn trong tháng này', () => {
+    expect(monthlyNeeded(500_000, '2026-09-30', thang9, 1)).toBe(500_000)
+  })
+
+  it('làm tròn LÊN — hụt một đồng cũng là không kịp', () => {
+    expect(monthlyNeeded(1000, '2026-11-01', thang9, 1)).toBe(334)
+  })
+
+  it('không đặt hạn thì không có gì để chia', () => {
+    expect(monthlyNeeded(1_000_000, null, thang9, 1)).toBeNull()
+  })
+
+  it('đã đủ rồi thì thôi', () => {
+    expect(monthlyNeeded(0, '2026-12-20', thang9, 1)).toBeNull()
+    expect(monthlyNeeded(-5, '2026-12-20', thang9, 1)).toBeNull()
+  })
+
+  it('hạn đã trôi qua → null, vì "mỗi tháng bao nhiêu" hết nghĩa', () => {
+    expect(monthlyNeeded(1_000_000, '2026-08-01', thang9, 1)).toBeNull()
   })
 })

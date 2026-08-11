@@ -23,6 +23,16 @@ function subscribePad(f: () => void) {
   }
 }
 
+/**
+ * Dáng ô nhập tiền CHÍNH của một sheet: to, canh phải, viền đậm lên khi focus.
+ *
+ * Là hằng số vì hai sheet ngân sách chép tay y hệt nhau — mà "y hệt" chỉ đúng tới lần
+ * đầu có người sửa một bên. Cỡ chữ nằm trong đây luôn: ô tiền chính của sheet là chỗ
+ * mắt phải rơi vào trước tiên, để mỗi nơi tự chọn cỡ là mỗi sheet một kiểu.
+ */
+export const MONEY_FIELD_CLASS =
+  'w-full rounded-xl border border-border-strong bg-surface p-3 text-right text-lg font-semibold text-fg-primary focus:border-green-500 focus:outline-none'
+
 interface Props {
   /** Số tiền ở đơn vị nhỏ nhất (0 = chưa nhập). */
   value: number

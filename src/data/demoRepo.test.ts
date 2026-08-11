@@ -662,12 +662,55 @@ describe('demoRepo: sổ lệnh cổ phiếu', () => {
 
   it('sao lưu mang theo sổ lệnh và khôi phục lại được', async () => {
     const backup = await demoRepo.exportAll()
-    expect(backup.version).toBe(8)
+    expect(backup.version).toBe(9)
     expect(Array.isArray(backup.stockTrades)).toBe(true)
 
     await demoRepo.importAll(backup)
     const sau = await demoRepo.getStockTrades()
     expect(sau.length).toBe(backup.stockTrades?.length ?? 0)
+  })
+
+  it('thu dự kiến: chưa khai thì null, khai rồi thì đọc lại đúng số', async () => {
+    expect(await demoRepo.getMonthPlan('2099-01')).toBeNull()
+    await demoRepo.upsertMonthPlan('2099-01', 420_000)
+    expect((await demoRepo.getMonthPlan('2099-01'))?.expected_income).toBe(420_000)
+    // Khai lại là SỬA chứ không đẻ thêm dòng — unique(user_id, month_key).
+    await demoRepo.upsertMonthPlan('2099-01', 800_000)
+    expect((await demoRepo.getMonthPlan('2099-01'))?.expected_income).toBe(800_000)
+    // Tháng khác không bị đụng tới.
+    expect(await demoRepo.getMonthPlan('2099-02')).toBeNull()
+  })
+
+  it('thu dự kiến 0 là số THẬT (nghỉ không lương), khác hẳn chưa khai', async () => {
+    await demoRepo.upsertMonthPlan('2099-03', 0)
+    expect((await demoRepo.getMonthPlan('2099-03'))?.expected_income).toBe(0)
+    // Bỏ đè là XOÁ dòng — một hành động riêng, không phải gõ số 0.
+    await demoRepo.deleteMonthPlan('2099-03')
+    expect(await demoRepo.getMonthPlan('2099-03')).toBeNull()
+  })
+
+  it('thu dự kiến không nhận số âm', async () => {
+    // demoRepo không có CHECK của Postgres nên phải tự chặn — xem ghi chú trong hàm.
+    await expect(demoRepo.upsertMonthPlan('2099-04', -1)).rejects.toThrow()
+    expect(await demoRepo.getMonthPlan('2099-04')).toBeNull()
+  })
+
+  it('sao lưu/khôi phục mang theo thu dự kiến', async () => {
+    await demoRepo.upsertMonthPlan('2099-05', 555_000)
+    const backup = await demoRepo.exportAll()
+    expect(backup.monthPlans?.some((p) => p.month_key === '2099-05')).toBe(true)
+
+    await demoRepo.deleteMonthPlan('2099-05')
+    await demoRepo.importAll(backup)
+    expect((await demoRepo.getMonthPlan('2099-05'))?.expected_income).toBe(555_000)
+  })
+
+  it('khôi phục bản lưu cũ (chưa có monthPlans) không làm hỏng gì', async () => {
+    const backup = await demoRepo.exportAll()
+    // Bản lưu xuất trước migration 0041 — trường không tồn tại.
+    delete backup.monthPlans
+    await demoRepo.importAll(backup)
+    expect(await demoRepo.getMonthPlan('2099-05')).toBeNull()
   })
 
   it('sao lưu/khôi phục mang theo Cách trình bày (density_pref)', async () => {

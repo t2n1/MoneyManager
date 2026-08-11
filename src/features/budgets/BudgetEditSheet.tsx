@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useDeleteBudget, useRates, useUpsertBudget } from '../../hooks/queries'
 import { useEscClose } from '../../hooks/useEscClose'
-import { MoneyField } from '../../components/MoneyField'
+import { MoneyField, MONEY_FIELD_CLASS } from '../../components/MoneyField'
 import { confirmDialog } from '../../lib/dialog'
+import { formatMoney } from '../../lib/money'
+import type { Suggestion } from './suggest'
 
 interface Props {
   monthKey: string
@@ -13,6 +15,8 @@ interface Props {
   budgetId?: string
   /** Câu giải thích hạn mức này là trần nhóm / mốc con / đặt riêng cho con. */
   hint?: string
+  /** Lịch sử chi của danh mục này (mặt lập kế hoạch); null = không gợi ý. */
+  suggestion?: Suggestion | null
   onClose: () => void
 }
 
@@ -25,6 +29,7 @@ export function BudgetEditSheet({
   currentRollover,
   budgetId,
   hint,
+  suggestion = null,
   onClose,
 }: Props) {
   useEscClose(onClose)
@@ -91,8 +96,40 @@ export function BudgetEditSheet({
           currency={base}
           ariaLabel="Hạn mức tháng"
           onEnter={handleSave}
-          className="w-full rounded-xl border border-border-strong bg-surface p-3 text-right text-lg font-semibold text-fg-primary focus:border-green-500 focus:outline-none"
+          className={MONEY_FIELD_CLASS}
         />
+
+        {/* Ô trống bắt người ta bịa số từ trí nhớ, trong khi app biết rõ mấy tháng qua
+            danh mục này tốn bao nhiêu. Bày cả trung bình lẫn cao nhất: chọn đúng trung
+            bình thì một nửa số tháng sẽ vượt trần. */}
+        {suggestion && suggestion.months.length > 0 && (
+          <div className="mt-3 rounded-lg bg-surface-sunken p-2.5">
+            <p className="text-2xs text-fg-muted">
+              {suggestion.months.length} tháng gần đây:{' '}
+              {suggestion.months
+                .map((m) => `${m.monthKey} ${formatMoney(m.amount, base)}`)
+                .join(' · ')}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setAmount(suggestion.average)}
+                className="min-h-11 rounded-lg border border-border-strong bg-surface px-3 text-xs font-medium text-fg-secondary"
+              >
+                Dùng {formatMoney(suggestion.average, base)} (trung bình)
+              </button>
+              {suggestion.max !== suggestion.average && (
+                <button
+                  type="button"
+                  onClick={() => setAmount(suggestion.max)}
+                  className="min-h-11 rounded-lg border border-border-strong bg-surface px-3 text-xs font-medium text-fg-secondary"
+                >
+                  Dùng {formatMoney(suggestion.max, base)} (cao nhất)
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         <label className="mt-3 flex items-center gap-2 text-sm text-fg-secondary">
           <input type="checkbox" checked={rollover} onChange={(e) => setRollover(e.target.checked)} />

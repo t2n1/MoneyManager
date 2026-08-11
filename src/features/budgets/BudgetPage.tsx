@@ -9,11 +9,14 @@ import { useProfile } from '../../hooks/queries'
 import {
   addMonths,
   formatMonthLabel,
+  getMonthRange,
   monthKeyForDate,
   toISODate,
   type MonthKey,
 } from '../../lib/dates'
 import { BudgetView } from './BudgetView'
+import { isPlanningMonth } from './planning'
+import { PlanningView } from './PlanningView'
 
 /** Đọc 'YYYY-MM' thành MonthKey; null nếu không hợp lệ. Giống Báo cáo để link `?ym=`
  *  cũ (kể cả link chuyển tiếp từ `/reports?view=budget&ym=…`) vẫn mở đúng tháng. */
@@ -31,7 +34,15 @@ export function BudgetPage() {
   const [monthKey, setMonthKey] = useState<MonthKey | null>(() => parseYm(searchParams.get('ym')))
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
-  const activeMonthKey = monthKey ?? monthKeyForDate(toISODate(new Date()), monthStartDay)
+  const todayISO = toISODate(new Date())
+  const activeMonthKey = monthKey ?? monthKeyForDate(todayISO, monthStartDay)
+
+  // Hai mặt của cùng một trang: tháng chưa bắt đầu thì LẬP kế hoạch, tháng đã bắt đầu
+  // thì THEO DÕI. Chuyển tự động theo tháng đang đứng — xem `isPlanningMonth`.
+  const planning = isPlanningMonth(
+    getMonthRange(activeMonthKey, monthStartDay).start,
+    todayISO,
+  )
 
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
@@ -52,7 +63,11 @@ export function BudgetPage() {
         </IconButton>
       </div>
 
-      <BudgetView monthKey={activeMonthKey} />
+      {planning ? (
+        <PlanningView monthKey={activeMonthKey} />
+      ) : (
+        <BudgetView monthKey={activeMonthKey} />
+      )}
     </div>
   )
 }

@@ -21,6 +21,7 @@ import type {
   LifePhaseRow,
   LifeScenarioRow,
   NeedLevel,
+  MonthPlanRow,
   NetWorthSnapshotRow,
   PlannedExpenseRow,
   NotificationStateRow,
@@ -148,6 +149,8 @@ interface DemoDB {
   lifeEvents: LifeEventRow[]
   /** Khoản sắp chi (migration 0038); vắng mặt ở dữ liệu demo cũ. */
   plannedExpenses?: PlannedExpenseRow[]
+  /** Thu dự kiến từng tháng (migration 0041); vắng mặt ở dữ liệu demo cũ. */
+  monthPlans?: MonthPlanRow[]
 }
 
 // crypto.randomUUID() chỉ chạy trong secure context (HTTPS / localhost).
@@ -1482,6 +1485,45 @@ export const demoRepo: Repo = {
     return toCopy.length
   },
 
+  async getMonthPlan(monthKey: string) {
+    return (load().monthPlans ?? []).find((p) => p.month_key === monthKey) ?? null
+  },
+
+  async upsertMonthPlan(monthKey: string, expectedIncome: number) {
+    // Chặn số âm ở đây vì demoRepo KHÔNG có CHECK của Postgres — bản demo là chỗ
+    // người ta thử app lần đầu, để nó nhận -5.000 rồi vẽ ra kế hoạch vô nghĩa thì
+    // lỗi hiện ra ở tận chỗ khác. Xem ghi chú "demo mode không kiểm ràng buộc".
+    if (!Number.isFinite(expectedIncome) || expectedIncome < 0) {
+      throw new Error('Thu dự kiến không được là số âm')
+    }
+    const db = load()
+    db.monthPlans ??= []
+    const existing = db.monthPlans.find((p) => p.month_key === monthKey)
+    if (existing) {
+      existing.expected_income = expectedIncome
+      existing.updated_at = nowISO()
+      save(db)
+      return existing
+    }
+    const row: MonthPlanRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      month_key: monthKey,
+      expected_income: expectedIncome,
+      created_at: nowISO(),
+      updated_at: nowISO(),
+    }
+    db.monthPlans.push(row)
+    save(db)
+    return row
+  },
+
+  async deleteMonthPlan(monthKey: string) {
+    const db = load()
+    db.monthPlans = (db.monthPlans ?? []).filter((p) => p.month_key !== monthKey)
+    save(db)
+  },
+
   async getDebts() {
     return (load().debts ?? []).sort((a, b) => b.created_at.localeCompare(a.created_at))
   },
@@ -1904,6 +1946,7 @@ export const demoRepo: Repo = {
       lifeScenarios: db.lifeScenarios ?? [],
       lifePhases: db.lifePhases ?? [],
       lifeEvents: db.lifeEvents ?? [],
+      monthPlans: db.monthPlans ?? [],
     }
   },
 
@@ -1958,6 +2001,7 @@ export const demoRepo: Repo = {
       lifeScenarios: stamp(data.lifeScenarios ?? []),
       lifePhases: stamp(data.lifePhases ?? []),
       lifeEvents: stamp(data.lifeEvents ?? []),
+      monthPlans: stamp(data.monthPlans ?? []),
     }
     save(db)
   },

@@ -2,6 +2,7 @@
 // Ba dòng dùng chung một khuôn với danh sách hạn mức bên dưới (tên · % · thanh
 // tiến độ · số tiền / mốc) để mắt không phải học lại cách đọc.
 import { Link } from 'react-router-dom'
+import { Guide } from '../../components/Guide'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { BASELINE_MONTHS, type AxisKey, type AxisProgress } from './axisTargets'
 
@@ -11,6 +12,10 @@ const LABEL: Record<AxisKey, string> = {
   savings: 'Tiết kiệm',
 }
 
+/** Giải nghĩa mỗi trục — chữ CHỈ ĐỂ DẠY, ẩn ở chế độ Gọn.
+ *
+ *  Lọt lần rà đầu vì nó là hằng số, không phải một <p> có class chữ phụ: máy quét theo
+ *  class không thấy được. Chỉ bản CHẠY THẬT mới lộ ra. */
 const HINT: Record<AxisKey, string> = {
   essential: 'tiền nhà, điện nước, đi lại — cắt là ảnh hưởng cuộc sống',
   flexible: 'ăn ngoài, mua sắm, giải trí — cắt được khi cần',
@@ -90,7 +95,7 @@ export function AxisTargetsCard({ data, base }: Props) {
                   {l.direction === 'cap' ? 'trần' : 'sàn'} {formatMoney(l.target, base)}
                 </span>
               </div>
-              <p className="mt-0.5 text-2xs text-fg-muted">{HINT[l.key]}</p>
+              <Guide className="mt-0.5 text-2xs text-fg-muted">{HINT[l.key]}</Guide>
             </li>
           )
         })}

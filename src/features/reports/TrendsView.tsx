@@ -4,6 +4,7 @@
 //   3. Có thời điểm nào nếp sống đổi hẳn không? (điểm gãy)
 //   4. Thu nhập tăng thì chi có phình theo không? (lạm phát cá nhân, co giãn lối sống)
 import { useMemo } from 'react'
+import { useDensity } from '../../hooks/useDensity'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { ExplainBox } from '../../components/ExplainBox'
 import { useAccounts, useProfile, useRangeTransactions, useRates } from '../../hooks/queries'
@@ -46,8 +47,18 @@ function Card({
   )
 }
 
-/** Dòng thông báo khi chưa đủ số tháng để tính một chỉ số. */
+/** Dòng thông báo khi chưa đủ số tháng để tính một chỉ số.
+ *
+ *  Ở chế độ Gọn chỉ còn con số: câu đầy đủ hiện tới 5 lần trên cùng một màn (mỗi thẻ
+ *  chưa mở được một lần), mà mệnh đề "ghi chép thêm… tự hiện ra" thì lặp y nguyên. */
 function NeedMore({ have, need }: { have: number; need: number }) {
+  const { visual } = useDensity()
+  if (visual)
+    return (
+      <p className="rounded-lg bg-surface-page px-3 py-3 text-center text-xs text-fg-muted">
+        Cần {need} tháng, có {have}
+      </p>
+    )
   return (
     <p className="rounded-lg bg-surface-page px-3 py-3 text-center text-xs text-fg-muted">
       Cần {need} tháng dữ liệu, hiện có {have}. Ghi chép thêm {need - have} tháng nữa là chỉ số này

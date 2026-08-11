@@ -596,7 +596,7 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
       {(breakdown.hasForeign || mv.converted) && rates && (
         <p className="text-center text-xs text-fg-muted">
           Tỷ giá: ¥1 ≈ {rates.VND?.toFixed(2)} ₫ · $1 ≈ ¥
-          {rates.USD ? (1 / rates.USD).toFixed(1) : '?'} (open.er-api.com, cache 12h)
+          {rates.USD ? (1 / rates.USD).toFixed(1) : '?'} <Guide as="span">(open.er-api.com, cache 12h)</Guide>
         </p>
       )}
     </div>

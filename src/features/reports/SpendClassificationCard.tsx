@@ -3,6 +3,7 @@
 // C2 Cố định vs Biến đổi (donut + thanh, % tổng chi).
 // + "Van xả khẩn cấp": phần Linh hoạt × Biến đổi — khoản dễ cắt nhất khi cần gấp.
 import { Link } from 'react-router-dom'
+import { useDensity } from '../../hooks/useDensity'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { VerdictNote } from '../../components/VerdictNote'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
@@ -28,6 +29,7 @@ interface Props {
 
 /** Thẻ báo cáo: cơ cấu chi tiêu theo 2 trục Thiết yếu/Linh hoạt và Cố định/Biến đổi. */
 export function SpendClassificationCard({ data, income, expense, base, periodNoun, unclassifiedCount }: Props) {
+  const { visual } = useDensity()
   // `data` chỉ gom được chi CÓ danh mục (categoryBreakdown bỏ giao dịch thiếu category_id,
   // vd hàng nhập từ CSV). Phần chênh so với tổng chi thật được gộp vào nhóm "Chưa phân loại"
   // để mẫu số của cả 2 trục = tổng chi thật và Tiết kiệm không bị thổi phồng.
@@ -238,8 +240,18 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
       {/* Van xả khẩn cấp */}
       {folded.emergencyCut > 0 ? (
         <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-          Cần cắt giảm gấp? Có thể cắt tối đa <b>{formatMoney(folded.emergencyCut, base)}</b> trong{' '}
-          {periodNoun} ở nhóm Linh hoạt × Biến đổi ({pctOfExpense(folded.emergencyCut).toFixed(0)}% chi tiêu).
+          {visual ? (
+            <>
+              Cắt gấp được tối đa <b>{formatMoney(folded.emergencyCut, base)}</b> (
+              {pctOfExpense(folded.emergencyCut).toFixed(0)}% chi)
+            </>
+          ) : (
+            <>
+              Cần cắt giảm gấp? Có thể cắt tối đa{' '}
+              <b>{formatMoney(folded.emergencyCut, base)}</b> trong {periodNoun} ở nhóm Linh hoạt ×
+              Biến đổi ({pctOfExpense(folded.emergencyCut).toFixed(0)}% chi tiêu).
+            </>
+          )}
         </p>
       ) : (
         totalExpense > 0 && (

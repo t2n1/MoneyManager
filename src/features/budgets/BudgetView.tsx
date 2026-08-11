@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Guide } from '../../components/Guide'
+import { useDensity } from '../../hooks/useDensity'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import {
   useBudgetReport,
@@ -91,6 +92,7 @@ function ProgressBar({
 }
 
 export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
+  const { visual } = useDensity()
   const monthKeyStr = monthKeyString(monthKey)
   const { base } = useRates()
   const { report, isLoading } = useBudgetReport(monthKey)
@@ -351,9 +353,15 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           (totalRemaining > 0 ? (
             <p className="mt-1.5 text-xs text-fg-secondary">
               Còn <b className="font-semibold text-fg-primary">{formatMoney(totalRemaining, base)}</b>
+              {/* Gọn giữ ĐỦ BA con số (còn lại · mỗi ngày · số ngày) và chỉ bỏ mệnh đề
+                  giải thích — đây là câu dùng được hôm nay, không phải chữ hướng dẫn. */}
               {totalAllowance
-                ? ` cho ${totalAllowance.daysLeft} ngày nữa — tiêu ${formatMoney(totalAllowance.perDay, base)}/ngày thì vừa đủ.`
-                : ' trong tổng hạn mức.'}
+                ? visual
+                  ? ` · ${formatMoney(totalAllowance.perDay, base)}/ngày × ${totalAllowance.daysLeft} ngày`
+                  : ` cho ${totalAllowance.daysLeft} ngày nữa — tiêu ${formatMoney(totalAllowance.perDay, base)}/ngày thì vừa đủ.`
+                : visual
+                  ? ''
+                  : ' trong tổng hạn mức.'}
             </p>
           ) : totalRemaining === 0 ? (
             <p className="mt-1.5 text-xs text-fg-warn">Vừa chạm đúng tổng hạn mức.</p>

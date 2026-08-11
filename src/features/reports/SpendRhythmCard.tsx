@@ -1,6 +1,8 @@
 // Thẻ "Nhịp chi tiêu": tiêu mạnh tay vào lúc nào — ngay sau ngày lương, và thứ
 // mấy trong tuần. Hai câu hỏi này cùng một họ nên gộp chung một thẻ.
 import { ExplainBox } from '../../components/ExplainBox'
+import { useDensity } from '../../hooks/useDensity'
+import { Guide } from '../../components/Guide'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { WEEKDAY_LABELS, type PaydayEffect, type WeekdayBucket } from './behavior'
 
@@ -13,6 +15,7 @@ interface Props {
 }
 
 export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
+  const { visual } = useDensity()
   const money = (v: number) => formatMoney(Math.round(v), base)
   const maxAvg = weekdays.reduce((m, b) => Math.max(m, b.avg), 0)
   const hasWeekdayData = maxAvg > 0
@@ -33,24 +36,45 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
           </h3>
           {payday.ratio >= 1.3 ? (
             <p className="rounded-lg bg-amber-50 px-2.5 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-              Ngay sau lương bạn tiêu <b>{payday.ratio.toFixed(1).replace('.', ',')}×</b> ngày
-              thường: {money(payday.afterPayday)}/ngày so với {money(payday.otherDays)}/ngày.
+              {/* Tỷ số CHÍNH LÀ kết luận; hai mức/ngày là số làm chứng. Gọn giữ tỷ số. */}
+              {visual ? (
+                <>
+                  Sau lương tiêu <b>{payday.ratio.toFixed(1).replace('.', ',')}×</b> ngày thường
+                </>
+              ) : (
+                <>
+                  Ngay sau lương bạn tiêu <b>{payday.ratio.toFixed(1).replace('.', ',')}×</b> ngày
+                  thường: {money(payday.afterPayday)}/ngày so với {money(payday.otherDays)}/ngày.
+                </>
+              )}
             </p>
           ) : payday.ratio <= 0.8 ? (
             <p className="rounded-lg bg-green-50 px-2.5 py-2 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">
-              Bạn không “xả” sau khi nhận lương — mấy ngày đó còn tiêu ít hơn ngày thường (
-              {money(payday.afterPayday)} so với {money(payday.otherDays)}/ngày).
+              {visual ? (
+                <>Sau lương tiêu ÍT hơn ngày thường</>
+              ) : (
+                <>
+                  Bạn không “xả” sau khi nhận lương — mấy ngày đó còn tiêu ít hơn ngày thường (
+                  {money(payday.afterPayday)} so với {money(payday.otherDays)}/ngày).
+                </>
+              )}
             </p>
           ) : (
             <p className="rounded-lg bg-surface-page px-2.5 py-2 text-xs text-fg-secondary">
-              Mức chi sau lương ({money(payday.afterPayday)}/ngày) gần như ngày thường (
-              {money(payday.otherDays)}/ngày). Không có hiệu ứng ngày lương rõ rệt.
+              {visual ? (
+                <>Sau lương gần như ngày thường</>
+              ) : (
+                <>
+                  Mức chi sau lương ({money(payday.afterPayday)}/ngày) gần như ngày thường (
+                  {money(payday.otherDays)}/ngày). Không có hiệu ứng ngày lương rõ rệt.
+                </>
+              )}
             </p>
           )}
-          <p className="mt-1 text-2xs text-fg-muted">
+          <Guide className="mt-1 text-2xs text-fg-muted">
             Dựa trên {payday.paydayCount} lần nhận lương, {payday.daysInWindow} ngày trong cửa sổ và{' '}
             {payday.daysOutside} ngày thường.
-          </p>
+          </Guide>
         </div>
       )}
 

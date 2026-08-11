@@ -197,7 +197,43 @@ Gộp ba cái thành một thì mỗi chỗ đọc cũng kéo theo một `useQue
 | Câu kết luận | chip: icon + `short` (vài chữ, có số) | cả câu |
 | "Cách tính & nên làm gì" | không có | mở ra được |
 
-Đo trên 11 route với dữ liệu demo: **4.865 → 1.527 ký tự văn xuôi (−69%)**.
+Đo trên 12 route với dữ liệu demo: **5.227 → 1.121 ký tự văn xuôi (−79%)**.
+
+| Màn | Đầy đủ | Gọn | Giảm |
+|---|---|---|---|
+| Thông báo | 1.695 | 136 | 92% |
+| Ngân sách | 560 | 80 | 86% |
+| Sức khỏe | 677 | 167 | 75% |
+| Biểu đồ | 543 | 232 | 57% |
+| Thấu hiểu | 579 | 258 | 55% |
+| Xu hướng | 320 | 145 | 55% |
+| Tài sản | 191 | 103 | 46% |
+| Nhãn · Sắp chi · Định kỳ · Nhập | 662 | 0 | 100% |
+
+### Bài học: quét theo class KHÔNG đủ
+
+Lượt rà đầu quét `<p className="…fg-muted…">` và bỏ sót ba loại, chỉ bản CHẠY THẬT mới lộ ra:
+
+1. **Chữ dạy nằm trong hằng số** — `HINT` ở `AxisTargetsCard`, `note` ở `SpendSizeCard`,
+   `SORT_HINT` ở `BudgetView`. Không phải JSX nên máy quét theo class không thấy.
+2. **Câu số dài đáng NÉN, không phải ẩn** — "Còn ¥58.670 cho 21 ngày nữa — tiêu
+   ¥2.793/ngày thì vừa đủ." → "Còn ¥58.670 · ¥2.793/ngày × 21 ngày". Giữ cả ba con số,
+   bỏ mệnh đề giải thích.
+3. **Câu lặp nhiều lần trên một màn** — `NeedMore` ở Xu hướng hiện 5 lần, mà mệnh đề
+   "Ghi chép thêm… tự hiện ra" lặp y nguyên cả 5.
+
+Cách đo đúng: chạy app, đi hết route, gom text node ≥25 ký tự rồi lọc lấy phần tử **lá**
+(không chứa phần tử nào khác cũng có văn xuôi).
+
+### Hai bẫy khi tách câu
+
+**Đừng tách theo MẢNH câu.** Bọc `<Guide as="span">` quanh mấy từ nối để lại đúng cái này
+trên màn hình: *"Chưa ghi khoản thuế/bảo hiểm nào. tạo bộ danh mục Thuế & An sinh."* — chữ
+thường sau dấu chấm, cụm link mất chủ ngữ. Viết **hai câu hoàn chỉnh**, mỗi chế độ một câu.
+
+**Ẩn một phần tử có thể đổi layout.** Bỏ dòng giải nghĩa trong hàng `justify-between` thì
+phần tử còn lại trượt về bên trái — đo được **819px**. Dùng `ml-auto` ở ô bên phải, đừng
+dựa vào `justify-between`.
 
 ### Ranh giới: cái gì được ẩn
 

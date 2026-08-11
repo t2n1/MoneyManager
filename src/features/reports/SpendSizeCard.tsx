@@ -30,6 +30,7 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
   const bins = spendHistogram(data.values)
   const maxCount = bins.reduce((m, b) => Math.max(m, b.count), 0)
 
+  // `note` là chữ CHỈ ĐỂ DẠY: nhãn bên cạnh ("top 25%") đã đủ để đọc con số.
   const rows: { label: string; value: number; note: string }[] = [
     { label: 'Điển hình (trung vị)', value: data.median, note: 'một nửa số lần chi ít hơn mức này' },
     { label: 'Khá to (top 25%)', value: data.p75, note: 'cứ 4 lần chi thì có 1 lần vượt mức này' },
@@ -62,9 +63,15 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
                 />
               </div>
               <div className="mt-0.5 flex items-baseline justify-between gap-2">
-                <span className="text-2xs text-fg-muted">{row.note}</span>
+                {/* Ở Gọn chỉ mất dòng giải nghĩa; hàng vẫn còn nhãn, số tiền và "≈ mấy
+                    giờ làm". `ml-auto` ở ô bên phải CHỨ KHÔNG dựa vào justify-between:
+                    còn một phần tử thì justify-between đẩy nó về bên trái, tức cột "≈"
+                    nhảy chỗ giữa hai chế độ. */}
+                <Guide as="span" className="text-2xs text-fg-muted">
+                  {row.note}
+                </Guide>
                 {hours !== null && (
-                  <span className="shrink-0 text-2xs font-medium text-sky-600 dark:text-sky-400">
+                  <span className="ml-auto shrink-0 text-2xs font-medium text-sky-600 dark:text-sky-400">
                     ≈ {hoursLabel(hours)}
                   </span>
                 )}

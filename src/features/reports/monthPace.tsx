@@ -4,6 +4,8 @@
 // Tab Thấu hiểu vẫn dùng `forecast` cho ô thống kê "Dự báo cuối tháng".
 
 import { useMemo } from 'react'
+import { Guide } from '../../components/Guide'
+import { useDensity } from '../../hooks/useDensity'
 import { Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
   useAccounts,
@@ -220,7 +222,9 @@ export function useMonthPace(monthKey: MonthKey): MonthPace {
  * Khối "đang đi nhanh hay chậm" — đặt ngay dưới dòng Tổng ngân sách vì nó trả lời
  * cùng câu hỏi đó bằng một câu chữ, không bắt người đọc tự suy từ biểu đồ.
  */
+/** Nén câu số dài ở chế độ Gọn: giữ con số, bỏ mệnh đề giải thích. */
 export function SpendPaceSection({ pace }: { pace: MonthPace }) {
+  const { visual } = useDensity()
   const {
     monthDaily, budgetDaily, hasSpend, paceDaysElapsed,
     totalBudgeted, budgetedCount, forecast, budgetForecast, base,
@@ -253,9 +257,18 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
               mỗi ngày và người dồn vào cuối tuần cho ra độ tin cậy khác hẳn nhau. */}
           {forecast.hasRange && (
             <p className="mt-1 text-xs text-fg-secondary">
-              Cuối tháng ước chừng <b>{formatMoney(forecast.low, base)}</b> –{' '}
-              <b>{formatMoney(forecast.high, base)}</b>, sát nhất là{' '}
-              {formatMoney(forecast.projected, base)}.
+              {visual ? (
+                <>
+                  Cuối tháng ≈ <b>{formatMoney(forecast.projected, base)}</b> (
+                  {formatMoney(forecast.low, base)}–{formatMoney(forecast.high, base)})
+                </>
+              ) : (
+                <>
+                  Cuối tháng ước chừng <b>{formatMoney(forecast.low, base)}</b> –{' '}
+                  <b>{formatMoney(forecast.high, base)}</b>, sát nhất là{' '}
+                  {formatMoney(forecast.projected, base)}.
+                </>
+              )}
             </p>
           )}
           {totalBudgeted > 0 && budgetForecast ? (
@@ -265,26 +278,47 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
             // dùng thôi tin cả thẻ này.
             budgetForecast.low > totalBudgeted ? (
               <p className="mt-2 rounded-lg bg-red-50 dark:bg-red-900/30 px-2 py-1.5 text-xs text-money-out">
-                Riêng {budgetedCount} mục đã đặt hạn mức: đã chi{' '}
-                {formatMoney(budgetForecast.spentSoFar, base)}, với đà này sẽ vượt tổng hạn mức
-                ({formatMoney(totalBudgeted, base)}) khoảng{' '}
-                {formatMoney(budgetForecast.projected - totalBudgeted, base)}.
+                {visual ? (
+                  <>
+                    Sẽ vượt trần {formatMoney(totalBudgeted, base)} khoảng{' '}
+                    <b>{formatMoney(budgetForecast.projected - totalBudgeted, base)}</b>
+                  </>
+                ) : (
+                  <>
+                    Riêng {budgetedCount} mục đã đặt hạn mức: đã chi{' '}
+                    {formatMoney(budgetForecast.spentSoFar, base)}, với đà này sẽ vượt tổng hạn
+                    mức ({formatMoney(totalBudgeted, base)}) khoảng{' '}
+                    {formatMoney(budgetForecast.projected - totalBudgeted, base)}.
+                  </>
+                )}
               </p>
             ) : budgetForecast.high > totalBudgeted ? (
               <p className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-900/30 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300">
-                Riêng {budgetedCount} mục đã đặt hạn mức: có thể vượt tổng hạn mức
-                ({formatMoney(totalBudgeted, base)}) — còn tuỳ mấy ngày cuối tháng chi thế nào.
+                {visual ? (
+                  <>Có thể vượt trần {formatMoney(totalBudgeted, base)}</>
+                ) : (
+                  <>
+                    Riêng {budgetedCount} mục đã đặt hạn mức: có thể vượt tổng hạn mức
+                    ({formatMoney(totalBudgeted, base)}) — còn tuỳ mấy ngày cuối tháng chi thế nào.
+                  </>
+                )}
               </p>
             ) : (
               <p className="mt-2 rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1.5 text-xs text-green-700 dark:text-green-400">
-                Riêng {budgetedCount} mục đã đặt hạn mức: với đà này vẫn trong tổng hạn mức
-                ({formatMoney(totalBudgeted, base)}).
+                {visual ? (
+                  <>Vẫn trong trần {formatMoney(totalBudgeted, base)}</>
+                ) : (
+                  <>
+                    Riêng {budgetedCount} mục đã đặt hạn mức: với đà này vẫn trong tổng hạn mức
+                    ({formatMoney(totalBudgeted, base)}).
+                  </>
+                )}
               </p>
             )
           ) : totalBudgeted === 0 ? (
-            <p className="mt-2 text-xs text-fg-muted">
+            <Guide className="mt-2 text-xs text-fg-muted">
               Đặt ngân sách tháng để so sánh với dự báo.
-            </p>
+            </Guide>
           ) : null}
         </div>
       )}

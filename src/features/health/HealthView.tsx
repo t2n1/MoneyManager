@@ -7,7 +7,6 @@
 // vậy component này KHÔNG có nút back và KHÔNG tự đặt padding: vỏ ReportsPage lo cả hai.
 // Xem docs/information-architecture.md §2.4.
 import { useMemo } from 'react'
-import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import {
   useAccountBalances,
@@ -458,7 +457,11 @@ export function HealthView() {
           zoneLabels={['6', '18']}
           meaning={
             runway === null ? (
-              <>Cần ít nhất 3 tháng dữ liệu và số dư dương để chạy mô phỏng.</>
+              visual ? (
+                <>Cần 3 tháng dữ liệu và số dư dương.</>
+              ) : (
+                <>Cần ít nhất 3 tháng dữ liệu và số dư dương để chạy mô phỏng.</>
+              )
             ) : runway.survivalRate >= 0.95 ? (
               <>
                 Với đà thu chi hiện tại, hầu như mọi kịch bản đều <b>không cạn tiền</b> trong{' '}
@@ -585,13 +588,29 @@ export function HealthView() {
           zoneLabels={['25%', '35%']}
           meaning={
             snap.taxAndSocial <= 0 ? (
+              // Hai câu HOÀN CHỈNH, không phải một câu bị cắt mảnh: tách theo mảnh thì
+              // chế độ Gọn hiện ra "Chưa ghi khoản thuế/bảo hiểm nào. tạo bộ danh mục
+              // Thuế & An sinh." — chữ thường sau dấu chấm, cụm link mất chủ ngữ.
+              // Cả hai chế độ đều PHẢI còn đường đi sửa, nên link có ở cả hai.
               <>
-                Chưa ghi khoản thuế/bảo hiểm nào.
-                <Guide as="span"> Muốn theo dõi 所得税・住民税・社会保険料, hãy</Guide>{' '}
-                <Link to="/settings/categories" className="font-medium text-green-700 dark:text-green-400">
-                  tạo bộ danh mục Thuế &amp; An sinh
-                </Link>
-                <Guide as="span"> rồi nhập theo 給与明細</Guide>.
+                {visual ? (
+                  <>
+                    Chưa ghi khoản thuế/bảo hiểm nào —{' '}
+                    <Link to="/settings/categories" className="font-medium text-fg-accent">
+                      tạo bộ danh mục
+                    </Link>
+                    .
+                  </>
+                ) : (
+                  <>
+                    Chưa ghi khoản thuế/bảo hiểm nào. Muốn theo dõi 所得税・住民税・社会保険料,
+                    hãy{' '}
+                    <Link to="/settings/categories" className="font-medium text-fg-accent">
+                      tạo bộ danh mục Thuế &amp; An sinh
+                    </Link>{' '}
+                    rồi nhập theo 給与明細.
+                  </>
+                )}
               </>
             ) : (
               <>

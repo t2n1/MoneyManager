@@ -246,7 +246,9 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // — quy ước mới chưa thắng thói quen cũ, nên phải có trần. Mỗi chỗ cần XÉT NGHĨA
     // khi gộp: link/hành động → text-fg-accent, giá trị tiền → text-money-in
     // (docs/design-system.md mục "Chưa làm"). Không quét máy móc được.
-    { needle: 'text-green-700 dark:text-green-400', max: 35, use: 'text-fg-accent (link/hành động) hoặc text-money-in (tiền) — xét nghĩa từng chỗ' },
+    // 34 (2026-08-11): hai <Link> "tạo bộ danh mục" ở HealthView đã đổi sang
+    // text-fg-accent. Đúng nghĩa — chúng là LINK, không phải giá trị tiền.
+    { needle: 'text-green-700 dark:text-green-400', max: 34, use: 'text-fg-accent (link/hành động) hoặc text-money-in (tiền) — xét nghĩa từng chỗ' },
     // Hex xanh/đỏ đời Tailwind v3 trong hằng số biểu đồ — không sai contrast nhưng
     // lệch palette v4 (green-600 v4 = #00a63e). Cũng tăng từ lúc dựng hệ thống (12+
     // file → 16 file). Thay dần khi đụng tới file, đừng thêm chỗ mới.

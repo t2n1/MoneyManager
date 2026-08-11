@@ -138,7 +138,16 @@ export function SavingsDonutCard({ income, expense, base, periodNoun, approx = f
           </div>
 
           <div className="mt-3">
-            <VerdictNote tone={savingsRateTone(rate)}>
+            <VerdictNote
+              tone={savingsRateTone(rate)}
+              short={
+                overspent
+                  ? `Chi vượt thu ${formatMoney(Math.abs(net), base)}`
+                  : `Giữ lại ${Math.round(rate * 100)}%${
+                      rate >= 0.2 ? ' — đạt mốc 20%' : ', mốc 20%'
+                    }`
+              }
+            >
               {overspent ? (
                 <>
                   Chi vượt thu {periodNoun} <b>{formatMoney(Math.abs(net), base)}</b> — phần thiếu

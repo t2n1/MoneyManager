@@ -2,6 +2,8 @@
 // về VN gồm vé máy bay (Đi lại), quà (Quà tặng), phong bì (Giao tế)… gắn cùng
 // một nhãn thì cuối kỳ mới biết cả chuyến tốn bao nhiêu.
 import { Link } from 'react-router-dom'
+import { Guide } from '../../components/Guide'
+import { useDensity } from '../../hooks/useDensity'
 import { ChevronRight } from 'lucide-react'
 import { ExplainBox } from '../../components/ExplainBox'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
@@ -28,23 +30,28 @@ export function TagBreakdownCard({
   rangeFrom,
   rangeTo,
 }: Props) {
+  const { visual } = useDensity()
   const money = (v: number) => formatMoney(Math.round(v), base)
   const max = data.slices[0]?.amount ?? 0
 
   if (noTags) {
+    // Chưa có nhãn nào thì cả thẻ này CHỈ là lời mời — không có số nào để xem. Ở chế độ
+    // Gọn mà chỉ ẩn đoạn chữ thì còn lại một thẻ trắng đúng một dòng tiêu đề, tức là
+    // vẫn chiếm chỗ mà không nói gì. Bỏ hẳn cả thẻ. Bật Đầy đủ là lời mời quay lại.
+    if (visual) return null
     return (
       <section className="rounded-xl bg-surface p-3 shadow-sm ">
         <h2 className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-200">
           Chi theo nhãn
         </h2>
-        <p className="text-xs text-fg-secondary">
+        <Guide className="text-xs text-fg-secondary">
           Nhãn dùng để gom những khoản cắt ngang nhiều danh mục — ví dụ “Về VN 2026” gồm vé máy bay,
           quà cáp và phong bì. Tạo nhãn ngay khi nhập giao dịch, hoặc{' '}
           <Link to="/settings/tags" className="font-medium text-green-700 dark:text-green-400">
             quản lý nhãn trong Cài đặt
           </Link>
           .
-        </p>
+        </Guide>
       </section>
     )
   }

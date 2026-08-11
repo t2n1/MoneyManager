@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useCategories, useUpdateCategory } from '../../hooks/queries'
@@ -74,10 +75,10 @@ export function ClassifyCategoriesPage() {
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Phân loại chi tiêu</h1>
       </div>
 
-      <p className="mb-3 rounded-xl bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+      <Guide className="mb-3 rounded-xl bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
         Gán mỗi danh mục Chi vào <b>Thiết yếu/Linh hoạt</b> và <b>Cố định/Biến đổi</b> để xem cơ cấu
         chi tiêu ở Báo cáo. Thay đổi được lưu ngay.
-      </p>
+      </Guide>
 
       <label className="mb-3 min-h-11 flex items-center gap-2 text-xs font-medium text-fg-secondary">
         <input type="checkbox" className="h-5 w-5" checked={onlyTodo} onChange={(e) => setOnlyTodo(e.target.checked)} />

@@ -5,6 +5,7 @@
 // (group_id = null), nên app không tự biết lúc nào anh xếp xong. `skipped` lo trong
 // phiên, còn "Xong" là lời tuyên bố dứt điểm, nhớ theo thiết bị.
 import { useMemo, useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { Check, X } from 'lucide-react'
 import { useTagGroups, useTags, useTransactionTags, useUpdateTag } from '../../hooks/queries'
 import { ungroupedQueue } from './groups'
@@ -92,10 +93,10 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
         </button>
       </div>
 
-      <p className="mt-2 flex items-center gap-1 text-2xs text-fg-muted">
+      <Guide className="mt-2 flex items-center gap-1 text-2xs text-fg-muted">
         <Check className="h-3 w-3" aria-hidden />
         Xếp xong nhãn nào thì nhãn đó biến khỏi dải. Bấm “Xong” để ẩn hẳn.
-      </p>
+      </Guide>
     </section>
   )
 }

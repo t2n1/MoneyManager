@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { useQueryClient } from '@tanstack/react-query'
 import { Download, Upload } from 'lucide-react'
 import { BACKUP_VERSION, repo, type BackupData } from '../../data'
@@ -90,9 +91,9 @@ export function BackupSection() {
       <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">
         Sao lưu &amp; khôi phục
       </h2>
-      <p className="px-3 pt-1 text-xs text-fg-muted">
+      <Guide className="px-3 pt-1 text-xs text-fg-muted">
         Xuất toàn bộ dữ liệu ra một file JSON để cất giữ, hoặc nhập lại từ file đã lưu.
-      </p>
+      </Guide>
       <div className="flex flex-wrap gap-2 p-3">
         <button
           type="button"

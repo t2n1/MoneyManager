@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Guide } from '../../components/Guide'
 import type { NewRecurringRule } from '../../data'
 import {
   useAccounts,
@@ -360,9 +361,9 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         />
 
         {rule && (
-          <p className="mt-2 text-xs text-fg-muted">
+          <Guide className="mt-2 text-xs text-fg-muted">
             Thay đổi chỉ áp dụng cho các kỳ tương lai; giao dịch đã sinh giữ nguyên.
-          </p>
+          </Guide>
         )}
         {error && <p className="mt-2 text-sm text-money-out">{error}</p>}
 

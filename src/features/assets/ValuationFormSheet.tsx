@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { useStockTrades, useUpsertValuation } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
@@ -105,17 +106,17 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
           placeholder="Ví dụ: theo giá đóng cửa"
           className="mb-1 w-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
         />
-        <p className="mb-3 text-xs text-fg-muted">
+        <Guide className="mb-3 text-xs text-fg-muted">
           Chỉ ghi nhận giá trị — không tạo giao dịch, không đổi báo cáo thu/chi. Chênh lệch
           so với vốn gốc là lãi/lỗ chưa thực hiện.
-        </p>
+        </Guide>
 
         {tuDongChay && (
-          <p className="mb-3 text-xs text-fg-muted">
+          <Guide className="mb-3 text-xs text-fg-muted">
             Tài khoản này đang tự tính giá trị mỗi chiều theo sổ lệnh. Số bạn gõ ở đây sẽ
             được giữ nguyên cho đúng ngày này — app tự tính lại bình thường từ những ngày
             sau.
-          </p>
+          </Guide>
         )}
 
         <div className="mt-1 flex justify-end gap-2">

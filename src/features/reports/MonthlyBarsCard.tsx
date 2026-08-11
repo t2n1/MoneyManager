@@ -154,7 +154,16 @@ export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = nul
           thể là cột kế cuối trên biểu đồ. Vì vậy câu chữ luôn gọi tên tháng ra. */}
       {trend && (
         <div className="mt-2">
-          <VerdictNote tone={trend.tone}>
+          <VerdictNote
+            tone={trend.tone}
+            short={
+              trend.tone === 'info'
+                ? `${labelOf(trend.lastKey)} đi ngang`
+                : `${labelOf(trend.lastKey)} chi ${
+                    trend.delta > 0 ? '+' : '-'
+                  }${Math.abs(Math.round(trend.delta * 100))}%`
+            }
+          >
             {labelOf(trend.lastKey)} chi{' '}
             <b>{formatMoney(Math.round(trend.last), base)}</b>
             {trend.tone === 'info' ? ', đi ngang so với ' : ', '}
@@ -177,7 +186,16 @@ export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = nul
       {/* Kết luận thứ hai, cho đường tỷ lệ. Cùng cửa sổ "tháng đã hoàn tất" với câu trên. */}
       {saving && (
         <div className="mt-1.5">
-          <VerdictNote tone={saving.tone}>
+          <VerdictNote
+            tone={saving.tone}
+            short={`Giữ lại ${Math.round(saving.rate * 100)}%${
+              saving.trend && saving.trend !== 'flat'
+                ? saving.trend === 'up'
+                  ? ' · đang lên'
+                  : ' · đang xuống'
+                : ''
+            }`}
+          >
             {saving.months} tháng đã xong: giữ lại <b>{Math.round(saving.rate * 100)}%</b> thu nhập
             {saving.tone === 'good' && ' — đạt mốc 20% của quy tắc 50/30/20'}
             {saving.tone === 'warn' && ' — chưa tới mốc 20% của quy tắc 50/30/20'}

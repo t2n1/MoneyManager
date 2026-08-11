@@ -173,6 +173,52 @@ Alpha là phần thứ hai của cái bẫy: `bg-red-500/70` trên gray-900 ch�
 
 Ngoài ra: bỏ emoji khỏi phép đo. Emoji tự mang màu, `color` thừa kế của chúng vô nghĩa.
 
+## Chế độ trình bày: Gọn / Đầy đủ
+
+Cài đặt → **Cách trình bày**. Lưu ở localStorage (`density`), mặc định **Gọn**. Nguồn: `src/lib/density.ts`, đọc bằng `useDensity()`.
+
+|  | Gọn (`visual`) | Đầy đủ (`full`) |
+|---|---|---|
+| Chữ chỉ để dạy | ẩn | hiện |
+| Câu kết luận | chip: icon + `short` (vài chữ, có số) | cả câu |
+| "Cách tính & nên làm gì" | không có | mở ra được |
+
+Đo trên 11 route với dữ liệu demo: **4.865 → 1.527 ký tự văn xuôi (−69%)**.
+
+### Ranh giới: cái gì được ẩn
+
+Đây là phần quan trọng nhất, vì sai ranh giới thì "gọn" biến thành "mất chức năng".
+
+| Bọc `<Guide>` / `<FullOnly>` | KHÔNG bọc |
+|---|---|
+| cách tính, ý nghĩa con số | nhãn ô nhập, câu báo lỗi, câu xác nhận xoá |
+| mẹo dùng, "vì sao lại thế" | cảnh báo dữ liệu (thiếu tỷ giá, chưa quy đổi) |
+| câu chỉ đường trong trạng thái rỗng | câu nói ra chính trạng thái đó |
+| gợi ý quy ước nhập liệu | câu giải thích một ô đang bị vô hiệu |
+
+Trạng thái rỗng thường phải **tách**: giữ "Chưa có khoản nào.", bọc phần "Thêm những thứ bạn biết là sắp phải chi…".
+
+Hai chỗ **không** dùng `<Guide>` mà đọc thẳng `useDensity()`, có lý do: câu mô tả ở trang Thông báo có `id` được `aria-describedby` của nút gạt trỏ vào — ẩn `<p>` mà giữ `describedBy` là tạo tham chiếu treo, nên hai thứ phải tắt cùng lúc.
+
+### Ba primitive
+
+- `<Guide as="p" className=…>` — một đoạn chữ để dạy. `<FullOnly>` cho cả khối.
+- `<StatusChip tone icon>` — huy hiệu trạng thái. `VerdictNote` ở chế độ Gọn render đúng cái này.
+- `<StatusDot tone label>` — chấm 8px cho dòng danh sách, `label` **bắt buộc** (màu là kênh duy nhất).
+
+Bộ màu ở `components/ui/statusColors.ts` (trước đây là `features/health/zoneColors.ts`): `STATUS_FILL` cho đồ hoạ (≥3:1), `STATUS_STROKE` cho SVG, `STATUS_CHIP` cho chip (≥4,5:1 vì có chữ). Số đo thật ghi trong file.
+
+### Guardrail
+
+`tests/designSystem.test.ts` — bốn luật, cả bốn đã thử gây lỗi để chắc chúng đỏ được:
+
+- khối hướng dẫn nền xanh (`bg-blue-50`) luôn là `<Guide>`, không phải `<p>` → **0**
+- không viết lại sắc độ trạng thái bằng tay ngoài `statusColors.ts` → **0**
+- mỗi `<VerdictNote>` có `short` hoặc `label` → trần **1** (một chỗ cố ý, nằm trong `<FullOnly>`)
+- văn xuôi trong `<p class="…fg-muted…">` → trần **49**
+
+Trần 49 **không** phải nợ cần dọn hết: đã xét từng chỗ, phần lớn là thứ phải ở lại theo bảng ranh giới trên.
+
 ## Chưa làm
 
 - **Trạng thái rỗng dùng gray-300** (`TransactionForm` `¥0`, `MonthlyView` tháng trống, `roleFields`) — 1,47:1 ở light, 2,35:1 ở dark. Đây là **de-emphasize cố ý**: tháng trống gần như biến mất khỏi bảng để mắt quét nhanh. Sửa cho đạt AA sẽ đổi cách đọc bảng → là quyết định thẩm mỹ, không phải dọn dẹp.

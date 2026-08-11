@@ -6,6 +6,7 @@
 //
 // Ẩn hẳn khi không còn gì — không hiện "đã xong hết" cho một việc người dùng không hỏi.
 import { Link } from 'react-router-dom'
+import { Guide } from '../../components/Guide'
 import { Card } from '../../components/ui'
 import { formatMonthLabel, getMonthRange, parseMonthKey } from '../../lib/dates'
 import type { MonthBacklogRow } from './uncategorized'
@@ -71,10 +72,10 @@ export function UncategorizedBacklogCard({ rows, monthsWindow }: Props) {
         })}
       </ul>
 
-      <p className="mt-2 text-2xs text-fg-muted">
+      <Guide className="mt-2 text-2xs text-fg-muted">
         Xếp tháng cũ nhất lên trước — khoản để lâu thường khó nhớ ra đã tiêu vào việc gì. Bấm một
         dòng để mở đúng tháng đó, đã lọc sẵn. Chỉ xét {monthsWindow} tháng gần nhất.
-      </p>
+      </Guide>
     </Card>
   )
 }

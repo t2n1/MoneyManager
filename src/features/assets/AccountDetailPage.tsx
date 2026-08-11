@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link, useParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, LineChart, Scale, Trash2 } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
@@ -354,10 +355,10 @@ export function AccountDetailPage() {
               )}
               {shelter.remaining === 0 && <> · đã dùng hết hạn mức</>}
             </p>
-            <p className="mt-0.5 text-2xs text-fg-muted">
+            <Guide className="mt-0.5 text-2xs text-fg-muted">
               Hạn mức tính theo năm dương lịch và không dồn sang năm sau. Rút tiền ra giữa năm cũng
               không hoàn lại phần hạn mức đã dùng.
-            </p>
+            </Guide>
           </div>
         )}
 

@@ -72,7 +72,14 @@ export function ParetoCard({ slices, categories, base, periodNoun }: Props) {
       {/* Mức ở đây nói về khả năng HÀNH ĐỘNG, không phải sức khỏe — chi tập trung
           không phải đức tính, nó chỉ có nghĩa là biết siết vào đâu. */}
       <div className="mt-2">
-        <VerdictNote tone={paretoTone(pareto.count, pareto.categoryCount)}>
+        <VerdictNote
+          tone={paretoTone(pareto.count, pareto.categoryCount)}
+          short={
+            paretoTone(pareto.count, pareto.categoryCount) === 'warn'
+              ? `Rò rỉ đều: ${pareto.count}/${pareto.categoryCount} danh mục`
+              : `Tập trung: ${pareto.count} danh mục = ${Math.round(pareto.share * 100)}%`
+          }
+        >
           {paretoTone(pareto.count, pareto.categoryCount) === 'warn' ? (
             <>
               Tiền rò rỉ khá đều: phải gọi tên {pareto.count} trong {pareto.categoryCount} danh mục

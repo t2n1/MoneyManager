@@ -1,4 +1,5 @@
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Guide } from '../../components/Guide'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { DailyExpensePoint } from './aggregate'
 
@@ -98,7 +99,7 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base, sc
         )}
       </div>
       {scopeNote && (
-        <p className="mt-1 text-center text-2xs text-fg-muted">{scopeNote}</p>
+        <Guide className="mt-1 text-center text-2xs text-fg-muted">{scopeNote}</Guide>
       )}
     </section>
   )

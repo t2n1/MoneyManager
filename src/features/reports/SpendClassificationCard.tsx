@@ -115,27 +115,43 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
               đọc vẫn phải tự tổng hợp ba dòng đó thành một kết luận. Nói thẳng ra đây. */}
           <div className="space-y-1.5 pt-0.5">
             {!essentialOver && !flexibleOver && !savingsUnder ? (
-              <VerdictNote tone="good">
+              <VerdictNote tone="good" short="Cơ cấu 50/30/20 đạt cả ba">
                 Cả ba nhóm đều trong mục tiêu 50/30/20 — cơ cấu {periodNoun} không có gì phải sửa.
               </VerdictNote>
             ) : (
               <>
                 {savingsUnder && (
-                  <VerdictNote tone={savings < 0 ? 'bad' : 'warn'} label="Tiết kiệm dưới mục tiêu">
+                  <VerdictNote
+                    tone={savings < 0 ? 'bad' : 'warn'}
+                    label="Tiết kiệm dưới mục tiêu"
+                    short={
+                      savings < 0
+                        ? 'Chi vượt thu'
+                        : `Tiết kiệm ${Math.round(savingsPct)}% / mục tiêu 20%`
+                    }
+                  >
                     {savings < 0
                       ? `chi vượt thu ${periodNoun}, tức là đang rút vào tiền cũ.`
                       : `giữ được ${Math.round(savingsPct)}% thu nhập, mục tiêu là 20%.`}
                   </VerdictNote>
                 )}
                 {essentialOver && (
-                  <VerdictNote tone="warn" label="Chi thiết yếu chiếm nhiều">
+                  <VerdictNote
+                    tone="warn"
+                    label="Chi thiết yếu chiếm nhiều"
+                    short={`Thiết yếu ${Math.round(essentialPct)}% / mục tiêu 50%`}
+                  >
                     {Math.round(essentialPct)}% thu nhập (mục tiêu ≤ 50%). Đây là nhóm khó cắt trong
                     ngắn hạn — nếu kéo dài thì phải giải quyết ở mức lớn (tiền nhà, bảo hiểm) chứ
                     không phải bằng tiết kiệm hằng ngày.
                   </VerdictNote>
                 )}
                 {flexibleOver && (
-                  <VerdictNote tone="warn" label="Chi linh hoạt vượt mục tiêu">
+                  <VerdictNote
+                    tone="warn"
+                    label="Chi linh hoạt vượt mục tiêu"
+                    short={`Linh hoạt ${Math.round(flexiblePct)}% / mục tiêu 30%`}
+                  >
                     {Math.round(flexiblePct)}% thu nhập (mục tiêu ≤ 30%). Đây lại là nhóm cắt được
                     nhanh nhất nếu cần.
                   </VerdictNote>

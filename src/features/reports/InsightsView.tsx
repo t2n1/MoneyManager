@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Guide } from '../../components/Guide'
 import { Card } from '../../components/ui'
 import { VerdictNote } from '../../components/VerdictNote'
 import {
@@ -322,7 +323,16 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
         {pace && (
           <Card as="section" className="mb-2">
             <h2 className="mb-2 text-sm font-semibold text-fg-muted">Tuần này so với tuần trước</h2>
-            <VerdictNote tone={pace.tone}>
+            <VerdictNote
+              tone={pace.tone}
+              short={
+                pace.deltaPct === null || pace.deltaPct === 0
+                  ? `Đã chi ${formatMoney(pace.spent, base)}`
+                  : `${formatMoney(pace.spent, base)} · ${
+                      pace.deltaPct > 0 ? '+' : '-'
+                    }${Math.abs(pace.deltaPct)}% so tuần trước`
+              }
+            >
               Ngày {pace.dayOfWeek}/7 — đã chi <b>{formatMoney(pace.spent, base)}</b>
               {pace.deltaPct === null ? (
                 <>. Tuần trước tính tới ngày này chưa chi gì nên không so được.</>
@@ -340,10 +350,10 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
                 với TRỌN tuần trước và sẽ thấy con số quá thấp một cách vô lý.
                 Không có so sánh nào thì cũng không có gì phải giải thích. */}
             {pace.deltaPct !== null && (
-              <p className="mt-1.5 text-2xs text-fg-muted">
+              <Guide className="mt-1.5 text-2xs text-fg-muted">
                 Chỉ so tới ngày thứ {pace.dayOfWeek} của tuần trước, không so với cả 7 ngày — tuần
                 đang dở mà đem so với tuần đủ thì lúc nào cũng ra “đang tiêu ít hơn”.
-              </p>
+              </Guide>
             )}
           </Card>
         )}

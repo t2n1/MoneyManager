@@ -4,6 +4,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react'
 import { useDebtPayments, useDebts, useRates } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney } from '../../lib/money'
+import { STATUS_FILL } from '../../components/ui'
 import type { DebtRow } from '../../types/database.types'
 import { debtSummary, disbursedOf, remainingOf } from './aggregate'
 
@@ -157,9 +158,15 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
                 <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
               </div>
               <div className="mt-1.5 flex items-center gap-2">
+                {/* Thanh này TỪNG là bg-gray-300 — 1,47:1 trên nền thẻ, tức gần như
+                    vô hình, mà nó là đồ hoạ mang thông tin (đã trả được bao nhiêu) nên
+                    WCAG 1.4.11 đòi 3:1. Đổi sang bộ STATUS_FILL vừa đạt ngưỡng vừa cho
+                    thanh nói luôn tình trạng: quá hạn thì đỏ, còn hạn thì xám trung
+                    tính. Nhờ vậy nhìn dải thanh là biết dòng nào cần xử lý, không phải
+                    đọc nhãn "hạn ..." bên phải. */}
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-sunken">
                   <div
-                    className="h-full rounded-full bg-gray-300"
+                    className={`h-full rounded-full ${overdue ? STATUS_FILL.bad : STATUS_FILL.info}`}
                     style={{ width: `${Math.min(Math.max(paidRatio * 100, 0), 100)}%` }}
                   />
                 </div>

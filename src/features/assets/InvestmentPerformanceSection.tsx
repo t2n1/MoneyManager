@@ -2,6 +2,7 @@
 // THỊ TRƯỜNG CHO THÊM, rồi quy ra %/năm ở ba mức: danh nghĩa → sau thuế → sau
 // lạm phát. Ba mức vì con số danh nghĩa hay làm người ta lạc quan quá mức.
 import { useMemo } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { ExplainBox } from '../../components/ExplainBox'
 import { useAccounts, useProfile, useRangeTransactions, useRates } from '../../hooks/queries'
@@ -203,12 +204,12 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
       )}
 
       {profile?.annual_inflation_bps == null && (
-        <p className="mt-2 text-2xs text-fg-muted">
+        <Guide className="mt-2 text-2xs text-fg-muted">
           <Link to="/settings" className="font-medium text-green-700 dark:text-green-400">
             Khai mức lạm phát trong Cài đặt
           </Link>{' '}
           để thấy lợi nhuận thật sau khi trừ trượt giá.
-        </p>
+        </Guide>
       )}
 
       <ExplainBox label="Cách tính">

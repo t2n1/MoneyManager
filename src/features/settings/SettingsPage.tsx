@@ -20,6 +20,7 @@ import { confirmDialog } from '../../lib/dialog'
 import type { CurrencyCode } from '../../lib/money'
 import { formatRateLine, rateAgeDays, readRatesMeta, STALE_RATE_DAYS } from '../../lib/rates'
 import { getSupabase } from '../../lib/supabase'
+import { DensityToggle } from './DensityToggle'
 import { FontSizeToggle } from './FontSizeToggle'
 import { ProfileEditSheet } from './ProfileEditSheet'
 import { ThemeToggle } from './ThemeToggle'
@@ -148,6 +149,8 @@ export function SettingsPage() {
           cấu hình — xem docs/information-architecture.md §1.1. */}
 
       <ThemeToggle />
+
+      <DensityToggle />
 
       <FontSizeToggle />
 

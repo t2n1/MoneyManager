@@ -4,6 +4,7 @@
 // khi nào (và có cần app kêu không). Số tiền để trống được: "tìm nhà mới" là việc có
 // thật mà chưa ai đoán nổi giá, bắt điền là ép bịa một con số.
 import { useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
 import { ActionButton } from '../../components/ui'
 import { useEscClose } from '../../hooks/useEscClose'
@@ -214,9 +215,9 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
             <span className="text-xs text-fg-muted">ngày (0 = đúng ngày đến hạn)</span>
           </div>
         ) : (
-          <p className="mb-3 text-xs text-fg-muted">
+          <Guide className="mb-3 text-xs text-fg-muted">
             Không kêu gì cả — chỉ nằm trong danh sách để bạn nhìn.
-          </p>
+          </Guide>
         )}
 
         <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="planned-cat">

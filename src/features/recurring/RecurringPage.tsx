@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRightLeft, ChevronLeft, Pause, Play, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import {
@@ -248,7 +249,8 @@ export function RecurringPage() {
         <p className="py-8 text-center text-sm text-fg-muted">Đang tải…</p>
       ) : rules.length === 0 ? (
         <p className="py-8 text-center text-sm text-fg-muted">
-          Chưa có quy tắc nào. Thêm ở đây hoặc chọn "Lặp lại" khi nhập giao dịch.
+          Chưa có quy tắc nào.
+          <Guide as="span"> Thêm ở đây hoặc chọn "Lặp lại" khi nhập giao dịch.</Guide>
         </p>
       ) : (
         <div className="divide-y divide-gray-100 overflow-hidden rounded-xl bg-surface shadow-sm dark:divide-gray-800 ">

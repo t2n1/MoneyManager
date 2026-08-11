@@ -9,7 +9,7 @@
 // Chữ số KHÔNG nằm trong <text> của SVG: cỡ chữ SVG tính bằng px nên không co theo
 // Cài đặt → Cỡ chữ. Số là HTML đặt đè lên, nên vẫn dùng scale rem của app.
 import type { Verdict } from './health'
-import { ZONE_STROKE } from './zoneColors'
+import { STATUS_STROKE } from '../../components/ui/statusColors'
 
 interface Props {
   /** 0–100. */
@@ -41,9 +41,9 @@ function arc(from: number, to: number) {
 // Ba vùng trùng đúng dải điểm trong health.ts (bad 0–40, warn 40–70, good 70–100).
 // Chừa 1 điểm giữa các vùng để mắt thấy được ranh giới mà không cần vạch riêng.
 const SEGMENTS = [
-  { from: 0, to: 39.5, cls: ZONE_STROKE.bad },
-  { from: 40.5, to: 69.5, cls: ZONE_STROKE.warn },
-  { from: 70.5, to: 100, cls: ZONE_STROKE.good },
+  { from: 0, to: 39.5, cls: STATUS_STROKE.bad },
+  { from: 40.5, to: 69.5, cls: STATUS_STROKE.warn },
+  { from: 70.5, to: 100, cls: STATUS_STROKE.good },
 ]
 
 const VALUE: Record<Verdict, string> = {

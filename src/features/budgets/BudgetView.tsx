@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import {
   useBudgetReport,
@@ -378,10 +379,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           <h2 className="text-sm font-semibold text-fg-muted">
             Cần để ý ({attention.length})
           </h2>
-          <p className="mb-2 text-xs text-fg-muted">
+          <Guide className="mb-2 text-xs text-fg-muted">
             Đã quá trần, hoặc đang tiêu nhanh hơn nhịp tháng. Khoản cố định đã trả xong
             (tiền nhà, bảo hiểm…) không tính — không còn gì để phanh.
-          </p>
+          </Guide>
           <ul className="divide-y divide-border-subtle">
             {attention.map((a) => (
               <li key={a.item.cat.id}>
@@ -422,7 +423,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 value={sortMode}
                 onChange={changeSort}
               />
-              <p className="mt-1 text-2xs text-fg-muted">{SORT_HINT[sortMode]}</p>
+              <Guide className="mt-1 text-2xs text-fg-muted">{SORT_HINT[sortMode]}</Guide>
             </div>
           )}
           <ul className="divide-y divide-border-subtle">
@@ -518,10 +519,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           <h2 className="mb-1 text-sm font-semibold text-fg-muted">
             Chưa đặt hạn mức
           </h2>
-          <p className="mb-2 text-xs text-fg-muted">
+          <Guide className="mb-2 text-xs text-fg-muted">
             Bấm tên nhóm để đặt trần chung, hoặc xổ ra (▸) để đặt riêng cho từng mục con — khi đó
             trần nhóm là tổng các con.
-          </p>
+          </Guide>
           <ul className="flex flex-col gap-2">
             {unbudgeted.map(({ cat: c, children }) => {
               const isOpen = expanded.has(c.id)

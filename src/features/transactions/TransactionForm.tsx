@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { createPortal } from 'react-dom'
 import {
   ChevronDown,
@@ -1249,10 +1250,10 @@ export function TransactionForm({
           />
           <span>
             Đây là khoản <b>hoàn tiền</b>
-            <span className="block text-xs text-fg-muted">
+            <Guide as="span" className="block text-xs text-fg-muted">
               Trả hàng, hủy vé, hoàn phí… Tiền quay lại ví và TRỪ vào chi của danh mục đã chọn, thay
               vì bị tính thành thu nhập.
-            </span>
+            </Guide>
           </span>
         </label>
       )}

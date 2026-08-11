@@ -5,6 +5,7 @@
 // giữ tổng bao nhiêu VNM" hay "mã nào chiếm nhiều nhất trong danh mục". Đó là câu của
 // người, không phải câu của tài khoản.
 import { useMemo, useState } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, Plus } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
@@ -193,7 +194,8 @@ export function InvestPage() {
         <SectionTitle>Đang giữ ({p.positions.length} mã)</SectionTitle>
         {p.positions.length === 0 ? (
           <p className="mt-2 text-xs text-fg-muted">
-            Chưa giữ mã nào. Ghi lệnh mua để app tự lấy giá và tính lời/lỗ.
+            Chưa giữ mã nào.
+            <Guide as="span"> Ghi lệnh mua để app tự lấy giá và tính lời/lỗ.</Guide>
           </p>
         ) : (
           <ul className="mt-1 divide-y divide-border-subtle">

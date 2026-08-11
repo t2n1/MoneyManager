@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { Check, ChevronDown, ChevronLeft, ChevronRight, GripVertical, Plus } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
@@ -583,12 +584,12 @@ export function AssetGroupsPage() {
         </button>
       </div>
 
-      <p className="mb-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 p-3 text-xs text-blue-800 dark:text-blue-300">
+      <Guide className="mb-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 p-3 text-xs text-blue-800 dark:text-blue-300">
         Bật/tắt <b>Tính vào tổng</b> để một nhóm có được cộng vào Tổng tài sản hay không.
         Bật <b>Ẩn</b> để giấu nhóm khỏi trang Tài sản (vẫn quản lý được ở đây). Nhấn giữ
         biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự nhóm, sắp tài khoản trong nhóm,
         hoặc kéo tài khoản thả sang nhóm khác.
-      </p>
+      </Guide>
 
       {adding && (
         <div className="mb-2 flex items-center gap-1 rounded-xl bg-surface px-3 py-2.5 shadow-sm">

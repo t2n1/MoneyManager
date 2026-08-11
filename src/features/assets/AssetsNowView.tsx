@@ -5,6 +5,7 @@
 // tiến bộ không" và "sau này thế nào") trong cùng một mạch cuộn. Hai câu đó nay là
 // AssetsTrendView và LifetimeView. Xem docs/information-architecture.md §2.3.
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { ChevronRight, GripVertical } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
@@ -482,10 +483,10 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
 
       {/* Chi tiết từng nhóm và tài khoản bên trong */}
       {dragEnabled && (
-        <p className="-mb-1 px-1 text-xs text-fg-muted">
+        <Guide className="-mb-1 px-1 text-xs text-fg-muted">
           Nhấn giữ <GripVertical className="inline h-3.5 w-3.5 align-text-bottom" /> rồi kéo để
           sắp thứ tự tài khoản{allowCross ? ', hoặc kéo thả sang nhóm khác' : ' trong cùng một loại'}.
-        </p>
+        </Guide>
       )}
       {displayGroups.map((g) => {
         const rowIds = dragEnabled ? displayIdsOf(g.name) : g.accounts.map((a) => a.id)

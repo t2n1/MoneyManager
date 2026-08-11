@@ -1,4 +1,5 @@
 import { Monitor, Moon, Sun } from 'lucide-react'
+import { Card } from '../../components/ui'
 import type { LucideIcon } from 'lucide-react'
 import { useTheme } from '../../hooks/useTheme'
 import type { ThemePref } from '../../lib/theme'
@@ -13,7 +14,7 @@ export function ThemeToggle() {
   const { pref, setTheme } = useTheme()
 
   return (
-    <section className="overflow-hidden rounded-xl bg-surface shadow-sm ">
+    <Card as="section" padding="none" className="overflow-hidden">
       <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">Giao diện</h2>
       <div className="flex gap-1 p-3">
         {OPTIONS.map((opt) => {
@@ -36,6 +37,6 @@ export function ThemeToggle() {
           )
         })}
       </div>
-    </section>
+    </Card>
   )
 }

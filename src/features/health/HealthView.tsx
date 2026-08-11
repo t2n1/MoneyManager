@@ -7,6 +7,7 @@
 // vậy component này KHÔNG có nút back và KHÔNG tự đặt padding: vỏ ReportsPage lo cả hai.
 // Xem docs/information-architecture.md §2.4.
 import { useMemo } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import {
   useAccountBalances,
@@ -24,6 +25,7 @@ import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { taxCategoryIds } from '../tax/categories'
 import { earmarkedForGoals } from './earmarked'
 import { HealthMetricCard } from './HealthMetricCard'
+import { useDensity } from '../../hooks/useDensity'
 import { Section, SectionIndex, type IndexItem } from '../reports/SectionIndex'
 import { HealthScoreCard } from './HealthScoreCard'
 import {
@@ -66,6 +68,7 @@ const num1 = (v: number) => v.toFixed(1).replace('.', ',')
 const months1 = (v: number) => (v >= 60 ? '≥ 60 tháng' : `${num1(v)} tháng`)
 
 export function HealthView() {
+  const { visual } = useDensity()
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
   const { base, rates } = useRates()
@@ -283,10 +286,14 @@ export function HealthView() {
         </div>
       )}
 
+      {/* Đây là cảnh báo ĐỘ TIN của mọi con số bên dưới, không phải chữ hướng dẫn —
+          nên chế độ Gọn vẫn giữ, chỉ rút xuống phần không suy ra được từ đâu khác. */}
       {snap.monthsCounted < 3 && (
         <div className="rounded-lg bg-sky-50 p-2 text-xs text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
-          Mới có {snap.monthsCounted} tháng dữ liệu. Các chỉ số dựa trên trung bình tháng sẽ chính
-          xác dần khi bạn ghi chép đủ 3–6 tháng.
+          Mới có {snap.monthsCounted} tháng dữ liệu
+          {!visual &&
+            '. Các chỉ số dựa trên trung bình tháng sẽ chính xác dần khi bạn ghi chép đủ 3–6 tháng'}
+          .
         </div>
       )}
 
@@ -317,14 +324,25 @@ export function HealthView() {
           }
           extra={
             showFree ? (
+              // Con số này KHÔNG bị chế độ Gọn ẩn, chỉ bị rút ngắn: nó sửa lại chính số
+              // lớn trên thẻ (quỹ đang bị tiền để dành làm phồng lên). Ẩn đi thì thẻ nói
+              // một con số lạc quan hơn thực tế — đó là bỏ dữ liệu, không phải bỏ chữ.
               <div className="mt-2 rounded-lg bg-sky-50 p-2 dark:bg-sky-900/30">
                 <p className="text-xs leading-relaxed text-gray-700 dark:text-gray-200">
-                  Trong đó <b>{money(earmarked.total)}</b> đang để dành cho mục tiêu tiết kiệm. Trừ
-                  phần đã có chủ thì quỹ dự phòng thật sự tự do là{' '}
-                  <b>{months1(freeFund!)}</b>.{' '}
-                  <Link to="/assets" className="font-medium text-green-700 dark:text-green-400">
-                    Xem mục tiêu
-                  </Link>
+                  {visual ? (
+                    <>
+                      Trừ tiền để dành: <b>{months1(freeFund!)}</b>
+                    </>
+                  ) : (
+                    <>
+                      Trong đó <b>{money(earmarked.total)}</b> đang để dành cho mục tiêu tiết kiệm.
+                      Trừ phần đã có chủ thì quỹ dự phòng thật sự tự do là{' '}
+                      <b>{months1(freeFund!)}</b>.{' '}
+                      <Link to="/assets" className="font-medium text-green-700 dark:text-green-400">
+                        Xem mục tiêu
+                      </Link>
+                    </>
+                  )}
                 </p>
               </div>
             ) : null
@@ -457,13 +475,27 @@ export function HealthView() {
             showLean ? (
               <div className="mt-2 rounded-lg bg-green-50 p-2 dark:bg-green-900/30">
                 <p className="text-xs leading-relaxed text-gray-700 dark:text-gray-200">
-                  <b>Nếu cắt hết chi linh hoạt</b> (
-                  {formatMoney(Math.round(snap.monthlyFlexibleExpense), base)}/tháng):{' '}
-                  {runwayLean.survivalRate >= 0.95 ? (
-                    <>hầu như không còn cạn tiền trong {runwayLean.horizon} tháng tới.</>
+                  {visual ? (
+                    <>
+                      Cắt hết chi linh hoạt:{' '}
+                      <b>
+                        {runwayLean.survivalRate >= 0.95
+                          ? `≥ ${runwayLean.horizon} tháng`
+                          : months1(runwayLean.p50)}
+                      </b>
+                    </>
                   ) : (
                     <>
-                      cầm cự được <b>{months1(runwayLean.p50)}</b> thay vì {months1(runway!.p50)}.
+                      <b>Nếu cắt hết chi linh hoạt</b> (
+                      {formatMoney(Math.round(snap.monthlyFlexibleExpense), base)}/tháng):{' '}
+                      {runwayLean.survivalRate >= 0.95 ? (
+                        <>hầu như không còn cạn tiền trong {runwayLean.horizon} tháng tới.</>
+                      ) : (
+                        <>
+                          cầm cự được <b>{months1(runwayLean.p50)}</b> thay vì{' '}
+                          {months1(runway!.p50)}.
+                        </>
+                      )}
                     </>
                   )}
                 </p>
@@ -554,11 +586,12 @@ export function HealthView() {
           meaning={
             snap.taxAndSocial <= 0 ? (
               <>
-                Chưa ghi khoản thuế/bảo hiểm nào. Muốn theo dõi 所得税・住民税・社会保険料, hãy{' '}
+                Chưa ghi khoản thuế/bảo hiểm nào.
+                <Guide as="span"> Muốn theo dõi 所得税・住民税・社会保険料, hãy</Guide>{' '}
                 <Link to="/settings/categories" className="font-medium text-green-700 dark:text-green-400">
                   tạo bộ danh mục Thuế &amp; An sinh
-                </Link>{' '}
-                rồi nhập theo 給与明細.
+                </Link>
+                <Guide as="span"> rồi nhập theo 給与明細</Guide>.
               </>
             ) : (
               <>

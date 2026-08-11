@@ -4,6 +4,7 @@
 // File riêng (không nhét vào AccountDetailPage) vì trang đó đã hơn 500 dòng. Mọi phép
 // tính nằm ở holdings.ts — ở đây chỉ đọc dữ liệu và bày ra.
 import { useMemo } from 'react'
+import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { EstimateMark } from '../../components/EstimateMark'
 import { Card, Money, SectionTitle } from '../../components/ui'
@@ -82,9 +83,9 @@ export function HoldingsSection({ account, balance, onAddTrade, onEditTrade }: P
     return (
       <Card as="section" className="mb-3">
         <SectionTitle>Danh mục</SectionTitle>
-        <p className="mt-2 text-xs text-fg-muted">
+        <Guide className="mt-2 text-xs text-fg-muted">
           Ghi lệnh mua/bán để app tự lấy giá và tính lời/lỗ từng mã.
-        </p>
+        </Guide>
         <button
           type="button"
           onClick={onAddTrade}
@@ -202,9 +203,9 @@ export function HoldingsSection({ account, balance, onAddTrade, onEditTrade }: P
           </p>
         )}
         {realizedPnl !== 0 && (
-          <p className="text-3xs leading-tight text-fg-muted">
+          <Guide className="text-3xs leading-tight text-fg-muted">
             Số này đã nằm trong tiền chưa đầu tư, không cộng thêm lần nữa.
-          </p>
+          </Guide>
         )}
 
         {value.marketValue !== null && (

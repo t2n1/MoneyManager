@@ -309,6 +309,7 @@ export function TagsPage() {
           onKeyDown={(e) => {
             if (e.key === 'Enter') void add()
           }}
+          aria-label="Tên nhãn mới"
           placeholder="Tên nhãn mới…"
           className="min-h-11 flex-1 rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500 dark:bg-gray-900"
         />
@@ -450,6 +451,7 @@ export function TagsPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') void addGroup()
                 }}
+                aria-label="Tên nhóm mới"
                 placeholder="Tên nhóm mới…"
                 className="min-h-11 flex-1 rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500 dark:bg-gray-900"
               />

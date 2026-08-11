@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { ChevronDown } from 'lucide-react'
 import { SegmentedControl } from '../../components/ui'
@@ -121,7 +121,10 @@ export function FeeField({
   }
   return (
     <div>
-      <label className={labelCls}>Phí ({currency})</label>
+      {/* <span> chứ không <label htmlFor>: MoneyField ở file này cũng có HAI ô (nút chạm
+          mobile + input desktop) luôn cùng nằm trong DOM, nên `for` chắc chắn trỏ vào ô
+          đang bị CSS ẩn. Tên ô đến từ `ariaLabel`. */}
+      <span className={labelCls}>Phí ({currency})</span>
       <MoneyField
         value={value}
         currency={currency}
@@ -215,6 +218,9 @@ export function SplitFields({
   /** Enter trên desktop = lưu. */
   onEnter?: () => void
 }) {
+  // id sinh động: các block vai trò có thể cùng nằm trong một form (Chia chung + Phí),
+  // id viết cứng thì `htmlFor` bắt vào ô đầu tiên khớp — nhãn trỏ sai ô.
+  const uid = useId()
   const mine = total - value.others
   const over = value.others > total
   const settledNow = value.settle === 'now'
@@ -224,7 +230,7 @@ export function SplitFields({
   return (
     <div className={blockCls('split')}>
       <div>
-        <label className={labelCls}>{settledNow ? 'Phần người khác trả lại' : 'Phần người khác nợ lại'}</label>
+        <span className={labelCls}>{settledNow ? 'Phần người khác trả lại' : 'Phần người khác nợ lại'}</span>
         <MoneyField
           value={value.others}
           currency={currency}
@@ -270,8 +276,11 @@ export function SplitFields({
 
       {settledNow && (
         <div>
-          <label className={labelCls}>Nhận lại vào</label>
+          <label htmlFor={`${uid}-recvacc`} className={labelCls}>
+            Nhận lại vào
+          </label>
           <select
+            id={`${uid}-recvacc`}
             value={value.receivedAccountId}
             onChange={(e) => onChange({ ...value, receivedAccountId: e.target.value })}
             className={inputCls}
@@ -311,10 +320,11 @@ export function SplitFields({
         </div>
       )}
       <div>
-        <label className={labelCls}>
+        <label htmlFor={`${uid}-who`} className={labelCls}>
           {settledNow ? 'Chia với ai (không bắt buộc)' : 'Ai nợ mình'}
         </label>
         <input
+          id={`${uid}-who`}
           value={value.counterparty}
           onChange={(e) =>
             // Gõ tay → bỏ liên kết người đã chọn (vẫn tự cộng dồn nếu trùng tên khi lưu).
@@ -348,11 +358,16 @@ export function DebtDetailInputs({
   termMonths: string
   onChange: (patch: { dueOn?: string; interestPct?: string; termMonths?: string }) => void
 }) {
+  // Khối này dùng ở CẢ form Nhập và sheet Sửa nợ — hai bản có thể cùng trong DOM.
+  const uid = useId()
   return (
     <div className="grid grid-cols-2 gap-3">
       <div className="col-span-2">
-        <label className={labelCls}>Hạn (không bắt buộc)</label>
+        <label htmlFor={`${uid}-due`} className={labelCls}>
+          Hạn (không bắt buộc)
+        </label>
         <input
+          id={`${uid}-due`}
           type="date"
           value={dueOn}
           onChange={(e) => onChange({ dueOn: e.target.value })}
@@ -360,8 +375,11 @@ export function DebtDetailInputs({
         />
       </div>
       <div>
-        <label className={labelCls}>Lãi suất %/năm</label>
+        <label htmlFor={`${uid}-rate`} className={labelCls}>
+          Lãi suất %/năm
+        </label>
         <input
+          id={`${uid}-rate`}
           inputMode="decimal"
           value={interestPct}
           onChange={(e) => onChange({ interestPct: e.target.value.replace(/[^0-9.]/g, '') })}
@@ -370,8 +388,11 @@ export function DebtDetailInputs({
         />
       </div>
       <div>
-        <label className={labelCls}>Số kỳ / tháng</label>
+        <label htmlFor={`${uid}-term`} className={labelCls}>
+          Số kỳ / tháng
+        </label>
         <input
+          id={`${uid}-term`}
           inputMode="numeric"
           value={termMonths}
           onChange={(e) => onChange({ termMonths: e.target.value.replace(/[^0-9]/g, '') })}
@@ -421,6 +442,7 @@ export function DebtFields({
   /** Enter trên desktop = lưu. */
   onEnter?: () => void
 }) {
+  const uid = useId()
   const [showMore, setShowMore] = useState(false)
   const realOn = canRecordReal && value.withTransaction
   const selected = value.existingDebtId
@@ -450,10 +472,11 @@ export function DebtFields({
       )}
 
       <div>
-        <label className={labelCls}>
+        <label htmlFor={`${uid}-party`} className={labelCls}>
           {value.direction === 'i_owe' ? 'Chủ nợ (mình nợ ai)' : 'Con nợ (ai nợ mình)'}
         </label>
         <input
+          id={`${uid}-party`}
           value={value.counterparty}
           onChange={(e) =>
             // Gõ tay → bỏ liên kết người đã chọn (vẫn tự cộng dồn nếu trùng tên khi lưu).
@@ -572,6 +595,7 @@ export function RemitFields({
   /** Enter trên desktop = lưu. */
   onEnter?: () => void
 }) {
+  const uid = useId()
   // Tài khoản bị trừ THẬT = số gửi + phí (roleSave cộng phí vào amount) — phải nói
   // trước mặt, không thì người nhìn số bank trừ (đã gồm phí) sẽ nhập trùng phí.
   const totalOut = sent + value.fee
@@ -581,31 +605,42 @@ export function RemitFields({
     <div className={blockCls('remit')}>
       {value.kind === 'transfer' && (
         <div>
-          <label className={labelCls}>Đến tài khoản VND</label>
+          {/* Nhãn nằm TRONG từng nhánh, không đứng chung phía trên: nhánh "chưa có tài
+              khoản VND" không có ô nào để `htmlFor` trỏ vào, mà một `htmlFor` trỏ vào id
+              không tồn tại thì vẫn là nhãn mồ côi — chỉ khác là công cụ quét không thấy. */}
           {vndAccounts.length === 0 ? (
-            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-              Chưa có tài khoản VND. Tạo một tài khoản VND (vd "Tiền ở VN") hoặc chọn "Hỗ trợ gia đình".
-            </p>
+            <>
+              <span className={labelCls}>Đến tài khoản VND</span>
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                Chưa có tài khoản VND. Tạo một tài khoản VND (vd "Tiền ở VN") hoặc chọn "Hỗ trợ gia đình".
+              </p>
+            </>
           ) : (
-            <select
-              value={value.destId}
-              onChange={(e) => onChange({ ...value, destId: e.target.value })}
-              className={inputCls}
-            >
-              <option value="">— chọn —</option>
-              {vndAccounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+            <>
+              <label htmlFor={`${uid}-dest`} className={labelCls}>
+                Đến tài khoản VND
+              </label>
+              <select
+                id={`${uid}-dest`}
+                value={value.destId}
+                onChange={(e) => onChange({ ...value, destId: e.target.value })}
+                className={inputCls}
+              >
+                <option value="">— chọn —</option>
+                {vndAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </>
           )}
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={labelCls}>Phí (JPY)</label>
+          <span className={labelCls}>Phí (JPY)</span>
           <MoneyField
             value={value.fee}
             currency="JPY"
@@ -617,7 +652,7 @@ export function RemitFields({
           />
         </div>
         <div>
-          <label className={labelCls}>Số nhận (VND)</label>
+          <span className={labelCls}>Số nhận (VND)</span>
           <MoneyField
             value={value.received}
             currency="VND"
@@ -646,8 +681,11 @@ export function RemitFields({
       {/* Dịch vụ hiện luôn — giấu sau "Thêm chi tiết" thì ai dùng SBI/DCOM sẽ bị
           ghi nhầm mặc định Wise mãi mà không biết. */}
       <div>
-        <label className={labelCls}>Dịch vụ</label>
+        <label htmlFor={`${uid}-service`} className={labelCls}>
+          Dịch vụ
+        </label>
         <select
+          id={`${uid}-service`}
           value={value.service}
           onChange={(e) => onChange({ ...value, service: e.target.value })}
           className={inputCls}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { useStockTrades, useUpsertValuation } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
@@ -21,6 +21,7 @@ interface Props {
  */
 export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
   useEscClose(onClose)
+  const uid = useId()
   const upsert = useUpsertValuation()
   const currency = account.currency as CurrencyCode
 
@@ -74,9 +75,10 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
           {account.name} · giá trị thị trường hiện tại ({CURRENCIES[currency].label})
         </p>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">
           Giá trị hiện tại
-        </label>
+        </span>
         <div className="mb-3">
           <MoneyField
             value={marketValue}
@@ -88,8 +90,11 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
           />
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">Ngày</label>
+        <label htmlFor={`${uid}-date`} className="mb-1 block text-xs font-medium text-fg-muted">
+          Ngày
+        </label>
         <input
+          id={`${uid}-date`}
           type="date"
           value={valuedOn}
           max={toISODate(new Date())}
@@ -97,10 +102,11 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
           className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500"
         />
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">
           Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
         <input
+          id={`${uid}-note`}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: theo giá đóng cửa"

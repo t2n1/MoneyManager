@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import type { NewDebtPayment, NewTransaction } from '../../data'
 import {
   useAccounts,
@@ -23,6 +23,7 @@ interface Props {
 /** Sheet ghi nhận một lần trả nợ. Tùy chọn tạo giao dịch thật (đổi số dư tài khoản). */
 export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
   useEscClose(onClose)
+  const uid = useId()
   const createPayment = useCreateDebtPayment()
   const createCategory = useCreateCategory()
   const { data: accounts = [] } = useAccounts()
@@ -105,7 +106,8 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           {formatMoney(Math.max(remaining, 0), debt.currency)}
         </p>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">Số tiền trả</label>
+        {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">Số tiền trả</span>
         <div className="mb-3">
           <MoneyField
             value={amount}
@@ -117,8 +119,11 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           />
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">Ngày trả</label>
+        <label htmlFor={`${uid}-paidon`} className="mb-1 block text-xs font-medium text-fg-muted">
+          Ngày trả
+        </label>
         <input
+          id={`${uid}-paidon`}
           type="date"
           value={paidOn}
           onChange={(e) => setPaidOn(e.target.value)}
@@ -162,8 +167,11 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
 
           {realOn && (
             <div className="mt-3">
-              <label className="mb-1 block text-xs font-medium text-fg-muted">Tài khoản</label>
+              <label htmlFor={`${uid}-acc`} className="mb-1 block text-xs font-medium text-fg-muted">
+                Tài khoản
+              </label>
               <select
+                id={`${uid}-acc`}
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
                 className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm"
@@ -178,8 +186,11 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           )}
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">Ghi chú (không bắt buộc)</label>
+        <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">
+          Ghi chú (không bắt buộc)
+        </label>
         <input
+          id={`${uid}-note`}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: trả đợt 1"

@@ -21,6 +21,19 @@ interface AccountPickerProps {
   excludeId?: string | null
   /** Thêm class cho nút mở (vd `w-full` trong sheet). */
   className?: string
+  /**
+   * Ô này là ô gì ("Từ tài khoản", "Đến tài khoản"). Ghép vào tên đọc được của nút
+   * dưới dạng chữ chỉ-đọc-màn-hình, KHÔNG phải `aria-label`.
+   *
+   * Vì sao không `aria-label`: nó ĐÈ hết nội dung nút, tức mất luôn tên tài khoản
+   * đang chọn. Vì sao không để nhãn ngoài dùng `<label htmlFor>`: tên đọc được của
+   * thẻ `<button>` tính TỪ NỘI DUNG (HTML-AAM), `<label for>` không phải nguồn tên
+   * của nó — nên nhãn ngoài chỉ là chữ trang trí.
+   *
+   * Cần thật: ở chế độ chuyển khoản có HAI picker cạnh nhau, trước đây cả hai đọc ra
+   * y như nhau ("Ví MoMo · ¥, button") nên không biết đâu là nguồn đâu là đích.
+   */
+  ariaLabel?: string
 }
 
 /**
@@ -34,6 +47,7 @@ export function AccountPicker({
   onChange,
   excludeId,
   className = '',
+  ariaLabel,
 }: AccountPickerProps) {
   const { data: balances = [] } = useAccountBalances()
   const [open, setOpen] = useState(false)
@@ -101,6 +115,7 @@ export function AccountPicker({
         aria-expanded={open}
         className={`flex min-h-11 items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300 ${className}`}
       >
+        {ariaLabel && <span className="sr-only">{ariaLabel}: </span>}
         {selected ? (
           <>
             <AccountTypeIcon

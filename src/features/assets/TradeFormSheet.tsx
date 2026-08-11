@@ -3,7 +3,7 @@
 //
 // Phí và thuế được TÍNH GỢI Ý rồi cho sửa: người dùng không nhớ chính xác phí của công
 // ty chứng khoán, nhưng bỏ trống thì giá vốn thấp hơn thực tế và lãi trông đẹp hơn thật.
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
 import { SegmentedControl } from '../../components/ui'
@@ -34,6 +34,7 @@ interface Props {
 
 export function TradeFormSheet({ account, trade, onClose }: Props) {
   useEscClose(onClose)
+  const uid = useId()
   const create = useCreateStockTrade()
   const update = useUpdateStockTrade()
   const remove = useDeleteStockTrade()
@@ -150,8 +151,11 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           </Guide>
         )}
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">Mã cổ phiếu</label>
+        <label htmlFor={`${uid}-symbol`} className="mb-1 block text-xs font-medium text-fg-muted">
+          Mã cổ phiếu
+        </label>
         <input
+          id={`${uid}-symbol`}
           value={symbol}
           onChange={(e) => setSymbol(e.target.value.toUpperCase())}
           placeholder="FPT"
@@ -175,8 +179,11 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           </ul>
         )}
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">Ngày</label>
+        <label htmlFor={`${uid}-date`} className="mb-1 block text-xs font-medium text-fg-muted">
+          Ngày
+        </label>
         <input
+          id={`${uid}-date`}
           type="date"
           value={tradedOn}
           max={toISODate(new Date())}
@@ -184,10 +191,11 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500"
         />
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-qty`} className="mb-1 block text-xs font-medium text-fg-muted">
           Số cổ {isAdjust && <span className="text-fg-muted">(âm = gộp cổ phiếu)</span>}
         </label>
         <input
+          id={`${uid}-qty`}
           type="number"
           inputMode="numeric"
           value={quantity === 0 ? '' : quantity}
@@ -197,7 +205,9 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
 
         {!isAdjust && (
           <>
-            <label className="mb-1 block text-xs font-medium text-fg-muted">Giá mỗi cổ</label>
+            {/* Ba nhãn dưới đây là <span>: MoneyField có hai ô (chạm mobile / input
+                desktop) nên `htmlFor` luôn trỏ vào ô đang bị CSS ẩn. Tên ô = `ariaLabel`. */}
+            <span className="mb-1 block text-xs font-medium text-fg-muted">Giá mỗi cổ</span>
             <div className="mb-3">
               <MoneyField
                 value={price}
@@ -209,7 +219,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
             </div>
 
             <div className="mb-1 flex items-baseline justify-between">
-              <label className="text-xs font-medium text-fg-muted">Phí giao dịch</label>
+              <span className="text-xs font-medium text-fg-muted">Phí giao dịch</span>
               {!feeTouched && <span className="text-2xs text-fg-muted">gợi ý 0,15%</span>}
             </div>
             <div className="mb-3">
@@ -229,7 +239,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
             {kind === 'sell' && (
               <>
                 <div className="mb-1 flex items-baseline justify-between">
-                  <label className="text-xs font-medium text-fg-muted">Thuế bán</label>
+                  <span className="text-xs font-medium text-fg-muted">Thuế bán</span>
                   {!taxTouched && <span className="text-2xs text-fg-muted">gợi ý 0,1%</span>}
                 </div>
                 <div className="mb-3">
@@ -250,10 +260,11 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           </>
         )}
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">
           Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
         <input
+          id={`${uid}-note`}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: cổ phiếu thưởng 10%"

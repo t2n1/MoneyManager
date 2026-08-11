@@ -130,9 +130,10 @@ export function ReconcileSheet({
           </p>
         )}
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">
           {isCard ? 'Số đang nợ thực tế' : 'Số dư thực tế'}
-        </label>
+        </span>
         <div className="mb-3">
           <MoneyField
             value={entered}

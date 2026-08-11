@@ -127,9 +127,11 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
           className="mb-3 w-full rounded-lg border border-border-strong px-3 py-2 text-base outline-green-500 sm:text-sm"
         />
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        {/* <span>: hàng này có HAI ô (MoneyField + chọn loại tiền) nên không có một đích
+            duy nhất cho `htmlFor`; mỗi ô tự mang tên qua `ariaLabel`. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">
           Ước tính <span className="text-fg-muted">(để trống nếu chưa biết)</span>
-        </label>
+        </span>
         <div className="mb-3 flex gap-2">
           <MoneyField
             value={amount}
@@ -153,8 +155,13 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
           </select>
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">Chắc tới đâu</label>
-        <div className="mb-1 flex overflow-hidden rounded-lg border border-border-strong">
+        {/* Nhãn cho một HÀNG NÚT → <span> + role="group" mang tên. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">Chắc tới đâu</span>
+        <div
+          role="group"
+          aria-label="Chắc tới đâu"
+          className="mb-1 flex overflow-hidden rounded-lg border border-border-strong"
+        >
           {PRECISION.map(([value, label, title2]) => (
             <button
               key={value}

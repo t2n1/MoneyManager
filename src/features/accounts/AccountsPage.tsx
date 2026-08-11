@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ChevronDown, ChevronLeft, ChevronUp, GripVertical } from 'lucide-react'
@@ -218,6 +218,9 @@ interface FormProps {
 
 function AccountForm({ account, onClose }: FormProps) {
   useEscClose(onClose)
+  // `useId` chứ không phải id viết cứng — cùng lý do đã ghi ở PhaseFormSheet: id trùng thì
+  // `htmlFor` bắt vào ô ĐẦU TIÊN khớp trong cả trang, tức nhãn trỏ sai ô.
+  const uid = useId()
   const create = useCreateAccount()
   const update = useUpdateAccount()
   const del = useDeleteAccount()
@@ -359,8 +362,11 @@ function AccountForm({ account, onClose }: FormProps) {
           {account ? 'Sửa tài khoản' : 'Thêm tài khoản'}
         </h2>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">Tên</label>
+        <label htmlFor={`${uid}-name`} className="mb-1 block text-xs font-medium text-fg-muted">
+          Tên
+        </label>
         <input
+          id={`${uid}-name`}
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Ví dụ: Ví MoMo"
@@ -369,8 +375,11 @@ function AccountForm({ account, onClose }: FormProps) {
 
         <div className="mb-3 grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-fg-muted">Loại</label>
+            <label htmlFor={`${uid}-type`} className="mb-1 block text-xs font-medium text-fg-muted">
+              Loại
+            </label>
             <select
+              id={`${uid}-type`}
               value={type}
               onChange={(e) => setType(e.target.value as AccountType)}
               className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm"
@@ -385,8 +394,11 @@ function AccountForm({ account, onClose }: FormProps) {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-fg-muted">Loại tiền</label>
+            <label htmlFor={`${uid}-currency`} className="mb-1 block text-xs font-medium text-fg-muted">
+              Loại tiền
+            </label>
             <select
+              id={`${uid}-currency`}
               value={currency}
               onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
               className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm"
@@ -402,10 +414,11 @@ function AccountForm({ account, onClose }: FormProps) {
 
         {!isCard && (
           <>
-            <label className="mb-1 block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-group`} className="mb-1 block text-xs font-medium text-fg-muted">
               Nhóm tài sản <span className="text-fg-muted">(không bắt buộc)</span>
             </label>
             <input
+              id={`${uid}-group`}
               value={assetGroup}
               onChange={(e) => setAssetGroup(e.target.value)}
               list="asset-group-suggestions"
@@ -422,9 +435,12 @@ function AccountForm({ account, onClose }: FormProps) {
 
         {isCard && (
           <>
-            <label className="mb-1 block text-xs font-medium text-fg-muted">
+            {/* <span> chứ không <label htmlFor>: MoneyField có HAI ô (hộp chạm mobile +
+                input desktop) luôn cùng nằm trong DOM, nên `for` chắc chắn trỏ vào ô đang
+                bị CSS ẩn. Tên ô đến từ `ariaLabel` — phải khớp chữ ở đây. */}
+            <span className="mb-1 block text-xs font-medium text-fg-muted">
               Hạn mức tín dụng <span className="text-fg-muted">(không bắt buộc)</span>
-            </label>
+            </span>
             <div className="mb-3">
               <MoneyField
                 value={creditLimit}
@@ -438,10 +454,11 @@ function AccountForm({ account, onClose }: FormProps) {
 
             <div className="mb-3 grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-fg-muted">
+                <label htmlFor={`${uid}-stmt`} className="mb-1 block text-xs font-medium text-fg-muted">
                   Ngày chốt sao kê
                 </label>
                 <input
+                  id={`${uid}-stmt`}
                   inputMode="numeric"
                   value={statementDay}
                   onChange={(e) => setStatementDay(clampDay(e.target.value))}
@@ -450,10 +467,11 @@ function AccountForm({ account, onClose }: FormProps) {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-fg-muted">
+                <label htmlFor={`${uid}-due`} className="mb-1 block text-xs font-medium text-fg-muted">
                   Ngày đến hạn
                 </label>
                 <input
+                  id={`${uid}-due`}
                   inputMode="numeric"
                   value={paymentDueDay}
                   onChange={(e) => setPaymentDueDay(clampDay(e.target.value))}
@@ -463,10 +481,11 @@ function AccountForm({ account, onClose }: FormProps) {
               </div>
             </div>
 
-            <label className="mb-1 block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-payacc`} className="mb-1 block text-xs font-medium text-fg-muted">
               Tài khoản trả thẻ <span className="text-fg-muted">(không bắt buộc)</span>
             </label>
             <select
+              id={`${uid}-payacc`}
               value={paymentAccountId}
               onChange={(e) => setPaymentAccountId(e.target.value)}
               className="mb-1 w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm"
@@ -517,9 +536,9 @@ function AccountForm({ account, onClose }: FormProps) {
           </label>
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        <span className="mb-1 block text-xs font-medium text-fg-muted">
           {isCard ? 'Số nợ ban đầu' : 'Số dư ban đầu'}
-        </label>
+        </span>
         <div className="mb-2">
           <MoneyField
             value={balanceMagnitude}
@@ -546,10 +565,11 @@ function AccountForm({ account, onClose }: FormProps) {
         {/* Tài khoản ưu đãi thuế Nhật — theo dõi hạn mức nạp mỗi năm */}
         {isInvestment && (
           <div className="mb-3 rounded-lg bg-surface-page p-2.5 ">
-            <label className="mb-1 block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-shelter`} className="mb-1 block text-xs font-medium text-fg-muted">
               Ưu đãi thuế <span className="text-fg-muted">(không bắt buộc)</span>
             </label>
             <select
+              id={`${uid}-shelter`}
               value={taxShelter}
               onChange={(e) => {
                 const next = e.target.value as TaxShelter | ''
@@ -570,9 +590,9 @@ function AccountForm({ account, onClose }: FormProps) {
             </select>
             {taxShelter !== '' && (
               <>
-                <label className="mb-1 mt-2 block text-xs font-medium text-fg-muted">
+                <span className="mb-1 mt-2 block text-xs font-medium text-fg-muted">
                   Hạn mức nạp mỗi năm
-                </label>
+                </span>
                 <MoneyField
                   value={shelterLimit}
                   onChange={setShelterLimit}
@@ -600,10 +620,11 @@ function AccountForm({ account, onClose }: FormProps) {
             </Guide>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block text-xs font-medium text-fg-muted">
+                <label htmlFor={`${uid}-depfrom`} className="mb-1 block text-xs font-medium text-fg-muted">
                   Ngày mua
                 </label>
                 <input
+                  id={`${uid}-depfrom`}
                   type="date"
                   value={depFrom}
                   onChange={(e) => setDepFrom(e.target.value)}
@@ -611,10 +632,11 @@ function AccountForm({ account, onClose }: FormProps) {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-fg-muted">
+                <label htmlFor={`${uid}-depmonths`} className="mb-1 block text-xs font-medium text-fg-muted">
                   Khấu hao (tháng)
                 </label>
                 <input
+                  id={`${uid}-depmonths`}
                   inputMode="numeric"
                   value={depMonths}
                   onChange={(e) => setDepMonths(e.target.value.replace(/\D/g, ''))}
@@ -623,9 +645,9 @@ function AccountForm({ account, onClose }: FormProps) {
                 />
               </div>
             </div>
-            <label className="mb-1 mt-2 block text-xs font-medium text-fg-muted">
+            <span className="mb-1 mt-2 block text-xs font-medium text-fg-muted">
               Giá trị còn lại cuối vòng đời
-            </label>
+            </span>
             <MoneyField
               value={salvage}
               onChange={setSalvage}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useCreateSavingsGoal, useDeleteSavingsGoal, useUpdateSavingsGoal } from '../../hooks/queries'
 import { type CurrencyCode } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
@@ -16,6 +16,7 @@ interface Props {
 /** Sheet tạo/sửa mục tiêu tiết kiệm (mục AD). */
 export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
   useEscClose(onClose)
+  const uid = useId()
   const create = useCreateSavingsGoal()
   const update = useUpdateSavingsGoal()
   const del = useDeleteSavingsGoal()
@@ -76,11 +77,11 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
           {goal ? 'Sửa mục tiêu' : 'Mục tiêu tiết kiệm mới'}
         </h2>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">Tên mục tiêu</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ví dụ: Quỹ du lịch" className={`mb-3 ${field}`} />
+        <label htmlFor={`${uid}-name`} className="mb-1 block text-xs font-medium text-fg-muted">Tên mục tiêu</label>
+        <input id={`${uid}-name`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ví dụ: Quỹ du lịch" className={`mb-3 ${field}`} />
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">Theo dõi qua tài khoản</label>
-        <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className={`mb-3 ${field}`}>
+        <label htmlFor={`${uid}-acc`} className="mb-1 block text-xs font-medium text-fg-muted">Theo dõi qua tài khoản</label>
+        <select id={`${uid}-acc`} value={accountId} onChange={(e) => setAccountId(e.target.value)} className={`mb-3 ${field}`}>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name} ({a.currency})
@@ -88,7 +89,8 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
           ))}
         </select>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">Số tiền đích</label>
+        {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">Số tiền đích</span>
         <div className="mb-3">
           <MoneyField
             value={target}
@@ -100,15 +102,15 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
           />
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-date`} className="mb-1 block text-xs font-medium text-fg-muted">
           Hạn hoàn thành <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
-        <input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className={`mb-3 ${field}`} />
+        <input id={`${uid}-date`} type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className={`mb-3 ${field}`} />
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">
           Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
-        <input value={note} onChange={(e) => setNote(e.target.value)} className={`mb-4 ${field}`} />
+        <input id={`${uid}-note`} value={note} onChange={(e) => setNote(e.target.value)} className={`mb-4 ${field}`} />
 
         <div className="flex items-center justify-between gap-2">
           {goal ? (

@@ -279,9 +279,40 @@ Bộ màu ở `components/ui/statusColors.ts` (trước đây là `features/heal
 - mỗi `<VerdictNote>` có `short` hoặc `label` → trần **1** (một chỗ cố ý, nằm trong `<FullOnly>`)
 - văn xuôi trong `<p class="…fg-muted…">` → trần **49**
 
+Ngoài bốn luật của chế độ trình bày, `tests/designSystem.test.ts` còn luật **không có `<label>` mồ côi** (xem mục "Nhãn ô nhập" bên dưới): nó phân loại từng `<label>` theo spec — có `htmlFor`, hay bọc thẻ labelable — và phải bằng **0**. Đã thử 6 hình dạng (3 phải đỏ, 3 phải xanh) để chắc nó phân biệt được. Luật này thay cho trần `<label className` = 106 trước đây, vốn chỉ là đại diện gần đúng: nó đếm cả nhãn hợp lệ và bỏ sót nhãn viết `className` sau `htmlFor`.
+
 Thêm `tests/backupCompleteness.test.ts`: mọi cột của `ProfileRow` phải được đường KHÔI PHỤC nhắc tới. `exportAll` dùng `select('*')` nên cột mới tự vào bản lưu, nhưng `importAll` liệt kê từng cột — bỏ sót thì khôi phục âm thầm trả cột đó về default. Đúng lỗi đã xảy ra với `density_pref`.
 
 Trần 49 **không** phải nợ cần dọn hết: đã xét từng chỗ, phần lớn là thứ phải ở lại theo bảng ranh giới trên.
+
+## Nhãn ô nhập: chọn thẻ nào
+
+Dọn xong 2026-08-11 (71 chỗ, 16 file). Quy tắc, theo đúng spec HTML chứ không theo cảm giác:
+
+| Nhãn cho | Thẻ | Vì sao |
+|---|---|---|
+| MỘT `<input>` / `<select>` / `<textarea>` | `<label htmlFor={`${uid}-x`}>` + `id` trên ô | dạng duy nhất cho screen reader tên ô một cách chắc chắn |
+| `MoneyField` | `<span>` + `ariaLabel` trên component | MoneyField render **hai** ô (nút chạm mobile + input desktop) luôn cùng trong DOM, chỉ ẩn/hiện bằng `lg:hidden` → `htmlFor` chắc chắn trỏ vào ô đang bị CSS ẩn |
+| `AccountPicker` | `<span>` + `ariaLabel` trên component | nó là `<button>`; tên đọc được của `<button>` tính **từ nội dung** (HTML-AAM), `<label for>` không phải nguồn tên của nó |
+| một HÀNG NÚT (segmented, chip) | `<span>` + `role="group" aria-label` trên khung | không có một ô nào để trỏ vào |
+| cả một KHỐI (TagPicker) | `<span>` | từng control bên trong tự mang `aria-label` |
+| một công tắc `role="switch"` | **giữ `<label>` bọc nút** | `button` NẰM TRONG danh sách labelable của spec → nhãn vừa đặt tên vừa là vùng chạm. Đã đo trên app đang chạy: bấm vào chữ có bật/tắt |
+
+`useId`, không phải id viết cứng: hai sheet có thể cùng trong DOM (sheet chặng mở từ trong `ScenarioEditorSheet`; `DebtDetailInputs` dùng ở cả form Nhập và sheet Sửa nợ), và id trùng thì `htmlFor` bắt vào ô **đầu tiên** khớp — nhãn trỏ sai ô còn tệ hơn không có nhãn.
+
+Id không được chứa khoảng trắng. Nhãn tiếng Việt ("Thiết yếu") không dùng làm id được → thêm trường `slug` (xem `ProfileEditSheet`).
+
+### Ba lần suýt sai khi làm đợt này
+
+1. **Quên `button` là labelable.** Lần quét đầu xếp 4 nhãn công tắc vào diện mồ côi; đổi chúng sang `<div>` là **mất vùng chạm** đang chạy tốt. Kiểm bằng cách bấm vào chữ trên app thật.
+2. **`aria-checked` đọc ngay sau `.click()` là sai.** React chưa render lại → kết luận "bấm vào chữ không có tác dụng" tuy thật ra có. Phải `await` một nhịp.
+3. **Chú thích cũng chứa chữ `<label>`.** Chính lời giải thích "chỗ này dùng `<span>` chứ không `<label>`" làm công cụ quét báo 3 vi phạm không tồn tại. Phải che chú thích — nhưng che bằng khoảng trắng để **giữ số dòng**.
+
+### Nhãn không phải cái duy nhất thiếu
+
+Quét theo `<label>` **không thấy** ô nào hoàn toàn không có nhãn. Sau khi dọn hết 71 nhãn, chạy thuật toán tính accessible name trên 19 route của app đang chạy thì còn **9 ô không có tên nào** — chỉ có `placeholder` (mà placeholder mất ngay khi bắt đầu gõ, không phải tên). Trong đó có **ô số tiền chính của form Nhập** ở desktop: `TransactionForm` có bản copy riêng của `MoneyField` và bản copy đó bị bỏ sót khi sửa `MoneyField` hôm 2026-07-30.
+
+Cách quét: `el.labels`, `aria-label`, `aria-labelledby`; **không** tính `placeholder`. Chạy trên app thật, không đọc nguồn.
 
 ## Chưa làm
 
@@ -290,4 +321,5 @@ Trần 49 **không** phải nợ cần dọn hết: đã xét từng chỗ, ph�
 - **35 chỗ `text-green-700 dark:text-green-400` cần tách nghĩa** thành `fg-accent` (link, hành động — đa số) hoặc `money-in` (giá trị tiền — vài chỗ). Việc **xét từng chỗ**, không quét máy móc được: link không phải thu nhập. Không gấp — 4,95:1 đã đạt AA. *(Đo lại 2026-08-06: con số TĂNG từ 29 → 35 kể từ lúc dựng hệ thống, nên đã thêm trần trong guardrail để không phình tiếp.)*
 - **Hex v3 còn ở 16 file biểu đồ** (`#16a34a`/`#ef4444` trong `CategoryBreakdownCard` `PALETTE`, `SummaryView`, `AssetsNowView`, `LifetimeChartCard`…). Không sai contrast, nhưng lạc thời so với palette v4. *(Cũng tăng từ 12+ → 16 file; đã thêm trần trong guardrail.)*
 - **`ActionButton` đã có** (gom dáng nút-có-chữ) nhưng mới áp vào vài chỗ — 93 chỗ `active:scale-95` viết tay là số nợ còn lại trong guardrail, gộp dần và hạ trần theo.
+- **Tên ô chỉ được kiểm bằng tay.** Luật `<label>` mồ côi chặn được ở mức nguồn, nhưng "ô không có nhãn nào cả" thì không — repo không có test render (không có `@testing-library`), nên phải chạy app rồi tính accessible name như đợt 2026-08-11. Muốn tự động thì cần thêm jsdom + một test render, là quyết định về hạ tầng test chứ không phải dọn dẹp.
 - Đã áp primitive vào `LedgerPage`, `ReportsPage`, `AccountDetailPage`, `AssetsPage`, `AssetGroupsPage`. Các màn còn lại đã đổi sang token màu nhưng thẻ/nút vẫn viết tay — ngưỡng trong guardrail là số nợ còn lại.

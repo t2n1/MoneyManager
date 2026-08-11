@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useUpdateDebt } from '../../hooks/queries'
 import { CURRENCIES } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
@@ -18,6 +18,7 @@ interface Props {
  */
 export function DebtEditSheet({ debt, onClose }: Props) {
   useEscClose(onClose)
+  const uid = useId()
   const update = useUpdateDebt()
 
   const [counterparty, setCounterparty] = useState(debt.counterparty)
@@ -94,10 +95,11 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           ))}
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-party`} className="mb-1 block text-xs font-medium text-fg-muted">
           {direction === 'i_owe' ? 'Chủ nợ (mình nợ ai)' : 'Con nợ (ai nợ mình)'}
         </label>
         <input
+          id={`${uid}-party`}
           autoFocus
           value={counterparty}
           onChange={(e) => setCounterparty(e.target.value)}
@@ -105,9 +107,10 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary outline-green-500"
         />
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">
           Số tiền gốc ({CURRENCIES[debt.currency].symbol})
-        </label>
+        </span>
         <div className="mb-3">
           <MoneyField
             value={principal}
@@ -132,10 +135,11 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           />
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">
           Ghi chú (không bắt buộc)
         </label>
         <input
+          id={`${uid}-note`}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: mượn lúc chuyển nhà"

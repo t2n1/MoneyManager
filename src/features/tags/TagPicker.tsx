@@ -139,10 +139,13 @@ export function TagPicker({ value, onChange }: Props) {
 
   return (
     <div>
-      <label className="mb-1 flex items-center gap-1 text-xs font-medium text-fg-muted">
+      {/* <span> chứ không <label>: đây là tiêu đề cho CẢ khối (nhiều hàng chip + ô tìm +
+          nút "Tất cả"), không có một ô nào để `htmlFor` trỏ vào. Từng control bên trong
+          đã tự mang tên (`aria-label` ở ô tìm, `aria-label` ở nút "+ mới"). */}
+      <span className="mb-1 flex items-center gap-1 text-xs font-medium text-fg-muted">
         <TagIcon className="h-3.5 w-3.5" aria-hidden />
         Nhãn <span className="text-fg-muted">(không bắt buộc)</span>
-      </label>
+      </span>
 
       {expanded && total > COLLAPSED_LIMIT && (
         <div className="mb-1.5 flex items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-2 focus-within:ring-2 focus-within:ring-green-500">

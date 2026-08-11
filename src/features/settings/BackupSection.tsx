@@ -113,8 +113,12 @@ export function BackupSection() {
           <Upload className="h-4 w-4" />
           Khôi phục
         </button>
+        {/* Ô ẩn, chỉ mở qua nút "Khôi phục" — vẫn cần tên: `class="hidden"` không lấy nó
+            ra khỏi cây trợ năng ở mọi trình đọc, và khi hộp thoại chọn file bật lên thì
+            đây là control đang được nhắm tới. */}
         <input
           ref={fileRef}
+          aria-label="Chọn file sao lưu để khôi phục"
           type="file"
           accept="application/json,.json"
           className="hidden"

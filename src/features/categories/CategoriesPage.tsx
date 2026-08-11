@@ -328,7 +328,7 @@ export function CategoriesPage() {
                   <button
                     type="button"
                     onClick={() => setForm({ category: ch, parent: p })}
-                    className="min-w-0 flex-1 truncate text-left text-sm text-gray-700 dark:text-gray-300"
+                    className="min-h-11 min-w-0 flex-1 truncate text-left text-sm text-gray-700 dark:text-gray-300"
                   >
                     {ch.name}
                   </button>
@@ -441,7 +441,7 @@ export function CategoriesPage() {
             <button
               type="button"
               onClick={() => setForm({ category: c, parent: parentById(c.parent_id) })}
-              className="min-w-0 flex-1 truncate text-left text-sm text-gray-700 dark:text-gray-300"
+              className="min-h-11 min-w-0 flex-1 truncate text-left text-sm text-gray-700 dark:text-gray-300"
             >
               {c.name}
             </button>
@@ -618,7 +618,7 @@ function CategoryForm({
 
   return (
     <div
-      className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 lg:items-center"
+      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center"
       onClick={onClose}
     >
       <div

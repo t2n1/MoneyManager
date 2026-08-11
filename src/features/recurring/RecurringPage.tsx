@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { Guide } from '../../components/Guide'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRightLeft, ChevronLeft, Pause, Play, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import {
@@ -248,9 +247,10 @@ export function RecurringPage() {
       {isLoading ? (
         <p className="py-8 text-center text-sm text-fg-muted">Đang tải…</p>
       ) : rules.length === 0 ? (
+        // Câu chỉ đường không bọc Guide: màn rỗng thì đây là thứ duy nhất trên màn hình
+        // (xem components/Guide.tsx).
         <p className="py-8 text-center text-sm text-fg-muted">
-          Chưa có quy tắc nào.
-          <Guide as="span"> Thêm ở đây hoặc chọn "Lặp lại" khi nhập giao dịch.</Guide>
+          Chưa có quy tắc nào. Thêm ở đây hoặc chọn "Lặp lại" khi nhập giao dịch.
         </p>
       ) : (
         <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm ">

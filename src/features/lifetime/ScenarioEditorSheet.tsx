@@ -672,7 +672,7 @@ export function ScenarioEditorSheet({
           `lg:overflow-y-hidden` (không phải `lg:overflow-hidden`): phải thắng đúng
           thuộc tính mà `overflow-y-auto` của mobile đã đặt. */}
       <div
-        className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 lg:items-stretch"
+        className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-stretch"
         onClick={() => void handleDismiss()}
       >
         <div

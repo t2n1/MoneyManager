@@ -68,19 +68,21 @@ export function MonthStrip({ items, active, onPick, base, label }: Props) {
             // flex-1 + min-w-fit: ít tháng thì các ô giãn đều kín hàng (không dồn
             // cục bên trái), nhiều tháng thì mỗi ô giữ bề rộng tối thiểu và dải cuộn.
             className={`flex min-h-11 min-w-fit flex-1 flex-col items-center rounded-lg px-2.5 py-1.5 ${
-              on ? 'bg-accent text-white' : 'bg-surface text-fg-secondary shadow-sm'
+              on ? 'bg-accent text-fg-on-accent' : 'bg-surface text-fg-secondary shadow-sm'
             }`}
           >
             <span className="text-2xs leading-tight">
               {it.key.year}/{it.key.month}
             </span>
-            {/* Tháng đang chọn có nền màu nhấn nên <Money> phải nhường màu cho chữ trắng —
-                token màu tiền trên nền xanh sẽ không đọc được. */}
+            {/* Tháng đang chọn có nền màu nhấn nên <Money> phải nhường màu cho chữ trên nền
+                nhấn — token màu tiền trên nền xanh sẽ không đọc được. Dùng token
+                --fg-on-accent chứ KHÔNG text-white: ở dark nền nhấn là green-500, trắng
+                trên đó chỉ 2,22:1 (xem index.css). */}
             <span className="text-xs font-semibold leading-tight">
               {it.amount === null ? (
                 '—'
               ) : on ? (
-                <Money amount={it.amount} currency={base} tone="neutral" compact className="text-white" />
+                <Money amount={it.amount} currency={base} tone="onAccent" compact />
               ) : (
                 <Money amount={it.amount} currency={base} tone="neutral" compact />
               )}

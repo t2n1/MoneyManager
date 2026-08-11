@@ -399,9 +399,16 @@ export function ReportsPage() {
           >
             <ChevronLeft className="h-5 w-5" />
           </IconButton>
-          <h1 className="text-lg font-bold text-fg-primary">
+          {/* <p> chứ KHÔNG <h1>: trang đã có <h1>Báo cáo</h1> ở trên, để đây là h1 nữa thì
+              một trang có hai h1 — cây tiêu đề hỏng, trình đọc màn hình đọc thành hai đầu
+              mục ngang cấp trong khi đây chỉ là nhãn kỳ đang xem. aria-live để khi bấm mũi
+              tên thì kỳ mới được đọc lên (nhãn đổi nhưng tiêu điểm vẫn ở nút). */}
+          <p
+            aria-live="polite"
+            className="text-lg font-bold text-fg-primary"
+          >
             {navPeriod === 'month' ? formatMonthLabel(activeMonthKey) : formatYearLabel(activeYear)}
-          </h1>
+          </p>
           <IconButton
             onClick={() =>
               navPeriod === 'month'

@@ -132,7 +132,7 @@ export function AccountsPage() {
                       <GripVertical className="h-5 w-5" />
                     </button>
                     <AccountTypeIcon type={a.type} className="h-4 w-4" />
-                    <button type="button" onClick={() => setEditing(a)} className="min-w-0 flex-1 text-left">
+                    <button type="button" onClick={() => setEditing(a)} className="min-h-11 min-w-0 flex-1 text-left">
                       <span className="flex items-center gap-1 truncate text-sm font-medium text-fg-primary">
                         <span className="truncate">{a.name}</span>
                         {a.is_hidden && (
@@ -351,7 +351,7 @@ function AccountForm({ account, onClose }: FormProps) {
 
   return (
     <div
-      className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 lg:items-center"
+      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center"
       onClick={onClose}
     >
       <div

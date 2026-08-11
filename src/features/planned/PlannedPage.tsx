@@ -110,8 +110,13 @@ export function PlannedPage() {
         <p className="py-10 text-center text-sm text-fg-muted">Đang tải…</p>
       ) : months.length === 0 ? (
         <Card as="section">
+          {/* Câu CHỈ ĐƯỜNG dưới đây KHÔNG bọc Guide — xem chú thích trong components/Guide.tsx:
+              màn rỗng thì nó là thứ duy nhất trên màn hình, bọc lại là người mới ở chế độ Gọn
+              (mặc định) chỉ thấy đúng "Chưa có khoản nào." và không biết bấm gì. Phần DẠY dài
+              vẫn bọc như cũ. */}
           <p className="text-sm text-fg-muted">
-            Chưa có khoản nào.
+            Chưa có khoản nào. Bấm <b className="font-semibold text-fg-secondary">Thêm</b> ở trên để
+            ghi khoản sắp phải chi.
             <Guide as="span">
               {' '}
               Thêm những thứ bạn biết là sắp phải chi — sửa nhà, chuyển nhà, đóng phí — để không

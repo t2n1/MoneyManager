@@ -176,37 +176,50 @@ export function LedgerPage() {
         <RemindersBanner />
       </NotificationBoundary>
 
-      {/* Chuyển kỳ + tìm kiếm */}
-      <div className="mb-3 flex items-center gap-2">
-        <IconButton
-          onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, -step))}
-          aria-label={yearNav ? 'Năm trước' : 'Tháng trước'}
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </IconButton>
-        <h1 className="flex-1 text-center text-lg font-bold text-fg-primary">{label}</h1>
-        <IconButton
-          onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, step))}
-          aria-label={yearNav ? 'Năm sau' : 'Tháng sau'}
-        >
-          <ChevronRight className="h-5 w-5" />
-        </IconButton>
-        <Link to="/search" className={iconButtonClass()} aria-label="Tìm kiếm giao dịch">
-          <Search className="h-5 w-5" />
-        </Link>
-        {/* Định kỳ dời từ Cài đặt về đây (nó là giao dịch tương lai, không phải cấu hình).
-            Đặt ở header chứ KHÔNG thành tab con thứ 5: 5 mục segmented control quá chật
-            trên mobile, và đây là danh sách quy tắc chứ không phải một cách xem cùng dữ
-            liệu như 4 tab kia. Xem docs/information-architecture.md §2.1. */}
-        <Link to="/planned" className={iconButtonClass()} aria-label="Khoản sắp chi">
-          <CalendarClock className="h-5 w-5" />
-        </Link>
-        <Link to="/recurring" className={iconButtonClass()} aria-label="Giao dịch định kỳ">
-          <Repeat className="h-5 w-5" />
-        </Link>
-        <NotificationBoundary>
-          <NotificationBell className="lg:hidden" />
-        </NotificationBoundary>
+      {/* Chuyển kỳ + tìm kiếm.
+          CHIA HAI NHÓM rồi cho wrap, chứ không để bảy control trong một hàng phẳng: đo ở
+          375px thì hàng cũ cần 382px trong khung 351px. Hai hệ quả, cái thứ hai tệ hơn:
+          nút chuông bị cắt 19px, VÀ <main> kéo ngang được 19px nên vuốt dọc bị lệch ngang.
+          Ở 360px chuông mất 77%, ở 320px mất hẳn và "Định kỳ" cũng bị cắt.
+          Không co được bằng flex: sáu IconButton đều min-w-11 (giữ vùng chạm 44px) và h1 đã
+          nằm ở đúng bề rộng chữ (86px) rồi. Nên cho xuống hàng: hẹp thì bộ chuyển kỳ chiếm
+          hàng trên (nhãn tháng canh giữa cả bề rộng, gọn hơn hàng cũ), bốn nút hành động
+          xuống hàng dưới canh phải; từ ~768px trở lên vẫn đủ chỗ cho một hàng.
+          Guard: src/features/transactions/ledgerHeaderFit.test.ts */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="flex flex-1 items-center gap-2">
+          <IconButton
+            onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, -step))}
+            aria-label={yearNav ? 'Năm trước' : 'Tháng trước'}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </IconButton>
+          <h1 className="flex-1 text-center text-lg font-bold text-fg-primary">{label}</h1>
+          <IconButton
+            onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, step))}
+            aria-label={yearNav ? 'Năm sau' : 'Tháng sau'}
+          >
+            <ChevronRight className="h-5 w-5" />
+          </IconButton>
+        </div>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <Link to="/search" className={iconButtonClass()} aria-label="Tìm kiếm giao dịch">
+            <Search className="h-5 w-5" />
+          </Link>
+          {/* Định kỳ dời từ Cài đặt về đây (nó là giao dịch tương lai, không phải cấu hình).
+              Đặt ở header chứ KHÔNG thành tab con thứ 5: 5 mục segmented control quá chật
+              trên mobile, và đây là danh sách quy tắc chứ không phải một cách xem cùng dữ
+              liệu như 4 tab kia. Xem docs/information-architecture.md §2.1. */}
+          <Link to="/planned" className={iconButtonClass()} aria-label="Khoản sắp chi">
+            <CalendarClock className="h-5 w-5" />
+          </Link>
+          <Link to="/recurring" className={iconButtonClass()} aria-label="Giao dịch định kỳ">
+            <Repeat className="h-5 w-5" />
+          </Link>
+          <NotificationBoundary>
+            <NotificationBell className="lg:hidden" />
+          </NotificationBoundary>
+        </div>
       </div>
 
       {/* Tab đổi cách xem */}

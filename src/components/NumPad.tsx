@@ -39,9 +39,12 @@ export function NumPad({
             onClick={() => onKey(key)}
             disabled={isOp && opsDisabled}
             aria-label={ARIA[key] ?? key}
+            // Phím phép tính dùng token fg-accent-on-track, KHÔNG fg-accent: nền là
+            // surface-sunken (gray-100), mà green-700 trên đó đo được 4,49:1 — trượt 4,5
+            // đúng một li. Xem lý do đặt token ở src/index.css.
             className={`flex min-h-11 items-center justify-center rounded-lg py-1.5 text-lg font-semibold shadow-sm transition enabled:active:scale-95 disabled:opacity-40 ${
               isOp
-                ? 'bg-surface-sunken text-green-700 dark:text-green-400 enabled:active:bg-gray-300'
+                ? 'bg-surface-sunken text-fg-accent-on-track enabled:active:bg-gray-300'
                 : 'bg-white dark:bg-gray-800 text-fg-primary enabled:active:bg-gray-200'
             }`}
           >

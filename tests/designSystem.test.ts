@@ -341,7 +341,13 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // 93 chứ không 94: <ActionButton> gom dáng nút-có-chữ (viền mảnh / nền xanh),
     // kéo 4 chỗ viết tay ở AccountDetailPage + hai sheet điều chỉnh về một mối.
     { needle: 'active:scale-95', max: 93, use: '<IconButton> / <ActionButton>' },
-    { needle: 'min-h-11 min-w-11', max: 26, use: '<IconButton> / iconButtonClass()' },
+    // 28 chứ không 26: lượt sửa vùng chạm 2026-08-11 đưa BA công tắc role="switch"
+    // (AssetGroupsPage, DebtPaymentSheet, roleFields) về đúng khuôn ba công tắc đã
+    // đúng từ trước — vùng chạm 44×44 ở <button>, đường ray nhỏ ở <span> bên trong.
+    // Trước đó đường ray đặt thẳng lên nút nên chạm chỉ 36×20 / 24×44.
+    // KHÔNG gộp được vào <IconButton>: nó render một nút-icon, không có đường ray và
+    // không mang role="switch"/aria-checked. Đây là tăng đúng chỗ, không phải nợ mới.
+    { needle: 'min-h-11 min-w-11', max: 28, use: '<IconButton> / iconButtonClass()' },
     // 85 chu khong 82: lượt chuẩn hoá đã kéo 29 thẻ TỪ dạng `rounded-xl bg-white …
     // dark:bg-gray-900` VÀO dạng này, nên con số tăng mà tổng số thẻ viết tay không
     // đổi. Không phải thêm thẻ mới. Gộp vào <Card> thì hạ tiếp.

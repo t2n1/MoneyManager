@@ -302,7 +302,14 @@ export function TagsPage() {
 
       {!quickSortDone && <QuickSortStrip onDone={() => setQuickSortDone(true)} />}
 
-      <div className="mb-3 flex gap-2">
+      {/* flex-wrap + basis-*: ba control này KHÔNG vừa một hàng trên máy hẹp. Đo ở 375px:
+          cần 403px trong khung 351px, nút "Thêm" — hành động chính của màn — chỉ còn thấy
+          41%, ở 360px còn 19%, ở 320px mất hẳn. `flex-1` không tự co được vì min-width mặc
+          định là auto, còn <select> thì rộng theo option dài nhất ("Tài sản Việt Nam"), nên
+          phải có min-w-0 mới co. Cho wrap thay vì cố nhồi: hẹp (basis-full) thì ô nhập chiếm
+          trọn hàng trên, select + Thêm xuống hàng dưới cạnh nhau — gom nút với ô chọn đọc
+          rõ hơn là để "Thêm" đứng một mình. Từ sm (640px) trở lên gọn lại một hàng. */}
+      <div className="mb-3 flex flex-wrap gap-2">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -311,13 +318,13 @@ export function TagsPage() {
           }}
           aria-label="Tên nhãn mới"
           placeholder="Tên nhãn mới…"
-          className="min-h-11 flex-1 rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500 dark:bg-gray-900"
+          className="min-h-11 min-w-0 flex-1 basis-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500 sm:basis-48 dark:bg-gray-900"
         />
         <select
           value={newTagGroup}
           onChange={(e) => setNewTagGroup(e.target.value)}
           aria-label="Nhóm cho nhãn mới"
-          className="min-h-11 rounded-lg border border-border-strong bg-surface px-2 text-sm text-fg-primary outline-green-500"
+          className="min-h-11 min-w-0 flex-1 basis-28 rounded-lg border border-border-strong bg-surface px-2 text-sm text-fg-primary outline-green-500"
         >
           <option value="">— Khác —</option>
           {groups.map((g) => (
@@ -330,7 +337,7 @@ export function TagsPage() {
           type="button"
           onClick={add}
           disabled={!draft.trim() || createTag.isPending}
-          className="min-h-11 rounded-lg bg-green-700 px-4 text-sm font-semibold text-white active:scale-95 disabled:opacity-40"
+          className="min-h-11 shrink-0 rounded-lg bg-green-700 px-4 text-sm font-semibold text-white active:scale-95 disabled:opacity-40"
         >
           Thêm
         </button>
@@ -338,8 +345,12 @@ export function TagsPage() {
       {error && <p className="mb-3 text-xs text-money-out">{error}</p>}
 
       {tags.length === 0 ? (
+        // Câu chỉ đường không bọc Guide: màn rỗng thì đây là thứ duy nhất trên màn hình
+        // (xem components/Guide.tsx). Màn Nhãn là chỗ thấy rõ nhất — rỗng thì cả trang
+        // trống trơn, chỉ còn đúng một câu này.
         <p className="py-10 text-center text-sm text-fg-muted">
-          Chưa có nhãn nào.
+          Chưa có nhãn nào. Đặt tên nhãn ở trên rồi bấm Thêm — nhãn để gom giao dịch theo
+          chuyến đi, theo người, theo dự án.
         </p>
       ) : (
         <>

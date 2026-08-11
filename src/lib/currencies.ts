@@ -18,7 +18,8 @@ export const CURRENCIES: Record<
     decimals: number
     label: string
     position: 'prefix' | 'suffix'
-    /** Dấu phân cách hàng nghìn (JPY dùng ',' theo chuẩn Nhật; VND/USD dùng '.') */
+    /** Dấu phân cách hàng nghìn — theo quy ước của CHÍNH đồng tiền đó, không theo
+     *  ngôn ngữ app: JPY ',' (chuẩn Nhật), VND '.' (chuẩn Việt), USD ',' (chuẩn Mỹ). */
     group: string
     /** Dấu thập phân (chỉ dùng khi decimals > 0) */
     decimal: string
@@ -26,7 +27,13 @@ export const CURRENCIES: Record<
 > = {
   JPY: { symbol: '¥', decimals: 0, label: 'Yên Nhật', position: 'prefix', group: ',', decimal: '.' },
   VND: { symbol: '₫', decimals: 0, label: 'Đồng Việt Nam', position: 'suffix', group: '.', decimal: ',' },
-  USD: { symbol: '$', decimals: 2, label: 'Đô la Mỹ', position: 'prefix', group: '.', decimal: ',' },
+  // USD theo chuẩn Mỹ ($2,000.00), đổi 2026-08-11. Trước đây là group '.' / decimal ','
+  // kiểu Việt ($2.000,00) — mà màn Tài khoản hiện "¥1,187,910 · $2.000,00" cạnh nhau,
+  // tức dấu ',' vừa là hàng nghìn (JPY) vừa là thập phân (USD) trong CÙNG một danh sách:
+  // $2.000,00 rất dễ đọc thành hai nghìn hoặc hai triệu. Việc đổi này chỉ ảnh hưởng
+  // HIỂN THỊ — parseAmountToMinor (nhập CSV) đoán dấu thập phân bằng heuristic "dấu cuối
+  // theo sau 1–2 chữ số" nên đọc được cả hai kiểu, còn parseMoney chỉ giữ chữ số.
+  USD: { symbol: '$', decimals: 2, label: 'Đô la Mỹ', position: 'prefix', group: ',', decimal: '.' },
 }
 
 /**

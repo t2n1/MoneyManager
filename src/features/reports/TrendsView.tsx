@@ -189,7 +189,7 @@ export function TrendsView() {
           <>
             <div className="h-52 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                <LineChart data={chartData} margin={{ top: 8, right: 14, left: -8, bottom: 0 }}>
                   <XAxis
                     dataKey="label"
                     tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}

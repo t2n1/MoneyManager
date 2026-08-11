@@ -146,15 +146,21 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
               aria-label="Có chuyển tiền thật"
               disabled={!canRecordReal}
               onClick={() => setWithTransaction((v) => !v)}
-              className={`relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-40 ${
-                realOn ? 'bg-green-700' : 'bg-gray-300'
-              }`}
+              // Vùng chạm 44×44 ở nút, đường ray 24×44 ở <span> trong: ray đặt thẳng lên
+              // nút thì chỉ cao 24px. Cùng khuôn với các công tắc khác trong app.
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center disabled:opacity-40"
             >
               <span
-                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
-                  realOn ? 'left-[22px]' : 'left-0.5'
+                className={`relative block h-6 w-11 rounded-full transition ${
+                  realOn ? 'bg-green-700' : 'bg-gray-300'
                 }`}
-              />
+              >
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                    realOn ? 'left-[22px]' : 'left-0.5'
+                  }`}
+                />
+              </span>
             </button>
           </label>
 

@@ -3,11 +3,17 @@
 // Ranh giới quan trọng, vì nó quyết định cái gì được bọc: bọc `Guide` khi bỏ đoạn chữ
 // đó đi mà người dùng VẪN thấy được tình trạng và vẫn nhập đúng được. Cụ thể:
 //
-//   BỌC   — cách tính, ý nghĩa của con số, mẹo dùng, ghi chú "vì sao lại thế", lời dẫn
-//           trong trạng thái rỗng, gợi ý quy ước nhập liệu đã thuộc lòng.
+//   BỌC   — cách tính, ý nghĩa của con số, mẹo dùng, ghi chú "vì sao lại thế", phần DẠY
+//           dài trong trạng thái rỗng, gợi ý quy ước nhập liệu đã thuộc lòng.
 //   ĐỪNG  — nhãn của ô nhập, câu báo lỗi, câu xác nhận trước khi xoá, đơn vị tiền,
 //           cảnh báo dữ liệu sai (tỷ giá cũ, số không khớp). Mất mấy thứ này là mất
 //           chức năng hoặc dẫn tới ghi sai, không phải "gọn hơn".
+//
+// NGOẠI LỆ của trạng thái rỗng (sửa 2026-08-11): một câu CHỈ ĐƯỜNG ngắn — "bấm gì để bắt
+// đầu" — phải NẰM NGOÀI Guide. Lý do: mặc định của app là Gọn (DEFAULT_DENSITY = 'visual'),
+// nên người dùng mới rơi đúng vào chế độ ẩn; mà ở màn rỗng thì đoạn chữ ấy KHÔNG phải chữ
+// phụ, nó là thứ duy nhất trên màn hình. Bọc lại là màn Nhãn / Sắp chi / Định kỳ chỉ còn
+// đúng "Chưa có … nào." giữa một trang trắng. Phần dạy dài phía sau vẫn bọc như thường.
 //
 // Mặc định render <p>. Đổi bằng `as` cho những chỗ đoạn chữ nằm trong <li>, <span>…
 //

@@ -338,7 +338,7 @@ export function InvestPage() {
       {/* Chọn tài khoản trước khi ghi lệnh — chỉ hiện khi có từ hai tài khoản. */}
       {picking && (
         <div
-          className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 lg:items-center"
+          className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center"
           onClick={() => setPicking(false)}
         >
           <div

@@ -9,11 +9,14 @@ import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 
 const VARIANT = {
-  // Trên thẻ gradient xanh đậm — track tối, nút chọn nổi trắng
+  // Trên thẻ gradient xanh đậm — track tối, nút chọn nổi trắng.
+  // `idle` KHÔNG được thêm alpha (từng là text-green-50/90): trên nền gradient
+  // green-700 thì green-50 đủ 4,72:1, nhưng hạ xuống /90 là còn 4,14:1 và /80 còn
+  // 3,58:1 — trượt AA. Muốn nhạt hơn thì đổi sắc độ, đừng đổi độ mờ.
   onGreen: {
     track: 'bg-black/20',
     active: 'bg-white text-green-800 shadow-sm',
-    idle: 'text-green-50/90 hover:text-white',
+    idle: 'text-green-50 hover:text-white',
   },
   // Trên nền trang — cùng bảng màu với SegmentedControl
   card: {

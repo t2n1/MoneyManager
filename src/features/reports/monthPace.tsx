@@ -339,7 +339,11 @@ export function MonthPaceCharts({ pace }: { pace: MonthPace }) {
           </h2>
           <div className="h-52 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={cashflowData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+              {/* right: 14 chứ không 8 — điểm cuối của LineChart nằm ĐÚNG mép phải vùng vẽ,
+                  nhãn trục x canh giữa theo nó, nên nửa nhãn ("8/31" rộng ~22px) tràn ra
+                  ngoài svg và bị cắt. Đo được cắt 3px ở cả hai biểu đồ đường của màn Ngân
+                  sách. Biểu đồ CỘT không bị: cột thụt vào khỏi mép nên nhãn còn chỗ. */}
+              <LineChart data={cashflowData} margin={{ top: 8, right: 14, left: -8, bottom: 0 }}>
                 <XAxis
                   dataKey="label"
                   tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}

@@ -220,9 +220,11 @@ describe('formatRateLine', () => {
     expect(formatRateLine('VND', 'USD', 0.0000379)).toBe('$1 = 26.385 ₫')
   })
 
-  it('USD ở vế giá trị → 2 số lẻ, dấu phẩy thập phân', () => {
+  it('USD ở vế giá trị → 2 số lẻ, dấu CHẤM thập phân (chuẩn Mỹ)', () => {
     // Con số không có thật ngoài đời, ở đây chỉ để soi nhánh decimals = 2
-    expect(formatRateLine('VND', 'USD', 2.5)).toBe('1 ₫ = $2,50')
+    expect(formatRateLine('VND', 'USD', 2.5)).toBe('1 ₫ = $2.50')
+    // Có cả hàng nghìn thì thấy rõ hai dấu khác nhau trong một chuỗi
+    expect(formatRateLine('VND', 'USD', 1234.5)).toBe('1 ₫ = $1,234.50')
   })
 
   it('cùng loại tiền → null (không có gì để nói)', () => {

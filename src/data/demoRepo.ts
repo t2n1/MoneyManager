@@ -2,6 +2,7 @@ import { addMonths, monthKeyForDate, monthKeyString, parseMonthKey, toISODate } 
 import { filterTransactions } from '../features/transactions/filter'
 import { brokerCash, holdingsFromTrades, portfolioValue, sessionPrices, type Trade } from '../features/assets/holdings'
 import { validateBackupPayload } from './backupImport'
+import { DEFAULT_DENSITY, parseDensity } from '../lib/density'
 import type { CurrencyCode } from '../lib/money'
 import type { Rates } from '../lib/rates'
 import type {
@@ -504,6 +505,7 @@ function seed(): DemoDB {
       push_hour: 8,
       push_tz: 'Asia/Tokyo',
       push_last_sent_at: null,
+      density_pref: DEFAULT_DENSITY,
       created_at: nowISO(),
     },
     accounts,
@@ -1934,6 +1936,8 @@ export const demoRepo: Repo = {
         push_hour: data.profile.push_hour ?? 8,
         push_tz: data.profile.push_tz ?? 'Asia/Tokyo',
         push_last_sent_at: data.profile.push_last_sent_at ?? null,
+        // Cột của migration 0040 — bản lưu xuất trước đó không có nó.
+        density_pref: parseDensity(data.profile.density_pref),
       },
       accounts: stamp(data.accounts ?? []),
       categories: stamp(data.categories ?? []),

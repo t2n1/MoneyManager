@@ -175,7 +175,21 @@ Ngoài ra: bỏ emoji khỏi phép đo. Emoji tự mang màu, `color` thừa k�
 
 ## Chế độ trình bày: Gọn / Đầy đủ
 
-Cài đặt → **Cách trình bày**. Lưu ở localStorage (`density`), mặc định **Gọn**. Nguồn: `src/lib/density.ts`, đọc bằng `useDensity()`.
+Cài đặt → **Cách trình bày**. Mặc định **Gọn**.
+
+Nguồn sự thật là **hồ sơ người dùng** (`profiles.density_pref`, migration 0040) — đặt một lần dùng mọi thiết bị. Cố ý khác Sáng/Tối và Cỡ chữ: hai cái đó phụ thuộc THIẾT BỊ (màn hình ngoài trời, chữ to trên điện thoại) nên ở lại localStorage; cách trình bày phụ thuộc NGƯỜI.
+
+`src/lib/density.ts` giữ một **bản sao** ở localStorage. Nó không phải nguồn sự thật, chỉ để (a) vẽ đúng ngay lần sơn đầu, (b) đổi hiện ra tức thì khi bấm, (c) mở offline vẫn đúng chế độ. Ba hook, ba vai:
+
+| Hook | Ai dùng | Việc |
+|---|---|---|
+| `useDensity()` | ~62 chỗ | chỉ ĐỌC bản sao, không chạm React Query |
+| `useDensitySync()` | **một lần** ở AppLayout | bơm hồ sơ → bản sao |
+| `useDensityControl()` | chỉ nút Cài đặt | đọc + ghi hồ sơ, lỗi thì trả bản sao về cũ + toast |
+
+Gộp ba cái thành một thì mỗi chỗ đọc cũng kéo theo một `useQuery(['profile'])` và một `useMutation`. `setMirroredDensity` thoát ngay khi trùng giá trị — không chặn thì mỗi lần hồ sơ refetch là cả cây render lại.
+
+Đo trên app đang chạy: hồ sơ `full` + bản sao `visual` → sau khi tải, bản sao thành `full` và trang Báo cáo về đúng 1.694 ký tự của chế độ Đầy đủ. Chặn lượt ghi hồ sơ cho lỗi → bản sao đổi tức thì rồi trả về cũ, kèm toast.
 
 |  | Gọn (`visual`) | Đầy đủ (`full`) |
 |---|---|---|
@@ -216,6 +230,8 @@ Bộ màu ở `components/ui/statusColors.ts` (trước đây là `features/heal
 - không viết lại sắc độ trạng thái bằng tay ngoài `statusColors.ts` → **0**
 - mỗi `<VerdictNote>` có `short` hoặc `label` → trần **1** (một chỗ cố ý, nằm trong `<FullOnly>`)
 - văn xuôi trong `<p class="…fg-muted…">` → trần **49**
+
+Thêm `tests/backupCompleteness.test.ts`: mọi cột của `ProfileRow` phải được đường KHÔI PHỤC nhắc tới. `exportAll` dùng `select('*')` nên cột mới tự vào bản lưu, nhưng `importAll` liệt kê từng cột — bỏ sót thì khôi phục âm thầm trả cột đó về default. Đúng lỗi đã xảy ra với `density_pref`.
 
 Trần 49 **không** phải nợ cần dọn hết: đã xét từng chỗ, phần lớn là thứ phải ở lại theo bảng ranh giới trên.
 

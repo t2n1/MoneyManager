@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_DENSITY,
-  getDensity,
+  getMirroredDensity,
   parseDensity,
   resetDensityCache,
-  setDensity,
+  setMirroredDensity,
   subscribeDensity,
 } from './density'
 
@@ -54,51 +54,52 @@ describe('parseDensity', () => {
     expect(parseDensity('compact')).toBe(DEFAULT_DENSITY)
   })
 
-  it('mặc định là Gọn — đây là quyết định sản phẩm, không phải giá trị tuỳ ý', () => {
+  it('mặc định là Gọn — phải KHỚP `default \'visual\'` của cột ở migration 0040', () => {
+    // Lệch nhau thì người dùng mới thấy app nhảy chế độ ngay khi hồ sơ về.
     expect(DEFAULT_DENSITY).toBe('visual')
   })
 })
 
-describe('getDensity', () => {
-  it('đọc giá trị đã lưu', () => {
+describe('getMirroredDensity', () => {
+  it('đọc bản sao đã lưu ở máy', () => {
     useStorage(fakeStorage({ density: 'full' }))
-    expect(getDensity()).toBe('full')
+    expect(getMirroredDensity()).toBe('full')
   })
 
   it('chưa lưu gì thì ra mặc định', () => {
     useStorage(fakeStorage())
-    expect(getDensity()).toBe('visual')
+    expect(getMirroredDensity()).toBe('visual')
   })
 
   it('không có localStorage cũng không nổ (Safari riêng tư)', () => {
     useStorage(undefined)
-    expect(getDensity()).toBe(DEFAULT_DENSITY)
+    expect(getMirroredDensity()).toBe(DEFAULT_DENSITY)
   })
 
   it('chỉ đọc localStorage MỘT lần rồi nhớ lại', () => {
     const s = fakeStorage({ density: 'full' })
     const spy = vi.spyOn(s, 'getItem')
     useStorage(s)
-    getDensity()
-    getDensity()
-    getDensity()
+    getMirroredDensity()
+    getMirroredDensity()
+    getMirroredDensity()
     expect(spy).toHaveBeenCalledTimes(1)
   })
 })
 
-describe('setDensity', () => {
+describe('setMirroredDensity', () => {
   it('ghi vào localStorage và đổi giá trị đọc ra', () => {
     const s = fakeStorage()
     useStorage(s)
-    setDensity('full')
+    setMirroredDensity('full')
     expect(s.getItem('density')).toBe('full')
-    expect(getDensity()).toBe('full')
+    expect(getMirroredDensity()).toBe('full')
   })
 
   it('không có localStorage thì vẫn đổi được trong phiên', () => {
     useStorage(undefined)
-    setDensity('full')
-    expect(getDensity()).toBe('full')
+    setMirroredDensity('full')
+    expect(getMirroredDensity()).toBe('full')
   })
 
   it('gọi mọi người đang nghe', () => {
@@ -107,29 +108,49 @@ describe('setDensity', () => {
     const b = vi.fn()
     subscribeDensity(a)
     const offB = subscribeDensity(b)
-    setDensity('full')
+    setMirroredDensity('full')
     expect(a).toHaveBeenCalledTimes(1)
     expect(b).toHaveBeenCalledTimes(1)
     offB()
-    setDensity('visual')
+    setMirroredDensity('visual')
     expect(a).toHaveBeenCalledTimes(2)
     expect(b).toHaveBeenCalledTimes(1)
+  })
+
+  it('TRÙNG giá trị thì không ghi, không gọi ai', () => {
+    // Đây là đường đi thật, không phải ca giả: `useDensitySync` bơm giá trị từ hồ sơ mỗi
+    // lần query đổi tham chiếu, mà giá trị thường y hệt. Không chặn ở đây thì mỗi lần
+    // hồ sơ được refetch là cả cây render lại. Bỏ dòng chặn trong setMirroredDensity là
+    // test này đỏ.
+    const s = fakeStorage({ density: 'full' })
+    useStorage(s)
+    expect(getMirroredDensity()).toBe('full')
+    const spy = vi.spyOn(s, 'setItem')
+    const nghe = vi.fn()
+    subscribeDensity(nghe)
+    setMirroredDensity('full')
+    setMirroredDensity('full')
+    expect(spy).not.toHaveBeenCalled()
+    expect(nghe).not.toHaveBeenCalled()
+    // Đổi thật thì vẫn phải chạy
+    setMirroredDensity('visual')
+    expect(nghe).toHaveBeenCalledTimes(1)
   })
 
   it('người nghe ĐĂNG KÝ THÊM trong lượt gọi thì người mới đợi lượt sau', () => {
     // Hình dạng lỗi thật: một component ẩn/hiện vì chính lần đổi này, và cái vừa hiện
     // ra lại đăng ký nghe. Lặp trực tiếp trên Set thì phần tử mới thêm VÀO GIỮA lượt
     // lặp cũng bị đi qua — nếu nó lại đăng ký thêm nữa thì vòng lặp không bao giờ
-    // dừng. Bỏ phép chép mảng trong setDensity là test này đỏ (moi → 1 lần gọi).
+    // dừng. Bỏ phép chép mảng trong setMirroredDensity là test này đỏ.
     useStorage(fakeStorage())
     const moi = vi.fn()
     subscribeDensity(() => {
       subscribeDensity(moi)
     })
-    setDensity('full')
+    setMirroredDensity('full')
     expect(moi).not.toHaveBeenCalled()
     // Lượt sau thì người mới mới được gọi (và chỉ một lần, dù người kia đăng ký thêm nữa)
-    setDensity('visual')
+    setMirroredDensity('visual')
     expect(moi).toHaveBeenCalledTimes(1)
   })
 })

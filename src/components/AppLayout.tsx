@@ -10,6 +10,7 @@ import {
   useRunRecurringCatchUp,
 } from '../hooks/queries'
 import { usePrivacyMode } from '../lib/privacy'
+import { useDensitySync } from '../hooks/useDensity'
 import { runUndo, useUndoToast } from '../lib/undoToast'
 import { DialogHost } from '../lib/dialog'
 import { PrivacyToggle } from './PrivacyToggle'
@@ -63,6 +64,10 @@ export function AppLayout() {
   // Đăng ký chế độ riêng tư ở gốc cây: bật/tắt sẽ re-render toàn bộ trang con
   // (formatMoney là hàm thuần nên component hiển thị tiền cần được render lại).
   const privacyOn = usePrivacyMode()
+  // Bơm "Cách trình bày" từ hồ sơ vào bản sao ở máy. Ở ĐÂY và chỉ ở đây: hook đọc chế
+  // độ có ở hàng chục component, để effect trong đó thì mỗi lần hồ sơ đổi tham chiếu là
+  // hàng chục lần đồng bộ cho cùng một giá trị. Xem src/hooks/useDensity.ts.
+  useDensitySync()
   const undoToast = useUndoToast()
   // Email cho chân sidebar desktop (demo thì không có phiên → hiện chú thích demo)
   const { session } = useAuth()

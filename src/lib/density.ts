@@ -5,31 +5,47 @@
 //            (thanh mức, chấm trạng thái, đồng hồ) nói ra tình trạng.
 //   full   — như trước: có câu kết luận đầy đủ và khối "Cách tính & nên làm gì".
 //
-// MẶC ĐỊNH là 'visual': app này một người dùng, và người đó đã đọc hết hướng dẫn rồi.
-// Ai cần đọc lại thì bật Đầy đủ trong Cài đặt → Cách trình bày.
+// ---- Nguồn sự thật: HỒ SƠ, không phải máy này -------------------------------------
 //
-// Lưu ở localStorage (không phải hồ sơ người dùng) vì đây là ý thích khi NHÌN, giống
-// Cỡ chữ và Sáng/Tối: cùng một người có thể muốn máy tính hiện đầy đủ mà điện thoại
-// hiện gọn.
+// Lựa chọn nằm ở `profiles.density_pref` (migration 0040), tức đi theo NGƯỜI, đặt một
+// lần dùng mọi thiết bị. Cố ý khác Sáng/Tối và Cỡ chữ — hai cái đó phụ thuộc THIẾT BỊ
+// (màn hình ngoài trời, chữ to trên điện thoại) nên ở lại localStorage.
+//
+// File này giữ một BẢN SAO ở localStorage. Nó KHÔNG phải nguồn sự thật, chỉ để:
+//
+//   1. vẽ đúng ngay lần sơn đầu — hồ sơ tải bất đồng bộ, không có bản sao thì mọi màn
+//      nháy qua chế độ mặc định rồi mới đổi;
+//   2. đổi chế độ hiện ra TỨC THÌ khi bấm, không đợi vòng mạng;
+//   3. mở app offline vẫn đúng chế độ.
+//
+// Đường đi: hồ sơ về → ghi vào bản sao (useDensitySync, gọi một lần ở AppLayout) →
+// mọi component đọc bản sao. Bấm đổi thì ghi bản sao trước rồi mới gửi lên hồ sơ; gửi
+// lỗi thì trả bản sao về giá trị cũ (useDensityControl), không để màn hình nói một
+// đằng mà dữ liệu một nẻo.
 //
 // Vì sao là store tự viết (subscribe/notify) chứ không phải React context: chữ cần ẩn
-// nằm rải khắp ~45 file, nhiều chỗ sâu trong cây và vài chỗ render ngoài <App/> (sheet
-// trượt lên). Context thì phải bọc provider rồi truyền qua mọi ranh giới lazy; store
-// ngoài React thì file nào cần chỉ việc gọi hook, và `getDensity()` còn đọc được từ
-// code thuần (không phải component) nếu sau này cần.
+// nằm rải khắp ~45 file, nhiều chỗ sâu trong cây. Context thì phải bọc provider rồi
+// truyền qua mọi ranh giới lazy; store ngoài React thì file nào cần chỉ việc gọi hook.
 
 export type DensityPref = 'visual' | 'full'
 
 const STORAGE_KEY = 'density'
 
+/** Phải KHỚP `default 'visual'` của cột ở migration 0040 — lệch nhau thì người dùng
+ *  mới thấy app nhảy chế độ ngay khi hồ sơ về. */
 export const DEFAULT_DENSITY: DensityPref = 'visual'
 
-/** Đọc giá trị đã lưu; rác hoặc chưa có thì về mặc định. Tách riêng để test được. */
+/**
+ * Đọc một giá trị bất kỳ về một trong hai chế độ.
+ *
+ * Dùng cho CẢ bản sao ở máy và cột `density_pref` từ DB: cột là `text` nên kiểu của nó
+ * rộng hơn ràng buộc thật, và một bản ghi cũ/lạ không được phép làm trắng màn hình.
+ */
 export function parseDensity(raw: string | null | undefined): DensityPref {
   return raw === 'visual' || raw === 'full' ? raw : DEFAULT_DENSITY
 }
 
-function readStored(): DensityPref {
+function readMirror(): DensityPref {
   try {
     return parseDensity(localStorage.getItem(STORAGE_KEY))
   } catch {
@@ -43,12 +59,21 @@ function readStored(): DensityPref {
 let current: DensityPref | null = null
 const listeners = new Set<() => void>()
 
-export function getDensity(): DensityPref {
-  if (current === null) current = readStored()
+/** Chế độ đang áp dụng, đọc từ bản sao ở máy. */
+export function getMirroredDensity(): DensityPref {
+  if (current === null) current = readMirror()
   return current
 }
 
-export function setDensity(next: DensityPref) {
+/**
+ * Ghi bản sao ở máy rồi báo cho mọi component đang nghe.
+ *
+ * TRÙNG GIÁ TRỊ THÌ THOÁT NGAY, và đó không phải tối ưu cho vui: `useDensitySync` chạy
+ * mỗi lần hồ sơ đổi tham chiếu, còn hook đọc thì có ở hàng chục component. Không chặn
+ * ở đây thì một lần đồng bộ vô nghĩa cũng kéo cả cây render lại.
+ */
+export function setMirroredDensity(next: DensityPref) {
+  if (getMirroredDensity() === next) return
   current = next
   try {
     localStorage.setItem(STORAGE_KEY, next)

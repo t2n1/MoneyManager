@@ -48,6 +48,14 @@ export type ProfileRow = {
   push_tz: string
   /** Lần gần nhất đã gửi push; null = chưa gửi lần nào. Chặn gửi hai lần một ngày. */
   push_last_sent_at: string | null
+  /**
+   * Cách trình bày (migration 0040): 'visual' = Gọn, 'full' = Đầy đủ.
+   *
+   * Kiểu ở đây rộng hơn ràng buộc thật (DB có check in ('visual','full')) vì cột là
+   * `text`; app luôn đi qua `parseDensity()` ở src/lib/density.ts để về một trong hai
+   * giá trị, nên giá trị lạ từ DB cũ không làm app trắng màn.
+   */
+  density_pref: string
   created_at: string
 }
 
@@ -579,6 +587,7 @@ export type Database = {
           | 'push_hour'
           | 'push_tz'
           | 'push_last_sent_at'
+          | 'density_pref'
         >
         Update: Partial<
           Pick<
@@ -597,6 +606,7 @@ export type Database = {
             | 'push_hour'
             | 'push_tz'
             | 'push_last_sent_at'
+          | 'density_pref'
           >
         >
         Relationships: []

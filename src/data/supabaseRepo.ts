@@ -2,6 +2,7 @@ import { normalizeText } from '../features/transactions/filter'
 import { addMonths, monthKeyString, parseMonthKey } from '../lib/dates'
 import type { CurrencyCode } from '../lib/money'
 import type { Rates } from '../lib/rates'
+import { parseDensity } from '../lib/density'
 import { getSupabase } from '../lib/supabase'
 import { IMPORT_CHUNK_SIZE, chunk, validateBackupPayload } from './backupImport'
 import { pageOrderFor, type DataTable } from './exportTables'
@@ -1876,6 +1877,10 @@ export const supabaseRepo: Repo = {
             birth_year: data.profile.birth_year ?? null, // 0031 — thiếu là Lifetime ngừng chạy
             push_hour: data.profile.push_hour ?? 8, // 0034
             push_tz: data.profile.push_tz ?? 'Asia/Tokyo', // 0034
+            // 0040. Đi qua parseDensity chứ không lấy trực tiếp: cột là text nên bản lưu
+            // có thể mang giá trị lạ, mà DB có check in ('visual','full') — gửi thẳng lên
+            // là cả lượt khôi phục nổ vì một cột trình bày.
+            density_pref: parseDensity(data.profile.density_pref), // 0040
           })
           .eq('user_id', uid)
       ).error,

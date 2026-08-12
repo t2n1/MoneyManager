@@ -113,3 +113,139 @@ export function parseNavCsv(bytes: Uint8Array, assocFundCd: string): NavParseRes
     },
   }
 }
+
+const CSV_URL = 'https://toushin-lib.fwg.ne.jp/FdsWeb/FDST030000/csv-file-download'
+
+// Ngân sách cho CẢ khối hút giá (mọi quỹ cộng lại), không phải cho một quỹ. Danh bạ dự
+// kiến vài quỹ chứ không phải vài trăm, nhưng edge function có giới hạn wall-clock và
+// nguồn chậm/treo giữa chừng vẫn có thể xảy ra. Hết ngân sách thì DỪNG SẠCH (không gọi
+// thêm quỹ nào) và báo thật đã hút được bao nhiêu, thay vì để cả invocation chết.
+const FETCH_BUDGET_MS = 60_000
+
+// Không giả dạng bot: nhiều hạ tầng chặn thẳng User-Agent tự xưng bot. Cùng lý do với
+// stock-refresh/prices.ts.
+const BROWSER_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+
+/** Một quỹ trong danh bạ. Cần CẢ hai mã mới gọi được — xem bẫy ②. */
+export interface FundRef {
+  assocFundCd: string
+  isinCd: string
+}
+
+export interface NavFetchResult {
+  rows: NavUpsert[]
+  /**
+   * assocFundCd → kết quả, để `index.ts` ghi vào `funds.last_status`. Quỹ CHƯA KỊP GỌI
+   * (hết ngân sách) cố ý KHÔNG có mặt: đánh dấu 'ma-sai' cho nó là vu oan, và lượt sau
+   * nó được gọi trước nhờ buildFundFetchOrder.
+   */
+  trangThai: Map<string, 'ok' | 'ma-sai' | 'loi-mang'>
+  /** Lỗi của TỪNG quỹ — quỹ khác vẫn có mặt trong `rows`, không mất theo. */
+  errors: string[]
+  /** true nếu dừng giữa chừng vì hết FETCH_BUDGET_MS — KHÁC "một quỹ bị lỗi". */
+  hetNganSach: boolean
+}
+
+/**
+ * Thứ tự hút: quỹ ĐANG giữ trước, phần còn lại của danh bạ sau.
+ *
+ * Mỗi quỹ là một cuộc gọi riêng (endpoint không nhận nhiều quỹ một lần), nên hết ngân
+ * sách giữa chừng thì quỹ gọi SAU là quỹ thiếu giá. Quỹ người dùng thực sự đang giữ mới
+ * là quỹ cần có giá hôm nay — không để nó may rủi theo thứ tự danh bạ.
+ *
+ * Mã giữ mà KHÔNG có trong danh bạ thì bỏ qua: khác cổ phiếu (Yahoo tự bỏ qua mã lạ nên
+ * hút thử vẫn rẻ), ở đây không có ISIN thì không gọi được gì cả. FK của `fund_trades` đã
+ * chặn ca này ở DB, nhưng hàm vẫn không được nổ nếu nó xảy ra.
+ */
+export function buildFundFetchOrder(held: string[], all: FundRef[]): FundRef[] {
+  const theoMa = new Map(all.map((f) => [f.assocFundCd, f]))
+  const truoc: FundRef[] = []
+  const daXep = new Set<string>()
+  for (const ma of held) {
+    const f = theoMa.get(ma)
+    if (f && !daXep.has(ma)) {
+      daXep.add(ma)
+      truoc.push(f)
+    }
+  }
+  return [...truoc, ...all.filter((f) => !daXep.has(f.assocFundCd))]
+}
+
+/** Tuỳ chọn cho fetchFundNavs — chỉ để test (đồng hồ giả, fetch giả, ngân sách giả). */
+interface FetchNavOptions {
+  /** Mặc định FETCH_BUDGET_MS (60s). */
+  budgetMs?: number
+  /** Mặc định Date.now — tiêm vào để canh mốc thời gian mà không sleep thật. */
+  now?: () => number
+  /** Mặc định fetch toàn cục. */
+  fetchImpl?: typeof fetch
+}
+
+/**
+ * Gọi CSV cho từng quỹ trong danh sách, theo đúng thứ tự đã truyền vào (dùng
+ * `buildFundFetchOrder` để dựng thứ tự đó). Một quỹ lỗi bị bắt riêng và góp vào `errors`;
+ * không throw làm mất luôn những quỹ đã hút được.
+ *
+ * Đọc `arrayBuffer()` chứ KHÔNG `text()`: file là Shift-JIS trong khi server khai UTF-8 —
+ * xem bẫy ① ở đầu file. Việc giải mã nằm trong parseNavCsv.
+ *
+ * Ngân sách chỉ được KIỂM kể từ quỹ THỨ HAI trở đi (`i > 0`), không phải trước quỹ đầu:
+ * quỹ đầu luôn được thử dù ngân sách eo hẹp tới đâu, vì chưa có cuộc gọi nào đang chạy để
+ * "dừng sạch trước nó" — dừng sạch chỉ có nghĩa khi đã có ít nhất một quỹ xong. Nếu kiểm
+ * trước CẢ quỹ đầu, một đồng hồ giả nhảy nhanh hơn ngân sách (xem bài test) sẽ chặn luôn
+ * quỹ đầu — sai với "quỹ đầu gọi được, quỹ thứ hai thì hết giờ".
+ */
+export async function fetchFundNavs(
+  funds: FundRef[],
+  opts: FetchNavOptions = {},
+): Promise<NavFetchResult> {
+  const budgetMs = opts.budgetMs ?? FETCH_BUDGET_MS
+  const now = opts.now ?? Date.now
+  const goi = opts.fetchImpl ?? fetch
+
+  const rows: NavUpsert[] = []
+  const trangThai = new Map<string, 'ok' | 'ma-sai' | 'loi-mang'>()
+  const errors: string[] = []
+  const start = now()
+  let hetNganSach = false
+  let soQuyDaGoi = 0
+
+  for (let i = 0; i < funds.length; i++) {
+    if (i > 0 && now() - start >= budgetMs) {
+      hetNganSach = true
+      break
+    }
+    const f = funds[i]
+
+    // Cả hai tham số, luôn luôn. Thiếu một cái thì server trả 200 kèm 19 byte JSON và
+    // parseNavCsv sẽ báo 'ma-sai' — đúng nhưng đi sai hướng debug.
+    const url =
+      `${CSV_URL}?isinCd=${encodeURIComponent(f.isinCd)}` +
+      `&associFundCd=${encodeURIComponent(f.assocFundCd)}`
+    try {
+      const res = await goi(url, { headers: { 'User-Agent': BROWSER_UA } })
+      if (!res.ok) throw new Error(`toushin: HTTP ${res.status} (${f.assocFundCd})`)
+      const kq = parseNavCsv(new Uint8Array(await res.arrayBuffer()), f.assocFundCd)
+      if (kq.ok) {
+        rows.push(kq.row)
+        trangThai.set(f.assocFundCd, 'ok')
+      } else {
+        trangThai.set(f.assocFundCd, 'ma-sai')
+        errors.push(`${f.assocFundCd}: ${kq.loi}`)
+      }
+    } catch (err) {
+      trangThai.set(f.assocFundCd, 'loi-mang')
+      errors.push(`${f.assocFundCd}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+    soQuyDaGoi++
+  }
+
+  if (hetNganSach) {
+    errors.push(
+      `hết ngân sách thời gian hút giá sau ${soQuyDaGoi}/${funds.length} quỹ (đã hút ${rows.length} quỹ)`,
+    )
+  }
+
+  return { rows, trangThai, errors, hetNganSach }
+}

@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { parseNavCsv } from './navs'
+import { buildFundFetchOrder, fetchFundNavs, parseNavCsv } from './navs'
 
 // fileURLToPath, không phải `.pathname`: đường dẫn dự án có dấu cách ("Money Manager").
 const HERE = fileURLToPath(new URL('.', import.meta.url))
@@ -121,6 +121,179 @@ describe('parseNavCsv', () => {
     if (!kq.ok) throw new Error('đáng lẽ đọc được')
     expect(kq.row.nav).toBe(20_053)
     expect(kq.row.net_assets_m).toBeNull()
+  })
+
+  it('dòng hỏng nằm GIỮA: nav lấy dòng hợp lệ cuối, prior_nav lấy dòng hợp lệ kế cuối', () => {
+    // Khác bài "bỏ dòng có nav không phải số dương" ở trên: ở đó dòng hỏng nằm cuối nên
+    // chỉ cần bỏ qua là xong. Ở đây dòng hỏng chen GIỮA hai dòng tốt — nếu code lấy
+    // `dong[n-2]` thay vì "dòng HỢP LỆ kế cuối" thì prior_nav sẽ là số của dòng hỏng.
+    const csv = sjis(
+      '年月日,基準価額(円),純資産総額（百万円）,分配金,決算期\r\n' +
+        '2026年08月06日,19940,1167910,,\r\n' +
+        '2026年08月07日,0,1172772,,\r\n' +
+        '2026年08月10日,20053,1175583,,\r\n',
+    )
+    const kq = parseNavCsv(csv, SP500)
+    if (!kq.ok) throw new Error('đáng lẽ đọc được')
+    expect(kq.row.nav).toBe(20_053)
+    expect(kq.row.nav_date).toBe('2026-08-10')
+    expect(kq.row.prior_nav).toBe(19_940)
+  })
+})
+
+describe('buildFundFetchOrder', () => {
+  const A = { assocFundCd: 'A', isinCd: 'JP-A' }
+  const B = { assocFundCd: 'B', isinCd: 'JP-B' }
+  const C = { assocFundCd: 'C', isinCd: 'JP-C' }
+
+  it('quỹ đang giữ xếp TRƯỚC, phần còn lại của danh bạ xếp sau, không trùng', () => {
+    // Vì sao thứ tự quan trọng: mỗi quỹ là một cuộc gọi riêng (endpoint không nhận nhiều
+    // quỹ một lần). Hết ngân sách giữa chừng thì quỹ gọi SAU là quỹ thiếu giá — không thể
+    // để quỹ người dùng thực sự giữ may rủi theo thứ tự danh bạ.
+    expect(buildFundFetchOrder(['C'], [A, B, C])).toEqual([C, A, B])
+  })
+
+  it('không giữ gì → giữ nguyên thứ tự danh bạ', () => {
+    expect(buildFundFetchOrder([], [A, B])).toEqual([A, B])
+  })
+
+  it('giữ một mã KHÔNG có trong danh bạ → bỏ qua, không bịa ISIN', () => {
+    // Khác cổ phiếu (buildFetchOrder vẫn xếp mã lạ lên đầu vì Yahoo tự bỏ qua mã nó không
+    // biết). Ở đây phải có ISIN mới gọi được, nên mã không có trong `funds` là không gọi
+    // được — FK của fund_trades đã chặn ca này, nhưng đừng để hàm tự nổ nếu nó xảy ra.
+    expect(buildFundFetchOrder(['Z'], [A])).toEqual([A])
+  })
+
+  it('mã giữ trùng nhau chỉ xuất hiện một lần', () => {
+    expect(buildFundFetchOrder(['B', 'B'], [A, B])).toEqual([B, A])
+  })
+})
+
+describe('fetchFundNavs', () => {
+  const CSV_OK = (nav: number, ngay: string) =>
+    sjis(`年月日,基準価額(円),純資産総額（百万円）,分配金,決算期\r\n${ngay},${nav},1000,,\r\n`)
+
+  /** fetch giả: trả body theo assocFundCd đọc từ query string. */
+  function fetchGia(
+    theoMa: Record<string, { status?: number; body?: Uint8Array; nem?: string }>,
+  ): typeof fetch {
+    return (async (url: string) => {
+      const ma = new URL(url).searchParams.get('associFundCd') ?? ''
+      const cai = theoMa[ma]
+      if (!cai) throw new Error(`test chưa dựng phản hồi cho ${ma}`)
+      if (cai.nem) throw new Error(cai.nem)
+      return {
+        ok: (cai.status ?? 200) < 400,
+        status: cai.status ?? 200,
+        arrayBuffer: async () => (cai.body ?? new Uint8Array()).buffer,
+      }
+    }) as unknown as typeof fetch
+  }
+
+  it('hút được nhiều quỹ, mỗi quỹ một hàng, trạng thái ok', async () => {
+    const kq = await fetchFundNavs(
+      [
+        { assocFundCd: 'A', isinCd: 'JP-A' },
+        { assocFundCd: 'B', isinCd: 'JP-B' },
+      ],
+      {
+        fetchImpl: fetchGia({
+          A: { body: CSV_OK(20_053, '2026年08月10日') },
+          B: { body: CSV_OK(18_855, '2026年08月10日') },
+        }),
+      },
+    )
+    expect(kq.rows.map((r) => [r.assoc_fund_cd, r.nav])).toEqual([
+      ['A', 20_053],
+      ['B', 18_855],
+    ])
+    expect(kq.trangThai.get('A')).toBe('ok')
+    expect(kq.errors).toEqual([])
+    expect(kq.hetNganSach).toBe(false)
+  })
+
+  it('một quỹ mã sai KHÔNG kéo mất quỹ khác; trạng thái ghi ma-sai', async () => {
+    const kq = await fetchFundNavs(
+      [
+        { assocFundCd: 'A', isinCd: 'JP-A' },
+        { assocFundCd: 'B', isinCd: 'JP-B' },
+      ],
+      {
+        fetchImpl: fetchGia({
+          A: { body: new TextEncoder().encode('{"statusCode":null}') },
+          B: { body: CSV_OK(18_855, '2026年08月10日') },
+        }),
+      },
+    )
+    expect(kq.rows.map((r) => r.assoc_fund_cd)).toEqual(['B'])
+    expect(kq.trangThai.get('A')).toBe('ma-sai')
+    expect(kq.trangThai.get('B')).toBe('ok')
+    expect(kq.errors.join(' ')).toContain('A')
+  })
+
+  it('HTTP 500 → loi-mang, không phải ma-sai', async () => {
+    // Phân biệt được hai chuyện: mã sai thì sửa mã, mạng lỗi thì đợi lượt sau.
+    const kq = await fetchFundNavs([{ assocFundCd: 'A', isinCd: 'JP-A' }], {
+      fetchImpl: fetchGia({ A: { status: 500, body: new Uint8Array() } }),
+    })
+    expect(kq.rows).toEqual([])
+    expect(kq.trangThai.get('A')).toBe('loi-mang')
+    expect(kq.errors.join(' ')).toContain('HTTP 500')
+  })
+
+  it('fetch ném lỗi (mạng đứt) → loi-mang, cả lượt không chết', async () => {
+    const kq = await fetchFundNavs(
+      [
+        { assocFundCd: 'A', isinCd: 'JP-A' },
+        { assocFundCd: 'B', isinCd: 'JP-B' },
+      ],
+      {
+        fetchImpl: fetchGia({
+          A: { nem: 'mang dut' },
+          B: { body: CSV_OK(18_855, '2026年08月10日') },
+        }),
+      },
+    )
+    expect(kq.trangThai.get('A')).toBe('loi-mang')
+    expect(kq.rows.map((r) => r.assoc_fund_cd)).toEqual(['B'])
+  })
+
+  it('hết ngân sách thời gian → DỪNG SẠCH trước quỹ tiếp theo, báo hetNganSach', async () => {
+    // Đồng hồ giả nhảy 40s mỗi lần đọc: quỹ đầu gọi được, quỹ thứ hai thì hết ngân sách.
+    let t = 0
+    const kq = await fetchFundNavs(
+      [
+        { assocFundCd: 'A', isinCd: 'JP-A' },
+        { assocFundCd: 'B', isinCd: 'JP-B' },
+      ],
+      {
+        budgetMs: 30_000,
+        now: () => (t += 40_000),
+        fetchImpl: fetchGia({ A: { body: CSV_OK(20_053, '2026年08月10日') } }),
+      },
+    )
+    expect(kq.hetNganSach).toBe(true)
+    expect(kq.rows.map((r) => r.assoc_fund_cd)).toEqual(['A'])
+    // Quỹ chưa kịp gọi KHÔNG được ghi trạng thái: 'ma-sai' cho nó là vu oan.
+    expect(kq.trangThai.has('B')).toBe(false)
+    expect(kq.errors.join(' ')).toContain('hết ngân sách')
+  })
+
+  it('URL gọi có ĐỦ hai tham số — thiếu một cái là rơi vào bẫy ②', async () => {
+    const daGoi: string[] = []
+    const ghiLai = (async (url: string) => {
+      daGoi.push(url)
+      return {
+        ok: true,
+        status: 200,
+        arrayBuffer: async () => CSV_OK(1, '2026年08月10日').buffer,
+      }
+    }) as unknown as typeof fetch
+    await fetchFundNavs([{ assocFundCd: '9I31223A', isinCd: 'JP90C000Q2U6' }], {
+      fetchImpl: ghiLai,
+    })
+    expect(daGoi[0]).toContain('isinCd=JP90C000Q2U6')
+    expect(daGoi[0]).toContain('associFundCd=9I31223A')
   })
 })
 

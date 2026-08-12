@@ -349,6 +349,148 @@ describe('validateBackupPayload', () => {
     expect(validateBackupPayload(d)).toEqual([])
   })
 
+  // --- fundTrades (v12): FK (account_id, user_id) + UNIQUE id + CHECK fund_trades_shape ---
+
+  it('lệnh quỹ trỏ tới tài khoản không có trong file', () => {
+    const backup = base()
+    const d = { ...backup }
+    d.fundTrades = [
+      {
+        id: 'ft-1',
+        user_id: 'u',
+        account_id: 'khong-ton-tai',
+        assoc_fund_cd: '9I31223A',
+        kind: 'buy',
+        traded_on: '2026-04-09',
+        units: 28_429,
+        nav: 17_588,
+        amount: 50_000,
+        bucket: '',
+        note: '',
+        created_at: '2026-04-14T00:00:00.000Z',
+        updated_at: '2026-04-14T00:00:00.000Z',
+      },
+    ] as unknown as BackupData['fundTrades']
+    expect(validateBackupPayload(d).join(' ')).toMatch(/quỹ trỏ tới tài khoản/)
+  })
+
+  it('id trùng nhau trong sổ lệnh quỹ', () => {
+    const backup = base()
+    const row = {
+      id: 'ft-trung',
+      user_id: 'u',
+      account_id: backup.accounts[0].id,
+      assoc_fund_cd: '9I31223A',
+      kind: 'buy',
+      traded_on: '2026-04-09',
+      units: 100,
+      nav: 17_588,
+      amount: 1_000,
+      bucket: '',
+      note: '',
+      created_at: '2026-04-14T00:00:00.000Z',
+      updated_at: '2026-04-14T00:00:00.000Z',
+    }
+    const d = { ...backup, fundTrades: [row, { ...row }] } as unknown as BackupData
+    expect(validateBackupPayload(d).join(' ')).toMatch(/trùng/i)
+  })
+
+  it('lệnh mua quỹ thiếu số tiền -> vi phạm shape CHECK', () => {
+    // CHECK fund_trades_shape sẽ nổ 23514 lúc chèn — tức là SAU khi importAll đã xoá hết
+    // dữ liệu cũ. Soát ở đây là chặn mất dữ liệu, không phải làm đẹp thông báo.
+    const backup = base()
+    const d = { ...backup }
+    d.fundTrades = [
+      {
+        id: 'ft-2',
+        user_id: 'u',
+        account_id: backup.accounts[0].id,
+        assoc_fund_cd: '9I31223A',
+        kind: 'buy',
+        traded_on: '2026-04-09',
+        units: 100,
+        nav: 17_588,
+        amount: 0,
+        bucket: '',
+        note: '',
+        created_at: '2026-04-14T00:00:00.000Z',
+        updated_at: '2026-04-14T00:00:00.000Z',
+      },
+    ] as unknown as BackupData['fundTrades']
+    expect(validateBackupPayload(d).join(' ')).toMatch(/số tiền dương/)
+  })
+
+  it('lệnh điều chỉnh quỹ có 基準価額 khác 0 -> vi phạm shape CHECK', () => {
+    const backup = base()
+    const d = { ...backup }
+    d.fundTrades = [
+      {
+        id: 'ft-3',
+        user_id: 'u',
+        account_id: backup.accounts[0].id,
+        assoc_fund_cd: '9I31223A',
+        kind: 'adjust',
+        traded_on: '2026-05-01',
+        units: 1_000,
+        nav: 17_588,
+        amount: 0,
+        bucket: '',
+        note: '',
+        created_at: '2026-05-01T00:00:00.000Z',
+        updated_at: '2026-05-01T00:00:00.000Z',
+      },
+    ] as unknown as BackupData['fundTrades']
+    expect(validateBackupPayload(d).join(' ')).toMatch(/không được có 基準価額|không được có giá/)
+  })
+
+  it('sổ lệnh quỹ hợp lệ -> không vấn đề gì', () => {
+    const backup = base()
+    const d = { ...backup }
+    d.fundTrades = [
+      {
+        id: 'ft-4',
+        user_id: 'u',
+        account_id: backup.accounts[0].id,
+        assoc_fund_cd: '9I31223A',
+        kind: 'buy',
+        traded_on: '2026-04-09',
+        units: 28_429,
+        nav: 17_588,
+        amount: 50_000,
+        bucket: 'NISAつみたて投資枠',
+        note: '',
+        created_at: '2026-04-14T00:00:00.000Z',
+        updated_at: '2026-04-14T00:00:00.000Z',
+      },
+      {
+        id: 'ft-5',
+        user_id: 'u',
+        account_id: backup.accounts[0].id,
+        assoc_fund_cd: '9I31223A',
+        kind: 'adjust',
+        traded_on: '2026-05-01',
+        units: -100,
+        nav: 0,
+        amount: 0,
+        bucket: '',
+        note: 'Chia lại口数',
+        created_at: '2026-05-01T00:00:00.000Z',
+        updated_at: '2026-05-01T00:00:00.000Z',
+      },
+    ] as unknown as BackupData['fundTrades']
+    expect(validateBackupPayload(d)).toEqual([])
+  })
+
+  it('bản lưu v11 (chưa có fundTrades) vẫn nhập được, sổ lệnh quỹ rỗng', async () => {
+    // Cùng khuôn bài `version: 6, stockTrades: undefined` ở dòng ~411: bản lưu cũ hơn một
+    // migration thì thiếu hẳn trường, và khôi phục phải chạy bình thường.
+    const backup = base()
+    const cu = { ...backup, version: 11, fundTrades: undefined }
+    expect(validateBackupPayload(cu as unknown as BackupData)).toEqual([])
+    await demoRepo.importAll(cu as unknown as BackupData)
+    expect(await demoRepo.getFundTrades()).toEqual([])
+  })
+
   it('gom lỗi cùng loại lại, không in ra 14.000 dòng', () => {
     const d = base()
     d.transactions = Array.from({ length: 300 }, (_, i) => ({

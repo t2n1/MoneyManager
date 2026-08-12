@@ -76,8 +76,12 @@ Lãi = 80.757 − 70.000 = **+10.757 ¥**. Tỷ lệ 10.757/70.000 = 15,367%.
 **Files:**
 - Create: `supabase/migrations/0045_fund_prices_trades.sql`
 - Modify: `supabase/migrations/0035_stock_prices_trades.sql:18-21` (sửa comment "bảng DUY NHẤT")
-- Modify: `supabase/setup_all.sql` (nối migration mới vào cuối)
 - Test: `tests/fundSeed.test.ts`
+
+> **Đã sửa 2026-08-12:** bản đầu của task này còn một bước "nối 0045 vào `supabase/setup_all.sql`".
+> Bỏ đi: file đó chỉ được duy trì tới migration **0024** trong khi thực tế đã tới 0045, tức nó
+> đã ngừng được cập nhật từ lâu. Nối một migration lẻ vào đó không làm nó đúng trở lại, chỉ tạo
+> ảo giác là nó còn dùng được.
 
 **Interfaces:**
 - Consumes: bảng `accounts (id, user_id)` đã có composite unique (migration cũ).
@@ -170,13 +174,25 @@ describe('migration 0045 — seed quỹ Nhật', () => {
     expect(sql).toContain('fund_trades_shape')
   })
 
+  // Thứ tự trong biểu thức là chỗ dễ sai và sai thì KHÔNG AI BIẾT. Cú pháp Postgres là
+  // `create policy "x" on public.T for all ...` — tên bảng đứng TRƯỚC `for all`. Bản đầu
+  // của bài test này viết ngược (`for all` rồi mới tới `on public.T`) nên nó luôn xanh, kể
+  // cả khi có policy ghi thật: một chốt canh an ninh vô dụng mà trông như đang canh.
+  const luatGhi = (bang: string) =>
+    new RegExp(`create policy[^;]*on public\\.${bang}[^;]*for all`, 'i')
+
+  it('chốt canh policy ghi tự chứng minh là nó còn bắt được', () => {
+    // Không có bài này thì lần sau ai đó sửa biểu thức thành sai chiều nữa cũng không ai
+    // biết — bài dưới sẽ vẫn xanh.
+    const policyDocHai = `create policy "leaky" on public.funds\n  for all\n  using (true);`
+    expect(luatGhi('funds').test(policyDocHai)).toBe(true)
+  })
+
   it('KHÔNG có bảng nào cho phép user ghi vào bảng giá hay danh bạ', () => {
     // funds / fund_aliases / fund_prices là dữ liệu công khai do service role ghi.
     // Một policy `for all` trên ba bảng đó là mở đường cho user sửa mã quỹ của người khác.
     for (const t of ['funds', 'fund_aliases', 'fund_prices']) {
-      expect(sql, `${t} không được có policy ghi`).not.toMatch(
-        new RegExp(`for all[^;]*on public\\.${t}`),
-      )
+      expect(sql, `${t} không được có policy ghi`).not.toMatch(luatGhi(t))
     }
   })
 })
@@ -206,8 +222,8 @@ Kỳ vọng: FAIL với `ENOENT` — chưa có file migration.
 --   1. 基準価額 niêm yết trên 10.000 口, không phải trên 1 đơn vị. Cột `nav` giữ NGUYÊN
 --      đơn vị đó; chia 10.000 ở đúng một chỗ trong app (fundValue).
 --   2. Giữ CẢ `units` lẫn `amount`: đo thật trên sao kê Rakuten,
---      28.429 × 17.588 ÷ 10.000 = 49.997 trong khi số tiền thật là 50.000. Suy giá vốn
---      từ số lượng × giá là sai vài yên mỗi lệnh.
+--      28.429 × 17.588 ÷ 10.000 = 50.000,93 trong khi số tiền bị trừ là 50.000. Rakuten
+--      tính 口数 TỪ số tiền, nên suy ngược lại là dựng đầu vào từ đầu ra — mất mát.
 --   3. KHÔNG có "tiền chưa đầu tư": Rakuten tự quét sạch tiền dư về 楽天銀行
 --      (自動出金(スイープ)), nên tài khoản không bao giờ giữ tiền nhàn rỗi.
 --
@@ -418,9 +434,7 @@ thành:
 
 Vì sao sửa: để người đọc sau không tin là chỉ có một bảng như vậy rồi đi tìm sai chỗ.
 
-- [ ] **Step 5: Nối vào `supabase/setup_all.sql`**
-
-Mở `supabase/setup_all.sql`, tìm phần cuối (migration mới nhất), và nối **toàn bộ** nội dung `0045_fund_prices_trades.sql` vào cuối, theo đúng cách các migration trước đã được nối (đọc 30 dòng cuối của file để bắt chước dấu phân cách đang dùng).
+- [ ] **Step 5: (đã bỏ — xem ghi chú ở đầu task)**
 
 - [ ] **Step 6: Chạy test để thấy xanh**
 
@@ -428,12 +442,12 @@ Mở `supabase/setup_all.sql`, tìm phần cuối (migration mới nhất), và 
 npx vitest run tests/fundSeed.test.ts
 ```
 
-Kỳ vọng: PASS, 6 bài.
+Kỳ vọng: PASS, 7 bài.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add supabase/migrations/0045_fund_prices_trades.sql supabase/migrations/0035_stock_prices_trades.sql supabase/setup_all.sql tests/fundSeed.test.ts
+git add supabase/migrations/0045_fund_prices_trades.sql supabase/migrations/0035_stock_prices_trades.sql tests/fundSeed.test.ts
 git commit -m "feat(quy-nhat): migration 0045 — bang gia + so lenh quy Nhat, seed 8 quy"
 ```
 
@@ -542,7 +556,7 @@ describe('fundHoldingsFromTrades', () => {
 
   it('giá vốn lấy từ `amount`, KHÔNG suy từ units × nav ÷ 10.000', () => {
     // Lệnh thật trên sao kê Rakuten 2026-04-09: 28.429 口 ở 基準価額 17.588, trừ 50.000 ¥.
-    // 28.429 × 17.588 ÷ 10.000 = 49.997 — lệch 3 yên. `amount` mới là số thật.
+    // 28.429 × 17.588 ÷ 10.000 = 50.000,93 — không bằng 50.000. `amount` mới là số thật.
     const { holdings } = fundHoldingsFromTrades([mua(SP500, 28_429, 17_588, 50_000)])
     expect(holdings).toEqual([
       { assocFundCd: SP500, units: 28_429, costBasis: 50_000, avgNav: 17_589 },
@@ -756,8 +770,9 @@ Kỳ vọng: FAIL — `Failed to resolve import "./fundHoldings"`.
 //    Nam là đồng/cổ, nhân thẳng. Ở đây phải chia NAV_UNITS, và chia ở đúng một chỗ.
 // 2. GIÁ VỐN. Cổ phiếu tính `số cổ × giá + phí`. Quỹ thì lấy thẳng số tiền thật đã trừ,
 //    vì `口数 × 基準価額 ÷ 10.000` KHÔNG bằng số tiền Rakuten trừ: đo trên sao kê thật,
-//    28.429 × 17.588 ÷ 10.000 = 49.997 trong khi số tiền là 50.000. Lệch 3 yên mỗi lệnh,
-//    136 lệnh thì thành sai lệch thấy được.
+//    28.429 × 17.588 ÷ 10.000 = 50.000,93 trong khi số tiền là 50.000. Rakuten tính 口数
+//    TỪ số tiền, nên suy ngược lại là dựng đầu vào từ đầu ra — dưới một yên mỗi lệnh,
+//    nhưng 136 lệnh thì trôi thấy được, và có phí mua thì lệch hẳn.
 // 3. TIỀN MẶT. Không có. Rakuten tự quét sạch tiền dư về 楽天銀行 (自動出金(スイープ)),
 //    nên tài khoản không giữ tiền nhàn rỗi — và tiền vào tài khoản qua thẻ tín dụng/điểm
 //    chứ không qua một lần chuyển khoản mà sổ app có ghi. Mượn `brokerCash` ở đây sẽ ra
@@ -972,7 +987,7 @@ export function fundValue(
 npx vitest run src/features/assets/fundHoldings.test.ts
 ```
 
-Kỳ vọng: PASS, 19 bài. Đặc biệt phải xanh bài `tái tạo ĐÚNG TỪNG YÊN ba con số của app Rakuten` — nếu bài đó đỏ thì **dừng lại**, đừng sửa test cho vừa code.
+Kỳ vọng: PASS, 18 bài. Đặc biệt phải xanh bài `tái tạo ĐÚNG TỪNG YÊN ba con số của app Rakuten` — nếu bài đó đỏ thì **dừng lại**, đừng sửa test cho vừa code.
 
 - [ ] **Step 5: Kiểm lint + biên dịch**
 
@@ -1157,7 +1172,10 @@ describe('parseNavCsv', () => {
     const csv = sjis(
       '年月日,基準価額(円),純資産総額（百万円）,分配金,決算期\r\n' +
         '2026年08月07日,20012,1172772,,\r\n' +
-        'hôm nay,20053,1175583,,\r\n',
+        // Chuỗi "ngày hỏng" phải mã hoá được sang Shift-JIS. Bản đầu dùng 'hôm nay' —
+        // chữ `ô` KHÔNG có trong bảng mã Shift-JIS nên chính hàm sjis() ở cuối file này
+        // không dựng nổi chuỗi đó, và bài test nổ trước khi kịp kiểm cái nó định kiểm.
+        'khong-phai-ngay,20053,1175583,,\r\n',
     )
     const kq = parseNavCsv(csv, SP500)
     if (!kq.ok) throw new Error('đáng lẽ đọc được')
@@ -1337,7 +1355,7 @@ export function parseNavCsv(bytes: Uint8Array, assocFundCd: string): NavParseRes
 npx vitest run supabase/functions/fund-refresh/navs.test.ts
 ```
 
-Kỳ vọng: PASS, 10 bài.
+Kỳ vọng: PASS, 9 bài.
 
 - [ ] **Step 7: Commit**
 
@@ -1372,6 +1390,31 @@ git commit -m "feat(quy-nhat): parseNavCsv — doc CSV Shift-JIS cua 投信協�
     opts?: { budgetMs?: number; now?: () => number; fetchImpl?: typeof fetch },
   ): Promise<NavFetchResult>
   ```
+
+- [ ] **Step 0: Lấp một lỗ hổng phủ sót của Task 3**
+
+Bản soát Task 3 chỉ ra: không bài nào canh ca `[hợp lệ A, hỏng, hợp lệ B]`. Bài hiện có chỉ
+có dòng hỏng ở **cuối**, nên nó không chứng minh được `prior_nav` bỏ qua đúng dòng hỏng ở
+**giữa**. Nối bài này vào `describe('parseNavCsv', …)` đang có:
+
+```ts
+  it('dòng hỏng nằm GIỮA: nav lấy dòng hợp lệ cuối, prior_nav lấy dòng hợp lệ kế cuối', () => {
+    // Khác bài "bỏ dòng có nav không phải số dương" ở trên: ở đó dòng hỏng nằm cuối nên
+    // chỉ cần bỏ qua là xong. Ở đây dòng hỏng chen GIỮA hai dòng tốt — nếu code lấy
+    // `dong[n-2]` thay vì "dòng HỢP LỆ kế cuối" thì prior_nav sẽ là số của dòng hỏng.
+    const csv = sjis(
+      '年月日,基準価額(円),純資産総額（百万円）,分配金,決算期\r\n' +
+        '2026年08月06日,19940,1167910,,\r\n' +
+        '2026年08月07日,0,1172772,,\r\n' +
+        '2026年08月10日,20053,1175583,,\r\n',
+    )
+    const kq = parseNavCsv(csv, SP500)
+    if (!kq.ok) throw new Error('đáng lẽ đọc được')
+    expect(kq.row.nav).toBe(20_053)
+    expect(kq.row.nav_date).toBe('2026-08-10')
+    expect(kq.row.prior_nav).toBe(19_940)
+  })
+```
 
 - [ ] **Step 1: Viết bài test thất bại (nối vào `navs.test.ts`)**
 
@@ -1496,7 +1539,15 @@ describe('fetchFundNavs', () => {
   })
 
   it('hết ngân sách thời gian → DỪNG SẠCH trước quỹ tiếp theo, báo hetNganSach', async () => {
-    // Đồng hồ giả nhảy 40s mỗi lần đọc: quỹ đầu gọi được, quỹ thứ hai thì hết ngân sách.
+    // Đồng hồ giả nhảy 20s mỗi lần đọc, ngân sách 30s. Lần đọc thứ nhất là `start`
+    // (t=20s); vòng của quỹ A đọc lần thứ hai (t=40s) → mới trôi 20s, còn ngân sách nên A
+    // được gọi; vòng của quỹ B đọc lần thứ ba (t=60s) → đã trôi 40s, hết ngân sách.
+    //
+    // Bước nhảy 40s (bản đầu của kế hoạch này) làm ngay vòng ĐẦU TIÊN đã quá hạn, nên A
+    // không bao giờ được gọi — bài test khi đó mâu thuẫn với chính kỳ vọng của nó. Cách
+    // chữa ĐÚNG là sửa đồng hồ, không phải thêm `i > 0` vào phép kiểm trong navs.ts:
+    // làm vậy là đổi ngữ nghĩa thật ("luôn gọi ít nhất một quỹ dù ngân sách đã cạn") chỉ
+    // để chiều một con số bịa sai, và làm navs.ts lệch khỏi khuôn của prices.ts.
     let t = 0
     const kq = await fetchFundNavs(
       [
@@ -1505,7 +1556,7 @@ describe('fetchFundNavs', () => {
       ],
       {
         budgetMs: 30_000,
-        now: () => (t += 40_000),
+        now: () => (t += 20_000),
         fetchImpl: fetchGia({ A: { body: CSV_OK(20_053, '2026年08月10日') } }),
       },
     )
@@ -1682,7 +1733,7 @@ export async function fetchFundNavs(
 npx vitest run supabase/functions/fund-refresh/navs.test.ts
 ```
 
-Kỳ vọng: PASS, 20 bài (10 của Task 3 + 10 mới).
+Kỳ vọng: PASS, 20 bài (9 của Task 3 + 1 bài lấp lỗ hổng + 10 mới).
 
 - [ ] **Step 5: Commit**
 
@@ -1956,6 +2007,19 @@ describe('demoRepo — sổ lệnh quỹ', () => {
     ).resolves.toBeTruthy()
   })
 
+  it('phép soi chạy trên bản ĐÃ TRỘN, không phải trên patch thô', () => {
+    // Hai khẳng định của bài trên KHÔNG phân biệt được hai cách gọi — đã đo:
+    //   { kind: adjust }                  → gọi trên patch: throw   | trên bản trộn: throw
+    //   { kind: adjust, nav:0, amount:0 } → gọi trên patch: resolve | trên bản trộn: resolve
+    // Cùng kết quả cả hai đường, nên chúng không chốt được gì. Ca dưới là ca DUY NHẤT
+    // phân biệt được: đổi riêng `kind` sang 'sell' mà không kèm units/amount. Bản đã trộn
+    // giữ units=100 và amount=50.000 của hàng cũ nên hợp lệ; còn patch thô thì
+    // `patch.units` là undefined và phép soi ném lỗi.
+    //
+    // Phải dùng một hàng MỚI: bài trên đã đổi `row` sang 'adjust' với amount=0, nên
+    // { kind: 'sell' } trên hàng đó sẽ đỏ oan.
+  })
+
   it('xoá lệnh thì nó biến khỏi danh sách', async () => {
     const account_id = await taiKhoanQuyJPY()
     const row = await demoRepo.createFundTrade({
@@ -2125,8 +2189,8 @@ Chèn ngay **sau** `export type StockTradePatch = ...` (dòng 342):
  * Một lệnh mua/bán/điều chỉnh quỹ đầu tư Nhật (migration 0045). Mọi số ở yên.
  *
  * Giữ CẢ `units` lẫn `amount` là CỐ Ý: đo trên sao kê Rakuten thật,
- * 28.429 口 × 17.588 ÷ 10.000 = 49.997 trong khi số tiền bị trừ là 50.000. Suy giá vốn từ
- * số lượng × giá là sai vài yên mỗi lệnh.
+ * 28.429 口 × 17.588 ÷ 10.000 = 50.000,93 trong khi số tiền bị trừ là 50.000. Rakuten tính
+ * 口数 TỪ số tiền, nên suy ngược lại là dựng đầu vào từ đầu ra — mất mát.
  */
 export interface NewFundTrade {
   account_id: string
@@ -3258,6 +3322,30 @@ git commit -m "feat(quy-nhat): edge function fund-refresh — hut NAV, ghi gia t
   export function parseNavHistory(bytes: Uint8Array): NavPoint[]
   ```
 
+- [ ] **Step 0: Đọc cờ `hetNganSach` trong `index.ts` (lỗ hổng bản soát Task 9 chỉ ra)**
+
+Việc 1 của `index.ts` hiện destructure `const { rows, trangThai, errors } = await fetchFundNavs(thuTu)`
+— **bỏ rơi** cờ `hetNganSach`. Hiện tại vẫn đúng, nhưng chỉ nhờ một **chi tiết cài đặt**:
+`fetchFundNavs` luôn nhét thêm một dòng "hết ngân sách…" vào `errors` khi cờ bật, nên nhánh
+`else if (errors.length === 0)` không thể dán nhãn sai. Đó là một sự phụ thuộc ngầm vào ruột
+của `navs.ts`, không phải vào hợp đồng kiểu — và nó lệch khỏi bản anh em
+`stock-refresh/index.ts` vốn đọc cờ đó tường minh.
+
+Sửa hai chỗ:
+
+```ts
+    const { rows, trangThai, errors, hetNganSach } = await fetchFundNavs(thuTu)
+```
+
+```ts
+    } else if (errors.length === 0 && !hetNganSach) {
+      // Danh bạ rỗng (chưa seed) — khác hẳn "gọi lỗi" và khác hẳn "hết giờ giữa chừng",
+      // nên nói rõ. Đọc `hetNganSach` tường minh thay vì tin rằng fetchFundNavs luôn
+      // nhét một dòng vào `errors`: hợp đồng kiểu không hứa điều đó.
+      kq.loi.push('gia: danh bạ quỹ rỗng, không có gì để hút')
+    }
+```
+
 - [ ] **Step 1: Viết bài test thất bại (nối vào `navs.test.ts`)**
 
 Thêm `parseNavHistory` vào dòng import, rồi nối:
@@ -3353,7 +3441,7 @@ export function parseNavHistory(bytes: Uint8Array): NavPoint[] {
 npx vitest run supabase/functions/fund-refresh/navs.test.ts
 ```
 
-Kỳ vọng: PASS, 23 bài.
+Kỳ vọng: PASS, 22 bài.
 
 - [ ] **Step 5: Thêm chế độ `lapLichSu` vào `index.ts`**
 
@@ -4340,7 +4428,7 @@ Yêu cầu bắt buộc, mỗi cái một lý do:
 | Mua/Bán/Điều chỉnh | Ba lựa chọn. Chọn "Điều chỉnh" thì ô 基準価額 và ô Số tiền **ẩn đi và bị đặt về 0** — `CHECK fund_trades_shape` đòi vậy, và ẩn còn tốt hơn để người dùng gõ vào rồi bị từ chối. |
 | 口数 | Số nguyên. Với mua/bán phải > 0. |
 | 基準価額 | `MoneyField`, nhãn ghi rõ **"¥ / 10.000 口"**. Thiếu chú thích đó thì con số 17.588 trông như đơn giá một 口. |
-| Số tiền | `MoneyField`. Khi người dùng gõ xong 口数 và 基準価額, ô này **tự gợi ý** `Math.round(units * nav / NAV_UNITS)` **nhưng cho sửa** — số thật trên sao kê mới là số được lưu (đo thật: gợi ý ra 49.997, số thật là 50.000). |
+| Số tiền | `MoneyField`. Khi người dùng gõ xong 口数 và 基準価額, ô này **tự gợi ý** `Math.round(units * nav / NAV_UNITS)` **nhưng cho sửa** — số thật trên sao kê mới là số được lưu (đo thật: gợi ý ra 50.001, số thật là 50.000). |
 | Nút Lưu | Chặn khi thiếu ô bắt buộc, và **nói thiếu gì** thay vì chỉ mờ đi. |
 
 Chú thích dưới ô Số tiền, đúng nguyên văn:
@@ -4377,7 +4465,7 @@ Mở tài khoản **NISA Rakuten** (đầu tư JPY) và xác nhận **bốn** đ
 1. Khu "Danh mục quỹ" hiện hai quỹ, **Tổng giá trị 80.757 ¥**, **Giá vốn 70.000 ¥**.
 2. Dòng lãi/lỗ hiện **+10.757 ¥** và **+15,4%** (repo làm tròn 1 chữ số; app Rakuten cắt đuôi thành 15,36% — **không phải sai lệch cần sửa**).
 3. Mỗi dòng quỹ có chú thích `/1万口` cạnh 基準価額.
-4. Bấm "+ Ghi lệnh" → sheet mở; gõ 口数 `28429` và 基準価額 `17588` → ô Số tiền tự gợi ý **49.997**; sửa thành `50000` được và lưu được.
+4. Bấm "+ Ghi lệnh" → sheet mở; gõ 口数 `28429` và 基準価額 `17588` → ô Số tiền tự gợi ý **50.001**; sửa thành `50000` được và lưu được.
 
 Nếu con số ở (1) hoặc (2) khác, **dừng lại** — lỗi nằm ở tầng dưới, không phải ở UI.
 
@@ -4506,15 +4594,7 @@ git commit -m "docs(quy-nhat): tai lieu van hanh + secret cron gio co BA job"
 > Mọi bước dưới đây chạy trên project thật của chủ app. Người chạy là **chủ app**, không
 > phải agent: các bước có secret đều hỏi ở ô nhập kín.
 
-- [ ] **Step 1: Gói lại và deploy**
-
-```bash
-npm run bundle:rules && npx supabase@latest functions deploy fund-refresh --project-ref <project-ref> --no-verify-jwt
-```
-
-`--no-verify-jwt` vì cron không phải người dùng đăng nhập — đó là lý do có `x-cron-secret`, và là lý do chế độ kiểm mã phải tự gọi `sb.auth.getUser()`.
-
-- [ ] **Step 2: Chạy migration 0045 trên project**
+- [ ] **Step 1: Chạy migration 0045 trên project**
 
 Dán nội dung `supabase/migrations/0045_fund_prices_trades.sql` vào SQL Editor và chạy. Kiểm ngay:
 
@@ -4529,6 +4609,16 @@ select count(*) as so_bi_danh from public.fund_aliases;
 ```
 
 Kỳ vọng: `10`.
+
+- [ ] **Step 2: Gói lại và deploy**
+
+**Bắt buộc chạy SAU Step 1** — khớp thứ tự "Bước 0 trước Bước 1" của `docs/quy-nhat.md` mục 6: bảng `funds`/`fund_aliases`/`fund_prices`/`fund_trades` chưa tồn tại thì function lỗi ngay ở tầng đọc bảng, và cron sau đó nổ mỗi ngày và luôn lỗi cho tới khi có ai soi ra.
+
+```bash
+npm run bundle:rules && npx supabase@latest functions deploy fund-refresh --project-ref <project-ref> --no-verify-jwt
+```
+
+`--no-verify-jwt` vì cron không phải người dùng đăng nhập — đó là lý do có `x-cron-secret`, và là lý do chế độ kiểm mã phải tự gọi `sb.auth.getUser()`.
 
 - [ ] **Step 3: Nhập sao kê — xem trước**
 
@@ -4553,19 +4643,57 @@ Mọi quỹ khác phải là **0 口**. Nếu script **dừng vì tên lạ** ho
 node scripts/nhap-sao-ke-rakuten.mjs "C:/Users/TranTriNguyen/Downloads/adjusthistory(JP)_20260812.csv" --account <account-id> --ghi
 ```
 
-Script hỏi `SUPABASE_SERVICE_ROLE_KEY` ở ô nhập kín. Kỳ vọng: `Ghi 136 lệnh mới`.
+Script ƯU TIÊN đọc `SUPABASE_SERVICE_ROLE_KEY` từ `.env.local` — thêm dòng
+`SUPABASE_SERVICE_ROLE_KEY=<khoá>` vào đó nếu muốn khỏi gõ mỗi lần (biến này KHÔNG có
+tiền tố `VITE_` nên Vite không nhét nó vào bundle gửi ra trình duyệt, và `.env.local` đã
+có trong `.gitignore`); không có dòng đó thì script mới hỏi ở ô nhập KÍN.
 
-Chạy **lại** đúng lệnh đó lần thứ hai. Kỳ vọng: `Ghi 0 lệnh mới (136 lệnh đã có sẵn)` — nếu nó ghi thêm 136 dòng nữa thì khoá idempotent hỏng, **dừng lại và sửa** trước khi đi tiếp.
+Sau bảng đối chiếu, script **dừng lại hỏi** `Ghi 136 lệnh vào fund_trades của tài khoản <id>? [y/N]`
+— nó **không treo**, nó đang đợi. **Enter trơn là HUỶ** (và stdin không phải terminal cũng
+là huỷ); phải gõ `y` rồi Enter mới ghi. Kỳ vọng dòng cuối: `Xong — đã ghi 136 lệnh.`
+
+Chạy **lại** đúng lệnh đó lần thứ hai. Kỳ vọng: dòng `136 lệnh đã có sẵn trong DB, sẽ
+KHÔNG ghi lại:` rồi `Không có lệnh nào mới — không ghi gì.` — nếu nó ghi thêm 136 dòng
+nữa thì khoá idempotent hỏng, **dừng lại và sửa** trước khi đi tiếp.
 
 - [ ] **Step 5: Gọi function thật**
 
-```bash
-curl -i -X POST "https://<project-ref>.supabase.co/functions/v1/fund-refresh" -H "x-cron-secret: <PUSH_CRON_SECRET>"
+**Đừng gõ secret thẳng vào dòng lệnh** — nó vào lịch sử shell (PSReadLine trên Windows),
+đúng thứ `scripts/setup-fund-cron.mjs` (hỏi `PUSH_CRON_SECRET` ở ô nhập kín) bỏ công
+tránh. Dùng PowerShell, hỏi kín rồi mới gọi:
+
+```powershell
+$sec = Read-Host -AsSecureString "PUSH_CRON_SECRET"
+$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
+$plain = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+Invoke-WebRequest -Method Post -Uri "https://<project-ref>.supabase.co/functions/v1/fund-refresh" -Headers @{ "x-cron-secret" = $plain }
+Remove-Variable plain
 ```
 
-Kỳ vọng: `200`, body kiểu `{"soQuyCoGia":8,"daGhi":1,"boQua":{},"loi":[]}`.
+`Remove-Variable plain` không phải thủ tục rườm rà: `ZeroFreeBSTR` chỉ xoá bộ đệm không quản
+lý, còn `$plain` là **chuỗi thường** và nó **ở lại trong phiên PowerShell** cho tới khi đóng
+cửa sổ — mọi lệnh sau trong cùng phiên đọc được nó.
 
-Gọi thiếu header phải trả `401 Sai bí mật cron`.
+Kỳ vọng: `200`, body kiểu `{"soQuyCoGia":8,"daGhi":1,"boQua":{},"loi":[]}` (xem trong
+`.Content` của kết quả `Invoke-WebRequest`).
+
+Gọi thiếu header phải trả `401 Sai bí mật cron` — nhưng **`Invoke-WebRequest` của PowerShell
+5.1 ném lỗi terminating với mọi 4xx**, nên trên màn hình sẽ là một khối đỏ
+`Invoke-WebRequest : The remote server returned an error: (401) Unauthorized.` và **không**
+thấy thân trả về. Khối đỏ đó chính là dấu hiệu **ĐÚNG**. Muốn đọc cả câu `Sai bí mật cron`
+thì bọc `try/catch`:
+
+```powershell
+try {
+  Invoke-WebRequest -Method Post -Uri "https://<project-ref>.supabase.co/functions/v1/fund-refresh"
+} catch {
+  $_.Exception.Response.StatusCode.value__
+  (New-Object IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd()
+}
+```
+
+Kỳ vọng in ra: `401` rồi `Sai bí mật cron`.
 
 - [ ] **Step 6: Bài kiểm quyết định — ba con số**
 
@@ -4605,9 +4733,24 @@ values ('楽天・Ｓ＆Ｐ５００インデックス・ファンド(楽天・�
 
 - [ ] **Step 9: Lấp lịch sử**
 
-```bash
-curl -X POST "https://<project-ref>.supabase.co/functions/v1/fund-refresh" -H "x-cron-secret: <PUSH_CRON_SECRET>" -H "Content-Type: application/json" -d '{"lapLichSu":{"accountId":"<account-id>"}}'
+Cùng lý do ở Step 5 — không gõ secret vào dòng lệnh:
+
+```powershell
+$sec = Read-Host -AsSecureString "PUSH_CRON_SECRET"
+$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
+$plain = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+Invoke-WebRequest -Method Post -Uri "https://<project-ref>.supabase.co/functions/v1/fund-refresh" -Headers @{ "x-cron-secret" = $plain; "Content-Type" = "application/json" } -Body '{"lapLichSu":{"accountId":"<account-id>"}}'
+Remove-Variable plain
 ```
+
+Thân trả về có ba khoá: `{"daGhi":N,"boQuaNgay":M,"loi":[]}`. **`boQuaNgay > 0` là BÌNH
+THƯỜNG, không phải bug** — đó là những phiên mà nguồn chỉ có 基準価額 của quỹ **khác**, chứ
+không có của quỹ đang giữ đúng ngày đó; thà để trống hơn ghi một con số có quỹ tạm tính theo
+giá vốn. Những ngày đó sẽ **trống vĩnh viễn**: lượt sau nguồn vẫn thiếu đúng phiên đó, nên
+đừng chạy lại để mong lấp thêm. (Phiên của quỹ **không ai giữ** thì không còn kéo `boQuaNgay`
+lên nữa — `planFundBackfill` chỉ lấy ngày phiên của quỹ tài khoản này TỪNG giao dịch. Trên
+lịch phiên thật, riêng nguyên nhân đó từng làm bỏ 48 trong 679 phiên.)
 
 Mở biểu đồ Tài sản ròng. Kỳ vọng **ba** dấu hiệu, cả ba đều là sự thật đã biết từ sao kê:
 

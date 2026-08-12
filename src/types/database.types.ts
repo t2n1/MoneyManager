@@ -346,6 +346,67 @@ export type StockTradeRow = {
   updated_at: string
 }
 
+/** Danh bạ quỹ đầu tư Nhật (công khai, không thuộc user nào) — migration 0045. */
+export type FundRow = {
+  /** 協会コード, vd '9I31223A' */
+  assoc_fund_cd: string
+  /** cần CẢ hai mã mới gọi được CSV giá; thiếu một cái server trả 200 kèm JSON rỗng */
+  isin_cd: string
+  name: string
+  /** kết quả lần hút gần nhất — chỗ duy nhất lộ ra việc mã quỹ bị sai */
+  last_status: 'chua-kiem' | 'ok' | 'ma-sai' | 'loi-mang'
+  last_checked_at: string | null
+  created_at: string
+}
+
+/**
+ * Tên quỹ trong sao kê Rakuten → quỹ nào. NHIỀU tên trỏ về MỘT quỹ vì quỹ đổi tên
+ * (Rakuten đổi loạt 「楽天・プラス」 ngày 2024-10-17) — migration 0045.
+ */
+export type FundAliasRow = {
+  /** đúng chuỗi trong cột 対象証券名, kể cả '/再投資型' và ký tự full-width */
+  statement_name: string
+  assoc_fund_cd: string
+}
+
+/** 基準価額 mới nhất của từng quỹ (công khai) — migration 0045. */
+export type FundPriceRow = {
+  assoc_fund_cd: string
+  /** ¥ trên 10.000 口 (đơn vị nguồn công bố); luôn > 0 */
+  nav: number
+  /** phiên trước; null = không có */
+  prior_nav: number | null
+  /** 純資産総額, TRIỆU yên. KHÔNG dùng để tính tiền. */
+  net_assets_m: number | null
+  /** ngày PHIÊN của giá (không phải ngày hút) */
+  nav_date: string
+  updated_at: string
+}
+
+export type FundTradeKind = 'buy' | 'sell' | 'adjust'
+
+/** Một lệnh mua/bán/điều chỉnh quỹ — migration 0045. */
+export type FundTradeRow = {
+  id: string
+  user_id: string
+  account_id: string
+  assoc_fund_cd: string
+  kind: FundTradeKind
+  /** 約定日 — KHÔNG phải 受渡日; hai ngày này lệch tới 5 ngày trên sao kê thật */
+  traded_on: string
+  /** 口数; âm chỉ với kind='adjust' */
+  units: number
+  /** ¥/10.000口 lúc khớp; 0 với 'adjust'. KHÔNG dùng để tính giá vốn. */
+  nav: number
+  /** yên THẬT đã trừ/nhận — nguồn sự thật cho giá vốn; 0 với 'adjust' */
+  amount: number
+  /** 口座区分 nguyên văn ('NISA成長投資枠', '特定', …); không tham gia phép tính */
+  bucket: string
+  note: string
+  created_at: string
+  updated_at: string
+}
+
 /** Lịch sử tài sản ròng (mục AF): ảnh chụp net worth base theo ngày. */
 export type NetWorthSnapshotRow = {
   id: string
@@ -897,6 +958,45 @@ export type Database = {
         >
         Update: Partial<
           Pick<StockTradeRow, 'symbol' | 'kind' | 'traded_on' | 'quantity' | 'price' | 'fee' | 'tax' | 'note'>
+        >
+        Relationships: []
+      }
+      funds: {
+        Row: FundRow
+        Insert: InsertOf<FundRow, 'assoc_fund_cd' | 'isin_cd', 'name' | 'last_status' | 'last_checked_at'>
+        Update: Partial<Pick<FundRow, 'isin_cd' | 'name' | 'last_status' | 'last_checked_at'>>
+        Relationships: []
+      }
+      fund_aliases: {
+        Row: FundAliasRow
+        Insert: InsertOf<FundAliasRow, 'statement_name' | 'assoc_fund_cd', never>
+        Update: Partial<Pick<FundAliasRow, 'assoc_fund_cd'>>
+        Relationships: []
+      }
+      fund_prices: {
+        Row: FundPriceRow
+        Insert: InsertOf<
+          FundPriceRow,
+          'assoc_fund_cd' | 'nav' | 'nav_date',
+          'prior_nav' | 'net_assets_m' | 'updated_at'
+        >
+        Update: Partial<
+          Pick<FundPriceRow, 'nav' | 'prior_nav' | 'net_assets_m' | 'nav_date' | 'updated_at'>
+        >
+        Relationships: []
+      }
+      fund_trades: {
+        Row: FundTradeRow
+        Insert: InsertOf<
+          FundTradeRow,
+          'user_id' | 'account_id' | 'assoc_fund_cd' | 'kind' | 'units',
+          'id' | 'traded_on' | 'nav' | 'amount' | 'bucket' | 'note'
+        >
+        Update: Partial<
+          Pick<
+            FundTradeRow,
+            'assoc_fund_cd' | 'kind' | 'traded_on' | 'units' | 'nav' | 'amount' | 'bucket' | 'note'
+          >
         >
         Relationships: []
       }

@@ -23,6 +23,10 @@ import type {
   PlannedExpenseRow,
   NotificationStateRow,
   DuePrecision,
+  FundPriceRow,
+  FundRow,
+  FundTradeKind,
+  FundTradeRow,
   PlannedStatus,
   ProfileRow,
   PushSubscriptionRow,
@@ -89,10 +93,15 @@ export interface BackupData {
   plannedExpenses?: PlannedExpenseRow[]
   /** Liên kết khoản sắp chi ↔ nhãn (migration 0044); vắng mặt ở backup v1–v10. */
   plannedExpenseTags?: PlannedExpenseTagRow[]
+  /** Sổ lệnh quỹ đầu tư Nhật (migration 0045); vắng mặt ở backup v1–v11. */
+  fundTrades?: FundTradeRow[]
 }
 
-/** Phiên bản định dạng backup hiện hành. v11: thêm plannedExpenses + nhãn của chúng. */
-export const BACKUP_VERSION = 11
+/**
+ * Phiên bản định dạng backup hiện hành. v11: thêm plannedExpenses + nhãn của chúng.
+ * v12: thêm fundTrades — sổ lệnh quỹ đầu tư Nhật.
+ */
+export const BACKUP_VERSION = 12
 
 export interface NewTransaction {
   type: TransactionType
@@ -341,6 +350,34 @@ export interface NewStockTrade {
 /** Không cho đổi account_id: chuyển lệnh sang tài khoản khác thì xoá rồi ghi lại. */
 export type StockTradePatch = Partial<Omit<NewStockTrade, 'account_id'>>
 
+/**
+ * Một lệnh mua/bán/điều chỉnh quỹ đầu tư Nhật (migration 0045). Mọi số ở yên.
+ *
+ * Giữ CẢ `units` lẫn `amount` là CỐ Ý: đo trên sao kê Rakuten thật,
+ * 28.429 口 × 17.588 ÷ 10.000 = 50.000,93 trong khi số tiền bị trừ là 50.000. Rakuten tính
+ * 口数 TỪ số tiền, nên suy ngược lại là dựng đầu vào từ đầu ra — mất mát.
+ */
+export interface NewFundTrade {
+  account_id: string
+  /** 協会コード, vd '9I31223A' */
+  assoc_fund_cd: string
+  kind: FundTradeKind
+  /** 約定日 (ISO date) — KHÔNG phải 受渡日 */
+  traded_on: string
+  /** 口数; âm chỉ hợp lệ với kind='adjust' */
+  units: number
+  /** ¥/10.000口 lúc khớp; 0 với 'adjust' */
+  nav: number
+  /** yên thật đã trừ/nhận; 0 với 'adjust' */
+  amount: number
+  /** 口座区分 nguyên văn; chuỗi rỗng nếu không biết */
+  bucket: string
+  note: string
+}
+
+/** Không cho đổi account_id: chuyển lệnh sang tài khoản khác thì xoá rồi ghi lại. */
+export type FundTradePatch = Partial<Omit<NewFundTrade, 'account_id'>>
+
 /** Mục tiêu tiết kiệm (mục AD). */
 export interface NewSavingsGoal {
   name: string
@@ -486,6 +523,17 @@ export interface Repo {
   createStockTrade(input: NewStockTrade): Promise<StockTradeRow>
   updateStockTrade(id: string, patch: StockTradePatch): Promise<StockTradeRow>
   deleteStockTrade(id: string): Promise<void>
+
+  // --- Quỹ đầu tư Nhật: danh bạ + bảng giá + sổ lệnh (migration 0045) ---
+  /** Danh bạ quỹ công khai. Chỉ đọc — chỉ service role ghi (seed + edge function). */
+  getFunds(): Promise<FundRow[]>
+  /** Bảng 基準価額 công khai. Chỉ đọc — edge function fund-refresh ghi. */
+  getFundPrices(): Promise<FundPriceRow[]>
+  /** Toàn bộ sổ lệnh quỹ của user (mọi tài khoản); UI tự lọc theo account_id. */
+  getFundTrades(): Promise<FundTradeRow[]>
+  createFundTrade(input: NewFundTrade): Promise<FundTradeRow>
+  updateFundTrade(id: string, patch: FundTradePatch): Promise<FundTradeRow>
+  deleteFundTrade(id: string): Promise<void>
 
   // --- Mục tiêu tiết kiệm (mục AD) ---
   getSavingsGoals(): Promise<SavingsGoalRow[]>

@@ -151,6 +151,25 @@ luồng trùng. Đó là lý do mục này tồn tại chứ không phải để
 > `convertToBase` phía chi tiêu trước. Tính năng mới đụng tiền phải khai báo rõ "lưu
 > theo tệ nào" (xem cột quy ước ở Phần 4).
 
+### Quỹ đầu tư Nhật — 4 bảng mới (migration 0045)
+
+Nối tiếp `account_valuations` (0016): tài khoản `investment` tiền **JPY** có sổ lệnh quỹ
+thì `fund-refresh` tự tính giá trị thị trường và ghi vào chính bảng đó — không có bảng
+"giá trị" riêng cho quỹ. Chi tiết vận hành ở [`docs/quy-nhat.md`](./quy-nhat.md).
+
+| Bảng | Migration | Giữ gì | Quy ước tiền |
+|------|:---------:|--------|--------------|
+| `funds` | 0045 | danh bạ quỹ, công khai (không `user_id`, cùng lý do `stock_prices` của 0035): `assoc_fund_cd` (協会コード, PK), `isin_cd`, `name`, `last_status`, `last_checked_at` | — (không giữ tiền) |
+| `fund_aliases` | 0045 | tên quỹ trong sao kê Rakuten → `assoc_fund_cd`; NHIỀU tên trỏ về MỘT quỹ vì quỹ đổi tên (xem `docs/quy-nhat.md` mục "Quỹ đổi tên"); `statement_name` PK | — (không giữ tiền) |
+| `fund_prices` | 0045 | 基準価額 mới nhất theo quỹ, công khai; `nav` **¥/10.000口** (chia 10.000 ở đúng một chỗ, `fundValue()`), `prior_nav`, `net_assets_m` (triệu yên, không tham gia phép tính tiền), `nav_date` | `nav`/`prior_nav` minor JPY nhưng theo đơn vị **10.000口**, không phải theo 口 |
+| `fund_trades` | 0045 | sổ lệnh quỹ riêng từng user: `assoc_fund_cd` (fk `funds`), `kind` (`buy`\|`sell`\|`adjust`), `traded_on` (**約定日**, không phải 受渡日), `units` (口数, âm chỉ hợp lệ với `adjust`), `nav`, `amount`, `bucket` (口座区分 nguyên văn), `note` | `amount` minor JPY = số tiền THẬT đã trừ/nhận; giá vốn lấy từ đây, KHÔNG suy từ `units × nav` |
+
+> ⚠️ **Mô hình giá vốn khác `stock_trades` (0035):** cổ phiếu tính `số cổ × giá + phí`;
+> quỹ lấy thẳng `amount` (số tiền thật đã trừ) vì `units × nav ÷ 10.000` không khớp số
+> Rakuten trừ (đo thật: `28.429 × 17.588 ÷ 10.000 = 50.000,93` trong khi số tiền bị trừ
+> là `50.000`). Đừng gộp hai mô hình này vào một hàm chung — xem đầu
+> [`fundHoldings.ts`](../src/features/assets/fundHoldings.ts).
+
 ---
 
 ## Phần 2 — Ma trận Tính năng × Bảng

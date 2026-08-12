@@ -29,6 +29,10 @@ export const BUNDLES = [
     entry: 'src/features/assets/serverBundle.ts',
     outfile: 'supabase/functions/stock-refresh/_holdings.js',
   },
+  {
+    entry: 'src/features/assets/serverBundleFunds.ts',
+    outfile: 'supabase/functions/fund-refresh/_funds.js',
+  },
 ]
 
 const bannerFor = (entry) => `// TỆP SINH TỰ ĐỘNG — ĐỪNG SỬA TAY.

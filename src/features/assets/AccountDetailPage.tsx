@@ -36,12 +36,14 @@ import {
   type MonthKey,
 } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
-import type { StockTradeRow, TransactionRow } from '../../types/database.types'
+import type { FundTradeRow, StockTradeRow, TransactionRow } from '../../types/database.types'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { TransactionItem } from '../transactions/TransactionItem'
 import { CardMonthAdjustSheet } from './CardMonthAdjustSheet'
 import { cardBillingRange, cardMonthCharge, cardMonthReconcileNet } from './cardMonthCharge'
 import { depreciate } from './depreciation'
+import { FundHoldingsSection } from './FundHoldingsSection'
+import { FundTradeFormSheet } from './FundTradeFormSheet'
 import { HoldingsSection } from './HoldingsSection'
 import { investmentStats } from './investment'
 import { shelterUsage, TAX_SHELTER_LABELS } from './shelter'
@@ -65,6 +67,7 @@ export function AccountDetailPage() {
   const [showReconcile, setShowReconcile] = useState(false)
   const [showMonthAdjust, setShowMonthAdjust] = useState(false)
   const [tradeSheet, setTradeSheet] = useState<{ trade: StockTradeRow | null } | null>(null)
+  const [fundSheet, setFundSheet] = useState<{ trade: FundTradeRow | null } | null>(null)
 
   const monthStartDay = profile?.month_start_day ?? 1
   // null = "kỳ hiện tại": tính lazy vì profile tải async — khởi tạo cứng trong
@@ -485,6 +488,16 @@ export function AccountDetailPage() {
         />
       )}
 
+      {/* Danh mục quỹ (chỉ tài khoản đầu tư JPY — 基準価額 là yên trên 10.000 口, tài
+          khoản VND dùng khu này sẽ ra số vô nghĩa) */}
+      {isInvestment && account && account.currency === 'JPY' && (
+        <FundHoldingsSection
+          account={account}
+          onAddTrade={() => setFundSheet({ trade: null })}
+          onEditTrade={(trade) => setFundSheet({ trade })}
+        />
+      )}
+
       {/* Lịch sử cập nhật giá trị (tài khoản đầu tư) */}
       {(isInvestment || isFixed) && accountValuations.length > 0 && (
         <Card as="section" padding="none" className="mb-3 overflow-hidden">
@@ -656,6 +669,13 @@ export function AccountDetailPage() {
           account={account}
           trade={tradeSheet.trade}
           onClose={() => setTradeSheet(null)}
+        />
+      )}
+      {fundSheet && account && (
+        <FundTradeFormSheet
+          account={account}
+          trade={fundSheet.trade}
+          onClose={() => setFundSheet(null)}
         />
       )}
     </div>

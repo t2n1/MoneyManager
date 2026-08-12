@@ -2007,6 +2007,19 @@ describe('demoRepo — sổ lệnh quỹ', () => {
     ).resolves.toBeTruthy()
   })
 
+  it('phép soi chạy trên bản ĐÃ TRỘN, không phải trên patch thô', () => {
+    // Hai khẳng định của bài trên KHÔNG phân biệt được hai cách gọi — đã đo:
+    //   { kind: adjust }                  → gọi trên patch: throw   | trên bản trộn: throw
+    //   { kind: adjust, nav:0, amount:0 } → gọi trên patch: resolve | trên bản trộn: resolve
+    // Cùng kết quả cả hai đường, nên chúng không chốt được gì. Ca dưới là ca DUY NHẤT
+    // phân biệt được: đổi riêng `kind` sang 'sell' mà không kèm units/amount. Bản đã trộn
+    // giữ units=100 và amount=50.000 của hàng cũ nên hợp lệ; còn patch thô thì
+    // `patch.units` là undefined và phép soi ném lỗi.
+    //
+    // Phải dùng một hàng MỚI: bài trên đã đổi `row` sang 'adjust' với amount=0, nên
+    // { kind: 'sell' } trên hàng đó sẽ đỏ oan.
+  })
+
   it('xoá lệnh thì nó biến khỏi danh sách', async () => {
     const account_id = await taiKhoanQuyJPY()
     const row = await demoRepo.createFundTrade({

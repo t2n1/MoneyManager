@@ -7,7 +7,7 @@
 import { Link } from 'react-router-dom'
 import { Card } from '../../components/ui'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
-import type { AxisKey, AxisProgress } from './axisTargets'
+import { shareLabel, sharePct, type AxisKey, type AxisProgress } from './axisTargets'
 
 const LABEL: Record<AxisKey, string> = {
   essential: 'Thiết yếu',
@@ -21,9 +21,7 @@ interface Props {
 }
 
 export function AxisStrip({ data, monthKey }: Props) {
-  const parts = data.lines
-    .map((l) => `${LABEL[l.key]} ${Math.round(l.share * 100)}%`)
-    .join(', ')
+  const parts = data.lines.map((l) => `${LABEL[l.key]} ${shareLabel(l.share)}`).join(', ')
 
   return (
     <Link
@@ -51,9 +49,15 @@ export function AxisStrip({ data, monthKey }: Props) {
                   <span className="truncate text-2xs text-fg-muted">{LABEL[l.key]}</span>
                   <span className="shrink-0 text-xs tabular-nums">
                     <span className={`font-semibold ${l.ok ? 'text-money-in' : 'text-fg-warn'}`}>
-                      {Math.round(l.share * 100)}%
+                      {shareLabel(l.share)}
                     </span>
-                    <span className="text-fg-muted">/{Math.round(l.targetShare * 100)}</span>
+                    {/* Đã âm thì bỏ "/mốc": ô này chỉ rộng ~105px, "Âm 18%/20" đẩy
+                        nhãn "Tiết kiệm" vào cảnh bị cắt — mà so một số âm với sàn
+                        20% cũng chẳng để làm gì. Khối đầy đủ ở tab Ngân sách rộng
+                        hơn nên vẫn giữ đủ "tối thiểu 20%". */}
+                    {sharePct(l.share) >= 0 && (
+                      <span className="text-fg-muted">/{Math.round(l.targetShare * 100)}</span>
+                    )}
                   </span>
                 </div>
                 <div className="relative mt-1 h-1.5 overflow-hidden rounded-full bg-surface-sunken">

@@ -260,7 +260,15 @@ export function AppLayout() {
       <main
         key={privacyOn ? 'priv-on' : 'priv-off'}
         ref={mainRef}
-        className={`mx-auto w-full min-h-0 max-w-6xl flex-1 overflow-y-auto pt-[env(safe-area-inset-top)] lg:pt-0 lg:pb-6 ${onEntry ? '' : 'pb-28'}`}
+        // Đệm dưới phải chừa chỗ cho những thứ NỔI đè lên nội dung, kẻo cuộn hết
+        // danh sách rồi dòng cuối vẫn nằm dưới chúng:
+        //   · thanh nav: cao ~60px, cách mép 12px (hoặc dải an toàn iPhone) → pb-28
+        //   · nút "+" ở trang Sổ: đáy 6rem + dải an toàn, cao 3.5rem → mép trên của
+        //     nó ở 9.5rem, nên cần 10rem + dải an toàn mới hở ra một chút.
+        // Từ lg trở lên cả hai đều ẩn (lg:hidden) nên lg:pb-6 đè lại.
+        className={`mx-auto w-full min-h-0 max-w-6xl flex-1 overflow-y-auto pt-[env(safe-area-inset-top)] lg:pt-0 lg:pb-6 ${
+          onEntry ? '' : onLedger ? 'pb-[calc(10rem+env(safe-area-inset-bottom))]' : 'pb-28'
+        }`}
       >
         {/* Lưới an toàn: query lỗi không được hiển thị như "không có dữ liệu" */}
         <QueryErrorBanner />

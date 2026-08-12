@@ -7,7 +7,7 @@ import { Guide } from '../../components/Guide'
 import { useCategories } from '../../hooks/queries'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
-import { BASELINE_MONTHS, type AxisKey, type AxisProgress } from './axisTargets'
+import { BASELINE_MONTHS, shareLabel, type AxisKey, type AxisProgress } from './axisTargets'
 
 const LABEL: Record<AxisKey, string> = {
   essential: 'Thiết yếu',
@@ -111,7 +111,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
                     l.ok ? 'text-money-in' : 'text-fg-warn'
                   }`}
                 >
-                  {Math.round(l.share * 100)}%
+                  {shareLabel(l.share)}
                   <span className="ml-1 font-normal text-fg-muted">
                     {l.direction === 'cap' ? 'tối đa' : 'tối thiểu'}{' '}
                     {Math.round(l.targetShare * 100)}%

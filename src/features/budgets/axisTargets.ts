@@ -44,6 +44,31 @@ export interface AxisLine {
   slices: CategorySlice[]
 }
 
+/**
+ * Tỷ lệ (0..1) → nhãn phần trăm để hiện lên màn hình.
+ *
+ * Số ÂM viết thành "Âm 12%" chứ không phải "-12%": chi vượt thu thì tiết kiệm âm
+ * (và một trục cũng có thể âm nếu hoàn tiền nhiều hơn đã chi), mà dấu trừ ở cỡ
+ * chữ 12px rất dễ trượt mắt — đọc "12%" thành "gần đạt mốc 20%" là hiểu ngược
+ * hẳn tình hình. Thanh tiến độ thì đã kẹp về 0 nên tự nó không nói được gì.
+ */
+export function shareLabel(share: number): string {
+  const pct = sharePct(share)
+  return pct < 0 ? `Âm ${-pct}%` : `${pct}%`
+}
+
+/**
+ * Tỷ lệ 0..1 → số phần trăm đã làm tròn, giữ dấu. Tách riêng vì chỗ hiển thị cần
+ * hỏi "âm chưa" theo ĐÚNG con số đã làm tròn của `shareLabel` — làm tròn hai lần
+ * theo hai cách thì -0,2% sẽ hiện "0%" mà vẫn bị coi là âm.
+ */
+export const sharePct = (share: number): number => {
+  const pct = Math.round(share * 100)
+  // Math.round(-0,2) ra -0. Nó không nhỏ hơn 0 nên hiển thị vẫn đúng, nhưng
+  // `Object.is(-0, 0)` là false — trả 0 phẳng để chỗ gọi so sánh kiểu nào cũng yên.
+  return pct === 0 ? 0 : pct
+}
+
 /** Danh mục lá của từng trục. `savings` luôn rỗng — xem `axisSlices`. */
 export type AxisSliceMap = Record<AxisKey, CategorySlice[]>
 

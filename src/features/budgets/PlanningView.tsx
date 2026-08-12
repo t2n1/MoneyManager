@@ -23,7 +23,7 @@ import { confirmDialog, showToast } from '../../lib/dialog'
 import { monthlyNeeded } from '../assets/goals'
 import { isFlowCategory } from '../categories/flowCategories'
 import { TagPlanCard } from '../tags/TagPlanCard'
-import type { AxisKey } from './axisTargets'
+import { shareLabel, type AxisKey } from './axisTargets'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { ExpectedIncomeSheet } from './ExpectedIncomeSheet'
 import { usePlanning } from './usePlanning'
@@ -239,7 +239,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                         <span
                           className={`text-xs font-medium ${l.ok ? 'text-money-in' : 'text-fg-warn'}`}
                         >
-                          {Math.round(l.share * 100)}%
+                          {shareLabel(l.share)}
                           <span className="ml-1 font-normal text-fg-muted">
                             {l.direction === 'cap' ? 'tối đa' : 'tối thiểu'}{' '}
                             {Math.round(l.targetShare * 100)}%

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { ClassificationBreakdown } from '../reports/aggregate'
 import type { CategoryRow } from '../../types/database.types'
-import { axisProgress, axisSlices, baselineIncome, DEFAULT_AXIS_TARGETS } from './axisTargets'
+import {
+  axisProgress,
+  axisSlices,
+  baselineIncome,
+  DEFAULT_AXIS_TARGETS,
+  shareLabel,
+  sharePct,
+} from './axisTargets'
 
 function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
   return {
@@ -265,5 +272,35 @@ describe('baselineIncome', () => {
   it('không tháng nào có dữ liệu → null', () => {
     expect(baselineIncome([])).toBeNull()
     expect(baselineIncome([{ income: 0, expense: 0 }])).toBeNull()
+  })
+})
+
+describe('shareLabel', () => {
+  it('tỷ lệ dương: làm tròn về phần trăm', () => {
+    expect(shareLabel(0.384)).toBe('38%')
+    expect(shareLabel(0)).toBe('0%')
+    expect(shareLabel(1.2)).toBe('120%')
+  })
+
+  // Chi vượt thu → tiết kiệm âm. Dấu trừ ở cỡ chữ 12px rất dễ trượt mắt, mà đọc
+  // "12%" thành "gần đạt mốc 20%" thì hiểu ngược hẳn tình hình.
+  it('tỷ lệ âm: viết chữ "Âm" thay cho dấu trừ', () => {
+    expect(shareLabel(-0.12)).toBe('Âm 12%')
+    expect(shareLabel(-1.5)).toBe('Âm 150%')
+  })
+
+  it('số âm bé xíu vẫn làm tròn về 0%, không ra "Âm 0%"', () => {
+    expect(shareLabel(-0.002)).toBe('0%')
+  })
+})
+
+describe('sharePct', () => {
+  // Chỗ hiển thị dựa vào hàm này để quyết có in "/mốc" hay không, nên nó phải
+  // làm tròn y hệt shareLabel: -0,2% ra 0 thì cả hai đều coi là không âm.
+  it('làm tròn khớp với shareLabel', () => {
+    expect(sharePct(-0.002)).toBe(0)
+    expect(shareLabel(-0.002)).toBe('0%')
+    expect(sharePct(-0.18)).toBe(-18)
+    expect(shareLabel(-0.18)).toBe('Âm 18%')
   })
 })

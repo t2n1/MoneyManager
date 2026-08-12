@@ -374,9 +374,10 @@ DB.
 ### Ý nghĩa từng lý do trong `boQua`
 
 Bảng cho người đọc log sáu tháng sau, không có ngữ cảnh gì khác ngoài dòng log này.
-**Sáu** lý do (không phải bảy — `fund-refresh` vẫn **không có** `tien-chua-dau-tu-am` vì mô
-hình này không có tiền mặt, xem mục 5; lý do thứ sáu dưới đây — `thieu-gia-mot-so-quy` — là
-chuyện khác hẳn, không liên quan tiền mặt):
+**Bảy** lý do. Đừng đối chiếu con số này với bản cổ phiếu: `fund-refresh` vẫn **không có**
+`tien-chua-dau-tu-am` (mô hình quỹ không có tiền mặt, xem mục 5), và bù lại có ba lý do mà
+bản cổ phiếu không có — `thieu-gia-mot-so-quy`, `chua-co-ngay-phien`, và cách hiểu riêng của
+`so-lenh-co-lo-hong` với quỹ đổi tên. Trùng con số là tình cờ, không phải tương ứng:
 
 | Lý do | Nghĩa là gì | Cần làm gì |
 |---|---|---|
@@ -384,6 +385,7 @@ chuyện khác hẳn, không liên quan tiền mặt):
 | `so-lenh-co-lo-hong` | `fundHoldingsFromTrades` báo `oversold` khác rỗng: có lệnh bán (hoặc `adjust` âm) nhiều hơn 口数 đang giữ tại thời điểm đó. **Với quỹ Nhật, lý do thường gặp nhất là THIẾU MỘT DÒNG trong `fund_aliases`** (quỹ đổi tên — xem mục 4), không phải quên ghi lệnh như cổ phiếu. | Kiểm `fund_aliases` trước: Rakuten vừa đổi tên quỹ nào không? Thêm hàng bí danh rồi cron tự ghi lại lượt sau. Nếu bí danh đã đủ, xem lại sổ lệnh có thiếu lệnh mua hoặc sai ngày không. |
 | `thieu-gia-moi-quy` | `fundValue` trả `marketValue = null` vì **mọi** quỹ đang giữ đều không có giá trong `fund_prices` (`missingNavs` bằng đúng số quỹ đang giữ). | Kiểm `funds.last_status` của các mã đang giữ — `ma-sai` nghĩa là ISIN/協会コード gõ sai; `loi-mang` thường tự khỏi lượt sau. |
 | `thieu-gia-mot-so-quy` | `fundValue` trả `missingNavs` khác rỗng nhưng `marketValue` KHÔNG null — thiếu giá **một phần** quỹ đang giữ, không phải mọi quỹ. Quỹ thiếu bị tạm tính theo giá vốn (số vẫn ra được vì fundValue không tự chặn ca này), nên cron chủ động bỏ CẢ tài khoản để không ghi một con số nửa đúng nửa sai đóng dấu `'auto'`. | Kiểm `funds.last_status` của TỪNG mã quỹ đang giữ, không chỉ mã đầu tiên — mã nào `ma-sai`/`loi-mang` là mã đang thiếu giá; mã còn lại vẫn hút bình thường nên đừng dừng ở đó. |
+| `chua-co-ngay-phien` | `sessionNavs` trả `session = null`: không quỹ nào đang giữ có một hàng giá nào cả. **Đường này lẽ ra không đi tới được** — ca "thiếu giá mọi quỹ" đã bị chặn ở `thieu-gia-moi-quy` phía trên, nên nó tồn tại chủ yếu để thu hẹp kiểu cho TypeScript. | Nếu bạn **thật sự** thấy lý do này trong log thì một giả định đã vỡ, không phải dữ liệu thiếu bình thường: hai chốt lẽ ra loại trừ nhau lại cùng không bắt. Đọc lại thứ tự các chốt trong `index.ts` (khối cron) và `sessionNavs` trong `fundHoldings.ts` — đừng đi thêm hàng vào `fund_prices` trước khi hiểu vì sao tới được đây. |
 | `gia-le-phien-cu` | `sessionNavs` giờ chỉ lấy `nav_date` lớn nhất trong SỐ CÁC QUỸ TÀI KHOẢN NÀY ĐANG GIỮ (không còn tính trên cả `fund_prices` — một quỹ không ai giữ không thể chen vào phép tính này nữa), rồi so từng quỹ đang giữ với mốc đó. Nghĩa là: trong lượt hút NAV này, ít nhất một quỹ đang giữ đã có giá nhưng vẫn ở phiên CŨ hơn quỹ đang giữ khác — ví dụ một quỹ hút xong trước, quỹ kia hút chậm hoặc lỗi mạng tạm thời cùng lượt. | Thường tự khỏi lượt sau (lượt sau hút lại CẢ hai quỹ đang giữ). Lặp lại mỗi ngày thì kiểm `loi` của cùng lượt có dòng lỗi lặp lại đúng mã quỹ bị coi "cũ" đó không (nguồn hỏng dai dẳng cho riêng mã đó) — không còn ca "quỹ không ai giữ đi trước phiên" nữa, vì `sessionNavs` đã loại quỹ không giữ ra khỏi phép tính mốc. |
 | `nguoi-dung-da-go-tay` | Hàng `account_valuations` của đúng ngày phiên đó đã có sẵn với `source = 'manual'` — người dùng đã tự gõ số cho ngày này (sheet "Cập nhật giá trị"). Cron **cố ý** không đè lên. | Không cần làm gì — số gõ tay luôn thắng. Muốn để cron tự tính lại: xoá hàng `manual` đó (hoặc đổi `source` thành `'auto'`) rồi gọi lại function. |
 

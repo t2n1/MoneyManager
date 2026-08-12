@@ -3322,6 +3322,30 @@ git commit -m "feat(quy-nhat): edge function fund-refresh — hut NAV, ghi gia t
   export function parseNavHistory(bytes: Uint8Array): NavPoint[]
   ```
 
+- [ ] **Step 0: Đọc cờ `hetNganSach` trong `index.ts` (lỗ hổng bản soát Task 9 chỉ ra)**
+
+Việc 1 của `index.ts` hiện destructure `const { rows, trangThai, errors } = await fetchFundNavs(thuTu)`
+— **bỏ rơi** cờ `hetNganSach`. Hiện tại vẫn đúng, nhưng chỉ nhờ một **chi tiết cài đặt**:
+`fetchFundNavs` luôn nhét thêm một dòng "hết ngân sách…" vào `errors` khi cờ bật, nên nhánh
+`else if (errors.length === 0)` không thể dán nhãn sai. Đó là một sự phụ thuộc ngầm vào ruột
+của `navs.ts`, không phải vào hợp đồng kiểu — và nó lệch khỏi bản anh em
+`stock-refresh/index.ts` vốn đọc cờ đó tường minh.
+
+Sửa hai chỗ:
+
+```ts
+    const { rows, trangThai, errors, hetNganSach } = await fetchFundNavs(thuTu)
+```
+
+```ts
+    } else if (errors.length === 0 && !hetNganSach) {
+      // Danh bạ rỗng (chưa seed) — khác hẳn "gọi lỗi" và khác hẳn "hết giờ giữa chừng",
+      // nên nói rõ. Đọc `hetNganSach` tường minh thay vì tin rằng fetchFundNavs luôn
+      // nhét một dòng vào `errors`: hợp đồng kiểu không hứa điều đó.
+      kq.loi.push('gia: danh bạ quỹ rỗng, không có gì để hút')
+    }
+```
+
 - [ ] **Step 1: Viết bài test thất bại (nối vào `navs.test.ts`)**
 
 Thêm `parseNavHistory` vào dòng import, rồi nối:

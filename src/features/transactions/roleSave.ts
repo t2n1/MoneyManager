@@ -1,7 +1,7 @@
 import type { NewCategory, NewDebt, NewDebtPayment, NewTransaction } from '../../data'
 import type { CategoryRow, DebtPaymentRow, DebtRow, TransactionRow } from '../../types/database.types'
 import type { CurrencyCode } from '../../lib/money'
-import { DEBT_FLOW_CATEGORY_NAMES } from '../categories/flowCategories'
+import { DEBT_FLOW_CATEGORY_NAMES, REMIT_CATEGORY_NAME } from '../categories/flowCategories'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
 
 /**
@@ -21,7 +21,7 @@ export interface RoleBase {
   note: string
 }
 
-const GUI_TIEN_CAT = 'Gửi tiền về VN'
+const GUI_TIEN_CAT = REMIT_CATEGORY_NAME
 
 /** Danh mục nhận mọi khoản PHÍ tài chính (phí chuyển khoản, phí cho vay…). */
 const PHI_CAT = 'Tài chính'

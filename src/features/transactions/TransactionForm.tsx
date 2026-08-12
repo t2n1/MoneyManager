@@ -31,6 +31,7 @@ import {
 import { AccountPicker } from '../../components/AccountPicker'
 import { IconButton } from '../../components/ui'
 import { TagPicker } from '../tags/TagPicker'
+import { isAutoAssignedCategory, pickableCategories } from '../categories/flowCategories'
 import { remainingOf } from '../debts/aggregate'
 import type { DebtPerson } from './roleFields'
 import { NumPad, type NumPadKey } from '../../components/NumPad'
@@ -67,15 +68,20 @@ import type { RoleBase } from './roleSave'
 const LAST_ACCOUNT_KEY = 'sct-last-account'
 const lastCategoryKey = (type: TransactionType) => `sct-last-category-${type}`
 
-/** id danh mục lần trước của loại `type`, chỉ trả khi còn hợp lệ (không lưu trữ). */
+/**
+ * id danh mục lần trước của loại `type`, chỉ trả khi còn hợp lệ (không lưu trữ,
+ * không phải loại app tự gán — chọn tay từ trước lần sửa này vẫn còn trong
+ * localStorage, điền lại sẽ chọn sẵn một danh mục lưới không còn bày ra).
+ */
 function lastCategoryFor(
   type: TransactionType,
-  categories: { id: string; type: TransactionType; is_archived: boolean }[],
+  categories: { id: string; name: string; type: TransactionType; is_archived: boolean }[],
 ): string | null {
   const id = localStorage.getItem(lastCategoryKey(type))
   if (!id) return null
   const c = categories.find((x) => x.id === id)
-  return c && c.type === type && !c.is_archived ? id : null
+  if (!c || c.type !== type || c.is_archived) return null
+  return isAutoAssignedCategory(c) ? null : id
 }
 
 const TYPE_TABS: { value: TransactionType; label: string }[] = [
@@ -348,9 +354,11 @@ export function TransactionForm({
     () => activeAccounts.filter((a) => a.currency === 'VND' && a.type !== 'card'),
     [activeAccounts],
   )
+  // Danh mục chọn tay: bỏ loại app tự gán (Cho vay, Điều chỉnh số dư, Gửi tiền
+  // về VN…) vì đã có lối nhập riêng; vẫn giữ danh mục của GD đang sửa.
   const activeOfType = useMemo(
-    () => categories.filter((c) => c.type === type && !c.is_archived),
-    [categories, type],
+    () => pickableCategories(categories, type, initial?.category_id),
+    [categories, type, initial?.category_id],
   )
   const topCategories = useMemo(() => activeOfType.filter((c) => !c.parent_id), [activeOfType])
   const childrenOf = (id: string) => activeOfType.filter((c) => c.parent_id === id)

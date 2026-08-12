@@ -9,6 +9,25 @@ function isUngrouped(t: TagRow, known: Set<string>): boolean {
 }
 
 /**
+ * Số nhãn hiện thẳng trong MỖI nhóm khi chưa bấm "Tất cả".
+ *
+ * Buộc vào số NHÓM chứ không phải số mục đang vẽ: `sections` là kết quả của
+ * `pickerSections(…, limit)`, nên lấy `sections.length` ra quyết định limit là vòng
+ * tròn — phải có limit trước mới có sections.
+ *
+ * Số 3 của bản trước sinh ra khi mỗi mục còn ăn MỘT hàng tiêu đề riêng. Nay tên nhóm
+ * nằm cùng hàng với chip nên chỗ đó dư ra, trả lại cho nhãn. Người dùng chốt chỉ dùng
+ * 2 nhóm ("Ai?", "Ở đâu?") và không định thêm, nên nhánh `<= 2` là nhánh chạy thật.
+ *
+ * Đánh đổi đã biết: mục "Khác" tự xuất hiện (khôi phục sao lưu lệch, nhãn trỏ tới nhóm
+ * đã xoá) thì có 3 mục mà limit vẫn 4. Ca hiếm, và đo lại rồi hạ được — đổi lấy việc
+ * không phải lặp logic "mục Khác có xuất hiện hay không" ở hai chỗ rồi để hai bên trôi.
+ */
+export function collapsedLimit(groupCount: number): number {
+  return groupCount <= 2 ? 4 : 3
+}
+
+/**
  * Hàng đợi cho dải xếp nhanh: nhãn còn dùng mà chưa có nhóm.
  *
  * `skipped` là những nhãn vừa bấm "Để ở Khác" trong phiên này. Cần nó vì DB không
@@ -78,5 +97,40 @@ export function pickerSections(
     // tiêu đề trống trơn.
     if (part.shown.length > 0 || part.rest.length > 0) out.push({ group: null, ...part })
   }
+  return out
+}
+
+/** Một chỗ có thể tạo nhãn mới vào. `group: null` = mục "Khác". */
+export interface CreateTarget {
+  group: TagGroupRow | null
+}
+
+/**
+ * Gõ một tên chưa có vào ô tìm thì mỗi nhóm hiện một chip "＋ Tạo …", để chọn luôn chỗ
+ * đặt. Sau khi bỏ nút "+ mới" ở từng nhóm, đây là đường tạo nhãn duy nhất — nên mọi
+ * nhánh dưới đây đều phải để lại ít nhất một chỗ tạo, không được thành ngõ cụt.
+ *
+ * Trùng tên HẲN thì trả rỗng: lúc đó việc đúng là chọn nhãn có sẵn. Xét cả nhãn đã lưu
+ * trữ, vì gõ trùng tên nhãn lưu trữ sẽ làm nó SỐNG LẠI (xem `addTag` trong TagPicker) —
+ * mời tạo ở đó là mời tạo một thứ không tạo được.
+ *
+ * Mục "Khác" chỉ được mời khi nó ĐANG tồn tại. Không tự mọc mục Khác ra để nhận nhãn
+ * mới: chốt 2026-08-08 là nhãn tạo lúc nhập phải sinh ra đã có nhóm, không đẻ thêm việc
+ * "vào Cài đặt xếp lại sau". Ngoại lệ duy nhất là chưa có nhóm nào.
+ */
+export function createTargets(
+  tags: TagRow[],
+  sections: TagSection[],
+  query: string,
+): CreateTarget[] {
+  const name = query.trim()
+  if (!name) return []
+  const lower = name.toLowerCase()
+  if (tags.some((t) => t.name.toLowerCase() === lower)) return []
+
+  const out: CreateTarget[] = []
+  for (const s of sections) if (s.group) out.push({ group: s.group })
+  if (out.length === 0) return [{ group: null }]
+  if (sections.some((s) => !s.group)) out.push({ group: null })
   return out
 }

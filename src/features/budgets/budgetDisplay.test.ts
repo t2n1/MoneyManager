@@ -130,6 +130,23 @@ describe('buildBudgetDisplay', () => {
     expect(d.unbudgeted).toEqual([{ cat: other, children: [] }])
   })
 
+  // Danh mục dòng chảy (Cho vay / Trả nợ / Điều chỉnh số dư): giao dịch bị loại
+  // khỏi báo cáo nên chi luôn 0 — bày ra chỉ mời người dùng đặt trần vô nghĩa.
+  it('danh mục dòng chảy không vào danh sách chưa đặt', () => {
+    const lend = cat({ id: 'lend', name: 'Cho vay' })
+    const repay = cat({ id: 'repay', name: 'Trả nợ' })
+    const adjust = cat({ id: 'adjust', name: 'Điều chỉnh số dư' })
+    const other = cat({ id: 'other3', name: 'Khác' })
+    const d = buildBudgetDisplay([lend, repay, adjust, other], report([]))
+    expect(d.unbudgeted).toEqual([{ cat: other, children: [] }])
+  })
+
+  it('danh mục dòng chảy lỡ có hạn mức cũ cũng bị ẩn', () => {
+    const lend = cat({ id: 'lend2', name: 'Cho vay' })
+    const r = report([line('lend2', 5_000, 0)])
+    expect(buildBudgetDisplay([lend], r).items).toEqual([])
+  })
+
   it('items sắp theo ratio giảm dần', () => {
     const a = cat({ id: 'a' })
     const b = cat({ id: 'b' })

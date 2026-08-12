@@ -3,6 +3,7 @@
 
 import { statementCloseFor } from '../../lib/cardAutopay'
 import { nextCardDueDate } from '../../lib/dates'
+import { ADJUST_CATEGORY_NAME } from '../categories/flowCategories'
 
 export interface ReconcileInput {
   /** Thẻ tín dụng: ô nhập là SỐ ĐANG NỢ (luôn dương), số dư sổ mang dấu âm. */
@@ -83,7 +84,8 @@ export const CARD_RECONCILE_NOTE = 'Điều chỉnh số nợ'
 // Bảng transactions có CHECK: chi/thu BẮT BUỘC có danh mục (chỉ chuyển khoản mới
 // được để trống). Nên giao dịch bù phải gắn một danh mục — app tự tạo sẵn một
 // danh mục riêng cho việc này, mỗi chiều một cái, để sổ đọc ra nghĩa ngay.
-export const ADJUST_CATEGORY_NAME = 'Điều chỉnh số dư'
+// Tên nằm ở flowCategories vì màn Ngân sách cũng cần biết để ẩn nó đi.
+export { ADJUST_CATEGORY_NAME }
 export const ADJUST_CATEGORY_ICON = '⚖️'
 
 interface CategoryLike {

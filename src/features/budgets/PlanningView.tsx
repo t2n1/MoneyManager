@@ -21,6 +21,7 @@ import { formatMoney } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { monthlyNeeded } from '../assets/goals'
+import { isFlowCategory } from '../categories/flowCategories'
 import { TagPlanCard } from '../tags/TagPlanCard'
 import type { AxisKey } from './axisTargets'
 import { BudgetEditSheet } from './BudgetEditSheet'
@@ -71,8 +72,14 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   // Danh mục lá đáng bày ra: đã đặt hạn mức, hoặc từng chi trong lịch sử (có gợi ý).
   // Tiền to lên đầu — lập kế hoạch thì bắt đầu từ chỗ tốn nhất.
   const rows = useMemo(() => {
+    // Bỏ danh mục dòng chảy như màn Ngân sách: chi tiêu không vào báo cáo nên
+    // gợi ý luôn 0, có hiện ra cũng chỉ mời đặt trần vô nghĩa.
     const leaves = categories.filter(
-      (c) => c.type === 'expense' && !c.is_archived && !categories.some((k) => k.parent_id === c.id && !k.is_archived),
+      (c) =>
+        c.type === 'expense' &&
+        !c.is_archived &&
+        !isFlowCategory(c) &&
+        !categories.some((k) => k.parent_id === c.id && !k.is_archived),
     )
     return leaves
       .map((c) => ({

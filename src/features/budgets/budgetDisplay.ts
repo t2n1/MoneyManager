@@ -10,6 +10,7 @@
 //  - Lá độc lập (không con): có budget → item leaf; chưa có → "chưa đặt".
 
 import type { CategoryRow } from '../../types/database.types'
+import { isFlowCategory } from '../categories/flowCategories'
 import { statusOf, type BudgetLine, type BudgetReport, type BudgetStatus } from './progress'
 
 export interface BudgetChildRow {
@@ -55,11 +56,16 @@ const ratioOf = (spent: number, budgeted: number) => (budgeted > 0 ? spent / bud
 /**
  * `expenseCats` là danh mục chi chưa lưu trữ, đã sắp theo sort_order. `report`
  * cung cấp lines (mỗi budget một dòng, kèm cờ isMarker) và spentByCategory.
+ *
+ * Danh mục dòng chảy (Cho vay, Trả nợ, Điều chỉnh số dư — xem flowCategories)
+ * bị loại ngay ở đây: chi tiêu của chúng không vào báo cáo nên hạn mức đặt vào
+ * đó vĩnh viễn hiện 0. Lọc cả hạn mức cũ lỡ đặt trước khi có lần sửa này.
  */
 export function buildBudgetDisplay(
-  expenseCats: CategoryRow[],
+  allExpenseCats: CategoryRow[],
   report: BudgetReport,
 ): BudgetDisplay {
+  const expenseCats = allExpenseCats.filter((c) => !isFlowCategory(c))
   const lineOf = new Map(report.lines.map((l) => [l.categoryId, l]))
   const spentOf = (id: string) => report.spentByCategory.get(id) ?? 0
   const childrenOf = (id: string) => expenseCats.filter((c) => c.parent_id === id)

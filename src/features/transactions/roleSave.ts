@@ -1,6 +1,7 @@
 import type { NewCategory, NewDebt, NewDebtPayment, NewTransaction } from '../../data'
 import type { CategoryRow, DebtPaymentRow, DebtRow, TransactionRow } from '../../types/database.types'
 import type { CurrencyCode } from '../../lib/money'
+import { DEBT_FLOW_CATEGORY_NAMES } from '../categories/flowCategories'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
 
 /**
@@ -80,7 +81,13 @@ export async function debtFlowCategoryId(
   // Giải ngân: tiền đi theo chiều cho vay. Trả: tiền đi theo chiều ngược lại.
   const type = (kind === 'disburse' ? lending : !lending) ? 'expense' : 'income'
   const name =
-    kind === 'disburse' ? (lending ? 'Cho vay' : 'Đi vay') : lending ? 'Thu nợ' : 'Trả nợ'
+    kind === 'disburse'
+      ? lending
+        ? DEBT_FLOW_CATEGORY_NAMES.lend
+        : DEBT_FLOW_CATEGORY_NAMES.borrow
+      : lending
+        ? DEBT_FLOW_CATEGORY_NAMES.collect
+        : DEBT_FLOW_CATEGORY_NAMES.repay
   const found = deps.categories.find((c) => c.type === type && c.name === name)
   if (found) return found.id
   const created = await deps.createCategory({ name, type, icon: '🤝', parent_id: null })

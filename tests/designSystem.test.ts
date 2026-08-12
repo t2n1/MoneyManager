@@ -66,8 +66,13 @@ function stripComments(text: string): string {
  * 52 (2026-08-12): khối trần-theo-nhãn của mặt lập kế hoạch có câu cảnh báo thiếu tỷ
  * giá, y hệt câu đã có ở TagBudgetsCard. Cảnh báo "số đang tính thiếu" mà ẩn ở chế độ
  * Gọn thì người dùng đọc một con số sai mà không biết — đúng loại phải ở lại.
+ *
+ * 53 (2026-08-13): FundHoldingsSection lặp lại đúng dòng "theo giá phiên …/chưa có
+ * bảng giá" đã có ở HoldingsSection, chỉ đổi nhãn 基準価額 cho quỹ Nhật. Đây là dòng
+ * SỐ LIỆU nói rõ đang tính theo phiên nào — bọc <Guide> là mất thông tin đó ở chế độ
+ * Gọn, đúng loại lỗi các lần nâng trần trước đã tránh.
  */
-const PROSE_MAX = 52
+const PROSE_MAX = 53
 
 const FILES = sourceFiles().map((path) => ({
   path,
@@ -394,7 +399,9 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // hero và sheet trượt lên; phần còn lại là tuỳ tiện. `rounded-md` thì lạc hẳn.
     // 37 (2026-08-12): sheet khai thu dự kiến của mặt lập kế hoạch. Đúng ngoại lệ ghi
     // ngay trên — sheet trượt lên dùng rounded-t-2xl, và cả app đang thống nhất thế.
-    { needle: 'rounded-2xl', max: 37, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
+    // 38 (2026-08-13): FundTradeFormSheet (ghi/sửa lệnh quỹ Nhật) — cùng khuôn sheet
+    // trượt lên với TradeFormSheet, một ngoại lệ hợp lệ khác chứ không phải nợ mới.
+    { needle: 'rounded-2xl', max: 38, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
     { needle: 'rounded-md', max: 13, use: 'rounded-lg (scale chuẩn)' },
     // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại

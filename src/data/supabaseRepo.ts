@@ -1596,6 +1596,7 @@ export const supabaseRepo: Repo = {
       recurringRuleTags,
       plannedExpenses,
       plannedExpenseTags,
+      fundTrades,
     ] = await Promise.all([
       this.getProfile(),
       selectAll<AccountRow>('accounts'),
@@ -1620,6 +1621,7 @@ export const supabaseRepo: Repo = {
       selectAll<RecurringRuleTagRow>('recurring_rule_tags'),
       selectAll<PlannedExpenseRow>('planned_expenses'),
       selectAll<PlannedExpenseTagRow>('planned_expense_tags'),
+      selectAll<FundTradeRow>('fund_trades'),
     ])
     return {
       version: BACKUP_VERSION,
@@ -1647,6 +1649,7 @@ export const supabaseRepo: Repo = {
       recurringRuleTags,
       plannedExpenses,
       plannedExpenseTags,
+      fundTrades,
     }
   },
 
@@ -1908,6 +1911,29 @@ export const supabaseRepo: Repo = {
               note: t.note,
             })),
         (part) => sb.from('stock_trades').insert(part),
+      )
+    }
+
+    // fund_trades: composite FK tới accounts → chèn sau accounts. `assoc_fund_cd` có FK
+    // tới `funds`, mà `funds` được seed bởi migration chứ không nằm trong bản lưu — nên
+    // khôi phục một bản lưu mang quỹ chưa được seed sẽ nổ FK. Đó là hành vi ĐÚNG: thà
+    // báo lỗi còn hơn nhận một sổ lệnh trỏ vào quỹ mà app không biết giá.
+    if (data.fundTrades?.length) {
+      await insertChunked(
+        data.fundTrades.map((t) => ({
+          id: t.id,
+          user_id: uid,
+          account_id: t.account_id,
+          assoc_fund_cd: t.assoc_fund_cd,
+          kind: t.kind,
+          traded_on: t.traded_on,
+          units: t.units,
+          nav: t.nav,
+          amount: t.amount,
+          bucket: t.bucket,
+          note: t.note,
+        })),
+        (part) => sb.from('fund_trades').insert(part),
       )
     }
 

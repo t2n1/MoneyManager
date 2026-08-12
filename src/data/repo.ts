@@ -97,8 +97,11 @@ export interface BackupData {
   fundTrades?: FundTradeRow[]
 }
 
-/** Phiên bản định dạng backup hiện hành. v11: thêm plannedExpenses + nhãn của chúng. */
-export const BACKUP_VERSION = 11
+/**
+ * Phiên bản định dạng backup hiện hành. v11: thêm plannedExpenses + nhãn của chúng.
+ * v12: thêm fundTrades — sổ lệnh quỹ đầu tư Nhật.
+ */
+export const BACKUP_VERSION = 12
 
 export interface NewTransaction {
   type: TransactionType

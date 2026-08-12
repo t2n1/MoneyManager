@@ -235,5 +235,26 @@ export function validateBackupPayload(data: BackupData): string[] {
     }
   }
 
+  // Sổ lệnh quỹ Nhật (v12): FK (account_id, user_id) -> accounts + CHECK fund_trades_shape
+  // của migration 0045. id trùng đã bắt ở khối `ids` phía trên (dùng chung accountIds).
+  ids(data.fundTrades, 'sổ lệnh quỹ')
+  for (const ft of data.fundTrades ?? []) {
+    const at = `${ft.assoc_fund_cd} ${ft.traded_on}`
+    if (!accountIds.has(ft.account_id))
+      p.add('Lệnh quỹ trỏ tới tài khoản không có trong file', `${at} → ${ft.account_id}`)
+    // Hình dạng theo kind (CHECK fund_trades_shape): file vi phạm sẽ nổ 23514 lúc chèn —
+    // tức là SAU khi đã xoá hết dữ liệu cũ. Soát đủ cả hai nhánh ở đây.
+    if (ft.kind === 'adjust') {
+      if (ft.units === 0) p.add('Lệnh điều chỉnh quỹ phải có số 口数 khác 0', at)
+      if (ft.nav !== 0) p.add('Lệnh điều chỉnh quỹ không được có 基準価額 khác 0', at)
+      if (ft.amount !== 0) p.add('Lệnh điều chỉnh quỹ không được có số tiền khác 0', at)
+    } else {
+      if (typeof ft.units !== 'number' || !Number.isFinite(ft.units) || ft.units <= 0)
+        p.add('Lệnh mua/bán quỹ phải có số 口数 dương', `${at} → ${String(ft.units)}`)
+      if (typeof ft.amount !== 'number' || !Number.isFinite(ft.amount) || ft.amount <= 0)
+        p.add('Lệnh mua/bán quỹ phải có số tiền dương', `${at} → ${String(ft.amount)}`)
+    }
+  }
+
   return p.list()
 }

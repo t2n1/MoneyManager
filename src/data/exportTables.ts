@@ -27,6 +27,7 @@ export const DATA_TABLES = [
   'life_events',
   'stock_trades',
   'month_plans',
+  'fund_trades',
 ] as const
 
 export type DataTable = (typeof DATA_TABLES)[number]

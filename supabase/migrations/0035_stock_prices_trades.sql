@@ -15,7 +15,8 @@
 -- ------------------------------------------------------------
 -- 1. Bảng giá chung
 --
--- Bảng DUY NHẤT trong dự án không có user_id (ngoại lệ có ý thức với nguyên tắc 0.5):
+-- Bảng ĐẦU TIÊN trong dự án không có user_id (ngoại lệ có ý thức với nguyên tắc 0.5).
+-- Migration 0045 thêm ba bảng nữa cùng loại: funds, fund_aliases, fund_prices.
 -- giá cổ phiếu là dữ liệu công khai, giống hệt nhau với mọi user, và không suy ra được
 -- ai đang giữ gì từ nó. Nhân bản theo user chỉ để thoả hình thức thì đổi lấy 400+ hàng
 -- mỗi người và một vòng lặp hút giá cho từng user. Phần riêng tư nằm ở stock_trades.

@@ -1705,6 +1705,10 @@ export const supabaseRepo: Repo = {
       'categories',
       // stock_trades: composite FK tới accounts → xoá trước accounts.
       'stock_trades',
+      // fund_trades: cùng hình dạng (composite FK tới accounts, cùng on delete cascade).
+      // Khai tường minh dù cascade đã lo — cùng lý do với recurring_rule_tags ở trên: mảy
+      // này là bản đồ phụ thuộc, bảng vắng mặt ở đây là bảng người sửa sau không thấy.
+      'fund_trades',
       'accounts',
     ]
     for (const table of deleteOrder) {

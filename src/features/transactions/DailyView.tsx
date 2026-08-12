@@ -19,6 +19,8 @@ interface Props {
   selecting?: boolean
   isSelected?: (id: string) => boolean
   onToggleSelect?: (id: string) => void
+  /** Bật/tắt chế độ chọn nhiều. Có hàm này thì nút "Chọn" mới hiện. */
+  onToggleSelecting?: () => void
   /** Nhãn theo id giao dịch (xem `tagsByTransaction`) — để dòng nào có nhãn thì hiện chip. */
   tagsOfTx?: Map<string, TagRow[]>
 }
@@ -36,6 +38,7 @@ export function DailyView({
   selecting = false,
   isSelected,
   onToggleSelect,
+  onToggleSelecting,
   tagsOfTx,
 }: Props) {
   const days = useMemo(() => groupByDay(transactions), [transactions])
@@ -48,6 +51,21 @@ export function DailyView({
         base={base}
         rates={rates}
       />
+
+      {/* Nút "Chọn" đứng SÁT danh sách nó điều khiển. Trước đây nó nằm trên thẻ
+          tổng Thu/Chi, tức là ngay dưới thẻ "Cơ cấu chi" — đọc thành "chọn cái gì
+          đó của Cơ cấu chi". -my-2 để vùng chạm 44px không nong khoảng cách ra. */}
+      {onToggleSelecting && !isLoading && days.length > 0 && (
+        <div className="-my-2 flex justify-end px-1">
+          <button
+            type="button"
+            onClick={onToggleSelecting}
+            className="inline-flex min-h-11 items-center justify-center px-2 text-xs font-medium text-green-700 dark:text-green-400"
+          >
+            {selecting ? 'Xong' : 'Chọn'}
+          </button>
+        </div>
+      )}
 
       {isLoading ? (
         <p className="py-10 text-center text-fg-muted">Đang tải…</p>

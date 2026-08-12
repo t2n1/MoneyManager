@@ -236,34 +236,22 @@ export function LedgerPage() {
       {view === 'daily' && axis && <AxisStrip data={axis} monthKey={activeMonthKey} />}
 
       {view === 'daily' && (
-        <>
-          {transactions.length > 0 && (
-            <div className="mb-2 flex justify-end px-1">
-              <button
-                type="button"
-                onClick={() => (selection.selecting ? selection.exit() : selection.enter())}
-                // -my-2 để vùng chạm 44px không đẩy danh sách xuống thêm
-                className="-my-2 inline-flex min-h-11 items-center justify-center px-2 text-xs font-medium text-green-700 dark:text-green-400"
-              >
-                {selection.selecting ? 'Xong' : 'Chọn'}
-              </button>
-            </div>
-          )}
-          <DailyView
-            transactions={transactions}
-            isLoading={isLoading}
-            accountOf={accountOf}
-            categoryOf={categoryOf}
-            currencyOf={currencyOf}
-            base={base}
-            rates={rates}
-            onEdit={setEditing}
-            selecting={selection.selecting}
-            isSelected={selection.isSelected}
-            onToggleSelect={selection.toggle}
-            tagsOfTx={tagsOfTx}
-          />
-        </>
+        <DailyView
+          transactions={transactions}
+          isLoading={isLoading}
+          accountOf={accountOf}
+          categoryOf={categoryOf}
+          currencyOf={currencyOf}
+          base={base}
+          rates={rates}
+          onEdit={setEditing}
+          selecting={selection.selecting}
+          isSelected={selection.isSelected}
+          onToggleSelect={selection.toggle}
+          // Nút "Chọn" do DailyView vẽ, ngay trên danh sách nó điều khiển
+          onToggleSelecting={() => (selection.selecting ? selection.exit() : selection.enter())}
+          tagsOfTx={tagsOfTx}
+        />
       )}
 
       {view === 'calendar' && (

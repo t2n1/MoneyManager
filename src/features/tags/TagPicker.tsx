@@ -161,8 +161,14 @@ export function TagPicker({ value, onChange }: Props) {
         aria-pressed={on}
         // `border-transparent` chứ không bỏ viền: bỏ hẳn thì chip đã chọn hẹp hơn 2px và
         // bấm một chip sẽ đẩy các chip sau nó nhảy chỗ. CategoryTile cũng làm cách này.
+        //
+        // Và KHÔNG đổi độ đậm chữ theo trạng thái: đo trên 375×812 thấy `font-medium` ở
+        // riêng trạng thái đã chọn làm chip rộng thêm 1px, đủ để đẩy các chip sau nó
+        // dịch chỗ. Đã chọn hay chưa phân biệt bằng nền + màu chữ + viền, cả ba đều
+        // không đổi kích thước. Nhãn màu xám là ca sát nhất: nền L 0.21 → 0.278, chữ
+        // L 0.707 → 0.872, viền biến mất — vẫn đọc ra được, đã soi ở nền tối.
         className={`${CHIP} ${
-          on ? `border-transparent font-medium ${TAG_CHIP_CLASS[tagColor(t.color)]}` : CHIP_OFF
+          on ? `border-transparent ${TAG_CHIP_CLASS[tagColor(t.color)]}` : CHIP_OFF
         }`}
       >
         <span className="truncate">{t.name}</span>
@@ -248,6 +254,13 @@ export function TagPicker({ value, onChange }: Props) {
           )
         })}
 
+        {/* Gần như không bao giờ hiện: không khớp gì thì đã có chip "＋ Tạo …" thay chỗ.
+            Còn lại đúng MỘT ca — gõ đúng tên một nhãn đã lưu trữ: `createTargets` không
+            mời tạo (tạo sẽ trùng tên), mà nhãn lưu trữ thì không nằm trong danh sách.
+            Đường bật lại nhãn đó là Cài đặt → Nhãn. Đã thử ghi câu chỉ đường ngay đây,
+            nhưng câu chỉ đường KHÔNG được bọc <Guide> (xem Guide.tsx) nên nó thành một
+            đoạn văn xuôi mới, tức phải nâng trần của test canh chế độ Gọn — quá đắt cho
+            một ca hiếm đến vậy. */}
         {needle && !creating && visible.length === 0 && (
           <p className="py-1 text-xs text-fg-muted">Không có nhãn nào khớp “{query}”</p>
         )}

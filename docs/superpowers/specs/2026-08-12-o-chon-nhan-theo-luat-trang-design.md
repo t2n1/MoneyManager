@@ -137,14 +137,16 @@ chỉ chưa-chọn mới có viền. Bỏ viền hẳn thì chip đã chọn h�
 danh mục có sẵn cách này: `CategoryTile` dùng `border-transparent` cho ô chưa chọn
 (`TransactionForm.tsx:1380`).
 
-Chip đã chọn thêm `font-medium`, chưa chọn để `font-normal`.
+**Không đổi độ đậm chữ theo trạng thái.** Bản đầu định cho chip đã chọn `font-medium`;
+đo trên 375×812 thấy nó làm chip rộng thêm 1px, đủ để đẩy các chip đứng sau dịch chỗ —
+đúng cái mà `border-transparent` vừa đi chữa. Phân biệt bằng nền + màu chữ + viền, cả
+ba đều không đổi kích thước.
 
-**Một ca phải xử riêng: nhãn màu xám.** `TAG_CHIP_CLASS.gray` là `bg-surface-sunken`
-— đặt cạnh `CHIP_OFF` (`bg-surface` + viền) thì chọn với chưa chọn gần như y nhau.
-Với nhãn xám, trạng thái đã chọn dùng `bg-surface-sunken` + `text-fg-primary` (chữ
-đậm màu thường) đối lại chữ `text-fg-muted` của chưa chọn. Phải xem bằng mắt ở cả
-sáng và tối; nếu vẫn không phân biệt được thì đổi nhãn xám sang một nền đậm hơn, chứ
-đừng quay lại dùng viền `ring` cho riêng nó.
+**Ca sát nhất là nhãn màu xám**, vì `TAG_CHIP_CLASS.gray` (`bg-surface-sunken`) rất gần
+`CHIP_OFF` (`bg-surface`). Số đo thật ở nền tối: nền L 0.21 → 0.278, chữ L 0.707 →
+0.872, viền hairline biến mất. Đọc ra được — chủ yếu nhờ chữ sáng lên và viền mất, không
+nhờ nền. Nếu về sau đổi bảng màu làm hai bên sát hơn nữa thì đổi NỀN của nhãn xám cho
+đậm hơn, đừng quay lại dùng viền `ring` hay `font-medium` cho riêng nó.
 
 Giữ `rounded-full` (không đổi sang `rounded-lg` như `CHIP_BASE`) — chip mẫu giao dịch
 ở đầu form cũng `rounded-full`, đây là họ chip tròn.

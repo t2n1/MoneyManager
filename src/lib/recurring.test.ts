@@ -135,6 +135,32 @@ function makeFakeRepo(rules: RecurringRuleLike[], dupKeys: string[] = []) {
   return { repo, inserted, patches }
 }
 
+describe('runRecurringCatchUp — cờ hoàn tiền (migration 0043)', () => {
+  // Quy tắc hoàn tiền lặp (hoàn thuế nhà hằng tháng, cashback) mà rơi cờ thì mỗi kỳ
+  // thành một khoản chi thường: tháng nào cũng CỘNG thêm tiền vào Chi thay vì trừ ra.
+  it('kỳ sinh ra mang cờ is_refund của quy tắc', async () => {
+    const f = makeFakeRepo([makeRule({ is_refund: true })])
+    await runRecurringCatchUp(f.repo, '2026-07-19')
+    expect(f.inserted.length).toBeGreaterThan(0)
+    expect(f.inserted.every((i) => i.is_refund === true)).toBe(true)
+  })
+
+  it('quy tắc thường thì kỳ nào cũng là chi thường', async () => {
+    const f = makeFakeRepo([makeRule()])
+    await runRecurringCatchUp(f.repo, '2026-07-19')
+    expect(f.inserted.every((i) => i.is_refund === false)).toBe(true)
+  })
+
+  // DB chỉ nhận is_refund trên CHI (transactions_refund_expense_only). Dữ liệu cũ lỡ
+  // có cờ trên quy tắc thu/chuyển khoản thì engine phải bỏ, không thì mọi kỳ của quy
+  // tắc đó bị DB từ chối và nó ngừng sinh mà không ai biết.
+  it('cờ trên quy tắc THU/chuyển khoản bị bỏ (DB chỉ nhận trên chi)', async () => {
+    const f = makeFakeRepo([makeRule({ type: 'income', is_refund: true })])
+    await runRecurringCatchUp(f.repo, '2026-07-19')
+    expect(f.inserted.every((i) => i.is_refund === false)).toBe(true)
+  })
+})
+
 describe('runRecurringCatchUp', () => {
   it('sinh đủ các kỳ lỡ với đúng ngày quá khứ + cập nhật last_generated_on', async () => {
     const f = makeFakeRepo([makeRule()])
@@ -176,6 +202,7 @@ describe('runRecurringCatchUp', () => {
       occurred_on: '2026-07-13',
       note: 'tien nha',
       recurring_rule_id: 'r1',
+      is_refund: false,
     })
   })
 })

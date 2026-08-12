@@ -3,7 +3,7 @@
 // Ba quyết định của form, theo thứ tự người ta nghĩ: chi cái gì → khoảng bao nhiêu →
 // khi nào (và có cần app kêu không). Số tiền để trống được: "tìm nhà mới" là việc có
 // thật mà chưa ai đoán nổi giá, bắt điền là ép bịa một con số.
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
 import { ActionButton } from '../../components/ui'
@@ -12,9 +12,11 @@ import {
   useCategories,
   useCreatePlannedExpense,
   useDeletePlannedExpense,
+  usePlannedExpenseTags,
   useRates,
   useUpdatePlannedExpense,
 } from '../../hooks/queries'
+import { TagPicker } from '../tags/TagPicker'
 import { CURRENCIES, type CurrencyCode } from '../../lib/currencies'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { toISODate } from '../../lib/dates'
@@ -51,6 +53,18 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
   const [remindDays, setRemindDays] = useState(String(planned?.remind_days_before ?? 0))
   const [categoryId, setCategoryId] = useState<string | null>(planned?.category_id ?? null)
   const [note, setNote] = useState(planned?.note ?? '')
+  // Nhãn của lời nhắc (migration 0044). Danh sách liên kết tới muộn hơn lần render đầu
+  // nên KHÔNG gieo vào useState; null = chưa đụng vào → giữ nhãn đang có.
+  const { data: plannedTagLinks = [] } = usePlannedExpenseTags()
+  const [tagIds, setTagIds] = useState<string[] | null>(null)
+  const currentTagIds = useMemo(
+    () =>
+      planned
+        ? plannedTagLinks.filter((l) => l.planned_id === planned.id).map((l) => l.tag_id)
+        : [],
+    [plannedTagLinks, planned],
+  )
+  const effectiveTagIds = tagIds ?? currentTagIds
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -73,6 +87,7 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
         remind_days_before: remind ? (Number(remindDays) || 0) : null,
         category_id: categoryId,
         note: note.trim(),
+        tag_ids: effectiveTagIds,
       }
       if (planned) await update.mutateAsync({ id: planned.id, patch: input })
       else await create.mutateAsync(input)
@@ -253,6 +268,12 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
           onChange={(e) => setNote(e.target.value)}
           className="mb-3 w-full rounded-lg border border-border-strong px-3 py-2 text-base outline-green-500 sm:text-sm"
         />
+
+        {/* Nhãn: lúc ghi khoản này thành giao dịch thật, form Nhập lấy sẵn đúng những
+            nhãn ở đây (migration 0044). */}
+        <div className="mb-3">
+          <TagPicker value={effectiveTagIds} onChange={setTagIds} />
+        </div>
 
         {error && <p className="mb-2 text-xs text-money-out">{error}</p>}
 

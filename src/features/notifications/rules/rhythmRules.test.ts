@@ -44,6 +44,7 @@ function recurringRule(over: Partial<RecurringRuleRow> & { id: string }): Recurr
     start_on: over.start_on ?? '2026-05-01',
     end_on: null,
     is_paused: false,
+    is_refund: false,
     last_generated_on: null,
     mode: 'auto',
     remind_days_before: 0,

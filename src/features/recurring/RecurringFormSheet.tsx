@@ -67,6 +67,9 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
   const [startOn, setStartOn] = useState(rule?.start_on ?? toISODate(new Date()))
   const [endOn, setEndOn] = useState(rule?.end_on ?? '')
   const [note, setNote] = useState(rule?.note ?? '')
+  // Hoàn tiền lặp (migration 0043) — hoàn thuế nhà hằng tháng, cashback. DB chỉ nhận
+  // cờ này trên CHI nên đổi loại là phải tắt (xem `changeType`).
+  const [isRefund, setIsRefund] = useState(rule?.is_refund ?? false)
   // Nhãn của quy tắc (migration 0042). null = chưa đụng vào → giữ nhãn đang có; danh
   // sách nhãn tới muộn hơn lần render đầu nên KHÔNG gieo vào useState.
   const { data: ruleTagLinks = [] } = useRecurringRuleTags()
@@ -122,6 +125,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
     setCategoryId(null)
     setToAccountId(null)
     setToAmount(0)
+    setIsRefund(false) // DB chỉ nhận cờ hoàn tiền trên CHI (0043)
   }
 
   async function handleSave() {
@@ -144,6 +148,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         // Chỉ có nghĩa với kiểu nhắc; kiểu tự ghi luôn để 0 cho khỏi lưu số rác.
         remind_days_before: mode === 'remind' ? Number(remindDays) || 0 : 0,
         tag_ids: effectiveTagIds,
+        is_refund: type === 'expense' && isRefund,
       }
       if (rule) await update.mutateAsync({ id: rule.id, patch: input })
       else await create.mutateAsync(input)
@@ -392,6 +397,23 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
           placeholder="Ví dụ: tiền nhà"
           className="mb-1 w-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
         />
+
+        {type === 'expense' && (
+          <label className="mt-2 flex min-h-11 items-start gap-2 text-sm text-fg-secondary">
+            <input
+              type="checkbox"
+              checked={isRefund}
+              onChange={(e) => setIsRefund(e.target.checked)}
+              className="mt-0.5 h-5 w-5 shrink-0"
+            />
+            <span>
+              Mỗi kỳ là khoản <b>hoàn tiền</b>
+              <Guide as="span" className="block text-xs text-fg-muted">
+                Hoàn thuế, cashback đều đặn… Mỗi kỳ TRỪ vào chi của danh mục thay vì cộng thêm.
+              </Guide>
+            </span>
+          </label>
+        )}
 
         {/* Nhãn: mỗi kỳ do quy tắc sinh ra sẽ mang đúng những nhãn này. Đặt dưới ghi
             chú vì nó là thứ tùy chọn, giống thứ tự ở form Nhập. */}

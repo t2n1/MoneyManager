@@ -166,11 +166,17 @@ export function usePlannedExpenses() {
   })
 }
 
+/** Đổi khoản sắp chi có thể đổi cả nhãn của nó (migration 0044). */
+function invalidatePlanned(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['plannedExpenses'] })
+  qc.invalidateQueries({ queryKey: ['plannedExpenseTags'] })
+}
+
 export function useCreatePlannedExpense() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: NewPlannedExpense) => repo.createPlannedExpense(input),
-    onSettled: () => qc.invalidateQueries({ queryKey: ['plannedExpenses'] }),
+    onSettled: () => invalidatePlanned(qc),
   })
 }
 
@@ -179,7 +185,7 @@ export function useUpdatePlannedExpense() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: PlannedExpensePatch }) =>
       repo.updatePlannedExpense(id, patch),
-    onSettled: () => qc.invalidateQueries({ queryKey: ['plannedExpenses'] }),
+    onSettled: () => invalidatePlanned(qc),
   })
 }
 
@@ -187,7 +193,7 @@ export function useDeletePlannedExpense() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => repo.deletePlannedExpense(id),
-    onSettled: () => qc.invalidateQueries({ queryKey: ['plannedExpenses'] }),
+    onSettled: () => invalidatePlanned(qc),
   })
 }
 
@@ -851,6 +857,15 @@ export function useRecurringRules() {
   return useQuery({
     queryKey: ['recurringRules'],
     queryFn: () => repo.listRecurringRules(),
+    staleTime: 60_000,
+  })
+}
+
+/** Nhãn của các khoản sắp chi (migration 0044). */
+export function usePlannedExpenseTags() {
+  return useQuery({
+    queryKey: ['plannedExpenseTags'],
+    queryFn: () => repo.listPlannedExpenseTags(),
     staleTime: 60_000,
   })
 }

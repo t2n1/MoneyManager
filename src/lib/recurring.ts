@@ -156,6 +156,8 @@ export interface RecurringRuleLike extends RuleSchedule {
    * có cột này, mà mặc định phải là hành vi CŨ, không phải im lặng ngừng sinh.
    */
   mode?: RecurringMode
+  /** Hoàn tiền lặp lại (migration 0043); vắng mặt = false. Chỉ có nghĩa với CHI. */
+  is_refund?: boolean
 }
 
 /** Giao dịch 1 kỳ cần sinh (NewRecurringOccurrence của repo thỏa type này). */
@@ -169,6 +171,8 @@ export interface RecurringOccurrenceInput {
   occurred_on: string
   note: string
   recurring_rule_id: string
+  /** Chép từ quy tắc (migration 0043). Luôn false với thu/chuyển khoản. */
+  is_refund: boolean
 }
 
 /** Subset của Repo mà engine cần — test dùng fake, app truyền repo thật. */
@@ -206,6 +210,10 @@ export async function runRecurringCatchUp(repo: RecurringRepo, todayISO: string)
         occurred_on: due,
         note: rule.note,
         recurring_rule_id: rule.id,
+        // DB chỉ nhận is_refund trên CHI (transactions_refund_expense_only). Quy tắc
+        // thu/chuyển khoản lỡ mang cờ thì bỏ ở đây, chứ để DB từ chối là cả quy tắc
+        // đó ngừng sinh mà không ai biết.
+        is_refund: rule.type === 'expense' && rule.is_refund === true,
       })
       if (ok) created++
     }

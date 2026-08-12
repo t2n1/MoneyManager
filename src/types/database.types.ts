@@ -183,6 +183,17 @@ export type RecurringRuleTagRow = {
 }
 
 /**
+ * Liên kết nhiều–nhiều giữa KHOẢN SẮP CHI (lời nhắc) và nhãn (migration 0044).
+ *
+ * Lúc ghi khoản đó thành giao dịch thật, form Nhập lấy sẵn những nhãn này.
+ */
+export type PlannedExpenseTagRow = {
+  planned_id: string
+  tag_id: string
+  user_id: string
+}
+
+/**
  * Một lần "giao dịch chi X mang nhãn Y" — đủ để cộng tổng chi cả đời của nhãn mà
  * không phải kéo nguyên bảng transactions về máy.
  *
@@ -540,6 +551,8 @@ export type RecurringRuleRow = {
   /** null = vô hạn */
   end_on: string | null
   is_paused: boolean
+  /** Hoàn tiền lặp lại (migration 0043). Chỉ được true khi type = 'expense'. */
+  is_refund: boolean
   /**
    * Kỳ đến hạn cuối ĐÃ XONG; null = chưa kỳ nào.
    *
@@ -829,10 +842,12 @@ export type Database = {
           | 'last_generated_on'
           | 'mode'
           | 'remind_days_before'
+          | 'is_refund'
         >
         Update: Partial<
           Pick<
             RecurringRuleRow,
+            | 'is_refund'
             | 'type'
             | 'amount'
             | 'to_amount'
@@ -1042,6 +1057,12 @@ export type Database = {
         Row: RecurringRuleTagRow
         Insert: RecurringRuleTagRow
         Update: Partial<RecurringRuleTagRow>
+        Relationships: []
+      }
+      planned_expense_tags: {
+        Row: PlannedExpenseTagRow
+        Insert: PlannedExpenseTagRow
+        Update: Partial<PlannedExpenseTagRow>
         Relationships: []
       }
       networth_snapshots: {

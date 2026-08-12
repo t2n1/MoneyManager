@@ -29,6 +29,7 @@ import type {
   PushSubscriptionRow,
   RecurringRuleRow,
   RecurringRuleTagRow,
+  PlannedExpenseTagRow,
   SavingsGoalRow,
   StockPriceRow,
   StockTradeRow,
@@ -140,6 +141,8 @@ interface DemoDB {
   transactionTags: TransactionTagRow[]
   /** Nhãn của quy tắc định kỳ (migration 0042); vắng mặt ở dữ liệu demo cũ. */
   recurringRuleTags?: RecurringRuleTagRow[]
+  /** Nhãn của khoản sắp chi (migration 0044); vắng mặt ở dữ liệu demo cũ. */
+  plannedExpenseTags?: PlannedExpenseTagRow[]
   tagGroups?: TagGroupRow[]
   /** Trạng thái thông báo (mục AO); vắng mặt ở dữ liệu demo cũ. */
   notificationState?: NotificationStateRow[]
@@ -1666,6 +1669,8 @@ export const demoRepo: Repo = {
       user_id: DEMO_USER,
       is_paused: false,
       last_generated_on: null,
+      // Ràng buộc DB (0043): cờ hoàn tiền chỉ có nghĩa với CHI.
+      is_refund: fields.type === 'expense' && fields.is_refund === true,
       mode: input.mode ?? 'auto',
       remind_days_before: input.remind_days_before ?? 0,
       created_at: nowISO(),
@@ -1824,6 +1829,19 @@ export const demoRepo: Repo = {
       )
   },
 
+  async listPlannedExpenseTags() {
+    return load().plannedExpenseTags ?? []
+  },
+
+  async setPlannedExpenseTags(plannedId: string, tagIds: string[]) {
+    const db = load()
+    db.plannedExpenseTags = (db.plannedExpenseTags ?? []).filter((l) => l.planned_id !== plannedId)
+    for (const tagId of tagIds) {
+      db.plannedExpenseTags.push({ planned_id: plannedId, tag_id: tagId, user_id: DEMO_USER })
+    }
+    save(db)
+  },
+
   async createPlannedExpense(input: NewPlannedExpense) {
     const db = load()
     db.plannedExpenses ??= []
@@ -1845,6 +1863,10 @@ export const demoRepo: Repo = {
       updated_at: nowISO(),
     }
     db.plannedExpenses.push(row)
+    db.plannedExpenseTags ??= []
+    for (const tagId of input.tag_ids ?? []) {
+      db.plannedExpenseTags.push({ planned_id: row.id, tag_id: tagId, user_id: DEMO_USER })
+    }
     save(db)
     return row
   },
@@ -1854,7 +1876,15 @@ export const demoRepo: Repo = {
     db.plannedExpenses ??= []
     const idx = db.plannedExpenses.findIndex((p) => p.id === id)
     if (idx < 0) throw new Error('Không tìm thấy khoản sắp chi')
-    db.plannedExpenses[idx] = { ...db.plannedExpenses[idx], ...patch, updated_at: nowISO() }
+    // Bỏ trống tag_ids = KHÔNG đụng tới nhãn; mảng rỗng = bỏ hết nhãn.
+    const { tag_ids, ...fields } = patch
+    if (tag_ids) {
+      db.plannedExpenseTags = (db.plannedExpenseTags ?? []).filter((l) => l.planned_id !== id)
+      for (const tagId of tag_ids) {
+        db.plannedExpenseTags.push({ planned_id: id, tag_id: tagId, user_id: DEMO_USER })
+      }
+    }
+    db.plannedExpenses[idx] = { ...db.plannedExpenses[idx], ...fields, updated_at: nowISO() }
     save(db)
     return db.plannedExpenses[idx]
   },
@@ -1862,6 +1892,8 @@ export const demoRepo: Repo = {
   async deletePlannedExpense(id: string) {
     const db = load()
     db.plannedExpenses = (db.plannedExpenses ?? []).filter((p) => p.id !== id)
+    // Postgres có `on delete cascade`; bản demo phải tự dọn liên kết.
+    db.plannedExpenseTags = (db.plannedExpenseTags ?? []).filter((l) => l.planned_id !== id)
     save(db)
   },
 
@@ -1988,6 +2020,8 @@ export const demoRepo: Repo = {
       lifeEvents: db.lifeEvents ?? [],
       monthPlans: db.monthPlans ?? [],
       recurringRuleTags: db.recurringRuleTags ?? [],
+      plannedExpenses: db.plannedExpenses ?? [],
+      plannedExpenseTags: db.plannedExpenseTags ?? [],
     }
   },
 
@@ -2044,6 +2078,8 @@ export const demoRepo: Repo = {
       lifeEvents: stamp(data.lifeEvents ?? []),
       monthPlans: stamp(data.monthPlans ?? []),
       recurringRuleTags: data.recurringRuleTags ?? [],
+      plannedExpenses: stamp(data.plannedExpenses ?? []),
+      plannedExpenseTags: data.plannedExpenseTags ?? [],
     }
     save(db)
   },

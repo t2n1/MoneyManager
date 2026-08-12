@@ -20,6 +20,8 @@ export const DATA_TABLES = [
   'tags',
   'transaction_tags',
   'recurring_rule_tags',
+  'planned_expenses',
+  'planned_expense_tags',
   'life_scenarios',
   'life_phases',
   'life_events',
@@ -44,6 +46,7 @@ export type DataTable = (typeof DATA_TABLES)[number]
 const PAGE_ORDER: Partial<Record<DataTable, readonly string[]>> = {
   transaction_tags: ['transaction_id', 'tag_id'],
   recurring_rule_tags: ['rule_id', 'tag_id'],
+  planned_expense_tags: ['planned_id', 'tag_id'],
 }
 
 const DEFAULT_PAGE_ORDER = ['id'] as const

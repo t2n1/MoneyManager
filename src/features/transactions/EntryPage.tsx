@@ -14,6 +14,7 @@ import {
   useCreatePlannedExpense,
   useDeleteTransaction,
   usePlannedExpenses,
+  usePlannedExpenseTags,
   useRecurringRules,
   useUpdatePlannedExpense,
   useRunRecurringCatchUp,
@@ -112,6 +113,13 @@ export function EntryPage() {
       }
     : undefined
   const waitingForPlanned = !!plannedId && plannedPending
+  // Nhãn của khoản sắp chi (migration 0044) đi theo vào giao dịch: bản điền sẵn là
+  // TransactionRow GIẢ (id rỗng) nên form không tra được nhãn qua bảng liên kết giao
+  // dịch — phải đưa vào bằng prop.
+  const { data: plannedTagLinks = [] } = usePlannedExpenseTags()
+  const plannedTagIds = planned
+    ? plannedTagLinks.filter((l) => l.planned_id === planned.id).map((l) => l.tag_id)
+    : undefined
 
   /** Đánh dấu khoản sắp chi là đã chi. Gọi SAU khi giao dịch đã lưu thành công. */
   async function markPlannedDone(transactionId: string) {
@@ -221,6 +229,7 @@ export function EntryPage() {
         // còn nguyên. Xác nhận một khoản là việc một lần, không phải nhập liên tục.
         continueLabel={billRule || planned ? undefined : 'Tiếp tục'}
         initial={billPrefill ?? plannedPrefill}
+        initialTagIds={plannedTagIds}
         initialType={initialType}
         enableTemplates
         enableRoles

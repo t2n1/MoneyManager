@@ -211,6 +211,7 @@ describe('subscriptionSummary', () => {
   ): RecurringRuleRow => ({
     user_id: 'u',
     type: 'expense',
+    is_refund: false,
     to_amount: null,
     category_id: 'c1',
     account_id: 'a1',

@@ -70,6 +70,7 @@ export function validateBackupPayload(data: BackupData): string[] {
   const tagGroupIds = ids(data.tagGroups, 'nhóm nhãn')
   const scenarioIds = ids(data.lifeScenarios, 'kịch bản Lifetime')
   const recurringIds = ids(data.recurringRules, 'quy tắc định kỳ')
+  const plannedIds = ids(data.plannedExpenses, 'khoản sắp chi')
 
   // Khoá UNIQUE của Postgres: file vi phạm sẽ nổ 23505 SAU khi importAll đã xoá
   // sạch 16 bảng — nên phải bắt ở đây, trước khi xoá bất cứ thứ gì.
@@ -164,6 +165,15 @@ export function validateBackupPayload(data: BackupData): string[] {
       p.add('Nhãn gắn vào quy tắc định kỳ không có trong file', rt.rule_id)
     if (!tagIds.has(rt.tag_id)) p.add('Nhãn không có trong file', rt.tag_id)
     rtKey(`${rt.rule_id}|${rt.tag_id}`, rt.tag_id)
+  }
+
+  // Nhãn của khoản sắp chi (migration 0044)
+  const ptKey = uniques('liên kết nhãn (khoản sắp chi + nhãn)')
+  for (const pt of data.plannedExpenseTags ?? []) {
+    if (!plannedIds.has(pt.planned_id))
+      p.add('Nhãn gắn vào khoản sắp chi không có trong file', pt.planned_id)
+    if (!tagIds.has(pt.tag_id)) p.add('Nhãn không có trong file', pt.tag_id)
+    ptKey(`${pt.planned_id}|${pt.tag_id}`, pt.tag_id)
   }
 
   const tagName = uniques('tên nhãn')

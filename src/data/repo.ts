@@ -28,6 +28,7 @@ import type {
   PushSubscriptionRow,
   RecurringRuleRow,
   RecurringRuleTagRow,
+  PlannedExpenseTagRow,
   SavingsGoalRow,
   StockPriceRow,
   StockTradeKind,
@@ -81,10 +82,17 @@ export interface BackupData {
   monthPlans?: MonthPlanRow[]
   /** Liên kết quy tắc định kỳ ↔ nhãn (migration 0042); vắng mặt ở backup v1–v9. */
   recurringRuleTags?: RecurringRuleTagRow[]
+  /**
+   * Khoản sắp chi (migration 0038) — TRƯỚC v11 backup không mang bảng này, nên khôi
+   * phục là mất sạch lời nhắc. Vắng mặt ở backup v1–v10.
+   */
+  plannedExpenses?: PlannedExpenseRow[]
+  /** Liên kết khoản sắp chi ↔ nhãn (migration 0044); vắng mặt ở backup v1–v10. */
+  plannedExpenseTags?: PlannedExpenseTagRow[]
 }
 
-/** Phiên bản định dạng backup hiện hành. v10: thêm recurringRuleTags. */
-export const BACKUP_VERSION = 10
+/** Phiên bản định dạng backup hiện hành. v11: thêm plannedExpenses + nhãn của chúng. */
+export const BACKUP_VERSION = 11
 
 export interface NewTransaction {
   type: TransactionType
@@ -292,6 +300,8 @@ export interface NewRecurringRule {
    * Bỏ trống khi patch = KHÔNG đổi nhãn; mảng rỗng = bỏ hết nhãn.
    */
   tag_ids?: string[]
+  /** Hoàn tiền lặp lại (migration 0043); chỉ hợp lệ với type = 'expense'. */
+  is_refund?: boolean
   /** Chỉ dùng với mode = 'remind'; bỏ trống = 0 (nhắc đúng ngày đến hạn). */
   remind_days_before?: number
 }
@@ -403,6 +413,11 @@ export interface NewPlannedExpense {
   category_id?: string | null
   account_id?: string | null
   note?: string
+  /**
+   * Nhãn của lời nhắc (migration 0044) — lúc ghi thành giao dịch thật thì form Nhập
+   * lấy sẵn. Bỏ trống khi patch = KHÔNG đổi nhãn; mảng rỗng = bỏ hết nhãn.
+   */
+  tag_ids?: string[]
 }
 
 export type PlannedExpensePatch = Partial<
@@ -606,6 +621,10 @@ export interface Repo {
   listRecurringRuleTags(): Promise<RecurringRuleTagRow[]>
   /** Ghi đè toàn bộ nhãn của một quy tắc định kỳ. */
   setRecurringRuleTags(ruleId: string, tagIds: string[]): Promise<void>
+  /** Mọi liên kết khoản sắp chi ↔ nhãn của người dùng (migration 0044). */
+  listPlannedExpenseTags(): Promise<PlannedExpenseTagRow[]>
+  /** Ghi đè toàn bộ nhãn của một khoản sắp chi. */
+  setPlannedExpenseTags(plannedId: string, tagIds: string[]): Promise<void>
 
   // --- Thông báo (mục AO) ---
   /** Toàn bộ trạng thái thông báo của user (mã + mốc đã đọc/đã tắt). */

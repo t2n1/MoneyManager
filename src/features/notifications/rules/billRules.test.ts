@@ -18,6 +18,7 @@ function rule(over: Partial<RecurringRuleRow> = {}): RecurringRuleRow {
     start_on: '2026-05-10',
     end_on: null,
     is_paused: false,
+    is_refund: false,
     last_generated_on: null,
     mode: 'remind',
     remind_days_before: 0,

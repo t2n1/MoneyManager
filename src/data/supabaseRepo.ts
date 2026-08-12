@@ -24,6 +24,8 @@ import type {
   NotificationStateRow,
   RecurringRuleRow,
   RecurringRuleTagRow,
+  PlannedExpenseTagRow,
+  PlannedExpenseRow,
   SavingsGoalRow,
   StockPriceRow,
   StockTradeRow,
@@ -1326,19 +1328,44 @@ export const supabaseRepo: Repo = {
 
   async createPlannedExpense(input: NewPlannedExpense) {
     const user_id = await currentUserId()
+    // tag_ids là bảng nối riêng (migration 0044), không phải cột của planned_expenses
+    const { tag_ids, ...fields } = input
     const { data, error } = await getSupabase()
       .from('planned_expenses')
-      .insert({ ...input, title: input.title.trim(), user_id })
+      .insert({ ...fields, title: input.title.trim(), user_id })
       .select()
       .single()
     if (error) throw error
+    if (tag_ids?.length) await this.setPlannedExpenseTags(data.id, tag_ids)
     return data
   },
 
+  /** Ghi đè toàn bộ nhãn của một khoản sắp chi. */
+  async setPlannedExpenseTags(plannedId: string, tagIds: string[]) {
+    const user_id = await currentUserId()
+    const sb = getSupabase()
+    const del = await sb.from('planned_expense_tags').delete().eq('planned_id', plannedId)
+    if (del.error) throw del.error
+    if (tagIds.length === 0) return
+    const { error } = await sb
+      .from('planned_expense_tags')
+      .insert(tagIds.map((tag_id) => ({ planned_id: plannedId, tag_id, user_id })))
+    if (error) throw error
+  },
+
+  async listPlannedExpenseTags() {
+    const { data, error } = await getSupabase().from('planned_expense_tags').select('*')
+    if (error) throw error
+    return data ?? []
+  },
+
   async updatePlannedExpense(id: string, patch: PlannedExpensePatch) {
+    // Bỏ trống tag_ids = KHÔNG đụng tới nhãn; mảng rỗng = bỏ hết nhãn.
+    const { tag_ids, ...rest } = patch
+    if (tag_ids) await this.setPlannedExpenseTags(id, tag_ids)
     const { data, error } = await getSupabase()
       .from('planned_expenses')
-      .update(patch.title ? { ...patch, title: patch.title.trim() } : patch)
+      .update(rest.title ? { ...rest, title: rest.title.trim() } : rest)
       .eq('id', id)
       .select()
       .single()
@@ -1477,6 +1504,8 @@ export const supabaseRepo: Repo = {
       stockTrades,
       monthPlans,
       recurringRuleTags,
+      plannedExpenses,
+      plannedExpenseTags,
     ] = await Promise.all([
       this.getProfile(),
       selectAll<AccountRow>('accounts'),
@@ -1499,6 +1528,8 @@ export const supabaseRepo: Repo = {
       selectAll<StockTradeRow>('stock_trades'),
       selectAll<MonthPlanRow>('month_plans'),
       selectAll<RecurringRuleTagRow>('recurring_rule_tags'),
+      selectAll<PlannedExpenseRow>('planned_expenses'),
+      selectAll<PlannedExpenseTagRow>('planned_expense_tags'),
     ])
     return {
       version: BACKUP_VERSION,
@@ -1524,6 +1555,8 @@ export const supabaseRepo: Repo = {
       stockTrades,
       monthPlans,
       recurringRuleTags,
+      plannedExpenses,
+      plannedExpenseTags,
     }
   },
 
@@ -1562,6 +1595,8 @@ export const supabaseRepo: Repo = {
       // recurring_rule_tags trước tags VÀ trước recurring_rules (composite FK cả hai).
       // Cascade cũng lo được, nhưng khai rõ như transaction_tags để thứ tự đọc ra được ý.
       'recurring_rule_tags',
+      'planned_expense_tags',
+      'planned_expenses',
       'transaction_tags',
       'tags',
       'tag_groups',
@@ -1939,6 +1974,40 @@ export const supabaseRepo: Repo = {
           user_id: uid,
         })),
         (part) => sb.from('recurring_rule_tags').insert(part),
+      )
+    }
+
+    // planned_expenses: FK sang categories, accounts và transactions → chèn sau cả ba.
+    if (data.plannedExpenses?.length) {
+      await insertChunked(
+        data.plannedExpenses.map((pe) => ({
+          id: pe.id,
+          user_id: uid,
+          title: pe.title,
+          amount: pe.amount,
+          currency: pe.currency,
+          due_on: pe.due_on,
+          due_precision: pe.due_precision,
+          remind_days_before: pe.remind_days_before,
+          category_id: pe.category_id,
+          account_id: pe.account_id,
+          status: pe.status,
+          transaction_id: pe.transaction_id,
+          note: pe.note,
+        })),
+        (part) => sb.from('planned_expenses').insert(part),
+      )
+    }
+
+    // Nhãn của khoản sắp chi (0044): sau tags và sau planned_expenses.
+    if (data.plannedExpenseTags?.length) {
+      await insertChunked(
+        data.plannedExpenseTags.map((l) => ({
+          planned_id: l.planned_id,
+          tag_id: l.tag_id,
+          user_id: uid,
+        })),
+        (part) => sb.from('planned_expense_tags').insert(part),
       )
     }
 

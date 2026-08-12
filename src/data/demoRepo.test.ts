@@ -664,7 +664,7 @@ describe('demoRepo: sổ lệnh cổ phiếu', () => {
     const backup = await demoRepo.exportAll()
     // Số cứng chứ không import BACKUP_VERSION: nâng phiên bản là việc phải CỐ Ý, và
     // test này đỏ lên đúng lúc đó để nhớ kiểm cả nhánh nhập file bản cũ.
-    expect(backup.version).toBe(10)
+    expect(backup.version).toBe(11)
     expect(Array.isArray(backup.stockTrades)).toBe(true)
 
     await demoRepo.importAll(backup)
@@ -1174,5 +1174,60 @@ describe('demoRepo: nhãn của quy tắc định kỳ', () => {
     expect(
       (await demoRepo.listRecurringRuleTags()).filter((l) => l.rule_id === rule.id).length,
     ).toBe(2)
+  })
+})
+
+// Nhãn cho khoản sắp chi (migration 0044) + sao lưu mang theo chính khoản sắp chi
+// (trước v11 thì không, nên Khôi phục là mất sạch lời nhắc).
+describe('demoRepo: nhãn của khoản sắp chi', () => {
+  async function dungLoiNhacCoNhan() {
+    const con = await demoRepo.createTag({ name: `Con ${Math.random()}`, color: 'pink' })
+    const pe = await demoRepo.createPlannedExpense({
+      title: 'Tiền học cho con',
+      amount: 45_000,
+      currency: 'JPY',
+      due_on: '2026-09-10',
+      tag_ids: [con.id],
+    })
+    return { pe, con }
+  }
+
+  it('tạo lời nhắc kèm nhãn thì đọc lại đúng nhãn', async () => {
+    const { pe, con } = await dungLoiNhacCoNhan()
+    const links = (await demoRepo.listPlannedExpenseTags()).filter((l) => l.planned_id === pe.id)
+    expect(links.map((l) => l.tag_id)).toEqual([con.id])
+  })
+
+  it('sửa: bỏ trống tag_ids thì không đụng, mảng rỗng thì bỏ hết', async () => {
+    const { pe } = await dungLoiNhacCoNhan()
+    await demoRepo.updatePlannedExpense(pe.id, { amount: 50_000 })
+    expect(
+      (await demoRepo.listPlannedExpenseTags()).filter((l) => l.planned_id === pe.id).length,
+    ).toBe(1)
+    await demoRepo.updatePlannedExpense(pe.id, { tag_ids: [] })
+    expect(
+      (await demoRepo.listPlannedExpenseTags()).filter((l) => l.planned_id === pe.id).length,
+    ).toBe(0)
+  })
+
+  it('xóa lời nhắc thì liên kết nhãn biến mất theo', async () => {
+    const { pe } = await dungLoiNhacCoNhan()
+    await demoRepo.deletePlannedExpense(pe.id)
+    expect(
+      (await demoRepo.listPlannedExpenseTags()).filter((l) => l.planned_id === pe.id).length,
+    ).toBe(0)
+  })
+
+  it('sao lưu mang theo cả lời nhắc lẫn nhãn của nó, khôi phục lại đủ', async () => {
+    const { pe } = await dungLoiNhacCoNhan()
+    const backup = await demoRepo.exportAll()
+    expect(backup.plannedExpenses?.some((p) => p.id === pe.id)).toBe(true)
+    expect(backup.plannedExpenseTags?.some((l) => l.planned_id === pe.id)).toBe(true)
+
+    await demoRepo.importAll(backup)
+    expect((await demoRepo.getPlannedExpenses()).some((p) => p.id === pe.id)).toBe(true)
+    expect(
+      (await demoRepo.listPlannedExpenseTags()).filter((l) => l.planned_id === pe.id).length,
+    ).toBe(1)
   })
 })

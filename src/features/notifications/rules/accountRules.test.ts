@@ -36,6 +36,7 @@ function rule(over: Partial<RecurringRuleRow> & { id: string }): RecurringRuleRo
   return {
     id: over.id,
     user_id: 'u',
+    is_refund: false,
     type: over.type ?? 'expense',
     amount: over.amount ?? 0,
     to_amount: null,

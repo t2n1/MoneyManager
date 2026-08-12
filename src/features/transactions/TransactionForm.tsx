@@ -214,6 +214,12 @@ interface TransactionFormProps {
    */
   onSubmitWithFee?: (main: NewTransaction, fee: number, keepGoing: boolean) => Promise<void>
   /**
+   * Nhãn chọn sẵn khi mở form. Dùng cho bản điền sẵn KHÔNG phải giao dịch thật: ghi
+   * một khoản sắp chi thì `initial` là TransactionRow giả (id rỗng) nên không tra được
+   * nhãn qua bảng liên kết giao dịch — nhãn phải truyền vào từ ngoài.
+   */
+  initialTagIds?: string[]
+  /**
    * "Nhắc sau": KHÔNG ghi giao dịch, mà tạo một khoản sắp chi đến hạn vào đúng ngày
    * đang chọn (migration 0038). Dành cho việc mình biết sẽ phải chi mà chưa chi —
    * gõ y như đang nhập, chỉ khác cái nút. Không truyền → không hiện nút.
@@ -237,6 +243,7 @@ export function TransactionForm({
   onSubmitRole,
   onSubmitWithFee,
   onSubmitPlanned,
+  initialTagIds: initialTagIdsProp,
 }: TransactionFormProps) {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
@@ -268,8 +275,9 @@ export function TransactionForm({
   const { data: allLinks = [] } = useTransactionTags()
   const initialTagIds = useMemo(
     () =>
-      initial ? allLinks.filter((l) => l.transaction_id === initial.id).map((l) => l.tag_id) : [],
-    [allLinks, initial],
+      initialTagIdsProp ??
+      (initial ? allLinks.filter((l) => l.transaction_id === initial.id).map((l) => l.tag_id) : []),
+    [allLinks, initial, initialTagIdsProp],
   )
   const [tagIds, setTagIds] = useState<string[] | null>(null)
   // null = chưa người dùng đụng vào → dùng nhãn sẵn có của giao dịch đang sửa
@@ -503,23 +511,14 @@ export function TransactionForm({
       ? 'Chưa có danh mục Thu nào để chọn.'
       : 'Chưa có danh mục Chi nào để chọn.'
   /**
-   * Nhãn ĐÃ đi theo được quy tắc định kỳ (migration 0042: bảng recurring_rule_tags,
-   * engine chép xuống từng kỳ nó sinh ra). Còn lại hai thứ vẫn không có chỗ giữ:
-   *  - cờ "hoàn tiền" trên quy tắc định kỳ (recurring_rules không có cột đó)
-   *  - nhãn của một LỜI NHẮC (planned_expenses cũng không có bảng nối)
-   * Chỗ nào không giữ được thì không hiện ô, kèm một dòng nói vì sao.
+   * Nhãn và cờ "hoàn tiền" giờ ĐỀU đi theo được cả ba đường ghi:
+   *  - giao dịch: cột trên transactions
+   *  - quy tắc định kỳ: recurring_rule_tags (0042) + cột is_refund (0043)
+   *  - lời nhắc: planned_expense_tags (0044); cờ hoàn tiền thì không có nghĩa ở đây
+   *    (chưa chi thì chưa có gì để hoàn) nên ô đó vẫn ẩn khi bật "Nhắc sau".
    */
-  const tagsDropped = plannedMode
-  const chosenTagCount = effectiveTagIds.length
-  const tagsNote =
-    chosenTagCount > 0
-      ? `Lời nhắc không giữ được nhãn — ${chosenTagCount} nhãn đang chọn sẽ không được lưu.`
-      : 'Lời nhắc không giữ được nhãn.'
-  const refundDropped = repeat !== 'none' || plannedMode
-  const refundNote =
-    repeat !== 'none'
-      ? 'Quy tắc định kỳ không giữ được cờ "hoàn tiền" — mỗi kỳ sẽ là một khoản chi thường.'
-      : 'Lời nhắc không có cờ "hoàn tiền" (chưa chi thì chưa có gì để hoàn).'
+  const refundDropped = plannedMode
+  const refundNote = 'Lời nhắc không có cờ "hoàn tiền" (chưa chi thì chưa có gì để hoàn).'
 
   // Lưu mẫu: chỉ với chi/thu đã đủ số tiền + danh mục
   const canSaveTemplate = type !== 'transfer' && amount > 0 && !!categoryId
@@ -690,6 +689,9 @@ export function TransactionForm({
           remind_days_before: 0,
           category_id: categoryId,
           account_id: effectiveAccountId,
+          // Nhãn của lời nhắc (migration 0044): lúc ghi thành giao dịch thật, form
+          // Nhập lấy lại đúng những nhãn này (xem prop initialTagIds).
+          tag_ids: effectiveTagIds,
         })
       } else if (repeat !== 'none' && onSubmitRecurring) {
         // Lặp lại: tạo rule (kỳ đầu do engine catch-up sinh, không tạo GD riêng)
@@ -704,8 +706,10 @@ export function TransactionForm({
           frequency: repeat,
           start_on: date,
           end_on: null,
-          // Nhãn của quy tắc — engine chép xuống mọi kỳ nó sinh ra (migration 0042)
+          // Nhãn + cờ hoàn tiền của quy tắc — engine chép xuống mọi kỳ nó sinh ra
+          // (migration 0042 và 0043)
           tag_ids: effectiveTagIds,
+          is_refund: type === 'expense' ? isRefund : false,
         })
       } else if (showTransferFee && transferFee > 0) {
         // Chuyển khoản có phí → 2 bút toán, EntryPage lo thứ tự + hoàn tác
@@ -1226,12 +1230,7 @@ export function TransactionForm({
           Cách xử giống ô "+ Phí" của chuyển khoản: THÀ KHÔNG HIỆN còn hơn nhận rồi âm
           thầm bỏ — kèm một dòng nói vì sao, và nói luôn số nhãn đang chọn sẽ không đi
           theo, để không có gì biến mất trong im lặng. */}
-      {activeRole === 'none' &&
-        (tagsDropped ? (
-          <p className="px-1 text-xs text-fg-muted">{tagsNote}</p>
-        ) : (
-          <TagPicker value={effectiveTagIds} onChange={setTagIds} />
-        ))}
+      {activeRole === 'none' && <TagPicker value={effectiveTagIds} onChange={setTagIds} />}
 
       {/* Hoàn tiền — chỉ có nghĩa với khoản CHI.
           `mt-1.5` (cột cuộn đã có gap-1.5 → thành 12px): tách khỏi khối Nhãn ngay trên.

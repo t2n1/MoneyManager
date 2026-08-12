@@ -1391,6 +1391,31 @@ git commit -m "feat(quy-nhat): parseNavCsv — doc CSV Shift-JIS cua 投信協�
   ): Promise<NavFetchResult>
   ```
 
+- [ ] **Step 0: Lấp một lỗ hổng phủ sót của Task 3**
+
+Bản soát Task 3 chỉ ra: không bài nào canh ca `[hợp lệ A, hỏng, hợp lệ B]`. Bài hiện có chỉ
+có dòng hỏng ở **cuối**, nên nó không chứng minh được `prior_nav` bỏ qua đúng dòng hỏng ở
+**giữa**. Nối bài này vào `describe('parseNavCsv', …)` đang có:
+
+```ts
+  it('dòng hỏng nằm GIỮA: nav lấy dòng hợp lệ cuối, prior_nav lấy dòng hợp lệ kế cuối', () => {
+    // Khác bài "bỏ dòng có nav không phải số dương" ở trên: ở đó dòng hỏng nằm cuối nên
+    // chỉ cần bỏ qua là xong. Ở đây dòng hỏng chen GIỮA hai dòng tốt — nếu code lấy
+    // `dong[n-2]` thay vì "dòng HỢP LỆ kế cuối" thì prior_nav sẽ là số của dòng hỏng.
+    const csv = sjis(
+      '年月日,基準価額(円),純資産総額（百万円）,分配金,決算期\r\n' +
+        '2026年08月06日,19940,1167910,,\r\n' +
+        '2026年08月07日,0,1172772,,\r\n' +
+        '2026年08月10日,20053,1175583,,\r\n',
+    )
+    const kq = parseNavCsv(csv, SP500)
+    if (!kq.ok) throw new Error('đáng lẽ đọc được')
+    expect(kq.row.nav).toBe(20_053)
+    expect(kq.row.nav_date).toBe('2026-08-10')
+    expect(kq.row.prior_nav).toBe(19_940)
+  })
+```
+
 - [ ] **Step 1: Viết bài test thất bại (nối vào `navs.test.ts`)**
 
 Thêm vào cuối file, và thêm `buildFundFetchOrder, fetchFundNavs` vào dòng `import { parseNavCsv } from './navs'`:
@@ -1700,7 +1725,7 @@ export async function fetchFundNavs(
 npx vitest run supabase/functions/fund-refresh/navs.test.ts
 ```
 
-Kỳ vọng: PASS, 19 bài (9 của Task 3 + 10 mới).
+Kỳ vọng: PASS, 20 bài (9 của Task 3 + 1 bài lấp lỗ hổng + 10 mới).
 
 - [ ] **Step 5: Commit**
 

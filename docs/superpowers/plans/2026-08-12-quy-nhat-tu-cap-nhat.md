@@ -2989,4 +2989,492 @@ git commit -m "feat(quy-nhat): loadInput — doc bang, khong tinh gi, loc JPY th
 
 ---
 
-**Kế hoạch còn Task 9–13. Xem phần tiếp ở cuối file này.**
+## Task 9: `index.ts` — hút NAV, ghi giá trị, kiểm mã
+
+**Files:**
+- Create: `supabase/functions/fund-refresh/index.ts`
+
+**Interfaces:**
+- Consumes: `fetchFundNavs`, `buildFundFetchOrder` (Task 4); `loadFundRegistry`, `loadHeldFundCodes`, `loadFundAccounts` (Task 8); `fundHoldingsFromTrades`, `sessionNavs`, `fundValue` từ `_funds.js` (Task 5).
+- Produces: endpoint `POST /fund-refresh` với hai chế độ (chạy đủ, kiểm mã). Chế độ lấp lịch sử ở Task 10.
+
+- [ ] **Step 1: Viết file**
+
+```ts
+// Edge function fund-refresh — chạy mỗi tối sau khi quỹ Nhật công bố 基準価額.
+//
+// Hai việc: (1) hút NAV cho CẢ danh bạ quỹ (quỹ đang giữ được gọi trước, xem
+// buildFundFetchOrder), ghi vào fund_prices; (2) tính lại giá trị thị trường cho từng tài
+// khoản đầu tư JPY có sổ lệnh quỹ và ghi vào account_valuations.
+//
+// Function RIÊNG, không nhét vào stock-refresh: khác nguồn, khác cách giải mã, khác đơn
+// vị đo, khác mô hình giá vốn, khác giờ chạy. Và nặng nhất — một lô Yahoo hỏng sẽ kéo cả
+// lượt stock-refresh xuống 500, làm mất luôn phần quỹ Nhật vốn chẳng liên quan.
+//
+// Function này KHÔNG có phép tính riêng. Mọi phép tính gọi từ `_funds.js` (gói từ
+// src/features/assets/serverBundleFunds.ts) — hai bản sao của một phép tính là chuyện
+// sớm muộn lệch nhau.
+//
+// Deploy:   npm run bundle:rules && supabase functions deploy fund-refresh --no-verify-jwt
+// Xem thêm: docs/quy-nhat.md
+
+// deno-lint-ignore-file no-explicit-any
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import { buildFundFetchOrder, fetchFundNavs, type NavUpsert } from './navs.ts'
+import { fundHoldingsFromTrades, fundValue, sessionNavs } from './_funds.js'
+import { loadFundAccounts, loadFundRegistry, loadHeldFundCodes } from './loadInput.ts'
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
+const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+// Dùng lại bí mật cron của push: nó là "bí mật cho cron" nói chung. Đây là job THỨ BA
+// dùng chung nó — xem cảnh báo trong docs/co-phieu-viet-nam.md về việc đổi secret.
+const CRON_SECRET = Deno.env.get('PUSH_CRON_SECRET') ?? ''
+
+interface KetQua {
+  /** Số quỹ ghi được NAV vào fund_prices ở lượt này. */
+  soQuyCoGia: number
+  /** Số tài khoản đã ghi snapshot mới. */
+  daGhi: number
+  /** Vì sao những tài khoản còn lại bị bỏ qua — gom theo lý do để đọc log cho nhanh. */
+  boQua: Record<string, number>
+  loi: string[]
+}
+
+function demBoQua(kq: KetQua, lyDo: string) {
+  kq.boQua[lyDo] = (kq.boQua[lyDo] ?? 0) + 1
+}
+
+Deno.serve(async (req) => {
+  // Thiếu biến môi trường thì phải nói RÕ thiếu cái gì — không để nó rơi xuống throw mù
+  // mờ từ bên trong createClient().
+  const thieu = [
+    ['SUPABASE_URL', SUPABASE_URL],
+    ['SUPABASE_SERVICE_ROLE_KEY', SERVICE_ROLE_KEY],
+    ['PUSH_CRON_SECRET', CRON_SECRET],
+  ]
+    .filter(([, v]) => !v)
+    .map(([k]) => k)
+  if (thieu.length > 0)
+    return Response.json({ loi: `Thiếu biến môi trường: ${thieu.join(', ')}` }, { status: 500 })
+
+  const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
+  const body = await req.json().catch(() => ({} as any))
+
+  // --- Chế độ kiểm mã: người dùng đăng nhập, KHÔNG phải cron ---
+  //
+  // Function deploy với --no-verify-jwt (cron không có JWT), nên cổng của Supabase đã
+  // TẮT. Phải tự xác thực ở đây — trông cậy vào cổng đó là trông cậy vào một cái cổng đã
+  // tắt. Chế độ này cố ý KHÔNG nhận x-cron-secret, và chế độ chạy đủ cố ý KHÔNG nhận JWT.
+  if (body?.kiem) {
+    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer /i, '')
+    const { data: nguoiDung, error: authErr } = await sb.auth.getUser(token)
+    if (authErr || !nguoiDung?.user) return new Response('Chưa đăng nhập', { status: 401 })
+
+    const { isinCd, associFundCd } = body.kiem as { isinCd?: string; associFundCd?: string }
+    if (!isinCd || !associFundCd)
+      return Response.json({ loi: 'Thiếu isinCd hoặc associFundCd' }, { status: 400 })
+
+    const kq = await fetchFundNavs([{ assocFundCd: associFundCd, isinCd }])
+    return Response.json({
+      trangThai: kq.trangThai.get(associFundCd) ?? 'loi-mang',
+      row: kq.rows[0] ?? null,
+      loi: kq.errors,
+    })
+  }
+
+  // --- Từ đây trở xuống là cron ---
+  if (req.headers.get('x-cron-secret') !== CRON_SECRET) {
+    return new Response('Sai bí mật cron', { status: 401 })
+  }
+
+  const kq: KetQua = { soQuyCoGia: 0, daGhi: 0, boQua: {}, loi: [] }
+  // Việc 2 throw TRƯỚC cả vòng lặp tài khoản — tức không phải lỗi của riêng một tài khoản
+  // mà cả khối ghi giá trị bị gãy. Tách cờ riêng vì lỗi của TỪNG tài khoản vẫn được gom
+  // vào `loi` mà không nên biến cả lượt chạy thành thất bại.
+  let viec2Gay = false
+
+  // --- Việc 1: hút NAV cho cả danh bạ ---
+  try {
+    const [danhBa, dangGiu] = await Promise.all([loadFundRegistry(sb), loadHeldFundCodes(sb)])
+    const thuTu = buildFundFetchOrder(dangGiu, danhBa)
+    const { rows, trangThai, errors } = await fetchFundNavs(thuTu)
+    for (const e of errors) kq.loi.push(`gia: ${e}`)
+
+    if (rows.length > 0) {
+      const payload: (NavUpsert & { updated_at: string })[] = rows.map((r) => ({
+        ...r,
+        updated_at: new Date().toISOString(),
+      }))
+      const { error } = await sb
+        .from('fund_prices')
+        .upsert(payload, { onConflict: 'assoc_fund_cd' })
+      if (error) throw error
+      kq.soQuyCoGia = rows.length
+    } else if (errors.length === 0) {
+      // Danh bạ rỗng (chưa seed) — khác hẳn "gọi lỗi", nên nói rõ.
+      kq.loi.push('gia: danh bạ quỹ rỗng, không có gì để hút')
+    }
+
+    // Ghi lại kết quả từng quỹ. Đây là chỗ DUY NHẤT lộ ra việc một mã quỹ bị sai — không
+    // có nó thì một quỹ gõ nhầm mã sẽ im lặng thiếu giá mãi mãi.
+    for (const [ma, tt] of trangThai) {
+      const { error } = await sb
+        .from('funds')
+        .update({ last_status: tt, last_checked_at: new Date().toISOString() })
+        .eq('assoc_fund_cd', ma)
+      if (error) kq.loi.push(`trang thai ${ma}: ${error.message}`)
+    }
+  } catch (err) {
+    kq.loi.push(`gia: ${err instanceof Error ? err.message : String(err)}`)
+  }
+
+  // --- Việc 2: tính lại giá trị thị trường và ghi vào account_valuations ---
+  try {
+    const { data: navRows, error: navErr } = await sb
+      .from('fund_prices')
+      .select('assoc_fund_cd, nav, nav_date')
+    if (navErr) throw navErr
+
+    // Mỗi quỹ được hút bằng một cuộc gọi riêng và một quỹ lỗi không kéo sập quỹ khác, nên
+    // sau một lượt chạy không phải mọi hàng chắc chắn cùng nav_date. sessionNavs gom về
+    // MỘT phiên (ngày lớn nhất) và nêu tên quỹ nào còn kẹt ở phiên cũ hơn.
+    const { session: phien, navByFund, staleFunds } = sessionNavs(
+      (navRows ?? []).map((p: any) => ({
+        assoc_fund_cd: p.assoc_fund_cd as string,
+        nav: Number(p.nav),
+        nav_date: p.nav_date as string,
+      })),
+    )
+    if (!phien) throw new Error('Bảng giá quỹ rỗng, không biết ngày phiên')
+
+    const accounts = await loadFundAccounts(sb)
+    for (const a of accounts) {
+      // Một tài khoản lỗi KHÔNG được làm chết cả lượt — tài khoản khác vẫn phải được xét.
+      try {
+        // Trộn hai hệ đơn vị (口数 của quỹ và số cổ của cổ phiếu) là cộng sai; im lặng
+        // cộng sai còn tệ hơn bỏ qua.
+        if (a.coCaSoLenhCoPhieu) {
+          demBoQua(kq, 'tron-hai-loai-so-lenh')
+          continue
+        }
+
+        const { holdings, oversold } = fundHoldingsFromTrades(a.trades)
+        // Sổ lệnh có lỗ hổng: giữ số cũ, không ghi số biết là sai. Với quỹ Nhật, lý do
+        // thường gặp nhất là THIẾU MỘT DÒNG trong fund_aliases (quỹ đổi tên).
+        if (oversold.length > 0) {
+          demBoQua(kq, 'so-lenh-co-lo-hong')
+          continue
+        }
+        // Quỹ đang giữ mà giá còn ở phiên cũ hơn: giá vẫn có và > 0 nên fundValue không
+        // tự phát hiện được — phải chặn ở đây, kẻo ghi một số trông như mới nhưng dùng
+        // giá hôm kia, đóng dấu "hôm nay".
+        if (holdings.some((h: { assocFundCd: string }) => staleFunds.has(h.assocFundCd))) {
+          demBoQua(kq, 'gia-le-phien-cu')
+          continue
+        }
+
+        const { marketValue } = fundValue(holdings, navByFund)
+        if (marketValue === null) {
+          demBoQua(kq, 'thieu-gia-moi-quy')
+          continue
+        }
+
+        // `where source = 'auto'` không biểu diễn được qua PostgREST, nên đọc trước rồi
+        // mới quyết: hàng người dùng gõ tay của đúng ngày đó phải được giữ nguyên.
+        const { data: sanCo, error: docErr } = await sb
+          .from('account_valuations')
+          .select('id, source')
+          .eq('account_id', a.accountId)
+          .eq('valued_on', phien)
+          .maybeSingle()
+        if (docErr) throw docErr
+        if (sanCo && sanCo.source === 'manual') {
+          demBoQua(kq, 'nguoi-dung-da-go-tay')
+          continue
+        }
+
+        const { error: ghiErr } = await sb.from('account_valuations').upsert(
+          {
+            user_id: a.userId,
+            account_id: a.accountId,
+            valued_on: phien,
+            market_value: marketValue,
+            note: `Tự tính theo 基準価額 phiên ${phien}`,
+            source: 'auto',
+          },
+          { onConflict: 'account_id,valued_on' },
+        )
+        if (ghiErr) throw ghiErr
+        kq.daGhi++
+      } catch (err) {
+        kq.loi.push(
+          `tài khoản ${a.accountId.slice(0, 8)}…: ${err instanceof Error ? err.message : String(err)}`,
+        )
+      }
+    }
+  } catch (err) {
+    viec2Gay = true
+    kq.loi.push(`ghi gia tri: ${err instanceof Error ? err.message : String(err)}`)
+  }
+
+  console.log('fund-refresh', JSON.stringify(kq))
+  // 500 khi: (a) việc 1 hoàn toàn không ghi được giá cho quỹ nào dù có lỗi xảy ra, HOẶC
+  // (b) việc 2 gãy TRƯỚC vòng lặp tài khoản. Cả hai đều nghĩa là lượt chạy này không đáng
+  // tin. Một quỹ lỗi hoặc một tài khoản lỗi riêng lẻ KHÔNG rơi vào đây — đó vẫn là lượt
+  // chạy có ích.
+  const chetHoanToan = kq.loi.length > 0 && kq.soQuyCoGia === 0
+  return new Response(JSON.stringify(kq), {
+    status: chetHoanToan || viec2Gay ? 500 : 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
+})
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add supabase/functions/fund-refresh/index.ts
+git commit -m "feat(quy-nhat): edge function fund-refresh — hut NAV, ghi gia tri, kiem ma"
+```
+
+> Không có bước chạy test ở task này: mọi phép tính đã được canh ở Task 2–4, còn phần
+> ghép nối với Postgres chỉ chứng minh được bằng lượt gọi thật (Task 15). Cố dựng mock
+> Supabase ở đây là dựng một bản sao của Postgres rồi test bản sao đó.
+
+---
+
+## Task 10: `parseNavHistory` + chế độ lấp lịch sử
+
+**Files:**
+- Modify: `supabase/functions/fund-refresh/navs.ts` (thêm `parseNavHistory`)
+- Modify: `supabase/functions/fund-refresh/navs.test.ts` (nối `describe` mới)
+- Modify: `supabase/functions/fund-refresh/index.ts` (thêm chế độ `lapLichSu`)
+
+**Interfaces:**
+- Consumes: mọi thứ của Task 9.
+- Produces:
+  ```ts
+  export interface NavPoint { navDate: string; nav: number }
+  export function parseNavHistory(bytes: Uint8Array): NavPoint[]
+  ```
+
+- [ ] **Step 1: Viết bài test thất bại (nối vào `navs.test.ts`)**
+
+Thêm `parseNavHistory` vào dòng import, rồi nối:
+
+```ts
+describe('parseNavHistory', () => {
+  it('trả MỌI phiên hợp lệ, xếp theo ngày tăng dần', () => {
+    const csv = sjis(
+      '年月日,基準価額(円),純資産総額（百万円）,分配金,決算期\r\n' +
+        '2026年08月10日,20053,1175583,,\r\n' +
+        '2026年08月07日,20012,1172772,,\r\n',
+    )
+    expect(parseNavHistory(csv)).toEqual([
+      { navDate: '2026-08-07', nav: 20_012 },
+      { navDate: '2026-08-10', nav: 20_053 },
+    ])
+  })
+
+  it('file thật có hàng nghìn phiên, phiên đầu là ngày lập quỹ', () => {
+    const lich = parseNavHistory(mau('toushin-sp500.csv'))
+    expect(lich.length).toBeGreaterThan(500)
+    // 楽天・プラス・S&P500 lập ngày 2023-10-27, 基準価額 khởi điểm 9.888.
+    expect(lich[0]).toEqual({ navDate: '2023-10-27', nav: 9_888 })
+    // Xếp tăng dần, không có ngày lặp.
+    for (let i = 1; i < lich.length; i++) {
+      expect(lich[i].navDate > lich[i - 1].navDate).toBe(true)
+    }
+  })
+
+  it('không phải CSV giá → mảng rỗng, không nổ', () => {
+    expect(parseNavHistory(mau('toushin-thieu-tham-so.txt'))).toEqual([])
+  })
+})
+```
+
+- [ ] **Step 2: Chạy test để thấy nó đỏ**
+
+```bash
+npx vitest run supabase/functions/fund-refresh/navs.test.ts
+```
+
+Kỳ vọng: FAIL — `parseNavHistory is not a function`.
+
+- [ ] **Step 3: Thêm `parseNavHistory` vào `navs.ts`**
+
+Chèn ngay sau `parseNavCsv`:
+
+```ts
+/** Một điểm trong lịch sử 基準価額. */
+export interface NavPoint {
+  /** ISO date */
+  navDate: string
+  /** ¥/10.000口 */
+  nav: number
+}
+
+/**
+ * TOÀN BỘ lịch sử 基準価額 trong file, xếp theo ngày tăng dần, mỗi ngày một điểm.
+ *
+ * Dùng cho chế độ lấp lịch sử: CSV tải về đã có đủ lịch sử từ ngày lập quỹ, nên dựng lại
+ * `account_valuations` cho các phiên đã qua KHÔNG tốn thêm một cuộc gọi mạng nào.
+ *
+ * Không phải CSV giá (mã sai, thiếu tham số, giải mã hỏng) → mảng RỖNG. Nơi gọi tự hiểu
+ * là không có gì để lấp; ném lỗi ở đây sẽ làm chết cả lượt lấp vì một quỹ hỏng.
+ */
+export function parseNavHistory(bytes: Uint8Array): NavPoint[] {
+  const text = new TextDecoder('shift_jis').decode(bytes)
+  const dong = text.split(/\r?\n/)
+  if (!dong[0] || !dong[0].includes(COT_NGAY)) return []
+
+  // Map để một ngày chỉ còn một điểm (file thật không lặp, nhưng đừng tin mù — hai điểm
+  // cùng ngày sẽ làm phép lấp ghi hai giá trị khác nhau cho cùng một valued_on).
+  const theoNgay = new Map<string, number>()
+  for (const raw of dong.slice(1)) {
+    if (!raw.trim()) continue
+    const o = raw.split(',')
+    const navDate = ngayNhatSangISO(o[0] ?? '')
+    if (navDate === null) continue
+    const nav = soDuong(o[1])
+    if (nav === null) continue
+    theoNgay.set(navDate, nav)
+  }
+
+  return [...theoNgay.entries()]
+    .map(([navDate, nav]) => ({ navDate, nav }))
+    .sort((a, b) => a.navDate.localeCompare(b.navDate))
+}
+```
+
+- [ ] **Step 4: Chạy test để thấy xanh**
+
+```bash
+npx vitest run supabase/functions/fund-refresh/navs.test.ts
+```
+
+Kỳ vọng: PASS, 23 bài.
+
+- [ ] **Step 5: Thêm chế độ `lapLichSu` vào `index.ts`**
+
+Chèn ngay **sau** khối `if (req.headers.get('x-cron-secret') !== CRON_SECRET) {...}` và **trước** `const kq: KetQua = ...`:
+
+```ts
+  // --- Chế độ lấp lịch sử: dựng lại account_valuations cho các phiên đã qua ---
+  //
+  // CSV tải về đã có đủ lịch sử từ ngày lập quỹ, nên việc này KHÔNG tốn thêm cuộc gọi nào
+  // ngoài một lượt hút bình thường. Gọi tay, không nằm trong lượt cron hằng ngày.
+  if (body?.lapLichSu?.accountId) {
+    const accountId = body.lapLichSu.accountId as string
+    try {
+      const accounts = await loadFundAccounts(sb)
+      const a = accounts.find((x) => x.accountId === accountId)
+      if (!a) return Response.json({ loi: 'Không tìm thấy tài khoản quỹ này' }, { status: 404 })
+
+      const danhBa = await loadFundRegistry(sb)
+      // Hút lịch sử của MỌI quỹ trong danh bạ: sáu trong tám quỹ của chủ app đã bán hết
+      // từ lâu nhưng vẫn có mặt trong các phiên quá khứ.
+      const lichSu = new Map<string, Map<string, number>>() // assocFundCd → (ngày → nav)
+      for (const f of danhBa) {
+        const url =
+          `https://toushin-lib.fwg.ne.jp/FdsWeb/FDST030000/csv-file-download` +
+          `?isinCd=${encodeURIComponent(f.isinCd)}&associFundCd=${encodeURIComponent(f.assocFundCd)}`
+        try {
+          const res = await fetch(url)
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const diem = parseNavHistory(new Uint8Array(await res.arrayBuffer()))
+          lichSu.set(f.assocFundCd, new Map(diem.map((d) => [d.navDate, d.nav])))
+        } catch (err) {
+          kqLap.loi.push(`${f.assocFundCd}: ${err instanceof Error ? err.message : String(err)}`)
+        }
+      }
+
+      // Mọi ngày phiên xuất hiện ở BẤT KỲ quỹ nào, từ lệnh đầu tiên trở đi.
+      const lenhDauTien = a.trades.map((t) => t.tradedOn).sort()[0]
+      const moiNgay = new Set<string>()
+      for (const theoNgay of lichSu.values())
+        for (const ngay of theoNgay.keys()) if (ngay >= lenhDauTien) moiNgay.add(ngay)
+
+      // Trần: không vượt giới hạn wall-clock của edge function. Chạy lại lấp tiếp phần
+      // còn trống vì bước dưới chỉ ghi ngày CHƯA có hàng nào.
+      const cacNgay = [...moiNgay].sort().slice(0, 1_500)
+
+      // Ngày đã có hàng (bất kể auto hay manual) thì KHÔNG đè: ảnh chụp cũ có thể đã được
+      // ghi bằng giá đúng của ngày đó, và số gõ tay thì luôn thắng.
+      const { data: daCo, error: docErr } = await sb
+        .from('account_valuations')
+        .select('valued_on')
+        .eq('account_id', accountId)
+      if (docErr) throw docErr
+      const ngayDaCo = new Set((daCo ?? []).map((r: any) => r.valued_on as string))
+
+      const hang: any[] = []
+      for (const ngay of cacNgay) {
+        if (ngayDaCo.has(ngay)) continue
+        const denNgay = a.trades.filter((t) => t.tradedOn <= ngay)
+        if (denNgay.length === 0) continue
+        const { holdings, oversold } = fundHoldingsFromTrades(denNgay)
+        // Sổ lệnh có lỗ hổng thì mọi ngày đều sai — dừng hẳn, đừng ghi 900 hàng sai.
+        if (oversold.length > 0) {
+          return Response.json(
+            { loi: `Sổ lệnh có lỗ hổng ở ${oversold.join(', ')} — kiểm fund_aliases trước` },
+            { status: 400 },
+          )
+        }
+        // Chưa mua gì (hoặc đã bán sạch) → không có gì để chụp. Ca này CÓ THẬT: tài khoản
+        // trống từ 2025-04-14 tới 2025-08-28.
+        if (holdings.length === 0) continue
+
+        const navNgayDo = new Map<string, number>()
+        for (const h of holdings) {
+          const nav = lichSu.get(h.assocFundCd)?.get(ngay)
+          if (nav != null) navNgayDo.set(h.assocFundCd, nav)
+        }
+        const { marketValue } = fundValue(holdings, navNgayDo)
+        if (marketValue === null) continue
+
+        hang.push({
+          user_id: a.userId,
+          account_id: accountId,
+          valued_on: ngay,
+          market_value: marketValue,
+          note: `Lấp lại theo 基準価額 phiên ${ngay}`,
+          source: 'auto',
+        })
+      }
+
+      for (let i = 0; i < hang.length; i += 200) {
+        const { error } = await sb
+          .from('account_valuations')
+          .upsert(hang.slice(i, i + 200), { onConflict: 'account_id,valued_on' })
+        if (error) throw error
+      }
+
+      kqLap.daGhi = hang.length
+      console.log('fund-refresh lapLichSu', JSON.stringify(kqLap))
+      return Response.json(kqLap)
+    } catch (err) {
+      return Response.json(
+        { loi: err instanceof Error ? err.message : String(err) },
+        { status: 500 },
+      )
+    }
+  }
+```
+
+Khai `kqLap` ngay trước khối đó, và thêm `parseNavHistory` vào dòng import từ `'./navs.ts'`:
+
+```ts
+  const kqLap = { daGhi: 0, loi: [] as string[] }
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add supabase/functions/fund-refresh/navs.ts supabase/functions/fund-refresh/navs.test.ts supabase/functions/fund-refresh/index.ts
+git commit -m "feat(quy-nhat): lap lich su tu CSV — khong ton them cuoc goi nao"
+```
+
+---
+
+**Kế hoạch còn Task 11–15. Xem phần tiếp ở cuối file này.**

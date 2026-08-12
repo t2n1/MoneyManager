@@ -9,8 +9,8 @@
 --   1. 基準価額 niêm yết trên 10.000 口, không phải trên 1 đơn vị. Cột `nav` giữ NGUYÊN
 --      đơn vị đó; chia 10.000 ở đúng một chỗ trong app (fundValue).
 --   2. Giữ CẢ `units` lẫn `amount`: đo thật trên sao kê Rakuten,
---      28.429 × 17.588 ÷ 10.000 = 49.997 trong khi số tiền thật là 50.000. Suy giá vốn
---      từ số lượng × giá là sai vài yên mỗi lệnh.
+--      28.429 × 17.588 ÷ 10.000 = 50.000,93 trong khi số tiền bị trừ là 50.000. Rakuten
+--      tính 口数 TỪ số tiền, nên suy ngược lại là dựng đầu vào từ đầu ra — mất mát.
 --   3. KHÔNG có "tiền chưa đầu tư": Rakuten tự quét sạch tiền dư về 楽天銀行
 --      (自動出金(スイープ)), nên tài khoản không bao giờ giữ tiền nhàn rỗi.
 --

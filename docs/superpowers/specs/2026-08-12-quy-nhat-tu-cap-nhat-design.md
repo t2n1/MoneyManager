@@ -167,9 +167,11 @@ thay vì "gọi sai URL". **Điều kiện nhận: dòng đầu decode ra đúng
 **③ Không có CORS.** Bắt buộc qua edge function. Giống Yahoo và SSI.
 
 **④ `口数 × 基準価額 ÷ 10.000` KHÔNG bằng số tiền đã trừ.** Đo trên sao kê thật:
-`28.429 × 17.588 ÷ 10.000 = 49.997` trong khi số tiền thật là **50.000** — lệch 3 yên mỗi
-lệnh, 136 lệnh thì thành sai lệch thấy được. `fund_trades` giữ **cả** `units` (số thật) và
-`amount` (số thật), không suy cái này từ cái kia.
+`28.429 × 17.588 ÷ 10.000 = 50.000,93` trong khi số tiền bị trừ là **50.000**; quỹ kia
+`12.595 × 15.879 ÷ 10.000 = 19.999,60` so với **20.000**. Lệch dưới một yên mỗi lệnh —
+nhưng chiều suy diễn mới là chỗ chết: Rakuten tính **口数 TỪ số tiền**, nên dựng lại số
+tiền từ 口数 là lấy đầu ra để đoán đầu vào. 136 lệnh thì trôi thấy được, và có phí mua thì
+lệch hẳn. `fund_trades` giữ **cả** `units` và `amount`, không suy cái này từ cái kia.
 
 ## Kiến trúc
 
@@ -482,7 +484,7 @@ hoãn theo (chế độ kiểm mã của edge function vẫn làm, để gọi b
 | Chấp nhận trễ **1 phiên** | Bản chất của 基準価額 cộng độ trễ tổng hợp của hiệp hội. |
 | `TextDecoder('shift_jis')`, KHÔNG `res.text()` | Cả hai file đều Shift-JIS dù khai UTF-8 — bẫy ①. Sai chỗ này thì cột số vẫn đúng, chỉ ngày và tên hỏng. |
 | Nhận kết quả bằng **nội dung dòng đầu**, không bằng mã trạng thái | Thiếu tham số trả `200` kèm JSON 19 byte — bẫy ②. |
-| `fund_trades` giữ **cả** `units` và `amount` | Đo thật: `28.429 × 17.588 ÷ 10.000 = 49.997` ≠ `50.000` — bẫy ④. |
+| `fund_trades` giữ **cả** `units` và `amount` | Đo thật: `28.429 × 17.588 ÷ 10.000 = 50.000,93` ≠ `50.000`; và Rakuten tính 口数 TỪ số tiền, nên suy ngược là dựng đầu vào từ đầu ra — bẫy ④. |
 | `traded_on` = **約定日**, không lưu 受渡日 | 基準価額 thuộc về 約定日; hai ngày lệch tới 5 ngày. Đối chiếu 4 cặp, khớp tuyệt đối. |
 | Bảng **`fund_aliases`** trong DB, không phải hằng số trong script | Quỹ đổi tên là chuyện có thật (2024-10-17). Lần sau chỉ thêm một hàng. |
 | Bất biến **"không quỹ nào 口数 âm"** | Chính nó bắt được cả hai lần đổi tên. Bảng bí danh thiếu dòng thì lộ ra ngay. |

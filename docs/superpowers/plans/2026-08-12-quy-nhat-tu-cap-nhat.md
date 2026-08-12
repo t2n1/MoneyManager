@@ -222,8 +222,8 @@ Kỳ vọng: FAIL với `ENOENT` — chưa có file migration.
 --   1. 基準価額 niêm yết trên 10.000 口, không phải trên 1 đơn vị. Cột `nav` giữ NGUYÊN
 --      đơn vị đó; chia 10.000 ở đúng một chỗ trong app (fundValue).
 --   2. Giữ CẢ `units` lẫn `amount`: đo thật trên sao kê Rakuten,
---      28.429 × 17.588 ÷ 10.000 = 49.997 trong khi số tiền thật là 50.000. Suy giá vốn
---      từ số lượng × giá là sai vài yên mỗi lệnh.
+--      28.429 × 17.588 ÷ 10.000 = 50.000,93 trong khi số tiền bị trừ là 50.000. Rakuten
+--      tính 口数 TỪ số tiền, nên suy ngược lại là dựng đầu vào từ đầu ra — mất mát.
 --   3. KHÔNG có "tiền chưa đầu tư": Rakuten tự quét sạch tiền dư về 楽天銀行
 --      (自動出金(スイープ)), nên tài khoản không bao giờ giữ tiền nhàn rỗi.
 --
@@ -556,7 +556,7 @@ describe('fundHoldingsFromTrades', () => {
 
   it('giá vốn lấy từ `amount`, KHÔNG suy từ units × nav ÷ 10.000', () => {
     // Lệnh thật trên sao kê Rakuten 2026-04-09: 28.429 口 ở 基準価額 17.588, trừ 50.000 ¥.
-    // 28.429 × 17.588 ÷ 10.000 = 49.997 — lệch 3 yên. `amount` mới là số thật.
+    // 28.429 × 17.588 ÷ 10.000 = 50.000,93 — không bằng 50.000. `amount` mới là số thật.
     const { holdings } = fundHoldingsFromTrades([mua(SP500, 28_429, 17_588, 50_000)])
     expect(holdings).toEqual([
       { assocFundCd: SP500, units: 28_429, costBasis: 50_000, avgNav: 17_589 },
@@ -770,8 +770,9 @@ Kỳ vọng: FAIL — `Failed to resolve import "./fundHoldings"`.
 //    Nam là đồng/cổ, nhân thẳng. Ở đây phải chia NAV_UNITS, và chia ở đúng một chỗ.
 // 2. GIÁ VỐN. Cổ phiếu tính `số cổ × giá + phí`. Quỹ thì lấy thẳng số tiền thật đã trừ,
 //    vì `口数 × 基準価額 ÷ 10.000` KHÔNG bằng số tiền Rakuten trừ: đo trên sao kê thật,
-//    28.429 × 17.588 ÷ 10.000 = 49.997 trong khi số tiền là 50.000. Lệch 3 yên mỗi lệnh,
-//    136 lệnh thì thành sai lệch thấy được.
+//    28.429 × 17.588 ÷ 10.000 = 50.000,93 trong khi số tiền là 50.000. Rakuten tính 口数
+//    TỪ số tiền, nên suy ngược lại là dựng đầu vào từ đầu ra — dưới một yên mỗi lệnh,
+//    nhưng 136 lệnh thì trôi thấy được, và có phí mua thì lệch hẳn.
 // 3. TIỀN MẶT. Không có. Rakuten tự quét sạch tiền dư về 楽天銀行 (自動出金(スイープ)),
 //    nên tài khoản không giữ tiền nhàn rỗi — và tiền vào tài khoản qua thẻ tín dụng/điểm
 //    chứ không qua một lần chuyển khoản mà sổ app có ghi. Mượn `brokerCash` ở đây sẽ ra
@@ -2139,8 +2140,8 @@ Chèn ngay **sau** `export type StockTradePatch = ...` (dòng 342):
  * Một lệnh mua/bán/điều chỉnh quỹ đầu tư Nhật (migration 0045). Mọi số ở yên.
  *
  * Giữ CẢ `units` lẫn `amount` là CỐ Ý: đo trên sao kê Rakuten thật,
- * 28.429 口 × 17.588 ÷ 10.000 = 49.997 trong khi số tiền bị trừ là 50.000. Suy giá vốn từ
- * số lượng × giá là sai vài yên mỗi lệnh.
+ * 28.429 口 × 17.588 ÷ 10.000 = 50.000,93 trong khi số tiền bị trừ là 50.000. Rakuten tính
+ * 口数 TỪ số tiền, nên suy ngược lại là dựng đầu vào từ đầu ra — mất mát.
  */
 export interface NewFundTrade {
   account_id: string
@@ -4354,7 +4355,7 @@ Yêu cầu bắt buộc, mỗi cái một lý do:
 | Mua/Bán/Điều chỉnh | Ba lựa chọn. Chọn "Điều chỉnh" thì ô 基準価額 và ô Số tiền **ẩn đi và bị đặt về 0** — `CHECK fund_trades_shape` đòi vậy, và ẩn còn tốt hơn để người dùng gõ vào rồi bị từ chối. |
 | 口数 | Số nguyên. Với mua/bán phải > 0. |
 | 基準価額 | `MoneyField`, nhãn ghi rõ **"¥ / 10.000 口"**. Thiếu chú thích đó thì con số 17.588 trông như đơn giá một 口. |
-| Số tiền | `MoneyField`. Khi người dùng gõ xong 口数 và 基準価額, ô này **tự gợi ý** `Math.round(units * nav / NAV_UNITS)` **nhưng cho sửa** — số thật trên sao kê mới là số được lưu (đo thật: gợi ý ra 49.997, số thật là 50.000). |
+| Số tiền | `MoneyField`. Khi người dùng gõ xong 口数 và 基準価額, ô này **tự gợi ý** `Math.round(units * nav / NAV_UNITS)` **nhưng cho sửa** — số thật trên sao kê mới là số được lưu (đo thật: gợi ý ra 50.001, số thật là 50.000). |
 | Nút Lưu | Chặn khi thiếu ô bắt buộc, và **nói thiếu gì** thay vì chỉ mờ đi. |
 
 Chú thích dưới ô Số tiền, đúng nguyên văn:
@@ -4391,7 +4392,7 @@ Mở tài khoản **NISA Rakuten** (đầu tư JPY) và xác nhận **bốn** đ
 1. Khu "Danh mục quỹ" hiện hai quỹ, **Tổng giá trị 80.757 ¥**, **Giá vốn 70.000 ¥**.
 2. Dòng lãi/lỗ hiện **+10.757 ¥** và **+15,4%** (repo làm tròn 1 chữ số; app Rakuten cắt đuôi thành 15,36% — **không phải sai lệch cần sửa**).
 3. Mỗi dòng quỹ có chú thích `/1万口` cạnh 基準価額.
-4. Bấm "+ Ghi lệnh" → sheet mở; gõ 口数 `28429` và 基準価額 `17588` → ô Số tiền tự gợi ý **49.997**; sửa thành `50000` được và lưu được.
+4. Bấm "+ Ghi lệnh" → sheet mở; gõ 口数 `28429` và 基準価額 `17588` → ô Số tiền tự gợi ý **50.001**; sửa thành `50000` được và lưu được.
 
 Nếu con số ở (1) hoặc (2) khác, **dừng lại** — lỗi nằm ở tầng dưới, không phải ở UI.
 

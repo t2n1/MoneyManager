@@ -55,6 +55,24 @@ const EXPORTS_BAT_BUOC: Record<string, string[]> = {
   ],
 }
 
+/**
+ * Tên thật sự được XUẤT bởi một bundle, đọc từ các khối `export {…}` mà esbuild sinh ra.
+ *
+ * Vì sao không dùng `toContain(ten)` như bản trước: nó chỉ tìm chuỗi con ở bất kỳ đâu
+ * trong file. Với một tên chỉ được HÀM KHÁC dùng bên trong — `NAV_UNITS` là ca thật —
+ * chuỗi đó vẫn còn nguyên trong file kể cả khi tên bị bỏ khỏi danh sách export, nên bài
+ * test xanh trong lúc giao kèo của edge function đã đứt.
+ */
+function tenDaXuat(noiDung: string): Set<string> {
+  const khoi = [...noiDung.matchAll(/export\s*\{([^}]*)\}/g)].map((m) => m[1]).join(',')
+  return new Set(
+    khoi
+      .split(',')
+      .map((s) => s.trim().split(/\s+as\s+/).pop() ?? '')
+      .filter(Boolean),
+  )
+}
+
 describe('bundle bộ luật cho edge function', () => {
   it('file đã commit KHỚP với bộ luật hiện tại trong src/', async () => {
     const goiLai = await bundleAll({ write: false })
@@ -80,10 +98,20 @@ describe('bundle bộ luật cho edge function', () => {
   it('bundle xuất đủ những gì edge function gọi', () => {
     for (const { outfile } of BUNDLES) {
       const daCommit = readFileSync(join(ROOT, outfile), 'utf8')
+      const daXuat = tenDaXuat(daCommit)
       for (const ten of EXPORTS_BAT_BUOC[outfile]) {
-        expect(daCommit, `${outfile} thiếu export ${ten}`).toContain(ten)
+        expect([...daXuat], `${outfile} thiếu export ${ten}`).toContain(ten)
       }
     }
+  })
+
+  it('phép đọc danh sách export phân biệt được "có trong file" với "được xuất"', () => {
+    // `avgNavOf` là hàm trợ giúp nội bộ của _funds.js: có mặt trong file (nên phép
+    // `toContain` cũ sẽ xanh cho nó) nhưng KHÔNG nằm trong khối export. Nếu bài này đỏ,
+    // nghĩa là phép đọc export đã bị nới rộng thành "tìm chuỗi con" và mất tác dụng.
+    const noiDung = readFileSync(join(ROOT, 'supabase/functions/fund-refresh/_funds.js'), 'utf8')
+    expect(noiDung).toContain('avgNavOf')
+    expect([...tenDaXuat(noiDung)]).not.toContain('avgNavOf')
   })
 
   it('bundle KHÔNG kéo theo thứ của trình duyệt hay của Node', () => {

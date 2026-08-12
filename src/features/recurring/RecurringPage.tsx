@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRightLeft, ChevronLeft, Pause, Play, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ArrowRightLeft, Pause, Play, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { BackLink } from '../../components/BackLink'
 import {
   useAccounts,
   useCategories,
@@ -65,7 +66,6 @@ function scheduleLabel(rule: RecurringRuleRow): string {
 
 /** Màn quản lý giao dịch định kỳ (Cài đặt → Giao dịch định kỳ). */
 export function RecurringPage() {
-  const navigate = useNavigate()
   const { data: rules = [], isLoading } = useRecurringRules()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
@@ -172,14 +172,7 @@ export function RecurringPage() {
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => navigate('/')}
-          className="flex items-center gap-1 rounded-lg bg-surface px-2 py-1.5 text-sm text-fg-secondary shadow-sm active:scale-95"
-          aria-label="Quay lại Sổ"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
+        <BackLink to="/" aria-label="Quay lại" />
         <h1 className="flex-1 text-lg font-bold text-fg-primary">
           Giao dịch định kỳ
         </h1>

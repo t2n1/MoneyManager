@@ -7,9 +7,10 @@
 import { useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
+import { BackLink } from '../../components/BackLink'
 import { EstimateMark } from '../../components/EstimateMark'
-import { ActionButton, Card, iconButtonClass, Money, SectionTitle } from '../../components/ui'
+import { ActionButton, Card, Money, SectionTitle } from '../../components/ui'
 import { HOSE_SYMBOLS } from './hoseSymbols'
 import { TradeFormSheet } from './TradeFormSheet'
 import { useInvestData } from './useInvestData'
@@ -59,9 +60,7 @@ export function InvestPage() {
 
   const header = (
     <div className="mb-3 flex items-center gap-2">
-      <Link to="/assets" aria-label="Quay lại Tài sản" className={iconButtonClass()}>
-        <ChevronLeft className="h-5 w-5" />
-      </Link>
+      <BackLink to="/assets" aria-label="Quay lại" />
       <h1 className="flex-1 text-lg font-bold text-fg-primary">Đầu tư</h1>
       {accounts.length > 0 && (
         <ActionButton variant="primary" onClick={startTrade}>

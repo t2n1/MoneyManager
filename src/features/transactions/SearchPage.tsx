@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { ChevronDown, ChevronLeft, ChevronUp, Search, X } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
+import { BackLink } from '../../components/BackLink'
 import type { TxFilter } from '../../data'
 import {
   useAccounts,
@@ -213,13 +214,7 @@ export function SearchPage() {
     <div className="p-3 lg:p-6">
       {/* Header */}
       <div className="mb-3 flex items-center gap-2">
-        <Link
-          to="/transactions"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface px-3 text-lg shadow-sm active:scale-95"
-          aria-label="Quay lại"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
+        <BackLink to="/transactions" aria-label="Quay lại" />
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Tìm kiếm</h1>
       </div>
 

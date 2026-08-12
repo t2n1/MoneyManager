@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
-import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, Upload } from 'lucide-react'
+import { Upload } from 'lucide-react'
+import { BackLink } from '../../components/BackLink'
 import { repo } from '../../data'
 import { useAccounts, useRangeTransactions } from '../../hooks/queries'
 import { addDaysISO, toISODate } from '../../lib/dates'
@@ -252,13 +252,7 @@ export function ImportCsvPage() {
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
       <div className="flex items-center gap-2">
-        <Link
-          to="/settings/data"
-          className="rounded-lg bg-surface px-3 py-1.5 text-lg shadow-sm active:scale-95"
-          aria-label="Quay lại"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
+        <BackLink to="/settings/data" aria-label="Quay lại" />
         <h1 className="flex-1 text-lg font-bold text-fg-primary">
           Nhập giao dịch từ CSV
         </h1>

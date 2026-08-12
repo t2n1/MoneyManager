@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react'
+import { BackLink } from '../../components/BackLink'
 import { useDebtPayments, useDebts, useRates } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney } from '../../lib/money'
@@ -28,13 +29,7 @@ export function DebtsPage() {
   return (
     <div className="p-3 lg:p-6">
       <div className="mb-3 flex items-center gap-2">
-        <Link
-          to="/assets"
-          className="rounded-lg bg-surface px-3 py-1.5 text-lg shadow-sm active:scale-95"
-          aria-label="Quay lại Tài sản"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
+        <BackLink to="/assets" aria-label="Quay lại" />
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Nợ / cho vay</h1>
         <Link
           to="/entry?role=debt"

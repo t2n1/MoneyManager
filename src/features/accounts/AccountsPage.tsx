@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import { Guide } from '../../components/Guide'
-import { Link } from 'react-router-dom'
-import { AlertTriangle, ChevronDown, ChevronLeft, ChevronUp, GripVertical } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronUp, GripVertical } from 'lucide-react'
+import { BackLink } from '../../components/BackLink'
 import { AccountTypeIcon } from '../../components/icons'
 import { DragList } from '../../components/DragList'
 import type { NewAccount } from '../../data'
@@ -69,13 +69,7 @@ export function AccountsPage() {
   return (
     <div className="p-3 lg:p-6">
       <div className="mb-3 flex items-center gap-2">
-        <Link
-          to="/settings"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface px-3 py-1.5 text-lg shadow-sm active:scale-95"
-          aria-label="Quay lại"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
+        <BackLink to="/settings" aria-label="Quay lại" />
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Tài khoản</h1>
         <button
           type="button"

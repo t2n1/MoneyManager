@@ -1,8 +1,8 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Guide } from '../../components/Guide'
-import { Link } from 'react-router-dom'
-import { Archive, ChevronDown, ChevronLeft, ChevronUp, GripVertical, Plus } from 'lucide-react'
+import { Archive, ChevronDown, ChevronUp, GripVertical, Plus } from 'lucide-react'
 import type { NewCategory } from '../../data'
+import { BackLink } from '../../components/BackLink'
 import { DragList, type DragHandleProps } from '../../components/DragList'
 import { IconButton } from '../../components/ui'
 import { useEscClose } from '../../hooks/useEscClose'
@@ -363,13 +363,7 @@ export function CategoriesPage() {
       onPointerCancel={onChildPointerEnd}
     >
       <div className="mb-3 flex items-center gap-2">
-        <Link
-          to="/settings"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface px-3 py-1.5 text-lg shadow-sm active:scale-95"
-          aria-label="Quay lại"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
+        <BackLink to="/settings" aria-label="Quay lại" />
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Danh mục</h1>
         <button
           type="button"

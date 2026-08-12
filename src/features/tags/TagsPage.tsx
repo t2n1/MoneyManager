@@ -2,8 +2,8 @@
 // nhập giao dịch cho nhanh, nên ở đây chỉ cần một ô thêm đơn giản.
 import { useState } from 'react'
 import { Guide } from '../../components/Guide'
-import { Link } from 'react-router-dom'
-import { Archive, ArchiveRestore, ChevronLeft, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, Trash2 } from 'lucide-react'
+import { BackLink } from '../../components/BackLink'
 import {
   useCreateTag,
   useCreateTagGroup,
@@ -283,13 +283,7 @@ export function TagsPage() {
   return (
     <div className="p-3 lg:p-6">
       <div className="mb-3 flex items-center gap-2">
-        <Link
-          to="/settings"
-          aria-label="Quay lại"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface px-3 py-1.5 shadow-sm active:scale-95 "
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
+        <BackLink to="/settings" aria-label="Quay lại" />
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Nhãn</h1>
       </div>
 

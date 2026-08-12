@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, ChevronLeft, ChevronRight, TriangleAlert } from 'lucide-react'
+import { BackLink } from '../../components/BackLink'
 import {
   useBudgetAlert,
   useCategories,
@@ -174,14 +175,15 @@ export function EntryPage() {
   return (
     <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:h-dvh lg:p-6">
       <div className="mb-2 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => navigate('/')}
-          className="flex min-h-11 items-center gap-1 rounded-lg bg-surface px-3 py-1.5 text-sm text-fg-secondary shadow-sm active:scale-95"
-          aria-label="Đóng, quay lại Sổ giao dịch"
+        {/* "Đóng" = bỏ dở màn nhập → trả người dùng về đúng chỗ họ bấm "+", chứ không
+            phải luôn luôn về Sổ (nút này mở được từ Nợ, Sắp chi, thông báo…). */}
+        <BackLink
+          to="/"
+          aria-label="Đóng, quay lại trang trước"
+          className="flex min-h-11 items-center gap-1 rounded-lg bg-surface px-3 py-1.5 text-sm text-fg-secondary shadow-sm transition active:scale-95"
         >
           <ChevronLeft className="h-5 w-5" /> Đóng
-        </button>
+        </BackLink>
         <h1 className="flex-1 text-center text-base font-bold text-fg-primary">
           {billRule || planned ? 'Ghi khoản đến hạn' : 'Nhập giao dịch'}
         </h1>

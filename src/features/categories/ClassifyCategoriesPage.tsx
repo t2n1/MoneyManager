@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Guide } from '../../components/Guide'
-import { Link } from 'react-router-dom'
-import { ChevronLeft } from 'lucide-react'
+import { BackLink } from '../../components/BackLink'
 import { useCategories, useUpdateCategory } from '../../hooks/queries'
 import { showToast } from '../../lib/dialog'
 import type { CostType, NeedLevel } from '../../types/database.types'
@@ -65,13 +64,7 @@ export function ClassifyCategoriesPage() {
   return (
     <div className="p-3 lg:p-6">
       <div className="mb-3 flex items-center gap-2">
-        <Link
-          to="/settings/categories"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface px-3 py-1.5 text-lg shadow-sm active:scale-95 "
-          aria-label="Quay lại"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
+        <BackLink to="/settings/categories" aria-label="Quay lại" />
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Phân loại chi tiêu</h1>
       </div>
 

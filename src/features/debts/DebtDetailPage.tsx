@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Banknote, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, PenLine } from 'lucide-react'
+import { Banknote, ChevronDown, ChevronRight, ChevronUp, PenLine } from 'lucide-react'
+import { BackLink } from '../../components/BackLink'
 import {
   useDebtPayments,
   useDebts,
@@ -108,13 +109,7 @@ export function DebtDetailPage() {
   return (
     <div className="p-3 lg:p-6">
       <div className="mb-3 flex items-center gap-2">
-        <Link
-          to="/debts"
-          className="rounded-lg bg-surface px-3 py-1.5 text-lg shadow-sm active:scale-95"
-          aria-label="Quay lại"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
+        <BackLink to="/debts" aria-label="Quay lại" />
         <h1 className="flex-1 truncate text-lg font-bold text-fg-primary">{debt.counterparty}</h1>
         <button
           type="button"

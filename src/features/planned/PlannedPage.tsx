@@ -7,7 +7,8 @@
 import { useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
-import { Bell, BellOff, Check, ChevronLeft, Plus, X } from 'lucide-react'
+import { Bell, BellOff, Check, Plus, X } from 'lucide-react'
+import { BackLink } from '../../components/BackLink'
 import {
   ActionButton,
   Card,
@@ -92,9 +93,7 @@ export function PlannedPage() {
 
   const header = (
     <div className="mb-3 flex items-center gap-2">
-      <Link to="/" aria-label="Quay lại Sổ" className={iconButtonClass()}>
-        <ChevronLeft className="h-5 w-5" />
-      </Link>
+      <BackLink to="/" aria-label="Quay lại" />
       <h1 className="flex-1 text-lg font-bold text-fg-primary">Sắp chi</h1>
       <ActionButton variant="primary" onClick={() => setSheet({ planned: null })}>
         <Plus className="h-4 w-4" /> Thêm

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Download, FileUp, Printer } from 'lucide-react'
+import { BackLink } from '../../components/BackLink'
 import { BackupSection } from './BackupSection'
 import { exportCsvFilename } from './exportFilename'
 import { buildTransactionsCsv } from '../reports/csv'
@@ -140,13 +141,7 @@ export function DataPage() {
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
       <div className="flex items-center gap-2">
-        <Link
-          to="/settings"
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface px-3 py-1.5 text-lg shadow-sm active:scale-95"
-          aria-label="Quay lại"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
+        <BackLink to="/settings" aria-label="Quay lại" />
         <h1 className="flex-1 text-lg font-bold text-fg-primary">
           Dữ liệu &amp; sao lưu
         </h1>

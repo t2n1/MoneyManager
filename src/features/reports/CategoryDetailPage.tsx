@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { BackLink } from '../../components/BackLink'
 import { Card, IconButton, Money } from '../../components/ui'
 import {
   useAccounts,
@@ -169,12 +170,13 @@ export function CategoryDetailPage() {
   if (catsFetched && !category) {
     return (
       <div className="p-3 lg:p-6">
-        <Link
+        <BackLink
           to={backTo}
+          aria-label="Quay lại"
           className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-green-700 dark:text-green-400"
         >
           <ChevronLeft className="h-5 w-5" /> {fromBudget ? 'Về ngân sách' : 'Về báo cáo'}
-        </Link>
+        </BackLink>
         <p className="py-16 text-center text-sm text-fg-muted">Không tìm thấy danh mục này.</p>
       </div>
     )
@@ -184,13 +186,7 @@ export function CategoryDetailPage() {
     <div className="flex flex-col gap-4 p-3 lg:p-6">
       {/* Thanh đầu: quay lại + tên danh mục */}
       <div className="flex items-center gap-2">
-        <Link
-          to={backTo}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-surface px-3 shadow-sm active:scale-95"
-          aria-label={fromBudget ? 'Quay lại ngân sách' : 'Quay lại báo cáo'}
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
+        <BackLink to={backTo} aria-label="Quay lại" />
         <h1 className="flex min-w-0 flex-1 items-center gap-2 text-lg font-bold text-fg-primary">
           {category?.icon && <span>{category.icon}</span>}
           <span className="truncate">{category?.name ?? '…'}</span>

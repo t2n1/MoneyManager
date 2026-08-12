@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { BackLink } from '../../components/BackLink'
 import { Guide } from '../../components/Guide'
 import { Card } from '../../components/ui/Card'
 import { useDensity } from '../../hooks/useDensity'
@@ -298,7 +299,13 @@ export function NotificationSettingsPage() {
 
   return (
     <div className="p-3 lg:p-6">
-      <h1 className="mb-1 text-lg font-bold text-fg-primary">Thông báo</h1>
+      {/* Hàng đầu giống mọi trang con khác của Cài đặt: nút lùi + tên trang. Thiếu nút
+          này thì trên điện thoại lối ra duy nhất là thanh tab dưới — mà nó nhả về gốc
+          Cài đặt, không phải chỗ vừa đến. */}
+      <div className="mb-1 flex items-center gap-2">
+        <BackLink to="/settings" aria-label="Quay lại" />
+        <h1 className="flex-1 text-lg font-bold text-fg-primary">Thông báo</h1>
+      </div>
       <Guide className="mb-4 text-sm text-fg-muted">
         Tắt loại nào thì loại đó không hiện trong chuông nữa. Mặc định bật hết.
       </Guide>

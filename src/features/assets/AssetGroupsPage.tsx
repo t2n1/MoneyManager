@@ -1,10 +1,9 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Guide } from '../../components/Guide'
-import { Link } from 'react-router-dom'
-import { Check, ChevronDown, ChevronLeft, ChevronRight, GripVertical, Plus } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, GripVertical, Plus } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
+import { BackLink } from '../../components/BackLink'
 import { DragList, type DragHandleProps } from '../../components/DragList'
-import { iconButtonClass } from '../../components/ui'
 import { useEscClose } from '../../hooks/useEscClose'
 import {
   useAccountBalances,
@@ -577,9 +576,7 @@ export function AssetGroupsPage() {
       onPointerCancel={onAccPointerEnd}
     >
       <div className="mb-3 flex items-center gap-2">
-        <Link to="/assets" className={iconButtonClass()} aria-label="Quay lại">
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
+        <BackLink to="/assets" aria-label="Quay lại" />
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Nhóm tài sản</h1>
         <button
           type="button"

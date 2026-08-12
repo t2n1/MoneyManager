@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { BackLink } from '../../components/BackLink'
 import { ChevronLeft, ChevronRight, LineChart, Scale, Trash2 } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
 import { AccountTypeIcon } from '../../components/icons'
@@ -10,7 +11,6 @@ import {
   IconButton,
   Money,
   SectionTitle,
-  iconButtonClass,
 } from '../../components/ui'
 import type { TxFilter } from '../../data'
 import {
@@ -206,9 +206,7 @@ export function AccountDetailPage() {
     <div className="p-3 lg:p-6">
       {/* Header */}
       <div className="mb-3 flex items-center gap-2">
-        <Link to="/assets" className={iconButtonClass()} aria-label="Quay lại">
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
+        <BackLink to="/assets" aria-label="Quay lại" />
         <h1 className="flex-1 truncate text-lg font-bold text-fg-primary">
           {account ? (
             <span className="inline-flex items-center gap-1.5">

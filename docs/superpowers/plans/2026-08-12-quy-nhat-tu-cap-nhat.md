@@ -1539,7 +1539,15 @@ describe('fetchFundNavs', () => {
   })
 
   it('hết ngân sách thời gian → DỪNG SẠCH trước quỹ tiếp theo, báo hetNganSach', async () => {
-    // Đồng hồ giả nhảy 40s mỗi lần đọc: quỹ đầu gọi được, quỹ thứ hai thì hết ngân sách.
+    // Đồng hồ giả nhảy 20s mỗi lần đọc, ngân sách 30s. Lần đọc thứ nhất là `start`
+    // (t=20s); vòng của quỹ A đọc lần thứ hai (t=40s) → mới trôi 20s, còn ngân sách nên A
+    // được gọi; vòng của quỹ B đọc lần thứ ba (t=60s) → đã trôi 40s, hết ngân sách.
+    //
+    // Bước nhảy 40s (bản đầu của kế hoạch này) làm ngay vòng ĐẦU TIÊN đã quá hạn, nên A
+    // không bao giờ được gọi — bài test khi đó mâu thuẫn với chính kỳ vọng của nó. Cách
+    // chữa ĐÚNG là sửa đồng hồ, không phải thêm `i > 0` vào phép kiểm trong navs.ts:
+    // làm vậy là đổi ngữ nghĩa thật ("luôn gọi ít nhất một quỹ dù ngân sách đã cạn") chỉ
+    // để chiều một con số bịa sai, và làm navs.ts lệch khỏi khuôn của prices.ts.
     let t = 0
     const kq = await fetchFundNavs(
       [
@@ -1548,7 +1556,7 @@ describe('fetchFundNavs', () => {
       ],
       {
         budgetMs: 30_000,
-        now: () => (t += 40_000),
+        now: () => (t += 20_000),
         fetchImpl: fetchGia({ A: { body: CSV_OK(20_053, '2026年08月10日') } }),
       },
     )

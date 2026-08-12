@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { AccountRow } from '../../types/database.types'
-import { groupAccountsByType } from './groupByType'
+import type { AccountRow, AccountType } from '../../types/database.types'
+import { ACCOUNT_TYPE_LABELS } from '../assets/aggregate'
+import { groupAccountsByType, groupOptionsByType } from './groupByType'
 
 let seq = 0
 /** Tạo AccountRow tối giản cho test — chỉ khai báo field cần, phần còn lại mặc định. */
@@ -79,5 +80,35 @@ describe('groupAccountsByType', () => {
     const card = acc({ id: 'k1', type: 'card', currency: 'JPY' })
     const groups = groupAccountsByType([card], balancesFrom({ k1: -500 }))
     expect(groups[0].totalsByCurrency).toEqual([{ currency: 'JPY', total: -500 }])
+  })
+})
+
+describe('groupOptionsByType', () => {
+  const opt = (id: string, type: AccountType) => ({ id, type })
+
+  it('gom theo loại, giữ thứ tự TYPE_ORDER và thứ tự trong từng loại', () => {
+    const r = groupOptionsByType([
+      opt('card1', 'card'),
+      opt('cash1', 'cash'),
+      opt('bank1', 'bank'),
+      opt('bank2', 'bank'),
+    ])
+    expect(r.map((g) => g.type)).toEqual(['cash', 'bank', 'card'])
+    expect(r[1].items.map((x) => x.id)).toEqual(['bank1', 'bank2'])
+  })
+
+  it('có nhãn tiếng Việt cho từng khối', () => {
+    expect(groupOptionsByType([opt('a', 'cash')])[0].label).toBe(ACCOUNT_TYPE_LABELS.cash)
+  })
+
+  // Bộ chọn đánh rơi một tài khoản = không nhập được giao dịch cho nó.
+  it('loại không có trong TYPE_ORDER (fixed) vẫn ra, xếp cuối', () => {
+    const r = groupOptionsByType([opt('f1', 'fixed'), opt('c1', 'cash')])
+    expect(r.map((g) => g.type)).toEqual(['cash', 'fixed'])
+    expect(r.flatMap((g) => g.items.map((x) => x.id))).toEqual(['c1', 'f1'])
+  })
+
+  it('danh sách rỗng → không khối nào', () => {
+    expect(groupOptionsByType([])).toEqual([])
   })
 })

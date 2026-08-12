@@ -99,38 +99,3 @@ export function pickerSections(
   }
   return out
 }
-
-/** Một chỗ có thể tạo nhãn mới vào. `group: null` = mục "Khác". */
-export interface CreateTarget {
-  group: TagGroupRow | null
-}
-
-/**
- * Gõ một tên chưa có vào ô tìm thì mỗi nhóm hiện một chip "＋ Tạo …", để chọn luôn chỗ
- * đặt. Sau khi bỏ nút "+ mới" ở từng nhóm, đây là đường tạo nhãn duy nhất — nên mọi
- * nhánh dưới đây đều phải để lại ít nhất một chỗ tạo, không được thành ngõ cụt.
- *
- * Trùng tên HẲN thì trả rỗng: lúc đó việc đúng là chọn nhãn có sẵn. Xét cả nhãn đã lưu
- * trữ, vì gõ trùng tên nhãn lưu trữ sẽ làm nó SỐNG LẠI (xem `addTag` trong TagPicker) —
- * mời tạo ở đó là mời tạo một thứ không tạo được.
- *
- * Mục "Khác" chỉ được mời khi nó ĐANG tồn tại. Không tự mọc mục Khác ra để nhận nhãn
- * mới: chốt 2026-08-08 là nhãn tạo lúc nhập phải sinh ra đã có nhóm, không đẻ thêm việc
- * "vào Cài đặt xếp lại sau". Ngoại lệ duy nhất là chưa có nhóm nào.
- */
-export function createTargets(
-  tags: TagRow[],
-  sections: TagSection[],
-  query: string,
-): CreateTarget[] {
-  const name = query.trim()
-  if (!name) return []
-  const lower = name.toLowerCase()
-  if (tags.some((t) => t.name.toLowerCase() === lower)) return []
-
-  const out: CreateTarget[] = []
-  for (const s of sections) if (s.group) out.push({ group: s.group })
-  if (out.length === 0) return [{ group: null }]
-  if (sections.some((s) => !s.group)) out.push({ group: null })
-  return out
-}

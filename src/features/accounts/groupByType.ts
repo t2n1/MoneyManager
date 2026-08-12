@@ -8,6 +8,43 @@ import type { AccountRow, AccountType } from '../../types/database.types'
 /** Thứ tự hiển thị các loại — khớp thứ tự ô "Loại" trong form thêm tài khoản. */
 const TYPE_ORDER: AccountType[] = ['cash', 'bank', 'card', 'ic', 'ewallet', 'investment']
 
+/** Một khối cho BỘ CHỌN tài khoản. */
+export interface OptionTypeGroup<T> {
+  type: AccountType
+  label: string
+  items: T[]
+}
+
+/**
+ * Gom theo loại cho bộ chọn tài khoản: chỉ cần `type`, không cần số dư hay tổng.
+ *
+ * Khác `groupAccountsByType` ở một điểm quan trọng: loại nào KHÔNG có trong
+ * TYPE_ORDER vẫn được xếp vào cuối chứ không bị bỏ. Bộ chọn mà đánh rơi một tài
+ * khoản thì người dùng không nhập được giao dịch cho nó, không có đường nào khác —
+ * ví dụ `fixed` (tài sản cố định) hiện đang thiếu trong TYPE_ORDER.
+ */
+export function groupOptionsByType<T extends { type: AccountType }>(
+  options: T[],
+): OptionTypeGroup<T>[] {
+  const byType = new Map<AccountType, T[]>()
+  for (const o of options) {
+    const list = byType.get(o.type)
+    if (list) list.push(o)
+    else byType.set(o.type, [o])
+  }
+  const seen = new Set<AccountType>()
+  const out: OptionTypeGroup<T>[] = []
+  const push = (type: AccountType) => {
+    const items = byType.get(type)
+    if (!items || items.length === 0 || seen.has(type)) return
+    seen.add(type)
+    out.push({ type, label: ACCOUNT_TYPE_LABELS[type], items })
+  }
+  for (const type of TYPE_ORDER) push(type)
+  for (const type of byType.keys()) push(type)
+  return out
+}
+
 /** Tổng số dư của một loại, tách theo từng loại tiền. */
 export interface CurrencyTotal {
   currency: CurrencyCode

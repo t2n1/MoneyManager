@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TagGroupRow, TagRow, TransactionTagRow } from '../../types/database.types'
-import { collapsedLimit, createTargets, pickerSections, ungroupedQueue } from './groups'
+import { collapsedLimit, pickerSections, ungroupedQueue } from './groups'
 
 const tag = (id: string, name: string, p: Partial<TagRow> = {}): TagRow => ({
   id,
@@ -154,53 +154,3 @@ describe('collapsedLimit', () => {
   })
 })
 
-describe('createTargets', () => {
-  const secs = (tags: TagRow[], groups: TagGroupRow[]) => pickerSections(tags, groups, [], [], 4)
-
-  it('chưa gõ gì thì không mời tạo', () => {
-    const tags = [tag('t1', 'Tokyo', { group_id: WHERE.id })]
-    expect(createTargets(tags, secs(tags, [WHO, WHERE]), '')).toEqual([])
-  })
-
-  it('gõ toàn dấu cách cũng không mời tạo', () => {
-    const tags = [tag('t1', 'Tokyo', { group_id: WHERE.id })]
-    expect(createTargets(tags, secs(tags, [WHO, WHERE]), '   ')).toEqual([])
-  })
-
-  it('trùng tên hẳn thì không mời tạo — việc đúng là chọn nhãn có sẵn', () => {
-    const tags = [tag('t1', 'Tokyo', { group_id: WHERE.id })]
-    expect(createTargets(tags, secs(tags, [WHO, WHERE]), 'tokyo')).toEqual([])
-  })
-
-  it('trùng tên hẳn với nhãn ĐÃ LƯU TRỮ cũng không mời tạo (gõ trùng là làm nó sống lại)', () => {
-    const tags = [tag('t1', 'Tokyo', { group_id: WHERE.id, is_archived: true })]
-    expect(createTargets(tags, secs(tags, [WHO, WHERE]), 'Tokyo')).toEqual([])
-  })
-
-  it('bỏ dấu cách đầu cuối trước khi so tên', () => {
-    const tags = [tag('t1', 'Tokyo', { group_id: WHERE.id })]
-    expect(createTargets(tags, secs(tags, [WHO, WHERE]), '  Tokyo  ')).toEqual([])
-  })
-
-  it('trùng một phần thì mời tạo ở MỌI nhóm thật', () => {
-    const tags = [tag('t1', 'Tokyo', { group_id: WHERE.id })]
-    const out = createTargets(tags, secs(tags, [WHO, WHERE]), 'Tok')
-    expect(out.map((x) => x.group?.name)).toEqual(['Với ai?', 'Ở đâu?'])
-  })
-
-  it('có mục Khác thì thêm một chỗ tạo không nhóm', () => {
-    const tags = [tag('t1', 'Về VN 2026')]
-    const out = createTargets(tags, secs(tags, [WHO, WHERE]), 'Cả nhà')
-    expect(out.map((x) => x.group?.name ?? null)).toEqual(['Với ai?', 'Ở đâu?', null])
-  })
-
-  it('không có mục Khác thì không mời tạo vào Khác', () => {
-    const tags = [tag('t1', 'Tokyo', { group_id: WHERE.id })]
-    const out = createTargets(tags, secs(tags, [WHO, WHERE]), 'Cả nhà')
-    expect(out.every((x) => x.group !== null)).toBe(true)
-  })
-
-  it('chưa có nhóm nào thì vẫn phải có một chỗ tạo, không thì thành ngõ cụt', () => {
-    expect(createTargets([], [], 'Cả nhà')).toEqual([{ group: null }])
-  })
-})

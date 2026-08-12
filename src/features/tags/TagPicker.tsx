@@ -11,14 +11,17 @@
 //  - Chip chưa chọn thì XÁM (`CHIP_OFF`), chọn rồi mới lên màu của nhãn — y như nút
 //    "Nhắc sau" / "Lặp lại" cạnh ô ngày.
 //  - Cao 44px như mọi chip khác trong trang.
-//  - Không có nút "+ mới" ở từng nhóm. Tạo nhãn bằng cách gõ tên vào ô nhập, rồi bấm
-//    chip "＋ Tạo …" của đúng nhóm muốn đặt vào.
+//  - Tạo nhãn bằng dấu "+" ở CUỐI TỪNG HÀNG: bấm là hiện ngay ô gõ tên tại đúng hàng
+//    đó, xong là nhãn nằm luôn trong nhóm ấy. Trước đây phải gõ tên vào ô nhập chung
+//    rồi bấm chip "＋ Tạo …", còn dưới cùng có thêm nút "＋ Thêm nhãn" — ba thứ cho một
+//    việc, và cái nút dưới cùng làm form dài thêm một hàng.
+//    Ô nhập chung giờ chỉ còn một vai: TÌM nhãn.
 //
 // Nhãn theo dịp/dự án chỉ tăng theo thời gian, nên khối này KHÔNG vẽ hết. Mỗi nhóm chỉ
 // hiện vài nhãn dùng nhiều nhất + nhãn đang chọn, còn lại nằm sau nút "Tất cả" kèm ô
 // tìm. Xếp hạng nằm trong `pickerSections`, số nhãn hiện sẵn trong `collapsedLimit`.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, Plus, Search, Tag as TagIcon } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Plus, Search, Tag as TagIcon, X } from 'lucide-react'
 import {
   useCreateTag,
   useTagGroups,
@@ -29,7 +32,7 @@ import {
 import { CHIP_OFF } from '../../components/chip'
 import { normalizeText } from '../transactions/filter'
 import type { TagRow } from '../../types/database.types'
-import { collapsedLimit, createTargets, pickerSections } from './groups'
+import { collapsedLimit, pickerSections } from './groups'
 import { TAG_CHIP_CLASS, tagColor } from './colors'
 
 /**
@@ -61,8 +64,13 @@ export function TagPicker({ value, onChange }: Props) {
   const updateTag = useUpdateTag()
   const [expanded, setExpanded] = useState(false)
   const [query, setQuery] = useState('')
-  /** 'create' = mở bằng nút "Thêm nhãn" → ô nhập tự bật con trỏ. */
-  const [openMode, setOpenMode] = useState<'browse' | 'create'>('browse')
+  /**
+   * Hàng đang mở ô "tên nhãn mới": id nhóm, hoặc '' cho hàng "Khác" (nhãn không nhóm).
+   * null = không hàng nào đang mở. Dùng '' thay vì null cho hàng Khác để phân biệt
+   * được với "đang đóng".
+   */
+  const [addingTo, setAddingTo] = useState<string | null>(null)
+  const [newName, setNewName] = useState('')
   const rootRef = useRef<HTMLDivElement>(null)
   const uid = useId()
 
@@ -78,43 +86,40 @@ export function TagPicker({ value, onChange }: Props) {
   const total = sections.reduce((n, s) => n + s.shown.length + s.rest.length, 0)
   const hasRest = sections.some((s) => s.rest.length > 0)
 
-  const targets = useMemo(() => createTargets(tags, sections, query), [tags, sections, query])
-  const creating = targets.length > 0
-  // Ô nhập có hai vai: tìm nhãn, và nhập tên nhãn mới. Buộc nút "＋ Thêm nhãn" ở dưới
-  // vào việc ô này đang ẩn → luôn có ĐÚNG MỘT đường tạo nhãn nhìn thấy được.
-  const inputShown = expanded && (total >= SEARCH_FROM || openMode === 'create')
+  // Ô nhập chung giờ chỉ để TÌM (việc tạo đã về dấu "+" của từng hàng), nên chỉ hiện
+  // khi mở "Tất cả" và có đủ nhãn để phải tìm.
+  const inputShown = expanded && total >= SEARCH_FROM
 
   // Mở "Tất cả" thì tìm được theo tên, bỏ dấu (dùng lại normalizeText của Tìm kiếm).
   // Tìm xuyên mọi mục, nhưng kết quả vẫn nằm đúng mục của nó.
   const needle = normalizeText(query)
-  const visible = useMemo(
-    () =>
-      sections
-        .map((s) => {
-          const all = expanded ? [...s.shown, ...s.rest] : s.shown
-          return {
-            ...s,
-            list: needle ? all.filter((t) => normalizeText(t.name).includes(needle)) : all,
-          }
-        })
-        // Mục nào không còn nhãn nào khớp thì ẩn cả tên, không để lại hàng trống. TRỪ
-        // khi đang mời tạo: ẩn đi là mất luôn đường tạo nhãn vào mục đó.
-        .filter((s) => creating || !needle || s.list.length > 0),
-    [sections, expanded, needle, creating],
-  )
+  const visible = useMemo(() => {
+    const withList = sections.map((s) => {
+      const all = expanded ? [...s.shown, ...s.rest] : s.shown
+      return {
+        ...s,
+        list: needle ? all.filter((t) => normalizeText(t.name).includes(needle)) : all,
+      }
+    })
+    // Mục nào không còn nhãn nào khớp thì ẩn cả tên, không để lại hàng trống. TRỪ hàng
+    // đang mở ô gõ tên (ẩn đi là ô nhập biến mất giữa lúc đang gõ), và TRỪ khi chẳng
+    // mục nào khớp — lúc đó phải giữ đủ các hàng, vì dấu + của chúng chính là đường
+    // tạo nhãn mà câu "không có nhãn nào khớp" đang chỉ tới.
+    if (!needle || !withList.some((s) => s.list.length > 0)) return withList
+    return withList.filter((s) => s.list.length > 0 || (s.group?.id ?? '') === addingTo)
+  }, [sections, expanded, needle, addingTo])
 
   // Chưa có nhóm nào và chưa có nhãn nào: `sections` rỗng nên không có hàng nào để vẽ
-  // chip tạo vào. Vẽ một hàng ảo "Khác" — không thì đúng lúc đó app không tạo được nhãn.
+  // dấu "+" vào. Vẽ một hàng ảo "Khác" — không thì đúng lúc đó app không tạo được nhãn.
   const rows =
-    creating && sections.length === 0
+    sections.length === 0
       ? [{ group: null, shown: [], rest: [], list: [] as TagRow[] }]
       : visible
 
-  // Bàn phím hệ thống bật lên che chip tạo (nó nằm ngay dưới ô nhập, mà khối này ở gần
-  // đáy vùng cuộn của form).
+  // Bàn phím hệ thống bật lên che ô vừa mở (khối này ở gần đáy vùng cuộn của form).
   useEffect(() => {
-    if (expanded && openMode === 'create') rootRef.current?.scrollIntoView({ block: 'center' })
-  }, [expanded, openMode])
+    if (addingTo !== null) rootRef.current?.scrollIntoView({ block: 'center' })
+  }, [addingTo])
 
   async function addTag(groupId: string | null, rawName: string) {
     const name = rawName.trim()
@@ -147,8 +152,8 @@ export function TagPicker({ value, onChange }: Props) {
       }
       onChange([...value, created.id])
     }
-    setQuery('')
-    setExpanded(false)
+    setNewName('')
+    setAddingTo(null)
   }
 
   const chip = (t: TagRow) => {
@@ -190,19 +195,14 @@ export function TagPicker({ value, onChange }: Props) {
 
       {inputShown && (
         <div className="mb-1.5 flex items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-2 focus-within:ring-2 focus-within:ring-green-500">
-          {openMode === 'create' ? (
-            <Plus className="h-3.5 w-3.5 shrink-0 text-fg-muted" aria-hidden />
-          ) : (
-            <Search className="h-3.5 w-3.5 shrink-0 text-fg-muted" aria-hidden />
-          )}
-          {/* Tự bật con trỏ CHỈ ở chế độ tạo: mở "Tất cả" để LƯỚT là chuyện thường, bàn
-              phím tự bật lên che mất danh sách vừa mở thì hại hơn lợi. */}
+          <Search className="h-3.5 w-3.5 shrink-0 text-fg-muted" aria-hidden />
+          {/* KHÔNG tự bật con trỏ: mở "Tất cả" để LƯỚT là chuyện thường, bàn phím tự
+              bật lên che mất danh sách vừa mở thì hại hơn lợi. */}
           <input
-            autoFocus={openMode === 'create'}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={openMode === 'create' ? 'Tên nhãn mới…' : `Tìm trong ${total} nhãn…`}
-            aria-label={openMode === 'create' ? 'Tên nhãn mới' : 'Tìm nhãn'}
+            placeholder={`Tìm trong ${total} nhãn…`}
+            aria-label="Tìm nhãn"
             className="min-h-9 min-w-0 flex-1 bg-transparent py-1 text-sm outline-none"
           />
         </div>
@@ -212,10 +212,10 @@ export function TagPicker({ value, onChange }: Props) {
       <div className={`flex flex-col gap-1.5 ${expanded ? 'max-h-56 overflow-y-auto' : ''}`}>
         {rows.map((s) => {
           const groupId = s.group?.id ?? ''
-          const target = targets.find((x) => (x.group?.id ?? '') === groupId)
+          const adding = addingTo === groupId
           const name = s.group?.name ?? 'Khác'
           const labelId = `${uid}-${s.group?.id ?? 'other'}`
-          const empty = s.list.length === 0 && !target
+          const empty = s.list.length === 0 && !adding
           return (
             <div
               key={labelId}
@@ -230,29 +230,75 @@ export function TagPicker({ value, onChange }: Props) {
               <span
                 id={labelId}
                 title={name}
-                className={`flex w-14 shrink-0 items-center text-xs font-medium text-fg-muted ${
-                  empty ? 'h-7' : 'h-11'
-                }`}
+                className="flex h-11 w-14 shrink-0 items-center text-xs font-medium text-fg-muted"
               >
                 <span className="truncate">{name}</span>
               </span>
-              {empty ? (
-                <span className="flex h-7 items-center text-xs text-fg-muted">chưa có nhãn</span>
-              ) : (
-                <div className="flex min-w-0 flex-wrap gap-1.5">
-                  {s.list.map(chip)}
-                  {target && (
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                {empty && (
+                  <span className="flex h-11 items-center text-xs text-fg-muted">chưa có nhãn</span>
+                )}
+                {s.list.map(chip)}
+                {adding ? (
+                  // Ô gõ tên nằm NGAY trong hàng, cùng dòng với các chip: nhãn tạo ra
+                  // thuộc đúng nhóm này, không phải chọn nhóm thêm một bước nữa.
+                  // Enter để lưu, Esc/✕ để bỏ. Có nút ✓ vì bàn phím điện thoại không
+                  // phải lúc nào cũng có Enter dễ thấy.
+                  <span className="flex min-w-0 flex-1 items-center gap-1 rounded-full border border-border-strong bg-surface pl-3 pr-1 focus-within:ring-2 focus-within:ring-green-500">
+                    <input
+                      autoFocus
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          void addTag(s.group?.id ?? null, newName)
+                        }
+                        if (e.key === 'Escape') {
+                          // Chặn để sheet mẹ đang nghe Esc không đóng theo, mất cả form.
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setAddingTo(null)
+                        }
+                      }}
+                      placeholder={`Tên nhãn mới trong “${name}”…`}
+                      aria-label={`Tên nhãn mới trong nhóm ${name}`}
+                      className="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none"
+                    />
                     <button
                       type="button"
-                      onClick={() => void addTag(target.group?.id ?? null, query)}
-                      className={`${CHIP} border-dashed border-border-strong text-green-700 dark:text-green-400`}
+                      onClick={() => void addTag(s.group?.id ?? null, newName)}
+                      disabled={!newName.trim()}
+                      aria-label={`Lưu nhãn mới vào nhóm ${name}`}
+                      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-fg-accent disabled:opacity-40"
                     >
-                      <Plus className="mr-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-                      <span className="truncate">Tạo “{query.trim()}”</span>
+                      <Check className="h-4 w-4" aria-hidden />
                     </button>
-                  )}
-                </div>
-              )}
+                    <button
+                      type="button"
+                      onClick={() => setAddingTo(null)}
+                      aria-label="Bỏ tạo nhãn"
+                      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-fg-muted"
+                    >
+                      <X className="h-4 w-4" aria-hidden />
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Đang tìm mà không thấy thì lấy luôn chữ vừa gõ làm tên nhãn mới —
+                      // gõ lại lần nữa là việc thừa.
+                      setNewName(query.trim())
+                      setAddingTo(groupId)
+                    }}
+                    aria-label={`Thêm nhãn vào nhóm ${name}`}
+                    className={`${CHIP} w-11 justify-center border-dashed border-border-strong px-0 text-fg-accent`}
+                  >
+                    <Plus className="h-4 w-4" aria-hidden />
+                  </button>
+                )}
+              </div>
             </div>
           )
         })}
@@ -264,21 +310,23 @@ export function TagPicker({ value, onChange }: Props) {
             nhưng câu chỉ đường KHÔNG được bọc <Guide> (xem Guide.tsx) nên nó thành một
             đoạn văn xuôi mới, tức phải nâng trần của test canh chế độ Gọn — quá đắt cho
             một ca hiếm đến vậy. */}
-        {needle && !creating && visible.length === 0 && (
+        {/* Không thêm câu "bấm + để tạo" vào đây: các hàng vẫn còn nguyên bên trên
+            (xem `visible`) nên dấu + đang nhìn thấy được, mà câu dài hơn 45 ký tự thì
+            thành một đoạn văn xuôi mới phải đi qua cổng <Guide> (test canh chế độ Gọn). */}
+        {needle && visible.length === 0 && (
           <p className="py-1 text-xs text-fg-muted">Không có nhãn nào khớp “{query}”</p>
         )}
       </div>
 
-      {/* Hàng đáy: mở/thu gọn + tạo nhãn. Nút tạo buộc vào "ô nhập đang ẩn" nên LUÔN có
-          đúng một đường tạo nhãn nhìn thấy được — không dư, không ngõ cụt. */}
+      {/* Hàng đáy chỉ còn mở/thu gọn. Nút "＋ Thêm nhãn" đã về dấu + của từng hàng. */}
       <div className="mt-1 flex items-center gap-3">
         {(hasRest || expanded) && (
           <button
             type="button"
             onClick={() => {
               setExpanded((e) => !e)
-              setOpenMode('browse')
               setQuery('')
+              setAddingTo(null)
             }}
             aria-expanded={expanded}
             className={LINK}
@@ -292,19 +340,6 @@ export function TagPicker({ value, onChange }: Props) {
                 Tất cả ({total}) <ChevronDown className="h-3.5 w-3.5" aria-hidden />
               </>
             )}
-          </button>
-        )}
-        {!inputShown && (
-          <button
-            type="button"
-            onClick={() => {
-              setExpanded(true)
-              setOpenMode('create')
-              setQuery('')
-            }}
-            className={LINK}
-          >
-            <Plus className="h-3.5 w-3.5" aria-hidden /> Thêm nhãn
           </button>
         )}
       </div>

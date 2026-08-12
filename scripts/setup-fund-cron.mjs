@@ -237,6 +237,22 @@ function thuanAscii(s) {
   return [...s].every((c) => c.codePointAt(0) < 128)
 }
 
+/**
+ * Dò dấu hiệu "bảng chưa tồn tại" trong thân trả về của lượt gọi thử.
+ *
+ * Vì sao cần: nếu migration 0045 chưa áp (thiếu `funds`/`fund_trades`/`fund_prices`),
+ * function lỗi ngay ở tầng đọc bảng — KHÔNG phải 401 (secret vẫn đúng). Không có phép
+ * kiểm này, nhánh "secret đúng nhưng lỗi khác, SQL vẫn in ra" ở dưới sẽ khuyên hẹn cron
+ * trước khi bảng tồn tại, và cron sẽ nổ mỗi ngày, luôn lỗi, cho tới khi có ai soi ra
+ * (xem docs/quy-nhat.md, mục 6, Bước 0).
+ *
+ * Hai hình dạng lỗi có thể gặp: PostgREST không thấy bảng trong schema cache ("schema
+ * cache"), hoặc Postgres trả thẳng "relation ... does not exist". Bắt cả hai.
+ */
+function bangChuaTonTai(body) {
+  return /schema cache|relation .* does not exist/i.test(body)
+}
+
 const ref = docProjectRef()
 
 if (DRY) {
@@ -286,6 +302,22 @@ if (DRY) {
     ['TEN_JOB là fund-refresh-daily', TEN_JOB === 'fund-refresh-daily', TEN_JOB],
     ['TIMEOUT_MS > FETCH_BUDGET_MS (60s, navs.ts)', TIMEOUT_MS > 60_000, `${TIMEOUT_MS}`],
     ['URL gọi đúng function fund-refresh', sql.includes('/functions/v1/fund-refresh'), ''],
+    // Phép kiểm cho bangChuaTonTai() — không gọi mạng, chỉ ném chuỗi mẫu qua hàm thuần.
+    [
+      'nhận ra bảng chưa tồn tại (PostgREST, schema cache)',
+      bangChuaTonTai('{"loi":["gia: Could not find the table \'public.funds\' in the schema cache"]}'),
+      '',
+    ],
+    [
+      'nhận ra bảng chưa tồn tại (Postgres thô, relation ... does not exist)',
+      bangChuaTonTai('{"loi":["ghi gia tri: relation \\"public.fund_prices\\" does not exist"]}'),
+      '',
+    ],
+    [
+      'không báo nhầm bảng chưa tồn tại cho lỗi khác',
+      !bangChuaTonTai('{"soQuyCoGia":0,"daGhi":0,"boQua":{},"loi":["gia: 9I31223A: loi-mang"]}'),
+      '',
+    ],
   ]
   console.log('--dry-run: không hỏi secret, không gọi mạng, không in secret.\n')
   for (const [ten, dat, ghiChu] of kiem)
@@ -357,7 +389,7 @@ if (!KHONG_GOI) {
   console.log(
     `\nGọi thật POST /fund-refresh để chứng minh secret đúng.\n` +
       `Lượt gọi này LÀM ĐÚNG VIỆC CỦA CRON: hút 基準価額 cả danh bạ quỹ và ghi account_valuations.\n` +
-      `Đợi vài giây...`,
+      `Có thể mất tới ~60 giây (ngân sách FETCH_BUDGET_MS của navs.ts), đợi nhé...`,
   )
   let kq
   try {
@@ -387,11 +419,24 @@ if (!KHONG_GOI) {
 
   console.log(`\n${kq.status === 200 ? '✓' : '⚠'} HTTP ${kq.status}\n  ${kq.body}`)
   if (kq.status !== 200) {
-    console.log(
-      '\n  Secret ĐÚNG (không bị chặn ở cửa 401), nhưng lượt chạy có lỗi. Đọc `loi` trong\n' +
-        '  thân trả về ở trên, đối chiếu bảng lý do trong docs/quy-nhat.md.\n' +
-        '  SQL vẫn in ra dưới đây: hẹn cron là đúng việc, lỗi kia sửa riêng.',
-    )
+    if (bangChuaTonTai(kq.body)) {
+      // KHÔNG cùng nhánh với lỗi khác: khuyên hẹn cron ở đây là khuyên hẹn một cron sẽ nổ
+      // mỗi ngày và luôn lỗi cho tới khi có ai soi ra — xem docs/quy-nhat.md, mục 6, Bước 0.
+      console.log(
+        '\n  ⚠ Secret ĐÚNG, nhưng thân trả về có dấu hiệu BẢNG CHƯA TỒN TẠI\n' +
+          '  (funds/fund_trades/fund_prices). ĐỪNG hẹn cron lúc này — quay lại Bước 0\n' +
+          '  (docs/quy-nhat.md, mục 6): áp supabase/migrations/0045_fund_prices_trades.sql\n' +
+          '  lên project này, rồi chạy lại script này.\n' +
+          '  SQL vẫn in ra dưới đây để xem trước, nhưng đừng dán vào SQL Editor cho tới khi\n' +
+          '  hai bảng funds/fund_aliases đã có đúng 8/10 hàng.',
+      )
+    } else {
+      console.log(
+        '\n  Secret ĐÚNG (không bị chặn ở cửa 401), nhưng lượt chạy có lỗi. Đọc `loi` trong\n' +
+          '  thân trả về ở trên, đối chiếu bảng lý do trong docs/quy-nhat.md.\n' +
+          '  SQL vẫn in ra dưới đây: hẹn cron là đúng việc, lỗi kia sửa riêng.',
+      )
+    }
   }
 }
 

@@ -211,8 +211,31 @@ lộ hay để phá.
 
 ## 6. Triển khai
 
-Bốn bước, theo đúng thứ tự. Chủ app chạy — các bước có khoá/secret đều hỏi ở ô nhập kín,
+Năm bước, theo đúng thứ tự. Chủ app chạy — các bước có khoá/secret đều hỏi ở ô nhập kín,
 không có bước nào cần agent chạy hộ.
+
+### Bước 0 — Áp migration 0045
+
+**Bắt buộc trước Bước 1.** `funds`, `fund_aliases`, `fund_prices`, `fund_trades` chưa tồn
+tại trên project thật cho tới khi bước này chạy — bỏ qua nó thì Bước 3 (hẹn cron) vẫn "gọi
+thử được" (không phải `401`) vì secret đúng, nhưng function lỗi ngay ở tầng đọc bảng, và
+cron sau đó nổ **mỗi ngày và luôn lỗi** cho tới khi có ai soi ra. Xem cảnh báo ở Bước 3.
+
+Dán nguyên nội dung
+[supabase/migrations/0045_fund_prices_trades.sql](../supabase/migrations/0045_fund_prices_trades.sql)
+vào SQL Editor của project và bấm Run.
+
+Kiểm đã xong bằng đúng một câu (migration seed đúng 8 quỹ + 10 bí danh, xem mục 2 và 4):
+
+```sql
+select
+  (select count(*) from public.funds) as so_quy,
+  (select count(*) from public.fund_aliases) as so_bi_danh;
+```
+
+Kỳ vọng: `so_quy = 8`, `so_bi_danh = 10`. Lệch số là dấu hiệu migration chạy dở hoặc chạy
+hai lần đè lẫn nhau — đọc lại thông báo lỗi của SQL Editor, đừng chạy Bước 1 khi hai số
+này chưa đúng.
 
 ### Bước 1 — Deploy function
 
@@ -245,9 +268,18 @@ npm run setup:fund-cron
 thì nó **không** in SQL — cùng nguyên tắc với `setup-stock-cron.mjs`
 ([co-phieu-viet-nam.md](co-phieu-viet-nam.md), mục "Hẹn cron").
 
+Nếu Bước 0 chưa chạy, lượt gọi thử này **không** trả `401` (secret vẫn đúng) — nó lỗi ở
+tầng đọc bảng vì `funds`/`fund_trades`/`fund_prices` chưa tồn tại. Script nhận ra dấu hiệu
+đó trong thân trả về và cảnh báo riêng: **đừng** dán SQL vào SQL Editor lúc này, quay lại
+Bước 0 trước — hẹn cron trước khi bảng tồn tại nghĩa là cron sẽ nổ mỗi ngày và luôn lỗi.
+
 Lịch `0 13 * * 1-5` = 13:00 UTC = **22:00 giờ Nhật**, thứ Hai–thứ Sáu: sau giờ công bố
 基準価額 (~19:00). Nhật không có giờ mùa hè nên một mốc UTC cố định là đủ — múi giờ ở đây
 neo vào **quỹ Nhật**, không vào người dùng.
+
+`pg_cron` trên Supabase đọc lịch theo **UTC**, không theo múi giờ của máy đang gõ lệnh này
+— trừ khi tự đặt `cron.timezone`, mà project này không đặt. Vì vậy `0 13` phải được đọc là
+13:00 UTC ngay từ đầu, không phải "13:00 giờ máy tôi" rồi tự quy đổi lần hai.
 
 ### Bước 4 — Kiểm, bốn câu, chạy TỪNG câu
 
@@ -288,11 +320,16 @@ from net._http_response order by created desc limit 10;
 > bài học đã mất một buổi với `stock-refresh` (xem [co-phieu-viet-nam.md](co-phieu-viet-nam.md),
 > bẫy ①).
 
-Sau khi đã có sổ lệnh và tài khoản đủ điều kiện, còn hai việc gọi tay (không phải cron,
-không lặp lại): **nhập sao kê** (`scripts/nhap-sao-ke-rakuten.mjs`, xem mục 4) và **lấp
-lịch sử** (gọi `fund-refresh` với body `{"lapLichSu":{"accountId":"<id>"}}`, dựng lại
-`account_valuations` cho các phiên đã qua từ CSV đã tải, không tốn thêm cuộc gọi mạng
-nào). Cả hai chi tiết vận hành này thuộc Task 15 (deploy trên dữ liệu thật) — xem
+Ba việc gọi tay (không phải cron, không lặp lại), **theo đúng thứ tự** — migration phải
+xong trước hai việc sau, vì cả hai đọc/ghi vào bảng mà Bước 0 mới tạo ra:
+
+1. **Áp migration 0045** — Bước 0 ở trên. Xong trước tiên.
+2. **Nhập sao kê** (`scripts/nhap-sao-ke-rakuten.mjs`, xem mục 4).
+3. **Lấp lịch sử** (gọi `fund-refresh` với body `{"lapLichSu":{"accountId":"<id>"}}`, dựng
+   lại `account_valuations` cho các phiên đã qua từ CSV đã tải, không tốn thêm cuộc gọi
+   mạng nào).
+
+Cả ba chi tiết vận hành này thuộc Task 15 (deploy trên dữ liệu thật) — xem
 [kế hoạch](superpowers/plans/2026-08-12-quy-nhat-tu-cap-nhat.md) mục Task 15 cho từng
 lệnh cụ thể và tiêu chí "đúng", không phải "gần đúng".
 
@@ -348,7 +385,7 @@ hình này không có tiền mặt, xem mục 5):
 | Cả 8 mã trong danh bạ gọi thật đều `200` | ✅ đã đo thật ngày 2026-08-12, phiên 2026-08-10 |
 | `fundHoldingsFromTrades` — giá vốn lấy từ `amount` không suy từ `units×nav`, mua nhiều lần cộng dồn đúng, bán một phần/bán sạch/bán quá tay, `adjust` (phân phối lại), thứ tự `mua→adjust→bán` cùng ngày, cộng dồn theo `traded_on` không theo thứ tự mảng | ✅ test đầy đủ, gồm cả ca "bán sạch rồi mua lại hôm sau" đã xảy ra thật (2026-04-13/14) |
 | `fundValue`/`sessionNavs` — tái tạo đúng từng yên ba con số của app Rakuten (57.009 / 23.748 / 80.757), làm tròn từng quỹ rồi mới cộng, thiếu giá một phần vẫn ra số + nêu tên, thiếu giá mọi quỹ → `null`, không giữ gì → `0` | ✅ test, đối chiếu bằng số thật từ ảnh chụp app Rakuten ngày 2026-08-12 |
-| Bất biến "không quỹ nào 口数 âm" bắt được cả hai lần Rakuten đổi tên | ✅ đo bằng số thật (12.355/12.596 hai phiên độc lập, xem mục 4), test canh `soatSoDuAm` trong `scripts/nhapSaoKe.test.ts` |
+| Bất biến "không quỹ nào 口数 âm" bắt được cả hai lần Rakuten đổi tên | ✅ đo bằng số thật (12.355/12.596 hai phiên độc lập, xem mục 4), test canh `soatSoDuAm` trong `tests/nhapSaoKe.test.ts` |
 | Migration 0045 — seed đủ 8 quỹ + 10 bí danh, bí danh có cả hai tên của quỹ đã đổi tên, ràng buộc hình dạng theo `kind`, không bảng nào cho user ghi vào bảng giá/danh bạ | ✅ test (`tests/fundSeed.test.ts`) |
 | `demoRepo` — sổ lệnh quỹ: ghi/sửa/xoá, `CHECK fund_trades_shape` (mua/bán có `amount>0`, `adjust` có `nav=0 amount=0`), soi hình dạng sau khi trộn patch (không chỉ lúc tạo), không xoá được tài khoản còn sổ lệnh | ✅ test (`src/data/fundTrades.test.ts`) |
 | `loadFundRegistry`/`loadHeldFundCodes`/`loadFundAccounts` — chỉ đọc bảng, xếp vào ô, không tự tính | ✅ đọc kỹ theo hợp đồng, khớp cột trong migration 0045 — **chưa chạy thật** với Postgres, cùng lý do `loadInput.ts` của `stock-refresh` không có test riêng |

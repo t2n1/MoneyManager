@@ -161,15 +161,35 @@ mà file đó `import TagPicker` — nhập ngược lại là vòng tròn. Tác
 `CHIP_OFF` sang `src/components/chip.ts`, hai bên cùng nhập từ đó. Không chép tay
 sang TagPicker: chép là chắc chắn sẽ trôi khác nhau.
 
-### Nút mở ở đáy — ba lời, một chỗ
+### Hàng đáy — hai nút, không bao giờ có ngõ cụt
 
-| Trạng thái | Chữ trên nút |
-|---|---|
-| Chưa mở, còn nhãn bị ẩn | `Tất cả (N) ⌄` |
-| Chưa mở, không có gì ẩn | `＋ Thêm nhãn` |
-| Đang mở | `Thu gọn ⌃` |
+Hàng đáy có **hai nút chữ** đứng cạnh nhau, mỗi nút có điều kiện hiện riêng:
 
-Luôn hiện, kể cả khi chưa có nhãn nào và chưa có nhóm nào.
+| Nút | Hiện khi | Chữ |
+|---|---|---|
+| Mở / thu gọn | `hasRest \|\| expanded` | `Tất cả (N) ⌄` hoặc `Thu gọn ⌃` |
+| Tạo nhãn | **ô nhập đang ẩn** | `＋ Thêm nhãn` |
+
+Luật của nút thứ hai là chỗ **bịt một ngõ cụt tìm ra lúc viết kế hoạch**: có 5 nhãn mà
+1 nhãn bị ẩn thì nút đầu ghi `Tất cả (5)`, mở ra — theo luật "hơn 6 nhãn mới hiện ô
+tìm" thì không có ô nào — và thế là hết đường tạo nhãn mới.
+
+Buộc vào "ô nhập đang ẩn" nên **luôn có đúng một đường tạo nhãn nhìn thấy được**: hoặc
+là ô nhập, hoặc là nút này. Không bao giờ cả hai (dư), không bao giờ không cái nào (ngõ
+cụt).
+
+Bấm `＋ Thêm nhãn`: `expanded = true`, `openMode = 'create'`, dọn `query`.
+Bấm `Tất cả (N)`: `expanded = true`, `openMode = 'browse'`, dọn `query`.
+
+Đổi lại so với bản trước: nút tạo giờ **có thể hiện cùng lúc** với nút `Tất cả`, chứ
+không phải hai lời của cùng một nút. Vẫn chỉ là 1 hàng, 2 chữ nhỏ, không viền nét đứt.
+
+### Chưa có nhóm nào cũng không được là ngõ cụt
+
+`createTargets` trả về một target không nhóm khi chưa có nhóm nào, nhưng lúc đó
+`sections` rỗng — không có hàng nào để vẽ chip tạo vào. Ca này phải vẽ **một hàng ảo**
+nhãn `Khác`. Chỉ xảy ra khi cả `tag_groups` lẫn `tags` đều trống (hồ sơ mới mà seed
+nhóm chưa chạy), nhưng không xử thì đúng lúc đó app không tạo được nhãn nào.
 
 ### Ô tìm kiêm ô tạo
 

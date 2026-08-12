@@ -76,8 +76,12 @@ Lãi = 80.757 − 70.000 = **+10.757 ¥**. Tỷ lệ 10.757/70.000 = 15,367%.
 **Files:**
 - Create: `supabase/migrations/0045_fund_prices_trades.sql`
 - Modify: `supabase/migrations/0035_stock_prices_trades.sql:18-21` (sửa comment "bảng DUY NHẤT")
-- Modify: `supabase/setup_all.sql` (nối migration mới vào cuối)
 - Test: `tests/fundSeed.test.ts`
+
+> **Đã sửa 2026-08-12:** bản đầu của task này còn một bước "nối 0045 vào `supabase/setup_all.sql`".
+> Bỏ đi: file đó chỉ được duy trì tới migration **0024** trong khi thực tế đã tới 0045, tức nó
+> đã ngừng được cập nhật từ lâu. Nối một migration lẻ vào đó không làm nó đúng trở lại, chỉ tạo
+> ảo giác là nó còn dùng được.
 
 **Interfaces:**
 - Consumes: bảng `accounts (id, user_id)` đã có composite unique (migration cũ).
@@ -418,9 +422,7 @@ thành:
 
 Vì sao sửa: để người đọc sau không tin là chỉ có một bảng như vậy rồi đi tìm sai chỗ.
 
-- [ ] **Step 5: Nối vào `supabase/setup_all.sql`**
-
-Mở `supabase/setup_all.sql`, tìm phần cuối (migration mới nhất), và nối **toàn bộ** nội dung `0045_fund_prices_trades.sql` vào cuối, theo đúng cách các migration trước đã được nối (đọc 30 dòng cuối của file để bắt chước dấu phân cách đang dùng).
+- [ ] **Step 5: (đã bỏ — xem ghi chú ở đầu task)**
 
 - [ ] **Step 6: Chạy test để thấy xanh**
 
@@ -433,7 +435,7 @@ Kỳ vọng: PASS, 6 bài.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add supabase/migrations/0045_fund_prices_trades.sql supabase/migrations/0035_stock_prices_trades.sql supabase/setup_all.sql tests/fundSeed.test.ts
+git add supabase/migrations/0045_fund_prices_trades.sql supabase/migrations/0035_stock_prices_trades.sql tests/fundSeed.test.ts
 git commit -m "feat(quy-nhat): migration 0045 — bang gia + so lenh quy Nhat, seed 8 quy"
 ```
 

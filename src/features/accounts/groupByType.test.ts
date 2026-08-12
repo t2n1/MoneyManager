@@ -112,3 +112,18 @@ describe('groupOptionsByType', () => {
     expect(groupOptionsByType([])).toEqual([])
   })
 })
+
+// Form thêm tài khoản có mục "Tài sản cố định", nhưng TYPE_ORDER từng thiếu 'fixed'
+// nên tạo xong nó không hiện ở trang Tài khoản nữa — tạo được mà không thấy đâu.
+describe('groupAccountsByType — tài sản cố định', () => {
+  it('khối "Tài sản cố định" có ra, xếp cuối, kèm tổng của nó', () => {
+    const xe = acc({ type: 'fixed', name: 'Xe máy', currency: 'JPY' })
+    const vi = acc({ type: 'cash', name: 'Tiền mặt', currency: 'JPY' })
+    const r = groupAccountsByType([xe, vi], (id) => (id === xe.id ? 150_000 : 3_000))
+    expect(r.map((g) => g.type)).toEqual(['cash', 'fixed'])
+    const cuoi = r[1]
+    expect(cuoi.label).toBe(ACCOUNT_TYPE_LABELS.fixed)
+    expect(cuoi.accounts.map((a) => a.name)).toEqual(['Xe máy'])
+    expect(cuoi.totalsByCurrency).toEqual([{ currency: 'JPY', total: 150_000 }])
+  })
+})

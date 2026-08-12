@@ -5,8 +5,24 @@ import type { CurrencyCode } from '../../lib/money'
 import { ACCOUNT_TYPE_LABELS } from '../assets/aggregate'
 import type { AccountRow, AccountType } from '../../types/database.types'
 
-/** Thứ tự hiển thị các loại — khớp thứ tự ô "Loại" trong form thêm tài khoản. */
-const TYPE_ORDER: AccountType[] = ['cash', 'bank', 'card', 'ic', 'ewallet', 'investment']
+/**
+ * Thứ tự hiển thị các loại — khớp thứ tự ô "Loại" trong form thêm tài khoản
+ * (AccountsPage: Tiền mặt → Ngân hàng → Thẻ → IC → Ví → Đầu tư → Tài sản cố định).
+ *
+ * `fixed` từng bị thiếu ở đây: form cho tạo tài khoản loại đó, mà cả hai hàm dưới
+ * đều lọc theo đúng danh sách này nên nó biến mất khỏi trang Tài khoản — tạo xong
+ * không thấy đâu nữa. Loại nào lỡ thiếu vẫn được xếp cuối (xem `groupOptionsByType`),
+ * nhưng danh sách này phải khớp form để thứ tự đúng như người ta vừa chọn.
+ */
+const TYPE_ORDER: AccountType[] = [
+  'cash',
+  'bank',
+  'card',
+  'ic',
+  'ewallet',
+  'investment',
+  'fixed',
+]
 
 /** Một khối cho BỘ CHỌN tài khoản. */
 export interface OptionTypeGroup<T> {
@@ -18,10 +34,12 @@ export interface OptionTypeGroup<T> {
 /**
  * Gom theo loại cho bộ chọn tài khoản: chỉ cần `type`, không cần số dư hay tổng.
  *
- * Khác `groupAccountsByType` ở một điểm quan trọng: loại nào KHÔNG có trong
- * TYPE_ORDER vẫn được xếp vào cuối chứ không bị bỏ. Bộ chọn mà đánh rơi một tài
- * khoản thì người dùng không nhập được giao dịch cho nó, không có đường nào khác —
- * ví dụ `fixed` (tài sản cố định) hiện đang thiếu trong TYPE_ORDER.
+ * Loại nào KHÔNG có trong TYPE_ORDER vẫn được xếp vào cuối chứ không bị bỏ. Đây là
+ * lưới an toàn cho lần tới có thêm loại mới: đánh rơi một tài khoản thì nó mất hẳn
+ * khỏi bộ chọn (không nhập được giao dịch cho nó) và khỏi trang Tài khoản — đúng
+ * chuyện đã xảy ra với `fixed`.
+ *
+ * `groupAccountsByType` dựng trên hàm này để thứ tự và lưới an toàn chỉ nằm một chỗ.
  */
 export function groupOptionsByType<T extends { type: AccountType }>(
   options: T[],
@@ -63,38 +81,20 @@ export interface AccountTypeGroup {
 /**
  * Gom `accounts` theo loại, giữ nguyên thứ tự tài khoản truyền vào trong mỗi loại
  * (gọi bên ngoài đã sắp theo sort_order). Chỉ trả về loại có ≥1 tài khoản, theo
- * thứ tự cố định TYPE_ORDER. Tổng mỗi loại cộng riêng theo từng loại tiền để
- * không cần tỷ giá quy đổi. `balanceOf` cho số dư hiển thị của mỗi tài khoản.
+ * thứ tự TYPE_ORDER. Tổng mỗi loại cộng riêng theo từng loại tiền để không cần tỷ
+ * giá quy đổi. `balanceOf` cho số dư hiển thị của mỗi tài khoản.
  */
 export function groupAccountsByType(
   accounts: AccountRow[],
   balanceOf: (id: string) => number,
 ): AccountTypeGroup[] {
-  const byType = new Map<AccountType, AccountRow[]>()
-  for (const a of accounts) {
-    const list = byType.get(a.type)
-    if (list) list.push(a)
-    else byType.set(a.type, [a])
-  }
-
-  const result: AccountTypeGroup[] = []
-  for (const type of TYPE_ORDER) {
-    const list = byType.get(type)
-    if (!list || list.length === 0) continue
-
+  return groupOptionsByType(accounts).map((g) => {
     const totals: CurrencyTotal[] = []
-    for (const a of list) {
+    for (const a of g.items) {
       const entry = totals.find((t) => t.currency === a.currency)
       if (entry) entry.total += balanceOf(a.id)
       else totals.push({ currency: a.currency, total: balanceOf(a.id) })
     }
-
-    result.push({
-      type,
-      label: ACCOUNT_TYPE_LABELS[type],
-      accounts: list,
-      totalsByCurrency: totals,
-    })
-  }
-  return result
+    return { type: g.type, label: g.label, accounts: g.items, totalsByCurrency: totals }
+  })
 }

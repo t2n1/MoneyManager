@@ -136,6 +136,67 @@ describe('fundHoldingsFromTrades', () => {
     expect(holdings.map((h) => h.assocFundCd)).toEqual([SP500, NDX])
   })
 
+  describe('trùng 約定日 — chốt phụ "cùng ngày thì mua trước bán"', () => {
+    // 約定日 chỉ tới NGÀY, không tới giờ, nên một cặp mua+bán cùng ngày cùng quỹ KHÔNG có
+    // thứ tự thật để dựa vào. Không có chốt phụ thì sort ổn định của JS giữ thứ tự đầu vào
+    // — mà hai nơi gọi hàm này đưa vào hai thứ tự KHÁC nhau: script nhập sao kê theo thứ
+    // tự file CSV (mới nhất trước), còn fund-refresh theo `order('id')` tức uuid NGẪU
+    // NHIÊN. Cùng một sổ lệnh mà cho ra hai kết luận `oversold` khác nhau: một bên gắn cờ
+    // vĩnh viễn (cron trả 400 mỗi ngày), bên kia chặn oan kèm lời khuyên "fund_aliases còn
+    // thiếu một dòng" — chỉ sai người.
+    //
+    // Ca này CÓ THẬT ở dạng lệch một ngày (2026-04-13/14: bán sạch rồi mua lại), nhưng
+    // không gì bảo đảm lần sau cũng lệch.
+
+    it('bán đứng TRƯỚC mua trong mảng, cùng ngày → KHÔNG oversold', () => {
+      const { holdings, oversold } = fundHoldingsFromTrades([
+        ban(SP500, 10_000, 12_000, 12_000, '2026-04-13'),
+        mua(SP500, 10_000, 10_000, 10_000, '2026-04-13'),
+      ])
+      expect(oversold).toEqual([])
+      expect(holdings).toEqual([])
+    })
+
+    it('đảo thứ tự mảng KHÔNG đổi kết quả — cả oversold, 口数 lẫn giá vốn', () => {
+      const b = ban(SP500, 6_000, 12_000, 7_200, '2026-04-13')
+      const m1 = mua(SP500, 10_000, 10_000, 10_000, '2026-04-13')
+      const m2 = mua(SP500, 5_000, 11_000, 5_500, '2026-05-01')
+      const xuoi = fundHoldingsFromTrades([m1, b, m2])
+      const nguoc = fundHoldingsFromTrades([m2, b, m1])
+      expect(nguoc).toEqual(xuoi)
+      expect(xuoi.oversold).toEqual([])
+      // 10.000 口 mua trước, bán 6.000 (giá vốn 6.000, thu 7.200 ⇒ lãi 1.200), còn 4.000
+      // 口 giá vốn 4.000; mua thêm 5.000 口 giá 5.500 ⇒ 9.000 口, vốn 9.500.
+      expect(xuoi.holdings).toEqual([
+        { assocFundCd: SP500, units: 9_000, costBasis: 9_500, avgNav: 10_556 },
+      ])
+      expect(xuoi.realizedPnl).toBe(1_200)
+    })
+
+    it('vẫn bắt được bán quá tay THẬT trong cùng một ngày', () => {
+      // Chốt phụ chỉ dời ĐIỂM THẤP NHẤT giữa đường lên cao nhất có thể; một lệnh bán vượt
+      // số đang giữ ở thứ tự này thì vượt ở MỌI thứ tự trong ngày. Nên chốt xoá cờ OAN mà
+      // không xoá ca thật.
+      const { oversold } = fundHoldingsFromTrades([
+        ban(SP500, 30_000, 12_000, 36_000, '2026-04-13'),
+        mua(SP500, 10_000, 10_000, 10_000, '2026-04-13'),
+      ])
+      expect(oversold).toEqual([SP500])
+    })
+
+    it('adjust cùng ngày được cộng vào TRƯỚC lệnh bán', () => {
+      // 分配金再投資 làm TĂNG 口数 mà không tốn tiền. Xử lý nó sau lệnh bán thì lệnh bán
+      // thấy số dư nhỏ hơn thực tế và bị gắn oversold oan.
+      const { holdings, oversold } = fundHoldingsFromTrades([
+        ban(SP500, 11_000, 12_000, 13_200, '2026-05-01'),
+        taiDauTu(SP500, 1_000, '2026-05-01'),
+        mua(SP500, 10_000, 10_000, 10_000, '2026-01-05'),
+      ])
+      expect(oversold).toEqual([])
+      expect(holdings).toEqual([])
+    })
+  })
+
   it('thứ tự cộng dồn theo 約定日, không theo thứ tự trong mảng', () => {
     // Sao kê Rakuten xếp mới nhất TRƯỚC. Nếu hàm cộng dồn theo thứ tự mảng thì lệnh bán
     // sẽ được xử lý trước lệnh mua và mọi thứ đều `oversold`.

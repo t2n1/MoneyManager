@@ -72,6 +72,22 @@ export interface FundValue {
   missingNavs: string[]
 }
 
+/**
+ * Thứ tự xử lý các lệnh CÙNG một 約定日: mua → adjust → bán.
+ *
+ * Vì sao mua trước bán: tổng cuối KHÔNG đổi (cộng dồn là phép cộng, giao hoán) — chỉ
+ * ĐIỂM THẤP NHẤT giữa đường đổi. Xử lý mọi lệnh làm TĂNG 口数 trước mọi lệnh làm GIẢM là
+ * thứ tự cho ra số dư cao nhất có thể tại mỗi lệnh bán, nên một lệnh bán vẫn vượt số
+ * đang giữ ở thứ tự này thì nó vượt ở MỌI thứ tự trong ngày. Nói cách khác chốt này chỉ
+ * XOÁ cờ `oversold` OAN, không làm mất khả năng bắt ca bán quá tay thật.
+ *
+ * `adjust` nằm giữa: nó không đổi giá vốn, và một lần 分配金再投資 cùng ngày phải được
+ * cộng vào trước khi trừ lệnh bán.
+ */
+function thuTuTrongNgay(t: FundTrade): number {
+  return t.kind === 'buy' ? 0 : t.kind === 'adjust' ? 1 : 2
+}
+
 /** 取得単価: yên trên 10.000 口, làm tròn về số nguyên như Rakuten hiện. */
 function avgNavOf(costBasis: number, units: number): number {
   return units > 0 ? Math.round((costBasis / units) * NAV_UNITS) : 0
@@ -94,9 +110,19 @@ export function fundHoldingsFromTrades(trades: FundTrade[]): FundHoldingsResult 
   let realizedPnl = 0
 
   // Sao kê Rakuten xếp MỚI NHẤT TRƯỚC. Không sắp lại theo 約定日 thì lệnh bán được xử lý
-  // trước lệnh mua và mọi quỹ đều `oversold`. Sort ổn định của JS giữ nguyên thứ tự nhập
-  // với các lệnh cùng ngày.
-  const inOrder = trades.slice().sort((a, b) => a.tradedOn.localeCompare(b.tradedOn))
+  // trước lệnh mua và mọi quỹ đều `oversold`.
+  //
+  // CHỐT PHỤ `thuTuTrongNgay`: 約定日 chỉ tới NGÀY, không tới giờ, nên một cặp mua+bán
+  // cùng ngày cùng quỹ KHÔNG có thứ tự thật để dựa vào. Sort ổn định của JS giữ thứ tự
+  // đầu vào — mà đầu vào ở hai nơi gọi là hai thứ tự KHÁC nhau: script nhập sao kê đưa
+  // vào theo thứ tự trong file CSV (mới nhất trước), còn fund-refresh đưa vào theo
+  // `readAll(sb, 'fund_trades', 'id')` tức theo uuid NGẪU NHIÊN. Thiếu chốt này thì cùng
+  // một sổ lệnh có thể cho ra hai kết luận `oversold` khác nhau ở hai bên, và ca "bán
+  // sạch rồi mua lại" đã xảy ra thật (2026-04-13/14 — trên file thật hai lệnh lệch một
+  // ngày, nhưng không gì bảo đảm lần sau cũng lệch).
+  const inOrder = trades
+    .slice()
+    .sort((a, b) => a.tradedOn.localeCompare(b.tradedOn) || thuTuTrongNgay(a) - thuTuTrongNgay(b))
 
   for (const t of inOrder) {
     const h = acc.get(t.assocFundCd) ?? { units: 0, costBasis: 0 }

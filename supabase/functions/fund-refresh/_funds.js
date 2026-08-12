@@ -5,6 +5,9 @@
 
 // src/features/assets/fundHoldings.ts
 var NAV_UNITS = 1e4;
+function thuTuTrongNgay(t) {
+  return t.kind === "buy" ? 0 : t.kind === "adjust" ? 1 : 2;
+}
 function avgNavOf(costBasis, units) {
   return units > 0 ? Math.round(costBasis / units * NAV_UNITS) : 0;
 }
@@ -12,7 +15,7 @@ function fundHoldingsFromTrades(trades) {
   const acc = /* @__PURE__ */ new Map();
   const oversold = /* @__PURE__ */ new Set();
   let realizedPnl = 0;
-  const inOrder = trades.slice().sort((a, b) => a.tradedOn.localeCompare(b.tradedOn));
+  const inOrder = trades.slice().sort((a, b) => a.tradedOn.localeCompare(b.tradedOn) || thuTuTrongNgay(a) - thuTuTrongNgay(b));
   for (const t of inOrder) {
     const h = acc.get(t.assocFundCd) ?? { units: 0, costBasis: 0 };
     if (t.kind === "buy") {

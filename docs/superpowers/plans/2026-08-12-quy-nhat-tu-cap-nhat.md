@@ -2583,4 +2583,410 @@ git commit -m "feat(quy-nhat): tang du lieu — types, repo, hai ban cai, hook"
 
 ---
 
-**Kế hoạch còn Task 7–13. Xem phần tiếp ở cuối file này.**
+## Task 7: Sao lưu v12 — đừng để khôi phục làm mất sổ lệnh quỹ
+
+**Files:**
+- Modify: `src/data/repo.ts:95` (`BACKUP_VERSION` 11 → 12)
+- Modify: `src/data/backupImport.ts` (soát `fundTrades`)
+- Modify: `src/data/supabaseRepo.ts` (`exportAll` + `importAll`)
+- Modify: `src/data/demoRepo.ts` (`exportAll` + `importAll`)
+- Modify: `src/data/demoRepo.test.ts` (bài canh số cứng `BACKUP_VERSION`)
+- Test: `src/data/backupImport.test.ts` (nối bài mới)
+
+**Interfaces:**
+- Consumes: `FundTradeRow`, `BackupData.fundTrades` từ Task 6.
+- Produces: bản lưu v12 mang `fundTrades`; `validateBackup` báo lỗi cho sổ lệnh quỹ hỏng.
+
+Chỉ `fundTrades` vào bản lưu. `funds` / `fund_aliases` / `fund_prices` **không** vào — chúng là dữ liệu công khai do service role ghi (seed + cron), y như `stock_prices` không có trong bản lưu. Đưa vào là khôi phục sẽ vấp RLS.
+
+- [ ] **Step 1: Viết bài test thất bại (nối vào `src/data/backupImport.test.ts`)**
+
+Chèn ngay sau khối `--- stockTrades (v7) ... ---` (dòng ~260–350):
+
+```ts
+  // --- fundTrades (v12): FK (account_id, user_id) + UNIQUE id + CHECK fund_trades_shape ---
+  it('sổ lệnh quỹ trỏ tới tài khoản không có trong file → báo lỗi', () => {
+    const d = { ...backup }
+    d.fundTrades = [
+      {
+        id: 'ft-1',
+        user_id: 'u',
+        account_id: 'khong-ton-tai',
+        assoc_fund_cd: '9I31223A',
+        kind: 'buy',
+        traded_on: '2026-04-09',
+        units: 28_429,
+        nav: 17_588,
+        amount: 50_000,
+        bucket: '',
+        note: '',
+        created_at: '2026-04-14T00:00:00.000Z',
+        updated_at: '2026-04-14T00:00:00.000Z',
+      },
+    ] as unknown as BackupData['fundTrades']
+    expect(validateBackup(d).join(' ')).toMatch(/quỹ trỏ tới tài khoản/)
+  })
+
+  it('sổ lệnh quỹ có id trùng → báo lỗi', () => {
+    const row = {
+      id: 'ft-trung',
+      user_id: 'u',
+      account_id: backup.accounts[0].id,
+      assoc_fund_cd: '9I31223A',
+      kind: 'buy',
+      traded_on: '2026-04-09',
+      units: 100,
+      nav: 17_588,
+      amount: 1_000,
+      bucket: '',
+      note: '',
+      created_at: '2026-04-14T00:00:00.000Z',
+      updated_at: '2026-04-14T00:00:00.000Z',
+    }
+    const d = { ...backup, fundTrades: [row, { ...row }] } as unknown as BackupData
+    expect(validateBackup(d).join(' ')).toMatch(/trùng/i)
+  })
+
+  it('lệnh mua quỹ thiếu số tiền → báo lỗi TRƯỚC khi xoá dữ liệu cũ', () => {
+    // CHECK fund_trades_shape sẽ nổ 23514 lúc chèn — tức là SAU khi importAll đã xoá hết
+    // dữ liệu cũ. Soát ở đây là chặn mất dữ liệu, không phải làm đẹp thông báo.
+    const d = { ...backup }
+    d.fundTrades = [
+      {
+        id: 'ft-2',
+        user_id: 'u',
+        account_id: backup.accounts[0].id,
+        assoc_fund_cd: '9I31223A',
+        kind: 'buy',
+        traded_on: '2026-04-09',
+        units: 100,
+        nav: 17_588,
+        amount: 0,
+        bucket: '',
+        note: '',
+        created_at: '2026-04-14T00:00:00.000Z',
+        updated_at: '2026-04-14T00:00:00.000Z',
+      },
+    ] as unknown as BackupData['fundTrades']
+    expect(validateBackup(d).join(' ')).toMatch(/số tiền dương/)
+  })
+
+  it('lệnh điều chỉnh quỹ có 基準価額 → báo lỗi', () => {
+    const d = { ...backup }
+    d.fundTrades = [
+      {
+        id: 'ft-3',
+        user_id: 'u',
+        account_id: backup.accounts[0].id,
+        assoc_fund_cd: '9I31223A',
+        kind: 'adjust',
+        traded_on: '2026-05-01',
+        units: 1_000,
+        nav: 17_588,
+        amount: 0,
+        bucket: '',
+        note: '',
+        created_at: '2026-05-01T00:00:00.000Z',
+        updated_at: '2026-05-01T00:00:00.000Z',
+      },
+    ] as unknown as BackupData['fundTrades']
+    expect(validateBackup(d).join(' ')).toMatch(/không được có 基準価額|không được có giá/)
+  })
+
+  it('bản lưu v11 (chưa có fundTrades) vẫn nhập được, sổ lệnh quỹ rỗng', async () => {
+    // Cùng khuôn bài `version: 6, stockTrades: undefined` ở dòng ~411: bản lưu cũ hơn một
+    // migration thì thiếu hẳn trường, và khôi phục phải chạy bình thường.
+    const cu = { ...backup, version: 11, fundTrades: undefined }
+    expect(validateBackup(cu as unknown as BackupData)).toEqual([])
+    await demoRepo.importAll(cu as unknown as BackupData)
+    expect(await demoRepo.getFundTrades()).toEqual([])
+  })
+```
+
+- [ ] **Step 2: Chạy test để thấy nó đỏ**
+
+```bash
+npx vitest run src/data/backupImport.test.ts
+```
+
+Kỳ vọng: FAIL — bốn bài đầu không thấy lỗi nào (`validateBackup` chưa soát `fundTrades`).
+
+- [ ] **Step 3: Soát `fundTrades` trong `src/data/backupImport.ts`**
+
+Chèn ngay **trước** `return p.list()` (dòng 238):
+
+```ts
+  // Sổ lệnh quỹ Nhật (v12): FK (account_id, user_id) -> accounts + CHECK fund_trades_shape
+  // của migration 0045. id trùng đã bắt ở khối `ids` phía trên (dùng chung accountIds).
+  ids(data.fundTrades, 'sổ lệnh quỹ')
+  for (const ft of data.fundTrades ?? []) {
+    const at = `${ft.assoc_fund_cd} ${ft.traded_on}`
+    if (!accountIds.has(ft.account_id))
+      p.add('Lệnh quỹ trỏ tới tài khoản không có trong file', `${at} → ${ft.account_id}`)
+    // Hình dạng theo kind (CHECK fund_trades_shape): file vi phạm sẽ nổ 23514 lúc chèn —
+    // tức là SAU khi đã xoá hết dữ liệu cũ. Soát đủ cả hai nhánh ở đây.
+    if (ft.kind === 'adjust') {
+      if (ft.units === 0) p.add('Lệnh điều chỉnh quỹ phải có số 口数 khác 0', at)
+      if (ft.nav !== 0) p.add('Lệnh điều chỉnh quỹ không được có 基準価額 khác 0', at)
+      if (ft.amount !== 0) p.add('Lệnh điều chỉnh quỹ không được có số tiền khác 0', at)
+    } else {
+      if (typeof ft.units !== 'number' || !Number.isFinite(ft.units) || ft.units <= 0)
+        p.add('Lệnh mua/bán quỹ phải có số 口数 dương', `${at} → ${String(ft.units)}`)
+      if (typeof ft.amount !== 'number' || !Number.isFinite(ft.amount) || ft.amount <= 0)
+        p.add('Lệnh mua/bán quỹ phải có số tiền dương', `${at} → ${String(ft.amount)}`)
+    }
+  }
+```
+
+- [ ] **Step 4: Bump `BACKUP_VERSION`**
+
+`src/data/repo.ts:95`:
+
+```ts
+export const BACKUP_VERSION = 12
+```
+
+- [ ] **Step 5: Sửa bài canh số cứng trong `src/data/demoRepo.test.ts`**
+
+Tìm bài ở dòng ~665 (comment "Số cứng chứ không import BACKUP_VERSION: nâng phiên bản là việc phải CỐ Ý") và đổi con số kỳ vọng từ `11` sang `12`. **Giữ nguyên comment** — nó chính là lý do bài test tồn tại.
+
+- [ ] **Step 6: `exportAll` + `importAll` của `supabaseRepo`**
+
+Trong `exportAll`: thêm `fundTrades` vào cả ba chỗ song song với `stockTrades` — mảng destructure (dòng 1504), danh sách `Promise.all` (thêm `selectAll<FundTradeRow>('fund_trades')` đúng vị trí tương ứng), và object trả về (dòng 1555).
+
+Trong `importAll`, chèn ngay **sau** khối `stock_trades` (dòng 1822):
+
+```ts
+    // fund_trades: composite FK tới accounts → chèn sau accounts. `assoc_fund_cd` có FK
+    // tới `funds`, mà `funds` được seed bởi migration chứ không nằm trong bản lưu — nên
+    // khôi phục một bản lưu mang quỹ chưa được seed sẽ nổ FK. Đó là hành vi ĐÚNG: thà
+    // báo lỗi còn hơn nhận một sổ lệnh trỏ vào quỹ mà app không biết giá.
+    if (data.fundTrades?.length) {
+      await insertChunked(
+        data.fundTrades.map((t) => ({
+          id: t.id,
+          user_id: uid,
+          account_id: t.account_id,
+          assoc_fund_cd: t.assoc_fund_cd,
+          kind: t.kind,
+          traded_on: t.traded_on,
+          units: t.units,
+          nav: t.nav,
+          amount: t.amount,
+          bucket: t.bucket,
+          note: t.note,
+        })),
+        (part) => sb.from('fund_trades').insert(part),
+      )
+    }
+```
+
+- [ ] **Step 7: `exportAll` + `importAll` của `demoRepo`**
+
+Trong `exportAll` (dòng ~2000), thêm `fundTrades: db.fundTrades ?? []` cạnh `stockTrades`.
+
+Trong `importAll`, thêm `db.fundTrades = data.fundTrades ?? []` đúng chỗ `stockTrades` đang được gán. **`?? []` là bắt buộc**: bản lưu v11 thiếu hẳn trường, không có `?? []` thì `db.fundTrades` mang `undefined` và mọi chỗ đọc nó phải tự phòng thân.
+
+- [ ] **Step 8: Chạy test**
+
+```bash
+npx vitest run src/data/backupImport.test.ts src/data/demoRepo.test.ts src/data/fundTrades.test.ts
+```
+
+Kỳ vọng: tất cả PASS.
+
+- [ ] **Step 9: Chạy toàn bộ + biên dịch**
+
+```bash
+npm test && npx tsc -b && npm run lint
+```
+
+Kỳ vọng: tất cả xanh.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add src/data/repo.ts src/data/backupImport.ts src/data/backupImport.test.ts src/data/supabaseRepo.ts src/data/demoRepo.ts src/data/demoRepo.test.ts
+git commit -m "feat(quy-nhat): sao luu v12 — so lenh quy vao ban luu, soat truoc khi xoa du lieu cu"
+```
+
+---
+
+## Task 8: `loadInput.ts` — đọc Postgres, không tính gì
+
+**Files:**
+- Create: `supabase/functions/fund-refresh/loadInput.ts`
+
+**Interfaces:**
+- Consumes: `FundRef` từ Task 4.
+- Produces:
+  ```ts
+  export interface FundAccount {
+    userId: string
+    accountId: string
+    trades: { assocFundCd: string; kind: 'buy'|'sell'|'adjust'; tradedOn: string
+              units: number; nav: number; amount: number }[]
+    /** true nếu tài khoản này CŨNG có stock_trades → trộn hai hệ đơn vị */
+    coCaSoLenhCoPhieu: boolean
+  }
+  export function loadFundRegistry(sb: SupabaseClient): Promise<FundRef[]>
+  export function loadHeldFundCodes(sb: SupabaseClient): Promise<string[]>
+  export function loadFundAccounts(sb: SupabaseClient): Promise<FundAccount[]>
+  ```
+
+Không có test riêng cho file này — cùng lý do với `stock-refresh/loadInput.ts`: nó chỉ đọc bảng và xếp dữ liệu vào ô, không có phép tính nào để canh. Đúng đắn của nó được chứng minh bằng lượt gọi thật ở Task 13.
+
+- [ ] **Step 1: Viết file**
+
+```ts
+// Đọc Postgres và xếp dữ liệu vào đúng ô cho `_funds.js`.
+//
+// Ràng buộc: KHÔNG tự tính gì cả — giống loadInput.ts của stock-refresh và của
+// push-notify. Nếu bạn thấy mình đang viết phép cộng trừ tiền hay ngày ở file này thì
+// phép đó thuộc về src/features/assets/fundHoldings.ts.
+
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
+import type { FundRef } from './navs.ts'
+
+// deno-lint-ignore no-explicit-any
+type Row = any
+
+/** Một tài khoản đủ điều kiện tự chạy, kèm sổ lệnh quỹ của nó. */
+export interface FundAccount {
+  userId: string
+  accountId: string
+  /** shape khớp `FundTrade` của fundHoldings.ts */
+  trades: {
+    assocFundCd: string
+    kind: 'buy' | 'sell' | 'adjust'
+    /** 約定日 */
+    tradedOn: string
+    units: number
+    nav: number
+    amount: number
+  }[]
+  /**
+   * true nếu tài khoản này CŨNG có dòng trong `stock_trades`. Không phải trường hợp thật
+   * hiện nay, nhưng cộng 口数 của quỹ với số cổ phiếu là trộn hai hệ đơn vị — im lặng
+   * cộng sai còn tệ hơn bỏ qua, nên index.ts bỏ qua tài khoản này với lý do riêng.
+   */
+  coCaSoLenhCoPhieu: boolean
+}
+
+/** Đọc hết một bảng, phân trang, thứ tự đơn trị (xem src/data/paging.ts). */
+async function readAll(sb: SupabaseClient, table: string, orderBy: string): Promise<Row[]> {
+  const PAGE = 1_000
+  const out: Row[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await sb
+      .from(table)
+      .select('*')
+      .order(orderBy, { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    out.push(...(data ?? []))
+    if (!data || data.length < PAGE) break
+  }
+  return out
+}
+
+/**
+ * Cả danh bạ quỹ, không chỉ quỹ đang giữ.
+ *
+ * Vì sao cả danh bạ: (1) quỹ vừa được thêm có giá ngay, không đợi lượt cron kế tiếp;
+ * (2) chế độ lấp lịch sử cần NAV của cả những quỹ đã bán hết từ lâu — sáu trong tám quỹ
+ * của chủ app thuộc loại đó.
+ */
+export async function loadFundRegistry(sb: SupabaseClient): Promise<FundRef[]> {
+  const rows = await readAll(sb, 'funds', 'assoc_fund_cd')
+  return rows
+    .filter((r) => typeof r.assoc_fund_cd === 'string' && typeof r.isin_cd === 'string')
+    .map((r) => ({ assocFundCd: r.assoc_fund_cd as string, isinCd: r.isin_cd as string }))
+}
+
+/**
+ * Mã quỹ đã từng xuất hiện trong sổ lệnh — quyết định THỨ TỰ ưu tiên gọi (xem
+ * buildFundFetchOrder), không quyết định quỹ nào được hút (đó là loadFundRegistry).
+ * Không lọc theo tài khoản đủ điều kiện, không phân biệt còn giữ hay đã bán sạch.
+ */
+export async function loadHeldFundCodes(sb: SupabaseClient): Promise<string[]> {
+  const rows = await readAll(sb, 'fund_trades', 'id')
+  const ma = new Set<string>()
+  for (const r of rows) {
+    if (typeof r.assoc_fund_cd === 'string' && r.assoc_fund_cd.trim())
+      ma.add(r.assoc_fund_cd.trim())
+  }
+  return [...ma].sort()
+}
+
+/**
+ * Tài khoản đủ điều kiện tự chạy: loại 'investment', tiền **JPY**, chưa lưu trữ, và có ít
+ * nhất một dòng sổ lệnh quỹ. Không có nút bật/tắt — ghi lệnh vào là chạy.
+ *
+ * KHÁC `loadPortfolioAccounts` của stock-refresh ở đúng hai chỗ: lọc `JPY` thay vì `VND`,
+ * và KHÔNG đọc `balance` — mô hình quỹ không có tiền mặt nên số dư sổ không tham gia phép
+ * tính nào (xem fundHoldings.ts, lý do 3).
+ */
+export async function loadFundAccounts(sb: SupabaseClient): Promise<FundAccount[]> {
+  const [balances, fundTrades, stockTrades] = await Promise.all([
+    readAll(sb, 'account_balances', 'id'),
+    readAll(sb, 'fund_trades', 'id'),
+    readAll(sb, 'stock_trades', 'id'),
+  ])
+
+  const theoTaiKhoan = new Map<string, FundAccount['trades']>()
+  for (const t of fundTrades) {
+    const list = theoTaiKhoan.get(t.account_id) ?? []
+    list.push({
+      assocFundCd: t.assoc_fund_cd,
+      kind: t.kind,
+      tradedOn: t.traded_on,
+      units: Number(t.units),
+      nav: Number(t.nav),
+      amount: Number(t.amount),
+    })
+    theoTaiKhoan.set(t.account_id, list)
+  }
+
+  const coCoPhieu = new Set<string>(stockTrades.map((t) => t.account_id as string))
+
+  const out: FundAccount[] = []
+  for (const b of balances) {
+    if (b.type !== 'investment' || b.currency !== 'JPY' || b.is_archived) continue
+    const list = theoTaiKhoan.get(b.id)
+    if (!list || list.length === 0) continue
+    out.push({
+      userId: b.user_id,
+      accountId: b.id,
+      trades: list,
+      coCaSoLenhCoPhieu: coCoPhieu.has(b.id),
+    })
+  }
+  return out
+}
+```
+
+- [ ] **Step 2: Kiểm cú pháp bằng Deno**
+
+```bash
+npx supabase@latest --version
+```
+
+Nếu có CLI thì:
+
+```bash
+npx deno check supabase/functions/fund-refresh/loadInput.ts 2>&1 | head -20
+```
+
+Kỳ vọng: không lỗi. **Nếu máy không có `deno`** thì bỏ qua bước này — cú pháp sẽ được kiểm ở Task 13 lúc `supabase functions deploy`, và đó là chốt canh thật.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add supabase/functions/fund-refresh/loadInput.ts
+git commit -m "feat(quy-nhat): loadInput — doc bang, khong tinh gi, loc JPY thay vi VND"
+```
+
+---
+
+**Kế hoạch còn Task 9–13. Xem phần tiếp ở cuối file này.**

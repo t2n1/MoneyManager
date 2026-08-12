@@ -154,7 +154,12 @@ export function parseNavHistory(bytes: Uint8Array): NavPoint[] {
     .sort((a, b) => a.navDate.localeCompare(b.navDate))
 }
 
-const CSV_URL = 'https://toushin-lib.fwg.ne.jp/FdsWeb/FDST030000/csv-file-download'
+/**
+ * Endpoint CSV của 投信協会. Export vì chế độ lấp lịch sử trong `index.ts` cũng gọi nó —
+ * và một URL viết ở hai chỗ là một URL sẽ lệch: đổi endpoint thì sửa một chỗ, quên chỗ
+ * kia, và không test nào bắt được vì cả hai đều "chạy".
+ */
+export const CSV_URL = 'https://toushin-lib.fwg.ne.jp/FdsWeb/FDST030000/csv-file-download'
 
 // Ngân sách cho CẢ khối hút giá (mọi quỹ cộng lại), không phải cho một quỹ. Danh bạ dự
 // kiến vài quỹ chứ không phải vài trăm, nhưng edge function có giới hạn wall-clock và

@@ -17,7 +17,7 @@
 
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { buildFundFetchOrder, fetchFundNavs, parseNavHistory, type NavUpsert } from './navs.ts'
+import { buildFundFetchOrder, CSV_URL, fetchFundNavs, parseNavHistory, type NavUpsert } from './navs.ts'
 import { fundHoldingsFromTrades, fundValue, sessionNavs } from './_funds.js'
 import { loadFundAccounts, loadFundRegistry, loadHeldFundCodes } from './loadInput.ts'
 
@@ -102,8 +102,8 @@ Deno.serve(async (req) => {
       const lichSu = new Map<string, Map<string, number>>() // assocFundCd → (ngày → nav)
       for (const f of danhBa) {
         const url =
-          `https://toushin-lib.fwg.ne.jp/FdsWeb/FDST030000/csv-file-download` +
-          `?isinCd=${encodeURIComponent(f.isinCd)}&associFundCd=${encodeURIComponent(f.assocFundCd)}`
+          `${CSV_URL}?isinCd=${encodeURIComponent(f.isinCd)}` +
+          `&associFundCd=${encodeURIComponent(f.assocFundCd)}`
         try {
           const res = await fetch(url)
           if (!res.ok) throw new Error(`HTTP ${res.status}`)

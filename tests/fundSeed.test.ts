@@ -81,10 +81,22 @@ describe('migration 0045 — seed quỹ Nhật', () => {
   it('KHÔNG có bảng nào cho phép user ghi vào bảng giá hay danh bạ', () => {
     // funds / fund_aliases / fund_prices là dữ liệu công khai do service role ghi.
     // Một policy `for all` trên ba bảng đó là mở đường cho user sửa mã quỹ của người khác.
+
+    // Hàm này tạo ra regex để bắt policy ghi trên một bảng. Nó phải khớp với cú pháp SQL
+    // thật: "on public.TABLE" đứng TRƯỚC "for all", không phải sau.
+    // Bản đầu của test này viết ngược thứ tự nên nó LUÔN xanh, kể cả khi có policy ghi
+    // thật — một chốt canh an ninh vô dụng. Chốt canh phải tự chứng minh là nó BẮTƯỚC
+    // thứ nó canh.
+    const luatGhi = (tenBang: string) =>
+      new RegExp(`create policy[^;]*on public\\.${tenBang}[^;]*for all`, 'i')
+
     for (const t of ['funds', 'fund_aliases', 'fund_prices']) {
-      expect(sql, `${t} không được có policy ghi`).not.toMatch(
-        new RegExp(`for all[^;]*on public\\.${t}`),
-      )
+      expect(sql, `${t} không được có policy ghi`).not.toMatch(luatGhi(t))
     }
+
+    // Chứng minh chốt canh hoạt động: nếu có một policy độc hại `for all` trên bảng,
+    // regex phải bắt được nó.
+    const policyDoHai = `create policy "leaky" on public.funds\n  for all\n  using (true);`
+    expect(luatGhi('funds').test(policyDoHai)).toBe(true)
   })
 })

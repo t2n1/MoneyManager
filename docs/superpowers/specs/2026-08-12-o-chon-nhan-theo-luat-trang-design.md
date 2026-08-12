@@ -20,10 +20,29 @@ Khối Nhãn trong form Nhập nhìn lộn xộn hơn mức nội dung của nó
 | Nhóm rỗng | không một chữ gợi ý nên gõ gì vào |
 | Ô "hoàn tiền" bên dưới | dính sát khối nhãn, không có gì tách |
 
-**Chỗ lệch nặng nhất là chuyện luật chung.** Cả trang Nhập không ô nào có chữ tên
-bên cạnh — ô tiền, tài khoản, ngày, ghi chú, lưới danh mục đều tự nói bằng hình
-dạng, tên chỉ nằm trong `aria-label` (xem chú thích ở `TransactionForm.tsx:1241`).
-Khối Nhãn là ngoại lệ duy nhất, và bản sửa đầu tiên còn thêm chữ vào.
+**Chỗ lệch nặng nhất là chuyện luật chung.** Ở form nhập THƯỜNG
+(`activeRole === 'none'` — đúng lúc ô chọn nhãn hiện ra), không ô nào có chữ tên bên
+cạnh: ô tiền, tài khoản, ngày, ghi chú, lưới danh mục đều tự nói bằng hình dạng, tên
+chỉ nằm trong `aria-label` (chú thích ở `TransactionForm.tsx:1241`). Khối Nhãn là chỗ
+duy nhất có chữ, và bản sửa đầu tiên còn thêm chữ vào.
+
+**Nhưng app KHÔNG phải không có luật đặt nhãn chữ** — chỗ này lúc soát thiết kế mình
+nói sai, chép lại cho đúng. `roleFields.tsx:13` có sẵn một token:
+
+```
+labelCls = 'mb-1 block text-xs font-medium text-fg-muted'
+```
+
+Các field của vai trò đặc biệt (Cho vay, Gửi tiền về VN, Chia tiền) dùng nó cho mọi ô,
+**kể cả cho một NHÓM CHIP** (`roleFields.tsx:308`: `<span className={labelCls}>Người
+đã cho vay (cộng dồn)</span>` đặt trên `PeopleChips`) — đúng y cấu trúc của ô chọn
+nhãn. Hai bên không bao giờ hiện cùng lúc (`TagPicker` chỉ vẽ khi `activeRole ===
+'none'`), nên không đụng nhau trên màn hình, nhưng nó có nghĩa là: đặt chữ tên cho một
+nhóm chip là **việc app đã làm rồi**, không phải ngoại lệ phải xin phép.
+
+Vì vậy chữ trong khối Nhãn phải dùng đúng cỡ và độ đậm của `labelCls`
+(`text-xs font-medium text-fg-muted`), chứ không phải cỡ `2xs font-semibold` như tiêu
+đề nhóm hiện tại — đó mới là chỗ sai thật.
 
 Và trang **đã có sẵn một luật đánh dấu trạng thái**: nút Nhắc sau / Lặp lại tắt thì
 xám trung tính (`CHIP_OFF`), bật thì lên màu. Ô chọn nhãn lại tự nghĩ ra luật khác
@@ -38,8 +57,8 @@ xám trung tính (`CHIP_OFF`), bật thì lên màu. Ô chọn nhãn lại tự 
 | 3 | Đường tạo nhãn mới | Gõ tên vào ô tìm → **mỗi nhóm hiện một chip `＋ Tạo "…"`** | Giữ nguyên giá trị của quyết định 2026-08-08: nhãn tạo lúc nhập vẫn sinh ra đã có nhóm |
 | 4 | Nút mở ở đáy khối | **Luôn hiện** (trước chỉ hiện khi có nhãn bị ẩn) | Bỏ `+ mới` mà giữ điều kiện cũ thì sẽ có lúc không còn đường nào tạo nhãn |
 | 5 | Chip chưa chọn | **Xám trung tính** (`CHIP_OFF`), chọn rồi mới lên màu của nhãn | Đúng luật nút Nhắc sau / Lặp lại. Bỏ `opacity`, bỏ viền `ring`, bỏ dấu ✓ |
-| 6 | Chiều cao chip | **44px** (`min-h-11`) | Chuẩn của cả trang. 40px là con số không giống ai |
-| 7 | Tiêu đề "Nhãn" | **Giữ**, đổi `(không bắt buộc)` → `(tùy chọn)` | Ngoại lệ có lý do: khi mọi nhóm còn rỗng, không còn gì nói đây là chỗ gắn nhãn |
+| 6 | Chiều cao chip | **44px** (`min-h-11`) | Chuẩn của họ chip / hàng bấm được: `CHIP_BASE`, dòng menu Lặp lại, nút mở vai trò đều `min-h-11`. 40px là con số không giống ai. (Ô nhập chữ trong trang thì nhỏ hơn — ngày 34px, ghi chú 38px — nên ô tìm không đổi theo) |
+| 7 | Tiêu đề "Nhãn" | **Giữ**, đổi `(không bắt buộc)` → `(tùy chọn)` | Khi mọi nhóm còn rỗng thì không còn gì nói đây là chỗ gắn nhãn. Và đặt chữ tên cho một nhóm chip là việc `roleFields` đã làm sẵn bằng `labelCls` |
 | 8 | Tách ô "hoàn tiền" | **Nới khoảng cách, KHÔNG kẻ vạch** | Trong form này không có vạch kẻ nào; các khối chỉ cách nhau bằng khoảng trống |
 
 **Chuyện chip chỉ có emoji:** nhãn nhóm `Ai?` của người dùng đặt tên bằng emoji
@@ -74,25 +93,36 @@ Khác     ＋ Tạo "Cả nhà"
 
 ### Hàng nhóm
 
-`flex items-start gap-2`. Cột tên: `w-16 shrink-0` + `flex h-11 items-center` để chữ
-ngang tâm **hàng chip đầu tiên** (không phải tâm cả khối, khi chip xuống nhiều dòng).
-Chữ `text-xs text-fg-muted truncate` kèm `title` — tên nhóm do người dùng tự đặt nên
-có thể dài hơn 64px.
+`flex items-start gap-2`. Cột tên: `w-16 shrink-0` + `flex items-center` để chữ ngang
+tâm **hàng chip đầu tiên** (không phải tâm cả khối, khi chip xuống nhiều dòng).
+
+Chữ dùng đúng token của `labelCls`: `text-xs font-medium text-fg-muted`, thêm
+`truncate` + `title` — tên nhóm do người dùng tự đặt nên có thể dài hơn 64px.
+
+**Chiều cao cột tên phải bằng chiều cao hàng đầu**, không thì chữ lệch so với chip:
+`h-11` ở hàng có chip, `h-7` ở hàng rỗng (xem dưới). Một class theo trạng thái, không
+để `h-11` cứng.
 
 Về mặt đọc-bằng-máy: mỗi hàng là `role="group"` với `aria-labelledby` trỏ vào cột
 tên, giữ nguyên hành vi hiện tại (nghe tên nhóm trước khi nghe các chip).
 
 Nhóm rỗng: cột tên + chữ `chưa có nhãn` (`text-xs text-fg-muted`), hàng cao **28px**
-chứ không 44px — hàng đó không có gì để chạm nên không cần vùng chạm.
+(`h-7`) chứ không 44px — hàng đó không có gì để chạm nên không cần vùng chạm.
 
 ### Chip nhãn
 
 ```
-nền chung:  flex min-h-11 max-w-full items-center truncate rounded-full px-3.5
+nền chung:  flex min-h-11 max-w-full items-center truncate rounded-full border px-3.5
             text-sm transition active:scale-95
-chưa chọn:  CHIP_OFF                       (border-border-strong bg-surface text-fg-muted)
-đã chọn:    TAG_CHIP_CLASS[tagColor(...)]  (nền nhạt + chữ đậm màu của nhãn)
+chưa chọn:  CHIP_OFF                        (border-border-strong bg-surface text-fg-muted)
+đã chọn:    border-transparent + TAG_CHIP_CLASS[tagColor(...)]
 ```
+
+**`border` nằm ở nền chung, trạng thái đã chọn dùng `border-transparent`** — không phải
+chỉ chưa-chọn mới có viền. Bỏ viền hẳn thì chip đã chọn hẹp hơn 2px, và bấm một chip sẽ
+đẩy các chip sau nó nhảy chỗ — đúng cái mà thiết kế 2026-08-08 đã đặt luật cấm. Lưới
+danh mục có sẵn cách này: `CategoryTile` dùng `border-transparent` cho ô chưa chọn
+(`TransactionForm.tsx:1380`).
 
 Chip đã chọn thêm `font-medium`, chưa chọn để `font-normal`.
 
@@ -156,6 +186,36 @@ hiện một chip tạo không nhóm, không thì thành đường cùng.
 
 Hình dạng: `min-h-11 rounded-full border border-dashed` + chữ màu nhấn.
 
+### Bấm chip tạo thì xảy ra gì (chỗ bản mô tả đầu còn thiếu)
+
+State `draft` và `addingIn` **biến mất** — không còn ô nhập rời trong từng nhóm nữa,
+tên nhãn mới lấy từ `query`. `addTag` đổi thành `addTag(groupId, name)`, nhận tên qua
+tham số thay vì đọc `draft`.
+
+Bấm một chip tạo:
+
+1. Tạo nhãn (hoặc làm sống lại nhãn lưu trữ trùng tên — giữ nguyên logic hiện có), gắn
+   vào giao dịch đang nhập.
+2. **Xóa `query`, thu gọn khối** (`expanded = false`). Nhãn vừa tạo hiện ngay thành chip
+   đã chọn trong nhóm của nó, người dùng thấy việc đã xong.
+3. Tạo hỏng (trùng tên trên DB, mất mạng): **giữ nguyên `query` và giữ khối đang mở** để
+   sửa lại. Đây là lý do `try/catch` hiện có tồn tại (`TagPicker.tsx:100`) — đừng đánh
+   mất nó khi viết lại.
+
+### Bàn phím che chip tạo — rủi ro phải xử
+
+Mở bằng `＋ Thêm nhãn` là tự bật con trỏ → bàn phím hệ thống trồi lên, mà chip tạo lại
+nằm NGAY DƯỚI ô tìm, ở gần đáy vùng cuộn của form. Rất dễ thành: gõ xong không thấy chỗ
+nào để bấm.
+
+Xử: khi mở ở chế độ tạo thì `scrollIntoView({ block: 'center' })` cả khối nhãn (form đã
+có `scrollRef` cho vùng cuộn). **Phải thử tay trên máy thật, bàn phím bật lên** — không
+tin vào việc mô phỏng bằng cách thu nhỏ cửa sổ, vì bàn phím hệ thống không làm co
+viewport giống nhau trên mọi máy.
+
+Không dùng Enter để tạo: có nhiều nhóm thì Enter không biết tạo vào nhóm nào, mà đoán
+sai thì nhãn rơi vào nhóm khác — im lặng và khó thấy.
+
 ### Tách ô "hoàn tiền"
 
 Thêm `mt-1.5` cho `<label>` ô hoàn tiền (cột cuộn đã có `gap-1.5`, thành 12px thay vì
@@ -181,6 +241,7 @@ createTargets(tags, sections, query) → { group: TagGroupRow | null }[]
 | Không có mục `Khác` | không có target `null` |
 | Chưa có nhóm nào | đúng một target `group: null` |
 | Tên có dấu cách đầu/cuối | so sau khi `trim` |
+| Chỉ gõ dấu cách | `[]` — không mời tạo nhãn tên rỗng |
 
 `pickerSections` không đổi — kiểm thử hiện có giữ nguyên, phải vẫn xanh.
 

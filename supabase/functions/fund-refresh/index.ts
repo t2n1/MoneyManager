@@ -124,7 +124,10 @@ Deno.serve(async (req) => {
 
       const danhBa = await loadFundRegistry(sb)
       // Hút lịch sử của MỌI quỹ trong danh bạ: sáu trong tám quỹ của chủ app đã bán hết
-      // từ lâu nhưng vẫn có mặt trong các phiên quá khứ.
+      // từ lâu nhưng vẫn có mặt trong các phiên quá khứ. Quỹ tài khoản CHƯA BAO GIỜ giao
+      // dịch thì `planFundBackfill` không lấy ngày phiên của nó (nếu lấy thì mỗi phiên quỹ
+      // đó đi trước sẽ thành một ngày trống VĨNH VIỄN trên biểu đồ) — hút cả danh bạ ở đây
+      // chỉ để một lượt hút dùng được cho MỌI tài khoản, không phải vì phép tính cần.
       const lichSu = new Map<string, Map<string, number>>() // assocFundCd → (ngày → nav)
       for (const f of danhBa) {
         const url =

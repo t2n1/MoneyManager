@@ -4646,8 +4646,11 @@ node scripts/nhap-sao-ke-rakuten.mjs "C:/Users/TranTriNguyen/Downloads/adjusthis
 Script ƯU TIÊN đọc `SUPABASE_SERVICE_ROLE_KEY` từ `.env.local` — thêm dòng
 `SUPABASE_SERVICE_ROLE_KEY=<khoá>` vào đó nếu muốn khỏi gõ mỗi lần (biến này KHÔNG có
 tiền tố `VITE_` nên Vite không nhét nó vào bundle gửi ra trình duyệt, và `.env.local` đã
-có trong `.gitignore`); không có dòng đó thì script mới hỏi ở ô nhập KÍN. Kỳ vọng dòng
-cuối: `Xong — đã ghi 136 lệnh.`
+có trong `.gitignore`); không có dòng đó thì script mới hỏi ở ô nhập KÍN.
+
+Sau bảng đối chiếu, script **dừng lại hỏi** `Ghi 136 lệnh vào fund_trades của tài khoản <id>? [y/N]`
+— nó **không treo**, nó đang đợi. **Enter trơn là HUỶ** (và stdin không phải terminal cũng
+là huỷ); phải gõ `y` rồi Enter mới ghi. Kỳ vọng dòng cuối: `Xong — đã ghi 136 lệnh.`
 
 Chạy **lại** đúng lệnh đó lần thứ hai. Kỳ vọng: dòng `136 lệnh đã có sẵn trong DB, sẽ
 KHÔNG ghi lại:` rồi `Không có lệnh nào mới — không ghi gì.` — nếu nó ghi thêm 136 dòng
@@ -4665,12 +4668,32 @@ $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
 $plain = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
 [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
 Invoke-WebRequest -Method Post -Uri "https://<project-ref>.supabase.co/functions/v1/fund-refresh" -Headers @{ "x-cron-secret" = $plain }
+Remove-Variable plain
 ```
+
+`Remove-Variable plain` không phải thủ tục rườm rà: `ZeroFreeBSTR` chỉ xoá bộ đệm không quản
+lý, còn `$plain` là **chuỗi thường** và nó **ở lại trong phiên PowerShell** cho tới khi đóng
+cửa sổ — mọi lệnh sau trong cùng phiên đọc được nó.
 
 Kỳ vọng: `200`, body kiểu `{"soQuyCoGia":8,"daGhi":1,"boQua":{},"loi":[]}` (xem trong
 `.Content` của kết quả `Invoke-WebRequest`).
 
-Gọi thiếu header phải trả `401 Sai bí mật cron`.
+Gọi thiếu header phải trả `401 Sai bí mật cron` — nhưng **`Invoke-WebRequest` của PowerShell
+5.1 ném lỗi terminating với mọi 4xx**, nên trên màn hình sẽ là một khối đỏ
+`Invoke-WebRequest : The remote server returned an error: (401) Unauthorized.` và **không**
+thấy thân trả về. Khối đỏ đó chính là dấu hiệu **ĐÚNG**. Muốn đọc cả câu `Sai bí mật cron`
+thì bọc `try/catch`:
+
+```powershell
+try {
+  Invoke-WebRequest -Method Post -Uri "https://<project-ref>.supabase.co/functions/v1/fund-refresh"
+} catch {
+  $_.Exception.Response.StatusCode.value__
+  (New-Object IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd()
+}
+```
+
+Kỳ vọng in ra: `401` rồi `Sai bí mật cron`.
 
 - [ ] **Step 6: Bài kiểm quyết định — ba con số**
 
@@ -4718,7 +4741,16 @@ $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
 $plain = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
 [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
 Invoke-WebRequest -Method Post -Uri "https://<project-ref>.supabase.co/functions/v1/fund-refresh" -Headers @{ "x-cron-secret" = $plain; "Content-Type" = "application/json" } -Body '{"lapLichSu":{"accountId":"<account-id>"}}'
+Remove-Variable plain
 ```
+
+Thân trả về có ba khoá: `{"daGhi":N,"boQuaNgay":M,"loi":[]}`. **`boQuaNgay > 0` là BÌNH
+THƯỜNG, không phải bug** — đó là những phiên mà nguồn chỉ có 基準価額 của quỹ **khác**, chứ
+không có của quỹ đang giữ đúng ngày đó; thà để trống hơn ghi một con số có quỹ tạm tính theo
+giá vốn. Những ngày đó sẽ **trống vĩnh viễn**: lượt sau nguồn vẫn thiếu đúng phiên đó, nên
+đừng chạy lại để mong lấp thêm. (Phiên của quỹ **không ai giữ** thì không còn kéo `boQuaNgay`
+lên nữa — `planFundBackfill` chỉ lấy ngày phiên của quỹ tài khoản này TỪNG giao dịch. Trên
+lịch phiên thật, riêng nguyên nhân đó từng làm bỏ 48 trong 679 phiên.)
 
 Mở biểu đồ Tài sản ròng. Kỳ vọng **ba** dấu hiệu, cả ba đều là sự thật đã biết từ sao kê:
 

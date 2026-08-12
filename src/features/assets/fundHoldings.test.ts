@@ -296,6 +296,19 @@ describe('sessionNavs', () => {
     expect(r.session).toBe('2026-08-11')
     expect([...r.staleFunds]).toEqual([])
   })
+
+  it('gọi THIẾU heldFundCds → NÉM LỖI, không im lặng rơi về cả bảng giá', () => {
+    // Vì sao chốt này phải sống LÚC CHẠY chứ không dựa vào `tsc`: edge function nhập hàm này
+    // từ `_funds.js` (bản gói JS, không kiểu) và `tsconfig.app.json` chỉ `include: ["src"]`
+    // ⇒ `npx tsc -b` KHÔNG soi lời gọi ở `fund-refresh/index.ts`. Bỏ trống tham số ở đó thì
+    // `new Set(undefined)` ra Set rỗng ⇒ rơi về cả bảng ⇒ quỹ KHÔNG AI GIỮ đi trước một phiên
+    // lại đánh 'gia-le-phien-cu' cho cả hai quỹ đang giữ, mỗi ngày, không bao giờ tự khỏi.
+    const bang = [{ assoc_fund_cd: SP500, nav: 20_053, nav_date: '2026-08-10' }]
+    // @ts-expect-error cố ý gọi thiếu tham số — đúng cái `tsc` không chặn được ở edge function
+    expect(() => sessionNavs(bang)).toThrow(/heldFundCds/)
+    // @ts-expect-error cố ý truyền null — `loadHeldFundCodes` lỗi có thể trả về đúng thứ này
+    expect(() => sessionNavs(bang, null)).toThrow(/heldFundCds/)
+  })
 })
 
 describe('fundValue', () => {
@@ -499,5 +512,68 @@ describe('planFundBackfill', () => {
   it('sổ lệnh rỗng → không có ngày nào, không nổ', () => {
     expect(planFundBackfill({ trades: [], coCaSoLenhCoPhieu: false }, DU_GIA, new Set(), 1_500))
       .toEqual({ ok: true, days: [], skipped: [] })
+  })
+
+  it('phiên của quỹ KHÔNG AI GIỮ không được vào tập ngày — kẻo biểu đồ rỗ VĨNH VIỄN', () => {
+    // Lỗi tốn nhất của chế độ lấp lịch sử. `navHistory` mang CẢ danh bạ 8 quỹ (lượt lấp hút
+    // cả danh bạ vì sáu quỹ đã bán sạch vẫn có mặt trong các phiên quá khứ). Quỹ tài sản
+    // TRONG NƯỚC công bố 基準価額 sớm hơn quỹ tài sản nước ngoài đúng một ngày, nên nếu tập
+    // ngày lấy hợp của CẢ danh bạ thì phiên 2026-08-11 dưới đây vào tập, hai quỹ đang giữ
+    // chưa có giá phiên đó, chốt ③b bỏ ngày — và lượt sau nguồn VẪN thiếu đúng phiên đó, nên
+    // ngày đó trống vĩnh viễn. Đo trên lịch phiên thật của 楽天・プラス・S&P500: 48/679 phiên.
+    const ke = planFundBackfill(
+      so,
+      lichSu({
+        [SP500]: { '2026-08-07': 17_588, '2026-08-10': 20_053 },
+        [NDX]: { '2026-08-07': 15_879, '2026-08-10': 18_855 },
+        [KHONG_GIU]: { '2026-08-07': 30_000, '2026-08-10': 30_100, '2026-08-11': 30_200 },
+      }),
+      new Set(),
+      1_500,
+    )
+    if (!ke.ok) throw new Error(`đáng lẽ lấp được, nhận ${ke.reason}`)
+    expect(ke.skipped).toEqual([])
+    expect(ke.days).toEqual([
+      { valuedOn: '2026-08-07', marketValue: 70_001 },
+      { valuedOn: '2026-08-10', marketValue: 80_757 },
+    ])
+  })
+
+  it('quỹ ĐÃ BÁN SẠCH vẫn góp ngày phiên cho quãng nó còn được giữ', () => {
+    // "Từng giao dịch", KHÔNG phải "đang giữ hôm nay". KHONG_GIU ở bài này là quỹ tài khoản
+    // MUA RỒI BÁN — lịch sử giá của nó là nguồn ngày phiên DUY NHẤT của 2026-08-06, ngày mà
+    // nó vẫn đang được giữ. Lọc theo "đang giữ hôm nay" là mất luôn ngày đó.
+    const ke = planFundBackfill(
+      {
+        trades: [
+          mua(KHONG_GIU, 10_000, 30_000, 30_000, '2026-08-06'),
+          ban(KHONG_GIU, 10_000, 30_100, 30_100, '2026-08-07'),
+          mua(SP500, 28_429, 17_588, 50_000, '2026-08-07'),
+        ],
+        coCaSoLenhCoPhieu: false,
+      },
+      lichSu({
+        [SP500]: { '2026-08-07': 17_588, '2026-08-10': 20_053 },
+        [KHONG_GIU]: { '2026-08-06': 30_000, '2026-08-07': 30_100 },
+      }),
+      new Set(),
+      1_500,
+    )
+    if (!ke.ok) throw new Error(`đáng lẽ lấp được, nhận ${ke.reason}`)
+    expect(ke.days).toEqual([
+      { valuedOn: '2026-08-06', marketValue: 30_000 },
+      { valuedOn: '2026-08-07', marketValue: 50_001 },
+      { valuedOn: '2026-08-10', marketValue: 57_009 },
+    ])
+    expect(ke.skipped).toEqual([])
+  })
+
+  it('chốt ③a: hút hỏng MỌI quỹ tài khoản từng giao dịch → DỪNG, không trả daGhi 0 im lặng', () => {
+    // Từ khi tập ngày chỉ lấy từ quỹ tài khoản từng giao dịch, ca này không còn ngày nào để
+    // chốt ③ soi — trước đó nó bị bắt TÌNH CỜ nhờ ngày phiên của quỹ không ai giữ. Không có
+    // chốt ③a thì lượt lấp trả `{ok: true, days: [], skipped: []}` ⇒ `daGhi: 0`, trông y như
+    // "đã lấp xong từ trước", trong khi thật ra cả hai quỹ đều hút hỏng.
+    const ke = planFundBackfill(so, lichSu({ [KHONG_GIU]: { '2026-08-10': 30_000 } }), new Set(), 1_500)
+    expect(ke).toEqual({ ok: false, reason: 'thieu-lich-su-gia', funds: [SP500, NDX].sort() })
   })
 })

@@ -142,8 +142,13 @@ src/features/assets/fundHoldings.ts               ← hàm THUẦN: fundHoldings
                                                      (口数/giá vốn từ sổ lệnh, oversold),
                                                      fundValue (chia NAV_UNITS ở ĐÚNG một
                                                      chỗ), sessionNavs (gom bảng giá về
-                                                     một phiên, nêu tên quỹ ở phiên cũ)
-src/features/assets/serverBundleFunds.ts          ← xuất thêm ba hàm trên (npm run bundle:rules)
+                                                     một phiên, nêu tên quỹ ở phiên cũ),
+                                                     planFundBackfill (bộ luật của chế độ
+                                                     lấp lịch sử — giữ CẢ BA chốt "thà
+                                                     không ghi gì": trộn hai loại sổ lệnh,
+                                                     sổ lệnh có lỗ hổng, quỹ đang giữ
+                                                     thiếu lịch sử giá)
+src/features/assets/serverBundleFunds.ts          ← xuất bốn hàm trên (npm run bundle:rules)
 
 supabase/functions/fund-refresh/navs.ts           ← fetchFundNavs + parseNavCsv + parseNavHistory
                                                      (hàm thuần, test bằng file mẫu) +
@@ -367,17 +372,25 @@ fund-refresh {"soQuyCoGia":8,"daGhi":1,"boQua":{},"loi":[]}
   dạng `tài khoản <8 ký tự đầu id>…: <lý do>`, hoặc cả việc 2 nếu nó throw trước vòng lặp
   tài khoản dạng `ghi gia tri: <lý do>`.
 
-Chế độ **lấp lịch sử** log dòng riêng, `fund-refresh lapLichSu {"daGhi":N,"loi":[...]}`.
+Chế độ **lấp lịch sử** log dòng riêng,
+`fund-refresh lapLichSu {"daGhi":N,"boQuaNgay":M,"loi":[...]}` — cùng đúng ba khoá đó trong
+thân trả về. `boQuaNgay` là số phiên bị bỏ vì nguồn thiếu 基準価額 của một quỹ **đang giữ**
+đúng phiên đó; **`boQuaNgay > 0` là bình thường**, không phải bug — thà để trống hơn ghi một
+con số có quỹ tạm tính theo giá vốn, và những ngày đó sẽ trống **vĩnh viễn** (lượt sau nguồn
+vẫn thiếu đúng phiên đó). `daGhi` một mình không phân biệt được "lấp đủ" với "lấp thiếu vài
+trăm ngày", nên con số này phải lộ ra.
 Chế độ **kiểm mã** không log — nó trả kết quả trực tiếp trong response, không ghi gì vào
 DB.
 
 ### Ý nghĩa từng lý do trong `boQua`
 
 Bảng cho người đọc log sáu tháng sau, không có ngữ cảnh gì khác ngoài dòng log này.
-**Bảy** lý do. Đừng đối chiếu con số này với bản cổ phiếu: `fund-refresh` vẫn **không có**
-`tien-chua-dau-tu-am` (mô hình quỹ không có tiền mặt, xem mục 5), và bù lại có ba lý do mà
-bản cổ phiếu không có — `thieu-gia-mot-so-quy`, `chua-co-ngay-phien`, và cách hiểu riêng của
-`so-lenh-co-lo-hong` với quỹ đổi tên. Trùng con số là tình cờ, không phải tương ứng:
+**Bảy** lý do. Đừng đối chiếu con số này với bản cổ phiếu (`stock-refresh` có **năm**):
+`fund-refresh` **không có** `tien-chua-dau-tu-am` (mô hình quỹ không có tiền mặt, xem mục 5),
+và bù lại có ba lý do mà bản cổ phiếu không có — `tron-hai-loai-so-lenh`,
+`thieu-gia-mot-so-quy`, `chua-co-ngay-phien`. `so-lenh-co-lo-hong` thì bản cổ phiếu **cũng
+có**, chỉ khác **cách hiểu**: với quỹ nó thường là thiếu một dòng bí danh, không phải quên ghi
+lệnh. Hai con số không tương ứng nhau, đừng suy con này ra con kia:
 
 | Lý do | Nghĩa là gì | Cần làm gì |
 |---|---|---|
@@ -385,7 +398,7 @@ bản cổ phiếu không có — `thieu-gia-mot-so-quy`, `chua-co-ngay-phien`, 
 | `so-lenh-co-lo-hong` | `fundHoldingsFromTrades` báo `oversold` khác rỗng: có lệnh bán (hoặc `adjust` âm) nhiều hơn 口数 đang giữ tại thời điểm đó. **Với quỹ Nhật, lý do thường gặp nhất là THIẾU MỘT DÒNG trong `fund_aliases`** (quỹ đổi tên — xem mục 4), không phải quên ghi lệnh như cổ phiếu. | Kiểm `fund_aliases` trước: Rakuten vừa đổi tên quỹ nào không? Thêm hàng bí danh rồi cron tự ghi lại lượt sau. Nếu bí danh đã đủ, xem lại sổ lệnh có thiếu lệnh mua hoặc sai ngày không. |
 | `thieu-gia-moi-quy` | `fundValue` trả `marketValue = null` vì **mọi** quỹ đang giữ đều không có giá trong `fund_prices` (`missingNavs` bằng đúng số quỹ đang giữ). | Kiểm `funds.last_status` của các mã đang giữ — `ma-sai` nghĩa là ISIN/協会コード gõ sai; `loi-mang` thường tự khỏi lượt sau. |
 | `thieu-gia-mot-so-quy` | `fundValue` trả `missingNavs` khác rỗng nhưng `marketValue` KHÔNG null — thiếu giá **một phần** quỹ đang giữ, không phải mọi quỹ. Quỹ thiếu bị tạm tính theo giá vốn (số vẫn ra được vì fundValue không tự chặn ca này), nên cron chủ động bỏ CẢ tài khoản để không ghi một con số nửa đúng nửa sai đóng dấu `'auto'`. | Kiểm `funds.last_status` của TỪNG mã quỹ đang giữ, không chỉ mã đầu tiên — mã nào `ma-sai`/`loi-mang` là mã đang thiếu giá; mã còn lại vẫn hút bình thường nên đừng dừng ở đó. |
-| `chua-co-ngay-phien` | `sessionNavs` trả `session = null`: không quỹ nào đang giữ có một hàng giá nào cả. **Đường này lẽ ra không đi tới được** — ca "thiếu giá mọi quỹ" đã bị chặn ở `thieu-gia-moi-quy` phía trên, nên nó tồn tại chủ yếu để thu hẹp kiểu cho TypeScript. | Nếu bạn **thật sự** thấy lý do này trong log thì một giả định đã vỡ, không phải dữ liệu thiếu bình thường: hai chốt lẽ ra loại trừ nhau lại cùng không bắt. Đọc lại thứ tự các chốt trong `index.ts` (khối cron) và `sessionNavs` trong `fundHoldings.ts` — đừng đi thêm hàng vào `fund_prices` trước khi hiểu vì sao tới được đây. |
+| `chua-co-ngay-phien` | `sessionNavs` trả `session = null`, nghĩa là **bảng `fund_prices` RỖNG HOÀN TOÀN** — **không** phải "không quỹ đang giữ nào có hàng giá": `sessionNavs` có nhánh **rơi về cả bảng** khi không quỹ đang giữ nào có hàng (biến `nguonNgay` trong `fundHoldings.ts`), nên ca đó vẫn ra được một `session` và rơi vào `thieu-gia-moi-quy`. **Đường này không đi tới được** vì chốt loại trừ nó chạy **TRƯỚC**, ngay đầu Việc 2: `if (giaTho.length === 0) throw new Error('Bảng giá quỹ rỗng…')` → `500`, không tài khoản nào được xét. Nhánh này còn lại chủ yếu để thu hẹp kiểu cho TypeScript. | Nếu bạn **thật sự** thấy lý do này trong log thì một giả định đã vỡ: chốt "bảng giá rỗng" ở **đầu Việc 2** lẽ ra đã throw trước khi vào vòng lặp tài khoản. Đọc đúng hai chỗ đó — chốt `giaTho.length === 0` trong `index.ts` và biến `nguonNgay` trong `sessionNavs` — **đừng** đi soi `missingNavs` hay `thieu-gia-moi-quy` (chốt đó chạy SAU, không liên quan), và đừng thêm hàng vào `fund_prices` trước khi hiểu vì sao tới được đây. |
 | `gia-le-phien-cu` | `sessionNavs` giờ chỉ lấy `nav_date` lớn nhất trong SỐ CÁC QUỸ TÀI KHOẢN NÀY ĐANG GIỮ (không còn tính trên cả `fund_prices` — một quỹ không ai giữ không thể chen vào phép tính này nữa), rồi so từng quỹ đang giữ với mốc đó. Nghĩa là: trong lượt hút NAV này, ít nhất một quỹ đang giữ đã có giá nhưng vẫn ở phiên CŨ hơn quỹ đang giữ khác — ví dụ một quỹ hút xong trước, quỹ kia hút chậm hoặc lỗi mạng tạm thời cùng lượt. | Thường tự khỏi lượt sau (lượt sau hút lại CẢ hai quỹ đang giữ). Lặp lại mỗi ngày thì kiểm `loi` của cùng lượt có dòng lỗi lặp lại đúng mã quỹ bị coi "cũ" đó không (nguồn hỏng dai dẳng cho riêng mã đó) — không còn ca "quỹ không ai giữ đi trước phiên" nữa, vì `sessionNavs` đã loại quỹ không giữ ra khỏi phép tính mốc. |
 | `nguoi-dung-da-go-tay` | Hàng `account_valuations` của đúng ngày phiên đó đã có sẵn với `source = 'manual'` — người dùng đã tự gõ số cho ngày này (sheet "Cập nhật giá trị"). Cron **cố ý** không đè lên. | Không cần làm gì — số gõ tay luôn thắng. Muốn để cron tự tính lại: xoá hàng `manual` đó (hoặc đổi `source` thành `'auto'`) rồi gọi lại function. |
 
@@ -405,7 +418,7 @@ bản cổ phiếu không có — `thieu-gia-mot-so-quy`, `chua-co-ngay-phien`, 
 | Migration 0045 — seed đủ 8 quỹ + 10 bí danh, bí danh có cả hai tên của quỹ đã đổi tên, ràng buộc hình dạng theo `kind`, không bảng nào cho user ghi vào bảng giá/danh bạ | ✅ test (`tests/fundSeed.test.ts`) |
 | `demoRepo` — sổ lệnh quỹ: ghi/sửa/xoá, `CHECK fund_trades_shape` (mua/bán có `amount>0`, `adjust` có `nav=0 amount=0`), soi hình dạng sau khi trộn patch (không chỉ lúc tạo), không xoá được tài khoản còn sổ lệnh | ✅ test (`src/data/fundTrades.test.ts`) |
 | `loadFundRegistry`/`loadHeldFundCodes`/`loadFundAccounts` — chỉ đọc bảng, xếp vào ô, không tự tính | ✅ đọc kỹ theo hợp đồng, khớp cột trong migration 0045 — **chưa chạy thật** với Postgres, cùng lý do `loadInput.ts` của `stock-refresh` không có test riêng |
-| `index.ts` — ba chế độ (cron/lấp lịch sử/kiểm mã), phân biệt `viec2Gay`/`chetHoanToan`, sáu lý do `boQua`, `--no-verify-jwt` + tự xác thực JWT ở chế độ kiểm mã | ✅ đọc code kỹ — **chưa chạy thật**, không có test riêng (chỉ ghép nối Postgres, đúng đắn chứng minh bằng lượt gọi thật ở Task 15) |
+| `index.ts` — ba chế độ (cron/lấp lịch sử/kiểm mã), phân biệt `viec2Gay`/`chetHoanToan`, bảy lý do `boQua`, `--no-verify-jwt` + tự xác thực JWT ở chế độ kiểm mã | ✅ đọc code kỹ — **chưa chạy thật**, không có test riêng (chỉ ghép nối Postgres, đúng đắn chứng minh bằng lượt gọi thật ở Task 15) |
 | Khu "Danh mục quỹ" (`FundHoldingsSection`) + sheet ghi lệnh (`FundTradeFormSheet`) | ✅ **đã kiểm bằng chế độ demo**: hiện đúng Tổng giá trị 80.757 ¥, Giá vốn 70.000 ¥, +10.757 ¥ (+15,4%), gợi ý Số tiền từ 口数×基準価額÷10.000 sửa được |
 | `scripts/nhap-sao-ke-rakuten.mjs` — đọc CSV Shift-JIS thật, tách 5 cột đúng khi số có dấu phẩy trong ngoặc kép, chỉ nhận 3 loại lệnh quỹ (bỏ dòng tiền có nêu tên), dùng 約定日 không dùng 受渡日, ghép bí danh dừng khi gặp tên lạ, đếm trùng theo túi không theo tập | ✅ test trên `scripts/testdata/rakuten-uydo-mau.csv` — file GÕ TAY (không cắt từ file sao kê tải về), nhưng các con số trong đó (387.221 / 68.725 / 1.275 / 27.575 …) là số THẬT của chủ app, đã có sẵn ở nơi khác trong repo (chú thích code, `docs/`). Ranh giới đang giữ là **không commit file sao kê thật**, không phải "không có con số thật nào" |
 | Deploy `fund-refresh` lên project thật | ❌ **chưa** — việc của Task 15, chủ app tự chạy |

@@ -49,6 +49,12 @@ if (viTriMoc === -1)
 
 const viTriIf = NOI_DUNG.indexOf('if (', viTriMoc)
 const dieuKienBoQua = catTrongDauNgoac(NOI_DUNG, viTriIf + 'if '.length)
+// TRÍCH được một khối `if` KHÔNG chứng minh trích ĐÚNG khối cần trích. Đã thử thật: xoá hẳn
+// khối `if` chốt thiếu giá khỏi `index.ts` thì `indexOf('if (', viTriMoc)` trượt xuống
+// `if (docErr) throw docErr` ở dưới, và cả ba bài đỏ bằng `ReferenceError: docErr is not
+// defined` — đỏ, nhưng thông điệp KHÔNG nói được chốt nào đã mất, nên nó mời người đọc đi
+// "sửa bài test". Khẳng định này nói đúng chuyện gì mất.
+expect(dieuKienBoQua, 'chốt thiếu giá đã bị xoá khỏi index.ts?').toContain('missingNavs')
 
 const viTriDemBoQua = NOI_DUNG.indexOf('demBoQua(kq,', viTriIf)
 if (viTriDemBoQua === -1)

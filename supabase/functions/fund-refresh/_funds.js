@@ -56,6 +56,10 @@ function fundHoldingsFromTrades(trades) {
   };
 }
 function sessionNavs(rows, heldFundCds) {
+  if (heldFundCds == null)
+    throw new TypeError(
+      "sessionNavs: thi\u1EBFu tham s\u1ED1 heldFundCds (danh s\xE1ch qu\u1EF9 \u0110ANG GI\u1EEE). Truy\u1EC1n holdings.map(h => h.assocFundCd) \u2014 kh\xF4ng \u0111\u01B0\u1EE3c b\u1ECF tr\u1ED1ng, xem ch\xFA th\xEDch tr\xEAn h\xE0m."
+    );
   const dangGiu = new Set(heldFundCds);
   const cuaQuyDangGiu = rows.filter((r) => dangGiu.has(r.assoc_fund_cd));
   const nguonNgay = cuaQuyDangGiu.length > 0 ? cuaQuyDangGiu : rows;
@@ -89,9 +93,13 @@ function planFundBackfill(account, navHistory, alreadyValued, maxDays) {
   if (oversold.length > 0) return { ok: false, reason: "so-lenh-co-lo-hong", funds: oversold };
   const lenhDauTien = account.trades.map((t) => t.tradedOn).sort()[0];
   if (lenhDauTien == null) return { ok: true, days: [], skipped: [] };
+  const quyTaiKhoanTungCham = new Set(account.trades.map((t) => t.assocFundCd));
+  const quyCoLichSu = [...quyTaiKhoanTungCham].filter((ma) => (navHistory.get(ma)?.size ?? 0) > 0);
+  if (quyCoLichSu.length === 0)
+    return { ok: false, reason: "thieu-lich-su-gia", funds: [...quyTaiKhoanTungCham].sort() };
   const moiNgay = /* @__PURE__ */ new Set();
-  for (const theoNgay2 of navHistory.values())
-    for (const ngay of theoNgay2.keys()) if (ngay >= lenhDauTien) moiNgay.add(ngay);
+  for (const ma of quyCoLichSu)
+    for (const ngay of navHistory.get(ma).keys()) if (ngay >= lenhDauTien) moiNgay.add(ngay);
   const cacNgay = [...moiNgay].sort().filter((ngay) => !alreadyValued.has(ngay)).slice(0, maxDays);
   const theoNgay = [];
   for (const ngay of cacNgay) {

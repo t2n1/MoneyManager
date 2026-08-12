@@ -217,6 +217,18 @@ export function sessionNavs(
   rows: { assoc_fund_cd: string; nav: number; nav_date: string }[],
   heldFundCds: Iterable<string>,
 ): SessionNavs {
+  // Chốt LÚC CHẠY, không chỉ lúc biên dịch: edge function nhập hàm này từ `_funds.js` (bản
+  // gói JS, KHÔNG có kiểu) và `tsconfig.app.json` chỉ `include: ["src"]` — nên `npx tsc -b`
+  // không soi lời gọi ở `supabase/functions/fund-refresh/index.ts` (dấu vết: file đó phải tự
+  // chú kiểu `(h: { assocFundCd: string })`). Viết `sessionNavs(giaTho)` ở đó thì
+  // `new Set(undefined)` ra Set RỖNG ⇒ `cuaQuyDangGiu` rỗng ⇒ rơi về cả bảng ⇒ quay lại đúng
+  // lỗi "quỹ không ai giữ chen vào mốc phiên" mà hàm này sinh ra để chữa, và IM LẶNG.
+  if (heldFundCds == null)
+    throw new TypeError(
+      'sessionNavs: thiếu tham số heldFundCds (danh sách quỹ ĐANG GIỮ). Truyền ' +
+        'holdings.map(h => h.assocFundCd) — không được bỏ trống, xem chú thích trên hàm.',
+    )
+
   const dangGiu = new Set(heldFundCds)
   const cuaQuyDangGiu = rows.filter((r) => dangGiu.has(r.assoc_fund_cd))
   const nguonNgay = cuaQuyDangGiu.length > 0 ? cuaQuyDangGiu : rows
@@ -329,6 +341,18 @@ export type FundBackfillPlan =
  *    khoảng 40% giá trị sai, đóng dấu 'auto', trông y như số đúng. `missingNavs` (chốt ③b
  *    dưới, cho từng ngày lẻ mà nguồn thiếu phiên) một mình cũng chặn được, nhưng nó chặn
  *    bằng cách bỏ SẠCH mọi ngày — người chạy chỉ thấy `daGhi = 0` mà không biết vì sao.
+ *    Chốt ③a (trong thân hàm) lo vế còn lại: hút hỏng CẢ danh mục thì không còn ngày nào để
+ *    ③ soi.
+ *
+ * TẬP NGÀY CẦN CHỤP chỉ gồm ngày phiên của những quỹ mà TÀI KHOẢN NÀY TỪNG GIAO DỊCH, dù
+ * `navHistory` mang cả danh bạ (chế độ lấp lịch sử hút cả 8 quỹ, vì sáu quỹ đã bán sạch vẫn
+ * có mặt trong các phiên quá khứ). Lấy hợp mọi ngày của CẢ danh bạ tạo ra một lỗ VĨNH VIỄN:
+ * quỹ tài sản TRONG NƯỚC công bố 基準価額 sớm hơn quỹ tài sản nước ngoài đúng một ngày (xem
+ * docs/quy-nhat.md mục 1), và danh bạ có cả quỹ Nhật lẫn quỹ Mỹ — nên mỗi ngày mà một quỹ
+ * KHÔNG AI GIỮ đã có giá còn các quỹ đang giữ thì chưa sẽ vào tập, rồi chốt ③b bỏ nó. Chốt
+ * ③b đúng (thà trống hơn ghi số tạm tính theo giá vốn), nhưng những ngày đó KHÔNG BAO GIỜ
+ * lấp được: lượt sau nguồn vẫn thiếu đúng phiên đó. Đo trên lịch phiên thật của
+ * 楽天・プラス・S&P500: 48 ngày trong 679 phiên bị bỏ chỉ vì lý do này.
  *
  * `alreadyValued` bị trừ ra TRƯỚC khi cắt trần `maxDays`, không phải sau: cắt trước rồi
  * trừ thì lượt chạy lại luôn nhận đúng 1.500 ngày đầu, thấy đã có hàng cả, và những ngày
@@ -351,10 +375,22 @@ export function planFundBackfill(
   const lenhDauTien = account.trades.map((t) => t.tradedOn).sort()[0]
   if (lenhDauTien == null) return { ok: true, days: [], skipped: [] }
 
-  // Mọi ngày phiên xuất hiện ở BẤT KỲ quỹ nào, từ lệnh đầu tiên trở đi.
+  // Ngày phiên CHỈ lấy từ các quỹ mà tài khoản này TỪNG GIAO DỊCH — xem "TẬP NGÀY CẦN CHỤP"
+  // ở khối chú thích trên hàm. "TỪNG giao dịch", KHÔNG phải "đang giữ hôm nay": một quỹ đã
+  // bán sạch vẫn cần ngày phiên cho quãng thời gian nó còn được giữ.
+  const quyTaiKhoanTungCham = new Set(account.trades.map((t) => t.assocFundCd))
+
+  // Chốt ③a: KHÔNG quỹ nào tài khoản này từng giao dịch có lịch sử giá (hút hỏng cả lượt).
+  // Chốt ③ dưới không bắt được ca này — tập ngày rỗng thì không có ngày nào để xét quỹ đang
+  // giữ. (Nó từng bị bắt TÌNH CỜ, hồi tập ngày còn lấy cả phiên của quỹ không ai giữ.) Không
+  // nói ra thì lượt lấp trả `daGhi: 0` trông y như "đã lấp xong từ trước".
+  const quyCoLichSu = [...quyTaiKhoanTungCham].filter((ma) => (navHistory.get(ma)?.size ?? 0) > 0)
+  if (quyCoLichSu.length === 0)
+    return { ok: false, reason: 'thieu-lich-su-gia', funds: [...quyTaiKhoanTungCham].sort() }
+
   const moiNgay = new Set<string>()
-  for (const theoNgay of navHistory.values())
-    for (const ngay of theoNgay.keys()) if (ngay >= lenhDauTien) moiNgay.add(ngay)
+  for (const ma of quyCoLichSu)
+    for (const ngay of navHistory.get(ma)!.keys()) if (ngay >= lenhDauTien) moiNgay.add(ngay)
 
   const cacNgay = [...moiNgay]
     .sort()
@@ -391,8 +427,8 @@ export function planFundBackfill(
     }
     const { marketValue, missingNavs } = fundValue(holdings, navNgayDo)
     // Chốt ③b: nguồn có lịch sử quỹ này nhưng thiếu ĐÚNG phiên đó (ngày nghỉ lệch nhau
-    // giữa hai quỹ, một dòng hỏng). Bỏ ngày — chứ không ghi một con số mà một quỹ đang
-    // tạm tính theo giá vốn.
+    // giữa hai quỹ TÀI KHOẢN NÀY ĐANG GIỮ, một dòng hỏng). Bỏ ngày — chứ không ghi một con
+    // số mà một quỹ đang tạm tính theo giá vốn.
     if (missingNavs.length > 0 || marketValue === null) {
       skipped.push(valuedOn)
       continue

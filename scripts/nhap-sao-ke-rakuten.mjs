@@ -26,9 +26,10 @@
 //
 // Van an toàn THẬT không nằm ở việc chọn khoá — service role đọc được ở CẢ chế độ xem
 // trước (chỉ ĐỌC, không ghi gì) và chế độ ghi thật. Van an toàn nằm ở BƯỚC POST, sau bốn
-// chốt chặn thuần cục bộ (hình dạng dữ liệu ở CHECK fund_trades_shape, tên lạ trong
-// fund_aliases, 口数 âm, đếm trùng theo túi): cờ `--ghi` (không có thì không bao giờ gọi
-// POST) + câu xác nhận `y/N` mặc định KHÔNG.
+// chốt chặn đều chạy TRƯỚC nó: soát hình dạng dữ liệu (thuần cục bộ, cùng bất biến với
+// CHECK fund_trades_shape), tên lạ trong fund_aliases, 口数 âm, và đếm trùng theo túi — ba
+// chốt sau ĐỌC DB chứ không thuần cục bộ. Van là: cờ `--ghi` (không có thì không bao giờ
+// gọi POST) + câu xác nhận `y/N` mặc định KHÔNG.
 //
 // Lấy khoá theo thứ tự: dòng `SUPABASE_SERVICE_ROLE_KEY=` trong .env.local (KHÔNG có tiền
 // tố `VITE_` nên Vite không nhét nó vào bundle trình duyệt, và .env.local đã trong

@@ -445,8 +445,10 @@ Các bước, theo thứ tự, mỗi bước nói ra con số:
 6. **Xem trước rồi mới ghi.** `--dry-run` là mặc định; muốn ghi thật phải thêm `--ghi`.
 7. **Ghi idempotent**: khoá trùng là `(account_id, assoc_fund_cd, traded_on, kind, units, amount)`.
    Chạy lại cùng file không sinh dòng thứ hai.
-8. **In số dư tiền thật** cộng từ các dòng tiền đã bỏ ở bước 2 (vào − ra), để người dùng
-   tự chỉnh số dư sổ của tài khoản cho khớp — xem "Giới hạn" bên dưới.
+8. **In bảng tiền-vào-theo-nguồn** cộng từ các dòng tiền đã bỏ ở bước 2 (thẻ / điểm /
+   楽天ペイ / tự động nạp), kèm một phép so: số dư sổ hiện tại của tài khoản NISA so với
+   giá vốn tính từ sổ lệnh. Xem mục "Dòng tiền thật của 積立" để biết chênh lệch đó nghĩa
+   là gì.
 
 `bucket` lấy nguyên `口座区分`. **Cả `特定` cũng được nhập** (35 dòng) — tài khoản trong app
 đại diện cho cả tài khoản Rakuten, không riêng NISA. Ba mươi lăm dòng đó nay đã bán hết
@@ -508,12 +510,66 @@ hoãn theo (chế độ kiểm mã của edge function vẫn làm, để gọi b
 - **Không có giá trong ngày.** Quỹ đầu tư không có khái niệm đó.
 - **Ngày lễ Nhật không có 基準価額.** Cron chạy, không thấy phiên mới, không ghi gì.
 - **Lãi/lỗ ở cấp TÀI KHOẢN vẫn dùng số dư sổ.** Khu "Danh mục quỹ" khớp Rakuten tuyệt đối,
-  nhưng "Hiệu quả đầu tư" ở cấp tài khoản lấy `market_value − số dư sổ`, mà số dư sổ chỉ
-  đúng khi mọi lần tiền vào/ra tài khoản Rakuten đều đã ghi trong app. Script in ra con số
-  tiền vào − ra cộng từ sao kê để chỉnh cho khớp; ngoài phạm vi tính năng này.
+  nhưng "Hiệu quả đầu tư" ở cấp tài khoản lấy `market_value − số dư sổ`. Số dư sổ chỉ đúng
+  khi dòng tiền được ghi đúng hình dạng — xem mục dưới. Việc chỉnh sổ nằm ngoài phạm vi
+  code của tính năng này, nhưng công thức thì đã rõ, không phải "tự mò".
 - **Quỹ không nằm trong thư viện hiệp hội** (quỹ nước ngoài, ETF niêm yết) không dùng được
   đường này. ETF Nhật đi đường Yahoo `.T` — việc khác.
 - **Tài khoản trộn cổ phiếu VN và quỹ Nhật** bị bỏ qua có chủ ý.
+
+## Dòng tiền thật của 積立, và cách ghi cho số dư sổ đúng
+
+Tiền mua quỹ **không** đi từ Rakuten Bank vào chứng khoán. Đường thật, đo trên sao kê:
+
+```
+Thẻ Rakuten Card ─┐
+Điểm Rakuten     ─┼→ tài khoản Rakuten Securities → quỹ   (ngày 8–10 mỗi tháng)
+楽天ペイ残高      ─┘
+        ↑
+Rakuten Bank ──────┘ trả sao kê thẻ cuối tháng (ngày 27)
+```
+
+Tổng tiền vào tài khoản Rakuten từ 2022-09 tới nay, theo nguồn:
+
+| Nguồn | Số lần | Tổng |
+|---|---|---|
+| `入金(楽天ペイ残高ご利用分)` | 19 | 692.001 ¥ |
+| `入金(クレジットカード決済ご利用分)` | 16 | 654.913 ¥ |
+| `投信積立(自動入金)` | 4 | 263.100 ¥ |
+| `振替入金` | 1 | 111.306 ¥ |
+| `入金(楽天ペイ残高注文エラー分)` (hoàn lệnh lỗi) | 3 | 97.624 ¥ |
+| `入金(楽天ポイント交換)` | 28 | 70.508 ¥ |
+| `投資信託(自動入金)` | 4 | 68.362 ¥ |
+| `金・プラチナ積立(自動入金)` (vàng/bạch kim, **không phải quỹ**) | 9 | 45.000 ¥ |
+
+Từ 2025-10 tới 2026-04, mỗi kỳ đúng **70.000 ¥**, chia hai nguồn — thẻ lo phần lớn, điểm lo
+phần lẻ (vd 2026-04-08: thẻ 68.725 + điểm 1.275).
+
+**Cách ghi đúng trong app** (ba bước, mỗi bước là một hình dạng khác nhau):
+
+| Việc thật | Ghi trong app |
+|---|---|
+| Ngày 8–10: Rakuten trừ **thẻ Rakuten Card** phần lớn số tiền | **Chuyển khoản** thẻ Rakuten Card → tài khoản NISA. **KHÔNG phải "Chi".** |
+| Cùng ngày: phần lẻ trừ bằng **điểm Rakuten** | **Thu** vào tài khoản NISA (tiền từ ngoài sổ vào) |
+| Ngày 27: sao kê thẻ bị trừ từ **Rakuten Bank** | app đã có sẵn phần trả thẻ tự động (`src/lib/cardAutopay.ts`) — không phải ghi thêm |
+
+Mua quỹ **không phải tiêu tiền**, chỉ là tiền đổi hình dạng — nên nó là chuyển khoản, không
+phải chi. Ghi đúng ba bước trên thì số dư sổ của tài khoản NISA tự tăng đúng 70.000 mỗi
+tháng, bằng đúng giá vốn, và "Hiệu quả đầu tư" ở cấp tài khoản tự đúng.
+
+> **Ghi khoản 積立 thành "Chi" là lỗi đắt nhất ở đây**, và là lỗi rất dễ mắc vì con số đó
+> xuất hiện trên **sao kê thẻ Rakuten** — mà sao kê thẻ thì được import vào app qua
+> [ImportCsvPage](../../../src/features/import/ImportCsvPage.tsx). Hậu quả: báo cáo chi tiêu phồng ~70.000
+> mỗi tháng, tài sản ròng thiếu đúng số đã đầu tư, và số dư tài khoản NISA đứng ở 0 nên
+> "Hiệu quả đầu tư" vô nghĩa. Bảy kỳ từ 2025-10 tới 2026-04 là **490.000 ¥**.
+
+`fund_trades` **không** đụng ledger — không sinh giao dịch, không đổi số dư (đúng nguyên tắc
+của `stock_trades`, xem migration 0035). Nên ghi ba bước trên **không** trùng với việc nhập
+sổ lệnh quỹ: một bên là tiền vào tài khoản, một bên là tiền đã biến thành quỹ nào.
+
+Script nhập sao kê (bước 8) in bảng tiền-vào-theo-nguồn ở trên, cộng thêm **một phép so**:
+số dư sổ hiện tại của tài khoản NISA trong app so với giá vốn tính từ sổ lệnh. Chênh lệch
+xấp xỉ tổng các khoản thẻ chưa ghi thành chuyển khoản chính là lời chẩn đoán.
 
 ## Kiểm thử
 

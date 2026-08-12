@@ -181,6 +181,14 @@ html.dark
   outline-color: var(--accent); /* .dark đã đặt --accent sáng hơn cho nền tối */
 }
 
+/* Đang mở thanh thao tác "chọn nhiều" thì ẩn thanh tab dưới. Hai thanh cùng dính
+   đáy, mà thanh tab là thẻ nổi cách mép 12px nên nó CAO HƠN thanh thao tác 11px và
+   nhô ra một vệt bo góc phía trên — trông như lỗi vẽ. Cờ do SelectionActionBar đặt
+   ở <html> (Sổ và Tìm kiếm dùng chung một thanh đó). */
+html[data-selection-bar] nav[data-bottom-nav] {
+  display: none;
+}
+
 /* Chống iOS Safari tự phóng to khi focus ô nhập: buộc cỡ chữ ≥16px cho các
    control biểu mẫu trên màn nhỏ (đè text-sm). Không ảnh hưởng nhãn/text khác. */
 @media (max-width: 1023px) {

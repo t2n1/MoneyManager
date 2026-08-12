@@ -1,7 +1,8 @@
+import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, Banknote } from 'lucide-react'
-import { repo, type NewTransaction } from '../../data'
+import { repo } from '../../data'
 import {
   useDebtPayments,
   useDeleteTransaction,
@@ -10,6 +11,7 @@ import {
 import { showUndoToast } from '../../lib/undoToast'
 import type { TransactionRow } from '../../types/database.types'
 import { TransactionForm } from './TransactionForm'
+import { toNewTransaction } from './restore'
 import { useEscClose } from '../../hooks/useEscClose'
 
 interface Props {
@@ -17,28 +19,15 @@ interface Props {
   onClose: () => void
 }
 
-/** TransactionRow → NewTransaction để tạo lại khi hoàn tác. */
-function toNewTransaction(t: TransactionRow): NewTransaction {
-  return {
-    type: t.type,
-    amount: t.amount,
-    to_amount: t.to_amount,
-    category_id: t.category_id,
-    account_id: t.account_id,
-    to_account_id: t.to_account_id,
-    occurred_on: t.occurred_on,
-    note: t.note,
-    is_remittance: t.is_remittance,
-    remit_service: t.remit_service,
-    remit_fee_jpy: t.remit_fee_jpy,
-    remit_received_vnd: t.remit_received_vnd,
-    is_debt_flow: t.is_debt_flow,
-  }
-}
-
 /** Sheet sửa/xóa giao dịch (dùng chung cho Sổ GD và Tìm kiếm). */
 export function EditTransactionSheet({ tx, onClose }: Props) {
   useEscClose(onClose)
+  // Focus MỘT LẦN lúc mở. Không dùng ref callback: callback chạy lại mỗi lần render
+  // nên đang gõ trong form là bị giật focus ra ngoài.
+  const panelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    panelRef.current?.focus({ preventScroll: true })
+  }, [])
   const qc = useQueryClient()
   const navigate = useNavigate()
   const update = useUpdateTransaction()
@@ -75,12 +64,25 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
       className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center"
       onClick={onClose}
     >
+      {/* role/aria-modal/aria-labelledby: giống các sheet khác trong app (EventFormSheet,
+          PhaseFormSheet, sheet thông báo…) — sheet dùng nhiều nhất lại là cái duy nhất
+          thiếu, nên trình đọc màn hình không biết đây là hộp thoại.
+          tabIndex + ref focus: KHÔNG bẫy focus (cả app không bẫy), chỉ đưa điểm đọc vào
+          trong sheet để người dùng bàn phím không còn đứng ở dòng phía sau. preventScroll
+          để mở sheet không giật trang nền. */}
       <div
-        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-surface-page p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-tx-title"
+        tabIndex={-1}
+        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-surface-page p-4 pb-[max(1rem,env(safe-area-inset-bottom))] outline-none lg:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-fg-primary">Sửa giao dịch</h2>
+          <h2 id="edit-tx-title" className="text-base font-bold text-fg-primary">
+            Sửa giao dịch
+          </h2>
           <div className="flex gap-2">
             <button
               type="button"

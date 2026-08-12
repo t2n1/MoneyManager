@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, ChevronLeft, ChevronRight, Repeat, Search } from 'lucide-react'
 import { IconButton, SegmentedControl, iconButtonClass } from '../../components/ui'
+import { repo } from '../../data'
 import {
   useAccounts,
   useCategories,
@@ -13,7 +15,9 @@ import {
   useTags,
   useTransactionTags,
 } from '../../hooks/queries'
-import { confirmDialog, showToast } from '../../lib/dialog'
+import { confirmDialog } from '../../lib/dialog'
+import { scrollContentToTop } from '../../lib/scroll'
+import { showUndoToast } from '../../lib/undoToast'
 import {
   addDaysISO,
   addMonths,
@@ -36,6 +40,7 @@ import { CalendarView } from './CalendarView'
 import { DailyView } from './DailyView'
 import { EditTransactionSheet } from './EditTransactionSheet'
 import { MonthlyView } from './MonthlyView'
+import { toNewTransaction } from './restore'
 import { SelectionActionBar } from './SelectionActionBar'
 import { SummaryView } from './SummaryView'
 import { useTxSelection } from './useTxSelection'
@@ -52,9 +57,10 @@ type LedgerView = (typeof VIEWS)[number]['key']
 const isView = (v: string | null): v is LedgerView => VIEWS.some((x) => x.key === v)
 
 export function LedgerPage() {
+  const qc = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const view: LedgerView = isView(searchParams.get('view')) ? (searchParams.get('view') as LedgerView) : 'daily'
-  const setView = (v: LedgerView) =>
+  const setView = (v: LedgerView) => {
     setSearchParams(
       (prev) => {
         prev.set('view', v)
@@ -62,6 +68,11 @@ export function LedgerPage() {
       },
       { replace: true },
     )
+    // Đổi tab chỉ đổi query string nên AppLayout không đưa nội dung về đầu — mà bốn
+    // tab dài ngắn khác nhau, đang cuộn giữa danh sách Ngày rồi bấm sang Lịch là mở
+    // ra giữa tháng.
+    scrollContentToTop()
+  }
 
   // null = "kỳ hiện tại": tính lazy theo month_start_day (profile tải async,
   // khởi tạo cứng trong useState sẽ chốt nhầm kỳ với ngày bắt đầu ≠ 1)
@@ -118,11 +129,17 @@ export function LedgerPage() {
   const allSelected =
     transactions.length > 0 && transactions.every((t) => selection.isSelected(t.id))
 
-  // Rời tab Ngày thì thoát chế độ chọn (Lịch/Tháng/Tổng hợp không phải danh sách).
+  // Thoát chế độ chọn khi đổi TAB hoặc đổi KỲ.
+  //
+  // Đổi kỳ mới là cái quan trọng: tập đã chọn giữ theo id, mà đổi tháng thì danh
+  // sách đổi hết trong khi thanh dưới vẫn "Đã chọn 2" và nút Xóa vẫn bấm được —
+  // bấm là xóa thật hai giao dịch của tháng cũ, đang không có trên màn hình, và
+  // hộp thoại cũng chỉ nói "Xóa 2 giao dịch?". Không có cách nào cứu ngoài việc
+  // đừng để tập chọn sống qua kỳ.
   useEffect(() => {
-    if (view !== 'daily') selection.exit()
+    selection.exit()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view])
+  }, [view, activeMonthKey.year, activeMonthKey.month])
 
   async function handleBulkDelete() {
     const ids = selection.selectedIds
@@ -130,15 +147,28 @@ export function LedgerPage() {
     if (
       !(await confirmDialog({
         title: `Xóa ${ids.length} giao dịch?`,
-        message: 'Không hoàn tác được.',
+        message: 'Xóa xong còn 5 giây để bấm Hoàn tác.',
         danger: true,
         confirmLabel: 'Xóa',
       }))
     )
       return
+    // Chụp lại TRƯỚC khi xóa để dựng lại được. Xóa lẻ trong sheet Sửa giao dịch đã
+    // có Hoàn tác từ lâu, còn xóa hàng loạt thì không — mà nó mới là cái xóa nhiều
+    // và khó gõ lại nhất. Cùng một trang thì phải cùng một mức an toàn.
+    const snapshot = transactions.filter((t) => ids.includes(t.id))
+    const tagsOf = new Map(snapshot.map((t) => [t.id, (tagsOfTx.get(t.id) ?? []).map((g) => g.id)]))
     await bulkDelete.mutateAsync(ids)
-    showToast(`Đã xóa ${ids.length} giao dịch`)
     selection.exit()
+    showUndoToast(`Đã xóa ${ids.length} giao dịch`, async () => {
+      // Tuần tự: repo demo ghi thẳng vào localStorage nên chạy song song dễ ghi đè nhau.
+      for (const t of snapshot) {
+        await repo.createTransaction(toNewTransaction(t, tagsOf.get(t.id)))
+      }
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+      qc.invalidateQueries({ queryKey: ['balances'] })
+      qc.invalidateQueries({ queryKey: ['search'] })
+    })
   }
 
   // Tab Tháng cần dữ liệu cả năm (12 tháng của monthKey.year)
@@ -233,7 +263,9 @@ export function LedgerPage() {
 
       {/* Cơ cấu chi so với mốc — chỉ ở tab Ngày. Tab Tháng đang điều hướng theo NĂM
           nên "tháng này chi thế nào" vô nghĩa ở đó; Lịch và Tổng hợp đã kín màn. */}
-      {view === 'daily' && axis && <AxisStrip data={axis} monthKey={activeMonthKey} />}
+      {view === 'daily' && axis && (
+        <AxisStrip data={axis} monthKey={activeMonthKey} base={base} />
+      )}
 
       {view === 'daily' && (
         <DailyView

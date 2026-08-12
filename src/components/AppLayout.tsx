@@ -289,7 +289,8 @@ export function AppLayout() {
 
       {/* Bottom tab bar mobile — thẻ nổi tách khỏi mép như sidebar desktop; ẩn ở trang
           nhập giao dịch để lấy thêm không gian. bottom = max(12px, dải an toàn iPhone). */}
-      <nav className={`fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 gap-1 rounded-2xl border border-border-subtle bg-surface p-1.5 shadow-lg shadow-gray-950/10 lg:hidden dark:shadow-black/50 print:hidden ${onEntry ? 'hidden' : 'flex'}`}>
+      {/* data-bottom-nav: móc để index.css ẩn thanh này khi thanh "chọn nhiều" đang mở */}
+      <nav data-bottom-nav className={`fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 gap-1 rounded-2xl border border-border-subtle bg-surface p-1.5 shadow-lg shadow-gray-950/10 lg:hidden dark:shadow-black/50 print:hidden ${onEntry ? 'hidden' : 'flex'}`}>
         {TABS.map((tab) => (
           <NavLink
             key={tab.to}

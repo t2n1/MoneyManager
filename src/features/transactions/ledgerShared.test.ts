@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
-import { amountDisplay, sumInBase, sumPerCurrency } from './ledgerShared'
+import { amountDisplay, sumInBase, sumPerCurrency, uncategorizedAmount } from './ledgerShared'
 
 // base = JPY: 1 ¥ = 165 ₫
 const RATES: Rates = { JPY: 1, VND: 165 }
@@ -113,5 +113,23 @@ describe('amountDisplay', () => {
       sign: '+',
       tone: 'in',
     })
+  })
+})
+
+describe('uncategorizedAmount', () => {
+  it('chênh lệch giữa tổng thật và tổng theo danh mục', () => {
+    expect(uncategorizedAmount(98_707, 90_930)).toBe(7_777)
+  })
+
+  it('khớp nhau thì không có gì để hiện', () => {
+    expect(uncategorizedAmount(90_930, 90_930)).toBe(0)
+  })
+
+  it('tổng thật nhỏ hơn (lát âm đã bị bỏ) → 0 chứ không phải số âm', () => {
+    expect(uncategorizedAmount(1_000, 1_500)).toBe(0)
+  })
+
+  it('làm tròn về đồng nguyên (tổng quy đổi ngoại tệ ra số lẻ)', () => {
+    expect(uncategorizedAmount(1_000.6, 500.2)).toBe(500)
   })
 })

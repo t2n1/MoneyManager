@@ -7,6 +7,7 @@
 import { Link } from 'react-router-dom'
 import { Card } from '../../components/ui'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
+import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { shareLabel, sharePct, type AxisKey, type AxisProgress } from './axisTargets'
 
 const LABEL: Record<AxisKey, string> = {
@@ -18,23 +19,29 @@ const LABEL: Record<AxisKey, string> = {
 interface Props {
   data: AxisProgress
   monthKey: MonthKey
+  base: CurrencyCode
 }
 
-export function AxisStrip({ data, monthKey }: Props) {
+export function AxisStrip({ data, monthKey, base }: Props) {
   const parts = data.lines.map((l) => `${LABEL[l.key]} ${shareLabel(l.share)}`).join(', ')
+  // Chi chưa gắn "mức cần thiết" KHÔNG nằm trong hai dòng đầu, nên ba con số có thể
+  // cộng lại không tới 100% mà không có gì giải thích. Khối đầy đủ ở tab Ngân sách có
+  // hẳn một dòng cảnh báo; ở đây chỉ đủ chỗ cho một mẩu chữ, nhưng có còn hơn không.
+  const missing = data.unclassified > 0 ? formatMoney(Math.round(data.unclassified), base) : null
 
   return (
     <Link
       to={`/budget?ym=${monthKeyString(monthKey)}`}
       className="mb-3 block"
-      aria-label={`Cơ cấu chi: ${parts}. Mở tab Ngân sách.`}
+      aria-label={`Cơ cấu chi: ${parts}.${missing ? ` Còn ${missing} chi chưa phân loại nên hai dòng đầu đang thiếu.` : ''} Mở tab Ngân sách.`}
     >
       <Card padding="sm" className="hover:bg-surface-sunken">
         <div className="mb-1.5 flex items-baseline justify-between gap-2">
-          <span className="text-2xs font-medium text-fg-muted">
+          <span className="min-w-0 truncate text-2xs font-medium text-fg-muted">
             Cơ cấu chi{data.estimated && ' (tạm tính)'}
+            {missing && <span className="text-fg-warn"> · thiếu {missing} chưa phân loại</span>}
           </span>
-          <span className="text-2xs text-fg-accent">Chi tiết</span>
+          <span className="shrink-0 text-2xs text-fg-accent">Chi tiết</span>
         </div>
 
         {/* aria-hidden: nội dung đã nằm gọn trong aria-label của thẻ liên kết, đọc lại
@@ -45,8 +52,13 @@ export function AxisStrip({ data, monthKey }: Props) {
             const markPct = Math.min(l.targetShare * 100, 100)
             return (
               <div key={l.key}>
-                <div className="flex items-baseline justify-between gap-1">
-                  <span className="truncate text-2xs text-fg-muted">{LABEL[l.key]}</span>
+                {/* flex-wrap + nhãn không co: ở 320px ô chỉ rộng ~85px, số chiếm ~48px
+                    nên nhãn bị cắt thành "Thiết y…". Cho số xuống hàng thay vì cắt tên
+                    trục — ở 375px trở lên vẫn đủ chỗ cho một hàng. */}
+                <div className="flex flex-wrap items-baseline justify-between gap-x-1">
+                  <span className="shrink-0 whitespace-nowrap text-2xs text-fg-muted">
+                    {LABEL[l.key]}
+                  </span>
                   <span className="shrink-0 text-xs tabular-nums">
                     <span className={`font-semibold ${l.ok ? 'text-money-in' : 'text-fg-warn'}`}>
                       {shareLabel(l.share)}

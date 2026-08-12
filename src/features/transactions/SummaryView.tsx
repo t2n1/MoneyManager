@@ -7,10 +7,10 @@ import type {
   TransactionRow,
   TransactionTagRow,
 } from '../../types/database.types'
-import { categoryBreakdown } from '../reports/aggregate'
+import { categoryBreakdown, sumIncomeExpense } from '../reports/aggregate'
 import { TagBreakdownCard } from '../reports/TagBreakdownCard'
 import { tagBreakdown } from '../tags/aggregate'
-import type { CurrencyOf } from './ledgerShared'
+import { uncategorizedAmount, type CurrencyOf } from './ledgerShared'
 
 // Bảng màu đồng bộ với ReportsPage / AssetsPage
 const PALETTE = [
@@ -62,7 +62,18 @@ export function SummaryView({
     [kind, transactions, tagLinks, tags, currencyOf, base, rates],
   )
 
-  const approx = breakdown.hasForeign ? '≈ ' : ''
+  // Tổng của KỲ, lấy từ cùng một hàm mà tab Ngày/Tháng dùng — không lấy
+  // `breakdown.total` (chỉ gộp giao dịch CÓ danh mục) làm tổng, kẻo cùng một
+  // tháng mà tab Tổng hợp báo ít hơn tab Ngày và không nói vì sao.
+  const sums = useMemo(
+    () => sumIncomeExpense(transactions, currencyOf, base, rates ?? {}),
+    [transactions, currencyOf, base, rates],
+  )
+  const total = kind === 'expense' ? sums.expense : sums.income
+  const noCategory = uncategorizedAmount(total, breakdown.total)
+
+  const approx = breakdown.hasForeign || sums.hasForeign ? '≈ ' : ''
+  const pctOf = (amount: number) => (total > 0 ? (amount / total) * 100 : 0)
   const rows = breakdown.slices.map((s, i) => {
     const cat = categoryOf(s.categoryId)
     return {
@@ -71,9 +82,23 @@ export function SummaryView({
       icon: cat?.icon ?? '📦',
       amount: s.amount,
       color: PALETTE[i % PALETTE.length],
-      pct: breakdown.total > 0 ? (s.amount / breakdown.total) * 100 : 0,
+      pct: pctOf(s.amount),
     }
   })
+  // Dòng cuối cho phần thiếu danh mục — xám và không màu như các lát kia, vì nó
+  // không phải một danh mục mà là việc-cần-làm.
+  if (noCategory > 0) {
+    rows.push({
+      id: '__no-category__',
+      name: 'Chưa phân loại',
+      icon: '📦',
+      amount: noCategory,
+      // Xám thay vì một màu trong PALETTE: nó không phải danh mục. Dùng token chứ
+      // không hex — gray-400 bị test design system chặn vì chỉ đạt 2,54:1.
+      color: 'var(--color-gray-500)',
+      pct: pctOf(noCategory),
+    })
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -104,7 +129,7 @@ export function SummaryView({
           className={`mt-1 text-2xl font-bold tabular-nums ${kind === 'expense' ? 'text-money-out' : 'text-money-in'}`}
         >
           {approx}
-          {formatMoney(breakdown.total, base)}
+          {formatMoney(Math.round(total), base)}
         </div>
       </div>
 

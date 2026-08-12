@@ -67,6 +67,22 @@ export function sumPerCurrency(
   return [...sums.entries()].map(([cur, v]) => formatMoney(v, cur)).join(' · ')
 }
 
+/**
+ * Phần thu/chi KHÔNG có danh mục = tổng thật − tổng đã gộp theo danh mục.
+ *
+ * `categoryBreakdown` bỏ giao dịch thiếu `category_id` (hàng nhập từ CSV/Zaim rất
+ * hay thiếu), nên lấy `total` của nó làm "Tổng chi tháng này" là ra một số NHỎ HƠN
+ * ô Chi ở tab Ngày, cùng một tháng, cùng một trang. Tab Ngân sách đã xử ca này
+ * bằng `foldUncategorized`; đây là bản cho danh sách.
+ *
+ * Kẹp ≥ 0: tổng thật nhỏ hơn tổng theo danh mục là chuyện không nên xảy ra (chỉ
+ * xảy ra khi một danh mục bị hoàn tiền âm và `categoryBreakdown` đã bỏ lát đó ra),
+ * và khi đó thà không hiện dòng nào còn hơn hiện một số âm vô nghĩa.
+ */
+export function uncategorizedAmount(realTotal: number, categorizedTotal: number): number {
+  return Math.max(0, Math.round(realTotal - categorizedTotal))
+}
+
 export interface AmountDisplay {
   sign: '+' | '-' | ''
   /** 'in' = màu thu · 'out' = màu chi · 'muted' = xám (không nằm trong Thu/Chi) */

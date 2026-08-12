@@ -51,7 +51,10 @@ export function TransactionItem({
       aria-pressed={selecting ? selected : undefined}
       // py-1.5: nội dung 2 dòng đã cao 38px, cả hàng ~50px — vẫn quá 44px vùng chạm,
       // nhưng danh sách dài nhất app (Sổ, chi tiết TK, tìm kiếm) đặc hơn ~15%.
-      className={`flex w-full items-center gap-3 px-3 py-1.5 text-left transition hover:bg-gray-50 dark:hover:bg-gray-800 ${selected ? 'bg-green-50 dark:bg-green-900/20' : ''}`}
+      // min-h-[3.125rem] = 50px: dòng CHUYỂN KHOẢN không có dòng phụ tên tài khoản nên
+      // chỉ cao 32px — vừa lọt xuống dưới vùng chạm 44px, vừa thành một chỗ hụt giữa
+      // các dòng 50px xung quanh. Kê sàn cho bằng, không nong dòng thường ra.
+      className={`flex w-full min-h-[3.125rem] items-center gap-3 px-3 py-1.5 text-left transition hover:bg-gray-50 dark:hover:bg-gray-800 ${selected ? 'bg-green-50 dark:bg-green-900/20' : ''}`}
     >
       {selecting && (
         <span className="shrink-0">
@@ -65,9 +68,14 @@ export function TransactionItem({
       <span className="text-xl">{tx.type === 'transfer' ? <ArrowRightLeft className="h-5 w-5" /> : cat?.icon}</span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm text-fg-primary">
+          {/* Không có danh mục (hàng nhập từ CSV/Zaim hay thiếu) thì viết hẳn ra
+              "Chưa phân loại" — dấu "?" trơ trọi làm cả dòng đọc như dữ liệu lỗi.
+              Có id mà tra không ra (danh mục đã xóa) mới là "?" thật. */}
           {tx.type === 'transfer'
             ? `${accountName(tx.account_id)} → ${accountName(tx.to_account_id)}`
-            : (cat?.name ?? '?')}
+            : tx.category_id
+              ? (cat?.name ?? '?')
+              : 'Chưa phân loại'}
           {tx.note && <span className="text-fg-muted"> · {tx.note}</span>}
           {tx.recurring_rule_id && (
             <Repeat

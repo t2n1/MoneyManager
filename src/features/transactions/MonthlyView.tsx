@@ -15,7 +15,7 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
   const approx = hasForeign ? '≈ ' : ''
   const yearIncome = points.reduce((s, p) => s + p.income, 0)
   const yearExpense = points.reduce((s, p) => s + p.expense, 0)
-  const active = points.some((p) => p.income > 0 || p.expense > 0)
+  const active = points.some((p) => p.income !== 0 || p.expense !== 0)
 
   return (
     <div className="flex flex-col gap-3">
@@ -69,10 +69,25 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
                 >
                   <span className="text-left font-medium text-gray-700 dark:text-gray-300">Th {p.key.month}</span>
                   <span className={`tabular-nums ${empty ? 'text-gray-300 dark:text-gray-600' : 'text-money-in'}`}>
-                    {p.income > 0 ? formatMoney(p.income, base) : '–'}
+                    {p.income !== 0 ? formatMoney(p.income, base) : '–'}
                   </span>
-                  <span className={`tabular-nums ${empty ? 'text-gray-300 dark:text-gray-600' : 'text-money-out'}`}>
-                    {p.expense > 0 ? formatMoney(p.expense, base) : '–'}
+                  {/* Chi ÂM = tháng đó hoàn tiền nhiều hơn chi. Cùng quy ước với tab
+                      Ngày và ô lịch: đổi dấu thành + và lấy màu thu, chứ không phải
+                      để `> 0` rồi hiện "–" như thể tháng đó không chi gì. */}
+                  <span
+                    className={`tabular-nums ${
+                      empty
+                        ? 'text-gray-300 dark:text-gray-600'
+                        : p.expense < 0
+                          ? 'text-money-in'
+                          : 'text-money-out'
+                    }`}
+                  >
+                    {p.expense === 0
+                      ? '–'
+                      : p.expense < 0
+                        ? `+${formatMoney(-p.expense, base)}`
+                        : formatMoney(p.expense, base)}
                   </span>
                   <span
                     className={`tabular-nums font-medium ${

@@ -9,7 +9,13 @@
 Khối Nhãn trong form Nhập nhìn lộn xộn hơn mức nội dung của nó xứng đáng, và nó
 **không nói cùng một thứ tiếng với phần còn lại của trang**.
 
-Đo trên dữ liệu thật (2 nhóm: `Ai?` có 2 nhãn, `Ở đâu?` rỗng):
+Ảnh chụp dùng để soi mấy lỗi dưới đây là **localhost**, không phải dữ liệu thật: ở đó
+`Ai?` có 2 nhãn và `Ở đâu?` rỗng, còn bản chạy thật thì `Ở đâu?` đã có nhãn. Nên mọi
+lỗi *hình dạng* dưới đây vẫn đúng (chúng không phụ thuộc số nhãn), nhưng **không được
+suy con số nào từ ảnh đó** — số nhãn thật, và có hay không mục `Khác`, đều chưa biết.
+
+Điều duy nhất chắc chắn về dữ liệu, do người dùng chốt: **đúng 2 nhóm (`Ai?`,
+`Ở đâu?`), không có ý định thêm nhóm mới.**
 
 | Chỗ hỏng | Hiện trạng |
 |---|---|
@@ -60,6 +66,8 @@ xám trung tính (`CHIP_OFF`), bật thì lên màu. Ô chọn nhãn lại tự 
 | 6 | Chiều cao chip | **44px** (`min-h-11`) | Chuẩn của họ chip / hàng bấm được: `CHIP_BASE`, dòng menu Lặp lại, nút mở vai trò đều `min-h-11`. 40px là con số không giống ai. (Ô nhập chữ trong trang thì nhỏ hơn — ngày 34px, ghi chú 38px — nên ô tìm không đổi theo) |
 | 7 | Tiêu đề "Nhãn" | **Giữ**, đổi `(không bắt buộc)` → `(tùy chọn)` | Khi mọi nhóm còn rỗng thì không còn gì nói đây là chỗ gắn nhãn. Và đặt chữ tên cho một nhóm chip là việc `roleFields` đã làm sẵn bằng `labelCls` |
 | 8 | Tách ô "hoàn tiền" | **Nới khoảng cách, KHÔNG kẻ vạch** | Trong form này không có vạch kẻ nào; các khối chỉ cách nhau bằng khoảng trống |
+| 9 | Số nhãn hiện sẵn mỗi nhóm | **Theo số nhóm**: `groups.length <= 2 ? 4 : 3` | Số 3 sinh ra vì lúc đó tính có 3 mục, mỗi mục thêm MỘT hàng tiêu đề riêng. Nay tiêu đề nằm cùng hàng với chip và chỉ có 2 nhóm → chỗ đó dư ra, trả lại cho nhãn |
+| 10 | Ô tìm | Chỉ hiện khi **có hơn 6 nhãn**, hoặc đang ở chế độ tạo | "Tìm trong 3 nhãn…" là ô vô nghĩa chiếm 36px |
 
 **Chuyện chip chỉ có emoji:** nhãn nhóm `Ai?` của người dùng đặt tên bằng emoji
 (👥, ❤️). Không thêm ô chữ nào vào DB chỉ để hiển thị — không đáng. Trong form Nhập
@@ -98,6 +106,11 @@ tâm **hàng chip đầu tiên** (không phải tâm cả khối, khi chip xuố
 
 Chữ dùng đúng token của `labelCls`: `text-xs font-medium text-fg-muted`, thêm
 `truncate` + `title` — tên nhóm do người dùng tự đặt nên có thể dài hơn 64px.
+
+**Giữ 64px, chưa hạ xuống 56px.** Ở cỡ chữ này `Ở đâu?` chỉ chiếm ~40px nên 56px là
+đủ, nhưng tên nhóm trên bản chạy thật **chưa biết chắc** (bản gốc migration seed là
+`Với ai?`, còn ảnh localhost hiện `Ai?` — tức đã có chỗ bị đổi tên). Đo tên thật trước,
+cả hai tên ≤ 6 ký tự thì hạ `w-16` → `w-14`, trả 8px cho chip.
 
 **Chiều cao cột tên phải bằng chiều cao hàng đầu**, không thì chữ lệch so với chip:
 `h-11` ở hàng có chip, `h-7` ở hàng rỗng (xem dưới). Một class theo trạng thái, không
@@ -160,8 +173,15 @@ Luôn hiện, kể cả khi chưa có nhãn nào và chưa có nhóm nào.
 
 ### Ô tìm kiêm ô tạo
 
-Mở ra là **luôn** có ô tìm (trước chỉ hiện khi `total > COLLAPSED_LIMIT`). Placeholder
-đổi theo: `Tìm trong N nhãn…`, hoặc `Tên nhãn mới…` khi chưa có nhãn nào.
+Ô này có **hai vai**, và điều kiện hiện khác nhau:
+
+| Vai | Hiện khi | Placeholder |
+|---|---|---|
+| Ô tìm | `total > 6` | `Tìm trong N nhãn…` |
+| Ô nhập tên nhãn mới | `openMode === 'create'` (bấm `＋ Thêm nhãn`) | `Tên nhãn mới…` |
+
+Nghĩa là mở khối bằng `Tất cả (N)` khi chỉ có 5 nhãn thì **không có ô nào cả** — chỉ
+là danh sách nhãn đầy đủ. Mắt đọc 5 nhãn nhanh hơn tay gõ, ô tìm ở đó chỉ chiếm 36px.
 
 **Tự bật con trỏ hay không, tùy nút nào mở.** Bấm `＋ Thêm nhãn` là muốn gõ →
 `autoFocus`. Bấm `Tất cả (12)` là muốn lướt → không, vì bàn phím bật lên che đúng cái
@@ -245,19 +265,65 @@ createTargets(tags, sections, query) → { group: TagGroupRow | null }[]
 
 `pickerSections` không đổi — kiểm thử hiện có giữ nguyên, phải vẫn xanh.
 
+Thêm cho `collapsedLimit` — kiểm riêng nó, không kiểm gián tiếp qua `pickerSections`:
+
+| Ca | Kỳ vọng |
+|---|---|
+| 0, 1, 2 nhóm | `4` |
+| 3 nhóm trở lên | `3` |
+
+Rồi một ca `pickerSections` dùng limit 4 để chắc rằng nhóm có 4 nhãn thì `rest` rỗng và
+nhóm có 6 nhãn thì `rest` còn 2 — đây là tính chất của `pickerTags`, chỉ cần một ca
+xác nhận nó vẫn đúng ở con số mới.
+
 Kiểm bằng `npm run build`, không chỉ `tsc --noEmit`.
+
+## Số nhãn hiện sẵn — vì sao dám nâng lên 4
+
+```
+collapsedLimit(groupCount) = groupCount <= 2 ? 4 : 3
+```
+
+Hàm nhỏ, xuất ra từ `groups.ts` để kiểm thử được, gọi từ `TagPicker` thay cho hằng số
+`COLLAPSED_LIMIT`.
+
+**Buộc vào số NHÓM, không phải số mục** — và đây là chỗ mình viết sai ở bản đầu, phải
+sửa: `sections.length` không dùng được vì `sections` là *kết quả* của
+`pickerSections(…, limit)`, tức phải có limit trước mới có nó. Vòng tròn.
+
+Cũng **không** đổi `pickerSections` thành tự tính limit bên trong. Tám ca kiểm thử hiện
+có đang dùng limit làm núm xoay (`limit: 2` để kiểm thứ tự xếp hạng, `8` để kiểm "ít hơn
+limit thì hiện hết"). Chôn limit vào trong là mất núm đó, và làm mấy test xếp hạng phụ
+thuộc vào luật limit — hai thứ chẳng liên quan gì nhau. Chữ ký `pickerSections` **giữ
+nguyên**, tests hiện có **không phải sửa dòng nào**.
+
+Đánh đổi phải nói ra: nếu mục `Khác` tự xuất hiện (khôi phục bản sao lưu lệch, nhãn
+trỏ tới nhóm đã xoá) thì có 3 mục mà limit vẫn 4 — ca xấu nhất cao thêm ~50px. Chấp
+nhận, vì đó là ca hiếm và đã có đường lùi ở mục Chiều cao (đo, vượt thì hạ xuống 3).
+Không lặp lại logic "mục Khác có xuất hiện hay không" ở hai chỗ để rồi hai bên trôi
+khác nhau.
+
+`pickerTags` đã có sẵn tính chất "ít hơn limit thì hiện hết", nên nhóm nào có ≤4 nhãn
+là không còn nhãn nào bị ẩn — hết phải bấm `Tất cả` cho nhóm đó.
 
 ## Chiều cao — nói thẳng
 
-Bản này **không thấp hơn** bản cũ. Ước với 2 nhóm + mục Khác, mỗi nhóm 2–3 nhãn:
-hiện ~204px (số đo đã ghi trong `TagPicker.tsx`), sau khi sửa ~210px. Chip từ 36px
-lên 44px ăn lại đúng phần chỗ mà việc gộp hàng tiết kiệm được.
+Bản này **không thấp hơn** bản cũ, và với limit 4 thì có thể cao hơn.
 
-Cái thu được không phải chiều cao, mà là: bớt 2–3 nút nét đứt, chip đọc được, vùng
-chạm đủ 44px, và khối này thôi nói tiếng riêng.
+| Ca | Ước |
+|---|---|
+| 2 nhóm, mỗi nhóm 2–3 nhãn ngắn (1 hàng chip mỗi nhóm) | ~150px |
+| 2 nhóm, mỗi nhóm 4 nhãn tên dài (2 hàng chip mỗi nhóm) | ~252px ← ca xấu nhất |
+| 3 mục vì `Khác` tự xuất hiện, limit vẫn 4 | ~300px ← ca hiếm, xem đường lùi dưới |
+| Hiện tại, để so | 204px (số đo đã ghi trong `TagPicker.tsx`) |
 
-**Phải đo thật trên 375×812 sau khi code**, đúng như lần trước. Nếu vượt 260px thì hạ
-`COLLAPSED_LIMIT` từ 3 xuống 2, **không** đổi lại bố cục.
+Chip từ 36px lên 44px ăn lại đúng phần chỗ mà việc gộp hàng tiết kiệm được. Cái thu
+được không phải chiều cao, mà là: bớt 2–3 nút nét đứt, chip đọc được, vùng chạm đủ
+44px, và khối này thôi nói tiếng riêng.
+
+**Phải đo thật trên 375×812 sau khi code, bằng dữ liệu THẬT** — không phải localhost,
+vì số nhãn ở hai nơi khác nhau và chính chỗ đó quyết định chiều cao. Nếu ca xấu nhất
+vượt 260px thì hạ nhánh 2-mục từ 4 xuống 3, **không** đổi lại bố cục.
 
 ## Ngoài phạm vi
 

@@ -509,10 +509,10 @@ hoãn theo (chế độ kiểm mã của edge function vẫn làm, để gọi b
 - **Trễ một phiên** so với app Rakuten.
 - **Không có giá trong ngày.** Quỹ đầu tư không có khái niệm đó.
 - **Ngày lễ Nhật không có 基準価額.** Cron chạy, không thấy phiên mới, không ghi gì.
-- **Lãi/lỗ ở cấp TÀI KHOẢN vẫn dùng số dư sổ.** Khu "Danh mục quỹ" khớp Rakuten tuyệt đối,
-  nhưng "Hiệu quả đầu tư" ở cấp tài khoản lấy `market_value − số dư sổ`. Số dư sổ chỉ đúng
-  khi dòng tiền được ghi đúng hình dạng — xem mục dưới. Việc chỉnh sổ nằm ngoài phạm vi
-  code của tính năng này, nhưng công thức thì đã rõ, không phải "tự mò".
+- **"Hiệu quả đầu tư" ở cấp TÀI KHOẢN sẽ vẫn vô nghĩa với tài khoản này**, và không sửa
+  được bằng cách ghi sổ cho đúng. Tài khoản đã bị rút sạch rồi nạp lại nên `nạp − rút` ra
+  số âm. Khu "Danh mục quỹ" là chỗ duy nhất có con số lãi/lỗ đúng. Xem mục "Dòng tiền thật
+  của 積立" để biết vì sao và đừng đi sửa sổ với hy vọng chữa được chỗ này.
 - **Quỹ không nằm trong thư viện hiệp hội** (quỹ nước ngoài, ETF niêm yết) không dùng được
   đường này. ETF Nhật đi đường Yahoo `.T` — việc khác.
 - **Tài khoản trộn cổ phiếu VN và quỹ Nhật** bị bỏ qua có chủ ý.
@@ -550,12 +550,44 @@ phần lẻ (vd 2026-04-08: thẻ 68.725 + điểm 1.275).
 | Việc thật | Ghi trong app |
 |---|---|
 | Ngày 8–10: Rakuten trừ **thẻ Rakuten Card** phần lớn số tiền | **Chuyển khoản** thẻ Rakuten Card → tài khoản NISA. **KHÔNG phải "Chi".** |
-| Cùng ngày: phần lẻ trừ bằng **điểm Rakuten** | **Thu** vào tài khoản NISA (tiền từ ngoài sổ vào) |
+| Cùng ngày: phần lẻ trừ bằng **điểm Rakuten** | **Không ghi gì** — chủ app không theo dõi điểm Rakuten (quyết định 2026-08-12) |
 | Ngày 27: sao kê thẻ bị trừ từ **Rakuten Bank** | app đã có sẵn phần trả thẻ tự động (`src/lib/cardAutopay.ts`) — không phải ghi thêm |
 
 Mua quỹ **không phải tiêu tiền**, chỉ là tiền đổi hình dạng — nên nó là chuyển khoản, không
-phải chi. Ghi đúng ba bước trên thì số dư sổ của tài khoản NISA tự tăng đúng 70.000 mỗi
-tháng, bằng đúng giá vốn, và "Hiệu quả đầu tư" ở cấp tài khoản tự đúng.
+phải chi.
+
+### Ghi sổ đúng KHÔNG làm "Hiệu quả đầu tư" cấp tài khoản có nghĩa
+
+Đừng kỳ vọng chỗ này, và đừng đi sửa sổ với hy vọng đó — bản đầu của tài liệu này nói sai.
+
+Tài khoản đã bị **rút sạch rồi nạp lại**: 2026-04-13 bán hết, `自動出金(スイープ)` chuyển
+**387.221 ¥** ra ngoài; hôm sau nạp lại 70.000 ¥. Cộng cả đời tài khoản (không tính điểm):
+
+```
+tiền thật vào  1.932.306 ¥
+tiền ra        2.231.521 ¥
+số dư sổ "đúng"  −299.215 ¥
+```
+
+`investmentStats` trả `pnlPercent = null` khi vốn gốc ≤ 0 — nên dù ghi sổ chính xác tới đâu,
+ô đó vẫn vô nghĩa với một tài khoản có lịch sử như vậy. Mô hình "vốn gốc = nạp − rút" không
+mô tả được một tài khoản đã đóng rồi mở lại.
+
+**Con số duy nhất có nghĩa là giá vốn từ sổ lệnh** (khu "Danh mục quỹ"). Đó chính là lý do
+quyết định ④ chọn nó, và lý do đó nay mạnh hơn lúc đầu.
+
+### Vậy sửa sổ để làm gì
+
+Hai lý do, cả hai không liên quan tới lãi/lỗ:
+
+1. **Báo cáo chi tiêu đang bị phồng.** Bảy kỳ 2025-10 → 2026-04 là **490.000 ¥** bị đếm là
+   tiêu, thật ra là mua tài sản.
+2. **Tài sản ròng tụt mỗi lần đầu tư**, đúng lúc lẽ ra phải đứng yên.
+
+Vì bỏ qua phần điểm Rakuten, số dư tài khoản NISA sẽ **thiếu đúng tổng số điểm đã dùng**
+(26.909 ¥ trong 7 kỳ gần nhất, 70.508 ¥ cả đời). Chấp nhận có ý thức: điểm là tiền
+"trời cho" đã được ghi nhận ở nơi khác dưới dạng chi tiêu sinh ra điểm, và nó không đổi được
+kết luận ở mục trên.
 
 > **Ghi khoản 積立 thành "Chi" là lỗi đắt nhất ở đây**, và là lỗi rất dễ mắc vì con số đó
 > xuất hiện trên **sao kê thẻ Rakuten** — mà sao kê thẻ thì được import vào app qua
@@ -606,6 +638,43 @@ Cần môi trường sống:
    thật sự trống khi đó) và đợt bán sạch 2026-04-13.
 6. Hẹn cron, một phiên sau kiểm `max(updated_at)` của `fund_prices` — **không** đọc
    `nav_date` để kết luận.
+
+## Hai việc kèm theo — KHÔNG thuộc tính năng này
+
+Cùng phát hiện ra từ sao kê, nhưng là việc riêng: chúng sửa **dữ liệu sổ thu chi**, không
+đụng gì tới quỹ. Làm hay không làm cũng không ảnh hưởng khu "Danh mục quỹ".
+
+### (a) `scripts/sua-tich-luy-thanh-chuyen-khoan.mjs` — sửa dữ liệu cũ
+
+Đổi các giao dịch **Chi** trên thẻ Rakuten Card thành **chuyển khoản** sang tài khoản NISA.
+
+- Khớp bằng **số tiền + ngày** lấy từ sao kê (`入金(クレジットカード決済ご利用分)`), cửa sổ
+  ±3 ngày. Số tiền đều lẻ (68.725 / 67.833 / 50.212 …) nên gần như không thể khớp nhầm; dòng
+  nào khớp nhiều hơn một giao dịch thì **báo ra và bỏ qua**, không tự chọn.
+- `--dry-run` là mặc định; in bảng "sẽ đổi gì" rồi mới cho `--ghi`.
+- Cần quyền ghi. Theo đúng khuôn [scripts/doi-cron-secret.mjs](../../../scripts/doi-cron-secret.mjs):
+  hỏi khoá ở **ô nhập kín**, không in ra, không vào argv, không vào lịch sử shell. Người
+  chạy script là chủ app, không phải tôi.
+- **Không** ghi phần điểm Rakuten (quyết định: không theo dõi điểm).
+
+### (b) Quy tắc định kỳ cho các tháng sau
+
+App đã có quy tắc định kỳ, và nó **hỗ trợ chuyển khoản**
+([RecurringFormSheet.tsx:142](../../../src/features/recurring/RecurringFormSheet.tsx#L142) —
+có `to_account_id`). Đặt tay trong app, không cần code:
+
+| Ô | Giá trị |
+|---|---|
+| Loại | Chuyển khoản |
+| Từ tài khoản | thẻ Rakuten Card |
+| Đến tài khoản | tài khoản NISA (Rakuten Securities) |
+| Số tiền | 70.000 ¥ |
+| Ngày | mùng 8 mỗi tháng |
+
+Số tiền thật mỗi kỳ lệch khỏi 70.000 đúng bằng phần điểm đã dùng (thường vài trăm tới vài
+nghìn yên, một lần lên tới 19.788 ¥ hồi 2025-12). Sửa lại con số của kỳ đó sau khi sao kê thẻ
+về là đủ — hoặc để nguyên và chấp nhận nợ thẻ nhích lên chút, vì phần chênh không đổi được
+kết luận nào ở mục "Dòng tiền thật của 積立".
 
 ## Chỗ tài liệu phải cập nhật
 

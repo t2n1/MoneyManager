@@ -1,12 +1,13 @@
-import { ArrowRightLeft, CheckCircle2, Circle, HandCoins, Repeat } from 'lucide-react'
+import { ArrowRightLeft, CheckCircle2, Circle, HandCoins, Repeat, Undo2 } from 'lucide-react'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
 import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
+import { amountDisplay, type AmountDisplay } from './ledgerShared'
 
-const AMOUNT_STYLE: Record<TransactionRow['type'], { color: string; sign: string }> = {
-  expense: { color: 'text-money-out', sign: '-' },
-  income: { color: 'text-money-in', sign: '+' },
-  transfer: { color: 'text-fg-muted', sign: '' },
+const TONE_CLASS: Record<AmountDisplay['tone'], string> = {
+  in: 'text-money-in',
+  out: 'text-money-out',
+  muted: 'text-fg-muted',
 }
 
 interface Props {
@@ -38,7 +39,7 @@ export function TransactionItem({
   tags = [],
 }: Props) {
   const cat = categoryOf(tx.category_id)
-  const style = AMOUNT_STYLE[tx.type]
+  const style = amountDisplay(tx)
   const srcCur = accountOf(tx.account_id)?.currency ?? base
   const dstCur = tx.to_account_id ? (accountOf(tx.to_account_id)?.currency ?? srcCur) : srcCur
   const accountName = (id: string | null) => accountOf(id)?.name ?? '?'
@@ -80,6 +81,16 @@ export function TransactionItem({
               className="ml-1 inline h-3 w-3 align-baseline text-fg-warn"
             />
           )}
+          {/* Hoàn tiền mang dấu + như một khoản thu, nên phải nói rõ nó là gì.
+              Bút toán điều chỉnh số dư thì chỉ cần chữ xám (xem `amountDisplay`)
+              — tên danh mục của nó đã là "Điều chỉnh số dư" rồi. */}
+          {tx.is_refund && (
+            <Undo2
+              aria-label="Hoàn tiền — trừ vào chi của danh mục này"
+              className="ml-1 inline h-3 w-3 align-baseline text-fg-muted"
+            />
+          )}
+          {tx.exclude_from_stats && <span className="sr-only"> (không tính vào Thu/Chi)</span>}
         </span>
         {/* Dòng phụ: tài khoản + chip nhãn. Nhãn cắt ngang danh mục nên chỉ thấy
             nó ở báo cáo là không đủ — phải thấy ngay trên dòng để biết khoản này
@@ -101,7 +112,7 @@ export function TransactionItem({
           </span>
         )}
       </span>
-      <span className={`text-right text-sm font-semibold tabular-nums ${style.color}`}>
+      <span className={`text-right text-sm font-semibold tabular-nums ${TONE_CLASS[style.tone]}`}>
         {style.sign}
         {formatMoney(tx.amount, srcCur)}
         {tx.to_amount != null && (

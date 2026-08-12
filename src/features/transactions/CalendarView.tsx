@@ -10,6 +10,7 @@ import {
   WEEKDAYS_SHORT,
   type CurrencyOf,
 } from './ledgerShared'
+import { expenseSign } from '../reports/aggregate'
 import { TransactionItem } from './TransactionItem'
 
 interface Props {
@@ -69,8 +70,9 @@ export function CalendarView({
       const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates ?? {})
       if (v === null) continue
       const cur = map.get(t.occurred_on) ?? { income: 0, expense: 0 }
+      // Hoàn tiền là chi ÂM, giống sumInBase và mọi module báo cáo.
       if (t.type === 'income') cur.income += v
-      else cur.expense += v
+      else cur.expense += v * expenseSign(t)
       map.set(t.occurred_on, cur)
     }
     return map
@@ -144,8 +146,13 @@ export function CalendarView({
                   {sums && sums.income > 0 && (
                     <span className="break-all text-money-in">{formatMoney(sums.income, base)}</span>
                   )}
-                  {sums && sums.expense > 0 && (
-                    <span className="break-all text-money-out">{formatMoney(sums.expense, base)}</span>
+                  {/* Chi âm = ngày đó hoàn tiền nhiều hơn chi → đọc như một khoản tiền vào */}
+                  {sums && sums.expense !== 0 && (
+                    <span
+                      className={`break-all ${sums.expense > 0 ? 'text-money-out' : 'text-money-in'}`}
+                    >
+                      {formatMoney(Math.abs(sums.expense), base)}
+                    </span>
                   )}
                 </span>
               </button>

@@ -4,6 +4,7 @@
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
+import { expenseSign } from '../reports/aggregate'
 
 export const WEEKDAYS = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy']
 export const WEEKDAYS_SHORT = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
@@ -27,6 +28,8 @@ export interface Sum {
  * - null khi thiếu tỷ giá → caller fallback (tách loại tiền)
  * Chuyển khoản, dòng tiền nợ/cho vay (is_debt_flow) và giao dịch nội bộ
  * (exclude_from_stats) KHÔNG tính vào thu/chi — giống mọi module báo cáo.
+ * Hoàn tiền là chi ÂM (`expenseSign`), cũng giống mọi module báo cáo: cộng dồn
+ * nó vào chi thì ô "Chi" của Sổ cao hơn Báo cáo đúng hai lần khoản hoàn.
  */
 export function sumInBase(
   txs: TransactionRow[],
@@ -43,7 +46,7 @@ export function sumInBase(
     if (cur !== base) hasForeign = true
     const v = convertToBase(t.amount, cur, base, rates ?? {})
     if (v === null) return null
-    value += v
+    value += kind === 'expense' ? v * expenseSign(t) : v
   }
   return { value, hasForeign }
 }
@@ -58,10 +61,41 @@ export function sumPerCurrency(
   for (const t of txs) {
     if (t.type !== kind || t.is_debt_flow || t.exclude_from_stats) continue
     const cur = currencyOf(t.account_id)
-    sums.set(cur, (sums.get(cur) ?? 0) + t.amount)
+    sums.set(cur, (sums.get(cur) ?? 0) + (kind === 'expense' ? t.amount * expenseSign(t) : t.amount))
   }
   if (sums.size === 0) return '0'
   return [...sums.entries()].map(([cur, v]) => formatMoney(v, cur)).join(' · ')
+}
+
+export interface AmountDisplay {
+  sign: '+' | '-' | ''
+  /** 'in' = màu thu · 'out' = màu chi · 'muted' = xám (không nằm trong Thu/Chi) */
+  tone: 'in' | 'out' | 'muted'
+}
+
+/**
+ * Dấu và màu của số tiền trên một dòng giao dịch.
+ *
+ * Quy ước một câu: **xám = khoản này KHÔNG nằm trong ô Thu/Chi**. Trước đây chỉ
+ * chuyển khoản được xám, còn bút toán điều chỉnh số dư và dòng tiền nợ/cho vay
+ * vẫn đỏ y hệt một khoản chi thật — người đọc cộng các dòng trong ngày lại thì
+ * không ra con số ở đầu ngày, mà không có gì trên màn hình giải thích vì sao.
+ * Ba loại đó bị `sumInBase` bỏ qua nên phải nhìn ra được là chúng đứng ngoài.
+ *
+ * Dấu vẫn giữ (trừ chuyển khoản) vì tiền có ra có vào thật — chỉ là không được
+ * tính vào thu/chi.
+ *
+ * Hoàn tiền thì NGƯỢC LẠI: nó vẫn nằm trong Chi (dưới dạng số âm), và tiền quay
+ * lại ví nên mang dấu +. Có vậy tổng đầu ngày mới bằng đúng tổng các dòng.
+ */
+export function amountDisplay(
+  t: Pick<TransactionRow, 'type' | 'is_refund' | 'is_debt_flow' | 'exclude_from_stats'>,
+): AmountDisplay {
+  if (t.type === 'transfer') return { sign: '', tone: 'muted' }
+  const sign = t.type === 'income' ? '+' : '-'
+  if (t.is_debt_flow || t.exclude_from_stats) return { sign, tone: 'muted' }
+  if (t.type === 'expense' && t.is_refund) return { sign: '+', tone: 'in' }
+  return { sign, tone: t.type === 'income' ? 'in' : 'out' }
 }
 
 /** "≈ ¥123.456" nếu có ngoại tệ, ngược lại "¥123.456". */

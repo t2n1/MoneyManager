@@ -61,13 +61,18 @@ export function DailyView({
             <section key={day}>
               <div className="mb-1 flex items-baseline justify-between px-1 text-xs text-fg-muted">
                 <span className="font-medium">{formatDayHeader(day)}</span>
+                {/* Chi của một ngày có thể ÂM (hoàn tiền nhiều hơn chi trong ngày đó)
+                    — khi ấy đổi dấu và màu, chứ đừng in ra "-¥-400". */}
                 <span className="tabular-nums">
                   {dayIncome && dayIncome.value > 0 && (
                     <span className="text-money-in">+{approxLabel(dayIncome, base)}</span>
                   )}
-                  {dayIncome && dayIncome.value > 0 && dayExpense && dayExpense.value > 0 && ' · '}
-                  {dayExpense && dayExpense.value > 0 && (
-                    <span className="text-money-out">-{approxLabel(dayExpense, base)}</span>
+                  {dayIncome && dayIncome.value > 0 && dayExpense && dayExpense.value !== 0 && ' · '}
+                  {dayExpense && dayExpense.value !== 0 && (
+                    <span className={dayExpense.value > 0 ? 'text-money-out' : 'text-money-in'}>
+                      {dayExpense.value > 0 ? '-' : '+'}
+                      {approxLabel({ ...dayExpense, value: Math.abs(dayExpense.value) }, base)}
+                    </span>
                   )}
                 </span>
               </div>

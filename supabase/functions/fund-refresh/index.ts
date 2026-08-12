@@ -292,9 +292,20 @@ Deno.serve(async (req) => {
           continue
         }
 
-        const { marketValue } = fundValue(holdings, navByFund)
-        if (marketValue === null) {
-          demBoQua(kq, 'thieu-gia-moi-quy')
+        // Thiếu giá MỘT PHẦN quỹ đang giữ cũng phải bỏ, không chỉ khi thiếu giá MỌI quỹ:
+        // `fundValue` chỉ trả `marketValue = null` lúc mất giá CẢ danh sách đang giữ; mất
+        // giá một quỹ vẫn trả số (quỹ đó tạm tính theo giá vốn, tên nằm trong
+        // `missingNavs`) — ghi số đó là ghi một con số sai (chủ app giữ hai quỹ ⇒ lệch cỡ
+        // 40%) mà vẫn đóng dấu 'auto', trông như đúng. Chốt ③b của `planFundBackfill` đã
+        // sửa đúng chỗ này ở lần trước; cron thì chưa vì `missingNavs` trước giờ không ai
+        // đọc ở đây — xem lại upsert dưới, khoá `account_id,valued_on` không tự đè hàng
+        // sai của HÔM NAY bằng hàng của ngày mai, nên số sai nằm lại vĩnh viễn.
+        const { marketValue, missingNavs } = fundValue(holdings, navByFund)
+        if (missingNavs.length > 0 || marketValue === null) {
+          // Tên lý do phải NÓI ĐÚNG diện bị thiếu: 'thieu-gia-moi-quy' (mọi quỹ) khác
+          // hẳn tình huống chỉ một phần quỹ đang giữ thiếu giá — người đọc log cần phân
+          // biệt được hai ca đó mà không phải mở `loi` ra soát.
+          demBoQua(kq, missingNavs.length === holdings.length ? 'thieu-gia-moi-quy' : 'thieu-gia-mot-so-quy')
           continue
         }
 

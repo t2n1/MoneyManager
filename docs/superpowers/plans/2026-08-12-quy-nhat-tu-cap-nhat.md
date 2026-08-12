@@ -3999,4 +3999,399 @@ git commit -m "feat(quy-nhat): script nhap sao ke Rakuten — bat bien 口数 am
 
 ---
 
-**Kế hoạch còn Task 12–15. Xem phần tiếp ở cuối file này.**
+## Task 12: `FundHoldingsSection` — khu "Danh mục quỹ"
+
+**Files:**
+- Create: `src/features/assets/FundHoldingsSection.tsx`
+- Modify: `src/features/assets/AccountDetailPage.tsx:477-486` (thêm nhánh JPY)
+
+**Interfaces:**
+- Consumes: `useFunds`, `useFundPrices`, `useFundTrades` (Task 6); `fundHoldingsFromTrades`, `sessionNavs`, `fundValue`, `NAV_UNITS` (Task 2).
+- Produces: `<FundHoldingsSection account onAddTrade onEditTrade />` — cùng hình dạng props với `HoldingsSection` trừ `balance` (mô hình quỹ không dùng số dư sổ).
+
+- [ ] **Step 1: Viết component**
+
+```tsx
+// Khu "Danh mục quỹ" trên trang chi tiết tài khoản đầu tư JPY: từng quỹ đang giữ, 取得単価,
+// 基準価額 mới nhất, và lãi/lỗ.
+//
+// File riêng (không nhét vào AccountDetailPage) vì trang đó đã hơn 500 dòng. Mọi phép tính
+// nằm ở fundHoldings.ts — ở đây chỉ đọc dữ liệu và bày ra.
+//
+// KHÁC HoldingsSection (cổ phiếu Việt Nam) ở hai chỗ đáng nói:
+//  · Không có dòng "Tiền chưa đầu tư": Rakuten tự quét sạch tiền dư về 楽天銀行, tài khoản
+//    không giữ tiền nhàn rỗi. Xem fundHoldings.ts, lý do 3.
+//  · Lãi/lỗ ở đây tính từ giá vốn của SỔ LỆNH, nên khớp app Rakuten bất kể sổ thu chi có
+//    ghi đủ các lần nạp tiền hay không. Ô "Hiệu quả đầu tư" ở cấp tài khoản thì vẫn dùng
+//    số dư sổ và sẽ KHÔNG khớp — đó là giới hạn đã biết, xem spec.
+import { useMemo } from 'react'
+import { Guide } from '../../components/Guide'
+import { EstimateMark } from '../../components/EstimateMark'
+import { Card, Money, SectionTitle } from '../../components/ui'
+import { useFundPrices, useFunds, useFundTrades } from '../../hooks/queries'
+import type { AccountRow, FundTradeRow } from '../../types/database.types'
+import {
+  fundHoldingsFromTrades,
+  fundValue,
+  sessionNavs,
+  NAV_UNITS,
+  type FundTrade,
+} from './fundHoldings'
+
+interface Props {
+  account: AccountRow
+  onAddTrade: () => void
+  onEditTrade: (trade: FundTradeRow) => void
+}
+
+const pct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1).replace('.', ',')}%`
+
+/** Ngày ISO → dd/mm để đọc nhanh. */
+const ngayNgan = (iso: string) => `${iso.slice(5, 7)}/${iso.slice(8, 10)}`
+
+export function FundHoldingsSection({ account, onAddTrade, onEditTrade }: Props) {
+  const { data: allTrades = [] } = useFundTrades()
+  const { data: navRows = [] } = useFundPrices()
+  const { data: funds = [] } = useFunds()
+
+  const trades = useMemo(
+    () => allTrades.filter((t) => t.account_id === account.id),
+    [allTrades, account.id],
+  )
+
+  const { session, navByFund, staleFunds } = useMemo(() => sessionNavs(navRows), [navRows])
+  const tenQuy = useMemo(() => new Map(funds.map((f) => [f.assoc_fund_cd, f.name])), [funds])
+
+  const asTrades: FundTrade[] = useMemo(
+    () =>
+      trades.map((t) => ({
+        assocFundCd: t.assoc_fund_cd,
+        kind: t.kind,
+        tradedOn: t.traded_on,
+        units: t.units,
+        nav: t.nav,
+        amount: t.amount,
+      })),
+    [trades],
+  )
+
+  const { holdings, realizedPnl, oversold } = useMemo(
+    () => fundHoldingsFromTrades(asTrades),
+    [asTrades],
+  )
+  const value = useMemo(() => fundValue(holdings, navByFund), [holdings, navByFund])
+
+  // Quỹ đang giữ, có giá hợp lệ nhưng giá đó cũ hơn phiên chung. Loại khỏi đây những quỹ đã
+  // rơi vào missingNavs: một quỹ chỉ nên bị nêu MỘT lần, và "chưa có giá" đã nói đủ.
+  const stale = useMemo(
+    () =>
+      holdings
+        .filter((h) => staleFunds.has(h.assocFundCd) && !value.missingNavs.includes(h.assocFundCd))
+        .map((h) => h.assocFundCd),
+    [holdings, staleFunds, value.missingNavs],
+  )
+
+  const giaVon = useMemo(() => holdings.reduce((s, h) => s + h.costBasis, 0), [holdings])
+
+  if (trades.length === 0) {
+    return (
+      <Card as="section" className="mb-3">
+        <SectionTitle>Danh mục quỹ</SectionTitle>
+        <Guide className="mt-2 text-xs text-fg-muted">
+          Ghi lệnh mua/bán quỹ để app tự lấy 基準価額 mỗi ngày và tính lời/lỗ từng quỹ.
+        </Guide>
+        <button
+          type="button"
+          onClick={onAddTrade}
+          className="mt-3 rounded-lg bg-green-700 px-3 py-2 text-sm font-semibold text-white active:scale-95"
+        >
+          Ghi lệnh đầu tiên
+        </button>
+      </Card>
+    )
+  }
+
+  // Điều kiện currency === 'JPY' đã được lọc ở AccountDetailPage trước khi render.
+  const currency = account.currency
+
+  return (
+    <Card as="section" className="mb-3">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <SectionTitle>Danh mục quỹ</SectionTitle>
+        <button
+          type="button"
+          onClick={onAddTrade}
+          className="shrink-0 text-xs font-semibold text-green-700 dark:text-green-400"
+        >
+          + Ghi lệnh
+        </button>
+      </div>
+
+      <ul className="divide-y divide-border-subtle">
+        {holdings.map((h) => {
+          const nav = navByFund.get(h.assocFundCd)
+          const thieuGia = nav == null || nav <= 0
+          const giaCu = !thieuGia && staleFunds.has(h.assocFundCd)
+          const navVal = nav ?? 0
+          // Làm tròn TỪNG quỹ, đúng như fundValue — để tổng dưới bằng đúng tổng các dòng
+          // trên. Cộng số chưa làm tròn ở đây rồi so với tổng đã làm tròn là mời một câu
+          // hỏi "sao cộng tay lại lệch một yên".
+          const giaTri = thieuGia ? h.costBasis : Math.round((h.units * navVal) / NAV_UNITS)
+          const lai = giaTri - h.costBasis
+          const laiPct = h.costBasis > 0 ? lai / h.costBasis : null
+          return (
+            <li key={h.assocFundCd} className="flex items-baseline justify-between gap-3 py-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-fg-primary">
+                  {tenQuy.get(h.assocFundCd) || h.assocFundCd}
+                </p>
+                <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1 text-2xs text-fg-secondary">
+                  <span>{h.units.toLocaleString('vi-VN')} 口</span>
+                  <span>· vốn</span>
+                  <Money amount={h.avgNav} currency={currency} className="text-2xs" />
+                  {thieuGia ? (
+                    <span>· chưa có giá</span>
+                  ) : (
+                    <>
+                      <span>· {giaCu ? 'giá cũ' : 'nay'}</span>
+                      <Money amount={navVal} currency={currency} className="text-2xs" />
+                    </>
+                  )}
+                  {/* 基準価額 là giá trên 10.000 口, không phải trên 1 口. Không nói ra thì
+                      hai con số "vốn" và "nay" trông như đơn giá và người đọc sẽ tự nhân
+                      với số 口 rồi thấy lệch 10.000 lần. */}
+                  <span className="text-fg-muted">/1万口</span>
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <Money amount={giaTri} currency={currency} className="text-sm font-semibold" />
+                {giaCu && (
+                  <EstimateMark reason="Tính theo 基準価額 của phiên trước, chưa có phiên mới nhất." />
+                )}
+                <p className="text-2xs">
+                  <Money
+                    amount={Math.abs(lai)}
+                    currency={currency}
+                    tone={lai >= 0 ? 'in' : 'out'}
+                    showSign
+                    className="text-2xs"
+                  />
+                  {laiPct !== null && <span className="ml-1 text-fg-muted">{pct(laiPct)}</span>}
+                </p>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+
+      <div className="mt-3 space-y-1 border-t border-border-subtle pt-2 text-xs">
+        <p className="flex items-baseline justify-between text-fg-secondary">
+          <span>Giá vốn</span>
+          <Money amount={giaVon} currency={currency} className="font-semibold" />
+        </p>
+
+        {realizedPnl !== 0 && (
+          <p className="flex items-baseline justify-between text-fg-secondary">
+            <span>Lãi đã chốt</span>
+            <Money
+              amount={Math.abs(realizedPnl)}
+              currency={currency}
+              tone={realizedPnl >= 0 ? 'in' : 'out'}
+              showSign
+              className="font-semibold"
+            />
+          </p>
+        )}
+
+        {value.marketValue !== null && (
+          <p className="flex items-baseline justify-between pt-1 text-fg-primary">
+            <span className="font-semibold">Tổng giá trị</span>
+            <Money amount={value.marketValue} currency={currency} className="font-bold" />
+          </p>
+        )}
+
+        <p className="pt-1 text-3xs text-fg-muted">
+          {session ? `theo 基準価額 phiên ${ngayNgan(session)}` : 'chưa có bảng giá'}
+        </p>
+      </div>
+
+      {value.missingNavs.length > 0 && (
+        <p className="mt-2 text-2xs text-amber-700 dark:text-amber-300">
+          Chưa có 基準価額 cho{' '}
+          {value.missingNavs.map((m) => tenQuy.get(m) || m).join(', ')} — mấy quỹ này đang tạm
+          tính theo giá vốn nên tổng có thể lệch.
+        </p>
+      )}
+
+      {stale.length > 0 && (
+        <p className="mt-2 text-2xs text-amber-700 dark:text-amber-300">
+          {stale.map((m) => tenQuy.get(m) || m).join(', ')} chưa có giá phiên{' '}
+          {session ? ngayNgan(session) : 'mới nhất'} — tổng trên đang tính theo phiên trước
+          của mấy quỹ này.
+        </p>
+      )}
+
+      {oversold.length > 0 && (
+        <p className="mt-2 text-2xs text-amber-700 dark:text-amber-300">
+          {oversold.map((m) => tenQuy.get(m) || m).join(', ')}: sổ lệnh ghi bán nhiều 口数 hơn
+          số đang giữ. Thường là quỹ đã ĐỔI TÊN và nửa lịch sử đang ghép vào một mã khác —
+          xem docs/quy-nhat.md.
+        </p>
+      )}
+
+      <details className="mt-3">
+        <summary className="cursor-pointer text-xs font-medium text-fg-secondary">
+          Sổ lệnh ({trades.length})
+        </summary>
+        <ul className="mt-2 divide-y divide-border-subtle">
+          {trades.map((t) => (
+            <li key={t.id}>
+              <button
+                type="button"
+                onClick={() => onEditTrade(t)}
+                className="flex w-full items-baseline justify-between gap-3 py-2 text-left"
+              >
+                <span className="min-w-0 truncate text-xs text-fg-secondary">
+                  {ngayNgan(t.traded_on)} ·{' '}
+                  <b className="text-fg-primary">{tenQuy.get(t.assoc_fund_cd) || t.assoc_fund_cd}</b>{' '}
+                  {t.kind === 'buy' ? 'mua' : t.kind === 'sell' ? 'bán' : 'điều chỉnh'}
+                </span>
+                <span className="shrink-0 text-2xs tabular-nums text-fg-muted">
+                  {t.units.toLocaleString('vi-VN')} 口
+                  {t.kind !== 'adjust' && (
+                    <>
+                      {' · '}
+                      <Money amount={t.amount} currency={currency} className="text-2xs text-fg-muted" />
+                    </>
+                  )}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </Card>
+  )
+}
+```
+
+- [ ] **Step 2: Nối vào `AccountDetailPage.tsx`**
+
+Thêm import `FundHoldingsSection` và `FundTradeRow`, thêm state cạnh `tradeSheet`:
+
+```tsx
+  const [fundSheet, setFundSheet] = useState<{ trade: FundTradeRow | null } | null>(null)
+```
+
+Chèn ngay **sau** khối `{isInvestment && account && account.currency === 'VND' && (...)}` (dòng 479–486):
+
+```tsx
+      {/* Danh mục quỹ (chỉ tài khoản đầu tư JPY — 基準価額 là yên trên 10.000 口, tài
+          khoản VND dùng khu này sẽ ra số vô nghĩa) */}
+      {isInvestment && account && account.currency === 'JPY' && (
+        <FundHoldingsSection
+          account={account}
+          onAddTrade={() => setFundSheet({ trade: null })}
+          onEditTrade={(trade) => setFundSheet({ trade })}
+        />
+      )}
+```
+
+Sheet sẽ được nối ở Task 13; tạm thời `fundSheet` chưa được dùng ở đâu — thêm `void fundSheet` **không** phải cách xử lý; thay vào đó **làm Task 13 ngay sau Task 12 trong cùng một lượt** để không để lại biến chưa dùng (lint sẽ đỏ).
+
+- [ ] **Step 3: Kiểm biên dịch (sẽ còn cảnh báo biến chưa dùng cho tới hết Task 13)**
+
+```bash
+npx tsc -b
+```
+
+Kỳ vọng: không lỗi kiểu. Lỗi lint về `fundSheet` chưa dùng là bình thường ở bước này.
+
+- [ ] **Step 4: Commit sau khi Task 13 xong** (không commit riêng task này — xem Task 13, Step 5)
+
+---
+
+## Task 13: `FundTradeFormSheet` — sửa/thêm lệnh lẻ
+
+**Files:**
+- Create: `src/features/assets/FundTradeFormSheet.tsx`
+- Modify: `src/features/assets/AccountDetailPage.tsx` (render sheet)
+
+**Interfaces:**
+- Consumes: `useFunds`, `useCreateFundTrade`, `useUpdateFundTrade`, `useDeleteFundTrade` (Task 6); `NAV_UNITS` (Task 2).
+- Produces: `<FundTradeFormSheet account trade onClose />`.
+
+- [ ] **Step 1: Đọc `TradeFormSheet.tsx` trước khi viết**
+
+```bash
+sed -n '1,80p' src/features/assets/TradeFormSheet.tsx
+```
+
+Bắt chước **đúng** khuôn của nó: cách mở/đóng sheet, cách dùng `MoneyField`, cách bố trí nút Lưu/Xoá, cách báo lỗi. Đừng phát minh một kiểu sheet mới — repo đã có một kiểu.
+
+- [ ] **Step 2: Viết sheet**
+
+Yêu cầu bắt buộc, mỗi cái một lý do:
+
+| Ô | Ràng buộc |
+|---|---|
+| Ngày | Nhãn phải ghi rõ **"Ngày khớp (約定日)"**. Người dùng cầm sao kê có hai cột ngày; không ghi rõ thì họ gõ 受渡日 và lệch tới 5 ngày. |
+| Quỹ | `<select>` từ `useFunds()`, hiện `name`. Không cho gõ tay mã. |
+| Mua/Bán/Điều chỉnh | Ba lựa chọn. Chọn "Điều chỉnh" thì ô 基準価額 và ô Số tiền **ẩn đi và bị đặt về 0** — `CHECK fund_trades_shape` đòi vậy, và ẩn còn tốt hơn để người dùng gõ vào rồi bị từ chối. |
+| 口数 | Số nguyên. Với mua/bán phải > 0. |
+| 基準価額 | `MoneyField`, nhãn ghi rõ **"¥ / 10.000 口"**. Thiếu chú thích đó thì con số 17.588 trông như đơn giá một 口. |
+| Số tiền | `MoneyField`. Khi người dùng gõ xong 口数 và 基準価額, ô này **tự gợi ý** `Math.round(units * nav / NAV_UNITS)` **nhưng cho sửa** — số thật trên sao kê mới là số được lưu (đo thật: gợi ý ra 49.997, số thật là 50.000). |
+| Nút Lưu | Chặn khi thiếu ô bắt buộc, và **nói thiếu gì** thay vì chỉ mờ đi. |
+
+Chú thích dưới ô Số tiền, đúng nguyên văn:
+
+```tsx
+<Guide className="text-3xs text-fg-muted">
+  Gợi ý tính từ 口数 × 基準価額 ÷ 10.000. Sao kê Rakuten thường lệch vài yên do làm tròn —
+  cứ sửa cho khớp số thật, app lấy số bạn nhập làm giá vốn.
+</Guide>
+```
+
+- [ ] **Step 3: Render sheet trong `AccountDetailPage.tsx`**
+
+Cạnh chỗ `tradeSheet` đang được render:
+
+```tsx
+      {fundSheet && account && (
+        <FundTradeFormSheet
+          account={account}
+          trade={fundSheet.trade}
+          onClose={() => setFundSheet(null)}
+        />
+      )}
+```
+
+- [ ] **Step 4: Kiểm bằng chế độ demo — đây là bước chứng minh, không phải hình thức**
+
+```bash
+npm run dev -- --mode demo
+```
+
+Mở tài khoản **NISA Rakuten** (đầu tư JPY) và xác nhận **bốn** điều:
+
+1. Khu "Danh mục quỹ" hiện hai quỹ, **Tổng giá trị 80.757 ¥**, **Giá vốn 70.000 ¥**.
+2. Dòng lãi/lỗ hiện **+10.757 ¥** và **+15,4%** (repo làm tròn 1 chữ số; app Rakuten cắt đuôi thành 15,36% — **không phải sai lệch cần sửa**).
+3. Mỗi dòng quỹ có chú thích `/1万口` cạnh 基準価額.
+4. Bấm "+ Ghi lệnh" → sheet mở; gõ 口数 `28429` và 基準価額 `17588` → ô Số tiền tự gợi ý **49.997**; sửa thành `50000` được và lưu được.
+
+Nếu con số ở (1) hoặc (2) khác, **dừng lại** — lỗi nằm ở tầng dưới, không phải ở UI.
+
+- [ ] **Step 5: Kiểm toàn bộ rồi commit**
+
+```bash
+npm test && npx tsc -b && npm run lint
+```
+
+```bash
+git add src/features/assets/FundHoldingsSection.tsx src/features/assets/FundTradeFormSheet.tsx src/features/assets/AccountDetailPage.tsx
+git commit -m "feat(quy-nhat): khu Danh muc quy + sheet ghi lenh, khop tung yen voi Rakuten"
+```
+
+---
+
+**Kế hoạch còn Task 14–15. Xem phần tiếp ở cuối file này.**

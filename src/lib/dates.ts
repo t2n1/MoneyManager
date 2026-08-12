@@ -102,6 +102,20 @@ export function dueDateLabel(iso: string): string {
   return `${WEEKDAY_VI[dow]}, ${m}/${d}`
 }
 
+/**
+ * 'YYYY-MM-DD' → '2026/04/21'. Dạng NGÀY DUY NHẤT hiện ra cho người dùng.
+ *
+ * Có hàm này vì trước 2026-08-12 mọi ô ngày là `<input type="date">` native, mà dạng
+ * chữ của nó do NGÔN NGỮ của trình duyệt quyết định — không HTML, không CSS nào đổi
+ * được. Máy để tiếng Anh thì ô ngày đọc ra "April 21, 2026" giữa một app tiếng Việt,
+ * và mỗi máy một kiểu. Chuỗi rỗng trả rỗng (ô chưa chọn).
+ */
+export function formatDateLabel(iso: string): string {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  return `${y}/${m}/${d}`
+}
+
 /** "8/1" (tháng/ngày) cho một ngày ISO — dùng khi chỉ cần mốc ngày, không cần thứ. */
 export function dayMonthLabel(iso: string): string {
   const [, m, d] = iso.split('-').map(Number)

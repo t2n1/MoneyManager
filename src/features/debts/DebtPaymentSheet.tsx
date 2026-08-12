@@ -9,6 +9,7 @@ import {
 import { toISODate } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
+import { DateField } from '../../components/DateField'
 import type { DebtRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
 import { debtFlowCategoryId } from '../transactions/roleSave'
@@ -119,15 +120,13 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           />
         </div>
 
-        <label htmlFor={`${uid}-paidon`} className="mb-1 block text-xs font-medium text-fg-muted">
-          Ngày trả
-        </label>
-        <input
-          id={`${uid}-paidon`}
-          type="date"
+        {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">Ngày trả</span>
+        <DateField
+          ariaLabel="Ngày trả"
           value={paidOn}
-          onChange={(e) => setPaidOn(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500"
+          onChange={setPaidOn}
+          className="mb-3 w-full px-3 py-2"
         />
 
         {/* Công tắc tạo giao dịch thật */}

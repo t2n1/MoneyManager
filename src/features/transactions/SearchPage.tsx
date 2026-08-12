@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
 import { BackLink } from '../../components/BackLink'
+import { DateField } from '../../components/DateField'
 import type { TxFilter } from '../../data'
 import {
   useAccounts,
@@ -256,22 +257,24 @@ export function SearchPage() {
       <div className="mb-2 flex items-center gap-2 text-sm text-fg-secondary">
         {/* Hai ô ngày chỉ phân biệt nhau bằng mũi tên "→" ở giữa — mà mũi tên là trang trí,
             screen reader nghe cả hai y như nhau ("date"). Tên phải nằm trên từng ô. */}
-        <input
-          aria-label="Từ ngày"
-          type="date"
+        <DateField
+          ariaLabel="Từ ngày"
           value={from}
-          onChange={(e) => setFrom(e.target.value)}
-          className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-2 py-1.5"
+          onChange={setFrom}
+          clearable
+          placeholder="Từ ngày"
+          className="min-w-0 flex-1"
         />
         <span aria-hidden className="text-fg-muted">
           →
         </span>
-        <input
-          aria-label="Đến ngày"
-          type="date"
+        <DateField
+          ariaLabel="Đến ngày"
           value={to}
-          onChange={(e) => setTo(e.target.value)}
-          className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-2 py-1.5"
+          onChange={setTo}
+          clearable
+          placeholder="Đến ngày"
+          className="min-w-0 flex-1"
         />
       </div>
 

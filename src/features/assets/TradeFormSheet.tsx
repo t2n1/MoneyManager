@@ -6,6 +6,7 @@
 import { useId, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
+import { DateField } from '../../components/DateField'
 import { SegmentedControl } from '../../components/ui'
 import { confirmDialog } from '../../lib/dialog'
 import { useCreateStockTrade, useDeleteStockTrade, useUpdateStockTrade } from '../../hooks/queries'
@@ -179,16 +180,14 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           </ul>
         )}
 
-        <label htmlFor={`${uid}-date`} className="mb-1 block text-xs font-medium text-fg-muted">
-          Ngày
-        </label>
-        <input
-          id={`${uid}-date`}
-          type="date"
+        {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">Ngày</span>
+        <DateField
+          ariaLabel="Ngày"
           value={tradedOn}
           max={toISODate(new Date())}
-          onChange={(e) => setTradedOn(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500"
+          onChange={setTradedOn}
+          className="mb-3 w-full px-3 py-2"
         />
 
         <label htmlFor={`${uid}-qty`} className="mb-1 block text-xs font-medium text-fg-muted">

@@ -6,6 +6,7 @@ import {
   daysBetween,
   dueDateLabel,
   dueRelativeLabel,
+  formatDateLabel,
   formatMonthLabel,
   formatYearLabel,
   getMonthRange,
@@ -91,6 +92,18 @@ describe('toISODate / formatMonthLabel', () => {
 
   it('formatMonthLabel năm/tháng', () => {
     expect(formatMonthLabel({ year: 2026, month: 7 })).toBe('2026/07')
+  })
+})
+
+describe('formatDateLabel', () => {
+  it('luôn ra năm/tháng/ngày, giữ số 0 đứng đầu', () => {
+    expect(formatDateLabel('2026-04-21')).toBe('2026/04/21')
+    expect(formatDateLabel('2026-01-05')).toBe('2026/01/05')
+  })
+
+  // Ô ngày chưa chọn (vd "Kết thúc — không bắt buộc") truyền chuỗi rỗng vào.
+  it('chuỗi rỗng ra chuỗi rỗng', () => {
+    expect(formatDateLabel('')).toBe('')
   })
 })
 

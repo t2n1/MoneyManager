@@ -5,6 +5,7 @@ import { showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { ActionButton } from '../../components/ui'
 import { MoneyField } from '../../components/MoneyField'
+import { DateField } from '../../components/DateField'
 import type { AccountRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
 import {
@@ -145,16 +146,14 @@ export function ReconcileSheet({
           />
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="reconcile-date">
-          Ghi vào ngày
-        </label>
-        <input
-          id="reconcile-date"
-          type="date"
+        {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">Ghi vào ngày</span>
+        <DateField
+          ariaLabel="Ghi vào ngày"
           value={occurredOn}
           max={todayISO}
-          onChange={(e) => setOccurredOn(e.target.value)}
-          className="mb-1 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500"
+          onChange={setOccurredOn}
+          className="mb-1 w-full px-3 py-2"
         />
         {/* Chỉ giải thích khi ngày mặc định KHÁC hôm nay — tức là thẻ có đủ ngày
             chốt/đến hạn và mốc chốt đã qua. Ví thường không cần đọc đoạn này. */}

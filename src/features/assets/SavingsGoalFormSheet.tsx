@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { useCreateSavingsGoal, useDeleteSavingsGoal, useUpdateSavingsGoal } from '../../hooks/queries'
 import { type CurrencyCode } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
+import { DateField } from '../../components/DateField'
 import type { AccountRow, SavingsGoalRow } from '../../types/database.types'
 import { confirmDialog } from '../../lib/dialog'
 import { useEscClose } from '../../hooks/useEscClose'
@@ -102,10 +103,17 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
           />
         </div>
 
-        <label htmlFor={`${uid}-date`} className="mb-1 block text-xs font-medium text-fg-muted">
+        {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">
           Hạn hoàn thành <span className="text-fg-muted">(không bắt buộc)</span>
-        </label>
-        <input id={`${uid}-date`} type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className={`mb-3 ${field}`} />
+        </span>
+        <DateField
+          ariaLabel="Hạn hoàn thành"
+          value={targetDate}
+          onChange={setTargetDate}
+          clearable
+          className={`mb-3 ${field}`}
+        />
 
         <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">
           Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>

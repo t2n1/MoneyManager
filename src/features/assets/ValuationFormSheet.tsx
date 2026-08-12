@@ -4,6 +4,7 @@ import { useStockTrades, useUpsertValuation } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
+import { DateField } from '../../components/DateField'
 import type { AccountRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
 
@@ -90,16 +91,14 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
           />
         </div>
 
-        <label htmlFor={`${uid}-date`} className="mb-1 block text-xs font-medium text-fg-muted">
-          Ngày
-        </label>
-        <input
-          id={`${uid}-date`}
-          type="date"
+        {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">Ngày</span>
+        <DateField
+          ariaLabel="Ngày"
           value={valuedOn}
           max={toISODate(new Date())}
-          onChange={(e) => setValuedOn(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500"
+          onChange={setValuedOn}
+          className="mb-3 w-full px-3 py-2"
         />
 
         <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">

@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { ChevronDown } from 'lucide-react'
 import { SegmentedControl } from '../../components/ui'
+import { DateField } from '../../components/DateField'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
 
@@ -363,14 +364,14 @@ export function DebtDetailInputs({
   return (
     <div className="grid grid-cols-2 gap-3">
       <div className="col-span-2">
-        <label htmlFor={`${uid}-due`} className={labelCls}>
-          Hạn (không bắt buộc)
-        </label>
-        <input
-          id={`${uid}-due`}
-          type="date"
+        {/* <span> chứ không <label>: ô ngày là <button>, mà `for` không phải nguồn tên
+            của button — tên đi qua ariaLabel (xem ghi chú trong DateField). */}
+        <span className={labelCls}>Hạn (không bắt buộc)</span>
+        <DateField
+          ariaLabel="Hạn"
           value={dueOn}
-          onChange={(e) => onChange({ dueOn: e.target.value })}
+          onChange={(iso) => onChange({ dueOn: iso })}
+          clearable
           className={inputCls}
         />
       </div>

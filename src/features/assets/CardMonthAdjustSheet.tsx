@@ -12,6 +12,7 @@ import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { ActionButton, Money } from '../../components/ui'
 import { useEscClose } from '../../hooks/useEscClose'
 import { MoneyField } from '../../components/MoneyField'
+import { DateField } from '../../components/DateField'
 import type { AccountRow } from '../../types/database.types'
 import { monthAdjustDate, monthAdjustPlan } from './cardMonthCharge'
 import { ADJUST_CATEGORY_ICON, ADJUST_CATEGORY_NAME, findAdjustCategory } from './reconcile'
@@ -127,18 +128,16 @@ export function CardMonthAdjustSheet({
           />
         </div>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="month-adjust-date">
-          Ghi vào ngày
-        </label>
+        {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
+        <span className="mb-1 block text-xs font-medium text-fg-muted">Ghi vào ngày</span>
         {/* Kẹp trong kỳ: khoản bù rơi sang tháng khác thì tháng này vẫn lệch */}
-        <input
-          id="month-adjust-date"
-          type="date"
+        <DateField
+          ariaLabel="Ghi vào ngày"
           value={occurredOn}
           min={rangeStartISO}
           max={lastDayISO}
-          onChange={(e) => setOccurredOn(e.target.value)}
-          className="mb-1 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500"
+          onChange={setOccurredOn}
+          className="mb-1 w-full px-3 py-2"
         />
         <p className="mb-3 text-xs text-fg-muted">
           {suggestedDate === todayISO

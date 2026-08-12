@@ -18,6 +18,7 @@ import { confirmDialog, showToast } from '../../lib/dialog'
 import { toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
+import { DateField } from '../../components/DateField'
 import type { AccountRow, AccountType, TaxShelter } from '../../types/database.types'
 import {
   SHELTER_DEFAULT_LIMIT_JPY,
@@ -614,15 +615,13 @@ function AccountForm({ account, onClose }: FormProps) {
             </Guide>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label htmlFor={`${uid}-depfrom`} className="mb-1 block text-xs font-medium text-fg-muted">
-                  Ngày mua
-                </label>
-                <input
-                  id={`${uid}-depfrom`}
-                  type="date"
+                {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
+                <span className="mb-1 block text-xs font-medium text-fg-muted">Ngày mua</span>
+                <DateField
+                  ariaLabel="Ngày mua"
                   value={depFrom}
-                  onChange={(e) => setDepFrom(e.target.value)}
-                  className="w-full rounded-lg border border-border-strong px-2 py-2 text-sm outline-green-500 dark:bg-gray-900"
+                  onChange={setDepFrom}
+                  className="w-full py-2"
                 />
               </div>
               <div>

@@ -12,6 +12,7 @@ import { toISODate } from '../../lib/dates'
 import { type CurrencyCode } from '../../lib/money'
 import { AccountPicker } from '../../components/AccountPicker'
 import { MoneyField } from '../../components/MoneyField'
+import { DateField } from '../../components/DateField'
 import type { RecurringFrequency, RecurringMode } from '../../lib/recurring'
 import type { RecurringRuleRow, TransactionType } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
@@ -345,27 +346,28 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
             </select>
           </div>
           <div>
-            <label htmlFor={`${uid}-start`} className="mb-1 block text-xs font-medium text-fg-muted">
+            {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
+            <span className="mb-1 block text-xs font-medium text-fg-muted">
               Bắt đầu (kỳ đầu tiên)
-            </label>
-            <input
-              id={`${uid}-start`}
-              type="date"
+            </span>
+            <DateField
+              ariaLabel="Bắt đầu (kỳ đầu tiên)"
               value={startOn}
-              onChange={(e) => setStartOn(e.target.value)}
-              className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm outline-green-500"
+              onChange={setStartOn}
+              className="w-full py-2"
             />
           </div>
         </div>
-        <label htmlFor={`${uid}-end`} className="mb-1 block text-xs font-medium text-fg-muted">
+        <span className="mb-1 block text-xs font-medium text-fg-muted">
           Kết thúc (không bắt buộc)
-        </label>
-        <input
-          id={`${uid}-end`}
-          type="date"
+        </span>
+        <DateField
+          ariaLabel="Kết thúc"
           value={endOn}
-          onChange={(e) => setEndOn(e.target.value)}
-          className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm outline-green-500"
+          onChange={setEndOn}
+          clearable
+          placeholder="Không giới hạn"
+          className="mb-3 w-full py-2"
         />
 
         <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">

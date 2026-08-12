@@ -29,6 +29,7 @@ import {
   useTransactionTags,
 } from '../../hooks/queries'
 import { AccountPicker } from '../../components/AccountPicker'
+import { DateField } from '../../components/DateField'
 import { CHIP_BASE, CHIP_OFF } from '../../components/chip'
 import { IconButton } from '../../components/ui'
 import { TagPicker } from '../tags/TagPicker'
@@ -1028,12 +1029,11 @@ export function TransactionForm({
             className="min-w-0 flex-1"
           />
         )}
-        <input
-          type="date"
+        <DateField
           value={date}
-          onChange={(e) => setDate(e.target.value)}
-          aria-label="Ngày giao dịch"
-          className="w-[7.5rem] shrink-0 rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300"
+          onChange={setDate}
+          ariaLabel="Ngày giao dịch"
+          className="w-[7.5rem] shrink-0"
         />
         {/* "Nhắc sau" — chỉ với khoản CHI mới: nhắc mình đi thu tiền là chuyện khác
             hẳn, và chuyển khoản thì không có gì để nhắc. Bật lên là nút lưu đổi nghĩa,

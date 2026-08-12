@@ -20,6 +20,7 @@ import {
   useUpdateRecurringRule,
 } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
+import { showUndoToast } from '../../lib/undoToast'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
 import { parseRoleParam } from './entryRoles'
 import { saveDebtEntry, saveRemit, saveSplit, saveWithFee, type RoleSaveDeps } from './roleSave'
@@ -242,6 +243,14 @@ export function EntryPage() {
           const row = await create.mutateAsync(values)
           await markBillDone()
           await markPlannedDone(row.id)
+          // Hoàn tác cho cả nút "Lưu", không chỉ nút "Tiếp tục": cùng một hành động ghi
+          // thì phải cùng một mức an toàn. Dùng toast hoàn tác TOÀN CỤC (AppLayout vẽ)
+          // vì nút này rời màn hình ngay — toast riêng của trang Nhập sẽ chết theo.
+          // Trừ khoản đến hạn: xóa giao dịch xong thì lời nhắc vẫn bị đánh dấu đã chi,
+          // hoàn tác kiểu đó để lại một trạng thái sai.
+          if (!billRule && !planned) {
+            showUndoToast('Đã lưu giao dịch', () => del.mutateAsync(row.id).then(() => {}))
+          }
           navigate('/')
         }}
         // "Nhắc sau": chưa chi đồng nào, chỉ tạo một khoản sắp chi rồi về Sổ.

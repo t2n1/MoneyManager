@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import {
   ChevronDown,
   ChevronLeft,
@@ -31,7 +32,7 @@ import {
 import { AccountPicker } from '../../components/AccountPicker'
 import { DateField } from '../../components/DateField'
 import { CHIP_BASE, CHIP_OFF } from '../../components/chip'
-import { IconButton } from '../../components/ui'
+import { Card, IconButton, SegmentedControl } from '../../components/ui'
 import { TagPicker } from '../tags/TagPicker'
 import { isAutoAssignedCategory, pickableCategories } from '../categories/flowCategories'
 import { remainingOf } from '../debts/aggregate'
@@ -65,6 +66,7 @@ import {
   type SplitValue,
 } from './entryRoles'
 import { DebtFields, FeeField, RemitFields, SplitFields } from './roleFields'
+import { entryGate, plannedModeActive } from './entryValidation'
 import type { RoleBase } from './roleSave'
 
 const LAST_ACCOUNT_KEY = 'sct-last-account'
@@ -90,6 +92,15 @@ const TYPE_TABS: { value: TransactionType; label: string }[] = [
   { value: 'expense', label: 'Chi' },
   { value: 'income', label: 'Thu' },
   { value: 'transfer', label: 'Chuyển khoản' },
+]
+
+const DEBT_TABS = [
+  { value: 'i_owe' as DebtDirection, label: 'Mình nợ' },
+  { value: 'owed_to_me' as DebtDirection, label: 'Cho vay' },
+]
+const REMIT_TABS = [
+  { value: 'expense' as RemitValue['kind'], label: 'Hỗ trợ gia đình' },
+  { value: 'transfer' as RemitValue['kind'], label: 'Chuyển tài sản' },
 ]
 
 const AMOUNT_COLOR: Record<TransactionType, string> = {
@@ -444,104 +455,58 @@ export function TransactionForm({
   const toAmount = toAmountResult ?? 0
 
   const hasCategory = !!categoryId && activeOfType.some((c) => c.id === categoryId)
-  // Trả hộ "đã trả lại" mà người kia đưa đủ/đưa dư → không còn dòng chi nào của
-  // mình, danh mục không dùng tới. Còn lại (kể cả "còn nợ") vẫn cần danh mục.
-  const splitNeedsCategory = splitVal.settle === 'later' || amount - splitVal.others > 0
-  // Điều kiện riêng theo vai trò (số tiền gốc > 0 + tài khoản đã kiểm ở ngoài)
-  const roleValid = (() => {
-    switch (activeRole) {
-      case 'split': {
-        if (splitVal.others <= 0) return false
-        if (splitVal.settle === 'later') {
-          // Còn nợ: phần nợ không thể vượt tổng bill ("đưa dư" chỉ có khi đưa ngay).
-          if (splitVal.others > amount || !hasCategory) return false
-          return splitVal.counterparty.trim().length > 0
-        }
-        // Đã trả lại ngay: cho phép đưa DƯ (> tổng) — phần dư ghi thành khoản thu.
-        if (splitNeedsCategory && !hasCategory) return false
-        // Ví nhận có thể lạc khi đổi tài khoản/loại tiền sau khi đã chọn.
-        if (
-          splitVal.receivedAccountId &&
-          !splitBackAccounts.some((a) => a.id === splitVal.receivedAccountId)
-        )
-          return false
-        // Người kia trả lại ĐÚNG BẰNG tổng vào chính ví đã trả → không còn bút toán
-        // nào để ghi. Chặn ở đây thay vì lưu một cái không sinh ra gì.
-        return !(splitVal.others === amount && !splitVal.receivedAccountId)
-      }
-      case 'debt':
-        return debtVal.counterparty.trim().length > 0
-      case 'remit':
-        return remitVal.received > 0 && (remitVal.kind !== 'transfer' || !!remitVal.destId)
-      default:
-        return true
-    }
-  })()
-
-  const canSave =
-    // "Nhắc sau" KHÔNG đòi số tiền: một lời nhắc có thể là "tìm nhà mới" — việc có
-    // thật mà chưa ai đoán nổi giá. Ghi giao dịch thì vẫn đòi, vì một bút toán 0 đồng
-    // không có nghĩa gì.
-    (remindLater || amount > 0) &&
-    !!effectiveAccountId &&
-    !saving &&
-    (activeRole !== 'none'
-      ? roleValid
-      : remindLater
-        ? // Lời nhắc chỉ cần một cái TÊN — lấy từ ghi chú hoặc từ danh mục. Bắt chọn
-          // danh mục ở đây là đòi phân loại một khoản chưa xảy ra.
-          note.trim().length > 0 || hasCategory
-        : type === 'transfer'
-          ? !!toAccountId && toAccountId !== effectiveAccountId && (!crossCurrency || toAmount > 0)
-          : hasCategory)
 
   /**
-   * Vai trò đặc biệt: nút Lưu mờ thì phải NÓI vì sao — form dài, điều kiện nằm rải
-   * rác, không nhắc thì người dùng điền đủ mắt thấy mà nút vẫn chết. Trả null khi
-   * không thiếu gì (hoặc giao dịch thường — các điều kiện của nó đã hiện ngay tại chỗ).
+   * "Nhắc sau" chỉ hiệu lực với khoản CHI thường — xem `plannedModeActive`. Đọc cờ thô
+   * `remindLater` ở những chỗ dưới đây là đúng cái lỗi cũ: đổi sang tab Thu thì chip
+   * biến mất mà nút vẫn ghi "Tạo lời nhắc", bấm vào tạo ra một khoản sắp CHI.
    */
-  const roleMissing = ((): string | null => {
-    if (activeRole === 'none' || saving) return null
-    if (amount <= 0) {
-      // Không .toLowerCase() nhãn gốc: "(JPY)" sẽ thành "(jpy)".
-      const label = { split: 'tổng đã trả', debt: 'số tiền gốc', remit: 'số gửi (JPY)' }[activeRole]
-      return `Còn thiếu: ${label}.`
-    }
-    switch (activeRole) {
-      case 'split': {
-        if (splitVal.others <= 0)
-          return splitVal.settle === 'now'
-            ? 'Còn thiếu: phần người khác trả lại.'
-            : 'Còn thiếu: phần người khác nợ lại.'
-        if (splitVal.settle === 'later') {
-          if (splitVal.others > amount) return 'Phần người khác nợ đang lớn hơn tổng — giảm bớt lại.'
-          if (!splitVal.counterparty.trim()) return 'Còn thiếu: tên người nợ mình (ô "Ai nợ mình").'
-          if (!hasCategory) return 'Còn thiếu: chọn danh mục ở lưới phía trên.'
-          return null
-        }
-        if (splitNeedsCategory && !hasCategory) return 'Còn thiếu: chọn danh mục ở lưới phía trên.'
-        if (
-          splitVal.receivedAccountId &&
-          !splitBackAccounts.some((a) => a.id === splitVal.receivedAccountId)
-        )
-          return 'Ví "Nhận lại vào" không còn hợp lệ — chọn lại.'
-        if (splitVal.others === amount && !splitVal.receivedAccountId)
-          return 'Người kia trả đủ vào chính ví đã trả → không có gì để ghi. Chọn ví khác ở "Nhận lại vào", hoặc bấm Bỏ nếu không cần ghi.'
-        return null
-      }
-      case 'debt':
-        return debtVal.counterparty.trim()
-          ? null
-          : debtVal.direction === 'i_owe'
-            ? 'Còn thiếu: tên chủ nợ (mình nợ ai).'
-            : 'Còn thiếu: tên người vay (ai nợ mình).'
-      case 'remit':
-        if (remitVal.kind === 'transfer' && !remitVal.destId)
-          return 'Còn thiếu: chọn tài khoản VND nhận tiền.'
-        if (remitVal.received <= 0) return 'Còn thiếu: số nhận (VND).'
-        return null
-    }
-  })()
+  const plannedMode = plannedModeActive({
+    remindLater,
+    canPlan: !!onSubmitPlanned,
+    type,
+    role: activeRole,
+  })
+
+  // Một cổng duy nhất cho cả "được bấm Lưu chưa" và "còn thiếu gì" (entryValidation.ts)
+  const gate = entryGate({
+    amount,
+    hasAccount: !!effectiveAccountId,
+    type,
+    role: activeRole,
+    plannedMode,
+    hasCategory,
+    // Lưới rỗng ≠ chưa chọn: câu nhắc phải chỉ sang Cài đặt chứ không bảo "chọn ở lưới"
+    // khi lưới không có ô nào.
+    categoryGridEmpty: type !== 'transfer' && !hideCategoryGrid && activeOfType.length === 0,
+    note,
+    accountId: effectiveAccountId,
+    toAccountId,
+    crossCurrency,
+    toAmount,
+    split: splitVal,
+    debt: debtVal,
+    remit: remitVal,
+    splitBackAccountIds: splitBackAccounts.map((a) => a.id),
+  })
+  const canSave = gate.canSave && !saving
+  const missing = saving ? null : gate.missing
+
+  /**
+   * Đang ở chế độ mà nhãn + cờ "hoàn tiền" KHÔNG lưu được (quy tắc định kỳ / lời nhắc).
+   * Câu chữ đặt ở biến chứ không viết thẳng vào JSX: nó đổi theo chế độ, và test canh
+   * chế độ Gọn đếm chữ trong <p> sau khi bỏ các {biểu thức} nên chuỗi lồng sẽ bị tính
+   * thành một đoạn văn xuôi mới.
+   */
+  const emptyGridNote =
+    type === 'income'
+      ? 'Chưa có danh mục Thu nào để chọn.'
+      : 'Chưa có danh mục Chi nào để chọn.'
+  const extrasDropped = repeat !== 'none' || plannedMode
+  const chosenTagCount = effectiveTagIds.length
+  const extrasNote = extrasDropped
+    ? `${repeat !== 'none' ? 'Quy tắc định kỳ' : 'Lời nhắc'} chỉ giữ tiền · danh mục · tài khoản · ghi chú. Nhãn và cờ hoàn tiền không đi theo${chosenTagCount > 0 ? ` (${chosenTagCount} nhãn đang chọn sẽ không được lưu)` : ''}.`
+    : ''
 
   // Lưu mẫu: chỉ với chi/thu đã đủ số tiền + danh mục
   const canSaveTemplate = type !== 'transfer' && amount > 0 && !!categoryId
@@ -577,6 +542,9 @@ export function TransactionForm({
 
   function switchType(next: TransactionType) {
     setTypeAndCat(next)
+    // Tắt "Nhắc sau": nút bật/tắt nó chỉ có ở khoản CHI, giữ cờ qua đây là giữ một chế
+    // độ mà người dùng không còn thấy để tắt.
+    setRemindLater(false)
     setToAccountId(null)
     setToDigits('')
     setActiveField('main')
@@ -586,6 +554,7 @@ export function TransactionForm({
   function enterRole(r: SpecialRole) {
     setRole(r)
     setRoleMenu(false)
+    setRemindLater(false) // cùng lý do với switchType
     // Kéo về đầu: vai trò dựng lại banner + ô số tiền ở trên, người dùng có thể đang
     // cuộn ở giữa lưới danh mục lúc bấm.
     scrollRef.current?.scrollTo({ top: 0 })
@@ -644,7 +613,7 @@ export function TransactionForm({
 
   // Bật "Nhắc sau" thì nút không còn lưu giao dịch nữa — để nguyên chữ "Lưu" là nói
   // dối về việc nút sắp làm.
-  const effectiveSubmitLabel = remindLater ? 'Tạo lời nhắc' : submitLabel
+  const effectiveSubmitLabel = plannedMode ? 'Tạo lời nhắc' : submitLabel
 
   async function handleSubmit(mode: 'save' | 'continue' = 'save') {
     if (!canSave || !effectiveAccountId) return
@@ -691,7 +660,7 @@ export function TransactionForm({
         is_refund: type === 'expense' ? isRefund : false,
         tag_ids: effectiveTagIds,
       }
-      if (remindLater && onSubmitPlanned) {
+      if (plannedMode && onSubmitPlanned) {
         // Chưa chi đồng nào: không có giao dịch nào được ghi ở nhánh này.
         await onSubmitPlanned({
           // Ghi chú là thứ người dùng tự đặt nên ưu tiên; không có thì mượn tên danh
@@ -920,66 +889,32 @@ export function TransactionForm({
         </div>
       )}
 
-      {/* Tab loại giao dịch thường, hoặc segmented riêng của vai trò */}
+      {/* Tab loại giao dịch thường, hoặc segmented riêng của vai trò.
+          Dùng <SegmentedControl> chứ không tự vẽ ba bộ nút: bản chép tay ở đây là
+          <button> trơn, không role/aria-selected — nghe bằng trình đọc màn hình thì
+          không biết đang ở Chi hay Thu. Component dùng chung đã có role="tablist" +
+          aria-selected + màu chữ mục tắt đạt AA (xem SegmentedControl.tsx). */}
       {activeRole === 'none' ? (
-        <div className="grid grid-cols-3 gap-1 rounded-xl bg-gray-200 dark:bg-gray-800 p-1">
-          {TYPE_TABS.map((tab) => (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => switchType(tab.value)}
-              className={`rounded-lg py-2.5 text-sm font-medium transition ${
-                type === tab.value ? 'bg-surface text-gray-900 dark:text-gray-100 shadow-sm' : 'text-fg-on-track hover:text-fg-primary'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          items={TYPE_TABS.map((t) => ({ value: t.value, label: t.label }))}
+          value={type}
+          onChange={switchType}
+          label="Loại giao dịch"
+        />
       ) : activeRole === 'debt' ? (
-        <div className="grid grid-cols-2 gap-1 rounded-xl bg-gray-200 p-1 dark:bg-gray-800">
-          {(
-            [
-              ['i_owe', 'Mình nợ'],
-              ['owed_to_me', 'Cho vay'],
-            ] as [DebtDirection, string][]
-          ).map(([val, label]) => (
-            <button
-              key={val}
-              type="button"
-              onClick={() => setDebtDirection(val)}
-              className={`rounded-lg py-2.5 text-sm font-medium transition ${
-                debtVal.direction === val
-                  ? 'bg-surface text-gray-900 shadow-sm dark:text-gray-100'
-                  : 'text-fg-on-track hover:text-fg-primary'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          items={DEBT_TABS}
+          value={debtVal.direction}
+          onChange={setDebtDirection}
+          label="Chiều nợ"
+        />
       ) : activeRole === 'remit' ? (
-        <div className="grid grid-cols-2 gap-1 rounded-xl bg-gray-200 p-1 dark:bg-gray-800">
-          {(
-            [
-              ['expense', 'Hỗ trợ gia đình'],
-              ['transfer', 'Chuyển tài sản'],
-            ] as [RemitValue['kind'], string][]
-          ).map(([val, label]) => (
-            <button
-              key={val}
-              type="button"
-              onClick={() => setRemitVal({ ...remitVal, kind: val, destId: '' })}
-              className={`rounded-lg py-2.5 text-sm font-medium transition ${
-                remitVal.kind === val
-                  ? 'bg-surface text-gray-900 shadow-sm dark:text-gray-100'
-                  : 'text-fg-on-track hover:text-fg-primary'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          items={REMIT_TABS}
+          value={remitVal.kind}
+          onChange={(kind) => setRemitVal({ ...remitVal, kind, destId: '' })}
+          label="Kiểu gửi tiền về VN"
+        />
       ) : null}
 
       {/* Số tiền (nguồn); CK xuyên tệ có thêm ô "nhận được" */}
@@ -1055,7 +990,7 @@ export function TransactionForm({
             {remindLater && <span>Nhắc sau</span>}
           </button>
         )}
-        {!initial && onSubmitRecurring && activeRole === 'none' && !remindLater && (
+        {!initial && onSubmitRecurring && activeRole === 'none' && !plannedMode && (
           <div className="relative shrink-0">
             <button
               type="button"
@@ -1201,6 +1136,19 @@ export function TransactionForm({
               )}
             </div>
           </div>
+        ) : topCategories.length === 0 ? (
+          /* Không còn danh mục nào của loại này (chưa tạo, hoặc lưu trữ hết). Trước đây
+             chỗ này là một vùng TRỐNG TRƠN kèm nút Lưu chết — không đường nào đi tiếp.
+             Câu nhắc cạnh nút Lưu cũng chỉ sang đây (xem entryValidation). */
+          <Card padding="lg" className="text-center text-xs text-fg-muted">
+            {emptyGridNote}
+            <Link
+              to="/settings/categories"
+              className="mt-1 block font-medium text-fg-accent underline"
+            >
+              Mở Cài đặt → Danh mục
+            </Link>
+          </Card>
         ) : (
           /* Màn danh mục chính */
           <div className="grid auto-rows-min grid-cols-4 gap-1.5 lg:grid-cols-5">
@@ -1254,18 +1202,34 @@ export function TransactionForm({
         )}
       </div>
 
-      {activeRole === 'none' && <TagPicker value={effectiveTagIds} onChange={setTagIds} />}
+      {/* Nhãn + "hoàn tiền" chỉ sống được trên một GIAO DỊCH. Quy tắc định kỳ
+          (NewRecurringRule) và khoản sắp chi (NewPlannedExpense) không có cột nào giữ
+          chúng, nên trước đây chọn nhãn rồi bấm Lặp lại là nhãn rơi mất không một lời
+          — đo thử: 1 nhãn đã chọn, lưu xong còn 0 liên kết. Cờ hoàn tiền cũng vậy, và
+          nó còn tệ hơn vì mỗi kỳ sinh ra một khoản chi cộng thêm tiền vào Chi thay vì
+          trừ ra.
+          Cách xử giống ô "+ Phí" của chuyển khoản: THÀ KHÔNG HIỆN còn hơn nhận rồi âm
+          thầm bỏ — kèm một dòng nói vì sao, và nói luôn số nhãn đang chọn sẽ không đi
+          theo, để không có gì biến mất trong im lặng. */}
+      {activeRole === 'none' &&
+        (extrasDropped ? (
+          <p className="px-1 text-xs text-fg-muted">{extrasNote}</p>
+        ) : (
+          <TagPicker value={effectiveTagIds} onChange={setTagIds} />
+        ))}
 
       {/* Hoàn tiền — chỉ có nghĩa với khoản CHI.
           `mt-1.5` (cột cuộn đã có gap-1.5 → thành 12px): tách khỏi khối Nhãn ngay trên.
           Không kẻ vạch — trong form này các khối chỉ cách nhau bằng khoảng trống. */}
-      {type === 'expense' && activeRole === 'none' && (
-        <label className="mt-1.5 flex items-start gap-2 px-1 text-sm text-fg-secondary">
+      {type === 'expense' && activeRole === 'none' && !extrasDropped && (
+        // min-h-11 + ô tích h-5: cả hàng trước đây chỉ cao 20px với ô tích 13px, trong
+        // khi mọi thứ khác trong form đều 44px.
+        <label className="mt-1.5 flex min-h-11 items-start gap-2 px-1 py-1 text-sm text-fg-secondary">
           <input
             type="checkbox"
             checked={isRefund}
             onChange={(e) => setIsRefund(e.target.checked)}
-            className="mt-0.5"
+            className="mt-0.5 h-5 w-5 shrink-0"
           />
           <span>
             Đây là khoản <b>hoàn tiền</b>
@@ -1299,9 +1263,7 @@ export function TransactionForm({
 
       {error && <p role="alert" className="text-sm text-money-out">{error}</p>}
       {/* Lý do nút Lưu còn mờ — ghim cạnh nút để không bao giờ bị cuộn khuất. */}
-      {!error && roleMissing && !canSave && (
-        <p className="px-1 text-xs text-fg-warn">{roleMissing}</p>
-      )}
+      {!error && missing && <p className="px-1 text-xs text-fg-warn">{missing}</p>}
 
       {/* Hàng nút: ⌫ (chỉ mobile, thay cho hàng xóa lùi riêng) + Tiếp tục/Lưu */}
       <div className="flex gap-2">
@@ -1315,7 +1277,7 @@ export function TransactionForm({
         </button>
         {/* "Nhắc sau" cũng ẩn nút Tiếp tục, cùng lý do với "Lặp lại": nút đó nghĩa là
             "lưu rồi nhập tiếp", mà ở chế độ này không có giao dịch nào được lưu cả. */}
-        {onContinue && repeat === 'none' && activeRole === 'none' && !remindLater ? (
+        {onContinue && repeat === 'none' && activeRole === 'none' && !plannedMode ? (
           <>
             <button
               type="button"

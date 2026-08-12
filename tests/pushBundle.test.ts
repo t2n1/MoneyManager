@@ -46,6 +46,13 @@ const EXPORTS_BAT_BUOC: Record<string, string[]> = {
     'toISODate',
     'HOSE_SYMBOLS',
   ],
+  'supabase/functions/fund-refresh/_funds.js': [
+    'fundHoldingsFromTrades',
+    'sessionNavs',
+    'fundValue',
+    'NAV_UNITS',
+    'toISODate',
+  ],
 }
 
 describe('bundle bộ luật cho edge function', () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   fundHoldingsFromTrades,
+  fundLineValue,
   fundValue,
   sessionNavs,
   type FundTrade,
@@ -206,6 +207,19 @@ describe('fundHoldingsFromTrades', () => {
     ])
     expect(oversold).toEqual([])
     expect(holdings).toEqual([])
+  })
+})
+
+describe('fundLineValue', () => {
+  // Đây là phép chia 10.000 DUY NHẤT của cả tính năng — FundHoldingsSection và
+  // FundTradeFormSheet gọi lại đúng hàm này thay vì viết lại công thức. Hai con số dưới
+  // khớp từng yên với ảnh chụp app Rakuten ngày 2026-08-12 (xem describe('fundValue')).
+  it('28.429 口 ở 基準価額 20.053 → 57.009 ¥', () => {
+    expect(fundLineValue(28_429, 20_053)).toBe(57_009)
+  })
+
+  it('12.595 口 ở 基準価額 18.855 → 23.748 ¥', () => {
+    expect(fundLineValue(12_595, 18_855)).toBe(23_748)
   })
 })
 

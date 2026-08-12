@@ -94,6 +94,16 @@ function avgNavOf(costBasis: number, units: number): number {
 }
 
 /**
+ * Giá trị một dòng quỹ: 口数 × 基準価額 ÷ 10.000, làm tròn. ĐÚNG MỘT chỗ chia — mọi nơi
+ * khác cần số này (FundHoldingsSection hiện từng dòng, FundTradeFormSheet gợi ý Số tiền,
+ * `fundValue` dưới đây tính tổng) đều gọi lại hàm này, không viết lại công thức. Viết
+ * lại ở nơi khác là mời một lần sửa NAV_UNITS hay cách làm tròn chỉ trúng một chỗ.
+ */
+export function fundLineValue(units: number, nav: number): number {
+  return Math.round((units * nav) / NAV_UNITS)
+}
+
+/**
  * Cộng dồn sổ lệnh ra 口数 và giá vốn từng quỹ.
  *
  * Bán trừ theo **giá vốn bình quân trên 口**, giống 取得単価 mà Rakuten báo — nên số
@@ -235,7 +245,7 @@ export function fundValue(
       missingNavs.push(h.assocFundCd)
       marketValue += h.costBasis
     } else {
-      marketValue += Math.round((h.units * nav) / NAV_UNITS)
+      marketValue += fundLineValue(h.units, nav)
     }
   }
 

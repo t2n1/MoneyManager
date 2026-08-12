@@ -18,9 +18,9 @@ import { useFundPrices, useFunds, useFundTrades } from '../../hooks/queries'
 import type { AccountRow, FundTradeRow } from '../../types/database.types'
 import {
   fundHoldingsFromTrades,
+  fundLineValue,
   fundValue,
   sessionNavs,
-  NAV_UNITS,
   type FundTrade,
 } from './fundHoldings'
 
@@ -115,10 +115,11 @@ export function FundHoldingsSection({ account, onAddTrade, onEditTrade }: Props)
           const thieuGia = nav == null || nav <= 0
           const giaCu = !thieuGia && staleFunds.has(h.assocFundCd)
           const navVal = nav ?? 0
-          // Làm tròn TỪNG quỹ, đúng như fundValue — để tổng dưới bằng đúng tổng các dòng
-          // trên. Cộng số chưa làm tròn ở đây rồi so với tổng đã làm tròn là mời một câu
-          // hỏi "sao cộng tay lại lệch một yên".
-          const giaTri = thieuGia ? h.costBasis : Math.round((h.units * navVal) / NAV_UNITS)
+          // Gọi lại đúng hàm mà fundValue() dùng để tính tổng — không viết lại công
+          // thức ở đây. Làm tròn TỪNG quỹ rồi mới cộng thì tổng dưới mới bằng đúng tổng
+          // các dòng trên; cộng số chưa làm tròn ở đây rồi so với tổng đã làm tròn là
+          // mời một câu hỏi "sao cộng tay lại lệch một yên".
+          const giaTri = thieuGia ? h.costBasis : fundLineValue(h.units, navVal)
           const lai = giaTri - h.costBasis
           const laiPct = h.costBasis > 0 ? lai / h.costBasis : null
           return (

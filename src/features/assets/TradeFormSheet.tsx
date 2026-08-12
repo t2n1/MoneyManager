@@ -11,6 +11,7 @@ import { SegmentedControl } from '../../components/ui'
 import { confirmDialog } from '../../lib/dialog'
 import { useCreateStockTrade, useDeleteStockTrade, useUpdateStockTrade } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
+import { parseSignedIntText, sanitizeSignedIntText, signedIntToText } from '../../lib/signedInt'
 import type { AccountRow, StockTradeKind, StockTradeRow } from '../../types/database.types'
 import { HOSE_SYMBOLS } from './hoseSymbols'
 import { useEscClose } from '../../hooks/useEscClose'
@@ -43,7 +44,10 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
   const [kind, setKind] = useState<StockTradeKind>(trade?.kind ?? 'buy')
   const [symbol, setSymbol] = useState(trade?.symbol ?? '')
   const [tradedOn, setTradedOn] = useState(trade?.traded_on ?? toISODate(new Date()))
-  const [quantity, setQuantity] = useState(trade?.quantity ?? 0)
+  // Giữ chuỗi thô, không phải số: xem lib/signedInt.ts — <input type="number"> làm mất
+  // dấu trừ vừa gõ, mà Điều chỉnh (gộp cổ phiếu) cần nhập được số âm.
+  const [quantityText, setQuantityText] = useState(signedIntToText(trade?.quantity ?? 0))
+  const quantity = parseSignedIntText(quantityText)
   const [price, setPrice] = useState(trade?.price ?? 0)
   const [fee, setFee] = useState(trade?.fee ?? 0)
   const [tax, setTax] = useState(trade?.tax ?? 0)
@@ -195,10 +199,10 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
         </label>
         <input
           id={`${uid}-qty`}
-          type="number"
+          type="text"
           inputMode="numeric"
-          value={quantity === 0 ? '' : quantity}
-          onChange={(e) => setQuantity(Number(e.target.value) || 0)}
+          value={quantityText}
+          onChange={(e) => setQuantityText(sanitizeSignedIntText(e.target.value))}
           className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold outline-green-500"
         />
 

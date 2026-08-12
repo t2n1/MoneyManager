@@ -18,9 +18,10 @@ import {
   useUpdateFundTrade,
 } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
+import { parseSignedIntText, sanitizeSignedIntText, signedIntToText } from '../../lib/signedInt'
 import type { AccountRow, FundTradeKind, FundTradeRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
-import { NAV_UNITS } from './fundHoldings'
+import { fundLineValue } from './fundHoldings'
 
 const KINDS = [
   { value: 'buy' as const, label: 'Mua' },
@@ -46,7 +47,10 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
   const [kind, setKind] = useState<FundTradeKind>(trade?.kind ?? 'buy')
   const [assocFundCd, setAssocFundCd] = useState(trade?.assoc_fund_cd ?? '')
   const [tradedOn, setTradedOn] = useState(trade?.traded_on ?? toISODate(new Date()))
-  const [units, setUnits] = useState(trade?.units ?? 0)
+  // Giữ chuỗi thô, không phải số: xem lib/signedInt.ts — <input type="number"> làm mất
+  // dấu trừ vừa gõ, mà 口数 điều chỉnh (分配金再投資/gộp) cần nhập được số âm.
+  const [unitsText, setUnitsText] = useState(signedIntToText(trade?.units ?? 0))
+  const units = parseSignedIntText(unitsText)
   const [nav, setNav] = useState(trade?.nav ?? 0)
   const [amount, setAmount] = useState(trade?.amount ?? 0)
   // 口座区分 không có ô riêng ở đây (không tham gia phép tính nào, xem fundHoldings.ts) —
@@ -67,10 +71,19 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
     [funds],
   )
 
-  // Gợi ý = 口数 × 基準価額 ÷ 10.000, làm tròn TỪNG lệnh giống cách app tính giá trị
-  // (fundValue) — tới khi người dùng tự sửa ô Số tiền thì thôi.
+  // Quỹ của lệnh đang sửa có thể không còn trong useFunds() (quỹ bị xoá hoặc đổi mã
+  // qua fund_aliases). Không xử lý thì <select value={assocFundCd}> không khớp option
+  // nào — hành vi của browser lúc đó KHÔNG được chuẩn hoá (một số trình duyệt tự chọn
+  // option đầu), nên có thể đổi lệnh sang quỹ khác chỉ vì người dùng mở sheet ra sửa số
+  // tiền. Thêm hẳn một option (vô hiệu hoá) đúng mã cũ để `value` luôn khớp một option
+  // có thật.
+  const fundKhongCon = assocFundCd !== '' && !funds.some((f) => f.assoc_fund_cd === assocFundCd)
+
+  // Gợi ý = 口数 × 基準価額 ÷ 10.000 — gọi đúng hàm mà fundValue() dùng để tính giá trị
+  // từng dòng (fundLineValue), không viết lại công thức — tới khi người dùng tự sửa ô
+  // Số tiền thì thôi.
   const suggestedAmount =
-    !isAdjust && units > 0 && nav > 0 ? Math.round((units * nav) / NAV_UNITS) : 0
+    !isAdjust && units > 0 && nav > 0 ? fundLineValue(units, nav) : 0
   const effAmount = amountTouched ? amount : suggestedAmount
 
   // Nói MỘT thứ thiếu mỗi lần, theo thứ tự mắt đọc form — cùng quy ước với entryGate()
@@ -166,6 +179,11 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
           <option value="" disabled>
             Chọn quỹ…
           </option>
+          {fundKhongCon && (
+            <option value={assocFundCd} disabled>
+              {assocFundCd} (quỹ này không còn trong danh sách — chọn quỹ khác để đổi)
+            </option>
+          )}
           {funds.map((f) => (
             <option key={f.assoc_fund_cd} value={f.assoc_fund_cd}>
               {f.name}
@@ -188,10 +206,10 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
         </label>
         <input
           id={`${uid}-units`}
-          type="number"
+          type="text"
           inputMode="numeric"
-          value={units === 0 ? '' : units}
-          onChange={(e) => setUnits(Math.round(Number(e.target.value)) || 0)}
+          value={unitsText}
+          onChange={(e) => setUnitsText(sanitizeSignedIntText(e.target.value))}
           className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold outline-green-500"
         />
 

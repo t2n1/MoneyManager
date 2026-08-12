@@ -11,6 +11,9 @@ function thuTuTrongNgay(t) {
 function avgNavOf(costBasis, units) {
   return units > 0 ? Math.round(costBasis / units * NAV_UNITS) : 0;
 }
+function fundLineValue(units, nav) {
+  return Math.round(units * nav / NAV_UNITS);
+}
 function fundHoldingsFromTrades(trades) {
   const acc = /* @__PURE__ */ new Map();
   const oversold = /* @__PURE__ */ new Set();
@@ -71,7 +74,7 @@ function fundValue(holdings, navByFund) {
       missingNavs.push(h.assocFundCd);
       marketValue += h.costBasis;
     } else {
-      marketValue += Math.round(h.units * nav / NAV_UNITS);
+      marketValue += fundLineValue(h.units, nav);
     }
   }
   const allMissing = holdings.length > 0 && missingNavs.length === holdings.length;

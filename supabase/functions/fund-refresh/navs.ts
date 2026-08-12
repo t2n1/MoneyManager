@@ -211,12 +211,11 @@ export async function fetchFundNavs(
   let hetNganSach = false
   let soQuyDaGoi = 0
 
-  for (let i = 0; i < funds.length; i++) {
-    if (i > 0 && now() - start >= budgetMs) {
+  for (const f of funds) {
+    if (now() - start >= budgetMs) {
       hetNganSach = true
       break
     }
-    const f = funds[i]
 
     // Cả hai tham số, luôn luôn. Thiếu một cái thì server trả 200 kèm 19 byte JSON và
     // parseNavCsv sẽ báo 'ma-sai' — đúng nhưng đi sai hướng debug.

@@ -1256,9 +1256,11 @@ export function TransactionForm({
 
       {activeRole === 'none' && <TagPicker value={effectiveTagIds} onChange={setTagIds} />}
 
-      {/* Hoàn tiền — chỉ có nghĩa với khoản CHI */}
+      {/* Hoàn tiền — chỉ có nghĩa với khoản CHI.
+          `mt-1.5` (cột cuộn đã có gap-1.5 → thành 12px): tách khỏi khối Nhãn ngay trên.
+          Không kẻ vạch — trong form này các khối chỉ cách nhau bằng khoảng trống. */}
       {type === 'expense' && activeRole === 'none' && (
-        <label className="flex items-start gap-2 px-1 text-sm text-fg-secondary">
+        <label className="mt-1.5 flex items-start gap-2 px-1 text-sm text-fg-secondary">
           <input
             type="checkbox"
             checked={isRefund}

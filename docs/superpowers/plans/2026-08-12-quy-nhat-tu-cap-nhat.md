@@ -987,7 +987,7 @@ export function fundValue(
 npx vitest run src/features/assets/fundHoldings.test.ts
 ```
 
-Kỳ vọng: PASS, 19 bài. Đặc biệt phải xanh bài `tái tạo ĐÚNG TỪNG YÊN ba con số của app Rakuten` — nếu bài đó đỏ thì **dừng lại**, đừng sửa test cho vừa code.
+Kỳ vọng: PASS, 18 bài. Đặc biệt phải xanh bài `tái tạo ĐÚNG TỪNG YÊN ba con số của app Rakuten` — nếu bài đó đỏ thì **dừng lại**, đừng sửa test cho vừa code.
 
 - [ ] **Step 5: Kiểm lint + biên dịch**
 
@@ -1172,7 +1172,10 @@ describe('parseNavCsv', () => {
     const csv = sjis(
       '年月日,基準価額(円),純資産総額（百万円）,分配金,決算期\r\n' +
         '2026年08月07日,20012,1172772,,\r\n' +
-        'hôm nay,20053,1175583,,\r\n',
+        // Chuỗi "ngày hỏng" phải mã hoá được sang Shift-JIS. Bản đầu dùng 'hôm nay' —
+        // chữ `ô` KHÔNG có trong bảng mã Shift-JIS nên chính hàm sjis() ở cuối file này
+        // không dựng nổi chuỗi đó, và bài test nổ trước khi kịp kiểm cái nó định kiểm.
+        'khong-phai-ngay,20053,1175583,,\r\n',
     )
     const kq = parseNavCsv(csv, SP500)
     if (!kq.ok) throw new Error('đáng lẽ đọc được')
@@ -1352,7 +1355,7 @@ export function parseNavCsv(bytes: Uint8Array, assocFundCd: string): NavParseRes
 npx vitest run supabase/functions/fund-refresh/navs.test.ts
 ```
 
-Kỳ vọng: PASS, 10 bài.
+Kỳ vọng: PASS, 9 bài.
 
 - [ ] **Step 7: Commit**
 
@@ -1697,7 +1700,7 @@ export async function fetchFundNavs(
 npx vitest run supabase/functions/fund-refresh/navs.test.ts
 ```
 
-Kỳ vọng: PASS, 20 bài (10 của Task 3 + 10 mới).
+Kỳ vọng: PASS, 19 bài (9 của Task 3 + 10 mới).
 
 - [ ] **Step 5: Commit**
 
@@ -3368,7 +3371,7 @@ export function parseNavHistory(bytes: Uint8Array): NavPoint[] {
 npx vitest run supabase/functions/fund-refresh/navs.test.ts
 ```
 
-Kỳ vọng: PASS, 23 bài.
+Kỳ vọng: PASS, 22 bài.
 
 - [ ] **Step 5: Thêm chế độ `lapLichSu` vào `index.ts`**
 

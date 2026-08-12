@@ -107,10 +107,12 @@ tâm **hàng chip đầu tiên** (không phải tâm cả khối, khi chip xuố
 Chữ dùng đúng token của `labelCls`: `text-xs font-medium text-fg-muted`, thêm
 `truncate` + `title` — tên nhóm do người dùng tự đặt nên có thể dài hơn 64px.
 
-**Giữ 64px, chưa hạ xuống 56px.** Ở cỡ chữ này `Ở đâu?` chỉ chiếm ~40px nên 56px là
-đủ, nhưng tên nhóm trên bản chạy thật **chưa biết chắc** (bản gốc migration seed là
-`Với ai?`, còn ảnh localhost hiện `Ai?` — tức đã có chỗ bị đổi tên). Đo tên thật trước,
-cả hai tên ≤ 6 ký tự thì hạ `w-16` → `w-14`, trả 8px cho chip.
+**Rộng 56px (`w-14`).** Người dùng xác nhận tên hai nhóm trên bản chạy thật là `Ai?` và
+`Ở đâu?`; đo thì tên dài nhất chiếm 40px, nên 56px còn dư. Bản đầu để 64px vì lúc đó
+chưa biết chắc tên (migration seed ra `Với ai?`, ảnh localhost lại hiện `Ai?`).
+
+Vẫn giữ `truncate` + `title`: tên nhóm do người dùng tự đặt, đổi thành một tên dài thì
+cắt bớt chứ không được phá cột.
 
 **Chiều cao cột tên phải bằng chiều cao hàng đầu**, không thì chữ lệch so với chip:
 `h-11` ở hàng có chip, `h-7` ở hàng rỗng (xem dưới). Một class theo trạng thái, không

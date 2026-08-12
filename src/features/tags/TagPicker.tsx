@@ -223,11 +223,14 @@ export function TagPicker({ value, onChange }: Props) {
               aria-labelledby={labelId}
               className="flex items-start gap-2"
             >
-              {/* Cao bằng hàng đầu, không thì chữ lệch so với chip */}
+              {/* Cao bằng hàng đầu, không thì chữ lệch so với chip.
+                  Rộng 56px: đo với hai tên thật ("Ai?", "Ở đâu?") thì tên dài nhất chiếm
+                  40px, còn dư. Tên nhóm do người dùng tự đặt nên vẫn `truncate` + `title`
+                  cho ca đặt tên dài. */}
               <span
                 id={labelId}
                 title={name}
-                className={`flex w-16 shrink-0 items-center text-xs font-medium text-fg-muted ${
+                className={`flex w-14 shrink-0 items-center text-xs font-medium text-fg-muted ${
                   empty ? 'h-7' : 'h-11'
                 }`}
               >

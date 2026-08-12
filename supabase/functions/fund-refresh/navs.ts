@@ -190,11 +190,10 @@ interface FetchNavOptions {
  * Đọc `arrayBuffer()` chứ KHÔNG `text()`: file là Shift-JIS trong khi server khai UTF-8 —
  * xem bẫy ① ở đầu file. Việc giải mã nằm trong parseNavCsv.
  *
- * Ngân sách chỉ được KIỂM kể từ quỹ THỨ HAI trở đi (`i > 0`), không phải trước quỹ đầu:
- * quỹ đầu luôn được thử dù ngân sách eo hẹp tới đâu, vì chưa có cuộc gọi nào đang chạy để
- * "dừng sạch trước nó" — dừng sạch chỉ có nghĩa khi đã có ít nhất một quỹ xong. Nếu kiểm
- * trước CẢ quỹ đầu, một đồng hồ giả nhảy nhanh hơn ngân sách (xem bài test) sẽ chặn luôn
- * quỹ đầu — sai với "quỹ đầu gọi được, quỹ thứ hai thì hết giờ".
+ * Ngân sách được kiểm ở đầu MỌI vòng lặp, kể cả vòng đầu — cùng hình dạng với
+ * `fetchYahooPrices` trong stock-refresh/prices.ts. Với đồng hồ thật, `start` và lần kiểm
+ * đầu tiên cách nhau vài micro-giây nên vòng đầu không bao giờ vướng; giữ đúng khuôn để
+ * người đọc so hai file không gặp một khác biệt không ai giải thích được.
  */
 export async function fetchFundNavs(
   funds: FundRef[],

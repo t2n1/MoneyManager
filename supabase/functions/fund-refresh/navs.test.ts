@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { buildFundFetchOrder, fetchFundNavs, parseNavCsv } from './navs'
+import { buildFundFetchOrder, fetchFundNavs, parseNavCsv, parseNavHistory } from './navs'
 
 // fileURLToPath, không phải `.pathname`: đường dẫn dự án có dấu cách ("Money Manager").
 const HERE = fileURLToPath(new URL('.', import.meta.url))
@@ -303,6 +303,35 @@ describe('fetchFundNavs', () => {
     })
     expect(daGoi[0]).toContain('isinCd=JP90C000Q2U6')
     expect(daGoi[0]).toContain('associFundCd=9I31223A')
+  })
+})
+
+describe('parseNavHistory', () => {
+  it('trả MỌI phiên hợp lệ, xếp theo ngày tăng dần', () => {
+    const csv = sjis(
+      '年月日,基準価額(円),純資産総額（百万円）,分配金,決算期\r\n' +
+        '2026年08月10日,20053,1175583,,\r\n' +
+        '2026年08月07日,20012,1172772,,\r\n',
+    )
+    expect(parseNavHistory(csv)).toEqual([
+      { navDate: '2026-08-07', nav: 20_012 },
+      { navDate: '2026-08-10', nav: 20_053 },
+    ])
+  })
+
+  it('file thật có hàng nghìn phiên, phiên đầu là ngày lập quỹ', () => {
+    const lich = parseNavHistory(mau('toushin-sp500.csv'))
+    expect(lich.length).toBeGreaterThan(500)
+    // 楽天・プラス・S&P500 lập ngày 2023-10-27, 基準価額 khởi điểm 9.888.
+    expect(lich[0]).toEqual({ navDate: '2023-10-27', nav: 9_888 })
+    // Xếp tăng dần, không có ngày lặp.
+    for (let i = 1; i < lich.length; i++) {
+      expect(lich[i].navDate > lich[i - 1].navDate).toBe(true)
+    }
+  })
+
+  it('không phải CSV giá → mảng rỗng, không nổ', () => {
+    expect(parseNavHistory(mau('toushin-thieu-tham-so.txt'))).toEqual([])
   })
 })
 

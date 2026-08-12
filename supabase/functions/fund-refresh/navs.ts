@@ -114,6 +114,46 @@ export function parseNavCsv(bytes: Uint8Array, assocFundCd: string): NavParseRes
   }
 }
 
+/** Một điểm trong lịch sử 基準価額. */
+export interface NavPoint {
+  /** ISO date */
+  navDate: string
+  /** ¥/10.000口 */
+  nav: number
+}
+
+/**
+ * TOÀN BỘ lịch sử 基準価額 trong file, xếp theo ngày tăng dần, mỗi ngày một điểm.
+ *
+ * Dùng cho chế độ lấp lịch sử: CSV tải về đã có đủ lịch sử từ ngày lập quỹ, nên dựng lại
+ * `account_valuations` cho các phiên đã qua KHÔNG tốn thêm một cuộc gọi mạng nào.
+ *
+ * Không phải CSV giá (mã sai, thiếu tham số, giải mã hỏng) → mảng RỖNG. Nơi gọi tự hiểu
+ * là không có gì để lấp; ném lỗi ở đây sẽ làm chết cả lượt lấp vì một quỹ hỏng.
+ */
+export function parseNavHistory(bytes: Uint8Array): NavPoint[] {
+  const text = new TextDecoder('shift_jis').decode(bytes)
+  const dong = text.split(/\r?\n/)
+  if (!dong[0] || !dong[0].includes(COT_NGAY)) return []
+
+  // Map để một ngày chỉ còn một điểm (file thật không lặp, nhưng đừng tin mù — hai điểm
+  // cùng ngày sẽ làm phép lấp ghi hai giá trị khác nhau cho cùng một valued_on).
+  const theoNgay = new Map<string, number>()
+  for (const raw of dong.slice(1)) {
+    if (!raw.trim()) continue
+    const o = raw.split(',')
+    const navDate = ngayNhatSangISO(o[0] ?? '')
+    if (navDate === null) continue
+    const nav = soDuong(o[1])
+    if (nav === null) continue
+    theoNgay.set(navDate, nav)
+  }
+
+  return [...theoNgay.entries()]
+    .map(([navDate, nav]) => ({ navDate, nav }))
+    .sort((a, b) => a.navDate.localeCompare(b.navDate))
+}
+
 const CSV_URL = 'https://toushin-lib.fwg.ne.jp/FdsWeb/FDST030000/csv-file-download'
 
 // Ngân sách cho CẢ khối hút giá (mọi quỹ cộng lại), không phải cho một quỹ. Danh bạ dự

@@ -17,7 +17,7 @@
 
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { buildFundFetchOrder, fetchFundNavs, type NavUpsert } from './navs.ts'
+import { buildFundFetchOrder, fetchFundNavs, parseNavHistory, type NavUpsert } from './navs.ts'
 import { fundHoldingsFromTrades, fundValue, sessionNavs } from './_funds.js'
 import { loadFundAccounts, loadFundRegistry, loadHeldFundCodes } from './loadInput.ts'
 
@@ -84,6 +84,108 @@ Deno.serve(async (req) => {
     return new Response('Sai bí mật cron', { status: 401 })
   }
 
+  // --- Chế độ lấp lịch sử: dựng lại account_valuations cho các phiên đã qua ---
+  //
+  // CSV tải về đã có đủ lịch sử từ ngày lập quỹ, nên việc này KHÔNG tốn thêm cuộc gọi nào
+  // ngoài một lượt hút bình thường. Gọi tay, không nằm trong lượt cron hằng ngày.
+  if (body?.lapLichSu?.accountId) {
+    const accountId = body.lapLichSu.accountId as string
+    const kqLap = { daGhi: 0, loi: [] as string[] }
+    try {
+      const accounts = await loadFundAccounts(sb)
+      const a = accounts.find((x) => x.accountId === accountId)
+      if (!a) return Response.json({ loi: 'Không tìm thấy tài khoản quỹ này' }, { status: 404 })
+
+      const danhBa = await loadFundRegistry(sb)
+      // Hút lịch sử của MỌI quỹ trong danh bạ: sáu trong tám quỹ của chủ app đã bán hết
+      // từ lâu nhưng vẫn có mặt trong các phiên quá khứ.
+      const lichSu = new Map<string, Map<string, number>>() // assocFundCd → (ngày → nav)
+      for (const f of danhBa) {
+        const url =
+          `https://toushin-lib.fwg.ne.jp/FdsWeb/FDST030000/csv-file-download` +
+          `?isinCd=${encodeURIComponent(f.isinCd)}&associFundCd=${encodeURIComponent(f.assocFundCd)}`
+        try {
+          const res = await fetch(url)
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const diem = parseNavHistory(new Uint8Array(await res.arrayBuffer()))
+          lichSu.set(f.assocFundCd, new Map(diem.map((d) => [d.navDate, d.nav])))
+        } catch (err) {
+          kqLap.loi.push(`${f.assocFundCd}: ${err instanceof Error ? err.message : String(err)}`)
+        }
+      }
+
+      // Mọi ngày phiên xuất hiện ở BẤT KỲ quỹ nào, từ lệnh đầu tiên trở đi.
+      const lenhDauTien = a.trades.map((t) => t.tradedOn).sort()[0]
+      const moiNgay = new Set<string>()
+      for (const theoNgay of lichSu.values())
+        for (const ngay of theoNgay.keys()) if (ngay >= lenhDauTien) moiNgay.add(ngay)
+
+      // Trần: không vượt giới hạn wall-clock của edge function. Chạy lại lấp tiếp phần
+      // còn trống vì bước dưới chỉ ghi ngày CHƯA có hàng nào.
+      const cacNgay = [...moiNgay].sort().slice(0, 1_500)
+
+      // Ngày đã có hàng (bất kể auto hay manual) thì KHÔNG đè: ảnh chụp cũ có thể đã được
+      // ghi bằng giá đúng của ngày đó, và số gõ tay thì luôn thắng.
+      const { data: daCo, error: docErr } = await sb
+        .from('account_valuations')
+        .select('valued_on')
+        .eq('account_id', accountId)
+      if (docErr) throw docErr
+      const ngayDaCo = new Set((daCo ?? []).map((r: any) => r.valued_on as string))
+
+      const hang: any[] = []
+      for (const ngay of cacNgay) {
+        if (ngayDaCo.has(ngay)) continue
+        const denNgay = a.trades.filter((t) => t.tradedOn <= ngay)
+        if (denNgay.length === 0) continue
+        const { holdings, oversold } = fundHoldingsFromTrades(denNgay)
+        // Sổ lệnh có lỗ hổng thì mọi ngày đều sai — dừng hẳn, đừng ghi 900 hàng sai.
+        if (oversold.length > 0) {
+          return Response.json(
+            { loi: `Sổ lệnh có lỗ hổng ở ${oversold.join(', ')} — kiểm fund_aliases trước` },
+            { status: 400 },
+          )
+        }
+        // Chưa mua gì (hoặc đã bán sạch) → không có gì để chụp. Ca này CÓ THẬT: tài khoản
+        // trống từ 2025-04-14 tới 2025-08-28.
+        if (holdings.length === 0) continue
+
+        const navNgayDo = new Map<string, number>()
+        for (const h of holdings) {
+          const nav = lichSu.get(h.assocFundCd)?.get(ngay)
+          if (nav != null) navNgayDo.set(h.assocFundCd, nav)
+        }
+        const { marketValue } = fundValue(holdings, navNgayDo)
+        if (marketValue === null) continue
+
+        hang.push({
+          user_id: a.userId,
+          account_id: accountId,
+          valued_on: ngay,
+          market_value: marketValue,
+          note: `Lấp lại theo 基準価額 phiên ${ngay}`,
+          source: 'auto',
+        })
+      }
+
+      for (let i = 0; i < hang.length; i += 200) {
+        const { error } = await sb
+          .from('account_valuations')
+          .upsert(hang.slice(i, i + 200), { onConflict: 'account_id,valued_on' })
+        if (error) throw error
+      }
+
+      kqLap.daGhi = hang.length
+      console.log('fund-refresh lapLichSu', JSON.stringify(kqLap))
+      return Response.json(kqLap)
+    } catch (err) {
+      return Response.json(
+        { loi: err instanceof Error ? err.message : String(err) },
+        { status: 500 },
+      )
+    }
+  }
+
   const kq: KetQua = { soQuyCoGia: 0, daGhi: 0, boQua: {}, loi: [] }
   // Việc 2 throw TRƯỚC cả vòng lặp tài khoản — tức không phải lỗi của riêng một tài khoản
   // mà cả khối ghi giá trị bị gãy. Tách cờ riêng vì lỗi của TỪNG tài khoản vẫn được gom
@@ -94,7 +196,7 @@ Deno.serve(async (req) => {
   try {
     const [danhBa, dangGiu] = await Promise.all([loadFundRegistry(sb), loadHeldFundCodes(sb)])
     const thuTu = buildFundFetchOrder(dangGiu, danhBa)
-    const { rows, trangThai, errors } = await fetchFundNavs(thuTu)
+    const { rows, trangThai, errors, hetNganSach } = await fetchFundNavs(thuTu)
     for (const e of errors) kq.loi.push(`gia: ${e}`)
 
     if (rows.length > 0) {
@@ -107,8 +209,10 @@ Deno.serve(async (req) => {
         .upsert(payload, { onConflict: 'assoc_fund_cd' })
       if (error) throw error
       kq.soQuyCoGia = rows.length
-    } else if (errors.length === 0) {
-      // Danh bạ rỗng (chưa seed) — khác hẳn "gọi lỗi", nên nói rõ.
+    } else if (errors.length === 0 && !hetNganSach) {
+      // Danh bạ rỗng (chưa seed) — khác hẳn "gọi lỗi" và khác hẳn "hết giờ giữa chừng",
+      // nên nói rõ. Đọc `hetNganSach` tường minh thay vì tin rằng fetchFundNavs luôn
+      // nhét một dòng vào `errors`: hợp đồng kiểu không hứa điều đó.
       kq.loi.push('gia: danh bạ quỹ rỗng, không có gì để hút')
     }
 

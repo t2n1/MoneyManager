@@ -6,10 +6,12 @@ import {
   type CategoryPatch,
   type DateRange,
   type DebtPatch,
+  type FundTradePatch,
   type NewAccount,
   type NewCategory,
   type NewDebt,
   type NewDebtPayment,
+  type NewFundTrade,
   type NewPlannedExpense,
   type NewRecurringRule,
   type NewSavingsGoal,
@@ -477,6 +479,64 @@ export function useDeleteStockTrade() {
   return useMutation({
     mutationFn: (id: string) => repo.deleteStockTrade(id),
     onSettled: () => invalidateStockTrades(qc),
+  })
+}
+
+// --- Quỹ đầu tư Nhật (migration 0045) ---
+
+export function useFunds() {
+  return useQuery({
+    queryKey: ['funds'],
+    queryFn: () => repo.getFunds(),
+  })
+}
+
+export function useFundPrices() {
+  return useQuery({
+    queryKey: ['fundPrices'],
+    queryFn: () => repo.getFundPrices(),
+  })
+}
+
+export function useFundTrades() {
+  return useQuery({
+    queryKey: ['fundTrades'],
+    queryFn: () => repo.getFundTrades(),
+  })
+}
+
+/**
+ * Bỏ cache đúng bộ key mà `invalidateStockTrades` bỏ ở trên — KHÔNG phải `['accounts']`
+ * như suy đoán ban đầu: sổ lệnh quỹ không phải dòng tiền nên số dư (view) không đổi, chỉ
+ * snapshot giá trị đầu tư (`valuations`) mới có thể đổi theo.
+ */
+function invalidateFundTrades(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['fundTrades'] })
+  qc.invalidateQueries({ queryKey: ['valuations'] })
+}
+
+export function useCreateFundTrade() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewFundTrade) => repo.createFundTrade(input),
+    onSettled: () => invalidateFundTrades(qc),
+  })
+}
+
+export function useUpdateFundTrade() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: FundTradePatch }) =>
+      repo.updateFundTrade(id, patch),
+    onSettled: () => invalidateFundTrades(qc),
+  })
+}
+
+export function useDeleteFundTrade() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => repo.deleteFundTrade(id),
+    onSettled: () => invalidateFundTrades(qc),
   })
 }
 

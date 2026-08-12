@@ -16,6 +16,7 @@ import type {
   CategoryType,
   DebtPaymentRow,
   DebtRow,
+  FundTradeRow,
   LifeEventRow,
   LifePhaseRow,
   LifeScenarioRow,
@@ -42,6 +43,7 @@ import {
   type BackupData,
   type CategoryPatch,
   type DebtPatch,
+  type FundTradePatch,
   type LifeEventPatch,
   type LifePhasePatch,
   type LifeScenarioPatch,
@@ -49,6 +51,7 @@ import {
   type NewCategory,
   type NewDebt,
   type NewDebtPayment,
+  type NewFundTrade,
   type NewLifeEvent,
   type NewLifePhase,
   type NewLifeScenario,
@@ -352,6 +355,17 @@ export const supabaseRepo: Repo = {
     if ((st.count ?? 0) > 0)
       throw new Error('Không xóa được: còn sổ lệnh cổ phiếu của tài khoản này.')
 
+    // fund_trades cũng có `on delete cascade` (migration 0045) — cùng lý do với khối
+    // stock_trades ở trên: không chặn ở đây thì xoá tài khoản là xoá luôn sổ lệnh quỹ mà
+    // không ai hỏi.
+    const ft = await sb
+      .from('fund_trades')
+      .select('id', { count: 'exact', head: true })
+      .eq('account_id', id)
+    if (ft.error) throw ft.error
+    if ((ft.count ?? 0) > 0)
+      throw new Error('Không xóa được: còn sổ lệnh quỹ của tài khoản này.')
+
     const { error } = await sb.from('accounts').delete().eq('id', id)
     if (error) throw error
   },
@@ -460,6 +474,82 @@ export const supabaseRepo: Repo = {
 
   async deleteStockTrade(id: string) {
     const { error } = await getSupabase().from('stock_trades').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  async getFunds() {
+    const { data, error } = await getSupabase().from('funds').select('*').order('assoc_fund_cd')
+    if (error) throw error
+    return data
+  },
+
+  async getFundPrices() {
+    const { data, error } = await getSupabase()
+      .from('fund_prices')
+      .select('*')
+      .order('assoc_fund_cd')
+    if (error) throw error
+    return data
+  },
+
+  async getFundTrades() {
+    // Phân trang: 136 lệnh chỉ từ một lần nhập sao kê, và mỗi tháng thêm 2 — vài năm là
+    // vượt 1.000. Bị cắt là giá trị tài khoản tính trên sổ lệnh thiếu, tức SAI mà không
+    // báo. `id` làm chốt sắp xếp cuối để hai trang liền nhau không lặp/sót (traded_on
+    // không đơn trị — xem src/data/paging.ts).
+    return await fetchAllPages<FundTradeRow>(async (from, to) =>
+      getSupabase()
+        .from('fund_trades')
+        .select('*')
+        .order('traded_on', { ascending: false })
+        .order('id')
+        .range(from, to),
+    )
+  },
+
+  async createFundTrade(input: NewFundTrade) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('fund_trades')
+      .insert({
+        user_id,
+        account_id: input.account_id,
+        // KHÔNG toUpperCase: 協会コード phân biệt chữ hoa/thường về mặt đối chiếu với
+        // nguồn, và mã thật có cả chữ số lẫn chữ in ('9I31223A', '0331418A'). Ép hoa là
+        // vô hại hôm nay nhưng là một phép biến đổi không ai yêu cầu.
+        assoc_fund_cd: input.assoc_fund_cd.trim(),
+        kind: input.kind,
+        traded_on: input.traded_on,
+        units: input.units,
+        nav: input.nav,
+        amount: input.amount,
+        bucket: input.bucket,
+        note: input.note,
+      })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async updateFundTrade(id: string, patch: FundTradePatch) {
+    const { data, error } = await getSupabase()
+      .from('fund_trades')
+      .update({
+        ...patch,
+        ...(patch.assoc_fund_cd === undefined
+          ? {}
+          : { assoc_fund_cd: patch.assoc_fund_cd.trim() }),
+      })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async deleteFundTrade(id: string) {
+    const { error } = await getSupabase().from('fund_trades').delete().eq('id', id)
     if (error) throw error
   },
 

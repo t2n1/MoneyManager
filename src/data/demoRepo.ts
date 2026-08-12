@@ -16,6 +16,9 @@ import type {
   CostType,
   DebtPaymentRow,
   DebtRow,
+  FundPriceRow,
+  FundRow,
+  FundTradeRow,
   FxHistoryRow,
   LifeEventRow,
   LifePhaseRow,
@@ -46,6 +49,7 @@ import {
   type BackupData,
   type CategoryPatch,
   type DebtPatch,
+  type FundTradePatch,
   type LifeEventPatch,
   type LifePhasePatch,
   type LifeScenarioPatch,
@@ -53,6 +57,7 @@ import {
   type NewCategory,
   type NewDebt,
   type NewDebtPayment,
+  type NewFundTrade,
   type NewLifeEvent,
   type NewLifePhase,
   type NewLifeScenario,
@@ -82,7 +87,7 @@ import {
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
 // Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-export const STORAGE_KEY = 'sct-demo-db-v16' // v16: thêm bảng giá + sổ lệnh cổ phiếu demo (stockPrices, stockTrades)
+export const STORAGE_KEY = 'sct-demo-db-v17' // v17: thêm danh bạ + bảng giá + sổ lệnh quỹ Nhật (funds, fundPrices, fundTrades)
 const DEMO_USER = 'demo-user'
 
 /**
@@ -122,6 +127,29 @@ function assertStockTradeShape(input: Pick<NewStockTrade, 'kind' | 'quantity' | 
   if (!(input.price > 0)) throw new Error('Giá phải là số dương')
 }
 
+/**
+ * Soi hình dạng lệnh quỹ y như CHECK `fund_trades_shape` của Postgres (migration 0045):
+ *   adjust → units <> 0 và nav = 0 và amount = 0
+ *   khác   → units > 0 và amount > 0
+ *
+ * Bản demo là chỗ DUY NHẤT bắt được lỗi này trước khi nó thành một câu INSERT bị 23514 ở
+ * production — nơi lỗi chỉ hiện ra dưới dạng một mã lỗi Postgres không ai đọc được.
+ */
+function assertFundTradeShape(
+  input: Pick<NewFundTrade, 'kind' | 'units' | 'nav' | 'amount'>,
+) {
+  if (input.kind === 'adjust') {
+    if (input.units === 0) throw new Error('Lệnh điều chỉnh phải có số 口数 khác 0.')
+    if (input.nav !== 0) throw new Error('Lệnh điều chỉnh không được có 基準価額.')
+    if (input.amount !== 0) throw new Error('Lệnh điều chỉnh không được có số tiền.')
+    return
+  }
+  if (!Number.isFinite(input.units) || input.units <= 0)
+    throw new Error('Lệnh mua/bán phải có số 口数 dương.')
+  if (!Number.isFinite(input.amount) || input.amount <= 0)
+    throw new Error('Lệnh mua/bán phải có số tiền dương.')
+}
+
 interface DemoDB {
   profile: ProfileRow
   accounts: AccountRow[]
@@ -135,6 +163,14 @@ interface DemoDB {
   accountValuations: AccountValuationRow[]
   stockTrades: StockTradeRow[]
   stockPrices: StockPriceRow[]
+  /**
+   * Quỹ đầu tư Nhật (migration 0045). Optional (khác `stockTrades`/`stockPrices` ở trên):
+   * `importAll` chưa mang lại ba bảng này khi khôi phục từ file sao lưu (đó là việc của
+   * Task 7) — khai bắt buộc sẽ đỏ kiểu ngay tại object trả về của `importAll`.
+   */
+  funds?: FundRow[]
+  fundPrices?: FundPriceRow[]
+  fundTrades?: FundTradeRow[]
   savingsGoals: SavingsGoalRow[]
   networthSnapshots: NetWorthSnapshotRow[]
   tags: TagRow[]
@@ -254,6 +290,10 @@ function seed(): DemoDB {
       statement_day: 31, // chốt cuối tháng (kẹp về ngày cuối)
       payment_due_day: 27, // trả ngày 27 (dời T7/CN sang T2 khi hiển thị)
     },
+    // Tài khoản NISA quỹ đầu tư Nhật (migration 0045) — vốn gốc đến từ fund_trades, không
+    // từ initial_balance: Rakuten quét sạch tiền dư (自動出金) nên không có "tiền chưa
+    // đầu tư" để gán ở đây.
+    account('NISA Rakuten', 'investment', 'JPY', 0, 6, 'Tài sản Nhật'),
   ]
   // Thẻ Rakuten (JPY) tự trả từ tài khoản Ngân hàng (JPY, cùng loại tiền)
   accounts[5].payment_account_id = accounts[1].id
@@ -347,6 +387,9 @@ function seed(): DemoDB {
   const cat = (name: string, type: CategoryType) =>
     categories.find((c) => c.name === name && c.type === type)!
   const [cash, bank, stockAcc, invest] = accounts
+  // Tài khoản NISA nằm cuối mảng accounts (thêm sau, không đổi thứ tự 4 tài khoản đầu ở
+  // trên) — lấy bằng tên cho khỏi phụ thuộc chỉ số mảng.
+  const nisaAcc = accounts.find((a) => a.name === 'NISA Rakuten')!
 
   const tx = (
     partial: Pick<TransactionRow, 'type' | 'amount' | 'occurred_on' | 'note'> &
@@ -483,6 +526,81 @@ function seed(): DemoDB {
     { id: uuid(), user_id: DEMO_USER, account_id: idChungKhoanVN, symbol: 'FPT', kind: 'adjust', traded_on: '2026-06-20', quantity: 50, price: 0, fee: 0, tax: 0, note: 'Cổ phiếu thưởng 10%', created_at: nowISO(), updated_at: nowISO() },
   ]
 
+  // Hai quỹ Rakuten thật + 基準価額 phiên 2026-08-10 (đo thật từ nguồn 投信協会). Dùng số
+  // thật để bản demo phản ánh đúng thứ người dùng sẽ thấy, và để ai đọc dữ liệu demo cũng
+  // thấy ngay đơn vị là ¥/10.000口 chứ không phải ¥/口.
+  const funds: FundRow[] = [
+    {
+      assoc_fund_cd: '9I31223A',
+      isin_cd: 'JP90C000Q2U6',
+      name: '楽天・プラス・S&P500インデックス・ファンド',
+      last_status: 'ok',
+      last_checked_at: '2026-08-12T13:00:00.000Z',
+      created_at: '2026-08-12T13:00:00.000Z',
+    },
+    {
+      assoc_fund_cd: '9I314241',
+      isin_cd: 'JP90C000QF22',
+      name: '楽天・プラス・NASDAQ-100インデックス・ファンド',
+      last_status: 'ok',
+      last_checked_at: '2026-08-12T13:00:00.000Z',
+      created_at: '2026-08-12T13:00:00.000Z',
+    },
+  ]
+  const fundPrices: FundPriceRow[] = [
+    {
+      assoc_fund_cd: '9I31223A',
+      nav: 20_053,
+      prior_nav: 20_012,
+      net_assets_m: 1_175_583,
+      nav_date: '2026-08-10',
+      updated_at: '2026-08-12T13:00:00.000Z',
+    },
+    {
+      assoc_fund_cd: '9I314241',
+      nav: 18_855,
+      prior_nav: 18_712,
+      net_assets_m: 306_851,
+      nav_date: '2026-08-10',
+      updated_at: '2026-08-12T13:00:00.000Z',
+    },
+  ]
+  // Đúng hai lệnh mua ngày 約定 2026-04-09 — tái tạo vị thế thật: 70.000 ¥ vốn,
+  // 80.757 ¥ giá trị theo phiên 2026-08-10. Tài khoản NISA (investment/JPY) đã seed ở trên.
+  const idNisaJPY = nisaAcc.id
+  const fundTrades: FundTradeRow[] = [
+    {
+      id: uuid(),
+      user_id: DEMO_USER,
+      account_id: idNisaJPY,
+      assoc_fund_cd: '9I31223A',
+      kind: 'buy',
+      traded_on: '2026-04-09',
+      units: 28_429,
+      nav: 17_588,
+      amount: 50_000,
+      bucket: 'NISAつみたて投資枠',
+      note: '',
+      created_at: '2026-04-14T00:00:00.000Z',
+      updated_at: '2026-04-14T00:00:00.000Z',
+    },
+    {
+      id: uuid(),
+      user_id: DEMO_USER,
+      account_id: idNisaJPY,
+      assoc_fund_cd: '9I314241',
+      kind: 'buy',
+      traded_on: '2026-04-09',
+      units: 12_595,
+      nav: 15_879,
+      amount: 20_000,
+      bucket: 'NISA成長投資枠',
+      note: '',
+      created_at: '2026-04-14T00:00:00.000Z',
+      updated_at: '2026-04-14T00:00:00.000Z',
+    },
+  ]
+
   const debts = [debtLent, debtOwed]
   const debtPayments: DebtPaymentRow[] = [
     {
@@ -528,6 +646,9 @@ function seed(): DemoDB {
     accountValuations,
     stockTrades,
     stockPrices,
+    funds,
+    fundPrices,
+    fundTrades,
     savingsGoals: [],
     networthSnapshots: [],
     tags: [],
@@ -847,6 +968,8 @@ export const demoRepo: Repo = {
       throw new Error('Không xóa được: còn dữ liệu giá trị đầu tư của tài khoản này.')
     if ((db.stockTrades ?? []).some((t) => t.account_id === id))
       throw new Error('Không xóa được: còn sổ lệnh cổ phiếu của tài khoản này.')
+    if ((db.fundTrades ?? []).some((t) => t.account_id === id))
+      throw new Error('Không xóa được: còn sổ lệnh quỹ của tài khoản này.')
     db.accounts = db.accounts.filter((a) => a.id !== id)
     save(db)
   },
@@ -958,6 +1081,84 @@ export const demoRepo: Repo = {
   async deleteStockTrade(id: string) {
     const db = load()
     db.stockTrades = (db.stockTrades ?? []).filter((t) => t.id !== id)
+    save(db)
+  },
+
+  async getFunds() {
+    return (load().funds ?? [])
+      .slice()
+      .sort((a, b) => a.assoc_fund_cd.localeCompare(b.assoc_fund_cd))
+  },
+
+  async getFundPrices() {
+    return (load().fundPrices ?? [])
+      .slice()
+      .sort((a, b) => a.assoc_fund_cd.localeCompare(b.assoc_fund_cd))
+  },
+
+  async getFundTrades() {
+    return (load().fundTrades ?? [])
+      .slice()
+      .sort(
+        (a, b) =>
+          b.traded_on.localeCompare(a.traded_on) || b.created_at.localeCompare(a.created_at),
+      )
+  },
+
+  async createFundTrade(input: NewFundTrade) {
+    assertFundTradeShape(input)
+    const db = load()
+    db.fundTrades ??= []
+    const row: FundTradeRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      account_id: input.account_id,
+      assoc_fund_cd: input.assoc_fund_cd.trim(),
+      kind: input.kind,
+      traded_on: input.traded_on,
+      units: input.units,
+      nav: input.nav,
+      amount: input.amount,
+      bucket: input.bucket,
+      note: input.note,
+      created_at: nowISO(),
+      updated_at: nowISO(),
+    }
+    db.fundTrades.push(row)
+    save(db)
+    return row
+  },
+
+  async updateFundTrade(id: string, patch: FundTradePatch) {
+    const db = load()
+    db.fundTrades ??= []
+    const idx = db.fundTrades.findIndex((t) => t.id === id)
+    if (idx < 0) throw new Error('Không tìm thấy lệnh quỹ này.')
+    const current = db.fundTrades[idx]
+    const next: FundTradeRow = {
+      ...current,
+      assoc_fund_cd:
+        patch.assoc_fund_cd !== undefined ? patch.assoc_fund_cd.trim() : current.assoc_fund_cd,
+      kind: patch.kind ?? current.kind,
+      traded_on: patch.traded_on ?? current.traded_on,
+      units: patch.units ?? current.units,
+      nav: patch.nav ?? current.nav,
+      amount: patch.amount ?? current.amount,
+      bucket: patch.bucket ?? current.bucket,
+      note: patch.note ?? current.note,
+      updated_at: nowISO(),
+    }
+    // Soi hình dạng SAU khi trộn patch, y như CHECK của Postgres soi dòng kết quả — sửa
+    // lệnh có thể đổi cả kind lẫn nav/amount, chỉ soi lúc tạo là không đủ.
+    assertFundTradeShape(next)
+    db.fundTrades[idx] = next
+    save(db)
+    return next
+  },
+
+  async deleteFundTrade(id: string) {
+    const db = load()
+    db.fundTrades = (db.fundTrades ?? []).filter((t) => t.id !== id)
     save(db)
   },
 

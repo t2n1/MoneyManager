@@ -7,16 +7,28 @@
 //   node scripts/nhap-sao-ke-rakuten.mjs "<đường dẫn csv>" --account <uuid>          (xem trước)
 //   node scripts/nhap-sao-ke-rakuten.mjs "<đường dẫn csv>" --account <uuid> --ghi     (ghi thật)
 //
-// KHOÁ — vì sao CẢ HAI chế độ đều cần SUPABASE_SERVICE_ROLE_KEY, kể cả xem trước:
-// `fund_aliases` chỉ có đúng MỘT policy RLS (`for select to authenticated`, xem
-// 0045_fund_prices_trades.sql) và toàn bộ migrations không có policy nào `to anon`. Khoá
-// anon mang role `anon` ⇒ không policy nào khớp ⇒ RLS lọc sạch ⇒ PostgREST trả HTTP 200
-// kèm mảng RỖNG, KHÔNG lỗi. Bảng bí danh rỗng thì MỌI tên quỹ rơi vào `tenLa` và script
-// dừng với lời khuyên "thêm hàng vào fund_aliases" — trong khi 10 hàng đó đã có sẵn từ
-// migration. Chủ app sẽ đi sửa một thứ không hỏng, và đường DUY NHẤT chạy được sẽ là
-// `--ghi`: van an toàn hỏng lại đẩy người dùng sang đúng đường nguy hiểm nhất.
-// Đọc bằng khoá service role là chỉ ĐỌC, không ghi gì. Van an toàn thật nằm ở bước POST
-// (cờ `--ghi` + câu xác nhận y/N), không nằm ở việc chọn khoá.
+// KHOÁ — vì sao script đọc SUPABASE_SERVICE_ROLE_KEY, dù đây KHÔNG PHẢI khoá duy nhất
+// chạy được: RLS của `fund_trades` là policy "own rows" (`auth.uid() = user_id`, xem
+// 0045_fund_prices_trades.sql) và `fund_aliases` chỉ có đúng MỘT policy, mở SELECT cho
+// MỌI `authenticated` — nên một JWT đăng nhập thường của CHÍNH chủ tài khoản thoả cả đọc
+// lẫn ghi. Service role KHÔNG bắt buộc.
+//
+// Chọn service role vì là đường ÍT BƯỚC TAY NHẤT cho một script chạy TAY, MỘT LẦN: đổi
+// sang phiên đăng nhập thường nghĩa là script phải nhận MẬT KHẨU (tệ hơn hẳn) hoặc bảo
+// chủ app dán access token sống 1 giờ từ DevTools — cả hai nhiều bề mặt lỗi hơn cho một
+// script dùng đúng một lần rồi thôi.
+//
+// (Khoá `anon` thì thật sự KHÔNG chạy được — khác hẳn service role: `fund_aliases` không
+// có policy nào `to anon` ⇒ RLS lọc sạch ⇒ PostgREST vẫn trả HTTP 200 kèm mảng RỖNG,
+// KHÔNG lỗi ⇒ MỌI tên quỹ rơi vào `tenLa` ⇒ script dừng và khuyên SAI "thêm hàng vào
+// fund_aliases", trong khi 10 hàng đó đã có sẵn từ migration — chủ app sẽ đi sửa một thứ
+// không hỏng.)
+//
+// Van an toàn THẬT không nằm ở việc chọn khoá — service role đọc được ở CẢ chế độ xem
+// trước (chỉ ĐỌC, không ghi gì) và chế độ ghi thật. Van an toàn nằm ở BƯỚC POST, sau bốn
+// chốt chặn thuần cục bộ (hình dạng dữ liệu ở CHECK fund_trades_shape, tên lạ trong
+// fund_aliases, 口数 âm, đếm trùng theo túi): cờ `--ghi` (không có thì không bao giờ gọi
+// POST) + câu xác nhận `y/N` mặc định KHÔNG.
 //
 // Lấy khoá theo thứ tự: dòng `SUPABASE_SERVICE_ROLE_KEY=` trong .env.local (KHÔNG có tiền
 // tố `VITE_` nên Vite không nhét nó vào bundle trình duyệt, và .env.local đã trong

@@ -143,7 +143,7 @@ src/features/assets/fundHoldings.ts               ← hàm THUẦN: fundHoldings
                                                      fundValue (chia NAV_UNITS ở ĐÚNG một
                                                      chỗ), sessionNavs (gom bảng giá về
                                                      một phiên, nêu tên quỹ ở phiên cũ)
-src/features/assets/serverBundle.ts               ← xuất thêm ba hàm trên (npm run bundle:rules)
+src/features/assets/serverBundleFunds.ts          ← xuất thêm ba hàm trên (npm run bundle:rules)
 
 supabase/functions/fund-refresh/navs.ts           ← fetchFundNavs + parseNavCsv + parseNavHistory
                                                      (hàm thuần, test bằng file mẫu) +
@@ -154,7 +154,7 @@ supabase/functions/fund-refresh/loadInput.ts      ← đọc funds/fund_trades/a
 supabase/functions/fund-refresh/index.ts          ← ba chế độ trong một Deno.serve: cron
                                                      (việc 1 hút NAV, việc 2 ghi valuations),
                                                      lấp lịch sử, kiểm mã
-supabase/functions/fund-refresh/_funds.js         ← gói từ serverBundle.ts
+supabase/functions/fund-refresh/_funds.js         ← gói từ serverBundleFunds.ts
 
 scripts/nhap-sao-ke-rakuten.mjs                   ← script CHẠY TAY, một lần: đọc 受渡履歴
                                                      CSV, lọc lệnh quỹ, ghép bí danh, kiểm
@@ -167,13 +167,25 @@ src/features/assets/FundHoldingsSection.tsx       ← khu "Danh mục quỹ" ở
 src/features/assets/FundTradeFormSheet.tsx        ← sheet ghi/sửa lệnh quỹ
 ```
 
+**Tiền lệ khoá:** `scripts/nhap-sao-ke-rakuten.mjs` là script `.mjs` **đầu tiên** trong
+repo đọc `SUPABASE_SERVICE_ROLE_KEY` từ `.env.local` — ba edge function kia
+(`stock-refresh`, `push-notify`, `fund-refresh`) đọc `Deno.env.get(...)` từ secret store
+của Supabase, cơ chế khác hẳn. Cách này chỉ dành cho script **chạy tay, một lần, ghi vào
+bảng của chính chủ tài khoản** (xem lý do đầy đủ ở đầu file, khối chú thích `KHOÁ`).
+Script nào ghi vào bảng của **nhiều** user thì **không** được đi đường này — service role
+bỏ qua RLS hoàn toàn, sai một dòng code là ghi nhầm sang dữ liệu của người khác.
+
 ### Vì sao là function RIÊNG, không nhét vào `stock-refresh`
 
 Khác nguồn, khác cách giải mã, khác đơn vị đo, khác mô hình giá vốn, khác giờ chạy. Và
 nặng nhất: một lô Yahoo hỏng sẽ kéo cả lượt `stock-refresh` xuống `500`, làm mất luôn
 phần quỹ Nhật vốn chẳng liên quan. Hai function riêng, hai cron riêng, hai bán kính nổ
-riêng. Phần dùng chung là cùng gốc `serverBundle.ts` (mỗi function gói riêng bản của
-mình: `_holdings.js` cho stock-refresh, `_funds.js` cho fund-refresh).
+riêng. Mỗi function có một file mặt tiếp xúc RIÊNG với DB (`serverBundle.ts` cho
+stock-refresh, `serverBundleFunds.ts` cho fund-refresh) — tách hẳn, không dùng chung,
+đúng để bản gói của quỹ không kéo theo `HOSE_SYMBOLS` (403 mã) của phần cổ phiếu (xem đầu
+file [serverBundleFunds.ts](../src/features/assets/serverBundleFunds.ts)). Mỗi function
+gói ra file JS riêng của mình: `_holdings.js` cho stock-refresh, `_funds.js` cho
+fund-refresh.
 
 ### Vì sao không dùng lại `brokerCash` (mô hình giá vốn khác cổ phiếu)
 
@@ -370,7 +382,7 @@ hình này không có tiền mặt, xem mục 5):
 | `tron-hai-loai-so-lenh` | Tài khoản này **cũng** có dòng trong `stock_trades` — cộng 口数 quỹ với số cổ phiếu là trộn hai hệ đơn vị. Chưa từng xảy ra thật, nhưng chặn sẵn vì im lặng cộng sai còn tệ hơn bỏ qua. | Không nên xảy ra với dữ liệu hiện tại; nếu xảy ra, kiểm lại tại sao một tài khoản JPY lại có sổ lệnh cổ phiếu VND. |
 | `so-lenh-co-lo-hong` | `fundHoldingsFromTrades` báo `oversold` khác rỗng: có lệnh bán (hoặc `adjust` âm) nhiều hơn 口数 đang giữ tại thời điểm đó. **Với quỹ Nhật, lý do thường gặp nhất là THIẾU MỘT DÒNG trong `fund_aliases`** (quỹ đổi tên — xem mục 4), không phải quên ghi lệnh như cổ phiếu. | Kiểm `fund_aliases` trước: Rakuten vừa đổi tên quỹ nào không? Thêm hàng bí danh rồi cron tự ghi lại lượt sau. Nếu bí danh đã đủ, xem lại sổ lệnh có thiếu lệnh mua hoặc sai ngày không. |
 | `thieu-gia-moi-quy` | `fundValue` trả `marketValue = null` vì **mọi** quỹ đang giữ đều không có giá trong `fund_prices`. | Kiểm `funds.last_status` của các mã đang giữ — `ma-sai` nghĩa là ISIN/協会コード gõ sai; `loi-mang` thường tự khỏi lượt sau. |
-| `gia-le-phien-cu` | `sessionNavs` lấy `nav_date` lớn nhất trong `fund_prices` làm phiên chung; tài khoản này đang giữ ít nhất một quỹ mà giá của nó vẫn ở phiên CŨ hơn mốc đó. | Thường tự khỏi lượt sau (một quỹ gọi chậm/hỏng ở lượt trước). Lặp lại nhiều ngày liền: kiểm `loi` của cùng lượt có dòng lỗi của đúng mã quỹ đó không. |
+| `gia-le-phien-cu` | `sessionNavs` lấy `nav_date` lớn nhất trong `fund_prices` làm phiên chung; tài khoản này đang giữ ít nhất một quỹ mà giá của nó vẫn ở phiên CŨ hơn mốc đó. | Thường tự khỏi lượt sau (một quỹ gọi chậm/hỏng ở lượt trước). **Lặp lại MỖI NGÀY thì không phải chuyện tạm:** chạy câu ② ở Bước 4 để xem có hai `nav_date` khác nhau mà cái MỚI HƠN thuộc quỹ mà tài khoản này KHÔNG giữ — nếu vậy quỹ đang giữ sẽ mãi bị coi là "phiên cũ", không lượt nào tự khỏi. Nếu không phải ca đó, kiểm `loi` của cùng lượt có dòng lỗi của đúng mã quỹ đó không. |
 | `nguoi-dung-da-go-tay` | Hàng `account_valuations` của đúng ngày phiên đó đã có sẵn với `source = 'manual'` — người dùng đã tự gõ số cho ngày này (sheet "Cập nhật giá trị"). Cron **cố ý** không đè lên. | Không cần làm gì — số gõ tay luôn thắng. Muốn để cron tự tính lại: xoá hàng `manual` đó (hoặc đổi `source` thành `'auto'`) rồi gọi lại function. |
 
 ## 8. Chỗ đã kiểm và chỗ chưa
@@ -391,7 +403,7 @@ hình này không có tiền mặt, xem mục 5):
 | `loadFundRegistry`/`loadHeldFundCodes`/`loadFundAccounts` — chỉ đọc bảng, xếp vào ô, không tự tính | ✅ đọc kỹ theo hợp đồng, khớp cột trong migration 0045 — **chưa chạy thật** với Postgres, cùng lý do `loadInput.ts` của `stock-refresh` không có test riêng |
 | `index.ts` — ba chế độ (cron/lấp lịch sử/kiểm mã), phân biệt `viec2Gay`/`chetHoanToan`, năm lý do `boQua`, `--no-verify-jwt` + tự xác thực JWT ở chế độ kiểm mã | ✅ đọc code kỹ — **chưa chạy thật**, không có test riêng (chỉ ghép nối Postgres, đúng đắn chứng minh bằng lượt gọi thật ở Task 15) |
 | Khu "Danh mục quỹ" (`FundHoldingsSection`) + sheet ghi lệnh (`FundTradeFormSheet`) | ✅ **đã kiểm bằng chế độ demo**: hiện đúng Tổng giá trị 80.757 ¥, Giá vốn 70.000 ¥, +10.757 ¥ (+15,4%), gợi ý Số tiền từ 口数×基準価額÷10.000 sửa được |
-| `scripts/nhap-sao-ke-rakuten.mjs` — đọc CSV Shift-JIS thật, tách 5 cột đúng khi số có dấu phẩy trong ngoặc kép, chỉ nhận 3 loại lệnh quỹ (bỏ dòng tiền có nêu tên), dùng 約定日 không dùng 受渡日, ghép bí danh dừng khi gặp tên lạ, đếm trùng theo túi không theo tập | ✅ test trên dữ liệu mẫu tự dựng (không phải sao kê thật của chủ app) |
+| `scripts/nhap-sao-ke-rakuten.mjs` — đọc CSV Shift-JIS thật, tách 5 cột đúng khi số có dấu phẩy trong ngoặc kép, chỉ nhận 3 loại lệnh quỹ (bỏ dòng tiền có nêu tên), dùng 約定日 không dùng 受渡日, ghép bí danh dừng khi gặp tên lạ, đếm trùng theo túi không theo tập | ✅ test trên `scripts/testdata/rakuten-uydo-mau.csv` — file GÕ TAY (không cắt từ file sao kê tải về), nhưng các con số trong đó (387.221 / 68.725 / 1.275 / 27.575 …) là số THẬT của chủ app, đã có sẵn ở nơi khác trong repo (chú thích code, `docs/`). Ranh giới đang giữ là **không commit file sao kê thật**, không phải "không có con số thật nào" |
 | Deploy `fund-refresh` lên project thật | ❌ **chưa** — việc của Task 15, chủ app tự chạy |
 | Migration 0045 áp lên project thật | ❌ **chưa** |
 | Nhập sao kê thật (136 dòng, khớp 28.429/12.595 口, 50.000/20.000 ¥ giá vốn) | ❌ **chưa** |

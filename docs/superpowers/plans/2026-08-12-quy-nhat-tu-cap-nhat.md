@@ -4594,15 +4594,7 @@ git commit -m "docs(quy-nhat): tai lieu van hanh + secret cron gio co BA job"
 > Mọi bước dưới đây chạy trên project thật của chủ app. Người chạy là **chủ app**, không
 > phải agent: các bước có secret đều hỏi ở ô nhập kín.
 
-- [ ] **Step 1: Gói lại và deploy**
-
-```bash
-npm run bundle:rules && npx supabase@latest functions deploy fund-refresh --project-ref <project-ref> --no-verify-jwt
-```
-
-`--no-verify-jwt` vì cron không phải người dùng đăng nhập — đó là lý do có `x-cron-secret`, và là lý do chế độ kiểm mã phải tự gọi `sb.auth.getUser()`.
-
-- [ ] **Step 2: Chạy migration 0045 trên project**
+- [ ] **Step 1: Chạy migration 0045 trên project**
 
 Dán nội dung `supabase/migrations/0045_fund_prices_trades.sql` vào SQL Editor và chạy. Kiểm ngay:
 
@@ -4617,6 +4609,16 @@ select count(*) as so_bi_danh from public.fund_aliases;
 ```
 
 Kỳ vọng: `10`.
+
+- [ ] **Step 2: Gói lại và deploy**
+
+**Bắt buộc chạy SAU Step 1** — khớp thứ tự "Bước 0 trước Bước 1" của `docs/quy-nhat.md` mục 6: bảng `funds`/`fund_aliases`/`fund_prices`/`fund_trades` chưa tồn tại thì function lỗi ngay ở tầng đọc bảng, và cron sau đó nổ mỗi ngày và luôn lỗi cho tới khi có ai soi ra.
+
+```bash
+npm run bundle:rules && npx supabase@latest functions deploy fund-refresh --project-ref <project-ref> --no-verify-jwt
+```
+
+`--no-verify-jwt` vì cron không phải người dùng đăng nhập — đó là lý do có `x-cron-secret`, và là lý do chế độ kiểm mã phải tự gọi `sb.auth.getUser()`.
 
 - [ ] **Step 3: Nhập sao kê — xem trước**
 
@@ -4641,17 +4643,32 @@ Mọi quỹ khác phải là **0 口**. Nếu script **dừng vì tên lạ** ho
 node scripts/nhap-sao-ke-rakuten.mjs "C:/Users/TranTriNguyen/Downloads/adjusthistory(JP)_20260812.csv" --account <account-id> --ghi
 ```
 
-Script hỏi `SUPABASE_SERVICE_ROLE_KEY` ở ô nhập kín. Kỳ vọng: `Ghi 136 lệnh mới`.
+Script ƯU TIÊN đọc `SUPABASE_SERVICE_ROLE_KEY` từ `.env.local` — thêm dòng
+`SUPABASE_SERVICE_ROLE_KEY=<khoá>` vào đó nếu muốn khỏi gõ mỗi lần (biến này KHÔNG có
+tiền tố `VITE_` nên Vite không nhét nó vào bundle gửi ra trình duyệt, và `.env.local` đã
+có trong `.gitignore`); không có dòng đó thì script mới hỏi ở ô nhập KÍN. Kỳ vọng dòng
+cuối: `Xong — đã ghi 136 lệnh.`
 
-Chạy **lại** đúng lệnh đó lần thứ hai. Kỳ vọng: `Ghi 0 lệnh mới (136 lệnh đã có sẵn)` — nếu nó ghi thêm 136 dòng nữa thì khoá idempotent hỏng, **dừng lại và sửa** trước khi đi tiếp.
+Chạy **lại** đúng lệnh đó lần thứ hai. Kỳ vọng: dòng `136 lệnh đã có sẵn trong DB, sẽ
+KHÔNG ghi lại:` rồi `Không có lệnh nào mới — không ghi gì.` — nếu nó ghi thêm 136 dòng
+nữa thì khoá idempotent hỏng, **dừng lại và sửa** trước khi đi tiếp.
 
 - [ ] **Step 5: Gọi function thật**
 
-```bash
-curl -i -X POST "https://<project-ref>.supabase.co/functions/v1/fund-refresh" -H "x-cron-secret: <PUSH_CRON_SECRET>"
+**Đừng gõ secret thẳng vào dòng lệnh** — nó vào lịch sử shell (PSReadLine trên Windows),
+đúng thứ `scripts/setup-fund-cron.mjs` (hỏi `PUSH_CRON_SECRET` ở ô nhập kín) bỏ công
+tránh. Dùng PowerShell, hỏi kín rồi mới gọi:
+
+```powershell
+$sec = Read-Host -AsSecureString "PUSH_CRON_SECRET"
+$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
+$plain = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+Invoke-WebRequest -Method Post -Uri "https://<project-ref>.supabase.co/functions/v1/fund-refresh" -Headers @{ "x-cron-secret" = $plain }
 ```
 
-Kỳ vọng: `200`, body kiểu `{"soQuyCoGia":8,"daGhi":1,"boQua":{},"loi":[]}`.
+Kỳ vọng: `200`, body kiểu `{"soQuyCoGia":8,"daGhi":1,"boQua":{},"loi":[]}` (xem trong
+`.Content` của kết quả `Invoke-WebRequest`).
 
 Gọi thiếu header phải trả `401 Sai bí mật cron`.
 
@@ -4693,8 +4710,14 @@ values ('楽天・Ｓ＆Ｐ５００インデックス・ファンド(楽天・�
 
 - [ ] **Step 9: Lấp lịch sử**
 
-```bash
-curl -X POST "https://<project-ref>.supabase.co/functions/v1/fund-refresh" -H "x-cron-secret: <PUSH_CRON_SECRET>" -H "Content-Type: application/json" -d '{"lapLichSu":{"accountId":"<account-id>"}}'
+Cùng lý do ở Step 5 — không gõ secret vào dòng lệnh:
+
+```powershell
+$sec = Read-Host -AsSecureString "PUSH_CRON_SECRET"
+$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
+$plain = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+Invoke-WebRequest -Method Post -Uri "https://<project-ref>.supabase.co/functions/v1/fund-refresh" -Headers @{ "x-cron-secret" = $plain; "Content-Type" = "application/json" } -Body '{"lapLichSu":{"accountId":"<account-id>"}}'
 ```
 
 Mở biểu đồ Tài sản ròng. Kỳ vọng **ba** dấu hiệu, cả ba đều là sự thật đã biết từ sao kê:

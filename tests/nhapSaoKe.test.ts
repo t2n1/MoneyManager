@@ -141,11 +141,15 @@ describe('ghepBiDanh + soatSoDuAm — bẫy quỹ đổi tên', () => {
 
 describe('soatSoDuAm là CÙNG MỘT phép tính với oversold của bộ luật', () => {
   /**
-   * Bài quan trọng nhất của file này. `fund-refresh` trả HTTP 400 và DỪNG CẢ LƯỢT khi
-   * `oversold` không rỗng (supabase/functions/fund-refresh/index.ts), nên nếu script cho
-   * nhập mà bộ luật lại thấy bán quá tay thì chủ app nhập "thành công" rồi cron 400 mỗi
-   * ngày. Chiều ngược lại thì script chặn oan kèm lời khuyên "fund_aliases còn thiếu một
-   * dòng" — chỉ sai người.
+   * Bài quan trọng nhất của file này. `fund-refresh` BỎ QUA tài khoản khi `oversold` không
+   * rỗng (supabase/functions/fund-refresh/index.ts), nên nếu script cho nhập mà bộ luật lại
+   * thấy bán quá tay thì chủ app nhập "thành công" rồi cron không bao giờ cập nhật giá trị
+   * tài khoản đó nữa. Chiều ngược lại thì script chặn oan kèm lời khuyên "fund_aliases còn
+   * thiếu một dòng" — chỉ sai người.
+   *
+   * Cron KHÔNG trả 400 ở ca này: nó `demBoQua(kq, 'so-lenh-co-lo-hong')` rồi `continue`, cả
+   * lượt vẫn HTTP 200. Dấu hiệu thật là `daGhi` đứng yên và `boQua` có
+   * `so-lenh-co-lo-hong` trong log function; 400 chỉ có ở chế độ LẤP LỊCH SỬ.
    *
    * Hai bên phải đồng ý DO CẤU TẠO (soatSoDuAm gọi thẳng fundHoldingsFromTrades), và bài
    * này canh để không ai đi cộng dồn lại một lần nữa trong script.

@@ -84,8 +84,10 @@ export function parseNavCsv(bytes: Uint8Array, assocFundCd: string): NavParseRes
   // một lần giải mã sai đều rơi vào đây.
   if (!dong[0] || !dong[0].includes(COT_NGAY)) return { ok: false, loi: 'ma-sai' }
 
-  // Gom mọi dòng HỢP LỆ, giữ nguyên thứ tự file (cũ → mới). Không giả định file luôn
-  // được sắp: lấy hai dòng hợp lệ cuối theo đúng thứ tự xuất hiện.
+  // Gom mọi dòng HỢP LỆ rồi lấy hai dòng CUỐI THEO THỨ TỰ XUẤT HIỆN trong file — tức là
+  // có giả định file xếp cũ → mới (đo trên file thật: đúng). Điều KHÔNG giả định là các
+  // dòng hợp lệ nằm liền nhau: một dòng hỏng chen giữa vẫn bị bỏ đúng, nên `prior_nav`
+  // luôn là dòng HỢP LỆ kế cuối chứ không phải `dong[n-2]`.
   const hopLe: { navDate: string; nav: number; netAssetsM: number | null }[] = []
   for (const raw of dong.slice(1)) {
     if (!raw.trim()) continue

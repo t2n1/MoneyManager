@@ -44,6 +44,17 @@ describe('sanitizeSignedIntText + parseSignedIntText — ô 口数/số cổ có
     expect(sanitizeSignedIntText('5-00')).toBe('5') // dấu trừ chỉ hợp lệ ở ĐẦU
   })
 
+  it('gõ 20 chữ số → kẹp về MAX_SAFE_INTEGER, không để Postgres nổ 22003', () => {
+    // Không kẹp thì `Number('99999999999999999999')` ra 1e20, cột `units bigint` từ chối,
+    // và người dùng nhận nguyên văn `22003 numeric out of range` — một lỗi thô của DB cho
+    // một chuyện đáng lẽ chặn ở ô nhập.
+    expect(parseSignedIntText('99999999999999999999')).toBe(Number.MAX_SAFE_INTEGER)
+    expect(parseSignedIntText('-99999999999999999999')).toBe(-Number.MAX_SAFE_INTEGER)
+    // Số trong tầm đếm chính xác thì KHÔNG bị đụng tới.
+    expect(parseSignedIntText(String(Number.MAX_SAFE_INTEGER))).toBe(Number.MAX_SAFE_INTEGER)
+    expect(parseSignedIntText('28429')).toBe(28_429)
+  })
+
   it('signedIntToText là chiều ngược: 0 → rỗng, số khác → chuỗi của nó', () => {
     expect(signedIntToText(0)).toBe('')
     expect(signedIntToText(-500)).toBe('-500')

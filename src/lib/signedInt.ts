@@ -17,11 +17,20 @@ export function sanitizeSignedIntText(raw: string): string {
   return raw.match(/^-?\d*/)?.[0] ?? ''
 }
 
-/** '' hoặc '-' (đang gõ dở, chưa ra số nào) → 0; ngược lại → số nguyên đã gõ. */
+/**
+ * '' hoặc '-' (đang gõ dở, chưa ra số nào) → 0; ngược lại → số nguyên đã gõ.
+ *
+ * KẸP về ±Number.MAX_SAFE_INTEGER: quá mốc đó JS không còn đếm chính xác từng đơn vị nữa,
+ * nên con số gửi đi cũng chẳng còn là con số đã gõ. Cột `bigint` của Postgres vẫn nhận
+ * thoải mái số đã kẹp (trần của nó lớn hơn nhiều), nên kẹp KHÔNG tạo ra lỗi mới — còn
+ * KHÔNG kẹp thì gõ 20 chữ số vào ô 口数 cho ra một số `bigint` từ chối, và người dùng nhận
+ * nguyên văn `22003 numeric out of range` từ DB cho một chuyện đáng lẽ chặn ngay ở ô nhập.
+ */
 export function parseSignedIntText(text: string): number {
   if (text === '' || text === '-') return 0
   const n = Math.round(Number(text))
-  return Number.isFinite(n) ? n : 0
+  if (!Number.isFinite(n)) return 0
+  return Math.max(-Number.MAX_SAFE_INTEGER, Math.min(Number.MAX_SAFE_INTEGER, n))
 }
 
 /** Số nguyên (0 = chưa nhập) → chuỗi hiện trong ô, đúng chiều ngược của `parseSignedIntText`. */

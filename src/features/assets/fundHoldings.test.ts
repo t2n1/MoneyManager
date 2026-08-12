@@ -3,6 +3,7 @@ import {
   fundHoldingsFromTrades,
   fundLineValue,
   fundValue,
+  planFundBackfill,
   sessionNavs,
   type FundTrade,
 } from './fundHoldings'
@@ -10,6 +11,8 @@ import {
 // Hai quỹ chủ app đang giữ — dùng mã thật để bài test đọc được như sao kê.
 const SP500 = '9I31223A'
 const NDX = '9I314241'
+/** Quỹ CÓ trong danh bạ 8 quỹ nhưng chủ app đã bán sạch từ lâu — không ai giữ. */
+const KHONG_GIU = '03311187'
 
 /**
  * Lệnh mua gọn cho test. `amount` là số tiền THẬT, cố tình KHÔNG bằng
@@ -142,9 +145,10 @@ describe('fundHoldingsFromTrades', () => {
     // thứ tự thật để dựa vào. Không có chốt phụ thì sort ổn định của JS giữ thứ tự đầu vào
     // — mà hai nơi gọi hàm này đưa vào hai thứ tự KHÁC nhau: script nhập sao kê theo thứ
     // tự file CSV (mới nhất trước), còn fund-refresh theo `order('id')` tức uuid NGẪU
-    // NHIÊN. Cùng một sổ lệnh mà cho ra hai kết luận `oversold` khác nhau: một bên gắn cờ
-    // vĩnh viễn (cron trả 400 mỗi ngày), bên kia chặn oan kèm lời khuyên "fund_aliases còn
-    // thiếu một dòng" — chỉ sai người.
+    // NHIÊN. Cùng một sổ lệnh mà cho ra hai kết luận `oversold` khác nhau: một bên bỏ qua
+    // tài khoản vĩnh viễn (cron KHÔNG trả 400 — nó đếm `boQua: {so-lenh-co-lo-hong: 1}`
+    // rồi đi tiếp, cả lượt vẫn 200; dấu hiệu thật là `daGhi` đứng yên), bên kia chặn oan
+    // kèm lời khuyên "fund_aliases còn thiếu một dòng" — chỉ sai người.
     //
     // Ca này CÓ THẬT ở dạng lệch một ngày (2026-04-13/14: bán sạch rồi mua lại), nhưng
     // không gì bảo đảm lần sau cũng lệch.
@@ -225,18 +229,21 @@ describe('fundLineValue', () => {
 
 describe('sessionNavs', () => {
   it('bảng giá rỗng → session null', () => {
-    expect(sessionNavs([])).toEqual({
+    expect(sessionNavs([], [])).toEqual({
       session: null,
       navByFund: new Map(),
       staleFunds: new Set(),
     })
   })
 
-  it('session là nav_date LỚN NHẤT; quỹ ở phiên cũ hơn bị nêu tên', () => {
-    const r = sessionNavs([
-      { assoc_fund_cd: SP500, nav: 20_053, nav_date: '2026-08-10' },
-      { assoc_fund_cd: NDX, nav: 18_712, nav_date: '2026-08-07' },
-    ])
+  it('session là nav_date LỚN NHẤT của quỹ đang giữ; quỹ ở phiên cũ hơn bị nêu tên', () => {
+    const r = sessionNavs(
+      [
+        { assoc_fund_cd: SP500, nav: 20_053, nav_date: '2026-08-10' },
+        { assoc_fund_cd: NDX, nav: 18_712, nav_date: '2026-08-07' },
+      ],
+      [SP500, NDX],
+    )
     expect(r.session).toBe('2026-08-10')
     expect(r.navByFund.get(SP500)).toBe(20_053)
     expect(r.navByFund.get(NDX)).toBe(18_712)
@@ -244,12 +251,50 @@ describe('sessionNavs', () => {
   })
 
   it('nav <= 0 không vào bảng tra (cột có check nav > 0, nhưng đừng tin mù)', () => {
-    const r = sessionNavs([
-      { assoc_fund_cd: SP500, nav: 20_053, nav_date: '2026-08-10' },
-      { assoc_fund_cd: NDX, nav: 0, nav_date: '2026-08-10' },
-    ])
+    const r = sessionNavs(
+      [
+        { assoc_fund_cd: SP500, nav: 20_053, nav_date: '2026-08-10' },
+        { assoc_fund_cd: NDX, nav: 0, nav_date: '2026-08-10' },
+      ],
+      [SP500, NDX],
+    )
     expect(r.navByFund.has(NDX)).toBe(false)
     expect(r.navByFund.get(SP500)).toBe(20_053)
+  })
+
+  it('quỹ KHÔNG AI GIỮ đi trước một phiên KHÔNG làm quỹ đang giữ thành "giá cũ"', () => {
+    // Lỗi thật của nhánh này: `fund_prices` chứa CẢ danh bạ 8 quỹ (loadFundRegistry cố ý
+    // hút cả danh bạ), nhưng chủ app chỉ giữ 2. Quỹ tài sản trong nước công bố 基準価額
+    // sớm hơn quỹ tài sản nước ngoài đúng một ngày, nên nếu session lấy ngày lớn nhất của
+    // CẢ bảng thì CẢ HAI quỹ đang giữ đều bị đánh staleFunds ⇒ cron bỏ qua tài khoản,
+    // daGhi = 0, boQua {gia-le-phien-cu: 1}, HTTP 200 — mỗi ngày, không bao giờ tự khỏi.
+    const r = sessionNavs(
+      [
+        { assoc_fund_cd: SP500, nav: 20_053, nav_date: '2026-08-10' },
+        { assoc_fund_cd: NDX, nav: 18_855, nav_date: '2026-08-10' },
+        { assoc_fund_cd: KHONG_GIU, nav: 12_345, nav_date: '2026-08-11' },
+      ],
+      [SP500, NDX],
+    )
+    expect(r.session).toBe('2026-08-10')
+    expect([...r.staleFunds]).toEqual([])
+    // `navByFund` vẫn là cả bảng: nơi gọi chỉ tra theo quỹ nó đang giữ, lọc thêm ở đây
+    // không mua được gì.
+    expect(r.navByFund.get(KHONG_GIU)).toBe(12_345)
+  })
+
+  it('KHÔNG giữ quỹ nào → session rơi về ngày của cả bảng giá, để còn đóng dấu ảnh chụp 0 ¥', () => {
+    // Tài khoản đã bán sạch vẫn được ghi snapshot giá trị 0 (xem fundValue). Không có quỹ
+    // nào để lấy ngày phiên, mà cũng không có quỹ nào để nêu là "giá cũ".
+    const r = sessionNavs(
+      [
+        { assoc_fund_cd: SP500, nav: 20_053, nav_date: '2026-08-10' },
+        { assoc_fund_cd: KHONG_GIU, nav: 12_345, nav_date: '2026-08-11' },
+      ],
+      [],
+    )
+    expect(r.session).toBe('2026-08-11')
+    expect([...r.staleFunds]).toEqual([])
   })
 })
 
@@ -279,7 +324,6 @@ describe('fundValue', () => {
 
   it('làm tròn TỪNG quỹ rồi mới cộng, không làm tròn ở cuối', () => {
     // Hai quỹ mà mỗi cái lẻ 0,5: làm tròn từng cái ra 2 đơn vị lẻ, làm tròn tổng ra 1.
-    // Con số 5 口 ở nav 1 cho phần lẻ đúng 0,0005 × 10.000 → dựng số cho dễ nhẩm:
     // 15.000 口 × 10.003 ÷ 10.000 = 15.004,5 → 15.005 (mỗi quỹ)
     const holdings = [
       { assocFundCd: 'A', units: 15_000, costBasis: 15_000, avgNav: 10_000 },
@@ -317,5 +361,143 @@ describe('fundValue', () => {
     // Khác "thiếu giá mọi quỹ": ở đây KHÔNG có gì để thiếu giá. 0 là con số đúng và
     // ghi được — tài khoản đã bán sạch thì giá trị bằng 0.
     expect(fundValue([], new Map())).toEqual({ marketValue: 0, missingNavs: [] })
+  })
+})
+
+describe('planFundBackfill', () => {
+  /** `{ mã: { ngày: nav } }` → đúng shape `navHistory` mà edge function dựng từ CSV. */
+  const lichSu = (theoMa: Record<string, Record<string, number>>) =>
+    new Map(
+      Object.entries(theoMa).map(([ma, theoNgay]) => [ma, new Map(Object.entries(theoNgay))]),
+    )
+
+  const SO_LENH = [
+    mua(SP500, 28_429, 17_588, 50_000, '2026-08-07'),
+    mua(NDX, 12_595, 15_879, 20_000, '2026-08-07'),
+  ]
+  const DU_GIA = lichSu({
+    [SP500]: { '2026-08-07': 17_588, '2026-08-10': 20_053 },
+    [NDX]: { '2026-08-07': 15_879, '2026-08-10': 18_855 },
+  })
+  const so = { trades: SO_LENH, coCaSoLenhCoPhieu: false }
+
+  it('lấp đúng từng yên cho mọi phiên có đủ giá cả hai quỹ', () => {
+    const ke = planFundBackfill(so, DU_GIA, new Set(), 1_500)
+    if (!ke.ok) throw new Error(`đáng lẽ lấp được, nhận ${ke.reason}`)
+    // 2026-08-07: 50.001 + 20.000 = 70.001 (KHÔNG bằng giá vốn 70.000 — nếu bài này ra
+    // đúng 70.000 thì nghĩa là đang cộng giá vốn chứ không cộng 基準価額).
+    // 2026-08-10: 57.009 + 23.748 = 80.757, ba con số đích của cả tính năng.
+    expect(ke.days).toEqual([
+      { valuedOn: '2026-08-07', marketValue: 70_001 },
+      { valuedOn: '2026-08-10', marketValue: 80_757 },
+    ])
+    expect(ke.skipped).toEqual([])
+  })
+
+  it('một quỹ ĐANG GIỮ không có lịch sử giá → DỪNG cả lượt, không ghi hàng nào', () => {
+    // Lỗi đắt nhất của tính năng. Vòng hút lịch sử bắt lỗi từng quỹ rồi ĐI TIẾP, nên một
+    // quỹ hút hỏng chỉ vắng mặt trong `navHistory`. `fundValue` thì tạm tính quỹ thiếu giá
+    // theo GIÁ VỐN và VẪN TRẢ SỐ (chỉ trả null khi thiếu giá MỌI quỹ), nên chốt duy nhất
+    // `marketValue === null` không bắt được gì: lượt lấp ghi tới 1.500 hàng mang
+    // source 'auto' và ghi chú "Lấp lại theo 基準価額 phiên X", trông y như số đúng.
+    // Ở phiên 2026-08-10 nó sẽ ghi 57.009 + 20.000 = 77.009 thay vì 80.757.
+    const ke = planFundBackfill(
+      so,
+      lichSu({ [SP500]: { '2026-08-07': 17_588, '2026-08-10': 20_053 } }),
+      new Set(),
+      1_500,
+    )
+    expect(ke).toEqual({ ok: false, reason: 'thieu-lich-su-gia', funds: [NDX] })
+  })
+
+  it('lịch sử RỖNG (hút được nhưng file không có dòng hợp lệ nào) cũng là THIẾU', () => {
+    // parseNavHistory trả mảng rỗng cho file không phải CSV giá, và nơi gọi vẫn `set()`
+    // một Map rỗng — nên "có khoá trong navHistory" KHÔNG đủ để nói là có lịch sử.
+    const ke = planFundBackfill(
+      so,
+      lichSu({ [SP500]: { '2026-08-10': 20_053 }, [NDX]: {} }),
+      new Set(),
+      1_500,
+    )
+    expect(ke).toEqual({ ok: false, reason: 'thieu-lich-su-gia', funds: [NDX] })
+  })
+
+  it('nguồn thiếu ĐÚNG một phiên của một quỹ → BỎ ngày đó, không tạm tính theo giá vốn', () => {
+    // Chốt thứ hai, khác chốt trên: quỹ CÓ lịch sử nhưng thiếu đúng phiên 2026-08-10 (ngày
+    // nghỉ lệch nhau giữa hai quỹ, một dòng hỏng). Ghi ngày đó là ghi 77.009 thay vì
+    // 80.757 — lệch 3.748 ¥ mà không có dấu hiệu nào.
+    const ke = planFundBackfill(
+      so,
+      lichSu({
+        [SP500]: { '2026-08-07': 17_588, '2026-08-10': 20_053 },
+        [NDX]: { '2026-08-07': 15_879 },
+      }),
+      new Set(),
+      1_500,
+    )
+    if (!ke.ok) throw new Error(`đáng lẽ lấp được, nhận ${ke.reason}`)
+    expect(ke.days).toEqual([{ valuedOn: '2026-08-07', marketValue: 70_001 }])
+    expect(ke.skipped).toEqual(['2026-08-10'])
+  })
+
+  it('tài khoản có CẢ sổ lệnh cổ phiếu → DỪNG, cùng bất biến mà cron đã chặn', () => {
+    // Cộng 口数 của quỹ với số cổ của cổ phiếu là trộn hai hệ đơn vị. Cron bỏ qua tài khoản
+    // này ('tron-hai-loai-so-lenh'); nếu lấp lịch sử KHÔNG chặn thì nó ghi giá trị chỉ có
+    // phần quỹ cho hàng trăm ngày, rồi cron từ đó về sau từ chối chạm vào — số thiếu ở lại
+    // vĩnh viễn.
+    expect(planFundBackfill({ ...so, coCaSoLenhCoPhieu: true }, DU_GIA, new Set(), 1_500)).toEqual({
+      ok: false,
+      reason: 'tron-hai-loai-so-lenh',
+      funds: [],
+    })
+  })
+
+  it('sổ lệnh có lỗ hổng → DỪNG và nêu tên quỹ (thường là thiếu một dòng fund_aliases)', () => {
+    const ke = planFundBackfill(
+      {
+        trades: [
+          mua(SP500, 10_000, 10_000, 10_000, '2026-08-07'),
+          ban(SP500, 30_000, 20_053, 60_159, '2026-08-10'),
+        ],
+        coCaSoLenhCoPhieu: false,
+      },
+      DU_GIA,
+      new Set(),
+      1_500,
+    )
+    expect(ke).toEqual({ ok: false, reason: 'so-lenh-co-lo-hong', funds: [SP500] })
+  })
+
+  it('ngày đã có hàng bị trừ TRƯỚC khi cắt trần, nên chạy lại lấp tiếp được', () => {
+    // Trần 1 ngày, phiên 2026-08-07 đã có hàng. Cắt trần TRƯỚC rồi mới trừ thì lượt này
+    // nhận đúng ngày 08-07, thấy đã có hàng, ghi 0 — và 08-10 không bao giờ được lấp.
+    const ke = planFundBackfill(so, DU_GIA, new Set(['2026-08-07']), 1)
+    if (!ke.ok) throw new Error(`đáng lẽ lấp được, nhận ${ke.reason}`)
+    expect(ke.days).toEqual([{ valuedOn: '2026-08-10', marketValue: 80_757 }])
+  })
+
+  it('ngày đã bán sạch: không có hàng cho ngày đó, và KHÔNG bị coi là thiếu giá', () => {
+    // Ca CÓ THẬT: tài khoản trống từ 2025-04-14 tới 2025-08-28. Khác hẳn "thiếu giá" —
+    // không có gì để chụp, nên nó không được vào `skipped`.
+    const ke = planFundBackfill(
+      {
+        trades: [
+          mua(SP500, 10_000, 17_588, 17_588, '2026-08-07'),
+          ban(SP500, 10_000, 20_053, 20_053, '2026-08-10'),
+        ],
+        coCaSoLenhCoPhieu: false,
+      },
+      DU_GIA,
+      new Set(),
+      1_500,
+    )
+    if (!ke.ok) throw new Error(`đáng lẽ lấp được, nhận ${ke.reason}`)
+    expect(ke.days).toEqual([{ valuedOn: '2026-08-07', marketValue: 17_588 }])
+    expect(ke.skipped).toEqual([])
+  })
+
+  it('sổ lệnh rỗng → không có ngày nào, không nổ', () => {
+    expect(planFundBackfill({ trades: [], coCaSoLenhCoPhieu: false }, DU_GIA, new Set(), 1_500))
+      .toEqual({ ok: true, days: [], skipped: [] })
   })
 })

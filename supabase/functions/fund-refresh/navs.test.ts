@@ -330,6 +330,24 @@ describe('parseNavHistory', () => {
     }
   })
 
+  it('hai dòng CÙNG NGÀY khác NAV → một điểm duy nhất, lấy dòng SAU', () => {
+    // Đường dedup (Map, last-write-wins) tồn tại vì hai điểm cùng ngày sẽ làm chế độ lấp
+    // lịch sử ghi hai giá trị khác nhau cho CÙNG một `valued_on` — và hàng nào thắng thì
+    // phụ thuộc thứ tự upsert, tức là số trong app đổi giữa hai lượt chạy mà không ai đổi
+    // dữ liệu. File thật không lặp ngày, nên đây là đường DUY NHẤT không có dữ liệu thật
+    // đi qua: không có bài test thì nó chỉ được đọc bằng mắt.
+    const csv = sjis(
+      '年月日,基準価額(円),純資産総額（百万円）,分配金,決算期\r\n' +
+        '2026年08月07日,20012,1172772,,\r\n' +
+        '2026年08月10日,20053,1175583,,\r\n' +
+        '2026年08月10日,20099,1175999,,\r\n',
+    )
+    expect(parseNavHistory(csv)).toEqual([
+      { navDate: '2026-08-07', nav: 20_012 },
+      { navDate: '2026-08-10', nav: 20_099 },
+    ])
+  })
+
   it('không phải CSV giá → mảng rỗng, không nổ', () => {
     expect(parseNavHistory(mau('toushin-thieu-tham-so.txt'))).toEqual([])
   })

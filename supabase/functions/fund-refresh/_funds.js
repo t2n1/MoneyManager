@@ -55,12 +55,15 @@ function fundHoldingsFromTrades(trades) {
     oversold: [...oversold].sort()
   };
 }
-function sessionNavs(rows) {
-  const session = rows.map((r) => r.nav_date).sort().at(-1) ?? null;
+function sessionNavs(rows, heldFundCds) {
+  const dangGiu = new Set(heldFundCds);
+  const cuaQuyDangGiu = rows.filter((r) => dangGiu.has(r.assoc_fund_cd));
+  const nguonNgay = cuaQuyDangGiu.length > 0 ? cuaQuyDangGiu : rows;
+  const session = nguonNgay.map((r) => r.nav_date).sort().at(-1) ?? null;
   const navByFund = /* @__PURE__ */ new Map();
+  for (const r of rows) if (r.nav > 0) navByFund.set(r.assoc_fund_cd, r.nav);
   const staleFunds = /* @__PURE__ */ new Set();
-  for (const r of rows) {
-    if (r.nav > 0) navByFund.set(r.assoc_fund_cd, r.nav);
+  for (const r of cuaQuyDangGiu) {
     if (session !== null && r.nav_date < session) staleFunds.add(r.assoc_fund_cd);
   }
   return { session, navByFund, staleFunds };
@@ -80,6 +83,45 @@ function fundValue(holdings, navByFund) {
   const allMissing = holdings.length > 0 && missingNavs.length === holdings.length;
   return { marketValue: allMissing ? null : marketValue, missingNavs };
 }
+function planFundBackfill(account, navHistory, alreadyValued, maxDays) {
+  if (account.coCaSoLenhCoPhieu) return { ok: false, reason: "tron-hai-loai-so-lenh", funds: [] };
+  const { oversold } = fundHoldingsFromTrades(account.trades);
+  if (oversold.length > 0) return { ok: false, reason: "so-lenh-co-lo-hong", funds: oversold };
+  const lenhDauTien = account.trades.map((t) => t.tradedOn).sort()[0];
+  if (lenhDauTien == null) return { ok: true, days: [], skipped: [] };
+  const moiNgay = /* @__PURE__ */ new Set();
+  for (const theoNgay2 of navHistory.values())
+    for (const ngay of theoNgay2.keys()) if (ngay >= lenhDauTien) moiNgay.add(ngay);
+  const cacNgay = [...moiNgay].sort().filter((ngay) => !alreadyValued.has(ngay)).slice(0, maxDays);
+  const theoNgay = [];
+  for (const ngay of cacNgay) {
+    const { holdings } = fundHoldingsFromTrades(
+      account.trades.filter((t) => t.tradedOn <= ngay)
+    );
+    if (holdings.length > 0) theoNgay.push({ valuedOn: ngay, holdings });
+  }
+  const thieuLichSu = [
+    ...new Set(theoNgay.flatMap((x) => x.holdings.map((h) => h.assocFundCd)))
+  ].filter((ma) => (navHistory.get(ma)?.size ?? 0) === 0).sort();
+  if (thieuLichSu.length > 0)
+    return { ok: false, reason: "thieu-lich-su-gia", funds: thieuLichSu };
+  const days = [];
+  const skipped = [];
+  for (const { valuedOn, holdings } of theoNgay) {
+    const navNgayDo = /* @__PURE__ */ new Map();
+    for (const h of holdings) {
+      const nav = navHistory.get(h.assocFundCd)?.get(valuedOn);
+      if (nav != null) navNgayDo.set(h.assocFundCd, nav);
+    }
+    const { marketValue, missingNavs } = fundValue(holdings, navNgayDo);
+    if (missingNavs.length > 0 || marketValue === null) {
+      skipped.push(valuedOn);
+      continue;
+    }
+    days.push({ valuedOn, marketValue });
+  }
+  return { ok: true, days, skipped };
+}
 
 // src/lib/dates.ts
 var pad = (n) => String(n).padStart(2, "0");
@@ -90,6 +132,7 @@ export {
   NAV_UNITS,
   fundHoldingsFromTrades,
   fundValue,
+  planFundBackfill,
   sessionNavs,
   toISODate
 };

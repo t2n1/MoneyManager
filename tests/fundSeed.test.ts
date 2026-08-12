@@ -80,23 +80,47 @@ describe('migration 0045 — seed quỹ Nhật', () => {
 
   it('KHÔNG có bảng nào cho phép user ghi vào bảng giá hay danh bạ', () => {
     // funds / fund_aliases / fund_prices là dữ liệu công khai do service role ghi.
-    // Một policy `for all` trên ba bảng đó là mở đường cho user sửa mã quỹ của người khác.
+    // Một policy ghi trên ba bảng đó là mở đường cho user sửa mã quỹ của người khác.
 
     // Hàm này tạo ra regex để bắt policy ghi trên một bảng. Nó phải khớp với cú pháp SQL
-    // thật: "on public.TABLE" đứng TRƯỚC "for all", không phải sau.
+    // thật: "on public.TABLE" đứng TRƯỚC "for <lệnh>", không phải sau.
     // Bản đầu của test này viết ngược thứ tự nên nó LUÔN xanh, kể cả khi có policy ghi
-    // thật — một chốt canh an ninh vô dụng. Chốt canh phải tự chứng minh là nó BẮTƯỚC
+    // thật — một chốt canh an ninh vô dụng. Chốt canh phải tự chứng minh là nó BẮT ĐƯỢC
     // thứ nó canh.
+    //
+    // Nhận CẢ BỐN lệnh ghi, không chỉ `for all`: một policy `for insert to authenticated`
+    // trên `funds` cho user thêm mã quỹ rác vào danh bạ công khai — đúng thứ bài test này
+    // mang tên là canh, mà bản chỉ bắt `for all` thì cho lọt.
     const luatGhi = (tenBang: string) =>
-      new RegExp(`create policy[^;]*on public\\.${tenBang}[^;]*for all`, 'i')
+      new RegExp(`create policy[^;]*on public\\.${tenBang}[^;]*for (all|insert|update|delete)`, 'i')
 
     for (const t of ['funds', 'fund_aliases', 'fund_prices']) {
       expect(sql, `${t} không được có policy ghi`).not.toMatch(luatGhi(t))
     }
 
-    // Chứng minh chốt canh hoạt động: nếu có một policy độc hại `for all` trên bảng,
-    // regex phải bắt được nó.
+    // Chứng minh chốt canh hoạt động: nếu có một policy độc hại trên bảng thì regex phải
+    // bắt được nó — thử cả `for all` lẫn một lệnh ghi lẻ.
     const policyDoHai = `create policy "leaky" on public.funds\n  for all\n  using (true);`
     expect(luatGhi('funds').test(policyDoHai)).toBe(true)
+    const chiInsert = `create policy "leaky" on public.funds\n  for insert to authenticated\n  with check (true);`
+    expect(luatGhi('funds').test(chiInsert)).toBe(true)
+  })
+
+  it('fund_trades chỉ cho chủ hàng đọc/ghi — auth.uid() = user_id', () => {
+    // `fund_trades` là bảng DUY NHẤT của tính năng chứa dữ liệu RIÊNG (sổ lệnh, tức toàn bộ
+    // tài sản của một người). Ba bảng kia là dữ liệu công khai. Nên policy "own rows" ở đây
+    // là chốt bảo vệ dữ liệu riêng duy nhất mà tính năng có — thiếu điều kiện `auth.uid() =
+    // user_id` thì mọi user đăng nhập đọc được sổ lệnh của nhau, và không có gì khác bù lại.
+    const start = sql.indexOf('create policy "own rows" on public.fund_trades')
+    expect(start, 'fund_trades thiếu policy "own rows"').toBeGreaterThan(-1)
+    const policy = sql.slice(start, sql.indexOf(';', start))
+    // CẢ HAI mệnh đề: `using` canh đường ĐỌC (và hàng được sửa/xoá), `with check` canh
+    // hàng GHI VÀO. Chỉ có `using` thì user vẫn ghi được hàng mang user_id của người khác.
+    expect(policy, 'thiếu using (auth.uid() = user_id)').toMatch(
+      /using\s*\(\s*auth\.uid\(\)\s*=\s*user_id\s*\)/i,
+    )
+    expect(policy, 'thiếu with check (auth.uid() = user_id)').toMatch(
+      /with check\s*\(\s*auth\.uid\(\)\s*=\s*user_id\s*\)/i,
+    )
   })
 })

@@ -324,9 +324,14 @@ export function sangLenh(r) {
  * đã âm ở một thời điểm giữa đường.
  *
  * Đây đúng là chuyện `oversold` của `fundHoldingsFromTrades` đo, nên hàm này GỌI THẲNG
- * hàm đó thay vì cộng dồn lại một lần nữa: `fund-refresh` trả HTTP 400 và dừng cả lượt
- * khi `oversold` không rỗng, nên hai bên phải đồng ý DO CẤU TẠO. Một bản cộng dồn thứ hai
- * ở đây là chuyện sớm muộn lệch — và lúc lệch thì script cho nhập, còn cron 400 mỗi ngày.
+ * hàm đó thay vì cộng dồn lại một lần nữa: `fund-refresh` BỎ QUA tài khoản khi `oversold`
+ * không rỗng, nên hai bên phải đồng ý DO CẤU TẠO. Một bản cộng dồn thứ hai ở đây là chuyện
+ * sớm muộn lệch — và lúc lệch thì script cho nhập, còn cron im lặng không cập nhật nữa.
+ *
+ * Cron KHÔNG trả 400 vì chuyện này: nó đếm `boQua: {so-lenh-co-lo-hong: 1}` rồi `continue`,
+ * cả lượt vẫn HTTP 200 (bỏ qua một tài khoản mà vẫn ghi giá cho tài khoản khác là hành vi
+ * đúng hơn). Dấu hiệu thật để debug: `daGhi` đứng yên và `boQua` có `so-lenh-co-lo-hong`
+ * trong log của function — ĐỪNG đi tìm một mã 400. Chỉ chế độ LẤP LỊCH SỬ mới trả 400.
  *
  * Đây là phép thử đã bắt được CẢ HAI lần đổi tên (xem bẫy ③) — bảng bí danh thiếu một
  * dòng thì số âm hiện ra ngay ở bước xử lý, không cần ai đi soi.
@@ -544,7 +549,9 @@ async function chinh() {
   // riêng các dòng trong file thì hai tập dữ liệu khác nhau cho hai kết luận khác nhau:
   // nhập sao kê MỘT PHẦN (chỉ 2026, phần mua 2024 đã nằm trong DB) ⇒ thấy bán trước mua
   // ⇒ CHẶN OAN; ngược lại, file tự nó lành nhưng hợp với dòng đã có lại thành `oversold`
-  // ⇒ nhập "thành công" rồi cron 400 MỖI NGÀY. Hợp phải là `daCo + moi` (đúng những gì DB
+  // ⇒ nhập "thành công" rồi cron IM LẶNG BỎ QUA tài khoản mỗi ngày (không phải 400: cả
+  // lượt vẫn 200, chỉ có `daGhi` đứng yên và `boQua.so-lenh-co-lo-hong` tăng trong log).
+  // Hợp phải là `daCo + moi` (đúng những gì DB
   // sẽ chứa sau khi ghi), KHÔNG phải `daCo + xong`: đếm hai lần một lệnh bán đã có sẵn là
   // tự tạo ra một cờ oversold không có thật.
   const hopNhat = [...hangDaCo.map(sangLenh), ...moi]
@@ -553,7 +560,8 @@ async function chinh() {
     console.error(`\nDỪNG — số 口数 ÂM ở: ${am.join(', ')}`)
     console.error(
       `(xét trên HỢP của ${hangDaCo.length} lệnh đã có trong DB và ${moi.length} lệnh mới của file —\n` +
-        ' đúng tập mà fund-refresh sẽ xét, nên đây cũng là lý do cron sẽ trả 400.)\n' +
+        ' đúng tập mà fund-refresh sẽ xét, nên đây cũng là lý do cron sẽ IM LẶNG bỏ qua\n' +
+        ' tài khoản: log function hiện boQua.so-lenh-co-lo-hong, KHÔNG phải mã lỗi 400.)\n' +
         'Gần chắc là `fund_aliases` còn thiếu một dòng: quỹ đã đổi tên và nửa lịch sử\n' +
         'đang ghép vào một mã khác. Xem docs/quy-nhat.md, mục "quỹ đổi tên".',
     )

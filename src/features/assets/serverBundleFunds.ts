@@ -11,8 +11,17 @@
 // Danh sách xuất ở đây = giao kèo. Chỉ xuất thứ THUẦN — không formatMoney (đọc trạng thái
 // riêng tư toàn cục), không hook, không gì kéo theo React hay localStorage.
 
-export { fundHoldingsFromTrades, fundValue, sessionNavs, NAV_UNITS } from './fundHoldings'
+export {
+  fundHoldingsFromTrades,
+  fundValue,
+  planFundBackfill,
+  sessionNavs,
+  NAV_UNITS,
+} from './fundHoldings'
 export type {
+  FundBackfillAccount,
+  FundBackfillDay,
+  FundBackfillPlan,
   FundHolding,
   FundHoldingsResult,
   FundTrade,

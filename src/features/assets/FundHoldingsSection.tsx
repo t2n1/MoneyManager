@@ -45,7 +45,6 @@ export function FundHoldingsSection({ account, onAddTrade, onEditTrade }: Props)
     [allTrades, account.id],
   )
 
-  const { session, navByFund, staleFunds } = useMemo(() => sessionNavs(navRows), [navRows])
   const tenQuy = useMemo(() => new Map(funds.map((f) => [f.assoc_fund_cd, f.name])), [funds])
 
   const asTrades: FundTrade[] = useMemo(
@@ -64,6 +63,13 @@ export function FundHoldingsSection({ account, onAddTrade, onEditTrade }: Props)
   const { holdings, realizedPnl, oversold } = useMemo(
     () => fundHoldingsFromTrades(asTrades),
     [asTrades],
+  )
+  // Chỉ tính phiên trên quỹ ĐANG GIỮ: `fund_prices` chứa cả danh bạ 8 quỹ, và một quỹ
+  // không ai giữ đi trước một phiên sẽ làm cả hai quỹ đang giữ trông như "giá cũ" —
+  // xem sessionNavs().
+  const { session, navByFund, staleFunds } = useMemo(
+    () => sessionNavs(navRows, holdings.map((h) => h.assocFundCd)),
+    [navRows, holdings],
   )
   const value = useMemo(() => fundValue(holdings, navByFund), [holdings, navByFund])
 

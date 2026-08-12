@@ -50,6 +50,7 @@ const EXPORTS_BAT_BUOC: Record<string, string[]> = {
     'fundHoldingsFromTrades',
     'sessionNavs',
     'fundValue',
+    'planFundBackfill',
     'NAV_UNITS',
     'toISODate',
   ],

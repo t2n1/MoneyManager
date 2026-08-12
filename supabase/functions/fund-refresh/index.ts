@@ -18,7 +18,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { buildFundFetchOrder, CSV_URL, fetchFundNavs, parseNavHistory, type NavUpsert } from './navs.ts'
-import { fundHoldingsFromTrades, fundValue, sessionNavs } from './_funds.js'
+import { fundHoldingsFromTrades, fundValue, planFundBackfill, sessionNavs } from './_funds.js'
 import { loadFundAccounts, loadFundRegistry, loadHeldFundCodes } from './loadInput.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
@@ -39,6 +39,32 @@ interface KetQua {
 
 function demBoQua(kq: KetQua, lyDo: string) {
   kq.boQua[lyDo] = (kq.boQua[lyDo] ?? 0) + 1
+}
+
+/** Một hàng upsert vào `account_valuations`. Có kiểu để không lỡ gửi thiếu cột nào. */
+interface ValuationUpsert {
+  user_id: string
+  account_id: string
+  valued_on: string
+  market_value: number
+  note: string
+  source: 'auto'
+}
+
+/**
+ * Lý do chế độ lấp lịch sử từ chối ghi, viết cho người CHẠY TAY đọc — cả ba đều nghĩa là
+ * "biết trước sẽ ghi số sai nên không ghi hàng nào".
+ */
+const LY_DO_KHONG_LAP: Record<string, string> = {
+  'tron-hai-loai-so-lenh':
+    'Tài khoản này có CẢ sổ lệnh cổ phiếu — cộng 口数 của quỹ với số cổ là trộn hai hệ đơn ' +
+    'vị. Cron cũng bỏ qua tài khoản này với đúng lý do đó, nên lấp lịch sử xong cũng không ' +
+    'ai cập nhật tiếp',
+  'so-lenh-co-lo-hong': 'Sổ lệnh có lỗ hổng — kiểm fund_aliases trước',
+  'thieu-lich-su-gia':
+    'Không hút được lịch sử 基準価額 của quỹ ĐANG GIỮ. Cứ ghi thì mấy quỹ đó bị tạm tính ' +
+    'theo giá vốn (chủ app giữ hai quỹ ⇒ lệch cỡ 40% giá trị) mà vẫn trông như số đúng. ' +
+    'Xem `chiTiet` để biết quỹ nào hút hỏng rồi chạy lại',
 }
 
 Deno.serve(async (req) => {
@@ -90,7 +116,7 @@ Deno.serve(async (req) => {
   // ngoài một lượt hút bình thường. Gọi tay, không nằm trong lượt cron hằng ngày.
   if (body?.lapLichSu?.accountId) {
     const accountId = body.lapLichSu.accountId as string
-    const kqLap = { daGhi: 0, loi: [] as string[] }
+    const kqLap = { daGhi: 0, boQuaNgay: 0, loi: [] as string[] }
     try {
       const accounts = await loadFundAccounts(sb)
       const a = accounts.find((x) => x.accountId === accountId)
@@ -114,16 +140,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Mọi ngày phiên xuất hiện ở BẤT KỲ quỹ nào, từ lệnh đầu tiên trở đi.
-      const lenhDauTien = a.trades.map((t) => t.tradedOn).sort()[0]
-      const moiNgay = new Set<string>()
-      for (const theoNgay of lichSu.values())
-        for (const ngay of theoNgay.keys()) if (ngay >= lenhDauTien) moiNgay.add(ngay)
-
-      // Trần: không vượt giới hạn wall-clock của edge function. Chạy lại lấp tiếp phần
-      // còn trống vì bước dưới chỉ ghi ngày CHƯA có hàng nào.
-      const cacNgay = [...moiNgay].sort().slice(0, 1_500)
-
       // Ngày đã có hàng (bất kể auto hay manual) thì KHÔNG đè: ảnh chụp cũ có thể đã được
       // ghi bằng giá đúng của ngày đó, và số gõ tay thì luôn thắng.
       const { data: daCo, error: docErr } = await sb
@@ -133,40 +149,30 @@ Deno.serve(async (req) => {
       if (docErr) throw docErr
       const ngayDaCo = new Set((daCo ?? []).map((r: any) => r.valued_on as string))
 
-      const hang: any[] = []
-      for (const ngay of cacNgay) {
-        if (ngayDaCo.has(ngay)) continue
-        const denNgay = a.trades.filter((t) => t.tradedOn <= ngay)
-        if (denNgay.length === 0) continue
-        const { holdings, oversold } = fundHoldingsFromTrades(denNgay)
-        // Sổ lệnh có lỗ hổng thì mọi ngày đều sai — dừng hẳn, đừng ghi 900 hàng sai.
-        if (oversold.length > 0) {
-          return Response.json(
-            { loi: `Sổ lệnh có lỗ hổng ở ${oversold.join(', ')} — kiểm fund_aliases trước` },
-            { status: 400 },
-          )
-        }
-        // Chưa mua gì (hoặc đã bán sạch) → không có gì để chụp. Ca này CÓ THẬT: tài khoản
-        // trống từ 2025-04-14 tới 2025-08-28.
-        if (holdings.length === 0) continue
-
-        const navNgayDo = new Map<string, number>()
-        for (const h of holdings) {
-          const nav = lichSu.get(h.assocFundCd)?.get(ngay)
-          if (nav != null) navNgayDo.set(h.assocFundCd, nav)
-        }
-        const { marketValue } = fundValue(holdings, navNgayDo)
-        if (marketValue === null) continue
-
-        hang.push({
-          user_id: a.userId,
-          account_id: accountId,
-          valued_on: ngay,
-          market_value: marketValue,
-          note: `Lấp lại theo 基準価額 phiên ${ngay}`,
-          source: 'auto',
-        })
+      // Trần 1.500 ngày: không vượt giới hạn wall-clock của edge function. Chạy lại lấp
+      // tiếp phần còn trống — `planFundBackfill` trừ `ngayDaCo` TRƯỚC khi cắt trần.
+      //
+      // Mọi phép quyết định nằm trong `planFundBackfill` (bộ luật, test bằng số), kể cả ba
+      // chốt "thà không ghi gì": trộn hai loại sổ lệnh, sổ lệnh có lỗ hổng, và quỹ đang giữ
+      // thiếu lịch sử giá. Ở đây chỉ còn việc đọc/ghi Postgres.
+      const ke = planFundBackfill(a, lichSu, ngayDaCo, 1_500)
+      if (!ke.ok) {
+        const ten = ke.funds.length > 0 ? `: ${ke.funds.join(', ')}` : ''
+        return Response.json(
+          { loi: `${LY_DO_KHONG_LAP[ke.reason] ?? ke.reason}${ten}`, chiTiet: kqLap.loi },
+          { status: 400 },
+        )
       }
+
+      type NgayLap = { valuedOn: string; marketValue: number }
+      const hang: ValuationUpsert[] = (ke.days as NgayLap[]).map((d) => ({
+        user_id: a.userId,
+        account_id: accountId,
+        valued_on: d.valuedOn,
+        market_value: d.marketValue,
+        note: `Lấp lại theo 基準価額 phiên ${d.valuedOn}`,
+        source: 'auto',
+      }))
 
       for (let i = 0; i < hang.length; i += 200) {
         const { error } = await sb
@@ -176,6 +182,9 @@ Deno.serve(async (req) => {
       }
 
       kqLap.daGhi = hang.length
+      // Ngày bị bỏ vì nguồn thiếu ĐÚNG phiên đó của một quỹ đang giữ. Con số này phải lộ
+      // ra: `daGhi` một mình không phân biệt được "lấp đủ" với "lấp thiếu vài trăm ngày".
+      kqLap.boQuaNgay = ke.skipped.length
       console.log('fund-refresh lapLichSu', JSON.stringify(kqLap))
       return Response.json(kqLap)
     } catch (err) {
@@ -236,17 +245,13 @@ Deno.serve(async (req) => {
       .select('assoc_fund_cd, nav, nav_date')
     if (navErr) throw navErr
 
-    // Mỗi quỹ được hút bằng một cuộc gọi riêng và một quỹ lỗi không kéo sập quỹ khác, nên
-    // sau một lượt chạy không phải mọi hàng chắc chắn cùng nav_date. sessionNavs gom về
-    // MỘT phiên (ngày lớn nhất) và nêu tên quỹ nào còn kẹt ở phiên cũ hơn.
-    const { session: phien, navByFund, staleFunds } = sessionNavs(
-      (navRows ?? []).map((p: any) => ({
-        assoc_fund_cd: p.assoc_fund_cd as string,
-        nav: Number(p.nav),
-        nav_date: p.nav_date as string,
-      })),
-    )
-    if (!phien) throw new Error('Bảng giá quỹ rỗng, không biết ngày phiên')
+    const giaTho = (navRows ?? []).map((p: any) => ({
+      assoc_fund_cd: p.assoc_fund_cd as string,
+      nav: Number(p.nav),
+      nav_date: p.nav_date as string,
+    }))
+    // Bảng giá rỗng là lỗi của CẢ khối, không của riêng tài khoản nào → 500.
+    if (giaTho.length === 0) throw new Error('Bảng giá quỹ rỗng, không biết ngày phiên')
 
     const accounts = await loadFundAccounts(sb)
     for (const a of accounts) {
@@ -264,6 +269,19 @@ Deno.serve(async (req) => {
         // thường gặp nhất là THIẾU MỘT DÒNG trong fund_aliases (quỹ đổi tên).
         if (oversold.length > 0) {
           demBoQua(kq, 'so-lenh-co-lo-hong')
+          continue
+        }
+        // Ngày phiên tính TRÊN QUỸ ĐANG GIỮ của chính tài khoản này, không trên cả bảng
+        // giá: `fund_prices` chứa cả danh bạ 8 quỹ, và một quỹ KHÔNG AI GIỮ đi trước một
+        // phiên sẽ đánh 'gia-le-phien-cu' cho cả hai quỹ đang giữ, mỗi ngày, mãi mãi. Xem
+        // sessionNavs().
+        const { session: phien, navByFund, staleFunds } = sessionNavs(
+          giaTho,
+          holdings.map((h: { assocFundCd: string }) => h.assocFundCd),
+        )
+        // Không thể xảy ra khi bảng giá còn hàng (đã chặn ở trên) — giữ để thu hẹp kiểu.
+        if (!phien) {
+          demBoQua(kq, 'chua-co-ngay-phien')
           continue
         }
         // Quỹ đang giữ mà giá còn ở phiên cũ hơn: giá vẫn có và > 0 nên fundValue không

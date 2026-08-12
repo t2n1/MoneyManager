@@ -4394,4 +4394,288 @@ git commit -m "feat(quy-nhat): khu Danh muc quy + sheet ghi lenh, khop tung yen 
 
 ---
 
-**Kế hoạch còn Task 14–15. Xem phần tiếp ở cuối file này.**
+## Task 14: Tài liệu + secret cron giờ có BA job
+
+**Files:**
+- Create: `docs/quy-nhat.md`
+- Create: `scripts/setup-fund-cron.mjs`
+- Modify: `scripts/doi-cron-secret.mjs` (`CAC_JOB` + bài test `--dry-run` canh số 2 → 3)
+- Modify: `docs/co-phieu-viet-nam.md` (mục "Đổi secret": hai job → ba job)
+- Modify: `docs/data-model-matrix.md`, `docs/information-architecture.md`
+- Modify: `package.json` (`"setup:fund-cron"`)
+
+> **Đây là task dễ bỏ sót nhất và hậu quả im lặng nhất.** `PUSH_CRON_SECRET` sau task này
+> được **ba** cron job nhúng vào `cron.job.command`. Đổi secret mà quên một job là đẩy job
+> đó vào bẫy: cron vẫn nổ, `cron.job_run_details.status` vẫn `succeeded` (vì `net.http_post`
+> chỉ xếp hàng rồi trả id), mà function trả `401` và không ghi gì. Không một tín hiệu nào ở
+> phía database lộ ra.
+
+- [ ] **Step 1: Sửa `scripts/doi-cron-secret.mjs`**
+
+Tìm hằng `CAC_JOB` và thêm job thứ ba, theo đúng hình dạng hai job đang có:
+
+```js
+  {
+    jobname: 'fund-refresh-daily',
+    function: 'fund-refresh',
+    // 13:00 UTC = 22:00 giờ Nhật, T2–T6: sau giờ công bố 基準価額 (~19:00). Nhật KHÔNG có
+    // giờ mùa hè nên một mốc UTC cố định là đủ; múi giờ ở đây neo vào THỊ TRƯỜNG, không
+    // vào người dùng (khác push, xem docs/push-notification.md).
+    schedule: '0 13 * * 1-5',
+    timeoutMs: 120_000,
+  },
+```
+
+Tìm bài test `--dry-run` canh `CAC_JOB.length === 2` và đổi thành `3`. **Giữ nguyên comment giải thích** — nó chính là lý do bài test tồn tại.
+
+- [ ] **Step 2: Chạy `--dry-run` để chắc script còn đúng**
+
+```bash
+node scripts/doi-cron-secret.mjs --dry-run
+```
+
+Kỳ vọng: in ra khối SQL cho **ba** job, không gọi mạng, không hỏi secret.
+
+- [ ] **Step 3: Viết `scripts/setup-fund-cron.mjs`**
+
+Sao khuôn `scripts/setup-stock-cron.mjs` **nguyên vẹn**, đổi đúng bốn thứ:
+
+| Hằng | Giá trị mới | Vì sao |
+|---|---|---|
+| `LICH` | `'0 13 * * 1-5'` | 22:00 giờ Nhật, sau giờ công bố |
+| `TEN_JOB` | `'fund-refresh-daily'` | |
+| `TIMEOUT_MS` | `120_000` | Phải lớn hơn `FETCH_BUDGET_MS` (60s) của `navs.ts`, cộng chỗ cho việc 2 |
+| Tên function trong URL | `fund-refresh` | |
+
+Giữ **nguyên** bốn thứ đã cứu người ở `setup-stock-cron.mjs`: gọi thử trước khi in SQL, `donDauVao()` bóc bracketed paste, `--kiem-o-nhap`, và `canhBaoHinhDang()` cảnh báo ca copy nhầm cột digest.
+
+Thêm vào `package.json`:
+
+```json
+    "setup:fund-cron": "node scripts/setup-fund-cron.mjs",
+```
+
+- [ ] **Step 4: Sửa `docs/co-phieu-viet-nam.md`**
+
+Trong mục "Đổi secret: dùng script, và nhớ CẢ HAI job", đổi tiêu đề thành **"nhớ CẢ BA job"**, và trong khối trích dẫn cảnh báo, đổi:
+
+> `PUSH_CRON_SECRET` được HAI cron job nhúng vào `cron.job.command`: `stock-refresh-daily` và `push-notify-hourly`.
+
+thành:
+
+> `PUSH_CRON_SECRET` được **BA** cron job nhúng vào `cron.job.command`:
+> `stock-refresh-daily`, `push-notify-hourly` và `fund-refresh-daily` (từ 2026-08-12).
+
+Sửa luôn câu "`--dry-run` có bài kiểm canh đúng con số hai" → "…canh đúng con số **ba**".
+
+- [ ] **Step 5: Viết `docs/quy-nhat.md`**
+
+Cùng khuôn `docs/co-phieu-viet-nam.md`. Bắt buộc có đủ tám mục sau — mục nào thiếu thì người đọc sáu tháng sau sẽ phải tự đo lại:
+
+1. **Nguồn giá và bảng đo thật** — URL, header CSV, Shift-JIS dù khai UTF-8, thiếu tham số trả 200, mã sai trả 500, không có CORS. Kèm ngày đo (2026-08-12).
+2. **Danh bạ 8 quỹ** — bảng tên/ISIN/協会コード.
+3. **Bốn cái bẫy** — chép từ spec, mỗi cái kèm cách nhận biết.
+4. **Quỹ đổi tên** — mục riêng, có bảng chứng minh bằng số (12.355 / 12.596 ở phiên 2024-08-07 và 2024-08-09) và câu: *bất biến "không quỹ nào 口数 âm" là chốt canh.*
+5. **Kiến trúc** — cây file, giống mục "Kiến trúc" của `co-phieu-viet-nam.md`.
+6. **Triển khai** — bốn bước: deploy, bật `pg_cron`/`pg_net`, `npm run setup:fund-cron`, bốn câu kiểm SQL (chạy TỪNG câu).
+7. **Cách xem log** — giải nghĩa từng khoá của dòng log (`soQuyCoGia`, `daGhi`, `boQua`, `loi`) và **bảng ý nghĩa từng lý do `boQua`** (6 lý do, xem Task 9), mỗi lý do kèm "cần làm gì".
+8. **Chỗ đã kiểm và chỗ chưa** — bảng trung thực, giống mục cuối của `co-phieu-viet-nam.md`.
+
+Một câu **phải** có trong mục 6, vì nó là bài học đắt nhất của lần trước:
+
+> Khi debug một lượt cron im lặng: đo `max(updated_at)` của `fund_prices`, **đừng** đo `nav_date` — `nav_date` không phân biệt được "cron không ghi" với "nguồn trả giá phiên cũ".
+
+- [ ] **Step 6: Cập nhật hai tài liệu còn lại**
+
+- `docs/data-model-matrix.md`: thêm bốn bảng `funds`, `fund_aliases`, `fund_prices`, `fund_trades` theo đúng cột mà file đó đang dùng.
+- `docs/information-architecture.md`: thêm khu "Danh mục quỹ" ở trang chi tiết tài khoản, cạnh chỗ mô tả khu "Danh mục" của cổ phiếu.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add docs/quy-nhat.md docs/co-phieu-viet-nam.md docs/data-model-matrix.md docs/information-architecture.md scripts/setup-fund-cron.mjs scripts/doi-cron-secret.mjs package.json
+git commit -m "docs(quy-nhat): tai lieu van hanh + secret cron gio co BA job"
+```
+
+---
+
+## Task 15: Deploy, hẹn cron, và kiểm trên dữ liệu thật
+
+**Files:** không sửa file nào — task này là **chứng minh**.
+
+> Mọi bước dưới đây chạy trên project thật của chủ app. Người chạy là **chủ app**, không
+> phải agent: các bước có secret đều hỏi ở ô nhập kín.
+
+- [ ] **Step 1: Gói lại và deploy**
+
+```bash
+npm run bundle:rules && npx supabase@latest functions deploy fund-refresh --project-ref <project-ref> --no-verify-jwt
+```
+
+`--no-verify-jwt` vì cron không phải người dùng đăng nhập — đó là lý do có `x-cron-secret`, và là lý do chế độ kiểm mã phải tự gọi `sb.auth.getUser()`.
+
+- [ ] **Step 2: Chạy migration 0045 trên project**
+
+Dán nội dung `supabase/migrations/0045_fund_prices_trades.sql` vào SQL Editor và chạy. Kiểm ngay:
+
+```sql
+select count(*) as so_quy from public.funds;
+```
+
+Kỳ vọng: `8`.
+
+```sql
+select count(*) as so_bi_danh from public.fund_aliases;
+```
+
+Kỳ vọng: `10`.
+
+- [ ] **Step 3: Nhập sao kê — xem trước**
+
+```bash
+node scripts/nhap-sao-ke-rakuten.mjs "C:/Users/TranTriNguyen/Downloads/adjusthistory(JP)_20260812.csv" --account <account-id>
+```
+
+**Ba điều phải đúng, không phải "gần đúng":**
+
+| | Kỳ vọng |
+|---|---|
+| Số lệnh quỹ lọc ra | **136** trong 252 dòng dữ liệu |
+| Còn giữ `9I31223A` | **28.429 口**, vốn **50.000 ¥** |
+| Còn giữ `9I314241` | **12.595 口**, vốn **20.000 ¥** |
+
+Mọi quỹ khác phải là **0 口**. Nếu script **dừng vì tên lạ** hoặc **dừng vì 口数 âm** thì
+đó là bảng `fund_aliases` thiếu dòng — thêm hàng rồi chạy lại, **đừng** sửa script.
+
+- [ ] **Step 4: Ghi thật**
+
+```bash
+node scripts/nhap-sao-ke-rakuten.mjs "C:/Users/TranTriNguyen/Downloads/adjusthistory(JP)_20260812.csv" --account <account-id> --ghi
+```
+
+Script hỏi `SUPABASE_SERVICE_ROLE_KEY` ở ô nhập kín. Kỳ vọng: `Ghi 136 lệnh mới`.
+
+Chạy **lại** đúng lệnh đó lần thứ hai. Kỳ vọng: `Ghi 0 lệnh mới (136 lệnh đã có sẵn)` — nếu nó ghi thêm 136 dòng nữa thì khoá idempotent hỏng, **dừng lại và sửa** trước khi đi tiếp.
+
+- [ ] **Step 5: Gọi function thật**
+
+```bash
+curl -i -X POST "https://<project-ref>.supabase.co/functions/v1/fund-refresh" -H "x-cron-secret: <PUSH_CRON_SECRET>"
+```
+
+Kỳ vọng: `200`, body kiểu `{"soQuyCoGia":8,"daGhi":1,"boQua":{},"loi":[]}`.
+
+Gọi thiếu header phải trả `401 Sai bí mật cron`.
+
+- [ ] **Step 6: Bài kiểm quyết định — ba con số**
+
+```sql
+select valued_on, market_value, source
+from public.account_valuations
+where account_id = '<account-id>'
+order by valued_on desc limit 3;
+```
+
+Kỳ vọng dòng mới nhất: `valued_on` = phiên mới nhất của nguồn, `market_value` = **80.757**
+(± phần chênh do phiên khác 2026-08-10), `source` = `auto`.
+
+Mở app, vào tài khoản NISA. Kỳ vọng: **Giá vốn 70.000 ¥ · Tổng giá trị 80.757 ¥ · +10.757 ¥ (+15,4%)**.
+
+**Lệch là sai, không phải "gần đúng".** Ba con số này đã biết trước từ ảnh chụp app Rakuten ngày 2026-08-12.
+
+- [ ] **Step 7: Kiểm van "số gõ tay luôn thắng"**
+
+Gõ tay một giá trị khác cho đúng ngày phiên đó (sheet "Cập nhật giá trị"), gọi lại function.
+
+Kỳ vọng: `"boQua":{"nguoi-dung-da-go-tay":1}` và số trong DB **không đổi**.
+
+- [ ] **Step 8: Kiểm chốt canh bí danh (phá có kiểm soát)**
+
+```sql
+delete from public.fund_aliases
+where statement_name = '楽天・Ｓ＆Ｐ５００インデックス・ファンド(楽天・Ｓ＆Ｐ５００)/再投資型';
+```
+
+Chạy lại script nhập ở chế độ xem trước. Kỳ vọng: script **dừng** và nêu đúng tên đó — không âm thầm bỏ qua. Rồi khôi phục:
+
+```sql
+insert into public.fund_aliases (statement_name, assoc_fund_cd)
+values ('楽天・Ｓ＆Ｐ５００インデックス・ファンド(楽天・Ｓ＆Ｐ５００)/再投資型', '9I31223A');
+```
+
+- [ ] **Step 9: Lấp lịch sử**
+
+```bash
+curl -X POST "https://<project-ref>.supabase.co/functions/v1/fund-refresh" -H "x-cron-secret: <PUSH_CRON_SECRET>" -H "Content-Type: application/json" -d '{"lapLichSu":{"accountId":"<account-id>"}}'
+```
+
+Mở biểu đồ Tài sản ròng. Kỳ vọng **ba** dấu hiệu, cả ba đều là sự thật đã biết từ sao kê:
+
+1. Đường bắt đầu từ khoảng **2022-10**.
+2. Có đoạn **trống 2025-04-14 → 2025-08-28** — tài khoản thật sự không giữ gì trong khoảng đó.
+3. Có bậc tụt mạnh ngày **2026-04-13** rồi khởi lại từ 70.000 — đợt bán sạch và mua lại.
+
+- [ ] **Step 10: Hẹn cron**
+
+```bash
+npm run setup:fund-cron
+```
+
+Script gọi thử function để chứng minh secret trước khi in SQL. Dán khối SQL nó in ra vào SQL Editor.
+
+- [ ] **Step 11: Bốn câu kiểm — chạy TỪNG câu**
+
+SQL Editor chỉ hiện kết quả của câu **cuối** trong ô, nên dán cả bốn câu một lượt sẽ chỉ thấy một bảng và tưởng ba câu kia không trả gì.
+
+```sql
+-- ① Lịch đã vào, VÀ không còn chuỗi giữ chỗ nào trong command.
+select active, command not like '%<%>%' as khong_con_giu_cho
+from cron.job where jobname = 'fund-refresh-daily';
+```
+
+```sql
+-- ② Đã có câu ghi nào chạm vào bảng giá chưa. Đọc lan_ghi_cuoi, KHÔNG phải nav_date.
+select nav_date, count(*) as so_quy, max(updated_at) as lan_ghi_cuoi
+from public.fund_prices group by nav_date order by nav_date desc limit 5;
+```
+
+```sql
+-- ③ Cron đã nổ vào những ngày nào. `succeeded` ở đây CHỈ nghĩa là net.http_post xếp hàng
+--    xong — nó không biết gì về HTTP response.
+select d.status, d.return_message, d.start_time
+from cron.job_run_details d join cron.job j using (jobid)
+where j.jobname = 'fund-refresh-daily' order by d.start_time desc limit 10;
+```
+
+```sql
+-- ④ Sự thật phía HTTP: 200 hay 401/timeout. pg_net tự dọn bảng này sau vài giờ nên nó chỉ
+--    soi được lượt gần nhất.
+select id, status_code, error_msg, created
+from net._http_response order by created desc limit 10;
+```
+
+- [ ] **Step 12: Bằng chứng cuối — một phiên sau**
+
+Ngày làm việc kế tiếp, chạy lại câu ② và xác nhận `lan_ghi_cuoi` đã **nhảy sang mốc của phiên đó**.
+
+**Không đọc `nav_date` để kết luận** — nó không phân biệt được "cron không ghi" với "nguồn trả giá phiên cũ". Đây đúng là chỗ đã mất một buổi hồi 2026-08-11 với `stock-refresh`.
+
+- [ ] **Step 13: Cập nhật mục "Chỗ đã kiểm và chỗ chưa" trong `docs/quy-nhat.md`**
+
+Ghi **trung thực** kết quả từng bước ở trên. Bước nào chưa chạy được thì ghi ❌ kèm lý do — đừng ghi ✅ cho thứ mới chỉ đọc code.
+
+```bash
+git add docs/quy-nhat.md && git commit -m "docs(quy-nhat): ghi ket qua kiem tren du lieu that"
+```
+
+---
+
+## Tự soát kế hoạch
+
+**Phủ spec:** mọi mục của spec đều có task — nguồn giá và 4 bẫy (Task 3–4), 4 bảng + seed + bí danh (Task 1), phép tính không tiền mặt (Task 2), bundle (Task 5), tầng dữ liệu + sao lưu (Task 6–7), edge function 3 chế độ (Task 9–10), script nhập (Task 11), UI (Task 12–13), tài liệu + ba job cron (Task 14), kiểm thật (Task 15).
+
+**Cố ý KHÔNG làm** (spec đã chốt): sheet "thêm quỹ" và nút "Kiểm mã ngay" trên UI — chế độ kiểm mã của edge function vẫn có, gọi bằng `curl` khi cần. Hai việc kèm theo (script sửa sổ thu chi, quy tắc định kỳ) nằm ngoài kế hoạch này.
+
+**Chỗ kế hoạch cố ý không có bài test:** `loadInput.ts` và phần ghép nối Postgres của `index.ts` — chúng chỉ đọc/ghi bảng, không có phép tính để canh, và đúng đắn của chúng được chứng minh bằng Task 15. Dựng mock Supabase để test là dựng một bản sao của Postgres rồi test bản sao đó.
+
+**Ba con số đích** xuất hiện ở bốn chỗ độc lập — test đơn vị (Task 2), dữ liệu demo (Task 6), kiểm UI demo (Task 13), và dữ liệu thật (Task 15). Lệch ở bất kỳ chỗ nào là dấu hiệu thật, không phải nhiễu.

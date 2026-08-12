@@ -3477,4 +3477,526 @@ git commit -m "feat(quy-nhat): lap lich su tu CSV — khong ton them cuoc goi na
 
 ---
 
-**Kế hoạch còn Task 11–15. Xem phần tiếp ở cuối file này.**
+## Task 11: `nhap-sao-ke-rakuten.mjs` — nhập 136 dòng sổ lệnh
+
+**Files:**
+- Create: `scripts/nhap-sao-ke-rakuten.mjs`
+- Create: `scripts/testdata/rakuten-uydo-mau.csv` (**tự dựng**, không phải sao kê thật)
+- Create: `scripts/nhapSaoKe.test.ts` → đặt ở `tests/nhapSaoKe.test.ts`
+- Modify: `package.json` (thêm `"nhap:sao-ke": "node scripts/nhap-sao-ke-rakuten.mjs"`)
+
+**Interfaces:**
+- Consumes: bảng `fund_aliases`, `fund_trades` (Task 1); `fundHoldingsFromTrades` (Task 2).
+- Produces: hàm thuần xuất từ script để test được:
+  ```js
+  export function docSaoKe(bytes)   // → { header: string[], dong: string[][] }
+  export function locLenhQuy(dong)  // → { lenh: [...], boQua: Map<string, number> }
+  export function ghepBiDanh(lenh, biDanh) // → { xong: [...], tenLa: string[] }
+  export function soatSoDuAm(xong)  // → string[]  (mã quỹ có 口数 âm)
+  ```
+
+> **KHÔNG commit sao kê thật của chủ app.** Fixture phải tự dựng, và phải chứa **cả hai
+> tên** của quỹ đã đổi tên — đó là cái bẫy duy nhất mà test này tồn tại để canh.
+
+- [ ] **Step 1: Dựng fixture (Shift-JIS, tự viết, không có dữ liệu thật)**
+
+```bash
+mkdir -p scripts/testdata
+```
+
+```bash
+node -e "
+const fs=require('fs');
+// Bảng tra ngược UTF-16 → Shift-JIS, dựng từ chính TextDecoder.
+const dec=new TextDecoder('shift_jis'); const bang=new Map();
+for(let hi=0x81;hi<=0xef;hi++)for(let lo=0x40;lo<=0xfc;lo++){const k=dec.decode(new Uint8Array([hi,lo]));if(k.length===1&&!bang.has(k))bang.set(k,[hi,lo]);}
+const enc=s=>{const o=[];for(const c of s){const p=c.codePointAt(0);if(p<0x80)o.push(p);else{const x=bang.get(c);if(!x)throw new Error('khong ma hoa duoc '+c);o.push(...x);}}return Buffer.from(o);};
+const L=[
+'受渡日,約定日,取引区分,口座区分,対象証券名,単価［円/％］,数量［株/口/額面］,受渡金額（受取）,受渡金額（支払）,預り金（MRF）［円］',
+'\"2026/4/14\",\"2026/4/9\",\"株式投信購入（積立）\",\"NISAつみたて投資枠\",\"楽天・プラス・Ｓ＆Ｐ５００インデックス・ファンド(楽天・プラス・Ｓ＆Ｐ５００)/再投資型\",\"17,588.00000\",\"28,429\",\"-\",\"50,000\",\"0\"',
+'\"2026/4/13\",\"2026/4/8\",\"株式投信解約\",\"NISAつみたて投資枠\",\"楽天・プラス・Ｓ＆Ｐ５００インデックス・ファンド(楽天・プラス・Ｓ＆Ｐ５００)/再投資型\",\"13,893.00000\",\"19,848\",\"27,575\",\"-\",\"\"',
+'\"2024/8/15\",\"2024/8/9\",\"株式投信購入（積立）\",\"NISA成長投資枠\",\"楽天・Ｓ＆Ｐ５００インデックス・ファンド(楽天・Ｓ＆Ｐ５００)/再投資型\",\"12,596.00000\",\"19,848\",\"-\",\"25,000\",\"\"',
+'\"2026/4/8\",\"2026/4/8\",\"入金(クレジットカード決済ご利用分)\",\"-\",\"-\",\"-\",\"-\",\"68,725\",\"-\",\"\"',
+'\"2026/4/8\",\"2026/4/8\",\"入金(楽天ポイント交換)\",\"-\",\"-\",\"-\",\"-\",\"1,275\",\"-\",\"\"',
+'\"2026/4/13\",\"2026/4/13\",\"自動出金(スイープ)\",\"-\",\"-\",\"-\",\"-\",\"-\",\"387,221\",\"\"',
+''].join('\r\n');
+fs.writeFileSync('scripts/testdata/rakuten-uydo-mau.csv', enc(L));
+console.log('da ghi', fs.statSync('scripts/testdata/rakuten-uydo-mau.csv').size, 'byte');
+"
+```
+
+Fixture này cố ý dựng đúng cái bẫy: một lệnh **mua 19.848 口** dưới **tên CŨ** (2024) và một lệnh **bán 19.848 口** dưới **tên MỚI** (2026). Ghép đủ hai bí danh → số dư 28.429. Bỏ một bí danh → một quỹ âm 19.848.
+
+- [ ] **Step 2: Viết bài test thất bại**
+
+`tests/nhapSaoKe.test.ts`:
+
+```ts
+// Test cho các hàm thuần của scripts/nhap-sao-ke-rakuten.mjs.
+//
+// Ở tests/ chứ không src/: script là .mjs thuần và đọc filesystem qua `node:*`.
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { describe, expect, it } from 'vitest'
+// @ts-expect-error — script viết bằng .mjs thuần, không có khai báo kiểu.
+import { docSaoKe, ghepBiDanh, locLenhQuy, soatSoDuAm } from '../scripts/nhap-sao-ke-rakuten.mjs'
+
+const ROOT = fileURLToPath(new URL('..', import.meta.url))
+const mau = new Uint8Array(readFileSync(join(ROOT, 'scripts', 'testdata', 'rakuten-uydo-mau.csv')))
+
+const SP500 = '9I31223A'
+/** Bí danh ĐỦ — cả tên cũ lẫn tên mới trỏ về cùng một quỹ. */
+const BI_DANH_DU = new Map([
+  ['楽天・プラス・Ｓ＆Ｐ５００インデックス・ファンド(楽天・プラス・Ｓ＆Ｐ５００)/再投資型', SP500],
+  ['楽天・Ｓ＆Ｐ５００インデックス・ファンド(楽天・Ｓ＆Ｐ５００)/再投資型', SP500],
+])
+/** Bí danh THIẾU tên cũ — đúng cái bẫy đã đo được. */
+const BI_DANH_THIEU = new Map([
+  ['楽天・プラス・Ｓ＆Ｐ５００インデックス・ファンド(楽天・プラス・Ｓ＆Ｐ５００)/再投資型', SP500],
+])
+
+describe('docSaoKe', () => {
+  it('đọc Shift-JIS, header ra đúng chữ Nhật', () => {
+    const { header } = docSaoKe(mau)
+    expect(header[0]).toBe('受渡日')
+    expect(header[1]).toBe('約定日')
+    expect(header[4]).toBe('対象証券名')
+  })
+
+  it('từ chối file không phải sao kê 受渡履歴', () => {
+    expect(() => docSaoKe(new TextEncoder().encode('a,b,c\n1,2,3\n'))).toThrow(/受渡日/)
+  })
+
+  it('KHÔNG đọc được nếu file là UTF-8 — bài canh chống bẫy Shift-JIS', () => {
+    const utf8 = new TextEncoder().encode('受渡日,約定日,取引区分\r\n"a","b","c"\r\n')
+    expect(() => docSaoKe(utf8)).toThrow()
+  })
+})
+
+describe('locLenhQuy', () => {
+  it('chỉ nhận ba loại lệnh quỹ, đếm và nêu tên mọi loại đã bỏ', () => {
+    const { lenh, boQua } = locLenhQuy(docSaoKe(mau).dong)
+    expect(lenh).toHaveLength(3)
+    // Ba dòng tiền phải bị bỏ, và phải được NÊU TÊN — bỏ im lặng là chỗ dễ mất dữ liệu.
+    expect(boQua.get('入金(クレジットカード決済ご利用分)')).toBe(1)
+    expect(boQua.get('入金(楽天ポイント交換)')).toBe(1)
+    expect(boQua.get('自動出金(スイープ)')).toBe(1)
+  })
+
+  it('dùng cột 約定日 làm traded_on, KHÔNG dùng 受渡日', () => {
+    const { lenh } = locLenhQuy(docSaoKe(mau).dong)
+    const muaMoi = lenh.find((l) => l.units === 28_429)
+    // 受渡 2026/4/14, 約定 2026/4/9 — lệch 5 ngày. Lấy nhầm cột thì mọi phép lấp lịch sử
+    // và mọi phép đối chiếu NAV đều lệch.
+    expect(muaMoi.tradedOn).toBe('2026-04-09')
+  })
+
+  it('bóc đúng số: bỏ dấu phẩy, `-` thành 0, đơn giá làm tròn về số nguyên', () => {
+    const { lenh } = locLenhQuy(docSaoKe(mau).dong)
+    const muaMoi = lenh.find((l) => l.units === 28_429)
+    expect(muaMoi.nav).toBe(17_588)
+    expect(muaMoi.amount).toBe(50_000)
+    expect(muaMoi.kind).toBe('buy')
+    expect(muaMoi.bucket).toBe('NISAつみたて投資枠')
+    const banRa = lenh.find((l) => l.kind === 'sell')
+    // Lệnh bán lấy số tiền ở cột 受渡金額（受取）, không phải cột （支払）.
+    expect(banRa.amount).toBe(27_575)
+  })
+})
+
+describe('ghepBiDanh + soatSoDuAm — bẫy quỹ đổi tên', () => {
+  it('đủ bí danh → mọi tên ghép được, số dư khớp', () => {
+    const { lenh } = locLenhQuy(docSaoKe(mau).dong)
+    const { xong, tenLa } = ghepBiDanh(lenh, BI_DANH_DU)
+    expect(tenLa).toEqual([])
+    expect(soatSoDuAm(xong)).toEqual([])
+    // 19.848 (mua, tên cũ) − 19.848 (bán, tên mới) + 28.429 (mua, tên mới) = 28.429
+    const tong = xong
+      .filter((l) => l.assocFundCd === SP500)
+      .reduce((s, l) => s + (l.kind === 'sell' ? -l.units : l.units), 0)
+    expect(tong).toBe(28_429)
+  })
+
+  it('THIẾU bí danh tên cũ → tên lạ được nêu ra, KHÔNG đoán bừa', () => {
+    const { lenh } = locLenhQuy(docSaoKe(mau).dong)
+    const { xong, tenLa } = ghepBiDanh(lenh, BI_DANH_THIEU)
+    expect(tenLa).toHaveLength(1)
+    expect(tenLa[0]).toContain('楽天・Ｓ＆Ｐ５００')
+    // Và nếu ai đó lỡ bỏ qua cảnh báo tên lạ, số dư âm là chốt canh thứ hai.
+    expect(soatSoDuAm(xong)).toEqual([SP500])
+  })
+})
+```
+
+- [ ] **Step 3: Chạy test để thấy nó đỏ**
+
+```bash
+npx vitest run tests/nhapSaoKe.test.ts
+```
+
+Kỳ vọng: FAIL — không import được `../scripts/nhap-sao-ke-rakuten.mjs`.
+
+- [ ] **Step 4: Viết script**
+
+`scripts/nhap-sao-ke-rakuten.mjs`:
+
+```js
+// Nhập sao kê 受渡履歴 của Rakuten Securities vào bảng `fund_trades`.
+//
+// Chạy TAY, một lần. Không có giao diện: 136 dòng một lần, vài tháng mới lặp lại — làm
+// giao diện nhập file là công sức không thu hồi được.
+//
+// Chạy:
+//   node scripts/nhap-sao-ke-rakuten.mjs "<đường dẫn csv>" --account <uuid>          (xem trước)
+//   node scripts/nhap-sao-ke-rakuten.mjs "<đường dẫn csv>" --account <uuid> --ghi     (ghi thật)
+//
+// `--ghi` hỏi SUPABASE_SERVICE_ROLE_KEY ở ô nhập KÍN (không hiện lên màn hình, không vào
+// argv, không vào lịch sử shell) — cùng cách setup-stock-cron.mjs nhận secret cron. Khoá
+// đó chỉ được xuất hiện trong terminal của chủ app.
+//
+// BỐN CÁI BẪY của file sao kê, cả bốn đều đã đo thật:
+//
+// ① File là Shift-JIS. Đọc bằng utf-8 thì cột SỐ vẫn đúng, chỉ cột NGÀY và TÊN QUỸ ra
+//    rác — nghĩa là bảng bí danh không khớp dòng nào, và lỗi trông như "tên quỹ lạ".
+//
+// ② Có HAI cột ngày: 受渡日 (tiền về) và 約定日 (khớp lệnh). 基準価額 thuộc về 約定日.
+//    Trên sao kê thật hai ngày lệch tới 5 ngày (受渡 2026/4/14 ⇄ 約定 2026/4/9).
+//
+// ③ MỘT QUỸ NẰM DƯỚI HAI TÊN. Rakuten đổi tên loạt 「楽天・プラス」 ngày 2024-10-17, nên
+//    một sao kê chứa cả tên cũ lẫn tên mới của cùng một quỹ. Ghép theo tên một cách ngây
+//    thơ cho ra 口数 ÂM (đã đo: S&P500 −19.848, VTI −10.232). Vì vậy bảng bí danh nằm
+//    trong DB (`fund_aliases`), và có bất biến "không quỹ nào được âm" chặn ở bước 4.
+//
+// ④ File trộn lệnh quỹ với DÒNG TIỀN (nạp thẻ, điểm Rakuten, thuế, quét tiền) và trộn
+//    NISA với 特定口座. Chỉ ba loại `取引区分` được nhận; mọi loại bị bỏ đều được ĐẾM VÀ
+//    NÊU TÊN, không bỏ im lặng.
+//
+// Xem thêm: docs/quy-nhat.md
+
+import { createInterface } from 'node:readline'
+import { readFileSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
+
+/** Ba loại lệnh quỹ. Mọi 取引区分 khác là dòng tiền — xem bẫy ④. */
+const LOAI_MUA = new Set(['株式投信購入（積立）', '株式投信購入'])
+const LOAI_BAN = new Set(['株式投信解約'])
+
+/** Chỉ số cột, đếm từ 0. Đặt tên vì `o[6]` ở giữa file là câu đố. */
+const COT = {
+  uyDo: 0,
+  ky: 1, // 約定日 — cột được dùng; xem bẫy ②
+  loai: 2,
+  vi: 3, // 口座区分
+  ten: 4, // 対象証券名
+  donGia: 5, // 基準価額, ¥/10.000口
+  soLuong: 6, // 口数
+  thu: 7, // 受渡金額（受取） — lệnh BÁN
+  chi: 8, // 受渡金額（支払） — lệnh MUA
+}
+
+/** '1,234' / '-' / '' → số nguyên; không đọc được thì 0. */
+function so(s) {
+  if (s == null) return 0
+  const v = Number(String(s).replace(/,/g, '').replace(/^-$/, '0').trim())
+  return Number.isFinite(v) ? Math.round(v) : 0
+}
+
+/** '2026/4/9' → '2026-04-09'; null nếu không đúng dạng. */
+function ngaySangISO(s) {
+  const m = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/.exec(String(s ?? '').trim())
+  if (!m) return null
+  return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`
+}
+
+/**
+ * Byte sao kê → header + các dòng đã tách ô.
+ *
+ * Giải mã Shift-JIS nằm TRONG hàm này (nhận Uint8Array, không nhận string) để bài test
+ * bắt được nếu ai đó đổi sang utf-8 — xem bẫy ①. Header không ra `受渡日` thì NÉM LỖI,
+ * không đoán: đọc nhầm định dạng rồi ghi 136 dòng rác vào DB là chuyện phải chặn ở đây.
+ */
+export function docSaoKe(bytes) {
+  const text = new TextDecoder('shift_jis').decode(bytes)
+  const dong = text.split(/\r?\n/).filter((d) => d.trim())
+  const header = (dong[0] ?? '').split(',').map((s) => s.replace(/^"|"$/g, '').trim())
+  if (header[0] !== '受渡日')
+    throw new Error(
+      `Không phải sao kê 受渡履歴 của Rakuten (cột đầu là "${header[0]}", cần "受渡日"). ` +
+        `Nếu bạn thấy chữ rác thì file đã bị chuyển sang UTF-8 — tải lại bản gốc.`,
+    )
+  // Mọi ô đều được bọc "…" và không ô nào chứa dấu phẩy bên trong (đã kiểm trên file
+  // thật), nên tách bằng split là đủ — không cần một trình đọc CSV đầy đủ.
+  return {
+    header,
+    dong: dong.slice(1).map((d) => d.split(',').map((s) => s.replace(/^"|"$/g, ''))),
+  }
+}
+
+/**
+ * Lọc ra lệnh quỹ, bỏ dòng tiền. Mọi loại bị bỏ được ĐẾM VÀ NÊU TÊN — xem bẫy ④.
+ *
+ * `tradedOn` lấy cột 約定日, không phải 受渡日 — xem bẫy ②.
+ */
+export function locLenhQuy(dong) {
+  const lenh = []
+  const boQua = new Map()
+  for (const o of dong) {
+    const loai = (o[COT.loai] ?? '').trim()
+    const laMua = LOAI_MUA.has(loai)
+    const laBan = LOAI_BAN.has(loai)
+    if (!laMua && !laBan) {
+      boQua.set(loai, (boQua.get(loai) ?? 0) + 1)
+      continue
+    }
+    const tradedOn = ngaySangISO(o[COT.ky])
+    if (tradedOn === null) {
+      boQua.set(`${loai} (ngày hỏng)`, (boQua.get(`${loai} (ngày hỏng)`) ?? 0) + 1)
+      continue
+    }
+    lenh.push({
+      tenSaoKe: (o[COT.ten] ?? '').trim(),
+      kind: laMua ? 'buy' : 'sell',
+      tradedOn,
+      units: so(o[COT.soLuong]),
+      nav: so(o[COT.donGia]),
+      // Mua thì tiền ở cột （支払）, bán thì ở cột （受取）. Lấy nhầm cột là amount = 0 và
+      // CHECK fund_trades_shape từ chối cả dòng.
+      amount: laMua ? so(o[COT.chi]) : so(o[COT.thu]),
+      bucket: (o[COT.vi] ?? '').replace(/^-$/, '').trim(),
+    })
+  }
+  return { lenh, boQua }
+}
+
+/**
+ * Ghép tên quỹ trong sao kê → 協会コード qua bảng bí danh.
+ *
+ * So khớp CHÍNH XÁC, không so gần đúng: hai quỹ Rakuten có tên khác nhau đúng ba ký tự
+ * (`・プラス`) và có 基準価額 khác nhau. Một phép so gần đúng ở đây sẽ cộng tiền vào nhầm
+ * quỹ mà không ai biết.
+ *
+ * Tên không có trong bảng được trả về trong `tenLa` để nơi gọi DỪNG — không đoán.
+ */
+export function ghepBiDanh(lenh, biDanh) {
+  const xong = []
+  const tenLa = new Set()
+  for (const l of lenh) {
+    const ma = biDanh.get(l.tenSaoKe)
+    if (!ma) {
+      tenLa.add(l.tenSaoKe)
+      continue
+    }
+    xong.push({ ...l, assocFundCd: ma })
+  }
+  return { xong, tenLa: [...tenLa] }
+}
+
+/**
+ * Bất biến: sau khi ghép, KHÔNG quỹ nào được kết thúc với 口数 âm.
+ *
+ * Đây là phép thử đã bắt được CẢ HAI lần đổi tên (xem bẫy ③) — bảng bí danh thiếu một
+ * dòng thì số âm hiện ra ngay, không cần ai đi soi. Cộng dồn theo 約定日 vì sao kê xếp
+ * mới nhất trước.
+ */
+export function soatSoDuAm(xong) {
+  const duNo = new Map()
+  for (const l of [...xong].sort((a, b) => a.tradedOn.localeCompare(b.tradedOn))) {
+    const truoc = duNo.get(l.assocFundCd) ?? 0
+    duNo.set(l.assocFundCd, truoc + (l.kind === 'sell' ? -l.units : l.units))
+  }
+  return [...duNo.entries()]
+    .filter(([, v]) => v < 0)
+    .map(([ma]) => ma)
+    .sort()
+}
+
+/** Hỏi một giá trị ở ô nhập KÍN — không hiện lên màn hình, không vào argv. */
+function hoiKin(cauHoi) {
+  return new Promise((resolve) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true })
+    // Bịt echo: ghi đè _writeToOutput như setup-stock-cron.mjs đang làm.
+    rl._writeToOutput = () => {}
+    process.stdout.write(cauHoi)
+    rl.question('', (v) => {
+      rl.close()
+      process.stdout.write('\n')
+      // Bracketed paste: terminal bọc nội dung dán giữa ESC[200~ và ESC[201~, và readline
+      // không phải lúc nào cũng bóc ra. Vì ô nhập cố tình không hiện gì, chuỗi bẩn không
+      // có dấu hiệu nào trên màn hình.
+      resolve(v.replace(/\u001b\[20[01]~/g, '').replace(/[\u0000-\u001f\u007f]/g, '').trim())
+    })
+  })
+}
+
+async function chinh() {
+  const duongDan = process.argv[2]
+  const accountId = process.argv[process.argv.indexOf('--account') + 1]
+  const GHI = process.argv.includes('--ghi')
+  if (!duongDan || !accountId || accountId.startsWith('--')) {
+    console.error(
+      'Dùng: node scripts/nhap-sao-ke-rakuten.mjs "<csv>" --account <uuid> [--ghi]',
+    )
+    process.exit(1)
+  }
+
+  const { dong } = docSaoKe(new Uint8Array(readFileSync(duongDan)))
+  const { lenh, boQua } = locLenhQuy(dong)
+
+  console.log(`\nĐọc ${dong.length} dòng dữ liệu → ${lenh.length} lệnh quỹ.`)
+  console.log('Đã bỏ (không phải lệnh quỹ):')
+  for (const [loai, n] of [...boQua].sort((a, b) => b[1] - a[1]))
+    console.log(`  ${String(n).padStart(4)}  ${loai}`)
+
+  const url = docEnv('VITE_SUPABASE_URL')
+  const khoa = GHI
+    ? await hoiKin('SUPABASE_SERVICE_ROLE_KEY (không hiện lên màn hình): ')
+    : docEnv('VITE_SUPABASE_ANON_KEY')
+
+  // Bảng bí danh đọc từ DB, không phải hằng số trong script: lần sau Rakuten đổi tên nữa
+  // thì thêm một hàng vào `fund_aliases`, không sửa code.
+  const biDanh = new Map(
+    (await goi(url, khoa, 'fund_aliases?select=statement_name,assoc_fund_cd')).map((r) => [
+      r.statement_name,
+      r.assoc_fund_cd,
+    ]),
+  )
+
+  const { xong, tenLa } = ghepBiDanh(lenh, biDanh)
+  if (tenLa.length > 0) {
+    console.error('\nDỪNG — có tên quỹ không có trong bảng `fund_aliases`:')
+    for (const t of tenLa) console.error(`  ${t}`)
+    console.error(
+      '\nThêm một hàng vào fund_aliases cho mỗi tên trên rồi chạy lại. KHÔNG đoán:\n' +
+        'hai quỹ Rakuten có tên khác nhau đúng ba ký tự và có 基準価額 khác nhau.',
+    )
+    process.exit(1)
+  }
+
+  const am = soatSoDuAm(xong)
+  if (am.length > 0) {
+    console.error(`\nDỪNG — số 口数 ÂM ở: ${am.join(', ')}`)
+    console.error(
+      'Gần chắc là `fund_aliases` còn thiếu một dòng: quỹ đã đổi tên và nửa lịch sử\n' +
+        'đang ghép vào một mã khác. Xem docs/quy-nhat.md, mục "quỹ đổi tên".',
+    )
+    process.exit(1)
+  }
+
+  // Đối chiếu để so tay với app Rakuten.
+  const duNo = new Map()
+  const von = new Map()
+  for (const l of [...xong].sort((a, b) => a.tradedOn.localeCompare(b.tradedOn))) {
+    const u = duNo.get(l.assocFundCd) ?? 0
+    const v = von.get(l.assocFundCd) ?? 0
+    if (l.kind === 'sell') {
+      const conLai = Math.max(0, u - l.units)
+      von.set(l.assocFundCd, u > 0 ? Math.round((v * conLai) / u) : 0)
+      duNo.set(l.assocFundCd, conLai)
+    } else {
+      duNo.set(l.assocFundCd, u + l.units)
+      von.set(l.assocFundCd, v + l.amount)
+    }
+  }
+  console.log('\nCòn giữ (so tay với app Rakuten):')
+  for (const [ma, u] of [...duNo].sort())
+    console.log(`  ${ma}  ${String(u).padStart(9)} 口   vốn ${String(von.get(ma) ?? 0).padStart(9)} ¥`)
+
+  if (!GHI) {
+    console.log('\n(xem trước — thêm --ghi để ghi thật)')
+    return
+  }
+
+  // Idempotent: khoá trùng là (account, quỹ, ngày, loại, 口数, tiền). Chạy lại cùng file
+  // không sinh dòng thứ hai.
+  const daCo = new Set(
+    (
+      await goi(
+        url,
+        khoa,
+        `fund_trades?select=assoc_fund_cd,traded_on,kind,units,amount&account_id=eq.${accountId}`,
+      )
+    ).map((r) => `${r.assoc_fund_cd}|${r.traded_on}|${r.kind}|${r.units}|${r.amount}`),
+  )
+  const userId = (await goi(url, khoa, `accounts?select=user_id&id=eq.${accountId}`))[0]?.user_id
+  if (!userId) throw new Error('Không tìm thấy tài khoản này.')
+
+  const moi = xong
+    .filter((l) => !daCo.has(`${l.assocFundCd}|${l.tradedOn}|${l.kind}|${l.units}|${l.amount}`))
+    .map((l) => ({
+      user_id: userId,
+      account_id: accountId,
+      assoc_fund_cd: l.assocFundCd,
+      kind: l.kind,
+      traded_on: l.tradedOn,
+      units: l.units,
+      nav: l.nav,
+      amount: l.amount,
+      bucket: l.bucket,
+      note: '',
+    }))
+
+  console.log(`\nGhi ${moi.length} lệnh mới (${xong.length - moi.length} lệnh đã có sẵn).`)
+  for (let i = 0; i < moi.length; i += 200) await ghiVao(url, khoa, moi.slice(i, i + 200))
+  console.log('Xong.')
+}
+
+function docEnv(ten) {
+  const t = readFileSync(new URL('../.env.local', import.meta.url), 'utf8')
+  const v = t.match(new RegExp(`^${ten}=(.+)$`, 'm'))?.[1]?.trim()
+  if (!v) throw new Error(`Thiếu ${ten} trong .env.local`)
+  return v
+}
+
+async function goi(url, khoa, duong) {
+  const res = await fetch(`${url}/rest/v1/${duong}`, {
+    headers: { apikey: khoa, Authorization: `Bearer ${khoa}` },
+  })
+  if (!res.ok) throw new Error(`GET ${duong}: HTTP ${res.status} ${await res.text()}`)
+  return res.json()
+}
+
+async function ghiVao(url, khoa, hang) {
+  const res = await fetch(`${url}/rest/v1/fund_trades`, {
+    method: 'POST',
+    headers: {
+      apikey: khoa,
+      Authorization: `Bearer ${khoa}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify(hang),
+  })
+  if (!res.ok) throw new Error(`POST fund_trades: HTTP ${res.status} ${await res.text()}`)
+}
+
+// Chạy trực tiếp thì làm việc; được test import thì không làm gì.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await chinh()
+}
+```
+
+- [ ] **Step 5: Chạy test để thấy xanh**
+
+```bash
+npx vitest run tests/nhapSaoKe.test.ts
+```
+
+Kỳ vọng: PASS, 8 bài. Hai bài quan trọng nhất là cặp `ghepBiDanh + soatSoDuAm` — chúng dựng lại đúng cái bẫy quỹ đổi tên.
+
+- [ ] **Step 6: Thêm script vào `package.json`**
+
+```json
+    "nhap:sao-ke": "node scripts/nhap-sao-ke-rakuten.mjs",
+```
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add scripts/nhap-sao-ke-rakuten.mjs scripts/testdata tests/nhapSaoKe.test.ts package.json
+git commit -m "feat(quy-nhat): script nhap sao ke Rakuten — bat bien 口数 am chan quy doi ten"
+```
+
+---
+
+**Kế hoạch còn Task 12–15. Xem phần tiếp ở cuối file này.**

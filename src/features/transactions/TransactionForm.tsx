@@ -29,6 +29,7 @@ import {
   useTransactionTags,
 } from '../../hooks/queries'
 import { AccountPicker } from '../../components/AccountPicker'
+import { CHIP_BASE, CHIP_OFF } from '../../components/chip'
 import { IconButton } from '../../components/ui'
 import { TagPicker } from '../tags/TagPicker'
 import { isAutoAssignedCategory, pickableCategories } from '../categories/flowCategories'
@@ -207,18 +208,6 @@ interface TransactionFormProps {
    */
   onSubmitPlanned?: (input: NewPlannedExpense) => Promise<void>
 }
-
-/**
- * Dáng chip bật/tắt cạnh ô ngày (nút "Lặp lại" và nút "Nhắc sau").
- *
- * Gom lại vì hai nút đứng SÁT nhau: chép tay hai bản thì sớm muộn một cái quên
- * `transition` hoặc `active:scale-95` và bấm vào thấy hai kiểu phản hồi khác nhau.
- */
-const CHIP_BASE =
-  'flex min-h-11 shrink-0 items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition active:scale-95'
-// Token chứ không viết lại cặp sáng/tối bằng tay (từ nhánh fix/toan-bo-audit). Master
-// đã gom về một hằng số nên đổi ở đây là đủ, khỏi sửa từng chip như bản trên nhánh.
-const CHIP_OFF = 'border-border-strong bg-surface text-fg-muted'
 
 export function TransactionForm({
   initial,

@@ -174,13 +174,25 @@ describe('migration 0045 — seed quỹ Nhật', () => {
     expect(sql).toContain('fund_trades_shape')
   })
 
+  // Thứ tự trong biểu thức là chỗ dễ sai và sai thì KHÔNG AI BIẾT. Cú pháp Postgres là
+  // `create policy "x" on public.T for all ...` — tên bảng đứng TRƯỚC `for all`. Bản đầu
+  // của bài test này viết ngược (`for all` rồi mới tới `on public.T`) nên nó luôn xanh, kể
+  // cả khi có policy ghi thật: một chốt canh an ninh vô dụng mà trông như đang canh.
+  const luatGhi = (bang: string) =>
+    new RegExp(`create policy[^;]*on public\\.${bang}[^;]*for all`, 'i')
+
+  it('chốt canh policy ghi tự chứng minh là nó còn bắt được', () => {
+    // Không có bài này thì lần sau ai đó sửa biểu thức thành sai chiều nữa cũng không ai
+    // biết — bài dưới sẽ vẫn xanh.
+    const policyDocHai = `create policy "leaky" on public.funds\n  for all\n  using (true);`
+    expect(luatGhi('funds').test(policyDocHai)).toBe(true)
+  })
+
   it('KHÔNG có bảng nào cho phép user ghi vào bảng giá hay danh bạ', () => {
     // funds / fund_aliases / fund_prices là dữ liệu công khai do service role ghi.
     // Một policy `for all` trên ba bảng đó là mở đường cho user sửa mã quỹ của người khác.
     for (const t of ['funds', 'fund_aliases', 'fund_prices']) {
-      expect(sql, `${t} không được có policy ghi`).not.toMatch(
-        new RegExp(`for all[^;]*on public\\.${t}`),
-      )
+      expect(sql, `${t} không được có policy ghi`).not.toMatch(luatGhi(t))
     }
   })
 })
@@ -430,7 +442,7 @@ Vì sao sửa: để người đọc sau không tin là chỉ có một bảng n
 npx vitest run tests/fundSeed.test.ts
 ```
 
-Kỳ vọng: PASS, 6 bài.
+Kỳ vọng: PASS, 7 bài.
 
 - [ ] **Step 7: Commit**
 

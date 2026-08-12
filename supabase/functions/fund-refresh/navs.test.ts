@@ -274,6 +274,10 @@ describe('fetchFundNavs', () => {
     )
     expect(kq.hetNganSach).toBe(true)
     expect(kq.rows.map((r) => r.assoc_fund_cd)).toEqual(['A'])
+    // Khẳng định CẢ HAI phía, không chỉ has('B') === false: nếu trangThai lỡ là Map rỗng
+    // ở mọi trường hợp (một lỗi khác hẳn), riêng has('B') === false sẽ vẫn đúng một cách
+    // vô nghĩa. Quỹ ĐÃ gọi (A) phải có mặt với đúng trạng thái 'ok'.
+    expect(kq.trangThai.get('A')).toBe('ok')
     // Quỹ chưa kịp gọi KHÔNG được ghi trạng thái: 'ma-sai' cho nó là vu oan.
     expect(kq.trangThai.has('B')).toBe(false)
     expect(kq.errors.join(' ')).toContain('hết ngân sách')

@@ -662,7 +662,9 @@ describe('demoRepo: sổ lệnh cổ phiếu', () => {
 
   it('sao lưu mang theo sổ lệnh và khôi phục lại được', async () => {
     const backup = await demoRepo.exportAll()
-    expect(backup.version).toBe(9)
+    // Số cứng chứ không import BACKUP_VERSION: nâng phiên bản là việc phải CỐ Ý, và
+    // test này đỏ lên đúng lúc đó để nhớ kiểm cả nhánh nhập file bản cũ.
+    expect(backup.version).toBe(10)
     expect(Array.isArray(backup.stockTrades)).toBe(true)
 
     await demoRepo.importAll(backup)
@@ -1082,5 +1084,95 @@ describe('nhóm nhãn (migration 0039)', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(raw))
     const back = (await demoRepo.getTags()).find((t) => t.id === tag.id)!
     expect(back.group_id).toBeNull()
+  })
+})
+
+// Nhãn cho quy tắc định kỳ (migration 0042). Cả chuỗi phải chạy được trong bản demo,
+// vì đó là bản duy nhất kiểm được không cần mạng.
+describe('demoRepo: nhãn của quy tắc định kỳ', () => {
+  async function dungQuyTacCoNhan() {
+    const [acc] = await demoRepo.getAccounts()
+    const cats = await demoRepo.getCategories()
+    const cat = cats.find((c) => c.type === 'expense' && !c.parent_id)!
+    const nha = await demoRepo.createTag({ name: `Nhà ${Math.random()}`, color: 'sky' })
+    const xe = await demoRepo.createTag({ name: `Xe ${Math.random()}`, color: 'amber' })
+    const rule = await demoRepo.createRecurringRule({
+      type: 'expense',
+      amount: 68_000,
+      to_amount: null,
+      category_id: cat.id,
+      account_id: acc.id,
+      to_account_id: null,
+      note: 'Tiền nhà',
+      frequency: 'monthly',
+      start_on: '2026-08-01',
+      end_on: null,
+      tag_ids: [nha.id, xe.id],
+    })
+    return { rule, nha, xe }
+  }
+
+  it('tạo quy tắc kèm nhãn thì đọc lại đúng hai nhãn', async () => {
+    const { rule, nha, xe } = await dungQuyTacCoNhan()
+    const links = (await demoRepo.listRecurringRuleTags()).filter((l) => l.rule_id === rule.id)
+    expect(links.map((l) => l.tag_id).sort()).toEqual([nha.id, xe.id].sort())
+  })
+
+  // Đây là điểm chính của cả tính năng: nhãn phải đi xuống từng kỳ engine sinh ra.
+  it('giao dịch do quy tắc sinh mang đúng nhãn của quy tắc', async () => {
+    const { rule, nha, xe } = await dungQuyTacCoNhan()
+    const ok = await demoRepo.insertRecurringOccurrence({
+      type: 'expense',
+      amount: 68_000,
+      to_amount: null,
+      category_id: rule.category_id,
+      account_id: rule.account_id,
+      to_account_id: null,
+      occurred_on: '2026-09-01',
+      note: 'Tiền nhà',
+      recurring_rule_id: rule.id,
+    })
+    expect(ok).toBe(true)
+    const tx = (await demoRepo.listTransactions({ start: '2026-09-01', end: '2026-09-02' })).find(
+      (t) => t.recurring_rule_id === rule.id,
+    )!
+    const gan = (await demoRepo.getTransactionTags()).filter((l) => l.transaction_id === tx.id)
+    expect(gan.map((l) => l.tag_id).sort()).toEqual([nha.id, xe.id].sort())
+  })
+
+  it('sửa nhãn của quy tắc: bỏ trống thì không đụng, mảng rỗng thì bỏ hết', async () => {
+    const { rule, nha } = await dungQuyTacCoNhan()
+    await demoRepo.updateRecurringRule(rule.id, { amount: 70_000 })
+    expect(
+      (await demoRepo.listRecurringRuleTags()).filter((l) => l.rule_id === rule.id).length,
+    ).toBe(2)
+
+    await demoRepo.updateRecurringRule(rule.id, { tag_ids: [nha.id] })
+    expect(
+      (await demoRepo.listRecurringRuleTags()).filter((l) => l.rule_id === rule.id).map((l) => l.tag_id),
+    ).toEqual([nha.id])
+
+    await demoRepo.updateRecurringRule(rule.id, { tag_ids: [] })
+    expect(
+      (await demoRepo.listRecurringRuleTags()).filter((l) => l.rule_id === rule.id).length,
+    ).toBe(0)
+  })
+
+  it('xóa quy tắc thì liên kết nhãn biến mất theo (Postgres có cascade)', async () => {
+    const { rule } = await dungQuyTacCoNhan()
+    await demoRepo.deleteRecurringRule(rule.id)
+    expect(
+      (await demoRepo.listRecurringRuleTags()).filter((l) => l.rule_id === rule.id).length,
+    ).toBe(0)
+  })
+
+  it('sao lưu mang theo liên kết nhãn của quy tắc', async () => {
+    const { rule } = await dungQuyTacCoNhan()
+    const backup = await demoRepo.exportAll()
+    expect(backup.recurringRuleTags?.some((l) => l.rule_id === rule.id)).toBe(true)
+    await demoRepo.importAll(backup)
+    expect(
+      (await demoRepo.listRecurringRuleTags()).filter((l) => l.rule_id === rule.id).length,
+    ).toBe(2)
   })
 })

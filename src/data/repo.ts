@@ -27,6 +27,7 @@ import type {
   ProfileRow,
   PushSubscriptionRow,
   RecurringRuleRow,
+  RecurringRuleTagRow,
   SavingsGoalRow,
   StockPriceRow,
   StockTradeKind,
@@ -78,10 +79,12 @@ export interface BackupData {
   tagGroups?: TagGroupRow[]
   /** Thu dự kiến từng tháng (migration 0041); vắng mặt ở backup v1–v8. */
   monthPlans?: MonthPlanRow[]
+  /** Liên kết quy tắc định kỳ ↔ nhãn (migration 0042); vắng mặt ở backup v1–v9. */
+  recurringRuleTags?: RecurringRuleTagRow[]
 }
 
-/** Phiên bản định dạng backup hiện hành. v9: thêm monthPlans. */
-export const BACKUP_VERSION = 9
+/** Phiên bản định dạng backup hiện hành. v10: thêm recurringRuleTags. */
+export const BACKUP_VERSION = 10
 
 export interface NewTransaction {
   type: TransactionType
@@ -284,6 +287,11 @@ export interface NewRecurringRule {
   end_on: string | null
   /** Bỏ trống = 'auto' (tới hạn tự sinh giao dịch). Xem migration 0037. */
   mode?: RecurringMode
+  /**
+   * Nhãn của quy tắc (migration 0042). Engine chép xuống từng giao dịch nó sinh ra.
+   * Bỏ trống khi patch = KHÔNG đổi nhãn; mảng rỗng = bỏ hết nhãn.
+   */
+  tag_ids?: string[]
   /** Chỉ dùng với mode = 'remind'; bỏ trống = 0 (nhắc đúng ngày đến hạn). */
   remind_days_before?: number
 }
@@ -594,6 +602,10 @@ export interface Repo {
   deleteTag(id: string): Promise<void>
   /** Đặt lại TOÀN BỘ nhãn của một giao dịch (danh sách rỗng = gỡ hết). */
   setTransactionTags(transactionId: string, tagIds: string[]): Promise<void>
+  /** Mọi liên kết quy tắc định kỳ ↔ nhãn của người dùng (migration 0042). */
+  listRecurringRuleTags(): Promise<RecurringRuleTagRow[]>
+  /** Ghi đè toàn bộ nhãn của một quy tắc định kỳ. */
+  setRecurringRuleTags(ruleId: string, tagIds: string[]): Promise<void>
 
   // --- Thông báo (mục AO) ---
   /** Toàn bộ trạng thái thông báo của user (mã + mốc đã đọc/đã tắt). */

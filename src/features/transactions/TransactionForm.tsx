@@ -502,11 +502,24 @@ export function TransactionForm({
     type === 'income'
       ? 'Chưa có danh mục Thu nào để chọn.'
       : 'Chưa có danh mục Chi nào để chọn.'
-  const extrasDropped = repeat !== 'none' || plannedMode
+  /**
+   * Nhãn ĐÃ đi theo được quy tắc định kỳ (migration 0042: bảng recurring_rule_tags,
+   * engine chép xuống từng kỳ nó sinh ra). Còn lại hai thứ vẫn không có chỗ giữ:
+   *  - cờ "hoàn tiền" trên quy tắc định kỳ (recurring_rules không có cột đó)
+   *  - nhãn của một LỜI NHẮC (planned_expenses cũng không có bảng nối)
+   * Chỗ nào không giữ được thì không hiện ô, kèm một dòng nói vì sao.
+   */
+  const tagsDropped = plannedMode
   const chosenTagCount = effectiveTagIds.length
-  const extrasNote = extrasDropped
-    ? `${repeat !== 'none' ? 'Quy tắc định kỳ' : 'Lời nhắc'} chỉ giữ tiền · danh mục · tài khoản · ghi chú. Nhãn và cờ hoàn tiền không đi theo${chosenTagCount > 0 ? ` (${chosenTagCount} nhãn đang chọn sẽ không được lưu)` : ''}.`
-    : ''
+  const tagsNote =
+    chosenTagCount > 0
+      ? `Lời nhắc không giữ được nhãn — ${chosenTagCount} nhãn đang chọn sẽ không được lưu.`
+      : 'Lời nhắc không giữ được nhãn.'
+  const refundDropped = repeat !== 'none' || plannedMode
+  const refundNote =
+    repeat !== 'none'
+      ? 'Quy tắc định kỳ không giữ được cờ "hoàn tiền" — mỗi kỳ sẽ là một khoản chi thường.'
+      : 'Lời nhắc không có cờ "hoàn tiền" (chưa chi thì chưa có gì để hoàn).'
 
   // Lưu mẫu: chỉ với chi/thu đã đủ số tiền + danh mục
   const canSaveTemplate = type !== 'transfer' && amount > 0 && !!categoryId
@@ -691,6 +704,8 @@ export function TransactionForm({
           frequency: repeat,
           start_on: date,
           end_on: null,
+          // Nhãn của quy tắc — engine chép xuống mọi kỳ nó sinh ra (migration 0042)
+          tag_ids: effectiveTagIds,
         })
       } else if (showTransferFee && transferFee > 0) {
         // Chuyển khoản có phí → 2 bút toán, EntryPage lo thứ tự + hoàn tác
@@ -1212,8 +1227,8 @@ export function TransactionForm({
           thầm bỏ — kèm một dòng nói vì sao, và nói luôn số nhãn đang chọn sẽ không đi
           theo, để không có gì biến mất trong im lặng. */}
       {activeRole === 'none' &&
-        (extrasDropped ? (
-          <p className="px-1 text-xs text-fg-muted">{extrasNote}</p>
+        (tagsDropped ? (
+          <p className="px-1 text-xs text-fg-muted">{tagsNote}</p>
         ) : (
           <TagPicker value={effectiveTagIds} onChange={setTagIds} />
         ))}
@@ -1221,7 +1236,7 @@ export function TransactionForm({
       {/* Hoàn tiền — chỉ có nghĩa với khoản CHI.
           `mt-1.5` (cột cuộn đã có gap-1.5 → thành 12px): tách khỏi khối Nhãn ngay trên.
           Không kẻ vạch — trong form này các khối chỉ cách nhau bằng khoảng trống. */}
-      {type === 'expense' && activeRole === 'none' && !extrasDropped && (
+      {type === 'expense' && activeRole === 'none' && !refundDropped && (
         // min-h-11 + ô tích h-5: cả hàng trước đây chỉ cao 20px với ô tích 13px, trong
         // khi mọi thứ khác trong form đều 44px.
         <label className="mt-1.5 flex min-h-11 items-start gap-2 px-1 py-1 text-sm text-fg-secondary">
@@ -1239,6 +1254,10 @@ export function TransactionForm({
             </Guide>
           </span>
         </label>
+      )}
+
+      {type === 'expense' && activeRole === 'none' && refundDropped && (
+        <p className="px-1 text-xs text-fg-muted">{refundNote}</p>
       )}
 
       {showExcludeOption && type !== 'transfer' && (

@@ -28,6 +28,7 @@ import type {
   ProfileRow,
   PushSubscriptionRow,
   RecurringRuleRow,
+  RecurringRuleTagRow,
   SavingsGoalRow,
   StockPriceRow,
   StockTradeRow,
@@ -137,6 +138,8 @@ interface DemoDB {
   networthSnapshots: NetWorthSnapshotRow[]
   tags: TagRow[]
   transactionTags: TransactionTagRow[]
+  /** Nhãn của quy tắc định kỳ (migration 0042); vắng mặt ở dữ liệu demo cũ. */
+  recurringRuleTags?: RecurringRuleTagRow[]
   tagGroups?: TagGroupRow[]
   /** Trạng thái thông báo (mục AO); vắng mặt ở dữ liệu demo cũ. */
   notificationState?: NotificationStateRow[]
@@ -1655,8 +1658,10 @@ export const demoRepo: Repo = {
   async createRecurringRule(input: NewRecurringRule) {
     const db = load()
     db.recurringRules ??= []
+    // tag_ids là bảng nối riêng (migration 0042), không phải cột của quy tắc
+    const { tag_ids, ...fields } = input
     const row: RecurringRuleRow = {
-      ...input,
+      ...fields,
       id: uuid(),
       user_id: DEMO_USER,
       is_paused: false,
@@ -1667,6 +1672,10 @@ export const demoRepo: Repo = {
       updated_at: nowISO(),
     }
     db.recurringRules.push(row)
+    db.recurringRuleTags ??= []
+    for (const tagId of tag_ids ?? []) {
+      db.recurringRuleTags.push({ rule_id: row.id, tag_id: tagId, user_id: DEMO_USER })
+    }
     save(db)
     return row
   },
@@ -1676,7 +1685,15 @@ export const demoRepo: Repo = {
     db.recurringRules ??= []
     const idx = db.recurringRules.findIndex((r) => r.id === id)
     if (idx < 0) throw new Error('Không tìm thấy quy tắc định kỳ')
-    db.recurringRules[idx] = { ...db.recurringRules[idx], ...patch, updated_at: nowISO() }
+    // Bỏ trống tag_ids = KHÔNG đụng tới nhãn; mảng rỗng = bỏ hết nhãn.
+    const { tag_ids, ...fields } = patch
+    if (tag_ids) {
+      db.recurringRuleTags = (db.recurringRuleTags ?? []).filter((l) => l.rule_id !== id)
+      for (const tagId of tag_ids) {
+        db.recurringRuleTags.push({ rule_id: id, tag_id: tagId, user_id: DEMO_USER })
+      }
+    }
+    db.recurringRules[idx] = { ...db.recurringRules[idx], ...fields, updated_at: nowISO() }
     save(db)
     return db.recurringRules[idx]
   },
@@ -1684,10 +1701,25 @@ export const demoRepo: Repo = {
   async deleteRecurringRule(id: string) {
     const db = load()
     db.recurringRules = (db.recurringRules ?? []).filter((r) => r.id !== id)
+    // Postgres có `on delete cascade`; bản demo phải tự dọn liên kết.
+    db.recurringRuleTags = (db.recurringRuleTags ?? []).filter((l) => l.rule_id !== id)
     // Khớp FK on delete set null: giao dịch đã sinh giữ nguyên, chỉ mất liên kết
     db.transactions = db.transactions.map((t) =>
       t.recurring_rule_id === id ? { ...t, recurring_rule_id: null } : t,
     )
+    save(db)
+  },
+
+  async listRecurringRuleTags() {
+    return load().recurringRuleTags ?? []
+  },
+
+  async setRecurringRuleTags(ruleId: string, tagIds: string[]) {
+    const db = load()
+    db.recurringRuleTags = (db.recurringRuleTags ?? []).filter((l) => l.rule_id !== ruleId)
+    for (const tagId of tagIds) {
+      db.recurringRuleTags.push({ rule_id: ruleId, tag_id: tagId, user_id: DEMO_USER })
+    }
     save(db)
   },
 
@@ -1698,13 +1730,21 @@ export const demoRepo: Repo = {
       (t) => t.recurring_rule_id === input.recurring_rule_id && t.occurred_on === input.occurred_on,
     )
     if (dup) return false
+    const id = uuid()
     db.transactions.push({
       ...input,
-      id: uuid(),
+      id,
       user_id: DEMO_USER,
       created_at: nowISO(),
       updated_at: nowISO(),
     })
+    // Nhãn của quy tắc đi theo từng kỳ nó sinh ra (migration 0042)
+    db.transactionTags ??= []
+    for (const l of db.recurringRuleTags ?? []) {
+      if (l.rule_id === input.recurring_rule_id) {
+        db.transactionTags.push({ transaction_id: id, tag_id: l.tag_id, user_id: DEMO_USER })
+      }
+    }
     save(db)
     return true
   },
@@ -1947,6 +1987,7 @@ export const demoRepo: Repo = {
       lifePhases: db.lifePhases ?? [],
       lifeEvents: db.lifeEvents ?? [],
       monthPlans: db.monthPlans ?? [],
+      recurringRuleTags: db.recurringRuleTags ?? [],
     }
   },
 
@@ -2002,6 +2043,7 @@ export const demoRepo: Repo = {
       lifePhases: stamp(data.lifePhases ?? []),
       lifeEvents: stamp(data.lifeEvents ?? []),
       monthPlans: stamp(data.monthPlans ?? []),
+      recurringRuleTags: data.recurringRuleTags ?? [],
     }
     save(db)
   },

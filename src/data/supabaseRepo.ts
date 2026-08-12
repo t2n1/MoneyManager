@@ -23,6 +23,7 @@ import type {
   NetWorthSnapshotRow,
   NotificationStateRow,
   RecurringRuleRow,
+  RecurringRuleTagRow,
   SavingsGoalRow,
   StockPriceRow,
   StockTradeRow,
@@ -1146,19 +1147,44 @@ export const supabaseRepo: Repo = {
 
   async createRecurringRule(input: NewRecurringRule) {
     const user_id = await currentUserId()
+    // tag_ids là bảng nối riêng (migration 0042), không phải cột của recurring_rules
+    const { tag_ids, ...fields } = input
     const { data, error } = await getSupabase()
       .from('recurring_rules')
-      .insert({ ...input, user_id })
+      .insert({ ...fields, user_id })
       .select()
       .single()
     if (error) throw error
+    if (tag_ids?.length) await this.setRecurringRuleTags(data.id, tag_ids)
     return data
   },
 
+  /** Ghi đè toàn bộ nhãn của một quy tắc định kỳ. */
+  async setRecurringRuleTags(ruleId: string, tagIds: string[]) {
+    const user_id = await currentUserId()
+    const sb = getSupabase()
+    const del = await sb.from('recurring_rule_tags').delete().eq('rule_id', ruleId)
+    if (del.error) throw del.error
+    if (tagIds.length === 0) return
+    const { error } = await sb
+      .from('recurring_rule_tags')
+      .insert(tagIds.map((tag_id) => ({ rule_id: ruleId, tag_id, user_id })))
+    if (error) throw error
+  },
+
+  async listRecurringRuleTags() {
+    const { data, error } = await getSupabase().from('recurring_rule_tags').select('*')
+    if (error) throw error
+    return data ?? []
+  },
+
   async updateRecurringRule(id: string, patch: RecurringRulePatch) {
+    // Bỏ trống tag_ids = KHÔNG đụng tới nhãn; mảng rỗng = bỏ hết nhãn.
+    const { tag_ids, ...fields } = patch
+    if (tag_ids) await this.setRecurringRuleTags(id, tag_ids)
     const { data, error } = await getSupabase()
       .from('recurring_rules')
-      .update(patch)
+      .update(fields)
       .eq('id', id)
       .select()
       .single()
@@ -1174,13 +1200,33 @@ export const supabaseRepo: Repo = {
 
   async insertRecurringOccurrence(input: NewRecurringOccurrence) {
     const user_id = await currentUserId()
-    const { error } = await getSupabase()
+    const sb = getSupabase()
+    // `.select('id')`: cần id để chép nhãn của quy tắc xuống giao dịch vừa sinh.
+    const { data, error } = await sb
       .from('transactions')
       .insert({ ...txColumns(input), user_id })
+      .select('id')
+      .single()
     if (error) {
       // 23505 = unique_violation: thiết bị khác đã sinh kỳ này → bỏ qua im lặng
       if (error.code === '23505') return false
       throw error
+    }
+    // Nhãn của quy tắc (migration 0042) đi theo từng kỳ nó sinh ra. Lỗi ở bước này
+    // KHÔNG được làm cả lượt catch-up chết: giao dịch đã ghi xong và đúng số tiền,
+    // thiếu nhãn thì gắn lại được, còn ném ra đây là các kỳ sau không sinh nữa.
+    try {
+      const links = await sb
+        .from('recurring_rule_tags')
+        .select('tag_id')
+        .eq('rule_id', input.recurring_rule_id)
+      if (links.data?.length) {
+        await sb.from('transaction_tags').insert(
+          links.data.map((l) => ({ transaction_id: data.id, tag_id: l.tag_id, user_id })),
+        )
+      }
+    } catch {
+      // bỏ qua có ý định — xem chú thích trên
     }
     return true
   },
@@ -1430,6 +1476,7 @@ export const supabaseRepo: Repo = {
       lifeEvents,
       stockTrades,
       monthPlans,
+      recurringRuleTags,
     ] = await Promise.all([
       this.getProfile(),
       selectAll<AccountRow>('accounts'),
@@ -1451,6 +1498,7 @@ export const supabaseRepo: Repo = {
       selectAll<LifeEventRow>('life_events'),
       selectAll<StockTradeRow>('stock_trades'),
       selectAll<MonthPlanRow>('month_plans'),
+      selectAll<RecurringRuleTagRow>('recurring_rule_tags'),
     ])
     return {
       version: BACKUP_VERSION,
@@ -1475,6 +1523,7 @@ export const supabaseRepo: Repo = {
       lifeEvents,
       stockTrades,
       monthPlans,
+      recurringRuleTags,
     }
   },
 
@@ -1510,6 +1559,9 @@ export const supabaseRepo: Repo = {
       'account_valuations',
       'savings_goals',
       'networth_snapshots',
+      // recurring_rule_tags trước tags VÀ trước recurring_rules (composite FK cả hai).
+      // Cascade cũng lo được, nhưng khai rõ như transaction_tags để thứ tự đọc ra được ý.
+      'recurring_rule_tags',
       'transaction_tags',
       'tags',
       'tag_groups',
@@ -1874,6 +1926,19 @@ export const supabaseRepo: Repo = {
           group_id: t.group_id ?? null,
         })),
         (part) => sb.from('tags').insert(part),
+      )
+    }
+
+    // Nhãn của quy tắc định kỳ (migration 0042): chèn SAU tags và SAU recurring_rules
+    // — composite FK trỏ vào cả hai bảng đó.
+    if (data.recurringRuleTags?.length) {
+      await insertChunked(
+        data.recurringRuleTags.map((l) => ({
+          rule_id: l.rule_id,
+          tag_id: l.tag_id,
+          user_id: uid,
+        })),
+        (part) => sb.from('recurring_rule_tags').insert(part),
       )
     }
 

@@ -157,6 +157,15 @@ export function validateBackupPayload(data: BackupData): string[] {
     ttKey(`${tt.transaction_id}|${tt.tag_id}`, tt.tag_id)
   }
 
+  // Nhãn của quy tắc định kỳ (migration 0042) — cùng kiểu kiểm với liên kết trên.
+  const rtKey = uniques('liên kết nhãn (quy tắc định kỳ + nhãn)')
+  for (const rt of data.recurringRuleTags ?? []) {
+    if (!recurringIds.has(rt.rule_id))
+      p.add('Nhãn gắn vào quy tắc định kỳ không có trong file', rt.rule_id)
+    if (!tagIds.has(rt.tag_id)) p.add('Nhãn không có trong file', rt.tag_id)
+    rtKey(`${rt.rule_id}|${rt.tag_id}`, rt.tag_id)
+  }
+
   const tagName = uniques('tên nhãn')
   for (const t of data.tags ?? []) tagName(t.name, t.name)
 

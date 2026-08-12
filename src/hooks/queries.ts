@@ -855,8 +855,19 @@ export function useRecurringRules() {
   })
 }
 
+/** Nhãn của các quy tắc định kỳ (migration 0042). */
+export function useRecurringRuleTags() {
+  return useQuery({
+    queryKey: ['recurringRuleTags'],
+    queryFn: () => repo.listRecurringRuleTags(),
+    staleTime: 60_000,
+  })
+}
+
 function invalidateRecurringRules(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['recurringRules'] })
+  // Sửa quy tắc có thể đổi cả nhãn của nó
+  qc.invalidateQueries({ queryKey: ['recurringRuleTags'] })
 }
 
 export function useCreateRecurringRule() {

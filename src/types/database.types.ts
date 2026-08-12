@@ -171,6 +171,18 @@ export type TransactionTagRow = {
 }
 
 /**
+ * Liên kết nhiều–nhiều giữa QUY TẮC ĐỊNH KỲ và nhãn (migration 0042).
+ *
+ * Engine catch-up chép các nhãn này xuống từng giao dịch nó sinh ra, nên nhãn của
+ * một khoản định kỳ chỉ phải khai một lần ở quy tắc.
+ */
+export type RecurringRuleTagRow = {
+  rule_id: string
+  tag_id: string
+  user_id: string
+}
+
+/**
  * Một lần "giao dịch chi X mang nhãn Y" — đủ để cộng tổng chi cả đời của nhãn mà
  * không phải kéo nguyên bảng transactions về máy.
  *
@@ -1024,6 +1036,12 @@ export type Database = {
         Row: TransactionTagRow
         Insert: TransactionTagRow
         Update: Partial<TransactionTagRow>
+        Relationships: []
+      }
+      recurring_rule_tags: {
+        Row: RecurringRuleTagRow
+        Insert: RecurringRuleTagRow
+        Update: Partial<RecurringRuleTagRow>
         Relationships: []
       }
       networth_snapshots: {

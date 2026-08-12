@@ -5,9 +5,11 @@ import {
   useAccounts,
   useCategories,
   useCreateRecurringRule,
+  useRecurringRuleTags,
   useRunRecurringCatchUp,
   useUpdateRecurringRule,
 } from '../../hooks/queries'
+import { TagPicker } from '../tags/TagPicker'
 import { toISODate } from '../../lib/dates'
 import { type CurrencyCode } from '../../lib/money'
 import { AccountPicker } from '../../components/AccountPicker'
@@ -65,6 +67,15 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
   const [startOn, setStartOn] = useState(rule?.start_on ?? toISODate(new Date()))
   const [endOn, setEndOn] = useState(rule?.end_on ?? '')
   const [note, setNote] = useState(rule?.note ?? '')
+  // Nhãn của quy tắc (migration 0042). null = chưa đụng vào → giữ nhãn đang có; danh
+  // sách nhãn tới muộn hơn lần render đầu nên KHÔNG gieo vào useState.
+  const { data: ruleTagLinks = [] } = useRecurringRuleTags()
+  const [tagIds, setTagIds] = useState<string[] | null>(null)
+  const currentTagIds = useMemo(
+    () => (rule ? ruleTagLinks.filter((l) => l.rule_id === rule.id).map((l) => l.tag_id) : []),
+    [ruleTagLinks, rule],
+  )
+  const effectiveTagIds = tagIds ?? currentTagIds
   const [mode, setMode] = useState<RecurringMode>(rule?.mode ?? 'auto')
   const [remindDays, setRemindDays] = useState(String(rule?.remind_days_before ?? 0))
   const [saving, setSaving] = useState(false)
@@ -132,6 +143,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
         mode,
         // Chỉ có nghĩa với kiểu nhắc; kiểu tự ghi luôn để 0 cho khỏi lưu số rác.
         remind_days_before: mode === 'remind' ? Number(remindDays) || 0 : 0,
+        tag_ids: effectiveTagIds,
       }
       if (rule) await update.mutateAsync({ id: rule.id, patch: input })
       else await create.mutateAsync(input)
@@ -380,6 +392,12 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
           placeholder="Ví dụ: tiền nhà"
           className="mb-1 w-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
         />
+
+        {/* Nhãn: mỗi kỳ do quy tắc sinh ra sẽ mang đúng những nhãn này. Đặt dưới ghi
+            chú vì nó là thứ tùy chọn, giống thứ tự ở form Nhập. */}
+        <div className="mb-1 mt-3">
+          <TagPicker value={effectiveTagIds} onChange={setTagIds} />
+        </div>
 
         {rule && (
           <Guide className="mt-2 text-xs text-fg-muted">

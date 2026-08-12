@@ -132,6 +132,31 @@ describe('demoRepo — sổ lệnh quỹ', () => {
     ).resolves.toBeTruthy()
   })
 
+  it('sửa lệnh soi hình dạng phải chạy trên bản đã trộn, không phải patch thô (ca: đổi kind sang sell mà không kèm units)', async () => {
+    // Ca DUY NHẤT phân biệt được "soi trên bản đã trộn" với "soi trên patch thô": đổi riêng
+    // `kind` sang 'sell' mà không kèm units/amount. Trên bản đã trộn thì units=100 và
+    // amount=50.000 của hàng cũ vẫn đó nên hợp lệ; nhưng nếu ai đó soi trên `patch` thô
+    // (khác với code hiện tại đúng) thì `patch.units` là undefined và phép soi ném lỗi.
+    // Hai khẳng định ở bài test trước cho ra CÙNG kết quả ở cả hai cách gọi assertFundTradeShape,
+    // nên chỉ chúng thôi chứng minh không được gì — bài test này gán chốt canh thực sự phân biệt.
+    const account_id = await taiKhoanQuyJPY()
+    const newRow = await demoRepo.createFundTrade({
+      account_id,
+      assoc_fund_cd: SP500,
+      kind: 'buy',
+      traded_on: '2026-04-09',
+      units: 100,
+      nav: 17_588,
+      amount: 50_000,
+      bucket: '',
+      note: '',
+    })
+    // Đổi sang 'sell' mà không kèm units/amount: nên hợp lệ vì units/amount lấy từ lệnh cũ,
+    // nhưng nếu soi trên patch thô (bug) thì patch.units=undefined → lỗi "Lệnh mua/bán phải có
+    // số 口数 dương".
+    await expect(demoRepo.updateFundTrade(newRow.id, { kind: 'sell' })).resolves.toBeTruthy()
+  })
+
   it('xoá lệnh thì nó biến khỏi danh sách', async () => {
     const account_id = await taiKhoanQuyJPY()
     const row = await demoRepo.createFundTrade({

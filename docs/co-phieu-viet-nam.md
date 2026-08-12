@@ -311,7 +311,7 @@ ngày 2026-08-11, sau khi đã loại trừ bẫy ③.
 digest". Cố ý chỉ **cảnh báo**, không chặn: secret sinh bằng `openssl rand -hex 32` cũng đúng
 hình dạng đó và hoàn toàn hợp lệ — trọng tài thật vẫn là cuộc gọi tới function.
 
-### Đổi secret: dùng script, và nhớ CẢ HAI job
+### Đổi secret: dùng script, và nhớ CẢ BA job
 
 Nếu trang Secrets không cho hiện giá trị thật (chỉ có cột digest), đường duy nhất là đặt
 secret mới:
@@ -327,13 +327,14 @@ npm run secret:cron
 [scripts/doi-cron-secret.mjs](../scripts/doi-cron-secret.mjs) sinh secret 43 ký tự base64url
 (cùng cách với `setup-push.mjs`), đặt lên Supabase qua CLI — truyền thẳng cho tiến trình con
 nên **không** vào lịch sử shell — gọi thử `stock-refresh` để chứng minh function đã đọc được
-giá trị mới, rồi in SQL hẹn lại cả hai job.
+giá trị mới, rồi in SQL hẹn lại cả ba job.
 
-> **`PUSH_CRON_SECRET` được HAI cron job nhúng vào `cron.job.command`:
-> `stock-refresh-daily` và `push-notify-hourly`.** Đổi secret mà chỉ hẹn lại một job là đẩy
-> job kia vào đúng bẫy ① — cron vẫn nổ, `job_run_details` vẫn `succeeded`, mà function trả
-> 401 và không làm gì. Script giữ hai job trong một danh sách (`CAC_JOB`) chính vì lý do đó,
-> và `--dry-run` có bài kiểm canh đúng con số hai.
+> **`PUSH_CRON_SECRET` được BA cron job nhúng vào `cron.job.command`:
+> `stock-refresh-daily`, `push-notify-hourly` và `fund-refresh-daily` (từ 2026-08-12).**
+> Đổi secret mà chỉ hẹn lại một hoặc hai job là đẩy job còn lại vào đúng bẫy ① — cron vẫn
+> nổ, `job_run_details` vẫn `succeeded`, mà function trả 401 và không làm gì. Script giữ cả
+> ba job trong một danh sách (`CAC_JOB`) chính vì lý do đó, và `--dry-run` có bài kiểm canh
+> đúng con số **ba**.
 
 Edge function đọc `Deno.env.get('PUSH_CRON_SECRET')` lúc khởi động nguội, nên đặt secret mới
 không chắc làm isolate đang chạy thấy ngay — script thử lại 3 lượt cách nhau 20 giây rồi mới

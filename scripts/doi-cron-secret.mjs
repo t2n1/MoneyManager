@@ -1,5 +1,5 @@
 // Đổi PUSH_CRON_SECRET: sinh giá trị mới, đặt lên Supabase, CHỨNG MINH function nhận được
-// giá trị mới, rồi in SQL hẹn lại CẢ HAI cron job đang nhúng secret đó.
+// giá trị mới, rồi in SQL hẹn lại CẢ BA cron job đang nhúng secret đó.
 //
 // Vì sao phải là một script chứ không phải mấy lệnh dán tay:
 //
@@ -10,10 +10,11 @@
 //    hẳn việc tự gõ `$env:X = '...'` hay dán `supabase secrets set "PUSH_CRON_SECRET=..."`,
 //    hai cách đó còn để lại vết trong PSReadLine.
 //
-// 2. `PUSH_CRON_SECRET` được HAI cron job nhúng vào `cron.job.command`: stock-refresh-daily
-//    và push-notify-hourly. Đổi secret mà chỉ hẹn lại một job là đẩy job kia vào đúng cái
-//    lỗi 401 âm thầm đã mất một buổi để tìm ra (xem docs/co-phieu-viet-nam.md, bẫy ①):
-//    cron vẫn nổ, job_run_details vẫn báo 'succeeded', mà function không làm gì cả.
+// 2. `PUSH_CRON_SECRET` được BA cron job nhúng vào `cron.job.command`: stock-refresh-daily,
+//    push-notify-hourly và fund-refresh-daily (từ 2026-08-12). Đổi secret mà chỉ hẹn lại
+//    một hoặc hai job là đẩy job còn lại vào đúng cái lỗi 401 âm thầm đã mất một buổi để
+//    tìm ra (xem docs/co-phieu-viet-nam.md, bẫy ①): cron vẫn nổ, job_run_details vẫn báo
+//    'succeeded', mà function không làm gì cả.
 //
 // 3. Edge function đọc `Deno.env.get('PUSH_CRON_SECRET')` lúc khởi động nguội. Đặt secret
 //    mới KHÔNG chắc làm isolate đang chạy thấy ngay. Script gọi thử có thử lại — đo thay vì
@@ -28,7 +29,7 @@
 // Kiểm script mà không sinh secret, không gọi CLI, không gọi mạng:
 //   node scripts/doi-cron-secret.mjs --dry-run
 //
-// Xem thêm: docs/co-phieu-viet-nam.md, docs/push-notification.md
+// Xem thêm: docs/co-phieu-viet-nam.md, docs/quy-nhat.md, docs/push-notification.md
 
 import { randomBytes } from 'node:crypto'
 import { execSync } from 'node:child_process'
@@ -42,15 +43,20 @@ const ENV_FILE = join(ROOT, '.env.local')
 const DRY = process.argv.includes('--dry-run')
 
 /**
- * Hai cron job cùng nhúng PUSH_CRON_SECRET. Giữ trong MỘT danh sách để không thể sửa chỗ
+ * BA cron job cùng nhúng PUSH_CRON_SECRET. Giữ trong MỘT danh sách để không thể sửa chỗ
  * này mà quên chỗ kia — đó đúng là cách lỗi 401 âm thầm sinh ra.
  *
  * `timeout` phải lớn hơn ngân sách thời gian bên trong từng function:
- * stock-refresh có FETCH_BUDGET_MS = 90s (prices.ts), push-notify nhẹ hơn nhiều.
+ * stock-refresh có FETCH_BUDGET_MS = 90s (prices.ts), fund-refresh có FETCH_BUDGET_MS =
+ * 60s (navs.ts), push-notify nhẹ hơn nhiều.
  */
 const CAC_JOB = [
   { job: 'stock-refresh-daily', func: 'stock-refresh', lich: '45 8 * * 1-5', timeout: 120_000 },
   { job: 'push-notify-hourly', func: 'push-notify', lich: '0 * * * *', timeout: 60_000 },
+  // 13:00 UTC = 22:00 giờ Nhật, T2–T6: sau giờ công bố 基準価額 (~19:00). Nhật KHÔNG có
+  // giờ mùa hè nên một mốc UTC cố định là đủ; múi giờ ở đây neo vào THỊ TRƯỜNG, không
+  // vào người dùng (khác push, xem docs/push-notification.md).
+  { job: 'fund-refresh-daily', func: 'fund-refresh', lich: '0 13 * * 1-5', timeout: 120_000 },
 ]
 
 /** Lấy project-ref từ VITE_SUPABASE_URL để khỏi bắt người dùng tự tra. */
@@ -228,12 +234,21 @@ if (DRY) {
     ['secret sinh ra dài 43 ký tự', sinhSecret().length === 43, ''],
     ['secret sinh ra là base64url', /^[A-Za-z0-9_-]+$/.test(sinhSecret()), ''],
     ['hai lần sinh không trùng nhau', sinhSecret() !== sinhSecret(), ''],
-    ['phủ cả hai job nhúng secret', CAC_JOB.length === 2, CAC_JOB.map((j) => j.job).join(', ')],
+    ['phủ cả ba job nhúng secret', CAC_JOB.length === 3, CAC_JOB.map((j) => j.job).join(', ')],
     ['SQL có cả stock-refresh-daily', sql.includes("'stock-refresh-daily'"), ''],
     ['SQL có cả push-notify-hourly', sql.includes("'push-notify-hourly'"), ''],
+    ['SQL có cả fund-refresh-daily', sql.includes("'fund-refresh-daily'"), ''],
     ['mọi job đều đặt timeout_milliseconds', CAC_JOB.every((j) => sql.includes(`timeout_milliseconds := ${j.timeout}`)), ''],
     ['SQL không còn chuỗi giữ chỗ', !/<[A-Za-z_-]+>/.test(sql), ''],
     ['stock-refresh timeout > FETCH_BUDGET_MS (90s)', CAC_JOB[0].timeout > 90_000, `${CAC_JOB[0].timeout}`],
+    [
+      'fund-refresh timeout > FETCH_BUDGET_MS (60s, navs.ts)',
+      // .find(), không CAC_JOB[2]: thiếu job này thì bài kiểm phải in ra ✗ rõ ràng, không
+      // được crash trước khi in được cả bảng — mất job thứ ba do quên sửa CAC_JOB là đúng
+      // ca bài kiểm này tồn tại để bắt.
+      (CAC_JOB.find((j) => j.job === 'fund-refresh-daily')?.timeout ?? 0) > 60_000,
+      `${CAC_JOB.find((j) => j.job === 'fund-refresh-daily')?.timeout ?? 'THIẾU JOB'}`,
+    ],
     // shell:true nối tham số thành một dòng lệnh — đường dẫn file tạm có thể có dấu cách.
     ['bọc nháy đường dẫn có dấu cách', bocNhay('C:\\co dau cach\\.env') === '"C:\\co dau cach\\.env"', ''],
     ['không bọc nháy tham số thường', bocNhay('--project-ref') === '--project-ref', ''],
@@ -276,7 +291,7 @@ giá trị nằm trong cron.job.command). Nó không đi qua chat, không vào g
 shell.
 
 Việc script làm: ① kiểm CLI đã login → ② sinh secret → ③ đặt lên Supabase → ④ gọi thử
-stock-refresh để chứng minh function nhận được giá trị mới → ⑤ in SQL hẹn lại cả hai job.
+stock-refresh để chứng minh function nhận được giá trị mới → ⑤ in SQL hẹn lại cả ba job.
 `)
 
 // ① Kiểm CLI trước khi sinh gì: chưa login thì dừng ở đây, chưa có gì bị đổi.
@@ -304,7 +319,7 @@ try {
   console.error(
     '\nCó thể secret đã được đặt hoặc chưa — kiểm bằng `npx supabase@latest secrets list' +
       `\n--project-ref ${ref}` +
-      '` (cột digest đổi là đã đặt). Chưa hẹn lại cron job nào, nên nếu đã đặt thì CẢ HAI job' +
+      '` (cột digest đổi là đã đặt). Chưa hẹn lại cron job nào, nên nếu đã đặt thì CẢ BA job' +
       '\nđang mang secret cũ và sẽ 401 tới khi chạy lại script này thành công.',
   )
   process.exit(1)
@@ -324,7 +339,8 @@ if (kq.status === 401) {
       '  được giá trị mới. Deploy lại để buộc nó khởi động nguội:\n\n' +
       `    npm run bundle:rules\n` +
       `    npx supabase@latest functions deploy stock-refresh --project-ref ${ref} --no-verify-jwt\n` +
-      `    npx supabase@latest functions deploy push-notify --project-ref ${ref} --no-verify-jwt\n\n` +
+      `    npx supabase@latest functions deploy push-notify --project-ref ${ref} --no-verify-jwt\n` +
+      `    npx supabase@latest functions deploy fund-refresh --project-ref ${ref} --no-verify-jwt\n\n` +
       '  Rồi chạy `node scripts/setup-stock-cron.mjs` và dán secret mới (lấy lại bằng cách\n' +
       '  chạy lại script này, nó sinh giá trị khác — hoặc đơn giản là chạy lại toàn bộ script này).',
   )
@@ -351,8 +367,9 @@ console.log(`
    SQL Editor và bấm Run. KHÔNG copy hai dòng vạch, KHÔNG copy gì
    ngoài khoảng giữa hai vạch.
 
-   Cả hai khối đều cần: bỏ khối push-notify là thông báo đẩy im lặng
-   ngừng chạy. Dán lại nhiều lần không sao, nó ghi đè job cũ.
+   Cả ba khối đều cần: bỏ khối push-notify là thông báo đẩy im lặng
+   ngừng chạy, bỏ khối fund-refresh là giá quỹ Nhật im lặng ngừng cập
+   nhật. Dán lại nhiều lần không sao, nó ghi đè job cũ.
 
    Khối này CHỨA SECRET — đừng dán vào chat, vào issue, hay commit.
 

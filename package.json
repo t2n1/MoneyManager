@@ -12,7 +12,8 @@
     "bundle:rules": "node scripts/bundle-rules.mjs",
     "setup:push": "node scripts/setup-push.mjs",
     "setup:stock-cron": "node scripts/setup-stock-cron.mjs",
-    "secret:cron": "node scripts/doi-cron-secret.mjs"
+    "secret:cron": "node scripts/doi-cron-secret.mjs",
+    "nhap:sao-ke": "node scripts/nhap-sao-ke-rakuten.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.3",

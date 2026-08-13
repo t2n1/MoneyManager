@@ -18,6 +18,13 @@ import { buildPortfolio, type AccountTrades, type Portfolio } from './portfolio'
 export interface InvestData {
   /** Tài khoản chứng khoán VND đang mở (chưa lưu trữ). */
   accounts: AccountRow[]
+  /**
+   * Tập tài khoản đang được TÍNH. Bằng `accounts` khi không lọc; bằng một phần tử khi
+   * trang gọi kèm `?account=`. Giữ riêng khỏi `accounts` vì `accounts` còn dùng để dựng
+   * chip chọn và để biết có nên hiện trạng thái rỗng hay không — lọc mất nó thì chip tự
+   * biến mất ngay khi bấm vào một chip.
+   */
+  filtered: AccountRow[]
   /** Toàn bộ sổ lệnh của những tài khoản đó, mới nhất trước. */
   trades: StockTradeRow[]
   portfolio: Portfolio
@@ -30,7 +37,7 @@ export interface InvestData {
   isLoading: boolean
 }
 
-export function useInvestData(): InvestData {
+export function useInvestData(accountId?: string | null): InvestData {
   const { data: accountRows = [], isLoading: accLoading } = useAccounts()
   const { data: balances = [] } = useAccountBalances()
   const { data: allTrades = [], isLoading: tradesLoading } = useStockTrades()
@@ -44,22 +51,31 @@ export function useInvestData(): InvestData {
     [accountRows],
   )
 
+  // `accountId` không khớp tài khoản nào của tab (bookmark cũ, tài khoản đã xoá hoặc đã
+  // lưu trữ) → bỏ qua, hiện tất cả. Người dùng vào đây để xem danh mục, không để nghe
+  // về một id.
+  const filtered = useMemo(
+    () => (accountId ? accounts.filter((a) => a.id === accountId) : accounts),
+    [accounts, accountId],
+  )
+  const shown = filtered.length > 0 ? filtered : accounts
+
   const { session, priceBySymbol, staleSymbols } = useMemo(
     () => sessionPrices(prices),
     [prices],
   )
 
   const trades = useMemo(() => {
-    const ids = new Set(accounts.map((a) => a.id))
+    const ids = new Set(shown.map((a) => a.id))
     return allTrades
       .filter((t) => ids.has(t.account_id))
       .slice()
       .sort((a, b) => b.traded_on.localeCompare(a.traded_on) || b.created_at.localeCompare(a.created_at))
-  }, [allTrades, accounts])
+  }, [allTrades, shown])
 
   const portfolio = useMemo(() => {
     const balanceById = new Map(balances.map((b) => [b.id, b.balance]))
-    const input: AccountTrades[] = accounts.map((a) => ({
+    const input: AccountTrades[] = shown.map((a) => ({
       accountId: a.id,
       accountName: a.name,
       balance: balanceById.get(a.id) ?? 0,
@@ -78,7 +94,7 @@ export function useInvestData(): InvestData {
         ),
     }))
     return buildPortfolio(input, priceBySymbol)
-  }, [accounts, balances, allTrades, priceBySymbol])
+  }, [shown, balances, allTrades, priceBySymbol])
 
   // Mã có giá hợp lệ nhưng giá đó cũ hơn phiên chung. Loại mã đã nằm trong
   // missingPrices: một mã chỉ nên bị nêu MỘT lần, và "chưa có giá" đã nói đủ.
@@ -94,6 +110,7 @@ export function useInvestData(): InvestData {
 
   return {
     accounts,
+    filtered,
     trades,
     portfolio,
     session,

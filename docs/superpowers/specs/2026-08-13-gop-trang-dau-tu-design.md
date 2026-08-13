@@ -214,7 +214,14 @@ Hệ quả nếu để nguyên: trang iDragon ghi "Lời/lỗ chưa bán +6.270.
 Hiện tại ghi "▲ 7.510.000", chênh nhau đúng phần đã bán, và không chỗ nào nói ra.
 
 Chốt: **sửa nhãn, không sửa số.** Con số tổng lời/lỗ là con số đúng cho một màn tổng quan
-tài sản; chỉ có chữ "(chưa thực hiện)" là sai. Kèm đổi tên `unrealizedPnlBase` →
+tài sản; chỉ có chữ "(chưa thực hiện)" là sai. Nhãn mới: **"Lãi/lỗ đầu tư (gồm đã bán)"**.
+
+Không phải tôi tự nghĩ ra cách gọi đó. Ngay trong tab Diễn biến,
+[`InvestmentPerformanceSection.tsx:157`](../../../src/features/assets/InvestmentPerformanceSection.tsx#L157)
+tính **đúng cùng một hiệu** `currentValue − costBasis` và gọi nó là "Thị trường cho thêm" /
+"Thị trường lấy đi" — không hề khai là "chưa thực hiện". Tức repo đã có một chỗ nói đúng về
+con số này; chỗ sai là chỗ còn lại. Sửa nhãn ở `AssetsNowView` là làm cho hai chỗ nói cùng
+một thứ, không phải đặt ra từ vựng mới. Kèm đổi tên `unrealizedPnlBase` →
 `totalPnlBase` và `AssetBreakdown.unrealizedPnl` → `totalPnl`: một field tên
 `unrealized` mà chứa tổng là cái bẫy đặt sẵn cho người đọc sau. Đây là đổi tên thuần, không
 đổi hành vi — `aggregate.test.ts` phải xanh với đúng những con số cũ.
@@ -254,6 +261,7 @@ hẹp — ghi ra đây để lần sau không ai mở rộng nó trở lại mà
 | Sửa | `assets/AssetsPage.tsx` | Mở lối vào `/invest` cho tài khoản JPY |
 | Sửa | `assets/aggregate.ts` · `assets/AssetsNowView.tsx` | Quyết định 7 — đổi tên field và nhãn, không đổi số |
 | Sửa | `App.tsx` | `lazyRoute(<InvestPage />, 'list')` → `'cards'` |
+| Sửa | `data/demoRepo.ts` | Mở `tuTinhAutoValuation` cho tài khoản đầu tư JPY |
 | Xoá | `assets/HoldingsSection.tsx` | |
 | Xoá | `assets/FundHoldingsSection.tsx` | |
 
@@ -336,6 +344,33 @@ loại Đầu tư với loại tiền **VND**". Câu đó sai với tab quỹ. H
 nói về loại tiền của chính nó và dẫn tới `/settings/accounts`. Tab rỗng vẫn hiện được (bấm
 tay vào tab đó), chỉ là không bao giờ được **mở mặc định** — xem quyết định 3.
 
+### Chế độ demo — phải lấp một lỗ có sẵn, kẻo bản này phơi nó ra
+
+`demoRepo` không có cron nên tự dựng snapshot `auto` bằng chính các hàm thuần của
+`holdings.ts`, mô phỏng từng bước của `stock-refresh`. Nhưng nó chỉ làm cho **VND**:
+[`demoRepo.ts:721`](../../../src/data/demoRepo.ts#L721) trả `null` ngay khi
+`currency !== 'VND'`. Nghĩa là tài khoản NISA của demo không có snapshot nào, và
+[`demoRepo.ts:296`](../../../src/data/demoRepo.ts#L296) seed nó với số dư sổ **0** (cố ý —
+"vốn gốc đến từ `fund_trades`, không phải số dư sổ").
+
+Hôm nay lỗ đó gần như không thấy: trang NISA đọc snapshot rỗng nên đỉnh trang hiện ¥0, và
+Tổng tài sản cũng ¥0 — sai giống nhau nên không ai để ý (dù ngay dưới đỉnh trang, khu Danh
+mục quỹ đã hiện ¥2,8 triệu). Sau bản này đỉnh trang chuyển sang số tính tại máy, tức **¥2,8
+triệu ở trang tài khoản và ¥0 ở Tổng tài sản** — cùng một tài khoản, trên hai màn cạnh nhau.
+
+Nên mở `tuTinhAutoValuation` cho tài khoản đầu tư JPY, mô phỏng `fund-refresh` đúng như nó
+đang mô phỏng `stock-refresh`, với **sáu** chốt bỏ qua của bản quỹ. Một chốt khác hẳn bản cổ
+phiếu, đừng chép nhầm: quỹ bỏ qua cả khi thiếu giá **một phần**, không chỉ khi thiếu giá mọi
+quỹ ([`fund-refresh:305`](../../../supabase/functions/fund-refresh/index.ts#L305) giải thích
+vì sao — giữ hai quỹ mà mất giá một quỹ là lệch cỡ 40%, lại đóng dấu `auto` trông như đúng).
+
+Không cần nâng `STORAGE_KEY`: snapshot được tính **lúc đọc**, không nằm trong dữ liệu lưu ở
+máy, nên demo cũ vẫn dùng được.
+
+Đổi lại, demo trở thành đường kiểm thật của bản này: nó có **hai** tài khoản đầu tư VND
+('Chứng khoán VN', 'Đầu tư VN') và một tài khoản JPY, tức chip `?account=` và bất biến
+"cộng dồn từng tài khoản rồi mới gộp" đều bấm tay kiểm được, không phải chạm dữ liệu thật.
+
 ### Khung xương lúc tải
 
 `App.tsx` đang bọc `/invest` bằng `PageSkeleton kind="list"`, nhưng trang là ba khối `Card`
@@ -386,6 +421,7 @@ Ba nhãn nói "cổ phiếu" phải đổi vì lối vào giờ dẫn tới cả
 | `portfolio.test.ts` | Thêm ca: `buildPortfolio` với **một** tài khoản cho ra đúng bộ số mà trang tài khoản hiện — chốt bất biến của quyết định 2 |
 | `useAccountPortfolio` | Phần chọn engine tách thành hàm thuần để test: VND → cổ phiếu, JPY → quỹ, loại tiền khác / không có lệnh → `null` |
 | `aggregate.test.ts` | Xanh với **đúng những con số cũ** — quyết định 7 là đổi tên, không đổi hành vi. Tám chỗ dùng `unrealizedPnl` phải đổi theo, và đó là toàn bộ thay đổi được phép ở file này |
+| `demoRepo.test.ts` | Tài khoản NISA của demo có snapshot `auto` bằng đúng tổng của khu danh mục quỹ · sáu chốt bỏ qua của bản quỹ, **gồm ca thiếu giá một phần** (ca dễ chép nhầm từ bản cổ phiếu) · tài khoản JPY có cả `stock_trades` → bỏ qua (`tron-hai-loai-so-lenh`) |
 
 Guard toàn repo phải xanh: `routeLinks` (đã kiểm — `segmentsOf` cắt query/hash nên hai link
 mới có `?tab=`/`?account=` khớp route bình thường), `backLink` (tab mới không được tự viết

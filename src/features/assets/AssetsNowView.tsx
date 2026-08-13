@@ -263,11 +263,11 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
 
   // Đếm tài khoản / nhóm ở khối Tổng tài sản luôn theo mục đích (mô tả toàn cảnh, không đổi theo chart)
   const accountCount = purposeGroups.reduce((n, g) => n + g.accounts.length, 0)
-  // Đầu tư: có snapshot giá trị thị trường nào không → hiện dòng lãi/lỗ chưa thực hiện
+  // Đầu tư: có snapshot giá trị thị trường nào không → hiện dòng lãi/lỗ (gồm đã bán)
   const hasValuation = breakdown.groups.some((g) =>
     g.accounts.some((a) => a.marketValue != null),
   )
-  const pnl = breakdown.unrealizedPnl
+  const pnl = breakdown.totalPnl
 
   // Thẻ tín dụng: công nợ, hiển thị riêng và trừ vào Tài sản ròng
   const visibleCards = breakdown.cards.filter((c) => !c.hidden)
@@ -321,7 +321,7 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
           )}
           {!isLoading && hasValuation && (
             <p className="mt-2 text-xs text-green-50">
-              Lãi/lỗ đầu tư (chưa thực hiện):{' '}
+              Lãi/lỗ đầu tư (gồm đã bán):{' '}
               <span className="font-semibold tabular-nums text-white">
                 {pnl >= 0 ? '+' : '−'}
                 {mv.fmt(Math.abs(pnl), base, breakdown.pnlHasMissingRate)}

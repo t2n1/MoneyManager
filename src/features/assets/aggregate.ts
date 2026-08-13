@@ -45,9 +45,18 @@ export interface AssetAccount {
   value: number
   /** minor units quy đổi base của `value`; null = thiếu tỷ giá */
   baseValue: number | null
-  /** Đầu tư: lãi/lỗ chưa thực hiện quy đổi base (base(marketValue) − base(balance));
-   *  null = không phải đầu tư / chưa cập nhật / thiếu tỷ giá */
-  unrealizedPnlBase: number | null
+  /**
+   * Đầu tư: TỔNG lời/lỗ quy đổi base = base(marketValue) − base(balance).
+   *
+   * Tên cũ là `unrealizedPnlBase` và sai: tiền bán đã về tài khoản nên nằm trong
+   * `marketValue`, tức hiệu này bằng `unrealizedPnl + realizedPnl`. Chứng minh bằng
+   * `brokerCash`/`portfolioValue` của holdings.ts — xem quyết định 7 của spec
+   * docs/superpowers/specs/2026-08-13-gop-trang-dau-tu-design.md.
+   *
+   * KHÔNG đổi tên `unrealizedPnl` ở portfolio.ts hay investment.ts: hai chỗ đó tính
+   * `stockValue − stockCost`, đúng nghĩa chưa thực hiện.
+   */
+  totalPnlBase: number | null
   /** false = không cộng vào tổng (cấp tài khoản) */
   includeInTotals: boolean
   /** true = ẩn khỏi trang Tài sản (cấp tài khoản) */
@@ -115,9 +124,9 @@ export interface AssetBreakdown {
   cardHasMissingRate: boolean
   /** tổng khấu hao lũy kế của tài sản cố định (base, ≥ 0) */
   depreciationTotal: number
-  /** tổng lãi/lỗ đầu tư chưa thực hiện (base); chỉ cộng tài khoản đầu tư được tính, có snapshot & đủ tỷ giá */
-  unrealizedPnl: number
-  /** có tài khoản đầu tư (được tính) có snapshot nhưng thiếu tỷ giá → unrealizedPnl có thể thiếu */
+  /** tổng lãi/lỗ đầu tư quy đổi base, GỒM CẢ phần đã bán (không chỉ chưa thực hiện — xem totalPnlBase); chỉ cộng tài khoản đầu tư được tính, có snapshot & đủ tỷ giá */
+  totalPnl: number
+  /** có tài khoản đầu tư (được tính) có snapshot nhưng thiếu tỷ giá → totalPnl có thể thiếu */
   pnlHasMissingRate: boolean
 }
 
@@ -147,7 +156,7 @@ export function assetBreakdown(
   let hasMissingRate = false
   let cardDebt = 0
   let cardHasMissingRate = false
-  let unrealizedPnl = 0
+  let totalPnl = 0
   let pnlHasMissingRate = false
   let depreciationTotal = 0
 
@@ -199,12 +208,12 @@ export function assetBreakdown(
     const marketValue = snapshot ?? auto?.currentValue ?? null
     const value = marketValue ?? b.balance
     const baseValue = convertToBase(value, b.currency, base, rates)
-    // Lãi/lỗ chưa thực hiện = base(giá thị trường) − base(vốn gốc). Chỉ cho ĐẦU TƯ:
+    // TỔNG lãi/lỗ (gồm đã bán) = base(giá thị trường) − base(vốn gốc). Chỉ cho ĐẦU TƯ:
     // tài sản cố định mất giá là chuyện đương nhiên, gộp chung sẽ làm méo con số lãi/lỗ.
-    let unrealizedPnlBase: number | null = null
+    let totalPnlBase: number | null = null
     if (isInvestment && marketValue != null) {
       const baseCost = convertToBase(b.balance, b.currency, base, rates)
-      unrealizedPnlBase = baseValue != null && baseCost != null ? baseValue - baseCost : null
+      totalPnlBase = baseValue != null && baseCost != null ? baseValue - baseCost : null
     }
     const depreciatedBase =
       auto != null ? convertToBase(auto.accumulated, b.currency, base, rates) : null
@@ -218,7 +227,7 @@ export function assetBreakdown(
       depreciatedBase,
       value,
       baseValue,
-      unrealizedPnlBase,
+      totalPnlBase,
       includeInTotals: b.include_in_totals ?? true,
       hidden: b.is_hidden ?? false,
       sortOrder: b.sort_order ?? 0,
@@ -249,8 +258,8 @@ export function assetBreakdown(
       for (const a of countedAccounts) {
         if (a.depreciatedBase != null) depreciationTotal += a.depreciatedBase
         if (a.type !== 'investment' || a.marketValue == null) continue
-        if (a.unrealizedPnlBase == null) pnlHasMissingRate = true
-        else unrealizedPnl += a.unrealizedPnlBase
+        if (a.totalPnlBase == null) pnlHasMissingRate = true
+        else totalPnl += a.totalPnlBase
       }
     }
 
@@ -293,7 +302,7 @@ export function assetBreakdown(
     cardDebt,
     cardHasMissingRate,
     depreciationTotal,
-    unrealizedPnl,
+    totalPnl,
     pnlHasMissingRate,
   }
 }

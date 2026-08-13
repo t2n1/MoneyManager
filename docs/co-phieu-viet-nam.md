@@ -286,13 +286,14 @@ Script [scripts/setup-stock-cron.mjs](../scripts/setup-stock-cron.mjs) hỏi
 `stock_prices`) và việc 2 (đọc lại từ `stock_prices` để tính giá trị danh mục,
 [index.ts](../supabase/functions/stock-refresh/index.ts)): cả hai đụng bảng chưa tồn tại,
 lỗi kiểu `relation "public.stock_prices" does not exist` rơi vào `kq.loi`, và function trả
-`500`. **Script này không có nhánh dò riêng cho ca "bảng chưa tồn tại"** — nhánh xử lý
-non-401/non-200 của nó chỉ nói chung chung "Secret ĐÚNG (không bị chặn ở cửa 401), nhưng
-lượt chạy có lỗi... SQL vẫn in ra dưới đây: hẹn cron là đúng việc, lỗi kia sửa riêng" rồi
-**vẫn in khối SQL** như thể mọi thứ ổn. Nghĩa là hẹn cron trước khi Bước 1 chạy vẫn cho ra
-một khối SQL trông hợp lệ — dán nó vào SQL Editor là cron sẽ nổ **mỗi ngày và luôn lỗi**
-cho tới khi có ai soi log function ra (mục "Cách xem log" ở dưới). Thấy HTTP khác `200` ở
-lượt gọi thử: đừng dán SQL, quay lại Bước 1 trước.
+`500`. Script **có** nhánh dò riêng cho ca này (`bangChuaTonTai()`): thân trả về khớp dấu
+hiệu "bảng chưa tồn tại" (cả hình dạng PostgREST "schema cache" lẫn câu Postgres thô
+"relation ... does not exist") thì nó in cảnh báo riêng — ĐỪNG hẹn cron, quay lại Bước 1,
+áp migration 0035 rồi chạy lại script — thay vì lời khuyên chung chung "hẹn cron là đúng
+việc, lỗi kia sửa riêng" dành cho mọi lỗi khác. SQL vẫn được in ra để xem trước trong cả
+hai nhánh, nhưng chỉ nhánh "bảng chưa tồn tại" nói rõ đừng dán nó vào SQL Editor. Thấy HTTP
+khác `200` ở lượt gọi thử: đọc kỹ cảnh báo in ra — nếu là ca bảng chưa tồn tại thì quay lại
+Bước 1 trước khi dán SQL.
 
 Mẫu SQL viết tay đã bị bỏ khỏi tài liệu này, vì hai chỗ trong đó đã gãy thật:
 

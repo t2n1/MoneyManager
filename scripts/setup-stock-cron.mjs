@@ -231,6 +231,28 @@ function thuanAscii(s) {
   return [...s].every((c) => c.codePointAt(0) < 128)
 }
 
+/**
+ * Dò dấu hiệu "bảng chưa tồn tại" trong thân trả về của lượt gọi thử.
+ *
+ * Vì sao cần: nếu migration 0035 chưa áp (thiếu `stock_prices`/`stock_trades`), function
+ * lỗi ngay ở tầng đọc/ghi bảng — KHÔNG phải 401 (secret vẫn đúng). Không có phép kiểm này,
+ * nhánh "secret đúng nhưng lỗi khác, SQL vẫn in ra" ở dưới sẽ khuyên hẹn cron trước khi
+ * bảng tồn tại, và cron sẽ nổ mỗi ngày, luôn lỗi, cho tới khi có ai soi ra (xem
+ * docs/co-phieu-viet-nam.md, mục "Triển khai", Bước 1).
+ *
+ * Đọc index.ts: mọi truy vấn bảng ở đây đi qua `supabase-js .from(table)` (không RPC,
+ * không raw SQL nào trong stock-refresh) — cùng đường PostgREST như fund-refresh, nên với
+ * một bảng CHƯA TỪNG tồn tại, hình dạng thực tế nhiều khả năng cũng là PGRST205 ("...schema
+ * cache"), giống fund. Vẫn bắt thêm câu Postgres thô ("relation ... does not exist") vì đó
+ * là hình dạng docs/co-phieu-viet-nam.md mô tả cho ca này — hai nhánh bổ sung cho nhau,
+ * không thừa: bên nào xảy ra thật ngoài đời, phép kiểm này cũng bắt được, mà không nhận
+ * nhầm lỗi hết giờ/thiếu quyền/lỗi mạng/lỗi Yahoo/HTML lỗi gateway (không câu nào trong số
+ * đó chứa "schema cache" hay "relation ... does not exist").
+ */
+function bangChuaTonTai(body) {
+  return /schema cache|relation .* does not exist/i.test(body)
+}
+
 const ref = docProjectRef()
 
 if (DRY) {
@@ -274,6 +296,47 @@ if (DRY) {
     // thật ngày 2026-08-12: người dùng bôi đen tới hết màn hình, Postgres trả
     // `ERROR: 42601: syntax error at or near "Rồi"`.
     ['SQL sinh ra thuần ASCII (không lẫn chữ Việt)', thuanAscii(sql), ''],
+    // Phép kiểm cho bangChuaTonTai() — không gọi mạng, chỉ ném chuỗi mẫu qua hàm thuần.
+    // Ca dương: hai hình dạng lỗi "bảng chưa tồn tại" có thể gặp thật (PGRST205 của
+    // PostgREST, và câu Postgres thô).
+    [
+      'nhận ra bảng chưa tồn tại (PostgREST, schema cache, stock_trades)',
+      bangChuaTonTai('{"soMaCoGia":0,"daGhi":0,"boQua":{},"loi":["gia: Could not find the table \'public.stock_trades\' in the schema cache"]}'),
+      '',
+    ],
+    [
+      'nhận ra bảng chưa tồn tại (Postgres thô, relation ... does not exist)',
+      bangChuaTonTai('{"loi":["ghi gia tri: relation \\"public.stock_prices\\" does not exist"]}'),
+      '',
+    ],
+    // Ca âm: lỗi BÌNH THƯỜNG, không liên quan gì tới bảng chưa tồn tại — phải KHÔNG bị
+    // nhận nhầm, kẻo mọi lỗi khác đều bị khuyên "đừng hẹn cron", làm người dùng đi tìm
+    // sai chỗ (đúng bẫy mà một hàm luôn trả true sẽ gây ra).
+    [
+      'không báo nhầm hết ngân sách thời gian',
+      !bangChuaTonTai('{"soMaCoGia":280,"daGhi":0,"boQua":{},"loi":["gia: hết ngân sách thời gian hút giá sau 15/21 lô (đã hút 280 mã)"]}'),
+      '',
+    ],
+    [
+      'không báo nhầm lỗi Yahoo (HTTP 400, quá 20 mã một lô)',
+      !bangChuaTonTai('{"soMaCoGia":0,"daGhi":0,"boQua":{},"loi":["gia: Yahoo spark: HTTP 400 (lô 5/21)"]}'),
+      '',
+    ],
+    [
+      'không báo nhầm thiếu quyền (permission denied)',
+      !bangChuaTonTai('{"loi":["ghi gia tri: permission denied for table stock_prices"]}'),
+      '',
+    ],
+    [
+      'không báo nhầm lỗi mạng (fetch failed)',
+      !bangChuaTonTai('{"loi":["gia: TypeError: fetch failed (ECONNRESET)"]}'),
+      '',
+    ],
+    [
+      'không báo nhầm HTML lỗi gateway (502/503 của hạ tầng)',
+      !bangChuaTonTai('<html><body><h1>502 Bad Gateway</h1><p>nginx</p></body></html>'),
+      '',
+    ],
   ]
   console.log('--dry-run: không hỏi secret, không gọi mạng, không in secret.\n')
   for (const [ten, dat, ghiChu] of kiem)
@@ -375,11 +438,26 @@ if (!KHONG_GOI) {
 
   console.log(`\n${kq.status === 200 ? '✓' : '⚠'} HTTP ${kq.status}\n  ${kq.body}`)
   if (kq.status !== 200) {
-    console.log(
-      '\n  Secret ĐÚNG (không bị chặn ở cửa 401), nhưng lượt chạy có lỗi. Đọc `loi` trong\n' +
-        '  thân trả về ở trên, đối chiếu bảng lý do trong docs/co-phieu-viet-nam.md.\n' +
-        '  SQL vẫn in ra dưới đây: hẹn cron là đúng việc, lỗi kia sửa riêng.',
-    )
+    if (bangChuaTonTai(kq.body)) {
+      // KHÔNG cùng nhánh với lỗi khác: khuyên hẹn cron ở đây là khuyên hẹn một cron sẽ nổ
+      // mỗi ngày và luôn lỗi cho tới khi có ai soi ra — xem docs/co-phieu-viet-nam.md,
+      // mục "Triển khai", Bước 1.
+      console.log(
+        '\n  ⚠ Secret ĐÚNG, nhưng thân trả về có dấu hiệu BẢNG CHƯA TỒN TẠI\n' +
+          '  (stock_prices/stock_trades). ĐỪNG hẹn cron lúc này — quay lại Bước 1\n' +
+          '  (docs/co-phieu-viet-nam.md, mục "Triển khai"): áp\n' +
+          '  supabase/migrations/0035_stock_prices_trades.sql lên project này, rồi chạy lại\n' +
+          '  script này.\n' +
+          '  SQL vẫn in ra dưới đây để xem trước, nhưng đừng dán vào SQL Editor cho tới khi\n' +
+          '  câu kiểm ở Bước 1 (to_regclass(...) is not null) trả về đủ true.',
+      )
+    } else {
+      console.log(
+        '\n  Secret ĐÚNG (không bị chặn ở cửa 401), nhưng lượt chạy có lỗi. Đọc `loi` trong\n' +
+          '  thân trả về ở trên, đối chiếu bảng lý do trong docs/co-phieu-viet-nam.md.\n' +
+          '  SQL vẫn in ra dưới đây: hẹn cron là đúng việc, lỗi kia sửa riêng.',
+      )
+    }
   }
 }
 

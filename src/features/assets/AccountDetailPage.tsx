@@ -284,12 +284,23 @@ export function AccountDetailPage() {
 
         {isInvestment && danhMuc && (
           <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-3 text-sm">
-            <PnlRow
-              label="Lời/lỗ chưa bán"
-              amount={danhMuc.unrealizedPnl}
-              currency={currency}
-              percent={danhMuc.unrealizedPercent}
-            />
+            {/* marketValue == null: không phải "lãi/lỗ đúng bằng 0", mà là buildPortfolio
+                không có giá cho BẤT KỲ mã/quỹ nào đang giữ, nên đã định giá mọi vị thế
+                bằng giá vốn — unrealizedPnl và unrealizedPercent ra đúng 0 một cách giả.
+                In PnlRow lúc này sẽ khẳng định "+0 ₫ (+0,0%)" như một sự thật trong khi số
+                lớn phía trên đã âm thầm rơi về vốn gốc. Nói thẳng thay vì bịa số 0. */}
+            {danhMuc.marketValue == null ? (
+              <p className="text-xs text-fg-muted">
+                Chưa cập nhật giá thị trường — đang tính theo vốn gốc.
+              </p>
+            ) : (
+              <PnlRow
+                label="Lời/lỗ chưa bán"
+                amount={danhMuc.unrealizedPnl}
+                currency={currency}
+                percent={danhMuc.unrealizedPercent}
+              />
+            )}
             {/* Không in "Vốn gốc (đã bỏ vào)" ở đây nữa: đó là mốc theo SỐ DƯ SỔ, tức mốc
                 mà quyết định 1 đã loại. Câu "tiền tôi bỏ vào sinh lợi bao nhiêu" nằm ở ô
                 Hiệu quả đầu tư tab Diễn biến, nơi XIRR trả lời có tính cả thời điểm. */}

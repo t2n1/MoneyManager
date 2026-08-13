@@ -5,11 +5,14 @@
 // phải hiện giống hệt nhau. Trước đây là hai đoạn JSX chép tay, và chúng đã lệch thật:
 // một bên viết '−' (U+2212) bằng tay trong khi formatMoney in '-', nên bề rộng chữ số
 // khác nhau dù cả hai đều tabular-nums.
+//
+// `pct` KHÔNG tự có ở đây nữa: dùng chung bản của `investFormat.ts` — bản đó đã là thứ
+// hai tab /invest render, nên trang tài khoản và tab, cách nhau một cú bấm "Xem →", giờ
+// in đúng cùng một chuỗi (dấu '−' U+2212, phẩy thập phân) cho cùng một con số, thay vì
+// mỗi nơi tự chép một công thức rồi lệch nhau ở đúng chỗ đó.
 import { Money } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/money'
-
-/** Phần trăm có dấu, dấu ASCII cho khớp dấu mà <Money> in ra. */
-const pct = (v: number) => `${v >= 0 ? '+' : '-'}${Math.abs(v * 100).toFixed(1)}%`
+import { pct } from './investFormat'
 
 interface Props {
   label: string

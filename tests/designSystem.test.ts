@@ -78,8 +78,17 @@ function stripComments(text: string): string {
  * "chưa tính được" khi thiếu giá, và trạng thái chưa giữ quỹ nào. Cùng loại ba dòng
  * này bên tab cổ phiếu đã nằm trong 53 phía trên — đây không phải chữ mới, chỉ là
  * bản song sinh cho tab thứ hai.
+ *
+ * 57 (2026-08-13): AccountDetailPage lặp câu "Chưa cập nhật giá thị trường — đang
+ * tính theo vốn gốc." sang khối tài khoản CÓ sổ lệnh (trước chỉ ở khối định giá tay).
+ * Đây là chốt review Task 6: khi `useAccountPortfolio` trả `marketValue: null` vì
+ * thiếu giá cho mọi mã/quỹ đang giữ, `unrealizedPnl`/`unrealizedPercent` ra đúng 0 một
+ * cách giả (mọi vị thế bị định giá bằng giá vốn) — in PnlRow lúc đó là bịa ra "+0 ₫
+ * (+0,0%)". Câu cảnh báo đúng là đường thoát, không phải chữ dạy, nên không bọc
+ * <Guide> — bọc vào sẽ giấu mất cảnh báo ở chế độ Gọn, đúng lỗi các lần nâng trần
+ * trước đã tránh.
  */
-const PROSE_MAX = 56
+const PROSE_MAX = 57
 
 const FILES = sourceFiles().map((path) => ({
   path,

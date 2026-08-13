@@ -2,7 +2,10 @@
 
 > **Ngày ghi:** 2026-07-14 · **Cập nhật:** 2026-07-30 (kiểm lại toàn bộ với
 > `supabase/migrations/`: bổ sung 9 bảng tài liệu từng bỏ sót, và sửa 4 mục còn đánh
-> "NEW"/"đích" tuy đã ship từ migration 0006–0008) · **Mục đích:** để **dữ liệu hiện có** và **dữ liệu các
+> "NEW"/"đích" tuy đã ship từ migration 0006–0008); 2026-08-13 (rà lại toàn bộ lần nữa,
+> bổ sung 5 bảng còn sót: `push_subscriptions` (0034), `planned_expenses` (0038),
+> `month_plans` (0041), `recurring_rule_tags` (0042), `planned_expense_tags` (0044)) ·
+> **Mục đích:** để **dữ liệu hiện có** và **dữ liệu các
 > tính năng tương lai** (backlog `docs/backlog-tinh-nang.md`) nối với nhau **một cách
 > nhất quán**, tránh trường hợp 2 tính năng cùng nhu cầu lại đẻ ra **2 luồng dữ liệu
 > khác nhau**.
@@ -151,6 +154,23 @@ luồng trùng. Đó là lý do mục này tồn tại chứ không phải để
 > `convertToBase` phía chi tiêu trước. Tính năng mới đụng tiền phải khai báo rõ "lưu
 > theo tệ nào" (xem cột quy ước ở Phần 4).
 
+### Đẩy thông báo ra ngoài app — 1 bảng mới (migration 0034)
+
+Nối tiếp `notification_state` (0029): 0029 dựng chuông TRONG app — bộ luật chạy trên
+máy mỗi lần mở app nên việc cần làm chỉ hiện khi người dùng tự mở app ra xem. Migration
+0034 thêm phần đẩy: một edge function chạy theo giờ, tự dựng lại cùng `NotificationInput`
+từ Postgres, gọi ĐÚNG bộ luật đó rồi gửi Web Push — chỉ đẩy nhóm "việc cần làm"
+(`kind='action'`), tin-để-biết vẫn chỉ nằm trong chuông (cột `pushed_at` mà 0029 chừa sẵn
+trên `notification_state` giờ có người ghi và người đọc). Cùng migration này thêm ba cột
+vào `profiles`: `push_hour`/`push_tz` (giờ + múi giờ IANA, KHÔNG quy sẵn ra UTC — chủ app
+đang ở Nhật, dự định chuyển sang Mỹ; quy sớm thì đổi múi giờ là lệch giờ gửi, còn DST làm
+mốc UTC trôi hai lần một năm) và `push_last_sent_at` (chặn gửi hai lần trong một ngày địa
+phương, cron chạy mỗi giờ).
+
+| Bảng | Migration | Giữ gì | Quy ước tiền |
+|------|:---------:|--------|--------------|
+| `push_subscriptions` | 0034 | một trình duyệt trên một thiết bị đã bấm đồng ý nhận thông báo (một người có nhiều dòng — điện thoại + laptop, cả hai đều phải nhận); PK **`(user_id, endpoint)`** — `endpoint` do dịch vụ đẩy của trình duyệt cấp (FCM/Mozilla/Apple) nên chính nó là danh tính thiết bị: đăng ký lại sau khi trình duyệt đổi khoá ra endpoint khác (phải chết theo cách riêng, mã 410 khi gửi), không phải bị ghi đè; `p256dh`/`auth` là khoá mã hoá nội dung (aes128gcm, base64url); `user_agent` để người dùng nhận ra "cái này máy nào"; `last_ok_at` null = chưa gửi lần nào, dùng để soi khi push im | — (không giữ tiền) |
+
 ### Cổ phiếu Việt Nam — 2 bảng mới (migration 0035)
 
 Nối tiếp `account_valuations` (0016): 0016 chỉ lưu MỘT con số tổng do người dùng tự gõ
@@ -176,6 +196,69 @@ khoán đang nằm ở dạng cổ phiếu nào. Chi tiết vận hành cron hú
 > viễn, không cách nào sửa ngoài bịa một lệnh mua giá 0. Ràng buộc hình dạng
 > (`stock_trades_shape`): `adjust` bắt buộc `price = 0` và `quantity ≠ 0` (âm được — gộp
 > cổ phiếu làm giảm số cổ); `buy`/`sell` bắt buộc `quantity > 0` và `price > 0`.
+
+### Khoản sắp chi — 1 bảng mới (migration 0038)
+
+Gộp hai nhu cầu vốn tưởng là hai thứ khác nhau: "nhắc tôi đóng phí vệ sinh 20/8" (có hạn
+cụ thể, xong là hết) và "sửa nhà khoảng tháng 10, chừng 300k" (mới là dự tính, chưa chốt
+ngày). Chúng chỉ khác nhau ở ĐỘ CHẮC CHẮN, không khác về bản chất: cả hai đều là tiền
+CHƯA tiêu mà sẽ phải tiêu — tách làm hai bảng thì người dùng phải nhớ "cái này ghi ở
+đâu", và một khoản dự tính lúc chốt được ngày sẽ phải chuyển nhà. **Khác** `recurring_rules`
+kiểu `mode='remind'` (0037): cái kia LẶP MÃI theo chu kỳ; đây là MỘT LẦN — xong thì thôi,
+nhét cả hai vào `recurring_rules` nghĩa là mọi khoản một lần đều phải mang một
+`frequency` giả. **Khác** `debts` (0007): nợ có NGƯỜI ĐỐI ỨNG và có thể trả nhiều lần;
+đây chỉ là một việc phải chi, không nợ ai cả. Migration 0044 nối thêm bảng nhãn — xem
+mục "Bảng nối gắn nhãn" bên dưới.
+
+| Bảng | Migration | Giữ gì | Quy ước tiền |
+|------|:---------:|--------|--------------|
+| `planned_expenses` | 0038 (+0044 nhãn) | khoản dự tính sẽ chi: `title`, `due_on` + `due_precision` (`day`\|`month` — `'month'` khi đó `due_on` bắt buộc là ngày 1, MÀN HÌNH in "tháng 10/2026" chứ không in ngày cụ thể — in ngày cho một dự tính mơ hồ là bịa ra độ chính xác không có); `remind_days_before` null = KHÔNG nhắc, `between 0 and 60`; `category_id`/`account_id` FK composite tới `categories`/`accounts` (nullable); `status` (`planned`\|`done`\|`dropped`); `transaction_id` FK composite tới `transactions`, `on delete set null` — xoá giao dịch thì cột này về null chứ không xoá khoản dự tính, kế hoạch vẫn còn chỉ là bút toán bị gỡ; index `(user_id, status, due_on)` | `amount` bigint minor theo `currency` riêng của khoản (mặc định `'JPY'`), `>= 0` — **`0` hợp lệ** (chưa biết giá, như "tìm nhà mới") |
+
+> ⚠️ Ràng buộc `planned_done_needs_tx`: `status = 'done'` **khớp đúng chiều** với
+> `transaction_id is not null` (cùng đúng hoặc cùng sai) — đánh dấu xong mà không có bút
+> toán thì danh sách có dòng "đã chi" mà sổ không đồng nào rời ví.
+>
+> ⚠️ Ràng buộc `planned_month_anchored`: `due_precision = 'month'` bắt buộc
+> `extract(day from due_on) = 1` — hai khoản cùng tháng phải so sánh được với nhau, và
+> mọi phép gom theo tháng chỉ cần đọc `due_on` chứ không phải tự cắt chuỗi.
+
+### Thu dự kiến theo tháng — 1 bảng mới (migration 0041)
+
+Mặt lập kế hoạch của tab Ngân sách chia thu nhập ra hạn mức, mẫu số của phép chia đó tới
+nay luôn là `baselineIncome()` — trung bình thu 3 tháng đã hoàn tất. Trung bình chạy được
+với tháng bình thường, nhưng mù đúng lúc quan trọng nhất: tháng có ボーナス ở Nhật lệch
+hẳn hai, ba tháng lương, và trung bình 3 tháng trước đó không hề biết nó sắp tới. Bảng
+này lưu ĐÚNG MỘT thứ: "tôi biết tháng này thu bao nhiêu" — phần ĐÈ LÊN con số trung bình,
+không phải phần bắt buộc khai. Vì sao là bảng riêng chứ không phải cột của `budgets`:
+`budgets` khoá theo (user, DANH MỤC, tháng) nên không có chỗ nào treo một con số của cả
+tháng — nhét vào đó phải bịa ra một dòng danh mục giả, và mọi phép cộng tổng hạn mức sẽ
+phải nhớ mà loại nó ra, sớm muộn có chỗ quên.
+
+| Bảng | Migration | Giữ gì | Quy ước tiền |
+|------|:---------:|--------|--------------|
+| `month_plans` | 0041 | `month_key` (`'YYYY-MM'` theo MonthKey, tôn trọng `month_start_day`); `unique (user_id, month_key)` — mỗi tháng nhiều nhất một số thu dự kiến, upsert theo khoá này; index `(user_id, month_key)` | `expected_income` bigint minor theo **base_currency**, `>= 0` chứ không phải `> 0` như `budgets.amount` — tháng nghỉ không lương thu = 0 là số THẬT và kế hoạch vẫn phải tính được (chia 0 đồng thì mọi hạn mức đều là bội chi, đúng cái cần thấy); ở đây bỏ đè là **XOÁ DÒNG**, một hành động riêng, không phải gõ số 0 |
+
+### Bảng nối gắn nhãn cho quy tắc định kỳ & khoản sắp chi — 2 bảng mới (migration 0042, 0044)
+
+Form Nhập cho chọn nhãn cùng lúc với đặt "Lặp lại" hay "Nhắc sau", nhưng `recurring_rules`
+và `planned_expenses` không có chỗ giữ nhãn — nên nhãn vừa chọn rơi mất, và mọi giao dịch
+sinh ra về sau (tự động hoặc tự tay ghi) đều không nhãn. Tiền nhà, thuê xe, phí thuê bao
+hay "đóng tiền học cho con" là đúng loại khoản người ta muốn gắn nhãn nhất. Cả hai
+migration dùng lại đúng khuôn `transaction_tags` (0026): **bảng nối, không phải cột
+`tag_ids uuid[]`** trên bảng gốc. Lý do: engine catch-up của `recurring_rules` chạy
+KHÔNG có người ngồi trước máy (mở app là nó tự sinh bù mọi kỳ lỡ). Mảng uuid không có
+khoá ngoại, nên xoá một nhãn là mảng còn lại một id chết → lần sinh sau chèn
+`transaction_tags` với `tag_id` không tồn tại → FK nổ → giao dịch định kỳ ÂM THẦM ngừng
+sinh. Bảng nối có cascade lo việc đó: xoá nhãn là liên kết tự biến mất, engine không bao
+giờ thấy id chết. Khoá ngoại composite `(id, user_id)` như `transaction_tags` — nhãn và
+bảng gốc phải cùng một người, chặn ở tầng DB chứ không chỉ RLS. Migration 0044 cũng thêm
+`unique (id, user_id)` vào `planned_expenses` (khoá chính `id` đã đủ duy nhất, ràng buộc
+này chỉ tạo chỗ cho FK composite trỏ vào, không loại dòng nào).
+
+| Bảng | Migration | Giữ gì | Quy ước tiền |
+|------|:---------:|--------|--------------|
+| `recurring_rule_tags` | 0042 | nối `recurring_rules` ↔ `tags`; PK `(rule_id, tag_id)`, cả hai FK composite `(., user_id)` cascade; index `(user_id, tag_id)` — tra "quy tắc nào đang gắn nhãn này" khi xoá/gộp nhãn | — (không giữ tiền) |
+| `planned_expense_tags` | 0044 | nối `planned_expenses` ↔ `tags`, cùng hình dạng và cùng lý do với `recurring_rule_tags`; PK `(planned_id, tag_id)`; index `(user_id, tag_id)` | — (không giữ tiền) |
 
 ### Quỹ đầu tư Nhật — 4 bảng mới (migration 0045)
 

@@ -40,7 +40,16 @@ nghi ngờ chứ không gây tiện:
 | Tổng giá trị danh mục | Giá trị danh mục | Tổng giá trị |
 | Tiền còn ở công ty chứng khoán | Tiền chưa mua | Tiền chưa đầu tư |
 | Lãi/lỗ đã hiện thực hoá | Lời/lỗ đã bán | Lãi đã chốt |
-| Ngày phiên | `dd/mm/yy` | `dd/mm` |
+| Ngày phiên | `26/08/12` (có năm) | `08/12` (không năm) |
+
+Ngày phiên **không** phải lỗi thứ tự ngày/tháng: cả hai đang theo đúng quy ước
+tháng/ngày của app ([`dates.ts:119`](../../../src/lib/dates.ts#L119)), chỉ khác chỗ có in
+năm hay không. Nhưng ba chú thích trong code đang tự khai sai là `dd/mm/yy` và `dd/mm`
+([`InvestPage.tsx:23`](../../../src/features/assets/InvestPage.tsx#L23),
+[`HoldingsSection.tsx:26`](../../../src/features/assets/HoldingsSection.tsx#L26),
+[`FundHoldingsSection.tsx:35`](../../../src/features/assets/FundHoldingsSection.tsx#L35)) —
+sửa luôn chú thích ở hàm còn lại sau khi gộp. Sổ lệnh trải nhiều năm nên bản gộp giữ dạng
+**có năm**.
 
 ## Quyết định 1 — "%" tính trên giá vốn sổ lệnh
 
@@ -73,9 +82,13 @@ vào", cạnh %/năm mà nó thuộc về.
 với mảng một phần tử:
 
 ```
-VND → buildPortfolio([account], priceBySymbol)
+VND → buildPortfolio([{ …account, balance }], priceBySymbol)
 JPY → buildFundPortfolio([account], navByFund)
 ```
+
+`balance` (số dư sổ) là tham số `brokerCash` cần để ra "tiền chưa mua", nên hook tự đọc
+`useAccountBalances` — không bắt trang gọi truyền vào như `HoldingsSection` đang làm. Bên
+quỹ không cần: `FundAccountTrades` không có `balance`.
 
 Nhờ vậy "hai trang lệch nhau" trở thành chuyện *không biểu diễn được*, chứ không phải
 chuyện phải nhớ đồng bộ. Đây là điểm chính của bản thiết kế; mọi thứ còn lại là hệ quả.
@@ -152,18 +165,24 @@ Sau bản này, trang tài khoản và tab Đầu tư tính giá trị **tại m
 Tab Hiện tại (Tổng tài sản, cơ cấu, lịch sử ròng) vẫn đọc `market_value` — snapshot cron
 ghi, qua [`aggregate.ts:187`](../../../src/features/assets/aggregate.ts#L187).
 
-Nghe như vừa dựng lại đúng vấn đề đang chữa, nhưng không: cron ghi snapshot **ngay sau khi
-hút giá trong cùng một lượt chạy**, từ cùng bảng `stock_prices`. Bình thường hai con số
-trùng khít. Chúng chỉ lệch trong hai trường hợp:
+Cron ghi snapshot **ngay sau khi hút giá trong cùng một lượt chạy**, từ cùng bảng
+`stock_prices`, nên đường bình thường hai con số trùng khít. Nhưng phải nói thẳng: cron
+**từ chối ghi** trong nhiều trường hợp hơn tôi tưởng lúc đầu, và đó đúng là những lúc hai
+bên lệch nhau:
 
-| Trường hợp | Mức lệch |
-|---|---|
-| Sửa/thêm lệnh giữa hai lượt cron | Gần bằng 0 — một lệnh mua là tiền chuyển thành cổ phiếu, tổng gần như không đổi (chỉ lệch phần phí) |
-| Cron bỏ qua tài khoản (`tien-chua-dau-tu-am`, `thieu-gia-moi-ma`) | Snapshot đứng ở ngày cũ; nhưng đó đúng là lúc con số **không đáng tin**, và cả hai bên đều đã có cảnh báo riêng |
+| Cron bỏ qua vì | Snapshot | Tính tại máy |
+|---|---|---|
+| `gia-le-phien-cu` — một mã đang giữ còn kẹt giá phiên cũ ([`stock-refresh:143`](../../../supabase/functions/stock-refresh/index.ts#L143)) | Đứng ở phiên trước, có thể nhiều ngày | Vẫn hiện số, kèm `EstimateMark` và dòng "đang dùng giá của phiên trước" |
+| `so-lenh-co-lo-hong` — bán quá số đang giữ | Không ghi | Vẫn hiện số, kèm cảnh báo `oversold` |
+| `tien-chua-dau-tu-am` / `thieu-gia-moi-ma` / `thieu-gia-moi-quy` | Không ghi | `marketValue = null` → hiện số dư sổ + câu giải thích |
+| Sửa/thêm lệnh giữa hai lượt cron | Chưa đổi | Đổi ngay (mức lệch gần 0: mua là tiền chuyển thành cổ phiếu) |
 
+Vẫn giữ quyết định này, vì mức lệch **không im lặng**: đúng những lúc snapshot đứng lại,
+phía tính tại máy đều có dấu ước tính hoặc cảnh báo nói rõ nó đang dựa trên cái gì, và
+`DataFreshness` ngay dưới tiêu đề trang Tài sản nói tuổi dữ liệu. Thêm nữa, trang tài khoản
+**hôm nay đã** đọc snapshot, nên con số tính tại máy là bước tiến chứ không phải bước lùi.
 Đổi `aggregate.ts` sang tính tại máy sẽ kéo theo cơ cấu tài sản, lịch sử tài sản ròng,
-Lifetime và bộ test của cả ba. Không xứng với mức lệch trên. Tuổi dữ liệu đã được nói ra ở
-`DataFreshness` ngay dưới tiêu đề trang Tài sản.
+Lifetime và bộ test của cả ba — việc riêng, xứng một spec riêng nếu sau này thấy vướng.
 
 ## Kiến trúc
 
@@ -282,8 +301,16 @@ Icon `LineChart` ở header trang Tài sản đang khoá theo "có tài khoản 
 rõ điều kiện phải **trùng khít** `useInvestData`. Đổi thành "có tài khoản đầu tư VND
 **hoặc** JPY", và chú thích phải nhắc cả hai tab.
 
-`InvestmentPerformanceSection` đang có link "Danh mục cổ phiếu" → đổi nhãn thành "Danh mục
-đầu tư" vì giờ nó dẫn tới cả hai tab.
+Ba nhãn nói "cổ phiếu" phải đổi vì lối vào giờ dẫn tới cả hai tab:
+
+| Chỗ | Hôm nay | Sau |
+|---|---|---|
+| `aria-label` của icon ở header Tài sản | Danh mục cổ phiếu | Danh mục đầu tư |
+| Link trong `InvestmentPerformanceSection` | Danh mục cổ phiếu | Danh mục đầu tư |
+| Chú thích khối `hasStockAccount` | nói về `useInvestData` | nói về cả hai điều kiện tab |
+
+`aria-label` đứng trong bảng này vì nó là thứ người dùng trình đọc màn hình nghe thấy — sai
+ở đó không ai nhìn ra bằng mắt.
 
 ## Test
 
@@ -294,12 +321,18 @@ rõ điều kiện phải **trùng khít** `useInvestData`. Đổi thành "có t
 | `portfolio.test.ts` | Thêm ca: `buildPortfolio` với **một** tài khoản cho ra đúng bộ số mà trang tài khoản hiện — chốt bất biến của quyết định 2 |
 | `useAccountPortfolio` | Phần chọn engine tách thành hàm thuần để test: VND → cổ phiếu, JPY → quỹ, loại tiền khác / không có lệnh → `null` |
 
-Guard toàn repo phải xanh, và hai trong số đó sẽ thật sự soi bản này: `routeLinks`
-(hai link mới có tham số truy vấn), `backLink` (tab mới không được tự viết nút quay lại),
-cộng `designSystem`, `contrast`, `overlayLayers`.
+Guard toàn repo phải xanh: `routeLinks` (đã kiểm — `segmentsOf` cắt query/hash nên hai link
+mới có `?tab=`/`?account=` khớp route bình thường), `backLink` (tab mới không được tự viết
+nút quay lại), `contrast`, `overlayLayers`.
 
-Không có test nào đang trỏ vào `HoldingsSection` / `FundHoldingsSection`, nên xoá hai file
-không kéo theo test nào.
+`tests/designSystem.test.ts` là chỗ phải chủ động chạm vào, không phải chỗ "chỉ cần xanh".
+Nó đếm trên **toàn bộ src** với các trần cứng, và hai file sắp xoá đang nằm trong số đếm:
+`PROSE_MAX = 53` được nâng lên đúng vì `FundHoldingsSection` (xem lời ghi ngày 2026-08-13
+ngay trên hằng số), và `FundHoldingsSection.tsx:248` tự ghi rằng ngưỡng `tabular-nums` "đã
+sát trần". Xoá hai file làm số đếm **tụt xuống** — phép thử vẫn xanh vì nó dùng
+`toBeLessThanOrEqual`, nhưng chính thông điệp lỗi của nó đặt ra quy ước: *"Đã xuống N — hạ
+trần xuống N"*. Bước cuối của plan phải đo lại và hạ các trần đó, kèm lời ghi. Bỏ qua là để
+lại một trần rỗng cho lần sau lách qua mà không ai biết.
 
 ## Rủi ro
 

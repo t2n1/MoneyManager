@@ -341,7 +341,17 @@ Ba việc gọi tay (không phải cron, không lặp lại), **theo đúng th�
 xong trước hai việc sau, vì cả hai đọc/ghi vào bảng mà Bước 0 mới tạo ra:
 
 1. **Áp migration 0045** — Bước 0 ở trên. Xong trước tiên.
-2. **Nhập sao kê** (`scripts/nhap-sao-ke-rakuten.mjs`, xem mục 4).
+2. **Nhập sao kê.** Lấy `<uuid>` bằng
+   `select id, name from public.accounts where currency = 'JPY';` rồi:
+
+   ```bash
+   npm run nhap:sao-ke -- "<đường dẫn csv>" --account <uuid>
+   ```
+
+   **`--account` là bắt buộc**, kể cả ở lượt xem trước — lượt xem trước cũng đọc
+   `fund_trades` của đúng tài khoản đó để đếm trùng. Chạy như trên là **chỉ xem**, không
+   ghi gì; đối chiếu xong bốn con số mới thêm `--ghi` vào cuối. Xem thêm mục 4 (quỹ đổi
+   tên) cho ca script tự dừng.
 3. **Lấp lịch sử** (gọi `fund-refresh` với body `{"lapLichSu":{"accountId":"<id>"}}`, dựng
    lại `account_valuations` cho các phiên đã qua từ CSV đã tải, không tốn thêm cuộc gọi
    mạng nào).

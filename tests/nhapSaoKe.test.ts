@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest'
 import { fundHoldingsFromTrades, type FundTrade } from '../src/features/assets/fundHoldings.ts'
 import {
   docSaoKe,
+  docThamSoTaiKhoan,
   donDauVao,
   ghepBiDanh,
   khoaTrung,
@@ -350,5 +351,45 @@ describe('donDauVao — ô nhập kín không có dấu hiệu nào để nhận
 
   it('chuỗi sạch → không bỏ gì', () => {
     expect(donDauVao('aB3-_x9')).toEqual({ sach: 'aB3-_x9', soKyTuDaBo: 0 })
+  })
+})
+
+describe('docThamSoTaiKhoan — bẫy `indexOf` trả -1', () => {
+  // `String.raw` để giữ nguyên dấu `\` của đường dẫn Windows — đây chính là hình dạng
+  // argv thật trên máy chủ app, và `\x`/`\U` là escape không hợp lệ trong chuỗi thường.
+  const NODE = String.raw`C:\Program Files\nodejs\node.exe`
+  const SCRIPT = String.raw`C:\Antigravity\Money Manager\scripts\nhap-sao-ke-rakuten.mjs`
+  const CSV = String.raw`C:\Users\x\Downloads\adjusthistory(JP)_20260812.csv`
+  const UUID = '3f1a7c22-9b4e-4d51-8a06-2e7c5d9f1b34'
+
+  // Bài quan trọng nhất của khối này. Dựng lại ĐÚNG argv đã làm hỏng lượt chạy thật:
+  // thiếu hẳn `--account` thì `indexOf` trả -1, +1 thành 0, và argv[0] là đường dẫn
+  // node.exe — khác rỗng, không bắt đầu bằng `--`, nên phép kiểm cũ cho qua và chuỗi đó
+  // đi thẳng vào `account_id=eq.` rồi chết ở Postgres (22P02) sau vài lời gọi mạng.
+  it('thiếu hẳn --account → báo lỗi, TUYỆT ĐỐI không trả về đường dẫn node.exe', () => {
+    const kq = docThamSoTaiKhoan([NODE, SCRIPT, CSV])
+    expect(kq.loi).toBe('thieu-co')
+    expect(kq.accountId).toBeUndefined()
+    expect(JSON.stringify(kq)).not.toContain('node.exe')
+  })
+
+  it('có --account nhưng giá trị là cờ khác → báo thiếu giá trị', () => {
+    expect(docThamSoTaiKhoan([NODE, SCRIPT, CSV, '--account', '--ghi']).loi).toBe('thieu-gia-tri')
+  })
+
+  it('--account đứng cuối, không có gì theo sau → báo thiếu giá trị', () => {
+    expect(docThamSoTaiKhoan([NODE, SCRIPT, CSV, '--account']).loi).toBe('thieu-gia-tri')
+  })
+
+  it('giá trị không phải uuid → chặn ngay, không để Postgres báo hộ', () => {
+    const kq = docThamSoTaiKhoan([NODE, SCRIPT, CSV, '--account', 'NISA Rakuten'])
+    expect(kq.loi).toBe('khong-phai-uuid')
+    expect(kq.accountId).toBeUndefined()
+  })
+
+  it('uuid hợp lệ → trả đúng, kể cả khi có --ghi đứng sau', () => {
+    expect(docThamSoTaiKhoan([NODE, SCRIPT, CSV, '--account', UUID, '--ghi'])).toEqual({
+      accountId: UUID,
+    })
   })
 })

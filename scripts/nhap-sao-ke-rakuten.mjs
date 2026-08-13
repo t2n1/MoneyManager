@@ -449,12 +449,39 @@ async function layKhoa() {
   return sach
 }
 
+/**
+ * Đọc `--account <uuid>` từ argv.
+ *
+ * VÌ SAO tách hàm và tự kiểm hình dạng uuid: viết gọn thành
+ * `argv[argv.indexOf('--account') + 1]` thì lúc THIẾU HẲN cờ, `indexOf` trả `-1`,
+ * cộng 1 thành `0`, và `argv[0]` là đường dẫn node.exe — một chuỗi khác rỗng, không
+ * bắt đầu bằng `--`, nên mọi phép kiểm "có giá trị không" đều cho qua. Nó đi thẳng
+ * vào `account_id=eq.C:\Program Files\nodejs\node.exe` rồi mới chết ở Postgres với
+ * `22P02 invalid input syntax for type uuid` — đã xảy ra thật trên máy chủ app.
+ * Sai ở đây phải ồn ào ngay tại chỗ, không phải sáu lời gọi mạng sau.
+ */
+export function docThamSoTaiKhoan(argv) {
+  const viTri = argv.indexOf('--account')
+  if (viTri < 0) return { loi: 'thieu-co' }
+  const gt = argv[viTri + 1]
+  if (!gt || gt.startsWith('--')) return { loi: 'thieu-gia-tri' }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(gt))
+    return { loi: 'khong-phai-uuid', gt }
+  return { accountId: gt }
+}
+
 async function chinh() {
   const duongDan = process.argv[2]
-  const accountId = process.argv[process.argv.indexOf('--account') + 1]
+  const { accountId, loi, gt } = docThamSoTaiKhoan(process.argv)
   const GHI = process.argv.includes('--ghi')
-  if (!duongDan || !accountId || accountId.startsWith('--')) {
+  if (!duongDan || loi) {
+    if (loi === 'khong-phai-uuid') console.error(`✗ --account không phải uuid: ${gt}`)
+    else if (loi === 'thieu-co') console.error('✗ Thiếu --account <uuid>.')
+    else if (loi === 'thieu-gia-tri') console.error('✗ --account thiếu giá trị đi kèm.')
     console.error('Dùng: node scripts/nhap-sao-ke-rakuten.mjs "<csv>" --account <uuid> [--ghi]')
+    console.error(
+      'Lấy uuid: select id, name from public.accounts where currency = \'JPY\';',
+    )
     process.exit(1)
   }
 

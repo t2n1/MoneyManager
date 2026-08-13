@@ -14,26 +14,12 @@ import { EstimateMark } from '../../components/EstimateMark'
 import { ActionButton, Card, Money, SectionTitle } from '../../components/ui'
 import { FundTradeFormSheet } from './FundTradeFormSheet'
 import { InvestAccountChips } from './InvestAccountChips'
+import { InvestTradeAccountPicker } from './InvestTradeAccountPicker'
 import { useFundInvestData } from './useFundInvestData'
+import { KIND_CLASS, KIND_LABEL, ngay, pct, share } from './investFormat'
 import type { FundTradeRow } from '../../types/database.types'
 
 const JPY = 'JPY' as const
-
-const pct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1).replace('.', ',')}%`
-const share = (v: number) => `${(v * 100).toFixed(1).replace('.', ',')}%`
-/** ISO → yy/mm/dd theo quy ước tháng/ngày của app (lib/dates.ts); sổ lệnh trải nhiều năm nên phải có năm. */
-const ngay = (iso: string) => `${iso.slice(2, 4)}/${iso.slice(5, 7)}/${iso.slice(8, 10)}`
-
-const KIND_LABEL: Record<FundTradeRow['kind'], string> = {
-  buy: 'Mua',
-  sell: 'Bán',
-  adjust: 'Điều chỉnh',
-}
-const KIND_CLASS: Record<FundTradeRow['kind'], string> = {
-  buy: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',
-  sell: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200',
-  adjust: 'bg-surface-sunken text-fg-secondary',
-}
 
 interface Props {
   accountId: string | null
@@ -319,37 +305,15 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
         )}
       </Card>
 
-      {/* Chọn tài khoản trước khi ghi lệnh — chỉ hiện khi có từ hai tài khoản. */}
       {picking && (
-        <div
-          className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center"
-          onClick={() => setPicking(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="mb-3 text-base font-bold text-fg-primary">
-              Ghi lệnh vào tài khoản nào?
-            </h2>
-            <ul className="flex flex-col gap-2">
-              {accounts.map((a) => (
-                <li key={a.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPicking(false)
-                      setSheet({ accountId: a.id, trade: null })
-                    }}
-                    className="min-h-11 w-full rounded-lg border border-border-strong px-3 text-left text-sm font-medium text-fg-primary hover:bg-surface-sunken"
-                  >
-                    {a.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+        <InvestTradeAccountPicker
+          accounts={accounts}
+          onPick={(id) => {
+            setPicking(false)
+            setSheet({ accountId: id, trade: null })
+          }}
+          onClose={() => setPicking(false)}
+        />
       )}
 
       {sheet && sheetAccount && (

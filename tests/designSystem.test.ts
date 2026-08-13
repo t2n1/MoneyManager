@@ -408,11 +408,7 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // ngay trên — sheet trượt lên dùng rounded-t-2xl, và cả app đang thống nhất thế.
     // 38 (2026-08-13): FundTradeFormSheet (ghi/sửa lệnh quỹ Nhật) — cùng khuôn sheet
     // trượt lên với TradeFormSheet, một ngoại lệ hợp lệ khác chứ không phải nợ mới.
-    // 39 (2026-08-13): tách InvestPage một-tab thành InvestStocksTab + InvestFundsTab
-    // (vỏ /invest hai tab). Modal "chọn tài khoản trước khi ghi lệnh" giờ có hai bản,
-    // một mỗi tab, cùng khuôn sheet trượt lên như trên — không phải nợ mới, chỉ là
-    // cùng một ngoại lệ nhân đôi vì tách file.
-    { needle: 'rounded-2xl', max: 39, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
+    { needle: 'rounded-2xl', max: 38, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
     { needle: 'rounded-md', max: 13, use: 'rounded-lg (scale chuẩn)' },
     // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại

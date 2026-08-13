@@ -11,7 +11,7 @@
 // chứng khoán, tức tính riêng từng tài khoản — và nhờ vậy tổng ở đây luôn bằng tổng
 // các trang chi tiết cộng lại.
 
-import { brokerCash, holdingsFromTrades, type Trade } from './holdings'
+import { brokerCash, holdingsFromTrades, reliableTotal, type Trade } from './holdings'
 
 /** Một tài khoản đầu tư kèm sổ lệnh của riêng nó. */
 export interface AccountTrades {
@@ -132,7 +132,7 @@ export function buildPortfolio(
     unrealizedPercent: stockCost > 0 ? (stockValue - stockCost) / stockCost : null,
     realizedPnl,
     cash,
-    marketValue: cash < 0 || allMissing ? null : stockValue + cash,
+    marketValue: reliableTotal(stockValue, cash, allMissing),
     missingPrices,
     oversold: [...oversold].sort(),
   }

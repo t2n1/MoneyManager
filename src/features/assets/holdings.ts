@@ -177,6 +177,25 @@ export function sessionPrices(
   return { session, priceBySymbol, staleSymbols }
 }
 
+/**
+ * Tổng đáng tin của một danh mục cổ phiếu, hoặc `null` khi không đáng tin.
+ *
+ * Một chỗ DUY NHẤT giữ quy tắc này. `portfolioValue` (một tài khoản) và `buildPortfolio`
+ * (gộp nhiều tài khoản) đều gọi vào đây — trước đó `buildPortfolio` chép lại đúng biểu
+ * thức và tự ghi trong chú thích rằng nó "cùng hai điều kiện với portfolioValue", tức đã
+ * biết mình là bản sao. Bản sao biết mình là bản sao vẫn là bản sao.
+ *
+ * Quỹ Nhật KHÔNG dùng hàm này: tài khoản quỹ không giữ tiền nhàn rỗi nên `fundValue` chỉ
+ * có nhánh `allMissing`, không có nhánh `cash < 0`.
+ */
+export function reliableTotal(
+  stockValue: number,
+  cash: number,
+  allMissing: boolean,
+): number | null {
+  return cash < 0 || allMissing ? null : stockValue + cash
+}
+
 export function portfolioValue(
   holdings: Holding[],
   priceBySymbol: Map<string, number>,
@@ -196,7 +215,7 @@ export function portfolioValue(
   }
 
   const allMissing = holdings.length > 0 && missingPrices.length === holdings.length
-  const marketValue = cash < 0 || allMissing ? null : stockValue + cash
+  const marketValue = reliableTotal(stockValue, cash, allMissing)
 
   return { marketValue, stockValue, cash, missingPrices }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { brokerCash, holdingsFromTrades, portfolioValue, sessionPrices, type Trade } from './holdings'
+import { brokerCash, holdingsFromTrades, portfolioValue, reliableTotal, sessionPrices, type Trade } from './holdings'
 
 /** Lệnh mua/bán gọn cho test — mặc định phí/thuế 0 để phép tính dễ nhẩm. */
 function mua(symbol: string, quantity: number, price: number, tradedOn = '2026-01-05', fee = 0): Trade {
@@ -241,5 +241,23 @@ describe('sessionPrices', () => {
     ])
     expect(r.session).toBe('2026-08-05')
     expect(r.staleSymbols).toEqual(new Set(['A', 'C']))
+  })
+})
+
+describe('reliableTotal', () => {
+  it('tiền chưa mua âm → null, vì sổ lệnh thiếu một lần nạp nên tổng chắc chắn sai', () => {
+    expect(reliableTotal(10_000_000, -500_000, false)).toBeNull()
+  })
+
+  it('thiếu giá MỌI mã → null, vì tổng lúc đó chỉ bằng đúng giá vốn', () => {
+    expect(reliableTotal(10_000_000, 500_000, true)).toBeNull()
+  })
+
+  it('thiếu giá MỘT PHẦN → vẫn trả số, mã thiếu tạm tính theo giá vốn', () => {
+    expect(reliableTotal(10_000_000, 500_000, false)).toBe(10_500_000)
+  })
+
+  it('tiền chưa mua bằng 0 không phải âm → vẫn trả số', () => {
+    expect(reliableTotal(10_000_000, 0, false)).toBe(10_000_000)
   })
 })

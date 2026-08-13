@@ -1028,6 +1028,59 @@ describe('getAccountBalances — tự tính market_value cho tài khoản tự �
   })
 })
 
+async function taiKhoanNisa() {
+  const accounts = await demoRepo.getAccounts()
+  const acc = accounts.find((a) => a.name === 'NISA Rakuten')
+  if (!acc) throw new Error('Seed thiếu tài khoản "NISA Rakuten" — test sổ lệnh quỹ cần đúng tài khoản này')
+  return acc
+}
+
+// Số đối chiếu tay cho seed 'NISA Rakuten' (số dư sổ 0 — vốn gốc đến từ fund_trades,
+// KHÔNG phải số dư sổ, nên market_value không được suy từ balance):
+//   S&P500 (9I31223A): mua 28.429 口, amount 50.000 ¥
+//     giá phiên 2026-08-10 = 20.053 ¥/1万口
+//     giá trị = round(28.429 × 20.053 ÷ 10.000) = round(57.008,6737) = 57.009 ¥
+//   NASDAQ-100 (9I314241): mua 12.595 口, amount 20.000 ¥
+//     giá phiên 2026-08-10 = 18.855 ¥/1万口
+//     giá trị = round(12.595 × 18.855 ÷ 10.000) = round(23.747,8725) = 23.748 ¥
+//   market_value = 57.009 + 23.748 = 80.757 ¥   (khớp chú thích của seed fundTrades)
+//   giá vốn = 50.000 + 20.000 = 70.000 ¥ ⇒ lời chưa bán +10.757 ¥
+//
+// Cả hai quỹ cùng nav_date 2026-08-10 nên không quỹ nào "giá lệch phiên cũ", và không quỹ
+// nào thiếu giá — tức cron thật cũng sẽ ghi, nên demo phải ghi.
+describe('getAccountBalances — tự tính market_value cho tài khoản quỹ Nhật (demo)', () => {
+  const MARKET_VALUE_NISA = 80_757
+
+  it('tài khoản NISA seed có market_value = số tính tay từ sổ lệnh quỹ + 基準価額, không phải null', async () => {
+    const acc = await taiKhoanNisa()
+    const balances = await demoRepo.getAccountBalances()
+    const row = balances.find((b) => b.id === acc.id)
+    // Trước đợt này là `null`: demo chỉ mô phỏng stock-refresh, nên NISA đứng ở số dư sổ
+    // (0) trong Tổng tài sản trong khi khu danh mục quỹ hiện đủ 80.757 ¥.
+    expect(row?.market_value).toBe(MARKET_VALUE_NISA)
+  })
+
+  it('thiếu 基準価額 của MỘT quỹ đang giữ thì bỏ qua cả tài khoản, không ghi số lệch', async () => {
+    // Chốt này KHÔNG có ở bản cổ phiếu (bên đó chỉ bỏ khi thiếu giá MỌI mã). Giữ hai quỹ
+    // mà mất giá một quỹ là lệch cỡ 40%, lại đóng dấu 'auto' trông như đúng.
+    const acc = await taiKhoanNisa()
+    await demoRepo.createFundTrade({
+      account_id: acc.id,
+      assoc_fund_cd: '0331418A', // quỹ KHÔNG có trong bảng giá seed
+      kind: 'buy',
+      traded_on: '2026-05-01',
+      units: 10_000,
+      nav: 21_000,
+      amount: 21_000,
+      bucket: 'NISA成長投資枠',
+      note: '',
+    })
+    const balances = await demoRepo.getAccountBalances()
+    const row = balances.find((b) => b.id === acc.id)
+    expect(row?.market_value).toBeNull()
+  })
+})
+
 describe('nhóm nhãn (migration 0039)', () => {
   it('tạo nhóm và đọc lại theo sort_order', async () => {
     const a = await demoRepo.createTagGroup({ name: 'Với ai?' })

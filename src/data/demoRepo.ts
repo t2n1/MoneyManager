@@ -1,6 +1,12 @@
 import { addMonths, monthKeyForDate, monthKeyString, parseMonthKey, toISODate } from '../lib/dates'
 import { filterTransactions } from '../features/transactions/filter'
 import { brokerCash, holdingsFromTrades, portfolioValue, sessionPrices, type Trade } from '../features/assets/holdings'
+import {
+  fundHoldingsFromTrades,
+  fundValue,
+  sessionNavs,
+  type FundTrade,
+} from '../features/assets/fundHoldings'
 import { validateBackupPayload } from './backupImport'
 import { DEFAULT_DENSITY, parseDensity } from '../lib/density'
 import type { CurrencyCode } from '../lib/money'
@@ -747,6 +753,62 @@ export const demoRepo: Repo = {
       return { valued_on: session, market_value: marketValue, source: 'auto' }
     }
 
+    /**
+     * Snapshot 'auto' mà cron fund-refresh sẽ ghi cho tài khoản quỹ này NẾU nó chạy ngay
+     * bây giờ. Cùng lý do và cùng cách làm như `tuTinhAutoValuation` ở trên (gọi ĐÚNG các
+     * hàm thuần của fundHoldings.ts, không chép lại phép tính), nhưng theo từng bước của
+     * supabase/functions/fund-refresh/index.ts — bản quỹ có SÁU chốt bỏ qua, một chốt
+     * không có ở bản cổ phiếu.
+     */
+    function tuTinhAutoValuationQuy(
+      a: AccountRow,
+    ): { valued_on: string; market_value: number; source: 'auto' } | null {
+      if (a.type !== 'investment' || a.currency !== 'JPY' || a.is_archived) return null
+
+      const trades: FundTrade[] = (db.fundTrades ?? [])
+        .filter((t) => t.account_id === a.id)
+        .map((t) => ({
+          assocFundCd: t.assoc_fund_cd,
+          kind: t.kind,
+          tradedOn: t.traded_on,
+          units: t.units,
+          nav: t.nav,
+          amount: t.amount,
+        }))
+      if (trades.length === 0) return null
+
+      // ① Trộn hai hệ đơn vị (口数 của quỹ và số cổ của cổ phiếu) là cộng sai; im lặng
+      //    cộng sai còn tệ hơn bỏ qua.
+      if (stockTrades.some((t) => t.account_id === a.id)) return null
+
+      const { holdings, oversold } = fundHoldingsFromTrades(trades)
+      // ② Sổ lệnh có lỗ hổng: giữ số cũ, không ghi số biết là sai.
+      if (oversold.length > 0) return null
+
+      // Ngày phiên tính TRÊN QUỸ ĐANG GIỮ, không trên cả bảng giá — xem sessionNavs().
+      const {
+        session: phien,
+        navByFund,
+        staleFunds,
+      } = sessionNavs(
+        db.fundPrices ?? [],
+        holdings.map((h) => h.assocFundCd),
+      )
+      // ③ Bảng giá rỗng.
+      if (!phien) return null
+      // ④ Quỹ đang giữ mà giá còn ở phiên cũ hơn: giá vẫn > 0 nên fundValue không tự phát
+      //    hiện được, phải chặn ở đây kẻo ghi số dùng giá hôm kia mà đóng dấu "hôm nay".
+      if (holdings.some((h) => staleFunds.has(h.assocFundCd))) return null
+
+      const { marketValue, missingNavs } = fundValue(holdings, navByFund)
+      // ⑤⑥ Thiếu giá MỘT PHẦN cũng phải bỏ, không chỉ khi thiếu giá MỌI quỹ — chốt này
+      //    KHÔNG có ở bản cổ phiếu. Giữ hai quỹ mà mất giá một quỹ là lệch cỡ 40%, lại
+      //    đóng dấu 'auto' trông như đúng. Xem fund-refresh/index.ts.
+      if (missingNavs.length > 0 || marketValue === null) return null
+
+      return { valued_on: phien, market_value: marketValue, source: 'auto' }
+    }
+
     // Snapshot mới nhất mỗi tài khoản: gộp hàng thật (accountValuations) với snapshot
     // 'auto' vừa tự tính, rồi áp đúng luật của view account_balances — valued_on mới
     // nhất thắng, và ở CÙNG NGÀY thì 'manual' luôn thắng 'auto' (quyết định 4: cron
@@ -785,7 +847,12 @@ export const demoRepo: Repo = {
           return sum
         }, 0)
         const balance = a.initial_balance + delta
-        const synthetic = tuTinhAutoValuation(a, balance)
+        // Hai loại tài khoản đầu tư, hai cron thật, hai hàm mô phỏng. Chọn theo loại tiền
+        // giống cách AccountDetailPage và trang Đầu tư chọn engine.
+        const synthetic =
+          a.currency === 'JPY'
+            ? tuTinhAutoValuationQuy(a)
+            : tuTinhAutoValuation(a, balance)
         return {
           id: a.id,
           user_id: a.user_id,

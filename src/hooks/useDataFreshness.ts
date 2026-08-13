@@ -2,8 +2,9 @@
 //
 // Tách hai hook thay vì một hook có cờ bật/tắt: trang Báo cáo chỉ có tỷ giá, gọi thêm
 // useStockPrices/useAccountValuations ở đó là hai request cho dữ liệu nó không dùng.
-// Ở trang Tài sản thì hai query đó đã được HoldingsSection gọi rồi, nên dùng chung cache
-// của react-query, không phát sinh request mới.
+// Ở trang Tài sản thì hai query đó đều được hook này tự gọi (không lệ thuộc component con
+// nào khác gọi trước) — react-query dùng chung cache theo query key nên nhiều nơi cùng gọi
+// vẫn không phát sinh request mới.
 import { useMemo } from 'react'
 import { toISODate } from '../lib/dates'
 import { freshnessSummary, type FreshnessSummary } from '../lib/freshness'

@@ -122,7 +122,7 @@ function App() {
           <Route path="/entry" element={<EntryPage />} />
           <Route path="/assets" element={lazyRoute(<AssetsPage />)} />
           <Route path="/assets/groups" element={lazyRoute(<AssetGroupsPage />)} />
-          <Route path="/invest" element={lazyRoute(<InvestPage />, 'list')} />
+          <Route path="/invest" element={lazyRoute(<InvestPage />)} />
           <Route path="/planned" element={lazyRoute(<PlannedPage />, 'list')} />
           <Route path="/assets/account/:accountId" element={lazyRoute(<AccountDetailPage />)} />
           <Route path="/debts" element={lazyRoute(<DebtsPage />, 'table')} />

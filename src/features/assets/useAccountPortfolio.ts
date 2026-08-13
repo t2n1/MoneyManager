@@ -82,7 +82,7 @@ export function useAccountPortfolio(
     if (kind !== 'stocks' || !account) return null
     const { session, priceBySymbol } = sessionPrices(prices)
     // Số dư sổ là tham số brokerCash cần để ra "tiền chưa mua" — hook tự đọc, không bắt
-    // trang gọi truyền vào như HoldingsSection cũ.
+    // trang gọi truyền vào như component Danh mục cổ phiếu cũ (đã xoá).
     const balance = balances.find((b) => b.id === account.id)?.balance ?? 0
     const trades: Trade[] = soLenhCoPhieu.map((t) => ({
       symbol: t.symbol,

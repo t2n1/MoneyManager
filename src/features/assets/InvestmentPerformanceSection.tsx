@@ -132,9 +132,9 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
           Hiệu quả đầu tư
         </h2>
         {/* Khu này nói về TIỀN (bỏ vào bao nhiêu, sinh ra bao nhiêu, %/năm). Câu
-            "đang giữ mã nào" nằm ở trang Đầu tư. */}
+            "đang giữ mã nào / quỹ nào" nằm ở trang Đầu tư. */}
         <Link to="/invest" className="shrink-0 text-2xs font-medium text-fg-accent">
-          Danh mục cổ phiếu
+          Danh mục đầu tư
         </Link>
       </div>
 

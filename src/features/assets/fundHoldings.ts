@@ -99,9 +99,9 @@ export function avgNavOf(costBasis: number, units: number): number {
 
 /**
  * Giá trị một dòng quỹ: 口数 × 基準価額 ÷ 10.000, làm tròn. ĐÚNG MỘT chỗ chia — mọi nơi
- * khác cần số này (FundHoldingsSection hiện từng dòng, FundTradeFormSheet gợi ý Số tiền,
- * `fundValue` dưới đây tính tổng) đều gọi lại hàm này, không viết lại công thức. Viết
- * lại ở nơi khác là mời một lần sửa NAV_UNITS hay cách làm tròn chỉ trúng một chỗ.
+ * khác cần số này (FundTradeFormSheet gợi ý Số tiền, `fundValue` dưới đây tính tổng) đều
+ * gọi lại hàm này, không viết lại công thức. Viết lại ở nơi khác là mời một lần sửa
+ * NAV_UNITS hay cách làm tròn chỉ trúng một chỗ.
  */
 export function fundLineValue(units: number, nav: number): number {
   return Math.round((units * nav) / NAV_UNITS)

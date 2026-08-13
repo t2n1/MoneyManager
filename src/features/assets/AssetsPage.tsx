@@ -38,14 +38,19 @@ const Loading = () => <p className="py-10 text-center text-sm text-fg-muted">Đa
 
 export function AssetsPage() {
   const freshness = useAssetsFreshness()
-  // Lối vào trang Đầu tư. Điều kiện phải TRÙNG KHÍT với useInvestData (đầu tư + VND +
-  // chưa lưu trữ) — icon dẫn tới một trang nói "chưa có tài khoản chứng khoán nào" thì
-  // tệ hơn là không có icon. useAccounts đã nằm trong cache của tab Hiện tại nên đây
+  // Lối vào trang Đầu tư. Điều kiện phải TRÙNG KHÍT hợp của hai tab (useInvestData cho
+  // VND, useFundInvestData cho JPY) — icon dẫn tới một trang nói "chưa có tài khoản nào"
+  // thì tệ hơn là không có icon. useAccounts đã nằm trong cache của tab Hiện tại nên đây
   // không thêm lượt gọi mạng nào.
   const { data: accounts = [] } = useAccounts()
-  const hasStockAccount = useMemo(
+  const hasPortfolio = useMemo(
     () =>
-      accounts.some((a) => a.type === 'investment' && a.currency === 'VND' && !a.is_archived),
+      accounts.some(
+        (a) =>
+          a.type === 'investment' &&
+          (a.currency === 'VND' || a.currency === 'JPY') &&
+          !a.is_archived,
+      ),
     [accounts],
   )
   // "Xem thử bằng tiền khác" — sống ở vỏ trang để hai tab Hiện tại/Diễn biến dùng
@@ -72,12 +77,12 @@ export function AssetsPage() {
       <div className="flex items-center gap-2">
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Tài sản</h1>
         <PrivacyToggle />
-        {/* Danh mục cổ phiếu là trang riêng, không phải tab con: nó gộp MỌI tài khoản
-            chứng khoán nên không thuộc về "Hiện tại" hay "Diễn biến" hơn cái nào. Đặt
-            icon ở header giống /planned và /recurring ở tab Sổ — trước đây chỉ vào được
-            bằng link 11px nằm sâu hai lớp. */}
-        {hasStockAccount && (
-          <Link to="/invest" className={iconButtonClass()} aria-label="Danh mục cổ phiếu">
+        {/* Danh mục đầu tư là trang riêng, không phải tab con: nó gộp MỌI tài khoản đầu
+            tư (cổ phiếu VN và quỹ Nhật, mỗi loại một tab) nên không thuộc về "Hiện tại"
+            hay "Diễn biến" hơn cái nào. Đặt icon ở header giống /planned và /recurring ở
+            tab Sổ — trước đây chỉ vào được bằng link 11px nằm sâu hai lớp. */}
+        {hasPortfolio && (
+          <Link to="/invest" className={iconButtonClass()} aria-label="Danh mục đầu tư">
             <LineChart className="h-5 w-5" />
           </Link>
         )}

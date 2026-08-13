@@ -79,14 +79,26 @@ function stripComments(text: string): string {
  * này bên tab cổ phiếu đã nằm trong 53 phía trên — đây không phải chữ mới, chỉ là
  * bản song sinh cho tab thứ hai.
  *
- * 57 (2026-08-13): AccountDetailPage lặp câu "Chưa cập nhật giá thị trường — đang
- * tính theo vốn gốc." sang khối tài khoản CÓ sổ lệnh (trước chỉ ở khối định giá tay).
- * Đây là chốt review Task 6: khi `useAccountPortfolio` trả `marketValue: null` vì
- * thiếu giá cho mọi mã/quỹ đang giữ, `unrealizedPnl`/`unrealizedPercent` ra đúng 0 một
- * cách giả (mọi vị thế bị định giá bằng giá vốn) — in PnlRow lúc đó là bịa ra "+0 ₫
- * (+0,0%)". Câu cảnh báo đúng là đường thoát, không phải chữ dạy, nên không bọc
- * <Guide> — bọc vào sẽ giấu mất cảnh báo ở chế độ Gọn, đúng lỗi các lần nâng trần
- * trước đã tránh.
+ * 57 (2026-08-13): AccountDetailPage giờ có HAI câu cảnh báo "chưa tính được giá"
+ * KHÁC NHAU cho HAI trạng thái khác nhau, không phải một câu chép hai lần:
+ *
+ *   - Khối KHÔNG có sổ lệnh: "Chưa cập nhật giá thị trường — đang tính theo vốn
+ *     gốc." Guard của nó là `invStats.unrealizedPnl == null`, tức chưa từng có bản
+ *     định giá tay nào — "chưa cập nhật" đúng nghĩa đen ở đây.
+ *   - Khối CÓ sổ lệnh: "Chưa tính được — chưa có giá cho mã/quỹ nào đang giữ."
+ *     (mượn nguyên chữ từ nhánh `p.marketValue === null` của InvestStocksTab, cách
+ *     một cú bấm "Xem →"). Guard của nó là `danhMuc.marketValue == null`, và số lớn
+ *     phía trên khối này có thể đang rơi về `invStats.marketValue` — MỘT BẢN ĐỊNH
+ *     GIÁ TAY CŨ vẫn tồn tại. Dùng câu "chưa cập nhật" ở đây sẽ SAI: có snapshot,
+ *     chỉ là buildPortfolio không có giá cho mã/quỹ nào đang giữ.
+ *
+ * Hai câu KHÔNG được gộp lại thành một dù trông giống nhau về hình dạng ("chưa
+ * tính được…"/"fg-muted"): ai đọc thấy giống rồi "gộp" (rút thành một hằng chuỗi
+ * dùng chung cho cả hai khối) sẽ làm câu sai quay lại ở đúng một trong hai trạng
+ * thái — đây chính là lỗi mà chốt review Task 6 phát hiện lần đầu (một câu chép tay
+ * sang khối không đúng ngữ cảnh của nó). Giữ trần ở 57 vì đây là hai đoạn cảnh báo
+ * DỮ LIỆU cho hai trạng thái thật khác nhau, không phải chữ dạy — bọc <Guide> sẽ
+ * giấu cảnh báo ở chế độ Gọn, đúng lỗi các lần nâng trần trước đã tránh.
  */
 const PROSE_MAX = 57
 

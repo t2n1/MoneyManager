@@ -8,8 +8,17 @@
 //
 // `pct` KHÔNG tự có ở đây nữa: dùng chung bản của `investFormat.ts` — bản đó đã là thứ
 // hai tab /invest render, nên trang tài khoản và tab, cách nhau một cú bấm "Xem →", giờ
-// in đúng cùng một chuỗi (dấu '−' U+2212, phẩy thập phân) cho cùng một con số, thay vì
-// mỗi nơi tự chép một công thức rồi lệch nhau ở đúng chỗ đó.
+// in đúng cùng một chuỗi phần trăm (dấu '−' U+2212, phẩy thập phân) cho cùng một con số,
+// thay vì mỗi nơi tự chép một công thức rồi lệch nhau ở đúng chỗ đó.
+//
+// Số tiền bên cạnh vẫn qua `<Money showSign>`, KHÔNG qua `investFormat.pct` — nên một
+// dòng âm giờ in ra kiểu "-1.234 ₫ (−5,0%)": dấu trừ ASCII cho tiền, dấu '−' U+2212 cho
+// phần trăm, trộn ngay trong một dòng. Đây LÀ hành vi cố ý, không phải tái phát lỗi cũ:
+// khớp CHUỖI phần trăm giữa hai màn quan trọng hơn khớp KÝ TỰ dấu trừ trong nội bộ một
+// dòng, và không có chỗ nào rẻ để sửa cả hai — đổi `investFormat.pct` để in ASCII sẽ làm
+// lệch chữ ở CẢ HAI tab /invest (chúng render đúng bản đó), còn đổi cách `<Money>` in dấu
+// sẽ lệch mọi chỗ khác đang dùng `showSign`. Đừng "sửa" `pct` hay `<Money>` để dọn dấu
+// trừ ở đây — cái giá phải trả lớn hơn cái lợi.
 import { Money } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/money'
 import { pct } from './investFormat'

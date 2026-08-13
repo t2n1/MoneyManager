@@ -234,7 +234,12 @@ export function AccountDetailPage() {
                 ? 'Giá trị hiện tại'
                 : 'Số dư hiện tại'}
           </p>
-          {danhMuc?.session && (
+          {/* Không chỉ cần `session` — bảng giá cổ phiếu trả về phiên MỚI NHẤT của CẢ
+              bảng, không phải phiên của riêng mã tài khoản này đang giữ, nên `session`
+              vẫn có thể khác null ngay trong lúc `marketValue` là null (không mã nào có
+              giá). Hiện "giá phiên …" lúc đó là khoe một ngày cho một con số không tồn
+              tại — phải đúng cả hai điều kiện mới đáng tin. */}
+          {danhMuc?.session && danhMuc.marketValue != null && (
             <span className="text-2xs text-fg-muted">giá phiên {dayMonthLabel(danhMuc.session)}</span>
           )}
         </div>
@@ -288,10 +293,19 @@ export function AccountDetailPage() {
                 không có giá cho BẤT KỲ mã/quỹ nào đang giữ, nên đã định giá mọi vị thế
                 bằng giá vốn — unrealizedPnl và unrealizedPercent ra đúng 0 một cách giả.
                 In PnlRow lúc này sẽ khẳng định "+0 ₫ (+0,0%)" như một sự thật trong khi số
-                lớn phía trên đã âm thầm rơi về vốn gốc. Nói thẳng thay vì bịa số 0. */}
+                lớn phía trên đã âm thầm rơi về vốn gốc. Nói thẳng thay vì bịa số 0.
+                Câu chữ mượn nguyên từ nhánh `p.marketValue === null` của InvestStocksTab
+                (cách một cú bấm "Xem →"), CHỨ KHÔNG mượn câu "Chưa cập nhật giá thị
+                trường — đang tính theo vốn gốc." của khối không-sổ-lệnh dưới đây: câu đó
+                đúng cho khối không-sổ-lệnh (guard của nó là invStats.unrealizedPnl ==
+                null, tức chưa từng có bản định giá nào) nhưng SAI ở đây — số lớn phía
+                trên có thể đang rơi về invStats.marketValue (một bản định giá tay CŨ),
+                nên nói "chưa cập nhật" là bịa; câu đúng ở khối này là "chưa có giá cho
+                mã/quỹ đang giữ", đúng thứ mà buildPortfolio vừa báo. */}
             {danhMuc.marketValue == null ? (
               <p className="text-xs text-fg-muted">
-                Chưa cập nhật giá thị trường — đang tính theo vốn gốc.
+                Chưa tính được — chưa có giá cho {danhMuc.kind === 'funds' ? 'quỹ' : 'mã'} nào đang
+                giữ.
               </p>
             ) : (
               <PnlRow

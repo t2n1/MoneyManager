@@ -212,7 +212,36 @@ khi chuyển nguồn giá — nó không quan tâm giá tới từ đâu, chỉ 
 
 ## Triển khai
 
-### 1. Deploy function
+### 1. Áp migration 0035
+
+**Bắt buộc trước Bước 2.** `stock_prices` và `stock_trades` chưa tồn tại trên project thật
+cho tới khi bước này chạy — bỏ qua nó thì Bước 4 (hẹn cron) vẫn "gọi thử được" (không phải
+`401`, vì secret vẫn đúng), nhưng function lỗi ngay ở tầng đọc/ghi bảng, và cron sau đó nổ
+**mỗi ngày và luôn lỗi** cho tới khi có ai soi ra. Xem cảnh báo ở Bước 4.
+
+Dán nguyên nội dung
+[supabase/migrations/0035_stock_prices_trades.sql](../supabase/migrations/0035_stock_prices_trades.sql)
+vào SQL Editor của project và bấm Run.
+
+Kiểm đã xong bằng đúng một câu. Khác migration 0045 (bản quỹ Nhật) — 0035 **không seed**
+hàng nào, chỉ tạo bảng và thêm cột `source` vào `account_valuations` — nên câu kiểm ở đây
+là kiểm sự **tồn tại**, không phải đếm hàng:
+
+```sql
+select
+  to_regclass('public.stock_prices') is not null as co_bang_gia,
+  to_regclass('public.stock_trades') is not null as co_bang_so_lenh,
+  exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'account_valuations'
+      and column_name = 'source'
+  ) as co_cot_source;
+```
+
+Kỳ vọng: cả ba cột đều `true`. Bất kỳ cột nào `false` là dấu hiệu migration chưa chạy hoặc
+chạy dở — đọc lại thông báo lỗi của SQL Editor, đừng chạy Bước 2 khi ba cột này chưa đúng.
+
+### 2. Deploy function
 
 ```bash
 npm run bundle:rules && supabase functions deploy stock-refresh --project-ref <project-ref> --no-verify-jwt
@@ -221,7 +250,7 @@ npm run bundle:rules && supabase functions deploy stock-refresh --project-ref <p
 `--no-verify-jwt` vì cron không phải người dùng đăng nhập, không có JWT — đó là lý do
 có `x-cron-secret`.
 
-### 2. Bật `pg_cron` và `pg_net`
+### 3. Bật `pg_cron` và `pg_net`
 
 ```sql
 create extension if not exists pg_cron;
@@ -241,7 +270,7 @@ Bản đầu của tài liệu này bỏ sót bước trên vì cho rằng cron 
 cron đã vấp (2026-08-06). Chạy `create extension if not exists` nhiều lần không sao, nên
 cứ chạy kể cả khi nghĩ là đã có.
 
-### 3. Hẹn cron mỗi ngày
+### 4. Hẹn cron mỗi ngày
 
 ```bash
 npm run setup:stock-cron
@@ -251,6 +280,19 @@ Script [scripts/setup-stock-cron.mjs](../scripts/setup-stock-cron.mjs) hỏi
 `PUSH_CRON_SECRET` (không hiện lên màn hình, không ghi ra đâu), **gọi thật
 `POST /stock-refresh` để chứng minh secret đó đúng**, rồi mới in khối `cron.schedule` đã
 điền sẵn cả project-ref lẫn secret. Secret sai thì nó KHÔNG in SQL.
+
+**Nếu Bước 1 chưa chạy, lượt gọi thử này KHÔNG trả `401`** — secret vẫn đúng, Yahoo vẫn
+được gọi bình thường (mất tới ~90 giây như mọi lượt gọi thật). Chỗ gãy là việc 1 (ghi vào
+`stock_prices`) và việc 2 (đọc lại từ `stock_prices` để tính giá trị danh mục,
+[index.ts](../supabase/functions/stock-refresh/index.ts)): cả hai đụng bảng chưa tồn tại,
+lỗi kiểu `relation "public.stock_prices" does not exist` rơi vào `kq.loi`, và function trả
+`500`. **Script này không có nhánh dò riêng cho ca "bảng chưa tồn tại"** — nhánh xử lý
+non-401/non-200 của nó chỉ nói chung chung "Secret ĐÚNG (không bị chặn ở cửa 401), nhưng
+lượt chạy có lỗi... SQL vẫn in ra dưới đây: hẹn cron là đúng việc, lỗi kia sửa riêng" rồi
+**vẫn in khối SQL** như thể mọi thứ ổn. Nghĩa là hẹn cron trước khi Bước 1 chạy vẫn cho ra
+một khối SQL trông hợp lệ — dán nó vào SQL Editor là cron sẽ nổ **mỗi ngày và luôn lỗi**
+cho tới khi có ai soi log function ra (mục "Cách xem log" ở dưới). Thấy HTTP khác `200` ở
+lượt gọi thử: đừng dán SQL, quay lại Bước 1 trước.
 
 Mẫu SQL viết tay đã bị bỏ khỏi tài liệu này, vì hai chỗ trong đó đã gãy thật:
 
@@ -370,7 +412,7 @@ giờ neo vào **sàn giao dịch**, không vào người dùng.
 Chạy `cron.schedule` lại với cùng `jobname` sẽ **ghi đè** job cũ, không tạo hàng thứ hai —
 nên dán lại nhiều lần không sao.
 
-### 4. Kiểm — bốn câu, chạy TỪNG câu
+### 5. Kiểm — bốn câu, chạy TỪNG câu
 
 SQL Editor chỉ hiện kết quả của câu **cuối** trong ô, nên dán cả bốn câu một lượt sẽ chỉ
 thấy một bảng và tưởng ba câu kia không trả gì.

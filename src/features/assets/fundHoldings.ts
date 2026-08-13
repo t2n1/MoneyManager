@@ -88,8 +88,12 @@ function thuTuTrongNgay(t: FundTrade): number {
   return t.kind === 'buy' ? 0 : t.kind === 'adjust' ? 1 : 2
 }
 
-/** 取得単価: yên trên 10.000 口, làm tròn về số nguyên như Rakuten hiện. */
-function avgNavOf(costBasis: number, units: number): number {
+/**
+ * 取得単価 = giá vốn trên 10.000 口. Xuất ra vì `buildFundPortfolio` cần đúng công thức
+ * này cho dòng ĐÃ GỘP nhiều tài khoản — viết lại ở đó là mời một lần sửa cách làm tròn
+ * chỉ trúng một chỗ.
+ */
+export function avgNavOf(costBasis: number, units: number): number {
   return units > 0 ? Math.round((costBasis / units) * NAV_UNITS) : 0
 }
 

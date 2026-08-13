@@ -38,6 +38,7 @@
 | `src/features/assets/InvestFundsTab.tsx` | *(mới)* nội dung tab quỹ |
 | `src/features/assets/InvestAccountChips.tsx` | *(mới)* chip chọn tài khoản, dùng chung hai tab |
 | `src/features/assets/useAccountPortfolio.ts` | *(mới)* số tóm tắt cho trang chi tiết tài khoản |
+| `src/features/assets/PnlRow.tsx` | *(mới)* một dòng lãi/lỗ, dùng chung hai khối của trang chi tiết |
 | `src/features/assets/AccountDetailPage.tsx` | *(sửa)* bỏ hai khu danh mục, đổi nguồn giá trị, lọc `source` |
 | `src/features/assets/HoldingsSection.tsx` | *(xoá)* |
 | `src/features/assets/FundHoldingsSection.tsx` | *(xoá)* |
@@ -752,18 +753,22 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 4: Vỏ `/invest` hai tab + `InvestStocksTab` + chip chọn tài khoản
+### Task 4: Vỏ `/invest` hai tab + hai tab + chip chọn tài khoản
+
+Một task chứ không hai: vỏ trang `import` cả hai tab, nên tách đôi sẽ đẻ ra một trạng thái trung gian có `InvestFundsTab` rỗng trả `null` — một component không làm gì, tồn tại chỉ để `tsc` qua. Không có commit nào nên đứng ở trạng thái đó.
 
 **Files:**
 - Create: `src/features/assets/InvestAccountChips.tsx`
 - Create: `src/features/assets/InvestStocksTab.tsx`
+- Create: `src/features/assets/InvestFundsTab.tsx`
 - Modify: `src/features/assets/InvestPage.tsx` (viết lại thành vỏ)
 
 **Interfaces:**
-- Consumes: `useInvestData(accountId)` (Task 3); `SegmentedControl`, `type SegmentedItem` từ `../../components/ui`.
+- Consumes: `useInvestData(accountId)` và `useFundInvestData(accountId)` (Task 3); `SegmentedControl`, `type SegmentedItem` từ `../../components/ui`; `TradeFormSheet`, `FundTradeFormSheet` (đã có trong repo).
 - Produces:
   - `InvestAccountChips({ accounts, activeId, onPick }: { accounts: AccountRow[]; activeId: string | null; onPick: (id: string | null) => void })`
   - `InvestStocksTab({ accountId, onPickAccount }: { accountId: string | null; onPickAccount: (id: string | null) => void })`
+  - `InvestFundsTab` — cùng chữ ký với `InvestStocksTab`
 
 - [ ] **Step 1: Viết chip chọn tài khoản**
 
@@ -1005,20 +1010,9 @@ export function InvestPage() {
 }
 ```
 
-- [ ] **Step 4: Tạo `InvestFundsTab` rỗng tạm để build được**
+- [ ] **Step 4: Viết `InvestFundsTab`**
 
-Task 5 viết nội dung thật. Tạm thời tạo `src/features/assets/InvestFundsTab.tsx`:
-
-```tsx
-interface Props {
-  accountId: string | null
-  onPickAccount: (id: string | null) => void
-}
-
-export function InvestFundsTab(_props: Props) {
-  return null
-}
-```
+Nội dung đầy đủ nằm ở mục **“Mã nguồn `InvestFundsTab`”** ngay dưới Task 4 này — tạo `src/features/assets/InvestFundsTab.tsx` với đúng nội dung đó.
 
 - [ ] **Step 5: Kiểm kiểu, lint, test**
 
@@ -1034,41 +1028,44 @@ Kỳ vọng: tất cả xanh. `backLink.test.ts` phải xanh — nút quay lại
 npm run dev
 ```
 
-Mở `http://localhost:5173/invest`, đăng nhập chế độ demo. Kỳ vọng:
+Mở `http://localhost:5173/invest`, đăng nhập chế độ demo. Tab cổ phiếu:
 - Có thanh gạt "Cổ phiếu VN | Quỹ Nhật"; tab cổ phiếu mở sẵn.
 - Có hàng chip "Tất cả · Chứng khoán VN · Đầu tư VN" (demo có **hai** tài khoản VND).
 - Bấm chip "Chứng khoán VN": tổng và danh sách mã co lại còn của riêng tài khoản đó, URL thành `?tab=stocks&account=…`.
 - Bấm "Tất cả": URL mất `account`, số quay về tổng gộp.
 - Tải lại trang khi đang lọc: vẫn đúng tài khoản đó (bộ lọc nằm trong URL).
-- Gạt sang "Quỹ Nhật": trống (Task 5 chưa làm), URL mất `account`.
+
+Gạt sang "Quỹ Nhật" (URL mất `account`):
+- Tổng danh mục hiện theo yên, kèm ngày phiên `基準価額 26/08/10`.
+- Hai quỹ trong danh sách, mỗi dòng có `口`, `vốn`, `nay`, `/1万口` và thanh tỷ trọng.
+- **Không** có dòng "Tiền chưa mua"; có câu `<Guide>` giải thích vì sao.
+- Không có hàng chip (demo chỉ một tài khoản JPY).
+- Bấm một quỹ: sổ lệnh dưới lọc còn quỹ đó, tiêu đề thành `Sổ lệnh · <tên quỹ>`.
+- Bấm một dòng lệnh: mở `FundTradeFormSheet` đúng lệnh đó.
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add src/features/assets/InvestPage.tsx src/features/assets/InvestStocksTab.tsx src/features/assets/InvestFundsTab.tsx src/features/assets/InvestAccountChips.tsx
-git commit -m "feat(dau-tu): /invest thanh vo hai tab, tach tab co phieu ra file rieng
+git commit -m "feat(dau-tu): /invest thanh vo hai tab, moi tab mot file
 
 Tab nam trong URL (?tab=) de link chia se va nut quay lai mo dung tab. Gat
 tab thi xoa ?account=: loc theo tai khoan chi co nghia trong tab cua chinh
 tai khoan do. Chip chon tai khoan chi hien khi tab co tu hai tai khoan.
+
+Tab quy khac tab co phieu ba cho, moi cho co ly do: khong co dong tien chua
+mua (Rakuten quet sach tien du), don gia phai noi ro /1万口 (khong noi thi
+nguoi doc tu nhan voi so 口 roi thay lech 10.000 lan), va oversold o day
+thuong la chu ky cua viec quy doi ten thieu mot dong bi danh.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 5: `InvestFundsTab`
+#### Mã nguồn `InvestFundsTab`
 
-**Files:**
-- Modify: `src/features/assets/InvestFundsTab.tsx` (thay bản rỗng của Task 4)
-
-**Interfaces:**
-- Consumes: `useFundInvestData(accountId)` (Task 3); `InvestAccountChips` (Task 4); `FundTradeFormSheet` (đã có).
-- Produces: `InvestFundsTab({ accountId, onPickAccount })` — cùng chữ ký bản rỗng.
-
-- [ ] **Step 1: Viết nội dung tab**
-
-Thay toàn bộ `src/features/assets/InvestFundsTab.tsx`:
+Nội dung đầy đủ của `src/features/assets/InvestFundsTab.tsx` — dùng ở Task 4, Step 4:
 
 ```tsx
 // Tab Quỹ Nhật của trang Đầu tư — danh mục gộp MỌI tài khoản đầu tư JPY.
@@ -1437,41 +1434,11 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
 }
 ```
 
-- [ ] **Step 2: Kiểm kiểu, lint, test**
-
-```bash
-npx tsc -b && npm run lint && npm test
-```
-
-Kỳ vọng: xanh. Nếu `overlayLayers.test.ts` đỏ, so lại `z-40` của modal chọn tài khoản với bản ở `InvestStocksTab` — hai modal phải cùng lớp.
-
-- [ ] **Step 3: Bấm tay ở chế độ demo**
-
-`npm run dev`, mở `http://localhost:5173/invest?tab=funds`. Kỳ vọng:
-- Tổng danh mục hiện giá trị theo yên, kèm ngày phiên `基準価額 26/08/10`.
-- Hai quỹ trong danh sách, mỗi dòng có `口`, `vốn`, `nay`, `/1万口` và thanh tỷ trọng.
-- **Không** có dòng "Tiền chưa mua"; có câu `<Guide>` giải thích vì sao.
-- Không có hàng chip (demo chỉ một tài khoản JPY).
-- Bấm một quỹ: sổ lệnh dưới lọc còn quỹ đó, tiêu đề thành `Sổ lệnh · <tên quỹ>`.
-- Bấm một dòng lệnh: mở `FundTradeFormSheet` đúng lệnh đó.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add src/features/assets/InvestFundsTab.tsx
-git commit -m "feat(quy-nhat): tab Quy Nhat cho trang Dau tu
-
-Khac tab co phieu ba cho, moi cho co ly do: khong co dong tien chua mua
-(Rakuten quet sach tien du), don gia phai noi ro /1万口 (khong noi thi nguoi
-doc tu nhan voi so 口 roi thay lech 10.000 lan), va oversold o day thuong la
-chu ky cua viec quy doi ten thieu mot dong bi danh.
-
-Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
-```
+Nếu `overlayLayers.test.ts` đỏ, so lại `z-40` của modal chọn tài khoản với bản ở `InvestStocksTab` — hai modal phải cùng lớp.
 
 ---
 
-### Task 6: `useAccountPortfolio` — trang tài khoản không có phép tính riêng
+### Task 5: `useAccountPortfolio` — trang tài khoản không có phép tính riêng
 
 **Files:**
 - Create: `src/features/assets/useAccountPortfolio.ts`
@@ -1741,25 +1708,73 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 7: Dọn `AccountDetailPage`
+### Task 6: Dọn `AccountDetailPage`
 
 **Files:**
+- Create: `src/features/assets/PnlRow.tsx`
 - Modify: `src/features/assets/AccountDetailPage.tsx` (dòng 39–53 import · 69–70 state · 133–139 lọc valuations · 277–327 khối đầu tư · 480–499 hai khu danh mục · 502 điều kiện lịch sử · 667–680 hai sheet)
 
 **Interfaces:**
-- Consumes: `useAccountPortfolio` (Task 6).
-- Produces: không gì cho task sau.
+- Consumes: `useAccountPortfolio` (Task 5).
+- Produces: `PnlRow({ label, amount, currency, percent }: { label: string; amount: number; currency: CurrencyCode; percent: number | null })`
 
 - [ ] **Step 1: Bỏ hai khu danh mục và hai sheet ghi lệnh**
 
 Xoá khối `{isInvestment && account && account.currency === 'VND' && (<HoldingsSection … />)}` (dòng 480–489) và khối `FundHoldingsSection` (491–499). Xoá hai khối sheet ở cuối (`{tradeSheet && account && …}` và `{fundSheet && account && …}`). Xoá hai state `tradeSheet`, `fundSheet` (dòng 69–70). Xoá bốn import: `HoldingsSection`, `FundHoldingsSection`, `TradeFormSheet`, `FundTradeFormSheet`, và hai type `FundTradeRow`, `StockTradeRow` khỏi dòng import type.
 
-- [ ] **Step 2: Thay khối đầu tư bằng ba dòng**
+- [ ] **Step 2: Rút `PnlRow` — dòng lãi/lỗ dùng chung cho hai khối**
+
+Hai khối ở Step 3 nói hai chuyện khác nhau (danh mục thật vs định giá tay) nên nhãn và nguồn số khác nhau, nhưng **cách hiện** phải giống hệt: nhãn tô theo dấu, số có dấu, phần trăm trong ngoặc. Hai bản sao của đoạn đó là chuyện sớm muộn lệch nhau ở dấu, ở cách làm tròn `%`, hoặc ở màu — trang này đã từng lệch đúng kiểu đó một lần (xem chú thích `U+2212` ở dòng 299 bản cũ).
+
+Tạo `src/features/assets/PnlRow.tsx`:
+
+```tsx
+// Một dòng lãi/lỗ trên trang chi tiết tài khoản: nhãn tô màu theo dấu, số có dấu, phần
+// trăm trong ngoặc.
+//
+// File riêng vì có HAI chỗ gọi (tài khoản có sổ lệnh và tài khoản định giá tay) và chúng
+// phải hiện giống hệt nhau. Trước đây là hai đoạn JSX chép tay, và chúng đã lệch thật:
+// một bên viết '−' (U+2212) bằng tay trong khi formatMoney in '-', nên bề rộng chữ số
+// khác nhau dù cả hai đều tabular-nums.
+import { Money } from '../../components/ui'
+import type { CurrencyCode } from '../../lib/money'
+
+/** Phần trăm có dấu, dấu ASCII cho khớp dấu mà <Money> in ra. */
+const pct = (v: number) => `${v >= 0 ? '+' : '-'}${Math.abs(v * 100).toFixed(1)}%`
+
+interface Props {
+  label: string
+  /** Có thể âm — dấu do component lo, nơi gọi truyền số nguyên bản. */
+  amount: number
+  currency: CurrencyCode
+  /** Tỷ lệ (0,15 = 15%); null = không chia được nên không in ngoặc. */
+  percent: number | null
+}
+
+export function PnlRow({ label, amount, currency, percent }: Props) {
+  const lai = amount >= 0
+  const mau = lai ? 'text-money-in' : 'text-money-out'
+  return (
+    <div className="flex items-center justify-between font-medium">
+      <span className={mau}>{label}</span>
+      <span>
+        <Money amount={Math.abs(amount)} currency={currency} tone={lai ? 'in' : 'out'} showSign />
+        {percent != null && (
+          <span className={`ml-1 text-xs tabular-nums ${mau}`}>({pct(percent)})</span>
+        )}
+      </span>
+    </div>
+  )
+}
+```
+
+- [ ] **Step 3: Thay khối đầu tư bằng ba dòng**
 
 Thêm import:
 
 ```tsx
 import { Link } from 'react-router-dom'
+import { PnlRow } from './PnlRow'
 import { useAccountPortfolio } from './useAccountPortfolio'
 ```
 
@@ -1778,28 +1793,12 @@ Thay toàn bộ khối `{isInvestment && ( … )}` (dòng 277–327) bằng:
 ```tsx
         {isInvestment && danhMuc && (
           <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-3 text-sm">
-            <div className="flex items-center justify-between font-medium">
-              <span
-                className={danhMuc.unrealizedPnl >= 0 ? 'text-money-in' : 'text-money-out'}
-              >
-                Lời/lỗ chưa bán
-              </span>
-              <span>
-                <Money
-                  amount={Math.abs(danhMuc.unrealizedPnl)}
-                  currency={currency}
-                  tone={danhMuc.unrealizedPnl >= 0 ? 'in' : 'out'}
-                  showSign
-                />
-                {danhMuc.unrealizedPercent != null && (
-                  <span
-                    className={`ml-1 text-xs tabular-nums ${danhMuc.unrealizedPnl >= 0 ? 'text-money-in' : 'text-money-out'}`}
-                  >
-                    ({pct(danhMuc.unrealizedPercent)})
-                  </span>
-                )}
-              </span>
-            </div>
+            <PnlRow
+              label="Lời/lỗ chưa bán"
+              amount={danhMuc.unrealizedPnl}
+              currency={currency}
+              percent={danhMuc.unrealizedPercent}
+            />
             {/* Không in "Vốn gốc (đã bỏ vào)" ở đây nữa: đó là mốc theo SỐ DƯ SỔ, tức mốc
                 mà quyết định 1 đã loại. Câu "tiền tôi bỏ vào sinh lợi bao nhiêu" nằm ở ô
                 Hiệu quả đầu tư tab Diễn biến, nơi XIRR trả lời có tính cả thời điểm. */}
@@ -1833,28 +1832,12 @@ Thay toàn bộ khối `{isInvestment && ( … )}` (dòng 277–327) bằng:
                 Chưa cập nhật giá thị trường — đang tính theo vốn gốc.
               </p>
             ) : (
-              <div className="flex items-center justify-between font-medium">
-                <span
-                  className={invStats.unrealizedPnl >= 0 ? 'text-money-in' : 'text-money-out'}
-                >
-                  Lãi/lỗ so với vốn gốc
-                </span>
-                <span>
-                  <Money
-                    amount={Math.abs(invStats.unrealizedPnl)}
-                    currency={currency}
-                    tone={invStats.unrealizedPnl >= 0 ? 'in' : 'out'}
-                    showSign
-                  />
-                  {invStats.pnlPercent != null && (
-                    <span
-                      className={`ml-1 text-xs tabular-nums ${invStats.unrealizedPnl >= 0 ? 'text-money-in' : 'text-money-out'}`}
-                    >
-                      ({pct(invStats.pnlPercent)})
-                    </span>
-                  )}
-                </span>
-              </div>
+              <PnlRow
+                label="Lãi/lỗ so với vốn gốc"
+                amount={invStats.unrealizedPnl}
+                currency={currency}
+                percent={invStats.pnlPercent}
+              />
             )}
             <button
               type="button"
@@ -1867,14 +1850,9 @@ Thay toàn bộ khối `{isInvestment && ( … )}` (dòng 277–327) bằng:
         )}
 ```
 
-Thêm helper `pct` ngay dưới các import (dùng chung cho hai khối trên, thay bốn chỗ nội suy `%` viết tay trước đây):
+Không thêm helper `pct` vào file này — `PnlRow` đã giữ nó, và đó là chỗ duy nhất cần.
 
-```tsx
-/** Phần trăm có dấu, dấu ASCII cho khớp <Money> — trang này từng trộn '−' (U+2212) viết tay với '-' của formatMoney nên bề rộng chữ số lệch dù đã tabular-nums. */
-const pct = (v: number) => `${v >= 0 ? '+' : '-'}${Math.abs(v * 100).toFixed(1)}%`
-```
-
-- [ ] **Step 3: Đổi nguồn con số lớn "Giá trị hiện tại"**
+- [ ] **Step 4: Đổi nguồn con số lớn "Giá trị hiện tại"**
 
 Trong khối `<p className="mt-1 text-2xl font-bold">`, thay nhánh `isInvestment` của `amount`:
 
@@ -1903,7 +1881,7 @@ Và thêm ngày phiên ngay dưới nhãn "Giá trị hiện tại" — sửa `<
 
 `dayMonthLabel` đã được import từ `../../lib/dates` ở đầu file — không thêm import mới.
 
-- [ ] **Step 4: Khu "Lịch sử giá trị" chỉ liệt kê hàng gõ tay**
+- [ ] **Step 5: Khu "Lịch sử giá trị" chỉ liệt kê hàng gõ tay**
 
 Sửa `accountValuations` (dòng 133–139):
 
@@ -1921,7 +1899,7 @@ Sửa `accountValuations` (dòng 133–139):
   )
 ```
 
-- [ ] **Step 5: Kiểm kiểu, lint, test**
+- [ ] **Step 6: Kiểm kiểu, lint, test**
 
 ```bash
 npx tsc -b && npm run lint && npm test
@@ -1929,7 +1907,7 @@ npx tsc -b && npm run lint && npm test
 
 Kỳ vọng: xanh. `tsc` sẽ báo nếu còn sót một import không dùng — đó là chốt tốt, xoá cho hết.
 
-- [ ] **Step 6: Bấm tay ở chế độ demo**
+- [ ] **Step 7: Bấm tay ở chế độ demo**
 
 `npm run dev`, vào tab Tài sản → bấm tài khoản "Chứng khoán VN". Kỳ vọng:
 - "Giá trị hiện tại" bằng đúng con số "Giá trị danh mục" ở `/invest?tab=stocks&account=…` (bằng nhau là bằng chứng cả hai đi qua cùng một engine).
@@ -1939,10 +1917,10 @@ Kỳ vọng: xanh. `tsc` sẽ báo nếu còn sót một import không dùng —
 - Làm lại với tài khoản "NISA Rakuten": dòng đọc "Danh mục · 2 quỹ · sổ lệnh", link sang `?tab=funds`.
 - Mở một tài khoản ngân hàng: không có gì trong khối này đổi.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add src/features/assets/AccountDetailPage.tsx
+git add src/features/assets/AccountDetailPage.tsx src/features/assets/PnlRow.tsx
 git commit -m "refactor(dau-tu): trang tai khoan bo khu danh muc, doc so tu engine chung
 
 Khoi dau tu con ba dong: gia tri hien tai (tinh tai may tu so lenh + bang
@@ -1959,7 +1937,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 8: Xoá hai component, sửa lối vào và nhãn
+### Task 7: Xoá hai component, sửa lối vào và nhãn
 
 **Files:**
 - Delete: `src/features/assets/HoldingsSection.tsx`, `src/features/assets/FundHoldingsSection.tsx`
@@ -2055,7 +2033,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 9: Quyết định 7 — nhãn "chưa thực hiện" ở tab Hiện tại
+### Task 8: Quyết định 7 — nhãn "chưa thực hiện" ở tab Hiện tại
 
 **Files:**
 - Modify: `src/features/assets/aggregate.ts:41-52,200-222,246-256,290-300`
@@ -2159,7 +2137,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 10: `demoRepo` dựng snapshot `auto` cho tài khoản đầu tư JPY
+### Task 9: `demoRepo` dựng snapshot `auto` cho tài khoản đầu tư JPY
 
 **Files:**
 - Modify: `src/data/demoRepo.ts:700-790`
@@ -2351,7 +2329,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-### Task 11: Hạ trần `designSystem` và cập nhật tài liệu
+### Task 10: Hạ trần `designSystem` và cập nhật tài liệu
 
 **Files:**
 - Modify: `tests/designSystem.test.ts:53-75`
@@ -2441,7 +2419,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ## Kiểm tra cuối — bằng chứng cho quyết định 2
 
-Sau Task 11, bấm tay đúng một chuỗi này ở chế độ demo. Nó là bằng chứng của bất biến trung tâm: trang tài khoản và tab đi qua **cùng một engine**, nên không thể lệch nhau.
+Sau Task 10, bấm tay đúng một chuỗi này ở chế độ demo. Nó là bằng chứng của bất biến trung tâm: trang tài khoản và tab đi qua **cùng một engine**, nên không thể lệch nhau.
 
 - [ ] `/invest?tab=stocks` — ghi lại "Giá trị danh mục" (tổng gộp hai tài khoản VND).
 - [ ] Bấm chip "Chứng khoán VN" — ghi lại con số.

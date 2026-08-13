@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { BackLink } from '../../components/BackLink'
 import { ChevronLeft, ChevronRight, LineChart, Scale, Trash2 } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
@@ -36,19 +36,17 @@ import {
   type MonthKey,
 } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
-import type { FundTradeRow, StockTradeRow, TransactionRow } from '../../types/database.types'
+import type { TransactionRow } from '../../types/database.types'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { TransactionItem } from '../transactions/TransactionItem'
 import { CardMonthAdjustSheet } from './CardMonthAdjustSheet'
 import { cardBillingRange, cardMonthCharge, cardMonthReconcileNet } from './cardMonthCharge'
 import { depreciate } from './depreciation'
-import { FundHoldingsSection } from './FundHoldingsSection'
-import { FundTradeFormSheet } from './FundTradeFormSheet'
-import { HoldingsSection } from './HoldingsSection'
 import { investmentStats } from './investment'
+import { PnlRow } from './PnlRow'
 import { shelterUsage, TAX_SHELTER_LABELS } from './shelter'
 import { ReconcileSheet } from './ReconcileSheet'
-import { TradeFormSheet } from './TradeFormSheet'
+import { useAccountPortfolio } from './useAccountPortfolio'
 import { useCardStatements } from './useCardStatements'
 import { ValuationFormSheet } from './ValuationFormSheet'
 import { confirmDialog } from '../../lib/dialog'
@@ -66,8 +64,6 @@ export function AccountDetailPage() {
   const [showValuation, setShowValuation] = useState(false)
   const [showReconcile, setShowReconcile] = useState(false)
   const [showMonthAdjust, setShowMonthAdjust] = useState(false)
-  const [tradeSheet, setTradeSheet] = useState<{ trade: StockTradeRow | null } | null>(null)
-  const [fundSheet, setFundSheet] = useState<{ trade: FundTradeRow | null } | null>(null)
 
   const monthStartDay = profile?.month_start_day ?? 1
   // null = "kỳ hiện tại": tính lazy vì profile tải async — khởi tạo cứng trong
@@ -82,6 +78,9 @@ export function AccountDetailPage() {
   const isFixed = account?.type === 'fixed'
   // Đầu tư: vốn gốc = balance (sổ), giá thị trường = snapshot mới nhất (view market_value)
   const invStats = investmentStats(balance, isInvestment ? (balanceRow?.market_value ?? null) : null)
+  // Danh mục tính TẠI MÁY từ sổ lệnh + bảng giá, bằng đúng engine của trang Đầu tư.
+  // `null` = tài khoản không có sổ lệnh (hoặc đã lưu trữ) → rơi về đường định giá nhập tay.
+  const danhMuc = useAccountPortfolio(account)
 
   const todayISO = toISODate(new Date())
   // Tài sản cố định: khấu hao tuyến tính (chỉ hiển thị, giá trị nhập tay vẫn thắng)
@@ -130,10 +129,14 @@ export function AccountDetailPage() {
     ? addDaysISO(cardStatement.closeISO, 1)
     : null
 
+  // CHỈ hàng người dùng gõ tay. Từ migration 0035, cron ghi vào cùng bảng này mỗi ngày
+  // với source='auto' và không có chỗ nào dọn — liệt kê cả chúng thì khu này là một danh
+  // sách dài ra mỗi ngày, kèm nút xoá từng dòng, mà không ai chủ ý tạo ra. Hàng 'auto' vẫn
+  // ở lại trong DB: tab Diễn biến dùng chính chúng để vẽ lịch sử tài sản ròng.
   const accountValuations = useMemo(
     () =>
       valuations
-        .filter((v) => v.account_id === accountId)
+        .filter((v) => v.account_id === accountId && v.source === 'manual')
         .sort((a, b) => b.valued_on.localeCompare(a.valued_on)),
     [valuations, accountId],
   )
@@ -223,13 +226,18 @@ export function AccountDetailPage() {
 
       {/* Số dư hiện tại */}
       <Card as="section" padding="lg" className="mb-3">
-        <p className="text-sm font-medium text-fg-muted">
-          {account?.type === 'card'
-            ? 'Đang nợ thẻ'
-            : isInvestment || isFixed
-              ? 'Giá trị hiện tại'
-              : 'Số dư hiện tại'}
-        </p>
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-sm font-medium text-fg-muted">
+            {account?.type === 'card'
+              ? 'Đang nợ thẻ'
+              : isInvestment || isFixed
+                ? 'Giá trị hiện tại'
+                : 'Số dư hiện tại'}
+          </p>
+          {danhMuc?.session && (
+            <span className="text-2xs text-fg-muted">giá phiên {dayMonthLabel(danhMuc.session)}</span>
+          )}
+        </div>
         {/* Tô màu vẫn theo `balance` (số sổ) chứ không theo con số đang hiện: với tài
             khoản đầu tư/cố định, số hiện là giá thị trường nhưng "âm hay không" là
             chuyện của số dư sổ. Giữ đúng hành vi cũ. */}
@@ -245,7 +253,7 @@ export function AccountDetailPage() {
             <Money
               amount={
                 isInvestment
-                  ? (invStats.marketValue ?? balance)
+                  ? (danhMuc?.marketValue ?? invStats.marketValue ?? balance)
                   : isFixed
                     ? // Định giá nhập tay thắng công thức khấu hao
                       (balanceRow?.market_value ?? dep?.currentValue ?? balance)
@@ -274,7 +282,33 @@ export function AccountDetailPage() {
           </ActionButton>
         )}
 
-        {isInvestment && (
+        {isInvestment && danhMuc && (
+          <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-3 text-sm">
+            <PnlRow
+              label="Lời/lỗ chưa bán"
+              amount={danhMuc.unrealizedPnl}
+              currency={currency}
+              percent={danhMuc.unrealizedPercent}
+            />
+            {/* Không in "Vốn gốc (đã bỏ vào)" ở đây nữa: đó là mốc theo SỐ DƯ SỔ, tức mốc
+                mà quyết định 1 đã loại. Câu "tiền tôi bỏ vào sinh lợi bao nhiêu" nằm ở ô
+                Hiệu quả đầu tư tab Diễn biến, nơi XIRR trả lời có tính cả thời điểm. */}
+            <Link
+              to={`/invest?tab=${danhMuc.kind}&account=${accountId}`}
+              className="flex items-center justify-between gap-2 pt-1 text-fg-accent"
+            >
+              <span className="text-xs font-medium">
+                Danh mục · {danhMuc.count} {danhMuc.kind === 'funds' ? 'quỹ' : 'mã'} · sổ lệnh
+              </span>
+              <span className="text-xs font-medium">Xem →</span>
+            </Link>
+          </div>
+        )}
+
+        {/* Tài khoản đầu tư KHÔNG có sổ lệnh (loại tiền app chưa có bảng giá, hoặc chưa ghi
+            lệnh nào): giữ nguyên đường định giá nhập tay — không còn cách nào khác để biết
+            giá trị. */}
+        {isInvestment && !danhMuc && (
           <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-3 text-sm">
             <div className="flex items-center justify-between text-fg-muted">
               <span>Vốn gốc (đã bỏ vào)</span>
@@ -289,32 +323,12 @@ export function AccountDetailPage() {
                 Chưa cập nhật giá thị trường — đang tính theo vốn gốc.
               </p>
             ) : (
-              <div className="flex items-center justify-between font-medium">
-                <span
-                  className={invStats.unrealizedPnl >= 0 ? 'text-money-in' : 'text-money-out'}
-                >
-                  Lãi/lỗ chưa thực hiện
-                </span>
-                <span>
-                  {/* Dấu ASCII của <Money> thay cho '−' (U+2212) viết tay: trang này
-                      trước đó trộn cả hai, mà formatMoney tự in '-' nên bề rộng chữ
-                      số lệch nhau dù đã tabular-nums. */}
-                  <Money
-                    amount={Math.abs(invStats.unrealizedPnl)}
-                    currency={currency}
-                    tone={invStats.unrealizedPnl >= 0 ? 'in' : 'out'}
-                    showSign
-                  />
-                  {invStats.pnlPercent != null && (
-                    <span
-                      className={`ml-1 text-xs tabular-nums ${invStats.unrealizedPnl >= 0 ? 'text-money-in' : 'text-money-out'}`}
-                    >
-                      ({invStats.unrealizedPnl >= 0 ? '+' : '-'}
-                      {Math.abs(invStats.pnlPercent * 100).toFixed(1)}%)
-                    </span>
-                  )}
-                </span>
-              </div>
+              <PnlRow
+                label="Lãi/lỗ so với vốn gốc"
+                amount={invStats.unrealizedPnl}
+                currency={currency}
+                percent={invStats.pnlPercent}
+              />
             )}
             <button
               type="button"
@@ -476,27 +490,6 @@ export function AccountDetailPage() {
           </div>
         )}
       </Card>
-
-      {/* Danh mục cổ phiếu (chỉ tài khoản đầu tư VND — bảng giá SSI là đồng, tài
-          khoản JPY dùng khu này sẽ ra số vô nghĩa) */}
-      {isInvestment && account && account.currency === 'VND' && (
-        <HoldingsSection
-          account={account}
-          balance={balance}
-          onAddTrade={() => setTradeSheet({ trade: null })}
-          onEditTrade={(trade) => setTradeSheet({ trade })}
-        />
-      )}
-
-      {/* Danh mục quỹ (chỉ tài khoản đầu tư JPY — 基準価額 là yên trên 10.000 口, tài
-          khoản VND dùng khu này sẽ ra số vô nghĩa) */}
-      {isInvestment && account && account.currency === 'JPY' && (
-        <FundHoldingsSection
-          account={account}
-          onAddTrade={() => setFundSheet({ trade: null })}
-          onEditTrade={(trade) => setFundSheet({ trade })}
-        />
-      )}
 
       {/* Lịch sử cập nhật giá trị (tài khoản đầu tư) */}
       {(isInvestment || isFixed) && accountValuations.length > 0 && (
@@ -662,20 +655,6 @@ export function AccountDetailPage() {
           rangeStartISO={range.start}
           rangeEndISO={range.end}
           onClose={() => setShowMonthAdjust(false)}
-        />
-      )}
-      {tradeSheet && account && (
-        <TradeFormSheet
-          account={account}
-          trade={tradeSheet.trade}
-          onClose={() => setTradeSheet(null)}
-        />
-      )}
-      {fundSheet && account && (
-        <FundTradeFormSheet
-          account={account}
-          trade={fundSheet.trade}
-          onClose={() => setFundSheet(null)}
         />
       )}
     </div>

@@ -151,6 +151,32 @@ luồng trùng. Đó là lý do mục này tồn tại chứ không phải để
 > `convertToBase` phía chi tiêu trước. Tính năng mới đụng tiền phải khai báo rõ "lưu
 > theo tệ nào" (xem cột quy ước ở Phần 4).
 
+### Cổ phiếu Việt Nam — 2 bảng mới (migration 0035)
+
+Nối tiếp `account_valuations` (0016): 0016 chỉ lưu MỘT con số tổng do người dùng tự gõ
+mỗi lần cập nhật. Migration 0035 thêm SỔ LỆNH để app biết đang giữ mã nào, bao nhiêu cổ
+— nhờ vậy edge function `stock-refresh` tự tính giá trị thị trường và ghi thẳng vào
+`account_valuations` (không có bảng "giá trị" riêng cho cổ phiếu). Cùng migration này
+cũng thêm cột `account_valuations.source` (`'manual'`\|`'auto'`, mặc định `'manual'`) để
+phân biệt số người dùng gõ tay với số cron tự ghi — cron chỉ `upsert` khi `source =
+'auto'` nên số gõ tay không bao giờ bị đè. Migration 0045 (mục dưới) dùng lại đúng cột
+`source` này cho quỹ Nhật, không tạo cờ riêng. Sổ lệnh **không phải dòng tiền**: không
+đụng `transactions`, không đụng số dư tài khoản — nó chỉ nói tiền trong tài khoản chứng
+khoán đang nằm ở dạng cổ phiếu nào. Chi tiết vận hành cron hút giá ở
+[`docs/co-phieu-viet-nam.md`](./co-phieu-viet-nam.md).
+
+| Bảng | Migration | Giữ gì | Quy ước tiền |
+|------|:---------:|--------|--------------|
+| `stock_prices` | 0035 | bảng giá chung, công khai (bảng ĐẦU TIÊN trong dự án không có `user_id`, có ý thức — cùng lý do `fund_prices` của 0045: giá cổ phiếu là dữ liệu công khai giống hệt nhau với mọi user, nhân bản theo user chỉ tốn thêm hàng và một vòng lặp hút giá vô ích): `symbol` (PK), `exchange` (`hose`\|`hnx`\|`upcom`), `name` (tên công ty, gợi ý khi gõ tìm mã), `price`, `prior_close` (giá tham chiếu phiên trước, để hiện % đổi trong ngày, null = chưa có), `trading_date` (ngày PHIÊN mà giá thuộc về — KHÔNG phải ngày hút, vì sàn nghỉ lễ vẫn trả giá phiên cũ) | `price`/`prior_close` bigint **ĐỒNG/CỔ** (VND decimals=0, không nhân chia gì); RLS chỉ cho `select` với user đã đăng nhập, ghi chỉ qua service role (không có policy ghi nào) |
+| `stock_trades` | 0035 | sổ lệnh cổ phiếu riêng từng user: `account_id` (composite FK → `accounts (id, user_id)`, cascade), `symbol`, `kind` (`buy`\|`sell`\|`adjust`), `traded_on`, `quantity`, `price`, `fee`, `tax` (thuế bán 0,1% ở Việt Nam, luôn 0 với `buy`), `note` | `price`/`fee`/`tax` bigint minor theo tệ tài khoản (luôn VND vì chỉ áp dụng tài khoản `investment` VND); giá vốn tính từ `quantity × price + fee`, khác hẳn mô hình `fund_trades` (lấy thẳng `amount`, xem cảnh báo dưới mục Quỹ Nhật) |
+
+> ⚠️ **`kind='adjust'` không phải một lệnh mua/bán thật** — dùng cho cổ phiếu thưởng, cổ
+> tức trả bằng cổ phiếu, hoặc chia tách/gộp cổ phiếu, chuyện rất thường gặp ở cổ phiếu
+> Việt Nam. Thiếu loại này thì mỗi lần công ty chia thưởng, số cổ app tính ra sai vĩnh
+> viễn, không cách nào sửa ngoài bịa một lệnh mua giá 0. Ràng buộc hình dạng
+> (`stock_trades_shape`): `adjust` bắt buộc `price = 0` và `quantity ≠ 0` (âm được — gộp
+> cổ phiếu làm giảm số cổ); `buy`/`sell` bắt buộc `quantity > 0` và `price > 0`.
+
 ### Quỹ đầu tư Nhật — 4 bảng mới (migration 0045)
 
 Nối tiếp `account_valuations` (0016): tài khoản `investment` tiền **JPY** có sổ lệnh quỹ

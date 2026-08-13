@@ -175,4 +175,20 @@ describe('buildPortfolio', () => {
     expect(p.positions[0].quantity).toBe(50)
     expect(p.positions[0].pnlPercent).toBeNull()
   })
+
+  it('một tài khoản → bộ số của đúng trang chi tiết tài khoản đó', () => {
+    // Mua 100 FPT giá 60.000 (phí 0) từ số dư 10.000.000; giá phiên 70.000.
+    //   giá vốn = 6.000.000 · tiền chưa mua = 4.000.000
+    //   cổ phiếu theo giá nay = 7.000.000 ⇒ tổng = 11.000.000
+    //   lời chưa bán = 1.000.000 = +16,7% trên GIÁ VỐN (không phải trên số dư sổ)
+    const p = buildPortfolio([acc('a', 10_000_000, [buy('FPT', 100, 60_000)])], new Map([['FPT', 70_000]]))
+    expect(p.stockCost).toBe(6_000_000)
+    expect(p.cash).toBe(4_000_000)
+    expect(p.marketValue).toBe(11_000_000)
+    expect(p.unrealizedPnl).toBe(1_000_000)
+    expect(p.unrealizedPercent).toBeCloseTo(1 / 6, 10)
+    expect(p.positions).toHaveLength(1)
+    // Một tài khoản thì tỷ trọng của mã duy nhất phải là 100%, không phải 0.
+    expect(p.positions[0].weight).toBe(1)
+  })
 })

@@ -28,7 +28,7 @@ const TABS: readonly SegmentedItem<InvestTab>[] = [
 const isTab = (v: string | null): v is InvestTab => TABS.some((t) => t.value === v)
 
 export function InvestPage() {
-  const { data: accountRows = [] } = useAccounts()
+  const { data: accountRows = [], isLoading: accountsLoading } = useAccounts()
   // Giữ tab trong URL (không phải useState) để link chia sẻ, lịch sử trình duyệt và nút
   // quay lại mở đúng tab — cùng lối AssetsPage đang dùng cho ba tab của nó.
   const [params, setParams] = useSearchParams()
@@ -39,9 +39,20 @@ export function InvestPage() {
   }, [accountRows])
 
   // Không có ?tab= thì mở tab NÀO CÓ tài khoản. Mở mặc định vào một tab rỗng là bắt người
-  // dùng tự đoán rằng thứ họ đang tìm nằm ở tab kia.
+  // dùng tự đoán rằng thứ họ đang tìm nằm ở tab kia. Muốn biết tab nào có tài khoản thì
+  // phải CÓ accountRows trước — lúc còn đang tải, accountRows luôn là [] nên "tab nào có
+  // tài khoản" luôn trả lời sai là 'stocks', rồi nhảy sang 'funds' khi dữ liệu về (giật
+  // tab dưới chân người dùng). Vì vậy: chưa tải xong và chưa có ?tab= thì CHƯA resolve
+  // tab nào (null) — vỏ trang render mà không mở tab nào, đợi accounts về rồi mới quyết.
+  // ?tab= tường minh trên URL thì tin ngay, không cần đợi: nó không dựa vào accountRows.
   const raw = params.get('tab')
-  const tab: InvestTab = isTab(raw) ? raw : hasFundsOnly ? 'funds' : 'stocks'
+  const tab: InvestTab | null = isTab(raw)
+    ? raw
+    : accountsLoading
+      ? null
+      : hasFundsOnly
+        ? 'funds'
+        : 'stocks'
   const accountId = params.get('account')
 
   const setTab = (v: InvestTab) =>
@@ -73,12 +84,16 @@ export function InvestPage() {
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Đầu tư</h1>
       </div>
 
-      <SegmentedControl items={TABS} value={tab} onChange={setTab} label="Loại danh mục" />
+      {tab && (
+        <>
+          <SegmentedControl items={TABS} value={tab} onChange={setTab} label="Loại danh mục" />
 
-      {tab === 'stocks' ? (
-        <InvestStocksTab accountId={accountId} onPickAccount={setAccount} />
-      ) : (
-        <InvestFundsTab accountId={accountId} onPickAccount={setAccount} />
+          {tab === 'stocks' ? (
+            <InvestStocksTab accountId={accountId} onPickAccount={setAccount} />
+          ) : (
+            <InvestFundsTab accountId={accountId} onPickAccount={setAccount} />
+          )}
+        </>
       )}
     </div>
   )

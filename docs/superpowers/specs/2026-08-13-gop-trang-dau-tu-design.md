@@ -184,6 +184,56 @@ phía tính tại máy đều có dấu ước tính hoặc cảnh báo nói rõ
 Đổi `aggregate.ts` sang tính tại máy sẽ kéo theo cơ cấu tài sản, lịch sử tài sản ròng,
 Lifetime và bộ test của cả ba — việc riêng, xứng một spec riêng nếu sau này thấy vướng.
 
+## Quyết định 7 — sửa nhãn "chưa thực hiện" ở tab Hiện tại (không đổi số)
+
+Soát lần hai mới thấy: sau khi chốt quyết định 1, vẫn còn **chỗ thứ ba** hiện lãi/lỗ của
+đúng tài khoản đó, với một con số khác, dưới một cái nhãn sai.
+
+[`AssetsNowView.tsx:324`](../../../src/features/assets/AssetsNowView.tsx#L324) in "Lãi/lỗ
+đầu tư **(chưa thực hiện)**", lấy từ `unrealizedPnlBase` của
+[`aggregate.ts:207`](../../../src/features/assets/aggregate.ts#L207), định nghĩa là
+`base(marketValue) − base(balance)`. Với tài khoản có sổ lệnh thì con số đó **không phải**
+lãi chưa thực hiện. Chứng minh bằng chính hai hàm trong `holdings.ts`:
+
+```
+brokerCash   = balance − spent
+marketValue  = stockValue + brokerCash = stockValue + balance − spent
+⇒ marketValue − balance = stockValue − spent
+
+spent        = Σ(mua) − Σ(bán) = stockCost − realizedPnl
+⇒ marketValue − balance = (stockValue − stockCost) + realizedPnl
+               = unrealizedPnl + realizedPnl
+```
+
+Tức nó là **tổng lời/lỗ**, gồm cả phần đã bán — vì tiền bán đã về `brokerCash` và nằm
+trong `marketValue`. Cổ tức tiền và các lần rút không làm sai công thức: chúng đổi cả
+`balance` lẫn `cash` cùng một lượng nên triệt tiêu. Cổ phiếu thưởng ghi bằng `adjust` cũng
+vào cả hai phía như nhau.
+
+Hệ quả nếu để nguyên: trang iDragon ghi "Lời/lỗ chưa bán +6.270.000", dòng iDragon ở tab
+Hiện tại ghi "▲ 7.510.000", chênh nhau đúng phần đã bán, và không chỗ nào nói ra.
+
+Chốt: **sửa nhãn, không sửa số.** Con số tổng lời/lỗ là con số đúng cho một màn tổng quan
+tài sản; chỉ có chữ "(chưa thực hiện)" là sai. Kèm đổi tên `unrealizedPnlBase` →
+`totalPnlBase` và `AssetBreakdown.unrealizedPnl` → `totalPnl`: một field tên
+`unrealized` mà chứa tổng là cái bẫy đặt sẵn cho người đọc sau. Đây là đổi tên thuần, không
+đổi hành vi — `aggregate.test.ts` phải xanh với đúng những con số cũ.
+
+Không đổi số ở tab Hiện tại thành "chỉ phần chưa bán": làm vậy cần sổ lệnh trong
+`aggregate.ts` (hiện chỉ có `account_balances`), tức kéo cả cơ cấu tài sản và lịch sử ròng
+vào — cùng lý do đã từ chối ở quyết định 6.
+
+**Đổi tên phải khoanh vùng, KHÔNG tìm-thay toàn repo.** Chín file có chữ `unrealizedPnl` và
+phần lớn đang **đúng**: `portfolio.ts` (`stockValue − stockCost`, đúng nghĩa chưa thực hiện)
+và `investment.ts` không được chạm. Chỉ hai chỗ đổi: `AssetAccount.unrealizedPnlBase` và
+`AssetBreakdown.unrealizedPnl` trong `aggregate.ts`, cùng chỗ đọc chúng ở `AssetsNowView`.
+
+Riêng `investment.ts` đáng nói: `investmentStats` dùng **đúng công thức**
+`marketValue − balance`, nên tên `unrealizedPnl` ở đó cũng sẽ sai — *nếu* nó còn chạy cho
+tài khoản có sổ lệnh. Sau quyết định 2 thì không: nó chỉ còn phục vụ tài khoản định giá tay,
+nơi không có khái niệm "đã bán" nào tách ra được. Tên đó đúng lại **nhờ** miền dùng bị thu
+hẹp — ghi ra đây để lần sau không ai mở rộng nó trở lại mà quên.
+
 ## Kiến trúc
 
 ### File
@@ -202,6 +252,8 @@ Lifetime và bộ test của cả ba — việc riêng, xứng một spec riêng
 | Sửa | `assets/portfolio.ts` | Gọi `reliableTotal` thay vì viết lại quy tắc |
 | Sửa | `assets/AccountDetailPage.tsx` | Bỏ hai khu danh mục, đổi nguồn giá trị, lọc `source` |
 | Sửa | `assets/AssetsPage.tsx` | Mở lối vào `/invest` cho tài khoản JPY |
+| Sửa | `assets/aggregate.ts` · `assets/AssetsNowView.tsx` | Quyết định 7 — đổi tên field và nhãn, không đổi số |
+| Sửa | `App.tsx` | `lazyRoute(<InvestPage />, 'list')` → `'cards'` |
 | Xoá | `assets/HoldingsSection.tsx` | |
 | Xoá | `assets/FundHoldingsSection.tsx` | |
 
@@ -277,6 +329,19 @@ Ba điều bắt buộc, mỗi điều có một lý do đã được trả giá
 `FundPortfolio` **không có** `cash`: Rakuten quét sạch tiền dư về 楽天銀行, tài khoản không
 giữ tiền nhàn rỗi (xem `fundHoldings.ts`, lý do 3).
 
+### Trạng thái rỗng — mỗi tab một câu, không dùng chung
+
+`InvestPage` hôm nay có một câu duy nhất: "Chưa có tài khoản chứng khoán nào… tạo tài khoản
+loại Đầu tư với loại tiền **VND**". Câu đó sai với tab quỹ. Hai tab, hai câu, mỗi câu chỉ
+nói về loại tiền của chính nó và dẫn tới `/settings/accounts`. Tab rỗng vẫn hiện được (bấm
+tay vào tab đó), chỉ là không bao giờ được **mở mặc định** — xem quyết định 3.
+
+### Khung xương lúc tải
+
+`App.tsx` đang bọc `/invest` bằng `PageSkeleton kind="list"`, nhưng trang là ba khối `Card`
+và sau bản này còn thêm thanh tab — dáng `'cards'` mới khớp. Sửa luôn vì đang chạm đúng
+dòng đó; chú thích của `lazyRoute` nói rõ khung xương phải "hợp dáng trang sắp hiện".
+
 ### Trang tài khoản sau khi dọn
 
 Khối đầu trang, với tài khoản **có** sổ lệnh, còn đúng ba dòng:
@@ -320,6 +385,7 @@ Ba nhãn nói "cổ phiếu" phải đổi vì lối vào giờ dẫn tới cả
 | `holdings.test.ts` | Thêm ca cho `reliableTotal`: tiền âm → null, thiếu giá mọi mã → null, thiếu một phần → có số |
 | `portfolio.test.ts` | Thêm ca: `buildPortfolio` với **một** tài khoản cho ra đúng bộ số mà trang tài khoản hiện — chốt bất biến của quyết định 2 |
 | `useAccountPortfolio` | Phần chọn engine tách thành hàm thuần để test: VND → cổ phiếu, JPY → quỹ, loại tiền khác / không có lệnh → `null` |
+| `aggregate.test.ts` | Xanh với **đúng những con số cũ** — quyết định 7 là đổi tên, không đổi hành vi. Tám chỗ dùng `unrealizedPnl` phải đổi theo, và đó là toàn bộ thay đổi được phép ở file này |
 
 Guard toàn repo phải xanh: `routeLinks` (đã kiểm — `segmentsOf` cắt query/hash nên hai link
 mới có `?tab=`/`?account=` khớp route bình thường), `backLink` (tab mới không được tự viết

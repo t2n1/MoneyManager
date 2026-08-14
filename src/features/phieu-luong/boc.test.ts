@@ -81,4 +81,20 @@ describe('ghep — luật nhãn gần nhất về phía trái', () => {
     ]
     expect(ghep(am)).toEqual({ 'DB掛金': -10000 })
   })
+
+  /**
+   * Hai nhãn CÙNG lọt ngưỡng [-XSLACK, XMAX] của một số: 200−140=60 và 200−195=5,
+   * cả hai ≤ 72. Luật là "gần nhất về phía TRÁI" nên nhãn x=195 thắng.
+   *
+   * Không có ca này thì đổi `reduce` sang chọn x NHỎ nhất vẫn xanh cả bộ — đã đo.
+   * Đây đúng lớp lỗi lịch sử: ghép theo "gần tâm nhất" thay vì "gần trái".
+   */
+  it('hai nhãn cùng trong ngưỡng: nhãn gần nhất về phía trái thắng', () => {
+    const haiUngVien: OChu[] = [
+      { text: '8,888', x: 200.0, y: 309.5 },
+      { text: '所得税', x: 140.0, y: 283.3 },
+      { text: '住民税', x: 195.0, y: 283.3 },
+    ]
+    expect(ghep(haiUngVien)).toEqual({ 住民税: 8888 })
+  })
 })

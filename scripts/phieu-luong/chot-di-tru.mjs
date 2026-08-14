@@ -19,15 +19,31 @@ if (!thuMuc || !duongChuan) {
 const chuan = JSON.parse(readFileSync(duongChuan, 'utf8'))
 const files = readdirSync(thuMuc).filter((f) => f.endsWith('.pdf')).sort()
 
-// pypdf dung snake_case, boc.ts dung camelCase — so tung truong, khong so ca doi tuong.
+// So TUNG TRUONG, khong so ca doi tuong: pypdf dung snake_case, boc.ts dung camelCase.
+//
+// Nam truong duoi day tung bi BO SOT khoi phep so, va do la lo hong nghiem trong:
+// `nhan_la` la co che phat hien khi tap nhan da biet (BIET_HET) giua hai ban lech
+// nhau, con `loi` la tang tu kiem cuoi cung. Bo sot chung nghia la boc.ts co the sai
+// o do ma chot van xanh 60/60 — va sau khi boc.py bi xoa thi khong con cach nao
+// phat hien nua.
+//
+// `canh_bao` va `loi` CHI so SO LUONG, co chu y: hai ban viet chu khac nhau (Python
+// khong dau "thieu"/"ky lech", TS co dau "thiếu"/"kỳ lệch"). So nguyen van la bao
+// dong gia ca 60 file. So so luong van bat duoc lech NGHIA: ca hai phai cung thay
+// loi, hoac cung khong. DUNG "sua" thanh so nguyen van.
+const mang = (a) => JSON.stringify([...(a ?? [])].sort())
 const sanh = (ts, py) =>
   ts.gross === py.gross && ts.deductTotal === py.deduct_total &&
   ts.net === py.net && ts.bank === py.bank &&
+  ts.period === py.period && ts.kind === py.kind &&
+  ts.empno === py.empno && ts.nguonKy === py.nguon_ky &&
+  mang(ts.nhanLa) === mang(py.nhan_la) &&
+  (ts.canhBao ?? []).length === (py.canh_bao ?? []).length &&
+  (ts.loi ?? []).length === (py.loi ?? []).length &&
   JSON.stringify(ts.tru, Object.keys(ts.tru).sort()) ===
     JSON.stringify(py.tru, Object.keys(py.tru).sort()) &&
   JSON.stringify(ts.ngoaiTong, Object.keys(ts.ngoaiTong).sort()) ===
-    JSON.stringify(py.ngoai_tong, Object.keys(py.ngoai_tong).sort()) &&
-  ts.period === py.period && ts.kind === py.kind
+    JSON.stringify(py.ngoai_tong, Object.keys(py.ngoai_tong).sort())
 
 let khop = 0
 const lech = []

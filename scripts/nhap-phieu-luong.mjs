@@ -59,12 +59,15 @@ function docEnv() {
 }
 
 async function hoiKin(nhan) {
-  // Doc mot dong khong hien ky tu — cung khuon scripts/setup-stock-cron.mjs.
+  // Doc mot dong khong hien ky tu.
+  //
+  // Dong nhac phai in TRUOC khi tat _writeToOutput: readline in ca cau hoi QUA
+  // _writeToOutput, nen tat truoc roi moi goi question() thi an luon dong nhac —
+  // nguoi dung thay man hinh trong va tuong script treo.
+  stdout.write(`${nhan}: `)
   const rl = createInterface({ input: stdin, output: stdout, terminal: true })
-  const cu = rl._writeToOutput
   rl._writeToOutput = () => {}
-  const v = await new Promise((res) => rl.question(`${nhan}: `, res))
-  rl._writeToOutput = cu
+  const v = await new Promise((res) => rl.question('', res))
   rl.close()
   stdout.write('\n')
   return v.trim()

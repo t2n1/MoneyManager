@@ -1,11 +1,11 @@
 import { addMonths, monthKeyForDate, monthKeyString, parseMonthKey, toISODate } from '../lib/dates'
 import { filterTransactions } from '../features/transactions/filter'
-import { brokerCash, holdingsFromTrades, portfolioValue, sessionPrices, type Trade } from '../features/assets/holdings'
+import { asTrade, brokerCash, holdingsFromTrades, portfolioValue, sessionPrices } from '../features/assets/holdings'
 import {
+  asFundTrade,
   fundHoldingsFromTrades,
   fundValue,
   sessionNavs,
-  type FundTrade,
 } from '../features/assets/fundHoldings'
 import { validateBackupPayload } from './backupImport'
 import { DEFAULT_DENSITY, parseDensity } from '../lib/density'
@@ -725,17 +725,7 @@ export const demoRepo: Repo = {
       balance: number,
     ): { valued_on: string; market_value: number; source: 'auto' } | null {
       if (a.type !== 'investment' || a.currency !== 'VND' || a.is_archived) return null
-      const trades: Trade[] = stockTrades
-        .filter((t) => t.account_id === a.id)
-        .map((t) => ({
-          symbol: t.symbol,
-          kind: t.kind,
-          tradedOn: t.traded_on,
-          quantity: t.quantity,
-          price: t.price,
-          fee: t.fee,
-          tax: t.tax,
-        }))
+      const trades = stockTrades.filter((t) => t.account_id === a.id).map(asTrade)
       if (trades.length === 0) return null
       if (session === null) return null
 
@@ -765,16 +755,7 @@ export const demoRepo: Repo = {
     ): { valued_on: string; market_value: number; source: 'auto' } | null {
       if (a.type !== 'investment' || a.currency !== 'JPY' || a.is_archived) return null
 
-      const trades: FundTrade[] = (db.fundTrades ?? [])
-        .filter((t) => t.account_id === a.id)
-        .map((t) => ({
-          assocFundCd: t.assoc_fund_cd,
-          kind: t.kind,
-          tradedOn: t.traded_on,
-          units: t.units,
-          nav: t.nav,
-          amount: t.amount,
-        }))
+      const trades = (db.fundTrades ?? []).filter((t) => t.account_id === a.id).map(asFundTrade)
       if (trades.length === 0) return null
 
       // ① Trộn hai hệ đơn vị (口数 của quỹ và số cổ của cổ phiếu) là cộng sai; im lặng

@@ -37,6 +37,30 @@ export interface FundTrade {
   amount: number
 }
 
+/**
+ * Hàng `fund_trades` → `FundTrade`. Bản song sinh của `asTrade` bên holdings.ts — đọc cả
+ * lý do gộp về một bản lẫn lý do khai tham số theo HÌNH DẠNG ở đó. Riêng bản quỹ còn một
+ * cái bẫy nữa: `nav` và `amount` đều là yên và đều là `number`, nên đảo hai trường cho ra
+ * một giá vốn sai gấp cả vạn lần mà `tsc` im lặng.
+ */
+export function asFundTrade(t: {
+  assoc_fund_cd: string
+  kind: FundTrade['kind']
+  traded_on: string
+  units: number
+  nav: number
+  amount: number
+}): FundTrade {
+  return {
+    assocFundCd: t.assoc_fund_cd,
+    kind: t.kind,
+    tradedOn: t.traded_on,
+    units: t.units,
+    nav: t.nav,
+    amount: t.amount,
+  }
+}
+
 export interface FundHolding {
   assocFundCd: string
   /** 口数 đang giữ (luôn > 0 — quỹ bán sạch không xuất hiện) */

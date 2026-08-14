@@ -2,33 +2,52 @@
 
 Ngày: 2026-08-14
 
+> **Mọi con số tiền trong spec này là SỐ MINH HOẠ**, không phải số thật trên phiếu
+> lương. Chúng được chọn để giữ đúng *quan hệ* mà lập luận thiết kế dựa vào (các
+> đẳng thức khớp tới đơn vị, dấu, thứ tự độ lớn), nên đọc vẫn kiểm được. Số thật
+> chỉ nằm trong `phieu-luong.json` — file đó bị `.gitignore`.
+
 ## Vấn đề
 
 Chỉ số "Thuế & an sinh trên lương gộp" ([`HealthView.tsx:581`](../../../src/features/health/HealthView.tsx))
 tính `taxAndSocial ÷ annualIncome`, trong đó tử số là chi thuộc nhóm danh mục
-`Thuế & An sinh`. Sổ hiện chỉ ghi **lương ròng** — mỗi tháng đúng một dòng thu
-ngân hàng — nên tử số bằng 0 và thẻ luôn hiện `—`.
+`Thuế & An sinh`. Sổ hiện chỉ ghi **lương ròng** — mỗi kỳ đúng một dòng thu ngân
+hàng — nên tử số bằng 0 và thẻ luôn hiện `—`.
 
-Chủ sổ có **55 phiếu lương PDF** trải 2022/02 → 2026/08. Nhập tay 55 phiếu ×
+Chủ sổ có **59 phiếu lương PDF** trải 2022/02 → 2026/08. Nhập tay 59 phiếu ×
 6 dòng là việc không ai làm hai lần, nên cần script.
 
 ## Bộ dữ liệu thật (đã đo, không phải phỏng đoán)
 
-55 file trong một thư mục, tên `(<社員番号>)<YYYYMM><K|S>.pdf`:
+60 file trong một thư mục (59 phiếu phân biệt — xem "Chốt 0"), tên
+`(<社員番号>)<YYYYMM><K|S>.pdf`:
 
 | 社員番号 | Kỳ |
 |---|---|
 | `0004` | 2022/02 → 2024/04 |
-| `0003` | 2024/05 → 2025/03, 2025/11 → 2026/01 |
+| `0003` | 2024/05 → 2025/03, 2025/08 → 2025/10, 2025/11 → 2026/01 |
 | `0011` | 2026/02 → 2026/07 |
 | `0101` | 2026/08 |
 
 Không kỳ nào bị hai số hiệu cùng lúc → cùng một người, đổi số hiệu qua các đợt.
 
-`K` = 給与 (lương tháng, 48 file) · `S` = 賞与 (thưởng, 7 file: 202209S, 202302S,
-202308S, 202402S, 202408S, 202502S, 202602S).
+`K` = 給与 (lương tháng, 51 file) · `S` = 賞与 (thưởng, 8 file: 202209S, 202302S,
+202308S, 202402S, 202408S, 202502S, 202508S, 202602S).
 
 PDF **mã hoá AES với mật khẩu rỗng**, font Type0/CID có `ToUnicode`.
+
+## Phiếu minh hoạ dùng xuyên spec
+
+| 支給 | ¥ | 控除 | ¥ |
+|---|---|---|---|
+| — | | `健康保険料` | 20,000 |
+| | | `厚生年金保険` | 36,000 |
+| | | `雇用保険料` | 2,000 |
+| | | `所得税` | 4,000 |
+| | | `住民税` | 16,000 |
+| **`総支給金額`** | **400,000** | **`控除合計額`** | **78,000** |
+
+`差引支給額 = 400.000 − 78.000 = 322.000`
 
 ## Quyết định đã chốt
 
@@ -40,12 +59,12 @@ này đặt việc khớp sao kê lên đầu — xem ghi chú ở
 sao kê là đi ngược nguyên tắc đó. Đổi lại: mỗi kỳ lương có hai dòng thu, và gỡ lô
 nhập chỉ là xoá các dòng mang dấu.
 
-**Hai tầng, hai ngôn ngữ.** `pypdf` + `cryptography` đã chạy thật trên cả 55 file;
-`unpdf`/`pdfjs` chưa được chứng minh trên bộ này. Đổi sang JS nghĩa là kiểm lại 55
+**Hai tầng, hai ngôn ngữ.** `pypdf` + `cryptography` đã chạy thật trên cả 60 file;
+`unpdf`/`pdfjs` chưa được chứng minh trên bộ này. Đổi sang JS nghĩa là kiểm lại 60
 file bằng thư viện chưa đo, đổi lấy con số không.
 
-**File JSON ở giữa là chỗ soát bằng mắt** trước khi 328 dòng chạm vào sổ, và cho
-phép bóc lại rồi so diff mà không đụng DB.
+**File JSON ở giữa là chỗ soát bằng mắt** trước khi hơn ba trăm dòng chạm vào sổ,
+và cho phép bóc lại rồi so diff mà không đụng DB.
 
 ## Kiến trúc
 
@@ -70,16 +89,17 @@ chạy tay, mặc định **chỉ xem trước**, `--ghi` mới ghi thật kèm 
 chuỗi đã đệm khoảng trắng là sai** — nhãn trải hai dòng dưới cùng một dòng số ở
 layout từ 2026/06. Phải dùng toạ độ thật qua `visitor_text`.
 
-Đo trên `(0004)202202K.pdf`:
+Toạ độ đo trên một phiếu 2022 (`x` là thật; chữ số thay bằng chỗ giữ **cùng độ
+rộng**, vì chính độ rộng mới là điều quan trọng):
 
 ```
 nhãn  y=283.3:  健康保険料 69.4 · 厚生年金保険 138.1 · 厚生年金基金 211.8
                 雇用保険料 291.9 · 所得税 375.6 · 住民税 447.9
-số    y=309.5:  13,720 95.2 · 25,620 168.9 · 874 335.7 · 3,080 395.5 · 5,500 469.2
+số    y=309.5:  aa,aaa 95.2 · bb,bbb 168.9 · ccc 335.7 · d,ddd 395.5 · e,eee 469.2
 ```
 
-Số **canh phải**, nhãn **canh trái** → độ lệch thay đổi theo độ rộng số (`874` ba
-chữ số lệch 43,8pt; `13,720` lệch 25,8pt).
+Số **canh phải**, nhãn **canh trái** → độ lệch thay đổi theo độ rộng số: `ccc` (ba
+chữ số) lệch **43,8pt**, còn `aa,aaa` (sáu ký tự) chỉ lệch **25,8pt**.
 
 **Luật:** một số thuộc về **nhãn gần nhất về phía trái nó**, trong hàng nhãn gần
 nhất bên dưới **có nhãn hợp lệ**. Nhãn bỏ trống tự nhiên không nhận gì
@@ -89,11 +109,11 @@ Phải duyệt **nhiều** hàng nhãn bên dưới, vì layout từ 2026/06 ch�
 con `一般保険料`/`子育支援金` giữa hàng số và hàng nhãn tổng.
 
 **Loại nhãn khối trước khi ghép.** Các chữ dựng dọc ở lề trái (`支 給 控 除 勤 怠
-他 氏 名 所 属 様`) nằm ở `x≈42`, tức cách `13,720` (x=95.2) đúng 53,2pt — trong
-ngưỡng — nên chúng **giành mất số của `健康保険料`** rồi vòng lặp dừng. Đây là lỗi
-nằm sẵn nhưng bị một lỗi khác che, chỉ lộ ra khi sửa lỗi kia.
+他 氏 名 所 属 様`) nằm ở `x≈42`, tức cách số cột đầu (x=95.2) đúng **53,2pt** —
+trong ngưỡng — nên chúng **giành mất số của `健康保険料`** rồi vòng lặp dừng. Đây là
+lỗi nằm sẵn nhưng bị một lỗi khác che, chỉ lộ ra khi sửa lỗi kia.
 
-Tham số đã chạy đúng 55/55: `YROW=3.0` · `YMAX=64.0` · `XMAX=72.0` · `XSLACK=6.0`.
+Tham số đã chạy đúng 60/60: `YROW=3.0` · `YMAX=64.0` · `XMAX=72.0` · `XSLACK=6.0`.
 
 ## Đẳng thức tự kiểm
 
@@ -103,15 +123,16 @@ tổng 8 mục khối 控除  =  控除合計額
 ```
 
 `過不足税額` (quyết toán năm, chỉ có ở phiếu tháng 12) **không nằm trong
-`控除合計額`** nhưng **vẫn đổi tiền thật**. Đo trên cả bốn phiếu tháng 12, khớp
-từng yên:
+`控除合計額`** nhưng **vẫn đổi tiền thật**. Đo trên cả bốn phiếu tháng 12 của bộ
+dữ liệu, khớp tới từng đơn vị. Ba hình dạng, minh hoạ trên phiếu mẫu:
 
-| File | gộp − trừ − 過不足 | = ròng |
+| Ca | gộp − trừ − 過不足 | = ròng |
 |---|---|---|
-| 202212K | 303,345 − 56,991 − 28,081 | 218,273 |
-| 202312K | 485,610 − 73,476 + 88,544 | 500,678 |
-| 202412K | 458,750 − 85,615 + 19,929 | 393,064 |
-| 202512K | 431,296 − 95,125 + 17,646 | 353,817 |
+| nộp thêm cuối năm | 400,000 − 78,000 − 25,000 | 297,000 |
+| được hoàn (nhỏ hơn tổng trừ) | 400,000 − 78,000 + 20,000 | 342,000 |
+| được hoàn (**lớn hơn** tổng trừ) | 400,000 − 78,000 + 90,000 | **412,000** |
+
+Ca thứ ba cho **ròng > gộp** — xem mục `過不足` lớn hơn tổng khấu trừ bên dưới.
 
 ## Bộ nhãn
 
@@ -120,14 +141,15 @@ từng yên:
 `社内販売精算` `その他`
 
 **Mục con của `健康保険料`, KHÔNG cộng** (đã nằm trong `健康保険料`; layout từ
-2026/06): `一般保険料` `子育支援金`. Kiểm: `23.148 + 540 = 23.688`.
+2026/06): `一般保険料` `子育支援金`. Trên phiếu mẫu:
+`一般保険料 19.500 + 子育支援金 500 = 健康保険料 20.000`.
 
 **Ngoài `控除合計額` nhưng ghi thành dòng riêng:** `過不足税額`.
 
 **Sổ theo dõi phần ĐƯỢC GIẢM, KHÔNG phải khoản bị trừ:** `月次減税額`
-`定額減税額(所得税)` `定額減税未済額` (đợt 定額減税 2024). Coi chúng là khoản trừ
-làm `202406K` phồng **đúng 60.000 ¥** trong một tháng — tháng đó `所得税` thật
-bằng **0** vì đã được giảm hết.
+`定額減税額(所得税)` `定額減税未済額` (đợt 定額減税 2024). Coi chúng là khoản trừ làm
+thuế của tháng đó phồng lên **đúng bằng tổng ba nhãn ấy** — mà tháng đó `所得税`
+thật bằng **0** vì đã được giảm hết.
 
 **Phía 支給 — Cách B không dùng, nhưng phải biết tên để không báo "nhãn lạ":**
 `基本給` `残業手当` `通勤手当` `立替経費精算` `立替経費` `不就労控除` `基本賞与`
@@ -150,16 +172,16 @@ nhận nhóm theo tên.
 
 **Cần tạo 6 danh mục:** cha `Thuế & An sinh` (icon 🏛️) + 5 con ở bảng trên. Không
 cần `Bảo hiểm điều dưỡng (介護保険)` — 介護保険 chỉ trừ từ 40 tuổi, không phiếu nào
-trong bộ 55 có nó. (`taxCategoryIds` nhận cả danh mục lẻ trùng tên chuẩn, nhưng tạo
+trong bộ có nó. (`taxCategoryIds` nhận cả danh mục lẻ trùng tên chuẩn, nhưng tạo
 đủ cây cha–con để màn Danh mục đọc được.)
 
 Script **không** tự tạo danh mục lúc nhập — có cờ riêng `--tao-danh-muc` cho bước
 cài đặt một lần, tách khỏi đường ghi giao dịch.
 
-**`社内販売精算` không phải thuế.** Nó nằm trong `控除合計額` (đã chứng minh bằng số
-học: 5 file, đúng bằng phần thiếu 337 · 2.263 · 3.689 · 8.399 · 11.956) nhưng là
-mua hàng nội bộ công ty. Cho vào nhóm `Thuế & An sinh` là thổi phồng tử số của chỉ
-số — 3 trong 5 file đó nằm trong cửa sổ 12 tháng.
+**`社内販売精算` không phải thuế.** Nó nằm trong `控除合計額` — chứng minh bằng số
+học: 5 phiếu có nhãn này, mỗi phiếu lệch **đúng bằng giá trị nhãn đó**, bỏ nó ra là
+tổng khớp. Nhưng nó là mua hàng nội bộ công ty. Cho vào nhóm `Thuế & An sinh` là
+thổi phồng tử số của chỉ số — 3 trong 5 phiếu ấy nằm trong cửa sổ 12 tháng.
 
 **Và nó KHÔNG được là con của `Thuế & An sinh`**, vì `taxCategoryIds` gom *mọi* con
 của danh mục cha đó. `Đi chợ` (`essential` + `variable`, con của `Ăn uống`) là chỗ
@@ -168,20 +190,20 @@ của danh mục cha đó. `Đi chợ` (`essential` + `variable`, con của `Ăn
 ### Vì sao `cost_type` phải chia hai, không gán đồng loạt `fixed`
 
 `fund = tài sản lỏng ÷ chi cố định` ([`HealthView.tsx:135`](../../../src/features/health/HealthView.tsx)).
-Trung bình tháng trên 10 phiếu trong cửa sổ:
 
-| | ¥/tháng | Mất việc thì sao |
+| | ~tỷ trọng trong tổng khấu trừ | Mất việc thì sao |
 |---|---|---|
-| `厚生年金保険` | 37,210 | vẫn nợ (chuyển 国民年金) |
-| `健康保険料` | 20,238 | vẫn nợ (chuyển 国民健康保険) |
-| `住民税` | 16,058 | vẫn nợ (tính trên thu nhập năm trước) |
-| `所得税` | 6,200 | **hết** |
-| `雇用保険料` | 1,975 | **hết** |
+| `厚生年金保険` | ~46% | vẫn nợ (chuyển 国民年金) |
+| `健康保険料` | ~25% | vẫn nợ (chuyển 国民健康保険) |
+| `住民税` | ~20% | vẫn nợ (tính trên thu nhập năm trước) |
+| `所得税` | ~7% | **hết** |
+| `雇用保険料` | ~2% | **hết** |
 
-Chi cố định hiện tại **85.260 ¥/tháng**. Gán đồng loạt `fixed` → 165.472 (+94%).
-Chia hai → 158.766 (+86%). Cả hai làm số tháng dự phòng giảm gần một nửa, **và đó
-là sửa sai**: sổ hiện đang giấu 73.506 ¥/tháng nghĩa vụ thật, nên con số dự phòng
-hôm nay lạc quan quá.
+Tức **~90% khoản khấu trừ vẫn phải trả khi mất thu nhập**; chỉ ~10% là hết theo
+việc làm. Hệ quả đo được trên sổ thật: gán đồng loạt `fixed` làm chi cố định tăng
+**+94%**, chia hai làm tăng **+86%**. Cả hai làm số tháng dự phòng giảm gần một
+nửa, **và đó là sửa sai**: sổ hiện đang giấu phần nghĩa vụ vẫn còn khi mất việc,
+nên con số dự phòng hôm nay lạc quan quá.
 
 Nút "Tạo bộ danh mục Thuế & An sinh" cũ (đã xoá khỏi `CategoriesPage.tsx` ngày
 2026-08-14) gán **đồng loạt `essential` + `fixed`** — nếu phục hồi nút thì phải sửa
@@ -197,19 +219,20 @@ AND  occurred_on ∈ [đầu kỳ − 20 ngày, đầu kỳ + 75 ngày]
 ```
 
 Phải khớp **đúng một** dòng. Đo trên toàn bộ lịch sử Yucho (66 khoản thu, sớm nhất
-2021-12-09): **55/55 phiếu khớp duy nhất, 0 phiếu mồ côi**, 11 khoản thu còn lại
-đều giải thích được (2 khoản trước kỳ PDF sớm nhất, 1 khoản 1.400 ¥ quá nhỏ, 8
-khoản thuộc khoảng trống 2025/04–10). `66 = 55 + 11`.
+2021-12-09): **59/59 phiếu khớp duy nhất, 0 phiếu mồ côi**, 7 khoản thu còn lại đều
+giải thích được (2 khoản trước kỳ PDF sớm nhất, 1 khoản lẻ quá nhỏ để là phiếu
+lương, 4 khoản thuộc khoảng trống 2025/04–07). `66 = 59 + 7`.
 
 Chủ sổ xác nhận **mọi khoản lương từ trước tới nay đều vào Yucho Bank**, nên ràng
 buộc tài khoản là chốt chặn thật, không phải trang trí.
 
 **Ngày lấy từ dòng neo, không lấy từ kỳ.** Chính điều này cứu ca `202209S`: tên
-file ghi `202209` nhưng nội dung PDF ghi `2022年7月分賞与`, và khoản thật (335.781)
-nằm ở **2022-07-08**, cùng ngày với lương tháng 7 (279.427) nhưng là hai dòng riêng.
+file ghi `202209` nhưng nội dung PDF ghi `2022年7月分賞与`, và khoản thật nằm ở
+**2022-07-08** — cùng ngày với lương tháng 7, nhưng là hai dòng riêng, hai số khác
+nhau.
 
 **Kỳ đọc từ nội dung PDF** (`(\d{4})\s*年\s*(\d{1,2})\s*月分`), dự phòng tên file,
-lệch nhau thì báo. Kiểm cả 55: 1 file lệch (`202209S`), 2 file không đọc được kỳ từ
+lệch nhau thì báo. Kiểm cả bộ: 1 file lệch (`202209S`), 2 file không đọc được kỳ từ
 nội dung (`202308S`, `202402S` — hai file này tên lại đúng). **Không nguồn nào đủ
 một mình.**
 
@@ -221,56 +244,56 @@ một mình.**
 
 Ví dụ: `給与 2026/08K · 所得税`.
 
-Hậu tố `K`/`S` là **bắt buộc**: 7 kỳ có hai phiếu (202209, 202302, 202308, 202402,
-202408, 202502, 202602). Kiểm hai cặp neo cùng ngày — `202302K`/`202302S` cùng
-2023-02-10, `202207K`/`202209S` cùng 2022-07-08 — hậu tố phân biệt được cả hai.
+Hậu tố `K`/`S` là **bắt buộc**: 8 kỳ có hai phiếu (202209, 202302, 202308, 202402,
+202408, 202502, 202508, 202602). Kiểm hai cặp neo cùng ngày — `202302K`/`202302S`
+cùng 2023-02-10, `202207K`/`202209S` cùng 2022-07-08 — hậu tố phân biệt được cả hai.
 
 Không có cột `import_batch`/`source` trong `transactions`, nên dấu trong `note` là
 tay cầm duy nhất để gỡ lô nhập. Vì vậy nó là phần bắt buộc của thiết kế.
 
 ## Mỗi phiếu ghi gì
 
-Ví dụ `202608K` — cùng ngày, cùng tài khoản với dòng neo:
+Trên phiếu mẫu — cùng ngày, cùng tài khoản với dòng neo:
 
 | Dòng | Số | |
 |---|---|---|
-| *(giữ nguyên)* | 388,691 | dòng sao kê, không chạm |
-| Thu thêm | 92,328 | `給与 2026/08K · phần bị giữ lại` |
-| Chi × 5 | 92,328 | vào 5 danh mục thuế/an sinh |
+| *(giữ nguyên)* | 322,000 | dòng sao kê, không chạm |
+| Thu thêm | 78,000 | `給与 <kỳ> · phần bị giữ lại` |
+| Chi × 5 | 78,000 | vào 5 danh mục thuế/an sinh |
 
 `過不足税額` **âm** → chi mang `is_refund: true`, `amount` **dương** (DB có
 `check (amount > 0)` và `transactions_refund_check`; `expenseSign` trả `−1`, view
 số dư **cộng** khoản hoàn — xem [`0026_reporting_pack.sql:55`](../../../supabase/migrations/0026_reporting_pack.sql)).
 `過不足税額` **dương** → chi thường.
 
-Kiểm bất biến trên `202412K`: thu `+65.686`, chi `−85.615`, hoàn `+19.929` → **0**,
-cả ở số dư lẫn thống kê.
+Kiểm bất biến ở ca được hoàn 20.000: thu `+58.000`, chi `−78.000`, hoàn `+20.000`
+→ **0**, cả ở số dư lẫn thống kê.
 
 **Bất biến:** `thu thêm = tổng chi thêm = 総支給金額 − 差引支給額`, **và phải > 0**.
 
-### `202312K` — ca duy nhất Cách B không biểu diễn được
+### Khi `過不足税額` hoàn nhiều hơn tổng khấu trừ — Cách B không biểu diễn được
 
-`gross 485.610` < `net 500.678`: hoàn thuế cuối năm **88.544** lớn hơn tổng khấu trừ
-**73.476**, nên "phần bị giữ lại" = **−15.068**. Dòng thu phải âm, mà DB có
-`check (amount > 0)`.
+Đúng **một** phiếu trong bộ rơi vào ca này. Trên phiếu mẫu: hoàn `90.000` lớn hơn
+tổng khấu trừ `78.000`, nên `ròng 412.000 > gộp 400.000` và "phần bị giữ lại" =
+`78.000 − 90.000` = **−12.000**. Dòng thu phải âm, mà DB có `check (amount > 0)`.
 
-Bất biến số học **báo đúng** cho ca này — cả ba số đều bằng −15.068 — nên bốn vòng
+Bất biến số học **báo đúng** cho ca này — cả ba số đều bằng −12.000 — nên bốn vòng
 kiểm trước đó không thấy. **Chỉ chốt DẤU mới bắt được.** Về mặt toán, không cách
 chỉ-thêm nào trung hoà được số dư ở đây (cần income âm), nên **từ chối, xử tay**.
 
 Bài học: một bất biến đúng vẫn có thể vô nghĩa nếu không kiểm dấu.
 
 Tổng thực tế (đã chạy thử trên dữ liệu thật, 60 file → 59 phiếu phân biệt):
-**58 phiếu → 58 dòng thu + 286 dòng chi = 344 dòng**, 1 phiếu bị từ chối
-(`202312K`). Tổng thay đổi số dư: **0 ¥**.
+**58 phiếu → 58 dòng thu + 286 dòng chi = 344 dòng**, 1 phiếu bị từ chối. Tổng thay
+đổi số dư: **0 ¥**.
 
 ### Chốt 0 — gom file trùng, chạy TRƯỚC phép neo
 
 Thư mục thật có cả `(0101)202608K.pdf` lẫn `(0101)202608K (1).pdf` — **trùng byte**
 (cùng SHA256). Không có chốt này thì file thứ hai bị **chốt neo** từ chối với thông
-điệp *"không thấy khoản thu Yucho = 388691"*, vì file đầu đã chiếm khoản neo. Thông
-điệp đó dẫn người đọc đi sửa **sai chỗ**: vấn đề là file trùng, không phải thiếu
-khoản thu.
+điệp *"không thấy khoản thu Yucho = &lt;số ròng&gt;"*, vì file đầu đã chiếm khoản
+neo. Thông điệp đó dẫn người đọc đi sửa **sai chỗ**: vấn đề là file trùng, không
+phải thiếu khoản thu.
 
 Gom theo `(empno, period, kind)`. Trùng y hệt nội dung tài chính → giữ một bản, báo
 đã gộp. Khác nội dung → **từ chối cả nhóm**: script không được đoán file nào là bản
@@ -295,18 +318,17 @@ xoá, không phải nhị hoá ngược.
 
 ## Sau khi import: đặt lại ba mốc trục
 
-**Bước bắt buộc, không phải tuỳ chọn.** Tính thật cho tháng 7/2026:
+**Bước bắt buộc, không phải tuỳ chọn.** Đo trên một tháng hoàn tất của sổ thật —
+chỉ ghi tỷ lệ, vì con số tuyệt đối là thu nhập thật:
 
-| | Trước | Sau |
-|---|---|---|
-| Thu | 363,347 | 458,927 |
-| Thiết yếu | 157,716 · **43%** | 253,296 · **55%** |
-| Linh hoạt | 41,491 · 11% | 41,491 · 9% |
-| Tiết kiệm | 164,140 · **45%** | 164,140 · **36%** |
+| Trục | Trước | Sau | Mốc |
+|---|---|---|---|
+| Thiết yếu | 43% | **55%** | trần 50% → **vượt** |
+| Linh hoạt | 11% | 9% | trần 30% |
+| Tiết kiệm | 45% | **36%** | sàn 20% |
 
-**Số tiền tiết kiệm không đổi một yên** (164.140 cả hai bên) — chỉ tỷ lệ tụt, vì
-mẫu số chuyển từ ròng sang gộp. Trần thiết yếu 50% bị vượt dù chủ sổ không tiêu
-thêm đồng nào.
+**Số tiền tiết kiệm không đổi một yên** — chỉ tỷ lệ tụt, vì mẫu số chuyển từ ròng
+sang gộp. Trần thiết yếu bị vượt dù chủ sổ không tiêu thêm đồng nào.
 
 Quy tắc 50/30/20 gốc tính trên thu nhập **sau thuế**. Với mức thuế ~20% của sổ này,
 tương đương trên gộp là khoảng **60/25/15**. Sau import phải đặt lại
@@ -323,30 +345,24 @@ tương đương trên gộp là khoảng **60/25/15**. Sau import phải đặt
   thiện báo cáo từng tháng và Cơ cấu chi — giá trị thật, nhưng khác giá trị đó.
 - **Tháng 8/2026 bị loại** vì đang chạy dở. Nhập xong phiếu tháng 8, thẻ vẫn hiện
   `—` cho tới sang tháng 9.
-- Con số sẽ đọc ra: `1.320.099 / 6.470.738` = **20,4%**.
+- Tỷ lệ sẽ đọc ra: **20,4%** (vùng `good`, ngưỡng cảnh báo 25%).
 
 Cửa sổ hiện **kín hoàn toàn**: đủ cả 14 lần trả lương (12 lương tháng + 2 thưởng),
-sau khi bổ sung `2025/08K`, `2025/08S`, `2025/09K`, `2025/10K`.
+sau khi bổ sung `2025/08K`, `2025/08S`, `2025/09K`, `2025/10K`. Trước khi có bốn
+phiếu ấy, tỷ lệ đọc ra chỉ **15,7%** — thấp hơn thật gần 5 điểm, vì net của chúng
+vào mẫu số mà khấu trừ không vào tử số.
 
 ## Khoảng trống đã biết
 
 **6 khoản lương trong sổ không có PDF, tất cả NGOÀI cửa sổ 12 tháng:**
-
-| Ngày | Số | |
-|---|---|---|
-| 2021-12-09 | 248,765 | trước kỳ PDF sớm nhất (2022/02) |
-| 2022-01-07 | 687,586 | trước kỳ PDF sớm nhất |
-| 2025-04-10 | 357,716 | khoảng trống |
-| 2025-05-09 | 414,193 | khoảng trống |
-| 2025-06-10 | 326,616 | khoảng trống |
-| 2025-07-10 | 303,240 | khoảng trống |
+`2021-12`, `2022-01` (trước kỳ PDF sớm nhất), và `2025-04` → `2025-07`.
 
 Chúng chỉ làm báo cáo *các tháng đó* thiếu phần thuế, **không** ảnh hưởng chỉ số
 Thuế & An sinh. Có thêm PDF thì chạy lại script — chốt số 4 chống nhập trùng nên
 thêm file sau không phá gì.
 
-Ngoài ra `2022-09-20 · 1.400 ¥` (`振込（株）コメ`) quá nhỏ để là phiếu lương — chuyển
-khoản lẻ từ công ty, không có phiếu và không cần.
+Ngoài ra một khoản lẻ vài nghìn yên (`振込（株）コメ`, 2022-09-20) quá nhỏ để là
+phiếu lương — chuyển khoản lẻ từ công ty, không có phiếu và không cần.
 
 Đối chiếu khép kín trên toàn bộ lịch sử Yucho: **66 khoản thu = 59 phiếu neo được +
 6 khoản thiếu PDF + 1 khoản lẻ**.
@@ -354,36 +370,40 @@ khoản lẻ từ công ty, không có phiếu và không cần.
 ## Kiểm thử
 
 **Tầng 2 (vitest, khuôn [`roleSave.test.ts`](../../../src/features/transactions/roleSave.test.ts)):**
-bảng map nhãn→danh mục · phép neo (0 / 1 / ≥2 ứng viên) · bất biến bằng-không ·
-dấu ghi chú của cặp K/S cùng ngày · `過不足税額` cả hai dấu · từ chối khi gặp nhãn lạ.
+bảng map nhãn→danh mục · phép neo (0 / 1 / ≥2 ứng viên) · bất biến bằng-không và
+chốt dấu · dấu ghi chú của cặp K/S cùng ngày · `過不足税額` cả hai dấu · gom file
+trùng (trùng y hệt / khác nội dung) · từ chối khi gặp nhãn lạ.
 
-**Tầng 1:** chế độ tự kiểm khẳng định 55/55 qua cả hai đẳng thức.
+**Tầng 1:** chế độ tự kiểm khẳng định 60/60 qua cả hai đẳng thức.
 
 ## Bảo mật
 
 `phieu-luong.json` chứa 4,5 năm chi tiết lương + tên + số hiệu nhân viên. **Vào
-`.gitignore`, không commit.** Spec này chỉ giữ các con số cần cho lập luận thiết kế.
+`.gitignore`, không commit.**
+
+Spec này dùng **số minh hoạ**, không phải số thật — repo là công khai. Khi sửa spec,
+giữ nguyên nguyên tắc đó: nếu một lập luận cần con số, dựng số minh hoạ giữ đúng
+quan hệ thay vì dán số thật vào.
 
 `boc.py` cần `pypdf` + `cryptography` — ghi vào đầu script, không thêm vào
 `package.json` (không phải phụ thuộc của app).
 
-## Ba lỗi đã mắc khi thiết kế — để người sau không lặp
+## Bốn lỗi đã mắc khi thiết kế — để người sau không lặp
 
 1. **Map mọi thứ trong `控除合計額` vào nhóm thuế.** Sai với `社内販売精算`. Chốt
    "tổng mục lẻ = `控除合計額`" *không* bắt được lỗi này — nó chỉ kiểm số học, không
    kiểm ngữ nghĩa.
 2. **Coi `過不足税額` và bộ ba `定額減税` là khoản trừ.** `過不足税額` ngoài tổng
-   nhưng đổi tiền thật; `定額減税` là sổ theo dõi. Lẫn hai thứ này làm phồng thuế
-   tới 60.000 ¥/tháng.
+   nhưng đổi tiền thật; `定額減税` là sổ theo dõi. Lẫn hai thứ này làm thuế một
+   tháng phồng lên bằng cả tổng bộ ba.
 3. **Ghép nhãn↔số theo "gần tâm nhất".** Sai vì số canh phải, nhãn canh trái. Và
    khi sửa nó thì lỗi "chữ khối giành số" nằm sẵn mới lộ — hai lỗi che nhau, sửa
-   một cái làm cả 55 file hỏng cùng lúc.
-
-4. **Kiểm bất biến mà không kiểm dấu.** `thu == chi == gộp − ròng` báo đúng cho
-   `202312K` vì cả ba bằng −15.068. Lỗi này sống qua bốn vòng soát.
+   một cái làm cả bộ hỏng cùng lúc.
+4. **Kiểm bất biến mà không kiểm dấu.** `thu == chi == gộp − ròng` báo đúng cho ca
+   ròng > gộp, vì cả ba đều âm bằng nhau. Lỗi này sống qua bốn vòng soát.
 
 Bài học chung: **chốt số học không thay được chốt ngữ nghĩa**, một bộ kiểm
-"44/55 đúng" có thể đang che một lỗi làm sai cả 55, và **một bất biến đúng vẫn vô
+"44/55 đúng" có thể đang che một lỗi làm sai cả bộ, và **một bất biến đúng vẫn vô
 nghĩa nếu không kiểm dấu**.
 
 ## Ngoài phạm vi
@@ -391,9 +411,9 @@ nghĩa nếu không kiểm dấu**.
 - Phía `支給` (`基本給`, `残業手当`, `通勤手当`, `立替経費精算`, `DB掛金`): Cách B
   không chạm. `通勤手当` do đó tự nằm trong thu nhập, tỷ lệ là bản "gộp có trợ cấp
   đi lại".
-- `202410K` có `立替経費精算` **909.751 ¥** — hoàn ứng chi phí, không phải thu nhập,
-  nhưng đã nằm trong dòng ngân hàng từ trước. `立替経費精算` có ở 26/55 file. Cách B
-  không làm tệ hơn, cũng không sửa.
-- `DB掛金 −10.000/tháng` đã trừ sẵn trong `総支給金額` → không cần làm gì; nghĩa là
-  khoản hưu trí đó vô hình trong sổ.
+- Một phiếu 2024 có `立替経費精算` lớn gấp nhiều lần lương tháng — hoàn ứng chi phí,
+  không phải thu nhập, nhưng đã nằm trong dòng ngân hàng từ trước. `立替経費精算` có
+  ở 26/59 phiếu. Cách B không làm tệ hơn, cũng không sửa.
+- `DB掛金` (âm) đã trừ sẵn trong `総支給金額` → không cần làm gì; nghĩa là khoản hưu
+  trí đó vô hình trong sổ.
 - Giao diện nhập file. Script chạy tay là đủ cho việc mỗi tháng một file.

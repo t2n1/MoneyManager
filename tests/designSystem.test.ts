@@ -72,6 +72,16 @@ function stripComments(text: string): string {
  * SỐ LIỆU nói rõ đang tính theo phiên nào — bọc <Guide> là mất thông tin đó ở chế độ
  * Gọn, đúng loại lỗi các lần nâng trần trước đã tránh.
  *
+ * ── Đợt gộp danh mục đầu tư (2026-08-13/14) — ba lời ghi dưới đây theo thứ tự thời
+ * gian, và cộng lại thì trần này **TĂNG** từ 53 lên 55. Nói thẳng ra vì đây là ngoại lệ
+ * của cả đợt: năm ngưỡng khác (`active:scale-95` 93→82, `min-h-11 min-w-11` 28→22,
+ * `tabular-nums` 97→96, `text-green-700 …` 34→32, `bg-green-700` 63→62) đều TỤT khi xoá
+ * HoldingsSection/FundHoldingsSection, riêng văn xuôi thì không: hai tab mới và trang
+ * tài khoản mới cần thêm câu cho những TRẠNG THÁI không có ở bản cũ (tab thứ hai có
+ * trạng thái rỗng riêng; trang tài khoản có thêm một trạng thái "chưa tính được" thứ
+ * hai). Ai đọc "55" mà tưởng đợt này dọn bớt văn xuôi là hiểu ngược — nó dọn bớt năm
+ * ngưỡng kia, còn văn xuôi thì trả thêm 2 để có hai tab.
+ *
  * 56 (2026-08-13): InvestFundsTab (tab Quỹ Nhật của vỏ /invest hai tab) lặp lại ba
  * dòng đã có bên InvestStocksTab, chỉ đổi từ "mã/giá" sang "quỹ/基準価額": trạng thái
  * rỗng chưa có tài khoản (đường đi tiếp duy nhất là liên kết tới Cài đặt), cảnh báo
@@ -100,10 +110,11 @@ function stripComments(text: string): string {
  * thái thật khác nhau này VẪN giữ nguyên, không phải chữ dạy — bọc <Guide> sẽ giấu
  * cảnh báo ở chế độ Gọn, đúng lỗi các lần nâng trần trước đã tránh.
  *
- * 55 (2026-08-13, đợt gộp danh mục): tụt xuống vì HoldingsSection và FundHoldingsSection
- * bị xoá — nội dung của chúng gom về hai tab của /invest, nơi mỗi câu chỉ còn MỘT bản.
- * Hạ trần theo đúng quy ước ở thông điệp lỗi của chính phép thử này: trần không hạ là
- * trần rỗng, để lần sau thêm văn xuôi mới mà không ai biết.
+ * 55 (2026-08-13, bước cuối đợt gộp danh mục): tụt TỪ 57 vì HoldingsSection và
+ * FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi mỗi câu
+ * chỉ còn MỘT bản. Tụt từ 57, nhưng vẫn CAO HƠN 53 lúc đợt này bắt đầu: xem khối "──" ở
+ * trên. Hạ trần theo đúng quy ước ở thông điệp lỗi của chính phép thử này: trần không hạ
+ * là trần rỗng, để lần sau thêm văn xuôi mới mà không ai biết.
  */
 const PROSE_MAX = 55
 

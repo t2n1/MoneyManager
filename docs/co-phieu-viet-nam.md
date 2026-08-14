@@ -3,8 +3,14 @@
 Edge function `stock-refresh` chạy mỗi chiều sau khi sàn Việt Nam đóng cửa, làm
 hai việc: (1) hút giá mới nhất cho các mã đã từng giao dịch và ghi vào
 `stock_prices`, (2) tính lại giá trị thị trường của từng tài khoản có sổ lệnh và ghi
-vào `account_valuations` — bảng mà cả app (tổng tài sản, lãi/lỗ chưa thực hiện, XIRR,
-biểu đồ, thông báo) đã đọc sẵn từ trước, nên không cần sửa gì ở phía đọc.
+vào `account_valuations` — bảng mà cả app (tổng tài sản, "Lãi/lỗ đầu tư (gồm đã bán)",
+XIRR, biểu đồ, thông báo) đã đọc sẵn từ trước, nên không cần sửa gì ở phía đọc.
+
+Nhãn đó **không** còn là "lãi/lỗ chưa thực hiện": quyết định 7 của
+`docs/superpowers/specs/2026-08-13-gop-trang-dau-tu-design.md` đã cho thấy
+`market_value − balance` là **tổng** lời/lỗ, gồm cả phần đã bán (tiền bán đã về
+`brokerCash` nên nằm trong `market_value`), và đã bỏ chữ "chưa thực hiện" ở tab Hiện tại.
+Lời/lỗ **chưa bán** thật sự thì tính tại máy từ sổ lệnh, ở hai tab của `/invest`.
 
 ## Đã đổi nguồn giá: SSI → Yahoo Finance
 

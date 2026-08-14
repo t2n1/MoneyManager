@@ -26,6 +26,7 @@ import {
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
 import { cumulativeDailyBalance, dailyExpenseTotals } from './aggregate'
+import { pickBudgetVerdict } from './budgetVerdict'
 import { forecastMonthEnd, type Forecast } from './insights'
 import { SpendVsBudgetCard } from './SpendVsBudgetCard'
 import { SpendHeatmapCard } from './SpendHeatmapCard'
@@ -227,7 +228,7 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
   const { visual } = useDensity()
   const {
     monthDaily, budgetDaily, hasSpend, paceDaysElapsed,
-    totalBudgeted, budgetedCount, forecast, budgetForecast, base,
+    totalBudgeted, budgetedCount, forecast, base,
   } = pace
   if (!hasSpend) return null
   // Có hạn mức → biểu đồ và câu kết luận đều chỉ tính phạm vi đã đặt hạn mức.
@@ -249,9 +250,14 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
       />
       {forecast && (
         <div className="rounded-xl bg-surface p-3 shadow-sm">
+          {/* GHI RÕ PHẠM VI. `forecast.spentSoFar` là TOÀN BỘ chi, còn biểu đồ ngay trên
+              nó lại chỉ vẽ phần đã đặt hạn mức — hai phạm vi trong một thẻ. Đo trên demo
+              hai số lệch ¥47,054 (¥239,245 so với ¥192,191) mà trước đây không có chữ nào
+              nói vì sao, nên đọc thành "thẻ này tự mâu thuẫn". */}
           <p className="text-xs text-fg-muted">
-            Đã chi {formatMoney(forecast.spentSoFar, base)} sau {forecast.daysElapsed}/
-            {forecast.daysInMonth} ngày.
+            {scoped ? 'Cả tháng đã chi ' : 'Đã chi '}
+            {formatMoney(forecast.spentSoFar, base)} sau {forecast.daysElapsed}/
+            {forecast.daysInMonth} ngày{scoped ? ' — gồm cả mục chưa đặt hạn mức.' : '.'}
           </p>
           {/* Nói KHOẢNG chứ không một con số: cùng một mức chi trung bình, người tiêu đều
               mỗi ngày và người dồn vào cuối tuần cho ra độ tin cậy khác hẳn nhau. */}
@@ -271,58 +277,81 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
               )}
             </p>
           )}
-          {totalBudgeted > 0 && budgetForecast ? (
-            // So dự báo CÙNG PHẠM VI với hạn mức (budgetForecast, không phải forecast
-            // toàn bộ chi), và so cận DƯỚI: chỉ nói "sẽ vượt" khi ngay cả kịch bản chi
-            // ít nhất cũng vượt. Nói chắc rồi tháng sau không vượt thì lần sau người
-            // dùng thôi tin cả thẻ này.
-            budgetForecast.low > totalBudgeted ? (
-              <p className="mt-2 rounded-lg bg-red-50 dark:bg-red-900/30 px-2 py-1.5 text-xs text-money-out">
-                {visual ? (
-                  <>
-                    Sẽ vượt trần {formatMoney(totalBudgeted, base)} khoảng{' '}
-                    <b>{formatMoney(budgetForecast.projected - totalBudgeted, base)}</b>
-                  </>
-                ) : (
-                  <>
-                    Riêng {budgetedCount} mục đã đặt hạn mức: đã chi{' '}
-                    {formatMoney(budgetForecast.spentSoFar, base)}, với đà này sẽ vượt tổng hạn
-                    mức ({formatMoney(totalBudgeted, base)}) khoảng{' '}
-                    {formatMoney(budgetForecast.projected - totalBudgeted, base)}.
-                  </>
-                )}
-              </p>
-            ) : budgetForecast.high > totalBudgeted ? (
-              <p className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-900/30 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300">
-                {visual ? (
-                  <>Có thể vượt trần {formatMoney(totalBudgeted, base)}</>
-                ) : (
-                  <>
-                    Riêng {budgetedCount} mục đã đặt hạn mức: có thể vượt tổng hạn mức
-                    ({formatMoney(totalBudgeted, base)}) — còn tuỳ mấy ngày cuối tháng chi thế nào.
-                  </>
-                )}
-              </p>
-            ) : (
-              <p className="mt-2 rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1.5 text-xs text-green-700 dark:text-green-400">
-                {visual ? (
-                  <>Vẫn trong trần {formatMoney(totalBudgeted, base)}</>
-                ) : (
-                  <>
-                    Riêng {budgetedCount} mục đã đặt hạn mức: với đà này vẫn trong tổng hạn mức
-                    ({formatMoney(totalBudgeted, base)}).
-                  </>
-                )}
-              </p>
-            )
-          ) : totalBudgeted === 0 ? (
-            <Guide className="mt-2 text-xs text-fg-muted">
-              Đặt ngân sách tháng để so sánh với dự báo.
-            </Guide>
-          ) : null}
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Câu phán quyết "với đà này có thủng trần không" — render ở thẻ TỔNG NGÂN SÁCH, không
+ * ở đây.
+ *
+ * Vì sao tách khỏi khối trên: đo trên mobile 375×812, câu này nằm ở y=803 trong khi mép
+ * gấp (mép trên thanh nav `fixed`) ở y=732. Người mở trang trên điện thoại thấy con số
+ * "còn ¥…" to nhất màn ở y=347 và KHÔNG thấy câu nói tháng này vẫn thủng, trừ khi cuộn.
+ * Hai vế của cùng một câu trả lời mà một vế trên mép gấp, một vế dưới. Đưa nó lên đứng
+ * ngay cạnh con số nó nói tới là cách duy nhất kéo được lên trên mép gấp.
+ *
+ * Phép chọn nằm ở `pickBudgetVerdict` (thuần, có phép thử) — ở đây chỉ có chữ.
+ */
+export function BudgetVerdictLine({ pace }: { pace: MonthPace }) {
+  const { visual } = useDensity()
+  const verdict = pickBudgetVerdict(pace)
+  if (!verdict) return null
+  const { base } = pace
+
+  if (verdict.kind === 'unset') {
+    return (
+      <Guide className="mt-2 text-xs text-fg-muted">
+        Đặt ngân sách tháng để so sánh với dự báo.
+      </Guide>
+    )
+  }
+
+  const { totalBudgeted, budgetedCount } = verdict
+  if (verdict.kind === 'over') {
+    return (
+      <p className="mt-2 rounded-lg bg-red-50 dark:bg-red-900/30 px-2 py-1.5 text-xs text-money-out">
+        {visual ? (
+          <>
+            Với đà này sẽ vượt trần {formatMoney(totalBudgeted, base)} khoảng{' '}
+            <b>{formatMoney(verdict.overBy, base)}</b>
+          </>
+        ) : (
+          <>
+            Riêng {budgetedCount} mục đã đặt hạn mức: với đà này sẽ vượt tổng hạn mức
+            ({formatMoney(totalBudgeted, base)}) khoảng {formatMoney(verdict.overBy, base)}.
+          </>
+        )}
+      </p>
+    )
+  }
+  if (verdict.kind === 'near') {
+    return (
+      <p className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-900/30 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300">
+        {visual ? (
+          <>Với đà này có thể vượt trần {formatMoney(totalBudgeted, base)}</>
+        ) : (
+          <>
+            Riêng {budgetedCount} mục đã đặt hạn mức: có thể vượt tổng hạn mức
+            ({formatMoney(totalBudgeted, base)}) — còn tuỳ mấy ngày cuối tháng chi thế nào.
+          </>
+        )}
+      </p>
+    )
+  }
+  return (
+    <p className="mt-2 rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1.5 text-xs text-green-700 dark:text-green-400">
+      {visual ? (
+        <>Với đà này vẫn trong trần {formatMoney(totalBudgeted, base)}</>
+      ) : (
+        <>
+          Riêng {budgetedCount} mục đã đặt hạn mức: với đà này vẫn trong tổng hạn mức
+          ({formatMoney(totalBudgeted, base)}).
+        </>
+      )}
+    </p>
   )
 }
 

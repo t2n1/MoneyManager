@@ -9,6 +9,7 @@
       "autoPort": true
     },
     {
+      "// demo": "Chay bang du lieu gia trong localStorage, khong can Supabase — dung de xem giao dien khi chua dang nhap duoc. CAN `.env.demo` o goc repo chi mot dong `VITE_DEMO_MODE=true`; file do gitignore nen may moi phai tu tao, khong co no thi vite doc `.env.local` va ra thang man dang nhap.",
       "name": "so-chi-tieu-demo",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "--mode", "demo"],

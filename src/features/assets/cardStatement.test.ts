@@ -133,8 +133,8 @@ describe('cardStatementSplit', () => {
     expect(r.billed).toBeNull()
   })
 
-  it('ngày đến hạn rơi cuối tuần thì dời, ngày chốt tính theo ngày đã dời', () => {
-    // 27/6/2026 là T7 → dời 29/6; chốt gần nhất trước đó = 31/5
+  it('ngày đến hạn rơi cuối tuần thì dời, ngày chốt vẫn suy từ ngày danh nghĩa', () => {
+    // 27/6/2026 là T7 → dời 29/6; chốt gần nhất trước 27/6 = 31/5
     const r = cardStatementSplit({
       ...base,
       todayISO: '2026-06-01',
@@ -144,5 +144,25 @@ describe('cardStatementSplit', () => {
     expect(r.dueISO).toBe('2026-06-29')
     expect(r.closeISO).toBe('2026-05-31')
     expect(r.billed).toBe(1_000)
+  })
+
+  // Ngày dời có thể NHẢY QUA chính ngày chốt. Suy ngược từ ngày đã dời thì mốc
+  // chốt nhảy sang kỳ sau, lệch engine tự-trả (nó suy từ ngày danh nghĩa) nguyên
+  // một tháng — app hiện một số, ngày đến hạn rút một số khác.
+  it('ngày dời vượt qua ngày chốt: mốc chốt vẫn là kỳ trước, khớp engine', () => {
+    // Chốt 1, trả 1. Kỳ 1/8/2026 là T7 → rút 3/8. Chốt của kỳ này là 1/7, KHÔNG
+    // phải 1/8 (1/8 mới là ngày chốt của kỳ đến hạn tháng 9).
+    const r = cardStatementSplit({
+      cardId: 'card',
+      statementDay: 1,
+      paymentDueDay: 1,
+      todayISO: '2026-08-01',
+      balance: -10_000,
+      txs: [ex('2026-07-15', 3_000), ex('2026-08-02', 7_000)],
+    })
+    expect(r.dueISO).toBe('2026-08-03')
+    expect(r.closeISO).toBe('2026-07-01')
+    expect(r.billed).toBe(0)
+    expect(r.unbilled).toBe(10_000)
   })
 })

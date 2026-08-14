@@ -7,8 +7,8 @@
 
 import { useMemo } from 'react'
 import { useSearchTransactions } from '../../hooks/queries'
-import { statementCloseFor } from '../../lib/cardAutopay'
-import { addDaysISO, nextCardDueDate } from '../../lib/dates'
+import { nextStatementPeriod } from '../../lib/cardAutopay'
+import { addDaysISO } from '../../lib/dates'
 import { cardStatementSplit, type CardStatementSplit } from './cardStatement'
 
 /**
@@ -30,17 +30,15 @@ export function useCardStatements(
   todayISO: string,
 ): Map<string, CardStatementSplit> {
   // Thẻ đủ ngày chốt + ngày trả mới có kỳ để chia; thẻ khác không cần giao dịch.
+  // Dùng chung `nextStatementPeriod` với `cardStatementSplit`: cửa sổ truy vấn phải
+  // bắt đầu ĐÚNG sau mốc chốt mà phép chia sẽ lùi về, lệch một ngày là thiếu giao
+  // dịch để trừ ngược và số "Kỳ này" sai âm thầm.
   const splittable = useMemo(
     () =>
-      cards
-        .filter((c) => c.statementDay != null && c.paymentDueDay != null)
-        .map((c) => ({
-          id: c.id,
-          closeISO: statementCloseFor(
-            nextCardDueDate(c.paymentDueDay as number, todayISO),
-            c.statementDay as number,
-          ),
-        })),
+      cards.flatMap((c) => {
+        const period = nextStatementPeriod(c.statementDay, c.paymentDueDay, todayISO)
+        return period ? [{ id: c.id, closeISO: period.closeISO }] : []
+      }),
     [cards, todayISO],
   )
 

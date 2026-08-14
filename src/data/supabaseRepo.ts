@@ -1653,6 +1653,25 @@ export const supabaseRepo: Repo = {
     }
   },
 
+  // --- Nhập phiếu lương 給与明細 (Task 7) ---
+
+  async listYuchoIncome(accountId: string) {
+    const { data, error } = await getSupabase()
+      .from('transactions')
+      .select('id,occurred_on,amount,account_id,category_id')
+      .eq('type', 'income').eq('account_id', accountId).order('occurred_on')
+    if (error) throw error
+    return data
+  },
+
+  async listDauPhieuLuong() {
+    const { data, error } = await getSupabase()
+      .from('transactions').select('note').like('note', '給与 %')
+    if (error) throw error
+    // Dấu là phần trước ' · ' đầu tiên
+    return [...new Set(data.map((t) => t.note.split(' · ')[0]))]
+  },
+
   async importAll(data: BackupData) {
     const uid = await currentUserId()
     const sb = getSupabase()

@@ -3,11 +3,13 @@ import {
   cuaSoNeo,
   dauGhiChu,
   dungDong,
+  dungKeHoach,
   kiemDong,
   mapNhan,
   gomTrung,
   timNeo,
 } from './nhap'
+import type { KhoanNeo } from './nhap'
 import type { Phieu } from './boc'
 
 const YUCHO = 'acc-yucho'
@@ -330,5 +332,37 @@ describe('gomTrung — file trung trong thu muc', () => {
 describe('thieu danh muc', () => {
   it('nem loi thay vi ghi vao danh muc null', () => {
     expect(() => dungDong(P202608, NEO_202608, new Map())).toThrow(/thieu danh muc/)
+  })
+})
+
+describe('dungKeHoach', () => {
+  const IDS_DU = new Map([...IDS])
+  const THU: KhoanNeo[] = [NEO_202608]
+
+  it('phiếu đạt thì có dòng, phiếu đã nhập thì không', () => {
+    const kh = dungKeHoach([P202608], THU, YUCHO, IDS_DU, new Set())
+    expect(kh).toHaveLength(1)
+    expect(kh[0].trangThai).toBe('dat')
+    expect(kh[0].chi).toHaveLength(5)
+
+    const kh2 = dungKeHoach([P202608], THU, YUCHO, IDS_DU, new Set(['給与 2026/08K']))
+    expect(kh2[0].trangThai).toBe('da-nhap')
+    expect(kh2[0].chi).toHaveLength(0)
+  })
+
+  // Ba trang thai phai phan biet duoc: "da nhap roi" KHONG phai loi.
+  it('phân biệt ba trạng thái, không gộp', () => {
+    const xau: Phieu = { ...P202608, file: 'x.pdf', loi: ['nhãn lạ: 謎'] }
+    const kh = dungKeHoach([P202608, xau], THU, YUCHO, IDS_DU, new Set())
+    const tt = kh.map((k) => k.trangThai).sort()
+    expect(tt).toEqual(['dat', 'tu-choi'])
+    expect(kh.find((k) => k.trangThai === 'tu-choi')!.lyDo).toMatch(/謎/)
+  })
+
+  it('không để hai phiếu giành cùng một khoản neo', () => {
+    const hai = [P202608, { ...P202608, file: 'y.pdf' }]
+    const kh = dungKeHoach(hai, THU, YUCHO, IDS_DU, new Set())
+    // gomTrung gộp hai bản trùng nội dung thành một
+    expect(kh.filter((k) => k.trangThai === 'dat')).toHaveLength(1)
   })
 })

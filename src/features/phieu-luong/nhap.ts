@@ -324,3 +324,55 @@ export function kiemDong(phieu: Phieu, thu: DongMoi, chi: DongMoi[], thuKhac: Do
   if (chi.some((r) => r.amount <= 0)) loi.push('co dong chi amount <= 0')
   return loi
 }
+
+export interface DongKeHoach {
+  phieu: Phieu
+  neo: KhoanNeo | null
+  dau: string
+  thu: DongMoi | null
+  thuKhac: DongMoi | null
+  chi: DongMoi[]
+  trangThai: 'dat' | 'da-nhap' | 'tu-choi'
+  lyDo: string
+}
+
+/**
+ * Dung ke hoach cho ca lo. THUAN — nhan du lieu so da doc san, khong goi DB.
+ *
+ * Trang thai phai phan biet BA ca, khong duoc gop hai ca sau thanh "loi": nguoi
+ * dung can biet "da nhap roi" (khong phai loi, khong can lam gi) khac "tu choi"
+ * (co the phai xu tay).
+ */
+export function dungKeHoach(
+  phieuList: Phieu[],
+  khoanThu: KhoanNeo[],
+  yuchoId: string,
+  idTheoTen: Map<string, string>,
+  dauDaCo: Set<string>,
+): DongKeHoach[] {
+  const trung = gomTrung(phieuList)
+  const out: DongKeHoach[] = []
+  const rong = (p: Phieu, tt: DongKeHoach['trangThai'], lyDo: string): DongKeHoach => ({
+    phieu: p, neo: null, dau: '', thu: null, thuKhac: null, chi: [], trangThai: tt, lyDo,
+  })
+  for (const g of trung.boQua) {
+    out.push(rong({ ...phieuList[0], file: g.files.join(' + ') }, 'tu-choi', g.lyDo))
+  }
+  const daDung = new Set<string>()
+  for (const p of trung.giu) {
+    if (p.loi.length) { out.push(rong(p, 'tu-choi', p.loi.join(' ; '))); continue }
+    const neo = timNeo(khoanThu, p, yuchoId, daDung)
+    if (!neo.ok) { out.push(rong(p, 'tu-choi', neo.lyDo)); continue }
+    const dau = dauGhiChu(neo.row.occurred_on, p.kind as 'K' | 'S')
+    if (dauDaCo.has(dau)) { out.push({ ...rong(p, 'da-nhap', `đã nhập rồi (${dau})`), dau }); continue }
+    let d
+    try { d = dungDong(p, neo.row, idTheoTen) } catch (e) {
+      out.push(rong(p, 'tu-choi', (e as Error).message)); continue
+    }
+    const loi = kiemDong(p, d.thu, d.chi, d.thuKhac)
+    if (loi.length) { out.push(rong(p, 'tu-choi', loi.join(' ; '))); continue }
+    daDung.add(neo.row.id)
+    out.push({ phieu: p, neo: neo.row, dau, ...d, trangThai: 'dat', lyDo: '' })
+  }
+  return out
+}

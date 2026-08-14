@@ -709,4 +709,12 @@ export interface Repo {
   exportAll(): Promise<BackupData>
   /** Ghi đè TOÀN BỘ dữ liệu bằng bản sao lưu (xóa hết rồi nhập lại). */
   importAll(data: BackupData): Promise<void>
+
+  // --- Nhập phiếu lương 給与明細 (Task 7) ---
+  /** Khoản thu trên Yucho, để neo phiếu lương. */
+  listYuchoIncome(accountId: string): Promise<
+    { id: string; occurred_on: string; amount: number; account_id: string; category_id: string | null }[]
+  >
+  /** Các dấu ghi chú `給与 …` đã có, để chống nhập trùng. */
+  listDauPhieuLuong(): Promise<string[]>
 }

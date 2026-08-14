@@ -9,6 +9,7 @@ dev-dist
 # Environment
 .env
 .env.local
+.env.demo
 *.local
 
 # Logs

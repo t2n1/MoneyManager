@@ -49,9 +49,14 @@ export interface FreshnessDetail {
 }
 
 export interface FreshnessSummary {
+  /** Gộp của cả nhóm — dùng cho chấm màu đứng đầu dòng. */
   tone: 'ok' | 'warn'
-  /** Dòng gộp ngắn, vd "Tỷ giá 3 giờ trước · Giá cổ phiếu hôm nay" */
-  line: string
+  /**
+   * Từng nguồn, theo thứ tự hiện. Cố ý KHÔNG kèm sẵn một chuỗi `line` đã nối:
+   * nối trước thì nơi hiện chỉ tô được một màu cho cả dòng, mà tone của mỗi nguồn
+   * một khác — người đọc thấy "Tỷ giá" nằm trong dòng hổ phách sẽ tưởng tỷ giá có
+   * vấn đề trong khi thủ phạm là nguồn khác.
+   */
   details: FreshnessDetail[]
 }
 
@@ -101,7 +106,6 @@ export function freshnessSummary(input: FreshnessInput): FreshnessSummary | null
 
   return {
     tone: details.some((d) => d.tone === 'warn') ? 'warn' : 'ok',
-    line: details.map((d) => `${d.label} ${d.age}`).join(' · '),
     details,
   }
 }

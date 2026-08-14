@@ -361,6 +361,20 @@ export function ReportsPage() {
             : 'nhiều năm'}
       </p>
 
+      {/* Tình trạng tỷ giá đứng NGAY DƯỚI tiêu đề, trên mọi dải điều khiển — giống trang
+          Tài sản. Trước đây hai khối này nằm dưới cả dải tab, dải kỳ, mũi chuyển kỳ và dải
+          tháng; bốn khối đó đều có điều kiện, nên gạt tab một cái là dòng tuổi tỷ giá nhảy
+          sang độ cao khác, trong cùng một trang có bốn chỗ đứng. Tỷ giá không đổi theo lát
+          đang xem, nên nó thuộc về đầu trang chứ không thuộc về khối nội dung.
+
+          Thứ tự thiếu-trước-cũ-sau giữ nguyên: thiếu hẳn tỷ giá là chuyện nặng hơn tỷ giá cũ. */}
+      {showMissingRate && (
+        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">
+          Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
+        </div>
+      )}
+      <DataFreshness summary={ratesFreshness} />
+
       {/* Tab nội dung đứng TRƯỚC mọi điều khiển kỳ, và luôn đủ 4 mục.
           Trước đây dải này nằm DƯỚI nút gạt Tháng|Năm và tự ẩn khi gạt sang Năm (vì 3/4
           tab chỉ tồn tại ở chế độ Tháng) — tức đổi kỳ là mất luôn thanh điều hướng, và
@@ -439,16 +453,6 @@ export function ReportsPage() {
           label="Chọn tháng xem báo cáo — số dưới mỗi tháng là tổng chi"
         />
       )}
-
-      {showMissingRate && (
-        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">
-          Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
-        </div>
-      )}
-
-      {/* Tuổi tỷ giá — mọi con số quy đổi trên trang này đều dựa vào nó. Đứng dưới cảnh
-          báo THIẾU tỷ giá ở trên: thiếu hẳn là chuyện nặng hơn cũ, nên nó lên trước. */}
-      <DataFreshness summary={ratesFreshness} />
 
       {/* Nội dung THÁNG */}
       {view === 'charts' && period === 'month' && (

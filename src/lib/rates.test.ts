@@ -4,7 +4,6 @@ import {
   convertFromBase,
   convertToBase,
   formatRateLine,
-  rateAgeDays,
   readRatesMeta,
   STALE_RATE_DAYS,
 } from './rates'
@@ -97,28 +96,11 @@ describe('convertBetween (base = JPY)', () => {
   })
 })
 
-describe('rateAgeDays', () => {
-  const DAY = 86_400_000
-  const NOW = 1_785_974_400_000 // 2026-08-06T00:00:00Z, mốc cố định
-
-  it('cùng thời điểm → 0 ngày', () => {
-    expect(rateAgeDays(NOW, NOW)).toBe(0)
-  })
-
-  it('gần 1 ngày nhưng chưa đủ → vẫn 0 (làm tròn xuống)', () => {
-    expect(rateAgeDays(NOW - DAY + 1, NOW)).toBe(0)
-  })
-
-  it('đúng 3 ngày → 3, chạm ngưỡng cảnh báo', () => {
-    expect(rateAgeDays(NOW - 3 * DAY, NOW)).toBe(3)
-  })
-
-  it('ngưỡng cảnh báo là 3 ngày', () => {
+// Phép thử `rateAgeDays` đã bỏ cùng với hàm đó — tuổi tỷ giá nay đo ở lib/freshness.ts
+// (xem freshness.test.ts). Giữ lại đúng con số ngưỡng, vì nó là thứ hai file cùng đọc.
+describe('ngưỡng tỷ giá cũ', () => {
+  it('là 3 ngày', () => {
     expect(STALE_RATE_DAYS).toBe(3)
-  })
-
-  it('mốc ở tương lai (đồng hồ máy lệch) → 0, không trả số âm', () => {
-    expect(rateAgeDays(NOW + 5 * DAY, NOW)).toBe(0)
   })
 })
 

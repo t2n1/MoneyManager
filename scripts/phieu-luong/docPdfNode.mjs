@@ -15,7 +15,6 @@ export async function docPdfNode(duongDan) {
     data: new Uint8Array(readFileSync(duongDan)),
     // PDF phieu luong ma hoa AES voi mat khau RONG
     password: '',
-    isEvalSupported: false,
   }).promise
   const page = await doc.getPage(1)
   const caoTrang = page.getViewport({ scale: 1 }).viewBox[3]

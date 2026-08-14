@@ -1,14 +1,14 @@
 // CHOT DI TRU — dieu kien BAT BUOC de duoc xoa boc.py.
 //
-// So ban TS voi phieu-luong.json do pypdf sinh. Phai 60/60 khop TUYET DOI tung con
+// So ban TS voi pypdf-chuan.json do pypdf sinh. Phai 60/60 khop TUYET DOI tung con
 // so. Khong dat thi KHONG xoa boc.py.
 //
-// boc.py DA BI XOA (commit 44c9253). De sinh lai ban chuan pypdf-chuan.json:
+// boc.py DA BI XOA (commit 44c9253). De sinh lai pypdf-chuan.json:
 //   git show 44c9253^:scripts/phieu-luong/boc.py > /tmp/boc.py
-//   python /tmp/boc.py "<thu muc>" -o /tmp/pypdf.json   (can pypdf: pip install pypdf)
+//   python /tmp/boc.py "<thu muc>" -o /tmp/pypdf-chuan.json   (can pypdf: pip install pypdf)
 //
 // Chay:
-//   node scripts/phieu-luong/chot-di-tru.mjs "<thu muc>" /tmp/pypdf.json
+//   node scripts/phieu-luong/chot-di-tru.mjs "<thu muc>" /tmp/pypdf-chuan.json
 import { readFileSync, readdirSync } from 'node:fs'
 import { docPdfNode } from './docPdfNode.mjs'
 
@@ -16,11 +16,15 @@ const { bocPhieu } = await import('../../src/features/phieu-luong/boc.ts')
 
 const [thuMuc, duongChuan] = process.argv.slice(2)
 if (!thuMuc || !duongChuan) {
-  console.error('Dung: node scripts/phieu-luong/chot-di-tru.mjs <thu-muc-pdf> <pypdf.json>')
+  console.error('Dung: node scripts/phieu-luong/chot-di-tru.mjs <thu-muc-pdf> <pypdf-chuan.json>')
   process.exit(1)
 }
 const chuan = JSON.parse(readFileSync(duongChuan, 'utf8'))
 const files = readdirSync(thuMuc).filter((f) => f.endsWith('.pdf')).sort()
+if (!files.length) {
+  console.error(`Khong tim thay file .pdf nao trong "${thuMuc}"`)
+  process.exit(1)
+}
 
 // So TUNG TRUONG, khong so ca doi tuong: pypdf dung snake_case, boc.ts dung camelCase.
 //

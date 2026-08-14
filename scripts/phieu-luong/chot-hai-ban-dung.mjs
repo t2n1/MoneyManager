@@ -14,43 +14,32 @@
 // 60/60 cua chot-di-tru.mjs la bang chung hop le cho ca duong di trinh duyet, du
 // chua tung chay qua DevTools that.
 //
-// Ban THUONG gia dinh moi truong da co san mot vai tinh nang JS ma trinh duyet hien
-// dai co nhung ban Node dang chay day CO THE chua co: Uint8Array.prototype.toHex,
-// Map/WeakMap.prototype.getOrInsertComputed, Math.sumPrecise, DOMMatrix. Ban
-// `legacy` tu polyfill nhung thu nay (vi no nham vao moi truong cu, ke ca Node);
-// ban THUONG thi khong, vi no gia dinh trinh duyet da co san. Cac polyfill toi
-// thieu duoi day CHI de ban THUONG chay duoc trong Node dang dung — chung phuc vu
-// bam van ban/dung luong/dan xuat khoa ma hoa, KHONG dung toi phep tinh toa do x,y,
-// va khong ton tai trong san pham chay that (trinh duyet that da co san).
+// KHONG co polyfill tu viet trong file nay. Ban THUONG dung 5 API JS ma Node dang
+// chay day (v24.14.1) chua co san: DOMMatrix, Uint8Array.prototype.toHex,
+// Map.prototype.getOrInsertComputed, WeakMap.prototype.getOrInsertComputed,
+// Math.sumPrecise — nhung ban `legacy` TU CAI polyfill CUA CHINH pdf.js cho CA 5 thu
+// nay ngay khi import (da do: truoc khi import legacy ca 5 deu `undefined`; ngay sau
+// khi import legacy ca 5 deu la `function`). Vi vay import ban `legacy` TRUOC ban
+// THUONG trong file nay — ban THUONG se ke thua dung polyfill CUA PDF.JS, khong
+// phai ban tu viet tay. Truoc ban sua nay, file co 4 polyfill tu viet (Map/WeakMap
+// dung chung 1 vong lap); mot lan sabotage Math.sumPrecise tra ve 0 cho thay pdf.js
+// dung that ham do (~230 loi RangeError khi doc that) nhung gate van in 60/60 —
+// nghia la polyfill tu viet che mat sai lech co the co O CHINH CAI HAM DUNG DE SO
+// SANH. Xoa polyfill tu viet la de tranh dung mot lan nua.
+//
+// Du con lai (khong sua duoc trong pham vi Node): gate nay chay qua
+// `build/pdf.worker.mjs` (ban KHONG minify, vi Node khong co Worker that nen pdf.js
+// tu rot ve "fake worker" chay ngay trong tien trinh, xem GlobalWorkerOptions trong
+// build/pdf.mjs). docPdfWeb.ts (trinh duyet) tro workerSrc toi
+// `build/pdf.worker.min.mjs` (ban DA minify) va chay qua Worker that. Cung mot ma
+// nguon, chi khac minify hay khong — khong anh huong toa do, nhung ghi lai de trung
+// thuc ve pham vi bang chung.
 //
 // Chay: node scripts/phieu-luong/chot-hai-ban-dung.mjs "C:/Users/TranTriNguyen/Downloads/Bang luong"
 import { readFileSync, readdirSync } from 'node:fs'
 
-// --- Polyfill toi thieu de ban PDFJS "THUONG" chay duoc trong Node (xem ghi chu tren) ---
-if (typeof globalThis.DOMMatrix === 'undefined') {
-  globalThis.DOMMatrix = class DOMMatrix {}
-}
-if (!Uint8Array.prototype.toHex) {
-  Uint8Array.prototype.toHex = function toHex() {
-    return Array.from(this, (b) => b.toString(16).padStart(2, '0')).join('')
-  }
-}
-for (const Coll of [Map, WeakMap]) {
-  if (!Coll.prototype.getOrInsertComputed) {
-    Coll.prototype.getOrInsertComputed = function getOrInsertComputed(key, taoGiaTri) {
-      if (!this.has(key)) this.set(key, taoGiaTri(key))
-      return this.get(key)
-    }
-  }
-}
-if (!Math.sumPrecise) {
-  Math.sumPrecise = (items) => {
-    let tong = 0
-    for (const n of items) tong += n
-    return tong
-  }
-}
-
+// Import legacy TRUOC: day la buoc cai polyfill (xem ghi chu tren), khong chi la
+// mot lan trich xuat.
 const pdfjsLegacy = await import('pdfjs-dist/legacy/build/pdf.mjs')
 const pdfjsThuong = await import('pdfjs-dist/build/pdf.mjs')
 const { bocPhieu } = await import('../../src/features/phieu-luong/boc.ts')
@@ -68,7 +57,6 @@ async function trichOChu(pdfjs, duongDan) {
     // PDF phieu luong ma hoa AES voi mat khau RONG
     password: '',
     useSystemFonts: false,
-    isEvalSupported: false,
   }).promise
   try {
     const page = await doc.getPage(1)
@@ -89,6 +77,11 @@ async function trichOChu(pdfjs, duongDan) {
 const boChuoi = (oChu) => oChu.map((o) => `${o.text}@${o.x.toFixed(3)},${o.y.toFixed(3)}`).join('|')
 
 const files = readdirSync(thuMuc).filter((f) => f.endsWith('.pdf')).sort()
+if (!files.length) {
+  console.error(`Khong tim thay file .pdf nao trong "${thuMuc}"`)
+  process.exit(1)
+}
+
 let khop = 0
 const lech = []
 for (const f of files) {

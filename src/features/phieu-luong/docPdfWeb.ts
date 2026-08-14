@@ -16,17 +16,15 @@ export async function docPdfWeb(file: File): Promise<OChu[]> {
   const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
-  // isEvalSupported: khong con trong kieu DocumentInitParameters cua ban pdfjs-dist
-  // dang cai, nhung van truyen de KHOP tuyet doi voi tuy chon cua docPdfNode.mjs va
-  // chot-hai-ban-dung.mjs. Tach thanh bien (khong phai object literal tai cho goi)
-  // de tranh loi "excess property" cua TS ma khong phai ep kieu `as any`.
-  const tuyChon = {
+  // useSystemFonts: false de PIN gia tri, vi mac dinh cua pdfjs la true trong
+  // trinh duyet (khac Node). Bang chung 60/60 cua chot-hai-ban-dung.mjs chi dung
+  // cho gia tri da pin nay — pin o day de code chay that KHOP voi gia tri da do.
+  const doc = await pdfjs.getDocument({
     data: new Uint8Array(await file.arrayBuffer()),
     // PDF phieu luong ma hoa AES voi mat khau RONG
     password: '',
-    isEvalSupported: false,
-  }
-  const doc = await pdfjs.getDocument(tuyChon).promise
+    useSystemFonts: false,
+  }).promise
   try {
     const page = await doc.getPage(1)
     const caoTrang = page.getViewport({ scale: 1 }).viewBox[3]

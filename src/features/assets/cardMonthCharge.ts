@@ -109,6 +109,55 @@ export function cardBillingRange({
   }
 }
 
+/**
+ * Số tiền THẬT SỰ bị rút vào ngày đến hạn của kỳ đang xem; null = app không biết.
+ *
+ * Panel sao kê in tổng QUẸT của kỳ rồi ngay dưới là dòng "Bị rút ngày …". Hai con
+ * số đó chỉ bằng nhau khi kỳ trước đã trả sạch: còn nợ cũ, hoặc có khoản "Điều
+ * chỉnh số nợ" (bị loại khỏi tổng quẹt nhưng VẪN nằm trong số bị rút), là chúng
+ * tách nhau ra — mà trước đây panel chỉ in số quẹt, nên người đọc nối ngày với số
+ * quẹt và tưởng đó là số sắp bị trừ khỏi tài khoản nguồn.
+ *
+ * Chỉ trả số cho ĐÚNG kỳ đến hạn kế tiếp: `cardStatementSplit` lùi số dư HÔM NAY về
+ * ngày chốt của riêng kỳ đó. Kỳ đã qua hay kỳ chưa tới không có mốc nào để lùi về
+ * — im lặng còn hơn in một số đoán bừa cạnh chữ "bị rút".
+ */
+export function statementDueAmount(
+  viewing: Pick<CardBillingRange, 'closeISO'> | null,
+  current: { closeISO: string | null; billed: number | null } | null | undefined,
+): number | null {
+  if (!viewing || current?.closeISO == null || current.billed == null) return null
+  return viewing.closeISO === current.closeISO ? current.billed : null
+}
+
+export interface CarriedDebtInput {
+  /** `statementDueAmount(...)` — số thật sự bị rút; null khi đang xem kỳ khác. */
+  dueAmount: number | null
+  /** `cardMonthCharge(...)` — tiền quẹt trong kỳ. */
+  charged: number
+  /** `cardMonthReconcileNet(...)` — dương = bớt nợ. */
+  reconcileNet: number
+}
+
+/**
+ * Nợ các kỳ TRƯỚC còn dồn lại trong số bị rút kỳ này; null khi chưa biết số bị rút.
+ *
+ * Có dòng này thì panel TỰ KIỂM được: `quẹt − khoản bù + nợ cũ` cộng đúng ra số bị
+ * rút, người đọc cộng tay lại được. Trước đó panel chỉ khẳng định "gồm cả nợ kỳ
+ * trước" mà không nói bao nhiêu — một câu không kiểm chứng được.
+ *
+ * Nợ mọc ngược vào kỳ mà `runCardAutopayCatchUp` đã đòi xong (nhập lùi, khôi phục
+ * sao lưu) không mất đi: nó dồn sang `billed` của kỳ kế tiếp và vẫn bị rút, chỉ
+ * muộn một kỳ. Đây là chỗ duy nhất nói ra điều đó.
+ *
+ * ÂM là trạng thái thật (trả dư ở kỳ trước) — KHÔNG kẹp về 0, kẹp là giấu mất một
+ * trạng thái có thật và phá luôn bất biến cộng-đúng ở trên.
+ */
+export function carriedDebt({ dueAmount, charged, reconcileNet }: CarriedDebtInput): number | null {
+  if (dueAmount == null) return null
+  return dueAmount - charged + reconcileNet
+}
+
 export interface MonthAdjustDateInput {
   /** Ngày đầu khoảng đang xem (`getMonthRange().start`). */
   rangeStartISO: string

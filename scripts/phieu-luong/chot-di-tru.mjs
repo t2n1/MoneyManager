@@ -3,8 +3,11 @@
 // So ban TS voi phieu-luong.json do pypdf sinh. Phai 60/60 khop TUYET DOI tung con
 // so. Khong dat thi KHONG xoa boc.py.
 //
+// boc.py DA BI XOA (commit 44c9253). De sinh lai ban chuan pypdf-chuan.json:
+//   git show 44c9253^:scripts/phieu-luong/boc.py > /tmp/boc.py
+//   python /tmp/boc.py "<thu muc>" -o /tmp/pypdf.json   (can pypdf: pip install pypdf)
+//
 // Chay:
-//   python scripts/phieu-luong/boc.py "<thu muc>" -o /tmp/pypdf.json   (ban chuan)
 //   node scripts/phieu-luong/chot-di-tru.mjs "<thu muc>" /tmp/pypdf.json
 import { readFileSync, readdirSync } from 'node:fs'
 import { docPdfNode } from './docPdfNode.mjs'

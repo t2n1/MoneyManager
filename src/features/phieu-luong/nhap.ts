@@ -1,5 +1,5 @@
 // Tang 2 — phan THUAN cua viec nhap phieu luong: map nhan, neo, dung dong.
-// Khong I/O, khong Supabase -> test duoc bang vitest (logic.test.mjs).
+// Khong I/O, khong Supabase -> test duoc bang vitest (nhap.test.ts).
 // Xem docs/superpowers/specs/2026-08-14-nhap-phieu-luong-design.md
 
 import type { Phieu } from './boc'

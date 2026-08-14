@@ -6,7 +6,7 @@
 import { useMemo } from 'react'
 import { useAccounts, useFundPrices, useFunds, useFundTrades } from '../../hooks/queries'
 import type { AccountRow, FundTradeRow } from '../../types/database.types'
-import { sessionNavs, type FundTrade } from './fundHoldings'
+import { asFundTrade, fundHoldingsFromTrades, sessionNavs } from './fundHoldings'
 import { buildFundPortfolio, type FundAccountTrades, type FundPortfolio } from './fundPortfolio'
 
 export interface FundInvestData {
@@ -14,6 +14,8 @@ export interface FundInvestData {
   accounts: AccountRow[]
   /** Tập đang được TÍNH — xem chú thích cùng tên ở useInvestData. */
   filtered: AccountRow[]
+  /** Tập số liệu thật sự tính trên đó — xem chú thích cùng tên ở useInvestData. */
+  shown: AccountRow[]
   /** Sổ lệnh của `filtered`, mới nhất trước. */
   trades: FundTradeRow[]
   portfolio: FundPortfolio
@@ -45,16 +47,10 @@ export function useFundInvestData(accountId?: string | null): FundInvestData {
     () => (accountId ? accounts.filter((a) => a.id === accountId) : accounts),
     [accounts, accountId],
   )
-  const shown = filtered.length > 0 ? filtered : accounts
-
-  const asFundTrade = (t: FundTradeRow): FundTrade => ({
-    assocFundCd: t.assoc_fund_cd,
-    kind: t.kind,
-    tradedOn: t.traded_on,
-    units: t.units,
-    nav: t.nav,
-    amount: t.amount,
-  })
+  const shown = useMemo(
+    () => (filtered.length > 0 ? filtered : accounts),
+    [filtered, accounts],
+  )
 
   const input: FundAccountTrades[] = useMemo(
     () =>
@@ -69,9 +65,15 @@ export function useFundInvestData(accountId?: string | null): FundInvestData {
   // Ngày phiên tính TRÊN QUỸ ĐANG GIỮ, không trên cả bảng giá: `fund_prices` chứa cả danh
   // bạ 8 quỹ, và một quỹ KHÔNG AI GIỮ đi trước một phiên sẽ làm mọi quỹ đang giữ trông
   // như "giá cũ", mỗi ngày, mãi mãi. Xem sessionNavs().
+  //
+  // "ĐANG GIỮ", KHÔNG phải "từng giao dịch": mã của một quỹ đã bán sạch nằm lại trong sổ
+  // lệnh vĩnh viễn, nên duyệt thẳng `acc.trades` là đưa nó trở lại tập — đúng cái lỗi
+  // sessionNavs sinh ra để chặn, chỉ đổi nguồn quỹ-không-ai-giữ từ danh bạ sang sổ lệnh.
+  // Cộng dồn từng tài khoản rồi mới hợp, cùng khuôn buildFundPortfolio.
   const heldCds = useMemo(() => {
     const set = new Set<string>()
-    for (const acc of input) for (const t of acc.trades) set.add(t.assocFundCd)
+    for (const acc of input)
+      for (const h of fundHoldingsFromTrades(acc.trades).holdings) set.add(h.assocFundCd)
     return [...set]
   }, [input])
 
@@ -109,6 +111,7 @@ export function useFundInvestData(accountId?: string | null): FundInvestData {
   return {
     accounts,
     filtered,
+    shown,
     trades,
     portfolio,
     session,

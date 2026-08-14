@@ -30,6 +30,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
   const {
     accounts,
     filtered,
+    shown,
     trades,
     portfolio: p,
     session,
@@ -48,8 +49,9 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
 
   const activeId = filtered.length === accounts.length ? null : (filtered[0]?.id ?? null)
 
+  /** `shown`, không `filtered` — xem chú thích cùng chỗ ở InvestStocksTab. */
   function startTrade() {
-    if (filtered.length === 1) setSheet({ accountId: filtered[0].id, trade: null })
+    if (shown.length === 1) setSheet({ accountId: shown[0].id, trade: null })
     else setPicking(true)
   }
 
@@ -284,7 +286,9 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
                     </p>
                     <p className="truncate text-2xs text-fg-muted">
                       {ngay(t.traded_on)}
-                      {filtered.length > 1 && ` · ${accountName(t.account_id)}`}
+                      {/* `shown`, không `filtered` — xem chú thích cùng chỗ ở
+                          InvestStocksTab. */}
+                      {shown.length > 1 && ` · ${accountName(t.account_id)}`}
                     </p>
                   </div>
                   <div className="shrink-0 text-right text-2xs text-fg-secondary">

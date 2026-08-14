@@ -11,8 +11,7 @@ import {
   useStockTrades,
 } from '../../hooks/queries'
 import type { AccountRow, StockTradeRow } from '../../types/database.types'
-import type { Trade } from './holdings'
-import { sessionPrices } from './holdings'
+import { asTrade, sessionPrices } from './holdings'
 import { buildPortfolio, type AccountTrades, type Portfolio } from './portfolio'
 
 export interface InvestData {
@@ -25,6 +24,17 @@ export interface InvestData {
    * biến mất ngay khi bấm vào một chip.
    */
   filtered: AccountRow[]
+  /**
+   * Tập tài khoản mà mọi con số bên dưới THẬT SỰ được tính trên đó: bằng `filtered`, trừ
+   * khi `filtered` rỗng (`?account=` trỏ tài khoản đã xoá/lưu trữ) thì rơi về `accounts`.
+   *
+   * Trả ra ngoài chứ không giữ riêng trong hook: nhãn tên tài khoản trên từng dòng lệnh
+   * và câu hỏi "ghi lệnh vào tài khoản nào" phải khoá theo ĐÚNG tập này. Khoá theo
+   * `filtered` thì với một `?account=` cũ, sổ lệnh trải mọi tài khoản mà không dòng nào
+   * nói mình thuộc tài khoản nào, còn nút Ghi lệnh thì mở thẳng vào một tài khoản người
+   * dùng không hề chọn.
+   */
+  shown: AccountRow[]
   /** Toàn bộ sổ lệnh của những tài khoản đó, mới nhất trước. */
   trades: StockTradeRow[]
   portfolio: Portfolio
@@ -58,7 +68,10 @@ export function useInvestData(accountId?: string | null): InvestData {
     () => (accountId ? accounts.filter((a) => a.id === accountId) : accounts),
     [accounts, accountId],
   )
-  const shown = filtered.length > 0 ? filtered : accounts
+  const shown = useMemo(
+    () => (filtered.length > 0 ? filtered : accounts),
+    [filtered, accounts],
+  )
 
   const { session, priceBySymbol, staleSymbols } = useMemo(
     () => sessionPrices(prices),
@@ -79,19 +92,7 @@ export function useInvestData(accountId?: string | null): InvestData {
       accountId: a.id,
       accountName: a.name,
       balance: balanceById.get(a.id) ?? 0,
-      trades: allTrades
-        .filter((t) => t.account_id === a.id)
-        .map(
-          (t): Trade => ({
-            symbol: t.symbol,
-            kind: t.kind,
-            tradedOn: t.traded_on,
-            quantity: t.quantity,
-            price: t.price,
-            fee: t.fee,
-            tax: t.tax,
-          }),
-        ),
+      trades: allTrades.filter((t) => t.account_id === a.id).map(asTrade),
     }))
     return buildPortfolio(input, priceBySymbol)
   }, [shown, balances, allTrades, priceBySymbol])
@@ -111,6 +112,7 @@ export function useInvestData(accountId?: string | null): InvestData {
   return {
     accounts,
     filtered,
+    shown,
     trades,
     portfolio,
     session,

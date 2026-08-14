@@ -25,8 +25,17 @@ interface Props {
 const VND = 'VND' as const
 
 export function InvestStocksTab({ accountId, onPickAccount }: Props) {
-  const { accounts, filtered, trades, portfolio, session, staleHeld, accountName, isLoading } =
-    useInvestData(accountId)
+  const {
+    accounts,
+    filtered,
+    shown,
+    trades,
+    portfolio,
+    session,
+    staleHeld,
+    accountName,
+    isLoading,
+  } = useInvestData(accountId)
   const activeId = filtered.length === accounts.length ? null : (filtered[0]?.id ?? null)
   const [sheet, setSheet] = useState<{ accountId: string; trade: StockTradeRow | null } | null>(
     null,
@@ -36,9 +45,15 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
   /** Đang hỏi ghi lệnh vào tài khoản nào (chỉ khi có nhiều hơn một). */
   const [picking, setPicking] = useState(false)
 
-  /** Một tài khoản thì mở thẳng; nhiều thì phải hỏi — đoán bừa là ghi nhầm sổ. */
+  /**
+   * Một tài khoản thì mở thẳng; nhiều thì phải hỏi — đoán bừa là ghi nhầm sổ.
+   *
+   * Hỏi `shown` chứ không `filtered`: `?account=` trỏ tài khoản đã xoá làm `filtered`
+   * rỗng trong khi số liệu bên dưới đang gộp mọi tài khoản, và `filtered.length === 1`
+   * lúc đó sai theo cả hai hướng.
+   */
   function startTrade() {
-    if (filtered.length === 1) setSheet({ accountId: filtered[0].id, trade: null })
+    if (shown.length === 1) setSheet({ accountId: shown[0].id, trade: null })
     else setPicking(true)
   }
 
@@ -52,11 +67,12 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
   const thanhCongCu = (
     <div className="flex items-center justify-between gap-2">
       <InvestAccountChips accounts={accounts} activeId={activeId} onPick={onPickAccount} />
-      {accounts.length > 0 && (
-        <ActionButton variant="primary" onClick={startTrade} className="ml-auto">
-          <Plus className="h-4 w-4" /> Ghi lệnh
-        </ActionButton>
-      )}
+      {/* Không cần `accounts.length > 0`: nhánh trạng thái rỗng ở trên đã trả về trước
+          khi tới đây. Tab quỹ cũng không có guard đó — để lệch nhau là mời người sau
+          "khôi phục" nó sang tab kia. */}
+      <ActionButton variant="primary" onClick={startTrade} className="ml-auto">
+        <Plus className="h-4 w-4" /> Ghi lệnh
+      </ActionButton>
     </div>
   )
 
@@ -288,7 +304,11 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
                       <span className="font-semibold text-fg-primary">{t.symbol}</span>
                       <span className="truncate text-2xs text-fg-muted">
                         {ngay(t.traded_on)}
-                        {filtered.length > 1 && ` · ${accountName(t.account_id)}`}
+                        {/* Khoá theo `shown` — tập mà những dòng này ĐANG được lấy ra —
+                            chứ không theo `filtered`: một `?account=` cũ làm `filtered`
+                            rỗng trong khi sổ lệnh dưới đây trải mọi tài khoản, và khi đó
+                            không dòng nào nói mình thuộc tài khoản nào. */}
+                        {shown.length > 1 && ` · ${accountName(t.account_id)}`}
                       </span>
                     </p>
                     {t.note && <p className="truncate text-2xs text-fg-muted">{t.note}</p>}

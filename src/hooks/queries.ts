@@ -433,20 +433,29 @@ export function useDeleteValuation() {
 
 // --- Cổ phiếu Việt Nam: bảng giá + sổ lệnh (migration 0035) ---
 
-export function useStockPrices() {
+/**
+ * `enabled` (cùng khuôn `useRangeTransactions`/`useTagSpend`) để màn nào KHÔNG phải màn
+ * đầu tư thì không tốn một lượt đọc cả bảng. Cần vì `useAccountPortfolio` chạy cho MỌI
+ * tài khoản của trang chi tiết: thiếu cổng này thì mở một cái ví tiền mặt cũng kéo về
+ * bảng giá và sổ lệnh — bốn truy vấn mà trước đợt gộp danh mục chỉ chạy trong hai khu
+ * danh mục (đã xoá), tức chỉ với tài khoản đầu tư.
+ */
+export function useStockPrices(enabled = true) {
   return useQuery({
     queryKey: ['stockPrices'],
     queryFn: () => repo.getStockPrices(),
     // Giá chỉ đổi sau khi sàn đóng cửa và cron chạy — 5 phút là dư sức tươi.
     staleTime: 5 * 60_000,
+    enabled,
   })
 }
 
-export function useStockTrades() {
+export function useStockTrades(enabled = true) {
   return useQuery({
     queryKey: ['stockTrades'],
     queryFn: () => repo.getStockTrades(),
     staleTime: 60_000,
+    enabled,
   })
 }
 
@@ -491,17 +500,20 @@ export function useFunds() {
   })
 }
 
-export function useFundPrices() {
+/** `enabled`: cùng lý do như `useStockPrices` — xem chú thích ở đó. */
+export function useFundPrices(enabled = true) {
   return useQuery({
     queryKey: ['fundPrices'],
     queryFn: () => repo.getFundPrices(),
+    enabled,
   })
 }
 
-export function useFundTrades() {
+export function useFundTrades(enabled = true) {
   return useQuery({
     queryKey: ['fundTrades'],
     queryFn: () => repo.getFundTrades(),
+    enabled,
   })
 }
 

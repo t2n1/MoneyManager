@@ -42,6 +42,7 @@ import { TransactionItem } from '../transactions/TransactionItem'
 import { CardMonthAdjustSheet } from './CardMonthAdjustSheet'
 import { cardBillingRange, cardMonthCharge, cardMonthReconcileNet } from './cardMonthCharge'
 import { depreciate } from './depreciation'
+import { ngay } from './investFormat'
 import { investmentStats } from './investment'
 import { PnlRow } from './PnlRow'
 import { shelterUsage, TAX_SHELTER_LABELS } from './shelter'
@@ -80,6 +81,7 @@ export function AccountDetailPage() {
   const invStats = investmentStats(balance, isInvestment ? (balanceRow?.market_value ?? null) : null)
   // Danh mục tính TẠI MÁY từ sổ lệnh + bảng giá, bằng đúng engine của trang Đầu tư.
   // `null` = tài khoản không có sổ lệnh (hoặc đã lưu trữ) → rơi về đường định giá nhập tay.
+  // `undefined` = CHƯA BIẾT, sổ lệnh còn đang bay — không được đoán về bên nào.
   const danhMuc = useAccountPortfolio(account)
 
   const todayISO = toISODate(new Date())
@@ -133,10 +135,15 @@ export function AccountDetailPage() {
   // với source='auto' và không có chỗ nào dọn — liệt kê cả chúng thì khu này là một danh
   // sách dài ra mỗi ngày, kèm nút xoá từng dòng, mà không ai chủ ý tạo ra. Hàng 'auto' vẫn
   // ở lại trong DB: tab Diễn biến dùng chính chúng để vẽ lịch sử tài sản ròng.
+  //
+  // Luật là `!== 'auto'`, KHÔNG phải `=== 'manual'`: migration 0035 thêm cột với
+  // `default 'manual'`, nên bản sao lưu xuất TRƯỚC nó không mang trường `source` nào cả.
+  // Lọc theo `=== 'manual'` là giấu sạch mọi định giá gõ tay của một bản khôi phục — kể
+  // cả trên tài sản cố định, nơi đây là con đường duy nhất.
   const accountValuations = useMemo(
     () =>
       valuations
-        .filter((v) => v.account_id === accountId && v.source === 'manual')
+        .filter((v) => v.account_id === accountId && v.source !== 'auto')
         .sort((a, b) => b.valued_on.localeCompare(a.valued_on)),
     [valuations, accountId],
   )
@@ -239,8 +246,11 @@ export function AccountDetailPage() {
               vẫn có thể khác null ngay trong lúc `marketValue` là null (không mã nào có
               giá). Hiện "giá phiên …" lúc đó là khoe một ngày cho một con số không tồn
               tại — phải đúng cả hai điều kiện mới đáng tin. */}
+          {/* `ngay()` (26/08/12) chứ không `dayMonthLabel` (08/12): bảng nhãn của spec
+              liệt "Ngày phiên" là một trong bốn thứ phải nói giống nhau ở hai màn, và
+              hai tab của /invest — cách một cú bấm "Xem →" — dùng dạng CÓ NĂM. */}
           {danhMuc?.session && danhMuc.marketValue != null && (
-            <span className="text-2xs text-fg-muted">giá phiên {dayMonthLabel(danhMuc.session)}</span>
+            <span className="text-2xs text-fg-muted">giá phiên {ngay(danhMuc.session)}</span>
           )}
         </div>
         {/* Tô màu vẫn theo `balance` (số sổ) chứ không theo con số đang hiện: với tài
@@ -258,7 +268,15 @@ export function AccountDetailPage() {
             <Money
               amount={
                 isInvestment
-                  ? (danhMuc?.marketValue ?? invStats.marketValue ?? balance)
+                  ? // CÓ sổ lệnh mà `marketValue` là null (tiền chưa mua âm, hoặc thiếu
+                    // giá mọi mã/quỹ) → SỐ DƯ SỔ, đúng chữ của spec. Không rơi về
+                    // `invStats.marketValue`: đó là một snapshot cũ, và câu ngay bên dưới
+                    // đang nói "chưa có giá cho mã nào đang giữ" — số lớn phía trên mà là
+                    // một ảnh chụp hôm nào đó thì hai dòng nói ngược nhau, lại KHÔNG có
+                    // EstimateMark nào báo là số ước tính.
+                    danhMuc
+                    ? (danhMuc.marketValue ?? balance)
+                    : (invStats.marketValue ?? balance)
                   : isFixed
                     ? // Định giá nhập tay thắng công thức khấu hao
                       (balanceRow?.market_value ?? dep?.currentValue ?? balance)
@@ -332,8 +350,15 @@ export function AccountDetailPage() {
 
         {/* Tài khoản đầu tư KHÔNG có sổ lệnh (loại tiền app chưa có bảng giá, hoặc chưa ghi
             lệnh nào): giữ nguyên đường định giá nhập tay — không còn cách nào khác để biết
-            giá trị. */}
-        {isInvestment && !danhMuc && (
+            giá trị.
+
+            `danhMuc === null` chứ không `!danhMuc`: `undefined` nghĩa là sổ lệnh còn đang
+            bay, và trong khoảng đó khối này KHÔNG được hiện. Nút "Cập nhật giá trị" nhấp
+            nháy trên một tài khoản do cron lo là đủ để ghi một hàng `source='manual'` —
+            `showValuation` là state riêng nên bảng nhập vẫn mở và vẫn gửi được sau khi số
+            đã chốt lại. Hàng tay thắng hàng auto cùng ngày, và Tổng tài sản tách khỏi
+            trang này. */}
+        {isInvestment && danhMuc === null && (
           <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-3 text-sm">
             <div className="flex items-center justify-between text-fg-muted">
               <span>Vốn gốc (đã bỏ vào)</span>

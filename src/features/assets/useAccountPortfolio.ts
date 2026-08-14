@@ -13,9 +13,9 @@ import {
   useStockTrades,
 } from '../../hooks/queries'
 import type { AccountRow } from '../../types/database.types'
-import { sessionNavs, type FundTrade } from './fundHoldings'
+import { asFundTrade, fundHoldingsFromTrades, sessionNavs } from './fundHoldings'
 import { buildFundPortfolio } from './fundPortfolio'
-import { sessionPrices, type Trade } from './holdings'
+import { asTrade, sessionPrices } from './holdings'
 import { buildPortfolio } from './portfolio'
 
 export type PortfolioKind = 'stocks' | 'funds'
@@ -55,14 +55,38 @@ export function portfolioKindOf(
   return null
 }
 
+/**
+ * `undefined` = CHƯA BIẾT (sổ lệnh/bảng giá còn đang bay). `null` = biết chắc tài khoản
+ * này không có sổ lệnh nào để tính.
+ *
+ * Phải tách hai trạng thái, không được nhập chung thành `null`: trên đường vào thẳng
+ * `/assets/account/:id`, `useAccounts` có thể về TRƯỚC `useStockTrades`. Nhập chung thì
+ * trong khoảng đó một tài khoản CÓ sổ lệnh hiện khối định giá nhập tay kèm nút "Cập nhật
+ * giá trị" — bấm trúng lúc đó là ghi một hàng `source='manual'` cho tài khoản do cron
+ * lo, và hàng tay luôn thắng hàng auto cùng ngày (view `account_balances`), nên Tổng tài
+ * sản lệch hẳn khỏi số tính tại máy. Đúng loại lệch mà cả đợt này sinh ra để chặn.
+ */
+export type AccountPortfolioState = AccountPortfolioSummary | null | undefined
+
 export function useAccountPortfolio(
   account: AccountRow | undefined,
-): AccountPortfolioSummary | null {
+): AccountPortfolioState {
+  // Chỉ tài khoản đầu tư mới cần bốn bảng này. Trang chi tiết gọi hook cho MỌI tài
+  // khoản, nên thiếu cổng này thì mở một cái ví tiền mặt cũng kéo về cả sổ lệnh lẫn
+  // bảng giá — đường mà đợt gộp danh mục không được phép chạm tới.
+  const laDauTu = account?.type === 'investment'
   const { data: balances = [] } = useAccountBalances()
-  const { data: stockTrades = [] } = useStockTrades()
-  const { data: prices = [] } = useStockPrices()
-  const { data: fundTrades = [] } = useFundTrades()
-  const { data: navRows = [] } = useFundPrices()
+  const { data: stockTrades = [], isLoading: dangTaiLenhCoPhieu } = useStockTrades(laDauTu)
+  const { data: prices = [], isLoading: dangTaiGiaCoPhieu } = useStockPrices(laDauTu)
+  const { data: fundTrades = [], isLoading: dangTaiLenhQuy } = useFundTrades(laDauTu)
+  const { data: navRows = [], isLoading: dangTaiGiaQuy } = useFundPrices(laDauTu)
+
+  // Gồm cả bảng giá chứ không chỉ sổ lệnh: sổ lệnh về trước mà giá chưa về thì
+  // `marketValue` là null và trang khẳng định "chưa có giá cho mã nào đang giữ" — một
+  // câu SAI, chỉ sống nửa giây, nhưng vẫn là câu sai. Bốn truy vấn bật/tắt cùng nhau nên
+  // chờ cả bốn không thêm trạng thái nào mới.
+  const dangTai =
+    laDauTu && (dangTaiLenhCoPhieu || dangTaiGiaCoPhieu || dangTaiLenhQuy || dangTaiGiaQuy)
 
   const soLenhCoPhieu = useMemo(
     () => (account ? stockTrades.filter((t) => t.account_id === account.id) : []),
@@ -84,15 +108,7 @@ export function useAccountPortfolio(
     // Số dư sổ là tham số brokerCash cần để ra "tiền chưa mua" — hook tự đọc, không bắt
     // trang gọi truyền vào như component Danh mục cổ phiếu cũ (đã xoá).
     const balance = balances.find((b) => b.id === account.id)?.balance ?? 0
-    const trades: Trade[] = soLenhCoPhieu.map((t) => ({
-      symbol: t.symbol,
-      kind: t.kind,
-      tradedOn: t.traded_on,
-      quantity: t.quantity,
-      price: t.price,
-      fee: t.fee,
-      tax: t.tax,
-    }))
+    const trades = soLenhCoPhieu.map(asTrade)
     const p = buildPortfolio(
       [{ accountId: account.id, accountName: account.name, balance, trades }],
       priceBySymbol,
@@ -110,17 +126,18 @@ export function useAccountPortfolio(
 
   const funds = useMemo(() => {
     if (kind !== 'funds' || !account) return null
-    const trades: FundTrade[] = soLenhQuy.map((t) => ({
-      assocFundCd: t.assoc_fund_cd,
-      kind: t.kind,
-      tradedOn: t.traded_on,
-      units: t.units,
-      nav: t.nav,
-      amount: t.amount,
-    }))
+    const trades = soLenhQuy.map(asFundTrade)
+    // Tham số thứ hai của sessionNavs là quỹ ĐANG GIỮ, không phải quỹ TỪNG GIAO DỊCH —
+    // xem giao kèo trên chính hàm đó. Lấy từ sổ lệnh thô thì một quỹ đã bán sạch (mã của
+    // nó nằm lại trong sổ vĩnh viễn) vẫn kéo ngày phiên theo mình: quỹ tài sản trong nước
+    // công bố 基準価額 sớm hơn quỹ nước ngoài một ngày, nên bán hết quỹ trong nước là mọi
+    // quỹ còn giữ rơi vào `staleFunds` mỗi ngày, mãi mãi. Và tệ hơn cho đợt này: tập của
+    // trang tài khoản là sổ lệnh MỘT tài khoản còn tập của tab là hợp mọi tài khoản, nên
+    // hai màn có thể in HAI ngày phiên khác nhau cho cùng một tài khoản.
+    const { holdings } = fundHoldingsFromTrades(trades)
     const { session, navByFund } = sessionNavs(
       navRows,
-      trades.map((t) => t.assocFundCd),
+      holdings.map((h) => h.assocFundCd),
     )
     const p = buildFundPortfolio(
       [{ accountId: account.id, accountName: account.name, trades }],
@@ -137,5 +154,8 @@ export function useAccountPortfolio(
     }
   }, [kind, account, navRows, soLenhQuy])
 
+  // Cổng CHỜ đặt sau hai useMemo, không đặt trước: hook không được đổi số lời gọi hook
+  // giữa hai lần render.
+  if (dangTai) return undefined
   return stocks ?? funds
 }

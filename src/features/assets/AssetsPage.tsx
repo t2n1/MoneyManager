@@ -1,6 +1,6 @@
 // Vỏ tab Tài sản — chia theo ba câu hỏi khác nhau mà trang này phải trả lời, thay vì
 // cuộn cả ba trong một mạch 780 dòng như trước:
-//   Hiện tại  — "giờ tôi có bao nhiêu"      (số dư, ròng, thẻ đến hạn, cơ cấu)
+//   Hiện tại  — "giờ tôi có bao nhiêu"      (số dư, thẻ đến hạn, ròng, cơ cấu)
 //   Diễn biến — "tôi đang tiến bộ không"    (lịch sử ròng, hiệu quả đầu tư, mục tiêu)
 //   Tương lai — "sau này thế nào"           (Lifetime)
 // Xem docs/information-architecture.md §2.3.

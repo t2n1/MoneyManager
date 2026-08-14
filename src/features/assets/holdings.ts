@@ -20,6 +20,45 @@ export interface Trade {
   tax: number
 }
 
+/**
+ * Hàng `stock_trades` → `Trade`.
+ *
+ * MỘT bản duy nhất, không phải vì gõ lại tốn công mà vì `tsc` chỉ bắt được trường
+ * THIẾU, không bắt được trường GÁN NHẦM: `price: t.nav` hay `quantity: t.units` vẫn là
+ * `number` nên biên dịch trôi qua, rồi giá vốn cả danh mục sai âm thầm. Bốn chỗ từng
+ * chép tay phép ánh xạ này (useInvestData, useAccountPortfolio, demoRepo, và bản quỹ
+ * song sinh) giờ gọi chung một hàm — sai thì sai ở đúng một chỗ, và sai giống nhau ở
+ * mọi màn, tức nhìn thấy được.
+ *
+ * Đặt ở file thuần này chứ không ở hook: `demoRepo` cũng cần nó, và nó không phải React.
+ *
+ * Tham số khai theo HÌNH DẠNG chứ không `import type { StockTradeRow }`: file này bị gói
+ * vào edge function qua serverBundle.ts, mà giao kèo ghi ngay ở đó là chỉ được xuất thứ
+ * THUẦN — kéo `database.types` vào là kéo cả cây kiểu của app. Thêm nữa `tsconfig.node`
+ * (dự án của `tests/`, module `nodenext`) đòi import tương đối phải có đuôi `.ts`, nên
+ * một import ở đây làm đỏ ngay `tests/nhapSaoKe.test.ts`. Không mất an toàn: nơi gọi
+ * truyền thẳng `StockTradeRow`, nên đổi tên một cột trong DB vẫn đỏ ở mọi nơi gọi.
+ */
+export function asTrade(t: {
+  symbol: string
+  kind: Trade['kind']
+  traded_on: string
+  quantity: number
+  price: number
+  fee: number
+  tax: number
+}): Trade {
+  return {
+    symbol: t.symbol,
+    kind: t.kind,
+    tradedOn: t.traded_on,
+    quantity: t.quantity,
+    price: t.price,
+    fee: t.fee,
+    tax: t.tax,
+  }
+}
+
 export interface Holding {
   symbol: string
   /** số cổ đang giữ (luôn > 0 — mã bán sạch không xuất hiện) */
@@ -177,6 +216,25 @@ export function sessionPrices(
   return { session, priceBySymbol, staleSymbols }
 }
 
+/**
+ * Tổng đáng tin của một danh mục cổ phiếu, hoặc `null` khi không đáng tin.
+ *
+ * Một chỗ DUY NHẤT giữ quy tắc này. `portfolioValue` (một tài khoản) và `buildPortfolio`
+ * (gộp nhiều tài khoản) đều gọi vào đây — trước đó `buildPortfolio` chép lại đúng biểu
+ * thức và tự ghi trong chú thích rằng nó "cùng hai điều kiện với portfolioValue", tức đã
+ * biết mình là bản sao. Bản sao biết mình là bản sao vẫn là bản sao.
+ *
+ * Quỹ Nhật KHÔNG dùng hàm này: tài khoản quỹ không giữ tiền nhàn rỗi nên `fundValue` chỉ
+ * có nhánh `allMissing`, không có nhánh `cash < 0`.
+ */
+export function reliableTotal(
+  stockValue: number,
+  cash: number,
+  allMissing: boolean,
+): number | null {
+  return cash < 0 || allMissing ? null : stockValue + cash
+}
+
 export function portfolioValue(
   holdings: Holding[],
   priceBySymbol: Map<string, number>,
@@ -196,7 +254,7 @@ export function portfolioValue(
   }
 
   const allMissing = holdings.length > 0 && missingPrices.length === holdings.length
-  const marketValue = cash < 0 || allMissing ? null : stockValue + cash
+  const marketValue = reliableTotal(stockValue, cash, allMissing)
 
   return { marketValue, stockValue, cash, missingPrices }
 }

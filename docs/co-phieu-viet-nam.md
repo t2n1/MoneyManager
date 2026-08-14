@@ -3,8 +3,14 @@
 Edge function `stock-refresh` chạy mỗi chiều sau khi sàn Việt Nam đóng cửa, làm
 hai việc: (1) hút giá mới nhất cho các mã đã từng giao dịch và ghi vào
 `stock_prices`, (2) tính lại giá trị thị trường của từng tài khoản có sổ lệnh và ghi
-vào `account_valuations` — bảng mà cả app (tổng tài sản, lãi/lỗ chưa thực hiện, XIRR,
-biểu đồ, thông báo) đã đọc sẵn từ trước, nên không cần sửa gì ở phía đọc.
+vào `account_valuations` — bảng mà cả app (tổng tài sản, "Lãi/lỗ đầu tư (gồm đã bán)",
+XIRR, biểu đồ, thông báo) đã đọc sẵn từ trước, nên không cần sửa gì ở phía đọc.
+
+Nhãn đó **không** còn là "lãi/lỗ chưa thực hiện": quyết định 7 của
+`docs/superpowers/specs/2026-08-13-gop-trang-dau-tu-design.md` đã cho thấy
+`market_value − balance` là **tổng** lời/lỗ, gồm cả phần đã bán (tiền bán đã về
+`brokerCash` nên nằm trong `market_value`), và đã bỏ chữ "chưa thực hiện" ở tab Hiện tại.
+Lời/lỗ **chưa bán** thật sự thì tính tại máy từ sổ lệnh, ở hai tab của `/invest`.
 
 ## Đã đổi nguồn giá: SSI → Yahoo Finance
 
@@ -92,8 +98,8 @@ Xem hệ quả ở dòng `gia-le-phien-cu` trong bảng lý do dưới.
 ### Tên công ty: chuyển sang danh sách tĩnh
 
 Yahoo không trả tên công ty (SSI có, qua `companyNameVi`). Ô gợi ý mã khi ghi lệnh
-(`TradeFormSheet`) và tên công ty hiển thị ở Danh mục (`HoldingsSection`) đọc từ danh
-sách tĩnh [`src/features/assets/hoseSymbols.ts`](../src/features/assets/hoseSymbols.ts)
+(`TradeFormSheet`) và tên công ty hiển thị ở tab "Cổ phiếu VN" (`InvestStocksTab`, trong
+`/invest`) đọc từ danh sách tĩnh [`src/features/assets/hoseSymbols.ts`](../src/features/assets/hoseSymbols.ts)
 — 403 mã HOSE (mã + tên), hút một lần từ máy cá nhân bằng
 [`scripts/harvest-hose-symbols.mjs`](../scripts/harvest-hose-symbols.mjs) (script đó
 vẫn gọi SSI vì SSI vẫn có danh sách mã cả sàn; script này chạy TAY, không phải ở edge

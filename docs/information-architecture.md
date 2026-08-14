@@ -100,18 +100,19 @@ ngân sách, hạn mức từng danh mục lá, `MonthPaceCharts`, `SpendPaceSec
 Màn con vào từ tab này: `/assets/account/:accountId` (chi tiết TK), `/assets/groups` (nhóm
 tài sản), `/debts` + `/debts/:debtId` (Nợ/cho vay).
 
-Trang chi tiết tài khoản (`/assets/account/:accountId`) tự hiện thêm một khu theo loại
-tài khoản, ngay dưới khối "Số dư hiện tại" — cả hai loại trừ nhau qua tiền tệ, không có
-tài khoản nào hiện cả hai:
+Trang chi tiết tài khoản **không** hiện danh mục. Mọi câu "đang giữ gì" gom về `/invest`,
+hai tab:
 
-- **Khu "Danh mục"** (`HoldingsSection`) — tài khoản đầu tư tiền **VND**: danh mục cổ
-  phiếu Việt Nam, dựng từ `stock_trades` (xem [`co-phieu-viet-nam.md`](co-phieu-viet-nam.md)).
-- **Khu "Danh mục quỹ"** (`FundHoldingsSection`) — tài khoản đầu tư tiền **JPY**: danh
-  mục quỹ đầu tư Nhật (NISA), dựng từ `fund_trades` (xem [`quy-nhat.md`](quy-nhat.md)).
-  Khác khu "Danh mục" ở hai chỗ: không có dòng "Tiền chưa đầu tư" (Rakuten tự quét sạch
-  tiền dư, tài khoản không giữ tiền nhàn rỗi), và lãi/lỗ hiện ở đây tính từ giá vốn của
-  **sổ lệnh** nên luôn khớp app Rakuten — khác ô "Hiệu quả đầu tư" ở đầu trang (tính từ
-  số dư sổ, có thể không khớp nếu sổ thu chi thiếu giao dịch nạp/rút).
+- **Tab "Cổ phiếu VN"** (`InvestStocksTab`) — gộp mọi tài khoản đầu tư tiền **VND**, dựng
+  từ `stock_trades` (xem [`co-phieu-viet-nam.md`](co-phieu-viet-nam.md)).
+- **Tab "Quỹ Nhật"** (`InvestFundsTab`) — gộp mọi tài khoản đầu tư tiền **JPY**, dựng từ
+  `fund_trades` (xem [`quy-nhat.md`](quy-nhat.md)). Khác tab cổ phiếu ở chỗ không có dòng
+  "Tiền chưa mua" (Rakuten quét sạch tiền dư) và đơn giá là ¥/10.000口.
+
+Tab nằm trong URL (`?tab=stocks|funds`), kèm `?account=<id>` để lọc về một tài khoản. Trang
+chi tiết tài khoản đầu tư chỉ còn ba dòng tóm tắt (giá trị hiện tại · lời/lỗ chưa bán ·
+link sang tab đã lọc), tính bằng **cùng engine** với tab qua `useAccountPortfolio` — xem
+[spec đợt gộp](superpowers/specs/2026-08-13-gop-trang-dau-tu-design.md).
 
 `LifetimeSection` (teaser 45 dòng trên trang Tài sản) **bị bỏ** — nó tồn tại chỉ để làm cửa
 vào cho một màn không có nav, mà bây giờ màn đó đã có nhãn tab riêng.

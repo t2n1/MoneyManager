@@ -37,6 +37,30 @@ export interface FundTrade {
   amount: number
 }
 
+/**
+ * Hàng `fund_trades` → `FundTrade`. Bản song sinh của `asTrade` bên holdings.ts — đọc cả
+ * lý do gộp về một bản lẫn lý do khai tham số theo HÌNH DẠNG ở đó. Riêng bản quỹ còn một
+ * cái bẫy nữa: `nav` và `amount` đều là yên và đều là `number`, nên đảo hai trường cho ra
+ * một giá vốn sai gấp cả vạn lần mà `tsc` im lặng.
+ */
+export function asFundTrade(t: {
+  assoc_fund_cd: string
+  kind: FundTrade['kind']
+  traded_on: string
+  units: number
+  nav: number
+  amount: number
+}): FundTrade {
+  return {
+    assocFundCd: t.assoc_fund_cd,
+    kind: t.kind,
+    tradedOn: t.traded_on,
+    units: t.units,
+    nav: t.nav,
+    amount: t.amount,
+  }
+}
+
 export interface FundHolding {
   assocFundCd: string
   /** 口数 đang giữ (luôn > 0 — quỹ bán sạch không xuất hiện) */
@@ -88,16 +112,20 @@ function thuTuTrongNgay(t: FundTrade): number {
   return t.kind === 'buy' ? 0 : t.kind === 'adjust' ? 1 : 2
 }
 
-/** 取得単価: yên trên 10.000 口, làm tròn về số nguyên như Rakuten hiện. */
-function avgNavOf(costBasis: number, units: number): number {
+/**
+ * 取得単価 = giá vốn trên 10.000 口. Xuất ra vì `buildFundPortfolio` cần đúng công thức
+ * này cho dòng ĐÃ GỘP nhiều tài khoản — viết lại ở đó là mời một lần sửa cách làm tròn
+ * chỉ trúng một chỗ.
+ */
+export function avgNavOf(costBasis: number, units: number): number {
   return units > 0 ? Math.round((costBasis / units) * NAV_UNITS) : 0
 }
 
 /**
  * Giá trị một dòng quỹ: 口数 × 基準価額 ÷ 10.000, làm tròn. ĐÚNG MỘT chỗ chia — mọi nơi
- * khác cần số này (FundHoldingsSection hiện từng dòng, FundTradeFormSheet gợi ý Số tiền,
- * `fundValue` dưới đây tính tổng) đều gọi lại hàm này, không viết lại công thức. Viết
- * lại ở nơi khác là mời một lần sửa NAV_UNITS hay cách làm tròn chỉ trúng một chỗ.
+ * khác cần số này (FundTradeFormSheet gợi ý Số tiền, `fundValue` dưới đây tính tổng) đều
+ * gọi lại hàm này, không viết lại công thức. Viết lại ở nơi khác là mời một lần sửa
+ * NAV_UNITS hay cách làm tròn chỉ trúng một chỗ.
  */
 export function fundLineValue(units: number, nav: number): number {
   return Math.round((units * nav) / NAV_UNITS)

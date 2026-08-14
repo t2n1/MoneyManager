@@ -62,6 +62,9 @@ function sessionPrices(rows) {
   }
   return { session, priceBySymbol, staleSymbols };
 }
+function reliableTotal(stockValue, cash, allMissing) {
+  return cash < 0 || allMissing ? null : stockValue + cash;
+}
 function portfolioValue(holdings, priceBySymbol, cash) {
   let stockValue = 0;
   const missingPrices = [];
@@ -75,7 +78,7 @@ function portfolioValue(holdings, priceBySymbol, cash) {
     }
   }
   const allMissing = holdings.length > 0 && missingPrices.length === holdings.length;
-  const marketValue = cash < 0 || allMissing ? null : stockValue + cash;
+  const marketValue = reliableTotal(stockValue, cash, allMissing);
   return { marketValue, stockValue, cash, missingPrices };
 }
 

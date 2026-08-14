@@ -236,12 +236,12 @@ describe('assetBreakdown — tài khoản đầu tư (type=investment)', () => {
     ]
     const r = assetBreakdown(balances, 'JPY', RATES)
     expect(r.total).toBe(1_100_000) // đầu tư tính bằng vốn gốc khi chưa có giá
-    expect(r.unrealizedPnl).toBe(0)
+    expect(r.totalPnl).toBe(0)
     expect(r.pnlHasMissingRate).toBe(false)
     const inv = r.groups.find((g) => g.name === 'Đầu tư')!.accounts[0]
     expect(inv.value).toBe(1_000_000)
     expect(inv.marketValue).toBeNull()
-    expect(inv.unrealizedPnlBase).toBeNull()
+    expect(inv.totalPnlBase).toBeNull()
   })
 
   it('đã cập nhật giá: Tổng tài sản dùng giá thị trường, lãi/lỗ = giá − vốn gốc', () => {
@@ -251,11 +251,11 @@ describe('assetBreakdown — tài khoản đầu tư (type=investment)', () => {
     ]
     const r = assetBreakdown(balances, 'JPY', RATES)
     expect(r.total).toBe(1_350_000) // 100.000 + 1.250.000 (giá thị trường)
-    expect(r.unrealizedPnl).toBe(250_000)
+    expect(r.totalPnl).toBe(250_000)
     const inv = r.groups.find((g) => g.name === 'Đầu tư')!.accounts[0]
     expect(inv.value).toBe(1_250_000)
     expect(inv.marketValue).toBe(1_250_000)
-    expect(inv.unrealizedPnlBase).toBe(250_000)
+    expect(inv.totalPnlBase).toBe(250_000)
   })
 
   it('lỗ chưa thực hiện: giá thị trường < vốn gốc', () => {
@@ -264,7 +264,7 @@ describe('assetBreakdown — tài khoản đầu tư (type=investment)', () => {
     ]
     const r = assetBreakdown(balances, 'JPY', RATES)
     expect(r.total).toBe(900_000)
-    expect(r.unrealizedPnl).toBe(-100_000)
+    expect(r.totalPnl).toBe(-100_000)
   })
 
   it('đầu tư ngoại tệ: quy đổi cả giá & vốn gốc về base rồi tính lãi/lỗ', () => {
@@ -274,7 +274,7 @@ describe('assetBreakdown — tài khoản đầu tư (type=investment)', () => {
     ]
     const r = assetBreakdown(balances, 'JPY', RATES)
     expect(r.total).toBe(12_000)
-    expect(r.unrealizedPnl).toBe(2_000)
+    expect(r.totalPnl).toBe(2_000)
     expect(r.hasForeign).toBe(true)
   })
 
@@ -287,7 +287,7 @@ describe('assetBreakdown — tài khoản đầu tư (type=investment)', () => {
     expect(r.total).toBe(100_000) // đầu tư USD không quy đổi được → không cộng
     expect(r.hasMissingRate).toBe(true)
     expect(r.pnlHasMissingRate).toBe(true)
-    expect(r.unrealizedPnl).toBe(0)
+    expect(r.totalPnl).toBe(0)
   })
 
   it('đầu tư ẩn: không cộng vào tổng lẫn lãi/lỗ', () => {
@@ -297,7 +297,7 @@ describe('assetBreakdown — tài khoản đầu tư (type=investment)', () => {
     ]
     const r = assetBreakdown(balances, 'JPY', RATES)
     expect(r.total).toBe(100_000)
-    expect(r.unrealizedPnl).toBe(0)
+    expect(r.totalPnl).toBe(0)
   })
 })
 

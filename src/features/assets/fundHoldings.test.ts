@@ -215,9 +215,10 @@ describe('fundHoldingsFromTrades', () => {
 })
 
 describe('fundLineValue', () => {
-  // Đây là phép chia 10.000 DUY NHẤT của cả tính năng — FundHoldingsSection và
-  // FundTradeFormSheet gọi lại đúng hàm này thay vì viết lại công thức. Hai con số dưới
-  // khớp từng yên với ảnh chụp app Rakuten ngày 2026-08-12 (xem describe('fundValue')).
+  // Đây là phép chia 10.000 DUY NHẤT của cả tính năng — mọi nơi cần giá trị dòng quỹ
+  // (FundTradeFormSheet, trang Đầu tư) gọi lại đúng hàm này thay vì viết lại công thức.
+  // Hai con số dưới khớp từng yên với ảnh chụp app Rakuten ngày 2026-08-12
+  // (xem describe('fundValue')).
   it('28.429 口 ở 基準価額 20.053 → 57.009 ¥', () => {
     expect(fundLineValue(28_429, 20_053)).toBe(57_009)
   })

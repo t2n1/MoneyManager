@@ -1,13 +1,11 @@
-// Tang 2 — ghi phieu luong da boc (phieu-luong.json) vao so.
+// Tang 2 — tu boc phieu luong tu thu muc PDF roi ghi vao so.
 // Xem docs/superpowers/specs/2026-08-14-nhap-phieu-luong-design.md
 //
 // Chay:
-//   node scripts/phieu-luong/boc.py <thu-muc-pdf> -o phieu-luong.json   (tang 1, Python)
-//
-//   node scripts/nhap-phieu-luong.mjs phieu-luong.json                  xem truoc
-//   node scripts/nhap-phieu-luong.mjs phieu-luong.json --ghi            ghi that
-//   node scripts/nhap-phieu-luong.mjs phieu-luong.json --go             go lo nhap
-//   node scripts/nhap-phieu-luong.mjs --tao-danh-muc                    tao 6 danh muc
+//   node scripts/nhap-phieu-luong.mjs "<thu-muc-pdf>"           xem truoc
+//   node scripts/nhap-phieu-luong.mjs "<thu-muc-pdf>" --ghi     ghi that
+//   node scripts/nhap-phieu-luong.mjs --go                      go lo nhap
+//   node scripts/nhap-phieu-luong.mjs --tao-danh-muc            tao 6 danh muc
 //
 // KHOA — vi sao KHONG dung SUPABASE_SERVICE_ROLE_KEY nhu nhap-sao-ke-rakuten.mjs:
 // `transactions` chi co policy "own rows" (auth.uid() = user_id), khong co bang phu
@@ -30,15 +28,10 @@ import { readFileSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { stdin, stdout } from 'node:process'
 import { createClient } from '@supabase/supabase-js'
-import {
-  DANH_MUC_THUE_CHA,
-  DANH_MUC_THUE_CON,
-  dauGhiChu,
-  dungDong,
-  gomTrung,
-  kiemDong,
-  timNeo,
-} from './phieu-luong/logic.mjs'
+const { DANH_MUC_THUE_CHA, DANH_MUC_THUE_CON, dauGhiChu, dungDong, gomTrung, kiemDong, timNeo } =
+  await import('../src/features/phieu-luong/nhap.ts')
+const { bocPhieu } = await import('../src/features/phieu-luong/boc.ts')
+const { docPdfNode } = await import('./phieu-luong/docPdfNode.mjs')
 
 const TEN_YUCHO = /yucho/i
 const DAU_TIEN_TO = '給与 '
@@ -274,9 +267,22 @@ async function main() {
 
   if (co('--tao-danh-muc')) return taoDanhMuc(sb, ghi)
   if (co('--go')) return goLoNhap(sb, ghi)
-  if (!duong) thoat('Thieu duong dan phieu-luong.json. Xem dau file de biet cach chay.')
+  if (!duong) thoat('Thieu duong dan thu muc PDF. Xem dau file de biet cach chay.')
 
-  const phieuList = JSON.parse(readFileSync(duong, 'utf8'))
+  // Nhan THU MUC PDF, tu boc — khong con buoc trung gian phieu-luong.json.
+  const { readdirSync, statSync } = await import('node:fs')
+  if (!statSync(duong).isDirectory()) thoat(`Khong phai thu muc: ${duong}`)
+  const tenFiles = readdirSync(duong).filter((f) => f.endsWith('.pdf')).sort()
+  if (tenFiles.length === 0) thoat(`Khong co file .pdf nao trong ${duong}`)
+  const phieuList = []
+  for (const f of tenFiles) {
+    try {
+      phieuList.push(bocPhieu(await docPdfNode(`${duong}/${f}`), f))
+    } catch (e) {
+      phieuList.push({ file: f, loi: [`doc PDF loi: ${e.message}`], tru: {}, ngoaiTong: {} })
+    }
+  }
+  console.log(`Da boc ${phieuList.length} file tu ${duong}`)
   const so = await taiSo(sb)
 
   // Chot 1 — du danh muc theo dung TEN.

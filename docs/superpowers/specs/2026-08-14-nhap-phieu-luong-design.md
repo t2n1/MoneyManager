@@ -260,8 +260,21 @@ chỉ-thêm nào trung hoà được số dư ở đây (cần income âm), nên
 
 Bài học: một bất biến đúng vẫn có thể vô nghĩa nếu không kiểm dấu.
 
-Tổng thực tế (đã chạy thử trên dữ liệu thật): **54 phiếu → 54 dòng thu + 267 dòng
-chi = 321 dòng**, 1 phiếu bị từ chối. Tổng thay đổi số dư: **0 ¥**.
+Tổng thực tế (đã chạy thử trên dữ liệu thật, 60 file → 59 phiếu phân biệt):
+**58 phiếu → 58 dòng thu + 286 dòng chi = 344 dòng**, 1 phiếu bị từ chối
+(`202312K`). Tổng thay đổi số dư: **0 ¥**.
+
+### Chốt 0 — gom file trùng, chạy TRƯỚC phép neo
+
+Thư mục thật có cả `(0101)202608K.pdf` lẫn `(0101)202608K (1).pdf` — **trùng byte**
+(cùng SHA256). Không có chốt này thì file thứ hai bị **chốt neo** từ chối với thông
+điệp *"không thấy khoản thu Yucho = 388691"*, vì file đầu đã chiếm khoản neo. Thông
+điệp đó dẫn người đọc đi sửa **sai chỗ**: vấn đề là file trùng, không phải thiếu
+khoản thu.
+
+Gom theo `(empno, period, kind)`. Trùng y hệt nội dung tài chính → giữ một bản, báo
+đã gộp. Khác nội dung → **từ chối cả nhóm**: script không được đoán file nào là bản
+thật. Lương và thưởng cùng kỳ không bị coi là trùng (khác `kind`).
 
 ## Sáu chốt chặn trước khi ghi
 
@@ -306,29 +319,37 @@ tương đương trên gộp là khoảng **60/25/15**. Sau import phải đặt
 ([`HealthView.tsx:61`](../../../src/features/health/HealthView.tsx)).
 `month_start_day = 1` (đã kiểm profile) → cửa sổ hiện tại là **2025/08 → 2026/07**.
 
-- Chỉ **10** trong 55 phiếu tác động lên chỉ số Thuế & An sinh. 45 phiếu còn lại cải
+- Chỉ **14** trong 59 phiếu tác động lên chỉ số Thuế & An sinh. 45 phiếu còn lại cải
   thiện báo cáo từng tháng và Cơ cấu chi — giá trị thật, nhưng khác giá trị đó.
 - **Tháng 8/2026 bị loại** vì đang chạy dở. Nhập xong phiếu tháng 8, thẻ vẫn hiện
   `—` cho tới sang tháng 9.
-- Con số sẽ đọc ra: `962.538 / 6.113.177` = **15,7%**.
+- Con số sẽ đọc ra: `1.320.099 / 6.470.738` = **20,4%**.
+
+Cửa sổ hiện **kín hoàn toàn**: đủ cả 14 lần trả lương (12 lương tháng + 2 thưởng),
+sau khi bổ sung `2025/08K`, `2025/08S`, `2025/09K`, `2025/10K`.
 
 ## Khoảng trống đã biết
 
-**10 khoản lương trong sổ không có PDF**, 4 trong số đó nằm trong cửa sổ 12 tháng:
+**6 khoản lương trong sổ không có PDF, tất cả NGOÀI cửa sổ 12 tháng:**
 
 | Ngày | Số | |
 |---|---|---|
-| 2021-12-09 | 248,765 | trước kỳ PDF sớm nhất |
+| 2021-12-09 | 248,765 | trước kỳ PDF sớm nhất (2022/02) |
 | 2022-01-07 | 687,586 | trước kỳ PDF sớm nhất |
-| 2025-04-10 → 2025-07-10 | 4 khoản | ngoài cửa sổ |
-| **2025-08-08** | **675,671** | **trong cửa sổ** |
-| **2025-08-29** | **324,984** | **trong cửa sổ — 賞与** |
-| **2025-09-10** | **317,631** | **trong cửa sổ** |
-| **2025-10-10** | **286,330** | **trong cửa sổ** |
+| 2025-04-10 | 357,716 | khoảng trống |
+| 2025-05-09 | 414,193 | khoảng trống |
+| 2025-06-10 | 326,616 | khoảng trống |
+| 2025-07-10 | 303,240 | khoảng trống |
 
-Net của chúng vào mẫu số mà khấu trừ không vào tử số → chỉ số đọc **thấp hơn thật
-chừng 6 điểm** (15,7% thay vì ~22%). Có thêm 4 PDF đó thì chạy lại script; chốt số
-4 chống nhập trùng nên thêm file sau không phá gì.
+Chúng chỉ làm báo cáo *các tháng đó* thiếu phần thuế, **không** ảnh hưởng chỉ số
+Thuế & An sinh. Có thêm PDF thì chạy lại script — chốt số 4 chống nhập trùng nên
+thêm file sau không phá gì.
+
+Ngoài ra `2022-09-20 · 1.400 ¥` (`振込（株）コメ`) quá nhỏ để là phiếu lương — chuyển
+khoản lẻ từ công ty, không có phiếu và không cần.
+
+Đối chiếu khép kín trên toàn bộ lịch sử Yucho: **66 khoản thu = 59 phiếu neo được +
+6 khoản thiếu PDF + 1 khoản lẻ**.
 
 ## Kiểm thử
 

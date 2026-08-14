@@ -35,6 +35,7 @@ import {
   DANH_MUC_THUE_CON,
   dauGhiChu,
   dungDong,
+  gomTrung,
   kiemDong,
   timNeo,
 } from './phieu-luong/logic.mjs'
@@ -187,7 +188,14 @@ function dungKeHoach(phieuList, so) {
   const ok = []
   const boQua = []
 
-  for (const p of phieuList) {
+  // Chot 0 — gom file trung TRUOC khi neo, neu khong chot neo se bao sai nguyen nhan.
+  const trung = gomTrung(phieuList)
+  for (const g of trung.boQua) boQua.push({ p: { file: g.files.join(' + ') }, ly_do: g.ly_do })
+  for (const g of trung.daGop) {
+    console.log(`  i trung byte, gop lam mot: ${g.files.join(' = ')}`)
+  }
+
+  for (const p of trung.giu) {
     if (p.loi?.length) {
       boQua.push({ p, ly_do: `tang 1 bao loi: ${p.loi.join(' ; ')}` })
       continue

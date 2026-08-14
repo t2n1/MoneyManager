@@ -5,6 +5,7 @@ import {
   dungDong,
   kiemDong,
   mapNhan,
+  gomTrung,
   timNeo,
 } from './logic.mjs'
 
@@ -224,6 +225,39 @@ describe('社内販売精算 — 202601K', () => {
     // Van bang khong: no thuoc 控除合計額 nen phai nam trong tong.
     expect(thu.amount).toBe(108146)
     expect(kiemDong(P, thu, chi)).toEqual([])
+  })
+})
+
+describe('gomTrung — file trung trong thu muc', () => {
+  const A = { ...P202608, file: '(0101)202608K.pdf', empno: '0101' }
+  const B = { ...P202608, file: '(0101)202608K (1).pdf', empno: '0101' }
+
+  // Ca that: thu muc co ca hai, TRUNG BYTE (cung SHA256).
+  it('trung y het noi dung -> giu mot ban, bao da gop', () => {
+    const r = gomTrung([A, B])
+    expect(r.giu).toHaveLength(1)
+    expect(r.daGop).toHaveLength(1)
+    expect(r.daGop[0].files).toEqual([A.file, B.file])
+    expect(r.boQua).toHaveLength(0)
+  })
+
+  it('cung ky nhung noi dung KHAC -> tu choi ca nhom, khong doan', () => {
+    const r = gomTrung([A, { ...B, net: 999999 }])
+    expect(r.giu).toHaveLength(0)
+    expect(r.boQua).toHaveLength(1)
+    expect(r.boQua[0].ly_do).toMatch(/NOI DUNG KHAC NHAU/)
+  })
+
+  it('khong trung thi giu nguyen het', () => {
+    const r = gomTrung([A, { ...A, file: 'x.pdf', period: '202607' }])
+    expect(r.giu).toHaveLength(2)
+    expect(r.daGop).toHaveLength(0)
+  })
+
+  it('luong va thuong cung ky KHONG bi coi la trung', () => {
+    const r = gomTrung([A, { ...A, file: 's.pdf', kind: 'S' }])
+    expect(r.giu).toHaveLength(2)
+    expect(r.boQua).toHaveLength(0)
   })
 })
 

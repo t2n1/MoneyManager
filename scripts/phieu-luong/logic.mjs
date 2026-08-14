@@ -151,6 +151,58 @@ export function dungDong(phieu, neo, idTheoTen) {
   return { thu, chi }
 }
 
+/** Dau tay cua NOI DUNG tai chinh mot phieu — de so hai file co cung mot phieu khong. */
+function dauTayNoiDung(p) {
+  const sapXep = (o) =>
+    Object.keys(o || {})
+      .sort()
+      .map((k) => `${k}=${o[k]}`)
+      .join(',')
+  return [p.gross, p.deduct_total, p.net, p.bank, sapXep(p.tru), sapXep(p.ngoai_tong)].join('|')
+}
+
+/**
+ * Gom file trung theo (empno, period, kind).
+ *
+ * Vi sao can: thu muc that co ca '(0101)202608K.pdf' lan '(0101)202608K (1).pdf' —
+ * TRUNG BYTE (cung SHA256). Khong co chot nay thi file thu hai bi chot NEO tu choi
+ * voi thong diep "khong thay khoan thu Yucho = 388691", vi file dau da chiem khoan
+ * neo. Thong diep do dan nguoi doc di sua SAI CHO: van de la file trung, khong phai
+ * thieu khoan thu.
+ *
+ * Trung y het noi dung -> giu mot ban, bao da gop. Khac noi dung -> tu choi ca nhom:
+ * script khong duoc doan file nao moi la ban that.
+ */
+export function gomTrung(phieuList) {
+  const nhom = new Map()
+  for (const p of phieuList) {
+    const key = `${p.empno}|${p.period}|${p.kind}`
+    if (!nhom.has(key)) nhom.set(key, [])
+    nhom.get(key).push(p)
+  }
+  const giu = []
+  const daGop = []
+  const boQua = []
+  for (const [key, ds] of nhom) {
+    if (ds.length === 1) {
+      giu.push(ds[0])
+      continue
+    }
+    const dauTay = new Set(ds.map(dauTayNoiDung))
+    if (dauTay.size === 1) {
+      giu.push(ds[0])
+      daGop.push({ key, files: ds.map((p) => p.file) })
+    } else {
+      boQua.push({
+        key,
+        files: ds.map((p) => p.file),
+        ly_do: `${ds.length} file cung ky ${key} nhung NOI DUNG KHAC NHAU — khong doan ban nao that`,
+      })
+    }
+  }
+  return { giu, daGop, boQua }
+}
+
 /**
  * Chot bang-khong + chot DAU.
  *

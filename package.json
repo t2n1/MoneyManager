@@ -16,7 +16,8 @@
     "secret:cron": "node scripts/doi-cron-secret.mjs",
     "nhap:sao-ke": "node scripts/nhap-sao-ke-rakuten.mjs",
     "boc:phieu-luong": "python scripts/phieu-luong/boc.py",
-    "nhap:phieu-luong": "node scripts/nhap-phieu-luong.mjs"
+    "nhap:phieu-luong": "node scripts/nhap-phieu-luong.mjs",
+    "chot:phieu-luong": "node scripts/phieu-luong/chot-di-tru.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.3",
@@ -37,6 +38,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "esbuild": "^0.28.1",
     "oxlint": "^1.71.0",
+    "pdfjs-dist": "^6.2.108",
     "tailwindcss": "^4.3.2",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",

@@ -200,10 +200,21 @@ của danh mục cha đó. `Đi chợ` (`essential` + `variable`, con của `Ăn
 | `雇用保険料` | ~2% | **hết** |
 
 Tức **~90% khoản khấu trừ vẫn phải trả khi mất thu nhập**; chỉ ~10% là hết theo
-việc làm. Hệ quả đo được trên sổ thật: gán đồng loạt `fixed` làm chi cố định tăng
-**+94%**, chia hai làm tăng **+86%**. Cả hai làm số tháng dự phòng giảm gần một
-nửa, **và đó là sửa sai**: sổ hiện đang giấu phần nghĩa vụ vẫn còn khi mất việc,
-nên con số dự phòng hôm nay lạc quan quá.
+việc làm.
+
+**Hệ quả đo sau khi import thật** (cửa sổ 12 tháng, đã phân trang đủ 1.070 giao
+dịch): chi cố định **tăng 2,18 lần**, và quỹ dự phòng rơi từ khoảng **5,0 tháng**
+xuống **2,3 tháng** — đổi hạng từ vùng an toàn sang **Rủi ro**. Điểm sức khoẻ tổng
+xuống 63/100.
+
+**Đó là sửa sai, không phải làm sai**: trước import, sổ bỏ qua toàn bộ phần nghĩa
+vụ vẫn còn khi mất việc, nên con số 5 tháng là lạc quan giả.
+
+Nhưng phải nói cho đủ: con số mới hơi **bảo thủ**. Người mất việc chuyển sang
+国民健康保険 / 国民年金 thường phải trả **ít hơn** bản 厚生, và 年金 còn xin
+**免除** được. Sự thật nằm giữa hai con số, gần đầu bảo thủ hơn. Muốn bớt bảo thủ
+thì chuyển `厚生年金保険` sang `variable` — nhưng đừng đổi vì con số trông xấu, chỉ
+đổi nếu tin rằng khoản đó thật sự biến mất theo việc làm.
 
 Nút "Tạo bộ danh mục Thuế & An sinh" cũ (đã xoá khỏi `CategoriesPage.tsx` ngày
 2026-08-14) gán **đồng loạt `essential` + `fixed`** — nếu phục hồi nút thì phải sửa
@@ -388,7 +399,7 @@ quan hệ thay vì dán số thật vào.
 `boc.py` cần `pypdf` + `cryptography` — ghi vào đầu script, không thêm vào
 `package.json` (không phải phụ thuộc của app).
 
-## Bốn lỗi đã mắc khi thiết kế — để người sau không lặp
+## Sáu lỗi đã mắc khi thiết kế — để người sau không lặp
 
 1. **Map mọi thứ trong `控除合計額` vào nhóm thuế.** Sai với `社内販売精算`. Chốt
    "tổng mục lẻ = `控除合計額`" *không* bắt được lỗi này — nó chỉ kiểm số học, không
@@ -402,9 +413,21 @@ quan hệ thay vì dán số thật vào.
 4. **Kiểm bất biến mà không kiểm dấu.** `thu == chi == gộp − ròng` báo đúng cho ca
    ròng > gộp, vì cả ba đều âm bằng nhau. Lỗi này sống qua bốn vòng soát.
 
+5. **Bỏ trống `is_refund` ở dòng thu.** PostgREST insert một MẢNG thì **hợp nhất
+   tập khoá** của mọi phần tử, nên khoá thiếu ở một dòng thành `NULL` chứ không lấy
+   `DEFAULT`. Dòng chi có `is_refund`, dòng thu không → gửi `NULL` → vi phạm
+   `NOT NULL` → **cả lô bị từ chối**. Chỉ lộ ra khi ghi thật; mọi test dựng-dòng
+   trước đó đều xanh vì chúng không đi qua PostgREST.
+6. **Không phân trang khi kiểm chứng.** PostgREST cắt ở **1000 hàng** và không báo
+   gì. Cửa sổ 12 tháng có 1.070 giao dịch, nên phép kiểm đầu tiên cho **21,4%** —
+   một con số *trông hợp lý* — trong khi số đúng là **20,4%**. Phát hiện được nhờ
+   mẫu số lệch đúng bằng một kỳ lương. Mọi phép đo trên bảng `transactions` phải
+   đếm trước rồi đọc theo trang.
+
 Bài học chung: **chốt số học không thay được chốt ngữ nghĩa**, một bộ kiểm
-"44/55 đúng" có thể đang che một lỗi làm sai cả bộ, và **một bất biến đúng vẫn vô
-nghĩa nếu không kiểm dấu**.
+"44/55 đúng" có thể đang che một lỗi làm sai cả bộ, **một bất biến đúng vẫn vô
+nghĩa nếu không kiểm dấu**, và **một con số trông hợp lý vẫn có thể là kết quả của
+truy vấn bị cắt lặng lẽ**.
 
 ## Ngoài phạm vi
 

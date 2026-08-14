@@ -147,6 +147,11 @@ export function dungDong(phieu, neo, idTheoTen) {
     to_account_id: null,
     occurred_on: neo.occurred_on,
     note: `${dau} · phần bị giữ lại`,
+    // PHAI ghi ro false, khong duoc bo trong: PostgREST insert mot MANG thi HOP NHAT
+    // tap khoa cua moi phan tu, nen khoa nao thieu o mot dong se thanh NULL thay vi
+    // lay DEFAULT. Cac dong chi co is_refund, dong thu khong -> gui NULL -> vi pham
+    // NOT NULL, va CA LO bi tu choi. Da gap that o phieu dau tien.
+    is_refund: false,
   }
   return { thu, chi }
 }

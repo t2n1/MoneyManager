@@ -143,6 +143,13 @@ describe('dungDong — 202608K', () => {
     expect(chi.every((r) => r.amount > 0)).toBe(true)
   })
 
+  // PostgREST insert mang thi hop nhat tap khoa -> khoa thieu thanh NULL, khong phai
+  // DEFAULT. Dong thu thieu is_refund lam CA LO bi tu choi (NOT NULL). Da gap that.
+  it('MOI dong deu co is_refund tuong minh (khong undefined)', () => {
+    for (const r of [thu, ...chi]) expect(typeof r.is_refund).toBe('boolean')
+    expect(thu.is_refund).toBe(false)
+  })
+
   it('bat bien bang khong, va bang gop tru rong', () => {
     expect(kiemDong(P202608, thu, chi)).toEqual([])
     expect(thu.amount).toBe(P202608.gross - P202608.net)

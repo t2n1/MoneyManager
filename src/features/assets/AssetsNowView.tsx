@@ -1,5 +1,6 @@
 // Tab con "Hiện tại" của Tài sản — trả lời đúng một câu: "giờ tôi có bao nhiêu".
-// Tổng tài sản · Tài sản ròng · Thẻ tín dụng đến hạn · Cơ cấu · danh sách nhóm/tài khoản.
+// Tổng tài sản · Thẻ tín dụng đến hạn · Tài sản ròng · Cơ cấu · danh sách nhóm/tài khoản.
+// Thẻ đứng thứ hai vì đó là khối duy nhất có hạn chót; xem tests/assetsLayout.test.ts.
 //
 // Trước đây file này là cả trang Tài sản 780 dòng, gánh thêm hai câu hỏi khác ("tôi đang
 // tiến bộ không" và "sau này thế nào") trong cùng một mạch cuộn. Hai câu đó nay là
@@ -94,6 +95,8 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
 
   const displayGroups =
     groupMode === 'purpose' ? purposeGroups : groupMode === 'type' ? typeGroups : currencyGroups
+  // Nhãn của lát đang cắt, in trên thẻ Cơ cấu vì nút chọn lát nay nằm dưới danh sách.
+  const modeLabel = (GROUP_MODES.find(([m]) => m === groupMode)?.[1] ?? '').toLowerCase()
   // Kéo–thả sắp thứ tự tài khoản bật ở mọi chế độ. Nhưng chỉ "Mục đích" cho kéo
   // XUYÊN nhóm (đổi asset_group); ở "Loại"/"Tiền tệ", kéo sang nhóm khác nghĩa là
   // đổi loại/đồng tiền tài khoản (làm trong form), nên chỉ cho sắp TRONG một nhóm.
@@ -289,7 +292,13 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
       {/* Lưới hai cột trên PC cho các khối CHỈ ĐỂ ĐỌC ở đầu trang. Danh sách nhóm tài
           khoản phía dưới cố ý ĐỨNG NGOÀI lưới: nó kéo–thả để sắp thứ tự, mà phép tính
           vị trí thả giả định các dòng xếp dọc — chia hai cột là thả sai chỗ.
-          `lg:items-start` để thẻ ngắn không bị kéo cao bằng thẻ dài bên cạnh. */}
+          `lg:items-start` để thẻ ngắn không bị kéo cao bằng thẻ dài bên cạnh.
+
+          KHÔNG dùng order-*: lưới xếp theo HÀNG nên thứ tự DOM đã là thứ tự nhìn thấy,
+          và cùng một thứ tự đó phẳng ra thành mạch cuộn trên mobile. Muốn đổi thì
+          CHUYỂN KHỐI — `order` đổi cái nhìn thấy mà không đổi thứ tự tiêu điểm
+          (WCAG 2.4.3). Thứ tự ở đây làm ra cặp `Tổng | Thẻ` rồi `Ròng | Cơ cấu`;
+          tests/assetsLayout.test.ts canh cả thứ tự lẫn lý do. */}
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-3">
         {/* Tổng tài sản.
             Chữ phụ trên thẻ này dùng text-green-50 TRƠN, không alpha: nền là gradient
@@ -335,6 +344,21 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
           )}
         </section>
   
+        {/* Thẻ tín dụng — khối DUY NHẤT trên trang có hạn chót ("còn N ngày", "cần
+            nạp thêm"), nên đứng ngay dưới con số tổng, trên mọi khối chỉ để đọc.
+            Trước đây nó đứng thứ 4, sau cặp "Tài sản ròng" + "Tài sản ròng theo thời
+            gian" mà commit 9276051 cố ý đặt liền nhau. Cặp đó tan khi aa74931 chuyển
+            NetWorthHistorySection sang tab Diễn biến, nhưng thứ tự thì ở lại.
+            Thu gọn mặc định, xem CardsSection. */}
+        <CardsSection
+          cards={visibleCards}
+          balances={balances}
+          base={base}
+          rates={rates ?? {}}
+          todayISO={todayISO}
+          view={mv}
+        />
+
         {/* Tài sản ròng (hiện khi có khoản nợ mở hoặc có thẻ tín dụng) */}
         {showNetWorth && (
           <section className="rounded-2xl bg-surface p-4 shadow-sm">
@@ -395,32 +419,15 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
           </section>
         )}
   
-        {/* Thẻ tín dụng — khối DUY NHẤT trên trang có hạn chót ("còn N ngày", "cần
-            nạp thêm"), nên đứng trên mọi khối chỉ để đọc. Thu gọn mặc định, xem
-            CardsSection. */}
-        <CardsSection
-          cards={visibleCards}
-          balances={balances}
-          base={base}
-          rates={rates ?? {}}
-          todayISO={todayISO}
-          view={mv}
-        />
-  
         {/* Biểu đồ tròn + danh sách nhóm */}
         <section className="rounded-2xl bg-surface p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
               Cơ cấu tài sản
             </h2>
-            <SegmentedControl
-              items={GROUP_MODES.map(([mode, label]) => ({ value: mode, label }))}
-              value={groupMode}
-              onChange={setGroupMode}
-              label="Chế độ xem cơ cấu"
-              size="sm"
-              stretch={false}
-            />
+            {/* Nút cắt lát xuống dưới, cạnh danh sách nó dựng lại; ở đây chỉ ghi lát
+                đang cắt, để cái bánh không đổi số phần mà không nói vì sao. */}
+            <span className="shrink-0 text-xs text-fg-muted">theo {modeLabel}</span>
           </div>
   
           {pieData.length === 0 ? (
@@ -485,7 +492,28 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
         </section>
       </div>
 
-      {/* Chi tiết từng nhóm và tài khoản bên trong */}
+      {/* Chi tiết từng nhóm và tài khoản bên trong.
+
+          Nút cắt lát đứng ở ĐÂY chứ không trong thẻ "Cơ cấu tài sản", tuy nó đổi cả
+          hai: nó dựng lại cả danh sách dưới này (Mục đích ra 5 khối, Loại ra 3), mà
+          danh sách thì cố ý đứng NGOÀI lưới hai cột — phép tính vị trí thả khi kéo–thả
+          giả định các dòng xếp dọc (commit 148de4f). Để nút trong thẻ Cơ cấu thì trên
+          PC 1280 nó ở cột phải y=420 còn thứ nó dựng lại bắt đầu ở y=678 chiếm hết bề
+          ngang: bấm một chỗ, đổi một chỗ khác cách 258px. Đặt xuống đây thì trên CẢ HAI
+          khổ nó vừa dính đáy thẻ Cơ cấu vừa dính đầu danh sách. */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+          Danh sách tài khoản
+        </h2>
+        <SegmentedControl
+          items={GROUP_MODES.map(([mode, label]) => ({ value: mode, label }))}
+          value={groupMode}
+          onChange={setGroupMode}
+          label="Chế độ xem cơ cấu"
+          size="sm"
+          stretch={false}
+        />
+      </div>
       {dragEnabled && (
         <Guide className="-mb-1 px-1 text-xs text-fg-muted">
           Nhấn giữ <GripVertical className="inline h-3.5 w-3.5 align-text-bottom" /> rồi kéo để

@@ -93,7 +93,7 @@ ngân sách, hạn mức từng danh mục lá, `MonthPaceCharts`, `SpendPaceSec
 
 | Tab con | `?view=` | Nội dung |
 | --- | --- | --- |
-| **Hiện tại** | `now` (mặc định) | Tổng tài sản · Tài sản ròng · Thẻ tín dụng đến hạn · Cơ cấu tài sản (bánh + 3 kiểu cắt) · Danh sách nhóm & tài khoản |
+| **Hiện tại** | `now` (mặc định) | Tổng tài sản · Thẻ tín dụng đến hạn · Tài sản ròng · Cơ cấu tài sản (bánh) · Danh sách nhóm & tài khoản (nút 3 kiểu cắt đứng ở đây, xem `tests/assetsLayout.test.ts`) |
 | **Diễn biến** | `trend` | `NetWorthHistorySection` · `InvestmentPerformanceSection` · `SavingsGoalsSection` |
 | **Tương lai** | `future` | Nội dung `LifetimePage` mount thẳng vào đây (bỏ `BackButton` của nó) |
 

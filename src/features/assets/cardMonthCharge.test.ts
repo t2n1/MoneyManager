@@ -5,6 +5,7 @@ import {
   cardMonthReconcileNet,
   monthAdjustDate,
   monthAdjustPlan,
+  statementDueAmount,
   type MonthChargeTx,
 } from './cardMonthCharge'
 import { CARD_RECONCILE_NOTE } from './reconcile'
@@ -202,5 +203,41 @@ describe('monthAdjustPlan', () => {
 
   it('khớp rồi → chênh lệch 0', () => {
     expect(monthAdjustPlan({ charged: 120_000, entered: 120_000 }).diff).toBe(0)
+  })
+})
+
+// Panel sao kê in tổng QUẸT của kỳ, ngay trên dòng "Bị rút ngày …". Hai thứ đó
+// khác nhau khi còn nợ kỳ trước hoặc có khoản bù, nên panel phải in luôn số thật
+// sự bị rút — nếu không, người đọc nối ngày với số quẹt và tưởng đó là số bị trừ.
+describe('statementDueAmount', () => {
+  const current = { closeISO: '2026-07-31', billed: 170_465 }
+
+  it('đang xem đúng kỳ sắp bị rút → số bị rút', () => {
+    const viewing = cardBillingRange({
+      monthKey: { year: 2026, month: 8 },
+      statementDay: 31,
+      paymentDueDay: 27,
+    })
+    expect(statementDueAmount(viewing, current)).toBe(170_465)
+  })
+
+  it('đang xem kỳ khác → null, app không biết số bị rút của kỳ đó', () => {
+    // Phép chia chỉ lùi được số dư HÔM NAY về ngày chốt của kỳ kế tiếp; kỳ đã qua
+    // hay kỳ tương lai không có mốc nào để lùi về. Đoán bừa còn tệ hơn im lặng.
+    for (const month of [7, 9]) {
+      const viewing = cardBillingRange({
+        monthKey: { year: 2026, month },
+        statementDay: 31,
+        paymentDueDay: 27,
+      })
+      expect(statementDueAmount(viewing, current)).toBeNull()
+    }
+  })
+
+  it('thẻ chưa đủ ngày chốt/ngày trả → null', () => {
+    expect(statementDueAmount(null, current)).toBeNull()
+    expect(
+      statementDueAmount({ closeISO: '2026-07-31' }, { closeISO: null, billed: null }),
+    ).toBeNull()
   })
 })

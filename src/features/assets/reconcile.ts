@@ -1,8 +1,7 @@
 // Tính giao dịch bù cho sheet "Điều chỉnh số dư".
 // Thuần, không phụ thuộc React, để unit-test được.
 
-import { statementCloseFor } from '../../lib/cardAutopay'
-import { nextCardDueDate } from '../../lib/dates'
+import { nextStatementPeriod } from '../../lib/cardAutopay'
 import { ADJUST_CATEGORY_NAME } from '../categories/flowCategories'
 
 export interface ReconcileInput {
@@ -67,9 +66,10 @@ export function defaultAdjustDate({
   paymentDueDay,
   todayISO,
 }: AdjustDateInput): string {
-  if (!isCard || statementDay == null || paymentDueDay == null) return todayISO
-  const closeISO = statementCloseFor(nextCardDueDate(paymentDueDay, todayISO), statementDay)
-  return closeISO < todayISO ? closeISO : todayISO
+  if (!isCard) return todayISO
+  const period = nextStatementPeriod(statementDay, paymentDueDay, todayISO)
+  if (!period) return todayISO
+  return period.closeISO < todayISO ? period.closeISO : todayISO
 }
 
 /**

@@ -9,7 +9,7 @@
 // `billed` ở đây dùng ĐÚNG mốc mà engine dùng (`statementCloseFor` của kỳ đến hạn
 // kế tiếp) để số hiển thị và số bị rút không thể lệch nhau.
 
-import { statementCloseFor } from '../../lib/cardAutopay'
+import { nextStatementPeriod } from '../../lib/cardAutopay'
 import { txBalanceDelta, type BalanceTxLike } from '../../lib/cardBalance'
 import { addDaysISO, nextCardDueDate } from '../../lib/dates'
 
@@ -73,13 +73,14 @@ export function cardStatementSplit({
 }: CardStatementInput): CardStatementSplit {
   const totalOwed = balance < 0 ? -balance : 0
 
-  if (statementDay == null || paymentDueDay == null) {
+  // `nextStatementPeriod` nằm cạnh engine tự-trả một cách cố ý: nó suy mốc chốt từ
+  // ngày trả DANH NGHĨA, nên số hiển thị ở đây không thể lệch số engine sẽ rút.
+  const period = nextStatementPeriod(statementDay, paymentDueDay, todayISO)
+  if (!period) {
     const dueISO = paymentDueDay != null ? nextCardDueDate(paymentDueDay, todayISO) : null
     return { totalOwed, dueISO, closeISO: null, billed: null, unbilled: null, nextDueISO: null }
   }
-
-  const dueISO = nextCardDueDate(paymentDueDay, todayISO)
-  const closeISO = statementCloseFor(dueISO, statementDay)
+  const { closeISO, dueISO } = period
 
   let after = 0
   for (const t of txs) {
@@ -90,7 +91,8 @@ export function cardStatementSplit({
 
   const billed = Math.min(billedRaw, totalOwed)
   // Lần đến hạn kế tiếp tính từ hôm sau `dueISO` — `dueISO` đã dời cuối tuần nên
-  // đếm từ chính nó có thể ra lại đúng ngày đó.
-  const nextDueISO = nextCardDueDate(paymentDueDay, addDaysISO(dueISO, 1))
+  // đếm từ chính nó có thể ra lại đúng ngày đó. Đi qua `nextStatementPeriod` chứ
+  // không gọi thẳng `nextCardDueDate`: cùng một nguồn mốc kỳ cho cả tệp.
+  const nextDueISO = nextStatementPeriod(statementDay, paymentDueDay, addDaysISO(dueISO, 1))!.dueISO
   return { totalOwed, dueISO, closeISO, billed, unbilled: totalOwed - billed, nextDueISO }
 }

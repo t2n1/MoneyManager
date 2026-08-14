@@ -258,15 +258,19 @@ function addDaysISO2(iso2, delta) {
   return d.toISOString().slice(0, 10);
 }
 function nextCardDueDate(dueDay, todayISO) {
+  return nextCardDuePeriod(dueDay, todayISO).payISO;
+}
+function nextCardDuePeriod(dueDay, todayISO) {
   const [ty, tm] = todayISO.split("-").map(Number);
   for (let i = 0; i < 14; i++) {
     const k = addMonths({ year: ty, month: tm }, i);
     const dim = new Date(k.year, k.month, 0).getDate();
-    const base = `${k.year}-${pad2(k.month)}-${pad2(Math.min(dueDay, dim))}`;
-    const due = shiftToBusinessDay(base);
-    if (due >= todayISO) return due;
+    const periodISO2 = `${k.year}-${pad2(k.month)}-${pad2(Math.min(dueDay, dim))}`;
+    const payISO = shiftToBusinessDay(periodISO2);
+    if (payISO >= todayISO) return { periodISO: periodISO2, payISO };
   }
-  return shiftToBusinessDay(`${ty}-${pad2(tm)}-${pad2(dueDay)}`);
+  const periodISO = `${ty}-${pad2(tm)}-${pad2(dueDay)}`;
+  return { periodISO, payISO: shiftToBusinessDay(periodISO) };
 }
 
 // src/features/assets/depreciation.ts

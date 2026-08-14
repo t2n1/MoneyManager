@@ -137,15 +137,35 @@ export function dueRelativeLabel(todayISO: string, dueISO: string): string {
  * Ví dụ dueDay=27, hôm nay sau ngày 27 → ngày 27 (đã dời) của tháng sau.
  */
 export function nextCardDueDate(dueDay: number, todayISO: string): string {
+  return nextCardDuePeriod(dueDay, todayISO).payISO
+}
+
+export interface NextCardDue {
+  /** Ngày `dueDay` DANH NGHĨA của kỳ — chưa dời. Dùng suy ngược mốc chốt sao kê. */
+  periodISO: string
+  /** Ngày tiền thực rời tài khoản — đã dời T7/CN, lễ, Tết dương. */
+  payISO: string
+}
+
+/**
+ * Như `nextCardDueDate` nhưng giữ lại cả ngày DANH NGHĨA của kỳ.
+ *
+ * Có hàm này vì mốc chốt sao kê phải suy từ ngày danh nghĩa, không từ ngày đã dời:
+ * ngày dời có thể nhảy QUA chính ngày chốt (thẻ chốt 1 / trả 1, kỳ 1/8/2026 rơi T7
+ * nên rút 3/8 — suy ngược từ 3/8 ra mốc chốt 1/8, tức kỳ SAU) và kéo cả phép chia
+ * lệch một tháng so với `runCardAutopayCatchUp`, vốn luôn dùng ngày danh nghĩa.
+ */
+export function nextCardDuePeriod(dueDay: number, todayISO: string): NextCardDue {
   const [ty, tm] = todayISO.split('-').map(Number)
   for (let i = 0; i < 14; i++) {
     const k = addMonths({ year: ty, month: tm }, i)
     const dim = new Date(k.year, k.month, 0).getDate() // số ngày của tháng k
-    const base = `${k.year}-${pad(k.month)}-${pad(Math.min(dueDay, dim))}`
-    const due = shiftToBusinessDay(base)
-    if (due >= todayISO) return due
+    const periodISO = `${k.year}-${pad(k.month)}-${pad(Math.min(dueDay, dim))}`
+    const payISO = shiftToBusinessDay(periodISO)
+    if (payISO >= todayISO) return { periodISO, payISO }
   }
-  return shiftToBusinessDay(`${ty}-${pad(tm)}-${pad(dueDay)}`)
+  const periodISO = `${ty}-${pad(tm)}-${pad(dueDay)}`
+  return { periodISO, payISO: shiftToBusinessDay(periodISO) }
 }
 
 /** Khoảng ngày của cả năm tài chính Y: từ đầu tháng (Y,1) tới cuối tháng (Y,12) (end loại trừ). */

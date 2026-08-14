@@ -6,7 +6,7 @@
 
 import type { AccountType } from '../types/database.types'
 import { txBalanceDelta, type BalanceTxLike } from './cardBalance'
-import { addDaysISO, addMonths } from './dates'
+import { addDaysISO, addMonths, nextCardDuePeriod } from './dates'
 import { shiftToBusinessDay } from './jpHolidays'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -68,6 +68,32 @@ export function statementCloseFor(dueISO: string, statementDay: number): string 
   if (sameMonth < dueISO) return sameMonth
   const prev = addMonths({ year: y, month: m }, -1)
   return dayOfMonth(prev.year, prev.month, statementDay)
+}
+
+export interface NextStatementPeriod {
+  /** Ngày chốt sao kê của kỳ sắp bị rút. */
+  closeISO: string
+  /** Ngày tiền rời tài khoản, đã dời T7/CN/lễ. */
+  dueISO: string
+}
+
+/**
+ * Kỳ đến hạn KẾ TIẾP tính từ `todayISO` — nguồn sự thật duy nhất cho mọi màn hình
+ * cần "kỳ sắp bị rút". null khi thẻ thiếu ngày chốt hoặc ngày trả.
+ *
+ * Đặt cạnh `statementCloseFor` và `runCardAutopayCatchUp` một cách cố ý: mốc chốt
+ * PHẢI suy từ ngày trả DANH NGHĨA, và trước đây ba nơi ở tầng UI mỗi nơi tự ghép
+ * lấy `statementCloseFor(nextCardDueDate(...))` — tức suy từ ngày ĐÃ DỜI, sai lệch
+ * nguyên một tháng mỗi khi ngày dời nhảy qua chính ngày chốt.
+ */
+export function nextStatementPeriod(
+  statementDay: number | null,
+  paymentDueDay: number | null,
+  todayISO: string,
+): NextStatementPeriod | null {
+  if (statementDay == null || paymentDueDay == null) return null
+  const { periodISO, payISO } = nextCardDuePeriod(paymentDueDay, todayISO)
+  return { closeISO: statementCloseFor(periodISO, statementDay), dueISO: payISO }
 }
 
 // --- Engine catch-up ---

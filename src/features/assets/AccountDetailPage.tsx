@@ -40,7 +40,13 @@ import type { TransactionRow } from '../../types/database.types'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { TransactionItem } from '../transactions/TransactionItem'
 import { CardMonthAdjustSheet } from './CardMonthAdjustSheet'
-import { cardBillingRange, cardMonthCharge, cardMonthReconcileNet } from './cardMonthCharge'
+import {
+  cardBillingRange,
+  cardMonthCharge,
+  cardMonthReconcileNet,
+  carriedDebt,
+  statementDueAmount,
+} from './cardMonthCharge'
 import { depreciate } from './depreciation'
 import { ngay } from './investFormat'
 import { investmentStats } from './investment'
@@ -214,6 +220,12 @@ export function AccountDetailPage() {
     () => (isCard ? cardMonthReconcileNet(accountId, results) : 0),
     [isCard, accountId, results],
   )
+  // Số THẬT SỰ bị rút vào ngày đến hạn của kỳ đang xem. null khi đang xem kỳ khác
+  // với kỳ sắp bị rút — lúc đó app không có mốc để lùi số dư về.
+  const dueAmount = statementDueAmount(billing, cardStatement)
+  // Nợ các kỳ trước còn dồn trong số bị rút. Có dòng này thì ba dòng tiền trên
+  // panel cộng đúng ra số bị rút, người đọc kiểm lại được bằng tay.
+  const carried = carriedDebt({ dueAmount, charged: monthCharged, reconcileNet: monthReconcileNet })
 
   return (
     <div className="p-3 lg:p-6">
@@ -642,11 +654,52 @@ export function AccountDetailPage() {
               />
             </div>
           )}
-          {billing ? (
-            <div className="mt-1.5 flex items-center justify-between text-sm text-fg-muted">
-              <span>Bị rút ngày</span>
-              <span>{dueDateLabel(billing.dueISO)}</span>
+          {/* Nợ kỳ trước dồn sang — mảnh còn thiếu để `quẹt − khoản bù + nợ cũ`
+              cộng đúng ra số bị rút. Thẻ trả sạch mỗi kỳ thì bằng 0 và tự ẩn. */}
+          {carried != null && carried !== 0 && (
+            <div className="mt-1.5 flex items-center justify-between gap-2 text-sm text-fg-muted">
+              <span>{carried > 0 ? 'Nợ cũ chưa trả hết' : 'Dư từ kỳ trước'}</span>
+              {/* KHÔNG showSign: với tone 'out' nó in dấu '-', đọc thành "bớt đi"
+                  trong khi nợ cũ CỘNG vào hoá đơn. Nhãn và màu đủ nói chiều. */}
+              <Money
+                amount={Math.abs(carried)}
+                currency={currency}
+                tone={carried > 0 ? 'out' : 'in'}
+                className="font-medium"
+              />
             </div>
+          )}
+          {billing ? (
+            <>
+              {/* Số bị rút đứng cùng cột với tổng quẹt phía trên: đó là cách duy
+                  nhất để thấy ngay hai con số này không bằng nhau. */}
+              <div className="mt-1.5 flex items-center justify-between gap-2 text-sm">
+                {dueAmount != null ? (
+                  <>
+                    <span className="text-fg-muted">Bị rút {dueDateLabel(billing.dueISO)}</span>
+                    <Money
+                      amount={dueAmount}
+                      currency={currency}
+                      tone={dueAmount > 0 ? 'out' : 'neutral'}
+                      className="text-base font-bold"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <span className="text-fg-muted">Bị rút ngày</span>
+                    <span className="text-fg-muted">{dueDateLabel(billing.dueISO)}</span>
+                  </>
+                )}
+              </div>
+              {/* KHÔNG bọc Guide: đây là cảnh báo số không khớp, mất nó ở chế độ
+                  Gọn là người dùng lại đọc nhầm tổng quẹt thành số bị trừ. */}
+              {dueAmount != null && dueAmount !== monthCharged && (
+                <p className="mt-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-2xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                  Số bị rút không bằng tiền quẹt kỳ này — các dòng trên nói vì sao. Đối chiếu với
+                  sao kê thật rồi dùng “Điều chỉnh số nợ” nếu sai.
+                </p>
+              )}
+            </>
           ) : (
             // Thiếu ngày chốt hoặc ngày trả thì không dựng được kỳ — nói thẳng
             // thay vì suy ra một ngày rút sai.

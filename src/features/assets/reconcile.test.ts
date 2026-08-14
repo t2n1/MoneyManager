@@ -156,4 +156,19 @@ describe('defaultAdjustDate', () => {
       }),
     ).toBe('2026-05-31')
   })
+
+  // Cùng cái bẫy đã sửa ở cardStatement: ngày dời nhảy QUA ngày chốt. Lấy nhầm
+  // mốc 1/8 thì khoản bù ghi ngày 1/8, tức RA NGOÀI kỳ mà engine sắp rút (chốt
+  // 1/7) — đúng thứ hàm này sinh ra để tránh.
+  it('ngày dời vượt qua ngày chốt → vẫn lùi về mốc chốt engine dùng', () => {
+    // Chốt 1, trả 1. Kỳ 1/8/2026 rơi T7 → rút 3/8; mốc chốt của kỳ này là 1/7.
+    expect(
+      defaultAdjustDate({
+        isCard: true,
+        statementDay: 1,
+        paymentDueDay: 1,
+        todayISO: '2026-08-02',
+      }),
+    ).toBe('2026-07-01')
+  })
 })

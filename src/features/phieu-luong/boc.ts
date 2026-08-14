@@ -107,3 +107,113 @@ export function ghep(oChu: OChu[]): Record<string, number> {
   }
   return res
 }
+
+const KY_TRONG_PDF = /(\d{4})\s*年\s*(\d{1,2})\s*月分\s*(給与|賞与)?/
+const TEN_FILE = /\((\d+)\)(\d{4})(\d{2})?([KS])/
+
+export interface Phieu {
+  file: string
+  empno: string | null
+  period: string | null
+  kind: 'K' | 'S' | null
+  nguonKy: 'noi-dung' | 'ten-file'
+  canhBao: string[]
+  gross: number | null
+  deductTotal: number | null
+  net: number | null
+  bank: number | null
+  tru: Record<string, number>
+  ngoaiTong: Record<string, number>
+  nhanLa: string[]
+  loi: string[]
+}
+
+/**
+ * Kỳ: ưu tiên NỘI DUNG PDF, dự phòng tên file, lệch nhau thì báo.
+ *
+ * Vì sao cần cả hai: một file thật có tên ghi `202209` nhưng nội dung ghi
+ * `2022年7月分賞与`, và khoản thật nằm ở 2022-07-08. Nhưng hai file khác lại KHÔNG
+ * đọc được kỳ từ nội dung, và ở đó tên file mới đúng. Không nguồn nào đủ một mình.
+ */
+function docKy(oChu: OChu[], tenFile: string) {
+  const fn = TEN_FILE.exec(tenFile)
+  const tenKy = fn ? fn[2] + (fn[3] ?? '') : null
+  const kind = (fn?.[4] as 'K' | 'S' | undefined) ?? null
+  const m = KY_TRONG_PDF.exec(oChu.map((o) => o.text).join(''))
+  const noiKy = m ? `${m[1]}${String(Number(m[2])).padStart(2, '0')}` : null
+  const loaiPdf = m?.[3] ?? null
+
+  const canhBao: string[] = []
+  if (loaiPdf) {
+    const mongDoi = kind === 'K' ? '給与' : '賞与'
+    if (loaiPdf !== mongDoi) canhBao.push(`tên file '${kind}' nhưng nội dung '${loaiPdf}'`)
+  }
+  if (noiKy && tenKy && noiKy !== tenKy) {
+    canhBao.push(`kỳ lệch: tên=${tenKy} nội-dung=${noiKy}`)
+  }
+  return {
+    period: noiKy ?? tenKy,
+    kind,
+    empno: fn?.[1] ?? null,
+    nguonKy: (noiKy ? 'noi-dung' : 'ten-file') as 'noi-dung' | 'ten-file',
+    canhBao,
+  }
+}
+
+/**
+ * Hai đẳng thức tự kiểm + nhãn lạ. Rỗng = qua hết.
+ *
+ * Đẳng thức thứ hai là `gộp − 控除合計額 − 過不足税額 = ròng`, KHÔNG phải
+ * `gộp − trừ = ròng`: 過不足税額 (quyết toán năm) nằm ngoài tổng khấu trừ nhưng vẫn
+ * đổi tiền thật. Đo trên cả bốn phiếu tháng 12 của bộ dữ liệu, khớp tới từng đơn vị.
+ */
+function kiem(p: Omit<Phieu, 'loi'>): string[] {
+  const loi: string[] = []
+  const q = Object.values(p.ngoaiTong).reduce((s, v) => s + v, 0)
+  if (p.deductTotal === null) loi.push('thiếu 控除合計額')
+  else {
+    const s = Object.values(p.tru).reduce((a, v) => a + v, 0)
+    if (s !== p.deductTotal) {
+      loi.push(`tổng mục trừ ${s} != 控除合計額 ${p.deductTotal} (lệch ${s - p.deductTotal})`)
+    }
+  }
+  if (p.gross === null || p.deductTotal === null || p.net === null) {
+    loi.push('thiếu một trong 総支給/控除合計/差引支給')
+  } else if (p.gross - p.deductTotal - q !== p.net) {
+    loi.push(
+      `総支給−控除合計−過不足 != 差引支給 (${p.gross}−${p.deductTotal}−${q}=` +
+        `${p.gross - p.deductTotal - q}, thực=${p.net})`,
+    )
+  }
+  if (p.net !== null && p.bank !== null && p.net !== p.bank) {
+    loi.push(`差引支給 ${p.net} != 銀行１振込額 ${p.bank}`)
+  }
+  if (p.nhanLa.length) loi.push('nhãn lạ (không có trong bộ nhãn): ' + p.nhanLa.join(', '))
+  if (!p.period || !p.kind) loi.push('không đọc được kỳ/loại')
+  return loi
+}
+
+export function bocPhieu(oChu: OChu[], tenFile: string): Phieu {
+  const f = ghep(oChu)
+  const ky = docKy(oChu, tenFile)
+  const tru: Record<string, number> = {}
+  for (const k of KHAU_TRU) if (k in f) tru[k] = f[k]
+  const ngoaiTong: Record<string, number> = {}
+  for (const k of NGOAI_TONG) if (k in f) ngoaiTong[k] = f[k]
+  const than: Omit<Phieu, 'loi'> = {
+    file: tenFile,
+    empno: ky.empno,
+    period: ky.period,
+    kind: ky.kind,
+    nguonKy: ky.nguonKy,
+    canhBao: ky.canhBao,
+    gross: f['総支給金額'] ?? null,
+    deductTotal: f['控除合計額'] ?? null,
+    net: f['差引支給額'] ?? null,
+    bank: f['銀行１振込額'] ?? null,
+    tru,
+    ngoaiTong,
+    nhanLa: Object.keys(f).filter((k) => !BIET_HET.has(k)).sort(),
+  }
+  return { ...than, loi: kiem(than) }
+}

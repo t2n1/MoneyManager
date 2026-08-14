@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ghep, type OChu } from './boc'
+import { bocPhieu, ghep, type OChu } from './boc'
 
 /**
  * Hàng khấu trừ của một phiếu 2022: SÁU nhãn, NĂM số, `厚生年金基金` bỏ trống.
@@ -96,5 +96,107 @@ describe('ghep — luật nhãn gần nhất về phía trái', () => {
       { text: '住民税', x: 195.0, y: 283.3 },
     ]
     expect(ghep(haiUngVien)).toEqual({ 住民税: 8888 })
+  })
+})
+
+/** Phiếu minh hoạ: gộp 400.000 − trừ 78.000 = ròng 322.000. */
+function phieuDu(): OChu[] {
+  return [
+    { text: '2026年', x: 598.1, y: 87.3 },
+    { text: '8月分', x: 632.3, y: 87.3 },
+    { text: '給与', x: 661.5, y: 87.3 },
+    // hàng số của khối 控除
+    { text: '20,000', x: 95.2, y: 309.5 },
+    { text: '36,000', x: 168.9, y: 309.5 },
+    { text: '2,000', x: 335.7, y: 309.5 },
+    { text: '4,000', x: 395.5, y: 309.5 },
+    { text: '16,000', x: 469.2, y: 309.5 },
+    { text: '健康保険料', x: 69.4, y: 283.3 },
+    { text: '厚生年金保険', x: 138.1, y: 283.3 },
+    { text: '雇用保険料', x: 291.9, y: 283.3 },
+    { text: '所得税', x: 375.6, y: 283.3 },
+    { text: '住民税', x: 447.9, y: 283.3 },
+    // hàng tổng
+    { text: '400,000', x: 220.0, y: 364.1 },
+    { text: '78,000', x: 295.0, y: 364.1 },
+    { text: '322,000', x: 370.0, y: 364.1 },
+    { text: '322,000', x: 440.0, y: 364.1 },
+    { text: '総支給金額', x: 217.0, y: 338.0 },
+    { text: '控除合計額', x: 292.0, y: 338.0 },
+    { text: '差引支給額', x: 366.0, y: 338.0 },
+    { text: '銀行１振込額', x: 433.0, y: 338.0 },
+  ]
+}
+
+describe('bocPhieu', () => {
+  it('phiếu đủ thì không lỗi, đọc kỳ từ nội dung', () => {
+    const p = bocPhieu(phieuDu(), '(0101)202608K.pdf')
+    expect(p.loi).toEqual([])
+    expect(p.period).toBe('202608')
+    expect(p.kind).toBe('K')
+    expect(p.nguonKy).toBe('noi-dung')
+    expect(p.empno).toBe('0101')
+    expect(p.gross).toBe(400000)
+    expect(p.deductTotal).toBe(78000)
+    expect(p.net).toBe(322000)
+    expect(p.tru).toEqual({
+      健康保険料: 20000, 厚生年金保険: 36000, 雇用保険料: 2000,
+      所得税: 4000, 住民税: 16000,
+    })
+  })
+
+  it('bắt lệch khi tổng mục trừ != 控除合計額', () => {
+    const xau = phieuDu().map((o) => (o.text === '16,000' ? { ...o, text: '15,000' } : o))
+    const p = bocPhieu(xau, '(0101)202608K.pdf')
+    expect(p.loi.join(' ')).toMatch(/tổng mục trừ/)
+  })
+
+  it('bắt lệch khi gộp − trừ − 過不足 != ròng', () => {
+    const xau = phieuDu().map((o) => (o.text === '400,000' ? { ...o, text: '401,000' } : o))
+    const p = bocPhieu(xau, '(0101)202608K.pdf')
+    expect(p.loi.join(' ')).toMatch(/差引支給/)
+  })
+
+  /**
+   * 過不足税額 KHÔNG nằm trong 控除合計額 nhưng VẪN đổi tiền thật. Đẳng thức đúng là
+   * gộp − 控除合計額 − 過不足税額 = ròng. Bỏ nó là mất khoản hoàn/nộp thêm cuối năm.
+   */
+  it('過不足税額 nằm ngoài tổng khấu trừ mà vẫn vào đẳng thức', () => {
+    const t12: OChu[] = [
+      ...phieuDu().filter((o) => o.text !== '322,000'),
+      { text: '342,000', x: 370.0, y: 364.1 },
+      { text: '342,000', x: 440.0, y: 364.1 },
+      { text: '-20,000', x: 95.2, y: 340.0 },
+      { text: '過不足税額', x: 69.4, y: 314.0 },
+    ]
+    const p = bocPhieu(t12, '(0101)202612K.pdf')
+    expect(p.ngoaiTong).toEqual({ 過不足税額: -20000 })
+    expect(p.loi).toEqual([])
+  })
+
+  it('nhãn lạ thì từ chối cả file và gọi tên nhãn đó ra', () => {
+    const la = [...phieuDu(), { text: '9,999', x: 95.2, y: 250.0 }, { text: '謎の控除', x: 69.4, y: 224.0 }]
+    const p = bocPhieu(la, '(0101)202608K.pdf')
+    expect(p.nhanLa).toContain('謎の控除')
+    expect(p.loi.join(' ')).toMatch(/謎の控除/)
+  })
+
+  /**
+   * Ca thật: (0004)202209S.pdf tên ghi 202209 nhưng nội dung ghi 2022年7月分賞与.
+   * Nội dung thắng, và phải BÁO.
+   */
+  it('tên file lệch nội dung: lấy nội dung và báo', () => {
+    const p = bocPhieu(phieuDu(), '(0004)202209K.pdf')
+    expect(p.period).toBe('202608')
+    expect(p.canhBao.join(' ')).toMatch(/lệch/)
+  })
+
+  /** Hai file thật không đọc được kỳ từ nội dung → rơi về tên file. */
+  it('không đọc được kỳ từ nội dung thì rơi về tên file', () => {
+    const khongNgay = phieuDu().filter((o) => !o.text.includes('年') && !o.text.includes('月分'))
+    const p = bocPhieu(khongNgay, '(0004)202308S.pdf')
+    expect(p.period).toBe('202308')
+    expect(p.kind).toBe('S')
+    expect(p.nguonKy).toBe('ten-file')
   })
 })

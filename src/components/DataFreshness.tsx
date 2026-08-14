@@ -11,12 +11,18 @@ export function DataFreshness({ summary }: { summary: FreshnessSummary | null })
   const [open, setOpen] = useState(false)
   if (!summary) return null
 
-  // Chấm là NỀN nên amber-500 dùng được; chữ cảnh báo bên dưới phải là amber-700/300
+  // Chấm là NỀN nên amber-500 dùng được; chữ cảnh báo phải là amber-700/300
   // (amber-600/500 làm chữ trượt AA ở light mode — designSystem.test.ts cấm cứng).
   //
   // Chiều "ổn" dùng token `bg-accent` chứ không bg-green-600: green-600 nằm trong danh
   // sách ban cứng, và đọc token thì đổi một chỗ là đổi cả app.
   const dot = summary.tone === 'warn' ? 'bg-amber-500' : 'bg-accent'
+
+  // Chấm đầu dòng là tone GỘP, nên nó chuyển hổ phách khi bất kỳ nguồn nào cũ. Nếu dòng
+  // chữ cũng tô một màu theo tone gộp thì "Tỷ giá hôm qua" nằm trong dòng hổ phách trông
+  // y như chính tỷ giá đang có vấn đề, trong khi thủ phạm có thể là giá cổ phiếu. Vì vậy
+  // mỗi nguồn tự mang màu của mình — nhìn một cái là biết phải xử cái nào, khỏi bấm xổ.
+  const warnText = 'font-medium text-amber-700 dark:text-amber-300'
 
   return (
     <div className="print:hidden">
@@ -27,7 +33,18 @@ export function DataFreshness({ summary }: { summary: FreshnessSummary | null })
         aria-expanded={open}
       >
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} aria-hidden="true" />
-        <span className="text-left">{summary.line}</span>
+        <span className="text-left">
+          {summary.details.map((d, i) => (
+            <span key={d.label}>
+              {/* Dấu phân cách để NGOÀI span màu: tô nó theo nguồn đứng trước sẽ kéo
+                  màu cảnh báo lan sang khoảng giữa hai nguồn. */}
+              {i > 0 && ' · '}
+              <span className={d.tone === 'warn' ? warnText : undefined}>
+                {d.label} {d.age}
+              </span>
+            </span>
+          ))}
+        </span>
         <span aria-hidden="true">{open ? '▴' : '▾'}</span>
       </button>
 
@@ -37,11 +54,7 @@ export function DataFreshness({ summary }: { summary: FreshnessSummary | null })
             <li key={d.label} className="flex items-baseline justify-between gap-3 text-xs">
               <span className="text-fg-secondary">{d.label}</span>
               <span
-                className={
-                  d.tone === 'warn'
-                    ? 'shrink-0 font-medium text-amber-700 dark:text-amber-300'
-                    : 'shrink-0 text-fg-muted'
-                }
+                className={d.tone === 'warn' ? `shrink-0 ${warnText}` : 'shrink-0 text-fg-muted'}
               >
                 {d.age}
               </span>

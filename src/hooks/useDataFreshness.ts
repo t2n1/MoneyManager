@@ -5,6 +5,7 @@
 // Ở trang Tài sản thì hai query đó đều được hook này tự gọi (không lệ thuộc component con
 // nào khác gọi trước) — react-query dùng chung cache theo query key nên nhiều nơi cùng gọi
 // vẫn không phát sinh request mới.
+import { useIsFetching } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { toISODate } from '../lib/dates'
 import { freshnessSummary, type FreshnessSummary } from '../lib/freshness'
@@ -33,29 +34,48 @@ function readRatesFetchedAt(base: CurrencyCode): number | null {
   return meta.sourceUpdatedAt ?? (meta.fetchedAt > 0 ? meta.fetchedAt : null)
 }
 
-/** Chỉ nguồn tỷ giá — cho trang Báo cáo. */
+/**
+ * Số lượt fetch tỷ giá đang chạy — dùng làm TÍN HIỆU "vừa lấy xong, đọc lại cache đi",
+ * không phải để tính ra kết quả.
+ *
+ * Cần riêng nó vì react-query giữ NGUYÊN tham chiếu `data` khi số mới trùng số cũ. Tỷ giá
+ * thì hay trùng (nguồn chỉ đổi 1 lần/ngày), nên chỉ dựa vào `rates` là bấm "Thử lấy lại"
+ * xong mốc thời gian không được đọc lại — màn hình vẫn nói "6 ngày trước" dù vừa lấy được
+ * số mới. Con số này đổi 0 → 1 → 0 quanh mỗi lượt lấy nên lượt nào xong cũng có render.
+ */
+function useRatesRefetchTick(): number {
+  return useIsFetching({ queryKey: ['rates'] })
+}
+
+/** Chỉ nguồn tỷ giá — cho trang Báo cáo và trang Cài đặt. */
 export function useRatesFreshness(): FreshnessSummary | null {
   const { base, rates } = useRates()
+  const fetchTick = useRatesRefetchTick()
   return useMemo(
-    () =>
-      freshnessSummary({
+    () => {
+      // `void` để oxlint(exhaustive-deps) thấy biến CÓ được tham chiếu trong thân hàm,
+      // khỏi báo "unnecessary dependency" — xem giải thích ở useRatesRefetchTick.
+      void fetchTick
+      return freshnessSummary({
         ratesFetchedAt: readRatesFetchedAt(base),
         priceSession: null,
         staleSymbolCount: 0,
         lastValuationOn: null,
         nowMs: Date.now(),
         todayISO: toISODate(new Date()),
-      }),
+      })
+    },
     // `rates` nằm trong danh sách phụ thuộc để ĐỌC LẠI cache: lần vẽ đầu tỷ giá thường
     // chưa về, cache còn mốc của phiên trước. Thiếu nó thì nhãn đứng ở mốc cũ suốt cả
     // lượt xem dù tỷ giá mới đã lấy xong ngay sau đó.
-    [base, rates],
+    [base, rates, fetchTick],
   )
 }
 
 /** Cả ba nguồn — cho trang Tài sản. */
 export function useAssetsFreshness(): FreshnessSummary | null {
   const { base, rates } = useRates()
+  const fetchTick = useRatesRefetchTick()
   const { data: prices = [] } = useStockPrices()
   const { data: valuations = [] } = useAccountValuations()
 
@@ -70,15 +90,17 @@ export function useAssetsFreshness(): FreshnessSummary | null {
   }, [valuations])
 
   return useMemo(
-    () =>
-      freshnessSummary({
+    () => {
+      void fetchTick
+      return freshnessSummary({
         ratesFetchedAt: readRatesFetchedAt(base),
         priceSession: session,
         staleSymbolCount: staleSymbols.size,
         lastValuationOn,
         nowMs: Date.now(),
         todayISO: toISODate(new Date()),
-      }),
-    [base, rates, session, staleSymbols, lastValuationOn],
+      })
+    },
+    [base, rates, fetchTick, session, staleSymbols, lastValuationOn],
   )
 }

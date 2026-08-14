@@ -87,10 +87,9 @@ export function readRatesMeta(base: CurrencyCode): RatesCache | null {
   }
 }
 
-/** Số ngày trọn vẹn từ lúc nguồn định giá tới `now`. Mốc ở tương lai → 0. */
-export function rateAgeDays(sourceUpdatedAt: number, now: number): number {
-  return Math.max(0, Math.floor((now - sourceUpdatedAt) / 86_400_000))
-}
+// `rateAgeDays` từng ở đây, đo tuổi tỷ giá theo NGÀY TRỌN cho riêng trang Cài đặt. Đã bỏ:
+// tuổi của mọi nguồn dữ liệu giờ tính một chỗ ở lib/freshness.ts (`ageLabel` đo tới tận
+// phút), nên giữ lại là giữ một thước đo thứ hai chờ trôi khỏi thước kia.
 
 /**
  * Đổi minor units của `from` sang minor units của `base`.

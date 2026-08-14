@@ -63,8 +63,19 @@ describe('freshnessSummary', () => {
     expect(r?.details).toHaveLength(3)
   })
 
-  it('nêu tuổi tỷ giá trong dòng gộp', () => {
-    expect(freshnessSummary(base)?.line).toContain('Tỷ giá 3 giờ trước')
+  it('nêu tuổi tỷ giá', () => {
+    const rate = freshnessSummary(base)?.details.find((d) => d.label === 'Tỷ giá')
+    expect(rate?.age).toBe('3 giờ trước')
+  })
+
+  // Nguồn cũ KHÔNG được kéo nguồn còn mới sang warn: nơi hiện tô màu theo từng nguồn, một
+  // tone lây lan là chỉ sai thủ phạm.
+  it('chỉ nguồn thật sự cũ mới mang tone warn', () => {
+    const r = freshnessSummary({ ...base, staleSymbolCount: 2 })
+    expect(r?.tone).toBe('warn')
+    expect(r?.details.find((d) => d.label === 'Giá cổ phiếu')?.tone).toBe('warn')
+    expect(r?.details.find((d) => d.label === 'Tỷ giá')?.tone).toBe('ok')
+    expect(r?.details.find((d) => d.label === 'Giá trị tự khai')?.tone).toBe('ok')
   })
 
   it(`tỷ giá quá ${STALE_RATE_DAYS} ngày → tone warn`, () => {

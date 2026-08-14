@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -14,11 +14,12 @@ import {
 } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { resetDemoData } from '../../data/demoRepo'
+import { useRatesFreshness } from '../../hooks/useDataFreshness'
 import { useProfile, useRates } from '../../hooks/queries'
 import { isDemoMode } from '../../lib/demo'
 import { confirmDialog } from '../../lib/dialog'
 import type { CurrencyCode } from '../../lib/money'
-import { formatRateLine, rateAgeDays, readRatesMeta, STALE_RATE_DAYS } from '../../lib/rates'
+import { formatRateLine } from '../../lib/rates'
 import { getSupabase } from '../../lib/supabase'
 import { DensityToggle } from './DensityToggle'
 import { FontSizeToggle } from './FontSizeToggle'
@@ -34,32 +35,22 @@ export function SettingsPage() {
   const [editing, setEditing] = useState(() => searchParams.get('edit') === 'profile')
 
   const { base, rates } = useRates()
-  // Đăng ký theo dõi việc ĐANG LẤY tỷ giá, không phải giá trị tỷ giá: React Query giữ
-  // nguyên tham chiếu `data` khi số mới trùng số cũ, nên chỉ dựa vào `rates` thì bấm
-  // "Thử lấy lại" xong component không render lại và cảnh báo không tắt dù đã lấy được
-  // mốc mới. Số này đổi 0 → 1 → 0 quanh mỗi lượt lấy, nên lượt nào xong cũng có render.
+  // Chỉ để khoá nút "Thử lấy lại" trong lúc đang lấy. Việc ĐỌC LẠI mốc thời gian sau mỗi
+  // lượt lấy đã nằm trong useRatesFreshness (nó tự theo dõi số lượt fetch).
   const ratesFetching = useIsFetching({ queryKey: ['rates'] })
-  // Đọc thẳng localStorage trong lúc render (không phải state): `rates` đổi tham
-  // chiếu mỗi lần query trả về, nên mốc thời gian cũng được đọc lại đúng lúc đó.
-  const rateMeta = useMemo(() => {
-    // `ratesFetching` CÓ Ở ĐÂY LÀ CỐ Ý: nó là tín hiệu "vừa lấy xong, đọc lại đi",
-    // dù bản thân giá trị của nó không dùng để tính ra kết quả. Dòng `void` này chỉ
-    // để oxlint(exhaustive-deps) thấy biến có được tham chiếu trong thân hàm, tránh
-    // báo "unnecessary dependency" — nếu bỏ dòng này lint sẽ cảnh báo lại.
-    void ratesFetching
-    return rates ? readRatesMeta(base) : null
-  }, [rates, base, ratesFetching])
   // formatRateLine tự trả null cho chính `base` và cho số rác, nên không lọc trước.
   const rateLines = rates
     ? (Object.entries(rates) as [CurrencyCode, number][])
         .map(([c, r]) => formatRateLine(base, c, r))
         .filter((line): line is string => line !== null)
     : []
-  const ageDays =
-    rateMeta?.sourceUpdatedAt === undefined
-      ? null
-      : rateAgeDays(rateMeta.sourceUpdatedAt, Date.now())
-  const rateStale = ageDays !== null && ageDays >= STALE_RATE_DAYS
+  // Dùng CHUNG phép tính với dòng tuổi dữ liệu ở trang Tài sản và Báo cáo, thay vì tự đọc
+  // cache rồi tự tính. Ba chỗ lệch đã có thật khi trang này tính riêng: nó bỏ qua bản ghi
+  // cache thiếu `sourceUpdatedAt` (hai trang kia lùi về `fetchedAt` nên vẫn nói được tuổi),
+  // nó đo theo ngày trọn nên tỷ giá 5 giờ tuổi thành "Cập nhật hôm nay" trong khi trang Tài
+  // sản ghi "5 giờ trước", và ngưỡng "đã cũ" so `>=` trong khi bên kia so `>`.
+  const rateAge = useRatesFreshness()?.details.find((d) => d.label === 'Tỷ giá') ?? null
+  const rateStale = rateAge?.tone === 'warn'
 
   // Cài đặt giữ một cột hẹp kể cả trên PC (khung ngoài của AppLayout đã nới lên 6xl):
   // đây là danh sách nhóm tuỳ chọn, kéo rộng ra thì nhãn và ô bật/tắt rời nhau hai đầu
@@ -220,20 +211,14 @@ export function SettingsPage() {
                   {line}
                 </p>
               ))}
-              {ageDays !== null && !rateStale && (
-                <p className="mt-1 text-xs text-fg-muted">
-                  {ageDays === 0
-                    ? 'Cập nhật hôm nay'
-                    : ageDays === 1
-                      ? 'Cập nhật hôm qua'
-                      : `Cập nhật ${ageDays} ngày trước`}
-                </p>
+              {rateAge !== null && !rateStale && (
+                <p className="mt-1 text-xs text-fg-muted">Cập nhật {rateAge.age}</p>
               )}
-              {rateStale && (
+              {rateStale && rateAge !== null && (
                 <div className="mt-2 rounded-lg bg-amber-50 p-2 dark:bg-amber-900/30">
                   <p className="text-xs text-amber-700 dark:text-amber-300">
-                    Cập nhật {ageDays} ngày trước — mạng hoặc nguồn tỷ giá đang lỗi, số quy
-                    đổi có thể sai.
+                    Cập nhật {rateAge.age} — mạng hoặc nguồn tỷ giá đang lỗi, số quy đổi có
+                    thể sai.
                   </p>
                   <button
                     type="button"

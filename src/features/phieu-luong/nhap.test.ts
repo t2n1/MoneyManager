@@ -124,6 +124,11 @@ describe('timNeo', () => {
     const r = timNeo(thu, P202608, YUCHO, new Set(['tx-1']))
     expect(r.ok).toBe(false)
   })
+
+  it('timNeo: thiếu period thì throw, không tính bừa cửa sổ ngày', () => {
+    const khongKy: Phieu = { ...P202608, period: null }
+    expect(() => timNeo([NEO_202608], khongKy, YUCHO)).toThrow(/thieu ky/)
+  })
 })
 
 describe('dungDong — 202608K', () => {
@@ -152,6 +157,11 @@ describe('dungDong — 202608K', () => {
   it('bat bien bang khong, va bang gop tru rong', () => {
     expect(kiemDong(P202608, thu, chi, thuKhac)).toEqual([])
     expect(thu.amount).toBe(P202608.gross! - P202608.net!)
+  })
+
+  it('dungDong: thiếu kind thì throw, không ghi chuỗi "null" vào note', () => {
+    const khongLoai: Phieu = { ...P202608, kind: null }
+    expect(() => dungDong(khongLoai, NEO_202608, IDS)).toThrow(/thieu loai/)
   })
 })
 

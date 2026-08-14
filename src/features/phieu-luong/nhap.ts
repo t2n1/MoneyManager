@@ -126,7 +126,12 @@ export function timNeo(
   yuchoId: string,
   daDung: Set<string> = new Set(),
 ): { ok: true; row: KhoanNeo } | { ok: false; lyDo: string } {
-  const { tu, den } = cuaSoNeo(phieu.period!)
+  // KHONG dung `!`: bat bien "period khong null" duoc giu boi CALLER (moi caller loc
+  // `p.loi.length` truoc, va bocPhieu day 'khong doc duoc ky/loai' vao `loi` khi period
+  // null). Dua vao caller ma khong kiem la mong manh — va neu bat bien vo, ta muon no
+  // no ON AO ngay day, khong phai lang le troi xuong.
+  if (!phieu.period) throw new Error(`phieu '${phieu.file}' thieu ky (period) — khong neo duoc`)
+  const { tu, den } = cuaSoNeo(phieu.period)
   const ung = khoanThu.filter(
     (t) =>
       t.account_id === yuchoId &&
@@ -154,7 +159,12 @@ export function dungDong(
   neo: KhoanNeo,
   idTheoTen: Map<string, string>,
 ): { thu: DongMoi; thuKhac: DongMoi | null; chi: DongMoi[] } {
-  const dau = dauGhiChu(neo.occurred_on, phieu.kind!)
+  // Vi sao throw chu khong `!`: dauGhiChu voi kind null KHONG no — no noi chuoi thanh
+  // `給与 2026/08null` roi ghi am tham vao `note` giao dich that. Ma `note` la tay cam
+  // DUY NHAT de go lo nhap (khong co cot import_batch), nen mot dau ghi chu sai la mot
+  // dong khong go duoc. Du lieu sai lang le te hon loi on ao.
+  if (!phieu.kind) throw new Error(`phieu '${phieu.file}' thieu loai (K/S) — khong dung duoc dau ghi chu`)
+  const dau = dauGhiChu(neo.occurred_on, phieu.kind)
   const muc = { ...phieu.tru, ...phieu.ngoaiTong }
   const chi: DongMoi[] = []
   for (const [nhan, so] of Object.entries(muc)) {

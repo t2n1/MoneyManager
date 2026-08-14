@@ -1,11 +1,11 @@
 // Hai luật về dòng "số trên màn này lấy lúc nào" mà không phép thử hành vi nào bắt được,
 // vì cả hai đều là chuyện GIỮA các file.
 //
-// Luật 1 — vị trí. Dòng tuổi dữ liệu nói về CẢ trang, nên phải ở một độ cao không đổi.
-// Trang Báo cáo từng chèn nó ở vị trí thứ sáu, sau dải tab nội dung, dải kỳ, mũi chuyển kỳ,
-// dải tháng và banner thiếu tỷ giá — bốn khối trong số đó có điều kiện. Gạt tab một cái là
-// dòng nhảy sang độ cao khác; trong cùng một trang nó có bốn chỗ đứng, còn so với trang Tài
-// sản thì cùng một dòng chữ xuất hiện ở năm độ cao trên toàn app.
+// Luật 1 — một chỗ đứng. Dòng tuổi dữ liệu nói về CẢ app, nên nó thuộc về chân trang, và
+// chỉ AppFooter được dựng nó. Trước đây mỗi trang tự chèn: trang Báo cáo đặt ở vị trí thứ
+// sáu, sau bốn khối CÓ ĐIỀU KIỆN (dải tab nội dung, dải kỳ, mũi chuyển kỳ, dải tháng), nên
+// gạt tab một cái là nó nhảy — riêng trong trang đó đã có bốn chỗ đứng, cộng với trang Tài
+// sản đặt ngay dưới tiêu đề là cùng một dòng chữ hiện ở năm độ cao khác nhau.
 //
 // Luật 2 — một mối. Tuổi tỷ giá chỉ được tính ở `lib/freshness.ts` (qua
 // `hooks/useDataFreshness.ts`). Trang Cài đặt từng tự đọc cache rồi tự tính, và ba chỗ lệch
@@ -30,38 +30,24 @@ const SOURCES = [...Object.entries(RAW)].map(
   ([path, code]) => [path.replace(/^\/src\//, ''), code] as const,
 )
 
-// ------------------------------------------------------------------ luật 1: vị trí
+// ------------------------------------------------------------- luật 1: một chỗ đứng
 
-/** File có DỰNG `<DataFreshness …/>` (bỏ chính component và file này). */
+/** File có DỰNG `<DataFreshness …/>` (bỏ chính component). */
 const USERS = SOURCES.filter(
   ([file, code]) =>
     file.endsWith('.tsx') &&
     file !== 'components/DataFreshness.tsx' &&
     code.includes('<DataFreshness'),
-)
+).map(([file]) => file)
 
-describe('vị trí <DataFreshness>', () => {
-  // Dải tab nội dung, dải kỳ, dải tháng — thứ đổi theo lát đang xem. Dòng tuổi dữ liệu
-  // nói về CẢ trang nên phải đứng trên hết thảy, nếu không nó tụt theo chúng.
-  const CONTROLS = ['<SegmentedControl', '<MonthStrip']
-
-  it('có ít nhất một trang dùng — nếu không, phép thử dưới đây rỗng mà vẫn xanh', () => {
-    expect(USERS.length).toBeGreaterThan(0)
+describe('chỗ đứng của <DataFreshness>', () => {
+  it('chỉ chân trang được dựng — không trang nào tự chèn', () => {
+    expect(USERS).toEqual(['components/AppFooter.tsx'])
   })
 
-  it.each(USERS)('%s: đứng dưới <h1> của trang', (_file, code) => {
-    const h1At = code.indexOf('<h1')
-    expect(h1At).toBeGreaterThan(-1)
-    expect(code.indexOf('<DataFreshness')).toBeGreaterThan(h1At)
-  })
-
-  it.each(USERS)('%s: đứng trên mọi dải điều khiển', (_file, code) => {
-    const freshnessAt = code.indexOf('<DataFreshness')
-    for (const control of CONTROLS) {
-      const at = code.indexOf(control)
-      if (at < 0) continue // trang không dùng dải đó thì không có gì để so
-      expect(freshnessAt, `${control} phải đứng sau <DataFreshness>`).toBeLessThan(at)
-    }
+  it('chân trang thật sự nằm trong layout, không phải một trang', () => {
+    const layout = SOURCES.find(([file]) => file === 'components/AppLayout.tsx')
+    expect(layout?.[1]).toMatch(/<AppFooter\s*\/>/)
   })
 })
 

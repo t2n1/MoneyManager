@@ -1,10 +1,17 @@
 // Nối dữ liệu thật vào `freshnessSummary` (lib/freshness.ts).
 //
-// Tách hai hook thay vì một hook có cờ bật/tắt: trang Báo cáo chỉ có tỷ giá, gọi thêm
-// useStockPrices/useAccountValuations ở đó là hai request cho dữ liệu nó không dùng.
-// Ở trang Tài sản thì hai query đó đều được hook này tự gọi (không lệ thuộc component con
-// nào khác gọi trước) — react-query dùng chung cache theo query key nên nhiều nơi cùng gọi
-// vẫn không phát sinh request mới.
+// Hai hook, hai vai:
+//
+// `useDataFreshness` đủ ba nguồn — cho chân trang, tức là cho MỌI trang. Nó tự gọi
+// useStockPrices/useAccountValuations chứ không đợi component con nào gọi trước, nên app
+// tải hai bảng đó ngay từ trang đầu kể cả người không bao giờ mở Tài sản. Cái giá đó là
+// CỐ Ý và đã cân: react-query dùng chung cache theo query key nên chỉ tốn hai request mỗi
+// phiên, không phải mỗi trang; đổi lại chân trang nói cùng một câu ở khắp nơi thay vì mỗi
+// trang biết một phần. (Bản trước tách hai hook vì dòng này còn nằm ở đầu từng trang —
+// lúc đó gọi thêm hai query cho một trang không dùng tới chúng mới là lãng phí thật.)
+//
+// `useRatesFreshness` chỉ tỷ giá — còn đúng một nơi dùng: trang Cài đặt cần biết tỷ giá
+// có cũ không để bật khối cảnh báo kèm nút "Thử lấy lại".
 import { useIsFetching } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { toISODate } from '../lib/dates'
@@ -47,7 +54,7 @@ function useRatesRefetchTick(): number {
   return useIsFetching({ queryKey: ['rates'] })
 }
 
-/** Chỉ nguồn tỷ giá — cho trang Báo cáo và trang Cài đặt. */
+/** Chỉ nguồn tỷ giá — cho trang Cài đặt. */
 export function useRatesFreshness(): FreshnessSummary | null {
   const { base, rates } = useRates()
   const fetchTick = useRatesRefetchTick()
@@ -72,8 +79,8 @@ export function useRatesFreshness(): FreshnessSummary | null {
   )
 }
 
-/** Cả ba nguồn — cho trang Tài sản. */
-export function useAssetsFreshness(): FreshnessSummary | null {
+/** Cả ba nguồn — cho chân trang, hiện ở mọi trang. */
+export function useDataFreshness(): FreshnessSummary | null {
   const { base, rates } = useRates()
   const fetchTick = useRatesRefetchTick()
   const { data: prices = [] } = useStockPrices()

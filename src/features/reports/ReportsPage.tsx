@@ -8,8 +8,6 @@ import {
   StatTile,
   type SegmentedItem,
 } from '../../components/ui'
-import { DataFreshness } from '../../components/DataFreshness'
-import { useRatesFreshness } from '../../hooks/useDataFreshness'
 import { RemittanceSection } from '../remittance/RemittanceSection'
 import { InsightsView } from './InsightsView'
 import { TrendsView } from './TrendsView'
@@ -114,7 +112,6 @@ function parseYm(s: string | null): MonthKey | null {
 }
 
 export function ReportsPage() {
-  const ratesFreshness = useRatesFreshness()
   const [kind, setKind] = useState<'expense' | 'income'>('expense')
   // Câu tổng của kỳ — dựng ở dưới, sau khi có monthSums/yearSums.
   const [searchParams, setSearchParams] = useSearchParams()
@@ -361,19 +358,16 @@ export function ReportsPage() {
             : 'nhiều năm'}
       </p>
 
-      {/* Tình trạng tỷ giá đứng NGAY DƯỚI tiêu đề, trên mọi dải điều khiển — giống trang
-          Tài sản. Trước đây hai khối này nằm dưới cả dải tab, dải kỳ, mũi chuyển kỳ và dải
-          tháng; bốn khối đó đều có điều kiện, nên gạt tab một cái là dòng tuổi tỷ giá nhảy
-          sang độ cao khác, trong cùng một trang có bốn chỗ đứng. Tỷ giá không đổi theo lát
-          đang xem, nên nó thuộc về đầu trang chứ không thuộc về khối nội dung.
-
-          Thứ tự thiếu-trước-cũ-sau giữ nguyên: thiếu hẳn tỷ giá là chuyện nặng hơn tỷ giá cũ. */}
+      {/* Cảnh báo THIẾU tỷ giá ở lại đầu trang, không xuống chân trang cùng dòng tuổi dữ
+          liệu: nó nói "số đang hiện bị thiếu", tức là đọc trước khi đọc số thì mới kịp.
+          Tuổi dữ liệu là thông tin nền, đọc lúc nào cũng được. Đứng trên mọi dải điều
+          khiển vì bốn khối bên dưới đều có điều kiện — nằm sau chúng thì mỗi lần gạt tab
+          là cảnh báo lại nhảy sang một độ cao khác. */}
       {showMissingRate && (
         <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
-      <DataFreshness summary={ratesFreshness} />
 
       {/* Tab nội dung đứng TRƯỚC mọi điều khiển kỳ, và luôn đủ 4 mục.
           Trước đây dải này nằm DƯỚI nút gạt Tháng|Năm và tự ẩn khi gạt sang Năm (vì 3/4

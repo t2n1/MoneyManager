@@ -211,9 +211,9 @@ export function SettingsPage() {
                   {line}
                 </p>
               ))}
-              {rateAge !== null && !rateStale && (
-                <p className="mt-1 text-xs text-fg-muted">Cập nhật {rateAge.age}</p>
-              )}
+              {/* Không có dòng "Cập nhật …" xám ở đây nữa: chân trang đã nói tuổi tỷ giá ở
+                  MỌI trang, kể cả trang này. Khối cảnh báo dưới đây thì ở lại — nó không
+                  chỉ báo tuổi mà còn là chỗ duy nhất làm được gì đó về việc tỷ giá cũ. */}
               {rateStale && rateAge !== null && (
                 <div className="mt-2 rounded-lg bg-amber-50 p-2 dark:bg-amber-900/30">
                   <p className="text-xs text-amber-700 dark:text-amber-300">
@@ -239,10 +239,9 @@ export function SettingsPage() {
         </Card>
       )}
 
-      <p className="text-center text-xs text-fg-muted">
-        Sổ Gạo · Giai đoạn 1 (MVP)
-        {profile && ` · Tháng bắt đầu ngày ${profile.month_start_day} · Quy đổi ${profile.base_currency}`}
-      </p>
+      {/* Dòng "Sổ Gạo · Giai đoạn 1 (MVP) · …" đã dời lên components/AppFooter.tsx: nó
+          đúng ở mọi trang chứ không riêng trang này, và để lại đây thì trang Cài đặt có
+          hai dòng chân nối đuôi nhau. */}
 
       {editing && profile && <ProfileEditSheet profile={profile} onClose={() => setEditing(false)} />}
     </div>

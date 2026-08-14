@@ -7,11 +7,9 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { LineChart, Settings2 } from 'lucide-react'
-import { DataFreshness } from '../../components/DataFreshness'
 import { PrivacyToggle } from '../../components/PrivacyToggle'
 import { iconButtonClass, SegmentedControl, type SegmentedItem } from '../../components/ui'
 import { useAccounts } from '../../hooks/queries'
-import { useAssetsFreshness } from '../../hooks/useDataFreshness'
 import type { CurrencyCode } from '../../lib/money'
 import { AssetsNowView } from './AssetsNowView'
 
@@ -37,7 +35,6 @@ const isView = (v: string | null): v is AssetsView => VIEW_TABS.some((t) => t.va
 const Loading = () => <p className="py-10 text-center text-sm text-fg-muted">Đang tải…</p>
 
 export function AssetsPage() {
-  const freshness = useAssetsFreshness()
   // Lối vào trang Đầu tư. Điều kiện phải TRÙNG KHÍT hợp của hai tab (useInvestData cho
   // VND, useFundInvestData cho JPY) — icon dẫn tới một trang nói "chưa có tài khoản nào"
   // thì tệ hơn là không có icon. useAccounts đã nằm trong cache của tab Hiện tại nên đây
@@ -97,10 +94,6 @@ export function AssetsPage() {
           </Link>
         )}
       </div>
-
-      {/* Tuổi dữ liệu đứng NGAY DƯỚI tiêu đề, trên nút gạt tab: cả ba tab đều đọc cùng
-          tỷ giá và cùng bảng giá cổ phiếu, nên đây là thông tin của cả trang. */}
-      <DataFreshness summary={freshness} />
 
       <SegmentedControl
         items={VIEW_TABS}

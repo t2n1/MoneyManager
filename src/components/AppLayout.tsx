@@ -4,6 +4,9 @@ import { ChartColumn, NotebookText, Plus, Settings, Target, Wallet } from 'lucid
 import { isDemoMode } from '../lib/demo'
 import { useAuth } from '../features/auth/AuthProvider'
 import { AppLogo } from './AppLogo'
+import { AppFooter } from './AppFooter'
+import { LoadProgress } from './LoadProgress'
+import { useLoadProgress } from '../hooks/useLoadProgress'
 import {
   useDeleteNotificationStates,
   usePruneNotificationState,
@@ -83,6 +86,8 @@ export function AppLayout() {
   // Lưới an toàn lỗi: query/mutation thất bại ở BẤT KỲ đâu cũng nổi một toast, thay vì
   // im lặng để người dùng tưởng đã lưu được. Lấy từ nhánh fix/toan-bo-audit.
   const errorToast = useErrorToast()
+  // Đọc ở đây (không phải trong LoadProgress) vì toast định kỳ bên dưới phải né nó.
+  const loadPercent = useLoadProgress()
 
   // Nút "+" nổi chỉ hiện ở trang Sổ Giao dịch
   const onLedger = location.pathname === '/' || location.pathname === '/transactions'
@@ -273,6 +278,9 @@ export function AppLayout() {
         {/* Lưới an toàn: query lỗi không được hiển thị như "không có dữ liệu" */}
         <QueryErrorBanner />
         <Outlet />
+        {/* Chân trang nằm TRONG <main>: nó cuộn cùng nội dung và đứng ở cuối mỗi trang.
+            Để ngoài <main> thì nó thành dải cố định, chen chỗ với nav dưới. */}
+        <AppFooter />
       </main>
 
       {/* Nút "+" nổi (mobile) → mở trang nhập; chỉ hiện ở Sổ GD */}
@@ -313,8 +321,18 @@ export function AppLayout() {
         ))}
       </nav>
 
+      <LoadProgress percent={loadPercent} />
+
+      {/* Toast này dùng chung chỗ với viên thuốc tiến độ. Nút đang hiện thì toast tụt
+          xuống một bậc, thay vì hai cái chồng lên nhau. */}
       {recurringToast && (
-        <div className="fixed inset-x-0 top-[calc(1rem+env(safe-area-inset-top))] z-50 flex justify-center">
+        <div
+          className={`fixed inset-x-0 z-50 flex justify-center ${
+            loadPercent === null
+              ? 'top-[calc(1rem+env(safe-area-inset-top))]'
+              : 'top-[calc(3.75rem+env(safe-area-inset-top))]'
+          }`}
+        >
           <div className="rounded-full bg-gray-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg">
             {recurringToast}
           </div>

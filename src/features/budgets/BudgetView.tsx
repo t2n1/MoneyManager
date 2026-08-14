@@ -19,7 +19,7 @@ import { pickAttention, sortBudgetItems, type BudgetSortMode } from './budgetSor
 import { dailyAllowance } from './dailyAllowance'
 import { ClassificationToggle } from '../categories/ClassificationToggle'
 import type { BudgetStatus } from './progress'
-import { MonthPaceCharts, SpendPaceSection, useMonthPace } from '../reports/monthPace'
+import { BudgetVerdictLine, MonthPaceCharts, SpendPaceSection, useMonthPace } from '../reports/monthPace'
 import { AxisTargetsCard } from './AxisTargetsCard'
 import { useAxisProgress } from './useAxisProgress'
 import { TagBudgetsCard } from '../tags/TagBudgetsCard'
@@ -315,23 +315,23 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </div>
       )}
 
-      {/* PC chia 2 cột (cùng lối ReportsPage/AssetsNowView): trái = điều khiển (trục,
-          tổng, hạn mức), phải = biểu đồ mô tả. Trên mobile hai wrapper là
-          display:contents nên các khối vẫn là con trực tiếp của flex-col ngoài —
-          thứ tự đọc giữ bằng order-*: nhịp chi (order-3) vẫn nằm ngay dưới dòng
-          tổng (order-2) như chú thích ở SpendPaceSection yêu cầu. */}
+      {/* PC chia 2 cột (cùng lối ReportsPage/AssetsNowView): trái = việc phải làm hôm nay
+          (tổng + phán quyết, cần để ý, hạn mức, nhãn), phải = phần mô tả và phần dựng.
+          Trước đây trái = "điều khiển", nhưng cơ cấu trục nằm đó chỉ vì nó vốn ở đó từ
+          trước khi chia cột, không phải vì ai chọn nó quan trọng nhất.
+
+          KHÔNG dùng order-*. Trên mobile hai wrapper là display:contents nên DOM phẳng ra
+          đúng "cột trái rồi cột phải" — thứ tự đọc mobile CHÍNH LÀ thứ tự DOM, nên thị
+          giác, tiêu điểm bàn phím và máy đọc màn hình không thể lệch nhau. Muốn đổi thứ tự
+          thì CHUYỂN KHỐI, đừng thêm order-*: CSS order đổi cái nhìn thấy mà không đổi thứ
+          tự tiêu điểm (WCAG 2.4.3) — thẻ cơ cấu trục giữ 3 phần tử bắt tiêu điểm nên hạ nó
+          bằng order-* là tiêu điểm nhảy ngược. Ràng buộc kèm theo: "Chưa đặt hạn mức" phải
+          ở cột PHẢI, không thì phép nối trái-rồi-phải không ra đúng thứ tự mobile.
+          tests/budgetLayout.test.ts canh cả hai vế. */}
       <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4">
       <div className="contents lg:flex lg:flex-col lg:gap-3">
-      {/* Cơ cấu chi theo trục — trả lời "chi thế này có lành mạnh không",
-          khác với dòng tổng bên dưới trả lời "có vượt hạn mức không" */}
-      {axis && (
-        <div className="order-1">
-          <AxisTargetsCard data={axis} base={base} monthKey={monthKey} />
-        </div>
-      )}
-
-      {/* Dòng tổng */}
-      <section className="order-2 rounded-xl bg-surface p-3 shadow-sm">
+      {/* Dòng tổng — kèm luôn phán quyết cuối tháng, xem BudgetVerdictLine */}
+      <section className="rounded-xl bg-surface p-3 shadow-sm">
         <div className="mb-1 flex items-baseline justify-between">
           <h2 className="text-sm font-semibold text-fg-muted">Tổng ngân sách</h2>
           <span className="flex gap-2 text-xs font-medium">
@@ -393,6 +393,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             <ProgressBar ratio={totalPct / 100} status={report.totalStatus} className="mt-1" />
           </>
         )}
+        {/* Phán quyết đứng ngay đây, không ở thẻ biểu đồ. Con số lớn nhất màn ("còn ¥…")
+            chỉ kể chuyện đã ghi; câu này mới nói đà tháng về đâu. Để rời nhau thì trên
+            mobile một vế ở y=347 còn một vế ở y=803, dưới mép gấp 732. */}
+        <BudgetVerdictLine pace={pace} />
         <button
           type="button"
           onClick={handleCopy}
@@ -402,11 +406,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </button>
       </section>
 
-      {/* Cần để ý — ghim ngay dưới dòng tổng (cùng order-2 nên xếp sau nó theo thứ tự
-          DOM, trước khối nhịp chi order-3). Đây là phần trả lời "hôm nay phải làm gì",
+      {/* Cần để ý — ghim ngay dưới dòng tổng. Đây là phần trả lời "hôm nay phải làm gì",
           khác với danh sách bên dưới trả lời "toàn cảnh tháng này ra sao". */}
       {attention.length > 0 && (
-        <Card as="section" className="order-2">
+        <Card as="section">
           <h2 className="text-sm font-semibold text-fg-muted">
             Cần để ý ({attention.length})
           </h2>
@@ -443,7 +446,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
 
       {/* Danh mục / nhóm có hạn mức */}
       {items.length > 0 && (
-        <section className="order-4 rounded-xl bg-surface p-3 shadow-sm">
+        <section className="rounded-xl bg-surface p-3 shadow-sm">
           {/* Nút chọn kiểu sắp xếp: chỉ hiện khi có từ 2 mục trở lên — một mục thì
               sắp kiểu gì cũng thế, bày thêm nút chỉ tổ rối. */}
           {items.length > 1 && (
@@ -540,16 +543,31 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </section>
       )}
 
-      {/* Ngân sách theo nhãn — SAU danh sách danh mục vì danh mục mới là công cụ
-          chính hằng tháng; nhãn là trần cắt ngang, dùng cho dịp/dự án. Cùng order-4
-          nên nó xếp ngay sau danh sách đó theo thứ tự DOM. */}
-      <div className="order-4">
-        <TagBudgetsCard data={tagBudgets} base={base} />
+      {/* Ngân sách theo nhãn — SAU danh sách danh mục vì danh mục mới là công cụ chính
+          hằng tháng; nhãn là trần cắt ngang, dùng cho dịp/dự án. Khối cuối của cột trái. */}
+      <TagBudgetsCard data={tagBudgets} base={base} />
+
       </div>
 
-      {/* Nhóm / lá chưa đặt hạn mức */}
+      {/* Cột phải (PC): mô tả và dựng — không phải việc phải làm hôm nay. Trên mobile
+          các khối này nối tiếp ngay sau cột trái. */}
+      <div className="contents lg:flex lg:flex-col lg:gap-3">
+      {/* Chi tích lũy vs ngân sách — BẰNG CHỨNG cho câu phán quyết đã nói ở thẻ tổng,
+          nên đứng sau danh sách bấm được, đúng luật "biểu đồ xuống dưới phần bấm được" */}
+      {pace.hasSpend && <SpendPaceSection pace={pace} />}
+
+      {/* Cơ cấu chi theo trục — trả lời "chi thế này có lành mạnh không", câu hỏi nhịp
+          tháng/quý. Khác dòng tổng ở cột trái trả lời "có vượt hạn mức không", câu hỏi
+          nhịp ngày. Đo trên mobile 375×812: thẻ này cao 227px trong vùng nhìn thấy 660px
+          (nav dưới fixed từ y=732), tức 34% màn đầu tiên — quá đắt cho một khối không có
+          trạng thái khẩn nào (nó chỉ có đạt/chưa đạt, không có mức đỏ). */}
+      {axis && <AxisTargetsCard data={axis} base={base} monthKey={monthKey} />}
+
+      {/* Nhóm / lá chưa đặt hạn mức — việc DỰNG ngân sách, không phải việc theo dõi nó.
+          Nằm ở cột phải còn vì lý do bố cục: nối trái-rồi-phải phải ra đúng thứ tự mobile
+          thì mới bỏ được order-*. Xem chú thích ở đầu khối 2 cột. */}
       {unbudgeted.length > 0 && (
-        <section className="order-5 rounded-xl bg-surface p-3 shadow-sm">
+        <section className="rounded-xl bg-surface p-3 shadow-sm">
           <h2 className="mb-1 text-sm font-semibold text-fg-muted">
             Chưa đặt hạn mức
           </h2>
@@ -611,21 +629,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </section>
       )}
 
-      </div>
-
-      {/* Cột phải (PC): biểu đồ. Wrapper gate theo đúng điều kiện các component con
-          tự ẩn — không thì div rỗng vẫn chiếm một suất gap trên mobile. */}
-      <div className="contents lg:flex lg:flex-col lg:gap-3">
-      {/* Đang đi nhanh hay chậm so với hạn mức — trên mobile ngay dưới dòng tổng */}
-      {pace.hasSpend && (
-        <div className="order-3">
-          <SpendPaceSection pace={pace} />
-        </div>
-      )}
-
-      {/* Biểu đồ mô tả — dưới danh sách hạn mức (mobile) vì không bấm được */}
+      {/* Lịch chi tiêu (và dòng tiền) — khối khám phá, để cuối. Gate theo đúng điều kiện
+          component con tự ẩn: không thì div rỗng vẫn chiếm một suất gap trên mobile. */}
       {(pace.hasCashflow || pace.hasSpend) && (
-        <div className="order-6 flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
           <MonthPaceCharts pace={pace} />
         </div>
       )}

@@ -270,10 +270,10 @@ export function AccountDetailPage() {
                 isInvestment
                   ? // CÓ sổ lệnh mà `marketValue` là null (tiền chưa mua âm, hoặc thiếu
                     // giá mọi mã/quỹ) → SỐ DƯ SỔ, đúng chữ của spec. Không rơi về
-                    // `invStats.marketValue`: đó là một snapshot cũ, và câu ngay bên dưới
-                    // đang nói "chưa có giá cho mã nào đang giữ" — số lớn phía trên mà là
-                    // một ảnh chụp hôm nào đó thì hai dòng nói ngược nhau, lại KHÔNG có
-                    // EstimateMark nào báo là số ước tính.
+                    // `invStats.marketValue`: đó là một snapshot cũ, và khối bên dưới giờ
+                    // nói đúng LÝ DO nào trong hai lý do đó (mượn chữ của InvestStocksTab)
+                    // — số lớn phía trên mà là một ảnh chụp hôm nào đó thì hai dòng nói
+                    // ngược nhau, lại KHÔNG có EstimateMark nào báo là số ước tính.
                     danhMuc
                     ? (danhMuc.marketValue ?? balance)
                     : (invStats.marketValue ?? balance)
@@ -308,22 +308,31 @@ export function AccountDetailPage() {
         {isInvestment && danhMuc && (
           <div className="mt-3 space-y-1.5 border-t border-border-subtle pt-3 text-sm">
             {/* marketValue == null: không phải "lãi/lỗ đúng bằng 0", mà là buildPortfolio
-                không có giá cho BẤT KỲ mã/quỹ nào đang giữ, nên đã định giá mọi vị thế
-                bằng giá vốn — unrealizedPnl và unrealizedPercent ra đúng 0 một cách giả.
-                In PnlRow lúc này sẽ khẳng định "+0 ₫ (+0,0%)" như một sự thật trong khi số
-                lớn phía trên đã âm thầm rơi về vốn gốc. Nói thẳng thay vì bịa số 0.
-                Câu chữ mượn nguyên từ nhánh `p.marketValue === null` của InvestStocksTab
-                (cách một cú bấm "Xem →"), CHỨ KHÔNG mượn câu "Chưa cập nhật giá thị
+                không định giá được — vì MỘT trong HAI lý do (xem reliableTotal ở
+                holdings.ts): thiếu giá cho BẤT KỲ mã/quỹ nào đang giữ, hoặc (chỉ đường cổ
+                phiếu — quỹ Nhật không có tiền nhàn rỗi) tiền chưa mua đã âm vì sổ lệnh
+                thiếu một lần nạp. Cả hai trường hợp đều bị định giá bằng giá vốn nên
+                unrealizedPnl và unrealizedPercent ra đúng 0 một cách giả. In PnlRow lúc
+                này sẽ khẳng định "+0 ₫ (+0,0%)" như một sự thật trong khi số lớn phía
+                trên đã âm thầm rơi về vốn gốc (số dư sổ). Nói thẳng thay vì bịa số 0.
+
+                Hai lý do cần HAI câu khác nhau — `danhMuc.cash` (null ở quỹ, vì quỹ chỉ có
+                một lý do) tách đúng lý do nào để chọn đúng câu, cả hai câu chữ đều mượn
+                nguyên từ hai nhánh của `p.marketValue === null` ở InvestStocksTab (cách
+                một cú bấm "Xem →") — trước khi có `cash` ở đây, khối này chỉ in được một
+                trong hai câu bất kể lý do thật là gì, nên một tài khoản mua nhiều hơn tiền
+                đã nạp vẫn bị trang này báo "chưa có giá", SAI so với chữ mà tab /invest
+                nói về đúng tài khoản đó. CHỨ KHÔNG mượn câu "Chưa cập nhật giá thị
                 trường — đang tính theo vốn gốc." của khối không-sổ-lệnh dưới đây: câu đó
                 đúng cho khối không-sổ-lệnh (guard của nó là invStats.unrealizedPnl ==
                 null, tức chưa từng có bản định giá nào) nhưng SAI ở đây — số lớn phía
                 trên có thể đang rơi về invStats.marketValue (một bản định giá tay CŨ),
-                nên nói "chưa cập nhật" là bịa; câu đúng ở khối này là "chưa có giá cho
-                mã/quỹ đang giữ", đúng thứ mà buildPortfolio vừa báo. */}
+                nên nói "chưa cập nhật" là bịa. */}
             {danhMuc.marketValue == null ? (
               <p className="text-xs text-fg-muted">
-                Chưa tính được — chưa có giá cho {danhMuc.kind === 'funds' ? 'quỹ' : 'mã'} nào đang
-                giữ.
+                {danhMuc.cash != null && danhMuc.cash < 0
+                  ? 'Chưa tính được — sổ lệnh đang mua nhiều hơn tiền đã nạp.'
+                  : `Chưa tính được — chưa có giá cho ${danhMuc.kind === 'funds' ? 'quỹ' : 'mã'} nào đang giữ.`}
               </p>
             ) : (
               <PnlRow

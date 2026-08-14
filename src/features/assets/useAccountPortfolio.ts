@@ -31,6 +31,17 @@ export interface AccountPortfolioSummary {
   /** Số mã / số quỹ đang giữ. */
   count: number
   session: string | null
+  /**
+   * Tiền chưa mua ở công ty chứng khoán (âm = sổ lệnh thiếu lần nạp tiền). `null` cho
+   * quỹ Nhật — tài khoản quỹ không giữ tiền nhàn rỗi (Rakuten quét sạch về 楽天銀行),
+   * nên khái niệm "tiền chưa mua" không tồn tại ở đó.
+   *
+   * Trường này tồn tại CHỈ để trang chi tiết chọn đúng câu khi `marketValue === null`:
+   * `reliableTotal` (holdings.ts) trả `null` vì HAI lý do khác nhau — `cash < 0` hoặc
+   * thiếu giá mọi mã — và hai lý do đó cần hai câu khác nhau (xem AccountDetailPage).
+   * Không tính gì ở đây, chỉ chuyển tiếp `cash` mà `buildPortfolio` đã tính sẵn.
+   */
+  cash: number | null
 }
 
 /**
@@ -75,18 +86,23 @@ export function useAccountPortfolio(
   // khoản, nên thiếu cổng này thì mở một cái ví tiền mặt cũng kéo về cả sổ lệnh lẫn
   // bảng giá — đường mà đợt gộp danh mục không được phép chạm tới.
   const laDauTu = account?.type === 'investment'
-  const { data: balances = [] } = useAccountBalances()
+  const { data: balances = [], isLoading: dangTaiSoDu } = useAccountBalances()
   const { data: stockTrades = [], isLoading: dangTaiLenhCoPhieu } = useStockTrades(laDauTu)
   const { data: prices = [], isLoading: dangTaiGiaCoPhieu } = useStockPrices(laDauTu)
   const { data: fundTrades = [], isLoading: dangTaiLenhQuy } = useFundTrades(laDauTu)
   const { data: navRows = [], isLoading: dangTaiGiaQuy } = useFundPrices(laDauTu)
 
-  // Gồm cả bảng giá chứ không chỉ sổ lệnh: sổ lệnh về trước mà giá chưa về thì
-  // `marketValue` là null và trang khẳng định "chưa có giá cho mã nào đang giữ" — một
-  // câu SAI, chỉ sống nửa giây, nhưng vẫn là câu sai. Bốn truy vấn bật/tắt cùng nhau nên
-  // chờ cả bốn không thêm trạng thái nào mới.
+  // Gồm cả bảng giá VÀ số dư chứ không chỉ sổ lệnh: sổ lệnh về trước mà giá chưa về
+  // thì `marketValue` là null và trang khẳng định "chưa có giá cho mã nào đang giữ" —
+  // một câu SAI, chỉ sống nửa giây, nhưng vẫn là câu sai. Thiếu `dangTaiSoDu` thì còn
+  // một cửa sai khác: `balance` (nhánh `stocks` dưới) mặc định về 0 trong lúc
+  // `useAccountBalances` chưa về, `brokerCash` từ 0 trừ tiền đã mua ra một số ÂM, và
+  // trang in đúng câu "sổ lệnh đang mua nhiều hơn tiền đã nạp" — SAI theo kiểu tệ hơn
+  // câu thiếu giá, vì nó buộc tội sổ lệnh trong khi sổ lệnh không có lỗi gì. Năm truy
+  // vấn bật/tắt cùng nhau nên chờ cả năm không thêm trạng thái nào mới.
   const dangTai =
-    laDauTu && (dangTaiLenhCoPhieu || dangTaiGiaCoPhieu || dangTaiLenhQuy || dangTaiGiaQuy)
+    laDauTu &&
+    (dangTaiLenhCoPhieu || dangTaiGiaCoPhieu || dangTaiLenhQuy || dangTaiGiaQuy || dangTaiSoDu)
 
   const soLenhCoPhieu = useMemo(
     () => (account ? stockTrades.filter((t) => t.account_id === account.id) : []),
@@ -121,6 +137,8 @@ export function useAccountPortfolio(
       unrealizedPercent: p.unrealizedPercent,
       count: p.positions.length,
       session,
+      // Chuyển tiếp thẳng, không tính lại: `p.cash` đã ra từ `buildPortfolio`.
+      cash: p.cash,
     }
   }, [kind, account, prices, balances, soLenhCoPhieu])
 
@@ -151,6 +169,8 @@ export function useAccountPortfolio(
       unrealizedPercent: p.unrealizedPercent,
       count: p.positions.length,
       session,
+      // Quỹ Nhật không có khái niệm tiền chưa mua — xem chú thích trên interface.
+      cash: null,
     }
   }, [kind, account, navRows, soLenhQuy])
 

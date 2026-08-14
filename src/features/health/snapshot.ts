@@ -50,7 +50,11 @@ export interface HealthSnapshot {
   essentialNetFlows: number[]
   /** thu nhập theo danh mục (cho chỉ số tập trung thu nhập) */
   incomeSlices: { key: string; amount: number }[]
-  /** tổng thuế + bảo hiểm xã hội đã nộp trong kỳ (nhóm danh mục Thuế & An sinh) */
+  /**
+   * Tổng thuế + bảo hiểm xã hội đã nộp trong kỳ (nhóm danh mục Thuế & An sinh).
+   * Đếm CẢ giao dịch mang `exclude_from_stats` — xem ghi chú trong vòng lặp.
+   * Cũng chính là "phần bị giữ lại", nên `annualIncome + taxAndSocial` = thu GỘP.
+   */
   taxAndSocial: number
   /** số tháng ĐÃ HOÀN TẤT có trong kỳ — mẫu số của mọi số "trung bình tháng" */
   monthsCounted: number
@@ -143,7 +147,7 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
   let hasUnclassifiedNeed = false
 
   for (const t of txs) {
-    if (t.type === 'transfer' || t.is_debt_flow || t.exclude_from_stats) continue
+    if (t.type === 'transfer' || t.is_debt_flow) continue
     const id = monthId(monthKeyForDate(t.occurred_on, monthStartDay))
     if (!monthIds.has(id)) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
@@ -151,6 +155,30 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
       hasMissingRate = true
       continue
     }
+
+    /**
+     * Thuế & an sinh đếm KỂ CẢ khi mang `exclude_from_stats` — cố ý, và là chỗ DUY
+     * NHẤT trong hàm này bỏ qua cờ đó.
+     *
+     * Vì sao: thuế bị trừ tại nguồn không phải khoản chi tuỳ ý. Cộng nó vào ô Chi
+     * làm con số đó mất nghĩa như tín hiệu tiêu tiền — mỗi tháng Chi phồng thêm
+     * gần trăm nghìn yên mà chủ sổ không hề tiêu. Nên khoản thuế nhập từ phiếu
+     * lương mang `exclude_from_stats` (đứng ngoài Thu/Chi, số dư vẫn tính), còn chỉ
+     * số gánh nặng thuế vẫn cần đếm chúng.
+     *
+     * Kéo theo: `annualIncome` giờ là thu nhập RÒNG. Gộp = ròng + phần bị giữ lại,
+     * mà phần bị giữ lại BẰNG ĐÚNG `taxAndSocial` theo cấu tạo của bút toán nhập
+     * (dòng thu "phần bị giữ lại" = tổng mục thuế + 過不足税額, và `taxAndSocial`
+     * cũng chính là tổng đó vì hoàn thuế là chi ÂM). Nên HealthView suy gộp ra
+     * bằng `annualIncome + taxAndSocial`, không cần trường mới và không phải đoán
+     * dòng thu nào là "phần bị giữ lại" — điều đó sẽ lẫn với bút toán
+     * "Điều chỉnh số dư", cũng là thu và cũng mang `exclude_from_stats`.
+     */
+    if (t.type === 'expense' && t.category_id && taxIds.has(t.category_id)) {
+      taxAndSocial += v * expenseSign(t)
+    }
+
+    if (t.exclude_from_stats) continue
     if (t.type === 'income') {
       income.set(id, (income.get(id) ?? 0) + v)
       const key = t.category_id ?? 'khac'
@@ -167,7 +195,6 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
     const need = t.category_id ? needLevelOf.get(t.category_id) : null
     if (need === 'flexible') flexExpense.set(id, (flexExpense.get(id) ?? 0) + signed)
     else if (!need) hasUnclassifiedNeed = true
-    if (t.category_id && taxIds.has(t.category_id)) taxAndSocial += signed
   }
 
   // --- Tiền trả nợ mỗi tháng (chỉ lần trả DƯƠNG; lần âm là giải ngân thêm) ---

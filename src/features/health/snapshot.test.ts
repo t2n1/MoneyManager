@@ -371,3 +371,77 @@ describe('buildHealthSnapshot — dòng tiền chỉ-chi-thiết-yếu', () => {
     expect(s.essentialNetFlows).toHaveLength(MONTHS.length)
   })
 })
+
+describe('buildHealthSnapshot — thuế & an sinh đứng ngoài Thu/Chi', () => {
+  const TAX = 'cat-thue'
+  const taxIds = new Set([TAX])
+
+  /**
+   * Vì sao khoản thuế mang `exclude_from_stats`: thuế trừ TẠI NGUỒN không phải chi
+   * tuỳ ý. Cộng vào ô Chi làm con số đó mất nghĩa như tín hiệu tiêu tiền — Chi
+   * phồng thêm gần trăm nghìn yên mỗi tháng mà chủ sổ không hề tiêu.
+   *
+   * Nhưng chỉ số gánh nặng thuế vẫn phải đếm chúng, nên đây là chỗ DUY NHẤT trong
+   * buildHealthSnapshot bỏ qua cờ đó.
+   */
+  it('đếm vào taxAndSocial nhưng KHÔNG vào monthlyExpense', () => {
+    const s = build({
+      categories: [cat(TAX, 'fixed')],
+      taxCategoryIds: taxIds,
+      txs: [
+        tx({ type: 'expense', amount: 90_000, occurred_on: '2026-05-10',
+             category_id: TAX, exclude_from_stats: true }),
+        tx({ type: 'expense', amount: 30_000, occurred_on: '2026-05-11',
+             category_id: 'cat-an' }),
+      ],
+    })
+    expect(s.taxAndSocial).toBe(90_000)
+    // 90.000 KHÔNG được lọt vào chi: chỉ còn 30.000 chia 3 tháng
+    expect(s.monthlyExpense).toBe(10_000)
+    expect(s.monthlyFixedExpense).toBe(0)
+  })
+
+  it('dòng thu "phần bị giữ lại" cũng đứng ngoài, nên annualIncome là số RÒNG', () => {
+    const s = build({
+      categories: [cat(TAX, 'fixed')],
+      taxCategoryIds: taxIds,
+      txs: [
+        tx({ type: 'income', amount: 300_000, occurred_on: '2026-05-10' }),
+        tx({ type: 'income', amount: 90_000, occurred_on: '2026-05-10',
+             exclude_from_stats: true }),
+        tx({ type: 'expense', amount: 90_000, occurred_on: '2026-05-10',
+             category_id: TAX, exclude_from_stats: true }),
+      ],
+    })
+    expect(s.annualIncome).toBe(300_000)
+    expect(s.taxAndSocial).toBe(90_000)
+    // Gộp suy ra được: HealthView dùng annualIncome + taxAndSocial
+    expect(s.annualIncome + s.taxAndSocial).toBe(390_000)
+  })
+
+  it('hoàn thuế là chi ÂM nên trừ khỏi taxAndSocial', () => {
+    const s = build({
+      categories: [cat(TAX, 'fixed')],
+      taxCategoryIds: taxIds,
+      txs: [
+        tx({ type: 'expense', amount: 90_000, occurred_on: '2026-05-10',
+             category_id: TAX, exclude_from_stats: true }),
+        tx({ type: 'expense', amount: 20_000, occurred_on: '2026-05-10',
+             category_id: TAX, exclude_from_stats: true, is_refund: true }),
+      ],
+    })
+    expect(s.taxAndSocial).toBe(70_000)
+  })
+
+  it('dòng nợ/cho vay vẫn bị bỏ, kể cả khi thuộc danh mục thuế', () => {
+    const s = build({
+      categories: [cat(TAX, 'fixed')],
+      taxCategoryIds: taxIds,
+      txs: [
+        tx({ type: 'expense', amount: 50_000, occurred_on: '2026-05-10',
+             category_id: TAX, is_debt_flow: true }),
+      ],
+    })
+    expect(s.taxAndSocial).toBe(0)
+  })
+})

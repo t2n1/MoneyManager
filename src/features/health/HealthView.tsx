@@ -176,7 +176,10 @@ export function HealthView() {
     snap.monthlyFlexibleExpense > 0 &&
     (runwayLean.p50 > runway.p50 || runwayLean.survivalRate > runway.survivalRate)
 
-  const burden = taxBurden(snap.taxAndSocial, snap.annualIncome)
+  // Gộp = ròng + phần bị giữ lại. Khoản thuế nhập từ phiếu lương mang
+  // `exclude_from_stats` nên KHÔNG nằm trong `annualIncome`; cộng lại mới ra gộp.
+  // Xem ghi chú trong snapshot.ts về vì sao phần bị giữ lại == taxAndSocial.
+  const burden = taxBurden(snap.taxAndSocial, snap.annualIncome + snap.taxAndSocial)
   const burdenVerdict: Verdict = snap.taxAndSocial <= 0 ? 'unknown' : verdictFor(burden, 0.35, 0.25, false)
 
   const verdicts = [fundVerdict, liqVerdict, dtiVerdict, concVerdict, runwayVerdict, burdenVerdict]
@@ -622,9 +625,10 @@ export function HealthView() {
           how={
             <>
               <p>
-                <b>Cách tính:</b> tổng chi thuộc nhóm “Thuế &amp; An sinh” ÷ tổng khoản Thu trong kỳ.
-                Chỉ đúng nếu bạn ghi <b>lương gộp</b> là khoản Thu và các khoản khấu trừ trên phiếu
-                lương là khoản Chi.
+                <b>Cách tính:</b> tổng chi thuộc nhóm “Thuế &amp; An sinh” ÷ (khoản Thu trong kỳ +
+                chính tổng đó). Vế sau là <b>lương gộp</b>: tiền về tay cộng phần bị giữ lại.
+                Khoản thuế đứng NGOÀI ô Thu/Chi — thuế trừ tại nguồn không phải chi tuỳ ý — nên
+                chúng hiện màu xám trong Sổ và không làm phồng mức chi.
               </p>
               <p>
                 <b>Tham chiếu ở Nhật:</b> người làm công ăn lương thường rơi vào 20–30% (thuế thu nhập

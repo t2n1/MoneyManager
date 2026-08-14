@@ -220,7 +220,7 @@ function dungKeHoach(phieuList, so) {
       boQua.push({ p, ly_do: e.message })
       continue
     }
-    const loi = kiemDong(p, dong.thu, dong.chi)
+    const loi = kiemDong(p, dong.thu, dong.chi, dong.thuKhac)
     if (loi.length) {
       boQua.push({ p, ly_do: loi.join(' ; ') })
       continue
@@ -234,9 +234,10 @@ function dungKeHoach(phieuList, so) {
 function inKeHoach({ ok, boQua }) {
   console.log(`\n=== ${ok.length} phieu san sang · ${boQua.length} phieu bo qua ===\n`)
   for (const r of ok) {
-    const chi = r.chi.map((c) => `${c.note.split(' · ')[1]} ${c.is_refund ? '−' : ''}${c.amount}`)
+    const chi = r.chi.map((c) => `${c.note.split(' · ')[1]} ${c.is_refund ? '−' : ''}${c.amount}${c.exclude_from_stats ? '' : ' [trong Chi]'}`)
     console.log(`  ${r.dau}  neo ${r.neo.occurred_on} (${r.neo.amount})`)
-    console.log(`      thu +${r.thu.amount}  |  chi: ${chi.join(' · ')}`)
+    const t2 = r.thuKhac ? `  + ${r.thuKhac.amount} [trong Thu]` : ''
+    console.log(`      thu +${r.thu.amount} [ngoai Thu/Chi]${t2}  |  chi: ${chi.join(' · ')}`)
   }
   if (boQua.length) {
     console.log('\n--- Bo qua ---')
@@ -251,7 +252,7 @@ function inKeHoach({ ok, boQua }) {
 async function ghiKeHoach(sb, ok) {
   let n = 0
   for (const r of ok) {
-    const rows = [r.thu, ...r.chi]
+    const rows = [r.thu, ...(r.thuKhac ? [r.thuKhac] : []), ...r.chi]
     const { error } = await sb.from('transactions').insert(rows)
     if (error) thoat(`Ghi '${r.dau}' loi: ${error.message}\nDa ghi ${n} phieu truoc do — chay --go de go het.`)
     n += 1

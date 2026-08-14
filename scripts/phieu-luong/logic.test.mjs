@@ -128,7 +128,7 @@ describe('timNeo', () => {
 })
 
 describe('dungDong — 202608K', () => {
-  const { thu, chi } = dungDong(P202608, NEO_202608, IDS)
+  const { thu, thuKhac, chi } = dungDong(P202608, NEO_202608, IDS)
 
   it('thu them = tong khau tru, cung ngay cung tai khoan voi dong neo', () => {
     expect(thu.amount).toBe(92328)
@@ -151,7 +151,7 @@ describe('dungDong — 202608K', () => {
   })
 
   it('bat bien bang khong, va bang gop tru rong', () => {
-    expect(kiemDong(P202608, thu, chi)).toEqual([])
+    expect(kiemDong(P202608, thu, chi, thuKhac)).toEqual([])
     expect(thu.amount).toBe(P202608.gross - P202608.net)
   })
 })
@@ -170,12 +170,12 @@ describe('過不足税額 — ca thang 12', () => {
   const neo = { ...NEO_202608, id: 'tx-9', occurred_on: '2024-12-10', amount: 393064 }
 
   it('hoan thue thanh chi mang is_refund, amount DUONG', () => {
-    const { thu, chi } = dungDong(P202412, neo, IDS)
+    const { thu, thuKhac, chi } = dungDong(P202412, neo, IDS)
     const hoan = chi.find((r) => r.note.endsWith('過不足税額'))
     expect(hoan.is_refund).toBe(true)
     expect(hoan.amount).toBe(19929)
     expect(thu.amount).toBe(65686)
-    expect(kiemDong(P202412, thu, chi)).toEqual([])
+    expect(kiemDong(P202412, thu, chi, thuKhac)).toEqual([])
   })
 
   // 202212K: nop THEM 28.081 -> chi thuong, khong phai hoan.
@@ -185,10 +185,10 @@ describe('過不足税額 — ca thang 12', () => {
       tru: { 健康保険料: 13594, 厚生年金保険: 25620, 雇用保険料: 1517, 所得税: 6960, 住民税: 9300 },
       ngoai_tong: { 過不足税額: 28081 },
     }
-    const { thu, chi } = dungDong(P, { ...neo, occurred_on: '2022-12-09', amount: 218273 }, IDS)
+    const { thu, thuKhac, chi } = dungDong(P, { ...neo, occurred_on: '2022-12-09', amount: 218273 }, IDS)
     expect(chi.find((r) => r.note.endsWith('過不足税額')).is_refund).toBe(false)
     expect(thu.amount).toBe(85072)
-    expect(kiemDong(P, thu, chi)).toEqual([])
+    expect(kiemDong(P, thu, chi, thuKhac)).toEqual([])
   })
 
   /**
@@ -204,9 +204,9 @@ describe('過不足税額 — ca thang 12', () => {
       tru: { 健康保険料: 16694, 厚生年金保険: 31110, 雇用保険料: 2742, 所得税: 10530, 住民税: 12400 },
       ngoai_tong: { 過不足税額: -88544 },
     }
-    const { thu, chi } = dungDong(P, { ...neo, occurred_on: '2023-12-08', amount: 500678 }, IDS)
+    const { thu, chi, thuKhac } = dungDong(P, { ...neo, occurred_on: '2023-12-08', amount: 500678 }, IDS)
     expect(thu.amount).toBe(-15068)
-    const loi = kiemDong(P, thu, chi)
+    const loi = kiemDong(P, thu, chi, thuKhac)
     expect(loi.length).toBeGreaterThan(0)
     expect(loi.join(' ')).toMatch(/xu tay/)
   })
@@ -224,14 +224,58 @@ describe('社内販売精算 — 202601K', () => {
   const neo = { ...NEO_202608, id: 'tx-7', occurred_on: '2026-01-09', amount: 322219 }
 
   it('11.956 vao Đi chợ, khong vao danh muc thue nao', () => {
-    const { thu, chi } = dungDong(P, neo, IDS)
+    const { thu, thuKhac, chi } = dungDong(P, neo, IDS)
     const dong = chi.find((r) => r.note.endsWith('社内販売精算'))
     expect(dong.category_id).toBe('c-di-cho')
     const idThue = new Set(['c-thu-nhap', 'c-viec-lam', 'c-cu-tru', 'c-y-te', 'c-huu-tri'])
     expect(idThue.has(dong.category_id)).toBe(false)
-    // Van bang khong: no thuoc 控除合計額 nen phai nam trong tong.
-    expect(thu.amount).toBe(108146)
-    expect(kiemDong(P, thu, chi)).toEqual([])
+    // Van bang khong tren TONG: no thuoc 控除合計額 nen phai nam trong tong.
+    expect(thu.amount + thuKhac.amount).toBe(108146)
+    expect(kiemDong(P, thu, chi, thuKhac)).toEqual([])
+  })
+
+  // 社内販売精算 la mua hang THAT -> phai nam trong Chi, khong duoc mang co.
+  it('tach hai dong thu: phan thue ngoai thong ke, phan mua hang trong thong ke', () => {
+    const { thu, thuKhac, chi } = dungDong(P, neo, IDS)
+    expect(thu.amount).toBe(96190) // 5 muc thue
+    expect(thu.exclude_from_stats).toBe(true)
+    expect(thuKhac.amount).toBe(11956) // 社内販売精算
+    expect(thuKhac.exclude_from_stats).toBe(false)
+    const muaHang = chi.find((r) => r.note.endsWith('社内販売精算'))
+    expect(muaHang.exclude_from_stats).toBe(false)
+    for (const r of chi.filter((r) => r !== muaHang)) expect(r.exclude_from_stats).toBe(true)
+  })
+})
+
+describe('exclude_from_stats — Thu/Chi khong duoc phong', () => {
+  // Ly do ton tai cua mo hinh nay: thue tru TAI NGUON khong phai chi tuy y, cong vao
+  // o Chi lam con so do mat nghia nhu tin hieu tieu tien.
+  it('phieu khong co muc ngoai thue: khong sinh dong thu thu hai', () => {
+    const { thu, thuKhac, chi } = dungDong(P202608, NEO_202608, IDS)
+    expect(thuKhac).toBeNull()
+    expect(thu.exclude_from_stats).toBe(true)
+    expect(chi.every((r) => r.exclude_from_stats === true)).toBe(true)
+  })
+
+  it('can bang TRONG TUNG pham vi, khong chi can bang tong', () => {
+    const P = {
+      period: '202601', kind: 'K', gross: 430365, deduct_total: 108146, net: 322219,
+      tru: { 健康保険料: 23288, 厚生年金保険: 43005, 雇用保険料: 2367, 所得税: 5530,
+             住民税: 22000, 社内販売精算: 11956 },
+      ngoai_tong: {},
+    }
+    const { thu, thuKhac, chi } = dungDong(P, NEO_202608, IDS)
+    const tong = (ds) => ds.reduce((s, r) => s + r.amount * (r.is_refund ? -1 : 1), 0)
+    // ngoai thong ke can bang voi nhau
+    expect(thu.amount).toBe(tong(chi.filter((r) => r.exclude_from_stats)))
+    // trong thong ke can bang voi nhau -> Thu/Chi khong phong
+    expect(thuKhac.amount).toBe(tong(chi.filter((r) => !r.exclude_from_stats)))
+  })
+
+  it('bat loi khi dat co sai', () => {
+    const { thu, thuKhac, chi } = dungDong(P202608, NEO_202608, IDS)
+    const xau = { ...thu, exclude_from_stats: false }
+    expect(kiemDong(P202608, xau, chi, thuKhac).join(' ')).toMatch(/phai mang co/)
   })
 })
 

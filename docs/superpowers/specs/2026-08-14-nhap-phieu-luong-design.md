@@ -202,19 +202,34 @@ của danh mục cha đó. `Đi chợ` (`essential` + `variable`, con của `Ăn
 Tức **~90% khoản khấu trừ vẫn phải trả khi mất thu nhập**; chỉ ~10% là hết theo
 việc làm.
 
-**Hệ quả đo sau khi import thật** (cửa sổ 12 tháng, đã phân trang đủ 1.070 giao
-dịch): chi cố định **tăng 2,18 lần**, và quỹ dự phòng rơi từ khoảng **5,0 tháng**
-xuống **2,3 tháng** — đổi hạng từ vùng an toàn sang **Rủi ro**. Điểm sức khoẻ tổng
-xuống 63/100.
+**`cost_type` hiện KHÔNG còn tác dụng lên quỹ dự phòng**, vì khoản thuế mang
+`exclude_from_stats` nên `monthlyFixedExpense` không thấy chúng. Bảng phân loại trên
+vẫn giữ, để đúng về ngữ nghĩa và để dùng được nếu sau này đổi ý.
 
-**Đó là sửa sai, không phải làm sai**: trước import, sổ bỏ qua toàn bộ phần nghĩa
-vụ vẫn còn khi mất việc, nên con số 5 tháng là lạc quan giả.
+### Căng thẳng chưa giải quyết: Chi sạch ⇄ quỹ dự phòng thật
 
-Nhưng phải nói cho đủ: con số mới hơi **bảo thủ**. Người mất việc chuyển sang
-国民健康保険 / 国民年金 thường phải trả **ít hơn** bản 厚生, và 年金 còn xin
-**免除** được. Sự thật nằm giữa hai con số, gần đầu bảo thủ hơn. Muốn bớt bảo thủ
-thì chuyển `厚生年金保険` sang `variable` — nhưng đừng đổi vì con số trông xấu, chỉ
-đổi nếu tin rằng khoản đó thật sự biến mất theo việc làm.
+Hai mục tiêu kéo ngược nhau, và mô hình hiện tại chọn một:
+
+- **Ô Chi** không được gồm thuế — thuế trừ tại nguồn không phải chi tuỳ ý. Đây là
+  điều đã chọn.
+- **Quỹ dự phòng** thì đáng lẽ *nên* gồm phần thuế **vẫn nợ khi mất việc** (住民税
+  tính trên thu nhập năm trước, 健保/年金 chuyển sang bản 国民), vì đó là nghĩa vụ
+  mà tiền để dành phải cõng.
+
+Đo thật cả hai hướng trên sổ này (cửa sổ 12 tháng, đã phân trang đủ 1.070 giao dịch):
+
+| Mô hình | Ô Chi | Quỹ dự phòng |
+|---|---|---|
+| Thuế nằm trong thống kê, `fixed` | phồng ~2,18 lần chi cố định | **2,3 tháng · Rủi ro** |
+| Thuế ngoài thống kê *(đang dùng)* | **sạch, như trước import** | **5,0 tháng · Cần chú ý** |
+
+Nên con số 5,0 tháng vẫn **lạc quan** đúng như trước: nó bỏ qua phần nghĩa vụ còn
+lại khi mất thu nhập. Cách giải đúng không phải là chọn một trong hai, mà là để
+`emergencyFundMonths` cộng riêng phần thuế **bền** — chưa làm, ghi lại ở đây làm
+việc cần cân nhắc tiếp.
+
+Nếu làm, nhớ rằng con số bảo thủ nhất cũng chưa đúng: 国民健康保険 / 国民年金 thường
+**thấp hơn** bản 厚生, và 年金 còn xin **免除** được. Sự thật nằm giữa.
 
 Nút "Tạo bộ danh mục Thuế & An sinh" cũ (đã xoá khỏi `CategoriesPage.tsx` ngày
 2026-08-14) gán **đồng loạt `essential` + `fixed`** — nếu phục hồi nút thì phải sửa
@@ -266,11 +281,22 @@ tay cầm duy nhất để gỡ lô nhập. Vì vậy nó là phần bắt buộ
 
 Trên phiếu mẫu — cùng ngày, cùng tài khoản với dòng neo:
 
-| Dòng | Số | |
-|---|---|---|
-| *(giữ nguyên)* | 322,000 | dòng sao kê, không chạm |
-| Thu thêm | 78,000 | `給与 <kỳ> · phần bị giữ lại` |
-| Chi × 5 | 78,000 | vào 5 danh mục thuế/an sinh |
+| Dòng | Số | `exclude_from_stats` | |
+|---|---|---|---|
+| *(giữ nguyên)* | 322,000 | — | dòng sao kê, không chạm |
+| Thu thêm | 78,000 | **true** | `給与 <kỳ> · phần bị giữ lại` |
+| Chi × 5 | 78,000 | **true** | vào 5 danh mục thuế/an sinh |
+
+**Thuế đứng NGOÀI ô Thu/Chi.** `exclude_from_stats` đưa chúng ra khỏi mọi báo cáo mà
+VẪN tính số dư (view `account_balances` không lọc cờ này), và Sổ GD hiện chúng màu
+**xám** — đúng quy ước sẵn có "xám = không nằm trong Thu/Chi". Lý do: thuế trừ tại
+nguồn không phải chi tuỳ ý; cộng vào ô Chi làm con số đó mất nghĩa như tín hiệu tiêu
+tiền. Chỉ số gánh nặng thuế vẫn đếm được vì `snapshot.ts` tính riêng nó, bỏ qua cờ.
+
+**`社内販売精算` thì KHÔNG mang cờ** — mua hàng thật, tiền thật ra khỏi tay, phải nằm
+trong Chi. Nên mỗi kỳ có **hai** dòng thu: phần ứng với thuế (ngoài thống kê) và phần
+ứng với mua hàng (trong thống kê). Nhờ vậy cân bằng đúng **trong từng phạm vi**, chứ
+không chỉ cân bằng tổng — nếu chỉ cân tổng thì Thu/Chi phồng lên đúng phần lệch.
 
 `過不足税額` **âm** → chi mang `is_refund: true`, `amount` **dương** (DB có
 `check (amount > 0)` và `transactions_refund_check`; `expenseSign` trả `−1`, view
@@ -295,8 +321,8 @@ chỉ-thêm nào trung hoà được số dư ở đây (cần income âm), nên
 Bài học: một bất biến đúng vẫn có thể vô nghĩa nếu không kiểm dấu.
 
 Tổng thực tế (đã chạy thử trên dữ liệu thật, 60 file → 59 phiếu phân biệt):
-**58 phiếu → 58 dòng thu + 286 dòng chi = 344 dòng**, 1 phiếu bị từ chối. Tổng thay
-đổi số dư: **0 ¥**.
+**58 phiếu → 63 dòng thu + 286 dòng chi = 349 dòng**, 1 phiếu bị từ chối. Tổng thay
+đổi số dư: **0 ¥**. (63 = 58 + 5 phiếu có `社内販売精算` nên có dòng thu thứ hai.)
 
 ### Chốt 0 — gom file trùng, chạy TRƯỚC phép neo
 
@@ -327,24 +353,19 @@ giờ bỏ im lặng.
 `--go` xoá mọi dòng mang tiền tố dấu (`給与 YYYY/MMK|S ·`). Vì chỉ-thêm nên gỡ là
 xoá, không phải nhị hoá ngược.
 
-## Sau khi import: đặt lại ba mốc trục
+## Ba mốc trục: KHÔNG cần đặt lại
 
-**Bước bắt buộc, không phải tuỳ chọn.** Đo trên một tháng hoàn tất của sổ thật —
-chỉ ghi tỷ lệ, vì con số tuyệt đối là thu nhập thật:
+Bản thiết kế đầu bắt buộc phải đặt lại ba mốc, vì lúc đó khoản thuế nằm trong thống
+kê nên mẫu số của thẻ Cơ cấu chi chuyển từ ròng sang gộp: Thiết yếu nhảy từ **43%
+lên 55%**, vượt trần 50% dù chủ sổ không tiêu thêm đồng nào, còn Tiết kiệm tụt từ
+45% xuống 36% **dù số tiền để dành không đổi một yên**.
 
-| Trục | Trước | Sau | Mốc |
-|---|---|---|---|
-| Thiết yếu | 43% | **55%** | trần 50% → **vượt** |
-| Linh hoạt | 11% | 9% | trần 30% |
-| Tiết kiệm | 45% | **36%** | sàn 20% |
+Mô hình `exclude_from_stats` làm chuyện đó **biến mất**: mẫu số quay lại là thu nhập
+ròng, Thu/Chi trở về đúng như trước import, nên mốc 50/30/20 cũ vẫn khớp. Không phải
+làm gì.
 
-**Số tiền tiết kiệm không đổi một yên** — chỉ tỷ lệ tụt, vì mẫu số chuyển từ ròng
-sang gộp. Trần thiết yếu bị vượt dù chủ sổ không tiêu thêm đồng nào.
-
-Quy tắc 50/30/20 gốc tính trên thu nhập **sau thuế**. Với mức thuế ~20% của sổ này,
-tương đương trên gộp là khoảng **60/25/15**. Sau import phải đặt lại
-`target_essential_bps` / `target_flexible_bps` / `target_savings_bps` trong
-`profiles`, nếu không thẻ Cơ cấu chi báo đỏ vĩnh viễn mà không hành động nào sửa được.
+Giữ đoạn này lại vì nó là lý do *vì sao* mô hình hiện tại đáng chọn — không chỉ để
+ô Chi đọc được, mà còn để ba mốc người dùng đã hiệu chuẩn không bị vô hiệu.
 
 ## Cửa sổ chỉ số — kỳ vọng phải đúng
 

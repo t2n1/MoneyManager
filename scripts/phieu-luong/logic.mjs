@@ -122,7 +122,7 @@ export function dungDong(phieu, neo, idTheoTen) {
   const chi = []
   for (const [nhan, so] of Object.entries(muc)) {
     if (so === 0) continue
-    const { danhMuc } = mapNhan(nhan)
+    const { nhom, danhMuc } = mapNhan(nhan)
     const id = idTheoTen.get(danhMuc)
     if (!id) throw new Error(`thieu danh muc '${danhMuc}' (cho nhan '${nhan}')`)
     chi.push({
@@ -135,25 +135,48 @@ export function dungDong(phieu, neo, idTheoTen) {
       occurred_on: neo.occurred_on,
       note: `${dau} · ${nhan}`,
       is_refund: so < 0,
+      /**
+       * Thue bi tru TAI NGUON khong phai khoan chi tuy y. Cong no vao o Chi lam
+       * con so do mat nghia nhu tin hieu tieu tien. `exclude_from_stats` dua no ra
+       * ngoai Thu/Chi ma VAN tinh so du (view account_balances khong loc co nay),
+       * va So GD hien no mau XAM — dung quy uoc san co "xam = khong nam trong
+       * Thu/Chi". Chi so ganh nang thue van dem duoc: snapshot.ts co tinh rieng.
+       *
+       * 社内販売精算 thi KHONG mang co: do la mua hang that, tien that ra khoi tay,
+       * phai nam trong Chi.
+       */
+      exclude_from_stats: nhom === 'thue',
     })
   }
-  const tongChi = chi.reduce((s, r) => s + r.amount * (r.is_refund ? -1 : 1), 0)
-  const thu = {
+  const tong = (ds) => ds.reduce((s, r) => s + r.amount * (r.is_refund ? -1 : 1), 0)
+  const tongThue = tong(chi.filter((r) => r.exclude_from_stats))
+  const tongKhac = tong(chi.filter((r) => !r.exclude_from_stats))
+
+  const dongThu = (amount, ngoai) => ({
     type: 'income',
-    amount: tongChi,
+    amount,
     to_amount: null,
     category_id: neo.category_id,
     account_id: neo.account_id,
     to_account_id: null,
     occurred_on: neo.occurred_on,
-    note: `${dau} · phần bị giữ lại`,
+    note: `${dau} · ${ngoai ? 'phần bị giữ lại' : 'phần đã chi hộ'}`,
     // PHAI ghi ro false, khong duoc bo trong: PostgREST insert mot MANG thi HOP NHAT
     // tap khoa cua moi phan tu, nen khoa nao thieu o mot dong se thanh NULL thay vi
     // lay DEFAULT. Cac dong chi co is_refund, dong thu khong -> gui NULL -> vi pham
     // NOT NULL, va CA LO bi tu choi. Da gap that o phieu dau tien.
     is_refund: false,
+    exclude_from_stats: ngoai,
+  })
+
+  // Hai dong thu, moi dong doi ung mot nhom chi, de CA HAI phia can bang TRONG
+  // pham vi thong ke cua no: phan thue can bang ngoai thong ke, phan con lai can
+  // bang trong thong ke. Nho vay Thu/Chi khong phong, ma chenh lech van dung.
+  return {
+    thu: dongThu(tongThue, true),
+    thuKhac: tongKhac > 0 ? dongThu(tongKhac, false) : null,
+    chi,
   }
-  return { thu, chi }
 }
 
 /** Dau tay cua NOI DUNG tai chinh mot phieu — de so hai file co cung mot phieu khong. */
@@ -219,10 +242,24 @@ export function gomTrung(phieuList) {
  * Ca nay khong the trung hoa so du bang duong nao trong Cach B (chi-them), nen tu
  * choi thay vi bia cach vong.
  */
-export function kiemDong(phieu, thu, chi) {
+export function kiemDong(phieu, thu, chi, thuKhac = null) {
   const loi = []
-  const tongChi = chi.reduce((s, r) => s + r.amount * (r.is_refund ? -1 : 1), 0)
-  if (thu.amount !== tongChi) loi.push(`thu ${thu.amount} != tong chi ${tongChi}`)
+  const tong = (ds) => ds.reduce((s, r) => s + r.amount * (r.is_refund ? -1 : 1), 0)
+  const tongChi = tong(chi)
+  const tongThu = thu.amount + (thuKhac ? thuKhac.amount : 0)
+  if (tongThu !== tongChi) loi.push(`tong thu ${tongThu} != tong chi ${tongChi}`)
+
+  // Can bang TRONG TUNG pham vi thong ke, khong chi can bang tong: neu lech thi
+  // Thu/Chi phong len dung phan lech do, dung cai loi ma mo hinh nay sinh ra de sua.
+  const tThue = tong(chi.filter((r) => r.exclude_from_stats))
+  const tKhac = tong(chi.filter((r) => !r.exclude_from_stats))
+  if (thu.amount !== tThue) loi.push(`thu ngoai thong ke ${thu.amount} != chi thue ${tThue}`)
+  if ((thuKhac ? thuKhac.amount : 0) !== tKhac) {
+    loi.push(`thu trong thong ke ${thuKhac ? thuKhac.amount : 0} != chi khac ${tKhac}`)
+  }
+  if (thuKhac && thuKhac.exclude_from_stats) loi.push('dong thu "da chi ho" khong duoc mang co')
+  if (!thu.exclude_from_stats) loi.push('dong thu "bi giu lai" phai mang co exclude_from_stats')
+
   if (phieu.gross != null && phieu.net != null && tongChi !== phieu.gross - phieu.net) {
     loi.push(`tong chi ${tongChi} != 総支給 - 差引支給 (${phieu.gross - phieu.net})`)
   }

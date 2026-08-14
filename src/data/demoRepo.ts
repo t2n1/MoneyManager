@@ -801,10 +801,14 @@ export const demoRepo: Repo = {
       if (holdings.some((h) => staleFunds.has(h.assocFundCd))) return null
 
       const { marketValue, missingNavs } = fundValue(holdings, navByFund)
-      // ⑤⑥ Thiếu giá MỘT PHẦN cũng phải bỏ, không chỉ khi thiếu giá MỌI quỹ — chốt này
+      // ⑤ Thiếu giá MỘT PHẦN cũng phải bỏ, không chỉ khi thiếu giá MỌI quỹ — chốt này
       //    KHÔNG có ở bản cổ phiếu. Giữ hai quỹ mà mất giá một quỹ là lệch cỡ 40%, lại
       //    đóng dấu 'auto' trông như đúng. Xem fund-refresh/index.ts.
       if (missingNavs.length > 0 || marketValue === null) return null
+
+      // ⑥ Cron cũng bỏ qua nếu `manual` row đã tồn tại cùng ngày (`nguoi-dung-da-go-tay`),
+      //    nhưng chốt này không kiểm tra ở đây. latestValuation dưới đảm bảo `manual`
+      //    luôn thắng `auto` cùng ngày, nên kiểm tra lại ở đây là trùng lặp quy tắc.
 
       return { valued_on: phien, market_value: marketValue, source: 'auto' }
     }

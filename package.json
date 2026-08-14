@@ -14,7 +14,9 @@
     "setup:stock-cron": "node scripts/setup-stock-cron.mjs",
     "setup:fund-cron": "node scripts/setup-fund-cron.mjs",
     "secret:cron": "node scripts/doi-cron-secret.mjs",
-    "nhap:sao-ke": "node scripts/nhap-sao-ke-rakuten.mjs"
+    "nhap:sao-ke": "node scripts/nhap-sao-ke-rakuten.mjs",
+    "boc:phieu-luong": "python scripts/phieu-luong/boc.py",
+    "nhap:phieu-luong": "node scripts/nhap-phieu-luong.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.3",

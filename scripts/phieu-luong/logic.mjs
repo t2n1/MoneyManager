@@ -1,0 +1,181 @@
+// Tang 2 — phan THUAN cua viec nhap phieu luong: map nhan, neo, dung dong.
+// Khong I/O, khong Supabase -> test duoc bang vitest (logic.test.mjs).
+// Xem docs/superpowers/specs/2026-08-14-nhap-phieu-luong-design.md
+
+/**
+ * Nhan phieu -> danh muc app. Ten phai DUNG TUNG KY TU: taxCategoryIds
+ * (src/features/tax/categories.ts) nhan nhom theo TEN, sai mot ky tu la khong tinh.
+ */
+export const MAP_THUE = {
+  所得税: 'Thuế thu nhập (所得税)',
+  過不足税額: 'Thuế thu nhập (所得税)',
+  雇用保険料: 'Bảo hiểm việc làm (雇用保険)',
+  住民税: 'Thuế cư trú (住民税)',
+  健康保険料: 'Bảo hiểm y tế (健康保険)',
+  厚生年金保険: 'Hưu trí (年金)',
+  厚生年金基金: 'Hưu trí (年金)',
+}
+
+/**
+ * 社内販売精算 NAM TRONG 控除合計額 (da chung minh bang so hoc: 5 file, dung bang
+ * phan thieu 337 · 2.263 · 3.689 · 8.399 · 11.956) nhung la MUA HANG NOI BO, khong
+ * phai thue. Cho vao nhom Thue & An sinh la thoi phong tu so cua chi so — 3 trong
+ * 5 file do nam trong cua so 12 thang.
+ *
+ * Va no KHONG duoc la con cua 'Thuế & An sinh': taxCategoryIds gom MOI con cua cha
+ * do. 'Đi chợ' (essential + variable) khong doi chi co dinh nen khong dung so thang
+ * du phong — cho it tac dung phu nhat.
+ */
+export const MAP_KHAC = { 社内販売精算: 'Đi chợ' }
+
+/** Khong biet la gi -> tu choi ca file, khong doan. Trong o ca 55 phieu. */
+export const TU_CHOI = new Set(['その他'])
+
+export const DANH_MUC_THUE_CHA = 'Thuế & An sinh'
+export const DANH_MUC_THUE_CON = [
+  { name: 'Thuế thu nhập (所得税)', icon: '🧾', need_level: 'essential', cost_type: 'variable' },
+  { name: 'Bảo hiểm việc làm (雇用保険)', icon: '💼', need_level: 'essential', cost_type: 'variable' },
+  { name: 'Thuế cư trú (住民税)', icon: '🏙️', need_level: 'essential', cost_type: 'fixed' },
+  { name: 'Bảo hiểm y tế (健康保険)', icon: '🏥', need_level: 'essential', cost_type: 'fixed' },
+  { name: 'Hưu trí (年金)', icon: '👴', need_level: 'essential', cost_type: 'fixed' },
+]
+
+/**
+ * cost_type chia HAI, khong gan dong loat 'fixed'.
+ *
+ * fund = tai san long / chi co dinh (HealthView.tsx:135). Mat viec thi 所得税 va
+ * 雇用保険料 HET, con 住民税 (tinh tren thu nhap nam truoc) + 健保/年金 (chuyen sang
+ * ban 国民) VAN NO. Gan dong loat 'fixed' dua chi co dinh 85.260 -> 165.472 ¥/thang;
+ * chia hai -> 158.766. Nut "Tao bo danh muc Thue & An sinh" cu gan dong loat fixed.
+ */
+
+/** Nhan -> {nhom, danhMuc}. Nem loi khi khong map duoc: khong bao gio bo im lang. */
+export function mapNhan(nhan) {
+  if (TU_CHOI.has(nhan)) throw new Error(`nhan '${nhan}' khong ro la gi — tu choi`)
+  if (MAP_THUE[nhan]) return { nhom: 'thue', danhMuc: MAP_THUE[nhan] }
+  if (MAP_KHAC[nhan]) return { nhom: 'khac', danhMuc: MAP_KHAC[nhan] }
+  throw new Error(`nhan '${nhan}' khong co trong bang map`)
+}
+
+/**
+ * Dau ghi chu. Hau to K|S BAT BUOC: 7 ky co hai phieu (202209, 202302, 202308,
+ * 202402, 202408, 202502, 202602), va hai cap neo cung ngay —
+ * 202302K/202302S deu 2023-02-10, 202207K/202209S deu 2022-07-08.
+ * Khong co cot import_batch nen dau trong `note` la tay cam duy nhat de go lo nhap.
+ */
+export function dauGhiChu(ngayISO, kind) {
+  const [y, m] = ngayISO.split('-')
+  return `給与 ${y}/${m}${kind}`
+}
+
+/** Chuoi ngay ISO + so ngay (thuan, khong dung Date.now). */
+export function congNgay(ngayISO, songay) {
+  const [y, m, d] = ngayISO.split('-').map(Number)
+  const t = Date.UTC(y, m - 1, d) + songay * 86400000
+  return new Date(t).toISOString().slice(0, 10)
+}
+
+/** Cua so tim khoan neo quanh dau ky luong. */
+export function cuaSoNeo(period) {
+  const dau = `${period.slice(0, 4)}-${period.slice(4, 6)}-01`
+  return { tu: congNgay(dau, -20), den: congNgay(dau, 75) }
+}
+
+/**
+ * Tim khoan thu da co trong so de neo phieu vao.
+ *
+ * Ba rang buoc: type=income (caller da loc) + tai khoan Yucho + amount = so RONG.
+ * Chu so xac nhan MOI khoan luong tu truoc toi nay deu vao Yucho, nen rang buoc
+ * tai khoan la chot chan that. Do tren toan bo lich su Yucho (66 khoan thu):
+ * 55/55 phieu khop duy nhat.
+ *
+ * Ngay lay tu DONG NEO, khong tu ky — chinh dieu nay cuu ca 202209S (ten file ghi
+ * 202209, noi dung ghi 2022年7月分, khoan that o 2022-07-08).
+ */
+export function timNeo(khoanThu, phieu, yuchoId, daDung = new Set()) {
+  const { tu, den } = cuaSoNeo(phieu.period)
+  const ung = khoanThu.filter(
+    (t) =>
+      t.account_id === yuchoId &&
+      t.amount === phieu.net &&
+      t.occurred_on >= tu &&
+      t.occurred_on <= den &&
+      !daDung.has(t.id),
+  )
+  if (ung.length === 0) return { ok: false, ly_do: `khong thay khoan thu Yucho = ${phieu.net} trong ${tu}..${den}` }
+  if (ung.length > 1) return { ok: false, ly_do: `${ung.length} khoan thu cung khop (mo ho): ${ung.map((t) => t.occurred_on).join(', ')}` }
+  return { ok: true, row: ung[0] }
+}
+
+/**
+ * Dung cac dong se ghi cho mot phieu. Chi THEM, khong sua dong sao ke.
+ *
+ * Tra {thu, chi[]} — cung ngay, cung tai khoan voi dong neo, nen thu vao chi ra
+ * triet tieu: so du KHONG DOI o moi moc ngay.
+ *
+ * 過不足税額 am -> chi mang is_refund (amount van DUONG: DB co check(amount > 0) va
+ * transactions_refund_check; expenseSign tra -1, view so du CONG khoan hoan).
+ */
+export function dungDong(phieu, neo, idTheoTen) {
+  const dau = dauGhiChu(neo.occurred_on, phieu.kind)
+  const muc = { ...phieu.tru, ...phieu.ngoai_tong }
+  const chi = []
+  for (const [nhan, so] of Object.entries(muc)) {
+    if (so === 0) continue
+    const { danhMuc } = mapNhan(nhan)
+    const id = idTheoTen.get(danhMuc)
+    if (!id) throw new Error(`thieu danh muc '${danhMuc}' (cho nhan '${nhan}')`)
+    chi.push({
+      type: 'expense',
+      amount: Math.abs(so),
+      to_amount: null,
+      category_id: id,
+      account_id: neo.account_id,
+      to_account_id: null,
+      occurred_on: neo.occurred_on,
+      note: `${dau} · ${nhan}`,
+      is_refund: so < 0,
+    })
+  }
+  const tongChi = chi.reduce((s, r) => s + r.amount * (r.is_refund ? -1 : 1), 0)
+  const thu = {
+    type: 'income',
+    amount: tongChi,
+    to_amount: null,
+    category_id: neo.category_id,
+    account_id: neo.account_id,
+    to_account_id: null,
+    occurred_on: neo.occurred_on,
+    note: `${dau} · phần bị giữ lại`,
+  }
+  return { thu, chi }
+}
+
+/**
+ * Chot bang-khong + chot DAU.
+ *
+ * Chot dau la bai hoc rieng: phep kiem "thu them == chi them == gop - rong" bao
+ * DUNG ca 55 phieu, vi tat ca ba so bang nhau. Nhung 202312K co gop 485.610 < rong
+ * 500.678 (duoc hoan thue cuoi nam 88.544), nen ca ba deu bang -15.068 — dong thu
+ * phai AM, ma DB cam. Bat bien so hoc dung nhung VO NGHIA neu khong kiem dau.
+ *
+ * Ca nay khong the trung hoa so du bang duong nao trong Cach B (chi-them), nen tu
+ * choi thay vi bia cach vong.
+ */
+export function kiemDong(phieu, thu, chi) {
+  const loi = []
+  const tongChi = chi.reduce((s, r) => s + r.amount * (r.is_refund ? -1 : 1), 0)
+  if (thu.amount !== tongChi) loi.push(`thu ${thu.amount} != tong chi ${tongChi}`)
+  if (phieu.gross != null && phieu.net != null && tongChi !== phieu.gross - phieu.net) {
+    loi.push(`tong chi ${tongChi} != 総支給 - 差引支給 (${phieu.gross - phieu.net})`)
+  }
+  if (thu.amount <= 0) {
+    loi.push(
+      `phan bi giu lai = ${thu.amount} <= 0 (rong ${phieu.net} > gop ${phieu.gross}: ` +
+        `hoan thue cuoi nam lon hon tong khau tru). Cach chi-them khong bieu dien ` +
+        `duoc ca nay — xu tay.`,
+    )
+  }
+  if (chi.some((r) => r.amount <= 0)) loi.push('co dong chi amount <= 0')
+  return loi
+}

@@ -45,3 +45,5 @@ supabase/.branches/
 
 # Visual companion khi brainstorm (tam thoi, khong commit)
 .superpowers/
+
+phieu-luong.json

@@ -246,9 +246,22 @@ số dư **cộng** khoản hoàn — xem [`0026_reporting_pack.sql:55`](../../.
 Kiểm bất biến trên `202412K`: thu `+65.686`, chi `−85.615`, hoàn `+19.929` → **0**,
 cả ở số dư lẫn thống kê.
 
-**Bất biến, đúng 55/55:** `thu thêm = tổng chi thêm = 総支給金額 − 差引支給額`.
+**Bất biến:** `thu thêm = tổng chi thêm = 総支給金額 − 差引支給額`, **và phải > 0**.
 
-Tổng: **55 dòng thu + 273 dòng chi = 328 dòng.**
+### `202312K` — ca duy nhất Cách B không biểu diễn được
+
+`gross 485.610` < `net 500.678`: hoàn thuế cuối năm **88.544** lớn hơn tổng khấu trừ
+**73.476**, nên "phần bị giữ lại" = **−15.068**. Dòng thu phải âm, mà DB có
+`check (amount > 0)`.
+
+Bất biến số học **báo đúng** cho ca này — cả ba số đều bằng −15.068 — nên bốn vòng
+kiểm trước đó không thấy. **Chỉ chốt DẤU mới bắt được.** Về mặt toán, không cách
+chỉ-thêm nào trung hoà được số dư ở đây (cần income âm), nên **từ chối, xử tay**.
+
+Bài học: một bất biến đúng vẫn có thể vô nghĩa nếu không kiểm dấu.
+
+Tổng thực tế (đã chạy thử trên dữ liệu thật): **54 phiếu → 54 dòng thu + 267 dòng
+chi = 321 dòng**, 1 phiếu bị từ chối. Tổng thay đổi số dư: **0 ¥**.
 
 ## Sáu chốt chặn trước khi ghi
 
@@ -256,7 +269,7 @@ Tổng: **55 dòng thu + 273 dòng chi = 328 dòng.**
 2. Mọi phiếu qua cả hai đẳng thức tự kiểm
 3. Mọi phiếu neo vào **đúng một** khoản thu Yucho; 0 hoặc ≥2 → từ chối
 4. Chưa có dòng nào mang dấu của phiếu đó (chống nhập trùng)
-5. `tổng thu thêm − tổng chi thêm = 0` từng phiếu
+5. `tổng thu thêm − tổng chi thêm = 0` từng phiếu, **và thu thêm > 0**
 6. Cờ `--ghi` + xác nhận `y/N` mặc định KHÔNG
 
 **Nhãn không có trong bộ nhãn → từ chối cả file và gọi tên nhãn đó ra.** Không bao
@@ -345,8 +358,12 @@ dấu ghi chú của cặp K/S cùng ngày · `過不足税額` cả hai dấu �
    khi sửa nó thì lỗi "chữ khối giành số" nằm sẵn mới lộ — hai lỗi che nhau, sửa
    một cái làm cả 55 file hỏng cùng lúc.
 
-Bài học chung: **chốt số học không thay được chốt ngữ nghĩa**, và một bộ kiểm
-"44/55 đúng" có thể đang che một lỗi làm sai cả 55.
+4. **Kiểm bất biến mà không kiểm dấu.** `thu == chi == gộp − ròng` báo đúng cho
+   `202312K` vì cả ba bằng −15.068. Lỗi này sống qua bốn vòng soát.
+
+Bài học chung: **chốt số học không thay được chốt ngữ nghĩa**, một bộ kiểm
+"44/55 đúng" có thể đang che một lỗi làm sai cả 55, và **một bất biến đúng vẫn vô
+nghĩa nếu không kiểm dấu**.
 
 ## Ngoài phạm vi
 

@@ -6,6 +6,15 @@ giá trị thị trường của từng tài khoản đầu tư **JPY** có sổ
 `account_valuations` — bảng mà cả app (tổng tài sản, lãi/lỗ, biểu đồ, thông báo) đã đọc
 sẵn từ trước, nên không cần sửa gì ở phía đọc.
 
+**Đợt gộp danh mục (2026-08-13):** hàng `account_valuations` với `source = 'auto'` —
+tức đúng những hàng cron này ghi mỗi tối — **không còn hiện** trên trang chi tiết tài
+khoản nữa. Khu "Lịch sử giá trị" ở đó giờ chỉ liệt kê hàng `source = 'manual'` (số người
+dùng tự gõ qua sheet "Cập nhật giá trị"); tài khoản chỉ có sổ lệnh thì khu đó không
+render. Cron vẫn ghi hàng `auto` y như cũ, và tab Diễn biến (`NetWorthHistorySection`)
+vẫn đọc đúng những hàng đó để vẽ lịch sử tài sản ròng — chỉ có nơi HIỂN THỊ đổi, không
+phải cách ghi hay cách tính (xem mục "Quyết định 5" ở
+[bản thiết kế đợt gộp](superpowers/specs/2026-08-13-gop-trang-dau-tu-design.md)).
+
 Đây là đi lại con đường của [cổ phiếu Việt Nam](co-phieu-viet-nam.md) — cron → edge
 function → bảng giá → tự ghi `account_valuations` — với nguồn giá khác, một đơn vị đo
 khác, và **một mô hình giá vốn khác** (xem mục "Vì sao không dùng lại `brokerCash`" ở
@@ -167,8 +176,10 @@ scripts/nhap-sao-ke-rakuten.mjs                   ← script CHẠY TAY, một l
 scripts/setup-fund-cron.mjs                       ← hẹn cron, gọi thử trước khi in SQL
                                                      (khuôn từ setup-stock-cron.mjs)
 
-src/features/assets/FundHoldingsSection.tsx       ← khu "Danh mục quỹ" ở trang chi tiết
-                                                     tài khoản (chỉ tài khoản JPY)
+src/features/assets/InvestFundsTab.tsx            ← tab "Quỹ Nhật" của /invest (gộp mọi
+                                                     tài khoản JPY) — trước là khu "Danh
+                                                     mục quỹ" ở trang chi tiết tài khoản,
+                                                     đã gộp về đây trong đợt gộp danh mục
 src/features/assets/FundTradeFormSheet.tsx        ← sheet ghi/sửa lệnh quỹ
 ```
 
@@ -429,7 +440,7 @@ lệnh. Hai con số không tương ứng nhau, đừng suy con này ra con kia:
 | `demoRepo` — sổ lệnh quỹ: ghi/sửa/xoá, `CHECK fund_trades_shape` (mua/bán có `amount>0`, `adjust` có `nav=0 amount=0`), soi hình dạng sau khi trộn patch (không chỉ lúc tạo), không xoá được tài khoản còn sổ lệnh | ✅ test (`src/data/fundTrades.test.ts`) |
 | `loadFundRegistry`/`loadHeldFundCodes`/`loadFundAccounts` — chỉ đọc bảng, xếp vào ô, không tự tính | ✅ đọc kỹ theo hợp đồng, khớp cột trong migration 0045 — **chưa chạy thật** với Postgres, cùng lý do `loadInput.ts` của `stock-refresh` không có test riêng |
 | `index.ts` — ba chế độ (cron/lấp lịch sử/kiểm mã), phân biệt `viec2Gay`/`chetHoanToan`, bảy lý do `boQua`, `--no-verify-jwt` + tự xác thực JWT ở chế độ kiểm mã | ✅ đọc code kỹ — **chưa chạy thật**, không có test riêng (chỉ ghép nối Postgres, đúng đắn chứng minh bằng lượt gọi thật ở Task 15) |
-| Khu "Danh mục quỹ" (`FundHoldingsSection`) + sheet ghi lệnh (`FundTradeFormSheet`) | ✅ **đã kiểm bằng chế độ demo**: hiện đúng Tổng giá trị 80.757 ¥, Giá vốn 70.000 ¥, +10.757 ¥ (+15,4%), gợi ý Số tiền từ 口数×基準価額÷10.000 sửa được |
+| Tab "Quỹ Nhật" (`InvestFundsTab`, trong `/invest`) + sheet ghi lệnh (`FundTradeFormSheet`) | ✅ **đã kiểm bằng chế độ demo**: hiện đúng Tổng giá trị 80.757 ¥, Giá vốn 70.000 ¥, +10.757 ¥ (+15,4%), gợi ý Số tiền từ 口数×基準価額÷10.000 sửa được |
 | `scripts/nhap-sao-ke-rakuten.mjs` — đọc CSV Shift-JIS thật, tách 5 cột đúng khi số có dấu phẩy trong ngoặc kép, chỉ nhận 3 loại lệnh quỹ (bỏ dòng tiền có nêu tên), dùng 約定日 không dùng 受渡日, ghép bí danh dừng khi gặp tên lạ, đếm trùng theo túi không theo tập | ✅ test trên `scripts/testdata/rakuten-uydo-mau.csv` — file GÕ TAY (không cắt từ file sao kê tải về), nhưng các con số trong đó (387.221 / 68.725 / 1.275 / 27.575 …) là số THẬT của chủ app, đã có sẵn ở nơi khác trong repo (chú thích code, `docs/`). Ranh giới đang giữ là **không commit file sao kê thật**, không phải "không có con số thật nào" |
 | Deploy `fund-refresh` lên project thật | ❌ **chưa** — việc của Task 15, chủ app tự chạy |
 | Migration 0045 áp lên project thật | ❌ **chưa** |
@@ -445,9 +456,9 @@ lệnh. Hai con số không tương ứng nhau, đừng suy con này ra con kia:
 tài khoản từng bị quét sạch (387.221 ¥ rút ra) rồi nạp lại, nên nạp − rút cả đời là
 **−299.215 ¥**, và `investmentStats` trả `null` cho `pnlPercent` khi giá vốn ≤ 0 (đúng
 hành vi — không phải bug). Lãi/lỗ **duy nhất có nghĩa** là loại suy từ sổ lệnh, hiện
-trong khu "Danh mục quỹ" (`FundHoldingsSection`) — không phải ô "Hiệu quả đầu tư" ở đầu
-trang chi tiết tài khoản. **Đừng sửa `investmentStats`** để "khớp" con số này; hai ô đo
-hai thứ khác nhau và cả hai đều đúng theo đúng định nghĩa của nó.
+trong tab "Quỹ Nhật" (`InvestFundsTab`) của `/invest` — không phải ô "Hiệu quả đầu tư" ở
+đầu trang chi tiết tài khoản. **Đừng sửa `investmentStats`** để "khớp" con số này; hai ô
+đo hai thứ khác nhau và cả hai đều đúng theo đúng định nghĩa của nó.
 
 Tương tự, app Rakuten hiện lãi **+15,36%** (cắt đuôi) còn hàm `pct` của repo hiện
 **+15,4%** (`toFixed(1)`, làm tròn) — **hai cách hiển thị của cùng một con số

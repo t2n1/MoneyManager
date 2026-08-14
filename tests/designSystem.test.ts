@@ -96,11 +96,16 @@ function stripComments(text: string): string {
  * tính được…"/"fg-muted"): ai đọc thấy giống rồi "gộp" (rút thành một hằng chuỗi
  * dùng chung cho cả hai khối) sẽ làm câu sai quay lại ở đúng một trong hai trạng
  * thái — đây chính là lỗi mà chốt review Task 6 phát hiện lần đầu (một câu chép tay
- * sang khối không đúng ngữ cảnh của nó). Giữ trần ở 57 vì đây là hai đoạn cảnh báo
- * DỮ LIỆU cho hai trạng thái thật khác nhau, không phải chữ dạy — bọc <Guide> sẽ
- * giấu cảnh báo ở chế độ Gọn, đúng lỗi các lần nâng trần trước đã tránh.
+ * sang khối không đúng ngữ cảnh của nó). Hai đoạn cảnh báo DỮ LIỆU cho hai trạng
+ * thái thật khác nhau này VẪN giữ nguyên, không phải chữ dạy — bọc <Guide> sẽ giấu
+ * cảnh báo ở chế độ Gọn, đúng lỗi các lần nâng trần trước đã tránh.
+ *
+ * 55 (2026-08-13, đợt gộp danh mục): tụt xuống vì HoldingsSection và FundHoldingsSection
+ * bị xoá — nội dung của chúng gom về hai tab của /invest, nơi mỗi câu chỉ còn MỘT bản.
+ * Hạ trần theo đúng quy ước ở thông điệp lỗi của chính phép thử này: trần không hạ là
+ * trần rỗng, để lần sau thêm văn xuôi mới mà không ai biết.
  */
-const PROSE_MAX = 57
+const PROSE_MAX = 55
 
 const FILES = sourceFiles().map((path) => ({
   path,
@@ -382,14 +387,24 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
   const CEILINGS: { needle: string; max: number; use: string }[] = [
     // 93 chứ không 94: <ActionButton> gom dáng nút-có-chữ (viền mảnh / nền xanh),
     // kéo 4 chỗ viết tay ở AccountDetailPage + hai sheet điều chỉnh về một mối.
-    { needle: 'active:scale-95', max: 93, use: '<IconButton> / <ActionButton>' },
+    //
+    // 82 (2026-08-13, đợt gộp danh mục): tụt từ 93 vì HoldingsSection và
+    // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
+    // mỗi nút chỉ còn MỘT bản viết tay thay vì lặp lại ở khu danh mục cũ. Hạ trần theo
+    // đúng quy ước ở thông điệp lỗi của chính phép thử này.
+    { needle: 'active:scale-95', max: 82, use: '<IconButton> / <ActionButton>' },
     // 28 chứ không 26: lượt sửa vùng chạm 2026-08-11 đưa BA công tắc role="switch"
     // (AssetGroupsPage, DebtPaymentSheet, roleFields) về đúng khuôn ba công tắc đã
     // đúng từ trước — vùng chạm 44×44 ở <button>, đường ray nhỏ ở <span> bên trong.
     // Trước đó đường ray đặt thẳng lên nút nên chạm chỉ 36×20 / 24×44.
     // KHÔNG gộp được vào <IconButton>: nó render một nút-icon, không có đường ray và
     // không mang role="switch"/aria-checked. Đây là tăng đúng chỗ, không phải nợ mới.
-    { needle: 'min-h-11 min-w-11', max: 28, use: '<IconButton> / iconButtonClass()' },
+    //
+    // 22 (2026-08-13, đợt gộp danh mục): tụt từ 28 vì HoldingsSection và
+    // FundHoldingsSection bị xoá — vùng chạm viết tay của chúng gom về hai tab của
+    // /invest, nơi không còn lặp lại ở khu danh mục cũ. Hạ trần theo đúng quy ước ở
+    // thông điệp lỗi của chính phép thử này.
+    { needle: 'min-h-11 min-w-11', max: 22, use: '<IconButton> / iconButtonClass()' },
     // 85 chu khong 82: lượt chuẩn hoá đã kéo 29 thẻ TỪ dạng `rounded-xl bg-white …
     // dark:bg-gray-900` VÀO dạng này, nên con số tăng mà tổng số thẻ viết tay không
     // đổi. Không phải thêm thẻ mới. Gộp vào <Card> thì hạ tiếp.
@@ -398,14 +413,25 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // chữ) đã gộp về <Card as="section" padding="none">. Phải đổi cả ba cùng lúc —
     // chúng nằm liền nhau nên để lẻ một cái viết tay là cái đó lệch dáng.
     { needle: 'rounded-xl bg-surface', max: 83, use: '<Card>' },
-    { needle: 'tabular-nums', max: 97, use: '<Money> (tự bật tabular-nums)' },
+    // 96 (2026-08-13, đợt gộp danh mục): tụt từ 97 vì HoldingsSection và
+    // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
+    // mỗi câu chỉ còn MỘT bản. FundHoldingsSection từng ghi ngay tại chỗ ngưỡng này
+    // "đã sát trần" (không thêm tabular-nums viết tay cho số 口 vì gần chạm 97); giờ
+    // file đó không còn nên lời ghi đó cũng hết cần thiết. Hạ trần theo đúng quy ước ở
+    // thông điệp lỗi của chính phép thử này: trần không hạ là trần rỗng.
+    { needle: 'tabular-nums', max: 96, use: '<Money> (tự bật tabular-nums)' },
     // 35 (đo 2026-08-06): cặp xanh nhấn viết tay. Nợ này TĂNG từ 29 lúc dựng hệ thống
     // — quy ước mới chưa thắng thói quen cũ, nên phải có trần. Mỗi chỗ cần XÉT NGHĨA
     // khi gộp: link/hành động → text-fg-accent, giá trị tiền → text-money-in
     // (docs/design-system.md mục "Chưa làm"). Không quét máy móc được.
     // 34 (2026-08-11): hai <Link> "tạo bộ danh mục" ở HealthView đã đổi sang
     // text-fg-accent. Đúng nghĩa — chúng là LINK, không phải giá trị tiền.
-    { needle: 'text-green-700 dark:text-green-400', max: 34, use: 'text-fg-accent (link/hành động) hoặc text-money-in (tiền) — xét nghĩa từng chỗ' },
+    //
+    // 32 (2026-08-13, đợt gộp danh mục): tụt từ 34 vì HoldingsSection và
+    // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
+    // mỗi chỗ chỉ còn MỘT bản. Hạ trần theo đúng quy ước ở thông điệp lỗi của chính
+    // phép thử này.
+    { needle: 'text-green-700 dark:text-green-400', max: 32, use: 'text-fg-accent (link/hành động) hoặc text-money-in (tiền) — xét nghĩa từng chỗ' },
     // Hex xanh/đỏ đời Tailwind v3 trong hằng số biểu đồ — không sai contrast nhưng
     // lệch palette v4 (green-600 v4 = #00a63e). Cũng tăng từ lúc dựng hệ thống (12+
     // file → 16 file). Thay dần khi đụng tới file, đừng thêm chỗ mới.
@@ -422,7 +448,12 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     //
     // Nút chính viết tay. Token là `bg-accent` (green-700) — dùng qua <ActionButton
     // variant="primary"> thì không bị đếm.
-    { needle: 'bg-green-700', max: 63, use: '<ActionButton variant="primary"> hoặc bg-accent' },
+    //
+    // 62 (2026-08-13, đợt gộp danh mục): tụt từ 63 vì HoldingsSection và
+    // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
+    // mỗi nút chỉ còn MỘT bản. Hạ trần theo đúng quy ước ở thông điệp lỗi của chính
+    // phép thử này.
+    { needle: 'bg-green-700', max: 62, use: '<ActionButton variant="primary"> hoặc bg-accent' },
     // Hai bán kính ngoài scale 4 tầng (docs §Bán kính). `rounded-2xl` có chủ đích ở thẻ
     // hero và sheet trượt lên; phần còn lại là tuỳ tiện. `rounded-md` thì lạc hẳn.
     // 37 (2026-08-12): sheet khai thu dự kiến của mặt lập kế hoạch. Đúng ngoại lệ ghi

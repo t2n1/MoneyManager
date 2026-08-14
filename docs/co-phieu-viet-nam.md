@@ -92,8 +92,8 @@ Xem hệ quả ở dòng `gia-le-phien-cu` trong bảng lý do dưới.
 ### Tên công ty: chuyển sang danh sách tĩnh
 
 Yahoo không trả tên công ty (SSI có, qua `companyNameVi`). Ô gợi ý mã khi ghi lệnh
-(`TradeFormSheet`) và tên công ty hiển thị ở Danh mục (`HoldingsSection`) đọc từ danh
-sách tĩnh [`src/features/assets/hoseSymbols.ts`](../src/features/assets/hoseSymbols.ts)
+(`TradeFormSheet`) và tên công ty hiển thị ở tab "Cổ phiếu VN" (`InvestStocksTab`, trong
+`/invest`) đọc từ danh sách tĩnh [`src/features/assets/hoseSymbols.ts`](../src/features/assets/hoseSymbols.ts)
 — 403 mã HOSE (mã + tên), hút một lần từ máy cá nhân bằng
 [`scripts/harvest-hose-symbols.mjs`](../scripts/harvest-hose-symbols.mjs) (script đó
 vẫn gọi SSI vì SSI vẫn có danh sách mã cả sàn; script này chạy TAY, không phải ở edge

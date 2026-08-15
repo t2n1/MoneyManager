@@ -1284,3 +1284,23 @@ describe('demoRepo: nhãn của khoản sắp chi', () => {
     ).toBe(1)
   })
 })
+
+describe('demoRepo: xoaPhieuLuong (Task 8)', () => {
+  // Bản demo không có tài khoản Yucho Bank thật (listYuchoIncome/listDauPhieuLuong
+  // đã rỗng sẵn vì lý do đó) — nút "Gỡ lô này" ở demo phải là phép no-op an toàn,
+  // không phải throw hay xoá nhầm dữ liệu demo khác.
+  it('luôn trả về 0, không đụng gì tới dữ liệu demo', async () => {
+    const cat = await demoRepo.createCategory({ name: 'Thu khác', type: 'income', icon: '💰' })
+    await demoRepo.createTransaction({
+      type: 'income',
+      amount: 1000,
+      to_amount: null,
+      category_id: cat.id,
+      account_id: (await demoRepo.getAccounts())[0].id,
+      to_account_id: null,
+      occurred_on: '2026-08-01',
+      note: '給与 2026/08K · phần bị giữ lại',
+    })
+    expect(await demoRepo.xoaPhieuLuong()).toBe(0)
+  })
+})

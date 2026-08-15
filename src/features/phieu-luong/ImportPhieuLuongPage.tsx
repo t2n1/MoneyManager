@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { FileUp } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
+import { ActionButton } from '../../components/ui/ActionButton'
 import { Card } from '../../components/ui/Card'
-import { useAccounts, useCategories, useCreateCategory } from '../../hooks/queries'
+import { invalidateTransactionData, useAccounts, useCategories, useCreateCategory } from '../../hooks/queries'
 import { formatMoney } from '../../lib/money'
-import { showToast } from '../../lib/dialog'
+import { confirmDialog, showToast } from '../../lib/dialog'
 import { repo } from '../../data'
 import { hasTaxCategories } from '../tax/categories'
 import { bocPhieu, type Phieu } from './boc'
@@ -26,12 +28,16 @@ export function layDanhSachFile(files: FileList | null): File[] {
 }
 
 export function ImportPhieuLuongPage() {
+  const qc = useQueryClient()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const createCategory = useCreateCategory()
   const [keHoach, setKeHoach] = useState<DongKeHoach[] | null>(null)
   const [daGop, setDaGop] = useState<{ key: string; files: string[] }[]>([])
   const [dangBoc, setDangBoc] = useState(false)
+  const [dangGhi, setDangGhi] = useState(false)
+  const [dangXoa, setDangXoa] = useState(false)
+  const [daGhi, setDaGhi] = useState<{ phieu: number; dong: number } | null>(null)
 
   const yucho = accounts.find((a) => TEN_YUCHO.test(a.name))
   const chiPhi = categories.filter((c) => c.type === 'expense')
@@ -106,6 +112,93 @@ export function ImportPhieuLuongPage() {
 
   const dat = keHoach?.filter((k) => k.trangThai === 'dat') ?? []
   const soDong = dat.reduce((s, k) => s + 1 + (k.thuKhac ? 1 : 0) + k.chi.length, 0)
+  // Chep ra bien rieng: TS khong giu suy luan "khac undefined" cua yucho xuyen
+  // qua bien ngoai khi dung trong ham long ben duoi (ghi/goLo).
+  const tenYucho = yucho.name
+
+  // Chan click kep: nut da disabled={dangGhi} nhung guard o day chan luon truong
+  // hop goi lai ham nay TRUOC khi React kip render lai trang thai disabled (vd
+  // bam kep rat nhanh trong luc hop thoai xac nhan con dang mo).
+  async function ghi() {
+    if (dangGhi) return
+    if (
+      !(await confirmDialog({
+        title: `Ghi ${soDong} dòng vào sổ?`,
+        message: `${dat.length} phiếu lương, ghi vào tài khoản "${tenYucho}".`,
+        confirmLabel: 'Ghi',
+      }))
+    )
+      return
+    setDangGhi(true)
+    let nPhieu = 0
+    let nDong = 0
+    try {
+      for (const k of dat) {
+        for (const row of [k.thu!, ...(k.thuKhac ? [k.thuKhac] : []), ...k.chi]) {
+          await repo.createTransaction(row)
+          nDong += 1
+        }
+        nPhieu += 1
+      }
+      invalidateTransactionData(qc)
+      // Xoa ke hoach NGAY sau khi ghi xong: dat[] rong lai thi nut Ghi bien mat
+      // khoi giao dien, chan dut duong bam lai de ghi trung batch vua xong.
+      setKeHoach(null)
+      setDaGhi({ phieu: nPhieu, dong: nDong })
+      showToast(`Đã ghi ${nPhieu} phiếu · ${nDong} dòng`)
+    } catch (e) {
+      // nDong > 0: mot phan da ghi that vao so TRUOC khi loi xay ra. Phai:
+      //   1. hien nut "Gỡ lô này" (qua setDaGhi) — khong thi thong diep loi phia
+      //      duoi tro nguoi dung bam mot nut khong ton tai tren man hinh.
+      //   2. xoa ke hoach (setKeHoach null) — dat[] cu VAN con nhung da ghi mot
+      //      phan roi; de nut "Ghi" song la moi bam lai se GHI TRUNG dung
+      //      nhung phieu vua thanh cong. Bat nguoi dung gỡ lô truoc, dung
+      //      huong dan cua chinh CLI (nhap-phieu-luong.mjs --go) khi gap ca nay.
+      // nDong === 0 (chua ghi duoc dong nao) thi an toan de giu nguyen ke
+      // hoach cho nguoi dung bam Ghi lai — khong co gi de ghi trung ca.
+      if (nDong > 0) {
+        invalidateTransactionData(qc)
+        setKeHoach(null)
+        setDaGhi({ phieu: nPhieu, dong: nDong })
+      }
+      showToast(
+        e instanceof Error
+          ? `Ghi lỗi: ${e.message}.${nDong > 0 ? ' Đã ghi một phần — dùng "Gỡ lô này" để xoá sạch rồi thử lại.' : ''}`
+          : 'Ghi lỗi, thử lại.',
+        'error',
+      )
+    } finally {
+      setDangGhi(false)
+    }
+  }
+
+  // Khong con nhan tham so dau (Ruling F4): repo.xoaPhieuLuong() luon xoa TOAN
+  // BO dong mang tien to `給与 `, khong chi lo dang hien tren man — hop xac nhan
+  // ben duoi phai noi dung dieu do.
+  async function goLo() {
+    if (dangXoa) return
+    if (
+      !(await confirmDialog({
+        title: 'Xoá mọi dòng mang dấu 給与 … ?',
+        message:
+          'Xoá TOÀN BỘ dòng đã nhập từ phiếu lương trong sổ — không chỉ lô vừa ghi ở trên. Không hoàn tác được.',
+        confirmLabel: 'Xoá',
+        danger: true,
+      }))
+    )
+      return
+    setDangXoa(true)
+    try {
+      const n = await repo.xoaPhieuLuong()
+      invalidateTransactionData(qc)
+      showToast(`Đã xoá ${n} dòng`)
+      setDaGhi(null)
+    } catch (e) {
+      showToast(e instanceof Error ? `Xoá lỗi: ${e.message}` : 'Xoá lỗi, thử lại.', 'error')
+    } finally {
+      setDangXoa(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-3 p-3">
@@ -196,6 +289,23 @@ export function ImportPhieuLuongPage() {
             ))}
           </ul>
         </Card>
+      )}
+
+      {dat.length > 0 && (
+        <ActionButton variant="primary" disabled={dangGhi} onClick={ghi}>
+          {dangGhi ? 'Đang ghi…' : `Ghi ${soDong} dòng`}
+        </ActionButton>
+      )}
+      {daGhi && (
+        <div className="rounded-xl bg-surface p-3 shadow-sm">
+          <p className="text-sm text-money-in">Đã ghi {daGhi.phieu} phiếu · {daGhi.dong} dòng.</p>
+          <button
+            type="button" disabled={dangXoa} onClick={goLo}
+            className="mt-2 min-h-9 rounded-lg border border-money-out px-3 py-1.5 text-xs font-semibold text-money-out transition hover:bg-red-50 disabled:opacity-40 dark:hover:bg-red-900/30"
+          >
+            {dangXoa ? 'Đang gỡ…' : 'Gỡ lô này'}
+          </button>
+        </div>
       )}
     </div>
   )

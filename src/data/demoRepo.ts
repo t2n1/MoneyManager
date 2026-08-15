@@ -2288,6 +2288,9 @@ export const demoRepo: Repo = {
   async listDauPhieuLuong() {
     return []
   },
+  async xoaPhieuLuong() {
+    return 0
+  },
 
   async importAll(data: BackupData) {
     // Soát y như bản thật: demoRepo không có FK/CHECK của Postgres, nên nếu bỏ bước này

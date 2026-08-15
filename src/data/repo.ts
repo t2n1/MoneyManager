@@ -717,4 +717,12 @@ export interface Repo {
   >
   /** Các dấu ghi chú `給与 …` đã có, để chống nhập trùng. */
   listDauPhieuLuong(): Promise<string[]>
+  /**
+   * Xoá TOÀN BỘ dòng nhập từ phiếu lương — mọi dòng mang tiền tố `給与 ` trong
+   * `note`, không phân biệt lô/dấu nào. Không có cột `import_batch` nên tiền tố
+   * này là tay cầm duy nhất; gỡ theo TỪNG dấu riêng rẽ không có ở đây vì `dau`
+   * chứa dấu cách và `·` — ghép chúng vào cú pháp `.or()` của PostgREST (vốn
+   * tách theo dấu phẩy) là kiểu lỗi không báo lỗi, chỉ âm thầm xoá thiếu.
+   */
+  xoaPhieuLuong(): Promise<number>
 }

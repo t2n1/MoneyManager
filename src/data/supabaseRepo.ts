@@ -1692,6 +1692,19 @@ export const supabaseRepo: Repo = {
     return [...new Set(rows.map((t) => t.note.split(' · ')[0]))]
   },
 
+  async xoaPhieuLuong() {
+    // Không có cột import_batch nên tiền tố `給与 ` trong note là tay cầm duy nhất
+    // để gỡ lô nhập. KHÔNG lọc theo từng dấu riêng (xem chú thích ở repo.ts):
+    // dấu chứa dấu cách và `·`, đưa chúng vào `.or()` của PostgREST là xoá thiếu
+    // mà không báo lỗi gì — nên ở đây luôn xoá theo đúng một tiền tố cố định.
+    const { count, error } = await getSupabase()
+      .from('transactions')
+      .delete({ count: 'exact' })
+      .like('note', '給与 %')
+    if (error) throw error
+    return count ?? 0
+  },
+
   async importAll(data: BackupData) {
     const uid = await currentUserId()
     const sb = getSupabase()

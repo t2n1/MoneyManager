@@ -2,20 +2,23 @@ import { useState } from 'react'
 import { FileUp } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
 import { Card } from '../../components/ui/Card'
-import { useAccounts, useCategories } from '../../hooks/queries'
+import { useAccounts, useCategories, useCreateCategory } from '../../hooks/queries'
 import { formatMoney } from '../../lib/money'
 import { showToast } from '../../lib/dialog'
 import { repo } from '../../data'
+import { hasTaxCategories } from '../tax/categories'
 import { bocPhieu, type Phieu } from './boc'
 import { docPdfWeb } from './docPdfWeb'
-import { DANH_MUC_THUE_CON, dungKeHoach, type DongKeHoach, type KhoanNeo } from './nhap'
+import { DANH_MUC_THUE_CHA, DANH_MUC_THUE_CON, dungKeHoach, gomTrung, type DongKeHoach } from './nhap'
 
 const TEN_YUCHO = /yucho/i
 
 export function ImportPhieuLuongPage() {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
+  const createCategory = useCreateCategory()
   const [keHoach, setKeHoach] = useState<DongKeHoach[] | null>(null)
+  const [daGop, setDaGop] = useState<{ key: string; files: string[] }[]>([])
   const [dangBoc, setDangBoc] = useState(false)
 
   const yucho = accounts.find((a) => TEN_YUCHO.test(a.name))
@@ -40,12 +43,40 @@ export function ImportPhieuLuongPage() {
           })
         }
       }
-      const thu = (await repo.listYuchoIncome(yucho.id)) as KhoanNeo[]
+      // gomTrung() lai o day CHI de lay daGop hien cho nguoi dung biet — dungKeHoach
+      // tu goi lai ham nay ben trong, khong doi chu ky cua no.
+      setDaGop(gomTrung(phieuList).daGop)
+      const thu = await repo.listYuchoIncome(yucho.id)
       const dauDaCo = new Set(await repo.listDauPhieuLuong())
       const idTheoTen = new Map(chiPhi.map((c) => [c.name, c.id]))
       setKeHoach(dungKeHoach(phieuList, thu, yucho.id, idTheoTen, dauDaCo))
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Không đọc được dữ liệu sổ, thử lại.', 'error')
     } finally {
       setDangBoc(false)
+    }
+  }
+
+  async function taoDanhMuc() {
+    try {
+      // Chi tao danh muc CHA khi chua co — trung voi cach CLI kiem tra coCha, tranh
+      // tao trung 'Thuế & An sinh' cho nguoi chi thieu vai danh muc con.
+      let chaId: string | undefined
+      if (hasTaxCategories(categories)) {
+        chaId = categories.find((c) => c.type === 'expense' && c.name === DANH_MUC_THUE_CHA)?.id
+      } else {
+        const cha = await createCategory.mutateAsync({
+          name: DANH_MUC_THUE_CHA, type: 'expense', icon: '🏛️', parent_id: null,
+        })
+        chaId = cha.id
+      }
+      for (const c of DANH_MUC_THUE_CON) {
+        if (chiPhi.some((x) => x.name === c.name)) continue
+        await createCategory.mutateAsync({ ...c, type: 'expense', parent_id: chaId })
+      }
+      showToast('Đã tạo danh mục')
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Không tạo được danh mục, thử lại.', 'error')
     }
   }
 
@@ -76,34 +107,42 @@ export function ImportPhieuLuongPage() {
           </ul>
           <button
             type="button"
-            onClick={async () => {
-              const cha = await repo.createCategory({
-                name: 'Thuế & An sinh', type: 'expense', icon: '🏛️', parent_id: null,
-              })
-              for (const c of DANH_MUC_THUE_CON) {
-                if (chiPhi.some((x) => x.name === c.name)) continue
-                await repo.createCategory({ ...c, type: 'expense', parent_id: cha.id })
-              }
-              showToast('Đã tạo danh mục')
-            }}
-            className="mt-2 min-h-9 rounded-lg bg-green-700 px-3 py-1.5 text-xs font-semibold text-white active:scale-95"
+            onClick={taoDanhMuc}
+            disabled={createCategory.isPending}
+            className="mt-2 min-h-9 rounded-lg bg-green-700 px-3 py-1.5 text-xs font-semibold text-white active:scale-95 disabled:opacity-60"
           >
-            Tạo 6 danh mục
+            {createCategory.isPending ? 'Đang tạo…' : 'Tạo 6 danh mục'}
           </button>
         </Card>
       )}
 
-      <Card as="label" className="flex cursor-pointer items-center gap-3">
+      <Card
+        as="label"
+        className="flex cursor-pointer items-center gap-3 focus-within:ring-2 focus-within:ring-green-500"
+      >
         <FileUp className="h-5 w-5 text-fg-muted" />
         <span className="flex-1 text-sm text-fg-primary">
           {dangBoc ? 'Đang bóc…' : 'Chọn file PDF (chọn được nhiều file)'}
         </span>
         <input
-          type="file" multiple accept="application/pdf" className="hidden"
+          type="file" multiple accept="application/pdf" className="sr-only"
           disabled={dangBoc || thieuDanhMuc.length > 0}
-          onChange={(e) => chonFile(e.target.files)}
+          onChange={(e) => {
+            const files = e.target.files
+            // Reset ngay: khong thi chon LAI dung 3 file cu (Buoc 6 muc 5 cua brief)
+            // se khong sinh su kien change lan hai, va trang dung yen tai cho.
+            e.target.value = ''
+            chonFile(files)
+          }}
         />
       </Card>
+
+      {daGop.length > 0 && (
+        <p className="text-xs text-fg-muted">
+          Đã gộp {daGop.length} nhóm file trùng nội dung làm một:{' '}
+          {daGop.map((g) => g.files.join(' = ')).join(' · ')}
+        </p>
+      )}
 
       {keHoach && (
         <Card>

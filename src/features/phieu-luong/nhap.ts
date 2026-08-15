@@ -247,21 +247,34 @@ function dauTayNoiDung(p: Phieu): string {
  *
  * Trung y het noi dung -> giu mot ban, bao da gop. Khac noi dung -> tu choi ca nhom:
  * script khong duoc doan file nao moi la ban that.
+ *
+ * Phieu mang `loi` (doc PDF loi, thieu ky/loai...) KHONG co danh tinh dang tin de so
+ * sanh noi dung — dauTayNoiDung cua chung thuong RONG GIONG HET NHAU (vd ba file
+ * khong doc duoc deu co empno/period/kind = null). Gop chung theo noi dung se NUOT
+ * MAT hai trong ba file loi do, chi con lai MOT dong "tu choi" — nguoi dung tuong
+ * chi co mot file hong. Nen phieu co loi luon DI THANG QUA, moi file mot dong,
+ * khong tham gia gom/tu-choi-theo-noi-dung voi bat ky phieu nao khac.
  */
 export function gomTrung(phieuList: Phieu[]): {
   giu: Phieu[]
   daGop: { key: string; files: string[] }[]
-  boQua: { key: string; files: string[]; lyDo: string }[]
+  boQua: { key: string; files: string[]; lyDo: string; phieu: Phieu }[]
 } {
+  const giu: Phieu[] = []
+  const daGop: { key: string; files: string[] }[] = []
+  const boQua: { key: string; files: string[]; lyDo: string; phieu: Phieu }[] = []
+
+  // Phieu co loi: di thang qua, moi file mot dong — xem ly do o docstring.
+  const coLoi = phieuList.filter((p) => p.loi.length > 0)
+  const sach = phieuList.filter((p) => p.loi.length === 0)
+  giu.push(...coLoi)
+
   const nhom = new Map<string, Phieu[]>()
-  for (const p of phieuList) {
+  for (const p of sach) {
     const key = `${p.empno}|${p.period}|${p.kind}`
     if (!nhom.has(key)) nhom.set(key, [])
     nhom.get(key)!.push(p)
   }
-  const giu: Phieu[] = []
-  const daGop: { key: string; files: string[] }[] = []
-  const boQua: { key: string; files: string[]; lyDo: string }[] = []
   for (const [key, ds] of nhom) {
     if (ds.length === 1) {
       giu.push(ds[0])
@@ -276,6 +289,10 @@ export function gomTrung(phieuList: Phieu[]): {
         key,
         files: ds.map((p) => p.file),
         lyDo: `${ds.length} file cung ky ${key} nhung NOI DUNG KHAC NHAU — khong doan ban nao that`,
+        // Mot phieu THAT thuoc dung nhom nay (period/kind/empno khop key) — de dong
+        // tu-choi mang dung ky cua nhom bi tu choi, khong phai cua mot phieu bat ky
+        // khac trong toan bo lo.
+        phieu: ds[0],
       })
     }
   }
@@ -356,7 +373,10 @@ export function dungKeHoach(
     phieu: p, neo: null, dau: '', thu: null, thuKhac: null, chi: [], trangThai: tt, lyDo,
   })
   for (const g of trung.boQua) {
-    out.push(rong({ ...phieuList[0], file: g.files.join(' + ') }, 'tu-choi', g.lyDo))
+    // g.phieu la mot phieu THAT thuoc dung nhom bi tu choi (period/kind/empno khop
+    // key cua no) — KHONG dung phieuList[0]: do co the la mot phieu khac hoan toan,
+    // mang nham ky/loai cua no vao dong tu-choi cua nhom nay.
+    out.push(rong({ ...g.phieu, file: g.files.join(' + ') }, 'tu-choi', g.lyDo))
   }
   const daDung = new Set<string>()
   for (const p of trung.giu) {

@@ -310,10 +310,15 @@ describe('gomTrung — file trung trong thu muc', () => {
   })
 
   it('cung ky nhung noi dung KHAC -> tu choi ca nhom, khong doan', () => {
-    const r = gomTrung([A, { ...B, net: 999999 }])
+    const xau = { ...B, net: 999999 }
+    const r = gomTrung([A, xau])
     expect(r.giu).toHaveLength(0)
     expect(r.boQua).toHaveLength(1)
     expect(r.boQua[0].lyDo).toMatch(/NOI DUNG KHAC NHAU/)
+    // `phieu` phai la MOT THANH VIEN THAT cua chinh nhom bi tu choi (period/kind/empno
+    // khop key cua no), khong phai mot phieu bat ky khac trong toan bo lo.
+    expect([A.file, xau.file]).toContain(r.boQua[0].phieu.file)
+    expect(r.boQua[0].phieu.period).toBe(A.period)
   })
 
   it('khong trung thi giu nguyen het', () => {
@@ -327,6 +332,22 @@ describe('gomTrung — file trung trong thu muc', () => {
     expect(r.giu).toHaveLength(2)
     expect(r.boQua).toHaveLength(0)
   })
+
+  // Ca that tung xay: ba file KHONG DOC DUOC deu co empno/period/kind = null va noi
+  // dung rong giong het nhau — neu gom theo noi dung nhu phieu thuong thi hai trong
+  // ba file bi NUOT MAT, chi con lai MOT dong "tu choi". Phieu mang loi khong co danh
+  // tinh dang tin de so sanh, nen phai di thang qua, moi file mot dong.
+  it('ba file khong doc duoc (loi) -> giu nguyen ba dong, khong gop', () => {
+    const hong = (file: string): Phieu => ({
+      file, empno: null, period: null, kind: null, nguonKy: 'ten-file', canhBao: [],
+      gross: null, deductTotal: null, net: null, bank: null, tru: {}, ngoaiTong: {},
+      nhanLa: [], loi: [`đọc PDF lỗi: ${file}`],
+    })
+    const r = gomTrung([hong('a.pdf'), hong('b.pdf'), hong('c.pdf')])
+    expect(r.giu).toHaveLength(3)
+    expect(r.daGop).toHaveLength(0)
+    expect(r.boQua).toHaveLength(0)
+  })
 })
 
 describe('thieu danh muc', () => {
@@ -336,33 +357,70 @@ describe('thieu danh muc', () => {
 })
 
 describe('dungKeHoach', () => {
-  const IDS_DU = new Map([...IDS])
   const THU: KhoanNeo[] = [NEO_202608]
 
   it('phiếu đạt thì có dòng, phiếu đã nhập thì không', () => {
-    const kh = dungKeHoach([P202608], THU, YUCHO, IDS_DU, new Set())
+    const kh = dungKeHoach([P202608], THU, YUCHO, IDS, new Set())
     expect(kh).toHaveLength(1)
     expect(kh[0].trangThai).toBe('dat')
     expect(kh[0].chi).toHaveLength(5)
 
-    const kh2 = dungKeHoach([P202608], THU, YUCHO, IDS_DU, new Set(['給与 2026/08K']))
+    const kh2 = dungKeHoach([P202608], THU, YUCHO, IDS, new Set(['給与 2026/08K']))
     expect(kh2[0].trangThai).toBe('da-nhap')
     expect(kh2[0].chi).toHaveLength(0)
   })
 
-  // Ba trang thai phai phan biet duoc: "da nhap roi" KHONG phai loi.
+  // Ba trang thai phai phan biet duoc: "da nhap roi" KHONG phai loi. `xau` phai la
+  // MOT PHIEU KHAC THAT SU (ky khac) — chung ky + noi dung giong het se bi gomTrung
+  // gop lam mot TRUOC khi dungKeHoach kip thay `loi` cua no (dung the la mot phieu
+  // rieng nhung y het P202608 se bi coi la "cung mot phieu thay hai lan").
   it('phân biệt ba trạng thái, không gộp', () => {
-    const xau: Phieu = { ...P202608, file: 'x.pdf', loi: ['nhãn lạ: 謎'] }
-    const kh = dungKeHoach([P202608, xau], THU, YUCHO, IDS_DU, new Set())
+    const xau: Phieu = { ...P202608, file: 'x.pdf', period: '202607', loi: ['nhãn lạ: 謎'] }
+    const kh = dungKeHoach([P202608, xau], THU, YUCHO, IDS, new Set())
     const tt = kh.map((k) => k.trangThai).sort()
     expect(tt).toEqual(['dat', 'tu-choi'])
     expect(kh.find((k) => k.trangThai === 'tu-choi')!.lyDo).toMatch(/謎/)
   })
 
+  // Hai phieu THAT SU KHAC NHAU (ky khac -> khong bi gomTrung gop) nhung cung net
+  // -> ca hai deu khop duoc mot khoan neo DUY NHAT: phieu xu ly truoc phai chiem
+  // mat no (daDung), phieu sau phai tu choi vi "khong thay" — chu khong phai vi bi
+  // gomTrung nuot mat.
   it('không để hai phiếu giành cùng một khoản neo', () => {
-    const hai = [P202608, { ...P202608, file: 'y.pdf' }]
-    const kh = dungKeHoach(hai, THU, YUCHO, IDS_DU, new Set())
-    // gomTrung gộp hai bản trùng nội dung thành một
-    expect(kh.filter((k) => k.trangThai === 'dat')).toHaveLength(1)
+    const p2: Phieu = { ...P202608, file: 'y.pdf', period: '202607' }
+    const kh = dungKeHoach([P202608, p2], THU, YUCHO, IDS, new Set())
+    const dat = kh.filter((k) => k.trangThai === 'dat')
+    const tuChoi = kh.filter((k) => k.trangThai === 'tu-choi')
+    expect(dat).toHaveLength(1)
+    expect(tuChoi).toHaveLength(1)
+    expect(tuChoi[0].lyDo).toMatch(/khong thay/)
+  })
+
+  // Nhom bi gomTrung tu choi (boQua, noi dung khac nhau) phai tro thanh DUNG MOT
+  // dong tu-choi, va dong do phai mang ky/loai cua CHINH nhom bi tu choi — khong
+  // phai cua mot phieu bat ky khac trong ca lo (hoi quy cho finding "phieuList[0]").
+  it('nhóm bị gomTrung từ chối (boQua) thành một dòng tu-choi mang đúng kỳ của nhóm', () => {
+    const doiThu: Phieu = { ...P202608, file: 'z.pdf', net: 999999 }
+    const kh = dungKeHoach([P202608, doiThu], THU, YUCHO, IDS, new Set())
+    expect(kh).toHaveLength(1)
+    expect(kh[0].trangThai).toBe('tu-choi')
+    expect(kh[0].lyDo).toMatch(/NOI DUNG KHAC NHAU/)
+    expect(kh[0].phieu.period).toBe(P202608.period)
+    expect(kh[0].phieu.file).toBe(`${P202608.file} + ${doiThu.file}`)
+  })
+
+  it('dungDong ném lỗi (thiếu danh mục) -> tu-choi mang thông điệp lỗi', () => {
+    const kh = dungKeHoach([P202608], THU, YUCHO, new Map(), new Set())
+    expect(kh).toHaveLength(1)
+    expect(kh[0].trangThai).toBe('tu-choi')
+    expect(kh[0].lyDo).toMatch(/thieu danh muc/)
+  })
+
+  it('timNeo không thấy khoản thu khớp -> tu-choi trực tiếp', () => {
+    const khongKhop: Phieu = { ...P202608, file: 'w.pdf', net: 12345 }
+    const kh = dungKeHoach([khongKhop], THU, YUCHO, IDS, new Set())
+    expect(kh).toHaveLength(1)
+    expect(kh[0].trangThai).toBe('tu-choi')
+    expect(kh[0].lyDo).toMatch(/khong thay/)
   })
 })

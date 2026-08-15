@@ -28,7 +28,7 @@ import { readFileSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { stdin, stdout } from 'node:process'
 import { createClient } from '@supabase/supabase-js'
-const { DANH_MUC_THUE_CHA, DANH_MUC_THUE_CON, dungKeHoach } =
+const { DANH_MUC_THUE_CHA, DANH_MUC_THUE_CON, dungKeHoach, gomTrung } =
   await import('../src/features/phieu-luong/nhap.ts')
 const { bocPhieu } = await import('../src/features/phieu-luong/boc.ts')
 const { docPdfNode } = await import('./phieu-luong/docPdfNode.mjs')
@@ -201,9 +201,12 @@ function inKeHoach(kh) {
     console.log('\n--- Tu choi ---')
     for (const k of tuChoi) console.log(`  X ${k.phieu.file}\n      ${k.lyDo}`)
   }
-  const dong = dat.reduce((s, r) => s + 1 + r.chi.length, 0)
-  const tongThu = dat.reduce((s, r) => s + r.thu.amount, 0)
-  console.log(`\nTong: ${dong} dong (${dat.length} thu + ${dong - dat.length} chi) · thu them ${tongThu} ¥`)
+  // +1 cho thuKhac khi co: ghiKeHoach ghi CA dong nay, nen dem thieu no la loi hen
+  // "Ghi N dong THAT?" thap hon so dong thuc su sap ghi vao so.
+  const dong = dat.reduce((s, r) => s + 1 + (r.thuKhac ? 1 : 0) + r.chi.length, 0)
+  const soThu = dat.reduce((s, r) => s + 1 + (r.thuKhac ? 1 : 0), 0)
+  const tongThu = dat.reduce((s, r) => s + r.thu.amount + (r.thuKhac ? r.thuKhac.amount : 0), 0)
+  console.log(`\nTong: ${dong} dong (${soThu} thu + ${dong - soThu} chi) · thu them ${tongThu} ¥`)
   console.log('So du KHONG doi: thu vao chi ra cung ngay cung tai khoan, triet tieu.')
 }
 
@@ -261,6 +264,11 @@ async function main() {
   }
   if (!ten.has('Đi chợ')) thoat("Thieu danh muc 'Đi chợ' (cho 社内販売精算).")
 
+  // gomTrung() goi rieng o day CHI de bao "trung byte, gop lam mot" cho nguoi dung —
+  // dungKeHoach ben duoi tu goi lai ham nay, khong doi chu ky cua no.
+  const { daGop } = gomTrung(phieuList)
+  for (const g of daGop) console.log(`  i trung byte, gop lam mot: ${g.files.join(' = ')}`)
+
   // dungKeHoach() la ham THUAN dung chung voi trang web — unpack `so` thanh tung
   // tham so rieng thay vi truyen ca cuc, vi hinh dang cua ham do web quyet dinh.
   const idTheoTen = new Map(so.cats.filter((c) => c.type === 'expense').map((c) => [c.name, c.id]))
@@ -272,7 +280,8 @@ async function main() {
   if (!ghi) return console.log('\n(xem truoc — them --ghi de ghi that)')
   if (dat.length === 0) return console.log('\nKhong co phieu nao de ghi.')
 
-  const dong = dat.reduce((s, r) => s + 1 + r.chi.length, 0)
+  // +1 cho thuKhac khi co — cung ly do voi inKeHoach() o tren.
+  const dong = dat.reduce((s, r) => s + 1 + (r.thuKhac ? 1 : 0) + r.chi.length, 0)
   const thuan = daXacNhan || (await hoiYN(`\nGhi ${dong} dong vao so THAT?`))
   if (!thuan) return console.log('Huy — khong ghi gi.')
   const n = await ghiKeHoach(sb, dat)

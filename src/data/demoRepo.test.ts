@@ -1287,11 +1287,11 @@ describe('demoRepo: nhãn của khoản sắp chi', () => {
 
 describe('demoRepo: xoaPhieuLuong (Task 8)', () => {
   // Bản demo không có tài khoản Yucho Bank thật (listYuchoIncome/listDauPhieuLuong
-  // đã rỗng sẵn vì lý do đó) — nút "Gỡ lô này" ở demo phải là phép no-op an toàn,
-  // không phải throw hay xoá nhầm dữ liệu demo khác.
-  it('luôn trả về 0, không đụng gì tới dữ liệu demo', async () => {
+  // đã rỗng sẵn vì lý do đó) — nút "Xoá mọi dòng phiếu lương" ở demo phải là phép
+  // no-op an toàn, không phải throw hay xoá nhầm dữ liệu demo khác.
+  it('luôn trả về 0, và dòng mang dấu 給与 vẫn còn nguyên sau đó', async () => {
     const cat = await demoRepo.createCategory({ name: 'Thu khác', type: 'income', icon: '💰' })
-    await demoRepo.createTransaction({
+    const tx = await demoRepo.createTransaction({
       type: 'income',
       amount: 1000,
       to_amount: null,
@@ -1301,6 +1301,13 @@ describe('demoRepo: xoaPhieuLuong (Task 8)', () => {
       occurred_on: '2026-08-01',
       note: '給与 2026/08K · phần bị giữ lại',
     })
+
     expect(await demoRepo.xoaPhieuLuong()).toBe(0)
+
+    // Phai doc lai — chi kiem tra gia tri tra ve khong bat duoc mot ham xoa het
+    // roi van tra ve 0 (vd do dem sai). Neu demoRepo.xoaPhieuLuong tung bi doi
+    // thanh xoa that theo dau, dong nay bien mat va assertion duoi day do do.
+    const con = await demoRepo.listTransactions({ start: '2026-08-01', end: '2026-08-02' })
+    expect(con.map((t) => t.id)).toContain(tx.id)
   })
 })

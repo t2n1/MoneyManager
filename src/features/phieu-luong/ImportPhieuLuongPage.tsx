@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { FileUp } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
@@ -38,6 +38,13 @@ export function ImportPhieuLuongPage() {
   const [dangGhi, setDangGhi] = useState(false)
   const [dangXoa, setDangXoa] = useState(false)
   const [daGhi, setDaGhi] = useState<{ phieu: number; dong: number } | null>(null)
+  // Chan click kep THAT: state (dangGhi/dangXoa) chi dung de HIEN thi (nhan nut,
+  // disabled) — no khong doc duoc gia tri moi cho toi khi component render lai,
+  // nen trong luc await confirmDialog() (truoc khi setDangGhi(true) chay) hai
+  // lan bam lien tiep van cung doc thay false. Ref thi doc/ghi NGAY, dong bo,
+  // nen dat co ngay dau ham (truoc ca khi mo hop thoai xac nhan) la chan that.
+  const dangGhiRef = useRef(false)
+  const dangXoaRef = useRef(false)
 
   const yucho = accounts.find((a) => TEN_YUCHO.test(a.name))
   const chiPhi = categories.filter((c) => c.type === 'expense')
@@ -116,87 +123,108 @@ export function ImportPhieuLuongPage() {
   // qua bien ngoai khi dung trong ham long ben duoi (ghi/goLo).
   const tenYucho = yucho.name
 
-  // Chan click kep: nut da disabled={dangGhi} nhung guard o day chan luon truong
-  // hop goi lai ham nay TRUOC khi React kip render lai trang thai disabled (vd
-  // bam kep rat nhanh trong luc hop thoai xac nhan con dang mo).
   async function ghi() {
-    if (dangGhi) return
-    if (
-      !(await confirmDialog({
-        title: `Ghi ${soDong} dòng vào sổ?`,
-        message: `${dat.length} phiếu lương, ghi vào tài khoản "${tenYucho}".`,
-        confirmLabel: 'Ghi',
-      }))
-    )
-      return
-    setDangGhi(true)
-    let nPhieu = 0
-    let nDong = 0
+    // dangGhiRef, khong phai state dangGhi: xem chu thich o khai bao ref phia
+    // tren — chan tu day, TRUOC ca khi mo hop thoai xac nhan, moi la chan that.
+    if (dangGhiRef.current) return
+    dangGhiRef.current = true
     try {
-      for (const k of dat) {
-        for (const row of [k.thu!, ...(k.thuKhac ? [k.thuKhac] : []), ...k.chi]) {
-          await repo.createTransaction(row)
-          nDong += 1
+      if (
+        !(await confirmDialog({
+          title: `Ghi ${soDong} dòng vào sổ?`,
+          message: `${dat.length} phiếu lương, ghi vào tài khoản "${tenYucho}".`,
+          confirmLabel: 'Ghi',
+        }))
+      )
+        return
+      setDangGhi(true)
+      let nPhieu = 0
+      let nDong = 0
+      // Dau cua tung phieu da ghi XONG (ca thu lan chi) — de bao chinh xac
+      // "nhung phieu nao" neu vong lap duoi day dung giua chung vi loi.
+      const dauDaGhi: string[] = []
+      try {
+        for (const k of dat) {
+          for (const row of [k.thu!, ...(k.thuKhac ? [k.thuKhac] : []), ...k.chi]) {
+            await repo.createTransaction(row)
+            nDong += 1
+          }
+          nPhieu += 1
+          dauDaGhi.push(k.dau)
         }
-        nPhieu += 1
-      }
-      invalidateTransactionData(qc)
-      // Xoa ke hoach NGAY sau khi ghi xong: dat[] rong lai thi nut Ghi bien mat
-      // khoi giao dien, chan dut duong bam lai de ghi trung batch vua xong.
-      setKeHoach(null)
-      setDaGhi({ phieu: nPhieu, dong: nDong })
-      showToast(`Đã ghi ${nPhieu} phiếu · ${nDong} dòng`)
-    } catch (e) {
-      // nDong > 0: mot phan da ghi that vao so TRUOC khi loi xay ra. Phai:
-      //   1. hien nut "Gỡ lô này" (qua setDaGhi) — khong thi thong diep loi phia
-      //      duoi tro nguoi dung bam mot nut khong ton tai tren man hinh.
-      //   2. xoa ke hoach (setKeHoach null) — dat[] cu VAN con nhung da ghi mot
-      //      phan roi; de nut "Ghi" song la moi bam lai se GHI TRUNG dung
-      //      nhung phieu vua thanh cong. Bat nguoi dung gỡ lô truoc, dung
-      //      huong dan cua chinh CLI (nhap-phieu-luong.mjs --go) khi gap ca nay.
-      // nDong === 0 (chua ghi duoc dong nao) thi an toan de giu nguyen ke
-      // hoach cho nguoi dung bam Ghi lai — khong co gi de ghi trung ca.
-      if (nDong > 0) {
         invalidateTransactionData(qc)
+        // Xoa ke hoach NGAY sau khi ghi xong: dat[] rong lai thi nut Ghi bien mat
+        // khoi giao dien, chan dut duong bam lai de ghi trung batch vua xong.
         setKeHoach(null)
         setDaGhi({ phieu: nPhieu, dong: nDong })
+        showToast(`Đã ghi ${nPhieu} phiếu · ${nDong} dòng`)
+      } catch (e) {
+        // nDong > 0: mot phan da ghi THAT vao so truoc khi loi xay ra — so du
+        // sai lech that su cho toi khi xu ly xong, dung nhu "Số dư không đổi"
+        // ben tren hua chi dung khi ca lo tron ven.
+        //   1. hien nut "Xoá mọi dòng phiếu lương" (qua setDaGhi) — chon o day
+        //      la vi tu Ruling 1 no XOA TOAN BO lich su phieu luong tung nhap,
+        //      khong chi lo nay, nen KHONG duoc goi y no la cach "sua" mot lan
+        //      ghi do — nguoi dung phai tu quyet co chap nhan mat ca lich su
+        //      hay khong, thong diep loi chi noi that da xay ra chuyen gi.
+        //   2. xoa ke hoach (setKeHoach null) — dat[] cu VAN con nhung mot vai
+        //      phieu trong do da ghi thanh cong roi; de nut "Ghi" song la bam
+        //      lai se ghi TRUNG dung nhung phieu vua thanh cong.
+        // nDong === 0 (chua ghi duoc dong nao) thi an toan de giu nguyen ke
+        // hoach cho nguoi dung bam Ghi lai — khong co gi de ghi trung ca.
+        if (nDong > 0) {
+          invalidateTransactionData(qc)
+          setKeHoach(null)
+          setDaGhi({ phieu: nPhieu, dong: nDong })
+        }
+        showToast(
+          e instanceof Error
+            ? nDong > 0
+              ? `Ghi lỗi: ${e.message}. Đã ghi ${nDong} dòng của ${nPhieu} phiếu (${dauDaGhi.join(' · ')}) trước khi dừng — mở Sổ giao dịch để kiểm tra.`
+              : `Ghi lỗi: ${e.message}. Chưa ghi được dòng nào.`
+            : 'Ghi lỗi, thử lại.',
+          'error',
+        )
+      } finally {
+        setDangGhi(false)
       }
-      showToast(
-        e instanceof Error
-          ? `Ghi lỗi: ${e.message}.${nDong > 0 ? ' Đã ghi một phần — dùng "Gỡ lô này" để xoá sạch rồi thử lại.' : ''}`
-          : 'Ghi lỗi, thử lại.',
-        'error',
-      )
     } finally {
-      setDangGhi(false)
+      dangGhiRef.current = false
     }
   }
 
   // Khong con nhan tham so dau (Ruling F4): repo.xoaPhieuLuong() luon xoa TOAN
   // BO dong mang tien to `給与 `, khong chi lo dang hien tren man — hop xac nhan
-  // ben duoi phai noi dung dieu do.
+  // va nhan nut ben duoi phai noi dung dieu do (xem <button> "Xoá mọi dòng
+  // phiếu lương" — KHONG con goi la "Gỡ lô này", chu "này" khong con dung).
   async function goLo() {
-    if (dangXoa) return
-    if (
-      !(await confirmDialog({
-        title: 'Xoá mọi dòng mang dấu 給与 … ?',
-        message:
-          'Xoá TOÀN BỘ dòng đã nhập từ phiếu lương trong sổ — không chỉ lô vừa ghi ở trên. Không hoàn tác được.',
-        confirmLabel: 'Xoá',
-        danger: true,
-      }))
-    )
-      return
-    setDangXoa(true)
+    // dangXoaRef: cung ly do voi dangGhiRef o ham ghi() phia tren.
+    if (dangXoaRef.current) return
+    dangXoaRef.current = true
     try {
-      const n = await repo.xoaPhieuLuong()
-      invalidateTransactionData(qc)
-      showToast(`Đã xoá ${n} dòng`)
-      setDaGhi(null)
-    } catch (e) {
-      showToast(e instanceof Error ? `Xoá lỗi: ${e.message}` : 'Xoá lỗi, thử lại.', 'error')
+      if (
+        !(await confirmDialog({
+          title: 'Xoá mọi dòng mang dấu 給与 … ?',
+          message:
+            'Xoá TOÀN BỘ dòng đã nhập từ phiếu lương trong sổ — không chỉ lô vừa ghi ở trên. Không hoàn tác được.',
+          confirmLabel: 'Xoá',
+          danger: true,
+        }))
+      )
+        return
+      setDangXoa(true)
+      try {
+        const n = await repo.xoaPhieuLuong()
+        invalidateTransactionData(qc)
+        showToast(`Đã xoá ${n} dòng`)
+        setDaGhi(null)
+      } catch (e) {
+        showToast(e instanceof Error ? `Xoá lỗi: ${e.message}` : 'Xoá lỗi, thử lại.', 'error')
+      } finally {
+        setDangXoa(false)
+      }
     } finally {
-      setDangXoa(false)
+      dangXoaRef.current = false
     }
   }
 
@@ -303,7 +331,7 @@ export function ImportPhieuLuongPage() {
             type="button" disabled={dangXoa} onClick={goLo}
             className="mt-2 min-h-9 rounded-lg border border-money-out px-3 py-1.5 text-xs font-semibold text-money-out transition hover:bg-red-50 disabled:opacity-40 dark:hover:bg-red-900/30"
           >
-            {dangXoa ? 'Đang gỡ…' : 'Gỡ lô này'}
+            {dangXoa ? 'Đang xoá…' : 'Xoá mọi dòng phiếu lương'}
           </button>
         </div>
       )}

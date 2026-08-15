@@ -19,19 +19,26 @@
 //   2. moi phieu qua hai dang thuc tu kiem  5. thu-them == chi-them, va thu-them > 0
 //   3. moi phieu neo dung MOT khoan Yucho   6. co --ghi + xac nhan y/N mac dinh KHONG
 //
-// Chot 5 co phan "> 0" vi mot ly do da tra gia: 202312K co rong 500.678 > gop
-// 485.610 (hoan thue cuoi nam 88.544 lon hon tong khau tru 73.476), nen dong thu
-// them phai AM — ma DB co check(amount > 0). Bat bien "thu == chi == gop - rong"
-// BAO DUNG cho ca nay vi ca ba deu bang -15.068. Chi chot dau moi bat duoc.
+// Chot 5 co phan "> 0" vi mot ly do da tra gia: 202312K co rong 420.000 > gop
+// 400.000 (hoan thue cuoi nam 90.000 lon hon tong khau tru 70.000 — so minh hoa,
+// khong phai so that), nen dong thu them phai AM — ma DB co check(amount > 0).
+// Bat bien "thu == chi == gop - rong" BAO DUNG cho ca nay vi ca ba deu bang
+// -20.000. Chi chot dau moi bat duoc.
 
 import { readFileSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { stdin, stdout } from 'node:process'
 import { createClient } from '@supabase/supabase-js'
-const { DANH_MUC_THUE_CHA, DANH_MUC_THUE_CON, dungKeHoach, gomTrung } =
+const { DANH_MUC_THUE_CHA, DANH_MUC_THUE_CON, dungKeHoach, gomTrung, phieuLoi } =
   await import('../src/features/phieu-luong/nhap.ts')
 const { bocPhieu } = await import('../src/features/phieu-luong/boc.ts')
 const { docPdfNode } = await import('./phieu-luong/docPdfNode.mjs')
+// paging.ts khong co import nao ca (thuan logic) nen nap thang duoc o day, giong
+// cach hai dong tren da nap boc.ts/nhap.ts — khong can ban rieng cho CLI. Web dung
+// ham nay qua supabaseRepo.ts (listYuchoIncome/listDauPhieuLuong); CLI phai lam
+// giong vi ca hai deu doc tu cung mot bang `transactions` bi PostgREST cat im lang
+// o 1.000 dong (xem src/data/paging.ts).
+const { fetchAllPages } = await import('../src/data/paging.ts')
 
 const TEN_YUCHO = /yucho/i
 const DAU_TIEN_TO = '給与 '
@@ -103,19 +110,37 @@ async function taiSo(sb) {
   const { data: cats, error: e2 } = await sb.from('categories').select('id,name,type,parent_id')
   if (e2) thoat(`Doc categories loi: ${e2.message}`)
 
-  const { data: thu, error: e3 } = await sb
-    .from('transactions')
-    .select('id,occurred_on,amount,note,account_id,category_id')
-    .eq('type', 'income')
-    .eq('account_id', yucho.id)
-    .order('occurred_on')
-  if (e3) thoat(`Doc transactions loi: ${e3.message}`)
+  // Phan trang: moi phieu luong ghi them 1 dong thu Yucho, va so co the da nap
+  // nhieu nam lich su — tran 1.000 dong cua PostgREST cat im lang. Thieu MOT
+  // khoan thu la phieu luong DUNG do khong neo duoc, bao "khong thay" sai cho.
+  // `id` lam chot cuoi vi occurred_on khong don tri (xem src/data/paging.ts).
+  // Y het supabaseRepo.ts:listYuchoIncome — CLI va web phai doc cung mot cach.
+  const thu = await fetchAllPages(async (from, to) => {
+    const r = await sb
+      .from('transactions')
+      .select('id,occurred_on,amount,note,account_id,category_id')
+      .eq('type', 'income')
+      .eq('account_id', yucho.id)
+      .order('occurred_on')
+      .order('id')
+      .range(from, to)
+    if (r.error) thoat(`Doc transactions loi: ${r.error.message}`)
+    return r
+  })
 
-  const { data: daCo, error: e4 } = await sb
-    .from('transactions')
-    .select('id,note')
-    .like('note', `${DAU_TIEN_TO}%`)
-  if (e4) thoat(`Doc dong da nhap loi: ${e4.message}`)
+  // Phan trang: moi phieu luong ghi ~7 dong mang dau `給与 …` (~420 dong hien tai,
+  // tang ~7/thang) — cung ly do voi thu o tren. Thieu dau o day la chot chong
+  // nhap trung cho phep NHAP TRUNG VAO SO THAT. Y het supabaseRepo.ts:listDauPhieuLuong.
+  const daCo = await fetchAllPages(async (from, to) => {
+    const r = await sb
+      .from('transactions')
+      .select('id,note')
+      .like('note', `${DAU_TIEN_TO}%`)
+      .order('id')
+      .range(from, to)
+    if (r.error) thoat(`Doc dong da nhap loi: ${r.error.message}`)
+    return r
+  })
 
   return { yucho, cats, thu, daCo }
 }
@@ -161,9 +186,18 @@ async function taoDanhMuc(sb, ghi) {
 
 // --- che do: go ------------------------------------------------------------
 async function goLoNhap(sb, ghi) {
-  const { data, error } = await sb.from('transactions').select('id,occurred_on,amount,note,type')
-    .like('note', `${DAU_TIEN_TO}%`)
-  if (error) thoat(`Doc loi: ${error.message}`)
+  // Phan trang: khong the bao "N dong se bi xoa" DUNG neu truy van bi PostgREST
+  // cat im lang o 1.000 dong — ca sac nhat la in con so THAP HON that roi van xoa
+  // HET (delete() ben duoi khong bi tran nay, no xoa theo dieu kien chu khong doc
+  // tung trang), tuc hop xac nhan noi dung sai ve mot thao tac pha huy.
+  const data = await fetchAllPages(async (from, to) => {
+    const r = await sb.from('transactions').select('id,occurred_on,amount,note,type')
+      .like('note', `${DAU_TIEN_TO}%`)
+      .order('id')
+      .range(from, to)
+    if (r.error) thoat(`Doc loi: ${r.error.message}`)
+    return r
+  })
   console.log(`\n${data.length} dong mang dau '${DAU_TIEN_TO}…' se bi xoa.`)
   for (const t of data.slice(0, 8)) console.log(`  ${t.occurred_on} ${t.type} ${t.amount} — ${t.note}`)
   if (data.length > 8) console.log(`  … +${data.length - 8} dong nua`)
@@ -247,7 +281,10 @@ async function main() {
     try {
       phieuList.push(bocPhieu(await docPdfNode(`${duong}/${f}`), f))
     } catch (e) {
-      phieuList.push({ file: f, loi: [`doc PDF loi: ${e.message}`], tru: {}, ngoaiTong: {} })
+      // phieuLoi() dung CHUNG voi web (ImportPhieuLuongPage.tsx) de hai ben tra
+      // ve CUNG MOT HINH DANG Phieu — CLI khong co kieu nen truoc day khong gi
+      // bat duoc neu hai ben lech nhau (xem finding review round cuoi).
+      phieuList.push(phieuLoi(f, `doc PDF loi: ${e.message}`))
     }
   }
   console.log(`Da boc ${phieuList.length} file tu ${duong}`)

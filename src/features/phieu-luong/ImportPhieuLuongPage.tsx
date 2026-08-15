@@ -11,7 +11,7 @@ import { repo } from '../../data'
 import { hasTaxCategories } from '../tax/categories'
 import { bocPhieu, type Phieu } from './boc'
 import { docPdfWeb } from './docPdfWeb'
-import { DANH_MUC_THUE_CHA, DANH_MUC_THUE_CON, dungKeHoach, gomTrung, type DongKeHoach } from './nhap'
+import { DANH_MUC_THUE_CHA, DANH_MUC_THUE_CON, dungKeHoach, gomTrung, phieuLoi, type DongKeHoach } from './nhap'
 
 const TEN_YUCHO = /yucho/i
 
@@ -64,11 +64,9 @@ export function ImportPhieuLuongPage() {
         try {
           phieuList.push(bocPhieu(await docPdfWeb(f), f.name))
         } catch (e) {
-          phieuList.push({
-            file: f.name, empno: null, period: null, kind: null, nguonKy: 'ten-file',
-            canhBao: [], gross: null, deductTotal: null, net: null, bank: null,
-            tru: {}, ngoaiTong: {}, nhanLa: [], loi: [`đọc PDF lỗi: ${(e as Error).message}`],
-          })
+          // phieuLoi() dung CHUNG voi CLI (nhap-phieu-luong.mjs) de hai ben tra ve
+          // CUNG MOT HINH DANG Phieu khi khong doc duoc PDF.
+          phieuList.push(phieuLoi(f.name, `đọc PDF lỗi: ${(e as Error).message}`))
         }
       }
       // gomTrung() lai o day CHI de lay daGop hien cho nguoi dung biet — dungKeHoach
@@ -177,10 +175,15 @@ export function ImportPhieuLuongPage() {
           setKeHoach(null)
           setDaGhi({ phieu: nPhieu, dong: nDong })
         }
+        // nDong > 0 nhung nPhieu === 0: loi xay ra GIUA CHUNG cac dong cua phieu
+        // DAU TIEN (dauDaGhi chi duoc day sau khi ca phieu ghi xong) — khong
+        // duoc noi "0 phiếu ()", phai noi ro la phieu dau con dang dang.
         showToast(
           e instanceof Error
             ? nDong > 0
-              ? `Ghi lỗi: ${e.message}. Đã ghi ${nDong} dòng của ${nPhieu} phiếu (${dauDaGhi.join(' · ')}) trước khi dừng — mở Sổ giao dịch để kiểm tra.`
+              ? nPhieu > 0
+                ? `Ghi lỗi: ${e.message}. Đã ghi ${nDong} dòng của ${nPhieu} phiếu (${dauDaGhi.join(' · ')}) trước khi dừng — mở Sổ giao dịch để kiểm tra.`
+                : `Ghi lỗi: ${e.message}. Đã ghi ${nDong} dòng dở dang của phiếu đầu tiên (chưa phiếu nào ghi xong) trước khi dừng — mở Sổ giao dịch để kiểm tra.`
               : `Ghi lỗi: ${e.message}. Chưa ghi được dòng nào.`
             : 'Ghi lỗi, thử lại.',
           'error',

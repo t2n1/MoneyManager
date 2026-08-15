@@ -7,6 +7,7 @@ import {
   kiemDong,
   mapNhan,
   gomTrung,
+  phieuLoi,
   timNeo,
 } from './nhap'
 import type { KhoanNeo } from './nhap'
@@ -22,19 +23,23 @@ const IDS = new Map([
   ['Đi chợ', 'c-di-cho'],
 ])
 
-/** Phieu 202608K that — con so lay tu phieu goc, da doi chieu ban boc tay. */
+/**
+ * Phieu minh hoa 202608K — cau truc khop phieu that (da doi chieu boc tay), nhung
+ * con so la SO MINH HOA (khong phai so that — repo cong khai, xem quy tac o
+ * docs/superpowers/specs/2026-08-14-nhap-phieu-luong-design.md).
+ */
 const P202608: Phieu = {
   file: '(0101)202608K.pdf', empno: '0101', period: '202608', kind: 'K',
   nguonKy: 'noi-dung', canhBao: [],
-  gross: 481019, deductTotal: 92328, net: 388691, bank: 388691,
-  tru: { 健康保険料: 23688, 厚生年金保険: 43005, 雇用保険料: 2405, 所得税: 4430, 住民税: 18800 },
+  gross: 500000, deductTotal: 100000, net: 400000, bank: 400000,
+  tru: { 健康保険料: 20000, 厚生年金保険: 50000, 雇用保険料: 3000, 所得税: 7000, 住民税: 20000 },
   ngoaiTong: {}, nhanLa: [], loi: [],
 }
 
 const NEO_202608 = {
   id: 'tx-1',
   occurred_on: '2026-08-10',
-  amount: 388691,
+  amount: 400000,
   account_id: YUCHO,
   category_id: 'c-luong',
 }
@@ -62,7 +67,8 @@ describe('mapNhan', () => {
     expect(() => mapNhan('謎の控除')).toThrow(/khong co trong bang map/)
   })
 
-  // 定額減税 la so theo doi phan DUOC GIAM. Coi la khoan tru lam 202406K phong 60.000.
+  // 定額減税 la so theo doi phan DUOC GIAM. Coi la khoan tru lam mot thang phong len
+  // dung bang tong bo ba (so minh hoa, khong phai so that).
   it('tu choi bo ba 定額減税 (khong phai khoan tru)', () => {
     for (const n of ['月次減税額', '定額減税額(所得税)', '定額減税未済額']) {
       expect(() => mapNhan(n)).toThrow()
@@ -100,7 +106,7 @@ describe('cuaSoNeo', () => {
 describe('timNeo', () => {
   const thu = [
     NEO_202608,
-    { id: 'tx-2', occurred_on: '2026-08-10', amount: 388691, account_id: 'acc-paypay', category_id: null },
+    { id: 'tx-2', occurred_on: '2026-08-10', amount: 400000, account_id: 'acc-paypay', category_id: null },
   ]
 
   it('khop duy nhat va bo qua tai khoan khac', () => {
@@ -137,7 +143,7 @@ describe('dungDong — 202608K', () => {
   const { thu, thuKhac, chi } = dungDong(P202608, NEO_202608, IDS)
 
   it('thu them = tong khau tru, cung ngay cung tai khoan voi dong neo', () => {
-    expect(thu.amount).toBe(92328)
+    expect(thu.amount).toBe(100000)
     expect(thu.occurred_on).toBe('2026-08-10')
     expect(thu.account_id).toBe(YUCHO)
     expect(thu.category_id).toBe('c-luong')
@@ -168,57 +174,59 @@ describe('dungDong — 202608K', () => {
 })
 
 describe('過不足税額 — ca thang 12', () => {
-  // 202412K: hoan 19.929, nho hon tong khau tru 85.615 -> van bieu dien duoc.
+  // So minh hoa (khong phai so that). 202412K: hoan 20.000, nho hon tong khau tru
+  // 90.000 -> van bieu dien duoc.
   const P202412: Phieu = {
     file: '(0101)202412K.pdf', empno: '0101', period: '202412', kind: 'K',
     nguonKy: 'noi-dung', canhBao: [],
-    gross: 458750, deductTotal: 85615, net: 393064, bank: 393064,
-    tru: { 健康保険料: 23453, 厚生年金保険: 43005, 雇用保険料: 2447, 所得税: 5110, 住民税: 11600 },
-    ngoaiTong: { 過不足税額: -19929 }, nhanLa: [], loi: [],
+    gross: 450000, deductTotal: 90000, net: 380000, bank: 380000,
+    tru: { 健康保険料: 20000, 厚生年金保険: 45000, 雇用保険料: 3000, 所得税: 6000, 住民税: 16000 },
+    ngoaiTong: { 過不足税額: -20000 }, nhanLa: [], loi: [],
   }
-  const neo = { ...NEO_202608, id: 'tx-9', occurred_on: '2024-12-10', amount: 393064 }
+  const neo = { ...NEO_202608, id: 'tx-9', occurred_on: '2024-12-10', amount: 380000 }
 
   it('hoan thue thanh chi mang is_refund, amount DUONG', () => {
     const { thu, thuKhac, chi } = dungDong(P202412, neo, IDS)
     const hoan = chi.find((r) => r.note.endsWith('過不足税額'))
     expect(hoan!.is_refund).toBe(true)
-    expect(hoan!.amount).toBe(19929)
-    expect(thu.amount).toBe(65686)
+    expect(hoan!.amount).toBe(20000)
+    expect(thu.amount).toBe(70000)
     expect(kiemDong(P202412, thu, chi, thuKhac)).toEqual([])
   })
 
-  // 202212K: nop THEM 28.081 -> chi thuong, khong phai hoan.
+  // So minh hoa. 202212K: nop THEM 30.000 -> chi thuong, khong phai hoan.
   it('過不足税額 duong thanh chi thuong', () => {
     const P: Phieu = {
       file: '(0101)202212K.pdf', empno: '0101', period: '202212', kind: 'K',
       nguonKy: 'noi-dung', canhBao: [],
-      gross: 303345, deductTotal: 56991, net: 218273, bank: 218273,
-      tru: { 健康保険料: 13594, 厚生年金保険: 25620, 雇用保険料: 1517, 所得税: 6960, 住民税: 9300 },
-      ngoaiTong: { 過不足税額: 28081 }, nhanLa: [], loi: [],
+      gross: 350000, deductTotal: 70000, net: 250000, bank: 250000,
+      tru: { 健康保険料: 15000, 厚生年金保険: 30000, 雇用保険料: 2000, 所得税: 8000, 住民税: 15000 },
+      ngoaiTong: { 過不足税額: 30000 }, nhanLa: [], loi: [],
     }
-    const { thu, thuKhac, chi } = dungDong(P, { ...neo, occurred_on: '2022-12-09', amount: 218273 }, IDS)
+    const { thu, thuKhac, chi } = dungDong(P, { ...neo, occurred_on: '2022-12-09', amount: 250000 }, IDS)
     expect(chi.find((r) => r.note.endsWith('過不足税額'))!.is_refund).toBe(false)
-    expect(thu.amount).toBe(85072)
+    expect(thu.amount).toBe(100000)
     expect(kiemDong(P, thu, chi, thuKhac)).toEqual([])
   })
 
   /**
-   * 202312K — ca duy nhat trong 55 phieu ma rong > gop: hoan 88.544 lon hon tong
-   * khau tru 73.476, nen "phan bi giu lai" = -15.068.
+   * 202312K — ca duy nhat trong 55 phieu ma rong > gop: hoan 90.000 lon hon tong
+   * khau tru 70.000, nen "phan bi giu lai" = -20.000. (So minh hoa — khong phai so
+   * that, xem quy tac o docs/superpowers/specs/2026-08-14-nhap-phieu-luong-design.md.)
    *
-   * Bat bien so hoc VAN DUNG (thu == chi == gop - rong == -15.068) — chinh vi vay
+   * Bat bien so hoc VAN DUNG (thu == chi == gop - rong == -20.000) — chinh vi vay
    * bon vong kiem truoc do khong thay. Chi chot DAU moi bat duoc.
    */
   it('tu choi khi hoan lon hon tong khau tru (rong > gop)', () => {
     const P: Phieu = {
       file: '(0101)202312K.pdf', empno: '0101', period: '202312', kind: 'K',
       nguonKy: 'noi-dung', canhBao: [],
-      gross: 485610, deductTotal: 73476, net: 500678, bank: 500678,
-      tru: { 健康保険料: 16694, 厚生年金保険: 31110, 雇用保険料: 2742, 所得税: 10530, 住民税: 12400 },
-      ngoaiTong: { 過不足税額: -88544 }, nhanLa: [], loi: [],
+      gross: 400000, deductTotal: 70000, net: 420000, bank: 420000,
+      tru: { 健康保険料: 15000, 厚生年金保険: 30000, 雇用保険料: 3000, 所得税: 12000, 住民税: 10000 },
+      ngoaiTong: { 過不足税額: -90000 }, nhanLa: [], loi: [],
     }
-    const { thu, chi, thuKhac } = dungDong(P, { ...neo, occurred_on: '2023-12-08', amount: 500678 }, IDS)
-    expect(thu.amount).toBe(-15068)
+    const { thu, chi, thuKhac } = dungDong(P, { ...neo, occurred_on: '2023-12-08', amount: 420000 }, IDS)
+    expect(thu.amount).toBe(-20000)
     const loi = kiemDong(P, thu, chi, thuKhac)
     expect(loi.length).toBeGreaterThan(0)
     expect(loi.join(' ')).toMatch(/xu tay/)
@@ -226,35 +234,36 @@ describe('過不足税額 — ca thang 12', () => {
 })
 
 describe('社内販売精算 — 202601K', () => {
+  // So minh hoa (khong phai so that).
   const P: Phieu = {
     file: '(0101)202601K.pdf', empno: '0101', period: '202601', kind: 'K',
     nguonKy: 'noi-dung', canhBao: [],
-    gross: 430365, deductTotal: 108146, net: 322219, bank: 322219,
+    gross: 420000, deductTotal: 100000, net: 320000, bank: 320000,
     tru: {
-      健康保険料: 23288, 厚生年金保険: 43005, 雇用保険料: 2367, 所得税: 5530,
-      住民税: 22000, 社内販売精算: 11956,
+      健康保険料: 20000, 厚生年金保険: 40000, 雇用保険料: 3000, 所得税: 5000,
+      住民税: 20000, 社内販売精算: 12000,
     },
     ngoaiTong: {}, nhanLa: [], loi: [],
   }
-  const neo = { ...NEO_202608, id: 'tx-7', occurred_on: '2026-01-09', amount: 322219 }
+  const neo = { ...NEO_202608, id: 'tx-7', occurred_on: '2026-01-09', amount: 320000 }
 
-  it('11.956 vao Đi chợ, khong vao danh muc thue nao', () => {
+  it('12.000 vao Đi chợ, khong vao danh muc thue nao', () => {
     const { thu, thuKhac, chi } = dungDong(P, neo, IDS)
     const dong = chi.find((r) => r.note.endsWith('社内販売精算'))
     expect(dong!.category_id).toBe('c-di-cho')
     const idThue = new Set(['c-thu-nhap', 'c-viec-lam', 'c-cu-tru', 'c-y-te', 'c-huu-tri'])
     expect(idThue.has(dong!.category_id!)).toBe(false)
     // Van bang khong tren TONG: no thuoc 控除合計額 nen phai nam trong tong.
-    expect(thu.amount + thuKhac!.amount).toBe(108146)
+    expect(thu.amount + thuKhac!.amount).toBe(100000)
     expect(kiemDong(P, thu, chi, thuKhac)).toEqual([])
   })
 
   // 社内販売精算 la mua hang THAT -> phai nam trong Chi, khong duoc mang co.
   it('tach hai dong thu: phan thue ngoai thong ke, phan mua hang trong thong ke', () => {
     const { thu, thuKhac, chi } = dungDong(P, neo, IDS)
-    expect(thu.amount).toBe(96190) // 5 muc thue
+    expect(thu.amount).toBe(88000) // 5 muc thue
     expect(thu.exclude_from_stats).toBe(true)
-    expect(thuKhac!.amount).toBe(11956) // 社内販売精算
+    expect(thuKhac!.amount).toBe(12000) // 社内販売精算
     expect(thuKhac!.exclude_from_stats).toBe(false)
     const muaHang = chi.find((r) => r.note.endsWith('社内販売精算'))
     expect(muaHang!.exclude_from_stats).toBe(false)
@@ -276,9 +285,9 @@ describe('exclude_from_stats — Thu/Chi khong duoc phong', () => {
     const P: Phieu = {
       file: '(0101)202601K.pdf', empno: '0101', period: '202601', kind: 'K',
       nguonKy: 'noi-dung', canhBao: [],
-      gross: 430365, deductTotal: 108146, net: 322219, bank: 322219,
-      tru: { 健康保険料: 23288, 厚生年金保険: 43005, 雇用保険料: 2367, 所得税: 5530,
-             住民税: 22000, 社内販売精算: 11956 },
+      gross: 420000, deductTotal: 100000, net: 320000, bank: 320000,
+      tru: { 健康保険料: 20000, 厚生年金保険: 40000, 雇用保険料: 3000, 所得税: 5000,
+             住民税: 20000, 社内販売精算: 12000 },
       ngoaiTong: {}, nhanLa: [], loi: [],
     }
     const { thu, thuKhac, chi } = dungDong(P, NEO_202608, IDS)
@@ -353,6 +362,37 @@ describe('gomTrung — file trung trong thu muc', () => {
 describe('thieu danh muc', () => {
   it('nem loi thay vi ghi vao danh muc null', () => {
     expect(() => dungDong(P202608, NEO_202608, new Map())).toThrow(/thieu danh muc/)
+  })
+})
+
+// Web va CLI tung dung hai hinh dang khac nhau cho phieu 'loi' khi khong doc duoc
+// PDF (web: du 14 truong, CLI: chi 4 truong) — round review cuoi bat ra, gop lai
+// thanh mot ham chung de khong con lech nua.
+describe('phieuLoi — hinh dang dong nhat cho web va CLI', () => {
+  it('day du 14 truong cua Phieu, loi mang dung thong diep', () => {
+    const p = phieuLoi('a.pdf', 'đọc PDF lỗi: boom')
+    expect(p.file).toBe('a.pdf')
+    expect(p.loi).toEqual(['đọc PDF lỗi: boom'])
+    expect(p.tru).toEqual({})
+    expect(p.ngoaiTong).toEqual({})
+    expect(p.empno).toBeNull()
+    expect(p.period).toBeNull()
+    expect(p.kind).toBeNull()
+    expect(p.gross).toBeNull()
+    expect(p.deductTotal).toBeNull()
+    expect(p.net).toBeNull()
+    expect(p.bank).toBeNull()
+    expect(p.nhanLa).toEqual([])
+    expect(p.canhBao).toEqual([])
+  })
+
+  // dungKeHoach() tu choi phieu mang loi TRUOC khi doc p.period/p.kind (xem
+  // gomTrung docstring) — phieuLoi() phai di qua duoc duong do y het truoc day.
+  it('di qua dungKeHoach nhu mot phieu tu-choi binh thuong', () => {
+    const kh = dungKeHoach([phieuLoi('hong.pdf', 'đọc PDF lỗi: x')], [], YUCHO, IDS, new Set())
+    expect(kh).toHaveLength(1)
+    expect(kh[0].trangThai).toBe('tu-choi')
+    expect(kh[0].lyDo).toMatch(/đọc PDF lỗi/)
   })
 })
 

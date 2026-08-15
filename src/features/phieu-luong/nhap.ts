@@ -26,6 +26,23 @@ export interface KhoanNeo {
 }
 
 /**
+ * Phieu 'loi' rong — dung khi khong doc duoc PDF. Web (ImportPhieuLuongPage.tsx)
+ * va CLI (nhap-phieu-luong.mjs) dung CHUNG ham nay de tra ve CUNG MOT HINH DANG
+ * Phieu (du 14 truong), thay vi moi ben tu dung mot vai truong roi trung nhau
+ * TINH CO nho gomTrung() cho phieu mang loi di thang qua (khong doc p.period/
+ * p.kind) va dungKeHoach() tu choi truoc khi doc toi cac truong do. CLI khong co
+ * kieu nen se khong gi bat duoc neu bat bien do vo — dung chung ham nay khep no
+ * lai o mot cho.
+ */
+export function phieuLoi(file: string, thongDiepLoi: string): Phieu {
+  return {
+    file, empno: null, period: null, kind: null, nguonKy: 'ten-file', canhBao: [],
+    gross: null, deductTotal: null, net: null, bank: null, tru: {}, ngoaiTong: {},
+    nhanLa: [], loi: [thongDiepLoi],
+  }
+}
+
+/**
  * Nhan phieu -> danh muc app. Ten phai DUNG TUNG KY TU: taxCategoryIds
  * (src/features/tax/categories.ts) nhan nhom theo TEN, sai mot ky tu la khong tinh.
  */
@@ -41,9 +58,10 @@ export const MAP_THUE: Record<string, string> = {
 
 /**
  * 社内販売精算 NAM TRONG 控除合計額 (da chung minh bang so hoc: 5 file, dung bang
- * phan thieu 337 · 2.263 · 3.689 · 8.399 · 11.956) nhung la MUA HANG NOI BO, khong
- * phai thue. Cho vao nhom Thue & An sinh la thoi phong tu so cua chi so — 3 trong
- * 5 file do nam trong cua so 12 thang.
+ * phan thieu 300 · 2.000 · 3.500 · 8.000 · 12.000 — so minh hoa, khong phai so
+ * that tren phieu) nhung la MUA HANG NOI BO, khong phai thue. Cho vao nhom Thue &
+ * An sinh la thoi phong tu so cua chi so — 3 trong 5 file do nam trong cua so 12
+ * thang.
  *
  * Va no KHONG duoc la con cua 'Thuế & An sinh': taxCategoryIds gom MOI con cua cha
  * do. 'Đi chợ' (essential + variable) khong doi chi co dinh nen khong dung so thang
@@ -73,8 +91,9 @@ export const DANH_MUC_THUE_CON: {
  *
  * fund = tai san long / chi co dinh (HealthView.tsx:135). Mat viec thi 所得税 va
  * 雇用保険料 HET, con 住民税 (tinh tren thu nhap nam truoc) + 健保/年金 (chuyen sang
- * ban 国民) VAN NO. Gan dong loat 'fixed' dua chi co dinh 85.260 -> 165.472 ¥/thang;
- * chia hai -> 158.766. Nut "Tao bo danh muc Thue & An sinh" cu gan dong loat fixed.
+ * ban 国民) VAN NO. Gan dong loat 'fixed' dua chi co dinh 80.000 -> 160.000 ¥/thang
+ * (so minh hoa); chia hai -> 150.000. Nut "Tao bo danh muc Thue & An sinh" cu gan
+ * dong loat fixed.
  */
 
 /** Nhan -> {nhom, danhMuc}. Nem loi khi khong map duoc: khong bao gio bo im lang. */
@@ -241,7 +260,7 @@ function dauTayNoiDung(p: Phieu): string {
  *
  * Vi sao can: thu muc that co ca '(0101)202608K.pdf' lan '(0101)202608K (1).pdf' —
  * TRUNG BYTE (cung SHA256). Khong co chot nay thi file thu hai bi chot NEO tu choi
- * voi thong diep "khong thay khoan thu Yucho = 388691", vi file dau da chiem khoan
+ * voi thong diep "khong thay khoan thu Yucho = 400000", vi file dau da chiem khoan
  * neo. Thong diep do dan nguoi doc di sua SAI CHO: van de la file trung, khong phai
  * thieu khoan thu.
  *
@@ -303,9 +322,10 @@ export function gomTrung(phieuList: Phieu[]): {
  * Chot bang-khong + chot DAU.
  *
  * Chot dau la bai hoc rieng: phep kiem "thu them == chi them == gop - rong" bao
- * DUNG ca 55 phieu, vi tat ca ba so bang nhau. Nhung 202312K co gop 485.610 < rong
- * 500.678 (duoc hoan thue cuoi nam 88.544), nen ca ba deu bang -15.068 — dong thu
- * phai AM, ma DB cam. Bat bien so hoc dung nhung VO NGHIA neu khong kiem dau.
+ * DUNG ca 55 phieu, vi tat ca ba so bang nhau. Nhung 202312K co gop 400.000 < rong
+ * 420.000 (duoc hoan thue cuoi nam 90.000 — so minh hoa, khong phai so that), nen
+ * ca ba deu bang -20.000 — dong thu phai AM, ma DB cam. Bat bien so hoc dung nhung
+ * VO NGHIA neu khong kiem dau.
  *
  * Ca nay khong the trung hoa so du bang duong nao trong Cach B (chi-them), nen tu
  * choi thay vi bia cach vong.

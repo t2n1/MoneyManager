@@ -241,6 +241,23 @@ tài khoản có sổ lệnh. Sau quyết định 2 thì không: nó chỉ còn 
 nơi không có khái niệm "đã bán" nào tách ra được. Tên đó đúng lại **nhờ** miền dùng bị thu
 hẹp — ghi ra đây để lần sau không ai mở rộng nó trở lại mà quên.
 
+### Cập nhật 2026-08-15 — nửa sau của quyết định này đã bị đảo
+
+Quyết định 7 sửa nhãn ở **khối xanh** (tổng) và để nguyên con số ▲ nhỏ cạnh **từng tên tài
+khoản**, vốn cũng là `marketValue − balance`. Nhưng khối xanh có chỗ ghi nhãn, dòng tài
+khoản thì không — nên đúng cái "hệ quả nếu để nguyên" mô tả ở trên vẫn xảy ra nguyên vẹn,
+chỉ dịch xuống một dòng. Người dùng báo lỗi bằng đúng hai ảnh chụp ấy: dòng iDragon
+▲127.135.455 đ, trang iDragon "Lời/lỗ chưa bán +37.705.702 đ".
+
+Nay dòng tài khoản in **lời/lỗ chưa bán**, đúng con số trang chi tiết in. Khối xanh giữ
+nguyên tổng "gồm đã bán" — nhãn của nó vẫn đúng và vẫn là con số đúng cho một màn tổng quan.
+
+Lý do từ chối ở trên ("cần sổ lệnh trong `aggregate.ts`, tức kéo cả cơ cấu tài sản và lịch
+sử ròng vào") vẫn được tôn trọng: `aggregate.ts` **không** đụng tới. Sổ lệnh vào qua một hook
+riêng `useInvestPnl.ts`, gọi cùng hàm thuần `accountPortfolioSummary` mà trang chi tiết gọi
+— nên hai màn lệch nhau là chuyện không biểu diễn được, chứ không phải chuyện phải nhớ đồng
+bộ. `totalPnlBase`/`totalPnl` giữ nguyên tên và nguyên nghĩa.
+
 ## Kiến trúc
 
 ### File

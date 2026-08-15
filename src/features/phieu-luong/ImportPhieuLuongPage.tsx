@@ -13,6 +13,18 @@ import { DANH_MUC_THUE_CHA, DANH_MUC_THUE_CON, dungKeHoach, gomTrung, type DongK
 
 const TEN_YUCHO = /yucho/i
 
+/**
+ * `input.files` la MOT BO SUU TAP SONG (FileList), khong phai mot ban chup — do
+ * that trong trinh duyet: dat `input.value = ''` xoa luon file BEN TRONG chinh no
+ * cung mot doi tuong, khong phai mot ban sao roi rac. Chup lai thanh MANG THUONG
+ * (Array.from) truoc khi reset input, hoac danh sach se rong khong con file nao
+ * ngay khi handler goi toi no lan sau. THUAN — khong dung DOM ngoai `files` truyen
+ * vao, nen test duoc ma khong can dung trinh duyet that.
+ */
+export function layDanhSachFile(files: FileList | null): File[] {
+  return files ? Array.from(files) : []
+}
+
 export function ImportPhieuLuongPage() {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
@@ -27,12 +39,15 @@ export function ImportPhieuLuongPage() {
     (n) => !chiPhi.some((c) => c.name === n),
   )
 
-  async function chonFile(files: FileList | null) {
-    if (!files?.length || !yucho) return
+  // Nhan File[] (da chup san bang layDanhSachFile), KHONG nhan FileList: FileList
+  // song se rong truoc khi ham nay kip doc, vi onChange da dat input.value = ''
+  // TRUOC khi goi ham nay (xem chu thich tai onChange ben duoi).
+  async function chonFile(files: File[]) {
+    if (!files.length || !yucho) return
     setDangBoc(true)
     try {
       const phieuList: Phieu[] = []
-      for (const f of Array.from(files)) {
+      for (const f of files) {
         try {
           phieuList.push(bocPhieu(await docPdfWeb(f), f.name))
         } catch (e) {
@@ -128,11 +143,16 @@ export function ImportPhieuLuongPage() {
           type="file" multiple accept="application/pdf" className="sr-only"
           disabled={dangBoc || thieuDanhMuc.length > 0}
           onChange={(e) => {
-            const files = e.target.files
-            // Reset ngay: khong thi chon LAI dung 3 file cu (Buoc 6 muc 5 cua brief)
-            // se khong sinh su kien change lan hai, va trang dung yen tai cho.
+            // Chup TRUOC khi reset: e.target.files la FileList SONG — dat value=''
+            // xoa luon file BEN TRONG chinh no, nen phai chuyen sang mang thuong
+            // truoc, khong thi chonFile nhan duoc danh sach da rong (da do that
+            // trong trinh duyet, khong phai suy doan).
+            const danhSach = layDanhSachFile(e.target.files)
+            // Reset ngay SAU KHI chup: khong thi chon LAI dung 3 file cu (Buoc 6
+            // muc 5 cua brief) se khong sinh su kien change lan hai, va trang
+            // dung yen tai cho.
             e.target.value = ''
-            chonFile(files)
+            chonFile(danhSach)
           }}
         />
       </Card>

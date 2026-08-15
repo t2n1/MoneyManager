@@ -2279,6 +2279,19 @@ export const demoRepo: Repo = {
     }
   },
 
+  // --- Nhập phiếu lương 給与明細 (Task 7) ---
+  // Rỗng là đủ cho chế độ demo: bản demo không có tài khoản Yucho Bank thật, nên trang
+  // nhập tự hiện "Không tìm thấy tài khoản Yucho Bank" trước khi hai hàm này được gọi.
+  async listYuchoIncome() {
+    return []
+  },
+  async listDauPhieuLuong() {
+    return []
+  },
+  async xoaPhieuLuong() {
+    return 0
+  },
+
   async importAll(data: BackupData) {
     // Soát y như bản thật: demoRepo không có FK/CHECK của Postgres, nên nếu bỏ bước này
     // thì "đã thử ở demo thấy chạy" không chứng minh được gì về bản Supabase.

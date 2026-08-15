@@ -189,6 +189,35 @@ trình duyệt **chưa được đo**. Đây là chỗ chưa có bằng chứng,
 60 file hỏng cùng lúc. Khi port, đừng "dọn dẹp" hằng số hay đổi thứ tự vòng lặp — port
 nguyên văn trước, chốt di trú xanh, rồi mới nói đến sửa sang.
 
+## Hạn chế đã biết
+
+**`給与 ` là tay cầm duy nhất để nhận diện dòng đã nhập.** `xoaPhieuLuong()` xoá
+mọi dòng `note LIKE '給与 %'`, không phân biệt nguồn gốc. Một giao dịch do người
+dùng **gõ tay** mà `note` tình cờ bắt đầu bằng `給与 ` sẽ bị coi là dấu của lô nhập
+phiếu lương và bị xoá theo. Không đường nhập nào trong repo này tự sinh ra `note`
+dạng đó ngoài `dauGhiChu()`, nên rủi ro thật chỉ nằm ở nhập tay — nhưng đây là một
+giả định ngầm của thiết kế, không phải điều DB ép được.
+
+**Chưa chạy thử end-to-end trên trình duyệt thật (ghi rồi xoá, trên sổ thật).**
+Đường xoá (`goLo`) xoá **toàn bộ** lịch sử phiếu lương đã nhập, không chỉ lô vừa
+ghi — chạy thử nghĩa là trả giá bằng một lần nhập lại toàn bộ. Và mọi phiếu lương
+đã có PDF trong sổ thật đều **đã được nhập rồi**, nên đường ghi (`ghi`) không còn
+cách nào để chạm tới mà không có PDF mới.
+
+**Chưa bóc thử một phiếu lương thật nào trong trình duyệt thật.** Bằng chứng hiện
+có là gián tiếp: hai bản dựng `pdfjs-dist` (`legacy` dùng ở CLI/Node, bản thường
+dùng ở web) cho toạ độ **khớp tuyệt đối từng số** trên cả 60 file khi so bằng
+script (chốt di trú), và `pdf.js` bản rút gọn (`min.mjs`) đã được xác nhận nạp
+được thật trong trình duyệt qua một `Worker` thật, đọc đúng lỗi khi đưa vào file
+hỏng. Nhưng chưa có lần nào bóc một phiếu lương thật ngay trên trang này trong
+trình duyệt thật.
+
+**Trang web không có màn chặn "Đủ danh mục Đi chợ" ở đầu như CLI.** CLI dừng và
+liệt kê thiếu danh mục thuế trước khi bóc bất kỳ file nào. Trang web không chặn
+tương tự ở bước chọn file — nó cho bóc và xem trước bình thường, rồi hiện lý do
+"thiếu danh mục" theo từng dòng ở màn xem trước (cùng nguyên tắc "từ chối và gọi
+tên" của CLI), thay vì chặn một lần ở đầu.
+
 ## Ngoài phạm vi
 
 - Bóc trong Web Worker; hỗ trợ điện thoại; kéo-thả file

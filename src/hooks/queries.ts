@@ -148,7 +148,7 @@ export function useSearchTransactions(filter: TxFilter, enabled = true) {
   })
 }
 
-function invalidateTransactionData(qc: ReturnType<typeof useQueryClient>) {
+export function invalidateTransactionData(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['transactions'] })
   qc.invalidateQueries({ queryKey: ['balances'] })
   qc.invalidateQueries({ queryKey: ['search'] })

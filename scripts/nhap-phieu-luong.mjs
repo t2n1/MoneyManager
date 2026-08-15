@@ -1,13 +1,11 @@
-// Tang 2 — ghi phieu luong da boc (phieu-luong.json) vao so.
+// Tang 2 — tu boc phieu luong tu thu muc PDF roi ghi vao so.
 // Xem docs/superpowers/specs/2026-08-14-nhap-phieu-luong-design.md
 //
 // Chay:
-//   node scripts/phieu-luong/boc.py <thu-muc-pdf> -o phieu-luong.json   (tang 1, Python)
-//
-//   node scripts/nhap-phieu-luong.mjs phieu-luong.json                  xem truoc
-//   node scripts/nhap-phieu-luong.mjs phieu-luong.json --ghi            ghi that
-//   node scripts/nhap-phieu-luong.mjs phieu-luong.json --go             go lo nhap
-//   node scripts/nhap-phieu-luong.mjs --tao-danh-muc                    tao 6 danh muc
+//   node scripts/nhap-phieu-luong.mjs "<thu-muc-pdf>"           xem truoc
+//   node scripts/nhap-phieu-luong.mjs "<thu-muc-pdf>" --ghi     ghi that
+//   node scripts/nhap-phieu-luong.mjs --go                      go lo nhap
+//   node scripts/nhap-phieu-luong.mjs --tao-danh-muc            tao 6 danh muc
 //
 // KHOA — vi sao KHONG dung SUPABASE_SERVICE_ROLE_KEY nhu nhap-sao-ke-rakuten.mjs:
 // `transactions` chi co policy "own rows" (auth.uid() = user_id), khong co bang phu
@@ -21,24 +19,26 @@
 //   2. moi phieu qua hai dang thuc tu kiem  5. thu-them == chi-them, va thu-them > 0
 //   3. moi phieu neo dung MOT khoan Yucho   6. co --ghi + xac nhan y/N mac dinh KHONG
 //
-// Chot 5 co phan "> 0" vi mot ly do da tra gia: 202312K co rong 500.678 > gop
-// 485.610 (hoan thue cuoi nam 88.544 lon hon tong khau tru 73.476), nen dong thu
-// them phai AM — ma DB co check(amount > 0). Bat bien "thu == chi == gop - rong"
-// BAO DUNG cho ca nay vi ca ba deu bang -15.068. Chi chot dau moi bat duoc.
+// Chot 5 co phan "> 0" vi mot ly do da tra gia: 202312K co rong 420.000 > gop
+// 400.000 (hoan thue cuoi nam 90.000 lon hon tong khau tru 70.000 — so minh hoa,
+// khong phai so that), nen dong thu them phai AM — ma DB co check(amount > 0).
+// Bat bien "thu == chi == gop - rong" BAO DUNG cho ca nay vi ca ba deu bang
+// -20.000. Chi chot dau moi bat duoc.
 
 import { readFileSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { stdin, stdout } from 'node:process'
 import { createClient } from '@supabase/supabase-js'
-import {
-  DANH_MUC_THUE_CHA,
-  DANH_MUC_THUE_CON,
-  dauGhiChu,
-  dungDong,
-  gomTrung,
-  kiemDong,
-  timNeo,
-} from './phieu-luong/logic.mjs'
+const { DANH_MUC_THUE_CHA, DANH_MUC_THUE_CON, dungKeHoach, gomTrung, phieuLoi } =
+  await import('../src/features/phieu-luong/nhap.ts')
+const { bocPhieu } = await import('../src/features/phieu-luong/boc.ts')
+const { docPdfNode } = await import('./phieu-luong/docPdfNode.mjs')
+// paging.ts khong co import nao ca (thuan logic) nen nap thang duoc o day, giong
+// cach hai dong tren da nap boc.ts/nhap.ts — khong can ban rieng cho CLI. Web dung
+// ham nay qua supabaseRepo.ts (listYuchoIncome/listDauPhieuLuong); CLI phai lam
+// giong vi ca hai deu doc tu cung mot bang `transactions` bi PostgREST cat im lang
+// o 1.000 dong (xem src/data/paging.ts).
+const { fetchAllPages } = await import('../src/data/paging.ts')
 
 const TEN_YUCHO = /yucho/i
 const DAU_TIEN_TO = '給与 '
@@ -110,19 +110,37 @@ async function taiSo(sb) {
   const { data: cats, error: e2 } = await sb.from('categories').select('id,name,type,parent_id')
   if (e2) thoat(`Doc categories loi: ${e2.message}`)
 
-  const { data: thu, error: e3 } = await sb
-    .from('transactions')
-    .select('id,occurred_on,amount,note,account_id,category_id')
-    .eq('type', 'income')
-    .eq('account_id', yucho.id)
-    .order('occurred_on')
-  if (e3) thoat(`Doc transactions loi: ${e3.message}`)
+  // Phan trang: moi phieu luong ghi them 1 dong thu Yucho, va so co the da nap
+  // nhieu nam lich su — tran 1.000 dong cua PostgREST cat im lang. Thieu MOT
+  // khoan thu la phieu luong DUNG do khong neo duoc, bao "khong thay" sai cho.
+  // `id` lam chot cuoi vi occurred_on khong don tri (xem src/data/paging.ts).
+  // Y het supabaseRepo.ts:listYuchoIncome — CLI va web phai doc cung mot cach.
+  const thu = await fetchAllPages(async (from, to) => {
+    const r = await sb
+      .from('transactions')
+      .select('id,occurred_on,amount,note,account_id,category_id')
+      .eq('type', 'income')
+      .eq('account_id', yucho.id)
+      .order('occurred_on')
+      .order('id')
+      .range(from, to)
+    if (r.error) thoat(`Doc transactions loi: ${r.error.message}`)
+    return r
+  })
 
-  const { data: daCo, error: e4 } = await sb
-    .from('transactions')
-    .select('id,note')
-    .like('note', `${DAU_TIEN_TO}%`)
-  if (e4) thoat(`Doc dong da nhap loi: ${e4.message}`)
+  // Phan trang: moi phieu luong ghi ~7 dong mang dau `給与 …` (~420 dong hien tai,
+  // tang ~7/thang) — cung ly do voi thu o tren. Thieu dau o day la chot chong
+  // nhap trung cho phep NHAP TRUNG VAO SO THAT. Y het supabaseRepo.ts:listDauPhieuLuong.
+  const daCo = await fetchAllPages(async (from, to) => {
+    const r = await sb
+      .from('transactions')
+      .select('id,note')
+      .like('note', `${DAU_TIEN_TO}%`)
+      .order('id')
+      .range(from, to)
+    if (r.error) thoat(`Doc dong da nhap loi: ${r.error.message}`)
+    return r
+  })
 
   return { yucho, cats, thu, daCo }
 }
@@ -168,9 +186,18 @@ async function taoDanhMuc(sb, ghi) {
 
 // --- che do: go ------------------------------------------------------------
 async function goLoNhap(sb, ghi) {
-  const { data, error } = await sb.from('transactions').select('id,occurred_on,amount,note,type')
-    .like('note', `${DAU_TIEN_TO}%`)
-  if (error) thoat(`Doc loi: ${error.message}`)
+  // Phan trang: khong the bao "N dong se bi xoa" DUNG neu truy van bi PostgREST
+  // cat im lang o 1.000 dong — ca sac nhat la in con so THAP HON that roi van xoa
+  // HET (delete() ben duoi khong bi tran nay, no xoa theo dieu kien chu khong doc
+  // tung trang), tuc hop xac nhan noi dung sai ve mot thao tac pha huy.
+  const data = await fetchAllPages(async (from, to) => {
+    const r = await sb.from('transactions').select('id,occurred_on,amount,note,type')
+      .like('note', `${DAU_TIEN_TO}%`)
+      .order('id')
+      .range(from, to)
+    if (r.error) thoat(`Doc loi: ${r.error.message}`)
+    return r
+  })
   console.log(`\n${data.length} dong mang dau '${DAU_TIEN_TO}…' se bi xoa.`)
   for (const t of data.slice(0, 8)) console.log(`  ${t.occurred_on} ${t.type} ${t.amount} — ${t.note}`)
   if (data.length > 8) console.log(`  … +${data.length - 8} dong nua`)
@@ -182,70 +209,38 @@ async function goLoNhap(sb, ghi) {
 }
 
 // --- che do: nhap ---------------------------------------------------------
-function dungKeHoach(phieuList, so) {
-  const idTheoTen = new Map(
-    so.cats.filter((c) => c.type === 'expense').map((c) => [c.name, c.id]),
+// dungKeHoach() ban than la ham THUAN, dung chung voi trang web (nhap.ts) — CLI
+// khong con giu ban sao rieng nua, tranh hai noi tinh ra hai ke hoach khac nhau
+// tu cung mot lo PDF va cung mot so.
+function inKeHoach(kh) {
+  const dat = kh.filter((k) => k.trangThai === 'dat')
+  const daNhap = kh.filter((k) => k.trangThai === 'da-nhap')
+  const tuChoi = kh.filter((k) => k.trangThai === 'tu-choi')
+  console.log(
+    `\n=== ${dat.length} phieu san sang · ${daNhap.length} da nhap roi · ${tuChoi.length} tu choi ===\n`,
   )
-  const dauDaCo = new Set(so.daCo.map((t) => t.note.split(' · ')[0]))
-  const daDung = new Set()
-  const ok = []
-  const boQua = []
-
-  // Chot 0 — gom file trung TRUOC khi neo, neu khong chot neo se bao sai nguyen nhan.
-  const trung = gomTrung(phieuList)
-  for (const g of trung.boQua) boQua.push({ p: { file: g.files.join(' + ') }, ly_do: g.ly_do })
-  for (const g of trung.daGop) {
-    console.log(`  i trung byte, gop lam mot: ${g.files.join(' = ')}`)
-  }
-
-  for (const p of trung.giu) {
-    if (p.loi?.length) {
-      boQua.push({ p, ly_do: `tang 1 bao loi: ${p.loi.join(' ; ')}` })
-      continue
-    }
-    const neo = timNeo(so.thu, p, so.yucho.id, daDung)
-    if (!neo.ok) {
-      boQua.push({ p, ly_do: neo.ly_do })
-      continue
-    }
-    const dau = dauGhiChu(neo.row.occurred_on, p.kind)
-    if (dauDaCo.has(dau)) {
-      boQua.push({ p, ly_do: `da nhap roi (dau '${dau}' da co trong so)` })
-      continue
-    }
-    let dong
-    try {
-      dong = dungDong(p, neo.row, idTheoTen)
-    } catch (e) {
-      boQua.push({ p, ly_do: e.message })
-      continue
-    }
-    const loi = kiemDong(p, dong.thu, dong.chi, dong.thuKhac)
-    if (loi.length) {
-      boQua.push({ p, ly_do: loi.join(' ; ') })
-      continue
-    }
-    daDung.add(neo.row.id)
-    ok.push({ p, neo: neo.row, dau, ...dong })
-  }
-  return { ok, boQua }
-}
-
-function inKeHoach({ ok, boQua }) {
-  console.log(`\n=== ${ok.length} phieu san sang · ${boQua.length} phieu bo qua ===\n`)
-  for (const r of ok) {
+  for (const r of dat) {
     const chi = r.chi.map((c) => `${c.note.split(' · ')[1]} ${c.is_refund ? '−' : ''}${c.amount}${c.exclude_from_stats ? '' : ' [trong Chi]'}`)
     console.log(`  ${r.dau}  neo ${r.neo.occurred_on} (${r.neo.amount})`)
     const t2 = r.thuKhac ? `  + ${r.thuKhac.amount} [trong Thu]` : ''
     console.log(`      thu +${r.thu.amount} [ngoai Thu/Chi]${t2}  |  chi: ${chi.join(' · ')}`)
   }
-  if (boQua.length) {
-    console.log('\n--- Bo qua ---')
-    for (const b of boQua) console.log(`  X ${b.p.file}\n      ${b.ly_do}`)
+  // "da nhap roi" KHONG phai loi — phan biet voi "tu choi" thay vi gop chung mot
+  // danh sach "bo qua" nhu ban cu, de nguoi doc khong tuong nham la co gi do sai.
+  if (daNhap.length) {
+    console.log('\n--- Da nhap roi (khong phai loi, khong can lam gi) ---')
+    for (const k of daNhap) console.log(`  = ${k.phieu.file} (${k.dau})`)
   }
-  const dong = ok.reduce((s, r) => s + 1 + r.chi.length, 0)
-  const tongThu = ok.reduce((s, r) => s + r.thu.amount, 0)
-  console.log(`\nTong: ${dong} dong (${ok.length} thu + ${dong - ok.length} chi) · thu them ${tongThu} ¥`)
+  if (tuChoi.length) {
+    console.log('\n--- Tu choi ---')
+    for (const k of tuChoi) console.log(`  X ${k.phieu.file}\n      ${k.lyDo}`)
+  }
+  // +1 cho thuKhac khi co: ghiKeHoach ghi CA dong nay, nen dem thieu no la loi hen
+  // "Ghi N dong THAT?" thap hon so dong thuc su sap ghi vao so.
+  const dong = dat.reduce((s, r) => s + 1 + (r.thuKhac ? 1 : 0) + r.chi.length, 0)
+  const soThu = dat.reduce((s, r) => s + 1 + (r.thuKhac ? 1 : 0), 0)
+  const tongThu = dat.reduce((s, r) => s + r.thu.amount + (r.thuKhac ? r.thuKhac.amount : 0), 0)
+  console.log(`\nTong: ${dong} dong (${soThu} thu + ${dong - soThu} chi) · thu them ${tongThu} ¥`)
   console.log('So du KHONG doi: thu vao chi ra cung ngay cung tai khoan, triet tieu.')
 }
 
@@ -274,9 +269,25 @@ async function main() {
 
   if (co('--tao-danh-muc')) return taoDanhMuc(sb, ghi)
   if (co('--go')) return goLoNhap(sb, ghi)
-  if (!duong) thoat('Thieu duong dan phieu-luong.json. Xem dau file de biet cach chay.')
+  if (!duong) thoat('Thieu duong dan thu muc PDF. Xem dau file de biet cach chay.')
 
-  const phieuList = JSON.parse(readFileSync(duong, 'utf8'))
+  // Nhan THU MUC PDF, tu boc — khong con buoc trung gian phieu-luong.json.
+  const { readdirSync, statSync } = await import('node:fs')
+  if (!statSync(duong).isDirectory()) thoat(`Khong phai thu muc: ${duong}`)
+  const tenFiles = readdirSync(duong).filter((f) => f.endsWith('.pdf')).sort()
+  if (tenFiles.length === 0) thoat(`Khong co file .pdf nao trong ${duong}`)
+  const phieuList = []
+  for (const f of tenFiles) {
+    try {
+      phieuList.push(bocPhieu(await docPdfNode(`${duong}/${f}`), f))
+    } catch (e) {
+      // phieuLoi() dung CHUNG voi web (ImportPhieuLuongPage.tsx) de hai ben tra
+      // ve CUNG MOT HINH DANG Phieu — CLI khong co kieu nen truoc day khong gi
+      // bat duoc neu hai ben lech nhau (xem finding review round cuoi).
+      phieuList.push(phieuLoi(f, `doc PDF loi: ${e.message}`))
+    }
+  }
+  console.log(`Da boc ${phieuList.length} file tu ${duong}`)
   const so = await taiSo(sb)
 
   // Chot 1 — du danh muc theo dung TEN.
@@ -290,16 +301,27 @@ async function main() {
   }
   if (!ten.has('Đi chợ')) thoat("Thieu danh muc 'Đi chợ' (cho 社内販売精算).")
 
-  const kh = dungKeHoach(phieuList, so)
+  // gomTrung() goi rieng o day CHI de bao "trung byte, gop lam mot" cho nguoi dung —
+  // dungKeHoach ben duoi tu goi lai ham nay, khong doi chu ky cua no.
+  const { daGop } = gomTrung(phieuList)
+  for (const g of daGop) console.log(`  i trung byte, gop lam mot: ${g.files.join(' = ')}`)
+
+  // dungKeHoach() la ham THUAN dung chung voi trang web — unpack `so` thanh tung
+  // tham so rieng thay vi truyen ca cuc, vi hinh dang cua ham do web quyet dinh.
+  const idTheoTen = new Map(so.cats.filter((c) => c.type === 'expense').map((c) => [c.name, c.id]))
+  const dauDaCo = new Set(so.daCo.map((t) => t.note.split(' · ')[0]))
+  const kh = dungKeHoach(phieuList, so.thu, so.yucho.id, idTheoTen, dauDaCo)
   inKeHoach(kh)
 
+  const dat = kh.filter((k) => k.trangThai === 'dat')
   if (!ghi) return console.log('\n(xem truoc — them --ghi de ghi that)')
-  if (kh.ok.length === 0) return console.log('\nKhong co phieu nao de ghi.')
+  if (dat.length === 0) return console.log('\nKhong co phieu nao de ghi.')
 
-  const dong = kh.ok.reduce((s, r) => s + 1 + r.chi.length, 0)
+  // +1 cho thuKhac khi co — cung ly do voi inKeHoach() o tren.
+  const dong = dat.reduce((s, r) => s + 1 + (r.thuKhac ? 1 : 0) + r.chi.length, 0)
   const thuan = daXacNhan || (await hoiYN(`\nGhi ${dong} dong vao so THAT?`))
   if (!thuan) return console.log('Huy — khong ghi gi.')
-  const n = await ghiKeHoach(sb, kh.ok)
+  const n = await ghiKeHoach(sb, dat)
   console.log(`\n✓ Da ghi ${n} phieu. Go lai:  node scripts/nhap-phieu-luong.mjs --go --ghi`)
 }
 

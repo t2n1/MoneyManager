@@ -57,6 +57,9 @@ const RecurringPage = lazy(() =>
 const ImportCsvPage = lazy(() =>
   import('./features/import/ImportCsvPage').then((m) => ({ default: m.ImportCsvPage })),
 )
+const ImportPhieuLuongPage = lazy(() =>
+  import('./features/phieu-luong/ImportPhieuLuongPage').then((m) => ({ default: m.ImportPhieuLuongPage })),
+)
 const DataPage = lazy(() =>
   import('./features/settings/DataPage').then((m) => ({ default: m.DataPage })),
 )
@@ -141,6 +144,7 @@ function App() {
           />
           <Route path="/settings/tags" element={lazyRoute(<TagsPage />, 'table')} />
           <Route path="/settings/import" element={lazyRoute(<ImportCsvPage />)} />
+          <Route path="/settings/nhap-phieu-luong" element={lazyRoute(<ImportPhieuLuongPage />, 'list')} />
           <Route path="/settings/data" element={lazyRoute(<DataPage />)} />
           <Route path="/settings/notifications" element={lazyRoute(<NotificationSettingsPage />)} />
 

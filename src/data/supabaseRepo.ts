@@ -1653,6 +1653,58 @@ export const supabaseRepo: Repo = {
     }
   },
 
+  // --- Nhập phiếu lương 給与明細 (Task 7) ---
+
+  async listYuchoIncome(accountId: string) {
+    // Phân trang: mỗi phiếu lương ghi thêm 1 dòng thu Yucho, và sổ có thể đã nạp
+    // nhiều năm lịch sử — trần 1.000 dòng của PostgREST cắt im lặng. Thiếu một
+    // khoản thu là phiếu lương ĐÚNG đó không neo được, báo "khong thay" sai chỗ.
+    // `id` làm chốt cuối vì occurred_on không đơn trị (xem src/data/paging.ts).
+    return await fetchAllPages<{
+      id: string
+      occurred_on: string
+      amount: number
+      account_id: string
+      category_id: string | null
+    }>(async (from, to) =>
+      getSupabase()
+        .from('transactions')
+        .select('id,occurred_on,amount,account_id,category_id')
+        .eq('type', 'income').eq('account_id', accountId)
+        .order('occurred_on')
+        .order('id')
+        .range(from, to),
+    )
+  },
+
+  async listDauPhieuLuong() {
+    // Phân trang: mỗi phiếu lương ghi ~7 dòng mang dấu `給与 …` (~420 dòng hiện tại,
+    // tăng ~7/tháng) — cùng lý do với listYuchoIncome ở trên. Thiếu dấu ở đây là
+    // chốt chống nhập trùng cho phép NHẬP TRÙNG VÀO SỔ THẬT, không phải một
+    // phiền toái vô hại.
+    const rows = await fetchAllPages<{ note: string }>(async (from, to) =>
+      getSupabase()
+        .from('transactions').select('note').like('note', '給与 %')
+        .order('id')
+        .range(from, to),
+    )
+    // Dấu là phần trước ' · ' đầu tiên
+    return [...new Set(rows.map((t) => t.note.split(' · ')[0]))]
+  },
+
+  async xoaPhieuLuong() {
+    // Không có cột import_batch nên tiền tố `給与 ` trong note là tay cầm duy nhất
+    // để gỡ lô nhập. KHÔNG lọc theo từng dấu riêng (xem chú thích ở repo.ts):
+    // dấu chứa dấu cách và `·`, đưa chúng vào `.or()` của PostgREST là xoá thiếu
+    // mà không báo lỗi gì — nên ở đây luôn xoá theo đúng một tiền tố cố định.
+    const { count, error } = await getSupabase()
+      .from('transactions')
+      .delete({ count: 'exact' })
+      .like('note', '給与 %')
+    if (error) throw error
+    return count ?? 0
+  },
+
   async importAll(data: BackupData) {
     const uid = await currentUserId()
     const sb = getSupabase()

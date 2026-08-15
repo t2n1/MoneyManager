@@ -31,6 +31,19 @@ export default defineConfig({
       workbox: {
         // App shell: precache toàn bộ asset build; điều hướng offline về index.html
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // Chunk pdf.js nang 1,8 MB — gan gap doi trong luong app. Tinh nang nhap
+        // phieu luong CHI dung o may tinh, nen khong dua vao precache: neu khong,
+        // moi lan cap nhat PWA tren dien thoai ton them 1,8 MB cho thu khong dung.
+        // Trang do nap dong nen tai theo yeu cau, va offline khong can no.
+        //
+        // Ten chunk THAT do duoc bang build + grep dist/sw.js: `pdf-EQHMWEbX.js`
+        // (427 KB, entry point cua goi pdfjs-dist — Vite dat ten theo file that
+        // trong goi, khong phai ten goi) cong hai file worker `pdf.worker.min-*`.
+        // `**/pdf-*.js` la mau RONG hon can (khop moi chunk bat dau bang `pdf-`,
+        // khong chi rieng cai nay) — chap nhan duoc: mot chunk pdf lot vao
+        // precache thi ton 1,8 MB moi lan cap nhat PWA, con mot chunk `pdf-*`
+        // khong lien quan bi tai theo yeu cau thay vi precache thi hau nhu vo hai.
+        globIgnores: ['**/pdf.worker*.js', '**/pdf.worker*.mjs', '**/pdf-*.js'],
         navigateFallback: '/index.html',
         // API Supabase không cache — dữ liệu tiền bạc phải luôn tươi
         navigateFallbackDenylist: [/^\/auth\//],

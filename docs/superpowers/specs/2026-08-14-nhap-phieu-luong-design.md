@@ -68,20 +68,33 @@ và cho phép bóc lại rồi so diff mà không đụng DB.
 
 ## Kiến trúc
 
+**Cập nhật 2026-08-15 — kiến trúc dưới đây là kiến trúc BAN ĐẦU, nay chỉ còn giá
+trị lịch sử.** Nó đã bị thay bằng một bản TS duy nhất
+(`src/features/phieu-luong/{boc.ts,nhap.ts}`) dùng chung cho cả CLI lẫn trang web —
+xem [2026-08-15-import-phieu-luong-web-design.md](2026-08-15-import-phieu-luong-web-design.md).
+`boc.py` và file trung gian `phieu-luong.json` **không còn nằm trong luồng chạy
+thật**; sơ đồ và hai mục "Tầng 1/Tầng 2" dưới đây giữ nguyên làm lịch sử vì sao
+thiết kế ban đầu tách hai tầng, hai ngôn ngữ.
+
 ```
-thư mục PDF ──[tầng 1: boc.py]──► phieu-luong.json ──[tầng 2: nhap-phieu-luong.mjs]──► Supabase
-              thuần cục bộ                            xem trước / --ghi / --go
+thư mục PDF ──[tầng 1: boc.py — ĐÃ XOÁ, xem lịch sử]──► phieu-luong.json ──[tầng 2: nhap-phieu-luong.mjs]──► Supabase
+              thuần cục bộ (chỉ còn trong lịch sử)                         xem trước / --ghi / --go
 ```
 
-### Tầng 1 — `scripts/phieu-luong/boc.py`
+### Tầng 1 — `scripts/phieu-luong/boc.py` (đã xoá ở commit `44c9253`)
 
-Không mạng, không DB. Đọc thư mục PDF, ghi `phieu-luong.json`.
+Không mạng, không DB. Đọc thư mục PDF, ghi `phieu-luong.json`. Đã được thay bằng
+`src/features/phieu-luong/boc.ts` (TS thuần, không phụ thuộc `pdfjs-dist`, dùng
+chung cho CLI lẫn web — xem spec 2026-08-15). Xem lại bản gốc:
+`git show 44c9253^:scripts/phieu-luong/boc.py`.
 
 ### Tầng 2 — `scripts/nhap-phieu-luong.mjs`
 
 Theo đúng khuôn [`nhap-sao-ke-rakuten.mjs`](../../../scripts/nhap-sao-ke-rakuten.mjs):
 chạy tay, mặc định **chỉ xem trước**, `--ghi` mới ghi thật kèm xác nhận `y/N` mặc
-định KHÔNG, khoá đọc từ `.env.local`.
+định KHÔNG, khoá đọc từ `.env.local`. Từ 2026-08-15, script này import trực tiếp
+`bocPhieu`/`dungKeHoach` từ `src/features/phieu-luong/` thay vì đọc
+`phieu-luong.json` trung gian.
 
 ## Luật bóc chữ
 
@@ -417,8 +430,11 @@ Spec này dùng **số minh hoạ**, không phải số thật — repo là côn
 giữ nguyên nguyên tắc đó: nếu một lập luận cần con số, dựng số minh hoạ giữ đúng
 quan hệ thay vì dán số thật vào.
 
-`boc.py` cần `pypdf` + `cryptography` — ghi vào đầu script, không thêm vào
-`package.json` (không phải phụ thuộc của app).
+**Lịch sử (`boc.py` đã xoá, commit `44c9253`):** bản Python cần `pypdf` +
+`cryptography`, ghi vào đầu script, không thêm vào `package.json` (không phải phụ
+thuộc của app). Xem lại: `git show 44c9253^:scripts/phieu-luong/boc.py`. Từ
+2026-08-15, luật bóc sống trong `src/features/phieu-luong/boc.ts` (TS thuần) —
+không còn phụ thuộc Python, dùng chung cho cả CLI lẫn web.
 
 ## Sáu lỗi đã mắc khi thiết kế — để người sau không lặp
 

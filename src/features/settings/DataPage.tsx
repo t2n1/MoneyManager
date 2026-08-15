@@ -164,6 +164,14 @@ export function DataPage() {
             <span className="flex-1">Nhập giao dịch từ CSV</span>
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
+          <Link
+            to="/settings/nhap-phieu-luong"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-fg-primary hover:bg-gray-50 dark:hover:bg-gray-800"
+          >
+            <FileUp className="h-5 w-5 text-fg-muted" />
+            <span className="flex-1">Nhập phiếu lương từ PDF</span>
+            <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
+          </Link>
         </div>
       </section>
     </div>

@@ -12,7 +12,13 @@ import {
   useStockPrices,
   useStockTrades,
 } from '../../hooks/queries'
-import type { AccountRow } from '../../types/database.types'
+import type {
+  AccountRow,
+  FundPriceRow,
+  FundTradeRow,
+  StockPriceRow,
+  StockTradeRow,
+} from '../../types/database.types'
 import { asFundTrade, fundHoldingsFromTrades, sessionNavs } from './fundHoldings'
 import { buildFundPortfolio } from './fundPortfolio'
 import { asTrade, sessionPrices } from './holdings'
@@ -79,6 +85,98 @@ export function portfolioKindOf(
  */
 export type AccountPortfolioState = AccountPortfolioSummary | null | undefined
 
+/**
+ * Bốn bảng thô mà một tài khoản cần để tự định giá, cộng số dư sổ của nó.
+ *
+ * Sổ lệnh truyền vào là TOÀN BỘ, chưa lọc theo tài khoản: lọc là việc của hàm dưới đây.
+ * Bắt nơi gọi tự lọc thì thêm một chỗ có thể quên — mà quên là giá vốn nuốt luôn lệnh
+ * của tài khoản khác, ra một con số lời sai mà không màn nào báo động.
+ */
+export interface PortfolioSource {
+  /** Số dư sổ của tài khoản (nạp − rút) — chỉ đường cổ phiếu dùng, để ra tiền chưa mua. */
+  balance: number
+  stockTrades: StockTradeRow[]
+  stockPrices: StockPriceRow[]
+  fundTrades: FundTradeRow[]
+  fundPrices: FundPriceRow[]
+}
+
+/**
+ * Tóm tắt danh mục của MỘT tài khoản — thuần, không React.
+ *
+ * Tách ra khỏi hook vì có hai nơi cần đúng con số này: trang chi tiết tài khoản (một tài
+ * khoản mỗi lần) và DÒNG tài khoản trên trang Tài sản (mọi tài khoản một lượt). Hai nơi
+ * gọi chung một hàm → "hai màn lệch nhau" thành chuyện không biểu diễn được, đúng lý do
+ * cả file này ra đời.
+ */
+export function accountPortfolioSummary(
+  account: AccountRow | undefined,
+  src: PortfolioSource,
+): AccountPortfolioSummary | null {
+  const soLenhCoPhieu = account
+    ? src.stockTrades.filter((t) => t.account_id === account.id)
+    : []
+  const soLenhQuy = account ? src.fundTrades.filter((t) => t.account_id === account.id) : []
+  const kind = portfolioKindOf(
+    account,
+    account?.currency === 'JPY' ? soLenhQuy.length : soLenhCoPhieu.length,
+  )
+  if (!account || kind === null) return null
+
+  if (kind === 'stocks') {
+    const { session, priceBySymbol } = sessionPrices(src.stockPrices)
+    const p = buildPortfolio(
+      [
+        {
+          accountId: account.id,
+          accountName: account.name,
+          balance: src.balance,
+          trades: soLenhCoPhieu.map(asTrade),
+        },
+      ],
+      priceBySymbol,
+    )
+    return {
+      kind: 'stocks',
+      marketValue: p.marketValue,
+      cost: p.stockCost,
+      unrealizedPnl: p.unrealizedPnl,
+      unrealizedPercent: p.unrealizedPercent,
+      count: p.positions.length,
+      session,
+      // Chuyển tiếp thẳng, không tính lại: `p.cash` đã ra từ `buildPortfolio`.
+      cash: p.cash,
+    }
+  }
+
+  const trades = soLenhQuy.map(asFundTrade)
+  // Tham số thứ hai của sessionNavs là quỹ ĐANG GIỮ, không phải quỹ TỪNG GIAO DỊCH — xem
+  // giao kèo trên chính hàm đó. Lấy từ sổ lệnh thô thì một quỹ đã bán sạch (mã của nó nằm
+  // lại trong sổ vĩnh viễn) vẫn kéo ngày phiên theo mình: quỹ tài sản trong nước công bố
+  // 基準価額 sớm hơn quỹ nước ngoài một ngày, nên bán hết quỹ trong nước là mọi quỹ còn giữ
+  // rơi vào `staleFunds` mỗi ngày, mãi mãi.
+  const { holdings } = fundHoldingsFromTrades(trades)
+  const { session, navByFund } = sessionNavs(
+    src.fundPrices,
+    holdings.map((h) => h.assocFundCd),
+  )
+  const p = buildFundPortfolio(
+    [{ accountId: account.id, accountName: account.name, trades }],
+    navByFund,
+  )
+  return {
+    kind: 'funds',
+    marketValue: p.marketValue,
+    cost: p.fundCost,
+    unrealizedPnl: p.unrealizedPnl,
+    unrealizedPercent: p.unrealizedPercent,
+    count: p.positions.length,
+    session,
+    // Quỹ Nhật không có khái niệm tiền chưa mua — xem chú thích trên interface.
+    cash: null,
+  }
+}
+
 export function useAccountPortfolio(
   account: AccountRow | undefined,
 ): AccountPortfolioState {
@@ -104,78 +202,22 @@ export function useAccountPortfolio(
     laDauTu &&
     (dangTaiLenhCoPhieu || dangTaiGiaCoPhieu || dangTaiLenhQuy || dangTaiGiaQuy || dangTaiSoDu)
 
-  const soLenhCoPhieu = useMemo(
-    () => (account ? stockTrades.filter((t) => t.account_id === account.id) : []),
-    [stockTrades, account],
+  // Số dư sổ là tham số brokerCash cần để ra "tiền chưa mua" — hook tự đọc, không bắt
+  // trang gọi truyền vào như component Danh mục cổ phiếu cũ (đã xoá).
+  const summary = useMemo(
+    () =>
+      accountPortfolioSummary(account, {
+        balance: account ? (balances.find((b) => b.id === account.id)?.balance ?? 0) : 0,
+        stockTrades,
+        stockPrices: prices,
+        fundTrades,
+        fundPrices: navRows,
+      }),
+    [account, balances, stockTrades, prices, fundTrades, navRows],
   )
-  const soLenhQuy = useMemo(
-    () => (account ? fundTrades.filter((t) => t.account_id === account.id) : []),
-    [fundTrades, account],
-  )
 
-  const kind = portfolioKindOf(
-    account,
-    account?.currency === 'JPY' ? soLenhQuy.length : soLenhCoPhieu.length,
-  )
-
-  const stocks = useMemo(() => {
-    if (kind !== 'stocks' || !account) return null
-    const { session, priceBySymbol } = sessionPrices(prices)
-    // Số dư sổ là tham số brokerCash cần để ra "tiền chưa mua" — hook tự đọc, không bắt
-    // trang gọi truyền vào như component Danh mục cổ phiếu cũ (đã xoá).
-    const balance = balances.find((b) => b.id === account.id)?.balance ?? 0
-    const trades = soLenhCoPhieu.map(asTrade)
-    const p = buildPortfolio(
-      [{ accountId: account.id, accountName: account.name, balance, trades }],
-      priceBySymbol,
-    )
-    return {
-      kind: 'stocks' as const,
-      marketValue: p.marketValue,
-      cost: p.stockCost,
-      unrealizedPnl: p.unrealizedPnl,
-      unrealizedPercent: p.unrealizedPercent,
-      count: p.positions.length,
-      session,
-      // Chuyển tiếp thẳng, không tính lại: `p.cash` đã ra từ `buildPortfolio`.
-      cash: p.cash,
-    }
-  }, [kind, account, prices, balances, soLenhCoPhieu])
-
-  const funds = useMemo(() => {
-    if (kind !== 'funds' || !account) return null
-    const trades = soLenhQuy.map(asFundTrade)
-    // Tham số thứ hai của sessionNavs là quỹ ĐANG GIỮ, không phải quỹ TỪNG GIAO DỊCH —
-    // xem giao kèo trên chính hàm đó. Lấy từ sổ lệnh thô thì một quỹ đã bán sạch (mã của
-    // nó nằm lại trong sổ vĩnh viễn) vẫn kéo ngày phiên theo mình: quỹ tài sản trong nước
-    // công bố 基準価額 sớm hơn quỹ nước ngoài một ngày, nên bán hết quỹ trong nước là mọi
-    // quỹ còn giữ rơi vào `staleFunds` mỗi ngày, mãi mãi. Và tệ hơn cho đợt này: tập của
-    // trang tài khoản là sổ lệnh MỘT tài khoản còn tập của tab là hợp mọi tài khoản, nên
-    // hai màn có thể in HAI ngày phiên khác nhau cho cùng một tài khoản.
-    const { holdings } = fundHoldingsFromTrades(trades)
-    const { session, navByFund } = sessionNavs(
-      navRows,
-      holdings.map((h) => h.assocFundCd),
-    )
-    const p = buildFundPortfolio(
-      [{ accountId: account.id, accountName: account.name, trades }],
-      navByFund,
-    )
-    return {
-      kind: 'funds' as const,
-      marketValue: p.marketValue,
-      cost: p.fundCost,
-      unrealizedPnl: p.unrealizedPnl,
-      unrealizedPercent: p.unrealizedPercent,
-      count: p.positions.length,
-      session,
-      // Quỹ Nhật không có khái niệm tiền chưa mua — xem chú thích trên interface.
-      cash: null,
-    }
-  }, [kind, account, navRows, soLenhQuy])
-
-  // Cổng CHỜ đặt sau hai useMemo, không đặt trước: hook không được đổi số lời gọi hook
-  // giữa hai lần render.
+  // Cổng CHỜ đặt sau useMemo, không đặt trước: hook không được đổi số lời gọi hook giữa
+  // hai lần render.
   if (dangTai) return undefined
-  return stocks ?? funds
+  return summary
 }

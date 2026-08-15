@@ -5,16 +5,15 @@ import { useMemo } from 'react'
 import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { ExplainBox } from '../../components/ExplainBox'
+import { Card } from '../../components/ui'
 import { useAccounts, useProfile, useRangeTransactions, useRates } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
 import type { AssetAccount } from './aggregate'
+import { investTxRange, LOOKBACK_YEARS } from './investHistory'
 import type { MoneyView } from './moneyView'
 import { investmentPerformance, type CashFlow } from './xirr'
-
-/** Lịch sử đầu tư hiếm khi dài hơn 10 năm với app ghi tay — đủ để XIRR chuẩn. */
-const LOOKBACK_YEARS = 10
 
 const signPct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1).replace('.', ',')}%`
 
@@ -32,7 +31,6 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
   const { rates } = useRates()
   const r = rates ?? {}
   const todayISO = toISODate(new Date())
-  const startISO = `${Number(todayISO.slice(0, 4)) - LOOKBACK_YEARS}-01-01`
 
   const ids = useMemo(() => new Set(accounts.map((a) => a.id)), [accounts])
   const currencyById = useMemo(
@@ -40,7 +38,7 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
     [accounts],
   )
   const { data: txs = [] } = useRangeTransactions(
-    { start: startISO, end: `${Number(todayISO.slice(0, 4)) + 1}-01-01` },
+    investTxRange(todayISO),
     ids.size > 0 && !!profile,
   )
 
@@ -126,7 +124,7 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
   ]
 
   return (
-    <section className="rounded-2xl bg-surface p-4 shadow-sm ">
+    <Card as="section" padding="lg">
       <div className="mb-3 flex items-baseline justify-between gap-2">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
           Hiệu quả đầu tư
@@ -231,6 +229,6 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
           cũng đã là hơn để tiền nằm im.
         </p>
       </ExplainBox>
-    </section>
+    </Card>
   )
 }

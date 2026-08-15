@@ -5,6 +5,7 @@ import { useMemo } from 'react'
 import type { CurrencyCode } from '../../lib/money'
 import { CurrencyViewToggle } from './CurrencyViewToggle'
 import { InvestmentPerformanceSection } from './InvestmentPerformanceSection'
+import { InvestmentValueHistorySection } from './InvestmentValueHistorySection'
 import { makeMoneyView } from './moneyView'
 import { NetWorthHistorySection } from './NetWorthHistorySection'
 import { SavingsGoalsSection } from './SavingsGoalsSection'
@@ -42,6 +43,15 @@ export function AssetsTrendView({ viewCur, onViewCurChange }: Props) {
       {/* Lịch sử tài sản ròng (mục AF) — đường đi của con số ròng đứng đầu tab này */}
       <NetWorthHistorySection
         currentNetWorth={netWorthReliable ? netWorth : null}
+        view={mv}
+      />
+
+      {/* Đầu tư theo thời gian — đường đi của danh mục; đứng trước ô Hiệu quả đầu tư vì ô
+          đó là bản CHỐT (một con số %/năm) của cùng câu chuyện mà biểu đồ này kể theo thời
+          gian: cùng hai đại lượng "tiền bỏ vào" và "giá trị", cùng màu. */}
+      <InvestmentValueHistorySection
+        accounts={investmentAccounts}
+        base={base}
         view={mv}
       />
 

@@ -24,6 +24,7 @@ import { CardsSection } from './CardsSection'
 import { CurrencyViewToggle } from './CurrencyViewToggle'
 import { makeMoneyView } from './moneyView'
 import { useAssetsData } from './useAssetsData'
+import { accountRowPnl, useInvestPnlByAccount } from './useInvestPnl'
 
 // Bảng màu cho lát bánh (lặp lại nếu > 12 nhóm) — đồng bộ với ReportsPage
 const PALETTE = [
@@ -271,6 +272,11 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
     g.accounts.some((a) => a.marketValue != null),
   )
   const pnl = breakdown.totalPnl
+  // Lời/lỗ CHƯA BÁN theo từng tài khoản đầu tư — con số nhỏ cạnh tên tài khoản. Khác
+  // `pnl` ngay trên (toàn đời, gồm đã bán) một cách CỐ Ý: khối xanh có chỗ để ghi nhãn
+  // "gồm đã bán", dòng tài khoản thì không, nên dòng phải in đúng con số mà trang chi
+  // tiết của chính tài khoản đó in. Xem useInvestPnl.ts.
+  const danhMucTheoTk = useInvestPnlByAccount()
 
   // Thẻ tín dụng: công nợ, hiển thị riêng và trừ vào Tài sản ròng
   const visibleCards = breakdown.cards.filter((c) => !c.hidden)
@@ -560,6 +566,7 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                 const a = accountById.get(id) ?? g.accounts.find((x) => x.id === id)
                 if (!a) return null
                 const isDragging = dragEnabled && id === dragAcc
+                const rowPnl = accountRowPnl(a, danhMucTheoTk.get(a.id))
                 return (
                   <div
                     key={id}
@@ -592,16 +599,14 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                         {!a.includeInTotals && (
                           <span className="ml-1 text-3xs text-fg-muted">(ngoài tổng)</span>
                         )}
-                        {a.marketValue != null && a.marketValue !== a.balance && (
+                        {rowPnl !== null && (
                           <span
                             className={`ml-1 text-3xs tabular-nums ${
-                              a.marketValue > a.balance
-                                ? 'text-money-in'
-                                : 'text-money-out'
+                              rowPnl > 0 ? 'text-money-in' : 'text-money-out'
                             }`}
                           >
-                            {a.marketValue > a.balance ? '▲' : '▼'}
-                            {mv.fmt(Math.abs(a.marketValue - a.balance), a.currency)}
+                            {rowPnl > 0 ? '▲' : '▼'}
+                            {mv.fmt(Math.abs(rowPnl), a.currency)}
                           </span>
                         )}
                       </span>

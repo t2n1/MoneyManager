@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Card } from '../../components/ui'
 import { useNetWorthSnapshots, useUpsertNetWorthSnapshot } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { formatCompact } from '../../lib/money'
@@ -33,7 +34,7 @@ export function NetWorthHistorySection({ currentNetWorth, view }: Props) {
 
   if (snapshots.length < 2) {
     return (
-      <section className="rounded-2xl bg-surface p-4 shadow-sm">
+      <Card as="section" padding="lg">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
           Tài sản ròng theo thời gian
         </h2>
@@ -41,7 +42,7 @@ export function NetWorthHistorySection({ currentNetWorth, view }: Props) {
           Mở app đều đặn để app ghi lại tài sản ròng mỗi ngày — biểu đồ xu hướng sẽ hiện sau
           vài mốc.
         </p>
-      </section>
+      </Card>
     )
   }
 
@@ -52,7 +53,7 @@ export function NetWorthHistorySection({ currentNetWorth, view }: Props) {
   const up = delta >= 0
 
   return (
-    <section className="rounded-2xl bg-surface p-4 shadow-sm">
+    <Card as="section" padding="lg">
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
           Tài sản ròng theo thời gian
@@ -87,6 +88,6 @@ export function NetWorthHistorySection({ currentNetWorth, view }: Props) {
           </LineChart>
         </ResponsiveContainer>
       </div>
-    </section>
+    </Card>
   )
 }

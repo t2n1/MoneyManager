@@ -3,6 +3,7 @@ import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { Plus, Target } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
+import { Card } from '../../components/ui'
 import {
   useAccountBalances,
   useAccounts,
@@ -78,7 +79,7 @@ export function SavingsGoalsSection({ view }: Props) {
   const selectableAccounts = accounts.filter((a) => !a.is_archived)
 
   return (
-    <section className="rounded-2xl bg-surface p-4 shadow-sm ">
+    <Card as="section" padding="lg">
       <div className="flex items-center gap-2">
         <Target className="h-5 w-5 text-money-in" />
         <h2 className="flex-1 text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -200,6 +201,6 @@ export function SavingsGoalsSection({ view }: Props) {
           onClose={() => setSheet({ open: false })}
         />
       )}
-    </section>
+    </Card>
   )
 }

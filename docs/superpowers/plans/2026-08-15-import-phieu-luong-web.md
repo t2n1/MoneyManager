@@ -612,8 +612,8 @@ Các hằng phiếu mẫu cần thêm trường mà `Phieu` đòi. Ví dụ cho 
 const P202608: Phieu = {
   file: '(0101)202608K.pdf', empno: '0101', period: '202608', kind: 'K',
   nguonKy: 'noi-dung', canhBao: [],
-  gross: 481019, deductTotal: 92328, net: 388691, bank: 388691,
-  tru: { 健康保険料: 23688, 厚生年金保険: 43005, 雇用保険料: 2405, 所得税: 4430, 住民税: 18800 },
+  gross: 500000, deductTotal: 100000, net: 400000, bank: 400000,
+  tru: { 健康保険料: 20000, 厚生年金保険: 50000, 雇用保険料: 3000, 所得税: 7000, 住民税: 20000 },
   ngoaiTong: {}, nhanLa: [], loi: [],
 }
 ```

@@ -31,7 +31,7 @@ import {
 } from '../../hooks/queries'
 import { AccountPicker } from '../../components/AccountPicker'
 import { DateField } from '../../components/DateField'
-import { CHIP_BASE, CHIP_OFF } from '../../components/chip'
+import { CHIP_BASE, CHIP_OFF, CHIP_ON } from '../../components/chip'
 import { Card, IconButton, SegmentedControl } from '../../components/ui'
 import { TagPicker } from '../tags/TagPicker'
 import { isAutoAssignedCategory, pickableCategories } from '../categories/flowCategories'
@@ -123,23 +123,24 @@ type AmountTarget =
 /** Vai trò đặc biệt: nhãn + icon + màu banner. */
 const ROLE_ORDER: SpecialRole[] = ['split', 'debt', 'remit']
 const ROLE_META: Record<SpecialRole, { label: string; Icon: LucideIcon; banner: string }> = {
+  // Banner vai trò dùng chung MỘT bề mặt trạng thái accent (§4.6), không còn ba tông
+  // xanh-lam / hổ-phách / xanh-lá. Ba màu trước đây gợi ý ba MỨC ĐỘ khác nhau
+  // (lam = tin, hổ phách = cảnh báo) trong khi cả ba chỉ nói cùng một chuyện: "khoản
+  // này đang ở một vai đặc biệt". Icon và chữ mới là thứ phân biệt chúng.
   split: {
     label: 'Trả hộ / chia bill',
     Icon: Users,
-    banner:
-      'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300',
+    banner: 'border-state-good-border bg-state-good-bg text-state-good-fg',
   },
   debt: {
     label: 'Cho vay / Ghi nợ',
     Icon: HandCoins,
-    banner:
-      'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+    banner: 'border-state-good-border bg-state-good-bg text-state-good-fg',
   },
   remit: {
     label: 'Gửi về VN',
     Icon: Send,
-    banner:
-      'border-green-300 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300',
+    banner: 'border-state-good-border bg-state-good-bg text-state-good-fg',
   },
 }
 
@@ -750,7 +751,7 @@ export function TransactionForm({
         aria-expanded={roleMenu}
         aria-label="Loại đặc biệt"
         style={{ touchAction: 'manipulation' }}
-        className="flex min-h-11 items-center gap-0.5 whitespace-nowrap rounded-lg bg-surface px-2.5 py-1.5 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
+        className="flex min-h-11 items-center gap-0.5 whitespace-nowrap rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-sm font-medium text-fg-secondary active:scale-95"
       >
         Đặc biệt
         <ChevronDown
@@ -794,7 +795,10 @@ export function TransactionForm({
     label?: string,
   ) => {
     const isActive = multiAmount && activeField === field
-    const ring = isActive ? 'ring-2 ring-green-500' : ''
+    // `outline` chứ không `ring` (§4.6): ring của Tailwind vẽ bằng box-shadow, mà 1a bỏ
+    // hẳn shadow — giữ ring là giữ đúng một cái bóng sót lại trên màn. outline cũng
+    // không chiếm chỗ trong bố cục nên hai ô tiền không xê khi đổi ô đang gõ.
+    const ring = isActive ? 'outline outline-2 outline-accent' : ''
     const result = evalExpression(expr)
     const showExpr = hasOperator(expr)
     const mobileText = showExpr ? formatExpr(expr, currency) : formatMoney(result ?? 0, currency)
@@ -808,8 +812,11 @@ export function TransactionForm({
           type="button"
           onClick={() => setActiveField(field)}
           aria-label={`${label ?? 'Số tiền'}: ${mobileText}`}
-          className={`truncate rounded-xl bg-surface px-4 py-2.5 text-right font-bold shadow-sm ${
-            showExpr ? 'text-xl' : 'text-3xl'
+          // 30px mono/600 canh phải (§4.6). rem chứ không px: Cài đặt → Cỡ chữ chỉ co
+          // giãn được cái tính theo rem. Ô nhập của 1a là `--surface` + viền control,
+          // bán kính 8px, KHÔNG bóng.
+          className={`truncate rounded-lg border border-border-strong bg-surface px-4 py-2.5 text-right font-mono font-semibold tracking-[-.02em] ${
+            showExpr ? 'text-xl' : 'text-[1.875rem]'
           } ${isEmpty ? 'text-fg-muted' : AMOUNT_COLOR[type]} ${ring} lg:hidden`}
         >
           {mobileText}
@@ -837,7 +844,7 @@ export function TransactionForm({
             if (e.key === 'Enter') handleSubmit()
           }}
           placeholder={formatMoney(0, currency)}
-          className={`hidden rounded-xl bg-surface px-4 py-3 text-right text-3xl font-bold shadow-sm outline-green-500 lg:block ${AMOUNT_COLOR[type]}`}
+          className={`hidden rounded-lg border border-border-strong bg-surface px-4 py-3 text-right font-mono text-[1.875rem] font-semibold tracking-[-.02em] outline-accent lg:block ${AMOUNT_COLOR[type]}`}
         />
       </div>
     )
@@ -869,7 +876,7 @@ export function TransactionForm({
                 <button
                   type="button"
                   onClick={() => applyTemplate(t)}
-                  className="flex items-center gap-1 rounded-full bg-surface py-1.5 pl-3 pr-6 text-xs font-medium text-gray-700 dark:text-gray-200 shadow-sm active:scale-95"
+                  className="flex items-center gap-1 rounded-full border border-border-strong bg-surface py-1.5 pl-3 pr-6 text-xs font-medium text-fg-secondary active:scale-95"
                 >
                   <Star className="h-3 w-3 text-amber-400" fill="currentColor" />
                   <span className="max-w-[9rem] truncate">{t.label}</span>
@@ -893,7 +900,7 @@ export function TransactionForm({
 
       {/* Vai trò đặc biệt đang bật: banner ở trên cùng (nút mở nằm dưới lưới danh mục) */}
       {enableRoles && roleMeta && (
-        <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${roleMeta.banner}`}>
+        <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${roleMeta.banner}`}>
           <roleMeta.Icon className="h-4 w-4 shrink-0" aria-hidden />
           <span className="flex-1 text-sm font-semibold">{roleMeta.label}</span>
           {/* after:-inset mở rộng vùng chạm lên ~44px mà không phồng banner. */}
@@ -1001,7 +1008,7 @@ export function TransactionForm({
             title="Chưa chi — chỉ nhắc tôi vào ngày này"
             className={`${CHIP_BASE} ${
               remindLater
-                ? 'border-amber-500 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-900/30 dark:text-amber-300'
+                ? 'border-state-warn-border bg-state-warn-bg text-state-warn-fg'
                 : CHIP_OFF
             }`}
           >
@@ -1020,7 +1027,7 @@ export function TransactionForm({
               className={`${CHIP_BASE} ${
                 repeat === 'none'
                   ? CHIP_OFF
-                  : 'border-green-500 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : CHIP_ON
               }`}
             >
               <Repeat className="h-4 w-4 shrink-0" />
@@ -1080,7 +1087,7 @@ export function TransactionForm({
       )}
       {/* Field riêng của vai trò (nếu có) — nằm ngay dưới số tiền/tài khoản */}
       {activeRole === 'remit' && pickerAccounts.length === 0 && (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+        <p className="rounded-lg border border-state-bad-border bg-state-bad-bg px-3 py-2 text-xs text-state-bad-fg">
           Chưa có tài khoản JPY. Hãy tạo một tài khoản JPY trước khi gửi tiền về VN.
         </p>
       )}
@@ -1134,7 +1141,7 @@ export function TransactionForm({
             <button
               type="button"
               onClick={() => setDrillId(null)}
-              className="flex items-center gap-1.5 self-start rounded-lg bg-surface px-2.5 py-1 text-xs font-medium text-fg-secondary shadow-sm active:scale-95"
+              className="flex items-center gap-1.5 self-start rounded-md border border-border-strong bg-surface px-2.5 py-1 text-xs font-medium text-fg-secondary active:scale-95"
             >
               <ChevronLeft className="h-4 w-4" /> <span className="text-base leading-none">{drillParent.icon}</span> {drillParent.name}
             </button>
@@ -1289,7 +1296,7 @@ export function TransactionForm({
           type="button"
           onClick={() => onNumPadKey('⌫')}
           aria-label="Xóa"
-          className="flex shrink-0 items-center justify-center rounded-xl bg-white dark:bg-gray-800 px-5 text-lg font-semibold text-fg-primary shadow-sm transition active:scale-95 active:bg-gray-200 lg:hidden"
+          className="flex shrink-0 items-center justify-center rounded-lg border border-border-strong bg-surface-sunken px-5 text-lg font-semibold text-fg-primary transition active:scale-95 active:bg-surface lg:hidden"
         >
           <Delete className="h-5 w-5" />
         </button>
@@ -1301,7 +1308,7 @@ export function TransactionForm({
               type="button"
               onClick={() => handleSubmit('continue')}
               disabled={!canSave}
-              className="flex-1 rounded-xl border border-green-600 bg-surface py-3 text-base font-semibold text-green-700 shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-50 disabled:opacity-40 dark:text-green-400 dark:enabled:hover:bg-gray-800"
+              className="flex-1 rounded-lg border border-state-good-border bg-transparent py-3 text-base font-semibold text-money-in transition enabled:active:scale-95 enabled:hover:bg-state-good-bg disabled:border-border-subtle disabled:text-fg-disabled"
             >
               {pending === 'continue' ? 'Đang lưu…' : continueLabel}
             </button>
@@ -1309,7 +1316,7 @@ export function TransactionForm({
               type="button"
               onClick={() => handleSubmit('save')}
               disabled={!canSave}
-              className="flex-1 rounded-xl bg-green-700 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-800 disabled:opacity-40"
+              className="flex-1 rounded-lg bg-accent py-3 text-base font-semibold text-fg-on-accent transition enabled:active:scale-95 enabled:hover:bg-accent-hover disabled:bg-accent-muted-bg disabled:text-accent-muted-fg"
             >
               {pending === 'save' ? 'Đang lưu…' : effectiveSubmitLabel}
             </button>
@@ -1319,7 +1326,7 @@ export function TransactionForm({
             type="button"
             onClick={() => handleSubmit('save')}
             disabled={!canSave}
-            className="flex-1 rounded-xl bg-green-700 py-3 text-base font-semibold text-white shadow-sm transition enabled:active:scale-95 enabled:hover:bg-green-800 disabled:opacity-40"
+            className="flex-1 rounded-lg bg-accent py-3 text-base font-semibold text-fg-on-accent transition enabled:active:scale-95 enabled:hover:bg-accent-hover disabled:bg-accent-muted-bg disabled:text-accent-muted-fg"
           >
             {saving ? 'Đang lưu…' : effectiveSubmitLabel}
           </button>
@@ -1347,8 +1354,14 @@ function CategoryTile({
     <button
       type="button"
       onClick={onClick}
-      className={`relative flex flex-col items-center gap-0.5 rounded-xl border-2 bg-surface px-1 py-2 text-xs text-gray-700 dark:text-gray-300 transition active:scale-95 ${
-        selected ? 'border-green-500 bg-green-50 dark:bg-green-900/30' : 'border-transparent shadow-sm'
+      // Tile 1a (§4.6): nền --surface, viền 2px trong suốt, CHỌN = nền/viền accent.
+      // Viền 2px có ở cả hai trạng thái nên bấm chọn không làm cả lưới xê 2px.
+      // Bỏ `shadow-sm` ở ô chưa chọn: nó là thứ duy nhất còn phân biệt hai trạng thái
+      // bằng độ nổi, mà 1a phân cấp bằng nền + viền.
+      className={`relative flex flex-col items-center gap-0.5 rounded-lg border-2 px-1 py-2 text-xs transition active:scale-95 ${
+        selected
+          ? 'border-accent bg-state-good-bg text-fg-primary'
+          : 'border-transparent bg-surface text-fg-secondary'
       }`}
     >
       <span className="text-xl leading-none">{icon}</span>

@@ -136,6 +136,15 @@
   --state-bad-border: var(--color-red-100);
   --state-bad-fg: var(--color-red-700);
 
+  /* Nút chính KHI BỊ KHOÁ và chữ trên control bị khoá (§4.6 của bản 1a).
+     Vì sao là token chứ không phải `opacity-40`: hạ độ mờ nút chính xuống 40% cho ra
+     ~2,4:1 — chữ trên nút Lưu gần như biến mất, mà nút Lưu bị khoá là trạng thái người
+     dùng NHÌN LÂU NHẤT (họ đang tìm xem còn thiếu gì). Control bị khoá được miễn WCAG
+     1.4.3, nhưng "được miễn" không có nghĩa là nên làm cho không đọc được. */
+  --accent-muted-bg: var(--color-green-100);
+  --accent-muted-fg: var(--color-green-700);
+  --fg-disabled: var(--color-gray-400);
+
   /* Chữ cảnh báo (sắp vượt hạn mức, tỷ giá giả định, đơn vị tiền lệch).
      Amber là màu KHÔNG có sắc độ nào đạt cả hai chế độ — đo thật:
        amber-500  2,13:1 trên trắng  /  8,31:1 trên gray-900
@@ -222,6 +231,14 @@
   --state-bad-border: #4a1f22;
   --state-bad-fg: #f0b6b8;
 
+  /* Giá trị chốt trong §4.6. Đo thật: chữ trên nút Lưu bị khoá 3,55:1 (opacity-40 trên
+     nền accent chỉ ~2,4:1), phím phép tính bị khoá 2,32:1 trên track. Cả hai là control
+     BỊ KHOÁ nên không thuộc phạm vi 1.4.3 — con số ghi ra để lần sau ai đổi thì biết
+     mình đang đứng ở đâu, không phải để tuyên bố đạt chuẩn. */
+  --accent-muted-bg: #0d3a1d;
+  --accent-muted-fg: #6b8f78;
+  --fg-disabled: #4a5460;
+
   /* ĐẢO chiều như --fg-muted. Trên thang 1a: page 11,56:1 · chrome 11,30 · surface
      11,05 · sunken 10,35 — tức sàn NÂNG từ 8,52:1 (trên gray-800 cũ) lên 10,35:1.
      Nền amber-900/40 phủ surface vẫn còn dùng ở vài banner: 8,56:1 lúc trước, và nền
@@ -262,6 +279,9 @@
   --color-state-bad-bg: var(--state-bad-bg);
   --color-state-bad-border: var(--state-bad-border);
   --color-state-bad-fg: var(--state-bad-fg);
+  --color-accent-muted-bg: var(--accent-muted-bg);
+  --color-accent-muted-fg: var(--accent-muted-fg);
+  --color-fg-disabled: var(--fg-disabled);
 }
 
 /* Nút bấm trên mobile không bị delay/zoom khi chạm nhanh */

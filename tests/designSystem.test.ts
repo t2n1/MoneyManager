@@ -499,40 +499,27 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // nào: chúng xếp dọc liền nhau trong một mạch cuộn nên để lẫn hai bán kính là thấy
     // ngay — và khối thứ năm vừa thêm (InvestmentValueHistorySection) dùng <Card> từ đầu.
     { needle: 'rounded-2xl', max: 34, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
-    // ⚠️ 15 (2026-08-16, PR 2 của redesign 1a) — trần này TĂNG, và đây là lần đổi
-    // chiều chứ không phải nới cho dễ thở. Nói rõ vì luật ở đầu file là "chỉ được giảm".
+    // ⚠️ TRẦN NÀY ĐANG TĂNG THEO KẾ HOẠCH, không phải nới cho dễ thở. Luật ở đầu file
+    // là 'chỉ được giảm', nên phải nói rõ vì sao chỗ này khác.
     //
     // Tiền đề cũ: app có MỘT bán kính control là rounded-lg (8px, 278 chỗ), nên 16 chỗ
-    // rounded-md là lạc. Bản 1a bỏ tiền đề đó: nó tách bán kính CONTROL (5–7px → 6px =
-    // rounded-md) khỏi bán kính PANEL (8px = rounded-lg) — §1.3. Nên rounded-md giờ là
-    // bán kính ĐÚNG của nút và tab, không còn là giá trị lạc.
+    // rounded-md là lạc. Bản 1a bỏ tiền đề đó — nó TÁCH bán kính CONTROL (6px =
+    // rounded-md) khỏi bán kính PANEL (8px = rounded-lg), §1.3. Từ đó rounded-md là
+    // bán kính ĐÚNG của nút, tab, chip vuông; và mỗi PR dựng thêm một màn 1a lại thêm
+    // vài chỗ dùng nó một cách chính đáng.
     //
-    // Hai chỗ cộng thêm là <ActionButton> và <IconButton>, tức chính hai primitive.
-    // Chúng sẽ KHÔNG bao giờ tụt về 0, nên con số này từ nay đọc là: 2 (primitive) +
-    // 13 (còn viết tay, vẫn là nợ phải gộp). Gộp được chỗ nào thì hạ về phía 2 — đừng
-    // đọc "15" thành "được phép thêm chỗ mới".
+    // Vì vậy con số này KHÔNG còn đọc là "nợ kỹ thuật". Nó đọc là:
+    //     13 (nợ cũ — phần DUY NHẤT còn được phép giảm)
+    //   +  N (control của các màn đã chuyển sang 1a)
+    // Mốc: 13 lúc bắt đầu redesign · 15 sau PR 2 (hai primitive) · 21 sau PR 3 (khung
+    // app) · 22 sau PR 4 (cột biểu đồ Bản tin) · 26 sau PR 5 (Sổ + Tài sản) · 30 sau
+    // PR 6 (form Nhập: nút Đóng, banner lỗi, nút Loại đặc biệt, nút Lưu mẫu).
+    // Trần vẫn có tác dụng: nó bắt người sửa DỪNG LẠI và nói ra chỗ mới thêm là control
+    // 1a hay là một chỗ viết tay lẽ ra phải dùng primitive.
     //
-    // Chiều nợ mới, chưa đặt trần vì chưa đo: rounded-lg trên CONTROL (nút, tab, chip
-    // vuông) giờ mới là chỗ lệch scale. Đặt trần cho nó khi đã dựng đủ màn để biết số.
-    //
-    // 21 (2026-08-16, PR 3): +6 của KHUNG APP — 5 control trong AppTopBar (hai mũi ‹ ›,
-    // ô mã tháng, ô tìm kiếm, nút che số) và 1 ở AppFooter. Chúng KHÔNG gộp được vào
-    // <ActionButton>/<IconButton>: hai primitive đó chốt sàn vùng chạm 44px cho ngón
-    // tay, còn control của thanh 52px là 28–30px và chỉ tồn tại từ lg (chuột). Ép chúng
-    // dùng primitive là làm vỡ thanh, ép primitive xuống 30px là làm hỏng vùng chạm của
-    // ~90 chỗ còn lại.
-    // 22 (2026-08-16, PR 4): +1 cho cột bấm được của biểu đồ Dòng tiền ở Bản tin. Nó là
-    // một CONTROL thật (mỗi cột là một <button> đổi tháng), không phải nút-có-chữ nên
-    // <ActionButton> không hợp — vùng bấm là cả cột 80px chứ không phải một hàng chữ.
-    // 25 (2026-08-16, PR 5): +3 của bản 10a màn Sổ — header nhóm ngày (khung bảng,
-    // §1.4), dòng cảnh báo "chưa phân loại" (banner bấm được), và ô danh mục trong bảng
-    // sửa hàng loạt. Cả ba là bề mặt/CONTROL của 1a chứ không phải nút-có-chữ, nên
-    // không có primitive nào nhận chúng.
-    // 26: +1 nữa cho dòng cảnh báo gộp ở tab Tài sản (12a) — cùng dáng banner với dòng
-    // "chưa phân loại" của Sổ, và nó THAY hai đoạn chữ rải rác chứ không thêm khối mới.
-    // Con số đọc là: 3 (primitive + biểu đồ) + 6 (khung app) + 4 (màn 1a đã dựng) + 13
-    // (còn viết tay — phần nợ thật, và chỉ phần này mới được phép giảm tiếp).
-    { needle: 'rounded-md', max: 26, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
+    // Khi 13 màn của bản 1a dựng xong, THAY trần này bằng luật thật: đếm rounded-lg /
+    // rounded-xl trên CONTROL — lúc đó mới là chiều nợ còn lại.
+    { needle: 'rounded-md', max: 30, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
     // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
     // đúng theo spec nên không cần đại diện gần đúng nữa.

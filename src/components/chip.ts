@@ -12,8 +12,13 @@
  */
 // min-w-11 + justify-center: chip chỉ có icon (nút "Nhắc sau" lúc tắt) đo ra 34px
 // ngang — cao thì đủ 44 mà ngang thì hụt, và nó lại là nút đổi hẳn việc của nút Lưu.
+// `rounded-full` (§4.6: chip 20px) chứ không rounded-lg: 1a để dáng bo tròn cho chip
+// BẬT/TẮT và dáng góc 6px cho nút bấm-một-lần — hai hình dạng, hai loại hành vi.
 export const CHIP_BASE =
-  'flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition active:scale-95'
+  'flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-full border px-3 py-1.5 text-sm transition active:scale-95'
+
+/** Trạng thái BẬT của chip xanh (Lặp lại, và các chip chọn khác). §4.6. */
+export const CHIP_ON = 'border-state-good-border bg-state-good-bg text-state-good-fg'
 
 /**
  * Trạng thái TẮT / chưa chọn: xám trung tính. Bật thì mới lên màu.

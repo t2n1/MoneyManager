@@ -193,7 +193,7 @@ export function EntryPage() {
         <BackLink
           to="/"
           aria-label="Đóng, quay lại trang trước"
-          className="flex min-h-11 items-center gap-1 rounded-lg bg-surface px-3 py-1.5 text-sm text-fg-secondary shadow-sm transition active:scale-95"
+          className="flex min-h-11 items-center gap-1 rounded-md border border-border-strong bg-surface px-3 py-1.5 text-sm text-fg-secondary transition active:scale-95"
         >
           <ChevronLeft className="h-5 w-5" /> Đóng
         </BackLink>
@@ -208,7 +208,7 @@ export function EntryPage() {
       {overCount > 0 && (
         <Link
           to="/budget"
-          className="mb-2 flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-900/30 px-3 py-2 text-xs font-medium text-money-out"
+          className="mb-2 flex items-center gap-2 rounded-md border border-state-bad-border bg-state-bad-bg px-3 py-2 text-xs font-medium text-state-bad-fg"
         >
           <TriangleAlert className="h-4 w-4" /> {overCount} danh mục vượt ngân sách tháng này — xem chi tiết
           <ChevronRight className="inline h-4 w-4" />

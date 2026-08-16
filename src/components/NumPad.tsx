@@ -39,13 +39,23 @@ export function NumPad({
             onClick={() => onKey(key)}
             disabled={isOp && opsDisabled}
             aria-label={ARIA[key] ?? key}
-            // Phím phép tính dùng token fg-accent-on-track, KHÔNG fg-accent: nền là
-            // surface-sunken (gray-100), mà green-700 trên đó đo được 4,49:1 — trượt 4,5
-            // đúng một li. Xem lý do đặt token ở src/index.css.
-            className={`flex min-h-11 items-center justify-center rounded-lg py-1.5 text-lg font-semibold shadow-sm transition enabled:active:scale-95 disabled:opacity-40 ${
+            // Bản 1a (§4.6) đảo hai bề mặt so với bản cũ: PHÍM SỐ là mặt lún
+            // (--surface-sunken + viền control) vì nó là mười sáu ô đều nhau, còn PHÍM
+            // PHÉP TÍNH lùi về nền thẻ để bốn ô đó không đọc thành cùng một dãy với số.
+            // Bóng bỏ hẳn — 1a không có shadow, và mười sáu cái bóng cạnh nhau ở dark
+            // chỉ là mười sáu vệt bẩn.
+            //
+            // Phím phép tính vẫn dùng token fg-accent-on-track ở LIGHT (nền lún gray-100,
+            // green-700 trên đó chỉ 4,49:1 — trượt đúng một li; xem src/index.css); ở
+            // dark token đó là green-400, khớp luôn giá trị #7bf1a8-ish mà §4.6 ghi.
+            //
+            // `disabled:text-fg-disabled` thay `disabled:opacity-40`: hạ độ mờ làm mờ cả
+            // NỀN nên phím tắt trông như một lỗ thủng trong lưới; đổi màu chữ thì lưới
+            // vẫn còn nguyên, chỉ chữ nhạt đi.
+            className={`flex min-h-11 items-center justify-center rounded-lg py-1.5 font-mono text-lg font-semibold transition enabled:active:scale-95 ${
               isOp
-                ? 'bg-surface-sunken text-fg-accent-on-track enabled:active:bg-gray-300'
-                : 'bg-white dark:bg-gray-800 text-fg-primary enabled:active:bg-gray-200'
+                ? 'border border-border-strong bg-surface text-fg-accent-on-track enabled:active:bg-surface-sunken disabled:border-border-subtle disabled:text-fg-disabled'
+                : 'border border-border-strong bg-surface-sunken text-fg-primary enabled:active:bg-surface'
             }`}
           >
             {key}

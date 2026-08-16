@@ -15,14 +15,16 @@ interface Props {
 /**
  * Thanh thao tác dưới màn hình cho chế độ chọn nhiều (dùng chung Tìm kiếm + Sổ GD).
  *
- * z-[25] cố ý nằm giữa: trên thanh tab mobile (z-20, cũng bottom-0 và đứng sau
- * trong DOM nên sẽ che mất nút Xóa nếu bằng z), nhưng dưới các sheet/dialog (z-30+).
+ * z-[25] nằm trong dải KHUNG APP (<40), dưới mọi sheet/lớp phủ (40) và dưới hộp
+ * thoại/toast (50) — xem tests/overlayLayers.test.ts. Từ bản 1a, thanh tab dưới nằm
+ * TRONG luồng (không `fixed`, không z-index) nên nó không còn tranh chỗ với thanh này;
+ * cờ `data-selection-bar` vẫn giữ vì hai thanh cùng chiếm đáy màn thì chồng nội dung.
  */
 export function SelectionActionBar({ count, allSelected, onToggleAll, onDelete }: Props) {
-  // Ẩn thanh tab dưới suốt lúc thanh này đang mở: hai thanh cùng dính đáy, mà thanh
-  // tab là thẻ NỔI (cách mép 12px) nên nó cao hơn thanh này 11px và nhô ra một vệt bo
-  // góc phía trên. Đặt cờ ở <html> (luật ẩn nằm trong index.css) để cả Sổ và Tìm kiếm
-  // dùng chung, không phải luồn prop qua AppLayout.
+  // Ẩn thanh tab dưới suốt lúc thanh này đang mở: cả hai chiếm đáy màn, mà thanh này
+  // `fixed` nên nó phủ lên thanh tab — người dùng thấy một dải nút Xóa đè lên nửa dãy
+  // tab. Đặt cờ ở <html> (luật ẩn nằm trong index.css) để cả Sổ và Tìm kiếm dùng
+  // chung, không phải luồn prop qua AppLayout.
   useEffect(() => {
     document.documentElement.dataset.selectionBar = 'on'
     return () => {

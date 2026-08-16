@@ -1,41 +1,23 @@
 // Trang Ngân sách — tab riêng ở nav (trước đây là tab con `?view=budget` của Báo cáo).
 // Tách ra vì ngân sách là công cụ ĐIỀU KHIỂN trong tháng (đặt hạn mức, xem còn bao nhiêu),
 // khác hẳn Báo cáo là NHÌN LẠI. Xem docs/information-architecture.md §2.2.
-import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { IconButton } from '../../components/ui'
 import { useProfile } from '../../hooks/queries'
-import {
-  addMonths,
-  formatMonthLabel,
-  getMonthRange,
-  monthKeyForDate,
-  toISODate,
-  type MonthKey,
-} from '../../lib/dates'
+import { useMonthKey } from '../../hooks/useMonthKey'
+import { formatMonthLabel, getMonthRange, toISODate } from '../../lib/dates'
 import { BudgetView } from './BudgetView'
 import { isPlanningMonth } from './planning'
 import { PlanningView } from './PlanningView'
 
-/** Đọc 'YYYY-MM' thành MonthKey; null nếu không hợp lệ. Giống Báo cáo để link `?ym=`
- *  cũ (kể cả link chuyển tiếp từ `/reports?view=budget&ym=…`) vẫn mở đúng tháng. */
-function parseYm(s: string | null): MonthKey | null {
-  if (!s) return null
-  const [y, m] = s.split('-').map(Number)
-  if (!y || !m || m < 1 || m > 12) return null
-  return { year: y, month: m }
-}
-
 export function BudgetPage() {
-  const [searchParams] = useSearchParams()
-  // null = "kỳ hiện tại": tính lazy theo month_start_day (profile tải async, khởi tạo
-  // cứng trong useState sẽ chốt nhầm kỳ với ngày bắt đầu ≠ 1)
-  const [monthKey, setMonthKey] = useState<MonthKey | null>(() => parseYm(searchParams.get('ym')))
+  // Kỳ đang xem là state DÙNG CHUNG cả app (src/hooks/useMonthKey) chứ không còn của
+  // riêng trang: bộ đổi tháng trên top bar đứng ngoài trang, và bấm từ Sổ sang đây phải
+  // giữ nguyên tháng đang xem. Đường vào `?ym=` vẫn còn — provider đọc nó.
+  const { activeMonthKey, stepMonth } = useMonthKey()
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
   const todayISO = toISODate(new Date())
-  const activeMonthKey = monthKey ?? monthKeyForDate(todayISO, monthStartDay)
 
   // Hai mặt của cùng một trang: tháng chưa bắt đầu thì LẬP kế hoạch, tháng đã bắt đầu
   // thì THEO DÕI. Chuyển tự động theo tháng đang đứng — xem `isPlanningMonth`.
@@ -46,19 +28,23 @@ export function BudgetPage() {
 
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
-      {/* Header điều hướng tháng — trước đây dùng chung với Báo cáo, nay của riêng trang này */}
-      <div className="flex items-center justify-between">
-        <IconButton
-          onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, -1))}
-          aria-label="Tháng trước"
-        >
+      {/* Tiêu đề tài liệu. sr-only vì tên màn đã hiện ở top bar (desktop) — nhưng top
+          bar là <p>, nên không có dòng này thì trang KHÔNG có <h1> nào. Trước bản 1a,
+          h1 của trang là nhãn tháng; nhãn tháng là "đang xem kỳ nào", không phải tên
+          màn, nên nó thành <p> ở dưới. */}
+      <h1 className="sr-only">Ngân sách</h1>
+      {/* Header điều hướng tháng — chỉ còn ở mobile. Từ bản 1a, desktop đổi tháng bằng
+          bộ ‹ › trên top bar; để cả hai cùng hiện là hai bộ điều khiển giống hệt nhau
+          cách nhau 60px trên cùng một màn. Bản vẽ mobile (17a) thì mỗi màn tự mang
+          tiêu đề của nó, đúng cái header này. */}
+      <div className="flex items-center justify-between lg:hidden">
+        <IconButton onClick={() => stepMonth(-1)} aria-label="Tháng trước">
           <ChevronLeft className="h-5 w-5" />
         </IconButton>
-        <h1 className="text-lg font-bold text-fg-primary">{formatMonthLabel(activeMonthKey)}</h1>
-        <IconButton
-          onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))}
-          aria-label="Tháng sau"
-        >
+        <p aria-live="polite" className="text-lg font-bold text-fg-primary">
+          {formatMonthLabel(activeMonthKey)}
+        </p>
+        <IconButton onClick={() => stepMonth(1)} aria-label="Tháng sau">
           <ChevronRight className="h-5 w-5" />
         </IconButton>
       </div>

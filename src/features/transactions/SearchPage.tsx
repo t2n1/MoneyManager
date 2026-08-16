@@ -86,10 +86,16 @@ export function SearchPage() {
     to: searchParams.get('to') || toISODate(new Date()),
     // Từ bảng "khoản chưa gắn danh mục" ở tab Thấu hiểu: ?uncat=1&from=…&to=…
     uncat: searchParams.get('uncat') === '1',
+    // Từ ô tìm kiếm trên top bar (bản 1a §3): ?q=… . Ô đó chỉ chuyển tiếp chữ đã gõ
+    // sang đây chứ không tự tìm — mọi bộ lọc thật đều ở trang này.
+    q: searchParams.get('q') ?? '',
   }))[0]
 
-  const [text, setText] = useState('')
-  const [debouncedText, setDebouncedText] = useState('')
+  const [text, setText] = useState(initial.q)
+  // Bản debounce khởi tạo BẰNG chữ ban đầu chứ không rỗng: để rỗng thì mở link `?q=…`
+  // sẽ hiện nguyên danh sách chưa lọc trong 300ms đầu — một màn đầy giao dịch không
+  // liên quan, rồi mới co lại.
+  const [debouncedText, setDebouncedText] = useState(initial.q)
   const [typeFilter, setTypeFilter] = useState<TransactionType | 'all'>('all')
   const [from, setFrom] = useState(initial.from)
   const [to, setTo] = useState(initial.to)

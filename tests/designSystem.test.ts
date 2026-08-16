@@ -503,7 +503,15 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     //
     // Chiều nợ mới, chưa đặt trần vì chưa đo: rounded-lg trên CONTROL (nút, tab, chip
     // vuông) giờ mới là chỗ lệch scale. Đặt trần cho nó khi đã dựng đủ màn để biết số.
-    { needle: 'rounded-md', max: 15, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
+    //
+    // 21 (2026-08-16, PR 3): +6 của KHUNG APP — 5 control trong AppTopBar (hai mũi ‹ ›,
+    // ô mã tháng, ô tìm kiếm, nút che số) và 1 ở AppFooter. Chúng KHÔNG gộp được vào
+    // <ActionButton>/<IconButton>: hai primitive đó chốt sàn vùng chạm 44px cho ngón
+    // tay, còn control của thanh 52px là 28–30px và chỉ tồn tại từ lg (chuột). Ép chúng
+    // dùng primitive là làm vỡ thanh, ép primitive xuống 30px là làm hỏng vùng chạm của
+    // ~90 chỗ còn lại.
+    // Con số đọc là: 2 (primitive) + 6 (khung app) + 13 (còn viết tay — phần nợ thật).
+    { needle: 'rounded-md', max: 21, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
     // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
     // đúng theo spec nên không cần đại diện gần đúng nữa.

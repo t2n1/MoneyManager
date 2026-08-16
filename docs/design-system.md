@@ -167,6 +167,28 @@ top bar desktop; §4.6 của cùng bộ tài liệu lại nói "mọi vùng ch�
 `ActionButton` dùng chung cho ~90 chỗ, phần lớn là sheet trên điện thoại → **44px
 thắng**. Nút 30px là dáng riêng của top bar, dựng cùng PR khung app.
 
+## Khung app: rail + top bar (bản 1a)
+
+`AppLayout` → `AppRail` (52px, trái) · `AppTopBar` (52px, trên) · `BottomNav` (mobile).
+Danh sách đích và tiêu đề màn ở `components/navItems.ts` — **một** bảng cho cả ba.
+
+Ba luật đã đo, đừng đạp lại khi dựng tiếp:
+
+**1. Khung app đứng NGOÀI phần cuộn, không `position:sticky`, không `z-index`.** Rail và
+top bar là anh em của `<main>` trong một khung `h-dvh overflow-hidden`, nên chúng dính sẵn.
+Thanh tab dưới cũng nằm trong luồng — bản cũ `fixed` rồi chừa `pb-28` ở `<main>`, hai con
+số ở hai file, lệch nhau là dòng cuối chui xuống dưới thanh. Hệ quả: khung app không bao
+giờ chạm dải z-40 của sheet — `tests/overlayLayers.test.ts` canh đúng điều đó.
+
+**2. Top bar KHÔNG dùng `<h1>`.** 18 trang đã tự có `<h1>` của chúng, nên top bar thành
+h1 nữa là hai h1 hiện cùng lúc trên hầu hết route. Top bar là khung ("đang ở đâu"), tiêu
+đề tài liệu thuộc về trang. Hai trang mà h1 vốn là **nhãn tháng** (Sổ, Ngân sách) nay
+dùng `<h1 className="sr-only">` cho tên màn và `<p aria-live>` cho nhãn tháng.
+
+**3. Vùng chạm nhỏ hơn 44px chỉ được phép ở phần CHỈ-DESKTOP.** Rail 34px, control top
+bar 28–30px — cả hai `hidden lg:flex`, tức chỉ tồn tại khi thiết bị trỏ là chuột (ngưỡng
+WCAG 2.5.8 là 24px). Bản mobile của rail là thanh tab dưới, ở đó **46px**.
+
 ### `Money` — lưu ý về dấu
 
 `formatMoney` **tự in dấu `-`** cho số âm. Nên:

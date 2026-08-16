@@ -18,15 +18,8 @@ import {
 import { confirmDialog } from '../../lib/dialog'
 import { scrollContentToTop } from '../../lib/scroll'
 import { showUndoToast } from '../../lib/undoToast'
-import {
-  addDaysISO,
-  addMonths,
-  formatMonthLabel,
-  getMonthRange,
-  monthKeyForDate,
-  toISODate,
-  type MonthKey,
-} from '../../lib/dates'
+import { addDaysISO, formatMonthLabel, getMonthRange } from '../../lib/dates'
+import { useMonthKey } from '../../hooks/useMonthKey'
 import type { CurrencyCode } from '../../lib/money'
 import { monthlySeries } from '../reports/aggregate'
 import { tagsByTransaction } from '../tags/aggregate'
@@ -74,14 +67,13 @@ export function LedgerPage() {
     scrollContentToTop()
   }
 
-  // null = "kỳ hiện tại": tính lazy theo month_start_day (profile tải async,
-  // khởi tạo cứng trong useState sẽ chốt nhầm kỳ với ngày bắt đầu ≠ 1)
-  const [monthKey, setMonthKey] = useState<MonthKey | null>(null)
+  // Kỳ đang xem là state DÙNG CHUNG cả app (src/hooks/useMonthKey) chứ không còn của
+  // riêng trang: bộ đổi tháng của bản 1a nằm trên top bar, tức ngoài trang.
+  const { activeMonthKey, setMonthKey, stepMonth } = useMonthKey()
   const [editing, setEditing] = useState<TransactionRow | null>(null)
 
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
-  const activeMonthKey = monthKey ?? monthKeyForDate(toISODate(new Date()), monthStartDay)
   const { data: transactions = [], isLoading } = useMonthTransactions(activeMonthKey)
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
@@ -110,13 +102,12 @@ export function LedgerPage() {
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'))
         return
       const step = yearNav ? 12 : 1
-      const fallback = () => monthKeyForDate(toISODate(new Date()), monthStartDay)
-      if (e.key === 'ArrowLeft') setMonthKey((k) => addMonths(k ?? fallback(), -step))
-      if (e.key === 'ArrowRight') setMonthKey((k) => addMonths(k ?? fallback(), step))
+      if (e.key === 'ArrowLeft') stepMonth(-step)
+      if (e.key === 'ArrowRight') stepMonth(step)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [yearNav, monthStartDay])
+  }, [yearNav, stepMonth])
 
   const accountOf = (id: string | null) => accounts.find((a) => a.id === id)
   const currencyOf = (id: string): CurrencyCode => accountOf(id)?.currency ?? base
@@ -202,6 +193,10 @@ export function LedgerPage() {
   // số tiền ở đầu kia dòng.
   return (
     <div className="mx-auto w-full max-w-2xl p-3 lg:p-6">
+      {/* Tiêu đề tài liệu. sr-only vì tên màn đã hiện ở top bar (desktop) — nhưng top
+          bar là <p>, nên không có dòng này thì trang KHÔNG có <h1> nào. Trước bản 1a,
+          h1 của trang là nhãn kỳ; nhãn kỳ là "đang xem kỳ nào", không phải tên màn. */}
+      <h1 className="sr-only">Sổ</h1>
       <NotificationBoundary>
         <RemindersBanner />
       </NotificationBoundary>
@@ -217,16 +212,24 @@ export function LedgerPage() {
           xuống hàng dưới canh phải; từ ~768px trở lên vẫn đủ chỗ cho một hàng.
           Guard: src/features/transactions/ledgerHeaderFit.test.ts */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="flex flex-1 items-center gap-2">
+        {/* Bộ chuyển kỳ chỉ còn ở mobile: từ bản 1a desktop đổi tháng bằng bộ ‹ › trên
+            top bar. Bốn nút hành động bên phải thì Ở LẠI cả hai cỡ — top bar chỉ mang
+            ô tìm kiếm, còn Sắp chi / Định kỳ / chuông là đường đi riêng của màn này.
+            Ở tab Tháng nút này bước 12 (năm) chứ không 1 — top bar luôn bước 1, nên
+            hai bộ KHÔNG trùng chức năng hoàn toàn; đó là lý do nó ở lại mobile nguyên
+            vẹn thay vì bị xoá. */}
+        <div className="flex flex-1 items-center gap-2 lg:hidden">
           <IconButton
-            onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, -step))}
+            onClick={() => stepMonth(-step)}
             aria-label={yearNav ? 'Năm trước' : 'Tháng trước'}
           >
             <ChevronLeft className="h-5 w-5" />
           </IconButton>
-          <h1 className="flex-1 text-center text-lg font-bold text-fg-primary">{label}</h1>
+          <p aria-live="polite" className="flex-1 text-center text-lg font-bold text-fg-primary">
+            {label}
+          </p>
           <IconButton
-            onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, step))}
+            onClick={() => stepMonth(step)}
             aria-label={yearNav ? 'Năm sau' : 'Tháng sau'}
           >
             <ChevronRight className="h-5 w-5" />

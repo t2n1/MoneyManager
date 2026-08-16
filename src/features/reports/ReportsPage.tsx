@@ -31,6 +31,7 @@ import {
   useTags,
   useTransactionTags,
 } from '../../hooks/queries'
+import { useMonthKey } from '../../hooks/useMonthKey'
 import { tagBreakdown } from '../tags/aggregate'
 import { TagBreakdownCard } from './TagBreakdownCard'
 import {
@@ -103,13 +104,8 @@ const YEAR_SECTIONS: readonly IndexItem[] = [
   { id: 'sec-gui-tien', label: 'Gửi về VN' },
 ]
 
-/** Đọc 'YYYY-MM' thành MonthKey; null nếu không hợp lệ. */
-function parseYm(s: string | null): MonthKey | null {
-  if (!s) return null
-  const [y, m] = s.split('-').map(Number)
-  if (!y || !m || m < 1 || m > 12) return null
-  return { year: y, month: m }
-}
+// `parseYm` chuyển sang src/hooks/useMonthKey.tsx — đường vào `?ym=` nay do provider
+// đọc một lần cho cả app, thay vì mỗi trang một bản chép tay.
 
 export function ReportsPage() {
   const [kind, setKind] = useState<'expense' | 'income'>('expense')
@@ -151,8 +147,10 @@ export function ReportsPage() {
     accounts.find((a) => a.id === id)?.currency ?? base
 
   // ----- Chế độ THÁNG -----
-  const [monthKey, setMonthKey] = useState<MonthKey | null>(() => parseYm(searchParams.get('ym')))
-  const activeMonthKey = monthKey ?? monthKeyForDate(toISODate(new Date()), monthStartDay)
+  // Kỳ đang xem là state DÙNG CHUNG cả app (src/hooks/useMonthKey), không còn của riêng
+  // trang: bộ đổi tháng của bản 1a nằm trên top bar. Đường vào `?ym=` vẫn còn — provider
+  // đọc nó, nên mọi link cũ (thông báo đẩy, `/reports?view=budget&ym=…`) vẫn mở đúng kỳ.
+  const { activeMonthKey, setMonthKey, stepMonth } = useMonthKey()
   // Tháng THẬT đang chạy dở (không phải tháng đang xem): các thẻ loại nó khỏi câu kết
   // luận để không khen "chi giảm 60%" vào ngày mùng 3.
   const currentKey = monthKeyForDate(toISODate(new Date()), monthStartDay)
@@ -395,14 +393,17 @@ export function ReportsPage() {
       )}
 
       {/* Mũi chuyển kỳ — Biểu đồ chuyển tháng hoặc năm, Thấu hiểu chỉ chuyển tháng */}
+      {/* Ẩn từ lg: bộ ‹ › của top bar làm đúng việc này ở chế độ THÁNG. Vẫn giữ nguyên
+          ở chế độ NĂM — top bar không có bộ chuyển năm, nên `navPeriod === 'year'` bỏ
+          `lg:hidden` đi, nếu không thì Nhiều năm mất đường chuyển kỳ trên desktop. */}
       {needsPeriodNav && (
-        <div className="flex items-center justify-between print:hidden">
+        <div
+          className={`flex items-center justify-between print:hidden ${
+            navPeriod === 'month' ? 'lg:hidden' : ''
+          }`}
+        >
           <IconButton
-            onClick={() =>
-              navPeriod === 'month'
-                ? setMonthKey((k) => addMonths(k ?? activeMonthKey, -1))
-                : setYear((y) => (y ?? activeYear) - 1)
-            }
+            onClick={() => (navPeriod === 'month' ? stepMonth(-1) : setYear((y) => (y ?? activeYear) - 1))}
             aria-label={navPeriod === 'month' ? 'Tháng trước' : 'Năm trước'}
           >
             <ChevronLeft className="h-5 w-5" />
@@ -418,11 +419,7 @@ export function ReportsPage() {
             {navPeriod === 'month' ? formatMonthLabel(activeMonthKey) : formatYearLabel(activeYear)}
           </p>
           <IconButton
-            onClick={() =>
-              navPeriod === 'month'
-                ? setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))
-                : setYear((y) => (y ?? activeYear) + 1)
-            }
+            onClick={() => (navPeriod === 'month' ? stepMonth(1) : setYear((y) => (y ?? activeYear) + 1))}
             aria-label={navPeriod === 'month' ? 'Tháng sau' : 'Năm sau'}
           >
             <ChevronRight className="h-5 w-5" />

@@ -6,7 +6,14 @@
 // nút nổi render sau nên nó nằm trên. Bấm phím "−" trong lúc sửa giao dịch là bấm vào nút
 // nổi. Lúc đó có 17 lớp phủ cùng ở z-30, tức 16 cái nữa đang chờ lỗi y hệt.
 //
-// Tầng đã chốt:  nav 20  <  nút nổi 30  <  sheet/lớp phủ 40  <  hộp thoại + toast 50
+// Tầng đã chốt:  khung app < 40  <  sheet/lớp phủ 40  <  hộp thoại + toast 50
+//
+// 2026-08-16 (PR 3 của redesign 1a): nút "+" nổi bị BỎ — nút "+" nay nằm giữa thanh tab
+// dưới, và thanh tab dưới nằm trong luồng (không `fixed`, không z-index) nên nó không
+// còn là cái mốc mà lớp phủ phải vượt qua. Phép thử vì vậy đổi từ "so với nút nổi" sang
+// "so với DẢI 40": mọi lớp phủ toàn màn phải ≥40, và không mảnh khung app nào được với
+// tới dải đó. Ý nghĩa không đổi — khung app không bao giờ được vẽ đè lên sheet — nhưng
+// nó không còn phụ thuộc vào sự tồn tại của một cái nút cụ thể.
 //
 // Đọc CHUỖI NGUỒN chứ không render: jsdom không tính layout/paint nên không dựng lại được
 // cảnh "che nhau" trong test. Cái đọc được chắc chắn là con số z-index viết trong class.
@@ -31,14 +38,17 @@ function walk(dir: string): string[] {
 
 const FILES = walk(SRC)
 
-/** z-index của nút "+" nổi — mốc mà mọi lớp phủ phải vượt qua. */
-function floatingActionZ(): number {
-  const layout = readFileSync(join(SRC, 'components', 'AppLayout.tsx'), 'utf8')
-  // Nút nổi là phần tử `fixed` duy nhất mang aria-label="Nhập giao dịch".
-  const block = layout.slice(layout.indexOf('aria-label="Nhập giao dịch"'))
-  const m = block.match(/className="[^"]*?\bz-(\d+)\b/)
-  if (!m) throw new Error('Không tìm thấy z-index của nút "+" nổi trong AppLayout.tsx')
-  return Number(m[1])
+/** Sàn của dải "sheet / lớp phủ". Khung app phải ở dưới, hộp thoại + toast ở trên. */
+const OVERLAY_FLOOR = 40
+
+/** Bốn file dựng khung app. Chúng render QUANH `<Outlet/>`, tức quanh mọi sheet — nên
+ *  một z-index chạm dải 40 ở đây là khung app che mất sheet. */
+const CHROME = ['AppLayout.tsx', 'AppRail.tsx', 'AppTopBar.tsx', 'BottomNav.tsx']
+
+/** Mọi z-index viết trong `className` của một file: `z-30`, `z-[25]`. */
+function zIndexesIn(file: string): number[] {
+  const src = readFileSync(join(SRC, 'components', file), 'utf8')
+  return [...src.matchAll(/\bz-\[?(\d+)\]?\b/g)].map((m) => Number(m[1]))
 }
 
 /** Mọi lớp phủ full-screen: `fixed inset-0 …` kèm z-index, theo từng file. */
@@ -58,18 +68,34 @@ function fullScreenOverlays(): { file: string; z: number; snippet: string }[] {
 }
 
 describe('tầng xếp lớp của lớp phủ toàn màn', () => {
-  it('tìm thấy nút "+" nổi và ít nhất một lớp phủ (nếu không thì test rỗng, canh hờ)', () => {
-    expect(floatingActionZ()).toBeGreaterThan(0)
+  it('tìm thấy đủ lớp phủ để phép thử có nghĩa (nếu không thì nó canh hờ)', () => {
     expect(fullScreenOverlays().length).toBeGreaterThan(10)
   })
 
-  it('không lớp phủ nào ở TỪ z-index của nút nổi trở xuống', () => {
-    const fab = floatingActionZ()
-    const bad = fullScreenOverlays().filter((o) => o.z <= fab)
+  it('mọi lớp phủ toàn màn nằm từ z-40 trở lên', () => {
+    const bad = fullScreenOverlays().filter((o) => o.z < OVERLAY_FLOOR)
     expect(
       bad.map((o) => `${o.file}: z-${o.z} — "${o.snippet}"`),
-      `Nút "+" nổi ở z-${fab}. Lớp phủ ở z-index bằng hoặc thấp hơn sẽ bị nút nổi vẽ đè lên` +
-        ` (bằng nhau thì thứ tự DOM thắng, và nút nổi render sau). Nâng lên z-40.`,
+      `Lớp phủ dưới z-${OVERLAY_FLOOR} lọt vào dải của khung app (rail, top bar, thanh` +
+        ` tab, thanh chọn nhiều). Bằng z thì thứ tự DOM thắng — mà khung app render` +
+        ` quanh <Outlet/> nên nó thắng. Nâng lên z-40.`,
+    ).toEqual([])
+  })
+
+  it('khung app không chạm vào dải của lớp phủ', () => {
+    const bad: string[] = []
+    for (const file of CHROME) {
+      // Toast + hộp thoại của AppLayout ở z-50 là CỐ Ý (chúng phải trên sheet) — chỉ
+      // xét đúng dải 40–49, tức dải riêng của sheet.
+      for (const z of zIndexesIn(file)) {
+        if (z >= OVERLAY_FLOOR && z < 50) bad.push(`${file}: z-${z}`)
+      }
+    }
+    expect(
+      bad,
+      `Khung app đứng ngoài <Outlet/> nên nó render SAU mọi sheet: chạm dải 40–49 là vẽ` +
+        ` đè lên sheet. Khung app dùng z dưới 40 (hoặc không z-index — từ bản 1a rail,` +
+        ` top bar và thanh tab đều nằm trong luồng).`,
     ).toEqual([])
   })
 

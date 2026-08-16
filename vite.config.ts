@@ -47,6 +47,33 @@ export default defineConfig({
         navigateFallback: '/index.html',
         // API Supabase không cache — dữ liệu tiền bạc phải luôn tươi
         navigateFallbackDenylist: [/^\/auth\//],
+        // Font IBM Plex nạp từ Google Fonts (xem <link> ở index.html) nên nằm NGOÀI
+        // precache — globPatterns chỉ quét asset trong dist. Không có luật này thì mở
+        // offline là rơi về font hệ thống: chữ đúng, nhưng cột số mất bề rộng mono nên
+        // bảng tiền lệch hàng — đúng thứ 1a dựng cả kiểu chữ để có.
+        // Hai origin, hai chiến lược khác nhau (khuôn chuẩn của workbox):
+        //   · css2 (googleapis) đổi khi Google đổi bản font → StaleWhileRevalidate:
+        //     dùng bản cache ngay, tải bản mới ở nền.
+        //   · file .woff2 (gstatic) có hash trong URL, không bao giờ đổi nội dung →
+        //     CacheFirst, giữ một năm.
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\//,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'google-fonts-css' },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-webfonts',
+              // Font tải theo CORS trả về phản hồi opaque ở vài trình duyệt; 0 phải
+              // nằm trong danh sách thì workbox mới chịu lưu.
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+        ],
         // Phần nhận Web Push (public/push-sw.js). Nhét thêm một file vào service
         // worker do workbox sinh, thay vì đổi sang `injectManifest` — cách đó bắt tự
         // tay dựng lại đúng phần precache + navigateFallback ngay trên, và làm sai là

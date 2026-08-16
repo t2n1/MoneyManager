@@ -512,6 +512,12 @@ describe('design system — token phải tồn tại', () => {
       '--surface',
       '--surface-sunken',
       '--border-subtle',
+      // Hai token của bản 1a. Ở dark chúng là hai nấc thật (chrome nằm giữa page và
+      // surface; border-panel giữa subtle và strong); ở light KHÔNG có chỗ cho nấc thứ
+      // tư nên chúng cố ý trùng gray-50 / gray-200. "Trùng giá trị" là lý do dễ khiến
+      // ai đó xoá khai báo ở :root cho gọn — mà xoá là dark rơi về giá trị light.
+      '--surface-chrome',
+      '--border-panel',
     ]
     // Mỗi token phải có ở :root VÀ .dark, không thì dark mode rơi về giá trị light.
     const rootBlock = css.slice(css.indexOf(':root {'), css.indexOf('.dark {'))
@@ -527,6 +533,35 @@ describe('design system — token phải tồn tại', () => {
     expect(css).toContain('@theme inline')
     expect(css).toContain('--color-fg-muted: var(--fg-muted)')
     expect(css).toContain('--color-money-in: var(--money-in)')
+    // Khai token mà quên map thì `bg-surface-chrome` / `border-border-panel` KHÔNG
+    // sinh ra lớp nào — Tailwind lặng lẽ bỏ qua tên lạ, không có lỗi build nào.
+    expect(css).toContain('--color-surface-chrome: var(--surface-chrome)')
+    expect(css).toContain('--color-border-panel: var(--border-panel)')
+  })
+
+  // Kiểu chữ của bản 1a: IBM Plex Sans cho chữ, IBM Plex Mono cho mọi con số.
+  it('font IBM Plex khai trong @theme và được nạp ở index.html', () => {
+    expect(css, '--font-sans phải trỏ IBM Plex Sans').toMatch(
+      /--font-sans:\s*['"]IBM Plex Sans['"]/,
+    )
+    expect(css, '--font-mono phải trỏ IBM Plex Mono').toMatch(
+      /--font-mono:\s*['"]IBM Plex Mono['"]/,
+    )
+    const html = readFileSync(join(SRC, '..', 'index.html'), 'utf8')
+    expect(html, 'index.html phải nạp css2 của Google Fonts').toMatch(
+      /fonts\.googleapis\.com\/css2\?[^"']*IBM\+Plex/,
+    )
+  })
+
+  // Lý do: app viết tiếng Việt. Chốt `subset=latin,latin-ext` là bỏ subset `vietnamese`
+  // (U+1EA0–1EF9 cho dấu nặng/hỏi, và ₫ U+20AB) — mọi chữ có dấu rơi về font hệ thống,
+  // lộ ra chữ lệch nét ngay giữa MỘT câu. Để mặc định không tốn thêm byte: css2 chia
+  // @font-face theo unicode-range nên trình duyệt chỉ tải subset nó thật sự gặp.
+  it('URL font không chốt subset (cần subset vietnamese)', () => {
+    const html = readFileSync(join(SRC, '..', 'index.html'), 'utf8')
+    for (const m of html.matchAll(/fonts\.googleapis\.com\/css2\?([^"']*)/g)) {
+      expect(m[1], `URL font không được chốt subset: ${m[1]}`).not.toMatch(/[?&]subset=/)
+    }
   })
 })
 

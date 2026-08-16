@@ -29,17 +29,56 @@ Khai ở `src/index.css`. Đọc `--fg-muted` chứ đừng đọc `gray-500`: �
 
 | Token | Light | Dark | Đo được |
 |---|---|---|---|
-| `fg-primary` | gray-800 | gray-100 | 14,7:1 |
-| `fg-secondary` | gray-600 | gray-300 | 7,6:1 |
-| `fg-muted` | gray-500 | gray-400 | **4,84:1 — sàn** |
-| `fg-on-track` | gray-600 | gray-400 | 6,87:1 |
-| `money-in` | green-800 | green-400 | 7,13 / 9,98:1 |
-| `money-out` | red-700 | red-400 | 6,42 / 6,14:1 |
-| `surface` | white | gray-900 | — |
-| `surface-sunken` | gray-100 | gray-800 | track của segmented control |
-| `border-subtle` | gray-100 | gray-800 | — |
+| `fg-primary` | gray-800 | `#e6e9ee` | 14,7 / 14,7:1 |
+| `fg-secondary` | gray-600 | `#c9cfd8` | 7,6 / 11,4:1 |
+| `fg-muted` | gray-500 | `#99a1af` (= gray-400) | **4,84:1 — sàn ở light** |
+| `fg-on-track` | gray-600 | `#99a1af` | 6,87 / 6,85:1 |
+| `money-in` | green-800 | green-400 | 7,13 / 10,0:1 |
+| `money-out` | red-700 | red-400 | 6,42 / 6,2:1 |
+| `surface-page` | gray-50 | `#08090b` | nền trang |
+| `surface-chrome` | gray-50 | `#0b0d10` | top bar, rail, header nhóm trong bảng |
+| `surface` | white | `#0e1014` | thẻ / panel |
+| `surface-sunken` | gray-100 | `#14181d` | track của segmented control, nút phụ |
+| `border-subtle` | gray-100 | `#14171c` | đường kẻ giữa các dòng |
+| `border-panel` | gray-200 | `#1b1e24` | viền panel & khung |
+| `border-strong` | gray-300 | `#232830` | viền control, viền nút |
 | `accent` | green-700 | green-500 | nền nút chính, focus ring |
 | `fg-accent` | green-700 | green-400 | **chữ** màu nhấn (link, hành động phụ) |
+
+Số ở cột dark là của **thang tối bản 1a** (2026-08-16), đo ở ca xấu nhất — chữ trên
+`surface-sunken`, nấc lún nhất. Thang cũ (gray-950/900/800) đã bỏ: 1a dùng bốn nấc tối
+hơn và lệch xanh nhẹ, không sắc độ Tailwind nào rơi đúng vào đó nên **dark là chỗ duy
+nhất trong repo được viết hex trần** — và chỉ trong `:root`/`.dark` của `index.css`.
+
+Bốn nấc bề mặt xếp theo thứ tự lún → nổi: `page` → `chrome` → `surface` → `sunken`.
+`chrome` nằm **giữa** page và surface vì khung app (thanh trên, rail trái) phải lùi ra
+sau panel nội dung mà vẫn tách khỏi nền trang — 1a bỏ hẳn `shadow`, nên nền là kênh
+phân cấp duy nhất còn lại. Ở **light không có nấc thứ tư**: `surface-chrome` = gray-50,
+trùng `surface-page`, và khung phân biệt bằng `border-panel`.
+
+**Đánh đổi đã biết:** viền mờ đi. `border-strong` trên `surface` ở dark tụt từ 1,72:1
+(gray-700 trên gray-900) xuống **1,29:1**. Cả hai đều dưới 3:1 của WCAG 1.4.11 nên không
+đổi trạng thái đạt/trượt, nhưng nó chốt một luật: **viền không được là thứ duy nhất chỉ
+ra ranh giới một control** — control phải có nền (`surface-sunken`) hoặc chữ của chính nó.
+
+### Kiểu chữ: IBM Plex
+
+`--font-sans` = IBM Plex Sans, `--font-mono` = IBM Plex Mono (khai trong `@theme` của
+`index.css`, nạp bằng `<link>` Google Fonts ở `index.html`). **Mọi con số** — tiền, ngày,
+%, mã tháng — đi bằng mono; đó là thay đổi nhìn thấy rõ nhất của 1a.
+
+Ghi đè hai biến đó là đủ cho cả tiện ích `font-sans`/`font-mono` lẫn font mặc định của
+trang: preflight v4 đặt `--default-font-family: var(--font-sans)`.
+
+Hai điều **đừng** đổi khi đụng vào:
+
+- **Không chốt `subset=` trong URL css2.** App viết tiếng Việt nên cần subset
+  `vietnamese` (U+1EA0–1EF9, và ₫ U+20AB). Chốt `latin,latin-ext` là mọi chữ có dấu
+  nặng/hỏi rơi về font hệ thống — lộ ra chữ lệch nét ngay giữa một câu. Để mặc định
+  không tốn thêm byte: css2 chia `@font-face` theo `unicode-range`.
+- **Luật `runtimeCaching` cho hai origin font trong `vite.config.ts`** giữ font sống
+  khi offline. Bỏ nó thì mở offline rơi về font hệ thống, và cột số mất bề rộng mono
+  nên bảng tiền lệch hàng.
 
 ### `accent` vs `money-in` — cùng xanh, khác nghĩa
 

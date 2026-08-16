@@ -27,6 +27,27 @@
   --text-3xs--line-height: 0.875rem;
 }
 
+/* --- Kiểu chữ (redesign 1a) ----------------------------------------------
+   IBM Plex Sans cho chữ, IBM Plex Mono cho MỌI con số (tiền, ngày, %, mã tháng).
+   Đây là thay đổi nhìn thấy rõ nhất của 1a: cột số thẳng hàng theo glyph chứ không
+   chỉ theo `tabular-nums`, và số đọc ra là "dữ liệu" chứ không phải văn bản.
+
+   Ghi đè `--font-sans`/`--font-mono` là đủ cho CẢ hai đường: tiện ích `font-sans`/
+   `font-mono`, VÀ font mặc định của trang — preflight của Tailwind v4 đặt
+   `--default-font-family: var(--font-sans)` rồi `html { font-family: var(--default-font-family) }`,
+   nên nó tự trỏ vào giá trị mới. Không cần khai `font-family` tay ở body.
+
+   Font nạp bằng <link> Google Fonts ở index.html (OFL). KHÔNG giới hạn `subset=`:
+   app viết tiếng Việt nên cần subset `vietnamese` (U+1EA0-1EF9 và ký hiệu ₫ U+20AB)
+   — chốt `latin,latin-ext` là mọi chữ có dấu nặng/hỏi rơi về font hệ thống, lộ ngay
+   ra chữ lệch nét giữa các từ trong cùng một câu. css2 chia @font-face theo
+   unicode-range nên để mặc định KHÔNG tốn thêm byte: trình duyệt chỉ tải subset nó
+   thật sự cần. */
+@theme {
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+}
+
 /* --- Token ngữ nghĩa -----------------------------------------------------
    Khai bằng CSS var thường (không phải trong @theme) vì giá trị phải ĐỔI theo
    .dark; @theme là tĩnh. Rồi map vào tiện ích Tailwind bằng `@theme inline`
@@ -56,6 +77,18 @@
      border-gray-300/dark:border-gray-700, chỉ 3 chỗ dùng gray-200). Token phải
      bám thực tế; đặt gray-200 rồi đổi 66 chỗ là đổi diện mạo, không phải đặt tên. */
   --border-strong: var(--color-gray-300);
+
+  /* Hai token MỚI của bản 1a. Ở dark chúng là hai nấc thật trong thang bốn bậc
+     (page → chrome → surface → sunken); ở light thì KHÔNG có chỗ cho nấc thứ tư —
+     thang sáng chỉ có trắng / gray-50 / gray-100 và chèn thêm một bậc giữa trắng và
+     gray-50 là chèn một khác biệt không ai nhìn thấy. Nên ở light:
+       --surface-chrome  = gray-50, TRÙNG với --surface-page. Thanh trên cùng và rail
+         phân biệt với vùng nội dung bằng --border-panel chứ không bằng nền; còn header
+         nhóm trong bảng thì nằm trên thẻ TRẮNG nên gray-50 vẫn tách ra được.
+       --border-panel = gray-200, đúng nấc giữa của border-subtle (gray-100) và
+         border-strong (gray-300) — cùng vai trò nó gánh ở dark. */
+  --surface-chrome: var(--color-gray-50);
+  --border-panel: var(--color-gray-200);
 
   /* Nhấn (dùng cho focus ring, nút chính).
      green-700 chứ không green-600: nút chính là nền có CHỮ TRẮNG đè lên, nên phải
@@ -93,34 +126,70 @@
   --fg-warn: var(--color-amber-700); /* 5,03:1 trên trắng; 4,81:1 trên gray-50; 4,85:1 trên amber-50 */
 }
 
+/* Thang tối của bản redesign 1a. Đây là hex THẲNG chứ không phải palette Tailwind:
+   1a dùng một thang tối hơn và lệch xanh nhẹ so với gray-950/900/800 của v4, không sắc
+   độ nào trong palette rơi đúng vào bốn nấc đó. Hex chỉ được phép ở ĐÂY — token là chỗ
+   duy nhất màu được viết trần, mọi nơi khác đọc qua tiện ích (guardrail
+   tests/designSystem.test.ts cấm hex trong src/**.tsx).
+
+   Bốn nấc, đo bằng độ sáng tương đối (theo thứ tự lún → nổi):
+     --surface-page   #08090b  nền trang
+     --surface-chrome #0b0d10  top bar, rail trái, header nhóm trong bảng
+     --surface        #0e1014  thẻ / panel
+     --surface-sunken #14181d  track segmented, nút phụ, phím số
+   Nấc `chrome` nằm GIỮA page và surface: khung app (thanh trên, rail) phải lùi ra sau
+   panel nội dung, nhưng vẫn tách khỏi nền trang — 1a bỏ hẳn shadow nên đây là kênh
+   phân cấp duy nhất còn lại.
+
+   Tương phản chữ đo lại toàn bộ (tính thẳng từ sRGB — hex nên phép tính chính xác,
+   không dính bẫy oklch ghi ở đầu tests/contrast.test.ts). Ca XẤU NHẤT là nền lún nhất
+   (sunken), và mọi cặp đều CAO HƠN bảng cũ:
+     fg-primary   16,4 (page) … 14,7 (sunken)   — cũ 16,1 trên gray-900
+     fg-secondary 12,7 … 11,4                   — cũ 12,1
+     fg-muted      7,7 …  6,9                   — cũ 6,8 / 5,6 trên gray-800
+     money-in     11,2 … 10,0 · money-out 6,9 … 6,2 · fg-warn 11,6 … 10,4
+   Sàn tuyệt đối vẫn là fg-muted 6,9:1 — dư 4,5:1 kể cả cho chữ 10px.
+
+   ĐÁNH ĐỔI ĐÃ BIẾT: viền mờ đi. --border-strong trên --surface tụt từ 1,72:1 (gray-700
+   trên gray-900) xuống 1,29:1. Cả hai đều dưới 3:1 của WCAG 1.4.11 nên KHÔNG phải hồi
+   quy về mức đạt/trượt, nhưng nó nói rằng viền một mình không được là thứ duy nhất chỉ
+   ra ranh giới một control: control phải có nền (--surface-sunken) hoặc chữ của chính
+   nó. Đây là quyết định của 1a — phân cấp bằng nền, không bằng viền. */
 .dark {
-  --fg-primary: var(--color-gray-100);
-  --fg-secondary: var(--color-gray-300);
-  --fg-muted: var(--color-gray-400); /* ĐẢO chiều so với light: nền tối thì chữ phụ phải SÁNG hơn */
-  --fg-on-track: var(--color-gray-400); /* 5,64:1 trên gray-800 */
+  /* Chốt theo giá trị trong mock. fg-muted = #99a1af CHÍNH LÀ gray-400 (giữ đúng
+     "sàn tuyệt đối" cũ); hai bậc trên chỉ dịu hơn gray-100/gray-300 một chút để
+     bớt chói trên nền tối hơn — vẫn thừa AA, xem số đo ở trên. */
+  --fg-primary: #e6e9ee;
+  --fg-secondary: #c9cfd8;
+  --fg-muted: #99a1af; /* ĐẢO chiều so với light: nền tối thì chữ phụ phải SÁNG hơn */
+  --fg-on-track: #99a1af; /* 6,85:1 trên --surface-sunken mới (cũ: 5,64:1 trên gray-800) */
   --fg-inverse: var(--color-gray-950);
 
-  --money-in: var(--color-green-400); /* 9,98:1 */
-  --money-out: var(--color-red-400); /* 6,14:1 */
+  --money-in: var(--color-green-400); /* #05df72 — 10,0:1 (ca xấu nhất, trên sunken) */
+  --money-out: var(--color-red-400); /* #ff6467 — 6,2:1 */
 
-  --surface: var(--color-gray-900);
-  --surface-sunken: var(--color-gray-800);
-  --surface-page: var(--color-gray-950);
-  --border-subtle: var(--color-gray-800);
-  --border-strong: var(--color-gray-700);
+  --surface: #0e1014;
+  --surface-sunken: #14181d;
+  --surface-page: #08090b;
+  --surface-chrome: #0b0d10;
+  --border-subtle: #14171c; /* đường kẻ giữa các dòng trong bảng */
+  --border-panel: #1b1e24; /* viền panel & đường phân chia khung */
+  --border-strong: #232830; /* viền control, viền nút */
 
   --accent: var(--color-green-500);
   --accent-hover: var(--color-green-400);
   --fg-accent: var(--color-green-400);
-  /* Nền tương ứng ở dark là surface-sunken = gray-800; green-400 trên đó dư sáng. */
+  /* Nền tương ứng ở dark là --surface-sunken; green-400 trên đó dư sáng (10,0:1). */
   --fg-accent-on-track: var(--color-green-400);
   /* ĐẢO chiều: nền accent ở dark là green-500 (sáng) nên chữ đè lên phải TỐI.
-     gray-950 trên green-500 = 9,08:1; trắng trên green-500 chỉ 2,22:1. */
-  --fg-on-accent: var(--color-gray-950);
+     Dùng chính --surface-page của 1a (#08090b) thay gray-950: cùng vai "gần như đen"
+     nhưng đúng tông của thang mới, và vẫn 8,98:1 trên green-500 (trắng chỉ 2,22:1). */
+  --fg-on-accent: #08090b;
 
-  /* ĐẢO chiều như --fg-muted. amber-400 trên gray-900 = 10,30:1; trên gray-800 =
-     8,52:1; trên gray-950 = 11,69:1; trên amber-900/40 phủ gray-900 = 8,56:1 — tức
-     đạt AA trên MỌI nền nó thật sự xuất hiện, sàn là 8,52:1. */
+  /* ĐẢO chiều như --fg-muted. Trên thang 1a: page 11,56:1 · chrome 11,30 · surface
+     11,05 · sunken 10,35 — tức sàn NÂNG từ 8,52:1 (trên gray-800 cũ) lên 10,35:1.
+     Nền amber-900/40 phủ surface vẫn còn dùng ở vài banner: 8,56:1 lúc trước, và nền
+     mới tối hơn nên chỉ tăng. */
   --fg-warn: var(--color-amber-400);
 }
 
@@ -138,7 +207,9 @@
   --color-surface: var(--surface);
   --color-surface-sunken: var(--surface-sunken);
   --color-surface-page: var(--surface-page);
+  --color-surface-chrome: var(--surface-chrome);
   --color-border-subtle: var(--border-subtle);
+  --color-border-panel: var(--border-panel);
   --color-border-strong: var(--border-strong);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
@@ -211,21 +282,26 @@ html[data-selection-bar] nav[data-bottom-nav] {
   }
 }
 
-/* Nền gốc + màu chữ mặc định để tránh nhấp nháy trắng khi ở chế độ tối */
+/* Nền gốc để tránh nhấp nháy trắng khi ở chế độ tối. Đọc token thay vì hex cứng:
+   #0a0a0a là giá trị thời gray-950, lệch tông với thang 1a nên sẽ thành một vệt sáng
+   hơn ở vùng chưa vẽ (dải an toàn iOS, lúc overscroll). .dark khai --surface-page trên
+   CÙNG phần tử <html> này nên var() giải được. */
 html.dark {
   color-scheme: dark;
-  background-color: #0a0a0a;
+  background-color: var(--surface-page);
 }
 
-/* Tooltip của biểu đồ (recharts) mặc định nền trắng — đổi sang tông tối */
+/* Tooltip của biểu đồ (recharts) mặc định nền trắng — đổi sang tông tối.
+   Recharts không nhận biến CSS qua prop, nhưng đây là CSS thật nên var() dùng được:
+   giữ tooltip đi cùng thang bề mặt, khỏi phải sửa lại mỗi lần thang đổi. */
 html.dark .recharts-default-tooltip {
-  background-color: #1f2937 !important; /* gray-800 */
-  border-color: #374151 !important; /* gray-700 */
-  color: #f3f4f6 !important; /* gray-100 */
+  background-color: var(--surface-sunken) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--fg-primary) !important;
 }
 html.dark .recharts-tooltip-label,
 html.dark .recharts-tooltip-item {
-  color: #f3f4f6 !important;
+  color: var(--fg-primary) !important;
 }
 
 /* In / xuất PDF (mục AP): nền trắng, chữ đen, bỏ nền tối để tiết kiệm mực */

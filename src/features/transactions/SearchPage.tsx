@@ -221,7 +221,7 @@ export function SearchPage() {
     <div className="p-3 lg:p-6">
       {/* Header */}
       <div className="mb-3 flex items-center gap-2">
-        <BackLink to="/transactions" aria-label="Quay lại" />
+        <BackLink to="/so" aria-label="Quay lại" />
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Tìm kiếm</h1>
       </div>
 

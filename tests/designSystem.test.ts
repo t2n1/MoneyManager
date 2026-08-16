@@ -115,8 +115,19 @@ function stripComments(text: string): string {
  * chỉ còn MỘT bản. Tụt từ 57, nhưng vẫn CAO HƠN 53 lúc đợt này bắt đầu: xem khối "──" ở
  * trên. Hạ trần theo đúng quy ước ở thông điệp lỗi của chính phép thử này: trần không hạ
  * là trần rỗng, để lần sau thêm văn xuôi mới mà không ai biết.
+ *
+ * 60 (2026-08-16, PR 4 của redesign 1a): +5 của màn Bản tin. Đã xét từng đoạn, cả năm
+ * thuộc đúng hai loại mà bảng ranh giới ở docs/design-system.md xếp vào cột "KHÔNG bọc":
+ *
+ *   · BA trạng thái rỗng (chưa có tài khoản · chưa đặt hạn mức · chưa ghi giao dịch nào
+ *     tháng này). Mỗi câu đi kèm MỘT <Link>, và cái link đó là đường đi tiếp DUY NHẤT
+ *     của khối — Bản tin không có nút nào khác dẫn tới đó. Bọc <Guide> là ở chế độ Gọn
+ *     khối rỗng thành một ô trống trơn, đúng loại lỗi các lần nâng trần trước đã tránh.
+ *   · HAI dòng SỐ LIỆU bị regex bắt nhầm là văn xuôi: dòng "đã tiêu / tổng hạn mức" của
+ *     panel Ngân sách và dòng "tháng · thu / chi" của panel Dòng tiền. Chữ thật trong
+ *     chúng chỉ vài từ; phần vượt 45 ký tự là markup của <Money> và <span>.
  */
-const PROSE_MAX = 55
+const PROSE_MAX = 60
 
 const FILES = sourceFiles().map((path) => ({
   path,
@@ -510,8 +521,11 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // tay, còn control của thanh 52px là 28–30px và chỉ tồn tại từ lg (chuột). Ép chúng
     // dùng primitive là làm vỡ thanh, ép primitive xuống 30px là làm hỏng vùng chạm của
     // ~90 chỗ còn lại.
-    // Con số đọc là: 2 (primitive) + 6 (khung app) + 13 (còn viết tay — phần nợ thật).
-    { needle: 'rounded-md', max: 21, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
+    // 22 (2026-08-16, PR 4): +1 cho cột bấm được của biểu đồ Dòng tiền ở Bản tin. Nó là
+    // một CONTROL thật (mỗi cột là một <button> đổi tháng), không phải nút-có-chữ nên
+    // <ActionButton> không hợp — vùng bấm là cả cột 80px chứ không phải một hàng chữ.
+    // Con số đọc là: 3 (primitive + biểu đồ) + 6 (khung app) + 13 (còn viết tay — nợ thật).
+    { needle: 'rounded-md', max: 22, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
     // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
     // đúng theo spec nên không cần đại diện gần đúng nữa.

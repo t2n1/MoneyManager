@@ -287,6 +287,15 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
   const netApprox =
     breakdown.hasForeign || debtsSummary.hasMissingRate || breakdown.cardHasMissingRate
 
+  // Danh sách CHỖ đang thiếu tỷ giá, dựng trước rồi mới quyết định có vẽ dòng cảnh báo
+  // hay không. Cố ý không viết `A || B && (…)` rồi ghép chuỗi bên trong: hai điều kiện
+  // rời nhau thì có đúng một cách để câu ra rỗng ("…cho một phần  — mọi tổng…"), và
+  // cách đó chỉ lộ ra khi một nhánh bật mà nhánh kia tắt.
+  const thieuTyGia = [
+    breakdown.hasMissingRate && 'tài sản',
+    (debtsSummary.hasMissingRate || breakdown.cardHasMissingRate) && 'công nợ',
+  ].filter((s): s is string => typeof s === 'string')
+
   return (
     <div
       ref={rootRef}
@@ -295,6 +304,25 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
       onPointerUp={onAccPointerEnd}
       onPointerCancel={onAccPointerEnd}
     >
+      {/* MỘT dòng cảnh báo thiếu tỷ giá cho cả tab (12a của bản 1a: "giữ nguyên khung số
+          hiện tại, chỉ gộp cảnh báo").
+          Trước đây câu này in HAI lần, gần như y hệt nhau, ở hai độ cao khác nhau: một
+          trong thẻ Tổng tài sản (nền gradient) và một trong thẻ Tài sản ròng cách đó cả
+          màn hình. Người dùng đọc lần thứ hai không biết nó có phải chuyện mới không.
+          Gộp lên đầu và nói RÕ chỗ nào đang thiếu, thay vì lặp lại chữ "có thể thiếu".
+
+          Vì sao KHÔNG làm 12b ("Tiêu được ngay") ở PR này: §4.4 đặt điều kiện phải có cờ
+          *tài khoản dùng hằng ngày* và nợ phải có ngày đến hạn. App chỉ có `asset_group`
+          — một chuỗi TÊN NHÓM người dùng tự gõ — và `debts.due_on` thì nullable. Suy
+          "tài khoản dùng hằng ngày" từ một cái tên nhóm chính là "đoán" mà R1 cấm, và
+          đoán hụt một khoản đã có chủ là app khuyến khích tiêu quá tay. */}
+      {thieuTyGia.length > 0 && (
+        <p className="rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-[0.8125rem] text-state-warn-fg">
+          Chưa quy đổi được tỷ giá cho một phần {thieuTyGia.join(' và ')} — mọi tổng trên tab
+          này đang thiếu phần đó.
+        </p>
+      )}
+
       {/* Lưới hai cột trên PC cho các khối CHỈ ĐỂ ĐỌC ở đầu trang. Danh sách nhóm tài
           khoản phía dưới cố ý ĐỨNG NGOÀI lưới: nó kéo–thả để sắp thứ tự, mà phép tính
           vị trí thả giả định các dòng xếp dọc — chia hai cột là thả sai chỗ.
@@ -341,11 +369,6 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                 {pnl >= 0 ? '+' : '−'}
                 {mv.fmt(Math.abs(pnl), base, breakdown.pnlHasMissingRate)}
               </span>
-            </p>
-          )}
-          {breakdown.hasMissingRate && (
-            <p className="mt-2 text-xs text-green-100">
-              Một phần tài sản ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên tổng có thể thiếu.
             </p>
           )}
         </section>
@@ -417,11 +440,6 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                 </div>
               )}
             </div>
-            {(debtsSummary.hasMissingRate || breakdown.cardHasMissingRate) && (
-              <p className="mt-2 text-xs text-fg-muted">
-                Một phần công nợ ngoại tệ chưa quy đổi được nên số ròng có thể thiếu.
-              </p>
-            )}
           </section>
         )}
   

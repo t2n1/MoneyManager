@@ -1,9 +1,12 @@
-// Dải gọn "50/30/20" ở đầu tab Sổ.
+// Dải gọn "50/30/20".
 //
-// Khối đầy đủ nằm ở tab Ngân sách, nhưng cơ cấu chi là thứ chỉ có tác dụng khi
-// nhìn thấy TRƯỚC lúc tiêu, mà tab người ta mở hằng ngày là Sổ. Dải này cố ý chỉ
-// có ba con số: nó là cái liếc mắt, không phải chỗ đọc kỹ — bấm vào là sang khối
-// đầy đủ đúng tháng đang xem.
+// Hai chỗ dùng, hai vai:
+//   · Đầu tab SỔ — cơ cấu chi chỉ có tác dụng khi nhìn thấy TRƯỚC lúc tiêu, mà tab
+//     người ta mở hằng ngày là Sổ. Ở đó nó bấm được, dẫn sang khối đầy đủ.
+//   · Ngay dưới câu kết luận ở tab NGÂN SÁCH (§4.3 của bản 1a). Ở đó nó KHÔNG bấm
+//     được: khối đầy đủ đã nằm cùng màn, một liên kết trỏ về chính trang đang mở là
+//     cái bẫy cho người dùng bàn phím và trình đọc màn hình.
+// Dải cố ý chỉ có ba con số ở cả hai chỗ: nó là cái liếc mắt, không phải chỗ đọc kỹ.
 import { Link } from 'react-router-dom'
 import { Card } from '../../components/ui'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
@@ -20,28 +23,26 @@ interface Props {
   data: AxisProgress
   monthKey: MonthKey
   base: CurrencyCode
+  /** false = đang ở chính tab Ngân sách, dải không dẫn đi đâu nữa. Mặc định true. */
+  linkToDetail?: boolean
 }
 
-export function AxisStrip({ data, monthKey, base }: Props) {
+export function AxisStrip({ data, monthKey, base, linkToDetail = true }: Props) {
   const parts = data.lines.map((l) => `${LABEL[l.key]} ${shareLabel(l.share)}`).join(', ')
   // Chi chưa gắn "mức cần thiết" KHÔNG nằm trong hai dòng đầu, nên ba con số có thể
   // cộng lại không tới 100% mà không có gì giải thích. Khối đầy đủ ở tab Ngân sách có
   // hẳn một dòng cảnh báo; ở đây chỉ đủ chỗ cho một mẩu chữ, nhưng có còn hơn không.
   const missing = data.unclassified > 0 ? formatMoney(Math.round(data.unclassified), base) : null
 
-  return (
-    <Link
-      to={`/budget?ym=${monthKeyString(monthKey)}`}
-      className="mb-3 block"
-      aria-label={`Cơ cấu chi: ${parts}.${missing ? ` Còn ${missing} chi chưa phân loại nên hai dòng đầu đang thiếu.` : ''} Mở tab Ngân sách.`}
-    >
-      <Card padding="sm" className="hover:bg-surface-sunken">
+  const noiDung = (
+    <>
+      <Card padding="sm" className={linkToDetail ? 'hover:bg-surface-sunken' : ''}>
         <div className="mb-1.5 flex items-baseline justify-between gap-2">
           <span className="min-w-0 truncate text-2xs font-medium text-fg-muted">
             Cơ cấu chi{data.estimated && ' (tạm tính)'}
             {missing && <span className="text-fg-warn"> · thiếu {missing} chưa phân loại</span>}
           </span>
-          <span className="shrink-0 text-2xs text-fg-accent">Chi tiết</span>
+          {linkToDetail && <span className="shrink-0 text-2xs text-fg-accent">Chi tiết</span>}
         </div>
 
         {/* aria-hidden: nội dung đã nằm gọn trong aria-label của thẻ liên kết, đọc lại
@@ -72,14 +73,16 @@ export function AxisStrip({ data, monthKey, base }: Props) {
                     )}
                   </span>
                 </div>
-                <div className="relative mt-1 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+                {/* h-2 = 8px (§4.3). Vạch mốc phải cao BẰNG thanh, nếu không nó chỉ là
+                    một chấm lửng giữa thanh và không đọc được là "mốc". */}
+                <div className="relative mt-1 h-2 overflow-hidden rounded-full bg-surface-sunken">
                   <div
                     className={`h-full rounded-full ${l.ok ? 'bg-green-500' : 'bg-amber-500'}`}
                     style={{ width: `${barPct}%` }}
                   />
                   {/* Vạch mốc vẽ sau để luôn nằm trên thanh — giống khối đầy đủ */}
                   <div
-                    className="absolute top-0 h-1.5 w-0.5 bg-gray-500 dark:bg-gray-300"
+                    className="absolute top-0 h-2 w-0.5 bg-gray-500 dark:bg-gray-300"
                     style={{ left: `${markPct}%` }}
                   />
                 </div>
@@ -88,6 +91,28 @@ export function AxisStrip({ data, monthKey, base }: Props) {
           })}
         </div>
       </Card>
+    </>
+  )
+
+  const nhan = `Cơ cấu chi: ${parts}.${missing ? ` Còn ${missing} chi chưa phân loại nên hai dòng đầu đang thiếu.` : ''}`
+
+  if (!linkToDetail) {
+    // <section> chứ không <div>: đây là một khối có nội dung riêng, và `aria-label` chỉ
+    // được trình đọc màn hình dùng trên phần tử có vai trò — div trần thì nhãn rơi mất.
+    return (
+      <section aria-label={nhan} className="mb-3">
+        {noiDung}
+      </section>
+    )
+  }
+
+  return (
+    <Link
+      to={`/budget?ym=${monthKeyString(monthKey)}`}
+      className="mb-3 block"
+      aria-label={`${nhan} Mở tab Ngân sách.`}
+    >
+      {noiDung}
     </Link>
   )
 }

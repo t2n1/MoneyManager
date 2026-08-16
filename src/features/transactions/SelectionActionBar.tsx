@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Tags, Trash2 } from 'lucide-react'
+import { ActionButton } from '../../components/ui'
 
 interface Props {
   /** Số giao dịch đang chọn. */
@@ -10,6 +11,12 @@ interface Props {
   onToggleAll: () => void
   /** Bấm nút Xóa (đã trừ trường hợp count = 0 — nút tự khóa). */
   onDelete: () => void
+  /**
+   * Mở bảng sửa hàng loạt (đổi danh mục / gắn nhãn — §4.2 mục 4). Không truyền thì
+   * thanh chỉ có Xóa như cũ: trang Tìm kiếm dùng chung thanh này nhưng danh sách ở đó
+   * trải nhiều tháng, sửa hàng loạt xuyên kỳ là chuyện khác, chưa mở ở PR này.
+   */
+  onEdit?: () => void
 }
 
 /**
@@ -20,7 +27,7 @@ interface Props {
  * TRONG luồng (không `fixed`, không z-index) nên nó không còn tranh chỗ với thanh này;
  * cờ `data-selection-bar` vẫn giữ vì hai thanh cùng chiếm đáy màn thì chồng nội dung.
  */
-export function SelectionActionBar({ count, allSelected, onToggleAll, onDelete }: Props) {
+export function SelectionActionBar({ count, allSelected, onToggleAll, onDelete, onEdit }: Props) {
   // Ẩn thanh tab dưới suốt lúc thanh này đang mở: cả hai chiếm đáy màn, mà thanh này
   // `fixed` nên nó phủ lên thanh tab — người dùng thấy một dải nút Xóa đè lên nửa dãy
   // tab. Đặt cờ ở <html> (luật ẩn nằm trong index.css) để cả Sổ và Tìm kiếm dùng
@@ -45,11 +52,23 @@ export function SelectionActionBar({ count, allSelected, onToggleAll, onDelete }
         >
           {allSelected ? 'Bỏ chọn hết' : 'Chọn tất cả'}
         </button>
+        {/* Sửa đứng TRƯỚC Xóa và ở dáng nhẹ hơn: sau khi chọn một loạt, việc hay làm là
+            gắn danh mục, còn xóa là việc hiếm và không lùi được ngoài 5 giây Hoàn tác.
+            Đặt nút xóa xa ngón cái hơn một chút là đủ để bớt bấm nhầm. */}
+        {/* <ActionButton> chứ không viết tay: đây đúng là dáng "nút chữ viền mảnh" mà
+            primitive đó gom — và viết tay thì lại thêm một `active:scale-95` nữa vào
+            đống nợ mà chính nó sinh ra để dọn. */}
+        {onEdit && (
+          <ActionButton onClick={onEdit} disabled={count === 0} className="ml-auto">
+            <Tags className="h-4 w-4" />
+            Sửa
+          </ActionButton>
+        )}
         <button
           type="button"
           onClick={onDelete}
           disabled={count === 0}
-          className="ml-auto inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 active:scale-95 disabled:opacity-40"
+          className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 active:scale-95 disabled:opacity-40 ${onEdit ? '' : 'ml-auto'}`}
         >
           <Trash2 className="h-4 w-4" />
           Xóa ({count})

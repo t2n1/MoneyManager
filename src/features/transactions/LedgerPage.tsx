@@ -18,10 +18,10 @@ import {
 import { confirmDialog } from '../../lib/dialog'
 import { scrollContentToTop } from '../../lib/scroll'
 import { showUndoToast } from '../../lib/undoToast'
-import { addDaysISO, formatMonthLabel, getMonthRange } from '../../lib/dates'
+import { addDaysISO, formatMonthLabel, getMonthRange, toISODate } from '../../lib/dates'
 import { useMonthKey } from '../../hooks/useMonthKey'
 import type { CurrencyCode } from '../../lib/money'
-import { monthlySeries } from '../reports/aggregate'
+import { cumulativeDailyBalance, monthlySeries } from '../reports/aggregate'
 import { tagsByTransaction } from '../tags/aggregate'
 import type { TransactionRow } from '../../types/database.types'
 import { AxisStrip } from '../budgets/AxisStrip'
@@ -29,9 +29,18 @@ import { useAxisProgress } from '../budgets/useAxisProgress'
 import { RemindersBanner } from '../reminders/RemindersBanner'
 import { NotificationBell } from '../notifications/NotificationBell'
 import { NotificationBoundary } from '../notifications/NotificationBoundary'
+import { BulkEditSheet } from './BulkEditSheet'
 import { CalendarView } from './CalendarView'
 import { DailyView } from './DailyView'
 import { EditTransactionSheet } from './EditTransactionSheet'
+import { LedgerFilterBar } from './LedgerFilterBar'
+import {
+  applyLedgerFilter,
+  balanceByDay,
+  EMPTY_LEDGER_FILTER,
+  uncategorizedSummary,
+  type LedgerFilter,
+} from './ledgerView'
 import { MonthlyView } from './MonthlyView'
 import { toNewTransaction } from './restore'
 import { SelectionActionBar } from './SelectionActionBar'
@@ -113,12 +122,49 @@ export function LedgerPage() {
   const currencyOf = (id: string): CurrencyCode => accountOf(id)?.currency ?? base
   const categoryOf = (id: string | null) => categories.find((c) => c.id === id)
 
-  // Chọn nhiều để xóa hàng loạt — chỉ ở tab "Ngày" (danh sách phẳng).
+  // --- Lọc tại chỗ (§4.2 mục 2) ---------------------------------------------------
+  // Lọc trên danh sách ĐÃ TẢI của tháng, không gọi thêm mạng: đây là "thu hẹp cái đang
+  // nhìn", khác hẳn trang Tìm kiếm (đi tìm trong nhiều tháng, có query riêng).
+  const [filter, setFilter] = useState<LedgerFilter>(EMPTY_LEDGER_FILTER)
+  const shown = useMemo(() => applyLedgerFilter(transactions, filter), [transactions, filter])
+  const uncategorized = useMemo(
+    () => uncategorizedSummary(transactions, currencyOf, base, rates ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions, accounts, base, rates],
+  )
+  // Bỏ lọc khi đổi kỳ: giữ lại thì mở tháng mới ra thấy danh sách rỗng mà không hiểu
+  // vì sao — cùng lý do với việc thoát chế độ chọn ở dưới.
+  useEffect(() => {
+    setFilter(EMPTY_LEDGER_FILTER)
+  }, [activeMonthKey.year, activeMonthKey.month])
+
+  // --- Số dư chạy theo ngày (§4.2 mục 1) --------------------------------------------
+  // Tính trên TOÀN BỘ giao dịch của tháng, không phải danh sách đã lọc: số dư chạy là
+  // sự thật của kỳ, lọc bớt cái đang nhìn không làm tiền trong ví đổi.
+  const balanceOfDay = useMemo(
+    () =>
+      balanceByDay(
+        cumulativeDailyBalance(
+          transactions,
+          monthRange.start,
+          addDaysISO(monthRange.end, -1),
+          currencyOf,
+          base,
+          rates ?? {},
+        ).points,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions, monthRange.start, monthRange.end, accounts, base, rates],
+  )
+
+  // Chọn nhiều để xóa / sửa hàng loạt — chỉ ở tab "Ngày" (danh sách phẳng).
   const selection = useTxSelection()
   const bulkDelete = useDeleteTransactions()
+  const [bulkEditing, setBulkEditing] = useState(false)
   const canSelect = view === 'daily'
-  const allSelected =
-    transactions.length > 0 && transactions.every((t) => selection.isSelected(t.id))
+  // "Tất cả" nghĩa là tất cả cái ĐANG HIỆN, không phải tất cả của tháng: đang lọc mà
+  // bấm chọn-tất-cả rồi Xóa thì xóa cả những khoản bộ lọc đang giấu đi.
+  const allSelected = shown.length > 0 && shown.every((t) => selection.isSelected(t.id))
 
   // Thoát chế độ chọn khi đổi TAB hoặc đổi KỲ.
   //
@@ -131,6 +177,25 @@ export function LedgerPage() {
     selection.exit()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, activeMonthKey.year, activeMonthKey.month])
+
+  // Nhân bản sang hôm nay (§4.2 mục 5). Ghi thẳng, không mở form: cả điểm của cử chỉ
+  // này là "cái hôm qua, lặp lại hôm nay" — bắt xác nhận thì nó chậm hơn bấm "+" và
+  // gõ lại. An toàn nằm ở Hoàn tác, cùng mức với xoá hàng loạt.
+  async function handleDuplicate(tx: TransactionRow) {
+    const today = toISODate(new Date())
+    const tagIds = (tagsOfTx.get(tx.id) ?? []).map((g) => g.id)
+    const row = await repo.createTransaction({
+      ...toNewTransaction(tx, tagIds),
+      occurred_on: today,
+    })
+    qc.invalidateQueries({ queryKey: ['transactions'] })
+    qc.invalidateQueries({ queryKey: ['balances'] })
+    showUndoToast('Đã nhân bản sang hôm nay', async () => {
+      await repo.deleteTransaction(row.id)
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+      qc.invalidateQueries({ queryKey: ['balances'] })
+    })
+  }
 
   async function handleBulkDelete() {
     const ids = selection.selectedIds
@@ -272,7 +337,7 @@ export function LedgerPage() {
 
       {view === 'daily' && (
         <DailyView
-          transactions={transactions}
+          transactions={shown}
           isLoading={isLoading}
           accountOf={accountOf}
           categoryOf={categoryOf}
@@ -286,6 +351,18 @@ export function LedgerPage() {
           // Nút "Chọn" do DailyView vẽ, ngay trên danh sách nó điều khiển
           onToggleSelecting={() => (selection.selecting ? selection.exit() : selection.enter())}
           tagsOfTx={tagsOfTx}
+          balanceOfDay={balanceOfDay}
+          onDuplicate={handleDuplicate}
+          aboveList={
+            <LedgerFilterBar
+              value={filter}
+              onChange={setFilter}
+              uncategorized={uncategorized}
+              base={base}
+              shownCount={shown.length}
+              totalCount={transactions.length}
+            />
+          }
         />
       )}
 
@@ -343,9 +420,20 @@ export function LedgerPage() {
           count={selection.count}
           allSelected={allSelected}
           onToggleAll={() =>
-            allSelected ? selection.clear() : selection.selectAll(transactions.map((t) => t.id))
+            allSelected ? selection.clear() : selection.selectAll(shown.map((t) => t.id))
           }
           onDelete={handleBulkDelete}
+          onEdit={() => setBulkEditing(true)}
+        />
+      )}
+
+      {bulkEditing && (
+        <BulkEditSheet
+          ids={selection.selectedIds}
+          categories={categories}
+          tags={tags}
+          onClose={() => setBulkEditing(false)}
+          onDone={() => selection.exit()}
         />
       )}
     </div>

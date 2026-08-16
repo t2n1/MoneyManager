@@ -524,8 +524,15 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // 22 (2026-08-16, PR 4): +1 cho cột bấm được của biểu đồ Dòng tiền ở Bản tin. Nó là
     // một CONTROL thật (mỗi cột là một <button> đổi tháng), không phải nút-có-chữ nên
     // <ActionButton> không hợp — vùng bấm là cả cột 80px chứ không phải một hàng chữ.
-    // Con số đọc là: 3 (primitive + biểu đồ) + 6 (khung app) + 13 (còn viết tay — nợ thật).
-    { needle: 'rounded-md', max: 22, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
+    // 25 (2026-08-16, PR 5): +3 của bản 10a màn Sổ — header nhóm ngày (khung bảng,
+    // §1.4), dòng cảnh báo "chưa phân loại" (banner bấm được), và ô danh mục trong bảng
+    // sửa hàng loạt. Cả ba là bề mặt/CONTROL của 1a chứ không phải nút-có-chữ, nên
+    // không có primitive nào nhận chúng.
+    // 26: +1 nữa cho dòng cảnh báo gộp ở tab Tài sản (12a) — cùng dáng banner với dòng
+    // "chưa phân loại" của Sổ, và nó THAY hai đoạn chữ rải rác chứ không thêm khối mới.
+    // Con số đọc là: 3 (primitive + biểu đồ) + 6 (khung app) + 4 (màn 1a đã dựng) + 13
+    // (còn viết tay — phần nợ thật, và chỉ phần này mới được phép giảm tiếp).
+    { needle: 'rounded-md', max: 26, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
     // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
     // đúng theo spec nên không cần đại diện gần đúng nữa.

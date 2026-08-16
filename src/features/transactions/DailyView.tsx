@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { type CurrencyCode } from '../../lib/money'
+import { useMemo, type ReactNode } from 'react'
+import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
 import { approxLabel, formatDayHeader, groupByDay, sumInBase, type CurrencyOf } from './ledgerShared'
@@ -23,6 +23,15 @@ interface Props {
   onToggleSelecting?: () => void
   /** Nhãn theo id giao dịch (xem `tagsByTransaction`) — để dòng nào có nhãn thì hiện chip. */
   tagsOfTx?: Map<string, TagRow[]>
+  /**
+   * Số dư chạy tới hết mỗi ngày, tra theo ISO (§4.2 mục 1). Thiếu = không vẽ cột đó —
+   * màn Tìm kiếm dùng chung dáng dòng này nhưng không có khái niệm "số dư chạy trong kỳ".
+   */
+  balanceOfDay?: Map<string, number>
+  /** Chèn ngay trên danh sách: chip lọc tại chỗ + dòng cảnh báo chưa phân loại. */
+  aboveList?: ReactNode
+  /** Nhân bản một khoản sang hôm nay (vuốt / chuột phải) — xem TransactionItem. */
+  onDuplicate?: (tx: TransactionRow) => void
 }
 
 /** Xem theo ngày: tổng tháng + danh sách giao dịch gộp theo từng ngày. */
@@ -40,6 +49,9 @@ export function DailyView({
   onToggleSelect,
   onToggleSelecting,
   tagsOfTx,
+  balanceOfDay,
+  aboveList,
+  onDuplicate,
 }: Props) {
   const days = useMemo(() => groupByDay(transactions), [transactions])
 
@@ -67,6 +79,8 @@ export function DailyView({
         </div>
       )}
 
+      {aboveList}
+
       {isLoading ? (
         <p className="py-10 text-center text-fg-muted">Đang tải…</p>
       ) : days.length === 0 ? (
@@ -77,11 +91,28 @@ export function DailyView({
           const dayExpense = sumInBase(txs, 'expense', currencyOf, base, rates)
           return (
             <section key={day}>
-              <div className="mb-1 flex items-baseline justify-between px-1 text-xs text-fg-muted">
+              {/* Header nhóm ngày — nền `--surface-chrome` theo §4.2: nó là khung của
+                  bảng, phải lùi ra sau các dòng giao dịch chứ không nổi lên như một thẻ. */}
+              <div className="mb-1 flex items-baseline gap-2 rounded-md bg-surface-chrome px-2.5 py-1.5 text-xs text-fg-muted">
                 <span className="font-medium">{formatDayHeader(day)}</span>
+                {/* Số dư chạy (§4.2 mục 1): cộng dồn thu − chi từ đầu kỳ tới HẾT ngày
+                    này. Đứng cạnh tổng ngày vì hai con số trả lời hai câu khác nhau —
+                    "hôm nay tiêu bao nhiêu" và "từ đầu tháng tới giờ còn dư bao nhiêu".
+                    Danh sách xếp ngày mới nhất trước, nên đọc từ trên xuống là đi ngược
+                    thời gian và số dư giảm dần về 0 ở dòng cuối. */}
+                {balanceOfDay?.get(day) !== undefined && (
+                  <span
+                    className={`font-mono ${(balanceOfDay.get(day) ?? 0) < 0 ? 'text-money-out' : 'text-fg-muted'}`}
+                    title="Số dư chạy từ đầu kỳ tới hết ngày này"
+                  >
+                    {formatMoney(balanceOfDay.get(day) ?? 0, base)}
+                  </span>
+                )}
                 {/* Chi của một ngày có thể ÂM (hoàn tiền nhiều hơn chi trong ngày đó)
-                    — khi ấy đổi dấu và màu, chứ đừng in ra "-¥-400". */}
-                <span className="tabular-nums">
+                    — khi ấy đổi dấu và màu, chứ đừng in ra "-¥-400".
+                    `font-mono` thay `tabular-nums` (§4.2: số phải mono): trong font đơn
+                    cách mọi chữ số vốn cùng bề rộng, nên tabular-nums thành thừa. */}
+                <span className="ml-auto font-mono">
                   {dayIncome && dayIncome.value > 0 && (
                     <span className="text-money-in">+{approxLabel(dayIncome, base)}</span>
                   )}
@@ -106,6 +137,7 @@ export function DailyView({
                     selecting={selecting}
                     selected={isSelected?.(tx.id) ?? false}
                     tags={tagsOfTx?.get(tx.id)}
+                    onDuplicate={onDuplicate && (() => onDuplicate(tx))}
                   />
                 ))}
               </div>

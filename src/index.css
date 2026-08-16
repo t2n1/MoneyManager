@@ -115,6 +115,27 @@
      4,5 đúng một li (phím phép tính của bàn số); green-800 ≈ 6,6:1. */
   --fg-accent-on-track: var(--color-green-800);
 
+  /* Bề mặt trạng thái — nền + viền + chữ cho chip và banner (§1.1 của bản 1a).
+     Ba bộ, KHÔNG phải bốn: mức 'info' cố ý đi bằng bề mặt trung tính sẵn có
+     (surface-sunken + border-strong + fg-on-track), khỏi đẻ thêm một sắc xám thứ hai.
+
+     Ở LIGHT viền cố ý TRÙNG màu nền: giữ nguyên diện mạo chip light đang có (bộ
+     green-100/amber-100/red-100 + chữ bậc 700 đã đo sát sàn AA — xem statusColors.ts),
+     nhưng vẫn có đường viền để hình học giống hệt nhau ở hai chế độ. Ở DARK viền mới
+     là thứ vẽ ra hình chip, vì 1a bỏ shadow và nền chip chỉ hơn nền thẻ vài phần trăm.
+
+     Đây cũng là bộ mà banner của form Nhập (§4.6) sẽ đọc — nên để ở tầng token chứ
+     không nhét vào riêng StatusChip. */
+  --state-good-bg: var(--color-green-100);
+  --state-good-border: var(--color-green-100);
+  --state-good-fg: var(--color-green-700);
+  --state-warn-bg: var(--color-amber-100);
+  --state-warn-border: var(--color-amber-100);
+  --state-warn-fg: var(--color-amber-700);
+  --state-bad-bg: var(--color-red-100);
+  --state-bad-border: var(--color-red-100);
+  --state-bad-fg: var(--color-red-700);
+
   /* Chữ cảnh báo (sắp vượt hạn mức, tỷ giá giả định, đơn vị tiền lệch).
      Amber là màu KHÔNG có sắc độ nào đạt cả hai chế độ — đo thật:
        amber-500  2,13:1 trên trắng  /  8,31:1 trên gray-900
@@ -186,6 +207,21 @@
      nhưng đúng tông của thang mới, và vẫn 8,98:1 trên green-500 (trắng chỉ 2,22:1). */
   --fg-on-accent: #08090b;
 
+  /* Bề mặt trạng thái ở dark — lấy đúng giá trị trong mock (§1.1 cho good/bad, và
+     khối cảnh báo vàng của mock cho warn). Cùng một công thức cho cả ba: nền gần như
+     đen ám sắc, viền cùng tông đậm hơn, chữ sáng.
+     Chữ trên nền chip, đo thật: good 10,97:1 · warn 10,84:1 · bad 10,92:1 — cả ba
+     đồng đều, khác hẳn bộ cũ (8,09 … 10,19) vốn lệch nhau vì mỗi tông một bậc alpha. */
+  --state-good-bg: #0f2a1a;
+  --state-good-border: #17482b;
+  --state-good-fg: #7bf1a8; /* = green-300 */
+  --state-warn-bg: #16120a;
+  --state-warn-border: #4a3a1c;
+  --state-warn-fg: #ffb900; /* = amber-400, cùng giá trị --fg-warn */
+  --state-bad-bg: #170e10;
+  --state-bad-border: #4a1f22;
+  --state-bad-fg: #f0b6b8;
+
   /* ĐẢO chiều như --fg-muted. Trên thang 1a: page 11,56:1 · chrome 11,30 · surface
      11,05 · sunken 10,35 — tức sàn NÂNG từ 8,52:1 (trên gray-800 cũ) lên 10,35:1.
      Nền amber-900/40 phủ surface vẫn còn dùng ở vài banner: 8,56:1 lúc trước, và nền
@@ -217,6 +253,15 @@
   --color-fg-accent-on-track: var(--fg-accent-on-track);
   --color-fg-on-accent: var(--fg-on-accent);
   --color-fg-warn: var(--fg-warn);
+  --color-state-good-bg: var(--state-good-bg);
+  --color-state-good-border: var(--state-good-border);
+  --color-state-good-fg: var(--state-good-fg);
+  --color-state-warn-bg: var(--state-warn-bg);
+  --color-state-warn-border: var(--state-warn-border);
+  --color-state-warn-fg: var(--state-warn-fg);
+  --color-state-bad-bg: var(--state-bad-bg);
+  --color-state-bad-border: var(--state-bad-border);
+  --color-state-bad-fg: var(--state-bad-fg);
 }
 
 /* Nút bấm trên mobile không bị delay/zoom khi chạm nhanh */

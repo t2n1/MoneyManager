@@ -130,12 +130,42 @@ Mọi cỡ chữ dùng `rem` để co giãn theo Cài đặt → Cỡ chữ. **�
 
 | Component | Thay cho | Vì sao cần |
 |---|---|---|
-| `Money` | ~107 chỗ tự ghép `tabular-nums` + màu | `tabular-nums` luôn bật; màu thu/chi từ token. Bọc `formatMoney` nên **giữ chế độ riêng tư** |
-| `Card` | 86 chỗ `rounded-xl bg-white ... shadow-sm` | prop `elevation` để có phân cấp: `raised` cho thẻ chính, `flat` cho thẻ phụ |
-| `SegmentedControl` | 6 bản chép tay | `role="tablist"` + `aria-selected` đúng; nhãn dùng `fg-on-track` |
+| `Money` | ~107 chỗ tự ghép `tabular-nums` + màu | `font-mono` + `tabular-nums` luôn bật; màu thu/chi từ token. Bọc `formatMoney` nên **giữ chế độ riêng tư** |
+| `Card` | 86 chỗ `rounded-xl bg-white ... shadow-sm` | prop `elevation`: `raised` thẻ chính · `flat` thẻ phụ · `panel` khung 1a (8px, viền panel, không bóng) |
+| `SegmentedControl` | 6 bản chép tay | `role="tablist"` + `aria-selected` đúng; track trong suốt, ô đang chọn mới có nền |
 | `IconButton` | 32 chỗ `min-h-11 min-w-11` | 44px vùng chạm + `transition` + `hover` — ba thứ hay quên |
-| `StatTile` | 8 ô KPI | giá trị `text-base` cách nhãn `text-xs` **hai bậc**, để số nổi hơn nhãn |
+| `StatTile` | 8 ô KPI | nhãn 11px hoa (eyebrow) cách giá trị 26px mono **bốn bậc**, để số nổi hơn nhãn |
 | `SectionTitle` | 2 quy ước đang đánh nhau | `role="card"` (nhãn thẻ) vs `role="block"` (tiêu đề khối) |
+
+### Bản 1a đổi gì trong primitive
+
+Bốn quyết định ở đây là quyết định **cấu trúc**, không phải trang trí — chúng lan ra
+mọi màn mà không phải sửa màn nào:
+
+**1. Số đi bằng mono.** `Money` thêm `font-mono`. `tabular-nums` chỉ khoá bề rộng chữ
+số; mono khoá cả dấu phẩy nghìn, dấu trừ và ký hiệu tiền, nên cột số đọc như bảng.
+
+**2. Dark không còn thẻ "nổi".** `Card` dáng `raised` ở dark bỏ `shadow-sm`, thay bằng
+`border-border-panel`. Bóng trên nền `#0e1014` chỉ còn là vệt tối bẩn. Light **giữ
+nguyên** — viền chỉ mọc ở dark, nơi cả thang bề mặt đã đổi.
+
+**3. Bán kính tách làm hai.** Control (nút, tab) **6px = `rounded-md`**; panel **8px =
+`rounded-lg`**; thẻ cũ vẫn 12px. Trước 1a cả control lẫn panel đều 8px, nên trần
+`rounded-md` trong guardrail **đổi chiều** — đọc kỹ chú thích tại chỗ trước khi sửa.
+
+**4. Segmented đảo hai bề mặt.** Track trong suốt + viền panel; ô **đang chọn** mới có
+nền `surface-sunken` + viền `border-strong`. Không còn `shadow` làm tín hiệu "đang
+chọn". Hệ quả a11y: nhãn ô không hoạt động đổi `fg-on-track` → `fg-muted` được, vì
+track không còn nền gray-100 của riêng nó. Đo trên app đang chạy, 20 tab ở 8 route
+light: thấp nhất **4,63:1** (trên gray-50), không cái nào trượt.
+
+Viền của ô luôn có ở **cả hai** trạng thái, chỉ đổi màu — cho riêng ô đang chọn một
+viền thì mỗi lần bấm tab, chữ của mọi ô xê 1px.
+
+**Nút không lấy chiều cao 30px của 1a.** §2.5 của bộ tài liệu tả nút `+ Giao dịch` trên
+top bar desktop; §4.6 của cùng bộ tài liệu lại nói "mọi vùng chạm giữ min-h-11 (44px)".
+`ActionButton` dùng chung cho ~90 chỗ, phần lớn là sheet trên điện thoại → **44px
+thắng**. Nút 30px là dáng riêng của top bar, dựng cùng PR khung app.
 
 ### `Money` — lưu ý về dấu
 
@@ -308,6 +338,19 @@ Hai chỗ **không** dùng `<Guide>` mà đọc thẳng `useDensity()`, có lý 
 - `<StatusDot tone label>` — chấm 8px cho dòng danh sách, `label` **bắt buộc** (màu là kênh duy nhất).
 
 Bộ màu ở `components/ui/statusColors.ts` (trước đây là `features/health/zoneColors.ts`): `STATUS_FILL` cho đồ hoạ (≥3:1), `STATUS_STROKE` cho SVG, `STATUS_CHIP` cho chip (≥4,5:1 vì có chữ). Số đo thật ghi trong file.
+
+Từ bản 1a, `STATUS_CHIP` đọc token `--state-{good,warn,bad}-{bg,border,fg}` thay vì viết
+cặp sáng/tối tại chỗ — vì **banner** của form Nhập (§4.6) dùng đúng bộ mặt đó, và để ở
+`statusColors.ts` thì banner sẽ chép tay lại. Ở dark, viền mới là thứ vẽ ra hình cái chip
+(nền chip chỉ hơn nền thẻ vài phần trăm, và 1a không có shadow). Đo lại ở dark:
+good 10,97 · warn 10,84 · bad 10,92 — ba tông giờ đồng đều, khác bảng cũ (8,09 … 10,19)
+vốn lệch vì mỗi tông một bậc alpha. Light **không đổi màu**: token light trỏ đúng bộ
+green-100/amber-100/red-100 + chữ bậc 700, viền trùng màu nền nên vô hình.
+
+`STATUS_FILL` **giữ nền đặc** — §2.6 của bộ tài liệu nói chip *và* dot cùng đổi sang
+"nền tối + viền", nhưng áp vào chấm 8px là xoá luôn cái chấm, và bản vẽ 1a cũng để chấm
+đặc. Đo lại trên thang mới (đã composite alpha, ca xấu nhất trên `sunken`): bad 3,60 ·
+warn 4,66 · good 4,52 · info 6,85 — cả bốn vẫn ≥3:1.
 
 ### Guardrail
 

@@ -13,13 +13,19 @@ import type { ButtonHTMLAttributes } from 'react'
 /** 'surface' = nút nổi trên nền trang · 'ghost' = trong suốt, dùng trong thẻ */
 export type IconButtonVariant = 'surface' | 'ghost'
 
+// 'surface' ở dark: bỏ bóng, thay bằng viền control — 1a không có shadow, và trên nền
+// #0e1014 thì shadow-sm chỉ còn là một vệt tối bẩn quanh nút. Light giữ nguyên.
+// hover đi bằng token thay vì `dark:hover:bg-gray-800` viết tay: sắc độ đó là thang cũ,
+// giữ lại thì nút hover sáng hơn hẳn thang mới.
 const VARIANT: Record<IconButtonVariant, string> = {
-  surface: 'bg-surface shadow-sm hover:bg-surface-page dark:hover:bg-gray-800',
+  surface:
+    'bg-surface shadow-sm hover:bg-surface-sunken dark:border dark:border-border-strong dark:shadow-none',
   ghost: 'text-fg-muted hover:bg-surface-sunken hover:text-fg-primary',
 }
 
+// rounded-md (6px): bán kính CONTROL của 1a, tách khỏi bán kính panel 8px (§1.3).
 const BASE =
-  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-3 transition active:scale-95'
+  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-3 transition active:scale-95'
 
 /**
  * Lớp CSS của IconButton, cho những chỗ KHÔNG render ra <button>: `<Link>` của

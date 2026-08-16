@@ -24,5 +24,9 @@ export function AccountTypeIcon({
   className?: string
 }) {
   const Icon = ICONS[type] ?? Coins
-  return <Icon className={className} aria-hidden />
+  // strokeWidth 1.6 (mặc định của lucide là 2): độ đậm nét icon của bản 1a. Nét 2px
+  // bên cạnh chữ IBM Plex Sans 13px trông nặng hơn hẳn chữ, icon giành mất điểm nhìn
+  // của chính dòng nó đứng cạnh. CỠ vẫn để bên gọi quyết (mặc định h-5 w-5 như cũ) —
+  // 1a chốt ~17px, nhưng đó là con số của từng bố cục, chuẩn hoá dần theo từng màn.
+  return <Icon className={className} strokeWidth={1.6} aria-hidden />
 }

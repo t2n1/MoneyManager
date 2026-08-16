@@ -423,7 +423,13 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // 83 (2026-08-11): ba khối tuỳ chọn trong Cài đặt (Giao diện / Cách trình bày / Cỡ
     // chữ) đã gộp về <Card as="section" padding="none">. Phải đổi cả ba cùng lúc —
     // chúng nằm liền nhau nên để lẻ một cái viết tay là cái đó lệch dáng.
-    { needle: 'rounded-xl bg-surface', max: 83, use: '<Card>' },
+    //
+    // 82 (2026-08-16, PR 2 của redesign 1a): tụt 1 vì <Card> KHÔNG còn chứa chuỗi này —
+    // bán kính chuyển vào bảng ELEVATION (dáng 'panel' là 8px chứ không 12px, mà hai lớp
+    // bán kính cùng hạng thì Tailwind quyết theo thứ tự trong CSS, không theo thứ tự
+    // trong chuỗi class). Tức con số này giờ đếm ĐÚNG số thẻ viết tay, không cộng thêm
+    // chính primitive nữa.
+    { needle: 'rounded-xl bg-surface', max: 82, use: '<Card>' },
     // 96 (2026-08-13, đợt gộp danh mục): tụt từ 97 vì HoldingsSection và
     // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
     // mỗi câu chỉ còn MỘT bản. FundHoldingsSection từng ghi ngay tại chỗ ngưỡng này
@@ -464,7 +470,11 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
     // mỗi nút chỉ còn MỘT bản. Hạ trần theo đúng quy ước ở thông điệp lỗi của chính
     // phép thử này.
-    { needle: 'bg-green-700', max: 62, use: '<ActionButton variant="primary"> hoặc bg-accent' },
+    //
+    // 61 (2026-08-16, PR 2 của redesign 1a): tụt 1 vì <ActionButton variant="primary">
+    // đổi sang `bg-accent` + `text-fg-on-accent`. Chính primitive không còn nằm trong
+    // số đếm, nên 61 là số chỗ viết tay thật.
+    { needle: 'bg-green-700', max: 61, use: '<ActionButton variant="primary"> hoặc bg-accent' },
     // Hai bán kính ngoài scale 4 tầng (docs §Bán kính). `rounded-2xl` có chủ đích ở thẻ
     // hero và sheet trượt lên; phần còn lại là tuỳ tiện. `rounded-md` thì lạc hẳn.
     // 37 (2026-08-12): sheet khai thu dự kiến của mặt lập kế hoạch. Đúng ngoại lệ ghi
@@ -478,7 +488,22 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // nào: chúng xếp dọc liền nhau trong một mạch cuộn nên để lẫn hai bán kính là thấy
     // ngay — và khối thứ năm vừa thêm (InvestmentValueHistorySection) dùng <Card> từ đầu.
     { needle: 'rounded-2xl', max: 34, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
-    { needle: 'rounded-md', max: 13, use: 'rounded-lg (scale chuẩn)' },
+    // ⚠️ 15 (2026-08-16, PR 2 của redesign 1a) — trần này TĂNG, và đây là lần đổi
+    // chiều chứ không phải nới cho dễ thở. Nói rõ vì luật ở đầu file là "chỉ được giảm".
+    //
+    // Tiền đề cũ: app có MỘT bán kính control là rounded-lg (8px, 278 chỗ), nên 16 chỗ
+    // rounded-md là lạc. Bản 1a bỏ tiền đề đó: nó tách bán kính CONTROL (5–7px → 6px =
+    // rounded-md) khỏi bán kính PANEL (8px = rounded-lg) — §1.3. Nên rounded-md giờ là
+    // bán kính ĐÚNG của nút và tab, không còn là giá trị lạc.
+    //
+    // Hai chỗ cộng thêm là <ActionButton> và <IconButton>, tức chính hai primitive.
+    // Chúng sẽ KHÔNG bao giờ tụt về 0, nên con số này từ nay đọc là: 2 (primitive) +
+    // 13 (còn viết tay, vẫn là nợ phải gộp). Gộp được chỗ nào thì hạ về phía 2 — đừng
+    // đọc "15" thành "được phép thêm chỗ mới".
+    //
+    // Chiều nợ mới, chưa đặt trần vì chưa đo: rounded-lg trên CONTROL (nút, tab, chip
+    // vuông) giờ mới là chỗ lệch scale. Đặt trần cho nó khi đã dựng đủ màn để biết số.
+    { needle: 'rounded-md', max: 15, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
     // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
     // đúng theo spec nên không cần đại diện gần đúng nữa.

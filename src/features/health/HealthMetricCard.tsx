@@ -50,6 +50,15 @@ interface Props {
   extra?: ReactNode
   /** Cách tính + nên làm gì — giấu sau nút để thẻ không rối. */
   how: ReactNode
+  /**
+   * Trọng số (%) của chỉ số này trong điểm tổng — bản vẽ 15b in nó ngay cạnh mỗi chỉ số.
+   *
+   * Vì sao đáng một dòng: sáu chỉ số KHÔNG bằng nhau (25/20/20/15/10/10), mà trước đây
+   * con số ấy chỉ nằm trong ExplainBox của thẻ điểm — tức phải mở một khối khác mới biết
+   * chỉ số đang đỏ trước mắt mình nặng 10% hay 25%. Hai tình huống đó cần ưu tiên khác
+   * nhau hẳn.
+   */
+  weight?: number
 }
 
 export function HealthMetricCard({
@@ -62,6 +71,7 @@ export function HealthMetricCard({
   meaning,
   extra,
   how,
+  weight,
 }: Props) {
   const max = zones && zones.length > 0 ? zones[zones.length - 1].upTo : 0
   const showGauge = !!zones && zones.length > 0 && max > 0
@@ -71,9 +81,16 @@ export function HealthMetricCard({
   return (
     <section className="rounded-xl bg-surface p-3 shadow-sm ">
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</h3>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-medium ${BADGE[verdict]}`}>
-          {VERDICT_LABELS[verdict]}
+        <h3 className="text-sm font-semibold text-fg-primary">{title}</h3>
+        <span className="flex shrink-0 items-baseline gap-1.5">
+          {weight != null && (
+            <span className="tabular-nums text-2xs text-fg-muted" title="Trọng số trong điểm tổng">
+              {weight}%
+            </span>
+          )}
+          <span className={`rounded-full px-2 py-0.5 text-2xs font-medium ${BADGE[verdict]}`}>
+            {VERDICT_LABELS[verdict]}
+          </span>
         </span>
       </div>
 

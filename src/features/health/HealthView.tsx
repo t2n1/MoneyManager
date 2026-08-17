@@ -44,6 +44,8 @@ import {
   type Verdict,
 } from './health'
 import { buildHealthSnapshot } from './snapshot'
+import { RunwayBand } from './RunwayBand'
+import { weakestAction } from './weakestAction'
 
 // Mục lục của tab: 6 chỉ số cộng thẻ điểm. Nhãn ngắn hơn tiêu đề thẻ vì đây là hàng
 // chip cuộn ngang ("Khả năng trả nợ ngắn hạn" → "Nợ ngắn hạn").
@@ -246,6 +248,26 @@ export function HealthView() {
   // Không cần useMemo: chỉ là trung bình có trọng số của 6 số đã tính xong ở trên.
   const score = healthScore(scoreItems)
 
+  // VIỆC CẦN LÀM cho chỉ số yếu nhất (15b mục 2). Mọi ngưỡng, và mọi quyết định "chỉ số
+  // nào ra được số tiền", nằm ở weakestAction.ts cùng 18 test của nó.
+  //
+  // `heaviest` so trọng số của chỉ số yếu nhất với trọng số LỚN NHẤT trong cả sáu, chứ
+  // không hỏi "có ≥ 25 không": scoreItems là chỗ duy nhất giữ bộ trọng số, nên một hằng
+  // số 25 viết tay ở đây sẽ nói sai ngay lần đầu ai đó đổi bộ trọng số.
+  const maxWeight = Math.max(...scoreItems.map((i) => i.weight))
+  const action =
+    score?.weakest != null && score.weakest.score !== null
+      ? weakestAction({
+          key: score.weakest.key,
+          score: score.weakest.score,
+          weight: score.weakest.weight,
+          heaviest: score.weakest.weight >= maxWeight,
+          snap,
+          base,
+          formatMoney,
+        })
+      : null
+
   if (!isFetched) {
     return <p className="p-6 text-center text-sm text-fg-muted">Đang tính…</p>
   }
@@ -260,7 +282,12 @@ export function HealthView() {
       <SectionIndex items={SECTIONS} />
 
       <Section id="hl-diem">
-        <HealthScoreCard result={score} items={scoreItems} monthsCounted={snap.monthsCounted} />
+        <HealthScoreCard
+          result={score}
+          items={scoreItems}
+          monthsCounted={snap.monthsCounted}
+          action={action}
+        />
       </Section>
 
       {/* Ba ô đếm nói CẤU TRÚC của điểm — điểm 65 vì mọi chỉ số đều lưng lửng, hay vì
@@ -303,6 +330,7 @@ export function HealthView() {
       <Section id="hl-quy">
         <HealthMetricCard
           title="Quỹ dự phòng — đệm cho việc bất ngờ"
+          weight={25}
           display={fund === null ? '—' : months1(fund)}
           verdict={fundVerdict}
           value={fund}
@@ -375,6 +403,7 @@ export function HealthView() {
       <Section id="hl-thanh-khoan">
         <HealthMetricCard
           title="Khả năng trả nợ ngắn hạn"
+          weight={10}
           display={
             snap.debtDueWithin12m <= 0 ? 'Không có nợ' : liq === null ? '—' : `${num1(liq)}×`
           }
@@ -410,6 +439,7 @@ export function HealthView() {
       <Section id="hl-dti">
         <HealthMetricCard
           title="Nợ trên thu nhập năm"
+          weight={15}
           display={snap.totalDebt <= 0 ? 'Không nợ' : dti === null ? '—' : `${(dti * 100).toFixed(0)}%`}
           verdict={dtiVerdict}
           value={snap.totalDebt <= 0 ? null : dti}
@@ -447,6 +477,7 @@ export function HealthView() {
       <Section id="hl-runway">
         <HealthMetricCard
           title="Nếu mất việc — cầm cự được bao lâu (mô phỏng)"
+          weight={20}
           display={
             runway === null
               ? '—'
@@ -478,34 +509,21 @@ export function HealthView() {
             )
           }
           extra={
-            showLean ? (
-              <div className="mt-2 rounded-lg bg-green-50 p-2 dark:bg-green-900/30">
-                <p className="text-xs leading-relaxed text-gray-700 dark:text-gray-200">
-                  {visual ? (
-                    <>
-                      Cắt hết chi linh hoạt:{' '}
-                      <b>
-                        {runwayLean.survivalRate >= 0.95
-                          ? `≥ ${runwayLean.horizon} tháng`
-                          : months1(runwayLean.p50)}
-                      </b>
-                    </>
-                  ) : (
-                    <>
-                      <b>Nếu cắt hết chi linh hoạt</b> (
-                      {formatMoney(Math.round(snap.monthlyFlexibleExpense), base)}/tháng):{' '}
-                      {runwayLean.survivalRate >= 0.95 ? (
-                        <>hầu như không còn cạn tiền trong {runwayLean.horizon} tháng tới.</>
-                      ) : (
-                        <>
-                          cầm cự được <b>{months1(runwayLean.p50)}</b> thay vì{' '}
-                          {months1(runway!.p50)}.
-                        </>
-                      )}
-                    </>
-                  )}
-                </p>
-              </div>
+            // DẢI PHÂN VỊ (15b mục 5) thay khối chữ cũ. Ba con số p10/p50/p90 nằm trong
+            // câu văn thì bắt người đọc tự dựng hình, mà thứ đáng thấy nhất lại là ĐỘ
+            // RỘNG của dải: dải hẹp nghĩa là tương lai khá chắc, dải rộng nghĩa là chính
+            // con số trung vị cũng không đáng tin lắm.
+            //
+            // KHÔNG bọc Guide và không đổi theo chế độ Gọn: đây là đồ hoạ dữ liệu, cùng
+            // loại với thang màu của chính thẻ này — chế độ Gọn cắt CHỮ để dạy, không cắt
+            // hình. Hai hàng dùng chung một trục nên "cắt chi thì được thêm bao lâu" đọc
+            // được bằng mắt, thứ mà hai câu văn ở hai chỗ không nói ra.
+            runway !== null ? (
+              <RunwayBand
+                base={runway}
+                lean={showLean ? runwayLean : null}
+                leanLabel={formatMoney(Math.round(snap.monthlyFlexibleExpense), base)}
+              />
             ) : null
           }
           how={
@@ -546,6 +564,7 @@ export function HealthView() {
       <Section id="hl-nguon-thu">
         <HealthMetricCard
           title="Phụ thuộc một nguồn thu"
+          weight={20}
           display={conc === null ? '—' : pct(conc.topShare)}
           verdict={concVerdict}
           value={conc?.topShare ?? null}
@@ -584,6 +603,7 @@ export function HealthView() {
       <Section id="hl-thue">
         <HealthMetricCard
           title="Thuế & an sinh trên lương gộp"
+          weight={10}
           display={snap.taxAndSocial <= 0 || burden === null ? '—' : pct(burden)}
           verdict={burdenVerdict}
           value={snap.taxAndSocial <= 0 ? null : burden}

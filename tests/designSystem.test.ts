@@ -123,6 +123,14 @@ function stripComments(text: string): string {
  *     tháng này). Mỗi câu đi kèm MỘT <Link>, và cái link đó là đường đi tiếp DUY NHẤT
  *     của khối — Bản tin không có nút nào khác dẫn tới đó. Bọc <Guide> là ở chế độ Gọn
  *     khối rỗng thành một ô trống trơn, đúng loại lỗi các lần nâng trần trước đã tránh.
+ * 63 (2026-08-17, bản vẽ 19a): +1 ở AccountDetailPage — câu "Đủ trả cả N thẻ dùng ví
+ * này kỳ tới." của khối Nguồn trả. Hai lý do nó ở lại, mỗi lý do đủ một mình:
+ *   · Nó là câu NÓI RA TRẠNG THÁI, đối trọng của banner đỏ "cần nạp thêm" ngay cạnh.
+ *     Ẩn ở chế độ Gọn thì im lặng thành nhập nhằng — người đọc không biết là "đủ tiền"
+ *     hay "app chưa tính được".
+ *   · Chữ THẬT của nó chỉ ~35 ký tự; phần vượt 45 là do regex không bóc được `{}` lồng
+ *     trong template literal. Cùng loại bắt nhầm đã ghi ở cuối khối này.
+ *
  * 62 (2026-08-17, PR 9): +1 ở ReliabilityPanel — câu 'Không còn chỗ nào thiếu…'. Đó là
  * câu NÓI RA CHÍNH TRẠNG THÁI của khối (bảng ranh giới xếp vào cột KHÔNG bọc): ẩn nó ở
  * chế độ Gọn thì khối Độ tin cậy 100% chỉ còn một con số trơ và một thanh xanh, không
@@ -136,7 +144,7 @@ function stripComments(text: string): string {
  *     panel Ngân sách và dòng "tháng · thu / chi" của panel Dòng tiền. Chữ thật trong
  *     chúng chỉ vài từ; phần vượt 45 ký tự là markup của <Money> và <span>.
  */
-const PROSE_MAX = 62
+const PROSE_MAX = 63
 
 const FILES = sourceFiles().map((path) => ({
   path,
@@ -592,12 +600,14 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // vẽ 22a vào tấm trượt Thông báo — nó LÀ control 1a (6px đúng §1.3), và cố ý KHÔNG
     // dùng <ActionButton>: nó là <span> nằm trong <Link> của cả dòng, vì đích của nó
     // trùng đích của dòng nên một <button> thật ở đây là phần tử bấm lồng phần tử bấm.
+    // 43 khi Chi tiết thẻ có banner "cần nạp thêm" của bản vẽ 19a — bề mặt trạng thái,
+    // cùng khuôn với năm banner state-* đã đếm ở PR 11.
     // Trần vẫn có tác dụng: nó bắt người sửa DỪNG LẠI và nói ra chỗ mới thêm là control
     // 1a hay là một chỗ viết tay lẽ ra phải dùng primitive.
     //
     // Khi 13 màn của bản 1a dựng xong, THAY trần này bằng luật thật: đếm rounded-lg /
     // rounded-xl trên CONTROL — lúc đó mới là chiều nợ còn lại.
-    { needle: 'rounded-md', max: 42, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
+    { needle: 'rounded-md', max: 43, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
     // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
     // đúng theo spec nên không cần đại diện gần đúng nữa.

@@ -379,6 +379,13 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 {visual
                   ? `${formatMoney(totalAllowance.perDay, base)}/ngày × ${totalAllowance.daysLeft} ngày`
                   : `Cho ${totalAllowance.daysLeft} ngày nữa — tiêu ${formatMoney(totalAllowance.perDay, base)}/ngày thì vừa đủ.`}
+                {/* "ngày 15/31" của 11a. Số ngày CÒN LẠI một mình không nói được mình
+                    đang ở đâu trong tháng, mà đó là mẫu số của mọi câu "nhanh/chậm hơn
+                    nhịp" phía dưới. Ở cả hai chế độ mật độ vì nó là số liệu, không phải
+                    lời giải thích. */}
+                <span className="ml-1.5 tabular-nums text-fg-muted">
+                  · ngày {pace.paceDaysElapsed}/{pace.paceDaysInMonth}
+                </span>
               </p>
             )}
           </>
@@ -424,8 +431,14 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           khác với danh sách bên dưới trả lời "toàn cảnh tháng này ra sao". */}
       {attention.length > 0 && (
         <Card as="section">
+          {/* MẪU SỐ là của 11a: "3 / 5 mục có hạn mức". Riêng "Cần để ý (3)" không nói
+              được 3 trên bao nhiêu — mà đó mới là thứ quyết định con số ấy đáng lo cỡ
+              nào: 3/5 là hơn nửa ngân sách đang chệch, 3/20 thì không. */}
           <h2 className="text-sm font-semibold text-fg-muted">
-            Cần để ý ({attention.length})
+            Cần để ý{' '}
+            <span className="font-normal tabular-nums">
+              · {attention.length} / {items.length} mục có hạn mức
+            </span>
           </h2>
           <Guide className="mb-2 text-xs text-fg-muted">
             Đã quá trần, hoặc đang tiêu nhanh hơn nhịp tháng. Khoản cố định đã trả xong
@@ -583,7 +596,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       {unbudgeted.length > 0 && (
         <section className="rounded-xl bg-surface p-3 shadow-sm">
           <h2 className="mb-1 text-sm font-semibold text-fg-muted">
-            Chưa đặt hạn mức
+            Chưa đặt hạn mức{' '}
+            <span className="font-normal tabular-nums">· {unbudgeted.length} danh mục</span>
           </h2>
           <Guide className="mb-2 text-xs text-fg-muted">
             Bấm tên nhóm để đặt trần chung, hoặc xổ ra (▸) để đặt riêng cho từng mục con — khi đó

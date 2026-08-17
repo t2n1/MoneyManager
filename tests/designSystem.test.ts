@@ -543,7 +543,11 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // dải phân vị. Cả hai là SỐ THÁNG, không phải tiền, nên <Money> ở đây là sai công cụ:
     // nó định dạng theo loại tiền và đi qua chế độ riêng tư (che số). Một trục thời gian
     // bị che thì cả dải mất luôn thước đo.
-    { needle: 'tabular-nums', max: 98, use: '<Money> (tự bật tabular-nums)' },
+    // 101 (2026-08-17, bản vẽ 11a): +3 ở mặt theo dõi Ngân sách — "3 / 5 mục có hạn mức",
+    // "· 9 danh mục", "ngày 15/31". Cùng lý do: đây là ĐẾM danh mục và ĐẾM ngày. Đưa qua
+    // <Money> thì chúng bị định dạng theo loại tiền ("¥5") và bị che ở chế độ riêng tư —
+    // mà mẫu số bị che thì con số bên cạnh nó hết nghĩa.
+    { needle: 'tabular-nums', max: 101, use: '<Money> (tự bật tabular-nums)' },
     // 35 (đo 2026-08-06): cặp xanh nhấn viết tay. Nợ này TĂNG từ 29 lúc dựng hệ thống
     // — quy ước mới chưa thắng thói quen cũ, nên phải có trần. Mỗi chỗ cần XÉT NGHĨA
     // khi gộp: link/hành động → text-fg-accent, giá trị tiền → text-money-in

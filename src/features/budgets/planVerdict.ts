@@ -10,7 +10,7 @@
 // Vì sao là file riêng: nó phải im đúng chỗ (chưa biết thu nhập thì không phán), phải
 // nói ngược khi chia quá tay, và phải nối ba mệnh đề mà không đẻ ra hai chữ "nhưng"
 // trong một câu. Ba thứ đó là ba lỗi ngữ pháp/logic khác nhau, mỗi thứ một test.
-import { AXIS_LABEL, shareLabel, type AxisProgress } from './axisTargets'
+import { axisMissSummary, shareLabel, type AxisProgress } from './axisTargets'
 import type { PlanSummary } from './planning'
 
 export interface PlanVerdict {
@@ -95,13 +95,16 @@ export function planVerdict({ summary, gapCount }: PlanVerdictInput): PlanVerdic
   }
 }
 
-/** Mệnh đề về ba mốc, ĐÃ mang liên từ. `null` = chưa dựng được cơ cấu. */
+/**
+ * Mệnh đề về ba mốc, ĐÃ mang liên từ.
+ *
+ * Phần chữ lấy từ `axisMissSummary` — dùng CHUNG với tiêu đề thẻ Cơ cấu của mặt theo
+ * dõi, nên hai mặt không thể đếm ra hai kết luận khác nhau trên cùng dữ liệu. Ở đây chỉ
+ * thêm liên từ, vì câu này còn phải nối được với mệnh đề cam kết phía sau.
+ */
 function axisClause(axis: AxisProgress | null): string | null {
-  if (!axis || axis.lines.length === 0) return null
-  const miss = axis.lines.filter((l) => !l.ok)
-  if (miss.length === 0) return `và đạt cả ${axis.lines.length} mốc`
-  // Một mốc thì gọi tên — người đọc sửa được ngay. Nhiều mốc thì đếm: liệt kê hai ba
-  // tên vào giữa câu làm nó dài gấp đôi mà vẫn phải cuộn xuống mới biết lệch bao nhiêu.
-  if (miss.length === 1) return `nhưng chưa đạt mốc ${AXIS_LABEL[miss[0].key]}`
-  return `nhưng lệch ${miss.length} mốc`
+  if (!axis) return null
+  const s = axisMissSummary(axis.lines)
+  if (!s) return null
+  return `${s.missed.length === 0 ? 'và' : 'nhưng'} ${s.phrase}`
 }

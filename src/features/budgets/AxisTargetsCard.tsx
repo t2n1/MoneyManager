@@ -7,7 +7,14 @@ import { Guide } from '../../components/Guide'
 import { useCategories } from '../../hooks/queries'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
-import { AXIS_LABEL, BASELINE_MONTHS, shareLabel, type AxisKey, type AxisProgress } from './axisTargets'
+import {
+  axisMissSummary,
+  AXIS_LABEL,
+  BASELINE_MONTHS,
+  shareLabel,
+  type AxisKey,
+  type AxisProgress,
+} from './axisTargets'
 import { STATUS_FILL } from '../../components/ui/statusColors'
 
 /** Giải nghĩa mỗi trục — chữ CHỈ ĐỂ DẠY, ẩn ở chế độ Gọn.
@@ -39,6 +46,8 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
   const openParam = searchParams.get('axis')
   const open = isAxisKey(openParam) ? openParam : null
   const ym = monthKeyString(monthKey)
+  // Ba mốc đang thế nào — một mệnh đề, tính ở hàm thuần (axisTargets.ts).
+  const miss = axisMissSummary(data.lines)
 
   const toggle = (key: AxisKey) =>
     setSearchParams(
@@ -53,8 +62,20 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
   return (
     <section className="rounded-xl bg-surface p-3 shadow-sm">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-fg-muted">
+        {/* Bản vẽ 11a đặt KẾT LUẬN ngay cạnh tiêu đề: "Mốc 50 / 30 / 20 — đạt cả ba".
+            Thiếu nó thì ba thanh màu bắt người đọc tự cân: dòng nào cũng có % riêng và
+            mốc riêng, mà câu hỏi thật chỉ có một — "cơ cấu tháng này ổn chưa".
+            Chữ lấy từ `axisMissSummary`, dùng CHUNG với câu kết luận của mặt lập kế
+            hoạch, nên hai mặt không thể đếm ra hai kết quả khác nhau khi tháng chuyển
+            từ chưa-bắt-đầu sang đang-chạy. */}
+        <h2 className="min-w-0 text-sm font-semibold text-fg-muted">
           Cơ cấu chi so với mốc
+          {miss && (
+            <span className={miss.missed.length === 0 ? 'text-money-in' : 'text-fg-warn'}>
+              {' — '}
+              {miss.phrase}
+            </span>
+          )}
         </h2>
         {/* -my-3 để vùng chạm 44px không đẩy hàng tiêu đề giãn ra (cùng mẹo với nút
             "Chọn" ở LedgerPage) — đo được 42×16 khi để trần. */}

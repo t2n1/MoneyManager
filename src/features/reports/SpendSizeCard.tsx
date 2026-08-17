@@ -71,7 +71,7 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
                   {row.note}
                 </Guide>
                 {hours !== null && (
-                  <span className="ml-auto shrink-0 text-2xs font-medium text-sky-600 dark:text-sky-400">
+                  <span className="ml-auto shrink-0 text-2xs font-medium text-sky-700 dark:text-sky-400">
                     ≈ {hoursLabel(hours)}
                   </span>
                 )}

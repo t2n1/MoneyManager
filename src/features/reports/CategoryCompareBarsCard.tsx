@@ -36,8 +36,11 @@ export function CategoryCompareBarsCard({ rows, categories, base, limit = 8 }: P
                 <span className="shrink-0 font-medium text-fg-primary">
                   {formatMoney(row.thisMonth, base)}
                 </span>
+                {/* Huy hiệu "mới" đi sky-700, không sky-600: trên nền sky-50 thì sky-600
+                    chỉ 3,77:1, mà chữ 10px không được hưởng ngưỡng 3:1 của chữ lớn.
+                    sky-700 cho 5,49:1. (HealthView dùng đúng cặp sky-50/sky-700 từ trước.) */}
                 {row.isNew ? (
-                  <span className="shrink-0 rounded bg-sky-50 dark:bg-sky-900/40 px-1 text-3xs text-sky-600 dark:text-sky-300">
+                  <span className="shrink-0 rounded bg-sky-50 dark:bg-sky-900/40 px-1 text-3xs text-sky-700 dark:text-sky-300">
                     mới
                   </span>
                 ) : row.deltaPct !== null && row.deltaPct !== 0 ? (

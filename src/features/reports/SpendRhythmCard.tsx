@@ -104,7 +104,9 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
                   <span
                     className={`text-3xs ${
                       isWeekend
-                        ? 'font-medium text-sky-600 dark:text-sky-400'
+                        ? // sky-700 (5,86:1 trên nền thẻ trắng), không sky-600 (4,02:1).
+                          // Nhãn thứ ở đây là 10px nên phải đạt 4,5:1.
+                          'font-medium text-sky-700 dark:text-sky-400'
                         : 'text-fg-muted'
                     }`}
                   >

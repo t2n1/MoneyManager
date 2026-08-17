@@ -120,15 +120,23 @@
      (surface-sunken + border-strong + fg-on-track), khỏi đẻ thêm một sắc xám thứ hai.
 
      Ở LIGHT viền cố ý TRÙNG màu nền: giữ nguyên diện mạo chip light đang có (bộ
-     green-100/amber-100/red-100 + chữ bậc 700 đã đo sát sàn AA — xem statusColors.ts),
-     nhưng vẫn có đường viền để hình học giống hệt nhau ở hai chế độ. Ở DARK viền mới
-     là thứ vẽ ra hình chip, vì 1a bỏ shadow và nền chip chỉ hơn nền thẻ vài phần trăm.
+     green-100/amber-100/red-100), nhưng vẫn có đường viền để hình học giống hệt nhau
+     ở hai chế độ. Ở DARK viền mới là thứ vẽ ra hình chip, vì 1a bỏ shadow và nền chip
+     chỉ hơn nền thẻ vài phần trăm.
+
+     CHỮ: good đi green-800, hai tông kia bậc 700. Không phải cho đẹp — green-700 trên
+     green-100 đo bằng canvas ra 4,4957:1, tức TRƯỢT AA, dù chú thích cũ ở statusColors.ts
+     ghi "4,50 vừa đúng". Cái 4,50 đó là số đã làm tròn LÊN từ chính 4,4957 nên nó tự
+     chứng minh mình đạt; sai số 0,004 không ai nhìn ra bằng mắt, chỉ đọc pixel mới thấy.
+     Đo lại cả bộ trên nền tương ứng: good (green-800) 6,48 · bad (red-700) 5,27 ·
+     warn (amber-700) 4,52. Warn vẫn là ca sát sàn — còn 0,015 — nên nếu sau này ai đó
+     đổi amber-100 sang bậc nhạt hơn thì nó trượt ngay, đừng đụng vào.
 
      Đây cũng là bộ mà banner của form Nhập (§4.6) sẽ đọc — nên để ở tầng token chứ
      không nhét vào riêng StatusChip. */
   --state-good-bg: var(--color-green-100);
   --state-good-border: var(--color-green-100);
-  --state-good-fg: var(--color-green-700);
+  --state-good-fg: var(--color-green-800);
   --state-warn-bg: var(--color-amber-100);
   --state-warn-border: var(--color-amber-100);
   --state-warn-fg: var(--color-amber-700);

@@ -204,6 +204,21 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     }
   })
 
+  // Lý do: sky-600 làm CHỮ trượt AA ở light — 4,02:1 trên nền thẻ trắng và 3,77:1 trên
+  // bg-sky-50. Bốn chỗ dùng nó đều là nhãn 10–11px (badge "mới", nhãn thứ cuối tuần,
+  // "≈ N giờ", nhãn Chuyển tài sản) nên không chỗ nào được hưởng ngưỡng 3:1 của chữ
+  // lớn. sky-700 cho 5,86 / 5,49 — sửa cả bốn hôm 2026-08-17.
+  //
+  // Chỉ cấm khi làm CHỮ. `bg-sky-500`, `stroke="#0ea5e9"` v.v. là chuyện khác, và
+  // sky-600 làm NÉT đồ thị thì vẫn hợp lệ (4,02 ≥ 3:1) — xem phép thử nét bên dưới.
+  it('không dùng text-sky-600 (trượt AA ở light)', () => {
+    const { count, where } = occurrences('text-sky-600')
+    expect(
+      count,
+      `sky-600 chỉ 4,02:1 trên trắng và 3,77:1 trên sky-50. Dùng text-sky-700.\n${where.join('\n')}`,
+    ).toBe(0)
+  })
+
   // Lý do: nút chính là nền có CHỮ TRẮNG đè lên → cần 4,5:1 với trắng. green-600
   // (#00a63e) chỉ 3,22:1. Màu nhấn của app là green-700, khai ở token --accent.
   it('không dùng green-600 làm nền nút', () => {

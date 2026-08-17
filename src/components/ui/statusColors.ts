@@ -88,6 +88,14 @@ export const STATUS_STROKE: Record<StatusTone, string> = {
 // sang bậc nhạt hơn cho "dịu mắt" là trượt ngay — chip 11px không được hưởng ngưỡng
 // 3:1 của chữ lớn.
 //
+// ĐÍNH CHÍNH (2026-08-17, quét lại toàn bộ light bằng cách TẢI LẠI từng route): cái
+// "good 4,50" ở trên là SAI. Đọc pixel bằng canvas ra 4,4957:1 — green-700 trên
+// green-100 KHÔNG đạt AA, hụt 0,004. Con số 4,50 là 4,4957 đã làm tròn lên rồi đem đi
+// kết luận "vừa đúng AA", tức phép làm tròn tự cấp chứng nhận cho chính nó. Bài học
+// không phải "green-700 xấu" mà là: số đo dùng để GÁC một ngưỡng thì phải làm tròn
+// XUỐNG, hoặc giữ đủ chữ số. Từ 1a, good đi green-800 (6,48:1) — xem chú thích ở khối
+// --state-* trong index.css. Warn giữ amber-700 và vẫn sát sàn thật (4,515:1).
+//
 // ---- Bản 1a: chip đi qua token --state-* ------------------------------------------
 //
 // Ba tông có màu không còn viết cặp sáng/tối tại đây nữa; chúng đọc bộ bề mặt trạng
@@ -99,9 +107,10 @@ export const STATUS_STROKE: Record<StatusTone, string> = {
 //   2. Ở dark, 1a bỏ shadow và nền chip chỉ hơn nền thẻ vài phần trăm, nên VIỀN mới là
 //      thứ vẽ ra hình cái chip. Viền là chiều thứ ba, mà bảng cũ chỉ có nền + chữ.
 //
-// LIGHT KHÔNG ĐỔI MÀU: token light trỏ đúng bộ green-100/amber-100/red-100 + chữ bậc
-// 700 đo ở trên, và viền light cố ý trùng màu nền (vô hình). Chip light chỉ nở thêm
-// 2px vì có thêm đường viền — đổi lại, hình học chip giống hệt nhau ở hai chế độ.
+// LIGHT GIỮ NGUYÊN NỀN: token light trỏ đúng bộ green-100/amber-100/red-100, và viền
+// light cố ý trùng màu nền (vô hình). Chip light chỉ nở thêm 2px vì có thêm đường viền
+// — đổi lại, hình học chip giống hệt nhau ở hai chế độ. Chữ thì good đã lên green-800
+// theo đính chính ở trên; warn/bad vẫn bậc 700.
 // Đo lại ở dark trên nền chip: good 10,97 · warn 10,84 · bad 10,92 — ba tông giờ đồng
 // đều, khác bảng cũ (8,09 … 10,19) vốn lệch vì mỗi tông một bậc alpha.
 //

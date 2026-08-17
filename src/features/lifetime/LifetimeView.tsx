@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Pencil, Sparkles, Star } from 'lucide-react'
-import { Card, Money } from '../../components/ui'
+import { AlertTriangle, Pencil, SlidersHorizontal, Sparkles, Star } from 'lucide-react'
+import { ActionButton, Card, Money } from '../../components/ui'
 import { repo } from '../../data'
 import { useNetWorthSnapshots } from '../../hooks/queries'
+import { useEscClose } from '../../hooks/useEscClose'
 import type { CurrencyCode } from '../../lib/currencies'
 import { showToast } from '../../lib/dialog'
 import { formatMoney } from '../../lib/money'
 import {
   applyOverride,
   currentPhaseIndex,
+  hasOverride,
   NO_OVERRIDE,
   type AssumptionOverride,
 } from './assumptions'
@@ -78,6 +80,9 @@ export function LifetimeView() {
   const [override, setOverride] = useState<AssumptionOverride>(NO_OVERRIDE)
   const [dragging, setDragging] = useState(false)
   const [savingAssumptions, setSavingAssumptions] = useState(false)
+  /** Sheet đáy chứa ba thanh trượt — chỉ dùng dưới lg (mock turn 24). */
+  const [sheetOpen, setSheetOpen] = useState(false)
+  useEscClose(() => setSheetOpen(false), sheetOpen)
   const qc = useQueryClient()
 
   // Đổi kịch bản thì lớp đè phải rơi: giá trị đang kéo là của chặng thuộc kịch bản CŨ,
@@ -387,17 +392,61 @@ export function LifetimeView() {
       {/* Ba thanh trượt giả định (§4.4 / 13b), đứng NGAY DƯỚI dòng tóm tắt giả định và
           TRÊN bốn thẻ kết luận: kéo ở đây thì thứ đổi ngay bên dưới là kết luận, không
           phải một đường cong người ta phải tự đọc. */}
+      {/* TỪ lg: khối nằm ngay trên đồ thị.
+          DƯỚI lg: chỉ một nút, khối đi vào sheet đáy — mock turn 24 nói thẳng "thanh
+          trượt giả định chuyển xuống sheet đáy vì để cạnh đồ thị thì mỗi thứ còn nửa
+          màn". Đo lại đúng vậy ở 390px: khối thanh trượt 268px, đồ thị 208px — thứ để
+          LÁI đang chiếm nhiều chỗ hơn thứ nó lái.
+          Hai bản dùng CHUNG một `override`, nên không có đường nào để chúng lệch nhau;
+          và mỗi bề rộng chỉ có đúng một bản nằm trong cây a11y (bản inline bị
+          display:none ở mobile, còn sheet chỉ dựng khi mở và nút mở là lg:hidden). */}
       {shownInput && shownPhase && (
-        <AssumptionSliders
-          input={shownInput}
-          phase={shownPhase}
-          override={override}
-          onChange={setOverride}
-          onDragChange={setDragging}
-          onSave={handleSaveAssumptions}
-          onReset={() => setOverride(NO_OVERRIDE)}
-          saving={savingAssumptions}
-        />
+        <>
+          <div className="hidden lg:block">
+            <AssumptionSliders
+              input={shownInput}
+              phase={shownPhase}
+              override={override}
+              onChange={setOverride}
+              onDragChange={setDragging}
+              onSave={handleSaveAssumptions}
+              onReset={() => setOverride(NO_OVERRIDE)}
+              saving={savingAssumptions}
+            />
+          </div>
+
+          <ActionButton onClick={() => setSheetOpen(true)} className="self-start lg:hidden">
+            <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
+            Thử giả định
+            {hasOverride(override) && <span className="text-fg-warn"> · chưa lưu</span>}
+          </ActionButton>
+
+          {sheetOpen && (
+            <div
+              className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center"
+              onClick={() => setSheetOpen(false)}
+            >
+              <div
+                className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <AssumptionSliders
+                  input={shownInput}
+                  phase={shownPhase}
+                  override={override}
+                  onChange={setOverride}
+                  onDragChange={setDragging}
+                  onSave={handleSaveAssumptions}
+                  onReset={() => setOverride(NO_OVERRIDE)}
+                  saving={savingAssumptions}
+                />
+                <ActionButton onClick={() => setSheetOpen(false)} className="mt-3 w-full">
+                  Đóng
+                </ActionButton>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {shownInput && profile?.birth_year != null && (

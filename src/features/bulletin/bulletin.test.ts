@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { deltaPct, keptBarPct, kpiFromSeries, recentTransactions, seriesAnchor } from './bulletin'
+import {
+  deltaPct,
+  keptBarPct,
+  kpiFromSeries,
+  recentTransactions,
+  seriesAnchor,
+  toiNgayLuong,
+  type ToiNgayLuongInput,
+} from './bulletin'
 import type { TransactionRow } from '../../types/database.types'
 
 describe('seriesAnchor', () => {
@@ -128,5 +136,62 @@ describe('recentTransactions', () => {
     const list = [tx('a', '2026-08-01', 'x'), tx('b', '2026-08-09', 'y')]
     recentTransactions(list, 1)
     expect(list.map((t) => t.id)).toEqual(['a', 'b'])
+  })
+})
+
+describe('toiNgayLuong', () => {
+  // Kỳ lương 15/08 → 15/09, hôm nay 20/08: đã qua 6 ngày (kể cả hôm nay), còn 26.
+  const co = (p: Partial<ToiNgayLuongInput> = {}) =>
+    toiNgayLuong({
+      todayISO: '2026-08-20',
+      kyBatDauISO: '2026-08-15',
+      ngayLuongISO: '2026-09-15',
+      thu: 400_000,
+      chi: 60_000,
+      ...p,
+    })
+
+  it('đếm ngày tới lương không kể hôm nay, đếm ngày đã qua CÓ kể hôm nay', () => {
+    const r = co()!
+    expect(r.soNgay).toBe(26)
+    // nhịp = chi / (số ngày đã qua kể cả hôm nay) = 60.000 / 6
+    expect(r.nhipHienTai).toBe(10_000)
+  })
+
+  it('còn lại là dòng tiền của kỳ, không phải số dư', () => {
+    expect(co()!.conLai).toBe(340_000)
+    expect(co({ chi: 500_000 })!.conLai).toBe(-100_000)
+  })
+
+  it('mỗi ngày làm tròn XUỐNG, và null khi không còn gì để chia', () => {
+    expect(co()!.moiNgay).toBe(Math.floor(340_000 / 26))
+    expect(co({ chi: 500_000 })!.moiNgay).toBeNull()
+    // Hôm nay là ngày lương: không còn ngày nào để chia.
+    expect(co({ todayISO: '2026-09-15' })!.moiNgay).toBeNull()
+  })
+
+  it('hụt trước lương khi giữ nguyên nhịp', () => {
+    // nhịp 10.000/ngày, còn 340.000 → đủ 34 ngày > 26 ngày ⇒ không hụt
+    expect(co()!.hutTruocLuong).toBe(false)
+    // chi 150.000 trong 6 ngày = 25.000/ngày, còn 250.000 → 10 ngày < 26 ⇒ hụt
+    expect(co({ chi: 150_000 })!.hutTruocLuong).toBe(true)
+  })
+
+  it('chưa tiêu đồng nào thì không bao giờ báo hụt (không chia cho 0)', () => {
+    const r = co({ chi: 0 })!
+    expect(r.nhipHienTai).toBe(0)
+    expect(r.hutTruocLuong).toBe(false)
+    expect(Number.isFinite(r.moiNgay!)).toBe(true)
+  })
+
+  it('đánh dấu kỳ chưa có khoản thu nào', () => {
+    expect(co({ thu: 0 })!.chuaCoThu).toBe(true)
+    expect(co()!.chuaCoThu).toBe(false)
+  })
+
+  // §14 "chưa biết ≠ 0": ngoài kỳ thì im, không in số 0.
+  it('null khi hôm nay nằm ngoài kỳ', () => {
+    expect(co({ todayISO: '2026-08-14' })).toBeNull() // trước đầu kỳ
+    expect(co({ todayISO: '2026-09-16' })).toBeNull() // sau ngày lương
   })
 })

@@ -19,17 +19,27 @@ export interface NavItem {
 //
 // Sáu mục kể từ PR 4: Bản tin chiếm `/`, Sổ dời sang `/so`.
 //
-// `onMobile: false` cho Cài đặt là quyết định của bản vẽ 17a: thanh tab mobile của 1a có
+// `onMobile: false` là quyết định của §3 + bản vẽ 17a: thanh tab mobile của 1a có ĐÚNG
 // BỐN tab + nút "+", không phải sáu. Sáu tab ở 320px thì mỗi ô còn ~43px, hẹp hơn chữ
-// "Ngân sách" — nhãn bị cắt là mất luôn thứ duy nhất phân biệt các tab. Cài đặt là màn
-// vào theo CHỦ ĐÍCH (vài lần một tháng), không phải màn liếc hằng ngày, nên nó là mục
-// đúng để nhường chỗ; đường vào mobile của nó là nút bánh răng ở đầu Bản tin.
+// "Ngân sách" — nhãn bị cắt là mất luôn thứ duy nhất phân biệt các tab.
+//
+// Hai mục nhường chỗ, cùng một lý do: chúng là màn vào theo CHỦ ĐÍCH, không phải màn
+// liếc hằng ngày.
+//   Cài đặt — vài lần một tháng.
+//   Báo cáo — màn đọc sâu. Bốn số đầu tháng, dòng tiền 8 tháng và khối ngân sách đã nằm
+//     sẵn trên Bản tin, nên cái Báo cáo thêm vào là phần PHÂN TÍCH, thứ người ta ngồi
+//     xuống mới xem. Bỏ Tài sản thay nó thì sai: số dư là thứ bị liếc trước khi tiêu.
+// Cả hai đều có nút riêng ở đầu Bản tin trên mobile (xem BulletinPage) — bỏ khỏi thanh
+// tab mà không mở lối khác thì trên mobile chúng biến mất hẳn.
+//
+// tests/designSystem.test.ts canh đúng con số bốn: đây là ràng buộc bề rộng, không phải
+// sở thích, nên nó phải gãy khi có người thêm tab thứ năm.
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Bản tin', Icon: LayoutDashboard, onMobile: true },
   { to: '/so', label: 'Sổ', Icon: NotebookText, onMobile: true },
   { to: '/budget', label: 'Ngân sách', Icon: Target, onMobile: true },
   { to: '/assets', label: 'Tài sản', Icon: Wallet, onMobile: true },
-  { to: '/reports', label: 'Báo cáo', Icon: ChartColumn, onMobile: true },
+  { to: '/reports', label: 'Báo cáo', Icon: ChartColumn, onMobile: false },
   { to: '/settings', label: 'Cài đặt', Icon: Settings, onMobile: false },
 ]
 
@@ -58,8 +68,9 @@ export function pageTitle(pathname: string): string | null {
 
 /**
  * Tiêu đề cho top bar. Khác `pageTitle` đúng ở trang gốc: tab trình duyệt để "Sổ Gạo"
- * (tên app, đúng cho một bookmark), còn top bar phải trả lời "đang ở màn nào" — mà ở
- * `/` màn đó tên là "Sổ". Lấy thẳng nhãn của rail để hai chỗ không bao giờ gọi khác tên.
+ * (tên app, đúng cho một bookmark), còn top bar phải trả lời "đang ở màn nào" — mà từ
+ * PR 4, `/` là **Bản tin** (Sổ đã dời sang `/so`). Lấy thẳng nhãn của rail để hai chỗ
+ * không bao giờ gọi khác tên.
  */
 export function topBarTitle(pathname: string): string {
   return pageTitle(pathname) ?? NAV_ITEMS.find((i) => i.to === pathname)?.label ?? 'Sổ Gạo'

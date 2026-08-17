@@ -10,7 +10,7 @@
 // useBudgetReport, tài sản ròng từ assets/useAssetsData. Nó chỉ chọn khối nào đứng đâu.
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Settings } from 'lucide-react'
+import { ChartColumn, Settings } from 'lucide-react'
 import { Card, iconButtonClass } from '../../components/ui'
 import { VerdictNote } from '../../components/VerdictNote'
 import { useMonthKey } from '../../hooks/useMonthKey'
@@ -34,7 +34,13 @@ import { headlineOf } from '../reports/headline'
 import { useAssetsData } from '../assets/useAssetsData'
 import { TransactionItem } from '../transactions/TransactionItem'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
-import { BULLETIN_MONTHS, kpiFromSeries, recentTransactions, seriesAnchor } from './bulletin'
+import {
+  BULLETIN_MONTHS,
+  kpiFromSeries,
+  recentTransactions,
+  seriesAnchor,
+  toiNgayLuong,
+} from './bulletin'
 import { AccountsPanel } from './AccountsPanel'
 import { FirstRunPanel } from './FirstRunPanel'
 import { ReliabilityPanel } from './ReliabilityPanel'
@@ -42,6 +48,7 @@ import { TodoPanel } from './TodoPanel'
 import { BudgetPanel } from './BudgetPanel'
 import { CashflowPanel } from './CashflowPanel'
 import { KpiRow } from './KpiRow'
+import { PaydayStrip } from './PaydayStrip'
 import type { TransactionRow } from '../../types/database.types'
 
 /** Số dòng ở khối Giao dịch gần đây. */
@@ -94,6 +101,27 @@ export function BulletinPage() {
   const incomeKpi = kpiFromSeries(upTo.map((p) => p.income))
   const expenseKpi = kpiFromSeries(upTo.map((p) => p.expense))
   const keptSpark = upTo.map((p) => p.income - p.expense)
+
+  // Tới ngày lương (§4.9). Luôn tính theo KỲ HIỆN TẠI, không theo tháng đang xem — nó
+  // nói về hôm nay. Nhưng chỉ HIỆN khi hai cái trùng nhau: đang xem tháng 3 mà có một
+  // dòng nói "còn 26 ngày tới ngày lương" thì trên cùng một màn có hai mốc thời gian,
+  // và người đọc phải tự đoán dòng nào thuộc mốc nào.
+  const dangXemThangNay =
+    activeMonthKey.year === currentMonthKey.year && activeMonthKey.month === currentMonthKey.month
+  const kyHienTai = getMonthRange(currentMonthKey, monthStartDay)
+  const diemKyNay = series.points.find(
+    (p) => p.key.year === currentMonthKey.year && p.key.month === currentMonthKey.month,
+  )
+  const luong =
+    dangXemThangNay && diemKyNay
+      ? toiNgayLuong({
+          todayISO: toISODate(new Date()),
+          kyBatDauISO: kyHienTai.start,
+          ngayLuongISO: kyHienTai.end,
+          thu: diemKyNay.income,
+          chi: diemKyNay.expense,
+        })
+      : null
 
   // Câu kết luận đứng đầu màn. Dùng chung `headlineOf` với Báo cáo: hai màn nói cùng một
   // kết luận thì phải nói bằng đúng một câu, không phải hai bản chép tay.
@@ -187,8 +215,10 @@ export function BulletinPage() {
       </NotificationBoundary>
 
       {/* Tiêu đề màn cho MOBILE (top bar chỉ có từ lg). Bản vẽ 17a: mỗi màn mobile tự
-          mang tiêu đề + một dòng meta bên phải. Nút Cài đặt nằm ở đây vì thanh tab dưới
-          chỉ còn bốn tab + "+" — xem NAV_ITEMS. */}
+          mang tiêu đề + một dòng meta bên phải.
+          Hai nút bên phải là ĐƯỜNG VÀO MOBILE của hai màn không có tab (§3 chốt bốn tab
+          + "+"; xem NAV_ITEMS). Đặt ở Bản tin vì đây là màn mở đầu tiên — bỏ khỏi thanh
+          tab mà không mở lối khác thì trên mobile hai màn đó biến mất hẳn. */}
       <div className="flex items-center gap-2 lg:hidden">
         <p className="text-lg font-bold text-fg-primary">Bản tin</p>
         <p aria-live="polite" className="ml-auto font-mono text-xs text-fg-muted">
@@ -196,6 +226,9 @@ export function BulletinPage() {
         </p>
         {/* iconButtonClass() chứ không viết tay: <Link> là thẻ <a> nên không dùng được
             <IconButton>, và đây đúng là lý do hàm đó tồn tại. */}
+        <Link to="/reports" aria-label="Báo cáo" className={iconButtonClass('ghost')}>
+          <ChartColumn className="h-5 w-5" strokeWidth={1.6} />
+        </Link>
         <Link to="/settings" aria-label="Cài đặt" className={iconButtonClass('ghost')}>
           <Settings className="h-5 w-5" strokeWidth={1.6} />
         </Link>
@@ -218,6 +251,11 @@ export function BulletinPage() {
         netWorthSpark={netWorthSpark}
         approx={series.hasMissingRate}
       />
+
+      {/* Đứng NGAY SAU bốn ô: bốn ô nói kỳ này đã đi tới đâu, dòng này nói từ đây tới
+          ngày lương thì sao. Đặt trước cặp panel dòng-tiền/ngân sách vì nó là kết luận,
+          còn hai panel kia là bằng chứng (§14). */}
+      {luong && <PaydayStrip data={luong} base={base} />}
 
       {/* Cặp panel: xếp ngang từ xl, dọc ở dưới (§6). `flex-wrap` + `flex-1` với
           `min-w-0` là công thức chống tràn đã chốt ở §6. */}

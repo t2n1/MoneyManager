@@ -99,6 +99,10 @@ function ReportsRoute() {
   }
   return lazyRoute(<ReportsPage />)
 }
+// Bốn tab của Báo cáo rút còn ba (PR 7). Đường cũ `?view=charts|trends|insights` KHÔNG
+// chuyển tiếp ở đây mà `ReportsPage` tự dịch bằng `migrateReportView` — chuyển tiếp
+// bằng <Navigate> sẽ thay URL trong lịch sử, làm nút Back của trình duyệt nhảy cóc.
+// Dịch tại chỗ thì link cũ mở đúng tab, và lần bấm tab đầu tiên tự ghi khoá mới.
 
 /** `/settings/debts/:debtId` → `/debts/:debtId`: cần đọc param nên không dùng
  *  `<Navigate>` tĩnh được. */

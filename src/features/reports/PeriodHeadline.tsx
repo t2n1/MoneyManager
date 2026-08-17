@@ -22,6 +22,15 @@ interface Props {
    * thống kê riêng — bày lại là nói hai lần cùng một con số.
    */
   tiles?: boolean
+  /**
+   * Hai ô KÉO TỪ tab "Thấu hiểu" lên (§4.5 của bản 1a: năm ô số, không phải ba).
+   *
+   * Vì sao kéo lên: cả hai trả lời câu "tháng này rồi sẽ ra sao" — đúng câu người ta mở
+   * Báo cáo để hỏi — mà lại nằm sau một tab nữa. `null` = chưa tính được (đầu kỳ chưa đủ
+   * một ngày), và lúc đó ô hiện "—" chứ KHÔNG hiện 0.
+   */
+  forecast?: number | null
+  noSpendDays?: number | null
 }
 
 export function PeriodHeadline({
@@ -31,6 +40,8 @@ export function PeriodHeadline({
   base,
   approx = false,
   tiles = true,
+  forecast,
+  noSpendDays,
 }: Props) {
   if (!headline) return null
   if (!tiles)
@@ -41,7 +52,9 @@ export function PeriodHeadline({
     )
   return (
     <section className="flex flex-col gap-2">
-      <div className="grid grid-cols-3 gap-2">
+      {/* Ba ô ở mobile, năm ô từ sm: năm ô trong 375px thì mỗi ô rộng ~68px — hẹp hơn
+          nhãn "Dự báo cuối tháng". */}
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
         <StatTile label="Thu" center>
           <Money amount={income} currency={base} tone="in" compact approx={approx} />
         </StatTile>
@@ -55,6 +68,26 @@ export function PeriodHeadline({
             {headline.ratePct === null ? '—' : `${headline.ratePct}%`}
           </span>
         </StatTile>
+        {/* Hai ô cuối chỉ hiện khi nơi gọi TRUYỀN vào (tức chỉ ở kỳ tháng): dự báo cuối
+            tháng và chuỗi ngày không chi đều là khái niệm của một tháng đang chạy dở. */}
+        {forecast !== undefined && (
+          <StatTile label="Dự báo cuối tháng" center>
+            {forecast === null ? (
+              <span className="text-fg-muted">—</span>
+            ) : (
+              <Money amount={forecast} currency={base} tone="out" compact approx={approx} />
+            )}
+          </StatTile>
+        )}
+        {noSpendDays !== undefined && (
+          <StatTile label="Ngày không chi" center>
+            {noSpendDays === null ? (
+              <span className="text-fg-muted">—</span>
+            ) : (
+              <span>{noSpendDays}</span>
+            )}
+          </StatTile>
+        )}
       </div>
       <VerdictNote tone={headline.tone} short={headline.short}>
         {headline.text}

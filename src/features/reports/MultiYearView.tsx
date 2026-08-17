@@ -32,9 +32,24 @@ interface Props {
   currencyOf: CurrencyOf
   /** Bật fetch — chỉ khi tab này đang hiện và đã có hồ sơ (biết month_start_day). */
   enabled: boolean
+  /**
+   * Chỉ giữ N năm GẦN NHẤT (phạm vi "3N" của tab Dài hạn — §4.5). Bỏ trống = tất cả.
+   *
+   * Cắt ở đây, SAU khi đã dựng chuỗi tháng, chứ không cắt lúc fetch: mùa vụ và điểm gãy
+   * cần chuỗi liền mạch, mà giới hạn khoảng ngày lúc fetch thì hai phép đó lặng lẽ tính
+   * trên ít dữ liệu hơn người dùng tưởng. Ở đây chỉ BẢNG theo năm ngắn lại.
+   */
+  maxYears?: number
 }
 
-export function MultiYearView({ monthStartDay, base, rates, currencyOf, enabled }: Props) {
+export function MultiYearView({
+  monthStartDay,
+  base,
+  rates,
+  currencyOf,
+  enabled,
+  maxYears,
+}: Props) {
   const { data: txs = [], isFetched } = useRangeTransactions(ALL_TIME, enabled)
 
   const months = useMemo(() => monthKeysOf(txs, monthStartDay), [txs, monthStartDay])
@@ -43,7 +58,11 @@ export function MultiYearView({ monthStartDay, base, rates, currencyOf, enabled 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [txs, months, monthStartDay, base, rates],
   )
-  const rows = useMemo(() => yearlyTotals(series), [series])
+  const allRows = useMemo(() => yearlyTotals(series), [series])
+  const rows = useMemo(
+    () => (maxYears ? allRows.slice(-maxYears) : allRows),
+    [allRows, maxYears],
+  )
   const season = useMemo(() => seasonality(series), [series])
   const insights = useMemo(() => multiYearInsights(rows), [rows])
 

@@ -28,6 +28,8 @@ import type { YearRow } from './project'
 
 interface Props {
   rows: YearRow[]
+  /** Tắt hoạt ảnh tạm thời — đang kéo thanh trượt giả định (§12). */
+  suppressAnimation?: boolean
   historyRows: NetWorthSnapshotRow[]
   currency: CurrencyCode
   compare: YearRow[] | null
@@ -213,6 +215,7 @@ export function LifetimeChartCard({
   compare,
   compareCurrency,
   historyCurrency,
+  suppressAnimation = false,
 }: Props) {
   // CSS `prefers-reduced-motion` toàn cục (index.css) không chặn được animation của
   // Recharts vì nó vẽ bằng JS, không bằng CSS transition — phải tự đọc matchMedia.
@@ -221,7 +224,11 @@ export function LifetimeChartCard({
   // thì CHƯA — xem task-8-report.md, không tự sửa các thẻ đó ở đây (ngoài phạm vi Task 8).
   const reducedMotion =
     typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  const animate = !reducedMotion
+  // Cổng THỨ HAI, độc lập với prefers-reduced-motion: bật lên trong lúc ngón tay còn
+  // trên thanh trượt giả định (§12 — "đồ thị vẽ lại KHÔNG animate trong lúc kéo; thả
+  // tay mới nội suy"). Hoạt ảnh 60 khung cho mỗi lần nhích một pixel là 60fps giả, và
+  // đường vẽ thì luôn chạy sau ngón tay.
+  const animate = !reducedMotion && !suppressAnimation
 
   // Lịch sử (`networth_snapshots`) luôn ở `historyCurrency` (base currency của profile),
   // và kịch bản so sánh mang `compareCurrency` của riêng nó — cả hai ĐỘC LẬP với

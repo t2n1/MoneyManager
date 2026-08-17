@@ -525,7 +525,11 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // "đã sát trần" (không thêm tabular-nums viết tay cho số 口 vì gần chạm 97); giờ
     // file đó không còn nên lời ghi đó cũng hết cần thiết. Hạ trần theo đúng quy ước ở
     // thông điệp lỗi của chính phép thử này: trần không hạ là trần rỗng.
-    { needle: 'tabular-nums', max: 96, use: '<Money> (tự bật tabular-nums)' },
+    // 98 (2026-08-17, bản vẽ 15b): +2 ở RunwayBand — nhãn trung vị và các vạch trục của
+    // dải phân vị. Cả hai là SỐ THÁNG, không phải tiền, nên <Money> ở đây là sai công cụ:
+    // nó định dạng theo loại tiền và đi qua chế độ riêng tư (che số). Một trục thời gian
+    // bị che thì cả dải mất luôn thước đo.
+    { needle: 'tabular-nums', max: 98, use: '<Money> (tự bật tabular-nums)' },
     // 35 (đo 2026-08-06): cặp xanh nhấn viết tay. Nợ này TĂNG từ 29 lúc dựng hệ thống
     // — quy ước mới chưa thắng thói quen cũ, nên phải có trần. Mỗi chỗ cần XÉT NGHĨA
     // khi gộp: link/hành động → text-fg-accent, giá trị tiền → text-money-in

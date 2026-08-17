@@ -28,6 +28,35 @@ export const AXIS_LABEL: Record<AxisKey, string> = {
   savings: 'Để dành',
 }
 
+/** Ba mốc đang thế nào — một mệnh đề ĐỘC LẬP, chưa có liên từ. */
+export interface AxisMissSummary {
+  /** Các dòng chưa đạt mốc, giữ thứ tự của `lines`. */
+  missed: AxisLine[]
+  /** "đạt cả 3 mốc" · "chưa đạt mốc Linh hoạt" · "lệch 2 mốc". */
+  phrase: string
+}
+
+/**
+ * Tóm ba mốc thành một mệnh đề. `null` = chưa dựng được cơ cấu, không có gì để nói.
+ *
+ * Ở ĐÂY chứ không ở mỗi màn tự viết: cả hai mặt của tab Ngân sách đều cần câu này (mặt
+ * theo dõi in nó ở tiêu đề thẻ Cơ cấu, mặt lập kế hoạch ghép nó vào câu kết luận), và
+ * `planVerdict` từng giữ một bản riêng. Hai bản thì sớm muộn một bên đếm "lệch 2 mốc"
+ * còn bên kia vẫn nói "đạt cả ba" trên cùng một dữ liệu.
+ *
+ * MỘT mốc lệch thì gọi TÊN — người đọc sửa được ngay. NHIỀU mốc thì đếm: liệt kê hai ba
+ * tên vào giữa câu làm nó dài gấp đôi mà vẫn phải cuộn xuống mới biết lệch bao nhiêu.
+ */
+export function axisMissSummary(lines: readonly AxisLine[]): AxisMissSummary | null {
+  if (lines.length === 0) return null
+  const missed = lines.filter((l) => !l.ok)
+  if (missed.length === 0) return { missed, phrase: `đạt cả ${lines.length} mốc` }
+  if (missed.length === 1) {
+    return { missed, phrase: `chưa đạt mốc ${AXIS_LABEL[missed[0].key]}` }
+  }
+  return { missed, phrase: `lệch ${missed.length} mốc` }
+}
+
 export interface AxisTargets {
   /** trần chi thiết yếu, basis points của thu nhập (5000 = 50%) */
   essentialBps: number

@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { ClassificationBreakdown } from '../reports/aggregate'
 import type { CategoryRow } from '../../types/database.types'
 import {
+  AXIS_LABEL,
+  type AxisKey,
+  type AxisLine,
+  axisMissSummary,
   axisProgress,
   axisSlices,
   baselineIncome,
@@ -302,5 +306,59 @@ describe('sharePct', () => {
     expect(shareLabel(-0.002)).toBe('0%')
     expect(sharePct(-0.18)).toBe(-18)
     expect(shareLabel(-0.18)).toBe('Âm 18%')
+  })
+})
+
+// `axisMissSummary` — mệnh đề dùng CHUNG cho tiêu đề thẻ Cơ cấu (mặt theo dõi) và câu
+// kết luận (mặt lập kế hoạch). Trước khi gộp, mỗi mặt giữ một bản riêng.
+describe('axisMissSummary', () => {
+  const line = (key: AxisKey, ok: boolean): AxisLine => ({
+    key,
+    actual: 0,
+    target: 0,
+    share: 0,
+    targetShare: 0,
+    direction: key === 'savings' ? 'floor' : 'cap',
+    ok,
+    slices: [],
+  })
+
+  it('chưa dựng được cơ cấu → không phán', () => {
+    expect(axisMissSummary([])).toBeNull()
+  })
+
+  it('đạt hết thì đếm theo SỐ DÒNG THẬT, không viết cứng "cả ba"', () => {
+    expect(axisMissSummary([line('essential', true), line('flexible', true)])?.phrase).toBe(
+      'đạt cả 2 mốc',
+    )
+    expect(
+      axisMissSummary([line('essential', true), line('flexible', true), line('savings', true)])
+        ?.phrase,
+    ).toBe('đạt cả 3 mốc')
+  })
+
+  it('lệch MỘT mốc thì gọi tên mốc đó', () => {
+    const s = axisMissSummary([
+      line('essential', true),
+      line('flexible', false),
+      line('savings', true),
+    ])
+    expect(s?.phrase).toBe('chưa đạt mốc Linh hoạt')
+    expect(s?.missed).toHaveLength(1)
+  })
+
+  it('lệch NHIỀU mốc thì đếm, không liệt kê tên', () => {
+    const s = axisMissSummary([
+      line('essential', false),
+      line('flexible', false),
+      line('savings', true),
+    ])
+    expect(s?.phrase).toBe('lệch 2 mốc')
+    expect(s?.phrase).not.toContain('Thiết yếu')
+  })
+
+  it('trục thứ ba gọi là "Để dành" ở mọi màn — một bảng tên duy nhất', () => {
+    expect(axisMissSummary([line('savings', false)])?.phrase).toBe('chưa đạt mốc Để dành')
+    expect(AXIS_LABEL.savings).toBe('Để dành')
   })
 })

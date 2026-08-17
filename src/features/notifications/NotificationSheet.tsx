@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Bell, ChevronDown, Settings2, X } from 'lucide-react'
-import type { AppNotification } from './types'
+import { NOTIFICATION_META, type AppNotification } from './types'
 
 interface Props {
   /** Việc cần làm phần thu gọn (đã cắt trần). */
@@ -30,12 +30,17 @@ function Row({
   onDismiss?: () => void
   onClose: () => void
 }) {
+  // Bề mặt trạng thái theo TOKEN, không theo bảng màu thô: cả bản 1a đặt cược vào việc
+  // quyết định contrast nằm ở MỘT chỗ (src/index.css). Ba dòng bg-red-50/bg-amber-50 cũ
+  // ở đây không đi theo token nên lần nâng nền chip ở chế độ tối không chạm tới chúng —
+  // đúng loại lỗi đã bắt được ở 32 chỗ text-green-700 dark:text-green-400.
   const tone =
     n.severity === 'high'
-      ? 'bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-900'
+      ? 'bg-state-bad-bg border-state-bad-border'
       : n.severity === 'medium'
-        ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-900'
-        : 'bg-white border-gray-100 dark:bg-gray-800 dark:border-gray-700'
+        ? 'bg-state-warn-bg border-state-warn-border'
+        : 'bg-surface border-border-subtle'
+  const cta = NOTIFICATION_META[n.type].cta
 
   return (
     <div className={`flex gap-2 rounded-lg border px-3 py-2 ${tone} ${read ? 'opacity-50' : ''}`}>
@@ -46,8 +51,17 @@ function Row({
       )}
       <Link to={n.to} onClick={onClose} className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-fg-primary">{n.title}</p>
-        {n.detail && (
-          <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">{n.detail}</p>
+        {n.detail && <p className="mt-0.5 text-xs text-fg-secondary">{n.detail}</p>}
+        {/* Nút ngữ cảnh của 22a. Là <span> BÊN TRONG cùng một <Link>, không phải một
+            <button> riêng: đích của nút trùng đúng đích của cả dòng, nên một phần tử bấm
+            được lồng trong phần tử bấm được vừa là HTML sai vừa cho bàn phím hai chặng
+            Tab tới cùng một chỗ. Nó vẫn trông như nút để mắt biết dòng này có bước kế
+            tiếp — thứ mà 22a muốn — nhưng chỉ có MỘT vùng bấm.
+            Không có `cta` thì không vẽ gì: xem chú thích ở NotificationTypeMeta.cta. */}
+        {cta && (
+          <span className="mt-1.5 inline-flex items-center rounded-md border border-border-strong px-2 py-1 text-2xs font-semibold text-fg-secondary">
+            {cta}
+          </span>
         )}
       </Link>
       {onDismiss && (
@@ -58,7 +72,7 @@ function Row({
           type="button"
           onClick={onDismiss}
           aria-label="Bỏ qua tin này"
-          className="-my-2 -mr-2 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-fg-muted hover:text-gray-600 dark:hover:text-gray-200"
+          className="-my-2 -mr-2 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-fg-muted hover:text-fg-primary"
         >
           <X className="h-4 w-4" />
         </button>
@@ -148,19 +162,22 @@ export function NotificationSheet({
             {actionsAll.length} việc cần làm
           </span>
         )}
+        {/* Chữ chứ không chỉ một bánh răng (22a ghi "Bật / tắt từng loại ›"): đây là
+            đường thoát cho người bị một loại tin làm phiền, mà một icon 16px thì phải
+            đoán mới biết nó dẫn tới đâu. Icon giữ lại để mắt quen vị trí. */}
         <Link
           to="/settings/notifications"
           onClick={onClose}
-          aria-label="Cài đặt thông báo"
-          className="ml-auto rounded p-1 text-fg-muted hover:text-gray-600 dark:hover:text-gray-200"
+          className="-my-2 ml-auto inline-flex min-h-11 shrink-0 items-center gap-1 rounded px-1 text-2xs font-medium text-fg-accent"
         >
-          <Settings2 className="h-4 w-4" />
+          <Settings2 className="h-3.5 w-3.5" aria-hidden />
+          Bật / tắt từng loại ›
         </Link>
       </div>
 
       <div className="flex-1 space-y-1.5 overflow-y-auto px-1 pb-1">
         {empty && (
-          <p className="rounded-lg bg-green-50 py-3 text-center text-sm font-semibold text-green-700 dark:bg-green-950/40 dark:text-green-400">
+          <p className="rounded-lg border border-state-good-border bg-state-good-bg py-3 text-center text-sm font-semibold text-state-good-fg">
             Không có gì cần để ý 👍
           </p>
         )}

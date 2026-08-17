@@ -50,6 +50,34 @@ describe('todoBadge — không có ngày', () => {
   })
 })
 
+// Nút ngữ cảnh của 22a. Ở cùng file với `source`/`badge` vì cả ba là cùng một bảng
+// NOTIFICATION_META, và cùng một loại lỗi: thiếu một dòng thì màn hình có một ô rỗng.
+describe('NOTIFICATION_META.cta', () => {
+  it('MỌI việc-cần-làm đều nói được bước kế tiếp', () => {
+    for (const t of NOTIFICATION_TYPES) {
+      const m = NOTIFICATION_META[t]
+      if (m.kind !== 'action') continue
+      expect(m.cta, `${t}: việc cần làm mà không có nút thì nó là tin để biết`).toBeTruthy()
+    }
+  })
+
+  it('là chữ trên NÚT nên phải ngắn, và không phải câu', () => {
+    for (const t of NOTIFICATION_TYPES) {
+      const cta = NOTIFICATION_META[t].cta
+      if (!cta) continue
+      expect(cta.length, `${t}: nút dài quá`).toBeLessThanOrEqual(20)
+      expect(cta, `${t}: nút không kết thúc bằng dấu chấm`).not.toMatch(/\.$/)
+    }
+  })
+
+  // Tin thuần-để-biết KHÔNG được có nút chỉ vì "cho đủ": 22a cố ý bỏ trắng ở hai tin
+  // không có việc gì làm. Ràng buộc này ngăn lần sửa sau lấp hết ô trống cho đều mắt.
+  it('tin chốt sao kê và tin chạm mốc không có nút', () => {
+    expect(NOTIFICATION_META['card-statement-day'].cta).toBeUndefined()
+    expect(NOTIFICATION_META['savings-milestone'].cta).toBeUndefined()
+  })
+})
+
 describe('todoSource', () => {
   it('trả về màn đã sinh ra việc', () => {
     expect(todoSource(n({ type: 'account-shortfall' }))).toBe('Tài sản · thẻ tín dụng')

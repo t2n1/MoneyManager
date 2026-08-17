@@ -588,13 +588,16 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // PR 8 (ô KPI của mặt lập kế hoạch) · 37 sau PR 11 (sáu banner/ô nhập của Chi tiết
     // tài khoản, Đối chiếu và hai tab Đầu tư — đều là bề mặt CŨ đổi sang bề mặt trạng
     // thái 1a, không phải khối mới mọc thêm) · 41 sau PR 13 (bốn nút/banner của Cài đặt,
-    // cũng là bề mặt cũ đổi sang bề mặt trạng thái).
+    // cũng là bề mặt cũ đổi sang bề mặt trạng thái) · 42 khi thêm nút ngữ cảnh của bản
+    // vẽ 22a vào tấm trượt Thông báo — nó LÀ control 1a (6px đúng §1.3), và cố ý KHÔNG
+    // dùng <ActionButton>: nó là <span> nằm trong <Link> của cả dòng, vì đích của nó
+    // trùng đích của dòng nên một <button> thật ở đây là phần tử bấm lồng phần tử bấm.
     // Trần vẫn có tác dụng: nó bắt người sửa DỪNG LẠI và nói ra chỗ mới thêm là control
     // 1a hay là một chỗ viết tay lẽ ra phải dùng primitive.
     //
     // Khi 13 màn của bản 1a dựng xong, THAY trần này bằng luật thật: đếm rounded-lg /
     // rounded-xl trên CONTROL — lúc đó mới là chiều nợ còn lại.
-    { needle: 'rounded-md', max: 41, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
+    { needle: 'rounded-md', max: 42, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
     // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
     // đúng theo spec nên không cần đại diện gần đúng nữa.

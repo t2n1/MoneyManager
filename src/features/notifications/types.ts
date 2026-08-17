@@ -134,10 +134,29 @@ export interface NotificationTypeMeta {
    * regex trên văn xuôi, mà văn xuôi do 20 luật viết ra và mỗi luật một cách.
    */
   badge: string
+  /**
+   * Chữ trên NÚT đi kèm tin — "mỗi tin một nút đúng ngữ cảnh" (bản vẽ 22a).
+   *
+   * KHÔNG BẮT BUỘC, và chỗ trống là có chủ ý: 22a chỉ vẽ nút cho những tin có việc để
+   * làm, còn hai tin thuần-để-biết của nó (thẻ chốt sao kê, mục tiêu chạm mốc) thì
+   * không có nút nào. Một cái nút "Xem thẻ" trên tin không có việc gì làm chỉ thêm một
+   * ô để mắt phải loại trừ. Cả dòng vẫn là link, nên không mất đường đi.
+   *
+   * Chữ phải nói ĐÚNG cái màn sẽ mở ra, không nói cái người dùng ước có: mock ghi
+   * "Chuyển tiền" cho tin thiếu tiền thẻ, nhưng app không có form chuyển tiền điền sẵn
+   * — nó mở Chi tiết thẻ (nơi có khối "Nguồn trả" nói thiếu bao nhiêu), nên nút ghi
+   * "Xem thẻ". Hứa một form rồi mở ra một trang là làm người dùng bấm hai lần và mất
+   * niềm tin vào mọi nút còn lại.
+   *
+   * Mọi loại `kind: 'action'` PHẢI có — một việc cần làm mà không nói được bước kế tiếp
+   * thì nó là tin để biết. Test giữ điều này.
+   */
+  cta?: string
 }
 
 export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> = {
   'account-shortfall': {
+    cta: 'Xem thẻ',
     badge: 'THIẾU TIỀN',
     source: 'Tài sản · thẻ tín dụng',
     kind: 'action',
@@ -145,6 +164,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     hint: 'Nhìn trước 14 ngày: tiền trong ví có đủ trả thẻ và các khoản định kỳ không.',
   },
   'account-negative': {
+    cta: 'Mở tài khoản',
     badge: 'SỐ DƯ',
     source: 'Tài sản',
     kind: 'action',
@@ -152,6 +172,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     hint: 'Số dư xuống dưới 0 — thường là ghi nhầm hoặc quên ghi một khoản thu.',
   },
   'debt-overdue': {
+    cta: 'Xem khoản nợ',
     badge: 'QUÁ HẠN',
     source: 'Nợ / cho vay',
     kind: 'action',
@@ -159,6 +180,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     hint: 'Đã qua ngày hẹn mà khoản đó chưa tất toán.',
   },
   'debt-due-soon': {
+    cta: 'Xem khoản nợ',
     badge: 'NỢ',
     source: 'Nợ / cho vay',
     kind: 'action',
@@ -166,6 +188,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     hint: 'Còn 7 ngày hoặc ít hơn là tới ngày hẹn.',
   },
   'bill-due': {
+    cta: 'Ghi ngay',
     badge: 'ĐỊNH KỲ',
     source: 'Định kỳ',
     kind: 'action',
@@ -175,6 +198,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
       'khi bạn xác nhận đã ghi — app không tự ghi hộ vì số tiền mỗi lần một khác.',
   },
   'planned-due': {
+    cta: 'Xem khoản sắp chi',
     badge: 'SẮP CHI',
     source: 'Sắp chi',
     kind: 'action',
@@ -184,6 +208,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
       'trước mấy ngày). Bám tới khi bạn đánh dấu đã chi hoặc bỏ.',
   },
   'budget-over': {
+    cta: 'Xem ngân sách',
     badge: 'HẠN MỨC',
     source: 'Ngân sách',
     kind: 'action',
@@ -191,6 +216,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     hint: 'Một mục đã tiêu quá hạn mức đặt cho tháng này.',
   },
   'budget-pace': {
+    cta: 'Xem ngân sách',
     badge: 'NHỊP',
     source: 'Ngân sách',
     kind: 'action',
@@ -198,6 +224,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     hint: 'Mới qua một phần ba tháng đã dùng gần hết hạn mức — báo sớm để còn kịp ghìm lại.',
   },
   'budget-parent-over': {
+    cta: 'Xem ngân sách',
     badge: 'TRẦN NHÓM',
     source: 'Ngân sách · trần nhóm',
     kind: 'action',
@@ -205,6 +232,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     hint: 'Cả nhóm đã tiêu quá trần đặt ở mục cha; kèm tối đa 2 mục con đang tiêu nhiều nhất.',
   },
   'tag-budget-over': {
+    cta: 'Xem ngân sách',
     badge: 'TRẦN NHÃN',
     source: 'Ngân sách · trần nhãn',
     kind: 'action',
@@ -219,6 +247,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     hint: 'Hôm nay thẻ chốt kỳ — mua từ mai sẽ trả vào tháng sau.',
   },
   'recurring-suggestion': {
+    cta: 'Tạo quy tắc',
     badge: 'ĐỊNH KỲ',
     source: 'Sổ',
     kind: 'info',
@@ -226,6 +255,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     hint: 'Phát hiện một khoản trả đều đặn mà chưa có quy tắc.',
   },
   'stale-entry': {
+    cta: 'Ghi giao dịch',
     badge: 'GHI SỔ',
     source: 'Sổ',
     kind: 'info',
@@ -254,6 +284,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     hint: 'Vào ngày đầu kỳ mới: tháng vừa rồi chi bao nhiêu, thu bao nhiêu, để dành bao nhiêu.',
   },
   'lifetime-drift': {
+    cta: 'Xem kế hoạch',
     badge: 'KẾ HOẠCH',
     source: 'Tài sản · Tương lai',
     kind: 'action',
@@ -263,6 +294,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
       '(kể cả khi kế hoạch để thu 0 mà sổ có thu nhập), kèm mốc âm dịch bao nhiêu năm.',
   },
   'data-uncategorized': {
+    cta: 'Phân loại',
     badge: 'PHÂN LOẠI',
     source: 'Sổ',
     kind: 'action',
@@ -270,6 +302,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     hint: 'Khoản chưa có danh mục không vào được báo cáo hay ngân sách — nhắc khi dồn lại.',
   },
   'data-reconcile': {
+    cta: 'Đối chiếu',
     badge: 'ĐỐI CHIẾU',
     source: 'Tài sản',
     kind: 'action',
@@ -277,6 +310,7 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     hint: 'Quá 30 ngày không so số dư sổ với số thật thì mọi tổng đều có thể đã lệch.',
   },
   'trend-level-shift': {
+    cta: 'Xem hạn mức',
     badge: 'MỨC CHI',
     source: 'Báo cáo · Dài hạn',
     kind: 'action',

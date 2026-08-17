@@ -14,18 +14,10 @@ describe('NAV_ITEMS', () => {
     expect(onMobile.map((t) => t.label)).toEqual(['Bản tin', 'Sổ', 'Ngân sách', 'Tài sản'])
   })
 
-  // Bỏ khỏi thanh tab mà không mở lối khác thì trên mobile màn đó biến mất hẳn — không
-  // có URL nào người dùng gõ được. Hai màn ẩn phải có nút ở đầu Bản tin.
-  it('mọi màn không có tab đều còn đường vào mobile ở Bản tin', async () => {
-    const src = await import('node:fs/promises').then((fs) =>
-      fs.readFile('src/features/bulletin/BulletinPage.tsx', 'utf8'),
-    )
-    for (const item of NAV_ITEMS.filter((t) => !t.onMobile)) {
-      expect(src, `${item.label} (${item.to}) không có lối vào mobile nào ở Bản tin`).toContain(
-        `to="${item.to}"`,
-      )
-    }
-  })
+  // Ràng buộc "màn bị ẩn phải còn lối vào mobile" nằm ở tests/navMobile.test.ts, không
+  // ở đây: nó phải ĐỌC FILE, mà tsconfig.app.json cố ý chỉ khai `types: ["vite/client"]`
+  // để không ai import được `node:fs` vào code chạy trên trình duyệt. Cùng lý do đã ghi
+  // ở đầu tests/designSystem.test.ts.
 
   it('mỗi route một mục, không trùng', () => {
     const tos = NAV_ITEMS.map((t) => t.to)

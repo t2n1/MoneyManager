@@ -130,8 +130,8 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
         />
 
         {/* Công tắc tạo giao dịch thật */}
-        <div className="mb-3 rounded-lg bg-gray-50 dark:bg-gray-800 p-3">
-          <label className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
+        <div className="mb-3 rounded-lg bg-surface-sunken p-3">
+          <label className="flex items-center justify-between text-sm text-fg-secondary">
             <span>
               Có chuyển tiền thật
               <span className="block text-xs text-fg-muted">
@@ -151,7 +151,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
             >
               <span
                 className={`relative block h-6 w-11 rounded-full transition ${
-                  realOn ? 'bg-green-700' : 'bg-gray-300'
+                  realOn ? 'bg-accent' : 'bg-gray-300'
                 }`}
               >
                 <span
@@ -164,7 +164,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           </label>
 
           {!canRecordReal && (
-            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            <p className="mt-2 text-xs text-state-warn-fg">
               Chưa có tài khoản {debt.currency} để tạo giao dịch thật. Vẫn ghi nhận được lần trả
               (không đổi số dư).
             </p>
@@ -206,7 +206,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Hủy
           </button>
@@ -214,7 +214,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="min-h-11 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
           >
             {saving ? 'Đang lưu…' : 'Ghi nhận'}
           </button>

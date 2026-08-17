@@ -82,14 +82,14 @@ export function SavingsGoalsSection({ view }: Props) {
     <Card as="section" padding="lg">
       <div className="flex items-center gap-2">
         <Target className="h-5 w-5 text-money-in" />
-        <h2 className="flex-1 text-sm font-semibold text-gray-700 dark:text-gray-300">
+        <h2 className="flex-1 text-sm font-semibold text-fg-secondary">
           Mục tiêu tiết kiệm
         </h2>
         <button
           type="button"
           onClick={() => setSheet({ open: true })}
           disabled={selectableAccounts.length === 0}
-          className="inline-flex items-center gap-1 rounded-lg bg-green-700 px-2.5 py-1 text-xs font-semibold text-white active:scale-95 disabled:opacity-40"
+          className="inline-flex items-center gap-1 rounded-lg bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold active:scale-95 disabled:opacity-40"
         >
           <Plus className="h-3.5 w-3.5" /> Thêm
         </button>
@@ -183,7 +183,7 @@ export function SavingsGoalsSection({ view }: Props) {
 
       {earmarked.total > 0 && (
         <p className="mt-3 border-t border-border-subtle pt-2.5 text-2xs leading-relaxed text-fg-muted">
-          <b className="tabular-nums text-gray-700 dark:text-gray-200">
+          <b className="tabular-nums text-fg-primary">
             {view.fmt(earmarked.total, base, earmarked.hasMissingRate)}
           </b>{' '}
           trong số dư đang có chủ cho các mục tiêu trên. Trang{' '}

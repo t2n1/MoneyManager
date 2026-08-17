@@ -246,7 +246,7 @@ export function CategoriesPage() {
           <button
             type="button"
             onClick={() => setForm({ category: null, parent: p })}
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1 text-fg-accent active:scale-95"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-accent-muted-bg px-2 py-1 text-fg-accent active:scale-95"
             aria-label={`Thêm danh mục con cho ${p.name}`}
           >
             <Plus className="h-5 w-5" />
@@ -275,7 +275,7 @@ export function CategoriesPage() {
                   key={cid}
                   ref={(el) => setChildRow(cid, el)}
                   className={`flex items-center gap-2 py-0.5 pr-3 pl-2 ${
-                    isDragging ? 'bg-green-50 shadow-md dark:bg-green-900/20' : ''
+                    isDragging ? 'bg-accent-muted-bg shadow-md' : ''
                   }`}
                 >
                   <button
@@ -291,7 +291,7 @@ export function CategoriesPage() {
                   <button
                     type="button"
                     onClick={() => setForm({ category: ch, parent: p })}
-                    className="min-h-11 min-w-0 flex-1 truncate text-left text-sm text-gray-700 dark:text-gray-300"
+                    className="min-h-11 min-w-0 flex-1 truncate text-left text-sm text-fg-secondary"
                   >
                     {ch.name}
                   </button>
@@ -331,29 +331,29 @@ export function CategoriesPage() {
         <button
           type="button"
           onClick={() => setForm({ category: null, parent: null })}
-          className="rounded-lg bg-green-700 px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
+          className="rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold active:scale-95"
         >
           + Thêm
         </button>
       </div>
 
       {/* Chi / Thu */}
-      <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-gray-200 dark:bg-gray-800 p-1">
+      <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-surface-sunken p-1">
         {(['expense', 'income'] as CategoryType[]).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
             className={`rounded-lg py-1.5 text-sm font-medium transition ${
-              tab === t ? 'bg-surface text-gray-900 dark:text-gray-100 shadow-sm' : 'text-fg-on-track hover:text-fg-primary'
-            }`}
+ tab === t ? 'bg-surface text-fg-primary shadow-sm' : 'text-fg-on-track hover:text-fg-primary'
+ }`}
           >
             {t === 'expense' ? 'Chi' : 'Thu'}
           </button>
         ))}
       </div>
 
-      <Guide className="mb-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 p-3 text-xs text-blue-800 dark:text-blue-300">
+      <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-xs text-fg-secondary">
         Nhấn giữ biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự danh mục cha, sắp danh mục
         con trong một cha, hoặc kéo danh mục con thả sang cha khác.
       </Guide>
@@ -379,7 +379,7 @@ export function CategoriesPage() {
             <button
               type="button"
               onClick={() => setForm({ category: c, parent: parentById(c.parent_id) })}
-              className="min-h-11 min-w-0 flex-1 truncate text-left text-sm text-gray-700 dark:text-gray-300"
+              className="min-h-11 min-w-0 flex-1 truncate text-left text-sm text-fg-secondary"
             >
               {c.name}
             </button>
@@ -424,11 +424,11 @@ export function CategoriesPage() {
                 <div key={c.id} className="flex items-center gap-2 px-3 py-1 opacity-60">
                   {c.parent_id && <span className="text-gray-300 dark:text-gray-600">↳</span>}
                   <span className="text-xl">{c.icon}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300">{c.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">{c.name}</span>
                   <button
                     type="button"
                     onClick={() => restore(c)}
-                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-accent hover:bg-green-50 dark:hover:bg-green-900/30"
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-accent hover:bg-accent-muted-bg"
                   >
                     Khôi phục
                   </button>
@@ -588,7 +588,7 @@ function CategoryForm({
             <select
               value={parentId ?? ''}
               onChange={(e) => setParentId(e.target.value || null)}
-              className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-gray-700 dark:text-gray-300 outline-green-500"
+              className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-secondary outline-green-500"
             >
               <option value="">— Danh mục chính —</option>
               {availableParents.map((p) => (
@@ -611,15 +611,15 @@ function CategoryForm({
             Thuộc nhóm {selectedParent.type === 'expense' ? 'Chi' : 'Thu'} theo danh mục cha.
           </p>
         ) : (
-          <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-gray-200 dark:bg-gray-800 p-1">
+          <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-surface-sunken p-1">
             {(['expense', 'income'] as CategoryType[]).map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setTopType(t)}
                 className={`rounded-lg py-1.5 text-sm font-medium transition ${
-                  topType === t ? 'bg-surface text-gray-900 dark:text-gray-100 shadow-sm' : 'text-fg-on-track hover:text-fg-primary'
-                }`}
+ topType === t ? 'bg-surface text-fg-primary shadow-sm' : 'text-fg-on-track hover:text-fg-primary'
+ }`}
               >
                 {t === 'expense' ? 'Chi' : 'Thu'}
               </button>
@@ -653,7 +653,7 @@ function CategoryForm({
               type="button"
               onClick={() => setIcon(e)}
               className={`flex aspect-square items-center justify-center rounded-lg text-xl ${
-                icon === e ? 'bg-green-100 dark:bg-green-900/40 ring-2 ring-green-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                icon === e ? 'bg-green-100 dark:bg-green-900/40 ring-2 ring-green-500' : 'hover:bg-surface-sunken'
               }`}
             >
               {e}
@@ -667,7 +667,7 @@ function CategoryForm({
               type="button"
               onClick={handleDelete}
               disabled={del.isPending}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 disabled:opacity-50"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-state-bad-fg hover:bg-state-bad-bg disabled:opacity-50"
             >
               Xóa
             </button>
@@ -676,7 +676,7 @@ function CategoryForm({
             <button
               type="button"
               onClick={onClose}
-              className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
             >
               Hủy
             </button>
@@ -684,7 +684,7 @@ function CategoryForm({
               type="button"
               onClick={handleSubmit}
               disabled={!canSave}
-              className="min-h-11 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+              className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
             >
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>

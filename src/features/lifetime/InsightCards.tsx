@@ -63,7 +63,7 @@ function InsightTile({
 }) {
   const warn = alert === true || (amountMinor != null && amountMinor < 0)
   return (
-    <div className="min-w-0 rounded-lg bg-gray-50 dark:bg-gray-800 p-2.5">
+    <div className="min-w-0 rounded-lg bg-surface-sunken p-2.5">
       <p className="text-xs text-fg-secondary">{label}</p>
       <p
         className={`mt-0.5 flex items-center gap-1 ${VALUE_SIZE} font-medium tabular-nums ${

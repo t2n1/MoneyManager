@@ -66,7 +66,7 @@ export function RemittanceSection({
         </h2>
         <Link
           to="/entry?role=remit"
-          className="flex items-center gap-1 rounded-lg bg-green-700 px-2.5 py-1 text-xs font-semibold text-white active:scale-95"
+          className="flex items-center gap-1 rounded-lg bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold active:scale-95"
         >
           <Plus className="h-3.5 w-3.5" /> Gửi tiền
         </Link>
@@ -108,7 +108,7 @@ export function RemittanceSection({
 
           {/* Chọn thời điểm gửi được/mất bao nhiêu so với tỷ giá trung bình cả năm */}
           {bestPick && worstPick && bestPick.transactionId !== worstPick.transactionId && (
-            <div className="mt-2 rounded-lg bg-surface-page px-2.5 py-2 text-xs ">
+            <div className="mt-2 rounded-lg bg-surface-page px-2.5 py-2 text-xs">
               <p className="text-fg-secondary">
                 Lần gửi <b>được giá nhất</b> ({bestPick.date}, {bestPick.rate.toFixed(1)} ₫/¥) cho
                 thêm{' '}
@@ -171,7 +171,7 @@ export function RemittanceSection({
                   <button
                     type="button"
                     onClick={() => handleDelete(t)}
-                    className="rounded-lg p-1.5 text-fg-muted hover:bg-red-50 hover:text-money-out dark:hover:bg-red-900/30"
+                    className="rounded-lg p-1.5 text-fg-muted hover:bg-state-bad-bg hover:text-money-out"
                     aria-label="Xóa"
                   >
                     <Trash2 className="h-4 w-4" />

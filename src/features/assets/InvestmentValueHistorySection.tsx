@@ -77,7 +77,7 @@ export function InvestmentValueHistorySection({ accounts, base, view }: Props) {
   if (points.length < 2) {
     return (
       <Card as="section" padding="lg">
-        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+        <h2 className="text-sm font-semibold text-fg-secondary">
           Đầu tư theo thời gian
         </h2>
         <p className="mt-2 text-center text-xs text-fg-muted">
@@ -96,7 +96,7 @@ export function InvestmentValueHistorySection({ accounts, base, view }: Props) {
   return (
     <Card as="section" padding="lg">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+        <h2 className="text-sm font-semibold text-fg-secondary">
           Đầu tư theo thời gian
         </h2>
         <span className={`text-xs font-semibold ${up ? 'text-money-in' : 'text-money-out'}`}>
@@ -166,7 +166,7 @@ export function InvestmentValueHistorySection({ accounts, base, view }: Props) {
       </div>
 
       {hasMissingRate && (
-        <p className="mt-2 text-2xs text-amber-700 dark:text-amber-300">
+        <p className="mt-2 text-2xs text-state-warn-fg">
           Một phần tài khoản ngoại tệ chưa quy đổi được nên hai đường còn thiếu một phần.
         </p>
       )}

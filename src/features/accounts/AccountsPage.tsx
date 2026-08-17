@@ -75,14 +75,14 @@ export function AccountsPage() {
         <button
           type="button"
           onClick={() => setEditing('new')}
-          className="rounded-lg bg-green-700 px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
+          className="rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold active:scale-95"
         >
           + Thêm
         </button>
       </div>
 
       {active.length > 0 && (
-        <Guide className="mb-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 p-3 text-xs text-blue-800 dark:text-blue-300">
+        <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-xs text-fg-secondary">
           Nhấn giữ biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự tài khoản trong cùng một
           loại. Muốn đổi sang loại khác thì mở tài khoản và chỉnh mục <b>Loại</b>.
         </Guide>
@@ -115,7 +115,7 @@ export function AccountsPage() {
                 return (
                   <div
                     className={`flex items-center gap-2 px-3 py-2.5 ${
-                      dragging ? 'bg-green-50 shadow-md dark:bg-green-900/20' : ''
+                      dragging ? 'bg-accent-muted-bg shadow-md' : ''
                     }`}
                   >
                     <button
@@ -148,7 +148,7 @@ export function AccountsPage() {
                     <button
                       type="button"
                       onClick={() => update.mutate({ id: a.id, patch: { is_archived: true } })}
-                      className="inline-flex min-h-11 items-center justify-center min-h-11 rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+                      className="inline-flex min-h-11 items-center justify-center min-h-11 rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-surface-sunken"
                     >
                       Lưu trữ
                     </button>
@@ -182,13 +182,13 @@ export function AccountsPage() {
               {archived.map((a) => (
                 <div key={a.id} className="flex items-center gap-2 px-3 py-2.5 opacity-60">
                   <AccountTypeIcon type={a.type} className="h-4 w-4" />
-                  <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300">
+                  <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">
                     {a.name} · {a.currency}
                   </span>
                   <button
                     type="button"
                     onClick={() => update.mutate({ id: a.id, patch: { is_archived: false } })}
-                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-accent hover:bg-green-50 dark:hover:bg-green-900/30"
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-accent hover:bg-accent-muted-bg"
                   >
                     Khôi phục
                   </button>
@@ -507,7 +507,7 @@ function AccountForm({ account, onClose }: FormProps) {
 
         {/* Hiển thị trên trang Tài sản */}
         <div className="mb-3 space-y-2 rounded-lg bg-surface-page p-3">
-          <label className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
+          <label className="flex items-center justify-between text-sm text-fg-secondary">
             <span>
               {isCard ? 'Trừ vào Tài sản ròng' : 'Tính vào Tổng tài sản'}
               <span className="block text-xs text-fg-muted">
@@ -522,7 +522,7 @@ function AccountForm({ account, onClose }: FormProps) {
               label={isCard ? 'Trừ vào Tài sản ròng' : 'Tính vào Tổng tài sản'}
             />
           </label>
-          <label className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300">
+          <label className="flex items-center justify-between text-sm text-fg-secondary">
             <span>
               Ẩn khỏi trang Tài sản
               <span className="block text-xs text-fg-muted">Vẫn dùng bình thường khi nhập giao dịch</span>
@@ -559,7 +559,7 @@ function AccountForm({ account, onClose }: FormProps) {
 
         {/* Tài khoản ưu đãi thuế Nhật — theo dõi hạn mức nạp mỗi năm */}
         {isInvestment && (
-          <div className="mb-3 rounded-lg bg-surface-page p-2.5 ">
+          <div className="mb-3 rounded-lg bg-surface-page p-2.5">
             <label htmlFor={`${uid}-shelter`} className="mb-1 block text-xs font-medium text-fg-muted">
               Ưu đãi thuế <span className="text-fg-muted">(không bắt buộc)</span>
             </label>
@@ -574,7 +574,7 @@ function AccountForm({ account, onClose }: FormProps) {
                   setShelterLimit(SHELTER_DEFAULT_LIMIT_JPY[next])
                 }
               }}
-              className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm "
+              className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm"
             >
               <option value="">Tài khoản thường</option>
               {TAX_SHELTER_LIST.map((s) => (
@@ -607,7 +607,7 @@ function AccountForm({ account, onClose }: FormProps) {
 
         {/* Tài sản cố định — khấu hao tuyến tính */}
         {isFixed && (
-          <div className="mb-3 rounded-lg bg-surface-page p-2.5 ">
+          <div className="mb-3 rounded-lg bg-surface-page p-2.5">
             <Guide className="mb-2 text-xs text-fg-muted">
               Nhập <b>giá mua</b> ở ô số tiền phía trên. App sẽ tự giảm dần giá trị theo thời gian.
               Bất cứ lúc nào bạn tự “Cập nhật giá trị” trong trang tài khoản thì con số nhập tay được
@@ -657,7 +657,7 @@ function AccountForm({ account, onClose }: FormProps) {
         )}
 
         {currencyChanged && hasActivity && (
-          <p className="mb-2 rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">
+          <p className="mb-2 rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-xs">
             Tài khoản đã có giao dịch. Đổi loại tiền không tự quy đổi số tiền các giao dịch cũ.
           </p>
         )}
@@ -668,7 +668,7 @@ function AccountForm({ account, onClose }: FormProps) {
               type="button"
               onClick={handleDelete}
               disabled={del.isPending}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 disabled:opacity-50"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-state-bad-fg hover:bg-state-bad-bg disabled:opacity-50"
             >
               Xóa
             </button>
@@ -677,7 +677,7 @@ function AccountForm({ account, onClose }: FormProps) {
             <button
               type="button"
               onClick={onClose}
-              className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
             >
               Hủy
             </button>
@@ -685,7 +685,7 @@ function AccountForm({ account, onClose }: FormProps) {
               type="button"
               onClick={handleSubmit}
               disabled={!canSave}
-              className="min-h-11 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+              className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
             >
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>
@@ -717,7 +717,7 @@ function AccountToggle({
     >
       <span
         className={`relative block h-5 w-9 rounded-full transition ${
-          checked ? 'bg-green-700' : 'bg-gray-300'
+          checked ? 'bg-accent' : 'bg-gray-300'
         }`}
       >
         <span

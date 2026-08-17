@@ -62,13 +62,13 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
     typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm ">
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-fg-muted">Cơ cấu chi tiêu</h2>
         {unclassifiedCount > 0 && (
           <Link
             to="/settings/categories/classify"
-            className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/30"
+            className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-state-good-fg hover:bg-state-good-bg"
           >
             Phân loại {unclassifiedCount} danh mục →
           </Link>
@@ -240,7 +240,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
 
       {/* Van xả khẩn cấp */}
       {folded.emergencyCut > 0 ? (
-        <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+        <p className="mt-3 rounded-lg bg-state-warn-bg px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
           {visual ? (
             <>
               Cắt gấp được tối đa <b>{formatMoney(folded.emergencyCut, base)}</b> (

@@ -33,7 +33,7 @@ export function DebtsPage() {
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Nợ / cho vay</h1>
         <Link
           to="/entry?role=debt"
-          className="rounded-lg bg-green-700 px-3 py-1.5 text-sm font-semibold text-white active:scale-95"
+          className="rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold active:scale-95"
         >
           + Thêm
         </Link>
@@ -93,9 +93,9 @@ export function DebtsPage() {
                 <Link
                   key={d.id}
                   to={`/debts/${d.id}`}
-                  className="flex items-center gap-2 px-3 py-2.5 opacity-70 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  className="flex items-center gap-2 px-3 py-2.5 opacity-70 hover:bg-surface-sunken"
                 >
-                  <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300 line-through">
+                  <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary line-through">
                     {d.counterparty}
                   </span>
                   <span className="shrink-0 text-xs tabular-nums text-fg-muted">
@@ -136,7 +136,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
             <Link
               key={d.id}
               to={`/debts/${d.id}`}
-              className="block px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
+              className="block px-3 py-2.5 hover:bg-surface-sunken active:bg-gray-100 dark:active:bg-gray-800"
             >
               <div className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg-primary">
@@ -171,7 +171,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
                 {d.due_on && (
                   <span
                     className={`shrink-0 rounded px-1 text-xs ${
-                      overdue ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-surface-sunken text-fg-on-track'
+                      overdue ? 'bg-state-bad-bg text-state-bad-fg' : 'bg-surface-sunken text-fg-on-track'
                     }`}
                   >
                     hạn {d.due_on.slice(5)}

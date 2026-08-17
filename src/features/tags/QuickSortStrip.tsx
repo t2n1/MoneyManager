@@ -47,7 +47,7 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
   const used = links.filter((l) => l.tag_id === current.id).length
 
   return (
-    <section className="mb-3 rounded-xl border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-900/20">
+    <section className="mb-3 rounded-xl border border-green-200 bg-state-good-bg p-3 dark:border-green-900">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-fg-primary">Xếp nhãn vào nhóm</h2>
         <span className="text-2xs text-fg-muted">còn {queue.length}</span>
@@ -68,7 +68,7 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
             key={g.id}
             type="button"
             onClick={() => updateTag.mutate({ id: current.id, patch: { group_id: g.id } })}
-            className="min-h-9 rounded-lg bg-green-700 px-3 text-xs font-semibold text-white transition hover:opacity-90"
+            className="min-h-9 rounded-lg bg-accent text-fg-on-accent px-3 text-xs font-semibold transition hover:opacity-90"
           >
             {g.name}
           </button>

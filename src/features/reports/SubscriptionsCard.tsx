@@ -26,9 +26,9 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
   const hours = hoursOfWork(data.monthly, hourlyWage)
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm ">
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+        <h2 className="text-sm font-semibold text-fg-primary">
           Tiền tự động trừ mỗi tháng
         </h2>
         <Link
@@ -54,9 +54,9 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
         {data.items.slice(0, 6).map((item) => (
           <li
             key={item.id}
-            className="flex items-center gap-2 rounded-lg bg-surface-page px-2 py-1.5 text-xs "
+            className="flex items-center gap-2 rounded-lg bg-surface-page px-2 py-1.5 text-xs"
           >
-            <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-200">
+            <span className="min-w-0 flex-1 truncate text-fg-primary">
               {item.note || 'Khoản định kỳ'}
             </span>
             <span className="shrink-0 text-2xs text-fg-muted">
@@ -77,7 +77,7 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
       )}
 
       {data.hasMissingRate && (
-        <p className="mt-2 text-2xs text-amber-700 dark:text-amber-300">
+        <p className="mt-2 text-2xs text-state-warn-fg">
           Một khoản ngoại tệ chưa quy đổi được nên tổng có thể thiếu.
         </p>
       )}

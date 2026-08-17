@@ -36,7 +36,7 @@ export function QueryErrorBanner() {
   return (
     <div
       role="alert"
-      className="mx-3 mt-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 lg:mx-6 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300 print:hidden"
+      className="mx-3 mt-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-state-bad-fg lg:mx-6 dark:border-red-900 dark:bg-red-950/40 print:hidden"
     >
       <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
       <span className="flex-1">

@@ -160,7 +160,7 @@ export function AccountPicker({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`flex min-h-11 items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm text-gray-700 dark:text-gray-300 ${className}`}
+        className={`flex min-h-11 items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm text-fg-secondary ${className}`}
       >
         {ariaLabel && <span className="sr-only">{ariaLabel}: </span>}
         {selected ? (
@@ -198,7 +198,7 @@ export function AccountPicker({
               maxHeight: '70vh',
               ...(pos.drop === 'down' ? { top: pos.anchor } : { bottom: pos.anchor }),
             }}
-            className="z-50 flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-surface shadow-lg dark:border-gray-700"
+            className="z-50 flex flex-col overflow-hidden rounded-xl border border-border-panel bg-surface shadow-lg"
           >
             {searchShown && (
               <div className="flex shrink-0 items-center gap-1.5 border-b border-border-subtle px-3">
@@ -238,8 +238,8 @@ export function AccountPicker({
                         }}
                         className={`flex min-h-12 w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm ${
                           isSel
-                            ? 'bg-green-50 dark:bg-green-900/20'
-                            : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                            ? 'bg-state-good-bg'
+                            : 'hover:bg-surface-sunken'
                         }`}
                       >
                         <AccountTypeIcon
@@ -249,8 +249,8 @@ export function AccountPicker({
                         <span
                           className={`flex-1 truncate ${
                             isSel
-                              ? 'font-medium text-green-700 dark:text-green-300'
-                              : 'text-gray-700 dark:text-gray-200'
+                              ? 'font-medium text-state-good-fg'
+                              : 'text-fg-primary'
                           }`}
                         >
                           {a.name}

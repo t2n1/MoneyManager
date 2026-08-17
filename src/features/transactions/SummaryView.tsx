@@ -134,7 +134,7 @@ export function SummaryView({
       </div>
 
       {breakdown.hasMissingRate && (
-        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">
+        <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-xs">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
@@ -149,7 +149,7 @@ export function SummaryView({
         // Có hai cách chia dưới đây (danh mục rồi nhãn) nên khối này cần tên,
         // không còn là danh sách duy nhất như trước.
         <section className="rounded-xl bg-surface p-4 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-200">
+        <h2 className="mb-3 text-sm font-semibold text-fg-primary">
           {kind === 'expense' ? 'Chi' : 'Thu'} theo danh mục
         </h2>
         <ul className="flex flex-col gap-3">
@@ -157,11 +157,11 @@ export function SummaryView({
             <li key={r.id}>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-base">{r.icon}</span>
-                <span className="min-w-0 flex-1 truncate font-medium text-gray-700 dark:text-gray-300">{r.name}</span>
+                <span className="min-w-0 flex-1 truncate font-medium text-fg-secondary">{r.name}</span>
                 <span className="shrink-0 text-xs tabular-nums text-fg-muted">
                   {r.pct.toFixed(0)}%
                 </span>
-                <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-fg-primary">
                   {formatMoney(r.amount, base)}
                 </span>
               </div>

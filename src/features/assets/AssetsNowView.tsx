@@ -440,7 +440,7 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
         {showNetWorth && (
           <section className="rounded-2xl bg-surface p-4 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tài sản ròng</span>
+              <span className="text-sm font-semibold text-fg-secondary">Tài sản ròng</span>
               <Link to="/debts" className="inline-flex items-center gap-0.5 text-xs font-medium text-fg-accent">
                 Nợ / cho vay <ChevronRight className="h-4 w-4" />
               </Link>
@@ -449,7 +449,7 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                 nhỏ vào cùng dòng với con số: nhìn một cái là biết đang lên hay xuống mà
                 không phải mở tab "Diễn biến". */}
             <div className="mt-1 flex items-end justify-between gap-3">
-              <p className="text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+              <p className="text-2xl font-bold tabular-nums text-fg-primary">
                 {mv.fmt(netWorth, base, netApprox)}
               </p>
               {trend && (
@@ -550,7 +550,7 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                       className="h-2.5 w-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: colorOf(g.name) }}
                     />
-                    <span className="font-medium text-gray-700 dark:text-gray-300">{g.name}</span>
+                    <span className="font-medium text-fg-secondary">{g.name}</span>
                     {!g.includeInTotals && (
                       <span className="text-3xs font-normal text-fg-muted">
                         (ngoài tổng)
@@ -639,7 +639,7 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                   {(g.share * 100).toFixed(0)}%
                 </span>
               )}
-              <span className="shrink-0 pl-2 text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">
+              <span className="shrink-0 pl-2 text-sm font-bold tabular-nums text-fg-primary">
                 {mv.fmt(g.total, base, g.hasMissingRate)}
               </span>
             </div>
@@ -658,7 +658,7 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                     // dưới mang Δ (chỉ mobile — từ sm nó đã có cột riêng ở tầng trên) và
                     // tình trạng đối chiếu.
                     className={`flex flex-col ${
-                      isDragging ? 'bg-green-50 shadow-md dark:bg-green-900/20' : ''
+                      isDragging ? 'bg-accent-muted-bg shadow-md' : ''
                     }`}
                   >
                     <div className="flex items-center">
@@ -681,16 +681,16 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                       to={`/assets/account/${a.id}`}
                       // Lề trái phải đi CÙNG cái tay kéo: tay kéo ẩn mà vẫn chừa pl-1 thì
                       // dòng thụt vào 4px không vì cái gì.
-                      className={`flex min-w-0 flex-1 items-center gap-2 py-2.5 transition hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100 ${
-                        dragEnabled
-                          ? sortMode
-                            ? 'pr-4 pl-1'
-                            : 'pr-4 pl-4 lg:pl-1'
-                          : 'px-4'
-                      }`}
+                      className={`flex min-w-0 flex-1 items-center gap-2 py-2.5 transition hover:bg-surface-sunken active:bg-gray-100 ${
+ dragEnabled
+ ? sortMode
+ ? 'pr-4 pl-1'
+ : 'pr-4 pl-4 lg:pl-1'
+ : 'px-4'
+ }`}
                     >
                       <AccountTypeIcon type={a.type} className="h-4 w-4" />
-                      <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300">
+                      <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">
                         {a.name}
                         <span className="ml-1 text-xs text-fg-muted">{a.currency}</span>
                         {!a.includeInTotals && (

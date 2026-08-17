@@ -86,7 +86,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
               onClick={() => setDirection(val)}
               className={`rounded-md py-1.5 text-sm font-medium transition ${
                 direction === val
-                  ? 'bg-surface text-gray-900 shadow-sm dark:text-gray-100'
+                  ? 'bg-surface text-fg-primary shadow-sm'
                   : 'text-fg-muted'
               }`}
             >
@@ -154,7 +154,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Hủy
           </button>
@@ -162,7 +162,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="min-h-11 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
           >
             {saving ? 'Đang lưu…' : 'Lưu'}
           </button>

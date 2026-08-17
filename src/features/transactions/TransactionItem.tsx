@@ -118,7 +118,7 @@ export function TransactionItem({
       // min-h-[3.125rem] = 50px: dòng CHUYỂN KHOẢN không có dòng phụ tên tài khoản nên
       // chỉ cao 32px — vừa lọt xuống dưới vùng chạm 44px, vừa thành một chỗ hụt giữa
       // các dòng 50px xung quanh. Kê sàn cho bằng, không nong dòng thường ra.
-      className={`flex w-full min-h-[3.125rem] items-center gap-3 px-3 py-1.5 text-left transition hover:bg-gray-50 dark:hover:bg-gray-800 ${selected ? 'bg-green-50 dark:bg-green-900/20' : ''}`}
+      className={`flex w-full min-h-[3.125rem] items-center gap-3 px-3 py-1.5 text-left transition hover:bg-surface-sunken ${selected ? 'bg-state-good-bg' : ''}`}
     >
       {selecting && (
         <span className="shrink-0">

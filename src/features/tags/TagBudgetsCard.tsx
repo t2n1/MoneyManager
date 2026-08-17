@@ -10,11 +10,12 @@ import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { BudgetStatus } from '../budgets/progress'
 import type { TagBudgetReport } from './budget'
 import { TAG_CHIP_CLASS, tagColor } from './colors'
+import { STATUS_FILL } from '../../components/ui/statusColors'
 
 const BAR: Record<BudgetStatus, string> = {
-  ok: 'bg-green-500',
-  warn: 'bg-amber-500',
-  over: 'bg-red-500',
+  ok: STATUS_FILL.good,
+  warn: STATUS_FILL.warn,
+  over: STATUS_FILL.bad,
 }
 const TEXT: Record<BudgetStatus, string> = {
   ok: 'text-fg-primary',

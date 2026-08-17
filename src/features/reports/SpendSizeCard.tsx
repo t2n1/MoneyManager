@@ -39,9 +39,9 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
   ]
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm ">
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+        <h2 className="text-sm font-semibold text-fg-primary">
           Một lần chi to cỡ nào
         </h2>
         <span className="shrink-0 text-2xs text-fg-muted">
@@ -53,7 +53,7 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
         {rows.map((row) => {
           const hours = hoursOfWork(row.value, hourlyWage)
           return (
-            <li key={row.label} className="rounded-lg bg-surface-page px-2.5 py-2 ">
+            <li key={row.label} className="rounded-lg bg-surface-page px-2.5 py-2">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-xs text-fg-secondary">{row.label}</span>
                 <Money
@@ -122,7 +122,7 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
       )}
 
       {skewed && (
-        <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-2xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+        <p className="mt-2 rounded-lg bg-state-warn-bg text-state-warn-fg px-2 py-1.5 text-2xs">
           Trung bình ({money(data.mean)}) cao hơn hẳn mức điển hình ({money(data.median)}).
           <Guide as="span">
             {' '}

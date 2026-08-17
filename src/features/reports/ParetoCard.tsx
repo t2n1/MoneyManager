@@ -26,8 +26,8 @@ export function ParetoCard({ slices, categories, base, periodNoun }: Props) {
   const tail = pareto.categoryCount - pareto.count
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm ">
-      <h2 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
+      <h2 className="mb-2 text-sm font-semibold text-fg-primary">
         Ít danh mục, nhiều tiền
       </h2>
 
@@ -50,7 +50,7 @@ export function ParetoCard({ slices, categories, base, periodNoun }: Props) {
               <span className="w-4 shrink-0 text-center font-medium text-fg-warn tabular-nums">
                 {i + 1}
               </span>
-              <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-200">
+              <span className="min-w-0 flex-1 truncate text-fg-primary">
                 {cat?.icon ?? '📦'} {cat?.name ?? 'Chưa rõ'}
               </span>
               <Money

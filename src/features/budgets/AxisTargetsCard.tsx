@@ -8,6 +8,7 @@ import { useCategories } from '../../hooks/queries'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { AXIS_LABEL, BASELINE_MONTHS, shareLabel, type AxisKey, type AxisProgress } from './axisTargets'
+import { STATUS_FILL } from '../../components/ui/statusColors'
 
 /** Giải nghĩa mỗi trục — chữ CHỈ ĐỂ DẠY, ẩn ở chế độ Gọn.
  *
@@ -50,7 +51,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
     )
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm ">
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-fg-muted">
           Cơ cấu chi so với mốc
@@ -91,7 +92,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
           const body = (
             <>
               <div className="flex items-baseline justify-between gap-2 text-sm">
-                <span className="text-gray-700 dark:text-gray-300">
+                <span className="text-fg-secondary">
                   {canExpand &&
                     (isOpen ? (
                       <ChevronDown className="mr-1 inline h-4 w-4 -translate-y-px text-fg-muted" aria-hidden />
@@ -115,7 +116,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
               <div className="relative mt-1 h-2 overflow-hidden rounded-full bg-surface-sunken">
                 <div
                   className={`h-full rounded-full ${
-                    l.ok ? 'bg-green-500' : 'bg-amber-500'
+                    l.ok ? STATUS_FILL.good : STATUS_FILL.warn
                   }`}
                   style={{ width: `${barPct}%` }}
                 />
@@ -168,7 +169,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
                           className="flex min-h-11 items-center gap-3 px-1 py-1.5 active:bg-surface-sunken"
                         >
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm text-gray-700 dark:text-gray-300">
+                            <span className="block truncate text-sm text-fg-secondary">
                               {c?.icon && <span className="mr-1">{c.icon}</span>}
                               {c?.name ?? 'Không rõ danh mục'}
                             </span>
@@ -197,7 +198,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
       </ul>
 
       {data.unclassified > 0 && (
-        <p className="mt-3 rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+        <p className="mt-3 rounded-lg bg-state-warn-bg text-state-warn-fg px-2 py-1.5 text-xs">
           Còn {formatMoney(Math.round(data.unclassified), base)} chi chưa phân loại nên hai dòng đầu
           đang thiếu.{' '}
           <Link to="/settings/categories/classify" className="font-medium underline">

@@ -77,7 +77,7 @@ export function CardsSection({ cards, balances, base, rates, todayISO, view }: P
           {/* Badge thiếu tiền phải thấy được cả khi thu gọn: đây là khối DUY NHẤT
               trên trang có hạn chót, giấu đi thì người dùng lỡ ngày trả. */}
           {summary.shortCount > 0 && (
-            <span className="ml-auto shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-2xs font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
+            <span className="ml-auto shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-2xs font-semibold text-state-bad-fg dark:bg-red-900/40">
               {summary.singleShortfall
                 ? `thiếu ${view.fmt(summary.singleShortfall.amount, summary.singleShortfall.currency)}`
                 : `${summary.shortCount} thẻ thiếu tiền`}
@@ -107,7 +107,7 @@ export function CardsSection({ cards, balances, base, rates, todayISO, view }: P
               {summary.nextDueISO && (
                 <span className="ml-auto text-xs text-fg-muted">
                   Đến hạn{' '}
-                  <span className="font-semibold text-gray-700 dark:text-gray-200">
+                  <span className="font-semibold text-fg-primary">
                     {dueDateLabel(summary.nextDueISO)}
                   </span>
                   <span className="text-fg-muted">
@@ -128,17 +128,17 @@ export function CardsSection({ cards, balances, base, rates, todayISO, view }: P
           {sharedSources.map((g) => (
             <div
               key={g.sourceId}
-              className="rounded-xl border border-border-subtle bg-gray-50 p-3 dark:bg-gray-800/50"
+              className="rounded-xl border border-border-subtle bg-surface-sunken p-3"
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-fg-secondary">
                   Trả {g.cardCount} thẻ từ {g.sourceName}
                 </span>
                 <span
                   className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-semibold ${
                     g.enough
-                      ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-                      : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                      ? 'bg-green-100 text-state-good-fg dark:bg-green-900/40'
+                      : 'bg-red-100 text-state-bad-fg dark:bg-red-900/40'
                   }`}
                 >
                   {g.enough ? 'đủ trả' : `cần nạp thêm ${view.fmt(g.shortfall, g.currency)}`}
@@ -182,12 +182,12 @@ export function CardsSection({ cards, balances, base, rates, todayISO, view }: P
                 <li key={c.id}>
                   <Link
                     to={`/assets/account/${c.id}`}
-                    className="block rounded-xl px-2 py-2 transition hover:bg-gray-50 dark:hover:bg-gray-800"
+                    className="block rounded-xl px-2 py-2 transition hover:bg-surface-sunken"
                   >
                     {/* Tên thẻ + trạng thái đủ/thiếu tiền trả */}
                     <div className="flex items-center gap-2">
                       <CreditCard className="h-4 w-4 shrink-0 text-fg-muted" />
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg-secondary">
                         {c.name}
                         {!c.includeInTotals && (
                           <span className="ml-1 text-3xs font-normal text-fg-muted">
@@ -199,8 +199,8 @@ export function CardsSection({ cards, balances, base, rates, todayISO, view }: P
                         <span
                           className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-semibold ${
                             f.enough
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-                              : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                              ? 'bg-green-100 text-state-good-fg dark:bg-green-900/40'
+                              : 'bg-red-100 text-state-bad-fg dark:bg-red-900/40'
                           }`}
                         >
                           {f.enough ? 'đủ trả' : `thiếu ${view.fmt(f.shortfall, c.currency)}`}
@@ -233,7 +233,7 @@ export function CardsSection({ cards, balances, base, rates, todayISO, view }: P
                       {owed > 0 && dueISO && (
                         <span className="ml-auto text-xs text-fg-muted">
                           Đến hạn{' '}
-                          <span className="font-semibold text-gray-700 dark:text-gray-200">
+                          <span className="font-semibold text-fg-primary">
                             {dueDateLabel(dueISO)}
                           </span>
                           <span className="text-fg-muted">

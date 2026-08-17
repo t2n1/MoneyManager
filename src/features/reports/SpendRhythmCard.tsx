@@ -26,8 +26,8 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
   const busiest = ordered.reduce((m, b) => (b.avg > m.avg ? b : m), ordered[0])
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm ">
-      <h2 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">Nhịp chi tiêu</h2>
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
+      <h2 className="mb-2 text-sm font-semibold text-fg-primary">Nhịp chi tiêu</h2>
 
       {payday && (
         <div className="mb-3">
@@ -35,7 +35,7 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
             {windowDays} ngày sau khi nhận lương
           </h3>
           {payday.ratio >= 1.3 ? (
-            <p className="rounded-lg bg-amber-50 px-2.5 py-2 text-xs text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+            <p className="rounded-lg bg-state-warn-bg px-2.5 py-2 text-xs text-amber-800 dark:text-amber-300">
               {/* Tỷ số CHÍNH LÀ kết luận; hai mức/ngày là số làm chứng. Gọn giữ tỷ số. */}
               {visual ? (
                 <>
@@ -49,7 +49,7 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
               )}
             </p>
           ) : payday.ratio <= 0.8 ? (
-            <p className="rounded-lg bg-green-50 px-2.5 py-2 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">
+            <p className="rounded-lg bg-state-good-bg px-2.5 py-2 text-xs text-state-good-fg">
               {visual ? (
                 <>Sau lương tiêu ÍT hơn ngày thường</>
               ) : (

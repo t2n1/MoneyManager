@@ -58,6 +58,7 @@ import { useAccountPortfolio } from './useAccountPortfolio'
 import { useCardStatements } from './useCardStatements'
 import { ValuationFormSheet } from './ValuationFormSheet'
 import { confirmDialog } from '../../lib/dialog'
+import { STATUS_FILL } from '../../components/ui/statusColors'
 
 export function AccountDetailPage() {
   const { accountId = '' } = useParams()
@@ -468,7 +469,7 @@ export function AccountDetailPage() {
             <button
               type="button"
               onClick={() => setShowValuation(true)}
-              className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-green-700 px-3 py-1.5 text-xs font-semibold text-white active:scale-95"
+              className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold active:scale-95"
             >
               <LineChart className="h-3.5 w-3.5" /> Cập nhật giá trị
             </button>
@@ -489,7 +490,7 @@ export function AccountDetailPage() {
             <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-surface-sunken">
               <div
                 className={`h-full rounded-full ${
-                  (shelter.ratio ?? 0) >= 1 ? 'bg-amber-500' : 'bg-green-500'
+                  (shelter.ratio ?? 0) >= 1 ? STATUS_FILL.warn : STATUS_FILL.good
                 }`}
                 style={{ width: `${Math.min(100, (shelter.ratio ?? 0) * 100)}%` }}
               />
@@ -549,7 +550,7 @@ export function AccountDetailPage() {
             <button
               type="button"
               onClick={() => setShowValuation(true)}
-              className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-green-700 px-3 py-1.5 text-xs font-semibold text-white active:scale-95"
+              className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold active:scale-95"
             >
               <LineChart className="h-3.5 w-3.5" /> Cập nhật giá trị thực tế
             </button>

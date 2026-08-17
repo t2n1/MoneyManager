@@ -87,7 +87,7 @@ export function BackupSection() {
   }
 
   return (
-    <section className="overflow-hidden rounded-xl bg-surface shadow-sm ">
+    <section className="overflow-hidden rounded-xl bg-surface shadow-sm">
       <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">
         Sao lưu &amp; khôi phục
       </h2>
@@ -99,7 +99,7 @@ export function BackupSection() {
           type="button"
           disabled={busy}
           onClick={handleExport}
-          className="flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-gray-800"
+          className="flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-fg-primary hover:bg-surface-sunken disabled:opacity-50"
         >
           <Download className="h-4 w-4" />
           Xuất dữ liệu
@@ -108,7 +108,7 @@ export function BackupSection() {
           type="button"
           disabled={busy}
           onClick={() => fileRef.current?.click()}
-          className="flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:text-gray-200 dark:hover:bg-gray-800"
+          className="flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-fg-primary hover:bg-surface-sunken disabled:opacity-50"
         >
           <Upload className="h-4 w-4" />
           Khôi phục

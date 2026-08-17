@@ -12,6 +12,7 @@ import { Card } from '../../components/ui'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { AXIS_LABEL, shareLabel, sharePct, type AxisProgress } from './axisTargets'
+import { STATUS_FILL } from '../../components/ui/statusColors'
 
 interface Props {
   data: AxisProgress
@@ -71,7 +72,7 @@ export function AxisStrip({ data, monthKey, base, linkToDetail = true }: Props) 
                     một chấm lửng giữa thanh và không đọc được là "mốc". */}
                 <div className="relative mt-1 h-2 overflow-hidden rounded-full bg-surface-sunken">
                   <div
-                    className={`h-full rounded-full ${l.ok ? 'bg-green-500' : 'bg-amber-500'}`}
+                    className={`h-full rounded-full ${l.ok ? STATUS_FILL.good : STATUS_FILL.warn}`}
                     style={{ width: `${barPct}%` }}
                   />
                   {/* Vạch mốc vẽ sau để luôn nằm trên thanh — giống khối đầy đủ */}

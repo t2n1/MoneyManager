@@ -10,6 +10,28 @@
 //      thành green-500 và tụt còn 2,22:1. Phải dùng text-fg-on-accent (dark → gray-950,
 //      9,08:1). Đây là bẫy "token gánh hai vai" ghi ở index.css.
 //
+// ---- BA ĐIỂM MÙ của cách đo bằng máy quét trên trình duyệt -------------------------
+//
+// Ghi lại ở đây vì đã bị chúng lừa thật (2026-08-17), và cả hai đều tạo ra kết luận
+// "0 lỗi" quá tay:
+//
+//   1) TAILWIND V4 XUẤT `oklch()`. Máy quét nào đọc `getComputedStyle().backgroundColor`
+//      bằng regex `rgb(...)` sẽ KHÔNG parse được nền token, rồi lặng lẽ leo tiếp lên cha
+//      và lấy nền TRANG làm nền. Hậu quả: chữ trắng trên `bg-accent` bị báo 1,11:1 (sai),
+//      và ngược lại mọi bề mặt token khác coi như CHƯA TỪNG được đo. Cách đúng: đổ chuỗi
+//      màu vào canvas 1×1 rồi đọc pixel — canvas hiểu mọi cú pháp màu CSS.
+//   2) NỀN GRADIENT có `backgroundColor: rgba(0,0,0,0)`. Thẻ "Tổng tài sản" là
+//      `bg-gradient-to-br from-green-700 to-emerald-800`, nên máy quét lại rơi về nền
+//      trang và báo trượt oan 4 chỗ. Bề mặt đó phải đo tay ở CHẶNG SÁNG NHẤT — đúng con
+//      số 4,72:1 ghi ở mục (1) phần "Số đo thật" trên kia.
+//   3) CHỮ TRONG SVG (nhãn trục biểu đồ) không có tổ tiên nào mang nền đặc: đo được 7
+//      tầng `rgba(0,0,0,0)` từ <tspan> lên tới <div>. Máy quét leo hết rồi rơi về mặc
+//      định TRẮNG, nên ở chế độ tối nó báo chữ trắng trên trắng (1,00:1) — hoàn toàn là
+//      hiện vật của cái mặc định đó. Nền thật là bề mặt thẻ ở tầng cao hơn.
+//
+// Tức: một lần quét sạch KHÔNG có nghĩa là mọi bề mặt đã đạt. Nó có nghĩa là mọi bề mặt
+// mà máy quét ĐỌC ĐƯỢC đều đạt.
+//
 // File này nằm ở tests/ chứ KHÔNG ở src/ vì nó đọc thư mục bằng node:fs. tsconfig của
 // app không cho src/ dùng API Node — `vitest` vẫn xanh nhưng `npm run build` đỏ
 // (TS2591). Cùng lý do designSystem.test.ts ở đây.
@@ -44,6 +66,36 @@ function classChunks(src: string): string[] {
   )
 }
 
+/**
+ * Các TỔ HỢP class có thể thật sự cùng xuất hiện trên một phần tử.
+ *
+ * Vì sao cần: một `className={\`… ${cond ? 'a' : 'b'}\`}` KHÔNG bao giờ nhả cả 'a' lẫn
+ * 'b'. Quét cả chuỗi như một khối là coi hai nhánh loại trừ nhau như thể chúng cùng lúc,
+ * và phép thử báo lỗi cho một cách viết đúng — gặp thật ở nút xác nhận của `lib/dialog`:
+ * nhánh nguy hiểm là `bg-red-600 text-white`, nhánh thường là `bg-accent
+ * text-fg-on-accent`; cả hai đều đạt, nhưng gộp lại thì thấy "bg-accent + text-white".
+ *
+ * Ngược lại KHÔNG được nới thành "xét từng nhánh riêng": ca lỗi thật lại đúng kiểu chữ
+ * nằm ở phần CHUNG và nền nằm trong nhánh (`text-white` ở ngoài, `bg-accent` trong
+ * ternary) — xét riêng thì nó lọt. Nên phải là phần chung ∪ MỘT nhánh, đúng như trình
+ * duyệt thấy.
+ *
+ * Chỉ bung tối đa 8 tổ hợp: className nhiều ternary lồng nhau thì số tổ hợp nổ theo luỹ
+ * thừa, mà thực tế không có chỗ nào quá hai.
+ */
+function classCombos(chunk: string): string[] {
+  const interps = [...chunk.matchAll(/\$\{[\s\S]*?\}/g)].map((m) => m[0])
+  const chung = interps.reduce((s, i) => s.replace(i, ' '), chunk)
+  let combos = [chung]
+  for (const i of interps) {
+    // Các chuỗi nháy đơn/kép trong biểu thức = các nhánh có thể chọn.
+    const nhanh = [...i.matchAll(/['"]([^'"]*)['"]/g)].map((m) => m[1])
+    if (nhanh.length === 0) continue
+    combos = combos.flatMap((c) => nhanh.map((n) => `${c} ${n}`)).slice(0, 8)
+  }
+  return combos
+}
+
 describe('contrast: cách viết đã bị đo là trượt AA', () => {
   it('không hạ độ mờ chữ green-50 trên thẻ gradient xanh', () => {
     const bad: string[] = []
@@ -65,8 +117,12 @@ describe('contrast: cách viết đã bị đo là trượt AA', () => {
     for (const f of FILES) {
       for (const chunk of classChunks(readFileSync(f, 'utf8'))) {
         if (!/\bbg-accent\b/.test(chunk)) continue
-        if (/\btext-white\b/.test(chunk)) {
-          bad.push(`${f.slice(SRC.length + 1)}: "${chunk.slice(0, 80)}"`)
+        // Xét theo TỔ HỢP thật (phần chung ∪ một nhánh ternary) — xem classCombos.
+        for (const combo of classCombos(chunk)) {
+          if (/\bbg-accent\b/.test(combo) && /\btext-white\b/.test(combo)) {
+            bad.push(`${f.slice(SRC.length + 1)}: "${combo.trim().slice(0, 80)}"`)
+            break
+          }
         }
       }
     }

@@ -186,7 +186,7 @@ export function TagsPage() {
           type="button"
           onClick={() => remove(t.id, t.name)}
           aria-label={`Xóa nhãn ${t.name}`}
-          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg text-red-600 hover:bg-state-bad-bg dark:text-red-400"
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -236,7 +236,7 @@ export function TagsPage() {
                 aria-pressed={t.budget_period === value}
                 className={`min-h-9 px-2 text-xs font-medium ${
                   t.budget_period === value
-                    ? 'bg-green-700 text-white'
+                    ? 'bg-accent text-fg-on-accent'
                     : 'text-fg-secondary hover:bg-surface-sunken'
                 }`}
               >
@@ -287,7 +287,7 @@ export function TagsPage() {
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Nhãn</h1>
       </div>
 
-      <Guide className="mb-3 rounded-xl bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+      <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-xs text-fg-secondary">
         Nhãn cắt ngang danh mục: một chuyến “Về VN 2026” gồm vé máy bay, quà và phong bì nằm ở ba
         danh mục khác nhau, nhưng cùng một nhãn thì cuối năm cộng được tổng chi phí cả chuyến.
         Xếp nhãn vào <b>nhóm</b> để lúc nhập đỡ phải lục: nhóm “Với ai?”, “Ở đâu?” mỗi nhóm một
@@ -331,7 +331,7 @@ export function TagsPage() {
           type="button"
           onClick={add}
           disabled={!draft.trim() || createTag.isPending}
-          className="min-h-11 shrink-0 rounded-lg bg-green-700 px-4 text-sm font-semibold text-white active:scale-95 disabled:opacity-40"
+          className="min-h-11 shrink-0 rounded-lg bg-accent text-fg-on-accent px-4 text-sm font-semibold active:scale-95 disabled:opacity-40"
         >
           Thêm
         </button>
@@ -394,7 +394,7 @@ export function TagsPage() {
                           type="button"
                           onClick={() => removeGroup(s.groupId!, s.title)}
                           aria-label={`Xóa nhóm ${s.title}`}
-                          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg text-red-600 hover:bg-state-bad-bg dark:text-red-400"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>

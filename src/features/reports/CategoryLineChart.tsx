@@ -15,7 +15,7 @@ export function CategoryLineChart({ points, base, color, labelOf, title }: Props
   const data = points.map((p) => ({ label: labelOf(p.key), amount: p.amount }))
 
   return (
-    <div className="mt-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 p-2">
+    <div className="mt-2 rounded-lg bg-surface-sunken p-2">
       <p className="mb-1 truncate text-xs font-medium text-fg-muted">{title}</p>
       <div className="h-40 w-full">
         <ResponsiveContainer width="100%" height="100%">

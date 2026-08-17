@@ -36,7 +36,7 @@ export function ClassificationToggle<T extends string | null>({
       <div
         role="group"
         aria-label={groupLabel ?? label}
-        className="grid grid-cols-3 gap-1 rounded-xl bg-gray-200 p-1 dark:bg-gray-800"
+        className="grid grid-cols-3 gap-1 rounded-xl bg-surface-sunken p-1"
       >
         {options.map(([val, text]) => (
           <button
@@ -49,7 +49,7 @@ export function ClassificationToggle<T extends string | null>({
             // gray-600 trên gray-200 = 6,88:1. Cùng lý do với nhãn tab trên gray-100.
             className={`min-h-11 rounded-lg text-xs font-medium transition ${
               value === val
-                ? 'bg-surface text-gray-900 shadow-sm dark:text-gray-100'
+                ? 'bg-surface text-fg-primary shadow-sm'
                 : 'text-fg-on-track hover:text-fg-primary'
             }`}
           >

@@ -61,7 +61,7 @@ export function SeasonalityCard({ data }: Props) {
               <span className="h-4 flex-1 overflow-hidden rounded bg-surface-page">
                 <span
                   className={`block h-full rounded ${
-                    strong ? 'bg-red-600' : weak ? 'bg-green-700' : 'bg-slate-400'
+                    strong ? 'bg-red-600' : weak ? 'bg-accent' : 'bg-slate-400'
                   }`}
                   style={{ width: `${(m.indexPct / max) * 100}%` }}
                 />

@@ -36,7 +36,7 @@ function Switch({
     >
       <span
         className={`block h-6 w-11 rounded-full transition ${
-          on ? 'bg-green-700' : 'bg-gray-300 dark:bg-gray-700'
+          on ? 'bg-accent' : 'bg-gray-300 dark:bg-gray-700'
         }`}
       >
         <span
@@ -225,7 +225,7 @@ function Group({
       <h2 className="mb-2 px-1 text-2xs font-bold uppercase tracking-wide text-fg-muted">
         {title}
       </h2>
-      <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface ">
+      <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface">
         {types.map((t) => {
           const meta = NOTIFICATION_META[t]
           const on = !off.has(t)

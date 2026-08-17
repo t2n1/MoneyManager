@@ -30,7 +30,7 @@ export function CategoryCompareBarsCard({ rows, categories, base, limit = 8 }: P
           return (
             <li key={row.categoryId}>
               <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
-                <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">
+                <span className="min-w-0 flex-1 truncate text-fg-secondary">
                   {cat?.icon ?? '📦'} {cat?.name ?? '?'}
                 </span>
                 <span className="shrink-0 font-medium text-fg-primary">

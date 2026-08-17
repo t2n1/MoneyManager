@@ -152,11 +152,22 @@ const FILES = sourceFiles().map((path) => ({
 }))
 
 /** Số lần `needle` xuất hiện trong toàn bộ src, kèm danh sách file để báo lỗi cho rõ. */
+/**
+ * Đếm số lần `needle` xuất hiện, KHÔNG tính khi nó chỉ là phần đầu của một class dài hơn.
+ *
+ * Vì sao cần chốt này: cây kim `rounded-xl bg-surface` (đếm thẻ viết tay) khớp luôn cả
+ * `rounded-xl bg-surface-sunken` — mà track lún, nền segmented và nền chrome KHÔNG phải
+ * thẻ. Trước bản 1a chỉ có mỗi `bg-surface` nên phép so chuỗi trần còn đúng; từ khi thang
+ * bề mặt có bốn nấc (`-page`, `-chrome`, `-sunken`) thì nó bắt oan, và trần bị đẩy lên vì
+ * một thứ không phải nợ.
+ */
 function occurrences(needle: string) {
   let count = 0
   const where: string[] = []
+  // Chặn hậu tố: sau cây kim không được là chữ/số/gạch — tức không phải class dài hơn.
+  const re = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w-])', 'g')
   for (const f of FILES) {
-    const n = f.text.split(needle).length - 1
+    const n = f.text.match(re)?.length ?? 0
     if (n > 0) {
       count += n
       where.push(`${f.path.replace(SRC, '')} (${n})`)
@@ -518,7 +529,10 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // bán kính cùng hạng thì Tailwind quyết theo thứ tự trong CSS, không theo thứ tự
     // trong chuỗi class). Tức con số này giờ đếm ĐÚNG số thẻ viết tay, không cộng thêm
     // chính primitive nữa.
-    { needle: 'rounded-xl bg-surface', max: 82, use: '<Card>' },
+    // 74 (2026-08-17, đợt dọn bảng màu thô): tụt từ 82 vì `bg-white dark:bg-gray-800`
+    // viết tay đã đi qua token `bg-surface`. Con số này KHÔNG tăng vì chuyển đổi đó —
+    // phép đếm giờ chặn hậu tố nên `bg-surface-sunken` không còn bị tính là thẻ.
+    { needle: 'rounded-xl bg-surface', max: 74, use: '<Card>' },
     // 96 (2026-08-13, đợt gộp danh mục): tụt từ 97 vì HoldingsSection và
     // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
     // mỗi câu chỉ còn MỘT bản. FundHoldingsSection từng ghi ngay tại chỗ ngưỡng này
@@ -568,7 +582,12 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // 61 (2026-08-16, PR 2 của redesign 1a): tụt 1 vì <ActionButton variant="primary">
     // đổi sang `bg-accent` + `text-fg-on-accent`. Chính primitive không còn nằm trong
     // số đếm, nên 61 là số chỗ viết tay thật.
-    { needle: 'bg-green-700', max: 61, use: '<ActionButton variant="primary"> hoặc bg-accent' },
+    // 21 (2026-08-17, đợt dọn bảng màu thô): tụt từ 61. Ở LIGHT --accent chính là
+    // green-700 nên `bg-green-700` → `bg-accent` là đổi tên, không đổi màu; nhưng phải
+    // đổi kèm `text-white` → `text-fg-on-accent`, vì ở DARK --accent lật sang green-500
+    // và chữ trắng trên nó chỉ còn 2,22:1. 21 chỗ còn lại là những nơi green-700 KHÔNG
+    // mang vai accent (vùng thang đo của STATUS_FILL, chấm trạng thái, cột biểu đồ).
+    { needle: 'bg-green-700', max: 21, use: '<ActionButton variant="primary"> hoặc bg-accent' },
     // Hai bán kính ngoài scale 4 tầng (docs §Bán kính). `rounded-2xl` có chủ đích ở thẻ
     // hero và sheet trượt lên; phần còn lại là tuỳ tiện. `rounded-md` thì lạc hẳn.
     // 37 (2026-08-12): sheet khai thu dự kiến của mặt lập kế hoạch. Đúng ngoại lệ ghi

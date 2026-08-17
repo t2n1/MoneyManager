@@ -29,6 +29,7 @@ import { planVerdict } from './planVerdict'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { ExpectedIncomeSheet } from './ExpectedIncomeSheet'
 import { SUGGEST_MONTHS, usePlanning } from './usePlanning'
+import { STATUS_FILL } from '../../components/ui/statusColors'
 
 export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   const monthKeyStr = monthKeyString(monthKey)
@@ -220,7 +221,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-sunken">
                   <div
-                    className={`h-full rounded-full ${over ? 'bg-red-500' : 'bg-green-500'}`}
+                    className={`h-full rounded-full ${over ? STATUS_FILL.bad : STATUS_FILL.good}`}
                     style={{
                       width: `${
                         summary.income > 0
@@ -278,7 +279,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                       </div>
                       <div className="relative mt-1 h-2 overflow-hidden rounded-full bg-surface-sunken">
                         <div
-                          className={`h-full rounded-full ${l.ok ? 'bg-green-500' : 'bg-amber-500'}`}
+                          className={`h-full rounded-full ${l.ok ? STATUS_FILL.good : STATUS_FILL.warn}`}
                           style={{ width: `${barPct}%` }}
                         />
                         <div

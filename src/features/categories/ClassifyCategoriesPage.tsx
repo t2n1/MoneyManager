@@ -68,7 +68,7 @@ export function ClassifyCategoriesPage() {
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Phân loại chi tiêu</h1>
       </div>
 
-      <Guide className="mb-3 rounded-xl bg-blue-50 p-3 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+      <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-xs text-fg-secondary">
         Gán mỗi danh mục Chi vào <b>Thiết yếu/Linh hoạt</b> và <b>Cố định/Biến đổi</b> để xem cơ cấu
         chi tiêu ở Báo cáo. Thay đổi được lưu ngay.
       </Guide>
@@ -89,7 +89,7 @@ export function ClassifyCategoriesPage() {
               </div>
             )}
             {g.leaves.map((c) => (
-              <div key={c.id} className="rounded-xl bg-surface p-3 shadow-sm ">
+              <div key={c.id} className="rounded-xl bg-surface p-3 shadow-sm">
                 <div className="mb-2 flex items-center gap-2">
                   <span className="text-lg">{c.icon}</span>
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg-primary">

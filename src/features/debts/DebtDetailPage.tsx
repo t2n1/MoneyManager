@@ -146,14 +146,14 @@ export function DebtDetailPage() {
         <button
           type="button"
           onClick={() => setPaying(true)}
-          className="min-h-11 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white active:scale-95"
+          className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold active:scale-95"
         >
           + Ghi nhận trả
         </button>
         <button
           type="button"
           onClick={toggleSettled}
-          className="min-h-11 rounded-lg bg-surface px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 shadow-sm active:scale-95"
+          className="min-h-11 rounded-lg bg-surface px-4 py-2 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
         >
           {debt.status === 'open' ? 'Đánh dấu tất toán' : 'Mở lại'}
         </button>
@@ -164,14 +164,14 @@ export function DebtDetailPage() {
         <button
           type="button"
           onClick={handleDelete}
-          className="min-h-11 rounded-lg px-4 py-2 text-sm font-medium text-money-out hover:bg-red-50 dark:hover:bg-red-900/30"
+          className="min-h-11 rounded-lg px-4 py-2 text-sm font-medium text-money-out hover:bg-state-bad-bg"
         >
           Xóa khoản nợ
         </button>
       </div>
 
       {debt.status === 'open' && fullyPaid && (
-        <p className="mt-3 rounded-lg bg-amber-50 dark:bg-amber-900/30 p-3 text-xs text-amber-700 dark:text-amber-300">
+        <p className="mt-3 rounded-lg bg-state-warn-bg text-state-warn-fg p-3 text-xs">
           Đã trả đủ. Bạn có thể "Đánh dấu tất toán" để đưa khoản này ra khỏi tổng nợ.
         </p>
       )}
@@ -219,7 +219,7 @@ export function DebtDetailPage() {
                 <button
                   type="button"
                   onClick={() => setViewingTxId(p.transaction_id)}
-                  className="flex min-w-0 flex-1 items-center gap-2 rounded-lg -mx-1 px-1 py-0.5 active:scale-[0.99] hover:bg-gray-50 dark:hover:bg-gray-800"
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded-lg -mx-1 px-1 py-0.5 active:scale-[0.99] hover:bg-surface-sunken"
                   aria-label="Xem giao dịch liên kết"
                 >
                   {info}
@@ -230,7 +230,7 @@ export function DebtDetailPage() {
               <button
                 type="button"
                 onClick={() => handleDeletePayment(p.id, !!p.transaction_id)}
-                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-xs text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-xs text-fg-muted hover:bg-surface-sunken"
               >
                 Xóa
               </button>
@@ -334,7 +334,7 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
                   <th className="py-1 pl-2 font-medium">Dư nợ</th>
                 </tr>
               </thead>
-              <tbody className="text-gray-700 dark:text-gray-300">
+              <tbody className="text-fg-secondary">
                 {schedule.rows.map((r) => (
                   <tr key={r.index} className="border-t border-border-subtle">
                     <td className="py-1 pr-2 text-left">{r.index}</td>

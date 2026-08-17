@@ -232,7 +232,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
   return (
     <div className="flex flex-col gap-3">
       {hasMissingRate && (
-        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">
+        <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-xs">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
@@ -279,7 +279,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
             {insights.map((i) => (
               <li
                 key={i.id}
-                className="rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1.5 text-xs text-gray-700 dark:text-gray-300"
+                className="rounded-lg bg-state-good-bg px-2 py-1.5 text-xs text-fg-secondary"
               >
                 {i.text}
               </li>
@@ -393,9 +393,9 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
               return (
                 <li
                   key={a.transactionId}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/30 px-2 py-1.5 text-xs"
+                  className="flex items-center justify-between gap-2 rounded-lg bg-state-warn-bg px-2 py-1.5 text-xs"
                 >
-                  <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">
+                  <span className="min-w-0 flex-1 truncate text-fg-secondary">
                     {cat?.icon ?? '📦'} {cat?.name ?? '?'}
                   </span>
                   <span className="shrink-0 font-medium text-fg-primary">{formatMoney(a.amount, base)}</span>

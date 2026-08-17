@@ -27,7 +27,8 @@ import {
 import { addMonths, formatMonthLabel, getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { NotificationBoundary } from '../notifications/NotificationBoundary'
-import { RemindersBanner } from '../reminders/RemindersBanner'
+import { useNotifications } from '../notifications/useNotifications'
+import { reliability } from '../notifications/reliability'
 import { monthlySeries } from '../reports/aggregate'
 import { headlineOf } from '../reports/headline'
 import { useAssetsData } from '../assets/useAssetsData'
@@ -35,6 +36,8 @@ import { TransactionItem } from '../transactions/TransactionItem'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { BULLETIN_MONTHS, kpiFromSeries, recentTransactions, seriesAnchor } from './bulletin'
 import { AccountsPanel } from './AccountsPanel'
+import { ReliabilityPanel } from './ReliabilityPanel'
+import { TodoPanel } from './TodoPanel'
 import { BudgetPanel } from './BudgetPanel'
 import { CashflowPanel } from './CashflowPanel'
 import { KpiRow } from './KpiRow'
@@ -125,14 +128,44 @@ export function BulletinPage() {
   const accountOf = (id: string | null) => accounts.find((a) => a.id === id)
   const categoryOf = (id: string | null) => categories.find((c) => c.id === id)
 
+  // Việc cần làm — ĐỌC bộ luật sẵn có, không tính lại điều kiện nào. `actions` đã qua
+  // trần 5 việc, đã xếp theo mức, đã lọc loại bị tắt ở Cài đặt và việc đã ẩn.
+  const notif = useNotifications()
+
+  // Độ tin cậy dữ liệu. Dùng lại chính chuỗi 8 tháng và danh sách tài khoản trang này
+  // đã tải — không thêm một request nào.
+  const doTinCay = useMemo(
+    () =>
+      reliability({
+        todayISO: toISODate(new Date()),
+        recentTxs: rangeTxs,
+        categories,
+        // ĐÚNG tập tài khoản mà `reconcileStaleRule` xét, không phải `purposeGroups`.
+        // Đã dựng sai một lần và đo ra ngay: purposeGroups chỉ có TÀI SẢN nên thẻ tín
+        // dụng rơi ra ngoài — khối Việc cần làm ghi "7 tài khoản chưa đối chiếu" trong
+        // khi khối Độ tin cậy ngay dưới ghi "6". Hai con số cho cùng một câu hỏi trên
+        // cùng một màn là lỗi tệ hơn cả hai con số đều sai: người dùng thôi tin cả hai.
+        accountIds: accounts
+          .filter((a) => !a.is_archived && !a.is_hidden && a.include_in_totals)
+          .map((a) => a.id),
+        monthsWithData: series.points.filter((p) => p.income > 0 || p.expense > 0).length,
+        // Giả định của Lifetime: chưa khai năm sinh là một giả định trống. Hai giả định
+        // còn lại (lợi suất, kịch bản) thuộc màn Tương lai — PR 10 nối vào đây.
+        blankAssumptions: profile?.birth_year ? 0 : 1,
+      }),
+    [rangeTxs, categories, accounts, series.points, profile?.birth_year],
+  )
+
   return (
     <div className="flex flex-col gap-2.5 p-3 lg:p-4">
       <h1 className="sr-only">Bản tin</h1>
 
-      {/* Chỗ của khối "Việc cần làm" (§4.9) — PR 9. Tới lúc đó banner này bị nó thay,
-          không phải đứng cạnh: hai chỗ cùng nhắc một việc là đúng cái 16a đi dẹp. */}
+      {/* Khối 1 — Việc cần làm (§4.9). Nó THAY banner nhắc nhở cũ, không đứng cạnh: hai
+          chỗ cùng nhắc một việc là đúng cái 16a đi dẹp.
+          NotificationBoundary vẫn bọc: bộ luật đọc gần hết bảng dữ liệu, một query hỏng
+          không được kéo sập cả trang chủ. */}
       <NotificationBoundary>
-        <RemindersBanner />
+        <TodoPanel items={notif.actions} onDismiss={notif.dismiss} />
       </NotificationBoundary>
 
       {/* Tiêu đề màn cho MOBILE (top bar chỉ có từ lg). Bản vẽ 17a: mỗi màn mobile tự
@@ -217,6 +250,10 @@ export function BulletinPage() {
 
         <AccountsPanel groups={purposeGroups} />
       </div>
+
+      {/* Khối 5 — Độ tin cậy dữ liệu (§4.9). Đứng CUỐI vì nó nói về cái thước, không
+          phải về tiền: đọc sau khi đã xem xong các con số thì mới có nghĩa. */}
+      <ReliabilityPanel data={doTinCay} />
 
       {editing && (
         <EditTransactionSheet tx={editing} onClose={() => setEditing(null)} />

@@ -24,7 +24,12 @@ var NOTIFICATION_TYPES = [
   "monthly-summary",
   // Cuối mảng = hiển thị sau cùng trong nhóm việc-cần-làm: đây là tin ít gấp nhất
   // (lệch kế hoạch cả đời, không phải "hết tiền tuần này").
-  "lifetime-drift"
+  "lifetime-drift",
+  // Hai luật về ĐỘ TIN CẬY của dữ liệu (§4.9) đứng CUỐI: chúng không gấp — không có
+  // hạn chót nào — nhưng chúng nói rằng những con số phía trên đang được đo bằng một
+  // cái thước thiếu vạch, nên vẫn thuộc nhóm việc-cần-làm chứ không phải tin-để-biết.
+  "data-uncategorized",
+  "data-reconcile"
 ];
 var NOTIFICATION_META = {
   "account-shortfall": {
@@ -111,6 +116,16 @@ var NOTIFICATION_META = {
     kind: "action",
     label: "Thu chi l\u1EC7ch k\u1EBF ho\u1EA1ch Lifetime",
     hint: `Thu ho\u1EB7c chi th\u1EF1c t\u1EBF ${RECENT_TXS_DAYS} ng\xE0y g\u1EA7n \u0111\xE2y l\u1EC7ch kh\u1ECFi gi\u1EA3 \u0111\u1ECBnh c\u1EE7a k\u1ECBch b\u1EA3n (k\u1EC3 c\u1EA3 khi k\u1EBF ho\u1EA1ch \u0111\u1EC3 thu 0 m\xE0 s\u1ED5 c\xF3 thu nh\u1EADp), k\xE8m m\u1ED1c \xE2m d\u1ECBch bao nhi\xEAu n\u0103m.`
+  },
+  "data-uncategorized": {
+    kind: "action",
+    label: "Giao d\u1ECBch ch\u01B0a g\u1EAFn danh m\u1EE5c",
+    hint: "Kho\u1EA3n ch\u01B0a c\xF3 danh m\u1EE5c kh\xF4ng v\xE0o \u0111\u01B0\u1EE3c b\xE1o c\xE1o hay ng\xE2n s\xE1ch \u2014 nh\u1EAFc khi d\u1ED3n l\u1EA1i."
+  },
+  "data-reconcile": {
+    kind: "action",
+    label: "T\xE0i kho\u1EA3n l\xE2u ch\u01B0a \u0111\u1ED1i chi\u1EBFu",
+    hint: "Qu\xE1 30 ng\xE0y kh\xF4ng so s\u1ED1 d\u01B0 s\u1ED5 v\u1EDBi s\u1ED1 th\u1EADt th\xEC m\u1ECDi t\u1ED5ng \u0111\u1EC1u c\xF3 th\u1EC3 \u0111\xE3 l\u1EC7ch."
   }
 };
 
@@ -1179,6 +1194,76 @@ function lifetimeRules(input) {
   return out;
 }
 
+// src/features/categories/flowCategories.ts
+var DEBT_FLOW_CATEGORY_NAMES = {
+  /** chi — mình cho người khác vay */
+  lend: "Cho vay",
+  /** thu — mình đi vay */
+  borrow: "\u0110i vay",
+  /** thu — người ta trả lại mình */
+  collect: "Thu n\u1EE3",
+  /** chi — mình trả nợ */
+  repay: "Tr\u1EA3 n\u1EE3"
+};
+var ADJUST_CATEGORY_NAME = "\u0110i\u1EC1u ch\u1EC9nh s\u1ED1 d\u01B0";
+var FLOW_NAMES = /* @__PURE__ */ new Set([
+  ...Object.values(DEBT_FLOW_CATEGORY_NAMES),
+  ADJUST_CATEGORY_NAME
+]);
+
+// src/features/notifications/rules/dataRules.ts
+var RECONCILE_STALE_DAYS = 30;
+var UNCATEGORIZED_MIN = 3;
+function uncategorizedRule(input) {
+  const chua = input.recentTxs.filter(
+    (t) => t.category_id == null && t.type !== "transfer" && !t.exclude_from_stats
+  );
+  if (chua.length < UNCATEGORIZED_MIN) return [];
+  return [
+    {
+      // Mã KHÔNG chứa số lượng: thêm một khoản chưa phân loại nữa mà mã đổi thì việc
+      // này "mới" trở lại và trạng thái đã ẩn mất tác dụng. Một tình huống, một mã.
+      key: "data-uncategorized:all",
+      kind: "action",
+      type: "data-uncategorized",
+      severity: "medium",
+      title: `${chua.length} giao d\u1ECBch ch\u01B0a g\u1EAFn danh m\u1EE5c`,
+      detail: "B\xE1o c\xE1o v\xE0 ng\xE2n s\xE1ch \u0111ang t\xEDnh thi\u1EBFu ch\u1ED7 n\xE0y.",
+      to: "/so"
+    }
+  ];
+}
+function reconcileStaleRule(input) {
+  const adjustCatIds = new Set(
+    input.categories.filter((c) => c.name === ADJUST_CATEGORY_NAME).map((c) => c.id)
+  );
+  const cutoff = addDaysISO2(input.todayISO, -RECONCILE_STALE_DAYS);
+  const lanCuoi = /* @__PURE__ */ new Map();
+  for (const t of input.recentTxs) {
+    if (t.category_id == null || !adjustCatIds.has(t.category_id)) continue;
+    const cu2 = lanCuoi.get(t.account_id);
+    if (!cu2 || t.occurred_on > cu2) lanCuoi.set(t.account_id, t.occurred_on);
+  }
+  const cu = input.accounts.filter(
+    (a) => !a.is_archived && !a.is_hidden && a.include_in_totals && (lanCuoi.get(a.id) ?? "") < cutoff
+  );
+  if (cu.length === 0) return [];
+  return [
+    {
+      key: "data-reconcile:all",
+      kind: "action",
+      type: "data-reconcile",
+      severity: "low",
+      title: cu.length === 1 ? `${cu[0].name} ch\u01B0a \u0111\u1ED1i chi\u1EBFu qu\xE1 ${RECONCILE_STALE_DAYS} ng\xE0y` : `${cu.length} t\xE0i kho\u1EA3n ch\u01B0a \u0111\u1ED1i chi\u1EBFu qu\xE1 ${RECONCILE_STALE_DAYS} ng\xE0y`,
+      detail: "S\u1ED1 d\u01B0 tr\xEAn m\xE0n c\xF3 th\u1EC3 \u0111\xE3 l\u1EC7ch s\u1ED1 th\u1EADt.",
+      to: "/assets"
+    }
+  ];
+}
+function dataRules(input) {
+  return [...uncategorizedRule(input), ...reconcileStaleRule(input)];
+}
+
 // src/features/notifications/rules.ts
 var SEVERITY_RANK = { high: 0, medium: 1, low: 2 };
 var TYPE_RANK = new Map(NOTIFICATION_TYPES.map((t, i) => [t, i]));
@@ -1213,7 +1298,8 @@ function buildNotifications(input) {
     ...tagRules(input),
     ...cardRules(input),
     ...rhythmRules(input),
-    ...lifetimeRules(input)
+    ...lifetimeRules(input),
+    ...dataRules(input)
   ];
   return arrangeNotifications(all, input.offTypes);
 }

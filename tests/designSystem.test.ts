@@ -123,6 +123,11 @@ function stripComments(text: string): string {
  *     tháng này). Mỗi câu đi kèm MỘT <Link>, và cái link đó là đường đi tiếp DUY NHẤT
  *     của khối — Bản tin không có nút nào khác dẫn tới đó. Bọc <Guide> là ở chế độ Gọn
  *     khối rỗng thành một ô trống trơn, đúng loại lỗi các lần nâng trần trước đã tránh.
+ * 62 (2026-08-17, PR 9): +1 ở ReliabilityPanel — câu 'Không còn chỗ nào thiếu…'. Đó là
+ * câu NÓI RA CHÍNH TRẠNG THÁI của khối (bảng ranh giới xếp vào cột KHÔNG bọc): ẩn nó ở
+ * chế độ Gọn thì khối Độ tin cậy 100% chỉ còn một con số trơ và một thanh xanh, không
+ * ai biết nó nghĩa là đã đủ hay chưa tính được.
+ *
  * 61 (2026-08-17, PR 8): +1 ở PlanningView — dòng 'Thu dự kiến … đang dùng nền — TB 6
  * tháng có dữ liệu'. Đây là câu nói ra NGUỒN của mẫu số, tức cảnh báo dữ liệu: ẩn nó
  * ở chế độ Gọn thì người dùng chia hết một con số app đoán hộ mà tưởng là số mình khai.
@@ -131,7 +136,7 @@ function stripComments(text: string): string {
  *     panel Ngân sách và dòng "tháng · thu / chi" của panel Dòng tiền. Chữ thật trong
  *     chúng chỉ vài từ; phần vượt 45 ký tự là markup của <Money> và <span>.
  */
-const PROSE_MAX = 61
+const PROSE_MAX = 62
 
 const FILES = sourceFiles().map((path) => ({
   path,

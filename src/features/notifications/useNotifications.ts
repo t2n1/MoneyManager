@@ -31,6 +31,7 @@ import {
   lifetimeQueriesSettled,
   notificationInputsReady,
   unreadActionCount,
+  visibleActions,
   visibleInfoLists,
 } from './state'
 import { RECENT_TXS_DAYS } from './types'
@@ -269,10 +270,14 @@ export function useNotifications(): UseNotificationsResult {
     dismissedKeys,
     INFO_LIMIT,
   )
-  // Việc-cần-làm KHÔNG lọc theo đã đọc (đã đọc chỉ mờ đi chứ không mất) và không có
-  // nút ✕, nên ở nhóm này cắt trước hay sau đều ra một kết quả — vẫn cắt ở đây cho
-  // cùng một chỗ với nhóm kia.
-  const actions = result.actionsAll.slice(0, ACTION_LIMIT)
+  // Việc-cần-làm KHÔNG lọc theo đã đọc (đọc một việc không làm nó xong), nhưng CÓ lọc
+  // theo đã ẩn kể từ khối 'Việc cần làm' của Bản tin (§4.9 / R5): không có nó thì năm
+  // việc giống hệt nhau hiện mỗi lần mở app và sau một tuần không ai đọc.
+  //
+  // LỌC TRƯỚC, CẮT TRẦN SAU — cùng lý do với nhóm tin-để-biết (lỗi I4-R): ẩn ba việc
+  // đầu mà cắt trần trước thì phần hiện ra chỉ còn hai, trong khi có bảy việc chờ.
+  const actionsVisible = visibleActions(result.actionsAll, dismissedKeys)
+  const actions = actionsVisible.slice(0, ACTION_LIMIT)
   // Đếm trên bản ĐẦY ĐỦ, không phải phần thu gọn: có 7 việc mà chuông báo 5 là nói
   // dối, và chính tấm trượt cũng đang in "7 việc cần làm" ở tiêu đề. Bấm mở rồi bấm
   // "Xem thêm" vẫn tắt hết được số đỏ, chỉ thêm một cái chạm.
@@ -309,7 +314,7 @@ export function useNotifications(): UseNotificationsResult {
   return {
     actions,
     infos,
-    actionsAll: result.actionsAll,
+    actionsAll: actionsVisible,
     infosAll,
     unreadCount,
     readKeys,

@@ -35,6 +35,8 @@ export type NotificationType =
   | 'networth-record'
   | 'monthly-summary'
   | 'lifetime-drift'
+  | 'data-uncategorized'
+  | 'data-reconcile'
 
 /**
  * Cửa sổ giao dịch mà `NotificationInput.recentTxs` CHỨA THẬT.
@@ -90,6 +92,11 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   // Cuối mảng = hiển thị sau cùng trong nhóm việc-cần-làm: đây là tin ít gấp nhất
   // (lệch kế hoạch cả đời, không phải "hết tiền tuần này").
   'lifetime-drift',
+  // Hai luật về ĐỘ TIN CẬY của dữ liệu (§4.9) đứng CUỐI: chúng không gấp — không có
+  // hạn chót nào — nhưng chúng nói rằng những con số phía trên đang được đo bằng một
+  // cái thước thiếu vạch, nên vẫn thuộc nhóm việc-cần-làm chứ không phải tin-để-biết.
+  'data-uncategorized',
+  'data-reconcile',
 ]
 
 export interface NotificationTypeMeta {
@@ -191,6 +198,16 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     hint:
       `Thu hoặc chi thực tế ${RECENT_TXS_DAYS} ngày gần đây lệch khỏi giả định của kịch bản ` +
       '(kể cả khi kế hoạch để thu 0 mà sổ có thu nhập), kèm mốc âm dịch bao nhiêu năm.',
+  },
+  'data-uncategorized': {
+    kind: 'action',
+    label: 'Giao dịch chưa gắn danh mục',
+    hint: 'Khoản chưa có danh mục không vào được báo cáo hay ngân sách — nhắc khi dồn lại.',
+  },
+  'data-reconcile': {
+    kind: 'action',
+    label: 'Tài khoản lâu chưa đối chiếu',
+    hint: 'Quá 30 ngày không so số dư sổ với số thật thì mọi tổng đều có thể đã lệch.',
   },
 }
 

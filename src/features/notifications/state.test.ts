@@ -6,6 +6,7 @@ import {
   splitStaleActionKeys,
   unreadActionCount,
   visibleInfoLists,
+  visibleActions,
   visibleInfos,
   type NotificationInputsReady,
 } from './state'
@@ -324,5 +325,27 @@ describe('visibleInfoLists', () => {
     const out = visibleInfoLists(infos, new Set(), new Set(), 3)
     expect(out.infos).toHaveLength(3)
     expect(out.infosAll).toHaveLength(4)
+  })
+})
+
+describe('visibleActions (§4.9 / R5 — ẩn một việc)', () => {
+  const n = (key: string): AppNotification =>
+    ({ key, kind: 'action', type: 'budget-over', severity: 'high', title: key, to: '/' }) as AppNotification
+
+  it('bỏ đúng việc đã ẩn, giữ nguyên phần còn lại', () => {
+    const out = visibleActions([n('a'), n('b'), n('c')], new Set(['b']))
+    expect(out.map((x) => x.key)).toEqual(['a', 'c'])
+  })
+
+  it('chưa ẩn gì thì giữ nguyên thứ tự', () => {
+    const list = [n('a'), n('b')]
+    expect(visibleActions(list, new Set()).map((x) => x.key)).toEqual(['a', 'b'])
+  })
+
+  // Việc-cần-làm KHÔNG lọc theo đã đọc: đọc một việc không làm nó xong. Chỉ `dismissed`
+  // mới giấu nó đi, và `splitStaleActionKeys` dọn trạng thái đó khi tình huống hết.
+  it('không đụng tới trạng thái đã đọc', () => {
+    const out = visibleActions([n('a')], new Set())
+    expect(out).toHaveLength(1)
   })
 })

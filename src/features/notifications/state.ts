@@ -37,6 +37,23 @@ export function visibleInfos(
 }
 
 /**
+ * Việc-cần-làm còn được hiện: đã ẩn thì thôi. KHÔNG lọc theo đã đọc — đọc một việc
+ * không làm nó xong.
+ *
+ * Vì sao "ẩn" mà không phải "xoá vĩnh viễn": `splitStaleActionKeys` ở trên xoá trạng
+ * thái của mọi việc-cần-làm mà lượt tính này KHÔNG sinh ra nữa. Nên vòng đời tự khép:
+ * ẩn "3 giao dịch chưa gắn danh mục" → gắn xong → luật thôi sinh việc đó → trạng thái
+ * bị dọn → lần sau dồn lại 3 khoản mới thì nó đỏ như mới. Đúng thứ R5 đòi mà không cần
+ * thêm cột "ẩn tới ngày nào": hạn của việc này là CHÍNH TÌNH HUỐNG SINH RA NÓ.
+ */
+export function visibleActions(
+  actions: AppNotification[],
+  dismissedKeys: Set<string>,
+): AppNotification[] {
+  return actions.filter((n) => !dismissedKeys.has(n.key))
+}
+
+/**
  * Hai danh sách tin-để-biết mà tấm trượt cần: bản ĐẦY ĐỦ (đã lọc) và phần THU GỌN
  * (đoạn đầu của bản đầy đủ).
  *

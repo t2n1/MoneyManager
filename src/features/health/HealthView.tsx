@@ -52,7 +52,7 @@ const SECTIONS: readonly IndexItem[] = [
   { id: 'hl-quy', label: 'Quỹ dự phòng' },
   { id: 'hl-thanh-khoan', label: 'Nợ ngắn hạn' },
   { id: 'hl-dti', label: 'Nợ/thu nhập' },
-  { id: 'hl-runway', label: 'Cầm cự' },
+  { id: 'hl-runway', label: 'Nếu mất việc' },
   { id: 'hl-nguon-thu', label: 'Nguồn thu' },
   { id: 'hl-thue', label: 'Thuế' },
 ]
@@ -212,7 +212,7 @@ export function HealthView() {
     },
     {
       key: 'runway',
-      label: 'Cầm cự được bao lâu',
+      label: 'Nếu mất việc',
       weight: 20,
       score: runway === null ? null : scoreFromZones(runway.p50, runwayZones),
     },
@@ -302,7 +302,7 @@ export function HealthView() {
       {/* 1. Quỹ dự phòng */}
       <Section id="hl-quy">
         <HealthMetricCard
-          title="Quỹ dự phòng"
+          title="Quỹ dự phòng — đệm cho việc bất ngờ"
           display={fund === null ? '—' : months1(fund)}
           verdict={fundVerdict}
           value={fund}
@@ -446,7 +446,7 @@ export function HealthView() {
       {/* 4. Runway */}
       <Section id="hl-runway">
         <HealthMetricCard
-          title="Cầm cự được bao lâu (mô phỏng)"
+          title="Nếu mất việc — cầm cự được bao lâu (mô phỏng)"
           display={
             runway === null
               ? '—'

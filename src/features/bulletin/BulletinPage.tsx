@@ -282,7 +282,12 @@ export function BulletinPage() {
       </div>
 
       <div className="flex flex-wrap gap-2.5">
-        <Card elevation="panel" padding="panel" as="section" className="min-w-0 flex-1">
+        <Card
+          elevation="panel"
+          padding="panel"
+          as="section"
+          className="min-w-0 flex-1 basis-full xl:basis-0"
+        >
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="text-[0.8125rem] font-semibold text-fg-primary">Giao dịch gần đây</h2>
             <Link to="/so" className="text-2xs font-medium text-fg-accent hover:underline">

@@ -532,6 +532,32 @@ describe('design system — ban cứng (phải bằng 0)', () => {
   })
 
   /**
+   * Lý do: §13 gạch thứ hai — "bề rộng cột số cứng (`width:104px`…) đổi thành `ch`/`rem`
+   * hoặc `minmax`; ở cỡ chữ lớn cột px cứng là chỗ vỡ ĐẦU TIÊN". Chữ trong cột giãn theo
+   * `--app-font-scale`, cột thì không, nên nội dung tự ép xuống dòng hoặc bị cắt.
+   *
+   * NGƯỠNG 16px, không phải "mọi px": dưới 16px thì đó không còn là cột chứa chữ mà là
+   * vạch/mốc — `min-w-[3px]` cho cột biểu đồ (để tháng chi gần 0 vẫn thấy một vạch) và
+   * `gap-[3px]` giữa hai cột phải ĐỨNG YÊN khi chữ to ra, không thì hai vạch 3px giãn
+   * thành hai vạch 4px và biểu đồ đổi hình vì người dùng phóng chữ.
+   *
+   * Chỉ soi tiện ích BỀ RỘNG: `left-[18px]`/`left-[22px]` (vị trí núm công tắc) không
+   * nằm trong luật này — chúng đo theo đường ray, mà đường ray là hình chứ không phải chữ.
+   */
+  it('không đặt bề rộng cột bằng px (không co theo Cỡ chữ)', () => {
+    const hits: string[] = []
+    const RE = /\b(?:w|min-w|max-w|basis|grid-cols)-\[([^\]]*)\]/g
+    for (const f of FILES)
+      for (const m of f.text.matchAll(RE))
+        if ([...m[1].matchAll(/(\d+(?:\.\d+)?)px/g)].some((px) => Number(px[1]) >= 16))
+          hits.push(`${f.path.replace(SRC, '')}: ${m[0]}`)
+    expect(
+      hits,
+      `Quy về rem (1rem = 16px ở cỡ chữ thường), ch, hoặc minmax().\n${hits.join('\n')}`,
+    ).toEqual([])
+  })
+
+  /**
    * Lý do: bảng §12 gán mỗi VIỆC một thời lượng, và bảy con số đó đã thành token trong
    * index.css. Viết `duration-300` / `duration-[140ms]` thẳng trong JSX là đưa một con số
    * thứ tám vào mà không ai đối chiếu được với bảng — đúng cách mà app từng có 150ms,

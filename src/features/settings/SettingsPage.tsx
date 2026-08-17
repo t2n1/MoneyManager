@@ -99,8 +99,12 @@ export function SettingsPage() {
 
       {/* Lưới ba cột. `xl` chứ không `lg`: ở 1024px, ba cột 230+1fr+340 để lại cột
           giữa hẹp hơn cả bản một cột cũ. items-start để cột ngắn không bị kéo cao
-          bằng cột dài. */}
-      <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[230px_1fr_340px] xl:items-start">
+          bằng cột dài.
+          Bề rộng theo REM chứ px (§13): hai cột biên là danh sách CHỮ (tên trang, nhãn
+          tuỳ chọn), nên ở cỡ chữ "Rất lớn" cột px cứng giữ nguyên trong khi chữ trong nó
+          to ra — nhãn dài như "Nhập bảng lương" bị xuống dòng giữa từ. 14.375rem/21.25rem
+          là đúng 230px/340px ở cỡ chữ thường. */}
+      <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[14.375rem_1fr_21.25rem] xl:items-start">
         {/* TRÁI — đi tới đâu */}
         <div className="flex flex-col gap-3">
           <section className="overflow-hidden rounded-lg border border-border-panel bg-surface">

@@ -987,7 +987,12 @@ export function TransactionForm({
             value={effectiveAccountId}
             onChange={setAccountId}
             ariaLabel="Tài khoản"
-            className="min-w-0 flex-1"
+            // `min-w-[7rem]` như hai picker của chuyển khoản ngay trên, KHÔNG phải
+            // `min-w-0`: hàng này có ô ngày rộng 7.5rem cố định, nên ở cỡ chữ "Rất lớn"
+            // trên màn 375px cái ô ngày ăn hết chỗ và picker bị bóp còn 36px — chỉ đủ hai
+            // cái icon, tên tài khoản mất sạch. Có sàn thì `flex-wrap` của hàng cha mới
+            // có việc để làm: picker xuống dòng riêng thay vì teo lại (§13).
+            className="min-w-[7rem] flex-1"
           />
         )}
         <DateField

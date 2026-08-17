@@ -33,7 +33,12 @@ export function CashflowPanel({ points, active, base, onPick, approx }: Props) {
   const cur = points.find((p) => same(p.key, active))
 
   return (
-    <Card elevation="panel" padding="panel" as="section" className="min-w-0 flex-1">
+    // `basis-full xl:basis-0` chứ chỉ `flex-1`: §6 chốt cặp panel này xếp NGANG từ xl và
+    // DỌC ở dưới, nhưng `flex-1 min-w-0` một mình không bao giờ xuống dòng — phần tử co
+    // được thì flex cho co chứ không cho `flex-wrap` chạy. Đo trên máy: ở 375px hai panel
+    // đứng cạnh nhau, mỗi cái 166px, và ở cỡ chữ "Rất lớn" thì số ¥54.118 trong panel
+    // Ngân sách bị cắt 8px còn dòng giao dịch tràn 39px (§13).
+    <Card elevation="panel" padding="panel" as="section" className="min-w-0 flex-1 basis-full xl:basis-0">
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-[0.8125rem] font-semibold text-fg-primary">Dòng tiền 8 tháng</h2>
         <p className="font-mono text-2xs text-fg-muted">

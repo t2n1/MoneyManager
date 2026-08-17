@@ -169,7 +169,11 @@ export function AccountPicker({
               type={selected.type}
               className="h-4 w-4 shrink-0 text-money-in"
             />
-            <span className="truncate">
+            {/* `min-w-0` là điều kiện để `truncate` có tác dụng bên trong flex: mục flex
+                mặc định `min-width: auto` nên nó KHÔNG co xuống dưới bề rộng nội dung, và
+                dấu … không bao giờ xuất hiện — chữ tràn ra ngoài viền nút. Đo ở cỡ chữ
+                "Rất lớn" trên màn 375px: nút tràn 31px, mũi chevron bị đẩy ra ngoài (§13). */}
+            <span className="min-w-0 truncate">
               {selected.name} · {CURRENCIES[selected.currency].symbol}
             </span>
           </>

@@ -239,6 +239,26 @@ Cộng thêm `--motion-progress` 300ms cho vòng tải — **không** phải m�
 
 ---
 
+## Cỡ chữ lớn (§13): cái gì tính bằng px thì đứng yên
+
+`--app-font-scale` (Cài đặt → Cỡ chữ) chỉ co giãn được cái tính theo **rem**. Bốn mức: 0,9 · 1 · 1,1 · **1,25** — spec §13 nói "scale 1,3×", nhưng mức lớn nhất người dùng chọn được thật là 1,25.
+
+**Ba luật, cả ba đã thành guardrail:**
+
+1. Cỡ chữ px → rem (`text-[13px]` là ban cứng, xem Guardrail).
+2. **Bề rộng cột px → rem/ch/minmax** — ban cứng cho `w-`/`min-w-`/`max-w-`/`basis-`/`grid-cols-` có px **≥ 16**. Dưới 16px thì không còn là cột chứa chữ mà là vạch/mốc (`min-w-[3px]` của cột biểu đồ, `gap-[3px]`) và những cái đó **phải** đứng yên — không thì biểu đồ đổi hình vì người dùng phóng chữ.
+3. **Hàng một dòng phải chịu được xuống hai dòng.** Không có cách quét tĩnh cho luật này; cách đo là chạy app ở 1,25× rồi tìm `scrollWidth > clientWidth`, bỏ qua `truncate` (ellipsis có chủ ý), `sr-only`, và khối `overflow-x-auto` (cuộn ngang có chủ ý).
+
+**Ba lỗi thật tìm được bằng phép đo đó** (2026-08-18), cả ba đều là cùng một sai lầm về flex:
+
+- **Cặp panel của Bản tin không bao giờ xuống dòng.** `flex-wrap` + `flex-1 min-w-0` **không** làm nên bố cục dọc: mục flex co được thì flex cho co, chứ không cho `flex-wrap` chạy. Đo trên máy: ở 375px hai panel đứng cạnh nhau mỗi cái 166px — trái hẳn với §6 và với chính comment ở trên chúng. Ở 1,25× thì số `¥54.118` bị cắt 8px và dòng giao dịch tràn 39px. Sửa: `basis-full xl:basis-0` — dọc dưới xl, ngang từ xl, và `basis-full` theo phần trăm nên miễn nhiễm với cỡ chữ.
+- **`truncate` trong flex không có tác dụng nếu thiếu `min-w-0`** (mục flex mặc định `min-width: auto`): nhãn tài khoản tràn ra ngoài viền nút 31px thay vì hiện dấu …
+- **Nhưng chỉ `min-w-0` thì mục teo về 0.** Cùng hàng có ô ngày rộng 7,5rem cố định, nên picker bị bóp còn 36px — vừa đủ hai icon, tên tài khoản mất sạch. Phải có **sàn** (`min-w-[7rem]`) để `flex-wrap` có việc làm. Công thức đủ là: **sàn `min-w-*` ở mục + `min-w-0` ở phần chữ bên trong + `flex-wrap` ở hàng cha.**
+
+Kết quả sau khi sửa: 12 màn × {320px, 375px, 1100px, 1400px} ở 1,25× không còn chỗ nào tràn, và `document.scrollWidth` không vượt `innerWidth` ở bất kỳ màn nào — trang không bao giờ cuộn ngang.
+
+---
+
 ## Guardrail
 
 `tests/designSystem.test.ts`, chạy trong `npm test`. Hai loại luật:
@@ -250,6 +270,8 @@ Cộng thêm `--motion-progress` 300ms cho vòng tải — **không** phải m�
 - `text-green-800 dark:text-green-400`, `text-red-700 dark:text-red-400` (đúng màu nhưng **viết lại cặp bằng tay** — dùng `text-money-in`/`text-money-out`)
 - `bg-green-600` (nút: trắng trên nó chỉ 3,22:1)
 - `text-[0.5625rem]` (dưới sàn đọc được)
+- `w-[420px]` và họ hàng — bề rộng px ≥ 16 trong tiện ích bề rộng (§13)
+- `duration-300` / `duration-[140ms]` — thời lượng viết tay, phải qua token §12
 
 Scanner **bỏ comment trước khi đếm** — nếu không thì chính lời giải thích "đừng dùng X" trong comment lại làm test đỏ, mà comment tại chỗ là nơi tốt nhất để ghi lý do.
 

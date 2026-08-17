@@ -11,13 +11,7 @@ import { Link } from 'react-router-dom'
 import { Card } from '../../components/ui'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
-import { shareLabel, sharePct, type AxisKey, type AxisProgress } from './axisTargets'
-
-const LABEL: Record<AxisKey, string> = {
-  essential: 'Thiết yếu',
-  flexible: 'Linh hoạt',
-  savings: 'Tiết kiệm',
-}
+import { AXIS_LABEL, shareLabel, sharePct, type AxisProgress } from './axisTargets'
 
 interface Props {
   data: AxisProgress
@@ -28,7 +22,7 @@ interface Props {
 }
 
 export function AxisStrip({ data, monthKey, base, linkToDetail = true }: Props) {
-  const parts = data.lines.map((l) => `${LABEL[l.key]} ${shareLabel(l.share)}`).join(', ')
+  const parts = data.lines.map((l) => `${AXIS_LABEL[l.key]} ${shareLabel(l.share)}`).join(', ')
   // Chi chưa gắn "mức cần thiết" KHÔNG nằm trong hai dòng đầu, nên ba con số có thể
   // cộng lại không tới 100% mà không có gì giải thích. Khối đầy đủ ở tab Ngân sách có
   // hẳn một dòng cảnh báo; ở đây chỉ đủ chỗ cho một mẩu chữ, nhưng có còn hơn không.
@@ -58,7 +52,7 @@ export function AxisStrip({ data, monthKey, base, linkToDetail = true }: Props) 
                     trục — ở 375px trở lên vẫn đủ chỗ cho một hàng. */}
                 <div className="flex flex-wrap items-baseline justify-between gap-x-1">
                   <span className="shrink-0 whitespace-nowrap text-2xs text-fg-muted">
-                    {LABEL[l.key]}
+                    {AXIS_LABEL[l.key]}
                   </span>
                   <span className="shrink-0 text-xs tabular-nums">
                     <span className={`font-semibold ${l.ok ? 'text-money-in' : 'text-fg-warn'}`}>

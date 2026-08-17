@@ -602,12 +602,17 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // trùng đích của dòng nên một <button> thật ở đây là phần tử bấm lồng phần tử bấm.
     // 43 khi Chi tiết thẻ có banner "cần nạp thêm" của bản vẽ 19a — bề mặt trạng thái,
     // cùng khuôn với năm banner state-* đã đếm ở PR 11.
+    // 46 khi mặt lập kế hoạch đổi ba chỗ amber-50 viết tay sang bề mặt state-warn (bản
+    // vẽ 18a): một banner thiếu tỷ giá, một banner hạn mức chưa phân loại, và nút cảnh
+    // báo trần hụt cam kết. Ba chỗ này KHÔNG phải khối mới — chúng đổi từ rounded-lg
+    // sang rounded-md vì §1.3 xếp banner/control vào 6px, và đây là lần chúng đi theo
+    // token thay vì bảng màu thô.
     // Trần vẫn có tác dụng: nó bắt người sửa DỪNG LẠI và nói ra chỗ mới thêm là control
     // 1a hay là một chỗ viết tay lẽ ra phải dùng primitive.
     //
     // Khi 13 màn của bản 1a dựng xong, THAY trần này bằng luật thật: đếm rounded-lg /
     // rounded-xl trên CONTROL — lúc đó mới là chiều nợ còn lại.
-    { needle: 'rounded-md', max: 43, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
+    { needle: 'rounded-md', max: 46, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
     // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
     // đúng theo spec nên không cần đại diện gần đúng nữa.

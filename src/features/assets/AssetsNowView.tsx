@@ -11,14 +11,19 @@ import { Link } from 'react-router-dom'
 import { ArrowUpDown, ChevronRight, GripVertical } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { AccountTypeIcon } from '../../components/icons'
-import { ActionButton, SegmentedControl, Sparkline } from '../../components/ui'
+import { ActionButton, actionButtonClass, SegmentedControl, Sparkline } from '../../components/ui'
 import {
   useAccounts,
   useAssignAccountsToGroup,
+  useCategories,
   useNetWorthSnapshots,
+  useRangeTransactions,
   useReorderAccounts,
 } from '../../hooks/queries'
+import { addDaysISO, dayMonthLabel } from '../../lib/dates'
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
+import { ADJUST_CATEGORY_NAME } from '../categories/flowCategories'
+import { accountRowStats, DELTA_DAYS } from './accountRowStats'
 import { UNGROUPED_LABEL, type AssetAccount } from './aggregate'
 import { CardsSection } from './CardsSection'
 import { CurrencyViewToggle } from './CurrencyViewToggle'
@@ -121,6 +126,31 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
   // Đổi chế độ nhóm thì thoát Sắp xếp: thứ tự vừa kéo thuộc lát cũ, giữ nguyên trạng
   // thái là mời người dùng kéo tiếp trên một danh sách đã khác.
   useEffect(() => setSortMode(false), [groupMode])
+
+  /**
+   * Δ 30 ngày · đường tí hon · ngày đối chiếu (§4.4). Phép tính ở accountRowStats.ts.
+   *
+   * Một truy vấn 30 ngày, dùng chung cho MỌI dòng — không phải mỗi dòng một truy vấn.
+   */
+  const deltaRange = useMemo(
+    () => ({ start: addDaysISO(todayISO, -DELTA_DAYS), end: addDaysISO(todayISO, 1) }),
+    [todayISO],
+  )
+  const { data: deltaTxs = [] } = useRangeTransactions(deltaRange)
+  const { data: categories = [] } = useCategories()
+  const rowStats = useMemo(
+    () =>
+      accountRowStats({
+        balanceById: new Map(balances.map((b) => [b.id, b.balance])),
+        txs: deltaTxs,
+        adjustCategoryIds: new Set(
+          categories.filter((c) => c.name === ADJUST_CATEGORY_NAME).map((c) => c.id),
+        ),
+        todayISO,
+        windowStartISO: deltaRange.start,
+      }),
+    [balances, deltaTxs, categories, todayISO, deltaRange.start],
+  )
 
   // --- Kéo–thả tài khoản ngay trên trang Tài sản (trong nhóm & xuyên nhóm) ---
   const { data: allAccounts = [] } = useAccounts()
@@ -619,14 +649,19 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                 if (!a) return null
                 const isDragging = dragEnabled && id === dragAcc
                 const rowPnl = accountRowPnl(a, danhMucTheoTk.get(a.id))
+                const stat = rowStats.get(a.id)
                 return (
                   <div
                     key={id}
                     ref={dragEnabled ? (el) => setRow(id, el) : undefined}
-                    className={`flex items-center ${
+                    // flex-col: dòng giờ có HAI TẦNG (17a). Tầng trên là dòng cũ, tầng
+                    // dưới mang Δ (chỉ mobile — từ sm nó đã có cột riêng ở tầng trên) và
+                    // tình trạng đối chiếu.
+                    className={`flex flex-col ${
                       isDragging ? 'bg-green-50 shadow-md dark:bg-green-900/20' : ''
                     }`}
                   >
+                    <div className="flex items-center">
                     {dragEnabled && (
                       <button
                         type="button"
@@ -672,6 +707,29 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                           </span>
                         )}
                       </span>
+                      {/* Δ 30 ngày + đường tí hon (§4.4). DÒNG HAI TẦNG ở mobile, cột
+                          riêng từ sm (17a: "bảng nhiều cột đổi thành dòng hai tầng —
+                          số dư trên, Δ dưới — không phải thu nhỏ bản desktop").
+                          Ở 390px, khối này xuống dưới số dư nhờ `hidden sm:flex` + bản
+                          gọn nằm trong cột tên bên trái. */}
+                      {stat && (
+                        <span className="hidden shrink-0 items-center gap-1.5 sm:flex">
+                          <Sparkline values={stat.spark} label={`Số dư ${a.name} 30 ngày qua`} />
+                          <span
+                            className={`w-16 text-right text-2xs tabular-nums ${
+                              stat.delta === 0
+                                ? 'text-fg-muted'
+                                : stat.delta > 0
+                                  ? 'text-money-in'
+                                  : 'text-money-out'
+                            }`}
+                          >
+                            {stat.delta === 0
+                              ? '—'
+                              : `${stat.delta > 0 ? '+' : '−'}${mv.fmt(Math.abs(stat.delta), a.currency)}`}
+                          </span>
+                        </span>
+                      )}
                       <span
                         className={`shrink-0 text-sm font-medium tabular-nums ${a.value < 0 ? 'text-money-out' : 'text-fg-primary'}`}
                       >
@@ -679,6 +737,60 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                       </span>
                       <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
                     </Link>
+                    </div>
+
+                    {/* TẦNG HAI (§4.4 + 17a). Chỉ dựng khi có gì để nói — một dòng rỗng
+                        dưới mỗi tài khoản là 20px × N tiêu cho không khí. */}
+                    {stat && (stat.stale || stat.delta !== 0) && (
+                      <div
+                        className={`flex items-center gap-2 pb-2 text-3xs text-fg-muted ${
+                          dragEnabled ? (sortMode ? 'pl-10 pr-4' : 'px-4 lg:pl-10 lg:pr-4') : 'px-4'
+                        }`}
+                      >
+                        {/* Δ chỉ ở mobile: từ sm nó đã đứng thành cột riêng ở tầng trên,
+                            in lại là nói hai lần cùng một con số trên cùng một dòng. */}
+                        {stat.delta !== 0 && (
+                          <span
+                            className={`tabular-nums sm:hidden ${
+                              stat.delta > 0 ? 'text-money-in' : 'text-money-out'
+                            }`}
+                          >
+                            {stat.delta > 0 ? '+' : '−'}
+                            {mv.fmt(Math.abs(stat.delta), a.currency)} / {DELTA_DAYS} ngày
+                          </span>
+                        )}
+                        {stat.stale ? (
+                          // Quá hạn thì đưa luôn NÚT, không chỉ báo tin: §4.4 đòi "hiện
+                          // nút Đối chiếu tại dòng". Là <Link> chứ không <button> vì nó
+                          // điều hướng — giữ được mở-tab-mới và chuột giữa.
+                          <Link
+                            to={`/assets/account/${a.id}?doi-chieu=1`}
+                            // actionButtonClass() chứ không viết tay: <Link> là thẻ <a>
+                            // nên không dùng được <ActionButton>, và đây đúng là lý do
+                            // hàm đó tồn tại. Viết tay thì lặp lại min-h-11 + rounded-md
+                            // và làm vỡ trần trong designSystem.test.ts.
+                            className={actionButtonClass(
+                              'outline',
+                              'ml-auto border-state-warn-border text-state-warn-fg',
+                            )}
+                            // Nhãn NGẮN, lý do để ở aria-label. Nút này chỉ hiện khi quá
+                            // hạn nên "quá 30 ngày" là thừa với người nhìn thấy nó — mà
+                            // ở ca xấu nhất (người dùng mới, chưa đối chiếu bao giờ) thì
+                            // MỌI dòng đều có nút, và sáu lần một câu dài là sáu lần
+                            // nhắc cùng một điều. Trình đọc màn hình vẫn nghe đủ.
+                            aria-label={`Đối chiếu ${a.name} — quá ${DELTA_DAYS} ngày chưa đối chiếu`}
+                          >
+                            Đối chiếu
+                          </Link>
+                        ) : (
+                          stat.lastReconciledISO && (
+                            <span className="ml-auto tabular-nums">
+                              đối chiếu {dayMonthLabel(stat.lastReconciledISO)}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               })}

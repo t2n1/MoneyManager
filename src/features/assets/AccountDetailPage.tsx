@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { BackLink } from '../../components/BackLink'
 import { ChevronLeft, ChevronRight, LineChart, Scale, Trash2 } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
@@ -69,7 +69,12 @@ export function AccountDetailPage() {
   const deleteValuation = useDeleteValuation()
   const [editing, setEditing] = useState<TransactionRow | null>(null)
   const [showValuation, setShowValuation] = useState(false)
-  const [showReconcile, setShowReconcile] = useState(false)
+  // Mở sẵn sheet Đối chiếu khi vào bằng ?doi-chieu=1 — đường vào của nút "Đối chiếu"
+  // ở từng dòng trong danh sách tài khoản (§4.4). Đọc MỘT LẦN lúc khởi tạo: sau đó
+  // trạng thái thuộc về người dùng, không phải thanh địa chỉ, nên đóng sheet rồi mà URL
+  // vẫn còn tham số thì cũng không tự mở lại.
+  const [searchParams] = useSearchParams()
+  const [showReconcile, setShowReconcile] = useState(() => searchParams.get('doi-chieu') === '1')
   const [showMonthAdjust, setShowMonthAdjust] = useState(false)
 
   const monthStartDay = profile?.month_start_day ?? 1

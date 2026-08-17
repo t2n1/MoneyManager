@@ -547,7 +547,9 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // "· 9 danh mục", "ngày 15/31". Cùng lý do: đây là ĐẾM danh mục và ĐẾM ngày. Đưa qua
     // <Money> thì chúng bị định dạng theo loại tiền ("¥5") và bị che ở chế độ riêng tư —
     // mà mẫu số bị che thì con số bên cạnh nó hết nghĩa.
-    { needle: 'tabular-nums', max: 101, use: '<Money> (tự bật tabular-nums)' },
+    // 102 (2026-08-18, bản vẽ 22e): +1 ở tiêu đề trang Danh mục — "14 chi · 3 thu".
+    // Vẫn là ĐẾM, không phải tiền: cùng lý do với ba con số của 11a ngay trên.
+    { needle: 'tabular-nums', max: 102, use: '<Money> (tự bật tabular-nums)' },
     // 35 (đo 2026-08-06): cặp xanh nhấn viết tay. Nợ này TĂNG từ 29 lúc dựng hệ thống
     // — quy ước mới chưa thắng thói quen cũ, nên phải có trần. Mỗi chỗ cần XÉT NGHĨA
     // khi gộp: link/hành động → text-fg-accent, giá trị tiền → text-money-in
@@ -639,7 +641,9 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     //
     // Khi 13 màn của bản 1a dựng xong, THAY trần này bằng luật thật: đếm rounded-lg /
     // rounded-xl trên CONTROL — lúc đó mới là chiều nợ còn lại.
-    { needle: 'rounded-md', max: 46, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
+    // 47 (2026-08-18, bản vẽ 22e): +1 — dòng cảnh báo gộp "N danh mục chi chưa gắn"
+    // ở trang Danh mục. Bề mặt trạng thái, cùng khuôn với các banner state-* đã đếm.
+    { needle: 'rounded-md', max: 47, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
     // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
     // đúng theo spec nên không cần đại diện gần đúng nữa.

@@ -8,6 +8,7 @@ import {
   useCreateRecurringRule,
   useDeleteRecurringRule,
   useRangeTransactions,
+  useRates,
   useRecurringRules,
   useRunRecurringCatchUp,
   useUpdateRecurringRule,
@@ -15,6 +16,8 @@ import {
 import { addDaysISO, toISODate } from '../../lib/dates'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { formatMoney } from '../../lib/money'
+import { convertToBase } from '../../lib/rates'
+import { monthlyLoad } from './monthlyLoad'
 import { billStatuses, nextDueDate, type RecurringFrequency } from '../../lib/recurring'
 import { detectRecurring, ruleKey, type RecurringSuggestion } from '../../lib/recurringRadar'
 import type { RecurringRuleRow } from '../../types/database.types'
@@ -69,9 +72,31 @@ export function RecurringPage() {
   const { data: rules = [], isLoading } = useRecurringRules()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
+  const { base, rates } = useRates()
   const update = useUpdateRecurringRule()
   const del = useDeleteRecurringRule()
   const catchUp = useRunRecurringCatchUp()
+
+  // Tổng chi tự động mỗi tháng — mọi phép lọc và phép quy đổi tần suất ở monthlyLoad.ts
+  // (11 test). Loại tiền lấy theo TÀI KHOẢN NGUỒN của quy tắc, đúng như `amount` được
+  // khai (xem chú thích cột amount ở database.types).
+  const load = useMemo(() => {
+    const currencyOf = (id: string) => accounts.find((a) => a.id === id)?.currency ?? base
+    return monthlyLoad(
+      rules.map((r) => ({
+        amount: r.amount,
+        currency: currencyOf(r.account_id),
+        type: r.type,
+        frequency: r.frequency,
+        mode: r.mode,
+        isPaused: r.is_paused,
+        endOn: r.end_on,
+        isRefund: r.is_refund,
+      })),
+      toISODate(new Date()),
+      (minor, from) => convertToBase(minor, from, base, rates ?? {}),
+    )
+  }, [rules, accounts, base, rates])
   const createRule = useCreateRecurringRule()
   const [sheet, setSheet] = useState<{ open: boolean; rule: RecurringRuleRow | null }>({
     open: false,
@@ -173,8 +198,19 @@ export function RecurringPage() {
     <div className="flex flex-col gap-3 p-3 lg:p-6">
       <div className="flex items-center gap-2">
         <BackLink to="/so" aria-label="Quay lại" />
+        {/* Con số của 22c ("¥98,110/tháng tự ghi") — thứ người ta mở trang này để hỏi:
+            mỗi tháng tự động rời khỏi ví bao nhiêu. Tự cộng thì phải quy đổi tần suất
+            trong đầu, mà hàng tuần với hàng năm không cộng thẳng vào hàng tháng được.
+            Chữ "tự ghi" là một phần của con số, không phải trang trí: quy tắc "chỉ nhắc"
+            bị loại khỏi tổng vì nó không tự trừ tiền — mọi phép lọc ở monthlyLoad.ts. */}
         <h1 className="flex-1 text-lg font-bold text-fg-primary">
           Giao dịch định kỳ
+          {load.counted > 0 && (
+            <span className="ml-2 text-sm font-normal text-fg-muted">
+              {load.hasMissingRate && '≈ '}
+              {formatMoney(load.perMonth, base)}/tháng tự ghi
+            </span>
+          )}
         </h1>
         {/* Khoản MỘT LẦN là anh em với khoản lặp mãi — ai đang ở đây tìm chỗ ghi
             "đóng phí vệ sinh 20/8" thì phải thấy lối sang. */}

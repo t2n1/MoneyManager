@@ -465,7 +465,7 @@ export function AccountDetailPage() {
                   <span>Đã khấu hao</span>
                   <span>
                     <Money amount={dep.accumulated} currency={currency} tone="out" showSign />
-                    <span className="ml-1 text-xs tabular-nums">
+                    <span className="ml-1 font-mono text-xs">
                       ({Math.round(dep.elapsedRatio * 100)}%)
                     </span>
                   </span>
@@ -549,13 +549,13 @@ export function AccountDetailPage() {
             {account.statement_day != null && (
               <div className="flex items-center justify-between text-fg-muted">
                 <span>Ngày chốt sao kê</span>
-                <span className="tabular-nums">Ngày {account.statement_day}</span>
+                <span className="font-mono">Ngày {account.statement_day}</span>
               </div>
             )}
             {account.payment_due_day != null && (
               <div className="flex items-center justify-between text-fg-muted">
                 <span>Ngày đến hạn</span>
-                <span className="tabular-nums">Ngày {account.payment_due_day}</span>
+                <span className="font-mono">Ngày {account.payment_due_day}</span>
               </div>
             )}
           </div>
@@ -694,7 +694,7 @@ export function AccountDetailPage() {
               {/* KHÔNG bọc Guide: đây là cảnh báo số không khớp, mất nó ở chế độ
                   Gọn là người dùng lại đọc nhầm tổng quẹt thành số bị trừ. */}
               {dueAmount != null && dueAmount !== monthCharged && (
-                <p className="mt-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-2xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                <p className="mt-1.5 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
                   Số bị rút không bằng tiền quẹt kỳ này — các dòng trên nói vì sao. Đối chiếu với
                   sao kê thật rồi dùng “Điều chỉnh số nợ” nếu sai.
                 </p>

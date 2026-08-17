@@ -123,7 +123,7 @@ export function ReconcileSheet({
         {/* Bẫy hay gặp: điều chỉnh tổng nợ mà quên kỳ đã chốt chờ rút → dòng
             "Kỳ này" về 0 như thể không phải trả, người dùng tưởng app hỏng. */}
         {isCard && (billedPending ?? 0) > 0 && (
-          <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+          <p className="mb-3 rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-xs text-state-warn-fg">
             Thẻ đang có kỳ <b>đã chốt chờ rút</b>: {formatMoney(billedPending ?? 0, currency)}
             {billedDueISO ? ` vào ${dayMonthLabel(billedDueISO)}` : ''}. Số "đang nợ thực tế" phải
             gồm cả khoản này — nhập thiếu thì dòng "Kỳ này" sẽ về {formatMoney(0, currency)} như
@@ -142,7 +142,7 @@ export function ReconcileSheet({
             currency={currency}
             ariaLabel={isCard ? 'Số đang nợ thực tế' : 'Số dư thực tế'}
             onEnter={handleSubmit}
-            className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold outline-green-500 dark:bg-gray-900 dark:text-gray-100"
+            className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-right font-mono text-lg font-semibold text-fg-primary outline-accent"
           />
         </div>
 
@@ -165,11 +165,11 @@ export function ReconcileSheet({
               : 'Số dư khớp lại kể từ ngày này.'}
         </p>
 
-        <div className="mb-3 rounded-lg bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm">
+        <div className="mb-3 rounded-md border border-border-subtle bg-surface-sunken px-3 py-2 text-sm">
           <div className="flex items-center justify-between text-fg-muted">
             <span>{isCard ? 'Nợ thay đổi' : 'Chênh lệch'}</span>
             <span
-              className={`tabular-nums font-semibold ${
+              className={`font-mono font-semibold ${
                 diff === 0
                   ? 'text-fg-muted'
                   : diff > 0

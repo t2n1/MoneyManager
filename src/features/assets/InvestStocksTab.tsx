@@ -174,7 +174,7 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
         </dl>
 
         {p.oversold.length > 0 && (
-          <p className="mt-3 rounded-lg bg-amber-50 px-2.5 py-2 text-2xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          <p className="mt-3 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
             {p.oversold.join(', ')}: sổ lệnh ghi bán nhiều hơn số đang giữ — thiếu một
             lệnh mua ở đâu đó.
           </p>

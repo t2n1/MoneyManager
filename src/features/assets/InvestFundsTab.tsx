@@ -156,7 +156,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
         </Guide>
 
         {p.oversold.length > 0 && (
-          <p className="mt-3 rounded-lg bg-amber-50 px-2.5 py-2 text-2xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          <p className="mt-3 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
             {p.oversold.map(fundName).join(', ')}: sổ lệnh ghi bán nhiều 口数 hơn số đang
             giữ. Thường là quỹ đã ĐỔI TÊN và nửa lịch sử đang ghép vào một mã khác — xem
             docs/quy-nhat.md.

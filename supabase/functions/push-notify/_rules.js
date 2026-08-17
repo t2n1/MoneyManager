@@ -29,7 +29,11 @@ var NOTIFICATION_TYPES = [
   // hạn chót nào — nhưng chúng nói rằng những con số phía trên đang được đo bằng một
   // cái thước thiếu vạch, nên vẫn thuộc nhóm việc-cần-làm chứ không phải tin-để-biết.
   "data-uncategorized",
-  "data-reconcile"
+  "data-reconcile",
+  // Cuối cùng: điểm gãy mức chi nói về NHIỀU THÁNG, không có hạn chót nào, và việc nó
+  // đề nghị (sửa hạn mức) là việc ngồi xuống mới làm được. Đứng trên hai luật độ-tin-cậy
+  // thì nó đẩy một việc "khi nào rảnh" lên trên một việc đang làm sai số liệu hôm nay.
+  "trend-level-shift"
 ];
 var NOTIFICATION_META = {
   "account-shortfall": {
@@ -126,6 +130,11 @@ var NOTIFICATION_META = {
     kind: "action",
     label: "T\xE0i kho\u1EA3n l\xE2u ch\u01B0a \u0111\u1ED1i chi\u1EBFu",
     hint: "Qu\xE1 30 ng\xE0y kh\xF4ng so s\u1ED1 d\u01B0 s\u1ED5 v\u1EDBi s\u1ED1 th\u1EADt th\xEC m\u1ECDi t\u1ED5ng \u0111\u1EC1u c\xF3 th\u1EC3 \u0111\xE3 l\u1EC7ch."
+  },
+  "trend-level-shift": {
+    kind: "action",
+    label: "M\u1EE9c chi \u0111\u1ED5i h\u1EB3n so v\u1EDBi tr\u01B0\u1EDBc",
+    hint: "Khi m\u1EE9c chi h\u1EB1ng th\xE1ng b\u01B0\u1EDBc sang m\u1ED9t b\u1EADc kh\xE1c v\xE0 \u1EDF y\xEAn \u0111\xF3 v\xE0i th\xE1ng \u2014 d\u1EA5u hi\u1EC7u h\u1EA1n m\u1EE9c \u0111ang \u0111\u1EB7t theo n\u1EBFp s\u1ED1ng c\u0169. Kh\xF4ng b\xE1o cho dao \u0111\u1ED9ng v\u1EB7t c\u1EE7a m\u1ED9t th\xE1ng."
   }
 };
 
@@ -916,8 +925,8 @@ function rhythmRules(input) {
   for (const g of input.savingsGoals) {
     if (g.target_amount <= 0) continue;
     const have = balanceOf.get(g.account_id) ?? 0;
-    const pct = have / g.target_amount * 100;
-    const reached = MILESTONES.filter((m) => pct >= m);
+    const pct2 = have / g.target_amount * 100;
+    const reached = MILESTONES.filter((m) => pct2 >= m);
     if (reached.length === 0) continue;
     const top = reached[reached.length - 1];
     out.push({
@@ -1144,7 +1153,7 @@ function lifetimeRules(input) {
         // ràng buộc gì, nên dữ liệu demo có hai chặng cùng `start_year` sẽ bị GHI ĐÈ CẢ HAI.
         phases: lt.phases.map((p) => p === phase ? { ...p, annualExpenseMinor: actualAnnual } : p)
       });
-      const pct = Math.abs(Math.round(drift * 100));
+      const pct2 = Math.abs(Math.round(drift * 100));
       const direction = drift > 0 ? "cao h\u01A1n" : "th\u1EA5p h\u01A1n";
       out.push({
         // Việc-cần-làm → mã KHÔNG chứa kỳ, để một việc chỉ báo một lần tới khi hết.
@@ -1152,7 +1161,7 @@ function lifetimeRules(input) {
         kind: "action",
         type: "lifetime-drift",
         severity: "low",
-        title: `Chi th\u1EF1c t\u1EBF ${direction} k\u1EBF ho\u1EA1ch ${pct}%`,
+        title: `Chi th\u1EF1c t\u1EBF ${direction} k\u1EBF ho\u1EA1ch ${pct2}%`,
         // Nói RA con số và cửa sổ đã dùng. Không có nó thì "cao hơn 83%" là một tỷ lệ
         // không ai kiểm lại được: người dùng không biết luật đã lấy bao nhiêu ngày và
         // ra bao nhiêu một năm, nên cũng không phát hiện được lúc nó tính sai.
@@ -1169,8 +1178,8 @@ function lifetimeRules(input) {
     if (planned > 0) {
       const drift = (actualAnnual - planned) / planned;
       if (Math.abs(drift) >= DRIFT_THRESHOLD) {
-        const pct = Math.abs(Math.round(drift * 100));
-        title = `Thu th\u1EF1c t\u1EBF ${drift > 0 ? "cao h\u01A1n" : "th\u1EA5p h\u01A1n"} k\u1EBF ho\u1EA1ch ${pct}%`;
+        const pct2 = Math.abs(Math.round(drift * 100));
+        title = `Thu th\u1EF1c t\u1EBF ${drift > 0 ? "cao h\u01A1n" : "th\u1EA5p h\u01A1n"} k\u1EBF ho\u1EA1ch ${pct2}%`;
       }
     } else if (actualAnnual >= DRIFT_THRESHOLD * phase.annualExpenseMinor) {
       title = "S\u1ED5 c\xF3 thu nh\u1EADp, k\u1EBF ho\u1EA1ch \u0111ang \u0111\u1EC3 thu 0";
@@ -1264,6 +1273,83 @@ function dataRules(input) {
   return [...uncategorizedRule(input), ...reconcileStaleRule(input)];
 }
 
+// src/features/reports/trends.ts
+var DEFAULT_CP = { minSegment: 3, threshold: 2.5, maxPoints: 3 };
+var mean = (xs) => xs.length === 0 ? 0 : xs.reduce((s, x) => s + x, 0) / xs.length;
+function bestSplit(values, from, to, minSegment) {
+  let best = null;
+  for (let i = from + minSegment; i <= to - minSegment; i++) {
+    const a = values.slice(from, i);
+    const b = values.slice(i, to);
+    const ma = mean(a);
+    const mb = mean(b);
+    const ss = a.reduce((s, x) => s + (x - ma) ** 2, 0) + b.reduce((s, x) => s + (x - mb) ** 2, 0);
+    const df = a.length + b.length - 2;
+    if (df <= 0) continue;
+    const pooledVar = ss / df;
+    const se = Math.sqrt(pooledVar * (1 / a.length + 1 / b.length));
+    const score = se === 0 ? ma === mb ? 0 : Number.POSITIVE_INFINITY : Math.abs(mb - ma) / se;
+    if (!best || score > best.score) best = { index: i, before: ma, after: mb, score };
+  }
+  return best;
+}
+function detectChangePoints(values, opts = {}) {
+  const { minSegment, threshold, maxPoints } = { ...DEFAULT_CP, ...opts };
+  const found = [];
+  const search = (from, to) => {
+    if (found.length >= maxPoints || to - from < minSegment * 2) return;
+    const cp = bestSplit(values, from, to, minSegment);
+    if (!cp || cp.score < threshold) return;
+    found.push(cp);
+    search(from, cp.index);
+    search(cp.index, to);
+  };
+  search(0, values.length);
+  return found.sort((a, b) => a.index - b.index);
+}
+
+// src/features/notifications/rules/trendRules.ts
+var LEVEL_SHIFT_MIN_MONTHS = 12;
+var LEVEL_SHIFT_MIN_SEGMENT = 4;
+var LEVEL_SHIFT_MIN_PCT = 15;
+var pct = (before, after) => before === 0 ? null : Math.round((after - before) / Math.abs(before) * 100);
+function levelShiftRule(input) {
+  const series = input.monthlyExpense;
+  if (!series || series.length < LEVEL_SHIFT_MIN_MONTHS) return [];
+  const values = series.map((p) => p.value);
+  const points = detectChangePoints(values, {
+    minSegment: LEVEL_SHIFT_MIN_SEGMENT,
+    maxPoints: 1
+  });
+  if (points.length === 0) return [];
+  const cp = points[points.length - 1];
+  const doi = pct(cp.before, cp.after);
+  if (doi === null || Math.abs(doi) < LEVEL_SHIFT_MIN_PCT) return [];
+  const len = cp.after > cp.before;
+  const ranh = (cp.before + cp.after) / 2;
+  const doanSau = values.slice(cp.index);
+  const oYen = len ? doanSau.every((v) => v >= ranh) : doanSau.every((v) => v <= ranh);
+  if (!oYen) return [];
+  const thangGay = series[cp.index].month;
+  const soThang = values.length - cp.index;
+  const tran = input.budgetReport?.totalBudgeted;
+  const vuotTran = tran != null && tran > 0 && cp.after > tran;
+  const detail = vuotTran ? `M\u1EE9c m\u1EDBi ${input.formatMoney(Math.round(cp.after), input.base)}/th\xE1ng, cao h\u01A1n t\u1ED5ng h\u1EA1n m\u1EE9c ${input.formatMoney(tran, input.base)}. H\u1EA1n m\u1EE9c \u0111ang \u0111\u1EB7t theo n\u1EBFp c\u0169.` : `Trung b\xECnh ${soThang} th\xE1ng g\u1EA7n \u0111\xE2y ${input.formatMoney(Math.round(cp.after), input.base)}/th\xE1ng, tr\u01B0\u1EDBc \u0111\xF3 ${input.formatMoney(Math.round(cp.before), input.base)}.`;
+  return [
+    {
+      key: `trend-level-shift:${thangGay}`,
+      kind: "action",
+      type: "trend-level-shift",
+      // Không bao giờ 'high': không có hạn chót nào, và một việc "ngồi xuống rồi sửa
+      // ngân sách" mà xếp ngang với "mai bị trừ tiền thẻ" là làm hỏng cả thang mức độ.
+      severity: "medium",
+      title: `M\u1EE9c chi \u0111\u1ED5i h\u1EB3n t\u1EEB ${thangGay} \u2014 ${len ? "t\u0103ng" : "gi\u1EA3m"} ${Math.abs(doi)}%`,
+      detail,
+      to: "/budget"
+    }
+  ];
+}
+
 // src/features/notifications/rules.ts
 var SEVERITY_RANK = { high: 0, medium: 1, low: 2 };
 var TYPE_RANK = new Map(NOTIFICATION_TYPES.map((t, i) => [t, i]));
@@ -1299,7 +1385,8 @@ function buildNotifications(input) {
     ...cardRules(input),
     ...rhythmRules(input),
     ...lifetimeRules(input),
-    ...dataRules(input)
+    ...dataRules(input),
+    ...levelShiftRule(input)
   ];
   return arrangeNotifications(all, input.offTypes);
 }

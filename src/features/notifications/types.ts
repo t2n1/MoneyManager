@@ -37,6 +37,7 @@ export type NotificationType =
   | 'lifetime-drift'
   | 'data-uncategorized'
   | 'data-reconcile'
+  | 'trend-level-shift'
 
 /**
  * Cửa sổ giao dịch mà `NotificationInput.recentTxs` CHỨA THẬT.
@@ -97,6 +98,10 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   // cái thước thiếu vạch, nên vẫn thuộc nhóm việc-cần-làm chứ không phải tin-để-biết.
   'data-uncategorized',
   'data-reconcile',
+  // Cuối cùng: điểm gãy mức chi nói về NHIỀU THÁNG, không có hạn chót nào, và việc nó
+  // đề nghị (sửa hạn mức) là việc ngồi xuống mới làm được. Đứng trên hai luật độ-tin-cậy
+  // thì nó đẩy một việc "khi nào rảnh" lên trên một việc đang làm sai số liệu hôm nay.
+  'trend-level-shift',
 ]
 
 export interface NotificationTypeMeta {
@@ -209,9 +214,24 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     label: 'Tài khoản lâu chưa đối chiếu',
     hint: 'Quá 30 ngày không so số dư sổ với số thật thì mọi tổng đều có thể đã lệch.',
   },
+  'trend-level-shift': {
+    kind: 'action',
+    label: 'Mức chi đổi hẳn so với trước',
+    hint:
+      'Khi mức chi hằng tháng bước sang một bậc khác và ở yên đó vài tháng — dấu hiệu ' +
+      'hạn mức đang đặt theo nếp sống cũ. Không báo cho dao động vặt của một tháng.',
+  },
 }
 
 /** Dữ liệu đầu vào của bộ luật. Chỉ dữ liệu thuần + hàm thuần được tiêm vào. */
+/** Một tháng trong chuỗi chi — nhãn tháng đi kèm để mã việc nhắc tới đúng tháng gãy. */
+export interface MonthlyExpensePoint {
+  /** 'YYYY-MM' của tháng tài chính (theo `monthStartDay`). */
+  month: string
+  /** Tổng chi của tháng, minor units, đã quy đổi về base. */
+  value: number
+}
+
 export interface NotificationInput {
   /** Hôm nay, 'YYYY-MM-DD'. KHÔNG được lấy từ đồng hồ hệ thống bên trong bộ luật. */
   todayISO: string
@@ -246,6 +266,21 @@ export interface NotificationInput {
   networthSnapshots: NetWorthSnapshotRow[]
   /** Giao dịch `RECENT_TXS_DAYS` ngày gần nhất. */
   recentTxs: TransactionRow[]
+  /**
+   * Tổng CHI mỗi tháng, đã quy đổi về `base`, xếp theo thời gian và KẾT THÚC Ở THÁNG
+   * ĐỦ GẦN NHẤT — tháng đang chạy không được có mặt. undefined = chưa tải xong → luật
+   * điểm gãy im.
+   *
+   * Tính sẵn ở nơi gọi, cùng lý do với `tagBudgets`: `recentTxs` chỉ có
+   * `RECENT_TXS_DAYS` ngày (90), tức ba tháng — tự dựng chuỗi từ nó là lặng lẽ trả về
+   * một chuỗi quá ngắn để nói được điều gì, và `detectChangePoints` trên ba điểm thì
+   * mọi dao động vặt đều thành "điểm gãy".
+   *
+   * Vì sao BỎ tháng đang chạy: nó mới đi được vài ngày nên tổng của nó nhỏ hơn hẳn các
+   * tháng đủ. Để nó trong chuỗi là mỗi đầu tháng app lại báo "mức chi vừa giảm hẳn" —
+   * một cú gãy giả, đều đặn, mười hai lần một năm.
+   */
+  monthlyExpense?: MonthlyExpensePoint[]
   /**
    * Bản chiếu Lifetime của kịch bản chính. undefined = chưa tải xong hoặc chưa có
    * kịch bản / chưa khai năm sinh → luật im, không đoán.

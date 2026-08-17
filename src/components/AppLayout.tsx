@@ -160,9 +160,22 @@ export function AppLayout() {
           {/* Nội dung — key theo chế độ riêng tư để bật/tắt render lại cây route
               (Outlet trả về element ổn định tham chiếu nên không tự re-render).
 
-              max-w-6xl chứ không 2xl: 2xl (672px) là bề ngang của điện thoại, nên trên
-              màn 1440 sau khi trừ khung vẫn còn hơn 500px bỏ trống. Trang nào CẦN hẹp
-              thì tự bọc `max-w-2xl` ở khối ngoài cùng của nó (Sổ GD, Nhập, Cài đặt).
+              KHÔNG chặn bề ngang. Bản 1a là một TRẠM ĐIỀU KHIỂN: mock vẽ console ở
+              1280px và nó phủ hết khung, còn §1.4/§6 chỉ chốt bề ngang của CỘT PHỤ bên
+              phải (380px; Sổ 420; Ngân sách/Tài sản 400) — tức cột chính được hiểu là
+              nở ra lấp phần còn lại. Không chỗ nào trong bộ tài liệu đặt trần cho cả
+              khung.
+
+              Trước đây chỗ này chặn `max-w-6xl` (1152px). Ở đúng 1280px thì gần như
+              không thấy, nên nó lọt; trên màn rộng hơn thì hiện ra ngay — ở 1679px, sau
+              khi trừ rail 52px, còn ~475px bỏ trống chia hai bên, và một trạm điều khiển
+              nằm giữa hai dải trống thì đọc thành một tờ tài liệu hẹp.
+
+              Nở tự do vẫn an toàn vì cấu trúc đã lo: mỗi cặp panel là `flex-wrap` với
+              `flex-1 min-w-0` cạnh một cột phụ có `basis` cố định, nên phần nở thêm rơi
+              vào cột chính chứ không kéo giãn đều mọi thứ. Trang nào CẦN hẹp thì tự bọc
+              `max-w-2xl` ở khối ngoài cùng của nó (Sổ GD, Nhập), và bề rộng đọc của
+              từng khối văn xuôi do `PROSE_MAX` trong designSystem.test.ts canh.
 
               Không còn `pb-28`/`pb-40` chừa chỗ cho thứ nổi: thanh tab dưới giờ nằm
               TRONG luồng (xem BottomNav) nên nó tự trừ vào chiều cao phần cuộn, và nút
@@ -170,7 +183,7 @@ export function AppLayout() {
           <main
             key={privacyOn ? 'priv-on' : 'priv-off'}
             ref={mainRef}
-            className="mx-auto w-full min-h-0 max-w-6xl flex-1 overflow-y-auto pb-6 pt-[env(safe-area-inset-top)] lg:pt-0"
+            className="w-full min-h-0 flex-1 overflow-y-auto pb-6 pt-[env(safe-area-inset-top)] lg:pt-0"
           >
             {/* Lưới an toàn: query lỗi không được hiển thị như "không có dữ liệu" */}
             <QueryErrorBanner />

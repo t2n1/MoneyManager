@@ -1,0 +1,112 @@
+// Lưới nhiệt của cột phụ Sổ (bản vẽ 10a) — phần THUẦN.
+//
+// Tên file KHÔNG phải ledgerAside.ts: component là LedgerAside.tsx, và trên hệ tệp
+// không phân biệt hoa/thường (Windows, macOS mặc định) hai tên đó là MỘT — tsc báo
+// TS1149 và bản dựng gãy.
+//
+// 10a cho Sổ hai cột: bên trái là danh sách giao dịch, bên phải bốn khối trả lời những
+// câu mà danh sách không trả lời được vì nó chỉ đi theo thời gian:
+//   "Tháng 8 trong một hình"  — ngày nào nặng, ngày nào trống (lưới nhiệt)
+//   "Bộ lọc"                  — chip lọc + số giao dịch đang hiện
+//   "Chưa phân loại"          — dồn bao nhiêu, đi phân loại nhanh
+//   "Top danh mục tháng này"  — ba khoản ăn nhiều tiền nhất
+//
+// Ở đây chỉ có lưới nhiệt. "Top danh mục" dùng `categoryBreakdown` sẵn có của
+// reports/aggregate — cùng một con số với trang Báo cáo, không dựng phép tính thứ hai.
+import { getMonthRange, type MonthKey } from '../../lib/dates'
+import type { TransactionRow } from '../../types/database.types'
+
+/** Số mức đậm của lưới nhiệt (0 = không chi). */
+export const HEAT_LEVELS = 4
+
+export interface HeatCell {
+  iso: string
+  /** Ngày trong tháng dương lịch — nhãn in trong ô. */
+  day: number
+  expense: number
+  income: number
+  /** 0…HEAT_LEVELS. 0 = không chi đồng nào. */
+  level: number
+  /** Sau hôm nay — mock tô riêng ("sắp tới"), vì ô trống ở tương lai không phải
+   *  "ngày không chi", nó là "chưa tới". */
+  future: boolean
+  /** Thu nhiều hơn chi trong ngày — mock tô xanh. */
+  netIn: boolean
+}
+
+export interface Heatmap {
+  cells: HeatCell[]
+  /** Số ô trống chèn trước ngày đầu kỳ để cột thẳng với hàng thứ (CN đứng đầu). */
+  leadingBlanks: number
+}
+
+/** Thứ trong tuần theo mốc UTC, 0 = Chủ nhật. Không đi qua Date cục bộ: chuỗi ISO cộng
+ *  'T00:00:00Z' cho kết quả không phụ thuộc múi giờ của máy. */
+const utcDay = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay()
+
+const addDay = (iso: string, n: number) =>
+  new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10)
+
+export interface HeatmapArgs {
+  txs: TransactionRow[]
+  monthKey: MonthKey
+  monthStartDay: number
+  /** Hôm nay, để biết ô nào là "sắp tới". */
+  todayISO: string
+  /** Quy đổi về base. Trả null nếu thiếu tỷ giá — ngày đó vẫn đếm, chỉ không cộng tiền. */
+  toBase: (amountMinor: number, accountId: string) => number | null
+}
+
+/**
+ * Lưới nhiệt của kỳ đang xem.
+ *
+ * Mức đậm chia theo NGÀY CHI NHIỀU NHẤT trong chính kỳ đó, không theo một mốc tiền cố
+ * định: một người chi ¥3.000/ngày và một người chi ¥300.000/ngày đều phải đọc được lưới
+ * của mình. Hệ quả phải biết: hai tháng cạnh nhau KHÔNG so được với nhau bằng màu — lưới
+ * này trả lời "trong tháng này ngày nào nặng", không trả lời "tháng này nặng hơn tháng
+ * trước" (câu đó là của khối Dòng tiền 8 tháng bên Bản tin).
+ *
+ * Chuyển khoản và dòng tiền nợ KHÔNG tính: chúng không phải tiêu, và một hôm chuyển
+ * ¥300.000 giữa hai ví của mình sẽ tô đen cả tháng.
+ */
+export function monthHeatmap(args: HeatmapArgs): Heatmap {
+  const { txs, monthKey, monthStartDay, todayISO, toBase } = args
+  const { start, end } = getMonthRange(monthKey, monthStartDay)
+
+  const expense = new Map<string, number>()
+  const income = new Map<string, number>()
+  for (const t of txs) {
+    if (t.type === 'transfer' || t.is_debt_flow || t.exclude_from_stats) continue
+    if (t.occurred_on < start || t.occurred_on >= end) continue
+    const v = toBase(t.amount, t.account_id)
+    if (v === null) continue
+    const bucket = t.type === 'income' ? income : expense
+    // Hoàn tiền là expense nhưng tiền quay lại — trừ ra khỏi chi, không cộng vào thu.
+    const delta = t.type === 'expense' && t.is_refund ? -v : v
+    bucket.set(t.occurred_on, (bucket.get(t.occurred_on) ?? 0) + delta)
+  }
+
+  const cells: HeatCell[] = []
+  for (let iso = start; iso < end; iso = addDay(iso, 1)) {
+    cells.push({
+      iso,
+      day: Number(iso.slice(8, 10)),
+      expense: Math.max(0, expense.get(iso) ?? 0),
+      income: income.get(iso) ?? 0,
+      level: 0,
+      future: iso > todayISO,
+      netIn: (income.get(iso) ?? 0) > Math.max(0, expense.get(iso) ?? 0),
+    })
+  }
+
+  const max = cells.reduce((m, c) => Math.max(m, c.expense), 0)
+  if (max > 0) {
+    for (const c of cells) {
+      // Chi > 0 thì mức tối thiểu là 1: một ngày có tiêu KHÔNG được trông giống ngày
+      // trắng, dù nó chỉ tiêu ¥100 trong một tháng có ngày ¥300.000.
+      c.level = c.expense === 0 ? 0 : Math.max(1, Math.ceil((c.expense / max) * HEAT_LEVELS))
+    }
+  }
+
+  return { cells, leadingBlanks: utcDay(start) }
+}

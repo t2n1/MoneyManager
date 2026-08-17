@@ -21,7 +21,7 @@ import { showUndoToast } from '../../lib/undoToast'
 import { addDaysISO, formatMonthLabel, getMonthRange, toISODate } from '../../lib/dates'
 import { useMonthKey } from '../../hooks/useMonthKey'
 import type { CurrencyCode } from '../../lib/money'
-import { cumulativeDailyBalance, monthlySeries } from '../reports/aggregate'
+import { categoryBreakdown, cumulativeDailyBalance, monthlySeries } from '../reports/aggregate'
 import { tagsByTransaction } from '../tags/aggregate'
 import type { TransactionRow } from '../../types/database.types'
 import { AxisStrip } from '../budgets/AxisStrip'
@@ -33,6 +33,9 @@ import { BulkEditSheet } from './BulkEditSheet'
 import { CalendarView } from './CalendarView'
 import { DailyView } from './DailyView'
 import { EditTransactionSheet } from './EditTransactionSheet'
+import { convertToBase } from '../../lib/rates'
+import { LedgerAside } from './LedgerAside'
+import { monthHeatmap } from './ledgerHeat'
 import { LedgerFilterBar } from './LedgerFilterBar'
 import {
   applyLedgerFilter,
@@ -132,6 +135,31 @@ export function LedgerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [transactions, accounts, base, rates],
   )
+
+  // --- Cột phụ (10a) ---------------------------------------------------------------
+  //
+  // Cả hai đều tính trên `transactions` (CẢ kỳ), KHÔNG trên `shown` (đã lọc): lưới nhiệt
+  // và top danh mục trả lời "kỳ này thế nào", còn bộ lọc là "đang thu hẹp cái đang nhìn".
+  // Cho chúng theo bộ lọc thì bấm chip "Chi" là cả tháng đổi hình — và người dùng đọc ra
+  // thành "tháng này chỉ có mấy ngày đó tiêu tiền".
+  const heat = useMemo(
+    () =>
+      monthHeatmap({
+        txs: transactions,
+        monthKey: activeMonthKey,
+        monthStartDay,
+        todayISO: toISODate(new Date()),
+        toBase: (amount, accountId) => convertToBase(amount, currencyOf(accountId), base, rates ?? {}),
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions, activeMonthKey, monthStartDay, accounts, base, rates],
+  )
+  const expenseBreakdown = useMemo(
+    () => categoryBreakdown(transactions, 'expense', currencyOf, base, rates ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions, accounts, base, rates],
+  )
+  const topCategories = useMemo(() => expenseBreakdown.slices.slice(0, 3), [expenseBreakdown])
   // Bỏ lọc khi đổi kỳ: giữ lại thì mở tháng mới ra thấy danh sách rỗng mà không hiểu
   // vì sao — cùng lý do với việc thoát chế độ chọn ở dưới.
   useEffect(() => {
@@ -253,14 +281,29 @@ export function LedgerPage() {
   const label = yearNav ? `Năm ${activeMonthKey.year}` : formatMonthLabel(activeMonthKey)
   const step = yearNav ? 12 : 1
 
-  // Sổ GD giữ một cột hẹp kể cả trên PC (khung ngoài của AppLayout đã nới lên 6xl):
-  // danh sách giao dịch kéo ngang cả màn thì mắt phải rà rất xa mới nối được ngày với
-  // số tiền ở đầu kia dòng.
+  // HAI CỘT từ lg (bản vẽ 10a; cột phụ 420px theo §1.4).
+  //
+  // Trước đây cả trang bó trong `max-w-2xl` (672px) với lý do "danh sách kéo ngang cả
+  // màn thì mắt phải rà rất xa mới nối được ngày với số tiền ở đầu kia dòng". Lý do đó
+  // VẪN ĐÚNG — và đó chính là lý do chia cột thay vì nới cột: danh sách giữ bề rộng đọc
+  // được (`max-w-3xl`, khớp ~720px của mock ở khung 1280), còn phần màn còn lại thôi bỏ
+  // trống. Trên màn 1679px, bản cũ để trống khoảng 1000px cạnh một danh sách đang cuộn.
+  //
+  // `items-start` để cột phụ không bị kéo cao bằng danh sách; `min-w-0` ở cột trái để
+  // dòng dài co lại bằng ellipsis thay vì đẩy ngang cả trang.
   return (
-    <div className="mx-auto w-full max-w-2xl p-3 lg:p-6">
+    <div className="w-full p-3 lg:flex lg:items-start lg:gap-2.5 lg:p-4">
       {/* Tiêu đề tài liệu. sr-only vì tên màn đã hiện ở top bar (desktop) — nhưng top
           bar là <p>, nên không có dòng này thì trang KHÔNG có <h1> nào. Trước bản 1a,
           h1 của trang là nhãn kỳ; nhãn kỳ là "đang xem kỳ nào", không phải tên màn. */}
+      {/* Cột trái NỞ HẾT phần còn lại, không chặn bề rộng.
+          Đã thử chặn `max-w-3xl` (768px, khớp cột trái của mock ở khung 1280) và nó chỉ
+          đổi hai dải trống thành MỘT dải trống 440px ở mép phải — asymmetric, và vẫn
+          đúng cái phải sửa. Cái giá của việc nở: ở 1679px dòng giao dịch rộng ~1180px
+          nên mắt phải rà xa hơn để nối tên với số tiền ở đầu kia. Chấp nhận, vì dòng đã
+          có `justify-between` + truncate nên không vỡ, và một trạm điều khiển có dải
+          trống 440px thì sai nặng hơn. */}
+      <div className="min-w-0 flex-1">
       <h1 className="sr-only">Sổ</h1>
       <NotificationBoundary>
         <RemindersBanner />
@@ -353,15 +396,19 @@ export function LedgerPage() {
           tagsOfTx={tagsOfTx}
           balanceOfDay={balanceOfDay}
           onDuplicate={handleDuplicate}
+          // Bộ lọc chỉ ở đây DƯỚI lg — từ lg nó sống trong cột phụ (10a). Cùng một
+          // <LedgerFilterBar>, cùng một state, chỉ khác chỗ đứng.
           aboveList={
-            <LedgerFilterBar
-              value={filter}
-              onChange={setFilter}
-              uncategorized={uncategorized}
-              base={base}
-              shownCount={shown.length}
-              totalCount={transactions.length}
-            />
+            <div className="lg:hidden">
+              <LedgerFilterBar
+                value={filter}
+                onChange={setFilter}
+                uncategorized={uncategorized}
+                base={base}
+                shownCount={shown.length}
+                totalCount={transactions.length}
+              />
+            </div>
           }
         />
       )}
@@ -412,6 +459,32 @@ export function LedgerPage() {
       )}
 
       {canSelect && selection.selecting && <div className="h-20" />}
+      </div>
+
+      {/* Cột phụ 420px — chỉ ở tab Ngày. Ba tab kia đã là một hình phủ kín (lịch, cột
+          tháng, bảng tổng hợp), nên đặt thêm một lưới nhiệt cạnh chúng là hai cái lịch
+          cạnh nhau nói cùng một chuyện. Bộ lọc cũng vậy: nó lọc DANH SÁCH, mà ba tab kia
+          không có danh sách. */}
+      {view === 'daily' && (
+        <LedgerAside
+          monthKey={activeMonthKey}
+          heat={heat}
+          topCategories={topCategories}
+          nameOf={(id) => categoryOf(id)?.name ?? 'Chưa rõ'}
+          expenseTotal={expenseBreakdown.total}
+          base={base}
+          filterBar={
+            <LedgerFilterBar
+              value={filter}
+              onChange={setFilter}
+              uncategorized={uncategorized}
+              base={base}
+              shownCount={shown.length}
+              totalCount={transactions.length}
+            />
+          }
+        />
+      )}
 
       {editing && <EditTransactionSheet tx={editing} onClose={() => setEditing(null)} />}
 

@@ -443,7 +443,10 @@ export function LifetimeChartCard({
       {/* Legend là CHỮ, không bấm được — đánh đổi có ý thức (xem task-8-report.md):
           legend bấm được cần cao 44px, ba dòng ăn một phần ba chiều cao đồ thị trên
           điện thoại. Bật đường thứ hai đẩy sang nút "So sánh" ở LifetimePage. */}
-      <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-fg-muted">
+      {/* text-2xs, không phải một giá trị px tuỳ ý: cỡ chữ viết bằng px ĐỨNG YÊN khi
+          người dùng phóng chữ ở Cài đặt → Cỡ chữ, vì --app-font-scale chỉ co giãn được
+          cái tính theo rem (§13). Đây từng là chỗ cuối cùng trong repo còn sót. */}
+      <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-2xs text-fg-muted">
         {showHistory ? (
           <span className="flex items-center gap-1">
             <LegendSwatch color={COLOR_ACTUAL} /> Lịch sử thật

@@ -5,13 +5,13 @@
 // Trước đây file này là cả trang Tài sản 780 dòng, gánh thêm hai câu hỏi khác ("tôi đang
 // tiến bộ không" và "sau này thế nào") trong cùng một mạch cuộn. Hai câu đó nay là
 // AssetsTrendView và LifetimeView. Xem docs/information-architecture.md §2.3.
-import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
-import { ChevronRight, GripVertical } from 'lucide-react'
+import { ArrowUpDown, ChevronRight, GripVertical } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { AccountTypeIcon } from '../../components/icons'
-import { SegmentedControl, Sparkline } from '../../components/ui'
+import { ActionButton, SegmentedControl, Sparkline } from '../../components/ui'
 import {
   useAccounts,
   useAssignAccountsToGroup,
@@ -98,11 +98,29 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
     groupMode === 'purpose' ? purposeGroups : groupMode === 'type' ? typeGroups : currencyGroups
   // Nhãn của lát đang cắt, in trên thẻ Cơ cấu vì nút chọn lát nay nằm dưới danh sách.
   const modeLabel = (GROUP_MODES.find(([m]) => m === groupMode)?.[1] ?? '').toLowerCase()
-  // Kéo–thả sắp thứ tự tài khoản bật ở mọi chế độ. Nhưng chỉ "Mục đích" cho kéo
+  // Kéo–thả sắp thứ tự tài khoản bật ở mọi chế độ NHÓM. Nhưng chỉ "Mục đích" cho kéo
   // XUYÊN nhóm (đổi asset_group); ở "Loại"/"Tiền tệ", kéo sang nhóm khác nghĩa là
   // đổi loại/đồng tiền tài khoản (làm trong form), nên chỉ cho sắp TRONG một nhóm.
   const dragEnabled = displayGroups.length > 0
   const allowCross = groupMode === 'purpose'
+
+  /**
+   * CHẾ ĐỘ SẮP XẾP — chỉ tồn tại dưới `lg` (§6 / bản vẽ 17a).
+   *
+   * 17a nói thẳng: *"Tay kéo sắp xếp tài khoản rút vào chế độ Sắp xếp riêng — 36px mỗi
+   * dòng là quá đắt ở 390px."* Đo lại đúng như vậy: sáu dòng, mỗi dòng một tay kéo rộng
+   * đúng 36px, tức 9% bề ngang màn tiêu vĩnh viễn cho một thao tác hiếm — trong khi cột
+   * số tiền bên phải mới là thứ người ta mở màn này để đọc.
+   *
+   * Cổng đặt bằng CSS (`hidden lg:inline-flex`), KHÔNG bằng một điểm ngắt đọc trong JS:
+   * bộ máy kéo–thả vẫn gắn ref như cũ ở mọi bề rộng, chỉ cái tay cầm là biến mất. Nhờ
+   * vậy không có state nào phụ thuộc bề rộng cửa sổ, không phải nghe `resize`, và không
+   * có nhịp render đầu tiên đoán sai bề rộng rồi nhảy layout.
+   */
+  const [sortMode, setSortMode] = useState(false)
+  // Đổi chế độ nhóm thì thoát Sắp xếp: thứ tự vừa kéo thuộc lát cũ, giữ nguyên trạng
+  // thái là mời người dùng kéo tiếp trên một danh sách đã khác.
+  useEffect(() => setSortMode(false), [groupMode])
 
   // --- Kéo–thả tài khoản ngay trên trang Tài sản (trong nhóm & xuyên nhóm) ---
   const { data: allAccounts = [] } = useAccounts()
@@ -538,8 +556,24 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
           stretch={false}
         />
       </div>
+      {/* Nút vào/ra chế độ Sắp xếp — CHỈ dưới lg. Từ lg tay kéo luôn hiện nên một cái
+          nút bật thứ đã bật sẵn là một nút không làm gì. */}
       {dragEnabled && (
-        <Guide className="-mb-1 px-1 text-xs text-fg-muted">
+        <div className="flex justify-end lg:hidden">
+          <ActionButton
+            onClick={() => setSortMode((v) => !v)}
+            aria-pressed={sortMode}
+            className={sortMode ? 'border-accent text-fg-accent' : ''}
+          >
+            <ArrowUpDown className="h-4 w-4" strokeWidth={2} />
+            {sortMode ? 'Xong' : 'Sắp xếp'}
+          </ActionButton>
+        </div>
+      )}
+      {/* Câu hướng dẫn chỉ có nghĩa khi tay kéo đang hiện: dưới lg mà chưa bật Sắp xếp
+          thì nó chỉ tới một biểu tượng không có trên màn. */}
+      {dragEnabled && (
+        <Guide className={`-mb-1 px-1 text-xs text-fg-muted ${sortMode ? '' : 'hidden lg:block'}`}>
           Nhấn giữ <GripVertical className="inline h-3.5 w-3.5 align-text-bottom" /> rồi kéo để
           sắp thứ tự tài khoản{allowCross ? ', hoặc kéo thả sang nhóm khác' : ' trong cùng một loại'}.
         </Guide>
@@ -598,7 +632,11 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                         type="button"
                         onPointerDown={(e) => onAccPointerDown(id, e)}
                         style={{ touchAction: 'none' }}
-                        className="inline-flex min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-gray-300 active:cursor-grabbing dark:text-gray-600"
+                        // Dưới lg: chỉ hiện trong chế độ Sắp xếp (17a — xem `sortMode`).
+                        // Từ lg: luôn hiện, 36px trên màn 1440 không đáng kể.
+                        className={`${
+                          sortMode ? 'inline-flex' : 'hidden lg:inline-flex'
+                        } min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-gray-300 active:cursor-grabbing dark:text-gray-600`}
                         aria-label={`Kéo để sắp thứ tự hoặc chuyển nhóm ${a.name}`}
                       >
                         <GripVertical className="h-4 w-4" />
@@ -606,8 +644,14 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                     )}
                     <Link
                       to={`/assets/account/${a.id}`}
+                      // Lề trái phải đi CÙNG cái tay kéo: tay kéo ẩn mà vẫn chừa pl-1 thì
+                      // dòng thụt vào 4px không vì cái gì.
                       className={`flex min-w-0 flex-1 items-center gap-2 py-2.5 transition hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100 ${
-                        dragEnabled ? 'pr-4 pl-1' : 'px-4'
+                        dragEnabled
+                          ? sortMode
+                            ? 'pr-4 pl-1'
+                            : 'pr-4 pl-4 lg:pl-1'
+                          : 'px-4'
                       }`}
                     >
                       <AccountTypeIcon type={a.type} className="h-4 w-4" />

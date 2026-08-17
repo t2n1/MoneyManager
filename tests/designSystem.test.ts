@@ -437,6 +437,19 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     }
   })
 
+  // Lý do: §13 — cỡ chữ viết bằng PX đứng yên khi người dùng phóng chữ ở Cài đặt → Cỡ
+  // chữ, vì --app-font-scale chỉ co giãn được cái tính theo rem. Đây là luật KHÁC với
+  // luật ngay trên: luật kia chặn dạng `rem` tuỳ ý (scale bị chọc lỗ), luật này chặn
+  // dạng `px` (scale không ăn gì cả) — và chính vì thiếu nó mà `text-[11px]` nằm trong
+  // LifetimeChartCard suốt cả đợt 1a mà không ai thấy.
+  it('không viết cỡ chữ bằng px (không co theo Cỡ chữ)', () => {
+    const hits = sourceFiles()
+      .map((f) => [f, readFileSync(f, 'utf8')] as const)
+      .filter(([, src]) => /text-\[\d+px\]/.test(src))
+      .map(([f]) => f.replace(SRC, ''))
+    expect(hits, `Quy về rem, hoặc dùng bậc đã đặt tên (text-2xs / text-3xs).`).toEqual([])
+  })
+
   // Lý do: 0.5625rem = 9px, mà --app-font-scale nhỏ nhất là 0.9 → 8,1px.
   // Sàn dưới là text-3xs (10px), token cố ý không có tên cho 9px.
   it('không có chữ nhỏ hơn sàn 10px', () => {

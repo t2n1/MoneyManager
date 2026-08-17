@@ -208,8 +208,8 @@ export function LifetimeView() {
             <p
               className={`mt-2 rounded-lg p-2.5 text-xs ${
                 netWorthReliable
-                  ? 'bg-gray-50 dark:bg-gray-800 text-fg-secondary'
-                  : 'bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+                  ? 'bg-surface-sunken text-fg-secondary'
+                  : 'bg-state-warn-bg text-state-warn-fg'
               }`}
             >
               {netWorthReliable ? (
@@ -234,7 +234,7 @@ export function LifetimeView() {
               đây. Nói ra bằng chữ, không chỉ làm mờ nút: nút disabled không đọc được
               `title` bằng chạm trên mobile (cùng lý do đã ghi ở nút "Xóa kịch bản"). */}
           {!profile && (
-            <p className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-900/40 p-2.5 text-xs text-amber-700 dark:text-amber-300">
+            <p className="mt-2 rounded-lg bg-state-warn-bg text-state-warn-fg p-2.5 text-xs">
               Chưa tải được thông tin người dùng (năm sinh, tiền gốc) nên chưa tạo được kịch
               bản — kiểm tra mạng rồi mở lại màn này.
             </p>
@@ -254,7 +254,7 @@ export function LifetimeView() {
                 setCreating(false)
               }
             }}
-            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-green-700 px-3 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
+            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-accent text-fg-on-accent px-3 text-sm font-semibold active:scale-95 disabled:opacity-50"
           >
             <Sparkles className="h-4 w-4" />
             {creating || isCreatingFirstScenario
@@ -323,7 +323,7 @@ export function LifetimeView() {
               onClick={() => setActiveId(s.id)}
               className={`inline-flex min-h-11 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-4 text-sm font-medium active:scale-95 ${
                 s.id === activeId
-                  ? 'bg-green-700 text-white'
+                  ? 'bg-accent text-fg-on-accent'
                   : 'border border-border-strong text-fg-secondary'
               }`}
             >
@@ -469,7 +469,7 @@ export function LifetimeView() {
           // Cùng lý do với nút bút chì ở header: không mở một sheet ngõ cụt. Banner vẫn
           // HIỆN (câu cảnh báo đúng dù có sửa được ngay hay không), chỉ không bấm được.
           disabled={!profile}
-          className="flex min-h-11 w-full items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/40 px-3 py-2 text-left text-sm text-amber-700 dark:text-amber-300 active:scale-95 disabled:active:scale-100"
+          className="flex min-h-11 w-full items-start gap-2 rounded-xl bg-state-warn-bg text-state-warn-fg px-3 py-2 text-left text-sm active:scale-95 disabled:active:scale-100"
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
@@ -519,7 +519,7 @@ export function LifetimeView() {
             }
           }}
           className={`min-h-11 flex-1 rounded-xl px-3 text-sm font-medium shadow-sm active:scale-95 ${
-            effectiveCompareId ? 'bg-green-700 text-white' : 'bg-surface text-fg-secondary'
+            effectiveCompareId ? 'bg-accent text-fg-on-accent' : 'bg-surface text-fg-secondary'
           }`}
         >
           {effectiveCompareId ? 'Đang so sánh · Bấm để tắt' : 'So sánh'}
@@ -637,7 +637,7 @@ function BirthYearCard() {
         type="button"
         disabled={!valid || saveMut.isPending}
         onClick={() => saveMut.mutate(year)}
-        className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-green-700 px-3 text-sm font-semibold text-white active:scale-95 disabled:opacity-40"
+        className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent text-fg-on-accent px-3 text-sm font-semibold active:scale-95 disabled:opacity-40"
       >
         {saveMut.isPending ? 'Đang lưu…' : 'Lưu năm sinh'}
       </button>

@@ -495,11 +495,11 @@ export function LifetimeChartCard({
           {compareMismatch ? (
             <>
               Cuối đời — kịch bản này:{' '}
-              <span className="font-semibold text-gray-700 dark:text-gray-200">
+              <span className="font-semibold text-fg-primary">
                 {formatMoney(rows[rows.length - 1].assetsEndMinor, currency)}
               </span>
               {' · '}kịch bản so sánh:{' '}
-              <span className="font-semibold text-gray-700 dark:text-gray-200">
+              <span className="font-semibold text-fg-primary">
                 {formatMoney(compareEndRow.assetsEndMinor, compareCurrency as CurrencyCode)}
               </span>
               . Hai kịch bản dùng đơn vị tiền khác nhau ({currency} và {compareCurrency}) nên không trừ

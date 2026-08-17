@@ -217,7 +217,7 @@ export function CategoryDetailPage() {
       </Card>
 
       {missingRate && (
-        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">
+        <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-xs">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}

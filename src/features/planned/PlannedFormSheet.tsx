@@ -186,7 +186,7 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
               aria-pressed={precision === value}
               className={`min-h-11 flex-1 px-2 text-sm font-medium ${
                 precision === value
-                  ? 'bg-green-700 text-white'
+                  ? 'bg-accent text-fg-on-accent'
                   : 'text-fg-secondary hover:bg-surface-sunken'
               }`}
             >

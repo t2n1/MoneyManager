@@ -312,7 +312,7 @@ export function BudgetVerdictLine({ pace }: { pace: MonthPace }) {
   const { totalBudgeted, budgetedCount } = verdict
   if (verdict.kind === 'over') {
     return (
-      <p className="mt-2 rounded-lg bg-red-50 dark:bg-red-900/30 px-2 py-1.5 text-xs text-money-out">
+      <p className="mt-2 rounded-lg bg-state-bad-bg px-2 py-1.5 text-xs text-money-out">
         {visual ? (
           <>
             Với đà này sẽ vượt trần {formatMoney(totalBudgeted, base)} khoảng{' '}
@@ -329,7 +329,7 @@ export function BudgetVerdictLine({ pace }: { pace: MonthPace }) {
   }
   if (verdict.kind === 'near') {
     return (
-      <p className="mt-2 rounded-lg bg-amber-50 dark:bg-amber-900/30 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300">
+      <p className="mt-2 rounded-lg bg-state-warn-bg text-state-warn-fg px-2 py-1.5 text-xs">
         {visual ? (
           <>Với đà này có thể vượt trần {formatMoney(totalBudgeted, base)}</>
         ) : (
@@ -342,7 +342,7 @@ export function BudgetVerdictLine({ pace }: { pace: MonthPace }) {
     )
   }
   return (
-    <p className="mt-2 rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1.5 text-xs text-fg-accent">
+    <p className="mt-2 rounded-lg bg-accent-muted-bg px-2 py-1.5 text-xs text-fg-accent">
       {visual ? (
         <>Với đà này vẫn trong trần {formatMoney(totalBudgeted, base)}</>
       ) : (

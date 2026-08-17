@@ -135,7 +135,7 @@ export function MoneyField({
               type="button"
               onClick={() => emit(appendKey(expr, '⌫'))}
               aria-label="Xóa"
-              className="flex-1 rounded-lg bg-white py-1.5 text-lg font-semibold text-fg-primary shadow-sm transition active:scale-95 active:bg-gray-200 dark:bg-gray-800"
+              className="flex-1 rounded-lg bg-surface py-1.5 text-lg font-semibold text-fg-primary shadow-sm transition active:scale-95 active:bg-gray-200"
             >
               ⌫
             </button>

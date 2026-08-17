@@ -38,9 +38,9 @@ function Card({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm ">
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{title}</h2>
+        <h2 className="text-sm font-semibold text-fg-primary">{title}</h2>
         {hint && <span className="shrink-0 text-2xs text-fg-muted">{hint}</span>}
       </div>
       {children}
@@ -193,7 +193,7 @@ export function TrendsView() {
   return (
     <div className="flex flex-col gap-3">
       {series.hasMissingRate && (
-        <div className="rounded-lg bg-amber-50 p-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+        <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-xs">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên số liệu có thể thiếu.
         </div>
       )}
@@ -311,12 +311,12 @@ export function TrendsView() {
               {yoyRows.map((p) => (
                 <li
                   key={`${p.key.year}-${p.key.month}`}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-surface-page px-2 py-1.5 text-xs "
+                  className="flex items-center justify-between gap-2 rounded-lg bg-surface-page px-2 py-1.5 text-xs"
                 >
                   <span className="w-12 shrink-0 text-fg-muted">
                     {monthLabel(p.key)}
                   </span>
-                  <span className="flex-1 truncate text-right tabular-nums text-gray-700 dark:text-gray-200">
+                  <span className="flex-1 truncate text-right tabular-nums text-fg-primary">
                     {money(p.current)}
                   </span>
                   <span className="w-24 shrink-0 text-right tabular-nums text-fg-muted">
@@ -351,7 +351,7 @@ export function TrendsView() {
         {monthsWithData < 8 ? (
           <NeedMore have={monthsWithData} need={8} />
         ) : changePoints.length === 0 ? (
-          <p className="rounded-lg bg-green-50 px-3 py-3 text-center text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">
+          <p className="rounded-lg bg-state-good-bg px-3 py-3 text-center text-xs text-state-good-fg">
             Mức chi của bạn ổn định trong suốt {monthsWithData} tháng — không có cú nhảy bậc nào
             đáng kể.
           </p>
@@ -367,8 +367,8 @@ export function TrendsView() {
                     key={cp.index}
                     className={`rounded-lg px-2.5 py-2 text-xs ${
                       up
-                        ? 'bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-                        : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        ? 'bg-state-warn-bg text-amber-800 dark:text-amber-300'
+                        : 'bg-state-good-bg text-state-good-fg'
                     }`}
                   >
                     <b>Từ {monthLabel(at.key)}</b>: mức chi {up ? 'tăng' : 'giảm'} từ{' '}
@@ -414,7 +414,7 @@ export function TrendsView() {
               này chiếm {Math.round(inflation.coverage * 100)}% tổng chi năm nay.
             </p>
             {inflation.coverage < 0.5 && (
-              <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-2xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              <p className="mt-2 rounded-lg bg-state-warn-bg text-state-warn-fg px-2 py-1.5 text-2xs">
                 Rổ chung chỉ chiếm dưới một nửa chi tiêu nên con số này chỉ mang tính tham khảo — chi
                 tiêu năm nay khác năm ngoái khá nhiều.
               </p>

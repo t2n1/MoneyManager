@@ -32,7 +32,7 @@ export function ExplainBox({ label = 'Cách tính & nên làm gì', children }: 
         <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="mt-1 space-y-1.5 rounded-lg bg-surface-page p-2.5 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+        <div className="mt-1 space-y-1.5 rounded-lg bg-surface-page p-2.5 text-xs leading-relaxed text-fg-muted">
           {children}
         </div>
       )}

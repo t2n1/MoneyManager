@@ -80,7 +80,7 @@ export function BudgetEditSheet({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="min-h-11 rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Đóng
           </button>
@@ -141,7 +141,7 @@ export function BudgetEditSheet({
             <button
               type="button"
               onClick={handleDelete}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-money-out hover:bg-red-50 dark:hover:bg-red-900/30"
+              className="rounded-xl px-4 py-3 text-sm font-medium text-money-out hover:bg-state-bad-bg"
             >
               Xóa
             </button>
@@ -149,7 +149,7 @@ export function BudgetEditSheet({
           <button
             type="button"
             onClick={handleSave}
-            className="flex-1 rounded-xl bg-green-700 py-3 text-sm font-semibold text-white active:scale-[0.99]"
+            className="flex-1 rounded-xl bg-accent text-fg-on-accent py-3 text-sm font-semibold active:scale-[0.99]"
           >
             Lưu
           </button>

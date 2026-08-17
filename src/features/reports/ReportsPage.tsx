@@ -357,7 +357,7 @@ export function ReportsPage() {
           khiển vì bốn khối bên dưới đều có điều kiện — nằm sau chúng thì mỗi lần gạt tab
           là cảnh báo lại nhảy sang một độ cao khác. */}
       {showMissingRate && (
-        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">
+        <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-xs">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}

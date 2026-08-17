@@ -144,7 +144,7 @@ export function CategoryBreakdownCard({
   const toggleParent = (key: string) => setOpenKey((k) => (k === key ? null : key))
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm ">
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-fg-muted">
@@ -160,14 +160,14 @@ export function CategoryBreakdownCard({
         <div
           role="tablist"
           aria-label="Loại giao dịch"
-          className="flex shrink-0 rounded-lg bg-surface-sunken p-0.5 text-xs font-medium "
+          className="flex shrink-0 rounded-lg bg-surface-sunken p-0.5 text-xs font-medium"
         >
           <button
             type="button"
             role="tab"
             aria-selected={kind === 'expense'}
             onClick={() => onKindChange('expense')}
-            className={`rounded-md px-3 py-2.5 transition ${kind === 'expense' ? 'bg-surface text-red-700 shadow-sm dark:text-red-400' : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
+            className={`rounded-md px-3 py-2.5 transition ${kind === 'expense' ? 'bg-surface text-state-bad-fg shadow-sm' : 'text-fg-muted hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
             Chi
           </button>
@@ -176,7 +176,7 @@ export function CategoryBreakdownCard({
             role="tab"
             aria-selected={kind === 'income'}
             onClick={() => onKindChange('income')}
-            className={`rounded-md px-3 py-2.5 transition ${kind === 'income' ? 'bg-surface text-green-800 shadow-sm dark:text-green-400' : 'text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'}`}
+            className={`rounded-md px-3 py-2.5 transition ${kind === 'income' ? 'bg-surface text-green-800 shadow-sm dark:text-green-400' : 'text-fg-muted hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
             Thu
           </button>

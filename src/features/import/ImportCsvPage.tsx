@@ -373,7 +373,7 @@ export function ImportCsvPage() {
 
               {/* Cảnh báo chuyển khoản nội bộ */}
               {transferCount > 0 && (
-                <div className="mt-2 rounded-lg bg-amber-50 p-2.5 dark:bg-amber-900/30">
+                <div className="mt-2 rounded-lg bg-state-warn-bg p-2.5">
                   <label className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300">
                     <input
                       type="checkbox"
@@ -430,7 +430,7 @@ export function ImportCsvPage() {
                           <td className="py-1 text-right tabular-nums">
                             {formatMoney(it.amount, currency)}
                             {odd && (
-                              <span className="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-3xs font-semibold text-red-700 dark:bg-red-900/50 dark:text-red-300">
+                              <span className="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-3xs font-semibold text-state-bad-fg dark:bg-red-900/50">
                                 khoản lớn bất thường
                               </span>
                             )}
@@ -456,7 +456,7 @@ export function ImportCsvPage() {
                 type="button"
                 onClick={handleImport}
                 disabled={busy || toImport.length === 0}
-                className="mt-3 w-full rounded-lg bg-green-700 py-2.5 text-sm font-semibold text-white hover:bg-green-800 disabled:opacity-40 active:scale-95"
+                className="mt-3 w-full rounded-lg bg-accent hover:bg-accent-hover text-fg-on-accent py-2.5 text-sm font-semibold disabled:opacity-40 active:scale-95"
               >
                 {busy ? 'Đang nhập…' : `Nhập ${toImport.length} giao dịch`}
               </button>
@@ -469,8 +469,8 @@ export function ImportCsvPage() {
         <p
           className={`rounded-lg px-3 py-2 text-sm ${
             result.kind === 'error'
-              ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-              : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+              ? 'bg-state-bad-bg text-state-bad-fg'
+              : 'bg-state-good-bg text-state-good-fg'
           }`}
         >
           {result.text}

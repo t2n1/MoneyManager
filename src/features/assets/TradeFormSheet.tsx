@@ -293,7 +293,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Hủy
           </button>
@@ -301,7 +301,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
             type="button"
             onClick={handleSubmit}
             disabled={!canSave}
-            className="min-h-11 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
+            className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold active:scale-95 disabled:opacity-50"
           >
             {saving ? 'Đang lưu…' : 'Lưu'}
           </button>

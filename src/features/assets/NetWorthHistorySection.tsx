@@ -35,7 +35,7 @@ export function NetWorthHistorySection({ currentNetWorth, view }: Props) {
   if (snapshots.length < 2) {
     return (
       <Card as="section" padding="lg">
-        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+        <h2 className="text-sm font-semibold text-fg-secondary">
           Tài sản ròng theo thời gian
         </h2>
         <p className="mt-2 text-center text-xs text-fg-muted">
@@ -55,7 +55,7 @@ export function NetWorthHistorySection({ currentNetWorth, view }: Props) {
   return (
     <Card as="section" padding="lg">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+        <h2 className="text-sm font-semibold text-fg-secondary">
           Tài sản ròng theo thời gian
         </h2>
         <span className={`text-xs font-semibold ${up ? 'text-money-in' : 'text-money-out'}`}>

@@ -112,7 +112,7 @@ function YearCard({ row, currency }: { row: YearRow; currency: CurrencyCode }) {
         bi quan {formatMoney(row.assetsPessimisticMinor, currency)}
       </p>
       {row.events.length > 0 && (
-        <div className="mt-1.5 space-y-1 border-t border-gray-200 dark:border-gray-800 pt-1.5 text-xs">
+        <div className="mt-1.5 space-y-1 border-t border-border-panel pt-1.5 text-xs">
           {row.events.map((e) => (
             <EventLine key={e.id} e={e} currency={currency} />
           ))}
@@ -269,7 +269,7 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
           >
             <span
               className={`block h-6 w-11 shrink-0 rounded-full transition ${
-                !showAll ? 'bg-green-700' : 'bg-gray-300 dark:bg-gray-700'
+                !showAll ? 'bg-accent' : 'bg-gray-300 dark:bg-gray-700'
               }`}
             >
               <span
@@ -278,7 +278,7 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
                 }`}
               />
             </span>
-            <span id={switchLabelId} className="text-sm font-medium text-gray-700 dark:text-gray-200">
+            <span id={switchLabelId} className="text-sm font-medium text-fg-primary">
               Chỉ năm có sự kiện
             </span>
           </button>
@@ -334,7 +334,7 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
 
         {/* Chân bảng — BẮT BUỘC nói rõ trạng thái ẩn/hiện, không được im lặng. */}
         {rows.length > 0 && (
-          <div className="shrink-0 border-t border-gray-200 dark:border-gray-800 p-2 text-center text-xs text-fg-muted">
+          <div className="shrink-0 border-t border-border-panel p-2 text-center text-xs text-fg-muted">
             <p>
               {hiddenCount > 0
                 ? `đang ẩn ${hiddenCount} năm không có sự kiện`

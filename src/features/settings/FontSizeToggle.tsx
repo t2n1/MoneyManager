@@ -28,10 +28,10 @@ export function FontSizeToggle() {
               onClick={() => setFontScale(opt.value)}
               aria-pressed={active}
               className={`flex flex-1 flex-col items-center justify-end gap-1 rounded-lg border py-2.5 text-xs font-medium transition ${
-                active
-                  ? 'border-green-500 bg-green-50 text-green-700 dark:border-green-500 dark:bg-green-900/30 dark:text-green-300'
-                  : 'border-gray-200 text-fg-secondary hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800'
-              }`}
+ active
+ ? 'border-green-500 bg-state-good-bg text-state-good-fg dark:border-green-500'
+ : 'border-border-panel text-fg-secondary hover:bg-surface-sunken'
+ }`}
             >
               <span
                 aria-hidden

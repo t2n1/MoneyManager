@@ -214,7 +214,7 @@ export function SearchPage() {
 
   const chip = (active: boolean) =>
     `rounded-full px-3 py-2.5 text-xs font-medium transition ${
-      active ? 'bg-green-700 text-white' : 'bg-surface text-fg-secondary shadow-sm'
+      active ? 'bg-accent text-fg-on-accent' : 'bg-surface text-fg-secondary shadow-sm'
     }`
 
   return (
@@ -318,7 +318,7 @@ export function SearchPage() {
                             aria-pressed={active}
                             className={`rounded-full px-3 py-2.5 text-xs font-medium transition ${
                               active
-                                ? 'bg-green-700 text-white'
+                                ? 'bg-accent text-fg-on-accent'
                                 : TAG_CHIP_CLASS[tagColor(t.color)]
                             }`}
                           >
@@ -459,7 +459,7 @@ export function SearchPage() {
             </span>
           </div>
           {totals.hasMissingRate && (
-            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            <p className="mt-2 text-xs text-state-warn-fg">
               Một phần ngoại tệ chưa quy đổi được (đang chờ tỷ giá).
             </p>
           )}

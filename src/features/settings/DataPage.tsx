@@ -64,7 +64,7 @@ function ExportSection() {
   const label = period === 'month' ? formatMonthLabel(monthKey) : formatYearLabel(year)
 
   return (
-    <section className="overflow-hidden rounded-xl bg-surface shadow-sm ">
+    <section className="overflow-hidden rounded-xl bg-surface shadow-sm">
       <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">
         Xuất báo cáo &amp; giao dịch
       </h2>
@@ -118,7 +118,7 @@ function ExportSection() {
             type="button"
             onClick={handleCsv}
             disabled={txs.length === 0}
-            className="flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 dark:text-gray-200 dark:hover:bg-gray-800"
+            className="flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-fg-primary hover:bg-surface-sunken disabled:opacity-40"
           >
             <Download className="h-4 w-4" />
             Tải CSV
@@ -126,7 +126,7 @@ function ExportSection() {
           <button
             type="button"
             onClick={handlePdf}
-            className="flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800"
+            className="flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-fg-primary hover:bg-surface-sunken"
           >
             <Printer className="h-4 w-4" />
             Xuất PDF / In
@@ -151,14 +151,14 @@ export function DataPage() {
 
       <BackupSection />
 
-      <section className="overflow-hidden rounded-xl bg-surface shadow-sm ">
+      <section className="overflow-hidden rounded-xl bg-surface shadow-sm">
         <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">
           Nhập dữ liệu
         </h2>
         <div className="mt-1">
           <Link
             to="/settings/import"
-            className="flex items-center gap-3 px-3 py-3 text-sm text-fg-primary hover:bg-gray-50 dark:hover:bg-gray-800"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-fg-primary hover:bg-surface-sunken"
           >
             <FileUp className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Nhập giao dịch từ CSV</span>
@@ -166,7 +166,7 @@ export function DataPage() {
           </Link>
           <Link
             to="/settings/nhap-phieu-luong"
-            className="flex items-center gap-3 px-3 py-3 text-sm text-fg-primary hover:bg-gray-50 dark:hover:bg-gray-800"
+            className="flex items-center gap-3 px-3 py-3 text-sm text-fg-primary hover:bg-surface-sunken"
           >
             <FileUp className="h-5 w-5 text-fg-muted" />
             <span className="flex-1">Nhập phiếu lương từ PDF</span>

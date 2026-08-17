@@ -65,9 +65,9 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
                   key={`${p.key.year}-${p.key.month}`}
                   type="button"
                   onClick={() => onSelectMonth(p.key)}
-                  className="grid w-full grid-cols-[auto_1fr_1fr_1fr] items-center gap-2 px-3 py-2.5 text-right text-sm transition hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100 dark:active:bg-gray-800"
+                  className="grid w-full grid-cols-[auto_1fr_1fr_1fr] items-center gap-2 px-3 py-2.5 text-right text-sm transition hover:bg-surface-sunken active:bg-gray-100 dark:active:bg-gray-800"
                 >
-                  <span className="text-left font-medium text-gray-700 dark:text-gray-300">Th {p.key.month}</span>
+                  <span className="text-left font-medium text-fg-secondary">Th {p.key.month}</span>
                   <span className={`tabular-nums ${empty ? 'text-gray-300 dark:text-gray-600' : 'text-money-in'}`}>
                     {p.income !== 0 ? formatMoney(p.income, base) : '–'}
                   </span>

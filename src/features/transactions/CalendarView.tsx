@@ -128,13 +128,13 @@ export function CalendarView({
                 type="button"
                 onClick={() => setSelected(iso)}
                 className={`flex min-h-[3.25rem] flex-col rounded-lg p-1 text-left transition ${
-                  isSelected ? 'bg-green-50 dark:bg-green-900/30 ring-1 ring-green-400' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                  isSelected ? 'bg-state-good-bg ring-1 ring-green-400' : 'hover:bg-surface-sunken'
                 }`}
               >
                 <span
                   className={`text-2xs leading-none ${
                     isToday
-                      ? 'flex h-4 w-4 items-center justify-center rounded-full bg-green-700 font-bold text-white'
+                      ? 'flex h-4 w-4 items-center justify-center rounded-full bg-accent font-bold text-fg-on-accent'
                       : i % 7 === 0
                         ? 'text-money-out'
                         : 'text-fg-muted'

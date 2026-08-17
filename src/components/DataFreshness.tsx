@@ -8,6 +8,7 @@
 // phải đầu mỗi trang. Dấu ≈ của EstimateMark mới là thứ đi kèm từng con số, và nó nói
 // chuyện khác: "số này do app suy ra", không phải "số này cũ".
 import type { FreshnessSummary } from '../lib/freshness'
+import { STATUS_FILL } from './ui/statusColors'
 
 export function DataFreshness({ summary }: { summary: FreshnessSummary | null }) {
   if (!summary) return null
@@ -17,13 +18,13 @@ export function DataFreshness({ summary }: { summary: FreshnessSummary | null })
   //
   // Chiều "ổn" dùng token `bg-accent` chứ không bg-green-600: green-600 nằm trong danh
   // sách ban cứng, và đọc token thì đổi một chỗ là đổi cả app.
-  const dot = summary.tone === 'warn' ? 'bg-amber-500' : 'bg-accent'
+  const dot = summary.tone === 'warn' ? STATUS_FILL.warn : 'bg-accent'
 
   // Chấm đầu dòng là tone GỘP, nên nó chuyển hổ phách khi bất kỳ nguồn nào cũ. Nếu dòng
   // chữ cũng tô một màu theo tone gộp thì "Tỷ giá hôm qua" nằm trong dòng hổ phách trông
   // y như chính tỷ giá đang có vấn đề, trong khi thủ phạm có thể là giá cổ phiếu. Vì vậy
   // mỗi nguồn tự mang màu của mình.
-  const warnText = 'font-medium text-amber-700 dark:text-amber-300'
+  const warnText = 'font-medium text-state-warn-fg'
 
   return (
     <span className="inline-flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5">

@@ -40,8 +40,8 @@ export function TagBreakdownCard({
     // vẫn chiếm chỗ mà không nói gì. Bỏ hẳn cả thẻ. Bật Đầy đủ là lời mời quay lại.
     if (visual) return null
     return (
-      <section className="rounded-xl bg-surface p-3 shadow-sm ">
-        <h2 className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-200">
+      <section className="rounded-xl bg-surface p-3 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-fg-primary">
           Chi theo nhãn
         </h2>
         <Guide className="text-xs text-fg-secondary">
@@ -58,8 +58,8 @@ export function TagBreakdownCard({
 
   if (data.slices.length === 0) {
     return (
-      <section className="rounded-xl bg-surface p-3 shadow-sm ">
-        <h2 className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-200">
+      <section className="rounded-xl bg-surface p-3 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-fg-primary">
           Chi theo nhãn
         </h2>
         <p className="text-xs text-fg-muted">
@@ -72,9 +72,9 @@ export function TagBreakdownCard({
   const taggedPct = data.total > 0 ? Math.round((data.taggedTotal / data.total) * 100) : 0
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm ">
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Chi theo nhãn</h2>
+        <h2 className="text-sm font-semibold text-fg-primary">Chi theo nhãn</h2>
         <span className="shrink-0 text-2xs text-fg-muted">
           {taggedPct}% chi tiêu có nhãn
         </span>
@@ -86,7 +86,7 @@ export function TagBreakdownCard({
             <Link
               to={`/search?tags=${encodeURIComponent(s.tagId)}&from=${rangeFrom}&to=${rangeTo}`}
               aria-label={`Xem ${s.count} khoản mang nhãn ${s.name}`}
-              className="block rounded-lg py-1 transition active:scale-[0.99] hover:bg-gray-50 dark:hover:bg-gray-800"
+              className="block rounded-lg py-1 transition active:scale-[0.99] hover:bg-surface-sunken"
             >
               <div className="flex items-center justify-between gap-2">
                 <span

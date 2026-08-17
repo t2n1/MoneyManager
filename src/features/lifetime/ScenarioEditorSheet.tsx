@@ -91,11 +91,11 @@ function formatFxAssumption(fx: number, currency: CurrencyCode, display: Currenc
 const BAR_PALETTE = ['bg-green-500', 'bg-blue-400', 'bg-amber-400', 'bg-purple-400', 'bg-rose-400', 'bg-teal-400']
 
 /** Token thẻ lồng của app cho một dòng danh sách bấm được. */
-const ROW_CARD = 'min-h-11 w-full rounded-lg bg-gray-50 dark:bg-gray-800 p-2.5 text-left active:scale-95'
+const ROW_CARD = 'min-h-11 w-full rounded-lg bg-surface-sunken p-2.5 text-left active:scale-95'
 
 /** Nút "thêm/chọn" xám của khối 2 & 3 (Thêm chặng · Chọn mẫu). Cùng lý do với
  *  `ROW_CARD`: ba nút cùng vai trò thì cùng một chuỗi class, không gõ lại từng nút. */
-const ADD_BUTTON = 'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-surface-sunken text-sm font-medium text-gray-700 dark:text-gray-300 active:scale-95'
+const ADD_BUTTON = 'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-surface-sunken text-sm font-medium text-fg-secondary active:scale-95'
 
 /** Nút phụ dưới nút Lưu của khối 1 (đặt kịch bản chính · xoá kịch bản) — phần chung;
  *  màu chữ khác nhau nên nối thêm ở chỗ dùng. */
@@ -693,7 +693,7 @@ export function ScenarioEditorSheet({
               type="button"
               onClick={() => void handleDismiss()}
               aria-label="Đóng"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg active:scale-95 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg active:scale-95 hover:bg-surface-sunken"
             >
               <X className="h-5 w-5 text-fg-muted" />
             </button>
@@ -707,7 +707,7 @@ export function ScenarioEditorSheet({
           <section className="mb-4 border-b border-border-subtle pb-4 lg:mb-0 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:pb-2 lg:pr-1">
             {/* Mobile không cần tiêu đề (khối 1 mở màn ngay dưới tựa sheet), nhưng lên
                 ba cột thì cột nào cũng phải có tên. */}
-            <h3 className="mb-2 hidden text-sm font-semibold text-gray-700 lg:block dark:text-gray-300">
+            <h3 className="mb-2 hidden text-sm font-semibold text-fg-secondary lg:block">
               Kịch bản
             </h3>
             <label htmlFor={`${uid}-name`} className={label_}>
@@ -833,7 +833,7 @@ export function ScenarioEditorSheet({
                 onClick={() => setAssetsSign(1)}
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   assetsSign === 1
-                    ? 'bg-green-700 text-white'
+                    ? 'bg-accent text-fg-on-accent'
                     : 'border border-border-strong text-fg-secondary'
                 }`}
               >
@@ -845,7 +845,7 @@ export function ScenarioEditorSheet({
                 onClick={() => setAssetsSign(-1)}
                 className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
                   assetsSign === -1
-                    ? 'bg-green-700 text-white'
+                    ? 'bg-accent text-fg-on-accent'
                     : 'border border-border-strong text-fg-secondary'
                 }`}
               >
@@ -938,7 +938,7 @@ export function ScenarioEditorSheet({
 
             {/* KHÔNG viết "giá danh nghĩa" trần — từ chuyên ngành. Nói bằng hệ quả người
                 dùng thấy: số tương lai có cộng lạm phát hay quy hết về giá hôm nay. */}
-            <label className="mb-1 flex min-h-11 items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <label className="mb-1 flex min-h-11 items-center gap-2 text-sm text-fg-secondary">
               <input
                 type="checkbox"
                 checked={nominalTerms}
@@ -952,7 +952,7 @@ export function ScenarioEditorSheet({
             </p>
 
             {resetNotice && (resetNotice.phaseLabels.length > 0 || resetNotice.eventLabels.length > 0) && (
-              <div className="mb-3 rounded-lg bg-amber-50 dark:bg-amber-900/40 p-2.5 text-xs text-amber-700 dark:text-amber-300">
+              <div className="mb-3 rounded-lg bg-state-warn-bg text-state-warn-fg p-2.5 text-xs">
                 <p className="font-semibold">
                   Đã đặt lại tỷ giá về 1 cho {resetNotice.phaseLabels.length + resetNotice.eventLabels.length} dòng —
                   khai lại tỷ giá cho các dòng này bên dưới:
@@ -974,7 +974,7 @@ export function ScenarioEditorSheet({
                 type="button"
                 onClick={handleSaveScenario}
                 disabled={!canSaveScenario}
-                className="min-h-11 flex-1 rounded-lg bg-green-700 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
+                className="min-h-11 flex-1 rounded-lg bg-accent text-fg-on-accent text-sm font-semibold active:scale-95 disabled:opacity-50"
               >
                 {savingScenario ? 'Đang lưu…' : 'Lưu thay đổi kịch bản'}
               </button>
@@ -1006,7 +1006,7 @@ export function ScenarioEditorSheet({
                   // Nhãn nói ra HỆ QUẢ, không chỉ tên thao tác: "kịch bản chính" một
                   // mình không cho biết nó quyết định điều gì.
                   title="Kịch bản chính là kịch bản mà thông báo nhắc lệch và thẻ Lifetime ở trang Tài sản đọc theo"
-                  className={`${BLOCK1_ACTION} px-3 text-fg-accent hover:bg-green-50 dark:hover:bg-green-900/30`}
+                  className={`${BLOCK1_ACTION} px-3 text-fg-accent hover:bg-accent-muted-bg`}
                 >
                   <Star className="h-4 w-4 shrink-0" aria-hidden="true" />
                   {settingPrimary ? 'Đang đặt…' : 'Đặt làm kịch bản chính'}
@@ -1021,7 +1021,7 @@ export function ScenarioEditorSheet({
                     ? 'Không xóa được kịch bản duy nhất — tạo hoặc nhân bản thêm một kịch bản trước'
                     : 'Xóa kịch bản này cùng mọi chặng đời và sự kiện của nó'
                 }
-                className={`${BLOCK1_ACTION} px-3 text-money-out hover:bg-red-50 dark:hover:bg-red-900/30`}
+                className={`${BLOCK1_ACTION} px-3 text-money-out hover:bg-state-bad-bg`}
               >
                 <Trash2 className="h-4 w-4 shrink-0" />
                 {deleting ? 'Đang xóa…' : 'Xóa kịch bản'}
@@ -1042,7 +1042,7 @@ export function ScenarioEditorSheet({
           <div className="lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-border-subtle lg:pb-2 lg:pl-8 lg:pr-1">
           {/* --- Khối 2: Chặng đời --- */}
           <section className="mb-4 border-b border-border-subtle pb-4">
-            <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Chặng đời</h3>
+            <h3 className="mb-2 text-sm font-semibold text-fg-secondary">Chặng đời</h3>
             {sortedPhases.length === 0 ? (
               <p className="mb-2 text-xs text-fg-muted">Chưa có chặng nào.</p>
             ) : (
@@ -1101,7 +1101,7 @@ export function ScenarioEditorSheet({
           {/* `lg:` bỏ gạch chân + đệm đáy: trên ba cột nó là khối CUỐI của cột giữa
               (khối 4 đã sang cột phải), gạch ngăn cách thành gạch mồ côi. */}
           <section className="mb-4 border-b border-border-subtle pb-4 lg:mb-0 lg:border-b-0 lg:pb-0">
-            <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Sự kiện</h3>
+            <h3 className="mb-2 text-sm font-semibold text-fg-secondary">Sự kiện</h3>
             {sortedEvents.length === 0 ? (
               <p className="mb-2 text-xs text-fg-muted">Chưa có sự kiện nào.</p>
             ) : (
@@ -1114,7 +1114,7 @@ export function ScenarioEditorSheet({
                       <button type="button" onClick={() => setEventSheet({ event: e })} className={ROW_CARD}>
                         <span className="flex items-center justify-between gap-2">
                           <span className="text-sm font-semibold text-fg-primary">{e.label}</span>
-                          <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-200">
+                          <span className="shrink-0 text-sm font-semibold tabular-nums text-fg-primary">
                             {formatMoney(e.amount_minor, e.currency as CurrencyCode)}
                           </span>
                         </span>
@@ -1156,7 +1156,7 @@ export function ScenarioEditorSheet({
 
           {/* --- Khối 4: Số này ở đâu ra — LUÔN MỞ, số nền sai thì cả bản chiếu sai theo --- */}
           <section className="lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-border-subtle lg:pb-2 lg:pl-8 lg:pr-1">
-            <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Số này ở đâu ra</h3>
+            <h3 className="mb-2 text-sm font-semibold text-fg-secondary">Số này ở đâu ra</h3>
             {!currentPhase || !baseline ? (
               <p className="text-xs text-fg-muted">
                 Chưa có chặng nào.

@@ -200,10 +200,10 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
               type="button"
               onClick={() => switchType(tab.value)}
               className={`min-h-11 rounded-md py-1.5 text-sm font-medium transition ${
-                type === tab.value
-                  ? 'bg-surface text-gray-900 dark:text-gray-100 shadow-sm'
-                  : 'text-fg-muted'
-              }`}
+ type === tab.value
+ ? 'bg-surface text-fg-primary shadow-sm'
+ : 'text-fg-muted'
+ }`}
             >
               {tab.label}
             </button>
@@ -255,7 +255,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
               id={`${uid}-cat`}
               value={categoryId ?? ''}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm text-gray-700 dark:text-gray-300"
+              className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm text-fg-secondary"
             >
               <option value="" disabled>
                 Chọn danh mục…
@@ -316,7 +316,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
               aria-pressed={mode === value}
               className={`min-h-11 flex-1 px-2 text-sm font-medium ${
                 mode === value
-                  ? 'bg-green-700 text-white'
+                  ? 'bg-accent text-fg-on-accent'
                   : 'text-fg-secondary hover:bg-surface-sunken'
               }`}
             >
@@ -353,7 +353,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
               id={`${uid}-freq`}
               value={frequency}
               onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}
-              className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm text-gray-700 dark:text-gray-300"
+              className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm text-fg-secondary"
             >
               {FREQ_OPTIONS.map((f) => (
                 <option key={f.value} value={f.value}>
@@ -432,7 +432,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Hủy
           </button>
@@ -440,7 +440,7 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="min-h-11 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+            className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
           >
             {saving ? 'Đang lưu…' : 'Lưu'}
           </button>

@@ -164,7 +164,7 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
       {/* Ba mức lợi nhuận */}
       <div className="mt-3 grid grid-cols-3 gap-2">
         {rateRows.map((row) => (
-          <div key={row.label} className="rounded-xl bg-surface-page p-2.5 text-center ">
+          <div key={row.label} className="rounded-xl bg-surface-page p-2.5 text-center">
             <p
               className={`text-base font-bold tabular-nums ${
                 row.value === null
@@ -196,7 +196,7 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
       )}
 
       {hasMissingRate && (
-        <p className="mt-2 text-2xs text-amber-700 dark:text-amber-300">
+        <p className="mt-2 text-2xs text-state-warn-fg">
           Một phần dòng tiền ngoại tệ chưa quy đổi được nên tỷ suất có thể lệch.
         </p>
       )}

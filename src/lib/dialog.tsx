@@ -219,7 +219,7 @@ function DialogModal({ req }: { req: DialogReq }) {
           <button
             type="button"
             onClick={onCancel}
-            className="min-h-11 rounded-lg px-4 py-2.5 text-sm font-medium text-fg-secondary hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95"
+            className="min-h-11 rounded-lg px-4 py-2.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken active:scale-95"
           >
             {req.kind === 'confirm' ? req.cancelLabel : 'Hủy'}
           </button>
@@ -227,10 +227,14 @@ function DialogModal({ req }: { req: DialogReq }) {
             type="button"
             onClick={onConfirm}
             disabled={req.kind === 'prompt' && value.trim() === ''}
-            className={`min-h-11 rounded-lg px-4 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-50 ${
+            // Màu CHỮ nằm trong từng nhánh, không đặt chung ở ngoài: hai nhánh có hai
+            // nền khác họ. Chữ trắng trên red-600 thì đạt ở cả hai chế độ, nhưng trên
+            // `bg-accent` thì chỉ đạt ở light — ở dark --accent lật sang green-500 và
+            // chữ trắng còn 2,22:1 (tests/contrast.test.ts đo và ban đúng cặp đó).
+            className={`min-h-11 rounded-lg px-4 py-2.5 text-sm font-semibold active:scale-95 disabled:opacity-50 ${
               req.kind === 'confirm' && req.danger
-                ? 'bg-red-600 hover:bg-red-700'
-                : 'bg-green-700 hover:bg-green-800'
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'bg-accent text-fg-on-accent hover:bg-accent-hover'
             }`}
           >
             {req.confirmLabel}
@@ -246,7 +250,7 @@ function MessageToast({ toast: t }: { toast: ToastState }) {
     t.kind === 'error'
       ? 'bg-red-600'
       : t.kind === 'success'
-        ? 'bg-green-700'
+        ? 'bg-accent'
         : 'bg-gray-900/95'
   const Icon = t.kind === 'error' ? AlertTriangle : t.kind === 'success' ? Check : null
 

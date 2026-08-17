@@ -25,6 +25,7 @@ import { AxisTargetsCard } from './AxisTargetsCard'
 import { useAxisProgress } from './useAxisProgress'
 import { TagBudgetsCard } from '../tags/TagBudgetsCard'
 import { useTagBudgets } from '../tags/useTagBudgets'
+import { STATUS_FILL } from '../../components/ui/statusColors'
 
 const SORT_KEY = 'budget.sort'
 const SORT_OPTIONS = [
@@ -51,9 +52,9 @@ function readSortMode(): BudgetSortMode {
 }
 
 const BAR_COLOR: Record<BudgetStatus, string> = {
-  ok: 'bg-green-500',
-  warn: 'bg-amber-500',
-  over: 'bg-red-500',
+  ok: STATUS_FILL.good,
+  warn: STATUS_FILL.warn,
+  over: STATUS_FILL.bad,
 }
 const TEXT_COLOR: Record<BudgetStatus, string> = {
   ok: 'text-fg-primary',
@@ -311,7 +312,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   return (
     <div className="flex flex-col gap-3">
       {(report.hasMissingRate || pace.hasMissingRate) && (
-        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 p-2 text-xs text-amber-700 dark:text-amber-300">
+        <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-xs">
           Một phần chi ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
@@ -413,7 +414,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         <button
           type="button"
           onClick={handleCopy}
-          className="mt-3 rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="mt-3 rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-surface-sunken"
         >
           Chép hạn mức tháng trước
         </button>
@@ -509,7 +510,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                       onClick={() => toggle(item.cat.id)}
                       aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
                       aria-expanded={isOpen}
-                      className="flex w-9 shrink-0 items-center justify-center rounded text-fg-muted hover:text-gray-600 dark:hover:text-gray-200"
+                      className="flex w-9 shrink-0 items-center justify-center rounded text-fg-muted hover:text-fg-primary"
                     >
                       {isOpen ? (
                         <ChevronDown className="h-4 w-4" />
@@ -603,7 +604,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                         // 20×20 là quá nhỏ để bấm; min-h-11 min-w-9 là cỡ nút icon hẹp
                         // app đang dùng sẵn. -my-2 để vùng chạm cao 44px không đẩy dòng
                         // giãn ra (cùng mẹo với nút "Chọn" ở LedgerPage).
-                        className="-my-2 flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded text-fg-muted hover:text-gray-600 dark:hover:text-gray-200"
+                        className="-my-2 flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded text-fg-muted hover:text-fg-primary"
                       >
                         {isOpen ? (
                           <ChevronDown className="h-4 w-4" />
@@ -615,7 +616,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     <button
                       type="button"
                       onClick={() => openEdit(c.id)}
-                      className="rounded-full border border-dashed border-border-strong px-3 py-1.5 text-xs text-fg-secondary hover:bg-gray-50 dark:hover:bg-gray-800"
+                      className="rounded-full border border-dashed border-border-strong px-3 py-1.5 text-xs text-fg-secondary hover:bg-surface-sunken"
                     >
                       {c.icon} {c.name} +
                     </button>
@@ -627,7 +628,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                           <button
                             type="button"
                             onClick={() => openEdit(k.id)}
-                            className="rounded-full border border-dashed border-border-strong px-3 py-1.5 text-xs text-fg-secondary hover:bg-gray-50 dark:hover:bg-gray-800"
+                            className="rounded-full border border-dashed border-border-strong px-3 py-1.5 text-xs text-fg-secondary hover:bg-surface-sunken"
                           >
                             {k.icon} {k.name} +
                           </button>

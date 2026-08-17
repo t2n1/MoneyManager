@@ -30,7 +30,7 @@ export function BreakdownRow({
   return (
     <div className={selected ? '-m-1 rounded-md bg-surface-sunken p-1 ' : ''}>
       <div className="mb-1 flex items-baseline gap-2 text-sm">
-        <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">
+        <span className="min-w-0 flex-1 truncate text-fg-secondary">
           {icon ? `${icon} ` : ''}
           {name}
         </span>

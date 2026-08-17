@@ -53,7 +53,7 @@ function Toggle({
     >
       <span
         className={`relative block h-5 w-9 rounded-full transition ${
-          checked ? 'bg-green-700' : 'bg-gray-300'
+          checked ? 'bg-accent' : 'bg-gray-300'
         }`}
       >
         <span
@@ -398,7 +398,7 @@ export function AssetGroupsPage() {
                 <button
                   type="button"
                   onClick={() => submitRename(g.name)}
-                  className="rounded-lg bg-green-700 px-2 py-1 text-xs font-semibold text-white"
+                  className="rounded-lg bg-accent text-fg-on-accent px-2 py-1 text-xs font-semibold"
                 >
                   Lưu
                 </button>
@@ -449,14 +449,14 @@ export function AssetGroupsPage() {
                   setRenaming(g.name)
                   setRenameValue(g.name)
                 }}
-                className="min-h-11 rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="min-h-11 rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-surface-sunken"
               >
                 Đổi tên
               </button>
               <button
                 type="button"
                 onClick={() => setDeleting(g)}
-                className="rounded-lg px-2 py-1 text-xs text-money-out hover:bg-red-50 dark:hover:bg-red-900/30"
+                className="rounded-lg px-2 py-1 text-xs text-money-out hover:bg-state-bad-bg"
               >
                 Xóa
               </button>
@@ -497,7 +497,7 @@ export function AssetGroupsPage() {
                     key={id}
                     ref={(el) => setRow(id, el)}
                     className={`flex items-center gap-1 px-3 py-2 ${
-                      isDragging ? 'bg-green-50 shadow-md dark:bg-green-900/20' : ''
+                      isDragging ? 'bg-accent-muted-bg shadow-md' : ''
                     }`}
                   >
                     <button
@@ -509,7 +509,7 @@ export function AssetGroupsPage() {
                     >
                       <GripVertical className="h-4 w-4" />
                     </button>
-                    <span className="flex min-w-0 flex-1 items-center gap-1 text-sm text-gray-700 dark:text-gray-300">
+                    <span className="flex min-w-0 flex-1 items-center gap-1 text-sm text-fg-secondary">
                       <AccountTypeIcon type={a.type} className="h-4 w-4 shrink-0" />
                       <span className="truncate">{a.name}</span>
                       <span className="text-xs text-fg-muted">
@@ -554,7 +554,7 @@ export function AssetGroupsPage() {
                 <button
                   type="button"
                   onClick={() => openAddAccounts(g.name)}
-                  className="flex w-full items-center justify-center gap-1 border-t border-border-subtle px-3 py-2.5 text-xs font-semibold text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20"
+                  className="flex w-full items-center justify-center gap-1 border-t border-border-subtle px-3 py-2.5 text-xs font-semibold text-state-good-fg hover:bg-green-50 dark:hover:bg-green-900/20"
                 >
                   <Plus className="h-4 w-4" /> Thêm tài khoản vào nhóm
                 </button>
@@ -584,13 +584,13 @@ export function AssetGroupsPage() {
             setAdding(true)
             setNewName('')
           }}
-          className="flex items-center gap-1 rounded-lg bg-green-700 px-3 py-1.5 text-sm font-semibold text-white shadow-sm active:scale-95"
+          className="flex items-center gap-1 rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold shadow-sm active:scale-95"
         >
           <Plus className="h-4 w-4" /> Thêm nhóm
         </button>
       </div>
 
-      <Guide className="mb-3 rounded-xl bg-blue-50 dark:bg-blue-900/30 p-3 text-xs text-blue-800 dark:text-blue-300">
+      <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-xs text-fg-secondary">
         Bật/tắt <b>Tính vào tổng</b> để một nhóm có được cộng vào Tổng tài sản hay không.
         Bật <b>Ẩn</b> để giấu nhóm khỏi trang Tài sản (vẫn quản lý được ở đây). Nhấn giữ
         biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự nhóm, sắp tài khoản trong nhóm,
@@ -613,7 +613,7 @@ export function AssetGroupsPage() {
           <button
             type="button"
             onClick={submitNewGroup}
-            className="rounded-lg bg-green-700 px-2 py-1 text-xs font-semibold text-white"
+            className="rounded-lg bg-accent text-fg-on-accent px-2 py-1 text-xs font-semibold"
           >
             Lưu
           </button>
@@ -678,7 +678,7 @@ function AddAccountsPanel({
   onConfirm: () => void
 }) {
   return (
-    <div className="bg-gray-50 dark:bg-gray-800/50 px-3 py-2">
+    <div className="bg-surface-sunken px-3 py-2">
       {candidates.length === 0 ? (
         <p className="py-2 text-center text-xs text-fg-muted">
           Không còn tài khoản nào ở nhóm khác để thêm.
@@ -697,7 +697,7 @@ function AddAccountsPanel({
                 <span
                   className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                     checked
-                      ? 'border-green-700 bg-green-700 text-white'
+                      ? 'border-accent bg-accent text-fg-on-accent'
                       : 'border-gray-300 dark:border-gray-600'
                   }`}
                   aria-hidden
@@ -705,7 +705,7 @@ function AddAccountsPanel({
                   {checked && <Check className="h-3.5 w-3.5" />}
                 </span>
                 <AccountTypeIcon type={a.type} className="h-4 w-4 shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-sm text-gray-700 dark:text-gray-300">
+                <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">
                   {a.name}
                 </span>
                 <span className="shrink-0 text-xs text-fg-muted">
@@ -717,7 +717,7 @@ function AddAccountsPanel({
         </div>
       )}
 
-      <div className="mt-2 flex justify-end gap-1 border-t border-gray-200 dark:border-gray-700 pt-2">
+      <div className="mt-2 flex justify-end gap-1 border-t border-border-panel pt-2">
         <button
           type="button"
           onClick={onCancel}
@@ -729,7 +729,7 @@ function AddAccountsPanel({
           type="button"
           onClick={onConfirm}
           disabled={picked.size === 0}
-          className="rounded-lg bg-green-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+          className="rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
         >
           Thêm{picked.size > 0 ? ` (${picked.size})` : ''}
         </button>
@@ -784,7 +784,7 @@ function DeleteGroupSheet({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Hủy
           </button>

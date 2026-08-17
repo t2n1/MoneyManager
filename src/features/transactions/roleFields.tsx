@@ -171,8 +171,8 @@ function PeopleChips({
             onClick={() => onPick(active ? null : p)}
             className={`relative flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-sm after:absolute after:inset-x-0 after:-inset-y-1 ${
               active
-                ? 'border-green-600 bg-green-700 text-white'
-                : 'border-border-strong bg-surface text-gray-700 dark:text-gray-200'
+                ? 'border-accent bg-accent text-fg-on-accent'
+                : 'border-border-strong bg-surface text-fg-primary'
             }`}
           >
             <span className="max-w-[9rem] truncate">{p.name}</span>
@@ -260,7 +260,7 @@ export function SplitFields({
           ) : (
             <>
               Phần của mình (tính vào chi tiêu):{' '}
-              <span className="font-semibold text-gray-700 dark:text-gray-200">
+              <span className="font-semibold text-fg-primary">
                 {formatMoney(mine, currency)}
               </span>
             </>
@@ -497,7 +497,7 @@ export function DebtFields({
       </div>
 
       <div className="rounded-lg bg-surface/70 p-2.5">
-        <label className="flex cursor-pointer items-center justify-between gap-2 text-sm text-gray-700 dark:text-gray-300">
+        <label className="flex cursor-pointer items-center justify-between gap-2 text-sm text-fg-secondary">
           <span>
             Có chuyển tiền thật
             <Guide as="span" className="block text-xs text-fg-muted">
@@ -519,7 +519,7 @@ export function DebtFields({
           >
             <span
               className={`relative block h-6 w-11 rounded-full transition ${
-                realOn ? 'bg-green-700' : 'bg-gray-300 dark:bg-gray-600'
+                realOn ? 'bg-accent' : 'bg-gray-300 dark:bg-gray-600'
               }`}
             >
               <span
@@ -531,7 +531,7 @@ export function DebtFields({
           </button>
         </label>
         {!canRecordReal && (
-          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+          <p className="mt-2 text-xs text-state-warn-fg">
             Chưa có tài khoản để tạo giao dịch thật. Vẫn lưu được khoản nợ (không đổi số dư).
           </p>
         )}
@@ -618,7 +618,7 @@ export function RemitFields({
           {vndAccounts.length === 0 ? (
             <>
               <span className={labelCls}>Đến tài khoản VND</span>
-              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              <p className="rounded-lg bg-state-warn-bg text-state-warn-fg px-3 py-2 text-xs">
                 Chưa có tài khoản VND. Tạo một tài khoản VND (vd "Tiền ở VN") hoặc chọn "Hỗ trợ gia đình".
               </p>
             </>

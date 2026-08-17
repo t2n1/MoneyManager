@@ -184,14 +184,14 @@ export function RecurringPage() {
         <button
           type="button"
           onClick={() => setSheet({ open: true, rule: null })}
-          className="flex items-center gap-1 rounded-lg bg-green-700 px-3 py-1.5 text-sm font-semibold text-white shadow-sm active:scale-95"
+          className="flex items-center gap-1 rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold shadow-sm active:scale-95"
         >
           <Plus className="h-4 w-4" /> Thêm
         </button>
       </div>
 
       {suggestions.length > 0 && (
-        <section className="overflow-hidden rounded-xl border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-900/20">
+        <section className="overflow-hidden rounded-xl border border-green-200 bg-state-good-bg dark:border-green-900">
           <h2 className="flex items-center gap-1.5 px-3 pt-3 text-sm font-bold text-green-800 dark:text-green-200">
             <Sparkles className="h-4 w-4" /> Gợi ý khoản định kỳ
           </h2>
@@ -218,7 +218,7 @@ export function RecurringPage() {
                   <button
                     type="button"
                     onClick={() => createFromSuggestion(s)}
-                    className="shrink-0 rounded-lg bg-green-700 px-2.5 py-1 text-xs font-semibold text-white active:scale-95"
+                    className="shrink-0 rounded-lg bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold active:scale-95"
                   >
                     Tạo
                   </button>
@@ -246,7 +246,7 @@ export function RecurringPage() {
           Chưa có quy tắc nào. Thêm ở đây hoặc chọn "Lặp lại" khi nhập giao dịch.
         </p>
       ) : (
-        <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm ">
+        <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
           {rules.map((rule) => {
             const acc = accountOf(rule.account_id)
             const cat = categoryOf(rule.category_id)
@@ -288,7 +288,7 @@ export function RecurringPage() {
                   type="button"
                   onClick={() => togglePause(rule)}
                   aria-label={rule.is_paused ? 'Chạy lại' : 'Tạm dừng'}
-                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-sunken"
                 >
                   {rule.is_paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
                 </button>
@@ -296,7 +296,7 @@ export function RecurringPage() {
                   type="button"
                   onClick={() => handleDelete(rule)}
                   aria-label="Xóa"
-                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-sunken"
                 >
                   <Trash2 className="h-5 w-5" />
                 </button>
@@ -309,10 +309,10 @@ export function RecurringPage() {
                 <Link
                   to={`/entry?rule=${rule.id}&on=${bill.dueISO}`}
                   className={`flex items-center gap-2 px-3 py-2 text-xs font-medium ${
-                    bill.daysLeft < 0
-                      ? 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50'
-                      : 'bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-200 dark:hover:bg-amber-900/50'
-                  }`}
+ bill.daysLeft < 0
+ ? 'bg-state-bad-bg text-state-bad-fg hover:bg-red-100 dark:hover:bg-red-900/50'
+ : 'bg-state-warn-bg text-amber-800 hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-900/50'
+ }`}
                 >
                   <span className="min-w-0 flex-1">
                     {bill.daysLeft < 0

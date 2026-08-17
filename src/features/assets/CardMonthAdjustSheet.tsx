@@ -146,7 +146,7 @@ export function CardMonthAdjustSheet({
           Chỉ chọn được ngày trong kỳ {periodLabel}.
         </p>
 
-        <div className="mb-3 rounded-lg bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm">
+        <div className="mb-3 rounded-lg bg-surface-sunken px-3 py-2 text-sm">
           <div className="flex items-center justify-between text-fg-muted">
             <span>Chênh lệch</span>
             {/* Không in dấu +/−: câu giải thích ngay dưới đã nói rõ chiều, mà dấu
@@ -171,7 +171,7 @@ export function CardMonthAdjustSheet({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Hủy
           </button>

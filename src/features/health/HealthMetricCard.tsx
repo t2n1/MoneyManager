@@ -79,7 +79,7 @@ export function HealthMetricCard({
   const markerPct = value === null ? null : Math.min(100, Math.max(0, (value / max) * 100))
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm ">
+    <section className="rounded-xl bg-surface p-3 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-semibold text-fg-primary">{title}</h3>
         <span className="flex shrink-0 items-baseline gap-1.5">

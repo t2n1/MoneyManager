@@ -300,7 +300,7 @@ export function HealthView() {
             ['bad', tally.bad, 'text-money-out'],
           ] as const
         ).map(([key, count, cls]) => (
-          <div key={key} className="rounded-xl bg-surface p-3 text-center shadow-sm ">
+          <div key={key} className="rounded-xl bg-surface p-3 text-center shadow-sm">
             <p className={`text-xl font-bold tabular-nums ${cls}`}>{count}</p>
             <p className="mt-0.5 text-2xs text-fg-muted">
               {VERDICT_LABELS[key]}
@@ -310,7 +310,7 @@ export function HealthView() {
       </section>
 
       {snap.hasMissingRate && (
-        <div className="rounded-lg bg-amber-50 p-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+        <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-xs">
           Một phần số liệu ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên các chỉ số có thể thiếu.
         </div>
       )}
@@ -358,7 +358,7 @@ export function HealthView() {
               // lớn trên thẻ (quỹ đang bị tiền để dành làm phồng lên). Ẩn đi thì thẻ nói
               // một con số lạc quan hơn thực tế — đó là bỏ dữ liệu, không phải bỏ chữ.
               <div className="mt-2 rounded-lg bg-sky-50 p-2 dark:bg-sky-900/30">
-                <p className="text-xs leading-relaxed text-gray-700 dark:text-gray-200">
+                <p className="text-xs leading-relaxed text-fg-primary">
                   {visual ? (
                     <>
                       Trừ tiền để dành: <b>{months1(freeFund!)}</b>

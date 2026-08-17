@@ -764,7 +764,7 @@ export function TransactionForm({
           <div className="fixed inset-0 z-40" onClick={() => setRoleMenu(false)} aria-hidden />
           <div
             role="menu"
-            className="absolute right-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-lg border border-gray-200 bg-surface py-1 shadow-lg dark:border-gray-700"
+            className="absolute right-0 top-full z-50 mt-1 w-52 overflow-hidden rounded-lg border border-border-panel bg-surface py-1 shadow-lg"
           >
             {ROLE_ORDER.map((r) => {
               const m = ROLE_META[r]
@@ -774,7 +774,7 @@ export function TransactionForm({
                   type="button"
                   role="menuitem"
                   onClick={() => enterRole(r)}
-                  className="flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800"
+                  className="flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium text-fg-primary hover:bg-surface-sunken"
                 >
                   <m.Icon className="h-4 w-4 shrink-0" aria-hidden /> {m.label}
                 </button>
@@ -1046,7 +1046,7 @@ export function TransactionForm({
                 />
                 <div
                   role="listbox"
-                  className="absolute right-0 z-50 mt-1 w-36 overflow-hidden rounded-lg border border-gray-200 bg-surface py-1 shadow-lg dark:border-gray-700 "
+                  className="absolute right-0 z-50 mt-1 w-36 overflow-hidden rounded-lg border border-border-panel bg-surface py-1 shadow-lg"
                 >
                   {REPEAT_OPTIONS.map((opt) => (
                     <button
@@ -1060,8 +1060,8 @@ export function TransactionForm({
                       }}
                       className={`flex min-h-11 w-full items-center px-3 py-2 text-left text-sm ${
                         repeat === opt
-                          ? 'bg-green-50 font-medium text-green-700 dark:bg-green-900/20 dark:text-green-300'
-                          : 'text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800'
+                          ? 'bg-state-good-bg font-medium text-state-good-fg'
+                          : 'text-fg-primary hover:bg-surface-sunken'
                       }`}
                     >
                       {REPEAT_MENU_LABEL[opt]}
@@ -1211,7 +1211,7 @@ export function TransactionForm({
             if (e.key === 'Enter') handleSubmit()
           }}
           placeholder="Ghi chú (tùy chọn)"
-          className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-gray-700 dark:text-gray-300 outline-green-500"
+          className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-secondary outline-green-500"
         />
         {/* "Lưu mẫu" ở ô cố định cạnh ghi chú: không nhảy layout như khi tự chèn
             hàng chip ở đầu form. Mờ đi (thay vì ẩn) khi chưa đủ số tiền + danh mục. */}

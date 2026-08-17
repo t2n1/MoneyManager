@@ -86,7 +86,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Đóng
           </button>
@@ -128,7 +128,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           id={`${uid}-base`}
           value={`${profile.base_currency} · ${CURRENCIES[profile.base_currency].label}`}
           disabled
-          className="mt-1 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-surface-sunken p-3 text-fg-muted"
+          className="mt-1 w-full rounded-xl border border-border-panel bg-surface-sunken p-3 text-fg-muted"
         />
         <p className="mt-1 text-xs text-fg-muted">Không đổi được.</p>
 
@@ -230,7 +230,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           type="button"
           onClick={handleSave}
           disabled={update.isPending}
-          className="mt-4 w-full rounded-xl bg-green-700 py-3 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-60"
+          className="mt-4 w-full rounded-xl bg-accent text-fg-on-accent py-3 text-sm font-semibold active:scale-[0.99] disabled:opacity-60"
         >
           Lưu
         </button>

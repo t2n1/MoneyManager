@@ -286,6 +286,15 @@ Scanner **bỏ comment trước khi đếm** — nếu không thì chính lời 
 
 Bài học chung: **một trần chỉ có nghĩa khi nó đo được chiều nợ.** Trần đếm phần đã đúng thì càng dọn càng đỏ.
 
+**Đợt gộp thẻ (2026-08-18): `rounded-xl bg-surface` 74 → 10.** Codemod đổi 64 thẻ viết tay ở 40 file sang `<Card>`. Việc này KHÔNG chỉ là dọn code — nó **sửa một lỗi nhìn thấy được ở dark**: `<Card elevation="raised">` mang `dark:border dark:border-border-panel dark:shadow-none`, tức bỏ bóng và thay bằng viền (quyết định của 1a), còn 64 thẻ viết tay vẫn giữ `shadow-sm` ở dark — mà bóng trên nền `#0e1014` gần như vô hình, nên chúng **không có ranh giới nào cả**. Đo lại sau khi đổi: viền 1px `#1b1e24`, đúng `border-panel`.
+
+Mười chỗ còn lại không máy móc đổi được: hai chỗ class là template literal (đổi theo trạng thái kéo–thả), một chỗ có `key=` ngay trên thẻ, bảy chỗ không có `shadow-sm` (dáng `flat`/`panel` viết tay). Mỗi cái cần xét nghĩa riêng.
+
+Hai cái bẫy của codemod loại này, đã đạp cả hai:
+
+- **Chèn `import` sai chỗ.** Chèn sau "dòng cuối bắt đầu bằng `import `" là chèn vào GIỮA một `import {` nhiều dòng — vỡ hai file. Phải chèn sau dòng KẾT THÚC của import cuối (`} from '…'`).
+- **Trùng tên với component cục bộ.** `TrendsView.tsx` có sẵn một component tên `Card`; import primitive vào là nó che chính mình, và codemod còn đổi `<section>` bên trong thành `<Card>` — thành đệ quy. Đã đổi tên cục bộ thành `TrendCard`.
+
 ---
 
 ## Màu biểu đồ: hằng số JS, không phải token

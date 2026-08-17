@@ -2,6 +2,7 @@ import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'rec
 import { Guide } from '../../components/Guide'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { DailyExpensePoint } from './aggregate'
+import { Card } from '../../components/ui'
 
 // Một nguồn cho cả nét vẽ và chú giải — recharts nhận màu qua prop nên phải là hằng
 // số JS, không dùng được biến CSS của token.
@@ -41,7 +42,7 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base, sc
   })
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <h2 className="mb-2 text-sm font-semibold text-fg-muted">
         Chi tích lũy vs ngân sách
       </h2>
@@ -103,6 +104,6 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base, sc
       {scopeNote && (
         <Guide className="mt-1 text-center text-2xs text-fg-muted">{scopeNote}</Guide>
       )}
-    </section>
+    </Card>
   )
 }

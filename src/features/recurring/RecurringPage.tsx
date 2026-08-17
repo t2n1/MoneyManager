@@ -22,6 +22,7 @@ import { billStatuses, nextDueDate, type RecurringFrequency } from '../../lib/re
 import { detectRecurring, ruleKey, type RecurringSuggestion } from '../../lib/recurringRadar'
 import type { RecurringRuleRow } from '../../types/database.types'
 import { RecurringFormSheet } from './RecurringFormSheet'
+import { Card } from '../../components/ui'
 
 const RADAR_DISMISS_KEY = 'sct-radar-dismissed'
 
@@ -282,7 +283,7 @@ export function RecurringPage() {
           Chưa có quy tắc nào. Thêm ở đây hoặc chọn "Lặp lại" khi nhập giao dịch.
         </p>
       ) : (
-        <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
+        <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
           {rules.map((rule) => {
             const acc = accountOf(rule.account_id)
             const cat = categoryOf(rule.category_id)
@@ -366,7 +367,7 @@ export function RecurringPage() {
               </div>
             )
           })}
-        </div>
+        </Card>
       )}
 
       {sheet.open && (

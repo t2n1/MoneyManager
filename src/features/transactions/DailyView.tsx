@@ -5,6 +5,7 @@ import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../type
 import { approxLabel, formatDayHeader, groupByDay, sumInBase, type CurrencyOf } from './ledgerShared'
 import { PeriodTotalsBar } from './PeriodTotalsBar'
 import { TransactionItem } from './TransactionItem'
+import { Card } from '../../components/ui'
 
 interface Props {
   transactions: TransactionRow[]
@@ -125,7 +126,7 @@ export function DailyView({
                   )}
                 </span>
               </div>
-              <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
+              <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
                 {txs.map((tx) => (
                   <TransactionItem
                     key={tx.id}
@@ -140,7 +141,7 @@ export function DailyView({
                     onDuplicate={onDuplicate && (() => onDuplicate(tx))}
                   />
                 ))}
-              </div>
+              </Card>
             </section>
           )
         })

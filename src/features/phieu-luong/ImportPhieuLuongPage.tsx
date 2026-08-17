@@ -328,7 +328,7 @@ export function ImportPhieuLuongPage() {
         </ActionButton>
       )}
       {daGhi && (
-        <div className="rounded-xl bg-surface p-3 shadow-sm">
+        <Card>
           <p className="text-sm text-money-in">Đã ghi {daGhi.phieu} phiếu · {daGhi.dong} dòng.</p>
           <button
             type="button" disabled={dangXoa} onClick={goLo}
@@ -336,7 +336,7 @@ export function ImportPhieuLuongPage() {
           >
             {dangXoa ? 'Đang xoá…' : 'Xoá mọi dòng phiếu lương'}
           </button>
-        </div>
+        </Card>
       )}
     </div>
   )

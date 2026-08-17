@@ -3,6 +3,7 @@ import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
 import { approxLabel, sumInBase, sumPerCurrency, type CurrencyOf } from './ledgerShared'
+import { Card } from '../../components/ui'
 
 interface Props {
   transactions: TransactionRow[]
@@ -28,7 +29,7 @@ export function PeriodTotalsBar({ transactions, currencyOf, base, rates }: Props
   const netNegative = !!(income && expense && income.value - expense.value < 0)
 
   return (
-    <div className="grid grid-cols-3 gap-2 rounded-xl bg-surface p-3 text-center shadow-sm">
+    <Card className="grid grid-cols-3 gap-2 text-center">
       <div>
         <div className="text-xs text-fg-muted">Thu</div>
         <div className="mt-0.5 text-sm font-semibold tabular-nums text-money-in">
@@ -49,6 +50,6 @@ export function PeriodTotalsBar({ transactions, currencyOf, base, rates }: Props
           {net}
         </div>
       </div>
-    </div>
+    </Card>
   )
 }

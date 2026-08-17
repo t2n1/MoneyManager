@@ -16,6 +16,7 @@ import {
   type DateOrder,
   type ImportItem,
 } from './csvImport'
+import { Card } from '../../components/ui'
 
 type Encoding = 'utf-8' | 'shift-jis'
 
@@ -258,7 +259,7 @@ export function ImportCsvPage() {
         </h1>
       </div>
 
-      <section className="rounded-xl bg-surface p-3 shadow-sm">
+      <Card as="section">
         <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong py-4 text-sm font-medium text-fg-secondary focus-within:ring-2 focus-within:ring-green-500">
           <Upload className="h-4 w-4" />
           {fileName || 'Chọn file CSV sao kê…'}
@@ -287,11 +288,11 @@ export function ImportCsvPage() {
             <option value="shift-jis">Shift-JIS (ngân hàng Nhật)</option>
           </select>
         </div>
-      </section>
+      </Card>
 
       {rows.length > 0 && (
         <>
-          <section className="grid grid-cols-2 gap-2 rounded-xl bg-surface p-3 shadow-sm">
+          <Card as="section" className="grid grid-cols-2 gap-2">
             <label className="col-span-2 flex flex-col gap-1 text-xs text-fg-muted">
               Nhập vào tài khoản
               <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className={selectCls}>
@@ -347,10 +348,10 @@ export function ImportCsvPage() {
               />
               Số âm là chi tiêu (số dương là thu nhập)
             </label>
-          </section>
+          </Card>
 
           {account && (
-            <section className="rounded-xl bg-surface p-3 shadow-sm">
+            <Card as="section">
               <p className="text-sm text-fg-secondary">
                 Sẽ nhập <strong>{toImport.length}</strong> giao dịch
                 {dupCount > 0 && ` · bỏ qua ${dupCount} trùng`}
@@ -460,7 +461,7 @@ export function ImportCsvPage() {
               >
                 {busy ? 'Đang nhập…' : `Nhập ${toImport.length} giao dịch`}
               </button>
-            </section>
+            </Card>
           )}
         </>
       )}

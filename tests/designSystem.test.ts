@@ -623,7 +623,16 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // 74 (2026-08-17, đợt dọn bảng màu thô): tụt từ 82 vì `bg-white dark:bg-gray-800`
     // viết tay đã đi qua token `bg-surface`. Con số này KHÔNG tăng vì chuyển đổi đó —
     // phép đếm giờ chặn hậu tố nên `bg-surface-sunken` không còn bị tính là thẻ.
-    { needle: 'rounded-xl bg-surface', max: 74, use: '<Card>' },
+    // 10 (2026-08-18, dot gop the): tut tu 74. Codemod doi 64 the viet tay o 40 file sang
+    // <Card>, va cai loi ra ngay: bay gio chung DUNG bang primitive o dark — <Card
+    // elevation="raised"> them `dark:border dark:border-border-panel dark:shadow-none`,
+    // tuc bo bong va thay bang vien, dung quyet dinh cua 1a. 64 the viet tay truoc do van
+    // giu `shadow-sm` o dark, noi bong tren nen #0e1014 gan nhu vo hinh nen chung mat
+    // ranh gioi.
+    // 10 cho con lai KHONG may moc doi duoc: hai cho dung template literal (class doi theo
+    // trang thai keo-tha), mot cho co `key=` tren chinh the do, va bay cho khong co
+    // `shadow-sm` (dang 'flat'/'panel' viet tay) — moi cai can xet nghia rieng.
+    { needle: 'rounded-xl bg-surface', max: 10, use: '<Card>' },
     // 96 (2026-08-13, đợt gộp danh mục): tụt từ 97 vì HoldingsSection và
     // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
     // mỗi câu chỉ còn MỘT bản. FundHoldingsSection từng ghi ngay tại chỗ ngưỡng này

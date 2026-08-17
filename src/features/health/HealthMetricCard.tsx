@@ -10,6 +10,7 @@ import { ExplainBox } from '../../components/ExplainBox'
 import { Guide } from '../../components/Guide'
 import { VERDICT_LABELS, type Tone, type Verdict, type Zone } from './health'
 import { STATUS_CHIP, STATUS_FILL } from '../../components/ui/statusColors'
+import { Card } from '../../components/ui'
 
 // Thang đo khai ở health.ts vì điểm tổng chấm trên đúng mốc đang vẽ ở đây. Vẫn
 // xuất lại từ file này để các chỗ đang import `type Zone` từ thẻ không phải đổi.
@@ -79,7 +80,7 @@ export function HealthMetricCard({
   const markerPct = value === null ? null : Math.min(100, Math.max(0, (value / max) * 100))
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-semibold text-fg-primary">{title}</h3>
         <span className="flex shrink-0 items-baseline gap-1.5">
@@ -150,6 +151,6 @@ export function HealthMetricCard({
       {extra}
 
       <ExplainBox>{how}</ExplainBox>
-    </section>
+    </Card>
   )
 }

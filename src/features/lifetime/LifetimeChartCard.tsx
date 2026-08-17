@@ -26,6 +26,7 @@ import type { NetWorthSnapshotRow } from '../../types/database.types'
 import { buildChartData, chartSeriesPlan } from './chartSeries'
 import { compareAtEnd, firstNegativeYear } from './insights'
 import type { YearRow } from './project'
+import { Card } from '../../components/ui'
 
 interface Props {
   rows: YearRow[]
@@ -306,11 +307,11 @@ export function LifetimeChartCard({
 
   if (rows.length === 0) {
     return (
-      <section className="rounded-xl bg-surface p-3 shadow-sm">
+      <Card as="section">
         <p className="text-center text-sm text-fg-muted">
           Chưa chiếu được — kiểm tra lại tuổi kết thúc của kịch bản.
         </p>
-      </section>
+      </Card>
     )
   }
 
@@ -330,7 +331,7 @@ export function LifetimeChartCard({
   const compareDiff = compare && compareEndRow && !compareMismatch ? compareAtEnd(rows, compare) : null
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       {/* Dấu ≈ đặt ở TIÊU ĐỀ, không rải vào từng con số: cả khối này là số chiếu theo
           kịch bản, gắn dấu vào mỗi chỗ thì thành nhiễu mà không thêm nghĩa. */}
       <h2 className="mb-2 text-sm font-semibold text-fg-muted">
@@ -534,6 +535,6 @@ export function LifetimeChartCard({
           )}
         </p>
       )}
-    </section>
+    </Card>
   )
 }

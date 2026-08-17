@@ -9,6 +9,7 @@ import { VerdictNote } from '../../components/VerdictNote'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { foldUncategorized, type ClassificationBreakdown } from './aggregate'
 import { BreakdownRow } from './BreakdownRow'
+import { Card } from '../../components/ui'
 
 const C = {
   need: '#16a34a',
@@ -62,7 +63,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
     typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-fg-muted">Cơ cấu chi tiêu</h2>
         {unclassifiedCount > 0 && (
@@ -261,6 +262,6 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
           </p>
         )
       )}
-    </section>
+    </Card>
   )
 }

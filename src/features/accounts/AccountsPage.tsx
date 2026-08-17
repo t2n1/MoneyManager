@@ -27,6 +27,7 @@ import {
 } from '../assets/shelter'
 import { groupAccountsByType, type CurrencyTotal } from './groupByType'
 import { useEscClose } from '../../hooks/useEscClose'
+import { Card } from '../../components/ui'
 
 /** Ghép tổng theo loại tiền thành chuỗi hiển thị: "¥545,860" hoặc "¥X · ₫Y". */
 function formatTotals(totals: CurrencyTotal[]): string {
@@ -89,9 +90,9 @@ export function AccountsPage() {
       )}
 
       {active.length === 0 && (
-        <div className="overflow-hidden rounded-xl bg-surface shadow-sm">
+        <Card padding="none" className="overflow-hidden">
           <p className="px-3 py-6 text-center text-sm text-fg-muted">Chưa có tài khoản</p>
-        </div>
+        </Card>
       )}
 
       {groups.map((g) => (
@@ -104,7 +105,7 @@ export function AccountsPage() {
               {formatTotals(g.totalsByCurrency)}
             </span>
           </div>
-          <div className="overflow-hidden rounded-xl bg-surface shadow-sm">
+          <Card padding="none" className="overflow-hidden">
             <DragList
               className="divide-y divide-border-subtle"
               ids={g.accounts.map((a) => a.id)}
@@ -156,7 +157,7 @@ export function AccountsPage() {
                 )
               }}
             />
-          </div>
+          </Card>
         </div>
       ))}
 
@@ -178,7 +179,7 @@ export function AccountsPage() {
             )}
           </button>
           {showArchived && (
-            <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
+            <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
               {archived.map((a) => (
                 <div key={a.id} className="flex items-center gap-2 px-3 py-2.5 opacity-60">
                   <AccountTypeIcon type={a.type} className="h-4 w-4" />
@@ -194,7 +195,7 @@ export function AccountsPage() {
                   </button>
                 </div>
               ))}
-            </div>
+            </Card>
           )}
         </div>
       )}

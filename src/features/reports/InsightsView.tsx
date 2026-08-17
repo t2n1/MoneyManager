@@ -242,7 +242,7 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
       {/* Tổng quan — các chỉ số then chốt */}
       {hasOverview && (
         <section id="ins-tong-quan" className="scroll-mt-16 grid grid-cols-3 gap-2">
-          <div className="rounded-xl bg-surface p-3 text-center shadow-sm">
+          <Card className="text-center">
             <div
               className={`text-lg font-bold ${
                 rate === null
@@ -255,19 +255,19 @@ export function InsightsView({ monthKey }: { monthKey: MonthKey }) {
               {rate === null ? '—' : `${Math.round(rate * 100)}%`}
             </div>
             <div className="mt-0.5 text-2xs text-fg-muted">Tỷ lệ tiết kiệm</div>
-          </div>
-          <div className="rounded-xl bg-surface p-3 text-center shadow-sm">
+          </Card>
+          <Card className="text-center">
             <div className="text-lg font-bold text-fg-primary">
               {forecast ? `${forecastApprox ? '≈' : ''}${formatCompact(forecast.projected, base)}` : '—'}
             </div>
             <div className="mt-0.5 text-2xs text-fg-muted">Dự báo cuối tháng</div>
-          </div>
-          <div className="rounded-xl bg-surface p-3 text-center shadow-sm">
+          </Card>
+          <Card className="text-center">
             <div className="text-lg font-bold text-fg-primary">
               {streak !== null ? streak : '—'}
             </div>
             <div className="mt-0.5 text-2xs text-fg-muted">Ngày không chi</div>
-          </div>
+          </Card>
         </section>
       )}
 

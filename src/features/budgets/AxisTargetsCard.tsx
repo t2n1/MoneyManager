@@ -15,7 +15,7 @@ import {
   type AxisKey,
   type AxisProgress,
 } from './axisTargets'
-import { Collapse } from '../../components/ui'
+import { Card, Collapse } from '../../components/ui'
 import { STATUS_FILL } from '../../components/ui/statusColors'
 
 /** Giải nghĩa mỗi trục — chữ CHỈ ĐỂ DẠY, ẩn ở chế độ Gọn.
@@ -61,7 +61,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
     )
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         {/* Bản vẽ 11a đặt KẾT LUẬN ngay cạnh tiêu đề: "Mốc 50 / 30 / 20 — đạt cả ba".
             Thiếu nó thì ba thanh màu bắt người đọc tự cân: dòng nào cũng có % riêng và
@@ -230,6 +230,6 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
           </Link>
         </p>
       )}
-    </section>
+    </Card>
   )
 }

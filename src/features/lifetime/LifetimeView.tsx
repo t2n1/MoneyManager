@@ -194,7 +194,7 @@ export function LifetimeView() {
   // --- Trạng thái 2: chưa có kịch bản nào — nút thay wizard ---
   if (scenarios.length === 0) {
     return (
-      <div className="rounded-xl bg-surface p-3 shadow-sm">
+      <Card>
           <p className="text-sm text-fg-secondary">
             Tab này chiếu tài sản ròng của bạn tới hết đời, dựa trên thu chi nền và các mốc
             (cưới, sinh con, nghỉ hưu…). Tạo kịch bản đầu tiên từ đúng chi tiêu thật của bạn —
@@ -263,7 +263,7 @@ export function LifetimeView() {
                 ? 'Đang tính tài sản ròng…'
                 : 'Tạo kịch bản từ chi tiêu thật của tôi'}
           </button>
-      </div>
+      </Card>
     )
   }
 
@@ -527,7 +527,7 @@ export function LifetimeView() {
       </div>
 
       {comparePickerOpen && !effectiveCompareId && (
-        <div className="rounded-xl bg-surface p-2.5 shadow-sm">
+        <Card padding="sm">
           {otherScenarios.length === 0 ? (
             <p className="text-xs text-fg-secondary">
               Cần ít nhất 2 kịch bản mới so sánh được. Bấm nút bút chì phía trên, chọn "Nhân
@@ -553,7 +553,7 @@ export function LifetimeView() {
               </div>
             </>
           )}
-        </div>
+        </Card>
       )}
 
 
@@ -612,7 +612,7 @@ function BirthYearCard() {
   const valid = Number.isInteger(year) && year >= MIN_BIRTH_YEAR && year <= MAX_BIRTH_YEAR
 
   return (
-    <div className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card>
       <p className="text-sm text-fg-secondary">
         Tab này chiếu tài sản ròng của bạn theo từng năm tới hết đời, nên cần năm sinh để đổi
         qua lại giữa "năm" và "tuổi" ở mỗi mốc trên đồ thị (nghỉ hưu, tự do tài chính…). Thiếu
@@ -641,6 +641,6 @@ function BirthYearCard() {
       >
         {saveMut.isPending ? 'Đang lưu…' : 'Lưu năm sinh'}
       </button>
-    </div>
+    </Card>
   )
 }

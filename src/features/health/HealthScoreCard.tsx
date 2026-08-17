@@ -13,6 +13,7 @@ import { VerdictNote } from '../../components/VerdictNote'
 import { VERDICT_LABELS, type HealthScore, type ScoreItem } from './health'
 import { UNLOCK_HINT, type WeakestAction } from './weakestAction'
 import { ScoreGauge } from './ScoreGauge'
+import { Card } from '../../components/ui'
 
 interface Props {
   /** null = không chỉ số nào chấm được. */
@@ -33,7 +34,7 @@ const NOTE_TONE = { good: 'good', warn: 'warn', bad: 'bad', unknown: 'info' } as
 export function HealthScoreCard({ result, items, monthsCounted, action }: Props) {
   const weakestScore = result?.weakest?.score ?? null
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <h2 className="text-sm font-semibold text-fg-primary">
         Điểm sức khỏe tài chính
       </h2>
@@ -163,6 +164,6 @@ export function HealthScoreCard({ result, items, monthsCounted, action }: Props)
           thấy tháng này so với tháng trước mình đi lên hay đi xuống.
         </p>
       </ExplainBox>
-    </section>
+    </Card>
   )
 }

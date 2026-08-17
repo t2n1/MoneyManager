@@ -14,6 +14,7 @@ import type { MonthKey } from '../../lib/dates'
 import type { MonthlySeries } from './aggregate'
 import { savingsRate } from './insights'
 import { expenseTrend, savingsRateVerdict } from './verdicts'
+import { Card } from '../../components/ui'
 
 // MỘT nguồn cho cả cột và chấm chú giải. Trước đây cột dùng hex cứng còn chấm dùng
 // class `bg-green-600`, nên từ hồi nâng Tailwind v3 → v4 (green-600 đổi từ #16a34a
@@ -71,7 +72,7 @@ export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = nul
   })()
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <h2 className="mb-2 text-sm font-semibold text-fg-muted">{title}</h2>
       <div className="h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -212,6 +213,6 @@ export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = nul
           </VerdictNote>
         </div>
       )}
-    </section>
+    </Card>
   )
 }

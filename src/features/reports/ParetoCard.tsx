@@ -3,7 +3,7 @@
 // phần đuôi dài phía sau tốn công mà đổi lại chẳng bao nhiêu.
 import { ExplainBox } from '../../components/ExplainBox'
 import { VerdictNote } from '../../components/VerdictNote'
-import { Money } from '../../components/ui'
+import { Card, Money } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { CategoryRow } from '../../types/database.types'
 import type { CategorySlice } from './aggregate'
@@ -26,7 +26,7 @@ export function ParetoCard({ slices, categories, base, periodNoun }: Props) {
   const tail = pareto.categoryCount - pareto.count
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <h2 className="mb-2 text-sm font-semibold text-fg-primary">
         Ít danh mục, nhiều tiền
       </h2>
@@ -106,6 +106,6 @@ export function ParetoCard({ slices, categories, base, periodNoun }: Props) {
           không phải cắt từng khoản mà là đặt ngân sách tổng.
         </p>
       </ExplainBox>
-    </section>
+    </Card>
   )
 }

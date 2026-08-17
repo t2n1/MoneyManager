@@ -5,6 +5,7 @@ import { useDensity } from '../../hooks/useDensity'
 import { Guide } from '../../components/Guide'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { WEEKDAY_LABELS, type PaydayEffect, type WeekdayBucket } from './behavior'
+import { Card } from '../../components/ui'
 
 interface Props {
   payday: PaydayEffect | null
@@ -26,7 +27,7 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
   const busiest = ordered.reduce((m, b) => (b.avg > m.avg ? b : m), ordered[0])
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <h2 className="mb-2 text-sm font-semibold text-fg-primary">Nhịp chi tiêu</h2>
 
       {payday && (
@@ -133,6 +134,6 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
           Bảy cũng không làm lệch kết quả.
         </p>
       </ExplainBox>
-    </section>
+    </Card>
   )
 }

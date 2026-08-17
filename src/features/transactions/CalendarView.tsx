@@ -12,6 +12,7 @@ import {
 } from './ledgerShared'
 import { expenseSign } from '../reports/aggregate'
 import { TransactionItem } from './TransactionItem'
+import { Card } from '../../components/ui'
 
 interface Props {
   transactions: TransactionRow[]
@@ -102,7 +103,7 @@ export function CalendarView({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="rounded-xl bg-surface p-2 shadow-sm">
+      <Card padding="none" className="p-2">
         {/* Nhãn thứ. Chủ nhật đỏ là quy ước LỊCH, không phải "tiền ra" — nhưng mượn
             --money-out vì đó là sắc đỏ DUY NHẤT của app đạt AA ở cả hai chế độ
             (red-400 trơ chỉ 2,89:1 trên trắng). Thêm token đỏ thứ hai cho một quy ước
@@ -159,7 +160,7 @@ export function CalendarView({
             )
           })}
         </div>
-      </div>
+      </Card>
 
       {/* Chi tiết ngày được chọn */}
       {selected && (
@@ -177,11 +178,11 @@ export function CalendarView({
             </span>
           </div>
           {selectedTxs.length === 0 ? (
-            <p className="rounded-xl bg-surface py-6 text-center text-sm text-fg-muted shadow-sm">
+            <Card as="p" padding="none" className="py-6 text-center text-sm text-fg-muted">
               Không có giao dịch ngày này
-            </p>
+            </Card>
           ) : (
-            <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
+            <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
               {selectedTxs.map((tx) => (
                 <TransactionItem
                   key={tx.id}
@@ -193,7 +194,7 @@ export function CalendarView({
                   tags={tagsOfTx?.get(tx.id)}
                 />
               ))}
-            </div>
+            </Card>
           )}
         </section>
       )}

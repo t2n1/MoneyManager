@@ -26,6 +26,7 @@ import {
   type AssetGroup,
   type AssetGroupSetting,
 } from './aggregate'
+import { Card } from '../../components/ui'
 
 const NEW_GROUP = '__new__'
 
@@ -598,7 +599,7 @@ export function AssetGroupsPage() {
       </Guide>
 
       {adding && (
-        <div className="mb-2 flex items-center gap-1 rounded-xl bg-surface px-3 py-2.5 shadow-sm">
+        <Card padding="none" className="mb-2 flex items-center gap-1 px-3 py-2.5">
           <input
             autoFocus
             value={newName}
@@ -624,7 +625,7 @@ export function AssetGroupsPage() {
           >
             Hủy
           </button>
-        </div>
+        </Card>
       )}
 
       {isLoading ? (

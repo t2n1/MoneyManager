@@ -18,6 +18,7 @@ import { DebtPaymentSheet } from './DebtPaymentSheet'
 import { disbursedOf, remainingOf, repaidOf } from './aggregate'
 import { buildSchedule } from './amortization'
 import type { DebtRow } from '../../types/database.types'
+import { Card } from '../../components/ui'
 
 export function DebtDetailPage() {
   const { debtId = '' } = useParams()
@@ -183,7 +184,7 @@ export function DebtDetailPage() {
       <h2 className="mb-2 mt-5 px-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">
         Lịch sử ({payments.length})
       </h2>
-      <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
+      <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
         {payments.map((p) => {
           // amount âm = lần giải ngân thêm (cho vay/vay tiếp); dương = trả bớt.
           const isAdvance = p.amount < 0
@@ -240,7 +241,7 @@ export function DebtDetailPage() {
         {payments.length === 0 && (
           <p className="px-3 py-6 text-center text-sm text-fg-muted">Chưa có lần trả nào</p>
         )}
-      </div>
+      </Card>
 
       {editing && <DebtEditSheet debt={debt} onClose={() => setEditing(false)} />}
       {paying && (
@@ -288,7 +289,7 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
       <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">
         Lịch trả dự kiến
       </h2>
-      <div className="rounded-xl bg-surface p-4 shadow-sm">
+      <Card padding="lg">
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
             <p className="text-2xs text-fg-muted">Mỗi kỳ</p>
@@ -350,7 +351,7 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
             </table>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { Archive, ChevronDown, ChevronUp, GripVertical, Plus } from 'lucide-reac
 import type { NewCategory } from '../../data'
 import { BackLink } from '../../components/BackLink'
 import { DragList, type DragHandleProps } from '../../components/DragList'
-import { IconButton } from '../../components/ui'
+import { Card, IconButton } from '../../components/ui'
 import { useEscClose } from '../../hooks/useEscClose'
 import {
   useCategories,
@@ -448,9 +448,9 @@ export function CategoriesPage() {
         ))}
 
         {parents.length === 0 && orphans.length === 0 && (
-          <p className="rounded-xl bg-surface px-3 py-6 text-center text-sm text-fg-muted shadow-sm">
+          <Card as="p" padding="none" className="px-3 py-6 text-center text-sm text-fg-muted">
             Chưa có danh mục
-          </p>
+          </Card>
         )}
       </div>
 
@@ -472,7 +472,7 @@ export function CategoriesPage() {
             )}
           </button>
           {showArchived && (
-            <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
+            <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
               {archivedCats.map((c) => (
                 <div key={c.id} className="flex items-center gap-2 px-3 py-1 opacity-60">
                   {c.parent_id && <span className="text-gray-300 dark:text-gray-600">↳</span>}
@@ -487,7 +487,7 @@ export function CategoriesPage() {
                   </button>
                 </div>
               ))}
-            </div>
+            </Card>
           )}
         </div>
       )}

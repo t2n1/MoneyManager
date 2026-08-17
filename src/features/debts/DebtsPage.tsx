@@ -5,7 +5,7 @@ import { BackLink } from '../../components/BackLink'
 import { useDebtPayments, useDebts, useRates } from '../../hooks/queries'
 import { dayMonthLabel, daysBetween, toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney } from '../../lib/money'
-import { STATUS_FILL } from '../../components/ui'
+import { Card, STATUS_FILL } from '../../components/ui'
 import type { DebtRow } from '../../types/database.types'
 import { debtSummary, disbursedOf, remainingOf } from './aggregate'
 
@@ -88,7 +88,7 @@ export function DebtsPage() {
             {showSettled ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
           {showSettled && (
-            <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
+            <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
               {settled.map((d) => (
                 <Link
                   key={d.id}
@@ -104,7 +104,7 @@ export function DebtsPage() {
                   <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
                 </Link>
               ))}
-            </div>
+            </Card>
           )}
         </div>
       )}
@@ -126,7 +126,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
       <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">
         {title}
       </h2>
-      <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
+      <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
         {debts.map((d) => {
           const remaining = Math.max(remainingOf(d, payments), 0)
           const disbursed = disbursedOf(d, payments)
@@ -196,7 +196,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
             {loading ? 'Đang tải…' : emptyLabel}
           </p>
         )}
-      </div>
+      </Card>
     </section>
   )
 }

@@ -9,7 +9,7 @@
 import { Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { Cell } from 'recharts'
 import { VerdictNote } from '../../components/VerdictNote'
-import { Money } from '../../components/ui'
+import { Card, Money } from '../../components/ui'
 import { ExplainBox } from '../../components/ExplainBox'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { savingsRateTone } from './verdicts'
@@ -49,7 +49,7 @@ export function SavingsDonutCard({ income, expense, base, periodNoun, approx = f
       ].filter((s) => s.value > 0)
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <h2 className="mb-2 text-sm font-semibold text-fg-muted">Giữ lại được bao nhiêu</h2>
 
       {rate === null ? (
@@ -180,6 +180,6 @@ export function SavingsDonutCard({ income, expense, base, periodNoun, approx = f
           từng tháng.
         </p>
       </ExplainBox>
-    </section>
+    </Card>
   )
 }

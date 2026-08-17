@@ -23,6 +23,7 @@ import {
   type MonthKey,
 } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
+import { Card } from '../../components/ui'
 
 function ExportSection() {
   const navigate = useNavigate()
@@ -64,7 +65,7 @@ function ExportSection() {
   const label = period === 'month' ? formatMonthLabel(monthKey) : formatYearLabel(year)
 
   return (
-    <section className="overflow-hidden rounded-xl bg-surface shadow-sm">
+    <Card as="section" padding="none" className="overflow-hidden">
       <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">
         Xuất báo cáo &amp; giao dịch
       </h2>
@@ -133,7 +134,7 @@ function ExportSection() {
           </button>
         </div>
       </div>
-    </section>
+    </Card>
   )
 }
 
@@ -151,7 +152,7 @@ export function DataPage() {
 
       <BackupSection />
 
-      <section className="overflow-hidden rounded-xl bg-surface shadow-sm">
+      <Card as="section" padding="none" className="overflow-hidden">
         <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">
           Nhập dữ liệu
         </h2>
@@ -173,7 +174,7 @@ export function DataPage() {
             <ChevronRight className="h-5 w-5 text-gray-300 dark:text-gray-600" />
           </Link>
         </div>
-      </section>
+      </Card>
     </div>
   )
 }

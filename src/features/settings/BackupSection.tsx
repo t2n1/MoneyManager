@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Download, Upload } from 'lucide-react'
 import { BACKUP_VERSION, repo, type BackupData } from '../../data'
 import { confirmDialog } from '../../lib/dialog'
+import { Card } from '../../components/ui'
 
 type Status = { kind: 'idle' | 'ok' | 'error'; message: string }
 
@@ -87,7 +88,7 @@ export function BackupSection() {
   }
 
   return (
-    <section className="overflow-hidden rounded-xl bg-surface shadow-sm">
+    <Card as="section" padding="none" className="overflow-hidden">
       <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">
         Sao lưu &amp; khôi phục
       </h2>
@@ -136,6 +137,6 @@ export function BackupSection() {
           {status.message}
         </p>
       )}
-    </section>
+    </Card>
   )
 }

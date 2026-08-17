@@ -1,6 +1,7 @@
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { CategoryRow } from '../../types/database.types'
 import type { CategoryComparisonRow } from './aggregate'
+import { Card } from '../../components/ui'
 
 interface Props {
   rows: CategoryComparisonRow[]
@@ -18,7 +19,7 @@ export function CategoryCompareBarsCard({ rows, categories, base, limit = 8 }: P
   const catOf = (id: string) => categories.find((c) => c.id === id)
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <h2 className="mb-3 text-sm font-semibold text-fg-muted">
         So sánh chi theo danh mục
       </h2>
@@ -80,6 +81,6 @@ export function CategoryCompareBarsCard({ rows, categories, base, limit = 8 }: P
           <span className="h-3 w-0.5 bg-gray-500 dark:bg-gray-300" /> TB 3 tháng
         </span>
       </div>
-    </section>
+    </Card>
   )
 }

@@ -19,6 +19,7 @@ import {
   yearOverYear,
   seasonalOutlook,
 } from './trends'
+import { Card } from '../../components/ui'
 
 /** Cửa sổ phân tích: 24 tháng đủ để so cùng kỳ (12+12) và thấy điểm gãy. */
 const WINDOW = 24
@@ -27,8 +28,10 @@ const ROLL = 3
 const monthLabel = (k: MonthKey) => `${k.year}/${k.month}`
 const signPct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1).replace('.', ',')}%`
 
-/** Khung thẻ chung của tab này. */
-function Card({
+/** Khung thẻ chung của tab này: <Card> của design system + một dòng tiêu đề.
+ *  Tên KHÔNG phải `Card` nữa — nó trùng tên primitive và che mất primitive trong
+ *  chính file này (bản dựng bắt được lúc gộp thẻ). */
+function TrendCard({
   title,
   hint,
   children,
@@ -38,13 +41,13 @@ function Card({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-fg-primary">{title}</h2>
         {hint && <span className="shrink-0 text-2xs text-fg-muted">{hint}</span>}
       </div>
       {children}
-    </section>
+    </Card>
   )
 }
 
@@ -199,7 +202,7 @@ export function TrendsView() {
       )}
 
       {/* 1. Đường xu hướng chi tiêu */}
-      <Card title="Mức chi đang đi về đâu" hint={`${monthsWithData} tháng`}>
+      <TrendCard title="Mức chi đang đi về đâu" hint={`${monthsWithData} tháng`}>
         {monthsWithData < ROLL ? (
           <NeedMore have={monthsWithData} need={ROLL} />
         ) : (
@@ -260,13 +263,13 @@ export function TrendsView() {
             </ExplainBox>
           </>
         )}
-      </Card>
+      </TrendCard>
 
       {/* 2. Cùng kỳ năm trước */}
       {/* Mùa vụ, nói về THÁNG TỚI (15a mục 3). Đứng TRƯỚC khối "so với năm ngoái" vì nó
           nói được một việc làm ngay, còn khối kia chỉ mô tả quá khứ. */}
       {seasonal && (
-        <Card title={`Tháng ${seasonal.month} vốn là tháng nặng`}>
+        <TrendCard title={`Tháng ${seasonal.month} vốn là tháng nặng`}>
           <p className="text-[0.8125rem] text-fg-secondary">
             Trung bình tháng {seasonal.month} bạn chi <b>{money(seasonal.avgForMonth)}</b> —{' '}
             <b className="text-money-out">nặng hơn {seasonal.heavierPct}%</b> so với mức thường
@@ -290,10 +293,10 @@ export function TrendsView() {
               thứ lại.
             </p>
           </ExplainBox>
-        </Card>
+        </TrendCard>
       )}
 
-      <Card title="So với chính mình năm ngoái">
+      <TrendCard title="So với chính mình năm ngoái">
         {yoyRows.length === 0 ? (
           <NeedMore have={monthsWithData} need={13} />
         ) : (
@@ -344,10 +347,10 @@ export function TrendsView() {
             </ExplainBox>
           </>
         )}
-      </Card>
+      </TrendCard>
 
       {/* 3. Điểm gãy */}
-      <Card title="Thời điểm nếp sống đổi hẳn">
+      <TrendCard title="Thời điểm nếp sống đổi hẳn">
         {monthsWithData < 8 ? (
           <NeedMore have={monthsWithData} need={8} />
         ) : changePoints.length === 0 ? (
@@ -391,10 +394,10 @@ export function TrendsView() {
             </ExplainBox>
           </>
         )}
-      </Card>
+      </TrendCard>
 
       {/* 4. Lạm phát cá nhân */}
-      <Card title="Lạm phát của riêng bạn" hint="12 tháng vs 12 tháng trước">
+      <TrendCard title="Lạm phát của riêng bạn" hint="12 tháng vs 12 tháng trước">
         {inflation === null ? (
           <NeedMore have={monthsWithData} need={24} />
         ) : (
@@ -433,10 +436,10 @@ export function TrendsView() {
             </ExplainBox>
           </>
         )}
-      </Card>
+      </TrendCard>
 
       {/* 5. Co giãn lối sống */}
-      <Card title="Thu nhập tăng thì chi có phình theo?">
+      <TrendCard title="Thu nhập tăng thì chi có phình theo?">
         {elasticity === null ? (
           monthsWithData < 6 ? (
             <NeedMore have={monthsWithData} need={6} />
@@ -510,7 +513,7 @@ export function TrendsView() {
             </ExplainBox>
           </>
         )}
-      </Card>
+      </TrendCard>
 
       <p className="px-1 pb-2 text-center text-2xs text-fg-muted">
         Số liệu tính trên {monthsWithData} tháng có giao dịch, quy đổi về {base}.

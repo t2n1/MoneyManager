@@ -1,6 +1,7 @@
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { MonthKey } from '../../lib/dates'
 import type { MonthlyPoint } from '../reports/aggregate'
+import { Card } from '../../components/ui'
 
 interface Props {
   points: MonthlyPoint[]
@@ -20,7 +21,7 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
   return (
     <div className="flex flex-col gap-3">
       {/* Tổng cả năm */}
-      <div className="grid grid-cols-3 gap-2 rounded-xl bg-surface p-3 text-center shadow-sm">
+      <Card className="grid grid-cols-3 gap-2 text-center">
         <div>
           <div className="text-xs text-fg-muted">Thu cả năm</div>
           <div className="mt-0.5 text-sm font-semibold tabular-nums text-money-in">
@@ -44,12 +45,12 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
             {formatMoney(yearIncome - yearExpense, base)}
           </div>
         </div>
-      </div>
+      </Card>
 
       {isLoading && !active ? (
         <p className="py-10 text-center text-fg-muted">Đang tải…</p>
       ) : (
-        <div className="overflow-hidden rounded-xl bg-surface shadow-sm">
+        <Card padding="none" className="overflow-hidden">
           <div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-2 border-b border-border-subtle px-3 py-2 text-2xs font-medium uppercase tracking-wide text-fg-muted">
             <span>Tháng</span>
             <span className="text-right">Thu</span>
@@ -100,7 +101,7 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
               )
             })}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   )

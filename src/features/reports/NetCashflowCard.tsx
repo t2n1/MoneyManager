@@ -17,6 +17,7 @@ import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { MonthKey } from '../../lib/dates'
 import { netFlowSeries, netFlowSummary, type MonthlySeries } from './aggregate'
 import { netFlowVerdict } from './verdicts'
+import { Card } from '../../components/ui'
 
 interface Props {
   series: MonthlySeries
@@ -46,7 +47,7 @@ export function NetCashflowCard({ series, base, title, labelOf, currentKey = nul
   }))
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <h2 className="mb-2 text-sm font-semibold text-fg-muted">{title}</h2>
       <div className="h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -168,6 +169,6 @@ export function NetCashflowCard({ series, base, title, labelOf, currentKey = nul
           </VerdictNote>
         </div>
       )}
-    </section>
+    </Card>
   )
 }

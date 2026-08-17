@@ -17,6 +17,7 @@ import {
   personalInflation,
   rollingAverage,
   yearOverYear,
+  seasonalOutlook,
 } from './trends'
 
 /** Cửa sổ phân tích: 24 tháng đủ để so cùng kỳ (12+12) và thấy điểm gãy. */
@@ -129,6 +130,22 @@ export function TrendsView() {
   const last12Total = last12.reduce((s, p) => s + p.expense, 0)
   const prev12Total = prev12.reduce((s, p) => s + p.expense, 0)
   const yoyTotalPct = prev12Total > 0 ? ((last12Total - prev12Total) / prev12Total) * 100 : null
+
+  // --- Mùa vụ NÓI VỀ THÁNG TỚI (15a mục 3) ---
+  //
+  // Khối "So với chính mình năm ngoái" ngay trên mô tả QUÁ KHỨ — đúng, nhưng không làm
+  // được gì với nó. Đây là câu đổi hướng: tháng nào sắp tới vốn nặng hơn thường lệ, và
+  // từ giờ tới đó cần để thêm bao nhiêu mỗi tháng. Phép tính ở trends.ts.
+  const seasonal = useMemo(
+    () =>
+      seasonalOutlook(
+        active.map((p) => ({ month: p.key.month, expense: p.expense })),
+        // Tháng dương lịch của điểm CUỐI chuỗi, không phải của đồng hồ: chuỗi có thể
+        // kết thúc ở tháng trước nếu tháng này chưa có giao dịch nào.
+        active.length > 0 ? active[active.length - 1].key.month : 1,
+      ),
+    [active],
+  )
 
   // --- Điểm gãy ---
   const changePoints = useMemo(
@@ -246,6 +263,36 @@ export function TrendsView() {
       </Card>
 
       {/* 2. Cùng kỳ năm trước */}
+      {/* Mùa vụ, nói về THÁNG TỚI (15a mục 3). Đứng TRƯỚC khối "so với năm ngoái" vì nó
+          nói được một việc làm ngay, còn khối kia chỉ mô tả quá khứ. */}
+      {seasonal && (
+        <Card title={`Tháng ${seasonal.month} vốn là tháng nặng`}>
+          <p className="text-[0.8125rem] text-fg-secondary">
+            Trung bình tháng {seasonal.month} bạn chi <b>{money(seasonal.avgForMonth)}</b> —{' '}
+            <b className="text-money-out">nặng hơn {seasonal.heavierPct}%</b> so với mức thường
+            lệ ({money(seasonal.avgOverall)}).
+          </p>
+          <p className="mt-1.5 text-[0.8125rem] text-fg-primary">
+            Còn <b>{seasonal.monthsAway} tháng</b> — để thêm{' '}
+            <b className="text-fg-accent">{money(seasonal.savePerMonth)}/tháng</b> là đủ phần
+            vượt ({money(seasonal.extra)}).
+          </p>
+          <ExplainBox label="Cách đọc">
+            <p>
+              Lấy trung bình chi của riêng tháng {seasonal.month} qua {seasonal.occurrences} lần nó
+              xuất hiện trong dữ liệu, so với trung bình mọi tháng. Phải có ít nhất 2 lần mới gọi là
+              mùa vụ — một tháng {seasonal.month} duy nhất thì đó chỉ là một tháng, không phải một
+              nếp.
+            </p>
+            <p>
+              Con số "để thêm mỗi tháng" chia đều phần vượt cho số tháng còn lại. Nó không tính tới
+              các khoản đã cam kết trong những tháng đó — xem Ngân sách mặt lập kế hoạch để ghép hai
+              thứ lại.
+            </p>
+          </ExplainBox>
+        </Card>
+      )}
+
       <Card title="So với chính mình năm ngoái">
         {yoyRows.length === 0 ? (
           <NeedMore have={monthsWithData} need={13} />
@@ -401,26 +448,43 @@ export function TrendsView() {
           )
         ) : (
           <>
+            {/* Con số LỚN là TIỀN, không phải hệ số (15a mục 4: "độ co giãn nói bằng
+                tiền, không bằng hệ số"). "0,58" bắt người đọc học một đơn vị mới trước
+                khi hiểu được gì; "¥58 mỗi ¥100" thì đọc là hiểu. Hệ số vẫn còn, tụt
+                xuống dòng phụ cho ai muốn con số so được giữa các kỳ. */}
             <p
               className={`text-2xl font-bold tabular-nums ${
-                elasticity.elasticity >= 0.8
+                elasticity.marginalSpend >= 0.8
                   ? 'text-money-out'
-                  : elasticity.elasticity >= 0.5
+                  : elasticity.marginalSpend >= 0.5
                     ? 'text-fg-warn'
                     : 'text-money-in'
               }`}
             >
-              {elasticity.elasticity.toFixed(2).replace('.', ',')}
+              {money(Math.round(elasticity.marginalSpend * 100_00) / 100)}
+              <span className="text-sm font-medium text-fg-muted"> mỗi {money(100_00 / 100)}</span>
             </p>
             <p className="mt-1 text-xs text-fg-secondary">
-              Về <b>tốc độ</b>: thu nhập {signPct(elasticity.incomeChangePct)} thì chi tiêu{' '}
-              {signPct(elasticity.expenseChangePct)} — chi chạy bằng{' '}
-              {Math.round(elasticity.elasticity * 100)}% tốc độ của thu.
+              Cứ thêm <b>{money(100_00 / 100)}</b> thu nhập thì bạn tiêu thêm{' '}
+              <b>{money(Math.round(elasticity.marginalSpend * 100_00) / 100)}</b> và giữ lại{' '}
+              <b className="text-money-in">
+                {money(Math.round((1 - elasticity.marginalSpend) * 100_00) / 100)}
+              </b>
+              .
             </p>
+            {/* Suy ra lần tăng lương tới (§4.5). Đây là chỗ con số này thật sự dùng được:
+                nó biến một tỷ lệ quá khứ thành một dự đoán về quyết định sắp tới. */}
             <p className="mt-1 text-xs text-fg-secondary">
-              Về <b>tiền mặt</b>: cứ thêm 100 đồng thu nhập, bạn tiêu thêm khoảng{' '}
-              <b>{Math.round(elasticity.marginalSpend * 100)} đồng</b> và giữ lại{' '}
-              {Math.round((1 - elasticity.marginalSpend) * 100)} đồng.
+              Nếu lần tới lương tăng <b>{money(elasticity.incomeBefore * 0.1)}</b>/tháng, theo nếp
+              này bạn sẽ giữ lại khoảng{' '}
+              <b className="text-money-in">
+                {money(elasticity.incomeBefore * 0.1 * (1 - elasticity.marginalSpend))}
+              </b>
+              /tháng.
+            </p>
+            <p className="mt-1 text-2xs text-fg-muted">
+              Hệ số co giãn {elasticity.elasticity.toFixed(2).replace('.', ',')} — thu{' '}
+              {signPct(elasticity.incomeChangePct)} thì chi {signPct(elasticity.expenseChangePct)}.
             </p>
             <p className="mt-2 text-2xs text-fg-muted">
               Trung bình mỗi tháng: thu {money(elasticity.incomeBefore)} →{' '}

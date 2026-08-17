@@ -37,101 +37,141 @@ var NOTIFICATION_TYPES = [
 ];
 var NOTIFICATION_META = {
   "account-shortfall": {
+    badge: "THI\u1EBEU TI\u1EC0N",
+    source: "T\xE0i s\u1EA3n \xB7 th\u1EBB t\xEDn d\u1EE5ng",
     kind: "action",
     label: "T\xE0i kho\u1EA3n s\u1EAFp kh\xF4ng \u0111\u1EE7 ti\u1EC1n",
     hint: "Nh\xECn tr\u01B0\u1EDBc 14 ng\xE0y: ti\u1EC1n trong v\xED c\xF3 \u0111\u1EE7 tr\u1EA3 th\u1EBB v\xE0 c\xE1c kho\u1EA3n \u0111\u1ECBnh k\u1EF3 kh\xF4ng."
   },
   "account-negative": {
+    badge: "S\u1ED0 D\u01AF",
+    source: "T\xE0i s\u1EA3n",
     kind: "action",
     label: "T\xE0i kho\u1EA3n \u0111ang \xE2m",
     hint: "S\u1ED1 d\u01B0 xu\u1ED1ng d\u01B0\u1EDBi 0 \u2014 th\u01B0\u1EDDng l\xE0 ghi nh\u1EA7m ho\u1EB7c qu\xEAn ghi m\u1ED9t kho\u1EA3n thu."
   },
   "debt-overdue": {
+    badge: "QU\xC1 H\u1EA0N",
+    source: "N\u1EE3 / cho vay",
     kind: "action",
     label: "N\u1EE3 / cho vay qu\xE1 h\u1EA1n",
     hint: "\u0110\xE3 qua ng\xE0y h\u1EB9n m\xE0 kho\u1EA3n \u0111\xF3 ch\u01B0a t\u1EA5t to\xE1n."
   },
   "debt-due-soon": {
+    badge: "N\u1EE2",
+    source: "N\u1EE3 / cho vay",
     kind: "action",
     label: "N\u1EE3 / cho vay s\u1EAFp \u0111\u1EBFn h\u1EA1n",
     hint: "C\xF2n 7 ng\xE0y ho\u1EB7c \xEDt h\u01A1n l\xE0 t\u1EDBi ng\xE0y h\u1EB9n."
   },
   "bill-due": {
+    badge: "\u0110\u1ECANH K\u1EF2",
+    source: "\u0110\u1ECBnh k\u1EF3",
     kind: "action",
     label: "Kho\u1EA3n c\u1EA7n thanh to\xE1n",
     hint: "Quy t\u1EAFc \u0111\u1ECBnh k\u1EF3 ki\u1EC3u NH\u1EAEC t\u1EDBi h\u1EA1n m\xE0 ch\u01B0a ghi (vd g\u1EEDi ti\u1EC1n v\u1EC1 nh\xE0). B\xE1m t\u1EDBi khi b\u1EA1n x\xE1c nh\u1EADn \u0111\xE3 ghi \u2014 app kh\xF4ng t\u1EF1 ghi h\u1ED9 v\xEC s\u1ED1 ti\u1EC1n m\u1ED7i l\u1EA7n m\u1ED9t kh\xE1c."
   },
   "planned-due": {
+    badge: "S\u1EAEP CHI",
+    source: "S\u1EAFp chi",
     kind: "action",
     label: "Kho\u1EA3n s\u1EAFp chi t\u1EDBi h\u1EA1n",
     hint: "M\u1ED9t kho\u1EA3n trong danh s\xE1ch S\u1EAFp chi \u0111\xE3 t\u1EDBi h\u1EA1n (ho\u1EB7c s\u1EAFp t\u1EDBi, tu\u1EF3 b\u1EA1n \u0111\u1EB7t nh\u1EAFc tr\u01B0\u1EDBc m\u1EA5y ng\xE0y). B\xE1m t\u1EDBi khi b\u1EA1n \u0111\xE1nh d\u1EA5u \u0111\xE3 chi ho\u1EB7c b\u1ECF."
   },
   "budget-over": {
+    badge: "H\u1EA0N M\u1EE8C",
+    source: "Ng\xE2n s\xE1ch",
     kind: "action",
     label: "V\u01B0\u1EE3t ng\xE2n s\xE1ch th\xE1ng",
     hint: "M\u1ED9t m\u1EE5c \u0111\xE3 ti\xEAu qu\xE1 h\u1EA1n m\u1EE9c \u0111\u1EB7t cho th\xE1ng n\xE0y."
   },
   "budget-pace": {
+    badge: "NH\u1ECAP",
+    source: "Ng\xE2n s\xE1ch",
     kind: "action",
     label: "Ti\xEAu nhanh h\u01A1n nh\u1ECBp",
     hint: "M\u1EDBi qua m\u1ED9t ph\u1EA7n ba th\xE1ng \u0111\xE3 d\xF9ng g\u1EA7n h\u1EBFt h\u1EA1n m\u1EE9c \u2014 b\xE1o s\u1EDBm \u0111\u1EC3 c\xF2n k\u1ECBp gh\xECm l\u1EA1i."
   },
   "budget-parent-over": {
+    badge: "TR\u1EA6N NH\xD3M",
+    source: "Ng\xE2n s\xE1ch \xB7 tr\u1EA7n nh\xF3m",
     kind: "action",
     label: "Nh\xF3m v\u01B0\u1EE3t tr\u1EA7n",
     hint: "C\u1EA3 nh\xF3m \u0111\xE3 ti\xEAu qu\xE1 tr\u1EA7n \u0111\u1EB7t \u1EDF m\u1EE5c cha; k\xE8m t\u1ED1i \u0111a 2 m\u1EE5c con \u0111ang ti\xEAu nhi\u1EC1u nh\u1EA5t."
   },
   "tag-budget-over": {
+    badge: "TR\u1EA6N NH\xC3N",
+    source: "Ng\xE2n s\xE1ch \xB7 tr\u1EA7n nh\xE3n",
     kind: "action",
     label: "Nh\xE3n v\u01B0\u1EE3t tr\u1EA7n",
     hint: "Chi mang m\u1ED9t nh\xE3n \u0111\xE3 qu\xE1 tr\u1EA7n \u0111\u1EB7t cho nh\xE3n \u0111\xF3 (c\u1EA3 \u0111\u1EE3t ho\u1EB7c th\xE1ng n\xE0y, t\xF9y nh\xE3n)."
   },
   "card-statement-day": {
+    badge: "CH\u1ED0T SAO K\xCA",
+    source: "T\xE0i s\u1EA3n \xB7 th\u1EBB t\xEDn d\u1EE5ng",
     kind: "info",
     label: "Ng\xE0y ch\u1ED1t sao k\xEA th\u1EBB",
     hint: "H\xF4m nay th\u1EBB ch\u1ED1t k\u1EF3 \u2014 mua t\u1EEB mai s\u1EBD tr\u1EA3 v\xE0o th\xE1ng sau."
   },
   "recurring-suggestion": {
+    badge: "\u0110\u1ECANH K\u1EF2",
+    source: "S\u1ED5",
     kind: "info",
     label: "G\u1EE3i \xFD t\u1EA1o quy t\u1EAFc \u0111\u1ECBnh k\u1EF3",
     hint: "Ph\xE1t hi\u1EC7n m\u1ED9t kho\u1EA3n tr\u1EA3 \u0111\u1EC1u \u0111\u1EB7n m\xE0 ch\u01B0a c\xF3 quy t\u1EAFc."
   },
   "stale-entry": {
+    badge: "GHI S\u1ED4",
+    source: "S\u1ED5",
     kind: "info",
     label: "L\xE2u ch\u01B0a ghi s\u1ED5",
     hint: "T\u1EEB 3 ng\xE0y kh\xF4ng ghi giao d\u1ECBch n\xE0o; nhi\u1EC1u nh\u1EA5t m\u1ED9t l\u1EA7n m\u1ED7i tu\u1EA7n."
   },
   "savings-milestone": {
+    badge: "M\u1EE4C TI\xCAU",
+    source: "T\xE0i s\u1EA3n \xB7 m\u1EE5c ti\xEAu",
     kind: "info",
     label: "M\u1EE5c ti\xEAu ti\u1EBFt ki\u1EC7m ch\u1EA1m m\u1ED1c",
     hint: "\u0110\u1EA1t 25%, 50%, 75% ho\u1EB7c 100% m\u1EE5c ti\xEAu."
   },
   "networth-record": {
+    badge: "K\u1EF6 L\u1EE4C",
+    source: "T\xE0i s\u1EA3n",
     kind: "info",
     label: "T\xE0i s\u1EA3n r\xF2ng l\u1EADp k\u1EF7 l\u1EE5c",
     hint: "Cao nh\u1EA5t t\u1EEB tr\u01B0\u1EDBc t\u1EDBi nay; nhi\u1EC1u nh\u1EA5t m\u1ED9t l\u1EA7n m\u1ED7i th\xE1ng."
   },
   "monthly-summary": {
+    badge: "T\u1ED4NG K\u1EBET",
+    source: "B\xE1o c\xE1o \xB7 th\xE1ng n\xE0y",
     kind: "info",
     label: "T\u1ED5ng k\u1EBFt th\xE1ng",
     hint: "V\xE0o ng\xE0y \u0111\u1EA7u k\u1EF3 m\u1EDBi: th\xE1ng v\u1EEBa r\u1ED3i chi bao nhi\xEAu, thu bao nhi\xEAu, \u0111\u1EC3 d\xE0nh bao nhi\xEAu."
   },
   "lifetime-drift": {
+    badge: "K\u1EBE HO\u1EA0CH",
+    source: "T\xE0i s\u1EA3n \xB7 T\u01B0\u01A1ng lai",
     kind: "action",
     label: "Thu chi l\u1EC7ch k\u1EBF ho\u1EA1ch Lifetime",
     hint: `Thu ho\u1EB7c chi th\u1EF1c t\u1EBF ${RECENT_TXS_DAYS} ng\xE0y g\u1EA7n \u0111\xE2y l\u1EC7ch kh\u1ECFi gi\u1EA3 \u0111\u1ECBnh c\u1EE7a k\u1ECBch b\u1EA3n (k\u1EC3 c\u1EA3 khi k\u1EBF ho\u1EA1ch \u0111\u1EC3 thu 0 m\xE0 s\u1ED5 c\xF3 thu nh\u1EADp), k\xE8m m\u1ED1c \xE2m d\u1ECBch bao nhi\xEAu n\u0103m.`
   },
   "data-uncategorized": {
+    badge: "PH\xC2N LO\u1EA0I",
+    source: "S\u1ED5",
     kind: "action",
     label: "Giao d\u1ECBch ch\u01B0a g\u1EAFn danh m\u1EE5c",
     hint: "Kho\u1EA3n ch\u01B0a c\xF3 danh m\u1EE5c kh\xF4ng v\xE0o \u0111\u01B0\u1EE3c b\xE1o c\xE1o hay ng\xE2n s\xE1ch \u2014 nh\u1EAFc khi d\u1ED3n l\u1EA1i."
   },
   "data-reconcile": {
+    badge: "\u0110\u1ED0I CHI\u1EBEU",
+    source: "T\xE0i s\u1EA3n",
     kind: "action",
     label: "T\xE0i kho\u1EA3n l\xE2u ch\u01B0a \u0111\u1ED1i chi\u1EBFu",
     hint: "Qu\xE1 30 ng\xE0y kh\xF4ng so s\u1ED1 d\u01B0 s\u1ED5 v\u1EDBi s\u1ED1 th\u1EADt th\xEC m\u1ECDi t\u1ED5ng \u0111\u1EC1u c\xF3 th\u1EC3 \u0111\xE3 l\u1EC7ch."
   },
   "trend-level-shift": {
+    badge: "M\u1EE8C CHI",
+    source: "B\xE1o c\xE1o \xB7 D\xE0i h\u1EA1n",
     kind: "action",
     label: "M\u1EE9c chi \u0111\u1ED5i h\u1EB3n so v\u1EDBi tr\u01B0\u1EDBc",
     hint: "Khi m\u1EE9c chi h\u1EB1ng th\xE1ng b\u01B0\u1EDBc sang m\u1ED9t b\u1EADc kh\xE1c v\xE0 \u1EDF y\xEAn \u0111\xF3 v\xE0i th\xE1ng \u2014 d\u1EA5u hi\u1EC7u h\u1EA1n m\u1EE9c \u0111ang \u0111\u1EB7t theo n\u1EBFp s\u1ED1ng c\u0169. Kh\xF4ng b\xE1o cho dao \u0111\u1ED9ng v\u1EB7t c\u1EE7a m\u1ED9t th\xE1ng."

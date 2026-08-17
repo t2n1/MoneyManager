@@ -8,6 +8,15 @@
 //      trang, và trình đọc màn hình sẽ đọc thành "trang hiện tại".
 //   2. Nhãn mục không hoạt động dùng --fg-on-track (gray-600), không phải gray-500:
 //      track là nền gray-100, ở đó gray-500 chỉ đạt 4,39:1 → trượt AA.
+//
+// Bản 1a ĐẢO hai bề mặt: track thành trong suốt có viền, còn ô ĐANG CHỌN mới là ô có
+// nền (--surface-sunken) và viền đậm hơn. Trước đây ô đang chọn nổi lên bằng shadow —
+// 1a bỏ hẳn shadow nên tín hiệu "đang chọn" phải là nền + viền.
+//
+// Điều đó cũng gỡ luôn lý do tồn tại của lưu ý (2) Ở ĐÂY: track không còn nền gray-100
+// của riêng nó, nhãn mục không hoạt động nằm thẳng trên nền thẻ/trang, nên --fg-muted
+// đủ AA (4,84:1 trên trắng · 4,63:1 trên gray-50). Lưu ý (2) vẫn đúng cho mọi chỗ
+// KHÁC còn có track có nền — đừng đọc thành "gray-500 lúc nào cũng được".
 import type { ReactNode } from 'react'
 
 export interface SegmentedItem<T extends string> {
@@ -50,7 +59,7 @@ export function SegmentedControl<T extends string>({
     <div
       role="tablist"
       aria-label={label}
-      className={`flex rounded-lg bg-surface-sunken p-0.5 font-medium ${s.track} ${className}`.trim()}
+      className={`flex rounded-lg border border-border-panel bg-transparent p-0.5 font-medium ${s.track} ${className}`.trim()}
     >
       {items.map((item) => {
         const active = item.value === value
@@ -61,10 +70,12 @@ export function SegmentedControl<T extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(item.value)}
-            className={`rounded-md transition ${s.item} ${stretch ? 'flex-1' : 'shrink-0'} ${
+            // Viền có ở CẢ hai trạng thái, chỉ đổi màu: cho riêng ô đang chọn một viền
+            // thì mỗi lần bấm tab, chữ của mọi ô xê 1px — thấy rõ trên dải 4 tab của Sổ.
+            className={`rounded-md border transition ${s.item} ${stretch ? 'flex-1' : 'shrink-0'} ${
               active
-                ? `bg-surface shadow-sm ${item.activeClassName ?? 'text-fg-primary'}`
-                : 'text-fg-on-track hover:text-fg-primary'
+                ? `border-border-strong bg-surface-sunken ${item.activeClassName ?? 'text-fg-primary'}`
+                : 'border-transparent text-fg-muted hover:text-fg-primary'
             }`}
           >
             {item.label}

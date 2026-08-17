@@ -187,7 +187,7 @@ export function SavingsGoalsSection({ view }: Props) {
             {view.fmt(earmarked.total, base, earmarked.hasMissingRate)}
           </b>{' '}
           trong số dư đang có chủ cho các mục tiêu trên. Trang{' '}
-          <Link to="/reports?view=health" className="font-medium text-green-700 dark:text-green-400">
+          <Link to="/reports?view=health" className="font-medium text-fg-accent">
             Sức khỏe tài chính
           </Link>{' '}
           trừ khoản này ra để biết quỹ dự phòng thật sự tự do còn bao nhiêu tháng.

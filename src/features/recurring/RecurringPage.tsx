@@ -172,7 +172,7 @@ export function RecurringPage() {
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
       <div className="flex items-center gap-2">
-        <BackLink to="/" aria-label="Quay lại" />
+        <BackLink to="/so" aria-label="Quay lại" />
         <h1 className="flex-1 text-lg font-bold text-fg-primary">
           Giao dịch định kỳ
         </h1>

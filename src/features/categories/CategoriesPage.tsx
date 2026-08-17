@@ -246,7 +246,7 @@ export function CategoriesPage() {
           <button
             type="button"
             onClick={() => setForm({ category: null, parent: p })}
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1 text-green-700 dark:text-green-400 active:scale-95"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1 text-fg-accent active:scale-95"
             aria-label={`Thêm danh mục con cho ${p.name}`}
           >
             <Plus className="h-5 w-5" />
@@ -428,7 +428,7 @@ export function CategoriesPage() {
                   <button
                     type="button"
                     onClick={() => restore(c)}
-                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-accent hover:bg-green-50 dark:hover:bg-green-900/30"
                   >
                     Khôi phục
                   </button>

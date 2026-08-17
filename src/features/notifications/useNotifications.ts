@@ -20,7 +20,7 @@ import {
   usePlannedExpenses,
   useSavingsGoals,
 } from '../../hooks/queries'
-import { addDaysISO, monthKeyForDate, toISODate } from '../../lib/dates'
+import { addDaysISO, addMonths, getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
 import { useTagBudgets } from '../tags/useTagBudgets'
 import { formatMoney } from '../../lib/money'
 import type { CurrencyCode } from '../../lib/money'
@@ -31,10 +31,18 @@ import {
   lifetimeQueriesSettled,
   notificationInputsReady,
   unreadActionCount,
+  visibleActions,
   visibleInfoLists,
 } from './state'
+import { monthlySeries } from '../reports/aggregate'
+import { LEVEL_SHIFT_MIN_MONTHS } from './rules/trendRules'
 import { RECENT_TXS_DAYS } from './types'
-import type { AppNotification, NotificationResult, NotificationType } from './types'
+import type {
+  AppNotification,
+  MonthlyExpensePoint,
+  NotificationResult,
+  NotificationType,
+} from './types'
 
 // Một mảng rỗng DÙNG CHUNG cho mọi query chưa có dữ liệu. Viết `data ?? []` tại chỗ
 // sẽ tạo mảng mới mỗi lần render, làm useMemo bên dưới tính lại liên tục.
@@ -182,6 +190,57 @@ export function useNotifications(): UseNotificationsResult {
     [profile, scenariosQ.data, phasesQ.data, eventsQ.data, todayISO],
   )
 
+  /**
+   * Chuỗi chi theo tháng cho luật điểm gãy (§4.9).
+   *
+   * ĐÂY LÀ MỘT QUYẾT ĐỊNH CHI PHÍ, nói thẳng ra: hook này chạy ở MỌI màn (chuông nằm
+   * trên top bar), nên mỗi truy vấn thêm vào đây là thêm cho cả app. `recentTxs` chỉ có
+   * `RECENT_TXS_DAYS` = 90 ngày, tức ba tháng — không đủ để nói "mức chi đổi hẳn", nên
+   * không có cách nào lấy chuỗi này miễn phí.
+   *
+   * Ba thứ giữ chi phí ở mức chấp nhận được:
+   *   1. Đúng `LEVEL_SHIFT_MIN_MONTHS` tháng, không hơn — một hằng số, một ý nghĩa.
+   *   2. `enabled: !!profile`, cùng khuôn với mọi truy vấn khác ở đây.
+   *   3. React Query gộp theo queryKey, nên trong một phiên nó chạy một lần.
+   *
+   * KẾT THÚC Ở THÁNG ĐỦ GẦN NHẤT — tháng đang chạy bị loại. Để nó vào thì mỗi đầu tháng
+   * app lại báo "mức chi vừa giảm hẳn", một cú gãy giả đều đặn mười hai lần một năm.
+   */
+  const thangDu = addMonths(monthKeyForDate(todayISO, monthStartDay), -1)
+  const monthsForShift = useMemo(
+    () =>
+      Array.from({ length: LEVEL_SHIFT_MIN_MONTHS }, (_, i) =>
+        addMonths(thangDu, i - (LEVEL_SHIFT_MIN_MONTHS - 1)),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [thangDu.year, thangDu.month],
+  )
+  const shiftRange = useMemo(
+    () => ({
+      start: getMonthRange(monthsForShift[0], monthStartDay).start,
+      end: getMonthRange(monthsForShift[monthsForShift.length - 1], monthStartDay).end,
+    }),
+    [monthsForShift, monthStartDay],
+  )
+  const shiftTxsQ = useRangeTransactions(shiftRange, !!profile)
+  const monthlyExpense = useMemo<MonthlyExpensePoint[] | undefined>(() => {
+    // undefined chứ không mảng rỗng khi chưa tải: mảng rỗng là "đã đo, không có gì",
+    // còn ở đây là "chưa đo". Luật phân biệt hai cái đó (§14: chưa biết ≠ 0).
+    if (!shiftTxsQ.data) return undefined
+    const s = monthlySeries(
+      shiftTxsQ.data,
+      monthsForShift,
+      monthStartDay,
+      currencyOf,
+      base,
+      rates ?? {},
+    )
+    return s.points.map((p) => ({
+      month: `${p.key.year}-${String(p.key.month).padStart(2, '0')}`,
+      value: p.expense,
+    }))
+  }, [shiftTxsQ.data, monthsForShift, monthStartDay, currencyOf, base, rates])
+
   // Nhớ đệm để mảng giữ nguyên tham chiếu giữa các lần render — nếu không, memo
   // bên dưới tính lại mỗi render và mảng phụ thuộc không thể trung thực được.
   const notifOff = profile?.notif_off
@@ -215,6 +274,7 @@ export function useNotifications(): UseNotificationsResult {
         savingsGoals,
         networthSnapshots,
         recentTxs,
+        monthlyExpense,
         lifetime,
         offTypes,
       })
@@ -242,6 +302,7 @@ export function useNotifications(): UseNotificationsResult {
     savingsGoals,
     networthSnapshots,
     recentTxs,
+    monthlyExpense,
     lifetime,
     offTypes,
     privacyOn,
@@ -269,10 +330,14 @@ export function useNotifications(): UseNotificationsResult {
     dismissedKeys,
     INFO_LIMIT,
   )
-  // Việc-cần-làm KHÔNG lọc theo đã đọc (đã đọc chỉ mờ đi chứ không mất) và không có
-  // nút ✕, nên ở nhóm này cắt trước hay sau đều ra một kết quả — vẫn cắt ở đây cho
-  // cùng một chỗ với nhóm kia.
-  const actions = result.actionsAll.slice(0, ACTION_LIMIT)
+  // Việc-cần-làm KHÔNG lọc theo đã đọc (đọc một việc không làm nó xong), nhưng CÓ lọc
+  // theo đã ẩn kể từ khối 'Việc cần làm' của Bản tin (§4.9 / R5): không có nó thì năm
+  // việc giống hệt nhau hiện mỗi lần mở app và sau một tuần không ai đọc.
+  //
+  // LỌC TRƯỚC, CẮT TRẦN SAU — cùng lý do với nhóm tin-để-biết (lỗi I4-R): ẩn ba việc
+  // đầu mà cắt trần trước thì phần hiện ra chỉ còn hai, trong khi có bảy việc chờ.
+  const actionsVisible = visibleActions(result.actionsAll, dismissedKeys)
+  const actions = actionsVisible.slice(0, ACTION_LIMIT)
   // Đếm trên bản ĐẦY ĐỦ, không phải phần thu gọn: có 7 việc mà chuông báo 5 là nói
   // dối, và chính tấm trượt cũng đang in "7 việc cần làm" ở tiêu đề. Bấm mở rồi bấm
   // "Xem thêm" vẫn tắt hết được số đỏ, chỉ thêm một cái chạm.
@@ -309,7 +374,7 @@ export function useNotifications(): UseNotificationsResult {
   return {
     actions,
     infos,
-    actionsAll: result.actionsAll,
+    actionsAll: actionsVisible,
     infosAll,
     unreadCount,
     readKeys,

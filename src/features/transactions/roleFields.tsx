@@ -338,7 +338,7 @@ export function SplitFields({
           className={inputCls}
         />
         {!settledNow && selected && (
-          <p className="mt-1 text-xs text-green-700 dark:text-green-400">
+          <p className="mt-1 text-xs text-fg-accent">
             Cộng dồn vào khoản đang mở · còn lại {formatMoney(selected.remaining, selected.currency)}
           </p>
         )}
@@ -490,7 +490,7 @@ export function DebtFields({
           className={inputCls}
         />
         {selected && (
-          <p className="mt-1 text-xs text-green-700 dark:text-green-400">
+          <p className="mt-1 text-xs text-fg-accent">
             Cộng dồn vào khoản đang mở · còn lại {formatMoney(selected.remaining, selected.currency)}
           </p>
         )}

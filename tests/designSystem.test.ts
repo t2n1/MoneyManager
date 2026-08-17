@@ -115,8 +115,36 @@ function stripComments(text: string): string {
  * chỉ còn MỘT bản. Tụt từ 57, nhưng vẫn CAO HƠN 53 lúc đợt này bắt đầu: xem khối "──" ở
  * trên. Hạ trần theo đúng quy ước ở thông điệp lỗi của chính phép thử này: trần không hạ
  * là trần rỗng, để lần sau thêm văn xuôi mới mà không ai biết.
+ *
+ * 60 (2026-08-16, PR 4 của redesign 1a): +5 của màn Bản tin. Đã xét từng đoạn, cả năm
+ * thuộc đúng hai loại mà bảng ranh giới ở docs/design-system.md xếp vào cột "KHÔNG bọc":
+ *
+ *   · BA trạng thái rỗng (chưa có tài khoản · chưa đặt hạn mức · chưa ghi giao dịch nào
+ *     tháng này). Mỗi câu đi kèm MỘT <Link>, và cái link đó là đường đi tiếp DUY NHẤT
+ *     của khối — Bản tin không có nút nào khác dẫn tới đó. Bọc <Guide> là ở chế độ Gọn
+ *     khối rỗng thành một ô trống trơn, đúng loại lỗi các lần nâng trần trước đã tránh.
+ * 63 (2026-08-17, bản vẽ 19a): +1 ở AccountDetailPage — câu "Đủ trả cả N thẻ dùng ví
+ * này kỳ tới." của khối Nguồn trả. Hai lý do nó ở lại, mỗi lý do đủ một mình:
+ *   · Nó là câu NÓI RA TRẠNG THÁI, đối trọng của banner đỏ "cần nạp thêm" ngay cạnh.
+ *     Ẩn ở chế độ Gọn thì im lặng thành nhập nhằng — người đọc không biết là "đủ tiền"
+ *     hay "app chưa tính được".
+ *   · Chữ THẬT của nó chỉ ~35 ký tự; phần vượt 45 là do regex không bóc được `{}` lồng
+ *     trong template literal. Cùng loại bắt nhầm đã ghi ở cuối khối này.
+ *
+ * 62 (2026-08-17, PR 9): +1 ở ReliabilityPanel — câu 'Không còn chỗ nào thiếu…'. Đó là
+ * câu NÓI RA CHÍNH TRẠNG THÁI của khối (bảng ranh giới xếp vào cột KHÔNG bọc): ẩn nó ở
+ * chế độ Gọn thì khối Độ tin cậy 100% chỉ còn một con số trơ và một thanh xanh, không
+ * ai biết nó nghĩa là đã đủ hay chưa tính được.
+ *
+ * 61 (2026-08-17, PR 8): +1 ở PlanningView — dòng 'Thu dự kiến … đang dùng nền — TB 6
+ * tháng có dữ liệu'. Đây là câu nói ra NGUỒN của mẫu số, tức cảnh báo dữ liệu: ẩn nó
+ * ở chế độ Gọn thì người dùng chia hết một con số app đoán hộ mà tưởng là số mình khai.
+ *
+ *   · HAI dòng SỐ LIỆU bị regex bắt nhầm là văn xuôi: dòng "đã tiêu / tổng hạn mức" của
+ *     panel Ngân sách và dòng "tháng · thu / chi" của panel Dòng tiền. Chữ thật trong
+ *     chúng chỉ vài từ; phần vượt 45 ký tự là markup của <Money> và <span>.
  */
-const PROSE_MAX = 55
+const PROSE_MAX = 63
 
 const FILES = sourceFiles().map((path) => ({
   path,
@@ -182,6 +210,54 @@ describe('design system — ban cứng (phải bằng 0)', () => {
       const { count, where } = occurrences(needle)
       expect(count, `Dùng text-money-in / text-money-out.\n${where.join('\n')}`).toBe(0)
     }
+  })
+
+  // Lý do: `text-fg-accent` đã có, và cặp viết tay thì KHÔNG đi theo token.
+  //
+  // Đây từng là một TRẦN (32 chỗ) với ghi chú "xét nghĩa từng chỗ", và cái giá của việc
+  // để nó làm trần hiện ra hôm 2026-08-17: khi `--fg-accent` phải đậm thêm một bậc (nền
+  // trang tối đi theo mock 23b), 32 chỗ viết tay KHÔNG đi theo, và 3 trong số đó tụt
+  // xuống 4,454:1 — phép quét bắt được ở /so và /search. Một trần thì token đổi mà chỗ
+  // viết tay đứng yên; một luật thì không.
+  //
+  // Ở dark hai cách viết cho ra CÙNG một màu (green-400), nên đổi hết sang token không
+  // làm dark khác một pixel — chỉ light được lợi.
+  it('không viết tay cặp sáng/tối cho chữ màu nhấn', () => {
+    const { count, where } = occurrences('text-green-700 dark:text-green-400')
+    expect(count, `Dùng text-fg-accent (link/hành động).\n${where.join('\n')}`).toBe(0)
+  })
+
+  // Lý do: §5.0 + R7 (ĐÃ CHỐT) — câu kết luận ĐẦU MÀN là dữ liệu, không phải chữ để
+  // dạy, nên nó "giữ nguyên ở CẢ HAI chế độ, không đi qua VerdictNote". Mà VerdictNote
+  // ở chế độ Gọn nén nội dung thành một cái chip, VÀ Gọn là mặc định
+  // (DEFAULT_DENSITY = 'visual') — nên vi phạm luật này nghĩa là mặc định người dùng
+  // không đọc được kết luận của màn đang mở. Đo lúc phát hiện: trang Báo cáo có 7 câu
+  // kết luận ở Đầy đủ, còn 3 chip ở Gọn.
+  //
+  // Dùng <ConclusionLine> (cùng file VerdictNote.tsx) cho những chỗ này. VerdictNote
+  // vẫn đúng cho kết luận CỦA TỪNG THẺ — chúng được phép nén.
+  it('câu kết luận đầu màn không đi qua VerdictNote', () => {
+    for (const f of ['src/features/bulletin/BulletinPage.tsx', 'src/features/reports/PeriodHeadline.tsx']) {
+      const src = readFileSync(join(SRC, '..', f), 'utf8')
+      expect(src, `${f}: dùng <ConclusionLine>, không <VerdictNote> (§5.0/R7).`).not.toContain(
+        '<VerdictNote',
+      )
+    }
+  })
+
+  // Lý do: sky-600 làm CHỮ trượt AA ở light — 4,02:1 trên nền thẻ trắng và 3,77:1 trên
+  // bg-sky-50. Bốn chỗ dùng nó đều là nhãn 10–11px (badge "mới", nhãn thứ cuối tuần,
+  // "≈ N giờ", nhãn Chuyển tài sản) nên không chỗ nào được hưởng ngưỡng 3:1 của chữ
+  // lớn. sky-700 cho 5,86 / 5,49 — sửa cả bốn hôm 2026-08-17.
+  //
+  // Chỉ cấm khi làm CHỮ. `bg-sky-500`, `stroke="#0ea5e9"` v.v. là chuyện khác, và
+  // sky-600 làm NÉT đồ thị thì vẫn hợp lệ (4,02 ≥ 3:1) — xem phép thử nét bên dưới.
+  it('không dùng text-sky-600 (trượt AA ở light)', () => {
+    const { count, where } = occurrences('text-sky-600')
+    expect(
+      count,
+      `sky-600 chỉ 4,02:1 trên trắng và 3,77:1 trên sky-50. Dùng text-sky-700.\n${where.join('\n')}`,
+    ).toBe(0)
   })
 
   // Lý do: nút chính là nền có CHỮ TRẮNG đè lên → cần 4,5:1 với trắng. green-600
@@ -384,6 +460,19 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     }
   })
 
+  // Lý do: §13 — cỡ chữ viết bằng PX đứng yên khi người dùng phóng chữ ở Cài đặt → Cỡ
+  // chữ, vì --app-font-scale chỉ co giãn được cái tính theo rem. Đây là luật KHÁC với
+  // luật ngay trên: luật kia chặn dạng `rem` tuỳ ý (scale bị chọc lỗ), luật này chặn
+  // dạng `px` (scale không ăn gì cả) — và chính vì thiếu nó mà `text-[11px]` nằm trong
+  // LifetimeChartCard suốt cả đợt 1a mà không ai thấy.
+  it('không viết cỡ chữ bằng px (không co theo Cỡ chữ)', () => {
+    const hits = sourceFiles()
+      .map((f) => [f, readFileSync(f, 'utf8')] as const)
+      .filter(([, src]) => /text-\[\d+px\]/.test(src))
+      .map(([f]) => f.replace(SRC, ''))
+    expect(hits, `Quy về rem, hoặc dùng bậc đã đặt tên (text-2xs / text-3xs).`).toEqual([])
+  })
+
   // Lý do: 0.5625rem = 9px, mà --app-font-scale nhỏ nhất là 0.9 → 8,1px.
   // Sàn dưới là text-3xs (10px), token cố ý không có tên cho 9px.
   it('không có chữ nhỏ hơn sàn 10px', () => {
@@ -423,7 +512,13 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // 83 (2026-08-11): ba khối tuỳ chọn trong Cài đặt (Giao diện / Cách trình bày / Cỡ
     // chữ) đã gộp về <Card as="section" padding="none">. Phải đổi cả ba cùng lúc —
     // chúng nằm liền nhau nên để lẻ một cái viết tay là cái đó lệch dáng.
-    { needle: 'rounded-xl bg-surface', max: 83, use: '<Card>' },
+    //
+    // 82 (2026-08-16, PR 2 của redesign 1a): tụt 1 vì <Card> KHÔNG còn chứa chuỗi này —
+    // bán kính chuyển vào bảng ELEVATION (dáng 'panel' là 8px chứ không 12px, mà hai lớp
+    // bán kính cùng hạng thì Tailwind quyết theo thứ tự trong CSS, không theo thứ tự
+    // trong chuỗi class). Tức con số này giờ đếm ĐÚNG số thẻ viết tay, không cộng thêm
+    // chính primitive nữa.
+    { needle: 'rounded-xl bg-surface', max: 82, use: '<Card>' },
     // 96 (2026-08-13, đợt gộp danh mục): tụt từ 97 vì HoldingsSection và
     // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
     // mỗi câu chỉ còn MỘT bản. FundHoldingsSection từng ghi ngay tại chỗ ngưỡng này
@@ -442,7 +537,8 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
     // mỗi chỗ chỉ còn MỘT bản. Hạ trần theo đúng quy ước ở thông điệp lỗi của chính
     // phép thử này.
-    { needle: 'text-green-700 dark:text-green-400', max: 32, use: 'text-fg-accent (link/hành động) hoặc text-money-in (tiền) — xét nghĩa từng chỗ' },
+    // ĐÃ VỀ 0 (2026-08-17) — luật cứng nằm ở khối "ban cứng" phía trên, không còn là
+    // trần ở đây. Xem `không viết tay cặp sáng/tối cho chữ màu nhấn`.
     // Hex xanh/đỏ đời Tailwind v3 trong hằng số biểu đồ — không sai contrast nhưng
     // lệch palette v4 (green-600 v4 = #00a63e). Cũng tăng từ lúc dựng hệ thống (12+
     // file → 16 file). Thay dần khi đụng tới file, đừng thêm chỗ mới.
@@ -464,7 +560,11 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
     // mỗi nút chỉ còn MỘT bản. Hạ trần theo đúng quy ước ở thông điệp lỗi của chính
     // phép thử này.
-    { needle: 'bg-green-700', max: 62, use: '<ActionButton variant="primary"> hoặc bg-accent' },
+    //
+    // 61 (2026-08-16, PR 2 của redesign 1a): tụt 1 vì <ActionButton variant="primary">
+    // đổi sang `bg-accent` + `text-fg-on-accent`. Chính primitive không còn nằm trong
+    // số đếm, nên 61 là số chỗ viết tay thật.
+    { needle: 'bg-green-700', max: 61, use: '<ActionButton variant="primary"> hoặc bg-accent' },
     // Hai bán kính ngoài scale 4 tầng (docs §Bán kính). `rounded-2xl` có chủ đích ở thẻ
     // hero và sheet trượt lên; phần còn lại là tuỳ tiện. `rounded-md` thì lạc hẳn.
     // 37 (2026-08-12): sheet khai thu dự kiến của mặt lập kế hoạch. Đúng ngoại lệ ghi
@@ -478,7 +578,41 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // nào: chúng xếp dọc liền nhau trong một mạch cuộn nên để lẫn hai bán kính là thấy
     // ngay — và khối thứ năm vừa thêm (InvestmentValueHistorySection) dùng <Card> từ đầu.
     { needle: 'rounded-2xl', max: 34, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
-    { needle: 'rounded-md', max: 13, use: 'rounded-lg (scale chuẩn)' },
+    // ⚠️ TRẦN NÀY ĐANG TĂNG THEO KẾ HOẠCH, không phải nới cho dễ thở. Luật ở đầu file
+    // là 'chỉ được giảm', nên phải nói rõ vì sao chỗ này khác.
+    //
+    // Tiền đề cũ: app có MỘT bán kính control là rounded-lg (8px, 278 chỗ), nên 16 chỗ
+    // rounded-md là lạc. Bản 1a bỏ tiền đề đó — nó TÁCH bán kính CONTROL (6px =
+    // rounded-md) khỏi bán kính PANEL (8px = rounded-lg), §1.3. Từ đó rounded-md là
+    // bán kính ĐÚNG của nút, tab, chip vuông; và mỗi PR dựng thêm một màn 1a lại thêm
+    // vài chỗ dùng nó một cách chính đáng.
+    //
+    // Vì vậy con số này KHÔNG còn đọc là "nợ kỹ thuật". Nó đọc là:
+    //     13 (nợ cũ — phần DUY NHẤT còn được phép giảm)
+    //   +  N (control của các màn đã chuyển sang 1a)
+    // Mốc: 13 lúc bắt đầu redesign · 15 sau PR 2 (hai primitive) · 21 sau PR 3 (khung
+    // app) · 22 sau PR 4 (cột biểu đồ Bản tin) · 26 sau PR 5 (Sổ + Tài sản) · 30 sau
+    // PR 6 (form Nhập: nút Đóng, banner lỗi, nút Loại đặc biệt, nút Lưu mẫu) · 31 sau
+    // PR 8 (ô KPI của mặt lập kế hoạch) · 37 sau PR 11 (sáu banner/ô nhập của Chi tiết
+    // tài khoản, Đối chiếu và hai tab Đầu tư — đều là bề mặt CŨ đổi sang bề mặt trạng
+    // thái 1a, không phải khối mới mọc thêm) · 41 sau PR 13 (bốn nút/banner của Cài đặt,
+    // cũng là bề mặt cũ đổi sang bề mặt trạng thái) · 42 khi thêm nút ngữ cảnh của bản
+    // vẽ 22a vào tấm trượt Thông báo — nó LÀ control 1a (6px đúng §1.3), và cố ý KHÔNG
+    // dùng <ActionButton>: nó là <span> nằm trong <Link> của cả dòng, vì đích của nó
+    // trùng đích của dòng nên một <button> thật ở đây là phần tử bấm lồng phần tử bấm.
+    // 43 khi Chi tiết thẻ có banner "cần nạp thêm" của bản vẽ 19a — bề mặt trạng thái,
+    // cùng khuôn với năm banner state-* đã đếm ở PR 11.
+    // 46 khi mặt lập kế hoạch đổi ba chỗ amber-50 viết tay sang bề mặt state-warn (bản
+    // vẽ 18a): một banner thiếu tỷ giá, một banner hạn mức chưa phân loại, và nút cảnh
+    // báo trần hụt cam kết. Ba chỗ này KHÔNG phải khối mới — chúng đổi từ rounded-lg
+    // sang rounded-md vì §1.3 xếp banner/control vào 6px, và đây là lần chúng đi theo
+    // token thay vì bảng màu thô.
+    // Trần vẫn có tác dụng: nó bắt người sửa DỪNG LẠI và nói ra chỗ mới thêm là control
+    // 1a hay là một chỗ viết tay lẽ ra phải dùng primitive.
+    //
+    // Khi 13 màn của bản 1a dựng xong, THAY trần này bằng luật thật: đếm rounded-lg /
+    // rounded-xl trên CONTROL — lúc đó mới là chiều nợ còn lại.
+    { needle: 'rounded-md', max: 46, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
     // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
     // đúng theo spec nên không cần đại diện gần đúng nữa.
@@ -512,6 +646,12 @@ describe('design system — token phải tồn tại', () => {
       '--surface',
       '--surface-sunken',
       '--border-subtle',
+      // Hai token của bản 1a. Ở dark chúng là hai nấc thật (chrome nằm giữa page và
+      // surface; border-panel giữa subtle và strong); ở light KHÔNG có chỗ cho nấc thứ
+      // tư nên chúng cố ý trùng gray-50 / gray-200. "Trùng giá trị" là lý do dễ khiến
+      // ai đó xoá khai báo ở :root cho gọn — mà xoá là dark rơi về giá trị light.
+      '--surface-chrome',
+      '--border-panel',
     ]
     // Mỗi token phải có ở :root VÀ .dark, không thì dark mode rơi về giá trị light.
     const rootBlock = css.slice(css.indexOf(':root {'), css.indexOf('.dark {'))
@@ -527,6 +667,35 @@ describe('design system — token phải tồn tại', () => {
     expect(css).toContain('@theme inline')
     expect(css).toContain('--color-fg-muted: var(--fg-muted)')
     expect(css).toContain('--color-money-in: var(--money-in)')
+    // Khai token mà quên map thì `bg-surface-chrome` / `border-border-panel` KHÔNG
+    // sinh ra lớp nào — Tailwind lặng lẽ bỏ qua tên lạ, không có lỗi build nào.
+    expect(css).toContain('--color-surface-chrome: var(--surface-chrome)')
+    expect(css).toContain('--color-border-panel: var(--border-panel)')
+  })
+
+  // Kiểu chữ của bản 1a: IBM Plex Sans cho chữ, IBM Plex Mono cho mọi con số.
+  it('font IBM Plex khai trong @theme và được nạp ở index.html', () => {
+    expect(css, '--font-sans phải trỏ IBM Plex Sans').toMatch(
+      /--font-sans:\s*['"]IBM Plex Sans['"]/,
+    )
+    expect(css, '--font-mono phải trỏ IBM Plex Mono').toMatch(
+      /--font-mono:\s*['"]IBM Plex Mono['"]/,
+    )
+    const html = readFileSync(join(SRC, '..', 'index.html'), 'utf8')
+    expect(html, 'index.html phải nạp css2 của Google Fonts').toMatch(
+      /fonts\.googleapis\.com\/css2\?[^"']*IBM\+Plex/,
+    )
+  })
+
+  // Lý do: app viết tiếng Việt. Chốt `subset=latin,latin-ext` là bỏ subset `vietnamese`
+  // (U+1EA0–1EF9 cho dấu nặng/hỏi, và ₫ U+20AB) — mọi chữ có dấu rơi về font hệ thống,
+  // lộ ra chữ lệch nét ngay giữa MỘT câu. Để mặc định không tốn thêm byte: css2 chia
+  // @font-face theo unicode-range nên trình duyệt chỉ tải subset nó thật sự gặp.
+  it('URL font không chốt subset (cần subset vietnamese)', () => {
+    const html = readFileSync(join(SRC, '..', 'index.html'), 'utf8')
+    for (const m of html.matchAll(/fonts\.googleapis\.com\/css2\?([^"']*)/g)) {
+      expect(m[1], `URL font không được chốt subset: ${m[1]}`).not.toMatch(/[?&]subset=/)
+    }
   })
 })
 

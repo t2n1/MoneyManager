@@ -29,17 +29,56 @@ Khai ở `src/index.css`. Đọc `--fg-muted` chứ đừng đọc `gray-500`: �
 
 | Token | Light | Dark | Đo được |
 |---|---|---|---|
-| `fg-primary` | gray-800 | gray-100 | 14,7:1 |
-| `fg-secondary` | gray-600 | gray-300 | 7,6:1 |
-| `fg-muted` | gray-500 | gray-400 | **4,84:1 — sàn** |
-| `fg-on-track` | gray-600 | gray-400 | 6,87:1 |
-| `money-in` | green-800 | green-400 | 7,13 / 9,98:1 |
-| `money-out` | red-700 | red-400 | 6,42 / 6,14:1 |
-| `surface` | white | gray-900 | — |
-| `surface-sunken` | gray-100 | gray-800 | track của segmented control |
-| `border-subtle` | gray-100 | gray-800 | — |
+| `fg-primary` | gray-800 | `#e6e9ee` | 14,7 / 14,7:1 |
+| `fg-secondary` | gray-600 | `#c9cfd8` | 7,6 / 11,4:1 |
+| `fg-muted` | gray-500 | `#99a1af` (= gray-400) | **4,84:1 — sàn ở light** |
+| `fg-on-track` | gray-600 | `#99a1af` | 6,87 / 6,85:1 |
+| `money-in` | green-800 | green-400 | 7,13 / 10,0:1 |
+| `money-out` | red-700 | red-400 | 6,42 / 6,2:1 |
+| `surface-page` | gray-50 | `#08090b` | nền trang |
+| `surface-chrome` | gray-50 | `#0b0d10` | top bar, rail, header nhóm trong bảng |
+| `surface` | white | `#0e1014` | thẻ / panel |
+| `surface-sunken` | gray-100 | `#14181d` | track của segmented control, nút phụ |
+| `border-subtle` | gray-100 | `#14171c` | đường kẻ giữa các dòng |
+| `border-panel` | gray-200 | `#1b1e24` | viền panel & khung |
+| `border-strong` | gray-300 | `#232830` | viền control, viền nút |
 | `accent` | green-700 | green-500 | nền nút chính, focus ring |
 | `fg-accent` | green-700 | green-400 | **chữ** màu nhấn (link, hành động phụ) |
+
+Số ở cột dark là của **thang tối bản 1a** (2026-08-16), đo ở ca xấu nhất — chữ trên
+`surface-sunken`, nấc lún nhất. Thang cũ (gray-950/900/800) đã bỏ: 1a dùng bốn nấc tối
+hơn và lệch xanh nhẹ, không sắc độ Tailwind nào rơi đúng vào đó nên **dark là chỗ duy
+nhất trong repo được viết hex trần** — và chỉ trong `:root`/`.dark` của `index.css`.
+
+Bốn nấc bề mặt xếp theo thứ tự lún → nổi: `page` → `chrome` → `surface` → `sunken`.
+`chrome` nằm **giữa** page và surface vì khung app (thanh trên, rail trái) phải lùi ra
+sau panel nội dung mà vẫn tách khỏi nền trang — 1a bỏ hẳn `shadow`, nên nền là kênh
+phân cấp duy nhất còn lại. Ở **light không có nấc thứ tư**: `surface-chrome` = gray-50,
+trùng `surface-page`, và khung phân biệt bằng `border-panel`.
+
+**Đánh đổi đã biết:** viền mờ đi. `border-strong` trên `surface` ở dark tụt từ 1,72:1
+(gray-700 trên gray-900) xuống **1,29:1**. Cả hai đều dưới 3:1 của WCAG 1.4.11 nên không
+đổi trạng thái đạt/trượt, nhưng nó chốt một luật: **viền không được là thứ duy nhất chỉ
+ra ranh giới một control** — control phải có nền (`surface-sunken`) hoặc chữ của chính nó.
+
+### Kiểu chữ: IBM Plex
+
+`--font-sans` = IBM Plex Sans, `--font-mono` = IBM Plex Mono (khai trong `@theme` của
+`index.css`, nạp bằng `<link>` Google Fonts ở `index.html`). **Mọi con số** — tiền, ngày,
+%, mã tháng — đi bằng mono; đó là thay đổi nhìn thấy rõ nhất của 1a.
+
+Ghi đè hai biến đó là đủ cho cả tiện ích `font-sans`/`font-mono` lẫn font mặc định của
+trang: preflight v4 đặt `--default-font-family: var(--font-sans)`.
+
+Hai điều **đừng** đổi khi đụng vào:
+
+- **Không chốt `subset=` trong URL css2.** App viết tiếng Việt nên cần subset
+  `vietnamese` (U+1EA0–1EF9, và ₫ U+20AB). Chốt `latin,latin-ext` là mọi chữ có dấu
+  nặng/hỏi rơi về font hệ thống — lộ ra chữ lệch nét ngay giữa một câu. Để mặc định
+  không tốn thêm byte: css2 chia `@font-face` theo `unicode-range`.
+- **Luật `runtimeCaching` cho hai origin font trong `vite.config.ts`** giữ font sống
+  khi offline. Bỏ nó thì mở offline rơi về font hệ thống, và cột số mất bề rộng mono
+  nên bảng tiền lệch hàng.
 
 ### `accent` vs `money-in` — cùng xanh, khác nghĩa
 
@@ -91,12 +130,64 @@ Mọi cỡ chữ dùng `rem` để co giãn theo Cài đặt → Cỡ chữ. **�
 
 | Component | Thay cho | Vì sao cần |
 |---|---|---|
-| `Money` | ~107 chỗ tự ghép `tabular-nums` + màu | `tabular-nums` luôn bật; màu thu/chi từ token. Bọc `formatMoney` nên **giữ chế độ riêng tư** |
-| `Card` | 86 chỗ `rounded-xl bg-white ... shadow-sm` | prop `elevation` để có phân cấp: `raised` cho thẻ chính, `flat` cho thẻ phụ |
-| `SegmentedControl` | 6 bản chép tay | `role="tablist"` + `aria-selected` đúng; nhãn dùng `fg-on-track` |
+| `Money` | ~107 chỗ tự ghép `tabular-nums` + màu | `font-mono` + `tabular-nums` luôn bật; màu thu/chi từ token. Bọc `formatMoney` nên **giữ chế độ riêng tư** |
+| `Card` | 86 chỗ `rounded-xl bg-white ... shadow-sm` | prop `elevation`: `raised` thẻ chính · `flat` thẻ phụ · `panel` khung 1a (8px, viền panel, không bóng) |
+| `SegmentedControl` | 6 bản chép tay | `role="tablist"` + `aria-selected` đúng; track trong suốt, ô đang chọn mới có nền |
 | `IconButton` | 32 chỗ `min-h-11 min-w-11` | 44px vùng chạm + `transition` + `hover` — ba thứ hay quên |
-| `StatTile` | 8 ô KPI | giá trị `text-base` cách nhãn `text-xs` **hai bậc**, để số nổi hơn nhãn |
+| `StatTile` | 8 ô KPI | nhãn 11px hoa (eyebrow) cách giá trị 26px mono **bốn bậc**, để số nổi hơn nhãn |
 | `SectionTitle` | 2 quy ước đang đánh nhau | `role="card"` (nhãn thẻ) vs `role="block"` (tiêu đề khối) |
+
+### Bản 1a đổi gì trong primitive
+
+Bốn quyết định ở đây là quyết định **cấu trúc**, không phải trang trí — chúng lan ra
+mọi màn mà không phải sửa màn nào:
+
+**1. Số đi bằng mono.** `Money` thêm `font-mono`. `tabular-nums` chỉ khoá bề rộng chữ
+số; mono khoá cả dấu phẩy nghìn, dấu trừ và ký hiệu tiền, nên cột số đọc như bảng.
+
+**2. Dark không còn thẻ "nổi".** `Card` dáng `raised` ở dark bỏ `shadow-sm`, thay bằng
+`border-border-panel`. Bóng trên nền `#0e1014` chỉ còn là vệt tối bẩn. Light **giữ
+nguyên** — viền chỉ mọc ở dark, nơi cả thang bề mặt đã đổi.
+
+**3. Bán kính tách làm hai.** Control (nút, tab) **6px = `rounded-md`**; panel **8px =
+`rounded-lg`**; thẻ cũ vẫn 12px. Trước 1a cả control lẫn panel đều 8px, nên trần
+`rounded-md` trong guardrail **đổi chiều** — đọc kỹ chú thích tại chỗ trước khi sửa.
+
+**4. Segmented đảo hai bề mặt.** Track trong suốt + viền panel; ô **đang chọn** mới có
+nền `surface-sunken` + viền `border-strong`. Không còn `shadow` làm tín hiệu "đang
+chọn". Hệ quả a11y: nhãn ô không hoạt động đổi `fg-on-track` → `fg-muted` được, vì
+track không còn nền gray-100 của riêng nó. Đo trên app đang chạy, 20 tab ở 8 route
+light: thấp nhất **4,63:1** (trên gray-50), không cái nào trượt.
+
+Viền của ô luôn có ở **cả hai** trạng thái, chỉ đổi màu — cho riêng ô đang chọn một
+viền thì mỗi lần bấm tab, chữ của mọi ô xê 1px.
+
+**Nút không lấy chiều cao 30px của 1a.** §2.5 của bộ tài liệu tả nút `+ Giao dịch` trên
+top bar desktop; §4.6 của cùng bộ tài liệu lại nói "mọi vùng chạm giữ min-h-11 (44px)".
+`ActionButton` dùng chung cho ~90 chỗ, phần lớn là sheet trên điện thoại → **44px
+thắng**. Nút 30px là dáng riêng của top bar, dựng cùng PR khung app.
+
+## Khung app: rail + top bar (bản 1a)
+
+`AppLayout` → `AppRail` (52px, trái) · `AppTopBar` (52px, trên) · `BottomNav` (mobile).
+Danh sách đích và tiêu đề màn ở `components/navItems.ts` — **một** bảng cho cả ba.
+
+Ba luật đã đo, đừng đạp lại khi dựng tiếp:
+
+**1. Khung app đứng NGOÀI phần cuộn, không `position:sticky`, không `z-index`.** Rail và
+top bar là anh em của `<main>` trong một khung `h-dvh overflow-hidden`, nên chúng dính sẵn.
+Thanh tab dưới cũng nằm trong luồng — bản cũ `fixed` rồi chừa `pb-28` ở `<main>`, hai con
+số ở hai file, lệch nhau là dòng cuối chui xuống dưới thanh. Hệ quả: khung app không bao
+giờ chạm dải z-40 của sheet — `tests/overlayLayers.test.ts` canh đúng điều đó.
+
+**2. Top bar KHÔNG dùng `<h1>`.** 18 trang đã tự có `<h1>` của chúng, nên top bar thành
+h1 nữa là hai h1 hiện cùng lúc trên hầu hết route. Top bar là khung ("đang ở đâu"), tiêu
+đề tài liệu thuộc về trang. Hai trang mà h1 vốn là **nhãn tháng** (Sổ, Ngân sách) nay
+dùng `<h1 className="sr-only">` cho tên màn và `<p aria-live>` cho nhãn tháng.
+
+**3. Vùng chạm nhỏ hơn 44px chỉ được phép ở phần CHỈ-DESKTOP.** Rail 34px, control top
+bar 28–30px — cả hai `hidden lg:flex`, tức chỉ tồn tại khi thiết bị trỏ là chuột (ngưỡng
+WCAG 2.5.8 là 24px). Bản mobile của rail là thanh tab dưới, ở đó **46px**.
 
 ### `Money` — lưu ý về dấu
 
@@ -269,6 +360,19 @@ Hai chỗ **không** dùng `<Guide>` mà đọc thẳng `useDensity()`, có lý 
 - `<StatusDot tone label>` — chấm 8px cho dòng danh sách, `label` **bắt buộc** (màu là kênh duy nhất).
 
 Bộ màu ở `components/ui/statusColors.ts` (trước đây là `features/health/zoneColors.ts`): `STATUS_FILL` cho đồ hoạ (≥3:1), `STATUS_STROKE` cho SVG, `STATUS_CHIP` cho chip (≥4,5:1 vì có chữ). Số đo thật ghi trong file.
+
+Từ bản 1a, `STATUS_CHIP` đọc token `--state-{good,warn,bad}-{bg,border,fg}` thay vì viết
+cặp sáng/tối tại chỗ — vì **banner** của form Nhập (§4.6) dùng đúng bộ mặt đó, và để ở
+`statusColors.ts` thì banner sẽ chép tay lại. Ở dark, viền mới là thứ vẽ ra hình cái chip
+(nền chip chỉ hơn nền thẻ vài phần trăm, và 1a không có shadow). Đo lại ở dark:
+good 10,97 · warn 10,84 · bad 10,92 — ba tông giờ đồng đều, khác bảng cũ (8,09 … 10,19)
+vốn lệch vì mỗi tông một bậc alpha. Light **không đổi màu**: token light trỏ đúng bộ
+green-100/amber-100/red-100 + chữ bậc 700, viền trùng màu nền nên vô hình.
+
+`STATUS_FILL` **giữ nền đặc** — §2.6 của bộ tài liệu nói chip *và* dot cùng đổi sang
+"nền tối + viền", nhưng áp vào chấm 8px là xoá luôn cái chấm, và bản vẽ 1a cũng để chấm
+đặc. Đo lại trên thang mới (đã composite alpha, ca xấu nhất trên `sunken`): bad 3,60 ·
+warn 4,66 · good 4,52 · info 6,85 — cả bốn vẫn ≥3:1.
 
 ### Guardrail
 

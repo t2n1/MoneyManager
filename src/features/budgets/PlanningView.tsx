@@ -4,9 +4,10 @@
 // dòng tiền tích luỹ, lịch nhiệt và cơ cấu chi THỰC TẾ đều biến mất — tháng chưa xảy
 // ra thì chúng rỗng, hiện ra chỉ tổ chiếm chỗ của phần đang thực sự làm việc.
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Pencil, PiggyBank, Target, TriangleAlert } from 'lucide-react'
 import { ActionButton, Card, Money } from '../../components/ui'
+import { ConclusionLine } from '../../components/VerdictNote'
 import { Guide } from '../../components/Guide'
 import {
   useAccountBalances,
@@ -23,16 +24,11 @@ import { confirmDialog, showToast } from '../../lib/dialog'
 import { monthlyNeeded } from '../assets/goals'
 import { isFlowCategory } from '../categories/flowCategories'
 import { TagPlanCard } from '../tags/TagPlanCard'
-import { shareLabel, type AxisKey } from './axisTargets'
+import { AXIS_LABEL, BASELINE_MONTHS, shareLabel } from './axisTargets'
+import { planVerdict } from './planVerdict'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { ExpectedIncomeSheet } from './ExpectedIncomeSheet'
-import { usePlanning } from './usePlanning'
-
-const AXIS_LABEL: Record<AxisKey, string> = {
-  essential: 'Thiết yếu',
-  flexible: 'Linh hoạt',
-  savings: 'Để dành',
-}
+import { SUGGEST_MONTHS, usePlanning } from './usePlanning'
 
 export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   const monthKeyStr = monthKeyString(monthKey)
@@ -119,7 +115,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
     if (pending.length === 0) return
     const ok = await confirmDialog({
       title: `Đặt hạn mức cho ${pending.length} danh mục?`,
-      message: 'Dùng số trung bình 3 tháng cho những mục chưa đặt. Sửa lại từng mục sau vẫn được.',
+      message: `Dùng số trung bình ${SUGGEST_MONTHS} tháng cho những mục chưa đặt. Sửa lại từng mục sau vẫn được.`,
       confirmLabel: 'Đặt hết',
     })
     if (!ok) return
@@ -139,11 +135,17 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
 
   const { summary } = data
   const over = summary.unallocated < 0
+  // Câu phán: ngưỡng, cách nối mệnh đề và ca "chưa biết thu nhập" nằm ở planVerdict.ts
+  // cùng test của nó — ở đây chỉ có việc bày ra.
+  const verdict = useMemo(
+    () => planVerdict({ summary, gapCount: data.gaps.length }),
+    [summary, data.gaps.length],
+  )
 
   return (
     <div className="flex flex-col gap-3">
       {data.hasMissingRate && (
-        <div className="rounded-lg bg-amber-50 p-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+        <div className="rounded-md border border-state-warn-border bg-state-warn-bg p-2 text-xs text-state-warn-fg">
           Một phần cam kết ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
@@ -156,6 +158,19 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
             <p className="mb-2 text-xs font-medium text-fg-accent">
               Tháng chưa bắt đầu · đang lập kế hoạch
             </p>
+            {/* CÂU KẾT LUẬN của 18a, đứng trước mọi con số. Đây là màn duy nhất trong
+                app phán được "kế hoạch này có ổn không" TRƯỚC khi tiêu đồng nào, mà bốn
+                ô KPI với ba thanh trục thì không tự nói ra điều đó.
+                Qua <ConclusionLine> chứ không <VerdictNote> — §5.0/R7: câu kết luận đầu
+                màn phải sống sót ở CẢ HAI chế độ mật độ, còn VerdictNote thu về một chip
+                vài chữ ở chế độ Gọn. */}
+            {verdict && (
+              <div className="mb-3">
+                <ConclusionLine tone={verdict.tone} short={verdict.short}>
+                  {verdict.text}
+                </ConclusionLine>
+              </div>
+            )}
             {summary.incomeSource === 'unknown' ? (
               <>
                 <p className="text-sm text-fg-secondary">
@@ -172,22 +187,38 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
               </>
             ) : (
               <>
-                <div className="flex items-baseline gap-2">
-                  <Money
-                    amount={Math.abs(summary.unallocated)}
-                    currency={base}
-                    tone={over ? 'out' : 'neutral'}
-                    className="text-3xl font-bold leading-none tracking-tight"
-                  />
-                  <span className="text-xs text-fg-secondary">
-                    {summary.unallocated > 0
-                      ? 'chưa phân bổ'
-                      : summary.unallocated === 0
-                        ? 'đã chia hết'
-                        : 'chia quá tay'}
-                  </span>
+                {/* BỐN ô của 18a: Thu dự kiến · Đã phân bổ · Chưa phân bổ · Cam kết đã
+                    biết. Trước đây chỉ có một con số lớn (chưa phân bổ) và một dòng chữ
+                    — ba con số kia phải tự nhẩm hoặc cuộn xuống tìm.
+
+                    "Chưa phân bổ" giữ nguyên vị trí và cỡ chữ của con số lớn cũ: nó vẫn
+                    là con số quyết định của màn, ba ô kia là bằng chứng đứng cạnh. */}
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <PlanTile label="Thu dự kiến" badge={summary.incomeSource === 'baseline' ? 'NỀN' : undefined}>
+                    <Money amount={summary.income} currency={base} tone="in" compact />
+                  </PlanTile>
+                  <PlanTile label="Đã phân bổ">
+                    <Money amount={summary.allocated} currency={base} tone="neutral" compact />
+                  </PlanTile>
+                  <PlanTile label={over ? 'Chia quá tay' : 'Chưa phân bổ'}>
+                    <Money
+                      amount={Math.abs(summary.unallocated)}
+                      currency={base}
+                      tone={over ? 'out' : 'neutral'}
+                      compact
+                    />
+                  </PlanTile>
+                  <PlanTile label="Cam kết đã biết">
+                    <Money
+                      amount={data.commitments.total}
+                      currency={base}
+                      tone="neutral"
+                      approx={data.hasMissingRate}
+                      compact
+                    />
+                  </PlanTile>
                 </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-sunken">
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-sunken">
                   <div
                     className={`h-full rounded-full ${over ? 'bg-red-500' : 'bg-green-500'}`}
                     style={{
@@ -206,12 +237,11 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                     className="-my-2 inline-flex min-h-11 items-center gap-1 text-left"
                   >
                     <span>
-                      Thu dự kiến{' '}
-                      <b className="font-semibold text-fg-primary">
-                        {formatMoney(summary.income, base)}
-                      </b>{' '}
+                      Sửa thu dự kiến{' '}
                       <span className="text-fg-muted">
-                        {summary.incomeSource === 'declared' ? 'tự khai' : 'TB 3 tháng'}
+                        {summary.incomeSource === 'declared'
+                          ? 'đang dùng số tự khai'
+                          : `đang dùng nền — TB ${BASELINE_MONTHS} tháng có dữ liệu`}
                       </span>
                     </span>
                     <Pencil className="h-3.5 w-3.5 shrink-0 text-fg-muted" aria-hidden />
@@ -268,6 +298,27 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                           {l.direction === 'cap' ? 'trần' : 'sàn'} {formatMoney(l.target, base)}
                         </span>
                       </div>
+                      {/* THÀNH PHẦN của trục, một dòng (18a: "Nhà ở ¥112,000 · Đi lại
+                          ¥10,000 · Sức khỏe ¥18,000 · 4 mục khác"). Không có nó thì "41%"
+                          là một con số không sửa được: muốn hạ nó xuống phải tự đoán trục
+                          Thiết yếu gồm những mục nào.
+                          Một DÒNG chứ không phải danh sách xổ ra như mặt theo dõi: ở đây
+                          chưa có giao dịch nào để bấm vào xem, nên một danh sách bấm được
+                          là hứa hẹn suông. Ba cái tên đầu đủ để nhận ra trục gồm gì.
+                          Trục "Để dành" không bao giờ có lát nào — nó là HIỆU, không phải
+                          tổng của danh mục nào (xem axisSlices) — nên tự ẩn. */}
+                      {l.slices.length > 0 && (
+                        <p className="mt-0.5 truncate text-2xs text-fg-muted">
+                          {l.slices
+                            .slice(0, 3)
+                            .map(
+                              (s) =>
+                                `${catOf(s.categoryId)?.name ?? 'Chưa rõ'} ${formatMoney(Math.round(s.amount), base)}`,
+                            )
+                            .join(' · ')}
+                          {l.slices.length > 3 && ` · ${l.slices.length - 3} mục khác`}
+                        </p>
+                      )}
                     </li>
                   )
                 })}
@@ -288,7 +339,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
               )}
 
               {summary.axis.unclassified > 0 && (
-                <p className="mt-3 rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                <p className="mt-3 rounded-md border border-state-warn-border bg-state-warn-bg px-2 py-1.5 text-xs text-state-warn-fg">
                   {formatMoney(Math.round(summary.axis.unclassified), base)} hạn mức thuộc danh
                   mục chưa phân loại nên hai dòng đầu đang thiếu.
                 </p>
@@ -336,7 +387,19 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
               </ul>
 
               {data.gaps.length > 0 && (
-                <ul className="mt-2 flex flex-col gap-1.5">
+                <>
+                  {/* Tiêu đề nhóm với TỔNG thiếu (18a: "Hạn mức chưa phủ hết cam kết —
+                      thiếu tổng ¥14,300"). Từng dòng bên dưới đã nói thiếu bao nhiêu ở
+                      đâu, nhưng "phải tìm thêm bao nhiêu tiền" là một câu hỏi khác, và
+                      với ba bốn dòng thì nó thành một phép cộng nhẩm. */}
+                  <p className="mt-3 text-2xs font-semibold uppercase tracking-wide text-fg-warn">
+                    Hạn mức chưa phủ hết cam kết · thiếu tổng{' '}
+                    {formatMoney(
+                      data.gaps.reduce((s, g) => s + g.short, 0),
+                      base,
+                    )}
+                  </p>
+                  <ul className="mt-1 flex flex-col gap-1.5">
                   {data.gaps.map((g) => {
                     // Cam kết đã gộp lên danh mục MANG TRẦN, nên chỗ báo có thể là một
                     // nhóm. Gọi đúng tên loại trần thì người đọc biết mình sắp sửa cái gì.
@@ -348,7 +411,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                         <button
                           type="button"
                           onClick={() => setEditing(g.categoryId)}
-                          className="flex min-h-11 w-full items-center gap-2 rounded-lg bg-amber-50 px-2 py-1.5 text-left text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                          className="flex min-h-11 w-full items-center gap-2 rounded-md border border-state-warn-border bg-state-warn-bg px-2 py-1.5 text-left text-xs text-state-warn-fg"
                         >
                           <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
                           <span className="min-w-0 flex-1">
@@ -365,7 +428,8 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                       </li>
                     )
                   })}
-                </ul>
+                  </ul>
+                </>
               )}
             </Card>
           )}
@@ -407,7 +471,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                         </span>
                         <span className="block text-2xs text-fg-muted">
                           {r.suggestion
-                            ? `TB 3 tháng ${formatMoney(r.suggestion.average, base)} · cao nhất ${formatMoney(r.suggestion.max, base)}`
+                            ? `TB ${SUGGEST_MONTHS} tháng ${formatMoney(r.suggestion.average, base)} · cao nhất ${formatMoney(r.suggestion.max, base)}`
                             : 'chưa có lịch sử'}
                           {r.committed > 0 && (
                             <span className={r.thieu ? 'text-fg-warn' : undefined}>
@@ -479,6 +543,40 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
           onClose={() => setIncomeOpen(false)}
         />
       )}
+    </div>
+  )
+}
+
+/**
+ * Một ô trong hàng bốn ô của mặt lập kế hoạch (18a).
+ *
+ * `badge` chỉ dùng cho ô Thu dự kiến: chữ "NỀN" nói rằng con số đó là app TỰ SUY từ
+ * trung bình các tháng có dữ liệu, không phải người dùng khai. Phân biệt này quan trọng
+ * vì cả kế hoạch treo trên nó — chia hết một mẫu số app đoán hộ thì tháng lương thấp là
+ * vỡ kế hoạch mà không ai báo trước.
+ */
+function PlanTile({
+  label,
+  badge,
+  children,
+}: {
+  label: string
+  badge?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="min-w-0 rounded-md border border-border-panel bg-surface px-3 py-2.5">
+      <p className="flex items-center gap-1 text-2xs uppercase tracking-[.1em] text-fg-muted">
+        <span className="min-w-0 truncate">{label}</span>
+        {badge && (
+          <span className="shrink-0 rounded border border-state-warn-border bg-state-warn-bg px-1 text-3xs font-semibold tracking-normal text-state-warn-fg">
+            {badge}
+          </span>
+        )}
+      </p>
+      <p className="mt-1.5 font-mono text-lg font-medium leading-none tracking-[-.02em] text-fg-primary">
+        {children}
+      </p>
     </div>
   )
 }

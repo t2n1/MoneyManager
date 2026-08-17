@@ -317,7 +317,7 @@ export function EventFormSheet({
                 <button
                   type="button"
                   onClick={() => setPresetsOpen(true)}
-                  className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-green-50 dark:bg-green-900/30 px-3 text-xs font-semibold text-green-700 dark:text-green-400 active:scale-95"
+                  className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-green-50 dark:bg-green-900/30 px-3 text-xs font-semibold text-fg-accent active:scale-95"
                 >
                   <Sparkles className="h-3.5 w-3.5" /> Chọn mẫu
                 </button>

@@ -123,7 +123,7 @@ export function ReconcileSheet({
         {/* Bẫy hay gặp: điều chỉnh tổng nợ mà quên kỳ đã chốt chờ rút → dòng
             "Kỳ này" về 0 như thể không phải trả, người dùng tưởng app hỏng. */}
         {isCard && (billedPending ?? 0) > 0 && (
-          <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+          <p className="mb-3 rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-xs text-state-warn-fg">
             Thẻ đang có kỳ <b>đã chốt chờ rút</b>: {formatMoney(billedPending ?? 0, currency)}
             {billedDueISO ? ` vào ${dayMonthLabel(billedDueISO)}` : ''}. Số "đang nợ thực tế" phải
             gồm cả khoản này — nhập thiếu thì dòng "Kỳ này" sẽ về {formatMoney(0, currency)} như
@@ -142,7 +142,7 @@ export function ReconcileSheet({
             currency={currency}
             ariaLabel={isCard ? 'Số đang nợ thực tế' : 'Số dư thực tế'}
             onEnter={handleSubmit}
-            className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold outline-green-500 dark:bg-gray-900 dark:text-gray-100"
+            className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-right font-mono text-lg font-semibold text-fg-primary outline-accent"
           />
         </div>
 
@@ -162,14 +162,19 @@ export function ReconcileSheet({
             ? 'Mặc định là ngày chốt sao kê gần nhất, để lần tự trả thẻ kế tiếp rút đúng số.'
             : occurredOn > suggestedDate && suggestedDate !== todayISO
               ? 'Ghi sau ngày chốt sao kê: lần tự trả thẻ kế tiếp sẽ KHÔNG thấy khoản bù này.'
-              : 'Số dư khớp lại kể từ ngày này.'}
+              : // Mệnh đề thứ hai là của 19b, và nó mới là phần người ta hiểu sai: đối
+                // chiếu KHÔNG viết lại quá khứ. Thiếu nó thì "khớp lại kể từ ngày này" dễ
+                // đọc thành "app sẽ sửa các số dư cũ cho đúng", nên người dùng lùi ngày về
+                // đầu tháng hy vọng vá được cả tháng — thực tế chỉ tạo một khoản bù nằm
+                // sai chỗ, và mọi tổng của tháng đó lệch thêm một lần nữa.
+                'Số dư khớp lại kể từ ngày này. Giao dịch trước ngày đó giữ nguyên.'}
         </p>
 
-        <div className="mb-3 rounded-lg bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm">
+        <div className="mb-3 rounded-md border border-border-subtle bg-surface-sunken px-3 py-2 text-sm">
           <div className="flex items-center justify-between text-fg-muted">
             <span>{isCard ? 'Nợ thay đổi' : 'Chênh lệch'}</span>
             <span
-              className={`tabular-nums font-semibold ${
+              className={`font-mono font-semibold ${
                 diff === 0
                   ? 'text-fg-muted'
                   : diff > 0
@@ -182,14 +187,21 @@ export function ReconcileSheet({
               {formatMoney(Math.abs(diff), currency)}
             </span>
           </div>
+          {/* 19b viết câu này ra thành đủ ba mảnh: LỆCH CHIỀU NÀO ("Sổ đang ghi nhiều hơn
+              thực tế"), BAO NHIÊU, và VÀO ĐÂU ("danh mục Điều chỉnh số dư"). Bản cũ chỉ
+              nói "sẽ tạo một giao dịch thu điều chỉnh" — đúng nhưng thiếu đúng hai thứ
+              người dùng cần sau khi bấm: tên danh mục là từ khoá duy nhất để tìm lại khoản
+              bù này trong Sổ, và số tiền để đối chiếu với con số vừa gõ. Chiều lệch nói
+              bằng lời chứ không bằng dấu vì "thu" hay "chi" ở đây trả lời một câu hỏi khác
+              (app ghi gì) với câu người dùng đang hỏi (tôi gõ đúng chưa). */}
           <p className="mt-1 text-xs text-fg-muted">
             {diff === 0
               ? isCard
                 ? 'Số nợ đã khớp — không cần điều chỉnh.'
                 : 'Số dư đã khớp — không cần điều chỉnh.'
               : isCard
-                ? `Nợ thật ${diff > 0 ? 'ít' : 'nhiều'} hơn sổ — sẽ tạo một giao dịch bù trên thẻ (không tính vào thống kê).`
-                : `Sẽ tạo một giao dịch ${diff > 0 ? 'thu' : 'chi'} điều chỉnh (không tính vào thống kê).`}
+                ? `Nợ thật ${diff > 0 ? 'ít' : 'nhiều'} hơn sổ — sẽ tạo một giao dịch bù ${formatMoney(Math.abs(diff), currency)} trên thẻ vào danh mục ${ADJUST_CATEGORY_NAME}, không tính vào thống kê thu chi.`
+                : `Sổ đang ghi ${diff > 0 ? 'ít' : 'nhiều'} hơn thực tế — sẽ tạo một giao dịch bù ${formatMoney(Math.abs(diff), currency)} vào danh mục ${ADJUST_CATEGORY_NAME}, không tính vào thống kê thu chi.`}
           </p>
         </div>
 
@@ -197,7 +209,7 @@ export function ReconcileSheet({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Hủy
           </button>

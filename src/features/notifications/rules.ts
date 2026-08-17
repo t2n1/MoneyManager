@@ -17,6 +17,8 @@ import { tagRules } from './rules/tagRules'
 import { cardRules } from './rules/cardRules'
 import { rhythmRules } from './rules/rhythmRules'
 import { lifetimeRules } from './rules/lifetimeRules'
+import { dataRules } from './rules/dataRules'
+import { levelShiftRule } from './rules/trendRules'
 
 /**
  * Trần của phần ĐANG HIỆN lúc còn thu gọn (mục C.4). KHÔNG phải trần cứng và
@@ -79,6 +81,8 @@ export function buildNotifications(input: NotificationInput): NotificationResult
     ...cardRules(input),
     ...rhythmRules(input),
     ...lifetimeRules(input),
+    ...dataRules(input),
+    ...levelShiftRule(input),
   ]
   return arrangeNotifications(all, input.offTypes)
 }

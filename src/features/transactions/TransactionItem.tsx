@@ -1,4 +1,5 @@
-import { ArrowRightLeft, CheckCircle2, Circle, HandCoins, Repeat, Undo2 } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { ArrowRightLeft, CheckCircle2, Circle, Copy, HandCoins, Repeat, Undo2 } from 'lucide-react'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
 import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
@@ -25,7 +26,17 @@ interface Props {
    * để những màn chưa tải bảng liên kết nhãn giữ nguyên dáng cũ.
    */
   tags?: TagRow[]
+  /**
+   * "Nhân bản sang hôm nay" (§4.2 mục 5). Có hàm này thì dòng nhận thêm hai cử chỉ:
+   * VUỐT SANG TRÁI trên cảm ứng, và CHUỘT PHẢI trên máy tính. Không truyền thì dòng
+   * giữ nguyên hành vi cũ — Tìm kiếm dùng chung dòng này và ở đó "hôm nay" không
+   * thuộc kỳ đang xem, nhân bản sang đó là khoản biến mất khỏi màn ngay khi tạo.
+   */
+  onDuplicate?: () => void
 }
+
+/** Vuốt bao xa thì tính là một cú vuốt, px. Dưới ngưỡng này là cuộn hoặc chạm trượt tay. */
+const SWIPE_PX = 64
 
 /** Một dòng giao dịch (dùng chung cho Sổ GD và Tìm kiếm). */
 export function TransactionItem({
@@ -37,18 +48,71 @@ export function TransactionItem({
   selecting = false,
   selected = false,
   tags = [],
+  onDuplicate,
 }: Props) {
+  // Vuốt: theo dõi bằng ref + một state cho độ dịch. Không dùng thư viện cử chỉ nào —
+  // đây là một trục, một ngưỡng, và kéo cả một thư viện vào để làm việc đó thì mọi
+  // dòng của danh sách dài nhất app phải gánh thêm bộ nhớ.
+  //
+  // Chỉ chặn cuộn dọc khi đã CHẮC là vuốt ngang (|dx| > |dy|): chặn sớm là danh sách
+  // không cuộn được bằng ngón cái đặt lên một dòng — tức là gần như mọi lần cuộn.
+  const start = useRef<{ x: number; y: number; ngang: boolean } | null>(null)
+  const [dx, setDx] = useState(0)
+
   const cat = categoryOf(tx.category_id)
   const style = amountDisplay(tx)
   const srcCur = accountOf(tx.account_id)?.currency ?? base
   const dstCur = tx.to_account_id ? (accountOf(tx.to_account_id)?.currency ?? srcCur) : srcCur
   const accountName = (id: string | null) => accountOf(id)?.name ?? '?'
 
-  return (
+  const row = (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={selecting ? selected : undefined}
+      // Chuột phải = nhân bản (§4.2 mục 5, bản desktop). Chặn menu ngữ cảnh của trình
+      // duyệt vì trên một dòng giao dịch nó chỉ có "Sao chép ảnh / Kiểm tra phần tử".
+      onContextMenu={
+        onDuplicate && !selecting
+          ? (e) => {
+              e.preventDefault()
+              onDuplicate()
+            }
+          : undefined
+      }
+      onTouchStart={
+        onDuplicate && !selecting
+          ? (e) => {
+              const t = e.touches[0]
+              start.current = { x: t.clientX, y: t.clientY, ngang: false }
+            }
+          : undefined
+      }
+      onTouchMove={
+        onDuplicate && !selecting
+          ? (e) => {
+              const s = start.current
+              if (!s) return
+              const t = e.touches[0]
+              const ddx = t.clientX - s.x
+              const ddy = t.clientY - s.y
+              if (!s.ngang && Math.abs(ddx) > Math.abs(ddy) && Math.abs(ddx) > 8) s.ngang = true
+              // Chỉ theo ngón khi đã chắc là vuốt NGANG, và chỉ chiều sang TRÁI.
+              if (s.ngang) setDx(Math.max(-96, Math.min(0, ddx)))
+            }
+          : undefined
+      }
+      onTouchEnd={
+        onDuplicate && !selecting
+          ? () => {
+              const qua = dx <= -SWIPE_PX
+              start.current = null
+              setDx(0)
+              if (qua) onDuplicate()
+            }
+          : undefined
+      }
+      style={dx ? { transform: `translateX(${dx}px)` } : undefined}
       // py-1.5: nội dung 2 dòng đã cao 38px, cả hàng ~50px — vẫn quá 44px vùng chạm,
       // nhưng danh sách dài nhất app (Sổ, chi tiết TK, tìm kiếm) đặc hơn ~15%.
       // min-h-[3.125rem] = 50px: dòng CHUYỂN KHOẢN không có dòng phụ tên tài khoản nên
@@ -59,7 +123,7 @@ export function TransactionItem({
       {selecting && (
         <span className="shrink-0">
           {selected ? (
-            <CheckCircle2 className="h-5 w-5 text-green-700 dark:text-green-400" />
+            <CheckCircle2 className="h-5 w-5 text-fg-accent" />
           ) : (
             <Circle className="h-5 w-5 text-fg-muted" />
           )}
@@ -120,15 +184,34 @@ export function TransactionItem({
           </span>
         )}
       </span>
-      <span className={`text-right text-sm font-semibold tabular-nums ${TONE_CLASS[style.tone]}`}>
+      {/* Số tiền đi bằng mono (§4.2: "số phải mono"). Bỏ `tabular-nums`: trong font đơn
+          cách mọi chữ số đã cùng bề rộng. */}
+      <span className={`text-right font-mono text-sm font-semibold ${TONE_CLASS[style.tone]}`}>
         {style.sign}
         {formatMoney(tx.amount, srcCur)}
         {tx.to_amount != null && (
-          <span className="block text-xs font-normal tabular-nums text-fg-muted">
+          <span className="block font-mono text-xs font-normal text-fg-muted">
             → +{formatMoney(tx.to_amount, dstCur)}
           </span>
         )}
       </span>
     </button>
+  )
+
+  if (!onDuplicate) return row
+
+  // Lớp nền lộ ra khi vuốt. `overflow-hidden` để nó không tràn ra dòng bên cạnh, và nó
+  // phải nằm DƯỚI dòng (dòng có nền riêng) chứ không cạnh dòng.
+  return (
+    <span className="relative block overflow-hidden">
+      <span
+        aria-hidden
+        className="absolute inset-y-0 right-0 flex w-24 items-center justify-center gap-1 bg-state-good-bg text-2xs font-medium text-state-good-fg"
+      >
+        <Copy className="h-3.5 w-3.5" />
+        Nhân bản
+      </span>
+      <span className="relative block bg-surface">{row}</span>
+    </span>
   )
 }

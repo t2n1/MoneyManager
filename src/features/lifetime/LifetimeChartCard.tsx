@@ -28,6 +28,8 @@ import type { YearRow } from './project'
 
 interface Props {
   rows: YearRow[]
+  /** Tắt hoạt ảnh tạm thời — đang kéo thanh trượt giả định (§12). */
+  suppressAnimation?: boolean
   historyRows: NetWorthSnapshotRow[]
   currency: CurrencyCode
   compare: YearRow[] | null
@@ -213,6 +215,7 @@ export function LifetimeChartCard({
   compare,
   compareCurrency,
   historyCurrency,
+  suppressAnimation = false,
 }: Props) {
   // CSS `prefers-reduced-motion` toàn cục (index.css) không chặn được animation của
   // Recharts vì nó vẽ bằng JS, không bằng CSS transition — phải tự đọc matchMedia.
@@ -221,7 +224,11 @@ export function LifetimeChartCard({
   // thì CHƯA — xem task-8-report.md, không tự sửa các thẻ đó ở đây (ngoài phạm vi Task 8).
   const reducedMotion =
     typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  const animate = !reducedMotion
+  // Cổng THỨ HAI, độc lập với prefers-reduced-motion: bật lên trong lúc ngón tay còn
+  // trên thanh trượt giả định (§12 — "đồ thị vẽ lại KHÔNG animate trong lúc kéo; thả
+  // tay mới nội suy"). Hoạt ảnh 60 khung cho mỗi lần nhích một pixel là 60fps giả, và
+  // đường vẽ thì luôn chạy sau ngón tay.
+  const animate = !reducedMotion && !suppressAnimation
 
   // Lịch sử (`networth_snapshots`) luôn ở `historyCurrency` (base currency của profile),
   // và kịch bản so sánh mang `compareCurrency` của riêng nó — cả hai ĐỘC LẬP với
@@ -436,7 +443,10 @@ export function LifetimeChartCard({
       {/* Legend là CHỮ, không bấm được — đánh đổi có ý thức (xem task-8-report.md):
           legend bấm được cần cao 44px, ba dòng ăn một phần ba chiều cao đồ thị trên
           điện thoại. Bật đường thứ hai đẩy sang nút "So sánh" ở LifetimePage. */}
-      <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-fg-muted">
+      {/* text-2xs, không phải một giá trị px tuỳ ý: cỡ chữ viết bằng px ĐỨNG YÊN khi
+          người dùng phóng chữ ở Cài đặt → Cỡ chữ, vì --app-font-scale chỉ co giãn được
+          cái tính theo rem (§13). Đây từng là chỗ cuối cùng trong repo còn sót. */}
+      <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-2xs text-fg-muted">
         {showHistory ? (
           <span className="flex items-center gap-1">
             <LegendSwatch color={COLOR_ACTUAL} /> Lịch sử thật

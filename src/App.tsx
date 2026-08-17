@@ -9,6 +9,9 @@ import { EntryPage } from './features/transactions/EntryPage'
 import { LedgerPage } from './features/transactions/LedgerPage'
 
 // Recharts nặng → tách chunk riêng, không nằm trong bundle khởi động (giữ mở app nhanh)
+const BulletinPage = lazy(() =>
+  import('./features/bulletin/BulletinPage').then((m) => ({ default: m.BulletinPage })),
+)
 const ReportsPage = lazy(() =>
   import('./features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 )
@@ -96,6 +99,10 @@ function ReportsRoute() {
   }
   return lazyRoute(<ReportsPage />)
 }
+// Bốn tab của Báo cáo rút còn ba (PR 7). Đường cũ `?view=charts|trends|insights` KHÔNG
+// chuyển tiếp ở đây mà `ReportsPage` tự dịch bằng `migrateReportView` — chuyển tiếp
+// bằng <Navigate> sẽ thay URL trong lịch sử, làm nút Back của trình duyệt nhảy cóc.
+// Dịch tại chỗ thì link cũ mở đúng tab, và lần bấm tab đầu tiên tự ghi khoá mới.
 
 /** `/settings/debts/:debtId` → `/debts/:debtId`: cần đọc param nên không dùng
  *  `<Navigate>` tĩnh được. */
@@ -120,8 +127,13 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<LedgerPage />} />
-          <Route path="/transactions" element={<LedgerPage />} />
+          {/* Trang chủ đổi chủ (PR 4 của redesign 1a): `/` là Bản tin, Sổ dời sang
+              `/so`. `/transactions` — đường cũ đã tồn tại từ đợt IA — nay CHUYỂN TIẾP
+              sang `/so` thay vì dựng lại LedgerPage: hai path cùng render một trang thì
+              nút Sổ trên rail chỉ sáng ở một trong hai. */}
+          <Route path="/" element={lazyRoute(<BulletinPage />)} />
+          <Route path="/so" element={<LedgerPage />} />
+          <Route path="/transactions" element={<Navigate to="/so" replace />} />
           <Route path="/entry" element={<EntryPage />} />
           <Route path="/assets" element={lazyRoute(<AssetsPage />)} />
           <Route path="/assets/groups" element={lazyRoute(<AssetGroupsPage />)} />

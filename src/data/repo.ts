@@ -498,6 +498,17 @@ export interface Repo {
   deleteTransaction(id: string): Promise<void>
   /** Xóa nhiều giao dịch cùng lúc (chọn nhiều rồi xóa). Rỗng → không làm gì. */
   deleteTransactions(ids: string[]): Promise<void>
+  /**
+   * Đổi danh mục cho nhiều giao dịch cùng lúc (sửa hàng loạt ở Sổ — §4.2 mục 4).
+   * Rỗng → không làm gì. `categoryId` null = gỡ danh mục.
+   */
+  setTransactionsCategory(ids: string[], categoryId: string | null): Promise<void>
+  /**
+   * GẮN THÊM một nhãn cho nhiều giao dịch. Khác `setTransactionTags` (thay toàn bộ
+   * nhãn của MỘT giao dịch): sửa hàng loạt là thêm một nhãn chung, không được xoá
+   * những nhãn riêng mà từng khoản đang mang. Đã gắn rồi thì bỏ qua, không nhân đôi.
+   */
+  addTagToTransactions(ids: string[], tagId: string): Promise<void>
 
   createAccount(input: NewAccount): Promise<AccountRow>
   updateAccount(id: string, patch: AccountPatch): Promise<AccountRow>

@@ -2,6 +2,10 @@
 // tự ghép `tabular-nums` + màu thu/chi bằng tay. Gom lại để hai thứ này thành cấu
 // trúc chứ không phải thói quen:
 //   1. tabular-nums LUÔN bật. Thiếu nó thì danh sách 20 dòng có chữ số nhảy ngang.
+//      Từ bản 1a có thêm font-mono: tabular-nums chỉ khoá BỀ RỘNG chữ số trong font
+//      sans, còn IBM Plex Mono khoá cả dáng chữ — dấu phẩy nghìn, dấu trừ và ký hiệu
+//      tiền cũng vào ô đều, nên cột số đọc như bảng chứ không như câu văn. Đây là một
+//      dòng, nhưng là thay đổi NHÌN THẤY RÕ NHẤT của cả bản redesign.
 //   2. Màu thu/chi lấy từ token --money-in/--money-out, tức là quyết định contrast
 //      nằm ở MỘT chỗ (src/index.css) thay vì 124 chỗ.
 // KHÔNG tự định dạng số: bọc formatMoney/formatCompact của lib/money để giữ nguyên
@@ -57,7 +61,7 @@ export function Money({
   // trộn hai glyph trong cùng một danh sách sẽ lệch bề rộng dù đã tabular-nums.
   const prefix = showSign ? (resolved === 'out' ? '-' : '+') : ''
   return (
-    <span className={`tabular-nums ${TONE_CLASS[resolved]} ${className}`.trim()}>
+    <span className={`font-mono tabular-nums ${TONE_CLASS[resolved]} ${className}`.trim()}>
       {approx ? '≈ ' : ''}
       {prefix}
       {body}

@@ -32,9 +32,24 @@ interface Props {
   currencyOf: CurrencyOf
   /** Bật fetch — chỉ khi tab này đang hiện và đã có hồ sơ (biết month_start_day). */
   enabled: boolean
+  /**
+   * Chỉ giữ N năm GẦN NHẤT (phạm vi "3N" của tab Dài hạn — §4.5). Bỏ trống = tất cả.
+   *
+   * Cắt ở đây, SAU khi đã dựng chuỗi tháng, chứ không cắt lúc fetch: mùa vụ và điểm gãy
+   * cần chuỗi liền mạch, mà giới hạn khoảng ngày lúc fetch thì hai phép đó lặng lẽ tính
+   * trên ít dữ liệu hơn người dùng tưởng. Ở đây chỉ BẢNG theo năm ngắn lại.
+   */
+  maxYears?: number
 }
 
-export function MultiYearView({ monthStartDay, base, rates, currencyOf, enabled }: Props) {
+export function MultiYearView({
+  monthStartDay,
+  base,
+  rates,
+  currencyOf,
+  enabled,
+  maxYears,
+}: Props) {
   const { data: txs = [], isFetched } = useRangeTransactions(ALL_TIME, enabled)
 
   const months = useMemo(() => monthKeysOf(txs, monthStartDay), [txs, monthStartDay])
@@ -43,7 +58,15 @@ export function MultiYearView({ monthStartDay, base, rates, currencyOf, enabled 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [txs, months, monthStartDay, base, rates],
   )
-  const rows = useMemo(() => yearlyTotals(series), [series])
+  const allRows = useMemo(() => yearlyTotals(series), [series])
+  const rows = useMemo(
+    () => (maxYears ? allRows.slice(-maxYears) : allRows),
+    [allRows, maxYears],
+  )
+  // Mẫu số của thanh so sánh: năm chi NHIỀU NHẤT trong đúng những năm đang hiện. Lấy
+  // trên `rows` chứ không `allRows` — ở phạm vi 3N, một năm 2019 khổng lồ ngoài khung
+  // sẽ bóp mọi thanh trong khung xuống còn vài pixel.
+  const maxExpense = useMemo(() => rows.reduce((m, r) => Math.max(m, r.expense), 0), [rows])
   const season = useMemo(() => seasonality(series), [series])
   const insights = useMemo(() => multiYearInsights(rows), [rows])
 
@@ -155,6 +178,11 @@ export function MultiYearView({ monthStartDay, base, rates, currencyOf, enabled 
                 <th scope="col" className="px-3 py-2 text-right font-medium">
                   Tiết kiệm
                 </th>
+                {/* Cột thanh không có nhãn: nhãn của nó là chính cột Chi mà nó vẽ lại.
+                    Đặt một chữ ở đây thành hai tiêu đề cho một con số. */}
+                <th scope="col" className="px-3 py-2">
+                  <span className="sr-only">So sánh mức chi giữa các năm</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -179,6 +207,26 @@ export function MultiYearView({ monthStartDay, base, rates, currencyOf, enabled 
                   </td>
                   <td className="px-3 py-2 text-right text-fg-primary">
                     {r.savingsRateBps === null ? '—' : `${(r.savingsRateBps / 100).toFixed(0)}%`}
+                  </td>
+                  {/* THANH SO SÁNH (15a mục 5: "một dòng một năm có thanh so sánh").
+                      Một bảng năm cột số thì phải đọc từng ô rồi tự so; một thanh thì
+                      thấy ngay năm nào to. Chuẩn hoá theo năm CHI NHIỀU NHẤT, không theo
+                      tổng: đây là so các năm VỚI NHAU, không phải chia phần một tổng. */}
+                  <td className="w-24 px-3 py-2">
+                    <div
+                      className="h-1.5 overflow-hidden rounded-full bg-surface-sunken"
+                      role="img"
+                      aria-label={`Chi năm ${r.year} bằng ${
+                        maxExpense > 0 ? Math.round((r.expense / maxExpense) * 100) : 0
+                      }% năm chi nhiều nhất`}
+                    >
+                      <div
+                        className="h-full rounded-full bg-money-out"
+                        style={{
+                          width: `${maxExpense > 0 ? (r.expense / maxExpense) * 100 : 0}%`,
+                        }}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}

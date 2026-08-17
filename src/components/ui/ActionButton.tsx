@@ -12,13 +12,30 @@ import type { ButtonHTMLAttributes } from 'react'
 export type ActionButtonVariant = 'outline' | 'primary'
 
 // min-h-11 = 44px: chuẩn vùng chạm, nằm ở BASE để mọi nút chữ tự đạt không cần nhớ.
+//
+// ⚠️ Bản 1a ghi nút chính cao 30px. KHÔNG áp con số đó ở đây, và đây là mâu thuẫn
+// trong chính bộ tài liệu chứ không phải mình bỏ sót: §2.5 tả cái nút "+ Giao dịch"
+// nằm trên TOP BAR desktop (một chỗ, chuột), còn §4.6 nói thẳng "mọi vùng chạm giữ
+// min-h-11 (44px) đúng như code hiện tại". ActionButton là nút chữ dùng chung cho ~90
+// chỗ, phần lớn là sheet trên điện thoại. Hạ sàn xuống 30px để khớp một cái nút ở
+// desktop là đổi vùng chạm của tất cả — 44px thắng.
+// Nút 30px của top bar dựng cùng PR khung app (PR 3), ở đó nó là một dáng riêng.
+//
+// rounded-md (6px) chứ không rounded-lg: 1a tách bán kính CONTROL (5–7px) khỏi bán
+// kính PANEL (8px) — xem §1.3. Trước đây app dùng 8px cho cả hai.
 const BASE =
-  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg transition active:scale-95 disabled:opacity-50'
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md transition active:scale-95 disabled:opacity-50'
 
 const VARIANT: Record<ActionButtonVariant, string> = {
+  // Nền TRONG SUỐT, không phải bg-surface: nút phụ của 1a chỉ là một khung viền đặt
+  // thẳng lên nền nó đang đứng. Hover đổi nền thay vì đổi màu viền — cùng ý "nút này
+  // sống", nhưng không cần thêm một token viền chỉ dùng cho hover.
   outline:
-    'border border-border-strong px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-gray-50 dark:hover:bg-gray-800',
-  primary: 'bg-green-700 px-4 py-2 text-sm font-semibold text-white',
+    'border border-border-strong bg-transparent px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-surface-sunken',
+  // bg-accent + text-fg-on-accent, không phải bg-green-700 + text-white: token đã lật
+  // sẵn theo chế độ, còn chữ trắng trên --accent ở dark chỉ được 2,22:1 (bẫy ghi ở
+  // tests/contrast.test.ts). 13px/600 là bậc chữ nút của 1a.
+  primary: 'bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-fg-on-accent',
 }
 
 export function actionButtonClass(variant: ActionButtonVariant = 'outline', extra = ''): string {

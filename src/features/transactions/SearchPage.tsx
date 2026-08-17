@@ -86,10 +86,16 @@ export function SearchPage() {
     to: searchParams.get('to') || toISODate(new Date()),
     // Từ bảng "khoản chưa gắn danh mục" ở tab Thấu hiểu: ?uncat=1&from=…&to=…
     uncat: searchParams.get('uncat') === '1',
+    // Từ ô tìm kiếm trên top bar (bản 1a §3): ?q=… . Ô đó chỉ chuyển tiếp chữ đã gõ
+    // sang đây chứ không tự tìm — mọi bộ lọc thật đều ở trang này.
+    q: searchParams.get('q') ?? '',
   }))[0]
 
-  const [text, setText] = useState('')
-  const [debouncedText, setDebouncedText] = useState('')
+  const [text, setText] = useState(initial.q)
+  // Bản debounce khởi tạo BẰNG chữ ban đầu chứ không rỗng: để rỗng thì mở link `?q=…`
+  // sẽ hiện nguyên danh sách chưa lọc trong 300ms đầu — một màn đầy giao dịch không
+  // liên quan, rồi mới co lại.
+  const [debouncedText, setDebouncedText] = useState(initial.q)
   const [typeFilter, setTypeFilter] = useState<TransactionType | 'all'>('all')
   const [from, setFrom] = useState(initial.from)
   const [to, setTo] = useState(initial.to)
@@ -215,7 +221,7 @@ export function SearchPage() {
     <div className="p-3 lg:p-6">
       {/* Header */}
       <div className="mb-3 flex items-center gap-2">
-        <BackLink to="/transactions" aria-label="Quay lại" />
+        <BackLink to="/so" aria-label="Quay lại" />
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Tìm kiếm</h1>
       </div>
 
@@ -282,7 +288,7 @@ export function SearchPage() {
       <button
         type="button"
         onClick={() => setShowMore((v) => !v)}
-        className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400"
+        className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-fg-accent"
       >
         {showMore ? 'Ẩn bộ lọc' : 'Lọc theo danh mục / nhãn / tài khoản'}
         {showMore ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -418,7 +424,7 @@ export function SearchPage() {
               <button
                 type="button"
                 onClick={() => setTagIds([])}
-                className="font-medium text-green-700 dark:text-green-400"
+                className="font-medium text-fg-accent"
               >
                 Bỏ lọc nhãn
               </button>
@@ -430,7 +436,7 @@ export function SearchPage() {
             type="button"
             onClick={() => (selection.selecting ? selection.exit() : selection.enter())}
             // -my-2 để vùng chạm 44px không đội dòng "n kết quả" ra xa danh sách
-            className="-my-2 inline-flex min-h-11 shrink-0 items-center justify-center px-2 text-xs font-medium text-green-700 dark:text-green-400"
+            className="-my-2 inline-flex min-h-11 shrink-0 items-center justify-center px-2 text-xs font-medium text-fg-accent"
           >
             {selection.selecting ? 'Xong' : 'Chọn'}
           </button>

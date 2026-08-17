@@ -40,14 +40,38 @@ const USERS = SOURCES.filter(
     code.includes('<DataFreshness'),
 ).map(([file]) => file)
 
+// Hai chỗ dựng, cả hai đều là KHUNG APP chứ không phải trang — luật 1 cấm trang tự
+// chèn, không cấm khung có hai điểm neo. Bản 1a (§3) đưa dòng này lên top bar; top bar
+// chỉ có từ lg và bản trên đó lại ẩn dưới xl (không đủ chỗ), nên chân trang vẫn là bản
+// duy nhất cho mobile và cho khoảng 1024–1280.
+const ALLOWED_HOSTS = ['components/AppFooter.tsx', 'components/AppTopBar.tsx']
+
 describe('chỗ đứng của <DataFreshness>', () => {
-  it('chỉ chân trang được dựng — không trang nào tự chèn', () => {
-    expect(USERS).toEqual(['components/AppFooter.tsx'])
+  it('chỉ khung app được dựng — không trang nào tự chèn', () => {
+    expect([...USERS].sort()).toEqual([...ALLOWED_HOSTS].sort())
+  })
+
+  it('không file nào trong features/ dựng nó', () => {
+    expect(USERS.filter((f) => f.startsWith('features/'))).toEqual([])
   })
 
   it('chân trang thật sự nằm trong layout, không phải một trang', () => {
     const layout = SOURCES.find(([file]) => file === 'components/AppLayout.tsx')
     expect(layout?.[1]).toMatch(/<AppFooter\s*\/>/)
+  })
+
+  // Hai điểm neo chỉ được phép vì chúng LOẠI TRỪ NHAU theo bề ngang màn. Bỏ mốc `xl:`
+  // ở một trong hai là quay lại đúng cái luật 1 đi ngăn: cùng một dòng chữ hiện hai
+  // lần trên một màn, ở hai độ cao khác nhau.
+  it('hai bản loại trừ nhau theo bề ngang màn (mốc xl)', () => {
+    for (const host of ALLOWED_HOSTS) {
+      const code = SOURCES.find(([file]) => file === host)?.[1] ?? ''
+      const at = code.indexOf('<DataFreshness')
+      const wrapper = code.slice(Math.max(0, at - 300), at)
+      expect(wrapper, `${host}: phần tử bọc <DataFreshness> phải mang mốc xl:`).toMatch(
+        /\bxl:(hidden|inline-flex|flex|block)\b/,
+      )
+    }
   })
 })
 

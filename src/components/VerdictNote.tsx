@@ -20,6 +20,10 @@
 // và nó phải nói được điều quan trọng nhất: "Chi +23%" chứ không phải "Cần chú ý".
 // Thiếu `short` thì lùi về `label`, thiếu cả hai thì lùi về từ chung theo tone — vẫn
 // còn tín hiệu tốt/xấu, chỉ là nhạt nghĩa hơn.
+//
+// KHÔNG dùng cho câu kết luận ĐẦU MÀN — cái đó đi bằng `ConclusionLine` ở cuối file
+// này. §5.0 tách hai thứ ra vì chúng khác loại: kết luận đầu màn là DỮ LIỆU, còn thứ
+// VerdictNote gói là chữ để dạy, và chỉ chữ dạy mới được phép biến mất ở chế độ Gọn.
 import type { ReactNode } from 'react'
 import { AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-react'
 import { useDensity } from '../hooks/useDensity'
@@ -70,6 +74,55 @@ export function VerdictNote({ tone, label, short, children }: Props) {
         {sr && <span className="sr-only">{sr}</span>}
         {label && <b className={cls}>{label}: </b>}
         {children}
+      </span>
+    </p>
+  )
+}
+
+/**
+ * CÂU KẾT LUẬN ĐẦU MÀN — khác `VerdictNote`, và cố ý đặt ngay cạnh nó để lần sau ai đọc
+ * cũng thấy hai vai trò đối nhau ở cùng một chỗ.
+ *
+ * §5.0 của bản 1a: *"Câu kết luận đứng đầu màn (Báo cáo, Dài hạn, Sức khỏe, mặt lập kế
+ * hoạch) là kết luận, không phải chữ để dạy — giữ nguyên ở CẢ HAI chế độ, KHÔNG đi qua
+ * VerdictNote. Chỉ mệnh đề giải thích phía sau con số được nén (dùng bản ngắn có sẵn
+ * trong headline.ts)."* R7 xếp câu này vào nhóm ĐÃ CHỐT.
+ *
+ * Trước đây cả Bản tin lẫn Báo cáo đều đưa câu này qua `VerdictNote`, nên ở chế độ Gọn
+ * nó co thành một cái chip. Mà Gọn là MẶC ĐỊNH (`DEFAULT_DENSITY = 'visual'`) — tức mặc
+ * định người dùng KHÔNG thấy kết luận của màn mình đang mở, chỉ thấy một huy hiệu. Đo
+ * trên Báo cáo: Đầy đủ 7 câu kết luận → Gọn còn 3 chip.
+ *
+ * Khác biệt duy nhất giữa hai chế độ ở đây là ĐỘ DÀI CHỮ, không phải hình dạng:
+ *   Đầy đủ — "Giữ lại được 65% thu nhập tháng này, chi gấp 11,9 lần kỳ trước."
+ *   Gọn    — "Giữ lại 65% · chi gấp 11,9 lần"
+ * Cả hai vẫn là một DÒNG có icon, vẫn đứng đầu màn, vẫn giữ nguyên hai con số quyết
+ * định. Đó là cách đọc "giữ nguyên ở cả hai chế độ" khớp được với vế sau của chính câu
+ * đó ("chỉ mệnh đề giải thích được nén").
+ *
+ * Vì sao KHÔNG thêm một prop vào `VerdictNote` cho xong: hợp đồng của VerdictNote là
+ * "chữ dạy, nén được"; nhét thêm một nhánh "chữ dữ liệu, không nén được" vào đó là làm
+ * mờ đúng cái ranh giới mà §5.0 dựng lên.
+ */
+export function ConclusionLine({
+  tone,
+  short,
+  children,
+}: {
+  tone: NoteTone
+  /** Bản ngắn cho chế độ Gọn — phải giữ con số quyết định. */
+  short: ReactNode
+  /** Bản đầy đủ. */
+  children: ReactNode
+}) {
+  const { visual } = useDensity()
+  const { icon: Icon, cls, sr } = STYLE[tone]
+  return (
+    <p className="flex items-start gap-1.5 text-[0.8125rem] leading-relaxed text-fg-secondary">
+      <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${cls}`} aria-hidden="true" />
+      <span>
+        {sr && <span className="sr-only">{sr}</span>}
+        {visual ? short : children}
       </span>
     </p>
   )

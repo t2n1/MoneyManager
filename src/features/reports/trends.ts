@@ -228,3 +228,91 @@ export function lifestyleElasticity(
     expenseAfter,
   }
 }
+
+// ---------------------------------------------------------------------------------
+// Mùa vụ NÓI VỀ THÁNG TỚI (bản vẽ 15a mục 3)
+//
+// Khối "So với chính mình năm ngoái" mô tả QUÁ KHỨ: 12 tháng qua chi nhiều hơn 12 tháng
+// trước đó bao nhiêu. Đúng nhưng không làm được gì với nó. 15a đổi hướng câu hỏi: trong
+// những tháng SẮP TỚI, tháng nào vốn nặng hơn thường lệ, và từ giờ tới đó cần để thêm
+// bao nhiêu mỗi tháng.
+//
+// Ví dụ trong §4.5: "tháng 12 nặng hơn 34% — còn 4 tháng để dành thêm ¥28k/tháng".
+
+export interface SeasonalOutlook {
+  /** Tháng dương lịch đang nói tới (1–12). */
+  month: number
+  /** Còn bao nhiêu tháng nữa tới nó. */
+  monthsAway: number
+  /** TB chi của riêng tháng đó, qua các năm có dữ liệu. */
+  avgForMonth: number
+  /** TB chi của mọi tháng trong cửa sổ. */
+  avgOverall: number
+  /** Nặng hơn trung bình bao nhiêu phần trăm. */
+  heavierPct: number
+  /** Phần vượt trung bình, bằng tiền. */
+  extra: number
+  /** Chia phần vượt cho số tháng còn lại — số cần để thêm mỗi tháng. */
+  savePerMonth: number
+  /** Tháng đó xuất hiện mấy lần trong dữ liệu. 1 lần thì KHÔNG gọi là mùa vụ. */
+  occurrences: number
+}
+
+export interface SeasonalOptions {
+  /** Dưới mức này thì không đáng nói. */
+  minHeavierPct: number
+  /** Tháng đó phải xuất hiện ít nhất bấy nhiêu lần mới coi là một nếp mùa vụ. */
+  minOccurrences: number
+  /** Chỉ nhìn trước bấy nhiêu tháng. */
+  horizon: number
+}
+
+const DEFAULT_SEASONAL: SeasonalOptions = { minHeavierPct: 15, minOccurrences: 2, horizon: 12 }
+
+/**
+ * Tháng nặng nhất trong `horizon` tháng tới, hoặc null nếu không tháng nào đáng nói.
+ *
+ * `points` là chuỗi chi theo tháng (bất kỳ độ dài), `currentMonth` là tháng dương lịch
+ * hiện tại. Chỉ xét các tháng SAU tháng hiện tại — nói "tháng này vốn nặng" thì đã muộn,
+ * cả điểm của khối này là còn thời gian để dành thêm.
+ *
+ * `minOccurrences: 2` là ràng buộc quan trọng nhất: một tháng 12 duy nhất trong dữ liệu
+ * không phải mùa vụ, nó là một tháng 12. Thiếu chốt này thì với 12 tháng dữ liệu app sẽ
+ * gọi MỌI tháng là mùa vụ.
+ */
+export function seasonalOutlook(
+  points: { month: number; expense: number }[],
+  currentMonth: number,
+  opts: Partial<SeasonalOptions> = {},
+): SeasonalOutlook | null {
+  const { minHeavierPct, minOccurrences, horizon } = { ...DEFAULT_SEASONAL, ...opts }
+  if (points.length === 0) return null
+
+  const avgOverall = points.reduce((s, p) => s + p.expense, 0) / points.length
+  if (avgOverall <= 0) return null
+
+  let best: SeasonalOutlook | null = null
+  for (let ahead = 1; ahead <= horizon; ahead++) {
+    // ((currentMonth - 1 + ahead) % 12) + 1 — đi vòng qua tháng 12 về tháng 1.
+    const m = ((currentMonth - 1 + ahead) % 12) + 1
+    const of = points.filter((p) => p.month === m)
+    if (of.length < minOccurrences) continue
+    const avgForMonth = of.reduce((s, p) => s + p.expense, 0) / of.length
+    const heavierPct = Math.round(((avgForMonth - avgOverall) / avgOverall) * 100)
+    if (heavierPct < minHeavierPct) continue
+    const extra = Math.round(avgForMonth - avgOverall)
+    const cand: SeasonalOutlook = {
+      month: m,
+      monthsAway: ahead,
+      avgForMonth: Math.round(avgForMonth),
+      avgOverall: Math.round(avgOverall),
+      heavierPct,
+      extra,
+      savePerMonth: Math.round(extra / ahead),
+      occurrences: of.length,
+    }
+    // Nặng hơn thì thắng; bằng nhau thì lấy tháng GẦN hơn (ít thời gian chuẩn bị hơn).
+    if (!best || cand.heavierPct > best.heavierPct) best = cand
+  }
+  return best
+}

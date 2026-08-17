@@ -359,6 +359,26 @@ export function useDeleteTransactions() {
   })
 }
 
+/** Sửa hàng loạt ở Sổ (§4.2 mục 4): đổi danh mục cho nhiều khoản một lần. */
+export function useSetTransactionsCategory() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ids, categoryId }: { ids: string[]; categoryId: string | null }) =>
+      repo.setTransactionsCategory(ids, categoryId),
+    onSettled: () => invalidateTransactionData(qc),
+  })
+}
+
+/** Sửa hàng loạt ở Sổ: gắn THÊM một nhãn cho nhiều khoản (không thay nhãn sẵn có). */
+export function useAddTagToTransactions() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ids, tagId }: { ids: string[]; tagId: string }) =>
+      repo.addTagToTransactions(ids, tagId),
+    onSettled: () => invalidateTags(qc),
+  })
+}
+
 // --- Quản lý tài khoản & danh mục (GĐ2) ---
 
 function invalidateAccounts(qc: ReturnType<typeof useQueryClient>) {

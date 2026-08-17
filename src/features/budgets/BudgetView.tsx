@@ -20,6 +20,7 @@ import { dailyAllowance } from './dailyAllowance'
 import { ClassificationToggle } from '../categories/ClassificationToggle'
 import type { BudgetStatus } from './progress'
 import { BudgetVerdictLine, MonthPaceCharts, SpendPaceSection, useMonthPace } from '../reports/monthPace'
+import { AxisStrip } from './AxisStrip'
 import { AxisTargetsCard } from './AxisTargetsCard'
 import { useAxisProgress } from './useAxisProgress'
 import { TagBudgetsCard } from '../tags/TagBudgetsCard'
@@ -397,6 +398,18 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             chỉ kể chuyện đã ghi; câu này mới nói đà tháng về đâu. Để rời nhau thì trên
             mobile một vế ở y=347 còn một vế ở y=803, dưới mép gấp 732. */}
         <BudgetVerdictLine pace={pace} />
+        {/* Dải trục NGAY DƯỚI câu kết luận (§4.3). Cùng component với dải ở tab Sổ, chỉ
+            khác `linkToDetail={false}` — khối đầy đủ nằm cuối chính màn này, một liên
+            kết trỏ về trang đang mở là cái bẫy.
+            Vì sao vẫn giữ khối đầy đủ ở dưới: dải chỉ có ba con số, còn khối kia xổ ra
+            DANH MỤC của từng trục và nói rõ phần chi chưa phân loại đang làm lệch mẫu
+            số. Đây là "kết luận trước, bằng chứng sau" (§14), không phải hai bản của
+            cùng một thứ. */}
+        {axis && (
+          <div className="mt-3">
+            <AxisStrip data={axis} monthKey={monthKey} base={base} linkToDetail={false} />
+          </div>
+        )}
         <button
           type="button"
           onClick={handleCopy}

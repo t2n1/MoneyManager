@@ -24,93 +24,173 @@ var NOTIFICATION_TYPES = [
   "monthly-summary",
   // Cuối mảng = hiển thị sau cùng trong nhóm việc-cần-làm: đây là tin ít gấp nhất
   // (lệch kế hoạch cả đời, không phải "hết tiền tuần này").
-  "lifetime-drift"
+  "lifetime-drift",
+  // Hai luật về ĐỘ TIN CẬY của dữ liệu (§4.9) đứng CUỐI: chúng không gấp — không có
+  // hạn chót nào — nhưng chúng nói rằng những con số phía trên đang được đo bằng một
+  // cái thước thiếu vạch, nên vẫn thuộc nhóm việc-cần-làm chứ không phải tin-để-biết.
+  "data-uncategorized",
+  "data-reconcile",
+  // Cuối cùng: điểm gãy mức chi nói về NHIỀU THÁNG, không có hạn chót nào, và việc nó
+  // đề nghị (sửa hạn mức) là việc ngồi xuống mới làm được. Đứng trên hai luật độ-tin-cậy
+  // thì nó đẩy một việc "khi nào rảnh" lên trên một việc đang làm sai số liệu hôm nay.
+  "trend-level-shift"
 ];
 var NOTIFICATION_META = {
   "account-shortfall": {
+    cta: "Xem th\u1EBB",
+    badge: "THI\u1EBEU TI\u1EC0N",
+    source: "T\xE0i s\u1EA3n \xB7 th\u1EBB t\xEDn d\u1EE5ng",
     kind: "action",
     label: "T\xE0i kho\u1EA3n s\u1EAFp kh\xF4ng \u0111\u1EE7 ti\u1EC1n",
     hint: "Nh\xECn tr\u01B0\u1EDBc 14 ng\xE0y: ti\u1EC1n trong v\xED c\xF3 \u0111\u1EE7 tr\u1EA3 th\u1EBB v\xE0 c\xE1c kho\u1EA3n \u0111\u1ECBnh k\u1EF3 kh\xF4ng."
   },
   "account-negative": {
+    cta: "M\u1EDF t\xE0i kho\u1EA3n",
+    badge: "S\u1ED0 D\u01AF",
+    source: "T\xE0i s\u1EA3n",
     kind: "action",
     label: "T\xE0i kho\u1EA3n \u0111ang \xE2m",
     hint: "S\u1ED1 d\u01B0 xu\u1ED1ng d\u01B0\u1EDBi 0 \u2014 th\u01B0\u1EDDng l\xE0 ghi nh\u1EA7m ho\u1EB7c qu\xEAn ghi m\u1ED9t kho\u1EA3n thu."
   },
   "debt-overdue": {
+    cta: "Xem kho\u1EA3n n\u1EE3",
+    badge: "QU\xC1 H\u1EA0N",
+    source: "N\u1EE3 / cho vay",
     kind: "action",
     label: "N\u1EE3 / cho vay qu\xE1 h\u1EA1n",
     hint: "\u0110\xE3 qua ng\xE0y h\u1EB9n m\xE0 kho\u1EA3n \u0111\xF3 ch\u01B0a t\u1EA5t to\xE1n."
   },
   "debt-due-soon": {
+    cta: "Xem kho\u1EA3n n\u1EE3",
+    badge: "N\u1EE2",
+    source: "N\u1EE3 / cho vay",
     kind: "action",
     label: "N\u1EE3 / cho vay s\u1EAFp \u0111\u1EBFn h\u1EA1n",
     hint: "C\xF2n 7 ng\xE0y ho\u1EB7c \xEDt h\u01A1n l\xE0 t\u1EDBi ng\xE0y h\u1EB9n."
   },
   "bill-due": {
+    cta: "Ghi ngay",
+    badge: "\u0110\u1ECANH K\u1EF2",
+    source: "\u0110\u1ECBnh k\u1EF3",
     kind: "action",
     label: "Kho\u1EA3n c\u1EA7n thanh to\xE1n",
     hint: "Quy t\u1EAFc \u0111\u1ECBnh k\u1EF3 ki\u1EC3u NH\u1EAEC t\u1EDBi h\u1EA1n m\xE0 ch\u01B0a ghi (vd g\u1EEDi ti\u1EC1n v\u1EC1 nh\xE0). B\xE1m t\u1EDBi khi b\u1EA1n x\xE1c nh\u1EADn \u0111\xE3 ghi \u2014 app kh\xF4ng t\u1EF1 ghi h\u1ED9 v\xEC s\u1ED1 ti\u1EC1n m\u1ED7i l\u1EA7n m\u1ED9t kh\xE1c."
   },
   "planned-due": {
+    cta: "Xem kho\u1EA3n s\u1EAFp chi",
+    badge: "S\u1EAEP CHI",
+    source: "S\u1EAFp chi",
     kind: "action",
     label: "Kho\u1EA3n s\u1EAFp chi t\u1EDBi h\u1EA1n",
     hint: "M\u1ED9t kho\u1EA3n trong danh s\xE1ch S\u1EAFp chi \u0111\xE3 t\u1EDBi h\u1EA1n (ho\u1EB7c s\u1EAFp t\u1EDBi, tu\u1EF3 b\u1EA1n \u0111\u1EB7t nh\u1EAFc tr\u01B0\u1EDBc m\u1EA5y ng\xE0y). B\xE1m t\u1EDBi khi b\u1EA1n \u0111\xE1nh d\u1EA5u \u0111\xE3 chi ho\u1EB7c b\u1ECF."
   },
   "budget-over": {
+    cta: "Xem ng\xE2n s\xE1ch",
+    badge: "H\u1EA0N M\u1EE8C",
+    source: "Ng\xE2n s\xE1ch",
     kind: "action",
     label: "V\u01B0\u1EE3t ng\xE2n s\xE1ch th\xE1ng",
     hint: "M\u1ED9t m\u1EE5c \u0111\xE3 ti\xEAu qu\xE1 h\u1EA1n m\u1EE9c \u0111\u1EB7t cho th\xE1ng n\xE0y."
   },
   "budget-pace": {
+    cta: "Xem ng\xE2n s\xE1ch",
+    badge: "NH\u1ECAP",
+    source: "Ng\xE2n s\xE1ch",
     kind: "action",
     label: "Ti\xEAu nhanh h\u01A1n nh\u1ECBp",
     hint: "M\u1EDBi qua m\u1ED9t ph\u1EA7n ba th\xE1ng \u0111\xE3 d\xF9ng g\u1EA7n h\u1EBFt h\u1EA1n m\u1EE9c \u2014 b\xE1o s\u1EDBm \u0111\u1EC3 c\xF2n k\u1ECBp gh\xECm l\u1EA1i."
   },
   "budget-parent-over": {
+    cta: "Xem ng\xE2n s\xE1ch",
+    badge: "TR\u1EA6N NH\xD3M",
+    source: "Ng\xE2n s\xE1ch \xB7 tr\u1EA7n nh\xF3m",
     kind: "action",
     label: "Nh\xF3m v\u01B0\u1EE3t tr\u1EA7n",
     hint: "C\u1EA3 nh\xF3m \u0111\xE3 ti\xEAu qu\xE1 tr\u1EA7n \u0111\u1EB7t \u1EDF m\u1EE5c cha; k\xE8m t\u1ED1i \u0111a 2 m\u1EE5c con \u0111ang ti\xEAu nhi\u1EC1u nh\u1EA5t."
   },
   "tag-budget-over": {
+    cta: "Xem ng\xE2n s\xE1ch",
+    badge: "TR\u1EA6N NH\xC3N",
+    source: "Ng\xE2n s\xE1ch \xB7 tr\u1EA7n nh\xE3n",
     kind: "action",
     label: "Nh\xE3n v\u01B0\u1EE3t tr\u1EA7n",
     hint: "Chi mang m\u1ED9t nh\xE3n \u0111\xE3 qu\xE1 tr\u1EA7n \u0111\u1EB7t cho nh\xE3n \u0111\xF3 (c\u1EA3 \u0111\u1EE3t ho\u1EB7c th\xE1ng n\xE0y, t\xF9y nh\xE3n)."
   },
   "card-statement-day": {
+    badge: "CH\u1ED0T SAO K\xCA",
+    source: "T\xE0i s\u1EA3n \xB7 th\u1EBB t\xEDn d\u1EE5ng",
     kind: "info",
     label: "Ng\xE0y ch\u1ED1t sao k\xEA th\u1EBB",
     hint: "H\xF4m nay th\u1EBB ch\u1ED1t k\u1EF3 \u2014 mua t\u1EEB mai s\u1EBD tr\u1EA3 v\xE0o th\xE1ng sau."
   },
   "recurring-suggestion": {
+    cta: "T\u1EA1o quy t\u1EAFc",
+    badge: "\u0110\u1ECANH K\u1EF2",
+    source: "S\u1ED5",
     kind: "info",
     label: "G\u1EE3i \xFD t\u1EA1o quy t\u1EAFc \u0111\u1ECBnh k\u1EF3",
     hint: "Ph\xE1t hi\u1EC7n m\u1ED9t kho\u1EA3n tr\u1EA3 \u0111\u1EC1u \u0111\u1EB7n m\xE0 ch\u01B0a c\xF3 quy t\u1EAFc."
   },
   "stale-entry": {
+    cta: "Ghi giao d\u1ECBch",
+    badge: "GHI S\u1ED4",
+    source: "S\u1ED5",
     kind: "info",
     label: "L\xE2u ch\u01B0a ghi s\u1ED5",
     hint: "T\u1EEB 3 ng\xE0y kh\xF4ng ghi giao d\u1ECBch n\xE0o; nhi\u1EC1u nh\u1EA5t m\u1ED9t l\u1EA7n m\u1ED7i tu\u1EA7n."
   },
   "savings-milestone": {
+    badge: "M\u1EE4C TI\xCAU",
+    source: "T\xE0i s\u1EA3n \xB7 m\u1EE5c ti\xEAu",
     kind: "info",
     label: "M\u1EE5c ti\xEAu ti\u1EBFt ki\u1EC7m ch\u1EA1m m\u1ED1c",
     hint: "\u0110\u1EA1t 25%, 50%, 75% ho\u1EB7c 100% m\u1EE5c ti\xEAu."
   },
   "networth-record": {
+    badge: "K\u1EF6 L\u1EE4C",
+    source: "T\xE0i s\u1EA3n",
     kind: "info",
     label: "T\xE0i s\u1EA3n r\xF2ng l\u1EADp k\u1EF7 l\u1EE5c",
     hint: "Cao nh\u1EA5t t\u1EEB tr\u01B0\u1EDBc t\u1EDBi nay; nhi\u1EC1u nh\u1EA5t m\u1ED9t l\u1EA7n m\u1ED7i th\xE1ng."
   },
   "monthly-summary": {
+    badge: "T\u1ED4NG K\u1EBET",
+    source: "B\xE1o c\xE1o \xB7 th\xE1ng n\xE0y",
     kind: "info",
     label: "T\u1ED5ng k\u1EBFt th\xE1ng",
     hint: "V\xE0o ng\xE0y \u0111\u1EA7u k\u1EF3 m\u1EDBi: th\xE1ng v\u1EEBa r\u1ED3i chi bao nhi\xEAu, thu bao nhi\xEAu, \u0111\u1EC3 d\xE0nh bao nhi\xEAu."
   },
   "lifetime-drift": {
+    cta: "Xem k\u1EBF ho\u1EA1ch",
+    badge: "K\u1EBE HO\u1EA0CH",
+    source: "T\xE0i s\u1EA3n \xB7 T\u01B0\u01A1ng lai",
     kind: "action",
     label: "Thu chi l\u1EC7ch k\u1EBF ho\u1EA1ch Lifetime",
     hint: `Thu ho\u1EB7c chi th\u1EF1c t\u1EBF ${RECENT_TXS_DAYS} ng\xE0y g\u1EA7n \u0111\xE2y l\u1EC7ch kh\u1ECFi gi\u1EA3 \u0111\u1ECBnh c\u1EE7a k\u1ECBch b\u1EA3n (k\u1EC3 c\u1EA3 khi k\u1EBF ho\u1EA1ch \u0111\u1EC3 thu 0 m\xE0 s\u1ED5 c\xF3 thu nh\u1EADp), k\xE8m m\u1ED1c \xE2m d\u1ECBch bao nhi\xEAu n\u0103m.`
+  },
+  "data-uncategorized": {
+    cta: "Ph\xE2n lo\u1EA1i",
+    badge: "PH\xC2N LO\u1EA0I",
+    source: "S\u1ED5",
+    kind: "action",
+    label: "Giao d\u1ECBch ch\u01B0a g\u1EAFn danh m\u1EE5c",
+    hint: "Kho\u1EA3n ch\u01B0a c\xF3 danh m\u1EE5c kh\xF4ng v\xE0o \u0111\u01B0\u1EE3c b\xE1o c\xE1o hay ng\xE2n s\xE1ch \u2014 nh\u1EAFc khi d\u1ED3n l\u1EA1i."
+  },
+  "data-reconcile": {
+    cta: "\u0110\u1ED1i chi\u1EBFu",
+    badge: "\u0110\u1ED0I CHI\u1EBEU",
+    source: "T\xE0i s\u1EA3n",
+    kind: "action",
+    label: "T\xE0i kho\u1EA3n l\xE2u ch\u01B0a \u0111\u1ED1i chi\u1EBFu",
+    hint: "Qu\xE1 30 ng\xE0y kh\xF4ng so s\u1ED1 d\u01B0 s\u1ED5 v\u1EDBi s\u1ED1 th\u1EADt th\xEC m\u1ECDi t\u1ED5ng \u0111\u1EC1u c\xF3 th\u1EC3 \u0111\xE3 l\u1EC7ch."
+  },
+  "trend-level-shift": {
+    cta: "Xem h\u1EA1n m\u1EE9c",
+    badge: "M\u1EE8C CHI",
+    source: "B\xE1o c\xE1o \xB7 D\xE0i h\u1EA1n",
+    kind: "action",
+    label: "M\u1EE9c chi \u0111\u1ED5i h\u1EB3n so v\u1EDBi tr\u01B0\u1EDBc",
+    hint: "Khi m\u1EE9c chi h\u1EB1ng th\xE1ng b\u01B0\u1EDBc sang m\u1ED9t b\u1EADc kh\xE1c v\xE0 \u1EDF y\xEAn \u0111\xF3 v\xE0i th\xE1ng \u2014 d\u1EA5u hi\u1EC7u h\u1EA1n m\u1EE9c \u0111ang \u0111\u1EB7t theo n\u1EBFp s\u1ED1ng c\u0169. Kh\xF4ng b\xE1o cho dao \u0111\u1ED9ng v\u1EB7t c\u1EE7a m\u1ED9t th\xE1ng."
   }
 };
 
@@ -901,8 +981,8 @@ function rhythmRules(input) {
   for (const g of input.savingsGoals) {
     if (g.target_amount <= 0) continue;
     const have = balanceOf.get(g.account_id) ?? 0;
-    const pct = have / g.target_amount * 100;
-    const reached = MILESTONES.filter((m) => pct >= m);
+    const pct2 = have / g.target_amount * 100;
+    const reached = MILESTONES.filter((m) => pct2 >= m);
     if (reached.length === 0) continue;
     const top = reached[reached.length - 1];
     out.push({
@@ -1129,7 +1209,7 @@ function lifetimeRules(input) {
         // ràng buộc gì, nên dữ liệu demo có hai chặng cùng `start_year` sẽ bị GHI ĐÈ CẢ HAI.
         phases: lt.phases.map((p) => p === phase ? { ...p, annualExpenseMinor: actualAnnual } : p)
       });
-      const pct = Math.abs(Math.round(drift * 100));
+      const pct2 = Math.abs(Math.round(drift * 100));
       const direction = drift > 0 ? "cao h\u01A1n" : "th\u1EA5p h\u01A1n";
       out.push({
         // Việc-cần-làm → mã KHÔNG chứa kỳ, để một việc chỉ báo một lần tới khi hết.
@@ -1137,7 +1217,7 @@ function lifetimeRules(input) {
         kind: "action",
         type: "lifetime-drift",
         severity: "low",
-        title: `Chi th\u1EF1c t\u1EBF ${direction} k\u1EBF ho\u1EA1ch ${pct}%`,
+        title: `Chi th\u1EF1c t\u1EBF ${direction} k\u1EBF ho\u1EA1ch ${pct2}%`,
         // Nói RA con số và cửa sổ đã dùng. Không có nó thì "cao hơn 83%" là một tỷ lệ
         // không ai kiểm lại được: người dùng không biết luật đã lấy bao nhiêu ngày và
         // ra bao nhiêu một năm, nên cũng không phát hiện được lúc nó tính sai.
@@ -1154,8 +1234,8 @@ function lifetimeRules(input) {
     if (planned > 0) {
       const drift = (actualAnnual - planned) / planned;
       if (Math.abs(drift) >= DRIFT_THRESHOLD) {
-        const pct = Math.abs(Math.round(drift * 100));
-        title = `Thu th\u1EF1c t\u1EBF ${drift > 0 ? "cao h\u01A1n" : "th\u1EA5p h\u01A1n"} k\u1EBF ho\u1EA1ch ${pct}%`;
+        const pct2 = Math.abs(Math.round(drift * 100));
+        title = `Thu th\u1EF1c t\u1EBF ${drift > 0 ? "cao h\u01A1n" : "th\u1EA5p h\u01A1n"} k\u1EBF ho\u1EA1ch ${pct2}%`;
       }
     } else if (actualAnnual >= DRIFT_THRESHOLD * phase.annualExpenseMinor) {
       title = "S\u1ED5 c\xF3 thu nh\u1EADp, k\u1EBF ho\u1EA1ch \u0111ang \u0111\u1EC3 thu 0";
@@ -1177,6 +1257,153 @@ function lifetimeRules(input) {
     }
   }
   return out;
+}
+
+// src/features/categories/flowCategories.ts
+var DEBT_FLOW_CATEGORY_NAMES = {
+  /** chi — mình cho người khác vay */
+  lend: "Cho vay",
+  /** thu — mình đi vay */
+  borrow: "\u0110i vay",
+  /** thu — người ta trả lại mình */
+  collect: "Thu n\u1EE3",
+  /** chi — mình trả nợ */
+  repay: "Tr\u1EA3 n\u1EE3"
+};
+var ADJUST_CATEGORY_NAME = "\u0110i\u1EC1u ch\u1EC9nh s\u1ED1 d\u01B0";
+var FLOW_NAMES = /* @__PURE__ */ new Set([
+  ...Object.values(DEBT_FLOW_CATEGORY_NAMES),
+  ADJUST_CATEGORY_NAME
+]);
+
+// src/features/notifications/rules/dataRules.ts
+var RECONCILE_STALE_DAYS = 30;
+var UNCATEGORIZED_MIN = 3;
+function uncategorizedRule(input) {
+  const chua = input.recentTxs.filter(
+    (t) => t.category_id == null && t.type !== "transfer" && !t.exclude_from_stats
+  );
+  if (chua.length < UNCATEGORIZED_MIN) return [];
+  return [
+    {
+      // Mã KHÔNG chứa số lượng: thêm một khoản chưa phân loại nữa mà mã đổi thì việc
+      // này "mới" trở lại và trạng thái đã ẩn mất tác dụng. Một tình huống, một mã.
+      key: "data-uncategorized:all",
+      kind: "action",
+      type: "data-uncategorized",
+      severity: "medium",
+      title: `${chua.length} giao d\u1ECBch ch\u01B0a g\u1EAFn danh m\u1EE5c`,
+      detail: "B\xE1o c\xE1o v\xE0 ng\xE2n s\xE1ch \u0111ang t\xEDnh thi\u1EBFu ch\u1ED7 n\xE0y.",
+      to: "/so"
+    }
+  ];
+}
+function reconcileStaleRule(input) {
+  const adjustCatIds = new Set(
+    input.categories.filter((c) => c.name === ADJUST_CATEGORY_NAME).map((c) => c.id)
+  );
+  const cutoff = addDaysISO2(input.todayISO, -RECONCILE_STALE_DAYS);
+  const lanCuoi = /* @__PURE__ */ new Map();
+  for (const t of input.recentTxs) {
+    if (t.category_id == null || !adjustCatIds.has(t.category_id)) continue;
+    const cu2 = lanCuoi.get(t.account_id);
+    if (!cu2 || t.occurred_on > cu2) lanCuoi.set(t.account_id, t.occurred_on);
+  }
+  const cu = input.accounts.filter(
+    (a) => !a.is_archived && !a.is_hidden && a.include_in_totals && (lanCuoi.get(a.id) ?? "") < cutoff
+  );
+  if (cu.length === 0) return [];
+  return [
+    {
+      key: "data-reconcile:all",
+      kind: "action",
+      type: "data-reconcile",
+      severity: "low",
+      title: cu.length === 1 ? `${cu[0].name} ch\u01B0a \u0111\u1ED1i chi\u1EBFu qu\xE1 ${RECONCILE_STALE_DAYS} ng\xE0y` : `${cu.length} t\xE0i kho\u1EA3n ch\u01B0a \u0111\u1ED1i chi\u1EBFu qu\xE1 ${RECONCILE_STALE_DAYS} ng\xE0y`,
+      detail: "S\u1ED1 d\u01B0 tr\xEAn m\xE0n c\xF3 th\u1EC3 \u0111\xE3 l\u1EC7ch s\u1ED1 th\u1EADt.",
+      to: "/assets"
+    }
+  ];
+}
+function dataRules(input) {
+  return [...uncategorizedRule(input), ...reconcileStaleRule(input)];
+}
+
+// src/features/reports/trends.ts
+var DEFAULT_CP = { minSegment: 3, threshold: 2.5, maxPoints: 3 };
+var mean = (xs) => xs.length === 0 ? 0 : xs.reduce((s, x) => s + x, 0) / xs.length;
+function bestSplit(values, from, to, minSegment) {
+  let best = null;
+  for (let i = from + minSegment; i <= to - minSegment; i++) {
+    const a = values.slice(from, i);
+    const b = values.slice(i, to);
+    const ma = mean(a);
+    const mb = mean(b);
+    const ss = a.reduce((s, x) => s + (x - ma) ** 2, 0) + b.reduce((s, x) => s + (x - mb) ** 2, 0);
+    const df = a.length + b.length - 2;
+    if (df <= 0) continue;
+    const pooledVar = ss / df;
+    const se = Math.sqrt(pooledVar * (1 / a.length + 1 / b.length));
+    const score = se === 0 ? ma === mb ? 0 : Number.POSITIVE_INFINITY : Math.abs(mb - ma) / se;
+    if (!best || score > best.score) best = { index: i, before: ma, after: mb, score };
+  }
+  return best;
+}
+function detectChangePoints(values, opts = {}) {
+  const { minSegment, threshold, maxPoints } = { ...DEFAULT_CP, ...opts };
+  const found = [];
+  const search = (from, to) => {
+    if (found.length >= maxPoints || to - from < minSegment * 2) return;
+    const cp = bestSplit(values, from, to, minSegment);
+    if (!cp || cp.score < threshold) return;
+    found.push(cp);
+    search(from, cp.index);
+    search(cp.index, to);
+  };
+  search(0, values.length);
+  return found.sort((a, b) => a.index - b.index);
+}
+
+// src/features/notifications/rules/trendRules.ts
+var LEVEL_SHIFT_MIN_MONTHS = 12;
+var LEVEL_SHIFT_MIN_SEGMENT = 4;
+var LEVEL_SHIFT_MIN_PCT = 15;
+var pct = (before, after) => before === 0 ? null : Math.round((after - before) / Math.abs(before) * 100);
+function levelShiftRule(input) {
+  const series = input.monthlyExpense;
+  if (!series || series.length < LEVEL_SHIFT_MIN_MONTHS) return [];
+  const values = series.map((p) => p.value);
+  const points = detectChangePoints(values, {
+    minSegment: LEVEL_SHIFT_MIN_SEGMENT,
+    maxPoints: 1
+  });
+  if (points.length === 0) return [];
+  const cp = points[points.length - 1];
+  const doi = pct(cp.before, cp.after);
+  if (doi === null || Math.abs(doi) < LEVEL_SHIFT_MIN_PCT) return [];
+  const len = cp.after > cp.before;
+  const ranh = (cp.before + cp.after) / 2;
+  const doanSau = values.slice(cp.index);
+  const oYen = len ? doanSau.every((v) => v >= ranh) : doanSau.every((v) => v <= ranh);
+  if (!oYen) return [];
+  const thangGay = series[cp.index].month;
+  const soThang = values.length - cp.index;
+  const tran = input.budgetReport?.totalBudgeted;
+  const vuotTran = tran != null && tran > 0 && cp.after > tran;
+  const detail = vuotTran ? `M\u1EE9c m\u1EDBi ${input.formatMoney(Math.round(cp.after), input.base)}/th\xE1ng, cao h\u01A1n t\u1ED5ng h\u1EA1n m\u1EE9c ${input.formatMoney(tran, input.base)}. H\u1EA1n m\u1EE9c \u0111ang \u0111\u1EB7t theo n\u1EBFp c\u0169.` : `Trung b\xECnh ${soThang} th\xE1ng g\u1EA7n \u0111\xE2y ${input.formatMoney(Math.round(cp.after), input.base)}/th\xE1ng, tr\u01B0\u1EDBc \u0111\xF3 ${input.formatMoney(Math.round(cp.before), input.base)}.`;
+  return [
+    {
+      key: `trend-level-shift:${thangGay}`,
+      kind: "action",
+      type: "trend-level-shift",
+      // Không bao giờ 'high': không có hạn chót nào, và một việc "ngồi xuống rồi sửa
+      // ngân sách" mà xếp ngang với "mai bị trừ tiền thẻ" là làm hỏng cả thang mức độ.
+      severity: "medium",
+      title: `M\u1EE9c chi \u0111\u1ED5i h\u1EB3n t\u1EEB ${thangGay} \u2014 ${len ? "t\u0103ng" : "gi\u1EA3m"} ${Math.abs(doi)}%`,
+      detail,
+      to: "/budget"
+    }
+  ];
 }
 
 // src/features/notifications/rules.ts
@@ -1213,7 +1440,9 @@ function buildNotifications(input) {
     ...tagRules(input),
     ...cardRules(input),
     ...rhythmRules(input),
-    ...lifetimeRules(input)
+    ...lifetimeRules(input),
+    ...dataRules(input),
+    ...levelShiftRule(input)
   ];
   return arrangeNotifications(all, input.offTypes);
 }

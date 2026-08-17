@@ -10,6 +10,24 @@ import type { CategoryRow } from '../../types/database.types'
 
 export type AxisKey = 'essential' | 'flexible' | 'savings'
 
+/**
+ * Tên hiển thị của ba trục — MỘT bảng cho cả app.
+ *
+ * Trước đây có bốn bản sao (AxisStrip, AxisTargetsCard, PlanningView, planVerdict) và
+ * chúng đã lệch thật: hai mặt của cùng tab Ngân sách gọi trục thứ ba là "Tiết kiệm" ở
+ * mặt theo dõi và "Để dành" ở mặt lập kế hoạch, tức người dùng đọc hai cái tên cho một
+ * con số khi tháng chuyển từ chưa-bắt-đầu sang đang-chạy.
+ *
+ * Chọn "Để dành" (chữ của cả 18a và 18b) chứ không "Tiết kiệm" vì app đã có tính năng
+ * "Mục tiêu tiết kiệm" ở tab Tài sản — một cái tên dùng cho hai thứ khác nhau là mời
+ * người dùng tưởng thanh trục này đang đo tiến độ mục tiêu của họ.
+ */
+export const AXIS_LABEL: Record<AxisKey, string> = {
+  essential: 'Thiết yếu',
+  flexible: 'Linh hoạt',
+  savings: 'Để dành',
+}
+
 export interface AxisTargets {
   /** trần chi thiết yếu, basis points của thu nhập (5000 = 50%) */
   essentialBps: number

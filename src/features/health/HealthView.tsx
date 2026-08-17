@@ -52,7 +52,7 @@ const SECTIONS: readonly IndexItem[] = [
   { id: 'hl-quy', label: 'Quỹ dự phòng' },
   { id: 'hl-thanh-khoan', label: 'Nợ ngắn hạn' },
   { id: 'hl-dti', label: 'Nợ/thu nhập' },
-  { id: 'hl-runway', label: 'Cầm cự' },
+  { id: 'hl-runway', label: 'Nếu mất việc' },
   { id: 'hl-nguon-thu', label: 'Nguồn thu' },
   { id: 'hl-thue', label: 'Thuế' },
 ]
@@ -212,7 +212,7 @@ export function HealthView() {
     },
     {
       key: 'runway',
-      label: 'Cầm cự được bao lâu',
+      label: 'Nếu mất việc',
       weight: 20,
       score: runway === null ? null : scoreFromZones(runway.p50, runwayZones),
     },
@@ -302,7 +302,7 @@ export function HealthView() {
       {/* 1. Quỹ dự phòng */}
       <Section id="hl-quy">
         <HealthMetricCard
-          title="Quỹ dự phòng"
+          title="Quỹ dự phòng — đệm cho việc bất ngờ"
           display={fund === null ? '—' : months1(fund)}
           verdict={fundVerdict}
           value={fund}
@@ -312,7 +312,7 @@ export function HealthView() {
             fund === null ? (
               <>
                 Chưa tính được vì chưa biết mỗi tháng bạn phải trả cố định bao nhiêu.{' '}
-                <Link to="/settings/categories/classify" className="font-medium text-green-700 dark:text-green-400">
+                <Link to="/settings/categories/classify" className="font-medium text-fg-accent">
                   Phân loại danh mục chi
                 </Link>{' '}
                 để mở chỉ số này.
@@ -340,7 +340,7 @@ export function HealthView() {
                       Trong đó <b>{money(earmarked.total)}</b> đang để dành cho mục tiêu tiết kiệm.
                       Trừ phần đã có chủ thì quỹ dự phòng thật sự tự do là{' '}
                       <b>{months1(freeFund!)}</b>.{' '}
-                      <Link to="/assets" className="font-medium text-green-700 dark:text-green-400">
+                      <Link to="/assets" className="font-medium text-fg-accent">
                         Xem mục tiêu
                       </Link>
                     </>
@@ -446,7 +446,7 @@ export function HealthView() {
       {/* 4. Runway */}
       <Section id="hl-runway">
         <HealthMetricCard
-          title="Cầm cự được bao lâu (mô phỏng)"
+          title="Nếu mất việc — cầm cự được bao lâu (mô phỏng)"
           display={
             runway === null
               ? '—'
@@ -529,7 +529,7 @@ export function HealthView() {
                     Bạn còn danh mục chưa phân loại — vào{' '}
                     <Link
                       to="/settings/categories/classify"
-                      className="font-medium text-green-700 dark:text-green-400"
+                      className="font-medium text-fg-accent"
                     >
                       Phân loại nhanh
                     </Link>{' '}

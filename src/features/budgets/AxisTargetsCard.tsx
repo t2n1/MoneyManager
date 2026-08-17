@@ -7,13 +7,7 @@ import { Guide } from '../../components/Guide'
 import { useCategories } from '../../hooks/queries'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
-import { BASELINE_MONTHS, shareLabel, type AxisKey, type AxisProgress } from './axisTargets'
-
-const LABEL: Record<AxisKey, string> = {
-  essential: 'Thiết yếu',
-  flexible: 'Linh hoạt',
-  savings: 'Tiết kiệm',
-}
+import { AXIS_LABEL, BASELINE_MONTHS, shareLabel, type AxisKey, type AxisProgress } from './axisTargets'
 
 /** Giải nghĩa mỗi trục — chữ CHỈ ĐỂ DẠY, ẩn ở chế độ Gọn.
  *
@@ -65,7 +59,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
             "Chọn" ở LedgerPage) — đo được 42×16 khi để trần. */}
         <Link
           to="/settings?edit=profile"
-          className="-my-3 inline-flex min-h-11 shrink-0 items-center text-2xs font-medium text-green-700 dark:text-green-400"
+          className="-my-3 inline-flex min-h-11 shrink-0 items-center text-2xs font-medium text-fg-accent"
         >
           Đổi mốc
         </Link>
@@ -104,7 +98,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
                     ) : (
                       <ChevronRight className="mr-1 inline h-4 w-4 -translate-y-px text-fg-muted" aria-hidden />
                     ))}
-                  {LABEL[l.key]}
+                  {AXIS_LABEL[l.key]}
                 </span>
                 <span
                   className={`text-xs font-medium ${

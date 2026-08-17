@@ -112,7 +112,7 @@ export function RemittanceSection({
               <p className="text-fg-secondary">
                 Lần gửi <b>được giá nhất</b> ({bestPick.date}, {bestPick.rate.toFixed(1)} ₫/¥) cho
                 thêm{' '}
-                <b className="text-green-700 dark:text-green-400">
+                <b className="text-fg-accent">
                   {formatMoney(bestPick.gainVsAvgVnd, 'VND')}
                 </b>{' '}
                 so với tỷ giá trung bình năm.
@@ -163,7 +163,7 @@ export function RemittanceSection({
                         </span>
                       )}{' '}
                       ·{' '}
-                      <span className={isTransfer ? 'text-sky-600 dark:text-sky-400' : 'text-fg-warn'}>
+                      <span className={isTransfer ? 'text-sky-700 dark:text-sky-400' : 'text-fg-warn'}>
                         {isTransfer ? 'Chuyển tài sản' : 'Hỗ trợ GĐ'}
                       </span>
                     </p>

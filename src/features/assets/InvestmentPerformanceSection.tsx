@@ -203,7 +203,7 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
 
       {profile?.annual_inflation_bps == null && (
         <Guide className="mt-2 text-2xs text-fg-muted">
-          <Link to="/settings" className="font-medium text-green-700 dark:text-green-400">
+          <Link to="/settings" className="font-medium text-fg-accent">
             Khai mức lạm phát trong Cài đặt
           </Link>{' '}
           để thấy lợi nhuận thật sau khi trừ trượt giá.

@@ -33,7 +33,7 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
         </h2>
         <Link
           to="/recurring"
-          className="shrink-0 inline-flex items-center gap-0.5 text-xs font-medium text-green-700 dark:text-green-400"
+          className="shrink-0 inline-flex items-center gap-0.5 text-xs font-medium text-fg-accent"
         >
           {data.count} khoản
           <ChevronRight className="h-3.5 w-3.5" aria-hidden />

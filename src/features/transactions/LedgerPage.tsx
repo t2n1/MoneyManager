@@ -18,17 +18,10 @@ import {
 import { confirmDialog } from '../../lib/dialog'
 import { scrollContentToTop } from '../../lib/scroll'
 import { showUndoToast } from '../../lib/undoToast'
-import {
-  addDaysISO,
-  addMonths,
-  formatMonthLabel,
-  getMonthRange,
-  monthKeyForDate,
-  toISODate,
-  type MonthKey,
-} from '../../lib/dates'
+import { addDaysISO, formatMonthLabel, getMonthRange, toISODate } from '../../lib/dates'
+import { useMonthKey } from '../../hooks/useMonthKey'
 import type { CurrencyCode } from '../../lib/money'
-import { monthlySeries } from '../reports/aggregate'
+import { categoryBreakdown, cumulativeDailyBalance, monthlySeries } from '../reports/aggregate'
 import { tagsByTransaction } from '../tags/aggregate'
 import type { TransactionRow } from '../../types/database.types'
 import { AxisStrip } from '../budgets/AxisStrip'
@@ -36,9 +29,21 @@ import { useAxisProgress } from '../budgets/useAxisProgress'
 import { RemindersBanner } from '../reminders/RemindersBanner'
 import { NotificationBell } from '../notifications/NotificationBell'
 import { NotificationBoundary } from '../notifications/NotificationBoundary'
+import { BulkEditSheet } from './BulkEditSheet'
 import { CalendarView } from './CalendarView'
 import { DailyView } from './DailyView'
 import { EditTransactionSheet } from './EditTransactionSheet'
+import { convertToBase } from '../../lib/rates'
+import { LedgerAside } from './LedgerAside'
+import { monthHeatmap } from './ledgerHeat'
+import { LedgerFilterBar } from './LedgerFilterBar'
+import {
+  applyLedgerFilter,
+  balanceByDay,
+  EMPTY_LEDGER_FILTER,
+  uncategorizedSummary,
+  type LedgerFilter,
+} from './ledgerView'
 import { MonthlyView } from './MonthlyView'
 import { toNewTransaction } from './restore'
 import { SelectionActionBar } from './SelectionActionBar'
@@ -74,14 +79,13 @@ export function LedgerPage() {
     scrollContentToTop()
   }
 
-  // null = "kỳ hiện tại": tính lazy theo month_start_day (profile tải async,
-  // khởi tạo cứng trong useState sẽ chốt nhầm kỳ với ngày bắt đầu ≠ 1)
-  const [monthKey, setMonthKey] = useState<MonthKey | null>(null)
+  // Kỳ đang xem là state DÙNG CHUNG cả app (src/hooks/useMonthKey) chứ không còn của
+  // riêng trang: bộ đổi tháng của bản 1a nằm trên top bar, tức ngoài trang.
+  const { activeMonthKey, setMonthKey, stepMonth } = useMonthKey()
   const [editing, setEditing] = useState<TransactionRow | null>(null)
 
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
-  const activeMonthKey = monthKey ?? monthKeyForDate(toISODate(new Date()), monthStartDay)
   const { data: transactions = [], isLoading } = useMonthTransactions(activeMonthKey)
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
@@ -110,24 +114,85 @@ export function LedgerPage() {
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'))
         return
       const step = yearNav ? 12 : 1
-      const fallback = () => monthKeyForDate(toISODate(new Date()), monthStartDay)
-      if (e.key === 'ArrowLeft') setMonthKey((k) => addMonths(k ?? fallback(), -step))
-      if (e.key === 'ArrowRight') setMonthKey((k) => addMonths(k ?? fallback(), step))
+      if (e.key === 'ArrowLeft') stepMonth(-step)
+      if (e.key === 'ArrowRight') stepMonth(step)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [yearNav, monthStartDay])
+  }, [yearNav, stepMonth])
 
   const accountOf = (id: string | null) => accounts.find((a) => a.id === id)
   const currencyOf = (id: string): CurrencyCode => accountOf(id)?.currency ?? base
   const categoryOf = (id: string | null) => categories.find((c) => c.id === id)
 
-  // Chọn nhiều để xóa hàng loạt — chỉ ở tab "Ngày" (danh sách phẳng).
+  // --- Lọc tại chỗ (§4.2 mục 2) ---------------------------------------------------
+  // Lọc trên danh sách ĐÃ TẢI của tháng, không gọi thêm mạng: đây là "thu hẹp cái đang
+  // nhìn", khác hẳn trang Tìm kiếm (đi tìm trong nhiều tháng, có query riêng).
+  const [filter, setFilter] = useState<LedgerFilter>(EMPTY_LEDGER_FILTER)
+  const shown = useMemo(() => applyLedgerFilter(transactions, filter), [transactions, filter])
+  const uncategorized = useMemo(
+    () => uncategorizedSummary(transactions, currencyOf, base, rates ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions, accounts, base, rates],
+  )
+
+  // --- Cột phụ (10a) ---------------------------------------------------------------
+  //
+  // Cả hai đều tính trên `transactions` (CẢ kỳ), KHÔNG trên `shown` (đã lọc): lưới nhiệt
+  // và top danh mục trả lời "kỳ này thế nào", còn bộ lọc là "đang thu hẹp cái đang nhìn".
+  // Cho chúng theo bộ lọc thì bấm chip "Chi" là cả tháng đổi hình — và người dùng đọc ra
+  // thành "tháng này chỉ có mấy ngày đó tiêu tiền".
+  const heat = useMemo(
+    () =>
+      monthHeatmap({
+        txs: transactions,
+        monthKey: activeMonthKey,
+        monthStartDay,
+        todayISO: toISODate(new Date()),
+        toBase: (amount, accountId) => convertToBase(amount, currencyOf(accountId), base, rates ?? {}),
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions, activeMonthKey, monthStartDay, accounts, base, rates],
+  )
+  const expenseBreakdown = useMemo(
+    () => categoryBreakdown(transactions, 'expense', currencyOf, base, rates ?? {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions, accounts, base, rates],
+  )
+  const topCategories = useMemo(() => expenseBreakdown.slices.slice(0, 3), [expenseBreakdown])
+  // Bỏ lọc khi đổi kỳ: giữ lại thì mở tháng mới ra thấy danh sách rỗng mà không hiểu
+  // vì sao — cùng lý do với việc thoát chế độ chọn ở dưới.
+  useEffect(() => {
+    setFilter(EMPTY_LEDGER_FILTER)
+  }, [activeMonthKey.year, activeMonthKey.month])
+
+  // --- Số dư chạy theo ngày (§4.2 mục 1) --------------------------------------------
+  // Tính trên TOÀN BỘ giao dịch của tháng, không phải danh sách đã lọc: số dư chạy là
+  // sự thật của kỳ, lọc bớt cái đang nhìn không làm tiền trong ví đổi.
+  const balanceOfDay = useMemo(
+    () =>
+      balanceByDay(
+        cumulativeDailyBalance(
+          transactions,
+          monthRange.start,
+          addDaysISO(monthRange.end, -1),
+          currencyOf,
+          base,
+          rates ?? {},
+        ).points,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions, monthRange.start, monthRange.end, accounts, base, rates],
+  )
+
+  // Chọn nhiều để xóa / sửa hàng loạt — chỉ ở tab "Ngày" (danh sách phẳng).
   const selection = useTxSelection()
   const bulkDelete = useDeleteTransactions()
+  const [bulkEditing, setBulkEditing] = useState(false)
   const canSelect = view === 'daily'
-  const allSelected =
-    transactions.length > 0 && transactions.every((t) => selection.isSelected(t.id))
+  // "Tất cả" nghĩa là tất cả cái ĐANG HIỆN, không phải tất cả của tháng: đang lọc mà
+  // bấm chọn-tất-cả rồi Xóa thì xóa cả những khoản bộ lọc đang giấu đi.
+  const allSelected = shown.length > 0 && shown.every((t) => selection.isSelected(t.id))
 
   // Thoát chế độ chọn khi đổi TAB hoặc đổi KỲ.
   //
@@ -140,6 +205,25 @@ export function LedgerPage() {
     selection.exit()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, activeMonthKey.year, activeMonthKey.month])
+
+  // Nhân bản sang hôm nay (§4.2 mục 5). Ghi thẳng, không mở form: cả điểm của cử chỉ
+  // này là "cái hôm qua, lặp lại hôm nay" — bắt xác nhận thì nó chậm hơn bấm "+" và
+  // gõ lại. An toàn nằm ở Hoàn tác, cùng mức với xoá hàng loạt.
+  async function handleDuplicate(tx: TransactionRow) {
+    const today = toISODate(new Date())
+    const tagIds = (tagsOfTx.get(tx.id) ?? []).map((g) => g.id)
+    const row = await repo.createTransaction({
+      ...toNewTransaction(tx, tagIds),
+      occurred_on: today,
+    })
+    qc.invalidateQueries({ queryKey: ['transactions'] })
+    qc.invalidateQueries({ queryKey: ['balances'] })
+    showUndoToast('Đã nhân bản sang hôm nay', async () => {
+      await repo.deleteTransaction(row.id)
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+      qc.invalidateQueries({ queryKey: ['balances'] })
+    })
+  }
 
   async function handleBulkDelete() {
     const ids = selection.selectedIds
@@ -197,11 +281,30 @@ export function LedgerPage() {
   const label = yearNav ? `Năm ${activeMonthKey.year}` : formatMonthLabel(activeMonthKey)
   const step = yearNav ? 12 : 1
 
-  // Sổ GD giữ một cột hẹp kể cả trên PC (khung ngoài của AppLayout đã nới lên 6xl):
-  // danh sách giao dịch kéo ngang cả màn thì mắt phải rà rất xa mới nối được ngày với
-  // số tiền ở đầu kia dòng.
+  // HAI CỘT từ lg (bản vẽ 10a; cột phụ 420px theo §1.4).
+  //
+  // Trước đây cả trang bó trong `max-w-2xl` (672px) với lý do "danh sách kéo ngang cả
+  // màn thì mắt phải rà rất xa mới nối được ngày với số tiền ở đầu kia dòng". Lý do đó
+  // VẪN ĐÚNG — và đó chính là lý do chia cột thay vì nới cột: danh sách giữ bề rộng đọc
+  // được (`max-w-3xl`, khớp ~720px của mock ở khung 1280), còn phần màn còn lại thôi bỏ
+  // trống. Trên màn 1679px, bản cũ để trống khoảng 1000px cạnh một danh sách đang cuộn.
+  //
+  // `items-start` để cột phụ không bị kéo cao bằng danh sách; `min-w-0` ở cột trái để
+  // dòng dài co lại bằng ellipsis thay vì đẩy ngang cả trang.
   return (
-    <div className="mx-auto w-full max-w-2xl p-3 lg:p-6">
+    <div className="w-full p-3 lg:flex lg:items-start lg:gap-2.5 lg:p-4">
+      {/* Tiêu đề tài liệu. sr-only vì tên màn đã hiện ở top bar (desktop) — nhưng top
+          bar là <p>, nên không có dòng này thì trang KHÔNG có <h1> nào. Trước bản 1a,
+          h1 của trang là nhãn kỳ; nhãn kỳ là "đang xem kỳ nào", không phải tên màn. */}
+      {/* Cột trái NỞ HẾT phần còn lại, không chặn bề rộng.
+          Đã thử chặn `max-w-3xl` (768px, khớp cột trái của mock ở khung 1280) và nó chỉ
+          đổi hai dải trống thành MỘT dải trống 440px ở mép phải — asymmetric, và vẫn
+          đúng cái phải sửa. Cái giá của việc nở: ở 1679px dòng giao dịch rộng ~1180px
+          nên mắt phải rà xa hơn để nối tên với số tiền ở đầu kia. Chấp nhận, vì dòng đã
+          có `justify-between` + truncate nên không vỡ, và một trạm điều khiển có dải
+          trống 440px thì sai nặng hơn. */}
+      <div className="min-w-0 flex-1">
+      <h1 className="sr-only">Sổ</h1>
       <NotificationBoundary>
         <RemindersBanner />
       </NotificationBoundary>
@@ -217,16 +320,24 @@ export function LedgerPage() {
           xuống hàng dưới canh phải; từ ~768px trở lên vẫn đủ chỗ cho một hàng.
           Guard: src/features/transactions/ledgerHeaderFit.test.ts */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="flex flex-1 items-center gap-2">
+        {/* Bộ chuyển kỳ chỉ còn ở mobile: từ bản 1a desktop đổi tháng bằng bộ ‹ › trên
+            top bar. Bốn nút hành động bên phải thì Ở LẠI cả hai cỡ — top bar chỉ mang
+            ô tìm kiếm, còn Sắp chi / Định kỳ / chuông là đường đi riêng của màn này.
+            Ở tab Tháng nút này bước 12 (năm) chứ không 1 — top bar luôn bước 1, nên
+            hai bộ KHÔNG trùng chức năng hoàn toàn; đó là lý do nó ở lại mobile nguyên
+            vẹn thay vì bị xoá. */}
+        <div className="flex flex-1 items-center gap-2 lg:hidden">
           <IconButton
-            onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, -step))}
+            onClick={() => stepMonth(-step)}
             aria-label={yearNav ? 'Năm trước' : 'Tháng trước'}
           >
             <ChevronLeft className="h-5 w-5" />
           </IconButton>
-          <h1 className="flex-1 text-center text-lg font-bold text-fg-primary">{label}</h1>
+          <p aria-live="polite" className="flex-1 text-center text-lg font-bold text-fg-primary">
+            {label}
+          </p>
           <IconButton
-            onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, step))}
+            onClick={() => stepMonth(step)}
             aria-label={yearNav ? 'Năm sau' : 'Tháng sau'}
           >
             <ChevronRight className="h-5 w-5" />
@@ -269,7 +380,7 @@ export function LedgerPage() {
 
       {view === 'daily' && (
         <DailyView
-          transactions={transactions}
+          transactions={shown}
           isLoading={isLoading}
           accountOf={accountOf}
           categoryOf={categoryOf}
@@ -283,6 +394,22 @@ export function LedgerPage() {
           // Nút "Chọn" do DailyView vẽ, ngay trên danh sách nó điều khiển
           onToggleSelecting={() => (selection.selecting ? selection.exit() : selection.enter())}
           tagsOfTx={tagsOfTx}
+          balanceOfDay={balanceOfDay}
+          onDuplicate={handleDuplicate}
+          // Bộ lọc chỉ ở đây DƯỚI lg — từ lg nó sống trong cột phụ (10a). Cùng một
+          // <LedgerFilterBar>, cùng một state, chỉ khác chỗ đứng.
+          aboveList={
+            <div className="lg:hidden">
+              <LedgerFilterBar
+                value={filter}
+                onChange={setFilter}
+                uncategorized={uncategorized}
+                base={base}
+                shownCount={shown.length}
+                totalCount={transactions.length}
+              />
+            </div>
+          }
         />
       )}
 
@@ -332,6 +459,32 @@ export function LedgerPage() {
       )}
 
       {canSelect && selection.selecting && <div className="h-20" />}
+      </div>
+
+      {/* Cột phụ 420px — chỉ ở tab Ngày. Ba tab kia đã là một hình phủ kín (lịch, cột
+          tháng, bảng tổng hợp), nên đặt thêm một lưới nhiệt cạnh chúng là hai cái lịch
+          cạnh nhau nói cùng một chuyện. Bộ lọc cũng vậy: nó lọc DANH SÁCH, mà ba tab kia
+          không có danh sách. */}
+      {view === 'daily' && (
+        <LedgerAside
+          monthKey={activeMonthKey}
+          heat={heat}
+          topCategories={topCategories}
+          nameOf={(id) => categoryOf(id)?.name ?? 'Chưa rõ'}
+          expenseTotal={expenseBreakdown.total}
+          base={base}
+          filterBar={
+            <LedgerFilterBar
+              value={filter}
+              onChange={setFilter}
+              uncategorized={uncategorized}
+              base={base}
+              shownCount={shown.length}
+              totalCount={transactions.length}
+            />
+          }
+        />
+      )}
 
       {editing && <EditTransactionSheet tx={editing} onClose={() => setEditing(null)} />}
 
@@ -340,9 +493,20 @@ export function LedgerPage() {
           count={selection.count}
           allSelected={allSelected}
           onToggleAll={() =>
-            allSelected ? selection.clear() : selection.selectAll(transactions.map((t) => t.id))
+            allSelected ? selection.clear() : selection.selectAll(shown.map((t) => t.id))
           }
           onDelete={handleBulkDelete}
+          onEdit={() => setBulkEditing(true)}
+        />
+      )}
+
+      {bulkEditing && (
+        <BulkEditSheet
+          ids={selection.selectedIds}
+          categories={categories}
+          tags={tags}
+          onClose={() => setBulkEditing(false)}
+          onDone={() => selection.exit()}
         />
       )}
     </div>

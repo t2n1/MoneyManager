@@ -5,6 +5,7 @@ import {
   personalInflation,
   rollingAverage,
   yearOverYear,
+  seasonalOutlook,
 } from './trends'
 
 describe('rollingAverage', () => {
@@ -164,5 +165,73 @@ describe('lifestyleElasticity', () => {
     expect(r?.incomeBefore).toBe(100)
     expect(r?.incomeAfter).toBe(200)
     expect(r?.elasticity).toBeCloseTo(0.5)
+  })
+})
+
+describe('seasonalOutlook', () => {
+  /** Hai năm dữ liệu: mọi tháng 100, riêng tháng 12 là 200. */
+  const haiNam = () => {
+    const p: { month: number; expense: number }[] = []
+    for (let y = 0; y < 2; y++)
+      for (let m = 1; m <= 12; m++) p.push({ month: m, expense: m === 12 ? 200 : 100 })
+    return p
+  }
+
+  it('tìm tháng nặng nhất trong các tháng SẮP TỚI', () => {
+    const r = seasonalOutlook(haiNam(), 8)!
+    expect(r.month).toBe(12)
+    expect(r.monthsAway).toBe(4)
+    expect(r.occurrences).toBe(2)
+  })
+
+  it('nói bằng TIỀN và bằng số cần để thêm mỗi tháng', () => {
+    const r = seasonalOutlook(haiNam(), 8)!
+    // TB mọi tháng = (11×100 + 200)/12 ≈ 108,33; tháng 12 = 200
+    expect(r.avgOverall).toBe(108)
+    expect(r.avgForMonth).toBe(200)
+    expect(r.heavierPct).toBe(85)
+    expect(r.extra).toBe(92)
+    expect(r.savePerMonth).toBe(23) // 92 / 4
+  })
+
+  // Cả điểm của khối này là CÒN THỜI GIAN để dành thêm.
+  it('không nói về tháng hiện tại', () => {
+    expect(seasonalOutlook(haiNam(), 12)!.month).toBe(12) // tháng 12 năm SAU, 12 tháng nữa
+    expect(seasonalOutlook(haiNam(), 12)!.monthsAway).toBe(12)
+  })
+
+  it('đi vòng qua cuối năm', () => {
+    const r = seasonalOutlook(haiNam(), 10)!
+    expect(r.month).toBe(12)
+    expect(r.monthsAway).toBe(2)
+  })
+
+  // Ràng buộc quan trọng nhất: một tháng 12 duy nhất không phải mùa vụ.
+  it('một lần xuất hiện thì KHÔNG gọi là mùa vụ', () => {
+    const motNam = Array.from({ length: 12 }, (_, i) => ({
+      month: i + 1,
+      expense: i + 1 === 12 ? 200 : 100,
+    }))
+    expect(seasonalOutlook(motNam, 8)).toBeNull()
+  })
+
+  it('dao động dưới ngưỡng thì im', () => {
+    const deu = haiNam().map((p) => ({ ...p, expense: p.month === 12 ? 105 : 100 }))
+    expect(seasonalOutlook(deu, 8)).toBeNull()
+  })
+
+  it('chuỗi phẳng hoặc rỗng → null, không chia cho 0', () => {
+    expect(seasonalOutlook([], 8)).toBeNull()
+    expect(
+      seasonalOutlook(
+        Array.from({ length: 24 }, (_, i) => ({ month: (i % 12) + 1, expense: 0 })),
+        8,
+      ),
+    ).toBeNull()
+  })
+
+  it('chỉ nhìn trước trong horizon', () => {
+    // Tháng 12 còn 4 tháng nữa; horizon 2 thì không thấy.
+    expect(seasonalOutlook(haiNam(), 8, { horizon: 2 })).toBeNull()
   })
 })

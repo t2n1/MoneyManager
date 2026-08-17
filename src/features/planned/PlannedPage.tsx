@@ -93,7 +93,7 @@ export function PlannedPage() {
 
   const header = (
     <div className="mb-3 flex items-center gap-2">
-      <BackLink to="/" aria-label="Quay lại" />
+      <BackLink to="/so" aria-label="Quay lại" />
       <h1 className="flex-1 text-lg font-bold text-fg-primary">Sắp chi</h1>
       <ActionButton variant="primary" onClick={() => setSheet({ planned: null })}>
         <Plus className="h-4 w-4" /> Thêm
@@ -215,7 +215,7 @@ export function PlannedPage() {
                         to={`/entry?planned=${p.id}`}
                         aria-label={`Ghi khoản ${p.title}`}
                         title="Đã chi — ghi vào sổ"
-                        className={iconButtonClass('ghost', 'shrink-0 text-green-700 dark:text-green-400')}
+                        className={iconButtonClass('ghost', 'shrink-0 text-fg-accent')}
                       >
                         <Check className="h-5 w-5" />
                       </Link>

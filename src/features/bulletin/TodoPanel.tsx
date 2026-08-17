@@ -1,0 +1,129 @@
+// "Việc cần làm" — khối ĐẦU TIÊN của Bản tin (§4.9 / bản vẽ 16a).
+//
+// ⚠️ Đây KHÔNG phải một engine mới. App đã có bộ luật sinh việc xuyên app
+// (`features/notifications/rules/`) với đúng những thứ khó nhất: mã ổn định (một việc
+// chỉ báo một lần), chống nói hai lần một ý (vượt trần rồi thì thôi báo nhịp), ngưỡng
+// chống nhiễu (mục vặt dưới 5% tổng ngân sách không báo), và gộp dòng khi nhiều khoản
+// cùng loại. Khối này chỉ ĐỌC RA và bày lại.
+//
+// Đừng tính lại bất cứ điều kiện nào ở đây. Muốn thêm một loại việc → viết một rule
+// thuần trong `rules/`, nơi nó test được và chạy được cả trên edge function.
+//
+// Ba thứ khối này tôn trọng vì chúng đã nằm sẵn trong `useNotifications`:
+//   · trần 5 việc (ACTION_LIMIT) và thứ hạng theo severity;
+//   · cờ bật/tắt TỪNG LOẠI ở Cài đặt → Thông báo (arrangeNotifications lọc offTypes) —
+//     người đã tắt một loại mà vẫn bị nhắc ở đây sẽ coi đó là lỗi;
+//   · trạng thái đã ẩn của từng việc.
+import { Link } from 'react-router-dom'
+import { Check, ChevronRight } from 'lucide-react'
+import { Card, StatusDot, iconButtonClass } from '../../components/ui'
+import { toISODate } from '../../lib/dates'
+import type { AppNotification, NotificationSeverity } from '../notifications/types'
+import { dueSoonCount, todoBadge, todoSource } from './todoView'
+
+const TONE: Record<NotificationSeverity, 'bad' | 'warn' | 'info'> = {
+  high: 'bad',
+  medium: 'warn',
+  low: 'info',
+}
+
+const TONE_LABEL: Record<NotificationSeverity, string> = {
+  high: 'Gấp',
+  medium: 'Nên làm sớm',
+  low: 'Khi rảnh',
+}
+
+interface Props {
+  items: AppNotification[]
+  /** Ẩn một việc. Bộ luật sinh lại nó khi tình huống tái diễn — xem state.ts. */
+  onDismiss: (key: string) => void
+}
+
+export function TodoPanel({ items, onDismiss }: Props) {
+  // Đồng hồ đọc MỘT LẦN cho cả khối: gọi trong vòng map thì hai dòng có thể rơi hai bên
+  // nửa đêm và ra hai con số ngày khác nhau trên cùng một danh sách.
+  const todayISO = toISODate(new Date())
+  const soon = dueSoonCount(items, todayISO)
+  // Không có việc gì KHÔNG phải là trạng thái rỗng đáng vẽ một khối trống: khối này
+  // biến mất hẳn, và Bản tin bắt đầu thẳng bằng câu kết luận. Một tấm thẻ ghi "không
+  // có việc nào" mỗi ngày cũng là một dòng phải đọc.
+  if (items.length === 0) return null
+
+  return (
+    <Card elevation="panel" padding="panel" as="section">
+      <div className="flex items-baseline justify-between gap-2">
+        {/* "· 1 có hạn trong tuần": trần 5 việc nghĩa là danh sách lúc nào cũng gần đầy,
+            nên riêng "4 việc" không nói được hôm nay có gì gấp hay không (16a). */}
+        <h2 className="text-[0.8125rem] font-semibold text-fg-primary">
+          Việc cần làm ({items.length})
+          {soon > 0 && (
+            <span className="font-normal text-fg-muted">
+              {' '}
+              · {soon} có hạn trong tuần
+            </span>
+          )}
+        </h2>
+        <Link to="/settings/notifications" className="text-2xs text-fg-muted hover:underline">
+          Chọn loại nhắc
+        </Link>
+      </div>
+
+      <ul className="mt-2 divide-y divide-border-subtle">
+        {items.map((n) => {
+          const badge = todoBadge(n, todayISO)
+          return (
+          <li key={n.key} className="flex items-center gap-2">
+            <Link to={n.to} className="flex min-w-0 flex-1 items-start gap-2.5 py-2">
+              <StatusDot tone={TONE[n.severity]} label={TONE_LABEL[n.severity]} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[0.8125rem] text-fg-primary">{n.title}</span>
+                {/* Dòng NGUỒN — luận điểm chính của 16a: gom mọi kết luận về một chỗ thì
+                    phải nói được việc này ĐẾN TỪ ĐÂU, không thì người dùng mất đường
+                    quay về màn có đầy đủ ngữ cảnh. Ghép trước `detail` bằng dấu gạch dài
+                    để cả hai nằm trên MỘT dòng: khối này có trần 5 việc, thêm một dòng
+                    thứ ba cho mỗi việc là cao thêm gần một nửa. */}
+                <span className="block truncate text-2xs text-fg-muted">
+                  Từ {todoSource(n)}
+                  {n.detail && ` — ${n.detail}`}
+                </span>
+              </span>
+              {/* Nhãn hạn/loại ĐỨNG PHẢI, không đứng trái như mock: ở đây bên trái đã có
+                  StatusDot mang mức độ, mà hai huy hiệu cạnh nhau thì không ai biết cái
+                  nào là cái phải đọc trước. Bên phải nó nằm cùng cột với chevron, thành
+                  một cột "trạng thái" đọc dọc được. */}
+              <span
+                className={`shrink-0 rounded px-1.5 py-0.5 text-3xs font-semibold tabular-nums tracking-wide ${
+                  badge.urgent
+                    ? 'bg-state-warn-bg text-state-warn-fg'
+                    : 'bg-surface-sunken text-fg-muted'
+                }`}
+              >
+                {badge.text}
+              </span>
+              <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-fg-muted" aria-hidden />
+            </Link>
+            {/* Nút ẩn tách khỏi vùng bấm chính: cả dòng là "đi làm việc này", riêng nút
+                này là "thôi, đừng nhắc nữa". Gộp vào một chỗ bấm thì lỡ tay là mất việc. */}
+            <button
+              type="button"
+              onClick={() => onDismiss(n.key)}
+              aria-label={`Ẩn: ${n.title}`}
+              title="Ẩn việc này"
+              className={iconButtonClass('ghost', 'shrink-0')}
+            >
+              <Check className="h-4 w-4" />
+            </button>
+          </li>
+          )
+        })}
+      </ul>
+
+      {/* KHÔNG có khối "Đã xong tuần này (3)" mà 16a vẽ, và đây là chủ ý.
+          Nó cần một mốc "đã hoàn thành", mà thứ gần nhất app có là `dismissed_at`. Dùng
+          nó thì đếm ra ngược sự thật: `splitStaleActionKeys` XOÁ state của việc mà lượt
+          tính không còn sinh ra — tức việc THẬT SỰ xong thì rơi khỏi đếm, còn việc chỉ
+          bị ẩn mà chưa làm thì ở lại và bị đếm thành "đã xong". Muốn làm đúng phải có
+          một sổ hoàn thành riêng; chưa có thì thà không đếm. */}
+    </Card>
+  )
+}

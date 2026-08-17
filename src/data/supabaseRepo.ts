@@ -270,6 +270,37 @@ export const supabaseRepo: Repo = {
     }
   },
 
+  async setTransactionsCategory(ids: string[], categoryId: string | null) {
+    if (ids.length === 0) return
+    // Chia lô 100 như deleteTransactions: `id=in.(…)` nằm trên query string.
+    for (let i = 0; i < ids.length; i += 100) {
+      const { error } = await getSupabase()
+        .from('transactions')
+        .update({ category_id: categoryId })
+        .in('id', ids.slice(i, i + 100))
+      if (error) throw error
+    }
+  },
+
+  async addTagToTransactions(ids: string[], tagId: string) {
+    if (ids.length === 0) return
+    const user_id = await currentUserId()
+    // `upsert` chứ không `insert`: khoản nào đã mang nhãn này rồi thì insert sẽ đụng
+    // khoá chính kép (transaction_id, tag_id) và cả lô hỏng. Sửa hàng loạt thì chuyện
+    // "vài khoản đã có nhãn đó" là bình thường, không phải lỗi.
+    for (let i = 0; i < ids.length; i += 100) {
+      const rows = ids.slice(i, i + 100).map((transaction_id) => ({
+        transaction_id,
+        tag_id: tagId,
+        user_id,
+      }))
+      const { error } = await getSupabase()
+        .from('transaction_tags')
+        .upsert(rows, { onConflict: 'transaction_id,tag_id', ignoreDuplicates: true })
+      if (error) throw error
+    }
+  },
+
   async createAccount(input: NewAccount) {
     const user_id = await currentUserId()
     const sort_order = await nextSortOrder('accounts')

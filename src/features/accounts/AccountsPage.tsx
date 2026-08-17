@@ -188,7 +188,7 @@ export function AccountsPage() {
                   <button
                     type="button"
                     onClick={() => update.mutate({ id: a.id, patch: { is_archived: false } })}
-                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30"
+                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-accent hover:bg-green-50 dark:hover:bg-green-900/30"
                   >
                     Khôi phục
                   </button>

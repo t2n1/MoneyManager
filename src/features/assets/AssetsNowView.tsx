@@ -5,20 +5,25 @@
 // Trước đây file này là cả trang Tài sản 780 dòng, gánh thêm hai câu hỏi khác ("tôi đang
 // tiến bộ không" và "sau này thế nào") trong cùng một mạch cuộn. Hai câu đó nay là
 // AssetsTrendView và LifetimeView. Xem docs/information-architecture.md §2.3.
-import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
-import { ChevronRight, GripVertical } from 'lucide-react'
+import { ArrowUpDown, ChevronRight, GripVertical } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { AccountTypeIcon } from '../../components/icons'
-import { SegmentedControl, Sparkline } from '../../components/ui'
+import { ActionButton, actionButtonClass, SegmentedControl, Sparkline } from '../../components/ui'
 import {
   useAccounts,
   useAssignAccountsToGroup,
+  useCategories,
   useNetWorthSnapshots,
+  useRangeTransactions,
   useReorderAccounts,
 } from '../../hooks/queries'
+import { addDaysISO, dayMonthLabel } from '../../lib/dates'
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
+import { ADJUST_CATEGORY_NAME } from '../categories/flowCategories'
+import { accountRowStats, DELTA_DAYS } from './accountRowStats'
 import { UNGROUPED_LABEL, type AssetAccount } from './aggregate'
 import { CardsSection } from './CardsSection'
 import { CurrencyViewToggle } from './CurrencyViewToggle'
@@ -98,11 +103,54 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
     groupMode === 'purpose' ? purposeGroups : groupMode === 'type' ? typeGroups : currencyGroups
   // Nhãn của lát đang cắt, in trên thẻ Cơ cấu vì nút chọn lát nay nằm dưới danh sách.
   const modeLabel = (GROUP_MODES.find(([m]) => m === groupMode)?.[1] ?? '').toLowerCase()
-  // Kéo–thả sắp thứ tự tài khoản bật ở mọi chế độ. Nhưng chỉ "Mục đích" cho kéo
+  // Kéo–thả sắp thứ tự tài khoản bật ở mọi chế độ NHÓM. Nhưng chỉ "Mục đích" cho kéo
   // XUYÊN nhóm (đổi asset_group); ở "Loại"/"Tiền tệ", kéo sang nhóm khác nghĩa là
   // đổi loại/đồng tiền tài khoản (làm trong form), nên chỉ cho sắp TRONG một nhóm.
   const dragEnabled = displayGroups.length > 0
   const allowCross = groupMode === 'purpose'
+
+  /**
+   * CHẾ ĐỘ SẮP XẾP — chỉ tồn tại dưới `lg` (§6 / bản vẽ 17a).
+   *
+   * 17a nói thẳng: *"Tay kéo sắp xếp tài khoản rút vào chế độ Sắp xếp riêng — 36px mỗi
+   * dòng là quá đắt ở 390px."* Đo lại đúng như vậy: sáu dòng, mỗi dòng một tay kéo rộng
+   * đúng 36px, tức 9% bề ngang màn tiêu vĩnh viễn cho một thao tác hiếm — trong khi cột
+   * số tiền bên phải mới là thứ người ta mở màn này để đọc.
+   *
+   * Cổng đặt bằng CSS (`hidden lg:inline-flex`), KHÔNG bằng một điểm ngắt đọc trong JS:
+   * bộ máy kéo–thả vẫn gắn ref như cũ ở mọi bề rộng, chỉ cái tay cầm là biến mất. Nhờ
+   * vậy không có state nào phụ thuộc bề rộng cửa sổ, không phải nghe `resize`, và không
+   * có nhịp render đầu tiên đoán sai bề rộng rồi nhảy layout.
+   */
+  const [sortMode, setSortMode] = useState(false)
+  // Đổi chế độ nhóm thì thoát Sắp xếp: thứ tự vừa kéo thuộc lát cũ, giữ nguyên trạng
+  // thái là mời người dùng kéo tiếp trên một danh sách đã khác.
+  useEffect(() => setSortMode(false), [groupMode])
+
+  /**
+   * Δ 30 ngày · đường tí hon · ngày đối chiếu (§4.4). Phép tính ở accountRowStats.ts.
+   *
+   * Một truy vấn 30 ngày, dùng chung cho MỌI dòng — không phải mỗi dòng một truy vấn.
+   */
+  const deltaRange = useMemo(
+    () => ({ start: addDaysISO(todayISO, -DELTA_DAYS), end: addDaysISO(todayISO, 1) }),
+    [todayISO],
+  )
+  const { data: deltaTxs = [] } = useRangeTransactions(deltaRange)
+  const { data: categories = [] } = useCategories()
+  const rowStats = useMemo(
+    () =>
+      accountRowStats({
+        balanceById: new Map(balances.map((b) => [b.id, b.balance])),
+        txs: deltaTxs,
+        adjustCategoryIds: new Set(
+          categories.filter((c) => c.name === ADJUST_CATEGORY_NAME).map((c) => c.id),
+        ),
+        todayISO,
+        windowStartISO: deltaRange.start,
+      }),
+    [balances, deltaTxs, categories, todayISO, deltaRange.start],
+  )
 
   // --- Kéo–thả tài khoản ngay trên trang Tài sản (trong nhóm & xuyên nhóm) ---
   const { data: allAccounts = [] } = useAccounts()
@@ -287,6 +335,15 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
   const netApprox =
     breakdown.hasForeign || debtsSummary.hasMissingRate || breakdown.cardHasMissingRate
 
+  // Danh sách CHỖ đang thiếu tỷ giá, dựng trước rồi mới quyết định có vẽ dòng cảnh báo
+  // hay không. Cố ý không viết `A || B && (…)` rồi ghép chuỗi bên trong: hai điều kiện
+  // rời nhau thì có đúng một cách để câu ra rỗng ("…cho một phần  — mọi tổng…"), và
+  // cách đó chỉ lộ ra khi một nhánh bật mà nhánh kia tắt.
+  const thieuTyGia = [
+    breakdown.hasMissingRate && 'tài sản',
+    (debtsSummary.hasMissingRate || breakdown.cardHasMissingRate) && 'công nợ',
+  ].filter((s): s is string => typeof s === 'string')
+
   return (
     <div
       ref={rootRef}
@@ -295,6 +352,25 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
       onPointerUp={onAccPointerEnd}
       onPointerCancel={onAccPointerEnd}
     >
+      {/* MỘT dòng cảnh báo thiếu tỷ giá cho cả tab (12a của bản 1a: "giữ nguyên khung số
+          hiện tại, chỉ gộp cảnh báo").
+          Trước đây câu này in HAI lần, gần như y hệt nhau, ở hai độ cao khác nhau: một
+          trong thẻ Tổng tài sản (nền gradient) và một trong thẻ Tài sản ròng cách đó cả
+          màn hình. Người dùng đọc lần thứ hai không biết nó có phải chuyện mới không.
+          Gộp lên đầu và nói RÕ chỗ nào đang thiếu, thay vì lặp lại chữ "có thể thiếu".
+
+          Vì sao KHÔNG làm 12b ("Tiêu được ngay") ở PR này: §4.4 đặt điều kiện phải có cờ
+          *tài khoản dùng hằng ngày* và nợ phải có ngày đến hạn. App chỉ có `asset_group`
+          — một chuỗi TÊN NHÓM người dùng tự gõ — và `debts.due_on` thì nullable. Suy
+          "tài khoản dùng hằng ngày" từ một cái tên nhóm chính là "đoán" mà R1 cấm, và
+          đoán hụt một khoản đã có chủ là app khuyến khích tiêu quá tay. */}
+      {thieuTyGia.length > 0 && (
+        <p className="rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-[0.8125rem] text-state-warn-fg">
+          Chưa quy đổi được tỷ giá cho một phần {thieuTyGia.join(' và ')} — mọi tổng trên tab
+          này đang thiếu phần đó.
+        </p>
+      )}
+
       {/* Lưới hai cột trên PC cho các khối CHỈ ĐỂ ĐỌC ở đầu trang. Danh sách nhóm tài
           khoản phía dưới cố ý ĐỨNG NGOÀI lưới: nó kéo–thả để sắp thứ tự, mà phép tính
           vị trí thả giả định các dòng xếp dọc — chia hai cột là thả sai chỗ.
@@ -343,11 +419,6 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
               </span>
             </p>
           )}
-          {breakdown.hasMissingRate && (
-            <p className="mt-2 text-xs text-green-100">
-              Một phần tài sản ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên tổng có thể thiếu.
-            </p>
-          )}
         </section>
   
         {/* Thẻ tín dụng — khối DUY NHẤT trên trang có hạn chót ("còn N ngày", "cần
@@ -370,7 +441,7 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
           <section className="rounded-2xl bg-surface p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tài sản ròng</span>
-              <Link to="/debts" className="inline-flex items-center gap-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+              <Link to="/debts" className="inline-flex items-center gap-0.5 text-xs font-medium text-fg-accent">
                 Nợ / cho vay <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
@@ -417,11 +488,6 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                 </div>
               )}
             </div>
-            {(debtsSummary.hasMissingRate || breakdown.cardHasMissingRate) && (
-              <p className="mt-2 text-xs text-fg-muted">
-                Một phần công nợ ngoại tệ chưa quy đổi được nên số ròng có thể thiếu.
-              </p>
-            )}
           </section>
         )}
   
@@ -520,8 +586,24 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
           stretch={false}
         />
       </div>
+      {/* Nút vào/ra chế độ Sắp xếp — CHỈ dưới lg. Từ lg tay kéo luôn hiện nên một cái
+          nút bật thứ đã bật sẵn là một nút không làm gì. */}
       {dragEnabled && (
-        <Guide className="-mb-1 px-1 text-xs text-fg-muted">
+        <div className="flex justify-end lg:hidden">
+          <ActionButton
+            onClick={() => setSortMode((v) => !v)}
+            aria-pressed={sortMode}
+            className={sortMode ? 'border-accent text-fg-accent' : ''}
+          >
+            <ArrowUpDown className="h-4 w-4" strokeWidth={2} />
+            {sortMode ? 'Xong' : 'Sắp xếp'}
+          </ActionButton>
+        </div>
+      )}
+      {/* Câu hướng dẫn chỉ có nghĩa khi tay kéo đang hiện: dưới lg mà chưa bật Sắp xếp
+          thì nó chỉ tới một biểu tượng không có trên màn. */}
+      {dragEnabled && (
+        <Guide className={`-mb-1 px-1 text-xs text-fg-muted ${sortMode ? '' : 'hidden lg:block'}`}>
           Nhấn giữ <GripVertical className="inline h-3.5 w-3.5 align-text-bottom" /> rồi kéo để
           sắp thứ tự tài khoản{allowCross ? ', hoặc kéo thả sang nhóm khác' : ' trong cùng một loại'}.
         </Guide>
@@ -567,20 +649,29 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                 if (!a) return null
                 const isDragging = dragEnabled && id === dragAcc
                 const rowPnl = accountRowPnl(a, danhMucTheoTk.get(a.id))
+                const stat = rowStats.get(a.id)
                 return (
                   <div
                     key={id}
                     ref={dragEnabled ? (el) => setRow(id, el) : undefined}
-                    className={`flex items-center ${
+                    // flex-col: dòng giờ có HAI TẦNG (17a). Tầng trên là dòng cũ, tầng
+                    // dưới mang Δ (chỉ mobile — từ sm nó đã có cột riêng ở tầng trên) và
+                    // tình trạng đối chiếu.
+                    className={`flex flex-col ${
                       isDragging ? 'bg-green-50 shadow-md dark:bg-green-900/20' : ''
                     }`}
                   >
+                    <div className="flex items-center">
                     {dragEnabled && (
                       <button
                         type="button"
                         onPointerDown={(e) => onAccPointerDown(id, e)}
                         style={{ touchAction: 'none' }}
-                        className="inline-flex min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-gray-300 active:cursor-grabbing dark:text-gray-600"
+                        // Dưới lg: chỉ hiện trong chế độ Sắp xếp (17a — xem `sortMode`).
+                        // Từ lg: luôn hiện, 36px trên màn 1440 không đáng kể.
+                        className={`${
+                          sortMode ? 'inline-flex' : 'hidden lg:inline-flex'
+                        } min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-gray-300 active:cursor-grabbing dark:text-gray-600`}
                         aria-label={`Kéo để sắp thứ tự hoặc chuyển nhóm ${a.name}`}
                       >
                         <GripVertical className="h-4 w-4" />
@@ -588,8 +679,14 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                     )}
                     <Link
                       to={`/assets/account/${a.id}`}
+                      // Lề trái phải đi CÙNG cái tay kéo: tay kéo ẩn mà vẫn chừa pl-1 thì
+                      // dòng thụt vào 4px không vì cái gì.
                       className={`flex min-w-0 flex-1 items-center gap-2 py-2.5 transition hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100 ${
-                        dragEnabled ? 'pr-4 pl-1' : 'px-4'
+                        dragEnabled
+                          ? sortMode
+                            ? 'pr-4 pl-1'
+                            : 'pr-4 pl-4 lg:pl-1'
+                          : 'px-4'
                       }`}
                     >
                       <AccountTypeIcon type={a.type} className="h-4 w-4" />
@@ -610,6 +707,29 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                           </span>
                         )}
                       </span>
+                      {/* Δ 30 ngày + đường tí hon (§4.4). DÒNG HAI TẦNG ở mobile, cột
+                          riêng từ sm (17a: "bảng nhiều cột đổi thành dòng hai tầng —
+                          số dư trên, Δ dưới — không phải thu nhỏ bản desktop").
+                          Ở 390px, khối này xuống dưới số dư nhờ `hidden sm:flex` + bản
+                          gọn nằm trong cột tên bên trái. */}
+                      {stat && (
+                        <span className="hidden shrink-0 items-center gap-1.5 sm:flex">
+                          <Sparkline values={stat.spark} label={`Số dư ${a.name} 30 ngày qua`} />
+                          <span
+                            className={`w-16 text-right text-2xs tabular-nums ${
+                              stat.delta === 0
+                                ? 'text-fg-muted'
+                                : stat.delta > 0
+                                  ? 'text-money-in'
+                                  : 'text-money-out'
+                            }`}
+                          >
+                            {stat.delta === 0
+                              ? '—'
+                              : `${stat.delta > 0 ? '+' : '−'}${mv.fmt(Math.abs(stat.delta), a.currency)}`}
+                          </span>
+                        </span>
+                      )}
                       <span
                         className={`shrink-0 text-sm font-medium tabular-nums ${a.value < 0 ? 'text-money-out' : 'text-fg-primary'}`}
                       >
@@ -617,6 +737,60 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                       </span>
                       <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
                     </Link>
+                    </div>
+
+                    {/* TẦNG HAI (§4.4 + 17a). Chỉ dựng khi có gì để nói — một dòng rỗng
+                        dưới mỗi tài khoản là 20px × N tiêu cho không khí. */}
+                    {stat && (stat.stale || stat.delta !== 0) && (
+                      <div
+                        className={`flex items-center gap-2 pb-2 text-3xs text-fg-muted ${
+                          dragEnabled ? (sortMode ? 'pl-10 pr-4' : 'px-4 lg:pl-10 lg:pr-4') : 'px-4'
+                        }`}
+                      >
+                        {/* Δ chỉ ở mobile: từ sm nó đã đứng thành cột riêng ở tầng trên,
+                            in lại là nói hai lần cùng một con số trên cùng một dòng. */}
+                        {stat.delta !== 0 && (
+                          <span
+                            className={`tabular-nums sm:hidden ${
+                              stat.delta > 0 ? 'text-money-in' : 'text-money-out'
+                            }`}
+                          >
+                            {stat.delta > 0 ? '+' : '−'}
+                            {mv.fmt(Math.abs(stat.delta), a.currency)} / {DELTA_DAYS} ngày
+                          </span>
+                        )}
+                        {stat.stale ? (
+                          // Quá hạn thì đưa luôn NÚT, không chỉ báo tin: §4.4 đòi "hiện
+                          // nút Đối chiếu tại dòng". Là <Link> chứ không <button> vì nó
+                          // điều hướng — giữ được mở-tab-mới và chuột giữa.
+                          <Link
+                            to={`/assets/account/${a.id}?doi-chieu=1`}
+                            // actionButtonClass() chứ không viết tay: <Link> là thẻ <a>
+                            // nên không dùng được <ActionButton>, và đây đúng là lý do
+                            // hàm đó tồn tại. Viết tay thì lặp lại min-h-11 + rounded-md
+                            // và làm vỡ trần trong designSystem.test.ts.
+                            className={actionButtonClass(
+                              'outline',
+                              'ml-auto border-state-warn-border text-state-warn-fg',
+                            )}
+                            // Nhãn NGẮN, lý do để ở aria-label. Nút này chỉ hiện khi quá
+                            // hạn nên "quá 30 ngày" là thừa với người nhìn thấy nó — mà
+                            // ở ca xấu nhất (người dùng mới, chưa đối chiếu bao giờ) thì
+                            // MỌI dòng đều có nút, và sáu lần một câu dài là sáu lần
+                            // nhắc cùng một điều. Trình đọc màn hình vẫn nghe đủ.
+                            aria-label={`Đối chiếu ${a.name} — quá ${DELTA_DAYS} ngày chưa đối chiếu`}
+                          >
+                            Đối chiếu
+                          </Link>
+                        ) : (
+                          stat.lastReconciledISO && (
+                            <span className="ml-auto tabular-nums">
+                              đối chiếu {dayMonthLabel(stat.lastReconciledISO)}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               })}

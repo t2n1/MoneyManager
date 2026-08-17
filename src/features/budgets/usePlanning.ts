@@ -33,6 +33,11 @@ import { suggestLimits, type Suggestion } from './suggest'
 import { tagPlanLines, type TagPlanLine } from '../tags/budget'
 import { useTagBudgets } from '../tags/useTagBudgets'
 
+
+/** Cửa sổ lịch sử cho GỢI Ý HẠN MỨC (§4.3: TB 6 tháng). Khác BASELINE_MONTHS — xem
+ *  chú thích ở chỗ dựng `histMonths`. */
+export const SUGGEST_MONTHS = 6
+
 export interface PlanningData {
   summary: PlanSummary
   /** số người dùng tự khai; null = chưa khai */
@@ -79,8 +84,17 @@ export function usePlanning(monthKey: MonthKey): PlanningData {
   const monthStartDay = profile?.month_start_day ?? 1
   const currentKey = monthKeyForDate(toISODate(new Date()), monthStartDay)
 
+  // SÁU tháng, không phải BASELINE_MONTHS (3).
+  //
+  // Hai người dùng chuỗi này cần hai cửa sổ khác nhau, và trước đây bị ép chung một:
+  //   · Thu NỀN — 3 tháng gần nhất. Thu nhập đổi thì phải bám theo cái mới; kéo dài
+  //     cửa sổ là một lần tăng lương mất nửa năm mới hiện ra trong mẫu số.
+  //   · Gợi ý HẠN MỨC — 6 tháng (§4.3). Chi tiêu có nhịp quý (bảo hiểm, sửa xe, quà
+  //     Tết); ba tháng thì một khoản ba-tháng-một-lần hoặc phình gấp ba hoặc biến mất
+  //     hẳn khỏi gợi ý, tuỳ nó rơi vào cửa sổ hay không.
+  // Lấy 6 tháng cho CẢ chuỗi rồi cắt lại 3 tháng cuối cho thu nền: một lần fetch.
   const histMonths = useMemo(
-    () => Array.from({ length: BASELINE_MONTHS }, (_, i) => addMonths(currentKey, i - BASELINE_MONTHS)),
+    () => Array.from({ length: SUGGEST_MONTHS }, (_, i) => addMonths(currentKey, i - SUGGEST_MONTHS)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [currentKey.year, currentKey.month],
   )
@@ -104,8 +118,17 @@ export function usePlanning(monthKey: MonthKey): PlanningData {
     const r = rates ?? {}
     const convert = (amount: number, c: CurrencyCode) => convertToBase(amount, c, base, r)
 
+    // Thu nền chỉ nhìn BASELINE_MONTHS tháng cuối của cửa sổ — xem lý do ở chỗ khai
+    // `histMonths`. `slice(-n)` chứ không fetch riêng: cùng một mảng giao dịch.
     const baseline = baselineIncome(
-      monthlySeries(histTxs, histMonths, monthStartDay, currencyOf, base, r).points,
+      monthlySeries(
+        histTxs,
+        histMonths.slice(-BASELINE_MONTHS),
+        monthStartDay,
+        currencyOf,
+        base,
+        r,
+      ).points,
     )
 
     // Chi theo danh mục của TỪNG tháng lịch sử — nền của mọi gợi ý.

@@ -49,7 +49,17 @@
  */
 export type StatusTone = 'good' | 'warn' | 'bad' | 'info'
 
-/** Nền đặc: thanh thang đo, chấm trạng thái, chú giải. Đạt 3:1 với nền thẻ. */
+/** Nền đặc: thanh thang đo, chấm trạng thái, chú giải. Đạt 3:1 với nền thẻ.
+ *
+ *  GIỮ NGUYÊN ở bản 1a, cố ý khác STATUS_CHIP bên dưới. §2.6 của bộ tài liệu nói
+ *  "StatusChip / StatusDot dùng bộ bề mặt trạng thái (nền tối + viền cùng tông)" —
+ *  áp câu đó vào CHẤM 8px là xoá luôn cái chấm: nền tối chỉ hơn nền thẻ vài phần trăm,
+ *  còn viền 1px trên hình 8px thì gần như không thấy. Bản vẽ 1a cũng để chấm ĐẶC
+ *  (#05df72 / #ff6467 nguyên màu) — câu §2.6 nói về chip và banner.
+ *
+ *  Đo lại trên thang bề mặt mới, ĐÃ composite alpha, ca xấu nhất là nền sunken:
+ *    bad 3,60:1 · warn 4,66:1 · good 4,52:1 · info 6,85:1 — cả bốn vẫn ≥3:1.
+ *  (Trên gray-900 cũ, bad là 3,57:1 — tức nền tối hơn làm chấm nhích lên, không tụt.) */
 export const STATUS_FILL: Record<StatusTone, string> = {
   bad: 'bg-red-600 dark:bg-red-400/70',
   warn: 'bg-amber-600 dark:bg-amber-500/70',
@@ -77,9 +87,42 @@ export const STATUS_STROKE: Record<StatusTone, string> = {
 // Light là ca sát sàn: good 4,50 và warn 4,52 chỉ vừa đúng AA. Đổi green-700/amber-700
 // sang bậc nhạt hơn cho "dịu mắt" là trượt ngay — chip 11px không được hưởng ngưỡng
 // 3:1 của chữ lớn.
+//
+// ĐÍNH CHÍNH (2026-08-17, quét lại toàn bộ light bằng cách TẢI LẠI từng route): cái
+// "good 4,50" ở trên là SAI. Đọc pixel bằng canvas ra 4,4957:1 — green-700 trên
+// green-100 KHÔNG đạt AA, hụt 0,004. Con số 4,50 là 4,4957 đã làm tròn lên rồi đem đi
+// kết luận "vừa đúng AA", tức phép làm tròn tự cấp chứng nhận cho chính nó. Bài học
+// không phải "green-700 xấu" mà là: số đo dùng để GÁC một ngưỡng thì phải làm tròn
+// XUỐNG, hoặc giữ đủ chữ số. Từ 1a, good đi green-800 (6,48:1) — xem chú thích ở khối
+// --state-* trong index.css. Warn giữ amber-700 và vẫn sát sàn thật (4,515:1).
+//
+// ---- Bản 1a: chip đi qua token --state-* ------------------------------------------
+//
+// Ba tông có màu không còn viết cặp sáng/tối tại đây nữa; chúng đọc bộ bề mặt trạng
+// thái khai ở index.css (nền + viền + chữ, mỗi thứ một token tự lật theo chế độ). Hai
+// lý do, không phải để cho gọn:
+//   1. Cùng bộ mặt đó còn phải dùng cho BANNER (§4.6: banner vai trò đặc biệt, banner
+//      cảnh báo của form Nhập). Để ở đây thì banner sẽ chép tay lại — đúng cái bẫy
+//      "hai chỗ vẽ cùng một ý nghĩa mà lệch màu" ghi ở docs/design-system.md.
+//   2. Ở dark, 1a bỏ shadow và nền chip chỉ hơn nền thẻ vài phần trăm, nên VIỀN mới là
+//      thứ vẽ ra hình cái chip. Viền là chiều thứ ba, mà bảng cũ chỉ có nền + chữ.
+//
+// LIGHT GIỮ NGUYÊN NỀN: token light trỏ đúng bộ green-100/amber-100/red-100, và viền
+// light cố ý trùng màu nền (vô hình). Chip light chỉ nở thêm 2px vì có thêm đường viền
+// — đổi lại, hình học chip giống hệt nhau ở hai chế độ. Chữ thì good đã lên green-800
+// theo đính chính ở trên; warn/bad vẫn bậc 700.
+// Đo lại ở dark trên nền chip: good 10,97 · warn 8,90 · bad 8,96. Hai tông sau thấp hơn
+// good là CỐ Ý: nền của chúng đã được nâng lên cho cái chip có ruột (nền cũ chỉ hơn nền
+// thẻ 1,020 và 1,003:1 — xem khối --state-* trong index.css), mà nâng nền thì chữ tụt.
+// Cả hai vẫn dư gần gấp đôi ngưỡng 4,5:1, nên đây là đổi phần dư thừa lấy phần đang
+// thiếu. Ba tông vẫn lệch nhau, nhưng giờ lệch ở cột CÒN DƯ chứ không ở cột đang thiếu.
+//
+// 'info' KHÔNG có token riêng: nó là "chưa có gì để nói", đi bằng bề mặt trung tính sẵn
+// có. Đây là chỗ DUY NHẤT light đổi diện mạo — viền border-strong (gray-300) hiện ra ở
+// light, trước đây chip info không có viền. Cố ý: để bốn tông cùng một hình dạng.
 export const STATUS_CHIP: Record<StatusTone, string> = {
-  good: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  warn: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  bad: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  info: 'bg-surface-sunken text-fg-on-track',
+  good: 'border border-state-good-border bg-state-good-bg text-state-good-fg',
+  warn: 'border border-state-warn-border bg-state-warn-bg text-state-warn-fg',
+  bad: 'border border-state-bad-border bg-state-bad-bg text-state-bad-fg',
+  info: 'border border-border-strong bg-surface-sunken text-fg-on-track',
 }

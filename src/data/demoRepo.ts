@@ -962,6 +962,29 @@ export const demoRepo: Repo = {
     save(db)
   },
 
+  async setTransactionsCategory(ids: string[], categoryId: string | null) {
+    if (ids.length === 0) return
+    const db = load()
+    const hit = new Set(ids)
+    db.transactions = db.transactions.map((t) =>
+      hit.has(t.id) ? { ...t, category_id: categoryId } : t,
+    )
+    save(db)
+  },
+
+  async addTagToTransactions(ids: string[], tagId: string) {
+    if (ids.length === 0) return
+    const db = load()
+    const links = db.transactionTags ?? []
+    // Bỏ qua khoản đã mang nhãn này — GẮN THÊM, không nhân đôi liên kết.
+    const daCo = new Set(links.filter((l) => l.tag_id === tagId).map((l) => l.transaction_id))
+    const them = ids
+      .filter((id) => !daCo.has(id))
+      .map((transaction_id) => ({ transaction_id, tag_id: tagId }))
+    db.transactionTags = [...links, ...them] as typeof links
+    save(db)
+  },
+
   async createAccount(input: NewAccount) {
     const db = load()
     const sort_order = db.accounts.reduce((m, a) => Math.max(m, a.sort_order + 1), 0)

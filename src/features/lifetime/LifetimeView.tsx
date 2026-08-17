@@ -1,11 +1,22 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Pencil, Sparkles, Star } from 'lucide-react'
-import { Card, Money } from '../../components/ui'
+import { AlertTriangle, Pencil, SlidersHorizontal, Sparkles, Star } from 'lucide-react'
+import { ActionButton, Card, Money } from '../../components/ui'
 import { repo } from '../../data'
 import { useNetWorthSnapshots } from '../../hooks/queries'
+import { useEscClose } from '../../hooks/useEscClose'
 import type { CurrencyCode } from '../../lib/currencies'
+import { showToast } from '../../lib/dialog'
 import { formatMoney } from '../../lib/money'
+import {
+  applyOverride,
+  currentPhaseIndex,
+  hasOverride,
+  NO_OVERRIDE,
+  type AssumptionOverride,
+} from './assumptions'
+import { AssumptionSliders } from './AssumptionSliders'
+import { projectLifetime } from './project'
 import { pickActive } from './buildInput'
 import { InsightCards } from './InsightCards'
 import { LifetimeChartCard } from './LifetimeChartCard'
@@ -60,6 +71,73 @@ export function LifetimeView() {
     for (const p of sorted) if (p.startYear <= input.currentYear) cur = p
     return cur
   }, [input])
+
+  // --- Thanh trượt giả định (§4.4 / 13b) --------------------------------------------
+  //
+  // `override` là lớp đè SỐNG TRONG BỘ NHỚ: kéo thì bản chiếu đổi ngay, nhưng dữ liệu
+  // chỉ bị ghi khi bấm Lưu. Nhờ vậy "thử xem nếu chi ít hơn thì sao" không còn là một
+  // lần ghi đè kịch bản thật rồi phải nhớ sửa lại.
+  const [override, setOverride] = useState<AssumptionOverride>(NO_OVERRIDE)
+  const [dragging, setDragging] = useState(false)
+  const [savingAssumptions, setSavingAssumptions] = useState(false)
+  /** Sheet đáy chứa ba thanh trượt — chỉ dùng dưới lg (mock turn 24). */
+  const [sheetOpen, setSheetOpen] = useState(false)
+  useEscClose(() => setSheetOpen(false), sheetOpen)
+  const qc = useQueryClient()
+
+  // Đổi kịch bản thì lớp đè phải rơi: giá trị đang kéo là của chặng thuộc kịch bản CŨ,
+  // giữ lại là âm thầm áp thu/chi của kịch bản này lên kịch bản kia.
+  useEffect(() => setOverride(NO_OVERRIDE), [activeId])
+
+  // Chiếu lại NGAY (cổng R6 đã mở — xem assumptions.ts). Không đè gì thì `applyOverride`
+  // trả về chính `input`, nên `useMemo` giữ tham chiếu và `rows` sẵn có được dùng lại
+  // nguyên vẹn: không đè = không tốn thêm một phép chiếu nào.
+  const shownInput = useMemo(() => (input ? applyOverride(input, override) : null), [input, override])
+  const shownRows = useMemo(
+    () => (shownInput && shownInput !== input ? projectLifetime(shownInput) : rows),
+    [shownInput, input, rows],
+  )
+  const shownPhase = useMemo(() => {
+    if (!shownInput) return null
+    const i = currentPhaseIndex(shownInput)
+    return i >= 0 ? shownInput.phases[i] : null
+  }, [shownInput])
+
+  /** Ghi ba giá trị đang kéo vào kịch bản. Chỉ ghi thứ THẬT SỰ bị đè. */
+  async function handleSaveAssumptions() {
+    if (!active || savingAssumptions) return
+    // Chặng cần ID để ghi, mà `LifetimeInput.phases` không mang ID — đối chiếu lại sang
+    // `phases` (LifePhaseRow) theo start_year, khoá duy nhất của chặng trong kịch bản.
+    const row = shownPhase
+      ? phases.find((p) => p.scenario_id === active.id && p.start_year === shownPhase.startYear)
+      : undefined
+    setSavingAssumptions(true)
+    try {
+      if (row && (override.annualIncomeMinor !== null || override.annualExpenseMinor !== null)) {
+        await repo.updateLifePhase(row.id, {
+          ...(override.annualIncomeMinor !== null && {
+            annual_income_minor: override.annualIncomeMinor,
+          }),
+          ...(override.annualExpenseMinor !== null && {
+            annual_expense_minor: override.annualExpenseMinor,
+          }),
+        })
+      }
+      if (override.realReturnBps !== null) {
+        await repo.updateLifeScenario(active.id, { real_return_bps: override.realReturnBps })
+      }
+      showToast('Đã lưu giả định vào kịch bản.', 'success')
+      setOverride(NO_OVERRIDE)
+    } catch (err) {
+      // KHÔNG xoá lớp đè khi lỗi: người dùng vừa mất một lượt vặn, bắt họ kéo lại ba
+      // thanh trượt là phạt họ vì mạng hỏng.
+      showToast(err instanceof Error ? err.message : 'Không lưu được giả định.', 'error')
+    } finally {
+      await qc.invalidateQueries({ queryKey: ['lifePhases'] })
+      await qc.invalidateQueries({ queryKey: ['lifeScenarios'] })
+      setSavingAssumptions(false)
+    }
+  }
 
   // --- Chế độ so sánh (Task 8 Step 4) ---
   const otherScenarios = useMemo(
@@ -272,7 +350,15 @@ export function LifetimeView() {
           className="flex min-h-11 w-full items-center rounded-xl px-3 py-2 text-left text-xs text-fg-muted active:scale-95 disabled:active:scale-100"
         >
           <span>
-            {currentPhase ? (
+            {/* CÓ thanh trượt thì dòng này THÔI đọc lại ba con số đó. Chúng đứng cách
+                nhau 40px, và trong lúc vặn thì dòng này in giá trị ĐÃ LƯU còn thanh
+                trượt in giá trị ĐANG THỬ — hai số khác nhau, cùng một nhãn "chi", trên
+                cùng một màn. Đo thật khi dựng xong: dòng trên ¥1,319,784, thanh trượt
+                ¥2,700,000. Nhường phần số cho thanh trượt, giữ lại đúng vai còn lại của
+                nút này: đường vào trình sửa đầy đủ (chặng khác, sự kiện, tỷ giá). */}
+            {shownPhase ? (
+              <>Sửa chi tiết: chặng khác · sự kiện · tỷ giá — bấm để mở</>
+            ) : currentPhase ? (
               <>
                 Giả định: thu{' '}
                 <Money
@@ -300,6 +386,78 @@ export function LifetimeView() {
           </span>
         </button>
       </Card>
+      {/* Bốn thẻ kết luận đứng TRƯỚC đồ thị (§4.4 / 13b). Trước đây chúng nằm dưới đáy,
+          sau đồ thị và hai nút — tức người dùng phải cuộn qua cả bản chiếu 60 năm mới đọc
+          được KẾT LUẬN của chính bản chiếu đó. "Kết luận trước, bằng chứng sau" (§14). */}
+      {/* Ba thanh trượt giả định (§4.4 / 13b), đứng NGAY DƯỚI dòng tóm tắt giả định và
+          TRÊN bốn thẻ kết luận: kéo ở đây thì thứ đổi ngay bên dưới là kết luận, không
+          phải một đường cong người ta phải tự đọc. */}
+      {/* TỪ lg: khối nằm ngay trên đồ thị.
+          DƯỚI lg: chỉ một nút, khối đi vào sheet đáy — mock turn 24 nói thẳng "thanh
+          trượt giả định chuyển xuống sheet đáy vì để cạnh đồ thị thì mỗi thứ còn nửa
+          màn". Đo lại đúng vậy ở 390px: khối thanh trượt 268px, đồ thị 208px — thứ để
+          LÁI đang chiếm nhiều chỗ hơn thứ nó lái.
+          Hai bản dùng CHUNG một `override`, nên không có đường nào để chúng lệch nhau;
+          và mỗi bề rộng chỉ có đúng một bản nằm trong cây a11y (bản inline bị
+          display:none ở mobile, còn sheet chỉ dựng khi mở và nút mở là lg:hidden). */}
+      {shownInput && shownPhase && (
+        <>
+          <div className="hidden lg:block">
+            <AssumptionSliders
+              input={shownInput}
+              phase={shownPhase}
+              override={override}
+              onChange={setOverride}
+              onDragChange={setDragging}
+              onSave={handleSaveAssumptions}
+              onReset={() => setOverride(NO_OVERRIDE)}
+              saving={savingAssumptions}
+            />
+          </div>
+
+          <ActionButton onClick={() => setSheetOpen(true)} className="self-start lg:hidden">
+            <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
+            Thử giả định
+            {hasOverride(override) && <span className="text-fg-warn"> · chưa lưu</span>}
+          </ActionButton>
+
+          {sheetOpen && (
+            <div
+              className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center"
+              onClick={() => setSheetOpen(false)}
+            >
+              <div
+                className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <AssumptionSliders
+                  input={shownInput}
+                  phase={shownPhase}
+                  override={override}
+                  onChange={setOverride}
+                  onDragChange={setDragging}
+                  onSave={handleSaveAssumptions}
+                  onReset={() => setOverride(NO_OVERRIDE)}
+                  saving={savingAssumptions}
+                />
+                <ActionButton onClick={() => setSheetOpen(false)} className="mt-3 w-full">
+                  Đóng
+                </ActionButton>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {shownInput && profile?.birth_year != null && (
+        <InsightCards
+          rows={shownRows}
+          input={shownInput}
+          birthYear={profile.birth_year}
+          currency={active.display_currency as CurrencyCode}
+        />
+      )}
+
 
       {/* Banner cảnh báo tỷ giá bằng 1 — BẮT BUỘC, không có nút tắt (xem task-7-brief.md).
           Đặt NGAY TRÊN đồ thị: phải đọc được trước khi đọc số. Trên mobile chỉ hiện SỐ
@@ -322,7 +480,9 @@ export function LifetimeView() {
       )}
 
       <LifetimeChartCard
-        rows={rows}
+        rows={shownRows}
+        // §12: không animate trong lúc ngón tay còn trên thanh trượt.
+        suppressAnimation={dragging}
         historyRows={historyRows}
         currency={active.display_currency as CurrencyCode}
         compare={compareRows}
@@ -396,15 +556,6 @@ export function LifetimeView() {
         </div>
       )}
 
-      {/* Bốn thẻ kết luận (Task 9) — xem InsightCards.tsx */}
-      {input && profile?.birth_year != null && (
-        <InsightCards
-          rows={rows}
-          input={input}
-          birthYear={profile.birth_year}
-          currency={active.display_currency as CurrencyCode}
-        />
-      )}
 
       {/* Bảng theo năm (Task 10) — bản dự phòng a11y của đồ thị, nút mở NGAY DƯỚI đồ thị
           (xem LifetimeChartCard ở trên), không giấu trong menu. */}

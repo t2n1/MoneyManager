@@ -69,12 +69,26 @@ Sổ            Ngân sách      Tài sản           Báo cáo          Cài đ
 
 Nav dưới 5 tab là giới hạn thực dụng trên mobile — không thêm nữa.
 
+> **Cập nhật 2026-08-16 (PR 4).** Sáu đích, không còn năm: **Bản tin** chiếm `/`, Sổ dời
+> sang `/so`, `/transactions` thành route chuyển tiếp. Bản tin trả lời "tình hình thế
+> nào", Sổ trả lời "tôi đã tiêu gì" — trước đây hai câu hỏi bị nhét chung một màn.
+> Thanh tab mobile vẫn năm ô + nút "+": **Cài đặt rời khỏi thanh tab** (sáu tab ở 320px
+> thì nhãn "Ngân sách" bị cắt), đường vào mobile của nó là nút bánh răng ở đầu Bản tin.
+>
+> **Cập nhật 2026-08-16 (PR 3 của redesign 1a).** Cùng năm đích, khác vỏ:
+> desktop ≥1024px đổi thanh bên 240px thành **rail icon 52px + top bar 52px**;
+> mobile đổi thẻ nav nổi thành **thanh tab dính mép, 5 tab + nút "+" ở giữa**.
+> Nút "+" nổi ở góc trang Sổ **đã bỏ** — nó trùng chức năng với nút "+" giữa thanh tab.
+> Kỳ đang xem (tháng) rời khỏi từng trang, thành state dùng chung cả app
+> (`src/hooks/useMonthKey.tsx`) vì bộ đổi tháng nay nằm trên top bar.
+> Bản 1a có **6** mục (thêm "Bản tin" ở `/`, Sổ dời sang `/so`) — mục thứ sáu tới ở PR 4.
+
 ### 2.1 Tab 1 — Sổ · `/`
 
 | Thành phần | Nguồn | Ghi chú |
 | --- | --- | --- |
 | 4 tab con Ngày / Lịch / Tháng / Tổng hợp | giữ nguyên | `?view=` |
-| Nút "+" nổi → `/entry` | giữ nguyên | |
+| ~~Nút "+" nổi → `/entry`~~ | **bỏ 2026-08-16** | Thay bằng nút "+" giữa thanh tab dưới (mobile) và nút "+ Giao dịch" trên top bar (desktop) |
 | Icon Tìm kiếm → `/search` | giữ nguyên | |
 | Chuông thông báo | giữ nguyên | |
 | **Icon Định kỳ → `/recurring`** | **chuyển từ Cài đặt** | Đặt ở header, cạnh icon Tìm kiếm |

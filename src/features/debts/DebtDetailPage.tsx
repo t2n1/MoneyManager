@@ -44,7 +44,7 @@ export function DebtDetailPage() {
         {isLoading ? 'Đang tải…' : 'Không tìm thấy khoản nợ.'}
         {!isLoading && (
           <div className="mt-3">
-            <Link to="/debts" className="text-green-700 dark:text-green-400 underline">
+            <Link to="/debts" className="text-fg-accent underline">
               Về danh sách
             </Link>
           </div>
@@ -316,7 +316,7 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400"
+          className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-fg-accent"
         >
           {open ? 'Ẩn chi tiết từng kỳ' : 'Xem chi tiết từng kỳ'}
           {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}

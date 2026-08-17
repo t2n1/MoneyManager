@@ -7,13 +7,25 @@
 // phải đụng layout.
 import type { ElementType, ReactNode } from 'react'
 
-/** 'raised' = nổi (thẻ chính) · 'flat' = viền, không đổ bóng (thẻ phụ) */
-export type CardElevation = 'raised' | 'flat'
-export type CardPadding = 'none' | 'sm' | 'md' | 'lg'
+/** 'raised' = nổi (thẻ chính) · 'flat' = viền, không đổ bóng (thẻ phụ)
+ *  'panel'  = khung của bản 1a: bán kính 8px, viền --border-panel, KHÔNG bóng */
+export type CardElevation = 'raised' | 'flat' | 'panel'
+export type CardPadding = 'none' | 'sm' | 'md' | 'lg' | 'panel'
 
+// Bán kính nằm TRONG bảng này, không ở BASE. Không phải để cho gọn: 'panel' là 8px
+// (rounded-lg) còn hai dáng kia là 12px (rounded-xl), mà hai lớp bán kính cùng hạng
+// thì Tailwind quyết theo THỨ TỰ TRONG CSS chứ không theo thứ tự trong chuỗi class —
+// rounded-xl sinh ra sau rounded-lg nên nó luôn thắng. Để chung ở BASE thì 'panel'
+// lặng lẽ vẫn 12px và không có gì báo sai.
+//
+// 'raised' ở dark bỏ shadow và thay bằng viền panel: 1a bỏ hẳn đổ bóng, phân cấp bằng
+// nền + viền. Bóng trên nền #0e1014 gần như vô hình nên nó chỉ còn là một vệt tối bẩn
+// quanh thẻ. Cố ý dùng `dark:` chứ không đổi cả hai chế độ — light giữ nguyên diện mạo
+// (và giữ nguyên cả hình học: viền chỉ mọc thêm ở dark, nơi cả thang bề mặt đã đổi).
 const ELEVATION: Record<CardElevation, string> = {
-  raised: 'shadow-sm',
-  flat: 'border border-border-subtle',
+  raised: 'rounded-xl shadow-sm dark:border dark:border-border-panel dark:shadow-none',
+  flat: 'rounded-xl border border-border-subtle',
+  panel: 'rounded-lg border border-border-panel',
 }
 
 const PADDING: Record<CardPadding, string> = {
@@ -21,6 +33,8 @@ const PADDING: Record<CardPadding, string> = {
   sm: 'p-2.5',
   md: 'p-3',
   lg: 'p-4',
+  // 16px ngang / 14px dọc — mật độ panel của 1a (§1.4: padding trong panel 12–16px).
+  panel: 'px-4 py-3.5',
 }
 
 interface Props {
@@ -41,7 +55,7 @@ export function Card({
 }: Props) {
   return (
     <Tag
-      className={`rounded-xl bg-surface ${ELEVATION[elevation]} ${PADDING[padding]} ${className}`.trim()}
+      className={`bg-surface ${ELEVATION[elevation]} ${PADDING[padding]} ${className}`.trim()}
     >
       {children}
     </Tag>

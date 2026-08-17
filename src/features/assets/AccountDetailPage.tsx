@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { BackLink } from '../../components/BackLink'
 import { ChevronLeft, ChevronRight, LineChart, Scale, Trash2 } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
@@ -47,6 +47,7 @@ import {
   carriedDebt,
   statementDueAmount,
 } from './cardMonthCharge'
+import { ACCOUNT_TYPE_LABELS, cardFunding, type CardLiability } from './aggregate'
 import { depreciate } from './depreciation'
 import { ngay } from './investFormat'
 import { investmentStats } from './investment'
@@ -69,7 +70,12 @@ export function AccountDetailPage() {
   const deleteValuation = useDeleteValuation()
   const [editing, setEditing] = useState<TransactionRow | null>(null)
   const [showValuation, setShowValuation] = useState(false)
-  const [showReconcile, setShowReconcile] = useState(false)
+  // Mở sẵn sheet Đối chiếu khi vào bằng ?doi-chieu=1 — đường vào của nút "Đối chiếu"
+  // ở từng dòng trong danh sách tài khoản (§4.4). Đọc MỘT LẦN lúc khởi tạo: sau đó
+  // trạng thái thuộc về người dùng, không phải thanh địa chỉ, nên đóng sheet rồi mà URL
+  // vẫn còn tham số thì cũng không tự mở lại.
+  const [searchParams] = useSearchParams()
+  const [showReconcile, setShowReconcile] = useState(() => searchParams.get('doi-chieu') === '1')
   const [showMonthAdjust, setShowMonthAdjust] = useState(false)
 
   const monthStartDay = profile?.month_start_day ?? 1
@@ -131,6 +137,51 @@ export function AccountDetailPage() {
     [account?.type, account?.statement_day, account?.payment_due_day, accountId, balance],
   )
   const cardStatement = useCardStatements(cardForSplit, todayISO).get(accountId)
+  // NGUỒN TRẢ (bản vẽ 19a: "Nguồn trả · Rakuten Bank · Số dư ¥140,500 · cần nạp thêm
+  // ¥12,300"). Trang này là nơi tin "Tài khoản sắp không đủ tiền" ĐỔ VỀ — nút của nó ghi
+  // "Xem thẻ" — nên nếu tới đây mà không thấy lại con số thiếu thì cả chuỗi đứt ở bước
+  // cuối, đúng bệnh mà 16a đặt tên: mỗi kết luận chết tại chỗ nó sinh ra.
+  //
+  // Gọi `cardFunding` — CÙNG hàm mà chuông và khối Thẻ ở trang Tài sản dùng — chứ không
+  // trừ tay `số dư nguồn − nợ thẻ`: phép trừ tay sai ở ca NHIỀU thẻ chung một nguồn, nơi
+  // từng thẻ đều "đủ" mà cộng lại thì thiếu.
+  //
+  // Đọc `groups` (mức NGUỒN), không `byCard`: phân bổ từng thẻ của hàm đó TUẦN TỰ theo
+  // thứ tự mảng truyền vào, nên con số per-card phụ thuộc vào thứ tự sắp thẻ của nơi gọi
+  // — trang Tài sản sắp theo baseValue, luật chuông thì theo thứ tự tài khoản. Tổng theo
+  // nguồn thì không: nó là `max(0, tổng nợ − số dư)`, cùng một số dù xếp cách nào. Đó là
+  // điều kiện để trang này nói ĐÚNG con số mà tin "sắp không đủ tiền" đã nói.
+  const cardFundingGroup = useMemo(() => {
+    const sourceId = account?.type === 'card' ? account.payment_account_id : null
+    if (!sourceId) return null
+    const cards: CardLiability[] = balances
+      .filter((b) => b.type === 'card' && !b.is_archived && b.payment_account_id === sourceId)
+      .map((b) => ({
+        id: b.id,
+        name: b.name,
+        currency: b.currency,
+        balance: b.balance,
+        baseValue: null,
+        creditLimit: b.credit_limit,
+        paymentDueDay: b.payment_due_day,
+        statementDay: b.statement_day,
+        paymentAccountId: b.payment_account_id,
+        includeInTotals: b.include_in_totals,
+        hidden: b.is_hidden,
+      }))
+    const src = balances.find((b) => b.id === sourceId)
+    if (!src) return null
+    // Đo theo số RÚT VÀO NGÀY ĐẾN HẠN, không phải nợ gộp: thẻ mới quẹt to trong kỳ chưa
+    // chốt sẽ báo "thiếu" oan. Chỉ thẻ đang xem có sẵn `billed` ở trang này, nên thẻ khác
+    // cùng nguồn rơi về mặc định của cardFunding (toàn bộ dư nợ) — lệch về phía AN TOÀN:
+    // nó chỉ làm con số thiếu to hơn, không bao giờ nói "đủ" khi thật ra thiếu.
+    const owedById = new Map<string, number>()
+    if (cardStatement?.billed != null) owedById.set(accountId, cardStatement.billed)
+    const sourceById = new Map([
+      [src.id, { id: src.id, name: src.name, currency: src.currency, balance: src.balance }],
+    ])
+    return cardFunding(cards, sourceById, owedById).groups[0] ?? null
+  }, [account?.type, account?.payment_account_id, balances, accountId, cardStatement?.billed])
   // Phần "chưa chốt" là tiền quẹt từ HÔM SAU ngày chốt — nói ra ngày đó để không
   // ai phải đoán nó thuộc tháng nào.
   const unbilledFromISO = cardStatement?.closeISO
@@ -232,15 +283,29 @@ export function AccountDetailPage() {
       {/* Header */}
       <div className="mb-3 flex items-center gap-2">
         <BackLink to="/assets" aria-label="Quay lại" />
-        <h1 className="flex-1 truncate text-lg font-bold text-fg-primary">
-          {account ? (
-            <span className="inline-flex items-center gap-1.5">
-              <AccountTypeIcon type={account.type} className="h-5 w-5" /> {account.name}
-            </span>
-          ) : (
-            'Tài khoản'
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-lg font-bold text-fg-primary">
+            {account ? (
+              <span className="inline-flex items-center gap-1.5">
+                <AccountTypeIcon type={account.type} className="h-5 w-5" /> {account.name}
+              </span>
+            ) : (
+              'Tài khoản'
+            )}
+          </h1>
+          {/* Dòng phụ của 19a: "Thẻ tín dụng · JPY · trả từ Rakuten Bank". Ba mẩu này
+              quyết định cách đọc MỌI con số bên dưới — loại tài khoản đổi nghĩa của số
+              lớn (số dư hay số nợ), loại tiền nói con số đang là ¥ hay ₫, và nguồn trả
+              nói tiền sẽ rời khỏi ví nào. Trước đây cả ba phải tự suy từ chính các con
+              số, hoặc mở Cài đặt → Tài khoản mới thấy. */}
+          {account && (
+            <p className="truncate text-xs text-fg-muted">
+              {ACCOUNT_TYPE_LABELS[account.type]} · {account.currency}
+              {cardFundingGroup && ` · trả từ ${cardFundingGroup.sourceName}`}
+              {account.asset_group && ` · ${account.asset_group}`}
+            </p>
           )}
-        </h1>
+        </div>
       </div>
 
       {/* Số dư hiện tại */}
@@ -304,9 +369,8 @@ export function AccountDetailPage() {
             <EstimateMark reason="Suy ra từ ngày mua và số tháng khấu hao bạn đã đặt, không phải giá thị trường." />
           )}
         </p>
-        {account?.asset_group && (
-          <p className="mt-1 text-xs text-fg-muted">Nhóm: {account.asset_group}</p>
-        )}
+        {/* Nhóm tài sản đã lên dòng phụ ở tiêu đề cùng loại và loại tiền — ba mẩu nhận
+            dạng đứng chung một chỗ, không rải một cái ở tiêu đề một cái giữa thẻ. */}
 
         {/* Điều chỉnh số dư (mục X) — cho ví/tài khoản thường và thẻ; đầu tư và tài
             sản cố định đi đường "Cập nhật giá trị" (định giá theo ngày) thay vì bù */}
@@ -465,7 +529,7 @@ export function AccountDetailPage() {
                   <span>Đã khấu hao</span>
                   <span>
                     <Money amount={dep.accumulated} currency={currency} tone="out" showSign />
-                    <span className="ml-1 text-xs tabular-nums">
+                    <span className="ml-1 font-mono text-xs">
                       ({Math.round(dep.elapsedRatio * 100)}%)
                     </span>
                   </span>
@@ -541,21 +605,78 @@ export function AccountDetailPage() {
                 </div>
                 <div className="flex items-center justify-between text-fg-muted">
                   <span>Hạn mức</span>
-                  {/* Không đặt text-fg-primary: dòng này cố ý mờ hơn dòng trên */}
-                  <Money amount={account.credit_limit} currency={currency} className="text-fg-muted" />
+                  {/* Không đặt text-fg-primary: dòng này cố ý mờ hơn dòng trên.
+                      "đã chiếm N%" là của 19a: hai con số tiền không tự nói được mức
+                      dùng thẻ là bình thường hay đang sát trần — phải nhẩm một phép chia
+                      với hai số sáu chữ số. Tính theo TỔNG nợ (gồm cả phần chưa chốt) vì
+                      hạn mức bị chiếm bởi cả phần đó, đúng như dòng "Còn dùng được". */}
+                  <span className="flex items-baseline gap-1.5">
+                    <Money
+                      amount={account.credit_limit}
+                      currency={currency}
+                      className="text-fg-muted"
+                    />
+                    {account.credit_limit > 0 && (
+                      <span className="tabular-nums text-2xs text-fg-muted">
+                        · đã chiếm{' '}
+                        {Math.round(((balance < 0 ? -balance : 0) / account.credit_limit) * 100)}%
+                      </span>
+                    )}
+                  </span>
                 </div>
               </>
             )}
+
             {account.statement_day != null && (
               <div className="flex items-center justify-between text-fg-muted">
                 <span>Ngày chốt sao kê</span>
-                <span className="tabular-nums">Ngày {account.statement_day}</span>
+                <span className="font-mono">Ngày {account.statement_day}</span>
               </div>
             )}
             {account.payment_due_day != null && (
               <div className="flex items-center justify-between text-fg-muted">
                 <span>Ngày đến hạn</span>
-                <span className="tabular-nums">Ngày {account.payment_due_day}</span>
+                <span className="font-mono">Ngày {account.payment_due_day}</span>
+              </div>
+            )}
+            {/* NGUỒN TRẢ (19a). Đứng CUỐI khối thẻ vì nó là câu trả lời cho "rồi tiền ở
+                đâu ra": đọc xong ba dòng nợ/hạn mức mới tới lúc hỏi câu đó.
+                Chỉ hiện khi thẻ có đặt nguồn tự trả — thẻ trả tay không có gì để đối
+                chiếu, và bịa ra một ví để so là nói sai. */}
+            {cardFundingGroup && (
+              <div className="mt-1 border-t border-border-subtle pt-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate text-fg-muted">
+                    Nguồn trả · {cardFundingGroup.sourceName}
+                  </span>
+                  <Money
+                    amount={cardFundingGroup.sourceBalance}
+                    currency={cardFundingGroup.currency}
+                    className="shrink-0 font-medium text-fg-primary"
+                  />
+                </div>
+                {cardFundingGroup.totalOwed > 0 &&
+                  (cardFundingGroup.enough ? (
+                    <p className="mt-1 text-2xs text-fg-muted">
+                      Đủ trả{' '}
+                      {cardFundingGroup.cardCount > 1 &&
+                        `cả ${cardFundingGroup.cardCount} thẻ dùng ví này `}
+                      kỳ tới.
+                    </p>
+                  ) : (
+                    // Câu này chính là câu tin "Tài khoản sắp không đủ tiền" đã nói ở
+                    // chuông, và nút của tin đó dẫn về đúng trang này. Không có nó thì
+                    // chuỗi đứt ở bước cuối: người dùng bấm nút rồi không thấy con số nào.
+                    <p className="mt-1 rounded-md border border-state-bad-border bg-state-bad-bg px-2.5 py-1.5 text-2xs text-state-bad-fg">
+                      Cần nạp thêm{' '}
+                      <b>{formatMoney(cardFundingGroup.shortfall, cardFundingGroup.currency)}</b>{' '}
+                      vào {cardFundingGroup.sourceName} mới đủ trả{' '}
+                      {cardFundingGroup.cardCount > 1
+                        ? `${cardFundingGroup.cardCount} thẻ dùng ví này`
+                        : 'kỳ tới'}
+                      .
+                    </p>
+                  ))}
               </div>
             )}
           </div>
@@ -694,7 +815,7 @@ export function AccountDetailPage() {
               {/* KHÔNG bọc Guide: đây là cảnh báo số không khớp, mất nó ở chế độ
                   Gọn là người dùng lại đọc nhầm tổng quẹt thành số bị trừ. */}
               {dueAmount != null && dueAmount !== monthCharged && (
-                <p className="mt-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-2xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                <p className="mt-1.5 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
                   Số bị rút không bằng tiền quẹt kỳ này — các dòng trên nói vì sao. Đối chiếu với
                   sao kê thật rồi dùng “Điều chỉnh số nợ” nếu sai.
                 </p>

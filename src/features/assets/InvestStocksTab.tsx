@@ -9,6 +9,9 @@ import { Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
 import { ActionButton, Card, Money, SectionTitle } from '../../components/ui'
+import { useRates } from '../../hooks/queries'
+import { convertToBase } from '../../lib/rates'
+import { concentrationVerdict } from './concentration'
 import { HOSE_SYMBOLS } from './hoseSymbols'
 import { InvestAccountChips } from './InvestAccountChips'
 import { InvestTradeAccountPicker } from './InvestTradeAccountPicker'
@@ -57,7 +60,16 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
     else setPicking(true)
   }
 
+  const { base, rates } = useRates()
   const nameBySymbol = useMemo(() => new Map(HOSE_SYMBOLS), [])
+  // Giá trị danh mục quy về đồng tiền gốc. null = thiếu tỷ giá → nơi hiển thị im.
+  const giaTriBase =
+    portfolio.marketValue === null
+      ? null
+      : convertToBase(portfolio.marketValue, VND, base, rates ?? {})
+  // Câu phán về mức tập trung (21a). Hàm thuần, ngưỡng và ca một-mã nằm ở
+  // concentration.ts cùng test của nó.
+  const tapTrung = useMemo(() => concentrationVerdict(portfolio.positions), [portfolio.positions])
   const shownTrades = useMemo(
     () => (symbolFilter ? trades.filter((t) => t.symbol === symbolFilter) : trades),
     [trades, symbolFilter],
@@ -114,11 +126,29 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
               : 'Chưa tính được — chưa có giá cho mã nào đang giữ.'}
           </p>
         ) : (
-          <p className="mt-1 flex items-baseline gap-1">
+          <p className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <Money amount={p.marketValue} currency={VND} className="text-2xl font-bold" />
             {p.missingPrices.length > 0 && (
               <EstimateMark
                 reason={`${p.missingPrices.join(', ')} chưa có giá, đang tạm tính theo giá vốn.`}
+              />
+            )}
+            {/* Quy đổi về đồng tiền gốc — mảnh mà 21a gọi là "nối với chỗ khác": mọi
+                tổng khác trong app tính bằng ¥, riêng trang này bằng ₫, nên không có con
+                số này thì người đọc không biết danh mục nặng bao nhiêu so với phần tài
+                sản còn lại.
+                CỐ Ý không hứa nó bằng con số nào ở tab Tài sản: khối này chỉ gồm tài
+                khoản CÓ SỔ LỆNH, còn tài khoản đầu tư định giá tay thì không — hai con
+                số lệch nhau một cách chính đáng, và viết "bằng số ở tab Tài sản" vào đây
+                là mời người sau đi sửa một thứ không hỏng.
+                `approx` vì tỷ giá là ảnh chụp, không phải giá khớp lệnh. Ẩn khi base đã
+                là VND (không quy đổi gì) hoặc thiếu tỷ giá — in "≈ 0 ₫" ở đó là bịa. */}
+            {base !== VND && giaTriBase !== null && (
+              <Money
+                amount={giaTriBase}
+                currency={base}
+                approx
+                className="text-sm text-fg-muted"
               />
             )}
           </p>
@@ -174,7 +204,7 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
         </dl>
 
         {p.oversold.length > 0 && (
-          <p className="mt-3 rounded-lg bg-amber-50 px-2.5 py-2 text-2xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          <p className="mt-3 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
             {p.oversold.join(', ')}: sổ lệnh ghi bán nhiều hơn số đang giữ — thiếu một
             lệnh mua ở đâu đó.
           </p>
@@ -263,6 +293,24 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
               </li>
             ))}
           </ul>
+        )}
+
+        {/* KẾT LUẬN về tỷ trọng (21a). Đứng SAU danh sách vì nó nói về cả danh sách —
+            và đây là thứ duy nhất khối này thêm được so với mấy thanh tỷ trọng ở từng
+            dòng: mắt so được hai thanh, nhưng "một mã đang chiếm gần một nửa" thì phải
+            có ai đó nói ra.
+
+            KHÔNG bọc <Guide>: đây là câu phán về dữ liệu của chính người dùng, không
+            phải chữ để dạy — ẩn ở chế độ Gọn thì bốn thanh màu lại trở về im lặng như
+            trước. Ca 'single' vẫn in, vì im hẳn ở đó khiến người dùng tưởng khối này
+            hỏng khi mới mua mã đầu tiên. */}
+        {tapTrung && (
+          <p className="mt-2 border-t border-border-subtle pt-2 text-2xs text-fg-secondary">
+            {tapTrung.text}
+            {tapTrung.estimated && (
+              <EstimateMark reason="Có mã chưa có giá nên tỷ trọng đang tính một phần theo giá vốn." />
+            )}
+          </p>
         )}
       </Card>
 

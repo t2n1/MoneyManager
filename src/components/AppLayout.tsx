@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { ChartColumn, NotebookText, Plus, Settings, Target, Wallet } from 'lucide-react'
-import { isDemoMode } from '../lib/demo'
-import { useAuth } from '../features/auth/AuthProvider'
-import { AppLogo } from './AppLogo'
+import { Outlet, useLocation } from 'react-router-dom'
 import { AppFooter } from './AppFooter'
+import { AppRail } from './AppRail'
+import { AppTopBar } from './AppTopBar'
+import { BottomNav } from './BottomNav'
+import { MonthKeyProvider } from '../hooks/useMonthKey'
+import { pageTitle } from './navItems'
 import { LoadProgress } from './LoadProgress'
+import { QueryErrorBanner } from './QueryErrorBanner'
 import { useLoadProgress } from '../hooks/useLoadProgress'
 import {
   useDeleteNotificationStates,
@@ -17,40 +19,12 @@ import { useDensitySync } from '../hooks/useDensity'
 import { runUndo, useUndoToast } from '../lib/undoToast'
 import { dismissErrorToast, useErrorToast } from '../lib/errorToast'
 import { DialogHost } from '../lib/dialog'
-import { PrivacyToggle } from './PrivacyToggle'
-import { QueryErrorBanner } from './QueryErrorBanner'
-import { NotificationBell } from '../features/notifications/NotificationBell'
-import { NotificationBoundary } from '../features/notifications/NotificationBoundary'
 import { useNotifications } from '../features/notifications/useNotifications'
 import { planNotificationCleanup } from '../features/notifications/state'
 import { addDaysISO, toISODate } from '../lib/dates'
 
-// 5 tab, gom theo câu hỏi người dùng đang hỏi (docs/information-architecture.md §2).
-// Nhãn "Sổ" thay vì "Sổ GD": 5 tab thì mỗi ô hẹp hơn, mà "Ngân sách" là nhãn dài nhất
-// nên phải nhường chỗ.
-const TABS = [
-  { to: '/', label: 'Sổ', Icon: NotebookText },
-  { to: '/budget', label: 'Ngân sách', Icon: Target },
-  { to: '/assets', label: 'Tài sản', Icon: Wallet },
-  { to: '/reports', label: 'Báo cáo', Icon: ChartColumn },
-  { to: '/settings', label: 'Cài đặt', Icon: Settings },
-]
-
-// Tiêu đề tab trình duyệt theo trang. Không đổi thì bookmark, lịch sử và hai tab mở
-// cạnh nhau đều là "Sổ Gạo" — không phân biệt được đang ở đâu. Tiền tố khớp cả
-// trang con (/settings/accounts → "Cài đặt"). Trang gốc "/" giữ nguyên tên app.
-const PAGE_TITLES: [prefix: string, title: string][] = [
-  ['/entry', 'Nhập giao dịch'],
-  ['/search', 'Tìm kiếm'],
-  ['/debts', 'Nợ / cho vay'],
-  ['/recurring', 'Giao dịch định kỳ'],
-  ['/planned', 'Sắp chi'],
-  ['/invest', 'Đầu tư'],
-  ['/budget', 'Ngân sách'],
-  ['/assets', 'Tài sản'],
-  ['/reports', 'Báo cáo'],
-  ['/settings', 'Cài đặt'],
-]
+// Đích điều hướng + tiêu đề trang đã chuyển sang ./navItems.ts — từ bản 1a có BA chỗ
+// đọc chúng (rail desktop, thanh tab mobile, tiêu đề trên top bar) thay vì một.
 
 // Catch-up định kỳ chỉ chạy 1 lần mỗi lần mở app (module-level để sống qua
 // StrictMode re-mount; bản thân engine cũng idempotent nên chạy lại vô hại)
@@ -70,7 +44,6 @@ const TOAST_BTN =
   'rounded-full bg-white/15 px-3 py-1 text-sm font-semibold text-white transition hover:bg-white/25 active:scale-95'
 
 export function AppLayout() {
-  const navigate = useNavigate()
   const location = useLocation()
   // Đăng ký chế độ riêng tư ở gốc cây: bật/tắt sẽ re-render toàn bộ trang con
   // (formatMoney là hàm thuần nên component hiển thị tiền cần được render lại).
@@ -80,17 +53,12 @@ export function AppLayout() {
   // hàng chục lần đồng bộ cho cùng một giá trị. Xem src/hooks/useDensity.ts.
   useDensitySync()
   const undoToast = useUndoToast()
-  // Email cho chân sidebar desktop (demo thì không có phiên → hiện chú thích demo)
-  const { session } = useAuth()
-  const email = session?.user?.email
   // Lưới an toàn lỗi: query/mutation thất bại ở BẤT KỲ đâu cũng nổi một toast, thay vì
   // im lặng để người dùng tưởng đã lưu được. Lấy từ nhánh fix/toan-bo-audit.
   const errorToast = useErrorToast()
   // Đọc ở đây (không phải trong LoadProgress) vì toast định kỳ bên dưới phải né nó.
   const loadPercent = useLoadProgress()
 
-  // Nút "+" nổi chỉ hiện ở trang Sổ Giao dịch
-  const onLedger = location.pathname === '/' || location.pathname === '/transactions'
   // Trang nhập giao dịch: ẩn thanh nav dưới để có tối đa không gian
   const onEntry = location.pathname === '/entry'
 
@@ -107,10 +75,8 @@ export function AppLayout() {
   }, [location.pathname])
 
   useEffect(() => {
-    const hit = PAGE_TITLES.find(
-      ([p]) => location.pathname === p || location.pathname.startsWith(`${p}/`),
-    )
-    document.title = hit ? `${hit[1]} — Sổ Gạo` : 'Sổ Gạo'
+    const hit = pageTitle(location.pathname)
+    document.title = hit ? `${hit} — Sổ Gạo` : 'Sổ Gạo'
   }, [location.pathname])
 
   // Sinh các kỳ định kỳ đến hạn kể từ lần mở trước; N > 0 → toast
@@ -179,149 +145,59 @@ export function AppLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifInputsReady, notifEngineFailed])
 
-  const linkClass = (isActive: boolean) =>
-    `relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${
-      isActive
-        ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
-        : 'text-fg-secondary hover:bg-surface-sunken'
-    }`
-
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-surface-page lg:flex-row ">
-      {/* Sidebar desktop — thẻ nổi: tách khỏi mép màn hình, bo góc lớn, bóng đổ nhẹ */}
-      <aside className="hidden shrink-0 rounded-2xl border border-border-subtle bg-surface p-3 shadow-lg shadow-gray-950/5 lg:m-3 lg:mr-0 lg:flex lg:w-60 lg:flex-col dark:shadow-black/40 print:hidden">
-        {/* Một hàng đủ logo + tên + 2 nút tiện ích: "Sổ Gạo" ngắn (~60px ở text-lg bold)
-            nên khác với tên cũ "Sổ Chi Tiêu" (~95px), không còn cảnh rớt 3 dòng.
-            Lòng trong 216px − logo 32 − mắt 32 − chuông 44 − 3 khe ≈ 84px > 60px. */}
-        <div className="mb-3 flex items-center gap-2 px-1 pt-1">
-          <AppLogo className="h-8 w-8 shrink-0" />
-          <span className="min-w-0 flex-1 truncate whitespace-nowrap text-lg font-bold text-fg-primary">
-            Sổ Gạo
-          </span>
-          <PrivacyToggle className="flex h-8 w-8 items-center justify-center rounded-lg text-fg-muted hover:bg-gray-100 dark:hover:bg-gray-800" />
-          <NotificationBoundary>
-            <NotificationBell className="hidden lg:inline-flex" />
-          </NotificationBoundary>
-        </div>
-        <NavLink
-          to="/entry"
-          className="mb-4 flex items-center justify-center gap-2 rounded-xl bg-green-700 px-3 py-2.5 text-sm font-semibold text-white shadow-md shadow-green-700/25 transition hover:bg-green-800 active:scale-95"
-        >
-          <Plus className="h-5 w-5" />
-          Nhập giao dịch
-        </NavLink>
-        <div className="mb-1.5 px-3 text-2xs font-semibold uppercase tracking-widest text-fg-muted">
-          Menu
-        </div>
-        <nav className="flex flex-col gap-1">
-          {TABS.map((tab) => (
-            <NavLink
-              key={tab.to}
-              to={tab.to}
-              end={tab.to === '/'}
-              className={({ isActive }) => linkClass(isActive)}
-            >
-              {({ isActive }) => (
-                <>
-                  {/* Vạch xanh sát mép trái thẻ (-left-3 = ăn hết p-3) đánh dấu mục đang mở */}
-                  {isActive && (
-                    <span
-                      aria-hidden
-                      className="absolute -left-3 bottom-2 top-2 w-1 rounded-r-full bg-accent"
-                    />
-                  )}
-                  <tab.Icon className="h-5 w-5" />
-                  <span className="flex-1">{tab.label}</span>
-                </>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="mt-auto border-t border-border-subtle px-1 pb-1 pt-3">
-          {isDemoMode ? (
-            <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-              Chế độ demo — dữ liệu chỉ lưu trên trình duyệt này
-            </div>
-          ) : (
-            email && (
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-100 text-xs font-semibold text-green-800 dark:bg-green-900/40 dark:text-green-300">
-                  {email[0].toUpperCase()}
-                </div>
-                <span className="min-w-0 truncate text-xs text-fg-muted">{email}</span>
-              </div>
-            )
-          )}
-        </div>
-      </aside>
+    // Khung "trạm điều khiển": rail dọc bên trái, rồi một cột dọc gồm top bar + phần
+    // cuộn + thanh tab mobile. Cả rail lẫn top bar đứng NGOÀI phần cuộn nên chúng dính
+    // sẵn, không cần `position:sticky` — và cách cuộn vẫn y như cũ (cuộn nằm trong
+    // <main>, không phải cả trang), tức iOS vẫn không rubber-band kéo theo thanh dưới.
+    <MonthKeyProvider>
+      <div className="flex h-dvh overflow-hidden bg-surface-page">
+        <AppRail />
 
-      {/* Nội dung — key theo chế độ riêng tư để bật/tắt render lại cây route
-          (Outlet trả về element ổn định tham chiếu nên không tự re-render).
+        <div className="flex min-w-0 flex-1 flex-col">
+          <AppTopBar />
 
-          max-w-6xl chứ không 2xl: 2xl (672px) là bề ngang của điện thoại, nên trên màn
-          1440 sau khi trừ thanh bên vẫn còn hơn 500px bỏ trống. Trang nào CẦN hẹp thì
-          tự bọc `max-w-2xl` ở khối ngoài cùng của nó (Sổ GD, Nhập, Cài đặt) — để mỗi
-          trang tự khai bề ngang của mình thay vì layout đoán hộ cho tất cả. */}
-      <main
-        key={privacyOn ? 'priv-on' : 'priv-off'}
-        ref={mainRef}
-        // Đệm dưới phải chừa chỗ cho những thứ NỔI đè lên nội dung, kẻo cuộn hết
-        // danh sách rồi dòng cuối vẫn nằm dưới chúng:
-        //   · thanh nav: cao ~60px, cách mép 12px (hoặc dải an toàn iPhone) → pb-28
-        //   · nút "+" ở trang Sổ: đáy 6rem + dải an toàn, cao 3.5rem → mép trên của
-        //     nó ở 9.5rem, nên cần 10rem + dải an toàn mới hở ra một chút.
-        // Từ lg trở lên cả hai đều ẩn (lg:hidden) nên lg:pb-6 đè lại.
-        className={`mx-auto w-full min-h-0 max-w-6xl flex-1 overflow-y-auto pt-[env(safe-area-inset-top)] lg:pt-0 lg:pb-6 ${
-          onEntry ? '' : onLedger ? 'pb-[calc(10rem+env(safe-area-inset-bottom))]' : 'pb-28'
-        }`}
-      >
-        {/* Lưới an toàn: query lỗi không được hiển thị như "không có dữ liệu" */}
-        <QueryErrorBanner />
-        <Outlet />
-        {/* Chân trang nằm TRONG <main>: nó cuộn cùng nội dung và đứng ở cuối mỗi trang.
-            Để ngoài <main> thì nó thành dải cố định, chen chỗ với nav dưới. */}
-        <AppFooter />
-      </main>
+          {/* Nội dung — key theo chế độ riêng tư để bật/tắt render lại cây route
+              (Outlet trả về element ổn định tham chiếu nên không tự re-render).
 
-      {/* Nút "+" nổi (mobile) → mở trang nhập; chỉ hiện ở Sổ GD */}
-      {onLedger && (
-        <button
-          type="button"
-          onClick={() => navigate('/entry')}
-          aria-label="Nhập giao dịch"
-          className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-green-700 leading-none text-white shadow-lg transition hover:bg-green-800 active:scale-95 lg:hidden print:hidden"
-        >
-          <Plus className="h-6 w-6" />
-        </button>
-      )}
+              KHÔNG chặn bề ngang. Bản 1a là một TRẠM ĐIỀU KHIỂN: mock vẽ console ở
+              1280px và nó phủ hết khung, còn §1.4/§6 chỉ chốt bề ngang của CỘT PHỤ bên
+              phải (380px; Sổ 420; Ngân sách/Tài sản 400) — tức cột chính được hiểu là
+              nở ra lấp phần còn lại. Không chỗ nào trong bộ tài liệu đặt trần cho cả
+              khung.
 
-      {/* Bottom tab bar mobile — thẻ nổi tách khỏi mép như sidebar desktop; ẩn ở trang
-          nhập giao dịch để lấy thêm không gian. bottom = max(12px, dải an toàn iPhone). */}
-      {/* data-bottom-nav: móc để index.css ẩn thanh này khi thanh "chọn nhiều" đang mở */}
-      <nav data-bottom-nav className={`fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 gap-1 rounded-2xl border border-border-subtle bg-surface p-1.5 shadow-lg shadow-gray-950/10 lg:hidden dark:shadow-black/50 print:hidden ${onEntry ? 'hidden' : 'flex'}`}>
-        {TABS.map((tab) => (
-          <NavLink
-            key={tab.to}
-            to={tab.to}
-            end={tab.to === '/'}
-            className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-xs transition ${
-                isActive
-                ? 'bg-green-100 font-semibold text-green-800 dark:bg-green-900/40 dark:text-green-300'
-                : 'text-fg-muted'
-              }`
-            }
+              Trước đây chỗ này chặn `max-w-6xl` (1152px). Ở đúng 1280px thì gần như
+              không thấy, nên nó lọt; trên màn rộng hơn thì hiện ra ngay — ở 1679px, sau
+              khi trừ rail 52px, còn ~475px bỏ trống chia hai bên, và một trạm điều khiển
+              nằm giữa hai dải trống thì đọc thành một tờ tài liệu hẹp.
+
+              Nở tự do vẫn an toàn vì cấu trúc đã lo: mỗi cặp panel là `flex-wrap` với
+              `flex-1 min-w-0` cạnh một cột phụ có `basis` cố định, nên phần nở thêm rơi
+              vào cột chính chứ không kéo giãn đều mọi thứ. Trang nào CẦN hẹp thì tự bọc
+              `max-w-2xl` ở khối ngoài cùng của nó (Sổ GD, Nhập), và bề rộng đọc của
+              từng khối văn xuôi do `PROSE_MAX` trong designSystem.test.ts canh.
+
+              Không còn `pb-28`/`pb-40` chừa chỗ cho thứ nổi: thanh tab dưới giờ nằm
+              TRONG luồng (xem BottomNav) nên nó tự trừ vào chiều cao phần cuộn, và nút
+              "+" nổi đã bỏ — nút "+" đã có sẵn giữa thanh tab. */}
+          <main
+            key={privacyOn ? 'priv-on' : 'priv-off'}
+            ref={mainRef}
+            className="w-full min-h-0 flex-1 overflow-y-auto pb-6 pt-[env(safe-area-inset-top)] lg:pt-0"
           >
-            {/* Không gắn chấm đỏ thông báo vào icon tab: chấm trên tab "Sổ" đọc thành
-                "có gì mới trong Sổ" trong khi thật ra là thông báo của chuông — mà
-                chuông (trong header trang Sổ và sidebar desktop) đã có badge số đếm. */}
-            <tab.Icon className="h-6 w-6" />
-            {tab.label}
-          </NavLink>
-        ))}
-      </nav>
+            {/* Lưới an toàn: query lỗi không được hiển thị như "không có dữ liệu" */}
+            <QueryErrorBanner />
+            <Outlet />
+            {/* Chân trang nằm TRONG <main>: nó cuộn cùng nội dung và đứng ở cuối mỗi
+                trang. Để ngoài <main> thì nó thành dải cố định, chen chỗ với nav dưới. */}
+            <AppFooter />
+          </main>
 
-      <LoadProgress percent={loadPercent} />
+          {/* Ẩn ở trang nhập giao dịch để lấy tối đa không gian cho bàn số */}
+          <BottomNav hidden={onEntry} />
+        </div>
+
+        <LoadProgress percent={loadPercent} />
 
       {/* Toast này dùng chung chỗ với viên thuốc tiến độ. Nút đang hiện thì toast tụt
           xuống một bậc, thay vì hai cái chồng lên nhau. */}
@@ -339,9 +215,11 @@ export function AppLayout() {
         </div>
       )}
 
-      {/* Toast hoàn tác sau khi xóa (mục AB) */}
+      {/* Toast hoàn tác sau khi xóa (mục AB). Đáy mobile hạ từ bottom-24 xuống
+          bottom-16: thanh tab dưới không còn là thẻ nổi cách mép 12px mà dính hẳn mép,
+          cao 46px + dải an toàn — toast chỉ cần né chừng đó. */}
       {undoToast && (
-        <div className={`fixed inset-x-0 z-50 flex justify-center px-4 ${onEntry ? 'bottom-4' : 'bottom-24 lg:bottom-6'}`}>
+        <div className={`fixed inset-x-0 z-50 flex justify-center px-4 ${onEntry ? 'bottom-4' : 'bottom-16 lg:bottom-6'}`}>
           <div className="flex items-center gap-3 rounded-full bg-gray-900/95 py-2 pl-4 pr-2 text-sm font-medium text-white shadow-lg">
             <span>{undoToast.message}</span>
             <button
@@ -358,7 +236,7 @@ export function AppLayout() {
       {/* Toast lỗi mutation toàn cục (main.tsx MutationCache.onError) — lưu hỏng
           không bao giờ được im lặng. Đặt trên toast hoàn tác một bậc để không đè nhau. */}
       {errorToast && (
-        <div className={`fixed inset-x-0 z-50 flex justify-center px-4 ${onEntry ? 'bottom-20' : 'bottom-40 lg:bottom-20'}`}>
+        <div className={`fixed inset-x-0 z-50 flex justify-center px-4 ${onEntry ? 'bottom-20' : 'bottom-32 lg:bottom-20'}`}>
           <div className="flex items-center gap-3 rounded-full bg-red-700/95 py-2 pl-4 pr-2 text-sm font-medium text-white shadow-lg">
             <span className="max-w-[70vw] truncate">{errorToast.message}</span>
             <button
@@ -372,8 +250,9 @@ export function AppLayout() {
         </div>
       )}
 
-      {/* Hộp thoại confirm/prompt + toast thông báo dùng chung (thay window.*) */}
-      <DialogHost />
-    </div>
+        {/* Hộp thoại confirm/prompt + toast thông báo dùng chung (thay window.*) */}
+        <DialogHost />
+      </div>
+    </MonthKeyProvider>
   )
 }

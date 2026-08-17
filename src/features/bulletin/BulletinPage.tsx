@@ -31,6 +31,7 @@ import { useNotifications } from '../notifications/useNotifications'
 import { reliability } from '../notifications/reliability'
 import { monthlySeries } from '../reports/aggregate'
 import { headlineOf } from '../reports/headline'
+import { useMonthPace } from '../reports/monthPace'
 import { useAssetsData } from '../assets/useAssetsData'
 import { TransactionItem } from '../transactions/TransactionItem'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
@@ -125,11 +126,19 @@ export function BulletinPage() {
 
   // Câu kết luận đứng đầu màn. Dùng chung `headlineOf` với Báo cáo: hai màn nói cùng một
   // kết luận thì phải nói bằng đúng một câu, không phải hai bản chép tay.
+  const { report, isLoading: budgetLoading } = useBudgetReport(activeMonthKey)
+  // Cùng hook dự báo mà tab Ngân sách và Báo cáo dùng — ba màn phải nói CÙNG một con số
+  // dự báo, không phải ba phép tính song song (xem chú thích ở ReportsPage).
+  const bulletinPace = useMonthPace(activeMonthKey)
   const headline = headlineOf({
     income: incomeKpi.value,
     expense: expenseKpi.value,
     priorExpense: expenseKpi.prev,
     periodNoun: 'tháng này',
+    pace:
+      bulletinPace.forecast && report
+        ? { forecast: bulletinPace.forecast.projected, budgeted: report.totalBudgeted }
+        : null,
   })
   // Lấy % từ chính `headline` chứ không gọi `savingsRate` rồi tự nhân 100: savingsRate
   // trả về TỶ LỆ (0,685), còn ô KPI cần PHẦN TRĂM đã làm tròn (69) — và quan trọng hơn,
@@ -140,7 +149,6 @@ export function BulletinPage() {
   const { data: monthTxs = [] } = useMonthTransactions(activeMonthKey)
   const recent = useMemo(() => recentTransactions(monthTxs, RECENT), [monthTxs])
 
-  const { report, isLoading: budgetLoading } = useBudgetReport(activeMonthKey)
   const nameOf = (id: string) => categories.find((c) => c.id === id)?.name ?? 'Chưa rõ'
 
   const { netWorth, netWorthReliable, purposeGroups } = useAssetsData()

@@ -16,7 +16,10 @@ import {
 import { confirmDialog, showToast } from '../../lib/dialog'
 import type { CategoryRow, CategoryType, CostType, NeedLevel } from '../../types/database.types'
 import { ClassificationToggle, COST_OPTIONS, NEED_OPTIONS } from './ClassificationToggle'
+import { categoryCounts, costBadge, missingCostCount } from './costBadge'
+import { isFlowCategory } from './flowCategories'
 import { hasActiveChildren } from './leaf'
+import { Link } from 'react-router-dom'
 
 // Bảng emoji gợi ý khi thêm/sửa danh mục
 const EMOJI_CHOICES = [
@@ -44,6 +47,35 @@ export function CategoriesPage() {
     .sort((a, b) => a.sort_order - b.sort_order)
   const activeCats = ofType.filter((c) => !c.is_archived)
   const archivedCats = ofType.filter((c) => c.is_archived)
+
+  // "14 chi · 3 thu" của 22e — đếm trên MỌI loại, không riêng tab đang xem: người dùng
+  // cần biết cả hai để quyết định có sang tab kia hay không.
+  const counts = categoryCounts(categories.filter((c) => !c.is_archived))
+  const missingCost = missingCostCount(
+    categories.filter((c) => !c.is_archived),
+    isFlowCategory,
+  )
+
+  /** Nhãn CỐ ĐỊNH / BIẾN ĐỔI / CHƯA GẮN — quyết định ở costBadge.ts (có test). */
+  function CostTag({ cat }: { cat: CategoryRow }) {
+    const b = costBadge({ type: cat.type, costType: cat.cost_type, isFlow: isFlowCategory(cat) })
+    if (!b) return null
+    return (
+      <span
+        // Nhãn THIẾU cố ý KHÔNG mang màu báo động: chạy thật ra 46 chỗ chưa gắn trên 60
+        // dòng, mà 46 ô vàng là một bức tường — và một nhãn báo động xuất hiện khắp nơi
+        // thì thành nhãn để bỏ qua. Phân biệt bằng HÌNH (viền gạch) chứ không bằng màu;
+        // phần báo động gom vào MỘT dòng có số và có đường đi sửa (xem missingCostCount).
+        className={`shrink-0 rounded px-1.5 py-0.5 text-3xs font-semibold tracking-wide ${
+          b.missing
+            ? 'border border-dashed border-border-strong text-fg-muted'
+            : 'bg-surface-sunken text-fg-on-track'
+        }`}
+      >
+        {b.text}
+      </span>
+    )
+  }
 
   const parents = activeCats.filter((c) => !c.parent_id)
   const parentIds = new Set(parents.map((p) => p.id))
@@ -243,6 +275,7 @@ export function CategoriesPage() {
               <span className="text-xs text-fg-muted">{kids.length} danh mục con</span>
             )}
           </button>
+          <CostTag cat={p} />
           <button
             type="button"
             onClick={() => setForm({ category: null, parent: p })}
@@ -295,6 +328,7 @@ export function CategoriesPage() {
                   >
                     {ch.name}
                   </button>
+                  <CostTag cat={ch} />
                   <IconButton
                     variant="ghost"
                     onClick={() => archive(ch)}
@@ -327,7 +361,14 @@ export function CategoriesPage() {
     >
       <div className="mb-3 flex items-center gap-2">
         <BackLink to="/settings" aria-label="Quay lại" />
-        <h1 className="flex-1 text-lg font-bold text-fg-primary">Danh mục</h1>
+        <h1 className="flex-1 text-lg font-bold text-fg-primary">
+          Danh mục{' '}
+          {/* Đếm ở tiêu đề (22e). Cả hai loại, không riêng tab đang xem: nó nói luôn
+              rằng tab kia có gì, nên không phải bấm sang mới biết. */}
+          <span className="text-sm font-normal tabular-nums text-fg-muted">
+            {counts.expense} chi · {counts.income} thu
+          </span>
+        </h1>
         <button
           type="button"
           onClick={() => setForm({ category: null, parent: null })}
@@ -352,6 +393,18 @@ export function CategoriesPage() {
           </button>
         ))}
       </div>
+      {/* MỘT dòng báo động thay cho 46 nhãn vàng. Nói ra HẬU QUẢ ("ba chỉ số đang tính
+          thiếu") chứ không chỉ nói "chưa gắn": không có mệnh đề đó thì việc này đọc như
+          một ô trống trong biểu mẫu, và ô trống thì để đó cũng được. */}
+      {missingCost > 0 && (
+        <p className="mb-3 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-xs text-state-warn-fg">
+          {missingCost} danh mục chi chưa gắn Cố định / Biến đổi — quỹ dự phòng, hai trục
+          Thiết yếu·Linh hoạt và kịch bản “cắt hết chi linh hoạt” đang tính thiếu chừng đó.{' '}
+          <Link to="/settings/categories/classify" className="font-medium underline">
+            Phân loại nhanh
+          </Link>
+        </p>
+      )}
 
       <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-xs text-fg-secondary">
         Nhấn giữ biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự danh mục cha, sắp danh mục

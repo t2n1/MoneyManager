@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
 import { useDebtPayments, useDebts, useRates } from '../../hooks/queries'
-import { toISODate } from '../../lib/dates'
+import { dayMonthLabel, daysBetween, toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney } from '../../lib/money'
 import { STATUS_FILL } from '../../components/ui'
 import type { DebtRow } from '../../types/database.types'
@@ -101,7 +101,7 @@ export function DebtsPage() {
                   <span className="shrink-0 text-xs tabular-nums text-fg-muted">
                     {formatMoney(disbursedOf(d, payments), d.currency)}
                   </span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
                 </Link>
               ))}
             </div>
@@ -150,7 +150,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
                 >
                   {formatMoney(remaining, d.currency)}
                 </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
+                <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
               </div>
               <div className="mt-1.5 flex items-center gap-2">
                 {/* Thanh này TỪNG là bg-gray-300 — 1,47:1 trên nền thẻ, tức gần như
@@ -168,13 +168,23 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
                 <span className="shrink-0 text-xs text-fg-muted">
                   gốc {formatMoney(disbursed, d.currency)}
                 </span>
+                {/* NGÀY đi qua `dayMonthLabel` như mọi chỗ khác trong app. Trước đây là
+                    `d.due_on.slice(5)`, tức cắt thô chuỗi ISO ra "09-04" — một định dạng
+                    KHÔNG có ở màn nào khác (mọi nơi in "9/4"). Người dùng gặp hai kiểu
+                    ngày trong cùng một app thì phải dịch trong đầu, và với 12/09 vs 09/12
+                    thì dịch sai là chuyện thường.
+                    QUÁ HẠN nói rõ BAO NHIÊU NGÀY (22b: "quá hạn 6 ngày"). Chỉ tô đỏ thì
+                    người đọc biết là muộn mà không biết muộn tới mức nào — mà đó mới là
+                    thứ quyết định gọi ngay hay để cuối tuần. */}
                 {d.due_on && (
                   <span
                     className={`shrink-0 rounded px-1 text-xs ${
                       overdue ? 'bg-state-bad-bg text-state-bad-fg' : 'bg-surface-sunken text-fg-on-track'
                     }`}
                   >
-                    hạn {d.due_on.slice(5)}
+                    {overdue
+                      ? `quá hạn ${daysBetween(d.due_on, toISODate(new Date()))} ngày`
+                      : `hạn ${dayMonthLabel(d.due_on)}`}
                   </span>
                 )}
               </div>

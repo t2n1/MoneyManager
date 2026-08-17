@@ -12,7 +12,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChartColumn, Settings } from 'lucide-react'
 import { Card, iconButtonClass } from '../../components/ui'
-import { VerdictNote } from '../../components/VerdictNote'
+import { ConclusionLine } from '../../components/VerdictNote'
 import { useMonthKey } from '../../hooks/useMonthKey'
 import {
   useAccounts,
@@ -234,10 +234,13 @@ export function BulletinPage() {
         </Link>
       </div>
 
+      {/* ConclusionLine, KHÔNG VerdictNote (§5.0 / R7): đây là kết luận của cả màn, và
+          Gọn là chế độ mặc định — đưa nó qua VerdictNote thì mặc định người dùng chỉ
+          thấy một cái chip thay cho kết luận. */}
       {headline && (
-        <VerdictNote tone={headline.tone} short={headline.short}>
+        <ConclusionLine tone={headline.tone} short={headline.short}>
           {headline.text}
-        </VerdictNote>
+        </ConclusionLine>
       )}
 
       <KpiRow

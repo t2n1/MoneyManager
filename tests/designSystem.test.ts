@@ -204,6 +204,24 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     }
   })
 
+  // Lý do: §5.0 + R7 (ĐÃ CHỐT) — câu kết luận ĐẦU MÀN là dữ liệu, không phải chữ để
+  // dạy, nên nó "giữ nguyên ở CẢ HAI chế độ, không đi qua VerdictNote". Mà VerdictNote
+  // ở chế độ Gọn nén nội dung thành một cái chip, VÀ Gọn là mặc định
+  // (DEFAULT_DENSITY = 'visual') — nên vi phạm luật này nghĩa là mặc định người dùng
+  // không đọc được kết luận của màn đang mở. Đo lúc phát hiện: trang Báo cáo có 7 câu
+  // kết luận ở Đầy đủ, còn 3 chip ở Gọn.
+  //
+  // Dùng <ConclusionLine> (cùng file VerdictNote.tsx) cho những chỗ này. VerdictNote
+  // vẫn đúng cho kết luận CỦA TỪNG THẺ — chúng được phép nén.
+  it('câu kết luận đầu màn không đi qua VerdictNote', () => {
+    for (const f of ['src/features/bulletin/BulletinPage.tsx', 'src/features/reports/PeriodHeadline.tsx']) {
+      const src = readFileSync(join(SRC, '..', f), 'utf8')
+      expect(src, `${f}: dùng <ConclusionLine>, không <VerdictNote> (§5.0/R7).`).not.toContain(
+        '<VerdictNote',
+      )
+    }
+  })
+
   // Lý do: sky-600 làm CHỮ trượt AA ở light — 4,02:1 trên nền thẻ trắng và 3,77:1 trên
   // bg-sky-50. Bốn chỗ dùng nó đều là nhãn 10–11px (badge "mới", nhãn thứ cuối tuần,
   // "≈ N giờ", nhãn Chuyển tài sản) nên không chỗ nào được hưởng ngưỡng 3:1 của chữ

@@ -5,7 +5,7 @@
 // bằng đúng khuôn này — số lớn trước, rồi một câu văn biến chúng thành kết luận.
 //
 // Chỉ bày ra, không tính: phép tính ở headline.ts (có test riêng).
-import { VerdictNote } from '../../components/VerdictNote'
+import { ConclusionLine } from '../../components/VerdictNote'
 import { Money, StatTile } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/money'
 import type { Headline } from './headline'
@@ -46,9 +46,9 @@ export function PeriodHeadline({
   if (!headline) return null
   if (!tiles)
     return (
-      <VerdictNote tone={headline.tone} short={headline.short}>
+      <ConclusionLine tone={headline.tone} short={headline.short}>
         {headline.text}
-      </VerdictNote>
+      </ConclusionLine>
     )
   return (
     <section className="flex flex-col gap-2">
@@ -89,9 +89,9 @@ export function PeriodHeadline({
           </StatTile>
         )}
       </div>
-      <VerdictNote tone={headline.tone} short={headline.short}>
+      <ConclusionLine tone={headline.tone} short={headline.short}>
         {headline.text}
-      </VerdictNote>
+      </ConclusionLine>
     </section>
   )
 }

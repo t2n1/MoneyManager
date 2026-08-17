@@ -47,7 +47,7 @@ export function TagBreakdownCard({
         <Guide className="text-xs text-fg-secondary">
           Nhãn dùng để gom những khoản cắt ngang nhiều danh mục — ví dụ “Về VN 2026” gồm vé máy bay,
           quà cáp và phong bì. Tạo nhãn ngay khi nhập giao dịch, hoặc{' '}
-          <Link to="/settings/tags" className="font-medium text-green-700 dark:text-green-400">
+          <Link to="/settings/tags" className="font-medium text-fg-accent">
             quản lý nhãn trong Cài đặt
           </Link>
           .

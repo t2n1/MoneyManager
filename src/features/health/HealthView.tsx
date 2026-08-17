@@ -312,7 +312,7 @@ export function HealthView() {
             fund === null ? (
               <>
                 Chưa tính được vì chưa biết mỗi tháng bạn phải trả cố định bao nhiêu.{' '}
-                <Link to="/settings/categories/classify" className="font-medium text-green-700 dark:text-green-400">
+                <Link to="/settings/categories/classify" className="font-medium text-fg-accent">
                   Phân loại danh mục chi
                 </Link>{' '}
                 để mở chỉ số này.
@@ -340,7 +340,7 @@ export function HealthView() {
                       Trong đó <b>{money(earmarked.total)}</b> đang để dành cho mục tiêu tiết kiệm.
                       Trừ phần đã có chủ thì quỹ dự phòng thật sự tự do là{' '}
                       <b>{months1(freeFund!)}</b>.{' '}
-                      <Link to="/assets" className="font-medium text-green-700 dark:text-green-400">
+                      <Link to="/assets" className="font-medium text-fg-accent">
                         Xem mục tiêu
                       </Link>
                     </>
@@ -529,7 +529,7 @@ export function HealthView() {
                     Bạn còn danh mục chưa phân loại — vào{' '}
                     <Link
                       to="/settings/categories/classify"
-                      className="font-medium text-green-700 dark:text-green-400"
+                      className="font-medium text-fg-accent"
                     >
                       Phân loại nhanh
                     </Link>{' '}

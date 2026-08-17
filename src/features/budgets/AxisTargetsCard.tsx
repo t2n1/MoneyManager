@@ -65,7 +65,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
             "Chọn" ở LedgerPage) — đo được 42×16 khi để trần. */}
         <Link
           to="/settings?edit=profile"
-          className="-my-3 inline-flex min-h-11 shrink-0 items-center text-2xs font-medium text-green-700 dark:text-green-400"
+          className="-my-3 inline-flex min-h-11 shrink-0 items-center text-2xs font-medium text-fg-accent"
         >
           Đổi mốc
         </Link>

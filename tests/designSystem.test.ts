@@ -204,6 +204,21 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     }
   })
 
+  // Lý do: `text-fg-accent` đã có, và cặp viết tay thì KHÔNG đi theo token.
+  //
+  // Đây từng là một TRẦN (32 chỗ) với ghi chú "xét nghĩa từng chỗ", và cái giá của việc
+  // để nó làm trần hiện ra hôm 2026-08-17: khi `--fg-accent` phải đậm thêm một bậc (nền
+  // trang tối đi theo mock 23b), 32 chỗ viết tay KHÔNG đi theo, và 3 trong số đó tụt
+  // xuống 4,454:1 — phép quét bắt được ở /so và /search. Một trần thì token đổi mà chỗ
+  // viết tay đứng yên; một luật thì không.
+  //
+  // Ở dark hai cách viết cho ra CÙNG một màu (green-400), nên đổi hết sang token không
+  // làm dark khác một pixel — chỉ light được lợi.
+  it('không viết tay cặp sáng/tối cho chữ màu nhấn', () => {
+    const { count, where } = occurrences('text-green-700 dark:text-green-400')
+    expect(count, `Dùng text-fg-accent (link/hành động).\n${where.join('\n')}`).toBe(0)
+  })
+
   // Lý do: §5.0 + R7 (ĐÃ CHỐT) — câu kết luận ĐẦU MÀN là dữ liệu, không phải chữ để
   // dạy, nên nó "giữ nguyên ở CẢ HAI chế độ, không đi qua VerdictNote". Mà VerdictNote
   // ở chế độ Gọn nén nội dung thành một cái chip, VÀ Gọn là mặc định
@@ -514,7 +529,8 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
     // mỗi chỗ chỉ còn MỘT bản. Hạ trần theo đúng quy ước ở thông điệp lỗi của chính
     // phép thử này.
-    { needle: 'text-green-700 dark:text-green-400', max: 32, use: 'text-fg-accent (link/hành động) hoặc text-money-in (tiền) — xét nghĩa từng chỗ' },
+    // ĐÃ VỀ 0 (2026-08-17) — luật cứng nằm ở khối "ban cứng" phía trên, không còn là
+    // trần ở đây. Xem `không viết tay cặp sáng/tối cho chữ màu nhấn`.
     // Hex xanh/đỏ đời Tailwind v3 trong hằng số biểu đồ — không sai contrast nhưng
     // lệch palette v4 (green-600 v4 = #00a63e). Cũng tăng từ lúc dựng hệ thống (12+
     // file → 16 file). Thay dần khi đụng tới file, đừng thêm chỗ mới.

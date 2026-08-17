@@ -889,7 +889,7 @@ export function ScenarioEditorSheet({
               // Lúc bị vô hiệu hoá, nhãn nút CHÍNH LÀ câu giải thích vì sao không
               // lấy được số — nên không hạ tương phản xuống mức "chữ mờ" như nút
               // disabled thường; đây là chữ phải đọc được.
-              className="mb-3 min-h-11 text-left text-xs font-medium text-green-700 dark:text-green-400 active:scale-95 disabled:text-gray-600 dark:disabled:text-gray-300"
+              className="mb-3 min-h-11 text-left text-xs font-medium text-fg-accent active:scale-95 disabled:text-gray-600 dark:disabled:text-gray-300"
             >
               {netWorthLoading
                 ? 'Đang tính tài sản ròng hiện tại…'
@@ -994,7 +994,7 @@ export function ScenarioEditorSheet({
                 trên chính kịch bản này, không phải trên chặng/sự kiện của nó. */}
             <div className="mt-2 flex items-center justify-between gap-2">
               {isEffectivePrimary ? (
-                <span className="flex min-h-11 items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400">
+                <span className="flex min-h-11 items-center gap-1.5 text-xs font-medium text-fg-accent">
                   <Star className="h-4 w-4 shrink-0" aria-hidden="true" />
                   Đang là kịch bản chính
                 </span>
@@ -1006,7 +1006,7 @@ export function ScenarioEditorSheet({
                   // Nhãn nói ra HỆ QUẢ, không chỉ tên thao tác: "kịch bản chính" một
                   // mình không cho biết nó quyết định điều gì.
                   title="Kịch bản chính là kịch bản mà thông báo nhắc lệch và thẻ Lifetime ở trang Tài sản đọc theo"
-                  className={`${BLOCK1_ACTION} px-3 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30`}
+                  className={`${BLOCK1_ACTION} px-3 text-fg-accent hover:bg-green-50 dark:hover:bg-green-900/30`}
                 >
                   <Star className="h-4 w-4 shrink-0" aria-hidden="true" />
                   {settingPrimary ? 'Đang đặt…' : 'Đặt làm kịch bản chính'}

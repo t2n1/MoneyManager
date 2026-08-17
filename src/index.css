@@ -56,10 +56,23 @@
    Mọi tỉ số contrast ghi kèm là ĐO THẬT trên app (canvas pixel readback), không
    phải tra bảng — palette v4 dùng oklch nên khác v3 đáng kể. */
 :root {
-  /* Chữ */
-  --fg-primary: var(--color-gray-800); /* 14,7:1 trên trắng */
-  --fg-secondary: var(--color-gray-600); /* 7,6:1 */
-  --fg-muted: var(--color-gray-500); /* 4,84:1 — SÀN cho chữ trên nền trắng/gray-50 */
+  /* Chữ.
+     --fg-primary lấy #1a1d23 của mock 23b thay gray-800 (#1e2939): mock trung tính hơn
+     hẳn (lệch 22 bậc ở kênh lam), và ở một màn đầy chữ thì cái ám xanh của gray-800
+     nhìn ra được. --fg-muted thì GIỮ gray-500: mock ghi #6b7280, code đang #6a7282 —
+     lệch 1 và 2 bậc trên hai kênh, tức không mắt nào phân biệt được, mà giữ tên trong
+     bảng màu thì còn đọc được nó là bậc mấy. Không đổi để cho khớp một con số. */
+  --fg-primary: #1a1d23;
+  --fg-secondary: var(--color-gray-600); /* 7,56:1 trên thẻ */
+  /* SÀN của cả app. Phải đậm hơn gray-500 kể từ khi thang nền lấy theo mock 23b.
+     Đây là chỗ mock TỰ MÂU THUẪN: 23b vừa khai `--fg-muted #6b7280` (≈ gray-500) vừa
+     ghi "Mọi cặp phải qua contrast.test.ts — chữ ≤11px không có ngoại lệ". Hai điều đó
+     không cùng đúng được: gray-500 trên nền trang #f2f3f5 đo ra 4,356:1, và phép quét
+     bắt được nó thật ở 6 màn (dòng chân trang, nhãn tab chưa chọn, chip lọc, tiêu đề
+     khối). contrast.test.ts là trọng tài — §7 và chính câu trên của 23b đều nói vậy.
+     #626a77 là bậc NHỎ NHẤT vượt được trên CẢ BỐN nấc nền, không chỉ nấc tôi tình cờ
+     đo: thẻ 5,46 · chrome 5,28 · trang 4,92 · lún 4,56. */
+  --fg-muted: #626a77;
   --fg-on-track: var(--color-gray-600); /* nhãn trên nền gray-100: gray-500 chỉ 4,39:1 → trượt */
   --fg-inverse: var(--color-white);
 
@@ -68,27 +81,30 @@
   --money-in: var(--color-green-800); /* 7,13:1 */
   --money-out: var(--color-red-700); /* 6,42:1 */
 
-  /* Bề mặt */
-  --surface: var(--color-white); /* thẻ */
-  --surface-sunken: var(--color-gray-100); /* track của segmented control */
-  --surface-page: var(--color-gray-50);
-  --border-subtle: var(--color-gray-100);
+  /* Bề mặt — thang bốn nấc của bản 1a, lấy từ mock turn 23b ("Token nền sáng").
+     ĐÂY LÀ ĐÍNH CHÍNH MỘT NHẬN ĐỊNH SAI. Chỗ này trước đây viết: "ở light thì KHÔNG
+     có chỗ cho nấc thứ tư — thang sáng chỉ có trắng / gray-50 / gray-100", rồi cho
+     --surface-chrome TRÙNG --surface-page. Nhận định đó dựa trên README, mà README
+     chỉ liệt kê token DARK và nói "light gần như không bị ảnh hưởng". Mock thì có hẳn
+     một lượt riêng (23b) khai đủ thang light, và nó có bốn nấc thật:
+       page #f2f3f5 → chrome #fbfbfc → surface #ffffff → sunken #e8ebef
+     Nấc `chrome` nằm giữa page và surface (1,07:1 so với page) — sáng hơn nền trang,
+     tối hơn thẻ. Đúng vai nó gánh ở dark, chỉ đảo chiều.
+
+     Vì sao là HEX chứ không var(--color-*): mấy giá trị này không nằm trong bảng
+     Tailwind. Tầng token là chỗ DUY NHẤT được viết hex (khối .dark bên dưới cũng vậy);
+     component thì vẫn cấm — xem designSystem.test.ts. */
+  --surface: #ffffff; /* thẻ */
+  --surface-page: #f2f3f5; /* nền trang */
+  --surface-chrome: #fbfbfc; /* top bar, rail, header nhóm trong bảng */
+  --surface-sunken: #e8ebef; /* track segmented, nút phụ */
+  --border-subtle: #eceef2; /* kẻ dòng trong bảng */
+  --border-panel: #e2e5ea; /* viền panel */
   /* gray-300 chứ không gray-200: đây là mô tả thực tế của code (66 chỗ dùng
      border-gray-300/dark:border-gray-700, chỉ 3 chỗ dùng gray-200). Token phải
-     bám thực tế; đặt gray-200 rồi đổi 66 chỗ là đổi diện mạo, không phải đặt tên. */
+     bám thực tế; đặt gray-200 rồi đổi 66 chỗ là đổi diện mạo, không phải đặt tên.
+     Mock 23b không khai --border-strong nên chỗ này giữ nguyên. */
   --border-strong: var(--color-gray-300);
-
-  /* Hai token MỚI của bản 1a. Ở dark chúng là hai nấc thật trong thang bốn bậc
-     (page → chrome → surface → sunken); ở light thì KHÔNG có chỗ cho nấc thứ tư —
-     thang sáng chỉ có trắng / gray-50 / gray-100 và chèn thêm một bậc giữa trắng và
-     gray-50 là chèn một khác biệt không ai nhìn thấy. Nên ở light:
-       --surface-chrome  = gray-50, TRÙNG với --surface-page. Thanh trên cùng và rail
-         phân biệt với vùng nội dung bằng --border-panel chứ không bằng nền; còn header
-         nhóm trong bảng thì nằm trên thẻ TRẮNG nên gray-50 vẫn tách ra được.
-       --border-panel = gray-200, đúng nấc giữa của border-subtle (gray-100) và
-         border-strong (gray-300) — cùng vai trò nó gánh ở dark. */
-  --surface-chrome: var(--color-gray-50);
-  --border-panel: var(--color-gray-200);
 
   /* Nhấn (dùng cho focus ring, nút chính).
      green-700 chứ không green-600: nút chính là nền có CHỮ TRẮNG đè lên, nên phải
@@ -108,7 +124,12 @@
   /* Chữ màu nhấn (link, hành động phụ) — KHÁC --money-in. Cùng là xanh nhưng khác
      nghĩa: đây là "bấm được", kia là "đây là khoản thu". Trộn hai thứ thì không còn
      đổi riêng được màu link mà không đụng vào con số. green-700 trên trắng = 4,95:1. */
-  --fg-accent: var(--color-green-700);
+  /* Đậm hơn --accent một chút (#007a33 vs #008236) kể từ khi nền trang tối đi theo mock
+     23b: green-700 làm CHỮ trên nền trang chỉ còn 4,454:1 — phép quét bắt được ở nút
+     "Chọn" trong Sổ. Nền NÚT thì vẫn là --accent green-700, không đụng, vì ở đó phép đo
+     là trắng-trên-accent (4,945:1) và nó không liên quan gì tới nền trang.
+     #007a33: thẻ 5,48 · chrome 5,30 · trang 4,94 · lún 4,58 — vượt cả bốn nấc. */
+  --fg-accent: #007a33;
   /* Chữ màu nhấn đặt trên --surface-sunken (gray-100), không phải trên nền trắng.
      Cần token RIÊNG vì cùng đúng lý do --fg-on-track phải là gray-600 chứ gray-500:
      nền gray-100 ăn bớt tương phản. Đo thật: green-700 trên gray-100 = 4,49:1 — trượt
@@ -119,30 +140,29 @@
      Ba bộ, KHÔNG phải bốn: mức 'info' cố ý đi bằng bề mặt trung tính sẵn có
      (surface-sunken + border-strong + fg-on-track), khỏi đẻ thêm một sắc xám thứ hai.
 
-     Ở LIGHT viền cố ý TRÙNG màu nền: giữ nguyên diện mạo chip light đang có (bộ
-     green-100/amber-100/red-100), nhưng vẫn có đường viền để hình học giống hệt nhau
-     ở hai chế độ. Ở DARK viền mới là thứ vẽ ra hình chip, vì 1a bỏ shadow và nền chip
-     chỉ hơn nền thẻ vài phần trăm.
+     VIỀN LIGHT GIỜ THẤY ĐƯỢC — đính chính lần hai. Chỗ này trước ghi "ở LIGHT viền cố ý
+     TRÙNG màu nền", tức chip light không có đường bao. Mock 23b khai rõ hai bộ có viền
+     RIÊNG, khác nền: accent nhạt nền #eefaf1 viền #c9ecd4; cảnh báo đỏ nền #fdf1f1 viền
+     #f2d5d6. Nhận định cũ của tôi dựa trên README, mà README không có thang light nào.
 
-     CHỮ: good đi green-800, hai tông kia bậc 700. Không phải cho đẹp — green-700 trên
-     green-100 đo bằng canvas ra 4,4957:1, tức TRƯỢT AA, dù chú thích cũ ở statusColors.ts
-     ghi "4,50 vừa đúng". Cái 4,50 đó là số đã làm tròn LÊN từ chính 4,4957 nên nó tự
-     chứng minh mình đạt; sai số 0,004 không ai nhìn ra bằng mắt, chỉ đọc pixel mới thấy.
-     Đo lại cả bộ trên nền tương ứng: good (green-800) 6,48 · bad (red-700) 5,27 ·
-     warn (amber-700) 4,52. Warn vẫn là ca sát sàn — còn 0,015 — nên nếu sau này ai đó
-     đổi amber-100 sang bậc nhạt hơn thì nó trượt ngay, đừng đụng vào.
+     Bộ WARN thì mock KHÔNG khai (23b chỉ cho hai bộ) — cùng khoảng trống với dark. Dựng
+     theo đúng công thức của hai bộ kia, giữ nguyên bậc amber sẵn có làm chữ, rồi đo lại.
 
-     Đây cũng là bộ mà banner của form Nhập (§4.6) sẽ đọc — nên để ở tầng token chứ
-     không nhét vào riêng StatusChip. */
-  --state-good-bg: var(--color-green-100);
-  --state-good-border: var(--color-green-100);
-  --state-good-fg: var(--color-green-800);
-  --state-warn-bg: var(--color-amber-100);
-  --state-warn-border: var(--color-amber-100);
+     Chữ: good #046b30 và bad #8c3336 lấy thẳng của mock. Cả hai ĐẬM hơn bộ cũ
+     (green-800 / red-700) nên tương phản chỉ tăng — xem số đo trong commit. Riêng
+     'warn' giữ amber-700 vì mock không nói gì.
+
+     Đây cũng là bộ mà banner của form Nhập (§4.6) đọc — nên để ở tầng token chứ không
+     nhét vào riêng StatusChip. */
+  --state-good-bg: #eefaf1;
+  --state-good-border: #c9ecd4;
+  --state-good-fg: #046b30;
+  --state-warn-bg: #fdf6e9;
+  --state-warn-border: #f2e3c2;
   --state-warn-fg: var(--color-amber-700);
-  --state-bad-bg: var(--color-red-100);
-  --state-bad-border: var(--color-red-100);
-  --state-bad-fg: var(--color-red-700);
+  --state-bad-bg: #fdf1f1;
+  --state-bad-border: #f2d5d6;
+  --state-bad-fg: #8c3336;
 
   /* Nút chính KHI BỊ KHOÁ và chữ trên control bị khoá (§4.6 của bản 1a).
      Vì sao là token chứ không phải `opacity-40`: hạ độ mờ nút chính xuống 40% cho ra

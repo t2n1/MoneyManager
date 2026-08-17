@@ -72,7 +72,7 @@ export function DailyView({
           <button
             type="button"
             onClick={onToggleSelecting}
-            className="inline-flex min-h-11 items-center justify-center px-2 text-xs font-medium text-green-700 dark:text-green-400"
+            className="inline-flex min-h-11 items-center justify-center px-2 text-xs font-medium text-fg-accent"
           >
             {selecting ? 'Xong' : 'Chọn'}
           </button>

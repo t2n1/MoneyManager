@@ -342,7 +342,7 @@ export function BudgetVerdictLine({ pace }: { pace: MonthPace }) {
     )
   }
   return (
-    <p className="mt-2 rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1.5 text-xs text-green-700 dark:text-green-400">
+    <p className="mt-2 rounded-lg bg-green-50 dark:bg-green-900/30 px-2 py-1.5 text-xs text-fg-accent">
       {visual ? (
         <>Với đà này vẫn trong trần {formatMoney(totalBudgeted, base)}</>
       ) : (

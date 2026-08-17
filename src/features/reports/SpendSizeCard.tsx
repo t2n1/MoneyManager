@@ -134,7 +134,7 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
       {hourlyWage === null && (
         <Guide className="mt-2 text-2xs text-fg-muted">
           Muốn thấy “món này = mấy giờ làm”?{' '}
-          <Link to="/settings" className="font-medium text-green-700 dark:text-green-400">
+          <Link to="/settings" className="font-medium text-fg-accent">
             Khai lương theo giờ trong Cài đặt
           </Link>
           .

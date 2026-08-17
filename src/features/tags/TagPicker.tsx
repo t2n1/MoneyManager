@@ -48,7 +48,7 @@ const SEARCH_FROM = 6
 const CHIP =
   'inline-flex min-h-11 max-w-full items-center rounded-full border px-3.5 text-sm transition active:scale-95'
 
-const LINK = 'inline-flex min-h-9 items-center gap-0.5 text-xs font-medium text-green-700 dark:text-green-400'
+const LINK = 'inline-flex min-h-9 items-center gap-0.5 text-xs font-medium text-fg-accent'
 
 interface Props {
   /** id nhãn đang chọn */

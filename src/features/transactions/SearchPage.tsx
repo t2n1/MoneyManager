@@ -288,7 +288,7 @@ export function SearchPage() {
       <button
         type="button"
         onClick={() => setShowMore((v) => !v)}
-        className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400"
+        className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-fg-accent"
       >
         {showMore ? 'Ẩn bộ lọc' : 'Lọc theo danh mục / nhãn / tài khoản'}
         {showMore ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -424,7 +424,7 @@ export function SearchPage() {
               <button
                 type="button"
                 onClick={() => setTagIds([])}
-                className="font-medium text-green-700 dark:text-green-400"
+                className="font-medium text-fg-accent"
               >
                 Bỏ lọc nhãn
               </button>
@@ -436,7 +436,7 @@ export function SearchPage() {
             type="button"
             onClick={() => (selection.selecting ? selection.exit() : selection.enter())}
             // -my-2 để vùng chạm 44px không đội dòng "n kết quả" ra xa danh sách
-            className="-my-2 inline-flex min-h-11 shrink-0 items-center justify-center px-2 text-xs font-medium text-green-700 dark:text-green-400"
+            className="-my-2 inline-flex min-h-11 shrink-0 items-center justify-center px-2 text-xs font-medium text-fg-accent"
           >
             {selection.selecting ? 'Xong' : 'Chọn'}
           </button>

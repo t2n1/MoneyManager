@@ -48,7 +48,7 @@ export function SelectionActionBar({ count, allSelected, onToggleAll, onDelete, 
         <button
           type="button"
           onClick={onToggleAll}
-          className="-my-2 inline-flex min-h-11 items-center px-2 text-sm font-medium text-green-700 dark:text-green-400"
+          className="-my-2 inline-flex min-h-11 items-center px-2 text-sm font-medium text-fg-accent"
         >
           {allSelected ? 'Bỏ chọn hết' : 'Chọn tất cả'}
         </button>

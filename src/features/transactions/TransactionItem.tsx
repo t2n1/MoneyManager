@@ -123,7 +123,7 @@ export function TransactionItem({
       {selecting && (
         <span className="shrink-0">
           {selected ? (
-            <CheckCircle2 className="h-5 w-5 text-green-700 dark:text-green-400" />
+            <CheckCircle2 className="h-5 w-5 text-fg-accent" />
           ) : (
             <Circle className="h-5 w-5 text-fg-muted" />
           )}

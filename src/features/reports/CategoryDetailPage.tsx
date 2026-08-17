@@ -173,7 +173,7 @@ export function CategoryDetailPage() {
         <BackLink
           to={backTo}
           aria-label="Quay lại"
-          className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-green-700 dark:text-green-400"
+          className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-fg-accent"
         >
           <ChevronLeft className="h-5 w-5" /> {fromBudget ? 'Về ngân sách' : 'Về báo cáo'}
         </BackLink>

@@ -36,6 +36,7 @@ import { TransactionItem } from '../transactions/TransactionItem'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { BULLETIN_MONTHS, kpiFromSeries, recentTransactions, seriesAnchor } from './bulletin'
 import { AccountsPanel } from './AccountsPanel'
+import { FirstRunPanel } from './FirstRunPanel'
 import { ReliabilityPanel } from './ReliabilityPanel'
 import { TodoPanel } from './TodoPanel'
 import { BudgetPanel } from './BudgetPanel'
@@ -128,6 +129,11 @@ export function BulletinPage() {
   const accountOf = (id: string | null) => accounts.find((a) => a.id === id)
   const categoryOf = (id: string | null) => categories.find((c) => c.id === id)
 
+  // Lần đầu mở, chưa có tài khoản nào (§4.8 / 20b). Kiểm bằng `accounts`, KHÔNG bằng
+  // `purposeGroups`: nhóm rỗng bị lọc ở useAssetsData, nên người đã tạo tài khoản rồi
+  // ẩn hết đi cũng ra mảng rỗng — mà họ đã qua bước này, bày lại lời chào là sai.
+  const laLanDau = accounts.length === 0
+
   // Việc cần làm — ĐỌC bộ luật sẵn có, không tính lại điều kiện nào. `actions` đã qua
   // trần 5 việc, đã xếp theo mức, đã lọc loại bị tắt ở Cài đặt và việc đã ẩn.
   const notif = useNotifications()
@@ -155,6 +161,18 @@ export function BulletinPage() {
       }),
     [rangeTxs, categories, accounts, series.points, profile?.birth_year],
   )
+
+  // Chưa có tài khoản → MỘT việc duy nhất, không phải sáu khối rỗng (§4.8 / 20b).
+  // Thoát sớm hẳn chứ không lồng điều kiện vào từng khối: mỗi khối tự lo trạng thái
+  // rỗng của nó là đúng khi thiếu MỘT loại dữ liệu, còn đây là chưa có gì cả.
+  if (laLanDau) {
+    return (
+      <div className="flex flex-col gap-2.5 p-3 lg:p-4">
+        <h1 className="sr-only">Bản tin</h1>
+        <FirstRunPanel hasBirthYear={profile?.birth_year != null} />
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-2.5 p-3 lg:p-4">

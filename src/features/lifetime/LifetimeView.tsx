@@ -300,6 +300,18 @@ export function LifetimeView() {
           </span>
         </button>
       </Card>
+      {/* Bốn thẻ kết luận đứng TRƯỚC đồ thị (§4.4 / 13b). Trước đây chúng nằm dưới đáy,
+          sau đồ thị và hai nút — tức người dùng phải cuộn qua cả bản chiếu 60 năm mới đọc
+          được KẾT LUẬN của chính bản chiếu đó. "Kết luận trước, bằng chứng sau" (§14). */}
+      {input && profile?.birth_year != null && (
+        <InsightCards
+          rows={rows}
+          input={input}
+          birthYear={profile.birth_year}
+          currency={active.display_currency as CurrencyCode}
+        />
+      )}
+
 
       {/* Banner cảnh báo tỷ giá bằng 1 — BẮT BUỘC, không có nút tắt (xem task-7-brief.md).
           Đặt NGAY TRÊN đồ thị: phải đọc được trước khi đọc số. Trên mobile chỉ hiện SỐ
@@ -396,15 +408,6 @@ export function LifetimeView() {
         </div>
       )}
 
-      {/* Bốn thẻ kết luận (Task 9) — xem InsightCards.tsx */}
-      {input && profile?.birth_year != null && (
-        <InsightCards
-          rows={rows}
-          input={input}
-          birthYear={profile.birth_year}
-          currency={active.display_currency as CurrencyCode}
-        />
-      )}
 
       {/* Bảng theo năm (Task 10) — bản dự phòng a11y của đồ thị, nút mở NGAY DƯỚI đồ thị
           (xem LifetimeChartCard ở trên), không giấu trong menu. */}

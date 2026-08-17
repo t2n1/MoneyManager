@@ -22,15 +22,41 @@ const LifetimeView = lazy(() =>
   import('../lifetime/LifetimeView').then((m) => ({ default: m.LifetimeView })),
 )
 
-type AssetsView = 'now' | 'trend' | 'future'
+/**
+ * HAI tab (§4.4 của bản 1a, thiết kế chốt 20a), thay ba.
+ *
+ * "Diễn biến" không mất — nó thôi làm một TAB và thành một CÔNG TẮC THỜI GIAN cạnh
+ * tab Hiện tại. Lý do: ba tab bắt người dùng chọn giữa "giờ tôi có bao nhiêu" và
+ * "tôi đang tiến bộ không" trước khi biết mình cần cái nào, trong khi hai câu đó nói
+ * về CÙNG một danh sách tài khoản — chỉ khác cột số. Công tắc giữ nguyên vị trí mọi
+ * khối và chỉ thêm phần theo thời gian.
+ */
+type AssetsView = 'now' | 'future'
 
 const VIEW_TABS: readonly SegmentedItem<AssetsView>[] = [
   { value: 'now', label: 'Hiện tại' },
-  { value: 'trend', label: 'Diễn biến' },
   { value: 'future', label: 'Tương lai' },
 ]
 
-const isView = (v: string | null): v is AssetsView => VIEW_TABS.some((t) => t.value === v)
+/** Công tắc thời gian của tab Hiện tại (§4.4). */
+type AssetsSpan = 'today' | '6m'
+
+const SPAN_TABS: readonly SegmentedItem<AssetsSpan>[] = [
+  { value: 'today', label: 'Hôm nay' },
+  { value: '6m', label: '6 tháng' },
+]
+
+/**
+ * Đường CŨ → tab mới. `?view=trend` (tab Diễn biến, cùng mọi bookmark và lịch sử trình
+ * duyệt) phải mở tab Hiện tại ở chế độ 6 THÁNG — mở đúng tab mà sai chế độ là người
+ * dùng thấy một màn thiếu hẳn ba khối họ đang tìm, và không có gì báo. Đây đúng loại
+ * "hỏng im lặng" mà R3 cảnh báo khi gộp tab.
+ */
+export function migrateAssetsView(raw: string | null): { view: AssetsView; span: AssetsSpan } {
+  if (raw === 'trend') return { view: 'now', span: '6m' }
+  if (raw === 'future') return { view: 'future', span: 'today' }
+  return { view: 'now', span: 'today' }
+}
 
 const Loading = () => <p className="py-10 text-center text-sm text-fg-muted">Đang tải…</p>
 
@@ -59,7 +85,11 @@ export function AssetsPage() {
   // `/lifetime` → `/assets?view=future` mở đúng tab.
   const [searchParams, setSearchParams] = useSearchParams()
   const raw = searchParams.get('view')
-  const view: AssetsView = isView(raw) ? raw : 'now'
+  const migrated = migrateAssetsView(raw)
+  const view = migrated.view
+  // Chế độ thời gian sống ở state chứ không ở URL: nó là cách NHÌN, không phải chỗ
+  // đứng. Khởi tạo từ đường cũ để `?view=trend` mở ra đúng thứ nó vẫn mở.
+  const [span, setSpan] = useState<AssetsSpan>(migrated.span)
   const setView = (v: AssetsView) =>
     setSearchParams(
       (prev) => {
@@ -95,15 +125,36 @@ export function AssetsPage() {
         )}
       </div>
 
-      <SegmentedControl
-        items={VIEW_TABS}
-        value={view}
-        onChange={setView}
-        label="Nội dung trang Tài sản"
-      />
+      {/* Tab và công tắc thời gian đứng CÙNG một hàng (§4.4: "công tắc thời gian ngay
+          cạnh tab"): chúng là hai trục của cùng một câu hỏi — xem cái gì, và xem trong
+          bao lâu. Xếp dọc hai dải thì trông như hai cấp điều hướng lồng nhau. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <SegmentedControl
+          items={VIEW_TABS}
+          value={view}
+          onChange={setView}
+          label="Nội dung trang Tài sản"
+          stretch={false}
+        />
+        {/* Chỉ tab Hiện tại có trục thời gian. Tương lai vốn đã là bản chiếu nhiều chục
+            năm — một công tắc "hôm nay / 6 tháng" ở đó không có nghĩa gì. */}
+        {view === 'now' && (
+          <SegmentedControl
+            items={SPAN_TABS}
+            value={span}
+            onChange={setSpan}
+            label="Khoảng thời gian"
+            stretch={false}
+          />
+        )}
+      </div>
 
       {view === 'now' && <AssetsNowView viewCur={viewCur} onViewCurChange={setViewCur} />}
-      {view === 'trend' && (
+      {/* Chế độ 6 tháng CHÈN THÊM ba khối theo thời gian xuống dưới, không thay khối nào:
+          §4.4 chốt "giữ nguyên vị trí mọi khối và chỉ đổi cột số", và hai khối dài hạn
+          (Hiệu quả đầu tư · Mục tiêu) chỉ hiện ở chế độ này. Nhờ vậy gạt công tắc không
+          làm trang nhảy — phần trên đứng yên, phần dưới mọc ra. */}
+      {view === 'now' && span === '6m' && (
         <Suspense fallback={<Loading />}>
           <AssetsTrendView viewCur={viewCur} onViewCurChange={setViewCur} />
         </Suspense>

@@ -224,35 +224,40 @@
      nhưng đúng tông của thang mới, và vẫn 8,98:1 trên green-500 (trắng chỉ 2,22:1). */
   --fg-on-accent: #08090b;
 
-  /* Bề mặt trạng thái ở dark — lấy đúng giá trị trong mock (§1.1 cho good/bad, và
-     khối cảnh báo vàng của mock cho warn). Cùng một công thức cho cả ba: nền gần như
-     đen ám sắc, viền cùng tông đậm hơn, chữ sáng.
-     Chữ trên nền chip, đo thật: good 10,97:1 · warn 10,84:1 · bad 8,96:1 — bad tụt là
-     hệ quả cố ý của việc nâng nền nó lên, xem ngay dưới đây.
+  /* Bề mặt trạng thái ở dark. Cùng một công thức cho cả ba: nền ám sắc, viền cùng tông
+     đậm hơn, chữ sáng.
 
-     BAD ĐƯỢC NÂNG NỀN (2026-08-17). Giá trị mock #170e10 đo ra 1,003:1 so với nền thẻ
-     — tức cái chip KHÔNG CÓ RUỘT: đỏ và xám ở đây khác nhau về sắc nhưng gần như bằng
-     nhau về độ chói, nên hình cái chip hoàn toàn do đường viền 1,369:1 gánh. Ai không
+     NỀN CỦA WARN VÀ BAD ĐÃ ĐƯỢC NÂNG (2026-08-17), không còn khớp giá trị mock. Lý do:
+     mock cho bad #170e10 đo ra 1,003:1 so với nền thẻ, warn #16120a ra 1,020:1 — tức
+     hai cái chip đó KHÔNG CÓ RUỘT. Chúng khác nền thẻ về sắc nhưng gần như bằng nhau về
+     độ chói, nên hình cái chip hoàn toàn do đường viền (1,37 và 1,74) gánh. Ai không
      phân biệt được đỏ-lục thì mất luôn kênh sắc, chỉ còn một khung mờ.
 
-     Không bịa số mới mà bám đúng tông GOOD, để ba tông cùng độ nổi (nếu bad nổi hơn
-     good thì mọi màn có cả hai chip đều bị mắt kéo về phía tin xấu — sai thứ tự đọc):
+     Không bịa số mới mà bám đúng tông GOOD — cái duy nhất trong mock vốn đã có ruột —
+     để ba tông cùng độ nổi. Nếu bad hay warn nổi hơn good thì mọi màn có nhiều chip đều
+     bị mắt kéo về phía tin xấu, tức màu tự ý sắp lại thứ tự đọc:
                      nền/thẻ   nền/lún   viền/thẻ   chữ
        good          1,239     1,160     1,812      10,97
-       bad (mới)     1,223     1,145     1,807       8,96
-       bad (cũ)      1,003     1,065     1,369      10,92
-     Bám cả cột "nền/lún": chip còn nằm trên --surface-sunken nữa, và dải đỏ đi từ
-     #170e10 lên có một đoạn (quanh #271215) mà nền chip trùng luôn nền lún — nhìn một
-     mình nền thẻ thì không thấy cái hố đó.
+       warn (mới)    1,242     1,162     1,823       8,90
+       bad  (mới)    1,223     1,145     1,807       8,96
+       warn (cũ)     1,020     1,047     1,735      10,84
+       bad  (cũ)     1,003     1,065     1,369      10,92
 
-     WARN thì KHÔNG đụng, dù nền nó cũng chỉ 1,020:1: vàng trên đen là cặp mắt tách
-     được bằng độ chói của CHỮ (10,84:1), và §1.1 chốt đúng khối cảnh báo vàng của mock.
-     Đây là chỗ cần nói thẳng là chưa xong chứ không phải đã cân nhắc rồi bỏ qua. */
+     BÁM CẢ CỘT "nền/lún", đây mới là chỗ dễ sảy chân: chip còn nằm trên --surface-sunken
+     nữa, và cả hai dải màu khi đi từ đáy lên đều BĂNG QUA đúng độ chói của nền lún —
+     đỏ quanh #271215, vàng quanh #231c10. Rơi vào đó thì chip hết chìm trên thẻ nhưng
+     lại chìm trên nền lún, tức đổi một lỗi lấy một lỗi. Nhìn mỗi cột nền/thẻ thì không
+     thấy cái hố đó.
+
+     Chữ tụt (10,84 → 8,90 và 10,92 → 8,96) là hệ quả bắt buộc của việc nâng nền, không
+     phải sơ suất: cả hai vẫn dư gần gấp đôi ngưỡng 4,5:1. Đổi phần thừa lấy phần thiếu.
+     Ba tông giờ lệch nhau ở cột chữ (10,97 / 8,90 / 8,96) thay vì ở cột nền như trước —
+     và lệch ở cột còn dư thì tốt hơn lệch ở cột đang thiếu. */
   --state-good-bg: #0f2a1a;
   --state-good-border: #17482b;
   --state-good-fg: #7bf1a8; /* = green-300 */
-  --state-warn-bg: #16120a;
-  --state-warn-border: #4a3a1c;
+  --state-warn-bg: #2c2414;
+  --state-warn-border: #4e3d1e;
   --state-warn-fg: #ffb900; /* = amber-400, cùng giá trị --fg-warn */
   --state-bad-bg: #3c191d;
   --state-bad-border: #682c31;

@@ -133,3 +133,62 @@ describe('shortCompare', () => {
     expect(shortCompare(1100)).toBe('gấp 12,0 lần')
   })
 })
+
+// Mệnh đề thứ ba của bản vẽ 23a. Nó tồn tại vì hai vế của câu đo HAI TRỤC khác nhau và
+// có thể ngược nhau — đo trên demo: giữ lại 65% (tốt theo trục thu nhập) trong khi dự báo
+// ¥126k trên trần ¥68k (vượt 85%). Câu cũ phán "Tốt" ngay cạnh ô báo vượt gần gấp đôi.
+describe('headlineOf — mệnh đề trên-đà so với ngân sách', () => {
+  const base = { income: 289_161, expense: 101_482, priorExpense: 90_000, periodNoun: 'tháng này' }
+
+  it('không truyền pace thì KHÔNG nói gì về ngân sách', () => {
+    const h = headlineOf(base)!
+    expect(h.text).not.toContain('ngân sách')
+  })
+
+  it('chưa đặt hạn mức (budgeted = 0) cũng im — không có trần nào để vượt', () => {
+    const h = headlineOf({ ...base, pace: { forecast: 126_000, budgeted: 0 } })!
+    expect(h.text).not.toContain('ngân sách')
+  })
+
+  it('trên đà dưới trần → nói ra, và giữ tông tốt', () => {
+    const h = headlineOf({ ...base, pace: { forecast: 60_000, budgeted: 68_000 } })!
+    expect(h.text).toContain('đang trên đà kết thúc tháng này dưới ngân sách')
+    expect(h.tone).toBe('good')
+  })
+
+  it('trên đà vượt trần → nói % vượt, và HẠ tông từ good xuống warn', () => {
+    const h = headlineOf({ ...base, pace: { forecast: 126_000, budgeted: 68_000 } })!
+    expect(h.text).toContain('đang trên đà vượt ngân sách 85%')
+    expect(h.tone).toBe('warn')
+  })
+
+  it('đúng bằng trần thì KHÔNG phải vượt', () => {
+    const h = headlineOf({ ...base, pace: { forecast: 68_000, budgeted: 68_000 } })!
+    expect(h.text).toContain('dưới ngân sách')
+    expect(h.tone).toBe('good')
+  })
+
+  // Chi vượt thu vốn đã là 'bad'; vượt trần nữa thì không được NÂNG lên warn.
+  it('không nâng tông đang xấu lên', () => {
+    const h = headlineOf({
+      income: 100_000,
+      expense: 150_000,
+      priorExpense: 90_000,
+      periodNoun: 'tháng này',
+      pace: { forecast: 200_000, budgeted: 68_000 },
+    })!
+    expect(h.tone).toBe('bad')
+  })
+
+  it('bản ngắn mang mệnh đề vượt trần — chế độ Gọn là mặc định', () => {
+    const h = headlineOf({ ...base, pace: { forecast: 126_000, budgeted: 68_000 } })!
+    expect(h.short).toContain('trên đà vượt trần 85%')
+    expect(h.short).not.toContain('chi ')
+  })
+
+  it('không vượt thì bản ngắn nhường chỗ cho so-với-kỳ-trước', () => {
+    const h = headlineOf({ ...base, pace: { forecast: 60_000, budgeted: 68_000 } })!
+    expect(h.short).toContain('chi ')
+    expect(h.short).not.toContain('trên đà')
+  })
+})

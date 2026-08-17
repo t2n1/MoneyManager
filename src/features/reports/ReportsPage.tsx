@@ -19,6 +19,7 @@ import { SpendClassificationCard } from './SpendClassificationCard'
 import { expenseLeaves } from '../categories/leaf'
 import {
   useAccounts,
+  useBudgetReport,
   useCategories,
   useMonthTransactions,
   useProfile,
@@ -290,12 +291,21 @@ export function ReportsPage() {
   // đồ cột) — điểm kế cuối chính là tháng liền trước, nên không phải gọi thêm dữ liệu.
   const priorMonthExpense =
     series.points.length >= 2 ? series.points[series.points.length - 2].expense : null
+  // Trần chi của kỳ đang xem — mệnh đề "trên đà …" của 23a cần nó. Dùng lại
+  // `useBudgetReport` (tab Ngân sách đã gọi nên chung cache) chứ KHÔNG tự cộng hạn mức:
+  // phép cộng đó còn phải bỏ mốc con của nhóm đã có trần cha, và làm lại ở đây là mời hai
+  // màn nói hai tổng hạn mức khác nhau.
+  const { report: budgetReport } = useBudgetReport(activeMonthKey)
   const monthHeadline = monthFetched
     ? headlineOf({
         income: monthSums.income,
         expense: monthSums.expense,
         priorExpense: priorMonthExpense,
         periodNoun: 'tháng này',
+        pace:
+          pace.forecast && budgetReport
+            ? { forecast: pace.forecast.projected, budgeted: budgetReport.totalBudgeted }
+            : null,
       })
     : null
 

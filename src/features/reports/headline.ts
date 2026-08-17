@@ -14,6 +14,20 @@ export interface HeadlineInput {
   priorExpense: number | null
   /** "tháng này" / "năm này" — ghép thẳng vào câu. */
   periodNoun: string
+  /**
+   * Mệnh đề thứ ba của bản vẽ 23a: "…và đang trên đà kết thúc tháng dưới ngân sách".
+   *
+   * Vì sao nó phải có ở đây chứ không để người đọc tự ghép: hai vế của câu này đo HAI
+   * TRỤC KHÁC NHAU và có thể ngược nhau. `ratePct` là tỷ lệ giữ lại (đo trên thu nhập),
+   * còn ngân sách là trần CHI. Đo trên dữ liệu demo: giữ lại 65% — rất tốt theo trục thứ
+   * nhất — trong khi dự báo cuối tháng ¥126k trên tổng hạn mức ¥68k, tức trên đà vượt
+   * 85%. Câu cũ chỉ nói vế đầu nên nó phán "Tốt" ngay cạnh một ô báo vượt gần gấp đôi.
+   *
+   * Bỏ trống (hoặc `budgeted <= 0`) = không nói gì. Chưa đặt hạn mức thì không có trần
+   * nào để "trên đà vượt", và bịa ra một kết luận từ mẫu số 0 là cách nhanh nhất để câu
+   * tổng mất tín nhiệm.
+   */
+  pace?: { forecast: number; budgeted: number } | null
 }
 
 export interface Headline {
@@ -33,7 +47,7 @@ export interface Headline {
 
 /** Trả null khi kỳ chưa có gì để nói (không thu, không chi). */
 export function headlineOf(input: HeadlineInput): Headline | null {
-  const { income, expense, priorExpense, periodNoun } = input
+  const { income, expense, priorExpense, periodNoun, pace } = input
   if (income === 0 && expense === 0) return null
 
   const ratePct = income > 0 ? Math.round(((income - expense) / income) * 100) : null
@@ -43,8 +57,19 @@ export function headlineOf(input: HeadlineInput): Headline | null {
       ? Math.round(((expense - priorExpense) / priorExpense) * 100)
       : null
 
-  const tone: Headline['tone'] =
+  // Trên đà vượt trần chi hay không — null = không có trần để so.
+  const overPct =
+    pace && pace.budgeted > 0
+      ? Math.round(((pace.forecast - pace.budgeted) / pace.budgeted) * 100)
+      : null
+  const overBudget = overPct !== null && overPct > 0
+
+  let tone: Headline['tone'] =
     ratePct === null ? 'info' : ratePct < 0 ? 'bad' : ratePct >= 20 ? 'good' : 'warn'
+  // TRẦN 'warn' khi đang trên đà vượt ngân sách: giữ lại nhiều mà vẫn tiêu quá trần là
+  // chuyện có thật (thu tăng đột biến, hoặc trần đặt quá chặt), nhưng gắn nhãn "Tốt" cho
+  // nó là nói một nửa. Không hạ xuống 'bad' — tiền vẫn đang dư, chưa có gì cháy.
+  if (overBudget && tone === 'good') tone = 'warn'
 
   const parts: string[] = []
   // Cố ý KHÔNG nhắc mốc 20% của quy tắc 50/30/20 ở đây: thẻ "Giữ lại được bao nhiêu"
@@ -63,14 +88,31 @@ export function headlineOf(input: HeadlineInput): Headline | null {
     parts.push(`chi ${compareClause(deltaPct)}`)
   }
 
+  // Mệnh đề NHÌN VỀ PHÍA TRƯỚC (23a). Hai vế trước nói chuyện đã rồi; vế này nói kỳ sẽ
+  // kết thúc thế nào — và nó là vế duy nhất so với TRẦN CHI.
+  if (overPct !== null) {
+    parts.push(
+      overBudget
+        ? `và đang trên đà vượt ngân sách ${overPct}%`
+        : `và đang trên đà kết thúc ${periodNoun} dưới ngân sách`,
+    )
+  }
+
   const shortRate =
     ratePct === null
       ? 'Chưa có thu'
       : ratePct < 0
         ? `Chi vượt thu ${Math.abs(ratePct)}%`
         : `Giữ lại ${ratePct}%`
-  const short =
-    deltaPct !== null && deltaPct !== 0 ? `${shortRate} · chi ${shortCompare(deltaPct)}` : shortRate
+  // Bản ngắn ưu tiên mệnh đề VƯỢT TRẦN hơn mệnh đề so-với-kỳ-trước: chế độ Gọn là mặc
+  // định của app, nên nếu chip chỉ mang "Giữ lại 65% · chi gấp 11,9 lần" thì phần lớn
+  // người dùng không bao giờ thấy lời cảnh báo — tức việc thêm nó vào `text` thành vô ích.
+  // Chỉ nhường chỗ khi KHÔNG vượt: lúc đó "dưới ngân sách" là tin tốt, không gấp.
+  const short = overBudget
+    ? `${shortRate} · trên đà vượt trần ${overPct}%`
+    : deltaPct !== null && deltaPct !== 0
+      ? `${shortRate} · chi ${shortCompare(deltaPct)}`
+      : shortRate
 
   return { tone, ratePct, deltaPct, text: `${parts.join(', ')}.`, short }
 }

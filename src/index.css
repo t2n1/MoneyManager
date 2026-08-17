@@ -227,16 +227,35 @@
   /* Bề mặt trạng thái ở dark — lấy đúng giá trị trong mock (§1.1 cho good/bad, và
      khối cảnh báo vàng của mock cho warn). Cùng một công thức cho cả ba: nền gần như
      đen ám sắc, viền cùng tông đậm hơn, chữ sáng.
-     Chữ trên nền chip, đo thật: good 10,97:1 · warn 10,84:1 · bad 10,92:1 — cả ba
-     đồng đều, khác hẳn bộ cũ (8,09 … 10,19) vốn lệch nhau vì mỗi tông một bậc alpha. */
+     Chữ trên nền chip, đo thật: good 10,97:1 · warn 10,84:1 · bad 8,96:1 — bad tụt là
+     hệ quả cố ý của việc nâng nền nó lên, xem ngay dưới đây.
+
+     BAD ĐƯỢC NÂNG NỀN (2026-08-17). Giá trị mock #170e10 đo ra 1,003:1 so với nền thẻ
+     — tức cái chip KHÔNG CÓ RUỘT: đỏ và xám ở đây khác nhau về sắc nhưng gần như bằng
+     nhau về độ chói, nên hình cái chip hoàn toàn do đường viền 1,369:1 gánh. Ai không
+     phân biệt được đỏ-lục thì mất luôn kênh sắc, chỉ còn một khung mờ.
+
+     Không bịa số mới mà bám đúng tông GOOD, để ba tông cùng độ nổi (nếu bad nổi hơn
+     good thì mọi màn có cả hai chip đều bị mắt kéo về phía tin xấu — sai thứ tự đọc):
+                     nền/thẻ   nền/lún   viền/thẻ   chữ
+       good          1,239     1,160     1,812      10,97
+       bad (mới)     1,223     1,145     1,807       8,96
+       bad (cũ)      1,003     1,065     1,369      10,92
+     Bám cả cột "nền/lún": chip còn nằm trên --surface-sunken nữa, và dải đỏ đi từ
+     #170e10 lên có một đoạn (quanh #271215) mà nền chip trùng luôn nền lún — nhìn một
+     mình nền thẻ thì không thấy cái hố đó.
+
+     WARN thì KHÔNG đụng, dù nền nó cũng chỉ 1,020:1: vàng trên đen là cặp mắt tách
+     được bằng độ chói của CHỮ (10,84:1), và §1.1 chốt đúng khối cảnh báo vàng của mock.
+     Đây là chỗ cần nói thẳng là chưa xong chứ không phải đã cân nhắc rồi bỏ qua. */
   --state-good-bg: #0f2a1a;
   --state-good-border: #17482b;
   --state-good-fg: #7bf1a8; /* = green-300 */
   --state-warn-bg: #16120a;
   --state-warn-border: #4a3a1c;
   --state-warn-fg: #ffb900; /* = amber-400, cùng giá trị --fg-warn */
-  --state-bad-bg: #170e10;
-  --state-bad-border: #4a1f22;
+  --state-bad-bg: #3c191d;
+  --state-bad-border: #682c31;
   --state-bad-fg: #f0b6b8;
 
   /* Giá trị chốt trong §4.6. Đo thật: chữ trên nút Lưu bị khoá 3,55:1 (opacity-40 trên

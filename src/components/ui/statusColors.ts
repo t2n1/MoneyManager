@@ -111,8 +111,10 @@ export const STATUS_STROKE: Record<StatusTone, string> = {
 // light cố ý trùng màu nền (vô hình). Chip light chỉ nở thêm 2px vì có thêm đường viền
 // — đổi lại, hình học chip giống hệt nhau ở hai chế độ. Chữ thì good đã lên green-800
 // theo đính chính ở trên; warn/bad vẫn bậc 700.
-// Đo lại ở dark trên nền chip: good 10,97 · warn 10,84 · bad 10,92 — ba tông giờ đồng
-// đều, khác bảng cũ (8,09 … 10,19) vốn lệch vì mỗi tông một bậc alpha.
+// Đo lại ở dark trên nền chip: good 10,97 · warn 10,84 · bad 8,96. Bad thấp hơn hai
+// tông kia là CỐ Ý: nền của nó đã được nâng lên cho cái chip có ruột (nền cũ chỉ hơn nền
+// thẻ 1,003:1 — xem khối --state-* trong index.css), mà nâng nền thì chữ tụt. 8,96 vẫn
+// dư gấp đôi ngưỡng 4,5:1, nên đây là đổi phần dư thừa lấy phần đang thiếu.
 //
 // 'info' KHÔNG có token riêng: nó là "chưa có gì để nói", đi bằng bề mặt trung tính sẵn
 // có. Đây là chỗ DUY NHẤT light đổi diện mạo — viền border-strong (gray-300) hiện ra ở

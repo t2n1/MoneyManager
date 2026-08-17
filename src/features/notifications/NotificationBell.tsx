@@ -107,7 +107,7 @@ export function NotificationBell({ className = '' }: { className?: string }) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 lg:items-start lg:pt-20">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 lg:items-start lg:pt-20 animate-overlay-in">
           <button
             type="button"
             aria-label="Đóng thông báo"
@@ -121,7 +121,7 @@ export function NotificationBell({ className = '' }: { className?: string }) {
             role="dialog"
             aria-modal="true"
             aria-label="Thông báo"
-            className="relative w-full max-w-md rounded-t-2xl bg-gray-50 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-xl lg:rounded-2xl lg:pb-3 dark:bg-gray-900"
+            className="relative w-full max-w-md rounded-t-2xl bg-gray-50 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-xl lg:rounded-2xl lg:pb-3 dark:bg-gray-900 animate-sheet-in lg:animate-sheet-pop"
           >
             <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-gray-300 lg:hidden dark:bg-gray-600" />
             <Suspense

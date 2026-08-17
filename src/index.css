@@ -336,6 +336,129 @@
   --color-fg-disabled: var(--fg-disabled);
 }
 
+/* --- Chuyển động (§12) ----------------------------------------------------
+   Nguyên tắc của bảng §12: console KHÔNG TRÔI, CHỈ BẬT. Chuyển động ở đây chỉ để nói
+   "cái gì vừa đổi" — không transform bay lượn, không stagger, không count-up cho số.
+
+   Vì sao đặt tên theo VIỆC (--motion-period) chứ theo con số (--motion-140): bảng §12
+   gán mỗi việc MỘT thời lượng, nên cái tên phải trả lời được "sửa ở đâu khi muốn đổi
+   nhịp đổi tháng". Đặt tên theo con số thì hai việc tình cờ cùng 140ms sẽ bị khoá cứng
+   vào nhau, và lần sau muốn tách ra phải đi tìm từng chỗ dùng.
+
+   Vì sao cần tầng này khi Tailwind v4 đã nhận `duration-140`: viết thẳng con số thì
+   bảng §12 không còn tồn tại ở đâu trong code — chỉ còn tám con số rời rạc rải trong
+   JSX, và con số thứ chín lọt vào không ai thấy. tests/designSystem.test.ts canh đúng
+   chỗ này: mọi thời lượng phải đi qua một trong sáu biến dưới đây.
+
+   MỌI dòng dưới đây tự động tôn trọng `prefers-reduced-motion` nhờ block ở cuối file
+   (animation-duration + transition-duration → 0.01ms). §12 đòi "giảm về đổi tức thì",
+   và block đó đúng cho cả transition lẫn animation nên không khai lại ở đây. */
+:root {
+  --motion-period: 140ms; /* đổi tháng / đổi kỳ: số mới hiện, thanh/cột nội suy chiều cao */
+  --motion-segment: 120ms; /* nền ô đang chọn trượt trong track */
+  --motion-sheet: 180ms; /* mở sheet (mobile trượt đáy) / modal (desktop fade + scale) */
+  --motion-group: 160ms; /* xổ nhóm: grid-template-rows 0fr→1fr */
+  --motion-todo: 200ms; /* việc cần làm: gạch ngang rồi co chiều cao về 0 */
+  --motion-drag: 120ms; /* các dòng khác nhường chỗ khi kéo–thả (DragList) */
+  --motion-assume: 220ms; /* thả thanh trượt giả định 13b (recharts animationDuration) */
+  /* KHÔNG phải một dòng của bảng §12 — bảng đó không có mục nào cho thanh tải. Đặt tên ở
+     đây vì luật "không viết thời lượng bằng tay" chỉ chặt được khi nó không có ngoại lệ,
+     mà vòng tải là thời lượng cuối cùng còn sót lại. 300ms giữ nguyên giá trị đang chạy:
+     nó là làm mượt một thanh tiến trình, không phải tín hiệu "cái gì vừa đổi", nên nó
+     KHÔNG được lấy nhịp của §12 (dài hơn hẳn, và đúng như thế). */
+  --motion-progress: 300ms;
+}
+
+/* Keyframes là CSS thường, để ngoài @theme: chỉ có TÊN animation cần thành token để
+   `animate-*` gọi được, còn thân keyframes thì không ai cần đọc bằng var(). */
+@keyframes swap-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* Trượt từ đáy: chỉ transform, KHÔNG kèm opacity. Sheet mờ dần trong lúc trượt lên là
+   hai tín hiệu cho một việc, và trên nền tối nó thành một vệt xám nhấp nháy.
+
+   CHƯA LÀM nửa "đóng 120ms" của bảng §12, và đây là chủ ý: 26 sheet của app đều tự dựng
+   lớp phủ + tấm nền tại chỗ, mỗi cái tự gọi `onClose` từ vài chỗ bên trong (nút, nền,
+   Esc, submit xong). Hoạt ảnh ĐÓNG đòi phần tử còn sống thêm 120ms sau khi người dùng đã
+   đóng, tức phải có một primitive <Sheet> giữ quyền tháo lắp — mà để làm được thế thì
+   phải luồn `onClose` của 26 chỗ qua nó. Đó là việc dựng primitive, không phải việc gắn
+   token chuyển động; làm nửa vời (một sheet có, 25 sheet không) còn tệ hơn không làm. */
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+/* Desktop: 0.98→1 chứ không 0.9→1. Ở màn rộng, hộp thoại phóng to rõ rệt đọc ra là
+   "cái gì đó vừa bay vào", còn 2% chỉ nói "cái này vừa xuất hiện". */
+@keyframes sheet-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@theme {
+  --animate-swap-in: swap-in var(--motion-period) var(--ease-out);
+  --animate-sheet-in: sheet-in var(--motion-sheet) var(--ease-out);
+  --animate-sheet-pop: sheet-pop var(--motion-sheet) var(--ease-out);
+  --animate-overlay-in: overlay-in var(--motion-sheet) var(--ease-out);
+}
+
+/* Mỗi tiện ích dưới đây gói TRỌN một dòng của bảng §12: nội suy cái gì, trong bao lâu,
+   theo đường nào. Gói cả `transition-property` vào đây thay vì để nơi dùng viết
+   `transition-[height] motion-period` có hai lý do:
+     · thứ tự thắng giữa hai tiện ích cùng khai `transition-duration` là chuyện của bộ
+       sinh CSS, không phải của người viết JSX — gộp lại thì không còn cuộc đua nào;
+     · bảng §12 nói rõ TỪNG việc nội suy thuộc tính nào (cột thì `height`, nhóm thì
+       `grid-template-rows`); ghi vào token là ghi luôn phần đó, đọc một chỗ ra hết. */
+@utility motion-period {
+  transition-property: height;
+  transition-duration: var(--motion-period);
+  transition-timing-function: var(--ease-out);
+}
+@utility motion-segment {
+  transition-property: transform, width;
+  transition-duration: var(--motion-segment);
+  transition-timing-function: var(--ease-out);
+}
+@utility motion-group {
+  transition-property: grid-template-rows;
+  transition-duration: var(--motion-group);
+  transition-timing-function: var(--ease-out);
+}
+@utility motion-progress {
+  transition-property: stroke-dashoffset;
+  transition-duration: var(--motion-progress);
+  transition-timing-function: var(--ease-out);
+}
+@utility motion-todo {
+  /* Gạch ngang rồi co về 0: chiều cao đi cùng độ mờ, không thì dòng co lại trong lúc
+     chữ vẫn đậm nguyên và nó đọc ra như một dòng bị cắt cụt. */
+  transition-property: grid-template-rows, opacity;
+  transition-duration: var(--motion-todo);
+  transition-timing-function: var(--ease-out);
+}
+
 /* Nút bấm trên mobile không bị delay/zoom khi chạm nhanh */
 html {
   touch-action: manipulation;

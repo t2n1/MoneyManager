@@ -14,10 +14,12 @@
 //   · cờ bật/tắt TỪNG LOẠI ở Cài đặt → Thông báo (arrangeNotifications lọc offTypes) —
 //     người đã tắt một loại mà vẫn bị nhắc ở đây sẽ coi đó là lỗi;
 //   · trạng thái đã ẩn của từng việc.
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, ChevronRight } from 'lucide-react'
 import { Card, StatusDot, iconButtonClass } from '../../components/ui'
 import { toISODate } from '../../lib/dates'
+import { MOTION_TODO_MS } from '../../lib/motion'
 import type { AppNotification, NotificationSeverity } from '../notifications/types'
 import { dueSoonCount, todoBadge, todoSource } from './todoView'
 
@@ -40,6 +42,34 @@ interface Props {
 }
 
 export function TodoPanel({ items, onDismiss }: Props) {
+  // §12: "dòng gạch ngang rồi co chiều cao về 0 — 200ms". Việc bị ẩn phải sống thêm bấy
+  // nhiêu lâu để có cái mà co lại, nên nút ẩn đi qua trạng thái trung gian này trước khi
+  // gọi `onDismiss`.
+  //
+  // MỘT HẸN GIỜ RIÊNG cho từng khoá, không phải một "khoá đang rời" duy nhất: bấm ẩn cái
+  // thứ hai trong lúc cái thứ nhất còn đang co thì với một hẹn giờ chung, cái thứ nhất bị
+  // huỷ giữa đường — dòng bật lại nguyên trạng và việc đó KHÔNG BAO GIỜ được ẩn. Mất một
+  // lệnh của người dùng thì tệ hơn hẳn vài dòng code.
+  const [leaving, setLeaving] = useState<readonly string[]>([])
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  useEffect(() => {
+    const map = timers.current
+    return () => map.forEach(clearTimeout)
+  }, [])
+
+  function hide(key: string) {
+    if (timers.current.has(key)) return // bấm hai lần vào cùng một dòng
+    setLeaving((cur) => [...cur, key])
+    timers.current.set(
+      key,
+      setTimeout(() => {
+        timers.current.delete(key)
+        setLeaving((cur) => cur.filter((k) => k !== key))
+        onDismiss(key)
+      }, MOTION_TODO_MS),
+    )
+  }
+
   // Đồng hồ đọc MỘT LẦN cho cả khối: gọi trong vòng map thì hai dòng có thể rơi hai bên
   // nửa đêm và ra hai con số ngày khác nhau trên cùng một danh sách.
   const todayISO = toISODate(new Date())
@@ -71,8 +101,20 @@ export function TodoPanel({ items, onDismiss }: Props) {
       <ul className="mt-2 divide-y divide-border-subtle">
         {items.map((n) => {
           const badge = todoBadge(n, todayISO)
+          const going = leaving.includes(n.key)
           return (
-          <li key={n.key} className="flex items-center gap-2">
+          // <li> thành lưới MỘT hàng để co được bằng grid-template-rows: chiều cao `auto`
+          // không nội suy được, mà `max-height` thì phải đoán trước một con số px — dòng
+          // nào xuống hai hàng là đoán sai. 0fr→1fr đo đúng chiều cao thật của nội dung.
+          <li
+            key={n.key}
+            className={`grid motion-todo ${going ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr]'}`}
+          >
+            {/* min-h-0 là điều kiện để hàng lưới co xuống dưới chiều cao nội dung — thiếu
+                nó thì `0fr` không có tác dụng gì. */}
+            <div
+              className={`flex min-h-0 items-center gap-2 overflow-hidden ${going ? 'line-through' : ''}`}
+            >
             <Link to={n.to} className="flex min-w-0 flex-1 items-start gap-2.5 py-2">
               <StatusDot tone={TONE[n.severity]} label={TONE_LABEL[n.severity]} />
               <span className="min-w-0 flex-1">
@@ -106,13 +148,15 @@ export function TodoPanel({ items, onDismiss }: Props) {
                 này là "thôi, đừng nhắc nữa". Gộp vào một chỗ bấm thì lỡ tay là mất việc. */}
             <button
               type="button"
-              onClick={() => onDismiss(n.key)}
+              onClick={() => hide(n.key)}
+              disabled={going}
               aria-label={`Ẩn: ${n.title}`}
               title="Ẩn việc này"
               className={iconButtonClass('ghost', 'shrink-0')}
             >
               <Check className="h-4 w-4" />
             </button>
+            </div>
           </li>
           )
         })}

@@ -1,4 +1,10 @@
-import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react'
 
 /** Props gắn vào phần tử "tay nắm" để bắt đầu kéo (nhấn giữ & kéo). */
 export interface DragHandleProps {
@@ -39,6 +45,32 @@ export function DragList({ ids, onReorder, className, render }: DragListProps) {
     if (el) nodes.current.set(id, el)
     else nodes.current.delete(id)
   }
+
+  // §12: "các dòng khác nhường chỗ bằng transform". Thứ tự đổi bằng cách đổi DOM, nên
+  // không có gì để nội suy — hàng nhảy sang chỗ mới trong một khung hình và mắt không
+  // theo được hàng nào vừa đi đâu. FLIP lấp đúng chỗ đó: đo vị trí MỚI, dịch ngược về
+  // vị trí CŨ (không transition), rồi cho nó chạy về 0.
+  //
+  // Chỉ các hàng KHÁC, không phải hàng đang kéo: hàng đang kéo phải đi theo ngón tay,
+  // cho nó chạy 120ms là bắt nó chạy sau ngón tay đúng 120ms.
+  //
+  // Không phụ thuộc mảng nào: hiệu ứng tự thoát khi vị trí không đổi, mà điều kiện thật
+  // ("thứ tự vừa đổi") thì cả `ids` từ ngoài lẫn `order` trong lúc kéo đều gây ra được.
+  const tops = useRef(new Map<string, number>())
+  useLayoutEffect(() => {
+    for (const [id, el] of nodes.current) {
+      const top = el.getBoundingClientRect().top
+      const prev = tops.current.get(id)
+      tops.current.set(id, top)
+      if (prev === undefined || prev === top || id === dragId) continue
+      el.style.transition = 'none'
+      el.style.transform = `translateY(${prev - top}px)`
+      requestAnimationFrame(() => {
+        el.style.transition = 'transform var(--motion-drag) var(--ease-out)'
+        el.style.transform = ''
+      })
+    }
+  })
 
   function onPointerDown(id: string, e: ReactPointerEvent) {
     // Bỏ qua chuột phải/giữa; cảm ứng & chuột trái thì kéo.
@@ -93,7 +125,11 @@ export function DragList({ ids, onReorder, className, render }: DragListProps) {
         <div
           key={id}
           ref={(el) => setNode(id, el)}
-          className={id === dragId ? 'relative z-10' : undefined}
+          // scale 1.01 nằm ở ĐÂY chứ không ở ba nơi gọi: §12 gán nó cho "dòng đang kéo"
+          // chứ cho một loại nội dung nào, mà `dragging` thì cả ba nơi gọi đều đã dùng
+          // để tô shadow — thêm một phần trăm phóng vào từng nơi là ba lần chép cùng một
+          // luật. 1% là ngưỡng "cầm lên rồi" mà không phóng to đến mức chữ nhoè.
+          className={id === dragId ? 'relative z-10 scale-[1.01]' : undefined}
         >
           {render(
             id,

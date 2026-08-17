@@ -15,6 +15,7 @@ import {
   type AxisKey,
   type AxisProgress,
 } from './axisTargets'
+import { Collapse } from '../../components/ui'
 import { STATUS_FILL } from '../../components/ui/statusColors'
 
 /** Giải nghĩa mỗi trục — chữ CHỈ ĐỂ DẠY, ẩn ở chế độ Gọn.
@@ -176,8 +177,10 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
               )}
               <Guide className="mt-0.5 text-2xs text-fg-muted">{HINT[l.key]}</Guide>
 
-              {isOpen && (
-                <ul id={listId} className="mt-1 border-t border-border-subtle">
+              {/* Xổ nhóm bằng <Collapse> (§12): ba trục × vài danh mục là chặn trên nhỏ,
+                  giữ trong DOM lúc đóng không tốn gì. */}
+              <Collapse open={isOpen} id={listId}>
+                <ul className="mt-1 border-t border-border-subtle">
                   {l.slices.map((s) => {
                     const c = categories.find((cat) => cat.id === s.categoryId)
                     // Tỷ lệ trong TRỤC, không phải trên thu nhập: tính trên thu nhập thì
@@ -212,7 +215,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
                     )
                   })}
                 </ul>
-              )}
+              </Collapse>
             </li>
           )
         })}

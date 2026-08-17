@@ -6,7 +6,7 @@
 //
 // Chỉ bày ra, không tính: phép tính ở headline.ts (có test riêng).
 import { ConclusionLine } from '../../components/VerdictNote'
-import { Money, StatTile } from '../../components/ui'
+import { Money, StatTile, Swap } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/money'
 import type { Headline } from './headline'
 
@@ -54,38 +54,48 @@ export function PeriodHeadline({
     <section className="flex flex-col gap-2">
       {/* Ba ô ở mobile, năm ô từ sm: năm ô trong 375px thì mỗi ô rộng ~68px — hẹp hơn
           nhãn "Dự báo cuối tháng". */}
+      {/* <Swap> ở CẢ năm ô: đây là năm con số duy nhất trên trang thay đổi vì người dùng
+          vừa đổi kỳ, nên chúng là chỗ §12 nói tới. Khoá theo chính con số, không theo mã
+          kỳ — xem chú thích trong Swap.tsx. */}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
         <StatTile label="Thu" center>
-          <Money amount={income} currency={base} tone="in" compact approx={approx} />
+          <Swap on={income}>
+            <Money amount={income} currency={base} tone="in" compact approx={approx} />
+          </Swap>
         </StatTile>
         <StatTile label="Chi" center>
-          <Money amount={expense} currency={base} tone="out" compact approx={approx} />
+          <Swap on={expense}>
+            <Money amount={expense} currency={base} tone="out" compact approx={approx} />
+          </Swap>
         </StatTile>
         {/* Tỷ lệ giữ lại KHÔNG phải tiền nên không dùng <Money>; chỉ tô màu chi khi âm,
             vì lúc đó nó mang đúng nghĩa "đang mất tiền". */}
         <StatTile label="Giữ lại" center>
-          <span className={headline.ratePct !== null && headline.ratePct < 0 ? 'text-money-out' : ''}>
+          <Swap
+            on={headline.ratePct}
+            className={headline.ratePct !== null && headline.ratePct < 0 ? 'text-money-out' : ''}
+          >
             {headline.ratePct === null ? '—' : `${headline.ratePct}%`}
-          </span>
+          </Swap>
         </StatTile>
         {/* Hai ô cuối chỉ hiện khi nơi gọi TRUYỀN vào (tức chỉ ở kỳ tháng): dự báo cuối
             tháng và chuỗi ngày không chi đều là khái niệm của một tháng đang chạy dở. */}
         {forecast !== undefined && (
           <StatTile label="Dự báo cuối tháng" center>
-            {forecast === null ? (
-              <span className="text-fg-muted">—</span>
-            ) : (
-              <Money amount={forecast} currency={base} tone="out" compact approx={approx} />
-            )}
+            <Swap on={forecast}>
+              {forecast === null ? (
+                <span className="text-fg-muted">—</span>
+              ) : (
+                <Money amount={forecast} currency={base} tone="out" compact approx={approx} />
+              )}
+            </Swap>
           </StatTile>
         )}
         {noSpendDays !== undefined && (
           <StatTile label="Ngày không chi" center>
-            {noSpendDays === null ? (
-              <span className="text-fg-muted">—</span>
-            ) : (
-              <span>{noSpendDays}</span>
-            )}
+            <Swap on={noSpendDays}>
+              {noSpendDays === null ? <span className="text-fg-muted">—</span> : noSpendDays}
+            </Swap>
           </StatTile>
         )}
       </div>

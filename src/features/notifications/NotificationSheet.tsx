@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Bell, ChevronDown, Settings2, X } from 'lucide-react'
+import { Collapse } from '../../components/ui'
 import { NOTIFICATION_META, type AppNotification } from './types'
 
 interface Props {
@@ -139,8 +140,6 @@ export function NotificationSheet({
 
   const extraActions = extraOf(actionsAll, actions)
   const extraInfos = extraOf(infosAll, infos)
-  const shownActions = actionsOpen ? actionsAll : actions
-  const shownInfos = infosOpen ? infosAll : infos
   const empty = actionsAll.length === 0 && infosAll.length === 0
 
   // Xổ ra = người dùng vừa nhìn thấy → giờ mới đánh dấu đã đọc. Quyết định có chủ ý
@@ -182,14 +181,26 @@ export function NotificationSheet({
           </p>
         )}
 
-        {shownActions.length > 0 && (
+        {actionsAll.length > 0 && (
           <p className="pt-1 text-3xs font-bold uppercase tracking-wide text-fg-muted">
             Việc cần làm
           </p>
         )}
-        {shownActions.map((n) => (
+        {actions.map((n) => (
           <Row key={n.key} n={n} read={readKeys.has(n.key)} onClose={onClose} />
         ))}
+        {/* Phần vượt trần xổ ra bằng <Collapse> (§12: 0fr→1fr, 160ms) thay vì đổi mảng
+            `shownActions`: đổi mảng thì các dòng mới bật ra tức thì và danh sách nhảy một
+            đoạn, không ai kịp thấy chúng vừa được THÊM vào đâu. */}
+        {/* Điều kiện `length > 0` không dư: khối cha có `space-y-1.5`, nên một <Collapse>
+            rỗng vẫn ăn 6px khoảng cách và để lại một khe hở dưới danh sách. */}
+        {extraActions.length > 0 && (
+          <Collapse open={actionsOpen} className="space-y-1.5">
+            {extraActions.map((n) => (
+              <Row key={n.key} n={n} read={readKeys.has(n.key)} onClose={onClose} />
+            ))}
+          </Collapse>
+        )}
         {extraActions.length > 0 && (
           <MoreButton
             count={extraActions.length}
@@ -199,12 +210,12 @@ export function NotificationSheet({
           />
         )}
 
-        {shownInfos.length > 0 && (
+        {infosAll.length > 0 && (
           <p className="pt-2 text-3xs font-bold uppercase tracking-wide text-fg-muted">
             Tin để biết
           </p>
         )}
-        {shownInfos.map((n) => (
+        {infos.map((n) => (
           <Row
             key={n.key}
             n={n}
@@ -213,6 +224,19 @@ export function NotificationSheet({
             onClose={onClose}
           />
         ))}
+        {extraInfos.length > 0 && (
+          <Collapse open={infosOpen} className="space-y-1.5">
+            {extraInfos.map((n) => (
+              <Row
+                key={n.key}
+                n={n}
+                read={false}
+                onDismiss={() => onDismiss(n.key)}
+                onClose={onClose}
+              />
+            ))}
+          </Collapse>
+        )}
         {extraInfos.length > 0 && (
           <MoreButton
             count={extraInfos.length}

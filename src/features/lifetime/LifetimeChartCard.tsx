@@ -20,6 +20,7 @@ import {
 } from 'recharts'
 import { EstimateMark } from '../../components/EstimateMark'
 import type { CurrencyCode } from '../../lib/currencies'
+import { MOTION_ASSUME_MS } from '../../lib/motion'
 import { formatCompact, formatMoney } from '../../lib/money'
 import type { NetWorthSnapshotRow } from '../../types/database.types'
 import { buildChartData, chartSeriesPlan } from './chartSeries'
@@ -228,6 +229,10 @@ export function LifetimeChartCard({
   // trên thanh trượt giả định (§12 — "đồ thị vẽ lại KHÔNG animate trong lúc kéo; thả
   // tay mới nội suy"). Hoạt ảnh 60 khung cho mỗi lần nhích một pixel là 60fps giả, và
   // đường vẽ thì luôn chạy sau ngón tay.
+  //
+  // Còn KHI THẢ TAY thì bảng §12 cho 220ms, và đó là lý do mọi chuỗi dưới đây phải khai
+  // `animationDuration`: mặc định của recharts là 1500ms — gần bảy lần con số đã chốt, và
+  // đủ dài để người dùng kéo tiếp trước khi đường cũ vẽ xong.
   const animate = !reducedMotion && !suppressAnimation
 
   // Lịch sử (`networth_snapshots`) luôn ở `historyCurrency` (base currency của profile),
@@ -352,6 +357,7 @@ export function LifetimeChartCard({
                 fill={COLOR_PROJECTED}
                 fillOpacity={0.13}
                 isAnimationActive={animate}
+                animationDuration={MOTION_ASSUME_MS}
               />
             )}
 
@@ -363,6 +369,7 @@ export function LifetimeChartCard({
               strokeDasharray="6 4"
               dot={false}
               isAnimationActive={animate}
+              animationDuration={MOTION_ASSUME_MS}
             />
 
             {/* Lịch sử thật: liền nét. Chấm nhỏ vì lịch sử thưa (vài mốc), không dot
@@ -377,6 +384,7 @@ export function LifetimeChartCard({
                 dot={{ r: 3 }}
                 connectNulls={false}
                 isAnimationActive={animate}
+                animationDuration={MOTION_ASSUME_MS}
               />
             )}
 
@@ -392,6 +400,7 @@ export function LifetimeChartCard({
                 strokeDasharray="2 3"
                 dot={false}
                 isAnimationActive={animate}
+                animationDuration={MOTION_ASSUME_MS}
               />
             )}
 

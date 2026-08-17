@@ -10,7 +10,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, CreditCard } from 'lucide-react'
-import { Money } from '../../components/ui'
+import { Collapse, Money } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
 import { dueDateLabel, dueRelativeLabel } from '../../lib/dates'
 import type { Rates } from '../../lib/rates'
@@ -160,8 +160,10 @@ export function CardsSection({ cards, balances, base, rates, todayISO, view }: P
         </div>
       )}
 
-      {open && (
-        <div className="mt-3">
+      {/* Chi tiết từng thẻ xổ ra bằng <Collapse> (§12: 0fr→1fr, 160ms). Danh sách này có
+          chặn trên nhỏ — số thẻ tín dụng của một người — nên giữ nó trong DOM lúc đóng là
+          rẻ; xem lưu ý trong Collapse.tsx về chỗ KHÔNG nên dùng. */}
+      <Collapse open={open} className="mt-3">
           <ul className="space-y-3">
             {cards.map((c) => {
               const st = statements.get(c.id)
@@ -291,8 +293,7 @@ export function CardsSection({ cards, balances, base, rates, todayISO, view }: P
               )
             })}
           </ul>
-        </div>
-      )}
+      </Collapse>
     </section>
   )
 }

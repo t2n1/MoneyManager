@@ -17,7 +17,17 @@
 // của riêng nó, nhãn mục không hoạt động nằm thẳng trên nền thẻ/trang, nên --fg-muted
 // đủ AA (4,84:1 trên trắng · 4,63:1 trên gray-50). Lưu ý (2) vẫn đúng cho mọi chỗ
 // KHÁC còn có track có nền — đừng đọc thành "gray-500 lúc nào cũng được".
-import type { ReactNode } from 'react'
+//
+// §12 "Chuyển động": nền ô đang chọn TRƯỢT trong track 120ms, nội dung đổi tức thì.
+// Nền đó là MỘT phần tử duy nhất nằm sau các nút (không phải nền của từng nút), vì chỉ
+// một phần tử di chuyển thì mới có cái gì để nội suy — tô/xoá nền của hai nút khác nhau
+// thì trình duyệt không có đường nào nối hai hình chữ nhật đó lại.
+//
+// Vị trí nền ĐO từ nút đang chọn thay vì tính `100%/n`: bộ nút có `stretch={false}` (3
+// chỗ ở Tài sản) để các mục co theo chữ, nên chia đều là lệch. Đo cũng là cách duy nhất
+// đúng khi người dùng phóng cỡ chữ (--app-font-scale) hoặc đổi bề rộng cửa sổ — nên có
+// ResizeObserver trên track.
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
 export interface SegmentedItem<T extends string> {
   value: T
@@ -55,12 +65,55 @@ export function SegmentedControl<T extends string>({
   className = '',
 }: Props<T>) {
   const s = SIZE[size]
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
+
+  // Đo sau khi bày (useLayoutEffect) chứ không sau khi vẽ: đo bằng useEffect thì có một
+  // khung hình nền nằm sai chỗ, và ở lần bấm đầu tiên nó trượt từ vị trí cũ về chỗ mới
+  // hai lần liền.
+  // CỐ Ý không có mảng phụ thuộc: chạy lại sau MỌI lượt bày. Bề rộng nút không chỉ đổi
+  // khi `value`/`items` đổi — nó đổi cả khi trang thu hẹp cột, khi nhãn tab đổi chữ, khi
+  // font vừa nạp xong. Chốt an toàn nằm ở `setPill` bên dưới: nó trả về CHÍNH object cũ
+  // khi số đo không đổi, nên không có vòng lặp bày-lại nào.
+  useLayoutEffect(() => {
+    const track = trackRef.current
+    const el = track?.querySelector<HTMLElement>('[data-seg-active="true"]')
+    if (!track || !el) return
+    const measure = () => {
+      const left = el.offsetLeft
+      const width = el.offsetWidth
+      setPill((cur) => (cur && cur.left === left && cur.width === width ? cur : { left, width }))
+    }
+    measure()
+    // ResizeObserver cho những lần đổi KHÔNG đi qua React: kéo cạnh cửa sổ, phóng cỡ chữ
+    // ở Cài đặt, font vừa nạp xong. Không có nó thì nền nằm lệch cho tới lần bấm sau.
+    const ro = new ResizeObserver(measure)
+    ro.observe(track)
+    return () => ro.disconnect()
+  })
+
   return (
     <div
+      ref={trackRef}
       role="tablist"
       aria-label={label}
-      className={`flex rounded-lg border border-border-panel bg-transparent p-0.5 font-medium ${s.track} ${className}`.trim()}
+      className={`relative flex rounded-lg border border-border-panel bg-transparent p-0.5 font-medium ${s.track} ${className}`.trim()}
     >
+      {/* Nền ô đang chọn. Chỉ vẽ sau lần đo đầu: vẽ trước khi biết chỗ thì nó xuất hiện
+          ở mép trái rồi trượt sang — một chuyển động lúc MỞ MÀN, đúng thứ "console
+          không trôi" cấm. Phần tử mới chèn vào không chạy transition, nên lần đo đầu
+          không tạo hoạt ảnh nào. */}
+      {pill && (
+        <span
+          aria-hidden
+          // `left-0` KHÔNG dư: thiếu nó thì mốc ngang của nền là "vị trí tĩnh" của một
+          // phần tử flex, tức mép CONTENT box (đã trừ padding p-0.5 của track), trong khi
+          // `offsetLeft` đo từ mép PADDING box — cộng hai thứ vào nhau là đếm padding hai
+          // lần và nền lệch phải đúng 2px. Đo được trên /so trước khi thêm.
+          className="pointer-events-none absolute inset-y-0.5 left-0 rounded-md border border-border-strong bg-surface-sunken motion-segment"
+          style={{ width: pill.width, transform: `translateX(${pill.left}px)` }}
+        />
+      )}
       {items.map((item) => {
         const active = item.value === value
         return (
@@ -69,14 +122,14 @@ export function SegmentedControl<T extends string>({
             type="button"
             role="tab"
             aria-selected={active}
+            data-seg-active={active ? 'true' : undefined}
             onClick={() => onChange(item.value)}
-            // Viền có ở CẢ hai trạng thái, chỉ đổi màu: cho riêng ô đang chọn một viền
+            // `relative` để chữ nằm TRÊN nền tuyệt đối ở trên. Viền trong suốt ở cả hai
+            // trạng thái (nền mới là thứ mang viền đậm): cho riêng ô đang chọn một viền
             // thì mỗi lần bấm tab, chữ của mọi ô xê 1px — thấy rõ trên dải 4 tab của Sổ.
-            className={`rounded-md border transition ${s.item} ${stretch ? 'flex-1' : 'shrink-0'} ${
-              active
-                ? `border-border-strong bg-surface-sunken ${item.activeClassName ?? 'text-fg-primary'}`
-                : 'border-transparent text-fg-muted hover:text-fg-primary'
-            }`}
+            className={`relative rounded-md border border-transparent ${s.item} ${
+              stretch ? 'flex-1' : 'shrink-0'
+            } ${active ? (item.activeClassName ?? 'text-fg-primary') : 'text-fg-muted hover:text-fg-primary'}`}
           >
             {item.label}
           </button>

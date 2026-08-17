@@ -123,11 +123,15 @@ function stripComments(text: string): string {
  *     tháng này). Mỗi câu đi kèm MỘT <Link>, và cái link đó là đường đi tiếp DUY NHẤT
  *     của khối — Bản tin không có nút nào khác dẫn tới đó. Bọc <Guide> là ở chế độ Gọn
  *     khối rỗng thành một ô trống trơn, đúng loại lỗi các lần nâng trần trước đã tránh.
+ * 61 (2026-08-17, PR 8): +1 ở PlanningView — dòng 'Thu dự kiến … đang dùng nền — TB 6
+ * tháng có dữ liệu'. Đây là câu nói ra NGUỒN của mẫu số, tức cảnh báo dữ liệu: ẩn nó
+ * ở chế độ Gọn thì người dùng chia hết một con số app đoán hộ mà tưởng là số mình khai.
+ *
  *   · HAI dòng SỐ LIỆU bị regex bắt nhầm là văn xuôi: dòng "đã tiêu / tổng hạn mức" của
  *     panel Ngân sách và dòng "tháng · thu / chi" của panel Dòng tiền. Chữ thật trong
  *     chúng chỉ vài từ; phần vượt 45 ký tự là markup của <Money> và <span>.
  */
-const PROSE_MAX = 60
+const PROSE_MAX = 61
 
 const FILES = sourceFiles().map((path) => ({
   path,
@@ -513,13 +517,14 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     //   +  N (control của các màn đã chuyển sang 1a)
     // Mốc: 13 lúc bắt đầu redesign · 15 sau PR 2 (hai primitive) · 21 sau PR 3 (khung
     // app) · 22 sau PR 4 (cột biểu đồ Bản tin) · 26 sau PR 5 (Sổ + Tài sản) · 30 sau
-    // PR 6 (form Nhập: nút Đóng, banner lỗi, nút Loại đặc biệt, nút Lưu mẫu).
+    // PR 6 (form Nhập: nút Đóng, banner lỗi, nút Loại đặc biệt, nút Lưu mẫu) · 31 sau
+    // PR 8 (ô KPI của mặt lập kế hoạch).
     // Trần vẫn có tác dụng: nó bắt người sửa DỪNG LẠI và nói ra chỗ mới thêm là control
     // 1a hay là một chỗ viết tay lẽ ra phải dùng primitive.
     //
     // Khi 13 màn của bản 1a dựng xong, THAY trần này bằng luật thật: đếm rounded-lg /
     // rounded-xl trên CONTROL — lúc đó mới là chiều nợ còn lại.
-    { needle: 'rounded-md', max: 30, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
+    { needle: 'rounded-md', max: 31, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
     // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
     // đúng theo spec nên không cần đại diện gần đúng nữa.

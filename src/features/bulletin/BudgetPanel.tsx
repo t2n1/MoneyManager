@@ -34,7 +34,9 @@ export function BudgetPanel({ report, isLoading, base, nameOf }: Props) {
       elevation="panel"
       padding="panel"
       as="section"
-      className="min-w-0 flex-1 xl:max-w-[23.75rem]"
+      // `basis-full xl:basis-0`: xem chú thích ở CashflowPanel — cặp panel phải DỌC ở
+      // dưới xl, mà `flex-1` một mình thì chỉ co lại chứ không xuống dòng.
+      className="min-w-0 flex-1 basis-full xl:max-w-[23.75rem] xl:basis-0"
     >
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-[0.8125rem] font-semibold text-fg-primary">Ngân sách</h2>

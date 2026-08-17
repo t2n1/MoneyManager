@@ -59,7 +59,11 @@ export function LedgerAside({
   filterBar,
 }: Props) {
   return (
-    <aside className="hidden w-[420px] shrink-0 flex-col gap-2.5 lg:flex">
+    // 26.25rem = 420px của bản vẽ 10a, nhưng theo REM chứ px (§13): cột này chứa toàn
+    // chữ và số, nên ở cỡ chữ "Rất lớn" (--app-font-scale 1,25) một bề rộng px cứng
+    // không giãn theo — dòng "Chi nhiều nhất" bị ép xuống ba dòng và nhãn tháng bị cắt.
+    // Theo rem thì cột rộng ra cùng nhịp với chữ trong nó.
+    <aside className="hidden w-[26.25rem] shrink-0 flex-col gap-2.5 lg:flex">
       {/* --- Tháng trong một hình --------------------------------------------------- */}
       <Card elevation="panel" padding="panel" as="section">
         <h2 className="text-2xs uppercase tracking-[.1em] text-fg-muted">

@@ -2,11 +2,13 @@
 // docs/design-system.md. Ràng buộc được kiểm bằng designSystem.test.ts.
 export { ActionButton, actionButtonClass, type ActionButtonVariant } from './ActionButton'
 export { Card, type CardElevation, type CardPadding } from './Card'
+export { Collapse } from './Collapse'
 export { IconButton, iconButtonClass, type IconButtonVariant } from './IconButton'
 export { Money, type MoneyTone } from './Money'
 export { SectionTitle, type TitleRole } from './SectionTitle'
 export { Sparkline } from './Sparkline'
 export { StatTile } from './StatTile'
+export { Swap } from './Swap'
 export { StatusChip } from './StatusChip'
 export { StatusDot } from './StatusDot'
 export {

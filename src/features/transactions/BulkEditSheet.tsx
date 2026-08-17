@@ -46,12 +46,12 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50 sm:items-center">
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50 sm:items-center animate-overlay-in">
       <div
         role="dialog"
         aria-modal="true"
         aria-label={`Sửa ${ids.length} giao dịch đã chọn`}
-        className="flex max-h-[80dvh] w-full max-w-lg flex-col rounded-t-2xl border border-border-panel bg-surface p-4 sm:rounded-xl"
+        className="flex max-h-[80dvh] w-full max-w-lg flex-col rounded-t-2xl border border-border-panel bg-surface p-4 sm:rounded-xl animate-sheet-in sm:animate-sheet-pop"
       >
         <div className="flex items-baseline justify-between gap-2">
           <h2 className="text-[0.8125rem] font-semibold text-fg-primary">

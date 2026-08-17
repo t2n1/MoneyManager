@@ -672,14 +672,14 @@ export function ScenarioEditorSheet({
           `lg:overflow-y-hidden` (không phải `lg:overflow-hidden`): phải thắng đúng
           thuộc tính mà `overflow-y-auto` của mobile đã đặt. */}
       <div
-        className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-stretch"
+        className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-stretch animate-overlay-in"
         onClick={() => void handleDismiss()}
       >
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Sửa kịch bản"
-          className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:flex lg:h-full lg:max-h-none lg:max-w-none lg:flex-col lg:overflow-y-hidden lg:rounded-none lg:px-8 lg:py-5"
+          className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:flex lg:h-full lg:max-h-none lg:max-w-none lg:flex-col lg:overflow-y-hidden lg:rounded-none lg:px-8 lg:py-5 animate-sheet-in lg:animate-sheet-pop"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="mb-3 flex items-center justify-between gap-2 lg:mx-auto lg:w-full lg:max-w-6xl lg:shrink-0">

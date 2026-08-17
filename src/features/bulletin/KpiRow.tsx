@@ -5,7 +5,7 @@
 // Nhét cả ba vào StatTile bằng prop là biến một primitive hai-dòng thành một component
 // bốn nhánh, mà chỗ dùng chỉ có đây.
 import type { ReactNode } from 'react'
-import { Card, Money, Sparkline } from '../../components/ui'
+import { Card, Money, Sparkline, Swap } from '../../components/ui'
 import { shortCompare } from '../reports/headline'
 import { keptBarPct } from './bulletin'
 import type { CurrencyCode } from '../../lib/money'
@@ -13,10 +13,13 @@ import type { CurrencyCode } from '../../lib/money'
 /** Nhãn eyebrow + số 26px mono — khung chung của cả bốn ô. */
 function Tile({
   label,
+  swapOn,
   children,
   foot,
 }: {
   label: string
+  /** Con số của ô — đổi thì số mới bật lên trong 140ms (§12). Xem Swap.tsx. */
+  swapOn: string | number | null
   children: ReactNode
   foot: ReactNode
 }) {
@@ -33,7 +36,7 @@ function Tile({
           này trộn ¥ với ₫ nên một con số không đơn vị là câu đố. §6 cũng chốt mobile là
           bố cục riêng chứ không phải bản thu nhỏ của desktop. */}
       <div className="mt-1.5 font-mono text-[1.375rem] font-medium leading-none tracking-[-.02em] lg:text-[1.625rem]">
-        {children}
+        <Swap on={swapOn}>{children}</Swap>
       </div>
       <div className="mt-2 flex items-end justify-between gap-2">{foot}</div>
     </Card>
@@ -87,6 +90,7 @@ export function KpiRow({
     <div className="flex flex-wrap gap-2.5">
       <Tile
         label="Thu tháng"
+        swapOn={income.value}
         foot={
           <>
             <Delta pct={income.deltaPct} />
@@ -99,6 +103,7 @@ export function KpiRow({
 
       <Tile
         label="Chi tháng"
+        swapOn={expense.value}
         foot={
           <>
             <Delta pct={expense.deltaPct} invert />
@@ -111,6 +116,7 @@ export function KpiRow({
 
       <Tile
         label="Giữ lại"
+        swapOn={keptPct}
         foot={
           <>
             {/* Thanh 4px có VẠCH MỐC 20% (§4.1) — mốc của quy tắc 50/30/20. Vạch nằm
@@ -146,6 +152,7 @@ export function KpiRow({
 
       <Tile
         label="Tài sản ròng"
+        swapOn={netWorth}
         foot={
           <>
             {/* Thiếu tỷ giá thì assets/useAssetsData báo không tin cậy — nói ra thay vì

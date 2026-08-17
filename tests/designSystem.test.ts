@@ -181,6 +181,46 @@ function occurrences(needle: string) {
  * `text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-100` — chèn một class xen
  * giữa là thoát khỏi phép so chuỗi liền. Từng có 48 chỗ lách kiểu này.
  */
+/**
+ * Bán kính khai trong THẺ MỞ của từng control. Trả về từng chỗ một để luật bán kính
+ * control (§1.3) đếm được thứ mà phép so chuỗi không phân biệt nổi: `rounded-lg` trên một
+ * cái nút là nợ, còn `rounded-lg` trên một khối bọc thì không.
+ *
+ * Chỉ `<button|input|select|textarea>`, CỐ Ý không có `<Link>`: một <Link> có thể là cả
+ * một dòng/thẻ bấm được (CardsSection bọc nguyên tấm thẻ thẻ-tín-dụng trong Link), và lúc
+ * đó bán kính của nó là bán kính PANEL — đúng chứ không sai. Không đọc được từ tên thẻ
+ * nên không đếm; nếu sau này Link-dạng-nút gom hết vào <ActionButton> thì chỗ đó tự hết.
+ */
+function controlRadii(): { file: string; line: number; radius: string }[] {
+  const out: { file: string; line: number; radius: string }[] = []
+  const RADIUS = /\brounded-(none|sm|md|lg|xl|2xl|3xl|full)(?![\w-])/g
+  for (const file of sourceFiles()) {
+    // Che comment mà GIỮ số ký tự → số dòng báo lỗi vẫn đúng (cùng mẹo với luật <label>).
+    const raw = readFileSync(file, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+      .replace(/\/\/[^\n]*/g, (m) => m.replace(/[^\n]/g, ' '))
+    const tag = /<(button|input|select|textarea)\b/g
+    let m: RegExpExecArray | null
+    while ((m = tag.exec(raw))) {
+      // Thẻ mở = tới `>` đầu tiên NGOÀI mọi ngoặc nhọn (className={`…${x > 1 ? …}`} có
+      // dấu `>` bên trong không tính).
+      let i = m.index + m[0].length
+      let depth = 0
+      for (; i < raw.length; i++) {
+        const c = raw[i]
+        if (c === '{') depth++
+        else if (c === '}') depth--
+        else if (c === '>' && depth === 0) break
+      }
+      const openTag = raw.slice(m.index, i + 1)
+      const line = raw.slice(0, m.index).split('\n').length
+      for (const r of openTag.match(RADIUS) ?? [])
+        out.push({ file: file.slice(SRC.length + 1), line, radius: r })
+    }
+  }
+  return out
+}
+
 function sameLineOccurrences(a: string, b: string) {
   let count = 0
   const where: string[] = []
@@ -490,6 +530,57 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     const { count, where } = occurrences('text-[0.5625rem]')
     expect(count, `Dưới sàn đọc được. Dùng text-3xs.\n${where.join('\n')}`).toBe(0)
   })
+
+  /**
+   * Lý do: §13 gạch thứ hai — "bề rộng cột số cứng (`width:104px`…) đổi thành `ch`/`rem`
+   * hoặc `minmax`; ở cỡ chữ lớn cột px cứng là chỗ vỡ ĐẦU TIÊN". Chữ trong cột giãn theo
+   * `--app-font-scale`, cột thì không, nên nội dung tự ép xuống dòng hoặc bị cắt.
+   *
+   * NGƯỠNG 16px, không phải "mọi px": dưới 16px thì đó không còn là cột chứa chữ mà là
+   * vạch/mốc — `min-w-[3px]` cho cột biểu đồ (để tháng chi gần 0 vẫn thấy một vạch) và
+   * `gap-[3px]` giữa hai cột phải ĐỨNG YÊN khi chữ to ra, không thì hai vạch 3px giãn
+   * thành hai vạch 4px và biểu đồ đổi hình vì người dùng phóng chữ.
+   *
+   * Chỉ soi tiện ích BỀ RỘNG: `left-[18px]`/`left-[22px]` (vị trí núm công tắc) không
+   * nằm trong luật này — chúng đo theo đường ray, mà đường ray là hình chứ không phải chữ.
+   */
+  it('không đặt bề rộng cột bằng px (không co theo Cỡ chữ)', () => {
+    const hits: string[] = []
+    const RE = /\b(?:w|min-w|max-w|basis|grid-cols)-\[([^\]]*)\]/g
+    for (const f of FILES)
+      for (const m of f.text.matchAll(RE))
+        if ([...m[1].matchAll(/(\d+(?:\.\d+)?)px/g)].some((px) => Number(px[1]) >= 16))
+          hits.push(`${f.path.replace(SRC, '')}: ${m[0]}`)
+    expect(
+      hits,
+      `Quy về rem (1rem = 16px ở cỡ chữ thường), ch, hoặc minmax().\n${hits.join('\n')}`,
+    ).toEqual([])
+  })
+
+  /**
+   * Lý do: bảng §12 gán mỗi VIỆC một thời lượng, và bảy con số đó đã thành token trong
+   * index.css. Viết `duration-300` / `duration-[140ms]` thẳng trong JSX là đưa một con số
+   * thứ tám vào mà không ai đối chiếu được với bảng — đúng cách mà app từng có 150ms,
+   * 300ms và 1500ms (mặc định recharts) sống cạnh nhau trong khi spec chỉ nói tới 120–220.
+   *
+   * Tailwind v4 nhận bare value nên `duration-137` chạy trơn và không có gì báo. Đây là
+   * chỗ báo.
+   *
+   * KHÔNG chặn `transition` trơ (150ms mặc định của Tailwind) ở hover/focus: bảng §12 nói
+   * về những lúc DỮ LIỆU hay TRẠNG THÁI đổi, không nói về phản hồi khi trỏ chuột vào.
+   */
+  it('không viết thời lượng chuyển động bằng tay (phải qua token §12)', () => {
+    const hits: string[] = []
+    for (const f of FILES) {
+      const found = f.text.match(/\bduration-(\[[^\]]+\]|\d+)/g)
+      if (found) hits.push(`${f.path.replace(SRC, '')}: ${found.join(', ')}`)
+    }
+    expect(
+      hits,
+      `Dùng tiện ích motion-* (index.css). Cần một nhịp CHƯA có tên thì thêm token, ` +
+        `đừng viết số tại chỗ.\n${hits.join('\n')}`,
+    ).toEqual([])
+  })
 })
 
 describe('design system — ngưỡng (chỉ được giảm)', () => {
@@ -593,7 +684,13 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // đổi kèm `text-white` → `text-fg-on-accent`, vì ở DARK --accent lật sang green-500
     // và chữ trắng trên nó chỉ còn 2,22:1. 21 chỗ còn lại là những nơi green-700 KHÔNG
     // mang vai accent (vùng thang đo của STATUS_FILL, chấm trạng thái, cột biểu đồ).
-    { needle: 'bg-green-700', max: 21, use: '<ActionButton variant="primary"> hoặc bg-accent' },
+    // 1 (2026-08-18, đo lại khi soát §12): trần 21 đã RỖNG — thực tế chỉ còn MỘT chỗ, và
+    // là chỗ đúng: `STATUS_FILL` trong statusColors.ts, nơi thang màu trạng thái được đo
+    // và khai một lần cho cả app. 20 chỗ kia đã theo đợt dọn bảng màu thô đi hết mà không
+    // ai hạ trần theo — đúng cái "trần không hạ là trần rỗng" mà thông điệp lỗi của phép
+    // thử này vẫn dặn. Hạ về 1 nên từ giờ nó có nghĩa mới và chặt hơn: sắc độ này chỉ được
+    // khai ở NGUỒN token, thêm một chỗ viết tay nữa là đỏ.
+    { needle: 'bg-green-700', max: 1, use: 'STATUS_FILL (statusColors.ts) hoặc bg-accent' },
     // Hai bán kính ngoài scale 4 tầng (docs §Bán kính). `rounded-2xl` có chủ đích ở thẻ
     // hero và sheet trượt lên; phần còn lại là tuỳ tiện. `rounded-md` thì lạc hẳn.
     // 37 (2026-08-12): sheet khai thu dự kiến của mặt lập kế hoạch. Đúng ngoại lệ ghi
@@ -636,18 +733,49 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // báo trần hụt cam kết. Ba chỗ này KHÔNG phải khối mới — chúng đổi từ rounded-lg
     // sang rounded-md vì §1.3 xếp banner/control vào 6px, và đây là lần chúng đi theo
     // token thay vì bảng màu thô.
-    // Trần vẫn có tác dụng: nó bắt người sửa DỪNG LẠI và nói ra chỗ mới thêm là control
-    // 1a hay là một chỗ viết tay lẽ ra phải dùng primitive.
+    // ---- TRẦN `rounded-md` ĐÃ BỎ (2026-08-18) --------------------------------------
     //
-    // Khi 13 màn của bản 1a dựng xong, THAY trần này bằng luật thật: đếm rounded-lg /
-    // rounded-xl trên CONTROL — lúc đó mới là chiều nợ còn lại.
-    // 47 (2026-08-18, bản vẽ 22e): +1 — dòng cảnh báo gộp "N danh mục chi chưa gắn"
-    // ở trang Danh mục. Bề mặt trạng thái, cùng khuôn với các banner state-* đã đếm.
-    { needle: 'rounded-md', max: 47, use: '<ActionButton> / <IconButton> — control 1a là 6px' },
+    // Lời hẹn ghi ngay tại đây từ lúc bắt đầu redesign: "khi 13 màn của bản 1a dựng xong,
+    // THAY trần này bằng luật thật: đếm rounded-lg / rounded-xl trên CONTROL". 13 màn đã
+    // xong, nên trần này đi và luật thật nằm ở test `bán kính control` dưới khối này.
+    //
+    // Vì sao phải bỏ chứ không chỉ nâng: từ §1.3, `rounded-md` là bán kính ĐÚNG của nút /
+    // tab / chip vuông. Đặt trần lên nó là đếm ngược chiều — mỗi lần một control đi đúng
+    // quy ước thì guardrail lại đỏ, và cách "sửa" là nới trần. Con số cuối là 47/47, tức
+    // nó đã hết chỗ để nói gì thêm.
     // Ngưỡng `<label className` (106) đã BỎ hôm 2026-08-11, không phải vì hết nợ mà vì
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
     // đúng theo spec nên không cần đại diện gần đúng nữa.
   ]
+
+  /**
+   * LUẬT THẬT thay cho trần `rounded-md` đã bỏ ở trên (§1.3).
+   *
+   * Bản 1a tách hai bán kính: CONTROL 6px (`rounded-md`) và PANEL 8px (`rounded-lg`).
+   * Trước 1a app chỉ có một bán kính duy nhất là 8px, nên mọi nút/ô nhập dựng từ hồi đó
+   * đang mang bán kính panel — 200 chỗ, đo 2026-08-18. Đó là chiều nợ còn lại thật, và
+   * khác hẳn "đếm rounded-md" (đếm phần ĐÃ ĐÚNG).
+   *
+   * Con số này chỉ được GIẢM. Giảm bằng cách nào cũng được — đổi tay sang `rounded-md`,
+   * hoặc (tốt hơn) cho control đó đi qua <ActionButton>/<IconButton>, nơi bán kính là
+   * quyết định của primitive chứ không phải của từng chỗ gọi.
+   *
+   * Đếm THẺ MỞ nên không đụng tới `rounded-full` (chip tròn, công tắc — cố ý tròn) và
+   * `rounded-sm` (vạch mốc). Chỉ ba bán kính panel bị tính.
+   */
+  const CONTROL_PANEL_RADIUS_MAX = 200
+  it(`bán kính control: không quá ${CONTROL_PANEL_RADIUS_MAX} chỗ còn dùng bán kính panel`, () => {
+    const PANEL = new Set(['rounded-lg', 'rounded-xl', 'rounded-2xl'])
+    const sai = controlRadii().filter((r) => PANEL.has(r.radius))
+    const where = sai.slice(0, 25).map((r) => `${r.file}:${r.line} (${r.radius})`)
+    expect(
+      sai.length,
+      sai.length > CONTROL_PANEL_RADIUS_MAX
+        ? `Thêm ${sai.length - CONTROL_PANEL_RADIUS_MAX} control mang bán kính PANEL. ` +
+            `Control của 1a là rounded-md (6px) — dùng <ActionButton>/<IconButton>.\n${where.join('\n')}`
+        : `Đã giảm xuống ${sai.length} — hạ ngưỡng trong file test này xuống ${sai.length}.`,
+    ).toBeLessThanOrEqual(CONTROL_PANEL_RADIUS_MAX)
+  })
 
   for (const { needle, max, use } of CEILINGS) {
     it(`\`${needle}\` không vượt ${max} (gộp dần vào ${use})`, () => {
@@ -691,6 +819,52 @@ describe('design system — token phải tồn tại', () => {
       expect(rootBlock, `${t} thiếu ở :root`).toContain(`${t}:`)
       expect(darkBlock, `${t} thiếu ở .dark`).toContain(`${t}:`)
     }
+  })
+
+  /**
+   * Bảng §12 gán MỘT thời lượng cho mỗi việc. Ba phép thử dưới đây giữ cho bảng đó còn
+   * đọc được từ trong code: token phải tồn tại, không ai được viết thời lượng bằng tay,
+   * và bản sao JS (recharts, hẹn giờ React) phải khớp bản CSS.
+   */
+  const MOTION_TOKENS = {
+    '--motion-period': 140,
+    '--motion-segment': 120,
+    '--motion-sheet': 180,
+    '--motion-group': 160,
+    '--motion-todo': 200,
+    '--motion-drag': 120,
+    '--motion-assume': 220,
+  }
+
+  it('khai đủ bảy token chuyển động của §12', () => {
+    for (const [token, ms] of Object.entries(MOTION_TOKENS))
+      expect(css, `${token} thiếu hoặc lệch giá trị trong index.css`).toContain(`${token}: ${ms}ms`)
+    // Bốn animation có tên: sheet trượt đáy, sheet fade+scale ở desktop, lớp phủ, và số
+    // vừa đổi. Thiếu một cái là một chỗ dùng `animate-*` im lặng không chạy gì.
+    for (const anim of ['--animate-sheet-in', '--animate-sheet-pop', '--animate-overlay-in', '--animate-swap-in'])
+      expect(css, `${anim} thiếu trong @theme`).toContain(`${anim}:`)
+  })
+
+  it('bản sao JS của token chuyển động khớp CSS', () => {
+    // Hai hằng số này tồn tại vì recharts nhận số ms qua prop, và vì React phải chờ CSS
+    // co xong mới tháo hàng — cả hai đều không đọc được var(). Xem src/lib/motion.ts.
+    //
+    // ĐỌC FILE chứ không `import`: cả file test này đọc nguồn bằng node:fs (xem chú thích
+    // đầu file), mà tests/ biên dịch theo moduleResolution node16 nên import tương đối
+    // vào src/ đòi phần mở rộng `.js` — một cái đuôi giả cho một file `.ts`. Đọc chuỗi
+    // giữ đúng ranh giới: đây là công cụ soi nguồn, không phải code app.
+    const motion = readFileSync(join(SRC, 'lib', 'motion.ts'), 'utf8')
+    const readConst = (name: string) => {
+      const m = motion.match(new RegExp(`export const ${name} = (\\d+)`))
+      expect(m, `${name} không còn trong src/lib/motion.ts`).not.toBeNull()
+      return Number(m![1])
+    }
+    expect(readConst('MOTION_ASSUME_MS'), '--motion-assume ≠ MOTION_ASSUME_MS').toBe(
+      MOTION_TOKENS['--motion-assume'],
+    )
+    expect(readConst('MOTION_TODO_MS'), '--motion-todo ≠ MOTION_TODO_MS').toBe(
+      MOTION_TOKENS['--motion-todo'],
+    )
   })
 
   it('token ngữ nghĩa được map ra tiện ích Tailwind bằng @theme inline', () => {

@@ -202,8 +202,12 @@ export function EntryPage() {
         </h1>
         {/* Nút "Loại đặc biệt" do TransactionForm portal vào đây. Chiều rộng đặt cứng
             (xấp xỉ nút "Đóng" bên trái) để tiêu đề không nhảy chỗ khi nút ẩn đi lúc
-            một vai trò đang bật. */}
-        <div ref={setRoleSlot} className="flex w-[84px] shrink-0 justify-end" />
+            một vai trò đang bật.
+            5.25rem = 84px ở cỡ chữ thường, nhưng theo REM chứ px (§13): chỗ giữ này phải
+            rộng bằng nút "Đóng" bên trái, mà nút đó là CHỮ nên nó giãn theo
+            --app-font-scale. Để px thì ở cỡ "Rất lớn" nút bên trái rộng hơn chỗ giữ và
+            tiêu đề lệch tâm — đúng cái mà chỗ giữ này sinh ra để tránh. */}
+        <div ref={setRoleSlot} className="flex w-[5.25rem] shrink-0 justify-end" />
       </div>
       {overCount > 0 && (
         <Link

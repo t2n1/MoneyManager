@@ -45,7 +45,7 @@ export function LoadProgress({ percent }: { percent: number | null }) {
             strokeLinecap="round"
             strokeDasharray={CIRC}
             strokeDashoffset={CIRC * (1 - percent / 100)}
-            className="transition-[stroke-dashoffset] duration-300 ease-out"
+            className="motion-progress"
           />
         </svg>
         {/* Ô rộng cố định, chữ dồn phải: 9% và 100% chiếm cùng một chỗ nên viên thuốc

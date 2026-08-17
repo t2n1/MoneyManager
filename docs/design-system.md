@@ -208,6 +208,57 @@ Dấu dùng ASCII `-`/`+` cho khớp với chính `formatMoney`. Đừng trộn 
 
 ---
 
+## Chuyển động (§12): console không trôi, chỉ bật
+
+Bảng §12 của bản 1a gán **mỗi việc một thời lượng**. Bảy con số đó là token trong `index.css`, đặt tên theo VIỆC chứ theo con số — hai việc tình cờ cùng 120ms mà chung một tên là khoá cứng chúng vào nhau, lần sau muốn tách phải đi tìm từng chỗ dùng.
+
+| Token | Việc | Nơi dùng |
+| --- | --- | --- |
+| `--motion-period` 140ms | đổi tháng/kỳ: số mới **bật** lên, cột nội suy chiều cao | `<Swap>`, `CashflowPanel` |
+| `--motion-segment` 120ms | nền ô đang chọn trượt trong track | `SegmentedControl` |
+| `--motion-sheet` 180ms | mở sheet (mobile trượt đáy) / modal (desktop fade + scale .98→1) | 26 sheet, `lib/dialog` |
+| `--motion-group` 160ms | xổ nhóm `grid-template-rows: 0fr→1fr` | `<Collapse>` |
+| `--motion-todo` 200ms | việc cần làm: gạch ngang rồi co về 0 | `TodoPanel` |
+| `--motion-drag` 120ms | các dòng khác nhường chỗ khi kéo–thả (FLIP) | `DragList` |
+| `--motion-assume` 220ms | thả thanh trượt giả định 13b | `LifetimeChartCard` |
+
+Cộng thêm `--motion-progress` 300ms cho vòng tải — **không** phải một dòng của §12, chỉ có tên để luật "không viết thời lượng bằng tay" không phải chừa ngoại lệ.
+
+**Ba tiện ích, ba việc khác nhau.** `motion-*` gói cả `transition-property` (biết nội suy CÁI GÌ), `animate-*` cho bốn keyframes có tên (`sheet-in`, `sheet-pop`, `overlay-in`, `swap-in`), và `src/lib/motion.ts` là bản sao JS cho hai chỗ CSS không tới được — recharts nhận số ms qua prop, còn React phải chờ CSS co xong mới tháo hàng. Guardrail so bản sao JS với CSS, lệch là đỏ.
+
+**`prefers-reduced-motion` không phải khai lại:** block ở cuối `index.css` đè cả `animation-duration` lẫn `transition-duration` về 0.01ms, kể cả inline style (nó `!important`).
+
+**Hai nửa cố ý CHƯA làm**, ghi lý do tại chỗ trong code:
+
+- **Đóng sheet 120ms.** 26 sheet đều tự dựng lớp phủ tại chỗ và tự gọi `onClose` từ vài chỗ bên trong. Hoạt ảnh đóng đòi phần tử sống thêm 120ms sau khi người dùng đã đóng → phải có primitive `<Sheet>` giữ quyền tháo lắp. Đó là việc dựng primitive; làm cho một sheet mà 25 cái kia không có thì tệ hơn không làm.
+- **"Số cũ mờ đi" khi đổi kỳ.** Cần con số cũ còn trên màn trong lúc số mới đang tới, mà truy vấn theo kỳ không giữ dữ liệu kỳ trước (không `placeholderData`) — với tháng chưa có trong cache thì thứ thay chỗ là trạng thái đang tải, và làm nó mờ đi là hoạt ảnh cho một khoảng trống. Đổi cách nạp dữ liệu là quyết định về DỮ LIỆU, không phải về chuyển động.
+
+**`<Collapse>` giữ nội dung trong DOM khi đóng** (điều kiện để có cái mà nội suy) nên nó gắn `inert` — thiếu thì Tab vẫn nhảy vào một danh sách link vô hình. Vì vậy **không** dùng nó cho cây danh mục (`BudgetView`, `CategoryBreakdownCard`): ở đó gập lại chính là để KHỎI dựng hàng chục dòng con của 60 danh mục.
+
+**Đo hoạt ảnh trong khung xem trước thì cẩn thận:** tab bị ẩn (`document.hidden`) đóng băng đồng hồ hoạt ảnh — `transition` đứng ở giá trị đầu và `ResizeObserver` không nổ. Đo LAYOUT thì tắt transition trước (`style.transitionProperty = 'none'`), đừng đọc số giữa lúc frozen rồi tưởng là lỗi bố cục.
+
+---
+
+## Cỡ chữ lớn (§13): cái gì tính bằng px thì đứng yên
+
+`--app-font-scale` (Cài đặt → Cỡ chữ) chỉ co giãn được cái tính theo **rem**. Bốn mức: 0,9 · 1 · 1,1 · **1,25** — spec §13 nói "scale 1,3×", nhưng mức lớn nhất người dùng chọn được thật là 1,25.
+
+**Ba luật, cả ba đã thành guardrail:**
+
+1. Cỡ chữ px → rem (`text-[13px]` là ban cứng, xem Guardrail).
+2. **Bề rộng cột px → rem/ch/minmax** — ban cứng cho `w-`/`min-w-`/`max-w-`/`basis-`/`grid-cols-` có px **≥ 16**. Dưới 16px thì không còn là cột chứa chữ mà là vạch/mốc (`min-w-[3px]` của cột biểu đồ, `gap-[3px]`) và những cái đó **phải** đứng yên — không thì biểu đồ đổi hình vì người dùng phóng chữ.
+3. **Hàng một dòng phải chịu được xuống hai dòng.** Không có cách quét tĩnh cho luật này; cách đo là chạy app ở 1,25× rồi tìm `scrollWidth > clientWidth`, bỏ qua `truncate` (ellipsis có chủ ý), `sr-only`, và khối `overflow-x-auto` (cuộn ngang có chủ ý).
+
+**Ba lỗi thật tìm được bằng phép đo đó** (2026-08-18), cả ba đều là cùng một sai lầm về flex:
+
+- **Cặp panel của Bản tin không bao giờ xuống dòng.** `flex-wrap` + `flex-1 min-w-0` **không** làm nên bố cục dọc: mục flex co được thì flex cho co, chứ không cho `flex-wrap` chạy. Đo trên máy: ở 375px hai panel đứng cạnh nhau mỗi cái 166px — trái hẳn với §6 và với chính comment ở trên chúng. Ở 1,25× thì số `¥54.118` bị cắt 8px và dòng giao dịch tràn 39px. Sửa: `basis-full xl:basis-0` — dọc dưới xl, ngang từ xl, và `basis-full` theo phần trăm nên miễn nhiễm với cỡ chữ.
+- **`truncate` trong flex không có tác dụng nếu thiếu `min-w-0`** (mục flex mặc định `min-width: auto`): nhãn tài khoản tràn ra ngoài viền nút 31px thay vì hiện dấu …
+- **Nhưng chỉ `min-w-0` thì mục teo về 0.** Cùng hàng có ô ngày rộng 7,5rem cố định, nên picker bị bóp còn 36px — vừa đủ hai icon, tên tài khoản mất sạch. Phải có **sàn** (`min-w-[7rem]`) để `flex-wrap` có việc làm. Công thức đủ là: **sàn `min-w-*` ở mục + `min-w-0` ở phần chữ bên trong + `flex-wrap` ở hàng cha.**
+
+Kết quả sau khi sửa: 12 màn × {320px, 375px, 1100px, 1400px} ở 1,25× không còn chỗ nào tràn, và `document.scrollWidth` không vượt `innerWidth` ở bất kỳ màn nào — trang không bao giờ cuộn ngang.
+
+---
+
 ## Guardrail
 
 `tests/designSystem.test.ts`, chạy trong `npm test`. Hai loại luật:
@@ -219,12 +270,21 @@ Dấu dùng ASCII `-`/`+` cho khớp với chính `formatMoney`. Đừng trộn 
 - `text-green-800 dark:text-green-400`, `text-red-700 dark:text-red-400` (đúng màu nhưng **viết lại cặp bằng tay** — dùng `text-money-in`/`text-money-out`)
 - `bg-green-600` (nút: trắng trên nó chỉ 3,22:1)
 - `text-[0.5625rem]` (dưới sàn đọc được)
+- `w-[420px]` và họ hàng — bề rộng px ≥ 16 trong tiện ích bề rộng (§13)
+- `duration-300` / `duration-[140ms]` — thời lượng viết tay, phải qua token §12
 
 Scanner **bỏ comment trước khi đếm** — nếu không thì chính lời giải thích "đừng dùng X" trong comment lại làm test đỏ, mà comment tại chỗ là nơi tốt nhất để ghi lý do.
 
 **Ngưỡng — chỉ được giảm.** Idiom còn nhiều chỗ chưa gộp. Đặt về 0 ngay thì phải refactor 92 file trong một lần, mà repo **không có test UI nào** (54 file test đều là logic thuần, không có `@testing-library`). Ngưỡng cho phép gộp dần mà vẫn chặn thêm mới.
 
 **Gộp bớt được chỗ nào thì hạ số trong file test xuống.** Để nguyên thì ngưỡng thành chỗ trú cho nợ kỹ thuật.
+
+**Hai lần đã xảy ra đúng chuyện đó, ghi lại để nhận ra sớm hơn:**
+
+- `bg-green-700` treo ở trần **21** trong khi thực tế còn **1** — 20 chỗ đã theo đợt dọn bảng màu thô đi hết mà không ai hạ trần. Hạ về 1 thì luật đổi nghĩa và chặt hơn hẳn: sắc độ này chỉ được khai ở NGUỒN token (`statusColors.ts`).
+- Trần `rounded-md` **đếm ngược chiều**. Từ §1.3, `rounded-md` là bán kính ĐÚNG của control, nên mỗi lần một nút đi theo quy ước thì test lại đỏ và cách "sửa" là nới trần — 13 → 47 qua 12 lần nới. Đã **bỏ**, thay bằng luật thật: đếm control (`<button|input|select|textarea>`) còn mang bán kính PANEL (`rounded-lg/xl/2xl`) — **200 chỗ**, đó mới là chiều nợ còn lại. Không đếm `<Link>`: một `<Link>` có thể là cả một thẻ bấm được, và bán kính panel ở đó là đúng.
+
+Bài học chung: **một trần chỉ có nghĩa khi nó đo được chiều nợ.** Trần đếm phần đã đúng thì càng dọn càng đỏ.
 
 ---
 

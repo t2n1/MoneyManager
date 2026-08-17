@@ -12,11 +12,11 @@ interface Props {
 export function InvestTradeAccountPicker({ accounts, onPick, onClose }: Props) {
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center"
+      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center animate-overlay-in"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-3 text-base font-bold text-fg-primary">Ghi lệnh vào tài khoản nào?</h2>

@@ -186,14 +186,14 @@ function DialogModal({ req }: { req: DialogReq }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 lg:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 lg:items-center animate-overlay-in"
       onClick={onCancel}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label={req.title}
-        className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl"
+        className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-base font-bold text-fg-primary">{req.title}</h2>

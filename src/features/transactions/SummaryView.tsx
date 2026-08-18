@@ -11,6 +11,7 @@ import { categoryBreakdown, sumIncomeExpense } from '../reports/aggregate'
 import { TagBreakdownCard } from '../reports/TagBreakdownCard'
 import { tagBreakdown } from '../tags/aggregate'
 import { uncategorizedAmount, type CurrencyOf } from './ledgerShared'
+import { Card } from '../../components/ui'
 
 // Bảng màu đồng bộ với ReportsPage / AssetsPage
 const PALETTE = [
@@ -121,7 +122,7 @@ export function SummaryView({
       </div>
 
       {/* Tổng */}
-      <div className="rounded-xl bg-surface p-4 text-center shadow-sm">
+      <Card padding="lg" className="text-center">
         <div className="text-xs text-fg-muted">
           Tổng {kind === 'expense' ? 'chi' : 'thu'} tháng này
         </div>
@@ -131,7 +132,7 @@ export function SummaryView({
           {approx}
           {formatMoney(Math.round(total), base)}
         </div>
-      </div>
+      </Card>
 
       {breakdown.hasMissingRate && (
         <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-xs">
@@ -148,7 +149,7 @@ export function SummaryView({
       ) : (
         // Có hai cách chia dưới đây (danh mục rồi nhãn) nên khối này cần tên,
         // không còn là danh sách duy nhất như trước.
-        <section className="rounded-xl bg-surface p-4 shadow-sm">
+        <Card as="section" padding="lg">
         <h2 className="mb-3 text-sm font-semibold text-fg-primary">
           {kind === 'expense' ? 'Chi' : 'Thu'} theo danh mục
         </h2>
@@ -174,7 +175,7 @@ export function SummaryView({
             </li>
           ))}
         </ul>
-        </section>
+        </Card>
       )}
 
       {/* Chi theo nhãn: cùng thẻ với Báo cáo, nhưng ở đây gắn với đúng kỳ đang

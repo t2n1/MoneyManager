@@ -26,7 +26,7 @@ export function InvestTradeAccountPicker({ accounts, onPick, onClose }: Props) {
               <button
                 type="button"
                 onClick={() => onPick(a.id)}
-                className="min-h-11 w-full rounded-lg border border-border-strong px-3 text-left text-sm font-medium text-fg-primary hover:bg-surface-sunken"
+                className="min-h-11 w-full rounded-md border border-border-strong px-3 text-left text-sm font-medium text-fg-primary hover:bg-surface-sunken"
               >
                 {a.name}
               </button>

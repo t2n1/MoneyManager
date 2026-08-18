@@ -194,7 +194,7 @@ export function LifetimeView() {
   // --- Trạng thái 2: chưa có kịch bản nào — nút thay wizard ---
   if (scenarios.length === 0) {
     return (
-      <div className="rounded-xl bg-surface p-3 shadow-sm">
+      <Card>
           <p className="text-sm text-fg-secondary">
             Tab này chiếu tài sản ròng của bạn tới hết đời, dựa trên thu chi nền và các mốc
             (cưới, sinh con, nghỉ hưu…). Tạo kịch bản đầu tiên từ đúng chi tiêu thật của bạn —
@@ -254,7 +254,7 @@ export function LifetimeView() {
                 setCreating(false)
               }
             }}
-            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-accent text-fg-on-accent px-3 text-sm font-semibold active:scale-95 disabled:opacity-50"
+            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-accent text-fg-on-accent px-3 text-sm font-semibold transition active:scale-95 disabled:opacity-50"
           >
             <Sparkles className="h-4 w-4" />
             {creating || isCreatingFirstScenario
@@ -263,7 +263,7 @@ export function LifetimeView() {
                 ? 'Đang tính tài sản ròng…'
                 : 'Tạo kịch bản từ chi tiêu thật của tôi'}
           </button>
-      </div>
+      </Card>
     )
   }
 
@@ -302,7 +302,7 @@ export function LifetimeView() {
           title={
             profile ? undefined : 'Chưa tải được thông tin người dùng — thử lại sau khi có mạng'
           }
-          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-surface px-3 py-1.5 shadow-sm active:scale-95 disabled:opacity-50"
+          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md bg-surface px-3 py-1.5 shadow-sm transition active:scale-95 disabled:opacity-50"
         >
           <Pencil className="h-4 w-4 text-fg-secondary" />
         </button>
@@ -321,7 +321,7 @@ export function LifetimeView() {
               key={s.id}
               type="button"
               onClick={() => setActiveId(s.id)}
-              className={`inline-flex min-h-11 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-4 text-sm font-medium active:scale-95 ${
+              className={`inline-flex min-h-11 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-4 text-sm font-medium transition active:scale-95 ${
                 s.id === activeId
                   ? 'bg-accent text-fg-on-accent'
                   : 'border border-border-strong text-fg-secondary'
@@ -347,7 +347,7 @@ export function LifetimeView() {
           type="button"
           onClick={() => setEditorOpen(true)}
           disabled={!profile}
-          className="flex min-h-11 w-full items-center rounded-xl px-3 py-2 text-left text-xs text-fg-muted active:scale-95 disabled:active:scale-100"
+          className="flex min-h-11 w-full items-center rounded-md px-3 py-2 text-left text-xs text-fg-muted transition active:scale-95 disabled:active:scale-100"
         >
           <span>
             {/* CÓ thanh trượt thì dòng này THÔI đọc lại ba con số đó. Chúng đứng cách
@@ -469,7 +469,7 @@ export function LifetimeView() {
           // Cùng lý do với nút bút chì ở header: không mở một sheet ngõ cụt. Banner vẫn
           // HIỆN (câu cảnh báo đúng dù có sửa được ngay hay không), chỉ không bấm được.
           disabled={!profile}
-          className="flex min-h-11 w-full items-start gap-2 rounded-xl bg-state-warn-bg text-state-warn-fg px-3 py-2 text-left text-sm active:scale-95 disabled:active:scale-100"
+          className="flex min-h-11 w-full items-start gap-2 rounded-md bg-state-warn-bg text-state-warn-fg px-3 py-2 text-left text-sm transition active:scale-95 disabled:active:scale-100"
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
@@ -501,7 +501,7 @@ export function LifetimeView() {
         <button
           type="button"
           onClick={() => setTableOpen(true)}
-          className="min-h-11 flex-1 rounded-xl bg-surface px-3 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
+          className="min-h-11 flex-1 rounded-md bg-surface px-3 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95"
         >
           Bảng theo năm
         </button>
@@ -518,7 +518,7 @@ export function LifetimeView() {
               setComparePickerOpen((o) => !o)
             }
           }}
-          className={`min-h-11 flex-1 rounded-xl px-3 text-sm font-medium shadow-sm active:scale-95 ${
+          className={`min-h-11 flex-1 rounded-md px-3 text-sm font-medium shadow-sm transition active:scale-95 ${
             effectiveCompareId ? 'bg-accent text-fg-on-accent' : 'bg-surface text-fg-secondary'
           }`}
         >
@@ -527,7 +527,7 @@ export function LifetimeView() {
       </div>
 
       {comparePickerOpen && !effectiveCompareId && (
-        <div className="rounded-xl bg-surface p-2.5 shadow-sm">
+        <Card padding="sm">
           {otherScenarios.length === 0 ? (
             <p className="text-xs text-fg-secondary">
               Cần ít nhất 2 kịch bản mới so sánh được. Bấm nút bút chì phía trên, chọn "Nhân
@@ -545,7 +545,7 @@ export function LifetimeView() {
                       setCompareId(s.id)
                       setComparePickerOpen(false)
                     }}
-                    className="min-h-11 shrink-0 whitespace-nowrap rounded-full border border-border-strong px-4 text-sm font-medium text-fg-secondary active:scale-95"
+                    className="min-h-11 shrink-0 whitespace-nowrap rounded-full border border-border-strong px-4 text-sm font-medium text-fg-secondary transition active:scale-95"
                   >
                     {s.name}
                   </button>
@@ -553,7 +553,7 @@ export function LifetimeView() {
               </div>
             </>
           )}
-        </div>
+        </Card>
       )}
 
 
@@ -612,7 +612,7 @@ function BirthYearCard() {
   const valid = Number.isInteger(year) && year >= MIN_BIRTH_YEAR && year <= MAX_BIRTH_YEAR
 
   return (
-    <div className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card>
       <p className="text-sm text-fg-secondary">
         Tab này chiếu tài sản ròng của bạn theo từng năm tới hết đời, nên cần năm sinh để đổi
         qua lại giữa "năm" và "tuổi" ở mỗi mốc trên đồ thị (nghỉ hưu, tự do tài chính…). Thiếu
@@ -631,16 +631,16 @@ function BirthYearCard() {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="Ví dụ: 1994"
-        className="mt-1 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary"
+        className="mt-1 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary"
       />
       <button
         type="button"
         disabled={!valid || saveMut.isPending}
         onClick={() => saveMut.mutate(year)}
-        className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-accent text-fg-on-accent px-3 text-sm font-semibold active:scale-95 disabled:opacity-40"
+        className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-md bg-accent text-fg-on-accent px-3 text-sm font-semibold transition active:scale-95 disabled:opacity-40"
       >
         {saveMut.isPending ? 'Đang lưu…' : 'Lưu năm sinh'}
       </button>
-    </div>
+    </Card>
   )
 }

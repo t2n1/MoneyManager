@@ -30,6 +30,7 @@ import { pickBudgetVerdict } from './budgetVerdict'
 import { forecastMonthEnd, type Forecast } from './insights'
 import { SpendVsBudgetCard } from './SpendVsBudgetCard'
 import { SpendHeatmapCard } from './SpendHeatmapCard'
+import { Card } from '../../components/ui'
 
 export interface MonthPace {
   base: CurrencyCode
@@ -249,7 +250,7 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
         }
       />
       {forecast && (
-        <div className="rounded-xl bg-surface p-3 shadow-sm">
+        <Card>
           {/* GHI RÕ PHẠM VI. `forecast.spentSoFar` là TOÀN BỘ chi, còn biểu đồ ngay trên
               nó lại chỉ vẽ phần đã đặt hạn mức — hai phạm vi trong một thẻ. Đo trên demo
               hai số lệch ¥47,054 (¥239,245 so với ¥192,191) mà trước đây không có chữ nào
@@ -277,7 +278,7 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
               )}
             </p>
           )}
-        </div>
+        </Card>
       )}
     </div>
   )
@@ -362,7 +363,7 @@ export function MonthPaceCharts({ pace }: { pace: MonthPace }) {
   return (
     <>
       {hasCashflow && (
-        <section className="rounded-xl bg-surface p-3 shadow-sm">
+        <Card as="section">
           <h2 className="mb-2 text-sm font-semibold text-fg-muted">
             Dòng tiền tích lũy trong tháng
           </h2>
@@ -399,7 +400,7 @@ export function MonthPaceCharts({ pace }: { pace: MonthPace }) {
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </section>
+        </Card>
       )}
       {hasSpend && <SpendHeatmapCard points={monthDaily.points} base={base} />}
     </>

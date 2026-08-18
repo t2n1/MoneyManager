@@ -88,7 +88,7 @@ export function AppTopBar() {
           onChange={(e) => setQ(e.target.value)}
           placeholder="Tìm giao dịch"
           aria-label="Tìm giao dịch"
-          className="min-w-0 flex-1 bg-transparent text-xs text-fg-primary outline-none placeholder:text-fg-muted"
+          className="min-w-0 flex-1 bg-transparent text-xs text-fg-primary placeholder:text-fg-muted"
         />
         {/* Nhắc phím tắt, không phải nút. aria-hidden vì trình đọc màn hình đọc "⌘K"
             thành một chuỗi vô nghĩa, mà ô đã có nhãn rồi. */}

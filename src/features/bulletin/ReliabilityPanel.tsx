@@ -61,7 +61,7 @@ export function ReliabilityPanel({ data }: { data: Reliability }) {
             <li key={p.key}>
               <Link
                 to={TO[p.key] ?? '/'}
-                className="flex items-baseline gap-2 text-[0.8125rem] text-fg-secondary hover:underline"
+                className="-my-1 flex items-baseline gap-2 py-1 text-[0.8125rem] text-fg-secondary hover:underline"
               >
                 <span className="shrink-0 text-2xs uppercase tracking-[.1em] text-fg-muted">
                   {p.label}

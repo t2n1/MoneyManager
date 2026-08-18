@@ -248,7 +248,7 @@ export function ImportPhieuLuongPage() {
             type="button"
             onClick={taoDanhMuc}
             disabled={createCategory.isPending}
-            className="mt-2 min-h-9 rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold active:scale-95 disabled:opacity-60"
+            className="mt-2 min-h-9 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold transition active:scale-95 disabled:opacity-60"
           >
             {createCategory.isPending ? 'Đang tạo…' : 'Tạo 6 danh mục'}
           </button>
@@ -257,7 +257,7 @@ export function ImportPhieuLuongPage() {
 
       <Card
         as="label"
-        className="flex cursor-pointer items-center gap-3 focus-within:ring-2 focus-within:ring-green-500"
+        className="flex cursor-pointer items-center gap-3 focus-within:ring-2 focus-within:ring-accent"
       >
         <FileUp className="h-5 w-5 text-fg-muted" />
         <span className="flex-1 text-sm text-fg-primary">
@@ -328,15 +328,15 @@ export function ImportPhieuLuongPage() {
         </ActionButton>
       )}
       {daGhi && (
-        <div className="rounded-xl bg-surface p-3 shadow-sm">
+        <Card>
           <p className="text-sm text-money-in">Đã ghi {daGhi.phieu} phiếu · {daGhi.dong} dòng.</p>
           <button
             type="button" disabled={dangXoa} onClick={goLo}
-            className="mt-2 min-h-9 rounded-lg border border-money-out px-3 py-1.5 text-xs font-semibold text-money-out transition hover:bg-state-bad-bg disabled:opacity-40"
+            className="mt-2 min-h-9 rounded-md border border-money-out px-3 py-1.5 text-xs font-semibold text-money-out transition hover:bg-state-bad-bg disabled:opacity-40"
           >
             {dangXoa ? 'Đang xoá…' : 'Xoá mọi dòng phiếu lương'}
           </button>
-        </div>
+        </Card>
       )}
     </div>
   )

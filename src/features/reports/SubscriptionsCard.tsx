@@ -4,7 +4,7 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { ExplainBox } from '../../components/ExplainBox'
-import { Money } from '../../components/ui'
+import { Card, Money } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { SubscriptionSummary } from './behavior'
 import { hoursOfWork } from './behavior'
@@ -26,7 +26,7 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
   const hours = hoursOfWork(data.monthly, hourlyWage)
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-fg-primary">
           Tiền tự động trừ mỗi tháng
@@ -92,6 +92,6 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
           tháng thường là cách cắt chi nhanh nhất mà không phải thay đổi thói quen nào.
         </p>
       </ExplainBox>
-    </section>
+    </Card>
   )
 }

@@ -333,7 +333,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4">
       <div className="contents lg:flex lg:flex-col lg:gap-3">
       {/* Dòng tổng — kèm luôn phán quyết cuối tháng, xem BudgetVerdictLine */}
-      <section className="rounded-xl bg-surface p-3 shadow-sm">
+      <Card as="section">
         <div className="mb-1 flex items-baseline justify-between">
           <h2 className="text-sm font-semibold text-fg-muted">Tổng ngân sách</h2>
           <span className="flex gap-2 text-xs font-medium">
@@ -421,11 +421,11 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         <button
           type="button"
           onClick={handleCopy}
-          className="mt-3 rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-surface-sunken"
+          className="mt-3 rounded-md border border-border-strong px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-surface-sunken"
         >
           Chép hạn mức tháng trước
         </button>
-      </section>
+      </Card>
 
       {/* Cần để ý — ghim ngay dưới dòng tổng. Đây là phần trả lời "hôm nay phải làm gì",
           khác với danh sách bên dưới trả lời "toàn cảnh tháng này ra sao". */}
@@ -473,7 +473,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
 
       {/* Danh mục / nhóm có hạn mức */}
       {items.length > 0 && (
-        <section className="rounded-xl bg-surface p-3 shadow-sm">
+        <Card as="section">
           {/* Nút chọn kiểu sắp xếp: chỉ hiện khi có từ 2 mục trở lên — một mục thì
               sắp kiểu gì cũng thế, bày thêm nút chỉ tổ rối. */}
           {items.length > 1 && (
@@ -523,7 +523,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                       onClick={() => toggle(item.cat.id)}
                       aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
                       aria-expanded={isOpen}
-                      className="flex w-9 shrink-0 items-center justify-center rounded text-fg-muted hover:text-fg-primary"
+                      className="flex w-9 shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg-primary"
                     >
                       {isOpen ? (
                         <ChevronDown className="h-4 w-4" />
@@ -567,7 +567,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               )
             })}
           </ul>
-        </section>
+        </Card>
       )}
 
       {/* Ngân sách theo nhãn — SAU danh sách danh mục vì danh mục mới là công cụ chính
@@ -594,7 +594,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           Nằm ở cột phải còn vì lý do bố cục: nối trái-rồi-phải phải ra đúng thứ tự mobile
           thì mới bỏ được order-*. Xem chú thích ở đầu khối 2 cột. */}
       {unbudgeted.length > 0 && (
-        <section className="rounded-xl bg-surface p-3 shadow-sm">
+        <Card as="section">
           <h2 className="mb-1 text-sm font-semibold text-fg-muted">
             Chưa đặt hạn mức{' '}
             <span className="font-normal tabular-nums">· {unbudgeted.length} danh mục</span>
@@ -618,7 +618,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                         // 20×20 là quá nhỏ để bấm; min-h-11 min-w-9 là cỡ nút icon hẹp
                         // app đang dùng sẵn. -my-2 để vùng chạm cao 44px không đẩy dòng
                         // giãn ra (cùng mẹo với nút "Chọn" ở LedgerPage).
-                        className="-my-2 flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded text-fg-muted hover:text-fg-primary"
+                        className="-my-2 flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg-primary"
                       >
                         {isOpen ? (
                           <ChevronDown className="h-4 w-4" />
@@ -654,7 +654,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               )
             })}
           </ul>
-        </section>
+        </Card>
       )}
 
       {/* Lịch chi tiêu (và dòng tiền) — khối khám phá, để cuối. Gate theo đúng điều kiện

@@ -9,6 +9,7 @@ import { ExplainBox } from '../../components/ExplainBox'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
 import type { TagBreakdown } from '../tags/aggregate'
+import { Card } from '../../components/ui'
 
 interface Props {
   data: TagBreakdown
@@ -40,7 +41,7 @@ export function TagBreakdownCard({
     // vẫn chiếm chỗ mà không nói gì. Bỏ hẳn cả thẻ. Bật Đầy đủ là lời mời quay lại.
     if (visual) return null
     return (
-      <section className="rounded-xl bg-surface p-3 shadow-sm">
+      <Card as="section">
         <h2 className="mb-1 text-sm font-semibold text-fg-primary">
           Chi theo nhãn
         </h2>
@@ -52,27 +53,27 @@ export function TagBreakdownCard({
           </Link>
           .
         </Guide>
-      </section>
+      </Card>
     )
   }
 
   if (data.slices.length === 0) {
     return (
-      <section className="rounded-xl bg-surface p-3 shadow-sm">
+      <Card as="section">
         <h2 className="mb-1 text-sm font-semibold text-fg-primary">
           Chi theo nhãn
         </h2>
         <p className="text-xs text-fg-muted">
           Không có khoản chi nào mang nhãn {periodNoun}.
         </p>
-      </section>
+      </Card>
     )
   }
 
   const taggedPct = data.total > 0 ? Math.round((data.taggedTotal / data.total) * 100) : 0
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-fg-primary">Chi theo nhãn</h2>
         <span className="shrink-0 text-2xs text-fg-muted">
@@ -125,6 +126,6 @@ export function TagBreakdownCard({
           Khoản hoàn tiền có cùng nhãn sẽ được trừ ra, nên con số là chi phí ròng thật của việc đó.
         </p>
       </ExplainBox>
-    </section>
+    </Card>
   )
 }

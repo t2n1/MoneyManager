@@ -166,7 +166,7 @@ export function TagsPage() {
             }
           }}
           aria-label={`Tên nhãn ${t.name}`}
-          className="min-h-9 min-w-0 flex-1 rounded-lg border border-transparent px-2 py-1 text-sm text-fg-primary outline-green-500 hover:border-gray-300 dark:hover:border-gray-700"
+          className="min-h-9 min-w-0 flex-1 rounded-md border border-transparent px-2 py-1 text-sm text-fg-primary hover:border-gray-300 dark:hover:border-gray-700"
         />
         <span className="shrink-0 text-2xs text-fg-muted">{usageOf(t.id)} giao dịch</span>
         <button
@@ -174,7 +174,7 @@ export function TagsPage() {
           onClick={() => setArchived(t.id, t.name, !t.is_archived)}
           aria-label={t.is_archived ? `Dùng lại nhãn ${t.name}` : `Lưu trữ nhãn ${t.name}`}
           title={t.is_archived ? 'Dùng lại' : 'Lưu trữ (ẩn khỏi form nhập, giữ nguyên số liệu)'}
-          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-sunken"
+          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md text-fg-muted hover:bg-surface-sunken"
         >
           {t.is_archived ? (
             <ArchiveRestore className="h-4 w-4" />
@@ -186,7 +186,7 @@ export function TagsPage() {
           type="button"
           onClick={() => remove(t.id, t.name)}
           aria-label={`Xóa nhãn ${t.name}`}
-          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg text-red-600 hover:bg-state-bad-bg dark:text-red-400"
+          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md text-red-600 hover:bg-state-bad-bg dark:text-red-400"
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -203,7 +203,7 @@ export function TagsPage() {
           onChange={(e) =>
             updateTag.mutate({ id: t.id, patch: { group_id: e.target.value || null } })
           }
-          className="min-h-9 rounded-lg border border-border-strong bg-surface px-2 py-1 text-sm text-fg-primary outline-green-500"
+          className="min-h-9 rounded-md border border-border-strong bg-surface px-2 py-1 text-sm text-fg-primary"
         >
           <option value="">— Khác —</option>
           {groups.map((g) => (
@@ -222,7 +222,7 @@ export function TagsPage() {
           onBlur={(e) => saveBudget(t, e.target.value)}
           placeholder="không đặt"
           // text-base (16px) để Safari iOS không phóng to trang khi bấm vào ô
-          className="min-h-9 w-28 rounded-lg border border-border-strong px-2 py-1 text-right text-base outline-green-500 sm:text-sm"
+          className="min-h-9 w-28 rounded-md border border-border-strong px-2 py-1 text-right text-base sm:text-sm"
         />
         <span className="text-xs text-fg-muted">{base}</span>
         {t.budget_amount != null && (
@@ -312,13 +312,13 @@ export function TagsPage() {
           }}
           aria-label="Tên nhãn mới"
           placeholder="Tên nhãn mới…"
-          className="min-h-11 min-w-0 flex-1 basis-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500 sm:basis-48 dark:bg-gray-900"
+          className="min-h-11 min-w-0 flex-1 basis-full rounded-md border border-border-strong px-3 py-2 text-sm sm:basis-48 dark:bg-gray-900"
         />
         <select
           value={newTagGroup}
           onChange={(e) => setNewTagGroup(e.target.value)}
           aria-label="Nhóm cho nhãn mới"
-          className="min-h-11 min-w-0 flex-1 basis-28 rounded-lg border border-border-strong bg-surface px-2 text-sm text-fg-primary outline-green-500"
+          className="min-h-11 min-w-0 flex-1 basis-28 rounded-md border border-border-strong bg-surface px-2 text-sm text-fg-primary"
         >
           <option value="">— Khác —</option>
           {groups.map((g) => (
@@ -331,7 +331,7 @@ export function TagsPage() {
           type="button"
           onClick={add}
           disabled={!draft.trim() || createTag.isPending}
-          className="min-h-11 shrink-0 rounded-lg bg-accent text-fg-on-accent px-4 text-sm font-semibold active:scale-95 disabled:opacity-40"
+          className="min-h-11 shrink-0 rounded-md bg-accent text-fg-on-accent px-4 text-sm font-semibold transition active:scale-95 disabled:opacity-40"
         >
           Thêm
         </button>
@@ -381,7 +381,7 @@ export function TagsPage() {
                             }
                           }}
                           aria-label={`Tên nhóm ${s.title}`}
-                          className="min-h-9 min-w-0 flex-1 rounded-lg border border-transparent px-2 py-1 text-sm font-semibold text-fg-secondary outline-green-500 hover:border-gray-300 dark:hover:border-gray-700"
+                          className="min-h-9 min-w-0 flex-1 rounded-md border border-transparent px-2 py-1 text-sm font-semibold text-fg-secondary hover:border-gray-300 dark:hover:border-gray-700"
                         />
                       ) : (
                         <h2 className="min-h-9 flex-1 px-2 py-1 text-sm font-semibold text-fg-secondary">
@@ -394,7 +394,7 @@ export function TagsPage() {
                           type="button"
                           onClick={() => removeGroup(s.groupId!, s.title)}
                           aria-label={`Xóa nhóm ${s.title}`}
-                          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg text-red-600 hover:bg-state-bad-bg dark:text-red-400"
+                          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md text-red-600 hover:bg-state-bad-bg dark:text-red-400"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -458,7 +458,7 @@ export function TagsPage() {
                 }}
                 aria-label="Tên nhóm mới"
                 placeholder="Tên nhóm mới…"
-                className="min-h-11 flex-1 rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500 dark:bg-gray-900"
+                className="min-h-11 flex-1 rounded-md border border-border-strong px-3 py-2 text-sm dark:bg-gray-900"
               />
               <ActionButton
                 variant="primary"

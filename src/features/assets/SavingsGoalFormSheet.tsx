@@ -63,7 +63,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
     }
   }
 
-  const field = 'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
+  const field = 'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm dark:text-gray-100'
 
   return (
     <div
@@ -122,17 +122,17 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
 
         <div className="flex items-center justify-between gap-2">
           {goal ? (
-            <button type="button" onClick={handleDelete} disabled={saving} className="rounded-lg px-3 py-2 text-sm font-medium text-money-out hover:bg-state-bad-bg disabled:opacity-50">
+            <button type="button" onClick={handleDelete} disabled={saving} className="rounded-md px-3 py-2 text-sm font-medium text-money-out hover:bg-state-bad-bg disabled:opacity-50">
               Xóa
             </button>
           ) : (
             <span />
           )}
           <div className="flex gap-2">
-            <button type="button" onClick={onClose} className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken">
+            <button type="button" onClick={onClose} className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken">
               Hủy
             </button>
-            <button type="button" onClick={handleSubmit} disabled={!canSave} className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold active:scale-95 disabled:opacity-50">
+            <button type="button" onClick={handleSubmit} disabled={!canSave} className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold transition active:scale-95 disabled:opacity-50">
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>
           </div>

@@ -431,17 +431,68 @@ describe('design system — ban cứng (phải bằng 0)', () => {
   //
   // Nhánh fix/toan-bo-audit ban `outline-green-500` và `focus:border-green-500` vì ở ĐÓ,
   // commit bef36fd đã nới vòng focus toàn cục ra phủ cả input/select/textarea. Trên
-  // master thì :focus-visible ở index.css chỉ phủ `a, button, [role="button"],
-  // [role="switch"], [role="tab"], summary` — KHÔNG có input. Bật ban này mà chưa nới
-  // ring thì 57 ô nhập mất sạch chỉ báo tiêu điểm: tệ hơn hẳn một ring 2,3:1.
+  // MỞ 2026-08-18. Khối này từng `it.skip` với ghi chú: ":focus-visible ở index.css chỉ
+  // phủ a/button/[role]/summary — KHÔNG có input, nên bật ban này mà chưa nới ring thì 57
+  // ô nhập mất sạch chỉ báo tiêu điểm, tệ hơn hẳn một ring 2,3:1. Muốn bật: nới ring ra
+  // input/select/textarea TRƯỚC, đo lại tương phản ring bằng cách vẽ ra pixel, rồi mới
+  // xoá các chỗ tự chế."
   //
-  // Muốn bật: nới :focus-visible ở index.css ra input/select/textarea TRƯỚC, đo lại
-  // tương phản ring bằng cách vẽ ra pixel, rồi mới xoá 57 chỗ tự chế và mở khối này.
-  it.skip('không tự chế focus style trượt chuẩn — ring toàn cục đã lo', () => {
-    for (const needle of ['outline-green-500', 'focus:border-green-500']) {
+  // Đã làm đúng ba bước đó, theo đúng thứ tự: (1) ring toàn cục nay phủ cả
+  // input/select/textarea; (2) ĐO bằng canvas pixel readback trên cả bốn nấc bề mặt —
+  // light (green-700): thẻ 4,95 · trang 4,45 · lún 4,14; dark (green-500): thẻ 8,59 ·
+  // trang 8,98 · lún 8,04 · chrome 8,77 — tất cả vượt xa 3:1 của WCAG 1.4.11, và chỗ mỏng
+  // nhất (4,14 trên nền lún ở light) vẫn dư 38%; (3) rồi mới xoá 51 `outline-green-500`,
+  // 8 cặp `focus:outline-none focus:border-green-500`, và 5 `outline-none` trong ô nhập.
+  it('không tự chế focus style trượt chuẩn — ring toàn cục đã lo', () => {
+    for (const needle of ['outline-green-500', 'focus:border-green-500', 'focus:outline-none']) {
       const { count, where } = occurrences(needle)
       expect(count, `${needle} trượt 3:1. Xoá đi — ring token ở index.css tự lấp.\n${where.join('\n')}`).toBe(0)
     }
+  })
+
+  /**
+   * `outline-none` trên ô nhập tắt hẳn chỉ báo tiêu điểm, và ring toàn cục KHÔNG cứu được:
+   * `outline-none` là tiện ích thường (specificity 0,1,0) còn ring đi qua `:where()`
+   * (specificity 0) nên luôn thua.
+   *
+   * NGOẠI LỆ có thật: ô nhập nằm trong một khung bao dùng `focus-within:ring`. Lúc đó
+   * khung mới là thứ vẽ chỉ báo, và để ô tự vẽ thêm một ring nữa là hai vòng lồng nhau.
+   *
+   * Kiểm theo FILE chứ không theo cây DOM — thô, nhưng đúng hướng và không đoán: file nào
+   * có `focus-within:ring` thì widget ở đó đã tự lo. Muốn chặt hơn phải dựng cây JSX, mà
+   * cái giá đó không xứng với năm chỗ.
+   *
+   * ĐÍNH CHÍNH một câu tôi từng viết ở lượt trước ("Tab vào thì không có gì hiện lên"):
+   * đúng với HAI chỗ (ô tìm ở AppTopBar và ô tìm trong panel AccountPicker — khung bao là
+   * <form>/<div> trơn, không có focus-within), nhưng SAI với ba chỗ còn lại (TagPicker ×2,
+   * SearchPage): chúng có ring của khung bao, chỉ là ring đó tô green-500 ~1,9:1 — lỗi
+   * TƯƠNG PHẢN chứ không phải lỗi thiếu chỉ báo. Cả ba nay đi qua `ring-accent`.
+   */
+  it('ô nhập chỉ được tắt outline khi khung bao có focus-within:ring', () => {
+    const hits: string[] = []
+    for (const file of sourceFiles()) {
+      const raw = readFileSync(file, 'utf8')
+      if (/focus-within:ring/.test(raw)) continue
+      const tag = /<(input|select|textarea)\b/g
+      let m: RegExpExecArray | null
+      while ((m = tag.exec(raw))) {
+        let i = m.index + m[0].length
+        let depth = 0
+        for (; i < raw.length; i++) {
+          const c = raw[i]
+          if (c === '{') depth++
+          else if (c === '}') depth--
+          else if (c === '>' && depth === 0) break
+        }
+        if (/\boutline-none\b/.test(raw.slice(m.index, i + 1)))
+          hits.push(`${file.slice(SRC.length + 1)}:${raw.slice(0, m.index).split('\n').length}`)
+      }
+    }
+    expect(
+      hits,
+      'Ô này tắt ring mà không có khung bao nào vẽ thay: hoặc bỏ outline-none, hoặc cho ' +
+        'khung bao focus-within:ring-accent.\n' + hits.join('\n'),
+    ).toEqual([])
   })
 
   // Lý do: red-400 trên trắng chỉ 2,89:1 và red-500 chỉ 4,05:1 — cả hai trượt 4,5:1
@@ -532,6 +583,81 @@ describe('design system — ban cứng (phải bằng 0)', () => {
   })
 
   /**
+   * `active:scale-95` mà THIẾU `transition` thì nút không co giãn — nó NHẢY một nhịp rồi
+   * nhảy về. Đây đúng là lý do <ActionButton>/<IconButton> ra đời: comment của cả hai
+   * primitive đều ghi "hai thứ này phải đi cùng nhau, chép tay thì luôn có chỗ quên".
+   *
+   * Đo 2026-08-18: 51 trong 73 nút có `active:scale-95` đang thiếu `transition` — tức
+   * cách chép tay hỏng ở 70% số chỗ, đúng như dự đoán viết trong primitive. Đã thêm cho
+   * cả 51; luật này giữ cặp đó dính nhau.
+   *
+   * Chỉ soi trong MỘT thẻ mở, nên không bắt oan trường hợp `transition` nằm ở lớp cha —
+   * mà cũng không nên có: transform co giãn là của chính nút.
+   */
+  it('active:scale-95 luôn đi kèm transition', () => {
+    const hits: string[] = []
+    for (const file of sourceFiles()) {
+      const raw = readFileSync(file, 'utf8')
+      const tag = /<(button|a|Link|label|div|span)\b/g
+      let m: RegExpExecArray | null
+      while ((m = tag.exec(raw))) {
+        let i = m.index + m[0].length
+        let depth = 0
+        for (; i < raw.length; i++) {
+          const c = raw[i]
+          if (c === '{') depth++
+          else if (c === '}') depth--
+          else if (c === '>' && depth === 0) break
+        }
+        const open = raw.slice(m.index, i + 1)
+        if (!/\bactive:scale-95\b/.test(open)) continue
+        if (/\btransition(-[\w[\]]+)?\b/.test(open)) continue
+        hits.push(`${file.slice(SRC.length + 1)}:${raw.slice(0, m.index).split('\n').length}`)
+      }
+    }
+    expect(
+      hits,
+      'Thiếu `transition` thì `active:scale-95` giật cục. Thêm `transition`, hoặc tốt hơn ' +
+        'là cho nút đi qua <ActionButton>/<IconButton>.\n' + hits.join('\n'),
+    ).toEqual([])
+  })
+
+  /**
+   * Lý do: §1.3 của bản 1a TÁCH hai bán kính — CONTROL 6px (`rounded-md`) và PANEL 8px
+   * (`rounded-lg`). Trước 1a app chỉ có một bán kính 8px, nên mọi nút/ô nhập dựng từ hồi
+   * đó mang bán kính panel: đo được **200 chỗ** hôm 2026-08-18.
+   *
+   * Luật này SINH RA LÀ MỘT NGƯỠNG (200, chỉ được giảm) đúng như lời hẹn ghi trong khối
+   * ngưỡng — nó thay cho trần `rounded-md` vốn đếm ngược chiều. Cùng ngày, một codemod
+   * đưa cả 200 chỗ về `rounded-md`, nên ngưỡng hết việc và luật lên hạng thành BAN CỨNG.
+   * Ghi lại đường đi này vì nó là vòng đời mong muốn của mọi ngưỡng: đo → chặn mọc thêm
+   * → dọn hết → hoá luật cứng.
+   *
+   * Chỉ soi THẺ MỞ của control, nên không đụng `rounded-full` (chip tròn, công tắc — cố
+   * ý tròn) và `rounded-sm` (vạch mốc). `<Link>` cũng KHÔNG tính: một <Link> có thể là cả
+   * một tấm thẻ bấm được, và ở đó bán kính panel mới là đúng.
+   *
+   * ĐIỂM MÙ đã thử và xác nhận: bán kính đi tới control qua một HẰNG SỐ (vd `BASE` trong
+   * IconButton/ActionButton) thì luật này không thấy — nó chỉ đọc chữ nằm trong thẻ mở.
+   * Thử sửa `rounded-md` thành `rounded-lg` trong IconButton.tsx: test vẫn xanh. Sửa cùng
+   * class đó ngay trên một `<button>` thật thì test đỏ. Chấp nhận được vì hằng số như thế
+   * chỉ có ở hai primitive và chính chúng là nơi §1.3 được khai — nhưng ai đổi bán kính ở
+   * đó phải tự biết mình đang đổi cho cả app.
+   */
+  it('control không mang bán kính panel (§1.3: control là 6px)', () => {
+    const PANEL = new Set(['rounded-lg', 'rounded-xl', 'rounded-2xl'])
+    const sai = controlRadii()
+      .filter((r) => PANEL.has(r.radius))
+      .map((r) => `${r.file}:${r.line} (${r.radius})`)
+    expect(
+      sai,
+      `Control của 1a là rounded-md (6px). Tốt hơn: cho nó đi qua <ActionButton>/` +
+        `<IconButton>, nơi bán kính là quyết định của primitive chứ không của chỗ gọi.\n` +
+        sai.join('\n'),
+    ).toEqual([])
+  })
+
+  /**
    * Lý do: §13 gạch thứ hai — "bề rộng cột số cứng (`width:104px`…) đổi thành `ch`/`rem`
    * hoặc `minmax`; ở cỡ chữ lớn cột px cứng là chỗ vỡ ĐẦU TIÊN". Chữ trong cột giãn theo
    * `--app-font-scale`, cột thì không, nên nội dung tự ép xuống dòng hoặc bị cắt.
@@ -594,6 +720,15 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
     // mỗi nút chỉ còn MỘT bản viết tay thay vì lặp lại ở khu danh mục cũ. Hạ trần theo
     // đúng quy ước ở thông điệp lỗi của chính phép thử này.
+    // ĐO LẠI 2026-08-18 — và con số này KHÔNG đọc như các trần khác. Chấm điểm cả 73
+    // thẻ mở có `active:scale-95` so với bốn dáng của primitive (`primary`/`outline`/
+    // `ghost`/`surface`): KHÔNG cái nào lệch dưới 3 class. Tức đây không phải "73 bản chép
+    // tay của primitive" — chúng là những nút có DÁNG RIÊNG, chỉ tình cờ dùng chung một
+    // idiom nhấn. Gộp chúng vào primitive là ĐỔI DIỆN MẠO từng nút, không phải dọn dẹp.
+    //
+    // Nên trần này chỉ còn một việc: chặn mọc thêm. Phần nợ THẬT trong đám đó đã tách ra
+    // thành luật riêng ở khối ban cứng ("active:scale-95 luôn đi kèm transition") — 51/73
+    // nút thiếu `transition`, đúng cái mà comment của hai primitive dự đoán sẽ quên.
     { needle: 'active:scale-95', max: 82, use: '<IconButton> / <ActionButton>' },
     // 28 chứ không 26: lượt sửa vùng chạm 2026-08-11 đưa BA công tắc role="switch"
     // (AssetGroupsPage, DebtPaymentSheet, roleFields) về đúng khuôn ba công tắc đã
@@ -623,7 +758,16 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // 74 (2026-08-17, đợt dọn bảng màu thô): tụt từ 82 vì `bg-white dark:bg-gray-800`
     // viết tay đã đi qua token `bg-surface`. Con số này KHÔNG tăng vì chuyển đổi đó —
     // phép đếm giờ chặn hậu tố nên `bg-surface-sunken` không còn bị tính là thẻ.
-    { needle: 'rounded-xl bg-surface', max: 74, use: '<Card>' },
+    // 10 (2026-08-18, dot gop the): tut tu 74. Codemod doi 64 the viet tay o 40 file sang
+    // <Card>, va cai loi ra ngay: bay gio chung DUNG bang primitive o dark — <Card
+    // elevation="raised"> them `dark:border dark:border-border-panel dark:shadow-none`,
+    // tuc bo bong va thay bang vien, dung quyet dinh cua 1a. 64 the viet tay truoc do van
+    // giu `shadow-sm` o dark, noi bong tren nen #0e1014 gan nhu vo hinh nen chung mat
+    // ranh gioi.
+    // 10 cho con lai KHONG may moc doi duoc: hai cho dung template literal (class doi theo
+    // trang thai keo-tha), mot cho co `key=` tren chinh the do, va bay cho khong co
+    // `shadow-sm` (dang 'flat'/'panel' viet tay) — moi cai can xet nghia rieng.
+    { needle: 'rounded-xl bg-surface', max: 10, use: '<Card>' },
     // 96 (2026-08-13, đợt gộp danh mục): tụt từ 97 vì HoldingsSection và
     // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
     // mỗi câu chỉ còn MỘT bản. FundHoldingsSection từng ghi ngay tại chỗ ngưỡng này
@@ -747,35 +891,6 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
     // đúng theo spec nên không cần đại diện gần đúng nữa.
   ]
-
-  /**
-   * LUẬT THẬT thay cho trần `rounded-md` đã bỏ ở trên (§1.3).
-   *
-   * Bản 1a tách hai bán kính: CONTROL 6px (`rounded-md`) và PANEL 8px (`rounded-lg`).
-   * Trước 1a app chỉ có một bán kính duy nhất là 8px, nên mọi nút/ô nhập dựng từ hồi đó
-   * đang mang bán kính panel — 200 chỗ, đo 2026-08-18. Đó là chiều nợ còn lại thật, và
-   * khác hẳn "đếm rounded-md" (đếm phần ĐÃ ĐÚNG).
-   *
-   * Con số này chỉ được GIẢM. Giảm bằng cách nào cũng được — đổi tay sang `rounded-md`,
-   * hoặc (tốt hơn) cho control đó đi qua <ActionButton>/<IconButton>, nơi bán kính là
-   * quyết định của primitive chứ không phải của từng chỗ gọi.
-   *
-   * Đếm THẺ MỞ nên không đụng tới `rounded-full` (chip tròn, công tắc — cố ý tròn) và
-   * `rounded-sm` (vạch mốc). Chỉ ba bán kính panel bị tính.
-   */
-  const CONTROL_PANEL_RADIUS_MAX = 200
-  it(`bán kính control: không quá ${CONTROL_PANEL_RADIUS_MAX} chỗ còn dùng bán kính panel`, () => {
-    const PANEL = new Set(['rounded-lg', 'rounded-xl', 'rounded-2xl'])
-    const sai = controlRadii().filter((r) => PANEL.has(r.radius))
-    const where = sai.slice(0, 25).map((r) => `${r.file}:${r.line} (${r.radius})`)
-    expect(
-      sai.length,
-      sai.length > CONTROL_PANEL_RADIUS_MAX
-        ? `Thêm ${sai.length - CONTROL_PANEL_RADIUS_MAX} control mang bán kính PANEL. ` +
-            `Control của 1a là rounded-md (6px) — dùng <ActionButton>/<IconButton>.\n${where.join('\n')}`
-        : `Đã giảm xuống ${sai.length} — hạ ngưỡng trong file test này xuống ${sai.length}.`,
-    ).toBeLessThanOrEqual(CONTROL_PANEL_RADIUS_MAX)
-  })
 
   for (const { needle, max, use } of CEILINGS) {
     it(`\`${needle}\` không vượt ${max} (gộp dần vào ${use})`, () => {

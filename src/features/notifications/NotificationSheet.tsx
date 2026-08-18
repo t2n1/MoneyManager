@@ -73,7 +73,7 @@ function Row({
           type="button"
           onClick={onDismiss}
           aria-label="Bỏ qua tin này"
-          className="-my-2 -mr-2 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-fg-muted hover:text-fg-primary"
+          className="-my-2 -mr-2 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg-primary"
         >
           <X className="h-4 w-4" />
         </button>
@@ -105,7 +105,7 @@ function MoreButton({
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      className="flex min-h-11 w-full items-center justify-center gap-1 rounded-lg text-xs font-medium text-fg-muted hover:bg-surface-sunken hover:text-fg-secondary"
+      className="flex min-h-11 w-full items-center justify-center gap-1 rounded-md text-xs font-medium text-fg-muted hover:bg-surface-sunken hover:text-fg-secondary"
     >
       {open ? 'Thu gọn' : `Xem thêm ${count} ${label}`}
       <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />

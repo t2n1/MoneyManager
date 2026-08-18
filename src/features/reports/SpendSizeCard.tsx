@@ -4,7 +4,7 @@
 import { Link } from 'react-router-dom'
 import { Guide } from '../../components/Guide'
 import { ExplainBox } from '../../components/ExplainBox'
-import { Money } from '../../components/ui'
+import { Card, Money } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { hoursOfWork, type SpendPercentiles } from './behavior'
 import { spendHistogram } from './histogram'
@@ -39,7 +39,7 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
   ]
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-fg-primary">
           Một lần chi to cỡ nào
@@ -156,6 +156,6 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
           những lần chi thường ngày chứ không bị một lần mua lớn kéo rộng ra.
         </p>
       </ExplainBox>
-    </section>
+    </Card>
   )
 }

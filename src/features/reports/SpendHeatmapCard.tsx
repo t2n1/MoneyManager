@@ -1,5 +1,6 @@
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { DailyExpensePoint } from './aggregate'
+import { Card } from '../../components/ui'
 
 interface Props {
   /** chi từng ngày cho trọn tháng tài chính */
@@ -40,7 +41,7 @@ export function SpendHeatmapCard({ points, base }: Props) {
   const cells: (DailyExpensePoint | null)[] = [...Array(leading).fill(null), ...points]
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <h2 className="mb-2 text-sm font-semibold text-fg-muted">
         Lịch chi tiêu trong tháng
       </h2>
@@ -83,6 +84,6 @@ export function SpendHeatmapCard({ points, base }: Props) {
         ))}
         <span>Nhiều</span>
       </div>
-    </section>
+    </Card>
   )
 }

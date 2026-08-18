@@ -6,6 +6,7 @@ import { showToast } from '../../lib/dialog'
 import type { CostType, NeedLevel } from '../../types/database.types'
 import { ClassificationToggle, COST_OPTIONS, NEED_OPTIONS } from './ClassificationToggle'
 import { expenseLeaves, groupLeavesByParent } from './leaf'
+import { Card } from '../../components/ui'
 
 type Axis = 'need_level' | 'cost_type'
 /** Giá trị người dùng vừa chọn, chờ máy chủ xác nhận (để toggle ăn ngay). */
@@ -115,9 +116,9 @@ export function ClassifyCategoriesPage() {
           </div>
         ))}
         {rows.length === 0 && (
-          <p className="rounded-xl bg-surface px-3 py-6 text-center text-sm text-fg-muted shadow-sm">
+          <Card as="p" padding="none" className="px-3 py-6 text-center text-sm text-fg-muted">
             {onlyTodo ? 'Đã phân loại hết 🎉' : 'Chưa có danh mục Chi'}
-          </p>
+          </Card>
         )}
       </div>
     </div>

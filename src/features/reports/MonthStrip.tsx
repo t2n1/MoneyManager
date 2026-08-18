@@ -67,7 +67,7 @@ export function MonthStrip({ items, active, onPick, base, label }: Props) {
             aria-current={on ? 'true' : undefined}
             // flex-1 + min-w-fit: ít tháng thì các ô giãn đều kín hàng (không dồn
             // cục bên trái), nhiều tháng thì mỗi ô giữ bề rộng tối thiểu và dải cuộn.
-            className={`flex min-h-11 min-w-fit flex-1 flex-col items-center rounded-lg px-2.5 py-1.5 ${
+            className={`flex min-h-11 min-w-fit flex-1 flex-col items-center rounded-md px-2.5 py-1.5 ${
               on ? 'bg-accent text-fg-on-accent' : 'bg-surface text-fg-secondary shadow-sm'
             }`}
           >

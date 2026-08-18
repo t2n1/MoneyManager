@@ -279,12 +279,63 @@ Scanner **bỏ comment trước khi đếm** — nếu không thì chính lời 
 
 **Gộp bớt được chỗ nào thì hạ số trong file test xuống.** Để nguyên thì ngưỡng thành chỗ trú cho nợ kỹ thuật.
 
+### `active:scale-95` — trần này đo cái gì (2026-08-18)
+
+Chấm điểm cả **73** thẻ mở có `active:scale-95` so với bốn dáng của primitive: **không cái nào lệch dưới 3 class**. Tức đây không phải 73 bản chép tay của `<ActionButton>`/`<IconButton>` — chúng là những nút có **dáng riêng**, chỉ dùng chung một idiom nhấn. Gộp vào primitive nghĩa là **đổi diện mạo** từng nút, không phải dọn dẹp. Trần vì thế chỉ còn một việc: chặn mọc thêm.
+
+Nợ THẬT trong đám đó tách ra thành luật riêng: **51/73 nút thiếu `transition`** — đúng cái mà comment của cả hai primitive dự đoán sẽ quên ("hai thứ này phải đi cùng nhau, chép tay thì luôn có chỗ quên"). Thiếu nó thì nút không co giãn, nó **nhảy** một nhịp rồi nhảy về. Đã thêm cho cả 51, và có ban cứng giữ cặp đó dính nhau.
+
+### Vùng chạm: đo thật, đừng đoán theo class
+
+Đếm class (`min-h-11`…) ra 22 chỗ "nghi nhỏ", nhưng phần lớn là đoán sai — nút cao 46px viết bằng `h-[2.875rem]`, nút 30px của top bar vốn là ngoại lệ có chủ ý. Cách đúng là **đo `getBoundingClientRect` trên máy thật**, ở 375px, qua 14 màn.
+
+Đo theo **WCAG 2.5.8 AA (24×24)**, bỏ hai ngoại lệ chính đáng của chuẩn: liên kết nằm trong câu văn, và ô tích nằm trong `<label>` cao ≥24 (nhãn mới là vùng bấm). Kết quả: **8 chỗ** dưới ngưỡng — sáu liên kết đầu-thẻ ("Xem cả tháng →", "Chọn loại nhắc", "Sắp chi"…) chỉ cao 15–16px, một dòng "độ tin cậy" cao 20px, một nút tên danh mục cao 20px.
+
+Chữa bằng idiom sẵn có trong app: **`py-2` cộng `-my-2`** — vùng bấm cao thêm, bố cục không xê một pixel. Đo lại: **0 chỗ** dưới 24×24 trên cả 14 màn.
+
+### Chỉ báo tiêu điểm: một ring cho cả app (2026-08-18)
+
+Bộ test từng có **đúng một `it.skip`**, kèm ghi chú nói rõ phải làm gì trước khi mở: *nới `:focus-visible` ra input/select/textarea, đo lại tương phản bằng cách vẽ ra pixel, rồi mới xoá các chỗ tự chế.* Đã làm đủ ba bước, đúng thứ tự đó — giờ bộ test **không còn phép thử nào bị bỏ qua**.
+
+Cái đã xoá và vì sao mỗi cái là một lỗi thật:
+
+| Kiểu tự chế | Số chỗ | Hỏng ở đâu |
+|---|---|---|
+| `outline-green-500` | 51 | green-500 trên nền trắng ~1,9:1 — dưới hẳn 3:1 của WCAG 1.4.11 |
+| `focus:outline-none` + `focus:border-green-500` | 8 | tắt outline, đổi màu viền **1px** làm chỉ báo |
+| `outline-none` trong ô tìm | 5 | xem đính chính ngay dưới |
+
+**Đính chính** (lượt sau đo lại từng chỗ): năm ô tìm đó không giống nhau. **Hai** chỗ — ô tìm ở top bar và ô tìm trong panel `AccountPicker` — khung bao là `<form>`/`<div>` trơn, không có `focus-within`, nên Tab vào thật sự **không có gì hiện lên**. **Ba** chỗ còn lại (`TagPicker` ×2, `SearchPage`) thì khung bao CÓ `focus-within:ring` — lỗi ở đó là **tương phản** (ring tô green-500, ~1,9:1), không phải thiếu chỉ báo. Câu "Tab vào thì không có gì hiện lên" ở lượt trước đúng với hai chỗ, sai với ba chỗ.
+
+Cách chữa vì thế cũng khác nhau: hai chỗ đầu để ô tự vẽ ring token; ba chỗ sau giữ ring của khung bao (đổi sang `focus-within:ring-accent`) và **trả lại** `outline-none` cho ô — không thì hai vòng ring lồng nhau.
+
+Ring token đo được (canvas pixel readback, bốn nấc bề mặt): light `green-700` **4,95 / 4,45 / 4,14**; dark `green-500` **8,59 / 8,98 / 8,04 / 8,77**. Chỗ mỏng nhất còn dư 38%.
+
+**Vì sao `outline-none` thắng được ring:** nó là tiện ích thường (specificity 0,1,0) còn ring đi qua `:where()` (specificity 0). Luật vì thế có ngoại lệ, và ngoại lệ đó kiểm được: **ô nhập chỉ được tắt outline khi file có `focus-within:ring`**. Kiểm theo file là thô — muốn chặt hơn phải dựng cây JSX — nhưng đúng hướng và không phải đoán. Trên `<div>` thì `outline-none` vẫn hợp lệ: tấm sheet nhận focus bằng script lúc mở, vẽ ring quanh cả tấm ở đó là nhiễu.
+
+Cùng đợt: **13 chỗ `ring-green-500`** (viền sáng khi kéo–thả, khi bàn phím số mở, ô đang chọn) đổi sang `ring-accent`. Ở dark hai thứ tình cờ trùng nhau — cùng là green-500 — nên trước đó chúng **đang đúng vì may**, không phải vì có luật. Kèm 4 control còn mang `rounded` trần (4px) → `rounded-md`.
+
 **Hai lần đã xảy ra đúng chuyện đó, ghi lại để nhận ra sớm hơn:**
 
 - `bg-green-700` treo ở trần **21** trong khi thực tế còn **1** — 20 chỗ đã theo đợt dọn bảng màu thô đi hết mà không ai hạ trần. Hạ về 1 thì luật đổi nghĩa và chặt hơn hẳn: sắc độ này chỉ được khai ở NGUỒN token (`statusColors.ts`).
 - Trần `rounded-md` **đếm ngược chiều**. Từ §1.3, `rounded-md` là bán kính ĐÚNG của control, nên mỗi lần một nút đi theo quy ước thì test lại đỏ và cách "sửa" là nới trần — 13 → 47 qua 12 lần nới. Đã **bỏ**, thay bằng luật thật: đếm control (`<button|input|select|textarea>`) còn mang bán kính PANEL (`rounded-lg/xl/2xl`) — **200 chỗ**, đó mới là chiều nợ còn lại. Không đếm `<Link>`: một `<Link>` có thể là cả một thẻ bấm được, và bán kính panel ở đó là đúng.
 
 Bài học chung: **một trần chỉ có nghĩa khi nó đo được chiều nợ.** Trần đếm phần đã đúng thì càng dọn càng đỏ.
+
+**Đợt gộp thẻ (2026-08-18): `rounded-xl bg-surface` 74 → 10.** Codemod đổi 64 thẻ viết tay ở 40 file sang `<Card>`. Việc này KHÔNG chỉ là dọn code — nó **sửa một lỗi nhìn thấy được ở dark**: `<Card elevation="raised">` mang `dark:border dark:border-border-panel dark:shadow-none`, tức bỏ bóng và thay bằng viền (quyết định của 1a), còn 64 thẻ viết tay vẫn giữ `shadow-sm` ở dark — mà bóng trên nền `#0e1014` gần như vô hình, nên chúng **không có ranh giới nào cả**. Đo lại sau khi đổi: viền 1px `#1b1e24`, đúng `border-panel`.
+
+**Đợt bán kính control (2026-08-18): 200 → 0, và luật LÊN HẠNG.** §1.3 tách bán kính CONTROL 6px khỏi PANEL 8px; 200 nút/ô nhập dựng từ trước 1a vẫn mang 8px. Codemod đổi cả 200 (144 `<button>`, 40 `<input>`, 16 `<select>`) sang `rounded-md`, chỉ đụng chữ nằm TRONG thẻ mở nên `rounded-full` (chip, công tắc) và `rounded-sm` (vạch) không bị chạm. Ngưỡng hết việc → chuyển thành **ban cứng**. Đó là vòng đời mong muốn của một ngưỡng: đo → chặn mọc thêm → dọn hết → hoá luật cứng.
+
+**Điểm mù của luật này, đã thử để biết chắc:** bán kính đi tới control qua một HẰNG SỐ (`BASE` trong `IconButton`/`ActionButton`) thì luật không thấy — sửa `rounded-md` → `rounded-lg` trong `IconButton.tsx` mà test vẫn xanh; sửa đúng class đó trên một `<button>` thật thì test đỏ ngay. Chấp nhận được vì hằng số kiểu đó chỉ có ở hai primitive, nhưng ai đổi ở đó phải biết mình đang đổi cho cả app.
+
+Còn **4 control** mang `rounded` trần (4px) — nhỏ hơn 6px chứ không phải bán kính panel, nên luật hiện tại không tính. Một lát dọn khác.
+
+Mười chỗ còn lại không máy móc đổi được: hai chỗ class là template literal (đổi theo trạng thái kéo–thả), một chỗ có `key=` ngay trên thẻ, bảy chỗ không có `shadow-sm` (dáng `flat`/`panel` viết tay). Mỗi cái cần xét nghĩa riêng.
+
+Hai cái bẫy của codemod loại này, đã đạp cả hai:
+
+- **Chèn `import` sai chỗ.** Chèn sau "dòng cuối bắt đầu bằng `import `" là chèn vào GIỮA một `import {` nhiều dòng — vỡ hai file. Phải chèn sau dòng KẾT THÚC của import cuối (`} from '…'`).
+- **Trùng tên với component cục bộ.** `TrendsView.tsx` có sẵn một component tên `Card`; import primitive vào là nó che chính mình, và codemod còn đổi `<section>` bên trong thành `<Card>` — thành đệ quy. Đã đổi tên cục bộ thành `TrendCard`.
 
 ---
 

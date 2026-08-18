@@ -104,7 +104,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           value={counterparty}
           onChange={(e) => setCounterparty(e.target.value)}
           placeholder="Tên người / công ty"
-          className="mb-3 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary outline-green-500"
+          className="mb-3 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary"
         />
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
@@ -118,7 +118,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
             currency={debt.currency}
             ariaLabel="Số tiền gốc"
             onEnter={handleSave}
-            className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold text-fg-primary outline-green-500"
+            className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold text-fg-primary"
           />
         </div>
 
@@ -143,7 +143,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: mượn lúc chuyển nhà"
-          className="mb-1 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary outline-green-500"
+          className="mb-1 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary"
         />
 
         <p className="mt-2 text-xs text-fg-muted">
@@ -154,7 +154,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
+            className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Hủy
           </button>
@@ -162,7 +162,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
+            className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
           >
             {saving ? 'Đang lưu…' : 'Lưu'}
           </button>

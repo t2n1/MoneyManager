@@ -290,7 +290,7 @@ export function BulletinPage() {
         >
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="text-[0.8125rem] font-semibold text-fg-primary">Giao dịch gần đây</h2>
-            <Link to="/so" className="text-2xs font-medium text-fg-accent hover:underline">
+            <Link to="/so" className="-my-2 py-2 text-2xs font-medium text-fg-accent hover:underline">
               Mở Sổ →
             </Link>
           </div>

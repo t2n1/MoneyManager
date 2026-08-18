@@ -256,7 +256,7 @@ export function EventFormSheet({
   }
 
   const field =
-    'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm dark:text-gray-100'
+    'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm dark:text-gray-100'
   const label_ = 'mb-1 block text-xs font-medium text-fg-muted'
 
   // Chốt kiểm bắt buộc: xem trước quy đổi dùng đúng số tiền của dòng đang sửa.
@@ -284,7 +284,7 @@ export function EventFormSheet({
                 type="button"
                 onClick={() => setPresetsOpen(false)}
                 aria-label="Quay lại"
-                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg active:scale-95 hover:bg-surface-sunken"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md transition active:scale-95 hover:bg-surface-sunken"
               >
                 <ChevronLeft className="h-5 w-5 text-fg-secondary" />
               </button>
@@ -297,7 +297,7 @@ export function EventFormSheet({
                     type="button"
                     disabled={saving}
                     onClick={() => handlePickPreset(p.id)}
-                    className="min-h-11 w-full rounded-lg bg-surface-sunken p-2.5 text-left active:scale-95 disabled:opacity-50"
+                    className="min-h-11 w-full rounded-md bg-surface-sunken p-2.5 text-left transition active:scale-95 disabled:opacity-50"
                   >
                     <span className="block text-sm font-semibold text-fg-primary">{p.label}</span>
                     <span className="block text-xs text-fg-muted">{p.hint}</span>
@@ -317,7 +317,7 @@ export function EventFormSheet({
                 <button
                   type="button"
                   onClick={() => setPresetsOpen(true)}
-                  className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-accent-muted-bg px-3 text-xs font-semibold text-fg-accent active:scale-95"
+                  className="inline-flex min-h-11 items-center gap-1 rounded-md bg-accent-muted-bg px-3 text-xs font-semibold text-fg-accent transition active:scale-95"
                 >
                   <Sparkles className="h-3.5 w-3.5" /> Chọn mẫu
                 </button>
@@ -357,7 +357,7 @@ export function EventFormSheet({
                 type="button"
                 aria-pressed={kind === 'expense'}
                 onClick={() => setKind('expense')}
-                className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
+                className={`min-h-11 flex-1 rounded-md text-sm font-medium transition active:scale-95 ${
                   kind === 'expense'
                     ? 'bg-accent text-fg-on-accent'
                     : 'border border-border-strong text-fg-secondary'
@@ -369,7 +369,7 @@ export function EventFormSheet({
                 type="button"
                 aria-pressed={kind === 'income'}
                 onClick={() => setKind('income')}
-                className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
+                className={`min-h-11 flex-1 rounded-md text-sm font-medium transition active:scale-95 ${
                   kind === 'income'
                     ? 'bg-accent text-fg-on-accent'
                     : 'border border-border-strong text-fg-secondary'
@@ -522,7 +522,7 @@ export function EventFormSheet({
                   type="button"
                   onClick={handleDelete}
                   disabled={saving}
-                  className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-money-out active:scale-95 hover:bg-state-bad-bg disabled:opacity-50"
+                  className="min-h-11 rounded-md px-3 py-2 text-sm font-medium text-money-out transition active:scale-95 hover:bg-state-bad-bg disabled:opacity-50"
                 >
                   Xóa
                 </button>
@@ -533,7 +533,7 @@ export function EventFormSheet({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted active:scale-95 hover:bg-surface-sunken"
+                  className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted transition active:scale-95 hover:bg-surface-sunken"
                 >
                   Hủy
                 </button>
@@ -541,7 +541,7 @@ export function EventFormSheet({
                   type="button"
                   onClick={handleSubmit}
                   disabled={!canSave}
-                  className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold active:scale-95 disabled:opacity-50"
+                  className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold transition active:scale-95 disabled:opacity-50"
                 >
                   {saving ? 'Đang lưu…' : 'Lưu'}
                 </button>

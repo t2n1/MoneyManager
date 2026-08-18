@@ -6,6 +6,7 @@ import type { CategoryRow } from '../../types/database.types'
 import { groupByParent, type Breakdown, type CategoryMonthlyPoint } from './aggregate'
 import { CategoryLineChart } from './CategoryLineChart'
 import { BreakdownRow } from './BreakdownRow'
+import { Card } from '../../components/ui'
 
 // Bảng màu cho thanh danh mục (lặp lại nếu > 12). Màu chỉ để phân biệt nhanh —
 // nghĩa được truyền tải bằng NHÃN (tên + số tiền + %) nên không phụ thuộc màu.
@@ -144,7 +145,7 @@ export function CategoryBreakdownCard({
   const toggleParent = (key: string) => setOpenKey((k) => (k === key ? null : key))
 
   return (
-    <section className="rounded-xl bg-surface p-3 shadow-sm">
+    <Card as="section">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-fg-muted">
@@ -283,6 +284,6 @@ export function CategoryBreakdownCard({
           })}
         </ul>
       )}
-    </section>
+    </Card>
   )
 }

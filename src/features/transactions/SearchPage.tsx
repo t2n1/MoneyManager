@@ -26,6 +26,7 @@ import { EditTransactionSheet } from './EditTransactionSheet'
 import { SelectionActionBar } from './SelectionActionBar'
 import { TransactionItem } from './TransactionItem'
 import { useTxSelection } from './useTxSelection'
+import { Card } from '../../components/ui'
 
 const TYPE_TABS: { value: TransactionType | 'all'; label: string }[] = [
   { value: 'all', label: 'Tất cả' },
@@ -226,13 +227,15 @@ export function SearchPage() {
       </div>
 
       {/* Ô tìm ghi chú */}
-      <div className="mb-2 flex items-center gap-2 rounded-xl bg-surface px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-green-500">
+      <Card padding="none" className="mb-2 flex items-center gap-2 px-3 py-2 focus-within:ring-2 focus-within:ring-accent">
         <Search className="h-5 w-5 text-fg-muted" />
         <input
           aria-label="Tìm theo ghi chú"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Tìm theo ghi chú…"
+          // `outline-none` vì <Card> bao ngoài đã có `focus-within:ring-accent` — để ô
+          // tự vẽ thêm ring nữa là hai vòng lồng nhau (xem designSystem.test.ts).
           className="flex-1 text-sm text-fg-primary outline-none"
         />
         {text && (
@@ -240,7 +243,7 @@ export function SearchPage() {
             <X className="h-5 w-5" />
           </button>
         )}
-      </div>
+      </Card>
 
       {/* Loại giao dịch */}
       <div className="mb-2 flex flex-wrap gap-1.5">
@@ -288,7 +291,7 @@ export function SearchPage() {
       <button
         type="button"
         onClick={() => setShowMore((v) => !v)}
-        className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-fg-accent"
+        className="-my-1 mb-1 inline-flex items-center gap-1 py-2 text-xs font-medium text-fg-accent"
       >
         {showMore ? 'Ẩn bộ lọc' : 'Lọc theo danh mục / nhãn / tài khoản'}
         {showMore ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -360,7 +363,7 @@ export function SearchPage() {
                 value={amountMinStr}
                 onChange={(e) => setAmountMinStr(e.target.value)}
                 placeholder="Tối thiểu"
-                className="w-full rounded-lg border border-border-strong bg-surface px-2 py-1.5"
+                className="w-full rounded-md border border-border-strong bg-surface px-2 py-1.5"
               />
               <span className="text-fg-muted">→</span>
               <input
@@ -369,7 +372,7 @@ export function SearchPage() {
                 value={amountMaxStr}
                 onChange={(e) => setAmountMaxStr(e.target.value)}
                 placeholder="Tối đa"
-                className="w-full rounded-lg border border-border-strong bg-surface px-2 py-1.5"
+                className="w-full rounded-md border border-border-strong bg-surface px-2 py-1.5"
               />
             </div>
           </div>
@@ -443,7 +446,7 @@ export function SearchPage() {
         )}
       </div>
       {(totals.income > 0 || totals.expense > 0 || totals.hasMissingRate) && (
-        <div className="mb-3 rounded-xl bg-surface p-3 shadow-sm">
+        <Card className="mb-3">
           <div className="flex items-center justify-between text-sm">
             <span className="text-fg-muted">Thu</span>
             <span className="font-semibold text-money-in">
@@ -463,7 +466,7 @@ export function SearchPage() {
               Một phần ngoại tệ chưa quy đổi được (đang chờ tỷ giá).
             </p>
           )}
-        </div>
+        </Card>
       )}
       {days.length === 0 && !isLoading ? (
         <p className="py-10 text-center text-fg-muted">Không có giao dịch khớp bộ lọc</p>
@@ -471,7 +474,7 @@ export function SearchPage() {
         days.map(([day, txs]) => (
           <section key={day} className="mb-3">
             <div className="mb-1 px-1 text-xs font-medium text-fg-muted">{day}</div>
-            <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
+            <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
               {txs.map((tx) => (
                 <TransactionItem
                   key={tx.id}
@@ -485,7 +488,7 @@ export function SearchPage() {
                   tags={tagsOfTx.get(tx.id)}
                 />
               ))}
-            </div>
+            </Card>
           </section>
         ))
       )}

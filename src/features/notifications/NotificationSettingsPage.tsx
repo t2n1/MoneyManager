@@ -121,7 +121,7 @@ function PushSection() {
   const blocker = state?.blocker ?? 'ok'
   const canToggle = state !== null && blocker === 'ok'
   const inputClass =
-    'mt-1 w-full rounded-xl border border-border-strong bg-surface p-3 text-fg-primary focus:border-green-500 focus:outline-none'
+    'mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-fg-primary'
 
   return (
     <section className="mb-5">

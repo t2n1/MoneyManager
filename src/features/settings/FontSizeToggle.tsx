@@ -27,7 +27,7 @@ export function FontSizeToggle() {
               type="button"
               onClick={() => setFontScale(opt.value)}
               aria-pressed={active}
-              className={`flex flex-1 flex-col items-center justify-end gap-1 rounded-lg border py-2.5 text-xs font-medium transition ${
+              className={`flex flex-1 flex-col items-center justify-end gap-1 rounded-md border py-2.5 text-xs font-medium transition ${
  active
  ? 'border-green-500 bg-state-good-bg text-state-good-fg dark:border-green-500'
  : 'border-border-panel text-fg-secondary hover:bg-surface-sunken'

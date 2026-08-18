@@ -66,7 +66,7 @@ export function RemittanceSection({
         </h2>
         <Link
           to="/entry?role=remit"
-          className="flex items-center gap-1 rounded-lg bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold active:scale-95"
+          className="flex items-center gap-1 rounded-lg bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold transition active:scale-95"
         >
           <Plus className="h-3.5 w-3.5" /> Gửi tiền
         </Link>
@@ -171,7 +171,7 @@ export function RemittanceSection({
                   <button
                     type="button"
                     onClick={() => handleDelete(t)}
-                    className="rounded-lg p-1.5 text-fg-muted hover:bg-state-bad-bg hover:text-money-out"
+                    className="rounded-md p-1.5 text-fg-muted hover:bg-state-bad-bg hover:text-money-out"
                     aria-label="Xóa"
                   >
                     <Trash2 className="h-4 w-4" />

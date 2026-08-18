@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Download, Upload } from 'lucide-react'
 import { BACKUP_VERSION, repo, type BackupData } from '../../data'
 import { confirmDialog } from '../../lib/dialog'
+import { Card } from '../../components/ui'
 
 type Status = { kind: 'idle' | 'ok' | 'error'; message: string }
 
@@ -87,7 +88,7 @@ export function BackupSection() {
   }
 
   return (
-    <section className="overflow-hidden rounded-xl bg-surface shadow-sm">
+    <Card as="section" padding="none" className="overflow-hidden">
       <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">
         Sao lưu &amp; khôi phục
       </h2>
@@ -99,7 +100,7 @@ export function BackupSection() {
           type="button"
           disabled={busy}
           onClick={handleExport}
-          className="flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-fg-primary hover:bg-surface-sunken disabled:opacity-50"
+          className="flex items-center gap-2 rounded-md border border-border-strong px-3 py-2 text-sm font-medium text-fg-primary hover:bg-surface-sunken disabled:opacity-50"
         >
           <Download className="h-4 w-4" />
           Xuất dữ liệu
@@ -108,7 +109,7 @@ export function BackupSection() {
           type="button"
           disabled={busy}
           onClick={() => fileRef.current?.click()}
-          className="flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-fg-primary hover:bg-surface-sunken disabled:opacity-50"
+          className="flex items-center gap-2 rounded-md border border-border-strong px-3 py-2 text-sm font-medium text-fg-primary hover:bg-surface-sunken disabled:opacity-50"
         >
           <Upload className="h-4 w-4" />
           Khôi phục
@@ -136,6 +137,6 @@ export function BackupSection() {
           {status.message}
         </p>
       )}
-    </section>
+    </Card>
   )
 }

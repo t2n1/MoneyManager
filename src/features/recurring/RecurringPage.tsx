@@ -22,6 +22,7 @@ import { billStatuses, nextDueDate, type RecurringFrequency } from '../../lib/re
 import { detectRecurring, ruleKey, type RecurringSuggestion } from '../../lib/recurringRadar'
 import type { RecurringRuleRow } from '../../types/database.types'
 import { RecurringFormSheet } from './RecurringFormSheet'
+import { Card } from '../../components/ui'
 
 const RADAR_DISMISS_KEY = 'sct-radar-dismissed'
 
@@ -214,13 +215,13 @@ export function RecurringPage() {
         </h1>
         {/* Khoản MỘT LẦN là anh em với khoản lặp mãi — ai đang ở đây tìm chỗ ghi
             "đóng phí vệ sinh 20/8" thì phải thấy lối sang. */}
-        <Link to="/planned" className="shrink-0 text-xs font-medium text-fg-accent">
+        <Link to="/planned" className="-my-2 shrink-0 py-2 text-xs font-medium text-fg-accent">
           Sắp chi
         </Link>
         <button
           type="button"
           onClick={() => setSheet({ open: true, rule: null })}
-          className="flex items-center gap-1 rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold shadow-sm active:scale-95"
+          className="flex items-center gap-1 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold shadow-sm transition active:scale-95"
         >
           <Plus className="h-4 w-4" /> Thêm
         </button>
@@ -254,7 +255,7 @@ export function RecurringPage() {
                   <button
                     type="button"
                     onClick={() => createFromSuggestion(s)}
-                    className="shrink-0 rounded-lg bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold active:scale-95"
+                    className="shrink-0 rounded-md bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold transition active:scale-95"
                   >
                     Tạo
                   </button>
@@ -262,7 +263,7 @@ export function RecurringPage() {
                     type="button"
                     onClick={() => dismissSuggestion(s.key)}
                     aria-label="Bỏ qua gợi ý"
-                    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-green-700/60 hover:text-green-700 dark:text-green-300/60"
+                    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-green-700/60 hover:text-green-700 dark:text-green-300/60"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -282,7 +283,7 @@ export function RecurringPage() {
           Chưa có quy tắc nào. Thêm ở đây hoặc chọn "Lặp lại" khi nhập giao dịch.
         </p>
       ) : (
-        <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
+        <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
           {rules.map((rule) => {
             const acc = accountOf(rule.account_id)
             const cat = categoryOf(rule.category_id)
@@ -324,7 +325,7 @@ export function RecurringPage() {
                   type="button"
                   onClick={() => togglePause(rule)}
                   aria-label={rule.is_paused ? 'Chạy lại' : 'Tạm dừng'}
-                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-sunken"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-surface-sunken"
                 >
                   {rule.is_paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
                 </button>
@@ -332,7 +333,7 @@ export function RecurringPage() {
                   type="button"
                   onClick={() => handleDelete(rule)}
                   aria-label="Xóa"
-                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-sunken"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-surface-sunken"
                 >
                   <Trash2 className="h-5 w-5" />
                 </button>
@@ -366,7 +367,7 @@ export function RecurringPage() {
               </div>
             )
           })}
-        </div>
+        </Card>
       )}
 
       {sheet.open && (

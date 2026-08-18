@@ -31,7 +31,7 @@ function subscribePad(f: () => void) {
  * mắt phải rơi vào trước tiên, để mỗi nơi tự chọn cỡ là mỗi sheet một kiểu.
  */
 export const MONEY_FIELD_CLASS =
-  'w-full rounded-xl border border-border-strong bg-surface p-3 text-right text-lg font-semibold text-fg-primary focus:border-green-500 focus:outline-none'
+  'w-full rounded-md border border-border-strong bg-surface p-3 text-right text-lg font-semibold text-fg-primary'
 
 interface Props {
   /** Số tiền ở đơn vị nhỏ nhất (0 = chưa nhập). */
@@ -92,7 +92,7 @@ export function MoneyField({
         onClick={() => setActivePad(id)}
         aria-label={`${ariaLabel}: ${text}`}
         className={`truncate lg:hidden ${className} ${isEmpty ? 'opacity-40' : ''} ${
-          open ? 'ring-2 ring-green-500' : ''
+          open ? 'ring-2 ring-accent' : ''
         }`}
       >
         {text}
@@ -135,14 +135,14 @@ export function MoneyField({
               type="button"
               onClick={() => emit(appendKey(expr, '⌫'))}
               aria-label="Xóa"
-              className="flex-1 rounded-lg bg-surface py-1.5 text-lg font-semibold text-fg-primary shadow-sm transition active:scale-95 active:bg-gray-200"
+              className="flex-1 rounded-md bg-surface py-1.5 text-lg font-semibold text-fg-primary shadow-sm transition active:scale-95 active:bg-gray-200"
             >
               ⌫
             </button>
             <button
               type="button"
               onClick={() => setActivePad(null)}
-              className="flex-1 rounded-lg bg-surface-sunken py-1.5 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95"
+              className="flex-1 rounded-md bg-surface-sunken py-1.5 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95"
             >
               Thu bàn phím
             </button>

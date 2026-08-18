@@ -27,6 +27,7 @@ import {
 } from '../assets/shelter'
 import { groupAccountsByType, type CurrencyTotal } from './groupByType'
 import { useEscClose } from '../../hooks/useEscClose'
+import { Card } from '../../components/ui'
 
 /** Ghép tổng theo loại tiền thành chuỗi hiển thị: "¥545,860" hoặc "¥X · ₫Y". */
 function formatTotals(totals: CurrencyTotal[]): string {
@@ -75,7 +76,7 @@ export function AccountsPage() {
         <button
           type="button"
           onClick={() => setEditing('new')}
-          className="rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold active:scale-95"
+          className="rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold transition active:scale-95"
         >
           + Thêm
         </button>
@@ -89,9 +90,9 @@ export function AccountsPage() {
       )}
 
       {active.length === 0 && (
-        <div className="overflow-hidden rounded-xl bg-surface shadow-sm">
+        <Card padding="none" className="overflow-hidden">
           <p className="px-3 py-6 text-center text-sm text-fg-muted">Chưa có tài khoản</p>
-        </div>
+        </Card>
       )}
 
       {groups.map((g) => (
@@ -104,7 +105,7 @@ export function AccountsPage() {
               {formatTotals(g.totalsByCurrency)}
             </span>
           </div>
-          <div className="overflow-hidden rounded-xl bg-surface shadow-sm">
+          <Card padding="none" className="overflow-hidden">
             <DragList
               className="divide-y divide-border-subtle"
               ids={g.accounts.map((a) => a.id)}
@@ -148,7 +149,7 @@ export function AccountsPage() {
                     <button
                       type="button"
                       onClick={() => update.mutate({ id: a.id, patch: { is_archived: true } })}
-                      className="inline-flex min-h-11 items-center justify-center min-h-11 rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-surface-sunken"
+                      className="inline-flex min-h-11 items-center justify-center min-h-11 rounded-md px-2 py-1 text-xs text-fg-muted hover:bg-surface-sunken"
                     >
                       Lưu trữ
                     </button>
@@ -156,7 +157,7 @@ export function AccountsPage() {
                 )
               }}
             />
-          </div>
+          </Card>
         </div>
       ))}
 
@@ -178,7 +179,7 @@ export function AccountsPage() {
             )}
           </button>
           {showArchived && (
-            <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
+            <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
               {archived.map((a) => (
                 <div key={a.id} className="flex items-center gap-2 px-3 py-2.5 opacity-60">
                   <AccountTypeIcon type={a.type} className="h-4 w-4" />
@@ -188,13 +189,13 @@ export function AccountsPage() {
                   <button
                     type="button"
                     onClick={() => update.mutate({ id: a.id, patch: { is_archived: false } })}
-                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-accent hover:bg-accent-muted-bg"
+                    className="inline-flex min-h-11 items-center justify-center rounded-md px-2 py-1 text-xs text-fg-accent hover:bg-accent-muted-bg"
                   >
                     Khôi phục
                   </button>
                 </div>
               ))}
-            </div>
+            </Card>
           )}
         </div>
       )}
@@ -365,7 +366,7 @@ function AccountForm({ account, onClose }: FormProps) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Ví dụ: Ví MoMo"
-          className="mb-3 w-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
+          className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
         />
 
         <div className="mb-3 grid grid-cols-2 gap-3">
@@ -377,7 +378,7 @@ function AccountForm({ account, onClose }: FormProps) {
               id={`${uid}-type`}
               value={type}
               onChange={(e) => setType(e.target.value as AccountType)}
-              className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm"
+              className="w-full rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
             >
               <option value="cash">Tiền mặt</option>
               <option value="bank">Ngân hàng</option>
@@ -396,7 +397,7 @@ function AccountForm({ account, onClose }: FormProps) {
               id={`${uid}-currency`}
               value={currency}
               onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
-              className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm"
+              className="w-full rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
             >
               {CURRENCY_LIST.map((c) => (
                 <option key={c} value={c}>
@@ -418,7 +419,7 @@ function AccountForm({ account, onClose }: FormProps) {
               onChange={(e) => setAssetGroup(e.target.value)}
               list="asset-group-suggestions"
               placeholder="Ví dụ: Tiêu dùng, Tiết kiệm, Đầu tư"
-              className="mb-3 w-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
+              className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
             />
             <datalist id="asset-group-suggestions">
               {groupSuggestions.map((g) => (
@@ -443,7 +444,7 @@ function AccountForm({ account, onClose }: FormProps) {
                 currency={currency}
                 autoOpen={false}
                 ariaLabel="Hạn mức tín dụng"
-                className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-sm font-semibold outline-green-500"
+                className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-sm font-semibold"
               />
             </div>
 
@@ -458,7 +459,7 @@ function AccountForm({ account, onClose }: FormProps) {
                   value={statementDay}
                   onChange={(e) => setStatementDay(clampDay(e.target.value))}
                   placeholder="1–31"
-                  className="w-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
+                  className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
                 />
               </div>
               <div>
@@ -471,7 +472,7 @@ function AccountForm({ account, onClose }: FormProps) {
                   value={paymentDueDay}
                   onChange={(e) => setPaymentDueDay(clampDay(e.target.value))}
                   placeholder="1–31"
-                  className="w-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
+                  className="w-full rounded-md border border-border-strong px-3 py-2 text-sm"
                 />
               </div>
             </div>
@@ -483,7 +484,7 @@ function AccountForm({ account, onClose }: FormProps) {
               id={`${uid}-payacc`}
               value={paymentAccountId}
               onChange={(e) => setPaymentAccountId(e.target.value)}
-              className="mb-1 w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm"
+              className="mb-1 w-full rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
             >
               <option value="">— Không tự trả —</option>
               {paymentSourceOptions.map((a) => (
@@ -540,7 +541,7 @@ function AccountForm({ account, onClose }: FormProps) {
             onChange={setBalanceMagnitude}
             currency={currency}
             ariaLabel={isCard ? 'Số nợ ban đầu' : 'Số dư ban đầu'}
-            className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold outline-green-500"
+            className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold"
           />
         </div>
         {isCard && (
@@ -574,7 +575,7 @@ function AccountForm({ account, onClose }: FormProps) {
                   setShelterLimit(SHELTER_DEFAULT_LIMIT_JPY[next])
                 }
               }}
-              className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm"
+              className="w-full rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
             >
               <option value="">Tài khoản thường</option>
               {TAX_SHELTER_LIST.map((s) => (
@@ -594,7 +595,7 @@ function AccountForm({ account, onClose }: FormProps) {
                   currency={currency}
                   autoOpen={false}
                   ariaLabel="Hạn mức nạp mỗi năm"
-                  className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-sm outline-green-500"
+                  className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-sm"
                 />
                 <Guide className="mt-1 text-2xs text-fg-muted">
                   App đếm tiền bạn chuyển vào tài khoản này trong năm và cho biết còn bao nhiêu hạn
@@ -634,7 +635,7 @@ function AccountForm({ account, onClose }: FormProps) {
                   value={depMonths}
                   onChange={(e) => setDepMonths(e.target.value.replace(/\D/g, ''))}
                   placeholder="60"
-                  className="w-full rounded-lg border border-border-strong px-2 py-2 text-sm outline-green-500"
+                  className="w-full rounded-md border border-border-strong px-2 py-2 text-sm"
                 />
               </div>
             </div>
@@ -647,7 +648,7 @@ function AccountForm({ account, onClose }: FormProps) {
               currency={currency}
               autoOpen={false}
               ariaLabel="Giá trị còn lại cuối vòng đời"
-              className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-sm outline-green-500"
+              className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-sm"
             />
             <Guide className="mt-1 text-2xs text-fg-muted">
               Ví dụ xe 5 năm về 0: 60 tháng, còn lại 0. Xe vẫn bán được giá thì điền số bán ước tính.
@@ -668,7 +669,7 @@ function AccountForm({ account, onClose }: FormProps) {
               type="button"
               onClick={handleDelete}
               disabled={del.isPending}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-state-bad-fg hover:bg-state-bad-bg disabled:opacity-50"
+              className="rounded-md px-3 py-2 text-sm font-medium text-state-bad-fg hover:bg-state-bad-bg disabled:opacity-50"
             >
               Xóa
             </button>
@@ -677,7 +678,7 @@ function AccountForm({ account, onClose }: FormProps) {
             <button
               type="button"
               onClick={onClose}
-              className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
+              className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
             >
               Hủy
             </button>
@@ -685,7 +686,7 @@ function AccountForm({ account, onClose }: FormProps) {
               type="button"
               onClick={handleSubmit}
               disabled={!canSave}
-              className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
+              className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
             >
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>

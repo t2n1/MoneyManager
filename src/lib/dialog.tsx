@@ -211,7 +211,7 @@ function DialogModal({ req }: { req: DialogReq }) {
               if (e.key === 'Enter') onConfirm()
             }}
             placeholder={req.placeholder}
-            className="mt-3 w-full rounded-lg border border-border-strong px-3 py-2 text-base dark:bg-gray-900 dark:text-gray-100"
+            className="mt-3 w-full rounded-md border border-border-strong px-3 py-2 text-base dark:bg-gray-900 dark:text-gray-100"
           />
         )}
 
@@ -219,7 +219,7 @@ function DialogModal({ req }: { req: DialogReq }) {
           <button
             type="button"
             onClick={onCancel}
-            className="min-h-11 rounded-lg px-4 py-2.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken active:scale-95"
+            className="min-h-11 rounded-md px-4 py-2.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken transition active:scale-95"
           >
             {req.kind === 'confirm' ? req.cancelLabel : 'Hủy'}
           </button>
@@ -231,7 +231,7 @@ function DialogModal({ req }: { req: DialogReq }) {
             // nền khác họ. Chữ trắng trên red-600 thì đạt ở cả hai chế độ, nhưng trên
             // `bg-accent` thì chỉ đạt ở light — ở dark --accent lật sang green-500 và
             // chữ trắng còn 2,22:1 (tests/contrast.test.ts đo và ban đúng cặp đó).
-            className={`min-h-11 rounded-lg px-4 py-2.5 text-sm font-semibold active:scale-95 disabled:opacity-50 ${
+            className={`min-h-11 rounded-md px-4 py-2.5 text-sm font-semibold transition active:scale-95 disabled:opacity-50 ${
               req.kind === 'confirm' && req.danger
                 ? 'bg-red-600 text-white hover:bg-red-700'
                 : 'bg-accent text-fg-on-accent hover:bg-accent-hover'

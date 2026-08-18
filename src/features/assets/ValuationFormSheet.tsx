@@ -87,7 +87,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
             currency={currency}
             ariaLabel="Giá trị hiện tại"
             onEnter={handleSubmit}
-            className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold outline-green-500"
+            className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold"
           />
         </div>
 
@@ -109,7 +109,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: theo giá đóng cửa"
-          className="mb-1 w-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
+          className="mb-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
         />
         <Guide className="mb-3 text-xs text-fg-muted">
           Chỉ ghi nhận giá trị — không tạo giao dịch, không đổi báo cáo thu/chi. Chênh lệch
@@ -128,7 +128,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
+            className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Hủy
           </button>
@@ -136,7 +136,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
             type="button"
             onClick={handleSubmit}
             disabled={!canSave}
-            className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold active:scale-95 disabled:opacity-50"
+            className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold transition active:scale-95 disabled:opacity-50"
           >
             {saving ? 'Đang lưu…' : 'Lưu'}
           </button>

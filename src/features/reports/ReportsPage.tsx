@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { IconButton, SegmentedControl, type SegmentedItem } from '../../components/ui'
+import { Card, IconButton, SegmentedControl, type SegmentedItem } from '../../components/ui'
 import { RemittanceSection } from '../remittance/RemittanceSection'
 import { InsightsView } from './InsightsView'
 import { TrendsView } from './TrendsView'
@@ -566,9 +566,9 @@ export function ReportsPage() {
       {view === 'long' && scope !== 'year' && (
         <Suspense
           fallback={
-            <p className="rounded-xl bg-surface p-6 text-center text-sm text-fg-muted shadow-sm">
+            <Card as="p" padding="none" className="p-6 text-center text-sm text-fg-muted">
               Đang tải…
-            </p>
+            </Card>
           }
         >
           <MultiYearView

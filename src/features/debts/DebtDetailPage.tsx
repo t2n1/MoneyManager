@@ -18,6 +18,7 @@ import { DebtPaymentSheet } from './DebtPaymentSheet'
 import { disbursedOf, remainingOf, repaidOf } from './aggregate'
 import { buildSchedule } from './amortization'
 import type { DebtRow } from '../../types/database.types'
+import { Card } from '../../components/ui'
 
 export function DebtDetailPage() {
   const { debtId = '' } = useParams()
@@ -114,7 +115,7 @@ export function DebtDetailPage() {
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="rounded-lg bg-surface px-3 py-1.5 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
+          className="rounded-md bg-surface px-3 py-1.5 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95"
         >
           Sửa
         </button>
@@ -146,14 +147,14 @@ export function DebtDetailPage() {
         <button
           type="button"
           onClick={() => setPaying(true)}
-          className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold active:scale-95"
+          className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold transition active:scale-95"
         >
           + Ghi nhận trả
         </button>
         <button
           type="button"
           onClick={toggleSettled}
-          className="min-h-11 rounded-lg bg-surface px-4 py-2 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
+          className="min-h-11 rounded-md bg-surface px-4 py-2 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95"
         >
           {debt.status === 'open' ? 'Đánh dấu tất toán' : 'Mở lại'}
         </button>
@@ -164,7 +165,7 @@ export function DebtDetailPage() {
         <button
           type="button"
           onClick={handleDelete}
-          className="min-h-11 rounded-lg px-4 py-2 text-sm font-medium text-money-out hover:bg-state-bad-bg"
+          className="min-h-11 rounded-md px-4 py-2 text-sm font-medium text-money-out hover:bg-state-bad-bg"
         >
           Xóa khoản nợ
         </button>
@@ -183,7 +184,7 @@ export function DebtDetailPage() {
       <h2 className="mb-2 mt-5 px-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">
         Lịch sử ({payments.length})
       </h2>
-      <div className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface shadow-sm">
+      <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
         {payments.map((p) => {
           // amount âm = lần giải ngân thêm (cho vay/vay tiếp); dương = trả bớt.
           const isAdvance = p.amount < 0
@@ -219,7 +220,7 @@ export function DebtDetailPage() {
                 <button
                   type="button"
                   onClick={() => setViewingTxId(p.transaction_id)}
-                  className="flex min-w-0 flex-1 items-center gap-2 rounded-lg -mx-1 px-1 py-0.5 active:scale-[0.99] hover:bg-surface-sunken"
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded-md -mx-1 px-1 py-0.5 active:scale-[0.99] hover:bg-surface-sunken"
                   aria-label="Xem giao dịch liên kết"
                 >
                   {info}
@@ -230,7 +231,7 @@ export function DebtDetailPage() {
               <button
                 type="button"
                 onClick={() => handleDeletePayment(p.id, !!p.transaction_id)}
-                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-xs text-fg-muted hover:bg-surface-sunken"
+                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md px-2 text-xs text-fg-muted hover:bg-surface-sunken"
               >
                 Xóa
               </button>
@@ -240,7 +241,7 @@ export function DebtDetailPage() {
         {payments.length === 0 && (
           <p className="px-3 py-6 text-center text-sm text-fg-muted">Chưa có lần trả nào</p>
         )}
-      </div>
+      </Card>
 
       {editing && <DebtEditSheet debt={debt} onClose={() => setEditing(false)} />}
       {paying && (
@@ -288,7 +289,7 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
       <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">
         Lịch trả dự kiến
       </h2>
-      <div className="rounded-xl bg-surface p-4 shadow-sm">
+      <Card padding="lg">
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
             <p className="text-2xs text-fg-muted">Mỗi kỳ</p>
@@ -350,7 +351,7 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
             </table>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   )
 }

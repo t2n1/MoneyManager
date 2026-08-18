@@ -160,7 +160,7 @@ export function AccountPicker({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`flex min-h-11 items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm text-fg-secondary ${className}`}
+        className={`flex min-h-11 items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2 py-1.5 text-sm text-fg-secondary ${className}`}
       >
         {ariaLabel && <span className="sr-only">{ariaLabel}: </span>}
         {selected ? (

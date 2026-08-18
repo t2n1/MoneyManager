@@ -312,7 +312,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
               type="button"
               onClick={handleDelete}
               disabled={saving}
-              className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-money-out active:scale-95 hover:bg-state-bad-bg disabled:opacity-50"
+              className="min-h-11 rounded-md px-3 py-2 text-sm font-medium text-money-out active:scale-95 hover:bg-state-bad-bg disabled:opacity-50"
             >
               Xóa
             </button>
@@ -323,7 +323,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
             <button
               type="button"
               onClick={onClose}
-              className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted active:scale-95 hover:bg-surface-sunken"
+              className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted active:scale-95 hover:bg-surface-sunken"
             >
               Hủy
             </button>
@@ -331,7 +331,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
               type="button"
               onClick={handleSubmit}
               disabled={!canSave}
-              className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold active:scale-95 disabled:opacity-50"
+              className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold active:scale-95 disabled:opacity-50"
             >
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>

@@ -87,14 +87,14 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
             <button
               type="button"
               onClick={handleDelete}
-              className="min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium text-money-out hover:bg-red-50"
+              className="min-h-11 rounded-md px-3 py-1.5 text-sm font-medium text-money-out hover:bg-red-50"
             >
               Xóa
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="min-h-11 rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
+              className="min-h-11 rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
             >
               Đóng
             </button>
@@ -107,7 +107,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
               navigate(`/debts/${linkedDebtId}`)
               onClose()
             }}
-            className="mb-3 flex w-full items-center gap-2 rounded-xl bg-state-good-bg px-3 py-2.5 text-left text-sm font-medium text-green-800 dark:text-green-300 active:scale-[0.99]"
+            className="mb-3 flex w-full items-center gap-2 rounded-md bg-state-good-bg px-3 py-2.5 text-left text-sm font-medium text-green-800 dark:text-green-300 active:scale-[0.99]"
           >
             <Banknote className="h-4 w-4 shrink-0" />
             <span className="flex-1">Giao dịch trả nợ · Xem khoản nợ</span>

@@ -68,7 +68,7 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
             key={g.id}
             type="button"
             onClick={() => updateTag.mutate({ id: current.id, patch: { group_id: g.id } })}
-            className="min-h-9 rounded-lg bg-accent text-fg-on-accent px-3 text-xs font-semibold transition hover:opacity-90"
+            className="min-h-9 rounded-md bg-accent text-fg-on-accent px-3 text-xs font-semibold transition hover:opacity-90"
           >
             {g.name}
           </button>
@@ -76,7 +76,7 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
         <button
           type="button"
           onClick={() => setSkipped((s) => [...s, current.id])}
-          className="min-h-9 rounded-lg border border-border-strong px-3 text-xs font-medium text-fg-secondary"
+          className="min-h-9 rounded-md border border-border-strong px-3 text-xs font-medium text-fg-secondary"
         >
           Để ở Khác
         </button>
@@ -86,7 +86,7 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
             writeQuickSortDone(true)
             onDone()
           }}
-          className="inline-flex min-h-9 items-center gap-1 rounded-lg px-3 text-xs font-medium text-fg-muted"
+          className="inline-flex min-h-9 items-center gap-1 rounded-md px-3 text-xs font-medium text-fg-muted"
         >
           <X className="h-3.5 w-3.5" aria-hidden />
           Xong

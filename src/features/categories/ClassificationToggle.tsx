@@ -47,7 +47,7 @@ export function ClassificationToggle<T extends string | null>({
             // Mục không chọn dùng --fg-on-track (gray-600), KHÔNG phải --fg-muted:
             // track ở đây là gray-200, ở đó gray-500 chỉ đạt 3,91:1 → trượt AA.
             // gray-600 trên gray-200 = 6,88:1. Cùng lý do với nhãn tab trên gray-100.
-            className={`min-h-11 rounded-lg text-xs font-medium transition ${
+            className={`min-h-11 rounded-md text-xs font-medium transition ${
               value === val
                 ? 'bg-surface text-fg-primary shadow-sm'
                 : 'text-fg-on-track hover:text-fg-primary'

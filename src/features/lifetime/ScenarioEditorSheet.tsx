@@ -693,7 +693,7 @@ export function ScenarioEditorSheet({
               type="button"
               onClick={() => void handleDismiss()}
               aria-label="Đóng"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg active:scale-95 hover:bg-surface-sunken"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md active:scale-95 hover:bg-surface-sunken"
             >
               <X className="h-5 w-5 text-fg-muted" />
             </button>
@@ -831,7 +831,7 @@ export function ScenarioEditorSheet({
                 type="button"
                 aria-pressed={assetsSign === 1}
                 onClick={() => setAssetsSign(1)}
-                className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
+                className={`min-h-11 flex-1 rounded-md text-sm font-medium active:scale-95 ${
                   assetsSign === 1
                     ? 'bg-accent text-fg-on-accent'
                     : 'border border-border-strong text-fg-secondary'
@@ -843,7 +843,7 @@ export function ScenarioEditorSheet({
                 type="button"
                 aria-pressed={assetsSign === -1}
                 onClick={() => setAssetsSign(-1)}
-                className={`min-h-11 flex-1 rounded-lg text-sm font-medium active:scale-95 ${
+                className={`min-h-11 flex-1 rounded-md text-sm font-medium active:scale-95 ${
                   assetsSign === -1
                     ? 'bg-accent text-fg-on-accent'
                     : 'border border-border-strong text-fg-secondary'
@@ -974,7 +974,7 @@ export function ScenarioEditorSheet({
                 type="button"
                 onClick={handleSaveScenario}
                 disabled={!canSaveScenario}
-                className="min-h-11 flex-1 rounded-lg bg-accent text-fg-on-accent text-sm font-semibold active:scale-95 disabled:opacity-50"
+                className="min-h-11 flex-1 rounded-md bg-accent text-fg-on-accent text-sm font-semibold active:scale-95 disabled:opacity-50"
               >
                 {savingScenario ? 'Đang lưu…' : 'Lưu thay đổi kịch bản'}
               </button>
@@ -983,7 +983,7 @@ export function ScenarioEditorSheet({
                 onClick={handleDuplicate}
                 disabled={duplicating}
                 title="Tạo một bản sao độc lập từ kịch bản này để thử phương án khác"
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border-strong px-3 text-sm font-medium text-fg-secondary active:scale-95 disabled:opacity-50"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border-strong px-3 text-sm font-medium text-fg-secondary active:scale-95 disabled:opacity-50"
               >
                 <Copy className="h-4 w-4" />
                 {duplicating ? 'Đang nhân bản…' : 'Nhân bản'}

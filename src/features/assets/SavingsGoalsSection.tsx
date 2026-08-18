@@ -89,7 +89,7 @@ export function SavingsGoalsSection({ view }: Props) {
           type="button"
           onClick={() => setSheet({ open: true })}
           disabled={selectableAccounts.length === 0}
-          className="inline-flex items-center gap-1 rounded-lg bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold active:scale-95 disabled:opacity-40"
+          className="inline-flex items-center gap-1 rounded-md bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold active:scale-95 disabled:opacity-40"
         >
           <Plus className="h-3.5 w-3.5" /> Thêm
         </button>

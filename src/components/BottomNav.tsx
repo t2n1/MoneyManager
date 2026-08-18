@@ -57,7 +57,7 @@ export function BottomNav({ hidden }: { hidden: boolean }) {
             type="button"
             onClick={() => navigate('/entry')}
             aria-label="Nhập giao dịch"
-            className="mx-1 flex h-[2.875rem] w-[3.25rem] shrink-0 items-center justify-center self-center rounded-lg bg-accent text-fg-on-accent transition active:scale-95"
+            className="mx-1 flex h-[2.875rem] w-[3.25rem] shrink-0 items-center justify-center self-center rounded-md bg-accent text-fg-on-accent transition active:scale-95"
           >
             <Plus className="h-5 w-5" strokeWidth={2.2} />
           </button>,

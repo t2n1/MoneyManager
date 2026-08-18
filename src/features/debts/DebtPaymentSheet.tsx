@@ -179,7 +179,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
                 id={`${uid}-acc`}
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
-                className="w-full rounded-lg border border-border-strong bg-surface px-2 py-2 text-sm"
+                className="w-full rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
               >
                 {matchingAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
@@ -199,14 +199,14 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: trả đợt 1"
-          className="w-full rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
+          className="w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-green-500"
         />
 
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
+            className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Hủy
           </button>
@@ -214,7 +214,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
+            className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
           >
             {saving ? 'Đang lưu…' : 'Ghi nhận'}
           </button>

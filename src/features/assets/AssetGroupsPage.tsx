@@ -394,19 +394,19 @@ export function AssetGroupsPage() {
                     if (e.key === 'Enter') submitRename(g.name)
                     if (e.key === 'Escape') setRenaming(null)
                   }}
-                  className="w-full rounded-lg border border-border-strong px-2 py-1 text-sm outline-green-500"
+                  className="w-full rounded-md border border-border-strong px-2 py-1 text-sm outline-green-500"
                 />
                 <button
                   type="button"
                   onClick={() => submitRename(g.name)}
-                  className="rounded-lg bg-accent text-fg-on-accent px-2 py-1 text-xs font-semibold"
+                  className="rounded-md bg-accent text-fg-on-accent px-2 py-1 text-xs font-semibold"
                 >
                   Lưu
                 </button>
                 <button
                   type="button"
                   onClick={() => setRenaming(null)}
-                  className="min-h-11 rounded-lg px-2 py-1 text-xs text-fg-muted"
+                  className="min-h-11 rounded-md px-2 py-1 text-xs text-fg-muted"
                 >
                   Hủy
                 </button>
@@ -450,14 +450,14 @@ export function AssetGroupsPage() {
                   setRenaming(g.name)
                   setRenameValue(g.name)
                 }}
-                className="min-h-11 rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-surface-sunken"
+                className="min-h-11 rounded-md px-2 py-1 text-xs text-fg-muted hover:bg-surface-sunken"
               >
                 Đổi tên
               </button>
               <button
                 type="button"
                 onClick={() => setDeleting(g)}
-                className="rounded-lg px-2 py-1 text-xs text-money-out hover:bg-state-bad-bg"
+                className="rounded-md px-2 py-1 text-xs text-money-out hover:bg-state-bad-bg"
               >
                 Xóa
               </button>
@@ -520,7 +520,7 @@ export function AssetGroupsPage() {
                     <select
                       value={g.name}
                       onChange={(e) => moveAccount(a.id, e.target.value)}
-                      className="shrink-0 rounded-lg border border-border-strong bg-surface px-2 py-1 text-xs"
+                      className="shrink-0 rounded-md border border-border-strong bg-surface px-2 py-1 text-xs"
                       aria-label={`Chuyển ${a.name} sang nhóm khác`}
                     >
                       {allGroupNames.map((name) => (
@@ -585,7 +585,7 @@ export function AssetGroupsPage() {
             setAdding(true)
             setNewName('')
           }}
-          className="flex items-center gap-1 rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold shadow-sm active:scale-95"
+          className="flex items-center gap-1 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold shadow-sm active:scale-95"
         >
           <Plus className="h-4 w-4" /> Thêm nhóm
         </button>
@@ -609,19 +609,19 @@ export function AssetGroupsPage() {
               if (e.key === 'Escape') setAdding(false)
             }}
             placeholder="Tên nhóm mới…"
-            className="w-full rounded-lg border border-border-strong px-2 py-1 text-sm outline-green-500"
+            className="w-full rounded-md border border-border-strong px-2 py-1 text-sm outline-green-500"
           />
           <button
             type="button"
             onClick={submitNewGroup}
-            className="rounded-lg bg-accent text-fg-on-accent px-2 py-1 text-xs font-semibold"
+            className="rounded-md bg-accent text-fg-on-accent px-2 py-1 text-xs font-semibold"
           >
             Lưu
           </button>
           <button
             type="button"
             onClick={() => setAdding(false)}
-            className="min-h-11 rounded-lg px-2 py-1 text-xs text-fg-muted"
+            className="min-h-11 rounded-md px-2 py-1 text-xs text-fg-muted"
           >
             Hủy
           </button>
@@ -693,7 +693,7 @@ function AddAccountsPanel({
                 key={a.id}
                 type="button"
                 onClick={() => onToggle(a.id)}
-                className="flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-left hover:bg-white dark:hover:bg-gray-900"
+                className="flex w-full items-center gap-2 rounded-md px-1 py-1.5 text-left hover:bg-white dark:hover:bg-gray-900"
               >
                 <span
                   className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
@@ -722,7 +722,7 @@ function AddAccountsPanel({
         <button
           type="button"
           onClick={onCancel}
-          className="min-h-11 rounded-lg px-3 py-1.5 text-xs text-fg-muted"
+          className="min-h-11 rounded-md px-3 py-1.5 text-xs text-fg-muted"
         >
           Hủy
         </button>
@@ -730,7 +730,7 @@ function AddAccountsPanel({
           type="button"
           onClick={onConfirm}
           disabled={picked.size === 0}
-          className="rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+          className="rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
         >
           Thêm{picked.size > 0 ? ` (${picked.size})` : ''}
         </button>
@@ -771,7 +771,7 @@ function DeleteGroupSheet({
         <select
           value={target}
           onChange={(e) => setTarget(e.target.value)}
-          className="mb-4 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm"
+          className="mb-4 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm"
         >
           <option value="">{UNGROUPED_LABEL}</option>
           {otherGroups.map((name) => (
@@ -785,14 +785,14 @@ function DeleteGroupSheet({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
+            className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Hủy
           </button>
           <button
             type="button"
             onClick={() => onConfirm(target || null)}
-            className="min-h-11 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white active:scale-95"
+            className="min-h-11 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white active:scale-95"
           >
             Xóa nhóm
           </button>

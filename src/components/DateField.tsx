@@ -155,7 +155,7 @@ export function DateField({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className={`flex min-h-11 items-center rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm text-fg-secondary ${className}`}
+        className={`flex min-h-11 items-center rounded-md border border-border-strong bg-surface px-2 py-1.5 text-sm text-fg-secondary ${className}`}
       >
         <span className="sr-only">{ariaLabel}: </span>
         {value ? (
@@ -246,7 +246,7 @@ export function DateField({
                     aria-current={iso === todayISO ? 'date' : undefined}
                     aria-pressed={iso === value}
                     onClick={() => pick(iso)}
-                    className={`h-11 rounded-lg text-sm ${
+                    className={`h-11 rounded-md text-sm ${
                       iso === value
                         ? 'bg-accent font-semibold text-fg-on-accent'
                         : !allowed(iso)
@@ -267,7 +267,7 @@ export function DateField({
                 type="button"
                 disabled={!allowed(todayISO)}
                 onClick={() => pick(todayISO)}
-                className="flex-1 rounded-lg py-2 text-sm font-medium text-fg-accent disabled:text-fg-muted disabled:opacity-40"
+                className="flex-1 rounded-md py-2 text-sm font-medium text-fg-accent disabled:text-fg-muted disabled:opacity-40"
               >
                 Hôm nay
               </button>
@@ -275,7 +275,7 @@ export function DateField({
                 <button
                   type="button"
                   onClick={() => pick('')}
-                  className="flex-1 rounded-lg py-2 text-sm font-medium text-fg-secondary"
+                  className="flex-1 rounded-md py-2 text-sm font-medium text-fg-secondary"
                 >
                   Xoá ngày
                 </button>

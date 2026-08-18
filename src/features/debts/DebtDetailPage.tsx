@@ -115,7 +115,7 @@ export function DebtDetailPage() {
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="rounded-lg bg-surface px-3 py-1.5 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
+          className="rounded-md bg-surface px-3 py-1.5 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
         >
           Sửa
         </button>
@@ -147,14 +147,14 @@ export function DebtDetailPage() {
         <button
           type="button"
           onClick={() => setPaying(true)}
-          className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold active:scale-95"
+          className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold active:scale-95"
         >
           + Ghi nhận trả
         </button>
         <button
           type="button"
           onClick={toggleSettled}
-          className="min-h-11 rounded-lg bg-surface px-4 py-2 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
+          className="min-h-11 rounded-md bg-surface px-4 py-2 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
         >
           {debt.status === 'open' ? 'Đánh dấu tất toán' : 'Mở lại'}
         </button>
@@ -165,7 +165,7 @@ export function DebtDetailPage() {
         <button
           type="button"
           onClick={handleDelete}
-          className="min-h-11 rounded-lg px-4 py-2 text-sm font-medium text-money-out hover:bg-state-bad-bg"
+          className="min-h-11 rounded-md px-4 py-2 text-sm font-medium text-money-out hover:bg-state-bad-bg"
         >
           Xóa khoản nợ
         </button>
@@ -220,7 +220,7 @@ export function DebtDetailPage() {
                 <button
                   type="button"
                   onClick={() => setViewingTxId(p.transaction_id)}
-                  className="flex min-w-0 flex-1 items-center gap-2 rounded-lg -mx-1 px-1 py-0.5 active:scale-[0.99] hover:bg-surface-sunken"
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded-md -mx-1 px-1 py-0.5 active:scale-[0.99] hover:bg-surface-sunken"
                   aria-label="Xem giao dịch liên kết"
                 >
                   {info}
@@ -231,7 +231,7 @@ export function DebtDetailPage() {
               <button
                 type="button"
                 onClick={() => handleDeletePayment(p.id, !!p.transaction_id)}
-                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-xs text-fg-muted hover:bg-surface-sunken"
+                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md px-2 text-xs text-fg-muted hover:bg-surface-sunken"
               >
                 Xóa
               </button>

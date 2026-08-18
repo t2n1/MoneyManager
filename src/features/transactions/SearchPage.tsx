@@ -361,7 +361,7 @@ export function SearchPage() {
                 value={amountMinStr}
                 onChange={(e) => setAmountMinStr(e.target.value)}
                 placeholder="Tối thiểu"
-                className="w-full rounded-lg border border-border-strong bg-surface px-2 py-1.5"
+                className="w-full rounded-md border border-border-strong bg-surface px-2 py-1.5"
               />
               <span className="text-fg-muted">→</span>
               <input
@@ -370,7 +370,7 @@ export function SearchPage() {
                 value={amountMaxStr}
                 onChange={(e) => setAmountMaxStr(e.target.value)}
                 placeholder="Tối đa"
-                className="w-full rounded-lg border border-border-strong bg-surface px-2 py-1.5"
+                className="w-full rounded-md border border-border-strong bg-surface px-2 py-1.5"
               />
             </div>
           </div>

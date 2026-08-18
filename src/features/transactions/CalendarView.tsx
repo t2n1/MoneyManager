@@ -128,7 +128,7 @@ export function CalendarView({
                 key={iso}
                 type="button"
                 onClick={() => setSelected(iso)}
-                className={`flex min-h-[3.25rem] flex-col rounded-lg p-1 text-left transition ${
+                className={`flex min-h-[3.25rem] flex-col rounded-md p-1 text-left transition ${
                   isSelected ? 'bg-state-good-bg ring-1 ring-green-400' : 'hover:bg-surface-sunken'
                 }`}
               >

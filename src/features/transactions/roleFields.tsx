@@ -114,7 +114,7 @@ export function FeeField({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`self-start rounded-lg border border-dashed border-gray-300 px-2.5 py-1.5 text-xs font-medium text-fg-muted transition active:scale-95 dark:border-gray-600 ${smallBtnTap}`}
+        className={`self-start rounded-md border border-dashed border-gray-300 px-2.5 py-1.5 text-xs font-medium text-fg-muted transition active:scale-95 dark:border-gray-600 ${smallBtnTap}`}
       >
         + Phí
       </button>

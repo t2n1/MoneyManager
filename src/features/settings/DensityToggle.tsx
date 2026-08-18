@@ -43,7 +43,7 @@ export function DensityToggle() {
               // lượt về sau cùng thắng — tức chế độ cuối có thể không phải cái vừa bấm.
               disabled={saving}
               aria-pressed={active}
-              className={`flex flex-1 flex-col items-center gap-1 rounded-lg border px-2 py-2.5 text-xs font-medium transition disabled:opacity-60 ${
+              className={`flex flex-1 flex-col items-center gap-1 rounded-md border px-2 py-2.5 text-xs font-medium transition disabled:opacity-60 ${
  active
  ? 'border-green-500 bg-state-good-bg text-state-good-fg dark:border-green-500'
  : 'border-border-panel text-fg-secondary hover:bg-surface-sunken'

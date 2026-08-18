@@ -171,7 +171,7 @@ export function RemittanceSection({
                   <button
                     type="button"
                     onClick={() => handleDelete(t)}
-                    className="rounded-lg p-1.5 text-fg-muted hover:bg-state-bad-bg hover:text-money-out"
+                    className="rounded-md p-1.5 text-fg-muted hover:bg-state-bad-bg hover:text-money-out"
                     aria-label="Xóa"
                   >
                     <Trash2 className="h-4 w-4" />

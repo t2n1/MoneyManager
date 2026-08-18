@@ -52,7 +52,7 @@ export function NumPad({
             // `disabled:text-fg-disabled` thay `disabled:opacity-40`: hạ độ mờ làm mờ cả
             // NỀN nên phím tắt trông như một lỗ thủng trong lưới; đổi màu chữ thì lưới
             // vẫn còn nguyên, chỉ chữ nhạt đi.
-            className={`flex min-h-11 items-center justify-center rounded-lg py-1.5 font-mono text-lg font-semibold transition enabled:active:scale-95 ${
+            className={`flex min-h-11 items-center justify-center rounded-md py-1.5 font-mono text-lg font-semibold transition enabled:active:scale-95 ${
               isOp
                 ? 'border border-border-strong bg-surface text-fg-accent-on-track enabled:active:bg-surface-sunken disabled:border-border-subtle disabled:text-fg-disabled'
                 : 'border border-border-strong bg-surface-sunken text-fg-primary enabled:active:bg-surface'

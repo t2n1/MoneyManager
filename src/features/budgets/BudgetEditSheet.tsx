@@ -80,7 +80,7 @@ export function BudgetEditSheet({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
+            className="min-h-11 rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Đóng
           </button>
@@ -114,7 +114,7 @@ export function BudgetEditSheet({
               <button
                 type="button"
                 onClick={() => setAmount(suggestion.average)}
-                className="min-h-11 rounded-lg border border-border-strong bg-surface px-3 text-xs font-medium text-fg-secondary"
+                className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-xs font-medium text-fg-secondary"
               >
                 Dùng {formatMoney(suggestion.average, base)} (trung bình)
               </button>
@@ -122,7 +122,7 @@ export function BudgetEditSheet({
                 <button
                   type="button"
                   onClick={() => setAmount(suggestion.max)}
-                  className="min-h-11 rounded-lg border border-border-strong bg-surface px-3 text-xs font-medium text-fg-secondary"
+                  className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-xs font-medium text-fg-secondary"
                 >
                   Dùng {formatMoney(suggestion.max, base)} (cao nhất)
                 </button>
@@ -141,7 +141,7 @@ export function BudgetEditSheet({
             <button
               type="button"
               onClick={handleDelete}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-money-out hover:bg-state-bad-bg"
+              className="rounded-md px-4 py-3 text-sm font-medium text-money-out hover:bg-state-bad-bg"
             >
               Xóa
             </button>
@@ -149,7 +149,7 @@ export function BudgetEditSheet({
           <button
             type="button"
             onClick={handleSave}
-            className="flex-1 rounded-xl bg-accent text-fg-on-accent py-3 text-sm font-semibold active:scale-[0.99]"
+            className="flex-1 rounded-md bg-accent text-fg-on-accent py-3 text-sm font-semibold active:scale-[0.99]"
           >
             Lưu
           </button>

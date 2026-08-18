@@ -532,6 +532,41 @@ describe('design system — ban cứng (phải bằng 0)', () => {
   })
 
   /**
+   * Lý do: §1.3 của bản 1a TÁCH hai bán kính — CONTROL 6px (`rounded-md`) và PANEL 8px
+   * (`rounded-lg`). Trước 1a app chỉ có một bán kính 8px, nên mọi nút/ô nhập dựng từ hồi
+   * đó mang bán kính panel: đo được **200 chỗ** hôm 2026-08-18.
+   *
+   * Luật này SINH RA LÀ MỘT NGƯỠNG (200, chỉ được giảm) đúng như lời hẹn ghi trong khối
+   * ngưỡng — nó thay cho trần `rounded-md` vốn đếm ngược chiều. Cùng ngày, một codemod
+   * đưa cả 200 chỗ về `rounded-md`, nên ngưỡng hết việc và luật lên hạng thành BAN CỨNG.
+   * Ghi lại đường đi này vì nó là vòng đời mong muốn của mọi ngưỡng: đo → chặn mọc thêm
+   * → dọn hết → hoá luật cứng.
+   *
+   * Chỉ soi THẺ MỞ của control, nên không đụng `rounded-full` (chip tròn, công tắc — cố
+   * ý tròn) và `rounded-sm` (vạch mốc). `<Link>` cũng KHÔNG tính: một <Link> có thể là cả
+   * một tấm thẻ bấm được, và ở đó bán kính panel mới là đúng.
+   *
+   * ĐIỂM MÙ đã thử và xác nhận: bán kính đi tới control qua một HẰNG SỐ (vd `BASE` trong
+   * IconButton/ActionButton) thì luật này không thấy — nó chỉ đọc chữ nằm trong thẻ mở.
+   * Thử sửa `rounded-md` thành `rounded-lg` trong IconButton.tsx: test vẫn xanh. Sửa cùng
+   * class đó ngay trên một `<button>` thật thì test đỏ. Chấp nhận được vì hằng số như thế
+   * chỉ có ở hai primitive và chính chúng là nơi §1.3 được khai — nhưng ai đổi bán kính ở
+   * đó phải tự biết mình đang đổi cho cả app.
+   */
+  it('control không mang bán kính panel (§1.3: control là 6px)', () => {
+    const PANEL = new Set(['rounded-lg', 'rounded-xl', 'rounded-2xl'])
+    const sai = controlRadii()
+      .filter((r) => PANEL.has(r.radius))
+      .map((r) => `${r.file}:${r.line} (${r.radius})`)
+    expect(
+      sai,
+      `Control của 1a là rounded-md (6px). Tốt hơn: cho nó đi qua <ActionButton>/` +
+        `<IconButton>, nơi bán kính là quyết định của primitive chứ không của chỗ gọi.\n` +
+        sai.join('\n'),
+    ).toEqual([])
+  })
+
+  /**
    * Lý do: §13 gạch thứ hai — "bề rộng cột số cứng (`width:104px`…) đổi thành `ch`/`rem`
    * hoặc `minmax`; ở cỡ chữ lớn cột px cứng là chỗ vỡ ĐẦU TIÊN". Chữ trong cột giãn theo
    * `--app-font-scale`, cột thì không, nên nội dung tự ép xuống dòng hoặc bị cắt.
@@ -756,35 +791,6 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // nó được thay bằng luật thật ở trên ("không có <label> mồ côi") — luật đó phân loại
     // đúng theo spec nên không cần đại diện gần đúng nữa.
   ]
-
-  /**
-   * LUẬT THẬT thay cho trần `rounded-md` đã bỏ ở trên (§1.3).
-   *
-   * Bản 1a tách hai bán kính: CONTROL 6px (`rounded-md`) và PANEL 8px (`rounded-lg`).
-   * Trước 1a app chỉ có một bán kính duy nhất là 8px, nên mọi nút/ô nhập dựng từ hồi đó
-   * đang mang bán kính panel — 200 chỗ, đo 2026-08-18. Đó là chiều nợ còn lại thật, và
-   * khác hẳn "đếm rounded-md" (đếm phần ĐÃ ĐÚNG).
-   *
-   * Con số này chỉ được GIẢM. Giảm bằng cách nào cũng được — đổi tay sang `rounded-md`,
-   * hoặc (tốt hơn) cho control đó đi qua <ActionButton>/<IconButton>, nơi bán kính là
-   * quyết định của primitive chứ không phải của từng chỗ gọi.
-   *
-   * Đếm THẺ MỞ nên không đụng tới `rounded-full` (chip tròn, công tắc — cố ý tròn) và
-   * `rounded-sm` (vạch mốc). Chỉ ba bán kính panel bị tính.
-   */
-  const CONTROL_PANEL_RADIUS_MAX = 200
-  it(`bán kính control: không quá ${CONTROL_PANEL_RADIUS_MAX} chỗ còn dùng bán kính panel`, () => {
-    const PANEL = new Set(['rounded-lg', 'rounded-xl', 'rounded-2xl'])
-    const sai = controlRadii().filter((r) => PANEL.has(r.radius))
-    const where = sai.slice(0, 25).map((r) => `${r.file}:${r.line} (${r.radius})`)
-    expect(
-      sai.length,
-      sai.length > CONTROL_PANEL_RADIUS_MAX
-        ? `Thêm ${sai.length - CONTROL_PANEL_RADIUS_MAX} control mang bán kính PANEL. ` +
-            `Control của 1a là rounded-md (6px) — dùng <ActionButton>/<IconButton>.\n${where.join('\n')}`
-        : `Đã giảm xuống ${sai.length} — hạ ngưỡng trong file test này xuống ${sai.length}.`,
-    ).toBeLessThanOrEqual(CONTROL_PANEL_RADIUS_MAX)
-  })
 
   for (const { needle, max, use } of CEILINGS) {
     it(`\`${needle}\` không vượt ${max} (gộp dần vào ${use})`, () => {

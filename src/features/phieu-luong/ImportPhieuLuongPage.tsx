@@ -248,7 +248,7 @@ export function ImportPhieuLuongPage() {
             type="button"
             onClick={taoDanhMuc}
             disabled={createCategory.isPending}
-            className="mt-2 min-h-9 rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold active:scale-95 disabled:opacity-60"
+            className="mt-2 min-h-9 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold active:scale-95 disabled:opacity-60"
           >
             {createCategory.isPending ? 'Đang tạo…' : 'Tạo 6 danh mục'}
           </button>
@@ -332,7 +332,7 @@ export function ImportPhieuLuongPage() {
           <p className="text-sm text-money-in">Đã ghi {daGhi.phieu} phiếu · {daGhi.dong} dòng.</p>
           <button
             type="button" disabled={dangXoa} onClick={goLo}
-            className="mt-2 min-h-9 rounded-lg border border-money-out px-3 py-1.5 text-xs font-semibold text-money-out transition hover:bg-state-bad-bg disabled:opacity-40"
+            className="mt-2 min-h-9 rounded-md border border-money-out px-3 py-1.5 text-xs font-semibold text-money-out transition hover:bg-state-bad-bg disabled:opacity-40"
           >
             {dangXoa ? 'Đang xoá…' : 'Xoá mọi dòng phiếu lương'}
           </button>

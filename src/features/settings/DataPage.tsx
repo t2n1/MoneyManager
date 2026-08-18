@@ -95,7 +95,7 @@ function ExportSection() {
             onClick={() =>
               period === 'month' ? setMonthKey((k) => addMonths(k, -1)) : setYear((y) => y - 1)
             }
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-border-strong px-3 py-1.5"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border-strong px-3 py-1.5"
             aria-label={period === 'month' ? 'Tháng trước' : 'Năm trước'}
           >
             <ChevronLeft className="h-5 w-5" />
@@ -106,7 +106,7 @@ function ExportSection() {
             onClick={() =>
               period === 'month' ? setMonthKey((k) => addMonths(k, 1)) : setYear((y) => y + 1)
             }
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-border-strong px-3 py-1.5"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border-strong px-3 py-1.5"
             aria-label={period === 'month' ? 'Tháng sau' : 'Năm sau'}
           >
             <ChevronRight className="h-5 w-5" />
@@ -119,7 +119,7 @@ function ExportSection() {
             type="button"
             onClick={handleCsv}
             disabled={txs.length === 0}
-            className="flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-fg-primary hover:bg-surface-sunken disabled:opacity-40"
+            className="flex items-center gap-2 rounded-md border border-border-strong px-3 py-2 text-sm font-medium text-fg-primary hover:bg-surface-sunken disabled:opacity-40"
           >
             <Download className="h-4 w-4" />
             Tải CSV
@@ -127,7 +127,7 @@ function ExportSection() {
           <button
             type="button"
             onClick={handlePdf}
-            className="flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-fg-primary hover:bg-surface-sunken"
+            className="flex items-center gap-2 rounded-md border border-border-strong px-3 py-2 text-sm font-medium text-fg-primary hover:bg-surface-sunken"
           >
             <Printer className="h-4 w-4" />
             Xuất PDF / In

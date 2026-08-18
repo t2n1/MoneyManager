@@ -469,7 +469,7 @@ export function AccountDetailPage() {
             <button
               type="button"
               onClick={() => setShowValuation(true)}
-              className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold active:scale-95"
+              className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold active:scale-95"
             >
               <LineChart className="h-3.5 w-3.5" /> Cập nhật giá trị
             </button>
@@ -550,7 +550,7 @@ export function AccountDetailPage() {
             <button
               type="button"
               onClick={() => setShowValuation(true)}
-              className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold active:scale-95"
+              className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold active:scale-95"
             >
               <LineChart className="h-3.5 w-3.5" /> Cập nhật giá trị thực tế
             </button>

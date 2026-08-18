@@ -221,7 +221,7 @@ export function RecurringPage() {
         <button
           type="button"
           onClick={() => setSheet({ open: true, rule: null })}
-          className="flex items-center gap-1 rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold shadow-sm active:scale-95"
+          className="flex items-center gap-1 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold shadow-sm active:scale-95"
         >
           <Plus className="h-4 w-4" /> Thêm
         </button>
@@ -255,7 +255,7 @@ export function RecurringPage() {
                   <button
                     type="button"
                     onClick={() => createFromSuggestion(s)}
-                    className="shrink-0 rounded-lg bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold active:scale-95"
+                    className="shrink-0 rounded-md bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold active:scale-95"
                   >
                     Tạo
                   </button>
@@ -325,7 +325,7 @@ export function RecurringPage() {
                   type="button"
                   onClick={() => togglePause(rule)}
                   aria-label={rule.is_paused ? 'Chạy lại' : 'Tạm dừng'}
-                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-sunken"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-surface-sunken"
                 >
                   {rule.is_paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
                 </button>
@@ -333,7 +333,7 @@ export function RecurringPage() {
                   type="button"
                   onClick={() => handleDelete(rule)}
                   aria-label="Xóa"
-                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-sunken"
+                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-surface-sunken"
                 >
                   <Trash2 className="h-5 w-5" />
                 </button>

@@ -69,7 +69,7 @@ export function ExpectedIncomeSheet({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
+            className="min-h-11 rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-surface-sunken"
           >
             Đóng
           </button>

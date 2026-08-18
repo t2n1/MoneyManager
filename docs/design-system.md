@@ -288,6 +288,12 @@ Bài học chung: **một trần chỉ có nghĩa khi nó đo được chiều n
 
 **Đợt gộp thẻ (2026-08-18): `rounded-xl bg-surface` 74 → 10.** Codemod đổi 64 thẻ viết tay ở 40 file sang `<Card>`. Việc này KHÔNG chỉ là dọn code — nó **sửa một lỗi nhìn thấy được ở dark**: `<Card elevation="raised">` mang `dark:border dark:border-border-panel dark:shadow-none`, tức bỏ bóng và thay bằng viền (quyết định của 1a), còn 64 thẻ viết tay vẫn giữ `shadow-sm` ở dark — mà bóng trên nền `#0e1014` gần như vô hình, nên chúng **không có ranh giới nào cả**. Đo lại sau khi đổi: viền 1px `#1b1e24`, đúng `border-panel`.
 
+**Đợt bán kính control (2026-08-18): 200 → 0, và luật LÊN HẠNG.** §1.3 tách bán kính CONTROL 6px khỏi PANEL 8px; 200 nút/ô nhập dựng từ trước 1a vẫn mang 8px. Codemod đổi cả 200 (144 `<button>`, 40 `<input>`, 16 `<select>`) sang `rounded-md`, chỉ đụng chữ nằm TRONG thẻ mở nên `rounded-full` (chip, công tắc) và `rounded-sm` (vạch) không bị chạm. Ngưỡng hết việc → chuyển thành **ban cứng**. Đó là vòng đời mong muốn của một ngưỡng: đo → chặn mọc thêm → dọn hết → hoá luật cứng.
+
+**Điểm mù của luật này, đã thử để biết chắc:** bán kính đi tới control qua một HẰNG SỐ (`BASE` trong `IconButton`/`ActionButton`) thì luật không thấy — sửa `rounded-md` → `rounded-lg` trong `IconButton.tsx` mà test vẫn xanh; sửa đúng class đó trên một `<button>` thật thì test đỏ ngay. Chấp nhận được vì hằng số kiểu đó chỉ có ở hai primitive, nhưng ai đổi ở đó phải biết mình đang đổi cho cả app.
+
+Còn **4 control** mang `rounded` trần (4px) — nhỏ hơn 6px chứ không phải bán kính panel, nên luật hiện tại không tính. Một lát dọn khác.
+
 Mười chỗ còn lại không máy móc đổi được: hai chỗ class là template literal (đổi theo trạng thái kéo–thả), một chỗ có `key=` ngay trên thẻ, bảy chỗ không có `shadow-sm` (dáng `flat`/`panel` viết tay). Mỗi cái cần xét nghĩa riêng.
 
 Hai cái bẫy của codemod loại này, đã đạp cả hai:

@@ -421,7 +421,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         <button
           type="button"
           onClick={handleCopy}
-          className="mt-3 rounded-lg border border-border-strong px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-surface-sunken"
+          className="mt-3 rounded-md border border-border-strong px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-surface-sunken"
         >
           Chép hạn mức tháng trước
         </button>

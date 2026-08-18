@@ -279,7 +279,7 @@ export function CategoriesPage() {
           <button
             type="button"
             onClick={() => setForm({ category: null, parent: p })}
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-accent-muted-bg px-2 py-1 text-fg-accent active:scale-95"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md bg-accent-muted-bg px-2 py-1 text-fg-accent active:scale-95"
             aria-label={`Thêm danh mục con cho ${p.name}`}
           >
             <Plus className="h-5 w-5" />
@@ -372,7 +372,7 @@ export function CategoriesPage() {
         <button
           type="button"
           onClick={() => setForm({ category: null, parent: null })}
-          className="rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold active:scale-95"
+          className="rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold active:scale-95"
         >
           + Thêm
         </button>
@@ -385,7 +385,7 @@ export function CategoriesPage() {
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`rounded-lg py-1.5 text-sm font-medium transition ${
+            className={`rounded-md py-1.5 text-sm font-medium transition ${
  tab === t ? 'bg-surface text-fg-primary shadow-sm' : 'text-fg-on-track hover:text-fg-primary'
  }`}
           >
@@ -481,7 +481,7 @@ export function CategoriesPage() {
                   <button
                     type="button"
                     onClick={() => restore(c)}
-                    className="inline-flex min-h-11 items-center justify-center rounded-lg px-2 py-1 text-xs text-fg-accent hover:bg-accent-muted-bg"
+                    className="inline-flex min-h-11 items-center justify-center rounded-md px-2 py-1 text-xs text-fg-accent hover:bg-accent-muted-bg"
                   >
                     Khôi phục
                   </button>
@@ -626,7 +626,7 @@ function CategoryForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Tên danh mục"
-            className="flex-1 rounded-lg border border-border-strong px-3 py-2 text-sm outline-green-500"
+            className="flex-1 rounded-md border border-border-strong px-3 py-2 text-sm outline-green-500"
           />
         </div>
 
@@ -641,7 +641,7 @@ function CategoryForm({
             <select
               value={parentId ?? ''}
               onChange={(e) => setParentId(e.target.value || null)}
-              className="w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-secondary outline-green-500"
+              className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-secondary outline-green-500"
             >
               <option value="">— Danh mục chính —</option>
               {availableParents.map((p) => (
@@ -670,7 +670,7 @@ function CategoryForm({
                 key={t}
                 type="button"
                 onClick={() => setTopType(t)}
-                className={`rounded-lg py-1.5 text-sm font-medium transition ${
+                className={`rounded-md py-1.5 text-sm font-medium transition ${
  topType === t ? 'bg-surface text-fg-primary shadow-sm' : 'text-fg-on-track hover:text-fg-primary'
  }`}
               >
@@ -705,7 +705,7 @@ function CategoryForm({
               key={e}
               type="button"
               onClick={() => setIcon(e)}
-              className={`flex aspect-square items-center justify-center rounded-lg text-xl ${
+              className={`flex aspect-square items-center justify-center rounded-md text-xl ${
                 icon === e ? 'bg-green-100 dark:bg-green-900/40 ring-2 ring-green-500' : 'hover:bg-surface-sunken'
               }`}
             >
@@ -720,7 +720,7 @@ function CategoryForm({
               type="button"
               onClick={handleDelete}
               disabled={del.isPending}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-state-bad-fg hover:bg-state-bad-bg disabled:opacity-50"
+              className="rounded-md px-3 py-2 text-sm font-medium text-state-bad-fg hover:bg-state-bad-bg disabled:opacity-50"
             >
               Xóa
             </button>
@@ -729,7 +729,7 @@ function CategoryForm({
             <button
               type="button"
               onClick={onClose}
-              className="min-h-11 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
+              className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken"
             >
               Hủy
             </button>
@@ -737,7 +737,7 @@ function CategoryForm({
               type="button"
               onClick={handleSubmit}
               disabled={!canSave}
-              className="min-h-11 rounded-lg bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
+              className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
             >
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>

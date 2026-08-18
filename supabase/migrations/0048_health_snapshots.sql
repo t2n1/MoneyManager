@@ -41,6 +41,10 @@ create index if not exists health_snapshots_user_idx
 
 alter table public.health_snapshots enable row level security;
 
+-- `drop policy if exists` trước khi tạo — quy ước của 0026/0029/0039. `create policy`
+-- không có dạng `if not exists`, nên thiếu dòng này thì lần chạy lại thứ hai gãy ở lỗi
+-- 42710 (duplicate_object) và kéo theo cả migration dừng giữa đường.
+drop policy if exists "own rows" on public.health_snapshots;
 create policy "own rows" on public.health_snapshots
   for all
   using (auth.uid() = user_id)

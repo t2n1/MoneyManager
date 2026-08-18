@@ -1,7 +1,6 @@
 // Chỉ số thấu hiểu tài chính — thuần, không phụ thuộc React, unit-test được.
 // Không gọi `new Date()` để lấy giờ hiện tại: `today` luôn truyền vào (test tất định).
 
-import { getMonthRange, monthKeyForDate } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
@@ -14,34 +13,11 @@ export function savingsRate(income: number, expense: number): number | null {
   return (income - expense) / income
 }
 
-/**
- * Số ngày liên tiếp gần nhất (lùi từ `today`) không có giao dịch loại `expense`,
- * giới hạn trong tháng tài chính hiện tại (từ đầu tháng tới `today`).
- */
-export function noSpendStreak(
-  txs: TransactionRow[],
-  today: string,
-  monthStartDay: number,
-): number {
-  // Hoàn tiền không phải "có chi tiêu" → không phá chuỗi ngày không chi
-  const spendDays = new Set(
-    txs
-      .filter((t) => t.type === 'expense' && !t.exclude_from_stats && !t.is_refund)
-      .map((t) => t.occurred_on),
-  )
-  const { start } = getMonthRange(monthKeyForDate(today, monthStartDay), monthStartDay)
-  let streak = 0
-  // Dùng Date UTC chỉ để cộng/trừ ngày (không phải "giờ hiện tại")
-  const cur = new Date(today + 'T00:00:00Z')
-  const startDate = new Date(start + 'T00:00:00Z')
-  while (cur >= startDate) {
-    const iso = cur.toISOString().slice(0, 10)
-    if (spendDays.has(iso)) break
-    streak++
-    cur.setUTCDate(cur.getUTCDate() - 1)
-  }
-  return streak
-}
+// `noSpendStreak` ĐÃ XOÁ (bản 1a §B16). Nó đếm chuỗi ngày không chi tính LÙI từ hôm nay,
+// nên với người chi hằng ngày nó ra 0 mỗi ngày trong năm — và bản 1a bỏ ô KPI đó khỏi tab
+// Tháng này đúng vì lý do đó. Câu hỏi được giữ, định nghĩa thì đổi: xem `noSpendPattern`
+// ở behavior.ts (đếm cả cửa sổ + chuỗi dài nhất), dùng ở tab Sức khỏe cùng chỗ với nhịp
+// chi theo thứ.
 
 export interface Insight {
   id: string

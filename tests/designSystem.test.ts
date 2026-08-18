@@ -345,12 +345,35 @@ describe('design system — ban cứng (phải bằng 0)', () => {
   //
   // Dùng <ConclusionLine> (cùng file VerdictNote.tsx) cho những chỗ này. VerdictNote
   // vẫn đúng cho kết luận CỦA TỪNG THẺ — chúng được phép nén.
+  //
+  // Bốn màn thay cho hai: `PeriodHeadline.tsx` (chỗ cũ của phép thử) đã xoá cùng bản dựng
+  // lại 26a — ba ô số + câu kết luận giờ nằm ngay trong từng view.
+  //
+  // Và phép đo đổi theo: "cả file không được chứa <VerdictNote>" đúng với PeriodHeadline
+  // vì file đó CHỈ có câu kết luận, nhưng ba view mới còn chứa cả khối rỗng ("Chưa có giao
+  // dịch", "Chưa khai khoản nợ nào") — những chỗ đó nén ở Gọn là ĐÚNG. Nên đo bằng THỨ TỰ:
+  // câu kết luận đầu màn phải là <ConclusionLine>, và nó phải đứng TRƯỚC mọi <VerdictNote>
+  // trong file. Đưa kết luận vào VerdictNote thì hoặc mất <ConclusionLine>, hoặc nó tụt
+  // xuống sau — phép thử gãy ở cả hai đường.
   it('câu kết luận đầu màn không đi qua VerdictNote', () => {
-    for (const f of ['src/features/bulletin/BulletinPage.tsx', 'src/features/reports/PeriodHeadline.tsx']) {
+    const screens = [
+      'src/features/bulletin/BulletinPage.tsx',
+      'src/features/reports/MonthView.tsx',
+      'src/features/reports/LongView.tsx',
+      'src/features/reports/DecideView.tsx',
+    ]
+    for (const f of screens) {
       const src = readFileSync(join(SRC, '..', f), 'utf8')
-      expect(src, `${f}: dùng <ConclusionLine>, không <VerdictNote> (§5.0/R7).`).not.toContain(
-        '<VerdictNote',
-      )
+      const conclusion = src.indexOf('<ConclusionLine')
+      expect(conclusion, `${f}: câu kết luận đầu màn phải dùng <ConclusionLine> (§5.0/R7).`)
+        .toBeGreaterThan(-1)
+      const verdict = src.indexOf('<VerdictNote')
+      if (verdict !== -1) {
+        expect(
+          conclusion,
+          `${f}: <ConclusionLine> phải đứng TRƯỚC mọi <VerdictNote> — kết luận đầu màn giữ ở cả hai chế độ, chú thích thẻ thì được nén (§5.0/R7).`,
+        ).toBeLessThan(verdict)
+      }
     }
   })
 
@@ -866,7 +889,13 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // RemittanceSection, multiYear.ts). Đúng quy ước ở thông điệp lỗi của phép thử này:
     // trần không hạ là trần rỗng. `<Num>` đã hấp thụ 12 chỗ viết tay của bốn tab mới, nên
     // con số này giờ nói đúng phần nợ CŨ còn lại.
-    { needle: 'tabular-nums', max: 91, use: '<Money> cho tiền, <Num> cho số không phải tiền' },
+    // 85 (2026-08-19): HẠ 91 → 85 sau khi xoá 5 component chết của tab Sức khỏe cũ
+    // (HealthMetricCard, HealthScoreCard, ScoreGauge, RunwayBand, PeriodHeadline). Trong
+    // đó có đúng cái đã nới trần lên 98 ở trên: hai chỗ viết tay của RunwayBand — dải
+    // phân vị đó giờ là `Scale` trong bảng 6 dòng, và bảng đi qua <Num>. Ba lời ghi
+    // 98/101/102 nói về một lớp con số không phải tiền, và <Num> là chỗ nó về; 85 là số
+    // chỗ viết tay còn lại sau khi lớp đó đã có nhà.
+    { needle: 'tabular-nums', max: 85, use: '<Money> cho tiền, <Num> cho số không phải tiền' },
     // 35 (đo 2026-08-06): cặp xanh nhấn viết tay. Nợ này TĂNG từ 29 lúc dựng hệ thống
     // — quy ước mới chưa thắng thói quen cũ, nên phải có trần. Mỗi chỗ cần XÉT NGHĨA
     // khi gộp: link/hành động → text-fg-accent, giá trị tiền → text-money-in
@@ -1157,9 +1186,11 @@ describe('chế độ Gọn — chữ để dạy phải đi qua cổng', () => 
   // con số, tức là mất đúng thứ khiến chip đáng nhìn. Đây là hỏng âm thầm: ở chế độ
   // Đầy đủ màn hình vẫn đẹp như thường.
   //
-  // Trần là 1 chứ không 0: một chỗ ở HealthScoreCard cố ý không có, vì nó nằm trong
-  // <FullOnly> — đồng hồ ngay trên đã hiện cả điểm lẫn chữ Tốt/Cần chú ý/Rủi ro nên ở
-  // chế độ Gọn câu đó bị bỏ hẳn, không nén thành chip.
+  // Trần ĐÃ VỀ 0 (2026-08-19). Trước là 1 vì một chỗ ở HealthScoreCard cố ý không có
+  // `short`: nó nằm trong <FullOnly>, và đồng hồ ngay trên đã hiện cả điểm lẫn chữ Tốt/
+  // Cần chú ý/Rủi ro nên ở chế độ Gọn câu đó bị bỏ hẳn, không nén thành chip. Bản 27b
+  // đổi đồng hồ cung tròn thành dải ngang (`ScoreBand`) nên file đó không còn — hạ về 0
+  // theo đúng quy ước "trần không hạ là trần rỗng".
   it('mỗi <VerdictNote> có short (hoặc label) để nén thành chip', () => {
     let count = 0
     const where: string[] = []
@@ -1188,7 +1219,7 @@ describe('chế độ Gọn — chữ để dạy phải đi qua cổng', () => 
       count > 1
         ? `Thiếu prop short → chip ở chế độ Gọn mất con số.\n${where.join('\n')}`
         : `Đã xuống ${count} — hạ ngưỡng trong file test này.`,
-    ).toBeLessThanOrEqual(1)
+    ).toBeLessThanOrEqual(0)
   })
 
   // Trần cho đoạn văn xuôi CHƯA đi qua cổng: <p> mang class chữ phụ (`fg-muted`) mà

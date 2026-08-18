@@ -233,6 +233,53 @@ export function weekdayProfile(
 }
 
 // ------------------------------------------------------------
+// Ngày không chi
+// ------------------------------------------------------------
+
+export interface NoSpendPattern {
+  /** số ngày trong cửa sổ không có đồng chi nào */
+  days: number
+  /** tổng số ngày của cửa sổ — mẫu số, để "12 ngày" không bị đọc là 12/30 */
+  total: number
+  /** chuỗi ngày không chi DÀI NHẤT trong cửa sổ */
+  longestRun: number
+}
+
+/**
+ * Ngày không chi trong cả cửa sổ, KHÔNG phải chuỗi đang chạy tính lùi từ hôm nay.
+ *
+ * Bản trước là `noSpendStreak` ở insights.ts: đếm lùi từ hôm nay tới lúc gặp ngày có
+ * chi, giới hạn trong tháng tài chính. Với người chi hằng ngày nó ra 0 mỗi ngày trong
+ * năm — bản 1a bỏ nó khỏi ô KPI của tab Tháng này đúng vì lý do đó (§B16), và một con
+ * số luôn bằng 0 thì dời sang tab khác vẫn luôn bằng 0.
+ *
+ * Nên định nghĩa đổi cùng lúc với chỗ đứng: cửa sổ là cả quãng đang xét (6 tháng ở tab
+ * Sức khỏe), và câu trả lời là ĐẾM + chuỗi dài nhất. Hai số đó nói được cái chuỗi-đang-
+ * chạy không nói: có bao nhiêu ngày rỗng trong nếp, và người này có bao giờ nghỉ tiêu
+ * hai ngày liền hay không.
+ *
+ * `expense` ở đây là số đã trừ hoàn tiền (`expenseSign`), nên một ngày chỉ có hoàn tiền
+ * ra số ÂM — vẫn là ngày có phát sinh, không phải ngày không chi. Chỉ đúng 0 mới tính.
+ */
+export function noSpendPattern(
+  dailyExpense: { date: string; expense: number }[],
+): NoSpendPattern {
+  let days = 0
+  let longestRun = 0
+  let run = 0
+  for (const d of dailyExpense) {
+    if (d.expense === 0) {
+      days++
+      run++
+      if (run > longestRun) longestRun = run
+    } else {
+      run = 0
+    }
+  }
+  return { days, total: dailyExpense.length, longestRun }
+}
+
+// ------------------------------------------------------------
 // Khoản trả đều đặn (thuê bao)
 // ------------------------------------------------------------
 

@@ -16,7 +16,7 @@
 //
 // KHÔNG áp cho <Money> nói chung: nó nằm trong hàng trăm dòng bảng, mà mỗi lần lọc lại
 // sổ mà cả bảng cùng nháy thì đó là nhiễu, không phải tín hiệu. Chỉ những con số TO của
-// một kỳ (KpiRow, PeriodHeadline) mới cần nói "kỳ vừa đổi".
+// một kỳ (KpiRow, ô KPI của MonthView) mới cần nói "kỳ vừa đổi".
 import type { ReactNode } from 'react'
 
 interface Props {

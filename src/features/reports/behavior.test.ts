@@ -4,6 +4,7 @@ import type { Rates } from '../../lib/rates'
 import {
   detectPaydays,
   hoursOfWork,
+  noSpendPattern,
   paretoCut,
   paydayEffect,
   spendPercentiles,
@@ -202,6 +203,43 @@ describe('weekdayProfile', () => {
 
   it('luôn trả đủ 7 nhóm', () => {
     expect(weekdayProfile([])).toHaveLength(7)
+  })
+})
+
+describe('noSpendPattern', () => {
+  const d = (date: string, expense: number) => ({ date, expense })
+
+  it('đếm ngày rỗng và chuỗi rỗng DÀI NHẤT, không phải chuỗi đang chạy', () => {
+    // Ngày cuối có chi → chuỗi "đang chạy" bằng 0, nhưng nếp thì có 3 ngày rỗng và một
+    // chuỗi 2 ngày liền. Đây đúng là chỗ bản cũ (`noSpendStreak`) in ra 0.
+    const r = noSpendPattern([
+      d('2026-05-01', 1_000),
+      d('2026-05-02', 0),
+      d('2026-05-03', 0),
+      d('2026-05-04', 2_000),
+      d('2026-05-05', 0),
+      d('2026-05-06', 3_000),
+    ])
+    expect(r.days).toBe(3)
+    expect(r.longestRun).toBe(2)
+    expect(r.total).toBe(6)
+  })
+
+  it('ngày CHỈ có hoàn tiền (số âm) KHÔNG phải ngày không chi', () => {
+    // `expense` đã trừ hoàn tiền, nên một ngày chỉ hoàn tiền ra số âm. Có phát sinh thì
+    // không rỗng — đếm nó là "ngày không chi" sẽ khen một ngày trả hàng là ngày tiết kiệm.
+    const r = noSpendPattern([d('2026-05-01', -500), d('2026-05-02', 0)])
+    expect(r.days).toBe(1)
+    expect(r.longestRun).toBe(1)
+  })
+
+  it('cửa sổ rỗng ra 0 cả ba số, không chia cho 0', () => {
+    expect(noSpendPattern([])).toEqual({ days: 0, total: 0, longestRun: 0 })
+  })
+
+  it('mọi ngày đều rỗng → chuỗi dài nhất bằng cả cửa sổ', () => {
+    const r = noSpendPattern([d('2026-05-01', 0), d('2026-05-02', 0), d('2026-05-03', 0)])
+    expect(r).toEqual({ days: 3, total: 3, longestRun: 3 })
   })
 })
 

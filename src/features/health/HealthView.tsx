@@ -42,7 +42,7 @@ import { taxCategoryIds } from '../tax/categories'
 import { earmarkedForGoals } from './earmarked'
 import { Section, SectionIndex, type IndexItem } from '../reports/SectionIndex'
 import { dailyExpenseTotals, monthlySeries } from '../reports/aggregate'
-import { detectPaydays, paydayEffect, weekdayProfile } from '../reports/behavior'
+import { detectPaydays, noSpendPattern, paydayEffect, weekdayProfile } from '../reports/behavior'
 import { findRegime } from '../reports/longRange'
 import { ReportBlock } from '../reports/ReportBlock'
 import { SpendRhythmCard } from '../reports/SpendRhythmCard'
@@ -300,6 +300,7 @@ export function HealthView() {
     return {
       payday: paydayEffect(daily.points, paydays, PAYDAY_WINDOW),
       weekdays: weekdayProfile(daily.points),
+      noSpend: noSpendPattern(daily.points),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txs, range.start, range.end, accounts, base, rates, transferIds])
@@ -651,6 +652,26 @@ export function HealthView() {
           base={base}
           windowDays={PAYDAY_WINDOW}
         />
+        {/* NGÀY KHÔNG CHI — nửa sau của §B16: ô KPI "Ngày không chi 0" bị bỏ khỏi tab
+            Tháng này, và chỗ nó về là ĐÂY, dạng một dòng.
+            Không phải cùng con số: ô cũ đếm chuỗi tính lùi từ hôm nay nên với người chi
+            hằng ngày nó bằng 0 quanh năm (xem `noSpendPattern` ở behavior.ts). Ở đây là
+            cả cửa sổ, nên nó nói được về nếp — thứ duy nhất khiến con số này đáng in. */}
+        {rhythm.noSpend.total > 0 && (
+          <p className="mt-2.5 px-1 text-[0.8125rem] text-fg-secondary">
+            Ngày không phát sinh chi:{' '}
+            <b>
+              <Num>{rhythm.noSpend.days}</Num>/<Num>{rhythm.noSpend.total}</Num> ngày
+            </b>
+            {rhythm.noSpend.days > 0 && (
+              <>
+                {' '}
+                · chuỗi dài nhất <Num>{rhythm.noSpend.longestRun}</Num> ngày liền
+              </>
+            )}
+            .
+          </p>
+        )}
       </Section>
 
       <p className="px-1 pb-2 text-2xs text-fg-muted">

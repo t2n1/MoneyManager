@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  HEALTH_ZONES,
   debtServiceRatio,
   debtToIncome,
   emergencyFundMonths,
   healthScore,
-  HEALTH_ZONES,
   incomeConcentration,
   liquidityRatio,
   monteCarloRunway,
+  scaleGeometry,
   scoreFromZones,
   seededRandom,
   simpleRunway,
@@ -313,5 +314,85 @@ describe('healthScore', () => {
     expect(verdictFromScore(69)).toBe('warn')
     expect(verdictFromScore(40)).toBe('warn')
     expect(verdictFromScore(39)).toBe('bad')
+  })
+})
+
+describe('scaleGeometry — sáu thang phải đọc TRÁI XẤU → PHẢI TỐT', () => {
+  it('thang thuận (quỹ dự phòng): đỏ → vàng → xanh, kim theo giá trị', () => {
+    const g = scaleGeometry(5, HEALTH_ZONES.fund)
+    expect(g.inverted).toBe(false)
+    expect(g.bands.map((b) => b.tone)).toEqual(['bad', 'warn', 'good'])
+    // max = 12 tháng → 5/12 ≈ 41,7%
+    expect(g.markerPct).toBeCloseTo(41.67, 1)
+  })
+
+  it('thang NGHỊCH (nợ trên thu nhập): vẫn đỏ → vàng → xanh, KHÔNG phải xanh → đỏ', () => {
+    const g = scaleGeometry(0.13, HEALTH_ZONES.dti)
+    expect(g.inverted).toBe(true)
+    expect(g.bands.map((b) => b.tone)).toEqual(['bad', 'warn', 'good'])
+    // Nợ 13% là TỐT → kim phải nằm gần mép PHẢI.
+    expect(g.markerPct).toBeGreaterThan(90)
+  })
+
+  it('nợ cao = kim bên trái (vùng xấu)', () => {
+    const g = scaleGeometry(2.8, HEALTH_ZONES.dti)
+    expect(g.markerPct).toBeLessThan(10)
+  })
+
+  it('cả ba thang nghịch đều đảo: nợ · thuế · phụ thuộc nguồn thu', () => {
+    for (const zones of [HEALTH_ZONES.dti, HEALTH_ZONES.taxBurden, HEALTH_ZONES.concentration]) {
+      const g = scaleGeometry(null, zones)
+      expect(g.inverted).toBe(true)
+      expect(g.bands.map((b) => b.tone)).toEqual(['bad', 'warn', 'good'])
+    }
+  })
+
+  it('cả ba thang thuận KHÔNG đảo: quỹ · thanh khoản · cầm cự', () => {
+    for (const zones of [HEALTH_ZONES.fund, HEALTH_ZONES.liquidity, HEALTH_ZONES.runway]) {
+      expect(scaleGeometry(null, zones).inverted).toBe(false)
+    }
+  })
+
+  it('chiều của thang và chiều của điểm LUÔN khớp nhau', () => {
+    // Kim càng sang phải thì điểm càng cao — ở CẢ sáu thang. Đây là ràng buộc thật:
+    // hai chiều khai ở hai chỗ thì sớm muộn một chỗ bị sửa lẻ.
+    const cases: [readonly Zone[], number, number][] = [
+      [HEALTH_ZONES.fund, 1, 10],
+      [HEALTH_ZONES.liquidity, 0.5, 3],
+      [HEALTH_ZONES.runway, 3, 40],
+      [HEALTH_ZONES.dti, 2.5, 0.2],
+      [HEALTH_ZONES.taxBurden, 0.5, 0.15],
+      [HEALTH_ZONES.concentration, 0.99, 0.5],
+    ]
+    for (const [zones, worse, better] of cases) {
+      const gW = scaleGeometry(worse, zones)
+      const gB = scaleGeometry(better, zones)
+      expect(gB.markerPct!).toBeGreaterThan(gW.markerPct!)
+      expect(scoreFromZones(better, zones)!).toBeGreaterThan(scoreFromZones(worse, zones)!)
+    }
+  })
+
+  it('bề rộng các vùng cộng lại đúng 100%', () => {
+    for (const zones of Object.values(HEALTH_ZONES)) {
+      const total = scaleGeometry(null, zones).bands.reduce((s, b) => s + b.widthPct, 0)
+      expect(total).toBeCloseTo(100, 6)
+    }
+  })
+
+  it('giá trị null → không vẽ kim (không vẽ ở 0, vì 0 là một giá trị THẬT)', () => {
+    expect(scaleGeometry(null, HEALTH_ZONES.fund).markerPct).toBeNull()
+    expect(scaleGeometry(0, HEALTH_ZONES.fund).markerPct).toBe(0)
+  })
+
+  it('vượt mốc cuối thì kim dừng ở mép, không tràn ra ngoài khung', () => {
+    expect(scaleGeometry(999, HEALTH_ZONES.fund).markerPct).toBe(100)
+    expect(scaleGeometry(999, HEALTH_ZONES.dti).markerPct).toBe(0)
+  })
+
+  it('nhãn mốc của thang nghịch lật theo dải', () => {
+    // dti gốc: good ≤0.5 · warn ≤1.5 · bad ≤3. Lật lại: bad | warn | good, và hai mốc
+    // in ra phải là 1.5 rồi 0.5 (đọc từ trái sang).
+    const g = scaleGeometry(1, HEALTH_ZONES.dti)
+    expect(g.bands.map((b) => b.upTo)).toEqual([1.5, 0.5, null])
   })
 })

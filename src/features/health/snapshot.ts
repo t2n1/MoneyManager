@@ -22,6 +22,15 @@ export const LIQUID_TYPES: AccountType[] = ['cash', 'bank', 'ic', 'ewallet']
 export interface HealthSnapshot {
   /** tiền mặt + ngân hàng + IC + ví điện tử, quy đổi base */
   liquidAssets: number
+  /**
+   * Tài sản ĐẦU TƯ (phải bán mới ra tiền), quy đổi base.
+   *
+   * KHÔNG nằm trong `liquidAssets` và cố ý không được cộng vào bất kỳ chỉ số nào ở trên:
+   * cả "quỹ dự phòng" lẫn "cầm cự nếu mất việc" đều chỉ đếm tiền lỏng. Nó có ở đây cho
+   * MỘT việc — thanh trượt "bán được bao nhiêu phần đầu tư" của khối mô phỏng (bản vẽ
+   * 27b), nơi người dùng TỰ chọn phần bán được thay vì app đoán hộ.
+   */
+  investableAssets: number
   /** dư nợ thẻ tín dụng (số dương) */
   cardDebt: number
   /** tổng mình đang nợ (thẻ + khoản vay) */
@@ -97,6 +106,7 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
 
   // --- Bảng cân đối: tài sản lỏng & công nợ ---
   let liquidAssets = 0
+  let investableAssets = 0
   let cardDebt = 0
   for (const b of balances) {
     if (b.is_archived || b.is_hidden || !b.include_in_totals) continue
@@ -108,7 +118,16 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
       else cardDebt += v
       continue
     }
-    if (!LIQUID_TYPES.includes(b.type)) continue
+    if (!LIQUID_TYPES.includes(b.type)) {
+      // Đầu tư đếm riêng cho thanh trượt mô phỏng; tài sản cố định (nhà, xe) thì không —
+      // "bán nhà để cầm cự" không phải một nếp chi, nó là một quyết định khác hẳn.
+      if (b.type === 'investment') {
+        const iv = convertToBase(b.balance, b.currency, base, rates)
+        if (iv === null) hasMissingRate = true
+        else if (iv > 0) investableAssets += iv
+      }
+      continue
+    }
     const v = convertToBase(b.balance, b.currency, base, rates)
     if (v === null) hasMissingRate = true
     else liquidAssets += v
@@ -224,6 +243,7 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
 
   return {
     liquidAssets,
+    investableAssets,
     cardDebt,
     totalDebt: cardDebt + loanDebt,
     debtDueWithin12m: cardDebt + loanDueSoon,

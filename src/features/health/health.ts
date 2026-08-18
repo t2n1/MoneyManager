@@ -239,6 +239,79 @@ export function simpleRunway(liquidAssets: number, netFlows: number[]): number |
  * dùng để vẽ; đưa xuống đây để điểm tổng chấm trên ĐÚNG mốc đang vẽ. Chiều của thang
  * đọc từ vùng đầu tiên: `bad` trước là "càng cao càng tốt", `good` trước là ngược lại.
  */
+/**
+ * Chiều của một thang: đọc từ vùng ĐẦU TIÊN. `bad` trước = càng cao càng tốt; `good`
+ * trước = càng thấp càng tốt (nợ, thuế, phụ thuộc nguồn thu).
+ *
+ * MỘT nguồn cho cả `scoreFromZones`, `scaleGeometry` và `verdictFor` — trước đây chiều
+ * được khai HAI lần (thứ tự mảng zone + cờ `higherIsBetter` truyền tay ở HealthView) và
+ * không có gì đối chiếu hai chỗ đó với nhau.
+ */
+export function lowerIsBetter(zones: readonly Zone[]): boolean {
+  return zones.length > 0 && zones[0].tone === 'good'
+}
+
+export interface ScaleBand {
+  tone: Tone
+  /** Bề rộng vùng, phần trăm của cả thang. */
+  widthPct: number
+  /** Mốc trên của vùng, ở ĐƠN VỊ GỐC — dùng in nhãn mốc. null = vùng cuối, không in mốc. */
+  upTo: number | null
+}
+
+export interface ScaleGeometry {
+  /** LUÔN xếp trái xấu → phải tốt, ở cả sáu chỉ số. */
+  bands: ScaleBand[]
+  /** Vị trí kim, 0–100. null = chưa tính được giá trị. */
+  markerPct: number | null
+  /** Thang này có bị đảo để đọc trái-xấu-phải-tốt hay không. */
+  inverted: boolean
+  max: number
+}
+
+/**
+ * Hình học của một thang sức khỏe, LUÔN đọc trái xấu → phải tốt.
+ *
+ * Vì sao cần: bản trước vẽ mỗi thang theo đúng thứ tự mảng zone của nó, nên "Quỹ dự phòng"
+ * đi đỏ→xanh còn "Nợ trên thu nhập" đi xanh→đỏ. Sáu thẻ, hai chiều, và mắt phải đọc lại
+ * thang mỗi lần — tức thang màu không còn làm được việc của nó.
+ *
+ * Cách đảo: ĐẢO GIÁ TRỊ, không đảo ý nghĩa vùng. Vùng vẫn giữ đúng tone của nó (good vẫn
+ * xanh), chỉ thứ tự vẽ và vị trí kim bị lật. Nhờ vậy `HEALTH_ZONES` không phải viết lại
+ * và điểm số vẫn chấm trên đúng mốc đang vẽ.
+ */
+export function scaleGeometry(value: number | null, zones: readonly Zone[]): ScaleGeometry {
+  const max = zones.length > 0 ? zones[zones.length - 1].upTo : 0
+  const inverted = lowerIsBetter(zones)
+  if (max <= 0) return { bands: [], markerPct: null, inverted, max: 0 }
+
+  let from = 0
+  const bands: ScaleBand[] = zones.map((z, i) => {
+    const band: ScaleBand = {
+      tone: z.tone,
+      widthPct: ((z.upTo - from) / max) * 100,
+      upTo: i === zones.length - 1 ? null : z.upTo,
+    }
+    from = z.upTo
+    return band
+  })
+
+  const raw =
+    value === null || !Number.isFinite(value)
+      ? null
+      : Math.min(100, Math.max(0, (value / max) * 100))
+
+  if (!inverted) return { bands, markerPct: raw, inverted, max }
+
+  // Thang nghịch: lật cả dải VÀ kim. Nhãn mốc phải lật theo — sau khi reverse, mốc của
+  // một vùng là mốc trên của vùng ĐỨNG TRƯỚC nó trong thứ tự gốc.
+  const flipped = [...bands].reverse().map((b, i, arr) => ({
+    ...b,
+    upTo: i === arr.length - 1 ? null : zones[zones.length - 1 - i - 1]?.upTo ?? null,
+  }))
+  return { bands: flipped, markerPct: raw === null ? null : 100 - raw, inverted, max }
+}
+
 export const HEALTH_ZONES = {
   fund: [
     { upTo: 3, tone: 'bad' },

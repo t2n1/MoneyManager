@@ -1,13 +1,18 @@
-// "Sức khỏe tài chính" — khám tổng quát, mỗi chỉ số một thẻ cùng khuôn: số lớn + thang
-// màu + một câu nghĩa là gì. Dữ liệu lấy từ 12 tháng ĐÃ HOÀN TẤT gần nhất (tháng đang
-// chạy dở bị loại để không kéo trung bình xuống).
+// "Sức khỏe tài chính" — bản 27b. Dữ liệu lấy từ 12 tháng ĐÃ HOÀN TẤT gần nhất (tháng
+// đang chạy dở bị loại để không kéo trung bình xuống).
+//
+// DỰNG LẠI (27b): sáu thẻ cao ~165–225px → MỘT bảng 44px/dòng; thang màu LUÔN trái-xấu-
+// phải-tốt ở cả sáu dòng (bản trước hai chiều lẫn nhau); chỉ số rủi ro lên thẻ riêng ở
+// đầu; cung tròn 150px → dải ngang 8px; ba ô đếm "3 Tốt / 2 Cần chú ý / 1 Rủi ro" bỏ vì
+// đếm lại đúng bảng ngay dưới; trọng số gộp một dòng chân bảng; thêm khối mô phỏng mất
+// việc có thanh trượt thật; và nhận thêm khối "Nhịp chi" chuyển sang từ tab Tháng này.
 //
 // Là tab con thứ 4 của Báo cáo (`/reports?view=health`), không còn là trang riêng — trước
 // đây nó là màn 532 dòng mà đường vào duy nhất là một card chôn giữa trang Báo cáo. Vì
 // vậy component này KHÔNG có nút back và KHÔNG tự đặt padding: vỏ ReportsPage lo cả hai.
 // Xem docs/information-architecture.md §2.4.
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Num } from '../../components/ui'
 import {
   useAccountBalances,
   useAccounts,
@@ -18,15 +23,26 @@ import {
   useRangeTransactions,
   useRates,
   useSavingsGoals,
+  useTransferCategoryIds,
 } from '../../hooks/queries'
-import { addMonths, getMonthRange, monthKeyForDate, toISODate, type MonthKey } from '../../lib/dates'
+import {
+  addDaysISO,
+  addMonths,
+  dayMonthLabel,
+  getMonthRange,
+  monthKeyForDate,
+  toISODate,
+  type MonthKey,
+} from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { taxCategoryIds } from '../tax/categories'
 import { earmarkedForGoals } from './earmarked'
-import { HealthMetricCard } from './HealthMetricCard'
-import { useDensity } from '../../hooks/useDensity'
 import { Section, SectionIndex, type IndexItem } from '../reports/SectionIndex'
-import { HealthScoreCard } from './HealthScoreCard'
+import { dailyExpenseTotals, monthlySeries } from '../reports/aggregate'
+import { detectPaydays, paydayEffect, weekdayProfile } from '../reports/behavior'
+import { findRegime } from '../reports/longRange'
+import { ReportBlock } from '../reports/ReportBlock'
+import { SpendRhythmCard } from '../reports/SpendRhythmCard'
 import {
   debtServiceRatio,
   debtToIncome,
@@ -39,24 +55,27 @@ import {
   scoreFromZones,
   taxBurden,
   verdictFor,
-  VERDICT_LABELS,
   type ScoreItem,
   type Verdict,
 } from './health'
 import { buildHealthSnapshot } from './snapshot'
-import { RunwayBand } from './RunwayBand'
+import { HealthTable, type HealthRow } from './HealthTable'
+import { JobLossPanel, ScoreBand, WeakestCard } from './HealthBlocks'
 import { weakestAction } from './weakestAction'
 
 // Mục lục của tab: 6 chỉ số cộng thẻ điểm. Nhãn ngắn hơn tiêu đề thẻ vì đây là hàng
 // chip cuộn ngang ("Khả năng trả nợ ngắn hạn" → "Nợ ngắn hạn").
+// Thứ tự PHẢI khớp thứ tự khối trong JSX — dải chip này là mục lục, mục lục sai thứ tự
+// thì bấm vào chip thứ ba lại nhảy xuống khối thứ năm.
+//
+// "Quỹ dự phòng" và "Nếu mất việc" đứng LIỀN NHAU và không được tách (B15.2): cùng một rổ
+// tiền, khác mẫu số, nên rời nhau ra là hai con số 5,0 và ≥60 đọc thành mâu thuẫn.
 const SECTIONS: readonly IndexItem[] = [
+  { id: 'hl-yeu-nhat', label: 'Chỗ yếu nhất' },
   { id: 'hl-diem', label: 'Điểm' },
-  { id: 'hl-quy', label: 'Quỹ dự phòng' },
-  { id: 'hl-thanh-khoan', label: 'Nợ ngắn hạn' },
-  { id: 'hl-dti', label: 'Nợ/thu nhập' },
-  { id: 'hl-runway', label: 'Nếu mất việc' },
-  { id: 'hl-nguon-thu', label: 'Nguồn thu' },
-  { id: 'hl-thue', label: 'Thuế' },
+  { id: 'hl-bang', label: 'Sáu chỉ số' },
+  { id: 'hl-mat-viec', label: 'Nếu mất việc' },
+  { id: 'hl-nhip', label: 'Nhịp chi' },
 ]
 
 /** Số tháng lịch sử tối đa dùng để chấm điểm. */
@@ -69,7 +88,6 @@ const num1 = (v: number) => v.toFixed(1).replace('.', ',')
 const months1 = (v: number) => (v >= 60 ? '≥ 60 tháng' : `${num1(v)} tháng`)
 
 export function HealthView() {
-  const { visual } = useDensity()
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
   const { base, rates } = useRates()
@@ -80,6 +98,7 @@ export function HealthView() {
   const { data: debts = [] } = useDebts()
   const { data: debtPayments = [] } = useDebtPayments()
   const { data: goals = [] } = useSavingsGoals()
+  const transferIds = useTransferCategoryIds()
 
   const todayISO = toISODate(new Date())
   // 12 tháng đã hoàn tất, KHÔNG gồm tháng đang chạy dở
@@ -130,8 +149,13 @@ export function HealthView() {
     [balances, debts, debtPayments, txs, categories, months, monthStartDay, accounts, base, rates, todayISO],
   )
 
-  const money = (v: number) => formatMoney(Math.round(v), base)
-  const nameOf = (id: string) => categories.find((c) => c.id === id)?.name ?? 'Nguồn khác'
+  // Chuỗi thu/chi theo tháng — nền cho kịch bản "nếp cũ" của khối mô phỏng. Dùng lại
+  // `monthlySeries` chứ không tự cộng: hai chỗ cộng chi là hai chỗ sớm muộn lệch nhau.
+  const monthSums = useMemo(
+    () => monthlySeries(txs, months, monthStartDay, currencyOf, base, r, transferIds).points,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [txs, months, monthStartDay, accounts, base, rates, transferIds],
+  )
 
   // --- Tính từng chỉ số ---
   const fund = emergencyFundMonths(snap.liquidAssets, snap.monthlyFixedExpense)
@@ -166,17 +190,10 @@ export function HealthView() {
     [snap.liquidAssets, snap.netFlows],
   )
   const runwayVerdict: Verdict = runway === null ? 'unknown' : verdictFor(runway.p50, 6, 18)
-  // Kịch bản thứ hai: cắt sạch chi linh hoạt. Cùng seed nên hai con số so được với nhau.
-  const runwayLean = useMemo(
-    () => monteCarloRunway(snap.liquidAssets, snap.essentialNetFlows),
-    [snap.liquidAssets, snap.essentialNetFlows],
-  )
-  // Chỉ hiện khi thực sự có gì để cắt và việc cắt tạo ra khác biệt
-  const showLean =
-    runway !== null &&
-    runwayLean !== null &&
-    snap.monthlyFlexibleExpense > 0 &&
-    (runwayLean.p50 > runway.p50 || runwayLean.survivalRate > runway.survivalRate)
+  // Kịch bản "cắt sạch chi linh hoạt" của bản trước KHÔNG còn là một con số cố định: 27b
+  // biến nó thành thanh trượt "chi mỗi tháng" của khối mô phỏng, nơi người dùng tự chọn
+  // mức chi thay vì app chọn hộ một mức duy nhất. `essentialNetFlows` vẫn còn trong
+  // snapshot vì nó là dữ liệu thật, chỉ không còn nơi hiển thị riêng.
 
   // Gộp = ròng + phần bị giữ lại. Khoản thuế nhập từ phiếu lương mang
   // `exclude_from_stats` nên KHÔNG nằm trong `annualIncome`; cộng lại mới ra gộp.
@@ -184,12 +201,6 @@ export function HealthView() {
   const burden = taxBurden(snap.taxAndSocial, snap.annualIncome + snap.taxAndSocial)
   const burdenVerdict: Verdict = snap.taxAndSocial <= 0 ? 'unknown' : verdictFor(burden, 0.35, 0.25, false)
 
-  const verdicts = [fundVerdict, liqVerdict, dtiVerdict, concVerdict, runwayVerdict, burdenVerdict]
-  const tally = {
-    good: verdicts.filter((v) => v === 'good').length,
-    warn: verdicts.filter((v) => v === 'warn').length,
-    bad: verdicts.filter((v) => v === 'bad').length,
-  }
 
   // Thang đo lấy từ health.ts — cùng mốc với phép chấm điểm bên dưới, nên thanh màu
   // trên thẻ và con số trên đồng hồ không thể nói khác nhau.
@@ -268,397 +279,318 @@ export function HealthView() {
         })
       : null
 
+  // Nhịp chi theo thứ + sau ngày lương — CHUYỂN TỪ tab "Tháng này" sang đây (bản 26a).
+  // Lý do: nó nói về NẾP, không về kỳ. Một tab tên "Tháng này" mà chứa trung bình sáu
+  // tháng theo thứ là đặt sai chỗ, và ở đó nó là khối duy nhất không nói về tháng.
+  const PAYDAY_WINDOW = 3
+  const rhythm = useMemo(() => {
+    const daily = dailyExpenseTotals(
+      txs,
+      range.start,
+      addDaysISO(range.end, -1),
+      currencyOf,
+      base,
+      r,
+      transferIds,
+    )
+    const paydays = detectPaydays(txs, currencyOf, base, r)
+    return {
+      payday: paydayEffect(daily.points, paydays, PAYDAY_WINDOW),
+      weekdays: weekdayProfile(daily.points),
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [txs, range.start, range.end, accounts, base, rates, transferIds])
+
+  // Mức chi nếp CŨ, cho kịch bản thứ ba của khối mô phỏng. null = chưa có cú đổi nếp nào
+  // trong cửa sổ, và lúc đó kịch bản đó biến mất chứ không dựng một mức bịa.
+  const oldRegimeExpense = useMemo(() => {
+    const regime = findRegime(
+      monthSums.map((m) => ({ key: m.key, income: m.income, expense: m.expense })),
+    )
+    return regime === null ? null : regime.before
+  }, [monthSums])
+
   if (!isFetched) {
     return <p className="p-6 text-center text-sm text-fg-muted">Đang tính…</p>
   }
 
+  // ------------------------------------------------------------------ sáu dòng bảng
+  //
+  // Thứ tự khai KHÔNG quyết định thứ tự hiện: HealthTable tự xếp rủi ro trước. Nhưng hai
+  // dòng "Quỹ dự phòng" và "Cầm cự nếu mất việc" LUÔN mang nhãn rổ + mẫu số của chúng
+  // (B15.2) — đó là điều duy nhất giải thích được vì sao 5,0 tháng nằm cạnh ≥60 tháng.
+  const rows: HealthRow[] = [
+    {
+      key: 'liq',
+      label: 'Khả năng trả nợ ngắn hạn',
+      display: liq === null ? '—' : `${num1(liq)}×`,
+      value: liq,
+      zones: liqZones,
+      verdict: liqVerdict,
+      weight: 10,
+      meaning: (
+        <>
+          Tiền mặt dùng được ÷ nợ tới hạn 12 tháng. Mốc <b>1×</b> là đủ trả, <b>2×</b> là
+          thoải mái.
+        </>
+      ),
+    },
+    {
+      key: 'conc',
+      label: 'Phụ thuộc một nguồn thu',
+      display: conc === null ? '—' : pct(conc.topShare),
+      value: conc?.topShare ?? null,
+      zones: concZones,
+      verdict: concVerdict,
+      weight: 20,
+      meaning: (
+        <>
+          Phần thu nhập đến từ nguồn lớn nhất
+          {conc !== null && conc.sourceCount > 0 && <> trong {conc.sourceCount} nguồn</>}. Càng
+          gần 100% thì mất một nguồn là mất gần hết.
+        </>
+      ),
+    },
+    {
+      key: 'fund',
+      label: 'Quỹ dự phòng',
+      note: 'tiền mặt ÷ chi cố định',
+      display: fund === null ? '—' : months1(fund),
+      value: fund,
+      zones: fundZones,
+      verdict: fundVerdict,
+      weight: 25,
+      meaning: (
+        <>
+          Giả định <b>thu bằng 0</b>: tiền mặt + ngân hàng + IC + ví điện tử chia cho chi CỐ
+          ĐỊNH mỗi tháng. Đầu tư không tính vì phải bán mới ra tiền.
+          {showFree && freeFund !== null && (
+            <>
+              {' '}
+              Trừ phần đang gom cho mục tiêu thì còn <b>{months1(freeFund)}</b>.
+            </>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'dti',
+      label: 'Nợ trên thu nhập năm',
+      display: dti === null ? '—' : pct(dti),
+      value: dti,
+      zones: dtiZones,
+      verdict: dtiVerdict,
+      weight: 15,
+      meaning: <>Tổng dư nợ ÷ thu nhập một năm. Dưới 50% là thoải mái, trên 150% là nặng.</>,
+    },
+    {
+      key: 'burden',
+      label: 'Thuế & an sinh trên lương gộp',
+      display: burden === null ? '—' : pct(burden),
+      value: burden,
+      zones: burdenZones,
+      verdict: burdenVerdict,
+      weight: 10,
+      meaning: (
+        <>
+          Thuế + bảo hiểm đã nộp ÷ lương gộp. Nó không phải chỉ số “tốt/xấu” của bạn — nó cho
+          biết phần thu nhập không bao giờ đi qua tay bạn.
+        </>
+      ),
+    },
+    {
+      key: 'runway',
+      label: 'Cầm cự nếu mất việc',
+      note: 'tiền mặt ÷ thu chi ròng thật',
+      display: runway === null ? '—' : months1(runway.p50),
+      value: runway?.p50 ?? null,
+      zones: runwayZones,
+      verdict: runwayVerdict,
+      weight: 20,
+      meaning: (
+        <>
+          Bốc lại những mức thu–chi ròng bạn ĐÃ từng trải qua trong {snap.monthsCounted} tháng,
+          cộng dồn vào tiền mặt cho tới khi âm. Cùng rổ tiền với quỹ dự phòng, khác mẫu số —
+          xem khối mô phỏng bên dưới để kéo thử.
+        </>
+      ),
+    },
+  ]
+
+  // ------------------------------------------------------------------ chỗ yếu nhất
+  const weakestRow = rows.find((row) => row.key === score?.weakest?.key) ?? null
+  const badCount = rows.filter((row) => row.verdict === 'bad').length
+  const weakestFacts = (() => {
+    switch (weakestRow?.key) {
+      case 'liq':
+        return [
+          { label: 'Tiền mặt dùng được', value: snap.liquidAssets },
+          { label: 'Nợ tới hạn 12 tháng', value: snap.debtDueWithin12m },
+          {
+            label: 'Với nhịp giữ lại hiện tại',
+            value: null,
+            text:
+              action?.etaMonths != null ? `${action.etaMonths} tháng` : 'chưa tính được',
+          },
+        ]
+      case 'fund':
+        return [
+          { label: 'Tiền mặt dùng được', value: snap.liquidAssets },
+          { label: 'Chi cố định mỗi tháng', value: snap.monthlyFixedExpense },
+          {
+            label: 'Còn thiếu để đủ 6 tháng',
+            value: Math.max(0, snap.monthlyFixedExpense * 6 - snap.liquidAssets),
+          },
+        ]
+      case 'dti':
+        return [
+          { label: 'Tổng dư nợ', value: snap.totalDebt },
+          { label: 'Thu nhập một năm', value: snap.annualIncome },
+          { label: 'Trả nợ mỗi tháng', value: snap.monthlyDebtPayment },
+        ]
+      case 'conc':
+        return [
+          { label: 'Nguồn thu lớn nhất', value: null, text: conc ? pct(conc.topShare) : '—' },
+          { label: 'Số nguồn thu', value: null, text: conc ? String(conc.sourceCount) : '—' },
+          { label: 'Thu nhập mỗi tháng', value: snap.monthlyIncome },
+        ]
+      default:
+        return [
+          { label: 'Tiền mặt dùng được', value: snap.liquidAssets },
+          { label: 'Chi mỗi tháng', value: snap.monthlyExpense },
+          { label: 'Thu mỗi tháng', value: snap.monthlyIncome },
+        ]
+    }
+  })()
+
   return (
-    <div className="flex flex-col gap-3">
-      {/* Cửa sổ thời gian nói ngay tại đây: tab này KHÔNG theo tháng/năm đang chọn ở tab
-          Biểu đồ, nên phải tự nói mình đọc dữ liệu nào. */}
-      <p className="text-xs text-fg-muted">Dựa trên {snap.monthsCounted} tháng gần nhất</p>
-
-      {/* Kết luận trước, chi tiết sau: một con số + đồng hồ để biết ngay tình hình chung */}
-      <SectionIndex items={SECTIONS} />
-
-      <Section id="hl-diem">
-        <HealthScoreCard
-          result={score}
-          items={scoreItems}
-          monthsCounted={snap.monthsCounted}
-          action={action}
-        />
-      </Section>
-
-      {/* Ba ô đếm nói CẤU TRÚC của điểm — điểm 65 vì mọi chỉ số đều lưng lửng, hay vì
-          5 chỉ số tốt và 1 chỉ số đang cháy? Hai trường hợp đó cần xử lý khác nhau. */}
-      <section className="grid grid-cols-3 gap-2">
-        {(
-          [
-            ['good', tally.good, 'text-money-in'],
-            ['warn', tally.warn, 'text-fg-warn'],
-            ['bad', tally.bad, 'text-money-out'],
-          ] as const
-        ).map(([key, count, cls]) => (
-          <div key={key} className="rounded-xl bg-surface p-3 text-center shadow-sm">
-            <p className={`text-xl font-bold tabular-nums ${cls}`}>{count}</p>
-            <p className="mt-0.5 text-2xs text-fg-muted">
-              {VERDICT_LABELS[key]}
-            </p>
-          </div>
-        ))}
-      </section>
+    <div className="flex flex-col gap-2.5">
+      {/* Cửa sổ thời gian nói ngay tại đây: tab này KHÔNG theo tháng đang chọn ở tab Tháng
+          này, nên phải tự nói mình đọc dữ liệu nào. */}
+      <Num tone="muted" className="text-2xs tracking-[.06em]">
+        {snap.monthsCounted} tháng gần nhất · cập nhật {dayMonthLabel(todayISO)}
+      </Num>
 
       {snap.hasMissingRate && (
-        <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-xs">
-          Một phần số liệu ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên các chỉ số có thể thiếu.
+        <div className="rounded-lg bg-state-warn-bg p-2 text-xs text-state-warn-fg">
+          Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên số liệu có thể
+          thiếu.
         </div>
       )}
 
-      {/* Đây là cảnh báo ĐỘ TIN của mọi con số bên dưới, không phải chữ hướng dẫn —
-          nên chế độ Gọn vẫn giữ, chỉ rút xuống phần không suy ra được từ đâu khác. */}
-      {snap.monthsCounted < 3 && (
-        <div className="rounded-lg bg-sky-50 p-2 text-xs text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
-          Mới có {snap.monthsCounted} tháng dữ liệu
-          {!visual &&
-            '. Các chỉ số dựa trên trung bình tháng sẽ chính xác dần khi bạn ghi chép đủ 3–6 tháng'}
-          .
-        </div>
-      )}
+      <div className="lg:hidden">
+        <SectionIndex items={SECTIONS} />
+      </div>
 
-      {/* 1. Quỹ dự phòng */}
-      <Section id="hl-quy">
-        <HealthMetricCard
-          title="Quỹ dự phòng — đệm cho việc bất ngờ"
-          weight={25}
-          display={fund === null ? '—' : months1(fund)}
-          verdict={fundVerdict}
-          value={fund}
-          zones={fundZones}
-          zoneLabels={['3', '6']}
-          meaning={
-            fund === null ? (
+      {/* CHỖ YẾU NHẤT lên đầu, thẻ riêng (27b). Bản trước để nó ở dòng thứ hai của danh
+          sách, cùng cỡ chữ với "Thuế & an sinh 20% · Tốt" — tức chỉ số duy nhất đang đỏ
+          trông ngang hàng với chỉ số không cần làm gì. */}
+      {weakestRow !== null && weakestRow.verdict !== 'good' && (
+        <Section id="hl-yeu-nhat">
+          <WeakestCard
+            title={weakestRow.label}
+            headline={
               <>
-                Chưa tính được vì chưa biết mỗi tháng bạn phải trả cố định bao nhiêu.{' '}
-                <Link to="/settings/categories/classify" className="font-medium text-fg-accent">
-                  Phân loại danh mục chi
-                </Link>{' '}
-                để mở chỉ số này.
-              </>
-            ) : (
-              <>
-                Nếu hôm nay mất thu nhập, tiền lỏng ({money(snap.liquidAssets)}) đủ trả các khoản cố
-                định ({money(snap.monthlyFixedExpense)}/tháng) trong <b>{months1(fund)}</b>.
-              </>
-            )
-          }
-          extra={
-            showFree ? (
-              // Con số này KHÔNG bị chế độ Gọn ẩn, chỉ bị rút ngắn: nó sửa lại chính số
-              // lớn trên thẻ (quỹ đang bị tiền để dành làm phồng lên). Ẩn đi thì thẻ nói
-              // một con số lạc quan hơn thực tế — đó là bỏ dữ liệu, không phải bỏ chữ.
-              <div className="mt-2 rounded-lg bg-sky-50 p-2 dark:bg-sky-900/30">
-                <p className="text-xs leading-relaxed text-fg-primary">
-                  {visual ? (
-                    <>
-                      Trừ tiền để dành: <b>{months1(freeFund!)}</b>
-                    </>
-                  ) : (
-                    <>
-                      Trong đó <b>{money(earmarked.total)}</b> đang để dành cho mục tiêu tiết kiệm.
-                      Trừ phần đã có chủ thì quỹ dự phòng thật sự tự do là{' '}
-                      <b>{months1(freeFund!)}</b>.{' '}
-                      <Link to="/assets" className="font-medium text-fg-accent">
-                        Xem mục tiêu
-                      </Link>
-                    </>
-                  )}
-                </p>
-              </div>
-            ) : null
-          }
-          how={
-            <>
-              <p>
-                <b>Cách tính:</b> tiền mặt + ngân hàng + IC + ví điện tử, chia cho chi CỐ ĐỊNH trung
-                bình mỗi tháng. Tiền đầu tư và tài sản cố định không tính vì không rút ra tiêu ngay được.
-              </p>
-              <p>
-                Nếu bạn có mục tiêu tiết kiệm gắn với một tài khoản lỏng, app tính thêm con số thứ hai
-                đã trừ phần tiền đang gom cho mục tiêu đó — vì tiêu vào nó nghĩa là bỏ mục tiêu.
-              </p>
-              <p>
-                <b>Mốc:</b> dưới 3 tháng là rủi ro, 3–6 tháng tạm ổn, từ 6 tháng trở lên là tốt. Ở Nhật
-                nếu bạn đang ở visa phụ thuộc công ty thì nên nhắm 6–12 tháng.
-              </p>
-              <p>
-                <b>Nên làm:</b> chuyển phần dư mỗi tháng vào một tài khoản riêng và đừng gắn thẻ vào nó.
-              </p>
-            </>
-          }
-        />
-      </Section>
-
-      {/* 2. Tỷ lệ thanh khoản */}
-      <Section id="hl-thanh-khoan">
-        <HealthMetricCard
-          title="Khả năng trả nợ ngắn hạn"
-          weight={10}
-          display={
-            snap.debtDueWithin12m <= 0 ? 'Không có nợ' : liq === null ? '—' : `${num1(liq)}×`
-          }
-          verdict={liqVerdict}
-          value={snap.debtDueWithin12m <= 0 ? null : liq}
-          zones={liqZones}
-          zoneLabels={['1×', '2×']}
-          meaning={
-            snap.debtDueWithin12m <= 0 ? (
-              <>Bạn không có khoản nợ nào phải trả trong 12 tháng tới. Nhẹ đầu.</>
-            ) : (
-              <>
-                Tiền lỏng đang gấp <b>{liq === null ? '—' : `${num1(liq)}×`}</b> số nợ phải trả trong 12 tháng tới (
-                {money(snap.debtDueWithin12m)}). Dưới 1× nghĩa là bán sạch tiền mặt vẫn chưa trả hết.
-              </>
-            )
-          }
-          how={
-            <>
-              <p>
-                <b>Cách tính:</b> tài sản lỏng ÷ (dư nợ thẻ tín dụng + khoản vay đến hạn trong 12 tháng).
-                Khoản vay không ghi hạn trả được tính là ngắn hạn cho an toàn.
-              </p>
-              <p>
-                <b>Mốc:</b> dưới 1× là rủi ro, 1–2× tạm ổn, từ 2× trở lên là thoải mái.
-              </p>
-            </>
-          }
-        />
-      </Section>
-
-      {/* 3. Nợ trên thu nhập */}
-      <Section id="hl-dti">
-        <HealthMetricCard
-          title="Nợ trên thu nhập năm"
-          weight={15}
-          display={snap.totalDebt <= 0 ? 'Không nợ' : dti === null ? '—' : `${(dti * 100).toFixed(0)}%`}
-          verdict={dtiVerdict}
-          value={snap.totalDebt <= 0 ? null : dti}
-          zones={dtiZones}
-          zoneLabels={['50%', '150%']}
-          meaning={
-            snap.totalDebt <= 0 ? (
-              <>Bạn không có dư nợ nào. Chỉ số này chỉ bật khi có nợ.</>
-            ) : dti === null ? (
-              <>Cần có khoản Thu trong kỳ mới so sánh được với dư nợ {money(snap.totalDebt)}.</>
-            ) : (
-              <>
-                Tổng nợ {money(snap.totalDebt)} bằng <b>{pct(dti)}</b> thu nhập một năm của bạn.
-                {dsr !== null && dsr > 0 && (
-                  <> Mỗi tháng đang trả nợ {money(snap.monthlyDebtPayment)} ({pct(dsr)} thu nhập).</>
-                )}
-              </>
-            )
-          }
-          how={
-            <>
-              <p>
-                <b>Cách tính:</b> (dư nợ thẻ + dư nợ vay) ÷ tổng thu nhập {snap.monthsCounted} tháng qua.
-              </p>
-              <p>
-                <b>Mốc:</b> dưới 50% là tốt, 50–150% cần chú ý, trên 150% là nặng. Mốc này dành cho nợ
-                tiêu dùng — nếu bạn có vay mua nhà thì đọc con số này rộng tay hơn.
-              </p>
-            </>
-          }
-        />
-      </Section>
-
-      {/* 4. Runway */}
-      <Section id="hl-runway">
-        <HealthMetricCard
-          title="Nếu mất việc — cầm cự được bao lâu (mô phỏng)"
-          weight={20}
-          display={
-            runway === null
-              ? '—'
-              : runway.p50 >= runway.horizon
-                ? `≥ ${runway.horizon} tháng`
-                : months1(runway.p50)
-          }
-          verdict={runwayVerdict}
-          value={runway?.p50 ?? null}
-          zones={runwayZones}
-          zoneLabels={['6', '18']}
-          meaning={
-            runway === null ? (
-              visual ? (
-                <>Cần 3 tháng dữ liệu và số dư dương.</>
-              ) : (
-                <>Cần ít nhất 3 tháng dữ liệu và số dư dương để chạy mô phỏng.</>
-              )
-            ) : runway.survivalRate >= 0.95 ? (
-              <>
-                Với đà thu chi hiện tại, hầu như mọi kịch bản đều <b>không cạn tiền</b> trong{' '}
-                {runway.horizon} tháng tới.
-              </>
-            ) : (
-              <>
-                Kịch bản trung bình: cạn tiền sau <b>{runway.p50} tháng</b>. Nếu xui (10% tệ nhất):{' '}
-                {runway.p10} tháng. Nếu may: {runway.p90} tháng.
-              </>
-            )
-          }
-          extra={
-            // DẢI PHÂN VỊ (15b mục 5) thay khối chữ cũ. Ba con số p10/p50/p90 nằm trong
-            // câu văn thì bắt người đọc tự dựng hình, mà thứ đáng thấy nhất lại là ĐỘ
-            // RỘNG của dải: dải hẹp nghĩa là tương lai khá chắc, dải rộng nghĩa là chính
-            // con số trung vị cũng không đáng tin lắm.
-            //
-            // KHÔNG bọc Guide và không đổi theo chế độ Gọn: đây là đồ hoạ dữ liệu, cùng
-            // loại với thang màu của chính thẻ này — chế độ Gọn cắt CHỮ để dạy, không cắt
-            // hình. Hai hàng dùng chung một trục nên "cắt chi thì được thêm bao lâu" đọc
-            // được bằng mắt, thứ mà hai câu văn ở hai chỗ không nói ra.
-            runway !== null ? (
-              <RunwayBand
-                base={runway}
-                lean={showLean ? runwayLean : null}
-                leanLabel={formatMoney(Math.round(snap.monthlyFlexibleExpense), base)}
-              />
-            ) : null
-          }
-          how={
-            <>
-              <p>
-                <b>Cách tính:</b> chạy 2.000 kịch bản; mỗi tháng bốc ngẫu nhiên một mức thu–chi ròng
-                mà bạn ĐÃ từng trải qua trong {snap.monthsCounted} tháng gần nhất, cộng dồn vào tiền
-                lỏng cho tới khi âm.
-              </p>
-              <p>
-                Khác với phép chia đơn giản ở chỗ nó tính cả những tháng đột biến, nên con số sát thực
-                tế hơn. Càng nhiều tháng dữ liệu thì càng đáng tin.
-              </p>
-              <p>
-                Kịch bản "cắt chi linh hoạt" chạy lại đúng phép trên nhưng bỏ hết khoản thuộc danh mục
-                bạn đã đánh dấu <b>Linh hoạt</b>. Danh mục chưa phân loại vẫn bị coi là thiết yếu, nên
-                đây là con số thận trọng.
-                {snap.hasUnclassifiedNeed && (
-                  <>
-                    {' '}
-                    Bạn còn danh mục chưa phân loại — vào{' '}
-                    <Link
-                      to="/settings/categories/classify"
-                      className="font-medium text-fg-accent"
-                    >
-                      Phân loại nhanh
-                    </Link>{' '}
-                    để con số này sát hơn.
-                  </>
-                )}
-              </p>
-            </>
-          }
-        />
-      </Section>
-
-      {/* 5. Tập trung thu nhập */}
-      <Section id="hl-nguon-thu">
-        <HealthMetricCard
-          title="Phụ thuộc một nguồn thu"
-          weight={20}
-          display={conc === null ? '—' : pct(conc.topShare)}
-          verdict={concVerdict}
-          value={conc?.topShare ?? null}
-          zones={concZones}
-          zoneLabels={['70%', '95%']}
-          meaning={
-            conc === null ? (
-              <>Chưa ghi nhận khoản Thu nào trong kỳ.</>
-            ) : (
-              <>
-                <b>{pct(conc.topShare)}</b> thu nhập đến từ “{nameOf(conc.topKey)}”. Bạn đang có{' '}
-                {conc.sourceCount} nguồn thu. Mất nguồn lớn nhất là mất chừng đó thu nhập.
-              </>
-            )
-          }
-          how={
-            <>
-              <p>
-                <b>Cách tính:</b> tỷ trọng nguồn thu lớn nhất trên tổng thu {snap.monthsCounted} tháng,
-                gom theo danh mục Thu.
-              </p>
-              <p>
-                <b>Mốc:</b> trên 95% là rủi ro cao (một nguồn duy nhất), 70–95% cần chú ý, dưới 70% là
-                đã có chân thứ hai.
-              </p>
-              <p>
-                <b>Nên làm:</b> ai đi làm công ăn lương thì con số này gần 100% là bình thường — bù lại
-                bằng quỹ dự phòng dày hơn.
-              </p>
-            </>
-          }
-        />
-      </Section>
-
-      {/* 6. Gánh nặng thuế & an sinh */}
-      <Section id="hl-thue">
-        <HealthMetricCard
-          title="Thuế & an sinh trên lương gộp"
-          weight={10}
-          display={snap.taxAndSocial <= 0 || burden === null ? '—' : pct(burden)}
-          verdict={burdenVerdict}
-          value={snap.taxAndSocial <= 0 ? null : burden}
-          zones={burdenZones}
-          zoneLabels={['25%', '35%']}
-          meaning={
-            snap.taxAndSocial <= 0 ? (
-              // Hai câu HOÀN CHỈNH, không phải một câu bị cắt mảnh: tách theo mảnh thì
-              // chế độ Gọn hiện ra "Chưa ghi khoản thuế/bảo hiểm nào. tạo bộ danh mục
-              // Thuế & An sinh." — chữ thường sau dấu chấm, cụm link mất chủ ngữ.
-              // Cả hai chế độ đều PHẢI còn đường đi sửa, nên link có ở cả hai.
-              <>
-                {visual ? (
-                  <>
-                    Chưa ghi khoản thuế/bảo hiểm nào —{' '}
-                    <Link to="/settings/categories" className="font-medium text-fg-accent">
-                      tạo bộ danh mục
-                    </Link>
-                    .
-                  </>
+                {weakestRow.label} đang là <b>{weakestRow.display}</b>
+                {action === null ? (
+                  '.'
                 ) : (
                   <>
-                    Chưa ghi khoản thuế/bảo hiểm nào. Muốn theo dõi 所得税・住民税・社会保険料,
-                    hãy{' '}
-                    <Link to="/settings/categories" className="font-medium text-fg-accent">
-                      tạo bộ danh mục Thuế &amp; An sinh
-                    </Link>{' '}
-                    rồi nhập theo 給与明細.
+                    {' '}
+                    — {action.text}
+                    {action.amountText !== null && (
+                      <>
+                        {' '}
+                        (<b>{action.amountText}</b>)
+                      </>
+                    )}
+                    {/* `action.text` của weakestAction.ts đã tự kết câu bằng dấu chấm ở
+                        phần lớn nhánh. Thêm dấu chấm vô điều kiện ra ".." — kiểm ký tự
+                        cuối thay vì sửa 8 chuỗi ở file kia. */}
+                    {!/[.!?]$/.test(action.text) && '.'}
                   </>
                 )}
               </>
-            ) : (
-              <>
-                Bạn nộp {money(snap.taxAndSocial)} thuế và bảo hiểm trong {snap.monthsCounted} tháng,
-                bằng <b>{burden === null ? '—' : pct(burden)}</b> thu nhập gộp.
-              </>
-            )
-          }
-          how={
-            <>
-              <p>
-                <b>Cách tính:</b> tổng chi thuộc nhóm “Thuế &amp; An sinh” ÷ (khoản Thu trong kỳ +
-                chính tổng đó). Vế sau là <b>lương gộp</b>: tiền về tay cộng phần bị giữ lại.
-                Khoản thuế đứng NGOÀI ô Thu/Chi — thuế trừ tại nguồn không phải chi tuỳ ý — nên
-                chúng hiện màu xám trong Sổ và không làm phồng mức chi.
-              </p>
-              <p>
-                <b>Tham chiếu ở Nhật:</b> người làm công ăn lương thường rơi vào 20–30% (thuế thu nhập
-                + thuế cư trú + bảo hiểm y tế + hưu trí). Trên 35% thì nên xem lại các khoản khấu trừ
-                (扶養控除, 生命保険料控除, ふるさと納税).
-              </p>
-            </>
-          }
+            }
+            facts={weakestFacts}
+            base={base}
+            onlyRisk={badCount === 1 && weakestRow.verdict === 'bad'}
+          />
+        </Section>
+      )}
+
+      <Section id="hl-diem">
+        <ScoreBand
+          score={score?.score ?? 0}
+          verdict={score?.verdict ?? 'unknown'}
+          counted={score?.counted ?? 0}
+          total={score?.total ?? rows.length}
+          // Xu hướng ẨN: app chưa lưu lịch sử điểm (không có bảng, không có localStorage —
+          // xem snapshot.ts). Vẽ một thẻ "±0 điểm" là bịa ra một sự ổn định chưa đo được.
+          trend={null}
         />
       </Section>
+
+      <Section id="hl-bang">
+        <ReportBlock no="01" title="Sáu chỉ số · trái là xấu, phải là tốt ở cả sáu dòng">
+          <HealthTable rows={rows} />
+          {/* CÂU BẮT BUỘC (B15.2) — hai chỉ số cùng rổ, khác mẫu số. Không bọc <Guide>:
+              thiếu nó thì "5,0 tháng" cạnh "≥60 tháng" đọc ra như hai số đá nhau, và người
+              đọc mất tin cả trang.
+              Chú ý: bản vẽ 27b ghi rằng phần cầm cự "đếm cả đầu tư" — SAI. Cả hai chỉ đếm
+              tiền lỏng (`snapshot.LIQUID_TYPES`); khác biệt nằm ở MẪU SỐ. */}
+          <p className="rounded-lg border border-border-panel bg-surface px-3 py-2 text-xs text-fg-secondary">
+            {/* Mệnh đề mở đầu chỉ nêu HAI CON SỐ khi cả hai thật sự có và thật sự lệch
+                nhau. Thiếu điều kiện đó thì câu tự nói "vì sao ≥60 tháng đệm mà cầm cự tới
+                lâu hơn nhiều" — một câu hỏi về một nghịch lý không tồn tại. Nhưng phần
+                KHAI RỔ thì luôn in, ở mọi trường hợp: đó là yêu cầu B15.2. */}
+            {fund !== null && runway !== null && runway.p50 > fund + 1 ? (
+              <b>
+                Vì sao {months1(fund)} đệm mà cầm cự tới {months1(runway.p50)}:{' '}
+              </b>
+            ) : (
+              <b>Hai chỉ số quỹ dự phòng và cầm cự đo gì: </b>
+            )}
+            chúng đếm <b>cùng một rổ tiền</b> — tiền mặt, ngân hàng, IC, ví điện tử; tiền đầu
+            tư không nằm trong cả hai. Khác nhau ở <b>mẫu số</b>: quỹ dự phòng giả định thu
+            bằng 0 và chia cho chi cố định, còn phần cầm cự bốc lại những mức thu–chi ròng đã
+            từng xảy ra trong {snap.monthsCounted} tháng gần nhất. Kéo thanh trượt ở khối dưới
+            về 0% đầu tư để thấy hai con số gặp nhau.
+          </p>
+        </ReportBlock>
+      </Section>
+
+      <Section id="hl-mat-viec">
+        <ReportBlock no="02" title="Nếu mất việc — thử các nếp chi">
+          <JobLossPanel
+            liquidAssets={snap.liquidAssets}
+            investableAssets={snap.investableAssets}
+            monthlyIncomes={monthSums.map((m) => m.income)}
+            baseExpense={snap.monthlyExpense}
+            oldRegimeExpense={oldRegimeExpense}
+            fundMonths={fund}
+            fundLabel={fund === null ? '—' : months1(fund)}
+            base={base}
+            monthsCounted={snap.monthsCounted}
+          />
+        </ReportBlock>
+      </Section>
+
+      {/* Nhịp chi — chuyển từ tab "Tháng này" (26a): nó nói về NẾP, không về kỳ. */}
+      <Section id="hl-nhip">
+        <SpendRhythmCard
+          payday={rhythm.payday}
+          weekdays={rhythm.weekdays}
+          base={base}
+          windowDays={PAYDAY_WINDOW}
+        />
+      </Section>
+
+      <p className="px-1 pb-2 text-2xs text-fg-muted">
+        {snap.monthsCounted} tháng gần nhất · quy đổi ≈ {base} · mô phỏng không tính lạm phát
+        và thuế bán tài sản
+        {dsr !== null && dsr > 0 && <> · trả nợ chiếm {pct(dsr)} thu nhập tháng</>}
+      </p>
     </div>
   )
 }

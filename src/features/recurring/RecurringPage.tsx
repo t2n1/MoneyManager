@@ -263,7 +263,7 @@ export function RecurringPage() {
                     type="button"
                     onClick={() => dismissSuggestion(s.key)}
                     aria-label="Bỏ qua gợi ý"
-                    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-green-700/60 hover:text-green-700 dark:text-green-300/60"
+                    className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-green-700/60 hover:text-green-700 dark:text-green-300/60"
                   >
                     <X className="h-4 w-4" />
                   </button>

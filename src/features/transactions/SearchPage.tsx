@@ -227,14 +227,16 @@ export function SearchPage() {
       </div>
 
       {/* Ô tìm ghi chú */}
-      <Card padding="none" className="mb-2 flex items-center gap-2 px-3 py-2 focus-within:ring-2 focus-within:ring-green-500">
+      <Card padding="none" className="mb-2 flex items-center gap-2 px-3 py-2 focus-within:ring-2 focus-within:ring-accent">
         <Search className="h-5 w-5 text-fg-muted" />
         <input
           aria-label="Tìm theo ghi chú"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Tìm theo ghi chú…"
-          className="flex-1 text-sm text-fg-primary"
+          // `outline-none` vì <Card> bao ngoài đã có `focus-within:ring-accent` — để ô
+          // tự vẽ thêm ring nữa là hai vòng lồng nhau (xem designSystem.test.ts).
+          className="flex-1 text-sm text-fg-primary outline-none"
         />
         {text && (
           <button type="button" onClick={() => setText('')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-fg-muted" aria-label="Xóa">

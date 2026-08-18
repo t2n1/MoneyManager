@@ -616,7 +616,7 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
             key={g.name}
             ref={dragEnabled ? (el) => setZone(g.name, el) : undefined}
             className={`overflow-hidden rounded-2xl bg-surface shadow-sm ${
-              isDropTarget ? 'ring-2 ring-green-500/60' : ''
+              isDropTarget ? 'ring-2 ring-accent/60' : ''
             }`}
             style={{ borderLeft: `4px solid ${colorOf(g.name)}` }}
           >

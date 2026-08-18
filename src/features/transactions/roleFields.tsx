@@ -64,7 +64,7 @@ function MoneyField({
         type="button"
         onClick={onFocus}
         aria-label={`${ariaLabel}: ${formatMoney(value, currency)}`}
-        className={`${moneyBoxCls} ${active ? 'ring-2 ring-green-500' : ''} ${
+        className={`${moneyBoxCls} ${active ? 'ring-2 ring-accent' : ''} ${
           isEmpty ? 'text-fg-muted' : 'text-fg-primary'
         } lg:hidden`}
       >

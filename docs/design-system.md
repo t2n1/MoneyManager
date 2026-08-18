@@ -289,13 +289,17 @@ Cái đã xoá và vì sao mỗi cái là một lỗi thật:
 |---|---|---|
 | `outline-green-500` | 51 | green-500 trên nền trắng ~1,9:1 — dưới hẳn 3:1 của WCAG 1.4.11 |
 | `focus:outline-none` + `focus:border-green-500` | 8 | tắt outline, đổi màu viền **1px** làm chỉ báo |
-| `outline-none` trong ô tìm | 5 | tắt hẳn, không thay bằng gì: Tab vào thì **không có gì hiện lên** |
+| `outline-none` trong ô tìm | 5 | xem đính chính ngay dưới |
 
-Ba chỗ cuối đáng chú ý: ý đồ là "viền của khung bao mới là chỉ báo", nhưng khung là `<div>` và `<div>` không nhận focus.
+**Đính chính** (lượt sau đo lại từng chỗ): năm ô tìm đó không giống nhau. **Hai** chỗ — ô tìm ở top bar và ô tìm trong panel `AccountPicker` — khung bao là `<form>`/`<div>` trơn, không có `focus-within`, nên Tab vào thật sự **không có gì hiện lên**. **Ba** chỗ còn lại (`TagPicker` ×2, `SearchPage`) thì khung bao CÓ `focus-within:ring` — lỗi ở đó là **tương phản** (ring tô green-500, ~1,9:1), không phải thiếu chỉ báo. Câu "Tab vào thì không có gì hiện lên" ở lượt trước đúng với hai chỗ, sai với ba chỗ.
+
+Cách chữa vì thế cũng khác nhau: hai chỗ đầu để ô tự vẽ ring token; ba chỗ sau giữ ring của khung bao (đổi sang `focus-within:ring-accent`) và **trả lại** `outline-none` cho ô — không thì hai vòng ring lồng nhau.
 
 Ring token đo được (canvas pixel readback, bốn nấc bề mặt): light `green-700` **4,95 / 4,45 / 4,14**; dark `green-500` **8,59 / 8,98 / 8,04 / 8,77**. Chỗ mỏng nhất còn dư 38%.
 
-**Vì sao `outline-none` thắng được ring:** nó là tiện ích thường (specificity 0,1,0) còn ring đi qua `:where()` (specificity 0) — nên có một luật riêng cấm `outline-none` **trong thẻ mở của ô nhập**. Trên `<div>` thì vẫn hợp lệ: tấm sheet nhận focus bằng script lúc mở, vẽ ring quanh cả tấm ở đó là nhiễu.
+**Vì sao `outline-none` thắng được ring:** nó là tiện ích thường (specificity 0,1,0) còn ring đi qua `:where()` (specificity 0). Luật vì thế có ngoại lệ, và ngoại lệ đó kiểm được: **ô nhập chỉ được tắt outline khi file có `focus-within:ring`**. Kiểm theo file là thô — muốn chặt hơn phải dựng cây JSX — nhưng đúng hướng và không phải đoán. Trên `<div>` thì `outline-none` vẫn hợp lệ: tấm sheet nhận focus bằng script lúc mở, vẽ ring quanh cả tấm ở đó là nhiễu.
+
+Cùng đợt: **13 chỗ `ring-green-500`** (viền sáng khi kéo–thả, khi bàn phím số mở, ô đang chọn) đổi sang `ring-accent`. Ở dark hai thứ tình cờ trùng nhau — cùng là green-500 — nên trước đó chúng **đang đúng vì may**, không phải vì có luật. Kèm 4 control còn mang `rounded` trần (4px) → `rounded-md`.
 
 **Hai lần đã xảy ra đúng chuyện đó, ghi lại để nhận ra sớm hơn:**
 

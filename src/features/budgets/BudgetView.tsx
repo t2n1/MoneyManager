@@ -523,7 +523,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                       onClick={() => toggle(item.cat.id)}
                       aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
                       aria-expanded={isOpen}
-                      className="flex w-9 shrink-0 items-center justify-center rounded text-fg-muted hover:text-fg-primary"
+                      className="flex w-9 shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg-primary"
                     >
                       {isOpen ? (
                         <ChevronDown className="h-4 w-4" />
@@ -618,7 +618,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                         // 20×20 là quá nhỏ để bấm; min-h-11 min-w-9 là cỡ nút icon hẹp
                         // app đang dùng sẵn. -my-2 để vùng chạm cao 44px không đẩy dòng
                         // giãn ra (cùng mẹo với nút "Chọn" ở LedgerPage).
-                        className="-my-2 flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded text-fg-muted hover:text-fg-primary"
+                        className="-my-2 flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg-primary"
                       >
                         {isOpen ? (
                           <ChevronDown className="h-4 w-4" />

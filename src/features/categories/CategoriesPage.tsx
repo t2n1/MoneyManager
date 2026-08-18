@@ -247,8 +247,8 @@ export function CategoriesPage() {
       <div
         ref={(el) => setZone(p.id, el)}
         className={`overflow-hidden rounded-xl bg-surface ${
-          dragging ? 'shadow-lg ring-2 ring-green-500/40' : 'shadow-sm'
-        } ${isDropTarget ? 'ring-2 ring-green-500/60' : ''}`}
+          dragging ? 'shadow-lg ring-2 ring-accent/40' : 'shadow-sm'
+        } ${isDropTarget ? 'ring-2 ring-accent/60' : ''}`}
       >
         {/* Danh mục cha. Đệm dọc mỏng thôi: các nút bên trong đã cao 44px (chuẩn
             vùng chạm) tự quyết chiều cao hàng — đệm dày nữa chỉ thêm khí chết,
@@ -706,7 +706,7 @@ function CategoryForm({
               type="button"
               onClick={() => setIcon(e)}
               className={`flex aspect-square items-center justify-center rounded-md text-xl ${
-                icon === e ? 'bg-green-100 dark:bg-green-900/40 ring-2 ring-green-500' : 'hover:bg-surface-sunken'
+                icon === e ? 'bg-green-100 dark:bg-green-900/40 ring-2 ring-accent' : 'hover:bg-surface-sunken'
               }`}
             >
               {e}

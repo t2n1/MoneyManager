@@ -73,7 +73,7 @@ function Row({
           type="button"
           onClick={onDismiss}
           aria-label="Bỏ qua tin này"
-          className="-my-2 -mr-2 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-fg-muted hover:text-fg-primary"
+          className="-my-2 -mr-2 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg-primary"
         >
           <X className="h-4 w-4" />
         </button>

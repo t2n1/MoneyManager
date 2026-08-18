@@ -451,22 +451,28 @@ describe('design system — ban cứng (phải bằng 0)', () => {
   })
 
   /**
-   * `outline-none` TRÊN Ô NHẬP là tắt hẳn chỉ báo tiêu điểm, và ring toàn cục KHÔNG cứu
-   * được: `outline-none` là tiện ích thường (specificity 0,1,0) còn ring đi qua `:where()`
+   * `outline-none` trên ô nhập tắt hẳn chỉ báo tiêu điểm, và ring toàn cục KHÔNG cứu được:
+   * `outline-none` là tiện ích thường (specificity 0,1,0) còn ring đi qua `:where()`
    * (specificity 0) nên luôn thua.
    *
-   * Năm chỗ từng như thế đều là ô tìm nằm trong một khung có viền — ý đồ là "viền của
-   * khung mới là chỉ báo", nhưng khung là <div> và <div> không nhận focus, nên thực tế bấm
-   * Tab vào ô đó thì không có gì hiện lên cả.
+   * NGOẠI LỆ có thật: ô nhập nằm trong một khung bao dùng `focus-within:ring`. Lúc đó
+   * khung mới là thứ vẽ chỉ báo, và để ô tự vẽ thêm một ring nữa là hai vòng lồng nhau.
    *
-   * Chỉ soi trong THẺ MỞ của ô nhập: `outline-none` trên <div> vẫn hợp lệ — tấm sheet của
-   * EditTransactionSheet nhận focus bằng script lúc mở (không phải điều hướng bàn phím),
-   * vẽ ring quanh cả tấm ở đó là nhiễu chứ không giúp ai.
+   * Kiểm theo FILE chứ không theo cây DOM — thô, nhưng đúng hướng và không đoán: file nào
+   * có `focus-within:ring` thì widget ở đó đã tự lo. Muốn chặt hơn phải dựng cây JSX, mà
+   * cái giá đó không xứng với năm chỗ.
+   *
+   * ĐÍNH CHÍNH một câu tôi từng viết ở lượt trước ("Tab vào thì không có gì hiện lên"):
+   * đúng với HAI chỗ (ô tìm ở AppTopBar và ô tìm trong panel AccountPicker — khung bao là
+   * <form>/<div> trơn, không có focus-within), nhưng SAI với ba chỗ còn lại (TagPicker ×2,
+   * SearchPage): chúng có ring của khung bao, chỉ là ring đó tô green-500 ~1,9:1 — lỗi
+   * TƯƠNG PHẢN chứ không phải lỗi thiếu chỉ báo. Cả ba nay đi qua `ring-accent`.
    */
-  it('ô nhập không tắt outline (outline-none)', () => {
+  it('ô nhập chỉ được tắt outline khi khung bao có focus-within:ring', () => {
     const hits: string[] = []
     for (const file of sourceFiles()) {
       const raw = readFileSync(file, 'utf8')
+      if (/focus-within:ring/.test(raw)) continue
       const tag = /<(input|select|textarea)\b/g
       let m: RegExpExecArray | null
       while ((m = tag.exec(raw))) {
@@ -482,7 +488,11 @@ describe('design system — ban cứng (phải bằng 0)', () => {
           hits.push(`${file.slice(SRC.length + 1)}:${raw.slice(0, m.index).split('\n').length}`)
       }
     }
-    expect(hits, 'Xoá đi — ring token ở index.css lo phần chỉ báo tiêu điểm.').toEqual([])
+    expect(
+      hits,
+      'Ô này tắt ring mà không có khung bao nào vẽ thay: hoặc bỏ outline-none, hoặc cho ' +
+        'khung bao focus-within:ring-accent.\n' + hits.join('\n'),
+    ).toEqual([])
   })
 
   // Lý do: red-400 trên trắng chỉ 2,89:1 và red-500 chỉ 4,05:1 — cả hai trượt 4,5:1

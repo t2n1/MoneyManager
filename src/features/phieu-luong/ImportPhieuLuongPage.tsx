@@ -257,7 +257,7 @@ export function ImportPhieuLuongPage() {
 
       <Card
         as="label"
-        className="flex cursor-pointer items-center gap-3 focus-within:ring-2 focus-within:ring-green-500"
+        className="flex cursor-pointer items-center gap-3 focus-within:ring-2 focus-within:ring-accent"
       >
         <FileUp className="h-5 w-5 text-fg-muted" />
         <span className="flex-1 text-sm text-fg-primary">

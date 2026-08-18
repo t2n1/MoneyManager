@@ -365,8 +365,8 @@ export function AssetGroupsPage() {
       <section
         ref={(el) => setZone(g.name, el)}
         className={`overflow-hidden rounded-xl bg-surface ${
-          dragging ? 'shadow-lg ring-2 ring-green-500/40' : 'shadow-sm'
-        } ${dragAcc != null && dropAt?.group === g.name ? 'ring-2 ring-green-500/60' : ''}`}
+          dragging ? 'shadow-lg ring-2 ring-accent/40' : 'shadow-sm'
+        } ${dragAcc != null && dropAt?.group === g.name ? 'ring-2 ring-accent/60' : ''}`}
       >
         <div className="flex items-center gap-2 px-3 py-2.5">
           {/* Tay nắm kéo–thả (không áp dụng cho Chưa phân nhóm) */}

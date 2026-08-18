@@ -260,7 +260,7 @@ export function ImportCsvPage() {
       </div>
 
       <Card as="section">
-        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong py-4 text-sm font-medium text-fg-secondary focus-within:ring-2 focus-within:ring-green-500">
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong py-4 text-sm font-medium text-fg-secondary focus-within:ring-2 focus-within:ring-accent">
           <Upload className="h-4 w-4" />
           {fileName || 'Chọn file CSV sao kê…'}
           <input type="file" accept=".csv,text/csv" className="sr-only" onChange={handleFile} />

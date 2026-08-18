@@ -194,7 +194,7 @@ export function TagPicker({ value, onChange }: Props) {
       </span>
 
       {inputShown && (
-        <div className="mb-1.5 flex items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-2 focus-within:ring-2 focus-within:ring-green-500">
+        <div className="mb-1.5 flex items-center gap-1.5 rounded-lg border border-border-strong bg-surface px-2 focus-within:ring-2 focus-within:ring-accent">
           <Search className="h-3.5 w-3.5 shrink-0 text-fg-muted" aria-hidden />
           {/* KHÔNG tự bật con trỏ: mở "Tất cả" để LƯỚT là chuyện thường, bàn phím tự
               bật lên che mất danh sách vừa mở thì hại hơn lợi. */}
@@ -203,7 +203,10 @@ export function TagPicker({ value, onChange }: Props) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder={`Tìm trong ${total} nhãn…`}
             aria-label="Tìm nhãn"
-            className="min-h-9 min-w-0 flex-1 bg-transparent py-1 text-sm"
+            // `outline-none` ở đây KHÔNG phải bỏ chỉ báo: khung bao dùng
+            // `focus-within:ring-accent`, nên để ô tự vẽ thêm một ring nữa là hai vòng
+            // lồng nhau. designSystem.test.ts canh đúng cặp điều kiện này.
+            className="min-h-9 min-w-0 flex-1 bg-transparent py-1 text-sm outline-none"
           />
         </div>
       )}
@@ -244,7 +247,7 @@ export function TagPicker({ value, onChange }: Props) {
                   // thuộc đúng nhóm này, không phải chọn nhóm thêm một bước nữa.
                   // Enter để lưu, Esc/✕ để bỏ. Có nút ✓ vì bàn phím điện thoại không
                   // phải lúc nào cũng có Enter dễ thấy.
-                  <span className="flex min-w-0 flex-1 items-center gap-1 rounded-full border border-border-strong bg-surface pl-3 pr-1 focus-within:ring-2 focus-within:ring-green-500">
+                  <span className="flex min-w-0 flex-1 items-center gap-1 rounded-full border border-border-strong bg-surface pl-3 pr-1 focus-within:ring-2 focus-within:ring-accent">
                     <input
                       autoFocus
                       value={newName}
@@ -263,7 +266,7 @@ export function TagPicker({ value, onChange }: Props) {
                       }}
                       placeholder={`Tên nhãn mới trong “${name}”…`}
                       aria-label={`Tên nhãn mới trong nhóm ${name}`}
-                      className="min-h-11 min-w-0 flex-1 bg-transparent text-sm"
+                      className="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none"
                     />
                     <button
                       type="button"

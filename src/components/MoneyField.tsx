@@ -92,7 +92,7 @@ export function MoneyField({
         onClick={() => setActivePad(id)}
         aria-label={`${ariaLabel}: ${text}`}
         className={`truncate lg:hidden ${className} ${isEmpty ? 'opacity-40' : ''} ${
-          open ? 'ring-2 ring-green-500' : ''
+          open ? 'ring-2 ring-accent' : ''
         }`}
       >
         {text}

@@ -118,7 +118,17 @@ export function TodoPanel({ items, onDismiss }: Props) {
             <Link to={n.to} className="flex min-w-0 flex-1 items-start gap-2.5 py-2">
               <StatusDot tone={TONE[n.severity]} label={TONE_LABEL[n.severity]} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.8125rem] text-fg-primary">{n.title}</span>
+                {/* Dưới lg: HAI DÒNG, không cắt một dòng. Tiêu đề việc luôn có dạng
+                    "<tình huống> — <việc phải làm>", mà `truncate` ở 375px cắt đúng
+                    trước dấu gạch dài: "Nhóm Ăn uống vượt trần ¥7,327 — chủ …" bỏ mất
+                    nguyên vế HÀNH ĐỘNG, tức phần duy nhất trả lời "rồi sao". Hai dòng
+                    tốn ~18px, rẻ hơn một việc không đọc được.
+                    Từ lg thì giữ một dòng: ở đó khối nằm cột phải 380px cạnh nội dung
+                    chính, và trần 5 việc nghĩa là mỗi dòng cao thêm là cả khối cao thêm
+                    năm lần. */}
+                <span className="block text-[0.8125rem] text-fg-primary line-clamp-2 lg:line-clamp-none lg:truncate">
+                  {n.title}
+                </span>
                 {/* Dòng NGUỒN — luận điểm chính của 16a: gom mọi kết luận về một chỗ thì
                     phải nói được việc này ĐẾN TỪ ĐÂU, không thì người dùng mất đường
                     quay về màn có đầy đủ ngữ cảnh. Ghép trước `detail` bằng dấu gạch dài

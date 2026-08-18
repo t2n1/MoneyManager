@@ -19,6 +19,7 @@ const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
 
 const NAV_SRC = read('src/components/navItems.ts')
 const BULLETIN = read('src/features/bulletin/BulletinPage.tsx')
+const RAIL = read('src/components/AppRail.tsx')
 
 /** Các mục `{ to: '/x', …, onMobile: <cờ> }` trong NAV_ITEMS. */
 function navItems(): { to: string; onMobile: boolean }[] {
@@ -62,5 +63,25 @@ describe('thanh tab mobile', () => {
     for (const item of navItems().filter((i) => !i.onMobile)) {
       expect(khoi![0], `lối vào ${item.to} nằm ngoài khối lg:hidden`).toContain(`to="${item.to}"`)
     }
+  })
+})
+
+// Rail desktop: SÁU nút cho sáu màn, không bảy. Từng có một <NavLink to="/"> bọc logo —
+// cùng đích với mục "Bản tin" ngay dưới nó — nên cột rail đếm ra bảy hình vẽ xếp dọc và
+// hai ô đầu đi cùng một chỗ. Canh bằng số <NavLink> trong nguồn: rail chỉ được có ĐÚNG
+// một, cái nằm trong vòng map NAV_ITEMS.
+describe('rail desktop', () => {
+  // Bỏ chú thích trước khi đếm: chú thích trong AppRail.tsx CHÉP LẠI cách viết cũ
+  // (`<NavLink to="/">` bọc logo) để người sau khỏi dựng lại nó — đếm cả chú thích thì
+  // phép thử đỏ vì chính tài liệu của nó. Cùng lối stripComments của contrast.test.ts.
+  const rail = RAIL.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+
+  it('chỉ một <NavLink> — mọi nút rail đến từ NAV_ITEMS', () => {
+    expect(rail.match(/<NavLink/g) ?? []).toHaveLength(1)
+  })
+
+  it('logo không còn là liên kết (nó là nhãn, không phải mục thứ bảy)', () => {
+    expect(rail).not.toMatch(/<NavLink[^>]*>\s*<AppLogo/)
+    expect(rail).toMatch(/<AppLogo/)
   })
 })

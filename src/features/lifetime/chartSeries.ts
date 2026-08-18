@@ -144,3 +144,35 @@ export function chartSeriesPlan(input: ChartSeriesInput): ChartSeriesPlan {
       : null,
   }
 }
+
+/**
+ * Nhãn trục năm của đồ thị Tương lai — MỖI 5 NĂM, không phải mỗi năm.
+ *
+ * Bản chiếu dài 39 năm (2026…2064). Recharts tự bỏ bớt nhãn khi chật, nhưng nó đo theo
+ * chiều RỘNG của một nhãn (bốn chữ số), và ở 1440px thì cả 39 nhãn "vừa đủ" lọt — vừa đủ
+ * theo phép đo, còn trên màn là một vệt xám dính liền, không đọc ra năm nào. Chốt bằng
+ * `ticks` để nó thôi phụ thuộc bề rộng cửa sổ.
+ *
+ * Bước 10 khi chuỗi quá dài (người 20 tuổi khai tuổi thọ 100 → hơn 45 mốc): 5 năm một
+ * nhãn lúc đó lại chật đúng như cũ.
+ *
+ * Luôn giữ mốc ĐẦU và CUỐI — chúng nói phạm vi của cả đồ thị, thứ đọc trước tiên. Mốc
+ * chẵn nào đứng sát chúng (dưới nửa bước) thì bỏ, để hai nhãn không chồng nhau ở đúng
+ * hai đầu — chỗ dễ chồng nhất.
+ *
+ * Hàm THUẦN và có test riêng vì phần vẽ không kiểm bằng máy được: nhãn trục là <text>
+ * do Recharts dựng sau khi đo khung, mà ở môi trường không dựng khung hình thì cả trục
+ * tung lẫn trục hoành đều rỗng (đã đo).
+ */
+export function yearAxisTicks(years: number[]): number[] {
+  if (years.length === 0) return []
+  const first = years[0]
+  const last = years[years.length - 1]
+  if (first === last) return [first]
+  const step = years.length > 45 ? 10 : 5
+  const half = step / 2
+  const marks = years.filter(
+    (y) => y % step === 0 && y - first >= half && last - y >= half,
+  )
+  return [first, ...marks, last]
+}

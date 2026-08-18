@@ -356,10 +356,17 @@ export function BudgetVerdictLine({ pace }: { pace: MonthPace }) {
   )
 }
 
-/** Hai biểu đồ mô tả — để cuối tab, dưới danh sách hạn mức (phần bấm được). */
-export function MonthPaceCharts({ pace }: { pace: MonthPace }) {
-  const { cashflowData, hasCashflow, monthDaily, hasSpend, base } = pace
-  if (!hasCashflow && !hasSpend) return null
+/**
+ * Dòng tiền tích lũy trong tháng — biểu đồ mô tả, để cuối cột (dưới phần bấm được).
+ *
+ * Tách khỏi lịch chi tiêu (từng chung một `MonthPaceCharts`) vì từ B10 hai thẻ này
+ * đứng ở HAI CỘT khác nhau: trang Ngân sách có bốn panel dồn cột phải trong khi cột
+ * trái hết sớm, chừa ~1000px trống. Gộp chúng trong một component nghĩa là không tách
+ * được — nên chỗ tách nằm ở đây, không phải một cái `order-*` ở nơi gọi.
+ */
+export function CumulativeCashflowCard({ pace }: { pace: MonthPace }) {
+  const { cashflowData, hasCashflow, base } = pace
+  if (!hasCashflow) return null
   return (
     <>
       {hasCashflow && (
@@ -402,7 +409,12 @@ export function MonthPaceCharts({ pace }: { pace: MonthPace }) {
           </div>
         </Card>
       )}
-      {hasSpend && <SpendHeatmapCard points={monthDaily.points} base={base} />}
     </>
   )
+}
+
+/** Lịch chi tiêu — nay ở CỘT TRÁI của trang Ngân sách (B10). Xem CumulativeCashflowCard. */
+export function MonthSpendCalendar({ pace }: { pace: MonthPace }) {
+  if (!pace.hasSpend) return null
+  return <SpendHeatmapCard points={pace.monthDaily.points} base={pace.base} />
 }

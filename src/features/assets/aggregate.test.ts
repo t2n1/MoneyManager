@@ -435,3 +435,58 @@ describe('cardFunding (nhiều thẻ chung một nguồn)', () => {
     expect(groups).toHaveLength(0)
   })
 })
+
+// Nhóm ĐỨNG NGOÀI TỔNG: `total` bỏ qua tài khoản không tính-vào-tổng nên nó bằng 0,
+// trong khi nhóm vẫn giữ tiền thật. Đầu nhóm phải in được số thật (AssetsNowView đọc
+// `nativeTotal`/`rawTotal`), nếu không thì một khối vừa hiện "¥0" vừa liệt kê mấy trăm
+// triệu — hai câu trái nhau, và người đọc không biết tin dòng nào.
+describe('tổng của nhóm đứng ngoài tổng', () => {
+  it('total = 0 nhưng rawTotal giữ số thật, nativeTotal in bằng tiền gốc', () => {
+    const balances = [
+      acc({ balance: 199_554_545, currency: 'VND', asset_group: 'Ngân hàng VN', include_in_totals: false }),
+      acc({ balance: 100_000, asset_group: 'Tiêu dùng' }),
+    ]
+    const b = assetBreakdown(balances, 'JPY', RATES, [
+      setting('Ngân hàng VN', { includeInTotals: false }),
+    ])
+    const vn = b.groups.find((g) => g.name === 'Ngân hàng VN')!
+    expect(vn.total, 'không cộng vào tổng → 0').toBe(0)
+    expect(vn.rawTotal, 'tổng thô quy đổi base').toBeCloseTo(199_554_545 / 165, 0)
+    expect(vn.nativeCurrency).toBe('VND')
+    expect(vn.nativeTotal).toBe(199_554_545)
+    // Tổng tài sản KHÔNG được đổi vì nhóm này đứng ngoài — đây là điều kiện để cái
+    // trên là bản sửa cách HIỂN THỊ, không phải sửa phép cộng.
+    expect(b.total).toBe(100_000)
+  })
+
+  it('nhóm nhiều loại tiền → không có số gốc nào để in (nativeTotal null)', () => {
+    const b = assetBreakdown(
+      [
+        acc({ balance: 165_000, currency: 'VND', asset_group: 'Hỗn hợp', include_in_totals: false }),
+        acc({ balance: 2_000, asset_group: 'Hỗn hợp', include_in_totals: false }),
+      ],
+      'JPY',
+      RATES,
+      [setting('Hỗn hợp', { includeInTotals: false })],
+    )
+    const g = b.groups.find((x) => x.name === 'Hỗn hợp')!
+    expect(g.nativeCurrency).toBeNull()
+    expect(g.nativeTotal).toBeNull()
+    expect(g.rawTotal, 'vẫn cộng được sau khi quy đổi').toBe(3_000)
+  })
+
+  it('tài khoản ẩn không lọt vào rawTotal', () => {
+    const b = assetBreakdown(
+      [
+        acc({ balance: 5_000, asset_group: 'Ngoài', include_in_totals: false }),
+        acc({ balance: 9_000, asset_group: 'Ngoài', include_in_totals: false, is_hidden: true }),
+      ],
+      'JPY',
+      RATES,
+      [setting('Ngoài', { includeInTotals: false })],
+    )
+    const g = b.groups.find((x) => x.name === 'Ngoài')!
+    expect(g.rawTotal).toBe(5_000)
+    expect(g.nativeTotal).toBe(5_000)
+  })
+})

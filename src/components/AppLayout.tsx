@@ -180,10 +180,28 @@ export function AppLayout() {
               Không còn `pb-28`/`pb-40` chừa chỗ cho thứ nổi: thanh tab dưới giờ nằm
               TRONG luồng (xem BottomNav) nên nó tự trừ vào chiều cao phần cuộn, và nút
               "+" nổi đã bỏ — nút "+" đã có sẵn giữa thanh tab. */}
+          {/* `relative` KHÔNG phải để định vị cái gì — nó là thứ CHẶN nội dung rò ra
+              ngoài khung app, và đây là lỗi bố cục đã đo được (B1 của gói 1a).
+              Triệu chứng: mở /reports ở 1280×700, `documentElement.scrollHeight` = 2763px
+              trong khi `body` chỉ 700px — tức cửa sổ cuộn được thêm hơn 2000px vào một
+              vùng TRỐNG TRƠN. Ảnh chụp cả trang vì thế ra một tấm cao gần bốn màn: phần
+              trên là nội dung bị cắt ngang giữa thẻ đúng ở mép màn, phần dưới trắng bốc.
+              Đúng cái mà bản soát mô tả là "vỡ bố cục · dưới nội dung là vùng trống bằng
+              vài màn hình".
+              Nguyên nhân: `.sr-only` của Tailwind là `position:absolute`. Khối chặn cuộn
+              (`h-dvh overflow-hidden`) và cả <main> đều `position:static`, nên KHỐI CHỨA
+              của mấy cái nhãn đó là initial containing block — chúng nhảy thẳng ra ngoài
+              mọi tầng cắt, nằm ở toạ độ y thật của tài liệu (đo được 329 · 592 · 938 ·
+              1506…) và kéo dài vùng cuộn của <html> theo. Không nhìn thấy được vì chúng
+              rộng 1px và bị `clip`, nên chỉ lộ ra khi chụp cả trang.
+              Đặt `relative` cho <main> là biến nó thành khối chứa của chúng, và lúc đó
+              `overflow-y-auto` mới cắt được: đo lại sau khi sửa, `scrollHeight` của <html>
+              về đúng 700px và cửa sổ hết cuộn (`window.scrollTo(0,5000)` → scrollY 0).
+              Không đụng gì tới cách cuộn của <main> — nó vẫn là vùng cuộn duy nhất. */}
           <main
             key={privacyOn ? 'priv-on' : 'priv-off'}
             ref={mainRef}
-            className="w-full min-h-0 flex-1 overflow-y-auto pb-6 pt-[env(safe-area-inset-top)] lg:pt-0"
+            className="relative w-full min-h-0 flex-1 overflow-y-auto pb-6 pt-[env(safe-area-inset-top)] lg:pt-0"
           >
             {/* Lưới an toàn: query lỗi không được hiển thị như "không có dữ liệu" */}
             <QueryErrorBanner />

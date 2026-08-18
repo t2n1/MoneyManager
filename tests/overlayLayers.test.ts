@@ -112,3 +112,40 @@ describe('tầng xếp lớp của lớp phủ toàn màn', () => {
     }
   })
 })
+
+// Vùng cuộn của app phải CẮT được nội dung của nó — kể cả những phần tử
+// `position:absolute` không ai nhìn thấy.
+//
+// Lỗi đã đo (B1 của gói redesign 1a, 2026-08-18): mở /reports ở 1280×700 thì
+// `documentElement.scrollHeight` = 2763px trong khi `body` chỉ 700px, tức cửa sổ cuộn
+// thêm được hơn 2000px vào một vùng trống trơn. Ảnh chụp cả trang ra một tấm cao gần bốn
+// màn — nội dung bị cắt ngang giữa thẻ ở đúng mép màn, phía dưới trắng bốc.
+//
+// Thủ phạm là `.sr-only`: Tailwind định nghĩa nó bằng `position:absolute`. Khung app
+// (`h-dvh overflow-hidden`) và <main> đều `position:static`, nên KHỐI CHỨA của mấy nhãn
+// đó là initial containing block — chúng nhảy ra ngoài mọi tầng cắt và kéo dài vùng cuộn
+// của <html>. Rộng 1px + `clip` nên không nhìn thấy; chỉ lộ khi chụp cả trang.
+//
+// `relative` trên <main> biến nó thành khối chứa, và `overflow-y-auto` mới cắt được. Đo
+// lại sau khi sửa: <html> về đúng 700px, `window.scrollTo(0,5000)` → scrollY 0.
+//
+// Canh bằng chuỗi nguồn vì jsdom không tính layout — cùng lối budgetLayout.test.ts.
+describe('vùng cuộn của khung app', () => {
+  it('<main> có `relative` để cắt được con `position:absolute` (sr-only)', () => {
+    // Bỏ chú thích trước khi dò: chú thích ngay trên <main> có nhắc lại chữ "<main>"
+    // để giải thích lỗi, và một phép dò không bỏ chú thích sẽ bắt đúng cái nhắc đó.
+    const layout = readFileSync(join(SRC, 'components', 'AppLayout.tsx'), 'utf8')
+      .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+    const main = layout.match(/<main\s[\s\S]*?>/)
+    expect(main, 'không tìm thấy <main> trong AppLayout.tsx').not.toBeNull()
+    expect(
+      main![0],
+      'Bỏ `relative` khỏi <main> là mở lại đường cho .sr-only kéo dài tài liệu — xem chú' +
+        ' thích ngay trên <main>.',
+    ).toMatch(/className="relative /)
+    // Vùng cuộn vẫn phải là <main>, không phải cả trang: `relative` không được đi kèm
+    // việc bỏ `overflow-y-auto` (iOS sẽ rubber-band kéo theo thanh tab dưới).
+    expect(main![0]).toMatch(/overflow-y-auto/)
+  })
+})

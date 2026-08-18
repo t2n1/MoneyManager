@@ -182,7 +182,12 @@ export function EntryPage() {
   }
 
   return (
-    <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:h-dvh lg:p-6">
+    // `lg:max-w-5xl` (1024px) chứ không giữ 672px: từ lg form chia HAI CỘT (xem
+    // TransactionForm), mà hai cột nhét trong 672px thì cột trái còn ~330px — hẹp hơn cả
+    // bản mobile, và lưới danh mục rớt xuống hai cột con. 1024px cho cột trái ~660px
+    // (đúng bằng bề rộng cũ) và cột phải 320px. Vẫn CÓ trần: màn nhập là một việc một
+    // dòng nhìn, kéo hết 1440px thì mắt phải quét ngang cả sải tay giữa hai bước bắt buộc.
+    <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:h-dvh lg:max-w-5xl lg:p-6">
       <div className="mb-2 flex items-center gap-2">
         {/* "Đóng" = bỏ dở màn nhập → trả người dùng về đúng chỗ họ bấm "+", chứ không
             phải luôn luôn về Sổ (nút này mở được từ Nợ, Sắp chi, thông báo…).

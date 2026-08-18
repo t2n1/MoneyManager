@@ -19,7 +19,13 @@ import { pickAttention, sortBudgetItems, type BudgetSortMode } from './budgetSor
 import { dailyAllowance } from './dailyAllowance'
 import { ClassificationToggle } from '../categories/ClassificationToggle'
 import type { BudgetStatus } from './progress'
-import { BudgetVerdictLine, MonthPaceCharts, SpendPaceSection, useMonthPace } from '../reports/monthPace'
+import {
+  BudgetVerdictLine,
+  CumulativeCashflowCard,
+  MonthSpendCalendar,
+  SpendPaceSection,
+  useMonthPace,
+} from '../reports/monthPace'
 import { AxisStrip } from './AxisStrip'
 import { AxisTargetsCard } from './AxisTargetsCard'
 import { useAxisProgress } from './useAxisProgress'
@@ -65,6 +71,20 @@ const TEXT_COLOR: Record<BudgetStatus, string> = {
 /** Tiền còn được tiêu; âm = đã vượt đúng chừng đó. Làm tròn trước khi so 0: chi
  *  ngoại tệ quy đổi ra số lẻ, để nguyên thì "vừa đủ" hiện thành "vượt ¥0". */
 const restOf = (budgeted: number, spent: number) => Math.round(budgeted - spent)
+
+/**
+ * Câu "còn / vượt bao nhiêu" của một mốc — MỘT chỗ quyết định, vì cả dòng cha lẫn dòng
+ * con đều nói nó và hai bản chép tay sẽ lệch nhau sau vài lượt sửa.
+ *
+ * Ca ĐÚNG BẰNG TRẦN (rest = 0) không đi qua "còn"/"vượt": chi đúng bằng hạn mức thì
+ * "vượt ¥0" là một câu tự phủ định (vượt bao nhiêu? không đồng nào), còn "còn ¥0" thì
+ * đọc như vẫn tiêu được. Cả hai đều sai ở đúng cái điểm người dùng cần biết mình đang
+ * đứng ở đâu — nên nó có câu riêng: "vừa hết hạn mức".
+ */
+function restLabel(rest: number, fmt: (v: number) => string): string {
+  if (rest === 0) return 'vừa hết hạn mức'
+  return `${rest < 0 ? 'vượt ' : 'còn '}${fmt(Math.abs(rest))}`
+}
 
 /** Thanh tiến độ + % dùng chung. `className` để gọi chỗ nào tự đặt lề / flex-1. */
 function ProgressBar({
@@ -232,8 +252,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               bức tường (xem chú thích ngay trên). */}
           {m.budgeted > 0 && (
             <span className={`text-2xs ${rest < 0 ? 'text-money-out' : 'text-fg-muted'}`}>
-              {rest < 0 ? 'vượt ' : 'còn '}
-              {formatMoney(Math.abs(rest), base)}
+              {restLabel(rest, (v) => formatMoney(v, base))}
             </span>
           )}
           {/* % nằm trong ô cố định, canh phải — cột thẳng nhờ bề rộng ô, nên không
@@ -287,8 +306,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 <span className="text-fg-on-track">
                   <span className={TEXT_COLOR[m.status]}>{formatMoney(m.spent, base)}</span>
                   {' · '}
-                  {restOf(m.budgeted, m.spent) < 0 ? 'vượt ' : 'còn '}
-                  {formatMoney(Math.abs(restOf(m.budgeted, m.spent)), base)}
+                  {restLabel(restOf(m.budgeted, m.spent), (v) => formatMoney(v, base))}
                 </span>
                 <span className={`w-10 text-right text-xs font-medium ${TEXT_COLOR[m.status]}`}>
                   {Math.round(m.ratio * 100)}%
@@ -427,53 +445,37 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </button>
       </Card>
 
-      {/* Cần để ý — ghim ngay dưới dòng tổng. Đây là phần trả lời "hôm nay phải làm gì",
-          khác với danh sách bên dưới trả lời "toàn cảnh tháng này ra sao". */}
-      {attention.length > 0 && (
-        <Card as="section">
-          {/* MẪU SỐ là của 11a: "3 / 5 mục có hạn mức". Riêng "Cần để ý (3)" không nói
-              được 3 trên bao nhiêu — mà đó mới là thứ quyết định con số ấy đáng lo cỡ
-              nào: 3/5 là hơn nửa ngân sách đang chệch, 3/20 thì không. */}
-          <h2 className="text-sm font-semibold text-fg-muted">
-            Cần để ý{' '}
-            <span className="font-normal tabular-nums">
-              · {attention.length} / {items.length} mục có hạn mức
-            </span>
-          </h2>
-          <Guide className="mb-2 text-xs text-fg-muted">
-            Đã quá trần, hoặc đang tiêu nhanh hơn nhịp tháng. Khoản cố định đã trả xong
-            (tiền nhà, bảo hiểm…) không tính — không còn gì để phanh.
-          </Guide>
-          <ul className="divide-y divide-border-subtle">
-            {attention.map((a) => (
-              <li key={a.item.cat.id}>
-                <button
-                  type="button"
-                  onClick={() => openEdit(a.item.cat.id)}
-                  className="flex min-h-11 w-full items-center justify-between gap-2 text-left text-sm"
-                >
-                  <span className="min-w-0 truncate font-medium text-fg-primary">
-                    {a.item.cat.icon} {a.item.cat.name}
-                  </span>
-                  <span
-                    className={`shrink-0 text-xs font-medium ${
-                      a.reason === 'over' ? 'text-money-out' : 'text-fg-warn'
-                    }`}
-                  >
-                    {a.reason === 'over'
-                      ? `vượt ${formatMoney(a.over, base)}`
-                      : `nhanh gấp ${a.pace.toFixed(1).replace('.', ',')} lần`}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+      {/* KHÔNG có khối "Cần để ý" riêng nữa (B8 của gói 1a).
+          Nó ghim ba dòng đang vượt/đi nhanh lên đầu, rồi khối ngay dưới — danh sách hạn
+          mức — mở đầu bằng ĐÚNG ba dòng đó, vì nó sắp theo "vượt trước". Đo trên demo:
+          "Đi lại vượt ¥18,750" đọc hai lần, cách nhau chưa tới một màn.
+          Khối dưới là bản nói đủ hơn (có % và cả "đã chi / trần"), nên bản bị bỏ là bản
+          trên. Con số "3 / 5 mục" thì KHÔNG mất: nó gộp vào tiêu đề khối dưới — đó mới
+          là thứ khối trên nói được mà khối dưới chưa nói. */}
 
       {/* Danh mục / nhóm có hạn mức */}
       {items.length > 0 && (
         <Card as="section">
+          {/* MẪU SỐ là của 11a: "3 / 5 mục có hạn mức" — trước ở tiêu đề khối "Cần để ý",
+              nay gộp vào đây (B8). Riêng "3 mục cần để ý" không nói được 3 trên bao nhiêu,
+              mà đó mới là thứ quyết định con số ấy đáng lo cỡ nào: 3/5 là hơn nửa ngân
+              sách đang chệch, 3/20 thì không. Danh sách dưới đã sắp "vượt trước" nên ba
+              mục ấy nằm ngay dòng đầu — không cần chỉ thêm chúng ở đâu. */}
+          <h2 className="mb-1 text-sm font-semibold text-fg-muted">
+            Hạn mức từng mục
+            {attention.length > 0 && (
+              <span className="font-normal tabular-nums">
+                {' '}
+                · {attention.length} / {items.length} mục cần để ý
+              </span>
+            )}
+          </h2>
+          {attention.length > 0 && (
+            <Guide className="mb-2 text-xs text-fg-muted">
+              "Cần để ý" = đã quá trần, hoặc đang tiêu nhanh hơn nhịp tháng. Khoản cố định
+              đã trả xong (tiền nhà, bảo hiểm…) không tính — không còn gì để phanh.
+            </Guide>
+          )}
           {/* Nút chọn kiểu sắp xếp: chỉ hiện khi có từ 2 mục trở lên — một mục thì
               sắp kiểu gì cũng thế, bày thêm nút chỉ tổ rối. */}
           {items.length > 1 && (
@@ -571,8 +573,16 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       )}
 
       {/* Ngân sách theo nhãn — SAU danh sách danh mục vì danh mục mới là công cụ chính
-          hằng tháng; nhãn là trần cắt ngang, dùng cho dịp/dự án. Khối cuối của cột trái. */}
+          hằng tháng; nhãn là trần cắt ngang, dùng cho dịp/dự án. */}
       <TagBudgetsCard data={tagBudgets} base={base} />
+
+      {/* Lịch chi tiêu — khối CUỐI cột trái (B10). Trước đây nó ở cột phải, và cột phải
+          gánh bốn panel trong khi cột trái hết sau ba: đo ở 1440px ra ~1000px trống dưới
+          cột trái, tức gần hai màn cuộn nhìn thấy một cột rỗng. Chuyển nó chứ không
+          chuyển "Chưa đặt hạn mức": khối kia là việc DỰNG ngân sách, phải đứng cạnh phần
+          mô tả (xem chú thích cột phải).
+          Vẫn là khối cuối của cột: nó mô tả, không phải việc phải làm hôm nay. */}
+      <MonthSpendCalendar pace={pace} />
 
       </div>
 
@@ -657,13 +667,9 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </Card>
       )}
 
-      {/* Lịch chi tiêu (và dòng tiền) — khối khám phá, để cuối. Gate theo đúng điều kiện
-          component con tự ẩn: không thì div rỗng vẫn chiếm một suất gap trên mobile. */}
-      {(pace.hasCashflow || pace.hasSpend) && (
-        <div className="flex flex-col gap-3">
-          <MonthPaceCharts pace={pace} />
-        </div>
-      )}
+      {/* Dòng tiền tích lũy — khối khám phá, để cuối. Lịch chi tiêu đã sang cột trái
+          (B10); hai thẻ này trước đây là một component chung. */}
+      <CumulativeCashflowCard pace={pace} />
       </div>
       </div>
 

@@ -214,14 +214,6 @@ export function BulletinPage() {
     <div className="flex flex-col gap-2.5 p-3 lg:p-4">
       <h1 className="sr-only">Bản tin</h1>
 
-      {/* Khối 1 — Việc cần làm (§4.9). Nó THAY banner nhắc nhở cũ, không đứng cạnh: hai
-          chỗ cùng nhắc một việc là đúng cái 16a đi dẹp.
-          NotificationBoundary vẫn bọc: bộ luật đọc gần hết bảng dữ liệu, một query hỏng
-          không được kéo sập cả trang chủ. */}
-      <NotificationBoundary>
-        <TodoPanel items={notif.actions} onDismiss={notif.dismiss} />
-      </NotificationBoundary>
-
       {/* Tiêu đề màn cho MOBILE (top bar chỉ có từ lg). Bản vẽ 17a: mỗi màn mobile tự
           mang tiêu đề + một dòng meta bên phải.
           Hai nút bên phải là ĐƯỜNG VÀO MOBILE của hai màn không có tab (§3 chốt bốn tab
@@ -241,6 +233,21 @@ export function BulletinPage() {
           <Settings className="h-5 w-5" strokeWidth={1.6} />
         </Link>
       </div>
+
+      {/* Khối 1 — Việc cần làm (§4.9). Nó THAY banner nhắc nhở cũ, không đứng cạnh: hai
+          chỗ cùng nhắc một việc là đúng cái 16a đi dẹp.
+          NotificationBoundary vẫn bọc: bộ luật đọc gần hết bảng dữ liệu, một query hỏng
+          không được kéo sập cả trang chủ.
+
+          ĐỨNG SAU tiêu đề mobile, không đứng đầu trang. Trên desktop khác biệt này bằng
+          không (tiêu đề là <h1 class="sr-only"> + top bar), nhưng dưới lg thì khối này
+          cao gần một màn: đặt nó trước thì chữ "Bản tin" rơi xuống giữa trang, sau một
+          tấm thẻ — người mở app không đọc được mình đang ở màn nào cho tới khi cuộn.
+          Đổi bằng THỨ TỰ DOM chứ không order-*: thứ tự đọc và thứ tự tiêu điểm phải đi
+          cùng nhau (WCAG 2.4.3), cùng luật đã chốt ở BudgetView. */}
+      <NotificationBoundary>
+        <TodoPanel items={notif.actions} onDismiss={notif.dismiss} />
+      </NotificationBoundary>
 
       {/* ConclusionLine, KHÔNG VerdictNote (§5.0 / R7): đây là kết luận của cả màn, và
           Gọn là chế độ mặc định — đưa nó qua VerdictNote thì mặc định người dùng chỉ

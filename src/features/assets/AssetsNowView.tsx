@@ -611,6 +611,10 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
       {displayGroups.map((g) => {
         const rowIds = dragEnabled ? displayIdsOf(g.name) : g.accounts.map((a) => a.id)
         const isDropTarget = dragEnabled && dragAcc != null && dropAt?.group === g.name
+        // "Ngoài tổng" ở đây gồm CẢ hai lối vào trạng thái đó: cờ của nhóm, và ca nhóm
+        // còn bật cờ nhưng mọi tài khoản bên trong đều tự tắt (total = 0 mà vẫn có tiền).
+        // Ca thứ hai in ra y hệt ca thứ nhất nên phải xử y như nhau.
+        const outsideTotals = !g.includeInTotals || (g.total === 0 && g.rawTotal !== 0)
         return (
           <section
             key={g.name}
@@ -639,8 +643,24 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                   {(g.share * 100).toFixed(0)}%
                 </span>
               )}
-              <span className="shrink-0 pl-2 text-sm font-bold tabular-nums text-fg-primary">
-                {mv.fmt(g.total, base, g.hasMissingRate)}
+              {/* Nhóm ĐỨNG NGOÀI TỔNG in số của chính nó, không in `total`.
+                  `total` chỉ cộng tài khoản `include_in_totals`, nên với nhóm ngoài tổng
+                  nó bằng 0 — và dòng đầu nhóm hiện "¥0" ngay trên những dòng đang nói
+                  ₫199.554.545. Một khối không được vừa nói 0 vừa nói 199 triệu.
+                  In màu MỜ (fg-muted) chứ không đậm như nhóm được tính: nó không góp vào
+                  Tổng tài sản, nên nó cũng không được đọc ngang hàng với những nhóm góp.
+                  Ưu tiên tiền GỐC (nativeTotal) — quy đổi chỉ ở ô Tài sản ròng (§A.9);
+                  nhóm nhiều loại tiền thì không có số gốc nào nên đành lấy tổng quy đổi. */}
+              <span
+                className={`shrink-0 pl-2 text-sm tabular-nums ${
+                  outsideTotals ? 'font-medium text-fg-muted' : 'font-bold text-fg-primary'
+                }`}
+              >
+                {!outsideTotals
+                  ? mv.fmt(g.total, base, g.hasMissingRate)
+                  : g.nativeCurrency !== null && g.nativeTotal !== null
+                    ? mv.fmt(g.nativeTotal, g.nativeCurrency)
+                    : mv.fmt(g.rawTotal, base, g.hasMissingRate)}
               </span>
             </div>
             <div className="divide-y divide-gray-50 border-t border-border-subtle dark:divide-gray-800">
@@ -650,6 +670,34 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                 const isDragging = dragEnabled && id === dragAcc
                 const rowPnl = accountRowPnl(a, danhMucTheoTk.get(a.id))
                 const stat = rowStats.get(a.id)
+                // Đối chiếu — dựng MỘT lần, dùng ở cả hai tầng (tầng một từ lg, tầng hai
+                // dưới lg). Hai bản chép tay của cùng cái nút là cách chắc chắn nhất để
+                // desktop và mobile lệch nhãn sau vài lượt sửa.
+                const reconcileBtn = stat?.stale ? (
+                  // <Link> chứ không <button> vì nó điều hướng — giữ được mở-tab-mới và
+                  // chuột giữa. actionButtonClass() chứ không viết tay: <Link> là thẻ <a>
+                  // nên không dùng được <ActionButton>, và viết tay thì lặp lại min-h-11
+                  // + rounded-md, làm vỡ trần trong designSystem.test.ts.
+                  //
+                  // Nhãn NGẮN, lý do để ở aria-label: nút chỉ hiện khi quá hạn nên "quá 30
+                  // ngày" là thừa với người nhìn thấy nó — mà ở ca xấu nhất (người dùng
+                  // mới, chưa đối chiếu bao giờ) thì MỌI dòng đều có nút, và sáu lần một
+                  // câu dài là sáu lần nhắc cùng một điều. Trình đọc màn hình vẫn nghe đủ.
+                  <Link
+                    to={`/assets/account/${a.id}?doi-chieu=1`}
+                    className={actionButtonClass(
+                      'outline',
+                      'border-state-warn-border text-state-warn-fg',
+                    )}
+                    aria-label={`Đối chiếu ${a.name} — quá ${DELTA_DAYS} ngày chưa đối chiếu`}
+                  >
+                    Đối chiếu
+                  </Link>
+                ) : stat?.lastReconciledISO ? (
+                  <span className="tabular-nums">
+                    đối chiếu {dayMonthLabel(stat.lastReconciledISO)}
+                  </span>
+                ) : null
                 return (
                   <div
                     key={id}
@@ -681,12 +729,14 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                       to={`/assets/account/${a.id}`}
                       // Lề trái phải đi CÙNG cái tay kéo: tay kéo ẩn mà vẫn chừa pl-1 thì
                       // dòng thụt vào 4px không vì cái gì.
+                      // pr-0: lề phải của dòng do ChevronRight bên ngoài gánh (nó là phần
+                      // tử cuối cùng bên phải kể từ khi ô Đối chiếu chen vào giữa).
                       className={`flex min-w-0 flex-1 items-center gap-2 py-2.5 transition hover:bg-surface-sunken active:bg-gray-100 ${
  dragEnabled
  ? sortMode
- ? 'pr-4 pl-1'
- : 'pr-4 pl-4 lg:pl-1'
- : 'px-4'
+ ? 'pl-1'
+ : 'pl-4 lg:pl-1'
+ : 'pl-4'
  }`}
                     >
                       <AccountTypeIcon type={a.type} className="h-4 w-4" />
@@ -735,15 +785,38 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                       >
                         {mv.fmt(a.value, a.currency)}
                       </span>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
                     </Link>
+                    {/* Ô ĐỐI CHIẾU của tầng một — CHỈ từ lg (12b: một dòng một tài khoản).
+                        Dưới lg nó ở tầng hai cùng Δ; từ lg tầng hai biến mất nên phải có
+                        chỗ này, nếu không thì nút "Đối chiếu" mất hẳn trên desktop.
+
+                        Đứng NGOÀI <Link> vì nó chứa một <Link> khác — thẻ <a> lồng <a> là
+                        HTML không hợp lệ, trình duyệt tự tháo ra và cả hai đích đều hỏng.
+                        Cùng lý do đó ChevronRight cũng ra khỏi <Link>: nó phải đứng cuối
+                        cùng bên phải, mà chèn ô này vào giữa thì thứ tự đọc thành
+                        "số dư → chevron → nút", tức mũi chevron trỏ vào một cái nút không
+                        phải đích của nó. Chevron không mang nhãn nào nên đưa ra ngoài
+                        không mất gì với trình đọc màn hình; vùng bấm hụt đúng 16px của
+                        chính mũi tên, còn cả dòng vẫn là liên kết. */}
+                    {reconcileBtn && (
+                      <span className="hidden shrink-0 items-center pl-2 text-3xs text-fg-muted lg:flex">
+                        {reconcileBtn}
+                      </span>
+                    )}
+                    {/* `mr-4` = đúng cái `pr-4` mà <Link> nhả ra: lề phải của dòng không
+                        đổi, chỉ đổi phần tử nào gánh nó. */}
+                    <ChevronRight className="mr-4 h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
                     </div>
 
                     {/* TẦNG HAI (§4.4 + 17a). Chỉ dựng khi có gì để nói — một dòng rỗng
                         dưới mỗi tài khoản là 20px × N tiêu cho không khí. */}
                     {stat && (stat.stale || stat.delta !== 0) && (
                       <div
-                        className={`flex items-center gap-2 pb-2 text-3xs text-fg-muted ${
+                        // `lg:hidden`: từ lg mọi thứ ở đây đã có chỗ ở tầng một — Δ thành
+                        // cột riêng từ sm, còn đối chiếu vào ô mới bên cạnh chevron. Giữ
+                        // tầng hai ở desktop là dòng tài khoản cao ~100px (đo được), tức
+                        // 8 tài khoản dài gấp đôi mức 12b chốt: một dòng một tài khoản.
+                        className={`flex items-center gap-2 pb-2 text-3xs text-fg-muted lg:hidden ${
                           dragEnabled ? (sortMode ? 'pl-10 pr-4' : 'px-4 lg:pl-10 lg:pr-4') : 'px-4'
                         }`}
                       >
@@ -759,36 +832,10 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                             {mv.fmt(Math.abs(stat.delta), a.currency)} / {DELTA_DAYS} ngày
                           </span>
                         )}
-                        {stat.stale ? (
-                          // Quá hạn thì đưa luôn NÚT, không chỉ báo tin: §4.4 đòi "hiện
-                          // nút Đối chiếu tại dòng". Là <Link> chứ không <button> vì nó
-                          // điều hướng — giữ được mở-tab-mới và chuột giữa.
-                          <Link
-                            to={`/assets/account/${a.id}?doi-chieu=1`}
-                            // actionButtonClass() chứ không viết tay: <Link> là thẻ <a>
-                            // nên không dùng được <ActionButton>, và đây đúng là lý do
-                            // hàm đó tồn tại. Viết tay thì lặp lại min-h-11 + rounded-md
-                            // và làm vỡ trần trong designSystem.test.ts.
-                            className={actionButtonClass(
-                              'outline',
-                              'ml-auto border-state-warn-border text-state-warn-fg',
-                            )}
-                            // Nhãn NGẮN, lý do để ở aria-label. Nút này chỉ hiện khi quá
-                            // hạn nên "quá 30 ngày" là thừa với người nhìn thấy nó — mà
-                            // ở ca xấu nhất (người dùng mới, chưa đối chiếu bao giờ) thì
-                            // MỌI dòng đều có nút, và sáu lần một câu dài là sáu lần
-                            // nhắc cùng một điều. Trình đọc màn hình vẫn nghe đủ.
-                            aria-label={`Đối chiếu ${a.name} — quá ${DELTA_DAYS} ngày chưa đối chiếu`}
-                          >
-                            Đối chiếu
-                          </Link>
-                        ) : (
-                          stat.lastReconciledISO && (
-                            <span className="ml-auto tabular-nums">
-                              đối chiếu {dayMonthLabel(stat.lastReconciledISO)}
-                            </span>
-                          )
-                        )}
+                        {/* Quá hạn thì đưa luôn NÚT, không chỉ báo tin: §4.4 đòi "hiện
+                            nút Đối chiếu tại dòng". Cùng phần tử với tầng một — xem
+                            reconcileBtn ở trên. */}
+                        {reconcileBtn && <span className="ml-auto">{reconcileBtn}</span>}
                       </div>
                     )}
                   </div>

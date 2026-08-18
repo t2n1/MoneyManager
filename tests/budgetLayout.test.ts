@@ -43,17 +43,29 @@ const COLUMN_MARK = 'className="contents lg:flex lg:flex-col lg:gap-3">'
  * Thứ tự đọc mong muốn, từ trên xuống. Mỗi khối nhận ra bằng một chuỗi chỉ xuất hiện
  * một lần trong file (tiêu đề thẻ, hoặc tên component con).
  */
+// Cập nhật 2026-08-18 cùng B8 + B10 của gói redesign 1a, và lý do phải ghi lại:
+//
+//   B8 — khối "Cần để ý" BỎ HẲN. Nó ghim ba dòng vượt/đi nhanh lên đầu, rồi khối ngay
+//     dưới (danh sách hạn mức, sắp "vượt trước") mở đầu bằng đúng ba dòng đó. Khối dưới
+//     nói đủ hơn (có % và "đã chi / trần") nên khối trên là bản phải đi. Con số "3 / 5
+//     mục" chuyển vào tiêu đề khối dưới, nên nó không mất.
+//   B10 — "Lịch chi tiêu" sang CỘT TRÁI. Cột phải gánh bốn panel còn cột trái hết sau
+//     ba: đo ở 1440px ra ~1000px trống dưới cột trái. Chuyển nó chứ không chuyển "Chưa
+//     đặt hạn mức" (khối đó là việc DỰNG ngân sách, thuộc cột mô tả).
+//
+// Hai thẻ "dòng tiền tích lũy" và "lịch chi tiêu" vì thế không còn chung một component
+// (`MonthPaceCharts` cũ) — chúng nay ở hai cột nên phải tách được.
 const BLOCKS: { name: string; mark: string; column: 'trái' | 'phải' }[] = [
   { name: 'Tổng ngân sách (kèm phán quyết)', mark: '>Tổng ngân sách<', column: 'trái' },
-  { name: 'Cần để ý', mark: 'Cần để ý (', column: 'trái' },
   { name: 'Danh sách hạn mức', mark: 'groupLabel="Sắp xếp hạn mức"', column: 'trái' },
   { name: 'Ngân sách theo nhãn', mark: '<TagBudgetsCard', column: 'trái' },
+  { name: 'Lịch chi tiêu', mark: '<MonthSpendCalendar', column: 'trái' },
   { name: 'Chi tích lũy vs ngân sách', mark: '<SpendPaceSection', column: 'phải' },
   { name: 'Cơ cấu chi so với mốc', mark: '<AxisTargetsCard', column: 'phải' },
   // Nhận ra bằng câu Guide bên trong, không bằng tiêu đề: cụm "Chưa đặt hạn mức" còn
   // xuất hiện trong chú thích, mà `at()` đòi mốc phải là duy nhất.
   { name: 'Chưa đặt hạn mức', mark: 'Bấm tên nhóm để đặt trần chung', column: 'phải' },
-  { name: 'Lịch chi tiêu', mark: '<MonthPaceCharts', column: 'phải' },
+  { name: 'Dòng tiền tích lũy', mark: '<CumulativeCashflowCard', column: 'phải' },
 ]
 
 /** Vị trí ký tự của mốc trong nguồn; ném nếu không tìm thấy hoặc thấy nhiều hơn một lần. */
@@ -97,9 +109,20 @@ describe('bố cục trang Ngân sách', () => {
     }
   })
 
-  it('phán quyết nằm TRONG thẻ Tổng ngân sách, trước khối Cần để ý', () => {
-    // Đây là thứ kéo câu "sẽ vượt trần" từ y=803 lên trên mép gấp 732.
+  it('phán quyết nằm TRONG thẻ Tổng ngân sách, trước danh sách hạn mức', () => {
+    // Đây là thứ kéo câu "sẽ vượt trần" từ y=803 lên trên mép gấp 732. Mốc dưới đổi từ
+    // "Cần để ý" sang danh sách hạn mức khi B8 bỏ khối đó — vế cần canh vẫn y nguyên:
+    // phán quyết phải nằm trong thẻ tổng, không trôi xuống dưới khối kế tiếp.
     expect(at('<BudgetVerdictLine')).toBeGreaterThan(at('>Tổng ngân sách<'))
-    expect(at('<BudgetVerdictLine')).toBeLessThan(at('Cần để ý ('))
+    expect(at('<BudgetVerdictLine')).toBeLessThan(at('groupLabel="Sắp xếp hạn mức"'))
+  })
+
+  it('không còn khối "Cần để ý" riêng, nhưng mẫu số 3/5 vẫn còn', () => {
+    // Nếu phép thử này đỏ vì có người dựng lại khối trên: đọc lại B8 ở đầu file. Hai
+    // khối cạnh nhau mở đầu bằng cùng ba dòng là lỗi đã đo, không phải ý thích.
+    expect(src).not.toMatch(/>\s*Cần để ý/)
+    expect(src, 'mẫu số "n / m mục" phải sống tiếp ở tiêu đề danh sách hạn mức').toContain(
+      'mục cần để ý',
+    )
   })
 })

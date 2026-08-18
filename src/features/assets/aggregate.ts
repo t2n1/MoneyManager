@@ -74,6 +74,19 @@ export interface AssetGroup {
   accounts: AssetAccount[]
   /** nhóm có tài khoản thiếu tỷ giá → total chỉ là một phần */
   hasMissingRate: boolean
+  /**
+   * minor units base — MỌI tài khoản không ẩn, kể cả tài khoản không tính vào tổng.
+   *
+   * `total` bỏ qua tài khoản `include_in_totals = false`, nên một nhóm mà cả nhóm đứng
+   * ngoài tổng có `total = 0` trong khi trong nó vẫn có tiền thật. In `total` ở đầu
+   * nhóm đó là in "¥0" ngay cạnh những dòng đang nói mấy trăm triệu — hai câu trái
+   * nhau trên cùng một khối. `rawTotal` là con số để in thay.
+   */
+  rawTotal: number
+  /** `rawTotal` bằng TIỀN GỐC, chỉ khi mọi tài khoản không ẩn dùng chung một đồng tiền. */
+  nativeTotal: number | null
+  /** Đồng tiền của `nativeTotal`; null = nhóm có nhiều loại tiền, phải quy đổi mới cộng được. */
+  nativeCurrency: CurrencyCode | null
   /** false = không cộng vào Tổng tài sản (vẫn hiển thị riêng) */
   includeInTotals: boolean
   /** true = ẩn hẳn khỏi trang Tài sản */
@@ -245,6 +258,17 @@ export function assetBreakdown(
     // Tài khoản đóng góp vào total nhóm = không ẩn & tính-vào-tổng (cấp tài khoản)
     const countedAccounts = accounts.filter((a) => !a.hidden && a.includeInTotals)
     const groupTotal = countedAccounts.reduce((s, a) => s + (a.baseValue ?? 0), 0)
+    // Tổng "thô": mọi tài khoản còn hiện, không lọc theo include_in_totals. Đây là con
+    // số ĐẦU NHÓM cho nhóm đứng ngoài tổng — xem JSDoc rawTotal.
+    const shownAccounts = accounts.filter((a) => !a.hidden)
+    const rawTotal = shownAccounts.reduce((s, a) => s + (a.baseValue ?? 0), 0)
+    // Một đồng tiền duy nhất → cộng thẳng số gốc, không qua tỷ giá (§G: "≈" chỉ dành cho
+    // số đã quy đổi). Nhiều đồng tiền thì không có "số gốc" nào để in.
+    const nativeCurrency =
+      shownAccounts.length > 0 && shownAccounts.every((a) => a.currency === shownAccounts[0].currency)
+        ? shownAccounts[0].currency
+        : null
+    const nativeTotal = nativeCurrency ? shownAccounts.reduce((s, a) => s + a.value, 0) : null
     // Ưu tiên thứ tự tùy chỉnh (kéo–thả); hòa/chưa đặt → giá trị giảm dần.
     accounts.sort(
       (a, b) => a.sortOrder - b.sortOrder || (b.baseValue ?? 0) - (a.baseValue ?? 0),
@@ -269,6 +293,9 @@ export function assetBreakdown(
       share: 0, // gán lại sau khi biết grand total
       accounts,
       hasMissingRate: countedAccounts.some((a) => a.baseValue === null),
+      rawTotal,
+      nativeTotal,
+      nativeCurrency,
       includeInTotals,
       hidden,
     }
@@ -464,6 +491,11 @@ export function assetTypeGroups(breakdown: AssetBreakdown): AssetGroup[] {
       share: breakdown.total > 0 ? groupTotal / breakdown.total : 0,
       accounts,
       hasMissingRate: accounts.some((a) => a.baseValue === null),
+      // Lát này CHỈ gồm tài khoản đã được tính, nên tổng thô trùng tổng — và không có
+      // "số gốc" nào: một loại tài khoản gom được nhiều đồng tiền.
+      rawTotal: groupTotal,
+      nativeTotal: null,
+      nativeCurrency: null,
       includeInTotals: true,
       hidden: false,
     }
@@ -500,6 +532,10 @@ export function assetCurrencyGroups(breakdown: AssetBreakdown): AssetGroup[] {
       name: CURRENCIES[currency].label,
       total: groupTotal,
       share: breakdown.total > 0 ? groupTotal / breakdown.total : 0,
+      // Lát cắt theo đồng tiền: cả lát chung một đồng tiền nên số gốc luôn có.
+      rawTotal: groupTotal,
+      nativeTotal: accounts.reduce((sum, a) => sum + a.value, 0),
+      nativeCurrency: currency,
       accounts,
       hasMissingRate: accounts.some((a) => a.baseValue === null),
       includeInTotals: true,

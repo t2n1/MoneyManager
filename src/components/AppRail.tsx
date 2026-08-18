@@ -28,9 +28,17 @@ export function AppRail() {
       // lệch 1px ở đây là cả vùng nội dung lệch theo.
       className="hidden w-[3.25rem] shrink-0 flex-col items-center gap-1.5 border-r border-border-panel bg-surface-chrome py-2.5 lg:flex print:hidden"
     >
-      <NavLink to="/" aria-label="Sổ Gạo — trang chủ" className="mb-2">
+      {/* Logo là DẤU HIỆU, không phải nút. Trước đây nó là <NavLink to="/"> — cùng đích
+          với mục "Bản tin" ngay dưới, nên cột rail có BẢY ô bấm được cho SÁU màn, và hai
+          ô đầu đi cùng một chỗ. Đếm trên màn Báo cáo ra đúng bảy hình vẽ xếp dọc: người
+          đọc không có cách nào biết ô nào là điều hướng, ô nào là nhãn.
+          Bỏ liên kết chứ không bỏ hình: hình còn giữ vai "đây là app nào", mà đường về
+          trang chủ thì mục "Bản tin" đã mang sẵn, cách nó 6px.
+          `mb-1.5` + kẻ dưới: tách nhãn khỏi cột nút để mắt không đọc nó thành mục thứ
+          bảy. tests/navMobile.test.ts canh đúng con số sáu. */}
+      <span aria-hidden className="mb-1.5 border-b border-border-panel pb-1.5">
         <AppLogo className="h-6 w-6" />
-      </NavLink>
+      </span>
       {NAV_ITEMS.map((item) => (
         <NavLink
           key={item.to}

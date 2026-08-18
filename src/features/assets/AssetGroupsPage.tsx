@@ -117,6 +117,11 @@ export function AssetGroupsPage() {
         share: 0,
         accounts: [],
         hasMissingRate: false,
+        // Nhóm rỗng (mới tạo, chưa gán tài khoản): không có tài khoản nào thì cũng
+        // không có tổng thô lẫn số gốc nào.
+        rawTotal: 0,
+        nativeTotal: null,
+        nativeCurrency: null,
         includeInTotals: s.includeInTotals,
         hidden: s.hidden,
       }))

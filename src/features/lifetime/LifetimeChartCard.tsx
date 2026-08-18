@@ -23,7 +23,7 @@ import type { CurrencyCode } from '../../lib/currencies'
 import { MOTION_ASSUME_MS } from '../../lib/motion'
 import { formatCompact, formatMoney } from '../../lib/money'
 import type { NetWorthSnapshotRow } from '../../types/database.types'
-import { buildChartData, chartSeriesPlan } from './chartSeries'
+import { buildChartData, chartSeriesPlan, yearAxisTicks } from './chartSeries'
 import { compareAtEnd, firstNegativeYear } from './insights'
 import type { YearRow } from './project'
 import { Card } from '../../components/ui'
@@ -258,6 +258,10 @@ export function LifetimeChartCard({
     () => buildChartData(rows, effectiveHistoryRows, compare),
     [rows, effectiveHistoryRows, compare],
   )
+  // Nhãn trục năm — mỗi 5 năm thay vì cả 39. Phép chọn mốc ở chartSeries.ts (thuần, có
+  // test): nhãn trục là <text> Recharts dựng sau khi đo khung nên không kiểm được bằng
+  // máy ở đây.
+  const yearTicks = useMemo(() => yearAxisTicks(data.map((d) => d.year)), [data])
   const eventLabels = useMemo(() => newEventLabelsByYear(rows), [rows])
   const markerYears = useMemo(() => [...eventLabels.keys()], [eventLabels])
   const compareEndRow = compare && compare.length > 0 ? compare[compare.length - 1] : null
@@ -405,7 +409,17 @@ export function LifetimeChartCard({
               />
             )}
 
-            <XAxis dataKey="year" tick={{ fontSize: 11, fill: COLOR_AXIS }} axisLine={false} tickLine={false} />
+            {/* `interval={0}` + `ticks`: vẽ ĐÚNG bộ mốc đã chọn, không để Recharts tự bỏ
+                bớt lần nữa (nó sẽ bỏ trên chính bộ đã thưa). 10px là SÀN cỡ chữ của app
+                (§C.2) và fill là --fg-muted — cặp này đã qua contrast. */}
+            <XAxis
+              dataKey="year"
+              ticks={yearTicks}
+              interval={0}
+              tick={{ fontSize: 10, fill: COLOR_AXIS }}
+              axisLine={false}
+              tickLine={false}
+            />
             <YAxis
               tickFormatter={(v: number) => formatCompact(v, currency)}
               tick={{ fontSize: 11, fill: COLOR_AXIS }}

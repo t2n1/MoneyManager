@@ -497,11 +497,15 @@ export function LifetimeView() {
         historyCurrency={profile?.base_currency ?? (active.display_currency as CurrencyCode)}
       />
 
-      <div className="flex gap-2">
+      {/* Hàng nút: đầy bề ngang dưới sm (ngón tay), CỠ NÚT từ sm trở lên.
+          `flex-1` ở mọi khổ làm hai nút này rộng bằng nửa panel — ở 1440px là hai khối
+          chữ nhật xám cao 44px, rộng ~320px, mỗi khối chỉ có hai chữ ở giữa: chúng đọc
+          thành hai TẤM THẺ RỖNG nằm cuối trang, không ai nghĩ đó là nút bấm. */}
+      <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => setTableOpen(true)}
-          className="min-h-11 flex-1 rounded-md bg-surface px-3 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95"
+          className="min-h-11 flex-1 rounded-md bg-surface px-3 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95 sm:flex-none sm:px-5"
         >
           Bảng theo năm
         </button>
@@ -518,7 +522,7 @@ export function LifetimeView() {
               setComparePickerOpen((o) => !o)
             }
           }}
-          className={`min-h-11 flex-1 rounded-md px-3 text-sm font-medium shadow-sm transition active:scale-95 ${
+          className={`min-h-11 flex-1 rounded-md px-3 text-sm font-medium shadow-sm transition active:scale-95 sm:flex-none sm:px-5 ${
             effectiveCompareId ? 'bg-accent text-fg-on-accent' : 'bg-surface text-fg-secondary'
           }`}
         >

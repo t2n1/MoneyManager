@@ -157,16 +157,36 @@ describe('contrast: cách viết đã bị đo là trượt AA', () => {
     )
   })
 
+  // Viết lại 2026-08-18 cùng B9 của gói 1a: thang nền đổi từ amber→orange→red (ba sắc,
+  // nằm ngoài bảng màu) sang MỘT sắc `--money-out` với bốn độ mờ 12/30/55/100. Nền đổi
+  // thì mực phải đo lại — bộ cũ (`text-gray-950` cho bậc 3–4, `fg-secondary` cho 0–2)
+  // không còn đúng trên nền mới: đo được `fg-secondary` chỉ 4,17 ở bậc 2 chế độ SÁNG.
+  // Số đo đầy đủ của bộ mới nằm ngay trên `LEVEL_INK` trong SpendHeatmapCard.tsx.
   it('mực chữ ô lịch chi tiêu đúng bộ đã đo', () => {
     const src = stripComments(
       readFileSync(join(SRC, 'features', 'reports', 'SpendHeatmapCard.tsx'), 'utf8'),
     )
-    // Bậc 3–4 nền nóng (orange-400 / red-500 ở light, orange-600 / red-500 ở dark):
-    // gray-950 đạt cả hai chế độ. text-white từng dùng ở đây chỉ được 2,38 và 3,81.
-    expect(src, 'bậc 3–4 phải dùng text-gray-950').toMatch(/level >= 3 \? 'text-gray-950'/)
-    // Bậc 0–2 dùng TOKEN fg-secondary (= gray-600 light / gray-300 dark, đúng cặp đã
-    // đo), không viết tay cặp sáng/tối — tests/designSystem.test.ts ban cách viết đó.
-    expect(src, 'bậc 0–2 phải dùng token text-fg-secondary').toMatch(/'text-fg-secondary'/)
+    // Bộ mực đi theo BẬC, khai thành bảng cạnh bảng nền — không phải một điều kiện
+    // `level >= 3 ? …` rải trong JSX: hai bảng cạnh nhau thì đọc một lượt là biết bậc
+    // nào ăn mực nào, và thêm bậc mà quên mực sẽ ra `undefined` chứ không im lặng đúng.
+    const ink = src.match(/const LEVEL_INK = \[([\s\S]*?)\]/)
+    expect(ink, 'không tìm thấy bảng LEVEL_INK').not.toBeNull()
+    const levels = [...ink![1].matchAll(/'([^']+)'/g)].map((m) => m[1])
+    expect(levels, 'năm bậc nền thì phải có năm bậc mực').toEqual([
+      // Bậc 0 (không chi) im tiếng hơn: 6,32 sáng / 11,37 tối.
+      'text-fg-secondary',
+      // Bậc 1–3: nền pha vẫn cùng phe với nền trang → mực thường của chế độ.
+      'text-fg-primary',
+      'text-fg-primary',
+      'text-fg-primary',
+      // Bậc 4 nền ĐẶC: red-700 ở sáng cần chữ trắng, red-400 ở tối cần chữ gần đen —
+      // fg-inverse là token đã lật sẵn đúng chiều đó. 6,42 / 6,97.
+      'text-fg-inverse',
+    ])
+    // Cả hai cách viết dưới đây đều từng có ở file này và đều trượt trên nền mới.
     expect(src, 'không được quay lại text-white cho ô lịch').not.toMatch(/text-white/)
+    expect(src, 'không được viết tay màu xám cố định — nền lật theo chế độ').not.toMatch(
+      /text-gray-950/,
+    )
   })
 })

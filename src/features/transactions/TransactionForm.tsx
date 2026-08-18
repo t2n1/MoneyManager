@@ -835,6 +835,14 @@ export function TransactionForm({
         <input
           aria-label={label ?? 'Số tiền'}
           inputMode="numeric"
+          // Ô tiền CHÍNH tự nhận tiêu điểm khi mở màn (desktop). Không có nó thì ô 30px
+          // ngay đầu màn đứng trống, không con trỏ nháy, không viền sáng — đọc thành một
+          // dải trang trí chứ không phải chỗ gõ, và người dùng phải bấm vào mới nhập được
+          // dù đây là việc DUY NHẤT của màn. Trên mobile không đụng tới: ở đó ô này bị
+          // `hidden`, chỗ gõ là nút chạm + bàn phím số của app.
+          // Chỉ ô 'main' — `autoFocus` trên ô "nhận được" của CK xuyên tệ sẽ cướp tiêu
+          // điểm khỏi ô đứng trước nó.
+          autoFocus={field === 'main'}
           value={inputValue}
           onChange={(e) => {
             const parsed = String(parseMoney(e.target.value))
@@ -844,7 +852,11 @@ export function TransactionForm({
             if (e.key === 'Enter') handleSubmit()
           }}
           placeholder={formatMoney(0, currency)}
-          className={`hidden rounded-md border border-border-strong bg-surface px-4 py-3 text-right font-mono text-[1.875rem] font-semibold tracking-[-.02em] outline-accent lg:block ${AMOUNT_COLOR[type]}`}
+          // Viền nhấn khi gõ: `outline-2 outline-accent` (§4.6 — outline chứ không ring,
+          // 1a bỏ hẳn shadow). `outline-accent` một mình chỉ đặt MÀU cho viền mặc định
+          // của trình duyệt, mà viền đó mỗi trình duyệt một bề dày — ô chính của màn thì
+          // không để trình duyệt quyết định nó dày mỏng ra sao.
+          className={`hidden rounded-md border border-border-strong bg-surface px-4 py-3 text-right font-mono text-[1.875rem] font-semibold tracking-[-.02em] focus:outline-2 focus:outline-accent lg:block ${AMOUNT_COLOR[type]}`}
         />
       </div>
     )
@@ -862,7 +874,25 @@ export function TransactionForm({
           dưới nên không bao giờ bị đẩy khuất — kể cả khi vai trò đặc biệt thêm field.
           Trên lg không có numpad, vùng này thôi giành hết chỗ trống (flex-initial)
           để nút Lưu nằm ngay dưới nội dung thay vì ghim tận đáy màn hình. */}
-      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto lg:flex-initial">
+      {/* HAI CỘT từ lg (§B13): trái = số tiền + danh mục (hai bước bắt buộc), phải = nhãn,
+          ghi chú, hoàn tiền (những thứ tùy chọn). Trước đây cả form là một cột 640px giữa
+          màn, hai bên đen: ở 1440px đo được 764px bỏ không, tức hơn nửa màn trống trong khi
+          lưới danh mục bên dưới phải cuộn.
+
+          KHÔNG đổi luồng, không đổi thứ tự field, không biến thành modal — bản `3a` đi
+          đường đó và đã bị bỏ; bản đúng là `5a`. Chia cột bằng hai wrapper `contents`
+          (đúng lối BudgetView): dưới lg chúng nhả con thẳng ra flex-col nên DOM phẳng ra
+          y như cũ, tức thứ tự đọc, thứ tự tiêu điểm và cách cuộn trên điện thoại không
+          đổi một ly. Từ lg mới thành lưới — và thứ tự tiêu điểm vẫn là trái-rồi-phải,
+          đúng thứ tự nhìn thấy, nên không cần `order-*` (WCAG 2.4.3).
+
+          Cột phải hẹp hơn (20rem): những ô bên đó là chữ một dòng, kéo dài ra chỉ tổ làm
+          dòng chữ khó dò về đầu hàng. */}
+      <div
+        ref={scrollRef}
+        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto lg:grid lg:flex-initial lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] lg:items-start lg:gap-x-4"
+      >
+      <div className="contents lg:flex lg:flex-col lg:gap-1.5">
       {/* Mẫu giao dịch nhanh (mục J): 1 chạm điền sẵn. Chỉ hiện khi ĐÃ có mẫu —
           nút "Lưu mẫu" nằm cố định cạnh ô ghi chú, không chèn hàng vào đây giữa
           chừng làm cả trang tụt xuống ngay lúc tay đang bấm danh mục. */}
@@ -1201,10 +1231,16 @@ export function TransactionForm({
           </div>
         ))}
 
+      </div>
+
+      {/* ----- CỘT PHẢI (từ lg) ----- */}
+      <div className="contents lg:flex lg:flex-col lg:gap-1.5">
       {/* Dưới lưới danh mục: những thứ tùy chọn/hiếm dùng (ghi chú, nhãn, hoàn tiền).
           Danh mục là bước bắt buộc của mọi giao dịch nên phải nằm trong tầm nhìn đầu
           tiên — ghi chú chen ở trên vừa tách hai bước bắt buộc (tiền → danh mục),
-          vừa dễ chạm nhầm làm bàn phím hệ thống bật lên che numpad. */}
+          vừa dễ chạm nhầm làm bàn phím hệ thống bật lên che numpad.
+          Từ lg khối này sang cột phải: ở đó nó nằm NGANG hàng với ô tiền, không còn phải
+          cuộn qua cả lưới danh mục mới thấy. */}
       <div className="flex gap-1.5">
         {/* Không có nhãn nhìn bằng mắt (cố ý — form Nhập ưu tiên gọn), nên tên ô phải đi
             qua `aria-label`. Placeholder KHÔNG phải tên: nó mất ngay khi bắt đầu gõ. */}
@@ -1284,7 +1320,9 @@ export function TransactionForm({
 
       </div>
 
-      {/* Đáy ghim: NumPad + lỗi + nút Lưu — luôn hiển thị, không bị nội dung đẩy khuất. */}
+      </div>
+      {/* Đáy ghim: NumPad + lỗi + nút Lưu — luôn hiển thị, không bị nội dung đẩy khuất.
+          Nằm NGOÀI lưới hai cột: nút Lưu là hành động của cả form, không thuộc cột nào. */}
       <div className="flex shrink-0 flex-col gap-1.5 pt-1.5">
       {/* NumPad chỉ trên mobile. Ô tiền phụ không nhận phép tính → mờ ÷×−+. */}
       <div className="lg:hidden">

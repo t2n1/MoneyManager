@@ -24,8 +24,6 @@ import type { CurrencyCode } from '../../lib/money'
 import { categoryBreakdown, cumulativeDailyBalance, monthlySeries } from '../reports/aggregate'
 import { tagsByTransaction } from '../tags/aggregate'
 import type { TransactionRow } from '../../types/database.types'
-import { AxisStrip } from '../budgets/AxisStrip'
-import { useAxisProgress } from '../budgets/useAxisProgress'
 import { RemindersBanner } from '../reminders/RemindersBanner'
 import { NotificationBell } from '../notifications/NotificationBell'
 import { NotificationBoundary } from '../notifications/NotificationBoundary'
@@ -92,7 +90,6 @@ export function LedgerPage() {
   const { data: tags = [] } = useTags()
   const { data: tagLinks = [] } = useTransactionTags()
   const { base, rates } = useRates()
-  const axis = useAxisProgress(activeMonthKey)
 
   // Nhãn của từng giao dịch — dựng một lần cho cả tháng thay vì tra bảng liên
   // kết trong mỗi dòng (danh sách có thể vài trăm dòng).
@@ -372,12 +369,13 @@ export function LedgerPage() {
         className="mb-4"
       />
 
-      {/* Cơ cấu chi so với mốc — chỉ ở tab Ngày. Tab Tháng đang điều hướng theo NĂM
-          nên "tháng này chi thế nào" vô nghĩa ở đó; Lịch và Tổng hợp đã kín màn. */}
-      {view === 'daily' && axis && (
-        <AxisStrip data={axis} monthKey={activeMonthKey} base={base} />
-      )}
-
+      {/* KHÔNG có dải "Cơ cấu chi so với mốc" ở đây nữa (B7 của gói 1a).
+          Dải này từng đứng ngay dưới dải tab, và ở đầu màn Sổ nó nén thành đúng MỘT VẠCH:
+          ba trục chia nhau bề ngang nên mỗi phần còn vài chục pixel, chữ tụt xuống dưới
+          sàn 11px của §C.2 — đọc không ra, mà vẫn chiếm một hàng của màn đầu tiên.
+          Bỏ chứ không phóng to: cùng con số đó đã có bản đầy đủ ở Báo cáo → Tháng này và
+          ở thẻ "Cơ cấu chi so với mốc" của Ngân sách, nơi nó có cả danh mục từng trục.
+          Sổ trả lời "tôi đã tiêu gì", không phải "chi thế này có lành mạnh không". */}
       {view === 'daily' && (
         <DailyView
           transactions={shown}

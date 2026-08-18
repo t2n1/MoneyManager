@@ -132,7 +132,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
             <button type="button" onClick={onClose} className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken">
               Hủy
             </button>
-            <button type="button" onClick={handleSubmit} disabled={!canSave} className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold active:scale-95 disabled:opacity-50">
+            <button type="button" onClick={handleSubmit} disabled={!canSave} className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold transition active:scale-95 disabled:opacity-50">
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>
           </div>

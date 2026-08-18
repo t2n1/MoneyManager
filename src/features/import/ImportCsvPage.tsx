@@ -457,7 +457,7 @@ export function ImportCsvPage() {
                 type="button"
                 onClick={handleImport}
                 disabled={busy || toImport.length === 0}
-                className="mt-3 w-full rounded-md bg-accent hover:bg-accent-hover text-fg-on-accent py-2.5 text-sm font-semibold disabled:opacity-40 active:scale-95"
+                className="mt-3 w-full rounded-md bg-accent hover:bg-accent-hover text-fg-on-accent py-2.5 text-sm font-semibold disabled:opacity-40 transition active:scale-95"
               >
                 {busy ? 'Đang nhập…' : `Nhập ${toImport.length} giao dịch`}
               </button>

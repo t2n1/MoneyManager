@@ -441,7 +441,7 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
           <section className="rounded-2xl bg-surface p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-fg-secondary">Tài sản ròng</span>
-              <Link to="/debts" className="inline-flex items-center gap-0.5 text-xs font-medium text-fg-accent">
+              <Link to="/debts" className="-my-2 inline-flex items-center gap-0.5 py-2 text-xs font-medium text-fg-accent">
                 Nợ / cho vay <ChevronRight className="h-4 w-4" />
               </Link>
             </div>

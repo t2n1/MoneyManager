@@ -585,7 +585,7 @@ export function AssetGroupsPage() {
             setAdding(true)
             setNewName('')
           }}
-          className="flex items-center gap-1 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold shadow-sm active:scale-95"
+          className="flex items-center gap-1 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold shadow-sm transition active:scale-95"
         >
           <Plus className="h-4 w-4" /> Thêm nhóm
         </button>
@@ -792,7 +792,7 @@ function DeleteGroupSheet({
           <button
             type="button"
             onClick={() => onConfirm(target || null)}
-            className="min-h-11 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white active:scale-95"
+            className="min-h-11 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white transition active:scale-95"
           >
             Xóa nhóm
           </button>

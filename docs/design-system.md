@@ -279,6 +279,20 @@ Scanner **bỏ comment trước khi đếm** — nếu không thì chính lời 
 
 **Gộp bớt được chỗ nào thì hạ số trong file test xuống.** Để nguyên thì ngưỡng thành chỗ trú cho nợ kỹ thuật.
 
+### `active:scale-95` — trần này đo cái gì (2026-08-18)
+
+Chấm điểm cả **73** thẻ mở có `active:scale-95` so với bốn dáng của primitive: **không cái nào lệch dưới 3 class**. Tức đây không phải 73 bản chép tay của `<ActionButton>`/`<IconButton>` — chúng là những nút có **dáng riêng**, chỉ dùng chung một idiom nhấn. Gộp vào primitive nghĩa là **đổi diện mạo** từng nút, không phải dọn dẹp. Trần vì thế chỉ còn một việc: chặn mọc thêm.
+
+Nợ THẬT trong đám đó tách ra thành luật riêng: **51/73 nút thiếu `transition`** — đúng cái mà comment của cả hai primitive dự đoán sẽ quên ("hai thứ này phải đi cùng nhau, chép tay thì luôn có chỗ quên"). Thiếu nó thì nút không co giãn, nó **nhảy** một nhịp rồi nhảy về. Đã thêm cho cả 51, và có ban cứng giữ cặp đó dính nhau.
+
+### Vùng chạm: đo thật, đừng đoán theo class
+
+Đếm class (`min-h-11`…) ra 22 chỗ "nghi nhỏ", nhưng phần lớn là đoán sai — nút cao 46px viết bằng `h-[2.875rem]`, nút 30px của top bar vốn là ngoại lệ có chủ ý. Cách đúng là **đo `getBoundingClientRect` trên máy thật**, ở 375px, qua 14 màn.
+
+Đo theo **WCAG 2.5.8 AA (24×24)**, bỏ hai ngoại lệ chính đáng của chuẩn: liên kết nằm trong câu văn, và ô tích nằm trong `<label>` cao ≥24 (nhãn mới là vùng bấm). Kết quả: **8 chỗ** dưới ngưỡng — sáu liên kết đầu-thẻ ("Xem cả tháng →", "Chọn loại nhắc", "Sắp chi"…) chỉ cao 15–16px, một dòng "độ tin cậy" cao 20px, một nút tên danh mục cao 20px.
+
+Chữa bằng idiom sẵn có trong app: **`py-2` cộng `-my-2`** — vùng bấm cao thêm, bố cục không xê một pixel. Đo lại: **0 chỗ** dưới 24×24 trên cả 14 màn.
+
 ### Chỉ báo tiêu điểm: một ring cho cả app (2026-08-18)
 
 Bộ test từng có **đúng một `it.skip`**, kèm ghi chú nói rõ phải làm gì trước khi mở: *nới `:focus-visible` ra input/select/textarea, đo lại tương phản bằng cách vẽ ra pixel, rồi mới xoá các chỗ tự chế.* Đã làm đủ ba bước, đúng thứ tự đó — giờ bộ test **không còn phép thử nào bị bỏ qua**.

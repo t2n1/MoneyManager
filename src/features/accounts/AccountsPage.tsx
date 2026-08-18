@@ -76,7 +76,7 @@ export function AccountsPage() {
         <button
           type="button"
           onClick={() => setEditing('new')}
-          className="rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold active:scale-95"
+          className="rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold transition active:scale-95"
         >
           + Thêm
         </button>

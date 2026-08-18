@@ -96,7 +96,7 @@ export function NotificationBell({ className = '' }: { className?: string }) {
         aria-label={unreadCount > 0 ? `Thông báo, ${unreadCount} việc cần làm` : 'Thông báo'}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className={`relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-md bg-surface px-3 shadow-sm active:scale-95 ${className}`}
+        className={`relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-md bg-surface px-3 shadow-sm transition active:scale-95 ${className}`}
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (

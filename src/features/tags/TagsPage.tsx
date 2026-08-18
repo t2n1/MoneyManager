@@ -331,7 +331,7 @@ export function TagsPage() {
           type="button"
           onClick={add}
           disabled={!draft.trim() || createTag.isPending}
-          className="min-h-11 shrink-0 rounded-md bg-accent text-fg-on-accent px-4 text-sm font-semibold active:scale-95 disabled:opacity-40"
+          className="min-h-11 shrink-0 rounded-md bg-accent text-fg-on-accent px-4 text-sm font-semibold transition active:scale-95 disabled:opacity-40"
         >
           Thêm
         </button>

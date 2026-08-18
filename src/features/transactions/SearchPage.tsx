@@ -291,7 +291,7 @@ export function SearchPage() {
       <button
         type="button"
         onClick={() => setShowMore((v) => !v)}
-        className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-fg-accent"
+        className="-my-1 mb-1 inline-flex items-center gap-1 py-2 text-xs font-medium text-fg-accent"
       >
         {showMore ? 'Ẩn bộ lọc' : 'Lọc theo danh mục / nhãn / tài khoản'}
         {showMore ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}

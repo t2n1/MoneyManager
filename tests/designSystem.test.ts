@@ -583,6 +583,46 @@ describe('design system — ban cứng (phải bằng 0)', () => {
   })
 
   /**
+   * `active:scale-95` mà THIẾU `transition` thì nút không co giãn — nó NHẢY một nhịp rồi
+   * nhảy về. Đây đúng là lý do <ActionButton>/<IconButton> ra đời: comment của cả hai
+   * primitive đều ghi "hai thứ này phải đi cùng nhau, chép tay thì luôn có chỗ quên".
+   *
+   * Đo 2026-08-18: 51 trong 73 nút có `active:scale-95` đang thiếu `transition` — tức
+   * cách chép tay hỏng ở 70% số chỗ, đúng như dự đoán viết trong primitive. Đã thêm cho
+   * cả 51; luật này giữ cặp đó dính nhau.
+   *
+   * Chỉ soi trong MỘT thẻ mở, nên không bắt oan trường hợp `transition` nằm ở lớp cha —
+   * mà cũng không nên có: transform co giãn là của chính nút.
+   */
+  it('active:scale-95 luôn đi kèm transition', () => {
+    const hits: string[] = []
+    for (const file of sourceFiles()) {
+      const raw = readFileSync(file, 'utf8')
+      const tag = /<(button|a|Link|label|div|span)\b/g
+      let m: RegExpExecArray | null
+      while ((m = tag.exec(raw))) {
+        let i = m.index + m[0].length
+        let depth = 0
+        for (; i < raw.length; i++) {
+          const c = raw[i]
+          if (c === '{') depth++
+          else if (c === '}') depth--
+          else if (c === '>' && depth === 0) break
+        }
+        const open = raw.slice(m.index, i + 1)
+        if (!/\bactive:scale-95\b/.test(open)) continue
+        if (/\btransition(-[\w[\]]+)?\b/.test(open)) continue
+        hits.push(`${file.slice(SRC.length + 1)}:${raw.slice(0, m.index).split('\n').length}`)
+      }
+    }
+    expect(
+      hits,
+      'Thiếu `transition` thì `active:scale-95` giật cục. Thêm `transition`, hoặc tốt hơn ' +
+        'là cho nút đi qua <ActionButton>/<IconButton>.\n' + hits.join('\n'),
+    ).toEqual([])
+  })
+
+  /**
    * Lý do: §1.3 của bản 1a TÁCH hai bán kính — CONTROL 6px (`rounded-md`) và PANEL 8px
    * (`rounded-lg`). Trước 1a app chỉ có một bán kính 8px, nên mọi nút/ô nhập dựng từ hồi
    * đó mang bán kính panel: đo được **200 chỗ** hôm 2026-08-18.
@@ -680,6 +720,15 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // FundHoldingsSection bị xoá — nội dung của chúng gom về hai tab của /invest, nơi
     // mỗi nút chỉ còn MỘT bản viết tay thay vì lặp lại ở khu danh mục cũ. Hạ trần theo
     // đúng quy ước ở thông điệp lỗi của chính phép thử này.
+    // ĐO LẠI 2026-08-18 — và con số này KHÔNG đọc như các trần khác. Chấm điểm cả 73
+    // thẻ mở có `active:scale-95` so với bốn dáng của primitive (`primary`/`outline`/
+    // `ghost`/`surface`): KHÔNG cái nào lệch dưới 3 class. Tức đây không phải "73 bản chép
+    // tay của primitive" — chúng là những nút có DÁNG RIÊNG, chỉ tình cờ dùng chung một
+    // idiom nhấn. Gộp chúng vào primitive là ĐỔI DIỆN MẠO từng nút, không phải dọn dẹp.
+    //
+    // Nên trần này chỉ còn một việc: chặn mọc thêm. Phần nợ THẬT trong đám đó đã tách ra
+    // thành luật riêng ở khối ban cứng ("active:scale-95 luôn đi kèm transition") — 51/73
+    // nút thiếu `transition`, đúng cái mà comment của hai primitive dự đoán sẽ quên.
     { needle: 'active:scale-95', max: 82, use: '<IconButton> / <ActionButton>' },
     // 28 chứ không 26: lượt sửa vùng chạm 2026-08-11 đưa BA công tắc role="switch"
     // (AssetGroupsPage, DebtPaymentSheet, roleFields) về đúng khuôn ba công tắc đã

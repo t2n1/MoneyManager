@@ -40,7 +40,7 @@ export function BudgetPanel({ report, isLoading, base, nameOf }: Props) {
     >
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-[0.8125rem] font-semibold text-fg-primary">Ngân sách</h2>
-        <Link to="/budget" className="text-2xs font-medium text-fg-accent hover:underline">
+        <Link to="/budget" className="-my-2 py-2 text-2xs font-medium text-fg-accent hover:underline">
           Xem cả tháng →
         </Link>
       </div>

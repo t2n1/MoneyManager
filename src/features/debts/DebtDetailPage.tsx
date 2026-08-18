@@ -115,7 +115,7 @@ export function DebtDetailPage() {
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="rounded-md bg-surface px-3 py-1.5 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
+          className="rounded-md bg-surface px-3 py-1.5 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95"
         >
           Sửa
         </button>
@@ -147,14 +147,14 @@ export function DebtDetailPage() {
         <button
           type="button"
           onClick={() => setPaying(true)}
-          className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold active:scale-95"
+          className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold transition active:scale-95"
         >
           + Ghi nhận trả
         </button>
         <button
           type="button"
           onClick={toggleSettled}
-          className="min-h-11 rounded-md bg-surface px-4 py-2 text-sm font-medium text-fg-secondary shadow-sm active:scale-95"
+          className="min-h-11 rounded-md bg-surface px-4 py-2 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95"
         >
           {debt.status === 'open' ? 'Đánh dấu tất toán' : 'Mở lại'}
         </button>

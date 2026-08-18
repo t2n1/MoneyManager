@@ -33,7 +33,7 @@ export function DebtsPage() {
         <h1 className="flex-1 text-lg font-bold text-fg-primary">Nợ / cho vay</h1>
         <Link
           to="/entry?role=debt"
-          className="rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold active:scale-95"
+          className="rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold transition active:scale-95"
         >
           + Thêm
         </Link>

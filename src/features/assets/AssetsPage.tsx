@@ -118,7 +118,7 @@ export function AssetsPage() {
         {view === 'now' && (
           <Link
             to="/assets/groups"
-            className="inline-flex items-center gap-1 rounded-lg bg-surface px-3 py-1.5 text-xs font-medium text-fg-secondary shadow-sm active:scale-95"
+            className="inline-flex items-center gap-1 rounded-lg bg-surface px-3 py-1.5 text-xs font-medium text-fg-secondary shadow-sm transition active:scale-95"
           >
             <Settings2 className="h-4 w-4" /> Quản lý nhóm
           </Link>

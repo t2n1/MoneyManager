@@ -268,7 +268,7 @@ export function CategoriesPage() {
           <button
             type="button"
             onClick={() => setForm({ category: p, parent: null })}
-            className="min-w-0 flex-1 text-left"
+            className="-my-1 min-w-0 flex-1 py-1 text-left"
           >
             <span className="block truncate text-sm font-semibold text-fg-primary">{p.name}</span>
             {kids.length > 0 && (
@@ -279,7 +279,7 @@ export function CategoriesPage() {
           <button
             type="button"
             onClick={() => setForm({ category: null, parent: p })}
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md bg-accent-muted-bg px-2 py-1 text-fg-accent active:scale-95"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md bg-accent-muted-bg px-2 py-1 text-fg-accent transition active:scale-95"
             aria-label={`Thêm danh mục con cho ${p.name}`}
           >
             <Plus className="h-5 w-5" />
@@ -372,7 +372,7 @@ export function CategoriesPage() {
         <button
           type="button"
           onClick={() => setForm({ category: null, parent: null })}
-          className="rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold active:scale-95"
+          className="rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold transition active:scale-95"
         >
           + Thêm
         </button>

@@ -251,7 +251,7 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
             type="button"
             onClick={onClose}
             aria-label="Đóng bảng theo năm"
-            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-fg-muted active:scale-95"
+            className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-fg-muted transition active:scale-95"
           >
             <X className="h-5 w-5" />
           </button>
@@ -286,7 +286,7 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
           <button
             type="button"
             onClick={handleExport}
-            className="ml-auto flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary active:scale-95"
+            className="ml-auto flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary transition active:scale-95"
           >
             <Download className="h-4 w-4" />
             Xuất CSV

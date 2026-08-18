@@ -30,7 +30,7 @@ export function AccountsPanel({ groups }: { groups: AssetGroup[] }) {
     >
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-[0.8125rem] font-semibold text-fg-primary">Tài khoản</h2>
-        <Link to="/assets" className="text-2xs font-medium text-fg-accent hover:underline">
+        <Link to="/assets" className="-my-2 py-2 text-2xs font-medium text-fg-accent hover:underline">
           Xem tất cả →
         </Link>
       </div>

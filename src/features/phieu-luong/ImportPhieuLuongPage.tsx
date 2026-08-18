@@ -248,7 +248,7 @@ export function ImportPhieuLuongPage() {
             type="button"
             onClick={taoDanhMuc}
             disabled={createCategory.isPending}
-            className="mt-2 min-h-9 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold active:scale-95 disabled:opacity-60"
+            className="mt-2 min-h-9 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold transition active:scale-95 disabled:opacity-60"
           >
             {createCategory.isPending ? 'Đang tạo…' : 'Tạo 6 danh mục'}
           </button>

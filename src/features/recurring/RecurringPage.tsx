@@ -215,13 +215,13 @@ export function RecurringPage() {
         </h1>
         {/* Khoản MỘT LẦN là anh em với khoản lặp mãi — ai đang ở đây tìm chỗ ghi
             "đóng phí vệ sinh 20/8" thì phải thấy lối sang. */}
-        <Link to="/planned" className="shrink-0 text-xs font-medium text-fg-accent">
+        <Link to="/planned" className="-my-2 shrink-0 py-2 text-xs font-medium text-fg-accent">
           Sắp chi
         </Link>
         <button
           type="button"
           onClick={() => setSheet({ open: true, rule: null })}
-          className="flex items-center gap-1 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold shadow-sm active:scale-95"
+          className="flex items-center gap-1 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold shadow-sm transition active:scale-95"
         >
           <Plus className="h-4 w-4" /> Thêm
         </button>
@@ -255,7 +255,7 @@ export function RecurringPage() {
                   <button
                     type="button"
                     onClick={() => createFromSuggestion(s)}
-                    className="shrink-0 rounded-md bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold active:scale-95"
+                    className="shrink-0 rounded-md bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold transition active:scale-95"
                   >
                     Tạo
                   </button>

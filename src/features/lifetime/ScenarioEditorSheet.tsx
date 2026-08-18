@@ -693,7 +693,7 @@ export function ScenarioEditorSheet({
               type="button"
               onClick={() => void handleDismiss()}
               aria-label="Đóng"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md active:scale-95 hover:bg-surface-sunken"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md transition active:scale-95 hover:bg-surface-sunken"
             >
               <X className="h-5 w-5 text-fg-muted" />
             </button>
@@ -831,7 +831,7 @@ export function ScenarioEditorSheet({
                 type="button"
                 aria-pressed={assetsSign === 1}
                 onClick={() => setAssetsSign(1)}
-                className={`min-h-11 flex-1 rounded-md text-sm font-medium active:scale-95 ${
+                className={`min-h-11 flex-1 rounded-md text-sm font-medium transition active:scale-95 ${
                   assetsSign === 1
                     ? 'bg-accent text-fg-on-accent'
                     : 'border border-border-strong text-fg-secondary'
@@ -843,7 +843,7 @@ export function ScenarioEditorSheet({
                 type="button"
                 aria-pressed={assetsSign === -1}
                 onClick={() => setAssetsSign(-1)}
-                className={`min-h-11 flex-1 rounded-md text-sm font-medium active:scale-95 ${
+                className={`min-h-11 flex-1 rounded-md text-sm font-medium transition active:scale-95 ${
                   assetsSign === -1
                     ? 'bg-accent text-fg-on-accent'
                     : 'border border-border-strong text-fg-secondary'
@@ -889,7 +889,7 @@ export function ScenarioEditorSheet({
               // Lúc bị vô hiệu hoá, nhãn nút CHÍNH LÀ câu giải thích vì sao không
               // lấy được số — nên không hạ tương phản xuống mức "chữ mờ" như nút
               // disabled thường; đây là chữ phải đọc được.
-              className="mb-3 min-h-11 text-left text-xs font-medium text-fg-accent active:scale-95 disabled:text-gray-600 dark:disabled:text-gray-300"
+              className="mb-3 min-h-11 text-left text-xs font-medium text-fg-accent transition active:scale-95 disabled:text-gray-600 dark:disabled:text-gray-300"
             >
               {netWorthLoading
                 ? 'Đang tính tài sản ròng hiện tại…'
@@ -962,7 +962,7 @@ export function ScenarioEditorSheet({
                 <button
                   type="button"
                   onClick={() => setResetNotice(null)}
-                  className="mt-1.5 min-h-11 font-semibold underline underline-offset-2 active:scale-95"
+                  className="mt-1.5 min-h-11 font-semibold underline underline-offset-2 transition active:scale-95"
                 >
                   Đã hiểu
                 </button>
@@ -974,7 +974,7 @@ export function ScenarioEditorSheet({
                 type="button"
                 onClick={handleSaveScenario}
                 disabled={!canSaveScenario}
-                className="min-h-11 flex-1 rounded-md bg-accent text-fg-on-accent text-sm font-semibold active:scale-95 disabled:opacity-50"
+                className="min-h-11 flex-1 rounded-md bg-accent text-fg-on-accent text-sm font-semibold transition active:scale-95 disabled:opacity-50"
               >
                 {savingScenario ? 'Đang lưu…' : 'Lưu thay đổi kịch bản'}
               </button>
@@ -983,7 +983,7 @@ export function ScenarioEditorSheet({
                 onClick={handleDuplicate}
                 disabled={duplicating}
                 title="Tạo một bản sao độc lập từ kịch bản này để thử phương án khác"
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border-strong px-3 text-sm font-medium text-fg-secondary active:scale-95 disabled:opacity-50"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border-strong px-3 text-sm font-medium text-fg-secondary transition active:scale-95 disabled:opacity-50"
               >
                 <Copy className="h-4 w-4" />
                 {duplicating ? 'Đang nhân bản…' : 'Nhân bản'}

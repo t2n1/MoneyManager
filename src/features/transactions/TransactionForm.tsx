@@ -751,7 +751,7 @@ export function TransactionForm({
         aria-expanded={roleMenu}
         aria-label="Loại đặc biệt"
         style={{ touchAction: 'manipulation' }}
-        className="flex min-h-11 items-center gap-0.5 whitespace-nowrap rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-sm font-medium text-fg-secondary active:scale-95"
+        className="flex min-h-11 items-center gap-0.5 whitespace-nowrap rounded-md border border-border-strong bg-surface px-2.5 py-1.5 text-sm font-medium text-fg-secondary transition active:scale-95"
       >
         Đặc biệt
         <ChevronDown
@@ -876,7 +876,7 @@ export function TransactionForm({
                 <button
                   type="button"
                   onClick={() => applyTemplate(t)}
-                  className="flex items-center gap-1 rounded-full border border-border-strong bg-surface py-1.5 pl-3 pr-6 text-xs font-medium text-fg-secondary active:scale-95"
+                  className="flex items-center gap-1 rounded-full border border-border-strong bg-surface py-1.5 pl-3 pr-6 text-xs font-medium text-fg-secondary transition active:scale-95"
                 >
                   <Star className="h-3 w-3 text-amber-400" fill="currentColor" />
                   <span className="max-w-[9rem] truncate">{t.label}</span>
@@ -908,7 +908,7 @@ export function TransactionForm({
             type="button"
             onClick={exitRole}
             aria-label="Bỏ vai trò, quay lại giao dịch thường"
-            className="relative flex items-center gap-1 rounded-md bg-surface/70 px-2 py-1 text-xs font-medium active:scale-95 after:absolute after:-inset-x-2 after:-inset-y-2.5"
+            className="relative flex items-center gap-1 rounded-md bg-surface/70 px-2 py-1 text-xs font-medium transition active:scale-95 after:absolute after:-inset-x-2 after:-inset-y-2.5"
           >
             <X className="h-3.5 w-3.5" aria-hidden /> Bỏ
           </button>
@@ -1146,7 +1146,7 @@ export function TransactionForm({
             <button
               type="button"
               onClick={() => setDrillId(null)}
-              className="flex items-center gap-1.5 self-start rounded-md border border-border-strong bg-surface px-2.5 py-1 text-xs font-medium text-fg-secondary active:scale-95"
+              className="flex items-center gap-1.5 self-start rounded-md border border-border-strong bg-surface px-2.5 py-1 text-xs font-medium text-fg-secondary transition active:scale-95"
             >
               <ChevronLeft className="h-4 w-4" /> <span className="text-base leading-none">{drillParent.icon}</span> {drillParent.name}
             </button>

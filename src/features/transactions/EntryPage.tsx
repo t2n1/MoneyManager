@@ -311,7 +311,7 @@ export function EntryPage() {
               <button
                 type="button"
                 onClick={() => handleUndo(toast.undoId!)}
-                className="rounded-full bg-white/20 px-2 py-0.5 text-white active:scale-95"
+                className="rounded-full bg-white/20 px-2 py-0.5 text-white transition active:scale-95"
               >
                 Hoàn tác
               </button>

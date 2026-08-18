@@ -93,7 +93,7 @@ export function TodoPanel({ items, onDismiss }: Props) {
             </span>
           )}
         </h2>
-        <Link to="/settings/notifications" className="text-2xs text-fg-muted hover:underline">
+        <Link to="/settings/notifications" className="-my-2 py-2 text-2xs text-fg-muted hover:underline">
           Chọn loại nhắc
         </Link>
       </div>

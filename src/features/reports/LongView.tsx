@@ -50,9 +50,17 @@ import {
   useRates,
   useTransferCategoryIds,
 } from '../../hooks/queries'
-import { addMonths, getMonthRange, monthKeyForDate, toISODate, type MonthKey } from '../../lib/dates'
+import {
+  addMonths,
+  dayMonthLabel,
+  getMonthRange,
+  monthKeyForDate,
+  toISODate,
+  type MonthKey,
+} from '../../lib/dates'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
+import { remittanceStats, remittanceTiming } from '../remittance/aggregate'
 import { categoryBreakdown, monthlySeries } from './aggregate'
 import {
   findRegime,
@@ -190,6 +198,31 @@ export function LongView() {
     return remitStrip(keys, (k) => byMonth.get(`${k.year}-${k.month}`) ?? 0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txs, active, scopeMonths, monthStartDay, accounts, base, rates])
+
+  /**
+   * TỶ GIÁ của từng lần gửi — phần mà bản dựng lại gần bỏ mất.
+   *
+   * `RemittanceSection` cũ (đã xoá cùng bản dựng lại) có một khối "lần gửi được giá nhất /
+   * thiệt nhất", và README §R8 ghi rõ nó là lý do khối này thuộc về Dài hạn: so tỷ giá chỉ
+   * có nghĩa khi có nhiều lần gửi. Bản vẽ 27a chỉ vẽ dải 12 cột nên khi dựng theo bản vẽ,
+   * phần này rơi ra ngoài — mà nó không trùng với bất kỳ con số nào của dải.
+   *
+   * Không cần nhập tỷ giá thị trường ở đâu cả: số VND người nhận THỰC NHẬN đã là tỷ giá
+   * thật. Chỉ những lần gửi có ghi đủ hai đầu (số JPY gửi + số VND nhận) mới vào phép so.
+   */
+  const remitRate = useMemo(() => {
+    const inScope = txs.filter((t) => {
+      if (!t.is_remittance) return false
+      const k = monthKeyForDate(t.occurred_on, monthStartDay)
+      return remit.months.some((m) => m.key.year === k.year && m.key.month === k.month)
+    })
+    const stats = remittanceStats(inScope)
+    const timing = remittanceTiming(inScope, stats.avgRate)
+    if (timing.length < 2 || stats.avgRate === null) return null
+    const sorted = [...timing].sort((a, b) => b.vsAvgPct - a.vsAvgPct)
+    return { stats, best: sorted[0], worst: sorted[sorted.length - 1] }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [txs, remit.months, monthStartDay])
 
   // Biểu đồ LUÔN vẽ cả 24 tháng; phạm vi chỉ quyết định phần nào là "kỳ đang xem".
   const rolling = useMemo(() => rollingAverage(active.map((p) => p.expense), ROLL), [active])
@@ -792,10 +825,38 @@ export function LongView() {
             )}
             .
           </p>
+          {/* Tỷ giá: chỉ hiện khi có ĐỦ HAI lần gửi ghi cả số VND nhận. Một lần thì không
+              có gì để so, và in "được giá nhất" cho một lần duy nhất là một câu rỗng. */}
+          {remitRate !== null && (
+            <div className="mt-2.5 border-t border-border-subtle pt-2.5">
+              <p className="text-[0.8125rem] text-fg-secondary">
+                Tỷ giá thực nhận trung bình{' '}
+                <b>
+                  <Num>{Math.round(remitRate.stats.avgRate as number).toLocaleString('vi-VN')}</Num> ₫
+                </b>{' '}
+                mỗi ¥.
+              </p>
+              <ul className="mt-1 flex flex-col gap-0.5 text-2xs text-fg-muted">
+                <li>
+                  Được giá nhất: <b>{dayMonthLabel(remitRate.best.date)}</b>{' '}
+                  <Num tone="in">{signedPct(Math.round(remitRate.best.vsAvgPct * 10) / 10)}</Num> so
+                  trung bình — thêm{' '}
+                  <b>{Math.round(remitRate.best.gainVsAvgVnd).toLocaleString('vi-VN')} ₫</b>
+                </li>
+                <li>
+                  Thiệt nhất: <b>{dayMonthLabel(remitRate.worst.date)}</b>{' '}
+                  <Num tone="out">{signedPct(Math.round(remitRate.worst.vsAvgPct * 10) / 10)}</Num>{' '}
+                  so trung bình
+                </li>
+              </ul>
+            </div>
+          )}
           <Guide className="mt-1.5 text-2xs text-fg-muted">
             Đọc theo cờ <b>gửi về VN</b> trên từng giao dịch, nên nó gồm cả lần ghi dạng chuyển
             khoản lẫn lần ghi dạng chi. Con số này KHÔNG nằm trong tổng chi tiêu của các khối
             trên — xem tầng riêng ở tab Tháng này.
+            {remitRate === null &&
+              ' Phần so tỷ giá cần ít nhất hai lần gửi có ghi số VND người nhận thực nhận.'}
           </Guide>
         </Card>
       )}

@@ -787,7 +787,7 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // Nên trần này chỉ còn một việc: chặn mọc thêm. Phần nợ THẬT trong đám đó đã tách ra
     // thành luật riêng ở khối ban cứng ("active:scale-95 luôn đi kèm transition") — 51/73
     // nút thiếu `transition`, đúng cái mà comment của hai primitive dự đoán sẽ quên.
-    { needle: 'active:scale-95', max: 82, use: '<IconButton> / <ActionButton>' },
+    { needle: 'active:scale-95', max: 81, use: '<IconButton> / <ActionButton>' },
     // 28 chứ không 26: lượt sửa vùng chạm 2026-08-11 đưa BA công tắc role="switch"
     // (AssetGroupsPage, DebtPaymentSheet, roleFields) về đúng khuôn ba công tắc đã
     // đúng từ trước — vùng chạm 44×44 ở <button>, đường ray nhỏ ở <span> bên trong.
@@ -860,7 +860,13 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // +1 đó là giá của việc có primitive, và nó chỉ trả MỘT LẦN: mọi bảng sau này dùng
     // <Num> sẽ không cộng thêm gì. Đọc "103" mà tưởng đợt này viết tay nhiều hơn là hiểu
     // ngược — nó gộp 12 chỗ vào một chỗ.
-    { needle: 'tabular-nums', max: 103, use: '<Money> cho tiền, <Num> cho số không phải tiền' },
+    // 91 (2026-08-19): HẠ 103 → 91 sau khi xoá 11 component mồ côi của trang Báo cáo cũ
+    // (TrendsView, MultiYearView, YearBarsCard, SeasonalityCard, SavingsDonutCard,
+    // ParetoCard, CategoryCompareBarsCard, CategoryBreakdownCard, NetCashflowCard,
+    // RemittanceSection, multiYear.ts). Đúng quy ước ở thông điệp lỗi của phép thử này:
+    // trần không hạ là trần rỗng. `<Num>` đã hấp thụ 12 chỗ viết tay của bốn tab mới, nên
+    // con số này giờ nói đúng phần nợ CŨ còn lại.
+    { needle: 'tabular-nums', max: 91, use: '<Money> cho tiền, <Num> cho số không phải tiền' },
     // 35 (đo 2026-08-06): cặp xanh nhấn viết tay. Nợ này TĂNG từ 29 lúc dựng hệ thống
     // — quy ước mới chưa thắng thói quen cũ, nên phải có trần. Mỗi chỗ cần XÉT NGHĨA
     // khi gộp: link/hành động → text-fg-accent, giá trị tiền → text-money-in
@@ -923,7 +929,7 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // đổi sang <Card as="section" padding="lg">. Phải đổi cả bốn cùng lúc, không lẻ cái
     // nào: chúng xếp dọc liền nhau trong một mạch cuộn nên để lẫn hai bán kính là thấy
     // ngay — và khối thứ năm vừa thêm (InvestmentValueHistorySection) dùng <Card> từ đầu.
-    { needle: 'rounded-2xl', max: 34, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
+    { needle: 'rounded-2xl', max: 32, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
     // ⚠️ TRẦN NÀY ĐANG TĂNG THEO KẾ HOẠCH, không phải nới cho dễ thở. Luật ở đầu file
     // là 'chỉ được giảm', nên phải nói rõ vì sao chỗ này khác.
     //

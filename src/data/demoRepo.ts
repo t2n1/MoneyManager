@@ -484,6 +484,8 @@ function seed(): DemoDB {
       ...tx({ type: 'expense', amount: 30_000, occurred_on: daysAgo(6), note: 'Gửi tiền về nhà', category_id: cat('Gửi tiền về VN', 'expense').id, account_id: bank.id }),
       is_remittance: true,
       remit_service: 'Wise',
+      remit_fee_jpy: 500,
+      remit_received_vnd: 29_500 * 166,
     },
     // Rút tiền mặt JPY (cùng loại tiền → to_amount null)
     tx({ type: 'transfer', amount: 30_000, occurred_on: daysAgo(4), note: 'Rút tiền mặt', account_id: bank.id, to_account_id: cash.id }),
@@ -622,6 +624,10 @@ function seed(): DemoDB {
           }),
           is_remittance: true,
           remit_service: 'Wise',
+          remit_fee_jpy: 500,
+          // Tỷ giá THẬT của từng lần, lệch nhau theo `idx` — khối "được giá nhất / thiệt
+          // nhất" so số VND người nhận THỰC NHẬN, nên không có hai đầu số thì nó tự ẩn.
+          remit_received_vnd: Math.round((idx === 15 ? 39_500 : 29_500) * (160 + (idx % 7))),
         })
       }
 

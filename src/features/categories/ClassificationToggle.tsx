@@ -1,4 +1,4 @@
-import type { CostType, NeedLevel } from '../../types/database.types'
+import type { CategoryKind, CostType, NeedLevel } from '../../types/database.types'
 
 export const NEED_OPTIONS = [
   ['essential', 'Thiết yếu'],
@@ -11,6 +11,18 @@ export const COST_OPTIONS = [
   ['variable', 'Biến đổi'],
   [null, 'Chưa'],
 ] as const satisfies readonly (readonly [CostType | null, string])[]
+
+/**
+ * `categories.kind` — tiêu thật hay chuyển tài sản (migration 0046).
+ *
+ * KHÔNG có lựa chọn "Chưa": cột này `not null`, và một danh mục thì luôn là một trong hai.
+ * Khác `need_level`/`cost_type` — hai cái đó nullable vì "chưa phân loại" là một trạng thái
+ * THẬT mà app phải đếm được (nó làm chỉ số Cơ cấu chi tiêu thiếu).
+ */
+export const KIND_OPTIONS = [
+  ['expense', 'Tiêu thật'],
+  ['transfer', 'Chuyển tài sản'],
+] as const satisfies readonly (readonly [CategoryKind, string])[]
 
 /** Nút gạt 3 lựa chọn cho một trục phân loại (kèm "Chưa" = bỏ trống). */
 export function ClassificationToggle<T extends string | null>({

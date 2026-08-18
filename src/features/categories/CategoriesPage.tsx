@@ -14,8 +14,13 @@ import {
   useUpdateCategory,
 } from '../../hooks/queries'
 import { confirmDialog, showToast } from '../../lib/dialog'
-import type { CategoryRow, CategoryType, CostType, NeedLevel } from '../../types/database.types'
-import { ClassificationToggle, COST_OPTIONS, NEED_OPTIONS } from './ClassificationToggle'
+import type { CategoryKind, CategoryRow, CategoryType, CostType, NeedLevel } from '../../types/database.types'
+import {
+  ClassificationToggle,
+  COST_OPTIONS,
+  KIND_OPTIONS,
+  NEED_OPTIONS,
+} from './ClassificationToggle'
 import { categoryCounts, costBadge, missingCostCount } from './costBadge'
 import { isFlowCategory } from './flowCategories'
 import { hasActiveChildren } from './leaf'
@@ -562,6 +567,10 @@ function CategoryForm({
   )
   const [needLevel, setNeedLevel] = useState<NeedLevel | null>(category?.need_level ?? null)
   const [costType, setCostType] = useState<CostType | null>(category?.cost_type ?? null)
+  // `kind` mặc định 'expense' cho danh mục MỚI: trigger `default_category_kind` của
+  // migration 0046 chỉ điền khi NULL, mà form luôn truyền giá trị — nên mặc định phải nằm
+  // ở đây, và nó là 'expense' vì phần lớn danh mục là tiêu thật.
+  const [kind, setKind] = useState<CategoryKind>(category?.kind ?? 'expense')
   const [saving, setSaving] = useState(false)
 
   const selectedParent = parentId ? parentOptions.find((p) => p.id === parentId) ?? null : null
@@ -596,6 +605,9 @@ function CategoryForm({
         parent_id: hasChildren ? null : parentId,
         need_level: canClassify ? needLevel : null,
         cost_type: canClassify ? costType : null,
+        // Chỉ danh mục CHI có `kind`; danh mục Thu luôn là 'expense' (giá trị trung tính,
+        // không dùng tới) vì cột này chỉ được đọc ở phía chi.
+        kind: effectiveType === 'expense' ? kind : 'expense',
       }
       if (category) await update.mutateAsync({ id: category.id, patch: input })
       else await create.mutateAsync(input)
@@ -680,7 +692,28 @@ function CategoryForm({
           </div>
         )}
 
-        {canClassify && (
+        {/* `kind` hỏi cho MỌI danh mục Chi, kể cả danh mục cha có con: cha là chỗ đặt
+            trần nhóm, nên một nhóm "chuyển tài sản" phải loại được cả nhóm khỏi tổng chi.
+            Khác `need_level`/`cost_type` — hai cái đó chỉ hỏi ở danh mục LÁ. */}
+        {effectiveType === 'expense' && (
+          <div className="mb-3">
+            <ClassificationToggle
+              label="Khoản này là"
+              options={KIND_OPTIONS}
+              value={kind}
+              onChange={setKind}
+            />
+            {kind === 'transfer' && (
+              <p className="mt-1.5 rounded-lg bg-state-warn-bg px-3 py-2 text-2xs text-state-warn-fg">
+                Chuyển tài sản = tiền vẫn của bạn, chỉ đứng ở chỗ khác (gửi về VN, nạp đầu
+                tư, điều chỉnh số dư). Khoản này sẽ <b>không</b> vào tổng chi, không vào tỷ lệ
+                giữ lại, và <b>không đặt được hạn mức</b>.
+              </p>
+            )}
+          </div>
+        )}
+
+        {canClassify && kind === 'expense' && (
           <div className="mb-3 space-y-2">
             <ClassificationToggle
               label="Tính chất"

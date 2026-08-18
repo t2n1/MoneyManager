@@ -262,7 +262,15 @@ export function EntryPage() {
         }}
         // Lưu: ghi giao dịch rồi quay về Sổ GD
         onSubmit={async (values) => {
-          const row = await create.mutateAsync(values)
+          // Gắn bút toán vào quy tắc định kỳ đã sinh ra nó. Migration 0008 tạo cột này từ
+          // lâu nhưng chưa có gì ghi vào, nên tới giờ app không phân biệt được "thu định
+          // kỳ" với "thu một lần" — và đó là cờ mà khối 01 của bản vẽ 26a cần.
+          //
+          // Chỉ khi có `?rule=`: nó nghĩa là người dùng mở form TỪ một quy tắc họ đã khai.
+          // Không suy từ số tiền, không đoán theo danh mục.
+          const row = await create.mutateAsync(
+            billRule ? { ...values, recurring_rule_id: billRule.id } : values,
+          )
           await markBillDone()
           await markPlannedDone(row.id)
           // Hoàn tác cho cả nút "Lưu", không chỉ nút "Tiếp tục": cùng một hành động ghi

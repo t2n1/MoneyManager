@@ -25,8 +25,10 @@
 //   · "Nhịp chi tiêu theo thứ"             → chuyển sang tab Sức khỏe
 //   · ô KPI "Ngày không chi"               → với người chi hằng ngày nó LUÔN bằng 0
 //
-// CHƯA LÀM ĐƯỢC, và cố ý không đoán: bản vẽ 26a tách thu thành "định kỳ vs một lần". Việc
-// đó cần một cờ trên GIAO DỊCH THU mà app chưa có; suy từ số tiền là bịa. Khối đó ẩn.
+// Thu tách "định kỳ vs một lần" đọc `transactions.recurring_rule_id` — cờ THẬT do người
+// dùng khai một quy tắc định kỳ, không suy từ số tiền. Cột có từ migration 0008 nhưng tới
+// gần đây chưa có gì ghi vào; EntryPage giờ gắn nó khi form mở từ `?rule=`. Chưa có khoản
+// thu nào gắn quy tắc thì khối đó ẨN, không đoán.
 
 import { useMemo } from 'react'
 import { Guide } from '../../components/Guide'
@@ -75,6 +77,7 @@ import { useMonthPace } from './monthPace'
 import { periodDaysLabel } from './periodCompare'
 import {
   categorySparks,
+  incomeSplit,
   keptDestinations,
   monthWordLabel,
   outflowTiers,
@@ -198,6 +201,11 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
   const tiers = useMemo(
     () => outflowTiers(sums.income, sums.expense, sums.transfer, breakdown.slices.length),
     [sums, breakdown.slices.length],
+  )
+  const income = useMemo(
+    () => incomeSplit(monthTxs, sums.expense, currencyOf, base, r),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [monthTxs, sums.expense, accounts, base, rates],
   )
 
   // ---------------------------------------------------------------- khối 02: bảng
@@ -504,9 +512,66 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
               base={base}
               approx={sums.hasForeign}
             />
-            {/* Khối "thu định kỳ vs một lần" của bản vẽ 26a ẨN: nó cần một cờ trên giao
-                dịch THU mà app chưa có. Suy từ số tiền ("khoản nào to hơn trung bình thì
-                là thưởng") là bịa ra dữ liệu và sẽ sai đúng vào tháng có lương tháng 13. */}
+            {/* Thu định kỳ vs một lần. ẨN khi chưa khoản thu nào gắn quy tắc định kỳ —
+                lúc đó mọi khoản thu rơi hết vào cột "một lần" và khối này chỉ nói lại tổng
+                thu bằng một hình khác. */}
+            {income.hasSignal && (
+              <Card as="section" elevation="panel" padding="panel">
+                <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                  <h3 className="text-[0.8125rem] font-semibold text-fg-primary">Thu từ đâu</h3>
+                  <span className="text-2xs text-fg-muted">định kỳ vs một lần</span>
+                </div>
+                <ul className="flex flex-col">
+                  {[
+                    { label: 'Lương định kỳ', v: income.recurring, tone: 'bg-money-in' },
+                    { label: 'Một lần', v: income.oneOff, tone: 'bg-money-in/40' },
+                  ].map((row) => (
+                    <li
+                      key={row.label}
+                      className="grid grid-cols-[minmax(0,1fr)_minmax(6rem,auto)_2.75rem] items-baseline gap-x-2 border-b border-border-subtle py-2 last:border-0 last:pb-0"
+                    >
+                      <span className="flex min-w-0 items-baseline gap-1.5">
+                        <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${row.tone}`} />
+                        <span className="text-[0.8125rem] text-fg-primary">{row.label}</span>
+                      </span>
+                      <Money
+                        amount={row.v}
+                        currency={base}
+                        approx={sums.hasForeign}
+                        className="text-right text-xs"
+                      />
+                      <span className="text-right text-xs">
+                        <Num tone="muted">
+                          {sums.income > 0 ? `${Math.round((row.v / sums.income) * 100)}%` : '—'}
+                        </Num>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {/* Con số đáng biết nhất của khối, và nó KHÔNG đi qua <Guide>: giữ lại 46%
+                    mà một phần thu là thưởng thì con số sẽ LẶP LẠI tháng sau là con số
+                    tính trên lương định kỳ, không phải trên tổng thu. */}
+                {income.oneOff > 0 && income.keptOnRecurringPct !== null && (
+                  <p className="mt-2 text-[0.8125rem] text-fg-primary">
+                    Tính theo <b>lương định kỳ</b> thì tỷ lệ không tiêu là{' '}
+                    <b
+                      className={income.keptOnRecurringPct < 0 ? 'text-money-out' : 'text-money-in'}
+                    >
+                      {income.keptOnRecurringPct}%
+                    </b>
+                    {headline?.ratePct != null && headline.ratePct !== income.keptOnRecurringPct && (
+                      <> , không phải {headline.ratePct}% như tính trên tổng thu</>
+                    )}
+                    .
+                  </p>
+                )}
+                <Guide className="mt-1.5 text-2xs text-fg-muted">
+                  “Định kỳ” = khoản thu ghi từ một <b>lời nhắc định kỳ</b> bạn đã khai. Lương ghi
+                  TAY sẽ nằm ở cột “một lần” — app không đoán theo số tiền, vì phép đoán đó sẽ sai
+                  đúng vào tháng có thưởng.
+                </Guide>
+              </Card>
+            )}
           </ReportBlock>
 
           <ReportBlock id="m-danh-muc" no="02" title="Chi tiêu đi vào đâu">

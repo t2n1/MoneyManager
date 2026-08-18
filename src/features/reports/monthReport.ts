@@ -383,3 +383,64 @@ const monthIdOf = (iso: string, monthStartDay: number) => {
   const k = monthKeyForDate(iso, monthStartDay)
   return `${k.year}-${k.month}`
 }
+
+// ---------------------------------------------------------------------------------
+// Khối 01 · Thu định kỳ vs thu một lần
+// ---------------------------------------------------------------------------------
+
+export interface IncomeSplit {
+  /** Thu gắn với một quy tắc định kỳ đã khai. */
+  recurring: number
+  /** Thu không gắn quy tắc nào. */
+  oneOff: number
+  /** Phần trăm định kỳ trên tổng thu; null khi thu ≤ 0. */
+  recurringPct: number | null
+  /**
+   * Tỷ lệ giữ lại nếu BỎ phần thu một lần ra khỏi mẫu số.
+   *
+   * Đây là con số đáng biết nhất của khối: giữ lại 46% mà 20% thu là thưởng hè thì tỷ lệ
+   * "theo lương định kỳ" chỉ còn 32% — và 32% mới là con số sẽ lặp lại tháng sau.
+   * null khi chưa có thu định kỳ nào để chia.
+   */
+  keptOnRecurringPct: number | null
+  /** Không có khoản thu nào gắn quy tắc → khối nên ẨN, vì nó không nói được gì. */
+  hasSignal: boolean
+}
+
+/**
+ * Tách thu thành ĐỊNH KỲ và MỘT LẦN theo `recurring_rule_id`.
+ *
+ * Bản vẽ 26a đòi cờ này và ghi rõ "không suy từ số tiền". Cờ dùng ở đây là liên kết tới
+ * một quy tắc định kỳ mà chính người dùng đã khai — cột `transactions.recurring_rule_id`
+ * (migration 0008), được EntryPage ghi khi form mở từ `?rule=`.
+ *
+ * GIỚI HẠN, và chỗ hiển thị phải nói ra: lương ghi TAY (không qua lời nhắc định kỳ) sẽ nằm
+ * ở cột "một lần". Thà thiếu như vậy còn hơn đoán theo số tiền — đoán sẽ sai đúng vào tháng
+ * có lương tháng 13, tức đúng tháng con số này quan trọng nhất.
+ */
+export function incomeSplit(
+  txs: readonly TransactionRow[],
+  expense: number,
+  currencyOf: CurrencyOf,
+  base: CurrencyCode,
+  rates: Rates,
+): IncomeSplit {
+  let recurring = 0
+  let oneOff = 0
+  for (const t of txs) {
+    if (t.type !== 'income' || t.is_debt_flow || t.exclude_from_stats) continue
+    const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
+    if (v === null) continue
+    if (t.recurring_rule_id !== null) recurring += v
+    else oneOff += v
+  }
+  const total = recurring + oneOff
+  return {
+    recurring,
+    oneOff,
+    recurringPct: total > 0 ? Math.round((recurring / total) * 100) : null,
+    keptOnRecurringPct:
+      recurring > 0 ? Math.round(((recurring - expense) / recurring) * 100) : null,
+    hasSignal: recurring > 0,
+  }
+}

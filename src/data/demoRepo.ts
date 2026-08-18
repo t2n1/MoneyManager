@@ -908,7 +908,7 @@ export const demoRepo: Repo = {
       ...fields,
       id: uuid(),
       user_id: DEMO_USER,
-      recurring_rule_id: null,
+      recurring_rule_id: input.recurring_rule_id ?? null,
       created_at: nowISO(),
       updated_at: nowISO(),
     }

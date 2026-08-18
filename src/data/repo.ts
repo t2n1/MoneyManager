@@ -127,13 +127,27 @@ export interface NewTransaction {
   is_debt_flow?: boolean
   /** true = loại khỏi mọi thống kê (số dư vẫn tính). Mục AM/X. */
   exclude_from_stats?: boolean
+  /**
+   * Quy tắc định kỳ mà bút toán này thuộc về (migration 0008 đã có cột + index, nhưng tới
+   * giờ chưa có gì ghi vào).
+   *
+   * Đây là cờ "khoản này định kỳ" mà bản vẽ 26a cần để tách thu định kỳ khỏi thu một lần —
+   * và nó là cờ THẬT, do người dùng khai một quy tắc, chứ không phải suy từ số tiền.
+   */
+  recurring_rule_id?: string | null
   /** Hoàn tiền: giao dịch CHI mang dấu âm (tiền về ví, không phải thu nhập). */
   is_refund?: boolean
   /** Nhãn gắn kèm (ghi đè toàn bộ nhãn hiện có khi patch). Bỏ trống = không đổi. */
   tag_ids?: string[]
 }
 
-export type TransactionPatch = Partial<NewTransaction>
+/**
+ * `recurring_rule_id` bị LOẠI khỏi patch có chủ ý: liên kết tới quy tắc định kỳ được đặt
+ * MỘT LẦN lúc tạo (EntryPage, khi form mở từ `?rule=`). Cho phép sửa nó nghĩa là cho phép
+ * trỏ một bút toán sang một quy tắc khác — không ai cần việc đó, và nó làm cờ "thu định kỳ"
+ * của khối 01 tab Tháng này thành một thứ sửa được sau lưng phép tính.
+ */
+export type TransactionPatch = Partial<Omit<NewTransaction, 'recurring_rule_id'>>
 
 /** Khoảng ngày ISO, end LOẠI TRỪ — luôn lấy từ getMonthRange. */
 export interface DateRange {

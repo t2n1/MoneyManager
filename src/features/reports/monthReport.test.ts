@@ -4,6 +4,7 @@ import type { Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
 import {
   budgetCellLabel,
+  incomeSplit,
   concentration,
   keptDestinations,
   outflowTiers,
@@ -350,5 +351,73 @@ describe('budgetCellLabel', () => {
     })
     expect(budgetCellLabel({ budgeted: 1_000, thisMonth: 850, fixed: false }).tone).toBe('warn')
     expect(budgetCellLabel({ budgeted: 1_000, thisMonth: 120, fixed: false }).tone).toBe('ok')
+  })
+})
+
+describe('incomeSplit', () => {
+  const RECURRING = 'rule-luong'
+
+  it('tach theo recurring_rule_id, KHONG theo so tien', () => {
+    const txs = [
+      tx({ type: 'income', amount: 329_000, recurring_rule_id: RECURRING, occurred_on: '2026-08-25' }),
+      tx({ type: 'income', amount: 80_251, occurred_on: '2026-08-10' }), // thưởng hè
+    ]
+    const r = incomeSplit(txs, 222_236, currencyOf, 'JPY', RATES)
+    expect(r.recurring).toBe(329_000)
+    expect(r.oneOff).toBe(80_251)
+    expect(r.recurringPct).toBe(80)
+  })
+
+  it('tỷ lệ giữ lại theo LƯƠNG ĐỊNH KỲ khác hẳn theo tổng thu', () => {
+    const txs = [
+      tx({ type: 'income', amount: 329_000, recurring_rule_id: RECURRING, occurred_on: '2026-08-25' }),
+      tx({ type: 'income', amount: 80_251, occurred_on: '2026-08-10' }),
+    ]
+    const r = incomeSplit(txs, 222_236, currencyOf, 'JPY', RATES)
+    // Trên tổng thu 409.251: giữ lại 46%. Trên lương định kỳ 329.000: chỉ 32%.
+    expect(Math.round(((409_251 - 222_236) / 409_251) * 100)).toBe(46)
+    expect(r.keptOnRecurringPct).toBe(32)
+  })
+
+  it('chưa có khoản thu nào gắn quy tắc → hasSignal false (khối phải ẨN)', () => {
+    const r = incomeSplit(
+      [tx({ type: 'income', amount: 300_000, occurred_on: '2026-08-01' })],
+      100_000,
+      currencyOf,
+      'JPY',
+      RATES,
+    )
+    expect(r.hasSignal).toBe(false)
+    expect(r.keptOnRecurringPct).toBeNull()
+    expect(r.oneOff).toBe(300_000)
+  })
+
+  it('chi vượt lương định kỳ → tỷ lệ ÂM, không kẹp về 0', () => {
+    const r = incomeSplit(
+      [tx({ type: 'income', amount: 100_000, recurring_rule_id: RECURRING, occurred_on: '2026-08-01' })],
+      150_000,
+      currencyOf,
+      'JPY',
+      RATES,
+    )
+    expect(r.keptOnRecurringPct).toBe(-50)
+  })
+
+  it('bỏ chi, dòng tiền nợ và khoản loại khỏi thống kê', () => {
+    const txs = [
+      tx({ type: 'income', amount: 100_000, recurring_rule_id: RECURRING, occurred_on: '2026-08-01' }),
+      tx({ type: 'expense', amount: 9_999, occurred_on: '2026-08-01' }),
+      tx({ type: 'income', amount: 9_999, is_debt_flow: true, occurred_on: '2026-08-01' }),
+      tx({ type: 'income', amount: 9_999, exclude_from_stats: true, occurred_on: '2026-08-01' }),
+    ]
+    const r = incomeSplit(txs, 0, currencyOf, 'JPY', RATES)
+    expect(r.recurring).toBe(100_000)
+    expect(r.oneOff).toBe(0)
+  })
+
+  it('thu = 0 → khong in phan tram nao', () => {
+    const r = incomeSplit([], 5_000, currencyOf, 'JPY', RATES)
+    expect(r.recurringPct).toBeNull()
+    expect(r.hasSignal).toBe(false)
   })
 })

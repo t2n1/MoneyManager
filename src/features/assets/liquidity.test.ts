@@ -4,6 +4,7 @@ import {
   inferredCount,
   isLiquidAccount,
   isLiquidityInferred,
+  needsLiquidityAnswer,
 } from './liquidity'
 
 describe('isLiquidAccount', () => {
@@ -64,5 +65,31 @@ describe('inferredCount', () => {
 
   it('danh sách rỗng → 0', () => {
     expect(inferredCount([])).toBe(0)
+  })
+
+  it('KHÔNG đếm thẻ tín dụng — form không hỏi nên đếm vào là lời nhắc không tắt được', () => {
+    // Thẻ là nợ, không nằm trong LIQUID_BY_TYPE, nên cờ của nó không đổi con số nào. Đếm nó
+    // thì người dùng khai hết mọi chỗ khai được mà cảnh báo vẫn đứng ở 1.
+    expect(inferredCount([{ type: 'card' }])).toBe(0)
+    expect(inferredCount([{ type: 'card' }, { type: 'bank' }])).toBe(1)
+  })
+})
+
+describe('needsLiquidityAnswer', () => {
+  it('chưa khai + không phải thẻ → cần trả lời', () => {
+    expect(needsLiquidityAnswer({ type: 'bank' })).toBe(true)
+    expect(needsLiquidityAnswer({ type: 'investment' })).toBe(true)
+    expect(needsLiquidityAnswer({ type: 'fixed' })).toBe(true)
+  })
+
+  it('đã khai → không cần, cả hai chiều', () => {
+    expect(needsLiquidityAnswer({ type: 'bank', is_liquid: true })).toBe(false)
+    expect(needsLiquidityAnswer({ type: 'bank', is_liquid: false })).toBe(false)
+  })
+
+  it('thẻ tín dụng thì chưa khai cũng KHÔNG cần', () => {
+    expect(needsLiquidityAnswer({ type: 'card' })).toBe(false)
+    // Vẫn là "đang đoán" theo nghĩa nguyên văn — hai phép hỏi khác nhau, giữ riêng.
+    expect(isLiquidityInferred({ type: 'card' })).toBe(true)
   })
 })

@@ -47,9 +47,32 @@ export function isLiquidityInferred(a: LiquidityInput): boolean {
   return a.is_liquid == null
 }
 
-/** Bao nhiêu tài khoản còn đang để app suy hộ. 0 = mọi tài khoản đã được xác nhận. */
+/**
+ * Tài khoản này CẦN người dùng trả lời, hay để trống cũng không sai số nào.
+ *
+ * Khác `isLiquidityInferred` ở đúng một ca: THẺ TÍN DỤNG. Thẻ là nợ, không phải chỗ chứa
+ * tiền — nó không nằm trong `LIQUID_BY_TYPE` nên cờ của nó không đổi được con số nào, và
+ * form tài khoản cũng không hỏi (xem `!isCard` ở AccountsPage). Đếm nó vào "còn N tài
+ * khoản chưa khai" là dựng một lời nhắc KHÔNG BAO GIỜ tắt được: người dùng khai hết mọi
+ * tài khoản có thể khai mà con số vẫn đứng ở 1.
+ *
+ * Cùng lý lẽ với phần lọc ẩn/lưu trữ/ngoài tổng ở `snapshot.ts`: chưa khai mà không làm
+ * số nào sai thì không phải việc cần làm.
+ */
+export function needsLiquidityAnswer(a: LiquidityInput): boolean {
+  return isLiquidityInferred(a) && a.type !== 'card'
+}
+
+/**
+ * Bao nhiêu tài khoản còn đang để app suy hộ VÀ việc đó ảnh hưởng tới con số. 0 = đã khai
+ * hết những chỗ khai được.
+ *
+ * Dùng chung một phép hỏi với dấu "rút ngay?" trên danh sách tài khoản, để lời cảnh báo ở
+ * tab Sức khỏe ("7 tài khoản chưa khai") và số dấu đếm được trên trang Cài đặt không thể
+ * lệch nhau.
+ */
 export function inferredCount(accounts: readonly LiquidityInput[]): number {
-  return accounts.filter(isLiquidityInferred).length
+  return accounts.filter(needsLiquidityAnswer).length
 }
 
 /**

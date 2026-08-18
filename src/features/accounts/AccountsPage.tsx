@@ -3,7 +3,7 @@ import { Guide } from '../../components/Guide'
 import { AlertTriangle, ChevronDown, ChevronUp, GripVertical } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
 import { ClassificationToggle } from '../categories/ClassificationToggle'
-import { LIQUID_OPTIONS } from '../assets/liquidity'
+import { LIQUID_OPTIONS, needsLiquidityAnswer } from '../assets/liquidity'
 import { AccountTypeIcon } from '../../components/icons'
 import { DragList } from '../../components/DragList'
 import type { NewAccount } from '../../data'
@@ -141,6 +141,17 @@ export function AccountsPage() {
                         {!a.include_in_totals && (
                           <span className="shrink-0 rounded bg-surface-sunken px-1 text-xs text-fg-muted">
                             ngoài tổng
+                          </span>
+                        )}
+                        {/* Dấu "rút ngay?" — chỗ DUY NHẤT nói ra tài khoản nào còn thiếu cờ.
+                            Tab Sức khỏe đếm "N tài khoản chưa khai" rồi dẫn sang trang này,
+                            mà tới đây thì không có gì chỉ N tài khoản đó là những tài khoản
+                            nào: phải mở lần lượt từng form mới biết. Dùng chung phép hỏi
+                            `needsLiquidityAnswer` với con số đếm bên kia, nên hai chỗ không
+                            lệch nhau được. Dấu tự mất khi khai xong. */}
+                        {needsLiquidityAnswer(a) && (
+                          <span className="shrink-0 rounded bg-state-warn-bg px-1 text-xs text-state-warn-fg">
+                            rút ngay?
                           </span>
                         )}
                       </span>

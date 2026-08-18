@@ -375,7 +375,7 @@ export function DecideView() {
               <b>{guessing} tài khoản</b> chưa khai “rút ra được ngay”, nên app đang suy từ loại
               tài khoản — tiền gửi có kỳ hạn vì thế đang bị đếm là tiền mặt.{' '}
               <Link to="/settings/accounts" className="font-medium underline">
-                Khai ở Cài đặt → Tài khoản
+                Khai ở Cài đặt → Tài khoản: bấm vào TÊN tài khoản có dấu “rút ngay?”
               </Link>
             </p>
           )}

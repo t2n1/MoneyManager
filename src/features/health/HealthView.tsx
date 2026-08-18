@@ -533,7 +533,7 @@ export function HealthView() {
           “tiền mặt dùng được” đang suy từ loại tài khoản. Tiền gửi có kỳ hạn vì thế đang được
           đếm là tiền tiêu ngay — hai chỉ số dưới đây sẽ cao hơn thực tế.{' '}
           <Link to="/settings/accounts" className="font-medium underline">
-            Khai ở Cài đặt → Tài khoản
+            Khai ở Cài đặt → Tài khoản: bấm vào TÊN tài khoản có dấu “rút ngay?”
           </Link>
         </p>
       )}

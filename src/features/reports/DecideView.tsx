@@ -41,7 +41,7 @@ import {
 } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
-import { LIQUID_TYPES } from '../health/snapshot'
+import { inferredCount, isLiquidAccount } from '../assets/liquidity'
 import { monthlySeries } from './aggregate'
 import { keptDestinations } from './monthReport'
 import {
@@ -129,7 +129,21 @@ export function DecideView() {
       .filter((row) => pick(typeOf.get(row.accountId)))
       .reduce((s, row) => s + Math.max(0, row.deltaBase ?? 0), 0)
 
-  const cashGrowth = growthBy((t) => t !== undefined && (LIQUID_TYPES as string[]).includes(t))
+  // Đọc CỜ `is_liquid` trước, chỉ suy từ `type` khi cờ còn null — cùng phép hỏi với tab
+  // Sức khỏe, nên "tiền mặt dày thêm" ở đây và "quỹ dự phòng" ở đó đếm cùng một rổ.
+  const liquidIds = useMemo(
+    () => new Set(accounts.filter(isLiquidAccount).map((a) => a.id)),
+    [accounts],
+  )
+  // Bao nhiêu tài khoản còn để app SUY. > 0 thì khối này phải nói ra — không nói thì
+  // "82% phần giữ lại bị kẹt" đọc như một con số đã xác nhận.
+  const guessing = useMemo(
+    () => inferredCount(accounts.filter((a) => !a.is_archived && !a.is_hidden)),
+    [accounts],
+  )
+  const cashGrowth = dest.rows
+    .filter((row) => liquidIds.has(row.accountId))
+    .reduce((s, row) => s + Math.max(0, row.deltaBase ?? 0), 0)
   const investGrowth = growthBy((t) => t === 'investment')
 
   const flow = useMemo(
@@ -148,10 +162,7 @@ export function DecideView() {
       balances
         .filter(
           (b) =>
-            !b.is_archived &&
-            !b.is_hidden &&
-            b.include_in_totals &&
-            (LIQUID_TYPES as string[]).includes(b.type),
+            !b.is_archived && !b.is_hidden && b.include_in_totals && isLiquidAccount(b),
         )
         .reduce((s, b) => s + (convertToBase(b.balance, b.currency, base, r) ?? 0), 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -344,11 +355,21 @@ export function DecideView() {
               </li>
             ))}
           </ul>
+          {/* KHÔNG bọc <Guide>: đây là cảnh báo con số đang dựa trên phép đoán, không phải
+              chữ dạy cách đọc. Ẩn nó ở chế độ Gọn là để người đọc tin một tỷ lệ mà app tự
+              suy hộ. Chỉ hiện khi thật sự còn tài khoản chưa đặt cờ. */}
+          {guessing > 0 && (
+            <p className="mt-2 rounded-lg bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
+              <b>{guessing} tài khoản</b> chưa khai “rút ra được ngay”, nên app đang suy từ loại
+              tài khoản — tiền gửi có kỳ hạn vì thế đang bị đếm là tiền mặt.{' '}
+              <Link to="/settings/accounts" className="font-medium underline">
+                Khai ở Cài đặt → Tài khoản
+              </Link>
+            </p>
+          )}
           <Guide className="mt-2 text-2xs text-fg-muted">
             Phần “tiền mặt dày thêm” và “vào đầu tư” đọc từ BIẾN ĐỘNG SỐ DƯ từng tài khoản, không
             từ thu − chi — đó chính là chỗ hai tab kia lệch nhau, nên phải đo bằng nguồn khác.
-            Cờ “rút ra được ngay” hiện suy từ LOẠI tài khoản, nên tiền gửi có kỳ hạn đang bị đếm
-            là tiền mặt.
           </Guide>
         </Card>
       </ReportBlock>

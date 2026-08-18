@@ -12,6 +12,7 @@
 // vậy component này KHÔNG có nút back và KHÔNG tự đặt padding: vỏ ReportsPage lo cả hai.
 // Xem docs/information-architecture.md §2.4.
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Num } from '../../components/ui'
 import {
   useAccountBalances,
@@ -470,6 +471,20 @@ export function HealthView() {
       <Num tone="muted" className="text-2xs tracking-[.06em]">
         {snap.monthsCounted} tháng gần nhất · cập nhật {dayMonthLabel(todayISO)}
       </Num>
+
+      {/* Mẫu số của quỹ dự phòng VÀ của khả năng trả nợ ngắn hạn đều là `liquidAssets`.
+          Còn tài khoản chưa khai cờ thì con số đó là phép đoán, và phải nói ra — chỉ số
+          thanh khoản là chỉ số nhạy nhất của tab này. */}
+      {snap.liquidityInferredAccounts > 0 && (
+        <p className="rounded-lg bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
+          <b>{snap.liquidityInferredAccounts} tài khoản</b> chưa khai “rút ra được ngay”, nên
+          “tiền mặt dùng được” đang suy từ loại tài khoản. Tiền gửi có kỳ hạn vì thế đang được
+          đếm là tiền tiêu ngay — hai chỉ số dưới đây sẽ cao hơn thực tế.{' '}
+          <Link to="/settings/accounts" className="font-medium underline">
+            Khai ở Cài đặt → Tài khoản
+          </Link>
+        </p>
+      )}
 
       {snap.hasMissingRate && (
         <div className="rounded-lg bg-state-warn-bg p-2 text-xs text-state-warn-fg">

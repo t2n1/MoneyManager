@@ -99,6 +99,15 @@ export type AccountRow = {
   is_hidden: boolean
   /** false = không cộng số dư vào Tổng tài sản (vẫn hiển thị riêng) */
   include_in_totals: boolean
+  /**
+   * Tiền ở đây rút ra tiêu được NGAY hay không (migration 0047).
+   *
+   * null = chưa đặt → app suy từ `type`, và phải NÓI RA là đang suy. Xem
+   * `features/assets/liquidity.ts`: phép suy cũ đếm tiền gửi có kỳ hạn (定期預金, `type`
+   * là 'bank') là tiền tiêu ngay được, và con số sai đó nuôi quỹ dự phòng, khả năng trả
+   * nợ ngắn hạn, và khối "phần giữ lại đi đâu".
+   */
+  is_liquid: boolean | null
   /** Thẻ tín dụng: hạn mức (minor units theo currency thẻ); null = không đặt / không phải thẻ */
   credit_limit: number | null
   /** Thẻ tín dụng: ngày chốt sao kê hằng tháng (1..31); null = chưa đặt */
@@ -746,6 +755,7 @@ export type Database = {
           | 'shelter_annual_limit'
           | 'sort_order'
           | 'is_archived'
+          | 'is_liquid'
         >
         Update: Partial<
           Pick<
@@ -769,6 +779,7 @@ export type Database = {
             | 'shelter_annual_limit'
             | 'sort_order'
             | 'is_archived'
+            | 'is_liquid'
           >
         >
         Relationships: []

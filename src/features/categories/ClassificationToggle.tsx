@@ -24,8 +24,15 @@ export const KIND_OPTIONS = [
   ['transfer', 'Chuyển tài sản'],
 ] as const satisfies readonly (readonly [CategoryKind, string])[]
 
-/** Nút gạt 3 lựa chọn cho một trục phân loại (kèm "Chưa" = bỏ trống). */
-export function ClassificationToggle<T extends string | null>({
+/**
+ * Nút gạt 2–3 lựa chọn cho một trục phân loại.
+ *
+ * `T` nhận cả `boolean` chứ không chỉ `string | null`: cờ `accounts.is_liquid` là ba trạng
+ * thái true / false / null ("để app suy"), và nó cần đúng khuôn nút gạt này. Bọc boolean
+ * thành chuỗi 'yes'/'no' rồi ánh xạ lại ở nơi gọi là thêm một phép dịch không cần thiết,
+ * và là chỗ để lẫn 'no' với null.
+ */
+export function ClassificationToggle<T extends string | boolean | null>({
   label,
   groupLabel,
   options,
@@ -45,10 +52,16 @@ export function ClassificationToggle<T extends string | null>({
       {label && (
         <p className="mb-1 text-xs font-medium text-fg-muted">{label}</p>
       )}
+      {/* Số cột theo SỐ LỰA CHỌN, không cứng 3. `KIND_OPTIONS` chỉ có hai mục, và với
+          `grid-cols-3` thì cột thứ ba là một ô trống bằng cả một nút — đọc ra như một lựa
+          chọn thứ ba bấm không được. Chỉ hai giá trị nên khai tường minh: Tailwind quét
+          chuỗi tĩnh, `grid-cols-${n}` dựng động sẽ không sinh ra class nào. */}
       <div
         role="group"
         aria-label={groupLabel ?? label}
-        className="grid grid-cols-3 gap-1 rounded-xl bg-surface-sunken p-1"
+        className={`grid gap-1 rounded-xl bg-surface-sunken p-1 ${
+          options.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
+        }`}
       >
         {options.map(([val, text]) => (
           <button

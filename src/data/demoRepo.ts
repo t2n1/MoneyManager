@@ -237,6 +237,8 @@ function seed(): DemoDB {
   ): AccountRow => ({
     id: uuid(),
     user_id: DEMO_USER,
+    // null = để app suy từ `type` (liquidity.ts), đúng hành vi của người chưa đặt cờ.
+    is_liquid: null,
     name,
     type,
     currency,
@@ -993,6 +995,7 @@ export const demoRepo: Repo = {
     const sort_order = db.accounts.reduce((m, a) => Math.max(m, a.sort_order + 1), 0)
     const row: AccountRow = {
       ...input,
+      is_liquid: input.is_liquid ?? null,
       credit_limit: input.credit_limit ?? null,
       statement_day: input.statement_day ?? null,
       payment_due_day: input.payment_due_day ?? null,

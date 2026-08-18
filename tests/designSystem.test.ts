@@ -192,7 +192,17 @@ function stripComments(text: string): string {
  *   · Chân trang của tab, cùng loại với ba tab kia (lời ghi 65 và 68). Nó nói ra một điều
  *     quyết định cách đọc mọi con số: "mọi mốc thời gian là suy từ nhịp, không phải cam kết".
  */
-const PROSE_MAX = 71
+/*
+ * 72 (2026-08-18, migration 0047): +1 ở form tài khoản — câu nói NGHĨA CỦA LỰA CHỌN đang
+ * chọn cho cờ "rút ra tiêu được ngay" ("Đang để app suy từ loại tài khoản (coi là rút ngay
+ * được). Tiền gửi CÓ KỲ HẠN là loại Ngân hàng nên sẽ bị đếm sai — hãy chọn Không.").
+ *
+ * Cùng loại với ngoại lệ "câu giải thích ô đang bị vô hiệu" đã nêu ở đầu file: nó không dạy
+ * khái niệm nào, nó nói ô này hiện đang làm gì. Và nó là chỗ DUY NHẤT trong app nói ra rằng
+ * tiền gửi có kỳ hạn đang bị đếm sai — ẩn ở chế độ Gọn thì người dùng không có cách nào biết
+ * vì sao nên bấm "Không".
+ */
+const PROSE_MAX = 72
 
 const FILES = sourceFiles().map((path) => ({
   path,

@@ -2,6 +2,8 @@ import { useId, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { AlertTriangle, ChevronDown, ChevronUp, GripVertical } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
+import { ClassificationToggle } from '../categories/ClassificationToggle'
+import { LIQUID_OPTIONS } from '../assets/liquidity'
 import { AccountTypeIcon } from '../../components/icons'
 import { DragList } from '../../components/DragList'
 import type { NewAccount } from '../../data'
@@ -248,6 +250,9 @@ function AccountForm({ account, onClose }: FormProps) {
   const [assetGroup, setAssetGroup] = useState(account?.asset_group ?? '')
   const [isHidden, setIsHidden] = useState(account?.is_hidden ?? false)
   const [includeInTotals, setIncludeInTotals] = useState(account?.include_in_totals ?? true)
+  // `is_liquid` ba trạng thái, không phải hai: null = "chưa khai, để app suy từ loại".
+  // Giữ null làm mặc định để không tự ý xác nhận hộ người dùng — xem liquidity.ts.
+  const [isLiquid, setIsLiquid] = useState<boolean | null>(account?.is_liquid ?? null)
   const [paymentAccountId, setPaymentAccountId] = useState(account?.payment_account_id ?? '')
   // Với thẻ tín dụng, ô số dư nhập là SỐ ĐANG NỢ (dương); initial_balance lưu âm.
   const [balanceMagnitude, setBalanceMagnitude] = useState(
@@ -322,6 +327,7 @@ function AccountForm({ account, onClose }: FormProps) {
         asset_group: isCard ? null : assetGroup.trim() || null,
         is_hidden: isHidden,
         include_in_totals: includeInTotals,
+        is_liquid: isLiquid,
         credit_limit: isCard && creditLimit > 0 ? creditLimit : null,
         statement_day: isCard && statementDay !== '' ? Number(statementDay) : null,
         payment_due_day: isCard && paymentDueDay !== '' ? Number(paymentDueDay) : null,
@@ -531,6 +537,30 @@ function AccountForm({ account, onClose }: FormProps) {
             <AccountToggle checked={isHidden} onChange={setIsHidden} label="Ẩn khỏi trang Tài sản" />
           </label>
         </div>
+
+        {/* Rút ra được ngay? — BA lựa chọn, không phải công tắc hai chiều.
+            "Để app suy" là một trạng thái THẬT và phải giữ được: nó khác hẳn "người dùng đã
+            xác nhận có", và tab Sức khỏe / Quyết định đọc chính sự khác biệt đó để nói ra
+            rằng con số đang dựa trên phép đoán. Một công tắc hai chiều sẽ ép mọi tài khoản
+            thành đã-xác-nhận ngay lần mở form đầu tiên.
+            Thẻ tín dụng không hỏi: nó là nợ, không phải chỗ chứa tiền. */}
+        {!isCard && (
+          <div className="mb-3">
+            <ClassificationToggle
+              label="Rút ra tiêu được ngay?"
+              options={LIQUID_OPTIONS}
+              value={isLiquid}
+              onChange={setIsLiquid}
+            />
+            <p className="mt-1.5 text-2xs text-fg-muted">
+              {isLiquid === null
+                ? `Đang để app suy từ loại tài khoản (${type === 'cash' || type === 'bank' || type === 'ic' || type === 'ewallet' ? 'coi là rút ngay được' : 'coi là phải bán/chờ'}). Tiền gửi CÓ KỲ HẠN là loại "Ngân hàng" nên sẽ bị đếm sai — hãy chọn "Không".`
+                : isLiquid
+                  ? 'Tính vào quỹ dự phòng và khả năng trả nợ ngắn hạn.'
+                  : 'KHÔNG tính vào quỹ dự phòng, cũng không vào khả năng trả nợ ngắn hạn.'}
+            </p>
+          </div>
+        )}
 
         <span className="mb-1 block text-xs font-medium text-fg-muted">
           {isCard ? 'Số nợ ban đầu' : 'Số dư ban đầu'}

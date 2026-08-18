@@ -173,6 +173,8 @@ export interface NewAccount {
   tax_shelter?: TaxShelter | null
   /** Hạn mức nạp mỗi năm (minor units); null = chưa đặt */
   shelter_annual_limit?: number | null
+  /** Rút ra tiêu được ngay? null/bỏ trống = để app suy từ `type` (xem liquidity.ts). */
+  is_liquid?: boolean | null
 }
 
 export type AccountPatch = Partial<NewAccount & { is_archived: boolean }>

@@ -7,7 +7,7 @@
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { AccountBalanceRow, SavingsGoalRow } from '../../types/database.types'
-import { LIQUID_TYPES } from './snapshot'
+import { isLiquidAccount } from '../assets/liquidity'
 
 export interface Earmarked {
   /** tổng đã giữ chỗ, quy đổi base (minor units) */
@@ -44,7 +44,9 @@ export function earmarkedForGoals(
     const target = targetByAccount.get(b.id)
     if (target === undefined) continue
     if (b.is_archived || b.is_hidden || !b.include_in_totals) continue
-    if (!LIQUID_TYPES.includes(b.type)) continue
+    // Cùng phép hỏi với `buildHealthSnapshot`: hai bên lệch nhau thì phép trừ
+    // "quỹ dự phòng đã trừ phần gom cho mục tiêu" ra một số không thuộc rổ nào.
+    if (!isLiquidAccount(b)) continue
     const held = Math.min(Math.max(b.balance, 0), target)
     if (held <= 0) continue
     const v = convertToBase(held, b.currency, base, rates)

@@ -3,6 +3,7 @@
 // Mọi số tiền đã quy đổi về BASE currency (minor units).
 
 import { addMonthsISO, monthKeyForDate, type MonthKey } from '../../lib/dates'
+import { LIQUID_BY_TYPE, isLiquidAccount, inferredCount } from '../assets/liquidity'
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type {
@@ -16,8 +17,17 @@ import type {
 import { remainingOf } from '../debts/aggregate'
 import { expenseSign, type CurrencyOf } from '../reports/aggregate'
 
-/** Tài sản "lỏng" = rút ra tiêu được ngay. Đầu tư (phải bán) và tài sản cố định KHÔNG tính. */
-export const LIQUID_TYPES: AccountType[] = ['cash', 'bank', 'ic', 'ewallet']
+/**
+ * Tài sản "lỏng" = rút ra tiêu được ngay.
+ *
+ * ĐÃ CHUYỂN sang `features/assets/liquidity.ts`: từ migration 0047 câu hỏi này đọc CỜ
+ * `accounts.is_liquid` trước, chỉ suy từ `type` khi cờ còn null. Phép suy cũ đếm tiền gửi
+ * có kỳ hạn (定期預金, `type` là 'bank') là tiền tiêu ngay được.
+ *
+ * Vẫn re-export tên cũ vì `earmarked.ts` và các test đang dùng nó, và vì nó vẫn là danh
+ * sách MẶC ĐỊNH đúng — chỉ không còn là câu trả lời cuối cùng.
+ */
+export const LIQUID_TYPES: readonly AccountType[] = LIQUID_BY_TYPE
 
 export interface HealthSnapshot {
   /** tiền mặt + ngân hàng + IC + ví điện tử, quy đổi base */
@@ -69,6 +79,14 @@ export interface HealthSnapshot {
   monthsCounted: number
   /** true = có danh mục chi chưa gán cost_type → chi cố định có thể thiếu */
   hasUnclassifiedExpense: boolean
+  /**
+   * Bao nhiêu tài khoản còn để app SUY tính lỏng thay vì đọc cờ `is_liquid`.
+   *
+   * > 0 nghĩa là `liquidAssets` — mẫu số của quỹ dự phòng và của khả năng trả nợ ngắn hạn
+   * — đang dựa trên phép đoán. Chỗ hiển thị phải nói ra: không nói thì "5,0 tháng" đọc như
+   * một con số đã xác nhận, trong khi một khoản tiền gửi có kỳ hạn có thể đang nằm trong đó.
+   */
+  liquidityInferredAccounts: number
   /** true = có khoản chi chưa gán need_level → kịch bản cắt chi đang bảo thủ */
   hasUnclassifiedNeed: boolean
   /** thiếu tỷ giá ở đâu đó → các số là ước lượng thiếu */
@@ -118,7 +136,7 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
       else cardDebt += v
       continue
     }
-    if (!LIQUID_TYPES.includes(b.type)) {
+    if (!isLiquidAccount(b)) {
       // Đầu tư đếm riêng cho thanh trượt mô phỏng; tài sản cố định (nhà, xe) thì không —
       // "bán nhà để cầm cự" không phải một nếp chi, nó là một quyết định khác hẳn.
       if (b.type === 'investment') {
@@ -244,6 +262,12 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
   return {
     liquidAssets,
     investableAssets,
+    // Đếm trên CHÍNH tập số dư đã dùng để cộng `liquidAssets` (đã lọc ẩn/lưu trữ/ngoài
+    // tổng), không đếm trên toàn bộ `accounts`: một tài khoản đã ẩn thì việc nó chưa đặt
+    // cờ không làm con số nào sai.
+    liquidityInferredAccounts: inferredCount(
+      balances.filter((b) => !b.is_archived && !b.is_hidden && b.include_in_totals),
+    ),
     cardDebt,
     totalDebt: cardDebt + loanDebt,
     debtDueWithin12m: cardDebt + loanDueSoon,

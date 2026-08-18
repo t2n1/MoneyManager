@@ -13,12 +13,13 @@ import {
   useMarkNotificationsRead,
   useNetWorthSnapshots,
   useNotificationState,
+  usePlannedExpenses,
   useProfile,
   useRangeTransactions,
   useRates,
   useRecurringRules,
-  usePlannedExpenses,
   useSavingsGoals,
+  useTransferCategoryIds,
 } from '../../hooks/queries'
 import { addDaysISO, addMonths, getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
 import { useTagBudgets } from '../tags/useTagBudgets'
@@ -101,6 +102,7 @@ export function useNotifications(): UseNotificationsResult {
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
   const { base, rates, isSuccess: ratesOk } = useRates()
+  const transferIds = useTransferCategoryIds()
   // Giữ nguyên object query (không destructure `data` ra ngay) vì `inputsReady` cần
   // biết từng query đã THÀNH CÔNG hay chưa, không chỉ "đã hết loading".
   const balancesQ = useAccountBalances()
@@ -234,12 +236,13 @@ export function useNotifications(): UseNotificationsResult {
       currencyOf,
       base,
       rates ?? {},
+      transferIds,
     )
     return s.points.map((p) => ({
       month: `${p.key.year}-${String(p.key.month).padStart(2, '0')}`,
       value: p.expense,
     }))
-  }, [shiftTxsQ.data, monthsForShift, monthStartDay, currencyOf, base, rates])
+  }, [shiftTxsQ.data, monthsForShift, monthStartDay, currencyOf, base, rates, transferIds])
 
   // Nhớ đệm để mảng giữ nguyên tham chiếu giữa các lần render — nếu không, memo
   // bên dưới tính lại mỗi render và mảng phụ thuộc không thể trung thực được.

@@ -11,6 +11,14 @@ export type AccountType = 'cash' | 'bank' | 'card' | 'ic' | 'ewallet' | 'investm
 /** Tài khoản ưu đãi thuế Nhật có hạn mức nạp theo năm (mục khối 7). */
 export type TaxShelter = 'nisa_tsumitate' | 'nisa_growth' | 'ideco'
 export type CategoryType = 'expense' | 'income'
+/**
+ * Danh mục là tiêu thật hay chỉ chuyển tài sản.
+ *
+ * `transfer` = tiền vẫn của mình, chỉ đứng ở chỗ khác (Gửi tiền về VN, Điều chỉnh số dư).
+ * Danh mục transfer KHÔNG vào tổng chi, KHÔNG vào tỷ lệ giữ lại, KHÔNG đặt được hạn mức.
+ * Xem migration 0046 và `features/categories/kind.ts`.
+ */
+export type CategoryKind = 'expense' | 'transfer'
 export type NeedLevel = 'essential' | 'flexible'
 export type CostType = 'fixed' | 'variable'
 export type TransactionType = 'expense' | 'income' | 'transfer'
@@ -225,6 +233,8 @@ export type CategoryRow = {
   need_level: NeedLevel | null
   /** Chỉ danh mục Chi lá: chi cố định vs biến đổi. null = chưa phân loại */
   cost_type: CostType | null
+  /** Tiêu thật ('expense') hay chuyển tài sản ('transfer'). Mặc định 'expense'. */
+  kind: CategoryKind
 }
 
 export type TransactionRow = {
@@ -768,12 +778,27 @@ export type Database = {
         Insert: InsertOf<
           CategoryRow,
           'user_id' | 'name' | 'type',
-          'id' | 'icon' | 'parent_id' | 'sort_order' | 'is_archived' | 'need_level' | 'cost_type'
+          | 'id'
+          | 'icon'
+          | 'parent_id'
+          | 'sort_order'
+          | 'is_archived'
+          | 'need_level'
+          | 'cost_type'
+          | 'kind'
         >
         Update: Partial<
           Pick<
             CategoryRow,
-            'name' | 'type' | 'icon' | 'parent_id' | 'sort_order' | 'is_archived' | 'need_level' | 'cost_type'
+            | 'name'
+            | 'type'
+            | 'icon'
+            | 'parent_id'
+            | 'sort_order'
+            | 'is_archived'
+            | 'need_level'
+            | 'cost_type'
+            | 'kind'
           >
         >
         Relationships: []

@@ -17,6 +17,7 @@ function series(rows: [number, number, number, number][]): MonthlySeries {
       key: { year, month },
       income,
       expense,
+      transfer: 0,
     })),
     hasMissingRate: false,
   }

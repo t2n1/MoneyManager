@@ -11,6 +11,7 @@ import {
   useProfile,
   useRangeTransactions,
   useRates,
+  useTransferCategoryIds,
 } from '../../hooks/queries'
 import {
   addMonths,
@@ -49,6 +50,7 @@ export function useAxisProgress(monthKey: MonthKey): AxisProgress | null {
   const { data: categories = [] } = useCategories()
   const { data: monthTxs = [] } = useMonthTransactions(monthKey)
   const { base, rates } = useRates()
+  const transferIds = useTransferCategoryIds()
 
   const monthStartDay = profile?.month_start_day ?? 1
   const currentKey = monthKeyForDate(toISODate(new Date()), monthStartDay)
@@ -80,8 +82,8 @@ export function useAxisProgress(monthKey: MonthKey): AxisProgress | null {
       accounts.find((a) => a.id === id)?.currency ?? base
     const r = rates ?? {}
 
-    const sums = sumIncomeExpense(monthTxs, currencyOf, base, r)
-    const expense = categoryBreakdown(monthTxs, 'expense', currencyOf, base, r)
+    const sums = sumIncomeExpense(monthTxs, currencyOf, base, r, transferIds)
+    const expense = categoryBreakdown(monthTxs, 'expense', currencyOf, base, r, transferIds)
     // foldUncategorized: khoản chi thiếu danh mục vẫn phải nằm trong "chưa phân loại"
     const cls = foldUncategorized(
       classificationBreakdown(expense.slices, categories),
@@ -90,7 +92,8 @@ export function useAxisProgress(monthKey: MonthKey): AxisProgress | null {
 
     const baseline = isCurrentMonth
       ? baselineIncome(
-          monthlySeries(baseTxs, baseMonths, monthStartDay, currencyOf, base, r).points,
+          monthlySeries(baseTxs, baseMonths, monthStartDay, currencyOf, base, r, transferIds)
+            .points,
         )
       : null
 

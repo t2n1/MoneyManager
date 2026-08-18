@@ -18,6 +18,7 @@ import type {
   AssetGroupSettingRow,
   BudgetRow,
   CategoryRow,
+  CategoryKind,
   CategoryType,
   CostType,
   DebtPaymentRow,
@@ -266,7 +267,9 @@ function seed(): DemoDB {
     parent_id: string | null = null,
     need_level: NeedLevel | null = null,
     cost_type: CostType | null = null,
+    kind: CategoryKind = 'expense',
   ): CategoryRow => ({
+    kind,
     id: uuid(),
     user_id: DEMO_USER,
     name,
@@ -1573,6 +1576,13 @@ export const demoRepo: Repo = {
       parent_id: input.parent_id ?? null,
       need_level: input.need_level ?? null,
       cost_type: input.cost_type ?? null,
+      // Cùng quy ước với trigger `mark_transfer_categories` của migration 0046: hai danh
+      // mục bút toán này là chuyển tài sản, không phải chi tiêu.
+      kind:
+        input.kind ??
+        (input.name === 'Gửi tiền về VN' || input.name === 'Điều chỉnh số dư'
+          ? 'transfer'
+          : 'expense'),
       id: uuid(),
       user_id: DEMO_USER,
       sort_order,

@@ -13,6 +13,7 @@ import type {
   TransactionTagRow,
 } from '../../types/database.types'
 import { expenseSign, type CurrencyOf } from '../reports/aggregate'
+import { NO_TRANSFER_CATEGORIES } from '../categories/kind'
 
 export interface TagSlice {
   tagId: string
@@ -45,6 +46,9 @@ export function tagBreakdown(
   currencyOf: CurrencyOf,
   base: CurrencyCode,
   rates: Rates,
+  /** Danh mục `kind = 'transfer'` không vào tổng chi theo nhãn — cùng lý do như
+   *  mọi chỗ khác: nó là chuyển tài sản, và để nó ở đây thì mẫu số % phồng lên. */
+  transferIds: ReadonlySet<string> = NO_TRANSFER_CATEGORIES,
 ): TagBreakdown {
   const tagById = new Map(tags.map((t) => [t.id, t]))
   const tagsOfTx = new Map<string, string[]>()
@@ -61,6 +65,7 @@ export function tagBreakdown(
 
   for (const t of txs) {
     if (t.type !== 'expense' || t.is_debt_flow || t.exclude_from_stats) continue
+    if (t.category_id !== null && transferIds.has(t.category_id)) continue
     const raw = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (raw === null) {
       hasMissingRate = true

@@ -49,6 +49,7 @@ function cat(
     created_at: '',
     need_level: null,
     cost_type: null,
+    kind: 'expense',
   }
 }
 

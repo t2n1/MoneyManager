@@ -857,6 +857,14 @@ function cardRules(input) {
   return out;
 }
 
+// src/features/categories/kind.ts
+var NO_TRANSFER_CATEGORIES = /* @__PURE__ */ new Set();
+function transferCategoryIds(categories) {
+  const out = /* @__PURE__ */ new Set();
+  for (const c of categories) if (c.kind === "transfer") out.add(c.id);
+  return out.size === 0 ? NO_TRANSFER_CATEGORIES : out;
+}
+
 // src/lib/recurringRadar.ts
 function ruleKey(type, accountId, categoryId, amount) {
   return `${type}|${accountId}|${categoryId ?? ""}|${amount}`;
@@ -1021,10 +1029,12 @@ function rhythmRules(input) {
     let spent = 0;
     let earned = 0;
     let missingRate = false;
+    const transferIds = transferCategoryIds(input.categories);
     for (const t of input.recentTxs) {
       if (t.occurred_on < prevRange.start || t.occurred_on >= prevRange.end) continue;
       if (t.exclude_from_stats || t.is_debt_flow) continue;
       if (t.type !== "expense" && t.type !== "income") continue;
+      if (t.type === "expense" && t.category_id !== null && transferIds.has(t.category_id)) continue;
       const v = convertToBase(t.amount, input.currencyOf(t.account_id), input.base, input.rates);
       if (v === null) {
         missingRate = true;
@@ -1560,11 +1570,12 @@ function statusOf(ratio) {
   if (ratio >= 0.8) return "warn";
   return "ok";
 }
-function buildBudgetReport(budgets, monthTxs, currencyOf, base, rates, parentOf = () => null, carryByCat = /* @__PURE__ */ new Map()) {
+function buildBudgetReport(allBudgets, monthTxs, currencyOf, base, rates, parentOf = () => null, carryByCat = /* @__PURE__ */ new Map(), transferIds = NO_TRANSFER_CATEGORIES) {
   const spentByCat = /* @__PURE__ */ new Map();
   let hasMissingRate = false;
   for (const t of monthTxs) {
     if (t.type !== "expense" || !t.category_id || t.exclude_from_stats) continue;
+    if (transferIds.has(t.category_id)) continue;
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates);
     if (v === null) {
       hasMissingRate = true;
@@ -1577,6 +1588,7 @@ function buildBudgetReport(budgets, monthTxs, currencyOf, base, rates, parentOf 
     for (const [cat, v] of spentByCat) if (parentOf(cat) === catId) s += v;
     return s;
   };
+  const budgets = allBudgets.filter((b) => !transferIds.has(b.category_id));
   const budgetedIds = new Set(budgets.map((b) => b.category_id));
   let totalBudgeted = 0;
   let totalSpent = 0;
@@ -1613,8 +1625,17 @@ function buildBudgetReport(budgets, monthTxs, currencyOf, base, rates, parentOf 
     spentByCategory: spentByCat
   };
 }
-function carryFromPreviousMonth(prevBudgets, prevMonthTxs, currencyOf, base, rates, parentOf = () => null) {
-  const prev = buildBudgetReport(prevBudgets, prevMonthTxs, currencyOf, base, rates, parentOf);
+function carryFromPreviousMonth(prevBudgets, prevMonthTxs, currencyOf, base, rates, parentOf = () => null, transferIds = NO_TRANSFER_CATEGORIES) {
+  const prev = buildBudgetReport(
+    prevBudgets,
+    prevMonthTxs,
+    currencyOf,
+    base,
+    rates,
+    parentOf,
+    /* @__PURE__ */ new Map(),
+    transferIds
+  );
   const carry = /* @__PURE__ */ new Map();
   for (const line of prev.lines) {
     carry.set(line.categoryId, Math.max(0, line.budgeted - line.spent));

@@ -14,6 +14,7 @@ import {
   useRangeTransactions,
   useRates,
   useRecurringRules,
+  useTransferCategoryIds,
 } from '../../hooks/queries'
 import {
   addMonths,
@@ -72,6 +73,7 @@ export function usePlanning(monthKey: MonthKey): PlanningData {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const { base, rates } = useRates()
+  const transferIds = useTransferCategoryIds()
   const monthKeyStr = monthKeyString(monthKey)
   const { data: budgets = [] } = useBudgets(monthKeyStr)
   const { data: plan } = useMonthPlan(monthKeyStr)
@@ -128,6 +130,7 @@ export function usePlanning(monthKey: MonthKey): PlanningData {
         currencyOf,
         base,
         r,
+        transferIds,
       ).points,
     )
 
@@ -137,7 +140,7 @@ export function usePlanning(monthKey: MonthKey): PlanningData {
       const txs = histTxs.filter((t) => t.occurred_on >= rng.start && t.occurred_on < rng.end)
       return {
         monthKey: monthKeyString(mk),
-        slices: categoryBreakdown(txs, 'expense', currencyOf, base, r).slices,
+        slices: categoryBreakdown(txs, 'expense', currencyOf, base, r, transferIds).slices,
       }
     })
 

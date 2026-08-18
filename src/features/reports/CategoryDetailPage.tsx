@@ -9,6 +9,7 @@ import {
   useProfile,
   useRangeTransactions,
   useRates,
+  useTransferCategoryIds,
 } from '../../hooks/queries'
 import {
   addMonths,
@@ -47,6 +48,7 @@ export function CategoryDetailPage() {
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
   const { base, rates } = useRates()
+  const transferIds = useTransferCategoryIds()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [], isFetched: catsFetched } = useCategories()
 
@@ -116,7 +118,7 @@ export function CategoryDetailPage() {
     [windowTxs, categoryId, kind, periodRange],
   )
   const sums = useMemo(
-    () => sumIncomeExpense(periodTxs, currencyOf, base, rates ?? {}),
+    () => sumIncomeExpense(periodTxs, currencyOf, base, rates ?? {}, transferIds),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [periodTxs, accounts, base, rates],
   )

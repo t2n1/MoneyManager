@@ -68,6 +68,7 @@ const cat = (id: string, cost_type: CategoryRow['cost_type']): CategoryRow => ({
   created_at: '',
   need_level: null,
   cost_type,
+  kind: 'expense',
 })
 
 const MONTHS = [

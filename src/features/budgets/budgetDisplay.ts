@@ -11,6 +11,7 @@
 
 import type { CategoryRow } from '../../types/database.types'
 import { isFlowCategory } from '../categories/flowCategories'
+import { isBudgetableCategory } from '../categories/kind'
 import { statusOf, type BudgetLine, type BudgetReport, type BudgetStatus } from './progress'
 
 export interface BudgetChildRow {
@@ -65,7 +66,12 @@ export function buildBudgetDisplay(
   allExpenseCats: CategoryRow[],
   report: BudgetReport,
 ): BudgetDisplay {
-  const expenseCats = allExpenseCats.filter((c) => !isFlowCategory(c))
+  // Hai phép lọc, hai lý do khác nhau:
+  //  · `isFlowCategory` (theo tên): Cho vay / Trả nợ / Điều chỉnh số dư — chi của chúng
+  //    không vào báo cáo nên hạn mức đặt vào đó vĩnh viễn hiện 0.
+  //  · `kind = 'transfer'` (cột 0046): chuyển tài sản. "Vượt trần gửi về VN ¥5,000" là
+  //    một câu không nói được điều gì làm được — tiền vẫn của mình.
+  const expenseCats = allExpenseCats.filter((c) => !isFlowCategory(c) && isBudgetableCategory(c))
   const lineOf = new Map(report.lines.map((l) => [l.categoryId, l]))
   const spentOf = (id: string) => report.spentByCategory.get(id) ?? 0
   const childrenOf = (id: string) => expenseCats.filter((c) => c.parent_id === id)

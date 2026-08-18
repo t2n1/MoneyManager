@@ -1842,6 +1842,10 @@ export const supabaseRepo: Repo = {
       is_archived: c.is_archived,
       need_level: c.need_level,
       cost_type: c.cost_type,
+      // Khai RÕ, không để trigger `default_category_kind` điền hộ: người dùng có thể đã
+      // đặt "Gửi tiền về VN" về 'expense' (coi đó là tiêu thật), và bỏ cột này khỏi
+      // payload là mỗi lần khôi phục sao lưu lại ghi đè đúng lựa chọn đó.
+      kind: c.kind,
     })
     const parents = cats.filter((c) => !c.parent_id)
     const children = cats.filter((c) => c.parent_id)

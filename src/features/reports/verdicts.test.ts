@@ -13,6 +13,7 @@ const p = (m: number, income: number, expense: number): MonthlyPoint => ({
   key: { year: 2026, month: m },
   income,
   expense,
+  transfer: 0,
 })
 
 const AUG: { year: number; month: number } = { year: 2026, month: 8 }

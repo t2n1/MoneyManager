@@ -9,6 +9,7 @@ import type {
   AssetGroupSettingRow,
   BudgetRow,
   CategoryRow,
+  CategoryKind,
   CategoryType,
   CostType,
   DebtDirection,
@@ -185,6 +186,8 @@ export interface NewCategory {
   /** Chỉ danh mục Chi lá — xem CategoryRow */
   need_level?: NeedLevel | null
   cost_type?: CostType | null
+  /** 'transfer' = chuyển tài sản, không vào tổng chi / hạn mức. Mặc định 'expense'. */
+  kind?: CategoryKind
 }
 
 export type CategoryPatch = Partial<NewCategory & { is_archived: boolean }>

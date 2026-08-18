@@ -101,6 +101,46 @@ describe('sao lưu — khôi phục không được bỏ sót cột hồ sơ', (
     ).toEqual([])
   })
 
+  /**
+   * `categories` có ĐÚNG cùng cái bẫy: `catPayload` trong importAll liệt kê từng cột.
+   *
+   * Thêm luật này khi thêm cột `kind` (migration 0046) — và nó không phải "trả về default"
+   * cho vô hại: `kind` là LỰA CHỌN của người dùng ("Gửi tiền về VN" là chuyển tài sản hay
+   * là tiêu thật), và bỏ sót nó thì mỗi lần khôi phục sao lưu là một lần app ghi đè lựa
+   * chọn đó, rồi tỷ lệ giữ lại đổi từ 46% xuống 38% mà không ai biết vì sao.
+   */
+  const catPayloadBlock = (() => {
+    const from = supabaseRepo.indexOf('const catPayload =')
+    expect(from, 'không tìm thấy catPayload trong importAll').toBeGreaterThan(-1)
+    const open = supabaseRepo.indexOf('({', from) + 1
+    let depth = 0
+    for (let i = open; i < supabaseRepo.length; i++) {
+      if (supabaseRepo[i] === '{') depth++
+      else if (supabaseRepo[i] === '}') {
+        depth--
+        if (depth === 0) return supabaseRepo.slice(open, i + 1)
+      }
+    }
+    throw new Error('khối catPayload không đóng')
+  })()
+
+  it('catPayload của importAll nhắc tới mọi cột danh mục cần khôi phục', () => {
+    const start = types.indexOf('export type CategoryRow = {')
+    expect(start, 'không tìm thấy CategoryRow').toBeGreaterThan(-1)
+    const body = types.slice(start, types.indexOf('\n}', start))
+    const cols = [...body.matchAll(/^\s{2}(\w+):/gm)].map((m) => m[1])
+    expect(cols).toContain('kind')
+    // `user_id` lấy từ phiên đăng nhập; `created_at` là mốc của DB đích.
+    const thieu = cols.filter(
+      (c) => c !== 'user_id' && c !== 'created_at' && !new RegExp(`\\b${c}:`).test(catPayloadBlock),
+    )
+    expect(
+      thieu,
+      `Thiếu ở catPayload trong importAll: ${thieu.join(', ')}. ` +
+        `Bỏ sót thì khôi phục âm thầm trả cột đó về default (hoặc để trigger DB điền hộ).`,
+    ).toEqual([])
+  })
+
   it('demoRepo cũng đặt mặc định cho cột mới khi nhập bản lưu cũ', () => {
     // Bản lưu xuất trước một migration thì thiếu hẳn trường. demoRepo phải điền default,
     // không thì profile trong localStorage mang `undefined` và mọi chỗ đọc nó phải tự

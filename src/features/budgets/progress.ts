@@ -5,6 +5,7 @@ import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { BudgetRow, TransactionRow } from '../../types/database.types'
 import { expenseSign, type CurrencyOf } from '../reports/aggregate'
+import { NO_TRANSFER_CATEGORIES } from '../categories/kind'
 
 export type BudgetStatus = 'ok' | 'warn' | 'over' // <80% / ≥80% / ≥100%
 
@@ -43,7 +44,7 @@ export interface BudgetReport {
 }
 
 export function buildBudgetReport(
-  budgets: BudgetRow[],
+  allBudgets: BudgetRow[],
   monthTxs: TransactionRow[],
   currencyOf: CurrencyOf,
   base: CurrencyCode,
@@ -57,11 +58,16 @@ export function buildBudgetReport(
   /** Phần hạn mức chưa tiêu tháng trước, theo danh mục (mục AH). Chỉ cộng cho
    *  hạn mức bật rollover. Mặc định rỗng → không dồn. */
   carryByCat: Map<string, number> = new Map(),
+  /** Danh mục `kind = 'transfer'`: KHÔNG đặt được trần, KHÔNG vào chi đã tiêu.
+   *  Trần cho một khoản chuyển tài sản là một câu vô nghĩa — tiền vẫn của mình,
+   *  "vượt trần gửi về VN" không nói được điều gì làm được. */
+  transferIds: ReadonlySet<string> = NO_TRANSFER_CATEGORIES,
 ): BudgetReport {
   const spentByCat = new Map<string, number>()
   let hasMissingRate = false
   for (const t of monthTxs) {
     if (t.type !== 'expense' || !t.category_id || t.exclude_from_stats) continue
+    if (transferIds.has(t.category_id)) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) {
       hasMissingRate = true
@@ -78,6 +84,9 @@ export function buildBudgetReport(
     for (const [cat, v] of spentByCat) if (parentOf(cat) === catId) s += v
     return s
   }
+  // Hạn mức đã đặt cho một danh mục sau đó bị đánh dấu `transfer` thì bỏ khỏi báo cáo:
+  // giữ lại là in một dòng "0 / ¥30,000" mãi mãi, vì chi của nó không còn được cộng.
+  const budgets = allBudgets.filter((b) => !transferIds.has(b.category_id))
   const budgetedIds = new Set(budgets.map((b) => b.category_id))
 
   let totalBudgeted = 0
@@ -131,8 +140,18 @@ export function carryFromPreviousMonth(
   base: CurrencyCode,
   rates: Rates,
   parentOf: (categoryId: string) => string | null = () => null,
+  transferIds: ReadonlySet<string> = NO_TRANSFER_CATEGORIES,
 ): Map<string, number> {
-  const prev = buildBudgetReport(prevBudgets, prevMonthTxs, currencyOf, base, rates, parentOf)
+  const prev = buildBudgetReport(
+    prevBudgets,
+    prevMonthTxs,
+    currencyOf,
+    base,
+    rates,
+    parentOf,
+    new Map(),
+    transferIds,
+  )
   const carry = new Map<string, number>()
   for (const line of prev.lines) {
     carry.set(line.categoryId, Math.max(0, line.budgeted - line.spent))

@@ -23,6 +23,7 @@ import { convertToBase } from '../../lib/rates'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { monthlyNeeded } from '../assets/goals'
 import { isFlowCategory } from '../categories/flowCategories'
+import { isBudgetableCategory } from '../categories/kind'
 import { TagPlanCard } from '../tags/TagPlanCard'
 import { AXIS_LABEL, BASELINE_MONTHS, shareLabel } from './axisTargets'
 import { planVerdict } from './planVerdict'
@@ -76,6 +77,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
         c.type === 'expense' &&
         !c.is_archived &&
         !isFlowCategory(c) &&
+        isBudgetableCategory(c) &&
         !categories.some((k) => k.parent_id === c.id && !k.is_archived),
     )
     return leaves

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTransferCategoryIds } from '../../hooks/queries'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type {
@@ -48,27 +49,28 @@ export function SummaryView({
   rangeTo,
 }: Props) {
   const [kind, setKind] = useState<'expense' | 'income'>('expense')
+  const transferIds = useTransferCategoryIds()
 
   const breakdown = useMemo(
-    () => categoryBreakdown(transactions, kind, currencyOf, base, rates ?? {}),
-    [transactions, kind, currencyOf, base, rates],
+    () => categoryBreakdown(transactions, kind, currencyOf, base, rates ?? {}, transferIds),
+    [transactions, kind, currencyOf, base, rates, transferIds],
   )
 
   // Nhãn chỉ tổng hợp phía CHI (xem tags/aggregate) nên chỉ tính khi đang xem Chi.
   const tagData = useMemo(
     () =>
       kind === 'expense'
-        ? tagBreakdown(transactions, tagLinks, tags, currencyOf, base, rates ?? {})
+        ? tagBreakdown(transactions, tagLinks, tags, currencyOf, base, rates ?? {}, transferIds)
         : null,
-    [kind, transactions, tagLinks, tags, currencyOf, base, rates],
+    [kind, transactions, tagLinks, tags, currencyOf, base, rates, transferIds],
   )
 
   // Tổng của KỲ, lấy từ cùng một hàm mà tab Ngày/Tháng dùng — không lấy
   // `breakdown.total` (chỉ gộp giao dịch CÓ danh mục) làm tổng, kẻo cùng một
   // tháng mà tab Tổng hợp báo ít hơn tab Ngày và không nói vì sao.
   const sums = useMemo(
-    () => sumIncomeExpense(transactions, currencyOf, base, rates ?? {}),
-    [transactions, currencyOf, base, rates],
+    () => sumIncomeExpense(transactions, currencyOf, base, rates ?? {}, transferIds),
+    [transactions, currencyOf, base, rates, transferIds],
   )
   const total = kind === 'expense' ? sums.expense : sums.income
   const noCategory = uncategorizedAmount(total, breakdown.total)

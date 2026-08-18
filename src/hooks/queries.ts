@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   repo,
@@ -31,6 +32,7 @@ import {
   type TxFilter,
 } from '../data'
 import { addMonths, getMonthRange, monthKeyForDate, monthKeyString, toISODate, type MonthKey } from '../lib/dates'
+import { transferCategoryIds } from '../features/categories/kind'
 import { buildBudgetReport, carryFromPreviousMonth, type BudgetReport } from '../features/budgets/progress'
 import { fetchRates } from '../lib/rates'
 import type { CurrencyCode } from '../lib/money'
@@ -106,6 +108,22 @@ export function useCategories() {
     queryFn: () => repo.getCategories(),
     staleTime: 5 * 60_000,
   })
+}
+
+/**
+ * Id của những danh mục CHUYỂN TÀI SẢN (`kind = 'transfer'`).
+ *
+ * Mọi màn tính tổng chi phải truyền tập này vào hàm tổng hợp. Một hook để không màn nào
+ * phải tự dựng nó — hai màn dựng hai tập khác nhau thì chi tháng 8 ra hai con số, đúng
+ * cái lỗi cột `kind` được thêm để chấm dứt.
+ *
+ * Hook nằm ở đây, KHÔNG ở `features/categories/kind.ts`: file đó bị `reports/aggregate.ts`
+ * import, mà aggregate lại nằm trong đồ thị import của bộ luật thông báo — thêm React vào
+ * đó là `purity.test.ts` đỏ ngay.
+ */
+export function useTransferCategoryIds(): ReadonlySet<string> {
+  const { data: categories = [] } = useCategories()
+  return useMemo(() => transferCategoryIds(categories), [categories])
 }
 
 /** Giao dịch của "tháng" đang xem (tôn trọng month_start_day trong profile). */
@@ -840,16 +858,37 @@ export function useBudgetReport(monthKey: MonthKey): {
   // mốc theo dõi. parentOf cho progress biết quan hệ cha–con để tính trần nhóm.
   const parentById = new Map(categories.map((c) => [c.id, c.parent_id]))
   const parentOf = (categoryId: string): string | null => parentById.get(categoryId) ?? null
+  // Danh mục chuyển tài sản không có trần (migration 0046). Suy ở đây, một chỗ, cho cả
+  // báo cáo tháng này lẫn phép tính dồn hạn mức tháng trước — hai bên lệch nhau thì phần
+  // dồn sẽ mang theo chi của một khoản không còn được tính.
+  const transferIds = transferCategoryIds(categories)
 
   const budgets = budgetsQ.data
   const hasRollover = !!budgets?.some((b) => b.rollover)
   const carry =
     hasRollover && prevBudgetsQ.data && prevMonthTxs
-      ? carryFromPreviousMonth(prevBudgetsQ.data, prevMonthTxs, currencyOf, base, rates ?? {}, parentOf)
+      ? carryFromPreviousMonth(
+          prevBudgetsQ.data,
+          prevMonthTxs,
+          currencyOf,
+          base,
+          rates ?? {},
+          parentOf,
+          transferIds,
+        )
       : new Map<string, number>()
   const report =
     budgets && monthTxs
-      ? buildBudgetReport(budgets, monthTxs, currencyOf, base, rates ?? {}, parentOf, carry)
+      ? buildBudgetReport(
+          budgets,
+          monthTxs,
+          currencyOf,
+          base,
+          rates ?? {},
+          parentOf,
+          carry,
+          transferIds,
+        )
       : undefined
 
   // Chỉ hỏi tháng trước khi thật sự có hạn mức bật dồn — người không dùng dồn thì

@@ -6,7 +6,10 @@
 import { useMemo } from 'react'
 import { Card, Money, StatTile } from '../../components/ui'
 import { ExplainBox } from '../../components/ExplainBox'
-import { useRangeTransactions } from '../../hooks/queries'
+import {
+  useRangeTransactions,
+  useTransferCategoryIds,
+} from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import { monthlySeries, type CurrencyOf } from './aggregate'
@@ -51,10 +54,11 @@ export function MultiYearView({
   maxYears,
 }: Props) {
   const { data: txs = [], isFetched } = useRangeTransactions(ALL_TIME, enabled)
+  const transferIds = useTransferCategoryIds()
 
   const months = useMemo(() => monthKeysOf(txs, monthStartDay), [txs, monthStartDay])
   const series = useMemo(
-    () => monthlySeries(txs, months, monthStartDay, currencyOf, base, rates),
+    () => monthlySeries(txs, months, monthStartDay, currencyOf, base, rates, transferIds),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [txs, months, monthStartDay, base, rates],
   )

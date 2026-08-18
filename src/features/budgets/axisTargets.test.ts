@@ -27,6 +27,7 @@ function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
     created_at: '',
     need_level: p.need_level ?? null,
     cost_type: p.cost_type ?? null,
+    kind: p.kind ?? 'expense',
   }
 }
 

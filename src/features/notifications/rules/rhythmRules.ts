@@ -1,5 +1,6 @@
 // Luật nhịp và cột mốc (mục 9–13 của spec) — THUẦN.
 import { addMonths, daysBetween, getMonthRange, monthKeyForDate, monthKeyString } from '../../../lib/dates'
+import { transferCategoryIds } from '../../categories/kind'
 import { convertToBase } from '../../../lib/rates'
 import { detectRecurring, ruleKey } from '../../../lib/recurringRadar'
 // expenseSign lấy từ chính module mà trang Báo cáo dùng (sumIncomeExpense) — hai chỗ
@@ -120,10 +121,15 @@ export function rhythmRules(input: NotificationInput): AppNotification[] {
     // loại tiền tài khoản nguồn) — giống buildBudgetReport/assetBreakdown. Không quy
     // đổi thì một khoản ₫ cộng thẳng vào ¥ ra một con số vô nghĩa mang ký hiệu ¥,
     // và số ở đây sẽ vênh với trang Báo cáo.
+    // Danh mục chuyển tài sản không vào tổng chi (migration 0046) — tin tổng kết tháng
+    // phải nói cùng con số với trang Báo cáo nó dẫn tới, nếu không người đọc bấm vào
+    // thấy một số khác và không biết tin cái nào.
+    const transferIds = transferCategoryIds(input.categories)
     for (const t of input.recentTxs) {
       if (t.occurred_on < prevRange.start || t.occurred_on >= prevRange.end) continue
       if (t.exclude_from_stats || t.is_debt_flow) continue
       if (t.type !== 'expense' && t.type !== 'income') continue
+      if (t.type === 'expense' && t.category_id !== null && transferIds.has(t.category_id)) continue
       const v = convertToBase(t.amount, input.currencyOf(t.account_id), input.base, input.rates)
       if (v === null) {
         missingRate = true

@@ -14,6 +14,7 @@ import {
   useTagGroups,
   useTags,
   useTransactionTags,
+  useTransferCategoryIds,
 } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { confirmDialog, showToast } from '../../lib/dialog'
@@ -56,6 +57,7 @@ export function SearchPage() {
   const { data: tagGroups = [] } = useTagGroups()
   const { data: tagLinks = [] } = useTransactionTags()
   const { base, rates } = useRates()
+  const transferIds = useTransferCategoryIds()
 
   /** Nhãn của màn lọc chia theo nhóm. Khác ô chọn nhãn khi nhập ở hai điểm:
    *  hiện CẢ nhãn đã lưu trữ (lọc lịch sử vẫn cần chúng), và không cắt top-N. */
@@ -166,7 +168,7 @@ export function SearchPage() {
     accounts.find((a) => a.id === id)?.currency ?? base
 
   const totals = useMemo(
-    () => sumIncomeExpense(results, currencyOf, base, rates ?? {}),
+    () => sumIncomeExpense(results, currencyOf, base, rates ?? {}, transferIds),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [results, accounts, base, rates],
   )

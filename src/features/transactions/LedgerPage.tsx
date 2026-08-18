@@ -14,6 +14,7 @@ import {
   useRates,
   useTags,
   useTransactionTags,
+  useTransferCategoryIds,
 } from '../../hooks/queries'
 import { confirmDialog } from '../../lib/dialog'
 import { scrollContentToTop } from '../../lib/scroll'
@@ -90,6 +91,7 @@ export function LedgerPage() {
   const { data: tags = [] } = useTags()
   const { data: tagLinks = [] } = useTransactionTags()
   const { base, rates } = useRates()
+  const transferIds = useTransferCategoryIds()
 
   // Nhãn của từng giao dịch — dựng một lần cho cả tháng thay vì tra bảng liên
   // kết trong mỗi dòng (danh sách có thể vài trăm dòng).
@@ -152,7 +154,7 @@ export function LedgerPage() {
     [transactions, activeMonthKey, monthStartDay, accounts, base, rates],
   )
   const expenseBreakdown = useMemo(
-    () => categoryBreakdown(transactions, 'expense', currencyOf, base, rates ?? {}),
+    () => categoryBreakdown(transactions, 'expense', currencyOf, base, rates ?? {}, transferIds),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [transactions, accounts, base, rates],
   )
@@ -269,7 +271,7 @@ export function LedgerPage() {
     !!profile && yearNav,
   )
   const yearSeries = useMemo(
-    () => monthlySeries(yearTxs, months, monthStartDay, currencyOf, base, rates ?? {}),
+    () => monthlySeries(yearTxs, months, monthStartDay, currencyOf, base, rates ?? {}, transferIds),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [yearTxs, months, monthStartDay, accounts, base, rates],
   )

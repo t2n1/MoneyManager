@@ -122,6 +122,8 @@ export function AssetGroupsPage() {
         rawTotal: 0,
         nativeTotal: null,
         nativeCurrency: null,
+        nativeTotals: [],
+        rawHasMissingRate: false,
         includeInTotals: s.includeInTotals,
         hidden: s.hidden,
       }))

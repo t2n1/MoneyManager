@@ -21,7 +21,7 @@ import {
   useReorderAccounts,
 } from '../../hooks/queries'
 import { addDaysISO, dayMonthLabel } from '../../lib/dates'
-import { CURRENCIES, type CurrencyCode } from '../../lib/money'
+import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { ADJUST_CATEGORY_NAME } from '../categories/flowCategories'
 import { accountRowStats, DELTA_DAYS } from './accountRowStats'
 import { UNGROUPED_LABEL, type AssetAccount } from './aggregate'
@@ -656,11 +656,22 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                   outsideTotals ? 'font-medium text-fg-muted' : 'font-bold text-fg-primary'
                 }`}
               >
+                {/* Nhóm ĐỨNG NGOÀI TỔNG in TIỀN GỐC, không in bản quy đổi.
+                    Bản trước rơi về `mv.fmt(g.rawTotal, base)`, mà `rawTotal` coi tài khoản
+                    thiếu tỷ giá là 0 — nên một nhóm VND in "¥0" ngay cạnh delta
+                    "+199.554.545 ₫". Một dòng vừa nói 0 vừa nói +199 triệu là hai câu trái
+                    nhau, và cái sai là con số quy đổi, không phải cái delta.
+                    Nhóm nhiều loại tiền thì in từng loại: cộng chúng lại cần tỷ giá, mà nếu
+                    có tỷ giá thì nhóm này đã không đứng ngoài tổng. */}
                 {!outsideTotals
                   ? mv.fmt(g.total, base, g.hasMissingRate)
-                  : g.nativeCurrency !== null && g.nativeTotal !== null
-                    ? mv.fmt(g.nativeTotal, g.nativeCurrency)
-                    : mv.fmt(g.rawTotal, base, g.hasMissingRate)}
+                  : g.nativeTotals.length > 0
+                    ? g.nativeTotals
+                        .slice(0, 2)
+                        .map((n) => formatMoney(n.amount, n.currency))
+                        .join(' · ') +
+                      (g.nativeTotals.length > 2 ? ` +${g.nativeTotals.length - 2} loại tiền` : '')
+                    : mv.fmt(g.rawTotal, base, g.rawHasMissingRate)}
               </span>
             </div>
             <div className="divide-y divide-gray-50 border-t border-border-subtle dark:divide-gray-800">

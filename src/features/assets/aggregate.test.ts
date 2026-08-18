@@ -490,3 +490,59 @@ describe('tổng của nhóm đứng ngoài tổng', () => {
     expect(g.nativeTotal).toBe(5_000)
   })
 })
+
+describe('nhóm ĐỨNG NGOÀI TỔNG — không được in ¥0 cạnh một delta khác 0 (B5)', () => {
+  const outside = (name: string) => setting(name, { includeInTotals: false })
+
+  it('thiếu tỷ giá: rawTotal collapse về 0 nhưng nativeTotals vẫn giữ SỐ GỐC', () => {
+    const balances = [
+      acc({ balance: 199_554_545, currency: 'VND', asset_group: 'Ngân hàng VN' }),
+    ]
+    // KHÔNG có tỷ giá VND → baseValue null.
+    const r = assetBreakdown(balances, 'JPY', { JPY: 1 }, [outside('Ngân hàng VN')])
+    const g = r.groups.find((x) => x.name === 'Ngân hàng VN')!
+    expect(g.rawTotal).toBe(0) // đây chính là con số đã in ra "¥0"
+    expect(g.rawHasMissingRate).toBe(true)
+    expect(g.nativeTotals).toEqual([{ currency: 'VND', amount: 199_554_545 }])
+  })
+
+  it('nhóm NHIỀU loại tiền: nativeTotal null nhưng nativeTotals có đủ từng loại', () => {
+    const balances = [
+      acc({ balance: 199_554_545, currency: 'VND', asset_group: 'Ngoài tổng' }),
+      acc({ balance: 50_000, currency: 'JPY', asset_group: 'Ngoài tổng' }),
+    ]
+    const r = assetBreakdown(balances, 'JPY', RATES, [outside('Ngoài tổng')])
+    const g = r.groups.find((x) => x.name === 'Ngoài tổng')!
+    expect(g.nativeCurrency).toBeNull()
+    expect(g.nativeTotal).toBeNull()
+    // Sắp giảm dần theo giá trị tuyệt đối của SỐ GỐC.
+    expect(g.nativeTotals).toEqual([
+      { currency: 'VND', amount: 199_554_545 },
+      { currency: 'JPY', amount: 50_000 },
+    ])
+  })
+
+  it('nhóm một loại tiền vẫn khớp nativeTotal cũ', () => {
+    const balances = [
+      acc({ balance: 100_000, currency: 'VND', asset_group: 'VN' }),
+      acc({ balance: 50_000, currency: 'VND', asset_group: 'VN' }),
+    ]
+    const g = assetBreakdown(balances, 'JPY', RATES, [outside('VN')]).groups.find(
+      (x) => x.name === 'VN',
+    )!
+    expect(g.nativeCurrency).toBe('VND')
+    expect(g.nativeTotal).toBe(150_000)
+    expect(g.nativeTotals).toEqual([{ currency: 'VND', amount: 150_000 }])
+  })
+
+  it('tài khoản ẩn không vào nativeTotals (cùng bộ lọc với rawTotal)', () => {
+    const balances = [
+      acc({ balance: 100_000, currency: 'VND', asset_group: 'VN' }),
+      acc({ balance: 900_000, currency: 'VND', asset_group: 'VN', is_hidden: true }),
+    ]
+    const g = assetBreakdown(balances, 'JPY', RATES, [outside('VN')]).groups.find(
+      (x) => x.name === 'VN',
+    )!
+    expect(g.nativeTotals).toEqual([{ currency: 'VND', amount: 100_000 }])
+  })
+})

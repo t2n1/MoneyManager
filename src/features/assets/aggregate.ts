@@ -87,6 +87,18 @@ export interface AssetGroup {
   nativeTotal: number | null
   /** Đồng tiền của `nativeTotal`; null = nhóm có nhiều loại tiền, phải quy đổi mới cộng được. */
   nativeCurrency: CurrencyCode | null
+  /**
+   * Tổng theo TỪNG loại tiền của mọi tài khoản còn hiện, sắp giảm dần theo giá trị tuyệt đối.
+   *
+   * Vì sao cần dù đã có `nativeTotal`: `nativeTotal` chỉ có khi nhóm dùng ĐÚNG MỘT loại
+   * tiền, còn nhóm hai loại tiền thì trước đây rơi về `rawTotal` (đã quy đổi) — và
+   * `rawTotal` coi tài khoản thiếu tỷ giá là 0. Kết quả đo được: một nhóm VND đứng ngoài
+   * tổng in "¥0" ngay cạnh delta "+199.554.545 ₫". Một dòng vừa nói 0 vừa nói +199 triệu
+   * là hai câu trái nhau.
+   */
+  nativeTotals: { currency: CurrencyCode; amount: number }[]
+  /** `rawTotal` đang THIẾU vì ít nhất một tài khoản chưa quy đổi được. */
+  rawHasMissingRate: boolean
   /** false = không cộng vào Tổng tài sản (vẫn hiển thị riêng) */
   includeInTotals: boolean
   /** true = ẩn hẳn khỏi trang Tài sản */
@@ -269,6 +281,13 @@ export function assetBreakdown(
         ? shownAccounts[0].currency
         : null
     const nativeTotal = nativeCurrency ? shownAccounts.reduce((s, a) => s + a.value, 0) : null
+    // Tổng theo từng loại tiền — LUÔN dựng được, kể cả nhóm nhiều loại tiền hoặc thiếu tỷ giá.
+    const byCurrency = new Map<CurrencyCode, number>()
+    for (const a of shownAccounts) byCurrency.set(a.currency, (byCurrency.get(a.currency) ?? 0) + a.value)
+    const nativeTotals = [...byCurrency.entries()]
+      .map(([currency, amount]) => ({ currency, amount }))
+      .sort((x, y) => Math.abs(y.amount) - Math.abs(x.amount))
+    const rawHasMissingRate = shownAccounts.some((a) => a.baseValue === null)
     // Ưu tiên thứ tự tùy chỉnh (kéo–thả); hòa/chưa đặt → giá trị giảm dần.
     accounts.sort(
       (a, b) => a.sortOrder - b.sortOrder || (b.baseValue ?? 0) - (a.baseValue ?? 0),
@@ -296,6 +315,8 @@ export function assetBreakdown(
       rawTotal,
       nativeTotal,
       nativeCurrency,
+      nativeTotals,
+      rawHasMissingRate,
       includeInTotals,
       hidden,
     }
@@ -496,6 +517,8 @@ export function assetTypeGroups(breakdown: AssetBreakdown): AssetGroup[] {
       rawTotal: groupTotal,
       nativeTotal: null,
       nativeCurrency: null,
+      nativeTotals: [],
+      rawHasMissingRate: false,
       includeInTotals: true,
       hidden: false,
     }
@@ -536,6 +559,8 @@ export function assetCurrencyGroups(breakdown: AssetBreakdown): AssetGroup[] {
       rawTotal: groupTotal,
       nativeTotal: accounts.reduce((sum, a) => sum + a.value, 0),
       nativeCurrency: currency,
+      nativeTotals: [{ currency, amount: accounts.reduce((sum, a) => sum + a.value, 0) }],
+      rawHasMissingRate: false,
       accounts,
       hasMissingRate: accounts.some((a) => a.baseValue === null),
       includeInTotals: true,

@@ -53,3 +53,15 @@ export function todoSource(n: AppNotification): string {
 export function dueSoonCount(items: AppNotification[], todayISO: string): number {
   return items.filter((n) => n.onISO != null && daysBetween(todayISO, n.onISO) <= SOON_DAYS).length
 }
+
+/**
+ * Bao nhiêu việc ở mức `high` — con số DUY NHẤT còn phải thấy được khi khối đã thu gọn.
+ *
+ * Vì sao tách riêng khỏi `dueSoonCount`: hai câu hỏi khác nhau. "Có hạn trong tuần" là
+ * việc có NGÀY, còn `high` là việc GẤP dù không có ngày nào (vượt trần, số dư âm). Một
+ * khối thu gọn mà giấu mất loại thứ hai thì người dùng không có cách nào biết là phải
+ * mở ra — cùng lý do `CardsSection` giữ badge "thiếu tiền" ở ngoài khi đóng.
+ */
+export function urgentCount(items: AppNotification[]): number {
+  return items.filter((n) => n.severity === 'high').length
+}

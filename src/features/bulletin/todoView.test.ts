@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dueSoonCount, SOON_DAYS, todoBadge, todoSource } from './todoView'
+import { dueSoonCount, SOON_DAYS, todoBadge, todoSource, urgentCount } from './todoView'
 import { NOTIFICATION_META, NOTIFICATION_TYPES, type AppNotification } from '../notifications/types'
 
 const n = (p: Partial<AppNotification> = {}): AppNotification => ({
@@ -110,5 +110,23 @@ describe('dueSoonCount', () => {
 
   it('ngưỡng dùng CHUNG với todoBadge', () => {
     expect(SOON_DAYS).toBe(7)
+  })
+})
+
+
+describe('urgentCount', () => {
+  it('chỉ đếm mức high', () => {
+    const items = [n({ severity: 'high' }), n({ severity: 'medium' }), n({ severity: 'low' })]
+    expect(urgentCount(items)).toBe(1)
+    expect(urgentCount([])).toBe(0)
+  })
+
+  // Đây LÀ điều phép thử này canh: khối thu gọn giấu cả danh sách, nên badge "gấp" là
+  // tín hiệu duy nhất còn lại. Việc `high` KHÔNG CÓ NGÀY (vượt trần, số dư âm) không rơi
+  // vào `dueSoonCount`, nên nếu chỉ dựa vào con số đó thì nó biến mất hoàn toàn khi đóng.
+  it('bắt được việc gấp không có ngày — thứ dueSoonCount bỏ sót', () => {
+    const items = [n({ severity: 'high' })] // onISO undefined
+    expect(dueSoonCount(items, TODAY)).toBe(0)
+    expect(urgentCount(items)).toBe(1)
   })
 })

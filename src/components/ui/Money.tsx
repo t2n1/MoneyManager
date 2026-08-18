@@ -13,13 +13,24 @@
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 
 /** 'bySign' = suy ra từ dấu của `amount`; 'neutral' = màu chữ thường;
- *  'onAccent' = số nằm TRÊN nền --accent (ô đang chọn của dải tháng…). */
-export type MoneyTone = 'in' | 'out' | 'neutral' | 'bySign' | 'onAccent'
+ *  'onAccent' = số nằm TRÊN nền --accent (ô đang chọn của dải tháng…);
+ *  'good'/'warn' = TÌNH TRẠNG, không phải chiều tiền — xem ghi chú ở TONE_CLASS. */
+export type MoneyTone = 'in' | 'out' | 'neutral' | 'bySign' | 'onAccent' | 'good' | 'warn'
 
 const TONE_CLASS: Record<Exclude<MoneyTone, 'bySign'>, string> = {
   in: 'text-money-in',
   out: 'text-money-out',
   neutral: 'text-fg-primary',
+  // 'good'/'warn' KHÁC 'in'/'out' về nghĩa, dù 'good' cũng ra màu xanh: hai cái trên nói
+  // TIỀN ĐI CHIỀU NÀO (thu / chi), hai cái này nói SỐ ĐÓ ĐANG ỔN HAY KHÔNG. Mức tiêu cho
+  // phép mỗi ngày là chỗ cần đúng cặp sau — nó không phải khoản thu, nên mượn 'in' là nói
+  // sai nghĩa dù ra đúng màu.
+  //
+  // Lấy thẳng bộ --state-*/--fg-warn mà StatusDot, VerdictNote và AppRail đã dùng cho
+  // đúng nghĩa "tình trạng", nên một câu có <Money tone="warn"> và một chip cảnh báo
+  // cạnh nhau là CÙNG một màu, không phải hai sắc hổ phách gần giống.
+  good: 'text-state-good-fg',
+  warn: 'text-fg-warn',
   // Phải là một TONE, không phải việc của `className`: component luôn nhả
   // TONE_CLASS[resolved], nên truyền thêm class màu từ ngoài là hai utility cùng
   // hạng đấu nhau và thứ tự trong CSS build ra quyết định — thực tế text-fg-primary

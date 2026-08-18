@@ -23,10 +23,14 @@
 //   • không phán xét: nêu nhịp hiện tại để người đọc TỰ thấy nó vượt mức chia đều, chứ
 //     không viết "bạn tiêu quá tay".
 //
-// KHÔNG dùng tone `in`/`out` cho số chia đều: hai tone đó có nghĩa THU và CHI (xem
-// Money.tsx), mà mức tiêu cho phép không phải khoản thu. Số nổi lên bằng font mono +
-// fg-primary + độ đậm trên nền câu fg-secondary, không bằng cách mượn màu của khái niệm
-// khác. Riêng nhánh vượt trần thì `out` đúng nghĩa nên dùng.
+// MÀU: đúng MỘT số mỗi câu được tô, và tô theo TÌNH TRẠNG chứ không theo chiều tiền.
+//   đúng nhịp  → `good` (xanh)      · sắp hụt → `warn` (hổ phách) · vượt trần → `out` (đỏ)
+// Số đó luôn là số QUYẾT ĐỊNH (mức mỗi ngày, hoặc phần đã vượt). Số bằng chứng — hạn mức
+// còn lại, nhịp hiện tại — giữ `neutral` đậm: tô hết thì không còn gì nổi lên nữa.
+//
+// KHÔNG dùng `in` cho mức mỗi ngày dù nó cũng ra màu xanh: `in`/`out` nghĩa là THU/CHI,
+// mà mức tiêu cho phép không phải khoản thu. `good`/`warn` là hai tone thêm vào Money.tsx
+// đúng cho vai này. Và màu CHỈ đi qua `tone` — xem ghi chú ở hàm `so` bên dưới.
 import { Link } from 'react-router-dom'
 import { Card, Money } from '../../components/ui'
 import type { ToiNgayLuong } from './bulletin'
@@ -49,7 +53,7 @@ export function PaydayStrip({ data, base, approx = false }: Props) {
   // (`neutral` đã là fg-primary) — truyền thêm một class màu qua `className` là hai
   // utility cùng hạng đấu nhau và thứ tự trong CSS build ra mới quyết định ai thắng.
   // Chú thích trong Money.tsx ghi rõ, và tôi đã dẫm đúng vào đó ở bản nháp của file này.
-  const so = (amount: number, tone: 'neutral' | 'out' = 'neutral') => (
+  const so = (amount: number, tone: 'neutral' | 'out' | 'good' | 'warn' = 'neutral') => (
     <Money amount={amount} currency={base} tone={tone} approx={approx} className="font-semibold" />
   )
 
@@ -97,7 +101,12 @@ export function PaydayStrip({ data, base, approx = false }: Props) {
           <>Hạn mức còn {so(conLai)} tới ngày lương — còn {ngay}.</>
         ) : (
           <>
-            Mỗi ngày còn {so(moiNgay)} cho tới ngày lương — {ngay} nữa, hạn mức còn{' '}
+            {/* Màu của con số này LÀ lời cảnh báo: hổ phách khi giữ nhịp hiện tại sẽ
+                hụt, xanh khi còn đúng nhịp. Chip cảnh báo cũ bỏ đi rồi, nên đây là chỗ
+                duy nhất mang tín hiệu đó — cùng token `--fg-warn` mà VerdictNote dùng,
+                nên hai thứ đọc ra một màu. */}
+            Mỗi ngày còn {so(moiNgay, hutTruocLuong ? 'warn' : 'good')} cho tới ngày lương —{' '}
+            {ngay} nữa, hạn mức còn{' '}
             {so(conLai)}
             {/* Nhịp hiện tại CHỈ hiện khi nó là tin xấu, và lúc đó nó chính là bằng chứng
                 cho lời cảnh báo: đặt cạnh mức chia đều ở đầu câu, người đọc tự thấy

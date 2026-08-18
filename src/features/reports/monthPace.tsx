@@ -14,6 +14,7 @@ import {
   useMonthTransactions,
   useProfile,
   useRates,
+  useTransferCategoryIds,
 } from '../../hooks/queries'
 import {
   addDaysISO,
@@ -69,6 +70,7 @@ export function useMonthPace(monthKey: MonthKey): MonthPace {
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
   const { base, rates } = useRates()
+  const transferIds = useTransferCategoryIds()
   const r = rates ?? {}
   const { data: accounts = [] } = useAccounts()
   const { data: monthTxs = [] } = useMonthTransactions(monthKey)
@@ -131,7 +133,7 @@ export function useMonthPace(monthKey: MonthKey): MonthPace {
   }
   const monthLastISO = addDaysISO(range.end, -1)
   const monthDaily = useMemo(
-    () => dailyExpenseTotals(monthTxs, range.start, monthLastISO, currencyOf, base, r),
+    () => dailyExpenseTotals(monthTxs, range.start, monthLastISO, currencyOf, base, r, transferIds),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [monthTxs, range.start, monthLastISO, accounts, base, rates],
   )
@@ -140,7 +142,15 @@ export function useMonthPace(monthKey: MonthKey): MonthPace {
   const budgetDaily = useMemo(
     () =>
       budgetRoots.size > 0
-        ? dailyExpenseTotals(monthTxs.filter(inBudgetScope), range.start, monthLastISO, currencyOf, base, r)
+        ? dailyExpenseTotals(
+            monthTxs.filter(inBudgetScope),
+            range.start,
+            monthLastISO,
+            currencyOf,
+            base,
+            r,
+            transferIds,
+          )
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [monthTxs, budgetRoots, catById, range.start, monthLastISO, accounts, base, rates],
@@ -151,7 +161,7 @@ export function useMonthPace(monthKey: MonthKey): MonthPace {
     () =>
       dailyExpenseTotals(
         monthTxs.filter((t) => !isFixed(t.category_id)),
-        range.start, monthLastISO, currencyOf, base, r,
+        range.start, monthLastISO, currencyOf, base, r, transferIds,
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [monthTxs, catById, range.start, monthLastISO, accounts, base, rates],
@@ -161,7 +171,7 @@ export function useMonthPace(monthKey: MonthKey): MonthPace {
       budgetRoots.size > 0
         ? dailyExpenseTotals(
             monthTxs.filter((t) => inBudgetScope(t) && !isFixed(t.category_id)),
-            range.start, monthLastISO, currencyOf, base, r,
+            range.start, monthLastISO, currencyOf, base, r, transferIds,
           )
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps

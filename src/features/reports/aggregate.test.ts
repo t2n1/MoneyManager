@@ -12,6 +12,8 @@ import {
   dailyExpenseTotals,
   foldUncategorized,
   groupByParent,
+  monthDaysElapsed,
+  monthExpenseCompare,
   monthlySeries,
   netFlowSeries,
   netFlowSummary,
@@ -55,6 +57,7 @@ function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
     created_at: '',
     need_level: p.need_level ?? null,
     cost_type: p.cost_type ?? null,
+    kind: p.kind ?? 'expense',
   }
 }
 
@@ -87,7 +90,13 @@ describe('is_debt_flow bị loại khỏi mọi báo cáo', () => {
       tx({ type: 'income', amount: 1_500, is_debt_flow: true }), // thu nợ → bỏ
     ]
     const r = sumIncomeExpense(txs, currencyOf, 'JPY', RATES)
-    expect(r).toEqual({ income: 0, expense: 1_500, hasForeign: false, hasMissingRate: false })
+    expect(r).toEqual({
+      income: 0,
+      expense: 1_500,
+      transfer: 0,
+      hasForeign: false,
+      hasMissingRate: false,
+    })
   })
 
   it('monthlySeries & cumulativeDailyBalance bỏ qua dòng tiền nợ/cho vay', () => {
@@ -97,7 +106,12 @@ describe('is_debt_flow bị loại khỏi mọi báo cáo', () => {
       tx({ type: 'expense', amount: 1_500, occurred_on: '2026-07-10', is_debt_flow: true }), // bỏ
     ]
     const ms = monthlySeries(txs, months, 1, currencyOf, 'JPY', RATES)
-    expect(ms.points[0]).toEqual({ key: { year: 2026, month: 7 }, income: 0, expense: 1_500 })
+    expect(ms.points[0]).toEqual({
+      key: { year: 2026, month: 7 },
+      income: 0,
+      expense: 1_500,
+      transfer: 0,
+    })
     const cf = cumulativeDailyBalance(txs, '2026-07-10', '2026-07-10', currencyOf, 'JPY', RATES)
     expect(cf.points).toEqual([{ date: '2026-07-10', balance: -1_500 }])
   })
@@ -159,8 +173,8 @@ describe('monthlySeries (base = JPY)', () => {
     ]
     const r = monthlySeries(txs, months, 1, currencyOf, 'JPY', RATES)
     expect(r.points).toEqual([
-      { key: { year: 2026, month: 6 }, income: 280_000, expense: 6_700 },
-      { key: { year: 2026, month: 7 }, income: 0, expense: 10_850 },
+      { key: { year: 2026, month: 6 }, income: 280_000, expense: 6_700, transfer: 0 },
+      { key: { year: 2026, month: 7 }, income: 0, expense: 10_850, transfer: 0 },
     ])
     expect(r.hasMissingRate).toBe(false)
   })
@@ -174,8 +188,8 @@ describe('monthlySeries (base = JPY)', () => {
     const txs = [tx({ type: 'expense', amount: 500, occurred_on: '2026-07-10' })]
     const r = monthlySeries(txs, months, 25, currencyOf, 'JPY', RATES)
     expect(r.points).toEqual([
-      { key: { year: 2026, month: 6 }, income: 0, expense: 500 },
-      { key: { year: 2026, month: 7 }, income: 0, expense: 0 },
+      { key: { year: 2026, month: 6 }, income: 0, expense: 500, transfer: 0 },
+      { key: { year: 2026, month: 7 }, income: 0, expense: 0, transfer: 0 },
     ])
   })
 })
@@ -209,7 +223,13 @@ describe('sumIncomeExpense (base = JPY)', () => {
   it('cùng tiền gốc thì không đánh dấu ngoại tệ', () => {
     const txs = [tx({ type: 'income', amount: 100 }), tx({ type: 'expense', amount: 40 })]
     const r = sumIncomeExpense(txs, currencyOf, 'JPY', RATES)
-    expect(r).toEqual({ income: 100, expense: 40, hasForeign: false, hasMissingRate: false })
+    expect(r).toEqual({
+      income: 100,
+      expense: 40,
+      transfer: 0,
+      hasForeign: false,
+      hasMissingRate: false,
+    })
   })
 })
 
@@ -246,6 +266,263 @@ describe('categoryComparison (base = JPY)', () => {
     const txs = [tx({ type: 'expense', amount: 1_650_000, category_id: 'x', occurred_on: '2026-07-05', account_id: 'vnd' })]
     const r = categoryComparison(txs, active, 1, currencyOf, 'JPY', { JPY: 1 })
     expect(r.hasMissingRate).toBe(true)
+  })
+})
+
+describe('categories.kind = transfer — chuyển tài sản KHÔNG phải chi', () => {
+  const GUI_VN = new Set(['gui-vn'])
+  const active = { year: 2026, month: 8 }
+
+  /** Thu ¥409,251 · chi thật ¥222,236 · gửi về VN ¥30,000 (số tháng 8/2026 thật). */
+  const thang8 = [
+    tx({ type: 'income', amount: 409_251, occurred_on: '2026-08-05' }),
+    tx({ type: 'expense', amount: 222_236, category_id: 'nha', occurred_on: '2026-08-10' }),
+    tx({ type: 'expense', amount: 30_000, category_id: 'gui-vn', occurred_on: '2026-08-15' }),
+  ]
+
+  it('sumIncomeExpense tách sang `transfer`, không cộng vào `expense`', () => {
+    const r = sumIncomeExpense(thang8, currencyOf, 'JPY', RATES, GUI_VN)
+    expect(r.expense).toBe(222_236)
+    expect(r.transfer).toBe(30_000)
+  })
+
+  it('tỷ lệ giữ lại đọc ra 46%, không phải 38%', () => {
+    const withFlag = sumIncomeExpense(thang8, currencyOf, 'JPY', RATES, GUI_VN)
+    const without = sumIncomeExpense(thang8, currencyOf, 'JPY', RATES)
+    const rate = (x: { income: number; expense: number }) =>
+      Math.round(((x.income - x.expense) / x.income) * 100)
+    expect(rate(withFlag)).toBe(46)
+    expect(rate(without)).toBe(38) // con số sai của bản trước, giữ lại để thấy khác biệt
+  })
+
+  it('ba tầng cộng lại đúng bằng thu — không có đồng nào bị ẩn', () => {
+    const r = sumIncomeExpense(thang8, currencyOf, 'JPY', RATES, GUI_VN)
+    const conLai = r.income - r.expense - r.transfer
+    expect(r.expense + r.transfer + conLai).toBe(r.income)
+    expect(conLai).toBe(157_015)
+  })
+
+  it('categoryBreakdown bỏ lát chuyển tài sản → mẫu số % không bị phồng', () => {
+    const r = categoryBreakdown(thang8, 'expense', currencyOf, 'JPY', RATES, GUI_VN)
+    expect(r.slices.map((x) => x.categoryId)).toEqual(['nha'])
+    expect(r.total).toBe(222_236)
+    // Tiền nhà chiếm 100% của chi THẬT; nếu để gửi về VN trong mẫu số thì còn 88%.
+    expect(Math.round((r.slices[0].amount / r.total) * 100)).toBe(100)
+  })
+
+  it('monthlySeries có tầng transfer riêng cho từng tháng', () => {
+    const r = monthlySeries(thang8, [active], 1, currencyOf, 'JPY', RATES, GUI_VN)
+    expect(r.points[0]).toEqual({
+      key: active,
+      income: 409_251,
+      expense: 222_236,
+      transfer: 30_000,
+    })
+  })
+
+  it('dailyExpenseTotals bỏ chuyển tài sản (nhịp chi & dự báo không bị đội lên)', () => {
+    const r = dailyExpenseTotals(
+      thang8,
+      '2026-08-10',
+      '2026-08-15',
+      currencyOf,
+      'JPY',
+      RATES,
+      GUI_VN,
+    )
+    expect(r.points.reduce((a, b) => a + b.expense, 0)).toBe(222_236)
+  })
+
+  it('categoryComparison không in dòng chuyển tài sản', () => {
+    const r = categoryComparison(thang8, active, 1, currencyOf, 'JPY', RATES, null, GUI_VN)
+    expect(r.rows.map((x) => x.categoryId)).toEqual(['nha'])
+  })
+
+  it('monthExpenseCompare so chi THẬT với chi THẬT', () => {
+    const txs = [
+      ...thang8,
+      tx({ type: 'expense', amount: 200_000, category_id: 'nha', occurred_on: '2026-07-10' }),
+      tx({ type: 'expense', amount: 30_000, category_id: 'gui-vn', occurred_on: '2026-07-15' }),
+    ]
+    const r = monthExpenseCompare(txs, active, 1, '2026-08-31', currencyOf, 'JPY', RATES, GUI_VN)
+    expect(r?.spent).toBe(222_236)
+    expect(r?.priorSameDays).toBe(200_000)
+  })
+
+  it('THU không bị cờ này chạm tới — `kind` chỉ đặt trên danh mục Chi', () => {
+    const t = [tx({ type: 'income', amount: 500, category_id: 'gui-vn', occurred_on: '2026-08-01' })]
+    const r = categoryBreakdown(t, 'income', currencyOf, 'JPY', RATES, GUI_VN)
+    expect(r.total).toBe(500)
+  })
+
+  it('hoàn tiền của một danh mục chuyển tài sản trừ vào `transfer`, không vào `expense`', () => {
+    const t = [
+      tx({ type: 'expense', amount: 30_000, category_id: 'gui-vn', occurred_on: '2026-08-01' }),
+      tx({
+        type: 'expense',
+        amount: 5_000,
+        category_id: 'gui-vn',
+        occurred_on: '2026-08-02',
+        is_refund: true,
+      }),
+      tx({ type: 'expense', amount: 1_000, category_id: 'nha', occurred_on: '2026-08-03' }),
+    ]
+    const r = sumIncomeExpense(t, currencyOf, 'JPY', RATES, GUI_VN)
+    expect(r.transfer).toBe(25_000)
+    expect(r.expense).toBe(1_000)
+  })
+
+  it('giao dịch KHÔNG có danh mục vẫn là chi (không thể là chuyển tài sản)', () => {
+    const t = [tx({ type: 'expense', amount: 700, occurred_on: '2026-08-01' })]
+    expect(sumIncomeExpense(t, currencyOf, 'JPY', RATES, GUI_VN).expense).toBe(700)
+  })
+
+  it('tập rỗng = hành vi cũ (mọi test đơn vị hiện có vẫn đúng)', () => {
+    const r = sumIncomeExpense(thang8, currencyOf, 'JPY', RATES)
+    expect(r.expense).toBe(252_236)
+    expect(r.transfer).toBe(0)
+  })
+})
+
+describe('categoryComparison · cắt cùng số ngày (cutoffDay)', () => {
+  const active = { year: 2026, month: 8 }
+
+  /** Tháng 8 chi ngày 1–5; tháng 7 chi ngày 1–5 VÀ ngày 20–25. */
+  const txs = [
+    ...[1, 2, 3, 4, 5].map((d) =>
+      tx({ type: 'expense', amount: 100, category_id: 'an', occurred_on: `2026-08-0${d}` }),
+    ),
+    ...[1, 2, 3, 4, 5].map((d) =>
+      tx({ type: 'expense', amount: 100, category_id: 'an', occurred_on: `2026-07-0${d}` }),
+    ),
+    ...[20, 21, 22, 23, 24, 25].map((d) =>
+      tx({ type: 'expense', amount: 100, category_id: 'an', occurred_on: `2026-07-${d}` }),
+    ),
+  ]
+
+  it('KHÔNG cắt → cột Δ đọc ra "giảm" dù hai kỳ tiêu y hệt nhau trong 5 ngày đầu', () => {
+    const r = categoryComparison(txs, active, 1, currencyOf, 'JPY', RATES)
+    expect(r.rows[0].thisMonth).toBe(500)
+    expect(r.rows[0].prevMonth).toBe(1100)
+    expect(r.rows[0].deltaPct).toBe(-55) // câu sai: nhịp hai kỳ giống nhau
+  })
+
+  it('CẮT về 5 ngày → Δ đúng bằng 0', () => {
+    const r = categoryComparison(txs, active, 1, currencyOf, 'JPY', RATES, 5)
+    expect(r.rows[0].thisMonth).toBe(500)
+    expect(r.rows[0].prevMonth).toBe(500)
+    expect(r.rows[0].deltaPct).toBe(0)
+  })
+
+  it('cắt theo ngày của THÁNG TÀI CHÍNH, không theo ngày dương lịch', () => {
+    // month_start_day = 25 → tháng tài chính "8/2026" chạy 25/08 → 24/09 (quy ước của
+    // `monthKeyForDate`: ngày ≥ 25 thuộc chính tháng dương lịch đó).
+    // 25/08 là ngày thứ 1 của T8; 25/07 là ngày thứ 1 của T7.
+    const t = [
+      tx({ type: 'expense', amount: 700, category_id: 'an', occurred_on: '2026-08-25' }), // ngày 1 của T8
+      tx({ type: 'expense', amount: 900, category_id: 'an', occurred_on: '2026-08-27' }), // ngày 3 của T8
+      tx({ type: 'expense', amount: 400, category_id: 'an', occurred_on: '2026-07-25' }), // ngày 1 của T7
+      tx({ type: 'expense', amount: 600, category_id: 'an', occurred_on: '2026-07-28' }), // ngày 4 của T7
+    ]
+    const r = categoryComparison(t, active, 25, currencyOf, 'JPY', RATES, 2)
+    expect(r.rows[0].thisMonth).toBe(700) // chỉ ngày 1
+    expect(r.rows[0].prevMonth).toBe(400) // chỉ ngày 1
+  })
+
+  it('avg3 cũng bị cắt — không so 5 ngày với trung bình ba tháng đầy', () => {
+    const t = [
+      tx({ type: 'expense', amount: 100, category_id: 'an', occurred_on: '2026-08-01' }),
+      tx({ type: 'expense', amount: 100, category_id: 'an', occurred_on: '2026-06-01' }),
+      tx({ type: 'expense', amount: 900, category_id: 'an', occurred_on: '2026-06-20' }),
+    ]
+    const cat = categoryComparison(t, active, 1, currencyOf, 'JPY', RATES, 1)
+    // Chỉ ngày 1 của mỗi tháng: T7 = 0, T6 = 100, T5 = 0 → avg3 = 33
+    expect(cat.rows[0].avg3).toBe(33)
+  })
+})
+
+describe('monthExpenseCompare', () => {
+  const active = { year: 2026, month: 8 }
+  const txs = [
+    ...[1, 2, 3].map((d) =>
+      tx({ type: 'expense', amount: 120, category_id: 'an', occurred_on: `2026-08-0${d}` }),
+    ),
+    ...Array.from({ length: 31 }, (_, i) =>
+      tx({
+        type: 'expense',
+        amount: 100,
+        category_id: 'an',
+        occurred_on: `2026-07-${String(i + 1).padStart(2, '0')}`,
+      }),
+    ),
+  ]
+
+  it('so đúng 3 ngày với 3 ngày, không phải 3 ngày với 31 ngày', () => {
+    const r = monthExpenseCompare(txs, active, 1, '2026-08-03', currencyOf, 'JPY', RATES)
+    expect(r?.spent).toBe(360)
+    expect(r?.priorSameDays).toBe(300)
+    expect(r?.deltaPct).toBe(20)
+    // Trọn tháng trước vẫn có, nhưng nó KHÔNG phải mẫu số.
+    expect(r?.priorFull).toBe(3100)
+  })
+
+  it('tháng đã xong → cắt thành không cắt', () => {
+    const r = monthExpenseCompare(txs, active, 1, '2026-12-31', currencyOf, 'JPY', RATES)
+    expect(r?.partial).toBe(false)
+    expect(r?.priorSameDays).toBe(3100)
+  })
+
+  it('chuyển khoản và dòng tiền nợ không tính (cùng bộ lọc với monthlySeries)', () => {
+    const t = [
+      tx({ type: 'expense', amount: 100, category_id: 'an', occurred_on: '2026-08-01' }),
+      tx({ type: 'transfer', amount: 9999, occurred_on: '2026-08-01' }),
+      tx({ type: 'expense', amount: 9999, is_debt_flow: true, occurred_on: '2026-08-01' }),
+      tx({ type: 'expense', amount: 50, category_id: 'an', occurred_on: '2026-07-01' }),
+    ]
+    const r = monthExpenseCompare(t, active, 1, '2026-08-01', currencyOf, 'JPY', RATES)
+    expect(r?.spent).toBe(100)
+    expect(r?.priorSameDays).toBe(50)
+  })
+
+  it('hoàn tiền là chi ÂM ở cả hai kỳ', () => {
+    const t = [
+      tx({ type: 'expense', amount: 300, category_id: 'an', occurred_on: '2026-08-01' }),
+      tx({ type: 'expense', amount: 100, category_id: 'an', occurred_on: '2026-08-01', is_refund: true }),
+      tx({ type: 'expense', amount: 200, category_id: 'an', occurred_on: '2026-07-01' }),
+    ]
+    const r = monthExpenseCompare(t, active, 1, '2026-08-01', currencyOf, 'JPY', RATES)
+    expect(r?.spent).toBe(200)
+    expect(r?.deltaPct).toBe(0)
+  })
+})
+
+describe('monthDaysElapsed', () => {
+  it('giữa tháng', () => {
+    expect(monthDaysElapsed({ year: 2026, month: 8 }, 1, '2026-08-18')).toEqual({
+      daysElapsed: 18,
+      daysInPeriod: 31,
+    })
+  })
+
+  it('tháng đã xong → trọn tháng', () => {
+    expect(monthDaysElapsed({ year: 2026, month: 7 }, 1, '2026-08-18')).toEqual({
+      daysElapsed: 31,
+      daysInPeriod: 31,
+    })
+  })
+
+  it('tháng chưa bắt đầu → 0 ngày', () => {
+    expect(monthDaysElapsed({ year: 2026, month: 9 }, 1, '2026-08-18').daysElapsed).toBe(0)
+  })
+
+  it('month_start_day = 25: kỳ 8/2026 chạy 25/08 → 24/09', () => {
+    // 18/08 nằm TRƯỚC kỳ → 0 ngày đã trôi (nó thuộc kỳ 7).
+    expect(monthDaysElapsed({ year: 2026, month: 8 }, 25, '2026-08-18').daysElapsed).toBe(0)
+    // 10/09 là ngày thứ 17 của kỳ (25/08 là ngày 1).
+    expect(monthDaysElapsed({ year: 2026, month: 8 }, 25, '2026-09-10')).toEqual({
+      daysElapsed: 17,
+      daysInPeriod: 31,
+    })
   })
 })
 
@@ -489,7 +766,7 @@ describe('foldUncategorized', () => {
 describe('netFlowSeries & netFlowSummary', () => {
   const key = (m: number): MonthKey => ({ year: 2026, month: m })
   const series = (pts: [number, number, number][]) => ({
-    points: pts.map(([m, income, expense]) => ({ key: key(m), income, expense })),
+    points: pts.map(([m, income, expense]) => ({ key: key(m), income, expense, transfer: 0 })),
     hasMissingRate: false,
   })
 

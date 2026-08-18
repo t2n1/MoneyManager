@@ -1,12 +1,39 @@
 // Tổng hợp số liệu cho báo cáo — thuần, không phụ thuộc React, để unit-test được.
 // Mọi số tiền quy đổi về base currency qua convertToBase; thiếu tỷ giá → hasMissingRate.
 
-import { addMonths, monthKeyForDate, type MonthKey } from '../../lib/dates'
+import {
+  addDaysISO,
+  addMonths,
+  daysBetween,
+  getMonthRange,
+  monthKeyForDate,
+  type MonthKey,
+} from '../../lib/dates'
+import { periodCompare, type PeriodCompare } from './periodCompare'
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { CategoryRow, TransactionRow } from '../../types/database.types'
+import { NO_TRANSFER_CATEGORIES } from '../categories/kind'
 
 export type CurrencyOf = (accountId: string) => CurrencyCode
+
+/**
+ * Id của những danh mục `kind = 'transfer'` — CHUYỂN TÀI SẢN, không phải tiêu.
+ *
+ * Vì sao mọi hàm ở file này đều nhận nó: "Gửi tiền về VN" ¥30,000 là tiền vẫn của mình,
+ * chỉ đứng ở tài khoản khác. Xếp vào chi thì tỷ lệ giữ lại đọc ra 38% thay vì 46%, và
+ * mọi tỷ trọng danh mục bị phồng mẫu số.
+ *
+ * Mặc định TẬP RỖNG = hành vi cũ, để mọi test hiện có vẫn đúng. Nhưng mọi màn trong
+ * `src/features/**` PHẢI truyền vào — hai màn truyền khác nhau thì chi tháng 8 ra hai
+ * con số, đúng cái lỗi cột `kind` được thêm để chấm dứt. `tests/categoryKind.test.ts`
+ * canh chỗ này.
+ */
+export type TransferIds = ReadonlySet<string>
+
+/** Giao dịch này là chuyển tài sản (theo danh mục của nó) chứ không phải chi tiêu? */
+const isTransfer = (t: Pick<TransactionRow, 'category_id'>, ids: TransferIds): boolean =>
+  t.category_id !== null && ids.has(t.category_id)
 
 /**
  * Dấu của một giao dịch CHI: hoàn tiền (trả hàng, hủy vé) là chi ÂM — tiền quay
@@ -36,6 +63,7 @@ export function categoryBreakdown(
   currencyOf: CurrencyOf,
   base: CurrencyCode,
   rates: Rates,
+  transferIds: TransferIds = NO_TRANSFER_CATEGORIES,
 ): Breakdown {
   const map = new Map<string, number>()
   let total = 0
@@ -43,6 +71,11 @@ export function categoryBreakdown(
   let hasMissingRate = false
   for (const t of txs) {
     if (t.type !== kind || !t.category_id || t.is_debt_flow || t.exclude_from_stats) continue
+    // Danh mục chuyển tài sản không phải một lát của cơ cấu CHI: để nó trong đây thì
+    // "Gửi về VN" thành một lát bánh cạnh Ăn uống, và mẫu số phồng lên làm mọi tỷ trọng
+    // khác nhỏ đi (đo được: Tiền nhà 51% → 45%). Bên `income` không cần lọc — cột `kind`
+    // chỉ đặt trên danh mục Chi.
+    if (kind === 'expense' && isTransfer(t, transferIds)) continue
     const cur = currencyOf(t.account_id)
     if (cur !== base) hasForeign = true
     const raw = convertToBase(t.amount, cur, base, rates)
@@ -112,7 +145,10 @@ export function groupByParent(slices: CategorySlice[], categories: CategoryRow[]
 export interface MonthlyPoint {
   key: MonthKey
   income: number
+  /** CHI THẬT — danh mục `kind = 'transfer'` không nằm trong đây. */
   expense: number
+  /** Chuyển tài sản của tháng (gửi về VN…). Tầng riêng, xem `IncomeExpenseSum.transfer`. */
+  transfer: number
 }
 
 export interface MonthlySeries {
@@ -133,9 +169,11 @@ export function monthlySeries(
   currencyOf: CurrencyOf,
   base: CurrencyCode,
   rates: Rates,
+  transferIds: TransferIds = NO_TRANSFER_CATEGORIES,
 ): MonthlySeries {
   const income = new Map<string, number>()
   const expense = new Map<string, number>()
+  const transfer = new Map<string, number>()
   let hasMissingRate = false
   for (const t of txs) {
     if (t.type === 'transfer' || t.is_debt_flow || t.exclude_from_stats) continue
@@ -146,12 +184,15 @@ export function monthlySeries(
     }
     const id = monthId(monthKeyForDate(t.occurred_on, monthStartDay))
     if (t.type === 'income') income.set(id, (income.get(id) ?? 0) + v)
+    else if (isTransfer(t, transferIds))
+      transfer.set(id, (transfer.get(id) ?? 0) + v * expenseSign(t))
     else expense.set(id, (expense.get(id) ?? 0) + v * expenseSign(t))
   }
   const points = months.map((key) => ({
     key,
     income: income.get(monthId(key)) ?? 0,
     expense: expense.get(monthId(key)) ?? 0,
+    transfer: transfer.get(monthId(key)) ?? 0,
   }))
   return { points, hasMissingRate }
 }
@@ -247,20 +288,32 @@ export function categoryMonthlySeries(
 export interface IncomeExpenseSum {
   /** minor units theo base currency */
   income: number
+  /** CHI THẬT — đã trừ danh mục `kind = 'transfer'`. */
   expense: number
+  /**
+   * Chuyển tài sản trong kỳ (gửi về VN, điều chỉnh số dư): tiền RỜI ví nhưng vẫn là của
+   * mình. Tách ra thành tầng riêng thay vì trộn vào `expense`, và thay vì ẩn đi — ẩn thì
+   * thu − chi không khớp với biến động số dư và người đọc không biết ¥30,000 đi đâu.
+   */
+  transfer: number
   hasForeign: boolean
   hasMissingRate: boolean
 }
 
-/** Tổng thu + tổng chi (đã quy đổi base). Chuyển khoản & dòng tiền nợ/cho vay (is_debt_flow) KHÔNG tính. */
+/**
+ * Tổng thu + tổng chi (đã quy đổi base). Chuyển khoản & dòng tiền nợ/cho vay
+ * (is_debt_flow) KHÔNG tính. Danh mục `kind = 'transfer'` tách sang `transfer`.
+ */
 export function sumIncomeExpense(
   txs: TransactionRow[],
   currencyOf: CurrencyOf,
   base: CurrencyCode,
   rates: Rates,
+  transferIds: TransferIds = NO_TRANSFER_CATEGORIES,
 ): IncomeExpenseSum {
   let income = 0
   let expense = 0
+  let transfer = 0
   let hasForeign = false
   let hasMissingRate = false
   for (const t of txs) {
@@ -273,9 +326,10 @@ export function sumIncomeExpense(
       continue
     }
     if (t.type === 'income') income += v
+    else if (isTransfer(t, transferIds)) transfer += v * expenseSign(t)
     else expense += v * expenseSign(t)
   }
-  return { income, expense, hasForeign, hasMissingRate }
+  return { income, expense, transfer, hasForeign, hasMissingRate }
 }
 
 export interface CategoryComparisonRow {
@@ -295,6 +349,11 @@ export interface CategoryComparison {
 /**
  * So sánh chi theo danh mục: tháng đang xem vs tháng trước vs TB 3 tháng trước.
  * Chỉ tính expense có category_id; ▲▼% so tháng trước; avg3 là cột tham chiếu.
+ *
+ * `cutoffDay` = số ngày đã trôi của tháng đang xem (1..n), hoặc null khi tháng đã xong.
+ * Có giá trị thì MỌI tháng trong bảng đều bị cắt về đúng số ngày đó — nếu không, cột Δ
+ * so 18 ngày của tháng này với trọn 31 ngày tháng trước và mọi dòng đều đọc ra "▼",
+ * kể cả những dòng đang tiêu nhanh hơn hẳn.
  */
 export function categoryComparison(
   txs: TransactionRow[],
@@ -303,15 +362,25 @@ export function categoryComparison(
   currencyOf: CurrencyOf,
   base: CurrencyCode,
   rates: Rates,
+  cutoffDay: number | null = null,
+  transferIds: TransferIds = NO_TRANSFER_CATEGORIES,
 ): CategoryComparison {
   const m0 = monthId(activeMonth)
   const m1 = monthId(addMonths(activeMonth, -1))
   const m2 = monthId(addMonths(activeMonth, -2))
   const m3 = monthId(addMonths(activeMonth, -3))
+  // Ngày đầu của mỗi tháng tài chính, để suy ra "giao dịch này là ngày thứ mấy của
+  // tháng nó". Cắt theo ngày-trong-tháng-tài-chính, không theo ngày dương lịch: người
+  // dùng đặt được `month_start_day`, và tháng bắt đầu ngày 25 thì ngày 26 là ngày thứ 2.
+  const startOf = new Map<string, string>()
+  for (const k of [activeMonth, addMonths(activeMonth, -1), addMonths(activeMonth, -2), addMonths(activeMonth, -3)]) {
+    startOf.set(monthId(k), getMonthRange(k, monthStartDay).start)
+  }
   const byCat = new Map<string, Map<string, number>>()
   let hasMissingRate = false
   for (const t of txs) {
     if (t.type !== 'expense' || !t.category_id || t.is_debt_flow || t.exclude_from_stats) continue
+    if (isTransfer(t, transferIds)) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) {
       hasMissingRate = true
@@ -319,6 +388,10 @@ export function categoryComparison(
     }
     const mid = monthId(monthKeyForDate(t.occurred_on, monthStartDay))
     if (mid !== m0 && mid !== m1 && mid !== m2 && mid !== m3) continue
+    if (cutoffDay !== null) {
+      const start = startOf.get(mid)
+      if (start !== undefined && daysBetween(start, t.occurred_on) + 1 > cutoffDay) continue
+    }
     const inner = byCat.get(t.category_id) ?? new Map<string, number>()
     inner.set(mid, (inner.get(mid) ?? 0) + v * expenseSign(t))
     byCat.set(t.category_id, inner)
@@ -405,11 +478,13 @@ export function dailyExpenseTotals(
   currencyOf: CurrencyOf,
   base: CurrencyCode,
   rates: Rates,
+  transferIds: TransferIds = NO_TRANSFER_CATEGORIES,
 ): DailyExpense {
   const byDay = new Map<string, number>()
   let hasMissingRate = false
   for (const t of txs) {
     if (t.type !== 'expense' || t.is_debt_flow || t.exclude_from_stats) continue
+    if (isTransfer(t, transferIds)) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) {
       hasMissingRate = true
@@ -490,4 +565,77 @@ export function foldUncategorized(
     costUnclassified: data.costUnclassified + noCategory,
     totalExpense,
   }
+}
+
+// ---------------------------------------------------------------------------------
+// So tháng đang dở với tháng trước — MỘT hàm cho cả Báo cáo lẫn Bản tin
+//
+// Trước đây hai trang tự lấy `series.points.at(-2).expense` (trọn tháng trước) làm mẫu
+// số. Hai trang, một lỗi giống nhau, và nó nằm ở câu đầu tiên của cả hai. Gom về một
+// hàm để không còn chỗ nào có thể so lệch kỳ nữa.
+// ---------------------------------------------------------------------------------
+
+/**
+ * Chi của tháng đang xem vs tháng liền trước, cắt về cùng số ngày.
+ *
+ * `txs` phải phủ CẢ HAI tháng (tháng đang xem + tháng liền trước). Trang nào chỉ tải
+ * một tháng thì truyền dữ liệu nhiều tháng đã có sẵn cho biểu đồ — đừng gọi thêm mạng.
+ *
+ * `todayISO` quyết định số ngày đã trôi. Tháng đang xem đã kết thúc trước hôm nay thì
+ * số ngày đã trôi = trọn tháng, và phép cắt tự thành phép không cắt.
+ */
+export function monthExpenseCompare(
+  txs: TransactionRow[],
+  activeMonth: MonthKey,
+  monthStartDay: number,
+  todayISO: string,
+  currencyOf: CurrencyOf,
+  base: CurrencyCode,
+  rates: Rates,
+  transferIds: TransferIds = NO_TRANSFER_CATEGORIES,
+): PeriodCompare | null {
+  const cur = getMonthRange(activeMonth, monthStartDay)
+  const prev = getMonthRange(addMonths(activeMonth, -1), monthStartDay)
+  const { daysElapsed, daysInPeriod } = monthDaysElapsed(activeMonth, monthStartDay, todayISO)
+
+  // `MonthRange.end` là mốc LOẠI TRỪ (repo truy vấn `.gte(start).lt(end)`), nên ngày
+  // cuối thật của kỳ là end − 1. Lấy đúng `end` sẽ nhặt thêm ngày đầu của tháng sau vào
+  // tổng của tháng này.
+  const dailyOf = (r: { start: string; end: string }) => {
+    const lastISO = addDaysISO(r.end, -1)
+    return dailyExpenseTotals(
+      txs.filter((t) => t.occurred_on >= r.start && t.occurred_on < r.end),
+      r.start,
+      lastISO,
+      currencyOf,
+      base,
+      rates,
+      transferIds,
+    ).points.map((p) => p.expense)
+  }
+
+  return periodCompare({
+    current: dailyOf(cur),
+    prior: dailyOf(prev),
+    daysElapsed,
+    daysInPeriod,
+  })
+}
+
+/**
+ * Số ngày đã trôi của tháng tài chính đang xem (1..n) và tổng số ngày của nó.
+ * Tháng đã xong → đã trôi = trọn tháng; tháng chưa bắt đầu → 0.
+ *
+ * `MonthRange.end` loại trừ, nên tổng số ngày là `daysBetween(start, end)` KHÔNG cộng 1.
+ */
+export function monthDaysElapsed(
+  activeMonth: MonthKey,
+  monthStartDay: number,
+  todayISO: string,
+): { daysElapsed: number; daysInPeriod: number } {
+  const cur = getMonthRange(activeMonth, monthStartDay)
+  const daysInPeriod = daysBetween(cur.start, cur.end)
+  if (todayISO >= cur.end) return { daysElapsed: daysInPeriod, daysInPeriod }
+  if (todayISO < cur.start) return { daysElapsed: 0, daysInPeriod }
+  return { daysElapsed: daysBetween(cur.start, todayISO) + 1, daysInPeriod }
 }

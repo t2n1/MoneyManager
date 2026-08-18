@@ -23,13 +23,14 @@ import {
   useProfile,
   useRangeTransactions,
   useRates,
+  useTransferCategoryIds,
 } from '../../hooks/queries'
 import { addMonths, formatMonthLabel, getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { NotificationBoundary } from '../notifications/NotificationBoundary'
 import { useNotifications } from '../notifications/useNotifications'
 import { reliability } from '../notifications/reliability'
-import { monthlySeries } from '../reports/aggregate'
+import { monthExpenseCompare, monthlySeries } from '../reports/aggregate'
 import { headlineOf } from '../reports/headline'
 import { useMonthPace } from '../reports/monthPace'
 import { useAssetsData } from '../assets/useAssetsData'
@@ -37,6 +38,7 @@ import { TransactionItem } from '../transactions/TransactionItem'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import {
   BULLETIN_MONTHS,
+  deltaPct,
   kpiFromSeries,
   recentTransactions,
   seriesAnchor,
@@ -60,6 +62,7 @@ export function BulletinPage() {
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
   const { base, rates } = useRates()
+  const transferIds = useTransferCategoryIds()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const [editing, setEditing] = useState<TransactionRow | null>(null)
@@ -85,7 +88,7 @@ export function BulletinPage() {
   )
   const { data: rangeTxs = [] } = useRangeTransactions(range)
   const series = useMemo(
-    () => monthlySeries(rangeTxs, months, monthStartDay, currencyOf, base, rates ?? {}),
+    () => monthlySeries(rangeTxs, months, monthStartDay, currencyOf, base, rates ?? {}, transferIds),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rangeTxs, months, monthStartDay, accounts, base, rates],
   )
@@ -100,7 +103,36 @@ export function BulletinPage() {
   // đầu khi `monthStartDay` chưa về, và lúc đó cắt cả dải là đúng hơn cắt rỗng.
   const upTo = series.points.slice(0, activeIndex >= 0 ? activeIndex + 1 : series.points.length)
   const incomeKpi = kpiFromSeries(upTo.map((p) => p.income))
-  const expenseKpi = kpiFromSeries(upTo.map((p) => p.expense))
+  // Ô Chi và câu kết luận so với tháng trước ĐÃ CẮT VỀ CÙNG SỐ NGÀY.
+  //
+  // `kpiFromSeries` lấy phần tử kề cuối làm mốc, tức TRỌN tháng trước. Giữa tháng đó là
+  // so 18 ngày với 31 ngày: đo trên tháng 8/2026 ra "giảm 13%" trong khi cắt cùng 18
+  // ngày ra "TĂNG 23%". Bản tin và Báo cáo dùng đúng một hàm (`monthExpenseCompare`) để
+  // hai màn không thể nói hai chiều khác nhau về cùng một tháng.
+  const expenseCmp = useMemo(
+    () =>
+      monthExpenseCompare(
+        rangeTxs,
+        activeMonthKey,
+        monthStartDay,
+        toISODate(new Date()),
+        currencyOf,
+        base,
+        rates ?? {},
+        transferIds,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rangeTxs, activeMonthKey, monthStartDay, accounts, base, rates, transferIds],
+  )
+  const expenseRaw = kpiFromSeries(upTo.map((p) => p.expense))
+  const expenseKpi =
+    expenseCmp === null
+      ? expenseRaw
+      : {
+          ...expenseRaw,
+          prev: expenseCmp.priorSameDays,
+          deltaPct: deltaPct(expenseRaw.value, expenseCmp.priorSameDays),
+        }
   const keptSpark = upTo.map((p) => p.income - p.expense)
 
   // Nguồn của cả `headline`, `BudgetPanel` LẪN dòng "tới ngày lương" — một `useBudgetReport`

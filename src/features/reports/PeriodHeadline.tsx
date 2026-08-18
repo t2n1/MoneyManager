@@ -31,6 +31,12 @@ interface Props {
    */
   forecast?: number | null
   noSpendDays?: number | null
+  /**
+   * Nhãn kỳ: `18/31 ngày · còn 13`. Bắt buộc có khi kỳ đang dở, vì mọi phép so trên
+   * trang này đều cắt về số ngày đã trôi — không nói ra thì người đọc mặc định con số
+   * là của cả tháng và tự so nó với một tháng đầy.
+   */
+  daysLabel?: string | null
 }
 
 export function PeriodHeadline({
@@ -42,6 +48,7 @@ export function PeriodHeadline({
   tiles = true,
   forecast,
   noSpendDays,
+  daysLabel,
 }: Props) {
   if (!headline) return null
   if (!tiles)
@@ -52,6 +59,9 @@ export function PeriodHeadline({
     )
   return (
     <section className="flex flex-col gap-2">
+      {daysLabel && (
+        <p className="font-mono text-2xs tracking-[.06em] text-fg-muted">{daysLabel}</p>
+      )}
       {/* Ba ô ở mobile, năm ô từ sm: năm ô trong 375px thì mỗi ô rộng ~68px — hẹp hơn
           nhãn "Dự báo cuối tháng". */}
       {/* <Swap> ở CẢ năm ô: đây là năm con số duy nhất trên trang thay đổi vì người dùng

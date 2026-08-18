@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BASKET_COST_CAVEAT,
+  basketCost,
   detectChangePoints,
-  lifestyleElasticity,
-  personalInflation,
+  halfPeriodShift,
   rollingAverage,
   yearOverYear,
   seasonalOutlook,
@@ -103,7 +104,7 @@ describe('detectChangePoints', () => {
   })
 })
 
-describe('personalInflation', () => {
+describe('basketCost', () => {
   it('chỉ so những danh mục có mặt ở CẢ hai kỳ', () => {
     const cur = new Map([
       ['an', 220],
@@ -115,7 +116,7 @@ describe('personalInflation', () => {
       ['nha', 100],
       ['dulich', 300], // năm nay không chi → không nằm trong rổ
     ])
-    const r = personalInflation(cur, prev)
+    const r = basketCost(cur, prev)
     expect(r?.basketSize).toBe(2)
     expect(r?.rate).toBeCloseTo(0.1) // 330/300 − 1
     expect(r?.currentTotal).toBe(330)
@@ -123,48 +124,63 @@ describe('personalInflation', () => {
   })
 
   it('coverage cho biết rổ chung chiếm bao nhiêu phần tổng chi hiện tại', () => {
-    const r = personalInflation(new Map([['an', 100], ['moi', 300]]), new Map([['an', 100]]))
+    const r = basketCost(new Map([['an', 100], ['moi', 300]]), new Map([['an', 100]]))
     expect(r?.coverage).toBeCloseTo(0.25)
   })
 
   it('không có danh mục chung → null', () => {
-    expect(personalInflation(new Map([['a', 100]]), new Map([['b', 100]]))).toBeNull()
+    expect(basketCost(new Map([['a', 100]]), new Map([['b', 100]]))).toBeNull()
   })
 
   it('kỳ trước bằng 0 → null', () => {
-    expect(personalInflation(new Map([['a', 100]]), new Map([['a', 0]]))).toBeNull()
+    expect(basketCost(new Map([['a', 100]]), new Map([['a', 0]]))).toBeNull()
+  })
+
+  it('mua ít hơn ra số ÂM y như giá giảm — nên câu chú thích là bắt buộc', () => {
+    // Cùng một rổ, kỳ này tốn ít hơn. Không cách nào biết vì giá hay vì mua ít.
+    const r = basketCost(new Map([['an', 70]]), new Map([['an', 100]]))
+    expect(r?.rate).toBeCloseTo(-0.3)
+    expect(BASKET_COST_CAVEAT).toContain('không phải chỉ số giá')
   })
 })
 
-describe('lifestyleElasticity', () => {
+describe('halfPeriodShift', () => {
   const half = (a: number, b: number) => [a, a, a, b, b, b]
 
-  it('thu tăng 50%, chi tăng 25% → hệ số 0,5', () => {
-    const r = lifestyleElasticity(half(200, 300), half(100, 125))
-    expect(r?.incomeChangePct).toBeCloseTo(50)
-    expect(r?.expenseChangePct).toBeCloseTo(25)
-    expect(r?.elasticity).toBeCloseTo(0.5)
-    expect(r?.marginalSpend).toBeCloseTo(0.25) // thêm 100 thu → tiêu thêm 25
+  it('phát biểu ĐÚNG CHIỀU: thu giảm, chi giảm nhiều hơn → giữ lại tăng', () => {
+    // thu 500→400 (−20%), chi 340→248 (−27%)
+    const r = halfPeriodShift(half(500, 400), half(340, 248))
+    expect(r?.incomeChangePct).toBeCloseTo(-20)
+    expect(r?.expenseChangePct).toBeCloseTo(-27.06, 1)
+    expect(r?.keptRateBefore).toBeCloseTo(0.32)
+    expect(r?.keptRateAfter).toBeCloseTo(0.38)
   })
 
-  it('thu tăng mà chi tăng y hệt → hệ số 1 (mức sống phình theo)', () => {
-    const r = lifestyleElasticity(half(200, 400), half(150, 300))
-    expect(r?.elasticity).toBeCloseTo(1)
+  it('không trả hệ số nào — hai nửa là hai nếp sống, không phải một đường', () => {
+    const r = halfPeriodShift(half(200, 300), half(100, 125))
+    expect(r).not.toHaveProperty('elasticity')
+    expect(r).not.toHaveProperty('marginalSpend')
   })
 
-  it('thu nhập gần như đứng yên → null (phép chia sẽ nổ)', () => {
-    expect(lifestyleElasticity(half(200, 202), half(100, 180))).toBeNull()
+  it('thu nhập gần như đứng yên vẫn trả số (không còn phép chia nổ)', () => {
+    const r = halfPeriodShift(half(200, 202), half(100, 180))
+    expect(r?.incomeChangePct).toBeCloseTo(1)
+    expect(r?.expenseChangePct).toBeCloseTo(80)
   })
 
-  it('dưới 6 tháng dữ liệu → null', () => {
-    expect(lifestyleElasticity([100, 200, 300], [50, 60, 70])).toBeNull()
+  it('dưới 4 tháng dữ liệu → null', () => {
+    expect(halfPeriodShift([100, 200, 300], [50, 60, 70])).toBeNull()
   })
 
   it('số tháng lẻ: hai nửa không chồng lấn phần tử giữa', () => {
-    const r = lifestyleElasticity([100, 100, 100, 999, 200, 200, 200], [50, 50, 50, 999, 75, 75, 75])
+    const r = halfPeriodShift([100, 100, 100, 999, 200, 200, 200], [50, 50, 50, 999, 75, 75, 75])
     expect(r?.incomeBefore).toBe(100)
     expect(r?.incomeAfter).toBe(200)
-    expect(r?.elasticity).toBeCloseTo(0.5)
+    expect(r?.monthsPerHalf).toBe(3)
+  })
+
+  it('nửa đầu không có thu → null (không có mẫu số)', () => {
+    expect(halfPeriodShift(half(0, 300), half(100, 125))).toBeNull()
   })
 })
 

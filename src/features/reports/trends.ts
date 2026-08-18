@@ -1,6 +1,6 @@
 // Phân tích xu hướng dài hạn — thuần, không phụ thuộc React, unit-test được.
 // Khác với aggregate.ts (gom số của MỘT kỳ), file này so sánh NHIỀU kỳ với nhau:
-// trung bình trượt, cùng kỳ năm trước, điểm gãy, lạm phát cá nhân, co giãn lối sống.
+// trung bình trượt, cùng kỳ năm trước, điểm gãy, giá rổ quen thuộc, dịch chuyển hai nửa kỳ.
 
 import type { MonthKey } from '../../lib/dates'
 
@@ -124,11 +124,17 @@ export function detectChangePoints(
 }
 
 // ------------------------------------------------------------
-// Lạm phát cá nhân
+// Giá của rổ quen thuộc
+//
+// Trước đây khối này tên là "lạm phát của riêng bạn". Tên đó sai: lạm phát là thay
+// đổi GIÁ, còn app chỉ có tổng tiền mỗi danh mục — không có đơn giá, không có số
+// lượng. Chi ít hơn vì mua ít hơn ra cùng một con số với chi ít hơn vì giá giảm,
+// nên không thể tách. Tên mới nói đúng cái đo được: cùng rổ danh mục đó, kỳ này
+// tốn bao nhiêu so với kỳ trước.
 // ------------------------------------------------------------
 
-export interface PersonalInflation {
-  /** tỷ lệ thay đổi của RỔ CHUNG (0.06 = +6%) */
+export interface BasketCost {
+  /** tỷ lệ thay đổi của RỔ CHUNG (0.06 = tốn thêm 6%) */
   rate: number
   /** số danh mục có mặt ở cả hai kỳ */
   basketSize: number
@@ -140,20 +146,19 @@ export interface PersonalInflation {
 }
 
 /**
- * "Lạm phát" của riêng bạn: so tổng chi của CÙNG MỘT RỔ danh mục giữa hai kỳ dài
- * bằng nhau. Chỉ lấy danh mục có chi ở cả hai kỳ — nếu không, việc năm nay mới
- * phát sinh khoản "học phí" sẽ bị tính nhầm thành giá cả tăng.
+ * Rổ quen thuộc tốn bao nhiêu: so tổng chi của CÙNG MỘT RỔ danh mục giữa hai kỳ
+ * dài bằng nhau. Chỉ lấy danh mục có chi ở cả hai kỳ — nếu không, việc năm nay mới
+ * phát sinh khoản "học phí" sẽ bị tính nhầm thành rổ đắt lên.
  *
- * LƯU Ý: app chỉ có tổng tiền, không có đơn giá × số lượng, nên con số này đo
- * "cùng nhóm chi tiêu, năm nay tốn hơn bao nhiêu" — gồm cả giá tăng LẪN việc mua
- * nhiều hơn. Đọc như chỉ báo tham khảo, không phải CPI.
+ * KHÔNG PHẢI CHỈ SỐ GIÁ. Con số này gồm cả việc mua ít hơn hoặc nhiều hơn. Mọi
+ * chỗ hiển thị nó bắt buộc kèm câu đó — xem `BASKET_COST_CAVEAT`.
  *
  * Rổ chung rỗng hoặc kỳ trước = 0 → null.
  */
-export function personalInflation(
+export function basketCost(
   currentByCat: Map<string, number>,
   previousByCat: Map<string, number>,
-): PersonalInflation | null {
+): BasketCost | null {
   let currentTotal = 0
   let previousTotal = 0
   let basketSize = 0
@@ -175,57 +180,72 @@ export function personalInflation(
   }
 }
 
+/** Câu bắt buộc đi kèm mọi chỗ in `basketCost` — đừng bỏ, đừng viết lại nhẹ hơn. */
+export const BASKET_COST_CAVEAT = 'Gồm cả việc mua ít hơn — không phải chỉ số giá.'
+
 // ------------------------------------------------------------
-// Co giãn lối sống (lifestyle inflation)
+// Dịch chuyển giữa hai nửa kỳ
+//
+// Chỗ này từng là "co giãn lối sống" (%Δchi / %Δthu). Đã bỏ hẳn, hai lý do:
+//
+// 1. SAI CHIỀU. Hệ số suy từ một đoạn thu GIẢM rồi được đọc thành "thu tăng thì chi
+//    phình theo bấy nhiêu". Phép ngoại suy ngược chiều đó không có căn cứ: người ta
+//    cắt chi khi thu hụt không đối xứng với việc tiêu thêm khi thu dôi.
+// 2. MỘT ĐIỂM KHÔNG DỰNG ĐƯỢC ĐƯỜNG. Muốn có hệ số co giãn cần nhiều lần thu đổi
+//    mức. Trong 24 tháng chỉ có MỘT lần đổi nếp, nên "hệ số" thật ra là tỷ số của
+//    đúng hai điểm — đổi cách chia nửa kỳ là nó ra số khác.
+//
+// Thay bằng bốn con số phát biểu đúng cái quan sát được: trung bình thu và chi mỗi
+// tháng của hai nửa, và tỷ lệ giữ lại suy ra từ chúng.
 // ------------------------------------------------------------
 
-export interface LifestyleElasticity {
-  /** %Δchi / %Δthu. 1 = thu tăng bao nhiêu tiêu thêm bấy nhiêu; 0 = giữ nguyên nếp sống */
-  elasticity: number
-  /** thu nhập tăng/giảm bao nhiêu % giữa hai nửa kỳ */
-  incomeChangePct: number
-  expenseChangePct: number
-  /** thêm 1 đồng thu nhập thì tiêu thêm bao nhiêu đồng (tính trên số tuyệt đối) */
-  marginalSpend: number
-  /** trung bình mỗi tháng của từng nửa, để hiển thị */
+export interface HalfPeriodShift {
+  /** trung bình mỗi tháng của nửa đầu / nửa sau */
   incomeBefore: number
   incomeAfter: number
   expenseBefore: number
   expenseAfter: number
+  /** % thay đổi giữa hai nửa (âm = giảm) */
+  incomeChangePct: number
+  expenseChangePct: number
+  /** tỷ lệ giữ lại (thu − chi) / thu của từng nửa; null khi thu ≤ 0 */
+  keptRateBefore: number | null
+  keptRateAfter: number | null
+  /** số tháng mỗi nửa — để nói ra mẫu số */
+  monthsPerHalf: number
 }
 
 /**
- * Thu nhập tăng thì mức sống có phình theo không: chia kỳ làm hai nửa, so trung
- * bình thu và chi mỗi nửa.
+ * So trung bình tháng của nửa sau với nửa đầu. Số tháng lẻ thì bỏ tháng giữa để hai
+ * nửa không chồng lấn.
  *
- * Cần ≥ 6 tháng và thu nhập phải đổi ít nhất `minIncomeChangePct` (mặc định 5%) —
- * thu nhập gần như đứng yên thì phép chia %Δchi/%Δthu nổ tung thành số vô nghĩa.
+ * KHÔNG suy ra hệ số nào từ hai con số này. Nếu giữa hai nửa có một cú đổi nếp thì
+ * chúng nói về HAI NẾP SỐNG KHÁC NHAU, không phải về một đường co giãn — chỗ hiển
+ * thị phải nói ra điều đó (`detectChangePoints` cho biết cú đổi nằm ở đâu).
+ *
+ * Cần ≥ 4 tháng (mỗi nửa ≥ 2) và nửa đầu phải có thu > 0.
  */
-export function lifestyleElasticity(
-  incomes: number[],
-  expenses: number[],
-  minIncomeChangePct = 5,
-): LifestyleElasticity | null {
+export function halfPeriodShift(incomes: number[], expenses: number[]): HalfPeriodShift | null {
   const n = Math.min(incomes.length, expenses.length)
-  if (n < 6) return null
+  if (n < 4) return null
   const half = Math.floor(n / 2)
   const incomeBefore = mean(incomes.slice(0, half))
   const incomeAfter = mean(incomes.slice(n - half))
   const expenseBefore = mean(expenses.slice(0, half))
   const expenseAfter = mean(expenses.slice(n - half))
-  if (incomeBefore <= 0 || expenseBefore <= 0) return null
-  const incomeChangePct = ((incomeAfter - incomeBefore) / incomeBefore) * 100
-  if (Math.abs(incomeChangePct) < minIncomeChangePct) return null
-  const expenseChangePct = ((expenseAfter - expenseBefore) / expenseBefore) * 100
+  if (incomeBefore <= 0) return null
+  const keptRate = (inc: number, exp: number) => (inc > 0 ? (inc - exp) / inc : null)
   return {
-    elasticity: expenseChangePct / incomeChangePct,
-    incomeChangePct,
-    expenseChangePct,
-    marginalSpend: (expenseAfter - expenseBefore) / (incomeAfter - incomeBefore),
     incomeBefore,
     incomeAfter,
     expenseBefore,
     expenseAfter,
+    incomeChangePct: ((incomeAfter - incomeBefore) / incomeBefore) * 100,
+    expenseChangePct:
+      expenseBefore > 0 ? ((expenseAfter - expenseBefore) / expenseBefore) * 100 : 0,
+    keptRateBefore: keptRate(incomeBefore, expenseBefore),
+    keptRateAfter: keptRate(incomeAfter, expenseAfter),
+    monthsPerHalf: half,
   }
 }
 

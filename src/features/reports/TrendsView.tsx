@@ -7,14 +7,21 @@ import { useMemo } from 'react'
 import { useDensity } from '../../hooks/useDensity'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { ExplainBox } from '../../components/ExplainBox'
-import { useAccounts, useProfile, useRangeTransactions, useRates } from '../../hooks/queries'
+import {
+  useAccounts,
+  useProfile,
+  useRangeTransactions,
+  useRates,
+  useTransferCategoryIds,
+} from '../../hooks/queries'
 import { addMonths, getMonthRange, monthKeyForDate, toISODate, type MonthKey } from '../../lib/dates'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { categoryBreakdown, monthlySeries } from './aggregate'
 import {
+  BASKET_COST_CAVEAT,
+  basketCost,
   detectChangePoints,
-  lifestyleElasticity,
-  personalInflation,
+  halfPeriodShift,
   rollingAverage,
   yearOverYear,
   seasonalOutlook,
@@ -75,6 +82,7 @@ export function TrendsView() {
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
   const { base, rates } = useRates()
+  const transferIds = useTransferCategoryIds()
   const r = rates ?? {}
   const { data: accounts = [] } = useAccounts()
 
@@ -98,7 +106,7 @@ export function TrendsView() {
     accounts.find((a) => a.id === id)?.currency ?? base
 
   const series = useMemo(
-    () => monthlySeries(txs, months, monthStartDay, currencyOf, base, r),
+    () => monthlySeries(txs, months, monthStartDay, currencyOf, base, r, transferIds),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [txs, months, monthStartDay, accounts, base, rates],
   )
@@ -156,28 +164,52 @@ export function TrendsView() {
     [expenses, monthsWithData],
   )
 
-  // --- Lạm phát cá nhân: rổ danh mục chung giữa 12 tháng này và 12 tháng trước ---
-  const inflation = useMemo(() => {
+  // --- Rổ quen thuộc: danh mục chung giữa 12 tháng này và 12 tháng trước ---
+  const basket = useMemo(() => {
     if (prev12.length < 12) return null
     const splitISO = getMonthRange(last12[0].key, monthStartDay).start
     const recentTxs = txs.filter((t) => t.occurred_on >= splitISO)
     const olderTxs = txs.filter((t) => t.occurred_on < splitISO)
     const toMap = (list: typeof txs) =>
       new Map(
-        categoryBreakdown(list, 'expense', currencyOf, base, r).slices.map((s) => [
+        categoryBreakdown(list, 'expense', currencyOf, base, r, transferIds).slices.map((s) => [
           s.categoryId,
           s.amount,
         ]),
       )
-    return personalInflation(toMap(recentTxs), toMap(olderTxs))
+    return basketCost(toMap(recentTxs), toMap(olderTxs))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txs, last12, prev12, monthStartDay, accounts, base, rates])
 
-  // --- Co giãn lối sống ---
-  const elasticity = useMemo(
-    () => lifestyleElasticity(incomes, expenses),
-    [incomes, expenses],
-  )
+  // --- Dịch chuyển hai nửa kỳ (thay cho "co giãn lối sống" đã bỏ) ---
+  const shift = useMemo(() => halfPeriodShift(incomes, expenses), [incomes, expenses])
+
+  // Cú đổi nếp nằm giữa hai nửa thì hai nửa nói về HAI NẾP SỐNG, không phải một
+  // đường đi lên/đi xuống. Phải nói ra, nếu không người đọc tự nối hai điểm.
+  const breakInsideWindow = useMemo(() => {
+    if (shift === null || changePoints.length === 0) return null
+    const mid = Math.floor(monthsWithData / 2)
+    const cp = changePoints.find((c) => Math.abs(c.index - mid) <= Math.ceil(monthsWithData / 4))
+    return cp ? active[cp.index].key : null
+  }, [shift, changePoints, monthsWithData, active])
+
+  /** Bốn thanh của khối "hai nửa kỳ" — cùng mẫu số để so được bằng mắt. */
+  const halfBars = useMemo(() => {
+    if (shift === null) return []
+    const max = Math.max(
+      shift.incomeBefore,
+      shift.incomeAfter,
+      shift.expenseBefore,
+      shift.expenseAfter,
+      1,
+    )
+    return [
+      { label: 'Thu · nửa đầu', v: shift.incomeBefore, tone: 'bg-money-in/40' },
+      { label: 'Thu · nửa sau', v: shift.incomeAfter, tone: 'bg-money-in' },
+      { label: 'Chi · nửa đầu', v: shift.expenseBefore, tone: 'bg-money-out/40' },
+      { label: 'Chi · nửa sau', v: shift.expenseAfter, tone: 'bg-money-out' },
+    ].map((b) => ({ ...b, pct: (b.v / max) * 100 }))
+  }, [shift])
 
   const money = (v: number) => formatMoney(Math.round(v), base)
 
@@ -396,119 +428,129 @@ export function TrendsView() {
         )}
       </TrendCard>
 
-      {/* 4. Lạm phát cá nhân */}
-      <TrendCard title="Lạm phát của riêng bạn" hint="12 tháng vs 12 tháng trước">
-        {inflation === null ? (
+      {/* 4. Rổ quen thuộc tốn bao nhiêu
+          Tên cũ là "Lạm phát của riêng bạn" — sai. Lạm phát là thay đổi GIÁ; app chỉ có
+          tổng tiền mỗi danh mục, không có đơn giá × số lượng, nên mua ít hơn và giá giảm
+          ra đúng cùng một con số. Tên mới nói đúng cái đo được. */}
+      <TrendCard title="Rổ quen thuộc tốn bao nhiêu" hint="12 tháng vs 12 tháng trước">
+        {basket === null ? (
           <NeedMore have={monthsWithData} need={24} />
         ) : (
           <>
             <p
-              className={`text-2xl font-bold tabular-nums ${
-                inflation.rate > 0
-                  ? 'text-money-out'
-                  : 'text-money-in'
+              className={`font-mono text-2xl font-medium tabular-nums tracking-[-.02em] ${
+                basket.rate > 0 ? 'text-money-out' : 'text-money-in'
               }`}
             >
-              {signPct(inflation.rate * 100)}
+              {signPct(basket.rate * 100)}
             </p>
             <p className="mt-1 text-xs text-fg-secondary">
-              Cùng {inflation.basketSize} nhóm chi tiêu quen thuộc, năm nay bạn tốn{' '}
-              {money(inflation.currentTotal)} so với {money(inflation.previousTotal)} năm ngoái. Rổ
-              này chiếm {Math.round(inflation.coverage * 100)}% tổng chi năm nay.
+              Cùng {basket.basketSize} nhóm chi tiêu quen thuộc, 12 tháng qua tốn{' '}
+              {money(basket.currentTotal)} so với {money(basket.previousTotal)} của 12 tháng trước
+              đó. Rổ này chiếm {Math.round(basket.coverage * 100)}% tổng chi kỳ này.
             </p>
-            {inflation.coverage < 0.5 && (
-              <p className="mt-2 rounded-lg bg-state-warn-bg text-state-warn-fg px-2 py-1.5 text-2xs">
+            {/* Câu này KHÔNG đi qua <Guide>: ở chế độ Gọn nó vẫn phải hiện, vì thiếu nó
+                thì con số bị đọc thành chỉ số giá. Đó chính là lý do khối này đổi tên. */}
+            <p className="mt-1.5 text-xs font-medium text-fg-warn">{BASKET_COST_CAVEAT}</p>
+            {basket.coverage < 0.5 && (
+              <p className="mt-2 rounded-lg bg-state-warn-bg px-2 py-1.5 text-2xs text-state-warn-fg">
                 Rổ chung chỉ chiếm dưới một nửa chi tiêu nên con số này chỉ mang tính tham khảo — chi
-                tiêu năm nay khác năm ngoái khá nhiều.
+                tiêu kỳ này khác kỳ trước khá nhiều.
               </p>
             )}
             <ExplainBox label="Cách tính & lưu ý quan trọng">
               <p>
-                Lấy những danh mục bạn có chi ở CẢ hai năm (rổ chung), cộng tổng mỗi năm rồi so.
-                Danh mục chỉ xuất hiện một năm (vd học phí mới phát sinh) bị loại để không tính nhầm
-                thành giá tăng.
+                Lấy những danh mục có chi ở CẢ hai kỳ (rổ chung), cộng tổng mỗi kỳ rồi so. Danh mục
+                chỉ xuất hiện một kỳ (vd học phí mới phát sinh) bị loại để không tính nhầm thành rổ
+                đắt lên.
               </p>
               <p>
-                <b>Lưu ý:</b> app chỉ có tổng tiền, không có đơn giá × số lượng. Nên con số này gộp
-                cả “giá tăng” lẫn “mua nhiều hơn”. Đọc như chỉ báo “cùng nếp sống đó năm nay tốn hơn
-                bao nhiêu”, không phải CPI chính thức.
+                <b>Đây không phải chỉ số giá.</b> App chỉ có tổng tiền, không có đơn giá × số lượng.
+                Chi ít hơn vì mua ít hơn và chi ít hơn vì giá giảm ra đúng cùng một con số, không
+                cách nào tách được. Đọc nó là “cùng nhóm đó, kỳ này tốn hơn hay ít hơn bao nhiêu”.
               </p>
             </ExplainBox>
           </>
         )}
       </TrendCard>
 
-      {/* 5. Co giãn lối sống */}
-      <TrendCard title="Thu nhập tăng thì chi có phình theo?">
-        {elasticity === null ? (
-          monthsWithData < 6 ? (
-            <NeedMore have={monthsWithData} need={6} />
-          ) : (
-            <p className="rounded-lg bg-surface-page px-3 py-3 text-center text-xs text-fg-muted">
-              Thu nhập của bạn gần như không đổi giữa hai nửa kỳ, chưa đo được độ co giãn. Chỉ số này
-              hiện ra khi có đợt tăng/giảm lương rõ rệt.
-            </p>
-          )
+      {/* 5. Hai nửa kỳ
+          Chỗ này từng là "Thu nhập tăng thì chi có phình theo? — ¥91 mỗi ¥100". Đã bỏ hẳn
+          chỉ số đó: hệ số suy từ một đoạn thu GIẢM rồi đọc thành trường hợp thu TĂNG là
+          sai chiều, và 24 tháng chỉ có MỘT lần đổi nếp thì không dựng được hệ số co giãn.
+          Thay bằng bốn con số quan sát được, phát biểu đúng chiều thật của dữ liệu. */}
+      <TrendCard
+        title="Hai nửa kỳ khác nhau thế nào"
+        hint={shift ? `${shift.monthsPerHalf} tháng mỗi nửa` : undefined}
+      >
+        {shift === null ? (
+          <NeedMore have={monthsWithData} need={4} />
         ) : (
           <>
-            {/* Con số LỚN là TIỀN, không phải hệ số (15a mục 4: "độ co giãn nói bằng
-                tiền, không bằng hệ số"). "0,58" bắt người đọc học một đơn vị mới trước
-                khi hiểu được gì; "¥58 mỗi ¥100" thì đọc là hiểu. Hệ số vẫn còn, tụt
-                xuống dòng phụ cho ai muốn con số so được giữa các kỳ. */}
-            <p
-              className={`text-2xl font-bold tabular-nums ${
-                elasticity.marginalSpend >= 0.8
-                  ? 'text-money-out'
-                  : elasticity.marginalSpend >= 0.5
-                    ? 'text-fg-warn'
-                    : 'text-money-in'
-              }`}
-            >
-              {money(Math.round(elasticity.marginalSpend * 100_00) / 100)}
-              <span className="text-sm font-medium text-fg-muted"> mỗi {money(100_00 / 100)}</span>
-            </p>
-            <p className="mt-1 text-xs text-fg-secondary">
-              Cứ thêm <b>{money(100_00 / 100)}</b> thu nhập thì bạn tiêu thêm{' '}
-              <b>{money(Math.round(elasticity.marginalSpend * 100_00) / 100)}</b> và giữ lại{' '}
-              <b className="text-money-in">
-                {money(Math.round((1 - elasticity.marginalSpend) * 100_00) / 100)}
+            {/* Bốn thanh: thu và chi, nửa đầu vs nửa sau. Cùng một mẫu số (số lớn nhất
+                trong bốn) để bốn thanh so được với nhau bằng mắt. */}
+            <ul className="flex flex-col gap-1.5">
+              {halfBars.map((b) => (
+                <li
+                  key={b.label}
+                  className="grid grid-cols-[minmax(0,6.5rem)_1fr_minmax(5.25rem,auto)] items-center gap-2"
+                >
+                  <span className="min-w-0 truncate text-2xs text-fg-muted">{b.label}</span>
+                  <span className="h-2 overflow-hidden rounded-full bg-surface-sunken">
+                    <span
+                      className={`block h-full rounded-full ${b.tone}`}
+                      style={{ width: `${b.pct}%` }}
+                    />
+                  </span>
+                  <span className="text-right font-mono text-xs tabular-nums text-fg-primary">
+                    {money(b.v)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {/* Kết luận đứng SAU bốn thanh và phát biểu đúng chiều dữ liệu: thu giảm thì
+                câu nói "thu giảm", không ngoại suy sang "nếu thu tăng thì…". */}
+            <p className="mt-2.5 text-[0.8125rem] text-fg-primary">
+              Thu{' '}
+              <b className={shift.incomeChangePct >= 0 ? 'text-money-in' : 'text-money-out'}>
+                {shift.incomeChangePct >= 0 ? 'tăng' : 'giảm'}{' '}
+                {Math.abs(Math.round(shift.incomeChangePct))}%
               </b>
+              , chi{' '}
+              <b className={shift.expenseChangePct >= 0 ? 'text-money-out' : 'text-money-in'}>
+                {shift.expenseChangePct >= 0 ? 'tăng' : 'giảm'}{' '}
+                {Math.abs(Math.round(shift.expenseChangePct))}%
+              </b>
+              {shift.keptRateBefore !== null && shift.keptRateAfter !== null && (
+                <>
+                  {' '}
+                  — nên tỷ lệ giữ lại{' '}
+                  {shift.keptRateAfter >= shift.keptRateBefore ? 'tăng' : 'giảm'} từ{' '}
+                  <b>{Math.round(shift.keptRateBefore * 100)}%</b> lên{' '}
+                  <b>{Math.round(shift.keptRateAfter * 100)}%</b>
+                </>
+              )}
               .
             </p>
-            {/* Suy ra lần tăng lương tới (§4.5). Đây là chỗ con số này thật sự dùng được:
-                nó biến một tỷ lệ quá khứ thành một dự đoán về quyết định sắp tới. */}
-            <p className="mt-1 text-xs text-fg-secondary">
-              Nếu lần tới lương tăng <b>{money(elasticity.incomeBefore * 0.1)}</b>/tháng, theo nếp
-              này bạn sẽ giữ lại khoảng{' '}
-              <b className="text-money-in">
-                {money(elasticity.incomeBefore * 0.1 * (1 - elasticity.marginalSpend))}
-              </b>
-              /tháng.
-            </p>
-            <p className="mt-1 text-2xs text-fg-muted">
-              Hệ số co giãn {elasticity.elasticity.toFixed(2).replace('.', ',')} — thu{' '}
-              {signPct(elasticity.incomeChangePct)} thì chi {signPct(elasticity.expenseChangePct)}.
-            </p>
-            <p className="mt-2 text-2xs text-fg-muted">
-              Trung bình mỗi tháng: thu {money(elasticity.incomeBefore)} →{' '}
-              {money(elasticity.incomeAfter)}, chi {money(elasticity.expenseBefore)} →{' '}
-              {money(elasticity.expenseAfter)}.
-            </p>
-            <ExplainBox label="Cách đọc">
+            {breakInsideWindow !== null && (
+              <p className="mt-2 rounded-lg bg-state-warn-bg px-2 py-1.5 text-2xs text-state-warn-fg">
+                Cú đổi nếp {monthLabel(breakInsideWindow)} nằm ngay giữa hai nửa, nên bốn con số
+                trên nói về <b>hai nếp sống khác nhau</b> — không phải một đường đi lên hay đi
+                xuống. Đừng nối hai điểm lại thành xu hướng.
+              </p>
+            )}
+            <ExplainBox label="Vì sao không còn hệ số co giãn">
               <p>
-                Chia {monthsWithData} tháng làm hai nửa rồi so trung bình thu &amp; chi của từng nửa.
-                Hệ số <b>0</b> = tăng lương mà giữ nguyên nếp sống (tiết kiệm toàn bộ phần tăng).{' '}
-                <b>1</b> = tăng bao nhiêu tiêu hết bấy nhiêu. Trên <b>1</b> = tiêu nhanh hơn cả tốc
-                độ tăng lương.
+                Bản trước in một hệ số “%Δchi / %Δthu”. Đã bỏ, hai lý do. Một là <b>sai chiều</b>:
+                hệ số đó suy từ một đoạn thu <i>giảm</i>, rồi câu kết luận lại nói về trường hợp thu{' '}
+                <i>tăng</i> — người ta cắt chi khi thu hụt không đối xứng với việc tiêu thêm khi thu
+                dôi. Hai là <b>một điểm không dựng được đường</b>: muốn có hệ số cần nhiều lần thu
+                đổi mức, mà {monthsWithData} tháng này chỉ có một lần đổi nếp.
               </p>
               <p>
-                Con số lành mạnh thường dưới 0,5 — tức là ít nhất một nửa phần tăng thu nhập được
-                giữ lại.
-              </p>
-              <p>
-                Hai dòng trên khác nhau: “tốc độ” so hai con số phần trăm với nhau, còn “tiền mặt”
-                lấy thẳng số tiền chi tăng chia cho số tiền thu tăng. Nếu bạn vốn tiêu ít hơn kiếm
-                được thì dòng tiền mặt bao giờ cũng nhỏ hơn dòng tốc độ.
+                Bốn con số trên là quan sát trực tiếp, không ngoại suy: trung bình mỗi tháng của{' '}
+                {shift.monthsPerHalf} tháng đầu và {shift.monthsPerHalf} tháng cuối. Số tháng lẻ thì
+                tháng giữa bị bỏ để hai nửa không chồng lấn.
               </p>
             </ExplainBox>
           </>

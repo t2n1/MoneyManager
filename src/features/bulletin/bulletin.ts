@@ -9,6 +9,7 @@
 import type { MonthlySeries } from '../reports/aggregate'
 import { daysBetween, type MonthKey } from '../../lib/dates'
 import type { TransactionRow } from '../../types/database.types'
+import { dailyAllowance } from '../budgets/dailyAllowance'
 
 /** Số tháng vẽ trong khối Dòng tiền (§4.1). Cũng là độ dài đường tí hon của ô KPI. */
 export const BULLETIN_MONTHS = 8
@@ -116,21 +117,29 @@ export function recentTransactions(txs: TransactionRow[], limit: number): Transa
 //
 // "Cầm cự được bao lâu" từng có ba đáp án đúng ở ba màn, và ba cái tên giống nhau nên
 // không ai biết chúng là ba câu hỏi khác nhau. §4.9 bắt tách tên:
-//   Bản tin  — TỚI NGÀY LƯƠNG        : còn mấy ngày nữa tiền vào, kỳ này còn đủ không
+//   Bản tin  — TỚI NGÀY LƯƠNG        : còn mấy ngày nữa tiền vào, hạn mức kỳ này còn đủ
 //   Sức khỏe — NẾU MẤT VIỆC          : mất nguồn thu thì trụ được mấy tháng
 //   Quỹ dự phòng — ĐỆM CHO VIỆC BẤT NGỜ : đủ đỡ một cú bất ngờ cỡ nào
 // Hai cái sau đã có ở HealthView; đây là cái còn thiếu.
 //
 // ĐỊNH NGHĨA "còn lại" — đọc kỹ, vì đây là chỗ dễ thành con số nguy hiểm.
-// `conLai` = THU − CHI trong chính kỳ lương này, tức phần còn lại của DÒNG TIỀN kỳ này.
-// Nó KHÔNG phải "tiền bạn tiêu được", và cố ý không phải:
-//   • Số dư tài khoản thì lẫn tiền đã có chủ (tiết kiệm, tiền để trả thẻ, đầu tư). Muốn
-//     lọc ra phần tiêu được thì cần đúng hai mảnh mà R1/§4.4 nói app CHƯA có — cờ *tài
-//     khoản dùng hằng ngày* và nợ có ngày đến hạn. Đoán bừa là app khuyến khích tiêu
-//     quá tay, đúng cái R1 cấm.
-//   • Ngược lại, dòng tiền kỳ này thì tính được CHÍNH XÁC từ dữ liệu đã có, và trả lời
-//     đúng câu hỏi của màn này: "lương tháng này còn lại bao nhiêu".
-// Vì thế mọi chữ hiển thị phải nói "kỳ này", không nói "bạn còn tiêu được".
+// `conLai` = TỔNG HẠN MỨC − ĐÃ TIÊU của kỳ này (`BudgetReport.totalBudgeted/totalSpent`),
+// tức phần còn được tiêu theo kế hoạch chính người dùng đặt ra.
+//
+// Bản đầu lấy THU − CHI, và đó là sai — sai theo đúng cái R1 cấm. Thu của kỳ là cả tháng
+// lương, trong đó phần lớn đã có chủ: tiết kiệm, tiền trả thẻ, tiền dồn cho khoản lớn.
+// Chia cả cục đó cho số ngày còn lại là app tự tay mời tiêu hết lương. Khối chú thích cũ
+// ở đây từng biện hộ rằng chỉ cần nói "kỳ này còn" thay vì "bạn tiêu được" là đủ rào —
+// không đủ: một con số kèm "/ngày" thì không còn nghĩa nào khác ngoài mức tiêu cho phép,
+// dù câu chữ quanh nó cẩn thận tới đâu.
+//
+// Hạn mức thì trả lời đúng câu hỏi, và app đã có sẵn: `BudgetPanel` ngay cùng trang hiện
+// đúng hai con số đó. Hai dòng cách nhau 400px thì phải nói CÙNG một "còn lại".
+//
+// PHẠM VI phải khớp: `daTieu` là chi của riêng các mục CÓ hạn mức, không phải tổng chi —
+// cùng kỷ luật với `budgetDaily` của useMonthPace. Đem tổng chi so với tổng hạn mức thì
+// ai chỉ đặt vài hạn mức cũng thấy báo vượt khổng lồ, rồi thôi tin cả thẻ.
+// Chưa đặt hạn mức nào → `chuaDatHanMuc`, và UI im hẳn về tiền (§14 "chưa biết ≠ 0").
 //
 // Ngày lương = mốc `end` của kỳ hiện tại (`getMonthRange().end` chính là ngày bắt đầu kỳ
 // sau, mà kỳ trong app này bắt đầu vào ngày lương — đó là ý nghĩa của "Tháng bắt đầu vào
@@ -138,29 +147,35 @@ export function recentTransactions(txs: TransactionRow[], limit: number): Transa
 // cùng một mốc là hai nguồn để lệch nhau.
 
 export interface ToiNgayLuong {
-  /** Số ngày từ hôm nay tới ngày lương. 0 = hôm nay là ngày lương. */
+  /**
+   * Số ngày còn lại tới ngày lương, KỂ CẢ HÔM NAY — vì `ngayLuongISO` là mốc loại trừ
+   * (đầu kỳ sau), nên hôm nay là một trong `soNgay` ngày còn tiêu được. Cùng quy ước với
+   * `daysLeft` của dailyAllowance. 0 = hôm nay đã là ngày lương, và chỉ xảy ra khi gọi
+   * hàm trực tiếp: trang Bản tin luôn neo vào kỳ CHỨA hôm nay nên ở đó soNgay ≥ 1.
+   */
   soNgay: number
-  /** Thu − chi trong kỳ lương này (minor units, base). Có thể âm. */
+  /** Tổng hạn mức − đã tiêu, trong kỳ này (minor units, base). Âm = đã vượt trần. */
   conLai: number
-  /** Chia đều số còn lại cho số ngày còn lại. null khi không còn gì để chia. */
+  /** Chia đều phần còn lại cho số ngày còn lại. null khi không còn gì để chia. */
   moiNgay: number | null
-  /** Nhịp chi thực tế mỗi ngày, tính từ đầu kỳ tới hôm nay. */
+  /** Nhịp chi thực tế mỗi ngày trong PHẠM VI hạn mức, từ đầu kỳ tới hôm nay. */
   nhipHienTai: number
-  /** Giữ nhịp này thì hết tiền TRƯỚC ngày lương. */
+  /** Giữ nhịp này thì cạn hạn mức TRƯỚC ngày lương. */
   hutTruocLuong: boolean
-  /** Kỳ này chưa thấy khoản thu nào — mọi kết luận về "còn lại" đều vô nghĩa. */
-  chuaCoThu: boolean
+  /** Kỳ này chưa đặt hạn mức nào — mọi kết luận về "còn lại" đều vô nghĩa. */
+  chuaDatHanMuc: boolean
 }
 
 export interface ToiNgayLuongInput {
   todayISO: string
   /** Mốc đầu kỳ hiện tại (ISO). */
   kyBatDauISO: string
-  /** Mốc ngày lương kế tiếp (ISO) — chính là đầu kỳ sau. */
+  /** Mốc ngày lương kế tiếp (ISO) — chính là đầu kỳ sau, nên là mốc LOẠI TRỪ. */
   ngayLuongISO: string
-  /** Thu và chi ĐÃ GHI trong kỳ này, minor units base. */
-  thu: number
-  chi: number
+  /** Tổng hạn mức của kỳ — `BudgetReport.totalBudgeted`, minor units base. */
+  hanMuc: number
+  /** Đã tiêu trong phạm vi các hạn mức đó — `BudgetReport.totalSpent`. */
+  daTieu: number
 }
 
 /**
@@ -169,21 +184,25 @@ export interface ToiNgayLuongInput {
  * ≠ 0".
  */
 export function toiNgayLuong(input: ToiNgayLuongInput): ToiNgayLuong | null {
-  const { todayISO, kyBatDauISO, ngayLuongISO, thu, chi } = input
+  const { todayISO, kyBatDauISO, ngayLuongISO, hanMuc, daTieu } = input
   const soNgay = daysBetween(todayISO, ngayLuongISO)
   const daQua = daysBetween(kyBatDauISO, todayISO)
   // Ngoài kỳ, hoặc mốc ngược đời.
   if (soNgay < 0 || daQua < 0 || !Number.isFinite(soNgay) || !Number.isFinite(daQua)) return null
 
-  const conLai = thu - chi
+  const conLai = hanMuc - daTieu
   // `daQua + 1` kể cả hôm nay: hôm nay đã tiêu rồi thì nó là một ngày có thật trong nhịp.
   // Cùng quy ước với `paceDaysElapsed` của useMonthPace và `daysElapsed` của
   // dailyAllowance — ba chỗ đếm khác nhau là ba con số "mỗi ngày" khác nhau trên cùng
   // một app.
-  const nhipHienTai = Math.round(chi / (daQua + 1))
-  const moiNgay = conLai > 0 && soNgay > 0 ? Math.floor(conLai / soNgay) : null
+  const nhipHienTai = Math.round(daTieu / (daQua + 1))
+  // KHÔNG tự chia: `dailyAllowance` đã là đúng phép "còn bao nhiêu / mấy ngày nữa" của
+  // trang Ngân sách, kể cả quyết định làm tròn XUỐNG và trả null khi đã vượt trần. Hai
+  // mẫu số khớp nhau chứ không phải trùng hợp: `ngayLuongISO` là mốc loại trừ, nên
+  // `daysLeft = (daQua + soNgay) − (daQua + 1) + 1 = soNgay`.
+  const moiNgay = dailyAllowance(conLai, daQua + 1, daQua + soNgay)?.perDay ?? null
   // Nhịp 0 (chưa tiêu gì) thì không thể hụt — tránh chia cho 0 ra Infinity.
   const hutTruocLuong = conLai > 0 && nhipHienTai > 0 && conLai / nhipHienTai < soNgay
 
-  return { soNgay, conLai, moiNgay, nhipHienTai, hutTruocLuong, chuaCoThu: thu <= 0 }
+  return { soNgay, conLai, moiNgay, nhipHienTai, hutTruocLuong, chuaDatHanMuc: hanMuc <= 0 }
 }

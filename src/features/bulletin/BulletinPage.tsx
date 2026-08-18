@@ -103,30 +103,37 @@ export function BulletinPage() {
   const expenseKpi = kpiFromSeries(upTo.map((p) => p.expense))
   const keptSpark = upTo.map((p) => p.income - p.expense)
 
+  // Nguồn của cả `headline`, `BudgetPanel` LẪN dòng "tới ngày lương" — một `useBudgetReport`
+  // cho cả màn. Ba chỗ tự cộng lại "đã tiêu" là ba con số sớm muộn lệch nhau: trần nhóm
+  // cha, hạn mức dồn và giao dịch thiếu tỷ giá đều là chỗ dễ tính khác đi.
+  const { report, isLoading: budgetLoading } = useBudgetReport(activeMonthKey)
+
   // Tới ngày lương (§4.9). Luôn tính theo KỲ HIỆN TẠI, không theo tháng đang xem — nó
   // nói về hôm nay. Nhưng chỉ HIỆN khi hai cái trùng nhau: đang xem tháng 3 mà có một
   // dòng nói "còn 26 ngày tới ngày lương" thì trên cùng một màn có hai mốc thời gian,
   // và người đọc phải tự đoán dòng nào thuộc mốc nào.
+  //
+  // Vì đã chốt `dangXemThangNay` nên `report` (khoá theo THÁNG ĐANG XEM) chính là báo cáo
+  // của kỳ hiện tại — không thêm query thứ hai cho cùng một tháng.
+  //
+  // Chờ `budgetLoading` xong mới dựng: `report` về trước khi budgets tải xong thì
+  // `totalBudgeted` là 0, và thanh sẽ loé câu "chưa đặt hạn mức" cho người ĐÃ đặt.
   const dangXemThangNay =
     activeMonthKey.year === currentMonthKey.year && activeMonthKey.month === currentMonthKey.month
   const kyHienTai = getMonthRange(currentMonthKey, monthStartDay)
-  const diemKyNay = series.points.find(
-    (p) => p.key.year === currentMonthKey.year && p.key.month === currentMonthKey.month,
-  )
   const luong =
-    dangXemThangNay && diemKyNay
+    dangXemThangNay && report && !budgetLoading
       ? toiNgayLuong({
           todayISO: toISODate(new Date()),
           kyBatDauISO: kyHienTai.start,
           ngayLuongISO: kyHienTai.end,
-          thu: diemKyNay.income,
-          chi: diemKyNay.expense,
+          hanMuc: report.totalBudgeted,
+          daTieu: report.totalSpent,
         })
       : null
 
   // Câu kết luận đứng đầu màn. Dùng chung `headlineOf` với Báo cáo: hai màn nói cùng một
   // kết luận thì phải nói bằng đúng một câu, không phải hai bản chép tay.
-  const { report, isLoading: budgetLoading } = useBudgetReport(activeMonthKey)
   // Cùng hook dự báo mà tab Ngân sách và Báo cáo dùng — ba màn phải nói CÙNG một con số
   // dự báo, không phải ba phép tính song song (xem chú thích ở ReportsPage).
   const bulletinPace = useMonthPace(activeMonthKey)
@@ -258,6 +265,20 @@ export function BulletinPage() {
         </ConclusionLine>
       )}
 
+      {/* ĐỨNG TRƯỚC bốn ô, không phải sau. §14: kết luận trước, bằng chứng sau — bốn ô
+          là tổng của kỳ (bằng chứng), câu này là kết luận về hôm nay.
+
+          Từng đặt SAU bốn ô với lập luận ngược lại ("bốn ô nói kỳ này đã đi tới đâu,
+          dòng này nói từ đây tới ngày lương thì sao"). Lập luận đó chỉ đứng vững khi câu
+          này còn là một dòng 0.8125rem; từ lúc nó thành chữ LỚN NHẤT màn thì thứ tự cũ
+          bắt thứ to nhất nằm thứ ba — cỡ chữ nói một đằng, thứ tự đọc nói một nẻo.
+
+          Vẫn đứng SAU ConclusionLine: §5.0 chốt câu kết luận đứng đầu màn, và hai câu
+          này khác kỳ hạn — trên nói cả tháng đã ra sao, dưới nói hôm nay tiêu được bao
+          nhiêu. Đổi bằng THỨ TỰ DOM chứ không order-*: thứ tự đọc và thứ tự tiêu điểm
+          phải đi cùng nhau (WCAG 2.4.3), cùng luật đã chốt ở TodoPanel ngay trên. */}
+      {luong && <PaydayStrip data={luong} base={base} approx={report?.hasMissingRate ?? false} />}
+
       <KpiRow
         base={base}
         income={incomeKpi}
@@ -269,11 +290,6 @@ export function BulletinPage() {
         netWorthSpark={netWorthSpark}
         approx={series.hasMissingRate}
       />
-
-      {/* Đứng NGAY SAU bốn ô: bốn ô nói kỳ này đã đi tới đâu, dòng này nói từ đây tới
-          ngày lương thì sao. Đặt trước cặp panel dòng-tiền/ngân sách vì nó là kết luận,
-          còn hai panel kia là bằng chứng (§14). */}
-      {luong && <PaydayStrip data={luong} base={base} />}
 
       {/* Cặp panel: xếp ngang từ xl, dọc ở dưới (§6). `flex-wrap` + `flex-1` với
           `min-w-0` là công thức chống tràn đã chốt ở §6. */}

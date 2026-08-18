@@ -9,6 +9,7 @@ import {
   type ToiNgayLuongInput,
 } from './bulletin'
 import type { TransactionRow } from '../../types/database.types'
+import { dailyAllowance } from '../budgets/dailyAllowance'
 
 describe('seriesAnchor', () => {
   const cur = { year: 2026, month: 8 }
@@ -140,53 +141,64 @@ describe('recentTransactions', () => {
 })
 
 describe('toiNgayLuong', () => {
-  // Kỳ lương 15/08 → 15/09, hôm nay 20/08: đã qua 6 ngày (kể cả hôm nay), còn 26.
+  // Kỳ lương 15/08 → 15/09 (31 ngày), hôm nay 20/08. Cả HAI mốc đều kể hôm nay vào:
+  // đã qua 6 ngày (15→20), còn 26 ngày tiêu được (20/08→14/09) — 15/09 là mốc LOẠI TRỪ,
+  // nó đã thuộc kỳ sau.
   const co = (p: Partial<ToiNgayLuongInput> = {}) =>
     toiNgayLuong({
       todayISO: '2026-08-20',
       kyBatDauISO: '2026-08-15',
       ngayLuongISO: '2026-09-15',
-      thu: 400_000,
-      chi: 60_000,
+      hanMuc: 200_000,
+      daTieu: 60_000,
       ...p,
     })
 
-  it('đếm ngày tới lương không kể hôm nay, đếm ngày đã qua CÓ kể hôm nay', () => {
+  it('đếm ngày còn lại kể cả hôm nay, đếm ngày đã qua cũng kể hôm nay', () => {
     const r = co()!
     expect(r.soNgay).toBe(26)
-    // nhịp = chi / (số ngày đã qua kể cả hôm nay) = 60.000 / 6
+    // nhịp = đã tiêu / (số ngày đã qua kể cả hôm nay) = 60.000 / 6
     expect(r.nhipHienTai).toBe(10_000)
   })
 
-  it('còn lại là dòng tiền của kỳ, không phải số dư', () => {
-    expect(co()!.conLai).toBe(340_000)
-    expect(co({ chi: 500_000 })!.conLai).toBe(-100_000)
+  it('còn lại là phần chưa tiêu của HẠN MỨC, không phải lương trừ chi', () => {
+    // Đây LÀ điều phép thử này canh: hàm không nhận thu nữa, nên một tháng lương to
+    // không thể đẩy con số "còn lại" lên được. Trần do người dùng đặt mới quyết định.
+    expect(co()!.conLai).toBe(140_000)
+    expect(co({ daTieu: 260_000 })!.conLai).toBe(-60_000)
   })
 
-  it('mỗi ngày làm tròn XUỐNG, và null khi không còn gì để chia', () => {
-    expect(co()!.moiNgay).toBe(Math.floor(340_000 / 26))
-    expect(co({ chi: 500_000 })!.moiNgay).toBeNull()
-    // Hôm nay là ngày lương: không còn ngày nào để chia.
-    expect(co({ todayISO: '2026-09-15' })!.moiNgay).toBeNull()
+  it('mỗi ngày khớp ĐÚNG dailyAllowance trên cùng dữ liệu', () => {
+    // Ủy quyền chứ không chép công thức: hai phép chia song song là hai con số "mỗi
+    // ngày" khác nhau trên cùng một app, và đó là chuyện đã xảy ra rồi.
+    expect(co()!.moiNgay).toBe(dailyAllowance(140_000, 6, 31)!.perDay)
+    expect(co()!.moiNgay).toBe(Math.floor(140_000 / 26)) // làm tròn XUỐNG
+  })
+
+  it('null khi không còn gì để chia', () => {
+    expect(co({ daTieu: 260_000 })!.moiNgay).toBeNull() // đã vượt trần
+    expect(co({ todayISO: '2026-09-15' })!.moiNgay).toBeNull() // hết ngày
   })
 
   it('hụt trước lương khi giữ nguyên nhịp', () => {
-    // nhịp 10.000/ngày, còn 340.000 → đủ 34 ngày > 26 ngày ⇒ không hụt
-    expect(co()!.hutTruocLuong).toBe(false)
-    // chi 150.000 trong 6 ngày = 25.000/ngày, còn 250.000 → 10 ngày < 26 ⇒ hụt
-    expect(co({ chi: 150_000 })!.hutTruocLuong).toBe(true)
+    // nhịp 10.000/ngày, còn 140.000 → đủ 14 ngày < 26 ngày ⇒ hụt
+    expect(co()!.hutTruocLuong).toBe(true)
+    // nhịp 3.000/ngày, còn 182.000 → đủ 60 ngày > 26 ⇒ không hụt
+    expect(co({ daTieu: 18_000 })!.hutTruocLuong).toBe(false)
   })
 
   it('chưa tiêu đồng nào thì không bao giờ báo hụt (không chia cho 0)', () => {
-    const r = co({ chi: 0 })!
+    const r = co({ daTieu: 0 })!
     expect(r.nhipHienTai).toBe(0)
     expect(r.hutTruocLuong).toBe(false)
     expect(Number.isFinite(r.moiNgay!)).toBe(true)
   })
 
-  it('đánh dấu kỳ chưa có khoản thu nào', () => {
-    expect(co({ thu: 0 })!.chuaCoThu).toBe(true)
-    expect(co()!.chuaCoThu).toBe(false)
+  it('đánh dấu kỳ chưa đặt hạn mức nào, và không nặn ra số nào', () => {
+    expect(co({ hanMuc: 0 })!.chuaDatHanMuc).toBe(true)
+    expect(co()!.chuaDatHanMuc).toBe(false)
+    // §14 "chưa biết ≠ 0": không có trần thì không có "mỗi ngày", chứ không phải 0đ.
+    expect(co({ hanMuc: 0 })!.moiNgay).toBeNull()
   })
 
   // §14 "chưa biết ≠ 0": ngoài kỳ thì im, không in số 0.

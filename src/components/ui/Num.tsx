@@ -35,16 +35,25 @@ export function Num({ children, tone = 'neutral', className = '' }: Props) {
 }
 
 /**
- * "+23%" · "−14%" · "±0%" · "—".
+ * "+23%" · "−14%" · "−37,3%" · "±0%" · "—".
  *
- * Gom vào đây vì ba màn cần đúng chuỗi này (bảng danh mục, bảng so cùng số ngày, bảng
- * theo năm) và mỗi màn tự viết là ba quy ước dấu khác nhau. `null` = KHÔNG so được, và nó
- * phải in "—" chứ không in "0%": một danh mục mới không "đi ngang", nó chưa có mốc để so.
+ * Gom vào đây vì bốn màn cần đúng chuỗi này (bảng danh mục, bảng so cùng số ngày, bảng theo
+ * năm, rổ quen thuộc) và mỗi màn tự viết là bốn quy ước dấu khác nhau. `null` = KHÔNG so
+ * được, và nó phải in "—" chứ không in "0%": một danh mục mới không "đi ngang", nó chưa có
+ * mốc để so.
+ *
+ * Hai chi tiết dễ mất nếu để nơi gọi tự dựng chuỗi:
+ *   · dấu ÂM THẬT (−, U+2212), không phải hyphen. Trong dãy mono hyphen ngắn hơn dấu cộng
+ *     nên hai dòng liền nhau đọc ra lệch nhau.
+ *   · dấu THẬP PHÂN kiểu Việt (phẩy). `${-37.3}` của JS ra "-37.3" — vừa sai dấu âm vừa
+ *     sai dấu thập phân, ngay trong một app mà mọi số tiền khác đều dùng phẩy.
  */
 export function signedPct(pct: number | null): string {
   if (pct === null) return '—'
   if (pct === 0) return '±0%'
-  return `${pct > 0 ? '+' : '−'}${Math.abs(pct)}%`
+  const abs = Math.abs(pct)
+  const body = Number.isInteger(abs) ? String(abs) : String(abs).replace('.', ',')
+  return `${pct > 0 ? '+' : '−'}${body}%`
 }
 
 /** Tông của một Δ chi tiêu: TĂNG chi là tông chi, giảm chi là tông thu. */

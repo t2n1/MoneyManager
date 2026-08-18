@@ -71,6 +71,12 @@ const WINDOW = 24
 const ROLL = 3
 
 const monthLabel = (k: MonthKey) => `${k.year}/${String(k.month).padStart(2, '0')}`
+
+/** Tỷ lệ 0..1 → "40%" / "−3%". Dấu trừ THẬT, không phải hyphen (§G). */
+const pctText = (ratio: number) => {
+  const n = Math.round(ratio * 100)
+  return n < 0 ? `−${Math.abs(n)}%` : `${n}%`
+}
 const MONTH_SHORT = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
 
 export function LongView() {
@@ -702,8 +708,10 @@ export function LongView() {
                 <p className="mt-2.5 text-[0.8125rem] text-fg-primary">
                   Tỷ lệ giữ lại{' '}
                   <b>{shift.keptRateAfter >= shift.keptRateBefore ? 'tăng' : 'giảm'}</b> từ{' '}
-                  <b>{Math.round(shift.keptRateBefore * 100)}%</b> lên{' '}
-                  <b>{Math.round(shift.keptRateAfter * 100)}%</b>.
+                  {/* `pctText`, không phải `${n}%`: tỷ lệ giữ lại ÂM là chuyện thật (chi
+                      vượt thu) và `${-3}%` của JS ra "-3%" với dấu hyphen. */}
+                  <b>{pctText(shift.keptRateBefore)}</b> lên{' '}
+                  <b>{pctText(shift.keptRateAfter)}</b>.
                 </p>
               )}
               {splitByRegime && (

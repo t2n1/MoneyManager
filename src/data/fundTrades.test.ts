@@ -177,7 +177,22 @@ describe('demoRepo — sổ lệnh quỹ', () => {
   it('KHÔNG xoá được tài khoản còn sổ lệnh quỹ', async () => {
     // fund_trades có `on delete cascade` ở DB — không chặn ở tầng repo thì xoá tài khoản
     // là XOÁ LUÔN sổ lệnh mà không ai hỏi, ngược hẳn với mọi bảng khác.
-    const account_id = await taiKhoanQuyJPY()
+    //
+    // Tài khoản DỰNG RIÊNG, không dùng tài khoản NISA của dữ liệu demo: từ khi demo có 24
+    // tháng lịch sử, NISA còn cả giao dịch "Nạp NISA" mỗi tháng, nên chốt chặn "còn giao
+    // dịch" nổ TRƯỚC và phép thử này không còn kiểm được chốt chặn nó muốn kiểm. Cả hai
+    // chốt đều đúng — chỉ là phải soi từng cái một.
+    const account_id = (
+      await demoRepo.createAccount({
+        name: 'Quỹ trống (chỉ có sổ lệnh)',
+        type: 'investment',
+        currency: 'JPY',
+        initial_balance: 0,
+        asset_group: null,
+        is_hidden: false,
+        include_in_totals: true,
+      })
+    ).id
     await demoRepo.createFundTrade({
       account_id,
       assoc_fund_cd: SP500,

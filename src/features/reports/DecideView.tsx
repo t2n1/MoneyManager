@@ -111,9 +111,16 @@ export function DecideView() {
   )
   const monthsCounted = active.length
 
-  // Giữ lại = thu − chi − chuyển tài sản. Cùng công thức với ba tầng ở tab Tháng này, nên
-  // hai tab không thể nói hai con số "giữ lại" khác nhau.
-  const kept = active.reduce((s, p) => s + (p.income - p.expense - p.transfer), 0)
+  // Giữ lại = thu − CHI THẬT. KHÔNG trừ phần chuyển tài sản.
+  //
+  // Đây là chỗ dễ sai nhất của cả khối, và bản đầu đã sai đúng ở đây: trừ cả `transfer` thì
+  // "gửi về VN" biến mất khỏi tử số, nhưng nó vẫn được in làm MỘT TẦNG của phần giữ lại —
+  // và ba tầng cộng lại vượt 100% (đo được: 126% + 37% + 54%, kèm một dòng "Chỗ khác"
+  // −117% để bù). Ở tab Tháng này thì `transfer` LÀ một tầng ngang hàng với chi tiêu, còn ở
+  // đây câu hỏi khác: "phần không tiêu đi đâu", và gửi về VN là một trong những chỗ nó đi.
+  //
+  // Ràng buộc phải giữ: kept = tăng trưởng số dư (ròng, mọi tài khoản) + phần đã gửi đi.
+  const kept = active.reduce((s, p) => s + (p.income - p.expense), 0)
   const remitTotal = active.reduce((s, p) => s + p.transfer, 0)
 
   // Tiền mặt dày thêm / đầu tư dày thêm: đọc từ BIẾN ĐỘNG SỐ DƯ, không từ thu − chi. Đây
@@ -124,10 +131,15 @@ export function DecideView() {
     [txs, accounts, range.start, range.end, base, rates],
   )
   const typeOf = useMemo(() => new Map(accounts.map((a) => [a.id, a.type])), [accounts])
+  // Tổng RÒNG, không phải tổng phần dương.
+  //
+  // Lấy `Math.max(0, delta)` là đếm hai lần mọi lần chuyển khoản: nạp NISA ¥45.000/tháng
+  // làm NISA +540.000 và ngân hàng −540.000, mà chỉ cộng phần dương thì +540.000 vào tổng
+  // còn phần trừ thì không — nên "tiền mặt dày thêm" đọc ra 126% phần giữ lại.
   const growthBy = (pick: (type: string | undefined) => boolean) =>
     dest.rows
       .filter((row) => pick(typeOf.get(row.accountId)))
-      .reduce((s, row) => s + Math.max(0, row.deltaBase ?? 0), 0)
+      .reduce((s, row) => s + (row.deltaBase ?? 0), 0)
 
   // Đọc CỜ `is_liquid` trước, chỉ suy từ `type` khi cờ còn null — cùng phép hỏi với tab
   // Sức khỏe, nên "tiền mặt dày thêm" ở đây và "quỹ dự phòng" ở đó đếm cùng một rổ.
@@ -143,7 +155,7 @@ export function DecideView() {
   )
   const cashGrowth = dest.rows
     .filter((row) => liquidIds.has(row.accountId))
-    .reduce((s, row) => s + Math.max(0, row.deltaBase ?? 0), 0)
+    .reduce((s, row) => s + (row.deltaBase ?? 0), 0)
   const investGrowth = growthBy((t) => t === 'investment')
 
   const flow = useMemo(

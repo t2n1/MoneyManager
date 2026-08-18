@@ -95,7 +95,7 @@ import {
 // trong migration + một ít giao dịch mẫu để sổ/tổng quan có số liệu.
 // Tiền lưu ở minor units: JPY = yên, VND = đồng, USD = cent.
 
-export const STORAGE_KEY = 'sct-demo-db-v17' // v17: thêm danh bạ + bảng giá + sổ lệnh quỹ Nhật (funds, fundPrices, fundTrades)
+export const STORAGE_KEY = 'sct-demo-db-v18' // v18: 24 tháng lịch sử + cú đổi nếp + gửi về VN + nợ có lãi + mục tiêu
 const DEMO_USER = 'demo-user'
 
 /**
@@ -225,6 +225,21 @@ const nowISO = () => new Date().toISOString()
 function daysAgo(n: number): string {
   const d = new Date()
   d.setDate(d.getDate() - n)
+  return toISODate(d)
+}
+
+/**
+ * Ngày `day` của tháng cách đây `monthsBack` tháng.
+ *
+ * Đặt ngày 1 TRƯỚC khi lùi tháng: `setMonth` trên ngày 31 sẽ nhảy sang tháng sau ở những
+ * tháng 30 ngày (31/03 lùi 1 tháng ra 03/03), và một giao dịch nhảy tháng làm cả chuỗi 24
+ * tháng lệch đúng ở chỗ khó thấy nhất. `day` bị kẹp về 28 để mọi tháng đều nhận được.
+ */
+function monthsAgoISO(monthsBack: number, day: number): string {
+  const d = new Date()
+  d.setDate(1)
+  d.setMonth(d.getMonth() - monthsBack)
+  d.setDate(Math.min(day, 28))
   return toISODate(d)
 }
 
@@ -371,6 +386,10 @@ function seed(): DemoDB {
     category('Thuốc', 'expense', '💊', sucKhoe.id, 'essential', 'variable'),
     category('Thuốc lá', 'expense', '🚬', sucKhoe.id),
     taiChinh,
+    // `kind: 'transfer'` — cùng quy ước với backfill của migration 0046. Có nó thì demo
+    // mới chạy qua đúng nhánh "tầng chuyển tài sản" của khối 01, và mới thấy được chi tiêu
+    // KHÔNG gồm ¥30.000 gửi về nhà.
+    category('Gửi tiền về VN', 'expense', '🧧', taiChinh.id, null, null, 'transfer'),
     giaoDuc,
     category('Thi cử', 'expense', '📝', giaoDuc.id),
     category('Học phí', 'expense', '🏫', giaoDuc.id),
@@ -420,6 +439,29 @@ function seed(): DemoDB {
     ...partial,
   })
 
+  /** Quy tắc lương — nguồn của cờ "thu định kỳ" (khối 01 tab Tháng này). */
+  const luongRule: RecurringRuleRow = {
+    id: uuid(),
+    user_id: DEMO_USER,
+    type: 'income',
+    amount: 280_000,
+    to_amount: null,
+    category_id: cat('Lương', 'income').id,
+    account_id: bank.id,
+    to_account_id: null,
+    note: 'Lương tháng',
+    frequency: 'monthly',
+    start_on: monthsAgoISO(24, 25),
+    end_on: null,
+    is_paused: false,
+    last_generated_on: null,
+    mode: 'auto',
+    remind_days_before: 0,
+    is_refund: false,
+    created_at: nowISO(),
+    updated_at: nowISO(),
+  }
+
   const transactions = [
     // Chi tiêu hàng ngày bằng JPY
     tx({ type: 'expense', amount: 850, occurred_on: daysAgo(0), note: 'Cơm trưa', category_id: cat('Bữa trưa', 'expense').id }),
@@ -429,7 +471,20 @@ function seed(): DemoDB {
     tx({ type: 'expense', amount: 12_400, occurred_on: daysAgo(3), note: 'Tiền điện + gas', category_id: cat('Điện', 'expense').id, account_id: bank.id }),
     tx({ type: 'expense', amount: 1_200, occurred_on: daysAgo(5), note: 'Thuốc cảm', category_id: cat('Thuốc', 'expense').id }),
     tx({ type: 'expense', amount: 68_000, occurred_on: daysAgo(0), note: 'Tiền thuê nhà tháng này', category_id: cat('Tiền nhà', 'expense').id, account_id: bank.id }),
-    tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(0), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
+    // GẮN quy tắc lương: không gắn thì khối "thu định kỳ vs một lần" của tháng đang chạy
+    // không có tín hiệu nào và tự ẩn — tức khối mới dựng không bao giờ thấy được trong demo.
+    {
+      ...tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(0), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
+      recurring_rule_id: luongRule.id,
+    },
+    // Thưởng nhỏ KHÔNG gắn quy tắc → cột "một lần", để hai cột đều có số.
+    tx({ type: 'income', amount: 9_181, occurred_on: daysAgo(2), note: 'Thưởng nhỏ', category_id: cat('Lương', 'income').id, account_id: bank.id }),
+    // Gửi về VN của tháng đang chạy — để tầng "chuyển tài sản" của khối 01 khác 0.
+    {
+      ...tx({ type: 'expense', amount: 30_000, occurred_on: daysAgo(6), note: 'Gửi tiền về nhà', category_id: cat('Gửi tiền về VN', 'expense').id, account_id: bank.id }),
+      is_remittance: true,
+      remit_service: 'Wise',
+    },
     // Rút tiền mặt JPY (cùng loại tiền → to_amount null)
     tx({ type: 'transfer', amount: 30_000, occurred_on: daysAgo(4), note: 'Rút tiền mặt', account_id: bank.id, to_account_id: cash.id }),
     // Chuyển khoản XUYÊN TỆ: ¥50.000 → Đầu tư VN nhận 8.250.000 ₫
@@ -440,7 +495,152 @@ function seed(): DemoDB {
     tx({ type: 'expense', amount: 1_800, occurred_on: daysAgo(32), note: 'Xem phim', category_id: cat('Đăng ký', 'expense').id }),
     tx({ type: 'expense', amount: 6_700, occurred_on: daysAgo(35), note: 'Siêu thị', category_id: cat('Đi chợ', 'expense').id, account_id: bank.id }),
     tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(39), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
+    // ---------------------------------------------------------------- 24 THÁNG LỊCH SỬ
+    //
+    // VÌ SAO CẦN. Dữ liệu demo trước đây chỉ có ~2 tháng, nên SÁU khối của bản redesign
+    // không bao giờ render với dữ liệu có nghĩa: điểm đổi nếp + mức nền (cần ≥8 tháng và
+    // một cú đổi), công tắc "Từ khi đổi nếp", rổ quen thuộc (cần 24 tháng), bảng 12 dòng +
+    // cột "So mức nền", panel mùa vụ, và dải Gửi về VN. Chúng chỉ có unit test — mở app ra
+    // thì toàn trạng thái rỗng, tức không kiểm được bố cục với số dài thật.
+    //
+    // Bốn nếp cố ý dựng vào dữ liệu, mỗi cái để một khối có gì mà nói:
+    //   · CÚ ĐỔI NẾP ở tháng thứ 10 tính từ đầu chuỗi: chi nền tụt từ ~¥380k xuống ~¥210k.
+    //   · MÙA VỤ tháng 10 nặng hơn hẳn (thêm ~¥90k), để panel 12 cột có một cột nổi lên.
+    //   · GỬI VỀ VN đều ¥30.000, BỎ một tháng và một tháng gửi ¥40.000 — đúng ba trạng
+    //     thái mà `remitStrip` phân biệt (đều / bỏ / khác mức thường lệ).
+    //   · THU tách định kỳ vs một lần: lương gắn `recurring_rule_id`, thưởng thì không.
+    ...lichSu24Thang(),
   ]
+
+  /**
+   * 24 tháng giao dịch, tháng −24 → tháng −1. Tháng đang chạy đã có ở khối trên.
+   *
+   * Số dựng cố ý "tròn nhưng không đều": mỗi tháng lệch một chút theo `i` để trung vị và
+   * trung bình khác nhau — nếu mọi tháng bằng nhau thì `baselineLevel` (trung vị) và trung
+   * bình trùng nhau và cả lời giải thích "vì sao dùng trung vị" mất chỗ để thấy.
+   */
+  function lichSu24Thang(): TransactionRow[] {
+    const out: TransactionRow[] = []
+    const DOI_NEP = 10 // tháng thứ 10 của chuỗi: nếp cũ → nếp mới
+
+    for (let i = 24; i >= 1; i--) {
+      const idx = 24 - i // 0 = tháng cũ nhất
+      const cuNep = idx < DOI_NEP
+      const wobble = ((idx * 7) % 5) - 2 // −2…+2, đủ để trung vị ≠ trung bình
+
+      // Lương: GẮN quy tắc → khối "thu định kỳ vs một lần" có tín hiệu.
+      out.push({
+        ...tx({
+          type: 'income',
+          amount: 280_000 + wobble * 1_000,
+          occurred_on: monthsAgoISO(i, 25),
+          note: 'Lương tháng',
+          category_id: cat('Lương', 'income').id,
+          account_id: bank.id,
+        }),
+        recurring_rule_id: luongRule.id,
+      })
+
+      // Thưởng hè: KHÔNG gắn quy tắc → cột "một lần".
+      if (idx === 22 || idx === 10) {
+        out.push(
+          tx({
+            type: 'income',
+            amount: 80_000,
+            occurred_on: monthsAgoISO(i, 15),
+            note: 'Thưởng hè',
+            category_id: cat('Lương', 'income').id,
+            account_id: bank.id,
+          }),
+        )
+      }
+
+      // Tiền nhà — khoản cố định lớn nhất, và nó tụt khi đổi nếp (chuyển chỗ ở rẻ hơn).
+      out.push(
+        tx({
+          type: 'expense',
+          amount: cuNep ? 112_000 : 68_000,
+          occurred_on: monthsAgoISO(i, 1),
+          note: 'Tiền thuê nhà',
+          category_id: cat('Tiền nhà', 'expense').id,
+          account_id: bank.id,
+        }),
+      )
+
+      // Ăn uống + đi chợ + đi lại: phần biến đổi, cũng tụt sau cú đổi nếp.
+      const bienDoi = (cuNep ? 210_000 : 120_000) + wobble * 4_000
+      out.push(
+        tx({
+          type: 'expense',
+          amount: Math.round(bienDoi * 0.45),
+          occurred_on: monthsAgoISO(i, 6),
+          note: 'Đi chợ',
+          category_id: cat('Đi chợ', 'expense').id,
+          account_id: bank.id,
+        }),
+        tx({
+          type: 'expense',
+          amount: Math.round(bienDoi * 0.4),
+          occurred_on: monthsAgoISO(i, 12),
+          note: 'Ăn ngoài',
+          category_id: cat('Ăn ngoài', 'expense').id,
+        }),
+        tx({
+          type: 'expense',
+          amount: Math.round(bienDoi * 0.15),
+          occurred_on: monthsAgoISO(i, 18),
+          note: 'Tàu điện',
+          category_id: cat('Tàu điện', 'expense').id,
+        }),
+      )
+
+      // MÙA VỤ: tháng 10 dương lịch nặng hơn hẳn.
+      const thang = new Date(monthsAgoISO(i, 1)).getMonth() + 1
+      if (thang === 10) {
+        out.push(
+          tx({
+            type: 'expense',
+            amount: 90_000,
+            occurred_on: monthsAgoISO(i, 20),
+            note: 'Vé máy bay về nhà',
+            category_id: cat('Vé máy bay', 'expense').id,
+            account_id: bank.id,
+          }),
+        )
+      }
+
+      // GỬI VỀ VN: đều ¥30.000; bỏ tháng thứ 4, gửi ¥40.000 ở tháng thứ 15.
+      if (idx !== 4) {
+        out.push({
+          ...tx({
+            type: 'expense',
+            amount: idx === 15 ? 40_000 : 30_000,
+            occurred_on: monthsAgoISO(i, 26),
+            note: 'Gửi tiền về nhà',
+            category_id: cat('Gửi tiền về VN', 'expense').id,
+            account_id: bank.id,
+          }),
+          is_remittance: true,
+          remit_service: 'Wise',
+        })
+      }
+
+      // Nạp NISA đều mỗi tháng — cho khối "phần giữ lại đi đâu" có tầng đầu tư.
+      if (!cuNep) {
+        out.push(
+          tx({
+            type: 'transfer',
+            amount: 45_000,
+            occurred_on: monthsAgoISO(i, 27),
+            note: 'Nạp NISA',
+            account_id: bank.id,
+            to_account_id: nisaAcc.id,
+          }),
+        )
+      }
+    }
+    return out
+  }
 
   const thisMonth = monthKeyString(monthKeyForDate(toISODate(new Date()), 1))
   const budget = (categoryName: string, amount: number): BudgetRow => ({
@@ -614,7 +814,62 @@ function seed(): DemoDB {
     },
   ]
 
-  const debts = [debtLent, debtOwed]
+  /**
+   * Hai khoản nợ nữa, cố ý dựng để khối 03 tab Quyết định nói được điều nó tồn tại để nói:
+   * xếp theo TIỀN LÃI khác hẳn xếp theo DƯ NỢ.
+   *
+   *   · thẻ trả góp: dư nợ NHỎ hơn nhưng lãi 15%/năm → tiền lãi LỚN nhất
+   *   · thuế cư trú: dư nợ LỚN hơn nhưng lãi 0% → trả trước không tiết kiệm đồng nào
+   */
+  const debtCard: DebtRow = {
+    id: uuid(),
+    user_id: DEMO_USER,
+    counterparty: 'Thẻ tín dụng trả góp',
+    direction: 'i_owe',
+    currency: 'JPY',
+    principal: 318_400,
+    due_on: daysAgo(-12),
+    status: 'open',
+    note: 'Mua máy giặt + tủ lạnh',
+    interest_bps: 1_500,
+    term_months: 11,
+    disbursement_transaction_id: null,
+    created_at: nowISO(),
+    updated_at: nowISO(),
+  }
+  const debtTax: DebtRow = {
+    id: uuid(),
+    user_id: DEMO_USER,
+    counterparty: 'Thuế cư trú trả sau',
+    direction: 'i_owe',
+    currency: 'JPY',
+    principal: 91_498,
+    due_on: daysAgo(-40),
+    status: 'open',
+    note: '',
+    interest_bps: 0,
+    term_months: 4,
+    disbursement_transaction_id: null,
+    created_at: nowISO(),
+    updated_at: nowISO(),
+  }
+
+  const debts = [debtLent, debtOwed, debtCard, debtTax]
+
+  /** Một mục tiêu THẬT — để khối 04 tab Quyết định hiện tiến độ thay vì lời mời đặt. */
+  const savingsGoals: SavingsGoalRow[] = [
+    {
+      id: uuid(),
+      user_id: DEMO_USER,
+      name: 'Đủ 1× trả nợ ngắn hạn',
+      account_id: bank.id,
+      target_amount: 650_000,
+      target_date: null,
+      note: 'Tiền mặt phủ hết phần nợ tới hạn 12 tháng',
+      sort_order: 0,
+      created_at: nowISO(),
+    },
+  ]
   const debtPayments: DebtPaymentRow[] = [
     {
       id: uuid(),
@@ -655,14 +910,14 @@ function seed(): DemoDB {
     assetGroupSettings,
     debts,
     debtPayments,
-    recurringRules: [],
+    recurringRules: [luongRule],
     accountValuations,
     stockTrades,
     stockPrices,
     funds,
     fundPrices,
     fundTrades,
-    savingsGoals: [],
+    savingsGoals,
     networthSnapshots: [],
     healthSnapshots: [],
     tags: [],

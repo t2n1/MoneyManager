@@ -559,9 +559,11 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
                     >
                       {income.keptOnRecurringPct}%
                     </b>
-                    {headline?.ratePct != null && headline.ratePct !== income.keptOnRecurringPct && (
-                      <> , không phải {headline.ratePct}% như tính trên tổng thu</>
-                    )}
+                    {/* Không có dấu cách trước dấu phẩy: JSX ăn khoảng trắng đầu chuỗi ở
+                        dòng riêng, nên `<> , không phải…` in ra "68% , không phải". */}
+                    {headline?.ratePct != null &&
+                      headline.ratePct !== income.keptOnRecurringPct &&
+                      `, không phải ${headline.ratePct}% như tính trên tổng thu`}
                     .
                   </p>
                 )}

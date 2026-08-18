@@ -26,6 +26,23 @@ describe('keptFlow', () => {
     expect(flow.illiquidPct).toBe(82)
   })
 
+  it('RÀNG BUỘC: ba tầng cộng lại đúng bằng phần giữ lại, không tầng nào vượt 100%', () => {
+    // Bản đầu tính `kept = thu − chi − chuyển tài sản` rồi vẫn in "gửi về VN" làm một tầng
+    // CỦA phần giữ lại — ba tầng cộng lại ra 126% + 37% + 54% kèm một dòng bù −117%.
+    // Ở đây `kept` phải là thu − CHI THẬT, và gửi về VN là một trong những chỗ nó đi.
+    const f = keptFlow({
+      kept: 1_180_000,
+      cashGrowth: 270_000,
+      investGrowth: 540_000,
+      remitTotal: 370_000,
+      months: 12,
+    })
+    expect(f.tiers.some((t) => t.key === 'other')).toBe(false)
+    expect(f.tiers.reduce((s, t) => s + t.amount, 0)).toBe(1_180_000)
+    expect(f.tiers.every((t) => t.pct !== null && t.pct <= 100)).toBe(true)
+    expect(f.tiers.reduce((s, t) => s + (t.pct ?? 0), 0)).toBe(100)
+  })
+
   it('mỗi tầng khai rõ rút được ngay hay không', () => {
     const byKey = new Map(flow.tiers.map((t) => [t.key, t]))
     expect(byKey.get('invest')?.liquid).toBe('sell')

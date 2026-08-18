@@ -126,6 +126,29 @@ export function useTransferCategoryIds(): ReadonlySet<string> {
   return useMemo(() => transferCategoryIds(categories), [categories])
 }
 
+/** Lịch sử điểm sức khỏe đã chấm (migration 0048), cũ → mới. */
+export function useHealthSnapshots() {
+  return useQuery({
+    queryKey: ['healthSnapshots'],
+    queryFn: () => repo.getHealthSnapshots(),
+    staleTime: 5 * 60_000,
+  })
+}
+
+/**
+ * Ghi điểm của tháng đang chạy.
+ *
+ * KHÔNG invalidate query `healthSnapshots` sau khi ghi: tab Sức khỏe đọc lịch sử để vẽ xu
+ * hướng, và invalidate sẽ nạp lại rồi đưa chính điểm vừa ghi vào làm mốc "trước đó" — xu
+ * hướng thành +0 vĩnh viễn. Điểm mới chỉ cần có mặt ở lần MỞ SAU.
+ */
+export function useUpsertHealthSnapshot() {
+  return useMutation({
+    mutationFn: (v: { monthOn: string; score: number; coverageBps: number }) =>
+      repo.upsertHealthSnapshot(v.monthOn, v.score, v.coverageBps),
+  })
+}
+
 /** Giao dịch của "tháng" đang xem (tôn trọng month_start_day trong profile). */
 export function useMonthTransactions(monthKey: MonthKey) {
   const { data: profile } = useProfile()

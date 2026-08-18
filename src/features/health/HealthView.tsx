@@ -11,7 +11,7 @@
 // đây nó là màn 532 dòng mà đường vào duy nhất là một card chôn giữa trang Báo cáo. Vì
 // vậy component này KHÔNG có nút back và KHÔNG tự đặt padding: vỏ ReportsPage lo cả hai.
 // Xem docs/information-architecture.md §2.4.
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Num } from '../../components/ui'
 import {
@@ -23,8 +23,10 @@ import {
   useProfile,
   useRangeTransactions,
   useRates,
+  useHealthSnapshots,
   useSavingsGoals,
   useTransferCategoryIds,
+  useUpsertHealthSnapshot,
 } from '../../hooks/queries'
 import {
   addDaysISO,
@@ -311,6 +313,55 @@ export function HealthView() {
     return regime === null ? null : regime.before
   }, [monthSums])
 
+  // ---------------------------------------------------------------- xu hướng 6 tháng
+  //
+  // Điểm quá khứ KHÔNG chiếu lại được (tỷ giá quá khứ, số dư neo vào hôm nay, ngưỡng có thể
+  // đã đổi — xem đầu migration 0048), nên tab này GHI LẠI điểm mỗi lần mở và đọc lịch sử
+  // đã ghi để nói xu hướng.
+  const { data: history = [] } = useHealthSnapshots()
+  const upsertScore = useUpsertHealthSnapshot()
+  const thisMonthOn = useMemo(
+    () => getMonthRange(monthKeyForDate(todayISO, monthStartDay), monthStartDay).start,
+    [todayISO, monthStartDay],
+  )
+
+  // So với điểm CŨ NHẤT trong 6 tháng gần đây, không phải điểm liền trước: "6 tháng qua
+  // +12 điểm" là câu bản vẽ 27b đòi, và một tháng lẻ đi xuống không nên xoá cả xu hướng.
+  const trend = useMemo(() => {
+    if (score === null) return null
+    const cutoff = addMonths(monthKeyForDate(todayISO, monthStartDay), -6)
+    const cutoffISO = getMonthRange(cutoff, monthStartDay).start
+    const past = history.filter((h) => h.month_on >= cutoffISO && h.month_on < thisMonthOn)
+    if (past.length === 0) return null
+    const oldest = past[0]
+    // Điểm chấm trên 4/6 chỉ số không so được với điểm chấm trên 6/6 — hiệu số của chúng
+    // là hiệu của hai thước, không phải một xu hướng. Đòi cùng độ phủ mới so.
+    if (Math.abs(oldest.coverage_bps - Math.round((score.coverage ?? 0) * 10_000)) > 500) return null
+    const monthsAgo = Math.max(
+      1,
+      Math.round(
+        (new Date(thisMonthOn).getTime() - new Date(oldest.month_on).getTime()) /
+          (1000 * 60 * 60 * 24 * 30.44),
+      ),
+    )
+    return { monthsAgo, then: oldest.score }
+  }, [history, score, thisMonthOn, todayISO, monthStartDay])
+
+  // Ghi điểm của tháng đang chạy. Một lần mỗi lần gắn component: `useRef` chặn vòng lặp
+  // ghi-rồi-render-rồi-ghi, và chỉ ghi khi dữ liệu đã tải đủ (điểm dựng trên `rates ?? {}`
+  // lúc chưa có tỷ giá là một con số thiếu, ghi vào lịch sử là làm hỏng mốc so của 6 tháng sau).
+  const savedRef = useRef(false)
+  useEffect(() => {
+    if (savedRef.current || !isFetched || score === null || snap.hasMissingRate) return
+    savedRef.current = true
+    upsertScore.mutate({
+      monthOn: thisMonthOn,
+      score: score.score,
+      coverageBps: Math.round(score.coverage * 10_000),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFetched, score, snap.hasMissingRate, thisMonthOn])
+
   if (!isFetched) {
     return <p className="p-6 text-center text-sm text-fg-muted">Đang tính…</p>
   }
@@ -540,9 +591,10 @@ export function HealthView() {
           verdict={score?.verdict ?? 'unknown'}
           counted={score?.counted ?? 0}
           total={score?.total ?? rows.length}
-          // Xu hướng ẨN: app chưa lưu lịch sử điểm (không có bảng, không có localStorage —
-          // xem snapshot.ts). Vẽ một thẻ "±0 điểm" là bịa ra một sự ổn định chưa đo được.
-          trend={null}
+          // null khi chưa có mốc nào trong 6 tháng, hoặc khi độ phủ chỉ số đã đổi (so hai
+          // điểm chấm trên hai bộ chỉ số khác nhau là so hai thước). Lúc đó ScoreBand tự ẩn
+          // khối xu hướng thay vì vẽ "±0 điểm".
+          trend={trend}
         />
       </Section>
 

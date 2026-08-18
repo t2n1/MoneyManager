@@ -32,6 +32,7 @@ import type {
   LifeScenarioRow,
   NeedLevel,
   MonthPlanRow,
+  HealthSnapshotRow,
   NetWorthSnapshotRow,
   PlannedExpenseRow,
   NotificationStateRow,
@@ -180,6 +181,7 @@ interface DemoDB {
   fundTrades?: FundTradeRow[]
   savingsGoals: SavingsGoalRow[]
   networthSnapshots: NetWorthSnapshotRow[]
+  healthSnapshots: HealthSnapshotRow[]
   tags: TagRow[]
   transactionTags: TransactionTagRow[]
   /** Nhãn của quy tắc định kỳ (migration 0042); vắng mặt ở dữ liệu demo cũ. */
@@ -662,6 +664,7 @@ function seed(): DemoDB {
     fundTrades,
     savingsGoals: [],
     networthSnapshots: [],
+    healthSnapshots: [],
     tags: [],
     transactionTags: [],
     lifeScenarios: [],
@@ -1452,6 +1455,37 @@ export const demoRepo: Repo = {
       created_at: nowISO(),
     }
     db.networthSnapshots.push(row)
+    save(db)
+    return row
+  },
+
+  async getHealthSnapshots() {
+    return (load().healthSnapshots ?? [])
+      .slice()
+      .sort((a, b) => a.month_on.localeCompare(b.month_on))
+  },
+
+  async upsertHealthSnapshot(monthOn: string, score: number, coverageBps: number) {
+    const db = load()
+    db.healthSnapshots ??= []
+    const existing = db.healthSnapshots.find((x) => x.month_on === monthOn)
+    if (existing) {
+      existing.score = score
+      existing.coverage_bps = coverageBps
+      existing.updated_at = nowISO()
+      save(db)
+      return existing
+    }
+    const row: HealthSnapshotRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      month_on: monthOn,
+      score,
+      coverage_bps: coverageBps,
+      created_at: nowISO(),
+      updated_at: nowISO(),
+    }
+    db.healthSnapshots.push(row)
     save(db)
     return row
   },
@@ -2302,6 +2336,7 @@ export const demoRepo: Repo = {
       fundTrades: db.fundTrades ?? [],
       savingsGoals: db.savingsGoals ?? [],
       networthSnapshots: db.networthSnapshots ?? [],
+      healthSnapshots: db.healthSnapshots ?? [],
       tagGroups: db.tagGroups ?? [],
       tags: db.tags ?? [],
       transactionTags: db.transactionTags ?? [],
@@ -2374,6 +2409,7 @@ export const demoRepo: Repo = {
       stockPrices,
       savingsGoals: stamp(data.savingsGoals ?? []),
       networthSnapshots: stamp(data.networthSnapshots ?? []),
+      healthSnapshots: stamp(data.healthSnapshots ?? []),
       tagGroups: stamp(data.tagGroups ?? []),
       tags: stamp(data.tags ?? []),
       transactionTags: stamp(data.transactionTags ?? []),

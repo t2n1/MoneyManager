@@ -16,6 +16,7 @@ export const DATA_TABLES = [
   'account_valuations',
   'savings_goals',
   'networth_snapshots',
+  'health_snapshots',
   'tag_groups',
   'tags',
   'transaction_tags',

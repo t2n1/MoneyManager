@@ -20,6 +20,7 @@ import type {
   LifeScenarioRow,
   NeedLevel,
   MonthPlanRow,
+  HealthSnapshotRow,
   NetWorthSnapshotRow,
   PlannedExpenseRow,
   NotificationStateRow,
@@ -69,6 +70,14 @@ export interface BackupData {
   savingsGoals?: SavingsGoalRow[]
   /** Lịch sử tài sản ròng (mục AF); vắng mặt ở backup v1–v3. */
   networthSnapshots?: NetWorthSnapshotRow[]
+  /**
+   * Lịch sử điểm sức khỏe (migration 0048); vắng mặt ở mọi backup trước đó.
+   *
+   * PHẢI có trong file sao lưu, cùng lý do như `networthSnapshots`: điểm quá khứ KHÔNG tính
+   * lại được (tỷ giá quá khứ, số dư neo vào hôm nay, ngưỡng có thể đã đổi). Bỏ nó ra thì
+   * khôi phục là xoá sạch xu hướng — khác hẳn `stock_prices`, thứ server hút lại được.
+   */
+  healthSnapshots?: HealthSnapshotRow[]
   /** Nhãn giao dịch; vắng mặt ở backup v1–v4. */
   tags?: TagRow[]
   /** Liên kết giao dịch ↔ nhãn; vắng mặt ở backup v1–v4. */
@@ -592,6 +601,18 @@ export interface Repo {
   getNetWorthSnapshots(): Promise<NetWorthSnapshotRow[]>
   /** Ghi/đè snapshot net worth (base) theo ngày (unique user_id+snapshot_on). */
   upsertNetWorthSnapshot(snapshotOn: string, netWorth: number): Promise<NetWorthSnapshotRow>
+
+  /** Điểm sức khỏe đã chấm, cũ → mới. Một dòng một tháng. */
+  getHealthSnapshots(): Promise<HealthSnapshotRow[]>
+  /**
+   * Ghi điểm của MỘT tháng. `monthOn` là ngày đầu tháng tài chính; mở tab nhiều lần trong
+   * cùng tháng thì ghi đè, không sinh nhiều dòng.
+   */
+  upsertHealthSnapshot(
+    monthOn: string,
+    score: number,
+    coverageBps: number,
+  ): Promise<HealthSnapshotRow>
 
   createCategory(input: NewCategory): Promise<CategoryRow>
   updateCategory(id: string, patch: CategoryPatch): Promise<CategoryRow>

@@ -436,6 +436,26 @@ export type NetWorthSnapshotRow = {
   created_at: string
 }
 
+/**
+ * Điểm sức khỏe ĐÃ TÍNH của một tháng (migration 0048).
+ *
+ * Snapshot chứ không tính lại: tỷ giá quá khứ không dựng lại được, số dư quá khứ neo vào
+ * số dư hôm nay (nên giao dịch nhập muộn làm nó lệch), và ngưỡng/trọng số có thể đã đổi.
+ * Xem đầu file migration.
+ */
+export type HealthSnapshotRow = {
+  id: string
+  user_id: string
+  /** Ngày đầu của THÁNG TÀI CHÍNH được chấm. Một tháng một dòng. */
+  month_on: string
+  /** 0..100 */
+  score: number
+  /** Phần trọng số đã chấm được, bps (10000 = đủ sáu chỉ số). */
+  coverage_bps: number
+  created_at: string
+  updated_at: string
+}
+
 /** Trạng thái thông báo (mục AO): chỉ nhớ đã đọc / đã tắt, không lưu nội dung. */
 export type NotificationStateRow = {
   user_id: string
@@ -1209,6 +1229,16 @@ export type Database = {
           'id' | 'snapshot_on'
         >
         Update: Partial<Pick<NetWorthSnapshotRow, 'net_worth' | 'snapshot_on'>>
+        Relationships: []
+      }
+      health_snapshots: {
+        Row: HealthSnapshotRow
+        Insert: InsertOf<
+          HealthSnapshotRow,
+          'user_id' | 'month_on' | 'score',
+          'id' | 'coverage_bps'
+        >
+        Update: Partial<Pick<HealthSnapshotRow, 'score' | 'coverage_bps'>>
         Relationships: []
       }
       notification_state: {

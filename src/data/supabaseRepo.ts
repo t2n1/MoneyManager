@@ -21,6 +21,7 @@ import type {
   LifePhaseRow,
   LifeScenarioRow,
   MonthPlanRow,
+  HealthSnapshotRow,
   NetWorthSnapshotRow,
   NotificationStateRow,
   RecurringRuleRow,
@@ -761,6 +762,31 @@ export const supabaseRepo: Repo = {
       .upsert(
         { user_id, snapshot_on: snapshotOn, net_worth: netWorth },
         { onConflict: 'user_id,snapshot_on' },
+      )
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async getHealthSnapshots() {
+    // Không phân trang: một dòng MỖI THÁNG (khác networth_snapshots — cái đó một dòng mỗi
+    // NGÀY và đã đụng trần 1.000). 1.000 dòng ở đây là 83 năm.
+    const { data, error } = await getSupabase()
+      .from('health_snapshots')
+      .select('*')
+      .order('month_on')
+    if (error) throw error
+    return data
+  },
+
+  async upsertHealthSnapshot(monthOn: string, score: number, coverageBps: number) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('health_snapshots')
+      .upsert(
+        { user_id, month_on: monthOn, score, coverage_bps: coverageBps },
+        { onConflict: 'user_id,month_on' },
       )
       .select()
       .single()
@@ -1616,6 +1642,7 @@ export const supabaseRepo: Repo = {
       accountValuations,
       savingsGoals,
       networthSnapshots,
+      healthSnapshots,
       tagGroups,
       tags,
       transactionTags,
@@ -1641,6 +1668,7 @@ export const supabaseRepo: Repo = {
       selectAll<AccountValuationRow>('account_valuations'),
       selectAll<SavingsGoalRow>('savings_goals'),
       selectAll<NetWorthSnapshotRow>('networth_snapshots'),
+      selectAll<HealthSnapshotRow>('health_snapshots'),
       selectAll<TagGroupRow>('tag_groups'),
       selectAll<TagRow>('tags'),
       selectAll<TransactionTagRow>('transaction_tags'),
@@ -1669,6 +1697,7 @@ export const supabaseRepo: Repo = {
       accountValuations,
       savingsGoals,
       networthSnapshots,
+      healthSnapshots,
       tagGroups,
       tags,
       transactionTags,
@@ -1768,6 +1797,7 @@ export const supabaseRepo: Repo = {
       'account_valuations',
       'savings_goals',
       'networth_snapshots',
+      'health_snapshots',
       // recurring_rule_tags trước tags VÀ trước recurring_rules (composite FK cả hai).
       // Cascade cũng lo được, nhưng khai rõ như transaction_tags để thứ tự đọc ra được ý.
       'recurring_rule_tags',
@@ -2119,6 +2149,21 @@ export const supabaseRepo: Repo = {
               net_worth: s.net_worth,
             })),
         (part) => sb.from('networth_snapshots').insert(part),
+      )
+    }
+
+    // health_snapshots: chỉ phụ thuộc user → chèn độc lập. Khai TỪNG CỘT như mọi bảng
+    // khác ở đây để `backupCompleteness.test.ts` soi được chỗ bỏ sót.
+    if (data.healthSnapshots?.length) {
+      await insertChunked(
+        data.healthSnapshots.map((h) => ({
+          id: h.id,
+          user_id: uid,
+          month_on: h.month_on,
+          score: h.score,
+          coverage_bps: h.coverage_bps,
+        })),
+        (part) => sb.from('health_snapshots').insert(part),
       )
     }
 

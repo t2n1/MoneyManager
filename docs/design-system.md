@@ -279,6 +279,24 @@ Scanner **bỏ comment trước khi đếm** — nếu không thì chính lời 
 
 **Gộp bớt được chỗ nào thì hạ số trong file test xuống.** Để nguyên thì ngưỡng thành chỗ trú cho nợ kỹ thuật.
 
+### Chỉ báo tiêu điểm: một ring cho cả app (2026-08-18)
+
+Bộ test từng có **đúng một `it.skip`**, kèm ghi chú nói rõ phải làm gì trước khi mở: *nới `:focus-visible` ra input/select/textarea, đo lại tương phản bằng cách vẽ ra pixel, rồi mới xoá các chỗ tự chế.* Đã làm đủ ba bước, đúng thứ tự đó — giờ bộ test **không còn phép thử nào bị bỏ qua**.
+
+Cái đã xoá và vì sao mỗi cái là một lỗi thật:
+
+| Kiểu tự chế | Số chỗ | Hỏng ở đâu |
+|---|---|---|
+| `outline-green-500` | 51 | green-500 trên nền trắng ~1,9:1 — dưới hẳn 3:1 của WCAG 1.4.11 |
+| `focus:outline-none` + `focus:border-green-500` | 8 | tắt outline, đổi màu viền **1px** làm chỉ báo |
+| `outline-none` trong ô tìm | 5 | tắt hẳn, không thay bằng gì: Tab vào thì **không có gì hiện lên** |
+
+Ba chỗ cuối đáng chú ý: ý đồ là "viền của khung bao mới là chỉ báo", nhưng khung là `<div>` và `<div>` không nhận focus.
+
+Ring token đo được (canvas pixel readback, bốn nấc bề mặt): light `green-700` **4,95 / 4,45 / 4,14**; dark `green-500` **8,59 / 8,98 / 8,04 / 8,77**. Chỗ mỏng nhất còn dư 38%.
+
+**Vì sao `outline-none` thắng được ring:** nó là tiện ích thường (specificity 0,1,0) còn ring đi qua `:where()` (specificity 0) — nên có một luật riêng cấm `outline-none` **trong thẻ mở của ô nhập**. Trên `<div>` thì vẫn hợp lệ: tấm sheet nhận focus bằng script lúc mở, vẽ ring quanh cả tấm ở đó là nhiễu.
+
 **Hai lần đã xảy ra đúng chuyện đó, ghi lại để nhận ra sớm hơn:**
 
 - `bg-green-700` treo ở trần **21** trong khi thực tế còn **1** — 20 chỗ đã theo đợt dọn bảng màu thô đi hết mà không ai hạ trần. Hạ về 1 thì luật đổi nghĩa và chặt hơn hẳn: sắc độ này chỉ được khai ở NGUỒN token (`statusColors.ts`).

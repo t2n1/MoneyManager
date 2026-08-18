@@ -124,7 +124,7 @@ export function CardMonthAdjustSheet({
             currency={currency}
             ariaLabel="Tổng thật trên sao kê"
             onEnter={handleSubmit}
-            className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold outline-green-500 dark:bg-gray-900 dark:text-gray-100"
+            className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold dark:bg-gray-900 dark:text-gray-100"
           />
         </div>
 

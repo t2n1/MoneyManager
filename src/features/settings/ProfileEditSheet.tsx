@@ -101,7 +101,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Tên của bạn"
-          className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-fg-primary focus:border-green-500 focus:outline-none"
+          className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-fg-primary"
         />
 
         <label htmlFor={`${uid}-day`} className="mt-3 block text-xs font-medium text-fg-muted">
@@ -111,7 +111,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           id={`${uid}-day`}
           value={day}
           onChange={(e) => setDay(Number(e.target.value))}
-          className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-fg-primary focus:border-green-500 focus:outline-none"
+          className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-fg-primary"
         >
           {DAY_OPTIONS.map((d) => (
             <option key={d} value={d}>
@@ -146,7 +146,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           value={wage === '' ? '' : formatMoney(Number(wage), profile.base_currency)}
           onChange={(e) => setWage(e.target.value.replace(/\D/g, ''))}
           placeholder="Để trống nếu không dùng"
-          className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-right text-fg-primary focus:border-green-500 focus:outline-none"
+          className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-right text-fg-primary"
         />
         <Guide className="mt-1 text-xs text-fg-muted">
           Để báo cáo quy đổi “món này = mấy giờ làm”. Lương tháng ÷ số giờ làm thực tế trong tháng.
@@ -163,7 +163,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
               value={inflation}
               onChange={(e) => setInflation(e.target.value)}
               placeholder="2,5"
-              className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-right text-fg-primary focus:border-green-500 focus:outline-none"
+              className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-right text-fg-primary"
             />
           </div>
           <div>
@@ -176,7 +176,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
               value={tax}
               onChange={(e) => setTax(e.target.value)}
               placeholder="20,32"
-              className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-right text-fg-primary focus:border-green-500 focus:outline-none"
+              className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-right text-fg-primary"
             />
           </div>
         </div>
@@ -207,7 +207,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
                 value={f.value}
                 onChange={(e) => f.set(e.target.value)}
                 placeholder={f.ph}
-                className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-right text-fg-primary focus:border-green-500 focus:outline-none"
+                className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-right text-fg-primary"
               />
             </div>
           ))}

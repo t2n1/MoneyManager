@@ -63,7 +63,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
     }
   }
 
-  const field = 'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500 dark:text-gray-100'
+  const field = 'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm dark:text-gray-100'
 
   return (
     <div

@@ -165,7 +165,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           onChange={(e) => setSymbol(e.target.value.toUpperCase())}
           placeholder="FPT"
           autoCapitalize="characters"
-          className="mb-1 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm font-semibold uppercase outline-green-500"
+          className="mb-1 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm font-semibold uppercase"
         />
         {suggestions.length > 0 && (
           <ul className="mb-3 max-h-40 overflow-y-auto rounded-lg border border-border-subtle">
@@ -203,7 +203,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           inputMode="numeric"
           value={quantityText}
           onChange={(e) => setQuantityText(sanitizeSignedIntText(e.target.value))}
-          className="mb-3 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold outline-green-500"
+          className="mb-3 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold"
         />
 
         {!isAdjust && (
@@ -217,7 +217,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
                 onChange={setPrice}
                 currency={currency}
                 ariaLabel="Giá mỗi cổ"
-                className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold outline-green-500"
+                className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold"
               />
             </div>
 
@@ -235,7 +235,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
                 currency={currency}
                 autoOpen={false}
                 ariaLabel="Phí giao dịch"
-                className="w-full rounded-lg border border-border-strong px-3 py-2 text-right outline-green-500"
+                className="w-full rounded-lg border border-border-strong px-3 py-2 text-right"
               />
             </div>
 
@@ -255,7 +255,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
                     currency={currency}
                     autoOpen={false}
                     ariaLabel="Thuế bán"
-                    className="w-full rounded-lg border border-border-strong px-3 py-2 text-right outline-green-500"
+                    className="w-full rounded-lg border border-border-strong px-3 py-2 text-right"
                   />
                 </div>
               </>
@@ -271,7 +271,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: cổ phiếu thưởng 10%"
-          className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-green-500"
+          className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
         />
 
         <Guide className="mb-3 text-xs text-fg-muted">

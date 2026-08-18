@@ -1216,7 +1216,7 @@ export function TransactionForm({
             if (e.key === 'Enter') handleSubmit()
           }}
           placeholder="Ghi chú (tùy chọn)"
-          className="min-w-0 flex-1 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-secondary outline-green-500"
+          className="min-w-0 flex-1 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-secondary"
         />
         {/* "Lưu mẫu" ở ô cố định cạnh ghi chú: không nhảy layout như khi tự chèn
             hàng chip ở đầu form. Mờ đi (thay vì ẩn) khi chưa đủ số tiền + danh mục. */}

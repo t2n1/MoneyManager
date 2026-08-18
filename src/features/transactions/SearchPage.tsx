@@ -234,7 +234,7 @@ export function SearchPage() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Tìm theo ghi chú…"
-          className="flex-1 text-sm text-fg-primary outline-none"
+          className="flex-1 text-sm text-fg-primary"
         />
         {text && (
           <button type="button" onClick={() => setText('')} className="inline-flex min-h-11 min-w-11 items-center justify-center text-fg-muted" aria-label="Xóa">

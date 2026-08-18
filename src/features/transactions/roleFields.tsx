@@ -13,12 +13,12 @@ import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
 
 const labelCls = 'mb-1 block text-xs font-medium text-fg-muted'
 const inputCls =
-  'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary outline-green-500'
+  'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary'
 const moneyInputCls =
-  'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold text-fg-primary outline-green-500'
+  'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold text-fg-primary'
 // Nút tiền trên mobile (do NumPad app gõ) — giống ô số tiền chính, không bật bàn phím hệ thống.
 const moneyBoxCls =
-  'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold'
+  'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold'
 // Bọc field vai trò: nền tint theo ĐÚNG màu banner của vai trò (split xanh dương,
 // debt hổ phách, remit xanh lá) — cùng một tín hiệu màu từ banner xuống field.
 const blockTint = {

@@ -91,7 +91,7 @@ function formatFxAssumption(fx: number, currency: CurrencyCode, display: Currenc
 const BAR_PALETTE = ['bg-green-500', 'bg-blue-400', 'bg-amber-400', 'bg-purple-400', 'bg-rose-400', 'bg-teal-400']
 
 /** Token thẻ lồng của app cho một dòng danh sách bấm được. */
-const ROW_CARD = 'min-h-11 w-full rounded-lg bg-surface-sunken p-2.5 text-left active:scale-95'
+const ROW_CARD = 'min-h-11 w-full rounded-md bg-surface-sunken p-2.5 text-left active:scale-95'
 
 /** Nút "thêm/chọn" xám của khối 2 & 3 (Thêm chặng · Chọn mẫu). Cùng lý do với
  *  `ROW_CARD`: ba nút cùng vai trò thì cùng một chuỗi class, không gõ lại từng nút. */
@@ -655,7 +655,7 @@ export function ScenarioEditorSheet({
   }, [phaseSheet, eventSheet, confirmingDiscard, confirmingDelete])
 
   const field =
-    'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm dark:text-gray-100'
+    'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm dark:text-gray-100'
   const label_ = 'mb-1 block text-xs font-medium text-fg-muted'
 
   // `useId` chứ không phải id viết cứng: sheet này mở ĐỒNG THỜI với PhaseFormSheet /

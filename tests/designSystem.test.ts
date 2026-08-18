@@ -431,17 +431,58 @@ describe('design system — ban cứng (phải bằng 0)', () => {
   //
   // Nhánh fix/toan-bo-audit ban `outline-green-500` và `focus:border-green-500` vì ở ĐÓ,
   // commit bef36fd đã nới vòng focus toàn cục ra phủ cả input/select/textarea. Trên
-  // master thì :focus-visible ở index.css chỉ phủ `a, button, [role="button"],
-  // [role="switch"], [role="tab"], summary` — KHÔNG có input. Bật ban này mà chưa nới
-  // ring thì 57 ô nhập mất sạch chỉ báo tiêu điểm: tệ hơn hẳn một ring 2,3:1.
+  // MỞ 2026-08-18. Khối này từng `it.skip` với ghi chú: ":focus-visible ở index.css chỉ
+  // phủ a/button/[role]/summary — KHÔNG có input, nên bật ban này mà chưa nới ring thì 57
+  // ô nhập mất sạch chỉ báo tiêu điểm, tệ hơn hẳn một ring 2,3:1. Muốn bật: nới ring ra
+  // input/select/textarea TRƯỚC, đo lại tương phản ring bằng cách vẽ ra pixel, rồi mới
+  // xoá các chỗ tự chế."
   //
-  // Muốn bật: nới :focus-visible ở index.css ra input/select/textarea TRƯỚC, đo lại
-  // tương phản ring bằng cách vẽ ra pixel, rồi mới xoá 57 chỗ tự chế và mở khối này.
-  it.skip('không tự chế focus style trượt chuẩn — ring toàn cục đã lo', () => {
-    for (const needle of ['outline-green-500', 'focus:border-green-500']) {
+  // Đã làm đúng ba bước đó, theo đúng thứ tự: (1) ring toàn cục nay phủ cả
+  // input/select/textarea; (2) ĐO bằng canvas pixel readback trên cả bốn nấc bề mặt —
+  // light (green-700): thẻ 4,95 · trang 4,45 · lún 4,14; dark (green-500): thẻ 8,59 ·
+  // trang 8,98 · lún 8,04 · chrome 8,77 — tất cả vượt xa 3:1 của WCAG 1.4.11, và chỗ mỏng
+  // nhất (4,14 trên nền lún ở light) vẫn dư 38%; (3) rồi mới xoá 51 `outline-green-500`,
+  // 8 cặp `focus:outline-none focus:border-green-500`, và 5 `outline-none` trong ô nhập.
+  it('không tự chế focus style trượt chuẩn — ring toàn cục đã lo', () => {
+    for (const needle of ['outline-green-500', 'focus:border-green-500', 'focus:outline-none']) {
       const { count, where } = occurrences(needle)
       expect(count, `${needle} trượt 3:1. Xoá đi — ring token ở index.css tự lấp.\n${where.join('\n')}`).toBe(0)
     }
+  })
+
+  /**
+   * `outline-none` TRÊN Ô NHẬP là tắt hẳn chỉ báo tiêu điểm, và ring toàn cục KHÔNG cứu
+   * được: `outline-none` là tiện ích thường (specificity 0,1,0) còn ring đi qua `:where()`
+   * (specificity 0) nên luôn thua.
+   *
+   * Năm chỗ từng như thế đều là ô tìm nằm trong một khung có viền — ý đồ là "viền của
+   * khung mới là chỉ báo", nhưng khung là <div> và <div> không nhận focus, nên thực tế bấm
+   * Tab vào ô đó thì không có gì hiện lên cả.
+   *
+   * Chỉ soi trong THẺ MỞ của ô nhập: `outline-none` trên <div> vẫn hợp lệ — tấm sheet của
+   * EditTransactionSheet nhận focus bằng script lúc mở (không phải điều hướng bàn phím),
+   * vẽ ring quanh cả tấm ở đó là nhiễu chứ không giúp ai.
+   */
+  it('ô nhập không tắt outline (outline-none)', () => {
+    const hits: string[] = []
+    for (const file of sourceFiles()) {
+      const raw = readFileSync(file, 'utf8')
+      const tag = /<(input|select|textarea)\b/g
+      let m: RegExpExecArray | null
+      while ((m = tag.exec(raw))) {
+        let i = m.index + m[0].length
+        let depth = 0
+        for (; i < raw.length; i++) {
+          const c = raw[i]
+          if (c === '{') depth++
+          else if (c === '}') depth--
+          else if (c === '>' && depth === 0) break
+        }
+        if (/\boutline-none\b/.test(raw.slice(m.index, i + 1)))
+          hits.push(`${file.slice(SRC.length + 1)}:${raw.slice(0, m.index).split('\n').length}`)
+      }
+    }
+    expect(hits, 'Xoá đi — ring token ở index.css lo phần chỉ báo tiêu điểm.').toEqual([])
   })
 
   // Lý do: red-400 trên trắng chỉ 2,89:1 và red-500 chỉ 4,05:1 — cả hai trượt 4,5:1

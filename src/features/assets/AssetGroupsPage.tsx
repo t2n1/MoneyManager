@@ -394,7 +394,7 @@ export function AssetGroupsPage() {
                     if (e.key === 'Enter') submitRename(g.name)
                     if (e.key === 'Escape') setRenaming(null)
                   }}
-                  className="w-full rounded-md border border-border-strong px-2 py-1 text-sm outline-green-500"
+                  className="w-full rounded-md border border-border-strong px-2 py-1 text-sm"
                 />
                 <button
                   type="button"
@@ -609,7 +609,7 @@ export function AssetGroupsPage() {
               if (e.key === 'Escape') setAdding(false)
             }}
             placeholder="Tên nhóm mới…"
-            className="w-full rounded-md border border-border-strong px-2 py-1 text-sm outline-green-500"
+            className="w-full rounded-md border border-border-strong px-2 py-1 text-sm"
           />
           <button
             type="button"

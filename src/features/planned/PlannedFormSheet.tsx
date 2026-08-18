@@ -139,7 +139,7 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Ví dụ: đóng phí vệ sinh"
-          className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-base outline-green-500 sm:text-sm"
+          className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-base sm:text-sm"
         />
 
         {/* <span>: hàng này có HAI ô (MoneyField + chọn loại tiền) nên không có một đích
@@ -154,7 +154,7 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
             currency={currency}
             autoOpen={false}
             ariaLabel="Số tiền ước tính"
-            className="flex-1 rounded-lg border border-border-strong px-3 py-2 text-right text-sm font-semibold outline-green-500"
+            className="flex-1 rounded-lg border border-border-strong px-3 py-2 text-right text-sm font-semibold"
           />
           <select
             value={currency}
@@ -210,7 +210,7 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
           onChange={(e) =>
             setDueOn(precision === 'day' ? e.target.value : `${e.target.value}-01`)
           }
-          className="mb-3 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm outline-green-500"
+          className="mb-3 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm"
         />
 
         <label className="mb-1 flex min-h-11 items-center gap-2 text-sm text-fg-primary">
@@ -232,7 +232,7 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
               inputMode="numeric"
               value={remindDays}
               onChange={(e) => setRemindDays(e.target.value.replace(/[^\d]/g, '').slice(0, 2))}
-              className="w-16 rounded-md border border-border-strong px-2 py-1.5 text-right text-base outline-green-500 sm:text-sm"
+              className="w-16 rounded-md border border-border-strong px-2 py-1.5 text-right text-base sm:text-sm"
             />
             <span className="text-xs text-fg-muted">ngày (0 = đúng ngày đến hạn)</span>
           </div>
@@ -266,7 +266,7 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
           id="planned-note"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-base outline-green-500 sm:text-sm"
+          className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-base sm:text-sm"
         />
 
         {/* Nhãn: lúc ghi khoản này thành giao dịch thật, form Nhập lấy sẵn đúng những

@@ -31,7 +31,7 @@ function subscribePad(f: () => void) {
  * mắt phải rơi vào trước tiên, để mỗi nơi tự chọn cỡ là mỗi sheet một kiểu.
  */
 export const MONEY_FIELD_CLASS =
-  'w-full rounded-xl border border-border-strong bg-surface p-3 text-right text-lg font-semibold text-fg-primary focus:border-green-500 focus:outline-none'
+  'w-full rounded-md border border-border-strong bg-surface p-3 text-right text-lg font-semibold text-fg-primary'
 
 interface Props {
   /** Số tiền ở đơn vị nhỏ nhất (0 = chưa nhập). */

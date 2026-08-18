@@ -174,7 +174,7 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
           id={`${uid}-fund`}
           value={assocFundCd}
           onChange={(e) => setAssocFundCd(e.target.value)}
-          className="mb-3 w-full min-h-11 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm font-medium outline-green-500"
+          className="mb-3 w-full min-h-11 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm font-medium"
         >
           <option value="" disabled>
             Chọn quỹ…
@@ -210,7 +210,7 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
           inputMode="numeric"
           value={unitsText}
           onChange={(e) => setUnitsText(sanitizeSignedIntText(e.target.value))}
-          className="mb-3 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold outline-green-500"
+          className="mb-3 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold"
         />
 
         {!isAdjust && (
@@ -226,7 +226,7 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
                 onChange={setNav}
                 currency={currency}
                 ariaLabel="基準価額 (¥ / 10.000 口)"
-                className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold outline-green-500"
+                className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold"
               />
             </div>
 
@@ -246,7 +246,7 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
                 currency={currency}
                 autoOpen={false}
                 ariaLabel="Số tiền"
-                className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold outline-green-500"
+                className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold"
               />
             </div>
             <Guide className="mb-3 text-3xs text-fg-muted">
@@ -264,7 +264,7 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Ví dụ: 分配金再投資"
-          className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-sm outline-green-500"
+          className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
         />
 
         <Guide className="mb-3 text-xs text-fg-muted">

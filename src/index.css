@@ -477,10 +477,28 @@ body,
   overscroll-behavior: none;
 }
 
-/* Focus ring bàn phím toàn cục (a11y): hiện khi điều hướng bằng Tab, ẩn khi
-   bấm chuột. Dùng :where() → specificity 0 nên KHÔNG đè các focus tùy biến
-   sẵn có (input outline-green-500…), chỉ lấp chỗ nút/link chưa có focus style. */
-:where(a, button, [role="button"], [role="switch"], [role="tab"], summary):focus-visible {
+/* Focus ring bàn phím toàn cục (a11y): hiện khi điều hướng bằng Tab, ẩn khi bấm chuột.
+   Dùng :where() → specificity 0 nên nó KHÔNG đè focus tuỳ biến nào còn sót, chỉ lấp chỗ
+   trống.
+
+   2026-08-18: nới ra CẢ input/select/textarea. Trước đó 51 ô nhập tự đặt outline-color =
+   green-500 — trên nền trắng chỉ ~1,9:1, dưới hẳn ngưỡng 3:1 của WCAG 1.4.11 cho chỉ báo
+   tiêu điểm — 8 ô khác tắt outline rồi đổi màu viền 1px làm chỉ báo, và 5 ô tìm tắt hẳn
+   outline mà không thay bằng gì. Cả 64 chỗ đã xoá; ring token này lo cho tất cả.
+
+   Đo lại bằng canvas pixel readback trên bốn nấc bề mặt: light (green-700) 4,95 / 4,45 /
+   4,14; dark (green-500) 8,59 / 8,98 / 8,04 / 8,77 — chỗ mỏng nhất vẫn dư 38% so với 3:1.
+
+   Đây đúng là việc mà chú thích của phép thử "không tự chế focus style trượt chuẩn"
+   (tests/designSystem.test.ts) hẹn phải làm TRƯỚC khi mở khối ban; làm xong nên khối đó
+   hết it.skip, và bộ test giờ không còn phép thử nào bị bỏ qua.
+
+   CỐ Ý không viết tên class cũ ra ở đây: Tailwind v4 quét cả COMMENT để tìm class, nên
+   nhắc lại tên nó ngay trong file token là tự sinh thêm một tiện ích chết. (Kiểm rồi:
+   tiện ích đó vẫn còn trong bundle vì tên class còn nằm ở cây kim của designSystem.test.ts
+   và ở mấy tài liệu kế hoạch cũ — 45 byte, không đáng đi dọn; nhưng file này thì không
+   góp thêm.) */
+:where(a, button, input, select, textarea, [role="button"], [role="switch"], [role="tab"], summary):focus-visible {
   /* Đọc token thay vì hex cứng. Trước đây là #16a34a — đó là green-600 của Tailwind
      v3, giá trị đã lạc từ hồi nâng lên v4 (v4 green-600 là #00a63e). Chuẩn đòi chỉ
      báo tiêu điểm đạt 3:1; #16a34a chỉ được 3,05:1, green-700 đạt 4,95:1. */
@@ -488,7 +506,7 @@ body,
   outline-offset: 2px;
 }
 html.dark
-  :where(a, button, [role="button"], [role="switch"], [role="tab"], summary):focus-visible {
+  :where(a, button, input, select, textarea, [role="button"], [role="switch"], [role="tab"], summary):focus-visible {
   outline-color: var(--accent); /* .dark đã đặt --accent sáng hơn cho nền tối */
 }
 

@@ -256,7 +256,7 @@ export function EventFormSheet({
   }
 
   const field =
-    'w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm dark:text-gray-100'
+    'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm dark:text-gray-100'
   const label_ = 'mb-1 block text-xs font-medium text-fg-muted'
 
   // Chốt kiểm bắt buộc: xem trước quy đổi dùng đúng số tiền của dòng đang sửa.

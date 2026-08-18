@@ -203,7 +203,7 @@ export function TagPicker({ value, onChange }: Props) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder={`Tìm trong ${total} nhãn…`}
             aria-label="Tìm nhãn"
-            className="min-h-9 min-w-0 flex-1 bg-transparent py-1 text-sm outline-none"
+            className="min-h-9 min-w-0 flex-1 bg-transparent py-1 text-sm"
           />
         </div>
       )}
@@ -263,7 +263,7 @@ export function TagPicker({ value, onChange }: Props) {
                       }}
                       placeholder={`Tên nhãn mới trong “${name}”…`}
                       aria-label={`Tên nhãn mới trong nhóm ${name}`}
-                      className="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none"
+                      className="min-h-11 min-w-0 flex-1 bg-transparent text-sm"
                     />
                     <button
                       type="button"

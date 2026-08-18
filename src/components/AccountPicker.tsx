@@ -214,7 +214,7 @@ export function AccountPicker({
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={`Tìm trong ${options.length} tài khoản…`}
                   aria-label="Tìm tài khoản"
-                  className="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none"
+                  className="min-h-11 min-w-0 flex-1 bg-transparent text-sm"
                 />
               </div>
             )}

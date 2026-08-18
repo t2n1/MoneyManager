@@ -626,7 +626,7 @@ function CategoryForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Tên danh mục"
-            className="flex-1 rounded-md border border-border-strong px-3 py-2 text-sm outline-green-500"
+            className="flex-1 rounded-md border border-border-strong px-3 py-2 text-sm"
           />
         </div>
 
@@ -641,7 +641,7 @@ function CategoryForm({
             <select
               value={parentId ?? ''}
               onChange={(e) => setParentId(e.target.value || null)}
-              className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-secondary outline-green-500"
+              className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-secondary"
             >
               <option value="">— Danh mục chính —</option>
               {availableParents.map((p) => (

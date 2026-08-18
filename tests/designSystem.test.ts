@@ -144,7 +144,55 @@ function stripComments(text: string): string {
  *     panel Ngân sách và dòng "tháng · thu / chi" của panel Dòng tiền. Chữ thật trong
  *     chúng chỉ vài từ; phần vượt 45 ký tự là markup của <Money> và <span>.
  */
-const PROSE_MAX = 63
+/*
+ * 65 (2026-08-18, bản vẽ 26a/27a): +2 khi dựng lại hai tab Tháng này và Dài hạn. Cả hai
+ * là loại "phải ở lại", đúng như danh sách ngoại lệ ngay trên:
+ *
+ *   · CHÂN TRANG của mỗi tab — "Tháng bắt đầu ngày 1 · so cùng số ngày · quy đổi ≈ JPY ·
+ *     khoản chuyển tài sản tính riêng" và bản của tab Dài hạn ("mức nền = trung vị từ
+ *     2024/12"). Đây là bốn QUY ƯỚC quyết định mọi con số ở trên nó, không phải chữ dạy.
+ *     Ẩn ở chế độ Gọn thì người đọc mặc định app so với cả tháng trước, mặc định gửi về
+ *     VN nằm trong chi, và mặc định mức nền là trung bình — cả ba đều sai.
+ *     §G của gói việc đòi nói nguồn MỘT LẦN ở chân trang thay vì lặp từng dòng; đây chính
+ *     là cái "một lần" đó, nên nó không được biến mất.
+ *
+ * Ba đoạn khác của cùng hai tab KHÔNG cộng vào trần vì chúng là trạng thái rỗng có đường
+ * đi tiếp ("Cần 24 tháng dữ liệu…, hiện có 12") — regex bỏ qua nhờ `py-*`/`truncate`, và
+ * bốn khối chú thích dạy cách đọc thì đã bọc <Guide>/<ExplainBox> sẵn.
+ */
+/*
+ * 68 (2026-08-18, bản vẽ 27b): +3 khi dựng lại tab Sức khỏe. Cả ba nằm đúng ba loại
+ * "phải ở lại" mà chú thích trên đã liệt kê:
+ *
+ *   · HealthTable — DÒNG TRỌNG SỐ ở chân bảng ("quỹ dự phòng 25% · cầm cự 20% · …").
+ *     Đây là DỮ LIỆU, và việc gộp nó về một dòng chính là một trong năm việc 27b yêu cầu:
+ *     in trọng số cạnh từng nhãn làm chỉ số rủi ro trông ít quan trọng vì nó chỉ nặng 10%.
+ *     Ẩn ở chế độ Gọn thì điểm tổng thành một con số không ai kiểm được.
+ *
+ *   · HealthBlocks — "Chưa có tài khoản đầu tư nào nên thanh trượt thứ hai không có gì để
+ *     kéo." Câu giải thích một Ô ĐANG BỊ VÔ HIỆU; đúng loại đã được nêu ngoại lệ.
+ *
+ *   · HealthView — CHÂN TRANG của tab, cùng loại với chân trang hai tab kia ở lời ghi 65:
+ *     nó nói ra hai giới hạn của khối mô phỏng (không tính lạm phát, không tính thuế bán
+ *     tài sản). Mất hai mệnh đề đó thì con số "35 tháng" đọc như một dự báo.
+ */
+/*
+ * 71 (2026-08-18, bản vẽ 28a): +3 của tab thứ tư "Quyết định". Cả ba là dữ liệu hoặc là
+ * lý-do-để-hành-động, không phải chữ dạy:
+ *
+ *   · Dòng dưới tiêu đề khối 02 ("Theo nhịp tiền mặt hiện tại: 10 tháng — mọi dòng dưới
+ *     đây đo bằng CÙNG thước đó"). Nó khai ĐƠN VỊ của cả bảng đòn bẩy. Ẩn ở chế độ Gọn thì
+ *     cột "Còn" thành một dãy số không có thước, và bảng mất lý do tồn tại.
+ *
+ *   · Câu trong TRẠNG THÁI RỖNG của khối 04 ("có mục tiêu thật thì bảng đòn bẩy ở khối 02
+ *     đổi thứ tự"). Đây là lý do để bấm nút ngay dưới nó — không có nó thì nút "Đặt mục
+ *     tiêu" là một nút không nói được vì sao nên bấm. Không thuộc ngoại lệ "trạng thái rỗng
+ *     không còn đường đi tiếp" (khối này CÓ đường đi), nên đếm vào trần chứ không miễn.
+ *
+ *   · Chân trang của tab, cùng loại với ba tab kia (lời ghi 65 và 68). Nó nói ra một điều
+ *     quyết định cách đọc mọi con số: "mọi mốc thời gian là suy từ nhịp, không phải cam kết".
+ */
+const PROSE_MAX = 71
 
 const FILES = sourceFiles().map((path) => ({
   path,
@@ -784,7 +832,25 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // mà mẫu số bị che thì con số bên cạnh nó hết nghĩa.
     // 102 (2026-08-18, bản vẽ 22e): +1 ở tiêu đề trang Danh mục — "14 chi · 3 thu".
     // Vẫn là ĐẾM, không phải tiền: cùng lý do với ba con số của 11a ngay trên.
-    { needle: 'tabular-nums', max: 102, use: '<Money> (tự bật tabular-nums)' },
+    //
+    // 103 (2026-08-18, bản vẽ 26a): +1 và đây là lần TĂNG có chủ ý — nói thẳng vì nó
+    // ngược chiều mọi lời ghi trên.
+    //
+    // Ba lời ghi 98 / 101 / 102 đều nói cùng một điều: có một lớp con số KHÔNG phải tiền
+    // (đếm, phần trăm, số tháng, Δ%) mà <Money> là sai công cụ cho nó — nó định dạng theo
+    // loại tiền và đi qua chế độ che số. Mỗi lần lớp đó xuất hiện, trần lại phải nới thêm
+    // vài chỗ. Tab "Tháng này" bản 26a có 12 chỗ như vậy trong một lần (bảng 12 danh mục,
+    // bảng so cùng số ngày, ba tầng dòng tiền), tức trần sẽ phải lên 114.
+    //
+    // Nên thay vì nới, lớp đó có primitive riêng: <Num> ở components/ui/Num.tsx. Nó sở hữu
+    // `font-mono tabular-nums`, có `tone`, và có `signedPct` để ba bảng dùng CÙNG một quy
+    // ước dấu (− thật, "±0%", "—" cho không-so-được). 12 chỗ viết tay của 26a đi qua nó
+    // hết, còn lại đúng 1 — chính dòng bên trong <Num>.
+    //
+    // +1 đó là giá của việc có primitive, và nó chỉ trả MỘT LẦN: mọi bảng sau này dùng
+    // <Num> sẽ không cộng thêm gì. Đọc "103" mà tưởng đợt này viết tay nhiều hơn là hiểu
+    // ngược — nó gộp 12 chỗ vào một chỗ.
+    { needle: 'tabular-nums', max: 103, use: '<Money> cho tiền, <Num> cho số không phải tiền' },
     // 35 (đo 2026-08-06): cặp xanh nhấn viết tay. Nợ này TĂNG từ 29 lúc dựng hệ thống
     // — quy ước mới chưa thắng thói quen cũ, nên phải có trần. Mỗi chỗ cần XÉT NGHĨA
     // khi gộp: link/hành động → text-fg-accent, giá trị tiền → text-money-in

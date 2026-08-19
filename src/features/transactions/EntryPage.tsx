@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, ChevronLeft } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
 import {
+  useAccounts,
   useCategories,
   useCreateCategory,
   useCreateDebt,
@@ -18,8 +19,10 @@ import {
   useUpdateRecurringRule,
 } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
+import { formatMoney } from '../../lib/money'
 import { showUndoToast } from '../../lib/undoToast'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
+import type { NewTransaction } from '../../data'
 import { parseRoleParam } from './entryRoles'
 import {
   saveDebtEntry,
@@ -29,6 +32,7 @@ import {
   saveWithFee,
   type RoleSaveDeps,
 } from './roleSave'
+import { addSaved, countLabel, removeSaved, type SavedEntry } from './savedRound'
 import { TransactionForm, type PaymentSubmit, type RoleSubmit } from './TransactionForm'
 
 /** Màn hình mặc định khi mở app — nhập một giao dịch phải < 5 giây. */
@@ -40,6 +44,7 @@ export function EntryPage() {
   const createDebtPayment = useCreateDebtPayment()
   const createCat = useCreateCategory()
   const { data: categories = [] } = useCategories()
+  const { data: accounts = [] } = useAccounts()
   const { data: debts = [] } = useDebts()
   const [searchParams] = useSearchParams()
   const qType = searchParams.get('type')
@@ -141,7 +146,28 @@ export function EntryPage() {
   const [toast, setToast] = useState<{ text: string; undoId?: string; ok?: boolean } | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
+  // --- Đếm "khoản lượt này" + danh sách "Vừa ghi" (task 17) ---
+  // State THUẦN của lượt ghi hiện tại — mất khi rời màn, không có cột DB nào cho nó.
+  // `savedCount` tách khỏi `savedList` vì danh sách bị CẮT ở 5 (savedRound.ts) còn số
+  // đếm thì không: ghi khoản thứ 6 xong màn vẫn phải nói "6 khoản lượt này".
+  const [savedList, setSavedList] = useState<SavedEntry[]>([])
+  const [savedCount, setSavedCount] = useState(0)
+  const savedCountLabel = countLabel(savedList, savedCount)
+
   useEffect(() => () => clearTimeout(toastTimer.current), [])
+
+  /** Dựng một SavedEntry để bày ở danh sách "Vừa ghi" từ input vừa lưu thành công. */
+  function toSavedEntry(id: string, values: NewTransaction): SavedEntry {
+    const cat = categories.find((c) => c.id === values.category_id)
+    const acc = accounts.find((a) => a.id === values.account_id)
+    return {
+      id,
+      label: cat?.name ?? 'Chuyển khoản',
+      icon: cat?.icon ?? '💸',
+      amount: values.amount,
+      currency: acc?.currency ?? 'JPY',
+    }
+  }
 
   async function handleUndo(id: string) {
     clearTimeout(toastTimer.current)
@@ -153,6 +179,10 @@ export function EntryPage() {
     } catch {
       return
     }
+    // Rút đúng khoản đó khỏi "Vừa ghi" và lùi số đếm — hoàn tác nghĩa là khoản đó
+    // coi như chưa từng ghi trong lượt này.
+    setSavedList((list) => removeSaved(list, id))
+    setSavedCount((n) => Math.max(0, n - 1))
     setToast({ text: 'Đã hoàn tác' })
     toastTimer.current = setTimeout(() => setToast(null), 1500)
   }
@@ -229,14 +259,33 @@ export function EntryPage() {
         </BackLink>
         <h1 className="flex-1 text-center text-base font-bold text-fg-primary">
           {billRule || planned ? 'Ghi khoản đến hạn' : 'Nhập giao dịch'}
+          {/* Đếm cạnh tiêu đề — người về nhà ghi cả ngày 3-4 khoản một lượt cần thấy
+              mình đã ghi bao nhiêu TRONG LƯỢT NÀY, không lục lại Sổ để biết. */}
+          {savedCountLabel && (
+            <span className="ml-1.5 align-middle text-xs font-normal text-fg-muted">
+              · {savedCountLabel}
+            </span>
+          )}
         </h1>
-        {/* Ô giữ chỗ RỖNG bên phải tiêu đề: nó ở đây chỉ để `h1` không lệch tâm, vì nút
-            "Đóng" bên trái là CHỮ nên giãn theo --app-font-scale. Theo REM chứ px (§13):
-            để px thì ở cỡ "Rất lớn" nút bên trái rộng hơn chỗ giữ và tiêu đề lệch tâm —
-            đúng cái mà chỗ giữ này sinh ra để tránh.
-            Trước đây đây là nơi TransactionForm portal nút mở dropdown chọn loại vào;
-            dropdown đó đã bỏ — loại giao dịch chọn ngay trong form, ở MỘT chỗ. */}
-        <div className="w-[5.25rem] shrink-0" />
+        {/* Ô bên phải tiêu đề: rỗng để `h1` không lệch tâm (nút "Đóng" bên trái là CHỮ
+            nên giãn theo --app-font-scale — theo REM chứ px, §13, để cỡ "Rất lớn" không
+            làm lệch tâm). Trước đây đây là nơi TransactionForm portal nút mở dropdown
+            chọn loại vào; dropdown đó đã bỏ.
+            Khi ĐÃ ghi ít nhất một khoản, ô này đổi thành nút "Xong" — dùng LẠI đúng ô
+            này (không thêm hàng mới) để khỏi ăn vào vùng cuộn 410px đã tràn sẵn 27px
+            (ruling task 13): thêm một hàng riêng cho nút sẽ cộng thêm ~44px overflow,
+            còn tái dùng ô rỗng này thì overflow không đổi một ly. */}
+        <div className="w-[5.25rem] shrink-0">
+          {savedList.length > 0 && (
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="flex min-h-11 w-full items-center justify-center rounded-md border border-border-strong bg-surface px-1 text-center text-2xs font-semibold leading-tight text-fg-primary transition active:scale-95"
+            >
+              Xong · về Bản tin
+            </button>
+          )}
+        </div>
       </div>
       {waitingForRule || waitingForPlanned ? (
         <p className="py-10 text-center text-sm text-fg-muted">Đang tải khoản đến hạn…</p>
@@ -307,11 +356,36 @@ export function EntryPage() {
         // là ghi xong mà lời nhắc vẫn còn nguyên. Xác nhận một khoản là việc một lần.
         onContinue={billRule || planned ? undefined : async (values) => {
           const row = await create.mutateAsync(values)
+          // Đẩy vào "Vừa ghi" + tăng đếm — người ghi cả ngày 3-4 khoản một lượt cần
+          // thấy mình đã ghi bao nhiêu, không chỉ thấy toast rồi quên ngay.
+          setSavedList((list) => addSaved(list, toSavedEntry(row.id, values)))
+          setSavedCount((n) => n + 1)
           setToast({ text: 'Đã lưu', undoId: row.id, ok: true })
           clearTimeout(toastTimer.current)
           toastTimer.current = setTimeout(() => setToast(null), 5000)
         }}
       />
+      )}
+      {/* "Vừa ghi" — chỉ hiện khi ĐÃ ghi ít nhất một khoản trong lượt này. Một HÀNG cuộn
+          ngang (như dải mẫu nhanh của TransactionForm), không phải danh sách dọc: màn
+          410px đã tràn sẵn 27px (ruling task 13), một danh sách dọc nhiều dòng ăn thẳng
+          vào vùng cuộn của form (nó dùng flex-1, nhường bao nhiêu mất bấy nhiêu) — hàng
+          ngang chỉ tốn đúng một chiều cao dòng dù có 1 hay 5 khoản. */}
+      {savedList.length > 0 && (
+        <ul aria-label="Vừa ghi" className="mt-1.5 flex shrink-0 gap-1.5 overflow-x-auto pb-0.5">
+          {savedList.map((s) => (
+            <li
+              key={s.id}
+              className="flex shrink-0 items-center gap-1 rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs"
+            >
+              <span aria-hidden="true">{s.icon}</span>
+              <span className="max-w-[5rem] truncate text-fg-primary">{s.label}</span>
+              <span className="font-medium text-fg-secondary">
+                {formatMoney(s.amount, s.currency)}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
       {toast && (
         <div className="fixed inset-x-0 top-4 z-50 flex justify-center">

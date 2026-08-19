@@ -11,8 +11,8 @@ export interface AlertInput {
   spent: number
   /** số tiền đang nhập (toàn bộ). */
   amount: number
-  /** phần mình chịu — bằng `amount` ở mọi dạng trừ Trả hộ. */
-  myShare: number
+  /** phần người khác trả lại / nợ lại — cùng nghĩa với `SplitValue.others`. */
+  othersShare?: number
   capBase: CapBase
 }
 
@@ -26,11 +26,18 @@ export interface AlertInput {
 export function categoryAlert(i: AlertInput): string | null {
   if (!i.categoryName || i.capBase === 'none' || i.cap === null) return null
 
-  // Ở Trả hộ, con số cộng vào là PHẦN MÌNH CHỊU, không phải tổng đã trả — bản đang
-  // chạy sẽ tính cả ¥12,400 thay vì ¥4,200, sai đúng bằng phần người khác nợ lại.
-  const add = i.capBase === 'myShare' ? i.myShare : i.amount
+  // `othersShare` chứ không `myShare`: hai số CÙNG ĐƠN VỊ mà một là tổng, một là phần —
+  // caller nối lẫn thì type vẫn sạch và cảnh báo vẫn ra, chỉ sai số. Nhận "phần người
+  // khác" thì không còn gì để lẫn với tổng, và nó khớp 1:1 với `SplitValue.others` đã có
+  // nên caller chuyền thẳng qua. Mặc định 0 → phần mình = toàn bộ, đúng cho chín dạng kia.
+  const myShare = i.amount - (i.othersShare ?? 0)
+  const add = i.capBase === 'myShare' ? myShare : i.amount
   const suffix = i.capBase === 'myShare' ? ' phần mình chịu' : ''
   const m = (v: number) => formatMoney(v, i.currency)
+
+  // `categoryName === ''` short-circuit cùng hành vi với `null` ở `!i.categoryName`,
+  // nhưng đó là kỳ vọng hợp lý: chuỗi rỗng là danh mục "chưa được đặt tên", không nên
+  // cảnh báo — chỉ các danh mục thực sự được chọn mới đáng cảnh báo.
 
   if (i.spent > i.cap) {
     const over = i.spent - i.cap

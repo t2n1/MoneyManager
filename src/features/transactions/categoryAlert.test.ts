@@ -3,7 +3,7 @@ import { categoryAlert } from './categoryAlert'
 
 const base = {
   categoryName: 'Ăn uống', currency: 'JPY' as const,
-  cap: 100_000, spent: 107_327, amount: 4_200, myShare: 4_200,
+  cap: 100_000, spent: 107_327, amount: 4_200,
   capBase: 'full' as const,
 }
 
@@ -32,14 +32,22 @@ describe('canh bao ve DUNG danh muc vua chon', () => {
   it('TRA HO cong PHAN MINH CHIU, khong phai tong da tra', () => {
     // Ban dang chay se tinh ca ¥12,400 — sai dung ¥8,200.
     const out = categoryAlert({
-      ...base, capBase: 'myShare', amount: 12_400, myShare: 4_200,
+      ...base, capBase: 'myShare', amount: 12_400, othersShare: 8_200,
     })
     expect(out).toBe('Ăn uống đã vượt trần ¥7,327. Cộng ¥4,200 phần mình chịu thì thành ¥11,527.')
     expect(out).not.toMatch(/12,400/)
   })
 
   it('chua vuot nhung khoan nay lam vuot thi canh bao truoc', () => {
-    expect(categoryAlert({ ...base, spent: 98_000, amount: 4_200, myShare: 4_200 }))
+    expect(categoryAlert({ ...base, spent: 98_000, amount: 4_200 }))
       .toBe('Ăn uống còn ¥2,000 trong trần. Khoản ¥4,200 này làm vượt ¥2,200.')
+  })
+
+  it('othersShare omitted = mặc định 0 = phần mình = toàn bộ amount', () => {
+    // Kiểm định: không truyền othersShare cho các dạng non-split, phần mình = toàn bộ.
+    const out = categoryAlert({
+      ...base, spent: 98_000, amount: 4_200, capBase: 'full', /* othersShare omitted */
+    })
+    expect(out).toBe('Ăn uống còn ¥2,000 trong trần. Khoản ¥4,200 này làm vượt ¥2,200.')
   })
 })

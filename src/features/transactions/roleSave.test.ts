@@ -6,7 +6,14 @@ import type {
   TransactionRow,
 } from '../../types/database.types'
 import type { NewCategory, NewDebt, NewDebtPayment, NewTransaction } from '../../data'
-import { debtFlowCategoryId, saveDebtEntry, saveRemit, saveSplit, saveWithFee } from './roleSave'
+import {
+  debtFlowCategoryId,
+  saveDebtEntry,
+  saveDebtPayment,
+  saveRemit,
+  saveSplit,
+  saveWithFee,
+} from './roleSave'
 import type { RoleBase, RoleSaveDeps } from './roleSave'
 import { initialDebt, initialRemit, initialSplit } from './entryRoles'
 
@@ -617,5 +624,114 @@ describe('nhãn đi theo ở cả ba vai trò', () => {
       deps,
     )
     expect(calls.createTransaction[0]).toMatchObject({ type: 'transfer', tag_ids: ['tag-me'] })
+  })
+})
+
+/**
+ * saveDebtPayment: đường vào thứ hai cho DebtPaymentSheet từ form Nhập, dùng
+ * ĐÚNG payload NewDebtPayment (nó bọc luôn transaction). `type` không lấy từ
+ * dạng (repay/collect) mà suy từ CHIỀU khoản nợ — sai chiều là lệch cả sổ nợ
+ * lẫn báo cáo Thu/Chi, nên test cả hai chiều để bắt được lỗi đảo ngược.
+ */
+describe('saveDebtPayment — trả nợ từ form Nhập', () => {
+  const openDebt = (over: Partial<DebtRow> = {}): DebtRow =>
+    ({
+      id: 'd1',
+      counterparty: 'Lan',
+      direction: 'i_owe',
+      currency: 'JPY',
+      principal: 100_000,
+      status: 'open',
+      ...over,
+    }) as DebtRow
+
+  it('mình trả nợ (i_owe) = giao dịch CHI, danh mục tự gán "Trả nợ"', async () => {
+    const { deps, calls } = makeDeps([openDebt()], [cat('cat-tra-no', 'Trả nợ')])
+    await saveDebtPayment(
+      { ...base, amount: 30_000 },
+      { debtId: 'd1', withTransaction: true, fee: 0 },
+      deps,
+    )
+    expect(calls.createDebtPayment).toHaveLength(1)
+    expect(calls.createDebtPayment[0].debt_id).toBe('d1')
+    expect(calls.createDebtPayment[0].amount).toBe(30_000)
+    expect(calls.createDebtPayment[0].transaction).toMatchObject({
+      type: 'expense',
+      category_id: 'cat-tra-no',
+    })
+  })
+
+  it('người ta trả mình (owed_to_me) = giao dịch THU, danh mục tự gán "Thu nợ"', async () => {
+    const { deps, calls } = makeDeps(
+      [openDebt({ id: 'd2', direction: 'owed_to_me' })],
+      [cat('cat-thu-no', 'Thu nợ', 'income')],
+    )
+    await saveDebtPayment(
+      { ...base, amount: 8_200 },
+      { debtId: 'd2', withTransaction: true, fee: 0 },
+      deps,
+    )
+    expect(calls.createDebtPayment[0].transaction).toMatchObject({
+      type: 'income',
+      category_id: 'cat-thu-no',
+    })
+  })
+
+  it('tắt withTransaction thì chỉ ghi sổ nợ suông, không sinh giao dịch nào', async () => {
+    const { deps, calls } = makeDeps([openDebt()])
+    await saveDebtPayment(
+      { ...base, amount: 30_000 },
+      { debtId: 'd1', withTransaction: false, fee: 0 },
+      deps,
+    )
+    expect(calls.createDebtPayment[0].transaction).toBeNull()
+    expect(calls.createTransaction).toHaveLength(0)
+  })
+
+  it('nhãn đi theo giao dịch trả nợ', async () => {
+    const { deps, calls } = makeDeps([openDebt()], [cat('cat-tra-no', 'Trả nợ')])
+    await saveDebtPayment(
+      { ...base, amount: 30_000, tagIds: ['tag-lan'] },
+      { debtId: 'd1', withTransaction: true, fee: 0 },
+      deps,
+    )
+    expect(calls.createDebtPayment[0].transaction).toMatchObject({ tag_ids: ['tag-lan'] })
+  })
+
+  it('không tìm thấy khoản nợ thì ném lỗi, không ghi im lặng', async () => {
+    const { deps, calls } = makeDeps([])
+    await expect(
+      saveDebtPayment({ ...base, amount: 1 }, { debtId: 'mat-tieu', withTransaction: true, fee: 0 }, deps),
+    ).rejects.toThrow(/khoản nợ/i)
+    expect(calls.createDebtPayment).toHaveLength(0)
+    expect(calls.createTransaction).toHaveLength(0)
+  })
+
+  it('có phí → thêm một giao dịch chi riêng vào "Tài chính", không cộng vào số trả', async () => {
+    const { deps, calls } = makeDeps([openDebt()], [cat('cat-tra-no', 'Trả nợ'), cat('cat-tc', 'Tài chính')])
+    await saveDebtPayment(
+      { ...base, amount: 30_000 },
+      { debtId: 'd1', withTransaction: true, fee: 300 },
+      deps,
+    )
+    expect(calls.createDebtPayment[0].amount).toBe(30_000) // phí không cộng vào số trả
+    expect(calls.createTransaction).toHaveLength(1)
+    expect(calls.createTransaction[0]).toMatchObject({
+      type: 'expense',
+      amount: 300,
+      category_id: 'cat-tc',
+    })
+    // Phí là bút toán app tự sinh, không phải hành động của người dùng với người kia.
+    expect(calls.createTransaction[0].tag_ids).toBeUndefined()
+  })
+
+  it('không nhập phí → không sinh bút toán phí nào', async () => {
+    const { deps, calls } = makeDeps([openDebt()], [cat('cat-tra-no', 'Trả nợ')])
+    await saveDebtPayment(
+      { ...base, amount: 30_000 },
+      { debtId: 'd1', withTransaction: true, fee: 0 },
+      deps,
+    )
+    expect(calls.createTransaction).toHaveLength(0)
   })
 })

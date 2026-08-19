@@ -437,6 +437,79 @@ async function saveDebtCore(base: RoleBase, v: DebtValue, deps: RoleSaveDeps): P
   })
 }
 
+/** Giá trị field riêng của hai dạng trả nợ (repay / collect). */
+export interface PaymentValue {
+  /** Khoản nợ đang mở được chọn. '' = chưa chọn. */
+  debtId: string
+  /** Có chuyển tiền thật (đổi số dư) hay chỉ ghi sổ nợ. Giống DebtPaymentSheet. */
+  withTransaction: boolean
+  /** Phí chuyển (minor units); 0 = không. Ghi riêng thành khoản chi "Tài chính". */
+  fee: number
+}
+
+export const initialPayment = (): PaymentValue => ({
+  debtId: '',
+  withTransaction: true,
+  fee: 0,
+})
+
+/**
+ * Ghi một lần trả nợ từ form Nhập. Đường vào thứ hai cho DebtPaymentSheet —
+ * dùng ĐÚNG payload đó, không dựng lối riêng: `NewDebtPayment` bọc luôn
+ * `transaction` bên trong nên một mutation ra cả hai, không bút toán tay.
+ *
+ * `type` KHÔNG lấy từ dạng mà suy từ chiều khoản nợ (xem entryShape: repay và
+ * collect đều có `txType: null`): mình trả (i_owe) = chi; người ta trả mình
+ * (owed_to_me) = thu.
+ *
+ * Phí đi qua `createFeeTx`/`undoFeeTx` — CÙNG NẾP saveDebtEntry đang dùng cho
+ * phí giải ngân (tạo phí trước, hỏng bút toán chính thì xóa phí đi). Không
+ * dùng `saveWithFee` ở đây: chữ ký của nó bắt `main: NewTransaction` không
+ * null, còn ở đây bút toán chính là `createDebtPayment` (có thể `transaction:
+ * null` khi tắt withTransaction) — nới `saveWithFee` để nhận null sẽ làm nó
+ * lỏng cho cả saveWithFee gốc, nên viết thẳng bằng helper nội bộ có sẵn.
+ */
+export async function saveDebtPayment(
+  base: RoleBase,
+  v: PaymentValue,
+  deps: RoleSaveDeps,
+): Promise<void> {
+  const debt = deps.debts.find((d) => d.id === v.debtId && d.status === 'open')
+  // Ném chứ không lặng lẽ bỏ: ghi một lần trả vào hư không thì sổ nợ và số dư
+  // lệch nhau mà không ai biết.
+  if (!debt) throw new Error('Không tìm thấy khoản nợ đang mở này.')
+
+  const feeTxId = await createFeeTx(v.fee, base.accountId, base.occurredOn, 'Phí chuyển tiền', deps)
+  try {
+    const txType = debt.direction === 'i_owe' ? 'expense' : 'income'
+    let transaction: NewTransaction | null = null
+    if (v.withTransaction) {
+      const categoryId = await debtFlowCategoryId('repay', debt.direction, deps)
+      transaction = {
+        type: txType,
+        amount: base.amount,
+        to_amount: null,
+        category_id: categoryId,
+        account_id: base.accountId,
+        to_account_id: null,
+        occurred_on: base.occurredOn,
+        note: base.note.trim() || `${txType === 'expense' ? 'Trả nợ' : 'Thu nợ'} · ${debt.counterparty}`,
+        tag_ids: base.tagIds,
+      }
+    }
+    await deps.createDebtPayment({
+      debt_id: debt.id,
+      amount: base.amount,
+      paid_on: base.occurredOn,
+      note: base.note.trim(),
+      transaction,
+    })
+  } catch (e) {
+    await undoFeeTx(feeTxId, deps)
+    throw e
+  }
+}
+
 /**
  * Gửi tiền về VN: một giao dịch (transfer JPY→VND hoặc expense) gắn cờ is_remittance.
  * amount = số gửi + phí. Expense tự tìm/tạo danh mục "Gửi tiền về VN".

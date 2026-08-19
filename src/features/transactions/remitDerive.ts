@@ -1,12 +1,14 @@
 // Suy số tiền nhận và tỷ giá thực từ số tiền gửi, phí, tỷ giá có sẵn.
 // Phí TRỪ TRƯỚC rồi mới áp tỷ giá: người nhận chỉ nhận phần còn lại.
 
+import { convertFromBase, type Rates } from '../../lib/rates'
 import { ageLabel } from '../../lib/freshness'
 
 /**
  * Suy số VND mà người nhận được.
- * Phí trừ trước: (sent - fee) × rate.
- * Trả null nếu không có tỷ giá, chưa nhập số gửi, hoặc phí >= số gửi.
+ * Phí trừ trước: (sent - fee) × rate, rồi áp convertFromBase để tính vòng tròn,
+ * guard rate hợp lệ, và dùng chung cơ chế rounding với assets screen.
+ * Trả null nếu không có tỷ giá, chưa nhập số gửi, phí >= số gửi, hoặc rate <= 0.
  */
 export function deriveReceived(
   sent: number,
@@ -20,8 +22,10 @@ export function deriveReceived(
   // Phí lớn hơn hoặc bằng số gửi — không thể có số âm
   if (fee >= sent) return null
 
-  const received = (sent - fee) * rate
-  return Math.round(received)
+  // Phí TRỨ trước khi quy đổi: convertFromBase xử lý rounding, guard rate <= 0
+  const afterFee = sent - fee
+  const rates: Rates = { VND: rate }
+  return convertFromBase(afterFee, 'JPY', 'VND', rates)
 }
 
 /**

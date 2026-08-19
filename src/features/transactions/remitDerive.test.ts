@@ -19,6 +19,21 @@ describe('suy so VND tu ty gia', () => {
     expect(deriveReceived(500, 800, 153)).toBeNull()
   })
 
+  it('phi bang so gui thi tra null, khong co gi nhan', () => {
+    expect(deriveReceived(500, 500, 153)).toBeNull()
+  })
+
+  it('rate am thi tra null (guard tu convertFromBase)', () => {
+    expect(deriveReceived(1000, 100, -153)).toBeNull()
+  })
+
+  it('sau tru phi, con so le thi lam tron theo Math.round', () => {
+    // ¥100 gui, phi ¥5 → ¥95 × 1.005 = ₫95.475 → lam tron thanh 95
+    // (nho: 95.475 -> 95 theo Math.round, nhung can kiem tra)
+    const received = deriveReceived(100, 5, 1.005)
+    expect(received).toBe(95) // 95 * 1.005 = 95.475, Math.round -> 95
+  })
+
   it('ty gia thuc te tinh tren TONG BI TRU, ke ca phi', () => {
     // Nguoi dung nhin so bank tru (da gom phi) nen ty gia thuc phai chia tong do.
     expect(effectiveRate(30_000, 800, 4_467_600)).toBeCloseTo(145.05, 1)

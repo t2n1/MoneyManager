@@ -22,8 +22,13 @@ export interface AlertInput {
  * Thay dải đỏ "4 danh mục vượt ngân sách tháng này" ở đầu form: dải đó hiện ở MỌI
  * dạng — kể cả sáu dạng không thuộc danh mục nào — và người ta đang ghi một khoản,
  * tin đó không giúp gì lúc này mà lại tô đỏ dòng đầu.
+ *
+ * Caller: `capWarning` trong TransactionForm.tsx — trần và "đã chi" lấy từ
+ * `useBudgetReport`, không cộng lại ở đây.
  */
 export function categoryAlert(i: AlertInput): string | null {
+  // Chuỗi rỗng rơi cùng nhánh với `null` là CỐ Ý: danh mục chưa có tên thì không có gì
+  // để gọi trong câu cảnh báo.
   if (!i.categoryName || i.capBase === 'none' || i.cap === null) return null
 
   // `othersShare` chứ không `myShare`: hai số CÙNG ĐƠN VỊ mà một là tổng, một là phần —
@@ -34,10 +39,6 @@ export function categoryAlert(i: AlertInput): string | null {
   const add = i.capBase === 'myShare' ? myShare : i.amount
   const suffix = i.capBase === 'myShare' ? ' phần mình chịu' : ''
   const m = (v: number) => formatMoney(v, i.currency)
-
-  // `categoryName === ''` short-circuit cùng hành vi với `null` ở `!i.categoryName`,
-  // nhưng đó là kỳ vọng hợp lý: chuỗi rỗng là danh mục "chưa được đặt tên", không nên
-  // cảnh báo — chỉ các danh mục thực sự được chọn mới đáng cảnh báo.
 
   if (i.spent > i.cap) {
     const over = i.spent - i.cap

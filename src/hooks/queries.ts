@@ -31,7 +31,7 @@ import {
   type TransactionPatch,
   type TxFilter,
 } from '../data'
-import { addMonths, getMonthRange, monthKeyForDate, monthKeyString, toISODate, type MonthKey } from '../lib/dates'
+import { addMonths, getMonthRange, monthKeyString, toISODate, type MonthKey } from '../lib/dates'
 import { transferCategoryIds } from '../features/categories/kind'
 import { buildBudgetReport, carryFromPreviousMonth, type BudgetReport } from '../features/budgets/progress'
 import { fetchRates } from '../lib/rates'
@@ -1089,14 +1089,10 @@ export function useRunRecurringCatchUp() {
   })
 }
 
-/** Số danh mục vượt ngân sách trong "tháng hiện tại" — cho badge cảnh báo. */
-export function useBudgetAlert(): { overCount: number; monthKey: MonthKey } {
-  const { data: profile } = useProfile()
-  const monthStartDay = profile?.month_start_day ?? 1
-  const monthKey = monthKeyForDate(toISODate(new Date()), monthStartDay)
-  const { report } = useBudgetReport(monthKey)
-  return { overCount: report?.overCount ?? 0, monthKey }
-}
+// `useBudgetAlert` đã xoá: nó chỉ trả `overCount` cho dải đỏ ở đầu màn Nhập, và dải đó
+// bị bỏ (nó hiện ở cả mười dạng, kể cả bảy dạng không thuộc danh mục nào). Cảnh báo thay
+// thế nói về ĐÚNG một danh mục nên đọc thẳng `useBudgetReport().report.lines` —
+// xem `capWarning` trong TransactionForm.tsx.
 
 // --- Thông báo (mục AO) ---
 

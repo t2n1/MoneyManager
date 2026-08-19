@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Delete,
   Star,
+  TriangleAlert,
   X,
 } from 'lucide-react'
 import type { NewPlannedExpense, NewTransaction } from '../../data'
@@ -17,6 +18,7 @@ import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { DebtDirection, TransactionRow, TransactionType } from '../../types/database.types'
 import {
   useAccounts,
+  useBudgetReport,
   useCategories,
   useDebtPayments,
   useDebts,
@@ -25,6 +27,7 @@ import {
   useRates,
   useTransactionTags,
 } from '../../hooks/queries'
+import { convertToBase } from '../../lib/rates'
 // `useRatesFreshness`, không tự đọc `readRatesMeta`: dataFreshness.test.ts (luật 2) chỉ
 // cho hooks/useDataFreshness.ts tính tuổi tỷ giá — một cửa duy nhất, để nhãn ở đây không
 // bao giờ lệch với trang Cài đặt/Tài sản (cùng nguồn, cùng ưu tiên sourceUpdatedAt).
@@ -36,7 +39,12 @@ import { IconButton, SegmentedControl } from '../../components/ui'
 import { TagPicker } from '../tags/TagPicker'
 import { CategoryRow } from './CategoryRow'
 import { recentCategories } from './recentCategories'
-import { isAutoAssignedCategory, pickableCategories } from '../categories/flowCategories'
+import { categoryAlert } from './categoryAlert'
+import {
+  isAutoAssignedCategory,
+  pickableCategories,
+  REMIT_CATEGORY_NAME,
+} from '../categories/flowCategories'
 import { remainingOf } from '../debts/aggregate'
 import { accountsForDebt } from './debtPick'
 import { DebtPickerField } from './DebtPickerField'
@@ -551,6 +559,88 @@ export function TransactionForm({
     canPlan: !!onSubmitPlanned,
     kind,
   })
+
+  /**
+   * Danh mục mà khoản này SẼ được xếp vào — không phải luôn là ô người dùng bấm.
+   * `Gửi gia đình` có `categoryPicker: 'auto'`: roleSave tự gán "Gửi tiền về VN" lúc lưu,
+   * mà danh mục đó ĐẶT ĐƯỢC hạn mức (xem flowCategories.ts — nó khác danh mục dòng chảy
+   * đúng ở chỗ này) và bảng entryShape ghi `capBase: 'full'` cho nó theo quyết định số 1
+   * của chủ sổ. Đọc `capBase` từ bảng để cổng vẫn đúng khi thêm dạng mới; chỉ chỗ TRA
+   * danh mục mới cần biết picker là 'user' hay 'auto'.
+   */
+  const cappedCat =
+    shape.capBase === 'none'
+      ? null
+      : shape.categoryPicker === 'user'
+        ? selectedCat
+        : (categories.find((c) => c.type === 'expense' && c.name === REMIT_CATEGORY_NAME) ?? null)
+
+  /**
+   * Trần đọc theo THÁNG CỦA NGÀY đang nhập, không phải tháng hiện tại: ghi bù một khoản
+   * của tháng trước thì nó đụng trần của tháng trước.
+   */
+  const capMonthKey = useMemo(() => monthKeyForDate(date, monthStartDay), [date, monthStartDay])
+  /**
+   * Hạn mức + đã chi tháng này đọc LẠI từ `useBudgetReport` (features/budgets/progress.ts),
+   * KHÔNG cộng lần thứ hai ở đây: trần nhóm cha–con, phần hạn mức dồn (mục AH) và việc
+   * loại danh mục `kind = 'transfer'` chỉ có MỘT chỗ tính đúng — nhánh này đã phải gộp
+   * một bản aggregate trùng bị lệch âm thầm.
+   */
+  const { report: budgetReport, isComplete: budgetComplete } = useBudgetReport(capMonthKey)
+  /**
+   * Câu cảnh báo về ĐÚNG danh mục vừa chọn, thay dải đỏ "N danh mục vượt ngân sách" đã bỏ
+   * khỏi EntryPage — dải đó hiện ở cả mười dạng, kể cả bảy dạng không thuộc danh mục nào.
+   *
+   * `budgetComplete` là điều kiện, không phải phòng xa: thiếu tỷ giá thì `spent` BỎ ÂM
+   * THẦM mọi giao dịch ngoại tệ, thiếu dữ liệu tháng trước thì `budgeted` thiếu phần dồn
+   * (xem chú thích của useBudgetReport). Một câu "đã vượt ¥7,327" tính từ số thiếu còn tệ
+   * hơn không có câu nào.
+   */
+  const capWarning = useMemo(() => {
+    if (plannedMode || !cappedCat || !budgetReport || !budgetComplete) return null
+    // Trần đặt ở danh mục CHA là trần chung cho cả nhóm (progress.ts): chọn một con chưa
+    // có trần riêng thì khoản này vẫn đụng trần của cha, nên rơi về dòng của cha — và câu
+    // cảnh báo gọi tên chính danh mục ĐANG GIỮ trần đó, không phải tên con.
+    const line =
+      budgetReport.lines.find((l) => l.categoryId === cappedCat.id) ??
+      (cappedCat.parent_id
+        ? budgetReport.lines.find((l) => l.categoryId === cappedCat.parent_id)
+        : undefined)
+    if (!line) return null
+    const owner =
+      line.categoryId === cappedCat.id
+        ? cappedCat
+        : categories.find((c) => c.id === line.categoryId)
+    // Báo cáo ngân sách tính bằng tiền quy đổi (base), còn ô số tiền theo tiền của ví
+    // nguồn — phải quy đổi trước khi so, không thì ¥ đứng cạnh ₫ trong cùng một câu.
+    // Thiếu tỷ giá thì convertToBase trả null → im lặng, cùng lý lẽ với `budgetComplete`.
+    const add = convertToBase(amount, srcCurrency, base, rates ?? {})
+    const othersShare = convertToBase(splitVal.others, srcCurrency, base, rates ?? {})
+    if (add === null || othersShare === null) return null
+    return categoryAlert({
+      categoryName: owner?.name ?? null,
+      currency: base,
+      cap: line.budgeted,
+      spent: line.spent,
+      amount: add,
+      // `othersShare`, KHÔNG `myShare`: categoryAlert tự trừ ra phần mình, nên ở đây
+      // không có chỗ nào để nối lẫn "tổng đã trả" với "phần mình chịu" (xem module).
+      othersShare,
+      capBase: shape.capBase,
+    })
+  }, [
+    plannedMode,
+    cappedCat,
+    budgetReport,
+    budgetComplete,
+    categories,
+    amount,
+    srcCurrency,
+    base,
+    rates,
+    splitVal.others,
+    shape.capBase,
+  ])
 
   /**
    * Cổng của "Sẽ chi" là `plannedMissing` (Task 9) — KHÔNG đi qua `entryGate` chung:
@@ -1267,6 +1357,22 @@ export function TransactionForm({
           onChange={setCategoryId}
           emptyNote={emptyGridNote}
         />
+      )}
+
+      {/* Cảnh báo trần — NGAY DƯỚI hàng danh mục, vì nó nói về đúng danh mục vừa chọn.
+          (Thứ tự dọc của spec đặt nó giữa hàng danh mục và hàng tài khoản+ngày; bản cài
+          này để hàng tài khoản+ngày ở TRÊN lưới danh mục, nên "ngay dưới hàng danh mục"
+          là chỗ duy nhất giữ đúng quan hệ đó.)
+          KHÔNG gác theo `hideCategoryGrid`: `Gửi gia đình` ẩn lưới (app tự gán danh mục)
+          mà vẫn chịu trần — xem `cappedCat`.
+          Token `state-warn-*` chứ không ba hex của spec: tầng token là chỗ DUY NHẤT được
+          viết hex (§index.css), và cặp token có sẵn cả bản sáng lẫn bản tối, trong khi
+          spec chỉ cho ba giá trị dark. */}
+      {capWarning && (
+        <p className="flex min-h-11 items-center gap-2 rounded-lg border border-state-warn-border bg-state-warn-bg px-3 py-2 text-xs text-state-warn-fg">
+          <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
+          {capWarning}
+        </p>
       )}
 
       </div>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { initialDebt, initialRemit, initialSplit } from './entryRoles'
 import { entryGate, plannedModeActive, type EntryState } from './entryValidation'
+import { initialPayment } from './roleSave'
 
 function st(p: Partial<EntryState> = {}): EntryState {
   return {
@@ -20,6 +21,7 @@ function st(p: Partial<EntryState> = {}): EntryState {
     split: initialSplit(),
     debt: initialDebt(),
     remit: initialRemit(),
+    payment: initialPayment(),
     splitBackAccountIds: [],
     ...p,
   }
@@ -187,6 +189,24 @@ describe('entryGate — dạng đặc biệt', () => {
     ).toMatch(/tên người vay/)
     expect(
       entryGate(st({ kind: 'borrow', debt: { ...initialDebt(), counterparty: 'Hà' } })).canSave,
+    ).toBe(true)
+  })
+
+  it('tra no (repay/collect): chua chon khoan no thi khong luu duoc', () => {
+    expect(entryGate(st({ kind: 'repay' })).missing).toBe('Còn thiếu: chọn khoản nợ.')
+    expect(entryGate(st({ kind: 'collect' })).missing).toBe('Còn thiếu: chọn khoản nợ.')
+    expect(
+      entryGate(st({ kind: 'repay', payment: { ...initialPayment(), debtId: 'd1' } })).canSave,
+    ).toBe(true)
+    // categoryPicker 'auto' o hai dang nay: chon no roi la luu duoc, KHONG doi danh muc.
+    expect(
+      entryGate(
+        st({
+          kind: 'collect',
+          hasCategory: false,
+          payment: { ...initialPayment(), debtId: 'd2' },
+        }),
+      ).canSave,
     ).toBe(true)
   })
 

@@ -139,10 +139,18 @@ describe('nhan nut Luu khong nuot mot cau hoan chinh', () => {
     expect(form).toMatch(/missingPhrase/)
   })
 
-  it('ly do cua hai dang tra no nam trong khoi GHIM day, khong trong vung cuon', () => {
-    const pinned = form.indexOf('Đáy ghim')
-    const reason = form.indexOf('Hai dạng trả nợ chưa nhập được')
-    expect(pinned).toBeGreaterThan(0)
-    expect(reason).toBeGreaterThan(pinned)
+})
+
+describe('task 8: guard payWiringPending da bi go — repay/collect da nhap duoc', () => {
+  it('khong con bien payWiringPending, khong con cau "chua nhap duoc o man nay"', () => {
+    // Task 6 dat guard nay CO CHU DICH, chi cho toi khi DebtPickerField co (task 8).
+    // Guard con song thi hai dang tra no van bi khoa Luu du da chon khoan no.
+    expect(form).not.toMatch(/payWiringPending/)
+    expect(form).not.toMatch(/Hai dạng trả nợ chưa nhập được/)
+  })
+
+  it('co DebtPickerField va onSubmitPayment thay guard', () => {
+    expect(form).toMatch(/<DebtPickerField/)
+    expect(form).toMatch(/onSubmitPayment/)
   })
 })

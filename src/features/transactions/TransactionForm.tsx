@@ -28,6 +28,8 @@ import { Card, IconButton, SegmentedControl } from '../../components/ui'
 import { TagPicker } from '../tags/TagPicker'
 import { isAutoAssignedCategory, pickableCategories } from '../categories/flowCategories'
 import { remainingOf } from '../debts/aggregate'
+import { accountsForDebt } from './debtPick'
+import { DebtPickerField } from './DebtPickerField'
 import type { DebtPerson } from './roleFields'
 import { NumPad, type NumPadKey } from '../../components/NumPad'
 import {
@@ -65,7 +67,7 @@ import {
 import { DirectionTabs } from './DirectionTabs'
 import { DebtFields, FeeField, RemitFields, SplitFields } from './roleFields'
 import { entryGate, plannedModeActive } from './entryValidation'
-import type { RoleBase } from './roleSave'
+import { initialPayment, type PaymentValue, type RoleBase } from './roleSave'
 
 const LAST_ACCOUNT_KEY = 'sct-last-account'
 const lastCategoryKey = (type: TransactionType) => `sct-last-category-${type}`
@@ -118,6 +120,14 @@ export type RoleSubmit =
   | { role: 'split'; base: RoleBase; value: SplitValue }
   | { role: 'debt'; base: RoleBase; value: DebtValue }
   | { role: 'remit'; base: RoleBase; value: RemitValue }
+
+/**
+ * Payload lưu một lần trả nợ (repay/collect) — đi qua `saveDebtPayment`, KHÔNG qua
+ * `onSubmitRole`: hai dạng này không có `roleSeed.role` (bảng entryShape đặt `NONE`,
+ * xem entryShape.ts) vì chúng không dùng field People/Split/Remit gì, chỉ một khoản
+ * nợ đã chọn — orchestrator riêng cho khớp `writes: 'debtPayment'`.
+ */
+export type PaymentSubmit = { base: RoleBase; value: PaymentValue }
 
 /**
  * Dạng mở sẵn khi vào màn: suy từ `?type=` / `?role=` cũ để mọi đường vào đang có
@@ -176,6 +186,12 @@ interface TransactionFormProps {
    */
   onSubmitRole?: (payload: RoleSubmit, keepGoing: boolean) => Promise<void>
   /**
+   * Lưu một lần trả nợ (repay/collect) — xem `PaymentSubmit`. Cùng hợp đồng
+   * `keepGoing` với `onSubmitRole` ngay trên. Bắt buộc khi enableRoles (hai dạng
+   * này luôn có mặt trong hàng Dạng khi mười dạng được bật).
+   */
+  onSubmitPayment?: (payload: PaymentSubmit, keepGoing: boolean) => Promise<void>
+  /**
    * Chuyển khoản có phí: lưu giao dịch chính + một giao dịch CHI riêng cho phí
    * (danh mục "Tài chính"). Không truyền → không hiện nút "+ Phí" ở chuyển khoản
    * (form sửa: phí đã là giao dịch riêng, sửa thẳng trên nó).
@@ -206,6 +222,7 @@ export function TransactionForm({
   enableRoles,
   initialRole,
   onSubmitRole,
+  onSubmitPayment,
   onSubmitWithFee,
   onSubmitPlanned,
   initialTagIds: initialTagIdsProp,
@@ -285,6 +302,7 @@ export function TransactionForm({
   const [splitVal, setSplitVal] = useState<SplitValue>(initialSplit)
   const [debtVal, setDebtVal] = useState<DebtValue>(initialDebt)
   const [remitVal, setRemitVal] = useState<RemitValue>(initialRemit)
+  const [paymentVal, setPaymentVal] = useState<PaymentValue>(initialPayment)
   /**
    * Chiều nợ và kiểu gửi tiền KHÔNG còn là state riêng — chúng là hạt giống của dạng
    * (bảng entryShape). Trước đây hai segmented con ("Mình nợ | Cho vay",
@@ -303,9 +321,8 @@ export function TransactionForm({
   /**
    * `categoryPickerOf` chỉ đổi hành vi ở lend/borrow, nên với mọi dạng khác giá trị này
    * vô hại. Gộp một biến để không có hai đường đọc cùng một ý — hai đường thì sẽ lệch.
-   * (paymentVal đến ở bước sau; tới đó thay `true` bằng paymentVal.withTransaction.)
    */
-  const withTransaction = shape.writes === 'debtPayment' ? true : debtVal.withTransaction
+  const withTransaction = shape.writes === 'debtPayment' ? paymentVal.withTransaction : debtVal.withTransaction
 
   // Người đã cho vay/nợ (khoản đang mở) — nguồn để gợi ý cộng dồn.
   const { data: allDebts = [] } = useDebts()
@@ -335,13 +352,18 @@ export function TransactionForm({
   }, [accounts, initial])
   // Gửi về VN: nguồn chỉ được là tài khoản JPY (không phải thẻ); đích là TK VND.
   const remitLike = shape.roleSeed.role === 'remit'
-  const pickerAccounts = useMemo(
-    () =>
-      remitLike
-        ? activeAccounts.filter((a) => a.currency === 'JPY' && a.type !== 'card')
-        : activeAccounts,
-    [activeAccounts, remitLike],
-  )
+  // "v1 tránh xuyên tệ" (DebtPaymentSheet): chỉ cho trả từ ví CÙNG loại tiền với
+  // khoản nợ. Nên ở repay/collect danh sách ví PHỤ THUỘC khoản nợ đã chọn — đây là
+  // chỗ DUY NHẤT của form có hai field phụ thuộc nhau (mọi quyết định lọc ở debtPick.ts).
+  const payDebt =
+    shape.writes === 'debtPayment'
+      ? allDebts.find((d) => d.id === paymentVal.debtId)
+      : undefined
+  const pickerAccounts = useMemo(() => {
+    if (remitLike) return activeAccounts.filter((a) => a.currency === 'JPY' && a.type !== 'card')
+    if (shape.writes === 'debtPayment') return accountsForDebt(activeAccounts, payDebt)
+    return activeAccounts
+  }, [activeAccounts, remitLike, shape.writes, payDebt])
   const vndAccounts = useMemo(
     () => activeAccounts.filter((a) => a.currency === 'VND' && a.type !== 'card'),
     [activeAccounts],
@@ -478,16 +500,10 @@ export function TransactionForm({
     split: splitVal,
     debt: debtValue,
     remit: remitValue,
+    payment: paymentVal,
     splitBackAccountIds: splitBackAccounts.map((a) => a.id),
   })
-  /**
-   * Hai dạng trả nợ ghi qua `createDebtPayment` và cần một ô chọn khoản nợ — ô đó đến ở
-   * bước sau của gói này. Tới đó thì KHÓA nút: để nó lưu được là bút toán rơi xuống
-   * nhánh giao dịch thường và ghi SAI SỔ (một khoản chi thường thay vì một lần trả nợ).
-   * Lý do nói bằng một dòng GHIM cạnh nút (khối đáy), không để nút mờ không một lời.
-   */
-  const payWiringPending = shape.writes === 'debtPayment'
-  const canSave = gate.canSave && !saving && !payWiringPending
+  const canSave = gate.canSave && !saving
   const missing = saving ? null : gate.missing
   /**
    * `missing` có HAI HỌ CÂU khác nhau, và chỉ một họ lên được nút:
@@ -605,6 +621,11 @@ export function TransactionForm({
       // Đổi kiểu gửi: giữ phí/số nhận, bỏ tài khoản đích (chỉ Chuyển tài sản mới có).
       setRemitVal((v) => ({ ...v, destId: '' }))
     }
+    // Repay/collect không có `roleSeed.role` riêng (bảng đặt NONE ở entryShape) nên
+    // hai nhánh trên không chạm tới chúng — xử lý riêng ở đây. GIEO LẠI mỗi lần vào
+    // hoặc đổi dạng trả nợ: đổi chiều (repay↔collect) thì khoản cũ sai chiều, chưa
+    // từng ở dạng này thì chưa có khoản nào để giữ.
+    if (nextShape.writes === 'debtPayment') setPaymentVal(initialPayment())
   }
 
   function onNumPadKey(key: NumPadKey) {
@@ -681,6 +702,39 @@ export function TransactionForm({
           if (shape.roleSeed.role === 'split') setSplitVal(initialSplit())
           if (shape.roleSeed.role === 'debt') setDebtVal(initialDebt())
           if (shape.roleSeed.role === 'remit') setRemitVal(initialRemit())
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Lưu thất bại, thử lại.')
+      } finally {
+        setPending(null)
+      }
+      return
+    }
+
+    // Trả nợ / thu lại (repay/collect): ghi qua `createDebtPayment`, không qua
+    // `onSubmitRole` — hai dạng này không có `roleSeed.role` (bảng đặt NONE), chúng
+    // chỉ cần một khoản nợ đã chọn (paymentVal.debtId), không phải field People/Split.
+    if (shape.writes === 'debtPayment' && onSubmitPayment) {
+      setPending(mode)
+      setError(null)
+      try {
+        const base: RoleBase = {
+          amount,
+          accountId: effectiveAccountId,
+          categoryId,
+          srcCurrency,
+          occurredOn: date,
+          note,
+          tagIds: effectiveTagIds,
+        }
+        await onSubmitPayment({ base, value: paymentVal }, keepGoing)
+        localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
+        if (keepGoing) {
+          clearForNextEntry()
+          // Gieo lại khoản nợ đã chọn: giữ nguyên thì lần nhập kế tiếp vẫn "đang trả"
+          // đúng khoản đó dù ô số tiền đã trắng — số điền sẵn của khoản cũ không còn
+          // khớp một lần trả MỚI.
+          setPaymentVal(initialPayment())
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Lưu thất bại, thử lại.')
@@ -1039,6 +1093,22 @@ export function TransactionForm({
           onEnter={() => handleSubmit()}
         />
       )}
+      {/* Trả nợ / thu lại: DẠNG DUY NHẤT có field phụ thuộc nhau (chọn nợ trước, chọn
+          ví sau — xem pickerAccounts/payDebt ở trên). Đặt CÙNG chỗ các khối field
+          riêng khác (dưới ô số tiền + tài khoản/ngày), không phải trên — hai hàng đầu
+          (segmented + Dạng) đứng y một chỗ ở mọi dạng. */}
+      {(kind === 'repay' || kind === 'collect') && (
+        <DebtPickerField
+          value={paymentVal}
+          onChange={(next, prefillAmount) => {
+            setPaymentVal(next)
+            if (prefillAmount !== undefined) setDigits(String(prefillAmount))
+          }}
+          debts={allDebts}
+          payments={allDebtPayments}
+          direction={kind === 'repay' ? 'i_owe' : 'owed_to_me'}
+        />
+      )}
 
       {/* Danh mục — MỘT điều kiện, đọc từ bảng: chỉ dạng nào `categoryPicker === 'user'`
           mới bày lưới (xem hideCategoryGrid). */}
@@ -1208,22 +1278,8 @@ export function TransactionForm({
       </div>
 
       {error && <p role="alert" className="text-sm text-money-out">{error}</p>}
-      {/* Lý do nút Lưu còn mờ — ghim cạnh nút để không bao giờ bị cuộn khuất.
-          Hai dạng trả nợ KHÔNG đi qua `missing` (entryValidation chưa có ô nợ để mà đòi),
-          nên lý do của chúng phải tự lên đây. Để nó trong vùng cuộn là để nó bị cuộn khuất
-          đúng lúc người ta đang nhìn một cái nút mờ không lời giải thích. */}
-      {!error && payWiringPending && (
-        <p className="px-1 text-xs text-fg-warn">
-          Hai dạng trả nợ chưa nhập được ở màn này —{' '}
-          <Link to="/debts" className="font-medium underline">
-            mở trang Nợ
-          </Link>{' '}
-          → chọn khoản nợ → "Ghi trả".
-        </p>
-      )}
-      {!error && !payWiringPending && missing && (
-        <p className="px-1 text-xs text-fg-warn">{missing}</p>
-      )}
+      {/* Lý do nút Lưu còn mờ — ghim cạnh nút để không bao giờ bị cuộn khuất. */}
+      {!error && missing && <p className="px-1 text-xs text-fg-warn">{missing}</p>}
 
       {/* Hàng nút: ⌫ (chỉ mobile, thay cho hàng xóa lùi riêng) + Lưu và nhập tiếp / Lưu */}
       <div className="flex gap-2">

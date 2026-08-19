@@ -10,6 +10,7 @@
 import type { TransactionType } from '../../types/database.types'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
 import { categoryPickerOf, shapeOf, type EntryKind } from './entryShape'
+import type { PaymentValue } from './roleSave'
 
 /**
  * "Nhắc sau" có THỰC SỰ hiệu lực hay không.
@@ -51,6 +52,8 @@ export interface EntryState {
   split: SplitValue
   debt: DebtValue
   remit: RemitValue
+  /** Chỉ repay/collect dùng: đã chọn khoản nợ nào để trả/thu chưa. */
+  payment: PaymentValue
   /** id các ví hợp lệ ở ô "Nhận lại vào" của Trả hộ */
   splitBackAccountIds: string[]
 }
@@ -133,6 +136,12 @@ function kindMissing(s: EntryState): string | null {
         if (s.kind === 'ownvn' && !s.remit.destId)
           return 'Còn thiếu: chọn tài khoản VND nhận tiền.'
         if (s.remit.received <= 0) return 'Còn thiếu: số nhận (VND).'
+        break
+      case 'repay':
+      case 'collect':
+        // Chưa chọn khoản nợ → không có gì để suy chiều bút toán (saveDebtPayment
+        // ném lỗi nếu cứ lưu), nên chặn Ở ĐÂY, trước cả cổng danh mục chung.
+        if (!s.payment.debtId) return 'Còn thiếu: chọn khoản nợ.'
         break
     }
   }

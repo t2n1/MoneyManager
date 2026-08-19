@@ -828,7 +828,13 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // FundHoldingsSection bị xoá — vùng chạm viết tay của chúng gom về hai tab của
     // /invest, nơi không còn lặp lại ở khu danh mục cũ. Hạ trần theo đúng quy ước ở
     // thông điệp lỗi của chính phép thử này.
-    { needle: 'min-h-11 min-w-11', max: 22, use: '<IconButton> / iconButtonClass()' },
+    //
+    // 23 (2026-08-19, task 8 dung lai man Nhap): +1 cho công tắc "Có chuyển tiền
+    // thật" ở DebtPickerField (repay/collect) — CÙNG khuôn ba công tắc role="switch"
+    // đã đúng ở trên (vùng chạm 44×44 ở <button>, đường ray ở <span> trong), không
+    // phải nợ mới. Không gộp được vào <IconButton>: đây là công tắc mang
+    // role="switch"/aria-checked, không phải một nút-icon.
+    { needle: 'min-h-11 min-w-11', max: 23, use: '<IconButton> / iconButtonClass()' },
     // 85 chu khong 82: lượt chuẩn hoá đã kéo 29 thẻ TỪ dạng `rounded-xl bg-white …
     // dark:bg-gray-900` VÀO dạng này, nên con số tăng mà tổng số thẻ viết tay không
     // đổi. Không phải thêm thẻ mới. Gộp vào <Card> thì hạ tiếp.

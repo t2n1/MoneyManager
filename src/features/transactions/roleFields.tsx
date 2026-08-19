@@ -11,8 +11,10 @@ import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
  * ghi chú) + segmented chiều/kiểu do form Nhập quản lý; block chỉ chứa phần thêm.
  */
 
-const labelCls = 'mb-1 block text-xs font-medium text-fg-muted'
-const inputCls =
+// Export: DebtPickerField.tsx (task 8) dùng lại đúng các class này — một nếp cho
+// mọi field riêng của form Nhập, không tự đặt class mới ở nơi khác.
+export const labelCls = 'mb-1 block text-xs font-medium text-fg-muted'
+export const inputCls =
   'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary'
 const moneyInputCls =
   'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-right text-lg font-semibold text-fg-primary'
@@ -26,7 +28,7 @@ const blockTint = {
   debt: 'border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/30',
   remit: 'border-green-200 bg-green-50/60 dark:border-green-900 dark:bg-green-950/30',
 } as const
-const blockCls = (tint: keyof typeof blockTint) =>
+export const blockCls = (tint: keyof typeof blockTint) =>
   `flex flex-col gap-2 rounded-xl border p-3 ${blockTint[tint]}`
 // Nút chữ nhỏ (Thêm chi tiết, + Phí): after:-inset kéo vùng chạm lên ~44px.
 const smallBtnTap = 'relative after:absolute after:-inset-y-2 after:inset-x-0'

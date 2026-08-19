@@ -21,8 +21,15 @@ import { toISODate } from '../../lib/dates'
 import { showUndoToast } from '../../lib/undoToast'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
 import { parseRoleParam } from './entryRoles'
-import { saveDebtEntry, saveRemit, saveSplit, saveWithFee, type RoleSaveDeps } from './roleSave'
-import { TransactionForm, type RoleSubmit } from './TransactionForm'
+import {
+  saveDebtEntry,
+  saveDebtPayment,
+  saveRemit,
+  saveSplit,
+  saveWithFee,
+  type RoleSaveDeps,
+} from './roleSave'
+import { TransactionForm, type PaymentSubmit, type RoleSubmit } from './TransactionForm'
 
 /** Màn hình mặc định khi mở app — nhập một giao dịch phải < 5 giây. */
 export function EntryPage() {
@@ -188,6 +195,17 @@ export function EntryPage() {
     toastAndStay('Đã lưu')
   }
 
+  // Lưu một lần trả nợ (repay/collect) — đường vào thứ hai cho DebtPaymentSheet,
+  // dùng ĐÚNG orchestrator `saveDebtPayment` (xem roleSave.ts).
+  async function handlePayment(payload: PaymentSubmit, keepGoing: boolean) {
+    await saveDebtPayment(payload.base, payload.value, roleDeps())
+    if (!keepGoing) {
+      navigate('/so')
+      return
+    }
+    toastAndStay('Đã lưu')
+  }
+
   return (
     // `lg:max-w-5xl` (1024px) chứ không giữ 672px: từ lg form chia HAI CỘT (xem
     // TransactionForm), mà hai cột nhét trong 672px thì cột trái còn ~330px — hẹp hơn cả
@@ -241,6 +259,7 @@ export function EntryPage() {
         enableRoles
         initialRole={initialRole}
         onSubmitRole={handleRole}
+        onSubmitPayment={handlePayment}
         // Chuyển khoản có phí: 2 bút toán → không kèm Hoàn tác một chạm (như các dạng khác)
         onSubmitWithFee={async (main, fee, keepGoing) => {
           await saveWithFee(main, fee, 'Phí chuyển khoản', roleDeps())

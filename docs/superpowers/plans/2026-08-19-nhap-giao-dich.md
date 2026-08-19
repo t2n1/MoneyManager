@@ -1021,10 +1021,16 @@ describe('TagPicker khong bi gac boi dang nao', () => {
 })
 
 describe('nut Luu mot layout', () => {
-  it('nhan phu la "Luu va nhap tiep", khong phai "Tiep tuc"', () => {
+  it('nhan phu la "Luu va nhap tiep"', () => {
     // "Tiep tuc" khong noi tiep cai gi.
     expect(form).toMatch(/Lưu và nhập tiếp/)
-    expect(form).not.toMatch(/'Tiếp tục'|"Tiếp tục"/)
+  })
+
+  it('chuoi "Tiep tuc" bien mat o CA HAI file, va prop continueLabel chet han', () => {
+    // Chuoi do nam o EntryPage.tsx:243, KHONG o TransactionForm — soat mot file
+    // thi test xanh ma chuoi van song. Xem Step 3c.
+    for (const src of [form, page]) expect(src).not.toMatch(/Tiếp tục/)
+    for (const src of [form, page]) expect(src).not.toMatch(/continueLabel/)
   })
 })
 ```
@@ -1045,12 +1051,76 @@ Expected: FAIL — hầu hết đỏ (còn `Đặc biệt`, còn `TYPE_TABS`, c�
 ```
 
 4. `switchKind(next)` giữ đúng nếp `switchType` cũ: đổi dạng thì gieo lại danh mục theo `lastCategoryFor`, giữ số tiền và tài khoản.
-5. Mọi `activeRole === 'none' &&` trong JSX đổi sang gác bằng bảng. Ba chỗ chính:
-   - lưới danh mục: `categoryPickerOf(kind, withTransaction) === 'user'`
-   - ô hoàn tiền: `shapeOf(kind).txType === 'expense' && !plannedMode`
-   - `TagPicker`: **bỏ hẳn điều kiện** — hiện ở mọi dạng (Task 5 đã mở đường ống)
-6. Nhãn ô tiền: `shapeOf(kind).amountLabel`, thay `roleAmountLabel(activeRole)`.
-7. `AMOUNT_COLOR` tra theo `shapeOf(kind).txType ?? 'transfer'`.
+5. **`activeRole` biến mất hoàn toàn — có `grep -c` = 29 chỗ, không phải "vài chỗ".** Test cấu trúc chốt `expect(form).not.toMatch(/activeRole/)`, nên phải chuyển hết. Bảng cổng đầy đủ, cổng cũ → điều kiện mới:
+
+| Dòng | Cổng cũ | Điều kiện mới |
+| --- | --- | --- |
+| `:311` | `const activeRole = enableRoles ? role : 'none'` | **xóa** — `kind` là state |
+| `:339` | `setTypeAndCat(roleTxType(activeRole, debtVal))` | `switchKind` gieo lại theo `shapeOf(kind).txType` |
+| `:358` | `activeRole === 'remit'` (lọc ví JPY) | `shapeOf(kind).roleSeed.role === 'remit'` |
+| `:393` | `type === 'transfer' && activeRole === 'none' && …` | `kind === 'between' && !!onSubmitWithFee` (bỏ `repeat`) |
+| `:397` | `crossCurrency \|\| activeRole === 'split'\|'remit'\|'debt'` | `crossCurrency \|\| shapeOf(kind).roleSeed.role !== 'none' \|\| shapeOf(kind).writes === 'debtPayment'` |
+| `:445` | `roleHidesCategoryGrid(activeRole)` | `categoryPickerOf(kind, withTransaction) !== 'user'` |
+| `:477`,`:485` | `role: activeRole` | `kind`, `withTransaction` (xem Step 3b) |
+| `:635`,`:647`,`:648` | dispatch theo `activeRole` | dispatch theo `shapeOf(kind).roleSeed.role`; thêm nhánh `writes === 'debtPayment'` (Task 8) |
+| `:865`,`:871` | `roleMeta` + banner vai trò | **xóa cả banner** — hàng Dạng đã nói dạng nào đang bật, banner là tầng thứ hai nói cùng một điều |
+| `:953`–`:967` | ba nhánh segmented | `<DirectionTabs kind={kind} onChange={switchKind} />` |
+| `:982` | `roleAmountLabel(activeRole) ?? …` | `shapeOf(kind).amountLabel` |
+| `:1037` | `… && activeRole === 'none' && type === 'expense'` | segmented `Đã chi\|Sẽ chi` (Task 10) — task này chỉ bỏ nút chuông |
+| `:1054` | dropdown Lặp lại | **xóa** (Task 10 thay bằng dòng dẫn) |
+| `:1124` | `activeRole === 'remit' && pickerAccounts.length === 0` | `shapeOf(kind).roleSeed.role === 'remit' && …` |
+| **`:1129`** | `activeRole === 'split'` → `SplitFields` | `kind === 'split'` |
+| **`:1143`** | `activeRole === 'debt'` → `DebtFields` | `kind === 'lend' \|\| kind === 'borrow'` |
+| **`:1155`** | `activeRole === 'remit'` → `RemitFields` | `kind === 'family' \|\| kind === 'ownvn'` |
+| `:1259` | nút "Lưu mẫu" | `shapeOf(kind).roleSeed.role === 'none' && shapeOf(kind).writes === 'transaction'` |
+| `:1281` | `activeRole === 'none' && <TagPicker>` | **bỏ hẳn điều kiện** — hiện ở mọi dạng (Task 5 đã mở đường ống) |
+| `:1286`,`:1306` | `type === 'expense' && activeRole === 'none'` | `shapeOf(kind).txType === 'expense' && !plannedMode` |
+| `:1348` | nhánh một nút / hai nút | **xóa nhánh** — luôn hai nút (Step 4) |
+
+⚠️ **Ba dòng in đậm là chỗ nguy hiểm nhất của cả plan.** Chúng quyết định **field nào hiện ở dạng nào**, và test cấu trúc **không bắt được** nếu map sai — nó chỉ đếm chuỗi `activeRole`. Nên thêm vào `entryStructure.test.ts`:
+
+```ts
+describe('ba cong role-field gac dung dang', () => {
+  it('SplitFields chi o split, DebtFields o lend|borrow, RemitFields o family|ownvn', () => {
+    // Map sai o day la bug HANH VI im lang: field hien sai dang, dung loai loi ma
+    // ca goi ban giao sinh ra de chua. Test dem chuoi activeRole khong bat duoc.
+    expect(form).toMatch(/kind === 'split'\s*&&\s*\(?\s*<SplitFields/)
+    expect(form).toMatch(/kind === 'lend' \|\| kind === 'borrow'/)
+    expect(form).toMatch(/kind === 'family' \|\| kind === 'ownvn'/)
+  })
+
+  it('khong con banner vai tro — hang Dang da noi dang nao dang bat', () => {
+    expect(form).not.toMatch(/roleMeta/)
+  })
+})
+```
+
+6. `AMOUNT_COLOR` tra theo `shapeOf(kind).txType ?? 'transfer'`.
+
+- [ ] **Step 3b: `withTransaction` — một giá trị dẫn xuất, không hai đường đọc**
+
+Task 4 thêm `EntryState.withTransaction` nhưng không nói nó lấy từ đâu. Có hai ứng viên thật trong form: `debtVal.withTransaction` (dùng ở `lend`/`borrow`) và `paymentVal.withTransaction` (dùng ở `repay`/`collect`, đến ở Task 8). Gộp làm **một**:
+
+```tsx
+// categoryPickerOf chỉ đổi hành vi ở lend/borrow, nên với mọi dạng khác giá trị này
+// vô hại. Gộp một biến để không có hai đường đọc cùng một ý — hai đường thì sẽ lệch.
+// (paymentVal đến ở Task 8; tới đó thay `true` bằng paymentVal.withTransaction.)
+const withTransaction =
+  shapeOf(kind).writes === 'debtPayment' ? true : debtVal.withTransaction
+```
+
+- [ ] **Step 3c: Xóa hẳn prop `continueLabel`**
+
+Nút phụ giờ hard-code `'Lưu và nhập tiếp'` (Step 4), nên prop `continueLabel` thành **code chết**. Nhưng chuỗi `'Tiếp tục'` không nằm trong `TransactionForm` — nó ở [`EntryPage.tsx:243`](../../../src/features/transactions/EntryPage.tsx#L243). Xóa ở **cả hai** file: khai báo prop (`TransactionForm.tsx:185`, `:235`, `:1356`) và chỗ truyền (`EntryPage.tsx:243`).
+
+⚠️ Test cấu trúc phải soát **cả `page`**, không chỉ `form` — nếu chỉ soát `form` thì chuỗi sống trong `EntryPage` mà test vẫn xanh:
+
+```ts
+it('chuoi "Tiep tuc" bien mat o CA HAI file, va prop continueLabel chet han', () => {
+  for (const src of [form, page]) expect(src).not.toMatch(/Tiếp tục/)
+  for (const src of [form, page]) expect(src).not.toMatch(/continueLabel/)
+})
+```
 
 - [ ] **Step 4: Nút Lưu — một layout, nhãn nhắc việc**
 

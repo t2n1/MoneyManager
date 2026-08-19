@@ -82,53 +82,61 @@ function kindMissing(s: EntryState): string | null {
       : 'Còn thiếu: tên lời nhắc — gõ ghi chú, hoặc chọn một danh mục.'
   }
 
+  // Mọi nhánh dưới đây chỉ trả xong PHẦN RIÊNG của dạng (field nào thiếu tên/địa
+  // chỉ). Câu hỏi "có cần danh mục không" KHÔNG được trả lời ở đây nữa — nhánh nào
+  // qua được hết các field riêng thì rơi xuống MỘT cổng danh mục chung ở cuối hàm,
+  // đọc thẳng từ bảng. Trước đây `between` và bốn case còn lại `return null` ngay
+  // khi xong phần riêng, nên cổng danh mục chung không bao giờ được gọi tới cho
+  // chúng — "không cần danh mục" là do hardcode, trùng đúng bảng chỉ vì tình cờ.
   if (s.kind === 'between') {
     if (!s.toAccountId) return 'Còn thiếu: tài khoản ĐẾN.'
     if (s.toAccountId === s.accountId) return 'Tài khoản đến đang trùng tài khoản nguồn.'
     if (s.crossCurrency && s.toAmount <= 0) return 'Còn thiếu: số tiền nhận được.'
-    return null
-  }
-
-  switch (s.kind) {
-    case 'split': {
-      const { split } = s
-      if (split.others <= 0)
-        return split.settle === 'now'
-          ? 'Còn thiếu: phần người khác trả lại.'
-          : 'Còn thiếu: phần người khác nợ lại.'
-      if (split.settle === 'later') {
-        if (split.others > s.amount)
-          return 'Phần người khác nợ đang lớn hơn tổng — giảm bớt lại.'
-        if (!split.counterparty.trim()) return 'Còn thiếu: tên người nợ mình (ô "Ai nợ mình").'
-        if (!s.hasCategory) return 'Còn thiếu: chọn danh mục ở lưới phía trên.'
-        return null
+  } else {
+    switch (s.kind) {
+      case 'split': {
+        const { split } = s
+        if (split.others <= 0)
+          return split.settle === 'now'
+            ? 'Còn thiếu: phần người khác trả lại.'
+            : 'Còn thiếu: phần người khác nợ lại.'
+        if (split.settle === 'later') {
+          if (split.others > s.amount)
+            return 'Phần người khác nợ đang lớn hơn tổng — giảm bớt lại.'
+          if (!split.counterparty.trim()) return 'Còn thiếu: tên người nợ mình (ô "Ai nợ mình").'
+          break // danh mục: rơi xuống cổng chung — settle 'later' luôn cần (splitNeedsCategory).
+        }
+        if (split.receivedAccountId && !s.splitBackAccountIds.includes(split.receivedAccountId))
+          return 'Ví "Nhận lại vào" không còn hợp lệ — chọn lại.'
+        if (split.others === s.amount && !split.receivedAccountId)
+          return 'Người kia trả đủ vào chính ví đã trả → không có gì để ghi. Chọn ví khác ở "Nhận lại vào", hoặc bấm Bỏ nếu không cần ghi.'
+        break
       }
-      if (splitNeedsCategory(s) && !s.hasCategory)
-        return 'Còn thiếu: chọn danh mục ở lưới phía trên.'
-      if (split.receivedAccountId && !s.splitBackAccountIds.includes(split.receivedAccountId))
-        return 'Ví "Nhận lại vào" không còn hợp lệ — chọn lại.'
-      if (split.others === s.amount && !split.receivedAccountId)
-        return 'Người kia trả đủ vào chính ví đã trả → không có gì để ghi. Chọn ví khác ở "Nhận lại vào", hoặc bấm Bỏ nếu không cần ghi.'
-      return null
+      case 'lend':
+      case 'borrow':
+        if (!s.debt.counterparty.trim())
+          return s.kind === 'borrow'
+            ? 'Còn thiếu: tên chủ nợ (mình nợ ai).'
+            : 'Còn thiếu: tên người vay (ai nợ mình).'
+        break
+      case 'family':
+      case 'ownvn':
+        if (s.kind === 'ownvn' && !s.remit.destId)
+          return 'Còn thiếu: chọn tài khoản VND nhận tiền.'
+        if (s.remit.received <= 0) return 'Còn thiếu: số nhận (VND).'
+        break
     }
-    case 'lend':
-    case 'borrow':
-      return s.debt.counterparty.trim()
-        ? null
-        : s.kind === 'borrow'
-          ? 'Còn thiếu: tên chủ nợ (mình nợ ai).'
-          : 'Còn thiếu: tên người vay (ai nợ mình).'
-    case 'family':
-    case 'ownvn':
-      if (s.kind === 'ownvn' && !s.remit.destId)
-        return 'Còn thiếu: chọn tài khoản VND nhận tiền.'
-      if (s.remit.received <= 0) return 'Còn thiếu: số nhận (VND).'
-      return null
   }
 
-  // Chỉ đòi danh mục ở dạng CÓ lưới. Trước đây ba chế độ đặc biệt có ba hành vi
-  // khác nhau cho cùng phần tử này và không phát biểu được quy tắc nào.
-  if (categoryPickerOf(s.kind, s.withTransaction) === 'user' && !s.hasCategory) {
+  // MỘT cổng danh mục cho mọi dạng — hai điều kiện gộp lại:
+  // 1. Bảng nói dạng này có lưới danh mục hay không (categoryPickerOf).
+  // 2. Riêng Trả hộ: có lưới không có nghĩa đã cần — người kia trả đủ ngay tại chỗ
+  //    (`splitNeedsCategory` = false) thì phần chi của MÌNH bằng 0, không có gì để
+  //    xếp vào danh mục nào. Thêm dạng mới thì sửa bảng entryShape, không sửa hàm này.
+  const needsCategory =
+    categoryPickerOf(s.kind, s.withTransaction) === 'user' &&
+    (s.kind !== 'split' || splitNeedsCategory(s))
+  if (needsCategory && !s.hasCategory) {
     return s.categoryGridEmpty
       ? 'Loại này chưa có danh mục nào — tạo ở Cài đặt → Danh mục.'
       : 'Còn thiếu: chọn danh mục ở lưới phía trên.'

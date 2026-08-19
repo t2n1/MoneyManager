@@ -187,11 +187,23 @@ describe('gate doc kind, khong doc role', () => {
   })
 
   it('dang khong co luoi danh muc thi KHONG doi chon danh muc', () => {
-    // family/lend/borrow/between/ownvn: categoryPicker khac 'user' → luoi an, nen
-    // "chon danh muc o luoi phia tren" la cau vo nghia (khong co luoi nao).
+    // Phai dien DU field rieng cua tung dang truoc khi kiem cong danh muc — neu
+    // khong, nhanh rieng cua dang do tra loi som (thieu ten/dia chi) va test "qua"
+    // vi mot ly do khac, khong phai vi cong danh muc thuc su duoc doc toi. (Ban dau
+    // review chi ra ban cu chinh la lam vay: bo trong het field rieng, nen 5 dang
+    // nay chua bao gio roi toi dong categoryPickerOf o cuoi ham.)
+    const filled: Record<'family' | 'lend' | 'borrow' | 'between' | 'ownvn', Partial<EntryState>> = {
+      family: { remit: { ...initialRemit(), received: 1_600_000 } },
+      lend: { debt: { ...initialDebt(), counterparty: 'Minh' } },
+      borrow: { debt: { ...initialDebt(), counterparty: 'Minh' } },
+      between: { toAccountId: 'a2' },
+      ownvn: { remit: { ...initialRemit(), kind: 'transfer', destId: 'vnd1', received: 1_600_000 } },
+    }
     for (const kind of ['family', 'lend', 'borrow', 'between', 'ownvn'] as const) {
-      const g = entryGate(st({ kind, amount: 1000, hasCategory: false }))
-      expect(g.missing).not.toMatch(/chọn danh mục/)
+      const g = entryGate(st({ kind, amount: 1000, hasCategory: false, ...filled[kind] }))
+      // canSave true chứng minh KHÔNG có gì thiếu — kể cả danh mục — chứ không chỉ
+      // "câu thiếu không nhắc chữ danh mục" (câu null thì .toMatch cũng lỗi).
+      expect(g.canSave).toBe(true)
     }
   })
 
@@ -200,6 +212,29 @@ describe('gate doc kind, khong doc role', () => {
       const g = entryGate(st({ kind, amount: 1000, hasCategory: false }))
       expect(g.missing).toMatch(/chọn danh mục/)
     }
+  })
+
+  it('tra ho: doi danh muc theo splitNeedsCategory (phan minh), khong theo luat rieng', () => {
+    // Phan minh > 0 (chua tra du cho nguoi kia) → van la chi tieu cua minh, can danh muc.
+    const needsCat = entryGate(
+      st({
+        kind: 'split',
+        hasCategory: false,
+        split: { ...initialSplit(), others: 400, settle: 'now' },
+      }),
+    )
+    expect(needsCat.missing).toMatch(/chọn danh mục/)
+
+    // Nguoi kia tra du ngay tai cho (others === amount) → phan minh = 0, khong can danh muc.
+    const noCat = entryGate(
+      st({
+        kind: 'split',
+        hasCategory: false,
+        split: { ...initialSplit(), others: 1_000, settle: 'now', receivedAccountId: 'a9' },
+        splitBackAccountIds: ['a9'],
+      }),
+    )
+    expect(noCat.canSave).toBe(true)
   })
 
   it('nhan o tien trong cau thieu lay tu bang, khong hard-code', () => {

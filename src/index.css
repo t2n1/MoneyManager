@@ -283,12 +283,11 @@
   --state-bad-border: #682c31;
   --state-bad-fg: #f0b6b8;
 
-  /* Giá trị chốt trong §4.6. Đo thật: chữ trên nút Lưu bị khoá 3,55:1 (opacity-40 trên
-     nền accent chỉ ~2,4:1), phím phép tính bị khoá 2,32:1 trên track. Cả hai là control
-     BỊ KHOÁ nên không thuộc phạm vi 1.4.3 — con số ghi ra để lần sau ai đổi thì biết
-     mình đang đứng ở đâu, không phải để tuyên bố đạt chuẩn. */
+  /* #6b8f78 trên #0d3a1d chỉ 3,55:1 — trượt AA cho chữ 16px semibold (cần 4,5).
+     #7fae8e cho 5,09:1. Không có ngoại lệ contrast cho control vô hiệu.
+     (Light hiện green-700 trên green-100 = 4,57:1 — đạt nhưng chỉ dư 0,07.) */
   --accent-muted-bg: #0d3a1d;
-  --accent-muted-fg: #6b8f78;
+  --accent-muted-fg: #7fae8e;
   --fg-disabled: #4a5460;
 
   /* ĐẢO chiều như --fg-muted. Trên thang 1a: page 11,56:1 · chrome 11,30 · surface

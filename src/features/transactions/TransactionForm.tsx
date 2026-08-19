@@ -425,11 +425,6 @@ export function TransactionForm({
   const crossCurrency = kind === 'between' && !!toAccountId && dstCurrency !== srcCurrency
   /** Ô "+ Phí" — chỉ chuyển khoản giữa ví của tôi (các dạng khác có ô phí riêng). */
   const showTransferFee = kind === 'between' && !!onSubmitWithFee
-  // Có nhiều ô tiền cùng nhận NumPad (CK xuyên tệ, hoặc dạng có ô tiền phụ)
-  // → hiện viền ô đang chọn để biết numpad gõ vào đâu.
-  const multiAmount =
-    crossCurrency || shape.roleSeed.role !== 'none' || shape.writes === 'debtPayment'
-
   // Gợi ý cộng dồn: khoản đang mở cùng chiều + cùng loại tiền với tài khoản đang chọn
   // (khác loại tiền không cộng dồn được nên không đưa vào danh sách).
   const peopleFor = useCallback(
@@ -847,7 +842,13 @@ export function TransactionForm({
     setDigitsFn: (v: string) => void,
     label?: string,
   ) => {
-    const isActive = multiAmount && activeField === field
+    // LUÔN theo `activeField`, không riêng khi màn có nhiều ô tiền (bỏ điều kiện
+    // `multiAmount` cũ): numpad chỉ gõ vào MỘT ô tại một thời điểm, và ô đó chính là
+    // `activeField`, bất kể màn có một hay nhiều ô tiền. Vẽ viền cho một ô không phải
+    // ô numpad đang gõ vào mới là nói dối; còn "chỉ một ô tiền → khỏi cần vẽ" là bỏ sót
+    // đúng lúc người dùng mới mở màn và ô CHÍNH đang là đích gõ (mặc định activeField
+    // = 'main') mà không có gì trên màn nói cho họ biết điều đó.
+    const isActive = activeField === field
     // `outline` chứ không `ring` (§4.6): ring của Tailwind vẽ bằng box-shadow, mà 1a bỏ
     // hẳn shadow — giữ ring là giữ đúng một cái bóng sót lại trên màn. outline cũng
     // không chiếm chỗ trong bố cục nên hai ô tiền không xê khi đổi ô đang gõ.
@@ -858,6 +859,14 @@ export function TransactionForm({
     const inputValue = result && result !== 0 ? formatMoney(result, currency) : ''
     // Chưa nhập gì (0 và không có phép tính) → làm mờ như gợi ý, tránh nhầm là đã có số
     const isEmpty = !showExpr && (result ?? 0) === 0
+    // Tách ký hiệu tiền (¥ / ₫ / $ …, gộp cả dấu trừ nếu có) ra khỏi phần số để làm mờ
+    // riêng — một ô nhập thật không tô cùng mực cho đơn vị tiền và con số người ta đang
+    // gõ. Chỉ bóc phần ĐẦU/CUỐI của chuỗi hiển thị: ở dạng biểu thức (nhiều số hạng, mỗi
+    // số hạng tự mang ký hiệu qua formatExpr) chỉ số hạng đầu/cuối bị bóc — đủ để ô đọc
+    // như "đang gõ" mà không cần viết một bộ phân tích cú pháp biểu thức riêng.
+    const leadSign = mobileText.match(/^[^\d]+/)?.[0] ?? ''
+    const trailSign = mobileText.match(/[^\d]+$/)?.[0] ?? ''
+    const body = mobileText.slice(leadSign.length, mobileText.length - trailSign.length)
     return (
       <div className="flex flex-col gap-0.5">
         {label && <span className="px-1 text-xs text-fg-muted">{label}</span>}
@@ -872,7 +881,27 @@ export function TransactionForm({
             showExpr ? 'text-xl' : 'text-[1.875rem]'
           } ${isEmpty ? 'text-fg-muted' : amountColor} ${ring} lg:hidden`}
         >
-          {mobileText}
+          {leadSign && (
+            <span data-currency-sign className="text-fg-muted">
+              {leadSign}
+            </span>
+          )}
+          {body}
+          {isActive && (
+            // Caret giả: ô này là <button>, không phải input thật, nên trình duyệt
+            // không tự vẽ con trỏ nháy — mà đây chính là ô numpad app đang gõ vào, nên
+            // vẫn cần tín hiệu đó. `bg-current` ăn theo mực của số (accent lúc có tiền,
+            // fg-muted lúc rỗng) để không lệch tông với chữ nó đứng cạnh.
+            <span
+              aria-hidden
+              className="ml-0.5 inline-block h-[1.1em] w-px animate-pulse bg-current align-middle"
+            />
+          )}
+          {trailSign && (
+            <span data-currency-sign className="text-fg-muted">
+              {trailSign}
+            </span>
+          )}
         </button>
         {showExpr && result !== null && (
           <span className="px-1 text-right text-sm text-fg-muted lg:hidden">

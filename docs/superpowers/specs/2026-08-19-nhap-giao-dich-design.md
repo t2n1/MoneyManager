@@ -387,9 +387,19 @@ Chữ "nhắc" chỉ xuất hiện ở **đúng một chỗ**: ô tích "Nhắc 
 `useRates()` đã có tỷ giá, chưa ai dùng ở màn này — ba ô `Số gửi · Phí · Số nhận (VND)`
 đang để trắng cho người dùng tự nhân tay.
 
-Module thuần `remitDerive.ts`: nhập Số gửi + Phí thì suy `≈ ₫4,467,600`, **sửa được** khi
-bên nhận báo số thật, in kèm tỷ giá và giờ cập nhật. Hiện rõ ba dòng: trừ phí còn `¥29,200`
-→ bên nhận nhận `≈ ₫4,467,600`. Dùng lại hàm quy đổi của Tài sản — **không viết lại**.
+Module thuần `remitDerive.ts`: nhập Số gửi thì suy `≈ ₫4,590,000`, **sửa được** khi bên
+nhận báo số thật, in kèm tỷ giá và giờ cập nhật. Hiện rõ hai dòng: trừ khỏi tài khoản
+`¥30,800` (số gửi + phí) → bên nhận nhận `≈ ₫4,590,000`. Dùng lại hàm quy đổi của Tài sản —
+**không viết lại**.
+
+> **Sửa 2026-08-20 — bản đầu của mục này dạy sai phép tính.** Nó viết "trừ phí còn `¥29,200`
+> → `≈ ₫4,467,600`", tức coi ô "Số gửi" là số GỘP. Không phải: quy ước của app là ô đó giữ số
+> RÒNG. `roleSave.ts` ghi `const amount = base.amount + v.fee` ("amount = số gửi + phí"), nên
+> `base.amount` — cái mà ô "Số gửi" chuyền vào — CHÍNH LÀ số gửi; `remittance/aggregate.ts`
+> lấy lại nó bằng `amount − fee`; và bản demo ghi `amount: 30_000`, `remit_fee_jpy: 500`,
+> `remit_received_vnd: 29_500 × 166`. Quan hệ chốt: **received = số gửi × rate**, `30.000 ×
+> 153 = 4.590.000`. Trừ phí lần nữa lúc suy là trừ HAI LẦN — người nhận hụt đúng `phí ×
+> rate`, và ở dạng `ownvn` thì `to_amount: v.received` làm chính ví VND bị ghi thiếu.
 
 Cột phụ thêm dải **12 tháng** để thấy chuỗi đều, cùng dữ liệu với khối "Gửi về VN" ở tab
 Dài hạn.

@@ -810,7 +810,13 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // Nên trần này chỉ còn một việc: chặn mọc thêm. Phần nợ THẬT trong đám đó đã tách ra
     // thành luật riêng ở khối ban cứng ("active:scale-95 luôn đi kèm transition") — 51/73
     // nút thiếu `transition`, đúng cái mà comment của hai primitive dự đoán sẽ quên.
-    { needle: 'active:scale-95', max: 81, use: '<IconButton> / <ActionButton>' },
+    //
+    // 82 (2026-08-19, PR 3 dung lai man Nhap): +1 cho chip Dạng trong DirectionTabs.
+    // KHÔNG gộp được vào <IconButton>/<ActionButton>: cả hai khai `min-h-11` (44px) ở
+    // BASE, mà chip Dạng cố ý cao 32px — miễn trừ vùng chạm cấp hai đã ghi ngay tại
+    // DirectionTabs.tsx (luôn có ít nhất một chip đang bật). Ép qua primitive là đổi
+    // chiều cao, đúng lỗi mà nhóm "DÁNG RIÊNG" ở trên đã né.
+    { needle: 'active:scale-95', max: 82, use: '<IconButton> / <ActionButton>' },
     // 28 chứ không 26: lượt sửa vùng chạm 2026-08-11 đưa BA công tắc role="switch"
     // (AssetGroupsPage, DebtPaymentSheet, roleFields) về đúng khuôn ba công tắc đã
     // đúng từ trước — vùng chạm 44×44 ở <button>, đường ray nhỏ ở <span> bên trong.
@@ -822,7 +828,13 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // FundHoldingsSection bị xoá — vùng chạm viết tay của chúng gom về hai tab của
     // /invest, nơi không còn lặp lại ở khu danh mục cũ. Hạ trần theo đúng quy ước ở
     // thông điệp lỗi của chính phép thử này.
-    { needle: 'min-h-11 min-w-11', max: 22, use: '<IconButton> / iconButtonClass()' },
+    //
+    // 23 (2026-08-19, task 8 dung lai man Nhap): +1 cho công tắc "Có chuyển tiền
+    // thật" ở DebtPickerField (repay/collect) — CÙNG khuôn ba công tắc role="switch"
+    // đã đúng ở trên (vùng chạm 44×44 ở <button>, đường ray ở <span> trong), không
+    // phải nợ mới. Không gộp được vào <IconButton>: đây là công tắc mang
+    // role="switch"/aria-checked, không phải một nút-icon.
+    { needle: 'min-h-11 min-w-11', max: 23, use: '<IconButton> / iconButtonClass()' },
     // 85 chu khong 82: lượt chuẩn hoá đã kéo 29 thẻ TỪ dạng `rounded-xl bg-white …
     // dark:bg-gray-900` VÀO dạng này, nên con số tăng mà tổng số thẻ viết tay không
     // đổi. Không phải thêm thẻ mới. Gộp vào <Card> thì hạ tiếp.

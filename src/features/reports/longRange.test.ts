@@ -8,8 +8,10 @@ import {
   longTable,
   monthAverages,
   regimeSplitsComparison,
+  remitMonthlyTotals,
   remitStrip,
   type RangePoint,
+  type RemitLikeTx,
 } from './longRange'
 
 /** Chuỗi tháng liên tục bắt đầu từ `start`, chi lấy từ `expenses`. */
@@ -224,5 +226,69 @@ describe('remitStrip', () => {
     expect(r.sent).toBe(0)
     expect(r.usual).toBe(0)
     expect(r.skippedMonths).toHaveLength(12)
+  })
+})
+
+// remitMonthlyTotals là bước filter/convert/bucket DUY NHẤT dùng chung giữa tab Dài
+// hạn và form Nhập (fix round 1, task 16) — chốt ở đây để hai nơi không lệch lại lần
+// hai, đặc biệt là fallback tiền tài khoản khi account_id không tra ra (đúng chỗ hai
+// bản cũ đã lệch: một bên `?? 'JPY'`, bên kia `?? base`).
+describe('remitMonthlyTotals', () => {
+  const tx = (patch: Partial<RemitLikeTx>): RemitLikeTx => ({
+    is_remittance: true,
+    account_id: 'acc-jpy',
+    amount: 30_000,
+    occurred_on: '2026-03-15',
+    ...patch,
+  })
+  const accounts = [{ id: 'acc-jpy', currency: 'JPY' as const }]
+
+  it('bỏ giao dịch không phải is_remittance', () => {
+    const amountOf = remitMonthlyTotals(
+      [tx({ is_remittance: false })],
+      accounts,
+      'JPY',
+      {},
+      1,
+    )
+    expect(amountOf({ year: 2026, month: 3 })).toBe(0)
+  })
+
+  it('cùng loại tiền với base thì cộng thẳng, không cần rates', () => {
+    const amountOf = remitMonthlyTotals(
+      [tx({ amount: 30_000 }), tx({ amount: 5_000, occurred_on: '2026-03-20' })],
+      accounts,
+      'JPY',
+      {},
+      1,
+    )
+    expect(amountOf({ year: 2026, month: 3 })).toBe(35_000)
+  })
+
+  it('account_id không tra ra tài khoản nào → quy về BASE, không phải JPY cứng', () => {
+    // Đây CHÍNH LÀ điểm hai bản cũ đã lệch nhau: base khác JPY + tài khoản đã xoá.
+    const amountOf = remitMonthlyTotals(
+      [tx({ account_id: 'acc-da-xoa' })],
+      accounts, // không có 'acc-da-xoa' trong danh sách
+      'USD',
+      { USD: 1 }, // JPY→USD giả định 1:1 cho gọn số
+      1,
+    )
+    // Tra không ra tài khoản → coi tiền của nó LÀ base (USD) → convertToBase(from=USD,
+    // base=USD) là no-op, cộng thẳng 30_000, KHÔNG lệch đi qua tỷ giá JPY→USD.
+    expect(amountOf({ year: 2026, month: 3 })).toBe(30_000)
+  })
+
+  it('gộp nhiều tháng, tháng không có gửi trả về 0', () => {
+    const amountOf = remitMonthlyTotals(
+      [tx({ occurred_on: '2026-01-10' }), tx({ occurred_on: '2026-03-05', amount: 10_000 })],
+      accounts,
+      'JPY',
+      {},
+      1,
+    )
+    expect(amountOf({ year: 2026, month: 1 })).toBe(30_000)
+    expect(amountOf({ year: 2026, month: 2 })).toBe(0)
+    expect(amountOf({ year: 2026, month: 3 })).toBe(10_000)
   })
 })

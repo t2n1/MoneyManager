@@ -1,4 +1,4 @@
-import type { DebtDirection, TransactionType } from '../../types/database.types'
+import type { DebtDirection } from '../../types/database.types'
 
 /**
  * "Vai trò đặc biệt" của một lần nhập: ngoài giao dịch thường, form Nhập có thể
@@ -6,7 +6,6 @@ import type { DebtDirection, TransactionType } from '../../types/database.types'
  * (số tiền, tài khoản, ngày, ghi chú) và chỉ thêm vài field riêng.
  */
 export type EntryRole = 'none' | 'split' | 'debt' | 'remit'
-export type SpecialRole = Exclude<EntryRole, 'none'>
 
 /** Người kia đã hoàn tiền chưa — quyết định có sinh khoản cho vay hay không. */
 export type SplitSettle = 'now' | 'later'
@@ -89,38 +88,10 @@ export const initialRemit = (): RemitValue => ({
   service: SERVICES[0],
 })
 
-/**
- * Loại giao dịch dùng để lọc lưới danh mục + màu số tiền theo vai trò.
- * - split: luôn Chi.
- * - debt: Cho vay (owed_to_me) = tiền ra = Chi; Mình nợ (i_owe) = tiền vào = Thu.
- * - remit: không dùng lưới danh mục (trả 'expense' cho màu, danh mục bị ẩn).
- */
-export function roleTxType(role: EntryRole, debt: DebtValue): TransactionType {
-  if (role === 'debt') return debt.direction === 'owed_to_me' ? 'expense' : 'income'
-  return 'expense'
-}
-
-/** Nhãn ô số tiền theo vai trò (null = giữ nhãn mặc định của form). */
-export function roleAmountLabel(role: EntryRole): string | null {
-  switch (role) {
-    case 'split':
-      return 'Tổng đã trả'
-    case 'debt':
-      return 'Số tiền gốc'
-    case 'remit':
-      return 'Số gửi (JPY)'
-    default:
-      return null
-  }
-}
-
-/** Vai trò tự khóa/tự chọn danh mục → ẩn lưới danh mục lớn của form. */
-export function roleHidesCategoryGrid(role: EntryRole): boolean {
-  // Remit tự chọn danh mục "Gửi tiền về VN" (hoặc transfer không danh mục).
-  // Debt tự gán "Cho vay"/"Đi vay" (roleSave) — giao dịch is_debt_flow không vào
-  // báo cáo nên bắt người dùng chọn danh mục chỉ gây hiểu lầm.
-  return role === 'remit' || role === 'debt'
-}
+// Ba hàm dẫn xuất theo vai trò (loại giao dịch · nhãn ô số tiền · có ẩn lưới danh mục)
+// đã chuyển thành BẢNG trong entryShape.ts (`txType`, `amountLabel`, `categoryPicker`).
+// Chúng trả lời ba câu hỏi khác nhau về cùng một khoản, ở ba chỗ khác nhau — nên thêm
+// một dạng là phải nhớ sửa cả ba, và quên một cái thì form hiện đúng mà ghi sai.
 
 /** Ép ?role= từ URL về EntryRole hợp lệ. */
 export function parseRoleParam(v: string | null): EntryRole {

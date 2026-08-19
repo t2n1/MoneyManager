@@ -1,30 +1,31 @@
 // Cổng "được bấm Lưu chưa" + câu "còn thiếu gì" của form Nhập. Thuần, test được.
 //
 // Vì sao gộp: trước đây form có HAI bản luật song song — `canSave` (một biểu thức
-// boolean dài) và `roleMissing` (câu giải thích, chỉ viết cho các vai trò đặc biệt).
+// boolean dài) và câu giải thích chỉ viết riêng cho các vai trò đặc biệt.
 // Hai bản đã lệch nhau đúng như dự đoán: giao dịch thường thiếu danh mục thì nút Lưu
-// mờ mà KHÔNG có dòng nào nói vì sao, còn "Nhắc sau" thì `canSave` đọc cờ thô nên
-// đổi sang tab Thu là nút vẫn ghi "Tạo lời nhắc" và tạo ra một khoản sắp CHI.
+// mờ mà KHÔNG có dòng nào nói vì sao, còn chế độ "khoản chưa xảy ra" thì `canSave` đọc
+// cờ thô nên đổi sang tab Thu là nút vẫn ghi "Tạo lời nhắc" và tạo ra một khoản sắp CHI.
 //
 // Một hàm trả cả hai: đóng được thì đóng, và luôn kèm lý do.
-import type { TransactionType } from '../../types/database.types'
-import type { DebtValue, EntryRole, RemitValue, SplitValue } from './entryRoles'
+import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
+import { categoryPickerOf, shapeOf, type EntryKind } from './entryShape'
+import type { PaymentValue } from './roleSave'
 
 /**
- * "Nhắc sau" có THỰC SỰ hiệu lực hay không.
+ * Chế độ "Sẽ chi" có THỰC SỰ hiệu lực hay không.
  *
- * Cờ thô (`remindLater`) không đủ: nút bật/tắt nó chỉ hiện với khoản CHI thường, nên
- * đổi loại giao dịch hoặc bật một vai trò đặc biệt là cờ còn bật mà không còn cách
+ * Cờ thô (`wantsPlanned`) không đủ: segmented "Đã chi | Sẽ chi" chỉ hiện với khoản CHI
+ * thường (`kind === 'spend'`), nên đổi sang dạng khác là cờ còn bật mà không còn cách
  * nào tắt — nút mang chữ "Tạo lời nhắc" trong khi việc nó làm là chuyện khác.
  */
 export function plannedModeActive(p: {
-  remindLater: boolean
-  /** form có nhận việc tạo lời nhắc không (màn Nhập có, màn Sửa không) */
+  /** cờ THÔ của segmented "Đã chi | Sẽ chi" — cùng tên với state ở TransactionForm. */
+  wantsPlanned: boolean
+  /** form có nhận việc tạo khoản sắp chi không (màn Nhập có, màn Sửa không) */
   canPlan: boolean
-  type: TransactionType
-  role: EntryRole
+  kind: EntryKind
 }): boolean {
-  return p.remindLater && p.canPlan && p.role === 'none' && p.type === 'expense'
+  return p.wantsPlanned && p.canPlan && p.kind === 'spend'
 }
 
 export interface EntryState {
@@ -32,14 +33,19 @@ export interface EntryState {
   amount: number
   /** đã có tài khoản nguồn dùng được */
   hasAccount: boolean
-  type: TransactionType
-  role: EntryRole
-  /** "Nhắc sau" đang hiệu lực — xem `plannedModeActive` */
-  plannedMode: boolean
+  // KHÔNG có `type` ở đây: loại giao dịch là giá trị DẪN XUẤT từ `kind` (bảng
+  // entryShape) — đặt lại nó vào chính cái interface tồn tại để chứng minh `kind` là
+  // đủ thì mở lại đúng đường lệch mà gói này sinh ra để chặn. Không cổng nào dưới đây
+  // đọc nó, và cũng không được đọc.
+  /** Dạng đang chọn — nguồn duy nhất quyết định form đòi gì. Xem entryShape. */
+  kind: EntryKind
+  /** Chỉ lend/borrow dùng: tắt thì không sinh giao dịch nên không có danh mục. */
+  withTransaction: boolean
   hasCategory: boolean
   /** loại đang chọn KHÔNG còn danh mục nào để chọn (đã lưu trữ hết / chưa tạo) */
   categoryGridEmpty: boolean
-  note: string
+  // KHÔNG có `note`: ghi chú là tùy chọn ở cả mười dạng, nên nó không bao giờ là một câu
+  // "còn thiếu" — nhận nó vào đây chỉ mời người sau tưởng cổng có xét tới.
   accountId: string | null
   toAccountId: string | null
   /** chuyển khoản khác loại tiền → phải nhập cả số nhận */
@@ -48,6 +54,8 @@ export interface EntryState {
   split: SplitValue
   debt: DebtValue
   remit: RemitValue
+  /** Chỉ repay/collect dùng: đã chọn khoản nợ nào để trả/thu chưa. */
+  payment: PaymentValue
   /** id các ví hợp lệ ở ô "Nhận lại vào" của Trả hộ */
   splitBackAccountIds: string[]
 }
@@ -58,73 +66,89 @@ export interface EntryGate {
   missing: string | null
 }
 
-const ROLE_AMOUNT_LABEL: Record<Exclude<EntryRole, 'none'>, string> = {
-  split: 'tổng đã trả',
-  debt: 'số tiền gốc',
-  remit: 'số gửi (JPY)',
-}
-
 /** Trả hộ: còn dòng chi nào của mình thì vẫn cần danh mục. */
 export const splitNeedsCategory = (s: Pick<EntryState, 'amount' | 'split'>): boolean =>
   s.split.settle === 'later' || s.amount - s.split.others > 0
 
-function roleMissing(s: EntryState): string | null {
-  if (s.role === 'none') return null
-  if (s.amount <= 0) {
-    // Không .toLowerCase() nhãn gốc: "(JPY)" sẽ thành "(jpy)".
-    return `Còn thiếu: ${ROLE_AMOUNT_LABEL[s.role]}.`
-  }
-  switch (s.role) {
-    case 'split': {
-      const { split } = s
-      if (split.others <= 0)
-        return split.settle === 'now'
-          ? 'Còn thiếu: phần người khác trả lại.'
-          : 'Còn thiếu: phần người khác nợ lại.'
-      if (split.settle === 'later') {
-        if (split.others > s.amount)
-          return 'Phần người khác nợ đang lớn hơn tổng — giảm bớt lại.'
-        if (!split.counterparty.trim()) return 'Còn thiếu: tên người nợ mình (ô "Ai nợ mình").'
-        if (!s.hasCategory) return 'Còn thiếu: chọn danh mục ở lưới phía trên.'
-        return null
-      }
-      if (splitNeedsCategory(s) && !s.hasCategory)
-        return 'Còn thiếu: chọn danh mục ở lưới phía trên.'
-      if (split.receivedAccountId && !s.splitBackAccountIds.includes(split.receivedAccountId))
-        return 'Ví "Nhận lại vào" không còn hợp lệ — chọn lại.'
-      if (split.others === s.amount && !split.receivedAccountId)
-        return 'Người kia trả đủ vào chính ví đã trả → không có gì để ghi. Chọn ví khác ở "Nhận lại vào", hoặc bấm Bỏ nếu không cần ghi.'
-      return null
-    }
-    case 'debt':
-      return s.debt.counterparty.trim()
-        ? null
-        : s.debt.direction === 'i_owe'
-          ? 'Còn thiếu: tên chủ nợ (mình nợ ai).'
-          : 'Còn thiếu: tên người vay (ai nợ mình).'
-    case 'remit':
-      if (s.remit.kind === 'transfer' && !s.remit.destId)
-        return 'Còn thiếu: chọn tài khoản VND nhận tiền.'
-      if (s.remit.received <= 0) return 'Còn thiếu: số nhận (VND).'
-      return null
-  }
-}
-
-function normalMissing(s: EntryState): string | null {
-  if (s.plannedMode) {
-    // Lời nhắc chỉ cần một cái TÊN — ghi chú hoặc danh mục. Không đòi số tiền: một
-    // lời nhắc có thể là "tìm nhà mới", việc có thật mà chưa ai đoán nổi giá.
-    return s.note.trim() || s.hasCategory
-      ? null
-      : 'Còn thiếu: tên lời nhắc — gõ ghi chú, hoặc chọn một danh mục.'
-  }
-  if (s.type === 'transfer') {
+/**
+ * Phần "còn thiếu gì" riêng của TỪNG dạng, sau khi tiền + tài khoản đã đủ.
+ *
+ * Trước đây đây là HAI hàm (`normalMissing` cho giao dịch thường, `roleMissing` cho
+ * ba vai trò đặc biệt) chọn nhau bằng `role`. Gộp một vì cùng một câu hỏi — "dạng
+ * này còn thiếu field riêng nào?" — chỉ có một câu trả lời đúng cho mỗi dạng, đọc
+ * thẳng từ `kind`, không cần biết dạng đó "là" giao dịch thường hay vai trò gì.
+ */
+function kindMissing(s: EntryState): string | null {
+  // Mọi nhánh dưới đây chỉ trả xong PHẦN RIÊNG của dạng (field nào thiếu tên/địa
+  // chỉ). Câu hỏi "có cần danh mục không" KHÔNG được trả lời ở đây nữa — nhánh nào
+  // qua được hết các field riêng thì rơi xuống MỘT cổng danh mục chung ở cuối hàm,
+  // đọc thẳng từ bảng. Trước đây `between` và bốn case còn lại `return null` ngay
+  // khi xong phần riêng, nên cổng danh mục chung không bao giờ được gọi tới cho
+  // chúng — "không cần danh mục" là do hardcode, trùng đúng bảng chỉ vì tình cờ.
+  //
+  // Cổng danh mục LUÔN hỏi SAU CÙNG, cho mọi dạng — nó chỉ thua các field riêng
+  // NGAY TRÊN nó (đứng trước trong code), không thua field riêng của phần tử nào
+  // khác. Với split cụ thể: ví "Nhận lại vào" không hợp lệ giờ báo trước thiếu
+  // danh mục (trước đây ngược lại) — quyết định có chủ đích, xem test "trả hộ: ví
+  // nhận lại sai lấn thiếu danh mục" ở file test.
+  if (s.kind === 'between') {
     if (!s.toAccountId) return 'Còn thiếu: tài khoản ĐẾN.'
     if (s.toAccountId === s.accountId) return 'Tài khoản đến đang trùng tài khoản nguồn.'
     if (s.crossCurrency && s.toAmount <= 0) return 'Còn thiếu: số tiền nhận được.'
-    return null
+  } else {
+    switch (s.kind) {
+      case 'split': {
+        const { split } = s
+        if (split.others <= 0)
+          return split.settle === 'now'
+            ? 'Còn thiếu: phần người khác trả lại.'
+            : 'Còn thiếu: phần người khác nợ lại.'
+        if (split.settle === 'later') {
+          if (split.others > s.amount)
+            return 'Phần người khác nợ đang lớn hơn tổng — giảm bớt lại.'
+          if (!split.counterparty.trim()) return 'Còn thiếu: tên người nợ mình (ô "Ai nợ mình").'
+          break // danh mục: rơi xuống cổng chung — settle 'later' luôn cần (splitNeedsCategory).
+        }
+        if (split.receivedAccountId && !s.splitBackAccountIds.includes(split.receivedAccountId))
+          return 'Ví "Nhận lại vào" không còn hợp lệ — chọn lại.'
+        if (split.others === s.amount && !split.receivedAccountId)
+          // "chọn dạng Chi thường", KHÔNG "bấm Bỏ": nút "Bỏ" nằm trên banner vai trò, và
+          // banner đó đã bị bỏ cùng lúc với dropdown "loại đặc biệt". Đường ra khỏi dạng
+          // Trả hộ giờ là hàng Dạng, nên câu nhắc phải chỉ vào thứ đang có trên màn.
+          return 'Người kia trả đủ vào chính ví đã trả → không có gì để ghi. Chọn ví khác ở "Nhận lại vào", hoặc chọn dạng Chi thường nếu không cần ghi.'
+        break
+      }
+      case 'lend':
+      case 'borrow':
+        if (!s.debt.counterparty.trim())
+          return s.kind === 'borrow'
+            ? 'Còn thiếu: tên chủ nợ (mình nợ ai).'
+            : 'Còn thiếu: tên người vay (ai nợ mình).'
+        break
+      case 'family':
+      case 'ownvn':
+        if (s.kind === 'ownvn' && !s.remit.destId)
+          return 'Còn thiếu: chọn tài khoản VND nhận tiền.'
+        if (s.remit.received <= 0) return 'Còn thiếu: số nhận (VND).'
+        break
+      case 'repay':
+      case 'collect':
+        // Chưa chọn khoản nợ → không có gì để suy chiều bút toán (saveDebtPayment
+        // ném lỗi nếu cứ lưu), nên chặn Ở ĐÂY, trước cả cổng danh mục chung.
+        if (!s.payment.debtId) return 'Còn thiếu: chọn khoản nợ.'
+        break
+    }
   }
-  if (!s.hasCategory) {
+
+  // MỘT cổng danh mục cho mọi dạng — hai điều kiện gộp lại:
+  // 1. Bảng nói dạng này có lưới danh mục hay không (categoryPickerOf).
+  // 2. Riêng Trả hộ: có lưới không có nghĩa đã cần — người kia trả đủ ngay tại chỗ
+  //    (`splitNeedsCategory` = false) thì phần chi của MÌNH bằng 0, không có gì để
+  //    xếp vào danh mục nào. Thêm dạng mới thì sửa bảng entryShape, không sửa hàm này.
+  const needsCategory =
+    categoryPickerOf(s.kind, s.withTransaction) === 'user' &&
+    (s.kind !== 'split' || splitNeedsCategory(s))
+  if (needsCategory && !s.hasCategory) {
     return s.categoryGridEmpty
       ? 'Loại này chưa có danh mục nào — tạo ở Cài đặt → Danh mục.'
       : 'Còn thiếu: chọn danh mục ở lưới phía trên.'
@@ -136,15 +160,19 @@ function normalMissing(s: EntryState): string | null {
  * Đủ điều kiện lưu chưa, và thiếu gì. `saving` KHÔNG xét ở đây (chuyện của UI).
  *
  * Thứ tự câu trả lời đi theo thứ tự mắt đọc form: tiền → tài khoản → phần riêng của
- * loại/vai trò. Nói MỘT thứ thiếu mỗi lần, không liệt kê cả danh sách.
+ * dạng. Nói MỘT thứ thiếu mỗi lần, không liệt kê cả danh sách.
  */
 export function entryGate(s: EntryState): EntryGate {
+  const shape = shapeOf(s.kind)
   const missing = ((): string | null => {
-    if (!s.plannedMode && s.amount <= 0) {
-      return s.role === 'none' ? 'Còn thiếu: số tiền.' : roleMissing(s)
+    if (s.amount <= 0) {
+      // .toLowerCase() chỉ khi nhãn ĐÚNG LÀ "Số tiền" — đó là danh từ chung giữa câu
+      // ("còn thiếu số tiền"), còn các nhãn khác ("Tổng đã trả", "Số gửi"...) là tên
+      // field riêng, viết hoa đúng như trên ô nhập.
+      return `Còn thiếu: ${shape.amountLabel === 'Số tiền' ? 'số tiền' : shape.amountLabel}.`
     }
     if (!s.hasAccount) return 'Còn thiếu: tài khoản.'
-    return s.role === 'none' ? normalMissing(s) : roleMissing(s)
+    return kindMissing(s)
   })()
   return { canSave: missing === null, missing }
 }

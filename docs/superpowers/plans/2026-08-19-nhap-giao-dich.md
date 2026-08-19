@@ -407,7 +407,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ## Task 2: `SegmentedControl` thêm `size: 'lg'` (44px)
 
-Ô segmented đang **42px** (đo được), B22 đòi **đúng 44px** vì đây là control chính của màn. Nhưng `md` đang được **11 file khác** dùng — sửa `md` là đổi chiều cao ở cả 11 màn để chữa một màn.
+Ô segmented đang **42px** (đo được), B22 đòi **tối thiểu 44px** vì đây là control chính của màn, không nằm trong danh sách miễn trừ vùng chạm. `py-3` cho **46px** (xem chú thích trong code — số học phải cộng cả viền), thoả sàn với 2px dư. Nhưng `md` đang được **11 file khác** dùng — sửa `md` là đổi chiều cao ở cả 11 màn để chữa một màn.
 
 **Files:**
 - Modify: `src/components/ui/SegmentedControl.tsx:39-44`
@@ -577,7 +577,7 @@ export function DirectionTabs({
   return (
     <div className="flex flex-col gap-1.5">
       <SegmentedControl
-        // size lg: ô đúng 44px. Đây là control chính của màn, không nằm trong danh
+        // size lg: ô 46px, trên sàn vùng chạm 44px. Đây là control chính của màn, không nằm trong danh
         // sách miễn trừ vùng chạm.
         size="lg"
         label="Hướng tiền"
@@ -679,7 +679,7 @@ Chạy `so-chi-tieu-demo`, mở `/entry`, viewport `360×780`, dán vào console
 })()
 ```
 
-Kỳ vọng: `soTablist: 1` · `huong: ["Tiền ra","Tiền vào","Đổi chỗ"]` · `oSegmentedCao: 44` · `chipTienRa` đủ 5 chip · `chipCao: 32` · `hangChipWrap: "wrap"` · `chipNowrap: "nowrap"` · `soDongHangChip: 2` (tiền ra 376px > chỗ 336px) · `aria…` chứa `"tính là chi tiêu"`.
+Kỳ vọng: `soTablist: 1` · `huong: ["Tiền ra","Tiền vào","Đổi chỗ"]` · `oSegmentedCao: 46` · `chipTienRa` đủ 5 chip · `chipCao: 32` · `hangChipWrap: "wrap"` · `chipNowrap: "nowrap"` · `soDongHangChip: 2` (tiền ra 376px > chỗ 336px) · `aria…` chứa `"tính là chi tiêu"`.
 
 Rồi bấm sang **Tiền vào**: `chipTienRa` phải thành 3 chip và `soDongHangChip: 1`.
 
@@ -1021,10 +1021,16 @@ describe('TagPicker khong bi gac boi dang nao', () => {
 })
 
 describe('nut Luu mot layout', () => {
-  it('nhan phu la "Luu va nhap tiep", khong phai "Tiep tuc"', () => {
+  it('nhan phu la "Luu va nhap tiep"', () => {
     // "Tiep tuc" khong noi tiep cai gi.
     expect(form).toMatch(/Lưu và nhập tiếp/)
-    expect(form).not.toMatch(/'Tiếp tục'|"Tiếp tục"/)
+  })
+
+  it('chuoi "Tiep tuc" bien mat o CA HAI file, va prop continueLabel chet han', () => {
+    // Chuoi do nam o EntryPage.tsx:243, KHONG o TransactionForm — soat mot file
+    // thi test xanh ma chuoi van song. Xem Step 3c.
+    for (const src of [form, page]) expect(src).not.toMatch(/Tiếp tục/)
+    for (const src of [form, page]) expect(src).not.toMatch(/continueLabel/)
   })
 })
 ```
@@ -1045,12 +1051,76 @@ Expected: FAIL — hầu hết đỏ (còn `Đặc biệt`, còn `TYPE_TABS`, c�
 ```
 
 4. `switchKind(next)` giữ đúng nếp `switchType` cũ: đổi dạng thì gieo lại danh mục theo `lastCategoryFor`, giữ số tiền và tài khoản.
-5. Mọi `activeRole === 'none' &&` trong JSX đổi sang gác bằng bảng. Ba chỗ chính:
-   - lưới danh mục: `categoryPickerOf(kind, withTransaction) === 'user'`
-   - ô hoàn tiền: `shapeOf(kind).txType === 'expense' && !plannedMode`
-   - `TagPicker`: **bỏ hẳn điều kiện** — hiện ở mọi dạng (Task 5 đã mở đường ống)
-6. Nhãn ô tiền: `shapeOf(kind).amountLabel`, thay `roleAmountLabel(activeRole)`.
-7. `AMOUNT_COLOR` tra theo `shapeOf(kind).txType ?? 'transfer'`.
+5. **`activeRole` biến mất hoàn toàn — có `grep -c` = 29 chỗ, không phải "vài chỗ".** Test cấu trúc chốt `expect(form).not.toMatch(/activeRole/)`, nên phải chuyển hết. Bảng cổng đầy đủ, cổng cũ → điều kiện mới:
+
+| Dòng | Cổng cũ | Điều kiện mới |
+| --- | --- | --- |
+| `:311` | `const activeRole = enableRoles ? role : 'none'` | **xóa** — `kind` là state |
+| `:339` | `setTypeAndCat(roleTxType(activeRole, debtVal))` | `switchKind` gieo lại theo `shapeOf(kind).txType` |
+| `:358` | `activeRole === 'remit'` (lọc ví JPY) | `shapeOf(kind).roleSeed.role === 'remit'` |
+| `:393` | `type === 'transfer' && activeRole === 'none' && …` | `kind === 'between' && !!onSubmitWithFee` (bỏ `repeat`) |
+| `:397` | `crossCurrency \|\| activeRole === 'split'\|'remit'\|'debt'` | `crossCurrency \|\| shapeOf(kind).roleSeed.role !== 'none' \|\| shapeOf(kind).writes === 'debtPayment'` |
+| `:445` | `roleHidesCategoryGrid(activeRole)` | `categoryPickerOf(kind, withTransaction) !== 'user'` |
+| `:477`,`:485` | `role: activeRole` | `kind`, `withTransaction` (xem Step 3b) |
+| `:635`,`:647`,`:648` | dispatch theo `activeRole` | dispatch theo `shapeOf(kind).roleSeed.role`; thêm nhánh `writes === 'debtPayment'` (Task 8) |
+| `:865`,`:871` | `roleMeta` + banner vai trò | **xóa cả banner** — hàng Dạng đã nói dạng nào đang bật, banner là tầng thứ hai nói cùng một điều |
+| `:953`–`:967` | ba nhánh segmented | `<DirectionTabs kind={kind} onChange={switchKind} />` |
+| `:982` | `roleAmountLabel(activeRole) ?? …` | `shapeOf(kind).amountLabel` |
+| `:1037` | `… && activeRole === 'none' && type === 'expense'` | segmented `Đã chi\|Sẽ chi` (Task 10) — task này chỉ bỏ nút chuông |
+| `:1054` | dropdown Lặp lại | **xóa** (Task 10 thay bằng dòng dẫn) |
+| `:1124` | `activeRole === 'remit' && pickerAccounts.length === 0` | `shapeOf(kind).roleSeed.role === 'remit' && …` |
+| **`:1129`** | `activeRole === 'split'` → `SplitFields` | `kind === 'split'` |
+| **`:1143`** | `activeRole === 'debt'` → `DebtFields` | `kind === 'lend' \|\| kind === 'borrow'` |
+| **`:1155`** | `activeRole === 'remit'` → `RemitFields` | `kind === 'family' \|\| kind === 'ownvn'` |
+| `:1259` | nút "Lưu mẫu" | `shapeOf(kind).roleSeed.role === 'none' && shapeOf(kind).writes === 'transaction'` |
+| `:1281` | `activeRole === 'none' && <TagPicker>` | **bỏ hẳn điều kiện** — hiện ở mọi dạng (Task 5 đã mở đường ống) |
+| `:1286`,`:1306` | `type === 'expense' && activeRole === 'none'` | `shapeOf(kind).txType === 'expense' && !plannedMode` |
+| `:1348` | nhánh một nút / hai nút | **xóa nhánh** — luôn hai nút (Step 4) |
+
+⚠️ **Ba dòng in đậm là chỗ nguy hiểm nhất của cả plan.** Chúng quyết định **field nào hiện ở dạng nào**, và test cấu trúc **không bắt được** nếu map sai — nó chỉ đếm chuỗi `activeRole`. Nên thêm vào `entryStructure.test.ts`:
+
+```ts
+describe('ba cong role-field gac dung dang', () => {
+  it('SplitFields chi o split, DebtFields o lend|borrow, RemitFields o family|ownvn', () => {
+    // Map sai o day la bug HANH VI im lang: field hien sai dang, dung loai loi ma
+    // ca goi ban giao sinh ra de chua. Test dem chuoi activeRole khong bat duoc.
+    expect(form).toMatch(/kind === 'split'\s*&&\s*\(?\s*<SplitFields/)
+    expect(form).toMatch(/kind === 'lend' \|\| kind === 'borrow'/)
+    expect(form).toMatch(/kind === 'family' \|\| kind === 'ownvn'/)
+  })
+
+  it('khong con banner vai tro — hang Dang da noi dang nao dang bat', () => {
+    expect(form).not.toMatch(/roleMeta/)
+  })
+})
+```
+
+6. `AMOUNT_COLOR` tra theo `shapeOf(kind).txType ?? 'transfer'`.
+
+- [ ] **Step 3b: `withTransaction` — một giá trị dẫn xuất, không hai đường đọc**
+
+Task 4 thêm `EntryState.withTransaction` nhưng không nói nó lấy từ đâu. Có hai ứng viên thật trong form: `debtVal.withTransaction` (dùng ở `lend`/`borrow`) và `paymentVal.withTransaction` (dùng ở `repay`/`collect`, đến ở Task 8). Gộp làm **một**:
+
+```tsx
+// categoryPickerOf chỉ đổi hành vi ở lend/borrow, nên với mọi dạng khác giá trị này
+// vô hại. Gộp một biến để không có hai đường đọc cùng một ý — hai đường thì sẽ lệch.
+// (paymentVal đến ở Task 8; tới đó thay `true` bằng paymentVal.withTransaction.)
+const withTransaction =
+  shapeOf(kind).writes === 'debtPayment' ? true : debtVal.withTransaction
+```
+
+- [ ] **Step 3c: Xóa hẳn prop `continueLabel`**
+
+Nút phụ giờ hard-code `'Lưu và nhập tiếp'` (Step 4), nên prop `continueLabel` thành **code chết**. Nhưng chuỗi `'Tiếp tục'` không nằm trong `TransactionForm` — nó ở [`EntryPage.tsx:243`](../../../src/features/transactions/EntryPage.tsx#L243). Xóa ở **cả hai** file: khai báo prop (`TransactionForm.tsx:185`, `:235`, `:1356`) và chỗ truyền (`EntryPage.tsx:243`).
+
+⚠️ Test cấu trúc phải soát **cả `page`**, không chỉ `form` — nếu chỉ soát `form` thì chuỗi sống trong `EntryPage` mà test vẫn xanh:
+
+```ts
+it('chuoi "Tiep tuc" bien mat o CA HAI file, va prop continueLabel chet han', () => {
+  for (const src of [form, page]) expect(src).not.toMatch(/Tiếp tục/)
+  for (const src of [form, page]) expect(src).not.toMatch(/continueLabel/)
+})
+```
 
 - [ ] **Step 4: Nút Lưu — một layout, nhãn nhắc việc**
 
@@ -1184,7 +1254,7 @@ Chạy `so-chi-tieu-demo`, mở `/entry`, đặt viewport `360×780`:
 })()
 ```
 
-Kỳ vọng: `soTablist: 1` · `oSegmented: 44` · `conNutDacBiet: false`. Ở 320px kiểm thêm ô segmented **vẫn 44px** (không nhảy 62px như nhãn "Chuyển khoản" cũ) và trang **không tràn ngang**.
+Kỳ vọng: `soTablist: 1` · `oSegmented: 46` · `conNutDacBiet: false`. Ở 320px kiểm thêm ô segmented **vẫn 46px** (không nhảy lên như nhãn "Chuyển khoản" cũ) và trang **không tràn ngang**.
 
 - [ ] **Step 9: Commit**
 
@@ -2217,7 +2287,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ## Task 13: `CategoryRow.tsx` — hàng Gần đây + `Khác ⌄` + lưới bung tại chỗ
 
-Đo được: ba khối ghim (44+50+71) và hai khối đáy (188+50+18) ăn **421px** của 780 → vùng cuộn còn **359px**, mà lưới 4 cột một mình đã **250px**. Nên thu lưới **không phải** ý thẩm mỹ — nó là điều kiện để màn vừa màn hình.
+Đo được: ba khối ghim (44+**52**+71) và hai khối đáy (188+50+18) ăn **423px** của 780 → vùng cuộn còn **357px**, mà lưới 4 cột một mình đã **250px**. (Track `lg` là 52px chứ không 50: ô 46px + 6px padding/viền của track — xem ruling Task 2.) Nên thu lưới **không phải** ý thẩm mỹ — nó là điều kiện để màn vừa màn hình.
 
 ⚠️ **Giữ 4 cột.** B22 đòi 3 cột với lý do "13 tile là 5 hàng, không ai cuộn hết" — nhưng đo ra **3 cột MỚI là 5 hàng (314px); 4 cột là 4 hàng (250px)**. Đổi sang 3 cột làm cái vấn đề nó viện ra nặng thêm 64px.
 
@@ -2309,7 +2379,48 @@ Rồi trên demo ở `360×780`, dán vào console:
 })()
 ```
 
-Kỳ vọng: `luoiDangThu: true` · `tranKhiThu: 'khong tran'` (đo trước khi sửa: **tràn 227px**) · `coChipKhac: true`.
+Kỳ vọng: `luoiDangThu: true` · `coChipKhac: true` · `tranKhiThu: 'khong tran'`.
+
+⚠️ **Mốc này chỉ đạt nếu Task 13 thu CẢ hàng ghi chú/nhãn/hoàn tiền, không chỉ thu lưới.**
+Đo thật sau Task 6 ở 360×780 (controller chạy, code thật trên port 5175) — vùng cuộn khung
+**410px**, nội dung **699px**, tràn **295px**, phân rã:
+
+| Khối | px |
+| --- | --- |
+| segmented + hàng Dạng | 128 |
+| ô số tiền | 85 (không 67 — sau Task 6 dạng nào cũng có nhãn ô tiền) |
+| tài khoản + ngày | 44 |
+| **lưới danh mục** | **250** |
+| ghi chú | 44 |
+| khối Nhãn | 68 |
+| hoàn tiền | 44 |
+| cộng | 663 + 36 (6 gap) = **699** |
+
+Số học của Task 13:
+- Thu lưới 250 → hàng danh mục 42: còn **491px** → **vẫn tràn 81px.**
+- Thu thêm ghi chú 44 + Nhãn 68 + hoàn tiền 44 = 156 **về một hàng 44px**: còn 379px, và
+  bớt 2 hàng nên gap còn 24 → **403px ≤ 410px. Vừa, dư 7px.**
+
+⚠️ **SỬA SAU KHI CHẠY (số học trên SAI, lỗi của controller).** Phép tính 403px dựng trên phân
+rã đo **sau Task 6**, nhưng **Task 10 thêm 68px vào cùng màn** sau lần đo đó: segmented
+`Đã chi | Sẽ chi` **52px** + dòng "Khoản này lặp lại? → Tạo quy tắc" **16px**. Cả hai đều là
+tính năng spec đòi (B28.1 ghi rõ segmented đó "chiếm một dòng riêng"), chỉ là lúc tôi đo chúng
+chưa tồn tại. Nên mốc "không tràn" **không đạt được** và chưa bao giờ đạt được.
+
+Số thật sau Task 13 (đo ở 360×780): khung **410**, nội dung **437**, **tràn 27px**. Hai khối
+Task 13 sở hữu đều đạt hoặc hơn mục tiêu — hàng danh mục **32px** (ngân sách 42), hàng
+"Ghi chú, nhãn" **44px** (đúng ngân sách).
+
+**Mốc đúng: tràn ≤ ~30px, và không được cắt gì của đường thường.** Đo xác nhận thứ rơi dưới
+nếp đúng là hai thứ *tùy chọn*: 5px cuối của hàng "Ghi chú, nhãn" và dòng gợi ý "Tạo quy tắc".
+Ô số tiền (top 192), hàng danh mục (top 333) và tài khoản+ngày (top 283) nằm trọn trong khung,
+còn hai nút Lưu thì **ghim** nên luôn với tới được. Đó là thứ tự đúng của một form: cái bắt
+buộc ở trên nếp, cái tùy chọn ở dưới.
+
+→ Nên Task 13 **phải** gộp ba khối tùy chọn thành **một hàng "Ghi chú, nhãn ⌄"** trên mobile
+(mở ra sheet hoặc bung tại chỗ), không phải chỉ đổi nhãn của cột phải desktop. Dư 7px là sát:
+ở cỡ chữ lớn hơn sẽ tràn và **cuộn** — chấp nhận được, vùng đó cuộn được. Điều phải đạt là
+**không tràn ở cỡ chữ mặc định**.
 
 Rồi bấm `Khác ⌄` và đo lại:
 
@@ -2334,8 +2445,8 @@ Kỳ vọng: `soCot: 4` (**không 3** — 3 cột tốn thêm 64px) · `caoLuoi:
 git add src/features/transactions/
 git commit -m "feat(nhap): hang danh muc Gan day + Khac, luoi bung tai cho
 
-Do o 360x780: ba khoi ghim + hai khoi day an 421px cua 780 -> vung cuon con
-359px, ma luoi 4 cot mot minh da 250px. Thu luoi con mot hang khong phai y tham
+Do o 360x780: ba khoi ghim + hai khoi day an 423px cua 780 -> vung cuon con
+357px, ma luoi 4 cot mot minh da 250px. Thu luoi con mot hang khong phai y tham
 my, no la dieu kien de man vua man hinh. Truoc: tran 227px.
 
 GIU 4 COT. B22 doi 3 cot voi ly do \"13 tile la 5 hang\" nhung do ra 3 cot MOI
@@ -2681,8 +2792,8 @@ grep -rn "REPEAT_OPTIONS\|REPEAT_LABEL\|REPEAT_MENU_LABEL\|onSubmitRecurring\|us
 ```bash
 grep -rn "Nhắc sau\|Chia với ai\|Khoản sắp tới\|Tạo lời nhắc\|Tên lời nhắc" src/
 ```
-- [ ] Ở `360×780`: `soTablist: 1` · `oSegmented: 44` · vùng cuộn **không tràn** khi lưới thu
-- [ ] Ở `320×780`: ô segmented **vẫn 44px** (không nhảy 62px), trang không tràn ngang
+- [ ] Ở `360×780`: `soTablist: 1` · `oSegmented: 46` · vùng cuộn **không tràn** khi lưới thu
+- [ ] Ở `320×780`: ô segmented **vẫn 46px** (không nhảy lên vì nhãn xuống dòng), trang không tràn ngang
 - [ ] Bật Cài đặt → Cỡ chữ **Rất lớn** ở 360px: chip không ngắt giữa từ, `h1` không lệch tâm, picker tài khoản không teo còn 36px
 - [ ] Bật `Sẽ chi`: số dư không đổi · trần không đổi · ô hoàn tiền biến mất · tắt "Nhắc tôi" thì Bản tin không sinh việc
 - [ ] Chọn nhãn ở **cả 10 dạng** → lưu xong đếm đúng số liên kết (trước: 5 dạng ra 0)

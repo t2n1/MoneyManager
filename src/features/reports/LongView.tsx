@@ -59,7 +59,6 @@ import {
   type MonthKey,
 } from '../../lib/dates'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
-import { convertToBase } from '../../lib/rates'
 import { remittanceStats, remittanceTiming } from '../remittance/aggregate'
 import { categoryBreakdown, monthlySeries } from './aggregate'
 import {
@@ -68,6 +67,7 @@ import {
   longTable,
   monthAverages,
   regimeSplitsComparison,
+  remitMonthlyTotals,
   remitStrip,
   type LongScopeKey,
 } from './longRange'
@@ -184,18 +184,13 @@ export function LongView() {
   }, [txs, active, scopeMonths, monthStartDay, accounts, base, rates, transferIds])
 
   // Gửi về VN — đọc cờ `is_remittance` trên giao dịch (migration 0013).
+  // `remitMonthlyTotals` (longRange.ts) là bước filter/convert/bucket DUY NHẤT cho cả
+  // tab này và form Nhập (RemitFields' 12-month strip) — không tự viết lại ở đây nữa,
+  // xem chú thích tại định nghĩa của nó về vụ lệch fallback đã xảy ra thật.
   const remit = useMemo(() => {
-    const byMonth = new Map<string, number>()
-    for (const t of txs) {
-      if (!t.is_remittance) continue
-      const v = convertToBase(t.amount, currencyOf(t.account_id), base, r)
-      if (v === null) continue
-      const k = monthKeyForDate(t.occurred_on, monthStartDay)
-      const id = `${k.year}-${k.month}`
-      byMonth.set(id, (byMonth.get(id) ?? 0) + v)
-    }
+    const amountOf = remitMonthlyTotals(txs, accounts, base, r, monthStartDay)
     const keys = active.slice(Math.max(0, active.length - scopeMonths)).map((p) => p.key)
-    return remitStrip(keys, (k) => byMonth.get(`${k.year}-${k.month}`) ?? 0)
+    return remitStrip(keys, amountOf)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txs, active, scopeMonths, monthStartDay, accounts, base, rates])
 

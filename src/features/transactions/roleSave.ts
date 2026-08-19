@@ -19,6 +19,13 @@ export interface RoleBase {
   srcCurrency: CurrencyCode
   occurredOn: string
   note: string
+  /**
+   * Nhãn người dùng chọn. Trước đây RoleBase không có field này, nên TagPicker phải
+   * ẩn ở mọi vai trò — kể cả Trả hộ, đúng chỗ cần nhãn "ai" nhất. Ẩn là thật thà
+   * (thà không hiện còn hơn nhận rồi âm thầm bỏ), nhưng cách chữa đúng là mở đường
+   * ống, không phải giấu ô nhập.
+   */
+  tagIds: string[]
 }
 
 const GUI_TIEN_CAT = REMIT_CATEGORY_NAME
@@ -188,6 +195,7 @@ export async function saveSplit(base: RoleBase, v: SplitValue, deps: RoleSaveDep
         to_account_id: null,
         occurred_on: base.occurredOn,
         note: base.note.trim() || `Trả hộ · ${counterparty}`,
+        tag_ids: base.tagIds,
       }
       const row = await deps.createTransaction(ownTx)
       ownTxId = row.id
@@ -211,6 +219,7 @@ export async function saveSplit(base: RoleBase, v: SplitValue, deps: RoleSaveDep
       to_account_id: null,
       occurred_on: base.occurredOn,
       note: base.note.trim() || `Cho vay (trả hộ) · ${counterparty}`,
+      tag_ids: base.tagIds,
     }
     if (target) {
       // amount âm = giải ngân thêm → làm tăng số còn lại của khoản cho vay.
@@ -286,10 +295,13 @@ async function saveSplitSettled(
         to_account_id: null,
         occurred_on: base.occurredOn,
         note: base.note.trim() || (who ? `Chia bill · ${who}` : 'Chia bill'),
+        tag_ids: base.tagIds,
       })
       createdIds.push(row.id)
     }
     if (backAmount > 0 && backTo) {
+      // Chuyển khoản bù là bút toán KỸ THUẬT (chỉ để số dư khớp sao kê) — không
+      // phải hành động của người dùng với người kia, nên không gắn nhãn.
       const row = await deps.createTransaction({
         type: 'transfer',
         amount: backAmount,
@@ -312,6 +324,7 @@ async function saveSplitSettled(
         to_account_id: null,
         occurred_on: base.occurredOn,
         note: who ? `Trả hộ nhận dư · ${who}` : 'Trả hộ nhận dư',
+        tag_ids: base.tagIds,
       })
     }
   } catch (e) {
@@ -381,6 +394,7 @@ async function saveDebtCore(base: RoleBase, v: DebtValue, deps: RoleSaveDeps): P
         note:
           base.note.trim() ||
           `${txType === 'expense' ? 'Cho vay thêm' : 'Vay thêm'} · ${target.counterparty}`,
+        tag_ids: base.tagIds,
       }
     }
     // amount âm = giải ngân thêm → làm tăng số còn lại của khoản nợ.
@@ -405,6 +419,7 @@ async function saveDebtCore(base: RoleBase, v: DebtValue, deps: RoleSaveDeps): P
       to_account_id: null,
       occurred_on: base.occurredOn,
       note: base.note.trim() || `${txType === 'expense' ? 'Cho vay' : 'Vay'} · ${counterparty}`,
+      tag_ids: base.tagIds,
     }
   }
   const pct = Number(v.interestPct)
@@ -418,6 +433,69 @@ async function saveDebtCore(base: RoleBase, v: DebtValue, deps: RoleSaveDeps): P
     note: base.note.trim(),
     interest_bps: v.interestPct.trim() && !Number.isNaN(pct) ? Math.round(pct * 100) : null,
     term_months: v.termMonths.trim() && !Number.isNaN(term) && term > 0 ? Math.round(term) : null,
+    transaction,
+  })
+}
+
+/** Giá trị field riêng của hai dạng trả nợ (repay / collect). */
+export interface PaymentValue {
+  /** Khoản nợ đang mở được chọn. '' = chưa chọn. */
+  debtId: string
+  /** Có chuyển tiền thật (đổi số dư) hay chỉ ghi sổ nợ. Giống DebtPaymentSheet. */
+  withTransaction: boolean
+  // KHÔNG có `fee` ở đây, CỐ Ý (bỏ 2026-08-19, fix round 1 task 8): đường vào thứ
+  // nhất `DebtPaymentSheet.tsx` không hỗ trợ phí trả nợ (`grep -n fee` trên file đó
+  // ra rỗng) và spec chưa từng đòi field này — bản đầu của Task 7 chép nhầm từ
+  // `DebtValue.fee` (phí GIẢI NGÂN, có thật). Không component nào trong 10 dạng dựng
+  // UI cho nó nên nó là plumbing chết, không phải tính năng đã ship — xem YAGNI. Cần
+  // phí trả nợ thì thêm UI ở CẢ HAI cửa cùng lúc, không chỉ nối lại field này.
+}
+
+export const initialPayment = (): PaymentValue => ({
+  debtId: '',
+  withTransaction: true,
+})
+
+/**
+ * Ghi một lần trả nợ từ form Nhập. Đường vào thứ hai cho DebtPaymentSheet —
+ * dùng ĐÚNG payload đó, không dựng lối riêng: `NewDebtPayment` bọc luôn
+ * `transaction` bên trong nên một mutation ra cả hai, không bút toán tay.
+ *
+ * `type` KHÔNG lấy từ dạng mà suy từ chiều khoản nợ (xem entryShape: repay và
+ * collect đều có `txType: null`): mình trả (i_owe) = chi; người ta trả mình
+ * (owed_to_me) = thu.
+ */
+export async function saveDebtPayment(
+  base: RoleBase,
+  v: PaymentValue,
+  deps: RoleSaveDeps,
+): Promise<void> {
+  const debt = deps.debts.find((d) => d.id === v.debtId && d.status === 'open')
+  // Ném chứ không lặng lẽ bỏ: ghi một lần trả vào hư không thì sổ nợ và số dư
+  // lệch nhau mà không ai biết.
+  if (!debt) throw new Error('Không tìm thấy khoản nợ đang mở này.')
+
+  const txType = debt.direction === 'i_owe' ? 'expense' : 'income'
+  let transaction: NewTransaction | null = null
+  if (v.withTransaction) {
+    const categoryId = await debtFlowCategoryId('repay', debt.direction, deps)
+    transaction = {
+      type: txType,
+      amount: base.amount,
+      to_amount: null,
+      category_id: categoryId,
+      account_id: base.accountId,
+      to_account_id: null,
+      occurred_on: base.occurredOn,
+      note: base.note.trim() || `${txType === 'expense' ? 'Trả nợ' : 'Thu nợ'} · ${debt.counterparty}`,
+      tag_ids: base.tagIds,
+    }
+  }
+  await deps.createDebtPayment({
+    debt_id: debt.id,
+    amount: base.amount,
+    paid_on: base.occurredOn,
+    note: base.note.trim(),
     transaction,
   })
 }
@@ -444,6 +522,7 @@ export async function saveRemit(base: RoleBase, v: RemitValue, deps: RoleSaveDep
       remit_service: v.service,
       remit_fee_jpy: v.fee,
       remit_received_vnd: v.received,
+      tag_ids: base.tagIds,
     }
   } else {
     const found = deps.categories.find((c) => c.type === 'expense' && c.name === GUI_TIEN_CAT)
@@ -464,6 +543,7 @@ export async function saveRemit(base: RoleBase, v: RemitValue, deps: RoleSaveDep
       remit_service: v.service,
       remit_fee_jpy: v.fee,
       remit_received_vnd: v.received,
+      tag_ids: base.tagIds,
     }
   }
   await deps.createTransaction(input)

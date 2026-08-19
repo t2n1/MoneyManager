@@ -20,15 +20,16 @@ import { TagPicker } from '../tags/TagPicker'
 import { CURRENCIES, type CurrencyCode } from '../../lib/currencies'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { toISODate } from '../../lib/dates'
+// `firstOfMonth` dùng CHUNG với đường ghi thứ hai (màn Nhập → "Sẽ chi"): hai form ghi
+// cùng bảng `planned_expenses` với cùng ràng buộc "kiểu 'month' neo về ngày 1", nên hai
+// bản chép tay ở đây sẽ lệch nhau đúng lúc không ai nhìn. Bản có test là bản kia.
+import { firstOfMonth } from '../transactions/plannedFromEntry'
 import type { DuePrecision, PlannedExpenseRow } from '../../types/database.types'
 
 const PRECISION: readonly (readonly [DuePrecision, string, string])[] = [
   ['day', 'Đúng ngày', 'Biết chắc ngày nào — vd hạn đóng phí 20/8'],
   ['month', 'Khoảng tháng', 'Mới biết tháng, chưa chốt ngày — vd sửa nhà tháng 10'],
 ]
-
-/** Ngày 1 của tháng chứa `iso` — kiểu 'month' luôn neo vào đó (migration 0038). */
-const firstOfMonth = (iso: string) => `${iso.slice(0, 7)}-01`
 
 interface Props {
   /** null = thêm mới */

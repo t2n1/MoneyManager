@@ -19,7 +19,7 @@ const ARIA: Record<string, string> = {
 }
 
 /** Bàn phím số + phép tính cho mobile — không dùng bàn phím hệ thống.
- *  Nút xóa lùi (⌫) nằm chung hàng với Tiếp tục/Lưu ở TransactionForm để đỡ tốn chiều cao. */
+ *  Nút xóa lùi (⌫) nằm chung hàng với hai nút Lưu ở TransactionForm để đỡ tốn chiều cao. */
 export function NumPad({
   onKey,
   opsDisabled = false,

@@ -8,8 +8,8 @@
 //
 // Khối này nói đúng thứ tiếng của form Nhập, không tự nghĩ luật riêng (thiết kế
 // 2026-08-12):
-//  - Chip chưa chọn thì XÁM (`CHIP_OFF`), chọn rồi mới lên màu của nhãn — y như nút
-//    "Nhắc sau" / "Lặp lại" cạnh ô ngày.
+//  - Chip chưa chọn thì XÁM (`CHIP_OFF`), chọn rồi mới lên màu của nhãn — cùng token với
+//    mọi chip bật/tắt khác của form (xem components/chip.ts).
 //  - Cao 44px như mọi chip khác trong trang.
 //  - Tạo nhãn bằng dấu "+" ở CUỐI TỪNG HÀNG: bấm là hiện ngay ô gõ tên tại đúng hàng
 //    đó, xong là nhãn nằm luôn trong nhóm ấy. Trước đây phải gõ tên vào ô nhập chung

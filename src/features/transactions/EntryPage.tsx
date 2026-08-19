@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Check, ChevronLeft, ChevronRight, TriangleAlert } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Check, ChevronLeft } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
 import {
-  useBudgetAlert,
+  useAccounts,
   useCategories,
   useCreateCategory,
   useCreateDebt,
   useCreateDebtPayment,
-  useCreateRecurringRule,
   useCreateTransaction,
   useDebts,
   useCreatePlannedExpense,
@@ -17,15 +16,26 @@ import {
   usePlannedExpenseTags,
   useRecurringRules,
   useUpdatePlannedExpense,
-  useRunRecurringCatchUp,
   useUpdateRecurringRule,
 } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
+import { formatMoney } from '../../lib/money'
 import { showUndoToast } from '../../lib/undoToast'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
+import type { NewTransaction } from '../../data'
 import { parseRoleParam } from './entryRoles'
-import { saveDebtEntry, saveRemit, saveSplit, saveWithFee, type RoleSaveDeps } from './roleSave'
-import { TransactionForm, type RoleSubmit } from './TransactionForm'
+import { shapeOf, type EntryKind } from './entryShape'
+import {
+  saveDebtEntry,
+  saveDebtPayment,
+  saveRemit,
+  saveSplit,
+  saveWithFee,
+  type RoleBase,
+  type RoleSaveDeps,
+} from './roleSave'
+import { addSaved, countLabel, removeSaved, type SavedEntry } from './savedRound'
+import { TransactionForm, type PaymentSubmit, type RoleSubmit } from './TransactionForm'
 
 /** Màn hình mặc định khi mở app — nhập một giao dịch phải < 5 giây. */
 export function EntryPage() {
@@ -36,10 +46,8 @@ export function EntryPage() {
   const createDebtPayment = useCreateDebtPayment()
   const createCat = useCreateCategory()
   const { data: categories = [] } = useCategories()
+  const { data: accounts = [] } = useAccounts()
   const { data: debts = [] } = useDebts()
-  const createRule = useCreateRecurringRule()
-  const catchUp = useRunRecurringCatchUp()
-  const { overCount } = useBudgetAlert()
   const [searchParams] = useSearchParams()
   const qType = searchParams.get('type')
   const initialType: TransactionType | undefined =
@@ -56,8 +64,7 @@ export function EntryPage() {
   const updateRule = useUpdateRecurringRule()
   const billRule = billRuleId ? recurringRules.find((r) => r.id === billRuleId) : undefined
   // Điền sẵn bằng một TransactionRow giả — TransactionForm chỉ đọc `initial` để gieo
-  // giá trị ban đầu, và không có `onSubmitRecurring` nên nó cũng không hiện lại ô
-  // "Lặp lại" (khoản này ĐÃ là một quy tắc rồi).
+  // giá trị ban đầu.
   const billPrefill: TransactionRow | undefined =
     billRule && billDueISO
       ? {
@@ -139,11 +146,72 @@ export function EntryPage() {
     })
   }
   const [toast, setToast] = useState<{ text: string; undoId?: string; ok?: boolean } | null>(null)
-  /** Ô bên phải tiêu đề: chỗ TransactionForm portal nút "Loại đặc biệt" vào. */
-  const [roleSlot, setRoleSlot] = useState<HTMLDivElement | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
+  // --- Đếm "khoản lượt này" + danh sách "Vừa ghi" (task 17) ---
+  // State THUẦN của lượt ghi hiện tại — mất khi rời màn, không có cột DB nào cho nó.
+  // `savedCount` tách khỏi `savedList` vì danh sách bị CẮT ở 5 (savedRound.ts) còn số
+  // đếm thì không: ghi khoản thứ 6 xong màn vẫn phải nói "6 khoản lượt này".
+  const [savedList, setSavedList] = useState<SavedEntry[]>([])
+  const [savedCount, setSavedCount] = useState(0)
+  const savedCountLabel = countLabel(savedList, savedCount)
+
   useEffect(() => () => clearTimeout(toastTimer.current), [])
+
+  /** Dựng một SavedEntry để bày ở danh sách "Vừa ghi" từ input vừa lưu thành công. */
+  function toSavedEntry(id: string, values: NewTransaction): SavedEntry {
+    const cat = categories.find((c) => c.id === values.category_id)
+    const acc = accounts.find((a) => a.id === values.account_id)
+    return {
+      id,
+      label: cat?.name ?? 'Chuyển khoản',
+      icon: cat?.icon ?? '💸',
+      amount: values.amount,
+      currency: acc?.currency ?? 'JPY',
+    }
+  }
+
+  /**
+   * Đẩy một khoản vừa lưu vào "Vừa ghi" + tăng đếm.
+   *
+   * MỘT helper cho CẢ BỐN đường ghi có nút "Lưu và nhập tiếp". Trước đây hai setState này
+   * chỉ nằm trong `onContinue` (đường giao dịch thường), nên bảy dạng đi qua handleRole /
+   * handlePayment và cả `between` khi có phí lưu xong mà KHÔNG ghi lại gì: số đếm cạnh
+   * tiêu đề đứng ở 0 và nút "Xong · về Bản tin" không bao giờ hiện — ở đúng những dạng
+   * người ta ghi liên tiếp nhiều khoản nhất.
+   */
+  function recordSaved(entry: SavedEntry) {
+    setSavedList((list) => addSaved(list, entry))
+    setSavedCount((n) => n + 1)
+  }
+
+  /** Số thứ tự cho id giả của những đường ghi nhiều bút toán — xem `roleSavedEntry`. */
+  const savedSeq = useRef(0)
+
+  /**
+   * SavedEntry cho những đường ghi KHÔNG trả về một bút toán duy nhất (Trả hộ, Cho vay /
+   * Ghi nợ, Gửi về VN, hai dạng trả nợ, chuyển khoản có phí).
+   *
+   * `id` là số thứ tự trong lượt, KHÔNG phải id giao dịch: các dạng này ghi tới ba bút
+   * toán nên không có "khoản vừa ghi" nào để xoá. Hoàn tác một chạm ở đây vẫn không có
+   * (đã ghi trong `toastAndStay`), nên id giả không hứa gì mà nó không làm được — nó chỉ
+   * để React có key và để `removeSaved` không xoá lẫn khoản khác.
+   *
+   * Nhãn dựng từ `RoleBase` + bảng `entryShape`: sáu trong bảy dạng này để `categoryId`
+   * null (roleSave tự gán danh mục lúc lưu) nên `toSavedEntry` sẽ đọc ra "Chuyển khoản"
+   * cho cả sáu — tên dạng trong bảng mới là câu đúng.
+   */
+  function roleSavedEntry(kind: EntryKind, base: RoleBase): SavedEntry {
+    const cat = categories.find((c) => c.id === base.categoryId)
+    savedSeq.current += 1
+    return {
+      id: `${kind}-${savedSeq.current}`,
+      label: cat?.name ?? shapeOf(kind).label,
+      icon: cat?.icon ?? '💸',
+      amount: base.amount,
+      currency: base.srcCurrency,
+    }
+  }
 
   async function handleUndo(id: string) {
     clearTimeout(toastTimer.current)
@@ -155,6 +223,10 @@ export function EntryPage() {
     } catch {
       return
     }
+    // Rút đúng khoản đó khỏi "Vừa ghi" và lùi số đếm — hoàn tác nghĩa là khoản đó
+    // coi như chưa từng ghi trong lượt này.
+    setSavedList((list) => removeSaved(list, id))
+    setSavedCount((n) => Math.max(0, n - 1))
     setToast({ text: 'Đã hoàn tác' })
     toastTimer.current = setTimeout(() => setToast(null), 1500)
   }
@@ -171,14 +243,43 @@ export function EntryPage() {
     }
   }
 
-  // Lưu một vai trò đặc biệt (Trả hộ / Cho vay-Nợ / Gửi về VN) rồi về Sổ GD.
-  // Các vai trò có thể tạo nhiều bút toán → không kèm Hoàn tác một chạm (điểm G).
-  async function handleRole(payload: RoleSubmit) {
+  /**
+   * Toast "đã lưu" rồi Ở LẠI màn hình — dùng cho nút "Lưu và nhập tiếp" ở những đường
+   * ghi có thể sinh NHIỀU bút toán. KHÔNG kèm Hoàn tác một chạm (điểm G): hoàn tác một
+   * chạm chỉ xoá được một bút toán, mà các dạng này ghi tới ba cái.
+   */
+  function toastAndStay(text: string) {
+    setToast({ text, ok: true })
+    clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 5000)
+  }
+
+  // Lưu một dạng đi qua orchestrator riêng (Trả hộ / Cho vay-Nợ / Gửi về VN).
+  // `keepGoing` = bấm "Lưu và nhập tiếp" → ở lại màn, y hợp đồng với onSubmitWithFee.
+  // Không tôn trọng cờ này thì nhãn nút nói ngược việc nó làm.
+  async function handleRole(payload: RoleSubmit, keepGoing: boolean) {
     const deps = roleDeps()
     if (payload.role === 'split') await saveSplit(payload.base, payload.value, deps)
     else if (payload.role === 'debt') await saveDebtEntry(payload.base, payload.value, deps)
     else await saveRemit(payload.base, payload.value, deps)
-    navigate('/so')
+    if (!keepGoing) {
+      navigate('/so')
+      return
+    }
+    recordSaved(roleSavedEntry(payload.kind, payload.base))
+    toastAndStay('Đã lưu')
+  }
+
+  // Lưu một lần trả nợ (repay/collect) — đường vào thứ hai cho DebtPaymentSheet,
+  // dùng ĐÚNG orchestrator `saveDebtPayment` (xem roleSave.ts).
+  async function handlePayment(payload: PaymentSubmit, keepGoing: boolean) {
+    await saveDebtPayment(payload.base, payload.value, roleDeps())
+    if (!keepGoing) {
+      navigate('/so')
+      return
+    }
+    recordSaved(roleSavedEntry(payload.kind, payload.base))
+    toastAndStay('Đã lưu')
   }
 
   return (
@@ -204,25 +305,37 @@ export function EntryPage() {
         </BackLink>
         <h1 className="flex-1 text-center text-base font-bold text-fg-primary">
           {billRule || planned ? 'Ghi khoản đến hạn' : 'Nhập giao dịch'}
+          {/* Đếm cạnh tiêu đề — người về nhà ghi cả ngày 3-4 khoản một lượt cần thấy
+              mình đã ghi bao nhiêu TRONG LƯỢT NÀY, không lục lại Sổ để biết. */}
+          {savedCountLabel && (
+            // Dấu cách TRƯỚC "·" là một ký tự thật, không phải `ml-1.5`: lề chỉ là khoảng
+            // trắng cho MẮT, còn tên đọc được (accessible name) nối thẳng hai chuỗi lại
+            // thành "Nhập giao dịch· 1 khoản lượt này".
+            <span className="ml-1.5 align-middle text-xs font-normal text-fg-muted">
+              {' '}· {savedCountLabel}
+            </span>
+          )}
         </h1>
-        {/* Nút "Loại đặc biệt" do TransactionForm portal vào đây. Chiều rộng đặt cứng
-            (xấp xỉ nút "Đóng" bên trái) để tiêu đề không nhảy chỗ khi nút ẩn đi lúc
-            một vai trò đang bật.
-            5.25rem = 84px ở cỡ chữ thường, nhưng theo REM chứ px (§13): chỗ giữ này phải
-            rộng bằng nút "Đóng" bên trái, mà nút đó là CHỮ nên nó giãn theo
-            --app-font-scale. Để px thì ở cỡ "Rất lớn" nút bên trái rộng hơn chỗ giữ và
-            tiêu đề lệch tâm — đúng cái mà chỗ giữ này sinh ra để tránh. */}
-        <div ref={setRoleSlot} className="flex w-[5.25rem] shrink-0 justify-end" />
+        {/* Ô bên phải tiêu đề: rỗng để `h1` không lệch tâm (nút "Đóng" bên trái là CHỮ
+            nên giãn theo --app-font-scale — theo REM chứ px, §13, để cỡ "Rất lớn" không
+            làm lệch tâm). Trước đây đây là nơi TransactionForm portal nút mở dropdown
+            chọn loại vào; dropdown đó đã bỏ.
+            Khi ĐÃ ghi ít nhất một khoản, ô này đổi thành nút "Xong" — dùng LẠI đúng ô
+            này (không thêm hàng mới) để khỏi ăn vào vùng cuộn 410px đã tràn sẵn 27px
+            (ruling task 13): thêm một hàng riêng cho nút sẽ cộng thêm ~44px overflow,
+            còn tái dùng ô rỗng này thì overflow không đổi một ly. */}
+        <div className="w-[5.25rem] shrink-0">
+          {savedList.length > 0 && (
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="flex min-h-11 w-full items-center justify-center rounded-md border border-border-strong bg-surface px-1 text-center text-2xs font-semibold leading-tight text-fg-primary transition active:scale-95"
+            >
+              Xong · về Bản tin
+            </button>
+          )}
+        </div>
       </div>
-      {overCount > 0 && (
-        <Link
-          to="/budget"
-          className="mb-2 flex items-center gap-2 rounded-md border border-state-bad-border bg-state-bad-bg px-3 py-2 text-xs font-medium text-state-bad-fg"
-        >
-          <TriangleAlert className="h-4 w-4" /> {overCount} danh mục vượt ngân sách tháng này — xem chi tiết
-          <ChevronRight className="inline h-4 w-4" />
-        </Link>
-      )}
       {waitingForRule || waitingForPlanned ? (
         <p className="py-10 text-center text-sm text-fg-muted">Đang tải khoản đến hạn…</p>
       ) : (
@@ -237,28 +350,33 @@ export function EntryPage() {
               : 'new'
         }
         submitLabel={billRule || planned ? 'Ghi và đánh dấu đã chi' : 'Lưu'}
-        // Khoản đến hạn KHÔNG có "Tiếp tục": nút đó lưu rồi ở lại nhập tiếp, mà con
-        // trỏ kỳ chỉ được đẩy ở nhánh "Lưu" — bấm nhầm là ghi xong mà lời nhắc vẫn
-        // còn nguyên. Xác nhận một khoản là việc một lần, không phải nhập liên tục.
-        continueLabel={billRule || planned ? undefined : 'Tiếp tục'}
         initial={billPrefill ?? plannedPrefill}
         initialTagIds={plannedTagIds}
         initialType={initialType}
         enableTemplates
-        enableRoles
+        // Bản điền sẵn khoản đến hạn KHÔNG được đổi sang mười dạng. `markBillDone()` /
+        // `markPlannedDone()` chỉ chạy trong nhánh `onSubmit` (đường giao dịch thường),
+        // nên đổi chip Dạng sang một dạng role/payment rồi bấm đúng cái nút mang chữ
+        // "Ghi và đánh dấu đã chi" sẽ ghi bút toán mà KHÔNG gắn recurring_rule_id, KHÔNG
+        // đẩy con trỏ kỳ (lời nhắc kêu lại → ghi trùng), hoặc để khoản sắp chi treo
+        // pending. Cùng lý lẽ prop này đã ghi cho form Sửa: một bút toán đã có chỗ đứng
+        // thì không có đường nào biến nó thành khoản Trả hộ.
+        enableRoles={!billPrefill && !plannedPrefill}
         initialRole={initialRole}
-        roleTriggerSlot={roleSlot}
         onSubmitRole={handleRole}
-        // Chuyển khoản có phí: 2 bút toán → không kèm Hoàn tác một chạm (như vai trò)
+        onSubmitPayment={handlePayment}
+        // Chuyển khoản có phí: 2 bút toán → không kèm Hoàn tác một chạm (như các dạng khác)
         onSubmitWithFee={async (main, fee, keepGoing) => {
           await saveWithFee(main, fee, 'Phí chuyển khoản', roleDeps())
           if (!keepGoing) {
             navigate('/so')
             return
           }
-          setToast({ text: 'Đã lưu (kèm phí)', ok: true })
-          clearTimeout(toastTimer.current)
-          toastTimer.current = setTimeout(() => setToast(null), 5000)
+          // 2 bút toán → id giả như các đường role (xem `roleSavedEntry`); nhãn thì dựng
+          // được từ chính `main` vì đây là một NewTransaction thật.
+          savedSeq.current += 1
+          recordSaved(toSavedEntry(`fee-${savedSeq.current}`, main))
+          toastAndStay('Đã lưu (kèm phí)')
         }}
         // Lưu: ghi giao dịch rồi quay về Sổ GD
         onSubmit={async (values) => {
@@ -273,7 +391,7 @@ export function EntryPage() {
           )
           await markBillDone()
           await markPlannedDone(row.id)
-          // Hoàn tác cho cả nút "Lưu", không chỉ nút "Tiếp tục": cùng một hành động ghi
+          // Hoàn tác cho cả nút "Lưu", không chỉ nút lưu-rồi-nhập-tiếp: cùng một hành động ghi
           // thì phải cùng một mức an toàn. Dùng toast hoàn tác TOÀN CỤC (AppLayout vẽ)
           // vì nút này rời màn hình ngay — toast riêng của trang Nhập sẽ chết theo.
           // Trừ khoản đến hạn: xóa giao dịch xong thì lời nhắc vẫn bị đánh dấu đã chi,
@@ -283,35 +401,50 @@ export function EntryPage() {
           }
           navigate('/so')
         }}
-        // "Nhắc sau": chưa chi đồng nào, chỉ tạo một khoản sắp chi rồi về Sổ.
+        // "Sẽ chi": chưa chi đồng nào, chỉ tạo một khoản sắp chi rồi về Sổ.
         onSubmitPlanned={async (input) => {
           await createPlanned.mutateAsync(input)
-          setToast({ text: 'Đã tạo lời nhắc', ok: true })
+          setToast({ text: 'Đã thêm khoản sắp chi', ok: true })
           clearTimeout(toastTimer.current)
           toastTimer.current = setTimeout(() => {
             setToast(null)
             navigate('/planned')
           }, 1000)
         }}
-        // Tiếp tục: ghi giao dịch, hiện toast (kèm hoàn tác) rồi ở lại nhập tiếp
+        // Lưu và nhập tiếp: ghi giao dịch, hiện toast (kèm hoàn tác) rồi ở lại nhập tiếp.
+        // Khoản đến hạn KHÔNG có nút đó: con trỏ kỳ chỉ được đẩy ở nhánh "Lưu", bấm nhầm
+        // là ghi xong mà lời nhắc vẫn còn nguyên. Xác nhận một khoản là việc một lần.
         onContinue={billRule || planned ? undefined : async (values) => {
           const row = await create.mutateAsync(values)
+          // Đẩy vào "Vừa ghi" + tăng đếm — người ghi cả ngày 3-4 khoản một lượt cần
+          // thấy mình đã ghi bao nhiêu, không chỉ thấy toast rồi quên ngay.
+          recordSaved(toSavedEntry(row.id, values))
           setToast({ text: 'Đã lưu', undoId: row.id, ok: true })
           clearTimeout(toastTimer.current)
           toastTimer.current = setTimeout(() => setToast(null), 5000)
         }}
-        // Lặp lại: tạo rule + sinh ngay kỳ đến hạn, toast rồi về Sổ GD
-        onSubmitRecurring={async (rule) => {
-          await createRule.mutateAsync(rule)
-          await catchUp.mutateAsync()
-          setToast({ text: 'Đã tạo quy tắc định kỳ', ok: true })
-          clearTimeout(toastTimer.current)
-          toastTimer.current = setTimeout(() => {
-            setToast(null)
-            navigate('/so')
-          }, 1200)
-        }}
       />
+      )}
+      {/* "Vừa ghi" — chỉ hiện khi ĐÃ ghi ít nhất một khoản trong lượt này. Một HÀNG cuộn
+          ngang (như dải mẫu nhanh của TransactionForm), không phải danh sách dọc: màn
+          410px đã tràn sẵn 27px (ruling task 13), một danh sách dọc nhiều dòng ăn thẳng
+          vào vùng cuộn của form (nó dùng flex-1, nhường bao nhiêu mất bấy nhiêu) — hàng
+          ngang chỉ tốn đúng một chiều cao dòng dù có 1 hay 5 khoản. */}
+      {savedList.length > 0 && (
+        <ul aria-label="Vừa ghi" className="mt-1.5 flex shrink-0 gap-1.5 overflow-x-auto pb-0.5">
+          {savedList.map((s) => (
+            <li
+              key={s.id}
+              className="flex shrink-0 items-center gap-1 rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs"
+            >
+              <span aria-hidden="true">{s.icon}</span>
+              <span className="max-w-[5rem] truncate text-fg-primary">{s.label}</span>
+              <span className="font-medium text-fg-secondary">
+                {formatMoney(s.amount, s.currency)}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
       {toast && (
         <div className="fixed inset-x-0 top-4 z-50 flex justify-center">

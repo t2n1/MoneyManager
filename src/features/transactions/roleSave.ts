@@ -19,6 +19,13 @@ export interface RoleBase {
   srcCurrency: CurrencyCode
   occurredOn: string
   note: string
+  /**
+   * Nhãn người dùng chọn. Trước đây RoleBase không có field này, nên TagPicker phải
+   * ẩn ở mọi vai trò — kể cả Trả hộ, đúng chỗ cần nhãn "ai" nhất. Ẩn là thật thà
+   * (thà không hiện còn hơn nhận rồi âm thầm bỏ), nhưng cách chữa đúng là mở đường
+   * ống, không phải giấu ô nhập.
+   */
+  tagIds: string[]
 }
 
 const GUI_TIEN_CAT = REMIT_CATEGORY_NAME
@@ -188,6 +195,7 @@ export async function saveSplit(base: RoleBase, v: SplitValue, deps: RoleSaveDep
         to_account_id: null,
         occurred_on: base.occurredOn,
         note: base.note.trim() || `Trả hộ · ${counterparty}`,
+        tag_ids: base.tagIds,
       }
       const row = await deps.createTransaction(ownTx)
       ownTxId = row.id
@@ -211,6 +219,7 @@ export async function saveSplit(base: RoleBase, v: SplitValue, deps: RoleSaveDep
       to_account_id: null,
       occurred_on: base.occurredOn,
       note: base.note.trim() || `Cho vay (trả hộ) · ${counterparty}`,
+      tag_ids: base.tagIds,
     }
     if (target) {
       // amount âm = giải ngân thêm → làm tăng số còn lại của khoản cho vay.
@@ -286,10 +295,13 @@ async function saveSplitSettled(
         to_account_id: null,
         occurred_on: base.occurredOn,
         note: base.note.trim() || (who ? `Chia bill · ${who}` : 'Chia bill'),
+        tag_ids: base.tagIds,
       })
       createdIds.push(row.id)
     }
     if (backAmount > 0 && backTo) {
+      // Chuyển khoản bù là bút toán KỸ THUẬT (chỉ để số dư khớp sao kê) — không
+      // phải hành động của người dùng với người kia, nên không gắn nhãn.
       const row = await deps.createTransaction({
         type: 'transfer',
         amount: backAmount,
@@ -312,6 +324,7 @@ async function saveSplitSettled(
         to_account_id: null,
         occurred_on: base.occurredOn,
         note: who ? `Trả hộ nhận dư · ${who}` : 'Trả hộ nhận dư',
+        tag_ids: base.tagIds,
       })
     }
   } catch (e) {
@@ -381,6 +394,7 @@ async function saveDebtCore(base: RoleBase, v: DebtValue, deps: RoleSaveDeps): P
         note:
           base.note.trim() ||
           `${txType === 'expense' ? 'Cho vay thêm' : 'Vay thêm'} · ${target.counterparty}`,
+        tag_ids: base.tagIds,
       }
     }
     // amount âm = giải ngân thêm → làm tăng số còn lại của khoản nợ.
@@ -405,6 +419,7 @@ async function saveDebtCore(base: RoleBase, v: DebtValue, deps: RoleSaveDeps): P
       to_account_id: null,
       occurred_on: base.occurredOn,
       note: base.note.trim() || `${txType === 'expense' ? 'Cho vay' : 'Vay'} · ${counterparty}`,
+      tag_ids: base.tagIds,
     }
   }
   const pct = Number(v.interestPct)
@@ -444,6 +459,7 @@ export async function saveRemit(base: RoleBase, v: RemitValue, deps: RoleSaveDep
       remit_service: v.service,
       remit_fee_jpy: v.fee,
       remit_received_vnd: v.received,
+      tag_ids: base.tagIds,
     }
   } else {
     const found = deps.categories.find((c) => c.type === 'expense' && c.name === GUI_TIEN_CAT)
@@ -464,6 +480,7 @@ export async function saveRemit(base: RoleBase, v: RemitValue, deps: RoleSaveDep
       remit_service: v.service,
       remit_fee_jpy: v.fee,
       remit_received_vnd: v.received,
+      tag_ids: base.tagIds,
     }
   }
   await deps.createTransaction(input)

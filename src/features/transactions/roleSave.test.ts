@@ -6,9 +6,9 @@ import type {
   TransactionRow,
 } from '../../types/database.types'
 import type { NewCategory, NewDebt, NewDebtPayment, NewTransaction } from '../../data'
-import { debtFlowCategoryId, saveDebtEntry, saveSplit, saveWithFee } from './roleSave'
+import { debtFlowCategoryId, saveDebtEntry, saveRemit, saveSplit, saveWithFee } from './roleSave'
 import type { RoleBase, RoleSaveDeps } from './roleSave'
-import { initialDebt, initialSplit } from './entryRoles'
+import { initialDebt, initialRemit, initialSplit } from './entryRoles'
 
 /**
  * Trả hộ cùng một người đã cho vay trước đó phải CỘNG DỒN vào khoản đang mở
@@ -71,6 +71,7 @@ const base: RoleBase = {
   srcCurrency: 'JPY',
   occurredOn: '2026-07-23',
   note: '',
+  tagIds: [],
 }
 
 /** Trả hộ còn nợ (settle='later') — nhánh cũ: luôn có khoản cho vay. */
@@ -490,5 +491,53 @@ describe('saveDebtEntry — cho vay kèm phí', () => {
 
     expect(calls.createTransaction).toHaveLength(0)
     expect(calls.createDebt).toHaveLength(1)
+  })
+})
+
+/**
+ * Nhãn (tagIds) người dùng chọn ở form phải đi theo bút toán CHÍNH ở cả ba vai
+ * trò — kể cả Trả hộ, đúng chỗ cần nhãn "ai" nhất. Bút toán phí và bút toán
+ * chuyển khoản bù (settle='now') là kỹ thuật app tự sinh nên không nhận nhãn
+ * (xem test riêng ở saveSplit/saveDebtEntry phía trên cho các bút toán đó).
+ */
+describe('nhãn đi theo ở cả ba vai trò', () => {
+  it('trả hộ: giao dịch phần mình mang đúng nhãn', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveSplit(
+      { ...base, amount: 12_400, tagIds: ['tag-lan'] },
+      { ...later(), others: 8_200, counterparty: 'Lan' },
+      deps,
+    )
+    expect(calls.createTransaction[0]).toMatchObject({ tag_ids: ['tag-lan'] })
+  })
+
+  it('gửi về VN: hỗ trợ gia đình mang đúng nhãn', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveRemit(
+      { ...base, amount: 30_000, tagIds: ['tag-me'] },
+      { ...initialRemit(), kind: 'expense', fee: 800, received: 4_467_600 },
+      deps,
+    )
+    expect(calls.createTransaction[0]).toMatchObject({ tag_ids: ['tag-me'] })
+  })
+
+  it('cho vay: bút toán giải ngân mang đúng nhãn', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveDebtEntry(
+      { ...base, amount: 50_000, tagIds: ['tag-hung'] },
+      { ...initialDebt(), direction: 'owed_to_me', counterparty: 'Hùng' },
+      deps,
+    )
+    expect(calls.createDebt[0].transaction).toMatchObject({ tag_ids: ['tag-hung'] })
+  })
+
+  it('không chọn nhãn thì không gửi mảng rỗng làm mất nhãn cũ', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveRemit(
+      { ...base, amount: 30_000, tagIds: [] },
+      { ...initialRemit(), kind: 'expense' },
+      deps,
+    )
+    expect(calls.createTransaction[0]).toMatchObject({ tag_ids: [] })
   })
 })

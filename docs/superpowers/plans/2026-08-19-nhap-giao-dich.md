@@ -2401,6 +2401,22 @@ Số học của Task 13:
 - Thu thêm ghi chú 44 + Nhãn 68 + hoàn tiền 44 = 156 **về một hàng 44px**: còn 379px, và
   bớt 2 hàng nên gap còn 24 → **403px ≤ 410px. Vừa, dư 7px.**
 
+⚠️ **SỬA SAU KHI CHẠY (số học trên SAI, lỗi của controller).** Phép tính 403px dựng trên phân
+rã đo **sau Task 6**, nhưng **Task 10 thêm 68px vào cùng màn** sau lần đo đó: segmented
+`Đã chi | Sẽ chi` **52px** + dòng "Khoản này lặp lại? → Tạo quy tắc" **16px**. Cả hai đều là
+tính năng spec đòi (B28.1 ghi rõ segmented đó "chiếm một dòng riêng"), chỉ là lúc tôi đo chúng
+chưa tồn tại. Nên mốc "không tràn" **không đạt được** và chưa bao giờ đạt được.
+
+Số thật sau Task 13 (đo ở 360×780): khung **410**, nội dung **437**, **tràn 27px**. Hai khối
+Task 13 sở hữu đều đạt hoặc hơn mục tiêu — hàng danh mục **32px** (ngân sách 42), hàng
+"Ghi chú, nhãn" **44px** (đúng ngân sách).
+
+**Mốc đúng: tràn ≤ ~30px, và không được cắt gì của đường thường.** Đo xác nhận thứ rơi dưới
+nếp đúng là hai thứ *tùy chọn*: 5px cuối của hàng "Ghi chú, nhãn" và dòng gợi ý "Tạo quy tắc".
+Ô số tiền (top 192), hàng danh mục (top 333) và tài khoản+ngày (top 283) nằm trọn trong khung,
+còn hai nút Lưu thì **ghim** nên luôn với tới được. Đó là thứ tự đúng của một form: cái bắt
+buộc ở trên nếp, cái tùy chọn ở dưới.
+
 → Nên Task 13 **phải** gộp ba khối tùy chọn thành **một hàng "Ghi chú, nhãn ⌄"** trên mobile
 (mở ra sheet hoặc bung tại chỗ), không phải chỉ đổi nhãn của cột phải desktop. Dư 7px là sát:
 ở cỡ chữ lớn hơn sẽ tràn và **cuộn** — chấp nhận được, vùng đó cuộn được. Điều phải đạt là

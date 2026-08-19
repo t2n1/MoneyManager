@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  SHAPES, shapeOf, kindsOf, directionOf, categoryPickerOf,
+  SHAPES, shapeOf, kindsOf, directionOf, categoryPickerOf, chipAriaLabel,
   type EntryKind,
 } from './entryShape'
 
@@ -100,5 +100,25 @@ describe('hai dang gui ve VN phai noi ro he qua', () => {
     expect(withHint.map((s) => s.kind).sort()).toEqual(['family', 'ownvn'])
     expect(shapeOf('family').hint).toContain('chi tiêu')
     expect(shapeOf('ownvn').hint).toContain('không phải chi tiêu')
+  })
+})
+
+describe('chipAriaLabel', () => {
+  it('dang thuong: ten doc duoc = nhan chip', () => {
+    expect(chipAriaLabel('spend')).toBe('Chi thường')
+    expect(chipAriaLabel('lend')).toBe('Cho vay')
+  })
+
+  it('hai dang gui ve VN: he qua vao TEN DOC DUOC, khong chi vao mat', () => {
+    // Cung mot hanh dong vat ly, tac dong tai san TRAI NHAU. Nghe bang trinh doc
+    // man hinh ma khong co cau nay thi khong the chon dung.
+    expect(chipAriaLabel('family')).toBe('Gửi gia đình — Tiền cho đi — tính là chi tiêu, vào trần.')
+    expect(chipAriaLabel('ownvn'))
+      .toBe('Tài khoản tôi ở VN — Vẫn là tiền của bạn — không phải chi tiêu, chỉ đổi đồng tiền.')
+  })
+
+  it('dung tam dang khong co hint thi khong co dau gach thua', () => {
+    const plain = (['spend','split','lend','repay','earn','collect','borrow','between'] as const)
+    for (const k of plain) expect(chipAriaLabel(k)).not.toContain('—')
   })
 })

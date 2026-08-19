@@ -810,7 +810,13 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // Nên trần này chỉ còn một việc: chặn mọc thêm. Phần nợ THẬT trong đám đó đã tách ra
     // thành luật riêng ở khối ban cứng ("active:scale-95 luôn đi kèm transition") — 51/73
     // nút thiếu `transition`, đúng cái mà comment của hai primitive dự đoán sẽ quên.
-    { needle: 'active:scale-95', max: 81, use: '<IconButton> / <ActionButton>' },
+    //
+    // 82 (2026-08-19, PR 3 dung lai man Nhap): +1 cho chip Dạng trong DirectionTabs.
+    // KHÔNG gộp được vào <IconButton>/<ActionButton>: cả hai khai `min-h-11` (44px) ở
+    // BASE, mà chip Dạng cố ý cao 32px — miễn trừ vùng chạm cấp hai đã ghi ngay tại
+    // DirectionTabs.tsx (luôn có ít nhất một chip đang bật). Ép qua primitive là đổi
+    // chiều cao, đúng lỗi mà nhóm "DÁNG RIÊNG" ở trên đã né.
+    { needle: 'active:scale-95', max: 82, use: '<IconButton> / <ActionButton>' },
     // 28 chứ không 26: lượt sửa vùng chạm 2026-08-11 đưa BA công tắc role="switch"
     // (AssetGroupsPage, DebtPaymentSheet, roleFields) về đúng khuôn ba công tắc đã
     // đúng từ trước — vùng chạm 44×44 ở <button>, đường ray nhỏ ở <span> bên trong.

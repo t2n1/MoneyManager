@@ -160,3 +160,9 @@ export function categoryPickerOf(kind: EntryKind, withTransaction: boolean): Cat
   if ((kind === 'lend' || kind === 'borrow') && !withTransaction) return 'none'
   return SHAPES[kind].categoryPicker
 }
+
+/** Tên đọc được của chip Dạng. Hint phải vào ĐÂY, không chỉ vào mắt. */
+export function chipAriaLabel(kind: EntryKind): string {
+  const s = SHAPES[kind]
+  return s.hint ? `${s.label} — ${s.hint}` : s.label
+}

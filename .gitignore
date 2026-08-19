@@ -46,5 +46,8 @@ supabase/.branches/
 # Visual companion khi brainstorm (tam thoi, khong commit)
 .superpowers/
 
+# Worktree do Claude Code tao — cay lam viec tam, khong commit
+.claude/worktrees/
+
 phieu-luong.json
 pypdf-chuan.json

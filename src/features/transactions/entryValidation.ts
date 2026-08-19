@@ -38,8 +38,6 @@ export interface EntryState {
   kind: EntryKind
   /** Chỉ lend/borrow dùng: tắt thì không sinh giao dịch nên không có danh mục. */
   withTransaction: boolean
-  /** "Nhắc sau" đang hiệu lực — xem `plannedModeActive` */
-  plannedMode: boolean
   hasCategory: boolean
   /** loại đang chọn KHÔNG còn danh mục nào để chọn (đã lưu trữ hết / chưa tạo) */
   categoryGridEmpty: boolean
@@ -77,14 +75,6 @@ export const splitNeedsCategory = (s: Pick<EntryState, 'amount' | 'split'>): boo
  * thẳng từ `kind`, không cần biết dạng đó "là" giao dịch thường hay vai trò gì.
  */
 function kindMissing(s: EntryState): string | null {
-  if (s.plannedMode) {
-    // Lời nhắc chỉ cần một cái TÊN — ghi chú hoặc danh mục. Không đòi số tiền: một
-    // lời nhắc có thể là "tìm nhà mới", việc có thật mà chưa ai đoán nổi giá.
-    return s.note.trim() || s.hasCategory
-      ? null
-      : 'Còn thiếu: tên lời nhắc — gõ ghi chú, hoặc chọn một danh mục.'
-  }
-
   // Mọi nhánh dưới đây chỉ trả xong PHẦN RIÊNG của dạng (field nào thiếu tên/địa
   // chỉ). Câu hỏi "có cần danh mục không" KHÔNG được trả lời ở đây nữa — nhánh nào
   // qua được hết các field riêng thì rơi xuống MỘT cổng danh mục chung ở cuối hàm,
@@ -171,7 +161,7 @@ function kindMissing(s: EntryState): string | null {
 export function entryGate(s: EntryState): EntryGate {
   const shape = shapeOf(s.kind)
   const missing = ((): string | null => {
-    if (!s.plannedMode && s.amount <= 0) {
+    if (s.amount <= 0) {
       // .toLowerCase() chỉ khi nhãn ĐÚNG LÀ "Số tiền" — đó là danh từ chung giữa câu
       // ("còn thiếu số tiền"), còn các nhãn khác ("Tổng đã trả", "Số gửi"...) là tên
       // field riêng, viết hoa đúng như trên ô nhập.

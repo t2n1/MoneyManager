@@ -10,7 +10,6 @@ function st(p: Partial<EntryState> = {}): EntryState {
     type: 'expense',
     kind: 'spend',
     withTransaction: true,
-    plannedMode: false,
     hasCategory: true,
     categoryGridEmpty: false,
     note: '',
@@ -107,17 +106,6 @@ describe('entryGate — chuyển khoản', () => {
       'Còn thiếu: số tiền nhận được.',
     )
     expect(tr({ toAccountId: 'a2', crossCurrency: true, toAmount: 50 }).canSave).toBe(true)
-  })
-})
-
-describe('entryGate — Nhắc sau', () => {
-  const pl = (p: Partial<EntryState> = {}) =>
-    entryGate(st({ plannedMode: true, hasCategory: false, amount: 0, ...p }))
-
-  it('không đòi số tiền, nhưng đòi một cái tên', () => {
-    expect(pl().missing).toMatch(/tên lời nhắc/)
-    expect(pl({ note: 'Tìm nhà mới' })).toEqual({ canSave: true, missing: null })
-    expect(pl({ hasCategory: true }).canSave).toBe(true)
   })
 })
 

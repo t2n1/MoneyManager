@@ -1,5 +1,6 @@
-import { initialPlannedDraft, type PlannedDraft } from './plannedFromEntry'
+import { firstOfMonth, initialPlannedDraft, type PlannedDraft } from './plannedFromEntry'
 import type { CurrencyCode } from '../../lib/money'
+import type { DuePrecision } from '../../types/database.types'
 
 /**
  * Bản khởi tạo `PlannedDraft` cho màn NHẬP — khác `PlannedFormSheet` (nơi
@@ -20,4 +21,28 @@ import type { CurrencyCode } from '../../lib/money'
  */
 export function initialPlannedDraftForEntry(currency: CurrencyCode, today: string): PlannedDraft {
   return { ...initialPlannedDraft(currency), dueOn: today }
+}
+
+/**
+ * MỘT cơ chế neo `dueOn` cho cả hai nơi `PlannedFields` cần neo: nút đổi "Chắc tới
+ * đâu" (raw = `dueOn` hiện có, không có gì mới gõ) và ô ngày (raw = giá trị mới của
+ * input — có thể RỖNG nếu người dùng xoá trắng bằng backspace hay nút xoá của
+ * trình duyệt).
+ *
+ * `raw` rỗng → rơi về `previous` (giá trị TRƯỚC sự kiện này) thay vì để lọt `''`
+ * hoặc, ở precision 'month', `firstOfMonth('') === '-01'` — một ngày ISO không hợp
+ * lệ — xuống payload. Bug này lọt qua ở vòng đầu vì hai nơi neo từng là hai bản
+ * chép tay khác cơ chế (một gọi `firstOfMonth`, một tự nối `-01`), và không có test
+ * nào phủ đường "xoá trắng rồi lưu ngay" — chỉ có test dựng `PlannedDraft` bằng tay
+ * rồi gọi `plannedFromEntry`, tức chỉ phủ neo lúc SUBMIT (Task 9), không phủ neo lúc
+ * ĐỔI (Task 10).
+ *
+ * Idempotent ở precision 'month': neo một ngày ĐÃ neo (`'2026-10-01'`) vẫn ra đúng
+ * nó — `firstOfMonth` chỉ cắt 7 ký tự đầu rồi nối `'-01'`, không quan tâm ngày cũ là
+ * bao nhiêu.
+ */
+export function anchoredDueOn(precision: DuePrecision, raw: string, previous: string): string {
+  const value = raw || previous
+  if (!value) return value // cả raw và previous đều rỗng — chỉ xảy ra trước khi gieo lần đầu
+  return precision === 'month' ? firstOfMonth(value) : value
 }

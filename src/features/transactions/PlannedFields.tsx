@@ -9,7 +9,8 @@
 // KHÔNG có TagPicker riêng: nhãn của khoản sắp chi đi qua đúng <TagPicker> chung mà
 // TransactionForm đã bày ở cột phải (vô điều kiện ở cả mười dạng, xem Task 6) — thêm
 // một bộ chọn nhãn thứ hai ở đây là hỏi hai lần cùng một câu.
-import { firstOfMonth, type PlannedDraft } from './plannedFromEntry'
+import type { PlannedDraft } from './plannedFromEntry'
+import { anchoredDueOn } from './plannedDraftDefaults'
 import { MoneyField } from '../../components/MoneyField'
 import { CURRENCIES, type CurrencyCode } from '../../lib/currencies'
 import type { CategoryRow, DuePrecision } from '../../types/database.types'
@@ -90,7 +91,10 @@ export function PlannedFields({ value, onChange, categories }: Props) {
                 // Neo NGAY LÚC ĐỔI, không chỉ lúc submit (plannedFromEntry neo lần
                 // hai): đổi "Đúng ngày" → "Khoảng tháng" SAU khi đã chọn ngày 17 mà
                 // không neo ở đây thì state còn nguyên ngày 17 cho tới lúc bấm Lưu.
-                dueOn: p === 'month' && value.dueOn ? firstOfMonth(value.dueOn) : value.dueOn,
+                // `anchoredDueOn` CHUNG với ô ngày ngay dưới — một cơ chế, không phải
+                // hai bản chép tay (fix round 1: hai bản khác nhau là đúng chỗ lọt
+                // '-01'/'' khi ô ngày bị xoá trắng).
+                dueOn: anchoredDueOn(p, value.dueOn, value.dueOn),
               })
             }
             aria-pressed={value.precision === p}
@@ -122,9 +126,11 @@ export function PlannedFields({ value, onChange, categories }: Props) {
         onChange={(e) =>
           onChange({
             ...value,
-            // Neo ở ĐÂY nữa: ô `type="month"` không có ngày trong giá trị trả về, nên
-            // "-01" luôn đúng — không phải suy đoán.
-            dueOn: value.precision === 'day' ? e.target.value : `${e.target.value}-01`,
+            // Neo ở ĐÂY nữa, qua CÙNG `anchoredDueOn` với nút "Chắc tới đâu" ngay
+            // trên: ô ngày có thể trả về CHUỖI RỖNG (backspace, nút xoá của trình
+            // duyệt) — `anchoredDueOn` rơi về `value.dueOn` (giá trị trước sự kiện
+            // này) thay vì để lọt '' hoặc, ở precision 'month', '-01' xuống payload.
+            dueOn: anchoredDueOn(value.precision, e.target.value, value.dueOn),
           })
         }
         className="mb-3 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm"

@@ -512,7 +512,9 @@ export function TransactionForm({
   const plannedError = plannedMode ? plannedMissing(plannedDraft) : null
 
   // Một cổng duy nhất cho cả "được bấm Lưu chưa" và "còn thiếu gì" — chín dạng còn lại
-  // vẫn đi qua entryValidation.ts như cũ (xem entryValidation.test.ts, không đổi).
+  // đi qua entryValidation.ts. `EntryState` không còn field `plannedMode`: nhánh đó đã
+  // xóa khỏi entryGate/kindMissing (fix round 1) vì không còn đường nào gọi tới —
+  // "Sẽ chi" luôn rẽ qua `plannedMissing` ở trên, không bao giờ chạm `entryGate`.
   const gate = plannedMode
     ? { canSave: plannedError === null, missing: plannedError }
     : entryGate({
@@ -521,7 +523,6 @@ export function TransactionForm({
         type,
         kind,
         withTransaction,
-        plannedMode: false,
         hasCategory,
         // Lưới rỗng ≠ chưa chọn: câu nhắc phải chỉ sang Cài đặt chứ không bảo "chọn ở
         // lưới" khi lưới không có ô nào.

@@ -115,7 +115,10 @@ function kindMissing(s: EntryState): string | null {
         if (split.receivedAccountId && !s.splitBackAccountIds.includes(split.receivedAccountId))
           return 'Ví "Nhận lại vào" không còn hợp lệ — chọn lại.'
         if (split.others === s.amount && !split.receivedAccountId)
-          return 'Người kia trả đủ vào chính ví đã trả → không có gì để ghi. Chọn ví khác ở "Nhận lại vào", hoặc bấm Bỏ nếu không cần ghi.'
+          // "chọn dạng Chi thường", KHÔNG "bấm Bỏ": nút "Bỏ" nằm trên banner vai trò, và
+          // banner đó đã bị bỏ cùng lúc với dropdown "loại đặc biệt". Đường ra khỏi dạng
+          // Trả hộ giờ là hàng Dạng, nên câu nhắc phải chỉ vào thứ đang có trên màn.
+          return 'Người kia trả đủ vào chính ví đã trả → không có gì để ghi. Chọn ví khác ở "Nhận lại vào", hoặc chọn dạng Chi thường nếu không cần ghi.'
         break
       }
       case 'lend':

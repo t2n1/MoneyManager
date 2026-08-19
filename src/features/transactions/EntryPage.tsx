@@ -162,14 +162,30 @@ export function EntryPage() {
     }
   }
 
-  // Lưu một vai trò đặc biệt (Trả hộ / Cho vay-Nợ / Gửi về VN) rồi về Sổ GD.
-  // Các vai trò có thể tạo nhiều bút toán → không kèm Hoàn tác một chạm (điểm G).
-  async function handleRole(payload: RoleSubmit) {
+  /**
+   * Toast "đã lưu" rồi Ở LẠI màn hình — dùng cho nút "Lưu và nhập tiếp" ở những đường
+   * ghi có thể sinh NHIỀU bút toán. KHÔNG kèm Hoàn tác một chạm (điểm G): hoàn tác một
+   * chạm chỉ xoá được một bút toán, mà các dạng này ghi tới ba cái.
+   */
+  function toastAndStay(text: string) {
+    setToast({ text, ok: true })
+    clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 5000)
+  }
+
+  // Lưu một dạng đi qua orchestrator riêng (Trả hộ / Cho vay-Nợ / Gửi về VN).
+  // `keepGoing` = bấm "Lưu và nhập tiếp" → ở lại màn, y hợp đồng với onSubmitWithFee.
+  // Không tôn trọng cờ này thì nhãn nút nói ngược việc nó làm.
+  async function handleRole(payload: RoleSubmit, keepGoing: boolean) {
     const deps = roleDeps()
     if (payload.role === 'split') await saveSplit(payload.base, payload.value, deps)
     else if (payload.role === 'debt') await saveDebtEntry(payload.base, payload.value, deps)
     else await saveRemit(payload.base, payload.value, deps)
-    navigate('/so')
+    if (!keepGoing) {
+      navigate('/so')
+      return
+    }
+    toastAndStay('Đã lưu')
   }
 
   return (
@@ -225,16 +241,14 @@ export function EntryPage() {
         enableRoles
         initialRole={initialRole}
         onSubmitRole={handleRole}
-        // Chuyển khoản có phí: 2 bút toán → không kèm Hoàn tác một chạm (như vai trò)
+        // Chuyển khoản có phí: 2 bút toán → không kèm Hoàn tác một chạm (như các dạng khác)
         onSubmitWithFee={async (main, fee, keepGoing) => {
           await saveWithFee(main, fee, 'Phí chuyển khoản', roleDeps())
           if (!keepGoing) {
             navigate('/so')
             return
           }
-          setToast({ text: 'Đã lưu (kèm phí)', ok: true })
-          clearTimeout(toastTimer.current)
-          toastTimer.current = setTimeout(() => setToast(null), 5000)
+          toastAndStay('Đã lưu (kèm phí)')
         }}
         // Lưu: ghi giao dịch rồi quay về Sổ GD
         onSubmit={async (values) => {

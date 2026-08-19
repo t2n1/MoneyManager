@@ -168,8 +168,13 @@ interface TransactionFormProps {
   enableRoles?: boolean
   /** Dạng mở sẵn (từ deep-link ?role=). Bỏ qua nếu !enableRoles. */
   initialRole?: EntryRole
-  /** Lưu một dạng đi qua orchestrator riêng (thay onSubmit). Bắt buộc khi enableRoles. */
-  onSubmitRole?: (payload: RoleSubmit) => Promise<void>
+  /**
+   * Lưu một dạng đi qua orchestrator riêng (thay onSubmit). Bắt buộc khi enableRoles.
+   * `keepGoing` = người dùng bấm "Lưu và nhập tiếp" → người nhận PHẢI ở lại màn hình
+   * (cùng hợp đồng với `onSubmitWithFee` ngay dưới). Không có cờ này thì nút phụ lưu
+   * xong lại điều hướng đi, tức nhãn nút nói ngược việc nó làm ở năm dạng.
+   */
+  onSubmitRole?: (payload: RoleSubmit, keepGoing: boolean) => Promise<void>
   /**
    * Chuyển khoản có phí: lưu giao dịch chính + một giao dịch CHI riêng cho phí
    * (danh mục "Tài chính"). Không truyền → không hiện nút "+ Phí" ở chuyển khoản
@@ -479,15 +484,27 @@ export function TransactionForm({
    * Hai dạng trả nợ ghi qua `createDebtPayment` và cần một ô chọn khoản nợ — ô đó đến ở
    * bước sau của gói này. Tới đó thì KHÓA nút: để nó lưu được là bút toán rơi xuống
    * nhánh giao dịch thường và ghi SAI SỔ (một khoản chi thường thay vì một lần trả nợ).
-   * Lý do nói bằng một dòng ngay chỗ field (xem dưới), không để nút mờ không một lời.
+   * Lý do nói bằng một dòng GHIM cạnh nút (khối đáy), không để nút mờ không một lời.
    */
   const payWiringPending = shape.writes === 'debtPayment'
   const canSave = gate.canSave && !saving && !payWiringPending
   const missing = saving ? null : gate.missing
   /**
-   * Nhãn nút chính NHẮC LẠI VIỆC SẼ LÀM ("Lưu · gửi ¥30,000 cho gia đình"), và khi chưa
-   * đủ thì NÓI THIẾU GÌ — `missing` đã tính sẵn, chỉ chưa ai đưa lên nút. Nút mờ mà
-   * không nói thì không biết đang bị vô hiệu hay chỉ là màu.
+   * `missing` có HAI HỌ CÂU khác nhau, và chỉ một họ lên được nút:
+   *
+   *  - "Còn thiếu: <tên field>." — ngắn theo cấu tạo (một danh từ), đọc thành một NGỮ nên
+   *    ghép được vào nhãn: "Lưu · còn thiếu số tiền".
+   *  - Câu hoàn chỉnh ("Tài khoản đến đang trùng tài khoản nguồn.", và câu dài 130 ký tự
+   *    của Trả hộ). Ghép vào nút là chữ hoa nằm giữa ngữ, và một nút `flex-1` rộng ~131px
+   *    ở 360px sẽ vỡ 3-4 dòng NGAY TRONG khối ghim đáy — ăn chiều cao của vùng cuộn. Câu
+   *    đó đã hiện nguyên văn ngay TRÊN nút (xem dòng `missing` ở khối ghim), nên đưa lên
+   *    nút không thêm thông tin nào.
+   */
+  const missingPhrase = missing?.startsWith('Còn thiếu: ') ? missing : null
+  /**
+   * Nhãn nút chính NHẮC LẠI VIỆC SẼ LÀM ("Lưu · gửi ¥30,000 cho gia đình"), và khi thiếu
+   * một field thì NÓI THIẾU GÌ. Nút mờ mà không nói thì không biết đang bị vô hiệu hay
+   * chỉ là màu.
    *
    * Form SỬA và bản điền sẵn khoản đến hạn giữ nhãn của người gọi ("Cập nhật" / "Ghi và
    * đánh dấu đã chi"): ở đó nút không ghi một khoản mới, nên câu nhắc việc sẽ nói sai việc.
@@ -496,9 +513,11 @@ export function TransactionForm({
     ? 'Tạo lời nhắc'
     : initial
       ? submitLabel
-      : missing
-        ? `Lưu · ${missing.replace(/^Còn thiếu: /, 'còn thiếu ').replace(/\.$/, '')}`
-        : `Lưu · ${saveVerbOf(kind, amount, srcCurrency, selectedCat?.name ?? null)}`
+      : missingPhrase
+        ? `Lưu · ${missingPhrase.replace(/^Còn thiếu: /, 'còn thiếu ').replace(/\.$/, '')}`
+        : missing
+          ? 'Lưu'
+          : `Lưu · ${saveVerbOf(kind, amount, srcCurrency, selectedCat?.name ?? null)}`
 
   /**
    * Đang ở chế độ mà nhãn + cờ "hoàn tiền" KHÔNG lưu được (quy tắc định kỳ / lời nhắc).
@@ -614,8 +633,22 @@ export function TransactionForm({
     setter((d) => appendKey(d, key))
   }
 
+  /** Dọn form cho lần nhập kế tiếp: giữ danh mục + tài khoản + ngày, xóa số tiền + ghi chú. */
+  function clearForNextEntry() {
+    setDigits('')
+    setToDigits('')
+    setNote('')
+    setToAccountId(null)
+    setTransferFee(0)
+    setActiveField('main')
+  }
+
   async function handleSubmit(mode: 'save' | 'continue' = 'save') {
     if (!canSave || !effectiveAccountId) return
+
+    // MỘT định nghĩa cho cả hai nhánh lưu: nút phụ chỉ có mặt khi màn này nhận
+    // `onContinue`, nên hai nhánh không được hiểu chữ "nhập tiếp" khác nhau.
+    const keepGoing = mode === 'continue' && !!onContinue
 
     // Dạng đi qua orchestrator riêng: dựng field gốc dùng chung rồi để EntryPage lưu.
     // Chọn nhánh theo BẢNG (`roleSeed.role`), không theo một state vai trò song song.
@@ -633,13 +666,22 @@ export function TransactionForm({
           tagIds: effectiveTagIds,
         }
         if (shape.roleSeed.role === 'split') {
-          await onSubmitRole({ role: 'split', base, value: splitVal })
+          await onSubmitRole({ role: 'split', base, value: splitVal }, keepGoing)
         } else if (shape.roleSeed.role === 'debt') {
-          await onSubmitRole({ role: 'debt', base, value: debtValue })
+          await onSubmitRole({ role: 'debt', base, value: debtValue }, keepGoing)
         } else {
-          await onSubmitRole({ role: 'remit', base, value: remitValue })
+          await onSubmitRole({ role: 'remit', base, value: remitValue }, keepGoing)
         }
         localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
+        if (keepGoing) {
+          clearForNextEntry()
+          // Gieo lại KHỐI FIELD của dạng, không chỉ số tiền: giữ nguyên thì "phần người
+          // khác" / "số nhận" của khoản TRƯỚC còn nằm đó trong khi ô số tiền đã trắng —
+          // hai số không còn khớp nhau, và cổng Lưu báo lỗi trước khi người ta gõ gì.
+          if (shape.roleSeed.role === 'split') setSplitVal(initialSplit())
+          if (shape.roleSeed.role === 'debt') setDebtVal(initialDebt())
+          if (shape.roleSeed.role === 'remit') setRemitVal(initialRemit())
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Lưu thất bại, thử lại.')
       } finally {
@@ -648,7 +690,6 @@ export function TransactionForm({
       return
     }
 
-    const keepGoing = mode === 'continue' && !!onContinue
     setPending(mode)
     setError(null)
     try {
@@ -696,15 +737,7 @@ export function TransactionForm({
       if (type !== 'transfer' && categoryId) {
         localStorage.setItem(lastCategoryKey(type), categoryId)
       }
-      if (keepGoing) {
-        // Nhập liên tục: giữ danh mục + tài khoản + ngày, chỉ xóa số tiền + ghi chú
-        setDigits('')
-        setToDigits('')
-        setNote('')
-        setToAccountId(null)
-        setTransferFee(0)
-        setActiveField('main')
-      }
+      if (keepGoing) clearForNextEntry()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Lưu thất bại, thử lại.')
     } finally {
@@ -964,15 +997,6 @@ export function TransactionForm({
           Chưa có tài khoản JPY. Hãy tạo một tài khoản JPY trước khi gửi tiền về VN.
         </p>
       )}
-      {payWiringPending && (
-        <p className="rounded-lg border border-state-warn-border bg-state-warn-bg px-3 py-2 text-xs text-state-warn-fg">
-          Hai dạng trả nợ chưa nhập được ở màn này.{' '}
-          <Link to="/debts" className="font-medium underline">
-            Mở trang Nợ
-          </Link>{' '}
-          → chọn khoản nợ → "Ghi trả".
-        </p>
-      )}
       {kind === 'split' && (
         <SplitFields
           value={splitVal}
@@ -1120,15 +1144,12 @@ export function TransactionForm({
         )}
       </div>
 
-      {/* Nhãn + "hoàn tiền" chỉ sống được trên một GIAO DỊCH. Quy tắc định kỳ
-          (NewRecurringRule) và khoản sắp chi (NewPlannedExpense) không có cột nào giữ
-          chúng, nên trước đây chọn nhãn rồi bấm Lặp lại là nhãn rơi mất không một lời
-          — đo thử: 1 nhãn đã chọn, lưu xong còn 0 liên kết. Cờ hoàn tiền cũng vậy, và
-          nó còn tệ hơn vì mỗi kỳ sinh ra một khoản chi cộng thêm tiền vào Chi thay vì
-          trừ ra.
-          Cách xử giống ô "+ Phí" của chuyển khoản: THÀ KHÔNG HIỆN còn hơn nhận rồi âm
-          thầm bỏ — kèm một dòng nói vì sao, và nói luôn số nhãn đang chọn sẽ không đi
-          theo, để không có gì biến mất trong im lặng. */}
+      {/* Cờ "hoàn tiền" chỉ sống được trên một GIAO DỊCH: khoản sắp chi
+          (NewPlannedExpense) không có cột nào giữ nó, nên ở chế độ lời nhắc ô đó ẩn kèm
+          một dòng nói vì sao (`refundNote`) — thà không hiện còn hơn nhận rồi âm thầm bỏ,
+          cùng cách xử với ô "+ Phí" của chuyển khoản.
+          Nhãn thì đi theo được cả hai đường ghi (planned_expense_tags 0044, và
+          RoleBase.tagIds cho các dạng có orchestrator) nên TagPicker không bị gác nữa. */}
       {/* KHÔNG còn gác bởi dạng nào: `RoleBase.tagIds` đã thông đường xuống cả ba
           orchestrator, nên nhãn đi theo được ở cả mười dạng. Trước đây ô này ẩn ở 5/10
           dạng — kể cả Trả hộ, đúng chỗ cần nhãn "ai" nhất. */}
@@ -1187,8 +1208,22 @@ export function TransactionForm({
       </div>
 
       {error && <p role="alert" className="text-sm text-money-out">{error}</p>}
-      {/* Lý do nút Lưu còn mờ — ghim cạnh nút để không bao giờ bị cuộn khuất. */}
-      {!error && missing && <p className="px-1 text-xs text-fg-warn">{missing}</p>}
+      {/* Lý do nút Lưu còn mờ — ghim cạnh nút để không bao giờ bị cuộn khuất.
+          Hai dạng trả nợ KHÔNG đi qua `missing` (entryValidation chưa có ô nợ để mà đòi),
+          nên lý do của chúng phải tự lên đây. Để nó trong vùng cuộn là để nó bị cuộn khuất
+          đúng lúc người ta đang nhìn một cái nút mờ không lời giải thích. */}
+      {!error && payWiringPending && (
+        <p className="px-1 text-xs text-fg-warn">
+          Hai dạng trả nợ chưa nhập được ở màn này —{' '}
+          <Link to="/debts" className="font-medium underline">
+            mở trang Nợ
+          </Link>{' '}
+          → chọn khoản nợ → "Ghi trả".
+        </p>
+      )}
+      {!error && !payWiringPending && missing && (
+        <p className="px-1 text-xs text-fg-warn">{missing}</p>
+      )}
 
       {/* Hàng nút: ⌫ (chỉ mobile, thay cho hàng xóa lùi riêng) + Lưu và nhập tiếp / Lưu */}
       <div className="flex gap-2">
@@ -1225,7 +1260,13 @@ export function TransactionForm({
           disabled={!canSave}
           className="min-w-0 flex-1 rounded-md bg-accent py-3 text-base font-semibold text-fg-on-accent transition enabled:active:scale-95 enabled:hover:bg-accent-hover disabled:bg-accent-muted-bg disabled:text-accent-muted-fg"
         >
-          {pending === 'save' ? 'Đang lưu…' : saveLabel}
+          {/* `line-clamp-2`: hai nút cạnh nhau + ô ⌫ để nút này rộng 128px ở 360px và
+              108px ở 320px, nên nhãn dài xuống tới FIVE dòng — đo được 120px chiều cao
+              hàng nút ở 320px với câu "còn thiếu chọn danh mục ở lưới phía trên". Khối
+              đáy là khối GHIM, cao thêm bao nhiêu là vùng cuộn mất bấy nhiêu. Chặn ở hai
+              dòng: nhãn nhắc việc ("Lưu · gửi ¥30,000 cho gia đình") vẫn hiện đủ, còn câu
+              dài thì đã có dòng lý do ngay TRÊN nút mang nguyên văn. */}
+          <span className="line-clamp-2">{pending === 'save' ? 'Đang lưu…' : saveLabel}</span>
         </button>
       </div>
       </div>

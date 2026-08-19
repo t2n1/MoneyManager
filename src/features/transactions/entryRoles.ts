@@ -6,7 +6,6 @@ import type { DebtDirection } from '../../types/database.types'
  * (số tiền, tài khoản, ngày, ghi chú) và chỉ thêm vài field riêng.
  */
 export type EntryRole = 'none' | 'split' | 'debt' | 'remit'
-export type SpecialRole = Exclude<EntryRole, 'none'>
 
 /** Người kia đã hoàn tiền chưa — quyết định có sinh khoản cho vay hay không. */
 export type SplitSettle = 'now' | 'later'

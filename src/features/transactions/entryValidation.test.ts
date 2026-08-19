@@ -143,6 +143,10 @@ describe('entryGate — dạng đặc biệt', () => {
     )
     expect(r.canSave).toBe(false)
     expect(r.missing).toMatch(/không có gì để ghi/)
+    // Cau nhac phai chi vao thu DANG CO tren man. Nut "Bo" cua banner vai tro da bi bo
+    // cung luc voi dropdown "loai dac biet" — chi vao no la chi vao khong khi.
+    expect(r.missing).not.toMatch(/bấm Bỏ/)
+    expect(r.missing).toContain('chọn dạng Chi thường')
   })
 
   it('trả hộ: ví nhận lại đã lạc khỏi danh sách hợp lệ', () => {

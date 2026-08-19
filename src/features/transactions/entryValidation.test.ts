@@ -7,7 +7,8 @@ function st(p: Partial<EntryState> = {}): EntryState {
     amount: 1_000,
     hasAccount: true,
     type: 'expense',
-    role: 'none',
+    kind: 'spend',
+    withTransaction: true,
     plannedMode: false,
     hasCategory: true,
     categoryGridEmpty: false,
@@ -25,23 +26,23 @@ function st(p: Partial<EntryState> = {}): EntryState {
 }
 
 describe('plannedModeActive', () => {
-  const base = { remindLater: true, canPlan: true, type: 'expense' as const, role: 'none' as const }
+  const base = { remindLater: true, canPlan: true, kind: 'spend' as const }
 
   it('bật với khoản chi thường', () => {
     expect(plannedModeActive(base)).toBe(true)
   })
 
-  // Nút bật/tắt "Nhắc sau" chỉ hiện với khoản CHI thường. Nếu cờ thô còn hiệu lực sau
-  // khi đổi loại/bật vai trò thì nút Lưu ghi "Tạo lời nhắc" mà không cách nào tắt, và
-  // bấm vào là tạo một khoản sắp CHI từ một khoản THU.
+  // Nút bật/tắt "Nhắc sau" chỉ hiện với khoản CHI thường (kind 'spend'). Nếu cờ thô
+  // còn hiệu lực sau khi đổi dạng thì nút Lưu ghi "Tạo lời nhắc" mà không cách nào
+  // tắt, và bấm vào là tạo một khoản sắp CHI từ một khoản khác.
   it('tắt khi đổi sang thu hoặc chuyển khoản', () => {
-    expect(plannedModeActive({ ...base, type: 'income' })).toBe(false)
-    expect(plannedModeActive({ ...base, type: 'transfer' })).toBe(false)
+    expect(plannedModeActive({ ...base, kind: 'earn' })).toBe(false)
+    expect(plannedModeActive({ ...base, kind: 'between' })).toBe(false)
   })
 
-  it('tắt khi đang bật một vai trò đặc biệt', () => {
-    expect(plannedModeActive({ ...base, role: 'debt' })).toBe(false)
-    expect(plannedModeActive({ ...base, role: 'split' })).toBe(false)
+  it('tắt khi đang bật một dạng đặc biệt', () => {
+    expect(plannedModeActive({ ...base, kind: 'lend' })).toBe(false)
+    expect(plannedModeActive({ ...base, kind: 'split' })).toBe(false)
   })
 
   it('tắt khi form không nhận việc tạo lời nhắc (màn Sửa)', () => {
@@ -78,14 +79,14 @@ describe('entryGate — giao dịch thường', () => {
   })
 
   it('thu cũng đòi danh mục như chi', () => {
-    expect(entryGate(st({ type: 'income', hasCategory: false })).canSave).toBe(false)
-    expect(entryGate(st({ type: 'income' })).canSave).toBe(true)
+    expect(entryGate(st({ kind: 'earn', hasCategory: false })).canSave).toBe(false)
+    expect(entryGate(st({ kind: 'earn' })).canSave).toBe(true)
   })
 })
 
 describe('entryGate — chuyển khoản', () => {
   const tr = (p: Partial<EntryState> = {}) =>
-    entryGate(st({ type: 'transfer', hasCategory: false, ...p }))
+    entryGate(st({ kind: 'between', hasCategory: false, ...p }))
 
   it('thiếu tài khoản đến', () => {
     expect(tr().missing).toBe('Còn thiếu: tài khoản ĐẾN.')
@@ -118,16 +119,16 @@ describe('entryGate — Nhắc sau', () => {
   })
 })
 
-describe('entryGate — vai trò đặc biệt', () => {
-  it('thiếu số tiền thì gọi đúng tên ô của vai trò', () => {
-    expect(entryGate(st({ role: 'split', amount: 0 })).missing).toBe('Còn thiếu: tổng đã trả.')
-    expect(entryGate(st({ role: 'debt', amount: 0 })).missing).toBe('Còn thiếu: số tiền gốc.')
-    expect(entryGate(st({ role: 'remit', amount: 0 })).missing).toBe('Còn thiếu: số gửi (JPY).')
+describe('entryGate — dạng đặc biệt', () => {
+  it('thiếu số tiền thì gọi đúng tên ô của dạng', () => {
+    expect(entryGate(st({ kind: 'split', amount: 0 })).missing).toBe('Còn thiếu: Tổng đã trả.')
+    expect(entryGate(st({ kind: 'borrow', amount: 0 })).missing).toBe('Còn thiếu: Số tiền gốc.')
+    expect(entryGate(st({ kind: 'family', amount: 0 })).missing).toBe('Còn thiếu: Số gửi.')
   })
 
   it('trả hộ: đòi phần người khác, rồi tên người nợ, rồi danh mục', () => {
     const s = (p: Partial<EntryState['split']>) =>
-      entryGate(st({ role: 'split', split: { ...initialSplit(), ...p } }))
+      entryGate(st({ kind: 'split', split: { ...initialSplit(), ...p } }))
     expect(s({}).missing).toMatch(/phần người khác trả lại/)
     expect(s({ settle: 'later', others: 400 }).missing).toMatch(/tên người nợ mình/)
     expect(s({ settle: 'later', others: 400, counterparty: 'Minh' }).canSave).toBe(true)
@@ -138,7 +139,7 @@ describe('entryGate — vai trò đặc biệt', () => {
 
   it('trả hộ: trả đủ vào chính ví đã trả → không có gì để ghi', () => {
     const r = entryGate(
-      st({ role: 'split', split: { ...initialSplit(), others: 1_000, settle: 'now' } }),
+      st({ kind: 'split', split: { ...initialSplit(), others: 1_000, settle: 'now' } }),
     )
     expect(r.canSave).toBe(false)
     expect(r.missing).toMatch(/không có gì để ghi/)
@@ -147,7 +148,7 @@ describe('entryGate — vai trò đặc biệt', () => {
   it('trả hộ: ví nhận lại đã lạc khỏi danh sách hợp lệ', () => {
     const r = entryGate(
       st({
-        role: 'split',
+        kind: 'split',
         split: { ...initialSplit(), others: 400, receivedAccountId: 'cu' },
         splitBackAccountIds: ['moi'],
       }),
@@ -155,21 +156,58 @@ describe('entryGate — vai trò đặc biệt', () => {
     expect(r.missing).toMatch(/không còn hợp lệ/)
   })
 
-  it('ghi nợ: đòi tên, đúng chiều nợ', () => {
-    expect(entryGate(st({ role: 'debt' })).missing).toMatch(/tên chủ nợ/)
+  it('ghi nợ: đòi tên, đúng chiều nợ (lend vs borrow)', () => {
+    expect(entryGate(st({ kind: 'borrow' })).missing).toMatch(/tên chủ nợ/)
     expect(
-      entryGate(st({ role: 'debt', debt: { ...initialDebt(), direction: 'owed_to_me' } })).missing,
+      entryGate(st({ kind: 'lend', debt: { ...initialDebt(), direction: 'owed_to_me' } })).missing,
     ).toMatch(/tên người vay/)
     expect(
-      entryGate(st({ role: 'debt', debt: { ...initialDebt(), counterparty: 'Hà' } })).canSave,
+      entryGate(st({ kind: 'borrow', debt: { ...initialDebt(), counterparty: 'Hà' } })).canSave,
     ).toBe(true)
   })
 
   it('gửi về VN: đòi tài khoản đích rồi số nhận', () => {
-    const r = (p: Partial<EntryState['remit']>) =>
-      entryGate(st({ role: 'remit', remit: { ...initialRemit(), ...p } }))
+    // remit.kind ('expense'|'transfer') quyết định EntryState.kind là family hay ownvn —
+    // xem bảng chuyển đổi task 4: role 'remit' + remit.kind 'transfer' → 'ownvn'.
+    const r = (p: Partial<EntryState['remit']>) => {
+      const remit = { ...initialRemit(), ...p }
+      return entryGate(st({ kind: remit.kind === 'transfer' ? 'ownvn' : 'family', remit }))
+    }
     expect(r({ kind: 'transfer' }).missing).toMatch(/tài khoản VND/)
     expect(r({}).missing).toMatch(/số nhận/)
     expect(r({ received: 1_600_000 }).canSave).toBe(true)
+  })
+})
+
+describe('gate doc kind, khong doc role', () => {
+  it('dang thuong thieu so tien thi noi thieu so tien', () => {
+    const g = entryGate(st({ kind: 'spend', amount: 0 }))
+    expect(g.canSave).toBe(false)
+    expect(g.missing).toBe('Còn thiếu: số tiền.')
+  })
+
+  it('dang khong co luoi danh muc thi KHONG doi chon danh muc', () => {
+    // family/lend/borrow/between/ownvn: categoryPicker khac 'user' → luoi an, nen
+    // "chon danh muc o luoi phia tren" la cau vo nghia (khong co luoi nao).
+    for (const kind of ['family', 'lend', 'borrow', 'between', 'ownvn'] as const) {
+      const g = entryGate(st({ kind, amount: 1000, hasCategory: false }))
+      expect(g.missing).not.toMatch(/chọn danh mục/)
+    }
+  })
+
+  it('dang co luoi danh muc thi van doi chon danh muc', () => {
+    for (const kind of ['spend', 'earn'] as const) {
+      const g = entryGate(st({ kind, amount: 1000, hasCategory: false }))
+      expect(g.missing).toMatch(/chọn danh mục/)
+    }
+  })
+
+  it('nhan o tien trong cau thieu lay tu bang, khong hard-code', () => {
+    expect(entryGate(st({ kind: 'split', amount: 0 })).missing)
+      .toBe('Còn thiếu: Tổng đã trả.')
+    expect(entryGate(st({ kind: 'family', amount: 0 })).missing)
+      .toBe('Còn thiếu: Số gửi.')
+    expect(entryGate(st({ kind: 'lend', amount: 0 })).missing)
+      .toBe('Còn thiếu: Số tiền gốc.')
   })
 })

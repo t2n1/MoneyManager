@@ -88,6 +88,12 @@ function kindMissing(s: EntryState): string | null {
   // đọc thẳng từ bảng. Trước đây `between` và bốn case còn lại `return null` ngay
   // khi xong phần riêng, nên cổng danh mục chung không bao giờ được gọi tới cho
   // chúng — "không cần danh mục" là do hardcode, trùng đúng bảng chỉ vì tình cờ.
+  //
+  // Cổng danh mục LUÔN hỏi SAU CÙNG, cho mọi dạng — nó chỉ thua các field riêng
+  // NGAY TRÊN nó (đứng trước trong code), không thua field riêng của phần tử nào
+  // khác. Với split cụ thể: ví "Nhận lại vào" không hợp lệ giờ báo trước thiếu
+  // danh mục (trước đây ngược lại) — quyết định có chủ đích, xem test "trả hộ: ví
+  // nhận lại sai lấn thiếu danh mục" ở file test.
   if (s.kind === 'between') {
     if (!s.toAccountId) return 'Còn thiếu: tài khoản ĐẾN.'
     if (s.toAccountId === s.accountId) return 'Tài khoản đến đang trùng tài khoản nguồn.'

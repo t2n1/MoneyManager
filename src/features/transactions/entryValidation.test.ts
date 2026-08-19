@@ -156,6 +156,26 @@ describe('entryGate — dạng đặc biệt', () => {
     expect(r.missing).toMatch(/không còn hợp lệ/)
   })
 
+  // Ví "Nhận lại vào" sai và thiếu danh mục CÙNG lúc: bản trước fix round 2 báo thiếu
+  // danh mục trước (kiểm tra hasCategory ngay trong nhánh split, trước hai kiểm tra ví);
+  // bản sau fix round 2 báo ví sai trước, vì cổng danh mục dồn hết xuống cuối hàm — dồn
+  // xuống một chỗ là mục tiêu của lần sửa lỗi cổng danh mục "không tới được", nên KHÔNG
+  // đưa cổng danh mục lên chạy trước hai kiểm tra ví (làm vậy lại tạo ra chỗ hỏi danh mục
+  // thứ hai — đúng lỗi mà round 1 vừa xoá). Thứ tự mới là quyết định có chủ đích: ví sai
+  // là lỗi VÔ HÌNH (người dùng không thấy), còn thiếu danh mục là lỗi NHÌN THẤY được (lưới
+  // còn ngay trên màn hình) — báo lỗi vô hình trước hợp lý hơn.
+  it('trả hộ: ví nhận lại sai lấn thiếu danh mục', () => {
+    const r = entryGate(
+      st({
+        kind: 'split',
+        hasCategory: false,
+        split: { ...initialSplit(), others: 400, settle: 'now', receivedAccountId: 'cu' },
+        splitBackAccountIds: ['moi'],
+      }),
+    )
+    expect(r.missing).toBe('Ví "Nhận lại vào" không còn hợp lệ — chọn lại.')
+  })
+
   it('ghi nợ: đòi tên, đúng chiều nợ (lend vs borrow)', () => {
     expect(entryGate(st({ kind: 'borrow' })).missing).toMatch(/tên chủ nợ/)
     expect(

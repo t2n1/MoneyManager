@@ -482,6 +482,21 @@ export function TransactionForm({
   const [plannedDraft, setPlannedDraft] = useState<PlannedDraft>(() =>
     initialPlannedDraftForEntry(srcCurrency, toISODate(new Date())),
   )
+  /**
+   * `currency` của bản nháp trên gieo trong `useState` (chạy MỘT lần), mà lúc đó
+   * `useAccounts()` chưa về nên `srcCurrency` còn là fallback 'JPY': người có ví mặc định
+   * VND nhận một ô "Ước tính" ghi bằng JPY cho tới khi họ tự chạm ô chọn loại tiền.
+   *
+   * Gieo lại ĐÚNG MỘT LẦN, ngay khi đã biết tiền của ví nguồn — sau đó không đụng nữa,
+   * vì loại tiền của một khoản sắp chi không nhất thiết là loại tiền của ví (vé máy bay
+   * tính bằng USD trả từ ví JPY), nên đổi ví không được đạp lên lựa chọn của người dùng.
+   */
+  const plannedCurrencySeeded = useRef(false)
+  useEffect(() => {
+    if (plannedCurrencySeeded.current || activeAccounts.length === 0) return
+    plannedCurrencySeeded.current = true
+    setPlannedDraft((d) => (d.currency === srcCurrency ? d : { ...d, currency: srcCurrency }))
+  }, [activeAccounts.length, srcCurrency])
   // `kind === 'between'` chứ không `type === 'transfer'`: dạng "Tài khoản tôi ở VN"
   // cũng là chuyển khoản, nhưng ô đích và số nhận của nó nằm trong RemitFields — hỏi
   // thêm một ô "nhận được" nữa là hỏi hai lần cùng một số.
@@ -562,7 +577,7 @@ export function TransactionForm({
    * mất mà cờ vẫn bật, và nút Lưu sẽ tạo một khoản sắp CHI trong khi đang ở tab Thu.
    */
   const plannedMode = plannedModeActive({
-    remindLater: wantsPlanned,
+    wantsPlanned,
     canPlan: !!onSubmitPlanned,
     kind,
   })
@@ -668,14 +683,12 @@ export function TransactionForm({
     : entryGate({
         amount,
         hasAccount: !!effectiveAccountId,
-        type,
         kind,
         withTransaction,
         hasCategory,
         // Lưới rỗng ≠ chưa chọn: câu nhắc phải chỉ sang Cài đặt chứ không bảo "chọn ở
         // lưới" khi lưới không có ô nào.
         categoryGridEmpty: !hideCategoryGrid && activeOfType.length === 0,
-        note,
         accountId: effectiveAccountId,
         toAccountId,
         crossCurrency,

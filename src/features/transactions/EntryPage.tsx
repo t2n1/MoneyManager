@@ -308,8 +308,11 @@ export function EntryPage() {
           {/* Đếm cạnh tiêu đề — người về nhà ghi cả ngày 3-4 khoản một lượt cần thấy
               mình đã ghi bao nhiêu TRONG LƯỢT NÀY, không lục lại Sổ để biết. */}
           {savedCountLabel && (
+            // Dấu cách TRƯỚC "·" là một ký tự thật, không phải `ml-1.5`: lề chỉ là khoảng
+            // trắng cho MẮT, còn tên đọc được (accessible name) nối thẳng hai chuỗi lại
+            // thành "Nhập giao dịch· 1 khoản lượt này".
             <span className="ml-1.5 align-middle text-xs font-normal text-fg-muted">
-              · {savedCountLabel}
+              {' '}· {savedCountLabel}
             </span>
           )}
         </h1>

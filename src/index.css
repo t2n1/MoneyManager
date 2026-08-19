@@ -284,8 +284,14 @@
   --state-bad-fg: #f0b6b8;
 
   /* #6b8f78 trên #0d3a1d chỉ 3,55:1 — trượt AA cho chữ 16px semibold (cần 4,5).
-     #7fae8e cho 5,09:1. Không có ngoại lệ contrast cho control vô hiệu.
-     (Light hiện green-700 trên green-100 = 4,57:1 — đạt nhưng chỉ dư 0,07.) */
+     #7fae8e cho 5,09:1.
+     (Light hiện green-700 trên green-100 = 4,57:1 — đạt nhưng chỉ dư 0,07.)
+
+     NGOẠI LỆ CÒN LẠI, ghi ra chứ không im: phím phép tính của NumPad lúc bị khoá đo được
+     2,32:1 trên track. Control BỊ KHOÁ không thuộc phạm vi WCAG 1.4.3, nên nó không phải
+     lỗi — nhưng "được miễn" khác "đạt", và nút Lưu ở trên đã được sửa đúng vì nó là
+     trạng thái người dùng NHÌN LÂU NHẤT, còn phím ÷×−+ mờ thì chỉ nói "ô này không nhận
+     phép tính". Con số ghi ra để lần sau ai đổi thì biết mình đang đứng ở đâu. */
   --accent-muted-bg: #0d3a1d;
   --accent-muted-fg: #7fae8e;
   --fg-disabled: #4a5460;

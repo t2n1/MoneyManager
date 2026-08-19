@@ -3,29 +3,29 @@
 // Vì sao gộp: trước đây form có HAI bản luật song song — `canSave` (một biểu thức
 // boolean dài) và câu giải thích chỉ viết riêng cho các vai trò đặc biệt.
 // Hai bản đã lệch nhau đúng như dự đoán: giao dịch thường thiếu danh mục thì nút Lưu
-// mờ mà KHÔNG có dòng nào nói vì sao, còn "Nhắc sau" thì `canSave` đọc cờ thô nên
-// đổi sang tab Thu là nút vẫn ghi "Tạo lời nhắc" và tạo ra một khoản sắp CHI.
+// mờ mà KHÔNG có dòng nào nói vì sao, còn chế độ "khoản chưa xảy ra" thì `canSave` đọc
+// cờ thô nên đổi sang tab Thu là nút vẫn ghi "Tạo lời nhắc" và tạo ra một khoản sắp CHI.
 //
 // Một hàm trả cả hai: đóng được thì đóng, và luôn kèm lý do.
-import type { TransactionType } from '../../types/database.types'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
 import { categoryPickerOf, shapeOf, type EntryKind } from './entryShape'
 import type { PaymentValue } from './roleSave'
 
 /**
- * "Nhắc sau" có THỰC SỰ hiệu lực hay không.
+ * Chế độ "Sẽ chi" có THỰC SỰ hiệu lực hay không.
  *
- * Cờ thô (`remindLater`) không đủ: nút bật/tắt nó chỉ hiện với khoản CHI thường
- * (`kind === 'spend'`), nên đổi sang dạng khác là cờ còn bật mà không còn cách
+ * Cờ thô (`wantsPlanned`) không đủ: segmented "Đã chi | Sẽ chi" chỉ hiện với khoản CHI
+ * thường (`kind === 'spend'`), nên đổi sang dạng khác là cờ còn bật mà không còn cách
  * nào tắt — nút mang chữ "Tạo lời nhắc" trong khi việc nó làm là chuyện khác.
  */
 export function plannedModeActive(p: {
-  remindLater: boolean
-  /** form có nhận việc tạo lời nhắc không (màn Nhập có, màn Sửa không) */
+  /** cờ THÔ của segmented "Đã chi | Sẽ chi" — cùng tên với state ở TransactionForm. */
+  wantsPlanned: boolean
+  /** form có nhận việc tạo khoản sắp chi không (màn Nhập có, màn Sửa không) */
   canPlan: boolean
   kind: EntryKind
 }): boolean {
-  return p.remindLater && p.canPlan && p.kind === 'spend'
+  return p.wantsPlanned && p.canPlan && p.kind === 'spend'
 }
 
 export interface EntryState {
@@ -33,7 +33,10 @@ export interface EntryState {
   amount: number
   /** đã có tài khoản nguồn dùng được */
   hasAccount: boolean
-  type: TransactionType
+  // KHÔNG có `type` ở đây: loại giao dịch là giá trị DẪN XUẤT từ `kind` (bảng
+  // entryShape) — đặt lại nó vào chính cái interface tồn tại để chứng minh `kind` là
+  // đủ thì mở lại đúng đường lệch mà gói này sinh ra để chặn. Không cổng nào dưới đây
+  // đọc nó, và cũng không được đọc.
   /** Dạng đang chọn — nguồn duy nhất quyết định form đòi gì. Xem entryShape. */
   kind: EntryKind
   /** Chỉ lend/borrow dùng: tắt thì không sinh giao dịch nên không có danh mục. */
@@ -41,7 +44,8 @@ export interface EntryState {
   hasCategory: boolean
   /** loại đang chọn KHÔNG còn danh mục nào để chọn (đã lưu trữ hết / chưa tạo) */
   categoryGridEmpty: boolean
-  note: string
+  // KHÔNG có `note`: ghi chú là tùy chọn ở cả mười dạng, nên nó không bao giờ là một câu
+  // "còn thiếu" — nhận nó vào đây chỉ mời người sau tưởng cổng có xét tới.
   accountId: string | null
   toAccountId: string | null
   /** chuyển khoản khác loại tiền → phải nhập cả số nhận */

@@ -17,12 +17,24 @@ export const DIRECTION_LABEL: Record<Direction, string> = {
   move: 'Đổi chỗ',
 }
 
-/** Nhãn hai pha theo hướng — "Đã chi" là TRẠNG THÁI CỦA KHOẢN TIỀN, còn "Nhắc sau"
- *  là VIỆC APP LÀM CHO BẠN; tiếng Việt còn đọc ra như "để đó lát nhắc lại". */
-export const PHASE_LABEL: Record<Direction, { done: string; future: string; dateLabel: string }> = {
-  out: { done: 'Đã chi', future: 'Sẽ chi', dateLabel: 'Ngày đến hạn' },
-  in: { done: 'Đã thu', future: 'Sẽ thu', dateLabel: 'Dự kiến' },
-  move: { done: 'Đã chuyển', future: 'Sẽ chuyển', dateLabel: 'Dự kiến' },
+/**
+ * Nhãn hai pha theo hướng, cho segmented "Đã chi | Sẽ chi".
+ *
+ * Cả hai nhãn nói TRẠNG THÁI CỦA KHOẢN TIỀN. Nút chuông cũ ở đúng chỗ này nói một VIỆC
+ * APP LÀM CHO BẠN ("để đó lát nhắc lại") — hai câu hỏi khác nhau, và cái nút đó đã bỏ
+ * cùng dropdown "Lặp lại"; ghi lại đây vì nó là lý do bảng này chỉ có hai cột.
+ *
+ * KHÔNG có `dateLabel`: nhãn ô ngày của khoản sắp chi là một CẶP đọc theo `precision`
+ * ("Ngày đến hạn" / "Tháng dự kiến"), mà `precision` là field của `PlannedDraft` chứ
+ * không phải của hướng tiền — nên nó nằm ở `PlannedFields.tsx`, nơi có cả hai. Bảng theo
+ * hướng cũng chỉ đọc được đúng một dòng: segmented này chỉ hiện ở `kind === 'spend'`
+ * (planned_expenses không có cột phân biệt Chi/Thu/Chuyển khoản), nên hai dòng in/move
+ * không có đường nào tới.
+ */
+export const PHASE_LABEL: Record<Direction, { done: string; future: string }> = {
+  out: { done: 'Đã chi', future: 'Sẽ chi' },
+  in: { done: 'Đã thu', future: 'Sẽ thu' },
+  move: { done: 'Đã chuyển', future: 'Sẽ chuyển' },
 }
 
 /**

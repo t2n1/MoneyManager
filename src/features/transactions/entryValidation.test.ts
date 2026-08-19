@@ -7,12 +7,10 @@ function st(p: Partial<EntryState> = {}): EntryState {
   return {
     amount: 1_000,
     hasAccount: true,
-    type: 'expense',
     kind: 'spend',
     withTransaction: true,
     hasCategory: true,
     categoryGridEmpty: false,
-    note: '',
     accountId: 'a1',
     toAccountId: null,
     crossCurrency: false,
@@ -27,13 +25,13 @@ function st(p: Partial<EntryState> = {}): EntryState {
 }
 
 describe('plannedModeActive', () => {
-  const base = { remindLater: true, canPlan: true, kind: 'spend' as const }
+  const base = { wantsPlanned: true, canPlan: true, kind: 'spend' as const }
 
   it('bật với khoản chi thường', () => {
     expect(plannedModeActive(base)).toBe(true)
   })
 
-  // Nút bật/tắt "Nhắc sau" chỉ hiện với khoản CHI thường (kind 'spend'). Nếu cờ thô
+  // Segmented "Đã chi | Sẽ chi" chỉ hiện với khoản CHI thường (kind 'spend'). Nếu cờ thô
   // còn hiệu lực sau khi đổi dạng thì nút Lưu ghi "Tạo lời nhắc" mà không cách nào
   // tắt, và bấm vào là tạo một khoản sắp CHI từ một khoản khác.
   it('tắt khi đổi sang thu hoặc chuyển khoản', () => {

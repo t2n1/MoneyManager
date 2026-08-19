@@ -9,8 +9,11 @@ export interface RecentCategory {
 }
 
 interface Transaction {
+  // Chỉ `category_id`: lọc theo loại đi qua `cat.type` (danh mục), KHÔNG qua `tx.type` —
+  // một danh mục chỉ thuộc một loại, nên đọc loại từ giao dịch là đọc lại cùng một điều
+  // qua đường dài hơn. Khai `type` ở đây mà không đọc là hứa với người sau rằng hàm có
+  // xét tới nó.
   category_id: string | null
-  type: string
 }
 
 interface Category {

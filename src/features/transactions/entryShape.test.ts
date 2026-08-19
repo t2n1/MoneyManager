@@ -170,7 +170,9 @@ describe('saveVerbOf — nhan nut Luu nhac lai viec se lam', () => {
 
 describe('PHASE_LABEL', () => {
   it('nhan hai pha di theo huong, va KHONG dung chu "Nhac sau"', () => {
-    expect(PHASE_LABEL.out).toEqual({ done: 'Đã chi', future: 'Sẽ chi', dateLabel: 'Ngày đến hạn' })
+    // Chi hai cot: nhan o ngay cua khoan sap chi doc theo `precision` chu khong theo
+    // huong tien, nen no nam o PlannedFields.tsx (xem chu thich cua PHASE_LABEL).
+    expect(PHASE_LABEL.out).toEqual({ done: 'Đã chi', future: 'Sẽ chi' })
     expect(PHASE_LABEL.in.future).toBe('Sẽ thu')
     expect(PHASE_LABEL.move.future).toBe('Sẽ chuyển')
     for (const p of Object.values(PHASE_LABEL)) {

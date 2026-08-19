@@ -114,6 +114,9 @@ export function PlannedFields({ value, onChange, categories }: Props) {
           : 'Danh sách chỉ hiện tháng — không bịa ra một ngày cụ thể.'}
       </p>
 
+      {/* Cặp nhãn ô ngày sống Ở ĐÂY, không ở PHASE_LABEL (entryShape.ts): nó đọc theo
+          `precision` — một field của PlannedDraft — chứ không theo hướng tiền, nên một
+          bảng theo hướng không nói được cặp này. */}
       <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="entry-planned-due">
         {value.precision === 'day' ? 'Ngày đến hạn' : 'Tháng dự kiến'}
       </label>

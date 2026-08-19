@@ -3,25 +3,14 @@
 //
 // Chép tay sang TagPicker thì sớm muộn một bên đổi màu hoặc độ cao mà bên kia không
 // đổi, rồi hai chip cạnh nhau trong cùng một form nhìn ra hai kiểu.
+//
+// `CHIP_BASE` và `CHIP_ON` đã xoá cùng hai nút chúng dựng nên — nút bật/tắt "Lặp lại" và
+// nút "Nhắc sau" cạnh ô ngày: dropdown Lặp lại giờ là một dòng dẫn sang
+// `RecurringFormSheet`, còn "Nhắc sau" thành segmented "Đã chi | Sẽ chi" trên một dòng
+// riêng. Chỉ trạng thái TẮT còn được dùng lại (TagPicker).
 
 /**
- * Dáng chip bật/tắt hình chữ nhật (nút "Lặp lại" và nút "Nhắc sau" cạnh ô ngày).
- *
- * Gom lại vì hai nút đứng SÁT nhau: chép tay hai bản thì sớm muộn một cái quên
- * `transition` hoặc `active:scale-95` và bấm vào thấy hai kiểu phản hồi khác nhau.
- */
-// min-w-11 + justify-center: chip chỉ có icon (nút "Nhắc sau" lúc tắt) đo ra 34px
-// ngang — cao thì đủ 44 mà ngang thì hụt, và nó lại là nút đổi hẳn việc của nút Lưu.
-// `rounded-full` (§4.6: chip 20px) chứ không rounded-lg: 1a để dáng bo tròn cho chip
-// BẬT/TẮT và dáng góc 6px cho nút bấm-một-lần — hai hình dạng, hai loại hành vi.
-export const CHIP_BASE =
-  'flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-full border px-3 py-1.5 text-sm transition active:scale-95'
-
-/** Trạng thái BẬT của chip xanh (Lặp lại, và các chip chọn khác). §4.6. */
-export const CHIP_ON = 'border-state-good-border bg-state-good-bg text-state-good-fg'
-
-/**
- * Trạng thái TẮT / chưa chọn: xám trung tính. Bật thì mới lên màu.
+ * Trạng thái TẮT / chưa chọn của một chip: xám trung tính. Bật thì mới lên màu.
  *
  * Token chứ không viết lại cặp sáng/tối bằng tay (từ nhánh fix/toan-bo-audit). Đổi ở
  * đây là đủ, khỏi sửa từng chip.

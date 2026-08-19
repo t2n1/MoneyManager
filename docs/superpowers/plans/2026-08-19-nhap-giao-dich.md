@@ -407,7 +407,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ## Task 2: `SegmentedControl` thêm `size: 'lg'` (44px)
 
-Ô segmented đang **42px** (đo được), B22 đòi **đúng 44px** vì đây là control chính của màn. Nhưng `md` đang được **11 file khác** dùng — sửa `md` là đổi chiều cao ở cả 11 màn để chữa một màn.
+Ô segmented đang **42px** (đo được), B22 đòi **tối thiểu 44px** vì đây là control chính của màn, không nằm trong danh sách miễn trừ vùng chạm. `py-3` cho **46px** (xem chú thích trong code — số học phải cộng cả viền), thoả sàn với 2px dư. Nhưng `md` đang được **11 file khác** dùng — sửa `md` là đổi chiều cao ở cả 11 màn để chữa một màn.
 
 **Files:**
 - Modify: `src/components/ui/SegmentedControl.tsx:39-44`
@@ -577,7 +577,7 @@ export function DirectionTabs({
   return (
     <div className="flex flex-col gap-1.5">
       <SegmentedControl
-        // size lg: ô đúng 44px. Đây là control chính của màn, không nằm trong danh
+        // size lg: ô 46px, trên sàn vùng chạm 44px. Đây là control chính của màn, không nằm trong danh
         // sách miễn trừ vùng chạm.
         size="lg"
         label="Hướng tiền"
@@ -679,7 +679,7 @@ Chạy `so-chi-tieu-demo`, mở `/entry`, viewport `360×780`, dán vào console
 })()
 ```
 
-Kỳ vọng: `soTablist: 1` · `huong: ["Tiền ra","Tiền vào","Đổi chỗ"]` · `oSegmentedCao: 44` · `chipTienRa` đủ 5 chip · `chipCao: 32` · `hangChipWrap: "wrap"` · `chipNowrap: "nowrap"` · `soDongHangChip: 2` (tiền ra 376px > chỗ 336px) · `aria…` chứa `"tính là chi tiêu"`.
+Kỳ vọng: `soTablist: 1` · `huong: ["Tiền ra","Tiền vào","Đổi chỗ"]` · `oSegmentedCao: 46` · `chipTienRa` đủ 5 chip · `chipCao: 32` · `hangChipWrap: "wrap"` · `chipNowrap: "nowrap"` · `soDongHangChip: 2` (tiền ra 376px > chỗ 336px) · `aria…` chứa `"tính là chi tiêu"`.
 
 Rồi bấm sang **Tiền vào**: `chipTienRa` phải thành 3 chip và `soDongHangChip: 1`.
 
@@ -1254,7 +1254,7 @@ Chạy `so-chi-tieu-demo`, mở `/entry`, đặt viewport `360×780`:
 })()
 ```
 
-Kỳ vọng: `soTablist: 1` · `oSegmented: 44` · `conNutDacBiet: false`. Ở 320px kiểm thêm ô segmented **vẫn 44px** (không nhảy 62px như nhãn "Chuyển khoản" cũ) và trang **không tràn ngang**.
+Kỳ vọng: `soTablist: 1` · `oSegmented: 46` · `conNutDacBiet: false`. Ở 320px kiểm thêm ô segmented **vẫn 46px** (không nhảy lên như nhãn "Chuyển khoản" cũ) và trang **không tràn ngang**.
 
 - [ ] **Step 9: Commit**
 
@@ -2287,7 +2287,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ## Task 13: `CategoryRow.tsx` — hàng Gần đây + `Khác ⌄` + lưới bung tại chỗ
 
-Đo được: ba khối ghim (44+50+71) và hai khối đáy (188+50+18) ăn **421px** của 780 → vùng cuộn còn **359px**, mà lưới 4 cột một mình đã **250px**. Nên thu lưới **không phải** ý thẩm mỹ — nó là điều kiện để màn vừa màn hình.
+Đo được: ba khối ghim (44+**52**+71) và hai khối đáy (188+50+18) ăn **423px** của 780 → vùng cuộn còn **357px**, mà lưới 4 cột một mình đã **250px**. (Track `lg` là 52px chứ không 50: ô 46px + 6px padding/viền của track — xem ruling Task 2.) Nên thu lưới **không phải** ý thẩm mỹ — nó là điều kiện để màn vừa màn hình.
 
 ⚠️ **Giữ 4 cột.** B22 đòi 3 cột với lý do "13 tile là 5 hàng, không ai cuộn hết" — nhưng đo ra **3 cột MỚI là 5 hàng (314px); 4 cột là 4 hàng (250px)**. Đổi sang 3 cột làm cái vấn đề nó viện ra nặng thêm 64px.
 
@@ -2404,8 +2404,8 @@ Kỳ vọng: `soCot: 4` (**không 3** — 3 cột tốn thêm 64px) · `caoLuoi:
 git add src/features/transactions/
 git commit -m "feat(nhap): hang danh muc Gan day + Khac, luoi bung tai cho
 
-Do o 360x780: ba khoi ghim + hai khoi day an 421px cua 780 -> vung cuon con
-359px, ma luoi 4 cot mot minh da 250px. Thu luoi con mot hang khong phai y tham
+Do o 360x780: ba khoi ghim + hai khoi day an 423px cua 780 -> vung cuon con
+357px, ma luoi 4 cot mot minh da 250px. Thu luoi con mot hang khong phai y tham
 my, no la dieu kien de man vua man hinh. Truoc: tran 227px.
 
 GIU 4 COT. B22 doi 3 cot voi ly do \"13 tile la 5 hang\" nhung do ra 3 cot MOI
@@ -2751,8 +2751,8 @@ grep -rn "REPEAT_OPTIONS\|REPEAT_LABEL\|REPEAT_MENU_LABEL\|onSubmitRecurring\|us
 ```bash
 grep -rn "Nhắc sau\|Chia với ai\|Khoản sắp tới\|Tạo lời nhắc\|Tên lời nhắc" src/
 ```
-- [ ] Ở `360×780`: `soTablist: 1` · `oSegmented: 44` · vùng cuộn **không tràn** khi lưới thu
-- [ ] Ở `320×780`: ô segmented **vẫn 44px** (không nhảy 62px), trang không tràn ngang
+- [ ] Ở `360×780`: `soTablist: 1` · `oSegmented: 46` · vùng cuộn **không tràn** khi lưới thu
+- [ ] Ở `320×780`: ô segmented **vẫn 46px** (không nhảy lên vì nhãn xuống dòng), trang không tràn ngang
 - [ ] Bật Cài đặt → Cỡ chữ **Rất lớn** ở 360px: chip không ngắt giữa từ, `h1` không lệch tâm, picker tài khoản không teo còn 36px
 - [ ] Bật `Sẽ chi`: số dư không đổi · trần không đổi · ô hoàn tiền biến mất · tắt "Nhắc tôi" thì Bản tin không sinh việc
 - [ ] Chọn nhãn ở **cả 10 dạng** → lưu xong đếm đúng số liên kết (trước: 5 dạng ra 0)

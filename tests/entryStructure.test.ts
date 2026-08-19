@@ -130,15 +130,31 @@ describe('"Luu va nhap tiep" phai o LAI man o CA 10 dang', () => {
   })
 })
 
-describe('nhan nut Luu khong nuot mot cau hoan chinh', () => {
-  it('chi ho "Con thieu: …" duoc ghep vao nhan nut', () => {
-    // Nam cau `missing` la CAU HOAN CHINH (dai nhat 130 ky tu). Ghep vao mot nut
-    // `flex-1` ~131px o 360px la vo 3-4 dong ngay trong khoi ghim day, an chieu cao cua
-    // vung cuon — va cau do da hien nguyen van ngay TREN nut.
-    expect(form).toMatch(/missing\?\.startsWith\('Còn thiếu: '\)/)
-    expect(form).toMatch(/missingPhrase/)
+describe('nhan nut Luu khong nuot cau ly do', () => {
+  // Truoc: chi ho "Con thieu: …" duoc ghep vao nhan ("Luu · con thieu so tien"), ho cau
+  // hoan chinh thi khong. Gio KHONG ho nao duoc ghep — cau ly do da hien nguyen van o
+  // dong ghim ngay TREN nut, o moi be rong, nen ghep len nut la noi hai lan cung mot cau.
+  // Va chinh ban ghep do lam nhan vo dong: nut `flex-1` rong 135px o 375px, con
+  // "Luu · con thieu so tien" can ~175px — do la trang thai NGAY KHI mo man.
+
+  it('khong con co che ghep cau `missing` vao nhan', () => {
+    expect(form).not.toMatch(/missingPhrase/)
+    expect(form).not.toMatch(/missing\?\.startsWith/)
   })
 
+  it('thieu field -> nhan dung la Luu, khong noi suy vao', () => {
+    const i = form.indexOf('const saveLabel =')
+    expect(i).toBeGreaterThan(0)
+    const block = form.slice(i, i + 400)
+    // Khong con bat ky phep noi chuoi nao mang `missing` vao nhan.
+    expect(block).not.toMatch(/\$\{missing/)
+    expect(block).toContain('missing')
+    expect(block).toContain("? 'Lưu'")
+  })
+
+  it('dong ly do ghim TREN nut van con — bo ghep thi cho nay la noi duy nhat', () => {
+    expect(form).toMatch(/!error && missing && <p/)
+  })
 })
 
 describe('task 8: guard payWiringPending da bi go — repay/collect da nhap duoc', () => {

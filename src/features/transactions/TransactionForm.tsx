@@ -699,21 +699,15 @@ export function TransactionForm({
   const canSave = gate.canSave && !saving
   const missing = saving ? null : gate.missing
   /**
-   * `missing` có HAI HỌ CÂU khác nhau, và chỉ một họ lên được nút:
+   * Nhãn nút chính NHẮC LẠI VIỆC SẼ LÀM ("Lưu · gửi ¥30,000 cho gia đình") — con số sắp
+   * được ghi vào sổ tiền, đọc lại một lần trước khi bấm.
    *
-   *  - "Còn thiếu: <tên field>." — ngắn theo cấu tạo (một danh từ), đọc thành một NGỮ nên
-   *    ghép được vào nhãn: "Lưu · còn thiếu số tiền".
-   *  - Câu hoàn chỉnh ("Tài khoản đến đang trùng tài khoản nguồn.", và câu dài 130 ký tự
-   *    của Trả hộ). Ghép vào nút là chữ hoa nằm giữa ngữ, và một nút `flex-1` rộng ~131px
-   *    ở 360px sẽ vỡ 3-4 dòng NGAY TRONG khối ghim đáy — ăn chiều cao của vùng cuộn. Câu
-   *    đó đã hiện nguyên văn ngay TRÊN nút (xem dòng `missing` ở khối ghim), nên đưa lên
-   *    nút không thêm thông tin nào.
-   */
-  const missingPhrase = missing?.startsWith('Còn thiếu: ') ? missing : null
-  /**
-   * Nhãn nút chính NHẮC LẠI VIỆC SẼ LÀM ("Lưu · gửi ¥30,000 cho gia đình"), và khi thiếu
-   * một field thì NÓI THIẾU GÌ. Nút mờ mà không nói thì không biết đang bị vô hiệu hay
-   * chỉ là màu.
+   * Nhưng khi THIẾU field thì nhãn chỉ còn `'Lưu'`, KHÔNG ghép "còn thiếu …" vào: câu đó
+   * đã hiện nguyên văn ở dòng lý do ngay TRÊN nút, và dòng đó là khối GHIM ở mọi bề rộng
+   * (không có biến thể theo breakpoint) nên không bao giờ bị cuộn khuất. Ghép lên nút là
+   * nói hai lần cùng một câu, và chính bản ghép đó làm nhãn vỡ dòng: nút `flex-1` rộng
+   * 135px ở 375px, còn "Lưu · còn thiếu số tiền" cần ~175px. Đây là trạng thái NGAY KHI
+   * mở màn (chưa nhập số), tức là cái người dùng thấy trước nhất.
    *
    * Form SỬA và bản điền sẵn khoản đến hạn giữ nhãn của người gọi ("Cập nhật" / "Ghi và
    * đánh dấu đã chi"): ở đó nút không ghi một khoản mới, nên câu nhắc việc sẽ nói sai việc.
@@ -722,11 +716,9 @@ export function TransactionForm({
     ? 'Lưu'
     : initial
       ? submitLabel
-      : missingPhrase
-        ? `Lưu · ${missingPhrase.replace(/^Còn thiếu: /, 'còn thiếu ').replace(/\.$/, '')}`
-        : missing
-          ? 'Lưu'
-          : `Lưu · ${saveVerbOf(kind, amount, srcCurrency, selectedCat?.name ?? null)}`
+      : missing
+        ? 'Lưu'
+        : `Lưu · ${saveVerbOf(kind, amount, srcCurrency, selectedCat?.name ?? null)}`
 
   /**
    * Đang ở chế độ mà nhãn + cờ "hoàn tiền" KHÔNG lưu được (quy tắc định kỳ / Sẽ chi).
@@ -1007,7 +999,13 @@ export function TransactionForm({
     // `outline` chứ không `ring` (§4.6): ring của Tailwind vẽ bằng box-shadow, mà 1a bỏ
     // hẳn shadow — giữ ring là giữ đúng một cái bóng sót lại trên màn. outline cũng
     // không chiếm chỗ trong bố cục nên hai ô tiền không xê khi đổi ô đang gõ.
-    const ring = isActive ? 'outline outline-2 outline-accent' : ''
+    //
+    // `-outline-offset-2` KHÔNG phải để cho đẹp: outline vẽ NGOÀI hộp viền, mà ô này rộng
+    // đúng bằng lòng của khối cuộn (`overflow-y-auto` → trục ngang thành `auto`, tức cũng
+    // clip). Ở 375px ô nằm 12→363 và lòng khối cuộn cũng 12→363, nên 2px outline mỗi bên
+    // rơi ra ngoài và bị cắt SẠCH — còn lại đúng hai vạch ngang, trông như cái khung mất
+    // hai đầu. Kéo outline vào trong thì không còn gì để cắt, và không đổi bố cục.
+    const ring = isActive ? 'outline outline-2 -outline-offset-2 outline-accent' : ''
     const result = evalExpression(expr)
     const showExpr = hasOperator(expr)
     const mobileText = showExpr ? formatExpr(expr, currency) : formatMoney(result ?? 0, currency)
@@ -1093,7 +1091,7 @@ export function TransactionForm({
           // 1a bỏ hẳn shadow). `outline-accent` một mình chỉ đặt MÀU cho viền mặc định
           // của trình duyệt, mà viền đó mỗi trình duyệt một bề dày — ô chính của màn thì
           // không để trình duyệt quyết định nó dày mỏng ra sao.
-          className={`hidden rounded-md border border-border-strong bg-surface px-4 py-3 text-right font-mono text-[1.875rem] font-semibold tracking-[-.02em] focus:outline-2 focus:outline-accent lg:block ${amountColor}`}
+          className={`hidden rounded-md border border-border-strong bg-surface px-4 py-3 text-right font-mono text-[1.875rem] font-semibold tracking-[-.02em] focus:outline-2 focus:-outline-offset-2 focus:outline-accent lg:block ${amountColor}`}
         />
       </div>
     )
@@ -1580,7 +1578,7 @@ export function TransactionForm({
             type="button"
             onClick={() => handleSubmit('continue')}
             disabled={!canSave}
-            className="flex-1 rounded-md border border-state-good-border bg-transparent py-3 text-base font-semibold text-money-in transition enabled:active:scale-95 enabled:hover:bg-state-good-bg disabled:border-border-subtle disabled:text-fg-disabled lg:w-[12.5rem] lg:flex-none"
+            className="flex-1 rounded-md border border-state-good-border bg-transparent px-1 py-3 text-sm font-semibold text-money-in transition enabled:active:scale-95 enabled:hover:bg-state-good-bg disabled:border-border-subtle disabled:text-fg-disabled lg:w-[12.5rem] lg:flex-none lg:text-base"
           >
             {pending === 'continue' ? 'Đang lưu…' : 'Lưu và nhập tiếp'}
           </button>
@@ -1589,14 +1587,14 @@ export function TransactionForm({
           type="button"
           onClick={() => handleSubmit('save')}
           disabled={!canSave}
-          className="min-w-0 flex-1 rounded-md bg-accent py-3 text-base font-semibold text-fg-on-accent transition enabled:active:scale-95 enabled:hover:bg-accent-hover disabled:bg-accent-muted-bg disabled:text-accent-muted-fg"
+          className="min-w-0 flex-1 rounded-md bg-accent px-1 py-3 text-sm font-semibold text-fg-on-accent transition enabled:active:scale-95 enabled:hover:bg-accent-hover disabled:bg-accent-muted-bg disabled:text-accent-muted-fg lg:text-base"
         >
-          {/* `line-clamp-2`: hai nút cạnh nhau + ô ⌫ để nút này rộng 128px ở 360px và
-              108px ở 320px, nên nhãn dài xuống tới FIVE dòng — đo được 120px chiều cao
-              hàng nút ở 320px với câu "còn thiếu chọn danh mục ở lưới phía trên". Khối
-              đáy là khối GHIM, cao thêm bao nhiêu là vùng cuộn mất bấy nhiêu. Chặn ở hai
-              dòng: nhãn nhắc việc ("Lưu · gửi ¥30,000 cho gia đình") vẫn hiện đủ, còn câu
-              dài thì đã có dòng lý do ngay TRÊN nút mang nguyên văn. */}
+          {/* `line-clamp-2` giờ là LƯỚI AN TOÀN, không phải cơ chế thường ngày: nhãn khi
+              thiếu field đã rút về 'Lưu', nên trạng thái mở màn không còn vỡ dòng. Còn lại
+              câu nhắc việc ("Lưu · gửi ¥30,000 cho gia đình") — nó vẫn dài hơn 135px của
+              nút ở 375px, và ở `--app-font-scale` 1.25 thì dài thêm nữa. Chặn hai dòng để
+              khối GHIM đáy không ăn chiều cao vùng cuộn: đo được 120px hàng nút ở 320px
+              khi chưa chặn. */}
           <span className="line-clamp-2">{pending === 'save' ? 'Đang lưu…' : saveLabel}</span>
         </button>
       </div>

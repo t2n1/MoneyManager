@@ -2379,7 +2379,32 @@ Rồi trên demo ở `360×780`, dán vào console:
 })()
 ```
 
-Kỳ vọng: `luoiDangThu: true` · `tranKhiThu: 'khong tran'` (đo trước khi sửa: **tràn 227px**) · `coChipKhac: true`.
+Kỳ vọng: `luoiDangThu: true` · `coChipKhac: true` · `tranKhiThu: 'khong tran'`.
+
+⚠️ **Mốc này chỉ đạt nếu Task 13 thu CẢ hàng ghi chú/nhãn/hoàn tiền, không chỉ thu lưới.**
+Đo thật sau Task 6 ở 360×780 (controller chạy, code thật trên port 5175) — vùng cuộn khung
+**410px**, nội dung **699px**, tràn **295px**, phân rã:
+
+| Khối | px |
+| --- | --- |
+| segmented + hàng Dạng | 128 |
+| ô số tiền | 85 (không 67 — sau Task 6 dạng nào cũng có nhãn ô tiền) |
+| tài khoản + ngày | 44 |
+| **lưới danh mục** | **250** |
+| ghi chú | 44 |
+| khối Nhãn | 68 |
+| hoàn tiền | 44 |
+| cộng | 663 + 36 (6 gap) = **699** |
+
+Số học của Task 13:
+- Thu lưới 250 → hàng danh mục 42: còn **491px** → **vẫn tràn 81px.**
+- Thu thêm ghi chú 44 + Nhãn 68 + hoàn tiền 44 = 156 **về một hàng 44px**: còn 379px, và
+  bớt 2 hàng nên gap còn 24 → **403px ≤ 410px. Vừa, dư 7px.**
+
+→ Nên Task 13 **phải** gộp ba khối tùy chọn thành **một hàng "Ghi chú, nhãn ⌄"** trên mobile
+(mở ra sheet hoặc bung tại chỗ), không phải chỉ đổi nhãn của cột phải desktop. Dư 7px là sát:
+ở cỡ chữ lớn hơn sẽ tràn và **cuộn** — chấp nhận được, vùng đó cuộn được. Điều phải đạt là
+**không tràn ở cỡ chữ mặc định**.
 
 Rồi bấm `Khác ⌄` và đo lại:
 

@@ -14,7 +14,6 @@ import { plannedFromEntry, plannedMissing, type PlannedDraft } from './plannedFr
 import { addDaysISO, addMonths, getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
 import { promptDialog } from '../../lib/dialog'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
-import { convertToBase } from '../../lib/rates'
 import type { DebtDirection, TransactionRow, TransactionType } from '../../types/database.types'
 import {
   useAccounts,
@@ -30,7 +29,7 @@ import {
 // cho hooks/useDataFreshness.ts tính tuổi tỷ giá — một cửa duy nhất, để nhãn ở đây không
 // bao giờ lệch với trang Cài đặt/Tài sản (cùng nguồn, cùng ưu tiên sourceUpdatedAt).
 import { useRatesFreshness } from '../../hooks/useDataFreshness'
-import { remitStrip } from '../reports/longRange'
+import { remitMonthlyTotals, remitStrip } from '../reports/longRange'
 import { AccountPicker } from '../../components/AccountPicker'
 import { DateField } from '../../components/DateField'
 import { IconButton, SegmentedControl } from '../../components/ui'
@@ -429,10 +428,10 @@ export function TransactionForm({
     ? ratesFreshness?.details.find((d) => d.label === 'Tỷ giá')?.age ?? null
     : null
 
-  // Dải 12 tháng gửi về VN — CÙNG nguồn với khối "Gửi về VN" ở tab Dài hạn
-  // (features/reports/LongView.tsx): is_remittance, quy đổi base bằng convertToBase,
-  // gộp theo remitStrip(). Không viết lại bộ lọc riêng — hai màn đọc cùng một hàm thì
-  // không thể lệch tổng nhau.
+  // Dải 12 tháng gửi về VN — CÙNG bước filter/convert/bucket với khối "Gửi về VN" ở tab
+  // Dài hạn: `remitMonthlyTotals` (features/reports/longRange.ts), không viết lại ở
+  // đây. Hai nơi từng có hai bản sao lệch fallback tiền tài khoản với nhau (fix round 1) —
+  // gộp về MỘT hàm thì không còn chỗ để lệch lần hai.
   const remitStripRange = useMemo(() => {
     const todayKey = monthKeyForDate(todayISO, monthStartDay)
     const startKey = addMonths(todayKey, -11)
@@ -441,18 +440,10 @@ export function TransactionForm({
   const { data: remitTxs = [] } = useRangeTransactions(remitStripRange, remitLike)
   const remitMonthStrip = useMemo(() => {
     if (!remitLike) return null
-    const byMonth = new Map<string, number>()
-    for (const t of remitTxs) {
-      if (!t.is_remittance) continue
-      const cur = activeAccounts.find((a) => a.id === t.account_id)?.currency ?? 'JPY'
-      const v = convertToBase(t.amount, cur, base, rates ?? {})
-      if (v === null) continue
-      const k = monthKeyForDate(t.occurred_on, monthStartDay)
-      byMonth.set(`${k.year}-${k.month}`, (byMonth.get(`${k.year}-${k.month}`) ?? 0) + v)
-    }
+    const amountOf = remitMonthlyTotals(remitTxs, activeAccounts, base, rates ?? {}, monthStartDay)
     const todayKey = monthKeyForDate(todayISO, monthStartDay)
     const keys = Array.from({ length: 12 }, (_, i) => addMonths(todayKey, i - 11))
-    return remitStrip(keys, (k) => byMonth.get(`${k.year}-${k.month}`) ?? 0)
+    return remitStrip(keys, amountOf)
   }, [remitLike, remitTxs, activeAccounts, base, rates, monthStartDay, todayISO])
 
   // Tài khoản mặc định = dùng lần trước, fallback tài khoản đầu tiên (trong danh sách hợp lệ)

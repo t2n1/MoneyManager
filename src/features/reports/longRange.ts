@@ -9,7 +9,9 @@
 // điểm ĐỔI NẾP (change point) và MỨC NỀN kể từ đó — hai con số này thay hai thẻ chữ riêng
 // của bản cũ và được vẽ thẳng lên biểu đồ.
 
-import { addMonths, type MonthKey } from '../../lib/dates'
+import { addMonths, monthKeyForDate, type MonthKey } from '../../lib/dates'
+import { convertToBase, type Rates } from '../../lib/rates'
+import type { CurrencyCode } from '../../lib/money'
 import { detectChangePoints } from './trends'
 
 /** Một điểm của chuỗi tháng mà file này cần — cố ý hẹp hơn `MonthlyPoint`. */
@@ -330,4 +332,48 @@ export function remitStrip(
     unusual: sentMonths.filter((m) => m.amount !== usual),
     skippedMonths: months.filter((m) => m.skipped),
   }
+}
+
+/** Phần TỐI THIỂU của một giao dịch mà `remitMonthlyTotals` cần đọc. */
+export interface RemitLikeTx {
+  is_remittance?: boolean
+  account_id: string
+  amount: number
+  occurred_on: string
+}
+
+/**
+ * Lọc `is_remittance` → quy đổi tiền tài khoản nguồn sang base → gộp theo tháng.
+ *
+ * MỘT nơi làm việc này — trước bản này, tab Dài hạn (`LongView.tsx`) và form Nhập
+ * (`TransactionForm.tsx`) mỗi nơi tự viết lại đúng ba bước filter/convert/bucket này,
+ * và đã LỆCH NHAU thật (fallback tiền tài khoản khi tra không thấy: một bên `?? 'JPY'`,
+ * bên kia `?? base`) — hai màn có thể báo hai tổng khác nhau cho CÙNG những tháng đó.
+ * Gộp về đây để không còn chỗ thứ hai cho việc lệch lặp lại.
+ *
+ * Fallback tiền tài khoản khi tra `account_id` không thấy (tài khoản đã xoá) là
+ * `?? base`: không giả định người dùng luôn để base = JPY, khác `?? 'JPY'` cũ ở
+ * TransactionForm — hai bên chốt theo `?? base` vì đó là lựa chọn không đoán bừa.
+ *
+ * Trả về HÀM `amountOf` để đưa thẳng vào `remitStrip(keys, amountOf)` — không tự gọi
+ * `remitStrip` ở đây vì `keys` (phạm vi bao nhiêu tháng) là quyết định của TỪNG nơi gọi.
+ */
+export function remitMonthlyTotals(
+  txs: readonly RemitLikeTx[],
+  accounts: readonly { id: string; currency: CurrencyCode }[],
+  base: CurrencyCode,
+  rates: Rates,
+  monthStartDay: number,
+): (k: MonthKey) => number {
+  const byMonth = new Map<string, number>()
+  for (const t of txs) {
+    if (!t.is_remittance) continue
+    const currency = accounts.find((a) => a.id === t.account_id)?.currency ?? base
+    const v = convertToBase(t.amount, currency, base, rates)
+    if (v === null) continue
+    const k = monthKeyForDate(t.occurred_on, monthStartDay)
+    const id = `${k.year}-${k.month}`
+    byMonth.set(id, (byMonth.get(id) ?? 0) + v)
+  }
+  return (k: MonthKey) => byMonth.get(`${k.year}-${k.month}`) ?? 0
 }

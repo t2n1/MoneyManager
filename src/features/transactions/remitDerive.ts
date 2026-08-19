@@ -2,7 +2,6 @@
 // Phí TRỪ TRƯỚC rồi mới áp tỷ giá: người nhận chỉ nhận phần còn lại.
 
 import { convertFromBase, type Rates } from '../../lib/rates'
-import { ageLabel } from '../../lib/freshness'
 
 /**
  * Suy số VND mà người nhận được.
@@ -68,14 +67,4 @@ export function nextReceived(args: {
   // Chưa gõ tay: tỷ giá suy ra số mới; suy không được (chưa có tỷ giá, chưa nhập số
   // gửi…) thì GIỮ NGUYÊN số hiện tại — không xoá về 0 chỉ vì thiếu dữ liệu tạm thời.
   return deriveReceived(sent, fee, rate) ?? current
-}
-
-/**
- * Mô tả tuổi của tỷ giá được lấy.
- * @param fetchedAt Mốc lấy tỷ giá (ms)
- * @param now Thời điểm hiện tại (ms)
- */
-export function rateAgeLabel(fetchedAt: number, now: number): string {
-  const age = now - fetchedAt
-  return ageLabel(age)
 }

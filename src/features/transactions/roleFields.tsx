@@ -634,20 +634,25 @@ export function RemitFields({
   // được đạp lên số người nhận báo lại. Xem nextReceived (remitDerive.ts).
   const [receivedTouched, setReceivedTouched] = useState(false)
 
-  // Cả sent VÀ received cùng về 0 = khoản MỚI (mới mở dạng, hoặc vừa "Lưu và nhập
-  // tiếp" reset field) — KHÔNG phải người dùng vừa xoá tay ô đã gõ (khi đó received
-  // vẫn còn số cũ). Coi như chưa gõ, để tỷ giá điền lại cho lần gửi kế tiếp; thiếu
-  // bước này thì sau lần gửi đầu, "Số nhận" sẽ đứng im ở 0 mãi vì cờ touched cũ chưa
-  // được hạ.
+  // Hạ cờ touched khi mở khoản MỚI (mới mở dạng, hoặc vừa "Lưu và nhập tiếp" reset
+  // field) — nhưng CHỈ theo dõi `sent` trong dependency, KHÔNG theo `value.received`.
+  // Lý do: nếu theo cả received, thì lúc người dùng gõ "0" vào ô "Số nhận" TRƯỚC khi
+  // kịp gõ số gửi (sent vẫn đang là 0 từ đầu), effect này sẽ tự kích lại ngay sau
+  // onChange của ô đó và hạ nhầm cờ touched — đúng số "0" họ vừa gõ tay bị effect suy
+  // (dưới) đạp lên ngay lượt sau, dù touched vừa được bật lên đúng lúc. `sent` chỉ đổi
+  // khi người dùng thật sự gõ/xoá SỐ GỬI hoặc form bị reset (cả hai đều là dấu hiệu
+  // đáng tin của "khoản mới") — gõ một mình vào "Số nhận" không làm `sent` nhích, nên
+  // không đụng tới cờ này. Đọc `value.received` hiện tại ngay trong thân effect (không
+  // cần có mặt trong deps) để xác nhận cả hai đang ở mốc trắng khi `sent` VỀ 0.
   useEffect(() => {
     if (sent === 0 && value.received === 0) setReceivedTouched(false)
-  }, [sent, value.received])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sent])
 
   // Suy lại "Số nhận" mỗi khi sent/fee/rate đổi — CỐ Ý chỉ ba thứ này trong dependency
   // list. Thêm `value.received` hay `receivedTouched` vào đây thì mỗi lần onChange bên
   // dưới chạy (hoặc người dùng gõ tay) sẽ tự kích lại effect này thành một vòng vô
   // nghĩa — và tệ hơn, nó SẼ đạp lên đúng số người dùng vừa gõ ngay lượt kế tiếp.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const next = nextReceived({
       current: value.received,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deriveReceived, effectiveRate, nextReceived, rateAgeLabel } from './remitDerive'
+import { deriveReceived, effectiveRate, nextReceived } from './remitDerive'
 
 describe('suy so VND tu ty gia', () => {
   it('tru phi roi moi nhan ty gia — nguoi nhan chi nhan phan con lai', () => {
@@ -60,28 +60,5 @@ describe('nextReceived — khi nao duoc ghi de o "So nhan"', () => {
   it('chua co ty gia thi giu nguyen so hien tai, khong xoa ve 0', () => {
     expect(nextReceived({ current: 4_400_000, touched: false, sent: 30_000, fee: 800, rate: null }))
       .toBe(4_400_000)
-  })
-})
-
-describe('rateAgeLabel', () => {
-  it('sap xep theo tuoi tu gia', () => {
-    const now = 1000_000 // ms
-    const oneHourAgo = now - 3_600_000
-    const result = rateAgeLabel(oneHourAgo, now)
-    expect(result).toBe('1 giờ trước')
-  })
-
-  it('mot ngay truoc', () => {
-    const now = 1000_000
-    const yesterday = now - 86_400_000
-    const result = rateAgeLabel(yesterday, now)
-    expect(result).toBe('hôm qua')
-  })
-
-  it('vua xong neu tuoi < 1 phut', () => {
-    const now = 1000_000
-    const justNow = now - 30_000 // 30 giây
-    const result = rateAgeLabel(justNow, now)
-    expect(result).toBe('vừa xong')
   })
 })

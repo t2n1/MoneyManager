@@ -79,4 +79,17 @@ describe('childCounts — badge so con thay chevron', () => {
   it('rong thi tra ve object rong, khong nem', () => {
     expect(childCounts([])).toEqual({})
   })
+
+  it('nhom co con nhung TAT CA da luu tru thi cung khong co khoa — badge la "con CHON DUOC", khong phai "con TON TAI"', () => {
+    // 'di' (Đi lại) không có con nào trong CATS gốc; thêm đúng MỘT con, đã lưu trữ.
+    // Khác ca "an" (một con lưu trữ, một con sống) — ở đây KHÔNG còn con sống nào.
+    // Đây chính là ca sinh bug round 1: pickableCategories có thể giữ lại một danh mục
+    // đã lưu trữ (danh mục của GD đang sửa) làm CON DUY NHẤT của một nhóm cha — badge
+    // phải im (0 lựa chọn CHỌN ĐƯỢC), nhưng CategoryRow không được coi cha đó là "không
+    // con" (xem `hasChildren` riêng ở CategoryRow.tsx, tách khỏi số này).
+    const allArchivedChild = [...CATS,
+      { id: 'y', name: 'Cũ', icon: '📦', parent_id: 'di', type: 'expense', is_archived: true },
+    ] as never[]
+    expect(childCounts(allArchivedChild)).not.toHaveProperty('di')
+  })
 })

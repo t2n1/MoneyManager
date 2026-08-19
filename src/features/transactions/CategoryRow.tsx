@@ -142,16 +142,27 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
              đó CHÍNH LÀ ca 3 cột gây ra — đổi sẽ làm cái nó viện ra nặng thêm 64px. */
           <div className="grid auto-rows-min grid-cols-4 gap-1.5 lg:grid-cols-5">
             {topCategories.map((c) => {
+              // Hai câu hỏi KHÁC NHAU, không dùng chung một số:
+              //  - `childCount` (badge) = con CHỌN ĐƯỢC — lọc lưu trữ, đúng nghĩa "còn mấy
+              //    lựa chọn nữa trong này".
+              //  - `hasChildren` (hành vi: bấm thì bung tầng con hay chọn luôn) = con có
+              //    TỒN TẠI trong `categories`, kể cả đã lưu trữ. `pickableCategories` cố ý
+              //    giữ lại danh mục đã lưu trữ của GD đang sửa (xem flowCategories.ts) —
+              //    nếu cha đó chỉ có đúng đứa con lưu trữ ấy, `childCount` ra 0 (đúng, badge
+              //    không hiện số cho một lựa chọn không chọn được), NHƯNG cha đó vẫn phải
+              //    bung để lộ đứa con đang được chọn, không phải bị coi là "không con" rồi
+              //    bấm vào ghi đè `categoryId` từ danh mục con cụ thể thành id của cha.
               const childCount = counts[c.id] ?? 0
+              const hasChildren = childrenOf(c.id).length > 0
               return (
                 <CategoryTile
                   key={c.id}
                   icon={c.icon}
                   name={c.name}
                   // Cha có con: chọn selection đang nằm bên trong; cha không con: chọn trực tiếp
-                  selected={childCount > 0 ? selected?.parent_id === c.id : value === c.id}
+                  selected={hasChildren ? selected?.parent_id === c.id : value === c.id}
                   childCount={childCount}
-                  onClick={() => (childCount > 0 ? setDrillId(c.id) : pick(c.id))}
+                  onClick={() => (hasChildren ? setDrillId(c.id) : pick(c.id))}
                 />
               )
             })}

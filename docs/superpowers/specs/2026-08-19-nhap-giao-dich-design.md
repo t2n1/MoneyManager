@@ -69,6 +69,32 @@ Nhưng bảng của gói **thiếu một dạng đối xứng**: nó có "Ngư�
 chip lại vô quy tắc — đúng cái bệnh B23 sinh ra để chữa. Nên: **cả hai, hoặc không cái
 nào.** Chủ sổ chọn cả hai.
 
+## `repay` / `collect` — bốn ràng buộc lấy từ `DebtPaymentSheet`
+
+Đây là phần duy nhất của gói phải viết code mới, nên đọc kỹ form đang có trước khi dựng.
+`NewDebtPayment` **bọc luôn `transaction` bên trong**
+([`DebtPaymentSheet.tsx:80`](../../../src/features/debts/DebtPaymentSheet.tsx#L80)) và một
+lần `createPayment.mutateAsync` ra cả hai — **không migration, không bút toán tay.**
+
+Bốn ràng buộc bắt buộc giữ:
+
+1. **Chọn khoản nợ TRƯỚC, chọn tài khoản SAU.** `matchingAccounts` chỉ nhận tài khoản
+   **cùng loại tiền với khoản nợ** ("v1 tránh xuyên tệ"). Nên ở hai dạng này danh sách tài
+   khoản **phụ thuộc khoản nợ đã chọn** — ngược thứ tự thì picker hiện ví sai rồi phải lọc
+   lại dưới chân người dùng. Đây là **dạng duy nhất** có field phụ thuộc nhau, và nó phá
+   luật "hai hàng đầu không xê" nếu đặt ô chọn nợ lên trên ô số tiền → đặt nó **dưới** ô số
+   tiền, cùng chỗ các field riêng của vai trò hiện nay.
+2. **Cần hai hook, không một.** `remainingOf(debt, payments)` đòi cả `useDebts()` **và**
+   `useDebtPayments()`. Form Nhập hiện chỉ gọi `useDebts()`.
+3. **Giữ công tắc `withTransaction`.** Sheet có lựa chọn "ghi sổ nợ thôi" vs "trừ tiền
+   thật"; bỏ nó ở form Nhập là làm đường vào mới **yếu hơn** đường nó nhân bản — đúng cái
+   lỗi B28.2 lấy làm lý do bỏ dropdown Lặp.
+4. **Số tiền mặc định — phải chốt.** Sheet điền sẵn **toàn bộ số còn lại**
+   (`useState(Math.max(remaining, 0))`), còn form Nhập thì ô số tiền nhận focus và **để
+   trống**. Hai nếp trái nhau. Spec chọn: **điền sẵn số còn lại khi chọn khoản nợ**, vì trả
+   đủ là ca thường và người dùng vẫn gõ đè được — nhưng ghi ra đây vì nó là chỗ hai form dễ
+   lệch nhau nhất.
+
 ## `37b` không dùng được
 
 `37b` mang dấu "BẢN CHỐT" nhưng mô tả cấu trúc **khác** bảng quy tắc B23: nó đặt **một**
@@ -346,6 +372,13 @@ cáo kỳ này · **không có cờ hoàn tiền** · tới hạn thành việc 
 Hai ràng buộc DB phải giữ: `'month'` **neo `due_on` về ngày 1** (ép ở client để không nhận
 lỗi Postgres từ một ô người dùng không thấy) · `remind_days_before` chỉ nhận 0–99.
 
+`PlannedFormSheet` neo ngày 1 ở **hai chỗ**, không một: trong `onChange` của ô ngày
+([dòng 211](../../../src/features/planned/PlannedFormSheet.tsx#L211)) **và** lại lần nữa lúc
+submit ([dòng 85](../../../src/features/planned/PlannedFormSheet.tsx#L85), qua
+`firstOfMonth`). `PlannedFields` phải làm đủ cả hai — làm một chỗ thì đổi `Đúng ngày` →
+`Khoảng tháng` sau khi đã chọn ngày 17 sẽ lọt `due_on` giữa tháng. Ô ngày dùng
+`type="month"` nguyên bản của trình duyệt khi `precision === 'month'`, không phải ô chữ.
+
 Ba chuỗi đã chết, không dùng lại: "Khoản sắp tới" · "Tạo lời nhắc · …" · "Tên lời nhắc".
 Chữ "nhắc" chỉ xuất hiện ở **đúng một chỗ**: ô tích "Nhắc tôi" và dòng phụ của nó.
 
@@ -417,7 +450,7 @@ là việc UI.**
 | --- | --- | --- |
 | 1 | `entryShape.ts` + bảng 10 dạng + test. **Không đổi UI.** | không |
 | 2 | B22/B23: hàng hướng + hàng Dạng, bỏ "Đặc biệt", nút Lưu một layout, `tagIds` vào `RoleBase` | **cao — PR gốc** |
-| 3 | Hai dạng `repay`/`collect` + `saveDebtPayment` | vừa — code mới thật |
+| 3 | Hai dạng `repay`/`collect` + `saveDebtPayment` + `useDebtPayments` | vừa — code mới thật, và **dạng duy nhất có field phụ thuộc nhau** |
 | 4 | B28: segmented Đã chi/Sẽ chi, bỏ dropdown Lặp → dòng "Tạo quy tắc" | vừa |
 | 5 | B24/B25: cảnh báo theo danh mục, hàng Gần đây + `Khác ⌄`, ô số tiền, contrast, ô segmented 44px | vừa |
 | 6 | B26: suy VND + dải 12 tháng | thấp |
@@ -425,6 +458,21 @@ là việc UI.**
 
 PR 1 đứng riêng có chủ ý: bảng B23 thành một file test chạy xanh **trước khi** ai chạm vào
 JSX. Bảng sai thì sai lúc còn rẻ.
+
+## Mốc test và bán kính vỡ
+
+Chạy `npx vitest run` trước khi sửa gì: **2476 test / 155 file, xanh hết**. Mọi PR phải về
+lại con số này hoặc cao hơn.
+
+Đo bán kính của việc đổi `entryValidation` sang nhận `kind`:
+
+| File | Test | Chạm `role` | Nghĩa |
+| --- | --- | --- | --- |
+| `entryValidation.test.ts` | 27 | 14 | ~nửa file phải viết lại theo `kind` |
+| `roleSave.test.ts` | 54 | 2 | gần như không đụng — `saveSplit`/`saveDebtEntry`/`saveRemit` **giữ nguyên**, chỉ `RoleBase` thêm `tagIds` và thêm `saveDebtPayment` |
+
+Chỉ **7 file** import `entryValidation` / `entryRoles`, 5 trong số đó nằm cùng thư mục
+`transactions/`. Bán kính đóng — đây là lý do PR 2 dám làm một lượt.
 
 ## Kiểm
 

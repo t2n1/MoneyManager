@@ -199,6 +199,7 @@ export function SplitFields({
   people,
   backAccounts,
   sourceName,
+  counterpartyLabel,
   othersActive,
   onFocusOthers,
   onEnter,
@@ -213,6 +214,8 @@ export function SplitFields({
   backAccounts: { id: string; name: string }[]
   /** Tên tài khoản đã trả — để nhãn "về chính ví đó" nói rõ là ví nào. */
   sourceName: string
+  /** Nhãn ô counterparty của dạng này (counterpartyLabelOf) — block không tự đặt tên. */
+  counterpartyLabel?: string
   /** Ô "Phần người khác" đang được NumPad nhắm tới (mobile). */
   othersActive: boolean
   onFocusOthers: () => void
@@ -321,8 +324,13 @@ export function SplitFields({
         </div>
       )}
       <div>
+        {/* Nhãn từ BẢNG (counterpartyLabelOf), không viết cứng ở đây — cùng một ô dùng
+            cho ba dạng thì phải gọi đúng tên ở mỗi dạng.
+            Nhánh "Đã trả lại" là ngoại lệ có chủ ý: ở đó KHÔNG còn ai nợ ai (nợ chưa
+            từng tồn tại), nên nhãn khóa-nối của bảng sẽ nói sai. Ô vẫn ở lại vì tên
+            người là thứ duy nhất phân biệt hai lần chia bill trong sổ. */}
         <label htmlFor={`${uid}-who`} className={labelCls}>
-          {settledNow ? 'Chia với ai (không bắt buộc)' : 'Ai nợ mình'}
+          {settledNow ? 'Trả hộ ai (không bắt buộc)' : counterpartyLabel ?? 'Tên người'}
         </label>
         <input
           id={`${uid}-who`}
@@ -425,6 +433,7 @@ export function DebtFields({
   canRecordReal,
   people,
   currency,
+  counterpartyLabel,
   feeActive,
   onFocusFee,
   onEnter,
@@ -437,6 +446,8 @@ export function DebtFields({
   people: DebtPerson[]
   /** Loại tiền tài khoản nguồn — phí trừ vào chính tài khoản đó. */
   currency: CurrencyCode
+  /** Nhãn ô counterparty của dạng này (counterpartyLabelOf) — block không tự đặt tên. */
+  counterpartyLabel?: string
   /** Ô Phí đang được NumPad nhắm tới (mobile). */
   feeActive: boolean
   onFocusFee: () => void
@@ -473,8 +484,10 @@ export function DebtFields({
       )}
 
       <div>
+        {/* Nhãn từ BẢNG (counterpartyLabelOf). Chiều nợ giờ là hạt giống của DẠNG, nên
+            nhãn đi theo dạng — không suy lại từ `value.direction` ở đây nữa. */}
         <label htmlFor={`${uid}-party`} className={labelCls}>
-          {value.direction === 'i_owe' ? 'Chủ nợ (mình nợ ai)' : 'Con nợ (ai nợ mình)'}
+          {counterpartyLabel ?? 'Tên người'}
         </label>
         <input
           id={`${uid}-party`}

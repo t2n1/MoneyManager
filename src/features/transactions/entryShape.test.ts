@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   SHAPES, shapeOf, kindsOf, directionOf, categoryPickerOf, chipAriaLabel,
+  counterpartyLabelOf, saveVerbOf,
   type EntryKind,
 } from './entryShape'
 
@@ -120,5 +121,49 @@ describe('chipAriaLabel', () => {
   it('dung tam dang khong co hint thi khong co dau gach thua', () => {
     const plain = (['spend','split','lend','repay','earn','collect','borrow','between'] as const)
     for (const k of plain) expect(chipAriaLabel(k)).not.toContain('—')
+  })
+})
+
+describe('counterpartyLabelOf', () => {
+  it('goi dung ten o tung dang, khong dung mot nhan chung', () => {
+    expect(counterpartyLabelOf('split')).toBe('Ai nợ mình')
+    expect(counterpartyLabelOf('lend')).toBe('Cho ai vay')
+    expect(counterpartyLabelOf('borrow')).toBe('Vay của ai')
+  })
+
+  it('bay dang con lai khong co o do', () => {
+    for (const k of ['spend','family','repay','earn','collect','between','ownvn'] as const) {
+      expect(counterpartyLabelOf(k)).toBeUndefined()
+    }
+  })
+
+  it('KHONG con nhan "Chia voi ai" — no la ten cua mot o gop hai viec', () => {
+    for (const k of ['split','lend','borrow'] as const) {
+      expect(counterpartyLabelOf(k)).not.toMatch(/Chia với ai/)
+    }
+  })
+})
+
+describe('saveVerbOf — nhan nut Luu nhac lai viec se lam', () => {
+  it('ba moc cua goi ban giao', () => {
+    expect(saveVerbOf('family', 30_000, 'JPY', null)).toBe('gửi ¥30,000 cho gia đình')
+    expect(saveVerbOf('spend', 3_480, 'JPY', 'Cơm ngoài')).toBe('chi ¥3,480 vào Cơm ngoài')
+    expect(saveVerbOf('ownvn', 30_000, 'JPY', null)).toBe('chuyển ¥30,000 sang tài khoản ở VN')
+  })
+
+  it('hai dang gui ve VN noi HAI viec khac nhau — cung hanh dong vat ly, khac but toan', () => {
+    expect(saveVerbOf('family', 30_000, 'JPY', null))
+      .not.toBe(saveVerbOf('ownvn', 30_000, 'JPY', null))
+  })
+
+  it('moi dang co mot cau rieng, va cau nao cung co so tien', () => {
+    const all = (Object.keys(SHAPES) as EntryKind[]).map((k) => saveVerbOf(k, 1_000, 'JPY', null))
+    expect(new Set(all).size).toBe(10)
+    for (const s of all) expect(s).toContain('¥1,000')
+  })
+
+  it('chua chon danh muc thi khong de lai chu "vao" lung lo', () => {
+    expect(saveVerbOf('spend', 3_480, 'JPY', null)).toBe('chi ¥3,480')
+    expect(saveVerbOf('earn', 3_480, 'JPY', null)).toBe('thu ¥3,480')
   })
 })

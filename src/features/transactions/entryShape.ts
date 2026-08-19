@@ -1,3 +1,4 @@
+import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { DebtDirection, TransactionType } from '../../types/database.types'
 import type { EntryRole } from './entryRoles'
 
@@ -159,6 +160,53 @@ export function defaultKindOf(direction: Direction): EntryKind {
 export function categoryPickerOf(kind: EntryKind, withTransaction: boolean): CategoryPicker {
   if ((kind === 'lend' || kind === 'borrow') && !withTransaction) return 'none'
   return SHAPES[kind].categoryPicker
+}
+
+/**
+ * Nhãn ô counterparty. undefined = dạng này không có ô đó.
+ *
+ * Ô counterparty là KHÓA NỐI để cộng dồn vào khoản nợ đang mở (`norm(d.counterparty)`
+ * trong roleSave) nên nó phải ở lại; nhưng một ô dùng cho ba dạng thì phải GỌI ĐÚNG TÊN
+ * ở mỗi dạng. Nhãn cũ của ô Trả hộ gộp hai việc vào một tên.
+ */
+export function counterpartyLabelOf(kind: EntryKind): string | undefined {
+  switch (kind) {
+    case 'split':  return 'Ai nợ mình'
+    case 'lend':   return 'Cho ai vay'
+    case 'borrow': return 'Vay của ai'
+    default:       return undefined
+  }
+}
+
+/**
+ * Câu nhắc việc trên nút Lưu: "Lưu · gửi ¥30,000 cho gia đình".
+ *
+ * Nút chỉ ghi "Lưu" thì ở mười dạng nó nói cùng một câu cho mười việc khác nhau — mà
+ * hai dạng gửi về VN là CÙNG một hành động vật lý với tác động tài sản trái nhau, nên
+ * chỗ cuối cùng trước khi ghi phải nói ra nó sắp ghi cái gì.
+ */
+export function saveVerbOf(
+  kind: EntryKind,
+  amount: number,
+  currency: CurrencyCode,
+  categoryName: string | null,
+): string {
+  const money = formatMoney(amount, currency)
+  // `vào <danh mục>` chỉ thêm khi người dùng ĐÃ chọn — hai dạng này có lưới danh mục,
+  // nhưng nhãn nút phải đọc được cả lúc chưa chọn.
+  const into = categoryName ? ` vào ${categoryName}` : ''
+  switch (kind) {
+    case 'spend':   return `chi ${money}${into}`
+    case 'split':   return `trả hộ ${money}${into}`
+    case 'family':  return `gửi ${money} cho gia đình`
+    case 'lend':    return `cho vay ${money}`
+    case 'repay':   return `trả nợ ${money}`
+    case 'earn':    return `thu ${money}${into}`
+    case 'collect': return `nhận lại ${money}`
+    case 'borrow':  return `vay ${money}`
+    case 'between': return `chuyển ${money} sang ví khác`
+    case 'ownvn':   return `chuyển ${money} sang tài khoản ở VN`
+  }
 }
 
 /** Tên đọc được của chip Dạng. Hint phải vào ĐÂY, không chỉ vào mắt. */

@@ -17,6 +17,14 @@ export const DIRECTION_LABEL: Record<Direction, string> = {
   move: 'Đổi chỗ',
 }
 
+/** Nhãn hai pha theo hướng — "Đã chi" là TRẠNG THÁI CỦA KHOẢN TIỀN, còn "Nhắc sau"
+ *  là VIỆC APP LÀM CHO BẠN; tiếng Việt còn đọc ra như "để đó lát nhắc lại". */
+export const PHASE_LABEL: Record<Direction, { done: string; future: string; dateLabel: string }> = {
+  out: { done: 'Đã chi', future: 'Sẽ chi', dateLabel: 'Ngày đến hạn' },
+  in: { done: 'Đã thu', future: 'Sẽ thu', dateLabel: 'Dự kiến' },
+  move: { done: 'Đã chuyển', future: 'Sẽ chuyển', dateLabel: 'Dự kiến' },
+}
+
 /**
  * Mười dạng giao dịch. `between` chứ không `move` để tên dạng không trùng chữ với
  * một giá trị của Direction — đọc `kind === 'move' && direction === 'move'` thì

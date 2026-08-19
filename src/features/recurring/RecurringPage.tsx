@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowRightLeft, Pause, Play, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
 import {
@@ -104,6 +104,20 @@ export function RecurringPage() {
     rule: null,
   })
   const [dismissed, setDismissed] = useState<string[]>(readDismissed)
+
+  // "?new=1": form Nhập dẫn sang đây thay cho dropdown "Lặp lại" đã bỏ (một dòng
+  // "Khoản này lặp lại? → Tạo quy tắc"). Một liên kết hứa "Tạo quy tắc" mà đáp lại
+  // bằng một danh sách trống, bắt bấm thêm một nút nữa, là nửa vời — mở sẵn sheet.
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return
+    setSheet({ open: true, rule: null })
+    // Xoá tham số ngay sau khi dùng (replace, không thêm history): đóng sheet rồi bấm
+    // Back không mở lại nó lần nữa.
+    const next = new URLSearchParams(searchParams)
+    next.delete('new')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   const accountOf = (id: string | null) => accounts.find((a) => a.id === id)
   const categoryOf = (id: string | null) => categories.find((c) => c.id === id)

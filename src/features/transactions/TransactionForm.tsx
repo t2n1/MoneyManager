@@ -5,11 +5,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Delete,
-  Bell,
   Star,
   X,
 } from 'lucide-react'
 import type { NewPlannedExpense, NewTransaction } from '../../data'
+import { PlannedFields } from './PlannedFields'
+import { initialPlannedDraftForEntry } from './plannedDraftDefaults'
+import { plannedFromEntry, plannedMissing, type PlannedDraft } from './plannedFromEntry'
 import { toISODate } from '../../lib/dates'
 import { promptDialog } from '../../lib/dialog'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
@@ -23,7 +25,6 @@ import {
 } from '../../hooks/queries'
 import { AccountPicker } from '../../components/AccountPicker'
 import { DateField } from '../../components/DateField'
-import { CHIP_BASE, CHIP_OFF } from '../../components/chip'
 import { Card, IconButton, SegmentedControl } from '../../components/ui'
 import { TagPicker } from '../tags/TagPicker'
 import { isAutoAssignedCategory, pickableCategories } from '../categories/flowCategories'
@@ -60,6 +61,7 @@ import {
   counterpartyLabelOf,
   DIRECTION_LABEL,
   directionOf,
+  PHASE_LABEL,
   saveVerbOf,
   shapeOf,
   type EntryKind,
@@ -204,9 +206,10 @@ interface TransactionFormProps {
    */
   initialTagIds?: string[]
   /**
-   * "Nhắc sau": KHÔNG ghi giao dịch, mà tạo một khoản sắp chi đến hạn vào đúng ngày
-   * đang chọn (migration 0038). Dành cho việc mình biết sẽ phải chi mà chưa chi —
-   * gõ y như đang nhập, chỉ khác cái nút. Không truyền → không hiện nút.
+   * "Sẽ chi" (segmented Đã chi|Sẽ chi): KHÔNG ghi giao dịch, mà tạo một khoản sắp chi
+   * (migration 0038) qua `PlannedFields` — field riêng, không phải field giao dịch
+   * thường. Dành cho việc mình biết sẽ phải chi mà chưa chi. Không truyền → không
+   * hiện segmented, và form chỉ còn "Đã chi" như cũ.
    */
   onSubmitPlanned?: (input: NewPlannedExpense) => Promise<void>
 }
@@ -285,8 +288,12 @@ export function TransactionForm({
   const [tagIds, setTagIds] = useState<string[] | null>(null)
   // null = chưa người dùng đụng vào → dùng nhãn sẵn có của giao dịch đang sửa
   const effectiveTagIds = tagIds ?? initialTagIds
-  /** true = bấm lưu sẽ tạo KHOẢN SẮP CHI thay vì ghi giao dịch. */
-  const [remindLater, setRemindLater] = useState(false)
+  /**
+   * true = segmented "Đã chi | Sẽ chi" đang ở "Sẽ chi" — bấm Lưu sẽ tạo KHOẢN SẮP
+   * CHI thay vì ghi giao dịch. Cờ THÔ; hiệu lực thật đọc qua `plannedModeActive` (chỉ
+   * ở khoản CHI thường — segmented chỉ hiện ở đó, xem cổng render bên dưới).
+   */
+  const [wantsPlanned, setWantsPlanned] = useState(false)
   // Nút đang lưu: 'save' | 'continue' | null — để khóa cả hai nút và hiện "Đang lưu…"
   const [pending, setPending] = useState<'save' | 'continue' | null>(null)
   const saving = pending !== null
@@ -388,6 +395,19 @@ export function TransactionForm({
 
   const srcCurrency = activeAccounts.find((a) => a.id === effectiveAccountId)?.currency ?? 'JPY'
   const dstCurrency = activeAccounts.find((a) => a.id === toAccountId)?.currency ?? srcCurrency
+  /**
+   * Field riêng của "Sẽ chi" — một object độc lập, KHÔNG tái dùng `note`/`categoryId`
+   * của giao dịch thường: tên khoản sắp chi và ghi chú giao dịch là hai câu hỏi khác
+   * nhau, và PlannedFields có ô riêng cho từng thứ (chép đúng PlannedFormSheet).
+   *
+   * `dueOn` gieo NGAY HÔM NAY (không phải '' như `initialPlannedDraft` gốc của Task 9)
+   * — xem `plannedDraftDefaults.ts`: sheet thật luôn hiện ô ngày ngay khi mở, còn ở
+   * đây người dùng có thể bấm Lưu trước khi chạm ô ngày, và `firstOfMonth('')` cho ra
+   * '-01', một ngày ISO không hợp lệ.
+   */
+  const [plannedDraft, setPlannedDraft] = useState<PlannedDraft>(() =>
+    initialPlannedDraftForEntry(srcCurrency, toISODate(new Date())),
+  )
   // `kind === 'between'` chứ không `type === 'transfer'`: dạng "Tài khoản tôi ở VN"
   // cũng là chuyển khoản, nhưng ô đích và số nhận của nó nằm trong RemitFields — hỏi
   // thêm một ô "nhận được" nữa là hỏi hai lần cùng một số.
@@ -470,39 +490,53 @@ export function TransactionForm({
   const hasCategory = !!categoryId && activeOfType.some((c) => c.id === categoryId)
 
   /**
-   * "Nhắc sau" chỉ hiệu lực với khoản CHI thường — xem `plannedModeActive`. Đọc cờ thô
-   * `remindLater` ở những chỗ dưới đây là đúng cái lỗi cũ: đổi sang tab Thu thì chip
-   * biến mất mà nút vẫn ghi "Tạo lời nhắc", bấm vào tạo ra một khoản sắp CHI.
+   * Segmented "Đã chi | Sẽ chi" chỉ hiệu lực với khoản CHI thường — xem
+   * `plannedModeActive`. Đọc cờ thô `wantsPlanned` ở những chỗ dưới đây (thay vì đọc
+   * `plannedMode` đã lọc) sẽ lặp lại đúng lỗi cũ: đổi sang tab Thu thì segmented biến
+   * mất mà cờ vẫn bật, và nút Lưu sẽ tạo một khoản sắp CHI trong khi đang ở tab Thu.
    */
   const plannedMode = plannedModeActive({
-    remindLater,
+    remindLater: wantsPlanned,
     canPlan: !!onSubmitPlanned,
     kind,
   })
 
-  // Một cổng duy nhất cho cả "được bấm Lưu chưa" và "còn thiếu gì" (entryValidation.ts)
-  const gate = entryGate({
-    amount,
-    hasAccount: !!effectiveAccountId,
-    type,
-    kind,
-    withTransaction,
-    plannedMode,
-    hasCategory,
-    // Lưới rỗng ≠ chưa chọn: câu nhắc phải chỉ sang Cài đặt chứ không bảo "chọn ở lưới"
-    // khi lưới không có ô nào.
-    categoryGridEmpty: !hideCategoryGrid && activeOfType.length === 0,
-    note,
-    accountId: effectiveAccountId,
-    toAccountId,
-    crossCurrency,
-    toAmount,
-    split: splitVal,
-    debt: debtValue,
-    remit: remitValue,
-    payment: paymentVal,
-    splitBackAccountIds: splitBackAccounts.map((a) => a.id),
-  })
+  /**
+   * Cổng của "Sẽ chi" là `plannedMissing` (Task 9) — KHÔNG đi qua `entryGate` chung:
+   * `entryGate` luôn đòi `hasAccount` (đúng cho chín dạng còn lại, nơi mọi bút toán
+   * đều trừ/cộng một ví), còn khoản sắp chi CHƯA có bút toán nào — bullet 1 của brief
+   * này nói "chỉ cần một cái tên". Đưa `hasAccount` giả vào `entryGate` để né nhánh đó
+   * sẽ vá được, nhưng `plannedMissing` đã LÀ đúng cổng cho state mới (`PlannedDraft`,
+   * riêng biệt với `note`/`categoryId` của giao dịch thường) — dùng lại nó thay vì vá.
+   */
+  const plannedError = plannedMode ? plannedMissing(plannedDraft) : null
+
+  // Một cổng duy nhất cho cả "được bấm Lưu chưa" và "còn thiếu gì" — chín dạng còn lại
+  // vẫn đi qua entryValidation.ts như cũ (xem entryValidation.test.ts, không đổi).
+  const gate = plannedMode
+    ? { canSave: plannedError === null, missing: plannedError }
+    : entryGate({
+        amount,
+        hasAccount: !!effectiveAccountId,
+        type,
+        kind,
+        withTransaction,
+        plannedMode: false,
+        hasCategory,
+        // Lưới rỗng ≠ chưa chọn: câu nhắc phải chỉ sang Cài đặt chứ không bảo "chọn ở
+        // lưới" khi lưới không có ô nào.
+        categoryGridEmpty: !hideCategoryGrid && activeOfType.length === 0,
+        note,
+        accountId: effectiveAccountId,
+        toAccountId,
+        crossCurrency,
+        toAmount,
+        split: splitVal,
+        debt: debtValue,
+        remit: remitValue,
+        payment: paymentVal,
+        splitBackAccountIds: splitBackAccounts.map((a) => a.id),
+      })
   const canSave = gate.canSave && !saving
   const missing = saving ? null : gate.missing
   /**
@@ -526,7 +560,7 @@ export function TransactionForm({
    * đánh dấu đã chi"): ở đó nút không ghi một khoản mới, nên câu nhắc việc sẽ nói sai việc.
    */
   const saveLabel = plannedMode
-    ? 'Tạo lời nhắc'
+    ? 'Lưu'
     : initial
       ? submitLabel
       : missingPhrase
@@ -536,7 +570,7 @@ export function TransactionForm({
           : `Lưu · ${saveVerbOf(kind, amount, srcCurrency, selectedCat?.name ?? null)}`
 
   /**
-   * Đang ở chế độ mà nhãn + cờ "hoàn tiền" KHÔNG lưu được (quy tắc định kỳ / lời nhắc).
+   * Đang ở chế độ mà nhãn + cờ "hoàn tiền" KHÔNG lưu được (quy tắc định kỳ / Sẽ chi).
    * Câu chữ đặt ở biến chứ không viết thẳng vào JSX: nó đổi theo chế độ, và test canh
    * chế độ Gọn đếm chữ trong <p> sau khi bỏ các {biểu thức} nên chuỗi lồng sẽ bị tính
    * thành một đoạn văn xuôi mới.
@@ -549,11 +583,11 @@ export function TransactionForm({
    * Nhãn và cờ "hoàn tiền" giờ ĐỀU đi theo được cả ba đường ghi:
    *  - giao dịch: cột trên transactions
    *  - quy tắc định kỳ: recurring_rule_tags (0042) + cột is_refund (0043)
-   *  - lời nhắc: planned_expense_tags (0044); cờ hoàn tiền thì không có nghĩa ở đây
-   *    (chưa chi thì chưa có gì để hoàn) nên ô đó vẫn ẩn khi bật "Nhắc sau".
+   *  - khoản sắp chi: planned_expense_tags (0044); cờ hoàn tiền thì không có nghĩa ở
+   *    đây (chưa chi thì chưa có gì để hoàn) nên ô đó vẫn ẩn khi bật "Sẽ chi".
    */
   const refundDropped = plannedMode
-  const refundNote = 'Lời nhắc không có cờ "hoàn tiền" (chưa chi thì chưa có gì để hoàn).'
+  const refundNote = 'Khoản sắp chi không có cờ "hoàn tiền" (chưa chi thì chưa có gì để hoàn).'
 
   // Lưu mẫu: chỉ với chi/thu đã đủ số tiền + danh mục
   const canSaveTemplate = type !== 'transfer' && amount > 0 && !!categoryId
@@ -595,9 +629,9 @@ export function TransactionForm({
     const last = lastCategoryFor(nextType, categories)
     setCategoryId(last)
     setDrillId(categories.find((c) => c.id === last)?.parent_id ?? null)
-    // Tắt "Nhắc sau": nút bật/tắt nó chỉ có ở khoản CHI thường, giữ cờ qua đây là giữ
-    // một chế độ mà người dùng không còn thấy để tắt.
-    setRemindLater(false)
+    // Tắt "Sẽ chi": segmented Đã chi|Sẽ chi chỉ hiện ở khoản CHI thường, giữ cờ qua
+    // đây là giữ một chế độ mà người dùng không còn thấy để tắt.
+    setWantsPlanned(false)
     setToAccountId(null)
     setToDigits('')
     setActiveField('main')
@@ -665,7 +699,10 @@ export function TransactionForm({
   }
 
   async function handleSubmit(mode: 'save' | 'continue' = 'save') {
-    if (!canSave || !effectiveAccountId) return
+    // "Sẽ chi" không đòi tài khoản (bullet 1: chỉ cần một cái tên) — `effectiveAccountId`
+    // vẫn có thể là null nếu người dùng chưa tạo ví nào. Chín dạng còn lại đều ghi một
+    // bút toán thật nên vẫn đòi nó.
+    if (!canSave || (!plannedMode && !effectiveAccountId)) return
 
     // MỘT định nghĩa cho cả hai nhánh lưu: nút phụ chỉ có mặt khi màn này nhận
     // `onContinue`, nên hai nhánh không được hiểu chữ "nhập tiếp" khác nhau.
@@ -747,12 +784,28 @@ export function TransactionForm({
     setPending(mode)
     setError(null)
     try {
+      if (plannedMode && onSubmitPlanned) {
+        // Chưa chi đồng nào: không có giao dịch nào được ghi ở nhánh này, và
+        // `plannedFromEntry` không đưa `account_id` vào payload — khoản sắp chi
+        // không trừ tiền của ví nào nên không cần biết trừ từ đâu.
+        // Nhãn đi qua `effectiveTagIds` (TagPicker chung của cả mười dạng), KHÔNG
+        // qua `plannedDraft.tagIds` — PlannedFields không có ô nhãn riêng.
+        // Không có nhánh "nhập tiếp" ở đây: nút phụ đó bị ẩn khi `plannedMode`
+        // (xem JSX), nên `keepGoing` không bao giờ true tới được đây.
+        await onSubmitPlanned(plannedFromEntry({ ...plannedDraft, tagIds: effectiveTagIds }))
+        return
+      }
+
+      // Chín dạng còn lại đều ghi một bút toán thật, luôn cần một ví — cổng ở đầu
+      // hàm (`!plannedMode && !effectiveAccountId`) đã chặn trước khi tới đây, nên
+      // ép kiểu non-null ở đây là đúng, không phải bỏ qua lỗi.
+      const accountId = effectiveAccountId!
       const values: NewTransaction = {
         type,
         amount,
         to_amount: crossCurrency ? toAmount : null,
         category_id: type === 'transfer' ? null : categoryId,
-        account_id: effectiveAccountId,
+        account_id: accountId,
         to_account_id: type === 'transfer' ? toAccountId : null,
         occurred_on: date,
         note: note.trim(),
@@ -760,34 +813,13 @@ export function TransactionForm({
         is_refund: type === 'expense' ? isRefund : false,
         tag_ids: effectiveTagIds,
       }
-      if (plannedMode && onSubmitPlanned) {
-        // Chưa chi đồng nào: không có giao dịch nào được ghi ở nhánh này.
-        await onSubmitPlanned({
-          // Ghi chú là thứ người dùng tự đặt nên ưu tiên; không có thì mượn tên danh
-          // mục, vì một dòng nhắc không tên thì nhắc xong cũng không biết là cái gì.
-          title:
-            note.trim() ||
-            categories.find((c) => c.id === categoryId)?.name ||
-            'Khoản sắp chi',
-          amount,
-          currency: srcCurrency,
-          due_on: date,
-          due_precision: 'day',
-          // Mặc định nhắc đúng ngày; muốn nhắc sớm hơn thì sửa ở màn Sắp chi.
-          remind_days_before: 0,
-          category_id: categoryId,
-          account_id: effectiveAccountId,
-          // Nhãn của lời nhắc (migration 0044): lúc ghi thành giao dịch thật, form
-          // Nhập lấy lại đúng những nhãn này (xem prop initialTagIds).
-          tag_ids: effectiveTagIds,
-        })
-      } else if (showTransferFee && transferFee > 0) {
+      if (showTransferFee && transferFee > 0) {
         // Chuyển khoản có phí → 2 bút toán, EntryPage lo thứ tự + hoàn tác
         await onSubmitWithFee!(values, transferFee, keepGoing)
       } else {
         await (keepGoing ? onContinue!(values) : onSubmit(values))
       }
-      localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
+      localStorage.setItem(LAST_ACCOUNT_KEY, accountId)
       if (type !== 'transfer' && categoryId) {
         localStorage.setItem(lastCategoryKey(type), categoryId)
       }
@@ -952,84 +984,102 @@ export function TransactionForm({
         />
       )}
 
-      {/* Số tiền (nguồn); CK xuyên tệ có thêm ô "nhận được". Nhãn đọc từ bảng — mỗi dạng
-          gọi số tiền của nó bằng đúng tên của nó ("Tổng đã trả", "Số gửi", "Số trả"). */}
-      {amountBox('main', digits, srcCurrency, setDigits, shape.amountLabel)}
-      {crossCurrency &&
-        amountBox('to', toDigits, dstCurrency, setToDigits, `Nhận được (${dstCurrency})`)}
-
-      {/* Tài khoản + ngày */}
-      <div className="flex flex-wrap items-center gap-2">
-        {/* `kind === 'between'` chứ không `type === 'transfer'`: "Tài khoản tôi ở VN" cũng
-            là chuyển khoản nhưng ví đích của nó là ô "Đến tài khoản VND" trong khối field
-            riêng — bày thêm một picker đích ở đây là hỏi hai lần cùng một chỗ đến. */}
-        {kind === 'between' ? (
-          <>
-            {/* `ariaLabel` bắt buộc ở đây: hai picker đứng cạnh nhau, chỉ cách nhau một
-                mũi tên "→" mang aria-hidden — không có nó thì cả hai đọc ra y như nhau
-                ("Ví MoMo · ¥, button") và không biết đâu là nguồn đâu là đích. */}
-            <AccountPicker
-              accounts={activeAccounts}
-              value={effectiveAccountId}
-              onChange={setAccountId}
-              excludeId={toAccountId}
-              ariaLabel="Từ tài khoản"
-              className="min-w-[7rem] flex-1"
-            />
-            <span aria-hidden className="shrink-0 text-fg-muted">
-              →
-            </span>
-            <AccountPicker
-              accounts={activeAccounts}
-              value={toAccountId}
-              onChange={setToAccountId}
-              excludeId={effectiveAccountId}
-              ariaLabel="Đến tài khoản"
-              className="min-w-[7rem] flex-1"
-            />
-          </>
-        ) : (
-          <AccountPicker
-            accounts={pickerAccounts}
-            value={effectiveAccountId}
-            onChange={setAccountId}
-            ariaLabel="Tài khoản"
-            // `min-w-[7rem]` như hai picker của chuyển khoản ngay trên, KHÔNG phải
-            // `min-w-0`: hàng này có ô ngày rộng 7.5rem cố định, nên ở cỡ chữ "Rất lớn"
-            // trên màn 375px cái ô ngày ăn hết chỗ và picker bị bóp còn 36px — chỉ đủ hai
-            // cái icon, tên tài khoản mất sạch. Có sàn thì `flex-wrap` của hàng cha mới
-            // có việc để làm: picker xuống dòng riêng thay vì teo lại (§13).
-            className="min-w-[7rem] flex-1"
-          />
-        )}
-        <DateField
-          value={date}
-          onChange={setDate}
-          ariaLabel="Ngày giao dịch"
-          className="w-[7.5rem] shrink-0"
+      {/* Một dòng RIÊNG, ô 44px+ (size="lg") — không nhét vào hàng tài khoản/ngày như
+          nút chuông cũ (đã xóa). "Đã chi" là TRẠNG THÁI CỦA KHOẢN TIỀN, khác hẳn một
+          việc app tự làm cho bạn — hai câu hỏi khác nhau, nên tách khỏi hàng đó.
+          Chỉ hiện ở khoản CHI thường (`kind === 'spend'`), giống đúng cổng của nút
+          chuông cũ: `planned_expenses` chưa có cột phân biệt Chi/Thu/Chuyển khoản, nên
+          bật "Sẽ thu"/"Sẽ chuyển" ở các dạng khác sẽ ghi ra một khoản trông y hệt "Sẽ
+          chi" — nhãn nói một việc, bảng ghi một việc khác. */}
+      {!initial && onSubmitPlanned && kind === 'spend' && (
+        <SegmentedControl
+          size="lg"
+          label="Khoản này đã xảy ra chưa"
+          value={plannedMode ? 'future' : 'done'}
+          onChange={(v) => setWantsPlanned(v === 'future')}
+          items={[
+            { value: 'done', label: PHASE_LABEL[shape.direction].done },
+            { value: 'future', label: PHASE_LABEL[shape.direction].future },
+          ]}
         />
-        {/* "Nhắc sau" — chỉ ở dạng Chi thường: nhắc mình đi thu tiền là chuyện khác hẳn,
-            và chín dạng còn lại đều đã có bút toán riêng của chúng. Bật lên là nút Lưu đổi
-            nghĩa nên chữ trên nút cũng đổi (xem `saveLabel`).
-            Ô này sẽ thành segmented "Đã chi | Sẽ chi" ở bước sau của gói. */}
-        {!initial && onSubmitPlanned && kind === 'spend' && (
-          <button
-            type="button"
-            onClick={() => setRemindLater((v) => !v)}
-            aria-pressed={remindLater}
-            aria-label={remindLater ? 'Tắt nhắc sau' : 'Nhắc sau thay vì ghi ngay'}
-            title="Chưa chi — chỉ nhắc tôi vào ngày này"
-            className={`${CHIP_BASE} ${
-              remindLater
-                ? 'border-state-warn-border bg-state-warn-bg text-state-warn-fg'
-                : CHIP_OFF
-            }`}
-          >
-            <Bell className="h-4 w-4 shrink-0" />
-            {remindLater && <span>Nhắc sau</span>}
-          </button>
-        )}
-      </div>
+      )}
+
+      {plannedMode ? (
+        <>
+          {/* Chip cảnh báo: khoản này CHƯA xảy ra — không đụng tới ví, không đụng tới
+              trần ngân sách, không đụng tới bất kỳ con số Báo cáo nào của kỳ này. */}
+          <div className="mb-1.5 flex items-center gap-2 px-1">
+            <span className="shrink-0 rounded-full bg-state-warn-bg px-2 py-0.5 text-xs font-semibold text-state-warn-fg">
+              chưa xảy ra
+            </span>
+            <span className="text-xs text-fg-muted">Chưa trừ tiền, chưa vào trần.</span>
+          </div>
+          <PlannedFields value={plannedDraft} onChange={setPlannedDraft} categories={categories} />
+        </>
+      ) : (
+        <>
+          {/* Số tiền (nguồn); CK xuyên tệ có thêm ô "nhận được". Nhãn đọc từ bảng — mỗi
+              dạng gọi số tiền của nó bằng đúng tên của nó ("Tổng đã trả", "Số gửi", "Số
+              trả"). */}
+          {amountBox('main', digits, srcCurrency, setDigits, shape.amountLabel)}
+          {crossCurrency &&
+            amountBox('to', toDigits, dstCurrency, setToDigits, `Nhận được (${dstCurrency})`)}
+
+          {/* Tài khoản + ngày — ẨN ở "Sẽ chi": khoản chưa xảy ra thì chưa trừ ví nào,
+              và PlannedFields có ô ngày riêng của nó (Ngày đến hạn/Tháng dự kiến). */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* `kind === 'between'` chứ không `type === 'transfer'`: "Tài khoản tôi ở VN"
+                cũng là chuyển khoản nhưng ví đích của nó là ô "Đến tài khoản VND" trong
+                khối field riêng — bày thêm một picker đích ở đây là hỏi hai lần cùng một
+                chỗ đến. */}
+            {kind === 'between' ? (
+              <>
+                {/* `ariaLabel` bắt buộc ở đây: hai picker đứng cạnh nhau, chỉ cách nhau một
+                    mũi tên "→" mang aria-hidden — không có nó thì cả hai đọc ra y như nhau
+                    ("Ví MoMo · ¥, button") và không biết đâu là nguồn đâu là đích. */}
+                <AccountPicker
+                  accounts={activeAccounts}
+                  value={effectiveAccountId}
+                  onChange={setAccountId}
+                  excludeId={toAccountId}
+                  ariaLabel="Từ tài khoản"
+                  className="min-w-[7rem] flex-1"
+                />
+                <span aria-hidden className="shrink-0 text-fg-muted">
+                  →
+                </span>
+                <AccountPicker
+                  accounts={activeAccounts}
+                  value={toAccountId}
+                  onChange={setToAccountId}
+                  excludeId={effectiveAccountId}
+                  ariaLabel="Đến tài khoản"
+                  className="min-w-[7rem] flex-1"
+                />
+              </>
+            ) : (
+              <AccountPicker
+                accounts={pickerAccounts}
+                value={effectiveAccountId}
+                onChange={setAccountId}
+                ariaLabel="Tài khoản"
+                // `min-w-[7rem]` như hai picker của chuyển khoản ngay trên, KHÔNG phải
+                // `min-w-0`: hàng này có ô ngày rộng 7.5rem cố định, nên ở cỡ chữ "Rất lớn"
+                // trên màn 375px cái ô ngày ăn hết chỗ và picker bị bóp còn 36px — chỉ đủ hai
+                // cái icon, tên tài khoản mất sạch. Có sàn thì `flex-wrap` của hàng cha mới
+                // có việc để làm: picker xuống dòng riêng thay vì teo lại (§13).
+                className="min-w-[7rem] flex-1"
+              />
+            )}
+            <DateField
+              value={date}
+              onChange={setDate}
+              ariaLabel="Ngày giao dịch"
+              className="w-[7.5rem] shrink-0"
+            />
+          </div>
+        </>
+      )}
       {/* Chuyển khoản: phí ngân hàng/dịch vụ → giao dịch chi riêng vào "Tài chính" */}
       {showTransferFee && (
         <FeeField
@@ -1118,8 +1168,11 @@ export function TransactionForm({
       )}
 
       {/* Danh mục — MỘT điều kiện, đọc từ bảng: chỉ dạng nào `categoryPicker === 'user'`
-          mới bày lưới (xem hideCategoryGrid). */}
-      {!hideCategoryGrid &&
+          mới bày lưới (xem hideCategoryGrid). Ẩn thêm ở "Sẽ chi": PlannedFields đã có
+          ô "Danh mục" riêng của nó (một <select>, không phải lưới — số lượng khoản
+          sắp chi trên màn nhỏ hơn nhiều so với giao dịch, không cần bấm nhanh bằng
+          lưới). */}
+      {!plannedMode && !hideCategoryGrid &&
         (drillParent ? (
           /* Trong một nhóm cha → chọn danh mục con (bắt buộc) */
           <div className="flex flex-col gap-1.5">
@@ -1191,6 +1244,10 @@ export function TransactionForm({
           vừa dễ chạm nhầm làm bàn phím hệ thống bật lên che numpad.
           Từ lg khối này sang cột phải: ở đó nó nằm NGANG hàng với ô tiền, không còn phải
           cuộn qua cả lưới danh mục mới thấy. */}
+      {/* Ẩn ở "Sẽ chi": PlannedFields đã có ô "Ghi chú" riêng của nó, và "Lưu mẫu" chở
+          một PHÉP GIAO DỊCH (số tiền + danh mục + tài khoản) — khoản sắp chi không có
+          cái nào trong ba thứ đó là bắt buộc. */}
+      {!plannedMode && (
       <div className="flex gap-1.5">
         {/* Không có nhãn nhìn bằng mắt (cố ý — form Nhập ưu tiên gọn), nên tên ô phải đi
             qua `aria-label`. Placeholder KHÔNG phải tên: nó mất ngay khi bắt đầu gõ. */}
@@ -1220,9 +1277,10 @@ export function TransactionForm({
           </IconButton>
         )}
       </div>
+      )}
 
       {/* Cờ "hoàn tiền" chỉ sống được trên một GIAO DỊCH: khoản sắp chi
-          (NewPlannedExpense) không có cột nào giữ nó, nên ở chế độ lời nhắc ô đó ẩn kèm
+          (NewPlannedExpense) không có cột nào giữ nó, nên ở "Sẽ chi" ô đó ẩn kèm
           một dòng nói vì sao (`refundNote`) — thà không hiện còn hơn nhận rồi âm thầm bỏ,
           cùng cách xử với ô "+ Phí" của chuyển khoản.
           Nhãn thì đi theo được cả hai đường ghi (planned_expense_tags 0044, và
@@ -1271,6 +1329,19 @@ export function TransactionForm({
           />
           Không tính vào thống kê (giao dịch nội bộ, ghi bù…)
         </label>
+      )}
+
+      {/* Thay dropdown "Lặp lại" đã bỏ: form Nhập chỉ ghi được `frequency`, còn quy tắc
+          thật có `mode: 'auto'|'remind'`, `isPaused`, `endOn`, `isRefund` — hai đường
+          ghi cùng một vật thì sẽ lệch nhau, và người dùng không thấy mình đang thiếu
+          gì. Chỉ hiện ở khoản MỚI, ba dạng thẳng (spend/earn/between): quy tắc định kỳ
+          chỉ ghi được type expense|income|transfer + một tài khoản + một danh mục,
+          không có chỗ cho Trả hộ/Cho vay/Gửi về VN. Ẩn ở "Sẽ chi" — khoản chưa xảy ra
+          thì chưa có gì để lặp lại. */}
+      {!initial && !plannedMode && shape.roleSeed.role === 'none' && shape.writes === 'transaction' && (
+        <Link to="/recurring?new=1" className="px-1 text-xs text-fg-accent underline">
+          Khoản này lặp lại? → Tạo quy tắc
+        </Link>
       )}
 
       </div>

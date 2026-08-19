@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   SHAPES, shapeOf, kindsOf, directionOf, categoryPickerOf, chipAriaLabel,
-  counterpartyLabelOf, saveVerbOf,
+  counterpartyLabelOf, saveVerbOf, PHASE_LABEL,
   type EntryKind,
 } from './entryShape'
 
@@ -165,5 +165,17 @@ describe('saveVerbOf — nhan nut Luu nhac lai viec se lam', () => {
   it('chua chon danh muc thi khong de lai chu "vao" lung lo', () => {
     expect(saveVerbOf('spend', 3_480, 'JPY', null)).toBe('chi ¥3,480')
     expect(saveVerbOf('earn', 3_480, 'JPY', null)).toBe('thu ¥3,480')
+  })
+})
+
+describe('PHASE_LABEL', () => {
+  it('nhan hai pha di theo huong, va KHONG dung chu "Nhac sau"', () => {
+    expect(PHASE_LABEL.out).toEqual({ done: 'Đã chi', future: 'Sẽ chi', dateLabel: 'Ngày đến hạn' })
+    expect(PHASE_LABEL.in.future).toBe('Sẽ thu')
+    expect(PHASE_LABEL.move.future).toBe('Sẽ chuyển')
+    for (const p of Object.values(PHASE_LABEL)) {
+      expect(p.done).not.toMatch(/nhắc/i)
+      expect(p.future).not.toMatch(/nhắc/i)
+    }
   })
 })

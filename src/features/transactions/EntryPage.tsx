@@ -292,10 +292,10 @@ export function EntryPage() {
           }
           navigate('/so')
         }}
-        // "Nhắc sau": chưa chi đồng nào, chỉ tạo một khoản sắp chi rồi về Sổ.
+        // "Sẽ chi": chưa chi đồng nào, chỉ tạo một khoản sắp chi rồi về Sổ.
         onSubmitPlanned={async (input) => {
           await createPlanned.mutateAsync(input)
-          setToast({ text: 'Đã tạo lời nhắc', ok: true })
+          setToast({ text: 'Đã thêm khoản sắp chi', ok: true })
           clearTimeout(toastTimer.current)
           toastTimer.current = setTimeout(() => {
             setToast(null)

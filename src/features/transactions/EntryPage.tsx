@@ -24,12 +24,14 @@ import { showUndoToast } from '../../lib/undoToast'
 import type { TransactionRow, TransactionType } from '../../types/database.types'
 import type { NewTransaction } from '../../data'
 import { parseRoleParam } from './entryRoles'
+import { shapeOf, type EntryKind } from './entryShape'
 import {
   saveDebtEntry,
   saveDebtPayment,
   saveRemit,
   saveSplit,
   saveWithFee,
+  type RoleBase,
   type RoleSaveDeps,
 } from './roleSave'
 import { addSaved, countLabel, removeSaved, type SavedEntry } from './savedRound'
@@ -169,6 +171,48 @@ export function EntryPage() {
     }
   }
 
+  /**
+   * Đẩy một khoản vừa lưu vào "Vừa ghi" + tăng đếm.
+   *
+   * MỘT helper cho CẢ BỐN đường ghi có nút "Lưu và nhập tiếp". Trước đây hai setState này
+   * chỉ nằm trong `onContinue` (đường giao dịch thường), nên bảy dạng đi qua handleRole /
+   * handlePayment và cả `between` khi có phí lưu xong mà KHÔNG ghi lại gì: số đếm cạnh
+   * tiêu đề đứng ở 0 và nút "Xong · về Bản tin" không bao giờ hiện — ở đúng những dạng
+   * người ta ghi liên tiếp nhiều khoản nhất.
+   */
+  function recordSaved(entry: SavedEntry) {
+    setSavedList((list) => addSaved(list, entry))
+    setSavedCount((n) => n + 1)
+  }
+
+  /** Số thứ tự cho id giả của những đường ghi nhiều bút toán — xem `roleSavedEntry`. */
+  const savedSeq = useRef(0)
+
+  /**
+   * SavedEntry cho những đường ghi KHÔNG trả về một bút toán duy nhất (Trả hộ, Cho vay /
+   * Ghi nợ, Gửi về VN, hai dạng trả nợ, chuyển khoản có phí).
+   *
+   * `id` là số thứ tự trong lượt, KHÔNG phải id giao dịch: các dạng này ghi tới ba bút
+   * toán nên không có "khoản vừa ghi" nào để xoá. Hoàn tác một chạm ở đây vẫn không có
+   * (đã ghi trong `toastAndStay`), nên id giả không hứa gì mà nó không làm được — nó chỉ
+   * để React có key và để `removeSaved` không xoá lẫn khoản khác.
+   *
+   * Nhãn dựng từ `RoleBase` + bảng `entryShape`: sáu trong bảy dạng này để `categoryId`
+   * null (roleSave tự gán danh mục lúc lưu) nên `toSavedEntry` sẽ đọc ra "Chuyển khoản"
+   * cho cả sáu — tên dạng trong bảng mới là câu đúng.
+   */
+  function roleSavedEntry(kind: EntryKind, base: RoleBase): SavedEntry {
+    const cat = categories.find((c) => c.id === base.categoryId)
+    savedSeq.current += 1
+    return {
+      id: `${kind}-${savedSeq.current}`,
+      label: cat?.name ?? shapeOf(kind).label,
+      icon: cat?.icon ?? '💸',
+      amount: base.amount,
+      currency: base.srcCurrency,
+    }
+  }
+
   async function handleUndo(id: string) {
     clearTimeout(toastTimer.current)
     // try/catch: hoàn tác hỏng (offline…) mà không bắt thì unhandled rejection và
@@ -222,6 +266,7 @@ export function EntryPage() {
       navigate('/so')
       return
     }
+    recordSaved(roleSavedEntry(payload.kind, payload.base))
     toastAndStay('Đã lưu')
   }
 
@@ -233,6 +278,7 @@ export function EntryPage() {
       navigate('/so')
       return
     }
+    recordSaved(roleSavedEntry(payload.kind, payload.base))
     toastAndStay('Đã lưu')
   }
 
@@ -305,7 +351,14 @@ export function EntryPage() {
         initialTagIds={plannedTagIds}
         initialType={initialType}
         enableTemplates
-        enableRoles
+        // Bản điền sẵn khoản đến hạn KHÔNG được đổi sang mười dạng. `markBillDone()` /
+        // `markPlannedDone()` chỉ chạy trong nhánh `onSubmit` (đường giao dịch thường),
+        // nên đổi chip Dạng sang một dạng role/payment rồi bấm đúng cái nút mang chữ
+        // "Ghi và đánh dấu đã chi" sẽ ghi bút toán mà KHÔNG gắn recurring_rule_id, KHÔNG
+        // đẩy con trỏ kỳ (lời nhắc kêu lại → ghi trùng), hoặc để khoản sắp chi treo
+        // pending. Cùng lý lẽ prop này đã ghi cho form Sửa: một bút toán đã có chỗ đứng
+        // thì không có đường nào biến nó thành khoản Trả hộ.
+        enableRoles={!billPrefill && !plannedPrefill}
         initialRole={initialRole}
         onSubmitRole={handleRole}
         onSubmitPayment={handlePayment}
@@ -316,6 +369,10 @@ export function EntryPage() {
             navigate('/so')
             return
           }
+          // 2 bút toán → id giả như các đường role (xem `roleSavedEntry`); nhãn thì dựng
+          // được từ chính `main` vì đây là một NewTransaction thật.
+          savedSeq.current += 1
+          recordSaved(toSavedEntry(`fee-${savedSeq.current}`, main))
           toastAndStay('Đã lưu (kèm phí)')
         }}
         // Lưu: ghi giao dịch rồi quay về Sổ GD
@@ -358,8 +415,7 @@ export function EntryPage() {
           const row = await create.mutateAsync(values)
           // Đẩy vào "Vừa ghi" + tăng đếm — người ghi cả ngày 3-4 khoản một lượt cần
           // thấy mình đã ghi bao nhiêu, không chỉ thấy toast rồi quên ngay.
-          setSavedList((list) => addSaved(list, toSavedEntry(row.id, values)))
-          setSavedCount((n) => n + 1)
+          recordSaved(toSavedEntry(row.id, values))
           setToast({ text: 'Đã lưu', undoId: row.id, ok: true })
           clearTimeout(toastTimer.current)
           toastTimer.current = setTimeout(() => setToast(null), 5000)

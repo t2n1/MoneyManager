@@ -294,7 +294,11 @@ export function RecurringPage() {
         // Câu chỉ đường không bọc Guide: màn rỗng thì đây là thứ duy nhất trên màn hình
         // (xem components/Guide.tsx).
         <p className="py-8 text-center text-sm text-fg-muted">
-          Chưa có quy tắc nào. Thêm ở đây hoặc chọn "Lặp lại" khi nhập giao dịch.
+          {/* Dropdown "Lặp lại" ở form Nhập đã bị bỏ (nó chỉ ghi được `frequency`, thiếu
+              mode/isPaused/endOn/isRefund), và màn Nhập giờ dẫn NGƯỢC sang đây — nên câu
+              cũ chỉ vào một control không còn tồn tại, và chỉ vòng về chính trang này. */}
+          Chưa có quy tắc nào. Thêm ở đây, hoặc từ màn Nhập chọn "Khoản này lặp lại? → Tạo
+          quy tắc".
         </p>
       ) : (
         <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">

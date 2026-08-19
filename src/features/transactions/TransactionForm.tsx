@@ -134,11 +134,18 @@ type AmountTarget =
   | 'debt.fee'
   | 'transfer.fee'
 
-/** Payload gửi lên EntryPage khi lưu một dạng đi qua orchestrator riêng. */
+/**
+ * Payload gửi lên EntryPage khi lưu một dạng đi qua orchestrator riêng.
+ *
+ * `kind` đi kèm dù `role` đã chọn được orchestrator: một `role` phủ HAI dạng (debt →
+ * lend|borrow, remit → family|ownvn) nên người nhận không suy lại được dạng nào, mà nó
+ * cần đúng dòng bảng `entryShape` để đặt tên khoản vừa ghi trong "Vừa ghi" (xem
+ * `roleSavedEntry` ở EntryPage).
+ */
 export type RoleSubmit =
-  | { role: 'split'; base: RoleBase; value: SplitValue }
-  | { role: 'debt'; base: RoleBase; value: DebtValue }
-  | { role: 'remit'; base: RoleBase; value: RemitValue }
+  | { kind: EntryKind; role: 'split'; base: RoleBase; value: SplitValue }
+  | { kind: EntryKind; role: 'debt'; base: RoleBase; value: DebtValue }
+  | { kind: EntryKind; role: 'remit'; base: RoleBase; value: RemitValue }
 
 /**
  * Payload lưu một lần trả nợ (repay/collect) — đi qua `saveDebtPayment`, KHÔNG qua
@@ -146,7 +153,7 @@ export type RoleSubmit =
  * xem entryShape.ts) vì chúng không dùng field People/Split/Remit gì, chỉ một khoản
  * nợ đã chọn — orchestrator riêng cho khớp `writes: 'debtPayment'`.
  */
-export type PaymentSubmit = { base: RoleBase; value: PaymentValue }
+export type PaymentSubmit = { kind: EntryKind; base: RoleBase; value: PaymentValue }
 
 /**
  * Dạng mở sẵn khi vào màn: suy từ `?type=` / `?role=` cũ để mọi đường vào đang có
@@ -865,11 +872,11 @@ export function TransactionForm({
           tagIds: effectiveTagIds,
         }
         if (shape.roleSeed.role === 'split') {
-          await onSubmitRole({ role: 'split', base, value: splitVal }, keepGoing)
+          await onSubmitRole({ kind, role: 'split', base, value: splitVal }, keepGoing)
         } else if (shape.roleSeed.role === 'debt') {
-          await onSubmitRole({ role: 'debt', base, value: debtValue }, keepGoing)
+          await onSubmitRole({ kind, role: 'debt', base, value: debtValue }, keepGoing)
         } else {
-          await onSubmitRole({ role: 'remit', base, value: remitValue }, keepGoing)
+          await onSubmitRole({ kind, role: 'remit', base, value: remitValue }, keepGoing)
         }
         localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
         if (keepGoing) {
@@ -905,7 +912,7 @@ export function TransactionForm({
           note,
           tagIds: effectiveTagIds,
         }
-        await onSubmitPayment({ base, value: paymentVal }, keepGoing)
+        await onSubmitPayment({ kind, base, value: paymentVal }, keepGoing)
         localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
         if (keepGoing) {
           clearForNextEntry()
@@ -1517,10 +1524,17 @@ export function TransactionForm({
       {/* Đáy ghim: NumPad + lỗi + nút Lưu — luôn hiển thị, không bị nội dung đẩy khuất.
           Nằm NGOÀI lưới hai cột: nút Lưu là hành động của cả form, không thuộc cột nào. */}
       <div className="flex shrink-0 flex-col gap-1.5 pt-1.5">
-      {/* NumPad chỉ trên mobile. Ô tiền phụ không nhận phép tính → mờ ÷×−+. */}
+      {/* NumPad chỉ trên mobile. Ô tiền phụ không nhận phép tính → mờ ÷×−+.
+          ẨN ở "Sẽ chi": ở đó ô số tiền bị PlannedFields thay bằng ô "Ước tính" (một input
+          chữ, có bàn phím hệ thống riêng), nên 188px numpad này ghim ở đáy mà bấm vào
+          không có gì xảy ra — và số nó âm thầm gõ vào `digits` sẽ hiện ra thành một số
+          tiền người dùng không hề nhập lúc lật về "Đã chi". Ẩn còn TRẢ LẠI chiều cao,
+          nhiều hơn 27px màn 410px đang tràn (ruling task 13). */}
+      {!plannedMode && (
       <div className="lg:hidden">
         <NumPad onKey={onNumPadKey} opsDisabled={activeField !== 'main' && activeField !== 'to'} />
       </div>
+      )}
 
       {error && <p role="alert" className="text-sm text-money-out">{error}</p>}
       {/* Lý do nút Lưu còn mờ — ghim cạnh nút để không bao giờ bị cuộn khuất. */}
@@ -1528,6 +1542,9 @@ export function TransactionForm({
 
       {/* Hàng nút: ⌫ (chỉ mobile, thay cho hàng xóa lùi riêng) + Lưu và nhập tiếp / Lưu */}
       <div className="flex gap-2">
+        {/* Cùng cổng `!plannedMode` với NumPad ngay trên: ⌫ là phím CỦA numpad, để lại một
+            mình thì nó gõ vào một ô không còn trên màn. */}
+        {!plannedMode && (
         <button
           type="button"
           onClick={() => onNumPadKey('⌫')}
@@ -1536,6 +1553,7 @@ export function TransactionForm({
         >
           <Delete className="h-5 w-5" />
         </button>
+        )}
         {/* MỘT layout ở cả 10 dạng. Trước đây Chi/Chuyển khoản có hai nút còn ba chế độ
             đặc biệt có một nút full-width — cùng hành động mà đổi vị trí giữa các chế độ,
             nên tay phải tìm lại nút Lưu mỗi lần đổi loại.

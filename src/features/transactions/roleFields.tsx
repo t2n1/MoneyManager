@@ -649,26 +649,27 @@ export function RemitFields({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sent])
 
-  // Suy lại "Số nhận" mỗi khi sent/fee/rate đổi — CỐ Ý chỉ ba thứ này trong dependency
+  // Suy lại "Số nhận" mỗi khi sent/rate đổi — CỐ Ý chỉ hai thứ này trong dependency
   // list. Thêm `value.received` hay `receivedTouched` vào đây thì mỗi lần onChange bên
   // dưới chạy (hoặc người dùng gõ tay) sẽ tự kích lại effect này thành một vòng vô
   // nghĩa — và tệ hơn, nó SẼ đạp lên đúng số người dùng vừa gõ ngay lượt kế tiếp.
+  // `value.fee` KHÔNG có trong deps vì số nhận không phụ thuộc phí: ô "Số gửi" đã là số
+  // RÒNG, phí được cộng thêm lúc lưu (xem đầu remitDerive.ts).
   useEffect(() => {
     const next = nextReceived({
       current: value.received,
       touched: receivedTouched,
       sent,
-      fee: value.fee,
       rate,
     })
     if (next !== value.received) onChange({ ...value, received: next })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sent, value.fee, rate])
+  }, [sent, rate])
 
   // Dòng "≈" — ƯỚC LƯỢNG sống theo tỷ giá hiện tại, tách khỏi ô "Số nhận" (có thể đã bị
   // người dùng ghi đè bằng số thật). Luôn tính, không tắt theo `receivedTouched`: đây là
   // chỗ người dùng so số ước với số thật họ vừa gõ.
-  const estimate = deriveReceived(sent, value.fee, rate)
+  const estimate = deriveReceived(sent, rate)
   return (
     <div className={blockCls('remit')}>
       {value.kind === 'transfer' && (

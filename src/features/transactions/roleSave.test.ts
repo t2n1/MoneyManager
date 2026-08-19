@@ -649,7 +649,7 @@ describe('saveDebtPayment — trả nợ từ form Nhập', () => {
     const { deps, calls } = makeDeps([openDebt()], [cat('cat-tra-no', 'Trả nợ')])
     await saveDebtPayment(
       { ...base, amount: 30_000 },
-      { debtId: 'd1', withTransaction: true, fee: 0 },
+      { debtId: 'd1', withTransaction: true },
       deps,
     )
     expect(calls.createDebtPayment).toHaveLength(1)
@@ -668,7 +668,7 @@ describe('saveDebtPayment — trả nợ từ form Nhập', () => {
     )
     await saveDebtPayment(
       { ...base, amount: 8_200 },
-      { debtId: 'd2', withTransaction: true, fee: 0 },
+      { debtId: 'd2', withTransaction: true },
       deps,
     )
     expect(calls.createDebtPayment[0].transaction).toMatchObject({
@@ -681,7 +681,7 @@ describe('saveDebtPayment — trả nợ từ form Nhập', () => {
     const { deps, calls } = makeDeps([openDebt()])
     await saveDebtPayment(
       { ...base, amount: 30_000 },
-      { debtId: 'd1', withTransaction: false, fee: 0 },
+      { debtId: 'd1', withTransaction: false },
       deps,
     )
     expect(calls.createDebtPayment[0].transaction).toBeNull()
@@ -692,7 +692,7 @@ describe('saveDebtPayment — trả nợ từ form Nhập', () => {
     const { deps, calls } = makeDeps([openDebt()], [cat('cat-tra-no', 'Trả nợ')])
     await saveDebtPayment(
       { ...base, amount: 30_000, tagIds: ['tag-lan'] },
-      { debtId: 'd1', withTransaction: true, fee: 0 },
+      { debtId: 'd1', withTransaction: true },
       deps,
     )
     expect(calls.createDebtPayment[0].transaction).toMatchObject({ tag_ids: ['tag-lan'] })
@@ -701,37 +701,15 @@ describe('saveDebtPayment — trả nợ từ form Nhập', () => {
   it('không tìm thấy khoản nợ thì ném lỗi, không ghi im lặng', async () => {
     const { deps, calls } = makeDeps([])
     await expect(
-      saveDebtPayment({ ...base, amount: 1 }, { debtId: 'mat-tieu', withTransaction: true, fee: 0 }, deps),
+      saveDebtPayment({ ...base, amount: 1 }, { debtId: 'mat-tieu', withTransaction: true }, deps),
     ).rejects.toThrow(/khoản nợ/i)
     expect(calls.createDebtPayment).toHaveLength(0)
     expect(calls.createTransaction).toHaveLength(0)
   })
 
-  it('có phí → thêm một giao dịch chi riêng vào "Tài chính", không cộng vào số trả', async () => {
-    const { deps, calls } = makeDeps([openDebt()], [cat('cat-tra-no', 'Trả nợ'), cat('cat-tc', 'Tài chính')])
-    await saveDebtPayment(
-      { ...base, amount: 30_000 },
-      { debtId: 'd1', withTransaction: true, fee: 300 },
-      deps,
-    )
-    expect(calls.createDebtPayment[0].amount).toBe(30_000) // phí không cộng vào số trả
-    expect(calls.createTransaction).toHaveLength(1)
-    expect(calls.createTransaction[0]).toMatchObject({
-      type: 'expense',
-      amount: 300,
-      category_id: 'cat-tc',
-    })
-    // Phí là bút toán app tự sinh, không phải hành động của người dùng với người kia.
-    expect(calls.createTransaction[0].tag_ids).toBeUndefined()
-  })
-
-  it('không nhập phí → không sinh bút toán phí nào', async () => {
-    const { deps, calls } = makeDeps([openDebt()], [cat('cat-tra-no', 'Trả nợ')])
-    await saveDebtPayment(
-      { ...base, amount: 30_000 },
-      { debtId: 'd1', withTransaction: true, fee: 0 },
-      deps,
-    )
-    expect(calls.createTransaction).toHaveLength(0)
-  })
+  // Hai test "có phí" / "không nhập phí" cho saveDebtPayment đã BỊ XÓA (fix round 1,
+  // task 8): `PaymentValue.fee` là plumbing chết — không cửa nào (DebtPickerField hay
+  // DebtPaymentSheet) dựng UI cho phí trả nợ, spec không đòi, và field đã bị gỡ khỏi
+  // PaymentValue/saveDebtPayment. Test phí của saveDebtEntry (DebtValue.fee, phí GIẢI
+  // NGÂN) vẫn giữ nguyên ở describe khác — đó là tính năng có thật, có UI.
 })

@@ -443,14 +443,17 @@ export interface PaymentValue {
   debtId: string
   /** Có chuyển tiền thật (đổi số dư) hay chỉ ghi sổ nợ. Giống DebtPaymentSheet. */
   withTransaction: boolean
-  /** Phí chuyển (minor units); 0 = không. Ghi riêng thành khoản chi "Tài chính". */
-  fee: number
+  // KHÔNG có `fee` ở đây, CỐ Ý (bỏ 2026-08-19, fix round 1 task 8): đường vào thứ
+  // nhất `DebtPaymentSheet.tsx` không hỗ trợ phí trả nợ (`grep -n fee` trên file đó
+  // ra rỗng) và spec chưa từng đòi field này — bản đầu của Task 7 chép nhầm từ
+  // `DebtValue.fee` (phí GIẢI NGÂN, có thật). Không component nào trong 10 dạng dựng
+  // UI cho nó nên nó là plumbing chết, không phải tính năng đã ship — xem YAGNI. Cần
+  // phí trả nợ thì thêm UI ở CẢ HAI cửa cùng lúc, không chỉ nối lại field này.
 }
 
 export const initialPayment = (): PaymentValue => ({
   debtId: '',
   withTransaction: true,
-  fee: 0,
 })
 
 /**
@@ -461,13 +464,6 @@ export const initialPayment = (): PaymentValue => ({
  * `type` KHÔNG lấy từ dạng mà suy từ chiều khoản nợ (xem entryShape: repay và
  * collect đều có `txType: null`): mình trả (i_owe) = chi; người ta trả mình
  * (owed_to_me) = thu.
- *
- * Phí đi qua `createFeeTx`/`undoFeeTx` — CÙNG NẾP saveDebtEntry đang dùng cho
- * phí giải ngân (tạo phí trước, hỏng bút toán chính thì xóa phí đi). Không
- * dùng `saveWithFee` ở đây: chữ ký của nó bắt `main: NewTransaction` không
- * null, còn ở đây bút toán chính là `createDebtPayment` (có thể `transaction:
- * null` khi tắt withTransaction) — nới `saveWithFee` để nhận null sẽ làm nó
- * lỏng cho cả saveWithFee gốc, nên viết thẳng bằng helper nội bộ có sẵn.
  */
 export async function saveDebtPayment(
   base: RoleBase,
@@ -479,35 +475,29 @@ export async function saveDebtPayment(
   // lệch nhau mà không ai biết.
   if (!debt) throw new Error('Không tìm thấy khoản nợ đang mở này.')
 
-  const feeTxId = await createFeeTx(v.fee, base.accountId, base.occurredOn, 'Phí chuyển tiền', deps)
-  try {
-    const txType = debt.direction === 'i_owe' ? 'expense' : 'income'
-    let transaction: NewTransaction | null = null
-    if (v.withTransaction) {
-      const categoryId = await debtFlowCategoryId('repay', debt.direction, deps)
-      transaction = {
-        type: txType,
-        amount: base.amount,
-        to_amount: null,
-        category_id: categoryId,
-        account_id: base.accountId,
-        to_account_id: null,
-        occurred_on: base.occurredOn,
-        note: base.note.trim() || `${txType === 'expense' ? 'Trả nợ' : 'Thu nợ'} · ${debt.counterparty}`,
-        tag_ids: base.tagIds,
-      }
-    }
-    await deps.createDebtPayment({
-      debt_id: debt.id,
+  const txType = debt.direction === 'i_owe' ? 'expense' : 'income'
+  let transaction: NewTransaction | null = null
+  if (v.withTransaction) {
+    const categoryId = await debtFlowCategoryId('repay', debt.direction, deps)
+    transaction = {
+      type: txType,
       amount: base.amount,
-      paid_on: base.occurredOn,
-      note: base.note.trim(),
-      transaction,
-    })
-  } catch (e) {
-    await undoFeeTx(feeTxId, deps)
-    throw e
+      to_amount: null,
+      category_id: categoryId,
+      account_id: base.accountId,
+      to_account_id: null,
+      occurred_on: base.occurredOn,
+      note: base.note.trim() || `${txType === 'expense' ? 'Trả nợ' : 'Thu nợ'} · ${debt.counterparty}`,
+      tag_ids: base.tagIds,
+    }
   }
+  await deps.createDebtPayment({
+    debt_id: debt.id,
+    amount: base.amount,
+    paid_on: base.occurredOn,
+    note: base.note.trim(),
+    transaction,
+  })
 }
 
 /**

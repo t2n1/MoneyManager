@@ -1096,8 +1096,12 @@ export function TransactionForm({
       {/* Trả nợ / thu lại: DẠNG DUY NHẤT có field phụ thuộc nhau (chọn nợ trước, chọn
           ví sau — xem pickerAccounts/payDebt ở trên). Đặt CÙNG chỗ các khối field
           riêng khác (dưới ô số tiền + tài khoản/ngày), không phải trên — hai hàng đầu
-          (segmented + Dạng) đứng y một chỗ ở mọi dạng. */}
-      {(kind === 'repay' || kind === 'collect') && (
+          (segmented + Dạng) đứng y một chỗ ở mọi dạng.
+          Cổng đọc `shape.writes === 'debtPayment'` — CÙNG cổng với `pickerAccounts`
+          ngay trên (không đọc `kind === 'repay' || kind === 'collect'` viết tay ở
+          đây): hai cổng từng lệch tên, và một dạng debtPayment mới sau này sẽ bị
+          lọc ví mà không có picker để chọn nợ. */}
+      {shape.writes === 'debtPayment' && (
         <DebtPickerField
           value={paymentVal}
           onChange={(next, prefillAmount) => {
@@ -1106,7 +1110,10 @@ export function TransactionForm({
           }}
           debts={allDebts}
           payments={allDebtPayments}
-          direction={kind === 'repay' ? 'i_owe' : 'owed_to_me'}
+          // out (tiền ra) = mình trả nợ đang MANG (i_owe); in (tiền vào) = người ta trả
+          // lại khoản họ ĐANG NỢ MÌNH (owed_to_me). Đọc từ `shape.direction` (bảng
+          // entryShape) thay vì so `kind` viết tay — cùng lý do gộp cổng ở trên.
+          direction={shape.direction === 'out' ? 'i_owe' : 'owed_to_me'}
         />
       )}
 

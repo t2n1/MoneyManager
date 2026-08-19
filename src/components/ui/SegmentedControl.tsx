@@ -36,11 +36,18 @@ export interface SegmentedItem<T extends string> {
   activeClassName?: string
 }
 
-export type SegmentedSize = 'sm' | 'md'
+export type SegmentedSize = 'sm' | 'md' | 'lg'
 
-const SIZE: Record<SegmentedSize, { track: string; item: string }> = {
+// Export để test được bằng hàm thuần: repo không render component trong test
+// (0 file *.test.tsx, không có @testing-library), nên bảng tra phải tự kiểm được.
+export const SIZE: Record<SegmentedSize, { track: string; item: string }> = {
   sm: { track: 'text-xs', item: 'px-3 py-2.5' },
   md: { track: 'text-sm', item: 'px-1 py-2.5' },
+  // 44px: py-3 (12px×2) + line-height 20px của text-sm. Dành cho control CHÍNH của
+  // một màn — màn Nhập, nơi ô segmented không nằm trong danh sách miễn trừ vùng chạm.
+  // KHÔNG sửa `md` để đạt 44px: 11 file khác đang dùng nó (Tài sản, Đầu tư, Báo cáo,
+  // Sổ, RecurringFormSheet, roleFields…), đổi là đổi chiều cao ở cả 11 màn.
+  lg: { track: 'text-sm', item: 'px-1 py-3' },
 }
 
 interface Props<T extends string> {

@@ -40,6 +40,7 @@ import { TagPicker } from '../tags/TagPicker'
 import { CategoryRow } from './CategoryRow'
 import { recentCategories } from './recentCategories'
 import { categoryAlert } from './categoryAlert'
+import { cappedCategory } from './cappedCategory'
 import {
   isAutoAssignedCategory,
   pickableCategories,
@@ -583,19 +584,15 @@ export function TransactionForm({
   })
 
   /**
-   * Danh mục mà khoản này SẼ được xếp vào — không phải luôn là ô người dùng bấm.
-   * `Gửi gia đình` có `categoryPicker: 'auto'`: roleSave tự gán "Gửi tiền về VN" lúc lưu,
-   * mà danh mục đó ĐẶT ĐƯỢC hạn mức (xem flowCategories.ts — nó khác danh mục dòng chảy
-   * đúng ở chỗ này) và bảng entryShape ghi `capBase: 'full'` cho nó theo quyết định số 1
-   * của chủ sổ. Đọc `capBase` từ bảng để cổng vẫn đúng khi thêm dạng mới; chỉ chỗ TRA
-   * danh mục mới cần biết picker là 'user' hay 'auto'.
+   * Danh mục mà khoản này SẼ được xếp vào — không phải luôn là ô người dùng bấm, và không
+   * phải lúc nào cũng có. Cả ba điều kiện (capBase, picker, cột `kind`) nằm trong
+   * `cappedCategory` cùng lý lẽ của chúng; chỗ này chỉ nối dây.
+   *
+   * `REMIT_CATEGORY_NAME` truyền vào không điều kiện được, vì `family` là dạng DUY NHẤT
+   * vừa `categoryPicker: 'auto'` vừa có trần — bốn dạng nợ đều `capBase: 'none'` nên dừng
+   * ở cổng đầu, chưa tới bước tra tên. Thêm một dạng `auto` CÓ trần thì phải sửa chỗ này.
    */
-  const cappedCat =
-    shape.capBase === 'none'
-      ? null
-      : shape.categoryPicker === 'user'
-        ? selectedCat
-        : (categories.find((c) => c.type === 'expense' && c.name === REMIT_CATEGORY_NAME) ?? null)
+  const cappedCat = cappedCategory(shape, selectedCat, categories, REMIT_CATEGORY_NAME)
 
   /**
    * Trần đọc theo THÁNG CỦA NGÀY đang nhập, không phải tháng hiện tại: ghi bù một khoản
@@ -1384,7 +1381,9 @@ export function TransactionForm({
           này để hàng tài khoản+ngày ở TRÊN lưới danh mục, nên "ngay dưới hàng danh mục"
           là chỗ duy nhất giữ đúng quan hệ đó.)
           KHÔNG gác theo `hideCategoryGrid`: `Gửi gia đình` ẩn lưới (app tự gán danh mục)
-          mà vẫn chịu trần — xem `cappedCat`.
+          mà bảng vẫn ghi `capBase: 'full'` cho nó. Cổng thật là `cappedCategory`: nó im
+          lặng khi danh mục được gán mang `kind = 'transfer'` — mặc định của migration 0046,
+          và đổi được ở tấm sửa danh mục.
           Token `state-warn-*` chứ không ba hex của spec: tầng token là chỗ DUY NHẤT được
           viết hex (§index.css), và cặp token có sẵn cả bản sáng lẫn bản tối, trong khi
           spec chỉ cho ba giá trị dark. */}

@@ -105,7 +105,7 @@ trong khi bút toán là *đổi chỗ* — **đúng cái vết B22 mở đầu 
 → Lấy **cấu trúc của B23** (hai chip ở hai hướng khác nhau). Giữ lại thứ hay nhất của
 `37b`: **hai dòng hệ quả** làm chữ phụ trên chip, để lựa chọn tự giải thích.
 
-- `family` → "Tiền cho đi — tính là chi tiêu, vào trần."
+- `family` → "Tiền cho đi — nhưng mặc định xếp là Chuyển tài sản, không vào trần."
 - `ownvn` → "Vẫn là tiền của bạn — chỉ đổi đồng tiền."
 
 ## `B23.3` sai hai lần — không bỏ ô counterparty
@@ -159,7 +159,8 @@ Hai cột điều khiển hành vi có **giá trị định nghĩa sẵn**, khô
 **Không migration nào.** Mười dạng đều dẫn về bút toán đã có.
 
 **Quy tắc duy nhất thay cho ba hành vi cũ:** lưới danh mục hiện **khi và chỉ khi**
-`categoryPicker === 'user'`. Cảnh báo trần hiện **khi và chỉ khi** `capBase !== 'none'`.
+`categoryPicker === 'user'`. Cảnh báo trần hiện **khi và chỉ khi** `capBase !== 'none'`
+**và** danh mục giữ trần đó mang `kind = 'expense'` (xem "Sửa sau khi ship" ở dưới).
 
 Hai chỗ spec cố ý lệch gói, cả hai đều ở dòng `family`:
 
@@ -169,7 +170,7 @@ Hai chỗ spec cố ý lệch gói, cả hai đều ở dòng `family`:
    trần chỉ hiện khi có danh mục" — với `family` thì có danh mục, chỉ là app gán. Câu cảnh
    báo phải **gọi tên danh mục ra** ("Gửi tiền về VN đã vượt trần…") vì người dùng không
    thấy nó ở đâu trên màn. Bốn dạng `auto` còn lại đều `capBase: 'none'` nên không gặp
-   chuyện này.
+   chuyện này. Nhưng `capBase: 'full'` **không** có nghĩa trần luôn kêu — xem mục dưới.
 
 Bốn tên danh mục `auto` của nhóm nợ lấy đúng từ `debtFlowCategoryId(kind, direction)`
 ([`roleSave.ts:75`](../../../src/features/transactions/roleSave.ts#L75)) — không đặt lại
@@ -502,7 +503,50 @@ Chỉ **7 file** import `entryValidation` / `entryRoles`, 5 trong số đó nằ
   sắp chi.
 - Chọn nhãn ở **cả 10 dạng** → lưu xong đếm được đúng số liên kết (hiện 5 dạng ra 0).
 - `repay`/`collect` → `debtSummary().net` đổi đúng chiều, `remainingOf` giảm.
-- `family` vẫn vào tổng chi và vẫn chịu trần (quyết định 1) — chi tháng 8 giữ `¥252,236`.
+- `family` chịu trần **chỉ khi** `Gửi tiền về VN` mang `kind = 'expense'`. Mặc định
+  (`transfer`) thì không cảnh báo, và khoản đó **không** vào tổng chi — nên chi tháng 8
+  không phải `¥252,236` như bản spec đầu ghi.
 
 **Cỡ chữ lớn:** bật `--app-font-scale` "Rất lớn" ở 360px → chip không ngắt giữa từ, tiêu đề
 không lệch tâm, picker tài khoản không teo còn 36px.
+
+
+---
+
+## Sửa sau khi ship — `Gửi tiền về VN` và cột `kind`
+
+Bản spec đầu chốt "quyết định 1: `family` là chi tiêu, chịu trần" trên một **tiền đề sai
+do tôi đưa ra**. Lúc hỏi chủ sổ, tôi mô tả lựa chọn "giữ nguyên" là "như code hiện tại",
+dựa vào một chú thích trong `flowCategories.ts`. Chú thích đó đã bị
+[migration 0046](../../../supabase/migrations/0046_category_kind.sql) vượt qua: migration
+đặt `Gửi tiền về VN` thành `kind = 'transfer'`, và mọi hàm tổng hợp
+(`progress.ts`, `reports/aggregate.ts`, `tags/aggregate.ts`) loại `kind = 'transfer'` khỏi
+cả chi đã tiêu lẫn hạn mức.
+
+**Điều migration 0046 nói rõ, và spec này phải tôn trọng:** đó là **lựa chọn của người
+dùng, không phải quy định của app**. Cột để `NULL` cho trigger điền, và một `'expense'`
+khai rõ thì trigger không đổi lại. Đã có nút gạt "Tiêu thật / Chuyển tài sản" ở tấm sửa
+danh mục.
+
+**Vì vậy `capBase: 'full'` ở dòng `family` GIỮ NGUYÊN.** Câu hỏi "khoản này có chịu trần
+hay không" thuộc về cột `kind` của danh mục, không thuộc về bảng `entryShape`. Bảng nói
+"nếu có trần thì tính trên toàn bộ số gửi"; cột `kind` nói "có trần hay không".
+
+**Hai chỗ đã sửa:**
+
+1. **Tên đọc được của chip** (`aria-label`, không phải chữ hiện trên mặt — chip chỉ in
+   `s.label`, xem chú thích ở `DirectionTabs.tsx`) hứa "tính là chi tiêu, vào trần" trong
+   khi mặc định thì không. Nghĩa là câu sai này chỉ tới **người dùng trình đọc màn hình**,
+   đúng nhóm không có cách nào tự kiểm chứng lại. Đổi
+   thành "Tiền cho đi — **nhưng** mặc định xếp là Chuyển tài sản, không vào trần". Chữ
+   "nhưng" ở đó có việc: nó giữ nguyên tác động tài sản thật (tiền cho đi là hết) trong khi
+   nói rõ app xếp khác. Dùng đúng từ của nút gạt để người không đồng ý biết đi tìm ở đâu.
+2. **Cảnh báo rơi về trần của danh mục cha.** `Gửi tiền về VN` là con của `Tài chính`.
+   `capWarning` không tìm thấy dòng ngân sách của chính nó (danh mục `transfer` không đặt
+   được hạn mức) nên rơi về dòng của cha — báo "thêm ¥30,000 vào Tài chính" trong khi
+   `progress.ts` loại đúng khoản đó khỏi chi của cả nhóm. **Con số trong câu cảnh báo
+   không bao giờ tới.** Cổng `kind` phải chặn **trước** bước rơi về cha, nên ba điều kiện
+   gom về [`cappedCategory.ts`](../../../src/features/transactions/cappedCategory.ts).
+
+Cổng này áp cho **mọi** dạng, không riêng `family`: chọn tay một danh mục `transfer` (nạp
+đầu tư, điều chỉnh số dư) ở dạng `spend` cũng không còn cảnh báo trần.

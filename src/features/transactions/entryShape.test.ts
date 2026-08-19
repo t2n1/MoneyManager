@@ -99,7 +99,12 @@ describe('hai dang gui ve VN phai noi ro he qua', () => {
   it('chi hai dang do co chu phu, va chu phu noi ve tai san', () => {
     const withHint = Object.values(SHAPES).filter((s) => s.hint)
     expect(withHint.map((s) => s.kind).sort()).toEqual(['family', 'ownvn'])
-    expect(shapeOf('family').hint).toContain('chi tiêu')
+    // Hai cau phai TRAI NHAU o tac dong tai san: `family` tien cho di (het), `ownvn` tien
+    // van cua minh. Va ca hai phai noi ro cach app XEP no, vi mac dinh cua migration 0046
+    // xep ca hai la Chuyen tai san — nguoi doc phai biet de gat lai neu khong dong y.
+    expect(shapeOf('family').hint).toContain('cho đi')
+    expect(shapeOf('family').hint).toContain('Chuyển tài sản')
+    expect(shapeOf('ownvn').hint).toContain('Vẫn là tiền của bạn')
     expect(shapeOf('ownvn').hint).toContain('không phải chi tiêu')
   })
 })
@@ -113,7 +118,7 @@ describe('chipAriaLabel', () => {
   it('hai dang gui ve VN: he qua vao TEN DOC DUOC, khong chi vao mat', () => {
     // Cung mot hanh dong vat ly, tac dong tai san TRAI NHAU. Nghe bang trinh doc
     // man hinh ma khong co cau nay thi khong the chon dung.
-    expect(chipAriaLabel('family')).toBe('Gửi gia đình — Tiền cho đi — tính là chi tiêu, vào trần.')
+    expect(chipAriaLabel('family')).toBe('Gửi gia đình — Tiền cho đi — nhưng mặc định xếp là Chuyển tài sản, không vào trần.')
     expect(chipAriaLabel('ownvn'))
       .toBe('Tài khoản tôi ở VN — Vẫn là tiền của bạn — không phải chi tiêu, chỉ đổi đồng tiền.')
   })

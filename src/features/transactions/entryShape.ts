@@ -102,7 +102,7 @@ export const SHAPES: Record<EntryKind, EntryShape> = {
   },
   family: {
     kind: 'family', direction: 'out', label: 'Gửi gia đình',
-    hint: 'Tiền cho đi — tính là chi tiêu, vào trần.',
+    hint: 'Tiền cho đi — nhưng mặc định xếp là Chuyển tài sản, không vào trần.',
     categoryPicker: 'auto', capBase: 'full', amountLabel: 'Số gửi',
     writes: 'transaction', txType: 'expense',
     roleSeed: { role: 'remit', remitKind: 'expense' },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { recentCategories } from './recentCategories'
+import { childCounts, recentCategories } from './recentCategories'
 
 const CATS = [
   { id: 'an', name: 'Ăn uống', icon: '🍜', parent_id: null, type: 'expense', is_archived: false },
@@ -55,5 +55,28 @@ describe('recentCategories', () => {
     const out = recentCategories([...tx('di', 2), ...tx('com', 2)], CATS, 'expense', 3)
     // 'Cơm ngoài' < 'Đi lại' theo order A-Z
     expect(out.map((r) => r.name)).toEqual(['Cơm ngoài', 'Đi lại'])
+  })
+})
+
+describe('childCounts — badge so con thay chevron', () => {
+  it('dem con cua tung nhom cha', () => {
+    expect(childCounts(CATS)).toEqual({ an: 2 })
+  })
+
+  it('nhom KHONG co con thi khong co khoa — de component khong ve badge "0"', () => {
+    // Tile khong con phai KHONG co badge, khong phai badge so 0.
+    expect(childCounts(CATS)).not.toHaveProperty('di')
+    expect(childCounts(CATS)).not.toHaveProperty('phi')
+  })
+
+  it('bo con da luu tru khoi so dem — badge phai khop so tile bung ra', () => {
+    const withArchived = [...CATS,
+      { id: 'x', name: 'Cũ', icon: '📦', parent_id: 'an', type: 'expense', is_archived: true },
+    ] as never[]
+    expect(childCounts(withArchived).an).toBe(2)
+  })
+
+  it('rong thi tra ve object rong, khong nem', () => {
+    expect(childCounts([])).toEqual({})
   })
 })

@@ -82,3 +82,33 @@ export function recentCategories(
 
   return result.slice(0, limit)
 }
+
+/** Sườn tối thiểu cho `childCounts` — chỉ đòi hai field nó thật sự đọc, không đòi cả
+ *  `Category` đầy đủ (`name`/`icon`/`type`): CategoryRow.tsx gọi hàm này với đúng danh
+ *  mục nó nhận làm prop, không phải toàn bộ danh mục app. */
+interface CountableCategory {
+  parent_id?: string | null
+  is_archived: boolean
+}
+
+/**
+ * Số danh mục con (chưa lưu trữ) của từng nhóm cha — CHỈ có khóa cho nhóm CÓ con.
+ *
+ * Badge thay chevron 10px: tile CÓ con và tile KHÔNG con (Phí chuyển tiền · Phí thủ
+ * tục · Khác) trước đây trông y hệt mà hành vi khác — bấm cái có con thì mở thêm một
+ * tầng, bấm cái không con thì chọn xong luôn. Không có khóa (thay vì khóa mang giá trị
+ * 0) để tile không con chắc chắn không vẽ badge — badge "0" đúng là sự mơ hồ này thay.
+ *
+ * @param categories Danh sách danh mục (cả nhóm cha và con)
+ * @returns Map `parent_id` → số con còn hoạt động; không có khóa cho nhóm không con
+ */
+export function childCounts(categories: CountableCategory[]): Record<string, number> {
+  const counts: Record<string, number> = {}
+  for (const c of categories) {
+    if (c.is_archived) continue
+    const parentId = c.parent_id
+    if (!parentId) continue
+    counts[parentId] = (counts[parentId] ?? 0) + 1
+  }
+  return counts
+}

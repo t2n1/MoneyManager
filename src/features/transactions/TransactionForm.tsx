@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import {
-  ChevronLeft,
-  ChevronRight,
+  ChevronDown,
   Delete,
   Star,
   X,
@@ -12,7 +11,7 @@ import type { NewPlannedExpense, NewTransaction } from '../../data'
 import { PlannedFields } from './PlannedFields'
 import { initialPlannedDraftForEntry } from './plannedDraftDefaults'
 import { plannedFromEntry, plannedMissing, type PlannedDraft } from './plannedFromEntry'
-import { toISODate } from '../../lib/dates'
+import { addDaysISO, toISODate } from '../../lib/dates'
 import { promptDialog } from '../../lib/dialog'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { DebtDirection, TransactionRow, TransactionType } from '../../types/database.types'
@@ -21,12 +20,15 @@ import {
   useCategories,
   useDebtPayments,
   useDebts,
+  useRangeTransactions,
   useTransactionTags,
 } from '../../hooks/queries'
 import { AccountPicker } from '../../components/AccountPicker'
 import { DateField } from '../../components/DateField'
-import { Card, IconButton, SegmentedControl } from '../../components/ui'
+import { IconButton, SegmentedControl } from '../../components/ui'
 import { TagPicker } from '../tags/TagPicker'
+import { CategoryRow } from './CategoryRow'
+import { recentCategories } from './recentCategories'
 import { isAutoAssignedCategory, pickableCategories } from '../categories/flowCategories'
 import { remainingOf } from '../debts/aggregate'
 import { accountsForDebt } from './debtPick'
@@ -298,11 +300,10 @@ export function TransactionForm({
   const [pending, setPending] = useState<'save' | 'continue' | null>(null)
   const saving = pending !== null
   const [error, setError] = useState<string | null>(null)
-  // Picker danh mục con: đang mở nhóm cha nào (null = màn danh mục chính)
-  const [drillId, setDrillId] = useState<string | null>(() => {
-    const cid = initial?.category_id ?? lastCategoryFor(type, categories)
-    return categories.find((c) => c.id === cid)?.parent_id ?? null
-  })
+  // Hàng "Ghi chú, nhãn" gộp — đóng mặc định trên mobile để bù 156px chiều cao (ghi
+  // chú 44 + khối Nhãn 68 + hoàn tiền 44) về một hàng 44px (xem task-13-brief). Từ lg
+  // cột phải luôn hiện đủ, cờ này không có tác dụng (xem class `lg:flex` cố định).
+  const [showMore, setShowMore] = useState(false)
 
   /** Vùng cuộn của form — cần để kéo về đầu khi đổi sang một dạng có field riêng. */
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -381,11 +382,21 @@ export function TransactionForm({
     () => pickableCategories(categories, type, initial?.category_id),
     [categories, type, initial?.category_id],
   )
-  const topCategories = useMemo(() => activeOfType.filter((c) => !c.parent_id), [activeOfType])
-  const childrenOf = (id: string) => activeOfType.filter((c) => c.parent_id === id)
   const selectedCat = categories.find((c) => c.id === categoryId) ?? null
-  const drillParent = drillId ? topCategories.find((c) => c.id === drillId) ?? null : null
-  const drillChildren = drillParent ? childrenOf(drillParent.id) : []
+
+  // Hàng "Gần đây" (Task 12/13): 3 danh mục dùng nhiều nhất 90 ngày qua, đúng loại
+  // đang mở. 90 ngày (không phải "tháng này"): đầu tháng mới mở form thì tháng hiện
+  // tại gần như trống, mà thói quen dùng gói không đổi qua một mốc lịch tuỳ ý.
+  const todayISO = toISODate(new Date())
+  const recentRange = useMemo(
+    () => ({ start: addDaysISO(todayISO, -90), end: addDaysISO(todayISO, 1) }),
+    [todayISO],
+  )
+  const { data: recentTxs = [] } = useRangeTransactions(recentRange)
+  const recentCats = useMemo(
+    () => recentCategories(recentTxs, categories, type),
+    [recentTxs, categories, type],
+  )
 
   // Tài khoản mặc định = dùng lần trước, fallback tài khoản đầu tiên (trong danh sách hợp lệ)
   const effectiveAccountId =
@@ -472,10 +483,7 @@ export function TransactionForm({
   function applyTemplate(t: QuickTemplate) {
     setKind(initialKindOf(t.type, 'none'))
     setDigits(t.amountMinor > 0 ? String(t.amountMinor) : '')
-    if (t.categoryId) {
-      setCategoryId(t.categoryId)
-      setDrillId(categories.find((c) => c.id === t.categoryId)?.parent_id ?? null)
-    }
+    if (t.categoryId) setCategoryId(t.categoryId)
     if (t.accountId) setAccountId(t.accountId)
     setNote(t.note)
     setToAccountId(null)
@@ -629,7 +637,6 @@ export function TransactionForm({
     setKind(next)
     const last = lastCategoryFor(nextType, categories)
     setCategoryId(last)
-    setDrillId(categories.find((c) => c.id === last)?.parent_id ?? null)
     // Tắt "Sẽ chi": segmented Đã chi|Sẽ chi chỉ hiện ở khoản CHI thường, giữ cờ qua
     // đây là giữ một chế độ mà người dùng không còn thấy để tắt.
     setWantsPlanned(false)
@@ -1173,67 +1180,15 @@ export function TransactionForm({
           ô "Danh mục" riêng của nó (một <select>, không phải lưới — số lượng khoản
           sắp chi trên màn nhỏ hơn nhiều so với giao dịch, không cần bấm nhanh bằng
           lưới). */}
-      {!plannedMode && !hideCategoryGrid &&
-        (drillParent ? (
-          /* Trong một nhóm cha → chọn danh mục con (bắt buộc) */
-          <div className="flex flex-col gap-1.5">
-            <button
-              type="button"
-              onClick={() => setDrillId(null)}
-              className="flex items-center gap-1.5 self-start rounded-md border border-border-strong bg-surface px-2.5 py-1 text-xs font-medium text-fg-secondary transition active:scale-95"
-            >
-              <ChevronLeft className="h-4 w-4" /> <span className="text-base leading-none">{drillParent.icon}</span> {drillParent.name}
-            </button>
-            <div className="grid auto-rows-min grid-cols-4 gap-1.5 lg:grid-cols-5">
-              {drillChildren.map((c) => (
-                <CategoryTile
-                  key={c.id}
-                  icon={c.icon}
-                  name={c.name}
-                  selected={categoryId === c.id}
-                  onClick={() => setCategoryId(c.id)}
-                />
-              ))}
-              {drillChildren.length === 0 && (
-                <p className="col-span-full py-4 text-center text-xs text-fg-muted">
-                  Nhóm này chưa có danh mục con
-                </p>
-              )}
-            </div>
-          </div>
-        ) : topCategories.length === 0 ? (
-          /* Không còn danh mục nào của loại này (chưa tạo, hoặc lưu trữ hết). Trước đây
-             chỗ này là một vùng TRỐNG TRƠN kèm nút Lưu chết — không đường nào đi tiếp.
-             Câu nhắc cạnh nút Lưu cũng chỉ sang đây (xem entryValidation). */
-          <Card padding="lg" className="text-center text-xs text-fg-muted">
-            {emptyGridNote}
-            <Link
-              to="/settings/categories"
-              className="mt-1 block font-medium text-fg-accent underline"
-            >
-              Mở Cài đặt → Danh mục
-            </Link>
-          </Card>
-        ) : (
-          /* Màn danh mục chính */
-          <div className="grid auto-rows-min grid-cols-4 gap-1.5 lg:grid-cols-5">
-            {topCategories.map((c) => {
-              const kids = childrenOf(c.id)
-              const hasKids = kids.length > 0
-              return (
-                <CategoryTile
-                  key={c.id}
-                  icon={c.icon}
-                  name={c.name}
-                  // Cha có con: chọn selection đang nằm bên trong; cha không con: chọn trực tiếp
-                  selected={hasKids ? selectedCat?.parent_id === c.id : categoryId === c.id}
-                  hasChildren={hasKids}
-                  onClick={() => (hasKids ? setDrillId(c.id) : setCategoryId(c.id))}
-                />
-              )
-            })}
-          </div>
-        ))}
+      {!plannedMode && !hideCategoryGrid && (
+        <CategoryRow
+          categories={activeOfType}
+          recent={recentCats}
+          value={categoryId}
+          onChange={setCategoryId}
+          emptyNote={emptyGridNote}
+        />
+      )}
 
       </div>
 
@@ -1248,6 +1203,22 @@ export function TransactionForm({
       {/* Ẩn ở "Sẽ chi": PlannedFields đã có ô "Ghi chú" riêng của nó, và "Lưu mẫu" chở
           một PHÉP GIAO DỊCH (số tiền + danh mục + tài khoản) — khoản sắp chi không có
           cái nào trong ba thứ đó là bắt buộc. */}
+      {/* Mobile: gộp ghi chú + khối Nhãn + hoàn tiền (44+68+44=156px) vào MỘT hàng
+          44px, bung tại chỗ khi bấm — thu một mình lưới danh mục KHÔNG đủ vừa màn
+          360×780 (xem ngân sách chiều cao ở task-13-brief), phải thu cả ba khối này.
+          Từ lg đây là cột phải riêng, không tranh chỗ với lưới danh mục nữa nên luôn
+          hiện đủ — `lg:flex` ép mở bất kể `showMore`. */}
+      <button
+        type="button"
+        onClick={() => setShowMore((v) => !v)}
+        aria-expanded={showMore}
+        className="flex min-h-11 items-center justify-between rounded-md border border-border-strong bg-surface px-3 text-sm text-fg-secondary lg:hidden"
+      >
+        Ghi chú, nhãn
+        <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
+      </button>
+
+      <div className={`${showMore ? 'flex' : 'hidden'} flex-col gap-1.5 lg:flex`}>
       {!plannedMode && (
       <div className="flex gap-1.5">
         {/* Không có nhãn nhìn bằng mắt (cố ý — form Nhập ưu tiên gọn), nên tên ô phải đi
@@ -1320,6 +1291,7 @@ export function TransactionForm({
       {kind === 'spend' && refundDropped && (
         <p className="px-1 text-xs text-fg-muted">{refundNote}</p>
       )}
+      </div>
 
       {showExcludeOption && type !== 'transfer' && (
         <label className="flex items-center gap-2 px-1 text-sm text-fg-secondary">
@@ -1406,43 +1378,5 @@ export function TransactionForm({
       </div>
       </div>
     </div>
-  )
-}
-
-function CategoryTile({
-  icon,
-  name,
-  selected,
-  hasChildren,
-  onClick,
-}: {
-  icon: string
-  name: string
-  selected: boolean
-  hasChildren?: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      // Tile 1a (§4.6): nền --surface, viền 2px trong suốt, CHỌN = nền/viền accent.
-      // Viền 2px có ở cả hai trạng thái nên bấm chọn không làm cả lưới xê 2px.
-      // Bỏ `shadow-sm` ở ô chưa chọn: nó là thứ duy nhất còn phân biệt hai trạng thái
-      // bằng độ nổi, mà 1a phân cấp bằng nền + viền.
-      className={`relative flex flex-col items-center gap-0.5 rounded-md border-2 px-1 py-2 text-xs transition active:scale-95 ${
-        selected
-          ? 'border-accent bg-state-good-bg text-fg-primary'
-          : 'border-transparent bg-surface text-fg-secondary'
-      }`}
-    >
-      <span className="text-xl leading-none">{icon}</span>
-      <span className="w-full truncate text-center">{name}</span>
-      {hasChildren && (
-        <span className="absolute top-1 right-1 text-fg-muted">
-          <ChevronRight className="h-3 w-3" />
-        </span>
-      )}
-    </button>
   )
 }

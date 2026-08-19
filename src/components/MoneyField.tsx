@@ -42,6 +42,10 @@ interface Props {
   autoOpen?: boolean
   /** Class cho ô (dùng chung cho hộp chạm mobile và input desktop). */
   className?: string
+  /** Class cho KHỐI BỌC. Cần riêng vì `className` rơi vào ô bên trong, nên class bố cục
+   *  (`flex-1`) đặt ở đó thì khối bọc vẫn co về bề rộng nội dung — ô "Ước tính" của Sẽ chi
+   *  từng teo còn 42px cạnh một ô chọn tiền 96px vì đúng lỗi này. */
+  wrapperClassName?: string
   ariaLabel?: string
   /** Enter trên desktop (thường là lưu). */
   onEnter?: () => void
@@ -54,6 +58,7 @@ export function MoneyField({
   currency,
   autoOpen = true,
   className = '',
+  wrapperClassName = '',
   ariaLabel = 'Số tiền',
   onEnter,
 }: Props) {
@@ -85,7 +90,7 @@ export function MoneyField({
   const isEmpty = !showExpr && result === 0
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className={`flex flex-col gap-1 ${wrapperClassName}`}>
       {/* Mobile: hộp chạm — pad của app gõ vào, không bật bàn phím hệ thống */}
       <button
         type="button"

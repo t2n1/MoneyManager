@@ -57,7 +57,10 @@ export function PlannedFields({ value, onChange, categories }: Props) {
           currency={value.currency}
           autoOpen={false}
           ariaLabel="Số tiền ước tính"
-          className="flex-1 rounded-lg border border-border-strong px-3 py-2 text-right text-sm font-semibold"
+          // `flex-1` phải ở KHỐI BỌC: đặt ở `className` thì nó rơi vào ô bên trong, còn
+          // khối bọc co về bề rộng chữ — ô teo còn 42px cạnh ô chọn tiền 96px.
+          wrapperClassName="min-w-0 flex-1"
+          className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-sm font-semibold"
         />
         <select
           value={value.currency}

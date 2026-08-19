@@ -6,6 +6,7 @@ import { CURRENCIES, formatMoney, type CurrencyCode } from '../lib/money'
 import { groupOptionsByType } from '../features/accounts/groupByType'
 import { normalizeText } from '../features/transactions/filter'
 import type { AccountType } from '../types/database.types'
+import { type PanelBox, panelBox } from './accountPickerBox'
 
 type AccountOption = {
   id: string
@@ -41,9 +42,6 @@ interface AccountPickerProps {
 /** Từ số tài khoản này trở lên mới hiện ô tìm — dưới ngưỡng thì mắt nhanh hơn tay gõ. */
 const SEARCH_FROM = 8
 
-/** Cao mỗi hàng (px). Dùng cả trong phép đo vị trí panel nên phải là một con số. */
-const ROW_H = 48
-
 /**
  * Bộ chọn tài khoản thay cho `<select>` native: hiện icon theo loại + số dư
  * (từ view account_balances) nên biết ngay TK nào còn tiền. Panel bung ra ở
@@ -72,12 +70,7 @@ export function AccountPicker({
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState<{
-    left: number
-    anchor: number
-    width: number
-    drop: 'down' | 'up'
-  } | null>(null)
+  const [pos, setPos] = useState<PanelBox | null>(null)
 
   const [query, setQuery] = useState('')
 
@@ -103,27 +96,18 @@ export function AccountPicker({
     if (!open) setQuery('')
   }, [open])
 
-  // Đo vị trí nút khi mở để đặt panel; bung lên nếu dưới không đủ chỗ.
-  //
-  // Bề rộng: lấy max(bề rộng nút, 300px) rồi kẹp trong màn hình (lề 12px mỗi bên), và
-  // đẩy `left` vào cho khỏi tràn phải — panel rộng hơn nút thì mép phải của nó vượt ra
-  // ngoài nếu cứ giữ nguyên left của nút.
+  // Đo vị trí nút khi mở, rồi để `panelBox` quyết hình học — phép tính nằm ở module thuần
+  // vì bất biến "panel luôn trong màn" là chỗ đã sai một lần mà mắt không thấy được.
   useLayoutEffect(() => {
     if (!open || !btnRef.current) return
     const r = btnRef.current.getBoundingClientRect()
-    // Máy nhỏ thì dùng gần hết bề ngang (lề 12px): tên tài khoản dài + số dư 9 chữ số
-    // (đồng VN) không nhét nổi vào 300px. Máy rộng thì chỉ cần đủ 320px.
-    const room = window.innerWidth - 24
-    const width = window.innerWidth < 480 ? room : Math.min(Math.max(r.width, 320), room)
-    const maxH = Math.min(window.innerHeight * 0.7, options.length * ROW_H + 96)
-    const below = window.innerHeight - r.bottom
-    const drop = below < maxH + 8 && r.top > below ? 'up' : 'down'
-    setPos({
-      left: Math.max(12, Math.min(r.left, window.innerWidth - width - 12)),
-      anchor: drop === 'down' ? r.bottom + 4 : window.innerHeight - r.top + 4,
-      width,
-      drop,
-    })
+    setPos(
+      panelBox(
+        { top: r.top, bottom: r.bottom, left: r.left, width: r.width },
+        { width: window.innerWidth, height: window.innerHeight },
+        options.length,
+      ),
+    )
   }, [open, options.length])
 
   // Đóng khi cuộn trang / đổi kích thước / bấm Esc. Bỏ qua cuộn phát sinh ngay
@@ -199,7 +183,7 @@ export function AccountPicker({
               position: 'fixed',
               left: pos.left,
               width: pos.width,
-              maxHeight: '70vh',
+              maxHeight: pos.maxH,
               ...(pos.drop === 'down' ? { top: pos.anchor } : { bottom: pos.anchor }),
             }}
             className="z-50 flex flex-col overflow-hidden rounded-xl border border-border-panel bg-surface shadow-lg"
@@ -219,7 +203,7 @@ export function AccountPicker({
               </div>
             )}
 
-            <div role="listbox" className="min-h-0 flex-1 overflow-y-auto py-1">
+            <div role="listbox" className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-1">
               {groups.map((g) => (
                 <div key={g.type} role="group" aria-label={g.label}>
                   {/* Tiêu đề khối dính trên khi cuộn: danh sách dài thì cuộn tới giữa

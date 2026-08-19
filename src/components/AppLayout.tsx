@@ -198,17 +198,28 @@ export function AppLayout() {
               `overflow-y-auto` mới cắt được: đo lại sau khi sửa, `scrollHeight` của <html>
               về đúng 700px và cửa sổ hết cuộn (`window.scrollTo(0,5000)` → scrollY 0).
               Không đụng gì tới cách cuộn của <main> — nó vẫn là vùng cuộn duy nhất. */}
+          {/* `onEntry` bỏ CẢ vùng cuộn của <main> LẪN chân trang, không phải để cho gọn:
+              màn Nhập cao đúng `h-dvh` và tự ghim bàn số + hàng nút ở đáy KHỐI CỦA NÓ.
+              Nhưng dưới nó <main> còn xếp thêm chân trang (108px) + `mt-8` (32px) + `pb-6`
+              (24px) = 164px, nên <main> cuộn được 164px — và cuộn <main> thì kéo cả cái
+              "đáy đã ghim" đi lên. Đo được: clientHeight 812, scrollHeight 976.
+              Hệ quả thứ hai, khó thấy hơn: AccountPicker neo panel bằng `position: fixed`
+              theo nút, và tự đóng khi trang cuộn. Kéo tới cuối danh sách tài khoản là
+              cuộn tràn sang <main> → nút trôi khỏi panel rồi panel đóng, tức mấy tài
+              khoản cuối KHÔNG bấm được. Một nguyên nhân, hai triệu chứng. */}
           <main
             key={privacyOn ? 'priv-on' : 'priv-off'}
             ref={mainRef}
-            className="relative w-full min-h-0 flex-1 overflow-y-auto pb-6 pt-[env(safe-area-inset-top)] lg:pt-0"
+            className={`relative w-full min-h-0 flex-1 pt-[env(safe-area-inset-top)] lg:pt-0 ${
+              onEntry ? 'overflow-hidden' : 'overflow-y-auto pb-6'
+            }`}
           >
             {/* Lưới an toàn: query lỗi không được hiển thị như "không có dữ liệu" */}
             <QueryErrorBanner />
             <Outlet />
             {/* Chân trang nằm TRONG <main>: nó cuộn cùng nội dung và đứng ở cuối mỗi
                 trang. Để ngoài <main> thì nó thành dải cố định, chen chỗ với nav dưới. */}
-            <AppFooter />
+            {!onEntry && <AppFooter />}
           </main>
 
           {/* Ẩn ở trang nhập giao dịch để lấy tối đa không gian cho bàn số */}

@@ -143,9 +143,18 @@ describe('vùng cuộn của khung app', () => {
       main![0],
       'Bỏ `relative` khỏi <main> là mở lại đường cho .sr-only kéo dài tài liệu — xem chú' +
         ' thích ngay trên <main>.',
-    ).toMatch(/className="relative /)
+      // Khớp cả `className="relative …"` lẫn `className={`relative …`}`: class list là
+      // template literal từ khi /entry cần `overflow-hidden` thay cho `overflow-y-auto`.
+      // `relative` vẫn phải là class ĐẦU của <main>, đó mới là điều cần canh.
+    ).toMatch(/className=\{?[`"]relative /)
     // Vùng cuộn vẫn phải là <main>, không phải cả trang: `relative` không được đi kèm
     // việc bỏ `overflow-y-auto` (iOS sẽ rubber-band kéo theo thanh tab dưới).
+    //
+    // NGOẠI LỆ /entry, và chỉ chỗ đó: màn Nhập cao đúng `h-dvh` và tự ghim bàn số + hàng
+    // nút ở đáy khối của nó. Để <main> cuộn được thì cuộn <main> sẽ kéo cả cái "đáy đã
+    // ghim" đi lên — đo được scrollHeight 976 / clientHeight 812, tức 164px trôi được.
+    // Nên ở /entry <main> phải `overflow-hidden`, và chân trang app không render.
     expect(main![0]).toMatch(/overflow-y-auto/)
+    expect(main![0]).toMatch(/onEntry \? 'overflow-hidden'/)
   })
 })

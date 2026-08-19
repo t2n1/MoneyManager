@@ -540,4 +540,82 @@ describe('nhãn đi theo ở cả ba vai trò', () => {
     )
     expect(calls.createTransaction[0]).toMatchObject({ tag_ids: [] })
   })
+
+  /**
+   * Chốt chặn quan trọng nhất của task này: `tagIds` mặc định là `[]` ở khắp nơi,
+   * nên nếu chỉ test với tagIds rỗng thì đầu ra ĐÚNG (backTo không có tag_ids) và
+   * đầu ra SAI (ai đó lỡ thêm tag_ids: base.tagIds vào backTo) trông GIỐNG HỆT
+   * nhau — test sẽ không bao giờ đỏ. Phải dùng nhãn KHÔNG rỗng thì assertion
+   * "backTo không mang nhãn" mới có ý nghĩa thật.
+   *
+   * Đã xác nhận bằng tay: thêm tạm `tag_ids: base.tagIds` vào bút toán backTo
+   * trong roleSave.ts làm 2 assertion `.toBeUndefined()` dưới đây đỏ ngay (xem
+   * task-5-report.md, mục "Fix round 1" để biết log cụ thể), rồi đã bỏ dòng đó.
+   */
+  it('trả hộ đã trả lại ngay (settle=now): mine + excess mang nhãn, backTo KHÔNG mang', async () => {
+    const catsThu = [{ id: 'cat-thu-khac', name: 'Khác', type: 'income' }]
+
+    // Nhánh A: người kia còn thiếu (mine > 0) → có dòng chi phần mình + chuyển
+    // khoản bù. Dòng chi phải mang nhãn, chuyển khoản bù thì không.
+    {
+      const { deps, calls } = makeDeps([])
+      await saveSplit(
+        { ...base, amount: 12_000, tagIds: ['tag-x'] },
+        { ...initialSplit(), others: 5_000, counterparty: 'Lan', receivedAccountId: 'acc-cash' },
+        deps,
+      )
+      expect(calls.createTransaction).toHaveLength(2)
+      expect(calls.createTransaction[0]).toMatchObject({ type: 'expense', tag_ids: ['tag-x'] })
+      expect(calls.createTransaction[1].type).toBe('transfer')
+      expect(calls.createTransaction[1].tag_ids).toBeUndefined()
+    }
+
+    // Nhánh B: người kia đưa DƯ (others > tổng) → chuyển khoản bù đủ tổng +
+    // dòng thu phần dư. Dòng thu phải mang nhãn, chuyển khoản bù thì không.
+    {
+      const { deps, calls } = makeDeps([], catsThu)
+      await saveSplit(
+        { ...base, amount: 5_000, tagIds: ['tag-x'] },
+        { ...initialSplit(), others: 9_000, counterparty: 'Lan', receivedAccountId: 'acc-cash' },
+        deps,
+      )
+      expect(calls.createTransaction).toHaveLength(2)
+      expect(calls.createTransaction[0].type).toBe('transfer')
+      expect(calls.createTransaction[0].tag_ids).toBeUndefined()
+      expect(calls.createTransaction[1]).toMatchObject({ type: 'income', tag_ids: ['tag-x'] })
+    }
+  })
+
+  it('trả hộ còn nợ (settle=later): bút toán giải ngân (cho vay phần người kia) cũng mang nhãn', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveSplit(
+      { ...base, amount: 12_400, tagIds: ['tag-lan'] },
+      { ...later(), others: 8_200, counterparty: 'Lan' },
+      deps,
+    )
+    // Không có khoản nợ mở sẵn trùng tên → tạo mới, giải ngân đi kèm createDebt.
+    expect(calls.createDebt).toHaveLength(1)
+    expect(calls.createDebt[0].transaction).toMatchObject({ tag_ids: ['tag-lan'] })
+  })
+
+  it('cho vay cộng dồn vào khoản đang mở: giao dịch giải ngân thêm cũng mang nhãn', async () => {
+    const { deps, calls } = makeDeps([openLoan({ counterparty: 'An' })], [cat('cat-chovay', 'Cho vay')])
+    await saveDebtEntry(
+      { ...base, amount: 2_000, tagIds: ['tag-an'] },
+      { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'An' },
+      deps,
+    )
+    expect(calls.createDebt).toHaveLength(0)
+    expect(calls.createDebtPayment[0].transaction).toMatchObject({ tag_ids: ['tag-an'] })
+  })
+
+  it('gửi về VN dạng chuyển khoản (JPY→VND) cũng mang đúng nhãn', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveRemit(
+      { ...base, amount: 30_000, tagIds: ['tag-me'] },
+      { ...initialRemit(), kind: 'transfer', destId: 'acc-vn' },
+      deps,
+    )
+    expect(calls.createTransaction[0]).toMatchObject({ type: 'transfer', tag_ids: ['tag-me'] })
+  })
 })

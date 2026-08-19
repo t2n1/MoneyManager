@@ -11,18 +11,26 @@ import type { NewPlannedExpense, NewTransaction } from '../../data'
 import { PlannedFields } from './PlannedFields'
 import { initialPlannedDraftForEntry } from './plannedDraftDefaults'
 import { plannedFromEntry, plannedMissing, type PlannedDraft } from './plannedFromEntry'
-import { addDaysISO, toISODate } from '../../lib/dates'
+import { addDaysISO, addMonths, getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
 import { promptDialog } from '../../lib/dialog'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
+import { convertToBase } from '../../lib/rates'
 import type { DebtDirection, TransactionRow, TransactionType } from '../../types/database.types'
 import {
   useAccounts,
   useCategories,
   useDebtPayments,
   useDebts,
+  useProfile,
   useRangeTransactions,
+  useRates,
   useTransactionTags,
 } from '../../hooks/queries'
+// `useRatesFreshness`, không tự đọc `readRatesMeta`: dataFreshness.test.ts (luật 2) chỉ
+// cho hooks/useDataFreshness.ts tính tuổi tỷ giá — một cửa duy nhất, để nhãn ở đây không
+// bao giờ lệch với trang Cài đặt/Tài sản (cùng nguồn, cùng ưu tiên sourceUpdatedAt).
+import { useRatesFreshness } from '../../hooks/useDataFreshness'
+import { remitStrip } from '../reports/longRange'
 import { AccountPicker } from '../../components/AccountPicker'
 import { DateField } from '../../components/DateField'
 import { IconButton, SegmentedControl } from '../../components/ui'
@@ -69,7 +77,7 @@ import {
   type EntryKind,
 } from './entryShape'
 import { DirectionTabs } from './DirectionTabs'
-import { DebtFields, FeeField, RemitFields, SplitFields } from './roleFields'
+import { DebtFields, FeeField, RemitFields, RemitMonthStrip, SplitFields } from './roleFields'
 import { entryGate, plannedModeActive } from './entryValidation'
 import { initialPayment, type PaymentValue, type RoleBase } from './roleSave'
 
@@ -397,6 +405,55 @@ export function TransactionForm({
     () => recentCategories(recentTxs, categories, type),
     [recentTxs, categories, type],
   )
+
+  /**
+   * Gửi về VN: tỷ giá SỐNG (RemitFields) + dải 12 tháng (cột phụ) — cả hai chỉ tải khi
+   * đang mở dạng gửi (`remitLike`), NumPad/field khác không cần trả giá cho hai query này.
+   */
+  const { data: profile } = useProfile()
+  const monthStartDay = profile?.month_start_day ?? 1
+  const { base, rates } = useRates()
+  // VND trên 1 JPY, tính qua base currency của hồ sơ — thường base đã là JPY (rates.JPY
+  // = 1) nên phép chia này là no-op; viết vậy để đúng cả khi ai đó đổi base sang tiền
+  // khác (deriveReceived luôn nhận rate = VND/JPY, không phải VND/base).
+  const remitRate = useMemo(() => {
+    if (!remitLike || !rates) return null
+    const vnd = rates.VND
+    const jpy = rates.JPY
+    if (!vnd || !jpy) return null
+    return vnd / jpy
+  }, [remitLike, rates])
+  // Chuỗi "3 giờ trước" — đọc qua cửa duy nhất (xem import ở trên), không tính lại.
+  const ratesFreshness = useRatesFreshness()
+  const remitRateAge = remitLike
+    ? ratesFreshness?.details.find((d) => d.label === 'Tỷ giá')?.age ?? null
+    : null
+
+  // Dải 12 tháng gửi về VN — CÙNG nguồn với khối "Gửi về VN" ở tab Dài hạn
+  // (features/reports/LongView.tsx): is_remittance, quy đổi base bằng convertToBase,
+  // gộp theo remitStrip(). Không viết lại bộ lọc riêng — hai màn đọc cùng một hàm thì
+  // không thể lệch tổng nhau.
+  const remitStripRange = useMemo(() => {
+    const todayKey = monthKeyForDate(todayISO, monthStartDay)
+    const startKey = addMonths(todayKey, -11)
+    return { start: getMonthRange(startKey, monthStartDay).start, end: addDaysISO(todayISO, 1) }
+  }, [todayISO, monthStartDay])
+  const { data: remitTxs = [] } = useRangeTransactions(remitStripRange, remitLike)
+  const remitMonthStrip = useMemo(() => {
+    if (!remitLike) return null
+    const byMonth = new Map<string, number>()
+    for (const t of remitTxs) {
+      if (!t.is_remittance) continue
+      const cur = activeAccounts.find((a) => a.id === t.account_id)?.currency ?? 'JPY'
+      const v = convertToBase(t.amount, cur, base, rates ?? {})
+      if (v === null) continue
+      const k = monthKeyForDate(t.occurred_on, monthStartDay)
+      byMonth.set(`${k.year}-${k.month}`, (byMonth.get(`${k.year}-${k.month}`) ?? 0) + v)
+    }
+    const todayKey = monthKeyForDate(todayISO, monthStartDay)
+    const keys = Array.from({ length: 12 }, (_, i) => addMonths(todayKey, i - 11))
+    return remitStrip(keys, (k) => byMonth.get(`${k.year}-${k.month}`) ?? 0)
+  }, [remitLike, remitTxs, activeAccounts, base, rates, monthStartDay, todayISO])
 
   // Tài khoản mặc định = dùng lần trước, fallback tài khoản đầu tiên (trong danh sách hợp lệ)
   const effectiveAccountId =
@@ -1178,6 +1235,8 @@ export function TransactionForm({
           onFocusFee={() => setActiveField('remit.fee')}
           onFocusReceived={() => setActiveField('remit.received')}
           onEnter={() => handleSubmit()}
+          rate={remitRate}
+          rateAge={remitRateAge}
         />
       )}
       {/* Trả nợ / thu lại: DẠNG DUY NHẤT có field phụ thuộc nhau (chọn nợ trước, chọn
@@ -1223,6 +1282,15 @@ export function TransactionForm({
 
       {/* ----- CỘT PHẢI (từ lg) ----- */}
       <div className="contents lg:flex lg:flex-col lg:gap-1.5">
+      {/* Dải 12 tháng: CHỈ desktop (`hidden lg:block`), không phải "mở/đóng như showMore" —
+          `hidden` bằng display:none nên không tốn một pixel chiều cao nào ở luồng cuộn
+          mobile (task-13-brief: màn đã tràn 27px, không được cộng thêm). Đặt ở ĐẦU cột
+          phải để ngang hàng với ô số tiền, không phải cuộn xuống mới thấy. */}
+      {remitLike && remitMonthStrip && (
+        <div className="hidden lg:block">
+          <RemitMonthStrip strip={remitMonthStrip} currency={base} />
+        </div>
+      )}
       {/* Dưới lưới danh mục: những thứ tùy chọn/hiếm dùng (ghi chú, nhãn, hoàn tiền).
           Danh mục là bước bắt buộc của mọi giao dịch nên phải nằm trong tầm nhìn đầu
           tiên — ghi chú chen ở trên vừa tách hai bước bắt buộc (tiền → danh mục),

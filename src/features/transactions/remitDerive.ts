@@ -47,6 +47,30 @@ export function effectiveRate(
 }
 
 /**
+ * Số TIẾP THEO cho ô "Số nhận" khi sent/fee/rate đổi.
+ *
+ * Ca khó: số bên nhận báo lại là SỰ THẬT, tỷ giá chỉ là ƯỚC LƯỢNG. Một khi người dùng
+ * đã gõ tay ô này, KHÔNG lần đổi sent/fee/rate nào được đạp lên số đó nữa — mất số họ
+ * gõ thì phải hỏi lại người nhận, cái giá đó lớn hơn nhiều so với việc ô hiện tạm sai
+ * một nhịp. Đây là lý do có cờ `touched` riêng, không suy nó từ `current !== 0`.
+ */
+export function nextReceived(args: {
+  /** Số đang có trong ô "Số nhận". */
+  current: number
+  /** true = người dùng đã gõ tay ô này ít nhất một lần — không được ghi đè nữa. */
+  touched: boolean
+  sent: number
+  fee: number
+  rate: number | null
+}): number {
+  const { current, touched, sent, fee, rate } = args
+  if (touched) return current
+  // Chưa gõ tay: tỷ giá suy ra số mới; suy không được (chưa có tỷ giá, chưa nhập số
+  // gửi…) thì GIỮ NGUYÊN số hiện tại — không xoá về 0 chỉ vì thiếu dữ liệu tạm thời.
+  return deriveReceived(sent, fee, rate) ?? current
+}
+
+/**
  * Mô tả tuổi của tỷ giá được lấy.
  * @param fetchedAt Mốc lấy tỷ giá (ms)
  * @param now Thời điểm hiện tại (ms)

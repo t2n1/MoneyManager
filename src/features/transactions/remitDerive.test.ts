@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deriveReceived, effectiveRate, rateAgeLabel } from './remitDerive'
+import { deriveReceived, effectiveRate, nextReceived, rateAgeLabel } from './remitDerive'
 
 describe('suy so VND tu ty gia', () => {
   it('tru phi roi moi nhan ty gia — nguoi nhan chi nhan phan con lai', () => {
@@ -37,6 +37,29 @@ describe('suy so VND tu ty gia', () => {
   it('ty gia thuc te tinh tren TONG BI TRU, ke ca phi', () => {
     // Nguoi dung nhin so bank tru (da gom phi) nen ty gia thuc phai chia tong do.
     expect(effectiveRate(30_000, 800, 4_467_600)).toBeCloseTo(145.05, 1)
+  })
+})
+
+describe('nextReceived — khi nao duoc ghi de o "So nhan"', () => {
+  it('chua go tay thi ty gia dien vao', () => {
+    expect(nextReceived({ current: 0, touched: false, sent: 30_000, fee: 800, rate: 153 }))
+      .toBe(4_467_600)
+  })
+
+  it('DA go tay thi KHONG dap len — so ben nhan bao la su that, ty gia chi la uoc', () => {
+    expect(nextReceived({ current: 4_400_000, touched: true, sent: 30_000, fee: 800, rate: 153 }))
+      .toBe(4_400_000)
+  })
+
+  it('doi so gui sau khi da go tay thi VAN giu so da go', () => {
+    // Neu khong, sua so gui mot chu so la mat so ben nhan da bao.
+    expect(nextReceived({ current: 4_400_000, touched: true, sent: 31_000, fee: 800, rate: 153 }))
+      .toBe(4_400_000)
+  })
+
+  it('chua co ty gia thi giu nguyen so hien tai, khong xoa ve 0', () => {
+    expect(nextReceived({ current: 4_400_000, touched: false, sent: 30_000, fee: 800, rate: null }))
+      .toBe(4_400_000)
   })
 })
 

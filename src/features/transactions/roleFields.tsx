@@ -1,10 +1,12 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { ChevronDown } from 'lucide-react'
 import { SegmentedControl } from '../../components/ui'
 import { DateField } from '../../components/DateField'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
+import { deriveReceived, nextReceived } from './remitDerive'
+import type { RemitStrip } from '../reports/longRange'
 
 /**
  * Field riêng của từng vai trò (controlled). Field gốc (số tiền, tài khoản, ngày,
@@ -602,6 +604,8 @@ export function RemitFields({
   onFocusFee,
   onFocusReceived,
   onEnter,
+  rate,
+  rateAge,
 }: {
   value: RemitValue
   onChange: (v: RemitValue) => void
@@ -616,13 +620,50 @@ export function RemitFields({
   onFocusReceived: () => void
   /** Enter trên desktop = lưu. */
   onEnter?: () => void
+  /** Tỷ giá VND/JPY sống từ useRates() (TransactionForm truyền xuống). null = chưa có. */
+  rate: number | null
+  /** "3 giờ trước" — đọc qua useRatesFreshness() (cửa duy nhất tính tuổi tỷ giá, xem
+   *  dataFreshness.test.ts). null = không rõ tuổi. */
+  rateAge: string | null
 }) {
   const uid = useId()
   // Tài khoản bị trừ THẬT = số gửi + phí (roleSave cộng phí vào amount) — phải nói
   // trước mặt, không thì người nhìn số bank trừ (đã gồm phí) sẽ nhập trùng phí.
   const totalOut = sent + value.fee
-  const rate = sent > 0 && value.received > 0 ? value.received / sent : 0
-  const effRate = totalOut > 0 && value.received > 0 ? value.received / totalOut : 0
+  // Đã gõ tay ô "Số nhận" chưa — MỘT khi đã gõ, không tỷ giá về sau (kể cả đổi số gửi)
+  // được đạp lên số người nhận báo lại. Xem nextReceived (remitDerive.ts).
+  const [receivedTouched, setReceivedTouched] = useState(false)
+
+  // Cả sent VÀ received cùng về 0 = khoản MỚI (mới mở dạng, hoặc vừa "Lưu và nhập
+  // tiếp" reset field) — KHÔNG phải người dùng vừa xoá tay ô đã gõ (khi đó received
+  // vẫn còn số cũ). Coi như chưa gõ, để tỷ giá điền lại cho lần gửi kế tiếp; thiếu
+  // bước này thì sau lần gửi đầu, "Số nhận" sẽ đứng im ở 0 mãi vì cờ touched cũ chưa
+  // được hạ.
+  useEffect(() => {
+    if (sent === 0 && value.received === 0) setReceivedTouched(false)
+  }, [sent, value.received])
+
+  // Suy lại "Số nhận" mỗi khi sent/fee/rate đổi — CỐ Ý chỉ ba thứ này trong dependency
+  // list. Thêm `value.received` hay `receivedTouched` vào đây thì mỗi lần onChange bên
+  // dưới chạy (hoặc người dùng gõ tay) sẽ tự kích lại effect này thành một vòng vô
+  // nghĩa — và tệ hơn, nó SẼ đạp lên đúng số người dùng vừa gõ ngay lượt kế tiếp.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const next = nextReceived({
+      current: value.received,
+      touched: receivedTouched,
+      sent,
+      fee: value.fee,
+      rate,
+    })
+    if (next !== value.received) onChange({ ...value, received: next })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sent, value.fee, rate])
+
+  // Dòng "≈" — ƯỚC LƯỢNG sống theo tỷ giá hiện tại, tách khỏi ô "Số nhận" (có thể đã bị
+  // người dùng ghi đè bằng số thật). Luôn tính, không tắt theo `receivedTouched`: đây là
+  // chỗ người dùng so số ước với số thật họ vừa gõ.
+  const estimate = deriveReceived(sent, value.fee, rate)
   return (
     <div className={blockCls('remit')}>
       {value.kind === 'transfer' && (
@@ -680,7 +721,12 @@ export function RemitFields({
             currency="VND"
             active={receivedActive}
             onFocus={onFocusReceived}
-            onChange={(v) => onChange({ ...value, received: v })}
+            onChange={(v) => {
+              // Người gõ tay ô này = số ĐÚNG, tỷ giá về sau chỉ là ước lượng — không
+              // được đạp lên nữa (xem effect suy "Số nhận" ở trên).
+              setReceivedTouched(true)
+              onChange({ ...value, received: v })
+            }}
             ariaLabel="Số tiền người nhận nhận được (VND)"
             onEnter={onEnter}
           />
@@ -692,11 +738,12 @@ export function RemitFields({
           <span className="font-semibold">{formatMoney(totalOut, 'JPY')}</span> (số gửi + phí)
         </p>
       )}
-      {rate > 0 && (
+      {/* "≈" là chủ đích: nói rõ đây là số TÍNH RA từ tỷ giá, không phải số bên nhận đã
+          xác nhận (số đó nằm trong ô "Số nhận" ngay trên, có thể đang khác con số này). */}
+      {estimate !== null && (
         <p className="text-right text-xs text-fg-muted">
-          {value.fee > 0
-            ? `Tỷ giá thực (tính cả phí): 1 ¥ ≈ ${effRate.toFixed(1)} ₫`
-            : `Tỷ giá: 1 ¥ ≈ ${rate.toFixed(1)} ₫`}
+          ≈ {formatMoney(estimate, 'VND')} · 1 ¥ ≈ {(rate ?? 0).toFixed(1)} ₫
+          {rateAge ? ` · tỷ giá ${rateAge}` : ''}
         </p>
       )}
 
@@ -719,6 +766,54 @@ export function RemitFields({
           ))}
         </select>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Dải 12 tháng gửi về VN — cột phụ (desktop) của form Nhập.
+ *
+ * `strip` PHẢI đến từ CÙNG nguồn với khối "Gửi về VN" ở tab Dài hạn:
+ * `remitStrip()` (features/reports/longRange.ts) chạy trên is_remittance đã quy đổi
+ * base currency (features/reports/LongView.tsx). Component này KHÔNG tự lọc/tổng lại
+ * — hai màn cùng đọc một hàm thì không thể lệch tổng nhau; một bộ lọc riêng ở đây là
+ * đúng cái bẫy brief cảnh báo.
+ */
+export function RemitMonthStrip({
+  strip,
+  currency,
+}: {
+  strip: RemitStrip
+  currency: CurrencyCode
+}) {
+  // Chưa từng gửi trong 12 tháng qua → không có gì để vẽ, im lặng thay vì bày một
+  // khối toàn cột 0.
+  if (strip.total <= 0) return null
+  const max = Math.max(...strip.months.map((m) => m.amount), 1)
+  return (
+    <div className="rounded-xl border border-border-strong bg-surface p-3">
+      <p className={labelCls}>12 tháng gần đây</p>
+      <p className="text-lg font-semibold text-fg-primary">{formatMoney(strip.total, currency)}</p>
+      <ul className="mt-2 flex items-end gap-0.5" aria-hidden>
+        {strip.months.map((m) => (
+          <li
+            key={`${m.key.year}-${m.key.month}`}
+            className="flex min-w-0 flex-1 flex-col items-center gap-0.5"
+          >
+            <span
+              className={`w-full rounded-t ${
+                m.skipped
+                  ? 'border border-dashed border-border-strong bg-transparent'
+                  : 'bg-green-500/60 dark:bg-green-400/50'
+              }`}
+              style={{ height: `${m.skipped ? 4 : Math.max(3, (m.amount / max) * 36)}px` }}
+            />
+          </li>
+        ))}
+      </ul>
+      <p className="mt-1.5 text-xs text-fg-muted">
+        {strip.sent}/{strip.months.length} tháng có gửi · thường lệ {formatMoney(strip.usual, currency)}
+      </p>
     </div>
   )
 }

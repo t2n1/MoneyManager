@@ -107,8 +107,16 @@ export const SHAPES: Record<EntryKind, EntryShape> = {
   },
   family: {
     kind: 'family', direction: 'out', label: 'Gửi gia đình',
-    hint: 'Tiền cho đi — nhưng mặc định xếp là Chuyển tài sản, không vào trần.',
-    categoryPicker: 'auto', capBase: 'full', amountLabel: 'Số gửi',
+    hint: 'Tiền cho đi — chọn danh mục để biết nó đi vào việc gì.',
+    /**
+     * 'user', KHÔNG phải 'auto'. Bản cũ đóng cứng danh mục `Gửi tiền về VN` — mà đó là
+     * PHƯƠNG TIỆN (tiền đi bằng đường nào), không phải MỤC ĐÍCH (tiền đi vào việc gì).
+     * Người dùng hỏi "tiền của mình nó đi đâu", và câu đó chỉ trả lời được bằng mục đích:
+     * hỗ trợ gia đình là một khoản chi thật, khác hẳn việc chuyển tiền sang tài khoản VN
+     * của chính mình (dạng đó đã có nhánh riêng — `remitKind: 'transfer'` ở shape
+     * `remit`, ghi thành type='transfer' nên mọi module loại nó theo LOẠI giao dịch).
+     */
+    categoryPicker: 'user', capBase: 'full', amountLabel: 'Số gửi',
     writes: 'transaction', txType: 'expense',
     roleSeed: { role: 'remit', remitKind: 'expense' },
   },

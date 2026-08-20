@@ -14,6 +14,17 @@ const AN = cat('an', 'Ăn uống')
 const GUI = cat('gui', 'Gửi tiền về VN', 'transfer')
 const ALL = [AN, GUI, cat('luong', 'Lương', 'expense', 'income')]
 
+/**
+ * Shape GIA "vua auto vua co tran" — dung cho cac test ve NHANH AUTO cua cappedCategory.
+ *
+ * Truoc day cac test nay dung `shapeOf('family')`, khi do la dang duy nhat vua `auto` vua
+ * co tran. Tu khi `family` doi sang `categoryPicker: 'user'` (nguoi dung chon muc dich, xem
+ * entryShape.ts) thi KHONG con shape that nao nhu vay — ma nhanh auto cua ham van phai
+ * duoc kiem. Dung mot shape gia o day de test noi ve HAM, khong phu thuoc mot dang co the
+ * doi thiet ke lan nua.
+ */
+const AUTO_CAP = { capBase: 'full', categoryPicker: 'auto' } as const
+
 describe('cappedCategory', () => {
   it('capBase none -> khong tra gi, ke ca khi dang chon danh muc', () => {
     expect(cappedCategory(shapeOf('lend'), AN, ALL, null)).toBeNull()
@@ -31,19 +42,19 @@ describe('cappedCategory', () => {
 
   it('picker auto -> tra theo ten app se gan, KHONG dung o dang bam', () => {
     // `family` la dang duy nhat vua `auto` vua co tran. O nguoi dung bam khong lien quan.
-    const found = cappedCategory(shapeOf('family'), AN, [cat('gui', 'Gửi tiền về VN')], 'Gửi tiền về VN')
+    const found = cappedCategory(AUTO_CAP, AN, [cat('gui', 'Gửi tiền về VN')], 'Gửi tiền về VN')
     expect(found?.id).toBe('gui')
   })
 
   it('danh muc kind=transfer -> null, du bang co capBase full', () => {
     // Day la ca that cua `family` theo mac dinh migration 0046.
     expect(shapeOf('family').capBase).toBe('full')
-    expect(cappedCategory(shapeOf('family'), null, ALL, 'Gửi tiền về VN')).toBeNull()
+    expect(cappedCategory(AUTO_CAP, null, ALL, 'Gửi tiền về VN')).toBeNull()
   })
 
   it('nguoi dung gat danh muc ve expense -> tran chay lai (0046 phai ton trong)', () => {
     const guiLaChi = [cat('gui', 'Gửi tiền về VN', 'expense')]
-    expect(cappedCategory(shapeOf('family'), null, guiLaChi, 'Gửi tiền về VN')?.id).toBe('gui')
+    expect(cappedCategory(AUTO_CAP, null, guiLaChi, 'Gửi tiền về VN')?.id).toBe('gui')
   })
 
   it('chon tay mot danh muc transfer o dang spend -> cung khong canh bao', () => {
@@ -51,7 +62,7 @@ describe('cappedCategory', () => {
   })
 
   it('khong tim thay ten app gan -> null, khong nem loi', () => {
-    expect(cappedCategory(shapeOf('family'), null, ALL, 'Danh muc khong ton tai')).toBeNull()
+    expect(cappedCategory(AUTO_CAP, null, ALL, 'Danh muc khong ton tai')).toBeNull()
   })
 
   it('transfer co CHA dat tran -> van null, khong de roi ve tran cua cha', () => {
@@ -60,11 +71,11 @@ describe('cappedCategory', () => {
     // dong cua cha — bao "them Y30,000 vao Tai chinh" trong khi progress.ts loai dung khoan
     // do khoi chi cua ca nhom. Con so trong cau canh bao khong bao gio toi.
     const conCuaTaiChinh = [cat('gui', 'Gửi tiền về VN', 'transfer', 'expense', 'taichinh')]
-    expect(cappedCategory(shapeOf('family'), null, conCuaTaiChinh, 'Gửi tiền về VN')).toBeNull()
+    expect(cappedCategory(AUTO_CAP, null, conCuaTaiChinh, 'Gửi tiền về VN')).toBeNull()
   })
 
   it('chi khop type=expense khi tra theo ten', () => {
     const trung = [cat('thu', 'Gửi tiền về VN', 'expense', 'income')]
-    expect(cappedCategory(shapeOf('family'), null, trung, 'Gửi tiền về VN')).toBeNull()
+    expect(cappedCategory(AUTO_CAP, null, trung, 'Gửi tiền về VN')).toBeNull()
   })
 })

@@ -591,7 +591,18 @@ export async function saveRemit(base: RoleBase, v: RemitValue, deps: RoleSaveDep
       tag_ids: base.tagIds,
     }
   } else {
-    const found = deps.categories.find((c) => c.type === 'expense' && c.name === GUI_TIEN_CAT)
+    /**
+     * Danh mục người dùng CHỌN đi trước (shape `family` giờ có ô chọn — xem entryShape).
+     * `Gửi tiền về VN` chỉ còn là đường lùi khi không có lựa chọn nào: nó là phương tiện,
+     * không phải mục đích, nên đóng cứng nó là chôn mất câu "tiền đi vào việc gì".
+     *
+     * Đường lùi PHẢI giữ: shape `remit` (nhánh expense của nó) không có ô chọn, và những
+     * bản ghi cũ cũng dựa vào tên này.
+     */
+    const chon = base.categoryId
+      ? deps.categories.find((c) => c.id === base.categoryId && c.type === 'expense')
+      : undefined
+    const found = chon ?? deps.categories.find((c) => c.type === 'expense' && c.name === GUI_TIEN_CAT)
     const categoryId =
       found?.id ??
       (await deps.createCategory({ name: GUI_TIEN_CAT, type: 'expense', icon: '💸', parent_id: null }))

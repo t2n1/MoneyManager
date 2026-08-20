@@ -222,14 +222,13 @@ describe('gate doc kind, khong doc role', () => {
     // vi mot ly do khac, khong phai vi cong danh muc thuc su duoc doc toi. (Ban dau
     // review chi ra ban cu chinh la lam vay: bo trong het field rieng, nen 5 dang
     // nay chua bao gio roi toi dong categoryPickerOf o cuoi ham.)
-    const filled: Record<'family' | 'lend' | 'borrow' | 'between' | 'ownvn', Partial<EntryState>> = {
-      family: { remit: { ...initialRemit(), received: 1_600_000 } },
+    const filled: Record<'lend' | 'borrow' | 'between' | 'ownvn', Partial<EntryState>> = {
       lend: { debt: { ...initialDebt(), counterparty: 'Minh' } },
       borrow: { debt: { ...initialDebt(), counterparty: 'Minh' } },
       between: { toAccountId: 'a2' },
       ownvn: { remit: { ...initialRemit(), kind: 'transfer', destId: 'vnd1', received: 1_600_000 } },
     }
-    for (const kind of ['family', 'lend', 'borrow', 'between', 'ownvn'] as const) {
+    for (const kind of ['lend', 'borrow', 'between', 'ownvn'] as const) {
       const g = entryGate(st({ kind, amount: 1000, hasCategory: false, ...filled[kind] }))
       // canSave true chứng minh KHÔNG có gì thiếu — kể cả danh mục — chứ không chỉ
       // "câu thiếu không nhắc chữ danh mục" (câu null thì .toMatch cũng lỗi).
@@ -242,6 +241,22 @@ describe('gate doc kind, khong doc role', () => {
       const g = entryGate(st({ kind, amount: 1000, hasCategory: false }))
       expect(g.missing).toMatch(/chọn danh mục/)
     }
+  })
+
+  /**
+   * `family` DOI danh muc — no vua chuyen tu 'auto' sang 'user' (entryShape.ts).
+   *
+   * Truoc day no nam trong danh sach "khong co luoi danh muc" o tren, va danh muc bi dong
+   * cung thanh `Gửi tiền về VN`. Nhung do la PHUONG TIEN, khong phai MUC DICH — chu so
+   * "thang nay ho tro gia dinh bao nhieu" khong the doc ra tu no. Test nay chot rang cai
+   * o chon that su BAT BUOC, khong chi hien ra roi cho bo trong.
+   */
+  it('gui gia dinh: doi chon danh muc (muc dich), khong dong cung phuong tien', () => {
+    const g = entryGate(
+      st({ kind: 'family', amount: 1000, hasCategory: false, remit: { ...initialRemit(), received: 1_600_000 } }),
+    )
+    expect(g.canSave).toBe(false)
+    expect(g.missing).toMatch(/chọn danh mục/)
   })
 
   it('tra ho: doi danh muc theo splitNeedsCategory (phan minh), khong theo luat rieng', () => {

@@ -13,7 +13,7 @@ const B23: [EntryKind, string, string, string, string][] = [
   // kind,      direction, categoryPicker, capBase,   amountLabel
   ['spend',     'out',     'user',         'full',    'Số tiền'],
   ['split',     'out',     'user',         'myShare', 'Tổng đã trả'],
-  ['family',    'out',     'auto',         'full',    'Số gửi'],
+  ['family',    'out',     'user',         'full',    'Số gửi'],
   ['lend',      'out',     'auto',         'none',    'Số tiền gốc'],
   ['repay',     'out',     'auto',         'none',    'Số trả'],
   ['earn',      'in',      'user',         'none',    'Số tiền'],
@@ -104,10 +104,14 @@ describe('hai dang gui ve VN phai noi ro he qua', () => {
     expect(withHint.map((s) => s.kind).sort()).toEqual(['family', 'owed', 'ownvn'])
     // Hint KHONG phai chu trang tri: chi dang nao ma cai chip khong tu noi duoc tac dong
     // tai san moi co. Hai dang gui ve VN phai TRAI NHAU: `family` tien cho di (het),
-    // `ownvn` tien van cua minh — va ca hai phai noi ro cach app XEP no, vi mac dinh cua
-    // migration 0046 xep ca hai la Chuyen tai san, nguoi doc phai biet de gat lai.
+    // `ownvn` tien van cua minh.
+    //
+    // `family` khong con nhac 'Chuyen tai san': tu khi picker thanh 'user', danh muc do
+    // NGUOI DUNG chon, nen mac dinh 'transfer' cua migration 0046 khong con ap vao dang
+    // nay. Chu phu gio phai noi viec can lam — CHON danh muc — chu khong phai canh bao
+    // mot cach xep ma app khong con tu ap dat.
     expect(shapeOf('family').hint).toContain('cho đi')
-    expect(shapeOf('family').hint).toContain('Chuyển tài sản')
+    expect(shapeOf('family').hint).toContain('chọn danh mục')
     expect(shapeOf('ownvn').hint).toContain('Vẫn là tiền của bạn')
     expect(shapeOf('ownvn').hint).toContain('không phải chi tiêu')
     // `owed` co ly do khac: no nam duoi tab "Tien vao" ma KHONG co dong nao vao vi.
@@ -124,7 +128,7 @@ describe('chipAriaLabel', () => {
   it('hai dang gui ve VN: he qua vao TEN DOC DUOC, khong chi vao mat', () => {
     // Cung mot hanh dong vat ly, tac dong tai san TRAI NHAU. Nghe bang trinh doc
     // man hinh ma khong co cau nay thi khong the chon dung.
-    expect(chipAriaLabel('family')).toBe('Gửi gia đình — Tiền cho đi — nhưng mặc định xếp là Chuyển tài sản, không vào trần.')
+    expect(chipAriaLabel('family')).toBe('Gửi gia đình — Tiền cho đi — chọn danh mục để biết nó đi vào việc gì.')
     expect(chipAriaLabel('ownvn'))
       .toBe('Tài khoản tôi ở VN — Vẫn là tiền của bạn — không phải chi tiêu, chỉ đổi đồng tiền.')
   })

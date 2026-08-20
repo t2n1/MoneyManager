@@ -289,3 +289,49 @@ ký tự; ghi qua `repo.createDebtPayment` (KHÔNG `createTransaction` — để
   user vừa nhập.
 - 27 phiếu có `立替経費精算` qua đường **nợ** (nợ giả đủ số): **27/27** cân bằng, và **27/27** NỔ
   đúng khi còn nợ thiếu 1 yen.
+
+---
+
+# Phụ lục: hai việc phát hiện khi soát tổng Chi (2026-08-20)
+
+## Đã sửa: "Gửi gia đình" đóng cứng danh mục
+
+Tab Ngày của Sổ ghi Chi ¥178.268 còn Bản tin / tab Tổng hợp / Ngân sách ghi ¥148.268 —
+lệch đúng ¥30.000, là khoản `Gửi tiền về VN`. Danh mục đó có `kind='transfer'` do
+[0046_category_kind.sql:43](../../../supabase/migrations/0046_category_kind.sql:43) **đóng cứng
+theo tên**, nên mọi module gộp đều loại nó.
+
+Nhưng tiền đó user gửi **cho gia đình để hỗ trợ** — ra khỏi tài sản thật. Gốc vấn đề: shape
+`family` ("Gửi gia đình") dùng `categoryPicker: 'auto'`, tức app đóng cứng danh mục
+`Gửi tiền về VN` — **phương tiện**, không phải **mục đích**. Mà câu user hỏi ("tiền của mình
+đi đâu") chỉ trả lời được bằng mục đích; user đã có sẵn danh mục `👪 Hỗ trợ gia đình`.
+
+Chuyển tiền cho CHÍNH MÌNH đã có shape riêng (`ownvn` → `type='transfer'`, bị loại theo LOẠI
+giao dịch chứ không theo `kind` danh mục), nên `family` chỉ dùng khi tiền thật sự ra khỏi tay.
+
+Sửa: `family.categoryPicker: 'auto' → 'user'`, `saveRemit` ưu tiên `base.categoryId` và chỉ
+lùi về `Gửi tiền về VN` khi không có lựa chọn. Cập nhật 6 test khoá thiết kế cũ.
+
+**User cần làm trong app:** đổi danh mục của khoản ¥30.000 hiện có sang `Hỗ trợ gia đình`
+(khoản cũ vẫn mang danh mục cũ — code không sửa dữ liệu đã ghi).
+
+## CHƯA sửa: Sổ không lọc danh mục `kind='transfer'`
+
+Lỗi có từ trước, **độc lập** với việc trên. Đường tính của Sổ lọc `is_debt_flow` và
+`exclude_from_stats` nhưng **không** lọc `kind='transfer'`, trong khi mọi module gộp đều lọc
+qua `transferCategoryIds` ([kind.ts:21](../../../src/features/categories/kind.ts:21)) — đúng
+điều chú thích đầu `kind.ts` cảnh báo: *"hai màn dựng hai tập khác nhau thì chi tháng 8 sẽ ra
+hai con số"*.
+
+Sau khi sửa việc trên thì nó thành lỗi NGỦ (chỉ còn `Điều chỉnh số dư` là transfer, mà dòng
+đó đã mang `exclude_from_stats`). Nó dậy ngay lần user gắn `kind='transfer'` cho một danh mục
+khác — và shape `ownvn` chính là đường dẫn tới đó.
+
+Danh sách file để sửa một phát, không phải điều tra lại:
+| file | việc |
+|---|---|
+| `src/features/transactions/ledgerShared.ts` | `sumInBase` + `sumPerCurrency` nhận `transferIds`, bỏ qua dòng thuộc tập đó |
+| `src/features/transactions/ledgerHeat.ts` | cùng phép lọc (hiện chỉ lọc `type === 'transfer'`, dòng ~79) |
+| `PeriodTotalsBar.tsx` · `DailyView.tsx` · `CalendarView.tsx` | truyền `useTransferCategoryIds()` xuống |
+| `TransactionItem.tsx` (~dòng 165) | hiện nhãn "(không tính vào Thu/Chi)" cho dòng danh mục `transfer` — nếu không, cộng tay các dòng sẽ không khớp tổng và người đọc lại tưởng sai |
+| `ledgerShared.test.ts` · `ledgerHeat.test.ts` | test cho phép lọc mới |

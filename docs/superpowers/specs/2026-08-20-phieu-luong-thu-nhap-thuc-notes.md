@@ -269,6 +269,23 @@ User: *"thường thì tháng này ứng thì tháng sau cty trả lại"* → c
 khoản nợ đứng mãi** (ứng thêm = "Cho vay thêm", trả thì trừ dần). Mỗi lần ứng một khoản riêng thì
 importer không biết `L` kỳ này trả cho khoản nào.
 
-### Thứ tự đã thống nhất
-Làm **sau** khi user nhập lại xong 59 phiếu. Cách hiện tại đã đúng cho mọi phiếu cũ, và đây là lần
-thứ ba chạm `dungDong`/`kiemDong` trong một buổi.
+### Đã cài (sau khi user nhập lại xong 59 phiếu, số dư Yucho + 退職金 khớp)
+
+`nhap.ts`: `TEN_NO_CONG_TY` · `NoCongTy` · `TraNo` · `dungCap` nhận `no`, `dungDong`/`dungKeHoach`
+thêm tham số cuối, `kiemCap` gộp dòng trả nợ vào phép cân bằng **nhưng KHÔNG vào `thuMoi`** (dòng
+đó mang `is_debt_flow` nên không nằm trong Thu).
+
+`supabaseRepo.xoaPhieuLuong()`: xoá `debt_payments` mang tiền tố `給与 ` **trước** phép xoá giao
+dịch hàng loạt, và xoá hàng payment trước giao dịch của nó — `transaction_id` là
+`on delete set null`, thứ tự ngược là mất đường tìm giao dịch. Trả thêm `traNo`.
+
+`ImportPhieuLuongPage.tsx`: `useDebts`/`useDebtPayments` → khớp `counterparty === 'KOME'` đúng từng
+ký tự; ghi qua `repo.createDebtPayment` (KHÔNG `createTransaction` — để khoản nợ tự quyết
+`is_debt_flow`); nêu tên gần giống; `invalidateDebts` sau mọi lần ghi/xoá.
+
+### Kiểm thật
+- 2800 test pass · build xanh.
+- 59 PDF thật qua đường **rơi-lại** (chưa có khoản nợ KOME): **59/59** — không hồi quy cho dữ liệu
+  user vừa nhập.
+- 27 phiếu có `立替経費精算` qua đường **nợ** (nợ giả đủ số): **27/27** cân bằng, và **27/27** NỔ
+  đúng khi còn nợ thiếu 1 yen.

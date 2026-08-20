@@ -79,6 +79,29 @@ export const NHAN_HUU = 'DB掛金'
  * tiền — không có khoản chi nào để triệt tiêu.
  */
 export const NHAN_LA_THEO = '立替経費精算'
+/**
+ * Đối tác của khoản nợ nhận `立替経費精算`. Khớp ĐÚNG TỪNG KÝ TỰ, không phải "chứa".
+ * Sổ thật đã có khoản `Cho vay · Minh KOME 🐄` — một NGƯỜI, không phải công ty. Khớp
+ * kiểu chứa là trừ tiền công ty trả vào khoản Minh nợ, và không ai nhận ra.
+ */
+export const TEN_NO_CONG_TY = 'KOME'
+
+/** Khoản công ty nợ (owed_to_me, open) + số còn nợ đã tính sẵn (principal − đã trả). */
+export interface NoCongTy {
+  id: string
+  conLai: number
+}
+
+/**
+ * Một lần trả nợ phải ghi qua `repo.createDebtPayment` — KHÔNG phải `createTransaction`.
+ * Nó tự dựng giao dịch và tự đọc `debts.origin` để đặt `is_debt_flow`
+ * (features/debts/debtPaymentPosting.ts:31). Importer tự đặt cờ là giành việc của khoản nợ.
+ */
+export interface TraNo {
+  debtId: string
+  amount: number
+  dong: DongMoi
+}
 /** Danh mục nhận khoản HOÀN phí đi lại. Tên phải đúng từng ký tự (như MAP_THUE). */
 export const DANH_MUC_TAU_XE = 'Tàu xe'
 /** Tài khoản tài sản nhận DB掛金 (退職金 — hagukumikikin.jp). */
@@ -210,7 +233,15 @@ export function dungDong(
   neo: KhoanNeo,
   idTheoTen: Map<string, string>,
   tkHuuId: string | null = null,
-): { thu: DongMoi; thuKhac: DongMoi | null; chi: DongMoi[]; cap: DongMoi[]; suaNeo: boolean } {
+  no: NoCongTy | null = null,
+): {
+  thu: DongMoi
+  thuKhac: DongMoi | null
+  chi: DongMoi[]
+  cap: DongMoi[]
+  suaNeo: boolean
+  traNo: TraNo | null
+} {
   // Vi sao throw chu khong `!`: dauGhiChu voi kind null KHONG no — no noi chuoi thanh
   // `給与 2026/08null` roi ghi am tham vao `note` giao dich that. Ma `note` la tay cam
   // DUY NHAT de go lo nhap (khong co cot import_batch), nen mot dau ghi chu sai la mot
@@ -308,7 +339,7 @@ export function dungDong(
     thu: dongBu(tongThue, true, nhomNgoai),
     thuKhac: tongKhac !== 0 ? dongBu(tongKhac, false, nhomTrong) : null,
     chi,
-    ...dungCap(phieu, neo, idTheoTen, tkHuuId, dau),
+    ...dungCap(phieu, neo, idTheoTen, tkHuuId, dau, no),
   }
 }
 
@@ -339,7 +370,8 @@ function dungCap(
   idTheoTen: Map<string, string>,
   tkHuuId: string | null,
   dau: string,
-): { cap: DongMoi[]; suaNeo: boolean } {
+  no: NoCongTy | null,
+): { cap: DongMoi[]; suaNeo: boolean; traNo: TraNo | null } {
   const chung = {
     to_amount: null,
     to_account_id: null,
@@ -353,6 +385,27 @@ function dungCap(
   const laTheo = phieu.cap[NHAN_LA_THEO] ?? 0
   /** Hai khoản hoàn phí — cả hai đều phải RA KHỎI Thu, chỉ khác cách triệt tiêu phía Chi. */
   const raKhoiThu = diLai + laTheo
+
+  /**
+   * Có khoản nợ `KOME` → `立替経費精算` là một lần CÔNG TY TRẢ NỢ, không phải khoản
+   * "biến mất khỏi Thu". Khi đó dòng trung hoà rút TRỌN `neo.amount` (dòng trả nợ đã bù
+   * phần `L`), và số công ty còn nợ giảm đúng `L`.
+   *
+   * Không có khoản nợ nào → rơi về cách cũ (rút khỏi Thu, trung hoà `neo.amount − L`).
+   * Nhờ cách rơi lại này mà 27 phiếu cũ — thời chưa ghi lần ứng nào — vẫn đúng, và
+   * không cần một mốc kỳ nào trong code.
+   *
+   * Nhưng CÓ khoản nợ mà còn nợ KHÔNG ĐỦ thì NỔ, không rơi lại: nghĩa là có lần ứng chưa
+   * được ghi. Rơi lại lặng lẽ ở đây là để người dùng tin rằng nợ đã được theo dõi trong
+   * khi nó đang thiếu — đúng kiểu lỗi không ai phát hiện.
+   */
+  const duongNo = laTheo > 0 && no !== null
+  if (duongNo && no.conLai < laTheo) {
+    throw new Error(
+      `nợ '${TEN_NO_CONG_TY}' còn ${no.conLai} < ${NHAN_LA_THEO} ${laTheo} — ` +
+        `có lần ứng chưa ghi vào khoản nợ`,
+    )
+  }
   const suaNeo = raKhoiThu > 0
   if (suaNeo) {
     if (neo.category_id === null) {
@@ -398,7 +451,8 @@ function dungCap(
      * 通勤手当 · chỉ 立替経費精算 · có cả hai).
      */
     cap.push({
-      ...chung, type: 'expense', amount: neo.amount - laTheo, exclude_from_stats: true,
+      ...chung, type: 'expense', amount: duongNo ? neo.amount : neo.amount - laTheo,
+      exclude_from_stats: true,
       category_id: neo.category_id, account_id: neo.account_id,
       note: `${dau} · trung hoà dòng neo`,
     })
@@ -413,7 +467,18 @@ function dungCap(
       note: `${dau} · ${NHAN_HUU} → ${TEN_TK_HUU}`,
     })
   }
-  return { cap, suaNeo }
+  const traNo: TraNo | null = duongNo
+    ? {
+        debtId: no.id,
+        amount: laTheo,
+        dong: {
+          ...chung, type: 'income', amount: laTheo,
+          category_id: neo.category_id, account_id: neo.account_id,
+          note: `${dau} · ${NHAN_LA_THEO} → trả nợ ${TEN_NO_CONG_TY}`,
+        },
+      }
+    : null
+  return { cap, suaNeo, traNo }
 }
 
 /** Dau tay cua NOI DUNG tai chinh mot phieu — de so hai file co cung mot phieu khong. */
@@ -510,6 +575,7 @@ export function kiemDong(
   thuKhac: DongMoi | null = null,
   cap: DongMoi[] = [],
   neo: KhoanNeo | null = null,
+  traNo: TraNo | null = null,
 ): string[] {
   const loi: string[] = []
   const tong = (ds: DongMoi[]): number => ds.reduce((s, r) => s + r.amount * (r.is_refund ? -1 : 1), 0)
@@ -542,7 +608,7 @@ export function kiemDong(
   if (thu.amount <= 0) loi.push(`dong doi ung "bi giu lai" amount ${thu.amount} <= 0`)
   if (thuKhac && thuKhac.amount <= 0) loi.push(`dong doi ung "da chi ho" amount ${thuKhac.amount} <= 0`)
   if (chi.some((r) => r.amount <= 0)) loi.push('co dong chi amount <= 0')
-  loi.push(...kiemCap(phieu, cap, neo))
+  loi.push(...kiemCap(phieu, cap, neo, traNo))
   return loi
 }
 
@@ -553,29 +619,42 @@ export function kiemDong(
  *  3. Không dòng nào amount <= 0 — DB có check(amount > 0), và 通勤手当 > ròng
  *     (phiếu thưởng ròng nhỏ) sẽ dựng ra 'lương thực nhận' âm.
  */
-function kiemCap(phieu: Phieu, cap: DongMoi[], neo: KhoanNeo | null): string[] {
-  if (!cap.length) return []
+function kiemCap(
+  phieu: Phieu,
+  cap: DongMoi[],
+  neo: KhoanNeo | null,
+  traNo: TraNo | null = null,
+): string[] {
+  if (!cap.length && !traNo) return []
   const loi: string[] = []
-  if (cap.some((r) => r.amount <= 0)) {
+  const moi = [...cap, ...(traNo ? [traNo.dong] : [])]
+  if (moi.some((r) => r.amount <= 0)) {
     loi.push(`có dòng 支給 amount <= 0 (${NHAN_DI_LAI} lớn hơn ròng?) — xử tay`)
+  }
+  if (traNo && traNo.dong.amount !== traNo.amount) {
+    loi.push(`dòng trả nợ ${traNo.dong.amount} != số trừ vào nợ ${traNo.amount}`)
   }
   // Ràng buộc DB, không phải luật nghiệp vụ: `check (type <> 'transfer' ... and
   // category_id is not null)` (0001_init.sql:89). Vi phạm thì Postgres từ chối insert và
   // CẢ LÔ dừng giữa đường — đã xảy ra thật với dòng "trung hoà dòng neo". Chốt ở đây vì
   // tầng thuần không có CHECK của Postgres để tự bắt.
-  if (cap.some((r) => r.category_id === null)) {
+  if (moi.some((r) => r.category_id === null)) {
     loi.push('có dòng 支給 thiếu category_id — DB từ chối (0001_init.sql:89)')
   }
   if (!neo) return loi
-  const cung = cap.filter((r) => r.account_id === neo.account_id)
+  // Dong tra no PHAI nam trong phep can bang: no la mot dong that trong tai khoan neo.
+  // Nhung KHONG nam trong `thuMoi` ben duoi — no mang is_debt_flow nen bi loai khoi Thu.
+  const cung = [...cap, ...(traNo ? [traNo.dong] : [])].filter(
+    (r) => r.account_id === neo.account_id,
+  )
   const soDu = cung.reduce(
     (t, r) => t + r.amount * (r.type === 'income' ? 1 : r.is_refund ? 1 : -1),
     0,
   )
   if (soDu !== 0) loi.push(`khối 支給 làm số dư tài khoản neo lệch ${soDu} (phải bằng 0)`)
   const raKhoiThu = (phieu.cap[NHAN_DI_LAI] ?? 0) + (phieu.cap[NHAN_LA_THEO] ?? 0)
-  const thuMoi = cung
-    .filter((r) => r.type === 'income' && !r.exclude_from_stats)
+  const thuMoi = cap
+    .filter((r) => r.account_id === neo.account_id && r.type === 'income' && !r.exclude_from_stats)
     .reduce((t, r) => t + r.amount, 0)
   if (raKhoiThu > 0 && thuMoi - neo.amount !== -raKhoiThu) {
     loi.push(
@@ -595,8 +674,10 @@ export interface DongKeHoach {
   chi: DongMoi[]
   /** Khối 支給 (通勤手当 / DB掛金). Rỗng khi phiếu không có nhãn nào trong hai nhãn đó. */
   cap: DongMoi[]
-  /** true = phải đặt `exclude_from_stats` cho dòng neo. Chỉ khi có 通勤手当 > 0. */
+  /** true = phải đặt `exclude_from_stats` cho dòng neo. Chỉ khi có 通勤手当/立替経費精算. */
   suaNeo: boolean
+  /** Lần công ty trả nợ, ghi qua `repo.createDebtPayment`. null = không đi đường nợ. */
+  traNo: TraNo | null
   trangThai: 'dat' | 'da-nhap' | 'tu-choi'
   lyDo: string
 }
@@ -615,12 +696,13 @@ export function dungKeHoach(
   idTheoTen: Map<string, string>,
   dauDaCo: Set<string>,
   tkHuuId: string | null = null,
+  no: NoCongTy | null = null,
 ): DongKeHoach[] {
   const trung = gomTrung(phieuList)
   const out: DongKeHoach[] = []
   const rong = (p: Phieu, tt: DongKeHoach['trangThai'], lyDo: string): DongKeHoach => ({
     phieu: p, neo: null, dau: '', thu: null, thuKhac: null, chi: [], cap: [], suaNeo: false,
-    trangThai: tt, lyDo,
+    traNo: null, trangThai: tt, lyDo,
   })
   for (const g of trung.boQua) {
     // g.phieu la mot phieu THAT thuoc dung nhom bi tu choi (period/kind/empno khop
@@ -636,10 +718,10 @@ export function dungKeHoach(
     const dau = dauGhiChu(neo.row.occurred_on, p.kind as 'K' | 'S')
     if (dauDaCo.has(dau)) { out.push({ ...rong(p, 'da-nhap', `đã nhập rồi (${dau})`), dau }); continue }
     let d
-    try { d = dungDong(p, neo.row, idTheoTen, tkHuuId) } catch (e) {
+    try { d = dungDong(p, neo.row, idTheoTen, tkHuuId, no) } catch (e) {
       out.push(rong(p, 'tu-choi', (e as Error).message)); continue
     }
-    const loi = kiemDong(p, d.thu, d.chi, d.thuKhac, d.cap, neo.row)
+    const loi = kiemDong(p, d.thu, d.chi, d.thuKhac, d.cap, neo.row, d.traNo)
     if (loi.length) { out.push(rong(p, 'tu-choi', loi.join(' ; '))); continue }
     daDung.add(neo.row.id)
     out.push({ phieu: p, neo: neo.row, dau, ...d, trangThai: 'dat', lyDo: '' })

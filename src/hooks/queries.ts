@@ -964,7 +964,7 @@ export function useDebtPayments() {
   })
 }
 
-function invalidateDebts(qc: ReturnType<typeof useQueryClient>) {
+export function invalidateDebts(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['debts'] })
   qc.invalidateQueries({ queryKey: ['debtPayments'] })
 }

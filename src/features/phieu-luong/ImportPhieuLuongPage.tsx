@@ -11,6 +11,9 @@ import {
   useCreateAccount,
   useCreateCategory,
   useDauPhieuLuong,
+  useDebtPayments,
+  useDebts,
+  invalidateDebts,
 } from '../../hooks/queries'
 import { formatMoney } from '../../lib/money'
 import { confirmDialog, showToast } from '../../lib/dialog'
@@ -25,6 +28,7 @@ import {
   NHAN_DI_LAI,
   NHAN_HUU,
   NHAN_LA_THEO,
+  TEN_NO_CONG_TY,
   TEN_TK_HUU,
   TK_HUU_MOI,
   dungKeHoach,
@@ -54,6 +58,8 @@ export function ImportPhieuLuongPage() {
   const createCategory = useCreateCategory()
   const createAccount = useCreateAccount()
   const { data: dauTrongSo = [] } = useDauPhieuLuong()
+  const { data: debts = [] } = useDebts()
+  const { data: debtPayments = [] } = useDebtPayments()
   const [keHoach, setKeHoach] = useState<DongKeHoach[] | null>(null)
   const [daGop, setDaGop] = useState<{ key: string; files: string[] }[]>([])
   const [dangBoc, setDangBoc] = useState(false)
@@ -77,6 +83,29 @@ export function ImportPhieuLuongPage() {
     (n) => !chiPhi.some((c) => c.name === n),
   )
   const thieuTauXe = !chiPhi.some((c) => c.name === DANH_MUC_TAU_XE)
+
+  /**
+   * Khoản `KOME` công ty nợ, khớp ĐÚNG TỪNG KÝ TỰ — sổ đã có `Minh KOME` (một NGƯỜI),
+   * và khớp kiểu "chứa" là trừ tiền công ty vào khoản Minh nợ.
+   */
+  const noKome = debts.find(
+    (d) => d.counterparty === TEN_NO_CONG_TY && d.direction === 'owed_to_me' && d.status === 'open',
+  )
+  const conLaiKome = noKome
+    ? noKome.principal -
+      debtPayments.filter((t) => t.debt_id === noKome.id).reduce((s2, t) => s2 + t.amount, 0)
+    : 0
+  const no = noKome ? { id: noKome.id, conLai: conLaiKome } : null
+  /**
+   * Tên GẦN GIỐNG. Không có khoản `KOME` thì phiếu rơi về cách cũ (chỉ rút khỏi Thu) —
+   * đúng cho phiếu cũ, nhưng nếu người dùng TƯỞNG mình đã tạo khoản nợ đó rồi mà chỉ đặt
+   * tên lệch, thì cách rơi lại kia lặng lẽ. Nói ra chỗ lệch, đừng để họ tự đoán.
+   */
+  const tenGanGiong = !noKome
+    ? debts
+        .filter((d) => d.counterparty !== TEN_NO_CONG_TY && d.counterparty.includes(TEN_NO_CONG_TY))
+        .map((d) => d.counterparty)
+    : []
 
   // Nhan File[] (da chup san bang layDanhSachFile), KHONG nhan FileList: FileList
   // song se rong truoc khi ham nay kip doc, vi onChange da dat input.value = ''
@@ -109,7 +138,7 @@ export function ImportPhieuLuongPage() {
        */
       const dauDaCo = new Set(await repo.listDauPhieuLuong())
       const idTheoTen = new Map(chiPhi.map((c) => [c.name, c.id]))
-      setKeHoach(dungKeHoach(phieuList, thu, yucho.id, idTheoTen, dauDaCo, tkHuu?.id ?? null))
+      setKeHoach(dungKeHoach(phieuList, thu, yucho.id, idTheoTen, dauDaCo, tkHuu?.id ?? null, no))
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Không đọc được dữ liệu sổ, thử lại.', 'error')
     } finally {
@@ -165,7 +194,10 @@ export function ImportPhieuLuongPage() {
 
   const dat = keHoach?.filter((k) => k.trangThai === 'dat') ?? []
   // +k.cap.length: khoi 支給 (hoan phi di lai / DB掛金) cung duoc ghi, dem thieu la loi hen.
-  const soDong = dat.reduce((s, k) => s + 1 + (k.thuKhac ? 1 : 0) + k.chi.length + k.cap.length, 0)
+  const soDong = dat.reduce(
+    (s, k) => s + 1 + (k.thuKhac ? 1 : 0) + k.chi.length + k.cap.length + (k.traNo ? 1 : 0),
+    0,
+  )
   // Chep ra bien rieng: TS khong giu suy luan "khac undefined" cua yucho xuyen
   // qua bien ngoai khi dung trong ham long ben duoi (ghi/goLo).
   const tenYucho = yucho.name
@@ -206,6 +238,24 @@ export function ImportPhieuLuongPage() {
            * ngay, nhưng phồng thì cộng thêm, còn tụt thì mất tiền, và mất khó nhận ra
            * hơn khi soát sổ.
            */
+          /**
+           * Lần trả nợ đi qua `createDebtPayment`, KHÔNG qua `createTransaction`: nó tự
+           * dựng giao dịch và tự đọc `debts.origin` để đặt `is_debt_flow`
+           * (features/debts/debtPaymentPosting.ts:31). Tự đặt cờ ở đây là giành việc của
+           * khoản nợ, và sẽ sai ngay khi khoản nợ mang `origin = 'earned'`.
+           */
+          if (k.traNo && k.neo) {
+            await repo.createDebtPayment({
+              debt_id: k.traNo.debtId,
+              amount: k.traNo.amount,
+              paid_on: k.neo.occurred_on,
+              // Dấu `給与 …` PHẢI nằm trong note của lần trả: gỡ lô tìm debt_payments theo
+              // đúng tiền tố này (xem supabaseRepo.xoaPhieuLuong).
+              note: k.traNo.dong.note,
+              transaction: k.traNo.dong,
+            })
+            nDong += 1
+          }
           if (k.suaNeo && k.neo) {
             await repo.updateTransaction(k.neo.id, { exclude_from_stats: true })
           }
@@ -213,6 +263,7 @@ export function ImportPhieuLuongPage() {
           dauDaGhi.push(k.dau)
         }
         invalidateTransactionData(qc)
+        invalidateDebts(qc)
         // Xoa ke hoach NGAY sau khi ghi xong: dat[] rong lai thi nut Ghi bien mat
         // khoi giao dien, chan dut duong bam lai de ghi trung batch vua xong.
         setKeHoach(null)
@@ -234,6 +285,7 @@ export function ImportPhieuLuongPage() {
         // hoach cho nguoi dung bam Ghi lai — khong co gi de ghi trung ca.
         if (nDong > 0) {
           invalidateTransactionData(qc)
+          invalidateDebts(qc)
           setKeHoach(null)
           setDaGhi({ phieu: nPhieu, dong: nDong })
         }
@@ -281,12 +333,17 @@ export function ImportPhieuLuongPage() {
       try {
         const r = await repo.xoaPhieuLuong()
         invalidateTransactionData(qc)
+        invalidateDebts(qc)
         // Noi ro ca viec thu hai: tra dong neo ve thong ke. Nguoi dung khong the doan
         // ra viec do da xay ra neu ta im — va neu no KHONG xay ra thi Thu bi thieu.
         showToast(
-          r.neo > 0
-            ? `Đã xoá ${r.dong} dòng · trả ${r.neo} dòng neo về thống kê`
-            : `Đã xoá ${r.dong} dòng`,
+          [
+            `Đã xoá ${r.dong} dòng`,
+            r.neo > 0 && `trả ${r.neo} dòng neo về thống kê`,
+            r.traNo > 0 && `hoàn ${r.traNo} lần trả nợ ${TEN_NO_CONG_TY}`,
+          ]
+            .filter(Boolean)
+            .join(' · '),
         )
         setDaGhi(null)
       } catch (e) {
@@ -309,7 +366,7 @@ export function ImportPhieuLuongPage() {
         hoac DB掛金 — 10/12 thang phieu khong co nhan nao trong hai nhan do, va chan het
         thi thanh chan oan. Phieu thuc su can se bi dungKeHoach() TU CHOI kem ly do.
       */}
-      {(thieuTauXe || !tkHuu) && (
+      {(thieuTauXe || !tkHuu || tenGanGiong.length > 0) && (
         <Card>
           <p className="text-xs text-fg-secondary">
             Phiếu có <span className="text-fg-primary">通勤手当</span> (hoàn phí đi lại) hoặc{' '}
@@ -320,6 +377,14 @@ export function ImportPhieuLuongPage() {
             {thieuTauXe && <li className="text-money-out">· thiếu danh mục chi “{DANH_MUC_TAU_XE}”</li>}
             {!tkHuu && <li className="text-money-out">· thiếu tài khoản “{TEN_TK_HUU}”</li>}
           </ul>
+          {tenGanGiong.length > 0 && (
+            <p className="mt-2 text-xs text-money-out">
+              Không có khoản nợ nào tên đúng “{TEN_NO_CONG_TY}” — {NHAN_LA_THEO} sẽ chỉ bị rút
+              khỏi Thu, KHÔNG trừ vào nợ. Sổ đang có tên gần giống:{' '}
+              {tenGanGiong.map((t) => `“${t}”`).join(', ')} — khớp theo tên đúng từng ký tự nên
+              chúng không được dùng.
+            </p>
+          )}
           {!tkHuu && (
             <button
               type="button"
@@ -430,6 +495,12 @@ export function ImportPhieuLuongPage() {
                       .filter(Boolean)
                       .join(' · ')}{' '}
                     → ra khỏi Thu; dòng neo ra ngoài thống kê, giữ nguyên số
+                  </p>
+                )}
+                {k.trangThai === 'dat' && k.traNo && (
+                  <p className="mt-0.5 text-fg-secondary">
+                    {NHAN_LA_THEO} {formatMoney(k.traNo.amount, 'JPY')} → trừ vào nợ{' '}
+                    {TEN_NO_CONG_TY}
                   </p>
                 )}
                 {k.trangThai === 'dat' && (k.phieu.cap[NHAN_HUU] ?? 0) !== 0 && (

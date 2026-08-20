@@ -1824,6 +1824,31 @@ export const supabaseRepo: Repo = {
         neo += 1
       }
     }
+    /**
+     * XOÁ LẦN TRẢ NỢ QUA `debt_payments`, KHÔNG để phép xoá giao dịch bên dưới cuốn nó đi.
+     *
+     * `debt_payments.transaction_id` là FK `on delete set null` (0007_debts.sql) — nên xoá
+     * giao dịch trả nợ mà không xử bảng này thì HÀNG debt_payments CÒN NGUYÊN: nợ vẫn bị
+     * trừ trong khi tiền đã biến mất khỏi sổ. Số công ty còn nợ sai vĩnh viễn, không dấu vết.
+     *
+     * Xoá payment TRƯỚC rồi mới xoá giao dịch của nó (đúng thứ tự của `deleteDebtPayment`):
+     * ngược lại thì `transaction_id` đã bị set null, không còn đường tìm giao dịch.
+     */
+    const { data: lanTra, error: loiTra } = await sb
+      .from('debt_payments')
+      .select('id, transaction_id')
+      .like('note', '給与 %')
+    if (loiTra) throw loiTra
+    let traNo = 0
+    for (const t of lanTra ?? []) {
+      const { error: e1 } = await sb.from('debt_payments').delete().eq('id', t.id)
+      if (e1) throw e1
+      traNo += 1
+      if (t.transaction_id) {
+        const { error: e2 } = await sb.from('transactions').delete().eq('id', t.transaction_id)
+        if (e2) throw e2
+      }
+    }
     // Không có cột import_batch nên tiền tố `給与 ` trong note là tay cầm duy nhất
     // để gỡ lô nhập. KHÔNG lọc theo từng dấu riêng (xem chú thích ở repo.ts):
     // dấu chứa dấu cách và `·`, đưa chúng vào `.or()` của PostgREST là xoá thiếu
@@ -1833,7 +1858,7 @@ export const supabaseRepo: Repo = {
       .delete({ count: 'exact' })
       .like('note', '給与 %')
     if (error) throw error
-    return { dong: count ?? 0, neo }
+    return { dong: (count ?? 0) + traNo, neo, traNo }
   },
 
   async importAll(data: BackupData) {

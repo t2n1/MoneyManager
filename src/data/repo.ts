@@ -784,6 +784,10 @@ export interface Repo {
    * thống kê (phiếu có 通勤手当 đặt `exclude_from_stats` lên dòng neo — dòng đó là dòng
    * sao kê, không mang tiền tố `給与 ` nên phép xoá không chạm tới). Hai số tách riêng
    * vì chúng là hai việc khác nhau, và người dùng cần thấy việc thứ hai đã xảy ra.
+   *
+   * `traNo` = số lần trả nợ đã xoá khỏi `debt_payments`. Phải xoá riêng: FK
+   * `transaction_id` là `on delete set null`, nên xoá mỗi giao dịch sẽ để hàng
+   * debt_payments còn nguyên — nợ vẫn bị trừ trong khi tiền đã mất khỏi sổ.
    */
-  xoaPhieuLuong(): Promise<{ dong: number; neo: number }>
+  xoaPhieuLuong(): Promise<{ dong: number; neo: number; traNo: number }>
 }

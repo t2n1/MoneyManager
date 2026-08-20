@@ -9,6 +9,7 @@ import {
 } from '../features/assets/fundHoldings'
 import { validateBackupPayload } from './backupImport'
 import { DEFAULT_DENSITY, parseDensity } from '../lib/density'
+import { debtPaymentPosting } from '../features/debts/debtPaymentPosting'
 import type { CurrencyCode } from '../lib/money'
 import type { Rates } from '../lib/rates'
 import type {
@@ -2209,10 +2210,15 @@ export const demoRepo: Repo = {
     db.debtPayments ??= []
     let transaction_id: string | null = null
     if (input.transaction) {
-      // Trả nợ là dòng tiền nợ/cho vay → đánh dấu để báo cáo Chi/Thu bỏ qua.
+      // Cách ghi đọc từ KHOẢN NỢ, không từ người gọi: khoản `origin = 'earned'` (tiền
+      // công) thì lần trả là THU thật, còn lại là dòng tiền nợ như cũ. Xem
+      // debtPaymentPosting — một chỗ cho cả hai cửa ghi và cả hai repo.
+      const debt = (db.debts ?? []).find((d) => d.id === input.debt_id)
+      const post = debtPaymentPosting(debt, input.transaction.category_id)
       const tx: TransactionRow = {
         ...input.transaction,
-        is_debt_flow: true,
+        category_id: post.categoryId,
+        is_debt_flow: post.isDebtFlow,
         id: uuid(),
         user_id: DEMO_USER,
         recurring_rule_id: null,

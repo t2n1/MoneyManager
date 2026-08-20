@@ -1351,3 +1351,83 @@ describe('debts.origin + income_category_id (0049)', () => {
     expect(debt.income_category_id).toBeNull()
   })
 })
+
+describe('khach tra tien cong → THU that (0049)', () => {
+  it('lan tra cua khoan earned khong mang co no, va vao danh muc cua khoan no', async () => {
+    const acc = await demoRepo.createAccount(accountInput())
+    const catThu = await demoRepo.createCategory({
+      name: 'Làm thêm',
+      type: 'income',
+      icon: '💵',
+      parent_id: null,
+    })
+    const debt = await demoRepo.createDebt({
+      counterparty: 'Khách A',
+      direction: 'owed_to_me',
+      currency: 'JPY',
+      principal: 30_000,
+      due_on: null,
+      note: '',
+      origin: 'earned',
+      income_category_id: catThu.id,
+      transaction: null,
+    })
+    await demoRepo.createDebtPayment({
+      debt_id: debt.id,
+      amount: 10_000,
+      paid_on: '2026-08-20',
+      note: '',
+      transaction: {
+        type: 'income',
+        amount: 10_000,
+        to_amount: null,
+        category_id: 'cat-tu-gan-cua-dong-tien-no',
+        account_id: acc.id,
+        to_account_id: null,
+        occurred_on: '2026-08-20',
+        note: '',
+        tag_ids: [],
+      },
+    })
+    const paid = (
+      await demoRepo.listTransactions({ start: '2026-08-20', end: '2026-08-21' })
+    ).find((t) => t.amount === 10_000)
+    expect(paid?.is_debt_flow).toBe(false)
+    expect(paid?.category_id).toBe(catThu.id)
+  })
+
+  it('lan tra cua khoan no thuong van mang co no — duong cu khong doi', async () => {
+    const acc = await demoRepo.createAccount(accountInput())
+    const debt = await demoRepo.createDebt({
+      counterparty: 'Anh Hai',
+      direction: 'owed_to_me',
+      currency: 'JPY',
+      principal: 50_000,
+      due_on: null,
+      note: '',
+      transaction: null,
+    })
+    await demoRepo.createDebtPayment({
+      debt_id: debt.id,
+      amount: 20_000,
+      paid_on: '2026-08-20',
+      note: '',
+      transaction: {
+        type: 'income',
+        amount: 20_000,
+        to_amount: null,
+        category_id: 'cat-no',
+        account_id: acc.id,
+        to_account_id: null,
+        occurred_on: '2026-08-20',
+        note: '',
+        tag_ids: [],
+      },
+    })
+    const paid = (
+      await demoRepo.listTransactions({ start: '2026-08-20', end: '2026-08-21' })
+    ).find((t) => t.amount === 20_000)
+    expect(paid?.is_debt_flow).toBe(true)
+    expect(paid?.category_id).toBe('cat-no')
+  })
+})

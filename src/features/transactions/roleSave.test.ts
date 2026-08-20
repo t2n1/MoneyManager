@@ -384,7 +384,7 @@ describe('saveWithFee — chuyển khoản kèm phí', () => {
 describe('saveDebtEntry — danh mục tự gán', () => {
   it('cho vay → giải ngân vào danh mục chi "Cho vay" có sẵn, bỏ qua danh mục form', async () => {
     const { deps, calls } = makeDeps([], [cat('cat-chovay', 'Cho vay')])
-    await saveDebtEntry(base, { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'An' }, deps)
+    await saveDebtEntry('lend', base, { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'An' }, deps)
 
     expect(calls.createCategory).toHaveLength(0)
     expect(calls.createDebt[0].transaction).toMatchObject({
@@ -395,7 +395,7 @@ describe('saveDebtEntry — danh mục tự gán', () => {
 
   it('mình nợ → danh mục thu "Đi vay", chưa có thì tự tạo', async () => {
     const { deps, calls } = makeDeps([], [cat('cat-chovay', 'Cho vay')])
-    await saveDebtEntry(base, { ...initialDebt(), direction: 'i_owe' as const, counterparty: 'Ngân hàng' }, deps)
+    await saveDebtEntry('lend', base, { ...initialDebt(), direction: 'i_owe' as const, counterparty: 'Ngân hàng' }, deps)
 
     expect(calls.createCategory).toHaveLength(1)
     expect(calls.createCategory[0]).toMatchObject({ name: 'Đi vay', type: 'income' })
@@ -404,7 +404,7 @@ describe('saveDebtEntry — danh mục tự gán', () => {
 
   it('danh mục trùng tên nhưng khác loại không được nhận nhầm', async () => {
     const { deps, calls } = makeDeps([], [cat('cat-thu', 'Cho vay', 'income')])
-    await saveDebtEntry(base, { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'An' }, deps)
+    await saveDebtEntry('lend', base, { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'An' }, deps)
 
     expect(calls.createCategory[0]).toMatchObject({ name: 'Cho vay', type: 'expense' })
     expect(calls.createDebt[0].transaction).toMatchObject({ category_id: 'cat-moi' })
@@ -413,6 +413,7 @@ describe('saveDebtEntry — danh mục tự gán', () => {
   it('chỉ ghi sổ (không chuyển tiền thật) → không đụng tới danh mục', async () => {
     const { deps, calls } = makeDeps([], [])
     await saveDebtEntry(
+      'lend',
       base,
       { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'An', withTransaction: false },
       deps,
@@ -425,6 +426,7 @@ describe('saveDebtEntry — danh mục tự gán', () => {
   it('cộng dồn người cũ có chuyển tiền thật → giao dịch thêm cũng vào danh mục tự gán', async () => {
     const { deps, calls } = makeDeps([openLoan({ counterparty: 'An' })], [cat('cat-chovay', 'Cho vay')])
     await saveDebtEntry(
+      'lend',
       base,
       { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'An' },
       deps,
@@ -469,7 +471,7 @@ describe('saveDebtEntry — cho vay kèm phí', () => {
 
   it('phí không cộng vào gốc nợ, đi riêng vào "Tài chính"', async () => {
     const { deps, calls } = makeDeps([], [cat('cat-tc', 'Tài chính')])
-    await saveDebtEntry(base, lend, deps)
+    await saveDebtEntry('lend', base, lend, deps)
 
     expect(calls.createDebt[0]).toMatchObject({ principal: 5000 }) // gốc giữ nguyên
     expect(calls.createDebt[0].transaction).toMatchObject({ type: 'expense', amount: 5000 })
@@ -488,13 +490,13 @@ describe('saveDebtEntry — cho vay kèm phí', () => {
       throw new Error('bùm')
     }
 
-    await expect(saveDebtEntry(base, lend, deps)).rejects.toThrow('bùm')
+    await expect(saveDebtEntry('lend', base, lend, deps)).rejects.toThrow('bùm')
     expect(calls.deleteTransaction).toEqual(['tx-1'])
   })
 
   it('không nhập phí → không sinh bút toán phí nào', async () => {
     const { deps, calls } = makeDeps([], [cat('cat-tc', 'Tài chính')])
-    await saveDebtEntry(base, { ...lend, fee: 0 }, deps)
+    await saveDebtEntry('lend', base, { ...lend, fee: 0 }, deps)
 
     expect(calls.createTransaction).toHaveLength(0)
     expect(calls.createDebt).toHaveLength(1)
@@ -531,6 +533,7 @@ describe('nhãn đi theo ở cả ba vai trò', () => {
   it('cho vay: bút toán giải ngân mang đúng nhãn', async () => {
     const { deps, calls } = makeDeps([])
     await saveDebtEntry(
+      'lend',
       { ...base, amount: 50_000, tagIds: ['tag-hung'] },
       { ...initialDebt(), direction: 'owed_to_me', counterparty: 'Hùng' },
       deps,
@@ -608,6 +611,7 @@ describe('nhãn đi theo ở cả ba vai trò', () => {
   it('cho vay cộng dồn vào khoản đang mở: giao dịch giải ngân thêm cũng mang nhãn', async () => {
     const { deps, calls } = makeDeps([openLoan({ counterparty: 'An' })], [cat('cat-chovay', 'Cho vay')])
     await saveDebtEntry(
+      'lend',
       { ...base, amount: 2_000, tagIds: ['tag-an'] },
       { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'An' },
       deps,
@@ -712,4 +716,85 @@ describe('saveDebtPayment — trả nợ từ form Nhập', () => {
   // DebtPaymentSheet) dựng UI cho phí trả nợ, spec không đòi, và field đã bị gỡ khỏi
   // PaymentValue/saveDebtPayment. Test phí của saveDebtEntry (DebtValue.fee, phí GIẢI
   // NGÂN) vẫn giữ nguyên ở describe khác — đó là tính năng có thật, có UI.
+})
+
+describe('dang owed: ghi no KHONG kem dong tien', () => {
+  /** Base cua dang debtOnly: khong co vi nao, va categoryId la danh muc THU. */
+  const owedBase: RoleBase = { ...base, accountId: null, categoryId: 'cat-lam-them' }
+  const owedVal = {
+    ...initialDebt(),
+    direction: 'owed_to_me' as const,
+    counterparty: 'Khách A',
+  }
+
+  it('createDebt khong co transaction, co origin earned + danh muc thu', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveDebtEntry('owed', { ...owedBase, amount: 30_000 }, owedVal, deps)
+    expect(calls.createTransaction).toHaveLength(0)
+    expect(calls.createDebt).toHaveLength(1)
+    expect(calls.createDebt[0]).toMatchObject({
+      counterparty: 'Khách A',
+      direction: 'owed_to_me',
+      principal: 30_000,
+      origin: 'earned',
+      income_category_id: 'cat-lam-them',
+      transaction: null,
+    })
+  })
+
+  it('withTransaction bat san van KHONG sinh giao dich nao', async () => {
+    // `withTransaction` la state song qua lan doi dang, nen roleSave phai tu chan —
+    // khong dua vao viec form da tat cong tac.
+    const { deps, calls } = makeDeps([])
+    await saveDebtEntry('owed', owedBase, { ...owedVal, withTransaction: true }, deps)
+    expect(calls.createTransaction).toHaveLength(0)
+    expect(calls.createDebt[0].transaction).toBeNull()
+  })
+
+  it('phi bi bo qua: dang nay khong giai ngan nen khong co phi giai ngan', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveDebtEntry('owed', owedBase, { ...owedVal, fee: 500 }, deps)
+    expect(calls.createTransaction).toHaveLength(0)
+  })
+
+  it('KHONG gop vao khoan cho vay cu cua cung mot nguoi', async () => {
+    // Bay im lang: gop lai thi khoan do origin null, nen moi lan tra sau khong vao Thu.
+    const { deps, calls } = makeDeps([openLoan({ counterparty: 'Khách A' })])
+    await saveDebtEntry('owed', owedBase, owedVal, deps)
+    expect(calls.createDebtPayment).toHaveLength(0)
+    expect(calls.createDebt).toHaveLength(1)
+  })
+
+  it('GOP vao khoan tien cong cu cung danh muc thu', async () => {
+    const cu = openLoan({
+      id: 'd-cong',
+      counterparty: 'Khách A',
+      origin: 'earned',
+      income_category_id: 'cat-lam-them',
+    })
+    const { deps, calls } = makeDeps([cu])
+    await saveDebtEntry('owed', { ...owedBase, amount: 20_000 }, owedVal, deps)
+    expect(calls.createDebt).toHaveLength(0)
+    // amount am = "no them", va KHONG kem giao dich nao.
+    expect(calls.createDebtPayment[0]).toMatchObject({
+      debt_id: 'd-cong',
+      amount: -20_000,
+      transaction: null,
+    })
+  })
+
+  it('lend khong bi dinh: origin de null, van co giai ngan', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveDebtEntry(
+      'lend',
+      base,
+      { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'Anh Hai' },
+      deps,
+    )
+    expect(calls.createDebt[0].origin ?? null).toBeNull()
+    expect(calls.createDebt[0].income_category_id ?? null).toBeNull()
+    // But toan giai ngan di BEN TRONG createDebt (mot mutation ra ca hai), khong qua
+    // deps.createTransaction — nen dem `createTransaction` o day la dem sai cho.
+    expect(calls.createDebt[0].transaction).not.toBeNull()
+  })
 })

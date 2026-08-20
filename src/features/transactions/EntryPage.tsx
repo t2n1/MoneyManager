@@ -260,7 +260,7 @@ export function EntryPage() {
   async function handleRole(payload: RoleSubmit, keepGoing: boolean) {
     const deps = roleDeps()
     if (payload.role === 'split') await saveSplit(payload.base, payload.value, deps)
-    else if (payload.role === 'debt') await saveDebtEntry(payload.base, payload.value, deps)
+    else if (payload.role === 'debt') await saveDebtEntry(payload.kind, payload.base, payload.value, deps)
     else await saveRemit(payload.base, payload.value, deps)
     if (!keepGoing) {
       navigate('/so')

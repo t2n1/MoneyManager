@@ -276,3 +276,42 @@ describe('gate doc kind, khong doc role', () => {
       .toBe('Còn thiếu: Số tiền gốc.')
   })
 })
+
+describe('dang "Khach no cong" (owed)', () => {
+  const owed = (p: Partial<EntryState> = {}) =>
+    st({
+      kind: 'owed',
+      amount: 30_000,
+      hasAccount: false,
+      hasCategory: true,
+      debt: { ...initialDebt(), direction: 'owed_to_me', counterparty: 'Khách A' },
+      ...p,
+    })
+
+  it('KHONG doi tai khoan — khong co dong nao roi vi', () => {
+    const g = entryGate(owed())
+    expect(g.missing).toBeNull()
+    expect(g.canSave).toBe(true)
+  })
+
+  it('van doi so tien, va goi dung ten field cua dang nay', () => {
+    expect(entryGate(owed({ amount: 0 })).missing).toBe('Còn thiếu: Số tiền công.')
+  })
+
+  it('doi ten nguoi no — ten la khoa cong don', () => {
+    const g = entryGate(owed({ debt: { ...initialDebt(), direction: 'owed_to_me', counterparty: '  ' } }))
+    expect(g.missing).toBe('Còn thiếu: tên người nợ (ai nợ bạn).')
+  })
+
+  it('doi danh muc thu — rang buoc DB chan hang thieu no', () => {
+    expect(entryGate(owed({ hasCategory: false })).missing).toBe(
+      'Còn thiếu: danh mục thu (khách trả thì tiền vào đâu).',
+    )
+  })
+
+  it('cac dang con lai VAN doi tai khoan', () => {
+    for (const kind of ['spend', 'earn', 'lend', 'collect'] as const) {
+      expect(entryGate(st({ kind, hasAccount: false })).missing).toBe('Còn thiếu: tài khoản.')
+    }
+  })
+})

@@ -118,6 +118,13 @@ function kindMissing(s: EntryState): string | null {
           return 'Người kia trả đủ vào chính ví đã trả → không có gì để ghi. Chọn ví khác ở "Nhận lại vào", hoặc chọn dạng Chi thường nếu không cần ghi.'
         break
       }
+      case 'owed':
+        if (!s.debt.counterparty.trim()) return 'Còn thiếu: tên người nợ (ai nợ bạn).'
+        // Ràng buộc DB `debts_earned_needs_income_category` (0049) chặn hàng thiếu danh
+        // mục thu. Chặn ở đây nữa để người dùng đọc một câu tiếng Việt thay vì một lỗi
+        // Postgres — và để nút Lưu mờ đúng lúc, chứ không mờ sau khi đã bấm.
+        if (!s.hasCategory) return 'Còn thiếu: danh mục thu (khách trả thì tiền vào đâu).'
+        break
       case 'lend':
       case 'borrow':
         if (!s.debt.counterparty.trim())
@@ -171,7 +178,13 @@ export function entryGate(s: EntryState): EntryGate {
       // field riêng, viết hoa đúng như trên ô nhập.
       return `Còn thiếu: ${shape.amountLabel === 'Số tiền' ? 'số tiền' : shape.amountLabel}.`
     }
-    if (!s.hasAccount) return 'Còn thiếu: tài khoản.'
+    // Cổng tài khoản đọc từ BẢNG, không thêm một cờ song song kiểu `plannedMode`: dạng
+    // `debtOnly` (Khách nợ công) không ghi giao dịch nào nên không có ví nào để đòi.
+    //
+    // ĐÂY LÀ CỔNG THỨ NHẤT. `handleSubmit` ở TransactionForm còn một cổng nữa
+    // (`!noAccountNeeded && !effectiveAccountId`) — sửa một cổng mà quên cổng kia thì
+    // nút Lưu sáng lên rồi bấm không có gì xảy ra: im lặng, không câu báo nào.
+    if (shape.writes !== 'debtOnly' && !s.hasAccount) return 'Còn thiếu: tài khoản.'
     return kindMissing(s)
   })()
   return { canSave: missing === null, missing }

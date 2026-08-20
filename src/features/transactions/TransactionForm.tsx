@@ -14,6 +14,7 @@ import { initialPlannedDraftForEntry } from './plannedDraftDefaults'
 import { plannedFromEntry, plannedMissing, type PlannedDraft } from './plannedFromEntry'
 import { addDaysISO, addMonths, getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
 import { promptDialog } from '../../lib/dialog'
+import { CURRENCIES } from '../../lib/currencies'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { DebtDirection, TransactionRow, TransactionType } from '../../types/database.types'
 import {
@@ -472,6 +473,19 @@ export function TransactionForm({
       : (pickerAccounts[0]?.id ?? null)
 
   const srcCurrency = activeAccounts.find((a) => a.id === effectiveAccountId)?.currency ?? 'JPY'
+  /** Dạng chỉ ghi khoản nợ, không bút toán nào (Khách nợ công). Đọc từ bảng. */
+  const debtOnly = shape.writes === 'debtOnly'
+  /**
+   * Loại tiền của khoản "Khách nợ công". KHÔNG dùng `srcCurrency` được: cái đó đọc từ ví
+   * đang chọn với fallback `?? 'JPY'`, mà dạng này không có ví nào — người làm thêm ăn
+   * tiền VND sẽ nhận một khoản nợ ghi bằng JPY và không có gì trên màn nói ra điều đó.
+   * Gieo MỘT lần từ ví mặc định rồi không đạp lên lựa chọn của người dùng nữa, đúng lối
+   * ô "Ước tính" của "Sẽ chi".
+   */
+  const [owedCurrency, setOwedCurrency] = useState<CurrencyCode>('JPY')
+  const owedCurrencySeeded = useRef(false)
+  /** Loại tiền của KHOẢN NỢ đang ghi: dạng debtOnly có ô riêng, còn lại theo ví nguồn. */
+  const debtCurrency = debtOnly ? owedCurrency : srcCurrency
   const dstCurrency = activeAccounts.find((a) => a.id === toAccountId)?.currency ?? srcCurrency
   /**
    * Field riêng của "Sẽ chi" — một object độc lập, KHÔNG tái dùng `note`/`categoryId`
@@ -501,6 +515,11 @@ export function TransactionForm({
     plannedCurrencySeeded.current = true
     setPlannedDraft((d) => (d.currency === srcCurrency ? d : { ...d, currency: srcCurrency }))
   }, [activeAccounts.length, srcCurrency])
+  useEffect(() => {
+    if (owedCurrencySeeded.current || activeAccounts.length === 0) return
+    owedCurrencySeeded.current = true
+    setOwedCurrency(srcCurrency)
+  }, [activeAccounts.length, srcCurrency])
   // `kind === 'between'` chứ không `type === 'transfer'`: dạng "Tài khoản tôi ở VN"
   // cũng là chuyển khoản, nhưng ô đích và số nhận của nó nằm trong RemitFields — hỏi
   // thêm một ô "nhận được" nữa là hỏi hai lần cùng một số.
@@ -509,14 +528,16 @@ export function TransactionForm({
   const showTransferFee = kind === 'between' && !!onSubmitWithFee
   // Gợi ý cộng dồn: khoản đang mở cùng chiều + cùng loại tiền với tài khoản đang chọn
   // (khác loại tiền không cộng dồn được nên không đưa vào danh sách).
+  // `currency` là THAM SỐ, không đọc `srcCurrency` bên trong: dạng "Khách nợ công" không
+  // có ví nào nên loại tiền của nó đến từ ô riêng (`debtCurrency`).
   const peopleFor = useCallback(
-    (direction: DebtDirection): DebtPerson[] =>
+    (direction: DebtDirection, currency: CurrencyCode): DebtPerson[] =>
       allDebts
         .filter(
           (d) =>
             d.status === 'open' &&
             d.direction === direction &&
-            d.currency === srcCurrency &&
+            d.currency === currency &&
             d.counterparty.trim().length > 0,
         )
         .map((d) => ({
@@ -524,17 +545,35 @@ export function TransactionForm({
           name: d.counterparty,
           currency: d.currency,
           remaining: Math.max(remainingOf(d, allDebtPayments), 0),
+          origin: d.origin,
+          incomeCategoryId: d.income_category_id,
         })),
-    [allDebts, allDebtPayments, srcCurrency],
+    [allDebts, allDebtPayments],
   )
+  /**
+   * Gợi ý cộng dồn — LỌC THÊM theo `origin`, vì `matchOpenDebt` sẽ từ chối gộp hai loại
+   * nợ khác nguồn gốc. Mời một khoản mà cổng cuối sẽ từ chối là mời người dùng chọn rồi
+   * lặng lẽ tạo dòng thứ hai trùng tên.
+   */
   const debtPeople = useMemo<DebtPerson[]>(
-    () => (enableRoles ? peopleFor(debtValue.direction) : []),
-    [enableRoles, peopleFor, debtValue.direction],
+    () =>
+      enableRoles
+        ? peopleFor(debtValue.direction, debtCurrency).filter((p) =>
+            debtOnly
+              ? p.origin === 'earned' && p.incomeCategoryId === categoryId
+              : (p.origin ?? null) === null,
+          )
+        : [],
+    [enableRoles, peopleFor, debtValue.direction, debtCurrency, debtOnly, categoryId],
   )
   // Trả hộ "còn nợ" tạo khoản "người khác nợ mình" (owed_to_me) → gợi ý cộng dồn.
   const splitPeople = useMemo<DebtPerson[]>(
-    () => (enableRoles ? peopleFor('owed_to_me') : []),
-    [enableRoles, peopleFor],
+    // Trả hộ tạo khoản CHO VAY (origin null), nên chỉ gợi ý khoản cùng loại đó.
+    () =>
+      enableRoles
+        ? peopleFor('owed_to_me', srcCurrency).filter((p) => (p.origin ?? null) === null)
+        : [],
+    [enableRoles, peopleFor, srcCurrency],
   )
   // Ví có thể nhận lại tiền khi Trả hộ đã được hoàn ngay: cùng loại tiền với tài
   // khoản đã trả (chuyển khoản xuyên tệ cần thêm số nhận — không đưa vào đây) và
@@ -827,6 +866,11 @@ export function TransactionForm({
     // hoặc đổi dạng trả nợ: đổi chiều (repay↔collect) thì khoản cũ sai chiều, chưa
     // từng ở dạng này thì chưa có khoản nào để giữ.
     if (nextShape.writes === 'debtPayment') setPaymentVal(initialPayment())
+    // Vào dạng debtOnly: khoá công tắc giải ngân NGAY, không chờ người dùng. `roleSave`
+    // cũng tự chặn (`origin !== 'earned' && v.withTransaction`) — hai lớp, vì
+    // `withTransaction` là state sống qua lần đổi dạng.
+    if (nextShape.writes === 'debtOnly')
+      setDebtVal((v) => ({ ...v, withTransaction: false, fee: 0 }))
   }
 
   function onNumPadKey(key: NumPadKey) {
@@ -870,10 +914,15 @@ export function TransactionForm({
   }
 
   async function handleSubmit(mode: 'save' | 'continue' = 'save') {
-    // "Sẽ chi" không đòi tài khoản (bullet 1: chỉ cần một cái tên) — `effectiveAccountId`
-    // vẫn có thể là null nếu người dùng chưa tạo ví nào. Chín dạng còn lại đều ghi một
-    // bút toán thật nên vẫn đòi nó.
-    if (!canSave || (!plannedMode && !effectiveAccountId)) return
+    // HAI dạng không ghi bút toán nào nên không đòi ví: "Sẽ chi" (chỉ cần một cái tên)
+    // và "Khách nợ công" (`writes === 'debtOnly'`). Chín dạng còn lại đều ghi một bút
+    // toán thật nên vẫn đòi.
+    //
+    // Đây là cổng THỨ HAI. Cổng thứ nhất là `entryGate` ở entryValidation — sửa một cổng
+    // mà quên cổng kia thì nút Lưu sáng lên rồi bấm không có gì xảy ra: im lặng, không
+    // câu báo nào, không cả một dòng console.
+    const noAccountNeeded = plannedMode || debtOnly
+    if (!canSave || (!noAccountNeeded && !effectiveAccountId)) return
 
     // MỘT định nghĩa cho cả hai nhánh lưu: nút phụ chỉ có mặt khi màn này nhận
     // `onContinue`, nên hai nhánh không được hiểu chữ "nhập tiếp" khác nhau.
@@ -889,7 +938,9 @@ export function TransactionForm({
           amount,
           accountId: effectiveAccountId,
           categoryId,
-          srcCurrency,
+          // Loại tiền của KHOẢN NỢ, không phải của ví: dạng debtOnly không có ví nào,
+          // nên `srcCurrency` ở đó là giá trị rơi về 'JPY' đóng cứng.
+          srcCurrency: debtCurrency,
           occurredOn: date,
           note,
           tagIds: effectiveTagIds,
@@ -901,7 +952,9 @@ export function TransactionForm({
         } else {
           await onSubmitRole({ kind, role: 'remit', base, value: remitValue }, keepGoing)
         }
-        localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
+        // Không có ví thì không ghi: `setItem(key, null)` lưu ra chuỗi "null", và lần
+        // mở màn sau đi tìm một ví có id "null".
+        if (effectiveAccountId) localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
         if (keepGoing) {
           clearForNextEntry()
           // Gieo lại KHỐI FIELD của dạng, không chỉ số tiền: giữ nguyên thì "phần người
@@ -936,7 +989,9 @@ export function TransactionForm({
           tagIds: effectiveTagIds,
         }
         await onSubmitPayment({ kind, base, value: paymentVal }, keepGoing)
-        localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
+        // Không có ví thì không ghi: `setItem(key, null)` lưu ra chuỗi "null", và lần
+        // mở màn sau đi tìm một ví có id "null".
+        if (effectiveAccountId) localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
         if (keepGoing) {
           clearForNextEntry()
           // Gieo lại khoản nợ đã chọn: giữ nguyên thì lần nhập kế tiếp vẫn "đang trả"
@@ -1257,12 +1312,41 @@ export function TransactionForm({
           {/* Số tiền (nguồn); CK xuyên tệ có thêm ô "nhận được". Nhãn đọc từ bảng — mỗi
               dạng gọi số tiền của nó bằng đúng tên của nó ("Tổng đã trả", "Số gửi", "Số
               trả"). */}
-          {amountBox('main', digits, srcCurrency, setDigits, shape.amountLabel)}
-          {crossCurrency &&
-            amountBox('to', toDigits, dstCurrency, setToDigits, `Nhận được (${dstCurrency})`)}
+          {debtOnly ? (
+            // Ô loại tiền đứng CẠNH ô số tiền: dạng này không có ví nào để suy ra loại
+            // tiền, nên nó phải là một lựa chọn nhìn thấy được ngay chỗ gõ số.
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
+                {amountBox('main', digits, debtCurrency, setDigits, shape.amountLabel)}
+              </div>
+              <select
+                value={owedCurrency}
+                onChange={(e) => setOwedCurrency(e.target.value as CurrencyCode)}
+                aria-label="Loại tiền của khoản nợ"
+                className="w-24 shrink-0 rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
+              >
+                {Object.keys(CURRENCIES).map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <>
+              {amountBox('main', digits, srcCurrency, setDigits, shape.amountLabel)}
+              {crossCurrency &&
+                amountBox('to', toDigits, dstCurrency, setToDigits, `Nhận được (${dstCurrency})`)}
+            </>
+          )}
 
           {/* Tài khoản + ngày — ẨN ở "Sẽ chi": khoản chưa xảy ra thì chưa trừ ví nào,
-              và PlannedFields có ô ngày riêng của nó (Ngày đến hạn/Tháng dự kiến). */}
+              và PlannedFields có ô ngày riêng của nó (Ngày đến hạn/Tháng dự kiến).
+              ẨN luôn ở "Khách nợ công": không bút toán nào nên không có ví nào để trừ,
+              và hạn trả nằm ở ô "Hạn" của khối nợ. Cả hàng đi cùng nhau vì ngày ở đây
+              là ngày của BÚT TOÁN — không có bút toán thì bày nó ra là hỏi một câu mà
+              câu trả lời không đi đâu cả. */}
+          {!debtOnly && (
           <div className="flex flex-wrap items-center gap-2">
             {/* `kind === 'between'` chứ không `type === 'transfer'`: "Tài khoản tôi ở VN"
                 cũng là chuyển khoản nhưng ví đích của nó là ô "Đến tài khoản VND" trong
@@ -1314,6 +1398,7 @@ export function TransactionForm({
               className="w-[7.5rem] shrink-0"
             />
           </div>
+          )}
         </>
       )}
       {/* Chuyển khoản: phí ngân hàng/dịch vụ → giao dịch chi riêng vào "Tài chính" */}
@@ -1352,13 +1437,21 @@ export function TransactionForm({
           onEnter={() => handleSubmit()}
         />
       )}
-      {(kind === 'lend' || kind === 'borrow') && (
+      {(kind === 'lend' || kind === 'borrow' || debtOnly) && (
         <DebtFields
           value={debtValue}
           onChange={setDebtVal}
-          canRecordReal={canRecordReal}
+          // Dạng này KHÔNG BAO GIỜ giải ngân → công tắc "ghi giao dịch thật" và ô Phí
+          // biến mất. Không dựa vào `canRecordReal` (nó đã false vì chưa có ví): cái đó
+          // nói "chưa chọn được ví", còn đây nói "dạng này không có việc đó".
+          canRecordReal={!debtOnly && canRecordReal}
+          // `neverDisburses` chứ không chỉ `canRecordReal=false`: cái sau chỉ làm mờ công
+          // tắc và để lại câu "Chưa có tài khoản để tạo giao dịch thật" — câu đó mời
+          // người dùng đi tạo ví để bật một việc mà dạng này không bao giờ có, và ô
+          // "+ Phí" (phí GIẢI NGÂN) cũng vẫn còn đó.
+          neverDisburses={debtOnly}
           people={debtPeople}
-          currency={srcCurrency}
+          currency={debtCurrency}
           counterpartyLabel={counterpartyLabelOf(kind)}
           feeActive={activeField === 'debt.fee'}
           onFocusFee={() => setActiveField('debt.fee')}

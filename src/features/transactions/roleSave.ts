@@ -1,8 +1,16 @@
 import type { NewCategory, NewDebt, NewDebtPayment, NewTransaction } from '../../data'
-import type { CategoryRow, DebtPaymentRow, DebtRow, TransactionRow } from '../../types/database.types'
+import type {
+  CategoryRow,
+  DebtOrigin,
+  DebtPaymentRow,
+  DebtRow,
+  TransactionRow,
+} from '../../types/database.types'
 import type { CurrencyCode } from '../../lib/money'
 import { DEBT_FLOW_CATEGORY_NAMES, REMIT_CATEGORY_NAME } from '../categories/flowCategories'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
+import { SHAPES, type EntryKind } from './entryShape'
+import { matchOpenDebt } from './matchOpenDebt'
 
 /**
  * Lưu các vai trò đặc biệt của form Nhập. Logic bê NGUYÊN từ 3 sheet cũ
@@ -14,7 +22,12 @@ import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
 export interface RoleBase {
   /** minor units theo currency tài khoản nguồn — nghĩa tùy vai trò (tổng/gốc/số gửi). */
   amount: number
-  accountId: string
+  /**
+   * null CHỈ ở dạng `debtOnly` (Khách nợ công): dạng đó không ghi bút toán nào nên không
+   * có ví nào. Mọi vai trò khác vẫn phải có ví, và nhánh nào dùng trường này để dựng
+   * giao dịch thì phải tự chặn null trước khi tới đó.
+   */
+  accountId: string | null
   categoryId: string | null
   srcCurrency: CurrencyCode
   occurredOn: string
@@ -141,6 +154,20 @@ async function createFeeTx(
   return row.id
 }
 
+/**
+ * `base.accountId` khi nhánh này CHẮC CHẮN phải có ví.
+ *
+ * `RoleBase.accountId` là nullable vì đúng một dạng không có ví (`debtOnly` — Khách nợ
+ * công, xem 0049). Mọi nhánh dựng bút toán thì phải có, và cổng Lưu đã chặn từ trước
+ * (`entryGate` + `handleSubmit`). Nếu vẫn tới đây với null thì một trong hai cổng đã hở
+ * — nổ to ở đúng chỗ đó, đừng ghi một giao dịch không có tài khoản vào sổ người dùng.
+ */
+function requireAccount(base: RoleBase): string {
+  if (!base.accountId)
+    throw new Error('Thiếu tài khoản: dạng này ghi bút toán nên phải có ví. (cổng Lưu hở?)')
+  return base.accountId
+}
+
 /** Xóa bút toán phí đã tạo khi phần chính hỏng. Nuốt lỗi xóa: đã ở nhánh lỗi rồi. */
 async function undoFeeTx(feeTxId: string | null, deps: RoleSaveDeps): Promise<void> {
   if (!feeTxId) return
@@ -191,7 +218,7 @@ export async function saveSplit(base: RoleBase, v: SplitValue, deps: RoleSaveDep
         amount: mine,
         to_amount: null,
         category_id: base.categoryId,
-        account_id: base.accountId,
+        account_id: requireAccount(base),
         to_account_id: null,
         occurred_on: base.occurredOn,
         note: base.note.trim() || `Trả hộ · ${counterparty}`,
@@ -202,20 +229,24 @@ export async function saveSplit(base: RoleBase, v: SplitValue, deps: RoleSaveDep
     }
     // Cộng dồn: chọn người đã cho vay (existingDebtId) hoặc gõ trùng tên một khoản
     // owed_to_me đang mở cùng loại tiền → ghi thêm vào khoản đó thay vì tạo người mới.
-    const norm = (s: string) => s.trim().toLowerCase()
-    const target = deps.debts.find(
-      (d) =>
-        d.status === 'open' &&
-        d.direction === 'owed_to_me' &&
-        d.currency === base.srcCurrency &&
-        (d.id === v.existingDebtId || (!!counterparty && norm(d.counterparty) === norm(counterparty))),
-    )
+    // Vị từ ở `matchOpenDebt` — MỘT bản cho cả repo; trước đây nó bị chép tay ở đây và
+    // ở `saveDebtCore`, và cả hai bản đều bỏ sót `origin`.
+    const target = matchOpenDebt(deps.debts, {
+      direction: 'owed_to_me',
+      currency: base.srcCurrency,
+      counterparty,
+      existingDebtId: v.existingDebtId,
+      // Trả hộ tạo khoản CHO VAY (mình đã trả tiền thật hộ người ta), không phải tiền
+      // công — nên không được gộp vào một khoản `earned` trùng tên.
+      origin: null,
+      incomeCategoryId: null,
+    })
     const lendTx: NewTransaction = {
       type: 'expense',
       amount: v.others,
       to_amount: null,
       category_id: base.categoryId,
-      account_id: base.accountId,
+      account_id: requireAccount(base),
       to_account_id: null,
       occurred_on: base.occurredOn,
       note: base.note.trim() || `Cho vay (trả hộ) · ${counterparty}`,
@@ -291,7 +322,7 @@ async function saveSplitSettled(
         amount: mine,
         to_amount: null,
         category_id: base.categoryId,
-        account_id: base.accountId,
+        account_id: requireAccount(base),
         to_account_id: null,
         occurred_on: base.occurredOn,
         note: base.note.trim() || (who ? `Chia bill · ${who}` : 'Chia bill'),
@@ -307,7 +338,7 @@ async function saveSplitSettled(
         amount: backAmount,
         to_amount: null,
         category_id: null,
-        account_id: base.accountId,
+        account_id: requireAccount(base),
         to_account_id: backTo,
         occurred_on: base.occurredOn,
         note: who ? `Hoàn phần trả hộ · ${who}` : 'Hoàn phần trả hộ',
@@ -320,7 +351,7 @@ async function saveSplitSettled(
         amount: excess,
         to_amount: null,
         category_id: await otherIncomeCategoryId(deps),
-        account_id: backTo ?? base.accountId,
+        account_id: backTo ?? requireAccount(base),
         to_account_id: null,
         occurred_on: base.occurredOn,
         note: who ? `Trả hộ nhận dư · ${who}` : 'Trả hộ nhận dư',
@@ -341,54 +372,83 @@ async function saveSplitSettled(
 
 /**
  * Ghi nợ / cho vay: tạo bản ghi nợ, tùy chọn kèm giải ngân thật.
- * Cho vay (owed_to_me) = chi; Mình nợ (i_owe) = thu. Currency lấy theo tài khoản gốc.
+ * Cho vay (owed_to_me) = chi; Mình nợ (i_owe) = thu. Currency lấy theo `base.srcCurrency`.
+ *
+ * `kind` vào đây để `origin` đọc được từ BẢNG (`SHAPES[kind].writes`) thay vì thành một
+ * field của `DebtValue`: `DebtValue` là state người dùng sửa được, còn origin là hệ quả
+ * của dạng đang mở — không phải một lựa chọn, và không được sửa sau khi tạo (0049).
  */
 export async function saveDebtEntry(
+  kind: EntryKind,
   base: RoleBase,
   v: DebtValue,
   deps: RoleSaveDeps,
 ): Promise<void> {
+  const debtOnly = SHAPES[kind].writes === 'debtOnly'
   const who = v.counterparty.trim()
-  const feeTxId = await createFeeTx(
-    v.fee,
-    base.accountId,
-    base.occurredOn,
-    who ? `Phí · ${who}` : 'Phí giao dịch',
-    deps,
-  )
+  // Phí ở đây là phí GIẢI NGÂN. Dạng debtOnly không giải ngân gì nên không có phí nào —
+  // và `base.accountId` là null, nên gọi createFeeTx sẽ dựng một giao dịch không có ví.
+  const feeTxId = debtOnly
+    ? null
+    : await createFeeTx(
+        v.fee,
+        base.accountId!,
+        base.occurredOn,
+        who ? `Phí · ${who}` : 'Phí giao dịch',
+        deps,
+      )
   try {
-    await saveDebtCore(base, v, deps)
+    await saveDebtCore(
+      base,
+      v,
+      deps,
+      debtOnly ? 'earned' : null,
+      // Danh mục THU của khoản tiền công — người dùng chọn ở lưới danh mục của màn. Các
+      // dạng nợ khác bỏ qua `base.categoryId` (danh mục giải ngân là tự gán).
+      debtOnly ? base.categoryId : null,
+    )
   } catch (e) {
     await undoFeeTx(feeTxId, deps)
     throw e
   }
 }
 
-async function saveDebtCore(base: RoleBase, v: DebtValue, deps: RoleSaveDeps): Promise<void> {
+async function saveDebtCore(
+  base: RoleBase,
+  v: DebtValue,
+  deps: RoleSaveDeps,
+  origin: DebtOrigin | null,
+  incomeCategoryId: string | null,
+): Promise<void> {
   const counterparty = v.counterparty.trim()
   const txType = v.direction === 'owed_to_me' ? 'expense' : 'income'
-  // Danh mục tự gán cho giải ngân — form không hỏi nữa (base.categoryId bị bỏ qua).
-  const categoryId = v.withTransaction ? await debtFlowCategoryId('disburse', v.direction, deps) : null
+  // `origin === 'earned'` thì KHÔNG bao giờ có bút toán: không ví, không giải ngân. Hai
+  // lớp chặn (ở đây và ở form) vì `v.withTransaction` là state sống qua lần đổi dạng.
+  const withTx = origin !== 'earned' && v.withTransaction
+  // Danh mục tự gán cho giải ngân — form không hỏi nữa (base.categoryId bị bỏ qua, trừ
+  // dạng debtOnly: ở đó nó là danh mục THU và đi vào `income_category_id`).
+  const categoryId = withTx ? await debtFlowCategoryId('disburse', v.direction, deps) : null
 
   // Cộng dồn: nếu chọn người cũ (existingDebtId) hoặc gõ trùng tên một khoản đang
   // mở cùng chiều + cùng loại tiền → ghi thêm vào khoản đó thay vì tạo người mới.
-  const norm = (s: string) => s.trim().toLowerCase()
-  const target = deps.debts.find(
-    (d) =>
-      d.status === 'open' &&
-      d.direction === v.direction &&
-      d.currency === base.srcCurrency &&
-      (d.id === v.existingDebtId || (!!counterparty && norm(d.counterparty) === norm(counterparty))),
-  )
+  // Vị từ ở `matchOpenDebt` (dùng chung với `saveSplit`), và nó xét cả `origin`.
+  const target = matchOpenDebt(deps.debts, {
+    direction: v.direction,
+    currency: base.srcCurrency,
+    counterparty,
+    existingDebtId: v.existingDebtId,
+    origin,
+    incomeCategoryId,
+  })
   if (target) {
     let addTx: NewTransaction | null = null
-    if (v.withTransaction) {
+    if (withTx) {
       addTx = {
         type: txType,
         amount: base.amount,
         to_amount: null,
         category_id: categoryId,
-        account_id: base.accountId,
+        account_id: requireAccount(base),
         to_account_id: null,
         occurred_on: base.occurredOn,
         note:
@@ -409,13 +469,13 @@ async function saveDebtCore(base: RoleBase, v: DebtValue, deps: RoleSaveDeps): P
   }
 
   let transaction: NewTransaction | null = null
-  if (v.withTransaction) {
+  if (withTx) {
     transaction = {
       type: txType,
       amount: base.amount,
       to_amount: null,
       category_id: categoryId,
-      account_id: base.accountId,
+      account_id: requireAccount(base),
       to_account_id: null,
       occurred_on: base.occurredOn,
       note: base.note.trim() || `${txType === 'expense' ? 'Cho vay' : 'Vay'} · ${counterparty}`,
@@ -433,6 +493,8 @@ async function saveDebtCore(base: RoleBase, v: DebtValue, deps: RoleSaveDeps): P
     note: base.note.trim(),
     interest_bps: v.interestPct.trim() && !Number.isNaN(pct) ? Math.round(pct * 100) : null,
     term_months: v.termMonths.trim() && !Number.isNaN(term) && term > 0 ? Math.round(term) : null,
+    origin,
+    income_category_id: incomeCategoryId,
     transaction,
   })
 }
@@ -484,7 +546,7 @@ export async function saveDebtPayment(
       amount: base.amount,
       to_amount: null,
       category_id: categoryId,
-      account_id: base.accountId,
+      account_id: requireAccount(base),
       to_account_id: null,
       occurred_on: base.occurredOn,
       note: base.note.trim() || `${txType === 'expense' ? 'Trả nợ' : 'Thu nợ'} · ${debt.counterparty}`,
@@ -514,7 +576,7 @@ export async function saveRemit(base: RoleBase, v: RemitValue, deps: RoleSaveDep
       amount,
       to_amount: v.received,
       category_id: null,
-      account_id: base.accountId,
+      account_id: requireAccount(base),
       to_account_id: v.destId,
       occurred_on: base.occurredOn,
       note: trimmedNote,
@@ -535,7 +597,7 @@ export async function saveRemit(base: RoleBase, v: RemitValue, deps: RoleSaveDep
       amount,
       to_amount: null,
       category_id: categoryId,
-      account_id: base.accountId,
+      account_id: requireAccount(base),
       to_account_id: null,
       occurred_on: base.occurredOn,
       note: trimmedNote,

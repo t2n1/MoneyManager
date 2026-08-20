@@ -25,6 +25,12 @@ export type TransactionType = 'expense' | 'income' | 'transfer'
 /** i_owe = mình nợ người ta · owed_to_me = người ta nợ mình */
 export type DebtDirection = 'i_owe' | 'owed_to_me'
 export type DebtStatus = 'open' | 'settled'
+/**
+ * Khoản nợ này từ đâu ra (migration 0049). KHÔNG phải nhãn trang trí: nhánh 'earned'
+ * làm lần trả được ghi thành THU thật thay vì dòng tiền nợ (xem debtPaymentPosting).
+ * null = chưa ai nói → xử như 'lent', tức hành vi trước 0049.
+ */
+export type DebtOrigin = 'lent' | 'earned'
 
 export type ProfileRow = {
   user_id: string
@@ -604,6 +610,10 @@ export type DebtRow = {
   user_id: string
   counterparty: string
   direction: DebtDirection
+  /** 'earned' = nợ tiền công → lần trả vào Thu thật; null = chưa ai nói (xem 0049) */
+  origin: DebtOrigin | null
+  /** Danh mục THU cho mọi lần trả khi origin = 'earned'; ràng buộc DB đòi phải có */
+  income_category_id: string | null
   currency: CurrencyCode
   /** minor units theo currency của khoản nợ */
   principal: number
@@ -916,6 +926,8 @@ export type Database = {
           | 'note'
           | 'interest_bps'
           | 'term_months'
+          | 'origin'
+          | 'income_category_id'
           | 'disbursement_transaction_id'
         >
         Update: Partial<

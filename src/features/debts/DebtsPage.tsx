@@ -48,7 +48,9 @@ export function DebtsPage() {
           </p>
         </div>
         <div className="rounded-2xl bg-surface p-4 shadow-sm">
-          <p className="text-xs font-medium text-fg-muted">Cho vay</p>
+          {/* "Cho vay" là nhãn CŨ, và nó sai kể từ 0049: con số này giờ gộp hai thứ
+              khác bản chất — tiền mình đưa ra, và tiền công người ta chưa trả. */}
+          <p className="text-xs font-medium text-fg-muted">Người ta nợ tôi</p>
           <p className="mt-1 text-lg font-bold tabular-nums text-money-in">
             {isLoading ? '…' : `${approx}${formatMoney(summary.owedToMe, base)}`}
           </p>
@@ -143,6 +145,14 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
                   {d.counterparty}
                   {d.note && <span className="ml-1 text-xs font-normal text-fg-muted">· {d.note}</span>}
                 </span>
+                {/* KHÔNG phải chip trang trí: `earned` là khác biệt làm ĐỔI CÁCH GHI SỔ
+                    lúc thu tiền (lần trả vào Thu thật, không phải dòng tiền nợ), nên
+                    người dùng phải phân biệt được nó với một khoản cho vay bằng mắt. */}
+                {d.origin === 'earned' && (
+                  <span className="shrink-0 rounded-full bg-state-warn-bg px-2 py-0.5 text-xs font-semibold text-state-warn-fg">
+                    tiền công
+                  </span>
+                )}
                 <span
                   className={`shrink-0 text-sm font-semibold tabular-nums ${
                     d.direction === 'i_owe' ? 'text-money-out' : 'text-money-in'

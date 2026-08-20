@@ -13,6 +13,8 @@ function debt(over: Partial<DebtRow> & { id: string }): DebtRow {
     principal: over.principal ?? 50_000,
     due_on: over.due_on ?? null,
     status: over.status ?? 'open',
+    origin: over.origin ?? null,
+    income_category_id: over.income_category_id ?? null,
     note: '',
     interest_bps: null,
     term_months: null,

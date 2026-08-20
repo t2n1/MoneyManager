@@ -156,6 +156,8 @@ describe('buildHealthSnapshot — nợ vay', () => {
   const debt = (p: Partial<DebtRow> & Pick<DebtRow, 'id' | 'principal'>): DebtRow => ({
     user_id: 'u',
     counterparty: 'A',
+    origin: null,
+    income_category_id: null,
     direction: 'i_owe',
     currency: 'JPY',
     due_on: null,

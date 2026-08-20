@@ -9,6 +9,7 @@ import {
 } from '../features/assets/fundHoldings'
 import { validateBackupPayload } from './backupImport'
 import { DEFAULT_DENSITY, parseDensity } from '../lib/density'
+import { debtPaymentPosting } from '../features/debts/debtPaymentPosting'
 import type { CurrencyCode } from '../lib/money'
 import type { Rates } from '../lib/rates'
 import type {
@@ -695,6 +696,9 @@ function seed(): DemoDB {
     note: 'Cho mượn lúc chuyển nhà',
     interest_bps: null,
     term_months: null,
+    // Dữ liệu mẫu có từ trước 0049 → 'chưa ai nói', đúng như mọi khoản nợ cũ thật.
+    origin: null,
+    income_category_id: null,
     disbursement_transaction_id: null,
     created_at: nowISO(),
     updated_at: nowISO(),
@@ -711,6 +715,9 @@ function seed(): DemoDB {
     note: '',
     interest_bps: 1200, // 12%/năm — ví dụ trả góp có lãi (mục AG)
     term_months: 6,
+    // Dữ liệu mẫu có từ trước 0049 → 'chưa ai nói', đúng như mọi khoản nợ cũ thật.
+    origin: null,
+    income_category_id: null,
     disbursement_transaction_id: null,
     created_at: nowISO(),
     updated_at: nowISO(),
@@ -839,6 +846,9 @@ function seed(): DemoDB {
     note: 'Mua máy giặt + tủ lạnh',
     interest_bps: 1_500,
     term_months: 11,
+    // Dữ liệu mẫu có từ trước 0049 → 'chưa ai nói', đúng như mọi khoản nợ cũ thật.
+    origin: null,
+    income_category_id: null,
     disbursement_transaction_id: null,
     created_at: nowISO(),
     updated_at: nowISO(),
@@ -855,6 +865,9 @@ function seed(): DemoDB {
     note: '',
     interest_bps: 0,
     term_months: 4,
+    // Dữ liệu mẫu có từ trước 0049 → 'chưa ai nói', đúng như mọi khoản nợ cũ thật.
+    origin: null,
+    income_category_id: null,
     disbursement_transaction_id: null,
     created_at: nowISO(),
     updated_at: nowISO(),
@@ -2148,6 +2161,12 @@ export const demoRepo: Repo = {
       status: 'open',
       interest_bps: input.interest_bps ?? null,
       term_months: input.term_months ?? null,
+      // Đọc THẲNG như interest_bps, không dựa vào `...debtFields`: NewDebt khai hai cột
+      // này là tuỳ chọn, nên vắng mặt thì bản ghi thiếu hẳn khóa — localStorage giữ
+      // nguyên `undefined`, và mọi chỗ đọc `origin` sau này so với undefined thay vì
+      // null. Bản thật (Postgres) mặc định null, nên để vậy là demo lệch bản thật.
+      origin: input.origin ?? null,
+      income_category_id: input.income_category_id ?? null,
       disbursement_transaction_id,
       created_at: nowISO(),
       updated_at: nowISO(),
@@ -2191,10 +2210,15 @@ export const demoRepo: Repo = {
     db.debtPayments ??= []
     let transaction_id: string | null = null
     if (input.transaction) {
-      // Trả nợ là dòng tiền nợ/cho vay → đánh dấu để báo cáo Chi/Thu bỏ qua.
+      // Cách ghi đọc từ KHOẢN NỢ, không từ người gọi: khoản `origin = 'earned'` (tiền
+      // công) thì lần trả là THU thật, còn lại là dòng tiền nợ như cũ. Xem
+      // debtPaymentPosting — một chỗ cho cả hai cửa ghi và cả hai repo.
+      const debt = (db.debts ?? []).find((d) => d.id === input.debt_id)
+      const post = debtPaymentPosting(debt, input.transaction.category_id)
       const tx: TransactionRow = {
         ...input.transaction,
-        is_debt_flow: true,
+        category_id: post.categoryId,
+        is_debt_flow: post.isDebtFlow,
         id: uuid(),
         user_id: DEMO_USER,
         recurring_rule_id: null,

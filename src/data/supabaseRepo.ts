@@ -5,6 +5,7 @@ import type { Rates } from '../lib/rates'
 import { parseDensity } from '../lib/density'
 import { getSupabase } from '../lib/supabase'
 import { IMPORT_CHUNK_SIZE, chunk, validateBackupPayload } from './backupImport'
+import { debtPaymentPosting } from '../features/debts/debtPaymentPosting'
 import { pageOrderFor, type DataTable } from './exportTables'
 import { fetchAllPages, type Page } from './paging'
 import type {
@@ -1194,7 +1195,17 @@ export const supabaseRepo: Repo = {
 
   async updateDebt(id: string, patch: DebtPatch) {
     // `transaction` chỉ dùng lúc tạo (giải ngân), không phải cột của debts.
-    const { transaction: _ignore, ...debtPatch } = patch
+    //
+    // `origin` + `income_category_id` cũng bị bóc ở đây, và đó là RÀNG BUỘC chứ không
+    // phải dọn dẹp: đổi một khoản nợ thường thành 'earned' sau khi đã có lần trả sẽ để
+    // các lần trả cũ mang cờ cũ — một khoản nợ mà nửa số lần trả tính vào Thu, nửa kia
+    // không, và không có gì trên màn nói ra. Hai cột đó chỉ đặt lúc TẠO (xem 0049).
+    const {
+      transaction: _ignore,
+      origin: _keepOrigin,
+      income_category_id: _keepIncomeCat,
+      ...debtPatch
+    } = patch
     const { data, error } = await getSupabase()
       .from('debts')
       .update(debtPatch)
@@ -1237,10 +1248,25 @@ export const supabaseRepo: Repo = {
     const sb = getSupabase()
     let transaction_id: string | null = null
     if (input.transaction) {
-      // Trả nợ là dòng tiền nợ/cho vay → đánh dấu để báo cáo Chi/Thu bỏ qua.
+      // Đọc khoản nợ TRƯỚC khi ghi: cách ghi của lần trả này là thuộc tính của KHOẢN NỢ
+      // (`origin`), không phải của người gọi. Một truy vấn thêm, đổi lấy việc không cửa
+      // nào phải tự nhớ — xem debtPaymentPosting.
+      // `select('*')`, KHÔNG liệt kê 'origin, income_category_id': liệt kê tên cột thì
+      // Postgres báo lỗi nếu cột chưa tồn tại, tức bản build này lên production trước
+      // migration 0049 sẽ làm MỌI lần trả nợ hỏng — kể cả hai đường Trả nợ / Người trả
+      // lại đang chạy tốt từ trước. Với `*` thì cột thiếu chỉ là khóa vắng mặt, và
+      // `debtPaymentPosting` rơi về đúng hành vi cũ. Thứ tự deploy không còn quan trọng.
+      const { data: debt, error: eDebt } = await sb
+        .from('debts')
+        .select('*')
+        .eq('id', input.debt_id)
+        .single()
+      if (eDebt) throw eDebt
+      const cols = txColumns(input.transaction)
+      const post = debtPaymentPosting(debt, cols.category_id ?? null)
       const { data: tx, error: eTx } = await sb
         .from('transactions')
-        .insert({ ...txColumns(input.transaction), user_id, is_debt_flow: true })
+        .insert({ ...cols, user_id, category_id: post.categoryId, is_debt_flow: post.isDebtFlow })
         .select()
         .single()
       if (eTx) throw eTx

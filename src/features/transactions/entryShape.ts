@@ -114,7 +114,7 @@ export const SHAPES: Record<EntryKind, EntryShape> = {
     roleSeed: { role: 'debt', debtDirection: 'owed_to_me' },
   },
   repay: {
-    kind: 'repay', direction: 'out', label: 'Tôi trả nợ',
+    kind: 'repay', direction: 'out', label: 'Trả nợ',
     categoryPicker: 'auto', capBase: 'none', amountLabel: 'Số trả',
     writes: 'debtPayment', txType: null, roleSeed: NONE,
   },

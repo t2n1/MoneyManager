@@ -36,11 +36,18 @@ export const blockCls = (tint: keyof typeof blockTint) =>
 const smallBtnTap = 'relative after:absolute after:-inset-y-2 after:inset-x-0'
 
 /**
- * Ô nhập tiền của vai trò. Trên mobile là nút chạm do NumPad của app điều khiển
- * (đồng nhất với ô số tiền chính, không bật bàn phím hệ thống); trên desktop là
- * input gõ số trực tiếp.
+ * Ô nhập tiền do BÀN SỐ GHIM ĐÁY điều khiển. Trên mobile là nút chạm (đồng nhất với ô số
+ * tiền chính, không bật bàn phím hệ thống); trên desktop là input gõ số trực tiếp.
+ *
+ * Khác `components/MoneyField` ở đúng một điểm, và điểm đó là lý do nó tồn tại: cái kia
+ * TỰ DỰNG một bàn số inline ngay dưới ô, kèm nút "Thu bàn phím" — đúng cho các sheet
+ * không có bàn số nào sẵn. Màn Nhập thì có sẵn một cái ghim ở đáy, nên ô ở đây chỉ báo
+ * "numpad nhắm vào tôi" qua `active`/`onFocus` và để bàn số chung gõ vào. Hai bàn số hai
+ * kiểu trên cùng một màn là thứ người dùng gọi là "nhìn khá kì".
+ *
+ * Export vì "Sẽ chi" cũng cần nó cho ô "Ước tính" (PlannedFields).
  */
-function MoneyField({
+export function PadMoneyField({
   value,
   currency,
   active,
@@ -126,11 +133,11 @@ export function FeeField({
   }
   return (
     <div>
-      {/* <span> chứ không <label htmlFor>: MoneyField ở file này cũng có HAI ô (nút chạm
+      {/* <span> chứ không <label htmlFor>: PadMoneyField cũng có HAI ô (nút chạm
           mobile + input desktop) luôn cùng nằm trong DOM, nên `for` chắc chắn trỏ vào ô
           đang bị CSS ẩn. Tên ô đến từ `ariaLabel`. */}
       <span className={labelCls}>Phí ({currency})</span>
-      <MoneyField
+      <PadMoneyField
         value={value}
         currency={currency}
         active={active}
@@ -239,7 +246,7 @@ export function SplitFields({
     <div className={blockCls('split')}>
       <div>
         <span className={labelCls}>{settledNow ? 'Phần người khác trả lại' : 'Phần người khác nợ lại'}</span>
-        <MoneyField
+        <PadMoneyField
           value={value.others}
           currency={currency}
           active={othersActive}
@@ -710,7 +717,7 @@ export function RemitFields({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <span className={labelCls}>Phí (JPY)</span>
-          <MoneyField
+          <PadMoneyField
             value={value.fee}
             currency="JPY"
             active={feeActive}
@@ -722,7 +729,7 @@ export function RemitFields({
         </div>
         <div>
           <span className={labelCls}>Số nhận (VND)</span>
-          <MoneyField
+          <PadMoneyField
             value={value.received}
             currency="VND"
             active={receivedActive}

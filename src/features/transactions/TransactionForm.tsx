@@ -134,6 +134,9 @@ type AmountTarget =
   | 'remit.received'
   | 'debt.fee'
   | 'transfer.fee'
+  /** Ô "Ước tính" của "Sẽ chi". Bàn số ghim đáy chỉ hiện khi đích là ô này — chạm mới
+   *  có, nên "Sẽ chi" (nhiều field chữ) không mất 188px chiều cao khi chưa cần. */
+  | 'planned.amount'
 
 /**
  * Payload gửi lên EntryPage khi lưu một dạng đi qua orchestrator riêng.
@@ -584,6 +587,17 @@ export function TransactionForm({
   })
 
   /**
+   * Bàn số ghim đáy có hiện hay không.
+   *
+   * "Đã chi": luôn — ô số tiền là lý do tồn tại của màn này.
+   * "Sẽ chi": chỉ khi người dùng chạm ô "Ước tính". Màn đó phần lớn là field chữ, nên
+   * ghim sẵn 188px là lấy chiều cao của vùng cuộn để đổi lấy một ô KHÔNG BẮT BUỘC (số
+   * tiền của một khoản chưa xảy ra thường chưa biết — vì thế tiêu điểm mở màn nhảy vào
+   * "Chi cái gì", không vào đây).
+   */
+  const padShown = !plannedMode || activeField === 'planned.amount'
+
+  /**
    * Danh mục mà khoản này SẼ được xếp vào — không phải luôn là ô người dùng bấm, và không
    * phải lúc nào cũng có. Cả ba điều kiện (capBase, picker, cột `kind`) nằm trong
    * `cappedCategory` cùng lý lẽ của chúng; chỗ này chỉ nối dây.
@@ -698,6 +712,8 @@ export function TransactionForm({
       })
   const canSave = gate.canSave && !saving
   const missing = saving ? null : gate.missing
+  /** Họ câu ngắn "Còn thiếu: <field>." — hiển thị `sr-only`, xem chỗ render. */
+  const shortMissing = missing?.startsWith('Còn thiếu: ') ?? false
   /**
    * Nhãn nút chính NHẮC LẠI VIỆC SẼ LÀM ("Lưu · gửi ¥30,000 cho gia đình") — con số sắp
    * được ghi vào sổ tiền, đọc lại một lần trước khi bấm.
@@ -832,6 +848,10 @@ export function TransactionForm({
     }
     if (activeField === 'transfer.fee') {
       setTransferFee((v) => applyNumKey(v, key))
+      return
+    }
+    if (activeField === 'planned.amount') {
+      setPlannedDraft((v) => ({ ...v, amount: applyNumKey(v.amount, key) }))
       return
     }
     const setter = activeField === 'to' && crossCurrency ? setToDigits : setDigits
@@ -1186,7 +1206,14 @@ export function TransactionForm({
           size="lg"
           label="Khoản này đã xảy ra chưa"
           value={plannedMode ? 'future' : 'done'}
-          onChange={(v) => setWantsPlanned(v === 'future')}
+          onChange={(v) => {
+            setWantsPlanned(v === 'future')
+            // Trả đích gõ về ô chính. Thiếu dòng này thì lật "Sẽ chi" → "Đã chi" trong
+            // lúc đang gõ ô "Ước tính" sẽ để `activeField` mắc ở 'planned.amount': bàn số
+            // hiện lại (vì `!plannedMode`) nhưng mọi phím gõ vào `plannedDraft.amount` —
+            // ô số tiền trên màn đứng im, số chạy vào một khoản đã rời khỏi màn.
+            setActiveField('main')
+          }}
           items={[
             { value: 'done', label: PHASE_LABEL[shape.direction].done },
             { value: 'future', label: PHASE_LABEL[shape.direction].future },
@@ -1204,7 +1231,13 @@ export function TransactionForm({
             </span>
             <span className="text-xs text-fg-muted">Chưa trừ tiền, chưa vào trần.</span>
           </div>
-          <PlannedFields value={plannedDraft} onChange={setPlannedDraft} categories={categories} />
+          <PlannedFields
+            value={plannedDraft}
+            onChange={setPlannedDraft}
+            categories={categories}
+            amountActive={activeField === 'planned.amount'}
+            onFocusAmount={() => setActiveField('planned.amount')}
+          />
         </>
       ) : (
         <>
@@ -1535,26 +1568,37 @@ export function TransactionForm({
           Nằm NGOÀI lưới hai cột: nút Lưu là hành động của cả form, không thuộc cột nào. */}
       <div className="flex shrink-0 flex-col gap-1.5 pt-1.5">
       {/* NumPad chỉ trên mobile. Ô tiền phụ không nhận phép tính → mờ ÷×−+.
-          ẨN ở "Sẽ chi": ở đó ô số tiền bị PlannedFields thay bằng ô "Ước tính" (một input
-          chữ, có bàn phím hệ thống riêng), nên 188px numpad này ghim ở đáy mà bấm vào
-          không có gì xảy ra — và số nó âm thầm gõ vào `digits` sẽ hiện ra thành một số
-          tiền người dùng không hề nhập lúc lật về "Đã chi". Ẩn còn TRẢ LẠI chiều cao,
-          nhiều hơn 27px màn 410px đang tràn (ruling task 13). */}
-      {!plannedMode && (
+          Ở "Sẽ chi" nó hiện THEO YÊU CẦU, không mặc định: màn đó phần lớn là field chữ
+          (chi cái gì, ngày đến hạn, nhắc trước) nên ghim sẵn 188px là ăn không chiều cao.
+          Chạm ô "Ước tính" mới có — và lúc đó nó gõ vào `plannedDraft.amount` chứ không
+          vào `digits`, nên không còn cảnh số âm thầm hiện ra khi lật về "Đã chi".
+          Đây là MỘT bàn số cho cả màn: trước đây ô "Ước tính" dùng
+          `components/MoneyField`, cái đó tự dựng một bàn số inline thứ hai ngay giữa form
+          với nút "Thu bàn phím" riêng — hai kiểu bàn số trên một màn. */}
+      {padShown && (
       <div className="lg:hidden">
         <NumPad onKey={onNumPadKey} opsDisabled={activeField !== 'main' && activeField !== 'to'} />
       </div>
       )}
 
       {error && <p role="alert" className="text-sm text-money-out">{error}</p>}
-      {/* Lý do nút Lưu còn mờ — ghim cạnh nút để không bao giờ bị cuộn khuất. */}
-      {!error && missing && <p className="px-1 text-xs text-fg-warn">{missing}</p>}
+      {/* Lý do nút Lưu còn mờ — ghim cạnh nút để không bao giờ bị cuộn khuất.
+          Nhưng họ câu "Còn thiếu: <field>." thì chỉ còn `sr-only`: nút Lưu đã mờ và ô
+          còn trống nằm ngay trên màn, nên câu đó không nói thêm gì cho MẮT. Vẫn ở lại
+          trong DOM vì với trình đọc màn hình thì "nút mờ" không tự giải thích được — bỏ
+          hẳn là lấy đi lý do duy nhất của đúng nhóm không thấy được ô nào đang trống.
+          Họ câu HOÀN CHỈNH ("Tài khoản đến đang trùng tài khoản nguồn.", câu 130 ký tự
+          của Trả hộ) thì VẪN HIỆN: chúng nói một ràng buộc không đoán ra được bằng cách
+          nhìn quanh màn. */}
+      {!error && missing && (
+        <p className={shortMissing ? 'sr-only' : 'px-1 text-xs text-fg-warn'}>{missing}</p>
+      )}
 
       {/* Hàng nút: ⌫ (chỉ mobile, thay cho hàng xóa lùi riêng) + Lưu và nhập tiếp / Lưu */}
       <div className="flex gap-2">
-        {/* Cùng cổng `!plannedMode` với NumPad ngay trên: ⌫ là phím CỦA numpad, để lại một
-            mình thì nó gõ vào một ô không còn trên màn. */}
-        {!plannedMode && (
+        {/* Cùng cổng `padShown` với NumPad ngay trên: ⌫ là phím CỦA numpad, để lại một
+            mình thì nó gõ vào một ô không có bàn số nào đang mở. */}
+        {padShown && (
         <button
           type="button"
           onClick={() => onNumPadKey('⌫')}

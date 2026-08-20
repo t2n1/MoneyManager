@@ -139,7 +139,10 @@ describe('nhan nut Luu khong nuot cau ly do', () => {
 
   it('khong con co che ghep cau `missing` vao nhan', () => {
     expect(form).not.toMatch(/missingPhrase/)
-    expect(form).not.toMatch(/missing\?\.startsWith/)
+    // `missing?.startsWith` VAN con, nhung cho viec khac: `shortMissing` quyet dinh cau
+    // do hien bang mat hay chi `sr-only`. Khong con ai NOI no vao nhan nut — do la dieu
+    // duy nhat khoi test nay canh, va no duoc chot o `it` ke duoi bang chinh khoi saveLabel.
+    expect(form).toMatch(/const shortMissing = /)
   })
 
   it('thieu field -> nhan dung la Luu, khong noi suy vao', () => {
@@ -152,8 +155,9 @@ describe('nhan nut Luu khong nuot cau ly do', () => {
     expect(block).toContain("? 'Lưu'")
   })
 
-  it('dong ly do ghim TREN nut van con — bo ghep thi cho nay la noi duy nhat', () => {
-    expect(form).toMatch(/!error && missing && <p/)
+  it('dong ly do ghim TREN nut van con trong DOM — bo ghep thi cho nay la noi duy nhat', () => {
+    expect(form).toMatch(/\{!error && missing && \(/)
+    expect(form).toMatch(/<p className=\{shortMissing \? 'sr-only'/)
   })
 })
 
@@ -168,5 +172,70 @@ describe('task 8: guard payWiringPending da bi go — repay/collect da nhap duoc
   it('co DebtPickerField va onSubmitPayment thay guard', () => {
     expect(form).toMatch(/<DebtPickerField/)
     expect(form).toMatch(/onSubmitPayment/)
+  })
+})
+
+describe('MOT ban so cho ca man Nhap', () => {
+  const planned = read('features/transactions/PlannedFields.tsx')
+
+  it('o "Uoc tinh" khong dung components/MoneyField — cai do tu dung ban so thu hai', () => {
+    // `components/MoneyField` tu dung mot ban so INLINE ngay duoi o, kem nut "Thu ban
+    // phim" rieng. Dung cho cac sheet khong co ban so nao san; nhung man Nhap da co mot
+    // cai ghim o day, nen dat them cai nay vao la hai kieu ban so tren cung mot man.
+    expect(planned).not.toMatch(/components\/MoneyField/)
+    expect(planned).toMatch(/PadMoneyField/)
+  })
+
+  it('ban so + nut xoa lui dung CUNG mot cong `padShown`', () => {
+    // Lech nhau la de lai mot minh nut ⌫ go vao o khong co ban so nao dang mo.
+    expect(form).toMatch(/const padShown = !plannedMode \|\| activeField === 'planned\.amount'/)
+    const gates = form.match(/\{padShown && \(/g) ?? []
+    expect(gates.length).toBe(2)
+    expect(form).not.toMatch(/\{!plannedMode && \(\s*<div className="lg:hidden">/)
+  })
+
+  it('phim go vao plannedDraft.amount, KHONG vao digits', () => {
+    // Truoc day o "Uoc tinh" nam ngoai `activeField` nen so go am tham vao `digits` va
+    // hien ra thanh mot so tien nguoi dung khong he nhap luc lat ve "Da chi".
+    const i = form.indexOf("activeField === 'planned.amount'", form.indexOf('function onNumPadKey'))
+    expect(i).toBeGreaterThan(0)
+    expect(form.slice(i, i + 200)).toMatch(/setPlannedDraft/)
+  })
+
+  it('lat Se chi <-> Da chi tra dich go ve o chinh', () => {
+    const i = form.indexOf('setWantsPlanned(v === ')
+    expect(i).toBeGreaterThan(0)
+    expect(form.slice(i, i + 600)).toMatch(/setActiveField\('main'\)/)
+  })
+})
+
+describe('hang chip vua MOT dong o 375px', () => {
+  const tabs = read('features/transactions/DirectionTabs.tsx')
+
+  it('khong con nhan "Dang" hien tren mat, nhung radiogroup van co ten', () => {
+    // Nhan do an ~40px (chu + gap) va chinh 40px do day chip cuoi xuong dong hai.
+    expect(tabs).not.toMatch(/>Dạng</)
+    expect(tabs).toMatch(/aria-label="Dạng giao dịch"/)
+  })
+
+  it('van giu flex-wrap: co chu 1.25 va man 320px thi PHAI xuong dong', () => {
+    // Do duoc o 375px font 1.25: chip xuong 2 dong, khong tran ngang. Bo flex-wrap la
+    // doi mot dong thang o co chu thuong bang mot hang chip bi cat o co chu lon.
+    expect(tabs).toMatch(/flex-wrap/)
+  })
+
+  it('nhan `repay` la "Tra no", khong phai "Toi tra no"', () => {
+    const shape = read('features/transactions/entryShape.ts')
+    expect(shape).toMatch(/kind: 'repay'[\s\S]{0,60}label: 'Trả nợ'/)
+  })
+})
+
+describe('dong "Con thieu" khong chiem cho cua mat', () => {
+  it('ho cau ngan di `sr-only`, ho cau hoan chinh van hien', () => {
+    // Nut Luu da mo va o con trong nam ngay tren man, nen "Con thieu: so tien." khong
+    // noi them gi cho MAT. Nhung "nut mo" khong tu giai thich duoc voi trinh doc man
+    // hinh, nen cau o lai trong DOM chu khong bi bo han.
+    expect(form).toMatch(/const shortMissing = missing\?\.startsWith\('Còn thiếu: '\) \?\? false/)
+    expect(form).toMatch(/shortMissing \? 'sr-only' :/)
   })
 })

@@ -11,7 +11,7 @@
 // một bộ chọn nhãn thứ hai ở đây là hỏi hai lần cùng một câu.
 import type { PlannedDraft } from './plannedFromEntry'
 import { anchoredDueOn } from './plannedDraftDefaults'
-import { MoneyField } from '../../components/MoneyField'
+import { PadMoneyField } from './roleFields'
 import { CURRENCIES, type CurrencyCode } from '../../lib/currencies'
 import type { CategoryRow, DuePrecision } from '../../types/database.types'
 
@@ -24,9 +24,19 @@ interface Props {
   value: PlannedDraft
   onChange: (value: PlannedDraft) => void
   categories: CategoryRow[]
+  /** Ô "Ước tính" đang là đích của bàn số ghim đáy (mobile) → hiện viền. */
+  amountActive: boolean
+  /** Chạm ô "Ước tính" → xin bàn số ghim đáy gõ vào đây. */
+  onFocusAmount: () => void
 }
 
-export function PlannedFields({ value, onChange, categories }: Props) {
+export function PlannedFields({
+  value,
+  onChange,
+  categories,
+  amountActive,
+  onFocusAmount,
+}: Props) {
   const expenseCats = categories.filter((c) => c.type === 'expense' && !c.is_archived)
 
   return (
@@ -51,17 +61,19 @@ export function PlannedFields({ value, onChange, categories }: Props) {
         Ước tính <span className="text-fg-muted">(để trống nếu chưa biết)</span>
       </span>
       <div className="mb-3 flex gap-2">
-        <MoneyField
-          value={value.amount}
-          onChange={(amount) => onChange({ ...value, amount })}
-          currency={value.currency}
-          autoOpen={false}
-          ariaLabel="Số tiền ước tính"
-          // `flex-1` phải ở KHỐI BỌC: đặt ở `className` thì nó rơi vào ô bên trong, còn
-          // khối bọc co về bề rộng chữ — ô teo còn 42px cạnh ô chọn tiền 96px.
-          wrapperClassName="min-w-0 flex-1"
-          className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-sm font-semibold"
-        />
+        {/* Khối bọc `min-w-0 flex-1`: PadMoneyField trả về HAI ô (nút chạm mobile + input
+            desktop), cả hai `w-full`. Đặt trực tiếp vào hàng flex thì chúng thành hai con
+            flex và `w-full` đọc là 100% của hàng — phải có một khối bọc mang bề rộng. */}
+        <div className="min-w-0 flex-1">
+          <PadMoneyField
+            value={value.amount}
+            onChange={(amount) => onChange({ ...value, amount })}
+            currency={value.currency}
+            active={amountActive}
+            onFocus={onFocusAmount}
+            ariaLabel="Số tiền ước tính"
+          />
+        </div>
         <select
           value={value.currency}
           onChange={(e) => onChange({ ...value, currency: e.target.value as CurrencyCode })}

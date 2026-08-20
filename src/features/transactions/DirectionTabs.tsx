@@ -59,11 +59,15 @@ export function DirectionTabs({
         <div
           role="radiogroup"
           aria-label="Dạng giao dịch"
-          // flex-wrap: tiền ra có 5 chip = 376px ở font 12px, chỗ có 336px → xuống
-          // 2 dòng. KHÔNG rút nhãn để ép một dòng.
-          className="flex flex-wrap items-center gap-1.5"
+          // `flex-wrap` VẪN CẦN, dù hàng đã vừa một dòng ở 375px: cỡ chữ "Rất lớn"
+          // (`--app-font-scale` 1.25) và màn 320px đều làm nó tràn lại, và lúc đó xuống
+          // dòng là đường duy nhất đúng — rút nhãn thêm nữa thì mất nghĩa.
+          //
+          // Không còn nhãn "Dạng" đứng trước: nó ăn ~40px (chữ + gap) và chính 40px đó
+          // đẩy chip cuối xuống dòng hai — một viên chip lẻ loi ở dòng riêng. Tên của
+          // hàng đã nằm ở `aria-label` của radiogroup nên trình đọc màn hình không mất gì.
+          className="flex flex-wrap items-center gap-1"
         >
-          <span className="shrink-0 px-1 text-xs text-fg-muted">Dạng</span>
           {kinds.map((k) => {
             const s = shapeOf(k)
             const on = k === kind
@@ -82,7 +86,7 @@ export function DirectionTabs({
                 // nhất một chip đang bật) — giống chip danh mục con.
                 // whitespace-nowrap: thiếu nó thì chip bị co và nhãn vỡ GIỮA TỪ bên
                 // trong viên pill ("Chi / thường") ngay khi bật Cỡ chữ lớn.
-                className={`flex min-h-8 items-center whitespace-nowrap rounded-full border px-2.5 text-xs font-medium transition active:scale-95 ${
+                className={`flex min-h-8 items-center whitespace-nowrap rounded-full border px-2 text-xs font-medium transition active:scale-95 ${
                   on
                     ? 'border-accent bg-state-good-bg text-state-good-fg'
                     : 'border-border-strong bg-surface text-fg-secondary'

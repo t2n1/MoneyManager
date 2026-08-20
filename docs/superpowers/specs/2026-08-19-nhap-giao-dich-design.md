@@ -149,7 +149,7 @@ Hai cột điều khiển hành vi có **giá trị định nghĩa sẵn**, khô
 | `split` | ra | Trả hộ | `user` (expense) | `myShare` | Tổng đã trả | `expense` + `split` | Chi tiêu (phần mình) + khoản phải thu |
 | `family` | ra | Gửi gia đình | `auto` ("Gửi tiền về VN") | `full` | Số gửi | `expense` + `remit{kind:'expense'}` | Chi tiêu · tầng gửi về VN |
 | `lend` | ra | Cho vay | `auto` ("Cho vay") | `none` | Số tiền gốc | `expense` + `debt{owed_to_me}` | Khoản phải thu |
-| `repay` | ra | Tôi trả nợ | `auto` ("Trả nợ") | `none` | Số trả | `createDebtPayment` | Giảm nợ mình nợ |
+| `repay` | ra | Trả nợ | `auto` ("Trả nợ") | `none` | Số trả | `createDebtPayment` | Giảm nợ mình nợ |
 | `earn` | vào | Thu thường | `user` (income) | `none` | Số tiền | `income` | Thu nhập |
 | `collect` | vào | Người trả lại | `auto` ("Thu nợ") | `none` | Số nhận lại | `createDebtPayment` | Giảm khoản phải thu |
 | `borrow` | vào | Vay được | `auto` ("Đi vay") | `none` | Số tiền gốc | `income` + `debt{i_owe}` | Nợ · nuôi `debts` |
@@ -279,7 +279,7 @@ Hàng chip, font 12px, padding 20px, gap 6px, chỗ có 336px:
 
 | Hướng | Chip | Tổng | Dòng |
 | --- | --- | --- | --- |
-| Tiền ra | Chi thường 79 · Trả hộ 54 · Gửi gia đình 85 · Cho vay 63 · Tôi trả nợ 71 | **376** | **2** |
+| Tiền ra | Chi thường 81 · Trả hộ 56 · Gửi gia đình 87 · Cho vay 65 · Trả nợ 56 | **341** | **1** |
 | Tiền vào | Thu thường 82 · Người trả lại 86 · Vay được 70 | **250** | 1 |
 | Đổi chỗ | Giữa ví của tôi 97 · Tài khoản tôi ở VN 118 | **221** | 1 |
 
@@ -550,3 +550,65 @@ hay không" thuộc về cột `kind` của danh mục, không thuộc về bả
 
 Cổng này áp cho **mọi** dạng, không riêng `family`: chọn tay một danh mục `transfer` (nạp
 đầu tư, điều chỉnh số dư) ở dạng `spend` cũng không còn cảnh báo trần.
+
+---
+
+## Sửa sau khi ship — bốn việc chủ sổ báo trên bản chạy thật
+
+Ghi lại vì cả bốn đều là chỗ spec đoán sai chuyện sẽ xảy ra trên máy thật.
+
+**1 · Vòng sáng ô số tiền bị cắt hai đầu.** Ô rộng đúng bằng lòng khối cuộn (12→363 ở
+375px) mà khối cuộn cũng clip ở đó, nên 2px `outline` mỗi bên — outline vẽ NGOÀI hộp viền
+— rơi ra ngoài và bị cắt sạch, còn lại đúng hai vạch ngang. `-outline-offset-2` kéo vào
+trong. Bài học chung: `outline` trên một phần tử rộng bằng lòng khối cắt thì luôn phải
+`outline-offset` âm.
+
+**2 · Nhãn nút Lưu lặp lại dòng lý do.** Spec §"nhãn nhắc việc" cho phép ghép "còn thiếu
+…" vào nhãn. Trên máy 375px nút chỉ rộng 135px mà câu cần ~175px → vỡ dòng, và hàng nút
+cao 72px thay vì 46px. Bỏ phép ghép: thiếu field thì nhãn là `Lưu`.
+
+**3 · Bàn số không ghim thật, và không chọn được tài khoản cuối.** Một nguyên nhân:
+`<main>` của khung app xếp thêm chân trang (108px) + `mt-8` + `pb-6` = 164px **dưới** một
+màn đã cao `h-dvh`, nên `<main>` cuộn được 164px và kéo cả cái đáy đã ghim đi lên. Ở
+`/entry` `<main>` phải `overflow-hidden` và chân trang không render. Kèm một lỗi độc lập
+trong `AccountPicker`: panel đặt `maxHeight: '70vh'` cứng, không kẹp theo chỗ thật còn
+lại ở hướng bung → mục cuối nằm dưới mép màn mà panel là `fixed` nên không tới được. Phép
+hình học tách ra `accountPickerBox.ts`.
+
+**4 · Hai kiểu bàn số trên một màn.** Ô "Ước tính" của "Sẽ chi" dùng
+`components/MoneyField`, mà cái đó TỰ DỰNG một bàn số inline ngay giữa form kèm nút "Thu
+bàn phím" — trong khi màn Nhập đã có một bàn số ghim đáy. Nay ô đó dùng `PadMoneyField`
+(export từ `roleFields.tsx`) và trở thành một đích của `activeField`: `'planned.amount'`.
+
+Bàn số ở "Sẽ chi" hiện **theo yêu cầu**, không mặc định — màn đó phần lớn là field chữ nên
+ghim sẵn 188px là đổi chiều cao vùng cuộn lấy một ô KHÔNG bắt buộc. Chạm ô "Ước tính" mới
+có. Ruling task 13 ("ẩn numpad ở Sẽ chi") vẫn đúng ở phần *mặc định*, chỉ sai ở chỗ nó coi
+ô Ước tính là "input chữ có bàn phím hệ thống riêng" — thực ra nó có bàn số riêng.
+
+## Sửa sau khi ship — hai việc rút gọn giao diện
+
+**Hàng chip vừa một dòng.** Bảng đo ở §"bề rộng chip" tính ra 376px cho 5 chip ở tiền ra
+và kết luận "phải 2 dòng, KHÔNG rút nhãn". Nhưng một viên chip lẻ loi ở dòng hai là thứ
+chủ sổ nhìn thấy đầu tiên. Ba thay đổi nhỏ, không mất nghĩa nào:
+
+- bỏ nhãn `Dạng` đứng trước hàng (ăn ~40px; tên hàng đã ở `aria-label` của radiogroup)
+- `Tôi trả nợ` → `Trả nợ` (hướng "tiền ra" đã nói ai trả; và danh mục app tự gán tên đúng
+  là "Trả nợ")
+- `gap-1.5` → `gap-1`, chip `px-2.5` → `px-2`
+
+Đo lại ở 375px: 5 chip = 341px trong 351px, **một dòng**, hàng cao 32px thay vì 70px.
+`flex-wrap` GIỮ NGUYÊN: ở `--app-font-scale` 1.25 và ở màn 320px nó vẫn phải xuống dòng,
+và lúc đó xuống dòng là đường đúng. Đo ở font 1.25: 2 dòng, không tràn ngang.
+
+**Dòng "Còn thiếu: …" thôi chiếm chỗ của mắt.** Nút Lưu đã mờ và ô còn trống nằm ngay
+trên màn — câu đó không nói thêm gì cho người nhìn thấy. Nhưng "nút mờ" thì KHÔNG tự giải
+thích được với trình đọc màn hình, nên câu ở lại trong DOM dưới `sr-only` chứ không bị bỏ
+hẳn: bỏ hẳn là lấy đi lý do duy nhất của đúng nhóm không thấy được ô nào đang trống.
+
+Chỉ họ câu ngắn `"Còn thiếu: <field>."` bị ẩn. Họ câu **hoàn chỉnh** ("Tài khoản đến đang
+trùng tài khoản nguồn.", câu 130 ký tự của Trả hộ) **vẫn hiện**: chúng nói một ràng buộc
+không đoán ra được bằng cách nhìn quanh màn.
+
+Kiểm lại: `sr-only` là `position:absolute`, đúng thứ từng kéo dài tài liệu (xem
+`tests/overlayLayers.test.ts`). Đo sau khi sửa: `html.scrollHeight` = `clientHeight` =
+812, `window.scrollTo(0,5000)` → `scrollY` 0. `relative` trên `<main>` vẫn giữ nó lại.

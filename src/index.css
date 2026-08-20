@@ -515,6 +515,25 @@ html.dark
   outline-color: var(--accent); /* .dark đã đặt --accent sáng hơn cho nền tối */
 }
 
+/* Ring của Ô NHẬP vẽ VÀO TRONG (offset âm), khác nút/link ở khối trên. Lý do là hình
+   học, không phải thẩm mỹ: ô nhập ở app này gần như luôn `w-full` trong một khối
+   `overflow-y-auto` — trục ngang của khối đó thành `auto`, tức CŨNG clip — và khối
+   thường không có padding ngang, nên lòng khối trùng đúng mép ô. `outline` vẽ NGOÀI hộp
+   viền, nên 2px vạch + 2px offset rơi hết ra ngoài lòng khối và bị cắt sạch hai bên:
+   còn lại đúng hai vạch ngang trên/dưới, đọc ra thành "cái khung mất hai đầu". Đo ở
+   375px trên màn Nhập: ô "Chi cái gì" nằm 12→363, lòng khối cuộn cũng 12→363.
+
+   Kéo vào trong thì không còn gì để cắt, và không đổi bố cục (outline không chiếm chỗ).
+   Độ tương phản không đổi — vẫn `--accent`, chỉ nằm đè lên viền 1px. Ô số tiền chính đã
+   tự làm đúng việc này bằng `-outline-offset-2` tại chỗ (TransactionForm); quy tắc này
+   là chỗ chung cho MỌI ô nhập, để field thêm sau không phải nhớ lại.
+
+   Nút/link không nằm trong đây: chúng không trải hết bề rộng khối cuộn.
+   Checkbox/radio cũng không: hộp 16px mà ring lùi 2px vào trong thì ăn gần hết ô. */
+:where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus-visible {
+  outline-offset: -2px;
+}
+
 /* Đang mở thanh thao tác "chọn nhiều" thì ẩn thanh tab dưới. Hai thanh cùng dính
    đáy, mà thanh tab là thẻ nổi cách mép 12px nên nó CAO HƠN thanh thao tác 11px và
    nhô ra một vệt bo góc phía trên — trông như lỗi vẽ. Cờ do SelectionActionBar đặt
@@ -523,12 +542,47 @@ html[data-selection-bar] nav[data-bottom-nav] {
   display: none;
 }
 
-/* Chống iOS Safari tự phóng to khi focus ô nhập: buộc cỡ chữ ≥16px cho các
-   control biểu mẫu trên màn nhỏ (đè text-sm). Không ảnh hưởng nhãn/text khác. */
+/* Chống iOS/Android tự phóng to cả trang khi chạm vào ô nhập: buộc cỡ chữ ≥16px cho
+   control biểu mẫu (đè text-sm). Không ảnh hưởng nhãn/text khác. Phóng rồi trang KHÔNG
+   tự thu lại — người dùng phải chụm hai ngón để về; và đường `maximum-scale=1` ở thẻ
+   viewport thì trượt WCAG 1.4.4 (xem index.html), nên sàn cỡ chữ là cách duy nhất.
+
+   `max()` chứ không đặt cứng 16px: --app-font-scale ("Nhỏ" 0,9 → 14,4px) là thứ đẩy ô
+   xuống dưới ngưỡng, nhưng ở nấc "Rất lớn" (1,25) thì 1rem = 20px và đặt cứng 16px là
+   thu nhỏ chữ của đúng người đã xin chữ to.
+
+   Khối này KHÔNG mang thêm `(pointer: coarse)`, và đó là chủ ý: nó đè font-size của MỌI
+   ô nhập, kể cả ô cỡ lớn. Dưới 1024px điều đó vô hại vì hai ô lớn duy nhất (ô số tiền
+   chính `text-[1.875rem]`, ô tiền của field vai trò `text-lg`) đều `hidden lg:block` —
+   không có mặt. Nới sang pointer thô là kéo cả iPad NGANG (1024px+, bố cục đi nhánh
+   `lg:`) vào đây và ô số tiền chính tụt 30px → 16px. Phần tablet chạm do khối NGAY DƯỚI
+   lo, bằng cách chỉ nhắm ô cỡ nhỏ. */
 @media (max-width: 1023px) {
   input:not([type='checkbox']):not([type='radio']),
   select,
   textarea {
+    font-size: max(16px, 1rem);
+  }
+}
+
+/* Nửa còn lại của cùng một việc: THIẾT BỊ CHẠM BỀ RỘNG LỚN — iPad ngang đúng 1024px thì
+   khối trên (`max-width: 1023px`) trượt qua đúng một pixel, mà ngón tay và cú tự-phóng
+   của trình duyệt thì vẫn y nguyên; ở đó ô `sm:text-sm` về 14px và chạm vào là trang
+   phóng.
+
+   Khác khối trên ở chỗ nó CHỈ nhắm ô có class cỡ nhỏ, không quét mọi ô: quy tắc này nằm
+   ngoài mọi @layer nên nó thắng tiện ích Tailwind bất kể specificity, và quét cả ô cỡ
+   lớn là THU NHỎ chính ô số tiền của màn Nhập (30px → 16px) trên iPad — đắt hơn cú phóng
+   mà nó chặn. Mỗi cỡ giữ giá trị của chính nó rồi mới chặn sàn: `text-sm` ở nấc chữ "Rất
+   lớn" (1,25) phải là 17,5px, kéo lên 1rem = 20px là phá cỡ chữ đã thiết kế.
+
+   `text-xs` cố tình để ngoài: 12→16px là +33%, đủ làm tràn mấy ô bề rộng cứng (w-16 /
+   w-24) — mấy ô đó cần đo từng chỗ, không đè một lượt. */
+@media (pointer: coarse) {
+  :is(input, select, textarea).text-sm {
+    font-size: max(16px, 0.875rem);
+  }
+  :is(input, select, textarea).text-base {
     font-size: max(16px, 1rem);
   }
 }

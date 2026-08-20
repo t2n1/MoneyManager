@@ -1264,3 +1264,57 @@ describe('chế độ Gọn — chữ để dạy phải đi qua cổng', () => 
     ).toBeLessThanOrEqual(PROSE_MAX)
   })
 })
+
+describe('vong focus + san co chu cua O NHAP', () => {
+  const css = readFileSync(join(SRC, 'index.css'), 'utf8')
+
+  it('ring cua o nhap ve VAO TRONG, khong bi khoi cuon cat mat hai dau', () => {
+    // `outline` ve NGOAI hop vien. O nhap o app nay gan nhu luon `w-full` trong mot khoi
+    // `overflow-y-auto` — truc ngang cua khoi do thanh `auto`, tuc CUNG clip — va khoi
+    // khong co padding ngang, nen long khoi trung dung mep o. Do o 375px tren man Nhap:
+    // o 12→363, long khoi cuon cung 12→363, nen 2px vach + 2px offset roi het ra ngoai
+    // va bi cat sach hai ben; con lai dung hai vach ngang, doc ra thanh "cai khung mat
+    // hai dau" (dung chu cua bao loi). Bo quy tac nay la loi do quay lai o MOI o nhap.
+    expect(css).toMatch(
+      /:where\(input:not\(\[type="checkbox"\]\):not\(\[type="radio"\]\), select, textarea\):focus-visible \{\s*outline-offset: -2px;/,
+    )
+  })
+
+  it('nut/link van giu ring ve ra NGOAI — khong keo ca app vao trong', () => {
+    // Nut khong trai het be rong khoi cuon nen khong bi cat; keo ring vao trong o nut
+    // 44px la an vao chu.
+    const i = css.indexOf('outline: 2px solid var(--accent);')
+    expect(i).toBeGreaterThan(0)
+    expect(css.slice(i, i + 80)).toMatch(/outline-offset: 2px;/)
+  })
+
+  it('san 16px cho o nhap tren man hep — chan cu tu-phong cua trinh duyet', () => {
+    // Duoi 16px la trinh duyet tu phong to ca trang khi cham vao o, va phong roi trang
+    // KHONG tu thu lai. `max()` chu khong dat cung 16px: o nac chu "Rat lon" (1,25) thi
+    // 1rem = 20px, dat cung la thu nho chu cua dung nguoi da xin chu to.
+    //
+    // Khoi theo BE RONG quet MOI o nhap, nen no phai o lai dieu kien `max-width: 1023px`:
+    // duoi 1024px hai o LON duy nhat deu `hidden lg:block` nen vo hai, con noi dieu kien
+    // ra pointer tho la keo iPad ngang vao va o so tien chinh tut 30px -> 16px.
+    const i = css.indexOf('@media (max-width: 1023px)')
+    expect(i).toBeGreaterThan(0)
+    expect(css.slice(i, i + 200)).toMatch(/font-size: max\(16px, 1rem\);/)
+    expect(css).not.toMatch(/@media \(max-width: 1023px\), \(pointer: coarse\)/)
+  })
+
+  it('thiet bi cham be rong lon: san chi dat len o CO NHO', () => {
+    // iPad ngang dung 1024px truot qua khoi tren dung mot pixel. Khoi cho pointer tho
+    // phai chi nham `.text-sm`/`.text-base` — quet ca o co lon la thu nho o so tien
+    // chinh cua man Nhap tren iPad, dat hon cu phong ma no chan.
+    const i = css.indexOf('@media (pointer: coarse)')
+    expect(i).toBeGreaterThan(0)
+    const block = css.slice(i, css.indexOf('text-base', i) + 200)
+    expect(block).toMatch(/:is\(input, select, textarea\)\.text-sm/)
+    expect(block).toMatch(/:is\(input, select, textarea\)\.text-base/)
+    // Moi co giu gia tri cua chinh no roi moi chan san.
+    expect(block).toMatch(/max\(16px, 0\.875rem\)/)
+    expect(block).toMatch(/max\(16px, 1rem\)/)
+    // KHONG duoc co o co lon trong khoi nay.
+    expect(block).not.toMatch(/text-lg|1\.875rem|font-mono/)
+  })
+})

@@ -590,10 +590,11 @@ export function TransactionForm({
    * Bàn số ghim đáy có hiện hay không.
    *
    * "Đã chi": luôn — ô số tiền là lý do tồn tại của màn này.
-   * "Sẽ chi": chỉ khi người dùng chạm ô "Ước tính". Màn đó phần lớn là field chữ, nên
-   * ghim sẵn 188px là lấy chiều cao của vùng cuộn để đổi lấy một ô KHÔNG BẮT BUỘC (số
-   * tiền của một khoản chưa xảy ra thường chưa biết — vì thế tiêu điểm mở màn nhảy vào
-   * "Chi cái gì", không vào đây).
+   * "Sẽ chi": khi đích gõ là ô "Ước tính". Từ 2026-08-20 nút "Sẽ chi" tự đặt đích vào
+   * đó, nên bàn số có ngay lúc mở — ô "Ước tính" giờ là ô đầu của màn (yêu cầu: "ước
+   * tính trước rồi mới Chi cái gì"). Vẫn là MỘT cổng chứ không phải "luôn hiện": chạm
+   * vào một ô chữ nào khác thì `activeField` rời đi và 188px kia trả lại cho vùng
+   * cuộn — màn "Sẽ chi" phần lớn là field chữ (ngày đến hạn, nhắc trước, ghi chú).
    */
   const padShown = !plannedMode || activeField === 'planned.amount'
 
@@ -1208,11 +1209,18 @@ export function TransactionForm({
           value={plannedMode ? 'future' : 'done'}
           onChange={(v) => {
             setWantsPlanned(v === 'future')
-            // Trả đích gõ về ô chính. Thiếu dòng này thì lật "Sẽ chi" → "Đã chi" trong
-            // lúc đang gõ ô "Ước tính" sẽ để `activeField` mắc ở 'planned.amount': bàn số
-            // hiện lại (vì `!plannedMode`) nhưng mọi phím gõ vào `plannedDraft.amount` —
-            // ô số tiền trên màn đứng im, số chạy vào một khoản đã rời khỏi màn.
-            setActiveField('main')
+            // Đích gõ đi theo màn, hai chiều:
+            // → "Sẽ chi": nhắm ngay ô "Ước tính" — ô ĐẦU TIÊN của màn đó kể từ
+            //   2026-08-20 (PlannedFields đảo "Ước tính" lên trước "Chi cái gì"), nên
+            //   bàn số ghim đáy có sẵn cho việc đầu tiên người dùng muốn làm. Trước đây
+            //   phải chạm ô mới có, mà cùng lúc ô "Chi cái gì" `autoFocus` bật bàn phím
+            //   chữ — mở màn ra là hai thứ tranh nhau chỗ ở đáy.
+            // → "Đã chi": trả về ô chính. Thiếu nửa này thì lật "Sẽ chi" → "Đã chi"
+            //   trong lúc đang gõ ô "Ước tính" sẽ để `activeField` mắc ở
+            //   'planned.amount': bàn số hiện lại (vì `!plannedMode`) nhưng mọi phím gõ
+            //   vào `plannedDraft.amount` — ô số tiền trên màn đứng im, số chạy vào một
+            //   khoản đã rời khỏi màn.
+            setActiveField(v === 'future' ? 'planned.amount' : 'main')
           }}
           items={[
             { value: 'done', label: PHASE_LABEL[shape.direction].done },
@@ -1237,6 +1245,11 @@ export function TransactionForm({
             categories={categories}
             amountActive={activeField === 'planned.amount'}
             onFocusAmount={() => setActiveField('planned.amount')}
+            // 'main' ở đây nghĩa là "không ô nào của màn này" — `padShown` đọc
+            // `activeField === 'planned.amount'`, nên trả đích về ô chính (ô đang bị
+            // `plannedMode` ẩn) là cách ẩn bàn số mà không cần thêm một giá trị 'none'
+            // vào `AmountTarget`. Cùng đúng giá trị mà màn này mở ra đã có.
+            onLeaveAmount={() => setActiveField('main')}
           />
         </>
       ) : (
@@ -1568,10 +1581,10 @@ export function TransactionForm({
           Nằm NGOÀI lưới hai cột: nút Lưu là hành động của cả form, không thuộc cột nào. */}
       <div className="flex shrink-0 flex-col gap-1.5 pt-1.5">
       {/* NumPad chỉ trên mobile. Ô tiền phụ không nhận phép tính → mờ ÷×−+.
-          Ở "Sẽ chi" nó hiện THEO YÊU CẦU, không mặc định: màn đó phần lớn là field chữ
-          (chi cái gì, ngày đến hạn, nhắc trước) nên ghim sẵn 188px là ăn không chiều cao.
-          Chạm ô "Ước tính" mới có — và lúc đó nó gõ vào `plannedDraft.amount` chứ không
-          vào `digits`, nên không còn cảnh số âm thầm hiện ra khi lật về "Đã chi".
+          Ở "Sẽ chi" nó đi theo đích gõ: bật "Sẽ chi" là đích nhảy vào ô "Ước tính" (ô đầu
+          của màn đó) nên bàn số có ngay; chạm sang một ô chữ thì đích rời đi và 188px trả
+          lại cho vùng cuộn. Lúc gõ nó vào `plannedDraft.amount` chứ không vào `digits`,
+          nên không còn cảnh số âm thầm hiện ra khi lật về "Đã chi".
           Đây là MỘT bàn số cho cả màn: trước đây ô "Ước tính" dùng
           `components/MoneyField`, cái đó tự dựng một bàn số inline thứ hai ngay giữa form
           với nút "Thu bàn phím" riêng — hai kiểu bàn số trên một màn. */}

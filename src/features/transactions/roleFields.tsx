@@ -55,6 +55,7 @@ export function PadMoneyField({
   onChange,
   ariaLabel,
   onEnter,
+  autoFocusDesktop,
 }: {
   value: number
   currency: CurrencyCode
@@ -67,6 +68,13 @@ export function PadMoneyField({
   ariaLabel: string
   /** Enter trên desktop = lưu, đồng nhất với ô số tiền chính + ghi chú. */
   onEnter?: () => void
+  /**
+   * Tự nhận tiêu điểm — CHỈ trên desktop, và tên prop nói đúng thế. `autoFocus` đặt lên
+   * ô `hidden lg:block`: `display:none` không nhận được tiêu điểm nên trên mobile đây là
+   * no-op, không có bàn phím hệ thống nào bật lên (chỗ gõ ở đó là bàn số ghim đáy). Cùng
+   * cơ chế với ô tiền chính của màn Nhập.
+   */
+  autoFocusDesktop?: boolean
 }) {
   const isEmpty = value === 0
   return (
@@ -84,6 +92,7 @@ export function PadMoneyField({
       <input
         inputMode="numeric"
         aria-label={ariaLabel}
+        autoFocus={autoFocusDesktop}
         value={value === 0 ? '' : formatMoney(value, currency)}
         onChange={(e) => onChange(parseMoney(e.target.value))}
         onKeyDown={(e) => {

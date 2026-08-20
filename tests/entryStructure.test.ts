@@ -202,10 +202,65 @@ describe('MOT ban so cho ca man Nhap', () => {
     expect(form.slice(i, i + 200)).toMatch(/setPlannedDraft/)
   })
 
-  it('lat Se chi <-> Da chi tra dich go ve o chinh', () => {
+  it('lat Se chi <-> Da chi dat dich go theo dung man dang mo', () => {
+    // Hai chieu, khong phai mot: sang "Se chi" thi ban so nham o "Uoc tinh" (o DAU cua
+    // man do); ve "Da chi" thi tra ve o chinh — thieu nua sau la de `activeField` mac o
+    // 'planned.amount' trong khi ban so hien lai vi `!plannedMode`, tuc moi phim go vao
+    // mot khoan da roi khoi man.
     const i = form.indexOf('setWantsPlanned(v === ')
     expect(i).toBeGreaterThan(0)
-    expect(form.slice(i, i + 600)).toMatch(/setActiveField\('main'\)/)
+    expect(form.slice(i, i + 1500)).toMatch(
+      /setActiveField\(v === 'future' \? 'planned\.amount' : 'main'\)/,
+    )
+  })
+
+  it('cham mot o CHU thi nha ban so ra — mot cho bat cho ca khoi', () => {
+    // `onFocusCapture` o goc PlannedFields + `[data-pad-row]` bao hang o tien. Dan
+    // `onFocus` len tung o thi o them sau se quen, ma loi luc do la "ban so nam chinh
+    // inh trong luc dang go chu" — thu khong ai nghi ra de di thu.
+    expect(planned).toMatch(/onFocusCapture=\{\(e\) =>/)
+    expect(planned).toMatch(/closest\('\[data-pad-row\]'\)/)
+    expect(planned).toMatch(/data-pad-row/)
+    expect(form).toMatch(/onLeaveAmount=\{\(\) => setActiveField\('main'\)\}/)
+  })
+})
+
+describe('"Uoc tinh" dung TRUOC "Chi cai gi"', () => {
+  const planned = read('features/transactions/PlannedFields.tsx')
+  const roles = read('features/transactions/roleFields.tsx')
+
+  it('nhan "Uoc tinh" xuat hien truoc nhan "Chi cai gi" trong DOM', () => {
+    // Thu tu DOM = thu tu doc + thu tu tieu diem (khong co `order-*` nao o day), nen
+    // indexOf la du: man Nhap co ban so ghim day va bat "Se chi" la no nham ngay o
+    // "Uoc tinh", nen o dau tien trong tam tay phai la o ma ban so dang go vao.
+    const iMoney = planned.indexOf('Ước tính')
+    const iTitle = planned.indexOf('Chi cái gì')
+    expect(iMoney).toBeGreaterThan(0)
+    expect(iTitle).toBeGreaterThan(0)
+    expect(iMoney).toBeLessThan(iTitle)
+  })
+
+  it('o "Chi cai gi" KHONG con autoFocus', () => {
+    // Tu gianh tieu diem o o thu hai la keo nguoi dung nguoc lai, va tren mobile no bat
+    // ban phim he thong ngay luc mo man — khong ai xin.
+    const i = planned.indexOf('id="entry-planned-title"')
+    expect(i).toBeGreaterThan(0)
+    // Bat THUOC TINH (dau dong), khong phai chu "autoFocus" o bat ky dau: chinh chu
+    // thich ngay tren o do noi ve viec da bo autoFocus, nen bat chuoi tran se do mai.
+    expect(planned.slice(i, i + 900)).not.toMatch(/^\s*autoFocus/m)
+  })
+
+  it('autoFocus cua o "Uoc tinh" chi an tren desktop', () => {
+    // `autoFocus` dat len o `hidden lg:block`: `display:none` khong nhan duoc tieu diem
+    // nen tren mobile day la no-op — KHONG co ban phim he thong nao bat len. Ten prop
+    // phai noi dung dieu do, va no phai o dung o desktop.
+    expect(planned).toMatch(/autoFocusDesktop/)
+    const i = roles.indexOf('autoFocus={autoFocusDesktop}')
+    expect(i).toBeGreaterThan(0)
+    expect(roles.slice(i, i + 600)).toMatch(/hidden lg:block/)
+    // ...va khong dat len nut cham cua mobile (nut do dung TRUOC input trong file).
+    const btn = roles.indexOf('<button', roles.indexOf('export function PadMoneyField'))
+    expect(roles.slice(btn, i)).not.toMatch(/autoFocus/)
   })
 })
 

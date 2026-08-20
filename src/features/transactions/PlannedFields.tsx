@@ -28,6 +28,13 @@ interface Props {
   amountActive: boolean
   /** Chạm ô "Ước tính" → xin bàn số ghim đáy gõ vào đây. */
   onFocusAmount: () => void
+  /**
+   * Tiêu điểm nhảy vào một ô KHÔNG phải ô tiền → nhả bàn số ra, trả 188px cho vùng
+   * cuộn. Màn "Sẽ chi" phần lớn là field chữ, mà bàn số bật sẵn từ lúc mở màn (xem
+   * `onChange` của segmented "Đã chi/Sẽ chi" ở TransactionForm), nên nếu không nhả thì
+   * suốt lúc gõ chữ vùng cuộn vẫn cụt đi một bàn số không ai dùng.
+   */
+  onLeaveAmount: () => void
 }
 
 export function PlannedFields({
@@ -36,31 +43,32 @@ export function PlannedFields({
   categories,
   amountActive,
   onFocusAmount,
+  onLeaveAmount,
 }: Props) {
   const expenseCats = categories.filter((c) => c.type === 'expense' && !c.is_archived)
 
   return (
-    <div className="flex flex-col">
-      <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="entry-planned-title">
-        Chi cái gì
-      </label>
-      <input
-        id="entry-planned-title"
-        // Bullet 1 của brief: chỉ tên là bắt buộc, và tiêu điểm phải nhảy vào ĐÂY chứ
-        // không phải ô số tiền — số tiền một khoản chưa xảy ra thường chưa biết.
-        autoFocus
-        value={value.title}
-        onChange={(e) => onChange({ ...value, title: e.target.value })}
-        placeholder="Ví dụ: đóng phí vệ sinh"
-        className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-base sm:text-sm"
-      />
-
+    <div
+      className="flex flex-col"
+      // MỘT chỗ bắt cho cả khối, không phải `onFocus` dán lên từng ô: field ở đây còn
+      // thêm nữa, mà một ô mới quên dán handler thì lỗi là "bàn số nằm chình ình lúc
+      // đang gõ chữ" — thứ không ai nghĩ ra để đi thử. `[data-pad-row]` là hàng ô tiền
+      // (ô tiền + ô loại tiền): tiêu điểm rơi vào trong đó thì KHÔNG nhả.
+      //
+      // Phải là `onFocusCapture`, và phải lọc bằng `closest`, chứ không phải nhả vô điều
+      // kiện: nút chạm của PadMoneyField xin bàn số bằng `onClick` (sau `focus`), nên nhả
+      // vô điều kiện ở pha capture sẽ thành tắt-rồi-bật trong hai lần vẽ — bàn số nháy
+      // một cái mỗi lần chạm vào chính nó.
+      onFocusCapture={(e) => {
+        if (!(e.target as HTMLElement).closest('[data-pad-row]')) onLeaveAmount()
+      }}
+    >
       {/* <span>: hàng này có HAI ô (MoneyField + chọn loại tiền) nên không có một đích
           duy nhất cho `htmlFor`; mỗi ô tự mang tên qua `ariaLabel` (giống PlannedFormSheet). */}
       <span className="mb-1 block text-xs font-medium text-fg-muted">
         Ước tính <span className="text-fg-muted">(để trống nếu chưa biết)</span>
       </span>
-      <div className="mb-3 flex gap-2">
+      <div className="mb-3 flex gap-2" data-pad-row>
         {/* Khối bọc `min-w-0 flex-1`: PadMoneyField trả về HAI ô (nút chạm mobile + input
             desktop), cả hai `w-full`. Đặt trực tiếp vào hàng flex thì chúng thành hai con
             flex và `w-full` đọc là 100% của hàng — phải có một khối bọc mang bề rộng. */}
@@ -72,6 +80,12 @@ export function PlannedFields({
             active={amountActive}
             onFocus={onFocusAmount}
             ariaLabel="Số tiền ước tính"
+            // Chỉ ăn trên desktop: ô nhận `autoFocus` là ô `hidden lg:block`, mà
+            // `display:none` thì không nhận được tiêu điểm — nên trên mobile đây là
+            // no-op, KHÔNG có bàn phím hệ thống nào bật lên (cùng nếp với ô tiền chính
+            // ở TransactionForm). Chỗ gõ trên mobile là bàn số ghim đáy, và nó đã nhắm
+            // vào ô này ngay khi bật "Sẽ chi".
+            autoFocusDesktop
           />
         </div>
         <select
@@ -87,6 +101,28 @@ export function PlannedFields({
           ))}
         </select>
       </div>
+
+      {/* "Chi cái gì" đứng SAU "Ước tính" (đảo lại 2026-08-20, theo yêu cầu): trên màn
+          Nhập, bàn số đã ghim ở đáy và bật "Sẽ chi" là nó nhắm ngay vào ô "Ước tính" —
+          nên ô đầu tiên trong tầm tay phải là ô mà bàn số đang gõ vào. Ô tên nằm dưới,
+          chạm mới bật bàn phím chữ.
+          PlannedFormSheet (đường tạo khoản sắp chi từ trang Sắp chi) vẫn giữ thứ tự cũ:
+          sheet đó không có bàn số ghim nào, nên lý lẽ trên không áp vào. Hai form chỉ bị
+          buộc phải khớp CHỮ (tests/plannedCopy.test.ts), không buộc khớp thứ tự. */}
+      <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="entry-planned-title">
+        Chi cái gì
+      </label>
+      <input
+        id="entry-planned-title"
+        // KHÔNG `autoFocus` ở đây (từng có): ô này giờ đứng SAU ô "Ước tính", nên tự
+        // giành tiêu điểm là kéo người dùng ngược về ô thứ hai — và trên mobile nó bật
+        // bàn phím hệ thống ngay lúc mở màn, kèm cú trình duyệt tự phóng to cả trang
+        // (sàn 16px ở index.css chặn cú phóng, nhưng bàn phím thì vẫn không ai xin).
+        value={value.title}
+        onChange={(e) => onChange({ ...value, title: e.target.value })}
+        placeholder="Ví dụ: đóng phí vệ sinh"
+        className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-base sm:text-sm"
+      />
 
       <span className="mb-1 block text-xs font-medium text-fg-muted">Chắc tới đâu</span>
       <div

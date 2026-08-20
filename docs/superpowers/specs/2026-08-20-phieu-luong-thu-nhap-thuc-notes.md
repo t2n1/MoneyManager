@@ -168,3 +168,63 @@ C vắng (10/12 tháng) → bỏ bước 1–4, giữ nguyên hành vi cũ. D v�
   ngoài phạm vi.
 - `gitnexus` MCP không lên được trong session này nên `impact()` / `detect_changes()` theo
   CLAUDE.md phải làm bằng grep + `git diff --stat`.
+
+
+## Vòng hai (2026-08-20, sau khi nhập lại 59 phiếu thật)
+
+### Số liệu thật của cả bộ (quét 59 file, không phiếu nào lỗi bóc)
+
+| nhãn 支給 | số phiếu | tổng |
+|---|---|---|
+| `通勤手当` | 19 | 945.626 |
+| `立替経費精算` | 27 | **2.073.482** |
+| `DB掛金` | 4 (chỉ từ kỳ 202605) | 50.000 |
+| `不就労控除` | 10 | — (giảm gộp thật, không phải hoàn phí) |
+| `基本賞与` | 8 | — (thu nhập thật) |
+
+`DB掛金` **không** có ở mọi tháng — 202605 −20.000, rồi 202606/07/08 mỗi tháng −10.000.
+Số dư `退職金` đúng phải là **50.000**.
+
+### Hai thay đổi
+
+**1. Nhóm có tổng ÂM → dòng đối ứng thành CHI.** Tháng 12 có 年末調整: `過不足税額` hoàn có
+thể lớn hơn TỔNG khấu trừ (202312K: hoàn 88.544 > khấu trừ 73.476 → ròng 500.678 > gộp
+485.610). Bản cũ dựng dòng thu −15.068, DB cấm, nên từ chối cả phiếu và bảo "xử tay" — mà ca
+này lặp lại MỖI NĂM. Nay `dongBu()` đảo phía: tổng âm → chi `|tổng|`, danh mục lấy từ dòng
+`|amount|` lớn nhất trong nhóm (ở 202312K là 過不足税額 → Thuế thu nhập).
+
+`kiemDong` phải đổi theo: chốt cũ so `thu.amount` với `tong(chi)` chỉ đúng khi dòng đối ứng
+luôn là thu — `15068 !== -15068`. Nay cân bằng theo **số dư có dấu** trong từng phạm vi
+thống kê.
+
+**2. `立替経費精算` cũng ra khỏi Thu, nhưng KHÔNG có dòng hoàn tiền.** User xác nhận: các khoản
+ứng chi hộ đó mua lâu rồi, **không có trong sổ**. Nên không có gì để triệt tiêu — dựng dòng
+hoàn là kéo Chi xuống mà chẳng đối ứng với gì. Hệ quả: dòng trung hoà = `ròng − 立替経費精算`
+(không phải `ròng`), vì thiếu dòng hoàn thì số dư hụt đúng phần đó.
+
+Dòng trung hoà cũng đổi danh mục: từ `Tàu xe` sang **danh mục của chính dòng neo** — đọc
+trong Sổ đúng nghĩa hơn, và nhờ đó `Tàu xe` chỉ còn cần khi có `通勤手当` thật.
+
+### Bảng dòng cuối cùng (C = 通勤手当, L = 立替経費精算, N = ròng)
+
+| dòng | số | trong Thu/Chi? | điều kiện |
+|---|---|---|---|
+| dòng neo — giữ số, bật cờ | N | ✗ | `C + L > 0` |
+| + thu "lương thực nhận" | `N − C − L` | ✓ | `C + L > 0` |
+| + chi hoàn phí đi lại (`is_refund`, `Tàu xe`) | C | ✓ | `C > 0` |
+| + chi "trung hoà dòng neo" | `N − L` | ✗ | `C + L > 0` |
+| + thu `DB掛金 → 退職金` | `|D|` | ✓ | `D ≠ 0` |
+
+Số dư Yucho: `(N−C−L) + C − (N−L) = 0` ✓ · Thu: `−N + (N−C−L) = −(C+L)` ✓ · Chi `Tàu xe`: `−C` ✓
+
+### Kiểm thật
+Chạy cả **59 PDF thật** qua `bocPhieu → dungDong → kiemDong` + 6 bất biến tự kiểm (số dư
+Yucho đổi 0 · Thu giảm đúng `C+L` · số dư hưu = `|D|` · mọi amount > 0 · mọi category_id
+khác null · `kiemDong` rỗng): **59/59 qua**. Script ở scratchpad, không commit.
+
+### Còn treo
+- `立替経費精算` **từ nay về sau**: user nói sẽ ghi khoản ứng chi hộ vào sổ. Khi đó cách đúng
+  là một danh mục riêng (vd `Ứng chi hộ công ty`) **bật `exclude_from_stats`** cho khoản mua —
+  khi đó cả khoản mua và khoản hoàn đều ngoài thống kê, không cần đổi code, không cần mốc ngày.
+  Nếu thay vào đó muốn dòng hoàn tiền như `通勤手当` thì phải thêm mốc kỳ vào `dungCap`.
+- CLI vẫn từ chối mọi phiếu có khối 支給 (`chotKhoiCap`) — chưa dạy nó ghi `cap`.

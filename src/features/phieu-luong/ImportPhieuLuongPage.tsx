@@ -24,6 +24,7 @@ import {
   DANH_MUC_TAU_XE,
   NHAN_DI_LAI,
   NHAN_HUU,
+  NHAN_LA_THEO,
   TEN_TK_HUU,
   TK_HUU_MOI,
   dungKeHoach,
@@ -418,8 +419,17 @@ export function ImportPhieuLuongPage() {
                 */}
                 {k.trangThai === 'dat' && k.suaNeo && (
                   <p className="mt-0.5 text-fg-secondary">
-                    hoàn phí đi lại {formatMoney(k.phieu.cap[NHAN_DI_LAI] ?? 0, 'JPY')} → đưa dòng
-                    neo ra ngoài thống kê, giữ nguyên số
+                    {/* Hai nhan doc lap: phieu co the co mot, ca hai, va so 0 thi khong
+                        duoc in ra — ban dau in cung mot dong "hoan phi di lai ¥0". */}
+                    {[
+                      (k.phieu.cap[NHAN_DI_LAI] ?? 0) > 0 &&
+                        `hoàn phí đi lại ${formatMoney(k.phieu.cap[NHAN_DI_LAI], 'JPY')}`,
+                      (k.phieu.cap[NHAN_LA_THEO] ?? 0) > 0 &&
+                        `ứng chi hộ ${formatMoney(k.phieu.cap[NHAN_LA_THEO], 'JPY')}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}{' '}
+                    → ra khỏi Thu; dòng neo ra ngoài thống kê, giữ nguyên số
                   </p>
                 )}
                 {k.trangThai === 'dat' && (k.phieu.cap[NHAN_HUU] ?? 0) !== 0 && (

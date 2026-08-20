@@ -218,7 +218,7 @@ describe('過不足税額 — ca thang 12', () => {
    * Bat bien so hoc VAN DUNG (thu == chi == gop - rong == -20.000) — chinh vi vay
    * bon vong kiem truoc do khong thay. Chi chot DAU moi bat duoc.
    */
-  it('tu choi khi hoan lon hon tong khau tru (rong > gop)', () => {
+  it('hoan lon hon tong khau tru (rong > gop): dong bu tru thanh CHI, khong tu choi', () => {
     const P: Phieu = {
       file: '(0101)202312K.pdf', empno: '0101', period: '202312', kind: 'K',
       nguonKy: 'noi-dung', canhBao: [],
@@ -226,11 +226,32 @@ describe('過不足税額 — ca thang 12', () => {
       tru: { 健康保険料: 15000, 厚生年金保険: 30000, 雇用保険料: 3000, 所得税: 12000, 住民税: 10000 },
       ngoaiTong: { 過不足税額: -90000 }, cap: {}, nhanLa: [], loi: [],
     }
-    const { thu, chi, thuKhac } = dungDong(P, { ...neo, occurred_on: '2023-12-08', amount: 420000 }, IDS)
-    expect(thu.amount).toBe(-20000)
-    const loi = kiemDong(P, thu, chi, thuKhac)
-    expect(loi.length).toBeGreaterThan(0)
-    expect(loi.join(' ')).toMatch(/xu tay/)
+    const neoP = { ...neo, occurred_on: '2023-12-08', amount: 420000 }
+    const { thu, chi, thuKhac, cap } = dungDong(P, neoP, IDS)
+    // Dau AM cua nhom -> dong bu tru la CHI |tong|, khong phai thu -20.000 (DB cam).
+    expect(thu.type).toBe('expense')
+    expect(thu.amount).toBe(20000)
+    expect(thu.exclude_from_stats).toBe(true)
+    expect(thu.category_id).not.toBeNull()
+    expect(kiemDong(P, thu, chi, thuKhac, cap, neoP)).toEqual([])
+  })
+
+  /** So THAT tu (0004)202312K.pdf — boc bang chinh parser cua app. */
+  it('so that cua 202312K: bu tru 15.068 phia CHI', () => {
+    const P: Phieu = {
+      file: '(0004)202312K.pdf', empno: '0004', period: '202312', kind: 'K',
+      nguonKy: 'noi-dung', canhBao: [],
+      gross: 485610, deductTotal: 73476, net: 500678, bank: 500678,
+      tru: { 健康保険料: 16694, 厚生年金保険: 31110, 雇用保険料: 2742, 所得税: 10530, 住民税: 12400 },
+      ngoaiTong: { 過不足税額: -88544 },
+      cap: { 基本給: 325000, 残業手当: 132032, 立替経費精算: 28578 },
+      nhanLa: [], loi: [],
+    }
+    const neoP = { ...neo, occurred_on: '2023-12-08', amount: 500678 }
+    const d = dungDong(P, neoP, IDS)
+    expect(d.thu.type).toBe('expense')
+    expect(d.thu.amount).toBe(88544 - 73476) // = 15.068
+    expect(kiemDong(P, d.thu, d.chi, d.thuKhac, d.cap, neoP)).toEqual([])
   })
 })
 
@@ -681,5 +702,62 @@ describe('dungDong · ràng buộc DB trên mọi dòng dựng ra', () => {
     expect(kiemDong(P_CAP, d.thu, d.chi, d.thuKhac, xau, NEO_202608).join(' ')).toMatch(
       /category_id/,
     )
+  })
+})
+
+/**
+ * 立替経費精算 — tien nguoi dung UNG RA chi ho cong ty roi duoc tra lai. Cung lop voi
+ * 通勤手当 (hoan phi, khong phai thu nhap) nhung KHAC mot diem quyet dinh cach lam:
+ * cac khoan mua do KHONG co trong so (mua lau roi, khong con nho mua gi). Nen chi RUT
+ * khoi Thu, KHONG dung dong hoan tien — khong co khoan chi nao de triet tieu.
+ */
+describe('dungDong · 立替経費精算', () => {
+  const N = NEO_202608.amount // 400.000
+
+  it('chi rut khoi Thu, khong dung dong hoan tien', () => {
+    const P: Phieu = { ...P202608, cap: { 立替経費精算: 28578 } }
+    const d = dungDong(P, NEO_202608, IDS, TK_HUU)
+    expect(d.suaNeo).toBe(true)
+    expect(d.cap).toHaveLength(2) // luong thuc nhan + trung hoa, KHONG co dong hoan
+    expect(d.cap.some((r) => r.is_refund)).toBe(false)
+    expect(soDu(d.cap, YUCHO)).toBe(0)
+    expect(thuTrongTk(d.cap) - N).toBe(-28578)
+  })
+
+  /** Dong trung hoa = rong − 立替経費精算, khong phai rong: khong co dong hoan de bu. */
+  it('dong trung hoa tru bot phan 立替経費精算', () => {
+    const P: Phieu = { ...P202608, cap: { 立替経費精算: 28578 } }
+    const d = dungDong(P, NEO_202608, IDS, TK_HUU)
+    const trungHoa = d.cap.find((r) => r.type === 'expense' && r.exclude_from_stats)
+    expect(trungHoa?.amount).toBe(N - 28578)
+  })
+
+  it('co ca 通勤手当 va 立替経費精算: rut ca hai khoi Thu, hoan chi phan ve tau', () => {
+    const P: Phieu = { ...P202608, cap: { 通勤手当: 77070, 立替経費精算: 7780 } }
+    const d = dungDong(P, NEO_202608, IDS, TK_HUU)
+    expect(soDu(d.cap, YUCHO)).toBe(0)
+    expect(thuTrongTk(d.cap) - N).toBe(-(77070 + 7780))
+    expect(d.cap.find((r) => r.is_refund)?.amount).toBe(77070) // chi ve tau, khong gop
+    expect(d.cap.find((r) => r.type === 'expense' && r.exclude_from_stats)?.amount).toBe(N - 7780)
+  })
+
+  /** Chi co 立替経費精算 thi KHONG can danh muc Tàu xe — khong co dong hoan nao. */
+  it('khong doi danh muc Tàu xe khi chi co 立替経費精算', () => {
+    const thieu = new Map([...IDS].filter(([k]) => k !== 'Tàu xe'))
+    const P: Phieu = { ...P202608, cap: { 立替経費精算: 28578 } }
+    expect(() => dungDong(P, NEO_202608, thieu, TK_HUU)).not.toThrow()
+  })
+
+  it('kiemDong qua sach cho ca ba to hop', () => {
+    const toHop: Record<string, number>[] = [
+      { 立替経費精算: 28578 },
+      { 通勤手当: 77070 },
+      { 通勤手当: 77070, 立替経費精算: 7780, DB掛金: -10000 },
+    ]
+    for (const cap of toHop) {
+      const P: Phieu = { ...P202608, cap }
+      const d = dungDong(P, NEO_202608, IDS, TK_HUU)
+      expect(kiemDong(P, d.thu, d.chi, d.thuKhac, d.cap, NEO_202608), JSON.stringify(cap)).toEqual([])
+    }
   })
 })

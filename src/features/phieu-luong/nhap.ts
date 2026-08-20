@@ -72,6 +72,13 @@ export const MAP_KHAC: Record<string, string> = { 社内販売精算: 'Đi chợ
 /** Nhãn 支給 có dựng bút toán. Xem `dungDong` để biết vì sao mỗi cái một cách. */
 export const NHAN_DI_LAI = '通勤手当'
 export const NHAN_HUU = 'DB掛金'
+/**
+ * Tiền người dùng ỨNG RA chi hộ công ty rồi được trả lại. Cùng lớp với 通勤手当 (hoàn phí,
+ * không phải thu nhập) nhưng KHÁC một điểm quyết định cách làm: các khoản mua đó KHÔNG có
+ * trong sổ (mua lâu rồi, không còn nhớ mua gì). Nên chỉ RÚT khỏi Thu, không dựng dòng hoàn
+ * tiền — không có khoản chi nào để triệt tiêu.
+ */
+export const NHAN_LA_THEO = '立替経費精算'
 /** Danh mục nhận khoản HOÀN phí đi lại. Tên phải đúng từng ký tự (như MAP_THUE). */
 export const DANH_MUC_TAU_XE = 'Tàu xe'
 /** Tài khoản tài sản nhận DB掛金 (退職金 — hagukumikikin.jp). */
@@ -241,8 +248,41 @@ export function dungDong(
     })
   }
   const tong = (ds: DongMoi[]): number => ds.reduce((s, r) => s + r.amount * (r.is_refund ? -1 : 1), 0)
-  const tongThue = tong(chi.filter((r) => r.exclude_from_stats))
-  const tongKhac = tong(chi.filter((r) => !r.exclude_from_stats))
+  const nhomNgoai = chi.filter((r) => r.exclude_from_stats)
+  const nhomTrong = chi.filter((r) => !r.exclude_from_stats)
+  const tongThue = tong(nhomNgoai)
+  const tongKhac = tong(nhomTrong)
+
+  /**
+   * Dòng đối ứng cho một nhóm. Tổng nhóm DƯƠNG (thường lệ) → dòng THU; tổng ÂM → dòng CHI
+   * `|tổng|`.
+   *
+   * Vì sao phải có nhánh âm: tháng 12 có 年末調整, khoản hoàn 過不足税額 có thể lớn hơn TỔNG
+   * mọi khoản bị trừ (đo trên (0004)202312K.pdf: hoàn 88.544 > tổng khấu trừ 73.476, nên
+   * ròng 500.678 > gộp 485.610). Dòng thu khi đó phải mang −15.068, mà DB có
+   * `check (amount > 0)`. Bản trước từ chối cả phiếu và bảo "xử tay" — nhưng ca này lặp lại
+   * MỖI NĂM, và biểu diễn được: đảo phía của dòng đối ứng là số dư vẫn về 0, thống kê vẫn
+   * không phồng, không phải bịa gì.
+   *
+   * `category_id` lấy từ dòng |amount| lớn nhất trong nhóm: DB bắt expense phải có danh mục,
+   * và dòng lớn nhất chính là dòng gây ra dấu âm (ở 202312K là 過不足税額 → Thuế thu nhập).
+   */
+  const dongBu = (tongNhom: number, ngoai: boolean, nhom: DongMoi[]): DongMoi => {
+    if (tongNhom >= 0) return dongThu(tongNhom, ngoai)
+    const lonNhat = nhom.reduce((a, b) => (b.amount > a.amount ? b : a))
+    return {
+      type: 'expense',
+      amount: -tongNhom,
+      to_amount: null,
+      category_id: lonNhat.category_id,
+      account_id: neo.account_id,
+      to_account_id: null,
+      occurred_on: neo.occurred_on,
+      note: `${dau} · ${ngoai ? 'phần bị giữ lại' : 'phần đã chi hộ'} (hoàn vượt khấu trừ)`,
+      is_refund: false,
+      exclude_from_stats: ngoai,
+    }
+  }
 
   const dongThu = (amount: number, ngoai: boolean): DongMoi => ({
     type: 'income',
@@ -265,8 +305,8 @@ export function dungDong(
   // pham vi thong ke cua no: phan thue can bang ngoai thong ke, phan con lai can
   // bang trong thong ke. Nho vay Thu/Chi khong phong, ma chenh lech van dung.
   return {
-    thu: dongThu(tongThue, true),
-    thuKhac: tongKhac > 0 ? dongThu(tongKhac, false) : null,
+    thu: dongBu(tongThue, true, nhomNgoai),
+    thuKhac: tongKhac !== 0 ? dongBu(tongKhac, false, nhomTrong) : null,
     chi,
     ...dungCap(phieu, neo, idTheoTen, tkHuuId, dau),
   }
@@ -310,23 +350,34 @@ function dungCap(
   const cap: DongMoi[] = []
 
   const diLai = phieu.cap[NHAN_DI_LAI] ?? 0
-  const suaNeo = diLai > 0
+  const laTheo = phieu.cap[NHAN_LA_THEO] ?? 0
+  /** Hai khoản hoàn phí — cả hai đều phải RA KHỎI Thu, chỉ khác cách triệt tiêu phía Chi. */
+  const raKhoiThu = diLai + laTheo
+  const suaNeo = raKhoiThu > 0
   if (suaNeo) {
-    const idTauXe = idTheoTen.get(DANH_MUC_TAU_XE)
-    if (!idTauXe) throw new Error(`thiếu danh mục '${DANH_MUC_TAU_XE}' (cho ${NHAN_DI_LAI})`)
+    if (neo.category_id === null) {
+      throw new Error(`dòng neo '${neo.id}' không có danh mục — không dựng được dòng trung hoà`)
+    }
     cap.push({
-      ...chung, type: 'income', amount: neo.amount - diLai,
+      ...chung, type: 'income', amount: neo.amount - raKhoiThu,
       category_id: neo.category_id, account_id: neo.account_id,
       note: `${dau} · lương thực nhận`,
     })
     // Hoàn tiền = CHI ÂM (migration 0026), amount vẫn DƯƠNG. Nó triệt tiêu khoản mua
     // vé mà người dùng đã tự ghi — dù khoản đó ở tháng nào, số bao nhiêu. Mua 3 tháng
     // mà được trả 6 tháng thì Chi 'Tàu xe' ÂM, và đó là sự thật, không phải lỗi.
-    cap.push({
-      ...chung, type: 'expense', amount: diLai, is_refund: true,
-      category_id: idTauXe, account_id: neo.account_id,
-      note: `${dau} · hoàn phí đi lại (${NHAN_DI_LAI})`,
-    })
+    //
+    // CHỈ cho 通勤手当. 立替経費精算 không có dòng này vì không có khoản mua nào trong sổ
+    // để triệt tiêu — dựng dòng hoàn cho nó là kéo Chi xuống mà chẳng đối ứng với gì.
+    if (diLai > 0) {
+      const idTauXe = idTheoTen.get(DANH_MUC_TAU_XE)
+      if (!idTauXe) throw new Error(`thiếu danh mục '${DANH_MUC_TAU_XE}' (cho ${NHAN_DI_LAI})`)
+      cap.push({
+        ...chung, type: 'expense', amount: diLai, is_refund: true,
+        category_id: idTauXe, account_id: neo.account_id,
+        note: `${dau} · hoàn phí đi lại (${NHAN_DI_LAI})`,
+      })
+    }
     /**
      * Trung hoà: dòng neo vẫn mang cả `neo.amount` vào số dư, nên phải rút đúng bằng số
      * đó ra. NGOÀI thống kê (xám trong Sổ) — nó không phải một khoản chi thật.
@@ -337,14 +388,18 @@ function dungCap(
      * đường, dòng DB掛金 không được ghi và cờ dòng neo không được bật. Tầng thuần không
      * có CHECK của Postgres nên test đơn vị xanh trơn; chốt ở `kiemCap` là để bù chỗ đó.
      *
-     * Dùng luôn danh mục `Tàu xe` thay vì đòi thêm một danh mục nữa: dòng này bị lọc
-     * khỏi MỌI tổng theo danh mục (budgets/progress.ts:69, aggregate.ts:73·274·382·486
-     * đều bỏ `exclude_from_stats`), nên danh mục ở đây chỉ là chỗ trú cho ràng buộc DB —
-     * `note` mới là chỗ nói dòng này là gì.
+     * Dùng danh mục CỦA CHÍNH DÒNG NEO thay vì đòi thêm một danh mục nữa: dòng này bị lọc
+     * khỏi MỌI tổng theo danh mục (budgets/progress.ts:69, aggregate.ts:73·274·382·486 đều
+     * bỏ `exclude_from_stats`), nên danh mục ở đây chỉ là chỗ trú cho ràng buộc DB — và
+     * mượn danh mục của dòng nó triệt tiêu thì đọc trong Sổ cũng đúng nghĩa nhất.
+     *
+     * `− laTheo`: 立替経費精算 KHÔNG có dòng hoàn tiền đi kèm, nên nếu rút trọn `neo.amount`
+     * thì số dư thiếu đúng phần đó. Trừ sẵn ở đây là số dư về 0 cho cả ba tổ hợp (chỉ
+     * 通勤手当 · chỉ 立替経費精算 · có cả hai).
      */
     cap.push({
-      ...chung, type: 'expense', amount: neo.amount, exclude_from_stats: true,
-      category_id: idTauXe, account_id: neo.account_id,
+      ...chung, type: 'expense', amount: neo.amount - laTheo, exclude_from_stats: true,
+      category_id: neo.category_id, account_id: neo.account_id,
       note: `${dau} · trung hoà dòng neo`,
     })
   }
@@ -459,30 +514,33 @@ export function kiemDong(
   const loi: string[] = []
   const tong = (ds: DongMoi[]): number => ds.reduce((s, r) => s + r.amount * (r.is_refund ? -1 : 1), 0)
   const tongChi = tong(chi)
-  const tongThu = thu.amount + (thuKhac ? thuKhac.amount : 0)
-  if (tongThu !== tongChi) loi.push(`tong thu ${tongThu} != tong chi ${tongChi}`)
+
+  /**
+   * Can bang theo SO DU CO DAU, khong theo `amount` cua dong doi ung.
+   *
+   * Ban truoc so `thu.amount` voi `tong(chi)` — dung chi khi dong doi ung LUON la thu.
+   * Tu khi nhom co tong am duoc bieu dien bang dong CHI (xem `dongBu`), phep so do sai
+   * dau: dong chi 15.068 doi ung voi nhom co tong −15.068 la DUNG, ma `15068 !== -15068`.
+   */
+  const soDu = (r: DongMoi): number => r.amount * (r.type === 'income' ? 1 : r.is_refund ? 1 : -1)
+  const canBang = (ds: DongMoi[]): number => ds.reduce((t, r) => t + soDu(r), 0)
 
   // Can bang TRONG TUNG pham vi thong ke, khong chi can bang tong: neu lech thi
   // Thu/Chi phong len dung phan lech do, dung cai loi ma mo hinh nay sinh ra de sua.
-  const tThue = tong(chi.filter((r) => r.exclude_from_stats))
-  const tKhac = tong(chi.filter((r) => !r.exclude_from_stats))
-  if (thu.amount !== tThue) loi.push(`thu ngoai thong ke ${thu.amount} != chi thue ${tThue}`)
-  if ((thuKhac ? thuKhac.amount : 0) !== tKhac) {
-    loi.push(`thu trong thong ke ${thuKhac ? thuKhac.amount : 0} != chi khac ${tKhac}`)
-  }
-  if (thuKhac && thuKhac.exclude_from_stats) loi.push('dong thu "da chi ho" khong duoc mang co')
-  if (!thu.exclude_from_stats) loi.push('dong thu "bi giu lai" phai mang co exclude_from_stats')
+  const lechNgoai = canBang([thu, ...chi.filter((r) => r.exclude_from_stats)])
+  const lechTrong = canBang([...(thuKhac ? [thuKhac] : []), ...chi.filter((r) => !r.exclude_from_stats)])
+  if (lechNgoai !== 0) loi.push(`nhom ngoai thong ke lech ${lechNgoai} (phai bang 0)`)
+  if (lechTrong !== 0) loi.push(`nhom trong thong ke lech ${lechTrong} (phai bang 0)`)
+  if (thuKhac && thuKhac.exclude_from_stats) loi.push('dong doi ung "da chi ho" khong duoc mang co')
+  if (!thu.exclude_from_stats) loi.push('dong doi ung "bi giu lai" phai mang co exclude_from_stats')
 
   if (phieu.gross != null && phieu.net != null && tongChi !== phieu.gross - phieu.net) {
     loi.push(`tong chi ${tongChi} != 総支給 - 差引支給 (${phieu.gross - phieu.net})`)
   }
-  if (thu.amount <= 0) {
-    loi.push(
-      `phan bi giu lai = ${thu.amount} <= 0 (rong ${phieu.net} > gop ${phieu.gross}: ` +
-        `hoan thue cuoi nam lon hon tong khau tru). Cach chi-them khong bieu dien ` +
-        `duoc ca nay — xu tay.`,
-    )
-  }
+  // Thay cho chot "thu phai duong" cu: bay gio dau am da bieu dien duoc, nhung amount
+  // van phai > 0 tren MOI dong (DB co check(amount > 0)).
+  if (thu.amount <= 0) loi.push(`dong doi ung "bi giu lai" amount ${thu.amount} <= 0`)
+  if (thuKhac && thuKhac.amount <= 0) loi.push(`dong doi ung "da chi ho" amount ${thuKhac.amount} <= 0`)
   if (chi.some((r) => r.amount <= 0)) loi.push('co dong chi amount <= 0')
   loi.push(...kiemCap(phieu, cap, neo))
   return loi
@@ -515,12 +573,15 @@ function kiemCap(phieu: Phieu, cap: DongMoi[], neo: KhoanNeo | null): string[] {
     0,
   )
   if (soDu !== 0) loi.push(`khối 支給 làm số dư tài khoản neo lệch ${soDu} (phải bằng 0)`)
-  const diLai = phieu.cap[NHAN_DI_LAI] ?? 0
+  const raKhoiThu = (phieu.cap[NHAN_DI_LAI] ?? 0) + (phieu.cap[NHAN_LA_THEO] ?? 0)
   const thuMoi = cung
     .filter((r) => r.type === 'income' && !r.exclude_from_stats)
     .reduce((t, r) => t + r.amount, 0)
-  if (diLai > 0 && thuMoi - neo.amount !== -diLai) {
-    loi.push(`Thu đổi ${thuMoi - neo.amount}, phải là ${-diLai} (= −${NHAN_DI_LAI})`)
+  if (raKhoiThu > 0 && thuMoi - neo.amount !== -raKhoiThu) {
+    loi.push(
+      `Thu đổi ${thuMoi - neo.amount}, phải là ${-raKhoiThu} ` +
+        `(= −${NHAN_DI_LAI} − ${NHAN_LA_THEO})`,
+    )
   }
   return loi
 }

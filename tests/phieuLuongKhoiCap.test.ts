@@ -83,19 +83,27 @@ describe('trang import: danh mục phụ cấp phải lọc theo type', () => {
 })
 
 /**
- * Mốc kỳ là con số quyết định 19 kỳ rơi về phía nào của Thu. Nó phải nằm ở MỘT chỗ và
- * được cả `dungCap` lẫn `kiemCap` đọc qua cùng một hàm — hai chỗ tự so kỳ riêng là hai
- * chỗ sẽ trôi khỏi nhau, và khi trôi thì phiếu bị từ chối hàng loạt chứ không sai lặng lẽ.
+ * `通勤手当` và `DB掛金` đều phải mang `exclude_from_stats`. Đây là hai khoản DUY NHẤT của
+ * bộ máy 総支給金額 → 差引支給額 từng bị đếm vào Thu, và cả hai đã sai theo hai hướng khác
+ * nhau (một thành chi âm, một thành thu nhập). Chốt ở tầng nguồn vì cờ này không có cách
+ * nào sai ồn ào: đếm sai phía thì Thu chỉ lệch đi, không có lỗi nào nổ.
  */
-describe('mốc KY_PHU_CAP_VAO_THU chỉ có một nguồn', () => {
+describe('khối 支給 luôn đứng ngoài thống kê', () => {
   const src = doc('../src/features/phieu-luong/nhap.ts')
 
-  it('chỉ `phuCapVaoThu` so kỳ với mốc', () => {
-    const soSanh = src.match(/period\s*>=\s*KY_PHU_CAP_VAO_THU/g) ?? []
-    expect(soSanh).toHaveLength(1)
+  it('không còn mốc kỳ nào quyết định phía của phụ cấp', () => {
+    expect(src).not.toContain('KY_PHU_CAP_VAO_THU')
   })
 
-  it('cả dungCap và kiemCap đều đi qua phuCapVaoThu', () => {
-    expect((src.match(/phuCapVaoThu\(/g) ?? []).length).toBeGreaterThanOrEqual(3)
+  it('dòng phụ cấp đi lại mang exclude_from_stats: true', () => {
+    const i = src.indexOf('phụ cấp đi lại (${NHAN_DI_LAI})')
+    expect(i).toBeGreaterThan(-1)
+    expect(src.slice(src.lastIndexOf('cap.push({', i), i)).toContain('exclude_from_stats: true')
+  })
+
+  it('dòng DB掛金 → 退職金 mang exclude_from_stats: true', () => {
+    const i = src.indexOf('${NHAN_HUU} → ${TEN_TK_HUU}')
+    expect(i).toBeGreaterThan(-1)
+    expect(src.slice(src.lastIndexOf('cap.push({', i), i)).toContain('exclude_from_stats: true')
   })
 })

@@ -107,21 +107,6 @@ export interface TraNo {
  * `idTheoTen` — map đó chỉ chứa danh mục CHI; trang phải tra riêng trong nhóm type='income'.
  */
 export const DANH_MUC_PHU_CAP = 'Phụ cấp đi lại'
-/**
- * Từ kỳ này trở đi `通勤手当` được TÍNH vào Thu. Các kỳ trước nằm ngoài cả Thu và Chi.
- *
- * Vì sao 通勤手当 cần một mốc kỳ trong khi 立替経費精算 không cần: 立替 tự rơi về cách
- * đúng dựa trên khoản nợ KOME có tồn tại hay không — một dữ kiện CÓ trong sổ. Còn dữ
- * kiện quyết định của 通勤手当 là "người dùng có ghi khoản mua vé hay không", và điều đó
- * không đọc được từ sổ: một khoản `Tàu xe` ¥40.680 không tự khai nó thuộc kỳ phụ cấp nào.
- *
- * Đo trên dữ liệu thật (20/08/2026): 19 kỳ có 通勤手当 từ 202202 đến 202608, tổng
- * ¥945.626, và không kỳ nào trong 18 kỳ đầu có khoản mua vé đối ứng trong sổ — quét cả
- * 977 giao dịch, danh mục `Tàu xe` chỉ có các khoản ¥170–3.250. Tính 18 kỳ đó vào Thu là
- * dựng ¥868.556 thu nhập không có phía chi; ghi chúng thành HOÀN TIỀN (bản trước) thì
- * ngược lại — khấu ¥868.556 khỏi Chi của những khoản chẳng liên quan. Nên: ngoài cả hai.
- */
-export const KY_PHU_CAP_VAO_THU = '202608'
 /** Tài khoản tài sản nhận DB掛金 (退職金 — hagukumikikin.jp). */
 export const TEN_TK_HUU = '退職金'
 /**
@@ -363,32 +348,22 @@ export function dungDong(
 }
 
 /**
- * `通勤手当` của kỳ này có đếm vào Thu hay không — xem KY_PHU_CAP_VAO_THU.
- *
- * Nổ khi thiếu kỳ chứ không mặc định "ẩn": mặc định lặng lẽ ở đây nghĩa là một phiếu
- * không đọc được kỳ vẫn được ghi, với phụ cấp rơi về phía nào thì không ai biết.
- * `bocPhieu` đã báo lỗi 'không đọc được kỳ/loại' và `dungKeHoach` từ chối phiếu có lỗi,
- * nên đường này không tới được từ luồng thường — chốt để đây cho người gọi trực tiếp.
- */
-function phuCapVaoThu(p: Phieu): boolean {
-  if (!p.period) {
-    throw new Error(`phiếu '${p.file}' thiếu kỳ — không quyết được mốc ${KY_PHU_CAP_VAO_THU}`)
-  }
-  return p.period >= KY_PHU_CAP_VAO_THU
-}
-
-/**
  * Khối 支給: 通勤手当 và DB掛金. Xem
  * docs/superpowers/specs/2026-08-20-phieu-luong-thu-nhap-thuc-notes.md
  *
- * 通勤手当 là tiền công ty trả cho việc đi lại. Nó KHÔNG được nằm trong danh mục
- * `Lương` — người dùng muốn tách ra để biết lương thật là bao nhiêu — nên dòng neo bị
- * xẻ thành hai dòng thu: phần lương, và phần phụ cấp dưới danh mục riêng.
+ * 通勤手当 KHÔNG phải thu nhập — công ty trả tiền đi lại của người dùng, tiền đó vào
+ * rồi ra để mua vé. Nó cũng KHÔNG phải hoàn tiền: bản đầu ghi nó thành chi âm với giả
+ * định "nó triệt tiêu khoản mua vé người dùng đã tự ghi", và giả định đó SAI trên sổ
+ * thật — quét 977 giao dịch, danh mục `Tàu xe` chỉ có các khoản ¥170–3.250, không khoản
+ * nào cỡ vé định kỳ. Nên nó đi khấu vào cơm ngoài và tiền gửi gia đình.
  *
- * Phần phụ cấp có đếm vào Thu hay không thì do `KY_PHU_CAP_VAO_THU` quyết. Bản đầu ghi
- * nó thành HOÀN TIỀN (chi âm) với giả định "nó triệt tiêu khoản mua vé người dùng đã tự
- * ghi" — giả định đó SAI trên sổ thật: không có khoản mua vé nào được ghi, nên nó đi
- * khấu vào cơm ngoài và tiền gửi gia đình.
+ * Cách đúng: một dòng THU dưới danh mục riêng `Phụ cấp đi lại`, mang
+ * `exclude_from_stats` — tiền vào tài khoản thật (số dư đúng) nhưng đứng ngoài cả Thu và
+ * Chi. Cùng quy ước với mọi khoản khác của bộ máy 総支給金額 → 差引支給額: 健康保険料,
+ * 厚生年金保険, 所得税, 住民税 và 'phần bị giữ lại' đều nằm ngoài thống kê.
+ *
+ * Vì sao có danh mục riêng dù dòng này bị lọc khỏi mọi báo cáo: để đọc được trong Sổ.
+ * `Lương · phụ cấp đi lại` gây hiểu sai đúng cái điều người dùng muốn tránh.
  *
  * Vì sao không hạ `amount` dòng neo cho gọn: `transactions_refund_check` (migration
  * 0026) chặn thu nhập âm, nên KHÔNG có bộ dòng chỉ-THÊM nào rút được tiền khỏi Thu —
@@ -398,10 +373,15 @@ function phuCapVaoThu(p: Phieu): boolean {
  * `exclude_from_stats` (suaNeo) — số giữ nguyên, gỡ lô chỉ cần tắt lại một boolean —
  * rồi dựng lại phần thống kê bằng ba dòng dưới đây.
  *
- * DB掛金 thì đơn giản hơn nhiều: tiền đó CHƯA BAO GIỜ vào Yucho (đã trừ khỏi
- * 総支給金額 — đo trên phiếu thật: 基本給 + 残業手当 + DB掛金 + 通勤手当 = 総支給金額).
- * Nên chỉ cần một dòng thu vào tài khoản 退職金: Yucho không đổi, tài sản hưu tăng, và
- * Thu tăng đúng phần người dùng THẬT SỰ kiếm được.
+ * DB掛金 cũng NGOÀI thống kê, và vì một lý do khác: công ty lấy 10.000 CỦA người dùng
+ * mỗi tháng rồi bỏ vào 退職金 (hagukumikikin.jp). Đó là tiền của chính mình chuyển sang
+ * một tài khoản khác, không phải một khoản kiếm được — `厚生年金保険` cùng bản chất và
+ * cũng nằm ngoài thống kê. Nó đã bị trừ khỏi 総支給金額 (đo trên phiếu thật:
+ * 基本給 + 残業手当 + DB掛金 + 通勤手当 = 総支給金額) nên chưa bao giờ vào Yucho.
+ *
+ * Không dựng được `type: 'transfer'` cho nó: chuyển khoản cần tài khoản NGUỒN, mà nguồn
+ * ở đây là công ty — không có trong sổ. Nên: một dòng thu vào 退職金, ngoài thống kê.
+ * Yucho không đổi, tài sản hưu tăng đúng, Thu không phồng.
  */
 function dungCap(
   phieu: Phieu,
@@ -423,9 +403,9 @@ function dungCap(
   const diLai = phieu.cap[NHAN_DI_LAI] ?? 0
   const laTheo = phieu.cap[NHAN_LA_THEO] ?? 0
   /**
-   * Phần bị TÁCH khỏi dòng `Lương` — không phải phần "ra khỏi Thu". Hai khoản đi hai
-   * đường khác nhau: 立替経費精算 luôn ra khỏi Thu (nó là tiền của mình được trả lại),
-   * còn 通勤手当 chỉ đổi danh mục và có thể vẫn đếm vào Thu (xem KY_PHU_CAP_VAO_THU).
+   * Phần bị TÁCH khỏi dòng `Lương`. Cả hai khoản đều ra khỏi Thu, chỉ khác lý do:
+   * 立替経費精算 là tiền của chính mình được trả lại, 通勤手当 là tiền công ty trả cho
+   * việc đi lại. Không khoản nào là thu nhập, nên cả hai mang `exclude_from_stats`.
    */
   const tachKhoiLuong = diLai + laTheo
 
@@ -459,10 +439,6 @@ function dungCap(
       category_id: neo.category_id, account_id: neo.account_id,
       note: `${dau} · lương thực nhận`,
     })
-    // Phần phụ cấp: một dòng THU riêng, không phải chi âm. `exclude_from_stats` là chỗ
-    // DUY NHẤT phân biệt kỳ cũ với kỳ mới — cùng một dòng, cùng một danh mục, để Sổ đọc
-    // được nó ở cả hai thời kỳ và để gỡ lô không phải phân nhánh.
-    //
     // CHỈ cho 通勤手当. 立替経費精算 không có dòng này: nó đi bằng dòng trả nợ (traNo) hoặc
     // bị rút hẳn khỏi Thu, chứ không bao giờ là một khoản thu nhập mới.
     if (diLai > 0) {
@@ -470,8 +446,7 @@ function dungCap(
         throw new Error(`thiếu danh mục thu '${DANH_MUC_PHU_CAP}' (cho ${NHAN_DI_LAI})`)
       }
       cap.push({
-        ...chung, type: 'income', amount: diLai,
-        exclude_from_stats: !phuCapVaoThu(phieu),
+        ...chung, type: 'income', amount: diLai, exclude_from_stats: true,
         category_id: idPhuCap, account_id: neo.account_id,
         note: `${dau} · phụ cấp đi lại (${NHAN_DI_LAI})`,
       })
@@ -507,7 +482,7 @@ function dungCap(
   if (huu !== 0) {
     if (!tkHuuId) throw new Error(`thiếu tài khoản '${TEN_TK_HUU}' (cho ${NHAN_HUU})`)
     cap.push({
-      ...chung, type: 'income', amount: Math.abs(huu),
+      ...chung, type: 'income', amount: Math.abs(huu), exclude_from_stats: true,
       category_id: neo.category_id, account_id: tkHuuId,
       note: `${dau} · ${NHAN_HUU} → ${TEN_TK_HUU}`,
     })
@@ -697,25 +672,21 @@ function kiemCap(
     0,
   )
   if (soDu !== 0) loi.push(`khối 支給 làm số dư tài khoản neo lệch ${soDu} (phải bằng 0)`)
-  const diLai = phieu.cap[NHAN_DI_LAI] ?? 0
-  const laTheo = phieu.cap[NHAN_LA_THEO] ?? 0
-  const tachKhoiLuong = diLai + laTheo
   /**
-   * Thu PHẢI giảm đúng bằng đây, không hơn không kém:
-   * - `立替経費精算` luôn ra khỏi Thu — tiền của chính mình được trả lại.
-   * - `通勤手当` chỉ ra khỏi Thu ở các kỳ TRƯỚC mốc; từ mốc trở đi nó ở lại Thu dưới
-   *   danh mục riêng, nên Thu không giảm phần đó.
+   * Thu PHẢI giảm đúng cả 通勤手当 lẫn 立替経費精算, không hơn không kém — cả hai đều
+   * không phải thu nhập (một là tiền đi lại công ty trả, một là tiền của chính mình được
+   * trả lại), nên chúng ra khỏi Thu trong khi số dư tài khoản vẫn đúng.
    *
-   * Chốt này bắt đúng ca dễ vỡ nhất: đổi cách ghi dòng phụ cấp mà quên đổi kỳ vọng ở
-   * đây thì MỌI phiếu có đi lại bị từ chối — 19 kỳ, ồn ào và dễ thấy. Ngược lại, nới
-   * chốt ra thì một dòng phụ cấp đếm sai phía sẽ đi thẳng vào sổ mà không ai biết.
+   * Chốt này bắt ca dễ vỡ nhất: đổi cờ `exclude_from_stats` của dòng phụ cấp mà quên đổi
+   * kỳ vọng ở đây thì MỌI phiếu có đi lại bị từ chối — 19 kỳ, ồn ào và dễ thấy. Ngược
+   * lại, nới chốt ra thì một dòng đếm sai phía đi thẳng vào sổ mà không ai biết.
    */
-  const thuGiam = laTheo + (diLai > 0 && !phuCapVaoThu(phieu) ? diLai : 0)
+  const tachKhoiLuong = (phieu.cap[NHAN_DI_LAI] ?? 0) + (phieu.cap[NHAN_LA_THEO] ?? 0)
   const thuMoi = cap
     .filter((r) => r.account_id === neo.account_id && r.type === 'income' && !r.exclude_from_stats)
     .reduce((t, r) => t + r.amount, 0)
-  if (tachKhoiLuong > 0 && thuMoi - neo.amount !== -thuGiam) {
-    loi.push(`Thu đổi ${thuMoi - neo.amount}, phải là ${-thuGiam}`)
+  if (tachKhoiLuong > 0 && thuMoi - neo.amount !== -tachKhoiLuong) {
+    loi.push(`Thu đổi ${thuMoi - neo.amount}, phải là ${-tachKhoiLuong}`)
   }
   return loi
 }

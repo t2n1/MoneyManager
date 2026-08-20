@@ -523,9 +523,9 @@ describe('dungDong · 通勤手当', () => {
       amount: 400000 - 77070,
       exclude_from_stats: false,
     })
-    // phụ cấp đi lại: dòng THU riêng, danh mục riêng; kỳ 202608 ⇒ đếm vào Thu
+    // phụ cấp đi lại: dòng THU riêng, danh mục riêng, NGOÀI thống kê
     expect(yucho.find((r) => r.category_id === DM_PHU_CAP)).toMatchObject({
-      type: 'income', amount: 77070, exclude_from_stats: false, is_refund: false,
+      type: 'income', amount: 77070, exclude_from_stats: true, is_refund: false,
     })
     // trung hoà: chi bằng ĐÚNG số dòng neo, NGOÀI thống kê
     expect(
@@ -540,20 +540,13 @@ describe('dungDong · 通勤手当', () => {
   })
 
   /**
-   * Mục đích của cả thay đổi này: `通勤手当` RA KHỎI danh mục `Lương` nhưng Ở LẠI trong
-   * Thu (kỳ >= KY_PHU_CAP_VAO_THU). Thu không đổi một đồng — chỉ đổi chỗ.
+   * `通勤手当` KHÔNG phải thu nhập — công ty trả tiền đi lại, tiền đó vào rồi ra để mua
+   * vé. Nên nó RA KHỎI Thu, nhưng bằng cờ `exclude_from_stats` chứ KHÔNG bằng dòng chi
+   * âm: sổ không có khoản mua vé nào để một dòng hoàn tiền triệt tiêu, nên chi âm sẽ đi
+   * khấu vào cơm ngoài và tiền gửi gia đình.
    */
-  it('kỳ từ mốc trở đi: Thu không đổi, chỉ tách khỏi danh mục Lương', () => {
+  it('phụ cấp ra khỏi Thu, và KHÔNG thành chi âm', () => {
     const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
-    expect(thuTrongTk(d.cap.filter((r) => r.account_id === YUCHO)) - NEO_202608.amount).toBe(0)
-  })
-
-  /**
-   * Kỳ TRƯỚC mốc: người dùng chưa từng ghi khoản mua vé nào, nên phụ cấp phải đứng ngoài
-   * CẢ Thu và Chi. Đây là 18/19 kỳ trong sổ thật — ca chính, không phải ca lề.
-   */
-  it('kỳ trước mốc: phụ cấp ra khỏi Thu, và KHÔNG thành chi âm', () => {
-    const d = dungDong({ ...P_CAP, period: '202602' }, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     expect(d.cap.find((r) => r.category_id === DM_PHU_CAP)).toMatchObject({
       type: 'income', amount: 77070, exclude_from_stats: true,
     })
@@ -562,22 +555,15 @@ describe('dungDong · 通勤手当', () => {
     expect(soDu(d.cap, YUCHO)).toBe(0)
   })
 
-  /** Mốc là biên dưới ĐÓNG: chính kỳ 202608 đã vào Thu. Lệch một kỳ là lệch 77.070. */
-  it('mốc tính từ chính kỳ 202608, không phải kỳ sau', () => {
-    const co = (ky: string) =>
-      dungDong({ ...P_CAP, period: ky }, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP).cap.find(
-        (r) => r.category_id === DM_PHU_CAP,
-      )?.exclude_from_stats
-    expect(co('202607')).toBe(true)
-    expect(co('202608')).toBe(false)
-    expect(co('202609')).toBe(false)
-  })
-
-  /** Thiếu kỳ thì NỔ, không mặc định về một phía — xem phuCapVaoThu. */
-  it('thiếu kỳ thì nổ, không âm thầm chọn một phía', () => {
-    expect(() =>
-      dungDong({ ...P_CAP, period: null }, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP),
-    ).toThrow(/thiếu kỳ/)
+  /**
+   * KHÔNG có mốc kỳ nào. Bản trước từng đặt mốc 202608 (trước mốc thì ẩn, từ mốc thì đếm
+   * vào Thu); người dùng bác vì phụ cấp đi lại không phải thu nhập ở BẤT KỲ kỳ nào.
+   */
+  it('mọi kỳ đều ra khỏi Thu, không phụ thuộc kỳ', () => {
+    for (const ky of ['202202', '202602', '202608', '202702']) {
+      const d = dungDong({ ...P_CAP, period: ky }, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
+      expect(d.cap.find((r) => r.category_id === DM_PHU_CAP)?.exclude_from_stats, ky).toBe(true)
+    }
   })
 
   it('mọi dòng đều mang dấu 給与 để gỡ lô xoá được', () => {
@@ -598,12 +584,24 @@ describe('dungDong · 通勤手当', () => {
 })
 
 describe('dungDong · DB掛金', () => {
-  it('ghi thu 10.000 vào tài khoản 退職金, không đụng Yucho', () => {
+  /**
+   * NGOÀI thống kê: công ty lấy 10.000 CỦA người dùng rồi bỏ vào 退職金 — tiền của chính
+   * mình chuyển sang tài khoản khác, không phải khoản kiếm được. Cùng bản chất với
+   * 厚生年金保険, và khoản đó cũng nằm ngoài thống kê. Tài sản hưu vẫn tăng đúng 10.000.
+   */
+  it('ghi 10.000 vào tài khoản 退職金 ngoài thống kê, không đụng Yucho', () => {
     const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     const huu = d.cap.filter((r) => r.account_id === TK_HUU)
     expect(huu).toHaveLength(1)
-    expect(huu[0]).toMatchObject({ type: 'income', amount: 10000, exclude_from_stats: false })
+    expect(huu[0]).toMatchObject({ type: 'income', amount: 10000, exclude_from_stats: true })
     expect(soDu(d.cap, TK_HUU)).toBe(10000)
+  })
+
+  /** DB掛金 không được làm Thu phồng: nó là khoản duy nhất của bộ máy gross→net từng bị đếm. */
+  it('DB掛金 không thêm gì vào Thu', () => {
+    const chiDB: Phieu = { ...P202608, cap: { DB掛金: -10000 } }
+    const d = dungDong(chiDB, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
+    expect(thuTrongTk(d.cap)).toBe(0)
   })
 
   it('thiếu tài khoản 退職金 thì nổ, không bỏ tiền hưu đi', () => {
@@ -768,11 +766,11 @@ describe('dungDong · 立替経費精算', () => {
     expect(trungHoa?.amount).toBe(N - 28578)
   })
 
-  it('co ca 通勤手当 va 立替経費精算: chi 立替 ra khoi Thu, phu cap o lai', () => {
+  it('co ca 通勤手当 va 立替経費精算: rut CA HAI khoi Thu, khong dong chi am nao', () => {
     const P: Phieu = { ...P202608, cap: { 通勤手当: 77070, 立替経費精算: 7780 } }
     const d = dungDong(P, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     expect(soDu(d.cap, YUCHO)).toBe(0)
-    expect(thuTrongTk(d.cap) - N).toBe(-7780)
+    expect(thuTrongTk(d.cap) - N).toBe(-(77070 + 7780))
     expect(d.cap.find((r) => r.category_id === DM_PHU_CAP)?.amount).toBe(77070)
     expect(d.cap.some((r) => r.is_refund)).toBe(false)
     expect(d.cap.find((r) => r.type === 'expense' && r.exclude_from_stats)?.amount).toBe(N - 7780)
@@ -854,7 +852,7 @@ describe('dungDong · 立替経費精算 di duong no KOME', () => {
     const P: Phieu = { ...P202608, cap: { 通勤手当: 77070, 立替経費精算: L } }
     const d = dungDong(P, NEO_202608, IDS, TK_HUU, NO, DM_PHU_CAP)
     expect(soDu([...d.cap, d.traNo!.dong], YUCHO)).toBe(0)
-    expect(thuTrongTk(d.cap.filter((r) => r.account_id === YUCHO)) - N).toBe(-L)
+    expect(thuTrongTk(d.cap.filter((r) => r.account_id === YUCHO)) - N).toBe(-(77070 + L))
     expect(d.cap.find((r) => r.category_id === DM_PHU_CAP)?.amount).toBe(77070)
   })
 

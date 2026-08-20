@@ -427,3 +427,68 @@ không cần thao tác bù trừ nào ở khúc chuyển.
    không sửa dữ liệu đã ghi và form không đổi được loại giao dịch.
 2. Từ tháng 8/2026, ghi các lần mua vé định kỳ vào Chi như một khoản `Tàu xe` bình thường.
 3. **Không** thêm khoản ¥40.680 ngày 22/06 — nó thuộc chu kỳ đã ẩn.
+
+---
+
+## Vòng năm — cả khối 支給 đứng ngoài thống kê (20/08/2026)
+
+Vòng bốn dựng mốc `KY_PHU_CAP_VAO_THU = '202608'`: trước mốc thì ẩn, từ mốc thì đếm vào Thu.
+Người dùng nhìn số thật (Thu tháng 8 lên ¥419.251) rồi bác, bằng hai câu:
+
+> `DB掛金` là nó trừ vào lương trước khi tôi nhận được.
+> Phụ cấp đi lại không phải thu.
+
+Cả hai đều đúng, và **nhất quán với chính app**: mọi khoản khác của bộ máy
+`総支給金額 → 差引支給額` — `健康保険料`, `厚生年金保険`, `雇用保険料`, `所得税`, `住民税`,
+`phần bị giữ lại` — đều mang `exclude_from_stats`. `通勤手当` và `DB掛金` là hai khoản duy
+nhất của bộ máy đó từng bị đếm vào Thu, và chúng sai theo hai hướng khác nhau.
+
+| Khoản | Vòng 1 | Vòng 4 | Vòng 5 |
+|---|---|---|---|
+| `通勤手当` | chi âm (`is_refund`), danh mục `Tàu xe` | thu, ẩn trước mốc 202608 | **thu, luôn ẩn**, danh mục `Phụ cấp đi lại` |
+| `DB掛金` | thu vào `退職金`, **đếm vào Thu** | như vòng 1 | **thu vào `退職金`, ẩn** |
+
+Lý do khác nhau, kết luận giống nhau:
+
+- `通勤手当` — công ty trả tiền đi lại; tiền vào rồi ra để mua vé. Không phải mình kiếm được.
+- `DB掛金` — công ty lấy ¥10.000 **của người dùng** mỗi tháng bỏ vào `退職金`
+  (hagukumikikin.jp). Tiền của chính mình chuyển sang tài khoản khác. `厚生年金保険` cùng
+  bản chất và đã nằm ngoài thống kê từ đầu.
+
+`type: 'transfer'` không dựng được cho `DB掛金`: chuyển khoản cần tài khoản NGUỒN, mà nguồn
+là công ty — không có trong sổ. Nên vẫn là một dòng thu vào `退職金`, chỉ thêm cờ ẩn.
+
+**Mốc kỳ bị xoá hẳn**, kèm `phuCapVaoThu()`. `kiemCap` quay về bất biến gốc:
+`Thu giảm = 通勤手当 + 立替経費精算`. Danh mục thu riêng `Phụ cấp đi lại` thì **giữ**, dù dòng
+bị lọc khỏi mọi báo cáo — để đọc được trong Sổ; `Lương · phụ cấp đi lại` gây hiểu sai đúng
+cái điều người dùng muốn tránh.
+
+### Số tháng 8/2026
+
+| | Vòng 1 (đã ghi) | Vòng 4 (đã ghi) | Vòng 5 |
+|---|---|---|---|
+| Thu | 342.181 | 419.251 | **332.181** |
+| Chi | 178.268 | 255.338 | **255.338** |
+| Chênh lệch | 163.913 | 163.913 | **76.843** |
+
+Chênh lệch tụt ¥87.070 là **đúng theo định nghĩa mới**, không phải mất tiền: nó giờ đo
+"kiếm được trừ tiêu", đã trừ ra ¥77.070 tiền đi lại đi qua tay và ¥10.000 chuyển vào hưu.
+Tài sản thật vẫn tăng nhiều hơn con số đó — cùng kiểu như `厚生年金保険` vốn đã không nằm
+trong Chênh lệch.
+
+### Chốt
+
+- `tests/phieuLuongKhoiCap.test.ts`: chốt tầng nguồn cho **cả hai** dòng phải mang
+  `exclude_from_stats: true`, và không còn `KY_PHU_CAP_VAO_THU`. Cần chốt nguồn vì cờ này
+  **không có cách nào sai ồn ào** — đếm sai phía thì Thu chỉ lệch đi, không lỗi nào nổ.
+- 59/59 PDF thật sạch, thêm 2 bất biến: không dòng nào ngoài tài khoản neo mà còn trong
+  thống kê · dòng `DB掛金` đúng số và có cờ ẩn.
+- 2808 test pass · `npm run build` xanh.
+
+### Bài học
+
+Ba vòng cho một khoản. Vòng 1 sai vì tôi **suy** ra từ một câu nói (*"tôi mua trước rồi cty
+trả lại"*) rằng khoản mua vé có trong sổ, mà không đi kiểm. Vòng 4 sai vì tôi chọn mô hình
+trước khi hỏi người dùng khoản đó **có phải thu nhập** hay không — tôi hỏi "muốn thấy ¥36.390
+lời không" (một câu về hiển thị) thay vì "đây có phải tiền anh kiếm được không" (câu về bản
+chất). Cả hai lần, con số THẬT trên màn hình mới lôi ra được sai. Đưa số thật ra sớm.

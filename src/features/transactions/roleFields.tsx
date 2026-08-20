@@ -83,9 +83,18 @@ export function PadMoneyField({
         type="button"
         onClick={onFocus}
         aria-label={`${ariaLabel}: ${formatMoney(value, currency)}`}
-        className={`${moneyBoxCls} ${active ? 'ring-2 ring-accent' : ''} ${
-          isEmpty ? 'text-fg-muted' : 'text-fg-primary'
-        } lg:hidden`}
+        // Viền "numpad đang nhắm vào tôi" phải là `outline` lùi VÀO TRONG, không phải
+        // `ring-2` (đã đổi 2026-08-20). Hai lý do, cả hai đo được:
+        //  1. `ring` của Tailwind vẽ bằng box-shadow, tức NGOÀI hộp viền. Ô này ngồi
+        //     trong `min-w-0 flex-1` nên mép TRÁI của nó trùng đúng mép lòng khối cuộn
+        //     (`overflow-y-auto` → trục ngang cũng clip): đo ở 360px thấy ô nằm 12→244,
+        //     lòng khối 12→348, nên 2px ring bên trái bị cắt sạch. Ô "Ước tính" của "Sẽ
+        //     chi" là ô sáng viền NGAY khi mở màn, nên đó là thứ đầu tiên nhìn thấy.
+        //  2. §4.6 bỏ hẳn shadow khỏi thang 1a; `ring` là một cái bóng sót lại.
+        // Giống hệt ô số tiền chính của màn Nhập (TransactionForm) — một nếp, không hai.
+        className={`${moneyBoxCls} ${
+          active ? 'outline outline-2 -outline-offset-2 outline-accent' : ''
+        } ${isEmpty ? 'text-fg-muted' : 'text-fg-primary'} lg:hidden`}
       >
         {formatMoney(value, currency)}
       </button>

@@ -225,6 +225,28 @@ describe('MOT ban so cho ca man Nhap', () => {
   })
 })
 
+describe('vien "numpad dang nham vao toi" khong bi khoi cuon cat', () => {
+  const roles = read('features/transactions/roleFields.tsx')
+
+  it('PadMoneyField dung outline lui VAO TRONG, khong dung ring', () => {
+    // `ring` cua Tailwind ve bang box-shadow, tuc NGOAI hop vien. O nay ngoi trong
+    // `min-w-0 flex-1` nen mep TRAI trung dung mep long khoi cuon (`overflow-y-auto` ->
+    // truc ngang cung clip): do o 360px thay o nam 12->244, long khoi 12->348, nen 2px
+    // ring ben trai bi cat sach. §4.6 cung da bo hang shadow.
+    expect(roles).toMatch(/outline outline-2 -outline-offset-2 outline-accent/)
+    const i = roles.indexOf('export function PadMoneyField')
+    const j = roles.indexOf('export function FeeField')
+    // Bo dong chu thich truoc khi bat: chinh chu thich o do giai thich vi sao KHONG dung
+    // `ring`, nen bat chuoi tran se do vinh vien.
+    const code = roles
+      .slice(i, j)
+      .split('\n')
+      .filter((l) => !l.trim().startsWith('//'))
+      .join('\n')
+    expect(code).not.toMatch(/ring-2|ring-accent/)
+  })
+})
+
 describe('"Uoc tinh" dung TRUOC "Chi cai gi"', () => {
   const planned = read('features/transactions/PlannedFields.tsx')
   const roles = read('features/transactions/roleFields.tsx')

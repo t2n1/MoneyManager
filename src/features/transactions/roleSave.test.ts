@@ -798,3 +798,35 @@ describe('dang owed: ghi no KHONG kem dong tien', () => {
     expect(calls.createDebt[0].transaction).not.toBeNull()
   })
 })
+
+describe('ban build len truoc migration 0049', () => {
+  it('Cho vay / Vay duoc KHONG gui ten cot cua 0049', async () => {
+    // PostgREST tu choi cot no khong biet BAT KE gia tri: gui `origin: null` cung ra
+    // "Could not find the 'income_category_id' column of 'debts' in the schema cache".
+    // Nen mot ban build len truoc migration se lam hong ca hai duong ghi no dang chay
+    // tot, khong chi dang moi. Chi gui hai cot do khi chung co nghia.
+    for (const kind of ['lend', 'borrow'] as const) {
+      const { deps, calls } = makeDeps([])
+      await saveDebtEntry(
+        kind,
+        base,
+        { ...initialDebt(), direction: kind === 'lend' ? 'owed_to_me' : 'i_owe', counterparty: 'An' },
+        deps,
+      )
+      expect(Object.keys(calls.createDebt[0])).not.toContain('origin')
+      expect(Object.keys(calls.createDebt[0])).not.toContain('income_category_id')
+    }
+  })
+
+  it('dang owed VAN gui hai cot do — no khong the chay thieu chung', async () => {
+    const { deps, calls } = makeDeps([])
+    await saveDebtEntry(
+      'owed',
+      { ...base, accountId: null, categoryId: 'cat-lam-them' },
+      { ...initialDebt(), direction: 'owed_to_me' as const, counterparty: 'Khách A' },
+      deps,
+    )
+    expect(calls.createDebt[0].origin).toBe('earned')
+    expect(calls.createDebt[0].income_category_id).toBe('cat-lam-them')
+  })
+})

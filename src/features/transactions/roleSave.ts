@@ -493,8 +493,12 @@ async function saveDebtCore(
     note: base.note.trim(),
     interest_bps: v.interestPct.trim() && !Number.isNaN(pct) ? Math.round(pct * 100) : null,
     term_months: v.termMonths.trim() && !Number.isNaN(term) && term > 0 ? Math.round(term) : null,
-    origin,
-    income_category_id: incomeCategoryId,
+    // CHỈ gửi hai cột của 0049 khi chúng có nghĩa. Gửi `origin: null` cho Cho vay / Vay
+    // được là gửi TÊN CỘT, và PostgREST từ chối cột nó không biết bất kể giá trị:
+    // "Could not find the 'income_category_id' column of 'debts' in the schema cache".
+    // Tức một bản build lên trước migration 0049 sẽ làm hỏng cả hai đường ghi nợ ĐANG
+    // CHẠY TỐT, không chỉ dạng mới. Cùng lý do đã đổi lần đọc sang `select('*')`.
+    ...(origin ? { origin, income_category_id: incomeCategoryId } : {}),
     transaction,
   })
 }

@@ -10,7 +10,7 @@ import {
   phieuLoi,
   timNeo,
 } from './nhap'
-import type { KhoanNeo } from './nhap'
+import type { DongMoi, KhoanNeo } from './nhap'
 import type { Phieu } from './boc'
 
 const YUCHO = 'acc-yucho'
@@ -21,6 +21,7 @@ const IDS = new Map([
   ['Bảo hiểm y tế (健康保険)', 'c-y-te'],
   ['Hưu trí (年金)', 'c-huu-tri'],
   ['Đi chợ', 'c-di-cho'],
+  ['Tàu xe', 'c-tau-xe'],
 ])
 
 /**
@@ -33,7 +34,7 @@ const P202608: Phieu = {
   nguonKy: 'noi-dung', canhBao: [],
   gross: 500000, deductTotal: 100000, net: 400000, bank: 400000,
   tru: { 健康保険料: 20000, 厚生年金保険: 50000, 雇用保険料: 3000, 所得税: 7000, 住民税: 20000 },
-  ngoaiTong: {}, nhanLa: [], loi: [],
+  ngoaiTong: {}, cap: {}, nhanLa: [], loi: [],
 }
 
 const NEO_202608 = {
@@ -181,7 +182,7 @@ describe('過不足税額 — ca thang 12', () => {
     nguonKy: 'noi-dung', canhBao: [],
     gross: 450000, deductTotal: 90000, net: 380000, bank: 380000,
     tru: { 健康保険料: 20000, 厚生年金保険: 45000, 雇用保険料: 3000, 所得税: 6000, 住民税: 16000 },
-    ngoaiTong: { 過不足税額: -20000 }, nhanLa: [], loi: [],
+    ngoaiTong: { 過不足税額: -20000 }, cap: {}, nhanLa: [], loi: [],
   }
   const neo = { ...NEO_202608, id: 'tx-9', occurred_on: '2024-12-10', amount: 380000 }
 
@@ -201,7 +202,7 @@ describe('過不足税額 — ca thang 12', () => {
       nguonKy: 'noi-dung', canhBao: [],
       gross: 350000, deductTotal: 70000, net: 250000, bank: 250000,
       tru: { 健康保険料: 15000, 厚生年金保険: 30000, 雇用保険料: 2000, 所得税: 8000, 住民税: 15000 },
-      ngoaiTong: { 過不足税額: 30000 }, nhanLa: [], loi: [],
+      ngoaiTong: { 過不足税額: 30000 }, cap: {}, nhanLa: [], loi: [],
     }
     const { thu, thuKhac, chi } = dungDong(P, { ...neo, occurred_on: '2022-12-09', amount: 250000 }, IDS)
     expect(chi.find((r) => r.note.endsWith('過不足税額'))!.is_refund).toBe(false)
@@ -223,7 +224,7 @@ describe('過不足税額 — ca thang 12', () => {
       nguonKy: 'noi-dung', canhBao: [],
       gross: 400000, deductTotal: 70000, net: 420000, bank: 420000,
       tru: { 健康保険料: 15000, 厚生年金保険: 30000, 雇用保険料: 3000, 所得税: 12000, 住民税: 10000 },
-      ngoaiTong: { 過不足税額: -90000 }, nhanLa: [], loi: [],
+      ngoaiTong: { 過不足税額: -90000 }, cap: {}, nhanLa: [], loi: [],
     }
     const { thu, chi, thuKhac } = dungDong(P, { ...neo, occurred_on: '2023-12-08', amount: 420000 }, IDS)
     expect(thu.amount).toBe(-20000)
@@ -243,7 +244,7 @@ describe('社内販売精算 — 202601K', () => {
       健康保険料: 20000, 厚生年金保険: 40000, 雇用保険料: 3000, 所得税: 5000,
       住民税: 20000, 社内販売精算: 12000,
     },
-    ngoaiTong: {}, nhanLa: [], loi: [],
+    ngoaiTong: {}, cap: {}, nhanLa: [], loi: [],
   }
   const neo = { ...NEO_202608, id: 'tx-7', occurred_on: '2026-01-09', amount: 320000 }
 
@@ -288,7 +289,7 @@ describe('exclude_from_stats — Thu/Chi khong duoc phong', () => {
       gross: 420000, deductTotal: 100000, net: 320000, bank: 320000,
       tru: { 健康保険料: 20000, 厚生年金保険: 40000, 雇用保険料: 3000, 所得税: 5000,
              住民税: 20000, 社内販売精算: 12000 },
-      ngoaiTong: {}, nhanLa: [], loi: [],
+      ngoaiTong: {}, cap: {}, nhanLa: [], loi: [],
     }
     const { thu, thuKhac, chi } = dungDong(P, NEO_202608, IDS)
     const tong = (ds: typeof chi) => ds.reduce((s, r) => s + r.amount * (r.is_refund ? -1 : 1), 0)
@@ -349,7 +350,7 @@ describe('gomTrung — file trung trong thu muc', () => {
   it('ba file khong doc duoc (loi) -> giu nguyen ba dong, khong gop', () => {
     const hong = (file: string): Phieu => ({
       file, empno: null, period: null, kind: null, nguonKy: 'ten-file', canhBao: [],
-      gross: null, deductTotal: null, net: null, bank: null, tru: {}, ngoaiTong: {},
+      gross: null, deductTotal: null, net: null, bank: null, tru: {}, ngoaiTong: {}, cap: {},
       nhanLa: [], loi: [`đọc PDF lỗi: ${file}`],
     })
     const r = gomTrung([hong('a.pdf'), hong('b.pdf'), hong('c.pdf')])
@@ -462,5 +463,172 @@ describe('dungKeHoach', () => {
     expect(kh).toHaveLength(1)
     expect(kh[0].trangThai).toBe('tu-choi')
     expect(kh[0].lyDo).toMatch(/khong thay/)
+  })
+})
+
+// ────────────────────────────────────────────────────────────────────────────
+// Khối 支給: 通勤手当 (hoàn phí đi lại) và DB掛金 (退職金)
+// Xem docs/superpowers/specs/2026-08-20-phieu-luong-thu-nhap-thuc-notes.md
+// ────────────────────────────────────────────────────────────────────────────
+
+const TK_HUU = 'acc-huu'
+
+/** P202608 + 通勤手当 77.070 (vé 6 tháng) + DB掛金 −10.000. Ròng vẫn 400.000. */
+const P_CAP: Phieu = { ...P202608, cap: { 通勤手当: 77070, DB掛金: -10000 } }
+
+/** Số dư mà một bộ dòng làm đổi trên MỘT tài khoản. Hoàn tiền = chi ÂM (0026). */
+function soDu(ds: DongMoi[], accountId: string): number {
+  return ds
+    .filter((r) => r.account_id === accountId)
+    .reduce((s, r) => s + r.amount * (r.type === 'income' ? 1 : r.is_refund ? 1 : -1), 0)
+}
+
+/** Thu NẰM TRONG thống kê mà bộ dòng thêm vào. */
+function thuTrongTk(ds: DongMoi[]): number {
+  return ds
+    .filter((r) => r.type === 'income' && !r.exclude_from_stats)
+    .reduce((s, r) => s + r.amount, 0)
+}
+
+describe('dungDong · 通勤手当', () => {
+  it('dựng đủ ba dòng và yêu cầu bật cờ dòng neo', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    expect(d.suaNeo).toBe(true)
+    const yucho = d.cap.filter((r) => r.account_id === YUCHO)
+    expect(yucho).toHaveLength(3)
+    // lương thực nhận = ròng − 通勤手当, nằm TRONG thống kê
+    expect(yucho.find((r) => r.type === 'income' && !r.exclude_from_stats)).toMatchObject({
+      amount: 400000 - 77070,
+      exclude_from_stats: false,
+    })
+    // hoàn phí đi lại: chi ÂM vào danh mục Tàu xe, nằm TRONG thống kê
+    expect(yucho.find((r) => r.is_refund)).toMatchObject({
+      type: 'expense', amount: 77070, category_id: 'c-tau-xe', exclude_from_stats: false,
+    })
+    // trung hoà: chi bằng ĐÚNG số dòng neo, NGOÀI thống kê
+    expect(
+      yucho.find((r) => r.type === 'expense' && !r.is_refund && r.exclude_from_stats),
+    ).toMatchObject({ amount: 400000 })
+  })
+
+  /** Bất biến sống còn: số dư Yucho KHÔNG ĐỔI. Dòng neo giữ nguyên `amount`. */
+  it('số dư Yucho không đổi', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    expect(soDu(d.cap, YUCHO)).toBe(0)
+  })
+
+  /** Mục đích của cả thay đổi này: Thu bớt đúng tiền tàu, không hơn không kém. */
+  it('Thu giảm đúng 通勤手当 sau khi dòng neo bị loại khỏi thống kê', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    expect(thuTrongTk(d.cap.filter((r) => r.account_id === YUCHO)) - NEO_202608.amount).toBe(-77070)
+  })
+
+  it('mọi dòng đều mang dấu 給与 để gỡ lô xoá được', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    expect(d.cap.every((r) => r.note.startsWith('給与 2026/08K · '))).toBe(true)
+  })
+
+  it('thiếu danh mục Tàu xe thì nổ, không ghi lặng lẽ', () => {
+    const thieu = new Map([...IDS].filter(([k]) => k !== 'Tàu xe'))
+    expect(() => dungDong(P_CAP, NEO_202608, thieu, TK_HUU)).toThrow(/Tàu xe/)
+  })
+
+  /** 10/12 tháng nhãn này VẮNG — hành vi cũ phải y nguyên, không thêm dòng nào. */
+  it('phiếu không có 支給 thì không thêm dòng, không sửa dòng neo', () => {
+    const d = dungDong(P202608, NEO_202608, IDS, TK_HUU)
+    expect(d.cap).toEqual([])
+    expect(d.suaNeo).toBe(false)
+  })
+})
+
+describe('dungDong · DB掛金', () => {
+  it('ghi thu 10.000 vào tài khoản 退職金, không đụng Yucho', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    const huu = d.cap.filter((r) => r.account_id === TK_HUU)
+    expect(huu).toHaveLength(1)
+    expect(huu[0]).toMatchObject({ type: 'income', amount: 10000, exclude_from_stats: false })
+    expect(soDu(d.cap, TK_HUU)).toBe(10000)
+  })
+
+  it('thiếu tài khoản 退職金 thì nổ, không bỏ tiền hưu đi', () => {
+    expect(() => dungDong(P_CAP, NEO_202608, IDS, null)).toThrow(/退職金/)
+  })
+
+  it('chỉ có DB掛金 (không có 通勤手当) thì không sửa dòng neo', () => {
+    const chiDB: Phieu = { ...P202608, cap: { DB掛金: -10000 } }
+    const d = dungDong(chiDB, NEO_202608, IDS, TK_HUU)
+    expect(d.suaNeo).toBe(false)
+    expect(d.cap).toHaveLength(1)
+  })
+})
+
+describe('kiemDong · khối 支給', () => {
+  it('bộ dòng đúng thì không lỗi', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    expect(kiemDong(P_CAP, d.thu, d.chi, d.thuKhac, d.cap, NEO_202608)).toEqual([])
+  })
+
+  it('bắt được dòng trung hoà sai số (số dư Yucho lệch)', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    const xau = d.cap.map((r) =>
+      r.type === 'expense' && !r.is_refund && r.exclude_from_stats ? { ...r, amount: 399999 } : r,
+    )
+    expect(kiemDong(P_CAP, d.thu, d.chi, d.thuKhac, xau, NEO_202608).join(' ')).toMatch(/số dư/)
+  })
+
+  it('bắt được Thu không giảm đúng 通勤手当', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    const xau = d.cap.map((r) =>
+      r.type === 'income' && r.account_id === YUCHO ? { ...r, amount: 400000 } : r,
+    )
+    expect(kiemDong(P_CAP, d.thu, d.chi, d.thuKhac, xau, NEO_202608).join(' ')).toMatch(/Thu/)
+  })
+
+  /** 通勤手当 > ròng: dòng "lương thực nhận" sẽ ≤ 0, mà DB có check(amount > 0). */
+  it('通勤手当 lớn hơn ròng thì từ chối, không dựng dòng amount <= 0', () => {
+    const qua: Phieu = { ...P202608, cap: { 通勤手当: 450000 } }
+    const loi = (() => {
+      try {
+        const d = dungDong(qua, NEO_202608, IDS, TK_HUU)
+        return kiemDong(qua, d.thu, d.chi, d.thuKhac, d.cap, NEO_202608)
+      } catch (e) {
+        return [(e as Error).message]
+      }
+    })()
+    expect(loi.length).toBeGreaterThan(0)
+  })
+})
+
+describe('dungKeHoach · khối 支給', () => {
+  it('mang cap và suaNeo ra kế hoạch', () => {
+    const kh = dungKeHoach([P_CAP], [NEO_202608], YUCHO, IDS, new Set(), TK_HUU)
+    expect(kh[0].trangThai).toBe('dat')
+    expect(kh[0].suaNeo).toBe(true)
+    expect(kh[0].cap).toHaveLength(4)
+  })
+
+  /** Thiếu tài khoản 退職金 → TỪ CHỐI phiếu, không nổ cả trang. */
+  it('thiếu tài khoản 退職金 thì từ chối phiếu, nêu lý do', () => {
+    const kh = dungKeHoach([P_CAP], [NEO_202608], YUCHO, IDS, new Set(), null)
+    expect(kh[0].trangThai).toBe('tu-choi')
+    expect(kh[0].lyDo).toMatch(/退職金/)
+  })
+
+  it('dòng từ chối vẫn có cap rỗng và suaNeo false', () => {
+    const kh = dungKeHoach([P_CAP], [], YUCHO, IDS, new Set(), TK_HUU)
+    expect(kh[0].trangThai).toBe('tu-choi')
+    expect(kh[0].cap).toEqual([])
+    expect(kh[0].suaNeo).toBe(false)
+  })
+})
+
+/**
+ * Ca user nêu: chỉ mua vé 3 tháng nhưng cty trả gộp 6 tháng. Bút toán KHÔNG đổi —
+ * hoàn đúng số cty trả, còn Chi `Tàu xe` âm là SỰ THẬT (user lời), không phải lỗi.
+ */
+describe('dungDong · mua 3 tháng nhưng được trả 6 tháng', () => {
+  it('hoàn đúng số trên phiếu, không cố khớp với khoản đã mua', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    expect(d.cap.find((r) => r.is_refund)?.amount).toBe(77070)
   })
 })

@@ -779,6 +779,11 @@ export interface Repo {
    * này là tay cầm duy nhất; gỡ theo TỪNG dấu riêng rẽ không có ở đây vì `dau`
    * chứa dấu cách và `·` — ghép chúng vào cú pháp `.or()` của PostgREST (vốn
    * tách theo dấu phẩy) là kiểu lỗi không báo lỗi, chỉ âm thầm xoá thiếu.
+   *
+   * Trả `{ dong, neo }`: `dong` = số dòng đã xoá, `neo` = số dòng neo được TRẢ LẠI vào
+   * thống kê (phiếu có 通勤手当 đặt `exclude_from_stats` lên dòng neo — dòng đó là dòng
+   * sao kê, không mang tiền tố `給与 ` nên phép xoá không chạm tới). Hai số tách riêng
+   * vì chúng là hai việc khác nhau, và người dùng cần thấy việc thứ hai đã xảy ra.
    */
-  xoaPhieuLuong(): Promise<number>
+  xoaPhieuLuong(): Promise<{ dong: number; neo: number }>
 }

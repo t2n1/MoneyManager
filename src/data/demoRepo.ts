@@ -2645,7 +2645,7 @@ export const demoRepo: Repo = {
     return []
   },
   async xoaPhieuLuong() {
-    return 0
+    return { dong: 0, neo: 0 }
   },
 
   async importAll(data: BackupData) {

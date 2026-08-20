@@ -1779,16 +1779,61 @@ export const supabaseRepo: Repo = {
   },
 
   async xoaPhieuLuong() {
+    const sb = getSupabase()
+    /**
+     * TRẢ DÒNG NEO VỀ THỐNG KÊ TRƯỚC KHI XOÁ.
+     *
+     * Phiếu có 通勤手当 làm dòng neo bị đặt `exclude_from_stats = true` (xem `dungCap`
+     * trong features/phieu-luong/nhap.ts). Dòng neo là dòng SAO KÊ — nó KHÔNG mang tiền
+     * tố `給与 ` nên vòng xoá dưới đây không chạm tới nó. Không có bước này thì gỡ lô
+     * xoá sạch dòng import mà để dòng neo nằm ngoài thống kê vĩnh viễn: Thu bị thiếu
+     * đúng số lương ròng, và không còn dấu vết nào để lần ra vì sao.
+     *
+     * Khớp dòng neo bằng BỐN điều kiện (tài khoản + ngày + đúng `amount` của dòng
+     * "trung hoà" + đang bị loại khỏi thống kê), rồi loại nốt dòng nào mang tiền tố
+     * `給与 ` — dòng "trung hoà" được dựng với `amount` BẰNG ĐÚNG số dòng neo, nên bốn
+     * điều kiện này trỏ về đúng một dòng.
+     *
+     * Trả lại TRƯỚC rồi mới xoá, không phải ngược lại: chạy lại được nhiều lần không
+     * hại gì (lần hai không còn dòng neo nào mang cờ để trả), còn nếu xoá trước mà
+     * bước trả lỗi thì mất luôn dòng "trung hoà" — tay cầm duy nhất để tìm dòng neo.
+     */
+    const { data: trungHoa, error: loiDoc } = await sb
+      .from('transactions')
+      .select('account_id, occurred_on, amount')
+      .like('note', '給与 % · trung hoà dòng neo')
+    if (loiDoc) throw loiDoc
+    let neo = 0
+    for (const t of trungHoa ?? []) {
+      const { data: ung, error: loiUng } = await sb
+        .from('transactions')
+        .select('id, note')
+        .eq('account_id', t.account_id)
+        .eq('occurred_on', t.occurred_on)
+        .eq('amount', t.amount)
+        .eq('type', 'income')
+        .eq('exclude_from_stats', true)
+      if (loiUng) throw loiUng
+      for (const r of ung ?? []) {
+        if (String(r.note ?? '').startsWith('給与 ')) continue
+        const { error: loiSua } = await sb
+          .from('transactions')
+          .update({ exclude_from_stats: false })
+          .eq('id', r.id)
+        if (loiSua) throw loiSua
+        neo += 1
+      }
+    }
     // Không có cột import_batch nên tiền tố `給与 ` trong note là tay cầm duy nhất
     // để gỡ lô nhập. KHÔNG lọc theo từng dấu riêng (xem chú thích ở repo.ts):
     // dấu chứa dấu cách và `·`, đưa chúng vào `.or()` của PostgREST là xoá thiếu
     // mà không báo lỗi gì — nên ở đây luôn xoá theo đúng một tiền tố cố định.
-    const { count, error } = await getSupabase()
+    const { count, error } = await sb
       .from('transactions')
       .delete({ count: 'exact' })
       .like('note', '給与 %')
     if (error) throw error
-    return count ?? 0
+    return { dong: count ?? 0, neo }
   },
 
   async importAll(data: BackupData) {

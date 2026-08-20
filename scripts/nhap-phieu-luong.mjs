@@ -212,6 +212,27 @@ async function goLoNhap(sb, ghi) {
 // dungKeHoach() ban than la ham THUAN, dung chung voi trang web (nhap.ts) — CLI
 // khong con giu ban sao rieng nua, tranh hai noi tinh ra hai ke hoach khac nhau
 // tu cung mot lo PDF va cung mot so.
+/**
+ * TU CHOI phieu co khoi 支給 (通勤手当 / DB掛金).
+ *
+ * ghiKeHoach() duoi day chi ghi [thu, thuKhac, ...chi] — no KHONG ghi `r.cap` va KHONG
+ * bat co `exclude_from_stats` cho dong neo (hai viec ma dungCap/ImportPhieuLuongPage lam).
+ * De phieu nhu vay di qua thi CLI ghi mot bo dong THIEU: 通勤手当 van nam trong Thu, va
+ * DB掛金 mat hut — sai lang le, dung thu te nhat. Trang web lam dung ca hai viec, nen
+ * chi viec noi nguoi dung sang do.
+ *
+ * Bo CLI nay la cong cu nhap mot lan (55 phieu lich su); day khong phai duong dung chinh
+ * nen khong dang gap doi logic ghi o hai noi.
+ */
+function chotKhoiCap(k) {
+  if (k.trangThai !== 'dat' || !k.cap?.length) return k
+  const nhan = Object.keys(k.phieu.cap).join(', ')
+  return {
+    ...k, trangThai: 'tu-choi',
+    lyDo: `co khoi 支給 (${nhan}) — CLI khong ghi duoc khoi nay. Dung trang "Nhap phieu luong tu PDF" trong app.`,
+  }
+}
+
 function inKeHoach(kh) {
   const dat = kh.filter((k) => k.trangThai === 'dat')
   const daNhap = kh.filter((k) => k.trangThai === 'da-nhap')
@@ -310,7 +331,7 @@ async function main() {
   // tham so rieng thay vi truyen ca cuc, vi hinh dang cua ham do web quyet dinh.
   const idTheoTen = new Map(so.cats.filter((c) => c.type === 'expense').map((c) => [c.name, c.id]))
   const dauDaCo = new Set(so.daCo.map((t) => t.note.split(' · ')[0]))
-  const kh = dungKeHoach(phieuList, so.thu, so.yucho.id, idTheoTen, dauDaCo)
+  const kh = dungKeHoach(phieuList, so.thu, so.yucho.id, idTheoTen, dauDaCo).map(chotKhoiCap)
   inKeHoach(kh)
 
   const dat = kh.filter((k) => k.trangThai === 'dat')

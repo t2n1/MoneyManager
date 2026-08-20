@@ -4,14 +4,32 @@ import { FileUp } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
 import { ActionButton } from '../../components/ui/ActionButton'
 import { Card } from '../../components/ui/Card'
-import { invalidateTransactionData, useAccounts, useCategories, useCreateCategory } from '../../hooks/queries'
+import {
+  invalidateTransactionData,
+  useAccounts,
+  useCategories,
+  useCreateAccount,
+  useCreateCategory,
+} from '../../hooks/queries'
 import { formatMoney } from '../../lib/money'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { repo } from '../../data'
 import { hasTaxCategories } from '../tax/categories'
 import { bocPhieu, type Phieu } from './boc'
 import { docPdfWeb } from './docPdfWeb'
-import { DANH_MUC_THUE_CHA, DANH_MUC_THUE_CON, dungKeHoach, gomTrung, phieuLoi, type DongKeHoach } from './nhap'
+import {
+  DANH_MUC_THUE_CHA,
+  DANH_MUC_THUE_CON,
+  DANH_MUC_TAU_XE,
+  NHAN_DI_LAI,
+  NHAN_HUU,
+  TEN_TK_HUU,
+  TK_HUU_MOI,
+  dungKeHoach,
+  gomTrung,
+  phieuLoi,
+  type DongKeHoach,
+} from './nhap'
 
 const TEN_YUCHO = /yucho/i
 
@@ -32,6 +50,7 @@ export function ImportPhieuLuongPage() {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const createCategory = useCreateCategory()
+  const createAccount = useCreateAccount()
   const [keHoach, setKeHoach] = useState<DongKeHoach[] | null>(null)
   const [daGop, setDaGop] = useState<{ key: string; files: string[] }[]>([])
   const [dangBoc, setDangBoc] = useState(false)
@@ -47,10 +66,14 @@ export function ImportPhieuLuongPage() {
   const dangXoaRef = useRef(false)
 
   const yucho = accounts.find((a) => TEN_YUCHO.test(a.name))
+  // Khớp theo TEN CHINH XAC, khong regex: 退職金 la ten tai khoan do chinh app tao ra
+  // (TK_HUU_MOI), va mot regex long tay se nhan bua sang tai khoan khac cua nguoi dung.
+  const tkHuu = accounts.find((a) => a.name === TEN_TK_HUU)
   const chiPhi = categories.filter((c) => c.type === 'expense')
   const thieuDanhMuc = DANH_MUC_THUE_CON.map((c) => c.name).filter(
     (n) => !chiPhi.some((c) => c.name === n),
   )
+  const thieuTauXe = !chiPhi.some((c) => c.name === DANH_MUC_TAU_XE)
 
   // Nhan File[] (da chup san bang layDanhSachFile), KHONG nhan FileList: FileList
   // song se rong truoc khi ham nay kip doc, vi onChange da dat input.value = ''
@@ -75,7 +98,7 @@ export function ImportPhieuLuongPage() {
       const thu = await repo.listYuchoIncome(yucho.id)
       const dauDaCo = new Set(await repo.listDauPhieuLuong())
       const idTheoTen = new Map(chiPhi.map((c) => [c.name, c.id]))
-      setKeHoach(dungKeHoach(phieuList, thu, yucho.id, idTheoTen, dauDaCo))
+      setKeHoach(dungKeHoach(phieuList, thu, yucho.id, idTheoTen, dauDaCo, tkHuu?.id ?? null))
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Không đọc được dữ liệu sổ, thử lại.', 'error')
     } finally {
@@ -106,6 +129,20 @@ export function ImportPhieuLuongPage() {
     }
   }
 
+  /**
+   * Tao tai khoan 退職金 (DB掛金 — hagukumikikin.jp). Currency lay theo TAI KHOAN NEO,
+   * khong gan cung 'JPY': luong vao dau thi tien huu tinh theo dong tien do.
+   */
+  async function taoTkHuu() {
+    if (!yucho) return
+    try {
+      await createAccount.mutateAsync({ ...TK_HUU_MOI, currency: yucho.currency })
+      showToast(`Đã tạo tài khoản ${TEN_TK_HUU}`)
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Không tạo được tài khoản, thử lại.', 'error')
+    }
+  }
+
   if (!yucho) {
     return (
       <div className="p-3">
@@ -116,7 +153,8 @@ export function ImportPhieuLuongPage() {
   }
 
   const dat = keHoach?.filter((k) => k.trangThai === 'dat') ?? []
-  const soDong = dat.reduce((s, k) => s + 1 + (k.thuKhac ? 1 : 0) + k.chi.length, 0)
+  // +k.cap.length: khoi 支給 (hoan phi di lai / DB掛金) cung duoc ghi, dem thieu la loi hen.
+  const soDong = dat.reduce((s, k) => s + 1 + (k.thuKhac ? 1 : 0) + k.chi.length + k.cap.length, 0)
   // Chep ra bien rieng: TS khong giu suy luan "khac undefined" cua yucho xuyen
   // qua bien ngoai khi dung trong ham long ben duoi (ghi/goLo).
   const tenYucho = yucho.name
@@ -143,9 +181,22 @@ export function ImportPhieuLuongPage() {
       const dauDaGhi: string[] = []
       try {
         for (const k of dat) {
-          for (const row of [k.thu!, ...(k.thuKhac ? [k.thuKhac] : []), ...k.chi]) {
+          for (const row of [k.thu!, ...(k.thuKhac ? [k.thuKhac] : []), ...k.chi, ...k.cap]) {
             await repo.createTransaction(row)
             nDong += 1
+          }
+          /**
+           * Bật cờ dòng neo SAU CÙNG, sau khi mọi dòng của phiếu đã ghi xong.
+           *
+           * Phiếu có 通勤手当 cần dòng neo nằm NGOÀI thống kê (xem `dungCap` trong
+           * nhap.ts). Đặt cờ TRƯỚC mà ghi dòng lỗi giữa đường thì Thu của tháng đó tụt
+           * mất cả khoản lương ròng; đặt SAU thì trạng thái dở dang tệ nhất là Thu bị
+           * PHỒNG (dòng neo + dòng 'lương thực nhận' cùng tính) — cả hai đều nhìn thấy
+           * ngay, nhưng phồng thì cộng thêm, còn tụt thì mất tiền, và mất khó nhận ra
+           * hơn khi soát sổ.
+           */
+          if (k.suaNeo && k.neo) {
+            await repo.updateTransaction(k.neo.id, { exclude_from_stats: true })
           }
           nPhieu += 1
           dauDaGhi.push(k.dau)
@@ -217,9 +268,15 @@ export function ImportPhieuLuongPage() {
         return
       setDangXoa(true)
       try {
-        const n = await repo.xoaPhieuLuong()
+        const r = await repo.xoaPhieuLuong()
         invalidateTransactionData(qc)
-        showToast(`Đã xoá ${n} dòng`)
+        // Noi ro ca viec thu hai: tra dong neo ve thong ke. Nguoi dung khong the doan
+        // ra viec do da xay ra neu ta im — va neu no KHONG xay ra thi Thu bi thieu.
+        showToast(
+          r.neo > 0
+            ? `Đã xoá ${r.dong} dòng · trả ${r.neo} dòng neo về thống kê`
+            : `Đã xoá ${r.dong} dòng`,
+        )
         setDaGhi(null)
       } catch (e) {
         showToast(e instanceof Error ? `Xoá lỗi: ${e.message}` : 'Xoá lỗi, thử lại.', 'error')
@@ -235,6 +292,35 @@ export function ImportPhieuLuongPage() {
     <div className="flex flex-col gap-3 p-3">
       <BackLink to="/settings/data" aria-label="Dữ liệu" />
       <h1 className="text-base font-semibold text-fg-primary">Nhập phiếu lương từ PDF</h1>
+
+      {/*
+        KHONG chan o input nhu thieuDanhMuc: hai thu nay chi can cho phieu CO 通勤手当
+        hoac DB掛金 — 10/12 thang phieu khong co nhan nao trong hai nhan do, va chan het
+        thi thanh chan oan. Phieu thuc su can se bi dungKeHoach() TU CHOI kem ly do.
+      */}
+      {(thieuTauXe || !tkHuu) && (
+        <Card>
+          <p className="text-xs text-fg-secondary">
+            Phiếu có <span className="text-fg-primary">通勤手当</span> (hoàn phí đi lại) hoặc{' '}
+            <span className="text-fg-primary">DB掛金</span> (退職金) sẽ bị từ chối cho tới khi có
+            đủ:
+          </p>
+          <ul className="mt-1 text-xs text-fg-secondary">
+            {thieuTauXe && <li className="text-money-out">· thiếu danh mục chi “{DANH_MUC_TAU_XE}”</li>}
+            {!tkHuu && <li className="text-money-out">· thiếu tài khoản “{TEN_TK_HUU}”</li>}
+          </ul>
+          {!tkHuu && (
+            <button
+              type="button"
+              onClick={taoTkHuu}
+              disabled={createAccount.isPending}
+              className="mt-2 min-h-9 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold transition active:scale-95 disabled:opacity-60"
+            >
+              {createAccount.isPending ? 'Đang tạo…' : `Tạo tài khoản ${TEN_TK_HUU}`}
+            </button>
+          )}
+        </Card>
+      )}
 
       {thieuDanhMuc.length > 0 && (
         <Card>
@@ -314,6 +400,21 @@ export function ImportPhieuLuongPage() {
                   <p className="mt-0.5 text-fg-muted">
                     neo {k.neo.occurred_on} · giữ lại {formatMoney(k.thu!.amount, 'JPY')}
                     {k.thuKhac && ` · mua hàng ${formatMoney(k.thuKhac.amount, 'JPY')}`}
+                  </p>
+                )}
+                {/*
+                  Noi RO viec sua dong neo, khong de no xay ra am tham: day la lan duy
+                  nhat trang nay sua mot dong DA CO trong so, khong chi them dong moi.
+                */}
+                {k.trangThai === 'dat' && k.suaNeo && (
+                  <p className="mt-0.5 text-fg-secondary">
+                    hoàn phí đi lại {formatMoney(k.phieu.cap[NHAN_DI_LAI] ?? 0, 'JPY')} → đưa dòng
+                    neo ra ngoài thống kê, giữ nguyên số
+                  </p>
+                )}
+                {k.trangThai === 'dat' && (k.phieu.cap[NHAN_HUU] ?? 0) !== 0 && (
+                  <p className="mt-0.5 text-fg-secondary">
+                    {NHAN_HUU} {formatMoney(Math.abs(k.phieu.cap[NHAN_HUU]), 'JPY')} → {TEN_TK_HUU}
                   </p>
                 )}
               </li>

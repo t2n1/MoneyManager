@@ -33,8 +33,12 @@ export const NGOAI_TONG = ['過不足税額'] as const
  *  một tháng phồng lên bằng cả tổng bộ ba. */
 export const DINH_MUC_GIAM = ['月次減税額', '定額減税額(所得税)', '定額減税未済額'] as const
 const TONG = ['総支給金額', '控除合計額', '差引支給額', '銀行１振込額'] as const
-/** Phía 支給 — không dùng để dựng bút toán, nhưng phải biết tên để không báo "nhãn lạ". */
-const CAP = [
+/**
+ * Phía 支給. Trước đây chỉ để không báo "nhãn lạ"; nay CÓ dựng bút toán từ hai nhãn:
+ * 通勤手当 (hoàn phí đi lại, trả gộp 6 tháng) và DB掛金 (退職金, số âm) — xem `cap`
+ * dưới đây và `dungDong` trong nhap.ts. Các nhãn còn lại vẫn chỉ để nhận diện.
+ */
+export const CAP = [
   '基本給', '残業手当', '通勤手当', '立替経費精算', '立替経費',
   '不就労控除', '基本賞与', 'DB掛金',
 ] as const
@@ -124,6 +128,12 @@ export interface Phieu {
   bank: number | null
   tru: Record<string, number>
   ngoaiTong: Record<string, number>
+  /**
+   * Khối 支給 đọc được. KHÔNG cộng vào `控除合計額` — đây là phía CẤP, không phải trừ,
+   * và 総支給金額 đã gồm chúng (đo trên phiếu thật: 基本給 + 残業手当 + DB掛金(âm) +
+   * 通勤手当 = 総支給金額, khớp tới từng yen). Lẫn sang `tru` là vỡ chốt tổng mục trừ.
+   */
+  cap: Record<string, number>
   nhanLa: string[]
   loi: string[]
 }
@@ -200,6 +210,8 @@ export function bocPhieu(oChu: OChu[], tenFile: string): Phieu {
   for (const k of KHAU_TRU) if (k in f) tru[k] = f[k]
   const ngoaiTong: Record<string, number> = {}
   for (const k of NGOAI_TONG) if (k in f) ngoaiTong[k] = f[k]
+  const cap: Record<string, number> = {}
+  for (const k of CAP) if (k in f) cap[k] = f[k]
   const than: Omit<Phieu, 'loi'> = {
     file: tenFile,
     empno: ky.empno,
@@ -213,6 +225,7 @@ export function bocPhieu(oChu: OChu[], tenFile: string): Phieu {
     bank: f['銀行１振込額'] ?? null,
     tru,
     ngoaiTong,
+    cap,
     nhanLa: Object.keys(f).filter((k) => !BIET_HET.has(k)).sort(),
   }
   return { ...than, loi: kiem(than) }

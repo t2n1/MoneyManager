@@ -1302,7 +1302,7 @@ describe('demoRepo: xoaPhieuLuong (Task 8)', () => {
       note: '給与 2026/08K · phần bị giữ lại',
     })
 
-    expect(await demoRepo.xoaPhieuLuong()).toBe(0)
+    expect(await demoRepo.xoaPhieuLuong()).toEqual({ dong: 0, neo: 0 })
 
     // Phai doc lai — chi kiem tra gia tri tra ve khong bat duoc mot ham xoa het
     // roi van tra ve 0 (vd do dem sai). Neu demoRepo.xoaPhieuLuong tung bi doi

@@ -200,3 +200,40 @@ describe('bocPhieu', () => {
     expect(p.nguonKy).toBe('ten-file')
   })
 })
+
+/**
+ * Phiếu có khối 支給: 通勤手当 (vé tàu trả gộp 6 tháng) và DB掛金 (退職金, số ÂM).
+ * Hai nhãn này trước đây bị bóc rồi BỎ — chỉ nằm trong bộ nhãn để không báo "nhãn lạ".
+ * Toạ độ: hàng số y=440 nằm TRÊN hàng nhãn y=414 (hệ pypdf, y tăng lên trên).
+ */
+function phieuCoCap(): OChu[] {
+  return [
+    ...phieuDu(),
+    { text: '77,070', x: 95.2, y: 440.0 },
+    { text: '-10,000', x: 200.0, y: 440.0 },
+    { text: '通勤手当', x: 69.4, y: 414.0 },
+    { text: 'DB掛金', x: 175.0, y: 414.0 },
+  ]
+}
+
+describe('bocPhieu · khối 支給 (cap)', () => {
+  it('giữ 通勤手当 và DB掛金 vào p.cap, không báo nhãn lạ', () => {
+    const p = bocPhieu(phieuCoCap(), '(0101)202608K.pdf')
+    expect(p.cap).toEqual({ 通勤手当: 77070, DB掛金: -10000 })
+    expect(p.nhanLa).toEqual([])
+  })
+
+  // 通勤手当 chỉ xuất hiện 6 tháng/lần — 10/12 tháng nhãn này VẮNG, và phiếu vẫn phải sạch.
+  it('phiếu không có khối 支給 thì cap rỗng, không lỗi', () => {
+    const p = bocPhieu(phieuDu(), '(0101)202608K.pdf')
+    expect(p.cap).toEqual({})
+    expect(p.loi).toEqual([])
+  })
+
+  // 支給 KHÔNG được lọt vào `tru`: cộng nó vào sẽ vỡ chốt tổng mục trừ = 控除合計額.
+  it('không lẫn 支給 vào tru, chốt tổng khấu trừ vẫn qua', () => {
+    const p = bocPhieu(phieuCoCap(), '(0101)202608K.pdf')
+    expect(Object.keys(p.tru)).not.toContain('通勤手当')
+    expect(p.loi).toEqual([])
+  })
+})

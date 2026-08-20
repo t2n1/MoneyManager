@@ -37,7 +37,7 @@ export interface KhoanNeo {
 export function phieuLoi(file: string, thongDiepLoi: string): Phieu {
   return {
     file, empno: null, period: null, kind: null, nguonKy: 'ten-file', canhBao: [],
-    gross: null, deductTotal: null, net: null, bank: null, tru: {}, ngoaiTong: {},
+    gross: null, deductTotal: null, net: null, bank: null, tru: {}, ngoaiTong: {}, cap: {},
     nhanLa: [], loi: [thongDiepLoi],
   }
 }
@@ -68,6 +68,31 @@ export const MAP_THUE: Record<string, string> = {
  * du phong — cho it tac dung phu nhat.
  */
 export const MAP_KHAC: Record<string, string> = { 社内販売精算: 'Đi chợ' }
+
+/** Nhãn 支給 có dựng bút toán. Xem `dungDong` để biết vì sao mỗi cái một cách. */
+export const NHAN_DI_LAI = '通勤手当'
+export const NHAN_HUU = 'DB掛金'
+/** Danh mục nhận khoản HOÀN phí đi lại. Tên phải đúng từng ký tự (như MAP_THUE). */
+export const DANH_MUC_TAU_XE = 'Tàu xe'
+/** Tài khoản tài sản nhận DB掛金 (退職金 — hagukumikikin.jp). */
+export const TEN_TK_HUU = '退職金'
+/**
+ * Tài khoản 退職金 để tạo khi chưa có. KHÔNG có `currency` — trang gọi phải lấy đúng
+ * currency của tài khoản neo (lương vào đâu thì tiền hưu tính theo đó), chứ không gán
+ * cứng 'JPY' ở tầng thuần này.
+ */
+export const TK_HUU_MOI = {
+  name: TEN_TK_HUU,
+  type: 'investment' as const,
+  initial_balance: 0,
+  asset_group: 'Tiết kiệm',
+  is_hidden: false,
+  include_in_totals: true,
+  // Tiền hưu KHÔNG rút ra tiêu ngay được. `is_liquid` null là để app tự SUY từ `type`,
+  // và phép suy đó từng đếm cả tiền gửi có kỳ hạn là tiêu ngay được (xem AccountRow) —
+  // nên nói thẳng false, đừng để nó suy.
+  is_liquid: false,
+}
 
 /** Khong biet la gi -> tu choi ca file, khong doan. Trong o ca 55 phieu. */
 export const TU_CHOI = new Set(['その他'])
@@ -177,7 +202,8 @@ export function dungDong(
   phieu: Phieu,
   neo: KhoanNeo,
   idTheoTen: Map<string, string>,
-): { thu: DongMoi; thuKhac: DongMoi | null; chi: DongMoi[] } {
+  tkHuuId: string | null = null,
+): { thu: DongMoi; thuKhac: DongMoi | null; chi: DongMoi[]; cap: DongMoi[]; suaNeo: boolean } {
   // Vi sao throw chu khong `!`: dauGhiChu voi kind null KHONG no — no noi chuoi thanh
   // `給与 2026/08null` roi ghi am tham vao `note` giao dich that. Ma `note` la tay cam
   // DUY NHAT de go lo nhap (khong co cot import_batch), nen mot dau ghi chu sai la mot
@@ -242,7 +268,84 @@ export function dungDong(
     thu: dongThu(tongThue, true),
     thuKhac: tongKhac > 0 ? dongThu(tongKhac, false) : null,
     chi,
+    ...dungCap(phieu, neo, idTheoTen, tkHuuId, dau),
   }
+}
+
+/**
+ * Khối 支給: 通勤手当 và DB掛金. Xem
+ * docs/superpowers/specs/2026-08-20-phieu-luong-thu-nhap-thuc-notes.md
+ *
+ * 通勤手当 là HOÀN PHÍ, không phải thu nhập: người dùng tự mua vé (có thể ở tháng
+ * trước, có thể chỉ 3 tháng chứ không phải 6) rồi công ty trả lại vào ngày lương.
+ * Nên nó phải RÚT khỏi Thu và triệt tiêu khoản mua vé đã ghi trong sổ.
+ *
+ * Vì sao không hạ `amount` dòng neo cho gọn: `transactions_refund_check` (migration
+ * 0026) chặn thu nhập âm, nên KHÔNG có bộ dòng chỉ-THÊM nào rút được tiền khỏi Thu —
+ * buộc phải đụng dòng neo. Nhưng hạ số nó thì (a) dòng trong sổ không còn khớp sao kê
+ * ngân hàng, và (b) `timNeo` khớp neo bằng `t.amount === phieu.net`, hạ số là gỡ lô
+ * rồi nhập lại sẽ từ chối "không thấy khoản thu Yucho = <ròng>". Nên chỉ bật cờ
+ * `exclude_from_stats` (suaNeo) — số giữ nguyên, gỡ lô chỉ cần tắt lại một boolean —
+ * rồi dựng lại phần thống kê bằng ba dòng dưới đây.
+ *
+ * DB掛金 thì đơn giản hơn nhiều: tiền đó CHƯA BAO GIỜ vào Yucho (đã trừ khỏi
+ * 総支給金額 — đo trên phiếu thật: 基本給 + 残業手当 + DB掛金 + 通勤手当 = 総支給金額).
+ * Nên chỉ cần một dòng thu vào tài khoản 退職金: Yucho không đổi, tài sản hưu tăng, và
+ * Thu tăng đúng phần người dùng THẬT SỰ kiếm được.
+ */
+function dungCap(
+  phieu: Phieu,
+  neo: KhoanNeo,
+  idTheoTen: Map<string, string>,
+  tkHuuId: string | null,
+  dau: string,
+): { cap: DongMoi[]; suaNeo: boolean } {
+  const chung = {
+    to_amount: null,
+    to_account_id: null,
+    occurred_on: neo.occurred_on,
+    is_refund: false,
+    exclude_from_stats: false,
+  } as const
+  const cap: DongMoi[] = []
+
+  const diLai = phieu.cap[NHAN_DI_LAI] ?? 0
+  const suaNeo = diLai > 0
+  if (suaNeo) {
+    const idTauXe = idTheoTen.get(DANH_MUC_TAU_XE)
+    if (!idTauXe) throw new Error(`thiếu danh mục '${DANH_MUC_TAU_XE}' (cho ${NHAN_DI_LAI})`)
+    cap.push({
+      ...chung, type: 'income', amount: neo.amount - diLai,
+      category_id: neo.category_id, account_id: neo.account_id,
+      note: `${dau} · lương thực nhận`,
+    })
+    // Hoàn tiền = CHI ÂM (migration 0026), amount vẫn DƯƠNG. Nó triệt tiêu khoản mua
+    // vé mà người dùng đã tự ghi — dù khoản đó ở tháng nào, số bao nhiêu. Mua 3 tháng
+    // mà được trả 6 tháng thì Chi 'Tàu xe' ÂM, và đó là sự thật, không phải lỗi.
+    cap.push({
+      ...chung, type: 'expense', amount: diLai, is_refund: true,
+      category_id: idTauXe, account_id: neo.account_id,
+      note: `${dau} · hoàn phí đi lại (${NHAN_DI_LAI})`,
+    })
+    // Trung hoà: dòng neo vẫn mang cả `neo.amount` vào số dư, nên phải rút đúng bằng
+    // số đó ra. NGOÀI thống kê (xám trong Sổ) — nó không phải một khoản chi thật.
+    cap.push({
+      ...chung, type: 'expense', amount: neo.amount, exclude_from_stats: true,
+      category_id: null, account_id: neo.account_id,
+      note: `${dau} · trung hoà dòng neo`,
+    })
+  }
+
+  const huu = phieu.cap[NHAN_HUU] ?? 0
+  if (huu !== 0) {
+    if (!tkHuuId) throw new Error(`thiếu tài khoản '${TEN_TK_HUU}' (cho ${NHAN_HUU})`)
+    cap.push({
+      ...chung, type: 'income', amount: Math.abs(huu),
+      category_id: neo.category_id, account_id: tkHuuId,
+      note: `${dau} · ${NHAN_HUU} → ${TEN_TK_HUU}`,
+    })
+  }
+  return { cap, suaNeo }
 }
 
 /** Dau tay cua NOI DUNG tai chinh mot phieu — de so hai file co cung mot phieu khong. */
@@ -252,7 +355,9 @@ function dauTayNoiDung(p: Phieu): string {
       .sort()
       .map((k) => `${k}=${o[k]}`)
       .join(',')
-  return [p.gross, p.deductTotal, p.net, p.bank, sapXep(p.tru), sapXep(p.ngoaiTong)].join('|')
+  // `cap` PHAI nam trong dau tay: hai file cung ky ma khac 通勤手当 la khac noi dung
+  // that su — bo qua thi gomTrung() giu mot ban roi im lang bo mat khoan hoan phi.
+  return [p.gross, p.deductTotal, p.net, p.bank, sapXep(p.tru), sapXep(p.ngoaiTong), sapXep(p.cap)].join('|')
 }
 
 /**
@@ -330,7 +435,14 @@ export function gomTrung(phieuList: Phieu[]): {
  * Ca nay khong the trung hoa so du bang duong nao trong Cach B (chi-them), nen tu
  * choi thay vi bia cach vong.
  */
-export function kiemDong(phieu: Phieu, thu: DongMoi, chi: DongMoi[], thuKhac: DongMoi | null = null): string[] {
+export function kiemDong(
+  phieu: Phieu,
+  thu: DongMoi,
+  chi: DongMoi[],
+  thuKhac: DongMoi | null = null,
+  cap: DongMoi[] = [],
+  neo: KhoanNeo | null = null,
+): string[] {
   const loi: string[] = []
   const tong = (ds: DongMoi[]): number => ds.reduce((s, r) => s + r.amount * (r.is_refund ? -1 : 1), 0)
   const tongChi = tong(chi)
@@ -359,6 +471,37 @@ export function kiemDong(phieu: Phieu, thu: DongMoi, chi: DongMoi[], thuKhac: Do
     )
   }
   if (chi.some((r) => r.amount <= 0)) loi.push('co dong chi amount <= 0')
+  loi.push(...kiemCap(phieu, cap, neo))
+  return loi
+}
+
+/**
+ * Chốt cho khối 支給. Ba bất biến, và cả ba đều từng là một cách hỏng thật:
+ *  1. Số dư tài khoản neo KHÔNG ĐỔI — dòng trung hoà sai số là số dư sai lặng lẽ.
+ *  2. Thu bớt ĐÚNG 通勤手当, không hơn không kém — đó là toàn bộ mục đích.
+ *  3. Không dòng nào amount <= 0 — DB có check(amount > 0), và 通勤手当 > ròng
+ *     (phiếu thưởng ròng nhỏ) sẽ dựng ra 'lương thực nhận' âm.
+ */
+function kiemCap(phieu: Phieu, cap: DongMoi[], neo: KhoanNeo | null): string[] {
+  if (!cap.length) return []
+  const loi: string[] = []
+  if (cap.some((r) => r.amount <= 0)) {
+    loi.push(`có dòng 支給 amount <= 0 (${NHAN_DI_LAI} lớn hơn ròng?) — xử tay`)
+  }
+  if (!neo) return loi
+  const cung = cap.filter((r) => r.account_id === neo.account_id)
+  const soDu = cung.reduce(
+    (t, r) => t + r.amount * (r.type === 'income' ? 1 : r.is_refund ? 1 : -1),
+    0,
+  )
+  if (soDu !== 0) loi.push(`khối 支給 làm số dư tài khoản neo lệch ${soDu} (phải bằng 0)`)
+  const diLai = phieu.cap[NHAN_DI_LAI] ?? 0
+  const thuMoi = cung
+    .filter((r) => r.type === 'income' && !r.exclude_from_stats)
+    .reduce((t, r) => t + r.amount, 0)
+  if (diLai > 0 && thuMoi - neo.amount !== -diLai) {
+    loi.push(`Thu đổi ${thuMoi - neo.amount}, phải là ${-diLai} (= −${NHAN_DI_LAI})`)
+  }
   return loi
 }
 
@@ -369,6 +512,10 @@ export interface DongKeHoach {
   thu: DongMoi | null
   thuKhac: DongMoi | null
   chi: DongMoi[]
+  /** Khối 支給 (通勤手当 / DB掛金). Rỗng khi phiếu không có nhãn nào trong hai nhãn đó. */
+  cap: DongMoi[]
+  /** true = phải đặt `exclude_from_stats` cho dòng neo. Chỉ khi có 通勤手当 > 0. */
+  suaNeo: boolean
   trangThai: 'dat' | 'da-nhap' | 'tu-choi'
   lyDo: string
 }
@@ -386,11 +533,13 @@ export function dungKeHoach(
   yuchoId: string,
   idTheoTen: Map<string, string>,
   dauDaCo: Set<string>,
+  tkHuuId: string | null = null,
 ): DongKeHoach[] {
   const trung = gomTrung(phieuList)
   const out: DongKeHoach[] = []
   const rong = (p: Phieu, tt: DongKeHoach['trangThai'], lyDo: string): DongKeHoach => ({
-    phieu: p, neo: null, dau: '', thu: null, thuKhac: null, chi: [], trangThai: tt, lyDo,
+    phieu: p, neo: null, dau: '', thu: null, thuKhac: null, chi: [], cap: [], suaNeo: false,
+    trangThai: tt, lyDo,
   })
   for (const g of trung.boQua) {
     // g.phieu la mot phieu THAT thuoc dung nhom bi tu choi (period/kind/empno khop
@@ -406,10 +555,10 @@ export function dungKeHoach(
     const dau = dauGhiChu(neo.row.occurred_on, p.kind as 'K' | 'S')
     if (dauDaCo.has(dau)) { out.push({ ...rong(p, 'da-nhap', `đã nhập rồi (${dau})`), dau }); continue }
     let d
-    try { d = dungDong(p, neo.row, idTheoTen) } catch (e) {
+    try { d = dungDong(p, neo.row, idTheoTen, tkHuuId) } catch (e) {
       out.push(rong(p, 'tu-choi', (e as Error).message)); continue
     }
-    const loi = kiemDong(p, d.thu, d.chi, d.thuKhac)
+    const loi = kiemDong(p, d.thu, d.chi, d.thuKhac, d.cap, neo.row)
     if (loi.length) { out.push(rong(p, 'tu-choi', loi.join(' ; '))); continue }
     daDung.add(neo.row.id)
     out.push({ phieu: p, neo: neo.row, dau, ...d, trangThai: 'dat', lyDo: '' })

@@ -61,7 +61,7 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center animate-overlay-in"
+      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center lg:p-6 animate-overlay-in"
       onClick={onClose}
     >
       {/* role/aria-modal/aria-labelledby: giống các sheet khác trong app (EventFormSheet,
@@ -69,14 +69,23 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
           thiếu, nên trình đọc màn hình không biết đây là hộp thoại.
           tabIndex + ref focus: KHÔNG bẫy focus (cả app không bẫy), chỉ đưa điểm đọc vào
           trong sheet để người dùng bàn phím không còn đứng ở dòng phía sau. preventScroll
-          để mở sheet không giật trang nền. */}
+          để mở sheet không giật trang nền.
+          `lg:max-w-5xl` (1024px) chứ không giữ 512px ở mọi cỡ màn: từ lg, TransactionForm
+          bên trong tự chia HAI CỘT với cột phải CỐ ĐỊNH 20rem. Nhét lưới đó vào 512px thì
+          cột trái còn 144px (đo ở 1280px: `grid-template-columns: 144px 320px`) — hẹp hơn
+          cả bản mobile, dải danh mục tràn 352px trong 144px và hộp cảnh báo vượt trần bị
+          bóp thành bốn dòng. EntryPage nới đúng con số này và nêu đúng lý do này; sheet bị
+          bỏ sót lúc lưới hai cột ra đời. `max-w-lg` GIỮ làm nền — dưới lg sheet vẫn một
+          cột, kéo hết bề rộng tablet chỉ tổ làm dòng chữ khó dò về đầu hàng.
+          `lg:p-6` ở lớp phủ: panel 1024px trong khung nhìn đúng 1024px sẽ dán sát hai mép,
+          đọc thành trang chứ không thành hộp thoại. */}
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-tx-title"
         tabIndex={-1}
-        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-surface-page p-4 pb-[max(1rem,env(safe-area-inset-bottom))] outline-none lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
+        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-surface-page p-4 pb-[max(1rem,env(safe-area-inset-bottom))] outline-none lg:max-w-5xl lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">

@@ -364,3 +364,64 @@ describe('dang "Khach no cong" khong dung toi vi nao', () => {
     expect(form).toMatch(/\{!debtOnly && \(\s*\n\s*<div className="flex flex-wrap items-center gap-2">/)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Chỗ nào nhúng <TransactionForm> thì chỗ đó phải rộng bằng lưới HAI CỘT của nó.
+//
+// 2026-08-20: sheet "Sửa giao dịch" trên PC vỡ giao diện. Không phải lỗi CSS lạ —
+// từ `lg` TransactionForm tự chia hai cột với cột phải CỐ ĐỊNH 20rem
+// (`lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]`), mà sheet lại kẹp panel ở
+// `max-w-lg` (32rem). Đo trên trình duyệt ở 1280px: `grid-template-columns`
+// ra đúng `144px 320px` — cột trái 144px, và dải danh mục tràn 352px trong 144px.
+// EntryPage đã nới `lg:max-w-5xl` chính vì lý do này (xem chú thích ở đó); sheet
+// bị bỏ sót khi lưới hai cột ra đời (5326f60).
+//
+// Vì sao canh bằng test đọc-chuỗi chứ không render: repo không có jsdom/test
+// component, và jsdom cũng không tính layout nên không dựng lại được cảnh cột
+// trái bị bóp. Cái đo được chắc chắn là con số max-w viết trong class.
+const sheet = read('features/transactions/EditTransactionSheet.tsx')
+
+/** Thang `max-w-*` của Tailwind, đơn vị rem. */
+const TW_MAX_W: Record<string, number> = {
+  xs: 20, sm: 24, md: 28, lg: 32, xl: 36,
+  '2xl': 42, '3xl': 48, '4xl': 56, '5xl': 64, '6xl': 72, '7xl': 80,
+}
+
+/** Sàn bề rộng ở `lg`. Cột phải 20rem + gap 1rem + padding panel 2rem = 23rem chi
+ *  phí cứng; muốn cột TRÁI không hẹp hơn cả bản mobile (32rem) thì panel phải
+ *  ≥ 55rem → nấc Tailwind gần nhất là `4xl` (56rem). */
+const LG_FLOOR_REM = 56
+
+/** Bề rộng thực tế ở `lg`: có `lg:max-w-*` thì lấy nó, không thì `max-w-*` gốc
+ *  cũng áp ở lg (không breakpoint nào ghi đè). */
+function effectiveLgMaxWRem(src: string): number | null {
+  const lg = [...src.matchAll(/\blg:max-w-([\w]+)\b/g)]
+    .map((m) => TW_MAX_W[m[1]])
+    .filter((n): n is number => n !== undefined)
+  if (lg.length) return Math.min(...lg)
+  const base = [...src.matchAll(/(?<![\w:-])max-w-([\w]+)\b/g)]
+    .map((m) => TW_MAX_W[m[1]])
+    .filter((n): n is number => n !== undefined)
+  return base.length ? Math.min(...base) : null
+}
+
+describe('vung chua TransactionForm du rong cho luoi hai cot o lg', () => {
+  it('form THUC SU dat cot phai co dinh 20rem tu lg', () => {
+    // Neu luoi hai cot bi bo di thi hai phep thu duoi day het y nghia — chot lai
+    // tien de, de test khong con xanh vi mot ly do khac.
+    expect(form).toMatch(/lg:grid-cols-\[minmax\(0,1fr\)_minmax\(0,20rem\)\]/)
+  })
+
+  it('EntryPage noi den 5xl', () => {
+    expect(effectiveLgMaxWRem(page)).toBeGreaterThanOrEqual(LG_FLOOR_REM)
+  })
+
+  it('sheet Sua giao dich cung noi ra o lg, khong ket o max-w-lg', () => {
+    expect(effectiveLgMaxWRem(sheet)).toBeGreaterThanOrEqual(LG_FLOOR_REM)
+  })
+
+  it('sheet VAN giu max-w-lg lam nen cho dien thoai/tablet', () => {
+    // Bo han max-w o nen thi tren tablet 768px sheet keo het be rong ma van MOT cot.
+    expect(sheet).toMatch(/(?<![\w:-])max-w-lg\b/)
+  })
+})

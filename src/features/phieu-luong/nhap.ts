@@ -327,11 +327,24 @@ function dungCap(
       category_id: idTauXe, account_id: neo.account_id,
       note: `${dau} · hoàn phí đi lại (${NHAN_DI_LAI})`,
     })
-    // Trung hoà: dòng neo vẫn mang cả `neo.amount` vào số dư, nên phải rút đúng bằng
-    // số đó ra. NGOÀI thống kê (xám trong Sổ) — nó không phải một khoản chi thật.
+    /**
+     * Trung hoà: dòng neo vẫn mang cả `neo.amount` vào số dư, nên phải rút đúng bằng số
+     * đó ra. NGOÀI thống kê (xám trong Sổ) — nó không phải một khoản chi thật.
+     *
+     * `category_id` PHẢI khác null, dù dòng này nằm ngoài mọi báo cáo:
+     * `transactions` có `check (type <> 'transfer' ... and category_id is not null)`
+     * (0001_init.sql:89). Bản đầu để null và Postgres từ chối insert — cả lô dừng giữa
+     * đường, dòng DB掛金 không được ghi và cờ dòng neo không được bật. Tầng thuần không
+     * có CHECK của Postgres nên test đơn vị xanh trơn; chốt ở `kiemCap` là để bù chỗ đó.
+     *
+     * Dùng luôn danh mục `Tàu xe` thay vì đòi thêm một danh mục nữa: dòng này bị lọc
+     * khỏi MỌI tổng theo danh mục (budgets/progress.ts:69, aggregate.ts:73·274·382·486
+     * đều bỏ `exclude_from_stats`), nên danh mục ở đây chỉ là chỗ trú cho ràng buộc DB —
+     * `note` mới là chỗ nói dòng này là gì.
+     */
     cap.push({
       ...chung, type: 'expense', amount: neo.amount, exclude_from_stats: true,
-      category_id: null, account_id: neo.account_id,
+      category_id: idTauXe, account_id: neo.account_id,
       note: `${dau} · trung hoà dòng neo`,
     })
   }
@@ -487,6 +500,13 @@ function kiemCap(phieu: Phieu, cap: DongMoi[], neo: KhoanNeo | null): string[] {
   const loi: string[] = []
   if (cap.some((r) => r.amount <= 0)) {
     loi.push(`có dòng 支給 amount <= 0 (${NHAN_DI_LAI} lớn hơn ròng?) — xử tay`)
+  }
+  // Ràng buộc DB, không phải luật nghiệp vụ: `check (type <> 'transfer' ... and
+  // category_id is not null)` (0001_init.sql:89). Vi phạm thì Postgres từ chối insert và
+  // CẢ LÔ dừng giữa đường — đã xảy ra thật với dòng "trung hoà dòng neo". Chốt ở đây vì
+  // tầng thuần không có CHECK của Postgres để tự bắt.
+  if (cap.some((r) => r.category_id === null)) {
+    loi.push('có dòng 支給 thiếu category_id — DB từ chối (0001_init.sql:89)')
   }
   if (!neo) return loi
   const cung = cap.filter((r) => r.account_id === neo.account_id)

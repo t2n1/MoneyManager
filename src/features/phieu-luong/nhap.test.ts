@@ -632,3 +632,54 @@ describe('dungDong · mua 3 tháng nhưng được trả 6 tháng', () => {
     expect(d.cap.find((r) => r.is_refund)?.amount).toBe(77070)
   })
 })
+
+/**
+ * Ràng buộc DB, không phải luật nghiệp vụ — nhưng đã hỏng THẬT một lần: dòng "trung hoà
+ * dòng neo" từng dựng với `category_id: null`, Postgres từ chối (0001_init.sql:89), cả lô
+ * dừng giữa đường nên dòng DB掛金 không được ghi và cờ dòng neo không được bật. Sổ khi đó
+ * đếm Thu HAI LẦN (dòng neo + 'lương thực nhận') và số dư Yucho phồng đúng một khoản ròng.
+ *
+ * Test đơn vị không chạm Postgres nên phải tự mang ràng buộc đó vào đây.
+ */
+describe('dungDong · ràng buộc DB trên mọi dòng dựng ra', () => {
+  const moiDong = (d: { thu: DongMoi; thuKhac: DongMoi | null; chi: DongMoi[]; cap: DongMoi[] }) =>
+    [d.thu, ...(d.thuKhac ? [d.thuKhac] : []), ...d.chi, ...d.cap]
+
+  it('không dòng nào thiếu category_id (check type<>transfer ⇒ category_id not null)', () => {
+    for (const p of [P_CAP, { ...P202608, cap: { DB掛金: -10000 } }, P202608]) {
+      const d = dungDong(p, NEO_202608, IDS, TK_HUU)
+      for (const r of moiDong(d)) {
+        expect(r.category_id, `${r.note} thiếu category_id`).not.toBeNull()
+      }
+    }
+  })
+
+  it('mọi amount đều > 0 (check amount > 0)', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    for (const r of moiDong(d)) expect(r.amount, r.note).toBeGreaterThan(0)
+  })
+
+  it('không dòng nào là transfer nên to_amount/to_account_id phải null', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    for (const r of moiDong(d)) {
+      expect(r.to_amount, r.note).toBeNull()
+      expect(r.to_account_id, r.note).toBeNull()
+    }
+  })
+
+  // transactions_refund_check (0026): is_refund chi co nghia voi CHI.
+  it('is_refund chỉ nằm trên dòng chi', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    for (const r of moiDong(d)) {
+      if (r.is_refund) expect(r.type, r.note).toBe('expense')
+    }
+  })
+
+  it('kiemCap bắt được dòng 支給 thiếu category_id', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    const xau = d.cap.map((r) => (r.exclude_from_stats ? { ...r, category_id: null } : r))
+    expect(kiemDong(P_CAP, d.thu, d.chi, d.thuKhac, xau, NEO_202608).join(' ')).toMatch(
+      /category_id/,
+    )
+  })
+})

@@ -44,7 +44,7 @@ export const PHASE_LABEL: Record<Direction, { done: string; future: string }> = 
  */
 export type EntryKind =
   | 'spend' | 'split' | 'family' | 'lend' | 'repay'
-  | 'earn' | 'collect' | 'borrow'
+  | 'earn' | 'owed' | 'collect' | 'borrow'
   | 'between' | 'ownvn'
 
 /**
@@ -80,8 +80,13 @@ export interface EntryShape {
   categoryPicker: CategoryPicker
   capBase: CapBase
   amountLabel: string
-  /** `debtPayment` = đi qua createDebtPayment (bọc luôn transaction bên trong). */
-  writes: 'transaction' | 'debtPayment'
+  /**
+   * `debtPayment` = đi qua createDebtPayment (bọc luôn transaction bên trong).
+   * `debtOnly`    = đi qua createDebt và KHÔNG kèm giao dịch nào: không đồng nào rời
+   *                 ví, nên dạng đó cũng không có tài khoản để đòi (xem entryGate và
+   *                 `handleSubmit` — HAI cổng, phải mở cả hai).
+   */
+  writes: 'transaction' | 'debtPayment' | 'debtOnly'
   /** null ở repay/collect: type suy từ chiều của khoản nợ đã chọn, không từ dạng. */
   txType: TransactionType | null
   roleSeed: RoleSeed
@@ -123,6 +128,15 @@ export const SHAPES: Record<EntryKind, EntryShape> = {
     categoryPicker: 'user', capBase: 'none', amountLabel: 'Số tiền',
     writes: 'transaction', txType: 'income', roleSeed: NONE,
   },
+  owed: {
+    kind: 'owed', direction: 'in', label: 'Khách nợ công',
+    // Chip này nằm dưới tab "Tiền vào" mà KHÔNG có đồng nào vào ví — chỗ dễ nhầm nhất
+    // của cả màn, nên hint là bắt buộc. Nó cũng đi vào `chipAriaLabel`.
+    hint: 'Chưa có đồng nào vào ví — chỉ ghi người ta nợ bạn.',
+    categoryPicker: 'user', capBase: 'none', amountLabel: 'Số tiền công',
+    writes: 'debtOnly', txType: null,
+    roleSeed: { role: 'debt', debtDirection: 'owed_to_me' },
+  },
   collect: {
     kind: 'collect', direction: 'in', label: 'Người trả lại',
     categoryPicker: 'auto', capBase: 'none', amountLabel: 'Số nhận lại',
@@ -151,7 +165,7 @@ export const SHAPES: Record<EntryKind, EntryShape> = {
 /** Thứ tự chip trong hàng Dạng. Tiền ra 5 chip → 2 dòng ở 360px, đã chấp nhận. */
 const ORDER: Record<Direction, EntryKind[]> = {
   out: ['spend', 'split', 'family', 'lend', 'repay'],
-  in: ['earn', 'collect', 'borrow'],
+  in: ['earn', 'owed', 'collect', 'borrow'],
   move: ['between', 'ownvn'],
 }
 
@@ -193,6 +207,7 @@ export function counterpartyLabelOf(kind: EntryKind): string | undefined {
   switch (kind) {
     case 'split':  return 'Ai nợ mình'
     case 'lend':   return 'Cho ai vay'
+    case 'owed':   return 'Ai nợ bạn'
     case 'borrow': return 'Vay của ai'
     default:       return undefined
   }
@@ -222,6 +237,7 @@ export function saveVerbOf(
     case 'lend':    return `cho vay ${money}`
     case 'repay':   return `trả nợ ${money}`
     case 'earn':    return `thu ${money}${into}`
+    case 'owed':    return `ghi ${money} khách nợ`
     case 'collect': return `nhận lại ${money}`
     case 'borrow':  return `vay ${money}`
     case 'between': return `chuyển ${money} sang ví khác`

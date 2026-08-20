@@ -110,7 +110,7 @@ describe('ba cong role-field gac dung dang', () => {
   })
 })
 
-describe('"Luu va nhap tiep" phai o LAI man o CA 10 dang', () => {
+describe('"Luu va nhap tiep" phai o LAI man o CA 11 dang', () => {
   it('co keepGoing di xuyen onSubmitRole, va EntryPage chi navigate khi KHONG keepGoing', () => {
     // Nhanh orchestrator chay TRUOC nhanh giao dich thuong trong handleSubmit, nen neu
     // no khong biet "nhap tiep" thi o nam dang (split/family/lend/borrow/ownvn) nut phu

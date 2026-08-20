@@ -17,15 +17,16 @@ const B23: [EntryKind, string, string, string, string][] = [
   ['lend',      'out',     'auto',         'none',    'Số tiền gốc'],
   ['repay',     'out',     'auto',         'none',    'Số trả'],
   ['earn',      'in',      'user',         'none',    'Số tiền'],
+  ['owed',      'in',      'user',         'none',    'Số tiền công'],
   ['collect',   'in',      'auto',         'none',    'Số nhận lại'],
   ['borrow',    'in',      'auto',         'none',    'Số tiền gốc'],
   ['between',   'move',    'none',         'none',    'Chuyển đi'],
   ['ownvn',     'move',    'none',         'none',    'Số gửi'],
 ]
 
-describe('bang 10 dang khop spec B23', () => {
-  it('co dung 10 dang, khong hon khong kem', () => {
-    expect(Object.keys(SHAPES)).toHaveLength(10)
+describe('bang 11 dang khop spec B23', () => {
+  it('co dung 11 dang, khong hon khong kem', () => {
+    expect(Object.keys(SHAPES)).toHaveLength(11)
   })
 
   it.each(B23)('%s: huong/danh muc/tran/nhan o tien', (kind, dir, pick, cap, label) => {
@@ -38,23 +39,25 @@ describe('bang 10 dang khop spec B23', () => {
 
   it('kindsOf tra ve dung thu tu chip cua tung huong', () => {
     expect(kindsOf('out')).toEqual(['spend', 'split', 'family', 'lend', 'repay'])
-    expect(kindsOf('in')).toEqual(['earn', 'collect', 'borrow'])
+    expect(kindsOf('in')).toEqual(['earn', 'owed', 'collect', 'borrow'])
     expect(kindsOf('move')).toEqual(['between', 'ownvn'])
   })
 
   it('moi dang thuoc dung mot huong', () => {
     const all = (['out', 'in', 'move'] as const).flatMap((d) => kindsOf(d))
-    expect(new Set(all).size).toBe(10)
+    expect(new Set(all).size).toBe(11)
     for (const k of all) expect(kindsOf(directionOf(k))).toContain(k)
   })
 })
 
 describe('dan xuat ra but toan cu', () => {
-  it('tam dang di qua createTransaction, hai dang di qua createDebtPayment', () => {
+  it('tam dang qua createTransaction, hai qua createDebtPayment, mot chi ghi no', () => {
     const tx = Object.values(SHAPES).filter((s) => s.writes === 'transaction')
     const dp = Object.values(SHAPES).filter((s) => s.writes === 'debtPayment')
+    const only = Object.values(SHAPES).filter((s) => s.writes === 'debtOnly')
     expect(tx).toHaveLength(8)
     expect(dp.map((s) => s.kind).sort()).toEqual(['collect', 'repay'])
+    expect(only.map((s) => s.kind)).toEqual(['owed'])
   })
 
   it('gui gia dinh la CHI (roi khoi tai san), tai khoan VN la CHUYEN KHOAN', () => {
@@ -96,16 +99,19 @@ describe('categoryPickerOf phu thuoc withTransaction', () => {
 })
 
 describe('hai dang gui ve VN phai noi ro he qua', () => {
-  it('chi hai dang do co chu phu, va chu phu noi ve tai san', () => {
+  it('chi BA dang do co chu phu, va chu phu nao cung noi ve tai san', () => {
     const withHint = Object.values(SHAPES).filter((s) => s.hint)
-    expect(withHint.map((s) => s.kind).sort()).toEqual(['family', 'ownvn'])
-    // Hai cau phai TRAI NHAU o tac dong tai san: `family` tien cho di (het), `ownvn` tien
-    // van cua minh. Va ca hai phai noi ro cach app XEP no, vi mac dinh cua migration 0046
-    // xep ca hai la Chuyen tai san — nguoi doc phai biet de gat lai neu khong dong y.
+    expect(withHint.map((s) => s.kind).sort()).toEqual(['family', 'owed', 'ownvn'])
+    // Hint KHONG phai chu trang tri: chi dang nao ma cai chip khong tu noi duoc tac dong
+    // tai san moi co. Hai dang gui ve VN phai TRAI NHAU: `family` tien cho di (het),
+    // `ownvn` tien van cua minh — va ca hai phai noi ro cach app XEP no, vi mac dinh cua
+    // migration 0046 xep ca hai la Chuyen tai san, nguoi doc phai biet de gat lai.
     expect(shapeOf('family').hint).toContain('cho đi')
     expect(shapeOf('family').hint).toContain('Chuyển tài sản')
     expect(shapeOf('ownvn').hint).toContain('Vẫn là tiền của bạn')
     expect(shapeOf('ownvn').hint).toContain('không phải chi tiêu')
+    // `owed` co ly do khac: no nam duoi tab "Tien vao" ma KHONG co dong nao vao vi.
+    expect(shapeOf('owed').hint).toContain('Chưa có đồng nào vào ví')
   })
 })
 
@@ -163,7 +169,7 @@ describe('saveVerbOf — nhan nut Luu nhac lai viec se lam', () => {
 
   it('moi dang co mot cau rieng, va cau nao cung co so tien', () => {
     const all = (Object.keys(SHAPES) as EntryKind[]).map((k) => saveVerbOf(k, 1_000, 'JPY', null))
-    expect(new Set(all).size).toBe(10)
+    expect(new Set(all).size).toBe(11)
     for (const s of all) expect(s).toContain('¥1,000')
   })
 
@@ -184,5 +190,34 @@ describe('PHASE_LABEL', () => {
       expect(p.done).not.toMatch(/nhắc/i)
       expect(p.future).not.toMatch(/nhắc/i)
     }
+  })
+})
+
+describe('dang "Khach no cong" khong dung toi vi nao', () => {
+  it('writes debtOnly, txType null, huong "in"', () => {
+    const s = shapeOf('owed')
+    expect(s.writes).toBe('debtOnly')
+    expect(s.txType).toBeNull()
+    expect(s.direction).toBe('in')
+  })
+
+  it('co hint noi ra he qua: chua co dong nao vao vi', () => {
+    // Chip nam duoi tab "Tien vao" ma khong co tien nao vao vi — cho de nham nhat cua
+    // ca man, nen hint la bat buoc chu khong phai trang tri.
+    const hint = shapeOf('owed').hint
+    expect(hint).toMatch(/[Cc]hưa/)
+    expect(chipAriaLabel('owed')).toContain(hint!)
+  })
+
+  it('o counterparty co ten rieng — KHONG roi vao default undefined', () => {
+    // counterpartyLabelOf co `default: undefined`, va undefined nghia la "dang nay khong
+    // co o do". Quen case nay thi o "ai no ban" khong hien, ma tsc khong bao gi.
+    expect(counterpartyLabelOf('owed')).toBe('Ai nợ bạn')
+  })
+
+  it('nut Luu noi dung viec no sap ghi', () => {
+    expect(saveVerbOf('owed', 30_000, 'JPY', 'Làm thêm')).toBe(
+      'ghi ¥30,000 khách nợ',
+    )
   })
 })

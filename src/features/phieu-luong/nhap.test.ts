@@ -585,23 +585,25 @@ describe('dungDong · 通勤手当', () => {
 
 describe('dungDong · DB掛金', () => {
   /**
-   * NGOÀI thống kê: công ty lấy 10.000 CỦA người dùng rồi bỏ vào 退職金 — tiền của chính
-   * mình chuyển sang tài khoản khác, không phải khoản kiếm được. Cùng bản chất với
-   * 厚生年金保険, và khoản đó cũng nằm ngoài thống kê. Tài sản hưu vẫn tăng đúng 10.000.
+   * TRONG thống kê, khác 通勤手当: đây là tiền người dùng kiếm được rồi đem tiết kiệm, chỉ
+   * là việc tiết kiệm xảy ra trước khi tiền kịp về tài khoản. 退職金 là một tài khoản tài
+   * sản trong sổ nên số dư của nó đếm vào tài sản ngay, khác 厚生年金保険 (tiền ra khỏi tay).
    */
-  it('ghi 10.000 vào tài khoản 退職金 ngoài thống kê, không đụng Yucho', () => {
+  it('ghi thu 10.000 vào tài khoản 退職金, không đụng Yucho', () => {
     const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     const huu = d.cap.filter((r) => r.account_id === TK_HUU)
     expect(huu).toHaveLength(1)
-    expect(huu[0]).toMatchObject({ type: 'income', amount: 10000, exclude_from_stats: true })
+    expect(huu[0]).toMatchObject({ type: 'income', amount: 10000, exclude_from_stats: false })
     expect(soDu(d.cap, TK_HUU)).toBe(10000)
   })
 
-  /** DB掛金 không được làm Thu phồng: nó là khoản duy nhất của bộ máy gross→net từng bị đếm. */
-  it('DB掛金 không thêm gì vào Thu', () => {
-    const chiDB: Phieu = { ...P202608, cap: { DB掛金: -10000 } }
-    const d = dungDong(chiDB, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
-    expect(thuTrongTk(d.cap)).toBe(0)
+  /**
+   * Con số người dùng chốt cho kỳ 202608: thu nhập thật ¥321.621 = ¥311.621 về Yucho
+   * + ¥10.000 vào quỹ hưu, KHÔNG gồm ¥77.070 tiền đi lại.
+   */
+  it('thu nhập trong thống kê = ròng − 通勤手当 + DB掛金', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
+    expect(thuTrongTk(d.cap)).toBe(400000 - 77070 + 10000)
   })
 
   it('thiếu tài khoản 退職金 thì nổ, không bỏ tiền hưu đi', () => {

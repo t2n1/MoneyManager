@@ -492,3 +492,56 @@ trả lại"*) rằng khoản mua vé có trong sổ, mà không đi kiểm. Vò
 trước khi hỏi người dùng khoản đó **có phải thu nhập** hay không — tôi hỏi "muốn thấy ¥36.390
 lời không" (một câu về hiển thị) thay vì "đây có phải tiền anh kiếm được không" (câu về bản
 chất). Cả hai lần, con số THẬT trên màn hình mới lôi ra được sai. Đưa số thật ra sớm.
+
+---
+
+## Vòng sáu — `DB掛金` quay lại Thu (20/08/2026)
+
+Vòng năm đọc sai một câu của người dùng. Câu đó là:
+
+> `DB掛金` là nó trừ vào lương trước khi tôi nhận được.
+
+Tôi hiểu thành "nó không phải thu nhập". Thật ra người dùng đang giải thích **vì sao khoản
+đó không xuất hiện trong Yucho** — mechanics, không phải phân loại. Hai câu sau đó nói rõ:
+
+> Đúng ra ở tháng lương tháng 8 thì thực nhận của tôi chỉ có 321,621 yên là thu thôi.
+> 10,000 là đóng vào tiền quỹ hưu trí.
+>
+> Cái 10,000 là tôi bị trừ từ lương đó để cho vào quỹ hưu trí của tôi khi tôi nghỉ công ty.
+> Về cơ bản nó vẫn là tiền của tôi mà.
+
+`¥321.621 = ¥311.621` (về Yucho, đã trừ ¥77.070 đi lại) `+ ¥10.000` (vào `退職金`).
+Nên `DB掛金` **ở trong Thu**; chỉ `通勤手当` ra ngoài.
+
+**Phân biệt `DB掛金` với `厚生年金保険`** — đây là chỗ tôi lẫn ở vòng năm khi viện dẫn "cùng
+bản chất":
+
+| | `厚生年金保険` ¥43.005 | `DB掛金` ¥10.000 |
+|---|---|---|
+| Trong sổ | không có tài khoản nào | tài khoản tài sản `退職金` |
+| Tiền đi đâu | ra khỏi tay, quay lại thành lương hưu sau này | vào tài sản của người dùng ngay lúc này |
+| Thống kê | ngoài | **trong** |
+
+Quy ước chung rút ra: một khoản của bộ máy `総支給金額 → 差引支給額` **ở trong Thu khi và chỉ
+khi nó hạ cánh vào một tài khoản trong sổ**. `退職金` có tài khoản nên nó đếm; thuế và bảo
+hiểm không có nên chúng không đếm. `通勤手当` hạ cánh vào Yucho nhưng vẫn ngoài Thu vì nó
+không phải tiền người dùng kiếm được — đó là ngoại lệ duy nhất, và nó cần cờ riêng.
+
+### Số tháng 8/2026 — chốt
+
+| | Thu | Chi | Chênh lệch |
+|---|---|---|---|
+| Vòng 1 (đã ghi) | 342.181 | 178.268 | 163.913 |
+| Vòng 4 (đã ghi) | 419.251 | 255.338 | 163.913 |
+| **Vòng 6** | **342.181** | **255.338** | **86.843** |
+
+Thu quay về đúng con số ban đầu ¥342.181 (= 321.621 phiếu lương + 20.000 quà + 560). Nghĩa
+là **Thu đúng ngay từ đầu; chỉ Chi sai** — khớp với điều người dùng nói ở câu đầu tiên của
+cả chuỗi này: *"Sao tôi thấy phần tổng Chi có vẻ sai"*. Ba vòng để quay về đúng chỗ họ đã chỉ.
+
+### Bài học (bổ sung cho vòng năm)
+
+Người dùng giải thích **cơ chế** thì đừng đọc thành **phân loại**. "Nó bị trừ trước khi tôi
+nhận" trả lời câu "tiền này đi đường nào", không trả lời câu "đây có phải thu nhập không".
+Câu thứ hai phải hỏi thẳng, hoặc phải đưa con số ra để họ bác — và cả hai lần trong chuỗi
+này, con số mới là thứ lôi ra được sai.

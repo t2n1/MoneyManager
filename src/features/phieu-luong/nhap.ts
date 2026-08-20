@@ -373,15 +373,19 @@ export function dungDong(
  * `exclude_from_stats` (suaNeo) — số giữ nguyên, gỡ lô chỉ cần tắt lại một boolean —
  * rồi dựng lại phần thống kê bằng ba dòng dưới đây.
  *
- * DB掛金 cũng NGOÀI thống kê, và vì một lý do khác: công ty lấy 10.000 CỦA người dùng
- * mỗi tháng rồi bỏ vào 退職金 (hagukumikikin.jp). Đó là tiền của chính mình chuyển sang
- * một tài khoản khác, không phải một khoản kiếm được — `厚生年金保険` cùng bản chất và
- * cũng nằm ngoài thống kê. Nó đã bị trừ khỏi 総支給金額 (đo trên phiếu thật:
- * 基本給 + 残業手当 + DB掛金 + 通勤手当 = 総支給金額) nên chưa bao giờ vào Yucho.
+ * DB掛金 thì NGƯỢC LẠI: nó Ở TRONG Thu. Công ty lấy 10.000 mỗi tháng bỏ vào 退職金
+ * (hagukumikikin.jp) — đó là tiền người dùng KIẾM ĐƯỢC rồi đem đi tiết kiệm, chỉ là việc
+ * tiết kiệm xảy ra trước khi tiền kịp về tài khoản. Người dùng chốt bằng con số: thu nhập
+ * thật của kỳ 202608 là ¥321.621 = ¥311.621 về Yucho + ¥10.000 vào quỹ hưu.
  *
- * Không dựng được `type: 'transfer'` cho nó: chuyển khoản cần tài khoản NGUỒN, mà nguồn
- * ở đây là công ty — không có trong sổ. Nên: một dòng thu vào 退職金, ngoài thống kê.
- * Yucho không đổi, tài sản hưu tăng đúng, Thu không phồng.
+ * Phân biệt với `厚生年金保険` (nằm ngoài thống kê): khoản đó là bảo hiểm bắt buộc, tiền
+ * ra khỏi tay và chỉ quay lại dưới dạng lương hưu sau này. Còn 退職金 là một TÀI KHOẢN
+ * TÀI SẢN trong sổ, số dư của nó đếm vào tài sản của người dùng ngay lúc này.
+ *
+ * Nó đã bị trừ khỏi 総支給金額 (đo trên phiếu thật:
+ * 基本給 + 残業手当 + DB掛金 + 通勤手当 = 総支給金額) nên chưa bao giờ vào Yucho — vì vậy
+ * không dựng được `type: 'transfer'`: chuyển khoản cần tài khoản NGUỒN, mà nguồn là công
+ * ty, không có trong sổ. Nên: một dòng thu thẳng vào 退職金. Yucho không đổi.
  */
 function dungCap(
   phieu: Phieu,
@@ -482,7 +486,7 @@ function dungCap(
   if (huu !== 0) {
     if (!tkHuuId) throw new Error(`thiếu tài khoản '${TEN_TK_HUU}' (cho ${NHAN_HUU})`)
     cap.push({
-      ...chung, type: 'income', amount: Math.abs(huu), exclude_from_stats: true,
+      ...chung, type: 'income', amount: Math.abs(huu),
       category_id: neo.category_id, account_id: tkHuuId,
       note: `${dau} · ${NHAN_HUU} → ${TEN_TK_HUU}`,
     })

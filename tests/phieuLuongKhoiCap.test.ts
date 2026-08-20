@@ -83,12 +83,12 @@ describe('trang import: danh mục phụ cấp phải lọc theo type', () => {
 })
 
 /**
- * `通勤手当` và `DB掛金` đều phải mang `exclude_from_stats`. Đây là hai khoản DUY NHẤT của
- * bộ máy 総支給金額 → 差引支給額 từng bị đếm vào Thu, và cả hai đã sai theo hai hướng khác
- * nhau (một thành chi âm, một thành thu nhập). Chốt ở tầng nguồn vì cờ này không có cách
- * nào sai ồn ào: đếm sai phía thì Thu chỉ lệch đi, không có lỗi nào nổ.
+ * Hai dòng của khối 支給 đi HAI phía khác nhau, và đó là chỗ dễ trộn lẫn nhất:
+ * `通勤手当` ngoài Thu (công ty trả tiền đi lại, tiền vào rồi ra để mua vé), `DB掛金`
+ * TRONG Thu (tiền người dùng kiếm được rồi đem tiết kiệm vào 退職金). Chốt ở tầng nguồn
+ * vì cờ này không có cách nào sai ồn ào: đếm sai phía thì Thu chỉ lệch đi, không lỗi nào nổ.
  */
-describe('khối 支給 luôn đứng ngoài thống kê', () => {
+describe('khối 支給 — hai dòng, hai phía', () => {
   const src = doc('../src/features/phieu-luong/nhap.ts')
 
   it('không còn mốc kỳ nào quyết định phía của phụ cấp', () => {
@@ -101,9 +101,9 @@ describe('khối 支給 luôn đứng ngoài thống kê', () => {
     expect(src.slice(src.lastIndexOf('cap.push({', i), i)).toContain('exclude_from_stats: true')
   })
 
-  it('dòng DB掛金 → 退職金 mang exclude_from_stats: true', () => {
+  it('dòng DB掛金 → 退職金 KHÔNG mang exclude_from_stats', () => {
     const i = src.indexOf('${NHAN_HUU} → ${TEN_TK_HUU}')
     expect(i).toBeGreaterThan(-1)
-    expect(src.slice(src.lastIndexOf('cap.push({', i), i)).toContain('exclude_from_stats: true')
+    expect(src.slice(src.lastIndexOf('cap.push({', i), i)).not.toContain('exclude_from_stats')
   })
 })

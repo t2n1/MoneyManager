@@ -425,3 +425,23 @@ describe('vung chua TransactionForm du rong cho luoi hai cot o lg', () => {
     expect(sheet).toMatch(/(?<![\w:-])max-w-lg\b/)
   })
 })
+
+describe('khoi cuon cua man Nhap chi keo DOC, khong panning ngang', () => {
+  it('khoi cuon mang CA overflow-x-hidden, khong chi overflow-y-auto', () => {
+    // `overflow-y-auto` mot minh KHONG clip truc ngang — luat CSS tinh lai `visible` o
+    // truc con lai thanh `auto`, tuc no thanh mot vung cuon THAT, keo duoc bang ngon tay.
+    // Trieu chung do duoc (bao 2026-08-21): bat "Se chi" tren dien thoai thi ca form keo
+    // sang trai/phai duoc, trong khi "Da chi" thi khong — chi vi nhanh "Se chi" co mot o
+    // nho ra. Bo class nay la loi do quay lai ngay lan sau co field moi nho ra vai px.
+    const i = form.indexOf('ref={scrollRef}')
+    expect(i).toBeGreaterThan(0)
+    const cls = form.slice(i, i + 400)
+    expect(cls).toMatch(/overflow-y-auto overflow-x-hidden/)
+  })
+
+  it('hai dai cuon ngang CO CHU Y van tu mang overflow-x-auto', () => {
+    // Neu dai nao dua vao viec khoi cuon ngoai "auto" ho thi fix tren se cat mat noi
+    // dung thay vi cho cuon. Chung phai la vung cuon RIENG.
+    expect(form).toMatch(/flex gap-1\.5 overflow-x-auto/)
+  })
+})

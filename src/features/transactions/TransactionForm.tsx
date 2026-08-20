@@ -1193,9 +1193,19 @@ export function TransactionForm({
 
           Cột phải hẹp hơn (20rem): những ô bên đó là chữ một dòng, kéo dài ra chỉ tổ làm
           dòng chữ khó dò về đầu hàng. */}
+      {/* `overflow-x-hidden` VIẾT RA, không để mặc: `overflow-y-auto` một mình KHÔNG clip
+          trục ngang như mấy chú thích cũ trong file này (và tests/designSystem.test.ts)
+          đang nói. Luật CSS là `visible` ở một trục sẽ tính lại thành `auto` khi trục kia
+          không phải `visible` — tức trục ngang thành MỘT VÙNG CUỘN THẬT, kéo được bằng
+          ngón tay. Hệ quả: một ô nhô ra vài px là cả form panning ngang trên điện thoại,
+          đúng triệu chứng của "Sẽ chi" (báo 2026-08-21) — trong khi "Đã chi" không nhô nên
+          không ai thấy. Đặt `hidden` là biến clip-tưởng-tượng thành clip thật: dọc vẫn
+          cuộn, ngang hết kéo.
+          KHÔNG ảnh hưởng hai dải cuộn ngang CÓ CHỦ Ý bên trong (hàng mẫu nhanh, lưới danh
+          mục): chúng tự mang `overflow-x-auto` nên vẫn là vùng cuộn riêng. */}
       <div
         ref={scrollRef}
-        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto lg:grid lg:flex-initial lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] lg:items-start lg:gap-x-4"
+        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden lg:grid lg:flex-initial lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] lg:items-start lg:gap-x-4"
       >
       <div className="contents lg:flex lg:flex-col lg:gap-1.5">
       {/* Mẫu giao dịch nhanh (mục J): 1 chạm điền sẵn. Chỉ hiện khi ĐÃ có mẫu —

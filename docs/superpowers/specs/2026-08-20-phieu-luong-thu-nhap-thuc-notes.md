@@ -228,3 +228,47 @@ khác null · `kiemDong` rỗng): **59/59 qua**. Script ở scratchpad, không c
   khi đó cả khoản mua và khoản hoàn đều ngoài thống kê, không cần đổi code, không cần mốc ngày.
   Nếu thay vào đó muốn dòng hoàn tiền như `通勤手当` thì phải thêm mốc kỳ vào `dungCap`.
 - CLI vẫn từ chối mọi phiếu có khối 支給 (`chotKhoiCap`) — chưa dạy nó ghi `cap`.
+
+
+## Vòng ba (đã chốt thiết kế, CHƯA cài): 立替経費精算 thành khoản công ty nợ
+
+User: *"ứng tiền cho cty thì cũng giống cho cty nợ thôi rồi tới kì đòi lại là đc"* — và app đã có
+đúng mô hình: `debts.direction = 'owed_to_me'` + `origin = 'lent'`. Đã đối chiếu
+[debtPaymentPosting.ts:31](../../../src/features/debts/debtPaymentPosting.ts:31): `origin` khác
+`'earned'` → `isDebtFlow: true`, nên lần trả tự ra khỏi Thu/Chi. **Không cần migration.**
+`repo.createDebtPayment({debt_id, amount, paid_on, note, transaction})` tự dựng giao dịch và tự
+đọc `origin` — importer không được tự đặt cờ.
+
+### Bộ dòng khi có đường nợ (L = 立替経費精算)
+
+| dòng | số | ghi chú |
+|---|---|---|
+| dòng neo — giữ số, bật cờ | `N` | ngoài thống kê |
+| + thu "lương thực nhận" | `N − C − L` | trong Thu |
+| + chi hoàn phí đi lại (`Tàu xe`) | `C` | trong Chi |
+| + **trả nợ** qua `createDebtPayment` | `L` | `is_debt_flow` tự bật; trừ vào nợ KOME |
+| + chi "trung hoà dòng neo" | `N` | ngoài thống kê — **không** còn `− L` |
+
+Số dư: `(N−C−L) + C + L − N = 0` ✓ · Thu: `−(C+L)` ✓ · nợ KOME giảm `L` ✓
+
+### Luật chọn đường (không có mốc ngày nào)
+- Có khoản nợ tên **đúng bằng `KOME`**, `owed_to_me`, `open`:
+  - còn nợ ≥ L → **đường nợ**
+  - còn nợ < L → **TỪ CHỐI** phiếu (quên ghi lần ứng). Cố ý ồn ào, không rơi lặng lẽ về cách cũ.
+- Không có khoản nào → giữ cách hiện tại (chỉ rút khỏi Thu, trung hoà = `N − L`).
+  Nhờ vậy 27 phiếu cũ vẫn đúng mà không cần điều kiện theo kỳ.
+
+### BẪY đã biết: `Minh KOME`
+Sổ đã có khoản `Cho vay · Minh KOME 🐄` — một **người**, không phải công ty. Khớp kiểu "chứa KOME"
+là trừ tiền công ty vào khoản Minh nợ. Nên khớp **đúng từng ký tự** (cùng nếp với tài khoản
+`退職金`, xem `tkHuu` trong ImportPhieuLuongPage). Và trang xem trước PHẢI nói ra khi có khoản
+nào *chứa* KOME mà không đúng bằng KOME — nếu không thì cách rơi lại thành lặng lẽ.
+
+### Nhịp thực tế
+User: *"thường thì tháng này ứng thì tháng sau cty trả lại"* → chu kỳ ngắn, nhưng vẫn dùng **một
+khoản nợ đứng mãi** (ứng thêm = "Cho vay thêm", trả thì trừ dần). Mỗi lần ứng một khoản riêng thì
+importer không biết `L` kỳ này trả cho khoản nào.
+
+### Thứ tự đã thống nhất
+Làm **sau** khi user nhập lại xong 59 phiếu. Cách hiện tại đã đúng cho mọi phiếu cũ, và đây là lần
+thứ ba chạm `dungDong`/`kiemDong` trong một buổi.

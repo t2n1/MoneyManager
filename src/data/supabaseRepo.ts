@@ -1251,9 +1251,14 @@ export const supabaseRepo: Repo = {
       // Đọc khoản nợ TRƯỚC khi ghi: cách ghi của lần trả này là thuộc tính của KHOẢN NỢ
       // (`origin`), không phải của người gọi. Một truy vấn thêm, đổi lấy việc không cửa
       // nào phải tự nhớ — xem debtPaymentPosting.
+      // `select('*')`, KHÔNG liệt kê 'origin, income_category_id': liệt kê tên cột thì
+      // Postgres báo lỗi nếu cột chưa tồn tại, tức bản build này lên production trước
+      // migration 0049 sẽ làm MỌI lần trả nợ hỏng — kể cả hai đường Trả nợ / Người trả
+      // lại đang chạy tốt từ trước. Với `*` thì cột thiếu chỉ là khóa vắng mặt, và
+      // `debtPaymentPosting` rơi về đúng hành vi cũ. Thứ tự deploy không còn quan trọng.
       const { data: debt, error: eDebt } = await sb
         .from('debts')
-        .select('origin, income_category_id')
+        .select('*')
         .eq('id', input.debt_id)
         .single()
       if (eDebt) throw eDebt

@@ -38,3 +38,17 @@ describe('debtPaymentPosting', () => {
     expect(debtPaymentPosting(undefined, null)).toEqual({ isDebtFlow: true, categoryId: null })
   })
 })
+
+describe('ban build len truoc migration 0049', () => {
+  it('hang no THIEU HAN hai khoa → duong cu, khong no', () => {
+    // Truoc khi 0049 chay, `select('*')` tra ve hang khong co khoa `origin`. Doc no ra
+    // undefined, va nhanh 'earned' khong bat — tuc moi lan tra ghi y nhu hom nay.
+    // Neu ai doi lai thanh `.select('origin, income_category_id')` thi Postgres bao loi
+    // cot khong ton tai va MOI lan tra no hong, ke ca hai duong da chay tot tu truoc.
+    const truocMigration = {} as Parameters<typeof debtPaymentPosting>[0]
+    expect(debtPaymentPosting(truocMigration, 'cat-no')).toEqual({
+      isDebtFlow: true,
+      categoryId: 'cat-no',
+    })
+  })
+})

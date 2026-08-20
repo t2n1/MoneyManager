@@ -2,6 +2,7 @@
 
 **Ngày:** 2026-08-20
 **Trạng thái:** thiết kế, chờ duyệt trước khi lập kế hoạch thực thi
+**Soát lại:** 2026-08-20 — đối chiếu từng câu với code, ra 8 chỗ bản đầu nói thiếu (§3, §4, §5b, §9)
 
 ## 1. Vấn đề
 
@@ -83,6 +84,10 @@ lúc nào thật cần phân biệt "đã xác nhận là tiền cho vay" với 
 sẽ để lại các lần trả cũ mang cờ cũ, tức một khoản nợ mà nửa số lần trả tính vào Thu và
 nửa kia không. `DebtEditSheet` không bày cột này.
 
+**`src/types/database.types.ts` viết TAY** (đầu file: "Khi schema đổi: cập nhật file này
+cùng lúc với migration"). Hai cột mới phải thêm vào `DebtRow` **trong cùng commit** với
+0049 — không có bước sinh type tự động nào đỡ cho việc này.
+
 ## 4. Màn Nhập — chip "Khách nợ công"
 
 Dòng mới trong `SHAPES` (`entryShape.ts`):
@@ -108,16 +113,40 @@ Ba thứ đi theo bảng, không cần code riêng:
 - **Field người nợ / ngày đến hạn** đến từ `roleSeed.role = 'debt'` → `DebtDetailInputs` đã có.
 - **Màu số tiền** đọc `shape.txType` thô (`null` → trung tính), đúng: chưa có đồng nào đổi chỗ.
 
-Hai thứ **phải sửa**:
+Sáu thứ **phải sửa** (bản đầu của spec này chỉ kể hai — soát lại 2026-08-20 ra thêm bốn):
 
 1. **`writes: 'debtOnly'`** là giá trị mới của `EntryShape['writes']`. `roleSave` gọi
    `createDebt` **không truyền `transaction`**, kèm `origin: 'earned'` và
    `income_category_id`. `tests/../entryShape.test.ts` ("tam dang di qua
    createTransaction, hai dang di qua createDebtPayment") phải cập nhật số đếm.
-2. **Cổng Lưu**: `entryGate` đang đòi tài khoản cho **mọi** dạng
-   (`if (!s.hasAccount) return 'Còn thiếu: tài khoản.'`). Dạng này không ghi giao dịch
-   nên không có tài khoản nào để đòi. Sửa thành `if (shape.writes !== 'debtOnly' && !s.hasAccount)` — đọc từ bảng, không thêm một cờ song song. Hàng "tài khoản + ngày"
-   trên màn cũng ẩn, cùng cách "Sẽ chi" đang ẩn nó.
+2. **HAI cổng tài khoản, không phải một.**
+   - `entryGate` đòi tài khoản cho mọi dạng: `if (!s.hasAccount) return 'Còn thiếu: tài khoản.'`
+   - `handleSubmit` đòi lần nữa: `if (!canSave || (!plannedMode && !effectiveAccountId)) return`
+
+   Cả hai phải mở cho dạng này, đọc từ bảng (`shape.writes !== 'debtOnly'`) chứ không
+   thêm một cờ song song kiểu `plannedMode`. Sửa một cổng mà quên cổng kia thì nút Lưu
+   sáng lên rồi bấm không có gì xảy ra — im lặng, không câu báo nào.
+   Kéo theo: **`RoleBase.accountId` đang là `string`** (không nullable). Dạng này không
+   có tài khoản nào, nên trường đó phải thành `string | null`.
+3. **`counterpartyLabelOf` có `default: undefined`**, và `undefined` nghĩa là "dạng này
+   KHÔNG có ô counterparty". Quên thêm `case 'owed'` thì ô "ai nợ bạn" **không hiện**,
+   mà TypeScript không báo gì — trong khi `saveVerbOf` (switch không có `default`) thì
+   trình biên dịch bắt ngay. Hai switch cùng nhận `EntryKind` mà một cái im một cái nói:
+   chỗ im là chỗ phải tự nhớ. Nhãn: `'Ai nợ bạn'`.
+4. **`kindMissing`** phải thêm `'owed'` vào nhánh `lend`/`borrow` (đòi tên người nợ).
+   Không thêm thì lưu được một khoản nợ không tên — mà tên chính là khóa cộng dồn.
+5. **Ô loại tiền riêng.** `saveDebtCore` lấy loại tiền của khoản nợ từ `base.srcCurrency`,
+   mà `srcCurrency = activeAccounts.find(a => a.id === effectiveAccountId)?.currency ?? 'JPY'`.
+   Không có tài khoản → rơi về **'JPY' đóng cứng**, tức người làm thêm ăn tiền VND sẽ có
+   một khoản nợ ghi bằng JPY mà không ai nói gì. Dạng này cần ô chọn loại tiền riêng,
+   đúng lối `PlannedFields` đã làm cho ô "Ước tính": select riêng, gieo MỘT lần từ ví mặc
+   định rồi không đạp lên lựa chọn của người dùng nữa.
+6. **`withTransaction` phải ép `false` và ẩn công tắc.** Nó nghĩa là "có tạo giao dịch
+   giải ngân thật" — với dạng này thì không bao giờ. Lưu ý ngược: `categoryPickerOf` đang
+   trả `'none'` khi `!withTransaction`, nhưng chỉ cho `lend`/`borrow` (khóa theo kind),
+   nên lưới danh mục thu của dạng này KHÔNG bị tắt theo. Ai sửa hàm đó thành khóa theo
+   `withTransaction` cho mọi dạng sẽ làm biến mất ô chọn danh mục thu — và cùng lúc phá
+   ràng buộc `debts_earned_needs_income_category`, tức lỗi hiện ra ở tầng DB.
 
 Bắt buộc để Lưu: số tiền, tên người nợ, danh mục thu. Ngày đến hạn và ghi chú tuỳ chọn.
 
@@ -155,6 +184,28 @@ Ba ca biên tự đúng, không cần code thêm:
 - **Ghi nhận suông** (`PaymentValue.withTransaction = false`) → không có giao dịch, nên
   không có thu; số nợ vẫn giảm. Người dùng tự chịu, giống hôm nay.
 
+## 5b. Cộng dồn theo tên — chỗ trộn hai loại nợ
+
+`saveDebtCore` cộng dồn vào khoản nợ đang mở đầu tiên khớp **cùng chiều + cùng loại tiền
++ cùng tên** (`norm(d.counterparty) === norm(counterparty)`).
+
+Với dạng mới, luật đó **làm mất dữ liệu một cách âm thầm**: bạn đang cho "Anh Hai" vay
+tiền mặt (khoản nợ `origin = null`), rồi ghi "Anh Hai nợ tiền công" — số tiền công bị
+nhập vào đúng khoản cho vay cũ, và vì khoản đó `origin` là `null`, **mọi lần trả sau đó
+đều bị đếm là dòng tiền nợ, không vào Thu**. Không có câu báo nào; chỉ là tháng đó thiếu
+tiền.
+
+Nên vị từ khớp phải thêm `origin`, và khi `origin = 'earned'` thì thêm cả
+`income_category_id`:
+
+```
+d.origin === newOrigin && (newOrigin !== 'earned' || d.income_category_id === newCategoryId)
+```
+
+Không khớp thì **tạo khoản nợ mới**. Cùng một người có thể có hai dòng (tiền cho vay và
+tiền công) và đó là ĐÚNG: hai khoản đó thanh toán theo hai cách khác nhau, gộp lại là nói
+sai một trong hai.
+
 ## 6. Báo cáo — không sửa gì
 
 Giao dịch thu không mang cờ `is_debt_flow` nên nó chảy vào Thu và vào phân tích theo
@@ -180,6 +231,9 @@ vì đó đúng là khác biệt làm đổi cách ghi sổ, người dùng ph�
 | Cổng Lưu | `entryGate`: `owed` không đòi tài khoản; vẫn đòi số tiền + tên người nợ + danh mục thu. |
 | `roleSave` | Dạng `owed` gọi `createDebt` **không** kèm `transaction`, có `origin: 'earned'` + `income_category_id`. |
 | Báo cáo | `aggregate`: giao dịch thu từ nợ `earned` **có** vào Thu; từ nợ `lent`/`null` thì không. |
+| Cộng dồn (§5b) | Cùng tên + cùng chiều + cùng tiền nhưng khác `origin` → KHÔNG gộp, tạo khoản mới. Đây là ca lỗi âm thầm, phải có test riêng. |
+| Loại tiền | Dạng này không đọc `srcCurrency`: không có ví nào thì khoản nợ vẫn ghi đúng loại tiền người dùng chọn, không rơi về 'JPY'. |
+| Hai cổng tài khoản | `entryGate` **và** `handleSubmit` đều cho qua khi không có ví. |
 | Hàng chip | Đo lại bề rộng `ORDER.in` 4 chip ở 375px (mobile thật, không đoán). |
 
 Không có test render (repo không có hạ tầng đó): chốt cấu trúc đi qua test đọc file
@@ -192,6 +246,7 @@ trong `tests/`, đúng nếp `entryStructure.test.ts`.
 - **Không** làm dồn tích (ghi thu ngay lúc làm việc, trước khi nhận tiền). Cả app chạy
   cơ sở tiền mặt: thu nhập hiện lên đúng tháng tiền về. Đổi điều đó là đổi ý nghĩa của
   mọi báo cáo đã có.
-- **Không** lãi/trả góp cho khoản `earned`. `debts` có `interest_bps` và số kỳ, nhưng
-  tiền công không sinh lãi; bày hai ô đó ra là mời nhập một thứ vô nghĩa.
+- **Không** lãi/trả góp/phí cho khoản `earned`. `debts` có `interest_bps` và số kỳ, và
+  `DebtValue` có `fee` — nhưng tiền công không sinh lãi, và `fee` ở đó là **phí giải
+  ngân**, mà dạng này không giải ngân gì. Bày ba ô đó ra là mời nhập thứ vô nghĩa.
 - **Không** cho sửa `origin` sau khi tạo (§3).

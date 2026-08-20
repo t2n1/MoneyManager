@@ -197,6 +197,25 @@ export function invalidateTransactionData(qc: ReturnType<typeof useQueryClient>)
   qc.invalidateQueries({ queryKey: ['transactionTags'] })
   // Và tổng chi cả đời của nhãn — nó đọc chính số tiền vừa đổi, không chỉ liên kết.
   qc.invalidateQueries({ queryKey: ['tagSpend'] })
+  // Ghi/xoá phiếu lương làm tập dấu `給与 …` đổi — nút "Xoá mọi dòng phiếu lương" hiện
+  // hay ẩn dựa vào tập này, nên bỏ sót nó là nút đứng sai trạng thái cho tới lần reload.
+  qc.invalidateQueries({ queryKey: ['dauPhieuLuong'] })
+}
+
+/**
+ * Các dấu `給与 …` đã có trong sổ.
+ *
+ * Dùng cho HAI việc: chống nhập trùng, và quyết định có hiện nút "Xoá mọi dòng phiếu
+ * lương" hay không. Trước đây nút đó chỉ hiện khi `daGhi` — state của component, mất khi
+ * reload — nên người dùng đã nhập ở lượt trước thì KHÔNG còn đường gỡ lô nào trong giao
+ * diện, mà cũng không thể làm nút hiện lại (mọi kỳ đều đã nhập nên không có gì để ghi).
+ */
+export function useDauPhieuLuong() {
+  return useQuery({
+    queryKey: ['dauPhieuLuong'],
+    queryFn: () => repo.listDauPhieuLuong(),
+    staleTime: 60_000,
+  })
 }
 
 // --- Khoản sắp chi (migration 0038) ---

@@ -10,6 +10,7 @@ import {
   useCategories,
   useCreateAccount,
   useCreateCategory,
+  useDauPhieuLuong,
 } from '../../hooks/queries'
 import { formatMoney } from '../../lib/money'
 import { confirmDialog, showToast } from '../../lib/dialog'
@@ -51,6 +52,7 @@ export function ImportPhieuLuongPage() {
   const { data: categories = [] } = useCategories()
   const createCategory = useCreateCategory()
   const createAccount = useCreateAccount()
+  const { data: dauTrongSo = [] } = useDauPhieuLuong()
   const [keHoach, setKeHoach] = useState<DongKeHoach[] | null>(null)
   const [daGop, setDaGop] = useState<{ key: string; files: string[] }[]>([])
   const [dangBoc, setDangBoc] = useState(false)
@@ -96,6 +98,14 @@ export function ImportPhieuLuongPage() {
       // tu goi lai ham nay ben trong, khong doi chu ky cua no.
       setDaGop(gomTrung(phieuList).daGop)
       const thu = await repo.listYuchoIncome(yucho.id)
+      /**
+       * Doc TUOI o day, KHONG dung `dauTrongSo` cua useDauPhieuLuong.
+       *
+       * Hook do phuc vu viec hien nut go lo — mot quyet dinh hien thi, sai thi thay ngay.
+       * Con tap dau nay quyet dinh CO GHI hay khong: query dang loading (hoac stale) tra
+       * ve [] , va [] nghia la "chua ky nao duoc nhap" → ca 55 phieu duoc ghi TRUNG. Chon
+       * file ngay khi vua mo trang la du de gap. Mot luot fetch trung re hon nhieu.
+       */
       const dauDaCo = new Set(await repo.listDauPhieuLuong())
       const idTheoTen = new Map(chiPhi.map((c) => [c.name, c.id]))
       setKeHoach(dungKeHoach(phieuList, thu, yucho.id, idTheoTen, dauDaCo, tkHuu?.id ?? null))
@@ -428,9 +438,21 @@ export function ImportPhieuLuongPage() {
           {dangGhi ? 'Đang ghi…' : `Ghi ${soDong} dòng`}
         </ActionButton>
       )}
-      {daGhi && (
+      {/*
+        `daGhi ||` chua du: `daGhi` la state, reload la mat, nen nguoi da nhap o luot
+        truoc thi KHONG con duong go lo nao trong giao dien — va khong the lam nut hien
+        lai, vi moi ky deu da nhap nen chang con gi de ghi. Hoi theo SO: co dong phieu
+        luong trong so thi luon co duong go.
+      */}
+      {(daGhi || dauTrongSo.length > 0) && (
         <Card>
-          <p className="text-sm text-money-in">Đã ghi {daGhi.phieu} phiếu · {daGhi.dong} dòng.</p>
+          {daGhi ? (
+            <p className="text-sm text-money-in">Đã ghi {daGhi.phieu} phiếu · {daGhi.dong} dòng.</p>
+          ) : (
+            <p className="text-sm text-fg-secondary">
+              Trong sổ đang có {dauTrongSo.length} kỳ phiếu lương đã nhập.
+            </p>
+          )}
           <button
             type="button" disabled={dangXoa} onClick={goLo}
             className="mt-2 min-h-9 rounded-md border border-money-out px-3 py-1.5 text-xs font-semibold text-money-out transition hover:bg-state-bad-bg disabled:opacity-40"

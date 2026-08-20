@@ -101,7 +101,11 @@ describe('ba cong role-field gac dung dang', () => {
     // Ca ba assertion deu chot LIEN KE (dieu kien → component), khong chi chot chuoi
     // dieu kien tu do: chuoi tu do van xanh khi dieu kien dung gac SAI component.
     expect(form).toMatch(/kind === 'split'\s*&&\s*\(?\s*<SplitFields/)
-    expect(form).toMatch(/kind === 'lend' \|\| kind === 'borrow'\)?\s*&&\s*\(?\s*<DebtFields/)
+    // `debtOnly` (Khach no cong) cung dung DebtFields: no cung tao mot khoan no, chi
+    // khac o cho khong co dong nao roi vi.
+    expect(form).toMatch(
+      /kind === 'lend' \|\| kind === 'borrow' \|\| debtOnly\)?\s*&&\s*\(?\s*<DebtFields/,
+    )
     expect(form).toMatch(/kind === 'family' \|\| kind === 'ownvn'\)?\s*&&\s*\(?\s*<RemitFields/)
   })
 
@@ -314,5 +318,49 @@ describe('dong "Con thieu" khong chiem cho cua mat', () => {
     // hinh, nen cau o lai trong DOM chu khong bi bo han.
     expect(form).toMatch(/const shortMissing = missing\?\.startsWith\('Còn thiếu: '\) \?\? false/)
     expect(form).toMatch(/shortMissing \? 'sr-only' :/)
+  })
+})
+
+describe('dang "Khach no cong" khong dung toi vi nao', () => {
+  const validation = read('features/transactions/entryValidation.ts')
+
+  it('CA HAI cong tai khoan deu mo cho debtOnly', () => {
+    // Cong 1 o entryValidation, cong 2 o handleSubmit. Sua mot cai thi nut Luu sang len
+    // roi bam khong co gi xay ra — im lang, khong cau bao nao, khong ca mot dong console.
+    expect(validation).toMatch(/shape\.writes !== 'debtOnly' && !s\.hasAccount/)
+    expect(form).toMatch(/const noAccountNeeded = plannedMode \|\| debtOnly/)
+    expect(form).toMatch(/!noAccountNeeded && !effectiveAccountId/)
+  })
+
+  it('khong ghi LAST_ACCOUNT_KEY khi khong co vi nao', () => {
+    // `localStorage.setItem(key, null)` ghi ra chuoi "null", va lan mo man sau di tim
+    // mot vi co id "null".
+    for (const m of form.matchAll(/localStorage\.setItem\(LAST_ACCOUNT_KEY, ([^)]+)\)/g))
+      expect(m[1]).not.toBe('null')
+    const guarded = form.match(/if \(effectiveAccountId\) localStorage\.setItem\(LAST_ACCOUNT_KEY/g)
+    expect(guarded?.length).toBe(2)
+  })
+
+  it('o loai tien RIENG, khong doc srcCurrency', () => {
+    // srcCurrency = vi dang chon ?? 'JPY'. Dang nay khong co vi, nen doc no la nguoi an
+    // tien VND nhan mot khoan no ghi bang JPY ma khong ai noi gi.
+    expect(form).toMatch(/const debtCurrency = debtOnly \? owedCurrency : srcCurrency/)
+    expect(form).toMatch(/aria-label="Loại tiền của khoản nợ"/)
+    // Payload gui di phai mang loai tien cua KHOAN NO, khong phai cua vi.
+    expect(form).toMatch(/srcCurrency: debtCurrency,/)
+  })
+
+  it('cong tac giai ngan bi khoa, khong dua vao canRecordReal', () => {
+    // canRecordReal noi "chua chon duoc vi"; day noi "dang nay khong co viec do".
+    expect(form).toMatch(/canRecordReal=\{!debtOnly && canRecordReal\}/)
+    expect(form).toMatch(/writes === 'debtOnly'\)?\s*\n?\s*setDebtVal\(\(v\) => \(\{ \.\.\.v, withTransaction: false, fee: 0 \}\)\)/)
+  })
+
+  it('bo chon nguoi cu loc theo origin — khong moi mot khoan se bi tu choi gop', () => {
+    expect(form).toMatch(/p\.origin === 'earned' && p\.incomeCategoryId === categoryId/)
+  })
+
+  it('hang vi + ngay bi an', () => {
+    expect(form).toMatch(/\{!debtOnly && \(\s*\n\s*<div className="flex flex-wrap items-center gap-2">/)
   })
 })

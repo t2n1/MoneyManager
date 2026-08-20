@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react'
 import { SegmentedControl } from '../../components/ui'
 import { DateField } from '../../components/DateField'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
+import type { DebtOrigin } from '../../types/database.types'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
 import { deriveReceived, nextReceived } from './remitDerive'
 import type { RemitStrip } from '../reports/longRange'
@@ -449,6 +450,14 @@ export interface DebtPerson {
   currency: CurrencyCode
   /** số còn lại (minor units theo currency của khoản) */
   remaining: number
+  /**
+   * Nguồn gốc khoản nợ (0049) — CẦN ở đây vì bộ chọn phải lọc theo nó: `matchOpenDebt`
+   * từ chối gộp hai khoản khác `origin`, nên mời một khoản mà cổng cuối sẽ từ chối là
+   * mời người dùng chọn rồi lặng lẽ tạo một dòng thứ hai trùng tên.
+   */
+  origin: DebtOrigin | null
+  /** Danh mục thu của khoản `earned` — hai khoản khác danh mục cũng không gộp được. */
+  incomeCategoryId: string | null
 }
 
 /**
@@ -460,6 +469,7 @@ export function DebtFields({
   value,
   onChange,
   canRecordReal,
+  neverDisburses = false,
   people,
   currency,
   counterpartyLabel,
@@ -471,6 +481,16 @@ export function DebtFields({
   onChange: (v: DebtValue) => void
   /** Có tài khoản để tạo giao dịch giải ngân thật không (danh mục tự gán khi lưu). */
   canRecordReal: boolean
+  /**
+   * Dạng này KHÔNG BAO GIỜ giải ngân (Khách nợ công — tiền công, không có đồng nào rời
+   * ví). Khối công tắc "Có chuyển tiền thật" và ô "+ Phí" biến mất hẳn.
+   *
+   * KHÁC HẲN `!canRecordReal`, và đó là lý do nó là một prop riêng: `canRecordReal`
+   * false nghĩa là "chưa chọn được ví" nên khối kia chỉ mờ đi kèm câu "Chưa có tài khoản
+   * để tạo giao dịch thật" — câu đó mời người dùng đi tạo ví để bật một việc mà dạng này
+   * không có. Phí ở đây cũng là phí GIẢI NGÂN, nên không giải ngân thì không có phí.
+   */
+  neverDisburses?: boolean
   /** Người đã cho vay/nợ (khoản đang mở, cùng chiều) — chọn để cộng dồn. */
   people: DebtPerson[]
   /** Loại tiền tài khoản nguồn — phí trừ vào chính tài khoản đó. */
@@ -538,6 +558,7 @@ export function DebtFields({
         )}
       </div>
 
+      {!neverDisburses && (
       <div className="rounded-lg bg-surface/70 p-2.5">
         <label className="flex cursor-pointer items-center justify-between gap-2 text-sm text-fg-secondary">
           <span>
@@ -578,16 +599,19 @@ export function DebtFields({
           </p>
         )}
       </div>
+      )}
 
-      <FeeField
-        value={value.fee}
-        currency={currency}
-        active={feeActive}
-        onFocus={onFocusFee}
-        onChange={(v) => onChange({ ...value, fee: v })}
-        hint='Ghi riêng thành khoản chi "Tài chính", không cộng vào gốc nợ.'
-        onEnter={onEnter}
-      />
+      {!neverDisburses && (
+        <FeeField
+          value={value.fee}
+          currency={currency}
+          active={feeActive}
+          onFocus={onFocusFee}
+          onChange={(v) => onChange({ ...value, fee: v })}
+          hint='Ghi riêng thành khoản chi "Tài chính", không cộng vào gốc nợ.'
+          onEnter={onEnter}
+        />
+      )}
 
       {/* Cộng dồn → hạn/lãi lấy theo khoản cũ, không nhập lại. */}
       {!selected && (

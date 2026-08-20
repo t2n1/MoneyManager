@@ -1311,3 +1311,43 @@ describe('demoRepo: xoaPhieuLuong (Task 8)', () => {
     expect(con.map((t) => t.id)).toContain(tx.id)
   })
 })
+
+describe('debts.origin + income_category_id (0049)', () => {
+  it('createDebt luu duoc origin earned kem danh muc thu', async () => {
+    const cat = await demoRepo.createCategory({
+      name: 'Làm thêm',
+      type: 'income',
+      icon: '💵',
+      parent_id: null,
+    })
+    const debt = await demoRepo.createDebt({
+      counterparty: 'Khách A',
+      direction: 'owed_to_me',
+      currency: 'JPY',
+      principal: 30_000,
+      due_on: null,
+      note: '',
+      origin: 'earned',
+      income_category_id: cat.id,
+      transaction: null,
+    })
+    expect(debt.origin).toBe('earned')
+    expect(debt.income_category_id).toBe(cat.id)
+    // Khong co dong nao roi vi: khong sinh giao dich giai ngan nao.
+    expect(debt.disbursement_transaction_id).toBeNull()
+  })
+
+  it('khong truyen gi thi hai cot la null — duong cu khong doi', async () => {
+    const debt = await demoRepo.createDebt({
+      counterparty: 'Anh Hai',
+      direction: 'owed_to_me',
+      currency: 'JPY',
+      principal: 50_000,
+      due_on: null,
+      note: '',
+      transaction: null,
+    })
+    expect(debt.origin).toBeNull()
+    expect(debt.income_category_id).toBeNull()
+  })
+})

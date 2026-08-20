@@ -13,6 +13,7 @@ import type {
   CategoryType,
   CostType,
   DebtDirection,
+  DebtOrigin,
   DebtPaymentRow,
   DebtRow,
   LifeEventRow,
@@ -297,6 +298,10 @@ export interface NewDebt {
   interest_bps?: number | null
   /** số kỳ trả góp (tháng); null = không trả góp (mục AG) */
   term_months?: number | null
+  /** Chỉ dạng `owed` (Khách nợ công) truyền 'earned'; mọi đường khác bỏ trống = null. */
+  origin?: DebtOrigin | null
+  /** Bắt buộc khi origin = 'earned' — ràng buộc DB chặn hàng thiếu nó (0049). */
+  income_category_id?: string | null
   /** Giải ngân có chuyển tiền thật → giao dịch cần tạo (cho vay = chi, mình nợ = thu);
    *  null = chỉ ghi nhận khoản nợ, không đổi số dư. */
   transaction: NewTransaction | null

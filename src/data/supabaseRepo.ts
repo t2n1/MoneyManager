@@ -1194,7 +1194,17 @@ export const supabaseRepo: Repo = {
 
   async updateDebt(id: string, patch: DebtPatch) {
     // `transaction` chỉ dùng lúc tạo (giải ngân), không phải cột của debts.
-    const { transaction: _ignore, ...debtPatch } = patch
+    //
+    // `origin` + `income_category_id` cũng bị bóc ở đây, và đó là RÀNG BUỘC chứ không
+    // phải dọn dẹp: đổi một khoản nợ thường thành 'earned' sau khi đã có lần trả sẽ để
+    // các lần trả cũ mang cờ cũ — một khoản nợ mà nửa số lần trả tính vào Thu, nửa kia
+    // không, và không có gì trên màn nói ra. Hai cột đó chỉ đặt lúc TẠO (xem 0049).
+    const {
+      transaction: _ignore,
+      origin: _keepOrigin,
+      income_category_id: _keepIncomeCat,
+      ...debtPatch
+    } = patch
     const { data, error } = await getSupabase()
       .from('debts')
       .update(debtPatch)

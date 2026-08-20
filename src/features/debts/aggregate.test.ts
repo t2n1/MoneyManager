@@ -18,6 +18,8 @@ function debt(
     counterparty: 'X',
     due_on: null,
     status: 'open' as DebtStatus,
+    origin: null,
+    income_category_id: null,
     note: '',
     interest_bps: null,
     term_months: null,

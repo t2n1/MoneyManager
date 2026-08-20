@@ -41,12 +41,17 @@ interface Props {
   base: CurrencyCode
   /** Có ngoại tệ chưa quy đổi được → số là xấp xỉ. `BudgetReport.hasMissingRate`. */
   approx?: boolean
+  /**
+   * `profile.month_start_day` — vào đây để đặt TÊN cho cái mốc, không tham gia phép tính
+   * nào. Xem `moc` trong thân hàm.
+   */
+  monthStartDay: number
 }
 
 /** Cỡ và nhịp của câu — một chỗ, vì cả ba nhánh phải cùng cỡ mới ra một khối. */
 const CAU = 'text-[1.125rem] font-semibold leading-snug text-fg-secondary lg:text-[1.25rem]'
 
-export function PaydayStrip({ data, base, approx = false }: Props) {
+export function PaydayStrip({ data, base, approx = false, monthStartDay }: Props) {
   const { soNgay, conLai, moiNgay, nhipHienTai, hutTruocLuong, chuaDatHanMuc } = data
 
   // Số trong câu: mono + đậm, nổi lên khỏi nền câu fg-secondary. Màu CHỈ đi qua `tone`
@@ -64,6 +69,21 @@ export function PaydayStrip({ data, base, approx = false }: Props) {
   // nên không có số sai nào in ra.
   const ngay = <span className="font-semibold text-fg-primary">{soNgay} ngày</span>
 
+  // TÊN của mốc — một chỗ cho cả bốn nhánh câu, vì bốn nhánh tự gọi tên là bốn chỗ để sót
+  // một cái lúc sửa.
+  //
+  // Mốc là `getMonthRange().end`, tức đầu kỳ sau, và app cố tình KHÔNG có trường "ngày
+  // lương" riêng (khối chú thích trong bulletin.ts ghi vì sao): nó giả định người dùng đặt
+  // "Tháng bắt đầu ngày" = ngày lương của họ. Giả định đó chỉ có căn cứ khi họ ĐÃ tự đặt
+  // ngày. Để mặc định 1 thì mốc trùng đúng đầu tháng lịch — app không biết gì về lương của
+  // họ, nên gọi mốc đó là "ngày lương" là hứa một thứ chưa biết. §14 "chưa biết ≠ 0" đọc cả
+  // cho câu chữ, không riêng con số.
+  //
+  // "cuối tháng" chứ không "hết kỳ": monthStartDay là 1 thì kỳ CHÍNH LÀ tháng lịch, không
+  // cần bắt người đọc học chữ "kỳ" của app. Và nó thay đúng vào chỗ cũ trong cả bốn câu,
+  // không phải viết lại câu nào.
+  const moc = monthStartDay === 1 ? 'cuối tháng' : 'ngày lương'
+
   // Chưa đặt hạn mức: không có trần thì không có "còn lại". §14 "chưa biết ≠ 0" — nói
   // thẳng là chưa biết, và đưa đúng MỘT lối ra. Số ngày vẫn giữ: đó là phần duy nhất
   // biết chắc mà không cần hạn mức nào.
@@ -71,7 +91,7 @@ export function PaydayStrip({ data, base, approx = false }: Props) {
     return (
       <Card elevation="panel" padding="panel" as="section">
         <p className={CAU}>
-          Còn {ngay} tới ngày lương — chưa đặt hạn mức nên chưa nói được mỗi ngày còn tiêu
+          Còn {ngay} tới {moc} — chưa đặt hạn mức nên chưa nói được mỗi ngày còn tiêu
           được bao nhiêu.{' '}
           <Link to="/budget" className="text-fg-accent hover:underline">
             Đặt hạn mức
@@ -88,7 +108,7 @@ export function PaydayStrip({ data, base, approx = false }: Props) {
     return (
       <Card elevation="panel" padding="panel" as="section">
         <p className={CAU}>
-          Đã vượt hạn mức {so(Math.abs(conLai), 'out')} — còn {ngay} nữa mới tới ngày lương.
+          Đã vượt hạn mức {so(Math.abs(conLai), 'out')} — còn {ngay} nữa mới tới {moc}.
         </p>
       </Card>
     )
@@ -98,14 +118,14 @@ export function PaydayStrip({ data, base, approx = false }: Props) {
     <Card elevation="panel" padding="panel" as="section">
       <p className={CAU}>
         {moiNgay === null ? (
-          <>Hạn mức còn {so(conLai)} tới ngày lương — còn {ngay}.</>
+          <>Hạn mức còn {so(conLai)} tới {moc} — còn {ngay}.</>
         ) : (
           <>
             {/* Màu của con số này LÀ lời cảnh báo: hổ phách khi giữ nhịp hiện tại sẽ
                 hụt, xanh khi còn đúng nhịp. Chip cảnh báo cũ bỏ đi rồi, nên đây là chỗ
                 duy nhất mang tín hiệu đó — cùng token `--fg-warn` mà VerdictNote dùng,
                 nên hai thứ đọc ra một màu. */}
-            Mỗi ngày còn {so(moiNgay, hutTruocLuong ? 'warn' : 'good')} cho tới ngày lương —{' '}
+            Mỗi ngày còn {so(moiNgay, hutTruocLuong ? 'warn' : 'good')} cho tới {moc} —{' '}
             {ngay} nữa, hạn mức còn{' '}
             {so(conLai)}
             {/* Nhịp hiện tại CHỈ hiện khi nó là tin xấu, và lúc đó nó chính là bằng chứng

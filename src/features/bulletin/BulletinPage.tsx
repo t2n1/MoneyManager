@@ -309,7 +309,14 @@ export function BulletinPage() {
           này khác kỳ hạn — trên nói cả tháng đã ra sao, dưới nói hôm nay tiêu được bao
           nhiêu. Đổi bằng THỨ TỰ DOM chứ không order-*: thứ tự đọc và thứ tự tiêu điểm
           phải đi cùng nhau (WCAG 2.4.3), cùng luật đã chốt ở TodoPanel ngay trên. */}
-      {luong && <PaydayStrip data={luong} base={base} approx={report?.hasMissingRate ?? false} />}
+      {luong && (
+        <PaydayStrip
+          data={luong}
+          base={base}
+          approx={report?.hasMissingRate ?? false}
+          monthStartDay={monthStartDay}
+        />
+      )}
 
       <KpiRow
         base={base}

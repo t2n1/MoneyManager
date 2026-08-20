@@ -3,6 +3,7 @@ import type { CategoryRow, DebtPaymentRow, DebtRow, TransactionRow } from '../..
 import type { CurrencyCode } from '../../lib/money'
 import { DEBT_FLOW_CATEGORY_NAMES, REMIT_CATEGORY_NAME } from '../categories/flowCategories'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
+import { matchOpenDebt } from './matchOpenDebt'
 
 /**
  * Lưu các vai trò đặc biệt của form Nhập. Logic bê NGUYÊN từ 3 sheet cũ
@@ -202,14 +203,18 @@ export async function saveSplit(base: RoleBase, v: SplitValue, deps: RoleSaveDep
     }
     // Cộng dồn: chọn người đã cho vay (existingDebtId) hoặc gõ trùng tên một khoản
     // owed_to_me đang mở cùng loại tiền → ghi thêm vào khoản đó thay vì tạo người mới.
-    const norm = (s: string) => s.trim().toLowerCase()
-    const target = deps.debts.find(
-      (d) =>
-        d.status === 'open' &&
-        d.direction === 'owed_to_me' &&
-        d.currency === base.srcCurrency &&
-        (d.id === v.existingDebtId || (!!counterparty && norm(d.counterparty) === norm(counterparty))),
-    )
+    // Vị từ ở `matchOpenDebt` — MỘT bản cho cả repo; trước đây nó bị chép tay ở đây và
+    // ở `saveDebtCore`, và cả hai bản đều bỏ sót `origin`.
+    const target = matchOpenDebt(deps.debts, {
+      direction: 'owed_to_me',
+      currency: base.srcCurrency,
+      counterparty,
+      existingDebtId: v.existingDebtId,
+      // Trả hộ tạo khoản CHO VAY (mình đã trả tiền thật hộ người ta), không phải tiền
+      // công — nên không được gộp vào một khoản `earned` trùng tên.
+      origin: null,
+      incomeCategoryId: null,
+    })
     const lendTx: NewTransaction = {
       type: 'expense',
       amount: v.others,
@@ -372,14 +377,15 @@ async function saveDebtCore(base: RoleBase, v: DebtValue, deps: RoleSaveDeps): P
 
   // Cộng dồn: nếu chọn người cũ (existingDebtId) hoặc gõ trùng tên một khoản đang
   // mở cùng chiều + cùng loại tiền → ghi thêm vào khoản đó thay vì tạo người mới.
-  const norm = (s: string) => s.trim().toLowerCase()
-  const target = deps.debts.find(
-    (d) =>
-      d.status === 'open' &&
-      d.direction === v.direction &&
-      d.currency === base.srcCurrency &&
-      (d.id === v.existingDebtId || (!!counterparty && norm(d.counterparty) === norm(counterparty))),
-  )
+  // Vị từ ở `matchOpenDebt` (dùng chung với `saveSplit`), và nó xét cả `origin`.
+  const target = matchOpenDebt(deps.debts, {
+    direction: v.direction,
+    currency: base.srcCurrency,
+    counterparty,
+    existingDebtId: v.existingDebtId,
+    origin: null,
+    incomeCategoryId: null,
+  })
   if (target) {
     let addTx: NewTransaction | null = null
     if (v.withTransaction) {

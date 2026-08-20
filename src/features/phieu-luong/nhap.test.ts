@@ -488,11 +488,12 @@ describe('dungKeHoach', () => {
 })
 
 // ────────────────────────────────────────────────────────────────────────────
-// Khối 支給: 通勤手当 (hoàn phí đi lại) và DB掛金 (退職金)
+// Khối 支給: 通勤手当 (phụ cấp đi lại) và DB掛金 (退職金)
 // Xem docs/superpowers/specs/2026-08-20-phieu-luong-thu-nhap-thuc-notes.md
 // ────────────────────────────────────────────────────────────────────────────
 
 const TK_HUU = 'acc-huu'
+const DM_PHU_CAP = 'c-phu-cap'
 
 /** P202608 + 通勤手当 77.070 (vé 6 tháng) + DB掛金 −10.000. Ròng vẫn 400.000. */
 const P_CAP: Phieu = { ...P202608, cap: { 通勤手当: 77070, DB掛金: -10000 } }
@@ -513,50 +514,84 @@ function thuTrongTk(ds: DongMoi[]): number {
 
 describe('dungDong · 通勤手当', () => {
   it('dựng đủ ba dòng và yêu cầu bật cờ dòng neo', () => {
-    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     expect(d.suaNeo).toBe(true)
     const yucho = d.cap.filter((r) => r.account_id === YUCHO)
     expect(yucho).toHaveLength(3)
-    // lương thực nhận = ròng − 通勤手当, nằm TRONG thống kê
-    expect(yucho.find((r) => r.type === 'income' && !r.exclude_from_stats)).toMatchObject({
+    // lương thực nhận = ròng − 通勤手当, giữ danh mục CỦA DÒNG NEO (Lương)
+    expect(yucho.find((r) => r.type === 'income' && r.category_id === 'c-luong')).toMatchObject({
       amount: 400000 - 77070,
       exclude_from_stats: false,
     })
-    // hoàn phí đi lại: chi ÂM vào danh mục Tàu xe, nằm TRONG thống kê
-    expect(yucho.find((r) => r.is_refund)).toMatchObject({
-      type: 'expense', amount: 77070, category_id: 'c-tau-xe', exclude_from_stats: false,
+    // phụ cấp đi lại: dòng THU riêng, danh mục riêng; kỳ 202608 ⇒ đếm vào Thu
+    expect(yucho.find((r) => r.category_id === DM_PHU_CAP)).toMatchObject({
+      type: 'income', amount: 77070, exclude_from_stats: false, is_refund: false,
     })
     // trung hoà: chi bằng ĐÚNG số dòng neo, NGOÀI thống kê
     expect(
-      yucho.find((r) => r.type === 'expense' && !r.is_refund && r.exclude_from_stats),
+      yucho.find((r) => r.type === 'expense' && r.exclude_from_stats),
     ).toMatchObject({ amount: 400000 })
   })
 
   /** Bất biến sống còn: số dư Yucho KHÔNG ĐỔI. Dòng neo giữ nguyên `amount`. */
   it('số dư Yucho không đổi', () => {
-    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     expect(soDu(d.cap, YUCHO)).toBe(0)
   })
 
-  /** Mục đích của cả thay đổi này: Thu bớt đúng tiền tàu, không hơn không kém. */
-  it('Thu giảm đúng 通勤手当 sau khi dòng neo bị loại khỏi thống kê', () => {
-    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+  /**
+   * Mục đích của cả thay đổi này: `通勤手当` RA KHỎI danh mục `Lương` nhưng Ở LẠI trong
+   * Thu (kỳ >= KY_PHU_CAP_VAO_THU). Thu không đổi một đồng — chỉ đổi chỗ.
+   */
+  it('kỳ từ mốc trở đi: Thu không đổi, chỉ tách khỏi danh mục Lương', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
+    expect(thuTrongTk(d.cap.filter((r) => r.account_id === YUCHO)) - NEO_202608.amount).toBe(0)
+  })
+
+  /**
+   * Kỳ TRƯỚC mốc: người dùng chưa từng ghi khoản mua vé nào, nên phụ cấp phải đứng ngoài
+   * CẢ Thu và Chi. Đây là 18/19 kỳ trong sổ thật — ca chính, không phải ca lề.
+   */
+  it('kỳ trước mốc: phụ cấp ra khỏi Thu, và KHÔNG thành chi âm', () => {
+    const d = dungDong({ ...P_CAP, period: '202602' }, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
+    expect(d.cap.find((r) => r.category_id === DM_PHU_CAP)).toMatchObject({
+      type: 'income', amount: 77070, exclude_from_stats: true,
+    })
+    expect(d.cap.some((r) => r.is_refund)).toBe(false)
     expect(thuTrongTk(d.cap.filter((r) => r.account_id === YUCHO)) - NEO_202608.amount).toBe(-77070)
+    expect(soDu(d.cap, YUCHO)).toBe(0)
+  })
+
+  /** Mốc là biên dưới ĐÓNG: chính kỳ 202608 đã vào Thu. Lệch một kỳ là lệch 77.070. */
+  it('mốc tính từ chính kỳ 202608, không phải kỳ sau', () => {
+    const co = (ky: string) =>
+      dungDong({ ...P_CAP, period: ky }, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP).cap.find(
+        (r) => r.category_id === DM_PHU_CAP,
+      )?.exclude_from_stats
+    expect(co('202607')).toBe(true)
+    expect(co('202608')).toBe(false)
+    expect(co('202609')).toBe(false)
+  })
+
+  /** Thiếu kỳ thì NỔ, không mặc định về một phía — xem phuCapVaoThu. */
+  it('thiếu kỳ thì nổ, không âm thầm chọn một phía', () => {
+    expect(() =>
+      dungDong({ ...P_CAP, period: null }, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP),
+    ).toThrow(/thiếu kỳ/)
   })
 
   it('mọi dòng đều mang dấu 給与 để gỡ lô xoá được', () => {
-    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     expect(d.cap.every((r) => r.note.startsWith('給与 2026/08K · '))).toBe(true)
   })
 
-  it('thiếu danh mục Tàu xe thì nổ, không ghi lặng lẽ', () => {
-    const thieu = new Map([...IDS].filter(([k]) => k !== 'Tàu xe'))
-    expect(() => dungDong(P_CAP, NEO_202608, thieu, TK_HUU)).toThrow(/Tàu xe/)
+  it('thiếu danh mục thu Phụ cấp đi lại thì nổ, không ghi lặng lẽ', () => {
+    expect(() => dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, null)).toThrow(/Phụ cấp đi lại/)
   })
 
   /** 10/12 tháng nhãn này VẮNG — hành vi cũ phải y nguyên, không thêm dòng nào. */
   it('phiếu không có 支給 thì không thêm dòng, không sửa dòng neo', () => {
-    const d = dungDong(P202608, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(P202608, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     expect(d.cap).toEqual([])
     expect(d.suaNeo).toBe(false)
   })
@@ -564,7 +599,7 @@ describe('dungDong · 通勤手当', () => {
 
 describe('dungDong · DB掛金', () => {
   it('ghi thu 10.000 vào tài khoản 退職金, không đụng Yucho', () => {
-    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     const huu = d.cap.filter((r) => r.account_id === TK_HUU)
     expect(huu).toHaveLength(1)
     expect(huu[0]).toMatchObject({ type: 'income', amount: 10000, exclude_from_stats: false })
@@ -572,12 +607,12 @@ describe('dungDong · DB掛金', () => {
   })
 
   it('thiếu tài khoản 退職金 thì nổ, không bỏ tiền hưu đi', () => {
-    expect(() => dungDong(P_CAP, NEO_202608, IDS, null)).toThrow(/退職金/)
+    expect(() => dungDong(P_CAP, NEO_202608, IDS, null, null, DM_PHU_CAP)).toThrow(/退職金/)
   })
 
   it('chỉ có DB掛金 (không có 通勤手当) thì không sửa dòng neo', () => {
     const chiDB: Phieu = { ...P202608, cap: { DB掛金: -10000 } }
-    const d = dungDong(chiDB, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(chiDB, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     expect(d.suaNeo).toBe(false)
     expect(d.cap).toHaveLength(1)
   })
@@ -585,20 +620,20 @@ describe('dungDong · DB掛金', () => {
 
 describe('kiemDong · khối 支給', () => {
   it('bộ dòng đúng thì không lỗi', () => {
-    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     expect(kiemDong(P_CAP, d.thu, d.chi, d.thuKhac, d.cap, NEO_202608)).toEqual([])
   })
 
   it('bắt được dòng trung hoà sai số (số dư Yucho lệch)', () => {
-    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     const xau = d.cap.map((r) =>
       r.type === 'expense' && !r.is_refund && r.exclude_from_stats ? { ...r, amount: 399999 } : r,
     )
     expect(kiemDong(P_CAP, d.thu, d.chi, d.thuKhac, xau, NEO_202608).join(' ')).toMatch(/số dư/)
   })
 
-  it('bắt được Thu không giảm đúng 通勤手当', () => {
-    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+  it('bắt được Thu lệch khỏi mức phải có', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     const xau = d.cap.map((r) =>
       r.type === 'income' && r.account_id === YUCHO ? { ...r, amount: 400000 } : r,
     )
@@ -610,7 +645,7 @@ describe('kiemDong · khối 支給', () => {
     const qua: Phieu = { ...P202608, cap: { 通勤手当: 450000 } }
     const loi = (() => {
       try {
-        const d = dungDong(qua, NEO_202608, IDS, TK_HUU)
+        const d = dungDong(qua, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
         return kiemDong(qua, d.thu, d.chi, d.thuKhac, d.cap, NEO_202608)
       } catch (e) {
         return [(e as Error).message]
@@ -622,7 +657,7 @@ describe('kiemDong · khối 支給', () => {
 
 describe('dungKeHoach · khối 支給', () => {
   it('mang cap và suaNeo ra kế hoạch', () => {
-    const kh = dungKeHoach([P_CAP], [NEO_202608], YUCHO, IDS, new Set(), TK_HUU)
+    const kh = dungKeHoach([P_CAP], [NEO_202608], YUCHO, IDS, new Set(), TK_HUU, null, DM_PHU_CAP)
     expect(kh[0].trangThai).toBe('dat')
     expect(kh[0].suaNeo).toBe(true)
     expect(kh[0].cap).toHaveLength(4)
@@ -630,13 +665,13 @@ describe('dungKeHoach · khối 支給', () => {
 
   /** Thiếu tài khoản 退職金 → TỪ CHỐI phiếu, không nổ cả trang. */
   it('thiếu tài khoản 退職金 thì từ chối phiếu, nêu lý do', () => {
-    const kh = dungKeHoach([P_CAP], [NEO_202608], YUCHO, IDS, new Set(), null)
+    const kh = dungKeHoach([P_CAP], [NEO_202608], YUCHO, IDS, new Set(), null, null, DM_PHU_CAP)
     expect(kh[0].trangThai).toBe('tu-choi')
     expect(kh[0].lyDo).toMatch(/退職金/)
   })
 
   it('dòng từ chối vẫn có cap rỗng và suaNeo false', () => {
-    const kh = dungKeHoach([P_CAP], [], YUCHO, IDS, new Set(), TK_HUU)
+    const kh = dungKeHoach([P_CAP], [], YUCHO, IDS, new Set(), TK_HUU, null, DM_PHU_CAP)
     expect(kh[0].trangThai).toBe('tu-choi')
     expect(kh[0].cap).toEqual([])
     expect(kh[0].suaNeo).toBe(false)
@@ -644,13 +679,14 @@ describe('dungKeHoach · khối 支給', () => {
 })
 
 /**
- * Ca user nêu: chỉ mua vé 3 tháng nhưng cty trả gộp 6 tháng. Bút toán KHÔNG đổi —
- * hoàn đúng số cty trả, còn Chi `Tàu xe` âm là SỰ THẬT (user lời), không phải lỗi.
+ * Ca user nêu, số đo trên sổ thật: cty trả gộp 6 tháng 77.070 nhưng chỉ mua vé 3 tháng
+ * 40.680. Bút toán KHÔNG cố khớp — nó ghi đúng số trên phiếu. Phần dư 36.390 hiện ra
+ * đúng như nó là: Thu có 77.070, Chi có khoản mua vé mà user tự ghi.
  */
-describe('dungDong · mua 3 tháng nhưng được trả 6 tháng', () => {
-  it('hoàn đúng số trên phiếu, không cố khớp với khoản đã mua', () => {
-    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
-    expect(d.cap.find((r) => r.is_refund)?.amount).toBe(77070)
+describe('dungDong · trả gộp 6 tháng, mua vé 3 tháng', () => {
+  it('ghi đúng số trên phiếu, không cố khớp với khoản đã mua', () => {
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
+    expect(d.cap.find((r) => r.category_id === DM_PHU_CAP)?.amount).toBe(77070)
   })
 })
 
@@ -668,7 +704,7 @@ describe('dungDong · ràng buộc DB trên mọi dòng dựng ra', () => {
 
   it('không dòng nào thiếu category_id (check type<>transfer ⇒ category_id not null)', () => {
     for (const p of [P_CAP, { ...P202608, cap: { DB掛金: -10000 } }, P202608]) {
-      const d = dungDong(p, NEO_202608, IDS, TK_HUU)
+      const d = dungDong(p, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
       for (const r of moiDong(d)) {
         expect(r.category_id, `${r.note} thiếu category_id`).not.toBeNull()
       }
@@ -676,12 +712,12 @@ describe('dungDong · ràng buộc DB trên mọi dòng dựng ra', () => {
   })
 
   it('mọi amount đều > 0 (check amount > 0)', () => {
-    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     for (const r of moiDong(d)) expect(r.amount, r.note).toBeGreaterThan(0)
   })
 
   it('không dòng nào là transfer nên to_amount/to_account_id phải null', () => {
-    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     for (const r of moiDong(d)) {
       expect(r.to_amount, r.note).toBeNull()
       expect(r.to_account_id, r.note).toBeNull()
@@ -690,14 +726,14 @@ describe('dungDong · ràng buộc DB trên mọi dòng dựng ra', () => {
 
   // transactions_refund_check (0026): is_refund chi co nghia voi CHI.
   it('is_refund chỉ nằm trên dòng chi', () => {
-    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     for (const r of moiDong(d)) {
       if (r.is_refund) expect(r.type, r.note).toBe('expense')
     }
   })
 
   it('kiemCap bắt được dòng 支給 thiếu category_id', () => {
-    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(P_CAP, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     const xau = d.cap.map((r) => (r.exclude_from_stats ? { ...r, category_id: null } : r))
     expect(kiemDong(P_CAP, d.thu, d.chi, d.thuKhac, xau, NEO_202608).join(' ')).toMatch(
       /category_id/,
@@ -716,7 +752,7 @@ describe('dungDong · 立替経費精算', () => {
 
   it('chi rut khoi Thu, khong dung dong hoan tien', () => {
     const P: Phieu = { ...P202608, cap: { 立替経費精算: 28578 } }
-    const d = dungDong(P, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(P, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     expect(d.suaNeo).toBe(true)
     expect(d.cap).toHaveLength(2) // luong thuc nhan + trung hoa, KHONG co dong hoan
     expect(d.cap.some((r) => r.is_refund)).toBe(false)
@@ -727,25 +763,25 @@ describe('dungDong · 立替経費精算', () => {
   /** Dong trung hoa = rong − 立替経費精算, khong phai rong: khong co dong hoan de bu. */
   it('dong trung hoa tru bot phan 立替経費精算', () => {
     const P: Phieu = { ...P202608, cap: { 立替経費精算: 28578 } }
-    const d = dungDong(P, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(P, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     const trungHoa = d.cap.find((r) => r.type === 'expense' && r.exclude_from_stats)
     expect(trungHoa?.amount).toBe(N - 28578)
   })
 
-  it('co ca 通勤手当 va 立替経費精算: rut ca hai khoi Thu, hoan chi phan ve tau', () => {
+  it('co ca 通勤手当 va 立替経費精算: chi 立替 ra khoi Thu, phu cap o lai', () => {
     const P: Phieu = { ...P202608, cap: { 通勤手当: 77070, 立替経費精算: 7780 } }
-    const d = dungDong(P, NEO_202608, IDS, TK_HUU)
+    const d = dungDong(P, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     expect(soDu(d.cap, YUCHO)).toBe(0)
-    expect(thuTrongTk(d.cap) - N).toBe(-(77070 + 7780))
-    expect(d.cap.find((r) => r.is_refund)?.amount).toBe(77070) // chi ve tau, khong gop
+    expect(thuTrongTk(d.cap) - N).toBe(-7780)
+    expect(d.cap.find((r) => r.category_id === DM_PHU_CAP)?.amount).toBe(77070)
+    expect(d.cap.some((r) => r.is_refund)).toBe(false)
     expect(d.cap.find((r) => r.type === 'expense' && r.exclude_from_stats)?.amount).toBe(N - 7780)
   })
 
-  /** Chi co 立替経費精算 thi KHONG can danh muc Tàu xe — khong co dong hoan nao. */
-  it('khong doi danh muc Tàu xe khi chi co 立替経費精算', () => {
-    const thieu = new Map([...IDS].filter(([k]) => k !== 'Tàu xe'))
+  /** Chi co 立替経費精算 thi KHONG can danh muc Phu cap — khong dung dong phu cap nao. */
+  it('khong doi danh muc Phu cap khi chi co 立替経費精算', () => {
     const P: Phieu = { ...P202608, cap: { 立替経費精算: 28578 } }
-    expect(() => dungDong(P, NEO_202608, thieu, TK_HUU)).not.toThrow()
+    expect(() => dungDong(P, NEO_202608, IDS, TK_HUU, null, null)).not.toThrow()
   })
 
   it('kiemDong qua sach cho ca ba to hop', () => {
@@ -756,7 +792,7 @@ describe('dungDong · 立替経費精算', () => {
     ]
     for (const cap of toHop) {
       const P: Phieu = { ...P202608, cap }
-      const d = dungDong(P, NEO_202608, IDS, TK_HUU)
+      const d = dungDong(P, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
       expect(kiemDong(P, d.thu, d.chi, d.thuKhac, d.cap, NEO_202608), JSON.stringify(cap)).toEqual([])
     }
   })
@@ -773,7 +809,7 @@ describe('dungDong · 立替経費精算 di duong no KOME', () => {
   const NO = { id: 'debt-kome', conLai: 100000 }
 
   it('dung dong tra no thay vi tru bot dong trung hoa', () => {
-    const d = dungDong(P_L, NEO_202608, IDS, TK_HUU, NO)
+    const d = dungDong(P_L, NEO_202608, IDS, TK_HUU, NO, DM_PHU_CAP)
     expect(d.traNo).not.toBeNull()
     expect(d.traNo!.debtId).toBe('debt-kome')
     expect(d.traNo!.amount).toBe(L)
@@ -784,47 +820,47 @@ describe('dungDong · 立替経費精算 di duong no KOME', () => {
   })
 
   it('so du Yucho van bang 0 khi tinh ca dong tra no', () => {
-    const d = dungDong(P_L, NEO_202608, IDS, TK_HUU, NO)
+    const d = dungDong(P_L, NEO_202608, IDS, TK_HUU, NO, DM_PHU_CAP)
     expect(soDu([...d.cap, d.traNo!.dong], YUCHO)).toBe(0)
   })
 
   /** Dong tra no mang is_debt_flow (repo tu dat) nen KHONG nam trong Thu. */
   it('Thu van giam dung L, dong tra no khong duoc dem vao Thu', () => {
-    const d = dungDong(P_L, NEO_202608, IDS, TK_HUU, NO)
+    const d = dungDong(P_L, NEO_202608, IDS, TK_HUU, NO, DM_PHU_CAP)
     expect(thuTrongTk(d.cap.filter((r) => r.account_id === YUCHO)) - N).toBe(-L)
   })
 
   it('con no < L thi NO, khong lang le roi ve cach cu', () => {
-    expect(() => dungDong(P_L, NEO_202608, IDS, TK_HUU, { id: 'd', conLai: L - 1 })).toThrow(/KOME/)
+    expect(() => dungDong(P_L, NEO_202608, IDS, TK_HUU, { id: 'd', conLai: L - 1 }, DM_PHU_CAP)).toThrow(/KOME/)
   })
 
   it('con no dung bang L thi qua', () => {
-    const d = dungDong(P_L, NEO_202608, IDS, TK_HUU, { id: 'd', conLai: L })
+    const d = dungDong(P_L, NEO_202608, IDS, TK_HUU, { id: 'd', conLai: L }, DM_PHU_CAP)
     expect(d.traNo!.amount).toBe(L)
   })
 
   it('khong co khoan no -> roi ve cach cu (trung hoa = N − L, khong co traNo)', () => {
-    const d = dungDong(P_L, NEO_202608, IDS, TK_HUU, null)
+    const d = dungDong(P_L, NEO_202608, IDS, TK_HUU, null, DM_PHU_CAP)
     expect(d.traNo).toBeNull()
     expect(d.cap.find((r) => r.type === 'expense' && r.exclude_from_stats)?.amount).toBe(N - L)
   })
 
   it('phieu khong co 立替経費精算 thi khong tra no du co khoan no', () => {
-    const d = dungDong({ ...P202608, cap: { 通勤手当: 77070 } }, NEO_202608, IDS, TK_HUU, NO)
+    const d = dungDong({ ...P202608, cap: { 通勤手当: 77070 } }, NEO_202608, IDS, TK_HUU, NO, DM_PHU_CAP)
     expect(d.traNo).toBeNull()
   })
 
   it('co ca C va L: hoan ve tau + tra no, so du van 0', () => {
     const P: Phieu = { ...P202608, cap: { 通勤手当: 77070, 立替経費精算: L } }
-    const d = dungDong(P, NEO_202608, IDS, TK_HUU, NO)
+    const d = dungDong(P, NEO_202608, IDS, TK_HUU, NO, DM_PHU_CAP)
     expect(soDu([...d.cap, d.traNo!.dong], YUCHO)).toBe(0)
-    expect(thuTrongTk(d.cap.filter((r) => r.account_id === YUCHO)) - N).toBe(-(77070 + L))
-    expect(d.cap.find((r) => r.is_refund)?.amount).toBe(77070)
+    expect(thuTrongTk(d.cap.filter((r) => r.account_id === YUCHO)) - N).toBe(-L)
+    expect(d.cap.find((r) => r.category_id === DM_PHU_CAP)?.amount).toBe(77070)
   })
 
   it('kiemDong qua sach ca hai duong', () => {
     for (const no of [NO, null]) {
-      const d = dungDong(P_L, NEO_202608, IDS, TK_HUU, no)
+      const d = dungDong(P_L, NEO_202608, IDS, TK_HUU, no, DM_PHU_CAP)
       expect(
         kiemDong(P_L, d.thu, d.chi, d.thuKhac, d.cap, NEO_202608, d.traNo),
         no ? 'duong no' : 'roi lai',
@@ -833,16 +869,16 @@ describe('dungDong · 立替経費精算 di duong no KOME', () => {
   })
 
   it('kiemDong bat duoc dong tra no sai so', () => {
-    const d = dungDong(P_L, NEO_202608, IDS, TK_HUU, NO)
+    const d = dungDong(P_L, NEO_202608, IDS, TK_HUU, NO, DM_PHU_CAP)
     const xau = { ...d.traNo!, dong: { ...d.traNo!.dong, amount: L + 1 } }
     expect(kiemDong(P_L, d.thu, d.chi, d.thuKhac, d.cap, NEO_202608, xau).join(' ')).toMatch(/số dư/)
   })
 
   it('dungKeHoach mang traNo ra ke hoach va tu choi khi thieu no', () => {
-    const ok = dungKeHoach([P_L], [NEO_202608], YUCHO, IDS, new Set(), TK_HUU, NO)
+    const ok = dungKeHoach([P_L], [NEO_202608], YUCHO, IDS, new Set(), TK_HUU, NO, DM_PHU_CAP)
     expect(ok[0].trangThai).toBe('dat')
     expect(ok[0].traNo?.amount).toBe(L)
-    const thieu = dungKeHoach([P_L], [NEO_202608], YUCHO, IDS, new Set(), TK_HUU, { id: 'd', conLai: 1 })
+    const thieu = dungKeHoach([P_L], [NEO_202608], YUCHO, IDS, new Set(), TK_HUU, { id: 'd', conLai: 1 }, DM_PHU_CAP)
     expect(thieu[0].trangThai).toBe('tu-choi')
     expect(thieu[0].lyDo).toMatch(/KOME/)
   })

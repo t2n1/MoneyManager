@@ -335,3 +335,95 @@ Danh sách file để sửa một phát, không phải điều tra lại:
 | `PeriodTotalsBar.tsx` · `DailyView.tsx` · `CalendarView.tsx` | truyền `useTransferCategoryIds()` xuống |
 | `TransactionItem.tsx` (~dòng 165) | hiện nhãn "(không tính vào Thu/Chi)" cho dòng danh mục `transfer` — nếu không, cộng tay các dòng sẽ không khớp tổng và người đọc lại tưởng sai |
 | `ledgerShared.test.ts` · `ledgerHeat.test.ts` | test cho phép lọc mới |
+
+---
+
+## Vòng bốn — `通勤手当` không phải hoàn tiền (20/08/2026)
+
+### Giả định sai của vòng một
+
+Vòng một ghi `通勤手当` thành **hoàn tiền** (`expense` + `is_refund`, danh mục `Tàu xe`),
+với chú thích nói thẳng giả định: *"Nó triệt tiêu khoản mua vé mà người dùng đã tự ghi —
+dù khoản đó ở tháng nào, số bao nhiêu."*
+
+Giả định đó dựa trên câu người dùng nói lúc thiết kế (*"cũng có trường hợp tôi mua trước
+rồi phải đến ngày lương cty mới trả lại"*) — tôi suy ra khoản mua có trong sổ. **Không
+có.** Quét cả 977 giao dịch từ 2025/09 tới 2026/08: danh mục `Tàu xe` chỉ có các khoản
+¥170–3.250, không khoản nào cỡ vé định kỳ. Riêng khoản người dùng nêu (¥40.680, mua
+22/06/2026, vé 3 tháng) cũng không có trong sổ — ngày 6/22 không có giao dịch nào ≥ ¥3.000.
+
+Hệ quả thật: dòng hoàn tiền đi khấu vào những khoản **không liên quan**. Tháng 8/2026, Chi
+ngày 10 âm ¥45.940 vì ¥77.070 hoàn khấu lên ¥31.130 chi thật (cơm ngoài + gửi gia đình).
+
+### Quy mô
+
+Quét 59 PDF: **19 kỳ** có `通勤手当`, từ 202202 đến 202608, tổng **¥945.626**.
+
+```
+202202   8,000   202211  56,410   202408  72,690
+202203   6,800   202302  56,410   202501  18,566
+202204   6,400   202305  56,410   202502  77,070
+202205  10,400   202308 106,080   202508  77,070
+202206  74,720   202402 106,080   202602  77,070
+202209  18,180   202407  20,620   202608  77,070
+202210  19,580
+```
+
+Số không đồng dạng: ¥6.400–20.620 là hoàn theo tháng (IC card), ¥56.410–106.080 là vé định
+kỳ 6 tháng. Không phải một loại — thêm một lý do để không đoán khoản mua đối ứng.
+
+### Cách làm được chọn
+
+`通勤手当` thành **dòng THU riêng** dưới danh mục thu `Phụ cấp đi lại` (`DANH_MUC_PHU_CAP`),
+tách khỏi `Lương` — vẫn đúng yêu cầu gốc "chi phí đi lại không cộng vào lương". Đếm vào Thu
+hay không do `KY_PHU_CAP_VAO_THU = '202608'` quyết:
+
+| Kỳ | `exclude_from_stats` | Vì sao |
+|---|---|---|
+| < 202608 (18 kỳ) | `true` | Không có khoản mua vé nào trong sổ. Đếm vào Thu là dựng ¥868.556 thu nhập không phía chi; ghi thành hoàn tiền là khấu ¥868.556 khỏi Chi của khoản khác. Ngoài cả hai là cách duy nhất không bịa. |
+| ≥ 202608 | `false` | Từ đây người dùng ghi cả hai phía. |
+
+**Vì sao phải có mốc, trong khi `立替経費精算` không cần:** `立替` rơi về cách đúng dựa trên
+khoản nợ `KOME` có tồn tại hay không — một dữ kiện **có trong sổ**. Dữ kiện quyết định của
+`通勤手当` là "người dùng có ghi khoản mua vé hay không", và điều đó **không đọc được từ
+sổ**: một khoản `Tàu xe` ¥40.680 không tự khai nó thuộc kỳ phụ cấp nào.
+
+**Mốc khớp theo chu kỳ, không phải theo tháng người dùng đổi ý.** Vé ¥40.680 mua 22/06 là
+tiền của kỳ phụ cấp 202602 — kỳ đó bị ẩn, nên khoản mua đó **cũng không được ghi**. Phụ cấp
+kỳ 202608 chi trả cho vé mua từ tháng 8 trở đi, và những lần đó người dùng ghi. Nhờ vậy
+không cần thao tác bù trừ nào ở khúc chuyển.
+
+### Cách bị bác
+
+- **Thu riêng, không mốc** (mọi kỳ vào Thu): dựng ¥868.556 thu nhập lơ lửng, Chênh lệch 18
+  kỳ cũ đều cao hơn thực.
+- **Ẩn hết, không mốc**: ¥36.390 người dùng thật sự lời mỗi chu kỳ không hiện ở đâu, kể cả
+  từ nay về sau. Người dùng đã chọn "hiện đủ hai chiều" khi được nêu con số này.
+- **Mô hình nợ như KOME**: đúng nhất về khái niệm nhưng đòi ghi mỗi lần mua vé thành một
+  khoản cho công ty nợ. Người dùng đã nói không ghi được phần cũ.
+
+### Chốt
+
+- `kiemCap`: kỳ vọng Thu giảm đổi từ `−(通勤手当 + 立替)` sang `−(立替 + 通勤手当 nếu bị ẩn)`.
+  Quên đổi chốt này thì **cả 19 kỳ bị từ chối** — ồn ào, dễ thấy. Nới chốt ra thì một dòng
+  phụ cấp đếm sai phía đi thẳng vào sổ.
+- `phuCapVaoThu(p)` **nổ** khi thiếu `period`, không mặc định về "ẩn": mặc định lặng lẽ
+  nghĩa là một phiếu không đọc được kỳ vẫn được ghi với phụ cấp rơi phía nào không ai biết.
+- `tests/phieuLuongKhoiCap.test.ts`: trang phải tra danh mục trong nhóm `type === 'income'`.
+  Sổ có thể có một `Phụ cấp đi lại` **loại chi** do người dùng tự tạo; gắn nó vào một dòng
+  `type: 'income'` thì dòng đó không hiện ở báo cáo nào — không lỗi, chỉ là biến mất.
+- Chỉ **một** chỗ so kỳ với mốc (`period >= KY_PHU_CAP_VAO_THU`), có test đếm.
+
+### Kiểm
+
+- 2804 test pass · `npm run build` xanh (`tsc --noEmit` **không** soi `src/` ở repo này).
+- 59/59 PDF thật đi trọn `bocPhieu → dungDong → kiemDong` sạch, kèm 6 bất biến tự kiểm:
+  số dư tài khoản neo = 0 · Thu giảm đúng mức · không còn dòng `is_refund` trong khối 支給 ·
+  mọi dòng có `category_id` · mọi `amount > 0` · cờ ẩn khớp mốc. 18 kỳ ngoài Thu, 1 kỳ trong.
+
+### Việc của người dùng
+
+1. **Nhập lại lô phiếu lương** — 19 dòng cũ đang là `expense + is_refund` trong DB; code
+   không sửa dữ liệu đã ghi và form không đổi được loại giao dịch.
+2. Từ tháng 8/2026, ghi các lần mua vé định kỳ vào Chi như một khoản `Tàu xe` bình thường.
+3. **Không** thêm khoản ¥40.680 ngày 22/06 — nó thuộc chu kỳ đã ẩn.

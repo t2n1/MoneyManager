@@ -61,3 +61,41 @@ describe('supabaseRepo.xoaPhieuLuong: trả dòng neo trước khi xoá', () => 
     expect(than).toContain("startsWith('給与 ')")
   })
 })
+
+/**
+ * Dòng `通勤手当` là một dòng THU, nên `category_id` của nó phải là danh mục loại
+ * `income`. Sổ thật có thể có sẵn một danh mục CHI cùng tên do người dùng tự tạo, và tra
+ * theo tên trần sẽ nhặt đúng cái đó: giao dịch `type: 'income'` mang danh mục chi không
+ * hiện ở bất kỳ báo cáo nào — không lỗi, không cảnh báo, chỉ là biến mất.
+ */
+describe('trang import: danh mục phụ cấp phải lọc theo type', () => {
+  const src = doc('../src/features/phieu-luong/ImportPhieuLuongPage.tsx')
+
+  it('tra danh mục Phụ cấp trong nhóm income, không tra theo tên trần', () => {
+    expect(src).toContain("categories.find((c) => c.type === 'income' && c.name === DANH_MUC_PHU_CAP)")
+  })
+
+  it('nút tạo danh mục tạo đúng loại income', () => {
+    const i = src.indexOf('async function taoDmPhuCap')
+    expect(i).toBeGreaterThan(-1)
+    expect(src.slice(i, src.indexOf('\n  }', i))).toContain("type: 'income'")
+  })
+})
+
+/**
+ * Mốc kỳ là con số quyết định 19 kỳ rơi về phía nào của Thu. Nó phải nằm ở MỘT chỗ và
+ * được cả `dungCap` lẫn `kiemCap` đọc qua cùng một hàm — hai chỗ tự so kỳ riêng là hai
+ * chỗ sẽ trôi khỏi nhau, và khi trôi thì phiếu bị từ chối hàng loạt chứ không sai lặng lẽ.
+ */
+describe('mốc KY_PHU_CAP_VAO_THU chỉ có một nguồn', () => {
+  const src = doc('../src/features/phieu-luong/nhap.ts')
+
+  it('chỉ `phuCapVaoThu` so kỳ với mốc', () => {
+    const soSanh = src.match(/period\s*>=\s*KY_PHU_CAP_VAO_THU/g) ?? []
+    expect(soSanh).toHaveLength(1)
+  })
+
+  it('cả dungCap và kiemCap đều đi qua phuCapVaoThu', () => {
+    expect((src.match(/phuCapVaoThu\(/g) ?? []).length).toBeGreaterThanOrEqual(3)
+  })
+})

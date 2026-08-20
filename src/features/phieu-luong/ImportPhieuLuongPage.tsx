@@ -24,7 +24,7 @@ import { docPdfWeb } from './docPdfWeb'
 import {
   DANH_MUC_THUE_CHA,
   DANH_MUC_THUE_CON,
-  DANH_MUC_TAU_XE,
+  DANH_MUC_PHU_CAP,
   NHAN_DI_LAI,
   NHAN_HUU,
   NHAN_LA_THEO,
@@ -79,10 +79,15 @@ export function ImportPhieuLuongPage() {
   // (TK_HUU_MOI), va mot regex long tay se nhan bua sang tai khoan khac cua nguoi dung.
   const tkHuu = accounts.find((a) => a.name === TEN_TK_HUU)
   const chiPhi = categories.filter((c) => c.type === 'expense')
+  /**
+   * Danh muc THU nhan 通勤手当. Loc theo type='income' chu khong tim ca bang: so co the
+   * co mot 'Phu cap di lai' loai CHI do nguoi dung tu tao, va dat category_id loai chi
+   * vao mot dong `type: 'income'` la dung mot dong khong hien o bao cao nao.
+   */
+  const dmPhuCap = categories.find((c) => c.type === 'income' && c.name === DANH_MUC_PHU_CAP)
   const thieuDanhMuc = DANH_MUC_THUE_CON.map((c) => c.name).filter(
     (n) => !chiPhi.some((c) => c.name === n),
   )
-  const thieuTauXe = !chiPhi.some((c) => c.name === DANH_MUC_TAU_XE)
 
   /**
    * Khoản `KOME` công ty nợ, khớp ĐÚNG TỪNG KÝ TỰ — sổ đã có `Minh KOME` (một NGƯỜI),
@@ -138,7 +143,12 @@ export function ImportPhieuLuongPage() {
        */
       const dauDaCo = new Set(await repo.listDauPhieuLuong())
       const idTheoTen = new Map(chiPhi.map((c) => [c.name, c.id]))
-      setKeHoach(dungKeHoach(phieuList, thu, yucho.id, idTheoTen, dauDaCo, tkHuu?.id ?? null, no))
+      setKeHoach(
+        dungKeHoach(
+          phieuList, thu, yucho.id, idTheoTen, dauDaCo, tkHuu?.id ?? null, no,
+          dmPhuCap?.id ?? null,
+        ),
+      )
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Không đọc được dữ liệu sổ, thử lại.', 'error')
     } finally {
@@ -164,6 +174,18 @@ export function ImportPhieuLuongPage() {
         await createCategory.mutateAsync({ ...c, type: 'expense', parent_id: chaId })
       }
       showToast('Đã tạo danh mục')
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Không tạo được danh mục, thử lại.', 'error')
+    }
+  }
+
+  /** Danh muc THU nhan 通勤手当 (xem DANH_MUC_PHU_CAP). */
+  async function taoDmPhuCap() {
+    try {
+      await createCategory.mutateAsync({
+        name: DANH_MUC_PHU_CAP, type: 'income', icon: '🚉', parent_id: null,
+      })
+      showToast(`Đã tạo danh mục ${DANH_MUC_PHU_CAP}`)
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Không tạo được danh mục, thử lại.', 'error')
     }
@@ -366,15 +388,17 @@ export function ImportPhieuLuongPage() {
         hoac DB掛金 — 10/12 thang phieu khong co nhan nao trong hai nhan do, va chan het
         thi thanh chan oan. Phieu thuc su can se bi dungKeHoach() TU CHOI kem ly do.
       */}
-      {(thieuTauXe || !tkHuu || tenGanGiong.length > 0) && (
+      {(!dmPhuCap || !tkHuu || tenGanGiong.length > 0) && (
         <Card>
           <p className="text-xs text-fg-secondary">
-            Phiếu có <span className="text-fg-primary">通勤手当</span> (hoàn phí đi lại) hoặc{' '}
+            Phiếu có <span className="text-fg-primary">通勤手当</span> (phụ cấp đi lại) hoặc{' '}
             <span className="text-fg-primary">DB掛金</span> (退職金) sẽ bị từ chối cho tới khi có
             đủ:
           </p>
           <ul className="mt-1 text-xs text-fg-secondary">
-            {thieuTauXe && <li className="text-money-out">· thiếu danh mục chi “{DANH_MUC_TAU_XE}”</li>}
+            {!dmPhuCap && (
+              <li className="text-money-out">· thiếu danh mục thu “{DANH_MUC_PHU_CAP}”</li>
+            )}
             {!tkHuu && <li className="text-money-out">· thiếu tài khoản “{TEN_TK_HUU}”</li>}
           </ul>
           {tenGanGiong.length > 0 && (
@@ -384,6 +408,16 @@ export function ImportPhieuLuongPage() {
               {tenGanGiong.map((t) => `“${t}”`).join(', ')} — khớp theo tên đúng từng ký tự nên
               chúng không được dùng.
             </p>
+          )}
+          {!dmPhuCap && (
+            <ActionButton
+              variant="primary"
+              onClick={taoDmPhuCap}
+              disabled={createCategory.isPending}
+              className="mt-2 mr-2"
+            >
+              {createCategory.isPending ? 'Đang tạo…' : `Tạo danh mục ${DANH_MUC_PHU_CAP}`}
+            </ActionButton>
           )}
           {!tkHuu && (
             <button

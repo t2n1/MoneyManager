@@ -102,8 +102,26 @@ export interface TraNo {
   amount: number
   dong: DongMoi
 }
-/** Danh mục nhận khoản HOÀN phí đi lại. Tên phải đúng từng ký tự (như MAP_THUE). */
-export const DANH_MUC_TAU_XE = 'Tàu xe'
+/**
+ * Danh mục THU nhận 通勤手当. Tên đúng từng ký tự (như MAP_THUE). KHÔNG tra qua
+ * `idTheoTen` — map đó chỉ chứa danh mục CHI; trang phải tra riêng trong nhóm type='income'.
+ */
+export const DANH_MUC_PHU_CAP = 'Phụ cấp đi lại'
+/**
+ * Từ kỳ này trở đi `通勤手当` được TÍNH vào Thu. Các kỳ trước nằm ngoài cả Thu và Chi.
+ *
+ * Vì sao 通勤手当 cần một mốc kỳ trong khi 立替経費精算 không cần: 立替 tự rơi về cách
+ * đúng dựa trên khoản nợ KOME có tồn tại hay không — một dữ kiện CÓ trong sổ. Còn dữ
+ * kiện quyết định của 通勤手当 là "người dùng có ghi khoản mua vé hay không", và điều đó
+ * không đọc được từ sổ: một khoản `Tàu xe` ¥40.680 không tự khai nó thuộc kỳ phụ cấp nào.
+ *
+ * Đo trên dữ liệu thật (20/08/2026): 19 kỳ có 通勤手当 từ 202202 đến 202608, tổng
+ * ¥945.626, và không kỳ nào trong 18 kỳ đầu có khoản mua vé đối ứng trong sổ — quét cả
+ * 977 giao dịch, danh mục `Tàu xe` chỉ có các khoản ¥170–3.250. Tính 18 kỳ đó vào Thu là
+ * dựng ¥868.556 thu nhập không có phía chi; ghi chúng thành HOÀN TIỀN (bản trước) thì
+ * ngược lại — khấu ¥868.556 khỏi Chi của những khoản chẳng liên quan. Nên: ngoài cả hai.
+ */
+export const KY_PHU_CAP_VAO_THU = '202608'
 /** Tài khoản tài sản nhận DB掛金 (退職金 — hagukumikikin.jp). */
 export const TEN_TK_HUU = '退職金'
 /**
@@ -234,6 +252,7 @@ export function dungDong(
   idTheoTen: Map<string, string>,
   tkHuuId: string | null = null,
   no: NoCongTy | null = null,
+  idPhuCap: string | null = null,
 ): {
   thu: DongMoi
   thuKhac: DongMoi | null
@@ -339,17 +358,37 @@ export function dungDong(
     thu: dongBu(tongThue, true, nhomNgoai),
     thuKhac: tongKhac !== 0 ? dongBu(tongKhac, false, nhomTrong) : null,
     chi,
-    ...dungCap(phieu, neo, idTheoTen, tkHuuId, dau, no),
+    ...dungCap(phieu, neo, tkHuuId, dau, no, idPhuCap),
   }
+}
+
+/**
+ * `通勤手当` của kỳ này có đếm vào Thu hay không — xem KY_PHU_CAP_VAO_THU.
+ *
+ * Nổ khi thiếu kỳ chứ không mặc định "ẩn": mặc định lặng lẽ ở đây nghĩa là một phiếu
+ * không đọc được kỳ vẫn được ghi, với phụ cấp rơi về phía nào thì không ai biết.
+ * `bocPhieu` đã báo lỗi 'không đọc được kỳ/loại' và `dungKeHoach` từ chối phiếu có lỗi,
+ * nên đường này không tới được từ luồng thường — chốt để đây cho người gọi trực tiếp.
+ */
+function phuCapVaoThu(p: Phieu): boolean {
+  if (!p.period) {
+    throw new Error(`phiếu '${p.file}' thiếu kỳ — không quyết được mốc ${KY_PHU_CAP_VAO_THU}`)
+  }
+  return p.period >= KY_PHU_CAP_VAO_THU
 }
 
 /**
  * Khối 支給: 通勤手当 và DB掛金. Xem
  * docs/superpowers/specs/2026-08-20-phieu-luong-thu-nhap-thuc-notes.md
  *
- * 通勤手当 là HOÀN PHÍ, không phải thu nhập: người dùng tự mua vé (có thể ở tháng
- * trước, có thể chỉ 3 tháng chứ không phải 6) rồi công ty trả lại vào ngày lương.
- * Nên nó phải RÚT khỏi Thu và triệt tiêu khoản mua vé đã ghi trong sổ.
+ * 通勤手当 là tiền công ty trả cho việc đi lại. Nó KHÔNG được nằm trong danh mục
+ * `Lương` — người dùng muốn tách ra để biết lương thật là bao nhiêu — nên dòng neo bị
+ * xẻ thành hai dòng thu: phần lương, và phần phụ cấp dưới danh mục riêng.
+ *
+ * Phần phụ cấp có đếm vào Thu hay không thì do `KY_PHU_CAP_VAO_THU` quyết. Bản đầu ghi
+ * nó thành HOÀN TIỀN (chi âm) với giả định "nó triệt tiêu khoản mua vé người dùng đã tự
+ * ghi" — giả định đó SAI trên sổ thật: không có khoản mua vé nào được ghi, nên nó đi
+ * khấu vào cơm ngoài và tiền gửi gia đình.
  *
  * Vì sao không hạ `amount` dòng neo cho gọn: `transactions_refund_check` (migration
  * 0026) chặn thu nhập âm, nên KHÔNG có bộ dòng chỉ-THÊM nào rút được tiền khỏi Thu —
@@ -367,10 +406,10 @@ export function dungDong(
 function dungCap(
   phieu: Phieu,
   neo: KhoanNeo,
-  idTheoTen: Map<string, string>,
   tkHuuId: string | null,
   dau: string,
   no: NoCongTy | null,
+  idPhuCap: string | null,
 ): { cap: DongMoi[]; suaNeo: boolean; traNo: TraNo | null } {
   const chung = {
     to_amount: null,
@@ -383,8 +422,12 @@ function dungCap(
 
   const diLai = phieu.cap[NHAN_DI_LAI] ?? 0
   const laTheo = phieu.cap[NHAN_LA_THEO] ?? 0
-  /** Hai khoản hoàn phí — cả hai đều phải RA KHỎI Thu, chỉ khác cách triệt tiêu phía Chi. */
-  const raKhoiThu = diLai + laTheo
+  /**
+   * Phần bị TÁCH khỏi dòng `Lương` — không phải phần "ra khỏi Thu". Hai khoản đi hai
+   * đường khác nhau: 立替経費精算 luôn ra khỏi Thu (nó là tiền của mình được trả lại),
+   * còn 通勤手当 chỉ đổi danh mục và có thể vẫn đếm vào Thu (xem KY_PHU_CAP_VAO_THU).
+   */
+  const tachKhoiLuong = diLai + laTheo
 
   /**
    * Có khoản nợ `KOME` → `立替経費精算` là một lần CÔNG TY TRẢ NỢ, không phải khoản
@@ -406,29 +449,31 @@ function dungCap(
         `có lần ứng chưa ghi vào khoản nợ`,
     )
   }
-  const suaNeo = raKhoiThu > 0
+  const suaNeo = tachKhoiLuong > 0
   if (suaNeo) {
     if (neo.category_id === null) {
       throw new Error(`dòng neo '${neo.id}' không có danh mục — không dựng được dòng trung hoà`)
     }
     cap.push({
-      ...chung, type: 'income', amount: neo.amount - raKhoiThu,
+      ...chung, type: 'income', amount: neo.amount - tachKhoiLuong,
       category_id: neo.category_id, account_id: neo.account_id,
       note: `${dau} · lương thực nhận`,
     })
-    // Hoàn tiền = CHI ÂM (migration 0026), amount vẫn DƯƠNG. Nó triệt tiêu khoản mua
-    // vé mà người dùng đã tự ghi — dù khoản đó ở tháng nào, số bao nhiêu. Mua 3 tháng
-    // mà được trả 6 tháng thì Chi 'Tàu xe' ÂM, và đó là sự thật, không phải lỗi.
+    // Phần phụ cấp: một dòng THU riêng, không phải chi âm. `exclude_from_stats` là chỗ
+    // DUY NHẤT phân biệt kỳ cũ với kỳ mới — cùng một dòng, cùng một danh mục, để Sổ đọc
+    // được nó ở cả hai thời kỳ và để gỡ lô không phải phân nhánh.
     //
-    // CHỈ cho 通勤手当. 立替経費精算 không có dòng này vì không có khoản mua nào trong sổ
-    // để triệt tiêu — dựng dòng hoàn cho nó là kéo Chi xuống mà chẳng đối ứng với gì.
+    // CHỈ cho 通勤手当. 立替経費精算 không có dòng này: nó đi bằng dòng trả nợ (traNo) hoặc
+    // bị rút hẳn khỏi Thu, chứ không bao giờ là một khoản thu nhập mới.
     if (diLai > 0) {
-      const idTauXe = idTheoTen.get(DANH_MUC_TAU_XE)
-      if (!idTauXe) throw new Error(`thiếu danh mục '${DANH_MUC_TAU_XE}' (cho ${NHAN_DI_LAI})`)
+      if (!idPhuCap) {
+        throw new Error(`thiếu danh mục thu '${DANH_MUC_PHU_CAP}' (cho ${NHAN_DI_LAI})`)
+      }
       cap.push({
-        ...chung, type: 'expense', amount: diLai, is_refund: true,
-        category_id: idTauXe, account_id: neo.account_id,
-        note: `${dau} · hoàn phí đi lại (${NHAN_DI_LAI})`,
+        ...chung, type: 'income', amount: diLai,
+        exclude_from_stats: !phuCapVaoThu(phieu),
+        category_id: idPhuCap, account_id: neo.account_id,
+        note: `${dau} · phụ cấp đi lại (${NHAN_DI_LAI})`,
       })
     }
     /**
@@ -652,15 +697,25 @@ function kiemCap(
     0,
   )
   if (soDu !== 0) loi.push(`khối 支給 làm số dư tài khoản neo lệch ${soDu} (phải bằng 0)`)
-  const raKhoiThu = (phieu.cap[NHAN_DI_LAI] ?? 0) + (phieu.cap[NHAN_LA_THEO] ?? 0)
+  const diLai = phieu.cap[NHAN_DI_LAI] ?? 0
+  const laTheo = phieu.cap[NHAN_LA_THEO] ?? 0
+  const tachKhoiLuong = diLai + laTheo
+  /**
+   * Thu PHẢI giảm đúng bằng đây, không hơn không kém:
+   * - `立替経費精算` luôn ra khỏi Thu — tiền của chính mình được trả lại.
+   * - `通勤手当` chỉ ra khỏi Thu ở các kỳ TRƯỚC mốc; từ mốc trở đi nó ở lại Thu dưới
+   *   danh mục riêng, nên Thu không giảm phần đó.
+   *
+   * Chốt này bắt đúng ca dễ vỡ nhất: đổi cách ghi dòng phụ cấp mà quên đổi kỳ vọng ở
+   * đây thì MỌI phiếu có đi lại bị từ chối — 19 kỳ, ồn ào và dễ thấy. Ngược lại, nới
+   * chốt ra thì một dòng phụ cấp đếm sai phía sẽ đi thẳng vào sổ mà không ai biết.
+   */
+  const thuGiam = laTheo + (diLai > 0 && !phuCapVaoThu(phieu) ? diLai : 0)
   const thuMoi = cap
     .filter((r) => r.account_id === neo.account_id && r.type === 'income' && !r.exclude_from_stats)
     .reduce((t, r) => t + r.amount, 0)
-  if (raKhoiThu > 0 && thuMoi - neo.amount !== -raKhoiThu) {
-    loi.push(
-      `Thu đổi ${thuMoi - neo.amount}, phải là ${-raKhoiThu} ` +
-        `(= −${NHAN_DI_LAI} − ${NHAN_LA_THEO})`,
-    )
+  if (tachKhoiLuong > 0 && thuMoi - neo.amount !== -thuGiam) {
+    loi.push(`Thu đổi ${thuMoi - neo.amount}, phải là ${-thuGiam}`)
   }
   return loi
 }
@@ -697,6 +752,7 @@ export function dungKeHoach(
   dauDaCo: Set<string>,
   tkHuuId: string | null = null,
   no: NoCongTy | null = null,
+  idPhuCap: string | null = null,
 ): DongKeHoach[] {
   const trung = gomTrung(phieuList)
   const out: DongKeHoach[] = []
@@ -718,7 +774,7 @@ export function dungKeHoach(
     const dau = dauGhiChu(neo.row.occurred_on, p.kind as 'K' | 'S')
     if (dauDaCo.has(dau)) { out.push({ ...rong(p, 'da-nhap', `đã nhập rồi (${dau})`), dau }); continue }
     let d
-    try { d = dungDong(p, neo.row, idTheoTen, tkHuuId, no) } catch (e) {
+    try { d = dungDong(p, neo.row, idTheoTen, tkHuuId, no, idPhuCap) } catch (e) {
       out.push(rong(p, 'tu-choi', (e as Error).message)); continue
     }
     const loi = kiemDong(p, d.thu, d.chi, d.thuKhac, d.cap, neo.row, d.traNo)

@@ -50,6 +50,7 @@ const ENTRY_POINTS = [
   'mcp/tools/truyVan.ts',
   'mcp/tools/thoiQuenGhiChep.ts',
   'mcp/tools/lichSuTyGia.ts',
+  'mcp/tools/moc.ts',
 ]
 
 /**

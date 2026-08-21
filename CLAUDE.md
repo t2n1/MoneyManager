@@ -84,9 +84,12 @@ lặng lẽ. Chuỗi chuẩn: `BudgetView → useBudgetReport → useMonthTransa
 loại khoản đó khỏi tổng, bật cờ `hasMissingRate`, UI hiện `≈` để nói thẳng là số chưa đủ.
 Không bao giờ quy 1:1 — thà thiếu còn hơn bịa.
 
-## Sửa luật trong `src/` thì phải gói lại cho edge function
+## Sửa luật trong `src/` thì phải gói lại cho code phía server
 
-Edge function (Deno) không import trực tiếp từ `src/`; chúng dùng bundle **đã commit**:
+Không có gì phía server import trực tiếp từ `src/`. Có **hai** bộ bundle đã commit, hai lệnh
+khác nhau — cả hai đều phải sinh lại khi sửa luật tiền trong `src/`.
+
+**Edge function (Deno)** dùng bundle **đã commit**:
 `supabase/functions/{push-notify/_rules.js, stock-refresh/_holdings.js, fund-refresh/_funds.js}`.
 Sửa luật notification / holdings / funds trong `src/` thì:
 
@@ -96,6 +99,17 @@ npm run bundle:rules
 
 rồi commit luôn file `_*.js` sinh ra. Quên là chuông trong app nói một đằng, edge function nói một nẻo.
 Guard: [tests/pushBundle.test.ts](tests/pushBundle.test.ts) fail khi bundle cũ.
+
+**MCP server (Vercel function)** dùng `api/mcp.js`, gói từ `api/_handler.ts`:
+
+```bash
+npm run bundle:mcp
+```
+
+Vercel biên dịch `.ts` sang `.js` nhưng **giữ nguyên chuỗi import**, mà ESM của Node đòi import
+tương đối có đuôi `.js` — bản deploy đầu tiên chết đúng vì thế (`ERR_MODULE_NOT_FOUND:
+/var/task/src/mcp/env`). Nguồn tên `_handler.ts` là cố ý: Vercel bỏ qua file trong `api/` bắt đầu
+bằng `_`, nên chỉ có đúng một function. Guard: [tests/mcpBundle.test.ts](tests/mcpBundle.test.ts).
 
 ## Toán thuần nằm ngoài React
 

@@ -15,7 +15,7 @@ Dùng trên cả điện thoại và PC, cài được như PWA.
   dùng component này, đừng viết `<input>` tiền riêng.
 - **Đường dữ liệu của app không có backend riêng** — client gọi thẳng Supabase, bảo mật bằng
   Row Level Security. Ngoài đường đó có hai thứ chạy phía server, đều không phục vụ UI:
-  edge function (thông báo đẩy, giá cổ phiếu/quỹ) và một MCP server (`api/mcp.ts`) cho
+  edge function (thông báo đẩy, giá cổ phiếu/quỹ) và một MCP server (`api/mcp.js`) cho
   Claude đọc dữ liệu — xem
   [spec](docs/superpowers/specs/2026-08-21-mcp-so-gao-design.md).
 - Chi phí vận hành mục tiêu: 0 đồng (Supabase free tier + Vercel free tier).

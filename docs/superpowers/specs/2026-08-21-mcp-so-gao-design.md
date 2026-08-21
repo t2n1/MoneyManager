@@ -22,10 +22,17 @@ hiện không trả lời nổi**. Ba loại câu làm mốc:
 - **Chiều nối là app → Claude**, không phải Claude → app. Không có UI chat trong Sổ Gạo,
   app không đổi gì. Chat diễn ra ở app Claude, nên **không tốn API Anthropic** — dùng
   gói người dùng đang trả.
-- **MCP server là một function trên Vercel**, không phải Supabase edge function. Lý do
-  duy nhất và đủ: Vercel chạy Node nên `import` thẳng được `src/*.ts`, không phải bundle.
-  Edge function (Deno) thì phải bundle — xem cái giá thật ở `push-notify/_rules.js` (71KB)
-  và `npm run bundle:rules`.
+- **MCP server là một function trên Vercel**, không phải Supabase edge function.
+  > **Lý do ban đầu đã SAI, sửa lại 2026-08-21 sau bản deploy đầu.** Spec viết: "Vercel chạy
+  > Node nên `import` thẳng được `src/*.ts`, không phải bundle". Không đúng: Vercel biên dịch
+  > `.ts` sang `.js` nhưng **giữ nguyên chuỗi import**, mà ESM của Node đòi import tương đối
+  > phải có đuôi `.js`. Bản deploy đầu tiên trả `500 FUNCTION_INVOCATION_FAILED` với
+  > `ERR_MODULE_NOT_FOUND: /var/task/src/mcp/env`. Nên **Vercel cũng phải bundle**, y như Deno
+  > — xem `npm run bundle:mcp` và `tests/mcpBundle.test.ts`.
+  >
+  > Lý do CÒN LẠI để vẫn chọn Vercel thay vì edge function: bundle này để package trong
+  > `node_modules` ở ngoài (Vercel tự cài), nên nó 41KB chứ không phải một bản nhồi cả
+  > `@supabase/supabase-js` + SDK MCP; và app đã deploy sẵn ở đó nên không thêm chỗ phải trông.
 - **Làm hai chặng.** Chặng 1: xác thực bằng bearer token, dùng được ngay trên 2 PC qua
   Claude Code. Chặng 2: thêm OAuth để claude.ai và app điện thoại nhận được connector.
   Logic tool nằm ở module thuần nên chặng 2 chỉ thêm tầng xác thực, không viết lại tool.
@@ -44,12 +51,15 @@ hiện không trả lời nổi**. Ba loại câu làm mốc:
 
 - Thư mục mới `src/mcp/`: `basket.ts` (dựng rổ giao dịch đúng), `tools/*.ts` (5 tool,
   thuần, có unit test), `format.ts` (hình dạng số tiền trả về).
-- Thư mục mới `api/`: `api/mcp.ts` — vỏ vận chuyển MCP qua HTTP trên Vercel. Repo hiện
+- Thư mục mới `api/`: `api/_handler.ts` (nguồn) → `api/mcp.js` (bundle đã commit, là function
+  thật) — vỏ vận chuyển MCP qua HTTP trên Vercel. Repo hiện
   chưa có `api/`; thêm nó là lần đầu app có endpoint riêng.
 - Sửa [README.md](../../../README.md): nguyên tắc *"Không backend riêng"* cần nói rõ nó
   đúng với **đường dữ liệu của app** (client → Supabase, RLS), không còn đúng tuyệt đối.
 - Sửa [.mcp.json](../../../.mcp.json): thêm server `so-gao` cạnh `gitnexus`.
-- devDependency mới: `tsx` (hoặc tương đương) để Node nạp được `.ts` từ `src/`.
+- devDependency mới: `@vercel/node` (chỉ để lấy type `VercelRequest`/`VercelResponse`).
+  Spec ban đầu ghi `tsx` "để Node nạp được `.ts` từ `src/`" — không cần, vì `src/` được gói
+  vào bundle chứ không nạp lúc chạy.
 
 **Không thuộc đợt này:** UI chat trong app · tự phân loại category (spec riêng, đó là
 việc duy nhất còn lại thật sự cần nằm trong app) · nhận xét báo cáo tháng sinh sẵn (chat
@@ -58,7 +68,7 @@ với Claude còn hơn) · OAuth của chặng 2 (cần phép thử riêng, xem 
 ## A. Kiến trúc
 
 ```
-app Claude  ──MCP/HTTP──▶  api/mcp.ts  ──▶  src/mcp/tools/*.ts  ──▶  src/mcp/basket.ts
+app Claude  ──MCP/HTTP──▶  api/mcp.js  ──▶  src/mcp/tools/*.ts  ──▶  src/mcp/basket.ts
 (PC, phone)                (vỏ mỏng:        (thuần, có test)         │
                             xác thực,                               ├─▶ Supabase (chỉ đọc)
                             định tuyến)                             └─▶ hàm sẵn có của app:
@@ -67,7 +77,7 @@ app Claude  ──MCP/HTTP──▶  api/mcp.ts  ──▶  src/mcp/tools/*.ts  
                                                                         aggregate.ts
 ```
 
-**Vỏ mỏng là chủ ý.** `api/mcp.ts` chỉ xác thực + định tuyến + trả JSON. Không một luật
+**Vỏ mỏng là chủ ý.** `api/_handler.ts` chỉ xác thực + định tuyến + trả JSON. Không một luật
 tiền nào nằm trong đó, để chặng 2 (OAuth) và một transport khác sau này không phải sửa
 gì bên trong.
 

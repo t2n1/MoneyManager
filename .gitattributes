@@ -6,3 +6,4 @@
 # lúc checkout và test đỏ ngay sau khi clone, dù chẳng ai sửa gì. Đúng kiểu cảnh báo
 # sai làm người ta mất niềm tin vào cái chốt canh — rồi lần nó báo thật thì bỏ qua.
 supabase/functions/*/_*.js text eol=lf
+api/*.js text eol=lf

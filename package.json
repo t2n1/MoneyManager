@@ -10,6 +10,7 @@
     "test": "vitest run",
     "preview": "vite preview",
     "bundle:rules": "node scripts/bundle-rules.mjs",
+    "bundle:mcp": "node scripts/bundle-mcp.mjs",
     "setup:push": "node scripts/setup-push.mjs",
     "setup:stock-cron": "node scripts/setup-stock-cron.mjs",
     "setup:fund-cron": "node scripts/setup-fund-cron.mjs",

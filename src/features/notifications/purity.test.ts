@@ -46,6 +46,7 @@ const ENTRY_POINTS = [
   // không có trình duyệt. Cùng ràng buộc với bộ luật thông báo, khác lý do — nên dùng
   // chung phép thử này thay vì viết bản thứ hai sẽ trôi khỏi nó.
   'mcp/format.ts',
+  'mcp/basket.ts',
 ]
 
 /**

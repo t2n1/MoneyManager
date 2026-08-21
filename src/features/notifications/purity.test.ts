@@ -47,6 +47,7 @@ const ENTRY_POINTS = [
   // chung phép thử này thay vì viết bản thứ hai sẽ trôi khỏi nó.
   'mcp/format.ts',
   'mcp/basket.ts',
+  'mcp/tools/truyVan.ts',
 ]
 
 /**

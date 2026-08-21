@@ -13,7 +13,11 @@ Dùng trên cả điện thoại và PC, cài được như PWA.
   [`MoneyField`](src/components/MoneyField.tsx): trên điện thoại pad hiện ngay dưới ô (không
   dùng bàn phím hệ thống), gõ được cả `+ − × ÷`; trên PC gõ thẳng vào ô. Thêm ô tiền mới thì
   dùng component này, đừng viết `<input>` tiền riêng.
-- Không backend riêng — client gọi thẳng Supabase, bảo mật bằng Row Level Security.
+- **Đường dữ liệu của app không có backend riêng** — client gọi thẳng Supabase, bảo mật bằng
+  Row Level Security. Ngoài đường đó có hai thứ chạy phía server, đều không phục vụ UI:
+  edge function (thông báo đẩy, giá cổ phiếu/quỹ) và một MCP server (`api/mcp.ts`) cho
+  Claude đọc dữ liệu — xem
+  [spec](docs/superpowers/specs/2026-08-21-mcp-so-gao-design.md).
 - Chi phí vận hành mục tiêu: 0 đồng (Supabase free tier + Vercel free tier).
 
 ## Stack

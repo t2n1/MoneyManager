@@ -3,6 +3,13 @@
     "gitnexus": {
       "command": "npx",
       "args": ["-y", "gitnexus@latest", "mcp"]
+    },
+    "so-gao": {
+      "type": "http",
+      "url": "${SO_GAO_MCP_URL}",
+      "headers": {
+        "Authorization": "Bearer ${MCP_BEARER_TOKEN}"
+      }
     }
   }
 }

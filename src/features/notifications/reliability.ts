@@ -9,7 +9,7 @@
 // THUẦN: không React, không window, không Date.now(). Cùng ràng buộc với rules/* vì nó
 // đọc chính những đầu vào đó.
 import { addDaysISO } from '../../lib/dates'
-import { ADJUST_CATEGORY_NAME } from '../categories/flowCategories'
+import { lastReconciledMap, type ReconcilableAccount } from './reconciledAt'
 import type { CategoryRow, TransactionRow } from '../../types/database.types'
 
 /** Một thành phần của chỉ số. `weight` cộng lại đúng 1. */
@@ -34,8 +34,13 @@ export interface ReliabilityInput {
   /** Giao dịch trong cửa sổ gần đây (cùng nguồn với bộ luật). */
   recentTxs: TransactionRow[]
   categories: CategoryRow[]
-  /** Tài khoản đang được tính vào tổng (đã lọc ẩn/lưu trữ ở nơi gọi). */
-  accountIds: string[]
+  /**
+   * Tài khoản đang được tính vào tổng (đã lọc ẩn/lưu trữ ở nơi gọi).
+   *
+   * Cả HÀNG chứ không chỉ id: phần "đã đối chiếu" cần đọc `last_reconciled_at` trên
+   * từng tài khoản, không suy được từ id.
+   */
+  accounts: ReconcilableAccount[]
   /** Số tháng đã ghi chép có dữ liệu — nơi gọi đếm từ chuỗi tháng. */
   monthsWithData: number
   /** Số giả định của Lifetime còn để trống (năm sinh, lợi suất…). */
@@ -71,18 +76,13 @@ export function reliability(input: ReliabilityInput): Reliability {
   const tyLeGan = canGan.length === 0 ? 1 : daGan.length / canGan.length
   const thieuGan = canGan.length - daGan.length
 
-  // 2 — tài khoản mới đối chiếu trong 30 ngày.
-  const adjustIds = new Set(
-    input.categories.filter((c) => c.name === ADJUST_CATEGORY_NAME).map((c) => c.id),
-  )
+  // 2 — tài khoản mới đối chiếu trong 30 ngày. Cùng MỘT phép trả lời với chuông nhắc
+  // (`rules/dataRules.reconcileStaleRule`), xem `reconciledAt.ts`: hai khối này nằm cạnh
+  // nhau trên cùng màn Bản tin nên lệch một tài khoản là người dùng thấy ngay.
   const cutoff = addDaysISO(input.todayISO, -RECONCILE_DAYS)
-  const moiDoiChieu = new Set(
-    input.recentTxs
-      .filter((t) => t.category_id != null && adjustIds.has(t.category_id) && t.occurred_on >= cutoff)
-      .map((t) => t.account_id),
-  )
-  const soMoi = input.accountIds.filter((id) => moiDoiChieu.has(id)).length
-  const tyLeDoiChieu = input.accountIds.length === 0 ? 1 : soMoi / input.accountIds.length
+  const lanCuoi = lastReconciledMap(input.accounts, input.recentTxs, input.categories)
+  const soMoi = input.accounts.filter((a) => (lanCuoi.get(a.id) ?? '') >= cutoff).length
+  const tyLeDoiChieu = input.accounts.length === 0 ? 1 : soMoi / input.accounts.length
 
   // 3 — số tháng ghi chép đủ.
   const tyLeLichSu = clamp01(input.monthsWithData / HISTORY_TARGET_MONTHS)
@@ -104,8 +104,8 @@ export function reliability(input: ReliabilityInput): Reliability {
       score: tyLeDoiChieu,
       weight: 0.3,
       gap:
-        input.accountIds.length - soMoi > 0
-          ? `${input.accountIds.length - soMoi} tài khoản chưa đối chiếu trong ${RECONCILE_DAYS} ngày`
+        input.accounts.length - soMoi > 0
+          ? `${input.accounts.length - soMoi} tài khoản chưa đối chiếu trong ${RECONCILE_DAYS} ngày`
           : '',
     },
     {

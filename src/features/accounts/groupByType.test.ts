@@ -27,6 +27,7 @@ function acc(p: Partial<AccountRow> & Pick<AccountRow, 'type'>): AccountRow {
     salvage_value: 0,
     tax_shelter: null,
     shelter_annual_limit: null,
+    last_reconciled_at: null,
     sort_order: seq,
     is_archived: false,
     created_at: '',

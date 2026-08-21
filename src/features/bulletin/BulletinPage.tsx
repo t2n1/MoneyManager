@@ -226,9 +226,9 @@ export function BulletinPage() {
         // dụng rơi ra ngoài — khối Việc cần làm ghi "7 tài khoản chưa đối chiếu" trong
         // khi khối Độ tin cậy ngay dưới ghi "6". Hai con số cho cùng một câu hỏi trên
         // cùng một màn là lỗi tệ hơn cả hai con số đều sai: người dùng thôi tin cả hai.
-        accountIds: accounts
-          .filter((a) => !a.is_archived && !a.is_hidden && a.include_in_totals)
-          .map((a) => a.id),
+        accounts: accounts.filter(
+          (a) => !a.is_archived && !a.is_hidden && a.include_in_totals,
+        ),
         monthsWithData: series.points.filter((p) => p.income > 0 || p.expense > 0).length,
         // Giả định của Lifetime: chưa khai năm sinh là một giả định trống. Hai giả định
         // còn lại (lợi suất, kịch bản) thuộc màn Tương lai — PR 10 nối vào đây.

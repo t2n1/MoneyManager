@@ -35,6 +35,7 @@ function bal(p: Partial<AccountBalanceRow> & Pick<AccountBalanceRow, 'balance'>)
     salvage_value: 0,
     tax_shelter: null,
     shelter_annual_limit: null,
+    last_reconciled_at: null,
     market_value: null,
     ...p,
   }

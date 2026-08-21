@@ -1,5 +1,10 @@
 import { useState } from 'react'
-import { useCategories, useCreateCategory, useCreateTransaction } from '../../hooks/queries'
+import {
+  useCategories,
+  useCreateCategory,
+  useCreateTransaction,
+  useUpdateAccount,
+} from '../../hooks/queries'
 import { dayMonthLabel, toISODate } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
@@ -36,6 +41,13 @@ interface Props {
  *
  * Thẻ tín dụng nhập theo SỐ ĐANG NỢ (dương) cho khớp cách app hiển thị thẻ ở mọi
  * nơi khác; phần đổi dấu nằm trong reconcilePlan.
+ *
+ * KHỚP CŨNG LÀ MỘT KẾT QUẢ, và sheet phải lưu được nó. Bản trước tắt nút khi chênh
+ * lệch bằng 0, mà "lần đối chiếu gần nhất" lại suy từ chính giao dịch bù — nên người
+ * mở sheet, thấy sổ đúng, đóng lại, vẫn bị chuông và khối Độ tin cậy đếm là chưa đối
+ * chiếu. Chỉ số ấy chỉ tăng được khi sổ SAI rồi bù: thưởng cho sổ lệch, phạt sổ đúng.
+ * Từ migration 0050 mỗi lần bấm đều đóng dấu `accounts.last_reconciled_at`; giao dịch
+ * bù chỉ sinh ra khi thật sự có chênh lệch.
  */
 export function ReconcileSheet({
   account,
@@ -47,6 +59,7 @@ export function ReconcileSheet({
   useEscClose(onClose)
   const create = useCreateTransaction()
   const createCategory = useCreateCategory()
+  const updateAccount = useUpdateAccount()
   const { data: categories = [] } = useCategories()
   const currency = account.currency as CurrencyCode
   const isCard = account.type === 'card'
@@ -67,32 +80,49 @@ export function ReconcileSheet({
   const [saving, setSaving] = useState(false)
 
   const { diff, type } = reconcilePlan({ isCard, currentBalance, entered })
-  const canSave = diff !== 0 && !saving
+  // Khớp vẫn lưu được: lần bấm ấy không sinh giao dịch nào nhưng vẫn là một lần đối
+  // chiếu, và cột `last_reconciled_at` là chỗ duy nhất ghi lại được việc đó.
+  const canSave = !saving
 
   async function handleSubmit() {
     if (!canSave) return
     setSaving(true)
     try {
-      // Chi/thu bắt buộc có danh mục — dùng danh mục bù riêng, tạo lần đầu nếu chưa có
-      const categoryId =
-        findAdjustCategory(categories, type)?.id ??
-        (
-          await createCategory.mutateAsync({
-            name: ADJUST_CATEGORY_NAME,
-            type,
-            icon: ADJUST_CATEGORY_ICON,
-          })
-        ).id
-      await create.mutateAsync({
-        type,
-        amount: Math.abs(diff),
-        to_amount: null,
-        category_id: categoryId,
-        account_id: account.id,
-        to_account_id: null,
-        occurred_on: occurredOn,
-        note: isCard ? CARD_RECONCILE_NOTE : 'Điều chỉnh số dư',
-        exclude_from_stats: true,
+      if (diff !== 0) {
+        // Chi/thu bắt buộc có danh mục — dùng danh mục bù riêng, tạo lần đầu nếu chưa có
+        const categoryId =
+          findAdjustCategory(categories, type)?.id ??
+          (
+            await createCategory.mutateAsync({
+              name: ADJUST_CATEGORY_NAME,
+              type,
+              icon: ADJUST_CATEGORY_ICON,
+            })
+          ).id
+        await create.mutateAsync({
+          type,
+          amount: Math.abs(diff),
+          to_amount: null,
+          category_id: categoryId,
+          account_id: account.id,
+          to_account_id: null,
+          occurred_on: occurredOn,
+          note: isCard ? CARD_RECONCILE_NOTE : 'Điều chỉnh số dư',
+          exclude_from_stats: true,
+        })
+      }
+      // Đóng dấu SAU khi khoản bù đã vào sổ: hỏng ở giữa thì mất cái mốc, không mất
+      // khoản bù — và mốc còn suy lại được từ chính khoản bù đó (xem reconciledAt.ts),
+      // còn khoản bù thì không suy lại từ đâu được.
+      //
+      // Mốc là ĐỒNG HỒ LÚC BẤM, không phải ô "Ghi vào ngày". Hai thứ trả lời hai câu
+      // khác nhau: ô ngày nói khoản bù nằm ở đâu trong sổ (thẻ còn lùi về ngày chốt sao
+      // kê — xem defaultAdjustDate), còn cột này nói lần cuối người dùng SO SỔ VỚI THỰC
+      // TẾ là khi nào. Lấy ô ngày làm mốc kiểm thì đối chiếu thẻ vừa xong đã tự khai là
+      // cũ vài tuần.
+      await updateAccount.mutateAsync({
+        id: account.id,
+        patch: { last_reconciled_at: new Date().toISOString() },
       })
       onClose()
     } catch (err) {
@@ -146,29 +176,36 @@ export function ReconcileSheet({
           />
         </div>
 
-        {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">Ghi vào ngày</span>
-        <DateField
-          ariaLabel="Ghi vào ngày"
-          value={occurredOn}
-          max={todayISO}
-          onChange={setOccurredOn}
-          className="mb-1 w-full px-3 py-2"
-        />
-        {/* Chỉ giải thích khi ngày mặc định KHÁC hôm nay — tức là thẻ có đủ ngày
-            chốt/đến hạn và mốc chốt đã qua. Ví thường không cần đọc đoạn này. */}
-        <p className="mb-3 text-xs text-fg-muted">
-          {occurredOn === suggestedDate && suggestedDate !== todayISO
-            ? 'Mặc định là ngày chốt sao kê gần nhất, để lần tự trả thẻ kế tiếp rút đúng số.'
-            : occurredOn > suggestedDate && suggestedDate !== todayISO
-              ? 'Ghi sau ngày chốt sao kê: lần tự trả thẻ kế tiếp sẽ KHÔNG thấy khoản bù này.'
-              : // Mệnh đề thứ hai là của 19b, và nó mới là phần người ta hiểu sai: đối
-                // chiếu KHÔNG viết lại quá khứ. Thiếu nó thì "khớp lại kể từ ngày này" dễ
-                // đọc thành "app sẽ sửa các số dư cũ cho đúng", nên người dùng lùi ngày về
-                // đầu tháng hy vọng vá được cả tháng — thực tế chỉ tạo một khoản bù nằm
-                // sai chỗ, và mọi tổng của tháng đó lệch thêm một lần nữa.
-                'Số dư khớp lại kể từ ngày này. Giao dịch trước ngày đó giữ nguyên.'}
-        </p>
+        {/* Ô ngày chỉ đặt chỗ cho KHOẢN BÙ. Khớp thì không có khoản bù nào để đặt, nên
+            bày ô ngày ra là mời người dùng chỉnh một thứ không tồn tại — và tệ hơn, nó
+            gợi ý sai rằng mốc "đã đối chiếu" lấy theo ô này (không: mốc là lúc bấm). */}
+        {diff !== 0 && (
+          <>
+            {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
+            <span className="mb-1 block text-xs font-medium text-fg-muted">Ghi vào ngày</span>
+            <DateField
+              ariaLabel="Ghi vào ngày"
+              value={occurredOn}
+              max={todayISO}
+              onChange={setOccurredOn}
+              className="mb-1 w-full px-3 py-2"
+            />
+            {/* Chỉ giải thích khi ngày mặc định KHÁC hôm nay — tức là thẻ có đủ ngày
+                chốt/đến hạn và mốc chốt đã qua. Ví thường không cần đọc đoạn này. */}
+            <p className="mb-3 text-xs text-fg-muted">
+              {occurredOn === suggestedDate && suggestedDate !== todayISO
+                ? 'Mặc định là ngày chốt sao kê gần nhất, để lần tự trả thẻ kế tiếp rút đúng số.'
+                : occurredOn > suggestedDate && suggestedDate !== todayISO
+                  ? 'Ghi sau ngày chốt sao kê: lần tự trả thẻ kế tiếp sẽ KHÔNG thấy khoản bù này.'
+                  : // Mệnh đề thứ hai là của 19b, và nó mới là phần người ta hiểu sai: đối
+                    // chiếu KHÔNG viết lại quá khứ. Thiếu nó thì "khớp lại kể từ ngày này" dễ
+                    // đọc thành "app sẽ sửa các số dư cũ cho đúng", nên người dùng lùi ngày về
+                    // đầu tháng hy vọng vá được cả tháng — thực tế chỉ tạo một khoản bù nằm
+                    // sai chỗ, và mọi tổng của tháng đó lệch thêm một lần nữa.
+                    'Số dư khớp lại kể từ ngày này. Giao dịch trước ngày đó giữ nguyên.'}
+            </p>
+          </>
+        )}
 
         <div className="mb-3 rounded-md border border-border-subtle bg-surface-sunken px-3 py-2 text-sm">
           <div className="flex items-center justify-between text-fg-muted">
@@ -197,8 +234,8 @@ export function ReconcileSheet({
           <p className="mt-1 text-xs text-fg-muted">
             {diff === 0
               ? isCard
-                ? 'Số nợ đã khớp — không cần điều chỉnh.'
-                : 'Số dư đã khớp — không cần điều chỉnh.'
+                ? 'Số nợ đã khớp — không cần điều chỉnh. Lưu để ghi nhận là đã đối chiếu hôm nay.'
+                : 'Số dư đã khớp — không cần điều chỉnh. Lưu để ghi nhận là đã đối chiếu hôm nay.'
               : isCard
                 ? `Nợ thật ${diff > 0 ? 'ít' : 'nhiều'} hơn sổ — sẽ tạo một giao dịch bù ${formatMoney(Math.abs(diff), currency)} trên thẻ vào danh mục ${ADJUST_CATEGORY_NAME}, không tính vào thống kê thu chi.`
                 : `Sổ đang ghi ${diff > 0 ? 'ít' : 'nhiều'} hơn thực tế — sẽ tạo một giao dịch bù ${formatMoney(Math.abs(diff), currency)} vào danh mục ${ADJUST_CATEGORY_NAME}, không tính vào thống kê thu chi.`}
@@ -214,7 +251,8 @@ export function ReconcileSheet({
             Hủy
           </button>
           <ActionButton variant="primary" onClick={handleSubmit} disabled={!canSave}>
-            {saving ? 'Đang lưu…' : 'Điều chỉnh'}
+            {/* Khớp thì nút không còn hứa "điều chỉnh" — nó chỉ ghi nhận đã kiểm. */}
+            {saving ? 'Đang lưu…' : diff === 0 ? 'Đã đối chiếu' : 'Điều chỉnh'}
           </ActionButton>
         </div>
       </div>

@@ -201,7 +201,13 @@ export interface NewAccount {
   is_liquid?: boolean | null
 }
 
-export type AccountPatch = Partial<NewAccount & { is_archived: boolean }>
+/**
+ * `last_reconciled_at` sửa được nhưng KHÔNG tạo được: lúc tạo tài khoản thì chưa có lần
+ * đối chiếu nào, nên nó không thuộc `NewAccount`. Sheet Đối chiếu là nơi duy nhất ghi nó.
+ */
+export type AccountPatch = Partial<
+  NewAccount & { is_archived: boolean; last_reconciled_at: string | null }
+>
 
 export interface NewCategory {
   name: string

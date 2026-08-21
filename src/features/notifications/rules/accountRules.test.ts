@@ -27,6 +27,7 @@ function account(over: Partial<AccountBalanceRow> & { id: string }): AccountBala
     salvage_value: 0,
     tax_shelter: null,
     shelter_annual_limit: null,
+    last_reconciled_at: null,
     market_value: null,
     balance: over.balance ?? 0,
   }

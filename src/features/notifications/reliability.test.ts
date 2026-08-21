@@ -23,7 +23,7 @@ const input = (p: Partial<ReliabilityInput>): ReliabilityInput => ({
   todayISO: '2026-08-17',
   recentTxs: [],
   categories: CATS,
-  accountIds: [],
+  accounts: [],
   monthsWithData: HISTORY_TARGET_MONTHS,
   blankAssumptions: 0,
   ...p,
@@ -54,7 +54,7 @@ describe('reliability', () => {
   it('tài khoản mới đối chiếu trong 30 ngày mới được tính', () => {
     const r = reliability(
       input({
-        accountIds: ['a1', 'a2'],
+        accounts: [{ id: 'a1' }, { id: 'a2' }],
         recentTxs: [
           tx({ account_id: 'a1', category_id: 'dc', occurred_on: '2026-08-01' }),
           // Quá 30 ngày → không tính
@@ -65,6 +65,24 @@ describe('reliability', () => {
     const p = r.parts.find((x) => x.key === 'reconciled')!
     expect(p.score).toBe(0.5)
     expect(p.gap).toBe('1 tài khoản chưa đối chiếu trong 30 ngày')
+  })
+
+  // Ca đẻ ra migration 0050: đối chiếu thấy KHỚP thì không sinh giao dịch bù nào, nên
+  // trước đó nó vô hình với chỉ số — sổ đúng bị chấm điểm y như sổ chưa ai sờ tới.
+  it('đối chiếu thấy khớp vẫn được tính, dù không có giao dịch bù nào', () => {
+    const r = reliability(
+      input({ accounts: [{ id: 'a1', last_reconciled_at: '2026-08-16T02:00:00Z' }] }),
+    )
+    const p = r.parts.find((x) => x.key === 'reconciled')!
+    expect(p.score).toBe(1)
+    expect(p.gap).toBe('')
+  })
+
+  it('mốc đối chiếu quá 30 ngày thì hết tính', () => {
+    const r = reliability(
+      input({ accounts: [{ id: 'a1', last_reconciled_at: '2026-06-01T02:00:00Z' }] }),
+    )
+    expect(r.parts.find((x) => x.key === 'reconciled')!.score).toBe(0)
   })
 
   it('lịch sử kẹp ở 1 — ghi 20 tháng không cho điểm cao hơn 12 tháng', () => {
@@ -91,7 +109,7 @@ describe('reliability', () => {
     const r = reliability(
       input({
         recentTxs: [tx({ category_id: null })],
-        accountIds: ['a1'],
+        accounts: [{ id: 'a1' }],
         monthsWithData: 0,
         blankAssumptions: 3,
       }),

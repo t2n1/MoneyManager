@@ -165,6 +165,7 @@ describe('savings-milestone', () => {
       salvage_value: 0,
       tax_shelter: null,
       shelter_annual_limit: null,
+      last_reconciled_at: null,
       market_value: null,
       balance,
     }
@@ -233,6 +234,7 @@ describe('savings-milestone', () => {
             salvage_value: 0,
             tax_shelter: null,
             shelter_annual_limit: null,
+            last_reconciled_at: null,
             market_value: null,
             balance: 520_000,
           },

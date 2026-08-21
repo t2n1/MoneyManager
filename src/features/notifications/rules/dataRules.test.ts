@@ -116,6 +116,40 @@ describe('reconcileStaleRule', () => {
     expect(out[0].title).toBe('Ngân hàng chưa đối chiếu quá 30 ngày')
   })
 
+  // Ca đẻ ra migration 0050: mở sheet, thấy số dư ĐÃ KHỚP → không có giao dịch bù nào,
+  // nên phép suy cũ vẫn kêu "chưa đối chiếu" ngay sau khi người dùng vừa kiểm xong.
+  it('im khi cột last_reconciled_at còn mới, dù không có giao dịch bù nào', () => {
+    const out = reconcileStaleRule(
+      input({
+        accounts: [acc({ id: 'a1', last_reconciled_at: '2026-08-16T02:00:00Z' })],
+        categories: [adjustCat],
+      }),
+    )
+    expect(out).toEqual([])
+  })
+
+  it('cột quá 30 ngày vẫn báo', () => {
+    const out = reconcileStaleRule(
+      input({
+        accounts: [acc({ id: 'a1', name: 'Ví', last_reconciled_at: '2026-06-01T02:00:00Z' })],
+        categories: [adjustCat],
+      }),
+    )
+    expect(out).toHaveLength(1)
+  })
+
+  // Cột nullable và không backfill — dữ liệu trước 0050 phải vẫn đọc ra đúng.
+  it('cột null thì rơi về phép suy từ giao dịch bù', () => {
+    const out = reconcileStaleRule(
+      input({
+        accounts: [acc({ id: 'a1', last_reconciled_at: null })],
+        categories: [adjustCat],
+        recentTxs: [tx({ account_id: 'a1', category_id: 'dc', occurred_on: '2026-08-01' })],
+      }),
+    )
+    expect(out).toEqual([])
+  })
+
   it('chưa đối chiếu bao giờ cũng tính là quá hạn', () => {
     const out = reconcileStaleRule(
       input({ accounts: [acc({ id: 'a1' })], categories: [adjustCat] }),

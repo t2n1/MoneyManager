@@ -257,6 +257,8 @@ function seed(): DemoDB {
     user_id: DEMO_USER,
     // null = để app suy từ `type` (liquidity.ts), đúng hành vi của người chưa đặt cờ.
     is_liquid: null,
+    // Chưa lần nào đối chiếu qua sheet → app suy từ giao dịch bù, giống người dùng cũ.
+    last_reconciled_at: null,
     name,
     type,
     currency,
@@ -1141,6 +1143,7 @@ export const demoRepo: Repo = {
           salvage_value: a.salvage_value ?? 0,
           tax_shelter: a.tax_shelter ?? null,
           shelter_annual_limit: a.shelter_annual_limit ?? null,
+          last_reconciled_at: a.last_reconciled_at ?? null,
           market_value: latestValuation(a.id, synthetic),
           balance,
         }
@@ -1273,6 +1276,7 @@ export const demoRepo: Repo = {
     const row: AccountRow = {
       ...input,
       is_liquid: input.is_liquid ?? null,
+      last_reconciled_at: null,
       credit_limit: input.credit_limit ?? null,
       statement_day: input.statement_day ?? null,
       payment_due_day: input.payment_due_day ?? null,

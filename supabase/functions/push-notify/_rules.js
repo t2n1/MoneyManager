@@ -1286,6 +1286,23 @@ var FLOW_NAMES = /* @__PURE__ */ new Set([
   ADJUST_CATEGORY_NAME
 ]);
 
+// src/features/notifications/reconciledAt.ts
+function lastReconciledMap(accounts, recentTxs, categories) {
+  const adjustCatIds = new Set(
+    categories.filter((c) => c.name === ADJUST_CATEGORY_NAME).map((c) => c.id)
+  );
+  const out = /* @__PURE__ */ new Map();
+  for (const a of accounts) {
+    if (a.last_reconciled_at) out.set(a.id, a.last_reconciled_at.slice(0, 10));
+  }
+  for (const t of recentTxs) {
+    if (t.category_id == null || !adjustCatIds.has(t.category_id)) continue;
+    const cu = out.get(t.account_id);
+    if (!cu || t.occurred_on > cu) out.set(t.account_id, t.occurred_on);
+  }
+  return out;
+}
+
 // src/features/notifications/rules/dataRules.ts
 var RECONCILE_STALE_DAYS = 30;
 var UNCATEGORIZED_MIN = 3;
@@ -1309,16 +1326,8 @@ function uncategorizedRule(input) {
   ];
 }
 function reconcileStaleRule(input) {
-  const adjustCatIds = new Set(
-    input.categories.filter((c) => c.name === ADJUST_CATEGORY_NAME).map((c) => c.id)
-  );
   const cutoff = addDaysISO2(input.todayISO, -RECONCILE_STALE_DAYS);
-  const lanCuoi = /* @__PURE__ */ new Map();
-  for (const t of input.recentTxs) {
-    if (t.category_id == null || !adjustCatIds.has(t.category_id)) continue;
-    const cu2 = lanCuoi.get(t.account_id);
-    if (!cu2 || t.occurred_on > cu2) lanCuoi.set(t.account_id, t.occurred_on);
-  }
+  const lanCuoi = lastReconciledMap(input.accounts, input.recentTxs, input.categories);
   const cu = input.accounts.filter(
     (a) => !a.is_archived && !a.is_hidden && a.include_in_totals && (lanCuoi.get(a.id) ?? "") < cutoff
   );

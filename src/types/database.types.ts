@@ -134,6 +134,16 @@ export type AccountRow = {
   tax_shelter: TaxShelter | null
   /** Hạn mức nạp mỗi năm (minor units theo currency tài khoản); null = chưa đặt */
   shelter_annual_limit: number | null
+  /**
+   * Lần cuối người dùng so số dư sổ với thực tế qua sheet Đối chiếu (migration 0050).
+   *
+   * Ghi CẢ KHI đã khớp — đó là lý do cột này tồn tại. Trước 0050 app suy "lần đối chiếu
+   * gần nhất" từ giao dịch bù, nên đối chiếu thấy khớp (không sinh giao dịch nào) không
+   * để lại dấu vết và tài khoản vẫn bị đếm là chưa đối chiếu.
+   *
+   * null = chưa lần nào qua cột này → rơi về phép suy cũ. Xem `notifications/reconciledAt.ts`.
+   */
+  last_reconciled_at: string | null
   sort_order: number
   is_archived: boolean
   created_at: string
@@ -316,6 +326,8 @@ export type AccountBalanceRow = {
   tax_shelter: TaxShelter | null
   /** Hạn mức nạp mỗi năm (minor units); null = chưa đặt */
   shelter_annual_limit: number | null
+  /** Lần cuối đối chiếu (migration 0050); null = chưa lần nào → suy từ giao dịch bù */
+  last_reconciled_at: string | null
   /** Đầu tư: giá trị thị trường (snapshot mới nhất, minor units theo currency); null = chưa cập nhật / không phải đầu tư */
   market_value: number | null
   balance: number
@@ -786,6 +798,7 @@ export type Database = {
           | 'sort_order'
           | 'is_archived'
           | 'is_liquid'
+          | 'last_reconciled_at'
         >
         Update: Partial<
           Pick<
@@ -810,6 +823,7 @@ export type Database = {
             | 'sort_order'
             | 'is_archived'
             | 'is_liquid'
+            | 'last_reconciled_at'
           >
         >
         Relationships: []

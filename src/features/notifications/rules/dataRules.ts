@@ -9,7 +9,7 @@
 // hôm nay đến từ `input.todayISO`. `tests/…/purity.test.ts` canh ràng buộc này theo cả
 // đồ thị import, nên đừng import gì từ lib/money hay assets/aggregate ở đây.
 import { addDaysISO } from '../../../lib/dates'
-import { ADJUST_CATEGORY_NAME } from '../../categories/flowCategories'
+import { lastReconciledMap } from '../reconciledAt'
 import type { AppNotification, NotificationInput } from '../types'
 
 /** Bao nhiêu ngày không đối chiếu thì coi là cũ (§4.4 và §4.9 cùng dùng con số này). */
@@ -56,30 +56,24 @@ export function uncategorizedRule(input: NotificationInput): AppNotification[] {
  * Tài khoản quá `RECONCILE_STALE_DAYS` ngày chưa đối chiếu — gộp MỌI tài khoản vào một
  * việc (§4.9 ghi rõ "gộp mọi tài khoản vào một việc").
  *
- * "Lần đối chiếu gần nhất" suy từ giao dịch bù mà sheet Đối chiếu tạo ra: chúng nằm ở
- * danh mục `ADJUST_CATEGORY_NAME`. App KHÔNG có cột `last_reconciled_at`, và thêm cột
- * chỉ để phục vụ một dòng nhắc là đổi lược đồ dữ liệu cho một việc suy được.
+ * "Lần đối chiếu gần nhất" đến từ `lastReconciledMap`: cột `accounts.last_reconciled_at`
+ * (sheet Đối chiếu ghi mỗi lần bấm, KỂ CẢ khi số dư đã khớp) hoặc giao dịch bù trong
+ * danh mục "Điều chỉnh số dư" cho dữ liệu trước migration 0050 — lấy cái muộn hơn.
+ *
+ * Trước 0050 luật này chỉ có nguồn thứ hai, và nó bỏ sót đúng người ghi chép cẩn thận:
+ * mở sheet, thấy khớp, không sinh giao dịch nào → luật vẫn kêu "chưa đối chiếu".
  *
  * Hệ quả phải biết: cửa sổ `recentTxs` chỉ có RECENT_TXS_DAYS ngày. Tài khoản đối chiếu
- * lần cuối từ trước cửa sổ đó trông y như chưa đối chiếu bao giờ — và đó là kết luận
- * ĐÚNG cho mục đích ở đây (cả hai đều quá 30 ngày).
+ * lần cuối từ trước cửa sổ đó, mà cột còn null (dữ liệu cũ), trông y như chưa đối chiếu
+ * bao giờ — và đó là kết luận ĐÚNG cho mục đích ở đây (cả hai đều quá 30 ngày). Cột thì
+ * không bị cửa sổ cắt, nên từ 0050 trở đi mốc luôn đọc được dù cũ tới đâu.
  *
  * Chỉ xét tài khoản CÓ SỐ DƯ THEO DÕI được: tài khoản ẩn hoặc không tính vào tổng thì
  * lệch số dư cũng không ảnh hưởng con số nào trên màn.
  */
 export function reconcileStaleRule(input: NotificationInput): AppNotification[] {
-  const adjustCatIds = new Set(
-    input.categories.filter((c) => c.name === ADJUST_CATEGORY_NAME).map((c) => c.id),
-  )
   const cutoff = addDaysISO(input.todayISO, -RECONCILE_STALE_DAYS)
-
-  // Ngày đối chiếu gần nhất của từng tài khoản trong cửa sổ.
-  const lanCuoi = new Map<string, string>()
-  for (const t of input.recentTxs) {
-    if (t.category_id == null || !adjustCatIds.has(t.category_id)) continue
-    const cu = lanCuoi.get(t.account_id)
-    if (!cu || t.occurred_on > cu) lanCuoi.set(t.account_id, t.occurred_on)
-  }
+  const lanCuoi = lastReconciledMap(input.accounts, input.recentTxs, input.categories)
 
   const cu = input.accounts.filter(
     (a) =>

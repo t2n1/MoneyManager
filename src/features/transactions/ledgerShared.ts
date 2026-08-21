@@ -1,7 +1,7 @@
 // Helper thuần dùng chung cho các view của Sổ Giao dịch (Daily/Calendar/Monthly/Summary).
 // Mọi số tiền quy đổi về base qua convertToBase; thiếu tỷ giá → trả null để caller fallback.
 
-import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
+import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
 import { expenseSign } from '../reports/aggregate'
@@ -117,15 +117,6 @@ export function amountDisplay(
 /** "≈ ¥123.456" nếu có ngoại tệ, ngược lại "¥123.456". */
 export function approxLabel(r: Sum, base: CurrencyCode): string {
   return `${r.hasForeign ? '≈ ' : ''}${formatMoney(r.value, base)}`
-}
-
-/** minor units → nhãn ngắn cho ô lịch chật (¥3k, 1,5M…). Chỉ dùng ở nơi không đủ chỗ. */
-export function formatCompact(minor: number, base: CurrencyCode): string {
-  const major = minor / 10 ** CURRENCIES[base].decimals
-  const abs = Math.abs(major)
-  if (abs >= 1_000_000) return `${(major / 1_000_000).toFixed(1).replace('.', ',')}M`
-  if (abs >= 1_000) return `${Math.round(major / 1_000)}k`
-  return String(Math.round(major))
 }
 
 /** Gộp giao dịch theo ngày (giữ nguyên thứ tự giảm dần từ repo). */

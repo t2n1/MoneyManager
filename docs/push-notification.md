@@ -64,7 +64,12 @@ Kiểm script mà không sinh khoá thật: `node scripts/setup-push.mjs --dry-r
 
 Dán khối ① (Vercel) và ② (`supabase secrets set`) mà script vừa in.
 
-Khối ② in ra **một dòng** và bọc từng cặp trong nháy kép — dán nguyên, đừng bẻ dòng cho
+> **Đặt secret bằng Dashboard, đừng bằng PowerShell.** Vào **Edge Functions → Secrets**
+> rồi dán vào ô nhập. Đường `supabase secrets set` qua PowerShell đã một lần làm hỏng
+> `VAPID_PUBLIC_KEY` bằng một ký tự thừa ở đuôi, và hậu quả là push câm hai tuần —
+> xem [Khi push im lặng](#khi-push-im-lặng) bên dưới.
+
+Nếu vẫn dùng CLI: khối ② in ra **một dòng** và bọc từng cặp trong nháy kép — dán nguyên, đừng bẻ dòng cho
 đẹp. PowerShell không hiểu dấu `\` nối dòng của bash, dán khối nhiều dòng vào là mất cặp
 ở giữa mà không báo gì; lúc đó function vẫn deploy được và chỉ chết khi cron gọi tới.
 
@@ -191,6 +196,51 @@ Kiểm đã đăng ký được:
 select endpoint, user_agent, created_at, last_ok_at from push_subscriptions;
 ```
 
+Endpoint của iPhone phải bắt đầu bằng `https://web.push.apple.com/`; `fcm.googleapis.com`
+là máy Chrome, không phải iPhone. `last_ok_at` là lần **gửi thành công** gần nhất — trước
+2026-08-21 cột này không có ai ghi nên nó luôn null kể cả khi mọi thứ chạy đúng, đừng tin
+kết quả cũ.
+
+## Khi push im lặng
+
+Không nhận được gì thì soi theo thứ tự này. Mỗi bước loại hẳn một tầng, đừng nhảy cóc.
+
+```sql
+-- ① Cron đã hẹn chưa, và có chạy không
+select jobid, schedule, active from cron.job;
+select jobid, status, start_time from cron.job_run_details order by start_time desc limit 10;
+
+-- ② Function TRẢ VỀ GÌ — đây mới là chỗ có sự thật
+select status_code, content, error_msg, created from net._http_response order by created desc limit 10;
+```
+
+**Cạm bẫy lớn nhất: `cron.job_run_details` báo `succeeded` kể cả khi function trả 500.**
+`net.http_post` chỉ xếp hàng request rồi trả về ngay, nên pg_cron coi như xong việc của
+nó. Nhìn cột đó rồi kết luận "cron chạy tốt" là bỏ sót đúng chỗ hỏng. Chỉ
+`net._http_response` giữ phản hồi thật, và nó chỉ giữ khoảng 6 tiếng.
+
+Đọc cột `content`:
+
+| Thấy gì | Nghĩa là |
+|---|---|
+| `{"loi":"Thiếu biến môi trường: …"}` | Chưa đặt secret. Tên biến nằm ngay trong câu. |
+| `{"loi":"Khoá VAPID không hợp lệ: …","doDai":{…}}` | Secret có nhưng sai dạng. `doDai` phải là public 87, private 43; lệch lên 88/44 là dính ký tự xuống dòng. |
+| `Internal Server Error` (chuỗi trần, không JSON) | Exception không ai bắt trong handler. Function tự nó **luôn** trả JSON, nên chuỗi trần này là câu trả lời mặc định của `Deno.serve`. Vào **Dashboard → Edge Functions → push-notify → Logs** đọc stack. |
+| `{"daGui":0,"boQua":{…}}` | Chạy trọn, chỉ là chưa tới lượt gửi. Lý do nằm trong `boQua`. |
+| `{"loi":["gửi tới … lỗi 403 …"]}` | Tới được dịch vụ đẩy nhưng bị từ chối — thường là khoá công khai trên server khác khoá đã nướng vào bundle Vercel. |
+
+### Đã xảy ra thật: 2026-08-21
+
+Push câm từ lúc dựng cho tới 21/08. Cron hẹn đúng, chạy đủ mỗi giờ, iPhone đăng ký được,
+6 secret đều có mặt — nhưng `VAPID_PUBLIC_KEY` trên Supabase dính một ký tự thừa ở đuôi so
+với bản trong `.env.local`. `webpush.setVapidDetails` ném "Vapid public key must be a URL
+safe Base 64" ngay dòng đầu sau cửa xác thực, ném trần ra khỏi handler, và `Deno.serve`
+biến nó thành một chuỗi `Internal Server Error` trơ trọi trong `net._http_response`.
+
+Ba thứ đã sửa để lần sau không mất hai tuần nữa: `setVapidDetails` nằm trong `try/catch`
+và trả JSON kèm độ dài từng khoá; ba biến VAPID được cắt khoảng trắng khi đọc; và
+`last_ok_at` cuối cùng đã có người ghi.
+
 ## Chỗ đã kiểm và chỗ chưa
 
 | Phần | Trạng thái |
@@ -203,26 +253,24 @@ select endpoint, user_agent, created_at, last_ok_at from push_subscriptions;
 | Công tắc + ô chọn giờ trong Cài đặt | ✅ đo trên preview, đổi giờ lưu và sống qua reload |
 | Deep link `?notif=1` mở tấm trượt | ✅ đo trên preview, tham số được dọn khỏi URL |
 | Edge function chạy trên Deno | ✅ đã deploy thật (2026-08-07), gọi bằng secret sai trả đúng 401 |
-| `npm:web-push` trên Supabase Edge Runtime | ✅ **nạp** được trên runtime thật — nhưng gửi thật thì chưa, xem bên dưới |
+| `npm:web-push` trên Supabase Edge Runtime | ✅ **gửi thật được** — 2026-08-21, thông báo tới iPhone. `node:crypto` của lớp tương thích Deno mã hoá aes128gcm đúng, không phải thay thư viện |
 | Khoá công khai có trong bản web trên mạng | ✅ đọc thẳng bundle của Vercel, hàm đọc khoá trả về khoá thật |
-| **Thông báo tới được iPhone thật** | ❌ **chưa kiểm** — hạ tầng đã đủ, chỉ còn thiếu máy thật đăng ký |
+| iPhone đăng ký được (chân client) | ✅ đo trên máy thật 2026-08-18 — endpoint `web.push.apple.com`, iOS 18.7 |
+| **Thông báo tới được iPhone thật** | ✅ **2026-08-21** — chạy trọn dây: cron → edge function → `web.push.apple.com` → `push-sw.js` → màn hình khoá iPhone |
 
-### Nếu `npm:web-push` không chạy trên Edge Runtime
+### `npm:web-push` trên Edge Runtime — đã ngã ngũ
 
-Lo này **đã bớt một nửa**: function deploy lên chạy thật, gọi bằng secret sai thì trả về
-JSON 401 của chính nó. Import nằm ở đầu file nên nạp hỏng là function chết trước khi
-chạy được dòng nào — trả lời được nghĩa là `npm:web-push` đã nạp xong.
+Mối lo cũ: `web-push` dùng `node:crypto` (`createECDH`, `createCipheriv`) và `node:https`,
+mà lớp tương thích Node của Deno chưa từng được xác minh trên đúng phiên bản runtime của
+Supabase. **2026-08-21 đã xác minh: chạy đúng**, thông báo tới được iPhone thật. Không
+phải đổi thư viện.
 
-Nửa còn lại vẫn treo: nạp được không có nghĩa là `sendNotification` mã hoá đúng. Cái đó
-chỉ chứng minh được khi có một máy thật đăng ký và nhận được thông báo.
+Giữ lại đoạn này vì lý do chọn nó vẫn còn giá trị nếu sau này phải xét lại: `npm:web-push`
+được chọn **vì nó lỗi to và ngay** — import hỏng là function chết ngay lần gọi đầu và log
+Supabase nói rõ. Tự viết crypto Web Push bằng WebCrypto thì lỗi lại âm thầm: dịch vụ đẩy
+trả 201 mà máy không hiện gì.
 
-`web-push` dùng `node:crypto` (`createECDH`, `createCipheriv`) và `node:https`. Lớp
-tương thích Node của Deno hỗ trợ chúng, nhưng chưa xác minh trên đúng phiên bản runtime
-của Supabase. Cách này được chọn **vì nó lỗi to và ngay**: import thất bại là function
-chết ngay lần gọi đầu và log Supabase nói rõ. Tự viết crypto Web Push bằng WebCrypto thì
-lỗi lại âm thầm — dịch vụ đẩy trả 201 mà máy không hiện gì.
-
-Nếu log báo lỗi ở `npm:web-push`, thứ tự thử: `npm:web-push@3.6.7` cố định phiên bản →
+Nếu một ngày nào đó log báo lỗi ở `npm:web-push`, thứ tự thử: `npm:web-push@3.6.7` cố định phiên bản →
 `jsr:@negrel/webpush` (bản Deno thuần dùng WebCrypto) → tự ký VAPID + mã hoá aes128gcm
 theo RFC 8291. Chỉ [send trong index.ts](../supabase/functions/push-notify/index.ts) phải
 sửa; `planPush` và `dueForPush` không đụng tới.

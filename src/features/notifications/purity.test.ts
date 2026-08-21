@@ -42,6 +42,10 @@ const ENTRY_POINTS = [
   // đây ngay từ bây giờ để walk() phủ nó suốt tám task còn lại thay vì chỉ có phép quét
   // thẳng canh (xem ENGINE_FILE_PATTERN ngay dưới).
   'features/lifetime/insights.ts',
+  // MCP server (spec 2026-08-21): các module này chạy trên Node trong Vercel function,
+  // không có trình duyệt. Cùng ràng buộc với bộ luật thông báo, khác lý do — nên dùng
+  // chung phép thử này thay vì viết bản thứ hai sẽ trôi khỏi nó.
+  'mcp/format.ts',
 ]
 
 /**
@@ -70,7 +74,7 @@ const ENTRY_POINTS = [
  * bẫy — xem `ENGINE_FILES_SCANNED` ngay dưới.
  */
 const ENGINE_FILE_PATTERN =
-  /^(features\/notifications\/(types\.ts|rules\.ts|state\.ts|rules\/[^/]+\.ts)|features\/lifetime\/(project|insights)\.ts)$/
+  /^(features\/notifications\/(types\.ts|rules\.ts|state\.ts|rules\/[^/]+\.ts)|features\/lifetime\/(project|insights)\.ts|mcp\/(format|basket)\.ts|mcp\/tools\/[^/]+\.ts)$/
 
 /** '…/accountRules.test.ts' → true. Cả .ts và .tsx. */
 const isTestFile = (file: string) => /\.test\.tsx?$/.test(file)
@@ -314,6 +318,7 @@ describe('độ thuần của bộ luật thông báo (đi theo đồ thị impo
     // xanh vĩnh viễn vì không khớp file nào — đúng kiểu lỗi mà nó sinh ra để chặn.
     expect(ENGINE_FILES_SCANNED).toContain('features/notifications/rules.ts')
     expect(ENGINE_FILES_SCANNED).toContain('features/lifetime/project.ts')
+    expect(ENGINE_FILES_SCANNED).toContain('mcp/format.ts')
     // Tập quét KHÔNG được chứa file test — xem ghi chú ở ENGINE_FILES_SCANNED. Chốt lại
     // để tập đó không trôi lần nữa khi ai đó sửa pattern hoặc bộ lọc.
     expect(ENGINE_FILES_SCANNED.filter(isTestFile)).toEqual([])

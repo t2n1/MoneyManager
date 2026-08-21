@@ -39,6 +39,10 @@ export type BudgetDisplayItem =
       children: BudgetChildRow[]
     }
 
+/** Nhánh nhóm của union trên — đặt tên để hàm thuần nhận đúng một nhóm, khỏi phải
+ *  hẹp kiểu lại ở mọi nơi gọi. */
+export type BudgetGroupItem = Extract<BudgetDisplayItem, { kind: 'group' }>
+
 export interface BudgetUnbudgetedGroup {
   cat: CategoryRow
   /** Các mục con (rỗng nếu là lá độc lập) — để đặt hạn mức thẳng cho con. */

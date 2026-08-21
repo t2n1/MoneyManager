@@ -53,6 +53,8 @@ export interface PlanningData {
   budgetedByCat: Map<string, number>
   /** id dòng hạn mức theo danh mục — sheet cần nó để xoá được */
   budgetIdByCat: Map<string, string>
+  /** cờ dồn theo danh mục — sheet cần nó để LƯU không âm thầm tắt cờ đang bật */
+  rolloverByCat: Map<string, boolean>
   /** trần theo nhãn quy về "tháng này còn tiêu được bao nhiêu" */
   tagPlan: TagPlanLine[]
   /** riêng cờ thiếu tỷ giá của phần nhãn — nó tính trên chi CẢ ĐỜI, khác nguồn với cam kết */
@@ -170,6 +172,7 @@ export function usePlanning(monthKey: MonthKey): PlanningData {
       suggestions: suggestLimits(perMonth),
       budgetedByCat,
       budgetIdByCat: new Map(budgets.map((b) => [b.category_id, b.id])),
+      rolloverByCat: new Map(budgets.map((b) => [b.category_id, !!b.rollover])),
       tagPlan: tagPlanLines(tagBudgets.lines),
       tagHasMissingRate: tagBudgets.hasMissingRate,
       hasMissingRate: commitments.hasMissingRate,

@@ -15,6 +15,8 @@ import { showToast } from '../../lib/dialog'
 import { Card } from '../../components/ui/Card'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { buildBudgetDisplay, type BudgetChildRow } from './budgetDisplay'
+import { budgetHint } from './budgetHint'
+import { capOverflowNotice } from './capOverflow'
 import { pickAttention, sortBudgetItems, type BudgetSortMode } from './budgetSort'
 import { dailyAllowance } from './dailyAllowance'
 import { ClassificationToggle } from '../categories/ClassificationToggle'
@@ -153,21 +155,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   const catOf = (id: string) => categories.find((c) => c.id === id)
 
   // Câu giải thích hạn mức đang đặt thuộc loại nào — tránh nhầm "con cộng thêm vào cha".
-  function hintFor(categoryId: string): string | undefined {
-    const c = catOf(categoryId)
-    if (!c) return undefined
-    if (c.parent_id) {
-      const parent = catOf(c.parent_id)
-      const parentCapped = budgets.some((b) => b.category_id === c.parent_id)
-      return parentCapped
-        ? `Chỉ là mốc theo dõi bên trong trần của ${parent?.name ?? 'nhóm cha'} — không cộng thêm vào trần đó, cũng không cộng vào tổng ngân sách.`
-        : `${parent?.name ?? 'Nhóm cha'} chưa có trần chung, nên hạn mức này tính vào tổng ngân sách. Trần của nhóm = tổng hạn mức các mục con.`
-    }
-    const hasChildren = categories.some((k) => k.parent_id === categoryId && !k.is_archived)
-    return hasChildren
-      ? 'Trần chung cho cả nhóm: tính mọi khoản chi của các mục con và chi ghi thẳng vào nhóm.'
-      : undefined
-  }
+  // Dùng chung với tab Lập kế hoạch (budgetHint.ts): sheet mở được từ hai chỗ, mà câu
+  // này là thứ duy nhất nói ra "đây chỉ là MỐC bên trong trần cha".
+  const hintFor = (categoryId: string) =>
+    budgetHint(categoryId, categories, (id) => budgets.some((b) => b.category_id === id))
 
   // Mở sheet đặt/sửa hạn mức cho một danh mục (dùng amount gốc, không gồm phần dồn).
   function openEdit(categoryId: string) {
@@ -299,14 +290,21 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           <span className="flex shrink-0 items-center gap-2 text-2xs">
             {m ? (
               <>
-                {/* Con nói "đã chi · CÒN bao nhiêu", cha nói "đã chi / TRẦN": thêm cụm
-                    thứ ba vào dòng con thì tên chỉ còn 81px ở máy 375px — đo được
-                    "🧹 Đồ dùn…". Trần ở đây vẫn suy ra được (đã chi + còn), mà bấm vào
-                    là thấy nguyên số; còn "còn bao nhiêu" thì không nhẩm ra được. */}
+                {/* CÙNG ngữ pháp với dòng cha: "đã chi / trần". Bản cũ in "đã chi · còn"
+                    với lý lẽ là trần vẫn suy ra được (đã chi + còn) — nhưng đo trên ca
+                    thật tháng 8/2026 thì lý lẽ đó sai: nhóm trần ¥1.800, Cắt tóc mốc
+                    ¥2.400 đã chi ¥1.800, ra ba số 1.800 trên màn mang hai nghĩa khác
+                    nhau, còn 2.400 thì chỉ hiện trong câu cảnh báo. Người dùng đọc số
+                    của dòng con là mốc mình đặt và kết luận app tự bịa số.
+                    Hai cụm chứ không ba, nên không hẹp hơn bản cũ: "¥1,800 / ¥2,400"
+                    ngắn hơn "¥1,800 · còn ¥600". */}
                 <span className="text-fg-on-track">
                   <span className={TEXT_COLOR[m.status]}>{formatMoney(m.spent, base)}</span>
-                  {' · '}
-                  {restLabel(restOf(m.budgeted, m.spent), (v) => formatMoney(v, base))}
+                  {' / '}
+                  {formatMoney(m.budgeted, base)}
+                  {m.carried > 0 ? (
+                    <span className="ml-1 text-money-in">(dồn +{formatMoney(m.carried, base)})</span>
+                  ) : null}
                 </span>
                 <span className={`w-10 text-right text-xs font-medium ${TEXT_COLOR[m.status]}`}>
                   {Math.round(m.ratio * 100)}%
@@ -513,6 +511,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               }
 
               const isOpen = expanded.has(item.cat.id)
+              const overflow = capOverflowNotice(item, (v) => formatMoney(v, base))
               return (
                 <li key={item.cat.id} className="py-2 first:pt-0 last:pb-0">
                   <div className="flex items-stretch gap-1">
@@ -549,13 +548,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                       })}
                     </button>
                   </div>
-                  {/* Mốc con chỉ chia nhỏ bên trong trần cha; cộng lại vượt trần thì nhắc. */}
-                  {item.capped && item.markerTotal > item.budgeted && (
-                    <p className="ml-7 mt-1 text-xs text-fg-warn">
-                      Mốc các mục con cộng lại {formatMoney(item.markerTotal, base)}, vượt trần nhóm{' '}
-                      {formatMoney(item.budgeted, base)}.
-                    </p>
-                  )}
+                  {/* Mốc con chỉ chia nhỏ bên trong trần cha; cộng lại vượt trần thì nhắc.
+                      Câu do capOverflow.ts dựng: nó GỌI TÊN mục con mang số đó, vì nhóm
+                      có nhiều con thì một con số trơ trọi không chỉ được đứa nào. */}
+                  {overflow && <p className="ml-7 mt-1 text-xs text-fg-warn">{overflow}</p>}
                   {/* Khối con: thụt vào PHẢI của tên cha + nền lún, để thấy rõ nhóm
                       bắt đầu và kết thúc ở đâu. Vạch chia trong khối phải là
                       border-strong, không phải border-subtle như danh sách ngoài:

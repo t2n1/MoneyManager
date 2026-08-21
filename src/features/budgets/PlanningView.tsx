@@ -26,6 +26,7 @@ import { isFlowCategory } from '../categories/flowCategories'
 import { isBudgetableCategory } from '../categories/kind'
 import { TagPlanCard } from '../tags/TagPlanCard'
 import { AXIS_LABEL, BASELINE_MONTHS, shareLabel } from './axisTargets'
+import { budgetHint } from './budgetHint'
 import { planVerdict } from './planVerdict'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { ExpectedIncomeSheet } from './ExpectedIncomeSheet'
@@ -531,7 +532,14 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
           categoryId={editing}
           categoryLabel={`${catOf(editing)?.icon ?? '📦'} ${catOf(editing)?.name ?? ''}`}
           current={data.budgetedByCat.get(editing) ?? 0}
+          /* Hai prop dưới đây từng thiếu, mỗi cái một lỗi thật:
+             · currentRollover — thiếu thì checkbox khởi tạo về unticked, bấm Lưu là ghi
+               rollover=false lên một hạn mức đang bật dồn.
+             · hint — thiếu thì đặt mốc cho mục con của nhóm ĐÃ có trần diễn ra trong im
+               lặng ở tab này, trong khi tab Ngân sách vẫn nói rõ. */
+          currentRollover={data.rolloverByCat.get(editing)}
           budgetId={data.budgetIdByCat.get(editing)}
+          hint={budgetHint(editing, categories, (id) => (data.budgetedByCat.get(id) ?? 0) > 0)}
           suggestion={data.suggestions.get(editing) ?? null}
           onClose={() => setEditing(null)}
         />

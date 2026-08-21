@@ -259,9 +259,12 @@ export function KeptWhereCard({
               )}
             </span>
             {/* ĐƠN VỊ GỐC, không quy đổi: "+₫4,590,000" nói đúng cái đã xảy ra. Quy đổi chỉ
-                dùng để tính phần trăm ở cột bên. */}
+                dùng để tính phần trăm ở cột bên.
+                `Math.abs` là BẮT BUỘC khi có `showSign`: `delta` đã mang dấu, và
+                formatMoney tự in '-' — truyền số âm vào ra "--¥47,012" (Money.tsx:73).
+                Cùng cách dùng với PnlRow.tsx: dấu nằm ở `tone`, độ lớn nằm ở `amount`. */}
             <Money
-              amount={r.delta}
+              amount={Math.abs(r.delta)}
               currency={r.currency}
               tone={r.delta >= 0 ? 'in' : 'out'}
               showSign
@@ -281,8 +284,10 @@ export function KeptWhereCard({
       )}
       <Guide className="mt-1.5 text-2xs text-fg-muted">
         Cộng từ biến động số dư từng tài khoản trong kỳ, không phải từ thu − chi — nên nó
-        khớp với cột số dư ở màn Tài sản. Phần trăm tính trên tổng các tài khoản TĂNG; dòng
-        giảm in số âm và không có phần trăm.
+        cho biết tiền đang NẰM ĐÂU, kể cả khi nó chỉ chuyển giữa hai tài khoản của bạn. Cùng
+        rổ giao dịch với khối 01: bút toán điều chỉnh số dư và dòng tiền nợ/cho vay không
+        tính, nên tổng ròng các dòng đúng bằng phần để lại ở trên. Phần trăm tính trên tổng
+        các tài khoản TĂNG có tính-vào-tổng; dòng giảm và dòng ngoài tổng không có phần trăm.
         {data.hasMissingRate && ' Một phần chưa quy đổi được (đang chờ tỷ giá).'}
       </Guide>
     </Card>

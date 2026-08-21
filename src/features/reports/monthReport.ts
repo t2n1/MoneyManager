@@ -132,14 +132,17 @@ export interface KeptDestination {
   currency: CurrencyCode
   /** Quy đổi về base; null = thiếu tỷ giá. */
   deltaBase: number | null
-  /** Phần trăm trên tổng phần TĂNG (chỉ tính các tài khoản tăng). null khi tổng ≤ 0. */
+  /**
+   * Phần trăm trên tổng phần TĂNG (chỉ các tài khoản TĂNG và có tính-vào-tổng).
+   * null khi tổng ≤ 0, khi dòng này giảm, hoặc khi tài khoản đứng ngoài tổng.
+   */
   pct: number | null
   includeInTotals: boolean
 }
 
 export interface KeptDestinations {
   rows: KeptDestination[]
-  /** Tổng phần TĂNG quy đổi base — mẫu số của `pct`. */
+  /** Tổng phần TĂNG quy đổi base, KHÔNG gồm tài khoản ngoài tổng — mẫu số của `pct`. */
   totalGrowth: number
   hasMissingRate: boolean
 }
@@ -153,7 +156,23 @@ export interface KeptDestinations {
  * cả hai đều đúng.
  *
  * Dùng `applyTx` của accountRowStats (bản chép đúng năm nhánh của view `account_balances`)
- * để con số ở đây không lệch với cột số dư ở màn Tài sản.
+ * nên chiều dấu của từng loại giao dịch ở đây không tự đặt lại lần nữa.
+ *
+ * ---- CÙNG RỔ GIAO DỊCH VỚI KHỐI 01, và cái giá của nó -----------------------------
+ *
+ * Lọc `is_debt_flow` + `exclude_from_stats`, ĐÚNG như `sumIncomeExpense` (aggregate.ts) và
+ * `sumInBase` (ledgerShared.ts). Bản đầu không lọc, lấy lý do "để khớp cột số dư ở màn Tài
+ * sản" — và đó là chỗ nó sai: khối 01 nói phần để lại ¥385.000, bảng này cộng ra
+ * ¥1.996.218, mà dòng to nhất của bảng lại là một BÚT TOÁN ĐIỀU CHỈNH SỐ DƯ ¥1.661.218,
+ * tức đúng cái KHÔNG phải "tiền không tiêu đã đi đâu". Bút toán điều chỉnh là sai số theo
+ * dõi được ghi nhận, không phải tiền vào; dòng tiền nợ/cho vay là tiền của người khác đi
+ * qua ví. Cả hai làm mẫu số phần trăm phồng lên và bóp mọi dòng thật.
+ *
+ * Cái giá: các dòng ở đây KHÔNG còn cộng đúng bằng Δ của cột số dư màn Tài sản khi kỳ có
+ * bút toán điều chỉnh. Đổi một lời hứa lấy một lời hứa, và lời hứa giữ lại là cái khối này
+ * tồn tại để nói: **tổng RÒNG mọi dòng = phần để lại của khối 01** (chuyển khoản nội bộ
+ * triệt tiêu nên vẫn được tính — nó cho biết tiền đang ở đâu mà không đổi tổng). Phép thử
+ * giữ ràng buộc: monthReport.test.ts "tổng ròng mọi dòng = phần để lại của khối 01".
  *
  * In ĐƠN VỊ GỐC: một dòng "+₫4,590,000" nói đúng cái đã xảy ra; quy đổi ra "≈ ¥30,000"
  * rồi in cạnh các dòng ¥ khác là trộn hai loại chính xác vào một cột.
@@ -166,7 +185,13 @@ export function keptDestinations(
   base: CurrencyCode,
   rates: Rates,
 ): KeptDestinations {
-  const inWindow = txs.filter((t) => t.occurred_on >= startISO && t.occurred_on <= lastISO)
+  const inWindow = txs.filter(
+    (t) =>
+      t.occurred_on >= startISO &&
+      t.occurred_on <= lastISO &&
+      !t.is_debt_flow &&
+      !t.exclude_from_stats,
+  )
   const rows: KeptDestination[] = []
   let totalGrowth = 0
   let hasMissingRate = false
@@ -175,22 +200,26 @@ export function keptDestinations(
     let delta = 0
     for (const t of inWindow) delta += applyTx(t, a.id)
     if (delta === 0) continue
+    const includeInTotals = a.include_in_totals !== false
     const deltaBase = convertToBase(delta, a.currency, base, rates)
     if (deltaBase === null) hasMissingRate = true
-    else if (deltaBase > 0) totalGrowth += deltaBase
+    // Tài khoản ĐỨNG NGOÀI TỔNG đứng ngoài mọi tổng — cùng luật với `assetBreakdown`. Cho
+    // nó vào mẫu số thì một dòng vừa in nhãn "ngoài tổng" vừa chiếm 23% của tổng, và nó
+    // bóp phần trăm của mọi dòng còn lại (đo được: 41% đọc thành 31%).
+    else if (deltaBase > 0 && includeInTotals) totalGrowth += deltaBase
     rows.push({
       accountId: a.id,
       delta,
       currency: a.currency,
       deltaBase,
       pct: null,
-      includeInTotals: a.include_in_totals !== false,
+      includeInTotals,
     })
   }
 
   for (const r of rows) {
     r.pct =
-      totalGrowth > 0 && r.deltaBase !== null && r.deltaBase > 0
+      totalGrowth > 0 && r.includeInTotals && r.deltaBase !== null && r.deltaBase > 0
         ? Math.round((r.deltaBase / totalGrowth) * 100)
         : null
   }

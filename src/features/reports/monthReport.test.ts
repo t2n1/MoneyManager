@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { TransactionRow } from '../../types/database.types'
+import { sumIncomeExpense } from './aggregate'
 import {
   budgetCellLabel,
   incomeSplit,
@@ -156,7 +157,7 @@ describe('keptDestinations', () => {
     expect(nisa.pct).toBe(33)
   })
 
-  it('tài khoản VND in số VND, quy đổi chỉ dùng làm mẫu số', () => {
+  it('tài khoản VND in số VND, quy đổi chỉ để so — không thay số gốc', () => {
     const txs = [
       tx({ type: 'income', amount: 4_950_000, account_id: 'vnd', occurred_on: '2026-08-05' }),
       tx({ type: 'income', amount: 30_000, account_id: 'yucho', occurred_on: '2026-08-05' }),
@@ -206,6 +207,98 @@ describe('keptDestinations', () => {
     )
     expect(r.hasMissingRate).toBe(true)
     expect(r.rows[0].deltaBase).toBeNull()
+  })
+
+  // Khối 01 lọc `exclude_from_stats` và `is_debt_flow` (sumIncomeExpense, aggregate.ts);
+  // khối này thì không, nên "phần để lại ¥385.000" đứng cạnh một bảng cộng ra ¥2.046.218 —
+  // và dòng to nhất của bảng là một BÚT TOÁN ĐIỀU CHỈNH SỐ DƯ, tức đúng cái không phải
+  // "tiền không tiêu đi đâu". Hai khối cùng một trang thì phải cùng một rổ giao dịch.
+  it('bút toán điều chỉnh số dư (exclude_from_stats) KHÔNG tính', () => {
+    const txs = [
+      tx({ type: 'income', amount: 1_000, account_id: 'yucho', occurred_on: '2026-08-05' }),
+      tx({
+        type: 'income',
+        amount: 1_661_218,
+        account_id: 'yucho',
+        occurred_on: '2026-08-06',
+        exclude_from_stats: true,
+      }),
+    ]
+    const r = keptDestinations(txs, accounts, '2026-08-01', '2026-08-31', 'JPY', RATES)
+    expect(r.rows.find((x) => x.accountId === 'yucho')!.delta).toBe(1_000)
+  })
+
+  it('dòng tiền nợ / cho vay (is_debt_flow) KHÔNG tính', () => {
+    const txs = [
+      tx({ type: 'income', amount: 1_000, account_id: 'yucho', occurred_on: '2026-08-05' }),
+      tx({
+        type: 'expense',
+        amount: 50_000,
+        account_id: 'yucho',
+        occurred_on: '2026-08-06',
+        is_debt_flow: true,
+      }),
+    ]
+    const r = keptDestinations(txs, accounts, '2026-08-01', '2026-08-31', 'JPY', RATES)
+    expect(r.rows.find((x) => x.accountId === 'yucho')!.delta).toBe(1_000)
+  })
+
+  // Tài khoản ĐỨNG NGOÀI TỔNG thì đứng ngoài mọi tổng — cùng luật với assetBreakdown
+  // (aggregate.test.ts "tổng của nhóm đứng ngoài tổng"). Cho nó vào mẫu số thì nó vừa in
+  // "ngoài tổng" vừa chiếm 23% của tổng, và nó bóp phần trăm của MỌI dòng còn lại.
+  it('tài khoản ngoài tổng: không vào mẫu số, không có phần trăm', () => {
+    const txs = [
+      tx({ type: 'income', amount: 4_950_000, account_id: 'vnd', occurred_on: '2026-08-05' }),
+      tx({ type: 'income', amount: 30_000, account_id: 'yucho', occurred_on: '2026-08-05' }),
+    ]
+    const r = keptDestinations(txs, accounts, '2026-08-01', '2026-08-31', 'JPY', RATES)
+    expect(r.totalGrowth).toBe(30_000)
+    expect(r.rows.find((x) => x.accountId === 'vnd')!.pct).toBeNull()
+    expect(r.rows.find((x) => x.accountId === 'yucho')!.pct).toBe(100)
+  })
+
+  // Ràng buộc của cả khối 04, và là phép thử duy nhất bắt được lệch rổ giao dịch:
+  // tổng RÒNG mọi dòng (quy đổi base) = "Phần để lại" của khối 01. Chuyển khoản nội bộ
+  // triệt tiêu nên vẫn được tính — nó cho biết tiền ĐANG Ở ĐÂU mà không đổi tổng.
+  it('tổng ròng mọi dòng = phần để lại của khối 01', () => {
+    const txs = [
+      tx({ type: 'income', amount: 500_000, account_id: 'yucho', occurred_on: '2026-08-05' }),
+      tx({ type: 'expense', amount: 120_000, account_id: 'yucho', occurred_on: '2026-08-06' }),
+      tx({
+        type: 'expense',
+        amount: 5_000,
+        account_id: 'yucho',
+        occurred_on: '2026-08-07',
+        is_refund: true,
+      }),
+      tx({
+        type: 'transfer',
+        amount: 200_000,
+        account_id: 'yucho',
+        to_account_id: 'nisa',
+        occurred_on: '2026-08-08',
+      }),
+      tx({
+        type: 'income',
+        amount: 1_661_218,
+        account_id: 'yucho',
+        occurred_on: '2026-08-09',
+        exclude_from_stats: true,
+      }),
+      tx({
+        type: 'expense',
+        amount: 50_000,
+        account_id: 'yucho',
+        occurred_on: '2026-08-10',
+        is_debt_flow: true,
+      }),
+    ]
+    const sums = sumIncomeExpense(txs, currencyOf, 'JPY', RATES)
+    const kept = sums.income - sums.expense - sums.transfer
+    const r = keptDestinations(txs, accounts, '2026-08-01', '2026-08-31', 'JPY', RATES)
+    const net = r.rows.reduce((s, x) => s + (x.deltaBase ?? 0), 0)
+    expect(kept).toBe(385_000)
+    expect(net).toBe(kept)
   })
 
   it('giao dịch ngoài cửa sổ không tính', () => {

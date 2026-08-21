@@ -49,6 +49,7 @@ const ENTRY_POINTS = [
   'mcp/basket.ts',
   'mcp/tools/truyVan.ts',
   'mcp/tools/thoiQuenGhiChep.ts',
+  'mcp/tools/lichSuTyGia.ts',
 ]
 
 /**

@@ -30,7 +30,6 @@ import { cumulativeDailyBalance, dailyExpenseTotals } from './aggregate'
 import { pickBudgetVerdict } from './budgetVerdict'
 import { forecastMonthEnd, type Forecast } from './insights'
 import { SpendVsBudgetCard } from './SpendVsBudgetCard'
-import { SpendHeatmapCard } from './SpendHeatmapCard'
 import { Card } from '../../components/ui'
 
 export interface MonthPace {
@@ -423,8 +422,7 @@ export function CumulativeCashflowCard({ pace }: { pace: MonthPace }) {
   )
 }
 
-/** Lịch chi tiêu — nay ở CỘT TRÁI của trang Ngân sách (B10). Xem CumulativeCashflowCard. */
-export function MonthSpendCalendar({ pace }: { pace: MonthPace }) {
-  if (!pace.hasSpend) return null
-  return <SpendHeatmapCard points={pace.monthDaily.points} base={pace.base} />
-}
+// ĐÃ XOÁ: `MonthSpendCalendar` (lịch chi tiêu ô vuông đậm/nhạt) và `SpendHeatmapCard`.
+// Nó vẽ ĐÚNG bộ số của thẻ "Chi từng ngày" nay ở trang Bản tin — mà lịch chỉ đọc ra
+// đậm/nhạt còn đường đọc ra ngay ngày nào vọt lên, tức là ngày cần đi tra. Một bộ số
+// không vẽ hai lần. `pace.monthDaily` vẫn ở lại: `SpendPaceSection` dùng nó.

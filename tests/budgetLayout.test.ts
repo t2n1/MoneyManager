@@ -52,14 +52,14 @@ const COLUMN_MARK = 'className="contents lg:flex lg:flex-col lg:gap-3">'
 //   B10 — "Lịch chi tiêu" sang CỘT TRÁI. Cột phải gánh bốn panel còn cột trái hết sau
 //     ba: đo ở 1440px ra ~1000px trống dưới cột trái. Chuyển nó chứ không chuyển "Chưa
 //     đặt hạn mức" (khối đó là việc DỰNG ngân sách, thuộc cột mô tả).
-//
-// Hai thẻ "dòng tiền tích lũy" và "lịch chi tiêu" vì thế không còn chung một component
-// (`MonthPaceCharts` cũ) — chúng nay ở hai cột nên phải tách được.
+//   2026-08-21 — "Lịch chi tiêu" XOÁ HẲN khỏi màn này. Nó vẽ đúng bộ số của thẻ "Chi từng
+//     ngày" nay ở trang Bản tin, và một bộ số không vẽ hai lần. Việc tách nó khỏi
+//     `MonthPaceCharts` (lý do của B10) vì thế hết hiệu lực, nhưng "dòng tiền tích lũy"
+//     vẫn phải đứng riêng được nên `CumulativeCashflowCard` giữ nguyên.
 const BLOCKS: { name: string; mark: string; column: 'trái' | 'phải' }[] = [
   { name: 'Tổng ngân sách (kèm phán quyết)', mark: '>Tổng ngân sách<', column: 'trái' },
   { name: 'Danh sách hạn mức', mark: 'groupLabel="Sắp xếp hạn mức"', column: 'trái' },
   { name: 'Ngân sách theo nhãn', mark: '<TagBudgetsCard', column: 'trái' },
-  { name: 'Lịch chi tiêu', mark: '<MonthSpendCalendar', column: 'trái' },
   { name: 'Chi tích lũy vs ngân sách', mark: '<SpendPaceSection', column: 'phải' },
   { name: 'Cơ cấu chi so với mốc', mark: '<AxisTargetsCard', column: 'phải' },
   // Nhận ra bằng câu Guide bên trong, không bằng tiêu đề: cụm "Chưa đặt hạn mức" còn

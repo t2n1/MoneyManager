@@ -25,12 +25,20 @@ import {
   useRates,
   useTransferCategoryIds,
 } from '../../hooks/queries'
-import { addMonths, formatMonthLabel, getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
+import {
+  addDaysISO,
+  addMonths,
+  formatMonthLabel,
+  getMonthRange,
+  monthKeyForDate,
+  toISODate,
+} from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { NotificationBoundary } from '../notifications/NotificationBoundary'
 import { useNotifications } from '../notifications/useNotifications'
 import { reliability } from '../notifications/reliability'
 import { monthExpenseCompare, monthlySeries } from '../reports/aggregate'
+import { dailySpendSeries } from '../reports/dailySpike'
 import { headlineOf } from '../reports/headline'
 import { useMonthPace } from '../reports/monthPace'
 import { useAssetsData } from '../assets/useAssetsData'
@@ -50,6 +58,7 @@ import { ReliabilityPanel } from './ReliabilityPanel'
 import { TodoPanel } from './TodoPanel'
 import { BudgetPanel } from './BudgetPanel'
 import { CashflowPanel } from './CashflowPanel'
+import { DailySpendPanel } from './DailySpendPanel'
 import { KpiRow } from './KpiRow'
 import { PaydayStrip } from './PaydayStrip'
 import type { TransactionRow } from '../../types/database.types'
@@ -185,8 +194,32 @@ export function BulletinPage() {
   // làm tròn song song.
   const keptPct = headline?.ratePct ?? null
 
-  const { data: monthTxs = [] } = useMonthTransactions(activeMonthKey)
+  // Một `useMonthTransactions` cho CẢ hai chỗ cần giao dịch của tháng đang xem: dòng
+  // "Giao dịch gần đây" và đường "Chi từng ngày". Gọi hai lần thì react-query vẫn trả
+  // cùng một cache, nhưng hai biến cùng tên trong một component là chỗ để lệch nhau.
+  const { data: monthTxs = [], range: activeRange } = useMonthTransactions(activeMonthKey)
   const recent = useMemo(() => recentTransactions(monthTxs, RECENT), [monthTxs])
+
+  // Chi TỪNG NGÀY của tháng đang xem — nguồn của thẻ "Chi từng ngày".
+  //
+  // Không tính từ `rangeTxs` (tám tháng) dù nó đã có trong tay: khoảng của nó dựng từ
+  // `seriesAnchor`, không phải từ tháng đang xem, nên lọc lại theo ngày là chép tay lần
+  // thứ hai định nghĩa "một tháng" — đúng thứ mà `getMonthRange` tồn tại để chấm dứt.
+  const monthLastISO = addDaysISO(activeRange.end, -1)
+  const dailySpend = useMemo(
+    () =>
+      dailySpendSeries(
+        monthTxs,
+        activeRange.start,
+        monthLastISO,
+        currencyOf,
+        base,
+        rates ?? {},
+        transferIds,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [monthTxs, activeRange.start, monthLastISO, accounts, base, rates, transferIds],
+  )
 
   const nameOf = (id: string) => categories.find((c) => c.id === id)?.name ?? 'Chưa rõ'
 
@@ -342,6 +375,19 @@ export function BulletinPage() {
         />
         <BudgetPanel report={report} isLoading={budgetLoading} base={base} nameOf={nameOf} />
       </div>
+
+      {/* Chi từng ngày — NGAY DƯỚI "Dòng tiền 8 tháng", và chiếm HẾT chiều ngang.
+          Đứng dưới thẻ kia vì hai thẻ là một cặp thu-phóng: trên mỗi cột một tháng, dưới
+          mỗi điểm một ngày của tháng đang chọn — bấm một cột ở trên là đường dưới đổi theo.
+          Không nhét vào cặp hai cột: 31 điểm ngày trong một panel ~380px (bề rộng của
+          panel ở xl) là nhãn trục đè lên nhau. */}
+      <DailySpendPanel
+        series={dailySpend}
+        cutoffISO={dangXemThangNay ? toISODate(new Date()) : monthLastISO}
+        base={base}
+        categoryOf={categoryOf}
+        approx={dailySpend.hasMissingRate}
+      />
 
       <div className="flex flex-wrap gap-2.5">
         <Card

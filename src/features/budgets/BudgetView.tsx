@@ -24,7 +24,6 @@ import type { BudgetStatus } from './progress'
 import {
   BudgetVerdictLine,
   CumulativeCashflowCard,
-  MonthSpendCalendar,
   SpendPaceSection,
   useMonthPace,
 } from '../reports/monthPace'
@@ -572,13 +571,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           hằng tháng; nhãn là trần cắt ngang, dùng cho dịp/dự án. */}
       <TagBudgetsCard data={tagBudgets} base={base} />
 
-      {/* Lịch chi tiêu — khối CUỐI cột trái (B10). Trước đây nó ở cột phải, và cột phải
-          gánh bốn panel trong khi cột trái hết sau ba: đo ở 1440px ra ~1000px trống dưới
-          cột trái, tức gần hai màn cuộn nhìn thấy một cột rỗng. Chuyển nó chứ không
-          chuyển "Chưa đặt hạn mức": khối kia là việc DỰNG ngân sách, phải đứng cạnh phần
-          mô tả (xem chú thích cột phải).
-          Vẫn là khối cuối của cột: nó mô tả, không phải việc phải làm hôm nay. */}
-      <MonthSpendCalendar pace={pace} />
+      {/* ĐÃ XOÁ "Lịch chi tiêu" (heatmap ô vuông): cùng bộ số với thẻ "Chi từng ngày"
+          nay ở trang Bản tin, và đường đọc ra đỉnh còn lịch chỉ đọc ra đậm/nhạt.
+          Cột trái vì thế lại ngắn hơn cột phải — chỗ đó là chỗ trống, không phải chỗ để
+          nhét lại một thẻ mô tả. */}
 
       </div>
 

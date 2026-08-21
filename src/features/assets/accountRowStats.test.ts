@@ -56,7 +56,7 @@ describe('applyTx — chép đúng view account_balances', () => {
 
 describe('accountRowStats', () => {
   const chung = {
-    adjustCategoryIds: new Set(['ADJ']),
+    lastReconciledById: new Map<string, string>(),
     todayISO: '2026-08-31',
     windowStartISO: '2026-08-01',
   }
@@ -118,41 +118,49 @@ describe('accountRowStats', () => {
     expect(m.get('B')!.delta).toBe(300)
   })
 
+  // Mốc đối chiếu KHÔNG còn suy ở đây nữa — nó tới từ `lastReconciledMap`
+  // (notifications/reconciledAt.ts), nơi gộp cột `accounts.last_reconciled_at` với giao
+  // dịch bù. Phép suy cũ ở file này chỉ nhìn giao dịch bù trong cửa sổ Δ, nên đối chiếu
+  // thấy KHỚP (không sinh giao dịch nào) để lại nút "Đối chiếu" nằm lì ở dòng. Test cho
+  // phép gộp hai nguồn nằm ở reconciledAt.test.ts; ở đây chỉ chốt phần dòng-tài-khoản.
   describe('ngày đối chiếu', () => {
-    it('lấy lần GẦN NHẤT trong cửa sổ', () => {
+    it('lấy đúng mốc được truyền vào', () => {
       const r = accountRowStats({
         ...chung,
         balanceById: new Map([['A', 0]]),
-        txs: [
-          tx({ type: 'income', amount: 1, category_id: 'ADJ', occurred_on: '2026-08-04' }),
-          tx({ type: 'income', amount: 1, category_id: 'ADJ', occurred_on: '2026-08-19' }),
-        ],
+        txs: [],
+        lastReconciledById: new Map([['A', '2026-08-19']]),
       }).get('A')!
       expect(r.lastReconciledISO).toBe('2026-08-19')
       expect(r.stale).toBe(false)
     })
 
-    // Đối chiếu thấy KHỚP vẫn có thể ghi một dòng 0 — nó là bằng chứng đã đối chiếu.
-    it('khoản bù bằng 0 vẫn tính là đã đối chiếu', () => {
+    // Bản cũ suy "quá hạn" từ "không tìm thấy trong cửa sổ", nên không cần so ngày. Cột
+    // thì giữ được mốc cũ tuỳ ý — bỏ phép so này là tài khoản đối chiếu từ năm ngoái
+    // trông như vừa đối chiếu hôm qua.
+    it('mốc cũ hơn cửa sổ vẫn là quá hạn, và vẫn hiện ra ngày', () => {
       const r = accountRowStats({
         ...chung,
         balanceById: new Map([['A', 0]]),
-        txs: [tx({ type: 'income', amount: 0, category_id: 'ADJ', occurred_on: '2026-08-19' })],
+        txs: [],
+        lastReconciledById: new Map([['A', '2026-06-01']]),
       }).get('A')!
-      expect(r.lastReconciledISO).toBe('2026-08-19')
+      expect(r.lastReconciledISO).toBe('2026-06-01')
+      expect(r.stale).toBe(true)
     })
 
-    it('không thấy lần nào → stale', () => {
+    it('không có mốc nào → quá hạn', () => {
       const r = accountRowStats({ ...chung, balanceById: new Map([['A', 0]]), txs: [] }).get('A')!
       expect(r.lastReconciledISO).toBeNull()
       expect(r.stale).toBe(true)
     })
 
-    it('khoản bù của tài khoản KHÁC không tính', () => {
+    it('mốc của tài khoản khác không tính sang', () => {
       const r = accountRowStats({
         ...chung,
         balanceById: new Map([['A', 0], ['B', 0]]),
-        txs: [tx({ account_id: 'B', type: 'income', amount: 1, category_id: 'ADJ', occurred_on: '2026-08-19' })],
+        txs: [],
+        lastReconciledById: new Map([['B', '2026-08-19']]),
       })
       expect(r.get('A')!.stale).toBe(true)
       expect(r.get('B')!.stale).toBe(false)

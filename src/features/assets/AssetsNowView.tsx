@@ -22,7 +22,7 @@ import {
 } from '../../hooks/queries'
 import { addDaysISO, dayMonthLabel } from '../../lib/dates'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
-import { ADJUST_CATEGORY_NAME } from '../categories/flowCategories'
+import { lastReconciledMap } from '../notifications/reconciledAt'
 import { accountRowStats, DELTA_DAYS } from './accountRowStats'
 import { UNGROUPED_LABEL, type AssetAccount } from './aggregate'
 import { CardsSection } from './CardsSection'
@@ -143,9 +143,9 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
       accountRowStats({
         balanceById: new Map(balances.map((b) => [b.id, b.balance])),
         txs: deltaTxs,
-        adjustCategoryIds: new Set(
-          categories.filter((c) => c.name === ADJUST_CATEGORY_NAME).map((c) => c.id),
-        ),
+        // Cột `last_reconciled_at` + giao dịch bù, lấy cái muộn hơn — cùng một hàm với
+        // chuông nhắc và khối Độ tin cậy, để nút ở dòng không nói ngược với hai chỗ kia.
+        lastReconciledById: lastReconciledMap(balances, deltaTxs, categories),
         todayISO,
         windowStartISO: deltaRange.start,
       }),

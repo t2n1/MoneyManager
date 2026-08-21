@@ -33,9 +33,9 @@ export interface AccountRowStat {
   delta: number
   /** Số dư ở `SPARK_POINTS` mốc đều nhau, cũ → mới. Phần tử cuối = số dư hiện tại. */
   spark: number[]
-  /** Đối chiếu gần nhất thấy được trong cửa sổ. null = không thấy lần nào. */
+  /** Đối chiếu gần nhất biết được. null = chưa lần nào. CÓ THỂ cũ hơn cửa sổ Δ. */
   lastReconciledISO: string | null
-  /** Quá hạn: không thấy lần đối chiếu nào trong cửa sổ. */
+  /** Quá hạn: chưa đối chiếu bao giờ, hoặc lần cuối đã trước `windowStartISO`. */
   stale: boolean
 }
 
@@ -65,8 +65,17 @@ export interface RowStatsArgs {
   balanceById: Map<string, number>
   /** Giao dịch trong cửa sổ (ít nhất `DELTA_DAYS` ngày gần nhất). */
   txs: TransactionRow[]
-  /** Id của danh mục `Điều chỉnh số dư` — dấu vết của một lần đối chiếu. */
-  adjustCategoryIds: Set<string>
+  /**
+   * Ngày đối chiếu gần nhất theo tài khoản, dựng bằng `lastReconciledMap`
+   * (notifications/reconciledAt.ts) — nơi DUY NHẤT trả lời câu "lần cuối là khi nào",
+   * chung với chuông nhắc và khối Độ tin cậy.
+   *
+   * Trước đây file này tự suy lấy, chỉ nhìn giao dịch bù trong cửa sổ Δ. Suy như vậy bỏ
+   * sót đúng cái ca hay gặp nhất: đối chiếu thấy KHỚP thì không sinh giao dịch nào, nên
+   * nút "Đối chiếu" vẫn nằm lì ở dòng ngay sau khi người dùng vừa kiểm xong. Đó là chỗ
+   * thứ ba trong repo trả lời cùng một câu hỏi; giờ cả ba đi qua một hàm.
+   */
+  lastReconciledById: Map<string, string>
   todayISO: string
   /** Mốc sớm nhất của cửa sổ, 'YYYY-MM-DD'. */
   windowStartISO: string
@@ -81,7 +90,7 @@ export interface RowStatsArgs {
  * người dùng nhìn.
  */
 export function accountRowStats(args: RowStatsArgs): Map<string, AccountRowStat> {
-  const { balanceById, txs, adjustCategoryIds, todayISO, windowStartISO } = args
+  const { balanceById, txs, lastReconciledById, todayISO, windowStartISO } = args
   const out = new Map<string, AccountRowStat>()
 
   // Mốc chia đường tí hon: SPARK_POINTS đoạn đều nhau trên cửa sổ.
@@ -99,26 +108,19 @@ export function accountRowStats(args: RowStatsArgs): Map<string, AccountRowStat>
     // Hiệu theo từng mốc, và ngày đối chiếu gần nhất.
     const perBucket = new Array<number>(SPARK_POINTS).fill(0)
     let tong = 0
-    let lastReconciledISO: string | null = null
 
     for (const t of txs) {
       if (t.occurred_on < windowStartISO) continue
       const d = applyTx(t, id)
-      if (d !== 0) {
-        perBucket[bucketOf(t.occurred_on)] += d
-        tong += d
-      }
-      // Dấu vết đối chiếu tính theo TÀI KHOẢN GHI khoản bù, kể cả khi số tiền bằng 0
-      // (đối chiếu thấy khớp vẫn có thể ghi một dòng 0) — nên xét ngoài nhánh `d !== 0`.
-      if (
-        t.account_id === id &&
-        t.category_id != null &&
-        adjustCategoryIds.has(t.category_id) &&
-        (!lastReconciledISO || t.occurred_on > lastReconciledISO)
-      ) {
-        lastReconciledISO = t.occurred_on
-      }
+      if (d === 0) continue
+      perBucket[bucketOf(t.occurred_on)] += d
+      tong += d
     }
+
+    // Mốc đối chiếu KHÔNG bị cửa sổ Δ cắt: cột `accounts.last_reconciled_at` giữ được
+    // ngày cũ tuỳ ý, nên "quá hạn" phải so với `windowStartISO` chứ không còn suy được
+    // từ "không tìm thấy trong cửa sổ" như bản cũ.
+    const lastReconciledISO = lastReconciledById.get(id) ?? null
 
     // Lùi từ số dư hiện tại: spark[i] = số dư ở CUỐI mốc i.
     const spark = new Array<number>(SPARK_POINTS)
@@ -128,7 +130,12 @@ export function accountRowStats(args: RowStatsArgs): Map<string, AccountRowStat>
       chay -= perBucket[i]
     }
 
-    out.set(id, { delta: tong, spark, lastReconciledISO, stale: lastReconciledISO === null })
+    out.set(id, {
+      delta: tong,
+      spark,
+      lastReconciledISO,
+      stale: lastReconciledISO === null || lastReconciledISO < windowStartISO,
+    })
   }
   return out
 }

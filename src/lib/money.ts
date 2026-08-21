@@ -62,6 +62,7 @@ export function formatCompact(minor: number, currency: CurrencyCode): string {
 function formatCompactReal(minor: number, currency: CurrencyCode): string {
   const major = minor / 10 ** CURRENCIES[currency].decimals
   const abs = Math.abs(major)
+  if (currency === 'JPY') return formatCompactJa(major, abs)
   // Bỏ đuôi ".0" khi số chẵn: trục tung ghi "300M" chứ không "300.0M" — phần lẻ
   // bằng 0 là nhiễu, nhất là khi 5-6 nhãn trục xếp dọc cùng lúc.
   //
@@ -72,4 +73,41 @@ function formatCompactReal(minor: number, currency: CurrencyCode): string {
   if (abs >= 1_000_000) return `${(major / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
   if (abs >= 1_000) return `${Math.round(major / 1_000)}k`
   return String(Math.round(major))
+}
+
+/**
+ * Nhãn rút gọn cho YÊN theo hệ đếm Nhật: 万 = 10⁴, 億 = 10⁸.
+ *
+ * Vì sao JPY đi lối riêng: K/M/B nhóm BA chữ số một lần, còn 万/億 nhóm BỐN. Ở Nhật
+ * mọi con số tiền gặp ngoài đời — giá nhà, bảng lương, sao kê ngân hàng — đều đọc
+ * theo 万, nên "¥300k" bắt người xem tự đổi trong đầu còn "30万" thì đọc thẳng ra.
+ * Sai một bậc ở đây không phải nhầm nhãn mà là nhầm mười lần số tiền.
+ *
+ * KHÔNG có bậc nghìn: 万 là bậc rút gọn đầu tiên, dưới nó in nguyên chữ số ("8000").
+ * Ghép thêm "8千" là trộn hai hệ đếm trên cùng một trục, mà 千 thì người Nhật cũng
+ * không dùng để nói tiền.
+ *
+ * Phần lẻ theo quy ước của bậc M/B ở trên: một chữ số thập phân, bỏ đuôi ".0" khi
+ * chẵn — "30万" chứ không "30.0万". Riêng chỗ cắt phần lẻ thì khác, xem trimJa.
+ */
+function formatCompactJa(major: number, abs: number): string {
+  if (abs >= 100_000_000) return `${trimJa(major / 100_000_000)}億`
+  if (abs >= 10_000) return `${trimJa(major / 10_000)}万`
+  return String(Math.round(major))
+}
+
+/**
+ * Từ ba chữ số trở lên thì BỎ phần lẻ. Không phải vì khó đọc mà vì nó KHÔNG VỪA:
+ * cả ba biểu đồ dùng nhãn này đều đóng cứng trục tung `width={44}`
+ * (MonthlyBarsCard, LifetimeChartCard, LongView), mà "1234.6万" đo được 47px ở
+ * IBM Plex Sans 11px — nhãn tràn sang vùng vẽ. "1235万" chỉ 37px.
+ *
+ * 万/億 đắt chỗ hơn K/M/B: một glyph CJK rộng bằng hai chữ số, mà bậc 万 lại trải
+ * BỐN bậc mười (10⁴→10⁸) nên nó thường xuyên phải in bốn chữ số — chỗ mà bậc M
+ * chỉ cần ba. Đến ba chữ số thì chữ số thập phân còn nói 0,1% giá trị, đúng phần
+ * đáng cắt trước.
+ */
+function trimJa(scaled: number): string {
+  if (Math.abs(scaled) >= 100) return String(Math.round(scaled))
+  return scaled.toFixed(1).replace(/\.0$/, '')
 }

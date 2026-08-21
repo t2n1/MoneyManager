@@ -19,6 +19,8 @@
     "chot:phieu-luong": "node scripts/phieu-luong/chot-di-tru.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/node": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "@supabase/supabase-js": "^2.110.3",
     "@tanstack/query-sync-storage-persister": "^5.101.2",
     "@tanstack/react-query": "^5.101.2",
@@ -27,13 +29,15 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.1",
-    "recharts": "^3.9.2"
+    "recharts": "^3.9.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.2",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@vercel/node": "^5.10.2",
     "@vitejs/plugin-react": "^6.0.3",
     "esbuild": "^0.28.1",
     "oxlint": "^1.71.0",

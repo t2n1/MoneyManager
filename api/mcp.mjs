@@ -51638,6 +51638,8 @@ function truyVan(input, du) {
 }
 
 // src/mcp/tools/thoiQuenGhiChep.ts
+var TOI_THIEU_SO_LAN = 3;
+var NGUONG_LO = 0.25;
 var NHOM_TRE = ["ghi ngay", "1\u20132 ng\xE0y", "3\u20137 ng\xE0y", "h\u01A1n m\u1ED9t tu\u1EA7n"];
 var KHUNG = ["\u0111\xEAm 0\u20135", "s\xE1ng 6\u201311", "chi\u1EC1u 12\u201317", "t\u1ED1i 18\u201323"];
 var THU2 = ["Ch\u1EE7 Nh\u1EADt", "Th\u1EE9 Hai", "Th\u1EE9 Ba", "Th\u1EE9 T\u01B0", "Th\u1EE9 N\u0103m", "Th\u1EE9 S\xE1u", "Th\u1EE9 B\u1EA3y"];
@@ -51675,10 +51677,13 @@ function thoiQuenGhiChep(input, du) {
   const demGio = /* @__PURE__ */ new Map();
   const demThu = /* @__PURE__ */ new Map();
   const theoDanhMuc = /* @__PURE__ */ new Map();
+  const demPhien = /* @__PURE__ */ new Map();
   let coGhiTruoc = false;
   for (const t of ro.txs) {
     const tre = soNgayGiua2(t.occurred_on, ngayTai2(t.created_at, du.tz));
     if (tre < 0) coGhiTruoc = true;
+    const phut = t.created_at.slice(0, 16);
+    demPhien.set(phut, (demPhien.get(phut) ?? 0) + 1);
     const nt = nhomTre(tre);
     demTre.set(nt, (demTre.get(nt) ?? 0) + 1);
     const h = gioTai2(t.created_at, du.tz);
@@ -51692,6 +51697,20 @@ function thoiQuenGhiChep(input, du) {
     cu.tong += tre;
     cu.soLan += 1;
     theoDanhMuc.set(ten, cu);
+  }
+  const so_phien = demPhien.size;
+  const lo_lon_nhat = demPhien.size === 0 ? 0 : Math.max(...demPhien.values());
+  const tong = ro.txs.length;
+  if (tong > 0 && lo_lon_nhat / tong >= NGUONG_LO && lo_lon_nhat > 1) {
+    ghi_chu.push(
+      `D\u1EEF li\u1EC7u n\xE0y v\xE0o s\u1ED5 THEO L\xD4: ${tong} kho\u1EA3n ch\u1EC9 \u0111\u1EBFn t\u1EEB ${so_phien} l\u1EA7n nh\u1EADp (l\xF4 l\u1EDBn nh\u1EA5t ${lo_lon_nhat} kho\u1EA3n c\xF9ng m\u1ED9t ph\xFAt). S\u1ED5 c\xF3 l\u1ECBch s\u1EED nh\u1EADp t\u1EEB Zaim v\xE0 sao k\xEA nh\u1EADp theo th\xE1ng, n\xEAn "\u0111\u1ED9 tr\u1EC5" d\u01B0\u1EDBi \u0111\xE2y l\xE0 \u0111\u1ED9 tr\u1EC5 NH\u1EACP KH\u1EA8U, kh\xF4ng ph\u1EA3i th\xF3i quen g\xF5 tay c\u1EE7a ng\u01B0\u1EDDi d\xF9ng \u2014 v\xE0 "gi\u1EDD nh\u1EADp" l\xE0 gi\u1EDD ch\u1EA1y l\u1EC7nh nh\u1EADp, kh\xF4ng ph\u1EA3i gi\u1EDD ng\u01B0\u1EDDi \u0111\xF3 m\u1EDF app. \u0110\u1EEANG k\u1EBFt lu\u1EADn g\xEC v\u1EC1 th\xF3i quen c\u1EE7a ng\u01B0\u1EDDi d\xF9ng t\u1EEB nh\u1EEFng con s\u1ED1 n\xE0y.`
+    );
+  }
+  const itKhoan = [...theoDanhMuc.values()].filter((g) => g.soLan < TOI_THIEU_SO_LAN).length;
+  if (itKhoan > 0) {
+    ghi_chu.push(
+      `\u0110\xE3 lo\u1EA1i ${itKhoan} danh m\u1EE5c kh\u1ECFi b\u1EA3ng "ghi mu\u1ED9n nh\u1EA5t" v\xEC qu\xE1 \xEDt kho\u1EA3n (d\u01B0\u1EDBi ${TOI_THIEU_SO_LAN}). Trung b\xECnh c\u1EE7a m\u1ED9t hai giao d\u1ECBch kh\xF4ng ph\u1EA3i m\u1ED9t ph\xE1t hi\u1EC7n.`
+    );
   }
   if (coGhiTruoc) {
     ghi_chu.push(
@@ -51716,11 +51735,12 @@ function thoiQuenGhiChep(input, du) {
       thu: t,
       so_lan: demThu.get(t)
     })),
-    danh_muc_ghi_muon_nhat: [...theoDanhMuc.entries()].map(([ten, g]) => ({
+    danh_muc_ghi_muon_nhat: [...theoDanhMuc.entries()].filter(([, g]) => g.soLan >= TOI_THIEU_SO_LAN).map(([ten, g]) => ({
       ten,
       tre_trung_binh_ngay: Math.round(g.tong / g.soLan),
       so_lan: g.soLan
     })).sort((a, b) => b.tre_trung_binh_ngay - a.tre_trung_binh_ngay).slice(0, 10),
+    phien_nhap: { so_phien, lo_lon_nhat },
     pham_vi: ro.phamVi,
     ghi_chu
   };
@@ -51971,7 +51991,7 @@ function dungServer(du) {
   server.registerTool(
     "thoi_quen_ghi_chep",
     {
-      description: "Th\xF3i quen ghi ch\xE9p c\u1EE7a ng\u01B0\u1EDDi d\xF9ng: \u0111\u1ED9 tr\u1EC5 t\u1EEB l\xFAc ti\u1EC1n \u0111i t\u1EDBi l\xFAc g\xF5 v\xE0o app, gi\u1EDD nh\u1EADp, th\u1EE9 trong tu\u1EA7n, v\xE0 danh m\u1EE5c n\xE0o hay b\u1ECB ghi mu\u1ED9n nh\u1EA5t. \u0110\xE2y l\xE0 d\u1EEF li\u1EC7u KH\xD4NG m\xE0n h\xECnh n\xE0o c\u1EE7a app hi\u1EC7n. L\u01B0u \xFD \u0111\xE2y l\xE0 d\u1EEF li\u1EC7u v\u1EC1 H\xC0NH VI, kh\xF4ng ph\u1EA3i v\u1EC1 ti\u1EC1n \u2014 n\xF3i v\u1EC1 n\xF3 m\u1ED9t c\xE1ch ch\u1EEBng m\u1EF1c.",
+      description: "Th\xF3i quen ghi ch\xE9p: \u0111\u1ED9 tr\u1EC5 t\u1EEB l\xFAc ti\u1EC1n \u0111i t\u1EDBi l\xFAc v\xE0o s\u1ED5, gi\u1EDD nh\u1EADp, th\u1EE9 trong tu\u1EA7n, v\xE0 danh m\u1EE5c n\xE0o hay b\u1ECB ghi mu\u1ED9n nh\u1EA5t. \u0110\xE2y l\xE0 d\u1EEF li\u1EC7u KH\xD4NG m\xE0n h\xECnh n\xE0o c\u1EE7a app hi\u1EC7n. \u0110\u1ECCC `phien_nhap` V\xC0 `ghi_chu` TR\u01AF\u1EDAC: s\u1ED5 n\xE0y c\xF3 l\u1ECBch s\u1EED nh\u1EADp t\u1EEB Zaim v\xE0 sao k\xEA nh\u1EADp theo th\xE1ng, n\xEAn ph\u1EA7n l\u1EDBn `created_at` l\xE0 gi\u1EDD CH\u1EA0Y L\u1EC6NH NH\u1EACP ch\u1EE9 kh\xF4ng ph\u1EA3i l\xFAc ng\u01B0\u1EDDi d\xF9ng g\xF5. Khi ghi_chu b\xE1o nh\u1EADp theo l\xF4 th\xEC tuy\u1EC7t \u0111\u1ED1i kh\xF4ng k\u1EBFt lu\u1EADn g\xEC v\u1EC1 th\xF3i quen c\u1EE7a ng\u01B0\u1EDDi d\xF9ng \u2014 n\xF3i th\u1EB3ng l\xE0 d\u1EEF li\u1EC7u kh\xF4ng cho ph\xE9p. \u0110\xE2y l\xE0 d\u1EEF li\u1EC7u H\xC0NH VI, kh\xF4ng ph\u1EA3i ti\u1EC1n.",
       inputSchema: external_exports.object({ khoang: KHOANG })
     },
     async (input) => ra(thoiQuenGhiChep(input, du))

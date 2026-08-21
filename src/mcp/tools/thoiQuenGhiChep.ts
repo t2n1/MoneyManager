@@ -14,9 +14,29 @@ export interface ThoiQuenKetQua {
   gio_nhap: { khung: string; so_lan: number }[]
   thu_trong_tuan: { thu: string; so_lan: number }[]
   danh_muc_ghi_muon_nhat: { ten: string; tre_trung_binh_ngay: number; so_lan: number }[]
+  /**
+   * Bao nhiêu LẦN NHẬP tạo ra rổ này, đếm theo `created_at` trùng nhau tới từng phút.
+   *
+   * Đây là chỗ phân biệt "gõ tay hằng ngày" với "nhập theo lô", và nó quyết định mọi con số
+   * khác trong tool có nghĩa hay không: 186 khoản mà chỉ 6 phiên thì `do_tre` không đo thói
+   * quen của người, nó đo độ trễ của lệnh nhập.
+   */
+  phien_nhap: { so_phien: number; lo_lon_nhat: number }
   pham_vi: PhamVi
   ghi_chu: string[]
 }
+
+/**
+ * Số khoản tối thiểu để một danh mục được vào bảng "ghi muộn nhất".
+ *
+ * Vì sao cần: bản đầu không có ngưỡng, và trên sổ thật top 5 toàn dòng n = 1–2 — tức Claude
+ * sẽ nói "danh mục Thuốc hay bị ghi muộn nhất" từ đúng một giao dịch. Một trung bình của một
+ * điểm dữ liệu không phải một phát hiện.
+ */
+const TOI_THIEU_SO_LAN = 3
+
+/** Lô lớn nhất chiếm từ mức này trở lên thì coi là dữ liệu vào sổ theo lô. */
+const NGUONG_LO = 0.25
 
 const NHOM_TRE = ['ghi ngay', '1–2 ngày', '3–7 ngày', 'hơn một tuần'] as const
 const KHUNG = ['đêm 0–5', 'sáng 6–11', 'chiều 12–17', 'tối 18–23'] as const
@@ -60,11 +80,17 @@ export function thoiQuenGhiChep(input: { khoang: Khoang }, du: DuLieu): ThoiQuen
   const demGio = new Map<string, number>()
   const demThu = new Map<string, number>()
   const theoDanhMuc = new Map<string, { tong: number; soLan: number }>()
+  /** created_at cắt tới PHÚT → số khoản cùng phút đó. Một lệnh nhập ghi cả lô trong một phút. */
+  const demPhien = new Map<string, number>()
   let coGhiTruoc = false
 
   for (const t of ro.txs) {
     const tre = soNgayGiua(t.occurred_on, ngayTai(t.created_at, du.tz))
     if (tre < 0) coGhiTruoc = true
+
+    // Cắt tới phút: '2026-07-31T05:30:00.000Z' → '2026-07-31T05:30'
+    const phut = t.created_at.slice(0, 16)
+    demPhien.set(phut, (demPhien.get(phut) ?? 0) + 1)
 
     const nt = nhomTre(tre)
     demTre.set(nt, (demTre.get(nt) ?? 0) + 1)
@@ -85,6 +111,29 @@ export function thoiQuenGhiChep(input: { khoang: Khoang }, du: DuLieu): ThoiQuen
     cu.tong += tre
     cu.soLan += 1
     theoDanhMuc.set(ten, cu)
+  }
+
+  const so_phien = demPhien.size
+  const lo_lon_nhat = demPhien.size === 0 ? 0 : Math.max(...demPhien.values())
+  const tong = ro.txs.length
+
+  // Nhập theo lô: nói TRƯỚC mọi con số khác, vì nó quyết định các số kia có nghĩa hay không.
+  if (tong > 0 && lo_lon_nhat / tong >= NGUONG_LO && lo_lon_nhat > 1) {
+    ghi_chu.push(
+      `Dữ liệu này vào sổ THEO LÔ: ${tong} khoản chỉ đến từ ${so_phien} lần nhập (lô lớn nhất ` +
+        `${lo_lon_nhat} khoản cùng một phút). Sổ có lịch sử nhập từ Zaim và sao kê nhập theo ` +
+        'tháng, nên "độ trễ" dưới đây là độ trễ NHẬP KHẨU, không phải thói quen gõ tay của ' +
+        'người dùng — và "giờ nhập" là giờ chạy lệnh nhập, không phải giờ người đó mở app. ' +
+        'ĐỪNG kết luận gì về thói quen của người dùng từ những con số này.',
+    )
+  }
+
+  const itKhoan = [...theoDanhMuc.values()].filter((g) => g.soLan < TOI_THIEU_SO_LAN).length
+  if (itKhoan > 0) {
+    ghi_chu.push(
+      `Đã loại ${itKhoan} danh mục khỏi bảng "ghi muộn nhất" vì quá ít khoản (dưới ` +
+        `${TOI_THIEU_SO_LAN}). Trung bình của một hai giao dịch không phải một phát hiện.`,
+    )
   }
 
   if (coGhiTruoc) {
@@ -111,11 +160,13 @@ export function thoiQuenGhiChep(input: { khoang: Khoang }, du: DuLieu): ThoiQuen
       thu: t, so_lan: demThu.get(t) as number,
     })),
     danh_muc_ghi_muon_nhat: [...theoDanhMuc.entries()]
+      .filter(([, g]) => g.soLan >= TOI_THIEU_SO_LAN)
       .map(([ten, g]) => ({
         ten, tre_trung_binh_ngay: Math.round(g.tong / g.soLan), so_lan: g.soLan,
       }))
       .sort((a, b) => b.tre_trung_binh_ngay - a.tre_trung_binh_ngay)
       .slice(0, 10),
+    phien_nhap: { so_phien, lo_lon_nhat },
     pham_vi: ro.phamVi,
     ghi_chu,
   }

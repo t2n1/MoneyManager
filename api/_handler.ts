@@ -91,10 +91,12 @@ function dungServer(du: DuLieu): McpServer {
     'thoi_quen_ghi_chep',
     {
       description:
-        'Thói quen ghi chép của người dùng: độ trễ từ lúc tiền đi tới lúc gõ vào app, giờ nhập, ' +
-        'thứ trong tuần, và danh mục nào hay bị ghi muộn nhất. Đây là dữ liệu KHÔNG màn hình nào ' +
-        'của app hiện. Lưu ý đây là dữ liệu về HÀNH VI, không phải về tiền — nói về nó một cách ' +
-        'chừng mực.',
+        'Thói quen ghi chép: độ trễ từ lúc tiền đi tới lúc vào sổ, giờ nhập, thứ trong tuần, và ' +
+        'danh mục nào hay bị ghi muộn nhất. Đây là dữ liệu KHÔNG màn hình nào của app hiện. ' +
+        'ĐỌC `phien_nhap` VÀ `ghi_chu` TRƯỚC: sổ này có lịch sử nhập từ Zaim và sao kê nhập theo ' +
+        'tháng, nên phần lớn `created_at` là giờ CHẠY LỆNH NHẬP chứ không phải lúc người dùng gõ. ' +
+        'Khi ghi_chu báo nhập theo lô thì tuyệt đối không kết luận gì về thói quen của người dùng ' +
+        '— nói thẳng là dữ liệu không cho phép. Đây là dữ liệu HÀNH VI, không phải tiền.',
       inputSchema: z.object({ khoang: KHOANG }),
     },
     async (input) => ra(thoiQuenGhiChep(input, du)),

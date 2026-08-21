@@ -154,6 +154,20 @@ thứ trong tuần, và **danh mục nào hay bị ghi muộn nhất**.
 **Đây là dữ liệu về hành vi, không phải về tiền** — nó cho biết user thức khuya hay không,
 cuối tuần có mở app không. User đã đồng ý đưa vào đợt đầu sau khi được nói rõ điểm này.
 
+> **Đo trên sổ thật 2026-08-21: giả định "created_at = lúc gõ vào" phần lớn KHÔNG đúng với
+> sổ này.** Tháng 6–7/2026 có 186 khoản: **184** vào nhóm "hơn một tuần" và **180** vào đúng
+> một khung giờ chiều. Đó là dấu vết của vài lần nhập theo lô — sổ có 9 năm lịch sử nhập từ
+> Zaim, cộng `npm run nhap:sao-ke` (sao kê Rakuten) và `nhap:phieu-luong` chạy theo tháng.
+> Với những khoản đó, `created_at` là **giờ chạy lệnh nhập**.
+>
+> Nên tool trả thêm `phien_nhap { so_phien, lo_lon_nhat }` (đếm `created_at` trùng nhau tới
+> từng phút) và tự bật cảnh báo khi lô lớn nhất chiếm ≥ 25% — vì con số vô nghĩa mà trình bày
+> như có nghĩa thì tệ hơn không có. Bảng "ghi muộn nhất" cũng bỏ danh mục dưới 3 khoản: bản
+> đầu để top 5 toàn dòng n = 1–2.
+>
+> Tool vẫn có giá trị, nhưng cho câu hỏi khác câu spec dự tính: **"tôi có bao nhiêu lần nhập
+> và mỗi lần bao nhiêu khoản"**, chứ không phải "tôi thức khuya hay không".
+
 Chồng lấn với `do_luong=do_tre_ghi` của `truy_van` là có chủ ý, và ranh giới là: ở `truy_van`
 độ trễ là **một con số** xẻ theo chiều bất kỳ ("danh mục nào ghi muộn nhất"); ở đây là
 **phân bố** đầy đủ ("tôi ghi chép kiểu gì").

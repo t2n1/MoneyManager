@@ -11,13 +11,26 @@ import { fetchAllPages } from '../data/paging'
 import type { DuLieu } from './basket'
 import type { Database } from '../types/database.types'
 
+/**
+ * Tên bảng phải là một trong những bảng CÓ THẬT của `Database`, không phải `string`.
+ * Client của Supabase gõ `from()` theo tên bảng hằng — để lỏng thành `string` thì gõ sai
+ * tên bảng chỉ nổ lúc chạy, mà đây là chỗ duy nhất chạm DB nên nó nổ ở tận trong Vercel.
+ */
+type TenBang = keyof Database['public']['Tables']
+
 export async function napDuLieu(
   sb: SupabaseClient<Database>,
   userId: string,
 ): Promise<DuLieu> {
-  const doc = <T>(bang: string, sapTheo: string) =>
+  // Client của Supabase suy kiểu CỘT từ tên bảng hằng; đưa vào một tên bảng thuộc kiểu
+  // hợp (union) thì mọi tham số cột sụp về `never` và `.eq('user_id', …)` không biên dịch
+  // được. Nên bảng nào cũng đọc y một kiểu ở đây thì đọc qua client KHÔNG gõ schema, còn
+  // cái được giữ chặt là tên bảng (`TenBang`) và kiểu dòng trả về (`T`).
+  const bat = sb as unknown as SupabaseClient
+
+  const doc = <T>(bang: TenBang, sapTheo: string) =>
     fetchAllPages<T>(async (from, to) => {
-      const { data, error } = await sb
+      const { data, error } = await bat
         .from(bang)
         .select('*')
         .eq('user_id', userId)

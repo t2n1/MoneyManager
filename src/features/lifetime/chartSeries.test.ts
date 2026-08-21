@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildChartData, chartSeriesPlan, yearAxisTicks } from './chartSeries'
+import { buildChartData, capTicks, chartSeriesPlan, yearAxisTicks } from './chartSeries'
 import type { YearRow } from './project'
 import type { NetWorthSnapshotRow } from '../../types/database.types'
 
@@ -223,5 +223,32 @@ describe('yearAxisTicks', () => {
   it('chuỗi rỗng hoặc một năm', () => {
     expect(yearAxisTicks([])).toEqual([])
     expect(yearAxisTicks([2026])).toEqual([2026])
+  })
+})
+
+describe('capTicks', () => {
+  it('bộ đã đủ thưa thì trả nguyên', () => {
+    expect(capTicks([2026, 2030, 2040], 5)).toEqual([2026, 2030, 2040])
+  })
+
+  it('luôn giữ mốc đầu và mốc cuối', () => {
+    const out = capTicks([2026, 2030, 2040, 2050, 2060, 2070, 2080, 2084], 5)
+    expect(out[0]).toBe(2026)
+    expect(out[out.length - 1]).toBe(2084)
+  })
+
+  it('không vượt quá số nhãn cho phép', () => {
+    const ticks = Array.from({ length: 40 }, (_, i) => 2026 + i)
+    expect(capTicks(ticks, 5).length).toBeLessThanOrEqual(5)
+  })
+
+  it('giữ đúng thứ tự tăng và không lặp mốc', () => {
+    const out = capTicks([2026, 2030, 2040, 2050, 2060, 2070, 2080, 2084], 5)
+    expect(out).toEqual([...out].sort((a, b) => a - b))
+    expect(new Set(out).size).toBe(out.length)
+  })
+
+  it('max nhỏ hơn 2 thì không thưa (không có bộ nào giữ được cả hai đầu)', () => {
+    expect(capTicks([2026, 2040, 2080], 1)).toEqual([2026, 2040, 2080])
   })
 })

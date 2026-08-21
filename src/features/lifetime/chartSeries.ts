@@ -16,6 +16,19 @@ export interface ChartPoint {
   actual: number | null
   projected: number | null
   band: [number, number] | null
+  /**
+   * Hai mép của `band` tách thành hai chuỗi vô hướng RIÊNG, chỉ để VẼ ĐƯỜNG VIỀN.
+   *
+   * `band` là cặp `[thấp, cao]` cho `<Area>`, mà `<Line>` của Recharts không đọc được
+   * cặp — nó cần một số. Tách ở đây (nơi có test) thay vì lấy bằng `dataKey` dạng hàm
+   * trong component: hàm dataKey không có tên chuỗi nên tooltip và `payload` gọi nó là
+   * `undefined`, và đó đúng là chỗ đã sinh ra một nhãn "undefined" trong tooltip.
+   *
+   * Luôn đi cùng `band` (cùng null, cùng có giá trị) — chúng là ba cách nhìn của một
+   * dòng, không phải ba nguồn dữ liệu.
+   */
+  bandLow: number | null
+  bandHigh: number | null
   compare: number | null
 }
 
@@ -50,6 +63,8 @@ export function buildChartData(
       actual: historyByYear.get(year) ?? null,
       projected: row ? row.assetsEndMinor : null,
       band: row ? [row.assetsPessimisticMinor, row.assetsOptimisticMinor] : null,
+      bandLow: row ? row.assetsPessimisticMinor : null,
+      bandHigh: row ? row.assetsOptimisticMinor : null,
       compare: cRow ? cRow.assetsEndMinor : null,
     }
   })
@@ -175,4 +190,28 @@ export function yearAxisTicks(years: number[]): number[] {
     (y) => y % step === 0 && y - first >= half && last - y >= half,
   )
   return [first, ...marks, last]
+}
+
+/**
+ * Thưa bớt một bộ mốc trục xuống tối đa `max` nhãn, LUÔN giữ mốc đầu và mốc cuối.
+ *
+ * Vì sao cần thêm một tầng thưa nữa sau `yearAxisTicks`: nhãn trục nay in cả năm lẫn
+ * tuổi ("2026 · 32t"), tức dài gần gấp đôi trước — mà cùng lúc đó đồ thị chuyển sang
+ * cột trái của bố cục hai cột, hẹp hơn bản một cột cũ. Bộ mốc vừa đủ thoáng trước đây
+ * (8 nhãn trên một bản chiếu 58 năm) nay chồng chữ lên nhau.
+ *
+ * Thưa ở đây chứ không sửa `yearAxisTicks`: hàm đó chọn mốc theo NĂM CHẴN (5/10 năm một
+ * lần) và đó vẫn là luật đúng — cái đổi là bao nhiêu nhãn thì vừa một bề ngang, một câu
+ * hỏi về chỗ chứ không về năm. Trộn hai luật vào một hàm thì không luật nào đọc được.
+ *
+ * Chọn theo khoảng đều trên CHỈ SỐ chứ không theo giá trị năm: bộ vào đã chẵn sẵn, nên
+ * lấy cách quãng đều giữ nguyên tính chẵn đó mà không phải chia lại lần nữa.
+ */
+export function capTicks(ticks: number[], max: number): number[] {
+  if (max < 2 || ticks.length <= max) return ticks
+  const last = ticks.length - 1
+  const out: number[] = []
+  // `max - 1` khoảng giữa `max` nhãn; làm tròn để hai đầu luôn rơi đúng vào 0 và `last`.
+  for (let i = 0; i < max; i++) out.push(ticks[Math.round((i * last) / (max - 1))])
+  return [...new Set(out)]
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Pencil, SlidersHorizontal, Sparkles, Star } from 'lucide-react'
-import { ActionButton, Card, Money } from '../../components/ui'
+import { AlertTriangle, SlidersHorizontal, Sparkles, Star } from 'lucide-react'
+import { ActionButton, Card } from '../../components/ui'
 import { repo } from '../../data'
 import { useNetWorthSnapshots } from '../../hooks/queries'
 import { useEscClose } from '../../hooks/useEscClose'
@@ -21,6 +21,7 @@ import { pickActive } from './buildInput'
 import { InsightCards } from './InsightCards'
 import { LifetimeChartCard } from './LifetimeChartCard'
 import { ScenarioEditorSheet } from './ScenarioEditorSheet'
+import { lifetimeVerdict } from './summary'
 import { useLifetime } from './useLifetime'
 import { YearTableView } from './YearTableView'
 
@@ -61,16 +62,11 @@ export function LifetimeView() {
   const [creating, setCreating] = useState(false)
   const { data: historyRows = [] } = useNetWorthSnapshots()
 
-  // Chặng ĐANG hiệu lực (chặng bắt đầu gần nhất tính đến năm nay) — nguồn của dòng
-  // giả định ngay dưới dải chip. Bản chiếu 60 năm mà không nói nó dựa trên thu/chi
-  // bao nhiêu là một hộp đen: muốn kiểm chứng phải mở trình sửa mới biết.
-  const currentPhase = useMemo(() => {
-    if (!input) return null
-    const sorted = [...input.phases].sort((a, b) => a.startYear - b.startYear)
-    let cur = sorted[0] ?? null
-    for (const p of sorted) if (p.startYear <= input.currentYear) cur = p
-    return cur
-  }, [input])
+  // (Chặng đang hiệu lực từng được tính riêng ở đây để in một dòng "Giả định: thu … chi
+  // … lợi suất …" phía trên đồ thị. Dòng đó đã đi: panel Giả định in đúng ba con số ấy
+  // trên ba thanh trượt, và hai bản in cùng lúc là hai số khác nhau dưới cùng một nhãn —
+  // dòng trên in giá trị ĐÃ LƯU còn thanh trượt in giá trị ĐANG THỬ. Chặng đang hiệu lực
+  // nay lấy từ `shownPhase` bên dưới, suy từ chính input đang vẽ.)
 
   // --- Thanh trượt giả định (§4.4 / 13b) --------------------------------------------
   //
@@ -138,6 +134,32 @@ export function LifetimeView() {
       setSavingAssumptions(false)
     }
   }
+
+  // Tóm tắt MỘT DÒNG cho từng thẻ kịch bản: năm tự do tài chính và năm cạn tiền ở nhánh
+  // bi quan. Không có nó thì dải thẻ chỉ là mấy cái tên, và "Về VN 2030" khác "Hiện tại"
+  // ở chỗ nào thì phải bấm vào từng cái rồi đọc lại cả màn — so sánh bằng trí nhớ.
+  //
+  // Chiếu LẠI từng kịch bản là hợp lệ về chi phí: `projectLifetime` đo 0,063 ms cho một
+  // bản chiếu 60 năm (cổng R6, xem assumptions.ts), nên ba kịch bản tốn ~0,2 ms — dưới
+  // một phần bảy mươi của một khung 16 ms. `useMemo` chặn việc chạy lại ở mỗi lần kéo
+  // thanh trượt.
+  //
+  // Cố ý đọc bản ĐÃ LƯU, không áp `override`: thẻ nói kịch bản đó LÀ gì, còn lớp đè là
+  // một câu hỏi "nếu như" chưa thuộc về kịch bản nào. Đè lên thẻ thì kéo thanh trượt sẽ
+  // làm dòng tóm tắt của kịch bản đang chọn trôi khỏi ba thẻ còn lại mà không nói vì sao.
+  const scenarioSummaries = useMemo(() => {
+    const birthYear = profile?.birth_year ?? 0
+    const map = new Map<string, { fireYear: number | null; negativeYear: number | null }>()
+    for (const s of scenarios) {
+      const r = projectScenario(s.id)
+      // Kịch bản chưa có chặng nào chiếu ra mảng rỗng — bỏ qua hẳn thay vì in
+      // "FIRE không đạt · không năm nào âm", một kết luận về bản chiếu không tồn tại.
+      if (r.length === 0) continue
+      const v = lifetimeVerdict(r, birthYear)
+      map.set(s.id, { fireYear: v.fireYear, negativeYear: v.negativeYear })
+    }
+    return map
+  }, [scenarios, projectScenario, profile?.birth_year])
 
   // --- Chế độ so sánh (Task 8 Step 4) ---
   const otherScenarios = useMemo(
@@ -277,265 +299,105 @@ export function LifetimeView() {
 
   return (
     <div className="space-y-3">
-      {/* Header: chỉ còn dòng tóm tắt + nút bút chì — tab "Tương lai" ngay trên đã là
-          tiêu đề (xem ghi chú ở trạng thái 1), và không có bánh răng: mọi thiết lập
-          thuộc trình sửa kịch bản hoặc Cài đặt. */}
-      <div className="flex items-center gap-2">
-        <div className="min-w-0 flex-1">
-          {profile?.birth_year != null && (
-            <p className="truncate text-xs text-fg-muted">
-              Sinh {profile.birth_year} · chiếu đến tuổi {active.end_age}
-            </p>
-          )}
-        </div>
-        {/* `disabled` khi chưa có `profile`: trình sửa lấy năm sinh từ đó, và thiếu nó
-            thì sheet thành một ngõ cụt — `birthYear` khởi tạo rỗng nên `birthYearValid`
-            false và nút Lưu tắt VĨNH VIỄN, `block1Dirty` true vĩnh viễn nên "Nhân bản"
-            bị chặn bằng toast bảo lưu trước (không lưu được), và đóng sheet thì bị hỏi
-            có bỏ thay đổi không (không có thay đổi nào). Ca này chỉ xảy ra khi query
-            profile LỖI — `needsBirthYear` ở trên chỉ bắt ca profile ĐÃ TẢI mà chưa khai. */}
-        <button
-          type="button"
-          onClick={() => setEditorOpen(true)}
-          disabled={!profile}
-          aria-label="Sửa kịch bản"
-          title={
-            profile ? undefined : 'Chưa tải được thông tin người dùng — thử lại sau khi có mạng'
-          }
-          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md bg-surface px-3 py-1.5 shadow-sm transition active:scale-95 disabled:opacity-50"
-        >
-          <Pencil className="h-4 w-4 text-fg-secondary" />
-        </button>
-      </div>
+      {/* Header: chỉ còn một dòng chú thích canh phải. Nút bút chì đã đi — đường vào
+          trình sửa nay là link "Sửa kịch bản" trong panel Giả định, nơi nó đứng cạnh
+          đúng thứ nó sửa. Một nút icon trơ ở góc không nói ra nó dẫn tới đâu, và trên
+          màn hẹp `title` không đọc được bằng chạm.
+          Không có <h1>: tab "Tương lai" ngay trên đã là tên màn này, và vỏ AssetsPage đã
+          có <h1> "Tài sản". */}
+      {profile?.birth_year != null && (
+        <p className="truncate text-right text-xs text-fg-muted">
+          Sinh {profile.birth_year} · chiếu đến tuổi {active.end_age}
+        </p>
+      )}
 
-      {/* Dải chip kịch bản, cuộn ngang. Kịch bản CHÍNH (cái mà thông báo nhắc lệch và
-          thẻ ở trang Tài sản đọc theo) mang ngôi sao ngay trên chip — trước đây muốn
-          biết cái nào là chính phải mở trình sửa từng cái. Suy từ `pickActive` (một
-          luật với engine/bộ luật thông báo), không đọc thẳng cờ `is_primary` — cùng
-          lý do đã ghi ở `isEffectivePrimary` trong ScenarioEditorSheet. */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {scenarios.map((s) => {
-          const isPrimary = pickActive(scenarios)?.id === s.id
-          return (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setActiveId(s.id)}
-              className={`inline-flex min-h-11 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-4 text-sm font-medium transition active:scale-95 ${
-                s.id === activeId
-                  ? 'bg-accent text-fg-on-accent'
-                  : 'border border-border-strong text-fg-secondary'
-              }`}
-            >
-              {isPrimary && <Star className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
-              {s.name}
-              {isPrimary && <span className="sr-only">(kịch bản chính)</span>}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Dòng giả định — nói rõ bản chiếu dựa trên số nào ngay trên màn, không bắt
-          người xem mở trình sửa mới biết. Chỉ tóm CHẶNG HIỆN TẠI (xem `currentPhase`);
-          chi tiết từng chặng/sự kiện vẫn thuộc trình sửa. Tiền hiện theo ĐƠN VỊ CỦA
-          CHẶNG (phase.currency), không phải display_currency — đó là số người dùng đã
-          khai, chưa nhân tỷ giá. `disabled` khi thiếu profile cùng lý do nút bút chì.
-          Nút nằm TRONG <Card> (không tự ghép rounded-xl bg-surface — designSystem.test
-          canh idiom đó), nên nút tự lo padding/bo góc của chính nó. */}
-      <Card padding="none">
-        <button
-          type="button"
-          onClick={() => setEditorOpen(true)}
-          disabled={!profile}
-          className="flex min-h-11 w-full items-center rounded-md px-3 py-2 text-left text-xs text-fg-muted transition active:scale-95 disabled:active:scale-100"
-        >
-          <span>
-            {/* CÓ thanh trượt thì dòng này THÔI đọc lại ba con số đó. Chúng đứng cách
-                nhau 40px, và trong lúc vặn thì dòng này in giá trị ĐÃ LƯU còn thanh
-                trượt in giá trị ĐANG THỬ — hai số khác nhau, cùng một nhãn "chi", trên
-                cùng một màn. Đo thật khi dựng xong: dòng trên ¥1,319,784, thanh trượt
-                ¥2,700,000. Nhường phần số cho thanh trượt, giữ lại đúng vai còn lại của
-                nút này: đường vào trình sửa đầy đủ (chặng khác, sự kiện, tỷ giá). */}
-            {shownPhase ? (
-              <>Sửa chi tiết: chặng khác · sự kiện · tỷ giá — bấm để mở</>
-            ) : currentPhase ? (
-              <>
-                Giả định: thu{' '}
-                <Money
-                  amount={currentPhase.annualIncomeMinor}
-                  currency={currentPhase.currency}
-                  className="text-xs font-medium"
-                />{' '}
-                {/* Thu 0 kèm chi > 0 thường là "sổ chưa ghi lương" chứ không phải kế
-                    hoạch thật (đã gặp ngoài đời: cả bản chiếu âm oan) — nhắc ngay trên
-                    màn, nhưng bằng câu hỏi vì nghỉ hưu/nghỉ việc thì thu 0 là thật. */}
-                {currentPhase.annualIncomeMinor === 0 && currentPhase.annualExpenseMinor > 0 && (
-                  <span className="font-medium text-fg-warn">(sổ chưa ghi khoản thu nào?) </span>
-                )}
-                · chi{' '}
-                <Money
-                  amount={currentPhase.annualExpenseMinor}
-                  currency={currentPhase.currency}
-                  className="text-xs font-medium"
-                />{' '}
-                mỗi năm · lợi suất {active.real_return_bps / 100}%/năm — bấm để chỉnh
-              </>
-            ) : (
-              <>Kịch bản chưa có chặng thu chi nào nên chưa chiếu được — bấm để thêm</>
-            )}
-          </span>
-        </button>
-      </Card>
-      {/* Bốn thẻ kết luận đứng TRƯỚC đồ thị (§4.4 / 13b). Trước đây chúng nằm dưới đáy,
-          sau đồ thị và hai nút — tức người dùng phải cuộn qua cả bản chiếu 60 năm mới đọc
-          được KẾT LUẬN của chính bản chiếu đó. "Kết luận trước, bằng chứng sau" (§14). */}
-      {/* Ba thanh trượt giả định (§4.4 / 13b), đứng NGAY DƯỚI dòng tóm tắt giả định và
-          TRÊN bốn thẻ kết luận: kéo ở đây thì thứ đổi ngay bên dưới là kết luận, không
-          phải một đường cong người ta phải tự đọc. */}
-      {/* TỪ lg: khối nằm ngay trên đồ thị.
-          DƯỚI lg: chỉ một nút, khối đi vào sheet đáy — mock turn 24 nói thẳng "thanh
-          trượt giả định chuyển xuống sheet đáy vì để cạnh đồ thị thì mỗi thứ còn nửa
-          màn". Đo lại đúng vậy ở 390px: khối thanh trượt 268px, đồ thị 208px — thứ để
-          LÁI đang chiếm nhiều chỗ hơn thứ nó lái.
-          Hai bản dùng CHUNG một `override`, nên không có đường nào để chúng lệch nhau;
-          và mỗi bề rộng chỉ có đúng một bản nằm trong cây a11y (bản inline bị
-          display:none ở mobile, còn sheet chỉ dựng khi mở và nút mở là lg:hidden). */}
-      {shownInput && shownPhase && (
-        <>
-          <div className="hidden lg:block">
-            <AssumptionSliders
-              input={shownInput}
-              phase={shownPhase}
-              override={override}
-              onChange={setOverride}
-              onDragChange={setDragging}
-              onSave={handleSaveAssumptions}
-              onReset={() => setOverride(NO_OVERRIDE)}
-              saving={savingAssumptions}
-            />
-          </div>
-
-          <ActionButton onClick={() => setSheetOpen(true)} className="self-start lg:hidden">
-            <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
-            Thử giả định
-            {hasOverride(override) && <span className="text-fg-warn"> · chưa lưu</span>}
-          </ActionButton>
-
-          {sheetOpen && (
-            <div
-              className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center animate-overlay-in"
-              onClick={() => setSheetOpen(false)}
-            >
-              <div
-                className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
-                onClick={(e) => e.stopPropagation()}
+      {/* Hàng chọn kịch bản + hai nút xem khác. Chúng đứng CÙNG HÀNG vì cùng trả lời
+          "đang xem cái gì": chọn kịch bản nào, và xem nó bằng hình hay bằng bảng. */}
+      <div className="flex flex-wrap items-stretch gap-2">
+        {/* Dải thẻ kịch bản, cuộn ngang. Mỗi thẻ hai dòng: TÊN và KẾT QUẢ của chính kịch
+            bản đó (năm tự do tài chính · năm cạn tiền ở nhánh bi quan). Trước đây chip
+            chỉ có tên, nên muốn biết "Về VN 2030" khác "Hiện tại" ở chỗ nào phải bấm vào
+            từng cái rồi đọc lại cả màn — tức so sánh bằng trí nhớ.
+            Kịch bản CHÍNH (cái mà thông báo nhắc lệch và thẻ ở trang Tài sản đọc theo)
+            mang ngôi sao. Suy từ `pickActive` (một luật với engine/bộ luật thông báo),
+            không đọc thẳng cờ `is_primary` — cùng lý do đã ghi ở `isEffectivePrimary`
+            trong ScenarioEditorSheet. */}
+        <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1">
+          {scenarios.map((s) => {
+            const isPrimary = pickActive(scenarios)?.id === s.id
+            const sum = scenarioSummaries.get(s.id)
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setActiveId(s.id)}
+                aria-pressed={s.id === activeId}
+                className={`min-h-11 shrink-0 rounded-md border px-3 py-1.5 text-left transition active:scale-95 ${
+                  s.id === activeId
+                    ? 'border-accent bg-accent-subtle'
+                    : 'border-border-strong bg-surface'
+                }`}
               >
-                <AssumptionSliders
-                  input={shownInput}
-                  phase={shownPhase}
-                  override={override}
-                  onChange={setOverride}
-                  onDragChange={setDragging}
-                  onSave={handleSaveAssumptions}
-                  onReset={() => setOverride(NO_OVERRIDE)}
-                  saving={savingAssumptions}
-                />
-                <ActionButton onClick={() => setSheetOpen(false)} className="mt-3 w-full">
-                  Đóng
-                </ActionButton>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+                <span className="flex items-center gap-1 text-sm font-medium text-fg-primary">
+                  {isPrimary && <Star className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+                  {s.name}
+                  {isPrimary && <span className="sr-only">(kịch bản chính)</span>}
+                </span>
+                {/* Dòng tóm tắt vắng mặt khi kịch bản chưa chiếu được năm nào (chưa có
+                    chặng thu chi) — viết "FIRE không đạt" lúc đó là kết luận về một bản
+                    chiếu không tồn tại. */}
+                {sum && (
+                  <span className="mt-0.5 block whitespace-nowrap font-mono text-2xs text-fg-muted">
+                    {sum.fireYear !== null ? `FIRE ${sum.fireYear}` : 'FIRE không đạt'}
+                    {' · '}
+                    <span className={sum.negativeYear !== null ? 'text-money-out' : ''}>
+                      {sum.negativeYear !== null
+                        ? `âm từ ${sum.negativeYear}`
+                        : 'không năm nào âm'}
+                    </span>
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
 
-      {shownInput && profile?.birth_year != null && (
-        <InsightCards
-          rows={shownRows}
-          input={shownInput}
-          birthYear={profile.birth_year}
-          currency={active.display_currency as CurrencyCode}
-        />
-      )}
-
-
-      {/* Banner cảnh báo tỷ giá bằng 1 — BẮT BUỘC, không có nút tắt (xem task-7-brief.md).
-          Đặt NGAY TRÊN đồ thị: phải đọc được trước khi đọc số. Trên mobile chỉ hiện SỐ
-          LƯỢNG, không liệt kê từng khoản — danh sách chi tiết thuộc ScenarioEditorSheet. */}
-      {mismatchCount > 0 && (
-        <button
-          type="button"
-          onClick={() => setEditorOpen(true)}
-          // Cùng lý do với nút bút chì ở header: không mở một sheet ngõ cụt. Banner vẫn
-          // HIỆN (câu cảnh báo đúng dù có sửa được ngay hay không), chỉ không bấm được.
-          disabled={!profile}
-          className="flex min-h-11 w-full items-start gap-2 rounded-md bg-state-warn-bg text-state-warn-fg px-3 py-2 text-left text-sm transition active:scale-95 disabled:active:scale-100"
-        >
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>
-            {mismatchCount} khoản đang dùng tỷ giá giả định bằng 1 — gần như chắc chắn sai. Bấm để
-            sửa.
-          </span>
-        </button>
-      )}
-
-      <LifetimeChartCard
-        rows={shownRows}
-        // §12: không animate trong lúc ngón tay còn trên thanh trượt.
-        suppressAnimation={dragging}
-        historyRows={historyRows}
-        currency={active.display_currency as CurrencyCode}
-        compare={compareRows}
-        compareCurrency={compareScenario ? (compareScenario.display_currency as CurrencyCode) : null}
-        // networth_snapshots luôn ở base currency của profile, KHÔNG phải display_currency
-        // của kịch bản — bắt buộc phải truyền để thẻ tự phát hiện lệch và ẩn đường lịch
-        // sử thay vì vẽ sai đơn vị (xem JSDoc historyCurrency trong LifetimeChartCard).
-        // `profile` luôn có ở nhánh này trên thực tế (needsBirthYear đã lọc trước), nhưng
-        // vẫn phòng hờ bằng `?? active.display_currency` — coi như cùng đơn vị (không ẩn
-        // lịch sử oan) thay vì render lỗi nếu profile rơi vào ca undefined không lường
-        // trước, thà mất cảnh báo còn hơn crash cả thẻ.
-        historyCurrency={profile?.base_currency ?? (active.display_currency as CurrencyCode)}
-      />
-
-      {/* Hàng nút: đầy bề ngang dưới sm (ngón tay), CỠ NÚT từ sm trở lên.
-          `flex-1` ở mọi khổ làm hai nút này rộng bằng nửa panel — ở 1440px là hai khối
-          chữ nhật xám cao 44px, rộng ~320px, mỗi khối chỉ có hai chữ ở giữa: chúng đọc
-          thành hai TẤM THẺ RỖNG nằm cuối trang, không ai nghĩ đó là nút bấm. */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setTableOpen(true)}
-          className="min-h-11 flex-1 rounded-md bg-surface px-3 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95 sm:flex-none sm:px-5"
-        >
-          Bảng theo năm
-        </button>
         {/* KHÔNG disabled khi mới có 1 kịch bản: lý do nằm trong `title` thì chạm trên
-            mobile không đọc được (cùng quy tắc đã ghi ở nút bút chì) — người dùng chỉ
+            mobile không đọc được (cùng quy tắc đã ghi ở nút bút chì cũ) — người dùng chỉ
             thấy một nút mờ không rõ vì sao. Để bấm được, và ô mở ra nói rõ cần gì. */}
-        <button
-          type="button"
-          onClick={() => {
-            if (effectiveCompareId) {
-              setCompareId(null)
-              setComparePickerOpen(false)
-            } else {
-              setComparePickerOpen((o) => !o)
-            }
-          }}
-          className={`min-h-11 flex-1 rounded-md px-3 text-sm font-medium shadow-sm transition active:scale-95 sm:flex-none sm:px-5 ${
-            effectiveCompareId ? 'bg-accent text-fg-on-accent' : 'bg-surface text-fg-secondary'
-          }`}
-        >
-          {effectiveCompareId ? 'Đang so sánh · Bấm để tắt' : 'So sánh'}
-        </button>
+        <div className="flex shrink-0 items-start gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (effectiveCompareId) {
+                setCompareId(null)
+                setComparePickerOpen(false)
+              } else {
+                setComparePickerOpen((o) => !o)
+              }
+            }}
+            className={`min-h-11 rounded-md px-3 text-sm font-medium shadow-sm transition active:scale-95 sm:px-4 ${
+              effectiveCompareId ? 'bg-accent text-fg-on-accent' : 'bg-surface text-fg-secondary'
+            }`}
+          >
+            {effectiveCompareId ? 'Đang so sánh' : 'So sánh'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTableOpen(true)}
+            className="min-h-11 rounded-md bg-surface px-3 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95 sm:px-4"
+          >
+            Bảng theo năm
+          </button>
+        </div>
       </div>
 
       {comparePickerOpen && !effectiveCompareId && (
         <Card padding="sm">
           {otherScenarios.length === 0 ? (
             <p className="text-xs text-fg-secondary">
-              Cần ít nhất 2 kịch bản mới so sánh được. Bấm nút bút chì phía trên, chọn "Nhân
-              bản" để tạo kịch bản thứ hai, chỉnh vài con số rồi quay lại đây.
+              Cần ít nhất 2 kịch bản mới so sánh được. Mở "Sửa kịch bản" ở khối Giả định,
+              chọn "Nhân bản" để tạo kịch bản thứ hai, chỉnh vài con số rồi quay lại đây.
             </p>
           ) : (
             <>
@@ -560,9 +422,163 @@ export function LifetimeView() {
         </Card>
       )}
 
+      {/* Băng kết luận đứng TRƯỚC đồ thị và trước cả hai cột (§4.4 / 13b). Trước đây bốn
+          con số này nằm dưới đáy, sau đồ thị và hai nút — tức người dùng phải cuộn qua cả
+          bản chiếu 60 năm mới đọc được KẾT LUẬN của chính bản chiếu đó. "Kết luận trước,
+          bằng chứng sau" (§14). Nó phủ hết bề ngang, không rơi vào cột nào: câu kết luận
+          nói về cả màn, không riêng đồ thị. */}
+      {shownInput && profile?.birth_year != null && (
+        <InsightCards
+          rows={shownRows}
+          input={shownInput}
+          birthYear={profile.birth_year}
+          currency={active.display_currency as CurrencyCode}
+          scenarioName={active.name}
+        />
+      )}
 
-      {/* Bảng theo năm (Task 10) — bản dự phòng a11y của đồ thị, nút mở NGAY DƯỚI đồ thị
-          (xem LifetimeChartCard ở trên), không giấu trong menu. */}
+      {/* HAI CỘT từ `xl`: đồ thị nở lấy phần còn lại, cột phụ 25rem = 400px theo §1.4
+          (Ngân sách/Tài sản). Theo REM chứ px vì cột này toàn chữ và số — ở cỡ chữ "Rất
+          lớn" (--app-font-scale 1,25) một bề ngang px cứng không giãn theo và ba dòng
+          nhãn thanh trượt bị ép xuống hai hàng.
+          `xl` chứ không `lg` (cùng lý do đã ghi ở MonthView): trong khoảng 1024–1280 cột
+          phụ tụt xuống dưới 320px và khối thanh trượt phải cuộn ngang.
+          Dưới `xl` mọi thứ xếp dọc như cũ, và khối thanh trượt đi vào sheet đáy — mock
+          turn 24 nói thẳng "để cạnh đồ thị thì mỗi thứ còn nửa màn". Đo lại đúng vậy ở
+          390px: khối thanh trượt 268px, đồ thị 208px — thứ để LÁI chiếm nhiều chỗ hơn
+          thứ nó lái. */}
+      <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_25rem] xl:items-start">
+        <LifetimeChartCard
+          rows={shownRows}
+          // §12: không animate trong lúc ngón tay còn trên thanh trượt.
+          suppressAnimation={dragging}
+          historyRows={historyRows}
+          currency={active.display_currency as CurrencyCode}
+          compare={compareRows}
+          compareCurrency={
+            compareScenario ? (compareScenario.display_currency as CurrencyCode) : null
+          }
+          // networth_snapshots luôn ở base currency của profile, KHÔNG phải display_currency
+          // của kịch bản — bắt buộc phải truyền để thẻ tự phát hiện lệch và ẩn đường lịch
+          // sử thay vì vẽ sai đơn vị (xem JSDoc historyCurrency trong LifetimeChartCard).
+          // `profile` luôn có ở nhánh này trên thực tế (needsBirthYear đã lọc trước), nhưng
+          // vẫn phòng hờ bằng `?? active.display_currency` — coi như cùng đơn vị (không ẩn
+          // lịch sử oan) thay vì render lỗi nếu profile rơi vào ca undefined không lường
+          // trước, thà mất cảnh báo còn hơn crash cả thẻ.
+          historyCurrency={profile?.base_currency ?? (active.display_currency as CurrencyCode)}
+        />
+
+        <div className="flex flex-col gap-3">
+          {/* Ba thanh trượt giả định (§4.4 / 13b). Từ `xl` chúng đứng NGAY CẠNH đồ thị:
+              kéo ở đây thì thứ đổi ngay bên trái là bản chiếu, và thứ đổi ngay phía trên
+              là kết luận — không phải cuộn đi tìm.
+              Hai bản (cột phải và sheet đáy) dùng CHUNG một `override`, nên không có
+              đường nào để chúng lệch nhau; và mỗi bề rộng chỉ có đúng một bản nằm trong
+              cây a11y (bản cột phải bị display:none dưới xl, còn sheet chỉ dựng khi mở và
+              nút mở là xl:hidden). */}
+          {shownInput && shownPhase && (
+            <>
+              <div className="hidden xl:block">
+                <AssumptionSliders
+                  input={shownInput}
+                  phase={shownPhase}
+                  override={override}
+                  onChange={setOverride}
+                  onDragChange={setDragging}
+                  onSave={handleSaveAssumptions}
+                  onReset={() => setOverride(NO_OVERRIDE)}
+                  saving={savingAssumptions}
+                  // `undefined` khi thiếu profile: trình sửa lấy năm sinh từ đó, và thiếu
+                  // nó thì sheet thành một ngõ cụt — `birthYear` khởi tạo rỗng nên nút Lưu
+                  // tắt VĨNH VIỄN, `block1Dirty` true vĩnh viễn nên "Nhân bản" bị chặn, và
+                  // đóng sheet thì bị hỏi có bỏ thay đổi không (không có thay đổi nào). Ca
+                  // này chỉ xảy ra khi query profile LỖI — `needsBirthYear` ở trên chỉ bắt
+                  // ca profile ĐÃ TẢI mà chưa khai.
+                  onEditScenario={profile ? () => setEditorOpen(true) : undefined}
+                />
+              </div>
+
+              <ActionButton onClick={() => setSheetOpen(true)} className="self-start xl:hidden">
+                <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
+                Thử giả định
+                {hasOverride(override) && <span className="text-fg-warn"> · chưa lưu</span>}
+              </ActionButton>
+
+              {sheetOpen && (
+                <div
+                  className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center animate-overlay-in"
+                  onClick={() => setSheetOpen(false)}
+                >
+                  <div
+                    className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <AssumptionSliders
+                      input={shownInput}
+                      phase={shownPhase}
+                      override={override}
+                      onChange={setOverride}
+                      onDragChange={setDragging}
+                      onSave={handleSaveAssumptions}
+                      onReset={() => setOverride(NO_OVERRIDE)}
+                      saving={savingAssumptions}
+                      onEditScenario={
+                        profile
+                          ? () => {
+                              setSheetOpen(false)
+                              setEditorOpen(true)
+                            }
+                          : undefined
+                      }
+                    />
+                    <ActionButton onClick={() => setSheetOpen(false)} className="mt-3 w-full">
+                      Đóng
+                    </ActionButton>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Kịch bản chưa có chặng nào thì KHÔNG có thanh trượt (không biết vặn thu/chi
+              của chặng nào), và lúc đó cột phải trống trơn bên cạnh một đồ thị rỗng —
+              không câu nào nói vì sao. */}
+          {shownInput && !shownPhase && profile && (
+            <Card elevation="panel" padding="panel">
+              <p className="text-xs text-fg-secondary">
+                Kịch bản chưa có chặng thu chi nào nên chưa chiếu được gì.
+              </p>
+              <ActionButton onClick={() => setEditorOpen(true)} className="mt-2">
+                Thêm chặng
+              </ActionButton>
+            </Card>
+          )}
+
+          {/* Banner cảnh báo tỷ giá bằng 1 — BẮT BUỘC, không có nút tắt (xem
+              task-7-brief.md). Đứng cuối cột phải, ngay dưới đúng khối chứa những con số
+              mà nó đang nói là chưa đáng tin. Trên mobile chỉ hiện SỐ LƯỢNG, không liệt
+              kê từng khoản — danh sách chi tiết thuộc ScenarioEditorSheet. */}
+          {mismatchCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setEditorOpen(true)}
+              // Cùng lý do với link "Sửa kịch bản": không mở một sheet ngõ cụt. Banner vẫn
+              // HIỆN (câu cảnh báo đúng dù có sửa được ngay hay không), chỉ không bấm được.
+              disabled={!profile}
+              className="flex min-h-11 w-full items-start gap-2 rounded-md bg-state-warn-bg text-state-warn-fg px-3 py-2 text-left text-sm transition active:scale-95 disabled:active:scale-100"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                {mismatchCount} khoản đang dùng tỷ giá giả định bằng 1 — gần như chắc chắn
+                sai. Bấm để sửa.
+              </span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Bảng theo năm (Task 10) — bản dự phòng a11y của đồ thị, nút mở nằm ở hàng chọn
+          kịch bản phía trên, không giấu trong menu. */}
       {tableOpen && (
         <YearTableView
           rows={rows}
@@ -572,11 +588,11 @@ export function LifetimeView() {
         />
       )}
 
-      {/* Trình sửa kịch bản (Task 11) — mở từ nút bút chì ở header hoặc từ banner cảnh
-          báo tỷ giá. `profile` + ba giá trị tài sản ròng truyền XUỐNG chứ không để sheet
-          tự gọi `useLifetime()` lần hai: bản thứ hai mang `activeId` riêng (có thể chỉ
-          vào một kịch bản KHÁC cái đang sửa) và chiếu lại cả 60 năm kèm dải một lần nữa
-          song song với bản chiếu của trang này. */}
+      {/* Trình sửa kịch bản (Task 11) — mở từ link "Sửa kịch bản" trong panel Giả định
+          hoặc từ banner cảnh báo tỷ giá. `profile` + ba giá trị tài sản ròng truyền XUỐNG
+          chứ không để sheet tự gọi `useLifetime()` lần hai: bản thứ hai mang `activeId`
+          riêng (có thể chỉ vào một kịch bản KHÁC cái đang sửa) và chiếu lại cả 60 năm kèm
+          dải một lần nữa song song với bản chiếu của trang này. */}
       {editorOpen && active && profile && (
         <ScenarioEditorSheet
           // `key`: sheet khởi tạo MỌI ô của khối 1 bằng `useState(scenario.*)`, tức chỉ

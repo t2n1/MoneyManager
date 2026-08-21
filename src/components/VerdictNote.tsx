@@ -118,8 +118,15 @@ export function ConclusionLine({
   const { visual } = useDensity()
   const { icon: Icon, cls, sr } = STYLE[tone]
   return (
-    <p className="flex items-start gap-1.5 text-[0.8125rem] leading-relaxed text-fg-secondary">
-      <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${cls}`} aria-hidden="true" />
+    // Cỡ `text-lg` + `font-semibold` + `fg-primary`: câu này là KẾT LUẬN của cả màn, và
+    // ở cỡ cũ (13px, fg-secondary) nó đọc nhẹ hơn cả nhãn của mấy ô số ngay dưới —
+    // đúng thứ tự đọc ngược với "kết luận trước, bằng chứng sau" (§14).
+    //
+    // Icon phóng theo `em` chứ không đóng cứng `h-3.5`: nó là kênh phân biệt tốt/xấu
+    // thứ hai bên cạnh màu (dự án cấm phân biệt bằng màu đơn thuần), nên nó phải lớn
+    // theo chữ, kể cả khi người dùng phóng chữ ở Cài đặt → Cỡ chữ.
+    <p className="flex items-start gap-2 text-lg font-semibold leading-snug text-fg-primary">
+      <Icon className={`mt-[0.15em] h-[1.05em] w-[1.05em] shrink-0 ${cls}`} aria-hidden="true" />
       <span>
         {sr && <span className="sr-only">{sr}</span>}
         {visual ? short : children}

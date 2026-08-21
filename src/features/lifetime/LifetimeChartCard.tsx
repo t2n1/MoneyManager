@@ -23,10 +23,10 @@ import type { CurrencyCode } from '../../lib/currencies'
 import { MOTION_ASSUME_MS } from '../../lib/motion'
 import { formatCompact, formatMoney } from '../../lib/money'
 import type { NetWorthSnapshotRow } from '../../types/database.types'
-import { buildChartData, chartSeriesPlan, yearAxisTicks } from './chartSeries'
+import { buildChartData, capTicks, chartSeriesPlan, yearAxisTicks } from './chartSeries'
 import { compareAtEnd, firstNegativeYear } from './insights'
 import type { YearRow } from './project'
-import { Card } from '../../components/ui'
+import { Card, Money } from '../../components/ui'
 
 interface Props {
   rows: YearRow[]
@@ -74,6 +74,15 @@ const COLOR_NEGATIVE = '#ef4444' // chỉ dùng làm nền ReferenceArea ở fil
 // --fg-muted = gray-500 light (4,84:1) / gray-400 dark (6,99:1).
 // var() CÓ resolve trong presentation attribute của SVG và lật theo .dark — đã kiểm.
 const COLOR_AXIS = 'var(--fg-muted)'
+// Hai mép của dải dao động. Mock turn 31 vẽ mép trên MÀU XANH DƯƠNG, ở đây cố ý KHÔNG
+// theo: xanh dương trong đồ thị này đã là LỊCH SỬ THẬT (COLOR_ACTUAL, sky-600), nên một
+// đường xanh dương thứ hai đọc thành "đây cũng là số đã xảy ra" — đúng điều nguy hiểm
+// nhất có thể nói nhầm trên một bản chiếu. Dùng cặp token tiền đã có: mép trên là nhánh
+// TỐT, mép dưới là nhánh XẤU, và cả hai đều đã qua ngưỡng tương phản ở cả hai chế độ
+// (money-in 10,0:1 / money-out 6,2:1 ở ca xấu nhất). Nét chấm `1 4` khác hẳn `6 4` của
+// nhánh trung tâm và `2 3` của đường so sánh, nên chúng không chỉ khác nhau bằng màu.
+const COLOR_OPTIMISTIC = 'var(--money-in)'
+const COLOR_PESSIMISTIC = 'var(--money-out)'
 
 // Tham chiếu ỔN ĐỊNH cho "không có lịch sử" — `[]` viết trực tiếp trong JSX/useMemo sẽ
 // tạo mảng MỚI mỗi lần render (oxlint react-hooks/exhaustive-deps bắt đúng ca này), làm
@@ -90,21 +99,35 @@ const EMPTY_HISTORY: NetWorthSnapshotRow[] = []
  * Năm đầu tiên (rows[0]) không bao giờ sinh mốc — không có "năm trước" để so, và đó là
  * điểm bắt đầu bản chiếu chứ không phải một sự kiện giữa đời.
  */
-function newEventLabelsByYear(rows: YearRow[]): Map<number, string[]> {
-  const map = new Map<number, string[]>()
+function newEventLabelsByYear(rows: YearRow[]): Map<number, { label: string; kind: string }[]> {
+  const map = new Map<number, { label: string; kind: string }[]>()
   let prevIds = new Set((rows[0]?.events ?? []).map((e) => e.id))
   for (let i = 1; i < rows.length; i++) {
     const fresh = rows[i].events.filter((e) => !prevIds.has(e.id))
     if (fresh.length > 0) {
       map.set(
         rows[i].year,
-        fresh.map((e) => e.label),
+        fresh.map((e) => ({ label: e.label, kind: e.kind })),
       )
     }
     prevIds = new Set(rows[i].events.map((e) => e.id))
   }
   return map
 }
+
+/** Tối đa bao nhiêu mốc được ĐỀ TÊN ngay trên đồ thị. Nhãn mốc là chữ nổi cạnh một vạch
+ *  đứng, nên chúng chồng lên nhau rất sớm — một kịch bản có 9 sự kiện rải đều thì 9 nhãn
+ *  biến mép trên đồ thị thành một dải chữ không đọc được, và đó là mép mà đường lạc quan
+ *  đang chạy. Mốc không có nhãn VẪN còn vạch, vẫn đọc được tên qua tooltip và vẫn nằm
+ *  trong `aria-label` (giới hạn riêng, rộng hơn: ARIA_MARKER_LIMIT) — không mất tin, chỉ
+ *  mất chữ nổi. Chọn 4 mốc ĐẦU TIÊN theo năm: mốc gần hiện tại là mốc người dùng sắp
+ *  sống tới, và cũng là mốc họ vừa nhập nên đang cần soi lại. */
+const LABELED_MARKER_LIMIT = 4
+
+/** Tối đa bao nhiêu nhãn trên trục năm. Nhãn nay là "2026 · 32t" (~58px ở cỡ chữ mặc
+ *  định) và đồ thị đứng ở cột trái của bố cục hai cột, nên quá 5 nhãn là chúng dính
+ *  nhau. Xem `capTicks` trong chartSeries.ts. */
+const MAX_YEAR_TICKS = 5
 
 /** Tối đa bao nhiêu năm mốc sự kiện được ĐỌC TÊN trong `aria-label` trước khi gộp phần
  *  còn lại thành "và N mốc nữa". Một bản chiếu 60 năm có thể có hàng chục mốc; đọc hết
@@ -261,10 +284,23 @@ export function LifetimeChartCard({
   // Nhãn trục năm — mỗi 5 năm thay vì cả 39. Phép chọn mốc ở chartSeries.ts (thuần, có
   // test): nhãn trục là <text> Recharts dựng sau khi đo khung nên không kiểm được bằng
   // máy ở đây.
-  const yearTicks = useMemo(() => yearAxisTicks(data.map((d) => d.year)), [data])
+  // Hai tầng: `yearAxisTicks` chọn mốc theo NĂM CHẴN, `capTicks` cắt bớt cho vừa BỀ
+  // NGANG. Cần tầng thứ hai vì nhãn nay in cả tuổi ("2026 · 32t") nên dài gần gấp đôi,
+  // trong khi đồ thị chuyển sang cột trái của bố cục hai cột nên hẹp lại.
+  const yearTicks = useMemo(
+    () => capTicks(yearAxisTicks(data.map((d) => d.year)), MAX_YEAR_TICKS),
+    [data],
+  )
+  // Năm sinh suy từ chính dòng đầu bản chiếu (`YearRow` mang sẵn `age`) chứ không nhận
+  // thêm một prop: một prop `birthYear` truyền tay có thể lệch với `rows` đang vẽ, và
+  // lúc đó trục hoành in sai tuổi ở mọi nhãn mà không có gì báo. Suy từ rows thì không
+  // có đường nào để lệch. null khi rows rỗng — nhánh đó return sớm ở dưới.
+  const birthYear = rows.length > 0 ? rows[0].year - rows[0].age : null
   const eventLabels = useMemo(() => newEventLabelsByYear(rows), [rows])
   const markerYears = useMemo(() => [...eventLabels.keys()], [eventLabels])
   const compareEndRow = compare && compare.length > 0 ? compare[compare.length - 1] : null
+  /** Dòng CUỐI của bản chiếu — ba con số trong chú giải đọc từ đây. */
+  const endRow = rows.length > 0 ? rows[rows.length - 1] : null
   const ariaLabel = useMemo(
     () =>
       buildAriaLabel({
@@ -343,14 +379,53 @@ export function LifetimeChartCard({
         <EstimateMark reason="Toàn bộ khối này là số chiếu theo kịch bản bạn đặt, không phải số đã xảy ra." />
       </h2>
 
-      <div role="img" aria-label={ariaLabel} className="h-52 w-full">
+      {/* Cao hơn từ `xl`: ở đó đồ thị đứng cạnh cột 400px nên nó rộng ~910px, mà 208px
+          chiều cao trên bề ngang đó là tỷ lệ 4,4:1 — một dải dẹt, và đúng cái dải dẹt
+          đó phải chứa thêm nhãn mốc nổi trên đỉnh. Dưới `xl` giữ 208px: ở đó đồ thị
+          chiếm trọn bề ngang màn hẹp và cao hơn nữa là đẩy hết phần còn lại xuống dưới
+          nếp gấp. */}
+      <div role="img" aria-label={ariaLabel} className="h-52 w-full xl:h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <ComposedChart data={data} margin={{ top: 32, right: 8, bottom: 0, left: 0 }}>
             {minY < 0 && <ReferenceArea y1={minY} y2={0} fill={COLOR_NEGATIVE} fillOpacity={0.1} />}
             <ReferenceLine y={0} stroke={COLOR_AXIS} strokeDasharray="4 3" />
-            {markerYears.map((y) => (
-              <ReferenceLine key={y} x={y} stroke={COLOR_AXIS} strokeDasharray="3 3" />
-            ))}
+            {/* Mốc sự kiện: vạch đứng + tên nổi trên đỉnh. Trước đây chỉ có vạch, nên
+                muốn biết vạch 2046 là gì phải rê chuột vào đúng nó (và trên điện thoại
+                thì không rê được) hoặc mở Bảng theo năm.
+                Mũi tên ↑/↓ đứng trước tên là kênh phân biệt thu/chi KHÔNG dựa vào màu —
+                `LifetimeEvent.kind` chỉ có hai giá trị này, đây là toàn bộ phân loại sự
+                kiện mà dữ liệu có (không có "cưới"/"sinh con"/"hưu" ở tầng kiểu). */}
+            {markerYears.map((y, i) => {
+              const events = eventLabels.get(y) ?? []
+              const income = events.every((e) => e.kind === 'income')
+              return (
+                <ReferenceLine
+                  key={y}
+                  x={y}
+                  stroke={COLOR_AXIS}
+                  strokeDasharray="3 3"
+                  label={
+                    i < LABELED_MARKER_LIMIT
+                      ? {
+                          value: `${income ? '↑' : '↓'} ${y} · ${events.map((e) => e.label).join(', ')}`,
+                          position: 'top',
+                          // So le hai hàng. Hai mốc cách nhau 4 năm trên một bản chiếu
+                          // 58 năm chỉ cách nhau ~60px, trong khi một nhãn như
+                          // "↓ 2034 · sinh con" rộng 80px — đo thật thì chúng đè nhau
+                          // 13px. Không thể chặn bằng một khoảng cách năm tối thiểu:
+                          // cùng 80px nhãn ấy đáng 5 năm ở bề ngang desktop nhưng 14 năm
+                          // ở mobile, nên bất kỳ ngưỡng theo NĂM nào cũng sai ở một
+                          // trong hai đầu. So le thì hai nhãn LIỀN NHAU không bao giờ
+                          // cùng hàng, và điều đó đúng ở mọi bề ngang.
+                          offset: i % 2 === 0 ? 4 : 16,
+                          fill: COLOR_AXIS,
+                          fontSize: 10,
+                        }
+                      : undefined
+                  }
+                />
+              )
+            })}
 
             {/* Dải dao động — ẨN khi đang VẼ đường so sánh, hai dải chồng nhau không
                 đọc được gì. Đường so sánh bị ẩn vì lệch đơn vị thì dải hiện lại (xem
@@ -364,6 +439,32 @@ export function LifetimeChartCard({
                 isAnimationActive={animate}
                 animationDuration={MOTION_ASSUME_MS}
               />
+            )}
+
+            {/* Viền của dải. Trước đây dải chỉ là một vùng mờ không mép, nên "lạc quan
+                tới đâu, bi quan tới đâu" phải đoán bằng mắt ở chỗ vùng mờ nhạt dần —
+                mà đó chính là hai con số chú giải bên dưới đang nêu tên. */}
+            {showBand && (
+              <>
+                <Line
+                  dataKey="bandHigh"
+                  stroke={COLOR_OPTIMISTIC}
+                  strokeWidth={1.5}
+                  strokeDasharray="1 4"
+                  dot={false}
+                  isAnimationActive={animate}
+                  animationDuration={MOTION_ASSUME_MS}
+                />
+                <Line
+                  dataKey="bandLow"
+                  stroke={COLOR_PESSIMISTIC}
+                  strokeWidth={1.5}
+                  strokeDasharray="1 4"
+                  dot={false}
+                  isAnimationActive={animate}
+                  animationDuration={MOTION_ASSUME_MS}
+                />
+              </>
             )}
 
             {/* Bản chiếu: nhánh trung tâm, nét đứt `6 4`. */}
@@ -415,7 +516,21 @@ export function LifetimeChartCard({
             <XAxis
               dataKey="year"
               ticks={yearTicks}
-              interval={0}
+              // `preserveStartEnd`, KHÔNG phải `interval={0}` như trước. Lý do cũ ("vẽ
+              // đúng bộ mốc đã chọn, không để Recharts bỏ bớt trên chính bộ đã thưa")
+              // đúng khi nhãn còn là bốn chữ số; nay nhãn là "2026 · 32t" — đo trên máy
+              // ở 375px thì 2060 và 2070 đè lên nhau 1px, và ở cỡ chữ "Rất lớn" thì đè
+              // hẳn. `capTicks` cắt theo một con số ĐOÁN TRƯỚC (5), còn Recharts đo bề
+              // rộng THẬT của từng nhãn sau khi dựng khung — nó là thứ duy nhất ở đây
+              // biết chữ có vừa hay không. `preserveStartEnd` giữ nguyên hai đầu, tức
+              // phạm vi của cả đồ thị không bao giờ mất.
+              interval="preserveStartEnd"
+              // Năm KÈM TUỔI. Cả màn này nói bằng hai đơn vị — thẻ kết luận ghi "tuổi 47",
+              // mốc trên đồ thị ghi năm — và trước đây trục chỉ có năm, nên nối hai thứ
+              // lại là một phép trừ nhẩm mà người đọc phải tự làm ở mỗi lần liếc.
+              tickFormatter={(y: number) =>
+                birthYear === null ? `${y}` : `${y} · ${y - birthYear}t`
+              }
               tick={{ fontSize: 10, fill: COLOR_AXIS }}
               axisLine={false}
               tickLine={false}
@@ -433,7 +548,9 @@ export function LifetimeChartCard({
               // mà không phải rời đồ thị đi mở Bảng theo năm.
               labelFormatter={(l) => {
                 const names = eventLabels.get(Number(l))
-                return names ? `Năm ${l} · ${names.join(', ')}` : `Năm ${l}`
+                return names
+                  ? `Năm ${l} · ${names.map((e) => e.label).join(', ')}`
+                  : `Năm ${l}`
               }}
               formatter={(value, name) => {
                 if (name === 'band' && Array.isArray(value)) {
@@ -480,17 +597,46 @@ export function LifetimeChartCard({
             Lịch sử ẩn — khác đơn vị tiền ({historyCurrency} ≠ {currency})
           </span>
         )}
+        {/* Chú giải mang luôn CON SỐ CUỐI ĐỜI của từng nhánh (mock turn 31). Trước đây
+            nó chỉ đặt tên cho ba nét, mà "nét xanh là nhánh trung tâm" thì nhìn đồ thị
+            cũng đoán ra — thứ không đoán được là ba nhánh đó kết thúc ở đâu, và đó đúng
+            là câu người ta hỏi khi nhìn một bản chiếu cả đời. Đọc `endRow`, không tự
+            chiếu lại. */}
         <span className="flex items-center gap-1">
-          <LegendSwatch color={COLOR_PROJECTED} dash="6 4" /> Chiếu (trung tâm)
+          <LegendSwatch color={COLOR_PROJECTED} dash="6 4" /> Trung tâm{' '}
+          {endRow && (
+            <>
+              <Money
+                amount={endRow.assetsEndMinor}
+                currency={currency}
+                compact
+                className="text-2xs font-medium"
+              />
+              {birthYear !== null && ` lúc ${endRow.age}t`}
+            </>
+          )}
         </span>
-        {showBand && (
-          <span className="flex items-center gap-1">
-            <span
-              className="inline-block h-2 w-5 rounded-sm"
-              style={{ backgroundColor: COLOR_PROJECTED, opacity: 0.35 }}
-            />
-            Dải dao động
-          </span>
+        {showBand && endRow && (
+          <>
+            <span className="flex items-center gap-1">
+              <LegendSwatch color={COLOR_OPTIMISTIC} dash="1 4" /> Lạc quan{' '}
+              <Money
+                amount={endRow.assetsOptimisticMinor}
+                currency={currency}
+                compact
+                className="text-2xs font-medium"
+              />
+            </span>
+            <span className="flex items-center gap-1">
+              <LegendSwatch color={COLOR_PESSIMISTIC} dash="1 4" /> Bi quan{' '}
+              <Money
+                amount={endRow.assetsPessimisticMinor}
+                currency={currency}
+                compact
+                className="text-2xs font-medium"
+              />
+            </span>
+          </>
         )}
         {showCompare && (
           <span className="flex items-center gap-1">

@@ -100,14 +100,14 @@ npm run bundle:rules
 rồi commit luôn file `_*.js` sinh ra. Quên là chuông trong app nói một đằng, edge function nói một nẻo.
 Guard: [tests/pushBundle.test.ts](tests/pushBundle.test.ts) fail khi bundle cũ.
 
-**MCP server (Vercel function)** dùng `api/mcp.js`, gói từ `api/_handler.ts`:
+**MCP server (Vercel function)** dùng `api/mcp.mjs`, gói từ `api/_handler.ts`:
 
 ```bash
 npm run bundle:mcp
 ```
 
 Vercel biên dịch `.ts` sang `.js` nhưng **giữ nguyên chuỗi import**, mà ESM của Node đòi import
-tương đối có đuôi `.js` — bản deploy đầu tiên chết đúng vì thế (`ERR_MODULE_NOT_FOUND:
+tương đối có đuôi — bản deploy đầu tiên chết đúng vì thế (`ERR_MODULE_NOT_FOUND:
 /var/task/src/mcp/env`). Nguồn tên `_handler.ts` là cố ý: Vercel bỏ qua file trong `api/` bắt đầu
 bằng `_`, nên chỉ có đúng một function. Guard: [tests/mcpBundle.test.ts](tests/mcpBundle.test.ts).
 

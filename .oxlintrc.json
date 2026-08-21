@@ -5,7 +5,8 @@
     "dist",
     "node_modules",
     ".claude/worktrees",
-    "supabase/functions/**/_rules.js"
+    "supabase/functions/**/_rules.js",
+    "api/*.mjs"
   ],
   "rules": {
     "react/rules-of-hooks": "error",

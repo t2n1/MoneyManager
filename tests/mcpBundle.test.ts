@@ -8,7 +8,7 @@
 // Cùng tinh thần tests/pushBundle.test.ts, nhưng KHÔNG dùng chung: bundle Deno bị cấm chứa
 // 'node:', còn bundle này chạy trên Node nên được phép. Gộp hai bộ ràng buộc trái nhau vào
 // một test là cách chắc chắn để một bên mất hiệu lực.
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
@@ -20,6 +20,18 @@ import { MCP_BUNDLE, bundleMcp } from '../scripts/bundle-mcp.mjs'
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 
 const daCommit = () => readFileSync(join(ROOT, MCP_BUNDLE.outfile as string), 'utf8')
+
+/** Module lõi của Node — luôn có sẵn trong lambda, nên không phải "thư viện ngoài". */
+const LOI_NODE = new Set(['http2', 'stream', 'crypto', 'buffer', 'util', 'events', 'url'])
+
+/** Mọi file .ts (không phải .test.ts) dưới một thư mục, đệ quy. */
+function filesTs(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const p = join(dir, e.name)
+    if (e.isDirectory()) return filesTs(p)
+    return e.name.endsWith('.ts') && !e.name.endsWith('.test.ts') ? [p] : []
+  })
+}
 
 describe('bundle MCP server cho Vercel', () => {
   it('file đã commit KHỚP với nguồn hiện tại', async () => {
@@ -46,35 +58,44 @@ describe('bundle MCP server cho Vercel', () => {
     expect(tuongDoi, 'còn import tương đối thì Vercel sẽ lại ERR_MODULE_NOT_FOUND').toEqual([])
   })
 
-  it('chỉ import package bare, và đúng những package đã khai trong package.json', () => {
+  // Bản gói ĐẦU để package ở ngoài cho gọn (41KB) và vẫn chết FUNCTION_INVOCATION_FAILED:
+  // lambda không giải được import bare. Bundle tự đủ thì không còn gì để giải sai, và bài
+  // test này canh đúng chỗ đó — thêm lại `packages: 'external'` là đỏ.
+  it('không còn import thư viện ngoài nào, chỉ module lõi của Node', () => {
     const noiDung = daCommit()
-    const gois = new Set(
-      [...noiDung.matchAll(/from\s*["']([^."'][^"']*)["']/g)].map((m) => {
-        const spec = m[1]
-        // '@scope/pkg/sub' → '@scope/pkg'; 'pkg/sub' → 'pkg'
-        const phan = spec.split('/')
-        return spec.startsWith('@') ? phan.slice(0, 2).join('/') : phan[0]
-      }),
+    const ngoai = [...noiDung.matchAll(/^import\s[^\n]*?from\s*["']([^"']+)["']/gm)]
+      .map((m) => m[1])
+      .filter((spec) => !LOI_NODE.has(spec.replace(/^node:/, '')))
+    expect(ngoai, 'còn import thư viện ngoài thì lambda phải tự giải — đúng chỗ đã chết').toEqual(
+      [],
     )
-    const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
-    const daKhai = new Set([
-      ...Object.keys(pkg.dependencies ?? {}),
-      ...Object.keys(pkg.devDependencies ?? {}),
-    ])
-    for (const g of gois) {
-      if (g.startsWith('node:')) continue
-      expect([...daKhai], `${g} không có trong package.json — Vercel sẽ không cài nó`).toContain(g)
-    }
+  })
+
+  // Đuôi `.mjs`, không phải `.js`: Node luôn coi `.mjs` là ESM, không phụ thuộc việc lambda
+  // có mang theo `"type": "module"` hay không. Với `.js` thì đó là một giả định về cách
+  // Vercel dựng lambda, mà giả định về Vercel đã sai một lần trong spec này rồi.
+  it('đuôi là .mjs để không phụ thuộc "type" của lambda', () => {
+    expect(MCP_BUNDLE.outfile).toMatch(/\.mjs$/)
   })
 
   it('xuất handler mặc định — Vercel gọi export default', () => {
     expect(daCommit()).toMatch(/export\s*\{[^}]*as default/)
   })
 
-  it('không có đường GHI nào: server chỉ đọc', () => {
-    const noiDung = daCommit()
-    for (const cam of ['.insert(', '.update(', '.upsert(', '.delete(']) {
-      expect(noiDung, `bundle chứa ${cam} — MCP server phải chỉ đọc`).not.toContain(cam)
+  // Soi FILE NGUỒN, không soi bundle: bundle đã nhồi cả @supabase/supabase-js, và thư viện
+  // đó tất nhiên có `.insert(` trong API của nó. Hỏi bundle thì bài test này đỏ vĩnh viễn vì
+  // một lý do vô nghĩa; hỏi nguồn thì nó canh đúng điều spec hứa — "Server chỉ đọc".
+  it('không có đường GHI nào trong code của mình: server chỉ đọc', () => {
+    const nguon = [
+      join(ROOT, 'api/_handler.ts'),
+      ...filesTs(join(ROOT, 'src/mcp')),
+    ]
+    expect(nguon.length, 'không quét được file nguồn nào — đường dẫn đã đổi?').toBeGreaterThan(5)
+    for (const f of nguon) {
+      const noiDung = readFileSync(f, 'utf8')
+      for (const cam of ['.insert(', '.update(', '.upsert(', '.delete(']) {
+        expect(noiDung, `${f} chứa ${cam} — MCP server phải chỉ đọc`).not.toContain(cam)
+      }
     }
   })
 })

@@ -30,9 +30,15 @@ hiện không trả lời nổi**. Ba loại câu làm mốc:
   > `ERR_MODULE_NOT_FOUND: /var/task/src/mcp/env`. Nên **Vercel cũng phải bundle**, y như Deno
   > — xem `npm run bundle:mcp` và `tests/mcpBundle.test.ts`.
   >
-  > Lý do CÒN LẠI để vẫn chọn Vercel thay vì edge function: bundle này để package trong
-  > `node_modules` ở ngoài (Vercel tự cài), nên nó 41KB chứ không phải một bản nhồi cả
-  > `@supabase/supabase-js` + SDK MCP; và app đã deploy sẵn ở đó nên không thêm chỗ phải trông.
+  > Thử lần hai cũng sai: bản gói **để package ngoài** (41KB, Vercel tự cài) vẫn chết
+  > `FUNCTION_INVOCATION_FAILED` — lambda không giải được import bare. Bản chạy được là bundle
+  > **tự đủ** `api/mcp.mjs` (~2MB, trong file chỉ còn `http2`/`stream`/`crypto` của Node), đuôi
+  > `.mjs` để không phụ thuộc việc lambda có mang `"type": "module"` hay không.
+  >
+  > Lý do CÒN LẠI để vẫn chọn Vercel thay vì edge function: app đã deploy sẵn ở đó nên không
+  > thêm một chỗ phải trông, và Node cho phép dùng thẳng `@supabase/supabase-js` + SDK MCP.
+  > Nhưng cái lợi "không phải bundle" thì **không có** — bài học: đừng chốt một quyết định
+  > kiến trúc bằng một giả định về nền tảng mà chưa deploy thử một lần.
 - **Làm hai chặng.** Chặng 1: xác thực bằng bearer token, dùng được ngay trên 2 PC qua
   Claude Code. Chặng 2: thêm OAuth để claude.ai và app điện thoại nhận được connector.
   Logic tool nằm ở module thuần nên chặng 2 chỉ thêm tầng xác thực, không viết lại tool.
@@ -51,7 +57,7 @@ hiện không trả lời nổi**. Ba loại câu làm mốc:
 
 - Thư mục mới `src/mcp/`: `basket.ts` (dựng rổ giao dịch đúng), `tools/*.ts` (5 tool,
   thuần, có unit test), `format.ts` (hình dạng số tiền trả về).
-- Thư mục mới `api/`: `api/_handler.ts` (nguồn) → `api/mcp.js` (bundle đã commit, là function
+- Thư mục mới `api/`: `api/_handler.ts` (nguồn) → `api/mcp.mjs` (bundle đã commit, là function
   thật) — vỏ vận chuyển MCP qua HTTP trên Vercel. Repo hiện
   chưa có `api/`; thêm nó là lần đầu app có endpoint riêng.
 - Sửa [README.md](../../../README.md): nguyên tắc *"Không backend riêng"* cần nói rõ nó
@@ -68,7 +74,7 @@ với Claude còn hơn) · OAuth của chặng 2 (cần phép thử riêng, xem 
 ## A. Kiến trúc
 
 ```
-app Claude  ──MCP/HTTP──▶  api/mcp.js  ──▶  src/mcp/tools/*.ts  ──▶  src/mcp/basket.ts
+app Claude  ──MCP/HTTP──▶  api/mcp.mjs  ──▶  src/mcp/tools/*.ts  ──▶  src/mcp/basket.ts
 (PC, phone)                (vỏ mỏng:        (thuần, có test)         │
                             xác thực,                               ├─▶ Supabase (chỉ đọc)
                             định tuyến)                             └─▶ hàm sẵn có của app:

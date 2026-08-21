@@ -38,7 +38,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
  */
 export const MCP_BUNDLE = {
   entry: 'api/_handler.ts',
-  outfile: 'api/mcp.js',
+  outfile: 'api/mcp.mjs',
 }
 
 const BANNER = `// TỆP SINH TỰ ĐỘNG — ĐỪNG SỬA TAY.
@@ -59,10 +59,15 @@ export async function bundleMcp({ write } = { write: true }) {
     // Vercel chạy Node 20+ (thư viện MCP đòi >= 20). Đặt target thật để esbuild không hạ
     // cú pháp xuống mức không cần, cũng không xuất cú pháp mới hơn runtime.
     target: 'node20',
-    // Package trong node_modules để NGOÀI: Vercel cài dependency từ package.json rồi tự
-    // truy vết những import bare này. Nhồi chúng vào bundle là ~2MB không cần và làm mất
-    // dấu vết khi lần lỗi trong log.
-    packages: 'external',
+    // NHỒI CẢ PACKAGE VÀO, không để `packages: 'external'`. Bản đầu để ngoài cho gọn
+    // (41KB) và vẫn chết `FUNCTION_INVOCATION_FAILED` — lambda không giải được import bare.
+    // Tự đủ thì trong file chỉ còn `http2`/`stream`/`crypto` (module lõi Node, luôn có), nên
+    // KHÔNG còn gì để giải sai. Cái giá là ~2MB, rẻ so với trần 250MB của lambda, và đúng
+    // đánh đổi mà scripts/bundle-rules.mjs đã chọn cho Deno.
+    //
+    // Đuôi `.mjs` cũng là chủ ý: Node luôn coi `.mjs` là ESM, không phụ thuộc việc lambda có
+    // mang theo `"type": "module"` hay không. Với `.js` thì điều đó là một giả định về cách
+    // Vercel dựng lambda, và giả định về Vercel đã sai một lần trong chính spec này rồi.
     banner: { js: BANNER },
     // Không minify: file này được người đọc khi lần lỗi trong log Vercel.
     minify: false,

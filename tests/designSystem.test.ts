@@ -226,8 +226,23 @@ function stripComments(text: string): string {
  *
  * Ba dòng kia của cùng thẻ đó không lọt ngưỡng 45 ký tự (nhãn ngày, "Không ghi khoản nào.",
  * hàng chip nhãn) — nêu ra để lần sau không ai đọc "+1" rồi đi tìm một câu bị bỏ sót.
+ *
+ * 77 (2026-08-24, dựng lại tab Lịch theo gói 1a): +2 ở `CalendarPanels`, cả hai là CẢNH BÁO
+ * DỮ LIỆU "số đang tính thiếu" — đúng loại đã được nêu ở lời ghi 52 và phải ở lại vì lý do
+ * đó: ẩn nó ở chế độ Gọn thì người dùng đọc một con số sai mà không có gì báo.
+ *
+ *   · khối "Còn được tiêu" — thiếu tỷ giá là `convertToBase` trả null, tức khoản ngoại tệ
+ *     bị bỏ khỏi `spent`, tức mức "còn tiêu được mỗi ngày" đang CAO hơn sự thật. Đó là con
+ *     số hành động nhiều nhất của cả màn, nên nó không được cao hơn sự thật trong im lặng.
+ *   · khối "Chi theo nhãn" — y hệt câu đã có ở `TagBudgetsCard`, và có mặt hai lần vì đây
+ *     là hai màn khác nhau, không phải một câu bị chép.
+ *
+ * Phần chữ mới của đợt này KHÔNG tính vào đây vì đã đi qua cổng đúng cách: câu "ngày rút thẻ
+ * không nằm trong con số trên" và câu "một khoản mang nhiều nhãn" đều bọc <Guide>, còn chú
+ * giải lưới, dòng cam kết cột Tuần và câu B36.2 "đã hứa hết phần còn lại" là dòng số liệu
+ * dưới ngưỡng 45 ký tự hoặc không mang class chữ phụ.
  */
-const PROSE_MAX = 75
+const PROSE_MAX = 77
 
 const FILES = sourceFiles().map((path) => ({
   path,

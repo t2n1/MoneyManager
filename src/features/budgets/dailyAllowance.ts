@@ -30,3 +30,47 @@ export function dailyAllowance(
   if (daysLeft <= 0 || !Number.isFinite(daysLeft)) return null
   return { remaining, daysLeft, perDay: Math.floor(remaining / daysLeft) }
 }
+
+/**
+ * Ba đoạn của thanh "Còn được tiêu": ĐÃ CHI · ĐÃ CAM KẾT · TỰ DO.
+ *
+ * Vì sao ba đoạn chứ không một: thanh tiến độ một màu chỉ nói "đã dùng bao nhiêu phần
+ * trần", mà giữa tháng câu đó không đủ để quyết định gì — phần trần còn lại đã bị tiền
+ * điện ngày 25 và thẻ tới hạn ngày 27 xí trước một khúc. Đoạn giữa vẽ đúng khúc đó ra,
+ * nên phần XANH mới là tiền thật sự còn tự do, cùng con số mà `dailyAllowance` chia cho
+ * số ngày còn lại.
+ *
+ * Mẫu số LUÔN là `budgeted`, không phải `spent + committed`: thanh này đo "còn bao nhiêu
+ * phần trần", nên nó phải đầy đúng lúc trần hết. Lấy tổng làm mẫu số thì tháng vượt trần
+ * lại vẽ ra một thanh chưa đầy.
+ *
+ * Khi đã hứa quá phần còn lại (`free` < 0) thì đoạn cam kết chỉ vẽ tới mép và `free`
+ * VẪN trả số âm — nơi gọi phải in ra "thiếu ¥X trước cuối tháng", cùng lý do với
+ * `spendableRemaining` (B36.2): kẹp về 0 là giấu đúng tin quan trọng nhất của tháng.
+ */
+export interface SpendableSegments {
+  /** 0…1 — phần trần đã tiêu. */
+  spent: number
+  /** 0…1 — phần trần đã hứa cho cam kết chưa ra. */
+  committed: number
+  /** 0…1 — phần còn tự do. 0 khi đã hứa hết. */
+  free: number
+  /** Tiền còn tự do (base minor); ÂM = đã hứa nhiều hơn phần còn lại. */
+  freeAmount: number
+}
+
+export function spendableSegments(
+  budgeted: number,
+  spent: number,
+  committed: number,
+): SpendableSegments | null {
+  if (budgeted <= 0) return null
+  const s = Math.min(1, Math.max(0, spent) / budgeted)
+  const c = Math.min(1 - s, Math.max(0, committed) / budgeted)
+  return {
+    spent: s,
+    committed: c,
+    free: Math.max(0, 1 - s - c),
+    freeAmount: Math.round(budgeted - spent - Math.max(0, committed)),
+  }
+}

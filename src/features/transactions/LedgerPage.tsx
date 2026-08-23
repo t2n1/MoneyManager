@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, ChevronLeft, ChevronRight, Repeat, Search } from 'lucide-react'
-import { IconButton, SegmentedControl, iconButtonClass } from '../../components/ui'
+import { IconButton, Money, SegmentedControl, iconButtonClass } from '../../components/ui'
 import { repo } from '../../data'
 import {
   useAccounts,
@@ -16,6 +16,7 @@ import {
   useTransactionTags,
   useTransferCategoryIds,
 } from '../../hooks/queries'
+import { sumInBase, sumPerCurrency } from './ledgerShared'
 import { confirmDialog } from '../../lib/dialog'
 import { scrollContentToTop } from '../../lib/scroll'
 import { showUndoToast } from '../../lib/undoToast'
@@ -57,6 +58,10 @@ const VIEWS = [
 ] as const
 
 type LedgerView = (typeof VIEWS)[number]['key']
+
+/** Nút icon 36px của hàng tab (bản vẽ 1a §1.1) — chỉ desktop, xem chú thích tại chỗ dùng. */
+const DESK_ICON =
+  'inline-flex h-9 w-9 items-center justify-center rounded-md border border-border-strong bg-surface text-fg-primary transition hover:bg-surface-sunken'
 
 const isView = (v: string | null): v is LedgerView => VIEWS.some((x) => x.key === v)
 
@@ -134,6 +139,22 @@ export function LedgerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [transactions, accounts, base, rates],
   )
+
+  // Tổng kỳ cho hàng tab của tab Lịch (§1.1). Trên `transactions` (CẢ kỳ), không trên
+  // `shown`: đây là "kỳ này thế nào", không phải "đang nhìn gì".
+  const periodIncome = useMemo(
+    () => sumInBase(transactions, 'income', currencyOf, base, rates),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions, accounts, base, rates],
+  )
+  const periodExpense = useMemo(
+    () => sumInBase(transactions, 'expense', currencyOf, base, rates),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [transactions, accounts, base, rates],
+  )
+  const periodNet =
+    periodIncome && periodExpense ? Math.round(periodIncome.value - periodExpense.value) : null
+  const approx = !!(periodIncome?.hasForeign || periodExpense?.hasForeign)
 
   // --- Cột phụ (10a) ---------------------------------------------------------------
   //
@@ -362,15 +383,90 @@ export function LedgerPage() {
         </div>
       </div>
 
-      {/* Tab đổi cách xem */}
-      <SegmentedControl
-        items={VIEWS.map((v) => ({ value: v.key, label: v.label }))}
-        value={view}
-        onChange={setView}
-        label="Cách xem sổ giao dịch"
-        stretch="lg"
-        className="mb-4"
-      />
+      {/* Tab đổi cách xem. Ở tab Lịch, hàng này gánh thêm ba con số của kỳ và ba nút
+          hành động cỡ 36px (bản vẽ 1a §1.1): lưới lịch đã phủ kín màn, nên nếu tổng
+          tháng đứng thành một hàng riêng thì nó đẩy lưới xuống dưới mép gấp. Ba tab kia
+          KHÔNG có phần này — chúng đã in tổng của mình ngay trong nội dung (dải tổng của
+          tab Ngày, cột của tab Tháng, bảng của Tổng hợp). */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+        <SegmentedControl
+          items={VIEWS.map((v) => ({ value: v.key, label: v.label }))}
+          value={view}
+          onChange={setView}
+          label="Cách xem sổ giao dịch"
+          stretch="lg"
+          // `basis-full`, không `w-full`: SegmentedControl tự đặt `lg:w-fit`, nên hai
+          // tiện ích `w-*` cùng hạng sẽ đấu nhau theo thứ tự trong CSS build ra.
+          className="basis-full lg:basis-auto"
+        />
+        {view === 'calendar' && (
+          <div className="ml-auto hidden items-center gap-5 text-[0.8125rem] lg:flex">
+            <span className="flex items-baseline gap-1.5 text-fg-muted">
+              Thu
+              {periodIncome ? (
+                <Money
+                  amount={periodIncome.value}
+                  currency={base}
+                  tone="in"
+                  showSign
+                  approx={periodIncome.hasForeign}
+                  className="text-sm font-semibold"
+                />
+              ) : (
+                <span className="text-sm font-semibold text-money-in">
+                  {sumPerCurrency(transactions, 'income', currencyOf)}
+                </span>
+              )}
+            </span>
+            <span className="flex items-baseline gap-1.5 text-fg-muted">
+              Chi
+              {periodExpense ? (
+                <Money
+                  amount={periodExpense.value}
+                  currency={base}
+                  tone="out"
+                  showSign
+                  approx={periodExpense.hasForeign}
+                  className="text-sm font-semibold"
+                />
+              ) : (
+                <span className="text-sm font-semibold text-money-out">
+                  {sumPerCurrency(transactions, 'expense', currencyOf)}
+                </span>
+              )}
+            </span>
+            <span className="flex items-baseline gap-1.5 text-fg-muted">
+              Còn lại
+              {/* Thiếu tỷ giá thì KHÔNG in một số cộng thiếu: hai vế trên đã tách theo
+                  loại tiền, mà chênh lệch giữa hai loại tiền khác nhau thì vô nghĩa. */}
+              {periodNet === null ? (
+                <span className="text-sm font-semibold text-fg-muted">—</span>
+              ) : (
+                <Money
+                  amount={Math.abs(periodNet)}
+                  currency={base}
+                  tone={periodNet < 0 ? 'out' : 'neutral'}
+                  showSign
+                  approx={approx}
+                  className="text-sm font-semibold"
+                />
+              )}
+            </span>
+            {/* 36px, không phải 44px của `IconButton`: chúng nhập vào hàng tab để tiết
+                kiệm một hàng, mà một nút 44px thì cao hơn cả dải tab. Bản 44px vẫn còn
+                nguyên ở hàng trên cho mobile — nơi vùng chạm mới là ràng buộc. */}
+            <Link to="/search" aria-label="Tìm kiếm giao dịch" className={DESK_ICON}>
+              <Search className="h-4 w-4" />
+            </Link>
+            <Link to="/planned" aria-label="Khoản sắp chi" className={`${DESK_ICON} -ml-3`}>
+              <CalendarClock className="h-4 w-4" />
+            </Link>
+            <Link to="/recurring" aria-label="Giao dịch định kỳ" className={`${DESK_ICON} -ml-3`}>
+              <Repeat className="h-4 w-4" />
+            </Link>
+          </div>
+        )}
+      </div>
 
       {/* KHÔNG có dải "Cơ cấu chi so với mốc" ở đây nữa (B7 của gói 1a).
           Dải này từng đứng ngay dưới dải tab, và ở đầu màn Sổ nó nén thành đúng MỘT VẠCH:
@@ -416,11 +512,15 @@ export function LedgerPage() {
 
       {view === 'calendar' && (
         <CalendarView
-          // remount khi đổi kỳ để reset ngày đang chọn (không giữ ngày của kỳ cũ)
+          // remount khi đổi kỳ để reset ngày đang chọn VÀ bộ lọc nhãn (không giữ lựa
+          // chọn của kỳ cũ) — cùng lý do `filter` của tab Ngày bị xoá khi đổi tháng.
           key={`${activeMonthKey.year}-${activeMonthKey.month}-${monthStartDay}`}
           transactions={transactions}
           monthKey={activeMonthKey}
           monthStartDay={monthStartDay}
+          // Lưới nhiệt đã tính sẵn cho cột phụ tab Ngày — tab Lịch dựng ô ngày từ ĐÚNG
+          // con số đó, không gom lại lần thứ hai.
+          heat={heat}
           accountOf={accountOf}
           categoryOf={categoryOf}
           currencyOf={currencyOf}
@@ -428,6 +528,9 @@ export function LedgerPage() {
           rates={rates}
           onEdit={setEditing}
           tagsOfTx={tagsOfTx}
+          tags={tags}
+          tagLinks={tagLinks}
+          transferIds={transferIds}
         />
       )}
 

@@ -18,8 +18,9 @@
 //      sửa view mà không sửa đây thì phép thử ở accountRowStats.test.ts gãy.
 //   2. Nó chỉ tính HIỆU, không bao giờ tính số dư tuyệt đối từ đầu — số dư hiện tại vẫn
 //      lấy từ view rồi lùi dần về quá khứ. Sai sót (nếu có) không lan sang con số lớn.
-//   3. `exclude_from_stats` KHÔNG được lọc, vì view cũng không lọc: khoản bị loại khỏi
-//      thống kê vẫn làm số dư đổi thật. Lọc ở đây là Δ không khớp số dư.
+//   3. Bút toán bù số dư (`exclude_from_stats`) thì NGƯỢC LẠI: view tính, chỗ này không.
+//      Lý do nằm ở khối "VÌ SAO LOẠI BÚT TOÁN BÙ" trong `accountRowStats` — nó là chỗ
+//      duy nhất file này cố tình lệch khỏi view, nên phải đọc trước khi sửa.
 import type { TransactionRow } from '../../types/database.types'
 
 /** Cửa sổ của cột Δ. Cùng con số với RECONCILE_STALE_DAYS ở dataRules — cùng ý "gần đây". */
@@ -104,13 +105,36 @@ export function accountRowStats(args: RowStatsArgs): Map<string, AccountRowStat>
     return Math.min(SPARK_POINTS - 1, Math.floor(((t - t0) / span) * SPARK_POINTS))
   }
 
+  /**
+   * VÌ SAO LOẠI BÚT TOÁN BÙ (`exclude_from_stats`) — chỗ duy nhất lệch khỏi view.
+   *
+   * Đó là cờ mà cả hai sheet đối chiếu (ReconcileSheet, CardMonthAdjustSheet) đóng lên
+   * khoản bù chênh lệch. Khoản bù KHÔNG phải tiền vào/ra: nó là sai số theo dõi được
+   * ghi nhận. Và với một sổ ghi tay thì nó to hơn mọi dòng thật — một cái ví số dư
+   * ¥2.840 nhận bút toán +¥1.446.190 làm cột Δ đọc ra "tháng qua ví tăng 1,4 triệu",
+   * còn đường tí hon vẽ một bậc thang dựng đứng. Cả hai nói sai về đúng cái duy nhất
+   * chúng được đặt ở đó để nói: tài khoản đang đi lên hay đi xuống.
+   *
+   * Cùng lối với `keptDestinations` (reports/monthReport.ts), nơi ĐÚNG bút toán
+   * ¥1.661.218 của sổ này từng thành dòng to nhất bảng "tiền để lại đã đi đâu".
+   *
+   * CÁI GIÁ, nói thẳng: cửa sổ nào có bút toán bù thì Δ không còn cộng đúng bằng hiệu
+   * hai đầu đường tí hon. Bất biến giữ lại là cái quan trọng hơn — `spark[cuối]` vẫn
+   * đúng bằng số dư view trả về — nên đoạn quá khứ của đường được vẽ như thể tài khoản
+   * LUÔN khớp với số dư đã chốt, tức đúng điều người dùng vừa khẳng định lúc bấm Đối
+   * chiếu.
+   *
+   * Dòng nợ/cho vay (`is_debt_flow`) thì GIỮ, khác với báo cáo: tiền của người khác,
+   * nhưng nó rời tài khoản thật, nên số dư đi xuống thật.
+   */
+  const flows = txs.filter((t) => t.occurred_on >= windowStartISO && !t.exclude_from_stats)
+
   for (const [id, balance] of balanceById) {
     // Hiệu theo từng mốc, và ngày đối chiếu gần nhất.
     const perBucket = new Array<number>(SPARK_POINTS).fill(0)
     let tong = 0
 
-    for (const t of txs) {
-      if (t.occurred_on < windowStartISO) continue
+    for (const t of flows) {
       const d = applyTx(t, id)
       if (d === 0) continue
       perBucket[bucketOf(t.occurred_on)] += d

@@ -47,8 +47,10 @@ describe('applyTx — chép đúng view account_balances', () => {
     expect(applyTx(tx({ type: 'income', amount: 500, account_id: 'Z' }), 'A')).toBe(0)
   })
 
-  // View KHÔNG lọc exclude_from_stats, nên ở đây cũng không: khoản bị loại khỏi thống kê
-  // vẫn làm số dư đổi thật. Lọc là Δ không khớp số dư bên cạnh nó.
+  // `applyTx` là bản chép của view, và view KHÔNG lọc exclude_from_stats — nên hàm này
+  // cũng không. Việc bỏ bút toán bù ra khỏi Δ là quyết định của `accountRowStats` (test
+  // ngay dưới), không phải của hàm này: `keptDestinations` cũng dùng `applyTx` và tự lọc
+  // theo rổ riêng của nó.
   it('exclude_from_stats vẫn tính vào số dư', () => {
     expect(applyTx(tx({ type: 'expense', amount: 500, exclude_from_stats: true }), 'A')).toBe(-500)
   })
@@ -71,6 +73,34 @@ describe('accountRowStats', () => {
       ],
     }).get('A')!
     expect(r.delta).toBe(30_000)
+  })
+
+  // Bút toán bù số dư là sai số theo dõi được ghi nhận, không phải tiền vào — để nó
+  // trong Δ là một cái ví ¥2.840 khoe "+¥1.446.190 / 30 ngày". Xem khối "VÌ SAO LOẠI
+  // BÚT TOÁN BÙ" trong accountRowStats.ts.
+  it('bỏ bút toán bù số dư khỏi Δ và khỏi đường tí hon', () => {
+    const r = accountRowStats({
+      ...chung,
+      balanceById: new Map([['A', 2_840]]),
+      txs: [
+        tx({ type: 'income', amount: 1_446_190, occurred_on: '2026-08-05', exclude_from_stats: true }),
+        tx({ type: 'expense', amount: 1_000, occurred_on: '2026-08-20' }),
+      ],
+    }).get('A')!
+    expect(r.delta).toBe(-1_000)
+    // Đường vẫn neo ở số dư view trả về, và không còn bậc thang của khoản bù.
+    expect(r.spark[r.spark.length - 1]).toBe(2_840)
+    expect(r.spark[0]).toBe(3_840)
+  })
+
+  // Dòng nợ/cho vay thì GIỮ: tiền của người khác, nhưng nó rời tài khoản thật.
+  it('giữ dòng nợ/cho vay trong Δ', () => {
+    const r = accountRowStats({
+      ...chung,
+      balanceById: new Map([['A', 0]]),
+      txs: [tx({ type: 'expense', amount: 200_000, occurred_on: '2026-08-10', is_debt_flow: true })],
+    }).get('A')!
+    expect(r.delta).toBe(-200_000)
   })
 
   it('bỏ giao dịch trước cửa sổ', () => {

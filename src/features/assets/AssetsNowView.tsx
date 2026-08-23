@@ -777,7 +777,10 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                         <span className="hidden shrink-0 items-center gap-1.5 sm:flex">
                           <Sparkline values={stat.spark} label={`Số dư ${a.name} 30 ngày qua`} />
                           <span
-                            className={`w-16 text-right text-2xs tabular-nums ${
+                            // min-w chứ không w: `w-16` cứng làm số dài xuống dòng, và
+                            // chỗ xuống dòng rơi đúng sau dấu — cột hiện "+" trên một
+                            // dòng, "¥1,446,190" ở dòng dưới, đọc như hai thứ khác nhau.
+                            className={`min-w-16 whitespace-nowrap text-right text-2xs tabular-nums ${
                               stat.delta === 0
                                 ? 'text-fg-muted'
                                 : stat.delta > 0

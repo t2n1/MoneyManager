@@ -41,15 +41,50 @@ export type SegmentedSize = 'sm' | 'md' | 'lg'
 // Export để test được bằng hàm thuần: repo không render component trong test
 // (0 file *.test.tsx, không có @testing-library), nên bảng tra phải tự kiểm được.
 export const SIZE: Record<SegmentedSize, { track: string; item: string }> = {
-  sm: { track: 'text-xs', item: 'px-3 py-2.5' },
-  md: { track: 'text-sm', item: 'px-1 py-2.5' },
+  sm: { track: 'text-xs', item: 'py-2.5' },
+  md: { track: 'text-sm', item: 'py-2.5' },
   // 46px: py-3 (12px×2) + line-height 20px + border 2px (mỗi button có border
   // border-transparent 1px trên + dưới). Trên mặt yêu cầu 44px (vùng chạm), 46px
   // vượt quá 2px. Dành cho control CHÍNH của một màn — màn Nhập, nơi ô segmented
   // không nằm trong danh sách miễn trừ vùng chạm.
   // KHÔNG sửa `md` để đạt 44px: 11 file khác đang dùng nó (Tài sản, Đầu tư, Báo cáo,
   // Sổ, RecurringFormSheet, roleFields…), đổi là đổi chiều cao ở cả 11 màn.
-  lg: { track: 'text-sm', item: 'px-1 py-3' },
+  lg: { track: 'text-sm', item: 'py-3' },
+}
+
+/**
+ * Bề ngang: GIÃN đầy hàng, hay CO theo chữ. Hàm thuần vì repo không render component
+ * trong test — cùng lý do với bảng SIZE ở trên.
+ *
+ * Padding NGANG đi cùng cách giãn, không đi cùng cỡ — nên nó ở đây chứ không ở SIZE:
+ *   · giãn → mục `flex-1`, ở đó `px-1` gần như vô nghĩa (bề rộng do flex chia, không
+ *            do padding). Track không cần chốt bề ngang: một flex container mức khối
+ *            vốn đã đầy hàng.
+ *   · co   → mục `shrink-0` + `px-3`: lúc này padding LÀ thứ duy nhất tách hai nhãn,
+ *            `px-1` (4px) làm chúng gần như chạm nhau. Và track phải `w-fit`, chứ không
+ *            thì trong một cha mức khối (hoặc `flex-col`) nó vẫn kéo viền hết hàng: mục
+ *            co lại xong, còn cái hộp viền dài 1800px bọc quanh chỗ trống — đúng cái
+ *            nhìn thấy trên /so và /reports ở màn 1920px.
+ *
+ * 'lg' là chế độ của DẢI TAB CẤP TRANG (Sổ, Báo cáo, Phạm vi, Đầu tư): điện thoại
+ * giãn, từ lg mới co. Không cho nó co ở mọi cỡ, và đây là số đo chứ không phải e dè:
+ * bốn tab "Tháng · Dài hạn · Sức khỏe · Quyết định" co theo chữ đo được 326px, nhân
+ * cỡ chữ "Rất lớn" (`--app-font-scale` 1.25) ra ~408px, trong khi màn 320px chỉ còn
+ * 296px. Mục `shrink-0` thì tràn ra ngoài track — và tràn ngang ở màn Sổ là bệnh đã
+ * biết (vuốt dọc bị lệch ngang, xem chú thích hàng header của LedgerPage). Giãn thì
+ * mục tự co, chữ xuống dòng, không tràn.
+ *
+ * `false` vẫn là "co ở MỌI cỡ" — dành cho dải nằm CẠNH control khác trong một hàng
+ * flex (Tài sản, cơ cấu danh mục), nơi giãn không có nghĩa gì.
+ */
+export type SegmentedStretch = boolean | 'lg'
+
+export function stretchClasses(stretch: SegmentedStretch): { track: string; item: string } {
+  if (stretch === 'lg')
+    return { track: 'lg:w-fit', item: 'flex-1 px-1 lg:flex-none lg:shrink-0 lg:px-3' }
+  return stretch
+    ? { track: '', item: 'flex-1 px-1' }
+    : { track: 'w-fit', item: 'shrink-0 px-3' }
 }
 
 interface Props<T extends string> {
@@ -59,8 +94,11 @@ interface Props<T extends string> {
   /** Bắt buộc: trình đọc màn hình cần biết bộ nút này để chọn CÁI GÌ. */
   label: string
   size?: SegmentedSize
-  /** false khi bộ nút nằm cạnh nội dung khác thay vì chiếm hết bề ngang. */
-  stretch?: boolean
+  /**
+   * 'lg' cho dải tab cấp trang (giãn ở điện thoại, co theo chữ từ desktop);
+   * 'false' khi bộ nút nằm cạnh nội dung khác trong một hàng flex.
+   */
+  stretch?: SegmentedStretch
   className?: string
 }
 
@@ -74,6 +112,7 @@ export function SegmentedControl<T extends string>({
   className = '',
 }: Props<T>) {
   const s = SIZE[size]
+  const w = stretchClasses(stretch)
   const trackRef = useRef<HTMLDivElement>(null)
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
 
@@ -106,7 +145,7 @@ export function SegmentedControl<T extends string>({
       ref={trackRef}
       role="tablist"
       aria-label={label}
-      className={`relative flex rounded-lg border border-border-panel bg-transparent p-0.5 font-medium ${s.track} ${className}`.trim()}
+      className={`relative flex rounded-lg border border-border-panel bg-transparent p-0.5 font-medium ${s.track} ${w.track} ${className}`.trim()}
     >
       {/* Nền ô đang chọn. Chỉ vẽ sau lần đo đầu: vẽ trước khi biết chỗ thì nó xuất hiện
           ở mép trái rồi trượt sang — một chuyển động lúc MỞ MÀN, đúng thứ "console
@@ -136,9 +175,7 @@ export function SegmentedControl<T extends string>({
             // `relative` để chữ nằm TRÊN nền tuyệt đối ở trên. Viền trong suốt ở cả hai
             // trạng thái (nền mới là thứ mang viền đậm): cho riêng ô đang chọn một viền
             // thì mỗi lần bấm tab, chữ của mọi ô xê 1px — thấy rõ trên dải 4 tab của Sổ.
-            className={`relative rounded-md border border-transparent ${s.item} ${
-              stretch ? 'flex-1' : 'shrink-0'
-            } ${active ? (item.activeClassName ?? 'text-fg-primary') : 'text-fg-muted hover:text-fg-primary'}`}
+            className={`relative rounded-md border border-transparent ${s.item} ${w.item} ${active ? (item.activeClassName ?? 'text-fg-primary') : 'text-fg-muted hover:text-fg-primary'}`}
           >
             {item.label}
           </button>

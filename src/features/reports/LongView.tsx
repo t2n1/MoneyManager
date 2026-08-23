@@ -296,6 +296,7 @@ export function LongView() {
           value={activeScope.key}
           onChange={setScope}
           label="Phạm vi"
+          stretch="lg"
         />
       )}
 

@@ -368,6 +368,7 @@ export function LedgerPage() {
         value={view}
         onChange={setView}
         label="Cách xem sổ giao dịch"
+        stretch="lg"
         className="mb-4"
       />
 

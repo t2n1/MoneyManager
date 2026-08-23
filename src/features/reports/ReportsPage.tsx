@@ -206,11 +206,17 @@ export function ReportsPage() {
           tab chỉ tồn tại ở chế độ Tháng) — tức đổi kỳ là mất luôn thanh điều hướng, và
           layout nhảy. Nay thứ bậc đúng chiều: tab = "đang xem cái gì" (đứng yên), điều
           khiển kỳ = "lát nào" (đổi theo tab). Xem docs/information-architecture.md §2.4. */}
+      {/* stretch="lg": từ desktop dải này CO theo chữ (326px) thay vì giãn hết hàng. Ở
+          1920px bản giãn rộng ~1844px, mỗi nhãn nằm giữa một ô 460px — bấm được nhưng
+          đọc ra bốn cái băng rời rạc, không ra một bộ chọn. Điện thoại vẫn giãn (xem
+          stretchClasses), và ba dải tab cấp trang còn lại — Sổ, Phạm vi, Đầu tư — dùng
+          cùng chế độ này. */}
       <SegmentedControl
         items={VIEW_TABS}
         value={view}
         onChange={setView}
         label="Nội dung báo cáo"
+        stretch="lg"
         className="print:hidden"
       />
 

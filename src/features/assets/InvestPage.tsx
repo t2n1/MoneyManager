@@ -86,7 +86,13 @@ export function InvestPage() {
 
       {tab && (
         <>
-          <SegmentedControl items={TABS} value={tab} onChange={setTab} label="Loại danh mục" />
+          <SegmentedControl
+            items={TABS}
+            value={tab}
+            onChange={setTab}
+            label="Loại danh mục"
+            stretch="lg"
+          />
 
           {tab === 'stocks' ? (
             <InvestStocksTab accountId={accountId} onPickAccount={setAccount} />

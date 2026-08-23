@@ -23,6 +23,7 @@ import { debtSummary } from '../debts/aggregate'
 import type { CurrencyOf } from '../reports/aggregate'
 import { suggestBaseline } from './baseline'
 import { DEFAULT_INFLATION_BPS, pickActive } from './buildInput'
+import { duplicateScenario } from './duplicate'
 import {
   projectLifetime,
   type LifetimeEvent,
@@ -232,6 +233,9 @@ export function useLifetime() {
 
   const createScenario = useMutation({ mutationFn: repo.createLifeScenario })
   const createPhase = useMutation({ mutationFn: repo.createLifePhase })
+  /** Đang chạy `duplicateActiveScenario` — nút "Kịch bản mới" đọc để tự chặn bấm đúp
+   *  (phép chép ghi nhiều dòng, bấm hai lần là hai kịch bản trùng tên). */
+  const [duplicating, setDuplicating] = useState(false)
 
   /**
    * Tạo kịch bản đầu tiên: một dòng `life_scenarios` rồi một dòng `life_phases`. Hai
@@ -248,7 +252,7 @@ export function useLifetime() {
    * Nên: làm mới cache trong `finally` GATED theo "dòng kịch bản đã vào DB chưa" (cùng
    * khuôn `EventFormSheet.handlePickPreset` và `ScenarioEditorSheet.handleDuplicate`), và
    * `setActiveId` luôn — kịch bản thiếu chặng vẫn phải hiện ra ở dải chip để người dùng
-   * vào nút bút chì mà thêm chặng hoặc xoá nó đi.
+   * mở trình sửa mà thêm chặng hoặc xoá nó đi.
    */
   async function ensureFirstScenario() {
     const profile = profileQ.data
@@ -324,7 +328,10 @@ export function useLifetime() {
       showToast(
         scenarioId === null
           ? `Không tạo được kịch bản (${detail}). Chưa có gì được lưu — thử lại.`
-          : `Đã tạo kịch bản nhưng chưa tạo được chặng nền (${detail}). Kịch bản đang thiếu chặng nên chưa chiếu được gì — bấm nút bút chì để thêm một chặng, hoặc xoá kịch bản đó rồi thử lại.`,
+          // "Thêm chặng" là NHÃN THẬT của một nút có trên màn (dải Mốc cuộc đời dưới đồ
+          // thị). Câu cũ bảo "bấm nút bút chì" — nút đó đã bị xoá lúc header rút gọn,
+          // nên câu hướng dẫn chỉ vào một cái nút không tồn tại.
+          : `Đã tạo kịch bản nhưng chưa tạo được chặng nền (${detail}). Kịch bản đang thiếu chặng nên chưa chiếu được gì — bấm "Thêm chặng" ở dải Mốc cuộc đời, hoặc xoá kịch bản đó rồi thử lại.`,
         'error',
       )
     } finally {
@@ -333,6 +340,53 @@ export function useLifetime() {
         await qc.invalidateQueries({ queryKey: ['lifePhases'] })
         setActiveId(scenarioId)
       }
+    }
+  }
+
+  /**
+   * Tạo thêm một kịch bản: bản sao của kịch bản ĐANG XEM, rồi CHỌN LUÔN bản sao đó.
+   *
+   * Vì sao là bản sao chứ không phải một kịch bản trống: một kịch bản trống không chiếu
+   * ra gì (`projectLifetime` cần ít nhất một chặng), nên nút "Kịch bản mới" sẽ dẫn thẳng
+   * tới một đồ thị rỗng — người dùng phải khai lại từ đầu thu, chi, tài sản khởi điểm.
+   * Còn `ensureFirstScenario` thì KHÔNG dùng lại được ở đây: nó dựng chặng nền từ 12
+   * tháng giao dịch (query đó chỉ bật khi chưa có kịch bản nào) và đặt `is_primary: true`
+   * — tức nút này sẽ âm thầm cướp kịch bản chính, thứ mà thông báo và thẻ ở trang Tài
+   * sản đọc theo.
+   *
+   * `setActiveId` ngay sau khi tạo, khác với nút "Nhân bản" trong trình sửa (nút đó đóng
+   * sheet rồi bảo người dùng tự chọn ở dải chip): ở đây người dùng đang NHÌN dải chip,
+   * nên bấm xong mà không có gì đổi là một nút không phản hồi.
+   */
+  async function duplicateActiveScenario() {
+    if (!active || duplicating) return
+    setDuplicating(true)
+    let copyId: string | null = null
+    try {
+      const copy = await duplicateScenario({
+        scenario: active,
+        phases,
+        events,
+        afterCreate: async () => {
+          await qc.invalidateQueries({ queryKey: ['lifeScenarios'] })
+          await qc.invalidateQueries({ queryKey: ['lifePhases'] })
+          await qc.invalidateQueries({ queryKey: ['lifeEvents'] })
+        },
+      })
+      copyId = copy.id
+      showToast(`Đã tạo "${copy.name}" — sửa tên và các con số trong "Sửa kịch bản".`, 'success')
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : 'lỗi không rõ'
+      showToast(
+        `Không tạo được kịch bản mới (${detail}). Có thể đã có một bản sao thiếu dòng trong dải chip — kiểm và xoá nếu cần.`,
+        'error',
+      )
+    } finally {
+      // Chọn bản sao KỂ CẢ khi chép dòng lỗi giữa chừng: dòng kịch bản đã vào DB rồi,
+      // và người dùng cần nhìn thấy nó để sửa nốt hoặc xoá đi (đúng thứ toast lỗi vừa
+      // dặn). `copyId` còn null nghĩa là chưa có gì được tạo — đứng yên ở kịch bản cũ.
+      if (copyId !== null) setActiveId(copyId)
+      setDuplicating(false)
     }
   }
 
@@ -358,6 +412,9 @@ export function useLifetime() {
     needsBirthYear: !!profileQ.data && profileQ.data.birth_year == null,
     ensureFirstScenario,
     isCreatingFirstScenario: createScenario.isPending || createPhase.isPending,
+    /** Nhân bản kịch bản đang xem rồi chọn luôn bản sao — nút "Kịch bản mới" ở dải chip. */
+    duplicateActiveScenario,
+    duplicatingScenario: duplicating,
     /** Tài sản ròng hiện tại (base currency) — số sẽ dùng làm `starting_assets_minor`
      *  khi tạo kịch bản đầu tiên. `LifetimePage` hiện số này ở trạng thái "chưa có kịch
      *  bản" để minh bạch, và hiện cảnh báo khi `netWorthReliable` là false. */

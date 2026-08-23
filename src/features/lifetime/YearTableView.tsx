@@ -2,7 +2,7 @@
 // Recharts một mình không đọc được bằng screen reader (dù đã có aria-label mô tả), nên
 // bảng này liệt kê ĐÚNG những con số đã vẽ, dạng đọc được bằng bàn phím/screen reader.
 // Task 7 đã đặt nút mở NGAY DƯỚI đồ thị (không giấu trong menu) — xem LifetimePage.tsx.
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { AlertCircle, ArrowDownCircle, ArrowUpCircle, Download, X } from 'lucide-react'
 import { downloadTextFile } from '../../lib/download'
 import type { CurrencyCode } from '../../lib/currencies'
@@ -24,6 +24,23 @@ interface Props {
    * để component vẫn dùng được nếu chỗ gọi chưa truyền.
    */
   scenarioName?: string
+  /**
+   * Năm cần cuộn tới và làm nổi ngay khi bảng mở — dùng khi vào từ một ô kết luận
+   * ("Tự do tài chính 2060" → xem chuyện gì xảy ra ở 2060).
+   *
+   * Năm đó có thể đang bị bộ lọc mặc định giấu đi, nên bảng tự bật "hiện đủ" khi cần
+   * (xem `useState` của `showAll`) — mở bảng rồi để người dùng tự đi tìm một năm không
+   * có trên màn là dẫn họ vào một danh sách trống rỗng.
+   */
+  focusYear?: number
+  /**
+   * Bấm vào một sự kiện trong bảng → mở form sửa đúng sự kiện đó. Không truyền thì tên
+   * sự kiện là chữ trơn như cũ.
+   *
+   * Nhận ID chứ không nhận cả dòng: bảng chỉ có `YearEvent` (bản chiếu đã lược bỏ
+   * `LifeEventRow`), chỗ gọi mới là nơi tra ngược lại được.
+   */
+  onEditEvent?: (eventId: string) => void
 }
 
 /**
@@ -54,31 +71,74 @@ function slugifyFileName(name: string): string {
   return slug || 'kich-ban'
 }
 
-/** Một dòng sự kiện: icon lucide theo `kind` (không chỉ dựa vào màu) + số tô màu. */
-function EventLine({ e, currency }: { e: YearEvent; currency: CurrencyCode }) {
+/** Một dòng sự kiện: icon lucide theo `kind` (không chỉ dựa vào màu) + số tô màu.
+ *
+ * Có `onEdit` thì cả dòng là một <button> mở form sửa sự kiện đó. Trước bản này bảng
+ * lọc được "chỉ năm có sự kiện" nhưng thấy một dòng sai thì không sửa được từ đây —
+ * phải đóng bảng, mở trình sửa, rồi tự tìm lại đúng sự kiện ấy trong danh sách.
+ *
+ * KHÔNG min-h-11: dòng này nằm trong một ô bảng có thể chứa nhiều sự kiện của cùng một
+ * năm, 44px mỗi dòng làm ô cao gấp ba. Đây là miễn trừ vùng chạm cấp hai — hành động
+ * chính của bảng là ĐỌC, và mọi sự kiện đều còn một đường vào 44px ở dải Mốc cuộc đời. */
+function EventLine({
+  e,
+  currency,
+  onEdit,
+}: {
+  e: YearEvent
+  currency: CurrencyCode
+  onEdit?: (eventId: string) => void
+}) {
   const isIncome = e.kind === 'income'
   const Icon = isIncome ? ArrowUpCircle : ArrowDownCircle
   const tone = isIncome ? 'text-money-in' : 'text-money-out'
-  return (
-    <div className="flex items-center gap-1.5">
+  const body = (
+    <>
       <Icon className={`h-3.5 w-3.5 shrink-0 ${tone}`} />
       <span className="min-w-0 flex-1 truncate text-fg-secondary">{e.label}</span>
       <span className={`shrink-0 tabular-nums font-medium ${tone}`}>
         {isIncome ? '+' : '−'}
         {formatMoney(e.amountDisplayMinor, currency)}
       </span>
-    </div>
+    </>
+  )
+  if (!onEdit) {
+    return <div className="flex items-center gap-1.5">{body}</div>
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onEdit(e.id)}
+      aria-label={`Sửa sự kiện ${e.label}`}
+      className="flex w-full items-center gap-1.5 rounded-md text-left transition hover:bg-surface-sunken"
+    >
+      {body}
+    </button>
   )
 }
 
 /** Thẻ một năm cho mobile (< sm) — KHÔNG dùng `<table>`, bảng nhiều cột tràn ngang trên
  * điện thoại. Dòng đầu năm·tuổi·nơi ở·tài sản cuối năm, dòng phụ thu/chi, rồi từng
  * sự kiện một dòng. */
-function YearCard({ row, currency }: { row: YearRow; currency: CurrencyCode }) {
+function YearCard({
+  row,
+  currency,
+  onEditEvent,
+  focusRef,
+  focused,
+}: {
+  row: YearRow
+  currency: CurrencyCode
+  onEditEvent?: (eventId: string) => void
+  /** Gắn vào ĐÚNG một thẻ (năm được nhảy tới) để cuộn nó vào tầm nhìn. */
+  focusRef?: (el: HTMLDivElement | null) => void
+  focused?: boolean
+}) {
   const negative = row.assetsPessimisticMinor < 0
   return (
     <div
-      className={`rounded-lg p-2.5 ${
+      ref={focusRef}
+      className={`rounded-lg p-2.5 ${focused ? 'ring-2 ring-accent' : ''} ${
         negative
           ? 'border-l-[3px] border-red-600 bg-red-50 dark:bg-red-900/20'
           : 'bg-surface'
@@ -114,7 +174,7 @@ function YearCard({ row, currency }: { row: YearRow; currency: CurrencyCode }) {
       {row.events.length > 0 && (
         <div className="mt-1.5 space-y-1 border-t border-border-panel pt-1.5 text-xs">
           {row.events.map((e) => (
-            <EventLine key={e.id} e={e} currency={currency} />
+            <EventLine key={e.id} e={e} currency={currency} onEdit={onEditEvent} />
           ))}
         </div>
       )}
@@ -137,10 +197,30 @@ const MONEY_CELL = 'p-1.5 align-top text-right tabular-nums'
  * (thẻ "Lúc N tuổi") nói rõ trung tâm dương mà biên dưới âm là "có thể âm ở nhánh xấu",
  * không phải "đang âm" — hai tin khác nhau thì phải thấy được cả hai con số, không thể
  * tô đỏ theo một con số rồi chỉ cho xem con số kia. */
-function YearTableRow({ row, currency }: { row: YearRow; currency: CurrencyCode }) {
+function YearTableRow({
+  row,
+  currency,
+  onEditEvent,
+  focusRef,
+  focused,
+}: {
+  row: YearRow
+  currency: CurrencyCode
+  onEditEvent?: (eventId: string) => void
+  focusRef?: (el: HTMLTableRowElement | null) => void
+  focused?: boolean
+}) {
   const negative = row.assetsPessimisticMinor < 0
+  // Vòng nhấn đặt trên <tr> chứ không trên <td> đầu: nó phải bao CẢ dòng, và
+  // `ring` (box-shadow) vẽ được trên <tr> dưới `border-collapse` — khác `border`,
+  // thứ mà trình duyệt bỏ qua ở đó (xem JSDoc viền đỏ bên dưới).
   return (
-    <tr className={negative ? 'bg-red-50 dark:bg-red-900/20' : ''}>
+    <tr
+      ref={focusRef}
+      className={`${focused ? 'ring-2 ring-accent' : ''} ${
+        negative ? 'bg-red-50 dark:bg-red-900/20' : ''
+      }`}
+    >
       <td
         className={`p-1.5 align-top tabular-nums ${negative ? 'border-l-[3px] border-red-600' : ''}`}
       >
@@ -156,7 +236,7 @@ function YearTableRow({ row, currency }: { row: YearRow; currency: CurrencyCode 
         ) : (
           <div className="space-y-0.5">
             {row.events.map((e) => (
-              <EventLine key={e.id} e={e} currency={currency} />
+              <EventLine key={e.id} e={e} currency={currency} onEdit={onEditEvent} />
             ))}
           </div>
         )}
@@ -199,8 +279,25 @@ const RIGHT_ALIGNED = new Set(['Thu', 'Chi', 'Tài sản cuối năm', 'Bi quan'
  * Chân bảng LUÔN nói rõ đang ẩn/hiện bao nhiêu năm — không được giảm mật độ trong im
  * lặng (ràng buộc "không cắt bớt âm thầm" của dự án).
  */
-export function YearTableView({ rows, currency, onClose, scenarioName }: Props) {
-  const [showAll, setShowAll] = useState(false)
+export function YearTableView({
+  rows,
+  currency,
+  onClose,
+  scenarioName,
+  focusYear,
+  onEditEvent,
+}: Props) {
+  // Bật sẵn "hiện đủ" khi năm cần nhảy tới đang bị bộ lọc mặc định giấu: mở bảng ở một
+  // năm KHÔNG có trên màn là dẫn người dùng vào một danh sách trống. Tính MỘT LẦN lúc
+  // gắn (hàm khởi tạo của useState) chứ không bằng effect — người dùng tắt công tắc đi
+  // là quyết định của họ, effect sẽ bật lại ngay sau đó.
+  const [showAll, setShowAll] = useState(() => {
+    if (focusYear === undefined) return false
+    const idx = rows.findIndex((r) => r.year === focusYear)
+    // `idx === -1` (năm không có trong bản chiếu) cũng bật: thà hiện đủ để người dùng
+    // tự thấy bảng dừng ở năm nào, còn hơn hiện một danh sách rút gọn không nói gì.
+    return idx === -1 || !pickDefaultYearIdx(rows).has(idx)
+  })
   const switchLabelId = useId()
 
   // Đóng bằng Esc — cùng quy ước với lib/dialog.tsx và NotificationBell.tsx (mọi
@@ -214,6 +311,22 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  // Cuộn năm được nhảy tới vào giữa tầm nhìn, MỘT LẦN sau khi bảng đã dựng xong. Ref
+  // callback chứ không `document.getElementById`: bảng có hai bản (thẻ ở mobile, <tr> từ
+  // sm) nên cùng một năm có thể ứng với hai phần tử, và chỉ phần tử ĐANG ĐƯỢC DỰNG mới
+  // gọi ref — id trùng thì `getElementById` bắt vào bản đang `display:none`.
+  //
+  // `block: 'center'` chứ không 'start': năm cần đọc thường phải đặt cạnh mấy năm trước
+  // nó mới hiểu được (tài sản đang trôi theo hướng nào), dán nó lên mép trên thì mất hết
+  // phần dẫn.
+  const focusEl = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    if (focusYear === undefined) return
+    // `prefers-reduced-motion` do CSS toàn cục lo (index.css) — `scroll-behavior` là
+    // thuộc tính CSS thật, khác hoạt ảnh JS của Recharts.
+    focusEl.current?.scrollIntoView({ block: 'center' })
+  }, [focusYear])
 
   const defaultIdx = useMemo(() => pickDefaultYearIdx(rows), [rows])
   const visibleRows = showAll ? rows : rows.filter((_, i) => defaultIdx.has(i))
@@ -303,7 +416,14 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
             <>
               <div className="space-y-2 sm:hidden">
                 {visibleRows.map((r) => (
-                  <YearCard key={r.year} row={r} currency={currency} />
+                  <YearCard
+                    key={r.year}
+                    row={r}
+                    currency={currency}
+                    onEditEvent={onEditEvent}
+                    focused={r.year === focusYear}
+                    focusRef={r.year === focusYear ? (el) => (focusEl.current = el) : undefined}
+                  />
                 ))}
               </div>
 
@@ -323,7 +443,16 @@ export function YearTableView({ rows, currency, onClose, scenarioName }: Props) 
                   </thead>
                   <tbody>
                     {visibleRows.map((r) => (
-                      <YearTableRow key={r.year} row={r} currency={currency} />
+                      <YearTableRow
+                        key={r.year}
+                        row={r}
+                        currency={currency}
+                        onEditEvent={onEditEvent}
+                        focused={r.year === focusYear}
+                        focusRef={
+                          r.year === focusYear ? (el) => (focusEl.current = el) : undefined
+                        }
+                      />
                     ))}
                   </tbody>
                 </table>

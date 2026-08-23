@@ -23,6 +23,7 @@ import type {
 import { Money } from '../../components/ui'
 import { suggestBaseline } from './baseline'
 import { pickActive } from './buildInput'
+import { duplicateScenario } from './duplicate'
 import { EventFormSheet } from './EventFormSheet'
 import { PhaseFormSheet } from './PhaseFormSheet'
 import type { PresetContext } from './presets'
@@ -46,8 +47,31 @@ interface Props {
   netWorth: number
   netWorthReliable: boolean
   netWorthLoading: boolean
+  /**
+   * Mở SẴN một form con ngay khi trình sửa hiện ra — dùng cho những nút nằm NGOÀI
+   * sheet này (dải mốc cuộc đời dưới đồ thị, chip sự kiện trong Bảng theo năm). Trước
+   * bản này mọi đường vào form chặng/sự kiện đều phải đi qua trình sửa rồi cuộn tìm,
+   * tức người dùng bấm "Thêm sự kiện" ở ngoài vẫn phải bấm "Thêm sự kiện" lần nữa ở
+   * trong.
+   *
+   * `undefined` = mở trình sửa như cũ, không form con nào.
+   *
+   * `event-edit` mang ID chứ không mang cả dòng: chỗ gọi từ đồ thị/bảng chỉ có
+   * `YearEvent.id` (bản chiếu không giữ nguyên `LifeEventRow`). Không tìm thấy thì
+   * KHÔNG mở form nào — thà đứng ở trình sửa với danh sách đầy đủ còn hơn mở một form
+   * trống mà người dùng tưởng là sự kiện họ vừa bấm.
+   */
+  initialSheet?: EditorInitialSheet
   onClose: () => void
 }
+
+/** Form con mở sẵn khi trình sửa vừa hiện — xem prop `initialSheet`. */
+export type EditorInitialSheet =
+  | { kind: 'phase-new' }
+  | { kind: 'phase-edit'; phaseId: string }
+  | { kind: 'event-new' }
+  | { kind: 'event-presets' }
+  | { kind: 'event-edit'; eventId: string }
 
 /** Ô nhập năm sinh khớp ràng buộc DB (migration 0031: `birth_year between 1900 and 2100`). */
 const MIN_BIRTH_YEAR = 1900
@@ -111,6 +135,7 @@ export function ScenarioEditorSheet({
   netWorth,
   netWorthReliable,
   netWorthLoading,
+  initialSheet,
   onClose,
 }: Props) {
   const qc = useQueryClient()
@@ -251,7 +276,8 @@ export function ScenarioEditorSheet({
   const updateScenarioMut = useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: LifeScenarioPatch }) => repo.updateLifeScenario(id, patch),
   })
-  const createScenarioMut = useMutation({ mutationFn: repo.createLifeScenario })
+  // (Không còn `createScenarioMut`: phép tạo bản sao đã sang `duplicate.ts`. Trạng thái
+  // "đang chạy" của nút Nhân bản vốn đọc từ `duplicating` ở trên, không đọc từ mutation.)
   const deleteScenarioMut = useMutation({ mutationFn: (id: string) => repo.deleteLifeScenario(id) })
 
   async function invalidateScenarioTree() {
@@ -351,53 +377,15 @@ export function ScenarioEditorSheet({
     }
     setDuplicating(true)
     try {
-      const copy = await createScenarioMut.mutateAsync({
-        name: `${scenario.name} (bản sao)`,
-        display_currency: scenario.display_currency,
-        end_age: scenario.end_age,
-        real_return_bps: scenario.real_return_bps,
-        band_spread_bps: scenario.band_spread_bps,
-        starting_assets_minor: scenario.starting_assets_minor,
-        nominal_terms: scenario.nominal_terms,
-        is_primary: false,
+      // Thân phép chép nằm ở `duplicate.ts` — dùng CHUNG với nút "Kịch bản mới" ở dải
+      // chip của LifetimeView. Hai bản chép tay là cách chúng trôi lệch nhau (xem đầu
+      // file đó). `afterCreate` là chỗ làm mới cache, chạy kể cả khi chép dòng lỗi.
+      const copy = await duplicateScenario({
+        scenario,
+        phases,
+        events,
+        afterCreate: invalidateScenarioTree,
       })
-      // Từ đây bản sao ĐÃ tồn tại trong DB, nên mọi đường ra — kể cả lỗi giữa lúc
-      // chép dòng — phải làm mới cache: `finally` chứ không phải cuối `try`. Đặt cuối
-      // `try` thì toast lỗi bảo người dùng "kiểm dải chip kịch bản", mà dải chip đọc
-      // từ ['lifeScenarios'] chưa ai làm mới nên bản sao dở dang KHÔNG có ở đó để mà
-      // kiểm — câu hướng dẫn chỉ vào một chỗ trống.
-      try {
-        await Promise.all([
-          ...phases.map((p) =>
-            repo.createLifePhase({
-              scenario_id: copy.id,
-              start_year: p.start_year,
-              label: p.label,
-              country: p.country,
-              currency: p.currency,
-              annual_income_minor: p.annual_income_minor,
-              annual_expense_minor: p.annual_expense_minor,
-              fx_to_display: p.fx_to_display,
-            }),
-          ),
-          ...events.map((e) =>
-            repo.createLifeEvent({
-              scenario_id: copy.id,
-              start_year: e.start_year,
-              end_year: e.end_year,
-              kind: e.kind,
-              amount_minor: e.amount_minor,
-              currency: e.currency,
-              label: e.label,
-              note: e.note,
-              fx_to_display: e.fx_to_display,
-              inflate: e.inflate,
-            }),
-          ),
-        ])
-      } finally {
-        await invalidateScenarioTree()
-      }
       showToast(`Đã nhân bản thành "${copy.name}" — chọn ở dải chip kịch bản để xem/sửa.`, 'success')
       onClose()
     } catch (err) {
@@ -519,10 +507,34 @@ export function ScenarioEditorSheet({
   }
 
   // --- Khối 2 & 3: sheet con cho chặng/sự kiện ---
-  const [phaseSheet, setPhaseSheet] = useState<{ phase?: LifePhaseRow } | null>(null)
+  //
+  // Cả hai khởi tạo từ `initialSheet` bằng HÀM khởi tạo của useState, tức đọc ĐÚNG MỘT
+  // LẦN lúc gắn. Không dùng useEffect: LifetimeView dựng sheet này với `key={active.id}`
+  // và chỉ khi `editorOpen`, nên mỗi lần mở là một lần gắn mới — còn một effect theo
+  // `initialSheet` sẽ mở lại form con mỗi khi người dùng vừa đóng nó mà prop chưa đổi.
+  const [phaseSheet, setPhaseSheet] = useState<{ phase?: LifePhaseRow } | null>(() => {
+    if (initialSheet?.kind === 'phase-new') return {}
+    if (initialSheet?.kind === 'phase-edit') {
+      // Không tìm thấy → `null`, KHÔNG rơi về `{}`: xem JSDoc prop `initialSheet`.
+      const row = phases.find((p) => p.id === initialSheet.phaseId)
+      return row ? { phase: row } : null
+    }
+    return null
+  })
   // `presets: true` = vào từ nút "Chọn mẫu" của khối Chặng đời — mở thẳng danh
   // sách mẫu thay vì form sự kiện trống (mẫu có thể sinh cả chặng lẫn sự kiện).
-  const [eventSheet, setEventSheet] = useState<{ event?: LifeEventRow; presets?: boolean } | null>(null)
+  const [eventSheet, setEventSheet] = useState<{ event?: LifeEventRow; presets?: boolean } | null>(
+    () => {
+      if (initialSheet?.kind === 'event-new') return {}
+      if (initialSheet?.kind === 'event-presets') return { presets: true }
+      if (initialSheet?.kind === 'event-edit') {
+        // Không tìm thấy → `null`, KHÔNG rơi về `{}`: xem JSDoc prop `initialSheet`.
+        const row = events.find((e) => e.id === initialSheet.eventId)
+        return row ? { event: row } : null
+      }
+      return null
+    },
+  )
   const sortedPhases = useMemo(() => [...phases].sort((a, b) => a.start_year - b.start_year), [phases])
   const sortedEvents = useMemo(() => [...events].sort((a, b) => a.start_year - b.start_year), [events])
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, SlidersHorizontal, Sparkles, Star } from 'lucide-react'
+import { AlertTriangle, Plus, SlidersHorizontal, Sparkles, Star } from 'lucide-react'
 import { ActionButton, Card } from '../../components/ui'
 import { repo } from '../../data'
 import { useNetWorthSnapshots } from '../../hooks/queries'
@@ -20,8 +20,9 @@ import { projectLifetime } from './project'
 import { pickActive } from './buildInput'
 import { InsightCards } from './InsightCards'
 import { LifetimeChartCard } from './LifetimeChartCard'
-import { ScenarioEditorSheet } from './ScenarioEditorSheet'
+import { ScenarioEditorSheet, type EditorInitialSheet } from './ScenarioEditorSheet'
 import { lifetimeVerdict } from './summary'
+import { TimelineStrip } from './TimelineStrip'
 import { useLifetime } from './useLifetime'
 import { YearTableView } from './YearTableView'
 
@@ -55,10 +56,18 @@ export function LifetimeView() {
     netWorth,
     netWorthReliable,
     netWorthLoading,
+    duplicateActiveScenario,
+    duplicatingScenario,
   } = useLifetime()
 
+  // `editorEntry` = form con mở sẵn khi trình sửa vừa hiện (xem prop `initialSheet` ở
+  // ScenarioEditorSheet). Đi CÙNG `editorOpen` chứ không thay nó: mở trình sửa mà không
+  // mở form con nào vẫn là ca thường gặp nhất (link "Sửa kịch bản", banner tỷ giá).
   const [editorOpen, setEditorOpen] = useState(false)
+  const [editorEntry, setEditorEntry] = useState<EditorInitialSheet | undefined>(undefined)
   const [tableOpen, setTableOpen] = useState(false)
+  /** Năm mà Bảng theo năm phải cuộn tới khi mở — đặt từ hai ô kết luận có NĂM. */
+  const [tableFocusYear, setTableFocusYear] = useState<number | undefined>(undefined)
   const [creating, setCreating] = useState(false)
   const { data: historyRows = [] } = useNetWorthSnapshots()
 
@@ -98,6 +107,24 @@ export function LifetimeView() {
     const i = currentPhaseIndex(shownInput)
     return i >= 0 ? shownInput.phases[i] : null
   }, [shownInput])
+
+  /**
+   * Mở trình sửa kịch bản, tuỳ chọn mở SẴN một form con.
+   *
+   * Mọi đường vào trình sửa đi qua đây thay vì gọi `setEditorOpen(true)` rải rác: bốn
+   * chỗ gọi mà chỉ một chỗ nhớ dọn `editorEntry` là lần mở SAU đó bật lên một form con
+   * người dùng không hề bấm — form của lần mở TRƯỚC còn sót lại trong state.
+   */
+  function openEditor(entry?: EditorInitialSheet) {
+    setEditorEntry(entry)
+    setEditorOpen(true)
+  }
+
+  /** Mở Bảng theo năm, tuỳ chọn cuộn thẳng tới một năm. */
+  function openYearTable(year?: number) {
+    setTableFocusYear(year)
+    setTableOpen(true)
+  }
 
   /** Ghi ba giá trị đang kéo vào kịch bản. Chỉ ghi thứ THẬT SỰ bị đè. */
   async function handleSaveAssumptions() {
@@ -243,7 +270,7 @@ export function LifetimeView() {
               ) : (
                 <>
                   Một phần tài khoản/công nợ chưa quy đổi được tỷ giá nên chưa tính được tài sản
-                  ròng đáng tin. Tài sản khởi điểm sẽ để 0 — vào nút bút chì sau khi tạo để tự
+                  ròng đáng tin. Tài sản khởi điểm sẽ để 0 — mở "Sửa kịch bản" sau khi tạo để tự
                   nhập lại cho đúng.
                 </>
               )}
@@ -322,7 +349,13 @@ export function LifetimeView() {
             mang ngôi sao. Suy từ `pickActive` (một luật với engine/bộ luật thông báo),
             không đọc thẳng cờ `is_primary` — cùng lý do đã ghi ở `isEffectivePrimary`
             trong ScenarioEditorSheet. */}
-        <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1">
+        {/* `basis-full` dưới `sm`: dải chip chiếm trọn một dòng và hai nút xem tụt
+            xuống dòng dưới. Không có nó thì ở 375px hai nút ("So sánh", "Bảng theo năm")
+            ăn ~211px, dải chip còn 140px — vừa đúng MỘT chip rưỡi, nên kịch bản thứ hai
+            trở đi và nút "Kịch bản mới" ở cuối dải chỉ tới được bằng cách vuốt ngang một
+            khung 140px mà không có gì báo là còn thứ nằm khuất. Từ `sm` trả về `basis-0`
+            (giá trị mà `flex-1` vẫn dùng) nên bố cục một hàng ở màn rộng không đổi. */}
+        <div className="flex min-w-0 basis-full gap-2 overflow-x-auto pb-1 sm:basis-0 sm:flex-1">
           {scenarios.map((s) => {
             const isPrimary = pickActive(scenarios)?.id === s.id
             const sum = scenarioSummaries.get(s.id)
@@ -366,6 +399,23 @@ export function LifetimeView() {
             mobile không đọc được (cùng quy tắc đã ghi ở nút bút chì cũ) — người dùng chỉ
             thấy một nút mờ không rõ vì sao. Để bấm được, và ô mở ra nói rõ cần gì. */}
         <div className="flex shrink-0 items-start gap-2">
+          {/* Tạo thêm kịch bản — nút này TRƯỚC ĐÂY KHÔNG TỒN TẠI ở trạng thái có dữ
+              liệu: "Tạo kịch bản từ chi tiêu thật" chỉ hiện lúc chưa có kịch bản nào,
+              nên sau đó đường duy nhất là mở trình sửa rồi bấm "Nhân bản" trong đó. Ô
+              trống của nút "So sánh" ngay bên cạnh phải viết ra cả một hướng dẫn ba
+              bước cho đúng việc này — dấu hiệu rõ nhất của một nút còn thiếu.
+              Đứng ở NHÓM NÚT chứ không ở cuối dải chip, dù chip mới sinh ra bên trái:
+              dải chip cuộn ngang, và ở 375px hai chip kịch bản đã dài 557px — đặt nút
+              vào cuối dải là chôn nó sau một cú vuốt mà không gì báo là còn thứ nằm
+              khuất, tức lặp lại đúng lỗi mà cả lượt sửa này đi chữa. */}
+          <ActionButton
+            onClick={() => void duplicateActiveScenario()}
+            disabled={duplicatingScenario}
+            className="whitespace-nowrap"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            {duplicatingScenario ? 'Đang tạo…' : 'Kịch bản mới'}
+          </ActionButton>
           <button
             type="button"
             onClick={() => {
@@ -384,7 +434,7 @@ export function LifetimeView() {
           </button>
           <button
             type="button"
-            onClick={() => setTableOpen(true)}
+            onClick={() => openYearTable()}
             className="min-h-11 rounded-md bg-surface px-3 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95 sm:px-4"
           >
             Bảng theo năm
@@ -434,6 +484,9 @@ export function LifetimeView() {
           birthYear={profile.birth_year}
           currency={active.display_currency as CurrencyCode}
           scenarioName={active.name}
+          // Hai ô mang một NĂM thành nút mở Bảng theo năm ở đúng năm đó — "vì sao 2060?"
+          // trả lời được ngay tại chỗ đọc thấy con số, không phải mở bảng rồi tự dò.
+          onJumpToYear={openYearTable}
         />
       )}
 
@@ -448,6 +501,11 @@ export function LifetimeView() {
           390px: khối thanh trượt 268px, đồ thị 208px — thứ để LÁI chiếm nhiều chỗ hơn
           thứ nó lái. */}
       <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_25rem] xl:items-start">
+        {/* Cột trái = đồ thị + dải mốc, bọc chung một khối dọc chứ không để thành ô thứ
+            ba của lưới: dải mốc phải nằm NGAY DƯỚI đồ thị (nó là danh sách chữ của đúng
+            những vạch đứng trên đó), và `gap-3` của khối này khớp `gap-3` của lưới nên
+            dưới `xl` — nơi mọi thứ xếp dọc — hình không đổi một pixel nào. */}
+        <div className="flex min-w-0 flex-col gap-3">
         <LifetimeChartCard
           rows={shownRows}
           // §12: không animate trong lúc ngón tay còn trên thanh trượt.
@@ -467,6 +525,22 @@ export function LifetimeView() {
           // trước, thà mất cảnh báo còn hơn crash cả thẻ.
           historyCurrency={profile?.base_currency ?? (active.display_currency as CurrencyCode)}
         />
+
+        {/* Dải "Mốc cuộc đời" — đường vào NGOÀI CÙNG để thêm/sửa chặng và sự kiện. Xem
+            đầu TimelineStrip.tsx để biết đường cũ dài bao nhiêu bước.
+            Đọc `phases`/`events` (dòng DB đã lọc theo kịch bản đang xem), KHÔNG đọc
+            `shownRows`: bản chiếu chỉ mang `YearEvent` (đã quy đổi, đã áp lạm phát, đã
+            lược mất năm bắt đầu và tỷ giá), mà form sửa cần đúng dòng gốc. */}
+        <TimelineStrip
+          phases={phases}
+          events={events}
+          onEditPhase={(phase) => openEditor({ kind: 'phase-edit', phaseId: phase.id })}
+          onEditEvent={(event) => openEditor({ kind: 'event-edit', eventId: event.id })}
+          onAddEvent={() => openEditor({ kind: 'event-new' })}
+          onAddPhase={() => openEditor({ kind: 'phase-new' })}
+          onPickPreset={() => openEditor({ kind: 'event-presets' })}
+        />
+        </div>
 
         <div className="flex flex-col gap-3">
           {/* Ba thanh trượt giả định (§4.4 / 13b). Từ `xl` chúng đứng NGAY CẠNH đồ thị:
@@ -494,7 +568,7 @@ export function LifetimeView() {
                   // đóng sheet thì bị hỏi có bỏ thay đổi không (không có thay đổi nào). Ca
                   // này chỉ xảy ra khi query profile LỖI — `needsBirthYear` ở trên chỉ bắt
                   // ca profile ĐÃ TẢI mà chưa khai.
-                  onEditScenario={profile ? () => setEditorOpen(true) : undefined}
+                  onEditScenario={profile ? () => openEditor() : undefined}
                 />
               </div>
 
@@ -526,7 +600,7 @@ export function LifetimeView() {
                         profile
                           ? () => {
                               setSheetOpen(false)
-                              setEditorOpen(true)
+                              openEditor()
                             }
                           : undefined
                       }
@@ -548,7 +622,7 @@ export function LifetimeView() {
               <p className="text-xs text-fg-secondary">
                 Kịch bản chưa có chặng thu chi nào nên chưa chiếu được gì.
               </p>
-              <ActionButton onClick={() => setEditorOpen(true)} className="mt-2">
+              <ActionButton onClick={() => openEditor({ kind: 'phase-new' })} className="mt-2">
                 Thêm chặng
               </ActionButton>
             </Card>
@@ -561,7 +635,7 @@ export function LifetimeView() {
           {mismatchCount > 0 && (
             <button
               type="button"
-              onClick={() => setEditorOpen(true)}
+              onClick={() => openEditor()}
               // Cùng lý do với link "Sửa kịch bản": không mở một sheet ngõ cụt. Banner vẫn
               // HIỆN (câu cảnh báo đúng dù có sửa được ngay hay không), chỉ không bấm được.
               disabled={!profile}
@@ -584,6 +658,14 @@ export function LifetimeView() {
           rows={rows}
           currency={active.display_currency as CurrencyCode}
           scenarioName={active.name}
+          focusYear={tableFocusYear}
+          // Bấm một sự kiện trong bảng → đóng bảng, mở thẳng form của chính nó. Đóng
+          // trước chứ không chồng hai lớp phủ: cả hai đều là sheet toàn màn ở z-40, xếp
+          // lên nhau thì Esc đóng nhầm lớp và nền mờ tô hai lần.
+          onEditEvent={(eventId) => {
+            setTableOpen(false)
+            openEditor({ kind: 'event-edit', eventId })
+          }}
           onClose={() => setTableOpen(false)}
         />
       )}
@@ -612,6 +694,7 @@ export function LifetimeView() {
           netWorth={netWorth}
           netWorthReliable={netWorthReliable}
           netWorthLoading={netWorthLoading}
+          initialSheet={editorEntry}
           onClose={() => setEditorOpen(false)}
         />
       )}

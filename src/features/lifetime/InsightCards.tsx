@@ -33,6 +33,14 @@ interface Props {
   currency: CurrencyCode
   /** Tên kịch bản đang xem — câu kết luận mở đầu bằng nó ("Với kịch bản Hiện tại, …"). */
   scenarioName: string
+  /**
+   * Mở Bảng theo năm ở đúng năm này. Chỉ hai ô mang một NĂM ("Nếu bi quan, âm từ" và
+   * "Tự do tài chính") nhận được — hai ô kia là một số tiền và một tỷ lệ phần trăm,
+   * không có năm nào để nhảy tới.
+   *
+   * Không truyền thì cả bốn ô đứng yên như cũ (`<div>` trơn, không phải nút).
+   */
+  onJumpToYear?: (year: number) => void
 }
 
 // Cỡ chữ viết bằng rem (không phải px) vì `--app-font-scale` (Cài đặt → Cỡ chữ) chỉ co
@@ -65,6 +73,8 @@ function InsightTile({
   alert,
   good,
   sub,
+  onClick,
+  actionLabel,
 }: {
   label: string
   value: ReactNode
@@ -75,10 +85,15 @@ function InsightTile({
   /** Ép chiều TỐT cho ca không phải tiền (xem JSDoc trên). Thua `warn` nếu cả hai bật. */
   good?: boolean
   sub?: string
+  /** Có thì cả ô thành một nút — xem JSDoc `onJumpToYear` và khối bên dưới dải. */
+  onClick?: () => void
+  /** Bắt buộc khi có `onClick`: nội dung ô là số/chữ rời, screen reader đọc xong vẫn
+   *  không biết bấm vào thì đi đâu. */
+  actionLabel?: string
 }) {
   const warn = alert === true || (amountMinor != null && amountMinor < 0)
-  return (
-    <div className="min-w-0 sm:px-4 sm:first:pl-0 sm:last:pr-0">
+  const body = (
+    <>
       <p className="text-xs text-fg-secondary">{label}</p>
       <p
         className={`mt-0.5 flex items-center gap-1 ${VALUE_SIZE} font-medium tabular-nums ${
@@ -89,7 +104,28 @@ function InsightTile({
         <span className="truncate">{value}</span>
       </p>
       {sub && <p className="mt-0.5 truncate text-2xs text-fg-muted">{sub}</p>}
-    </div>
+    </>
+  )
+  // Ô KHÔNG có `onClick` giữ nguyên `<div>`: bọc tất cả vào <button> thì hai ô không
+  // dẫn đi đâu vẫn nhận focus bàn phím và vẫn được screen reader đọc là "nút", tức
+  // hứa một hành động không tồn tại.
+  //
+  // Không dùng <ActionButton>: dáng của nó là một nút có viền/nền, còn ô ở đây phải
+  // giữ nguyên diện mạo bảng số (mock turn 31 — bốn con số ngăn bằng vạch dọc, không
+  // phải bốn cái nút). Chỉ thêm phản hồi hover, và focus ring thì index.css đã lo
+  // toàn cục cho <button>.
+  if (!onClick) {
+    return <div className="min-w-0 sm:px-4 sm:first:pl-0 sm:last:pr-0">{body}</div>
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={actionLabel}
+      className="min-w-0 rounded-md text-left transition hover:bg-surface-sunken sm:px-4 sm:first:pl-0 sm:last:pr-0"
+    >
+      {body}
+    </button>
   )
 }
 
@@ -101,7 +137,14 @@ function InsightTile({
  * để dạy — và `ConclusionLine` là chỗ duy nhất trong app cài đúng luật đó. Viết tay ở
  * đây thì ở chế độ Gọn màn này sẽ là màn duy nhất không rút gọn theo.
  */
-export function InsightCards({ rows, input, birthYear, currency, scenarioName }: Props) {
+export function InsightCards({
+  rows,
+  input,
+  birthYear,
+  currency,
+  scenarioName,
+  onJumpToYear,
+}: Props) {
   // 'low' = biên DƯỚI của dải dao động — đáng lo hơn nhánh trung tâm, xem JSDoc
   // `firstNegativeYear` trong insights.ts (cùng lý do LifetimeChartCard tô đỏ theo biên
   // này chứ không phải theo nhánh trung tâm).
@@ -163,6 +206,14 @@ export function InsightCards({ rows, input, birthYear, currency, scenarioName }:
           good={negativeYear === null}
           value={negativeYear !== null ? `Năm ${negativeYear}` : 'Không bao giờ âm'}
           sub={negativeYear !== null ? `tuổi ${negativeYear - birthYear}` : undefined}
+          // Chỉ bấm được khi CÓ năm để nhảy tới. "Không bao giờ âm" là tin tốt, không
+          // phải một mốc trên bảng — bấm vào thì không có dòng nào để mở.
+          onClick={
+            negativeYear !== null && onJumpToYear ? () => onJumpToYear(negativeYear) : undefined
+          }
+          actionLabel={
+            negativeYear !== null ? `Xem năm ${negativeYear} trong bảng theo năm` : undefined
+          }
         />
 
         <InsightTile
@@ -225,13 +276,27 @@ export function InsightCards({ rows, input, birthYear, currency, scenarioName }:
               ? `tuổi ${verdict.fireAge} · quy tắc ${DEFAULT_SWR_BPS / 100}%`
               : 'trong bản chiếu này'
           }
+          onClick={
+            verdict.fireYear !== null && onJumpToYear
+              ? () => onJumpToYear(verdict.fireYear as number)
+              : undefined
+          }
+          actionLabel={
+            verdict.fireYear !== null
+              ? `Xem năm ${verdict.fireYear} trong bảng theo năm`
+              : undefined
+          }
         />
       </div>
 
-      {/* Khối "cách đọc" gấp mở — cùng khuôn ExplainBox của các thẻ báo cáo. Bốn ô trên
-          cố ý không có nút bấm (bảng tóm tắt để đọc), nên lời giải thích cho từ chuyên
-          ngành ("bi quan", "quy tắc 4%"…) nằm ở một nút duy nhất dưới dải thay vì rải
-          icon vào từng ô. Trong tile, sub bị `truncate` nên KHÔNG nhét giải thích vào đó. */}
+      {/* Khối "cách đọc" gấp mở — cùng khuôn ExplainBox của các thẻ báo cáo. Lời giải
+          thích cho từ chuyên ngành ("bi quan", "quy tắc 4%"…) nằm ở MỘT nút duy nhất
+          dưới dải thay vì rải icon vào từng ô; trong tile, sub bị `truncate` nên không
+          nhét giải thích vào đó được.
+          Luật này KHÔNG đổi khi hai ô mang năm trở thành nút (`onJumpToYear`): nút đó
+          mở Bảng theo năm ở đúng năm ấy — một đường ĐI TIẾP, không phải một lời giải
+          thích thứ hai chen vào ô. Hai ô còn lại (một số tiền, một tỷ lệ) vẫn là <div>
+          trơn, xem JSDoc InsightTile. */}
       <ExplainBox label="Cách đọc 4 ô này">
         <p>
           <b>Nếu bi quan, âm từ</b> — năm đầu tiên tài sản xuống dưới 0 nếu mọi thứ diễn ra

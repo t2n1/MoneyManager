@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { suggestLimits, type MonthSlices } from './suggest'
+import { isOffAverage, suggestLimits, type MonthSlices } from './suggest'
 
 const m = (monthKey: string, ...pairs: [string, number][]): MonthSlices => ({
   monthKey,
@@ -66,5 +66,31 @@ describe('suggestLimits', () => {
     const r = suggestLimits([m('2026-06', ['food', 100]), m('2026-07', ['food', 101])])
     expect(Number.isInteger(r.get('food')!.average)).toBe(true)
     expect(r.get('food')!.average).toBe(101)
+  })
+})
+
+describe('isOffAverage', () => {
+  it('lệch tỉ lệ NHƯNG số tiền bé thì im', () => {
+    // Ca thật: Gas TB ¥58, hạn mức ¥1,500 — "gấp 26 lần" nghe như báo động, thực ra là
+    // một khoản bé có một tháng nhảy. Thiếu ngưỡng tiền thì Gas, Điện thoại, Cây & Cá đều
+    // bị tô, và một cảnh báo lúc nào cũng kêu thì mất luôn cả lần nó đúng.
+    expect(isOffAverage(1_500, 58)).toBe(false)
+    expect(isOffAverage(1_300, 1_021)).toBe(false)
+  })
+
+  it('lệch cả tỉ lệ lẫn tiền thì nói ra', () => {
+    // Điện: TB ¥13,070, hạn mức ¥3,000 → thấp hơn nửa trung bình, chênh ¥10,070.
+    expect(isOffAverage(3_000, 13_070)).toBe(true)
+    // Hỗ trợ gia đình: TB ¥3,333, hạn mức ¥30,000 → gấp 9 lần, chênh ¥26,667.
+    expect(isOffAverage(30_000, 3_333)).toBe(true)
+  })
+
+  it('trong khoảng [0,5 ; 1,5] thì im dù tiền lớn', () => {
+    expect(isOffAverage(112_760, 104_427)).toBe(false)
+  })
+
+  it('chưa có lịch sử hoặc chưa đặt hạn mức → không có gì để so', () => {
+    expect(isOffAverage(5_000, 0)).toBe(false)
+    expect(isOffAverage(0, 5_000)).toBe(false)
   })
 })

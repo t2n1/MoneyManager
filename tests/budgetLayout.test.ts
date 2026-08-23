@@ -56,8 +56,16 @@ const COLUMN_MARK = 'className="contents lg:flex lg:flex-col lg:gap-3">'
 //     ngày" nay ở trang Bản tin, và một bộ số không vẽ hai lần. Việc tách nó khỏi
 //     `MonthPaceCharts` (lý do của B10) vì thế hết hiệu lực, nhưng "dòng tiền tích lũy"
 //     vẫn phải đứng riêng được nên `CumulativeCashflowCard` giữ nguyên.
+//   2026-08-23 — khối "Còn phải trả" MỌC THÊM ở cột trái, ngay dưới thẻ tổng (B37 của gói
+//     BUDGET_PLANNING_REDESIGN). Lý do nó phải nằm đúng chỗ đó, không xuống cột phải:
+//     ngày cuối tháng 8, mặt lập kế hoạch của tháng 9 bày "Đã cam kết ¥141,060" với 5 dòng
+//     có tên; sáng ngày 1 tháng 9 `isPlanningMonth` trả false, trang đổi mặt, và cả khối đó
+//     biến mất — dù chưa một đồng nào đã ra. Nó cũng là thứ giải thích con số vừa bị TRỪ
+//     khỏi dòng "mỗi ngày" ngay trên nó (B36), nên đọc rời hai khối là đọc một con số hạ
+//     xuống mà không biết vì sao.
 const BLOCKS: { name: string; mark: string; column: 'trái' | 'phải' }[] = [
   { name: 'Tổng ngân sách (kèm phán quyết)', mark: '>Tổng ngân sách<', column: 'trái' },
+  { name: 'Còn phải trả', mark: '>Còn phải trả<', column: 'trái' },
   { name: 'Danh sách hạn mức', mark: 'groupLabel="Sắp xếp hạn mức"', column: 'trái' },
   { name: 'Ngân sách theo nhãn', mark: '<TagBudgetsCard', column: 'trái' },
   { name: 'Chi tích lũy vs ngân sách', mark: '<SpendPaceSection', column: 'phải' },

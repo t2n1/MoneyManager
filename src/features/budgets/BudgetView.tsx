@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { useDensity } from '../../hooks/useDensity'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, TriangleAlert } from 'lucide-react'
 import {
   useBudgetReport,
   useBudgets,
@@ -9,16 +9,20 @@ import {
   useCopyBudgetsFromPreviousMonth,
   useRates,
 } from '../../hooks/queries'
-import { monthKeyString, type MonthKey } from '../../lib/dates'
+import { dayMonthLabel, daysBetween, monthKeyString, toISODate, type MonthKey } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import { showToast } from '../../lib/dialog'
 import { Card } from '../../components/ui/Card'
+import { Money } from '../../components/ui'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { buildBudgetDisplay, type BudgetChildRow } from './budgetDisplay'
 import { budgetHint } from './budgetHint'
 import { capOverflowNotice } from './capOverflow'
 import { pickAttention, sortBudgetItems, type BudgetSortMode } from './budgetSort'
+import { classifyCommitments, coverageGaps, spendableRemaining } from './commitments'
 import { dailyAllowance } from './dailyAllowance'
+import { useCommitments } from './useCommitments'
+import { SUGGEST_MONTHS, useSuggestions } from './useSuggestions'
 import { ClassificationToggle } from '../categories/ClassificationToggle'
 import type { BudgetStatus } from './progress'
 import {
@@ -46,9 +50,20 @@ const SORT_HINT: Record<BudgetSortMode, string> = {
   manual: 'Đúng thứ tự danh mục trong Cài đặt — đứng yên cả tháng cho dễ nhớ chỗ.',
 }
 
-/** Mặc định 'manual': danh sách đứng yên để nhớ được chỗ, còn việc gấp thì đã có
- *  khối "Cần để ý" ghim trên đầu lo. Đổi kiểu sắp là ý thích cá nhân nên giữ ở
- *  máy (localStorage), không nhét vào hồ sơ người dùng. */
+/**
+ * Mặc định 'manual': danh sách đứng yên cả tháng để nhớ được chỗ. Đổi kiểu sắp là ý thích
+ * cá nhân nên giữ ở máy (localStorage), không nhét vào hồ sơ người dùng.
+ *
+ * ĐÍNH CHÍNH (B38.3) — lý lẽ cũ ghi ở đây là "việc gấp thì đã có khối «Cần để ý» ghim trên
+ * đầu lo", nhưng khối đó đã bị B8 xoá, và lý lẽ của B8 lại giả định danh sách sắp theo
+ * "vượt trước" — thứ mà mặc định 'manual' không dùng. Hai quyết định trong cùng file tự đá
+ * nhau, hệ quả là `pickAttention()` được đếm ra chữ "3 / 5 mục cần để ý" ở tiêu đề rồi ba
+ * mục đó nằm rải rác không có gì đánh dấu.
+ *
+ * Cách chữa KHÔNG phải đổi mặc định (mất cái đang có lý) cũng không phải dựng lại khối
+ * (quay về chỗ B8 đã sửa đúng): đánh dấu TẠI DÒNG, và cho con số ở tiêu đề nhảy tới dòng
+ * đầu tiên. Xem `attentionIds` dưới.
+ */
 function readSortMode(): BudgetSortMode {
   try {
     const v = localStorage.getItem(SORT_KEY)
@@ -85,6 +100,57 @@ const restOf = (budgeted: number, spent: number) => Math.round(budgeted - spent)
 function restLabel(rest: number, fmt: (v: number) => string): string {
   if (rest === 0) return 'vừa hết hạn mức'
   return `${rest < 0 ? 'vượt ' : 'còn '}${fmt(Math.abs(rest))}`
+}
+
+/**
+ * Vạch đánh dấu ở ĐẦU dòng cho mục cần để ý (B38.1).
+ *
+ * Hai lý do của `pickAttention` được hai màu khác nhau: đã vượt trần là chuyện đã rồi
+ * (`money-out`), còn đang tiêu nhanh hơn nhịp thì vẫn phanh được (`state-warn`). Viền luôn
+ * chiếm chỗ — trong suốt khi không cần — để dòng không nhích ngang giữa hai trạng thái.
+ */
+function markClass(reason: 'over' | 'fast' | undefined): string {
+  const base = 'border-l-2 pl-2'
+  if (reason === 'over') return `${base} border-l-money-out`
+  if (reason === 'fast') return `${base} border-l-state-warn-border`
+  return `${base} border-l-transparent`
+}
+
+/**
+ * Chip "chưa đặt hạn mức" — kèm luôn CON SỐ gợi ý (B39.2).
+ *
+ * Bản trước hiện 20+ danh mục dưới dạng `📦 Tên +`, không một con số nào, trong khi mặt lập
+ * kế hoạch cho cùng việc đó thì có `TB 6 tháng` và số điền sẵn. Chip nào không có lịch sử
+ * thì giữ nguyên như cũ — không bịa số 0 ("chưa biết ≠ 0", §G).
+ */
+function UnbudgetedChip({
+  cat,
+  base,
+  suggestions,
+  onClick,
+}: {
+  cat: { id: string; icon: string; name: string }
+  base: Parameters<typeof Money>[0]['currency']
+  suggestions: Map<string, { average: number }>
+  onClick: (id: string) => void
+}) {
+  const avg = suggestions.get(cat.id)?.average ?? 0
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(cat.id)}
+      className="min-h-11 rounded-full border border-dashed border-border-strong px-3 text-xs text-fg-secondary hover:bg-surface-sunken"
+    >
+      {cat.icon} {cat.name}
+      {avg > 0 && (
+        <>
+          {' · '}
+          <Money amount={avg} currency={base} className="!text-fg-secondary" />
+        </>
+      )}{' '}
+      +
+    </button>
+  )
 }
 
 /** Thanh tiến độ + % dùng chung. `className` để gọi chỗ nào tự đặt lề / flex-1. */
@@ -129,6 +195,12 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   const axis = useAxisProgress(monthKey)
   // --- Trần theo nhãn (cắt ngang danh mục) ---
   const tagBudgets = useTagBudgets(monthKey)
+  // --- Cam kết chưa ra + gợi ý hạn mức: hai đường DÙNG CHUNG với mặt lập kế hoạch ---
+  // Mặt này tới nay không gọi `collectCommitments` một lần nào (B36) và không truyền
+  // `suggestion` vào sheet đặt hạn mức (B39), dù cả hai hàm đã có sẵn và đã chạy đúng ở
+  // mặt bên kia của CHÍNH trang này.
+  const commitments = useCommitments(monthKey)
+  const { suggestions } = useSuggestions()
 
   // Danh mục đang sửa hạn mức (null = đóng sheet)
   const [editing, setEditing] = useState<{
@@ -200,9 +272,27 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
 
   const totalPct = report.totalBudgeted > 0 ? (report.totalSpent / report.totalBudgeted) * 100 : 0
   const totalRemaining = restOf(report.totalBudgeted, report.totalSpent)
+
+  // B36 · "Tiêu ¥X/ngày" KHÔNG được chia cả tiền đã hứa cho người khác.
+  //
+  // `totalRemaining` gồm cả hạn mức của những khoản chắc chắn phải trả mà chưa tới ngày —
+  // tiền điện ngày 25, khoản định kỳ chưa sinh giao dịch, khoản sắp chi đã có ngày. Con số
+  // "mỗi ngày còn tiêu được ¥3,000" vì thế cao hơn sự thật ĐÚNG BẰNG số cam kết chưa ra, mà
+  // nó là con số hành động nhiều nhất của cả trang.
+  //
+  // Chỉ trừ ở THÁNG ĐANG CHẠY: tháng đã đóng thì không còn ngày nào để chia, và mức mỗi
+  // ngày đã tự ẩn từ trước.
+  const committedRemaining = pace.isCurrentMonth ? commitments.total : 0
+  const spendable = spendableRemaining(totalRemaining, committedRemaining)
   const totalAllowance = pace.isCurrentMonth
-    ? dailyAllowance(totalRemaining, pace.paceDaysElapsed, pace.paceDaysInMonth)
+    ? dailyAllowance(spendable, pace.paceDaysElapsed, pace.paceDaysInMonth)
     : null
+  // B36.2 · Ca "còn tiền trong trần nhưng đã hứa hết" KHÔNG phải ca `null` của
+  // `dailyAllowance`. Hàm đó trả `null` khi số chia ≤ 0 và dòng biến mất — đúng cho "đã
+  // vượt trần", SAI cho ca này: còn ¥12,000 trong trần mà ¥18,600 đã hứa nghĩa là thiếu
+  // ¥6,600, và đó là tin quan trọng nhất trong tháng.
+  const thieuTruocCuoiThang =
+    pace.isCurrentMonth && totalRemaining > 0 && committedRemaining > 0 && spendable <= 0
 
   const expenseCats = categories
     .filter((c) => c.type === 'expense' && !c.is_archived)
@@ -215,6 +305,37 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     pace.paceDaysInMonth > 0 ? pace.paceDaysElapsed / pace.paceDaysInMonth : 1
   const sortedItems = sortBudgetItems(items, sortMode, monthProgress)
   const attention = pickAttention(items, monthProgress)
+  // B38.1 · Dấu ở ĐẦU dòng cho mục thuộc `attention`, ở MỌI chế độ sắp xếp. Không thêm huy
+  // hiệu chữ: dòng đã có %, "còn/vượt" và "đã chi / trần" — chữ thứ tư là quá tải.
+  const attentionTone = new Map(attention.map((a) => [a.item.cat.id, a.reason]))
+  // B38.2 · Con số ở tiêu đề nhảy tới dòng ĐẦU TIÊN trong `attention`. Đếm mà không đi tới
+  // được thì con số chỉ là một lời phàn nàn.
+  const firstAttentionId = attention[0]?.item.cat.id ?? null
+
+  // B37 · Cam kết chưa ra, chia theo chỗ đứng so với HÔM NAY.
+  const todayISO = toISODate(new Date())
+  const schedule = classifyCommitments(commitments.items, todayISO)
+  // B37.2 · Ở mặt theo dõi, cam kết phải so với hạn mức CÒN LẠI, không phải hạn mức. Giữa
+  // tháng, "trần ¥5,900 không phủ ¥8,300 cam kết" đã cũ — câu đúng là "đã chi ¥3,000, còn
+  // ¥2,900 trong trần, mà còn ¥8,300 phải trả".
+  const parentOfCat = (id: string) => catOf(id)?.parent_id ?? null
+  const remainingByCat = new Map(
+    report.lines
+      .filter((l) => !l.isMarker)
+      .map((l) => [l.categoryId, Math.max(0, restOf(l.budgeted, l.spent))]),
+  )
+  // Chỉ báo cho trần ĐANG CÓ THẬT. Danh mục chưa đặt trần nào thì "hạn mức không phủ nổi
+  // cam kết" là một câu không nói được điều gì làm được giữa tháng — đặt trần là việc của
+  // mặt lập kế hoạch, và ở đó nó ĐÃ có dòng riêng ("Tạo trần ¥20,000", B31.2). Không lọc
+  // thì mọi khoản định kỳ trong danh mục không đặt trần đều réo mỗi tháng, tức đúng cái
+  // bệnh `coverageGaps` được viết ra để tránh: một cảnh báo lúc nào cũng kêu thì mất luôn
+  // cả lần nó đúng.
+  const liveGaps = pace.isCurrentMonth
+    ? coverageGaps(commitments.byCategory, remainingByCat, parentOfCat).filter((g) =>
+        remainingByCat.has(g.categoryId),
+      )
+    : []
+  const lineOfCat = new Map(report.lines.map((l) => [l.categoryId, l]))
 
   // Thân của một dòng cha / lá độc lập: tên + % ở dòng trên, thanh + "đã chi / trần"
   // ở dòng dưới. Hai dòng chứ không phải ba — nhóm xổ ra 8 con thì ba dòng mỗi mục
@@ -394,13 +515,28 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 {visual
                   ? `${formatMoney(totalAllowance.perDay, base)}/ngày × ${totalAllowance.daysLeft} ngày`
                   : `Cho ${totalAllowance.daysLeft} ngày nữa — tiêu ${formatMoney(totalAllowance.perDay, base)}/ngày thì vừa đủ.`}
+                {/* B36.1 · Phải NÓI RA phần đã trừ, không âm thầm hạ số: người dùng thấy
+                    con số tụt so với hôm qua và tưởng app tính sai. Ở cả hai chế độ mật độ
+                    vì nó là số liệu, không phải lời giải thích. */}
+                {committedRemaining > 0 && (
+                  <span className="ml-1.5 text-fg-warn">
+                    — đã trừ {formatMoney(committedRemaining, base)} cam kết chưa ra
+                  </span>
+                )}
                 {/* "ngày 15/31" của 11a. Số ngày CÒN LẠI một mình không nói được mình
                     đang ở đâu trong tháng, mà đó là mẫu số của mọi câu "nhanh/chậm hơn
-                    nhịp" phía dưới. Ở cả hai chế độ mật độ vì nó là số liệu, không phải
-                    lời giải thích. */}
+                    nhịp" phía dưới. */}
                 <span className="ml-1.5 tabular-nums text-fg-muted">
                   · ngày {pace.paceDaysElapsed}/{pace.paceDaysInMonth}
                 </span>
+              </p>
+            )}
+            {/* B36.2 · Câu RIÊNG, không phải dòng biến mất. */}
+            {thieuTruocCuoiThang && (
+              <p className="mt-1.5 text-xs font-medium text-money-out">
+                Còn {formatMoney(totalRemaining, base)} nhưng{' '}
+                {formatMoney(committedRemaining, base)} đã cam kết — thiếu{' '}
+                {formatMoney(-spendable, base)} trước cuối tháng.
               </p>
             )}
           </>
@@ -444,11 +580,110 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
 
       {/* KHÔNG có khối "Cần để ý" riêng nữa (B8 của gói 1a).
           Nó ghim ba dòng đang vượt/đi nhanh lên đầu, rồi khối ngay dưới — danh sách hạn
-          mức — mở đầu bằng ĐÚNG ba dòng đó, vì nó sắp theo "vượt trước". Đo trên demo:
-          "Đi lại vượt ¥18,750" đọc hai lần, cách nhau chưa tới một màn.
-          Khối dưới là bản nói đủ hơn (có % và cả "đã chi / trần"), nên bản bị bỏ là bản
-          trên. Con số "3 / 5 mục" thì KHÔNG mất: nó gộp vào tiêu đề khối dưới — đó mới
-          là thứ khối trên nói được mà khối dưới chưa nói. */}
+          mức — nói đủ hơn về đúng ba dòng đó (có % và cả "đã chi / trần"), nên bản bị bỏ
+          là bản trên. Đo trên demo: "Đi lại vượt ¥18,750" đọc hai lần, cách nhau chưa tới
+          một màn.
+          ĐÍNH CHÍNH (B38.3) — lý lẽ cũ ghi ở đây là "khối dưới mở đầu bằng ĐÚNG ba dòng
+          đó, vì nó sắp theo «vượt trước»". Câu đó giả định một thứ tự mà mặc định
+          (`readSortMode` → 'manual') không dùng. Ba dòng ấy giờ được đánh dấu TẠI DÒNG
+          bằng viền trái, ở mọi chế độ sắp xếp — xem `attentionTone`. Con số "3 / 5 mục"
+          vẫn ở tiêu đề khối dưới và giờ bấm được để nhảy tới dòng đầu tiên. */}
+
+      {/* CÒN PHẢI TRẢ (B37) — khối mà mặt này thiếu.
+          Ngày cuối tháng 8, mặt lập kế hoạch của tháng 9 bày "Đã cam kết ¥141,060" với 5
+          dòng có tên. Sáng ngày 1 tháng 9, `isPlanningMonth` trả false, trang đổi mặt, và
+          CẢ KHỐI ĐÓ BIẾN MẤT — dù chưa một đồng nào trong ¥141,060 đã ra. Cùng một trang,
+          cùng một tháng, cách nhau một ngày.
+          Chỉ ở THÁNG ĐANG CHẠY: tháng đã đóng thì mọi kỳ chưa sinh giao dịch đều "quá hạn",
+          và một khối đỏ về chuyện của sáu tháng trước không còn việc gì để làm với nó. */}
+      {pace.isCurrentMonth && commitments.items.length > 0 && (
+        <Card as="section">
+          <div className="mb-1 flex items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold text-fg-muted">Còn phải trả</h2>
+            <Money
+              amount={commitments.total}
+              currency={base}
+              className="text-sm font-semibold"
+              approx={commitments.hasMissingRate}
+            />
+          </div>
+          <Guide className="mb-2 text-xs text-fg-muted">
+            Cam kết chưa sinh giao dịch trong tháng này. Đã ra rồi thì không hiện — nó nằm
+            trong số đã chi ở trên.
+          </Guide>
+
+          <ul className="divide-y divide-border-subtle">
+            {/* QUÁ HẠN CHƯA GHI lên trước: nhóm này là thứ mặt lập kế hoạch không thể có
+                (tháng chưa xảy ra) và mặt theo dõi tới nay không có chỗ nào nói. Một khoản
+                tới hạn ngày 10 mà hôm nay 18 vẫn chưa ghi thì hoặc bạn quên ghi, hoặc bạn
+                quên trả — cả hai đều cần biết. */}
+            {[...schedule.overdue, ...schedule.upcoming].map((it) => {
+              const c = it.categoryId ? catOf(it.categoryId) : null
+              const quaHan = it.dueISO < todayISO
+              const soNgay = quaHan ? daysBetween(it.dueISO, todayISO) : 0
+              return (
+                <li key={it.key} className="py-1.5">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      {quaHan && (
+                        <TriangleAlert
+                          className="h-3.5 w-3.5 shrink-0 text-fg-warn"
+                          aria-label="quá hạn chưa ghi"
+                        />
+                      )}
+                      <span className="min-w-0 truncate text-fg-primary">{it.title}</span>
+                    </span>
+                    <span className="shrink-0 text-fg-primary">
+                      {it.unknownAmount ? (
+                        <span className="text-xs text-fg-muted">chưa biết</span>
+                      ) : (
+                        <Money amount={it.amount} currency={base} />
+                      )}
+                    </span>
+                  </div>
+                  <p className={`text-2xs ${quaHan ? 'text-fg-warn' : 'text-fg-muted'}`}>
+                    {it.kind === 'recurring' ? 'định kỳ' : 'sắp chi'}
+                    {it.times > 1 && ` ×${it.times}`}
+                    {' · '}
+                    {quaHan
+                      ? `tới hạn ${dayMonthLabel(it.dueISO)} — quá hạn ${soNgay} ngày, chưa ghi`
+                      : dayMonthLabel(it.dueISO)}
+                    {c ? ` → ${c.name}` : ' · chưa gắn danh mục'}
+                  </p>
+                </li>
+              )
+            })}
+          </ul>
+
+          {liveGaps.length > 0 && (
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {liveGaps.map((g) => {
+                const line = lineOfCat.get(g.categoryId)
+                const daChi = line?.spent ?? 0
+                return (
+                  <li key={g.categoryId}>
+                    <button
+                      type="button"
+                      onClick={() => openEdit(g.categoryId)}
+                      className="flex min-h-11 w-full items-center gap-2 rounded-md border border-state-warn-border bg-state-warn-bg px-2 py-1.5 text-left text-xs text-state-warn-fg"
+                    >
+                      <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
+                      <span className="min-w-0 flex-1">
+                        {catOf(g.categoryId)?.name ?? 'Danh mục'}: đã chi{' '}
+                        {formatMoney(daChi, base)}, còn {formatMoney(g.budgeted, base)} trong
+                        trần — mà còn {formatMoney(g.committed, base)} phải trả.{' '}
+                        <span className="underline">
+                          Nâng thêm {formatMoney(g.short, base)}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </Card>
+      )}
 
       {/* Danh mục / nhóm có hạn mức */}
       {items.length > 0 && (
@@ -461,16 +696,25 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           <h2 className="mb-1 text-sm font-semibold text-fg-muted">
             Hạn mức từng mục
             {attention.length > 0 && (
-              <span className="font-normal tabular-nums">
-                {' '}
-                · {attention.length} / {items.length} mục cần để ý
-              </span>
+              <>
+                {' · '}
+                {/* B38.2 · Đếm mà không đi tới được thì con số chỉ là một lời phàn nàn.
+                    Neo trong trang chứ không sắp lại danh sách: sắp lại là lấy mất cái
+                    mặc định 'manual' đang có lý (xem chú thích ở `readSortMode`). */}
+                <a
+                  href={firstAttentionId ? `#hanmuc-${firstAttentionId}` : undefined}
+                  className="font-normal tabular-nums underline"
+                >
+                  {attention.length} / {items.length} mục cần để ý
+                </a>
+              </>
             )}
           </h2>
           {attention.length > 0 && (
             <Guide className="mb-2 text-xs text-fg-muted">
-              "Cần để ý" = đã quá trần, hoặc đang tiêu nhanh hơn nhịp tháng. Khoản cố định
-              đã trả xong (tiền nhà, bảo hiểm…) không tính — không còn gì để phanh.
+              "Cần để ý" = đã quá trần, hoặc đang tiêu nhanh hơn nhịp tháng — có vạch màu ở
+              đầu dòng. Khoản cố định đã trả xong (tiền nhà, bảo hiểm…) không tính, vì không
+              còn gì để phanh.
             </Guide>
           )}
           {/* Nút chọn kiểu sắp xếp: chỉ hiện khi có từ 2 mục trở lên — một mục thì
@@ -488,9 +732,15 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           )}
           <ul className="divide-y divide-border-subtle">
             {sortedItems.map((item) => {
+              // B38.1 · Vạch trái 2px cho dòng cần để ý, ở MỌI chế độ sắp xếp. Viền luôn có
+              // mặt (trong suốt khi không cần) để dòng không nhích ngang giữa hai trạng thái
+              // — nhích thì cả cột số lệch đi 10px mỗi lần một mục vượt trần.
+              const mark = markClass(attentionTone.get(item.cat.id))
+              const anchor = item.cat.id === firstAttentionId ? `hanmuc-${item.cat.id}` : undefined
+
               if (item.kind === 'leaf') {
                 return (
-                  <li key={item.cat.id} className="py-2 first:pt-0 last:pb-0">
+                  <li key={item.cat.id} id={anchor} className={`py-2 first:pt-0 last:pb-0 ${mark}`}>
                     <button
                       type="button"
                       onClick={() => openEdit(item.cat.id)}
@@ -512,7 +762,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               const isOpen = expanded.has(item.cat.id)
               const overflow = capOverflowNotice(item, (v) => formatMoney(v, base))
               return (
-                <li key={item.cat.id} className="py-2 first:pt-0 last:pb-0">
+                <li key={item.cat.id} id={anchor} className={`py-2 first:pt-0 last:pb-0 ${mark}`}>
                   <div className="flex items-stretch gap-1">
                     {/* Nút xổ/thu con — kéo cao hết dòng cho dễ bấm. Rộng 36px (w-9) chứ
                         không 24px: đo được 24×40, hụt vùng chạm ở trục ngang. 36 là bề
@@ -603,7 +853,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           </h2>
           <Guide className="mb-2 text-xs text-fg-muted">
             Bấm tên nhóm để đặt trần chung, hoặc xổ ra (▸) để đặt riêng cho từng mục con — khi đó
-            trần nhóm là tổng các con.
+            trần nhóm là tổng các con. Con số trên chip là trung bình {SUGGEST_MONTHS} tháng
+            đã ghi.
           </Guide>
           <ul className="flex flex-col gap-2">
             {unbudgeted.map(({ cat: c, children }) => {
@@ -629,25 +880,18 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                         )}
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => openEdit(c.id)}
-                      className="rounded-full border border-dashed border-border-strong px-3 py-1.5 text-xs text-fg-secondary hover:bg-surface-sunken"
-                    >
-                      {c.icon} {c.name} +
-                    </button>
+                    <UnbudgetedChip cat={c} base={base} suggestions={suggestions} onClick={openEdit} />
                   </div>
                   {isOpen && children.length > 0 && (
                     <ul className="mt-2 flex flex-wrap gap-2 border-l border-border-subtle pl-3">
                       {children.map((k) => (
                         <li key={k.id}>
-                          <button
-                            type="button"
-                            onClick={() => openEdit(k.id)}
-                            className="rounded-full border border-dashed border-border-strong px-3 py-1.5 text-xs text-fg-secondary hover:bg-surface-sunken"
-                          >
-                            {k.icon} {k.name} +
-                          </button>
+                          <UnbudgetedChip
+                            cat={k}
+                            base={base}
+                            suggestions={suggestions}
+                            onClick={openEdit}
+                          />
                         </li>
                       ))}
                     </ul>
@@ -675,6 +919,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           currentRollover={editing.rollover}
           budgetId={editing.budgetId}
           hint={editing.hint}
+          /* B39.1 · Sheet vốn NHẬN prop này, mặt lập kế hoạch vốn truyền — chỉ mặt này là
+             không, nên sửa hạn mức giữa tháng là gõ số từ trí nhớ. Đúng cái việc suggest.ts
+             được viết ra để bỏ. */
+          suggestion={suggestions.get(editing.categoryId) ?? null}
           onClose={() => setEditing(null)}
         />
       )}

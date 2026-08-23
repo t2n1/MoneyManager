@@ -25,6 +25,7 @@ const row = (over: Partial<TagSpendRow> & { tag_id: string }): TagSpendRow => ({
   account_id: 'jpy',
   occurred_on: '2026-08-10',
   is_refund: false,
+  category_id: null,
   ...over,
 })
 
@@ -237,6 +238,7 @@ describe('tagPlanLines', () => {
     ratio: 0,
     remaining: 100,
     status: 'ok',
+    categoryCount: 0,
     ...over,
   })
 

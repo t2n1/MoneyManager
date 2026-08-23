@@ -2,45 +2,41 @@
 //
 // Gom bốn thứ vốn nằm rải rác ba trang khác nhau: thu dự kiến, hạn mức đang đặt,
 // cam kết đã biết (định kỳ + sắp chi), và gợi ý số từ lịch sử.
+//
+// Hai phần đã TÁCH RA thành hook riêng vì mặt theo dõi cũng cần đúng chúng:
+// `useCommitments` (B36/B37) và `useSuggestions` (B39). Hook này chỉ còn ghép lại.
 
 import { useMemo } from 'react'
 import {
-  useAccounts,
   useBudgets,
   useCategories,
   useMonthPlan,
-  usePlannedExpenses,
   useProfile,
-  useRangeTransactions,
   useRates,
-  useRecurringRules,
   useTransferCategoryIds,
 } from '../../hooks/queries'
-import {
-  addMonths,
-  getMonthRange,
-  monthKeyForDate,
-  monthKeyString,
-  toISODate,
-  type MonthKey,
-} from '../../lib/dates'
-import type { CurrencyCode } from '../../lib/money'
-import { convertToBase } from '../../lib/rates'
-import { categoryBreakdown, monthlySeries } from '../reports/aggregate'
-import { baselineIncome, BASELINE_MONTHS } from './axisTargets'
-import { collectCommitments, coverageGaps, type CommitmentReport, type CoverageGap } from './commitments'
-import { planSummary, type PlanSummary } from './planning'
-import { suggestLimits, type Suggestion } from './suggest'
+import { monthKeyString, type MonthKey } from '../../lib/dates'
+import type { CategoryRow } from '../../types/database.types'
+import { buildBudgetDisplay, type BudgetDisplay } from './budgetDisplay'
+import { coverageGaps, type CommitmentReport, type CoverageGap } from './commitments'
+import { planGroups, type PlanGroups } from './planGroups'
+import { planProjection, type PlanProjection } from './planProjection'
+import { plannedSlices, planSummary, type PlanSummary } from './planning'
+import { buildBudgetReport } from './progress'
+import type { Suggestion } from './suggest'
+import { useCommitments } from './useCommitments'
+import { useSuggestions } from './useSuggestions'
 import { tagPlanLines, type TagPlanLine } from '../tags/budget'
 import { useTagBudgets } from '../tags/useTagBudgets'
+import { isFlowCategory } from '../categories/flowCategories'
+import { isBudgetableCategory } from '../categories/kind'
 
-
-/** Cửa sổ lịch sử cho GỢI Ý HẠN MỨC (§4.3: TB 6 tháng). Khác BASELINE_MONTHS — xem
- *  chú thích ở chỗ dựng `histMonths`. */
-export const SUGGEST_MONTHS = 6
+export { SUGGEST_MONTHS } from './useSuggestions'
 
 export interface PlanningData {
   summary: PlanSummary
+  /** hệ quả nếu điền tiếp kế hoạch; null = chưa biết thu nhập */
+  projection: PlanProjection | null
   /** số người dùng tự khai; null = chưa khai */
   declared: number | null
   /** trung bình các tháng đã đóng sổ; null = chưa đủ dữ liệu */
@@ -49,12 +45,16 @@ export interface PlanningData {
   /** danh mục có cam kết vượt hạn mức đang đặt */
   gaps: CoverageGap[]
   suggestions: Map<string, Suggestion>
+  /** bốn khối hạn mức đã xếp theo trục (B30) */
+  groups: PlanGroups
   /** hạn mức đang đặt theo danh mục — cho danh sách và cho phép đối chiếu */
   budgetedByCat: Map<string, number>
   /** id dòng hạn mức theo danh mục — sheet cần nó để xoá được */
   budgetIdByCat: Map<string, string>
   /** cờ dồn theo danh mục — sheet cần nó để LƯU không âm thầm tắt cờ đang bật */
   rolloverByCat: Map<string, boolean>
+  /** danh mục CHƯA đặt hạn mức mà có gợi ý — nguồn của khối "Cần bạn quyết" (B31.3) */
+  unset: { cat: CategoryRow; suggestion: Suggestion }[]
   /** trần theo nhãn quy về "tháng này còn tiêu được bao nhiêu" */
   tagPlan: TagPlanLine[]
   /** riêng cờ thiếu tỷ giá của phần nhãn — nó tính trên chi CẢ ĐỜI, khác nguồn với cam kết */
@@ -65,87 +65,27 @@ export interface PlanningData {
 /**
  * Dữ liệu để lập kế hoạch cho `monthKey`.
  *
- * Cửa sổ lịch sử là BASELINE_MONTHS tháng ĐÃ ĐÓNG SỔ gần nhất tính từ HÔM NAY, không
- * phải mấy tháng đứng ngay trước tháng đang lập. Lập kế hoạch cho tháng 12 mà lấy
- * tháng 9–11 làm nền là lấy ba tháng chưa xảy ra; còn tháng đang chạy dở thì luôn
- * thiếu tiền nên kéo mọi con số xuống thấp hơn thực tế.
+ * Cây hạn mức dựng bằng `buildBudgetDisplay()` trên một `BudgetReport` có `spent = 0`,
+ * KHÔNG bằng cách tự lọc danh mục lá lần thứ hai (B30.6). Lý do: `buildBudgetDisplay` đã
+ * duyệt cây cha/con đúng luật "đặt ở cha trước", nên trần đặt ở danh mục CHA ra một dòng
+ * thật. Bản trước lọc `!categories.some(k => k.parent_id === c.id)` nên cảnh báo "Trần
+ * nhóm Nhà ở đang ¥0" trỏ tới một cái tên không có dòng nào trong danh sách bên cạnh.
  */
 export function usePlanning(monthKey: MonthKey): PlanningData {
   const { data: profile } = useProfile()
-  const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const { base, rates } = useRates()
   const transferIds = useTransferCategoryIds()
   const monthKeyStr = monthKeyString(monthKey)
   const { data: budgets = [] } = useBudgets(monthKeyStr)
   const { data: plan } = useMonthPlan(monthKeyStr)
-  const { data: rules = [] } = useRecurringRules()
-  const { data: planned = [] } = usePlannedExpenses()
   // Dựng cho ĐÚNG tháng đang lập: trần kỳ 'monthly' phải soi vào tháng đó (chưa tiêu
   // gì → còn nguyên trần), còn kỳ 'total' vốn tính cả đời nên không phụ thuộc kỳ nào.
   const tagBudgets = useTagBudgets(monthKey)
-
-  const monthStartDay = profile?.month_start_day ?? 1
-  const currentKey = monthKeyForDate(toISODate(new Date()), monthStartDay)
-
-  // SÁU tháng, không phải BASELINE_MONTHS (3).
-  //
-  // Hai người dùng chuỗi này cần hai cửa sổ khác nhau, và trước đây bị ép chung một:
-  //   · Thu NỀN — 3 tháng gần nhất. Thu nhập đổi thì phải bám theo cái mới; kéo dài
-  //     cửa sổ là một lần tăng lương mất nửa năm mới hiện ra trong mẫu số.
-  //   · Gợi ý HẠN MỨC — 6 tháng (§4.3). Chi tiêu có nhịp quý (bảo hiểm, sửa xe, quà
-  //     Tết); ba tháng thì một khoản ba-tháng-một-lần hoặc phình gấp ba hoặc biến mất
-  //     hẳn khỏi gợi ý, tuỳ nó rơi vào cửa sổ hay không.
-  // Lấy 6 tháng cho CẢ chuỗi rồi cắt lại 3 tháng cuối cho thu nền: một lần fetch.
-  const histMonths = useMemo(
-    () => Array.from({ length: SUGGEST_MONTHS }, (_, i) => addMonths(currentKey, i - SUGGEST_MONTHS)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [currentKey.year, currentKey.month],
-  )
-  const histRange = useMemo(
-    () => ({
-      start: getMonthRange(histMonths[0], monthStartDay).start,
-      end: getMonthRange(histMonths[histMonths.length - 1], monthStartDay).end,
-    }),
-    [histMonths, monthStartDay],
-  )
-  const { data: histTxs = [] } = useRangeTransactions(histRange, !!profile)
-
-  const planRange = useMemo(
-    () => getMonthRange(monthKey, monthStartDay),
-    [monthKey, monthStartDay],
-  )
+  const commitments = useCommitments(monthKey)
+  const { suggestions, baseline } = useSuggestions()
 
   return useMemo(() => {
-    const currencyOf = (id: string): CurrencyCode =>
-      accounts.find((a) => a.id === id)?.currency ?? base
-    const r = rates ?? {}
-    const convert = (amount: number, c: CurrencyCode) => convertToBase(amount, c, base, r)
-
-    // Thu nền chỉ nhìn BASELINE_MONTHS tháng cuối của cửa sổ — xem lý do ở chỗ khai
-    // `histMonths`. `slice(-n)` chứ không fetch riêng: cùng một mảng giao dịch.
-    const baseline = baselineIncome(
-      monthlySeries(
-        histTxs,
-        histMonths.slice(-BASELINE_MONTHS),
-        monthStartDay,
-        currencyOf,
-        base,
-        r,
-        transferIds,
-      ).points,
-    )
-
-    // Chi theo danh mục của TỪNG tháng lịch sử — nền của mọi gợi ý.
-    const perMonth = histMonths.map((mk) => {
-      const rng = getMonthRange(mk, monthStartDay)
-      const txs = histTxs.filter((t) => t.occurred_on >= rng.start && t.occurred_on < rng.end)
-      return {
-        monthKey: monthKeyString(mk),
-        slices: categoryBreakdown(txs, 'expense', currencyOf, base, r, transferIds).slices,
-      }
-    })
-
     const parentOf = (id: string) => categories.find((c) => c.id === id)?.parent_id ?? null
     const summary = planSummary(
       plan?.expected_income ?? null,
@@ -160,38 +100,98 @@ export function usePlanning(monthKey: MonthKey): PlanningData {
       parentOf,
     )
 
-    const commitments = collectCommitments(rules, planned, planRange, currencyOf, convert)
     const budgetedByCat = new Map(budgets.map((b) => [b.category_id, b.amount]))
+    const gaps = coverageGaps(commitments.byCategory, budgetedByCat, parentOf)
+    const { markers } = plannedSlices(budgets, parentOf)
+    const markerIds = new Set(markers.map((m) => m.categoryId))
+
+    // Báo cáo có `spent = 0` ở mọi dòng: không giao dịch nào, không phần dồn nào. Phần dồn
+    // cố ý để rỗng — nó chỉ chốt được khi tháng trước đã đóng sổ, cùng lý do `plannedSlices`
+    // dùng `amount` gốc chứ không phải `budgeted`.
+    const zeroReport = buildBudgetReport(
+      budgets,
+      [],
+      () => base,
+      base,
+      rates ?? {},
+      parentOf,
+      new Map(),
+      transferIds,
+    )
+    const expenseCats = categories
+      .filter((c) => c.type === 'expense' && !c.is_archived)
+      .sort((a, b) => a.sort_order - b.sort_order)
+    const display: BudgetDisplay = buildBudgetDisplay(expenseCats, zeroReport)
+
+    const groups = planGroups({
+      items: display.items,
+      categories,
+      suggestions,
+      committedByCat: commitments.byCategory,
+      gaps,
+      axis: summary.axis,
+      markerSlices: markers,
+    })
+
+    // Danh mục ĐẶT ĐƯỢC hạn mức mà chưa đặt, và có lịch sử để gợi ý. Cùng bộ lọc với
+    // `buildBudgetDisplay`: dòng chảy (Cho vay / Trả nợ / Điều chỉnh số dư) và danh mục
+    // `kind = 'transfer'` không đặt được trần, nên mời đặt là mời làm một việc vô nghĩa.
+    const budgetable = (c: CategoryRow) =>
+      c.type === 'expense' &&
+      !c.is_archived &&
+      !isFlowCategory(c) &&
+      isBudgetableCategory(c) &&
+      !categories.some((k) => k.parent_id === c.id && !k.is_archived)
+    const unset = categories
+      .filter((c) => budgetable(c) && !budgetedByCat.has(c.id) && !markerIds.has(c.id))
+      .map((c) => ({ cat: c, suggestion: suggestions.get(c.id) ?? null }))
+      .filter((r): r is { cat: typeof r.cat; suggestion: Suggestion } =>
+        r.suggestion !== null && r.suggestion.average > 0,
+      )
+      .sort((a, b) => b.suggestion.average - a.suggestion.average)
+
+    const catById = new Map(categories.map((c) => [c.id, c]))
+    const projection = planProjection({
+      summary,
+      suggestions,
+      budgetedByCat,
+      gaps,
+      savingsBps: profile?.target_savings_bps ?? 2000,
+      isMarker: (id) => markerIds.has(id),
+      isBudgetable: (id) => {
+        const c = catById.get(id)
+        return c ? budgetable(c) : false
+      },
+    })
 
     return {
       summary,
+      projection,
       declared: plan?.expected_income ?? null,
       baseline,
       commitments,
-      gaps: coverageGaps(commitments.byCategory, budgetedByCat, parentOf),
-      suggestions: suggestLimits(perMonth),
+      gaps,
+      suggestions,
+      groups,
       budgetedByCat,
       budgetIdByCat: new Map(budgets.map((b) => [b.category_id, b.id])),
       rolloverByCat: new Map(budgets.map((b) => [b.category_id, !!b.rollover])),
+      unset,
       tagPlan: tagPlanLines(tagBudgets.lines),
       tagHasMissingRate: tagBudgets.hasMissingRate,
       hasMissingRate: commitments.hasMissingRate,
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    histTxs,
-    histMonths,
-    planRange,
-    monthStartDay,
     budgets,
     plan,
-    rules,
-    planned,
+    baseline,
+    suggestions,
+    commitments,
     tagBudgets,
     categories,
-    accounts,
     base,
     rates,
     profile,
+    transferIds,
   ])
 }

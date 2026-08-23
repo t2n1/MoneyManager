@@ -62,3 +62,31 @@ export function suggestLimits(months: MonthSlices[]): Map<string, Suggestion> {
   }
   return out
 }
+
+/** Ngoài khoảng này thì hạn mức và trung bình coi là lệch nhau. */
+const OFF_LOW = 0.5
+const OFF_HIGH = 1.5
+/**
+ * Ngưỡng TIỀN đi kèm ngưỡng tỉ lệ. Đơn vị `base minor`, cùng quy ước với mọi ngưỡng
+ * tiền khác trong app — người dùng đổi mệnh giá thì ngưỡng đi theo `base`.
+ */
+const OFF_MIN_GAP = 3000
+
+/**
+ * Hạn mức có lệch trung bình đủ để nói ra không (B33.3).
+ *
+ * Vì sao phải có ngưỡng TIỀN, không chỉ ngưỡng tỉ lệ: `Gas` TB `¥58` mà hạn mức
+ * `¥1,500` đọc ra "gấp 26 lần" — nghe như báo động, thực ra là một khoản bé có một
+ * tháng nhảy. Thiếu ngưỡng tiền thì `Gas`, `Điện thoại`, `Cây & Cá` đều bị tô, và một
+ * cảnh báo lúc nào cũng kêu thì mất luôn cả lần nó đúng (cùng lý lẽ với `FAST_MIN_RATIO`
+ * trong `budgetSort.ts`).
+ *
+ * `average <= 0` trả false: không có mẫu số thì không có tỉ lệ nào để so, và danh mục
+ * chưa từng chi thì "lệch trung bình" là một câu không nói được gì.
+ */
+export function isOffAverage(limit: number, average: number): boolean {
+  if (average <= 0 || limit <= 0) return false
+  if (Math.abs(limit - average) < OFF_MIN_GAP) return false
+  const r = limit / average
+  return r < OFF_LOW || r > OFF_HIGH
+}

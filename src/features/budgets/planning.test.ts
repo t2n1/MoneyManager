@@ -67,26 +67,36 @@ describe('isPlanningMonth', () => {
 
 describe('plannedSlices', () => {
   it('mỗi hạn mức là một lát', () => {
-    expect(plannedSlices([bud('rent', 200), bud('fun', 50)])).toEqual([
+    const r = plannedSlices([bud('rent', 200), bud('fun', 50)])
+    expect(r.counted).toEqual([
       { categoryId: 'rent', amount: 200 },
       { categoryId: 'fun', amount: 50 },
     ])
+    expect(r.markers).toEqual([])
   })
 
   it('mốc con (cha đã có trần) KHÔNG vào tổng — không đếm một đồng hai lần', () => {
     const r = plannedSlices([bud('transport', 300), bud('taxi', 120)], parentOf)
-    expect(r).toEqual([{ categoryId: 'transport', amount: 300 }])
+    expect(r.counted).toEqual([{ categoryId: 'transport', amount: 300 }])
+  })
+
+  it('mốc con vào `markers` chứ không MẤT — màn hình phải bày được chỗ lệch (B30.4)', () => {
+    // Bản đầu `continue` im lặng, nên 29 dòng cộng lại ¥240,964 trong khi ô "Đã phân bổ"
+    // ghi ¥226,138 và không có gì trên màn nói ¥14,826 chênh nhau ở đâu ra.
+    const r = plannedSlices([bud('transport', 300), bud('taxi', 120)], parentOf)
+    expect(r.markers).toEqual([{ categoryId: 'taxi', amount: 120 }])
   })
 
   it('con của nhóm CHƯA có trần thì vẫn tính vào tổng', () => {
     const r = plannedSlices([bud('taxi', 120)], parentOf)
-    expect(r).toEqual([{ categoryId: 'taxi', amount: 120 }])
+    expect(r.counted).toEqual([{ categoryId: 'taxi', amount: 120 }])
+    expect(r.markers).toEqual([])
   })
 
   it('dùng số GỐC, không cộng phần dồn của tháng trước', () => {
     // rollover = true nhưng plannedSlices không biết gì về carry — đó là chủ ý:
     // tháng trước còn dở thì phần dồn chưa chốt được.
-    expect(plannedSlices([bud('rent', 200, true)])[0].amount).toBe(200)
+    expect(plannedSlices([bud('rent', 200, true)]).counted[0].amount).toBe(200)
   })
 })
 

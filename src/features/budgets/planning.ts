@@ -52,8 +52,25 @@ export function isPlanningMonth(rangeStartISO: string, todayISO: string): boolea
   return rangeStartISO > todayISO
 }
 
+/** Hai rổ hạn mức: rổ tính vào tổng, và rổ mốc con bị loại ra. */
+export interface PlannedSlices {
+  /** Tính vào tổng kế hoạch. */
+  counted: CategorySlice[]
+  /**
+   * Hạn mức đặt ở CON của một nhóm đã có trần cha — mốc theo dõi bên trong trần đó,
+   * KHÔNG cộng vào tổng.
+   *
+   * Trả về thay vì `continue` im lặng như bản đầu, vì màn hình cần bày chúng ra: 29
+   * dòng hạn mức cộng lại `¥240,964` trong khi ô "Đã phân bổ" ghi `¥226,138`, và
+   * `counted` mới là số đúng — nhưng không nói dòng nào bị loại thì hai con số cạnh
+   * nhau đọc ra như một lỗi tính. Xem B30.4.
+   */
+  markers: CategorySlice[]
+}
+
 /**
- * Các hạn mức TÍNH VÀO TỔNG kế hoạch, dạng lát để đưa thẳng vào phép gộp trục.
+ * Các hạn mức TÍNH VÀO TỔNG kế hoạch, dạng lát để đưa thẳng vào phép gộp trục — kèm
+ * rổ mốc con bị loại, để UI bày được chỗ lệch.
  *
  * Bỏ mốc con theo đúng luật của `buildBudgetReport`: hạn mức đặt ở con của một nhóm
  * đã có trần cha chỉ là mốc theo dõi BÊN TRONG trần đó. Cộng cả hai là đếm một đồng
@@ -67,15 +84,17 @@ export function isPlanningMonth(rangeStartISO: string, todayISO: string): boolea
 export function plannedSlices(
   budgets: BudgetRow[],
   parentOf: (categoryId: string) => string | null = () => null,
-): CategorySlice[] {
+): PlannedSlices {
   const budgetedIds = new Set(budgets.map((b) => b.category_id))
-  const out: CategorySlice[] = []
+  const counted: CategorySlice[] = []
+  const markers: CategorySlice[] = []
   for (const b of budgets) {
     const parent = parentOf(b.category_id)
-    if (parent != null && budgetedIds.has(parent)) continue
-    out.push({ categoryId: b.category_id, amount: b.amount })
+    const slice = { categoryId: b.category_id, amount: b.amount }
+    if (parent != null && budgetedIds.has(parent)) markers.push(slice)
+    else counted.push(slice)
   }
-  return out
+  return { counted, markers }
 }
 
 /**
@@ -98,7 +117,9 @@ export function planSummary(
   targets: AxisTargets,
   parentOf: (categoryId: string) => string | null = () => null,
 ): PlanSummary {
-  const slices = plannedSlices(budgets, parentOf)
+  // Chỉ `.counted` — `allocated` không đổi một đồng nào so với bản trước khi
+  // `plannedSlices` tách hai rổ.
+  const slices = plannedSlices(budgets, parentOf).counted
   const allocated = slices.reduce((s, x) => s + x.amount, 0)
 
   const income = declaredIncome !== null ? declaredIncome : (baseline ?? 0)

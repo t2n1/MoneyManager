@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { PlannedExpenseRow, RecurringRuleRow } from '../../types/database.types'
 import type { CurrencyCode } from '../../lib/money'
-import { collectCommitments, coverageGaps } from './commitments'
+import {
+  classifyCommitments,
+  collectCommitments,
+  coverageGaps,
+  spendableRemaining,
+} from './commitments'
 
 /** Tháng 9/2026 theo quy ước nửa mở [start, end). */
 const SEP = { start: '2026-09-01', end: '2026-10-01' }
@@ -307,5 +312,56 @@ describe('coverageGaps — trần đặt ở nhóm cha', () => {
   it('không truyền parentOf thì giữ nguyên cách cũ (phẳng)', () => {
     const gaps = coverageGaps(new Map([['suaxe', 45_000]]), new Map([['dilai', 50_000]]))
     expect(gaps[0]).toMatchObject({ categoryId: 'suaxe', budgeted: 0, short: 45_000 })
+  })
+})
+
+describe('coverageGaps · chưa có trần nào', () => {
+  it('budgeted = 0 thì thiếu TOÀN BỘ — short đúng bằng committed', () => {
+    // Ca này có câu chữ riêng ở UI ("Tạo trần ¥20,000", không phải "Nâng lên"): "hạn mức
+    // quá thấp" và "chưa có trần nào" là hai việc khác nhau.
+    const gaps = coverageGaps(new Map([['suanha', 20_000]]), new Map())
+    expect(gaps[0]).toMatchObject({ categoryId: 'suanha', budgeted: 0, committed: 20_000, short: 20_000 })
+  })
+})
+
+describe('spendableRemaining', () => {
+  it('không cam kết nào → bằng đúng phần còn lại', () => {
+    expect(spendableRemaining(41_104, 0)).toBe(41_104)
+  })
+
+  it('cam kết LỚN HƠN phần còn lại → trả số ÂM, không kẹp về 0', () => {
+    // Kẹp về 0 là mất đúng tin quan trọng nhất trong tháng: còn ¥12,000 trong trần mà
+    // ¥18,600 đã hứa nghĩa là THIẾU ¥6,600, không phải "vừa hết".
+    expect(spendableRemaining(12_000, 18_600)).toBe(-6_600)
+  })
+})
+
+describe('classifyCommitments', () => {
+  const it0 = (key: string, dueISO: string, amount: number) => ({
+    key,
+    kind: 'recurring' as const,
+    title: key,
+    categoryId: null,
+    amount,
+    times: 1,
+    dueISO,
+    unknownAmount: false,
+  })
+
+  it('quá hạn CHƯA GHI tách khỏi còn phải trả, mỗi nhóm một tổng', () => {
+    const r = classifyCommitments(
+      [it0('baohiem', '2026-08-10', 8_400), it0('dien', '2026-08-25', 13_070)],
+      '2026-08-18',
+    )
+    expect(r.overdue.map((x) => x.key)).toEqual(['baohiem'])
+    expect(r.upcoming.map((x) => x.key)).toEqual(['dien'])
+    expect(r.overdueTotal).toBe(8_400)
+    expect(r.upcomingTotal).toBe(13_070)
+  })
+
+  it('tới hạn ĐÚNG HÔM NAY vẫn là còn phải trả, chưa phải quá hạn', () => {
+    const r = classifyCommitments([it0('dien', '2026-08-18', 100)], '2026-08-18')
+    expect(r.overdue).toEqual([])
+    expect(r.upcoming).toHaveLength(1)
   })
 })

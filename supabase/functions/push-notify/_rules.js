@@ -1656,6 +1656,7 @@ function carryFromPreviousMonth(prevBudgets, prevMonthTxs, currencyOf, base, rat
 var spendSign = (r) => r.is_refund ? -1 : 1;
 function tagSpendTotals(rows, currencyOf, base, rates, within = () => true) {
   const byTag = /* @__PURE__ */ new Map();
+  const catsByTag = /* @__PURE__ */ new Map();
   const seen = /* @__PURE__ */ new Set();
   let hasMissingRate = false;
   for (const r of rows) {
@@ -1669,8 +1670,13 @@ function tagSpendTotals(rows, currencyOf, base, rates, within = () => true) {
       continue;
     }
     byTag.set(r.tag_id, (byTag.get(r.tag_id) ?? 0) + raw * spendSign(r));
+    if (r.category_id) {
+      const set = catsByTag.get(r.tag_id) ?? /* @__PURE__ */ new Set();
+      set.add(r.category_id);
+      catsByTag.set(r.tag_id, set);
+    }
   }
-  return { byTag, hasMissingRate };
+  return { byTag, catsByTag, hasMissingRate };
 }
 function buildTagBudgetReport({
   tags,
@@ -1700,7 +1706,8 @@ function buildTagBudgetReport({
       budget,
       ratio,
       remaining: budget - spent,
-      status: statusOf(ratio)
+      status: statusOf(ratio),
+      categoryCount: all.catsByTag.get(t.id)?.size ?? 0
     };
   });
   lines2.sort((a, b) => b.ratio - a.ratio);

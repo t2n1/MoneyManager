@@ -2427,6 +2427,7 @@ export const demoRepo: Repo = {
         account_id: t.account_id,
         occurred_on: t.occurred_on,
         is_refund: t.is_refund ?? false,
+        category_id: t.category_id ?? null,
       })
     }
     return out

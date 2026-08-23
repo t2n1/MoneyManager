@@ -32,6 +32,15 @@ export interface TagBudgetLine {
   /** còn tiêu được; ÂM = đã vượt bấy nhiêu */
   remaining: number
   status: BudgetStatus
+  /**
+   * Số danh mục nhãn này đang phủ, tính trên CẢ ĐỜI nhãn.
+   *
+   * Vì sao cả đời chứ không theo kỳ: trần kỳ 'monthly' ở tháng chưa tới có `spent = 0`,
+   * nên đếm theo kỳ sẽ ra 0 danh mục — đúng con số vô dụng nhất. Câu cần trả lời là
+   * "nhãn này chồng lên những hạn mức nào", và đó là một tính chất của nhãn, không phải
+   * của tháng. Giao dịch chưa gắn danh mục không được đếm.
+   */
+  categoryCount: number
 }
 
 export interface TagBudgetReport {
@@ -60,8 +69,14 @@ export function tagSpendTotals(
   base: CurrencyCode,
   rates: Rates,
   within: (occurredOn: string) => boolean = () => true,
-): { byTag: Map<string, number>; hasMissingRate: boolean } {
+): {
+  byTag: Map<string, number>
+  /** Danh mục đã phát sinh dưới mỗi nhãn — nguồn của `categoryCount`. */
+  catsByTag: Map<string, Set<string>>
+  hasMissingRate: boolean
+} {
   const byTag = new Map<string, number>()
+  const catsByTag = new Map<string, Set<string>>()
   const seen = new Set<string>()
   let hasMissingRate = false
 
@@ -77,9 +92,14 @@ export function tagSpendTotals(
       continue
     }
     byTag.set(r.tag_id, (byTag.get(r.tag_id) ?? 0) + raw * spendSign(r))
+    if (r.category_id) {
+      const set = catsByTag.get(r.tag_id) ?? new Set<string>()
+      set.add(r.category_id)
+      catsByTag.set(r.tag_id, set)
+    }
   }
 
-  return { byTag, hasMissingRate }
+  return { byTag, catsByTag, hasMissingRate }
 }
 
 export interface TagBudgetInput {
@@ -133,6 +153,7 @@ export function buildTagBudgetReport({
       ratio,
       remaining: budget - spent,
       status: statusOf(ratio),
+      categoryCount: all.catsByTag.get(t.id)?.size ?? 0,
     }
   })
 
@@ -145,6 +166,8 @@ export interface TagPlanLine {
   name: string
   color: string
   period: TagBudgetPeriod
+  /** số danh mục nhãn này đang phủ — xem `TagBudgetLine.categoryCount` */
+  categoryCount: number
   /** trần gốc */
   budget: number
   /** đã tiêu tính vào trần đó — kỳ 'monthly' ở tháng chưa tới luôn là 0 */
@@ -178,6 +201,7 @@ export function tagPlanLines(lines: TagBudgetLine[]): TagPlanLine[] {
       name: l.name,
       color: l.color,
       period: l.period,
+      categoryCount: l.categoryCount,
       budget: l.budget,
       spent: l.spent,
       available: Math.max(0, l.remaining),

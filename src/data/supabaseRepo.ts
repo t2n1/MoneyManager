@@ -1457,13 +1457,14 @@ export const supabaseRepo: Repo = {
         account_id: string
         occurred_on: string
         is_refund: boolean | null
+        category_id: string | null
       } | null
     }
     const rows = await fetchAllPages<Joined>(async (from, to) =>
       getSupabase()
         .from('transaction_tags')
         .select(
-          'tag_id, transactions!inner(id, amount, account_id, occurred_on, is_refund)',
+          'tag_id, transactions!inner(id, amount, account_id, occurred_on, is_refund, category_id)',
         )
         // Cùng bộ lọc với tagBreakdown ở client: chỉ khoản CHI còn tính thống kê.
         .eq('transactions.type', 'expense')
@@ -1483,6 +1484,7 @@ export const supabaseRepo: Repo = {
               account_id: r.transactions.account_id,
               occurred_on: r.transactions.occurred_on,
               is_refund: r.transactions.is_refund ?? false,
+              category_id: r.transactions.category_id,
             },
           ]
         : [],

@@ -11,6 +11,21 @@ import type { BudgetGroupItem } from './budgetDisplay'
 const MAX_NAMED = 3
 
 /**
+ * Gọi tên tối đa `max` phần tử rồi đếm phần còn lại — MỘT luật cho mọi câu "gồm những
+ * gì" của trang Ngân sách.
+ *
+ * Tách ra khỏi `capOverflowNotice` khi khối "Cần bạn quyết" (B31.1) cần đúng luật này
+ * để gọi tên các khoản cam kết ("Claude Pro · Google One · Bitwarden"). Lý do y nguyên
+ * lý do ghi ở đầu file: in một con số mà không nói nó ở đâu ra thì người dùng đọc như
+ * app tự bịa. Viết bản thứ hai thì hai câu trên cùng một màn sẽ cắt ở hai chỗ khác nhau.
+ */
+export function nameList(names: string[], max = MAX_NAMED): string {
+  const shown = names.slice(0, max)
+  const rest = names.length - shown.length
+  return `${shown.join(' · ')}${rest > 0 ? ` · …và ${rest} mục nữa` : ''}`
+}
+
+/**
  * Câu nhắc cho một nhóm, hoặc `null` khi không có gì phải nhắc.
  *
  * `null` cho nhóm tổng-con (`capped` false): ở đó hạn mức con CHÍNH LÀ trần nhóm nên
@@ -33,9 +48,6 @@ export function capOverflowNotice(
     return `${named[0].cat.name} đặt mốc ${money(named[0].marker!.budgeted)}, vượt trần nhóm ${cap}.`
   }
 
-  const shown = named.slice(0, MAX_NAMED)
-  const rest = named.length - shown.length
-  const list = shown.map((k) => `${k.cat.name} ${money(k.marker!.budgeted)}`).join(' · ')
-  const tail = rest > 0 ? ` · …và ${rest} mục nữa` : ''
-  return `Mốc các mục con cộng lại ${money(item.markerTotal)} (${list}${tail}), vượt trần nhóm ${cap}.`
+  const list = nameList(named.map((k) => `${k.cat.name} ${money(k.marker!.budgeted)}`))
+  return `Mốc các mục con cộng lại ${money(item.markerTotal)} (${list}), vượt trần nhóm ${cap}.`
 }

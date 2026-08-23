@@ -241,6 +241,8 @@ export type TagSpendRow = {
   account_id: string
   occurred_on: string
   is_refund: boolean
+  /** Danh mục của giao dịch; null = chưa gắn. Dùng để đếm nhãn này đang phủ mấy hạn mức. */
+  category_id: string | null
 }
 
 export type CategoryRow = {

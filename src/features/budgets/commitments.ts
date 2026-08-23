@@ -145,6 +145,68 @@ export function collectCommitments(
   return { items, total, hasMissingRate, byCategory }
 }
 
+/**
+ * Tiền CÒN TIÊU ĐƯỢC = phần còn lại trong trần TRỪ phần đã hứa cho người khác.
+ *
+ * Vì sao phải có hàm này (B36): mặt theo dõi chia `totalRemaining` cho số ngày còn lại
+ * để ra "mỗi ngày còn tiêu được bao nhiêu" — con số hành động nhiều nhất của cả trang.
+ * Nhưng `totalRemaining` gồm cả hạn mức của những khoản CHẮC CHẮN phải trả mà chưa tới
+ * ngày (tiền điện ngày 25, khoản định kỳ chưa sinh giao dịch). Chia cả phần đó ra là
+ * nói dư đúng bằng số cam kết chưa ra.
+ *
+ * KHÔNG kẹp về 0. Số âm ở đây là một tin thật và là tin quan trọng nhất trong tháng:
+ * "còn ¥12,000 trong trần mà ¥18,600 đã hứa" nghĩa là thiếu ¥6,600, và nơi gọi phải
+ * in ra câu đó chứ không phải ẩn dòng đi (xem B36.2).
+ *
+ * `committedRemaining` phải là cam kết CHƯA RA. `dueDatesIn` đã bỏ kỳ có
+ * `last_generated_on` và `collectCommitments` đã bỏ khoản sắp chi `status !== 'planned'`,
+ * nên đừng cộng lại các giao dịch đã ghi — trừ hai lần là hạ số xuống quá thấp, mà sai
+ * theo hướng đó thì người dùng thôi tin con số.
+ */
+export function spendableRemaining(
+  totalRemaining: number,
+  committedRemaining: number,
+): number {
+  return totalRemaining - committedRemaining
+}
+
+/** Cam kết chưa ra, chia theo chỗ đứng của nó so với HÔM NAY. */
+export interface CommitmentSchedule {
+  /** Tới hạn rồi mà chưa sinh giao dịch — hoặc quên trả, hoặc quên ghi. Cả hai đều cần biết. */
+  overdue: Commitment[]
+  /** Chưa tới hạn. */
+  upcoming: Commitment[]
+  overdueTotal: number
+  upcomingTotal: number
+}
+
+/**
+ * Chia cam kết thành QUÁ HẠN CHƯA GHI và CÒN PHẢI TRẢ (B37).
+ *
+ * Nhóm quá hạn là thứ mặt lập kế hoạch không thể có (tháng chưa xảy ra) và mặt theo dõi
+ * tới nay không có chỗ nào nói: một khoản định kỳ tới hạn ngày 10 mà hôm nay 18 vẫn chưa
+ * ghi thì hoặc bạn quên ghi, hoặc bạn quên trả.
+ *
+ * Khoản ĐÃ RA không có mặt ở đây, và không phải vì bị lọc: `collectCommitments` chỉ trả
+ * về kỳ chưa sinh giao dịch, nên tiền đã ra vốn đã nằm trong `spent`.
+ *
+ * Giữ nguyên thứ tự `items` trong mỗi nhóm — nó đã sắp giảm dần theo tiền.
+ */
+export function classifyCommitments(
+  items: Commitment[],
+  todayISO: string,
+): CommitmentSchedule {
+  const overdue = items.filter((it) => it.dueISO < todayISO)
+  const upcoming = items.filter((it) => it.dueISO >= todayISO)
+  const sum = (xs: Commitment[]) => xs.reduce((s, x) => s + x.amount, 0)
+  return {
+    overdue,
+    upcoming,
+    overdueTotal: sum(overdue),
+    upcomingTotal: sum(upcoming),
+  }
+}
+
 export interface CoverageGap {
   /** danh mục MANG TRẦN đang hụt — nhóm cha nếu cam kết rơi vào con của nhóm có trần */
   categoryId: string

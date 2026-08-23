@@ -10,6 +10,7 @@ const line = (over: Partial<TagBudgetLine> & { tagId: string }): TagBudgetLine =
   spent: 0,
   budget: 100_000,
   ratio: 0,
+  categoryCount: 0,
   remaining: 100_000,
   status: 'ok',
   ...over,

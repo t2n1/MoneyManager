@@ -45,7 +45,7 @@ export function FirstRunPanel({ hasBirthYear }: Props) {
           đáng. Điều kiện ghi ra vẫn đủ để họ không bấm vào rồi gặp màn trống. */}
       <ul className="mt-3 flex flex-col gap-1 border-t border-border-subtle pt-2.5 text-2xs text-fg-muted">
         <li>Ngân sách · Báo cáo — cần ít nhất một tháng đã ghi chép</li>
-        <li>Tài sản, chế độ 6 tháng — cần ít nhất 2 mốc tài sản ròng</li>
+        <li>Tài sản, chế độ Diễn biến — cần ít nhất 2 mốc tài sản ròng</li>
         <li>
           Tài sản · Tương lai — cần năm sinh{hasBirthYear ? ' (đã có)' : ' (chưa khai)'} và
           một kịch bản

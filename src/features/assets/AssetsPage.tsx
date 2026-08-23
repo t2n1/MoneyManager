@@ -25,8 +25,8 @@ const LifetimeView = lazy(() =>
 /**
  * HAI tab (§4.4 của bản 1a, thiết kế chốt 20a), thay ba.
  *
- * "Diễn biến" không mất — nó thôi làm một TAB và thành một CÔNG TẮC THỜI GIAN cạnh
- * tab Hiện tại. Lý do: ba tab bắt người dùng chọn giữa "giờ tôi có bao nhiêu" và
+ * "Diễn biến" không mất — nó thôi làm một TAB và thành một CÔNG TẮC cạnh tab Hiện
+ * tại, giữ nguyên tên. Lý do: ba tab bắt người dùng chọn giữa "giờ tôi có bao nhiêu" và
  * "tôi đang tiến bộ không" trước khi biết mình cần cái nào, trong khi hai câu đó nói
  * về CÙNG một danh sách tài khoản — chỉ khác cột số. Công tắc giữ nguyên vị trí mọi
  * khối và chỉ thêm phần theo thời gian.
@@ -38,24 +38,31 @@ const VIEW_TABS: readonly SegmentedItem<AssetsView>[] = [
   { value: 'future', label: 'Tương lai' },
 ]
 
-/** Công tắc thời gian của tab Hiện tại (§4.4). */
-type AssetsSpan = 'today' | '6m'
+/**
+ * Công tắc của tab Hiện tại (§4.4).
+ *
+ * Nhãn là "Diễn biến", KHÔNG phải "6 tháng": công tắc này không cắt cửa sổ thời gian nào
+ * cả. Bốn khối nó chèn thêm đều vẽ TRỌN lịch sử đang có (`NetWorthHistorySection` vẽ hết
+ * mảng snapshot, XIRR tính từ giao dịch đầu tiên). Nhãn "6 tháng" hứa một khoảng cắt
+ * không tồn tại — người có 2 năm dữ liệu sẽ tưởng mình đang xem 6 tháng cuối.
+ */
+type AssetsMode = 'today' | 'trend'
 
-const SPAN_TABS: readonly SegmentedItem<AssetsSpan>[] = [
+const MODE_TABS: readonly SegmentedItem<AssetsMode>[] = [
   { value: 'today', label: 'Hôm nay' },
-  { value: '6m', label: '6 tháng' },
+  { value: 'trend', label: 'Diễn biến' },
 ]
 
 /**
  * Đường CŨ → tab mới. `?view=trend` (tab Diễn biến, cùng mọi bookmark và lịch sử trình
- * duyệt) phải mở tab Hiện tại ở chế độ 6 THÁNG — mở đúng tab mà sai chế độ là người
- * dùng thấy một màn thiếu hẳn ba khối họ đang tìm, và không có gì báo. Đây đúng loại
+ * duyệt) phải mở tab Hiện tại ở chế độ DIỄN BIẾN — mở đúng tab mà sai chế độ là người
+ * dùng thấy một màn thiếu hẳn bốn khối họ đang tìm, và không có gì báo. Đây đúng loại
  * "hỏng im lặng" mà R3 cảnh báo khi gộp tab.
  */
-export function migrateAssetsView(raw: string | null): { view: AssetsView; span: AssetsSpan } {
-  if (raw === 'trend') return { view: 'now', span: '6m' }
-  if (raw === 'future') return { view: 'future', span: 'today' }
-  return { view: 'now', span: 'today' }
+export function migrateAssetsView(raw: string | null): { view: AssetsView; mode: AssetsMode } {
+  if (raw === 'trend') return { view: 'now', mode: 'trend' }
+  if (raw === 'future') return { view: 'future', mode: 'today' }
+  return { view: 'now', mode: 'today' }
 }
 
 const Loading = () => <p className="py-10 text-center text-sm text-fg-muted">Đang tải…</p>
@@ -87,9 +94,9 @@ export function AssetsPage() {
   const raw = searchParams.get('view')
   const migrated = migrateAssetsView(raw)
   const view = migrated.view
-  // Chế độ thời gian sống ở state chứ không ở URL: nó là cách NHÌN, không phải chỗ
-  // đứng. Khởi tạo từ đường cũ để `?view=trend` mở ra đúng thứ nó vẫn mở.
-  const [span, setSpan] = useState<AssetsSpan>(migrated.span)
+  // Chế độ sống ở state chứ không ở URL: nó là cách NHÌN, không phải chỗ đứng. Khởi
+  // tạo từ đường cũ để `?view=trend` mở ra đúng thứ nó vẫn mở.
+  const [mode, setMode] = useState<AssetsMode>(migrated.mode)
   const setView = (v: AssetsView) =>
     setSearchParams(
       (prev) => {
@@ -125,9 +132,9 @@ export function AssetsPage() {
         )}
       </div>
 
-      {/* Tab và công tắc thời gian đứng CÙNG một hàng (§4.4: "công tắc thời gian ngay
-          cạnh tab"): chúng là hai trục của cùng một câu hỏi — xem cái gì, và xem trong
-          bao lâu. Xếp dọc hai dải thì trông như hai cấp điều hướng lồng nhau. */}
+      {/* Tab và công tắc đứng CÙNG một hàng (§4.4: "công tắc ngay cạnh tab"): chúng là
+          hai trục của cùng một câu hỏi — xem cái gì, và xem ở độ sâu nào. Xếp dọc hai
+          dải thì trông như hai cấp điều hướng lồng nhau. */}
       <div className="flex flex-wrap items-center gap-2">
         <SegmentedControl
           items={VIEW_TABS}
@@ -136,25 +143,25 @@ export function AssetsPage() {
           label="Nội dung trang Tài sản"
           stretch={false}
         />
-        {/* Chỉ tab Hiện tại có trục thời gian. Tương lai vốn đã là bản chiếu nhiều chục
-            năm — một công tắc "hôm nay / 6 tháng" ở đó không có nghĩa gì. */}
+        {/* Chỉ tab Hiện tại có trục này. Tương lai vốn đã là bản chiếu nhiều chục năm —
+            một công tắc "hôm nay / diễn biến" ở đó không có nghĩa gì. */}
         {view === 'now' && (
           <SegmentedControl
-            items={SPAN_TABS}
-            value={span}
-            onChange={setSpan}
-            label="Khoảng thời gian"
+            items={MODE_TABS}
+            value={mode}
+            onChange={setMode}
+            label="Cách xem"
             stretch={false}
           />
         )}
       </div>
 
       {view === 'now' && <AssetsNowView viewCur={viewCur} onViewCurChange={setViewCur} />}
-      {/* Chế độ 6 tháng CHÈN THÊM ba khối theo thời gian xuống dưới, không thay khối nào:
-          §4.4 chốt "giữ nguyên vị trí mọi khối và chỉ đổi cột số", và hai khối dài hạn
-          (Hiệu quả đầu tư · Mục tiêu) chỉ hiện ở chế độ này. Nhờ vậy gạt công tắc không
-          làm trang nhảy — phần trên đứng yên, phần dưới mọc ra. */}
-      {view === 'now' && span === '6m' && (
+      {/* Chế độ Diễn biến CHÈN THÊM bốn khối theo thời gian xuống dưới, không thay khối
+          nào: §4.4 chốt "giữ nguyên vị trí mọi khối và chỉ đổi cột số", và hai khối dài
+          hạn (Hiệu quả đầu tư · Mục tiêu) chỉ hiện ở chế độ này. Nhờ vậy gạt công tắc
+          không làm trang nhảy — phần trên đứng yên, phần dưới mọc ra. */}
+      {view === 'now' && mode === 'trend' && (
         <Suspense fallback={<Loading />}>
           <AssetsTrendView viewCur={viewCur} onViewCurChange={setViewCur} />
         </Suspense>

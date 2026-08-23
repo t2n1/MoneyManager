@@ -149,14 +149,23 @@ describe('nhan nut Luu khong nuot cau ly do', () => {
     expect(form).toMatch(/const shortMissing = /)
   })
 
-  it('thieu field -> nhan dung la Luu, khong noi suy vao', () => {
+  it('nhan la MOT TU, khong noi suy gi vao — khong missing, khong so tien, khong danh muc', () => {
     const i = form.indexOf('const saveLabel =')
     expect(i).toBeGreaterThan(0)
-    const block = form.slice(i, i + 400)
-    // Khong con bat ky phep noi chuoi nao mang `missing` vao nhan.
-    expect(block).not.toMatch(/\$\{missing/)
-    expect(block).toContain('missing')
-    expect(block).toContain("? 'Lưu'")
+    // Ca bieu thuc nam tren MOT dong tu 2026-08-24. Cat 200 ky tu la du bao ca dong do
+    // ma khong an sang khoi ke duoi (chinh khoi do co `${`).
+    const block = form.slice(i, form.indexOf('\n', i))
+    // Khong mot phep noi chuoi nao: `missing` da co dong ly do ghim ngay TREN nut, con
+    // so tien + danh muc thi dang hien cung tren man luc bam (o tien co lon + o danh muc
+    // to accent) nen nut chep lai chung la noi hai lan.
+    expect(block).not.toMatch(/\$\{/)
+    expect(block).toContain("'Lưu'")
+  })
+
+  it('saveVerbOf da chet han o CA HAI file — khong con ai goi, khong con ham', () => {
+    // Xoa cho goi ma de ham lai la de mot API chi con test nuoi song no.
+    expect(form).not.toMatch(/saveVerbOf/)
+    expect(read('features/transactions/entryShape.ts')).not.toMatch(/saveVerbOf/)
   })
 
   it('dong ly do ghim TREN nut van con trong DOM — bo ghep thi cho nay la noi duy nhat', () => {

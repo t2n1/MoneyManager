@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Guide } from '../../components/Guide'
-import { Link } from 'react-router-dom'
 import {
   ChevronDown,
   Delete,
@@ -13,7 +12,7 @@ import { PlannedFields } from './PlannedFields'
 import { initialPlannedDraftForEntry } from './plannedDraftDefaults'
 import { plannedFromEntry, plannedMissing, type PlannedDraft } from './plannedFromEntry'
 import { addDaysISO, addMonths, getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
-import { promptDialog } from '../../lib/dialog'
+import { promptDialog, showToast } from '../../lib/dialog'
 import { CURRENCIES } from '../../lib/currencies'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { DebtDirection, TransactionRow, TransactionType } from '../../types/database.types'
@@ -81,7 +80,6 @@ import {
   DIRECTION_LABEL,
   directionOf,
   PHASE_LABEL,
-  saveVerbOf,
   shapeOf,
   type EntryKind,
 } from './entryShape'
@@ -200,6 +198,15 @@ interface TransactionFormProps {
   initialType?: TransactionType
   /** Hiện tùy chọn "Không tính vào thống kê" (mục AM) — dùng ở màn sửa, ẩn ở màn nhập nhanh. */
   showExcludeOption?: boolean
+  /**
+   * Hiện ô tích "Đây là khoản hoàn tiền" — CHỈ màn sửa (2026-08-24).
+   *
+   * Cùng lý lẽ với `showExcludeOption` ngay trên: một lựa chọn hiếm dùng thì không được
+   * chiếm chỗ trên đường đi thường ngày. Ở màn Nhập, người dùng đang gõ một khoản chi vừa
+   * xảy ra; biết nó là tiền hoàn hay không là chuyện nhớ ra sau, và mở lại giao dịch để
+   * tích một ô là đủ nhanh cho việc mỗi tháng làm một lần.
+   */
+  showRefundOption?: boolean
   /** Hiện hàng mẫu giao dịch nhanh (mục J) — chỉ màn nhập mới. */
   enableTemplates?: boolean
   /**
@@ -250,6 +257,7 @@ export function TransactionForm({
   onContinue,
   initialType,
   showExcludeOption,
+  showRefundOption,
   enableTemplates,
   enableRoles,
   initialRole,
@@ -327,9 +335,11 @@ export function TransactionForm({
   const [pending, setPending] = useState<'save' | 'continue' | null>(null)
   const saving = pending !== null
   const [error, setError] = useState<string | null>(null)
-  // Hàng "Ghi chú, nhãn" gộp — đóng mặc định trên mobile để bù 156px chiều cao (ghi
-  // chú 44 + khối Nhãn 68 + hoàn tiền 44) về một hàng 44px (xem task-13-brief). Từ lg
-  // cột phải luôn hiện đủ, cờ này không có tác dụng (xem class `lg:flex` cố định).
+  // Hàng "Nhãn, ghi chú" gộp — đóng mặc định trên mobile để bù chiều cao của khối tùy
+  // chọn (khối Nhãn 68 + ghi chú 44) về một hàng 44px (xem task-13-brief). Từ 2026-08-24
+  // ô "hoàn tiền" 44px không còn ở màn Nhập nữa nên khối này nhẹ hơn 44px so với lúc
+  // task-13 đo, nhưng vẫn gộp: ngân sách chiều cao 360×780 không có 112px dư.
+  // Từ lg cột phải luôn hiện đủ, cờ này không có tác dụng (xem class `lg:flex` cố định).
   const [showMore, setShowMore] = useState(false)
 
   /** Vùng cuộn của form — cần để kéo về đầu khi đổi sang một dạng có field riêng. */
@@ -755,26 +765,22 @@ export function TransactionForm({
   /** Họ câu ngắn "Còn thiếu: <field>." — hiển thị `sr-only`, xem chỗ render. */
   const shortMissing = missing?.startsWith('Còn thiếu: ') ?? false
   /**
-   * Nhãn nút chính NHẮC LẠI VIỆC SẼ LÀM ("Lưu · gửi ¥30,000 cho gia đình") — con số sắp
-   * được ghi vào sổ tiền, đọc lại một lần trước khi bấm.
+   * Nhãn nút chính là MỘT TỪ, không nội suy gì vào.
    *
-   * Nhưng khi THIẾU field thì nhãn chỉ còn `'Lưu'`, KHÔNG ghép "còn thiếu …" vào: câu đó
-   * đã hiện nguyên văn ở dòng lý do ngay TRÊN nút, và dòng đó là khối GHIM ở mọi bề rộng
-   * (không có biến thể theo breakpoint) nên không bao giờ bị cuộn khuất. Ghép lên nút là
-   * nói hai lần cùng một câu, và chính bản ghép đó làm nhãn vỡ dòng: nút `flex-1` rộng
-   * 135px ở 375px, còn "Lưu · còn thiếu số tiền" cần ~175px. Đây là trạng thái NGAY KHI
-   * mở màn (chưa nhập số), tức là cái người dùng thấy trước nhất.
+   * Bản trước nhắc lại việc sẽ làm ("Lưu · gửi ¥30,000 cho gia đình") để đọc lại con số
+   * một lần nữa trước khi bấm. Bỏ (yêu cầu 2026-08-24): số tiền đang nằm ở ô số tiền cỡ
+   * lớn và danh mục đang tô accent trong lưới, cả hai CÙNG TRÊN MÀN lúc bấm — nút chỉ
+   * chép lại chúng bằng cỡ chữ nhỏ hơn. Cái giá thì thật: nhãn dài hơn bề rộng nút
+   * (`flex-1` = 135px ở 375px) nên phải `line-clamp-2`, và ở cỡ chữ 1.25 hàng nút ăn tới
+   * 120px chiều cao của vùng cuộn.
+   *
+   * Không còn nhánh `missing` ở đây: câu "Còn thiếu: …" hiện nguyên văn ở dòng ghim ngay
+   * TRÊN nút, ghép lên nút là nói hai lần cùng một câu.
    *
    * Form SỬA và bản điền sẵn khoản đến hạn giữ nhãn của người gọi ("Cập nhật" / "Ghi và
-   * đánh dấu đã chi"): ở đó nút không ghi một khoản mới, nên câu nhắc việc sẽ nói sai việc.
+   * đánh dấu đã chi"): ở đó nút không ghi một khoản mới.
    */
-  const saveLabel = plannedMode
-    ? 'Lưu'
-    : initial
-      ? submitLabel
-      : missing
-        ? 'Lưu'
-        : `Lưu · ${saveVerbOf(kind, amount, srcCurrency, selectedCat?.name ?? null)}`
+  const saveLabel = !plannedMode && initial ? submitLabel : 'Lưu'
 
   /**
    * Đang ở chế độ mà nhãn + cờ "hoàn tiền" KHÔNG lưu được (quy tắc định kỳ / Sẽ chi).
@@ -799,7 +805,20 @@ export function TransactionForm({
   // Lưu mẫu: chỉ với chi/thu đã đủ số tiền + danh mục
   const canSaveTemplate = type !== 'transfer' && amount > 0 && !!categoryId
   async function saveCurrentAsTemplate() {
-    if (!canSaveTemplate) return
+    // Chưa đủ thì NÓI RA, không im. Trước đây nút mang `disabled` + `disabled:opacity-40`,
+    // mà class opacity đặt trực tiếp trên <button> bị preflight Tailwind v4 ghi đè
+    // (`button { opacity: 1 }` ở @layer base) — nút sáng như thường, bấm không ra gì, và
+    // không có chỗ nào nói vì sao. Báo về đúng là "ngôi sao không bấm được".
+    if (!canSaveTemplate) {
+      showToast(
+        type === 'transfer'
+          ? 'Chuyển khoản không lưu ra mẫu được — mẫu nhanh chỉ chở số tiền + danh mục.'
+          : amount <= 0
+            ? 'Nhập số tiền trước rồi mới lưu được mẫu.'
+            : 'Chọn danh mục trước rồi mới lưu được mẫu.',
+      )
+      return
+    }
     const suggested = selectedCat?.name ?? note.trim()
     const label = (
       await promptDialog({
@@ -1574,11 +1593,21 @@ export function TransactionForm({
         aria-expanded={showMore}
         className="flex min-h-11 items-center justify-between rounded-md border border-border-strong bg-surface px-3 text-sm text-fg-secondary lg:hidden"
       >
-        Ghi chú, nhãn
+        Nhãn, ghi chú
         <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
       </button>
 
       <div className={`${showMore ? 'flex' : 'hidden'} flex-col gap-1.5 lg:flex`}>
+      {/* NHÃN ĐỨNG TRƯỚC GHI CHÚ (yêu cầu 2026-08-24). Hai ô này trả lời hai câu khác
+          nhau: nhãn là thứ Báo cáo lọc được, ghi chú là chữ chỉ người đọc lại mới hiểu.
+          Cái nào lọc được thì đứng trước — nó là việc thường làm, ghi chú là việc thỉnh
+          thoảng. Trên mobile nó còn là ô ĐẦU của khối vừa bung ra, nên tay không phải
+          lướt qua một ô chữ để tới nó. */}
+      {/* KHÔNG còn gác bởi dạng nào: `RoleBase.tagIds` đã thông đường xuống cả ba
+          orchestrator, nên nhãn đi theo được ở cả mười dạng. Trước đây ô này ẩn ở 5/10
+          dạng — kể cả Trả hộ, đúng chỗ cần nhãn "ai" nhất. */}
+      <TagPicker value={effectiveTagIds} onChange={setTagIds} />
+
       {!plannedMode && (
       <div className="flex gap-1.5">
         {/* Không có nhãn nhìn bằng mắt (cố ý — form Nhập ưu tiên gọn), nên tên ô phải đi
@@ -1594,16 +1623,21 @@ export function TransactionForm({
           className="min-w-0 flex-1 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-secondary"
         />
         {/* "Lưu mẫu" ở ô cố định cạnh ghi chú: không nhảy layout như khi tự chèn
-            hàng chip ở đầu form. Mờ đi (thay vì ẩn) khi chưa đủ số tiền + danh mục. */}
+            hàng chip ở đầu form. */}
+        {/* KHÔNG `disabled` nữa (báo 2026-08-24: "ngôi sao không bấm được"). `disabled`
+            ở đây im lặng gấp đôi: `disabled:opacity-40` đặt TRỰC TIẾP trên <button> thì
+            preflight của Tailwind v4 (`button { opacity: 1 }` ở @layer base) thắng lớp
+            utilities, nên nút trông sáng y như bình thường mà bấm không ra gì — không một
+            dấu hiệu nào nói vì sao. Giờ nút luôn nhận cú bấm và TỰ NÓI ra nó còn thiếu gì;
+            trạng thái sẵn/chưa sẵn vẫn đọc được qua ngôi sao rỗng ↔ đầy. */}
         {/* Mẫu nhanh chỉ chở được số tiền + danh mục + tài khoản, nên chỉ mở ở những
             dạng ghi MỘT giao dịch thường; các dạng khác lưu ra mẫu là mất field riêng. */}
         {enableTemplates && shape.roleSeed.role === 'none' && shape.writes === 'transaction' && (
           <IconButton
             onClick={saveCurrentAsTemplate}
-            disabled={!canSaveTemplate}
             aria-label="Lưu thành mẫu nhanh"
             title="Lưu thành mẫu nhanh (cần số tiền + danh mục)"
-            className="shrink-0 disabled:opacity-40"
+            className="shrink-0"
           >
             <Star className="h-4 w-4 text-amber-400" fill={canSaveTemplate ? 'currentColor' : 'none'} />
           </IconButton>
@@ -1611,24 +1645,21 @@ export function TransactionForm({
       </div>
       )}
 
-      {/* Cờ "hoàn tiền" chỉ sống được trên một GIAO DỊCH: khoản sắp chi
-          (NewPlannedExpense) không có cột nào giữ nó, nên ở "Sẽ chi" ô đó ẩn kèm
-          một dòng nói vì sao (`refundNote`) — thà không hiện còn hơn nhận rồi âm thầm bỏ,
-          cùng cách xử với ô "+ Phí" của chuyển khoản.
-          Nhãn thì đi theo được cả hai đường ghi (planned_expense_tags 0044, và
-          RoleBase.tagIds cho các dạng có orchestrator) nên TagPicker không bị gác nữa. */}
-      {/* KHÔNG còn gác bởi dạng nào: `RoleBase.tagIds` đã thông đường xuống cả ba
-          orchestrator, nên nhãn đi theo được ở cả mười dạng. Trước đây ô này ẩn ở 5/10
-          dạng — kể cả Trả hộ, đúng chỗ cần nhãn "ai" nhất. */}
-      <TagPicker value={effectiveTagIds} onChange={setTagIds} />
-
       {/* Hoàn tiền — chỉ có nghĩa với khoản CHI.
           `mt-1.5` (cột cuộn đã có gap-1.5 → thành 12px): tách khỏi khối Nhãn ngay trên.
           Không kẻ vạch — trong form này các khối chỉ cách nhau bằng khoảng trống. */}
+      {/* `showRefundOption` (mặc định TẮT, 2026-08-24): ô này gần như không được dùng ở
+          trang Nhập, mà nó ngồi giữa đường đi thường ngày với một đoạn Guide ba dòng.
+          Chỉ sheet SỬA bật nó — đánh dấu hoàn tiền là việc nhớ ra SAU khi đã ghi ("à,
+          khoản kia là tiền trả hàng"), nên chỗ đúng của nó là lúc mở lại giao dịch, không
+          phải lúc gõ số. Không xóa hẳn: cột `is_refund` và cả đường tính vẫn sống.
+          Cờ này cũng chỉ sống được trên một GIAO DỊCH — khoản sắp chi (NewPlannedExpense)
+          không có cột nào giữ nó, nên ở "Sẽ chi" ô đó ẩn kèm một dòng nói vì sao
+          (`refundNote`), cùng cách xử với ô "+ Phí" của chuyển khoản. */}
       {/* `kind === 'spend'` chứ không `txType === 'expense'`: Trả hộ / Gửi gia đình /
           Cho vay cũng là bút toán chi, nhưng roleSave KHÔNG ghi cờ hoàn tiền — bày ô đó
           ra ở những dạng ấy là nhận một lựa chọn rồi âm thầm bỏ. */}
-      {kind === 'spend' && !refundDropped && (
+      {showRefundOption && kind === 'spend' && !refundDropped && (
         // min-h-11 + ô tích h-5: cả hàng trước đây chỉ cao 20px với ô tích 13px, trong
         // khi mọi thứ khác trong form đều 44px.
         <label className="mt-1.5 flex min-h-11 items-start gap-2 px-1 py-1 text-sm text-fg-secondary">
@@ -1648,7 +1679,10 @@ export function TransactionForm({
         </label>
       )}
 
-      {kind === 'spend' && refundDropped && (
+      {/* Cùng cổng `showRefundOption`: câu này giải thích vì sao MỘT Ô ĐANG BIẾN MẤT, nên
+          ở màn Nhập (nơi ô đó chưa bao giờ hiện) nó là lời giải thích cho cái không ai
+          thấy — chỉ thêm một dòng chữ vào đúng màn đang muốn gọn lại. */}
+      {showRefundOption && kind === 'spend' && refundDropped && (
         <p className="px-1 text-xs text-fg-muted">{refundNote}</p>
       )}
       </div>
@@ -1664,18 +1698,12 @@ export function TransactionForm({
         </label>
       )}
 
-      {/* Thay dropdown "Lặp lại" đã bỏ: form Nhập chỉ ghi được `frequency`, còn quy tắc
-          thật có `mode: 'auto'|'remind'`, `isPaused`, `endOn`, `isRefund` — hai đường
-          ghi cùng một vật thì sẽ lệch nhau, và người dùng không thấy mình đang thiếu
-          gì. Chỉ hiện ở khoản MỚI, ba dạng thẳng (spend/earn/between): quy tắc định kỳ
-          chỉ ghi được type expense|income|transfer + một tài khoản + một danh mục,
-          không có chỗ cho Trả hộ/Cho vay/Gửi về VN. Ẩn ở "Sẽ chi" — khoản chưa xảy ra
-          thì chưa có gì để lặp lại. */}
-      {!initial && !plannedMode && shape.roleSeed.role === 'none' && shape.writes === 'transaction' && (
-        <Link to="/recurring?new=1" className="px-1 text-xs text-fg-accent underline">
-          Khoản này lặp lại? → Tạo quy tắc
-        </Link>
-      )}
+      {/* ĐÃ BỎ (2026-08-24) dòng "Khoản này lặp lại? → Tạo quy tắc".
+          Nó là một lối tắt sang /recurring đặt ở cuối form Nhập. Nhưng nó KHÔNG mang gì
+          sang được (số tiền, danh mục, ví đang gõ đều rơi lại đây) nên nó không tiết kiệm
+          một bước nào — nó chỉ đặt một câu hỏi mới vào cuối một việc đang làm dở, ở đúng
+          chỗ đáng lẽ chỉ còn nút Lưu. Ai cần quy tắc định kỳ thì vào thẳng màn đó.
+          Đường sang /recurring vẫn còn ở menu và ở Cài đặt. */}
 
       </div>
 

@@ -55,10 +55,15 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
     setDrillId(null)
   }
 
-  /** Mở lưới đúng chỗ đang chọn: nếu danh mục hiện tại thuộc một nhóm cha, mở sẵn vào
-   *  nhóm đó — không bắt người dùng dò lại từ đầu để thấy ô đang tô. */
+  /** Mở lưới ở MÀN GỐC — đủ mọi nhóm, luôn luôn.
+   *
+   *  Trước đây nó mở sẵn vào nhóm cha của danh mục đang chọn ("không bắt dò lại từ đầu").
+   *  Nhưng chip này tên là "Khác", tức người dùng bấm nó CHÍNH VÌ muốn thứ khác cái đang
+   *  chọn — mà nó lại mở ra đúng cái nhóm đang chọn, tức 4-5 ô con thay cho cả danh mục,
+   *  và phải bấm thêm nút ‹ mới ra được chỗ mình muốn. Ô đang tô vẫn thấy được: nhóm cha
+   *  của nó hiện viền accent trong lưới gốc. */
   function openGrid() {
-    setDrillId(selected?.parent_id ?? null)
+    setDrillId(null)
     setExpanded(true)
   }
 

@@ -127,6 +127,10 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
           key={tx.id}
           initial={tx}
           showExcludeOption
+          // Ô "Đây là khoản hoàn tiền" chỉ còn ở ĐÂY (2026-08-24): trang Nhập đã ẩn nó vì
+          // gần như không dùng tới, còn việc "à, khoản kia là tiền trả hàng" thì bao giờ
+          // cũng nhớ ra sau khi đã ghi — tức là mở lại giao dịch, tức là đúng màn này.
+          showRefundOption
           submitLabel="Cập nhật"
           onSubmit={async (values) => {
             await update.mutateAsync({ id: tx.id, patch: values })

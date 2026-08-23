@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   SHAPES, shapeOf, kindsOf, directionOf, categoryPickerOf, chipAriaLabel,
-  counterpartyLabelOf, saveVerbOf, PHASE_LABEL,
+  counterpartyLabelOf, PHASE_LABEL,
   type EntryKind,
 } from './entryShape'
 
@@ -159,29 +159,9 @@ describe('counterpartyLabelOf', () => {
   })
 })
 
-describe('saveVerbOf — nhan nut Luu nhac lai viec se lam', () => {
-  it('ba moc cua goi ban giao', () => {
-    expect(saveVerbOf('family', 30_000, 'JPY', null)).toBe('gửi ¥30,000 cho gia đình')
-    expect(saveVerbOf('spend', 3_480, 'JPY', 'Cơm ngoài')).toBe('chi ¥3,480 vào Cơm ngoài')
-    expect(saveVerbOf('ownvn', 30_000, 'JPY', null)).toBe('chuyển ¥30,000 sang tài khoản ở VN')
-  })
-
-  it('hai dang gui ve VN noi HAI viec khac nhau — cung hanh dong vat ly, khac but toan', () => {
-    expect(saveVerbOf('family', 30_000, 'JPY', null))
-      .not.toBe(saveVerbOf('ownvn', 30_000, 'JPY', null))
-  })
-
-  it('moi dang co mot cau rieng, va cau nao cung co so tien', () => {
-    const all = (Object.keys(SHAPES) as EntryKind[]).map((k) => saveVerbOf(k, 1_000, 'JPY', null))
-    expect(new Set(all).size).toBe(11)
-    for (const s of all) expect(s).toContain('¥1,000')
-  })
-
-  it('chua chon danh muc thi khong de lai chu "vao" lung lo', () => {
-    expect(saveVerbOf('spend', 3_480, 'JPY', null)).toBe('chi ¥3,480')
-    expect(saveVerbOf('earn', 3_480, 'JPY', null)).toBe('thu ¥3,480')
-  })
-})
+// `saveVerbOf` da bi xoa (2026-08-24): nhan nut Luu khong con nhac lai so tien + danh muc
+// nua, vi ca hai dang hien CUNG TREN MAN luc bam (o so tien co lon + o danh muc to accent).
+// Guard cho nhan moi nam o tests/entryStructure.test.ts.
 
 describe('PHASE_LABEL', () => {
   it('nhan hai pha di theo huong, va KHONG dung chu "Nhac sau"', () => {
@@ -217,11 +197,5 @@ describe('dang "Khach no cong" khong dung toi vi nao', () => {
     // counterpartyLabelOf co `default: undefined`, va undefined nghia la "dang nay khong
     // co o do". Quen case nay thi o "ai no ban" khong hien, ma tsc khong bao gi.
     expect(counterpartyLabelOf('owed')).toBe('Ai nợ bạn')
-  })
-
-  it('nut Luu noi dung viec no sap ghi', () => {
-    expect(saveVerbOf('owed', 30_000, 'JPY', 'Làm thêm')).toBe(
-      'ghi ¥30,000 khách nợ',
-    )
   })
 })

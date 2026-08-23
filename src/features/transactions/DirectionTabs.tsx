@@ -5,9 +5,13 @@ import {
   type Direction, type EntryKind,
 } from './entryShape'
 
+// Mũi tên đọc theo VÍ, không theo dòng sổ: tiền ra là tiền RỜI ví (↑, như upload), tiền
+// vào là tiền RƠI vào ví (↓, như download). Bản đầu đặt ngược (out: ↓ vì "chi thì số dư
+// tụt") — nhưng ngay cạnh đó chữ đã nói "Tiền ra/Tiền vào", nên mũi tên chỉ còn việc nói
+// hướng di chuyển, và đọc nó thành hướng số dư là hai nghĩa chồng lên nhau.
 const DIR_ICON: Record<Direction, LucideIcon> = {
-  out: ArrowDown,
-  in: ArrowUp,
+  out: ArrowUp,
+  in: ArrowDown,
   move: ArrowLeftRight,
 }
 

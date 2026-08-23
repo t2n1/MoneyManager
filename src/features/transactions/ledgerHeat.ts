@@ -24,6 +24,15 @@ export interface HeatCell {
   /** Ngày trong tháng dương lịch — nhãn in trong ô. */
   day: number
   expense: number
+  /**
+   * Chi RÒNG chưa kẹp — ÂM = ngày đó hoàn tiền nhiều hơn chi.
+   *
+   * `expense` kẹp ≥ 0 vì nó là mẫu số của mức nhiệt (một ngày "chi âm" không thể tô
+   * đậm hơn ngày trắng). Nhưng ô ngày của tab Lịch IN con số ra, và ở đó `0` nói sai:
+   * ngày đó có tiền quay lại ví. Giữ cả hai chứ không đổi `expense` — mọi chỗ tính
+   * mức đậm đang dựa vào việc nó không âm.
+   */
+  netExpense: number
   income: number
   /** 0…HEAT_LEVELS. 0 = không chi đồng nào. */
   level: number
@@ -92,6 +101,7 @@ export function monthHeatmap(args: HeatmapArgs): Heatmap {
       iso,
       day: Number(iso.slice(8, 10)),
       expense: Math.max(0, expense.get(iso) ?? 0),
+      netExpense: expense.get(iso) ?? 0,
       income: income.get(iso) ?? 0,
       level: 0,
       future: iso > todayISO,

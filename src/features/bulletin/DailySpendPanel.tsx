@@ -24,7 +24,7 @@
 //   3. Đường ngang là TRUNG VỊ ngày có chi, không phải trung bình (xem dailySpike.ts).
 import { useLayoutEffect, useState } from 'react'
 import { Card, Money, Num, SegmentedControl, deltaTone, signedPct } from '../../components/ui'
-import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
+import { formatCompact, type CurrencyCode } from '../../lib/money'
 import type { CategoryRow } from '../../types/database.types'
 import type { PeriodCompare } from '../reports/periodCompare'
 import {
@@ -39,6 +39,7 @@ import {
 import { daySpanLabel, dailyHeadline } from '../reports/dailyHeadline'
 import type { DayTagCells } from '../reports/dayTagCells'
 import type { TagBudgetLine } from '../tags/budget'
+import { TAG_HEX, tagColor } from '../tags/colors'
 import { DayTagStrip } from './DayTagStrip'
 
 /** 'all' = mọi khoản · 'flex' = bỏ danh mục `cost_type = 'fixed'`. */
@@ -153,11 +154,117 @@ function useColumnWidth(count: number): [(el: HTMLDivElement | null) => void, nu
   return [setNode, w]
 }
 
-/** Tên đọc được của một cột — cũng là `title` khi trỏ chuột. */
-function dayTitle(d: DaySpend, base: CurrencyCode, categoryOf: Props['categoryOf']): string {
-  const head = `${dayLabel(d.date)} · ${formatMoney(d.total, base)}`
-  if (d.top.length === 0) return head
-  return `${head}\n${d.top.map((t) => `${labelOf(t, categoryOf)} ${formatMoney(t.amount, base)}`).join('\n')}`
+/**
+ * Thẻ chi tiết của một ngày khi rê chuột: hôm đó tiêu bao nhiêu, vào những khoản nào, và
+ * mang nhãn gì.
+ *
+ * ĐÂY LÀ PHẦN THÊM, không phải phần gánh nội dung. Chú thích đầu file đã chốt: câu hỏi
+ * "ngày đó có biến động gì" không được phụ thuộc vào việc trỏ đúng một cột rộng 8px — nên
+ * danh sách "ba ngày đáng hỏi" vẫn là bản luôn có mặt, và thẻ này chỉ trả lời cùng câu đó
+ * cho MỌI ngày, khi có chuột để hỏi.
+ *
+ * Tự né hai mép thay vì luôn canh giữa: thẻ rộng tới 14rem, còn cột ngày 1 và ngày 31 nằm
+ * sát biên vùng vẽ — canh giữa theo chúng là một nửa thẻ tràn ra ngoài viền panel.
+ */
+function DayCard({
+  day,
+  index,
+  count,
+  isFuture,
+  typical,
+  tagsOfDay,
+  base,
+  categoryOf,
+  approx,
+}: {
+  day: DaySpend
+  index: number
+  count: number
+  isFuture: boolean
+  typical: number
+  tagsOfDay: { name: string; color: string; amount: number }[]
+  base: CurrencyCode
+  categoryOf: Props['categoryOf']
+  approx: boolean
+}) {
+  const edge = index < count / 4 ? 'left' : index > (count * 3) / 4 ? 'right' : 'mid'
+  const anchor =
+    edge === 'left'
+      ? { left: 0 }
+      : edge === 'right'
+        ? { right: 0 }
+        : { left: `${((index + 0.5) / count) * 100}%`, transform: 'translateX(-50%)' }
+
+  return (
+    // `pointer-events-none`: thẻ nổi ngay trên hàng cột, nên nếu nó nhận chuột thì rê từ
+    // cột này sang cột kia sẽ đi qua chính nó và `onMouseLeave` của hàng bắn ra — thẻ tắt
+    // giữa lúc đang đọc.
+    <div
+      className="pointer-events-none absolute bottom-full z-10 mb-1.5 w-max max-w-[14rem]"
+      style={anchor}
+    >
+      {/* Dùng lại `Card` dáng panel làm hộp, không viết tay nền + viền: 1a phân cấp bằng
+          nền + viền chứ không đổ bóng, và bảng bán kính/viền đó nằm trong Card. */}
+      <Card elevation="panel" padding="sm" className="bg-surface">
+        <p className="font-mono text-3xs text-fg-muted">{dayLabel(day.date)}</p>
+        {isFuture ? (
+          <p className="text-2xs text-fg-muted">
+            chưa xảy ra — theo nhịp này ~
+            <Money amount={typical} currency={base} approx={approx} />
+          </p>
+        ) : day.total === 0 ? (
+          // "¥0" và "Không ghi khoản nào." cạnh nhau là hai lần cùng một câu, và §G chốt
+          // chưa-có-gì thì nói bằng chữ chứ không in số 0.
+          <p className="text-2xs text-fg-muted">Không ghi khoản nào.</p>
+        ) : (
+          <p className="text-[0.8125rem] font-semibold">
+            <Money
+              amount={day.total}
+              currency={base}
+              tone={day.total < 0 ? 'in' : 'out'}
+              approx={approx}
+            />
+            {day.total < 0 && (
+              <span className="ml-1 text-3xs font-normal text-money-in">hoàn tiền</span>
+            )}
+          </p>
+        )}
+
+        {day.top.length > 0 && (
+          <ul className="mt-1 space-y-0.5 border-t border-border-subtle pt-1">
+            {day.top.map((t, i) => (
+              <li key={i} className="flex gap-2 text-2xs text-fg-secondary">
+                <span className="min-w-0 flex-1 truncate">{labelOf(t, categoryOf)}</span>
+                {/* <Money> chứ không tự viết `font-mono tabular-nums`: designSystem.test.ts
+                    canh chỗ này, và đây đúng là tiền. */}
+                <Money amount={t.amount} currency={base} tone="out" />
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {tagsOfDay.length > 0 && (
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 border-t border-border-subtle pt-1">
+            {tagsOfDay.map((t) => (
+              <span key={t.name} className="flex items-center gap-1 text-3xs text-fg-muted">
+                <span
+                  className="size-1.5 rounded-[1px]"
+                  style={{ backgroundColor: TAG_HEX[tagColor(t.color)] }}
+                />
+                {t.name}{' '}
+                <Money
+                  amount={t.amount}
+                  currency={base}
+                  tone={t.amount < 0 ? 'in' : 'neutral'}
+                />
+              </span>
+            ))}
+          </p>
+        )}
+
+      </Card>
+    </div>
+  )
 }
 
 export function DailySpendPanel({
@@ -175,6 +282,9 @@ export function DailySpendPanel({
 }: Props) {
   const { days, typical, peakIndex } = series
   const [plotRef, colWidth] = useColumnWidth(days.length)
+  // Cột đang rê chuột. Giữ CHỈ SỐ chứ không giữ cả ngày: thẻ chi tiết cần biết cột nằm ở
+  // đâu trên trục để tự né hai mép, mà chỉ có chỉ số nói được điều đó.
+  const [hover, setHover] = useState<number | null>(null)
 
   const ceiling = axisCeiling(days, typical)
   const peak = peakIndex >= 0 ? days[peakIndex] : null
@@ -183,6 +293,9 @@ export function DailySpendPanel({
   const future = days.filter((d) => d.date > cutoffISO)
   const projected = typical * future.length
   const headline = dailyHeadline({ series, cells, tagLines, categoryOf })
+  // Hàng nhãn phẳng, để thẻ chi tiết tra được "ngày này mang nhãn gì". Dùng CHÍNH kết quả
+  // của dải nhãn ngay dưới — hai chỗ tự lọc lấy là hai chỗ để lệch nhau.
+  const rows = cells.groups.flatMap((g) => g.rows)
   const asking = daysWorthAsking(days, cutoffISO)
   const label = labelThreshold(colWidth, typical)
   // Cột CUỐI có dữ liệu luôn được in nhãn ở dải giữa: nó là "hôm nay", tức con số người
@@ -318,7 +431,14 @@ export function DailySpendPanel({
 
               {/* Hình vẽ là `aria-hidden`: nội dung của nó nói bằng chữ ở câu kết luận và ở
                   danh sách "ba ngày đáng hỏi" dưới đây, đầy đủ hơn cả hình. */}
-              <div ref={plotRef} className="flex h-44 items-end gap-[3px]" aria-hidden>
+              <div
+                ref={plotRef}
+                className="flex h-44 items-end gap-[3px]"
+                // Rời ở HÀNG chứ không ở từng cột: rê ngang qua khe 3px giữa hai cột sẽ bắn
+                // ra một cặp leave/enter, và thẻ chi tiết nhấp nháy suốt dọc biểu đồ.
+                onMouseLeave={() => setHover(null)}
+                aria-hidden
+              >
                 {days.map((d, i) => {
                   const isFuture = d.date > cutoffISO
                   const cut = d.total > ceiling
@@ -329,8 +449,13 @@ export function DailySpendPanel({
                   return (
                     <div
                       key={d.date}
-                      className="flex h-full min-w-0 flex-1 flex-col justify-end"
-                      title={isFuture ? undefined : dayTitle(d, base, categoryOf)}
+                      // KHÔNG dùng `title`: tooltip mặc định của trình duyệt đợi ~1 giây,
+                      // in một khối chữ trơ không định dạng được số tiền (mất chế độ che số
+                      // và tiền tố "≈"), và hiện CHỒNG lên thẻ chi tiết ngay dưới đây.
+                      onMouseEnter={() => setHover(i)}
+                      className={`flex h-full min-w-0 flex-1 flex-col justify-end ${
+                        hover === i ? 'bg-surface-sunken' : ''
+                      }`}
                     >
                       {showLabel && (
                         <span
@@ -400,6 +525,25 @@ export function DailySpendPanel({
                   )
                 })}
               </div>
+
+              {/* Thẻ chi tiết khi rê chuột. Nằm TRÊN vùng vẽ (`bottom-full`) chứ không nổi
+                  trong đó: cột cao nhất chạm mép trên, nên thẻ đặt trong khung sẽ che đúng
+                  cái cột mà người ta đang hỏi. */}
+              {hover !== null && (
+                <DayCard
+                  day={days[hover]}
+                  index={hover}
+                  count={days.length}
+                  isFuture={days[hover].date > cutoffISO}
+                  typical={typical}
+                  tagsOfDay={rows
+                    .filter((r) => r.cells[hover] !== 0)
+                    .map((r) => ({ name: r.name, color: r.color, amount: r.cells[hover] }))}
+                  base={base}
+                  categoryOf={categoryOf}
+                  approx={approx}
+                />
+              )}
 
               {/* B42.3: nói CẢ HAI số. Không có câu này thì một cột chỉ cao tới mép mà số
                   ghi 12.5万 đọc ra như lỗi vẽ. */}

@@ -218,8 +218,16 @@ function stripComments(text: string): string {
  *
  * Hai dòng còn lại của đợt này KHÔNG tính vào đây vì chúng không phải văn xuôi: "còn N nhãn
  * nữa" và "¥X chưa gắn nhãn · N giao dịch" là nhãn đếm, dưới ngưỡng chữ của phép thử.
+ *
+ * 75 (2026-08-24, thẻ chi tiết khi rê chuột): +1 ở `DayCard` — dòng của một ngày CHƯA TỚI,
+ * "chưa xảy ra — theo nhịp này ~¥X". Nó là dòng SỐ LIỆU, và là chỗ duy nhất nói ra rằng cột
+ * nét đứt đang trỏ tới là dự phóng chứ không phải tiền đã tiêu; ẩn ở chế độ Gọn thì rê vào
+ * một cột tương lai chỉ còn thấy một con số không nhãn.
+ *
+ * Ba dòng kia của cùng thẻ đó không lọt ngưỡng 45 ký tự (nhãn ngày, "Không ghi khoản nào.",
+ * hàng chip nhãn) — nêu ra để lần sau không ai đọc "+1" rồi đi tìm một câu bị bỏ sót.
  */
-const PROSE_MAX = 74
+const PROSE_MAX = 75
 
 const FILES = sourceFiles().map((path) => ({
   path,

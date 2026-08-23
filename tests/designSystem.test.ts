@@ -201,8 +201,25 @@ function stripComments(text: string): string {
  * khái niệm nào, nó nói ô này hiện đang làm gì. Và nó là chỗ DUY NHẤT trong app nói ra rằng
  * tiền gửi có kỳ hạn đang bị đếm sai — ẩn ở chế độ Gọn thì người dùng không có cách nào biết
  * vì sao nên bấm "Không".
+ *
+ * 74 (2026-08-23, B41–B48 dựng lại thẻ "Chi từng ngày"): +2, cả hai là DÒNG SỐ LIỆU, không
+ * phải chữ dạy — cùng loại với lời ghi 51 ở đầu file.
+ *
+ *   · `DailySpendPanel` — "ngày thường ¥X · theo nhịp này N ngày còn lại thêm ~¥Y → cả tháng
+ *     ~¥Z". Ba con số, và cụm "theo nhịp" là thứ phân biệt nó với dự báo của khối Ngân sách
+ *     (trung vị KHÔNG biết khoản định kỳ cuối tháng). Ẩn ở chế độ Gọn thì hai thẻ trên cùng
+ *     một màn đưa ra hai con số dự phóng khác nhau mà không chỗ nào nói vì sao.
+ *
+ *   · `DayTagStrip` — "32% chi có nhãn (¥86.100 / ¥270.311) · các nhãn cộng lại ¥126.700 —
+ *     lệch ¥40.600 là khoản mang nhiều nhãn cùng lúc". Đây đúng là mục CHẶN B44.2: một giao
+ *     dịch mang được nhiều nhãn nên tổng các hàng lớn hơn tổng chi, và bỏ mệnh đề cuối thì
+ *     hai con số ngay cạnh nhau đọc ra như một lỗi tính. Ẩn nó ở chế độ Gọn là để lại đúng
+ *     hai con số không giải thích được.
+ *
+ * Hai dòng còn lại của đợt này KHÔNG tính vào đây vì chúng không phải văn xuôi: "còn N nhãn
+ * nữa" và "¥X chưa gắn nhãn · N giao dịch" là nhãn đếm, dưới ngưỡng chữ của phép thử.
  */
-const PROSE_MAX = 72
+const PROSE_MAX = 74
 
 const FILES = sourceFiles().map((path) => ({
   path,

@@ -23,6 +23,9 @@ import {
   useProfile,
   useRangeTransactions,
   useRates,
+  useTagGroups,
+  useTags,
+  useTagSpend,
   useTransferCategoryIds,
 } from '../../hooks/queries'
 import {
@@ -39,9 +42,11 @@ import { useNotifications } from '../notifications/useNotifications'
 import { reliability } from '../notifications/reliability'
 import { monthExpenseCompare, monthlySeries } from '../reports/aggregate'
 import { dailySpendSeries } from '../reports/dailySpike'
+import { dayTagCells } from '../reports/dayTagCells'
 import { headlineOf } from '../reports/headline'
 import { useMonthPace } from '../reports/monthPace'
 import { useAssetsData } from '../assets/useAssetsData'
+import { useTagBudgets } from '../tags/useTagBudgets'
 import { TransactionItem } from '../transactions/TransactionItem'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import {
@@ -58,13 +63,16 @@ import { ReliabilityPanel } from './ReliabilityPanel'
 import { TodoPanel } from './TodoPanel'
 import { BudgetPanel } from './BudgetPanel'
 import { CashflowPanel } from './CashflowPanel'
-import { DailySpendPanel } from './DailySpendPanel'
+import { DailySpendPanel, readDailyScope, writeDailyScope, type DailyScope } from './DailySpendPanel'
 import { KpiRow } from './KpiRow'
 import { PaydayStrip } from './PaydayStrip'
 import type { TransactionRow } from '../../types/database.types'
 
 /** Số dòng ở khối Giao dịch gần đây. */
 const RECENT = 6
+
+/** Hằng ngoài component: `new Set()` tại chỗ đổi identity mỗi lần bày, phá mọi useMemo dưới nó. */
+const EMPTY_IDS: ReadonlySet<string> = new Set()
 
 export function BulletinPage() {
   const { activeMonthKey, setMonthKey } = useMonthKey()
@@ -206,6 +214,21 @@ export function BulletinPage() {
   // `seriesAnchor`, không phải từ tháng đang xem, nên lọc lại theo ngày là chép tay lần
   // thứ hai định nghĩa "một tháng" — đúng thứ mà `getMonthRange` tồn tại để chấm dứt.
   const monthLastISO = addDaysISO(activeRange.end, -1)
+
+  // Công tắc "bỏ khoản cố định" (B46). Mặc định TẮT — xem `readDailyScope` để biết vì sao
+  // đó là luật chứ không phải sở thích.
+  const [dailyScope, setDailyScope] = useState<DailyScope>(readDailyScope)
+  const pickDailyScope = (s: DailyScope) => {
+    setDailyScope(s)
+    writeDailyScope(s)
+  }
+  // `cost_type` của danh mục LÁ, đúng cột mà `fixedShareOf` ở budgetSort.ts đang dùng.
+  const fixedCategoryIds = useMemo(
+    () => new Set(categories.filter((c) => c.cost_type === 'fixed').map((c) => c.id)),
+    [categories],
+  )
+  const excludeIds = dailyScope === 'flex' ? fixedCategoryIds : EMPTY_IDS
+
   const dailySpend = useMemo(
     () =>
       dailySpendSeries(
@@ -216,9 +239,38 @@ export function BulletinPage() {
         base,
         rates ?? {},
         transferIds,
+        excludeIds,
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [monthTxs, activeRange.start, monthLastISO, accounts, base, rates, transferIds],
+    [monthTxs, activeRange.start, monthLastISO, accounts, base, rates, transferIds, excludeIds],
+  )
+
+  // Tổng CHƯA lọc, chỉ để in cạnh số đã lọc (B46.2). Lấy từ `expenseKpi` chứ không cộng
+  // lại lần nữa: ô CHI THÁNG ngay trên thẻ này in đúng con số đó, và hai phép cộng song
+  // song cho cùng một tháng là chỗ để chúng trôi khỏi nhau.
+  const fullSpendTotal = expenseKpi.value
+
+  // Dải nhãn dưới biểu đồ (B44). `useTagSpend` dùng chung khoá truy vấn với `useTagBudgets`
+  // ngay dưới — react-query gộp thành một lượt tải, không phải hai.
+  const { data: tags = [] } = useTags()
+  const { data: tagGroups = [] } = useTagGroups()
+  const { data: tagSpendRows = [] } = useTagSpend(tags.length > 0)
+  const tagBudgets = useTagBudgets(activeMonthKey)
+  const dailyTagCells = useMemo(
+    () =>
+      dayTagCells({
+        days: dailySpend.days,
+        rows: tagSpendRows,
+        tags,
+        groups: tagGroups,
+        currencyOf,
+        base,
+        rates: rates ?? {},
+        transferIds,
+        excludeCategoryIds: excludeIds,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dailySpend.days, tagSpendRows, tags, tagGroups, accounts, base, rates, transferIds, excludeIds],
   )
 
   const nameOf = (id: string) => categories.find((c) => c.id === id)?.name ?? 'Chưa rõ'
@@ -383,10 +435,16 @@ export function BulletinPage() {
           panel ở xl) là nhãn trục đè lên nhau. */}
       <DailySpendPanel
         series={dailySpend}
+        fullTotal={fullSpendTotal}
+        cells={dailyTagCells}
+        tagLines={tagBudgets.lines}
+        compare={expenseCmp}
         cutoffISO={dangXemThangNay ? toISODate(new Date()) : monthLastISO}
         base={base}
         categoryOf={categoryOf}
-        approx={dailySpend.hasMissingRate}
+        approx={dailySpend.hasMissingRate || dailyTagCells.hasMissingRate}
+        scope={dailyScope}
+        onScope={pickDailyScope}
       />
 
       <div className="flex flex-wrap gap-2.5">

@@ -50,22 +50,106 @@ describe('Chi từng ngày — chỗ đứng trong Bản tin', () => {
   })
 })
 
-describe('Chi từng ngày — lề phải của vùng vẽ', () => {
-  // Điểm cuối của LineChart nằm ĐÚNG mép phải vùng vẽ và nhãn trục canh giữa theo nó, nên
-  // nửa nhãn tràn ra ngoài svg rồi bị cắt. Hai biểu đồ đường ở trang Ngân sách dùng
-  // right: 14 vì nhãn của chúng là "8/31"; nhãn ở đây là "31/08" — ĐO trên trình duyệt ra
-  // 31px, tức nửa nhãn 16px, và với right: 14 đo được cắt 2px.
-  it('right: 18, không quay lại 14', () => {
-    expect(the).toMatch(/margin=\{\{[^}]*right:\s*18/)
+// ĐÍNH CHÍNH (B41/B48, 2026-08-23) — hai phép thử cũ ở chỗ này đã bị XOÁ, không phải bị
+// nới lỏng, vì cả hai canh những thứ nay không còn tồn tại:
+//
+//   · `right: 18` canh lề phải của `<LineChart>`. B41 đổi đường thành CỘT: điểm cuối của
+//     đường nằm đúng mép phải vùng vẽ nên nửa nhãn trục tràn ra ngoài svg, còn cột thì nằm
+//     TRONG dải của nó và nhãn ngày ở dải nhãn bên dưới — không còn lề nào để canh.
+//   · `line-clamp-2` canh khối chi tiết ngày đỉnh, một đoạn chữ cho MỘT ngày. B48 thay nó
+//     bằng danh sách "ba ngày đáng hỏi" — mỗi ngày một dòng cao 44px, nên không có đoạn
+//     nào phải cắt ở hai dòng nữa.
+//
+// Bên dưới là những thứ THAY chúng: cùng loại ràng buộc (đo được bằng tay, đọc code không
+// thấy), cho hình vẽ mới.
+describe('Chi từng ngày — cột, không phải đường', () => {
+  // Đường nội suy giữa hai ngày, tức vẽ ra một dòng tiền "chảy" từ đỉnh xuống 0 qua mấy
+  // ngày sau — nhưng chi mỗi ngày là sự kiện RỜI RẠC.
+  it('không còn LineChart, không còn recharts trong thẻ này', () => {
+    expect(the, 'B41: cột thay đường').not.toMatch(/LineChart|<Line|ReferenceDot/)
+    expect(the, 'vẽ bằng div — cùng lý do CashflowPanel').not.toContain("from 'recharts'")
   })
 
-  // Đo ở 375px: dòng chi tiết ngày đỉnh cần ĐÚNG hai dòng cho ba khoản. `truncate` cắt
-  // sau khoản đầu và hai khoản sau mất im lặng — mà đó là phần trả lời "hôm đó có gì".
-  it('dòng chi tiết ngày đỉnh xuống dòng, không cắt một dòng', () => {
-    expect(the).toContain('line-clamp-2')
-    expect(the, 'không quay lại truncate cho dòng chi tiết ngày đỉnh').not.toMatch(
-      /className="mt-1 truncate/,
+  // `ReferenceDot` đánh dấu đỉnh là vẽ HAI LẦN cùng một điều: với cột thì cột cao nhất tự
+  // là dấu đỉnh (B41.2).
+  it('ngày chưa tới là vạch xám, không phải khoảng trắng', () => {
+    expect(the, 'B41.1: trắng đọc ra "không tiêu gì", vạch xám đọc ra "chưa tới"').toContain(
+      'h-[3px] w-full rounded-[1px] bg-border-strong',
     )
+  })
+
+  // Trục để tự chạy tới max thì một khoản cố định là cả biểu đồ chết; bỏ ngày đó khỏi biểu
+  // đồ thì tổng của thẻ không còn khớp ô CHI THÁNG ngay trên nó.
+  it('cắt trục bằng axisCeiling và NÓI RA cả hai số', () => {
+    expect(the).toContain('axisCeiling')
+    expect(the, 'B42.3: nhãn phải nói cả mức cắt lẫn số thật của ngày bị cắt').toMatch(
+      /cắt ở \{formatCompact\(ceiling, base\)\}/,
+    )
+    expect(the, 'B42.2: cột bị cắt có vạch chéo, không phải cột phẳng').toContain(
+      'repeating-linear-gradient(135deg',
+    )
+  })
+
+  // `DaySpend.total` có chú thích "có thể ÂM nếu ngày đó hoàn tiền nhiều hơn chi". Bản vẽ
+  // đường để nó tụt xuống dưới 0 một cách vô hình; cột mọc lên từ 0 thì nó mất tăm.
+  it('ngày hoàn tiền mọc XUỐNG dưới đường 0', () => {
+    expect(the, 'B47.2').toContain('rounded-b-[2px] bg-money-in')
+    expect(the, 'B48.2: ngày âm luôn có mặt trong "ba ngày đáng hỏi"').toContain(
+      'daysWorthAsking',
+    )
+  })
+})
+
+describe('Chi từng ngày — công tắc bỏ khoản cố định', () => {
+  // LUẬT CHẶN B46.1. Thẻ này ngồi cùng màn với ô CHI THÁNG; mặc định lọc thì tổng biểu đồ
+  // lệch cả trăm nghìn yên so với ô ngay trên mà không dòng nào giải thích.
+  it('mặc định là "Tất cả", không phải "Bỏ cố định"', () => {
+    expect(the).toMatch(/localStorage\.getItem\(SCOPE_KEY\) === 'flex' \? 'flex' : 'all'/)
+  })
+
+  // Không ai được đọc một biểu đồ đã lọc rồi tưởng đó là chi cả tháng (B46.2).
+  it('khi BẬT thì tiêu đề nói đang lọc và góc phải in cả hai số', () => {
+    expect(the).toContain('đã bỏ khoản cố định')
+    expect(the, 'phải in tổng chưa lọc bên cạnh').toContain('amount={fullTotal}')
+  })
+
+  // `typical` là TRUNG VỊ, không cộng trừ được — giữ trung vị của tập chưa lọc là so ngày
+  // thường của một tập với đường của tập khác (B46.3).
+  it('lọc ở nguồn chuỗi, không trừ bớt sau khi tính', () => {
+    expect(trang).toMatch(/dailySpendSeries\([\s\S]{0,300}excludeIds,/)
+  })
+})
+
+describe('Chi từng ngày — dải nhãn', () => {
+  // LUẬT CHẶN B44.1: một giao dịch mang được nhiều nhãn, nên tổng các nhãn LỚN HƠN tổng
+  // chi. Xếp chồng vào cột là đếm phần giao nhau hai lần — `tags/aggregate.ts` cấm.
+  it('nhãn ở dải RIÊNG dưới biểu đồ, không xếp chồng vào cột', () => {
+    const dai = boChuThich(readFileSync(`${ROOT}src/features/bulletin/DayTagStrip.tsx`, 'utf8'))
+    expect(the, 'dải nhãn là component riêng, không nằm trong vòng lặp cột').toContain(
+      '<DayTagStrip',
+    )
+    expect(at(the, '<DayTagStrip'), 'dải nhãn đứng SAU biểu đồ').toBeGreaterThan(
+      the.indexOf('ref={plotRef}'),
+    )
+    // B44.2: in cả hai số, kèm câu giải thích khoảng lệch.
+    expect(dai).toContain('cells.taggedTotal')
+    expect(dai).toContain('cells.rowsTotal')
+    expect(dai, 'không có câu này thì hai số đọc ra như lỗi tính').toContain(
+      'khoản mang',
+    )
+  })
+})
+
+describe('Chi từng ngày — thứ ĐÃ CÂN NHẮC VÀ BỎ', () => {
+  // B47 chốt bỏ: thêm nhiễu vào đúng cái thẻ vừa dọn xong, và câu hỏi nhịp tuần đã có nhà
+  // ở tab Sức khỏe (`rhythm`). Ghi thành phép thử để lần sau không ai "thêm cho đủ".
+  it('không tô nhạt cuối tuần', () => {
+    for (const f of ['src/features/bulletin/DailySpendPanel.tsx', 'src/features/bulletin/DayTagStrip.tsx']) {
+      const code = boChuThich(readFileSync(`${ROOT}${f}`, 'utf8'))
+      expect(code, `${f}: cuối tuần thuộc tab Sức khỏe, không thuộc thẻ này`).not.toMatch(
+        /getUTCDay|getDay\(\)|cuoiTuan|weekend/,
+      )
+    }
   })
 })
 

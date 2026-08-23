@@ -515,8 +515,14 @@ export function AssetsNowView({ viewCur, onViewCurChange }: Props) {
                       data={pieData}
                       dataKey="value"
                       nameKey="name"
-                      innerRadius={54}
-                      outerRadius={82}
+                      /* Bán kính theo PHẦN TRĂM chứ không px cứng: khung `h-44 w-44`
+                         là 11rem, mà 1rem = 16px × --app-font-scale (Cài đặt → Cỡ chữ).
+                         Ở cỡ "Nhỏ" (0,9) khung chỉ còn 158px trong khi bán kính cứng 82
+                         vẽ ra đường tròn 164px — <svg> có overflow:hidden nên nó cắt phẳng
+                         bốn cạnh vòng tròn. Phần trăm tính theo cạnh ngắn của khung nên
+                         vòng tròn luôn vừa khít ở mọi cỡ chữ. 66% giữ đúng độ dày cũ (54/82). */
+                      innerRadius="66%"
+                      outerRadius="100%"
                       paddingAngle={pieData.length > 1 ? 2 : 0}
                       strokeWidth={0}
                     >

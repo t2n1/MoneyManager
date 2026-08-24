@@ -36,6 +36,7 @@ export async function commitDraft({ saved, draft, afterWrite }: CommitDraftArgs)
         : []),
       ...plan.phasePatches.map((p) => repo.updateLifePhase(p.id, p.patch)),
       ...plan.phaseInserts.map((p) => repo.createLifePhase(p)),
+      ...plan.phaseDeletes.map((id) => repo.deleteLifePhase(id)),
       ...plan.eventPatches.map((e) => repo.updateLifeEvent(e.id, e.patch)),
       ...plan.eventInserts.map((e) => repo.createLifeEvent(e)),
       ...plan.eventDeletes.map((id) => repo.deleteLifeEvent(id)),
@@ -70,14 +71,18 @@ export async function saveDraftAsNewScenario({
   afterCreate,
 }: SaveDraftAsNewArgs): Promise<LifeScenarioRow> {
   const copy = await repo.createLifeScenario({
+    // `name` là THAM SỐ chứ không phải `draft.name`: chỗ gọi đặt tên riêng cho bản thử
+    // ("… (thử)"), và trùng tên với bản gốc thì dải chip có hai chip không phân biệt được.
     name,
-    display_currency: source.display_currency,
-    // Hai giá trị này lấy từ BẢN NHÁP, không từ nguồn: chúng chính là thứ người dùng
-    // vừa vặn. Phần còn lại lấy từ nguồn vì màn Tương lai không vặn được chúng.
+    // Mọi giá trị còn lại lấy từ BẢN NHÁP — nháp nay mang trọn kịch bản (xem JSDoc
+    // `ScenarioDraft`), nên lấy từ `source` là bỏ đúng những gì người dùng vừa vặn.
+    display_currency: draft.displayCurrency,
     end_age: draft.endAge,
     real_return_bps: draft.realReturnBps,
-    band_spread_bps: source.band_spread_bps,
-    starting_assets_minor: source.starting_assets_minor,
+    band_spread_bps: draft.bandSpreadBps,
+    starting_assets_minor: draft.startingAssetsMinor,
+    // `nominal_terms` KHÔNG thuộc nháp: nó là cách ĐỌC đồ thị (giá hôm nay / danh
+    // nghĩa), người dùng vặn nó ở panel Giả định và nó không đổi dữ liệu kịch bản.
     nominal_terms: source.nominal_terms,
     is_primary: false,
   })

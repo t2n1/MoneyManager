@@ -1,7 +1,7 @@
 // Chép một kịch bản Lifetime kèm TOÀN BỘ chặng/sự kiện của nó.
 //
 // VÌ SAO ĐỨNG RIÊNG: phép chép này có hai chỗ gọi — nút "Nhân bản" trong trình sửa
-// (ScenarioEditorSheet) và nút "Kịch bản mới" ở dải chip của LifetimeView. Trước bản
+// (ScenarioEditorDrawer) và nút "Kịch bản mới" ở dải chip của LifetimeView. Trước bản
 // này chỉ có chỗ thứ nhất, và đường vào nó chôn hai tầng; thêm chỗ thứ hai bằng cách
 // chép lại thân hàm là cách hai bản bắt đầu trôi lệch nhau (một bên nhớ chép `note`
 // của sự kiện, một bên quên — và không có gì trên màn hình cho thấy bản sao thiếu chữ).

@@ -1,48 +1,57 @@
+// Sheet "chi tiết chặng đời" — mở từ nút "⋯" trên một dòng chặng trong trình sửa kịch
+// bản (`ScenarioEditorDrawer`).
+//
+// VÌ SAO CÒN TỒN TẠI khi bản vẽ đã cho sửa chặng ngay trên một dòng: dòng inline mang
+// bốn trường hay dùng (năm · tên · thu · chi), còn dòng dưới DB có thêm QUỐC GIA, TIỀN
+// của chặng và TỶ GIÁ GIẢ ĐỊNH. Ba trường đó không nhét nổi vào một hàng, nhưng bỏ hẳn
+// thì một chặng "Về VN" tính bằng ₫ không còn đường nào khai — và phần xem trước quy
+// đổi ở cuối file này là chốt kiểm DUY NHẤT bắt được ca gõ nhầm 150 thay vì 0,0067.
+//
+// GHI VÀO BẢN NHÁP, KHÔNG GHI DB. Trước đây sheet này tự gọi `repo.updateLifePhase`.
+// Trình sửa kịch bản nay treo mọi thay đổi ở lớp nháp cho tới khi bấm Lưu, nên một
+// sheet con ghi thẳng xuống DB là hỏng đúng hợp đồng đó theo cách tệ nhất: "Bỏ thay
+// đổi" hoàn tác được một nửa, và lần Lưu sau đó `planDraftSave` so nháp (còn giữ giá
+// trị CŨ của chặng này) với DB rồi ghi đè ngược lên chính thứ vừa lưu.
 import { useEffect, useId, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
-import { repo } from '../../data'
-import type { LifePhasePatch, NewLifePhase } from '../../data/repo'
-import { confirmDialog, showToast } from '../../lib/dialog'
+import { Guide } from '../../components/Guide'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
-import type { LifePhaseRow } from '../../types/database.types'
+import type { DraftPhase } from './draft'
 import { fxAfterCurrencyChange, isFxValid } from './fxField'
 import { convertLifetimeMinor } from './project'
 
 interface Props {
-  scenarioId: string
   /** Tiền hiển thị của kịch bản — quyết định ô tỷ giá có hiện hay không. */
   displayCurrency: CurrencyCode
-  /** Toàn bộ chặng khác của kịch bản, dùng để chặn `start_year` trùng (DB có
+  /** Mọi chặng của BẢN NHÁP, để chặn `start_year` trùng (DB có
    *  `unique (scenario_id, start_year)`, bắt trước ở đây để hiện câu lỗi tử tế). */
-  phases: LifePhaseRow[]
-  /** Có giá trị = sửa; không = tạo mới. */
-  phase?: LifePhaseRow
+  phases: DraftPhase[]
+  /** Chặng đang sửa. Không có ca "tạo mới": chặng mới thêm thẳng trên dòng inline. */
+  phase: DraftPhase
+  /** Ghi các trường đã sửa vào bản nháp. */
+  onApply: (patch: Partial<Omit<DraftPhase, 'id'>>) => void
+  /** Bỏ chặng này khỏi bản nháp. */
+  onRemove: () => void
   onClose: () => void
 }
 
-/** Sheet tạo/sửa một CHẶNG ĐỜI (thu chi nền của kịch bản Lifetime). */
-export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onClose }: Props) {
-  const qc = useQueryClient()
-  const create = useMutation({ mutationFn: (input: NewLifePhase) => repo.createLifePhase(input) })
-  const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: LifePhasePatch }) => repo.updateLifePhase(id, patch),
-  })
-  const del = useMutation({ mutationFn: (id: string) => repo.deleteLifePhase(id) })
-
-  const [label, setLabel] = useState(phase?.label ?? '')
-  const [startYear, setStartYear] = useState(String(phase?.start_year ?? new Date().getFullYear()))
-  const [country, setCountry] = useState(phase?.country ?? '')
-  const [currency, setCurrency] = useState<CurrencyCode>((phase?.currency as CurrencyCode) ?? displayCurrency)
-  const [income, setIncome] = useState(phase?.annual_income_minor ?? 0)
-  const [expense, setExpense] = useState(phase?.annual_expense_minor ?? 0)
-  const [fx, setFx] = useState(String(phase?.fx_to_display ?? 1))
-  const [saving, setSaving] = useState(false)
-  // true trong lúc chờ confirmDialog xoá — chặn Esc của SHEET NÀY đóng đè lên hộp
-  // thoại xác nhận (dialog.tsx có Esc riêng của nó; không guard thì Esc vừa đóng
-  // hộp thoại vừa đóng luôn sheet, mất đúng lúc người dùng chỉ định huỷ xoá).
-  const [confirming, setConfirming] = useState(false)
+/** Sheet sửa một CHẶNG ĐỜI đầy đủ trường — ghi vào bản nháp của trình sửa kịch bản. */
+export function PhaseFormSheet({
+  displayCurrency,
+  phases,
+  phase,
+  onApply,
+  onRemove,
+  onClose,
+}: Props) {
+  const [label, setLabel] = useState(phase.label)
+  const [startYear, setStartYear] = useState(String(phase.startYear))
+  const [country, setCountry] = useState(phase.country ?? '')
+  const [currency, setCurrency] = useState<CurrencyCode>(phase.currency)
+  const [income, setIncome] = useState(phase.annualIncomeMinor)
+  const [expense, setExpense] = useState(phase.annualExpenseMinor)
+  const [fx, setFx] = useState(String(phase.fxToDisplay))
 
   // Cùng tiền hiển thị thì tỷ giá luôn là 1 và KHÔNG hỏi — hiện ô này ra chỉ đúng
   // khi có gì đó cần quy đổi (quyết định đã chốt, áp dụng cả Phase lẫn Event).
@@ -64,100 +73,72 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
     setFx(fxAfterCurrencyChange(next, displayCurrency))
   }
 
-  // Đóng bằng Esc — trừ lúc đang chờ xác nhận xoá (xem comment `confirming` ở trên).
   useEffect(() => {
-    if (confirming) return
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      // `stopPropagation`: trình sửa kịch bản có Esc riêng, và không chặn ở đây thì một
+      // phím Esc đóng cả sheet này lẫn cả cái drawer đứng sau nó.
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onClose()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [confirming, onClose])
+  }, [onClose])
 
   const yearNum = Number(startYear)
   const yearValid = Number.isInteger(yearNum) && yearNum >= 1900 && yearNum <= 2200
-  const yearDuplicate = yearValid && phases.some((p) => p.id !== phase?.id && p.start_year === yearNum)
+  const yearDuplicate = yearValid && phases.some((p) => p.id !== phase.id && p.startYear === yearNum)
   const fxNum = Number(fx)
   const fxValid = isFxValid(fx)
   const labelValid = label.trim() !== ''
   // DB có `check (annual_income_minor >= 0)` và `check (annual_expense_minor >= 0)`.
   // MoneyField cho gõ biểu thức và NumPad có phím −, nên "5 − 9" ra −4 trên đường
-  // mobile: không bắt ở đây thì nút Lưu im lặng không làm gì (canSave vẫn true, DB
-  // đá về), hoặc nổ một lỗi Postgres thô. Cùng cách EventFormSheet đã làm cho
-  // amount_minor.
+  // mobile: không bắt ở đây thì lần Lưu ở chân drawer nổ một lỗi Postgres thô, xa chỗ
+  // gõ sai cả một màn hình.
   const incomeValid = income >= 0
   const expenseValid = expense >= 0
 
   const canSave =
-    labelValid && yearValid && !yearDuplicate && incomeValid && expenseValid && (!showFx || fxValid) && !saving
+    labelValid && yearValid && !yearDuplicate && incomeValid && expenseValid && (!showFx || fxValid)
 
-  async function invalidateAll() {
-    await qc.invalidateQueries({ queryKey: ['lifePhases'] })
-  }
-
-  async function handleSubmit() {
+  function handleSubmit() {
     if (!canSave) return
-    setSaving(true)
-    try {
-      const input = {
-        start_year: yearNum,
-        label: label.trim(),
-        country: country.trim() === '' ? null : country.trim(),
-        currency,
-        annual_income_minor: income,
-        annual_expense_minor: expense,
-        fx_to_display: showFx ? fxNum : 1,
-      }
-      if (phase) await update.mutateAsync({ id: phase.id, patch: input })
-      else await create.mutateAsync({ scenario_id: scenarioId, ...input })
-      await invalidateAll()
-      onClose()
-    } catch (err) {
-      // Không có catch thì mọi lỗi tầng dưới (ràng buộc DB, mất mạng) thành một
-      // unhandled rejection: sheet cứ đứng đó, không toast, không câu nào.
-      showToast(err instanceof Error ? err.message : 'Không lưu được chặng đời.', 'error')
-    } finally {
-      setSaving(false)
-    }
+    onApply({
+      startYear: yearNum,
+      label: label.trim(),
+      country: country.trim() === '' ? null : country.trim(),
+      currency,
+      annualIncomeMinor: income,
+      annualExpenseMinor: expense,
+      fxToDisplay: showFx ? fxNum : 1,
+    })
+    onClose()
   }
 
-  async function handleDelete() {
-    if (!phase) return
-    setConfirming(true)
-    const ok = await confirmDialog({ title: 'Xóa chặng này?', danger: true, confirmLabel: 'Xóa' })
-    setConfirming(false)
-    if (!ok) return
-    setSaving(true)
-    try {
-      await del.mutateAsync(phase.id)
-      await invalidateAll()
-      onClose()
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Không xóa được chặng đời.', 'error')
-    } finally {
-      setSaving(false)
-    }
+  /** KHÔNG hỏi lại: mọi thứ ở đây chỉ là nháp, "Bỏ thay đổi" ở chân drawer là undo —
+   *  cùng luật với nút thùng rác trên dòng inline (xem bản vẽ, mục Interactions). */
+  function handleDelete() {
+    onRemove()
+    onClose()
   }
 
   const field =
     'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm dark:text-gray-100'
   const label_ = 'mb-1 block text-xs font-medium text-fg-muted'
 
-  // Xem trước quy đổi — chốt bắt buộc: hiện NGAY khi đang gõ, dùng đúng số tiền
-  // của dòng đang sửa (thu VÀ chi, vì chặng có hai con số chứ không phải một).
-  const incomePreview = showFx && fxValid ? convertLifetimeMinor(income, currency, displayCurrency, fxNum) : null
-  const expensePreview = showFx && fxValid ? convertLifetimeMinor(expense, currency, displayCurrency, fxNum) : null
+  const title = 'Chi tiết chặng đời'
 
-  const title = phase ? 'Sửa chặng đời' : 'Chặng đời mới'
-
-  // `useId` chứ không phải id viết cứng: hai sheet có thể cùng nằm trong DOM một lúc
-  // (sheet chặng mở từ trong ScenarioEditorSheet), và id trùng thì `htmlFor` bắt vào
-  // ô ĐẦU TIÊN khớp — nhãn trỏ sai ô còn tệ hơn không có nhãn. Cùng cách với
-  // MoneyField và YearTableView.
+  // `useId` chứ không phải id viết cứng: sheet này nằm trong DOM cùng lúc với trình sửa
+  // kịch bản, và id trùng thì `htmlFor` bắt vào ô ĐẦU TIÊN khớp — nhãn trỏ sai ô còn tệ
+  // hơn không có nhãn. Cùng cách với MoneyField và YearTableView.
   const uid = useId()
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center animate-overlay-in" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[62] flex items-end justify-center bg-black/40 lg:items-center animate-overlay-in"
+      onClick={onClose}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -165,7 +146,11 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
         className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-fg-primary">{title}</h2>
+        <h2 className="mb-1 text-base font-bold text-fg-primary">{title}</h2>
+        <Guide className="mb-3 text-xs text-fg-muted">
+          Bấm Xong là ghi vào bản nháp — kịch bản chỉ đổi khi bấm "Lưu thay đổi" ở chân
+          trình sửa.
+        </Guide>
 
         <label htmlFor={`${uid}-label`} className={label_}>
           Tên chặng
@@ -246,7 +231,13 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
                 <AlertCircle className="h-3.5 w-3.5 shrink-0 text-fg-warn" aria-hidden="true" />
               )}
             </label>
-            <input id={`${uid}-fx`} inputMode="decimal" value={fx} onChange={(e) => setFx(e.target.value)} className={`mb-1 ${field}`} />
+            <input
+              id={`${uid}-fx`}
+              inputMode="decimal"
+              value={fx}
+              onChange={(e) => setFx(e.target.value)}
+              className={`mb-1 ${field}`}
+            />
             {/* Ô RỖNG có câu riêng: đó là trạng thái `handleCurrencyChange` vừa đặt, và
                 "phải là một số lớn hơn 0" không nói được vì sao con số cũ biến mất. */}
             {!fxValid && (
@@ -265,11 +256,19 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
             {/* Chốt kiểm bắt buộc: fx_to_display cố ý NGƯỢC chiều với lib/rates.ts, nên
                 gõ nhầm 150 thay vì 0,0067 sai hàng chục nghìn lần mà validate > 0
                 không bắt được. Dòng xem trước này là cách DUY NHẤT phát hiện ra. */}
-            {incomePreview !== null && expensePreview !== null && (
+            {fxValid && (
               <p className="mb-3 text-xs tabular-nums text-fg-muted">
-                Thu: {formatMoney(income, currency)} ≈ {formatMoney(incomePreview, displayCurrency)}
+                Thu: {formatMoney(income, currency)} ≈{' '}
+                {formatMoney(
+                  convertLifetimeMinor(income, currency, displayCurrency, fxNum),
+                  displayCurrency,
+                )}
                 <br />
-                Chi: {formatMoney(expense, currency)} ≈ {formatMoney(expensePreview, displayCurrency)}
+                Chi: {formatMoney(expense, currency)} ≈{' '}
+                {formatMoney(
+                  convertLifetimeMinor(expense, currency, displayCurrency, fxNum),
+                  displayCurrency,
+                )}
               </p>
             )}
           </>
@@ -282,11 +281,19 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
             vì đọc kèm giá trị ("Thu nền mỗi năm: ¥5.000.000"). Dòng này là CHÚ THÍCH nhìn
             bằng mắt, nên dùng thẻ đúng nghĩa thay vì <label> mồ côi. */}
         <span className={label_}>Thu nền mỗi năm</span>
-        {/* Ô tiền CHÍNH của form này → để `autoOpen` mặc định (bung NumPad ngay).
-            Ô "Chi nền" bên dưới là ô phụ: hai ô cùng tự bung thì ô mount SAU thắng,
-            nên bàn phím hiện ra dưới ô thứ hai — xem hợp đồng `autoOpen` ở MoneyField. */}
+        {/* `autoOpen={false}` cho CẢ HAI ô: sheet này mở từ nút "⋯" của một dòng đã có sẵn
+            số — người dùng vào đây để sửa TỶ GIÁ hoặc TIỀN chứ không phải gõ lại thu chi
+            (thu chi sửa thẳng trên dòng inline), nên bung bàn số ngay chỉ che mất đúng
+            khối tỷ giá ở trên. */}
         <div className="mb-1">
-          <MoneyField value={income} onChange={setIncome} currency={currency} ariaLabel="Thu nền mỗi năm" className={`text-right font-semibold ${field}`} />
+          <MoneyField
+            value={income}
+            onChange={setIncome}
+            currency={currency}
+            autoOpen={false}
+            ariaLabel="Thu nền mỗi năm"
+            className={`text-right font-semibold ${field}`}
+          />
         </div>
         {!incomeValid && (
           <p role="alert" className="mb-2 text-xs text-money-out">
@@ -297,7 +304,14 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
 
         <span className={label_}>Chi nền mỗi năm</span>
         <div className="mb-1">
-          <MoneyField value={expense} onChange={setExpense} currency={currency} autoOpen={false} ariaLabel="Chi nền mỗi năm" className={`text-right font-semibold ${field}`} />
+          <MoneyField
+            value={expense}
+            onChange={setExpense}
+            currency={currency}
+            autoOpen={false}
+            ariaLabel="Chi nền mỗi năm"
+            className={`text-right font-semibold ${field}`}
+          />
         </div>
         {!expenseValid && (
           <p role="alert" className="mb-2 text-xs text-money-out">
@@ -307,18 +321,13 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
         {expenseValid && <div className="mb-2" />}
 
         <div className="flex items-center justify-between gap-2">
-          {phase ? (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={saving}
-              className="min-h-11 rounded-md px-3 py-2 text-sm font-medium text-money-out transition active:scale-95 hover:bg-state-bad-bg disabled:opacity-50"
-            >
-              Xóa
-            </button>
-          ) : (
-            <span />
-          )}
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="min-h-11 rounded-md px-3 py-2 text-sm font-medium text-money-out transition active:scale-95 hover:bg-state-bad-bg"
+          >
+            Xóa chặng
+          </button>
           <div className="flex gap-2">
             <button
               type="button"
@@ -333,7 +342,7 @@ export function PhaseFormSheet({ scenarioId, displayCurrency, phases, phase, onC
               disabled={!canSave}
               className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold transition active:scale-95 disabled:opacity-50"
             >
-              {saving ? 'Đang lưu…' : 'Lưu'}
+              Xong
             </button>
           </div>
         </div>

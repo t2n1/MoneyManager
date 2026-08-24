@@ -459,7 +459,7 @@ describe('design system — ban cứng (phải bằng 0)', () => {
   // Lý do: <label> mồ côi — không có `htmlFor` và cũng không BỌC control nào — thì
   // screen reader đọc ra một nhãn rỗng và ô nhập bên dưới KHÔNG có tên gì (đã đo bằng
   // thuật toán tính accessible name trên app đang chạy hôm 2026-07-30: 7/8 ô ở
-  // ScenarioEditorSheet không có tên).
+  // ScenarioEditorSheet — nay là ScenarioEditorDrawer — không có tên).
   //
   // Trước 2026-08-11 chỗ này chỉ chặn được đúng MỘT dạng (`<label className={label_}>`
   // của ba sheet Lifetime) và phần còn lại nằm dưới một NGƯỠNG đếm `<label className`.

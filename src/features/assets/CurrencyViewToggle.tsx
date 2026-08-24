@@ -9,7 +9,7 @@
 // green-50 đủ 4,72:1, nhưng hạ xuống /90 là còn 4,14:1 và trượt AA.
 //
 // KHÔNG áp cho tab Tương lai: bản chiếu Lifetime có "tiền hiển thị" riêng theo từng
-// kịch bản với tỷ giá GIẢ ĐỊNH dài hạn tự khai (xem ScenarioEditorSheet) — đè tỷ giá
+// kịch bản với tỷ giá GIẢ ĐỊNH dài hạn tự khai (xem ScenarioEditorDrawer) — đè tỷ giá
 // cache hôm nay lên đó là quy đổi hai lần và cãi nhau với giả định của kịch bản.
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  addDraftPhase,
   applyPreset,
   draftChanges,
   draftFromRows,
@@ -9,9 +10,12 @@ import {
   isNewId,
   NEW_ID_PREFIX,
   patchDraftEvent,
+  patchDraftPhase,
   planDraftSave,
   removeDraftEvent,
+  removeDraftPhase,
   savePlanIsEmpty,
+  setDraftCurrency,
   type ScenarioDraft,
 } from './draft'
 import type { LifetimeInput } from './project'
@@ -142,20 +146,25 @@ describe('draftToInput', () => {
 
 describe('draftChanges', () => {
   it('nháp y hệt bản lưu thì không có thay đổi nào', () => {
-    expect(draftChanges(base(), base(), 2026)).toEqual([])
-    expect(draftIsDirty(base(), base(), 2026)).toBe(false)
+    expect(draftChanges(base(), base())).toEqual([])
+    expect(draftIsDirty(base(), base())).toBe(false)
   })
 
-  it('bắt thu/chi của ĐÚNG chặng đang chạy', () => {
+  it('bắt thu/chi của chặng đang chạy, kèm tên chặng', () => {
     const d = edit((x) => { x.phases[0].annualExpenseMinor = 3_800_000 })
-    expect(draftChanges(base(), d, 2026)).toEqual([
-      { kind: 'expense', currency: 'JPY', fromMinor: 4_300_000, toMinor: 3_800_000 },
+    expect(draftChanges(base(), d)).toEqual([
+      { kind: 'expense', label: 'Đi làm ở Nhật', currency: 'JPY', fromMinor: 4_300_000, toMinor: 3_800_000 },
     ])
   })
 
-  it('KHÔNG bắt thu/chi của chặng chưa tới', () => {
+  // Bản trước CỐ Ý bỏ qua chặng chưa tới (đường vặn duy nhất là hai thanh trượt của
+  // panel Giả định, vốn chỉ chạm chặng đang chạy). Trình sửa kịch bản có ô thu/chi cho
+  // TỪNG chặng, nên bỏ qua ở đây là để nút Lưu tắt ngóm trên một thay đổi có thật.
+  it('bắt CẢ thu/chi của chặng chưa tới', () => {
     const d = edit((x) => { x.phases[1].annualExpenseMinor = 1 })
-    expect(draftChanges(base(), d, 2026)).toEqual([])
+    expect(draftChanges(base(), d)).toEqual([
+      { kind: 'expense', label: 'Nghỉ hưu', currency: 'JPY', fromMinor: 3_400_000, toMinor: 1 },
+    ])
   })
 
   it('bắt lợi suất, tuổi chiếu tới, và năm bắt đầu chặng', () => {
@@ -164,10 +173,68 @@ describe('draftChanges', () => {
       x.endAge = 95
       x.phases[1].startYear = 2049
     })
-    expect(draftChanges(base(), d, 2026)).toEqual([
+    expect(draftChanges(base(), d)).toEqual([
       { kind: 'return', fromBps: 200, toBps: 350 },
       { kind: 'endAge', from: 90, to: 95 },
       { kind: 'phaseYear', label: 'Nghỉ hưu', from: 2059, to: 2049 },
+    ])
+  })
+
+  it('bắt tên kịch bản, tiền hiển thị, tài sản khởi điểm, dải dao động', () => {
+    const d = edit((x) => {
+      x.name = 'Về VN sớm'
+      x.displayCurrency = 'VND'
+      x.startingAssetsMinor = -3_000_000
+      x.bandSpreadBps = 250
+    })
+    expect(draftChanges(base(), d)).toEqual([
+      { kind: 'name', from: 'Hiện tại', to: 'Về VN sớm' },
+      { kind: 'currency', from: 'JPY', to: 'VND' },
+      // Hai đầu mang hai đơn vị KHÁC nhau — cột này lưu theo `display_currency`, mà
+      // bản nháp vừa đổi nó. In cả hai bằng một đơn vị là bịa ra một mức tăng/giảm.
+      {
+        kind: 'startingAssets',
+        fromCurrency: 'JPY',
+        fromMinor: 14_200_000,
+        toCurrency: 'VND',
+        toMinor: -3_000_000,
+      },
+      { kind: 'bandSpread', fromBps: 150, toBps: 250 },
+    ])
+  })
+
+  // Ba trường của sheet "⋯" — hồi quy: thiếu chúng thì nút Lưu tắt trên một thay đổi
+  // đã nằm trong nháp và đã đổi cả bản chiếu (bắt được khi chạy app thật, 2026-08-24).
+  it('bắt tiền, tỷ giá và quốc gia của chặng', () => {
+    const d = patchDraftPhase(base(), 'p2', {
+      currency: 'VND',
+      fxToDisplay: 0.0057,
+      country: 'VN',
+    })
+    expect(draftChanges(base(), d)).toEqual([
+      { kind: 'phaseCurrency', label: 'Nghỉ hưu', from: 'JPY', to: 'VND' },
+      { kind: 'phaseFx', label: 'Nghỉ hưu', from: 1, to: 0.0057 },
+      { kind: 'phaseCountry', label: 'Nghỉ hưu', to: 'VN' },
+    ])
+    expect(draftIsDirty(base(), d)).toBe(true)
+  })
+
+  it('bắt sửa riêng ghi chú của một mốc', () => {
+    const d = patchDraftEvent(base(), 'e1', { note: 'nhà gái lo phần rạp' })
+    expect(draftChanges(base(), d)).toEqual([{ kind: 'eventsEdited', count: 1 }])
+    expect(planDraftSave(base(), d).eventPatches).toEqual([
+      { id: 'e1', patch: { note: 'nhà gái lo phần rạp' } },
+    ])
+  })
+
+  it('bắt đổi tên chặng và đếm chặng bị xoá', () => {
+    const d = removeDraftPhase(
+      patchDraftPhase(base(), 'p1', { label: 'Ở Nhật' }),
+      'p2',
+    )
+    expect(draftChanges(base(), d)).toEqual([
+      { kind: 'phaseLabel', from: 'Đi làm ở Nhật', to: 'Ở Nhật' },
+      { kind: 'phasesRemoved', count: 1 },
     ])
   })
 
@@ -178,7 +245,7 @@ describe('draftChanges', () => {
         { ...x.events[1], id: `${NEW_ID_PREFIX}1`, label: 'Mua nhà' },
       ]
     })
-    expect(draftChanges(base(), d, 2026)).toEqual([
+    expect(draftChanges(base(), d)).toEqual([
       { kind: 'eventsAdded', count: 1 },
       { kind: 'eventsRemoved', count: 1 },
       { kind: 'eventsEdited', count: 1 },
@@ -333,10 +400,94 @@ describe('applyPreset', () => {
 
   it('tóm tắt đếm được chặng vừa thêm', () => {
     const d = applyPreset(base(), ketQuaMau, 1)
-    expect(draftChanges(base(), d, 2026)).toEqual([
+    expect(draftChanges(base(), d)).toEqual([
       { kind: 'phasesAdded', count: 1 },
       { kind: 'eventsAdded', count: 1 },
     ])
+  })
+})
+
+describe('setDraftCurrency', () => {
+  it('đặt lại tỷ giá của mọi dòng KHÔNG còn khớp tiền hiển thị mới', () => {
+    const d0 = edit((x) => {
+      x.phases[1].currency = 'VND'
+      x.phases[1].fxToDisplay = 0.0057
+      x.events[0].currency = 'VND'
+      x.events[0].fxToDisplay = 0.0057
+    })
+    const d = setDraftCurrency(d0, 'VND')
+    expect(d.displayCurrency).toBe('VND')
+    // Dòng VND nay TRÙNG tiền hiển thị → giữ nguyên tỷ giá người dùng đã khai…
+    expect(d.phases[1].fxToDisplay).toBe(0.0057)
+    expect(d.events[0].fxToDisplay).toBe(0.0057)
+    // …còn dòng JPY thì tỷ giá cũ (1) nay trả lời một câu hỏi khác → đặt lại về 1.
+    expect(d.phases[0].fxToDisplay).toBe(1)
+  })
+
+  it('KHÔNG đụng tài sản khởi điểm (quy đổi cần tỷ giá hôm nay, file này thuần)', () => {
+    const d = setDraftCurrency(base(), 'USD')
+    expect(d.startingAssetsMinor).toBe(14_200_000)
+  })
+
+  it('đổi sang chính tiền đang có thì trả về nguyên bản nháp', () => {
+    const b = base()
+    expect(setDraftCurrency(b, 'JPY')).toBe(b)
+  })
+})
+
+describe('patchDraftPhase / removeDraftPhase / addDraftPhase', () => {
+  it('sửa năm bắt đầu thì sắp lại thứ tự chặng ngay', () => {
+    const d = patchDraftPhase(base(), 'p2', { startYear: 2020 })
+    expect(d.phases.map((p) => p.id)).toEqual(['p2', 'p1'])
+  })
+
+  it('chặng không còn thì trả về chính bản nháp', () => {
+    const b = base()
+    expect(patchDraftPhase(b, 'khong-co', { label: 'x' })).toBe(b)
+  })
+
+  it('chặng vừa thêm mang id nháp và nằm đúng chỗ theo năm', () => {
+    const d = addDraftPhase(
+      base(),
+      {
+        startYear: 2040,
+        label: 'Chặng mới',
+        country: 'JP',
+        currency: 'JPY',
+        annualIncomeMinor: 0,
+        annualExpenseMinor: 0,
+        fxToDisplay: 1,
+      },
+      7,
+    )
+    expect(d.phases.map((p) => p.startYear)).toEqual([2024, 2040, 2059])
+    expect(isNewId(d.phases[1].id)).toBe(true)
+  })
+
+  it('chặng vừa thêm rồi xoá ngay KHÔNG sinh lệnh xoá (chưa từng có dòng DB)', () => {
+    const added = addDraftPhase(
+      base(),
+      {
+        startYear: 2040,
+        label: 'Chặng mới',
+        country: null,
+        currency: 'JPY',
+        annualIncomeMinor: 0,
+        annualExpenseMinor: 0,
+        fxToDisplay: 1,
+      },
+      7,
+    )
+    const id = added.phases.find((p) => isNewId(p.id))!.id
+    const plan = planDraftSave(base(), removeDraftPhase(added, id))
+    expect(plan.phaseDeletes).toEqual([])
+    expect(savePlanIsEmpty(plan)).toBe(true)
+  })
+
+  it('xoá chặng có thật thành lệnh XOÁ', () => {
+    const plan = planDraftSave(base(), removeDraftPhase(base(), 'p2'))
+    expect(plan.phaseDeletes).toEqual(['p2'])
+    expect(plan.phasePatches).toEqual([])
   })
 })
 

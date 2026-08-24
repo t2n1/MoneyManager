@@ -11,8 +11,8 @@
 import { AlertTriangle } from 'lucide-react'
 import { ActionButton } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
-import { formatCompact } from '../../lib/money'
 import type { DraftChange } from './draft'
+import { changeParts } from './draftText'
 
 interface Props {
   /** Tên kịch bản GỐC — câu banner nói rõ bản gốc chưa bị đụng. */
@@ -28,34 +28,6 @@ interface Props {
   saving: boolean
 }
 
-/** Một thay đổi → một mẩu chữ. Số tiền đi qua `formatCompact` để câu không dài quá. */
-function describe(c: DraftChange, currency: CurrencyCode): string {
-  switch (c.kind) {
-    case 'income':
-      return `thu ${formatCompact(c.fromMinor, c.currency)} → ${formatCompact(c.toMinor, c.currency)}`
-    case 'expense':
-      return `chi ${formatCompact(c.fromMinor, c.currency)} → ${formatCompact(c.toMinor, c.currency)}`
-    case 'return':
-      return `lợi suất ${c.fromBps / 100}% → ${c.toBps / 100}%`
-    case 'endAge':
-      return `chiếu đến tuổi ${c.from} → ${c.to}`
-    case 'phaseYear':
-      return `"${c.label}" dời ${c.from} → ${c.to}`
-    case 'phasesAdded':
-      return `thêm ${c.count} chặng`
-    case 'eventsAdded':
-      return `thêm ${c.count} mốc`
-    case 'eventsRemoved':
-      return `bớt ${c.count} mốc`
-    case 'eventsEdited':
-      return `sửa ${c.count} mốc`
-    default:
-      // `currency` chỉ dùng ở nhánh cuối đời bên dưới; giữ tham số để chữ ký ổn định
-      // nếu sau này có loại thay đổi tính theo tiền HIỂN THỊ chứ không theo tiền chặng.
-      return String(currency)
-  }
-}
-
 export function DraftBanner({
   scenarioName,
   changes,
@@ -67,16 +39,8 @@ export function DraftBanner({
   onDiscard,
   saving,
 }: Props) {
-  const parts = changes.map((c) => describe(c, currency))
-  // Hiệu cuối đời là kết luận của cả cú vặn — nó trả lời "vặn thế này thì được gì",
-  // câu duy nhất người dùng thật sự muốn biết trước khi bấm Lưu. Đứng CUỐI danh sách
-  // vì nó là hệ quả, không phải một thay đổi họ vừa làm.
-  if (endBeforeMinor !== null && endAfterMinor !== null && endBeforeMinor !== endAfterMinor) {
-    const d = endAfterMinor - endBeforeMinor
-    parts.push(
-      `cuối đời ${formatCompact(endBeforeMinor, currency)} → ${formatCompact(endAfterMinor, currency)} (${d >= 0 ? '+' : '−'}${formatCompact(Math.abs(d), currency)})`,
-    )
-  }
+  // Cùng hàm với dòng tóm tắt ở chân trình sửa kịch bản — xem `draftText.ts`.
+  const parts = changeParts(changes, currency, endBeforeMinor, endAfterMinor)
 
   return (
     <div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-state-warn-border bg-state-warn-bg px-3 py-2">

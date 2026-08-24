@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Plus, Sparkles, SlidersHorizontal, Star } from 'lucide-react'
+import { AlertTriangle, Pencil, Plus, Sparkles, SlidersHorizontal, Star } from 'lucide-react'
 import { ActionButton, Card } from '../../components/ui'
 import { repo } from '../../data'
 import { useNetWorthSnapshots } from '../../hooks/queries'
@@ -30,7 +30,7 @@ import type { PresetContext } from './presets'
 import { PresetPanel } from './PresetPanel'
 import { hasStress, NO_STRESS, projectLifetime, type StressConfig } from './project'
 import { commitDraft, saveDraftAsNewScenario } from './saveDraft'
-import { ScenarioEditorSheet, type EditorInitialSheet } from './ScenarioEditorSheet'
+import { ScenarioEditorDrawer } from './ScenarioEditorDrawer'
 import { defaultStress, StressPanel } from './StressPanel'
 import { pickActive } from './buildInput'
 import { lifetimeVerdict } from './summary'
@@ -79,11 +79,11 @@ export function LifetimeView() {
     duplicatingScenario,
   } = useLifetime()
 
-  // `editorEntry` = form con mở sẵn khi trình sửa vừa hiện (xem prop `initialSheet` ở
-  // ScenarioEditorSheet). Đi CÙNG `editorOpen` chứ không thay nó: mở trình sửa mà không
-  // mở form con nào vẫn là ca thường gặp nhất.
   const [editorOpen, setEditorOpen] = useState(false)
-  const [editorEntry, setEditorEntry] = useState<EditorInitialSheet | undefined>(undefined)
+  // Mốc cần đưa vào tầm mắt khi drawer vừa mở — vào từ chip mốc trên đồ thị hoặc từ
+  // Bảng theo năm. Đi CÙNG `editorOpen` chứ không thay nó: mở trình sửa mà không nhắm
+  // vào mốc nào là ca thường gặp nhất.
+  const [editorFocusEventId, setEditorFocusEventId] = useState<string | undefined>(undefined)
   const [tableOpen, setTableOpen] = useState(false)
   /** Năm mà Bảng theo năm (sheet) phải cuộn tới khi mở — đặt từ hai ô kết luận có NĂM. */
   const [tableFocusYear, setTableFocusYear] = useState<number | undefined>(undefined)
@@ -158,8 +158,8 @@ export function LifetimeView() {
 
   const currentYear = input?.currentYear ?? new Date().getFullYear()
   const changes = useMemo(
-    () => (savedDraft && draft ? draftChanges(savedDraft, draft, currentYear) : []),
-    [savedDraft, draft, currentYear],
+    () => (savedDraft && draft ? draftChanges(savedDraft, draft) : []),
+    [savedDraft, draft],
   )
   const dirty = changes.length > 0
 
@@ -179,14 +179,14 @@ export function LifetimeView() {
     shownInput && shownPhaseIndex >= 0 ? shownInput.phases[shownPhaseIndex] : null
 
   /**
-   * Mở trình sửa kịch bản, tuỳ chọn mở SẴN một form con.
+   * Mở trình sửa kịch bản, tuỳ chọn nhắm sẵn vào một mốc.
    *
    * Mọi đường vào trình sửa đi qua đây thay vì gọi `setEditorOpen(true)` rải rác: bốn
-   * chỗ gọi mà chỉ một chỗ nhớ dọn `editorEntry` là lần mở SAU đó bật lên một form con
-   * người dùng không hề bấm — form của lần mở TRƯỚC còn sót lại trong state.
+   * chỗ gọi mà chỉ một chỗ nhớ dọn `editorFocusEventId` là lần mở SAU đó cuộn tới một
+   * mốc người dùng không hề bấm — mốc của lần mở TRƯỚC còn sót lại trong state.
    */
-  function openEditor(entry?: EditorInitialSheet) {
-    setEditorEntry(entry)
+  function openEditor(focusEventId?: string) {
+    setEditorFocusEventId(focusEventId)
     setEditorOpen(true)
   }
 
@@ -228,8 +228,16 @@ export function LifetimeView() {
     ])
   }
 
-  async function handleCommit() {
-    if (!savedDraft || !draft || saving) return
+  /**
+   * Ghi nháp vào kịch bản. Trả về `true` khi ĐÃ ghi xong.
+   *
+   * Trả về boolean chứ không `void`: trình sửa kịch bản đóng drawer sau khi lưu, mà chỉ
+   * khi lưu THÀNH CÔNG — lỗi mạng thì phải để drawer mở với nguyên bản nháp, chứ không
+   * đóng lại và bỏ người dùng trước một trang trông như đã lưu. Thanh nháp đầu trang bỏ
+   * qua giá trị này (nó không đóng gì cả).
+   */
+  async function handleCommit(): Promise<boolean> {
+    if (!savedDraft || !draft || saving) return false
     setSaving(true)
     try {
       await commitDraft({ saved: savedDraft, draft, afterWrite: refreshTree })
@@ -238,10 +246,12 @@ export function LifetimeView() {
       setDraft(null)
       setEditingEventId(null)
       showToast('Đã lưu vào kịch bản.', 'success')
+      return true
     } catch (err) {
       // KHÔNG dọn nháp khi lỗi: người dùng vừa mất một lượt vặn, bắt họ làm lại từ đầu
       // là phạt họ vì mạng hỏng.
       showToast(err instanceof Error ? err.message : 'Không lưu được.', 'error')
+      return false
     } finally {
       setSaving(false)
     }
@@ -331,9 +341,9 @@ export function LifetimeView() {
     return inPhases + inEvents
   }, [active, phases, events])
 
-  // Tỷ giá "hôm nay" cho thư viện mẫu — cùng nguồn và cùng luật với ScenarioEditorSheet:
-  // tra được thì dùng, không tra được thì để 1 và banner ở trên bắt ngay. Sai một cách
-  // nhìn thấy được, không sai âm thầm (xem `fxForEvent` trong presets.ts).
+  // Tỷ giá "hôm nay" cho thư viện mẫu — tra được thì dùng, không tra được thì để 1 và
+  // banner cảnh báo ở trên bắt ngay. Sai một cách nhìn thấy được, không sai âm thầm
+  // (xem `fxForEvent` trong presets.ts).
   const ratesQ = useQuery({
     queryKey: ['lifetime-rates-for', active?.display_currency],
     queryFn: () => fetchRates(active?.display_currency as CurrencyCode),
@@ -557,7 +567,7 @@ export function LifetimeView() {
         <p className="text-xs text-fg-secondary">
           Kịch bản chưa có chặng thu chi nào nên chưa chiếu được gì.
         </p>
-        <ActionButton onClick={() => openEditor({ kind: 'phase-new' })} className="mt-2">
+        <ActionButton onClick={() => openEditor()} className="mt-2">
           Thêm chặng
         </ActionButton>
       </Card>
@@ -655,6 +665,18 @@ export function LifetimeView() {
         </div>
 
         <div className="flex shrink-0 items-start gap-2">
+          {/* "Sửa kịch bản" đứng NGAY CẠNH dải chip, không nằm khuất trong panel Giả
+              định: nó là đường vào chính của trình sửa, mà panel đó trên màn hẹp nằm sau
+              cả đồ thị và bốn thẻ kết luận. `disabled` khi thiếu profile — trình sửa lấy
+              năm sinh từ đó, thiếu thì nó thành ngõ cụt (nút Lưu tắt vĩnh viễn). */}
+          <ActionButton
+            onClick={() => openEditor()}
+            disabled={!profile}
+            className="whitespace-nowrap"
+          >
+            <Pencil className="h-4 w-4" aria-hidden="true" />
+            Sửa kịch bản
+          </ActionButton>
           <ActionButton
             onClick={() => void duplicateActiveScenario()}
             disabled={duplicatingScenario}
@@ -679,7 +701,7 @@ export function LifetimeView() {
             shownRows.length > 0 ? shownRows[shownRows.length - 1].assetsEndMinor : null
           }
           currency={currency}
-          onCommit={() => void handleCommit()}
+          onCommit={handleCommit}
           onSaveAsNew={() => void handleSaveAsNew()}
           onDiscard={() => {
             setDraft(null)
@@ -806,7 +828,7 @@ export function LifetimeView() {
             rows={shownRows}
             currency={currency}
             scenarioName={active.name}
-            onEditEvent={(eventId) => openEditor({ kind: 'event-edit', eventId })}
+            onEditEvent={(eventId) => openEditor(eventId)}
           />
         </div>
 
@@ -875,31 +897,67 @@ export function LifetimeView() {
           // đóng nhầm lớp và nền mờ tô hai lần.
           onEditEvent={(eventId) => {
             setTableOpen(false)
-            openEditor({ kind: 'event-edit', eventId })
+            openEditor(eventId)
           }}
           onClose={() => setTableOpen(false)}
         />
       )}
 
-      {/* Trình sửa kịch bản — mở từ link "Sửa kịch bản" trong panel Giả định hoặc từ
-          banner cảnh báo tỷ giá. `profile` + ba giá trị tài sản ròng truyền XUỐNG chứ
-          không để sheet tự gọi `useLifetime()` lần hai. */}
-      {editorOpen && active && profile && (
-        <ScenarioEditorSheet
-          // `key`: sheet khởi tạo MỌI ô của khối 1 bằng `useState(scenario.*)`, tức chỉ
-          // đọc một lần lúc gắn. `active` có thể đổi danh tính trong lúc sheet đang mở —
-          // không có `key` thì React DÙNG LẠI instance cũ và lần lưu kế tiếp ghi số cũ
-          // lên kịch bản mới.
+      {/* Trình sửa kịch bản — drawer bên phải. Mở từ nút "Sửa kịch bản" ở hàng hành
+          động, từ link trong panel Giả định, từ banner cảnh báo tỷ giá, hoặc từ một chip
+          mốc trên đồ thị / trong Bảng theo năm.
+
+          Bản nháp và bản chiếu truyền XUỐNG chứ không để drawer tự dựng: đồ thị, thẻ kết
+          luận và thanh nháp ở trên đọc CÙNG bản nháp đó, và một bản thứ hai (kèm cả một
+          bản chiếu 60 năm tính song song) là hai chỗ nói hai chuyện về một kịch bản. */}
+      {editorOpen && active && profile && savedDraft && working && (
+        <ScenarioEditorDrawer
+          // `key`: drawer giữ vài state khởi tạo MỘT LẦN lúc gắn (năm sinh đang gõ, mốc
+          // cần cuộn tới). `active` có thể đổi danh tính trong lúc drawer đang mở — không
+          // có `key` thì React DÙNG LẠI instance cũ, và ô năm sinh còn giữ chuỗi của
+          // kịch bản trước.
           key={active.id}
           scenario={active}
           scenarios={scenarios}
-          phases={phases}
-          events={events}
+          phaseRows={phases}
+          eventRows={events}
           profile={profile}
           netWorth={netWorth}
           netWorthReliable={netWorthReliable}
           netWorthLoading={netWorthLoading}
-          initialSheet={editorEntry}
+          saved={savedDraft}
+          working={working}
+          changes={changes}
+          rows={shownRows}
+          savedRows={baselineRows}
+          currentYear={currentYear}
+          onEdit={editDraft}
+          onCommit={handleCommit}
+          onDiscard={() => {
+            setDraft(null)
+            setEditingEventId(null)
+            showToast('Đã bỏ thay đổi.', 'success')
+          }}
+          saving={saving}
+          onSelectScenario={setActiveId}
+          refreshTree={refreshTree}
+          presetChips={
+            <PresetPanel
+              variant="inline"
+              buildCtx={buildPresetCtx}
+              defaultYear={currentYear + 2}
+              currency={currency}
+              onAdd={(preset, result) => {
+                const seed = ++presetSeed.current
+                editDraft((d) => applyPreset(d, result, seed))
+                showToast(
+                  `Đã thêm "${preset.label}" vào năm ${currentYear + 2} — kéo chip trên đồ thị tới đúng năm.`,
+                  'success',
+                )
+              }}
+            />
+          }
+          focusEventId={editorFocusEventId}
           onClose={() => setEditorOpen(false)}
         />
       )}

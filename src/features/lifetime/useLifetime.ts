@@ -33,13 +33,13 @@ import {
 } from './project'
 
 /** Đủ trùm MAX_MONTHS (12) của suggestBaseline kể cả tháng lệch ngày.
- *  Export vì `ScenarioEditorSheet` cũng nạp giao dịch cho `suggestBaseline` — hai
+ *  Export vì `ScenarioEditorDrawer` cũng nạp giao dịch cho `suggestBaseline` — hai
  *  chỗ mà hai hằng số thì một ngày nào đó chúng lệch nhau và khối "Số này ở đâu ra"
  *  báo một con số khác con số đã dùng để tạo kịch bản. */
 export const BASELINE_LOOKBACK_DAYS = 366
 
 /** Khoảng ngày cần nạp cho `suggestBaseline`, tính từ `todayISO`. Dùng chung với
- *  `ScenarioEditorSheet` — xem `BASELINE_LOOKBACK_DAYS`. */
+ *  `ScenarioEditorDrawer` — xem `BASELINE_LOOKBACK_DAYS`. */
 export function baselineRange(todayISO: string): { start: string; end: string } {
   return { start: addDaysISO(todayISO, -BASELINE_LOOKBACK_DAYS), end: addDaysISO(todayISO, 1) }
 }
@@ -250,7 +250,7 @@ export function useLifetime() {
    * thông báo cũng im: không một bề mặt nào nói cho người dùng biết chuyện gì đã xảy ra.
    *
    * Nên: làm mới cache trong `finally` GATED theo "dòng kịch bản đã vào DB chưa" (cùng
-   * khuôn `EventFormSheet.handlePickPreset` và `ScenarioEditorSheet.handleDuplicate`), và
+   * khuôn `ScenarioEditorDrawer.handleDuplicate`), và
    * `setActiveId` luôn — kịch bản thiếu chặng vẫn phải hiện ra ở dải chip để người dùng
    * mở trình sửa mà thêm chặng hoặc xoá nó đi.
    */
@@ -287,7 +287,7 @@ export function useLifetime() {
       // Đáng tin → dùng tài sản ròng hiện tại (cùng đơn vị `currency` = profile.base_currency,
       // khớp `display_currency` mới tạo nên không cần quy đổi). Không đáng tin (thiếu tỷ giá,
       // hoặc chưa tải xong) → 0, KHÔNG được điền một số thiếu rồi im lặng — LifetimePage hiện
-      // dòng chữ giải thích khi `!netWorthReliable` (xem ScenarioEditorSheet, Task 11, để sửa lại).
+      // dòng chữ giải thích khi `!netWorthReliable` (xem ScenarioEditorDrawer, để sửa lại).
       const scenario = await createScenario.mutateAsync({
         name: 'Kịch bản của tôi',
         display_currency: currency,

@@ -20,17 +20,22 @@ interface Props {
   defaultYear: number
   currency: CurrencyCode
   onAdd: (preset: { id: string; label: string }, result: PresetResult) => void
+  /**
+   * 'card' (mặc định) = khối riêng trong cột Giả định ngoài trang.
+   * 'inline' = chỉ DẢI CHIP, không thẻ không tiêu đề — dùng trong mục "Mốc cuộc đời" của
+   * trình sửa kịch bản, nơi tiêu đề mục đã nói nó là gì và một thẻ lồng trong thẻ chỉ
+   * thêm một tầng viền.
+   *
+   * Một prop chứ hai component: chính ĐÁM CHIP mới là phần đáng dùng chung (nó tính
+   * trước tổng thu/chi của từng mẫu để chip không chỉ có tên), và chép nó ra chỗ thứ hai
+   * là hai bảng mẫu trôi lệch — đúng thứ JSDoc `applyPreset` cảnh báo.
+   */
+  variant?: 'card' | 'inline'
 }
 
-export function PresetPanel({ buildCtx, defaultYear, currency, onAdd }: Props) {
-  return (
-    <Card as="section" elevation="panel" padding="panel">
-      <h2 className="text-2xs uppercase tracking-[.1em] text-fg-muted">Thêm mốc cuộc đời</h2>
-      <Guide className="mt-1 text-2xs leading-relaxed text-fg-muted">
-        Bấm một mẫu để thêm vào bản nháp ở năm {defaultYear} — rồi kéo chip trên đồ thị tới
-        đúng năm, bấm chip để sửa số. Chưa có gì được ghi cho tới khi bấm Lưu.
-      </Guide>
-      <div className="mt-2 flex flex-wrap gap-2">
+export function PresetPanel({ buildCtx, defaultYear, currency, onAdd, variant = 'card' }: Props) {
+  const chips = (
+    <div className={variant === 'card' ? 'mt-2 flex flex-wrap gap-2' : 'flex flex-wrap gap-1.5'}>
         {LIFE_PRESETS.map((p) => {
           const result = p.build(buildCtx(defaultYear))
           // Tổng chi/thu của mẫu ở năm đầu — cho người dùng biết TRƯỚC khi bấm là mẫu
@@ -66,7 +71,28 @@ export function PresetPanel({ buildCtx, defaultYear, currency, onAdd }: Props) {
             </button>
           )
         })}
-      </div>
+    </div>
+  )
+
+  if (variant === 'inline') {
+    return (
+      <>
+        <p className="mb-1.5 text-3xs uppercase tracking-[.08em] text-fg-disabled">
+          Thêm nhanh từ mẫu
+        </p>
+        {chips}
+      </>
+    )
+  }
+
+  return (
+    <Card as="section" elevation="panel" padding="panel">
+      <h2 className="text-2xs uppercase tracking-[.1em] text-fg-muted">Thêm mốc cuộc đời</h2>
+      <Guide className="mt-1 text-2xs leading-relaxed text-fg-muted">
+        Bấm một mẫu để thêm vào bản nháp ở năm {defaultYear} — rồi kéo chip trên đồ thị tới
+        đúng năm, bấm chip để sửa số. Chưa có gì được ghi cho tới khi bấm Lưu.
+      </Guide>
+      {chips}
     </Card>
   )
 }

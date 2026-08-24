@@ -109,8 +109,17 @@ describe('formatCompact — JPY dùng hệ 万/億', () => {
   it('dưới 1万 in nguyên chữ số, KHÔNG còn bậc k', () => {
     expect(formatCompact(0, 'JPY')).toBe('0')
     expect(formatCompact(500, 'JPY')).toBe('500')
-    expect(formatCompact(8_000, 'JPY')).toBe('8000')
-    expect(formatCompact(9_999, 'JPY')).toBe('9999')
+    expect(formatCompact(8_000, 'JPY')).toBe('8,000')
+    expect(formatCompact(9_999, 'JPY')).toBe('9,999')
+  })
+
+  // Nhãn này đứng cạnh những con số đi qua `formatMoney`, mà bên đó nhóm từ đầu. Một cột
+  // ghi "1200" nằm ngay dưới một dòng ghi "¥25,862" đọc ra như hai hệ chữ số khác nhau.
+  it('nhánh nguyên chữ số vẫn có dấu phân cách nghìn, đúng ký tự của loại tiền', () => {
+    expect(formatCompact(1_200, 'JPY')).toBe('1,200')
+    expect(formatCompact(-1_800, 'JPY')).toBe('-1,800')
+    // VND nhóm bằng dấu chấm, và dưới 1.000 thì không có gì để nhóm.
+    expect(formatCompact(999, 'VND')).toBe('999')
   })
 
   it('bỏ đuôi ".0" khi chẵn, y như bậc M/B', () => {
@@ -122,7 +131,7 @@ describe('formatCompact — JPY dùng hệ 万/億', () => {
   it('giữ dấu âm ở cả ba bậc', () => {
     expect(formatCompact(-300_000, 'JPY')).toBe('-30万')
     expect(formatCompact(-250_000_000, 'JPY')).toBe('-2.5億')
-    expect(formatCompact(-8_000, 'JPY')).toBe('-8000')
+    expect(formatCompact(-8_000, 'JPY')).toBe('-8,000')
   })
 
   // 万/億 là quy ước đọc số của tiếng Nhật, gắn vào ĐỒNG YÊN chứ không vào cái trục

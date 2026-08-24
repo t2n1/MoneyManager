@@ -266,7 +266,7 @@ describe('labelThreshold — nhãn số theo BỀ RỘNG cột (B43)', () => {
   it('万 bắt đầu đúng ở 10.000, dưới đó in nguyên chữ số (B43.1)', () => {
     // Dùng lại formatCompact chứ không viết bản thứ hai: nó đã theo đúng luật này.
     // "0.1万" xoá hết chữ số có nghĩa của ¥980; "31,000" thì rộng gấp đôi "3.1万".
-    expect(formatCompact(9_999, 'JPY')).toBe('9999')
+    expect(formatCompact(9_999, 'JPY')).toBe('9,999')
     expect(formatCompact(10_000, 'JPY')).toBe('1万')
     expect(formatCompact(31_000, 'JPY')).toBe('3.1万')
   })

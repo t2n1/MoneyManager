@@ -424,19 +424,45 @@ export function DailySpendPanel({
               )}
             </div>
 
-            <div className="relative min-w-0 flex-1">
-              {typical > 0 && (
+            <div className="min-w-0 flex-1">
+              {/* Hai nhãn chú NẰM NGOÀI vùng vẽ, trên một hàng riêng cao đúng 0,875rem.
+                  Trước đây chúng đặt `absolute top-3.5` bên TRONG khung, và hỏng ở đúng ca
+                  chúng sinh ra để phục vụ: một cột cao gần chạm mức cắt có nhãn số nằm sát
+                  mép trên, tức rơi trúng dải mà nhãn chú chiếm. Nền `bg-surface` của nhãn
+                  chú xén mất phần dưới con số, chừa lại vài pixel đầu — đọc ra như lỗi vẽ.
+                  Ra khỏi khung thì không cột nào với tới, và không cần nền che nữa. */}
+              <div className="mb-0.5 flex h-3.5 items-baseline justify-between gap-2 font-mono text-3xs">
+                {/* B42.3: nói CẢ HAI số. Không có câu này thì một cột chỉ cao tới mép mà
+                    nhãn ghi 12.5万 đọc ra như lỗi vẽ. */}
+                {ceiling > 0 && peak.total > ceiling ? (
+                  <span className="truncate text-state-bad-fg">
+                    cắt ở {formatCompact(ceiling, base)} · {dayLabel(peak.date)} là{' '}
+                    <Money amount={peak.total} currency={base} approx={approx} />
+                  </span>
+                ) : (
+                  <span />
+                )}
+                {future.length > 0 && typical > 0 && (
+                  <span className="hidden shrink-0 text-fg-muted md:inline">
+                    {daySpanLabel(future[0].date, future[future.length - 1].date)} · dự phóng
+                    theo nhịp, chưa xảy ra
+                  </span>
+                )}
+              </div>
+
+              <div className="relative">
+                {typical > 0 && (
+                  <span
+                    className="absolute inset-x-0 border-t border-dashed border-border-strong"
+                    style={{ bottom: `calc(${NEG_PCT}% + ${pctOf(typical) * POS_PCT}%)` }}
+                    aria-hidden
+                  />
+                )}
                 <span
-                  className="absolute inset-x-0 border-t border-dashed border-border-strong"
-                  style={{ bottom: `calc(${NEG_PCT}% + ${pctOf(typical) * POS_PCT}%)` }}
+                  className="absolute inset-x-0 border-t border-border-strong"
+                  style={{ bottom: `${NEG_PCT}%` }}
                   aria-hidden
                 />
-              )}
-              <span
-                className="absolute inset-x-0 border-t border-border-strong"
-                style={{ bottom: `${NEG_PCT}%` }}
-                aria-hidden
-              />
 
               {/* Hình vẽ là `aria-hidden`: nội dung của nó nói bằng chữ ở câu kết luận và ở
                   danh sách "ba ngày đáng hỏi" dưới đây, đầy đủ hơn cả hình. */}
@@ -555,20 +581,7 @@ export function DailySpendPanel({
                 />
               )}
 
-              {/* B42.3: nói CẢ HAI số. Không có câu này thì một cột chỉ cao tới mép mà số
-                  ghi 12.5万 đọc ra như lỗi vẽ. */}
-              {ceiling > 0 && peak.total > ceiling && (
-                <span className="absolute left-0 top-3.5 bg-surface px-1 font-mono text-3xs text-state-bad-fg">
-                  cắt ở {formatCompact(ceiling, base)} · {dayLabel(peak.date)} là{' '}
-                  <Money amount={peak.total} currency={base} approx={approx} />
-                </span>
-              )}
-              {future.length > 0 && typical > 0 && (
-                <span className="absolute right-0 top-3.5 hidden bg-surface px-1 font-mono text-3xs text-fg-muted md:inline">
-                  {daySpanLabel(future[0].date, future[future.length - 1].date)} · dự phóng theo
-                  nhịp, chưa xảy ra
-                </span>
-              )}
+              </div>
             </div>
 
             {/* Hai cột rỗng đúng bề rộng cột `tổng` và `trần` của dải nhãn. Không có chúng

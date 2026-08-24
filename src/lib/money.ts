@@ -72,7 +72,27 @@ function formatCompactReal(minor: number, currency: CurrencyCode): string {
   if (abs >= 1_000_000_000) return `${(major / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`
   if (abs >= 1_000_000) return `${(major / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
   if (abs >= 1_000) return `${Math.round(major / 1_000)}k`
-  return String(Math.round(major))
+  return groupInt(Math.round(major), currency)
+}
+
+/**
+ * Số nguyên có DẤU PHÂN CÁCH NGHÌN, đúng ký tự của loại tiền (¥1,200 · 1.200 ₫).
+ *
+ * Vì sao nhánh "in nguyên chữ số" của nhãn rút gọn cũng phải nhóm: nhãn này đứng CẠNH
+ * những con số đi qua `formatMoney`, mà bên đó nhóm từ đầu. Một cột ghi "1200" nằm ngay
+ * dưới một dòng ghi "¥25,862" đọc ra như hai hệ chữ số khác nhau, và ở mốc bốn chữ số
+ * thì mắt phải dừng lại đếm — đúng việc mà dấu phân cách sinh ra để khỏi phải làm.
+ *
+ * KHÔNG rộng thêm bao nhiêu: chuỗi dài nhất của nhánh này là "9,999" — đo ở IBM Plex Mono
+ * 11px ra 30px, vẫn trong `width={44}` mà ba biểu đồ dùng nhãn này đóng cứng.
+ *
+ * Nhóm trên phần TRỊ TUYỆT ĐỐI rồi mới gắn dấu: `groupThousands` chèn theo `\B`, nên đưa
+ * thẳng "-1200" vào sẽ ra "-1,200" ở đây nhưng phụ thuộc vào chỗ dấu trừ nằm đâu — tách ra
+ * là không phải tin vào điều đó.
+ */
+function groupInt(value: number, currency: CurrencyCode): string {
+  const g = groupThousands(String(Math.abs(value)), CURRENCIES[currency].group)
+  return value < 0 ? `-${g}` : g
 }
 
 /**
@@ -83,7 +103,7 @@ function formatCompactReal(minor: number, currency: CurrencyCode): string {
  * theo 万, nên "¥300k" bắt người xem tự đổi trong đầu còn "30万" thì đọc thẳng ra.
  * Sai một bậc ở đây không phải nhầm nhãn mà là nhầm mười lần số tiền.
  *
- * KHÔNG có bậc nghìn: 万 là bậc rút gọn đầu tiên, dưới nó in nguyên chữ số ("8000").
+ * KHÔNG có bậc nghìn: 万 là bậc rút gọn đầu tiên, dưới nó in nguyên chữ số ("8,000").
  * Ghép thêm "8千" là trộn hai hệ đếm trên cùng một trục, mà 千 thì người Nhật cũng
  * không dùng để nói tiền.
  *
@@ -93,7 +113,7 @@ function formatCompactReal(minor: number, currency: CurrencyCode): string {
 function formatCompactJa(major: number, abs: number): string {
   if (abs >= 100_000_000) return `${trimJa(major / 100_000_000)}億`
   if (abs >= 10_000) return `${trimJa(major / 10_000)}万`
-  return String(Math.round(major))
+  return groupInt(Math.round(major), 'JPY')
 }
 
 /**

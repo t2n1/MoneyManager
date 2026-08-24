@@ -1,6 +1,11 @@
 // Đọc kết luận từ YearRow[]. THUẦN. Bốn câu hỏi của người dùng đều đọc từ cùng
 // một mảng — không chỗ nào tính lại theo công thức riêng.
-import { projectLifetime, type LifetimeInput, type YearRow } from './project'
+import {
+  convertLifetimeMinor,
+  projectLifetime,
+  type LifetimeInput,
+  type YearRow,
+} from './project'
 
 /** Quy tắc 4%: tài sản × SWR đủ trả chi phí năm thì coi như tự do tài chính. */
 export const DEFAULT_SWR_BPS = 400
@@ -85,4 +90,75 @@ export function minimumReturnBps(input: LifetimeInput): number | null {
 export function compareAtEnd(a: YearRow[], b: YearRow[]): number | null {
   if (a.length === 0 || b.length === 0) return null
   return a[a.length - 1].assetsEndMinor - b[b.length - 1].assetsEndMinor
+}
+
+/**
+ * Để dành thêm BAO NHIÊU mỗi năm thì đạt tự do tài chính không muộn hơn `targetYear`.
+ * Đơn vị: minor units của `displayCurrency`. `null` = không tới được, dù cắt hết chi.
+ *
+ * Đây là con số DUY NHẤT trên màn Tương lai mà người dùng hành động được ngay: mọi
+ * thứ khác nói "chuyện gì sẽ xảy ra", cái này nói "làm gì thì khác đi". Vì vậy nó trả
+ * về một khoản TIỀN chứ không phải một tỷ lệ phần trăm — "để dành thêm 4% thu nhập"
+ * còn phải nhân nhẩm mới ra việc phải làm.
+ *
+ * Cắt vào CHI của mọi chặng (không phải chỉ chặng đang chạy): mốc FIRE nằm ở hai ba
+ * chục năm nữa, nên tiết kiệm chỉ trong chặng hiện tại rồi tiêu như cũ suốt phần đời
+ * còn lại thì con số ra sẽ nhỏ hơn thực tế phải làm — tức là hứa hão.
+ *
+ * Biên trên của phép dò là 90% chi của chặng TIẾT KIỆM NHẤT — suy từ dữ liệu, không
+ * gõ cứng (một con số hợp với ¥ thì sai 5000 lần với ₫). Hai chi tiết trong biên đó
+ * đều là bắt buộc, không phải cho chắc:
+ * - chặng NHỎ NHẤT, vì phép cắt áp ĐỀU lên mọi chặng: cắt quá chi của chặng nghèo
+ *   nhất thì chặng đó bị kẹp về 0, và từ đó "để dành thêm 1 đồng nữa" không còn đổi
+ *   gì — phép dò nhị phân mất tính đơn điệu mà nó dựa vào.
+ * - 90% chứ không 100%, vì `fireYear` BỎ QUA năm có chi bằng 0 ("không có chi phí thì
+ *   mốc này vô nghĩa"). Cắt sạch chi thì mọi năm đều bị bỏ qua và hàm trả về "không
+ *   bao giờ đạt" đúng ở đầu mút đáng ra dễ đạt nhất — biên trên hoá ra vô dụng.
+ */
+export function extraSavingsForFire(input: LifetimeInput, targetYear: number): number | null {
+  const phaseExpensesDisplay = input.phases.map((p) =>
+    convertLifetimeMinor(
+      p.annualExpenseMinor,
+      p.currency,
+      input.displayCurrency,
+      p.fxToDisplay,
+    ),
+  )
+  const duong = phaseExpensesDisplay.filter((v) => v > 0)
+  if (duong.length !== phaseExpensesDisplay.length || duong.length === 0) return null
+  const hi0 = Math.floor(Math.min(...duong) * 0.9)
+  if (hi0 <= 0) return null
+
+  /** `input` với mỗi chặng bị cắt `extraDisplay` khỏi chi, quy về tiền của chặng đó. */
+  const cut = (extraDisplay: number): LifetimeInput => ({
+    ...input,
+    phases: input.phases.map((p) => {
+      // fx 0 thì không có đường quy ngược — bỏ qua chặng đó thay vì chia cho 0 và ra
+      // Infinity. Ca này chỉ xảy ra với dữ liệu hỏng; thà cắt hụt còn hơn ra NaN.
+      const extraInPhase =
+        p.fxToDisplay === 0
+          ? 0
+          : convertLifetimeMinor(extraDisplay, input.displayCurrency, p.currency, 1 / p.fxToDisplay)
+      return { ...p, annualExpenseMinor: Math.max(0, p.annualExpenseMinor - extraInPhase) }
+    }),
+  })
+
+  const reaches = (extraDisplay: number) => {
+    const y = fireYear(projectLifetime(cut(extraDisplay)))
+    return y !== null && y <= targetYear
+  }
+
+  if (!reaches(hi0)) return null
+  if (reaches(0)) return 0
+
+  let lo = 0
+  let hi = hi0
+  // 24 vòng đưa khoảng ¥12.000.000 xuống dưới 1 đồng — thừa cho một con số sẽ được
+  // làm tròn khi hiện lên màn.
+  for (let i = 0; i < 24; i++) {
+    const mid = Math.round((lo + hi) / 2)
+    if (reaches(mid)) hi = mid
+    else lo = mid
+  }
+  return hi
 }

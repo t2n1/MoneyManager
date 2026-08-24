@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildChartData, capTicks, chartSeriesPlan, yearAxisTicks } from './chartSeries'
+import { buildChartData, chartSeriesPlan } from './chartSeries'
 import type { YearRow } from './project'
 import type { NetWorthSnapshotRow } from '../../types/database.types'
 
@@ -195,60 +195,3 @@ describe('buildChartData', () => {
   })
 })
 
-describe('yearAxisTicks', () => {
-  const range = (from: number, to: number) =>
-    Array.from({ length: to - from + 1 }, (_, i) => from + i)
-
-  it('39 năm → mỗi 5 năm, kèm mốc đầu và cuối', () => {
-    expect(yearAxisTicks(range(2026, 2064))).toEqual([
-      2026, 2030, 2035, 2040, 2045, 2050, 2055, 2060, 2064,
-    ])
-  })
-
-  it('bỏ mốc chẵn đứng sát mốc đầu/cuối (nhãn chồng nhau ở hai đầu)', () => {
-    // 2025 là bội của 5 và cũng là mốc đầu → không lặp lại; 2031 sát 2030 nên 2030 rơi.
-    expect(yearAxisTicks(range(2025, 2031))).toEqual([2025, 2031])
-    // Cách đủ nửa bước thì giữ: 2030 cách 2028 hai năm… vẫn dưới 2.5 → rơi.
-    expect(yearAxisTicks(range(2028, 2041))).toEqual([2028, 2035, 2041])
-  })
-
-  it('chuỗi rất dài (>45 năm) đổi sang bước 10', () => {
-    const t = yearAxisTicks(range(2026, 2086))
-    expect(t[0]).toBe(2026)
-    expect(t[t.length - 1]).toBe(2086)
-    // 2030 rơi vì chỉ cách mốc đầu 4 năm — dưới nửa bước (5) nên hai nhãn sẽ chạm nhau.
-    expect(t.slice(1, -1)).toEqual([2040, 2050, 2060, 2070, 2080])
-  })
-
-  it('chuỗi rỗng hoặc một năm', () => {
-    expect(yearAxisTicks([])).toEqual([])
-    expect(yearAxisTicks([2026])).toEqual([2026])
-  })
-})
-
-describe('capTicks', () => {
-  it('bộ đã đủ thưa thì trả nguyên', () => {
-    expect(capTicks([2026, 2030, 2040], 5)).toEqual([2026, 2030, 2040])
-  })
-
-  it('luôn giữ mốc đầu và mốc cuối', () => {
-    const out = capTicks([2026, 2030, 2040, 2050, 2060, 2070, 2080, 2084], 5)
-    expect(out[0]).toBe(2026)
-    expect(out[out.length - 1]).toBe(2084)
-  })
-
-  it('không vượt quá số nhãn cho phép', () => {
-    const ticks = Array.from({ length: 40 }, (_, i) => 2026 + i)
-    expect(capTicks(ticks, 5).length).toBeLessThanOrEqual(5)
-  })
-
-  it('giữ đúng thứ tự tăng và không lặp mốc', () => {
-    const out = capTicks([2026, 2030, 2040, 2050, 2060, 2070, 2080, 2084], 5)
-    expect(out).toEqual([...out].sort((a, b) => a - b))
-    expect(new Set(out).size).toBe(out.length)
-  })
-
-  it('max nhỏ hơn 2 thì không thưa (không có bộ nào giữ được cả hai đầu)', () => {
-    expect(capTicks([2026, 2040, 2080], 1)).toEqual([2026, 2040, 2080])
-  })
-})

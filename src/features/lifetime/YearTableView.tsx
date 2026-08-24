@@ -3,7 +3,8 @@
 // bảng này liệt kê ĐÚNG những con số đã vẽ, dạng đọc được bằng bàn phím/screen reader.
 // Task 7 đã đặt nút mở NGAY DƯỚI đồ thị (không giấu trong menu) — xem LifetimePage.tsx.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { AlertCircle, ArrowDownCircle, ArrowUpCircle, Download, X } from 'lucide-react'
+import { AlertCircle, ArrowDownCircle, ArrowUpCircle, ChevronDown, Download, X } from 'lucide-react'
+import { Card } from '../../components/ui'
 import { downloadTextFile } from '../../lib/download'
 import type { CurrencyCode } from '../../lib/currencies'
 import { formatMoney } from '../../lib/money'
@@ -279,14 +280,29 @@ const RIGHT_ALIGNED = new Set(['Thu', 'Chi', 'Tài sản cuối năm', 'Bi quan'
  * Chân bảng LUÔN nói rõ đang ẩn/hiện bao nhiêu năm — không được giảm mật độ trong im
  * lặng (ràng buộc "không cắt bớt âm thầm" của dự án).
  */
-export function YearTableView({
+/**
+ * THÂN bảng — công tắc lọc, danh sách, chân bảng. Dùng chung cho HAI vỏ:
+ * `YearTableView` (sheet toàn màn, mở từ ô kết luận) và `YearTableSection` (khối gấp mở
+ * trong cột trái). Tách ra vì hai vỏ khác nhau ở đúng phần khung — tiêu đề, nút đóng,
+ * cách cuộn — còn nội dung thì phải giống hệt: hai bảng "theo năm" hiện hai bộ dòng
+ * khác nhau là hai câu trả lời khác nhau cho cùng một câu hỏi.
+ */
+function YearTableBody({
   rows,
   currency,
-  onClose,
   scenarioName,
   focusYear,
   onEditEvent,
-}: Props) {
+  scrollClassName,
+}: {
+  rows: YearRow[]
+  currency: CurrencyCode
+  scenarioName?: string
+  focusYear?: number
+  onEditEvent?: (eventId: string) => void
+  /** Lớp CSS của vùng cuộn — sheet cần `flex-1`, khối inline thì không. */
+  scrollClassName: string
+}) {
   // Bật sẵn "hiện đủ" khi năm cần nhảy tới đang bị bộ lọc mặc định giấu: mở bảng ở một
   // năm KHÔNG có trên màn là dẫn người dùng vào một danh sách trống. Tính MỘT LẦN lúc
   // gắn (hàm khởi tạo của useState) chứ không bằng effect — người dùng tắt công tắc đi
@@ -300,18 +316,6 @@ export function YearTableView({
   })
   const switchLabelId = useId()
 
-  // Đóng bằng Esc — cùng quy ước với lib/dialog.tsx và NotificationBell.tsx (mọi
-  // "sheet"/dialog trong app đều đóng được bằng phím này, không chỉ bằng chuột/chạm).
-  // Component này CHÍNH LÀ bản dự phòng a11y của đồ thị, nên càng không được để người
-  // dùng bàn phím bị kẹt lại trong nó.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
   // Cuộn năm được nhảy tới vào giữa tầm nhìn, MỘT LẦN sau khi bảng đã dựng xong. Ref
   // callback chứ không `document.getElementById`: bảng có hai bản (thẻ ở mobile, <tr> từ
   // sm) nên cùng một năm có thể ứng với hai phần tử, và chỉ phần tử ĐANG ĐƯỢC DỰNG mới
@@ -324,7 +328,7 @@ export function YearTableView({
   useEffect(() => {
     if (focusYear === undefined) return
     // `prefers-reduced-motion` do CSS toàn cục lo (index.css) — `scroll-behavior` là
-    // thuộc tính CSS thật, khác hoạt ảnh JS của Recharts.
+    // thuộc tính CSS thật.
     focusEl.current?.scrollIntoView({ block: 'center' })
   }, [focusYear])
 
@@ -342,6 +346,137 @@ export function YearTableView({
   }
 
   return (
+    <>
+      <div className="flex shrink-0 flex-wrap items-center gap-2 pb-2">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={!showAll}
+          aria-labelledby={switchLabelId}
+          onClick={() => setShowAll((v) => !v)}
+          className="flex min-h-11 items-center gap-2 rounded-md pr-2"
+        >
+          <span
+            className={`block h-6 w-11 shrink-0 rounded-full transition ${
+              !showAll ? 'bg-accent' : 'bg-border-strong'
+            }`}
+          >
+            <span
+              className={`block h-5 w-5 rounded-full bg-surface shadow transition ${
+                !showAll ? 'translate-x-[1.375rem]' : 'translate-x-0.5'
+              }`}
+            />
+          </span>
+          <span id={switchLabelId} className="text-sm font-medium text-fg-primary">
+            Chỉ năm có sự kiện
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleExport}
+          className="ml-auto flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary transition active:scale-95"
+        >
+          <Download className="h-4 w-4" />
+          Xuất CSV
+        </button>
+      </div>
+
+      {/* Nội dung: cuộn dọc. Mobile = thẻ, sm+ = bảng thật trong overflow-x-auto. */}
+      <div className={scrollClassName}>
+        {rows.length === 0 ? (
+          <p className="py-6 text-center text-sm text-fg-muted">Chưa có dữ liệu để hiện.</p>
+        ) : (
+          <>
+            <div className="space-y-2 sm:hidden">
+              {visibleRows.map((r) => (
+                <YearCard
+                  key={r.year}
+                  row={r}
+                  currency={currency}
+                  onEditEvent={onEditEvent}
+                  focused={r.year === focusYear}
+                  focusRef={r.year === focusYear ? (el) => (focusEl.current = el) : undefined}
+                />
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto sm:block">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-fg-muted">
+                    {TABLE_HEADERS.map((h) => (
+                      <th
+                        key={h}
+                        className={`p-1.5 font-medium ${RIGHT_ALIGNED.has(h) ? 'text-right' : ''}`}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleRows.map((r) => (
+                    <YearTableRow
+                      key={r.year}
+                      row={r}
+                      currency={currency}
+                      onEditEvent={onEditEvent}
+                      focused={r.year === focusYear}
+                      focusRef={r.year === focusYear ? (el) => (focusEl.current = el) : undefined}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Chân bảng — BẮT BUỘC nói rõ trạng thái ẩn/hiện, không được im lặng. */}
+      {rows.length > 0 && (
+        <div className="shrink-0 border-t border-border-panel pt-2 text-center text-xs text-fg-muted">
+          <p>
+            {hiddenCount > 0
+              ? `đang ẩn ${hiddenCount} năm không có sự kiện`
+              : `đang hiện đủ ${rows.length} năm`}
+          </p>
+          {/* Nói ra ĐIỀU KIỆN tô đỏ. Không có câu này thì người đọc mặc định gán màu đỏ
+              cho con số to nhất trên dòng ("Tài sản cuối năm"), tức đọc thành "đang âm"
+              trong khi tin thật là "có thể âm ở nhánh xấu" — hai tin khác nhau. */}
+          {hasPessimisticNegative && (
+            <p className="mt-0.5">
+              Dòng tô đỏ = cột <b>Bi quan</b> (biên dưới của dải) xuống dưới 0, không phải tài
+              sản cuối năm âm.
+            </p>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
+export function YearTableView({
+  rows,
+  currency,
+  onClose,
+  scenarioName,
+  focusYear,
+  onEditEvent,
+}: Props) {
+  // Đóng bằng Esc — cùng quy ước với lib/dialog.tsx và NotificationBell.tsx (mọi
+  // "sheet"/dialog trong app đều đóng được bằng phím này, không chỉ bằng chuột/chạm).
+  // Component này CHÍNH LÀ bản dự phòng a11y của đồ thị, nên càng không được để người
+  // dùng bàn phím bị kẹt lại trong nó.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
     <div
       className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center animate-overlay-in"
       onClick={onClose}
@@ -353,13 +488,10 @@ export function YearTableView({
         className="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-surface-page lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-gray-300 dark:bg-gray-700 lg:hidden" />
+        <div className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-border-strong lg:hidden" />
 
-        {/* Header: tiêu đề + đóng */}
         <div className="flex shrink-0 items-center gap-2 p-3 pb-2">
-          <h2 className="flex-1 text-base font-bold text-fg-primary">
-            Bảng theo năm
-          </h2>
+          <h2 className="flex-1 text-base font-bold text-fg-primary">Bảng theo năm</h2>
           <button
             type="button"
             onClick={onClose}
@@ -370,117 +502,67 @@ export function YearTableView({
           </button>
         </div>
 
-        {/* Công tắc lọc + nút xuất CSV */}
-        <div className="flex shrink-0 items-center gap-2 px-3 pb-2">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={!showAll}
-            aria-labelledby={switchLabelId}
-            onClick={() => setShowAll((v) => !v)}
-            className="flex min-h-11 items-center gap-2 rounded-md pr-2"
-          >
-            <span
-              className={`block h-6 w-11 shrink-0 rounded-full transition ${
-                !showAll ? 'bg-accent' : 'bg-gray-300 dark:bg-gray-700'
-              }`}
-            >
-              <span
-                className={`block h-5 w-5 rounded-full bg-white shadow transition ${
-                  !showAll ? 'translate-x-[1.375rem]' : 'translate-x-0.5'
-                }`}
-              />
-            </span>
-            <span id={switchLabelId} className="text-sm font-medium text-fg-primary">
-              Chỉ năm có sự kiện
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleExport}
-            className="ml-auto flex min-h-11 items-center justify-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary transition active:scale-95"
-          >
-            <Download className="h-4 w-4" />
-            Xuất CSV
-          </button>
+        <div className="flex min-h-0 flex-1 flex-col px-3 pb-2">
+          <YearTableBody
+            rows={rows}
+            currency={currency}
+            scenarioName={scenarioName}
+            focusYear={focusYear}
+            onEditEvent={onEditEvent}
+            scrollClassName="min-h-0 flex-1 overflow-y-auto"
+          />
         </div>
-
-        {/* Nội dung: cuộn dọc. Mobile = thẻ, sm+ = bảng thật trong overflow-x-auto. */}
-        <div className="flex-1 overflow-y-auto px-3 pb-2">
-          {rows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-fg-muted">
-              Chưa có dữ liệu để hiện.
-            </p>
-          ) : (
-            <>
-              <div className="space-y-2 sm:hidden">
-                {visibleRows.map((r) => (
-                  <YearCard
-                    key={r.year}
-                    row={r}
-                    currency={currency}
-                    onEditEvent={onEditEvent}
-                    focused={r.year === focusYear}
-                    focusRef={r.year === focusYear ? (el) => (focusEl.current = el) : undefined}
-                  />
-                ))}
-              </div>
-
-              <div className="hidden overflow-x-auto sm:block">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-fg-muted">
-                      {TABLE_HEADERS.map((h) => (
-                        <th
-                          key={h}
-                          className={`p-1.5 font-medium ${RIGHT_ALIGNED.has(h) ? 'text-right' : ''}`}
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleRows.map((r) => (
-                      <YearTableRow
-                        key={r.year}
-                        row={r}
-                        currency={currency}
-                        onEditEvent={onEditEvent}
-                        focused={r.year === focusYear}
-                        focusRef={
-                          r.year === focusYear ? (el) => (focusEl.current = el) : undefined
-                        }
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Chân bảng — BẮT BUỘC nói rõ trạng thái ẩn/hiện, không được im lặng. */}
-        {rows.length > 0 && (
-          <div className="shrink-0 border-t border-border-panel p-2 text-center text-xs text-fg-muted">
-            <p>
-              {hiddenCount > 0
-                ? `đang ẩn ${hiddenCount} năm không có sự kiện`
-                : `đang hiện đủ ${rows.length} năm`}
-            </p>
-            {/* Nói ra ĐIỀU KIỆN tô đỏ. Không có câu này thì người đọc mặc định gán màu
-                đỏ cho con số to nhất trên dòng ("Tài sản cuối năm"), tức đọc thành "đang
-                âm" trong khi tin thật là "có thể âm ở nhánh xấu" — hai tin khác nhau. */}
-            {hasPessimisticNegative && (
-              <p className="mt-0.5">
-                Dòng tô đỏ = cột <b>Bi quan</b> (biên dưới của dải) xuống dưới 0, không phải tài
-                sản cuối năm âm.
-              </p>
-            )}
-          </div>
-        )}
       </div>
     </div>
+  )
+}
+
+/**
+ * Bảng theo năm dạng KHỐI GẤP MỞ trong cột trái, ngay dưới đồ thị.
+ *
+ * Vì sao thêm vỏ thứ hai thay vì giữ mỗi sheet: bảng này là bản đọc-được-bằng-chữ của
+ * đúng cái đồ thị ngay trên nó, và một sheet toàn màn thì CHE MẤT đồ thị — người dùng
+ * không đối chiếu được hai thứ, phải nhớ. Sheet vẫn giữ cho đường vào từ ô kết luận
+ * ("Tự do tài chính 2060" → mở thẳng ở năm 2060), nơi việc cần làm là soi MỘT năm chứ
+ * không phải so bảng với hình.
+ */
+export function YearTableSection({
+  rows,
+  currency,
+  scenarioName,
+  onEditEvent,
+}: {
+  rows: YearRow[]
+  currency: CurrencyCode
+  scenarioName?: string
+  onEditEvent?: (eventId: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Card as="section" elevation="panel" padding="panel">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex min-h-11 w-full items-center gap-1.5 text-left text-2xs uppercase tracking-[.1em] text-fg-muted transition"
+      >
+        Bảng theo năm
+        <ChevronDown
+          className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        />
+      </button>
+      {open && (
+        <div className="mt-2">
+          <YearTableBody
+            rows={rows}
+            currency={currency}
+            scenarioName={scenarioName}
+            onEditEvent={onEditEvent}
+            scrollClassName=""
+          />
+        </div>
+      )}
+    </Card>
   )
 }

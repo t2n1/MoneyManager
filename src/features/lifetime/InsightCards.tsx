@@ -11,7 +11,7 @@
 // phân đúng — tính lại ở component là hai chỗ tính cùng một khái niệm, hai chỗ sẽ trôi
 // lệch nhau theo thời gian).
 import type { ReactNode } from 'react'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, AlertTriangle } from 'lucide-react'
 import { ExplainBox } from '../../components/ExplainBox'
 import { ConclusionLine } from '../../components/VerdictNote'
 import { Card } from '../../components/ui'
@@ -41,6 +41,18 @@ interface Props {
    * Không truyền thì cả bốn ô đứng yên như cũ (`<div>` trơn, không phải nút).
    */
   onJumpToYear?: (year: number) => void
+  /**
+   * Kết luận của lớp phủ Stress test, nếu đang bật cú sốc nào. Đứng NGAY DƯỚI câu kết
+   * luận chính vì nó nói về cùng một thứ — "tiền có đủ không" — chỉ với một giả định xấu
+   * hơn. Để nó nằm mãi dưới cột phải (nơi bật cú sốc) thì hai câu trả lời cho cùng một
+   * câu hỏi nằm cách nhau cả màn hình.
+   */
+  stressNote?: string | null
+  /**
+   * Dòng "Gợi ý: để dành thêm …" — con số DUY NHẤT trên màn mà người dùng hành động
+   * được ngay. Mọi thứ khác nói "chuyện gì sẽ xảy ra", cái này nói "làm gì thì khác đi".
+   */
+  actionLine?: string | null
 }
 
 // Cỡ chữ viết bằng rem (không phải px) vì `--app-font-scale` (Cài đặt → Cỡ chữ) chỉ co
@@ -144,6 +156,8 @@ export function InsightCards({
   currency,
   scenarioName,
   onJumpToYear,
+  stressNote = null,
+  actionLine = null,
 }: Props) {
   // 'low' = biên DƯỚI của dải dao động — đáng lo hơn nhánh trung tâm, xem JSDoc
   // `firstNegativeYear` trong insights.ts (cùng lý do LifetimeChartCard tô đỏ theo biên
@@ -190,6 +204,14 @@ export function InsightCards({
         )}
         {fireClause}
       </ConclusionLine>
+
+      {stressNote && (
+        <p className="mt-1.5 flex items-start gap-1.5 text-xs text-fg-warn">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          {stressNote}
+        </p>
+      )}
+      {actionLine && <p className="mt-1.5 text-xs font-medium text-fg-accent">{actionLine}</p>}
 
       {/* Dưới `sm`: lưới 2×2 có khoảng cách, không kẻ vạch — bốn vạch dọc trên một cột
           hẹp chia màn thành những mảnh 80px. Từ `sm`: một hàng bốn ô ngăn bằng vạch,

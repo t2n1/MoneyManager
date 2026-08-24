@@ -57,6 +57,56 @@ export interface LifetimeInput {
   nominalTerms: boolean
   phases: LifetimePhase[]
   events: LifetimeEvent[]
+  /**
+   * Lớp phủ "chuyện xấu xảy ra thì sao" — KHÔNG thuộc kịch bản, không được lưu.
+   *
+   * Tuỳ chọn và mặc định `undefined`: mọi chỗ gọi cũ (buildInput.ts, useLifetime.ts,
+   * bộ luật thông báo) không truyền gì và chạy y hệt trước. Đây là ràng buộc BẮT
+   * BUỘC chứ không phải tiện tay — `projectLifetime` có 9 symbol phụ thuộc và được
+   * gói vào `supabase/functions/push-notify/_rules.js`, nên đổi chữ ký là đổi cả
+   * chuông báo trong app lẫn chuông báo phía server.
+   */
+  stress?: StressConfig | null
+}
+
+/**
+ * Sáu cú sốc của khối "Stress test". Mỗi cú sốc mang cờ bật RIÊNG chứ không suy từ
+ * giá trị (năm = 0 nghĩa là tắt): người dùng tắt công tắc rồi bật lại phải thấy đúng
+ * năm mình vừa gõ, không phải một ô trống.
+ */
+export interface StressConfig {
+  /** Thu = 0 đúng một năm. */
+  jobloss: { on: boolean; year: number }
+  /** Tài sản mất `dropPct`% NGAY ĐẦU năm `year`, trước khi sinh lời. */
+  crash: { on: boolean; year: number; dropPct: number }
+  /** Một khoản chi bất thường, ĐƠN VỊ HIỂN THỊ (đã quy đổi sẵn). */
+  illness: { on: boolean; year: number; amountDisplayMinor: number }
+  /** Lợi suất về 0 trong `years` năm liên tiếp kể từ `year`. */
+  recession: { on: boolean; year: number; years: number }
+  /** Thu giảm `cutPct`% VĨNH VIỄN từ `year` trở đi. */
+  paycut: { on: boolean; year: number; cutPct: number }
+  /** Chiếu thêm `years` năm quá tuổi cuối của kịch bản. */
+  longevity: { on: boolean; years: number }
+}
+
+/** ID của khoản chi do cú sốc "bệnh nặng" sinh ra — xem `projectLifetime`. */
+export const STRESS_ILLNESS_EVENT_ID = 'stress:illness'
+
+export const NO_STRESS: StressConfig = {
+  jobloss: { on: false, year: 0 },
+  crash: { on: false, year: 0, dropPct: 20 },
+  illness: { on: false, year: 0, amountDisplayMinor: 0 },
+  recession: { on: false, year: 0, years: 5 },
+  paycut: { on: false, year: 0, cutPct: 30 },
+  longevity: { on: false, years: 10 },
+}
+
+/** Có cú sốc nào đang bật không. `null`/`undefined` = không. */
+export function hasStress(s: StressConfig | null | undefined): boolean {
+  if (!s) return false
+  return (
+    s.jobloss.on || s.crash.on || s.illness.on || s.recession.on || s.paycut.on || s.longevity.on
+  )
 }
 
 export interface YearEvent {
@@ -166,8 +216,14 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
 
   if (phases.length === 0) return []
 
+  // `null` khi không cú sốc nào bật — mọi phép thử cú sốc bên dưới rút về một phép so
+  // sánh `stress !== null`, và bản chiếu bình thường không đi qua nhánh nào của khối này.
+  const stress = hasStress(input.stress) ? (input.stress as StressConfig) : null
+
   const sortedPhases = [...phases].sort((a, b) => a.startYear - b.startYear)
-  const lastYear = birthYear + endAge
+  // "Sống thọ hơn dự tính" kéo dài chính bản chiếu, không phải sửa `endAge` của kịch
+  // bản: endAge là dữ liệu đã lưu, còn cú sốc là một câu hỏi "nếu như" không được ghi.
+  const lastYear = birthYear + endAge + (stress?.longevity.on ? stress.longevity.years : 0)
   if (lastYear < currentYear) return []
 
   const inflation = nominalTerms ? inflationBps / 10_000 : 0
@@ -211,6 +267,17 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
       ) * infl,
     )
 
+    // Mất việc và giảm thu đánh vào THU NỀN, sau quy đổi và sau lạm phát: chúng là
+    // "chặng này thu ít đi", không phải một khoản chi thêm. Mất việc thắng giảm thu
+    // trong đúng năm mất việc — nhân 0 với bất cứ tỷ lệ nào cũng vẫn là 0.
+    let stressedIncomeMinor = incomeMinor
+    if (stress) {
+      if (stress.paycut.on && year >= stress.paycut.year) {
+        stressedIncomeMinor = Math.round(stressedIncomeMinor * (1 - stress.paycut.cutPct / 100))
+      }
+      if (stress.jobloss.on && year === stress.jobloss.year) stressedIncomeMinor = 0
+    }
+
     const yearEvents: YearEvent[] = []
     for (const e of events) {
       if (e.startYear > year) continue
@@ -231,6 +298,19 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
       })
     }
 
+    // "Bệnh nặng" đi vào danh sách SỰ KIỆN chứ không cộng lén vào `expenseMinor`:
+    // `expenseMinor` được JSDoc hứa là "chi nền, không gồm sự kiện", và thứ đọc con số
+    // đó (ngưỡng FIRE = 25× chi) sẽ nhảy vọt đúng một năm nếu nhét khoản này vào. Là
+    // một dòng có tên trong tooltip thì người dùng thấy vì sao năm đó tụt.
+    if (stress?.illness.on && year === stress.illness.year) {
+      yearEvents.push({
+        id: STRESS_ILLNESS_EVENT_ID,
+        label: 'Bệnh nặng (stress test)',
+        kind: 'expense',
+        amountDisplayMinor: Math.round(stress.illness.amountDisplayMinor * infl),
+      })
+    }
+
     const eventIncome = yearEvents
       .filter((e) => e.kind === 'income')
       .reduce((s, e) => s + e.amountDisplayMinor, 0)
@@ -238,10 +318,26 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
       .filter((e) => e.kind === 'expense')
       .reduce((s, e) => s + e.amountDisplayMinor, 0)
 
-    const netFlowMinor = incomeMinor + eventIncome - expenseMinor - eventExpense
+    const netFlowMinor = stressedIncomeMinor + eventIncome - expenseMinor - eventExpense
+
+    // Suy thoái = lợi suất về 0 cho CẢ BA nhánh trong cửa sổ của nó. Không phải "trừ
+    // đi mấy phần trăm": ba nhánh vốn khác nhau đúng ở lợi suất, nên trừ đều vẫn còn
+    // một dải rộng — mà cú sốc muốn nói là "năm đó tiền không sinh lời", một trạng
+    // thái duy nhất.
+    const inRecession =
+      stress?.recession.on === true &&
+      year >= stress.recession.year &&
+      year < stress.recession.year + stress.recession.years
+    // Khủng hoảng cắt tài sản NGAY ĐẦU năm, trước khi sinh lời và trước khi cộng dòng
+    // tiền — mất 20% của số dư đang có, không mất 20% của số dư sau khi đã để dành
+    // thêm cả năm.
+    const crashNow = stress?.crash.on === true && year === stress.crash.year
 
     for (let i = 0; i < assets.length; i++) {
-      assets[i] = Math.round(assets[i] * (1 + rates[i])) + netFlowMinor
+      if (crashNow) {
+        assets[i] = Math.round(assets[i] * (1 - (stress as StressConfig).crash.dropPct / 100))
+      }
+      assets[i] = Math.round(assets[i] * (1 + (inRecession ? 0 : rates[i]))) + netFlowMinor
     }
 
     out.push({
@@ -249,7 +345,11 @@ export function projectLifetime(input: LifetimeInput): YearRow[] {
       age: year - birthYear,
       country: phase.country,
       phaseLabel: phase.label,
-      incomeMinor,
+      // Thu ĐÃ trừ cú sốc: dòng "Thu" trong tooltip phải là con số đã dùng để tính ra
+      // đường đang vẽ. In thu nền ở đây thì năm mất việc hiện "Thu ¥6.800.000" bên
+      // cạnh một đường tụt thẳng đứng, và không có gì trên màn giải thích khoảng cách.
+      // Không có cú sốc nào thì đây CHÍNH LÀ `incomeMinor`.
+      incomeMinor: stressedIncomeMinor,
       expenseMinor,
       events: yearEvents,
       netFlowMinor,

@@ -4,6 +4,7 @@ import {
   compareAtEnd,
   fireYear,
   firstNegativeYear,
+  extraSavingsForFire,
   minimumReturnBps,
 } from './insights'
 import { projectLifetime, type LifetimeInput, type YearRow } from './project'
@@ -201,5 +202,97 @@ describe('compareAtEnd', () => {
 
   it('trả null nếu một bên rỗng', () => {
     expect(compareAtEnd(rowsOf(), [])).toBeNull()
+  })
+})
+
+describe('extraSavingsForFire', () => {
+  /** Kịch bản NỀN: chi 4tr/năm, thu 6tr, lợi suất 3% — FIRE ở một mốc xa. */
+  const base: LifetimeInput = {
+    currentYear: 2026,
+    birthYear: 1994,
+    endAge: 90,
+    displayCurrency: 'JPY',
+    startingAssetsMinor: 10_000_000,
+    realReturnBps: 300,
+    bandSpreadBps: 100,
+    inflationBps: 200,
+    nominalTerms: false,
+    phases: [
+      {
+        startYear: 2026,
+        label: 'Nhật',
+        country: 'JP',
+        currency: 'JPY',
+        annualIncomeMinor: 6_000_000,
+        annualExpenseMinor: 4_000_000,
+        fxToDisplay: 1,
+      },
+    ],
+    events: [],
+  }
+
+  it('trả 0 khi mốc đã đạt sẵn, không cần để dành thêm', () => {
+    const dat = fireYear(projectLifetime(base))
+    expect(dat).not.toBeNull()
+    expect(extraSavingsForFire(base, dat as number)).toBe(0)
+  })
+
+  it('số trả về ĐỦ để tới mốc, và bớt đi một chút là hụt', () => {
+    const dat = fireYear(projectLifetime(base)) as number
+    const target = dat - 5
+    const extra = extraSavingsForFire(base, target)
+    expect(extra).not.toBeNull()
+    const chieu = (bot: number) =>
+      fireYear(
+        projectLifetime({
+          ...base,
+          phases: base.phases.map((p) => ({
+            ...p,
+            annualExpenseMinor: p.annualExpenseMinor - bot,
+          })),
+        }),
+      )
+    expect(chieu(extra as number)).toBeLessThanOrEqual(target)
+    // Đây là điều kiện "nhỏ nhất": lùi một đồng là trượt mốc.
+    const thieu = chieu((extra as number) - 1)
+    expect(thieu === null || thieu > target).toBe(true)
+  })
+
+  it('trả null khi mốc quá gần — cắt tới đâu cũng không tới', () => {
+    expect(extraSavingsForFire({ ...base, startingAssetsMinor: 0 }, 2026)).toBeNull()
+  })
+
+  it('trả null khi mọi chặng đều chi 0 (không còn gì để cắt)', () => {
+    const khongChi = {
+      ...base,
+      phases: base.phases.map((p) => ({ ...p, annualExpenseMinor: 0 })),
+    }
+    expect(extraSavingsForFire(khongChi, 2027)).toBeNull()
+  })
+
+  it('cắt theo TIỀN HIỂN THỊ, quy ngược đúng về tiền của từng chặng', () => {
+    // Chặng ₫ với tỷ giá 1₫ = 0,006¥. Cắt 600.000¥ hiển thị phải bằng cắt 100.000.000₫
+    // ở chặng — nếu quy đổi sai chiều thì con số ra sẽ lệch ~28.000 lần.
+    const haiTien: LifetimeInput = {
+      ...base,
+      phases: [
+        {
+          startYear: 2026,
+          label: 'Việt Nam',
+          country: 'VN',
+          currency: 'VND',
+          annualIncomeMinor: 1_000_000_000,
+          annualExpenseMinor: 700_000_000,
+          fxToDisplay: 0.006,
+        },
+      ],
+    }
+    const dat = fireYear(projectLifetime(haiTien)) as number
+    const extra = extraSavingsForFire(haiTien, dat - 3)
+    expect(extra).not.toBeNull()
+    // Cắt hết chi của chặng = 700.000.000₫ × 0,006 = 4.200.000¥ hiển thị. Con số trả
+    // về phải nằm trong khoảng đó, không phải một số lớn hơn hàng nghìn lần.
+    expect(extra as number).toBeGreaterThan(0)
+    expect(extra as number).toBeLessThanOrEqual(4_200_000)
   })
 })

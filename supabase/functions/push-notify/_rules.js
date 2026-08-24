@@ -1059,6 +1059,11 @@ function rhythmRules(input) {
 }
 
 // src/features/lifetime/project.ts
+var STRESS_ILLNESS_EVENT_ID = "stress:illness";
+function hasStress(s) {
+  if (!s) return false;
+  return s.jobloss.on || s.crash.on || s.illness.on || s.recession.on || s.paycut.on || s.longevity.on;
+}
 function convertLifetimeMinor(minor, from, to, fxMajor) {
   if (from === to) return minor;
   const fromMajor = minor / 10 ** CURRENCIES[from].decimals;
@@ -1087,8 +1092,9 @@ function projectLifetime(input) {
     events
   } = input;
   if (phases.length === 0) return [];
+  const stress = hasStress(input.stress) ? input.stress : null;
   const sortedPhases = [...phases].sort((a, b) => a.startYear - b.startYear);
-  const lastYear = birthYear + endAge;
+  const lastYear = birthYear + endAge + (stress?.longevity.on ? stress.longevity.years : 0);
   if (lastYear < currentYear) return [];
   const inflation = nominalTerms ? inflationBps / 1e4 : 0;
   const rates = [realReturnBps, realReturnBps - bandSpreadBps, realReturnBps + bandSpreadBps].map(
@@ -1118,6 +1124,13 @@ function projectLifetime(input) {
         phase.fxToDisplay
       ) * infl
     );
+    let stressedIncomeMinor = incomeMinor;
+    if (stress) {
+      if (stress.paycut.on && year >= stress.paycut.year) {
+        stressedIncomeMinor = Math.round(stressedIncomeMinor * (1 - stress.paycut.cutPct / 100));
+      }
+      if (stress.jobloss.on && year === stress.jobloss.year) stressedIncomeMinor = 0;
+    }
     const yearEvents = [];
     for (const e of events) {
       if (e.startYear > year) continue;
@@ -1135,18 +1148,35 @@ function projectLifetime(input) {
         amountDisplayMinor: Math.round(converted * (e.inflate ? infl : 1))
       });
     }
+    if (stress?.illness.on && year === stress.illness.year) {
+      yearEvents.push({
+        id: STRESS_ILLNESS_EVENT_ID,
+        label: "B\u1EC7nh n\u1EB7ng (stress test)",
+        kind: "expense",
+        amountDisplayMinor: Math.round(stress.illness.amountDisplayMinor * infl)
+      });
+    }
     const eventIncome = yearEvents.filter((e) => e.kind === "income").reduce((s, e) => s + e.amountDisplayMinor, 0);
     const eventExpense = yearEvents.filter((e) => e.kind === "expense").reduce((s, e) => s + e.amountDisplayMinor, 0);
-    const netFlowMinor = incomeMinor + eventIncome - expenseMinor - eventExpense;
+    const netFlowMinor = stressedIncomeMinor + eventIncome - expenseMinor - eventExpense;
+    const inRecession = stress?.recession.on === true && year >= stress.recession.year && year < stress.recession.year + stress.recession.years;
+    const crashNow = stress?.crash.on === true && year === stress.crash.year;
     for (let i = 0; i < assets.length; i++) {
-      assets[i] = Math.round(assets[i] * (1 + rates[i])) + netFlowMinor;
+      if (crashNow) {
+        assets[i] = Math.round(assets[i] * (1 - stress.crash.dropPct / 100));
+      }
+      assets[i] = Math.round(assets[i] * (1 + (inRecession ? 0 : rates[i]))) + netFlowMinor;
     }
     out.push({
       year,
       age: year - birthYear,
       country: phase.country,
       phaseLabel: phase.label,
-      incomeMinor,
+      // Thu ĐÃ trừ cú sốc: dòng "Thu" trong tooltip phải là con số đã dùng để tính ra
+      // đường đang vẽ. In thu nền ở đây thì năm mất việc hiện "Thu ¥6.800.000" bên
+      // cạnh một đường tụt thẳng đứng, và không có gì trên màn giải thích khoảng cách.
+      // Không có cú sốc nào thì đây CHÍNH LÀ `incomeMinor`.
+      incomeMinor: stressedIncomeMinor,
       expenseMinor,
       events: yearEvents,
       netFlowMinor,

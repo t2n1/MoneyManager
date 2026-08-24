@@ -57,6 +57,18 @@ export function signedPct(pct: number | null): string {
 }
 
 /** Tông của một Δ chi tiêu: TĂNG chi là tông chi, giảm chi là tông thu. */
+/**
+ * Tỷ lệ (0,585) → phần trăm làm tròn một chữ số (58,5), để đưa vào `signedPct`.
+ *
+ * `signedPct` cố ý KHÔNG tự làm tròn: chỗ gọi mới biết bao nhiêu chữ số là có nghĩa (bảng
+ * so tháng dùng số nguyên, tỷ suất đầu tư cần một chữ số). Nhưng "một chữ số" là bậc hay
+ * dùng nhất và tự viết `Math.round(x * 1000) / 10` tại chỗ là chỗ dễ lệch bậc — đã có ba
+ * bản chép tay của đúng biểu thức này trong features/assets và features/reports.
+ */
+export function pct1(ratio: number): number {
+  return Math.round(ratio * 1000) / 10
+}
+
 export function deltaTone(pct: number | null): NumTone {
   if (pct === null || pct === 0) return 'muted'
   return pct > 0 ? 'out' : 'in'

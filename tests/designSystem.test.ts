@@ -241,8 +241,25 @@ function stripComments(text: string): string {
  * không nằm trong con số trên" và câu "một khoản mang nhiều nhãn" đều bọc <Guide>, còn chú
  * giải lưới, dòng cam kết cột Tuần và câu B36.2 "đã hứa hết phần còn lại" là dòng số liệu
  * dưới ngưỡng 45 ký tự hoặc không mang class chữ phụ.
+ *
+ * 78 (2026-08-24, dựng lại trang Tài sản theo bản vẽ 2a/2b): +1 SAU KHI đã trừ những chỗ đi.
+ * Đợt này bỏ bốn đoạn (khối thẻ tín dụng gộp lại, chú giải biểu đồ tròn, hai câu nhân đôi
+ * của thẻ Tài sản ròng) và thêm năm, cả năm là CÂU DO SỐ DỰNG RA — cùng loại đã nêu ở lời
+ * ghi 52 và 77, tức phải ở lại vì ẩn chúng là ẩn lý do một con số đang lệch:
+ *
+ *   · `AssetsTrendView` — "ròng sụt X gần như hoàn toàn ở nhóm G, tài khoản A −Y". Bảng ngay
+ *     trên nó in năm dòng Δ; câu này nói dòng nào đang gánh cú sụt. Không có nó thì người
+ *     đọc phải tự so năm con số để tìm ra điều mà `concentrationNote` đã tính.
+ *   · `InvestmentPerformanceSection` ×2 — "chưa quy ra %/năm vì …" và "tính theo LOẠI nên gồm
+ *     退職金 ¥50.000 đang ở nhóm Tiết kiệm, vì vậy lệch đúng ¥50.000 với nhóm Đầu tư". Câu thứ
+ *     hai là chỗ DUY NHẤT trong app giải thích vì sao hai con số cách nhau 300px không khớp.
+ *   · `NetWorthHistorySection`, `InvestmentValueHistorySection` — trạng thái "khoảng đang chọn
+ *     chưa đủ hai mốc, chọn khoảng rộng hơn", tức một màn rỗng CÓ đường đi tiếp.
+ *
+ * Cả năm đều không phải chữ để DẠY, nên bọc <Guide> là sai: <Guide> ẩn ở chế độ Gọn, và ẩn
+ * một câu nói "con số này lệch vì lý do X" là để lại đúng con số lệch mà bỏ mất lý do.
  */
-const PROSE_MAX = 77
+const PROSE_MAX = 78
 
 const FILES = sourceFiles().map((path) => ({
   path,

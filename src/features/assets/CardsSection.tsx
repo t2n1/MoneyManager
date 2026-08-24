@@ -1,299 +1,243 @@
-// Khối "Thẻ tín dụng" của tab Hiện tại — thu gọn mặc định, bấm mới xổ chi tiết.
+// Khối "Thẻ tín dụng" của chế độ Hôm nay — MỘT panel, nói mỗi con số đúng MỘT lần
+// (bản vẽ 2a).
 //
-// Tách khỏi AssetsNowView vì khối này tự gánh hai phép tính riêng (chia kỳ sao kê
-// và đối chiếu nguồn trả) cùng ~170 dòng JSX; để chung thì mỗi lần sửa phải cuộn
-// qua cả phần kéo–thả tài khoản không liên quan.
+// ---- Nó thay cái gì, và vì sao ----------------------------------------------------
 //
-// Vì sao thu gọn: thường ngày chỉ cần biết "kỳ này bị rút bao nhiêu, ngày nào".
-// Chi tiết từng thẻ (nguồn trả, hạn mức, phần chưa chốt) chỉ cần khi sắp tới hạn,
-// mà mở sẵn thì nó đẩy Cơ cấu tài sản và danh sách nhóm xuống rất sâu.
-import { useState } from 'react'
+// Bản trước là một khối thu gọn: bấm mới xổ ra chi tiết từng thẻ. Cái giá của việc thu
+// gọn đo được trên chính sổ này — ba thẻ, cùng một nguồn trả, cùng một ngày rút:
+//
+//   · Con số "Kỳ này ¥396.443" hiện ở dòng thu gọn, rồi hộp "Trả 3 thẻ từ Rakuten Bank"
+//     hiện lại đúng nó dưới tên "Kỳ này 3 thẻ", rồi mở chi tiết ra thì mỗi thẻ lại in
+//     "Kỳ này" của riêng nó ở cỡ 20px — bốn lần cho một ý.
+//   · "Số dư Rakuten Bank ¥410.331" in trong hộp nguồn, và in lại ở dòng tài khoản
+//     Rakuten Bank trong bảng ngay dưới.
+//   · Câu "đủ trả / cần nạp thêm" in ở badge của khối, ở hộp nguồn, VÀ ở từng thẻ.
+//
+// Ba thẻ thì mở ra chỉ cao thêm ~120px — tức cái nút thu gọn tiết kiệm ít hơn phần chữ
+// nó tạo ra để bù cho việc mình đang che thứ gì. Nên: bỏ nút, bỏ mọi bản nhân đôi, và
+// dựng phần chi tiết thành một BẢNG ba cột (kỳ này · chưa chốt · tổng nợ). Bảng nói
+// được đúng ba con số đó cho ba thẻ trong sáu dòng, và có dòng TỔNG ở chân — con số
+// tổng vì thế không cần một khối riêng nữa.
+//
+// Phần "còn bao nhiêu ngày" và "đến hạn ngày nào" KHÔNG còn ở đây: nó lên ô KPI "Phải
+// trả" ở đầu trang (xem KpiStrip). Hạn chót là thứ phải thấy trước khi cuộn.
 import { Link } from 'react-router-dom'
-import { ChevronDown, CreditCard } from 'lucide-react'
-import { Collapse, Money } from '../../components/ui'
-import type { CurrencyCode } from '../../lib/currencies'
-import { dueDateLabel, dueRelativeLabel } from '../../lib/dates'
-import type { Rates } from '../../lib/rates'
-import type { AccountBalanceRow } from '../../types/database.types'
-import { cardFunding, type CardLiability } from './aggregate'
-import { cardsSummary } from './cardsSummary'
+import { CreditCard } from 'lucide-react'
+import { Card, Money, StatusChip } from '../../components/ui'
+import { STATUS_FILL } from '../../components/ui/statusColors'
+import type { CardLiability } from './aggregate'
 import type { MoneyView } from './moneyView'
-import { useCardStatements } from './useCardStatements'
+import type { CardsPanel } from './useCardsPanel'
+
+/** Bốn cột của bảng. rem chứ không px — bề rộng cột phải giãn theo Cỡ chữ (§designSystem). */
+const COLS = 'grid grid-cols-[1fr_auto] gap-x-3 lg:grid-cols-[1fr_7.25rem_7.25rem_8rem]'
 
 interface Props {
   /** Thẻ đã lọc bỏ thẻ ẩn — nơi gọi tự lọc. */
   cards: CardLiability[]
-  /** Số dư mọi tài khoản, để tra tài khoản nguồn trả thẻ. */
-  balances: AccountBalanceRow[]
-  base: CurrencyCode
-  rates: Rates
-  todayISO: string
-  /** Bộ "xem thử bằng tiền khác" của tab Hiện tại — mọi số tiền hiển thị đi qua đây. */
+  /** Kỳ sao kê · phân bổ nguồn trả · tóm tắt, tính ở `useCardsPanel` (một chỗ duy nhất). */
+  panel: CardsPanel
+  /** Bộ "xem thử bằng tiền khác" — mọi số tiền hiển thị đi qua đây. */
   view: MoneyView
 }
 
-export function CardsSection({ cards, balances, base, rates, todayISO, view }: Props) {
-  const [open, setOpen] = useState(false)
-
-  // Chia dư nợ thành kỳ đã chốt (sắp bị rút) và phần chưa chốt
-  const statements = useCardStatements(cards, todayISO)
-  // Đối chiếu tiền trả thẻ: phân bổ số dư nguồn cho các thẻ dùng chung → badge nhất quán.
-  // Đo theo số của KỲ NÀY, vì đó mới là số rời tài khoản vào ngày đến hạn.
-  const cardSources = new Map(
-    balances.map((b) => [
-      b.id,
-      { id: b.id, name: b.name, currency: b.currency, balance: b.balance },
-    ]),
-  )
-  const billedByCard = new Map(
-    [...statements].flatMap(([id, s]) => (s.billed == null ? [] : [[id, s.billed] as const])),
-  )
-  const funding = cardFunding(cards, cardSources, billedByCard)
-  // Chỉ tổng gộp khi ≥2 thẻ chung nguồn và đang thực nợ (dòng "cần nạp thêm")
-  const sharedSources = funding.groups.filter((g) => g.cardCount >= 2 && g.totalOwed > 0)
-  const summary = cardsSummary(cards, statements, funding, base, rates)
-  // Dòng tổng "Kỳ này" theo đồng tiền đang xem (null = chưa phát sinh nợ)
-  const billedView = summary.billedBase == null ? null : view.view(summary.billedBase)
-
-  // Hook phải chạy vô điều kiện nên mới thoát ở đây, không thoát sớm phía trên.
+export function CardsSection({ cards, panel, view }: Props) {
+  const { statements, funding, summary } = panel
   if (cards.length === 0) return null
 
-  return (
-    <section className="rounded-2xl bg-surface p-4 shadow-sm">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="block w-full text-left"
-      >
-        <div className="flex items-center gap-1.5">
-          <CreditCard className="h-3.5 w-3.5 shrink-0 text-fg-muted" />
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
-            Thẻ tín dụng
-          </h2>
-          <span className="shrink-0 rounded-full bg-surface-sunken px-1.5 py-0.5 text-3xs font-medium text-fg-on-track">
-            {cards.length}
-          </span>
-          {/* Badge thiếu tiền phải thấy được cả khi thu gọn: đây là khối DUY NHẤT
-              trên trang có hạn chót, giấu đi thì người dùng lỡ ngày trả. */}
-          {summary.shortCount > 0 && (
-            <span className="ml-auto shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-2xs font-semibold text-state-bad-fg dark:bg-red-900/40">
-              {summary.singleShortfall
-                ? `thiếu ${view.fmt(summary.singleShortfall.amount, summary.singleShortfall.currency)}`
-                : `${summary.shortCount} thẻ thiếu tiền`}
-            </span>
-          )}
-          <ChevronDown
-            className={`h-4 w-4 shrink-0 text-fg-muted transition-transform ${
-              summary.shortCount > 0 ? 'ml-1' : 'ml-auto'
-            } ${open ? 'rotate-180' : ''}`}
-          />
-        </div>
+  // Ba dòng tổng của bảng, cộng theo ĐỒNG TIỀN ĐANG XEM. `summary.billedBase` chỉ có cột
+  // "Kỳ này"; hai cột kia phải tự cộng, và cộng qua `view.view` để một sổ trộn ¥ với ₫
+  // không lặng lẽ cho ra một tổng của hai loại tiền.
+  const tong = cards.reduce(
+    (acc, c) => {
+      const st = statements.get(c.id)
+      const owed = st?.totalOwed ?? 0
+      const billed = st?.billed ?? owed
+      const unbilled = st?.unbilled ?? 0
+      const b = view.view(billed, c.currency)
+      const u = view.view(unbilled, c.currency)
+      const o = view.view(owed, c.currency)
+      return {
+        billed: acc.billed + (b.currency === view.cur ? b.amount : 0),
+        unbilled: acc.unbilled + (u.currency === view.cur ? u.amount : 0),
+        owed: acc.owed + (o.currency === view.cur ? o.amount : 0),
+        // Một thẻ không quy đổi được thì ba cột tổng đều thiếu phần của nó.
+        approx: acc.approx || b.approx || b.currency !== view.cur,
+      }
+    },
+    { billed: 0, unbilled: 0, owed: 0, approx: false },
+  )
 
-        {/* Dòng tổng — con số duy nhất cần khi không mở chi tiết */}
-        <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          {billedView == null ? (
-            <span className="text-sm font-medium text-fg-muted">Chưa phát sinh nợ</span>
-          ) : (
-            <>
-              <span className="text-xs text-fg-muted">Kỳ này</span>
-              <Money
-                amount={billedView.amount}
-                currency={billedView.currency}
-                tone="out"
-                approx={summary.approx || billedView.approx}
-                className="text-xl font-bold"
+  // Câu ở đầu khối chỉ đúng khi CẢ BỘ thẻ dùng một nguồn và một ngày rút — sổ này đúng
+  // như vậy, nhưng câu phải do số quyết định, không viết cứng.
+  const dueDays = new Set(
+    cards.flatMap((c) => {
+      const d = statements.get(c.id)?.dueISO
+      return d ? [d] : []
+    }),
+  )
+  const motMoi =
+    cards.length > 1 &&
+    funding.groups.length === 1 &&
+    funding.groups[0].cardCount === cards.length &&
+    dueDays.size === 1
+
+  return (
+    <Card
+      as="section"
+      elevation="panel"
+      padding="none"
+      className="flex min-w-0 flex-1 flex-col overflow-hidden"
+    >
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border-panel px-4 py-2.5">
+        <CreditCard className="h-3.5 w-3.5 shrink-0 text-fg-muted" aria-hidden />
+        <h2 className="text-2xs uppercase tracking-[.1em] text-fg-muted">Thẻ tín dụng</h2>
+        <span className="shrink-0 rounded-full bg-surface-sunken px-1.5 text-3xs font-medium text-fg-on-track">
+          {cards.length}
+        </span>
+        {motMoi && (
+          <span className="ml-auto text-2xs text-fg-muted">
+            Cả {cards.length} thẻ cùng ngày rút và cùng nguồn trả — ghi một lần ở đây.
+          </span>
+        )}
+      </div>
+
+      {/* Một dòng phủ cho MỖI nguồn trả. Sổ này có một nguồn nên ra đúng bản vẽ; sổ nào
+          trả từ hai bank thì ra hai dòng, thay vì một dòng gộp không nói được nguồn nào
+          đang thiếu. */}
+      {funding.groups.map((g) => {
+        const phu = g.sourceBalance <= 0 ? 0 : Math.min(100, (g.totalOwed / g.sourceBalance) * 100)
+        return (
+          <div
+            key={g.sourceId}
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border-subtle px-4 py-2.5"
+          >
+            <span className="h-1.5 w-full shrink-0 overflow-hidden rounded-full bg-surface-sunken lg:w-[11.25rem]">
+              <span
+                className={`block h-full rounded-full ${g.enough ? STATUS_FILL.good : STATUS_FILL.bad}`}
+                style={{ width: `${phu}%` }}
               />
-              {summary.nextDueISO && (
-                <span className="ml-auto text-xs text-fg-muted">
-                  Đến hạn{' '}
-                  <span className="font-semibold text-fg-primary">
-                    {dueDateLabel(summary.nextDueISO)}
-                  </span>
-                  <span className="text-fg-muted">
-                    {' '}· {dueRelativeLabel(todayISO, summary.nextDueISO)}
-                  </span>
+            </span>
+            <span className="text-xs text-fg-secondary">
+              Rút <Money {...view.view(g.totalOwed, g.currency)} className="font-semibold" /> / số
+              dư {g.sourceName} <Money {...view.view(g.sourceBalance, g.currency)} tone="muted" />
+            </span>
+            <StatusChip tone={g.enough ? 'good' : 'bad'} className="ml-auto shrink-0">
+              {g.enough ? (
+                <>
+                  đủ trả · dư{' '}
+                  <Money
+                    {...view.view(g.sourceBalance - g.totalOwed, g.currency)}
+                    tone="good"
+                  />
+                </>
+              ) : (
+                <>
+                  cần nạp thêm <Money {...view.view(g.shortfall, g.currency)} tone="warn" />
+                </>
+              )}
+            </StatusChip>
+          </div>
+        )
+      })}
+
+      <div
+        className={`${COLS} border-b border-border-subtle px-4 py-1.5 text-3xs font-semibold uppercase tracking-wide text-fg-muted`}
+      >
+        <span>Thẻ</span>
+        <span className="text-right">Kỳ này</span>
+        <span className="hidden text-right lg:block">Chưa chốt</span>
+        <span className="hidden text-right lg:block">Tổng nợ</span>
+      </div>
+
+      {cards.map((c) => {
+        const st = statements.get(c.id)
+        const owed = st?.totalOwed ?? 0
+        const billed = st?.billed ?? null
+        const unbilled = st?.unbilled ?? 0
+        return (
+          <Link
+            key={c.id}
+            to={`/assets/account/${c.id}`}
+            className={`${COLS} items-center border-b border-border-subtle px-4 py-2 text-sm transition hover:bg-surface-sunken`}
+          >
+            <span className="min-w-0 truncate text-fg-secondary">
+              {c.name}
+              {!c.includeInTotals && (
+                <span className="ml-1 text-3xs font-normal text-fg-muted">(ngoài tổng)</span>
+              )}
+              {/* Thẻ thiếu ngày chốt/ngày trả thì không chia được kỳ — cột "Kỳ này" của
+                  nó là TOÀN BỘ dư nợ, và điều đó phải nói ra tại dòng, không để người
+                  đọc cộng ba dòng rồi thắc mắc vì sao không khớp. */}
+              {owed > 0 && billed == null && (
+                <span className="ml-1 text-3xs font-normal text-state-warn-fg">
+                  chưa đặt ngày chốt
                 </span>
               )}
-            </>
-          )}
-        </div>
-      </button>
+            </span>
+            {owed > 0 ? (
+              <Money
+                {...view.view(billed ?? owed, c.currency)}
+                tone="out"
+                className="text-right font-semibold"
+              />
+            ) : (
+              <span className="text-right text-xs text-fg-muted">chưa nợ</span>
+            )}
+            <span className="hidden text-right lg:block">
+              {unbilled > 0 ? (
+                <Money {...view.view(unbilled, c.currency)} tone="muted" />
+              ) : (
+                <span className="text-xs text-fg-muted">—</span>
+              )}
+            </span>
+            <span className="hidden text-right lg:block">
+              <Money {...view.view(owed, c.currency)} tone="neutral" className="font-normal" />
+            </span>
+          </Link>
+        )
+      })}
 
-      {/* Tổng theo ngân hàng nguồn — hiện sẵn cả khi thu gọn: "còn thiếu bao nhiêu
-          sau khi trừ tiền bank" là con số cần biết TRƯỚC khi chuyển tiền, giấu sau
-          một cú bấm thì dễ lỡ. Bấm mở chỉ xổ thêm chi tiết từng thẻ. */}
-      {sharedSources.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {sharedSources.map((g) => (
-            <div
-              key={g.sourceId}
-              className="rounded-xl border border-border-subtle bg-surface-sunken p-3"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-fg-secondary">
-                  Trả {g.cardCount} thẻ từ {g.sourceName}
-                </span>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-semibold ${
-                    g.enough
-                      ? 'bg-green-100 text-state-good-fg dark:bg-green-900/40'
-                      : 'bg-red-100 text-state-bad-fg dark:bg-red-900/40'
-                  }`}
-                >
-                  {g.enough ? 'đủ trả' : `cần nạp thêm ${view.fmt(g.shortfall, g.currency)}`}
-                </span>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-xs text-fg-muted">
-                {/* Đã là tổng KỲ NÀY (cardFunding nhận override billed), không phải nợ gộp */}
-                <span>Kỳ này {g.cardCount} thẻ</span>
-                <span className="tabular-nums font-medium text-money-out">
-                  − {view.fmt(g.totalOwed, g.currency)}
-                </span>
-              </div>
-              <div className="mt-1 flex items-center justify-between text-xs text-fg-muted">
-                <span>Số dư {g.sourceName}</span>
-                <span className="tabular-nums">{view.fmt(g.sourceBalance, g.currency)}</span>
-              </div>
-            </div>
-          ))}
+      <div
+        className={`${COLS} mt-auto items-center border-t border-border-panel bg-surface-chrome px-4 py-2 text-xs`}
+      >
+        <span className="text-fg-muted">Tổng · phần chưa chốt sang kỳ sau</span>
+        <Money
+          amount={tong.billed}
+          currency={view.cur}
+          tone="out"
+          approx={tong.approx || summary.approx}
+          className="text-right font-bold"
+        />
+        <Money
+          amount={tong.unbilled}
+          currency={view.cur}
+          tone="muted"
+          approx={tong.approx}
+          className="hidden text-right lg:block"
+        />
+        <Money
+          amount={tong.owed}
+          currency={view.cur}
+          tone="neutral"
+          approx={tong.approx}
+          className="hidden text-right font-bold lg:block"
+        />
+      </div>
+
+      {/* Dưới lg hai cột kia không có chỗ, nên phần chưa chốt xuống một dòng riêng —
+          bỏ hẳn thì con số "Kỳ này" trông như toàn bộ nợ thẻ. */}
+      {tong.unbilled > 0 && (
+        <div className="flex items-center justify-between border-t border-border-subtle bg-surface-chrome px-4 py-2 text-xs lg:hidden">
+          <span className="text-fg-muted">Chưa chốt · kỳ sau</span>
+          <Money
+            amount={tong.unbilled}
+            currency={view.cur}
+            tone="muted"
+            approx={tong.approx}
+          />
         </div>
       )}
-
-      {/* Chi tiết từng thẻ xổ ra bằng <Collapse> (§12: 0fr→1fr, 160ms). Danh sách này có
-          chặn trên nhỏ — số thẻ tín dụng của một người — nên giữ nó trong DOM lúc đóng là
-          rẻ; xem lưu ý trong Collapse.tsx về chỗ KHÔNG nên dùng. */}
-      <Collapse open={open} className="mt-3">
-          <ul className="space-y-3">
-            {cards.map((c) => {
-              const st = statements.get(c.id)
-              const owed = st?.totalOwed ?? 0 // toàn bộ dư nợ (currency gốc)
-              // Kỳ này = số bị rút vào ngày đến hạn; null khi thẻ chưa đặt ngày chốt/trả
-              const billed = st?.billed ?? null
-              const unbilled = st?.unbilled ?? 0
-              // Hạn mức bị chiếm bởi CẢ phần chưa chốt, nên trừ theo tổng nợ
-              const available = c.creditLimit != null ? c.creditLimit - owed : null
-              // Đối chiếu nguồn trả thẻ (đã phân bổ nếu dùng chung nguồn)
-              const f = funding.byCard.get(c.id)
-              // Ngày đến hạn trả kế tiếp (đã dời T7/CN sang T2)
-              const dueISO = st?.dueISO ?? null
-              // Hai con số nổi bật của thẻ, theo đồng tiền đang xem
-              const mainView = view.view(billed ?? owed, c.currency)
-              const unbilledView = view.view(unbilled, c.currency)
-              return (
-                <li key={c.id}>
-                  <Link
-                    to={`/assets/account/${c.id}`}
-                    className="block rounded-xl px-2 py-2 transition hover:bg-surface-sunken"
-                  >
-                    {/* Tên thẻ + trạng thái đủ/thiếu tiền trả */}
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 shrink-0 text-fg-muted" />
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg-secondary">
-                        {c.name}
-                        {!c.includeInTotals && (
-                          <span className="ml-1 text-3xs font-normal text-fg-muted">
-                            (ngoài tổng)
-                          </span>
-                        )}
-                      </span>
-                      {owed > 0 && f && (
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-semibold ${
-                            f.enough
-                              ? 'bg-green-100 text-state-good-fg dark:bg-green-900/40'
-                              : 'bg-red-100 text-state-bad-fg dark:bg-red-900/40'
-                          }`}
-                        >
-                          {f.enough ? 'đủ trả' : `thiếu ${view.fmt(f.shortfall, c.currency)}`}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Số bị rút kỳ tới (nổi bật) + ngày đến hạn.
-                        Thẻ đủ ngày chốt/trả hiện "Kỳ này" = số thật sự rời tài khoản;
-                        thẻ thiếu ngày không chia được kỳ nên rơi về tổng "Cần trả". */}
-                    <div className="mt-1.5 ml-6 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                      {owed > 0 ? (
-                        <>
-                          <span className="text-xs text-fg-muted">
-                            {billed != null ? 'Kỳ này' : 'Cần trả'}
-                          </span>
-                          <Money
-                            amount={mainView.amount}
-                            currency={mainView.currency}
-                            tone={(billed ?? owed) > 0 ? 'out' : 'neutral'}
-                            approx={mainView.approx}
-                            className="text-xl font-bold"
-                          />
-                        </>
-                      ) : (
-                        <span className="text-sm font-medium text-fg-muted">
-                          Chưa phát sinh nợ
-                        </span>
-                      )}
-                      {owed > 0 && dueISO && (
-                        <span className="ml-auto text-xs text-fg-muted">
-                          Đến hạn{' '}
-                          <span className="font-semibold text-fg-primary">
-                            {dueDateLabel(dueISO)}
-                          </span>
-                          <span className="text-fg-muted">
-                            {' '}· {dueRelativeLabel(todayISO, dueISO)}
-                          </span>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Phần quẹt sau ngày chốt — kỳ sau mới đòi, KHÔNG bị rút lần này */}
-                    {billed != null && unbilled > 0 && (
-                      <p className="mt-1 ml-6 text-xs text-fg-muted">
-                        Chưa chốt{' '}
-                        <Money
-                          amount={unbilledView.amount}
-                          currency={unbilledView.currency}
-                          approx={unbilledView.approx}
-                          className="font-medium"
-                        />
-                        {billed > 0
-                          ? ` · tổng nợ ${view.fmt(owed, c.currency)}`
-                          : ' — kỳ sau mới đòi'}
-                      </p>
-                    )}
-
-                    {/* Nguồn trả + hạn mức còn lại */}
-                    {(f || available != null) && (
-                      <p className="mt-1 ml-6 text-xs text-fg-muted">
-                        {f && (
-                          <>
-                            Trả từ {f.sourceName}
-                            {!f.shared && (
-                              <>
-                                {' '}· số dư{' '}
-                                <span className="tabular-nums">
-                                  {view.fmt(f.sourceBalance, c.currency)}
-                                </span>
-                              </>
-                            )}
-                          </>
-                        )}
-                        {f && available != null && ' · '}
-                        {available != null && (
-                          <>
-                            còn dùng được{' '}
-                            <span className="tabular-nums">
-                              {view.fmt(available, c.currency)}
-                            </span>
-                          </>
-                        )}
-                      </p>
-                    )}
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-      </Collapse>
-    </section>
+    </Card>
   )
 }

@@ -1,30 +1,18 @@
-// Nút ¥/₫/$ "xem thử bằng tiền khác" của trang Tài sản — một bộ nút, hai chỗ đặt:
-// thẻ Tổng tài sản (nền gradient xanh, chữ trắng) và đầu tab Diễn biến (nền trang).
-// Trạng thái sống ở AssetsPage nên đổi ở tab nào cũng giữ nguyên khi qua tab kia.
+// Nút ¥/₫/$ "xem thử bằng tiền khác" của trang Tài sản. Trạng thái sống ở AssetsPage nên
+// đổi ở chế độ nào cũng giữ nguyên khi gạt sang chế độ kia.
+//
+// MỘT chỗ đặt, một diện mạo: header trang (bản vẽ 2a). Trước đây nó có hai biến thể —
+// `card` cho đầu tab Diễn biến và `onGreen` cho thẻ Tổng tài sản nền gradient xanh. Biến
+// thể thứ hai đi cùng thẻ gradient: thẻ đó nay là một ô của dải KPI (xem KpiStrip.tsx),
+// và một ô số 26px không có chỗ cho một bộ ba nút. Bỏ nền đặc biệt là bỏ luôn cả nhánh
+// màu chỉ dùng đúng một chỗ — kèm cái bẫy đã ghi ở đó: trên gradient green-700 thì chữ
+// green-50 đủ 4,72:1, nhưng hạ xuống /90 là còn 4,14:1 và trượt AA.
 //
 // KHÔNG áp cho tab Tương lai: bản chiếu Lifetime có "tiền hiển thị" riêng theo từng
 // kịch bản với tỷ giá GIẢ ĐỊNH dài hạn tự khai (xem ScenarioEditorSheet) — đè tỷ giá
 // cache hôm nay lên đó là quy đổi hai lần và cãi nhau với giả định của kịch bản.
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
-
-const VARIANT = {
-  // Trên thẻ gradient xanh đậm — track tối, nút chọn nổi trắng.
-  // `idle` KHÔNG được thêm alpha (từng là text-green-50/90): trên nền gradient
-  // green-700 thì green-50 đủ 4,72:1, nhưng hạ xuống /90 là còn 4,14:1 và /80 còn
-  // 3,58:1 — trượt AA. Muốn nhạt hơn thì đổi sắc độ, đừng đổi độ mờ.
-  onGreen: {
-    track: 'bg-black/20',
-    active: 'bg-white text-green-800 shadow-sm',
-    idle: 'text-green-50 hover:text-white',
-  },
-  // Trên nền trang — cùng bảng màu với SegmentedControl
-  card: {
-    track: 'bg-surface-sunken',
-    active: 'bg-surface text-fg-primary shadow-sm',
-    idle: 'text-fg-on-track hover:text-fg-primary',
-  },
-} as const
 
 interface Props {
   base: CurrencyCode
@@ -33,11 +21,9 @@ interface Props {
   value: CurrencyCode
   /** Nhận null khi chọn lại tiền gốc — nơi giữ state không lưu mã cứng của base. */
   onChange: (c: CurrencyCode | null) => void
-  variant: keyof typeof VARIANT
 }
 
-export function CurrencyViewToggle({ base, rates, value, onChange, variant }: Props) {
-  const v = VARIANT[variant]
+export function CurrencyViewToggle({ base, rates, value, onChange }: Props) {
   // Đồng tiền bấm được: tiền gốc luôn được; tiền khác cần tỷ giá dùng được.
   const canView = (c: CurrencyCode) => {
     if (c === base) return true
@@ -48,7 +34,11 @@ export function CurrencyViewToggle({ base, rates, value, onChange, variant }: Pr
     <div
       role="group"
       aria-label="Xem thử bằng tiền khác"
-      className={`flex shrink-0 rounded-lg p-0.5 ${v.track}`}
+      // Cùng khung với <SegmentedControl> đứng cạnh nó ở header: viền panel + ruột trong
+      // suốt, ô đang chọn nổi lên bằng nền sunken. Không dùng chính SegmentedControl vì
+      // nó là `role="tablist"` — ba đồng tiền không phải ba tab, và một nút ở đây có thể
+      // bị VÔ HIỆU khi thiếu tỷ giá, chuyện mà một tab không có.
+      className="flex shrink-0 rounded-lg border border-border-panel p-0.5"
     >
       {(Object.keys(CURRENCIES) as CurrencyCode[]).map((c) => {
         const active = value === c
@@ -59,8 +49,10 @@ export function CurrencyViewToggle({ base, rates, value, onChange, variant }: Pr
             aria-pressed={active}
             disabled={!canView(c)}
             onClick={() => onChange(c === base ? null : c)}
-            className={`min-h-8 min-w-9 rounded-md px-2 text-xs font-semibold transition disabled:opacity-40 ${
-              active ? v.active : v.idle
+            className={`min-h-8 min-w-9 rounded-md border px-2 text-xs font-semibold transition disabled:opacity-40 ${
+              active
+                ? 'border-border-strong bg-surface-sunken text-fg-primary'
+                : 'border-transparent text-fg-muted hover:text-fg-primary'
             }`}
           >
             {CURRENCIES[c].symbol}

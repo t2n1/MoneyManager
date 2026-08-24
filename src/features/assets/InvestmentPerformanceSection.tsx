@@ -5,17 +5,17 @@ import { useMemo } from 'react'
 import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { ExplainBox } from '../../components/ExplainBox'
-import { Card } from '../../components/ui'
+import { Card, pct1, signedPct } from '../../components/ui'
 import { useAccounts, useProfile, useRangeTransactions, useRates } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
-import type { AssetAccount } from './aggregate'
+import type { AssetAccount, AssetGroup } from './aggregate'
+import { investmentScope } from './groupInsight'
+import { investCapital } from './investCapital'
 import { investTxRange, LOOKBACK_YEARS } from './investHistory'
 import type { MoneyView } from './moneyView'
 import { investmentPerformance, type CashFlow } from './xirr'
-
-const signPct = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toFixed(1).replace('.', ',')}%`
 
 interface Props {
   /** Tài khoản đầu tư đang được tính vào tổng tài sản. */
@@ -23,9 +23,18 @@ interface Props {
   base: CurrencyCode
   /** Bộ "xem thử bằng tiền khác" — chỉ áp lúc HIỂN THỊ; XIRR vẫn tính theo base. */
   view: MoneyView
+  /**
+   * Nhóm theo MỤC ĐÍCH — chỉ để giải thích độ lệch, không tham gia phép tính nào.
+   *
+   * Khối này chọn tài khoản theo LOẠI (`type === 'investment'`) còn bảng nhóm ở dưới cắt
+   * theo mục đích, nên một tài khoản loại đầu tư nằm trong nhóm "Tiết kiệm" có mặt ở đây
+   * mà không có ở dòng "Đầu tư" — và độ lệch đúng bằng tiền của nó. Cả hai cách cắt đều
+   * đúng với câu hỏi của mình, nên việc duy nhất phải làm là NÓI RA. Xem groupInsight.ts.
+   */
+  purposeGroups: AssetGroup[]
 }
 
-export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
+export function InvestmentPerformanceSection({ accounts, base, view, purposeGroups }: Props) {
   const { data: profile } = useProfile()
   const { data: accountRows = [] } = useAccounts()
   const { rates } = useRates()
@@ -42,13 +51,10 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
     ids.size > 0 && !!profile,
   )
 
-  const currentValue = accounts.reduce((s, a) => s + (a.baseValue ?? 0), 0)
-  // Vốn gốc theo sổ (nạp − rút, gồm cả số dư mở tài khoản) — cùng định nghĩa với
-  // trang chi tiết tài khoản, nên hai nơi luôn khớp nhau.
-  const costBasis = accounts.reduce(
-    (s, a) => s + (convertToBase(a.balance, a.currency, base, r) ?? 0),
-    0,
-  )
+  // Vốn gốc theo sổ (nạp − rút, gồm cả số dư mở tài khoản) và giá trị nay — tính ở
+  // `investCapital` vì ô KPI "Vốn đầu tư đã bỏ vào" ở đầu trang dùng đúng hai con số
+  // này. Hai chỗ tự cộng lấy là hai định nghĩa của "vốn", lệch nhau mà không ai thấy.
+  const { costBasis, currentValue, growth, growthPct } = investCapital(accounts, base, r)
 
   // Dòng tiền NGOÀI vào danh mục = chuyển khoản giữa ví của mình và tài khoản đầu tư.
   // Cổ tức ghi thẳng vào tài khoản đầu tư KHÔNG tính là dòng tiền vào — nó là
@@ -102,7 +108,6 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
 
   const money = (v: number) => view.fmt(Math.round(v))
   // Thanh tỷ trọng: vốn gốc theo SỔ vs phần lời — khớp với trang chi tiết tài khoản
-  const growth = currentValue - costBasis
   const barTotal = Math.max(1, costBasis + Math.max(0, growth))
   const capitalPct = (costBasis / barTotal) * 100
 
@@ -123,12 +128,12 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
     },
   ]
 
+  const scope = investmentScope({ investmentAccounts: accounts, purposeGroups })
+
   return (
-    <Card as="section" padding="lg">
+    <Card as="section" elevation="panel" padding="lg">
       <div className="mb-3 flex items-baseline justify-between gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
-          Hiệu quả đầu tư
-        </h2>
+        <h2 className="text-2xs uppercase tracking-[.1em] text-fg-muted">Hiệu quả đầu tư</h2>
         {/* Khu này nói về TIỀN (bỏ vào bao nhiêu, sinh ra bao nhiêu, %/năm). Câu
             "đang giữ mã nào / quỹ nào" nằm ở trang Đầu tư. */}
         <Link to="/invest" className="shrink-0 text-2xs font-medium text-fg-accent">
@@ -144,7 +149,16 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 text-xs">
         <span className="flex items-center gap-1.5 text-fg-secondary">
           <span className="h-2 w-2 rounded-full bg-sky-500" aria-hidden />
-          Tiền bạn bỏ vào <b className="tabular-nums">{money(costBasis)}</b>
+          Vốn bỏ vào <b className="tabular-nums">{money(costBasis)}</b>
+          {/* Tỷ trọng của thanh in bằng CHỮ ngay cạnh nhãn của nó: bản trước chỉ có
+              thanh, nên "vốn chiếm bao nhiêu phần giá trị hiện tại" phải ước bằng mắt.
+              CHỈ khi đang lời: `barTotal` kẹp phần lời về 0 khi lỗ (thanh không vẽ được
+              một lát âm), nên lúc lỗ con số này luôn ra "100,0%" — một tỷ trọng đúng về
+              số học mà đọc thành "danh mục toàn vốn, không mất gì", ngay cạnh dòng
+              "Thị trường lấy đi ¥464.905". */}
+          {growth >= 0 && (
+            <span className="text-fg-muted">· {capitalPct.toFixed(1).replace('.', ',')}%</span>
+          )}
         </span>
         <span
           className={`flex items-center gap-1.5 ${
@@ -158,40 +172,75 @@ export function InvestmentPerformanceSection({ accounts, base, view }: Props) {
       </div>
       <p className="mt-1 text-2xs text-fg-muted">
         Giá trị hiện tại {money(currentValue)}
+        {growthPct != null && <> · {signedPct(pct1(growthPct))}</>}
         {perf.withdrawn > 0 && <> · đã rút ra {money(perf.withdrawn)} trong kỳ</>}.
       </p>
 
-      {/* Ba mức lợi nhuận */}
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        {rateRows.map((row) => (
-          <div key={row.label} className="rounded-xl bg-surface-page p-2.5 text-center">
-            <p
-              className={`text-base font-bold tabular-nums ${
-                row.value === null
-                  ? 'text-fg-muted'
-                  : row.value >= 0
-                    ? 'text-money-in'
-                    : 'text-money-out'
-              }`}
-            >
-              {row.value === null ? '—' : signPct(row.value)}
-            </p>
-            <p className="mt-0.5 text-2xs font-medium text-fg-secondary">
-              {row.label}
-            </p>
-            <p className="mt-0.5 text-3xs leading-tight text-fg-muted">
-              {row.note}
-            </p>
+      {/* Ba mức lợi nhuận — CHỈ khi có con số. Bản trước luôn dựng ba ô rồi in "—" vào cả
+          ba, tức ba ô trống chiếm 84px để nói đúng một điều mà một câu nói được, và nói
+          rõ hơn: cả ba đều null CÙNG LÚC (afterTax và real đều dẫn xuất từ annualReturn),
+          nên ba dấu gạch là ba bản của một tin. */}
+      {perf.annualReturn !== null ? (
+        <>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {rateRows.map((row) => (
+              <div
+                key={row.label}
+                className="rounded-md border border-border-panel bg-surface-sunken p-2.5 text-center"
+              >
+                <p
+                  className={`text-base font-bold tabular-nums ${
+                    row.value === null
+                      ? 'text-fg-muted'
+                      : row.value >= 0
+                        ? 'text-money-in'
+                        : 'text-money-out'
+                  }`}
+                >
+                  {signedPct(row.value === null ? null : pct1(row.value))}
+                </p>
+                <p className="mt-0.5 text-2xs font-medium text-fg-secondary">{row.label}</p>
+                <p className="mt-0.5 text-3xs leading-tight text-fg-muted">{row.note}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <p className="mt-1 text-center text-2xs text-fg-muted">mỗi năm</p>
-
-      {perf.annualReturn === null && (
-        <p className="mt-2 rounded-lg bg-surface-page px-2.5 py-2 text-xs text-fg-muted">
+          <p className="mt-1 text-center text-2xs text-fg-muted">mỗi năm</p>
+        </>
+      ) : (
+        // Câu này nói ĐÚNG lý do mà code có, không phải một ngưỡng nghe hợp lý. XIRR trả
+        // null khi: dưới hai dòng tiền, không có cả chiều vào lẫn chiều ra, mọi dòng cùng
+        // một ngày, hoặc phương trình không có nghiệm trong khoảng dò (xem xirr.ts) — nên
+        // không có mốc "≥12 tháng" nào để hứa.
+        <p className="mt-3 border-t border-border-subtle pt-3 text-2xs leading-snug text-fg-muted">
+          Chưa quy ra <span className="text-fg-secondary">%/năm</span> —{' '}
           {flows.length === 0
-            ? 'Chưa tính được %/năm: cần ít nhất một lần bỏ tiền vào tài khoản đầu tư (số dư mở tài khoản hoặc giao dịch Chuyển khoản).'
-            : 'Chưa quy ra %/năm được: lịch sử còn quá ngắn hoặc biến động quá lớn nên con số quy đổi ra cả năm sẽ vô nghĩa. Vài tháng nữa sẽ có.'}
+            ? 'cần ít nhất một lần bỏ tiền vào tài khoản đầu tư (số dư mở tài khoản hoặc một giao dịch Chuyển khoản).'
+            : `lịch sử mới ${flows.length} dòng tiền, còn quá ngắn hoặc biến động quá lớn nên con số quy ra cả năm sẽ vô nghĩa.`}{' '}
+          Danh nghĩa · sau thuế{' '}
+          {((profile?.capital_gains_tax_bps ?? 2032) / 100).toFixed(2).replace('.', ',')}%
+          {profile?.annual_inflation_bps != null && (
+            <>
+              {' '}· sau lạm phát{' '}
+              {(profile.annual_inflation_bps / 100).toFixed(1).replace('.', ',')}%
+            </>
+          )}{' '}
+          sẽ hiện khi đủ dữ liệu.
+        </p>
+      )}
+
+      {/* Vì sao con số ở đây lệch với dòng "Đầu tư" của bảng nhóm bên dưới. Xem
+          groupInsight.investmentScope — trả null khi mọi tài khoản đầu tư cùng một nhóm. */}
+      {scope && (
+        <p className="mt-2 text-2xs leading-snug text-fg-muted">
+          Tính theo <span className="text-fg-secondary">loại</span> tài khoản nên gồm{' '}
+          {scope.outsiders.map((o, i) => (
+            <span key={o.name}>
+              {i > 0 && ', '}
+              <span className="text-fg-secondary">{o.name}</span> {money(o.baseValue)} đang ở
+              nhóm {o.groupName}
+            </span>
+          ))}{' '}
+          — vì vậy lệch đúng {money(scope.gap)} với nhóm {scope.mainGroupName} ở bảng dưới.
         </p>
       )}
 

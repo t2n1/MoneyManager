@@ -15,12 +15,25 @@ import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 /** 'bySign' = suy ra từ dấu của `amount`; 'neutral' = màu chữ thường;
  *  'onAccent' = số nằm TRÊN nền --accent (ô đang chọn của dải tháng…);
  *  'good'/'warn' = TÌNH TRẠNG, không phải chiều tiền — xem ghi chú ở TONE_CLASS. */
-export type MoneyTone = 'in' | 'out' | 'neutral' | 'bySign' | 'onAccent' | 'good' | 'warn'
+export type MoneyTone =
+  | 'in'
+  | 'out'
+  | 'neutral'
+  | 'muted'
+  | 'bySign'
+  | 'onAccent'
+  | 'good'
+  | 'warn'
 
 const TONE_CLASS: Record<Exclude<MoneyTone, 'bySign'>, string> = {
   in: 'text-money-in',
   out: 'text-money-out',
   neutral: 'text-fg-primary',
+  // 'muted' = con số PHỤ trong cùng một dòng với con số chính: mẫu số của một tỷ lệ, số
+  // dư của tài khoản nguồn, phần "chưa chốt" bên cạnh phần phải trả. Nó không mang chiều
+  // thu/chi nào, nên tô nó theo `in`/`out` là gán cho nó một nghĩa nó không có; mà tô
+  // `neutral` thì nó đọc ngang hàng với con số chính. Cùng bậc chữ với <Num tone="muted">.
+  muted: 'text-fg-muted',
   // 'good'/'warn' KHÁC 'in'/'out' về nghĩa, dù 'good' cũng ra màu xanh: hai cái trên nói
   // TIỀN ĐI CHIỀU NÀO (thu / chi), hai cái này nói SỐ ĐÓ ĐANG ỔN HAY KHÔNG. Mức tiêu cho
   // phép mỗi ngày là chỗ cần đúng cặp sau — nó không phải khoản thu, nên mượn 'in' là nói

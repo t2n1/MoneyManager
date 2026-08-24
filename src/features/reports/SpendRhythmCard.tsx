@@ -5,7 +5,7 @@ import { useDensity } from '../../hooks/useDensity'
 import { Guide } from '../../components/Guide'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { WEEKDAY_LABELS, type PaydayEffect, type WeekdayBucket } from './behavior'
-import { Card } from '../../components/ui'
+import { Card, SectionTitle } from '../../components/ui'
 
 interface Props {
   payday: PaydayEffect | null
@@ -28,15 +28,15 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
 
   return (
     <Card as="section">
-      <h2 className="mb-2 text-sm font-semibold text-fg-primary">Nhịp chi tiêu</h2>
+      <SectionTitle className="mb-2">Nhịp chi tiêu</SectionTitle>
 
       {payday && (
         <div className="mb-3">
-          <h3 className="mb-1 text-xs font-medium text-fg-muted">
+          <SectionTitle as="h3" className="mb-1">
             {windowDays} ngày sau khi nhận lương
-          </h3>
+          </SectionTitle>
           {payday.ratio >= 1.3 ? (
-            <p className="rounded-lg bg-state-warn-bg px-2.5 py-2 text-xs text-amber-800 dark:text-amber-300">
+            <p className="rounded-lg bg-state-warn-bg px-2.5 py-2 text-sm text-amber-800 dark:text-amber-300">
               {/* Tỷ số CHÍNH LÀ kết luận; hai mức/ngày là số làm chứng. Gọn giữ tỷ số. */}
               {visual ? (
                 <>
@@ -50,7 +50,7 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
               )}
             </p>
           ) : payday.ratio <= 0.8 ? (
-            <p className="rounded-lg bg-state-good-bg px-2.5 py-2 text-xs text-state-good-fg">
+            <p className="rounded-lg bg-state-good-bg px-2.5 py-2 text-sm text-state-good-fg">
               {visual ? (
                 <>Sau lương tiêu ÍT hơn ngày thường</>
               ) : (
@@ -61,7 +61,7 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
               )}
             </p>
           ) : (
-            <p className="rounded-lg bg-surface-page px-2.5 py-2 text-xs text-fg-secondary">
+            <p className="rounded-lg bg-surface-page px-2.5 py-2 text-sm text-fg-secondary">
               {visual ? (
                 <>Sau lương gần như ngày thường</>
               ) : (
@@ -81,15 +81,15 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
 
       {hasWeekdayData && (
         <div>
-          <h3 className="mb-1.5 text-xs font-medium text-fg-muted">
+          <SectionTitle as="h3" className="mb-1.5">
             Chi trung bình theo thứ
-          </h3>
+          </SectionTitle>
           <div className="flex items-end gap-1" role="img" aria-label={`Chi nhiều nhất vào ${WEEKDAY_LABELS[busiest.dow]}`}>
             {ordered.map((b) => {
               const isWeekend = b.dow === 0 || b.dow === 6
               return (
                 <div key={b.dow} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                  <span className="text-3xs tabular-nums text-fg-muted">
+                  <span className="text-2xs tabular-nums text-fg-muted">
                     {formatCompact(b.avg, base)}
                   </span>
                   <div
@@ -103,7 +103,7 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
                     style={{ height: `${Math.max(3, (b.avg / maxAvg) * 56)}px` }}
                   />
                   <span
-                    className={`text-3xs ${
+                    className={`text-2xs ${
                       isWeekend
                         ? // sky-700 (5,86:1 trên nền thẻ trắng), không sky-600 (4,02:1).
                           // Nhãn thứ ở đây là 10px nên phải đạt 4,5:1.
@@ -117,7 +117,7 @@ export function SpendRhythmCard({ payday, weekdays, base, windowDays }: Props) {
               )
             })}
           </div>
-          <p className="mt-1.5 text-xs text-fg-secondary">
+          <p className="mt-1.5 text-sm text-fg-secondary">
             Tốn nhất là <b>{WEEKDAY_LABELS[busiest.dow]}</b> ({money(busiest.avg)}/ngày).
           </p>
         </div>

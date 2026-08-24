@@ -78,7 +78,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
     // Không còn danh mục nào của loại này (chưa tạo, hoặc lưu trữ hết). Trước đây chỗ
     // này là một vùng TRỐNG TRƠN kèm nút Lưu chết — không đường nào đi tiếp.
     return (
-      <Card padding="lg" className="text-center text-xs text-fg-muted">
+      <Card padding="lg" className="text-center text-sm text-fg-muted">
         {emptyNote}
         <Link to="/settings/categories" className="mt-1 block font-medium text-fg-accent underline">
           Mở Cài đặt → Danh mục
@@ -98,7 +98,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
             key={r.id}
             type="button"
             onClick={() => pick(r.id)}
-            className={`flex h-8 shrink-0 items-center gap-1 rounded-full border-2 px-2.5 text-xs transition active:scale-95 ${
+            className={`flex h-8 shrink-0 items-center gap-1 rounded-full border-2 px-2.5 text-sm transition active:scale-95 ${
               value === r.id
                 ? 'border-accent bg-state-good-bg text-fg-primary'
                 : 'border-border-strong bg-surface text-fg-secondary'
@@ -112,7 +112,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
           type="button"
           onClick={() => (expanded ? setExpanded(false) : openGrid())}
           aria-expanded={expanded}
-          className="flex h-8 shrink-0 items-center gap-1 rounded-full border-2 border-border-strong bg-surface px-2.5 text-xs text-fg-secondary transition active:scale-95"
+          className="flex h-8 shrink-0 items-center gap-1 rounded-full border-2 border-border-strong bg-surface px-2.5 text-sm text-fg-secondary transition active:scale-95"
         >
           Khác
           <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
@@ -126,7 +126,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
             <button
               type="button"
               onClick={() => setDrillId(null)}
-              className="flex items-center gap-1.5 self-start rounded-md border border-border-strong bg-surface px-2.5 py-1 text-xs font-medium text-fg-secondary transition active:scale-95"
+              className="flex items-center gap-1.5 self-start rounded-md border border-border-strong bg-surface px-2.5 py-1 text-sm font-medium text-fg-secondary transition active:scale-95"
             >
               <ChevronLeft className="h-4 w-4" /> <span className="text-base leading-none">{drillParent.icon}</span>{' '}
               {drillParent.name}
@@ -142,7 +142,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
                 />
               ))}
               {drillChildren.length === 0 && (
-                <p className="col-span-full py-4 text-center text-xs text-fg-muted">
+                <p className="col-span-full py-4 text-center text-sm text-fg-muted">
                   Nhóm này chưa có danh mục con
                 </p>
               )}
@@ -205,7 +205,7 @@ function CategoryTile({
       // Viền 2px có ở cả hai trạng thái nên bấm chọn không làm cả lưới xê 2px.
       // Bỏ `shadow-sm` ở ô chưa chọn: nó là thứ duy nhất còn phân biệt hai trạng thái
       // bằng độ nổi, mà 1a phân cấp bằng nền + viền.
-      className={`relative flex flex-col items-center gap-0.5 rounded-md border-2 px-1 py-2 text-xs transition active:scale-95 ${
+      className={`relative flex flex-col items-center gap-0.5 rounded-md border-2 px-1 py-2 text-sm transition active:scale-95 ${
         selected
           ? 'border-accent bg-state-good-bg text-fg-primary'
           : 'border-transparent bg-surface text-fg-secondary'
@@ -217,7 +217,7 @@ function CategoryTile({
           Phí thủ tục · Khác) trước đây trông y hệt mà hành vi khác — bấm cái này thì mở
           thêm một tầng, bấm cái kia thì chọn xong. */}
       {childCount > 0 && (
-        <span className="absolute right-1 top-1 text-3xs font-medium text-fg-muted">
+        <span className="absolute right-1 top-1 text-2xs font-medium text-fg-muted">
           {childCount}
         </span>
       )}

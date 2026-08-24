@@ -14,7 +14,8 @@ import type { MonthKey } from '../../lib/dates'
 import type { MonthlySeries } from './aggregate'
 import { savingsRate } from './insights'
 import { expenseTrend, savingsRateVerdict } from './verdicts'
-import { Card } from '../../components/ui'
+import { Card, SectionTitle } from '../../components/ui'
+import { CHART_TEXT_2XS, CHART_TEXT_XS } from '../../lib/chartText'
 
 // MỘT nguồn cho cả cột và chấm chú giải. Trước đây cột dùng hex cứng còn chấm dùng
 // class `bg-green-600`, nên từ hồi nâng Tailwind v3 → v4 (green-600 đổi từ #16a34a
@@ -73,15 +74,15 @@ export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = nul
 
   return (
     <Card as="section">
-      <h2 className="mb-2 text-sm font-semibold text-fg-muted">{title}</h2>
+      <SectionTitle className="mb-2">{title}</SectionTitle>
       <div className="h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={barData} margin={{ top: 8, right: 0, left: -8, bottom: 0 }}>
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--fg-muted)' }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="label" tick={{ fontSize: CHART_TEXT_2XS, fill: 'var(--fg-muted)' }} axisLine={false} tickLine={false} />
             <YAxis
               yAxisId="money"
               tickFormatter={(v: number) => formatCompact(v, base)}
-              tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
+              tick={{ fontSize: CHART_TEXT_2XS, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
               width={44}
@@ -96,7 +97,7 @@ export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = nul
                 domain={[rateTicks[0], rateTicks[rateTicks.length - 1]]}
                 ticks={rateTicks}
                 tickFormatter={(v: number) => `${v}%`}
-                tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
+                tick={{ fontSize: CHART_TEXT_2XS, fill: 'var(--fg-muted)' }}
                 axisLine={false}
                 tickLine={false}
                 width={40}
@@ -114,7 +115,7 @@ export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = nul
               }
               labelFormatter={(l) => String(l)}
               // Nền/viền/chữ tooltip do index.css xử lý theo dark mode (.recharts-default-tooltip)
-              contentStyle={{ borderRadius: 8, fontSize: 12 }}
+              contentStyle={{ borderRadius: 8, fontSize: CHART_TEXT_XS }}
               // Con trỏ hover trung tính, dịu ở CẢ nền sáng lẫn tối (mặc định recharts
               // là xám sáng, nháy chói trong dark mode)
               cursor={{ fill: 'rgba(148,163,184,0.15)' }}
@@ -136,7 +137,7 @@ export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = nul
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <div className="mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-fg-muted">
+      <div className="mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm text-fg-muted">
         <span className="flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: INCOME }} /> Thu
         </span>

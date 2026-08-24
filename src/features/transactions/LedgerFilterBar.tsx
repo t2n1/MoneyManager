@@ -5,7 +5,7 @@
 // Vì sao chip chứ không phải sheet lọc riêng (bản cũ đẩy sang trang Tìm kiếm): lọc ở đây
 // là "thu hẹp cái đang nhìn", không phải "đi tìm một khoản". Mở một sheet để làm việc đó
 // là bắt rời màn rồi quay lại — và lúc quay lại thì mất chỗ đang cuộn.
-import { Money } from '../../components/ui'
+import { FilterChip, Money } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/money'
 import type { TransactionRow } from '../../types/database.types'
 import type { LedgerFilter, UncategorizedSummary } from './ledgerView'
@@ -28,18 +28,9 @@ function Chip({
   children: React.ReactNode
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      className={`min-h-11 shrink-0 rounded-full border px-3 text-xs font-medium transition ${
-        on
-          ? 'border-state-good-border bg-state-good-bg text-state-good-fg'
-          : 'border-border-strong text-fg-muted hover:text-fg-primary'
-      }`}
-    >
+    <FilterChip on={on} onClick={onClick}>
       {children}
-    </button>
+    </FilterChip>
   )
 }
 
@@ -90,7 +81,7 @@ export function LedgerFilterBar({
           <button
             type="button"
             onClick={() => onChange({ type: null, uncategorized: false })}
-            className="ml-auto min-h-11 shrink-0 px-2 text-xs font-medium text-fg-accent"
+            className="ml-auto min-h-11 shrink-0 px-2 text-sm font-medium text-fg-accent"
           >
             Bỏ lọc
           </button>
@@ -111,7 +102,7 @@ export function LedgerFilterBar({
         <button
           type="button"
           onClick={() => onChange({ ...value, uncategorized: true })}
-          className="flex min-h-11 items-center gap-2 rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-left text-[0.8125rem] text-state-warn-fg transition"
+          className="flex min-h-11 items-center gap-2 rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-left text-sm text-state-warn-fg transition"
         >
           <span className="min-w-0 flex-1">
             {uncategorized.count} khoản chưa gắn danh mục —{' '}
@@ -124,7 +115,7 @@ export function LedgerFilterBar({
             />{' '}
             không vào được báo cáo hay ngân sách
           </span>
-          <span className="shrink-0 text-xs font-semibold">Xem →</span>
+          <span className="shrink-0 text-sm font-semibold">Xem →</span>
         </button>
       )}
     </div>

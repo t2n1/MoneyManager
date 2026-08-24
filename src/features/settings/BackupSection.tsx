@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Download, Upload } from 'lucide-react'
 import { BACKUP_VERSION, repo, type BackupData } from '../../data'
 import { confirmDialog } from '../../lib/dialog'
-import { Card } from '../../components/ui'
+import { Card, SectionTitle } from '../../components/ui'
 
 type Status = { kind: 'idle' | 'ok' | 'error'; message: string }
 
@@ -89,10 +89,10 @@ export function BackupSection() {
 
   return (
     <Card as="section" padding="none" className="overflow-hidden">
-      <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">
+      <SectionTitle className="px-3 pt-3">
         Sao lưu &amp; khôi phục
-      </h2>
-      <Guide className="px-3 pt-1 text-xs text-fg-muted">
+      </SectionTitle>
+      <Guide className="px-3 pt-1 text-sm text-fg-muted">
         Xuất toàn bộ dữ liệu ra một file JSON để cất giữ, hoặc nhập lại từ file đã lưu.
       </Guide>
       <div className="flex flex-wrap gap-2 p-3">
@@ -128,7 +128,7 @@ export function BackupSection() {
       </div>
       {status.kind !== 'idle' && (
         <p
-          className={`px-3 pb-3 text-xs ${
+          className={`px-3 pb-3 text-sm ${
             status.kind === 'ok'
               ? 'text-emerald-600 dark:text-emerald-400'
               : 'text-money-out'

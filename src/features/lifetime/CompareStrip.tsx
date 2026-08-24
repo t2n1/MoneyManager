@@ -5,7 +5,7 @@
 // chính sớm hơn hay muộn hơn? Có năm nào âm không? Bốn cột này trả lời bằng số, và
 // chúng là ĐÚNG bốn con số mà chip kịch bản và băng kết luận đang dùng.
 import type { CurrencyCode } from '../../lib/currencies'
-import { Card } from '../../components/ui'
+import { Card, SectionTitle } from '../../components/ui'
 import { formatCompact, formatMoney } from '../../lib/money'
 import { fireYear, firstNegativeYear } from './insights'
 import type { YearRow } from './project'
@@ -81,13 +81,13 @@ export function CompareStrip({ left, right, endAge, currencyMismatch }: Props) {
 
   return (
     <Card as="section" elevation="panel" padding="panel">
-      <h2 className="mb-2 text-2xs uppercase tracking-[.1em] text-fg-muted">
+      <SectionTitle role="micro" className="mb-2">
         So sánh hai kịch bản
-      </h2>
+      </SectionTitle>
       {/* Cuộn ngang ở màn hẹp thay vì xuống dòng: năm cột này phải đọc THEO HÀNG mới so
           được, và một bảng tự gãy dòng thì hai kịch bản không còn nằm cạnh nhau nữa. */}
       <div className="overflow-x-auto">
-        <div className="grid min-w-[26rem] grid-cols-[minmax(6.5rem,1.2fr)_1fr_1fr_1fr_1fr] gap-x-3 gap-y-1 text-xs">
+        <div className="grid min-w-[26rem] grid-cols-[minmax(6.5rem,1.2fr)_1fr_1fr_1fr_1fr] gap-x-3 gap-y-1 text-sm">
           <span className="text-fg-muted" />
           <span className="text-fg-muted">Tự do TC</span>
           <span className="text-fg-muted">Âm từ</span>
@@ -97,7 +97,7 @@ export function CompareStrip({ left, right, endAge, currencyMismatch }: Props) {
           <Row side={right} endAge={endAge} />
         </div>
       </div>
-      <p className="mt-2 text-xs text-fg-muted">
+      <p className="mt-2 text-sm text-fg-muted">
         {currencyMismatch ? (
           <>
             Hai kịch bản dùng đơn vị tiền khác nhau ({left.currency} và {right.currency}) nên

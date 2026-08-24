@@ -3,8 +3,9 @@ import { Guide } from '../../components/Guide'
 import { formatMoney } from '../../lib/money'
 import type { DebtDirection, DebtPaymentRow, DebtRow } from '../../types/database.types'
 import { openDebtsFor, prefillFor } from './debtPick'
-import { blockCls, inputCls, labelCls } from './roleFields'
+import { blockCls, labelCls } from './roleFields'
 import type { PaymentValue } from './roleSave'
+import { Select } from '../../components/ui'
 
 interface Props {
   value: PaymentValue
@@ -28,11 +29,11 @@ export function DebtPickerField({ value, onChange, debts, payments, direction }:
 
   // Không có khoản nợ nào đang mở → nói ra, đừng để ô chọn rỗng (cùng nếp với
   // nhánh "Chưa có tài khoản JPY" khi remitLike hết ví — một câu cảnh báo còn hơn
-  // một <select> trống không bấm được gì).
+  // một <Select> trống không bấm được gì).
   if (open.length === 0) {
     return (
       <div className={blockCls('debt')}>
-        <p className="rounded-lg bg-state-warn-bg px-3 py-2 text-xs text-state-warn-fg">
+        <p className="rounded-lg bg-state-warn-bg px-3 py-2 text-sm text-state-warn-fg">
           Chưa có khoản nợ nào đang mở ở chiều này. Ghi &quot;Cho vay&quot; hoặc &quot;Vay
           được&quot; trước.
         </p>
@@ -50,7 +51,7 @@ export function DebtPickerField({ value, onChange, debts, payments, direction }:
         </label>
         {/* Mỗi dòng nói CÒN LẠI bao nhiêu, không phải số gốc — người chọn cần biết
             đang trả/thu vào đâu, số gốc đã trả một phần thì không còn đúng nữa. */}
-        <select
+        <Select
           id={`${uid}-debt`}
           value={value.debtId}
           onChange={(e) => {
@@ -64,7 +65,7 @@ export function DebtPickerField({ value, onChange, debts, payments, direction }:
               prefillFor(debts, payments, id) ?? undefined,
             )
           }}
-          className={inputCls}
+          wrapClassName="w-full"
         >
           <option value="">— chọn —</option>
           {open.map((d) => (
@@ -72,9 +73,9 @@ export function DebtPickerField({ value, onChange, debts, payments, direction }:
               {d.counterparty} · còn {formatMoney(d.remaining, d.currency)}
             </option>
           ))}
-        </select>
+        </Select>
         {selected && (
-          <p className="mt-1 text-xs text-fg-accent">
+          <p className="mt-1 text-sm text-fg-accent">
             {direction === 'i_owe' ? 'Mình trả' : 'Người ta trả'} · còn{' '}
             {formatMoney(selected.remaining, selected.currency)}
           </p>
@@ -86,7 +87,7 @@ export function DebtPickerField({ value, onChange, debts, payments, direction }:
         <label className="flex cursor-pointer items-center justify-between gap-2 text-sm text-fg-secondary">
           <span>
             Có chuyển tiền thật
-            <Guide as="span" className="block text-xs text-fg-muted">
+            <Guide as="span" className="block text-sm text-fg-muted">
               {direction === 'i_owe'
                 ? 'Tạo giao dịch chi (trừ số dư tài khoản)'
                 : 'Tạo giao dịch thu (cộng số dư tài khoản)'}

@@ -68,7 +68,7 @@ export function VerdictNote({ tone, label, short, children }: Props) {
   }
 
   return (
-    <p className="flex items-start gap-1.5 text-xs leading-relaxed text-fg-secondary">
+    <p className="flex items-start gap-1.5 text-sm leading-relaxed text-fg-secondary">
       <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${cls}`} aria-hidden="true" />
       <span>
         {sr && <span className="sr-only">{sr}</span>}

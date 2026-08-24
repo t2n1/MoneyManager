@@ -2,7 +2,7 @@
 // Tách ra vì ngân sách là công cụ ĐIỀU KHIỂN trong tháng (đặt hạn mức, xem còn bao nhiêu),
 // khác hẳn Báo cáo là NHÌN LẠI. Xem docs/information-architecture.md §2.2.
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { IconButton } from '../../components/ui'
+import { IconButton, PageHeader } from '../../components/ui'
 import { useProfile } from '../../hooks/queries'
 import { useMonthKey } from '../../hooks/useMonthKey'
 import { formatMonthLabel, getMonthRange, toISODate } from '../../lib/dates'
@@ -28,26 +28,25 @@ export function BudgetPage() {
 
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
-      {/* Tiêu đề tài liệu. sr-only vì tên màn đã hiện ở top bar (desktop) — nhưng top
-          bar là <p>, nên không có dòng này thì trang KHÔNG có <h1> nào. Trước bản 1a,
-          h1 của trang là nhãn tháng; nhãn tháng là "đang xem kỳ nào", không phải tên
-          màn, nên nó thành <p> ở dưới. */}
-      <h1 className="sr-only">Ngân sách</h1>
-      {/* Header điều hướng tháng — chỉ còn ở mobile. Từ bản 1a, desktop đổi tháng bằng
-          bộ ‹ › trên top bar; để cả hai cùng hiện là hai bộ điều khiển giống hệt nhau
-          cách nhau 60px trên cùng một màn. Bản vẽ mobile (17a) thì mỗi màn tự mang
-          tiêu đề của nó, đúng cái header này. */}
-      <div className="flex items-center justify-between lg:hidden">
-        <IconButton onClick={() => stepMonth(-1)} aria-label="Tháng trước">
-          <ChevronLeft className="h-5 w-5" />
-        </IconButton>
-        <p aria-live="polite" className="text-lg font-bold text-fg-primary">
-          {formatMonthLabel(activeMonthKey)}
-        </p>
-        <IconButton onClick={() => stepMonth(1)} aria-label="Tháng sau">
-          <ChevronRight className="h-5 w-5" />
-        </IconButton>
-      </div>
+      {/* Trước 2026-08-25 màn này KHÔNG có tiêu đề nhìn thấy được — chỉ một bộ đổi tháng
+          canh giữa, và h1 thì sr-only. Đúng cái người dùng chỉ ra: "cái thì có tiêu đề to
+          góc trái, cái thì không". Nay tên màn đứng bên trái như 24 màn còn lại, bộ đổi
+          tháng dồn sang phải.
+          Vẫn chỉ có ở mobile: từ bản 1a desktop đổi tháng bằng bộ ‹ › trên top bar; để cả
+          hai cùng hiện là hai bộ điều khiển giống hệt nhau cách nhau 60px trên một màn. */}
+      <PageHeader title="Ngân sách" flush mobileOnly>
+        <div className="ml-auto flex items-center gap-1">
+          <IconButton onClick={() => stepMonth(-1)} aria-label="Tháng trước">
+            <ChevronLeft className="h-5 w-5" />
+          </IconButton>
+          <p aria-live="polite" className="font-mono text-sm text-fg-muted">
+            {formatMonthLabel(activeMonthKey)}
+          </p>
+          <IconButton onClick={() => stepMonth(1)} aria-label="Tháng sau">
+            <ChevronRight className="h-5 w-5" />
+          </IconButton>
+        </div>
+      </PageHeader>
 
       {planning ? (
         <PlanningView monthKey={activeMonthKey} />

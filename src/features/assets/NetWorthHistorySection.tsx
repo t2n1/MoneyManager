@@ -12,13 +12,14 @@
 //      giữa các mốc không đều.
 import { useEffect, useRef } from 'react'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Card, Money, StatusChip } from '../../components/ui'
+import { Card, Money, SectionTitle, StatusChip } from '../../components/ui'
 import { useNetWorthSnapshots, useUpsertNetWorthSnapshot } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { formatCompact } from '../../lib/money'
 import { monthLabel } from './assetsRange'
 import type { MoneyView } from './moneyView'
 import type { NetWorthSeries } from './netWorthSeries'
+import { CHART_TEXT_3XS } from '../../lib/chartText'
 
 interface Props {
   /** Tài sản ròng hiện tại (base minor); null = chưa tin cậy (thiếu tỷ giá) → không ghi. */
@@ -56,8 +57,8 @@ export function NetWorthHistorySection({
   if (series.points.length < 2) {
     return (
       <Card as="section" elevation="panel" padding="lg">
-        <h2 className="text-sm font-semibold text-fg-primary">Tài sản ròng</h2>
-        <p className="mt-2 text-center text-xs text-fg-muted">
+        <SectionTitle>Tài sản ròng</SectionTitle>
+        <p className="mt-2 text-center text-sm text-fg-muted">
           {snapshots.length >= 2
             ? `Khoảng ${rangeNoun} chưa có đủ hai mốc — chọn khoảng rộng hơn.`
             : 'Mở app đều đặn để app ghi lại tài sản ròng — biểu đồ xu hướng sẽ hiện sau vài mốc.'}
@@ -73,7 +74,7 @@ export function NetWorthHistorySection({
   return (
     <Card as="section" elevation="panel" padding="lg">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h2 className="text-sm font-semibold text-fg-primary">Tài sản ròng</h2>
+        <SectionTitle>Tài sản ròng</SectionTitle>
         {/* Khối TỰ KHAI mốc đầu và số mốc của mình, không lấy số tháng từ dải chọn: ảnh
             chụp ghi mỗi lần MỞ APP, nên số mốc không bằng số tháng và mốc đầu của chuỗi
             không nhất thiết là mốc đầu của cửa sổ. In "23 tháng" cạnh một chuỗi 6 mốc là
@@ -91,7 +92,7 @@ export function NetWorthHistorySection({
           </StatusChip>
         )}
         {series.delta != null && (
-          <span className="ml-auto shrink-0 text-xs font-semibold">
+          <span className="ml-auto shrink-0 text-sm font-semibold">
             <Money
               amount={view.view(Math.abs(series.delta)).amount}
               currency={view.cur}
@@ -105,12 +106,12 @@ export function NetWorthHistorySection({
           <LineChart data={data} margin={{ top: 5, right: 14, bottom: 0, left: 0 }}>
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 10, fill: 'var(--fg-muted)' }}
+              tick={{ fontSize: CHART_TEXT_3XS, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: 'var(--fg-muted)' }}
+              tick={{ fontSize: CHART_TEXT_3XS, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
               width={44}

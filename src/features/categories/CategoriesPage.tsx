@@ -2,9 +2,8 @@ import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNod
 import { Guide } from '../../components/Guide'
 import { Archive, ChevronDown, ChevronUp, GripVertical, Plus } from 'lucide-react'
 import type { NewCategory } from '../../data'
-import { BackLink } from '../../components/BackLink'
 import { DragList, type DragHandleProps } from '../../components/DragList'
-import { Card, IconButton } from '../../components/ui'
+import { Card, EmptyState, IconButton, PageHeader, SectionTitle, Select, actionButtonClass, iconButtonClass } from '../../components/ui'
 import { useEscClose } from '../../hooks/useEscClose'
 import {
   useCategories,
@@ -71,7 +70,7 @@ export function CategoriesPage() {
         // dòng, mà 46 ô vàng là một bức tường — và một nhãn báo động xuất hiện khắp nơi
         // thì thành nhãn để bỏ qua. Phân biệt bằng HÌNH (viền gạch) chứ không bằng màu;
         // phần báo động gom vào MỘT dòng có số và có đường đi sửa (xem missingCostCount).
-        className={`shrink-0 rounded px-1.5 py-0.5 text-3xs font-semibold tracking-wide ${
+        className={`shrink-0 rounded px-1.5 py-0.5 text-2xs font-semibold tracking-label ${
           b.missing
             ? 'border border-dashed border-border-strong text-fg-muted'
             : 'bg-surface-sunken text-fg-on-track'
@@ -277,14 +276,14 @@ export function CategoriesPage() {
           >
             <span className="block truncate text-sm font-semibold text-fg-primary">{p.name}</span>
             {kids.length > 0 && (
-              <span className="text-xs text-fg-muted">{kids.length} danh mục con</span>
+              <span className="text-sm text-fg-muted">{kids.length} danh mục con</span>
             )}
           </button>
           <CostTag cat={p} />
           <button
             type="button"
             onClick={() => setForm({ category: null, parent: p })}
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md bg-accent-muted-bg px-2 py-1 text-fg-accent transition active:scale-95"
+            className={iconButtonClass('accent')}
             aria-label={`Thêm danh mục con cho ${p.name}`}
           >
             <Plus className="h-5 w-5" />
@@ -346,7 +345,7 @@ export function CategoriesPage() {
               )
             })}
             {childIds.length === 0 && dragChild != null && (
-              <p className="px-3 py-3 text-center text-xs text-fg-muted">
+              <p className="px-3 py-3 text-center text-sm text-fg-muted">
                 Thả vào đây để chuyển sang nhóm này
               </p>
             )}
@@ -364,24 +363,27 @@ export function CategoriesPage() {
       onPointerUp={onChildPointerEnd}
       onPointerCancel={onChildPointerEnd}
     >
-      <div className="mb-3 flex items-center gap-2">
-        <BackLink to="/settings" aria-label="Quay lại" />
-        <h1 className="flex-1 text-lg font-bold text-fg-primary">
-          Danh mục{' '}
-          {/* Đếm ở tiêu đề (22e). Cả hai loại, không riêng tab đang xem: nó nói luôn
-              rằng tab kia có gì, nên không phải bấm sang mới biết. */}
-          <span className="text-sm font-normal tabular-nums text-fg-muted">
-            {counts.expense} chi · {counts.income} thu
-          </span>
-        </h1>
+      <PageHeader
+        back="/settings"
+        title={
+          <>
+            Danh mục{' '}
+            {/* Đếm ở tiêu đề (22e). Cả hai loại, không riêng tab đang xem: nó nói luôn
+                rằng tab kia có gì, nên không phải bấm sang mới biết. */}
+            <span className="text-sm font-normal tabular-nums text-fg-muted">
+              {counts.expense} chi · {counts.income} thu
+            </span>
+          </>
+        }
+      >
         <button
           type="button"
           onClick={() => setForm({ category: null, parent: null })}
-          className="rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold transition active:scale-95"
+          className={actionButtonClass('primary')}
         >
-          + Thêm
+          <Plus className="h-4 w-4" /> Thêm
         </button>
-      </div>
+      </PageHeader>
 
       {/* Chi / Thu */}
       <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-surface-sunken p-1">
@@ -402,7 +404,7 @@ export function CategoriesPage() {
           thiếu") chứ không chỉ nói "chưa gắn": không có mệnh đề đó thì việc này đọc như
           một ô trống trong biểu mẫu, và ô trống thì để đó cũng được. */}
       {missingCost > 0 && (
-        <p className="mb-3 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-xs text-state-warn-fg">
+        <p className="mb-3 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-sm text-state-warn-fg">
           {missingCost} danh mục chi chưa gắn Cố định / Biến đổi — quỹ dự phòng, hai trục
           Thiết yếu·Linh hoạt và kịch bản “cắt hết chi linh hoạt” đang tính thiếu chừng đó.{' '}
           <Link to="/settings/categories/classify" className="font-medium underline">
@@ -411,7 +413,7 @@ export function CategoriesPage() {
         </p>
       )}
 
-      <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-xs text-fg-secondary">
+      <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-sm text-fg-secondary">
         Nhấn giữ biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự danh mục cha, sắp danh mục
         con trong một cha, hoặc kéo danh mục con thả sang cha khác.
       </Guide>
@@ -453,8 +455,8 @@ export function CategoriesPage() {
         ))}
 
         {parents.length === 0 && orphans.length === 0 && (
-          <Card as="p" padding="none" className="px-3 py-6 text-center text-sm text-fg-muted">
-            Chưa có danh mục
+          <Card padding="none">
+            <EmptyState compact>Chưa có danh mục</EmptyState>
           </Card>
         )}
       </div>
@@ -464,7 +466,7 @@ export function CategoriesPage() {
           <button
             type="button"
             onClick={() => setShowArchived((v) => !v)}
-            className="mb-2 inline-flex min-h-11 items-center gap-1 text-xs font-medium text-fg-muted"
+            className="mb-2 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-fg-muted"
           >
             {showArchived ? (
               <>
@@ -486,7 +488,7 @@ export function CategoriesPage() {
                   <button
                     type="button"
                     onClick={() => restore(c)}
-                    className="inline-flex min-h-11 items-center justify-center rounded-md px-2 py-1 text-xs text-fg-accent hover:bg-accent-muted-bg"
+                    className="inline-flex min-h-11 items-center justify-center rounded-md px-2 py-1 text-sm text-fg-accent hover:bg-accent-muted-bg"
                   >
                     Khôi phục
                   </button>
@@ -628,7 +630,7 @@ function CategoryForm({
         className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-fg-primary">{title}</h2>
+        <SectionTitle role="block" className="mb-3">{title}</SectionTitle>
 
         <div className="mb-3 flex items-center gap-3">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-sunken text-2xl">
@@ -644,35 +646,33 @@ function CategoryForm({
 
         {/* Danh mục cha */}
         {hasChildren ? (
-          <p className="mb-3 rounded-lg bg-surface-page px-3 py-2 text-xs text-fg-muted">
+          <p className="mb-3 rounded-lg bg-surface-page px-3 py-2 text-sm text-fg-muted">
             Danh mục này có danh mục con nên là danh mục chính.
           </p>
         ) : (
           <label className="mb-3 block">
-            <span className="mb-1 block text-xs font-medium text-fg-muted">Danh mục cha</span>
-            <select
+            <span className="mb-1 block text-sm font-medium text-fg-muted">Danh mục cha</span>
+            <Select
               value={parentId ?? ''}
-              onChange={(e) => setParentId(e.target.value || null)}
-              className="w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-secondary"
-            >
+              onChange={(e) => setParentId(e.target.value || null)} wrapClassName="w-full">
               <option value="">— Danh mục chính —</option>
               {availableParents.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.icon} {p.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         )}
 
         {/* Chi / Thu: chỉ khi là danh mục chính (con thừa kế loại của cha) */}
         {typeLocked ? (
-          <p className="mb-3 text-xs text-fg-muted">
+          <p className="mb-3 text-sm text-fg-muted">
             Nhóm {effectiveType === 'expense' ? 'Chi' : 'Thu'} — không đổi được khi còn danh mục
             con.
           </p>
         ) : selectedParent ? (
-          <p className="mb-3 text-xs text-fg-muted">
+          <p className="mb-3 text-sm text-fg-muted">
             Thuộc nhóm {selectedParent.type === 'expense' ? 'Chi' : 'Thu'} theo danh mục cha.
           </p>
         ) : (
@@ -730,7 +730,7 @@ function CategoryForm({
           </div>
         )}
 
-        <p className="mb-1.5 text-xs font-medium text-fg-muted">Biểu tượng</p>
+        <p className="mb-1.5 text-sm font-medium text-fg-muted">Biểu tượng</p>
         {/* 7 cột (không phải 8): trên 375px mỗi ô ~45px — đủ 44px vùng chạm */}
         <div className="mb-3 grid grid-cols-7 gap-1">
           {EMOJI_CHOICES.map((e) => (
@@ -770,7 +770,7 @@ function CategoryForm({
               type="button"
               onClick={handleSubmit}
               disabled={!canSave}
-              className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
+              className={actionButtonClass('primary')}
             >
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>

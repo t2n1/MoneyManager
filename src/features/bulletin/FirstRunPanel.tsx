@@ -11,7 +11,7 @@
 //      một màn trống thứ hai.
 import { Link } from 'react-router-dom'
 import { Wallet } from 'lucide-react'
-import { actionButtonClass, Card } from '../../components/ui'
+import { Card, SectionTitle, actionButtonClass } from '../../components/ui'
 
 interface Props {
   /** Đã khai năm sinh chưa — tab Tương lai cần nó để đổi năm ↔ tuổi. */
@@ -21,9 +21,9 @@ interface Props {
 export function FirstRunPanel({ hasBirthYear }: Props) {
   return (
     <Card elevation="panel" padding="panel" as="section">
-      <h2 className="text-[0.8125rem] font-semibold text-fg-primary">Bắt đầu ở đây</h2>
+      <SectionTitle>Bắt đầu ở đây</SectionTitle>
 
-      <p className="mt-1.5 text-[0.8125rem] text-fg-secondary">
+      <p className="mt-1.5 text-sm text-fg-secondary">
         Thêm tài khoản đầu tiên — một cái ví tiền mặt cũng được. Có nó rồi thì mỗi khoản
         ghi vào sẽ tự trừ đúng chỗ, và Bản tin bắt đầu nói được tháng này bạn giữ lại bao
         nhiêu.

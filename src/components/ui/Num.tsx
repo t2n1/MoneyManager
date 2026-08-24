@@ -3,7 +3,7 @@
 // Vì sao cần primitive riêng cạnh <Money>: bản 1a đưa MỌI con số sang mono + `tabular-nums`
 // (§1.2 — "mọi con số tiền, ngày, %, mã tháng"), nhưng <Money> định dạng theo loại tiền nên
 // không dùng được cho "46%" hay "68 lần". Kết quả là mỗi bảng lại viết tay
-// `font-mono text-xs tabular-nums` một lần nữa, và `designSystem.test.ts` đếm đúng chuyện
+// `font-mono tabular-nums` một lần nữa, và `designSystem.test.ts` đếm đúng chuyện
 // đó: ngưỡng `tabular-nums` là ngưỡng CHỈ ĐƯỢC GIẢM, nên mỗi bảng mới là một lần đội trần.
 //
 // Ba việc nó làm, và không làm gì thêm: cột số thẳng hàng (`tabular-nums`), chữ mono, và

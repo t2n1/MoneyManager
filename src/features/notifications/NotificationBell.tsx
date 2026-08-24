@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Bell } from 'lucide-react'
 import { useNotifications } from './useNotifications'
 import type { AppNotification } from './types'
+import { EmptyState } from '../../components/ui'
 
 /**
  * Tham số mở tấm trượt từ bên ngoài. Push gộp nhiều việc không trỏ được vào một
@@ -100,7 +101,7 @@ export function NotificationBell({ className = '' }: { className?: string }) {
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-3xs font-bold text-white">
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-2xs font-bold text-white">
             {unreadCount}
           </span>
         )}
@@ -126,9 +127,9 @@ export function NotificationBell({ className = '' }: { className?: string }) {
             <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-gray-300 lg:hidden dark:bg-gray-600" />
             <Suspense
               fallback={
-                <p className="py-6 text-center text-sm text-fg-muted">
+                <EmptyState compact>
                   Đang tải…
-                </p>
+                </EmptyState>
               }
             >
               <NotificationSheet

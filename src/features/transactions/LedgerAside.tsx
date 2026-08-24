@@ -10,7 +10,7 @@
 // không hiện — 390px không có chỗ cho một cột phụ, và cuộn qua chúng để tới danh sách
 // thì chúng đang chắn đường tới thứ người ta mở màn này để xem.
 import { Link } from 'react-router-dom'
-import { Card, Money } from '../../components/ui'
+import { Card, Money, SectionTitle } from '../../components/ui'
 import { formatMonthLabel, type MonthKey } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import type { CategorySlice } from '../reports/aggregate'
@@ -66,13 +66,13 @@ export function LedgerAside({
     <aside className="hidden w-[26.25rem] shrink-0 flex-col gap-2.5 lg:flex">
       {/* --- Tháng trong một hình --------------------------------------------------- */}
       <Card elevation="panel" padding="panel" as="section">
-        <h2 className="text-2xs uppercase tracking-[.1em] text-fg-muted">
+        <SectionTitle role="micro">
           {formatMonthLabel(monthKey)} trong một hình
-        </h2>
+        </SectionTitle>
 
         <div className="mt-2 grid grid-cols-7 gap-1">
           {WEEKDAYS.map((w) => (
-            <span key={w} className="text-center text-3xs text-fg-muted">
+            <span key={w} className="text-center text-2xs text-fg-muted">
               {w}
             </span>
           ))}
@@ -90,7 +90,7 @@ export function LedgerAside({
                   ? `${c.iso} · chưa tới`
                   : `${c.iso} · chi ${c.expense.toLocaleString('en-US')}`
               }
-              className={`flex h-6 items-center justify-center rounded text-3xs tabular-nums text-fg-primary ${
+              className={`flex h-6 items-center justify-center rounded text-2xs tabular-nums text-fg-primary ${
                 c.future
                   ? 'border border-dashed border-border-panel text-fg-muted'
                   : c.netIn
@@ -103,7 +103,7 @@ export function LedgerAside({
           ))}
         </div>
 
-        <div className="mt-2 flex items-center gap-3 border-t border-border-subtle pt-2 text-3xs text-fg-muted">
+        <div className="mt-2 flex items-center gap-3 border-t border-border-subtle pt-2 text-2xs text-fg-muted">
           <span className="flex items-center gap-1">
             <span className="h-2.5 w-2.5 rounded bg-money-out/35" aria-hidden /> chi
           </span>
@@ -126,23 +126,23 @@ export function LedgerAside({
       {/* --- Top danh mục ---------------------------------------------------------- */}
       {topCategories.length > 0 && (
         <Card elevation="panel" padding="panel" as="section">
-          <h2 className="text-2xs uppercase tracking-[.1em] text-fg-muted">
+          <SectionTitle role="micro">
             Top danh mục {formatMonthLabel(monthKey).toLowerCase()}
-          </h2>
+          </SectionTitle>
           <ul className="mt-2 flex flex-col gap-2">
             {topCategories.map((s) => {
               const pct = expenseTotal > 0 ? Math.round((s.amount / expenseTotal) * 100) : 0
               return (
                 <li key={s.categoryId}>
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="min-w-0 truncate text-[0.8125rem] text-fg-secondary">
+                    <span className="min-w-0 truncate text-sm text-fg-secondary">
                       {nameOf(s.categoryId)}
                     </span>
                     <Money
                       amount={s.amount}
                       currency={base}
                       tone="neutral"
-                      className="shrink-0 text-[0.8125rem] font-medium"
+                      className="shrink-0 text-sm font-medium"
                     />
                   </div>
                   {/* Thanh so sánh: tỷ lệ trên TỔNG CHI của kỳ, không trên danh mục lớn

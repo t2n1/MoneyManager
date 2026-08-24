@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { ChevronDown } from 'lucide-react'
-import { SegmentedControl } from '../../components/ui'
+import { SegmentedControl, Select } from '../../components/ui'
 import { DateField } from '../../components/DateField'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
 import type { DebtOrigin } from '../../types/database.types'
@@ -16,7 +16,7 @@ import type { RemitStrip } from '../reports/longRange'
 
 // Export: DebtPickerField.tsx (task 8) dùng lại đúng các class này — một nếp cho
 // mọi field riêng của form Nhập, không tự đặt class mới ở nơi khác.
-export const labelCls = 'mb-1 block text-xs font-medium text-fg-muted'
+export const labelCls = 'mb-1 block text-sm font-medium text-fg-muted'
 export const inputCls =
   'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary'
 const moneyInputCls =
@@ -144,7 +144,7 @@ export function FeeField({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`self-start rounded-md border border-dashed border-gray-300 px-2.5 py-1.5 text-xs font-medium text-fg-muted transition active:scale-95 dark:border-gray-600 ${smallBtnTap}`}
+        className={`self-start rounded-md border border-dashed border-gray-300 px-2.5 py-1.5 text-sm font-medium text-fg-muted transition active:scale-95 dark:border-gray-600 ${smallBtnTap}`}
       >
         + Phí
       </button>
@@ -165,7 +165,7 @@ export function FeeField({
         ariaLabel={`Phí (${currency})`}
         onEnter={onEnter}
       />
-      <Guide className="mt-1 text-xs text-fg-muted">{hint}</Guide>
+      <Guide className="mt-1 text-sm text-fg-muted">{hint}</Guide>
     </div>
   )
 }
@@ -206,7 +206,7 @@ function PeopleChips({
             }`}
           >
             <span className="max-w-[9rem] truncate">{p.name}</span>
-            <span className={`text-xs tabular-nums ${active ? 'text-white/80' : 'text-fg-muted'}`}>
+            <span className={`text-sm tabular-nums ${active ? 'text-white/80' : 'text-fg-muted'}`}>
               {formatMoney(p.remaining, p.currency)}
             </span>
           </button>
@@ -276,7 +276,7 @@ export function SplitFields({
         />
       </div>
       {total > 0 && value.others > 0 && (
-        <p className={`text-right text-xs ${over && !settledNow ? 'text-money-out' : 'text-fg-muted'}`}>
+        <p className={`text-right text-sm ${over && !settledNow ? 'text-money-out' : 'text-fg-muted'}`}>
           {over ? (
             settledNow ? (
               // Đưa dư khi trả lại ngay: hợp lệ — phần dư ghi thành khoản THU.
@@ -313,20 +313,18 @@ export function SplitFields({
           <label htmlFor={`${uid}-recvacc`} className={labelCls}>
             Nhận lại vào
           </label>
-          <select
+          <Select
             id={`${uid}-recvacc`}
             value={value.receivedAccountId}
-            onChange={(e) => onChange({ ...value, receivedAccountId: e.target.value })}
-            className={inputCls}
-          >
+            onChange={(e) => onChange({ ...value, receivedAccountId: e.target.value })} wrapClassName="w-full">
             <option value="">Chính {sourceName || 'tài khoản đã trả'}</option>
             {backAccounts.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
               </option>
             ))}
-          </select>
-          <Guide className="mt-1 text-xs text-fg-muted">
+          </Select>
+          <Guide className="mt-1 text-sm text-fg-muted">
             {value.receivedAccountId
               ? 'Thêm một chuyển khoản để tài khoản đã trả vẫn trừ đủ tổng (khớp sao kê thẻ).'
               : 'Tiền ra tiền vào cùng một chỗ → chỉ ghi một dòng chi phần của mình.'}
@@ -376,7 +374,7 @@ export function SplitFields({
           className={inputCls}
         />
         {!settledNow && selected && (
-          <p className="mt-1 text-xs text-fg-accent">
+          <p className="mt-1 text-sm text-fg-accent">
             Cộng dồn vào khoản đang mở · còn lại {formatMoney(selected.remaining, selected.currency)}
           </p>
         )}
@@ -552,7 +550,7 @@ export function DebtFields({
           className={inputCls}
         />
         {selected && (
-          <p className="mt-1 text-xs text-fg-accent">
+          <p className="mt-1 text-sm text-fg-accent">
             Cộng dồn vào khoản đang mở · còn lại {formatMoney(selected.remaining, selected.currency)}
           </p>
         )}
@@ -563,7 +561,7 @@ export function DebtFields({
         <label className="flex cursor-pointer items-center justify-between gap-2 text-sm text-fg-secondary">
           <span>
             Có chuyển tiền thật
-            <Guide as="span" className="block text-xs text-fg-muted">
+            <Guide as="span" className="block text-sm text-fg-muted">
               {value.direction === 'owed_to_me'
                 ? 'Tạo giao dịch chi (trừ số dư tài khoản)'
                 : 'Tạo giao dịch thu (cộng số dư tài khoản)'}
@@ -594,7 +592,7 @@ export function DebtFields({
           </button>
         </label>
         {!canRecordReal && (
-          <p className="mt-2 text-xs text-state-warn-fg">
+          <p className="mt-2 text-sm text-state-warn-fg">
             Chưa có tài khoản để tạo giao dịch thật. Vẫn lưu được khoản nợ (không đổi số dư).
           </p>
         )}
@@ -619,7 +617,7 @@ export function DebtFields({
           <button
             type="button"
             onClick={() => setShowMore((v) => !v)}
-            className={`flex items-center gap-1 py-1 text-xs font-medium text-fg-muted ${smallBtnTap}`}
+            className={`flex items-center gap-1 py-1 text-sm font-medium text-fg-muted ${smallBtnTap}`}
           >
             <ChevronDown className={`h-4 w-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
             {showMore ? 'Ẩn bớt' : 'Thêm chi tiết (hạn, lãi suất)'}
@@ -729,7 +727,7 @@ export function RemitFields({
           {vndAccounts.length === 0 ? (
             <>
               <span className={labelCls}>Đến tài khoản VND</span>
-              <p className="rounded-lg bg-state-warn-bg text-state-warn-fg px-3 py-2 text-xs">
+              <p className="rounded-lg bg-state-warn-bg text-state-warn-fg px-3 py-2 text-sm">
                 Chưa có tài khoản VND. Tạo một tài khoản VND (vd "Tiền ở VN") hoặc chọn "Hỗ trợ gia đình".
               </p>
             </>
@@ -738,19 +736,17 @@ export function RemitFields({
               <label htmlFor={`${uid}-dest`} className={labelCls}>
                 Đến tài khoản VND
               </label>
-              <select
+              <Select
                 id={`${uid}-dest`}
                 value={value.destId}
-                onChange={(e) => onChange({ ...value, destId: e.target.value })}
-                className={inputCls}
-              >
+                onChange={(e) => onChange({ ...value, destId: e.target.value })} wrapClassName="w-full">
                 <option value="">— chọn —</option>
                 {vndAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </>
           )}
         </div>
@@ -788,7 +784,7 @@ export function RemitFields({
         </div>
       </div>
       {sent > 0 && value.fee > 0 && (
-        <p className="text-right text-xs text-fg-secondary">
+        <p className="text-right text-sm text-fg-secondary">
           Trừ khỏi tài khoản:{' '}
           <span className="font-semibold">{formatMoney(totalOut, 'JPY')}</span> (số gửi + phí)
         </p>
@@ -796,7 +792,7 @@ export function RemitFields({
       {/* "≈" là chủ đích: nói rõ đây là số TÍNH RA từ tỷ giá, không phải số bên nhận đã
           xác nhận (số đó nằm trong ô "Số nhận" ngay trên, có thể đang khác con số này). */}
       {estimate !== null && (
-        <p className="text-right text-xs text-fg-muted">
+        <p className="text-right text-sm text-fg-muted">
           ≈ {formatMoney(estimate, 'VND')} · 1 ¥ ≈ {(rate ?? 0).toFixed(1)} ₫
           {rateAge ? ` · tỷ giá ${rateAge}` : ''}
         </p>
@@ -808,18 +804,16 @@ export function RemitFields({
         <label htmlFor={`${uid}-service`} className={labelCls}>
           Dịch vụ
         </label>
-        <select
+        <Select
           id={`${uid}-service`}
           value={value.service}
-          onChange={(e) => onChange({ ...value, service: e.target.value })}
-          className={inputCls}
-        >
+          onChange={(e) => onChange({ ...value, service: e.target.value })} wrapClassName="w-full">
           {services.map((s) => (
             <option key={s} value={s}>
               {s}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
     </div>
   )
@@ -866,7 +860,7 @@ export function RemitMonthStrip({
           </li>
         ))}
       </ul>
-      <p className="mt-1.5 text-xs text-fg-muted">
+      <p className="mt-1.5 text-sm text-fg-muted">
         {strip.sent}/{strip.months.length} tháng có gửi · thường lệ {formatMoney(strip.usual, currency)}
       </p>
     </div>

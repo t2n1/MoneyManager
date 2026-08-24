@@ -10,6 +10,7 @@ import { Check, X } from 'lucide-react'
 import { useTagGroups, useTags, useTransactionTags, useUpdateTag } from '../../hooks/queries'
 import { ungroupedQueue } from './groups'
 import { TAG_CHIP_CLASS, tagColor } from './colors'
+import { SectionTitle, actionButtonClass } from '../../components/ui'
 
 export const QUICK_SORT_KEY = 'sct-tag-quicksort-done'
 
@@ -49,7 +50,7 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
   return (
     <section className="mb-3 rounded-xl border border-green-200 bg-state-good-bg p-3 dark:border-green-900">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-fg-primary">Xếp nhãn vào nhóm</h2>
+        <SectionTitle>Xếp nhãn vào nhóm</SectionTitle>
         <span className="text-2xs text-fg-muted">còn {queue.length}</span>
       </div>
 
@@ -59,7 +60,7 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
         >
           {current.name}
         </span>
-        <span className="text-xs text-fg-muted">{used} giao dịch</span>
+        <span className="text-sm text-fg-muted">{used} giao dịch</span>
       </div>
 
       <div className="flex flex-wrap gap-1.5">
@@ -68,7 +69,7 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
             key={g.id}
             type="button"
             onClick={() => updateTag.mutate({ id: current.id, patch: { group_id: g.id } })}
-            className="min-h-9 rounded-md bg-accent text-fg-on-accent px-3 text-xs font-semibold transition hover:opacity-90"
+            className={actionButtonClass('primary')}
           >
             {g.name}
           </button>
@@ -76,7 +77,7 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
         <button
           type="button"
           onClick={() => setSkipped((s) => [...s, current.id])}
-          className="min-h-9 rounded-md border border-border-strong px-3 text-xs font-medium text-fg-secondary"
+          className="min-h-9 rounded-md border border-border-strong px-3 text-sm font-medium text-fg-secondary"
         >
           Để ở Khác
         </button>
@@ -86,7 +87,7 @@ export function QuickSortStrip({ onDone }: { onDone: () => void }) {
             writeQuickSortDone(true)
             onDone()
           }}
-          className="inline-flex min-h-9 items-center gap-1 rounded-md px-3 text-xs font-medium text-fg-muted"
+          className="inline-flex min-h-9 items-center gap-1 rounded-md px-3 text-sm font-medium text-fg-muted"
         >
           <X className="h-3.5 w-3.5" aria-hidden />
           Xong

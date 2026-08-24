@@ -10,7 +10,7 @@
 //      của nó, tắt đi rồi tự làm lại thì còn dài hơn tự vẽ.
 //   3. Tám tháng × hai cột là 16 hình chữ nhật. Kéo cả một thư viện biểu đồ vào một
 //      trang vốn đã nặng (Bản tin đọc gần hết bảng dữ liệu) để vẽ 16 hình là không đáng.
-import { Card, Money } from '../../components/ui'
+import { Card, Money, SectionTitle } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { formatMonthLabel, type MonthKey } from '../../lib/dates'
 import type { MonthlyPoint } from '../reports/aggregate'
@@ -40,7 +40,7 @@ export function CashflowPanel({ points, active, base, onPick, approx }: Props) {
     // Ngân sách bị cắt 8px còn dòng giao dịch tràn 39px (§13).
     <Card elevation="panel" padding="panel" as="section" className="min-w-0 flex-1 basis-full xl:basis-0">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-[0.8125rem] font-semibold text-fg-primary">Dòng tiền 8 tháng</h2>
+        <SectionTitle>Dòng tiền 8 tháng</SectionTitle>
         <p className="font-mono text-2xs text-fg-muted">
           {formatMonthLabel(active)}
           {cur && (
@@ -85,7 +85,7 @@ export function CashflowPanel({ points, active, base, onPick, approx }: Props) {
                 />
               </span>
               <span
-                className={`max-w-full truncate font-mono text-3xs ${on ? 'text-fg-primary' : 'text-fg-muted'}`}
+                className={`max-w-full truncate font-mono text-2xs ${on ? 'text-fg-primary' : 'text-fg-muted'}`}
                 aria-hidden
               >
                 {/* Chỉ số tháng: tám nhãn "2026/08" trong một panel 380–600px là chữ đè

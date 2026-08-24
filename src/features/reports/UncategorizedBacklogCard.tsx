@@ -7,7 +7,7 @@
 // Ẩn hẳn khi không còn gì — không hiện "đã xong hết" cho một việc người dùng không hỏi.
 import { Link } from 'react-router-dom'
 import { Guide } from '../../components/Guide'
-import { Card } from '../../components/ui'
+import { Card, SectionTitle } from '../../components/ui'
 import { formatMonthLabel, getMonthRange, parseMonthKey } from '../../lib/dates'
 import type { MonthBacklogRow } from './uncategorized'
 
@@ -36,7 +36,7 @@ export function UncategorizedBacklogCard({ rows, monthsWindow }: Props) {
   return (
     <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-fg-muted">Khoản chưa gắn danh mục</h2>
+        <SectionTitle>Khoản chưa gắn danh mục</SectionTitle>
         <span className="shrink-0 text-2xs text-fg-muted">{rows.length} tháng</span>
       </div>
 
@@ -51,10 +51,10 @@ export function UncategorizedBacklogCard({ rows, monthsWindow }: Props) {
                 className="block rounded-lg bg-surface-page px-2.5 py-2 active:scale-[0.99]"
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-xs font-medium text-fg-secondary">
+                  <span className="text-sm font-medium text-fg-secondary">
                     {formatMonthLabel(parseMonthKey(row.monthKey))}
                   </span>
-                  <span className="shrink-0 text-xs font-semibold text-fg-primary">
+                  <span className="shrink-0 text-sm font-semibold text-fg-primary">
                     còn {row.pending} khoản
                   </span>
                 </div>

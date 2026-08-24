@@ -21,6 +21,7 @@ import { repo } from '../../data'
 import { hasTaxCategories } from '../tax/categories'
 import { bocPhieu, type Phieu } from './boc'
 import { docPdfWeb } from './docPdfWeb'
+import { PageHeader, actionButtonClass } from '../../components/ui'
 import {
   DANH_MUC_THUE_CHA,
   DANH_MUC_THUE_CON,
@@ -380,8 +381,7 @@ export function ImportPhieuLuongPage() {
 
   return (
     <div className="flex flex-col gap-3 p-3">
-      <BackLink to="/settings/data" aria-label="Dữ liệu" />
-      <h1 className="text-base font-semibold text-fg-primary">Nhập phiếu lương từ PDF</h1>
+      <PageHeader title="Nhập phiếu lương từ PDF" back="/settings/data" flush />
 
       {/*
         KHONG chan o input nhu thieuDanhMuc: hai thu nay chi can cho phieu CO 通勤手当
@@ -390,19 +390,19 @@ export function ImportPhieuLuongPage() {
       */}
       {(!dmPhuCap || !tkHuu || tenGanGiong.length > 0) && (
         <Card>
-          <p className="text-xs text-fg-secondary">
+          <p className="text-sm text-fg-secondary">
             Phiếu có <span className="text-fg-primary">通勤手当</span> (phụ cấp đi lại) hoặc{' '}
             <span className="text-fg-primary">DB掛金</span> (退職金) sẽ bị từ chối cho tới khi có
             đủ:
           </p>
-          <ul className="mt-1 text-xs text-fg-secondary">
+          <ul className="mt-1 text-sm text-fg-secondary">
             {!dmPhuCap && (
               <li className="text-money-out">· thiếu danh mục thu “{DANH_MUC_PHU_CAP}”</li>
             )}
             {!tkHuu && <li className="text-money-out">· thiếu tài khoản “{TEN_TK_HUU}”</li>}
           </ul>
           {tenGanGiong.length > 0 && (
-            <p className="mt-2 text-xs text-money-out">
+            <p className="mt-2 text-sm text-money-out">
               Không có khoản nợ nào tên đúng “{TEN_NO_CONG_TY}” — {NHAN_LA_THEO} sẽ chỉ bị rút
               khỏi Thu, KHÔNG trừ vào nợ. Sổ đang có tên gần giống:{' '}
               {tenGanGiong.map((t) => `“${t}”`).join(', ')} — khớp theo tên đúng từng ký tự nên
@@ -424,7 +424,7 @@ export function ImportPhieuLuongPage() {
               type="button"
               onClick={taoTkHuu}
               disabled={createAccount.isPending}
-              className="mt-2 min-h-9 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold transition active:scale-95 disabled:opacity-60"
+              className={actionButtonClass('primary', 'mt-2')}
             >
               {createAccount.isPending ? 'Đang tạo…' : `Tạo tài khoản ${TEN_TK_HUU}`}
             </button>
@@ -434,17 +434,17 @@ export function ImportPhieuLuongPage() {
 
       {thieuDanhMuc.length > 0 && (
         <Card>
-          <p className="text-xs text-money-out">
+          <p className="text-sm text-money-out">
             Thiếu {thieuDanhMuc.length} danh mục Thuế &amp; An sinh. Phải tạo trước khi nhập.
           </p>
-          <ul className="mt-1 text-xs text-fg-secondary">
+          <ul className="mt-1 text-sm text-fg-secondary">
             {thieuDanhMuc.map((n) => <li key={n}>· {n}</li>)}
           </ul>
           <button
             type="button"
             onClick={taoDanhMuc}
             disabled={createCategory.isPending}
-            className="mt-2 min-h-9 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold transition active:scale-95 disabled:opacity-60"
+            className={actionButtonClass('primary', 'mt-2')}
           >
             {createCategory.isPending ? 'Đang tạo…' : 'Tạo 6 danh mục'}
           </button>
@@ -478,7 +478,7 @@ export function ImportPhieuLuongPage() {
       </Card>
 
       {daGop.length > 0 && (
-        <p className="text-xs text-fg-muted">
+        <p className="text-sm text-fg-muted">
           Đã gộp {daGop.length} nhóm file trùng nội dung làm một:{' '}
           {daGop.map((g) => g.files.join(' = ')).join(' · ')}
         </p>
@@ -489,12 +489,12 @@ export function ImportPhieuLuongPage() {
           <p className="text-sm font-semibold text-fg-primary">
             {dat.length} phiếu sẵn sàng · {soDong} dòng
           </p>
-          <p className="mt-1 text-xs text-fg-muted">
+          <p className="mt-1 text-sm text-fg-muted">
             Số dư không đổi: thu vào chi ra cùng ngày cùng tài khoản, triệt tiêu.
           </p>
           <ul className="mt-2 flex flex-col gap-2">
             {keHoach.map((k) => (
-              <li key={k.phieu.file} className="border-t border-border-subtle pt-2 text-xs">
+              <li key={k.phieu.file} className="border-t border-border-subtle pt-2 text-sm">
                 <div className="flex items-baseline gap-2">
                   <span className="font-medium text-fg-primary">{k.dau || k.phieu.file}</span>
                   <span className={
@@ -570,7 +570,7 @@ export function ImportPhieuLuongPage() {
           )}
           <button
             type="button" disabled={dangXoa} onClick={goLo}
-            className="mt-2 min-h-9 rounded-md border border-money-out px-3 py-1.5 text-xs font-semibold text-money-out transition hover:bg-state-bad-bg disabled:opacity-40"
+            className={actionButtonClass('danger', 'mt-2 border border-money-out')}
           >
             {dangXoa ? 'Đang xoá…' : 'Xoá mọi dòng phiếu lương'}
           </button>

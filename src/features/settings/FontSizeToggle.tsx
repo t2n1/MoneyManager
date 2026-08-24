@@ -1,4 +1,4 @@
-import { Card } from '../../components/ui'
+import { Card, SectionTitle } from '../../components/ui'
 import { useFontScale } from '../../hooks/useFontScale'
 import { Guide } from '../../components/Guide'
 import type { FontScalePref } from '../../lib/fontScale'
@@ -17,7 +17,7 @@ export function FontSizeToggle() {
 
   return (
     <Card as="section" padding="none" className="overflow-hidden">
-      <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">Cỡ chữ</h2>
+      <SectionTitle className="px-3 pt-3">Cỡ chữ</SectionTitle>
       <div className="flex gap-1 p-3">
         {OPTIONS.map((opt) => {
           const active = pref === opt.value
@@ -27,7 +27,7 @@ export function FontSizeToggle() {
               type="button"
               onClick={() => setFontScale(opt.value)}
               aria-pressed={active}
-              className={`flex flex-1 flex-col items-center justify-end gap-1 rounded-md border py-2.5 text-xs font-medium transition ${
+              className={`flex flex-1 flex-col items-center justify-end gap-1 rounded-md border py-2.5 text-sm font-medium transition ${
  active
  ? 'border-green-500 bg-state-good-bg text-state-good-fg dark:border-green-500'
  : 'border-border-panel text-fg-secondary hover:bg-surface-sunken'
@@ -45,7 +45,7 @@ export function FontSizeToggle() {
           )
         })}
       </div>
-      <Guide className="px-3 pb-3 text-xs text-fg-muted">
+      <Guide className="px-3 pb-3 text-sm text-fg-muted">
         Áp dụng cho toàn bộ app. Chọn cỡ lớn sẽ hiển thị ít nội dung hơn trên mỗi màn hình.
       </Guide>
     </Card>

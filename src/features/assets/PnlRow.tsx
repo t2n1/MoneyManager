@@ -41,7 +41,7 @@ export function PnlRow({ label, amount, currency, percent }: Props) {
       <span>
         <Money amount={Math.abs(amount)} currency={currency} tone={lai ? 'in' : 'out'} showSign />
         {percent != null && (
-          <span className={`ml-1 text-xs tabular-nums ${mau}`}>({pct(percent)})</span>
+          <span className={`ml-1 text-sm tabular-nums ${mau}`}>({pct(percent)})</span>
         )}
       </span>
     </div>

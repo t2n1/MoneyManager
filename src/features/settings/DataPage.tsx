@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Download, FileUp, Printer } from 'lucide-react'
-import { BackLink } from '../../components/BackLink'
 import { BackupSection } from './BackupSection'
 import { exportCsvFilename } from './exportFilename'
 import { buildTransactionsCsv } from '../reports/csv'
@@ -23,7 +22,7 @@ import {
   type MonthKey,
 } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
-import { Card } from '../../components/ui'
+import { Card, PageHeader, SectionTitle } from '../../components/ui'
 
 function ExportSection() {
   const navigate = useNavigate()
@@ -66,9 +65,9 @@ function ExportSection() {
 
   return (
     <Card as="section" padding="none" className="overflow-hidden">
-      <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">
+      <SectionTitle className="px-3 pt-3">
         Xuất báo cáo &amp; giao dịch
-      </h2>
+      </SectionTitle>
       <div className="p-3">
         {/* Nút gạt Tháng | Năm */}
         <div className="flex rounded-lg bg-surface-sunken p-0.5 text-sm font-medium">
@@ -141,21 +140,16 @@ function ExportSection() {
 export function DataPage() {
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
-      <div className="flex items-center gap-2">
-        <BackLink to="/settings" aria-label="Quay lại" />
-        <h1 className="flex-1 text-lg font-bold text-fg-primary">
-          Dữ liệu &amp; sao lưu
-        </h1>
-      </div>
+      <PageHeader title="Dữ liệu & sao lưu" back="/settings" flush />
 
       <ExportSection />
 
       <BackupSection />
 
       <Card as="section" padding="none" className="overflow-hidden">
-        <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">
+        <SectionTitle className="px-3 pt-3">
           Nhập dữ liệu
-        </h2>
+        </SectionTitle>
         <div className="mt-1">
           <Link
             to="/settings/import"

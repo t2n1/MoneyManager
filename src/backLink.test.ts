@@ -49,12 +49,40 @@ export function backButtons(sources: Map<string, string>) {
   return out
 }
 
+/**
+ * Từ 2026-08-25 phần lớn nút quay lại KHÔNG còn viết ở trang: chúng nằm trong
+ * <PageHeader back="…">, và chính PageHeader dựng <BackLink> với nhãn "Quay lại". Nên
+ * phép đếm phải cộng cả lối đó, nếu không nó tụt từ 14 xuống 3 và cái ngưỡng chống-quét-
+ * hỏng-câm bên dưới đỏ mà chẳng có lỗi nào thật.
+ */
+export function pageHeaderBacks(sources: Map<string, string>) {
+  const out: string[] = []
+  for (const [file, code] of sources) {
+    if (file.endsWith('.test.tsx')) continue
+    for (const _ of code.matchAll(/<PageHeader[^>]*?\sback=/gs)) out.push(file)
+  }
+  return out
+}
+
 describe('nút quay lại', () => {
   const found = backButtons(SOURCES)
 
+  const viaHeader = pageHeaderBacks(SOURCES)
+
   it('tìm được các nút quay lại trong nguồn', () => {
     // Ngưỡng thấp, chỉ để phát hiện phép quét hỏng câm (trả [] mà test vẫn xanh)
-    expect(found.length).toBeGreaterThan(10)
+    expect(found.length + viaHeader.length).toBeGreaterThan(10)
+  })
+
+  it('trang con dùng <PageHeader back=…>, không tự dựng <BackLink> cạnh <h1>', () => {
+    // <BackLink> trần vẫn hợp lệ ở những chỗ KHÔNG phải đầu trang: nút "Đóng" của màn
+    // Nhập (đi qua slot `left`), và lối "Về báo cáo" trong trạng thái lỗi của
+    // CategoryDetailPage. Cái phải chặn là một trang tự dựng lại hàng back + tiêu đề.
+    const rogue = [...SOURCES]
+      .filter(([f]) => !f.endsWith('.test.tsx'))
+      .filter(([, code]) => /<BackLink[^>]*\/>\s*<h1/s.test(code))
+      .map(([f]) => f)
+    expect(rogue, 'Dùng <PageHeader title=… back=…>.').toEqual([])
   })
 
   it('enclosingTag đọc đúng thẻ đang bọc', () => {

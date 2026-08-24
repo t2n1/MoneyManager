@@ -227,7 +227,7 @@ export function CalendarView({
         {/* --- Dải lọc theo nhãn --------------------------------------------------- */}
         {tagTotals.slices.length > 0 && (
           <div className="order-2 flex items-center gap-2 lg:order-none lg:px-0.5">
-            <span className="hidden shrink-0 items-center gap-1.5 text-2xs uppercase tracking-[.1em] text-fg-muted lg:flex">
+            <span className="hidden shrink-0 items-center gap-1.5 text-2xs uppercase tracking-label text-fg-muted lg:flex">
               <Tag className="h-3 w-3" aria-hidden />
               Nhãn
             </span>
@@ -312,7 +312,7 @@ export function CalendarView({
           {month.weeks.map((w, i) => (
             <span
               key={w.startISO}
-              className="flex shrink-0 items-center gap-1.5 rounded-full border border-border-panel bg-surface px-2.5 py-1 text-3xs text-fg-muted"
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-border-panel bg-surface px-2.5 py-1 text-2xs text-fg-muted"
             >
               T{i + 1}
               {/* "—" chứ không "¥0", cùng chữ với cột Tuần ở desktop: một tuần chưa tới
@@ -349,13 +349,13 @@ export function CalendarView({
             chưa tới
           </span>
           <span className="flex items-center gap-1.5">
-            <span className={`rounded px-1 text-3xs ${STATUS_CHIP.warn}`} aria-hidden>
+            <span className={`rounded px-1 text-2xs ${STATUS_CHIP.warn}`} aria-hidden>
               Điện
             </span>{' '}
             khoản đã lên lịch
           </span>
           <span className="flex items-center gap-1.5">
-            <span className={`rounded px-1 text-3xs ${STATUS_CHIP.bad}`} aria-hidden>
+            <span className={`rounded px-1 text-2xs ${STATUS_CHIP.bad}`} aria-hidden>
               Thẻ
             </span>{' '}
             thẻ tới hạn
@@ -427,7 +427,7 @@ function TagChip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition lg:py-0.5 ${
+      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm transition lg:py-0.5 ${
         active
           ? 'border-border-strong bg-surface-sunken font-medium text-fg-primary'
           : 'border-border-strong text-fg-secondary hover:bg-surface-sunken'
@@ -512,7 +512,7 @@ function DayCell({
     >
       <span className="flex items-start justify-between gap-1">
         <span
-          className={`shrink-0 text-3xs leading-none lg:text-2xs ${
+          className={`shrink-0 text-2xs leading-none lg:text-2xs ${
             isToday
               ? 'flex h-4 w-4 items-center justify-center rounded-full bg-accent font-bold text-fg-on-accent lg:h-[1.125rem] lg:w-[1.125rem]'
               : c.iso.length > 0 && new Date(`${c.iso}T00:00:00Z`).getUTCDay() === 0
@@ -547,7 +547,7 @@ function DayCell({
       </span>
 
       {/* Mobile: một số rút gọn, dưới số ngày. */}
-      <span className="whitespace-nowrap text-right text-3xs leading-tight lg:hidden">
+      <span className="whitespace-nowrap text-right text-2xs leading-tight lg:hidden">
         {muted ? null : c.expense !== 0 ? (
           <Money
             amount={Math.abs(c.expense)}
@@ -563,7 +563,7 @@ function DayCell({
       {/* Desktop: chip cam kết / ngày lương. */}
       {!muted && c.mark && (
         <span
-          className={`mt-0.5 hidden max-w-full self-start truncate rounded px-1.5 text-3xs leading-[1.5] lg:block ${
+          className={`mt-0.5 hidden max-w-full self-start truncate rounded px-1.5 text-2xs leading-snug lg:block ${
             MARK_CHIP[c.mark.kind]
           }`}
         >
@@ -622,10 +622,10 @@ function WeekCell({ week, base }: { week: CalendarWeek; base: CurrencyCode }) {
         <Money
           amount={week.expense}
           currency={base}
-          className="text-[0.8125rem] font-semibold"
+          className="text-sm font-semibold"
         />
       ) : (
-        <span className="text-[0.8125rem] font-semibold text-fg-muted">—</span>
+        <span className="text-sm font-semibold text-fg-muted">—</span>
       )}
       <WeekDelta week={week} base={base} />
     </div>
@@ -637,9 +637,10 @@ function WeekCell({ week, base }: { week: CalendarWeek; base: CurrencyCode }) {
  * trước". Cam kết đứng TRƯỚC vì nó nói về tiền chưa ra — % lệch của một tuần chưa xong
  * thì `weekDelta` đã trả null rồi.
  *
- * Bản vẽ để dòng này ở 9px; ở đây là `text-3xs` (10px) vì 9px dưới sàn đọc được của §C.2
- * (--app-font-scale nhỏ nhất là 0,9 → 8,1px), và chính bảng token của gói bàn giao cũng
- * ghi 10px là sàn không ngoại lệ.
+ * Bản vẽ để dòng này ở 9px; ở đây là `text-2xs` (11px). 9px dưới sàn đọc được của §C.2
+ * (--app-font-scale nhỏ nhất là 0,9 → 8,1px). Từ 2026-08-25 sàn trong className là 11px
+ * chứ không còn 10px: 10 và 11 cách nhau 1px, mắt không phân biệt được nên hai bậc đó
+ * chỉ làm loãng thang chữ. 10px ở lại cho riêng nhãn trục biểu đồ, nơi chỗ là cố định.
  */
 function WeekDelta({
   week,
@@ -652,7 +653,7 @@ function WeekDelta({
 }) {
   if (week.marked > 0) {
     return (
-      <span className="whitespace-nowrap text-3xs text-fg-warn">
+      <span className="whitespace-nowrap text-2xs text-fg-warn">
         {compact ? '+lịch ' : '+ '}
         {formatMoney(week.marked, base)}
         {!compact && ' lịch'}
@@ -664,7 +665,7 @@ function WeekDelta({
   // còn mũi tên là quy ước dấu THỨ HAI trong một app mà ba bảng khác đang dùng đúng
   // hàm này (xem `Num.tsx`). Tăng CHI là tông chi, giảm chi là tông thu.
   return (
-    <Num tone={deltaTone(week.deltaPct)} className="whitespace-nowrap text-3xs">
+    <Num tone={deltaTone(week.deltaPct)} className="whitespace-nowrap text-2xs">
       {signedPct(week.deltaPct)}
       {!compact && <span className="font-sans text-fg-muted"> so tuần trước</span>}
     </Num>

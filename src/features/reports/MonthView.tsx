@@ -32,7 +32,7 @@
 
 import { useMemo } from 'react'
 import { Guide } from '../../components/Guide'
-import { Card, Money, Num, StatTile, Swap } from '../../components/ui'
+import { Card, EmptyState, Money, Num, SectionTitle, StatTile, Swap } from '../../components/ui'
 import { ConclusionLine, VerdictNote } from '../../components/VerdictNote'
 import {
   useAccounts,
@@ -413,7 +413,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
   ]
 
   if (!monthFetched) {
-    return <p className="py-10 text-center text-sm text-fg-muted">Đang tải…</p>
+    return <EmptyState>Đang tải…</EmptyState>
   }
 
   const monthLabel = monthWordLabel(monthKey)
@@ -422,7 +422,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
   return (
     <div className="flex flex-col gap-2.5">
       {hasMissingRate && (
-        <div className="rounded-lg bg-state-warn-bg p-2 text-xs text-state-warn-fg">
+        <div className="rounded-lg bg-state-warn-bg p-2 text-sm text-state-warn-fg">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên số liệu có thể
           thiếu.
         </div>
@@ -431,7 +431,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
       {/* Nhãn kỳ đứng TRƯỚC mọi con số: mọi phép so trên trang này đều cắt về số ngày đã
           trôi, không nói ra thì người đọc mặc định con số là của cả tháng. */}
       {cmp?.partial && (
-        <Num tone="muted" className="text-2xs tracking-[.06em]">
+        <Num tone="muted" className="text-2xs">
           {periodDaysLabel(cmp)}
         </Num>
       )}
@@ -518,7 +518,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
             {income.hasSignal && (
               <Card as="section" elevation="panel" padding="panel">
                 <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="text-[0.8125rem] font-semibold text-fg-primary">Thu từ đâu</h3>
+                  <SectionTitle as="h3">Thu từ đâu</SectionTitle>
                   <span className="text-2xs text-fg-muted">định kỳ vs một lần</span>
                 </div>
                 <ul className="flex flex-col">
@@ -532,15 +532,15 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
                     >
                       <span className="flex min-w-0 items-baseline gap-1.5">
                         <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${row.tone}`} />
-                        <span className="text-[0.8125rem] text-fg-primary">{row.label}</span>
+                        <span className="text-sm text-fg-primary">{row.label}</span>
                       </span>
                       <Money
                         amount={row.v}
                         currency={base}
                         approx={sums.hasForeign}
-                        className="text-right text-xs"
+                        className="text-right text-sm"
                       />
-                      <span className="text-right text-xs">
+                      <span className="text-right text-sm">
                         <Num tone="muted">
                           {sums.income > 0 ? `${Math.round((row.v / sums.income) * 100)}%` : '—'}
                         </Num>
@@ -552,7 +552,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
                     mà một phần thu là thưởng thì con số sẽ LẶP LẠI tháng sau là con số
                     tính trên lương định kỳ, không phải trên tổng thu. */}
                 {income.oneOff > 0 && income.keptOnRecurringPct !== null && (
-                  <p className="mt-2 text-[0.8125rem] text-fg-primary">
+                  <p className="mt-2 text-sm text-fg-primary">
                     Tính theo <b>lương định kỳ</b> thì tỷ lệ không tiêu là{' '}
                     <b
                       className={income.keptOnRecurringPct < 0 ? 'text-money-out' : 'text-money-in'}
@@ -616,9 +616,9 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
           <ReportBlock id="m-dang-de-y" no="05" title="Đáng để ý">
             {anomalies.length > 0 && (
               <Card as="section" elevation="panel" padding="panel">
-                <h3 className="mb-2 text-[0.8125rem] font-semibold text-fg-primary">
+                <SectionTitle as="h3" className="mb-2">
                   Chi lạ so với thường ngày
-                </h3>
+                </SectionTitle>
                 <ul className="flex flex-col">
                   {anomalies.map((a) => {
                     const cat = categoryOf(a.categoryId)
@@ -627,15 +627,15 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
                         key={a.transactionId}
                         className="grid grid-cols-[minmax(0,1fr)_minmax(5.5rem,auto)_minmax(4rem,auto)] items-baseline gap-x-2 border-b border-border-subtle py-2 last:border-0 last:pb-0"
                       >
-                        <span className="min-w-0 truncate text-[0.8125rem] text-fg-primary">
+                        <span className="min-w-0 truncate text-sm text-fg-primary">
                           {cat?.icon ?? '📦'} {cat?.name ?? 'Danh mục đã xoá'}
                         </span>
                         <Money
                           amount={a.amount}
                           currency={base}
-                          className="text-right text-xs"
+                          className="text-right text-sm"
                         />
-                        <span className="text-right text-xs">
+                        <span className="text-right text-sm">
                           <Num tone="warn">{Math.round(a.ratio)}×</Num>
                         </span>
                       </li>
@@ -669,7 +669,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
               !sizes &&
               backlogRows.length === 0 && (
                 <Card as="section" elevation="panel" padding="panel">
-                  <p className="text-[0.8125rem] text-fg-muted">
+                  <p className="text-sm text-fg-muted">
                     Không có gì bất thường trong kỳ này.
                   </p>
                 </Card>

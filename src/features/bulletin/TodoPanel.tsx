@@ -25,6 +25,7 @@ import type {
   NotificationSeverity,
 } from "../notifications/types";
 import { dueSoonCount, todoBadge, todoSource, urgentCount } from "./todoView";
+import { SectionTitle } from '../../components/ui'
 
 /** Nối <button aria-controls> với vùng co giãn — thiếu nó thì trình đọc màn hình biết
  *  nút này đóng/mở, nhưng không biết nó đóng/mở CÁI GÌ. */
@@ -103,7 +104,7 @@ export function TodoPanel({ items, onDismiss }: Props) {
             "· 1 có hạn trong tuần": trần 5 việc nghĩa là danh sách lúc nào cũng gần đầy,
             nên riêng "4 việc" không nói được hôm nay có gì gấp hay không (16a). Thu gọn
             rồi thì mệnh đề đó càng phải ở ngoài. */}
-        <h2 className="min-w-0 flex-1 text-[0.8125rem] font-semibold text-fg-primary">
+        <SectionTitle className="min-w-0 flex-1">
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -134,7 +135,7 @@ export function TodoPanel({ items, onDismiss }: Props) {
               </span>
             )}
           </button>
-        </h2>
+        </SectionTitle>
         <Link
           to="/settings/notifications"
           className="-my-2 shrink-0 py-2 text-2xs text-fg-muted hover:underline"
@@ -185,7 +186,7 @@ export function TodoPanel({ items, onDismiss }: Props) {
                     Từ lg thì giữ một dòng: ở đó khối nằm cột phải 380px cạnh nội dung
                     chính, và trần 5 việc nghĩa là mỗi dòng cao thêm là cả khối cao thêm
                     năm lần. */}
-                        <span className="block text-[0.8125rem] text-fg-primary line-clamp-2 lg:line-clamp-none lg:truncate">
+                        <span className="block text-sm text-fg-primary line-clamp-2 lg:line-clamp-none lg:truncate">
                           {n.title}
                         </span>
                         {/* Dòng NGUỒN — luận điểm chính của 16a: gom mọi kết luận về một chỗ thì
@@ -203,7 +204,7 @@ export function TodoPanel({ items, onDismiss }: Props) {
                   nào là cái phải đọc trước. Bên phải nó nằm cùng cột với chevron, thành
                   một cột "trạng thái" đọc dọc được. */}
                       <span
-                        className={`shrink-0 rounded px-1.5 py-0.5 text-3xs font-semibold tabular-nums tracking-wide ${
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-2xs font-semibold tabular-nums tracking-label ${
                           badge.urgent
                             ? "bg-state-warn-bg text-state-warn-fg"
                             : "bg-surface-sunken text-fg-muted"

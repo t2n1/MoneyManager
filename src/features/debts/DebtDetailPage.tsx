@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Banknote, ChevronDown, ChevronRight, ChevronUp, PenLine } from 'lucide-react'
-import { BackLink } from '../../components/BackLink'
 import {
   useDebtPayments,
   useDebts,
@@ -18,7 +17,7 @@ import { DebtPaymentSheet } from './DebtPaymentSheet'
 import { disbursedOf, remainingOf, repaidOf } from './aggregate'
 import { buildSchedule } from './amortization'
 import type { DebtRow } from '../../types/database.types'
-import { Card } from '../../components/ui'
+import { Card, EmptyState, PageHeader, SectionTitle, actionButtonClass } from '../../components/ui'
 
 export function DebtDetailPage() {
   const { debtId = '' } = useParams()
@@ -109,9 +108,7 @@ export function DebtDetailPage() {
 
   return (
     <div className="p-3 lg:p-6">
-      <div className="mb-3 flex items-center gap-2">
-        <BackLink to="/debts" aria-label="Quay lại" />
-        <h1 className="flex-1 truncate text-lg font-bold text-fg-primary">{debt.counterparty}</h1>
+      <PageHeader title={debt.counterparty} back="/debts">
         <button
           type="button"
           onClick={() => setEditing(true)}
@@ -119,42 +116,49 @@ export function DebtDetailPage() {
         >
           Sửa
         </button>
-      </div>
+      </PageHeader>
 
-      {/* Thẻ tổng quan */}
-      <section
-        className={`rounded-2xl p-5 text-white shadow-md ${
-          isMine ? 'bg-gradient-to-br from-rose-600 to-red-700' : 'bg-gradient-to-br from-green-700 to-emerald-800'
-        }`}
-      >
-        <p className="text-sm font-medium text-white/85">
+      {/* Thẻ tổng quan.
+          Trước 2026-08-25 khối này là một tấm GRADIENT ĐẶC (rose-600 → red-700) với chữ
+          trắng — thứ duy nhất kiểu đó trong cả app: 24 màn còn lại đều là thẻ xám trên
+          nền tối. Nó cũng tự mang một bảng màu riêng (rose/emerald của Tailwind v3) thay
+          vì token, nên không lật theo Sáng/Tối và không đi qua contrast.test.ts.
+          Nay là <Card> như mọi thẻ khác; DẤU HIỆU nợ/cho vay chuyển từ NỀN sang chính con
+          số, bằng đúng cặp token tiền của app (money-out / money-in). Ít ồn hơn mà vẫn
+          đọc ra ngay chiều của khoản. */}
+      <Card as="section" padding="lg">
+        <SectionTitle role="micro">
           {dirLabel}
           {debt.status === 'settled' && ' · đã tất toán'}
-        </p>
-        <p className="mt-1 text-[2rem] font-bold leading-none tabular-nums">
+        </SectionTitle>
+        <p
+          className={`mt-1.5 font-mono text-hero font-medium tracking-number tabular-nums ${
+            isMine ? 'text-money-out' : 'text-money-in'
+          }`}
+        >
           {formatMoney(remaining, debt.currency)}
         </p>
-        <p className="mt-2 text-xs text-white/80">
+        <p className="mt-2 text-sm text-fg-muted">
           còn lại · gốc {formatMoney(disbursed, debt.currency)} · đã trả{' '}
           {formatMoney(paid, debt.currency)}
         </p>
-        {debt.due_on && <p className="mt-1 text-xs text-white/80">Hạn: {debt.due_on}</p>}
-        {debt.note && <p className="mt-1 text-xs text-white/80">{debt.note}</p>}
-      </section>
+        {debt.due_on && <p className="mt-1 text-sm text-fg-muted">Hạn: {debt.due_on}</p>}
+        {debt.note && <p className="mt-1 text-sm text-fg-secondary">{debt.note}</p>}
+      </Card>
 
       {/* Hành động chính */}
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => setPaying(true)}
-          className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold transition active:scale-95"
+          className={actionButtonClass('primary')}
         >
           + Ghi nhận trả
         </button>
         <button
           type="button"
           onClick={toggleSettled}
-          className="min-h-11 rounded-md bg-surface px-4 py-2 text-sm font-medium text-fg-secondary shadow-sm transition active:scale-95"
+          className={actionButtonClass('outline')}
         >
           {debt.status === 'open' ? 'Đánh dấu tất toán' : 'Mở lại'}
         </button>
@@ -165,14 +169,14 @@ export function DebtDetailPage() {
         <button
           type="button"
           onClick={handleDelete}
-          className="min-h-11 rounded-md px-4 py-2 text-sm font-medium text-money-out hover:bg-state-bad-bg"
+          className={actionButtonClass('danger')}
         >
           Xóa khoản nợ
         </button>
       </div>
 
       {debt.status === 'open' && fullyPaid && (
-        <p className="mt-3 rounded-lg bg-state-warn-bg text-state-warn-fg p-3 text-xs">
+        <p className="mt-3 rounded-lg bg-state-warn-bg text-state-warn-fg p-3 text-sm">
           Đã trả đủ. Bạn có thể "Đánh dấu tất toán" để đưa khoản này ra khỏi tổng nợ.
         </p>
       )}
@@ -181,9 +185,9 @@ export function DebtDetailPage() {
       <AmortizationSection debt={debt} />
 
       {/* Lịch sử trả / cho vay thêm */}
-      <h2 className="mb-2 mt-5 px-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+      <SectionTitle role="micro" className="mb-2 mt-5 px-1">
         Lịch sử ({payments.length})
-      </h2>
+      </SectionTitle>
       <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
         {payments.map((p) => {
           // amount âm = lần giải ngân thêm (cho vay/vay tiếp); dương = trả bớt.
@@ -197,16 +201,16 @@ export function DebtDetailPage() {
                   {isAdvance ? (
                     <span className="text-blue-600 dark:text-blue-400">
                       + {formatMoney(-p.amount, debt.currency)}
-                      <span className="ml-1 text-3xs font-normal text-blue-500/80">{advanceLabel}</span>
+                      <span className="ml-1 text-2xs font-normal text-blue-500/80">{advanceLabel}</span>
                     </span>
                   ) : (
                     formatMoney(p.amount, debt.currency)
                   )}
                   {!p.transaction_id && (
-                    <span className="ml-1 text-3xs font-normal text-fg-muted">(ghi nhận suông)</span>
+                    <span className="ml-1 text-2xs font-normal text-fg-muted">(ghi nhận suông)</span>
                   )}
                 </p>
-                <p className="truncate text-xs text-fg-muted">
+                <p className="truncate text-sm text-fg-muted">
                   {p.paid_on}
                   {p.note && ` · ${p.note}`}
                 </p>
@@ -231,7 +235,7 @@ export function DebtDetailPage() {
               <button
                 type="button"
                 onClick={() => handleDeletePayment(p.id, !!p.transaction_id)}
-                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md px-2 text-xs text-fg-muted hover:bg-surface-sunken"
+                className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md px-2 text-sm text-fg-muted hover:bg-surface-sunken"
               >
                 Xóa
               </button>
@@ -239,7 +243,7 @@ export function DebtDetailPage() {
           )
         })}
         {payments.length === 0 && (
-          <p className="px-3 py-6 text-center text-sm text-fg-muted">Chưa có lần trả nào</p>
+          <EmptyState compact>Chưa có lần trả nào</EmptyState>
         )}
       </Card>
 
@@ -286,9 +290,9 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
 
   return (
     <div className="mt-5">
-      <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+      <SectionTitle role="micro" className="mb-2 px-1">
         Lịch trả dự kiến
-      </h2>
+      </SectionTitle>
       <Card padding="lg">
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
@@ -317,7 +321,7 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-fg-accent"
+          className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-fg-accent"
         >
           {open ? 'Ẩn chi tiết từng kỳ' : 'Xem chi tiết từng kỳ'}
           {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -325,7 +329,7 @@ function AmortizationSection({ debt }: { debt: DebtRow }) {
 
         {open && (
           <div className="mt-2 overflow-x-auto">
-            <table className="w-full text-right text-xs tabular-nums">
+            <table className="w-full text-right text-sm tabular-nums">
               <thead>
                 <tr className="text-fg-muted">
                   <th className="py-1 pr-2 text-left font-medium">Kỳ</th>

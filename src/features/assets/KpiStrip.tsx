@@ -48,13 +48,13 @@ export function KpiCell({
   return (
     <div className={`min-w-0 px-4 py-3.5 lg:px-5 ${TONE[tone]}`.trim()}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <p className="text-2xs uppercase tracking-[.1em] text-fg-muted">{label}</p>
+        <p className="text-2xs uppercase tracking-label text-fg-muted">{label}</p>
         {badge}
       </div>
       {/* Cùng bậc chữ với dải KPI của Bản tin (features/bulletin/KpiRow.tsx): 22px ở
           mobile vì bốn ô xếp dọc trong 375px, 26px từ lg. KHÔNG kèm tabular-nums —
           <Money> đã là font-mono, mọi glyph vốn cùng bề rộng. */}
-      <div className="mt-2 font-mono text-[1.375rem] font-medium leading-none tracking-[-.02em] lg:text-[1.625rem]">
+      <div className="mt-2 font-mono text-kpi font-medium tracking-number">
         {children}
       </div>
       {foot && <div className="mt-2.5 text-2xs leading-snug text-fg-muted">{foot}</div>}

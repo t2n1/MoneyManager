@@ -16,6 +16,7 @@ import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
 import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import type { DraftEvent } from './draft'
+import { SectionTitle, actionButtonClass } from '../../components/ui'
 
 /** Khớp `check (start_year between 1900 and 2200)` và `check (end_year between 1900
  *  and 2200)` của `life_events` (migration 0031). */
@@ -97,7 +98,7 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
 
   const field =
     'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm dark:text-gray-100'
-  const label_ = 'mb-1 block text-xs font-medium text-fg-muted'
+  const label_ = 'mb-1 block text-sm font-medium text-fg-muted'
 
   const title = 'Chi tiết mốc cuộc đời'
   const uid = useId()
@@ -114,8 +115,8 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
         className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-base font-bold text-fg-primary">{title}</h2>
-        <Guide className="mb-3 text-xs text-fg-muted">
+        <SectionTitle role="block" className="mb-1">{title}</SectionTitle>
+        <Guide className="mb-3 text-sm text-fg-muted">
           Bấm Xong là ghi vào bản nháp — kịch bản chỉ đổi khi bấm Lưu ở thanh nháp trên đồ
           thị.
         </Guide>
@@ -131,7 +132,7 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
           className={`mb-1 ${field}`}
         />
         {!labelValid && (
-          <p role="alert" className="mb-2 text-xs text-money-out">
+          <p role="alert" className="mb-2 text-sm text-money-out">
             Tên sự kiện không được để trống.
           </p>
         )}
@@ -183,7 +184,7 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
           className={`mb-1 ${field}`}
         />
         {!yearValid && startYear !== '' && (
-          <p role="alert" className="mb-2 text-xs text-money-out">
+          <p role="alert" className="mb-2 text-sm text-money-out">
             Năm phải là số nguyên trong khoảng {MIN_YEAR}–{MAX_YEAR}.
           </p>
         )}
@@ -211,7 +212,7 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
               className={`mb-1 ${field}`}
             />
             {!endYearValid && (
-              <p role="alert" className="mb-2 text-xs text-money-out">
+              <p role="alert" className="mb-2 text-sm text-money-out">
                 Năm kết thúc phải ≥ năm bắt đầu (hoặc bật "đến hết đời" ở trên).
               </p>
             )}
@@ -237,7 +238,7 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
           />
         </div>
         {!amountValid && (
-          <p role="alert" className="mb-2 text-xs text-money-out">
+          <p role="alert" className="mb-2 text-sm text-money-out">
             Số tiền không được âm.
           </p>
         )}
@@ -267,7 +268,7 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
           <button
             type="button"
             onClick={handleDelete}
-            className="min-h-11 rounded-md px-3 py-2 text-sm font-medium text-money-out transition active:scale-95 hover:bg-state-bad-bg"
+            className={actionButtonClass('danger')}
           >
             Xóa mốc
           </button>
@@ -283,7 +284,7 @@ export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: 
               type="button"
               onClick={handleSubmit}
               disabled={!canSave}
-              className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold transition active:scale-95 disabled:opacity-50"
+              className={actionButtonClass('primary')}
             >
               Xong
             </button>

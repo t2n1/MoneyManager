@@ -73,6 +73,8 @@ import {
 } from './longRange'
 import { BASKET_COST_CAVEAT, basketCost, halfPeriodShift, rollingAverage } from './trends'
 import { ReportBlock } from './ReportBlock'
+import { CHART_TEXT_3XS, CHART_TEXT_XS } from '../../lib/chartText'
+import { EmptyState, SectionTitle } from '../../components/ui'
 
 /** Cửa sổ phân tích: 24 tháng là mức tối thiểu để so cùng kỳ (12 + 12). */
 const WINDOW = 24
@@ -233,13 +235,13 @@ export function LongView() {
   const keptPct = avgIncome > 0 ? Math.round(((avgIncome - avgExpense) / avgIncome) * 100) : null
 
   if (!isFetched) {
-    return <p className="py-10 text-center text-sm text-fg-muted">Đang tải…</p>
+    return <EmptyState>Đang tải…</EmptyState>
   }
   if (dataMonths === 0) {
     return (
-      <p className="py-10 text-center text-sm text-fg-muted">
+      <EmptyState>
         Chưa có giao dịch nào trong {WINDOW} tháng gần đây.
-      </p>
+      </EmptyState>
     )
   }
 
@@ -282,7 +284,7 @@ export function LongView() {
   return (
     <div className="flex flex-col gap-2.5">
       {series.hasMissingRate && (
-        <div className="rounded-lg bg-state-warn-bg p-2 text-xs text-state-warn-fg">
+        <div className="rounded-lg bg-state-warn-bg p-2 text-sm text-state-warn-fg">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên số liệu có thể
           thiếu.
         </div>
@@ -300,7 +302,7 @@ export function LongView() {
         />
       )}
 
-      <Num tone="muted" className="text-2xs tracking-[.06em]">
+      <Num tone="muted" className="text-2xs">
         {monthLabel(active[0].key)} – {monthLabel(active[dataMonths - 1].key)} · {dataMonths} tháng
         có giao dịch
       </Num>
@@ -380,19 +382,19 @@ export function LongView() {
                     x2={chartData[regime.index].label}
                     fill="var(--surface-sunken)"
                     fillOpacity={0.65}
-                    label={{ value: 'Nếp cũ', position: 'insideTopLeft', fontSize: 10, fill: 'var(--fg-muted)' }}
+                    label={{ value: 'Nếp cũ', position: 'insideTopLeft', fontSize: CHART_TEXT_3XS, fill: 'var(--fg-muted)' }}
                   />
                 )}
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 10, fill: 'var(--fg-muted)' }}
+                  tick={{ fontSize: CHART_TEXT_3XS, fill: 'var(--fg-muted)' }}
                   axisLine={false}
                   tickLine={false}
                   interval={Math.max(0, Math.floor(dataMonths / 6) - 1)}
                 />
                 <YAxis
                   tickFormatter={(v: number) => formatCompact(v, base)}
-                  tick={{ fontSize: 10, fill: 'var(--fg-muted)' }}
+                  tick={{ fontSize: CHART_TEXT_3XS, fill: 'var(--fg-muted)' }}
                   axisLine={false}
                   tickLine={false}
                   width={44}
@@ -402,7 +404,7 @@ export function LongView() {
                     formatMoney(Number(v), base),
                     n === 'rolling' ? `Trung bình ${ROLL} tháng` : 'Chi tháng đó',
                   ]}
-                  contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                  contentStyle={{ borderRadius: 8, fontSize: CHART_TEXT_XS }}
                 />
                 {regime && (
                   <ReferenceLine
@@ -420,7 +422,7 @@ export function LongView() {
                     label={{
                       value: `Đổi nếp · ${monthLabel(regime.key)}`,
                       position: 'insideTopRight',
-                      fontSize: 10,
+                      fontSize: CHART_TEXT_3XS,
                       fill: 'var(--fg-warn)',
                     }}
                   />
@@ -439,7 +441,7 @@ export function LongView() {
           </div>
 
           {regime && (
-            <p className="mt-2 text-[0.8125rem] text-fg-secondary">
+            <p className="mt-2 text-sm text-fg-secondary">
               Từ {monthLabel(regime.key)} tới nay mức nền là <b>{money(regime.baseline)}</b>/tháng —
               nếp mới đã đứng <b>{regime.monthsSince} tháng</b>.{' '}
               {table.overCount > 0 && (
@@ -472,7 +474,7 @@ export function LongView() {
           >
             <div
               role="row"
-              className="grid grid-cols-[minmax(3.5rem,auto)_minmax(0,1fr)_minmax(5.5rem,auto)_minmax(5.5rem,auto)_minmax(4rem,auto)] items-center gap-x-2 border-b border-border-panel bg-surface-chrome px-4 py-2.5 text-2xs uppercase tracking-[.1em] text-fg-muted"
+              className="grid grid-cols-[minmax(3.5rem,auto)_minmax(0,1fr)_minmax(5.5rem,auto)_minmax(5.5rem,auto)_minmax(4rem,auto)] items-center gap-x-2 border-b border-border-panel bg-surface-chrome px-4 py-2.5 text-2xs uppercase tracking-label text-fg-muted"
             >
               <span role="columnheader">Tháng</span>
               <span role="columnheader" className="min-w-0">
@@ -495,7 +497,7 @@ export function LongView() {
                   role="row"
                   className="grid grid-cols-[minmax(3.5rem,auto)_minmax(0,1fr)_minmax(5.5rem,auto)_minmax(5.5rem,auto)_minmax(4rem,auto)] items-center gap-x-2 border-b border-border-subtle px-4 py-2 last:border-0"
                 >
-                  <span role="cell" className="text-xs">
+                  <span role="cell" className="text-sm">
                     <Num tone="muted">{monthLabel(row.key)}</Num>
                   </span>
                   {/* Thanh + VẠCH MỐC ở 100%: thanh một mình chỉ nói "tháng này nhiều hơn
@@ -520,22 +522,22 @@ export function LongView() {
                     )}
                   </span>
                   <span role="cell" className="text-right">
-                    <Money amount={row.expense} currency={base} className="text-xs" />
+                    <Money amount={row.expense} currency={base} className="text-sm" />
                   </span>
                   <span role="cell" className="text-right">
                     {row.yearAgo === null ? (
-                      <Num tone="muted" className="text-xs">
+                      <Num tone="muted" className="text-sm">
                         —
                       </Num>
                     ) : (
                       <Money
                         amount={row.yearAgo}
                         currency={base}
-                        className="text-xs text-fg-muted"
+                        className="text-sm text-fg-muted"
                       />
                     )}
                   </span>
-                  <span role="cell" className="text-right text-xs">
+                  <span role="cell" className="text-right text-sm">
                     <Num tone={deltaTone(row.deltaPct === null ? null : Math.round(row.deltaPct))}>
                       {signedPct(row.deltaPct === null ? null : Math.round(row.deltaPct))}
                     </Num>
@@ -558,23 +560,23 @@ export function LongView() {
                   amount={table.total}
                   currency={base}
                   tone="out"
-                  className="text-xs font-semibold"
+                  className="text-sm font-semibold"
                 />
               </span>
               <span role="cell" className="text-right">
                 {table.yearAgoTotal === null ? (
-                  <Num tone="muted" className="text-xs">
+                  <Num tone="muted" className="text-sm">
                     —
                   </Num>
                 ) : (
                   <Money
                     amount={table.yearAgoTotal}
                     currency={base}
-                    className="text-xs text-fg-muted"
+                    className="text-sm text-fg-muted"
                   />
                 )}
               </span>
-              <span role="cell" className="text-right text-xs">
+              <span role="cell" className="text-right text-sm">
                 <Num
                   tone={deltaTone(
                     table.totalDeltaPct === null ? null : Math.round(table.totalDeltaPct),
@@ -604,7 +606,7 @@ export function LongView() {
       {/* Mùa vụ: 12 cột thay một dòng chữ về một tháng */}
       <Card as="section" elevation="panel" padding="panel">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-[0.8125rem] font-semibold text-fg-primary">Tháng nào vốn nặng</h3>
+          <SectionTitle as="h3">Tháng nào vốn nặng</SectionTitle>
           <span className="text-2xs text-fg-muted">TB {dataMonths} tháng</span>
         </div>
         <ul className="flex items-end gap-1" aria-hidden>
@@ -623,7 +625,7 @@ export function LongView() {
                   }`}
                   style={{ height: `${m.occurrences === 0 ? 6 : Math.max(4, (m.avg / max) * 64)}px` }}
                 />
-                <span className={`text-3xs ${heaviest ? 'text-fg-warn' : 'text-fg-muted'}`}>
+                <span className={`text-2xs ${heaviest ? 'text-fg-warn' : 'text-fg-muted'}`}>
                   {MONTH_SHORT[m.month - 1]}
                 </span>
               </li>
@@ -631,7 +633,7 @@ export function LongView() {
           })}
         </ul>
         {seasonal.heaviest && seasonal.heaviest.heavierPct !== null ? (
-          <p className="mt-2 text-[0.8125rem] text-fg-secondary">
+          <p className="mt-2 text-sm text-fg-secondary">
             Tháng {seasonal.heaviest.month} trung bình <b>{money(seasonal.heaviest.avg)}</b>, nặng
             hơn thường lệ{' '}
             <b className="text-money-out">{Math.round(seasonal.heaviest.heavierPct)}%</b> — phần
@@ -640,7 +642,7 @@ export function LongView() {
               ' Mới xuất hiện một lần nên đây chưa phải một nếp mùa vụ.'}
           </p>
         ) : (
-          <p className="mt-2 text-[0.8125rem] text-fg-muted">Chưa đủ dữ liệu để nói tháng nào nặng.</p>
+          <p className="mt-2 text-sm text-fg-muted">Chưa đủ dữ liệu để nói tháng nào nặng.</p>
         )}
         <Guide className="mt-1.5 text-2xs text-fg-muted">
           Cột viền nét đứt = tháng chưa có dữ liệu, khác hẳn tháng chi 0đ. Một tháng chỉ xuất
@@ -651,31 +653,31 @@ export function LongView() {
       {/* Rổ quen thuộc (B14.1) */}
       <Card as="section" elevation="panel" padding="panel">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-[0.8125rem] font-semibold text-fg-primary">
+          <SectionTitle as="h3">
             Rổ quen thuộc tốn bao nhiêu
-          </h3>
+          </SectionTitle>
           <span className="text-2xs text-fg-muted">
             {scopeMonths} tháng vs {scopeMonths} tháng trước
           </span>
         </div>
         {basket === null ? (
-          <p className="text-[0.8125rem] text-fg-muted">
+          <p className="text-sm text-fg-muted">
             Cần {scopeMonths * 2} tháng dữ liệu để so hai đoạn bằng nhau; hiện có {dataMonths}.
           </p>
         ) : (
           <>
             <Num
               tone={basket.rate > 0 ? 'out' : 'in'}
-              className="text-2xl font-medium tracking-[-.02em]"
+              className="text-kpi font-medium tracking-number"
             >
               {signedPct(Math.round(basket.rate * 1000) / 10)}
             </Num>
-            <p className="mt-1 text-xs text-fg-secondary">
+            <p className="mt-1 text-sm text-fg-secondary">
               Cùng {basket.basketSize} nhóm chi quen thuộc: kỳ này {money(basket.currentTotal)}, kỳ
               trước {money(basket.previousTotal)}. Rổ này chiếm{' '}
               {Math.round(basket.coverage * 100)}% tổng chi kỳ này.
             </p>
-            <p className="mt-1.5 text-xs font-medium text-fg-warn">{BASKET_COST_CAVEAT}</p>
+            <p className="mt-1.5 text-sm font-medium text-fg-warn">{BASKET_COST_CAVEAT}</p>
           </>
         )}
       </Card>
@@ -684,18 +686,18 @@ export function LongView() {
       <ReportBlock no="03" title="Thu và chi đi cùng nhau tới đâu">
         <Card as="section" elevation="panel" padding="panel">
           {shift === null ? (
-            <p className="text-[0.8125rem] text-fg-muted">
+            <p className="text-sm text-fg-muted">
               Cần ít nhất 4 tháng dữ liệu để chia hai nửa kỳ.
             </p>
           ) : (
             <>
               <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-                <h3 className="text-[0.8125rem] font-semibold text-fg-primary">
+                <SectionTitle as="h3">
                   Thu {shift.incomeChangePct >= 0 ? 'tăng' : 'giảm'}{' '}
                   {Math.abs(Math.round(shift.incomeChangePct))}%, chi{' '}
                   {shift.expenseChangePct >= 0 ? 'tăng' : 'giảm'}{' '}
                   {Math.abs(Math.round(shift.expenseChangePct))}%
-                </h3>
+                </SectionTitle>
                 <span className="text-2xs text-fg-muted">
                   TB tháng · {shift.monthsPerHalf} th vs {shift.monthsPerHalf} th trước
                 </span>
@@ -727,14 +729,14 @@ export function LongView() {
                         />
                       </span>
                       <span className="text-right">
-                        <Money amount={b.v} currency={base} className="text-xs" />
+                        <Money amount={b.v} currency={base} className="text-sm" />
                       </span>
                     </li>
                   ))
                 })()}
               </ul>
               {shift.keptRateBefore !== null && shift.keptRateAfter !== null && (
-                <p className="mt-2.5 text-[0.8125rem] text-fg-primary">
+                <p className="mt-2.5 text-sm text-fg-primary">
                   Tỷ lệ giữ lại{' '}
                   <b>{shift.keptRateAfter >= shift.keptRateBefore ? 'tăng' : 'giảm'}</b> từ{' '}
                   {/* `pctText`, không phải `${n}%`: tỷ lệ giữ lại ÂM là chuyện thật (chi
@@ -767,7 +769,7 @@ export function LongView() {
       {remit.sent > 0 && (
         <Card as="section" elevation="panel" padding="panel">
           <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="text-[0.8125rem] font-semibold text-fg-primary">Gửi về VN</h3>
+            <SectionTitle as="h3">Gửi về VN</SectionTitle>
             <span className="text-2xs text-fg-muted">
               {scopeMonths} tháng · ngoài chi tiêu
             </span>
@@ -775,9 +777,9 @@ export function LongView() {
           <Money
             amount={remit.total}
             currency={base}
-            className="text-2xl font-medium tracking-[-.02em]"
+            className="text-kpi font-medium tracking-number"
           />
-          <p className="mt-1 text-xs text-fg-secondary">
+          <p className="mt-1 text-sm text-fg-secondary">
             {remit.sent}/{remit.months.length} tháng có gửi
             {avgIncome > 0 && (
               <>
@@ -801,7 +803,7 @@ export function LongView() {
                     }`}
                     style={{ height: `${m.skipped ? 6 : Math.max(4, (m.amount / max) * 48)}px` }}
                   />
-                  <span className="text-3xs text-fg-muted">{MONTH_SHORT[m.key.month - 1]}</span>
+                  <span className="text-2xs text-fg-muted">{MONTH_SHORT[m.key.month - 1]}</span>
                 </li>
               )
             })}
@@ -825,7 +827,7 @@ export function LongView() {
               có gì để so, và in "được giá nhất" cho một lần duy nhất là một câu rỗng. */}
           {remitRate !== null && (
             <div className="mt-2.5 border-t border-border-subtle pt-2.5">
-              <p className="text-[0.8125rem] text-fg-secondary">
+              <p className="text-sm text-fg-secondary">
                 Tỷ giá thực nhận trung bình{' '}
                 <b>
                   <Num>{Math.round(remitRate.stats.avgRate as number).toLocaleString('vi-VN')}</Num> ₫

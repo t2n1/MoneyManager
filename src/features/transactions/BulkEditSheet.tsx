@@ -9,7 +9,7 @@
 // Sự khác nhau đó nằm ở tầng repo (setTransactionsCategory vs addTagToTransactions), ở
 // đây chỉ nói ra bằng chữ trên nút.
 import { useState } from 'react'
-import { ActionButton } from '../../components/ui'
+import { ActionButton, EmptyState, SectionTitle } from '../../components/ui'
 import { showToast } from '../../lib/dialog'
 import { useAddTagToTransactions, useSetTransactionsCategory } from '../../hooks/queries'
 import type { CategoryRow, TagRow } from '../../types/database.types'
@@ -54,9 +54,9 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
         className="flex max-h-[80dvh] w-full max-w-lg flex-col rounded-t-2xl border border-border-panel bg-surface p-4 sm:rounded-xl animate-sheet-in sm:animate-sheet-pop"
       >
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-[0.8125rem] font-semibold text-fg-primary">
+          <SectionTitle>
             Sửa {ids.length} giao dịch
-          </h2>
+          </SectionTitle>
           <ActionButton onClick={onClose}>Đóng</ActionButton>
         </div>
 
@@ -75,9 +75,9 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
         <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
           {tab === 'category' ? (
             leaves.length === 0 ? (
-              <p className="py-6 text-center text-[0.8125rem] text-fg-muted">
+              <EmptyState compact>
                 Chưa có danh mục chi nào.
-              </p>
+              </EmptyState>
             ) : (
               <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
                 {leaves.map((c) => (
@@ -91,13 +91,13 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
                         `Đã chuyển ${ids.length} khoản sang ${c.name}`,
                       )
                     }
-                    className="flex min-h-11 items-center gap-2 rounded-md border border-border-strong px-2.5 py-2 text-left text-xs text-fg-secondary transition hover:bg-surface-sunken disabled:opacity-50"
+                    className="flex min-h-11 items-center gap-2 rounded-md border border-border-strong px-2.5 py-2 text-left text-sm text-fg-secondary transition hover:bg-surface-sunken disabled:opacity-50"
                   >
                     <span aria-hidden>{c.icon}</span>
                     <span className="min-w-0 flex-1 truncate">
                       {c.name}
                       {parentName(c) && (
-                        <span className="block truncate text-3xs text-fg-muted">
+                        <span className="block truncate text-2xs text-fg-muted">
                           {parentName(c)}
                         </span>
                       )}
@@ -107,7 +107,7 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
               </div>
             )
           ) : tags.length === 0 ? (
-            <p className="py-6 text-center text-[0.8125rem] text-fg-muted">Chưa có nhãn nào.</p>
+            <EmptyState compact>Chưa có nhãn nào.</EmptyState>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {tags.map((t) => (
@@ -121,7 +121,7 @@ export function BulkEditSheet({ ids, categories, tags, onClose, onDone }: Props)
                       `Đã gắn nhãn ${t.name} cho ${ids.length} khoản`,
                     )
                   }
-                  className={`min-h-11 rounded-full px-3 text-xs font-medium transition disabled:opacity-50 ${TAG_CHIP_CLASS[tagColor(t.color)]}`}
+                  className={`min-h-11 rounded-full px-3 text-sm font-medium transition disabled:opacity-50 ${TAG_CHIP_CLASS[tagColor(t.color)]}`}
                 >
                   {t.name}
                 </button>

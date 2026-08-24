@@ -15,7 +15,7 @@ import {
   type AxisKey,
   type AxisProgress,
 } from './axisTargets'
-import { Card, Collapse } from '../../components/ui'
+import { Card, Collapse, SectionTitle } from '../../components/ui'
 import { STATUS_FILL } from '../../components/ui/statusColors'
 
 /** Giải nghĩa mỗi trục — chữ CHỈ ĐỂ DẠY, ẩn ở chế độ Gọn.
@@ -69,7 +69,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
             Chữ lấy từ `axisMissSummary`, dùng CHUNG với câu kết luận của mặt lập kế
             hoạch, nên hai mặt không thể đếm ra hai kết quả khác nhau khi tháng chuyển
             từ chưa-bắt-đầu sang đang-chạy. */}
-        <h2 className="min-w-0 text-sm font-semibold text-fg-muted">
+        <SectionTitle className="min-w-0">
           Cơ cấu chi so với mốc
           {miss && (
             <span className={miss.missed.length === 0 ? 'text-money-in' : 'text-fg-warn'}>
@@ -77,7 +77,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
               {miss.phrase}
             </span>
           )}
-        </h2>
+        </SectionTitle>
         {/* -my-3 để vùng chạm 44px không đẩy hàng tiêu đề giãn ra (cùng mẹo với nút
             "Chọn" ở LedgerPage) — đo được 42×16 khi để trần. */}
         <Link
@@ -124,7 +124,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
                   {AXIS_LABEL[l.key]}
                 </span>
                 <span
-                  className={`text-xs font-medium ${
+                  className={`text-sm font-medium ${
                     l.ok ? 'text-money-in' : 'text-fg-warn'
                   }`}
                 >
@@ -149,7 +149,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
                   aria-hidden
                 />
               </div>
-              <div className="mt-0.5 flex justify-between text-xs text-fg-muted">
+              <div className="mt-0.5 flex justify-between text-sm text-fg-muted">
                 <span className={l.ok ? '' : 'text-fg-warn'}>
                   {formatMoney(Math.round(l.actual), base)}
                 </span>
@@ -206,7 +206,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
                               />
                             </span>
                           </span>
-                          <span className="shrink-0 text-xs text-fg-muted">
+                          <span className="shrink-0 text-sm text-fg-muted">
                             {formatMoney(Math.round(s.amount), base)} · {pct}%
                           </span>
                           <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" aria-hidden />
@@ -222,7 +222,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
       </ul>
 
       {data.unclassified > 0 && (
-        <p className="mt-3 rounded-lg bg-state-warn-bg text-state-warn-fg px-2 py-1.5 text-xs">
+        <p className="mt-3 rounded-lg bg-state-warn-bg text-state-warn-fg px-2 py-1.5 text-sm">
           Còn {formatMoney(Math.round(data.unclassified), base)} chi chưa phân loại nên hai dòng đầu
           đang thiếu.{' '}
           <Link to="/settings/categories/classify" className="font-medium underline">

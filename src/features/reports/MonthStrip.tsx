@@ -78,7 +78,7 @@ export function MonthStrip({ items, active, onPick, base, label }: Props) {
                 nhấn — token màu tiền trên nền xanh sẽ không đọc được. Dùng token
                 --fg-on-accent chứ KHÔNG text-white: ở dark nền nhấn là green-500, trắng
                 trên đó chỉ 2,22:1 (xem index.css). */}
-            <span className="text-xs font-semibold leading-tight">
+            <span className="text-sm font-semibold leading-tight">
               {it.amount === null ? (
                 '—'
               ) : on ? (

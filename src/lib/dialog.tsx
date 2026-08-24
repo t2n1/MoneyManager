@@ -4,6 +4,7 @@
 // <DialogHost/> render ở AppLayout hiển thị đúng 1 hộp thoại + 1 toast tại một thời điểm.
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { AlertTriangle, Check } from 'lucide-react'
+import { SectionTitle } from '../components/ui'
 
 // ---- Dialog (confirm / prompt) ----
 
@@ -196,7 +197,7 @@ function DialogModal({ req }: { req: DialogReq }) {
         className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-base font-bold text-fg-primary">{req.title}</h2>
+        <SectionTitle role="block">{req.title}</SectionTitle>
         {req.message && (
           <p className="mt-1 text-sm text-fg-muted">{req.message}</p>
         )}

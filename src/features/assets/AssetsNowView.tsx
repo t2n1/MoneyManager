@@ -55,6 +55,7 @@ import { StructureBar } from './StructureBar'
 import { useAssetsData } from './useAssetsData'
 import { useCardsPanel } from './useCardsPanel'
 import { accountRowPnl, useInvestPnlByAccount } from './useInvestPnl'
+import { SectionTitle } from '../../components/ui'
 
 // Bảng màu cho lát vạch cơ cấu (lặp lại nếu > 12 nhóm) — đồng bộ với ReportsPage
 const PALETTE = [
@@ -419,7 +420,7 @@ export function AssetsNowView({ viewCur }: Props) {
           như y hệt, ở hai độ cao khác nhau — người đọc lần thứ hai không biết nó có
           phải chuyện mới không. Gộp lên đầu và nói RÕ chỗ nào đang thiếu. */}
       {thieuTyGia.length > 0 && (
-        <p className="rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-[0.8125rem] text-state-warn-fg">
+        <p className="rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-sm text-state-warn-fg">
           Chưa quy đổi được tỷ giá cho một phần {thieuTyGia.join(' và ')} — mọi tổng trên tab
           này đang thiếu phần đó.
         </p>
@@ -469,9 +470,9 @@ export function AssetsNowView({ viewCur }: Props) {
         className="flex flex-col overflow-hidden"
       >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border-panel px-4 py-2">
-          <h2 className="text-2xs uppercase tracking-[.1em] text-fg-muted">
+          <SectionTitle role="micro">
             Danh sách tài khoản
-          </h2>
+          </SectionTitle>
           <span className="text-2xs text-fg-muted">cắt lát theo</span>
           <SegmentedControl
             items={GROUP_MODES.map(([mode, label]) => ({ value: mode, label }))}
@@ -507,7 +508,7 @@ export function AssetsNowView({ viewCur }: Props) {
         </div>
 
         {/* Hàng tên cột — chỉ từ lg. Dưới lg dòng là hai tầng nên không có cột để đặt tên. */}
-        <div className="hidden items-center border-b border-border-panel px-4 py-1.5 text-3xs font-semibold uppercase tracking-wide text-fg-muted lg:flex">
+        <div className="hidden items-center border-b border-border-panel px-4 py-1.5 text-2xs font-semibold uppercase tracking-label text-fg-muted lg:flex">
           {dragEnabled && <span className={`${COL.drag} shrink-0`} aria-hidden />}
           <span className="min-w-0 flex-1">Nhóm · tài khoản</span>
           <span className={`${COL.share} shrink-0 text-right`}>Tỷ trọng</span>
@@ -648,7 +649,7 @@ export function AssetsNowView({ viewCur }: Props) {
                     Đối chiếu
                   </Link>
                 ) : stat?.lastReconciledISO ? (
-                  <span className="font-mono text-3xs text-fg-muted">
+                  <span className="font-mono text-2xs text-fg-muted">
                     {dayMonthLabel(stat.lastReconciledISO)}
                   </span>
                 ) : null
@@ -704,11 +705,11 @@ export function AssetsNowView({ viewCur }: Props) {
                           {a.name}
                           <span className="ml-1 text-2xs text-fg-muted">{a.currency}</span>
                           {!a.includeInTotals && (
-                            <span className="ml-1 text-3xs text-fg-muted">(ngoài tổng)</span>
+                            <span className="ml-1 text-2xs text-fg-muted">(ngoài tổng)</span>
                           )}
                           {rowPnl !== null && (
                             <span
-                              className={`ml-1 font-mono text-3xs ${
+                              className={`ml-1 font-mono text-2xs ${
                                 rowPnl > 0 ? 'text-money-in' : 'text-money-out'
                               }`}
                             >
@@ -723,12 +724,12 @@ export function AssetsNowView({ viewCur }: Props) {
                                 phần lớn tiền đầu tư, tức đây là chỗ ô Hiệu quả đầu tư
                                 (cắt theo LOẠI) lệch với dòng nhóm (cắt theo MỤC ĐÍCH). */}
                           {theCount != null && (
-                            <span className="ml-1.5 whitespace-nowrap rounded-full border border-state-warn-border px-1.5 text-3xs text-state-warn-fg">
+                            <span className="ml-1.5 whitespace-nowrap rounded-full border border-state-warn-border px-1.5 text-2xs text-state-warn-fg">
                               nguồn trả {theCount} thẻ
                             </span>
                           )}
                           {outsiderIds.has(a.id) && (
-                            <span className="ml-1.5 whitespace-nowrap rounded-full border border-border-strong px-1.5 text-3xs text-fg-muted">
+                            <span className="ml-1.5 whitespace-nowrap rounded-full border border-border-strong px-1.5 text-2xs text-fg-muted">
                               loại: {ACCOUNT_TYPE_LABELS[a.type].toLowerCase()}
                             </span>
                           )}
@@ -803,7 +804,7 @@ export function AssetsNowView({ viewCur }: Props) {
                         // `lg:hidden`: từ lg mọi thứ ở đây đã có cột riêng ở tầng một.
                         // Giữ tầng hai ở desktop là dòng tài khoản cao ~100px, tức 8 tài
                         // khoản dài gấp đôi mức 12b chốt: một dòng một tài khoản.
-                        className={`flex items-center gap-2 pb-2 text-3xs text-fg-muted lg:hidden ${
+                        className={`flex items-center gap-2 pb-2 text-2xs text-fg-muted lg:hidden ${
                           dragEnabled ? (sortMode ? 'pl-9 pr-4' : 'px-4') : 'px-4'
                         }`}
                       >
@@ -815,7 +816,7 @@ export function AssetsNowView({ viewCur }: Props) {
                               {...mv.view(Math.abs(stat.delta), a.currency)}
                               tone={stat.delta > 0 ? 'in' : 'out'}
                               showSign
-                              className="text-3xs"
+                              className="text-2xs"
                             />{' '}
                             / {DELTA_DAYS} ngày
                           </span>
@@ -832,7 +833,7 @@ export function AssetsNowView({ viewCur }: Props) {
                 )
               })}
               {dragEnabled && allowCross && rowIds.length === 0 && dragAcc != null && (
-                <p className="border-b border-border-subtle px-4 py-3 text-center text-xs text-fg-muted">
+                <p className="border-b border-border-subtle px-4 py-3 text-center text-sm text-fg-muted">
                   Thả vào đây để chuyển sang nhóm này
                 </p>
               )}

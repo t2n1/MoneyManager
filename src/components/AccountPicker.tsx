@@ -208,7 +208,7 @@ export function AccountPicker({
                 <div key={g.type} role="group" aria-label={g.label}>
                   {/* Tiêu đề khối dính trên khi cuộn: danh sách dài thì cuộn tới giữa
                       vẫn biết đang ở nhóm nào. */}
-                  <div className="sticky top-0 z-10 bg-surface px-3 py-1 text-2xs font-semibold uppercase tracking-wide text-fg-muted">
+                  <div className="sticky top-0 z-10 bg-surface px-3 py-1 text-2xs font-semibold uppercase tracking-label text-fg-muted">
                     {g.label}
                   </div>
                   {g.items.map((a) => {
@@ -245,7 +245,7 @@ export function AccountPicker({
                         </span>
                         {bal !== undefined && (
                           <span
-                            className={`shrink-0 text-xs tabular-nums ${
+                            className={`shrink-0 text-sm tabular-nums ${
                               bal < 0 ? 'text-money-out' : 'text-fg-muted'
                             }`}
                           >
@@ -267,7 +267,7 @@ export function AccountPicker({
                   trong JSX: test canh chế độ Gọn đếm chữ thật trong <p> sau khi bỏ các
                   {biểu thức}, mà nó không bỏ được biểu thức có ngoặc lồng (`${'${…}'}`). */}
               {matchedCount === 0 && (
-                <p className="px-3 py-4 text-center text-xs text-fg-muted">{emptyMessage}</p>
+                <p className="px-3 py-4 text-center text-sm text-fg-muted">{emptyMessage}</p>
               )}
             </div>
           </div>

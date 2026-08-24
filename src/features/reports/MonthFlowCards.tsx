@@ -11,7 +11,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
-import { Card, Money, Num, deltaTone, signedPct } from '../../components/ui'
+import { Card, Money, Num, SectionTitle, deltaTone, signedPct } from '../../components/ui'
 import { Guide } from '../../components/Guide'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { dayMonthLabel } from '../../lib/dates'
@@ -20,7 +20,7 @@ import type { KeptDestinations, OutflowTier, RemainingPlan, SpendShape } from '.
 function PanelTitle({ children, meta }: { children: ReactNode; meta?: ReactNode }) {
   return (
     <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-      <h3 className="min-w-0 text-[0.8125rem] font-semibold text-fg-primary">{children}</h3>
+      <SectionTitle as="h3" className="min-w-0">{children}</SectionTitle>
       {meta !== undefined && <span className="shrink-0 text-2xs text-fg-muted">{meta}</span>}
     </div>
   )
@@ -72,7 +72,7 @@ export function OutflowTiersCard({
 
       <dl className="flex flex-col">
         <div className="flex flex-wrap items-baseline justify-between gap-x-2 border-b border-border-subtle pb-2">
-          <dt className="text-[0.8125rem] text-fg-secondary">Thu</dt>
+          <dt className="text-sm text-fg-secondary">Thu</dt>
           <dd>
             <Money amount={income} currency={base} tone="in" approx={approx} className="text-sm font-semibold" />
           </dd>
@@ -84,7 +84,7 @@ export function OutflowTiersCard({
           >
             <dt className="flex min-w-0 items-baseline gap-1.5">
               <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${TIER_BAR[t.key]}`} />
-              <span className="text-[0.8125rem] text-fg-primary">{t.label}</span>
+              <span className="text-sm text-fg-primary">{t.label}</span>
               {t.note && <span className="text-2xs text-fg-muted">· {t.note}</span>}
             </dt>
             <dd className="flex shrink-0 items-baseline gap-2">
@@ -92,9 +92,9 @@ export function OutflowTiersCard({
                 amount={t.amount}
                 currency={base}
                 approx={approx}
-                className="text-[0.8125rem]"
+                className="text-sm"
               />
-              <span className="w-9 text-right text-xs">
+              <span className="w-9 text-right text-sm">
                 <Num tone="muted">{t.pct === null ? '—' : `${t.pct}%`}</Num>
               </span>
             </dd>
@@ -175,7 +175,7 @@ export function SameDaysCard({
       >
         <div
           role="row"
-          className="grid grid-cols-[minmax(0,1fr)_minmax(4.5rem,auto)_minmax(4.5rem,auto)_minmax(3.5rem,auto)] items-baseline gap-x-2 border-b border-border-panel pb-1.5 text-2xs uppercase tracking-[.1em] text-fg-muted"
+          className="grid grid-cols-[minmax(0,1fr)_minmax(4.5rem,auto)_minmax(4.5rem,auto)_minmax(3.5rem,auto)] items-baseline gap-x-2 border-b border-border-panel pb-1.5 text-2xs uppercase tracking-label text-fg-muted"
         >
           <span role="columnheader" />
           <span role="columnheader" className="text-right">
@@ -194,16 +194,16 @@ export function SameDaysCard({
             role="row"
             className="grid grid-cols-[minmax(0,1fr)_minmax(4.5rem,auto)_minmax(4.5rem,auto)_minmax(3.5rem,auto)] items-baseline gap-x-2 border-b border-border-subtle py-2 last:border-0"
           >
-            <span role="cell" className="min-w-0 truncate text-[0.8125rem] text-fg-secondary">
+            <span role="cell" className="min-w-0 truncate text-sm text-fg-secondary">
               {r.label}
             </span>
-            <span role="cell" className="text-right text-xs">
+            <span role="cell" className="text-right text-sm">
               <Num tone="muted">{r.before}</Num>
             </span>
-            <span role="cell" className="text-right text-xs">
+            <span role="cell" className="text-right text-sm">
               <Num>{r.now}</Num>
             </span>
-            <span role="cell" className="text-right text-xs">
+            <span role="cell" className="text-right text-sm">
               <Num tone={deltaTone(r.delta)}>{signedPct(r.delta)}</Num>
             </span>
           </div>
@@ -251,11 +251,11 @@ export function KeptWhereCard({
             className="grid grid-cols-[minmax(0,1fr)_minmax(6rem,auto)_2.75rem] items-baseline gap-x-2 border-b border-border-subtle py-2 last:border-0 last:pb-0"
           >
             <span className="flex min-w-0 items-baseline gap-1.5">
-              <span className="min-w-0 truncate text-[0.8125rem] text-fg-primary">
+              <span className="min-w-0 truncate text-sm text-fg-primary">
                 {nameOf(r.accountId)}
               </span>
               {!r.includeInTotals && (
-                <span className="shrink-0 text-3xs text-fg-muted">ngoài tổng</span>
+                <span className="shrink-0 text-2xs text-fg-muted">ngoài tổng</span>
               )}
             </span>
             {/* ĐƠN VỊ GỐC, không quy đổi: "+₫4,590,000" nói đúng cái đã xảy ra. Quy đổi chỉ
@@ -268,9 +268,9 @@ export function KeptWhereCard({
               currency={r.currency}
               tone={r.delta >= 0 ? 'in' : 'out'}
               showSign
-              className="text-right text-xs"
+              className="text-right text-sm"
             />
-            <span className="text-right text-xs">
+            <span className="text-right text-sm">
               <Num tone="muted">{r.pct === null ? '—' : `${r.pct}%`}</Num>
             </span>
           </li>
@@ -319,12 +319,12 @@ export function RemainingCard({ plan, base }: { plan: RemainingPlan; base: Curre
             key={r.label}
             className="flex flex-wrap items-baseline justify-between gap-x-2 border-b border-border-subtle py-2"
           >
-            <span className="min-w-0 text-[0.8125rem] text-fg-secondary">{r.label}</span>
-            <Money amount={r.value} currency={base} tone={r.tone} className="shrink-0 text-xs" />
+            <span className="min-w-0 text-sm text-fg-secondary">{r.label}</span>
+            <Money amount={r.value} currency={base} tone={r.tone} className="shrink-0 text-sm" />
           </li>
         ))}
         <li className="flex flex-wrap items-baseline justify-between gap-x-2 pt-2">
-          <span className="text-[0.8125rem] font-semibold text-fg-primary">Còn tự do</span>
+          <span className="text-sm font-semibold text-fg-primary">Còn tự do</span>
           <Money
             amount={plan.free}
             currency={base}
@@ -365,9 +365,9 @@ export function MoreCountList({ items }: { items: readonly MoreItem[] }) {
   if (items.length === 0) return null
   return (
     <Card as="section" elevation="panel" padding="none">
-      <h3 className="border-b border-border-panel px-4 py-3 text-[0.8125rem] font-semibold text-fg-primary">
+      <SectionTitle as="h3" className="border-b border-border-panel px-4 py-3">
         Mở thêm
-      </h3>
+      </SectionTitle>
       <ul>
         {items.map((m) => (
           <li key={m.label} className="border-b border-border-subtle last:border-0">
@@ -375,10 +375,10 @@ export function MoreCountList({ items }: { items: readonly MoreItem[] }) {
               to={m.to}
               className="flex min-h-11 items-center gap-2 px-4 py-2 transition hover:bg-surface-sunken"
             >
-              <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-fg-secondary">
+              <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">
                 {m.label}
               </span>
-              <span className="shrink-0 text-xs">
+              <span className="shrink-0 text-sm">
                 <Num>{m.value}</Num>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" strokeWidth={1.6} aria-hidden />

@@ -7,7 +7,7 @@ import { lazy, Suspense, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { LineChart, Settings2 } from 'lucide-react'
 import { PrivacyToggle } from '../../components/PrivacyToggle'
-import { iconButtonClass, SegmentedControl, type SegmentedItem } from '../../components/ui'
+import { EmptyState, PageHeader, SegmentedControl, iconButtonClass, type SegmentedItem } from '../../components/ui'
 import { useAccounts, useRates } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
@@ -74,7 +74,7 @@ export function migrateAssetsView(raw: string | null): { view: AssetsView; mode:
   return { view: 'now', mode: 'today' }
 }
 
-const Loading = () => <p className="py-10 text-center text-sm text-fg-muted">Đang tải…</p>
+const Loading = () => <EmptyState>Đang tải…</EmptyState>
 
 export function AssetsPage() {
   // Lối vào trang Đầu tư. Điều kiện phải TRÙNG KHÍT hợp của hai tab (useInvestData cho
@@ -130,11 +130,13 @@ export function AssetsPage() {
 
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
-      {/* MỘT hàng đầu trang, ba nhóm: tên trang · hai dải chọn · các nút phụ.
-          Trước đây tên trang và các dải nằm ở hai hàng khác nhau, tức 88px chiều cao cho
-          một chữ "Tài sản" và bốn cái nút. `flex-wrap` lo phần dưới lg. */}
+      {/* Tên trang qua <PageHeader> như 24 màn còn lại — trước đây nó nằm CHUNG hàng với
+          hai dải chọn và sáu cái nút, tức một hàng gánh ba việc và ở bề ngang hẹp thì
+          xuống thành ba dòng lộn xộn. Ở lg tiêu đề tự thành sr-only (top bar đã mang tên
+          màn) nên hàng này KHÔNG tốn thêm chiều cao ở desktop — đúng cái mà lời ghi cũ
+          ("88px cho một chữ Tài sản") lo. `flex-wrap` vẫn lo phần dưới lg. */}
+      <PageHeader title="Tài sản" flush />
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-lg font-bold text-fg-primary">Tài sản</h1>
 
         {/* Tab và công tắc đứng CÙNG một hàng (§4.4): chúng là hai trục của cùng một câu
             hỏi — xem cái gì, và xem ở độ sâu nào. Xếp dọc thì trông như hai cấp điều
@@ -211,7 +213,7 @@ export function AssetsPage() {
           {view === 'now' && (
             <Link
               to="/assets/groups"
-              className="inline-flex items-center gap-1 rounded-md border border-border-strong px-3 py-1.5 text-xs font-medium text-fg-secondary transition active:scale-95"
+              className="inline-flex items-center gap-1 rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg-secondary transition active:scale-95"
             >
               <Settings2 className="h-4 w-4" /> Quản lý nhóm
             </Link>

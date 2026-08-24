@@ -5,6 +5,7 @@ import { MoneyField, MONEY_FIELD_CLASS } from '../../components/MoneyField'
 import { confirmDialog } from '../../lib/dialog'
 import { formatMoney } from '../../lib/money'
 import type { Suggestion } from './suggest'
+import { SectionTitle, actionButtonClass } from '../../components/ui'
 
 interface Props {
   monthKey: string
@@ -76,7 +77,7 @@ export function BudgetEditSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-fg-primary">Hạn mức: {categoryLabel}</h2>
+          <SectionTitle role="block">Hạn mức: {categoryLabel}</SectionTitle>
           <button
             type="button"
             onClick={onClose}
@@ -86,10 +87,10 @@ export function BudgetEditSheet({
           </button>
         </div>
 
-        {hint && <p className="mb-2 text-xs text-fg-muted">{hint}</p>}
+        {hint && <p className="mb-2 text-sm text-fg-muted">{hint}</p>}
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">Hạn mức tháng ({base})</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">Hạn mức tháng ({base})</span>
         <MoneyField
           value={amount}
           onChange={setAmount}
@@ -114,7 +115,7 @@ export function BudgetEditSheet({
               <button
                 type="button"
                 onClick={() => setAmount(suggestion.average)}
-                className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-xs font-medium text-fg-secondary"
+                className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary"
               >
                 Dùng {formatMoney(suggestion.average, base)} (trung bình)
               </button>
@@ -122,7 +123,7 @@ export function BudgetEditSheet({
                 <button
                   type="button"
                   onClick={() => setAmount(suggestion.max)}
-                  className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-xs font-medium text-fg-secondary"
+                  className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary"
                 >
                   Dùng {formatMoney(suggestion.max, base)} (cao nhất)
                 </button>
@@ -141,7 +142,7 @@ export function BudgetEditSheet({
             <button
               type="button"
               onClick={handleDelete}
-              className="rounded-md px-4 py-3 text-sm font-medium text-money-out hover:bg-state-bad-bg"
+              className={actionButtonClass('danger')}
             >
               Xóa
             </button>
@@ -149,7 +150,7 @@ export function BudgetEditSheet({
           <button
             type="button"
             onClick={handleSave}
-            className="flex-1 rounded-md bg-accent text-fg-on-accent py-3 text-sm font-semibold active:scale-[0.99]"
+            className={actionButtonClass('primary', 'flex-1')}
           >
             Lưu
           </button>

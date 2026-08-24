@@ -4,7 +4,7 @@
 // Task 7 đã đặt nút mở NGAY DƯỚI đồ thị (không giấu trong menu) — xem LifetimePage.tsx.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { AlertCircle, ArrowDownCircle, ArrowUpCircle, ChevronDown, Download, X } from 'lucide-react'
-import { Card } from '../../components/ui'
+import { Card, EmptyState, SectionTitle } from '../../components/ui'
 import { downloadTextFile } from '../../lib/download'
 import type { CurrencyCode } from '../../lib/currencies'
 import { formatMoney } from '../../lib/money'
@@ -157,7 +157,7 @@ function YearCard({
           {formatMoney(row.assetsEndMinor, currency)}
         </span>
       </div>
-      <p className="mt-0.5 text-xs text-fg-muted">
+      <p className="mt-0.5 text-sm text-fg-muted">
         thu {formatMoney(row.incomeMinor, currency)} · chi {formatMoney(row.expenseMinor, currency)}
       </p>
       {/* Biên dưới của dải — con số THẬT SỰ quyết định nền đỏ và viền đỏ của thẻ này.
@@ -165,7 +165,7 @@ function YearCard({
           migration 0031) có một dải năm dài mà thẻ đỏ trong khi con số duy nhất nhìn
           thấy được lại dương thoải mái, và không gì trên màn hình giải thích vì sao. */}
       <p
-        className={`mt-0.5 flex items-center gap-1 text-xs tabular-nums ${
+        className={`mt-0.5 flex items-center gap-1 text-sm tabular-nums ${
           negative ? 'text-money-out' : 'text-fg-muted'
         }`}
       >
@@ -173,7 +173,7 @@ function YearCard({
         bi quan {formatMoney(row.assetsPessimisticMinor, currency)}
       </p>
       {row.events.length > 0 && (
-        <div className="mt-1.5 space-y-1 border-t border-border-panel pt-1.5 text-xs">
+        <div className="mt-1.5 space-y-1 border-t border-border-panel pt-1.5 text-sm">
           {row.events.map((e) => (
             <EventLine key={e.id} e={e} currency={currency} onEdit={onEditEvent} />
           ))}
@@ -385,7 +385,7 @@ function YearTableBody({
       {/* Nội dung: cuộn dọc. Mobile = thẻ, sm+ = bảng thật trong overflow-x-auto. */}
       <div className={scrollClassName}>
         {rows.length === 0 ? (
-          <p className="py-6 text-center text-sm text-fg-muted">Chưa có dữ liệu để hiện.</p>
+          <EmptyState compact>Chưa có dữ liệu để hiện.</EmptyState>
         ) : (
           <>
             <div className="space-y-2 sm:hidden">
@@ -404,7 +404,7 @@ function YearTableBody({
             <div className="hidden overflow-x-auto sm:block">
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-fg-muted">
+                  <tr className="text-left text-sm text-fg-muted">
                     {TABLE_HEADERS.map((h) => (
                       <th
                         key={h}
@@ -435,7 +435,7 @@ function YearTableBody({
 
       {/* Chân bảng — BẮT BUỘC nói rõ trạng thái ẩn/hiện, không được im lặng. */}
       {rows.length > 0 && (
-        <div className="shrink-0 border-t border-border-panel pt-2 text-center text-xs text-fg-muted">
+        <div className="shrink-0 border-t border-border-panel pt-2 text-center text-sm text-fg-muted">
           <p>
             {hiddenCount > 0
               ? `đang ẩn ${hiddenCount} năm không có sự kiện`
@@ -491,7 +491,7 @@ export function YearTableView({
         <div className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-border-strong lg:hidden" />
 
         <div className="flex shrink-0 items-center gap-2 p-3 pb-2">
-          <h2 className="flex-1 text-base font-bold text-fg-primary">Bảng theo năm</h2>
+          <SectionTitle role="block" className="flex-1">Bảng theo năm</SectionTitle>
           <button
             type="button"
             onClick={onClose}
@@ -544,7 +544,7 @@ export function YearTableSection({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex min-h-11 w-full items-center gap-1.5 text-left text-2xs uppercase tracking-[.1em] text-fg-muted transition"
+        className="flex min-h-11 w-full items-center gap-1.5 text-left text-2xs uppercase tracking-label text-fg-muted transition"
       >
         Bảng theo năm
         <ChevronDown

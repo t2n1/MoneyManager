@@ -23,7 +23,7 @@
 // trả" ở đầu trang (xem KpiStrip). Hạn chót là thứ phải thấy trước khi cuộn.
 import { Link } from 'react-router-dom'
 import { CreditCard } from 'lucide-react'
-import { Card, Money, StatusChip } from '../../components/ui'
+import { Card, Money, SectionTitle, StatusChip } from '../../components/ui'
 import { STATUS_FILL } from '../../components/ui/statusColors'
 import type { CardLiability } from './aggregate'
 import type { MoneyView } from './moneyView'
@@ -91,8 +91,8 @@ export function CardsSection({ cards, panel, view }: Props) {
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border-panel px-4 py-2.5">
         <CreditCard className="h-3.5 w-3.5 shrink-0 text-fg-muted" aria-hidden />
-        <h2 className="text-2xs uppercase tracking-[.1em] text-fg-muted">Thẻ tín dụng</h2>
-        <span className="shrink-0 rounded-full bg-surface-sunken px-1.5 text-3xs font-medium text-fg-on-track">
+        <SectionTitle role="micro">Thẻ tín dụng</SectionTitle>
+        <span className="shrink-0 rounded-full bg-surface-sunken px-1.5 text-2xs font-medium text-fg-on-track">
           {cards.length}
         </span>
         {motMoi && (
@@ -118,7 +118,7 @@ export function CardsSection({ cards, panel, view }: Props) {
                 style={{ width: `${phu}%` }}
               />
             </span>
-            <span className="text-xs text-fg-secondary">
+            <span className="text-sm text-fg-secondary">
               Rút <Money {...view.view(g.totalOwed, g.currency)} className="font-semibold" /> / số
               dư {g.sourceName} <Money {...view.view(g.sourceBalance, g.currency)} tone="muted" />
             </span>
@@ -142,7 +142,7 @@ export function CardsSection({ cards, panel, view }: Props) {
       })}
 
       <div
-        className={`${COLS} border-b border-border-subtle px-4 py-1.5 text-3xs font-semibold uppercase tracking-wide text-fg-muted`}
+        className={`${COLS} border-b border-border-subtle px-4 py-1.5 text-2xs font-semibold uppercase tracking-label text-fg-muted`}
       >
         <span>Thẻ</span>
         <span className="text-right">Kỳ này</span>
@@ -164,13 +164,13 @@ export function CardsSection({ cards, panel, view }: Props) {
             <span className="min-w-0 truncate text-fg-secondary">
               {c.name}
               {!c.includeInTotals && (
-                <span className="ml-1 text-3xs font-normal text-fg-muted">(ngoài tổng)</span>
+                <span className="ml-1 text-2xs font-normal text-fg-muted">(ngoài tổng)</span>
               )}
               {/* Thẻ thiếu ngày chốt/ngày trả thì không chia được kỳ — cột "Kỳ này" của
                   nó là TOÀN BỘ dư nợ, và điều đó phải nói ra tại dòng, không để người
                   đọc cộng ba dòng rồi thắc mắc vì sao không khớp. */}
               {owed > 0 && billed == null && (
-                <span className="ml-1 text-3xs font-normal text-state-warn-fg">
+                <span className="ml-1 text-2xs font-normal text-state-warn-fg">
                   chưa đặt ngày chốt
                 </span>
               )}
@@ -182,13 +182,13 @@ export function CardsSection({ cards, panel, view }: Props) {
                 className="text-right font-semibold"
               />
             ) : (
-              <span className="text-right text-xs text-fg-muted">chưa nợ</span>
+              <span className="text-right text-sm text-fg-muted">chưa nợ</span>
             )}
             <span className="hidden text-right lg:block">
               {unbilled > 0 ? (
                 <Money {...view.view(unbilled, c.currency)} tone="muted" />
               ) : (
-                <span className="text-xs text-fg-muted">—</span>
+                <span className="text-sm text-fg-muted">—</span>
               )}
             </span>
             <span className="hidden text-right lg:block">
@@ -199,7 +199,7 @@ export function CardsSection({ cards, panel, view }: Props) {
       })}
 
       <div
-        className={`${COLS} mt-auto items-center border-t border-border-panel bg-surface-chrome px-4 py-2 text-xs`}
+        className={`${COLS} mt-auto items-center border-t border-border-panel bg-surface-chrome px-4 py-2 text-sm`}
       >
         <span className="text-fg-muted">Tổng · phần chưa chốt sang kỳ sau</span>
         <Money
@@ -228,7 +228,7 @@ export function CardsSection({ cards, panel, view }: Props) {
       {/* Dưới lg hai cột kia không có chỗ, nên phần chưa chốt xuống một dòng riêng —
           bỏ hẳn thì con số "Kỳ này" trông như toàn bộ nợ thẻ. */}
       {tong.unbilled > 0 && (
-        <div className="flex items-center justify-between border-t border-border-subtle bg-surface-chrome px-4 py-2 text-xs lg:hidden">
+        <div className="flex items-center justify-between border-t border-border-subtle bg-surface-chrome px-4 py-2 text-sm lg:hidden">
           <span className="text-fg-muted">Chưa chốt · kỳ sau</span>
           <Money
             amount={tong.unbilled}

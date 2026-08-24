@@ -9,7 +9,7 @@ import { ExplainBox } from '../../components/ExplainBox'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
 import type { TagBreakdown } from '../tags/aggregate'
-import { Card } from '../../components/ui'
+import { Card, SectionTitle } from '../../components/ui'
 
 interface Props {
   data: TagBreakdown
@@ -42,10 +42,10 @@ export function TagBreakdownCard({
     if (visual) return null
     return (
       <Card as="section">
-        <h2 className="mb-1 text-sm font-semibold text-fg-primary">
+        <SectionTitle className="mb-1">
           Chi theo nhãn
-        </h2>
-        <Guide className="text-xs text-fg-secondary">
+        </SectionTitle>
+        <Guide className="text-sm text-fg-secondary">
           Nhãn dùng để gom những khoản cắt ngang nhiều danh mục — ví dụ “Về VN 2026” gồm vé máy bay,
           quà cáp và phong bì. Tạo nhãn ngay khi nhập giao dịch, hoặc{' '}
           <Link to="/settings/tags" className="font-medium text-fg-accent">
@@ -60,10 +60,10 @@ export function TagBreakdownCard({
   if (data.slices.length === 0) {
     return (
       <Card as="section">
-        <h2 className="mb-1 text-sm font-semibold text-fg-primary">
+        <SectionTitle className="mb-1">
           Chi theo nhãn
-        </h2>
-        <p className="text-xs text-fg-muted">
+        </SectionTitle>
+        <p className="text-sm text-fg-muted">
           Không có khoản chi nào mang nhãn {periodNoun}.
         </p>
       </Card>
@@ -75,7 +75,7 @@ export function TagBreakdownCard({
   return (
     <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-fg-primary">Chi theo nhãn</h2>
+        <SectionTitle>Chi theo nhãn</SectionTitle>
         <span className="shrink-0 text-2xs text-fg-muted">
           {taggedPct}% chi tiêu có nhãn
         </span>
@@ -91,11 +91,11 @@ export function TagBreakdownCard({
             >
               <div className="flex items-center justify-between gap-2">
                 <span
-                  className={`min-w-0 truncate rounded-full px-2 py-0.5 text-xs font-medium ${TAG_CHIP_CLASS[tagColor(s.color)]}`}
+                  className={`min-w-0 truncate rounded-full px-2 py-0.5 text-sm font-medium ${TAG_CHIP_CLASS[tagColor(s.color)]}`}
                 >
                   {s.name}
                 </span>
-                <span className="shrink-0 text-xs font-semibold tabular-nums text-fg-primary">
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-fg-primary">
                   {money(s.amount)}
                 </span>
               </div>

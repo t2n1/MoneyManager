@@ -18,7 +18,7 @@
 // gì về "đang tiến bộ không" mà chúng đã nói ở chế độ Hôm nay, và ở đây chúng sẽ đẩy hai
 // biểu đồ ra khỏi màn đầu.
 import { useMemo } from 'react'
-import { Card, Money, pct1, signedPct, Sparkline } from '../../components/ui'
+import { Card, Money, SectionTitle, Sparkline, pct1, signedPct } from '../../components/ui'
 import { Guide } from '../../components/Guide'
 import { useCategories, useNetWorthSnapshots, useRangeTransactions } from '../../hooks/queries'
 import { addDaysISO } from '../../lib/dates'
@@ -215,9 +215,9 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
 
       <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border-panel px-4 py-2">
-          <h2 className="text-2xs uppercase tracking-[.1em] text-fg-muted">
+          <SectionTitle role="micro">
             Danh sách tài khoản
-          </h2>
+          </SectionTitle>
           <span className="text-2xs text-fg-muted">
             {purposeGroups.length} nhóm · {accountCount} tài khoản
           </span>
@@ -226,7 +226,7 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
           </Guide>
         </div>
 
-        <div className="hidden items-center border-b border-border-panel px-4 py-1.5 text-3xs font-semibold uppercase tracking-wide text-fg-muted lg:flex">
+        <div className="hidden items-center border-b border-border-panel px-4 py-1.5 text-2xs font-semibold uppercase tracking-label text-fg-muted lg:flex">
           <span className="min-w-0 flex-1">Nhóm</span>
           <span className="w-[6.5rem] shrink-0 text-right">Tỷ trọng</span>
           <span className="w-[8.125rem] shrink-0 text-right">Δ {DELTA_DAYS} ngày</span>

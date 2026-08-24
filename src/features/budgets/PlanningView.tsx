@@ -24,7 +24,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronRight, Pencil, PiggyBank, Target, TriangleAlert } from 'lucide-react'
-import { ActionButton, Card, Money, SegmentedControl } from '../../components/ui'
+import { ActionButton, Card, Money, SectionTitle, SegmentedControl } from '../../components/ui'
 import { ConclusionLine } from '../../components/VerdictNote'
 import { Guide } from '../../components/Guide'
 import {
@@ -269,7 +269,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   return (
     <div className="flex flex-col gap-3">
       {data.hasMissingRate && (
-        <div className="rounded-md border border-state-warn-border bg-state-warn-bg p-2 text-xs text-state-warn-fg">
+        <div className="rounded-md border border-state-warn-border bg-state-warn-bg p-2 text-sm text-state-warn-fg">
           Một phần cam kết ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
@@ -279,7 +279,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
           {/* 1 — Còn chưa phân bổ. Song sinh với "Còn lại" của mặt theo dõi: cùng chỗ,
               cùng cỡ chữ, đổi nghĩa. Mắt không phải học lại cách đọc trang. */}
           <Card as="section" className="order-1">
-            <p className="mb-2 text-xs font-medium text-fg-accent">
+            <p className="mb-2 text-sm font-medium text-fg-accent">
               Tháng chưa bắt đầu · đang lập kế hoạch
             </p>
             {/* CÂU KẾT LUẬN của 18a, đứng trước mọi con số. Đây là màn duy nhất trong
@@ -354,7 +354,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                     }}
                   />
                 </div>
-                <div className="mt-1.5 flex items-baseline justify-between gap-2 text-xs text-fg-secondary">
+                <div className="mt-1.5 flex items-baseline justify-between gap-2 text-sm text-fg-secondary">
                   <button
                     type="button"
                     onClick={() => setIncomeOpen(true)}
@@ -381,7 +381,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
               chúng là một phép tính, không phải hai phép được canh cho khớp. */}
           {summary.axis && (
             <Card as="section" className="order-2">
-              <h2 className="mb-2 text-sm font-semibold text-fg-muted">Cơ cấu theo kế hoạch</h2>
+              <SectionTitle className="mb-2">Cơ cấu theo kế hoạch</SectionTitle>
               <ul className="space-y-3">
                 {summary.axis.lines.map((l) => {
                   const barPct = Math.min(Math.max(l.share, 0) * 100, 100)
@@ -391,7 +391,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                       <div className="flex items-baseline justify-between gap-2 text-sm">
                         <span className="text-fg-primary">{AXIS_LABEL[l.key]}</span>
                         <span
-                          className={`text-xs font-medium ${l.ok ? 'text-money-in' : 'text-fg-warn'}`}
+                          className={`text-sm font-medium ${l.ok ? 'text-money-in' : 'text-fg-warn'}`}
                         >
                           {shareLabel(l.share)}
                           <span className="ml-1 font-normal text-fg-muted">
@@ -411,7 +411,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                           aria-hidden
                         />
                       </div>
-                      <div className="mt-0.5 flex justify-between text-xs text-fg-muted">
+                      <div className="mt-0.5 flex justify-between text-sm text-fg-muted">
                         <span className={l.ok ? '' : 'text-fg-warn'}>
                           {money(Math.round(l.actual))}
                           {l.key === 'savings' && (
@@ -444,7 +444,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
               </ul>
 
               {goalNeed > 0 && (
-                <p className="mt-3 border-t border-border-subtle pt-2 text-xs text-fg-secondary">
+                <p className="mt-3 border-t border-border-subtle pt-2 text-sm text-fg-secondary">
                   <Target className="mr-1 inline h-3.5 w-3.5 -translate-y-px" aria-hidden />
                   Mục tiêu tiết kiệm cần {money(goalNeed)}/tháng —{' '}
                   {summary.unallocated >= goalNeed ? (
@@ -468,12 +468,12 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
           {data.commitments.items.length > 0 && (
             <Card as="section" className="order-3">
               <div className="flex items-baseline justify-between gap-2">
-                <h2 className="text-sm font-semibold text-fg-muted">Đã cam kết</h2>
+                <SectionTitle>Đã cam kết</SectionTitle>
                 <span className="text-sm font-semibold text-fg-primary">
                   {money(data.commitments.total)}
                 </span>
               </div>
-              <Guide className="mb-2 text-xs text-fg-muted">
+              <Guide className="mb-2 text-sm text-fg-muted">
                 Tiền chắc chắn ra trong tháng — hạn mức phải phủ được. Số này không cộng vào
                 phần đã chia ở trên.
               </Guide>
@@ -486,7 +486,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                         <span className="min-w-0 truncate text-fg-primary">{it.title}</span>
                         <span className="shrink-0 text-fg-primary">
                           {it.unknownAmount ? (
-                            <span className="text-xs text-fg-muted">chưa biết</span>
+                            <span className="text-sm text-fg-muted">chưa biết</span>
                           ) : (
                             money(it.amount)
                           )}
@@ -507,7 +507,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                   còn TỔNG — "phải tìm thêm bao nhiêu tiền" là câu hỏi khác với "thiếu ở
                   đâu", và với ba bốn dòng thì nó thành một phép cộng nhẩm. */}
               {data.gaps.length > 0 && (
-                <p className="mt-3 text-2xs font-semibold uppercase tracking-wide text-fg-warn">
+                <p className="mt-3 text-2xs font-semibold uppercase tracking-label text-fg-warn">
                   {data.gaps.length} trần chưa phủ hết cam kết · thiếu tổng{' '}
                   {money(data.gaps.reduce((s, g) => s + g.short, 0))}
                 </p>
@@ -523,7 +523,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
           <Card as="section" padding="none" className="order-4 overflow-hidden">
             <div className="border-b border-border-panel px-4 py-3.5">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="text-sm font-semibold text-fg-primary">Hạn mức tháng này</h2>
+                <SectionTitle>Hạn mức tháng này</SectionTitle>
                 <SegmentedControl
                   label="Cách xem hạn mức"
                   items={VIEW_OPTIONS}
@@ -547,7 +547,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                 </p>
               )}
               {groups.markerTotal > 0 && (
-                <p className="mt-0.5 text-3xs text-fg-muted">
+                <p className="mt-0.5 text-2xs text-fg-muted">
                   Các dòng dưới đây cộng lại {money(groups.lineTotal)} — lệch{' '}
                   {money(groups.markerTotal)} là mốc con nằm trong trần nhóm, không cộng hai lần.
                 </p>
@@ -599,7 +599,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                   meta={`${data.gaps.length + data.unset.length} việc`}
                   tone="warn"
                   right={
-                    <span className="text-3xs text-fg-muted">gợi ý = TB {SUGGEST_MONTHS} tháng</span>
+                    <span className="text-2xs text-fg-muted">gợi ý = TB {SUGGEST_MONTHS} tháng</span>
                   }
                 />
                 <ul>
@@ -799,7 +799,7 @@ function ProjectionBox({
 
   return (
     <div className="mt-3 rounded-md border border-state-warn-border bg-state-warn-bg p-3 text-state-warn-fg">
-      <p className="flex items-start gap-2 text-xs font-semibold">
+      <p className="flex items-start gap-2 text-sm font-semibold">
         <TriangleAlert className="mt-px h-4 w-4 shrink-0" aria-hidden />
         <span>
           Để dành đang {shareLabel(nowShare)} — {daDatSan ? 'đạt' : 'chưa đạt'} sàn {floorPct}%.
@@ -885,16 +885,16 @@ function BlockHeader({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-panel bg-surface-chrome px-4 py-2.5">
-      <h3
-        className={`text-xs font-bold ${
-          tone === 'warn'
-            ? 'uppercase tracking-[.1em] text-fg-warn'
-            : 'text-fg-primary'
-        }`}
+      {/* Vai trò 'card' cho cả hai trạng thái — chỉ nhánh cảnh báo mượn thêm dáng chữ
+          hoa của 'micro' và đổi màu. Trước đây nhánh thường dùng font-bold, lệch với 57
+          nhãn thẻ khác đang font-semibold. */}
+      <SectionTitle
+        as="h3"
+        className={tone === 'warn' ? 'uppercase tracking-label text-fg-warn' : ''}
       >
         {title}
-      </h3>
-      {meta && <span className="text-3xs text-fg-muted">{meta}</span>}
+      </SectionTitle>
+      {meta && <span className="text-2xs text-fg-muted">{meta}</span>}
       {bar}
       {right && <span className="ml-auto">{right}</span>}
     </div>
@@ -957,7 +957,7 @@ function DecisionRow({
       <button
         type="button"
         onClick={onAmount}
-        className={`min-h-11 shrink-0 rounded-md border px-2.5 text-xs ${
+        className={`min-h-11 shrink-0 rounded-md border px-2.5 text-sm ${
           dashed ? 'border-dashed border-border-strong text-fg-secondary' : 'border-border-strong text-fg-primary'
         }`}
       >
@@ -1051,7 +1051,7 @@ function BlockBody({
       <ul className={viewMode === 'table' ? '' : ''}>
         {viewMode === 'table' && (
           <li
-            className={`${TABLE_COLS} border-t border-border-subtle bg-surface-chrome px-4 py-1.5 text-3xs uppercase tracking-[.1em] text-fg-muted`}
+            className={`${TABLE_COLS} border-t border-border-subtle bg-surface-chrome px-4 py-1.5 text-2xs uppercase tracking-label text-fg-muted`}
           >
             <span />
             <span>Danh mục</span>
@@ -1093,7 +1093,7 @@ function BlockBody({
               ) : (
                 <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" aria-hidden />
               )}
-              <span className="min-w-0 flex-1 truncate text-xs text-fg-muted">
+              <span className="min-w-0 flex-1 truncate text-sm text-fg-muted">
                 {block.tail.length} mục dưới {money(TAIL_LIMIT)} —{' '}
                 {nameList(block.tail.map((r) => r.cat.name))}
               </span>
@@ -1269,7 +1269,7 @@ function TableRow({
         <span aria-hidden className="text-center text-sm">
           {row.cat.icon}
         </span>
-        <span className="min-w-0 truncate text-xs text-fg-primary">{row.cat.name}</span>
+        <span className="min-w-0 truncate text-sm text-fg-primary">{row.cat.name}</span>
         {avg > 0 ? (
           <Money
             amount={avg}
@@ -1291,7 +1291,7 @@ function TableRow({
         <span className="hidden justify-end sm:flex">
           {row.suggestion && <LimitSparkline months={row.suggestion.months} />}
         </span>
-        <Money amount={row.limit} currency={base} className="text-right text-xs font-semibold" />
+        <Money amount={row.limit} currency={base} className="text-right text-sm font-semibold" />
       </button>
     </li>
   )
@@ -1316,15 +1316,15 @@ function PlanTile({
 }) {
   return (
     <div className="min-w-0 rounded-md border border-border-panel bg-surface px-3 py-2.5">
-      <p className="flex items-center gap-1 text-2xs uppercase tracking-[.1em] text-fg-muted">
+      <p className="flex items-center gap-1 text-2xs uppercase tracking-label text-fg-muted">
         <span className="min-w-0 truncate">{label}</span>
         {badge && (
-          <span className="shrink-0 rounded border border-state-warn-border bg-state-warn-bg px-1 text-3xs font-semibold tracking-normal text-state-warn-fg">
+          <span className="shrink-0 rounded border border-state-warn-border bg-state-warn-bg px-1 text-2xs font-semibold tracking-normal text-state-warn-fg">
             {badge}
           </span>
         )}
       </p>
-      <p className="mt-1.5 font-mono text-lg font-medium leading-none tracking-[-.02em] text-fg-primary">
+      <p className="mt-1.5 font-mono text-kpi font-medium tracking-number text-fg-primary">
         {children}
       </p>
     </div>

@@ -11,7 +11,7 @@ import { Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { Guide } from '../../components/Guide'
 import { EstimateMark } from '../../components/EstimateMark'
-import { ActionButton, Card, Money, SectionTitle } from '../../components/ui'
+import { ActionButton, Card, EmptyState, Money, SectionTitle } from '../../components/ui'
 import { FundTradeFormSheet } from './FundTradeFormSheet'
 import { InvestAccountChips } from './InvestAccountChips'
 import { InvestTradeAccountPicker } from './InvestTradeAccountPicker'
@@ -62,7 +62,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
   const sheetAccount = sheet ? accounts.find((a) => a.id === sheet.accountId) : undefined
 
   if (isLoading) {
-    return <p className="py-10 text-center text-sm text-fg-muted">Đang tải…</p>
+    return <EmptyState>Đang tải…</EmptyState>
   }
 
   if (accounts.length === 0) {
@@ -101,7 +101,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
           </p>
         ) : (
           <p className="mt-1 flex items-baseline gap-1">
-            <Money amount={p.marketValue} currency={JPY} className="text-2xl font-bold" />
+            <Money amount={p.marketValue} currency={JPY} className="text-kpi font-medium tracking-number" />
             {p.missingNavs.length > 0 && (
               <EstimateMark
                 reason={`${p.missingNavs.map(fundName).join(', ')} chưa có giá, đang tạm tính theo giá vốn.`}
@@ -110,7 +110,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
           </p>
         )}
 
-        <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border-subtle pt-3 text-xs">
+        <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border-subtle pt-3 text-sm">
           <div>
             <dt className="text-fg-muted">Giá vốn</dt>
             <dd>
@@ -173,7 +173,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
       <Card as="section">
         <SectionTitle>Đang giữ ({p.positions.length} quỹ)</SectionTitle>
         {p.positions.length === 0 ? (
-          <p className="mt-2 text-xs text-fg-muted">
+          <p className="mt-2 text-sm text-fg-muted">
             Chưa giữ quỹ nào.
             <Guide as="span"> Ghi lệnh mua để app tự lấy 基準価額 và tính lời/lỗ.</Guide>
           </p>
@@ -263,7 +263,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
         </div>
 
         {shownTrades.length === 0 ? (
-          <p className="mt-2 text-xs text-fg-muted">Chưa có lệnh nào.</p>
+          <p className="mt-2 text-sm text-fg-muted">Chưa có lệnh nào.</p>
         ) : (
           <ul className="mt-1 divide-y divide-border-subtle">
             {shownTrades.map((t) => (
@@ -276,7 +276,7 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
                   <div className="min-w-0">
                     <p className="flex items-baseline gap-1.5 text-sm">
                       <span
-                        className={`shrink-0 rounded px-1.5 py-0.5 text-3xs font-semibold ${KIND_CLASS[t.kind]}`}
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-2xs font-semibold ${KIND_CLASS[t.kind]}`}
                       >
                         {KIND_LABEL[t.kind]}
                       </span>

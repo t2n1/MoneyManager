@@ -2,7 +2,8 @@ import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'rec
 import { Guide } from '../../components/Guide'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { DailyExpensePoint } from './aggregate'
-import { Card } from '../../components/ui'
+import { Card, SectionTitle } from '../../components/ui'
+import { CHART_TEXT_2XS, CHART_TEXT_XS } from '../../lib/chartText'
 
 // Một nguồn cho cả nét vẽ và chú giải — recharts nhận màu qua prop nên phải là hằng
 // số JS, không dùng được biến CSS của token.
@@ -43,22 +44,22 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base, sc
 
   return (
     <Card as="section">
-      <h2 className="mb-2 text-sm font-semibold text-fg-muted">
+      <SectionTitle className="mb-2">
         Chi tích lũy vs ngân sách
-      </h2>
+      </SectionTitle>
       <div className="h-52 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 14, left: -8, bottom: 0 }}>
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
+              tick={{ fontSize: CHART_TEXT_2XS, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
               interval={4}
             />
             <YAxis
               tickFormatter={(v: number) => formatCompact(v, base)}
-              tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
+              tick={{ fontSize: CHART_TEXT_2XS, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
               width={44}
@@ -66,7 +67,7 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base, sc
             <Tooltip
               formatter={(v, name) => [formatMoney(Number(v), base), name === 'actual' ? 'Đã chi' : 'Ngân sách']}
               labelFormatter={(l) => String(l)}
-              contentStyle={{ borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb' }}
+              contentStyle={{ borderRadius: 8, fontSize: CHART_TEXT_XS, border: '1px solid #e5e7eb' }}
             />
             {totalBudgeted > 0 && (
               <Line
@@ -91,7 +92,7 @@ export function SpendVsBudgetCard({ points, daysElapsed, totalBudgeted, base, sc
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <div className="mt-1 flex justify-center gap-4 text-xs text-fg-muted">
+      <div className="mt-1 flex justify-center gap-4 text-sm text-fg-muted">
         <span className="flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: ACTUAL }} /> Đã chi
         </span>

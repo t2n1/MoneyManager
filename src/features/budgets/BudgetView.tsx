@@ -13,7 +13,7 @@ import { dayMonthLabel, daysBetween, monthKeyString, toISODate, type MonthKey } 
 import { formatMoney } from '../../lib/money'
 import { showToast } from '../../lib/dialog'
 import { Card } from '../../components/ui/Card'
-import { Money } from '../../components/ui'
+import { EmptyState, Money, SectionTitle } from '../../components/ui'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { buildBudgetDisplay, type BudgetChildRow } from './budgetDisplay'
 import { budgetHint } from './budgetHint'
@@ -139,7 +139,7 @@ function UnbudgetedChip({
     <button
       type="button"
       onClick={() => onClick(cat.id)}
-      className="min-h-11 rounded-full border border-dashed border-border-strong px-3 text-xs text-fg-secondary hover:bg-surface-sunken"
+      className="min-h-11 rounded-full border border-dashed border-border-strong px-3 text-sm text-fg-secondary hover:bg-surface-sunken"
     >
       {cat.icon} {cat.name}
       {avg > 0 && (
@@ -267,7 +267,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   }
 
   if (isLoading || !report) {
-    return <p className="py-10 text-center text-sm text-fg-muted">Đang tải…</p>
+    return <EmptyState>Đang tải…</EmptyState>
   }
 
   const totalPct = report.totalBudgeted > 0 ? (report.totalSpent / report.totalBudgeted) * 100 : 0
@@ -370,7 +370,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               cần tabular-nums viết tay (guardrail đếm idiom đó, dùng <Money> thay).
               <Money> lại không diễn được màu theo trạng thái ngân sách: nó không có
               tone 'warn' cũng không có tone chữ mờ. */}
-          <span className={`w-10 text-right text-xs font-medium ${TEXT_COLOR[m.status]}`}>
+          <span className={`w-10 text-right text-sm font-medium ${TEXT_COLOR[m.status]}`}>
             {Math.round(m.ratio * 100)}%
           </span>
         </span>
@@ -426,7 +426,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     <span className="ml-1 text-money-in">(dồn +{formatMoney(m.carried, base)})</span>
                   ) : null}
                 </span>
-                <span className={`w-10 text-right text-xs font-medium ${TEXT_COLOR[m.status]}`}>
+                <span className={`w-10 text-right text-sm font-medium ${TEXT_COLOR[m.status]}`}>
                   {Math.round(m.ratio * 100)}%
                 </span>
               </>
@@ -448,7 +448,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   return (
     <div className="flex flex-col gap-3">
       {(report.hasMissingRate || pace.hasMissingRate) && (
-        <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-xs">
+        <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-sm">
           Một phần chi ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
@@ -471,8 +471,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       {/* Dòng tổng — kèm luôn phán quyết cuối tháng, xem BudgetVerdictLine */}
       <Card as="section">
         <div className="mb-1 flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-fg-muted">Tổng ngân sách</h2>
-          <span className="flex gap-2 text-xs font-medium">
+          <SectionTitle>Tổng ngân sách</SectionTitle>
+          <span className="flex gap-2 text-sm font-medium">
             {report.warnCount > 0 && (
               <span className="text-fg-warn">{report.warnCount} sắp vượt</span>
             )}
@@ -482,7 +482,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           </span>
         </div>
         {/* THỨ BẬC: số CÒN LẠI là con số lớn nhất của màn, số ĐÃ CHI xuống dòng phụ.
-            Trước đây ngược lại — đã chi ở text-lg/700 (18px) còn "Còn ¥…" ở text-xs/600
+            Trước đây ngược lại — đã chi ở text-lg/700 (18px) còn "Còn ¥…" ở text-sm/600
             (12px), tức con số nhỏ nhất màn hình lại là câu trả lời duy nhất người ta mở
             màn Ngân sách để hỏi, còn số to nhất chỉ kể chuyện đã rồi. Đo trên demo:
             18px/700 so với 12px/600.
@@ -492,13 +492,13 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           <>
             <div className="flex items-baseline gap-2">
               <span
-                className={`text-3xl font-bold leading-none tracking-tight tabular-nums ${
+                className={`font-mono text-hero font-medium tracking-number tabular-nums ${
                   totalRemaining < 0 ? 'text-money-out' : TEXT_COLOR[report.totalStatus]
                 }`}
               >
                 {formatMoney(Math.abs(totalRemaining), base)}
               </span>
-              <span className="text-xs text-fg-secondary">
+              <span className="text-sm text-fg-secondary">
                 {totalRemaining > 0 ? 'còn lại' : totalRemaining === 0 ? 'vừa đủ' : 'đã vượt'}
               </span>
             </div>
@@ -511,7 +511,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 thì không chia (chẳng còn ngày nào để tiêu). Không nhắc lại con số "còn
                 lại" nữa — nó đã là số lớn nhất ngay trên đầu thẻ. */}
             {totalRemaining > 0 && totalAllowance && (
-              <p className="mt-1.5 text-xs text-fg-secondary">
+              <p className="mt-1.5 text-sm text-fg-secondary">
                 {visual
                   ? `${formatMoney(totalAllowance.perDay, base)}/ngày × ${totalAllowance.daysLeft} ngày`
                   : `Cho ${totalAllowance.daysLeft} ngày nữa — tiêu ${formatMoney(totalAllowance.perDay, base)}/ngày thì vừa đủ.`}
@@ -533,7 +533,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             )}
             {/* B36.2 · Câu RIÊNG, không phải dòng biến mất. */}
             {thieuTruocCuoiThang && (
-              <p className="mt-1.5 text-xs font-medium text-money-out">
+              <p className="mt-1.5 text-sm font-medium text-money-out">
                 Còn {formatMoney(totalRemaining, base)} nhưng{' '}
                 {formatMoney(committedRemaining, base)} đã cam kết — thiếu{' '}
                 {formatMoney(-spendable, base)} trước cuối tháng.
@@ -572,7 +572,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         <button
           type="button"
           onClick={handleCopy}
-          className="mt-3 rounded-md border border-border-strong px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-surface-sunken"
+          className="mt-3 rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken"
         >
           Chép hạn mức tháng trước
         </button>
@@ -599,7 +599,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       {pace.isCurrentMonth && commitments.items.length > 0 && (
         <Card as="section">
           <div className="mb-1 flex items-baseline justify-between gap-2">
-            <h2 className="text-sm font-semibold text-fg-muted">Còn phải trả</h2>
+            <SectionTitle>Còn phải trả</SectionTitle>
             <Money
               amount={commitments.total}
               currency={base}
@@ -607,7 +607,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               approx={commitments.hasMissingRate}
             />
           </div>
-          <Guide className="mb-2 text-xs text-fg-muted">
+          <Guide className="mb-2 text-sm text-fg-muted">
             Cam kết chưa sinh giao dịch trong tháng này. Đã ra rồi thì không hiện — nó nằm
             trong số đã chi ở trên.
           </Guide>
@@ -635,7 +635,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     </span>
                     <span className="shrink-0 text-fg-primary">
                       {it.unknownAmount ? (
-                        <span className="text-xs text-fg-muted">chưa biết</span>
+                        <span className="text-sm text-fg-muted">chưa biết</span>
                       ) : (
                         <Money amount={it.amount} currency={base} />
                       )}
@@ -665,7 +665,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                     <button
                       type="button"
                       onClick={() => openEdit(g.categoryId)}
-                      className="flex min-h-11 w-full items-center gap-2 rounded-md border border-state-warn-border bg-state-warn-bg px-2 py-1.5 text-left text-xs text-state-warn-fg"
+                      className="flex min-h-11 w-full items-center gap-2 rounded-md border border-state-warn-border bg-state-warn-bg px-2 py-1.5 text-left text-sm text-state-warn-fg"
                     >
                       <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
                       <span className="min-w-0 flex-1">
@@ -693,7 +693,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               mà đó mới là thứ quyết định con số ấy đáng lo cỡ nào: 3/5 là hơn nửa ngân
               sách đang chệch, 3/20 thì không. Danh sách dưới đã sắp "vượt trước" nên ba
               mục ấy nằm ngay dòng đầu — không cần chỉ thêm chúng ở đâu. */}
-          <h2 className="mb-1 text-sm font-semibold text-fg-muted">
+          <SectionTitle className="mb-1">
             Hạn mức từng mục
             {attention.length > 0 && (
               <>
@@ -709,9 +709,9 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                 </a>
               </>
             )}
-          </h2>
+          </SectionTitle>
           {attention.length > 0 && (
-            <Guide className="mb-2 text-xs text-fg-muted">
+            <Guide className="mb-2 text-sm text-fg-muted">
               "Cần để ý" = đã quá trần, hoặc đang tiêu nhanh hơn nhịp tháng — có vạch màu ở
               đầu dòng. Khoản cố định đã trả xong (tiền nhà, bảo hiểm…) không tính, vì không
               còn gì để phanh.
@@ -800,7 +800,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                   {/* Mốc con chỉ chia nhỏ bên trong trần cha; cộng lại vượt trần thì nhắc.
                       Câu do capOverflow.ts dựng: nó GỌI TÊN mục con mang số đó, vì nhóm
                       có nhiều con thì một con số trơ trọi không chỉ được đứa nào. */}
-                  {overflow && <p className="ml-7 mt-1 text-xs text-fg-warn">{overflow}</p>}
+                  {overflow && <p className="ml-7 mt-1 text-sm text-fg-warn">{overflow}</p>}
                   {/* Khối con: thụt vào PHẢI của tên cha + nền lún, để thấy rõ nhóm
                       bắt đầu và kết thúc ở đâu. Vạch chia trong khối phải là
                       border-strong, không phải border-subtle như danh sách ngoài:
@@ -847,11 +847,11 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           thì mới bỏ được order-*. Xem chú thích ở đầu khối 2 cột. */}
       {unbudgeted.length > 0 && (
         <Card as="section">
-          <h2 className="mb-1 text-sm font-semibold text-fg-muted">
+          <SectionTitle className="mb-1">
             Chưa đặt hạn mức{' '}
             <span className="font-normal tabular-nums">· {unbudgeted.length} danh mục</span>
-          </h2>
-          <Guide className="mb-2 text-xs text-fg-muted">
+          </SectionTitle>
+          <Guide className="mb-2 text-sm text-fg-muted">
             Bấm tên nhóm để đặt trần chung, hoặc xổ ra (▸) để đặt riêng cho từng mục con — khi đó
             trần nhóm là tổng các con. Con số trên chip là trung bình {SUGGEST_MONTHS} tháng
             đã ghi.

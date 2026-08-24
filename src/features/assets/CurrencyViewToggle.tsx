@@ -49,7 +49,7 @@ export function CurrencyViewToggle({ base, rates, value, onChange }: Props) {
             aria-pressed={active}
             disabled={!canView(c)}
             onClick={() => onChange(c === base ? null : c)}
-            className={`min-h-8 min-w-9 rounded-md border px-2 text-xs font-semibold transition disabled:opacity-40 ${
+            className={`min-h-8 min-w-9 rounded-md border px-2 text-sm font-semibold transition disabled:opacity-40 ${
               active
                 ? 'border-border-strong bg-surface-sunken text-fg-primary'
                 : 'border-transparent text-fg-muted hover:text-fg-primary'

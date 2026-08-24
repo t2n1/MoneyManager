@@ -55,14 +55,32 @@ describe('thanh tab mobile', () => {
     }
   })
 
-  // Lối vào phải nằm trong khối `lg:hidden` — đặt ở chỗ chỉ hiện từ lg thì đúng cái bề
-  // rộng cần nó lại là bề rộng không thấy nó.
+  // Lối vào phải nằm trong khối chỉ hiện DƯỚI lg — đặt ở chỗ chỉ hiện từ lg thì đúng cái
+  // bề rộng cần nó lại là bề rộng không thấy nó.
+  //
+  // Từ 2026-08-25 khối đó là `<PageHeader … mobileOnly>` chứ không còn là một <div> mang
+  // `lg:hidden` viết tay: đầu trang của cả 25 màn đã về một component. `mobileOnly` LÀ
+  // lời hứa đó — xem PageHeader.tsx, nó render hàng với `lg:hidden` và tách <h1> sr-only
+  // ra ngoài để cây tiêu đề không thủng ở desktop.
   it('lối vào nằm trong khối chỉ-hiện-dưới-lg', () => {
-    const khoi = BULLETIN.match(/className="flex items-center gap-2 lg:hidden"[\s\S]*?\n {6}<\/div>/)
+    const khoi = BULLETIN.match(/<PageHeader[^>]*\bmobileOnly\b[^>]*>[\s\S]*?<\/PageHeader>/)
     expect(khoi, 'không tìm thấy khối tiêu đề mobile của Bản tin').not.toBeNull()
     for (const item of navItems().filter((i) => !i.onMobile)) {
-      expect(khoi![0], `lối vào ${item.to} nằm ngoài khối lg:hidden`).toContain(`to="${item.to}"`)
+      expect(khoi![0], `lối vào ${item.to} nằm ngoài khối mobileOnly`).toContain(`to="${item.to}"`)
     }
+  })
+
+  // `mobileOnly` chỉ đúng nếu PageHeader thật sự ẩn hàng từ lg VÀ vẫn để lại <h1>. Canh ở
+  // nguồn primitive, không ở trang: đây là chỗ lời hứa được thực hiện.
+  it('PageHeader mobileOnly ẩn hàng ở lg nhưng giữ <h1>', () => {
+    const src = readFileSync(
+      join(fileURLToPath(new URL('..', import.meta.url)), 'src/components/ui/PageHeader.tsx'),
+      'utf8',
+    )
+    const nhanh = src.match(/if \(mobileOnly\) \{[\s\S]*?\n {2}\}/)
+    expect(nhanh, 'PageHeader không còn nhánh mobileOnly').not.toBeNull()
+    expect(nhanh![0], 'hàng mobileOnly phải mang lg:hidden').toContain('lg:hidden')
+    expect(nhanh![0], 'phải còn <h1> sr-only ngoài hàng bị ẩn').toContain('className="sr-only"')
   })
 })
 

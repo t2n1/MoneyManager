@@ -38,7 +38,8 @@ import { buildChartData, chartSeriesPlan } from './chartSeries'
 import type { DraftEvent } from './draft'
 import { compareAtEnd, DEFAULT_SWR_BPS, firstNegativeYear } from './insights'
 import type { YearRow } from './project'
-import { Card, IconButton, Money } from '../../components/ui'
+import { Card, IconButton, Money, SectionTitle, filterChipClass } from '../../components/ui'
+import { CHART_TEXT_2XS, CHART_TEXT_3XS } from '../../lib/chartText'
 
 /** Chặng đời tối thiểu mà dải chặng dưới đáy cần biết. */
 export interface ChartPhase {
@@ -286,11 +287,7 @@ function PillButton({
       {...(role === 'tab' ? { 'aria-selected': active } : { 'aria-pressed': active })}
       onClick={onClick}
       title={title}
-      className={`min-h-8 whitespace-nowrap rounded-full border px-2.5 py-1 text-2xs font-semibold transition active:scale-95 ${
-        active
-          ? 'border-border-strong bg-surface-sunken text-fg-primary'
-          : 'border-transparent text-fg-muted hover:bg-surface-sunken'
-      }`}
+      className={filterChipClass(active, 'sm')}
     >
       {children}
     </button>
@@ -632,10 +629,10 @@ export function LifetimeChartCard({
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
           {/* Dấu ≈ đặt ở TIÊU ĐỀ, không rải vào từng con số: cả khối này là số chiếu
               theo kịch bản, gắn dấu vào mỗi chỗ thì thành nhiễu mà không thêm nghĩa. */}
-          <h2 id={titleId} className="mr-auto shrink-0 text-sm font-semibold text-fg-muted">
+          <SectionTitle id={titleId} className="mr-auto shrink-0">
             Tài sản ròng cả đời
             <EstimateMark reason="Toàn bộ khối này là số chiếu theo kịch bản bạn đặt, không phải số đã xảy ra." />
-          </h2>
+          </SectionTitle>
 
           <div
             role="tablist"
@@ -752,7 +749,7 @@ export function LifetimeChartCard({
                 <text
                   x={plotLeft - 4}
                   y={ys(v) + 4}
-                  fontSize={11}
+                  fontSize={CHART_TEXT_2XS}
                   fill={COLOR_AXIS}
                   textAnchor="end"
                   className="font-mono"
@@ -785,7 +782,7 @@ export function LifetimeChartCard({
                 <text
                   x={plotRight - 4}
                   y={ys(dRows[dRows.length - 1]?.expenseMinor * fireMul) - 5}
-                  fontSize={10}
+                  fontSize={CHART_TEXT_3XS}
                   fill={COLOR_OPTIMISTIC}
                   textAnchor="end"
                 >
@@ -887,7 +884,7 @@ export function LifetimeChartCard({
                 <text
                   x={ruinX > plotRight - 130 ? ruinX - 5 : ruinX + 5}
                   y={plotTop + 12}
-                  fontSize={10}
+                  fontSize={CHART_TEXT_3XS}
                   fontWeight={600}
                   fill={COLOR_PESSIMISTIC}
                   textAnchor={ruinX > plotRight - 130 ? 'end' : 'start'}
@@ -914,7 +911,7 @@ export function LifetimeChartCard({
                 <text
                   x={xs(y)}
                   y={plotBottom + 14}
-                  fontSize={10}
+                  fontSize={CHART_TEXT_3XS}
                   fill={COLOR_AXIS}
                   textAnchor="middle"
                   className="font-mono"
@@ -1062,7 +1059,7 @@ export function LifetimeChartCard({
               }}
             >
               <div className="flex items-baseline justify-between gap-2 border-b border-border-subtle pb-1.5">
-                <p className="text-[0.8125rem] font-bold text-fg-primary">Năm {hoverRow.year}</p>
+                <p className="text-sm font-bold text-fg-primary">Năm {hoverRow.year}</p>
                 <p className="truncate text-2xs text-fg-muted">
                   {hoverRow.age} tuổi · {hoverRow.phaseLabel}
                 </p>
@@ -1220,7 +1217,7 @@ export function LifetimeChartCard({
         </div>
 
         {compare && compareEndRow && (
-          <p className="mt-2 text-center text-xs text-fg-muted">
+          <p className="mt-2 text-center text-sm text-fg-muted">
             {compareMismatch ? (
               <>
                 Cuối đời — kịch bản này:{' '}
@@ -1282,7 +1279,7 @@ function TipRow({
   return (
     <div className="flex justify-between gap-3">
       <span className="truncate text-2xs text-fg-muted">{label}</span>
-      <span className={`shrink-0 font-mono text-xs tabular-nums ${color} ${strong ? 'font-semibold' : ''}`}>
+      <span className={`shrink-0 font-mono text-sm tabular-nums ${color} ${strong ? 'font-semibold' : ''}`}>
         {value}
       </span>
     </div>

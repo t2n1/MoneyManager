@@ -35,11 +35,11 @@ export function BreakdownRow({
           {name}
         </span>
         {targetPct != null && (
-          <span className="shrink-0 text-3xs text-fg-muted">
+          <span className="shrink-0 text-2xs text-fg-muted">
             mục tiêu {targetPct}%
           </span>
         )}
-        <span className="shrink-0 tabular-nums text-xs text-fg-muted">
+        <span className="shrink-0 tabular-nums text-sm text-fg-muted">
           {pct.toFixed(0)}%
         </span>
         <span className="shrink-0 tabular-nums font-medium text-fg-primary">

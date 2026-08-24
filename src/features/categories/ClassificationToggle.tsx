@@ -50,7 +50,7 @@ export function ClassificationToggle<T extends string | boolean | null>({
   return (
     <div>
       {label && (
-        <p className="mb-1 text-xs font-medium text-fg-muted">{label}</p>
+        <p className="mb-1 text-sm font-medium text-fg-muted">{label}</p>
       )}
       {/* Số cột theo SỐ LỰA CHỌN, không cứng 3. `KIND_OPTIONS` chỉ có hai mục, và với
           `grid-cols-3` thì cột thứ ba là một ô trống bằng cả một nút — đọc ra như một lựa
@@ -72,7 +72,7 @@ export function ClassificationToggle<T extends string | boolean | null>({
             // Mục không chọn dùng --fg-on-track (gray-600), KHÔNG phải --fg-muted:
             // track ở đây là gray-200, ở đó gray-500 chỉ đạt 3,91:1 → trượt AA.
             // gray-600 trên gray-200 = 6,88:1. Cùng lý do với nhãn tab trên gray-100.
-            className={`min-h-11 rounded-md text-xs font-medium transition ${
+            className={`min-h-11 rounded-md text-sm font-medium transition ${
               value === val
                 ? 'bg-surface text-fg-primary shadow-sm'
                 : 'text-fg-on-track hover:text-fg-primary'

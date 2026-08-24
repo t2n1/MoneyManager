@@ -41,7 +41,7 @@ export type SegmentedSize = 'sm' | 'md' | 'lg'
 // Export để test được bằng hàm thuần: repo không render component trong test
 // (0 file *.test.tsx, không có @testing-library), nên bảng tra phải tự kiểm được.
 export const SIZE: Record<SegmentedSize, { track: string; item: string }> = {
-  sm: { track: 'text-xs', item: 'py-2.5' },
+  sm: { track: 'text-sm', item: 'py-2.5' },
   md: { track: 'text-sm', item: 'py-2.5' },
   // 46px: py-3 (12px×2) + line-height 20px + border 2px (mỗi button có border
   // border-transparent 1px trên + dưới). Trên mặt yêu cầu 44px (vùng chạm), 46px

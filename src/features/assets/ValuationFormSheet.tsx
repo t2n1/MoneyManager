@@ -7,6 +7,7 @@ import { MoneyField } from '../../components/MoneyField'
 import { DateField } from '../../components/DateField'
 import type { AccountRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
+import { SectionTitle, actionButtonClass } from '../../components/ui'
 
 interface Props {
   account: AccountRow
@@ -69,15 +70,15 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
         className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-base font-bold text-fg-primary">
+        <SectionTitle role="block" className="mb-1">
           Cập nhật giá trị
-        </h2>
-        <p className="mb-3 text-xs text-fg-muted">
+        </SectionTitle>
+        <p className="mb-3 text-sm text-fg-muted">
           {account.name} · giá trị thị trường hiện tại ({CURRENCIES[currency].label})
         </p>
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">
+        <span className="mb-1 block text-sm font-medium text-fg-muted">
           Giá trị hiện tại
         </span>
         <div className="mb-3">
@@ -92,7 +93,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
         </div>
 
         {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">Ngày</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">Ngày</span>
         <DateField
           ariaLabel="Ngày"
           value={valuedOn}
@@ -101,7 +102,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
           className="mb-3 w-full px-3 py-2"
         />
 
-        <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-note`} className="mb-1 block text-sm font-medium text-fg-muted">
           Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
         <input
@@ -111,13 +112,13 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
           placeholder="Ví dụ: theo giá đóng cửa"
           className="mb-1 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
         />
-        <Guide className="mb-3 text-xs text-fg-muted">
+        <Guide className="mb-3 text-sm text-fg-muted">
           Chỉ ghi nhận giá trị — không tạo giao dịch, không đổi báo cáo thu/chi. Chênh lệch
           so với vốn gốc là lãi/lỗ chưa thực hiện.
         </Guide>
 
         {tuDongChay && (
-          <Guide className="mb-3 text-xs text-fg-muted">
+          <Guide className="mb-3 text-sm text-fg-muted">
             Tài khoản này đang tự tính giá trị mỗi chiều theo sổ lệnh. Số bạn gõ ở đây sẽ
             được giữ nguyên cho đúng ngày này — app tự tính lại bình thường từ những ngày
             sau.
@@ -136,7 +137,7 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
             type="button"
             onClick={handleSubmit}
             disabled={!canSave}
-            className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold transition active:scale-95 disabled:opacity-50"
+            className={actionButtonClass('primary')}
           >
             {saving ? 'Đang lưu…' : 'Lưu'}
           </button>

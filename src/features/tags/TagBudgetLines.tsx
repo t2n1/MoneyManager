@@ -48,7 +48,7 @@ export function TagBudgetLines({ lines, base, size = 'md' }: Props) {
                 {l.period === 'monthly' ? 'tháng này' : 'cả đợt'}
               </span>
             </span>
-            <span className={`shrink-0 text-xs font-semibold ${TEXT[l.status]}`}>
+            <span className={`shrink-0 text-sm font-semibold ${TEXT[l.status]}`}>
               {Math.round(l.ratio * 100)}%
             </span>
           </div>
@@ -65,7 +65,7 @@ export function TagBudgetLines({ lines, base, size = 'md' }: Props) {
           </div>
 
           <div
-            className={`mt-0.5 flex justify-between gap-2 text-fg-muted ${panel ? 'text-2xs' : 'text-xs'}`}
+            className={`mt-0.5 flex justify-between gap-2 text-fg-muted ${panel ? 'text-2xs' : 'text-sm'}`}
           >
             <span>
               <Money

@@ -520,7 +520,7 @@ export function HealthView() {
     <div className="flex flex-col gap-2.5">
       {/* Cửa sổ thời gian nói ngay tại đây: tab này KHÔNG theo tháng đang chọn ở tab Tháng
           này, nên phải tự nói mình đọc dữ liệu nào. */}
-      <Num tone="muted" className="text-2xs tracking-[.06em]">
+      <Num tone="muted" className="text-2xs">
         {snap.monthsCounted} tháng gần nhất · cập nhật {dayMonthLabel(todayISO)}
       </Num>
 
@@ -539,7 +539,7 @@ export function HealthView() {
       )}
 
       {snap.hasMissingRate && (
-        <div className="rounded-lg bg-state-warn-bg p-2 text-xs text-state-warn-fg">
+        <div className="rounded-lg bg-state-warn-bg p-2 text-sm text-state-warn-fg">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên số liệu có thể
           thiếu.
         </div>
@@ -607,7 +607,7 @@ export function HealthView() {
               đọc mất tin cả trang.
               Chú ý: bản vẽ 27b ghi rằng phần cầm cự "đếm cả đầu tư" — SAI. Cả hai chỉ đếm
               tiền lỏng (`snapshot.LIQUID_TYPES`); khác biệt nằm ở MẪU SỐ. */}
-          <p className="rounded-lg border border-border-panel bg-surface px-3 py-2 text-xs text-fg-secondary">
+          <p className="rounded-lg border border-border-panel bg-surface px-3 py-2 text-sm text-fg-secondary">
             {/* Mệnh đề mở đầu chỉ nêu HAI CON SỐ khi cả hai thật sự có và thật sự lệch
                 nhau. Thiếu điều kiện đó thì câu tự nói "vì sao ≥60 tháng đệm mà cầm cự tới
                 lâu hơn nhiều" — một câu hỏi về một nghịch lý không tồn tại. Nhưng phần
@@ -658,7 +658,7 @@ export function HealthView() {
             hằng ngày nó bằng 0 quanh năm (xem `noSpendPattern` ở behavior.ts). Ở đây là
             cả cửa sổ, nên nó nói được về nếp — thứ duy nhất khiến con số này đáng in. */}
         {rhythm.noSpend.total > 0 && (
-          <p className="mt-2.5 px-1 text-[0.8125rem] text-fg-secondary">
+          <p className="mt-2.5 px-1 text-sm text-fg-secondary">
             Ngày không phát sinh chi:{' '}
             <b>
               <Num>{rhythm.noSpend.days}</Num>/<Num>{rhythm.noSpend.total}</Num> ngày

@@ -13,6 +13,7 @@ import { DateField } from '../../components/DateField'
 import type { DebtRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
 import { debtFlowCategoryId } from '../transactions/roleSave'
+import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
 
 interface Props {
   debt: DebtRow
@@ -101,14 +102,14 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
         className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-base font-bold text-fg-primary">Ghi nhận trả</h2>
-        <p className="mb-3 text-xs text-fg-muted">
+        <SectionTitle role="block" className="mb-1">Ghi nhận trả</SectionTitle>
+        <p className="mb-3 text-sm text-fg-muted">
           {debt.direction === 'i_owe' ? 'Mình trả' : 'Người ta trả'} · {debt.counterparty} · còn{' '}
           {formatMoney(Math.max(remaining, 0), debt.currency)}
         </p>
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">Số tiền trả</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">Số tiền trả</span>
         <div className="mb-3">
           <MoneyField
             value={amount}
@@ -121,7 +122,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
         </div>
 
         {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">Ngày trả</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">Ngày trả</span>
         <DateField
           ariaLabel="Ngày trả"
           value={paidOn}
@@ -134,7 +135,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           <label className="flex items-center justify-between text-sm text-fg-secondary">
             <span>
               Có chuyển tiền thật
-              <span className="block text-xs text-fg-muted">
+              <span className="block text-sm text-fg-muted">
                 {debt.direction === 'i_owe' ? 'Tạo giao dịch chi (trừ số dư)' : 'Tạo giao dịch thu (cộng số dư)'}
               </span>
             </span>
@@ -164,7 +165,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
           </label>
 
           {!canRecordReal && (
-            <p className="mt-2 text-xs text-state-warn-fg">
+            <p className="mt-2 text-sm text-state-warn-fg">
               Chưa có tài khoản {debt.currency} để tạo giao dịch thật. Vẫn ghi nhận được lần trả
               (không đổi số dư).
             </p>
@@ -172,26 +173,24 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
 
           {realOn && (
             <div className="mt-3">
-              <label htmlFor={`${uid}-acc`} className="mb-1 block text-xs font-medium text-fg-muted">
+              <label htmlFor={`${uid}-acc`} className="mb-1 block text-sm font-medium text-fg-muted">
                 Tài khoản
               </label>
-              <select
+              <Select
                 id={`${uid}-acc`}
                 value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
-                className="w-full rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
-              >
+                onChange={(e) => setAccountId(e.target.value)} wrapClassName="w-full">
                 {matchingAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           )}
         </div>
 
-        <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-note`} className="mb-1 block text-sm font-medium text-fg-muted">
           Ghi chú (không bắt buộc)
         </label>
         <input
@@ -214,7 +213,7 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
+            className={actionButtonClass('primary')}
           >
             {saving ? 'Đang lưu…' : 'Ghi nhận'}
           </button>

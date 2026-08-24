@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { IconButton, SegmentedControl, type SegmentedItem } from '../../components/ui'
+import { EmptyState, IconButton, PageHeader, SegmentedControl, type SegmentedItem } from '../../components/ui'
 import { MonthStrip } from './MonthStrip'
 import { MonthView } from './MonthView'
 import {
@@ -183,7 +183,7 @@ export function ReportsPage() {
           Báo cáo là trang duy nhất từng mở thẳng bằng dải tab, phá nhịp và người
           dùng máy đọc màn hình không nghe được tên trang. Bản in có h1 riêng bên
           dưới (kèm kỳ đang xem) nên bản màn hình ẩn khi in. */}
-      <h1 className="text-lg font-bold text-fg-primary print:hidden">Báo cáo</h1>
+      <PageHeader title="Báo cáo" flush className="print:hidden" />
       {/* Tiêu đề chỉ hiện khi in (thay cho thanh điều hướng bị ẩn) */}
       <p className="hidden text-center text-xl font-bold text-gray-900 print:block">
         Báo cáo{' '}
@@ -266,19 +266,19 @@ export function ReportsPage() {
           Dải điều hướng "‹ Năm 2026 ›" cũng đi cùng: nó là khoảng thời gian thứ ba trên
           một màn đã có hai. */}
       {view === 'long' && (
-        <Suspense fallback={<p className="py-10 text-center text-sm text-fg-muted">Đang tính…</p>}>
+        <Suspense fallback={<EmptyState>Đang tính…</EmptyState>}>
           <LongView />
         </Suspense>
       )}
 
       {view === 'decide' && (
-        <Suspense fallback={<p className="py-10 text-center text-sm text-fg-muted">Đang tính…</p>}>
+        <Suspense fallback={<EmptyState>Đang tính…</EmptyState>}>
           <DecideView />
         </Suspense>
       )}
 
       {view === 'health' && (
-        <Suspense fallback={<p className="py-10 text-center text-sm text-fg-muted">Đang tính…</p>}>
+        <Suspense fallback={<EmptyState>Đang tính…</EmptyState>}>
           <HealthView />
         </Suspense>
       )}

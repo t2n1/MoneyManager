@@ -109,18 +109,47 @@ Dùng qua tiện ích Tailwind: `text-fg-muted`, `bg-surface`, `border-border-su
 
 **3. Không có bậc xám nào mờ hơn gray-500 mà vẫn đạt AA.** Nên app **không có** bậc chữ "tam cấp" bằng màu. Muốn phân cấp thêm thì dùng **cỡ chữ**, đừng làm nhạt màu.
 
-### Cỡ chữ
+### Cỡ chữ — sáu bậc, mỗi bậc cách nhau ít nhất 2px
 
-Scale mặc định của Tailwind không có bậc nào dưới `text-xs` (12px), nên code đã phải chêm 76 giá trị tuỳ ý. Hai bậc được đặt tên:
+Đo 2026-08-25 trên **một** màn Bản tin: **mười** cỡ chữ khác nhau (10, 11, 12, 13, 14, 16, 18, 20, 22, 26), và **111 trong 146** khối chữ nằm gọn trong dải 10–13px. Bốn bậc cách nhau đúng 1px gánh 80% chữ của app — mắt không phân biệt được, nên không có gì nổi lên trước và cả màn đọc ra là một mảng xám đều. Trong đó có `text-[0.8125rem]` (13px) dùng **91 lần ở 28 file**: một bậc thứ mười, không tên, chen giữa 12 và 14, mọc lên được vì guardrail lúc đó chỉ liệt kê hai giá trị bị cấm.
+
+Thang giờ có sáu bậc:
 
 | Tên | Giá trị | Dùng cho |
 |---|---|---|
-| `text-2xs` | 0.6875rem (11px) | nhãn phụ, chú thích trong thẻ |
-| `text-3xs` | 0.625rem (10px) | **sàn dưới** — nhãn trục biểu đồ, ô lịch |
+| `text-2xs` | 0.6875rem (11px) | **sàn dưới** — nhãn chữ hoa, chú thích, dòng meta |
+| `text-sm` | 0.875rem (14px) | chữ thân: tên giao dịch, số tiền trong danh sách, mọi câu |
+| `text-base` | 1rem (16px) | tiêu đề một khối gồm nhiều thẻ |
+| `text-lg` | 1.125rem (18px) | tiêu đề trang |
+| `text-kpi` | 1.375rem (22px) | số trong một ô (StatTile, KpiRow, tổng tab) |
+| `text-hero` | 1.875rem (30px) | số **chính** của cả màn — mỗi màn nhiều nhất một |
+
+`text-3xs` (10px) vẫn còn trong `@theme` nhưng **chỉ cho biểu đồ** — xem `src/lib/chartText.ts`. Trong `className` thì đừng dùng: dưới `--app-font-scale` 0,9 nó tụt xuống 9px.
 
 Cố ý **không** có tên cho 9px: `--app-font-scale` nhỏ nhất là `0.9`, nên 9px tụt xuống 8,1px. Guardrail chặn `text-[0.5625rem]` về 0.
 
-Mọi cỡ chữ dùng `rem` để co giãn theo Cài đặt → Cỡ chữ. **Đừng dùng `px`** cho chữ.
+Mọi cỡ chữ dùng `rem` để co giãn theo Cài đặt → Cỡ chữ. **Đừng dùng `px`** cho chữ — và đừng chêm `text-[…rem]` tuỳ ý, guardrail chặn cả dạng chứ không liệt kê giá trị nữa.
+
+### Số: một font, hai cỡ
+
+`text-kpi`/`text-hero` chỉ đứng trên **số**, nên chỗ nào mang chúng cũng phải mang `font-mono` — trực tiếp, hoặc gián tiếp qua `<Money>`/`<Num>` (hai component đó tự khai `font-mono tabular-nums`). Guardrail canh cặp này.
+
+Vì sao cần luật: cùng con số ¥58,670 từng hiện **ba** kiểu tuỳ chỗ đứng — 18px/600/Mono ở câu mở Bản tin, 26px/500/Mono ở ô Ngân sách, 30px/**700/Sans** ở trang Ngân sách. Hai chỗ dùng Sans phá đúng câu đầu của mục *Kiểu chữ* ngay trên ("IBM Plex Mono cho MỌI con số"), và đó là lý do cột số ở hai màn đó không thẳng hàng như màn khác.
+
+### Giãn chữ: hai token, không giá trị tuỳ ý
+
+Giãn chữ có đúng **hai** vai trò, nhưng từng có **sáu** giá trị phục vụ chúng: `.1em` (33), `tracking-wide` (19), `.08em` (9), `.06em` (6), `-.02em` (11), `tracking-tight` (1). Trên cùng màn Tài sản, "TÀI SẢN RÒNG" giãn 1,1px còn "THẺ" ngay dưới giãn 0,25px.
+
+| Tên | Giá trị | Dùng cho |
+|---|---|---|
+| `tracking-label` | 0.1em | nhãn CHỮ HOA — chữ hoa cỡ 10–11px dính vào nhau nếu để mặc định |
+| `tracking-number` | −0.02em | số lớn — chữ số cỡ 22px+ để mặc định thì rời rạc |
+
+`tracking-normal` không bị cấm: nó là phép **đặt lại** cho huy hiệu nằm trong một nhãn đã giãn.
+
+### Độ đậm: 700 phải có file font
+
+`index.html` từng chỉ nạp `wght@400;500;600` trong khi code dùng `font-bold` (700) **83 lần**, trong đó **21 lần là `<h1>`** — tức mọi tiêu đề trang trong app đang hiện bằng chữ đậm **giả** do trình duyệt tự bôi, nét dày và nhoè so với bản thiết kế. Đã thêm `700` cho cả Sans và Mono. Thêm bậc đậm mới thì phải sửa URL font cùng lúc.
 
 ---
 
@@ -134,8 +163,24 @@ Mọi cỡ chữ dùng `rem` để co giãn theo Cài đặt → Cỡ chữ. **�
 | `Card` | 86 chỗ `rounded-xl bg-white ... shadow-sm` | prop `elevation`: `raised` thẻ chính · `flat` thẻ phụ · `panel` khung 1a (8px, viền panel, không bóng) |
 | `SegmentedControl` | 6 bản chép tay | `role="tablist"` + `aria-selected` đúng; track trong suốt, ô đang chọn mới có nền |
 | `IconButton` | 32 chỗ `min-h-11 min-w-11` | 44px vùng chạm + `transition` + `hover` — ba thứ hay quên |
-| `StatTile` | 8 ô KPI | nhãn 11px hoa (eyebrow) cách giá trị 26px mono **bốn bậc**, để số nổi hơn nhãn |
-| `SectionTitle` | 2 quy ước đang đánh nhau | `role="card"` (nhãn thẻ) vs `role="block"` (tiêu đề khối) |
+| `StatTile` | 8 ô KPI | nhãn 11px hoa (eyebrow) cách giá trị 22px mono **ba bậc**, để số nổi hơn nhãn |
+| `SectionTitle` | 110 `<h2>/<h3>` viết tay, **10 tổ hợp cho 3 vai trò** | `role="micro"` (nhãn trên một con số) · `"card"` (tên một thẻ) · `"block"` (tiêu đề khối) |
+| `PageHeader` | **7 kiểu đầu trang** cho 25 màn | tiêu đề luôn ra `<h1>` thật; tự thành `sr-only` ở `lg` **chỉ khi** trùng chữ top bar đang in. Props: `back` · `left` · `subtitle` · `flush` · `mobileOnly` |
+| `FilterChip` | **5 dáng "đang bật"** khác nhau | một dáng bật (nền `accent`); `size="sm"` cho dải chip trong thẻ chật |
+| `Select` | 25 `<select>` trần, **~10 biến thể class** | `<select>` gốc bên trong (giữ bộ chọn native trên mobile) + khung 44px + mũi tên của app thay mũi tên hệ điều hành |
+| `EmptyState` | **4 dáng** màn trống | `compact` cho câu thay ruột một thẻ; sửa luôn 5 chỗ thiếu `text-sm` nên chữ rơi về 16px |
+
+Hai dáng thêm 2026-08-25: `ActionButton variant="danger"` (11 nút phá hủy đang có **8 dáng**, một chỗ còn dùng `hover:bg-red-50` thô) và `IconButton variant="accent"`.
+
+### Ba họ control cho câu hỏi "chọn 1 trong N"
+
+Đừng trộn — chúng khác nhau về NGHĨA, không chỉ về hình:
+
+| Họ | Dùng khi | Hình |
+|---|---|---|
+| `SegmentedControl` | đổi **cách xem** cùng một dữ liệu (Ngày · Lịch · Tháng · Tổng hợp) | dải liền khối, chia đều, luôn đúng một ô bật |
+| `FilterChip` | **lọc / bật tắt** một tập con (Chi · Thu · Chuyển khoản) | chip rời, bo tròn, có thể không mục nào bật |
+| `Select` | chọn từ **danh sách dài** (tài khoản, múi giờ, danh mục) | ô xổ xuống, mở bộ chọn của hệ điều hành trên mobile |
 
 ### Bản 1a đổi gì trong primitive
 

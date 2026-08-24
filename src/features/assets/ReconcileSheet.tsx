@@ -8,7 +8,7 @@ import {
 import { dayMonthLabel, toISODate } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
-import { ActionButton } from '../../components/ui'
+import { SectionTitle, ActionButton } from '../../components/ui'
 import { MoneyField } from '../../components/MoneyField'
 import { DateField } from '../../components/DateField'
 import type { AccountRow } from '../../types/database.types'
@@ -142,10 +142,10 @@ export function ReconcileSheet({
         className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-base font-bold text-fg-primary">
+        <SectionTitle role="block" className="mb-1">
           {isCard ? 'Điều chỉnh số nợ' : 'Điều chỉnh số dư'}
-        </h2>
-        <p className="mb-3 text-xs text-fg-muted">
+        </SectionTitle>
+        <p className="mb-3 text-sm text-fg-muted">
           {account.name} · {isCard ? 'sổ đang ghi nợ' : 'số dư sổ hiện tại'}{' '}
           {formatMoney(shown, currency)} ({CURRENCIES[currency].label})
         </p>
@@ -153,7 +153,7 @@ export function ReconcileSheet({
         {/* Bẫy hay gặp: điều chỉnh tổng nợ mà quên kỳ đã chốt chờ rút → dòng
             "Kỳ này" về 0 như thể không phải trả, người dùng tưởng app hỏng. */}
         {isCard && (billedPending ?? 0) > 0 && (
-          <p className="mb-3 rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-xs text-state-warn-fg">
+          <p className="mb-3 rounded-md border border-state-warn-border bg-state-warn-bg px-3 py-2 text-sm text-state-warn-fg">
             Thẻ đang có kỳ <b>đã chốt chờ rút</b>: {formatMoney(billedPending ?? 0, currency)}
             {billedDueISO ? ` vào ${dayMonthLabel(billedDueISO)}` : ''}. Số "đang nợ thực tế" phải
             gồm cả khoản này — nhập thiếu thì dòng "Kỳ này" sẽ về {formatMoney(0, currency)} như
@@ -162,7 +162,7 @@ export function ReconcileSheet({
         )}
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">
+        <span className="mb-1 block text-sm font-medium text-fg-muted">
           {isCard ? 'Số đang nợ thực tế' : 'Số dư thực tế'}
         </span>
         <div className="mb-3">
@@ -182,7 +182,7 @@ export function ReconcileSheet({
         {diff !== 0 && (
           <>
             {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-            <span className="mb-1 block text-xs font-medium text-fg-muted">Ghi vào ngày</span>
+            <span className="mb-1 block text-sm font-medium text-fg-muted">Ghi vào ngày</span>
             <DateField
               ariaLabel="Ghi vào ngày"
               value={occurredOn}
@@ -192,7 +192,7 @@ export function ReconcileSheet({
             />
             {/* Chỉ giải thích khi ngày mặc định KHÁC hôm nay — tức là thẻ có đủ ngày
                 chốt/đến hạn và mốc chốt đã qua. Ví thường không cần đọc đoạn này. */}
-            <p className="mb-3 text-xs text-fg-muted">
+            <p className="mb-3 text-sm text-fg-muted">
               {occurredOn === suggestedDate && suggestedDate !== todayISO
                 ? 'Mặc định là ngày chốt sao kê gần nhất, để lần tự trả thẻ kế tiếp rút đúng số.'
                 : occurredOn > suggestedDate && suggestedDate !== todayISO
@@ -231,7 +231,7 @@ export function ReconcileSheet({
               bù này trong Sổ, và số tiền để đối chiếu với con số vừa gõ. Chiều lệch nói
               bằng lời chứ không bằng dấu vì "thu" hay "chi" ở đây trả lời một câu hỏi khác
               (app ghi gì) với câu người dùng đang hỏi (tôi gõ đúng chưa). */}
-          <p className="mt-1 text-xs text-fg-muted">
+          <p className="mt-1 text-sm text-fg-muted">
             {diff === 0
               ? isCard
                 ? 'Số nợ đã khớp — không cần điều chỉnh. Lưu để ghi nhận là đã đối chiếu hôm nay.'

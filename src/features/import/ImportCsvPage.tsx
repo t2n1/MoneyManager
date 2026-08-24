@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { useQueryClient } from '@tanstack/react-query'
 import { Upload } from 'lucide-react'
-import { BackLink } from '../../components/BackLink'
 import { repo } from '../../data'
 import { useAccounts, useRangeTransactions } from '../../hooks/queries'
 import { addDaysISO, toISODate } from '../../lib/dates'
@@ -16,7 +15,7 @@ import {
   type DateOrder,
   type ImportItem,
 } from './csvImport'
-import { Card } from '../../components/ui'
+import { Card, PageHeader, Select, actionButtonClass } from '../../components/ui'
 
 type Encoding = 'utf-8' | 'shift-jis'
 
@@ -247,17 +246,10 @@ export function ImportCsvPage() {
     }
   }
 
-  const selectCls =
-    'rounded-lg border border-border-strong bg-surface px-2 py-1.5 text-sm'
 
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
-      <div className="flex items-center gap-2">
-        <BackLink to="/settings/data" aria-label="Quay lại" />
-        <h1 className="flex-1 text-lg font-bold text-fg-primary">
-          Nhập giao dịch từ CSV
-        </h1>
-      </div>
+      <PageHeader title="Nhập giao dịch từ CSV" back="/settings/data" flush />
 
       <Card as="section">
         <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong py-4 text-sm font-medium text-fg-secondary focus-within:ring-2 focus-within:ring-accent">
@@ -269,72 +261,70 @@ export function ImportCsvPage() {
             không cho tới khi thử. Một câu nói rõ: đọc được CSV bất kỳ, đã thử với sao kê
             thẻ Nhật phổ biến. */}
         {!fileName && (
-          <Guide className="mt-2 text-xs text-fg-muted">
+          <Guide className="mt-2 text-sm text-fg-muted">
             Đọc được CSV sao kê của mọi ngân hàng/thẻ — chọn file xong bạn tự trỏ cột ngày,
             cột tiền, cột ghi chú. Đã dùng tốt với sao kê Rakuten Card và PayPay Card (UTF-8);
             file ngân hàng Nhật đời cũ mở ra lỗi font thì đổi mã hóa sang Shift-JIS.
           </Guide>
         )}
-        <div className="mt-2 flex items-center gap-2 text-xs text-fg-muted">
+        <div className="mt-2 flex items-center gap-2 text-sm text-fg-muted">
           <span>Mã hóa:</span>
           {/* "Mã hóa:" là <span> chứ không <label htmlFor>, nên tên ô phải đi qua aria-label */}
-          <select
+          <Select
             aria-label="Mã hóa file"
             value={encoding}
-            onChange={(e) => changeEncoding(e.target.value as Encoding)}
-            className={selectCls}
-          >
+            onChange={(e) => changeEncoding(e.target.value as Encoding)}>
             <option value="utf-8">UTF-8</option>
             <option value="shift-jis">Shift-JIS (ngân hàng Nhật)</option>
-          </select>
+          </Select>
         </div>
       </Card>
 
       {rows.length > 0 && (
         <>
           <Card as="section" className="grid grid-cols-2 gap-2">
-            <label className="col-span-2 flex flex-col gap-1 text-xs text-fg-muted">
+            <label className="col-span-2 flex flex-col gap-1 text-sm text-fg-muted">
               Nhập vào tài khoản
-              <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className={selectCls}>
+              <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
                 <option value="">— Chọn tài khoản —</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name} ({a.currency})
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
-            <label className="flex flex-col gap-1 text-xs text-fg-muted">
+            <label className="flex flex-col gap-1 text-sm text-fg-muted">
               Cột ngày
-              <select value={dateCol} onChange={(e) => setDateCol(Number(e.target.value))} className={selectCls}>
+              <Select value={dateCol} onChange={(e) => setDateCol(Number(e.target.value))}>
                 {columns.map((c) => (
                   <option key={c.i} value={c.i}>{c.label}</option>
                 ))}
-              </select>
+              </Select>
             </label>
-            <label className="flex flex-col gap-1 text-xs text-fg-muted">
+            <label className="flex flex-col gap-1 text-sm text-fg-muted">
               Cột số tiền
-              <select value={amountCol} onChange={(e) => setAmountCol(Number(e.target.value))} className={selectCls}>
+              <Select value={amountCol} onChange={(e) => setAmountCol(Number(e.target.value))}>
                 {columns.map((c) => (
                   <option key={c.i} value={c.i}>{c.label}</option>
                 ))}
-              </select>
+              </Select>
             </label>
-            <label className="flex flex-col gap-1 text-xs text-fg-muted">
+            <label className="flex flex-col gap-1 text-sm text-fg-muted">
               Cột ghi chú
-              <select value={noteCol} onChange={(e) => setNoteCol(Number(e.target.value))} className={selectCls}>
+              <Select value={noteCol} onChange={(e) => setNoteCol(Number(e.target.value))}>
                 {columns.map((c) => (
                   <option key={c.i} value={c.i}>{c.label}</option>
                 ))}
-              </select>
+              </Select>
             </label>
-            <label className="flex flex-col gap-1 text-xs text-fg-muted">
+            <label className="flex flex-col gap-1 text-sm text-fg-muted">
               Thứ tự ngày
-              <select value={dateOrder} onChange={(e) => setDateOrder(e.target.value as DateOrder)} className={selectCls}>
+              <Select value={dateOrder} onChange={(e) => setDateOrder(e.target.value as DateOrder)}>
                 <option value="ymd">Năm/Tháng/Ngày</option>
                 <option value="dmy">Ngày/Tháng/Năm</option>
                 <option value="mdy">Tháng/Ngày/Năm</option>
-              </select>
+              </Select>
             </label>
             <label className="col-span-2 flex items-center gap-2 text-sm text-fg-secondary">
               <input type="checkbox" checked={hasHeader} onChange={(e) => setHasHeader(e.target.checked)} />
@@ -375,7 +365,7 @@ export function ImportCsvPage() {
               {/* Cảnh báo chuyển khoản nội bộ */}
               {transferCount > 0 && (
                 <div className="mt-2 rounded-lg bg-state-warn-bg p-2.5">
-                  <label className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300">
+                  <label className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-300">
                     <input
                       type="checkbox"
                       checked={skipTransfers}
@@ -405,7 +395,7 @@ export function ImportCsvPage() {
                   </ul>
                 </div>
               )}
-              <div className="mt-2 max-h-64 overflow-auto text-xs">
+              <div className="mt-2 max-h-64 overflow-auto text-sm">
                 <table className="w-full">
                   <thead className="text-fg-muted">
                     <tr>
@@ -431,7 +421,7 @@ export function ImportCsvPage() {
                           <td className="py-1 text-right tabular-nums">
                             {formatMoney(it.amount, currency)}
                             {odd && (
-                              <span className="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-3xs font-semibold text-state-bad-fg dark:bg-red-900/50">
+                              <span className="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-2xs font-semibold text-state-bad-fg dark:bg-red-900/50">
                                 khoản lớn bất thường
                               </span>
                             )}
@@ -457,7 +447,7 @@ export function ImportCsvPage() {
                 type="button"
                 onClick={handleImport}
                 disabled={busy || toImport.length === 0}
-                className="mt-3 w-full rounded-md bg-accent hover:bg-accent-hover text-fg-on-accent py-2.5 text-sm font-semibold disabled:opacity-40 transition active:scale-95"
+                className={actionButtonClass('primary', 'mt-3 w-full')}
               >
                 {busy ? 'Đang nhập…' : `Nhập ${toImport.length} giao dịch`}
               </button>

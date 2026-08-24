@@ -17,6 +17,7 @@ import { useEffect, useId, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
 import type { DraftPhase } from './draft'
+import { SectionTitle, actionButtonClass } from '../../components/ui'
 
 interface Props {
   /** Mọi chặng của BẢN NHÁP, để chặn `start_year` trùng (DB có
@@ -83,7 +84,7 @@ export function PhaseFormSheet({ phases, phase, onApply, onRemove, onClose }: Pr
 
   const field =
     'w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm dark:text-gray-100'
-  const label_ = 'mb-1 block text-xs font-medium text-fg-muted'
+  const label_ = 'mb-1 block text-sm font-medium text-fg-muted'
 
   const title = 'Chi tiết chặng đời'
 
@@ -104,8 +105,8 @@ export function PhaseFormSheet({ phases, phase, onApply, onRemove, onClose }: Pr
         className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-base font-bold text-fg-primary">{title}</h2>
-        <Guide className="mb-3 text-xs text-fg-muted">
+        <SectionTitle role="block" className="mb-1">{title}</SectionTitle>
+        <Guide className="mb-3 text-sm text-fg-muted">
           Bấm Xong là ghi vào bản nháp — kịch bản chỉ đổi khi bấm Lưu ở thanh nháp trên đồ
           thị.
         </Guide>
@@ -121,7 +122,7 @@ export function PhaseFormSheet({ phases, phase, onApply, onRemove, onClose }: Pr
           className={`mb-1 ${field}`}
         />
         {!labelValid && (
-          <p role="alert" className="mb-2 text-xs text-money-out">
+          <p role="alert" className="mb-2 text-sm text-money-out">
             Tên chặng không được để trống.
           </p>
         )}
@@ -138,12 +139,12 @@ export function PhaseFormSheet({ phases, phase, onApply, onRemove, onClose }: Pr
           className={`mb-1 ${field}`}
         />
         {!yearValid && startYear !== '' && (
-          <p role="alert" className="mb-2 text-xs text-money-out">
+          <p role="alert" className="mb-2 text-sm text-money-out">
             Năm phải là số nguyên trong khoảng 1900–2200.
           </p>
         )}
         {yearValid && yearDuplicate && (
-          <p role="alert" className="mb-2 text-xs text-money-out">
+          <p role="alert" className="mb-2 text-sm text-money-out">
             Kịch bản đã có một chặng khác bắt đầu năm {yearNum} — mỗi năm chỉ được một chặng.
           </p>
         )}
@@ -179,7 +180,7 @@ export function PhaseFormSheet({ phases, phase, onApply, onRemove, onClose }: Pr
           />
         </div>
         {!incomeValid && (
-          <p role="alert" className="mb-2 text-xs text-money-out">
+          <p role="alert" className="mb-2 text-sm text-money-out">
             Thu nền không được âm.
           </p>
         )}
@@ -197,7 +198,7 @@ export function PhaseFormSheet({ phases, phase, onApply, onRemove, onClose }: Pr
           />
         </div>
         {!expenseValid && (
-          <p role="alert" className="mb-2 text-xs text-money-out">
+          <p role="alert" className="mb-2 text-sm text-money-out">
             Chi nền không được âm.
           </p>
         )}
@@ -207,7 +208,7 @@ export function PhaseFormSheet({ phases, phase, onApply, onRemove, onClose }: Pr
           <button
             type="button"
             onClick={handleDelete}
-            className="min-h-11 rounded-md px-3 py-2 text-sm font-medium text-money-out transition active:scale-95 hover:bg-state-bad-bg"
+            className={actionButtonClass('danger')}
           >
             Xóa chặng
           </button>
@@ -223,7 +224,7 @@ export function PhaseFormSheet({ phases, phase, onApply, onRemove, onClose }: Pr
               type="button"
               onClick={handleSubmit}
               disabled={!canSave}
-              className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold transition active:scale-95 disabled:opacity-50"
+              className={actionButtonClass('primary')}
             >
               Xong
             </button>

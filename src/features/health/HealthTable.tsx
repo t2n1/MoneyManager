@@ -72,7 +72,7 @@ function Scale({ value, zones, label }: { value: number | null; zones: readonly 
         )}
       </span>
       {/* Nhãn mốc: chỉ hai mốc trong, không in mốc cuối (nó là mép thang). */}
-      <span aria-hidden className="mt-1 flex text-3xs text-fg-muted">
+      <span aria-hidden className="mt-1 flex text-2xs text-fg-muted">
         {g.bands.map((b, i) => (
           <span key={i} style={{ width: `${b.widthPct}%` }} className="relative">
             {b.upTo !== null && (
@@ -105,7 +105,7 @@ export function HealthTable({ rows }: { rows: readonly HealthRow[] }) {
       <div role="table" aria-label="Sáu chỉ số sức khỏe tài chính">
         <div
           role="row"
-          className={`${GRID} border-b border-border-panel bg-surface-chrome px-4 py-2.5 text-2xs uppercase tracking-[.1em] text-fg-muted`}
+          className={`${GRID} border-b border-border-panel bg-surface-chrome px-4 py-2.5 text-2xs uppercase tracking-label text-fg-muted`}
         >
           <span role="columnheader">Chỉ số</span>
           <span role="columnheader" className="text-right">
@@ -123,7 +123,7 @@ export function HealthTable({ rows }: { rows: readonly HealthRow[] }) {
             <li key={row.key} className="border-b border-border-subtle last:border-0">
               <div role="row" className={`${GRID} min-h-11 px-4 py-2`}>
                 <span role="cell" className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
-                  <span className="min-w-0 truncate text-[0.8125rem] text-fg-primary">
+                  <span className="min-w-0 truncate text-sm text-fg-primary">
                     {row.label}
                   </span>
                   {row.note && <span className="text-2xs text-fg-muted">· {row.note}</span>}

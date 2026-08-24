@@ -48,7 +48,7 @@ const SEARCH_FROM = 6
 const CHIP =
   'inline-flex min-h-11 max-w-full items-center rounded-full border px-3.5 text-sm transition active:scale-95'
 
-const LINK = 'inline-flex min-h-9 items-center gap-0.5 text-xs font-medium text-fg-accent'
+const LINK = 'inline-flex min-h-9 items-center gap-0.5 text-sm font-medium text-fg-accent'
 
 interface Props {
   /** id nhãn đang chọn */
@@ -188,7 +188,7 @@ export function TagPicker({ value, onChange }: Props) {
           trong đã tự mang tên (`aria-label` ở ô nhập, tên nhóm ở từng hàng).
           Cỡ chữ theo `labelCls` của roleFields — app đã có token cho nhãn của một nhóm
           chip, không tự nghĩ ra cỡ mới. */}
-      <span className="mb-1 flex items-center gap-1 text-xs font-medium text-fg-muted">
+      <span className="mb-1 flex items-center gap-1 text-sm font-medium text-fg-muted">
         <TagIcon className="h-3.5 w-3.5" aria-hidden />
         Nhãn <span className="font-normal">(tùy chọn)</span>
       </span>
@@ -233,13 +233,13 @@ export function TagPicker({ value, onChange }: Props) {
               <span
                 id={labelId}
                 title={name}
-                className="flex h-11 w-14 shrink-0 items-center text-xs font-medium text-fg-muted"
+                className="flex h-11 w-14 shrink-0 items-center text-sm font-medium text-fg-muted"
               >
                 <span className="truncate">{name}</span>
               </span>
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
                 {empty && (
-                  <span className="flex h-11 items-center text-xs text-fg-muted">chưa có nhãn</span>
+                  <span className="flex h-11 items-center text-sm text-fg-muted">chưa có nhãn</span>
                 )}
                 {s.list.map(chip)}
                 {adding ? (
@@ -317,7 +317,7 @@ export function TagPicker({ value, onChange }: Props) {
             (xem `visible`) nên dấu + đang nhìn thấy được, mà câu dài hơn 45 ký tự thì
             thành một đoạn văn xuôi mới phải đi qua cổng <Guide> (test canh chế độ Gọn). */}
         {needle && visible.length === 0 && (
-          <p className="py-1 text-xs text-fg-muted">Không có nhãn nào khớp “{query}”</p>
+          <p className="py-1 text-sm text-fg-muted">Không có nhãn nào khớp “{query}”</p>
         )}
       </div>
 

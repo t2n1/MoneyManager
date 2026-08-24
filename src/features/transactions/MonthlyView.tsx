@@ -1,7 +1,7 @@
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { MonthKey } from '../../lib/dates'
 import type { MonthlyPoint } from '../reports/aggregate'
-import { Card } from '../../components/ui'
+import { Card, EmptyState } from '../../components/ui'
 
 interface Props {
   points: MonthlyPoint[]
@@ -23,21 +23,21 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
       {/* Tổng cả năm */}
       <Card className="grid grid-cols-3 gap-2 text-center">
         <div>
-          <div className="text-xs text-fg-muted">Thu cả năm</div>
+          <div className="text-sm text-fg-muted">Thu cả năm</div>
           <div className="mt-0.5 text-sm font-semibold tabular-nums text-money-in">
             {approx}
             {formatMoney(yearIncome, base)}
           </div>
         </div>
         <div className="border-x border-border-subtle">
-          <div className="text-xs text-fg-muted">Chi cả năm</div>
+          <div className="text-sm text-fg-muted">Chi cả năm</div>
           <div className="mt-0.5 text-sm font-semibold tabular-nums text-money-out">
             {approx}
             {formatMoney(yearExpense, base)}
           </div>
         </div>
         <div>
-          <div className="text-xs text-fg-muted">Còn lại</div>
+          <div className="text-sm text-fg-muted">Còn lại</div>
           <div
             className={`mt-0.5 text-sm font-semibold tabular-nums ${yearIncome - yearExpense < 0 ? 'text-money-out' : 'text-fg-primary'}`}
           >
@@ -48,10 +48,10 @@ export function MonthlyView({ points, base, hasForeign, isLoading, onSelectMonth
       </Card>
 
       {isLoading && !active ? (
-        <p className="py-10 text-center text-fg-muted">Đang tải…</p>
+        <EmptyState>Đang tải…</EmptyState>
       ) : (
         <Card padding="none" className="overflow-hidden">
-          <div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-2 border-b border-border-subtle px-3 py-2 text-2xs font-medium uppercase tracking-wide text-fg-muted">
+          <div className="grid grid-cols-[auto_1fr_1fr_1fr] gap-2 border-b border-border-subtle px-3 py-2 text-2xs font-medium uppercase tracking-label text-fg-muted">
             <span>Tháng</span>
             <span className="text-right">Thu</span>
             <span className="text-right">Chi</span>

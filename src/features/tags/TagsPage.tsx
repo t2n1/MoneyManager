@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { Archive, ArchiveRestore, Trash2 } from 'lucide-react'
-import { BackLink } from '../../components/BackLink'
 import {
   useCreateTag,
   useCreateTagGroup,
@@ -21,6 +20,7 @@ import type { TagBudgetPeriod, TagRow } from '../../types/database.types'
 import { ActionButton } from '../../components/ui/ActionButton'
 import { TAG_CHIP_CLASS, TAG_COLOR_KEYS, TAG_COLOR_LABELS, tagColor } from './colors'
 import { QuickSortStrip, readQuickSortDone, writeQuickSortDone } from './QuickSortStrip'
+import { EmptyState, PageHeader, SectionTitle, Select, actionButtonClass } from '../../components/ui'
 
 /** Hai kiểu kỳ của trần nhãn — xem migration 0036. */
 const PERIODS: readonly (readonly [TagBudgetPeriod, string, string])[] = [
@@ -194,16 +194,15 @@ export function TagsPage() {
       {/* Trần chi — hiện cho CẢ nhãn đã lưu trữ: chuyến đi xong rồi vẫn cần xem
           tổng cuối cùng so với dự trù, và có khi còn cần sửa lại con số dự trù. */}
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <label className="text-xs text-fg-muted" htmlFor={`group-${t.id}`}>
+        <label className="text-sm text-fg-muted" htmlFor={`group-${t.id}`}>
           Nhóm
         </label>
-        <select
+        <Select
           id={`group-${t.id}`}
           value={t.group_id ?? ''}
           onChange={(e) =>
             updateTag.mutate({ id: t.id, patch: { group_id: e.target.value || null } })
           }
-          className="min-h-9 rounded-md border border-border-strong bg-surface px-2 py-1 text-sm text-fg-primary"
         >
           <option value="">— Khác —</option>
           {groups.map((g) => (
@@ -211,8 +210,8 @@ export function TagsPage() {
               {g.name}
             </option>
           ))}
-        </select>
-        <label className="text-xs text-fg-muted" htmlFor={`budget-${t.id}`}>
+        </Select>
+        <label className="text-sm text-fg-muted" htmlFor={`budget-${t.id}`}>
           Trần chi
         </label>
         <input
@@ -224,7 +223,7 @@ export function TagsPage() {
           // text-base (16px) để Safari iOS không phóng to trang khi bấm vào ô
           className="min-h-9 w-28 rounded-md border border-border-strong px-2 py-1 text-right text-base sm:text-sm"
         />
-        <span className="text-xs text-fg-muted">{base}</span>
+        <span className="text-sm text-fg-muted">{base}</span>
         {t.budget_amount != null && (
           <div className="flex overflow-hidden rounded-lg border border-border-strong">
             {PERIODS.map(([value, label, title]) => (
@@ -234,7 +233,7 @@ export function TagsPage() {
                 title={title}
                 onClick={() => updateTag.mutate({ id: t.id, patch: { budget_period: value } })}
                 aria-pressed={t.budget_period === value}
-                className={`min-h-9 px-2 text-xs font-medium ${
+                className={`min-h-9 px-2 text-sm font-medium ${
                   t.budget_period === value
                     ? 'bg-accent text-fg-on-accent'
                     : 'text-fg-secondary hover:bg-surface-sunken'
@@ -251,7 +250,7 @@ export function TagsPage() {
         <div className="mt-2 flex items-center gap-2">
           {/* Xem trước nhãn thật để biết chọn màu xong trông thế nào */}
           <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${TAG_CHIP_CLASS[tagColor(t.color)]}`}
+            className={`shrink-0 rounded-full px-2 py-0.5 text-sm font-medium ${TAG_CHIP_CLASS[tagColor(t.color)]}`}
           >
             {t.name}
           </span>
@@ -282,12 +281,9 @@ export function TagsPage() {
 
   return (
     <div className="p-3 lg:p-6">
-      <div className="mb-3 flex items-center gap-2">
-        <BackLink to="/settings" aria-label="Quay lại" />
-        <h1 className="flex-1 text-lg font-bold text-fg-primary">Nhãn</h1>
-      </div>
+      <PageHeader title="Nhãn" back="/settings" />
 
-      <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-xs text-fg-secondary">
+      <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-sm text-fg-secondary">
         Nhãn cắt ngang danh mục: một chuyến “Về VN 2026” gồm vé máy bay, quà và phong bì nằm ở ba
         danh mục khác nhau, nhưng cùng một nhãn thì cuối năm cộng được tổng chi phí cả chuyến.
         Xếp nhãn vào <b>nhóm</b> để lúc nhập đỡ phải lục: nhóm “Với ai?”, “Ở đâu?” mỗi nhóm một
@@ -299,7 +295,7 @@ export function TagsPage() {
       {/* flex-wrap + basis-*: ba control này KHÔNG vừa một hàng trên máy hẹp. Đo ở 375px:
           cần 403px trong khung 351px, nút "Thêm" — hành động chính của màn — chỉ còn thấy
           41%, ở 360px còn 19%, ở 320px mất hẳn. `flex-1` không tự co được vì min-width mặc
-          định là auto, còn <select> thì rộng theo option dài nhất ("Tài sản Việt Nam"), nên
+          định là auto, còn <Select> thì rộng theo option dài nhất ("Tài sản Việt Nam"), nên
           phải có min-w-0 mới co. Cho wrap thay vì cố nhồi: hẹp (basis-full) thì ô nhập chiếm
           trọn hàng trên, select + Thêm xuống hàng dưới cạnh nhau — gom nút với ô chọn đọc
           rõ hơn là để "Thêm" đứng một mình. Từ sm (640px) trở lên gọn lại một hàng. */}
@@ -314,44 +310,42 @@ export function TagsPage() {
           placeholder="Tên nhãn mới…"
           className="min-h-11 min-w-0 flex-1 basis-full rounded-md border border-border-strong px-3 py-2 text-sm sm:basis-48 dark:bg-gray-900"
         />
-        <select
+        <Select
           value={newTagGroup}
           onChange={(e) => setNewTagGroup(e.target.value)}
-          aria-label="Nhóm cho nhãn mới"
-          className="min-h-11 min-w-0 flex-1 basis-28 rounded-md border border-border-strong bg-surface px-2 text-sm text-fg-primary"
-        >
+          aria-label="Nhóm cho nhãn mới" wrapClassName="min-w-0 flex-1 basis-28">
           <option value="">— Khác —</option>
           {groups.map((g) => (
             <option key={g.id} value={g.id}>
               {g.name}
             </option>
           ))}
-        </select>
+        </Select>
         <button
           type="button"
           onClick={add}
           disabled={!draft.trim() || createTag.isPending}
-          className="min-h-11 shrink-0 rounded-md bg-accent text-fg-on-accent px-4 text-sm font-semibold transition active:scale-95 disabled:opacity-40"
+          className={actionButtonClass('primary', 'shrink-0')}
         >
           Thêm
         </button>
       </div>
-      {error && <p className="mb-3 text-xs text-money-out">{error}</p>}
+      {error && <p className="mb-3 text-sm text-money-out">{error}</p>}
 
       {tags.length === 0 ? (
         // Câu chỉ đường không bọc Guide: màn rỗng thì đây là thứ duy nhất trên màn hình
         // (xem components/Guide.tsx). Màn Nhãn là chỗ thấy rõ nhất — rỗng thì cả trang
         // trống trơn, chỉ còn đúng một câu này.
-        <p className="py-10 text-center text-sm text-fg-muted">
+        <EmptyState>
           Chưa có nhãn nào. Đặt tên nhãn ở trên rồi bấm Thêm — nhãn để gom giao dịch theo
           chuyến đi, theo người, theo dự án.
-        </p>
+        </EmptyState>
       ) : (
         <>
           {active.length === 0 ? (
-            <p className="py-6 text-center text-sm text-fg-muted">
+            <EmptyState compact>
               Mọi nhãn đang được lưu trữ. Dùng lại một nhãn để nó xuất hiện khi nhập giao dịch.
-            </p>
+            </EmptyState>
           ) : (
             <div className="flex flex-col gap-5">
               {sections.map((s) =>
@@ -384,9 +378,9 @@ export function TagsPage() {
                           className="min-h-9 min-w-0 flex-1 rounded-md border border-transparent px-2 py-1 text-sm font-semibold text-fg-secondary hover:border-gray-300 dark:hover:border-gray-700"
                         />
                       ) : (
-                        <h2 className="min-h-9 flex-1 px-2 py-1 text-sm font-semibold text-fg-secondary">
+                        <SectionTitle className="min-h-9 flex-1 px-2 py-1">
                           {s.title}
-                        </h2>
+                        </SectionTitle>
                       )}
                       <span className="shrink-0 text-2xs text-fg-muted">{s.rows.length} nhãn</span>
                       {s.groupId && (
@@ -401,7 +395,7 @@ export function TagsPage() {
                       )}
                     </div>
                     {s.rows.length === 0 ? (
-                      <p className="px-2 text-xs text-fg-muted">
+                      <p className="px-2 text-sm text-fg-muted">
                         Chưa có nhãn nào trong nhóm này.
                         <Guide as="span">
                           {' '}
@@ -419,11 +413,11 @@ export function TagsPage() {
 
           {archived.length > 0 && (
             <section className="mt-5">
-              <h2 className="mb-1 flex items-center gap-1.5 px-1 text-sm font-semibold text-fg-secondary">
+              <SectionTitle className="mb-1 flex items-center gap-1.5 px-1">
                 <Archive className="h-4 w-4" aria-hidden />
                 Đã lưu trữ ({archived.length})
-              </h2>
-              <Guide className="mb-2 px-1 text-xs text-fg-muted">
+              </SectionTitle>
+              <Guide className="mb-2 px-1 text-sm text-fg-muted">
                 Không hiện khi nhập giao dịch nữa, nhưng vẫn còn nguyên trong Chi theo nhãn và lọc
                 ở Tìm kiếm.
               </Guide>
@@ -432,8 +426,8 @@ export function TagsPage() {
           )}
 
           <section className="mt-6">
-            <h2 className="mb-1 px-1 text-sm font-semibold text-fg-secondary">Nhóm nhãn</h2>
-            <Guide className="mb-2 px-1 text-xs text-fg-muted">
+            <SectionTitle className="mb-1 px-1">Nhóm nhãn</SectionTitle>
+            <Guide className="mb-2 px-1 text-sm text-fg-muted">
               Nhóm là CÂU HỎI, nhãn là câu trả lời: nhóm “Với ai?” chứa “Người yêu”, “Bạn bè”.
               Khi nhập giao dịch, mỗi nhóm hiện thành một hàng chip riêng.
             </Guide>
@@ -444,7 +438,7 @@ export function TagsPage() {
                   writeQuickSortDone(false)
                   setQuickSortDone(false)
                 }}
-                className="mb-2 min-h-9 px-1 text-xs font-medium text-fg-accent"
+                className="mb-2 min-h-9 px-1 text-sm font-medium text-fg-accent"
               >
                 Mở lại dải xếp nhãn vào nhóm
               </button>
@@ -468,7 +462,7 @@ export function TagsPage() {
                 Thêm nhóm
               </ActionButton>
             </div>
-            {groupError && <p className="mt-2 text-xs text-money-out">{groupError}</p>}
+            {groupError && <p className="mt-2 text-sm text-money-out">{groupError}</p>}
           </section>
         </>
       )}

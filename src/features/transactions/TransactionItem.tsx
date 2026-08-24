@@ -169,7 +169,7 @@ export function TransactionItem({
             đã gắn nhãn hay chưa. Chip đứng cùng dòng tài khoản, tự xuống dòng khi
             chật thay vì chiếm thêm một hàng cố định. */}
         {(tx.type !== 'transfer' || tags.length > 0) && (
-          <span className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-fg-muted">
+          <span className="mt-0.5 flex flex-wrap items-center gap-1 text-sm text-fg-muted">
             {tx.type !== 'transfer' && (
               <span className="min-w-0 truncate">{accountName(tx.account_id)}</span>
             )}
@@ -190,7 +190,7 @@ export function TransactionItem({
         {style.sign}
         {formatMoney(tx.amount, srcCur)}
         {tx.to_amount != null && (
-          <span className="block font-mono text-xs font-normal text-fg-muted">
+          <span className="block font-mono text-sm font-normal text-fg-muted">
             → +{formatMoney(tx.to_amount, dstCur)}
           </span>
         )}

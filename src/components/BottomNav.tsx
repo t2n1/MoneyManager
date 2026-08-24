@@ -38,7 +38,7 @@ export function BottomNav({ hidden }: { hidden: boolean }) {
             end={tab.to === '/'}
             className={({ isActive }) =>
               // h-[2.875rem] = 46px: trên sàn vùng chạm 44px của app.
-              `flex h-[2.875rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-3xs transition ${
+              `flex h-[2.875rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-2xs transition ${
                 isActive ? 'font-semibold text-money-in' : 'text-fg-muted'
               }`
             }

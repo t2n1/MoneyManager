@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Sparkles, Star } from 'lucide-react'
-import { ActionButton, Card } from '../../components/ui'
+import { ActionButton, Card, actionButtonClass, filterChipClass } from '../../components/ui'
 import { repo } from '../../data'
 import { useNetWorthSnapshots } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
@@ -371,7 +371,7 @@ export function LifetimeView() {
             biết TRƯỚC khi bấm, không phải đoán. */}
         {!netWorthLoading && profile && (
           <p
-            className={`mt-2 rounded-lg p-2.5 text-xs ${
+            className={`mt-2 rounded-lg p-2.5 text-sm ${
               netWorthReliable
                 ? 'bg-surface-sunken text-fg-secondary'
                 : 'bg-state-warn-bg text-state-warn-fg'
@@ -397,7 +397,7 @@ export function LifetimeView() {
             chứ không phải chưa khai, nên trang dừng đúng ở đây. Nói ra bằng chữ, không chỉ
             làm mờ nút: nút disabled không đọc được `title` bằng chạm trên mobile. */}
         {!profile && (
-          <p className="mt-2 rounded-lg bg-state-warn-bg text-state-warn-fg p-2.5 text-xs">
+          <p className="mt-2 rounded-lg bg-state-warn-bg text-state-warn-fg p-2.5 text-sm">
             Chưa tải được thông tin người dùng (năm sinh, tiền gốc) nên chưa tạo được kịch
             bản — kiểm tra mạng rồi mở lại màn này.
           </p>
@@ -417,7 +417,7 @@ export function LifetimeView() {
               setCreating(false)
             }
           }}
-          className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-accent text-fg-on-accent px-3 text-sm font-semibold transition active:scale-95 disabled:opacity-50"
+          className={actionButtonClass('primary', 'mt-3 w-full')}
         >
           <Sparkles className="h-4 w-4" />
           {creating || isCreatingFirstScenario
@@ -484,7 +484,7 @@ export function LifetimeView() {
       {/* Header: một dòng chú thích canh phải. Không có <h1>: tab "Tương lai" ngay trên
           đã là tên màn này, và vỏ AssetsPage đã có <h1> "Tài sản". */}
       {profile?.birth_year != null && (
-        <p className="truncate text-right text-xs text-fg-muted">
+        <p className="truncate text-right text-sm text-fg-muted">
           Sinh {profile.birth_year} · chiếu đến tuổi {shownInput.endAge} ·{' '}
           <span className="font-mono">{currency}</span>
         </p>
@@ -542,7 +542,7 @@ export function LifetimeView() {
                     <span className="truncate">{s.name}</span>
                     {isPrimary && <span className="sr-only">(kịch bản chính)</span>}
                     {isActive && dirty && (
-                      <span className="rounded-full border border-state-warn-border bg-state-warn-bg px-1.5 text-3xs font-semibold text-state-warn-fg">
+                      <span className="rounded-full border border-state-warn-border bg-state-warn-bg px-1.5 text-2xs font-semibold text-state-warn-fg">
                         nháp
                       </span>
                     )}
@@ -558,11 +558,7 @@ export function LifetimeView() {
                     onClick={() => setCompareId(comparing ? null : s.id)}
                     aria-pressed={comparing}
                     aria-label={comparing ? `Thôi so với ${s.name}` : `So với ${s.name}`}
-                    className={`min-h-11 shrink-0 rounded-full border px-2.5 text-2xs font-semibold transition active:scale-95 ${
-                      comparing
-                        ? 'border-accent bg-accent text-fg-on-accent'
-                        : 'border-border-strong text-fg-muted'
-                    }`}
+                    className={filterChipClass(comparing)}
                   >
                     {comparing ? 'Đang so' : 'So'}
                   </button>
@@ -829,7 +825,7 @@ function BirthYearCard() {
         qua lại giữa "năm" và "tuổi" ở mỗi mốc trên đồ thị (nghỉ hưu, tự do tài chính…). Thiếu
         năm sinh thì không tính được tuổi, nên chưa chiếu được gì.
       </p>
-      <label htmlFor="lifetime-birth-year" className="mt-3 block text-xs font-medium text-fg-muted">
+      <label htmlFor="lifetime-birth-year" className="mt-3 block text-sm font-medium text-fg-muted">
         Năm sinh
       </label>
       <input
@@ -845,7 +841,7 @@ function BirthYearCard() {
         type="button"
         disabled={!valid || saveMut.isPending}
         onClick={() => saveMut.mutate(year)}
-        className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-md bg-accent text-fg-on-accent px-3 text-sm font-semibold transition active:scale-95 disabled:opacity-40"
+        className={actionButtonClass('primary', 'mt-3 w-full')}
       >
         {saveMut.isPending ? 'Đang lưu…' : 'Lưu năm sinh'}
       </button>

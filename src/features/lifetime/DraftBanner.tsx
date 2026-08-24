@@ -56,7 +56,7 @@ export function DraftBanner({
       }`}
     >
       <AlertTriangle className="h-4 w-4 shrink-0 text-state-warn-fg" aria-hidden="true" />
-      <p className="min-w-[12rem] flex-1 text-[0.8125rem] text-state-warn-fg">
+      <p className="min-w-[12rem] flex-1 text-sm text-state-warn-fg">
         <b>Đang thử trên bản nháp</b> — kịch bản "{scenarioName}" gốc chưa bị đụng.
         {parts.length > 0 && ` Đang đổi: ${parts.join(' · ')}.`}
       </p>

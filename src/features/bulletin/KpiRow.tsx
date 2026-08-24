@@ -25,7 +25,7 @@ function Tile({
 }) {
   return (
     <Card elevation="panel" padding="panel" className="min-w-0 flex-1 basis-40">
-      <p className="text-2xs uppercase tracking-[.1em] text-fg-muted">{label}</p>
+      <p className="text-2xs uppercase tracking-label text-fg-muted">{label}</p>
       {/* KHÔNG kèm `tabular-nums`: ô này đã là `font-mono`, mà trong một font đơn cách
           mọi glyph vốn cùng bề rộng — thêm nữa chỉ là nhân bản một quyết định đã có
           trong <Money>. (Ở font sans thì nó vẫn cần, và <Money> vẫn tự bật.) */}
@@ -35,7 +35,7 @@ function Tile({
           không có ký hiệu tiền (formatCompact cố ý bỏ, nó sinh ra cho nhãn trục), mà app
           này trộn ¥ với ₫ nên một con số không đơn vị là câu đố. §6 cũng chốt mobile là
           bố cục riêng chứ không phải bản thu nhỏ của desktop. */}
-      <div className="mt-1.5 font-mono text-[1.375rem] font-medium leading-none tracking-[-.02em] lg:text-[1.625rem]">
+      <div className="mt-1.5 font-mono text-kpi font-medium tracking-number">
         <Swap on={swapOn}>{children}</Swap>
       </div>
       <div className="mt-2 flex items-end justify-between gap-2">{foot}</div>
@@ -143,7 +143,7 @@ export function KpiRow({
         ) : (
           <>
             <span className="text-fg-primary">{keptPct}%</span>
-            <span className="ml-2 font-mono text-xs text-fg-muted">
+            <span className="ml-2 font-mono text-sm text-fg-muted">
               <Money amount={keptAmount} currency={base} tone="neutral" approx={approx} compact />
             </span>
           </>

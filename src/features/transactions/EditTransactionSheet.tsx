@@ -13,6 +13,7 @@ import type { TransactionRow } from '../../types/database.types'
 import { TransactionForm } from './TransactionForm'
 import { toNewTransaction } from './restore'
 import { useEscClose } from '../../hooks/useEscClose'
+import { SectionTitle, actionButtonClass } from '../../components/ui'
 
 interface Props {
   tx: TransactionRow
@@ -89,14 +90,14 @@ export function EditTransactionSheet({ tx, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 id="edit-tx-title" className="text-base font-bold text-fg-primary">
+          <SectionTitle role="block" id="edit-tx-title">
             Sửa giao dịch
-          </h2>
+          </SectionTitle>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={handleDelete}
-              className="min-h-11 rounded-md px-3 py-1.5 text-sm font-medium text-money-out hover:bg-red-50"
+              className={actionButtonClass('danger')}
             >
               Xóa
             </button>

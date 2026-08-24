@@ -23,7 +23,7 @@
 //      danh sách đó là `sr-only`, vì ở đó mỗi cột đã có nhãn số riêng).
 //   3. Đường ngang là TRUNG VỊ ngày có chi, không phải trung bình (xem dailySpike.ts).
 import { useLayoutEffect, useState } from 'react'
-import { Card, Money, Num, SegmentedControl, deltaTone, signedPct } from '../../components/ui'
+import { Card, Money, Num, SectionTitle, SegmentedControl, deltaTone, signedPct } from '../../components/ui'
 import { formatCompact, type CurrencyCode } from '../../lib/money'
 import type { CategoryRow } from '../../types/database.types'
 import type { PeriodCompare } from '../reports/periodCompare'
@@ -204,7 +204,7 @@ function DayCard({
       {/* Dùng lại `Card` dáng panel làm hộp, không viết tay nền + viền: 1a phân cấp bằng
           nền + viền chứ không đổ bóng, và bảng bán kính/viền đó nằm trong Card. */}
       <Card elevation="panel" padding="sm" className="bg-surface">
-        <p className="font-mono text-3xs text-fg-muted">{dayLabel(day.date)}</p>
+        <p className="font-mono text-2xs text-fg-muted">{dayLabel(day.date)}</p>
         {isFuture ? (
           <p className="text-2xs text-fg-muted">
             chưa xảy ra — theo nhịp này ~
@@ -215,7 +215,7 @@ function DayCard({
           // chưa-có-gì thì nói bằng chữ chứ không in số 0.
           <p className="text-2xs text-fg-muted">Không ghi khoản nào.</p>
         ) : (
-          <p className="text-[0.8125rem] font-semibold">
+          <p className="text-sm font-semibold">
             <Money
               amount={day.total}
               currency={base}
@@ -223,7 +223,7 @@ function DayCard({
               approx={approx}
             />
             {day.total < 0 && (
-              <span className="ml-1 text-3xs font-normal text-money-in">hoàn tiền</span>
+              <span className="ml-1 text-2xs font-normal text-money-in">hoàn tiền</span>
             )}
           </p>
         )}
@@ -244,7 +244,7 @@ function DayCard({
         {tagsOfDay.length > 0 && (
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 border-t border-border-subtle pt-1">
             {tagsOfDay.map((t) => (
-              <span key={t.name} className="flex items-center gap-1 text-3xs text-fg-muted">
+              <span key={t.name} className="flex items-center gap-1 text-2xs text-fg-muted">
                 <span
                   className="size-1.5 rounded-[1px]"
                   style={{ backgroundColor: TAG_HEX[tagColor(t.color)] }}
@@ -314,7 +314,7 @@ export function DailySpendPanel({
             B46.2 vẫn được giữ nguyên: câu đó chuyển sang góc phải, dính liền hai con số
             mà nó giải thích ("đã bỏ khoản cố định · ¥151.218 / ¥270.311 tổng"). Góc phải
             là `ml-auto` nên nó nở về BÊN TRÁI, không đụng tới hai chip. */}
-        <h2 className="text-[0.8125rem] font-semibold text-fg-primary">Chi từng ngày</h2>
+        <SectionTitle>Chi từng ngày</SectionTitle>
         <SegmentedControl
           items={SCOPE_ITEMS}
           value={scope}
@@ -323,7 +323,7 @@ export function DailySpendPanel({
           size="sm"
           stretch={false}
         />
-        <p className="ml-auto font-mono text-3xs text-fg-muted">
+        <p className="ml-auto font-mono text-2xs text-fg-muted">
           {elapsed.length} ngày ·{' '}
           <Money
             amount={spendTotal}
@@ -362,18 +362,18 @@ export function DailySpendPanel({
       </div>
 
       {peak === null ? (
-        <p className="mt-3 text-[0.8125rem] text-fg-muted">
+        <p className="mt-3 text-sm text-fg-muted">
           Chưa ghi khoản chi nào trong tháng này.
         </p>
       ) : (
         <>
           {/* Kết luận trước, biểu đồ sau (§14). */}
-          <p className="mt-1.5 text-[0.8125rem] text-fg-secondary">
+          <p className="mt-1.5 text-sm text-fg-secondary">
             <Headline headline={headline} base={base} approx={approx} />
           </p>
 
           {/* B45.1: hai số này không phụ thuộc nhãn nên LUÔN nói được. */}
-          <p className="mt-0.5 font-mono text-3xs text-fg-muted">
+          <p className="mt-0.5 font-mono text-2xs text-fg-muted">
             {/* Nhánh 'typical' của câu kết luận VỪA in đúng con số này ngay dòng trên. Lặp
                 lại nó là hai dòng liền nhau nói y hệt một điều — và người đọc sẽ đi tìm
                 khác biệt giữa hai con số giống nhau. */}
@@ -405,7 +405,7 @@ export function DailySpendPanel({
                 4px. B48 chốt giữ đủ 31 ngày ở mobile, nên chỗ đó phải trả về cho cột.
                 Mức cắt vẫn nói ra ở nhãn "cắt ở …" trong khung, và đường 0 vẫn được vẽ. */}
             <div
-              className={`relative hidden h-44 font-mono text-3xs text-fg-muted md:block ${AXIS_LEAD}`}
+              className={`relative hidden h-44 font-mono text-2xs text-fg-muted md:block ${AXIS_LEAD}`}
             >
               <span className="absolute right-0 top-0">{formatCompact(ceiling, base)}</span>
               {typical > 0 && (
@@ -431,7 +431,7 @@ export function DailySpendPanel({
                   mép trên, tức rơi trúng dải mà nhãn chú chiếm. Nền `bg-surface` của nhãn
                   chú xén mất phần dưới con số, chừa lại vài pixel đầu — đọc ra như lỗi vẽ.
                   Ra khỏi khung thì không cột nào với tới, và không cần nền che nữa. */}
-              <div className="mb-0.5 flex h-3.5 items-baseline justify-between gap-2 font-mono text-3xs">
+              <div className="mb-0.5 flex h-3.5 items-baseline justify-between gap-2 font-mono text-2xs">
                 {/* B42.3: nói CẢ HAI số. Không có câu này thì một cột chỉ cao tới mép mà
                     nhãn ghi 12.5万 đọc ra như lỗi vẽ. */}
                 {ceiling > 0 && peak.total > ceiling ? (
@@ -495,7 +495,7 @@ export function DailySpendPanel({
                     >
                       {showLabel && (
                         <span
-                          className={`mb-0.5 whitespace-nowrap text-center font-mono text-3xs leading-none ${
+                          className={`mb-0.5 whitespace-nowrap text-center font-mono text-2xs leading-none ${
                             d.total < 0
                               ? 'text-money-in'
                               : d.total >= typical * 2
@@ -593,7 +593,7 @@ export function DailySpendPanel({
 
           {/* Trục ngày cho màn hẹp: năm mốc thay 31 số. Từ md trục ngày nằm ở dải nhãn,
               nơi nó thẳng hàng với các ô. */}
-          <div className="mt-1 flex justify-between font-mono text-3xs text-fg-muted md:hidden">
+          <div className="mt-1 flex justify-between font-mono text-2xs text-fg-muted md:hidden">
             {[0, 7, 14, 22, days.length - 1].map((i) => (
               <span key={i}>
                 {days[i]?.date.slice(8)}
@@ -607,7 +607,7 @@ export function DailySpendPanel({
               nói ra con số, vì cột chỉ rộng 8px. */}
           {asking.length > 0 && (
             <div className="mt-2 md:sr-only">
-              <p className="text-3xs font-semibold uppercase tracking-[.06em] text-fg-muted">
+              <p className="text-2xs font-semibold uppercase tracking-label text-fg-muted">
                 Ba ngày đáng hỏi
               </p>
               <ul>
@@ -625,15 +625,15 @@ export function DailySpendPanel({
                         currency={base}
                         tone={d.total < 0 ? 'in' : 'out'}
                         approx={approx}
-                        className="text-[0.8125rem] font-semibold"
+                        className="text-sm font-semibold"
                       />
                       {d.top.length > 0 && (
-                        <span className="block truncate text-3xs text-fg-muted">
+                        <span className="block truncate text-2xs text-fg-muted">
                           {d.top.map((t) => labelOf(t, categoryOf)).join(' · ')}
                         </span>
                       )}
                       {d.total < 0 && (
-                        <span className="block text-3xs text-money-in">
+                        <span className="block text-2xs text-money-in">
                           hoàn tiền nhiều hơn chi
                         </span>
                       )}

@@ -18,7 +18,7 @@
 import { useMemo } from 'react'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { ExplainBox } from '../../components/ExplainBox'
-import { Card, Money, StatusChip } from '../../components/ui'
+import { Card, Money, SectionTitle, StatusChip } from '../../components/ui'
 import {
   useAccounts,
   useAccountValuations,
@@ -32,6 +32,7 @@ import type { AssetAccount } from './aggregate'
 import { monthLabel, type RangeSpan } from './assetsRange'
 import { investHistory, investTxRange, type InvestHistoryAccount } from './investHistory'
 import type { MoneyView } from './moneyView'
+import { CHART_TEXT_3XS } from '../../lib/chartText'
 
 // Palette v4 qua CSS var, không hex đời v3 chép tay (docs/design-system.md). Cùng cặp màu
 // với thanh "Vốn bỏ vào / Thị trường cho thêm" của ô Hiệu quả đầu tư — một câu chuyện.
@@ -103,10 +104,10 @@ export function InvestmentValueHistorySection({ accounts, base, view, span }: Pr
   if (trongKhoang.length < 2) {
     return (
       <Card as="section" elevation="panel" padding="lg">
-        <h2 className="text-sm font-semibold text-fg-primary">
+        <SectionTitle>
           Đầu tư · vốn bỏ vào so với giá trị
-        </h2>
-        <p className="mt-2 text-center text-xs text-fg-muted">
+        </SectionTitle>
+        <p className="mt-2 text-center text-sm text-fg-muted">
           {points.length >= 2
             ? 'Khoảng đang chọn chưa có đủ hai ngày định giá — chọn khoảng rộng hơn.'
             : 'Cần ít nhất hai ngày có giá để vẽ. App tự ghi giá trị danh mục mỗi phiên — vài ngày nữa biểu đồ sẽ hiện.'}
@@ -124,9 +125,9 @@ export function InvestmentValueHistorySection({ accounts, base, view, span }: Pr
   return (
     <Card as="section" elevation="panel" padding="lg">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h2 className="text-sm font-semibold text-fg-primary">
+        <SectionTitle>
           Đầu tư · vốn bỏ vào so với giá trị
-        </h2>
+        </SectionTitle>
         {/* Biểu đồ TỰ KHAI nó có dữ liệu từ bao giờ, thay vì để dải chọn nói thay: mốc
             định giá đầu tiên của danh mục không nhất thiết trùng mốc đầu của khoảng. */}
         <span className="text-2xs text-fg-muted">
@@ -146,7 +147,7 @@ export function InvestmentValueHistorySection({ accounts, base, view, span }: Pr
             không vẽ 0
           </StatusChip>
         )}
-        <span className="ml-auto shrink-0 text-xs font-semibold">
+        <span className="ml-auto shrink-0 text-sm font-semibold">
           <Money
             amount={view.view(Math.abs(growth)).amount}
             currency={view.cur}
@@ -167,12 +168,12 @@ export function InvestmentValueHistorySection({ accounts, base, view, span }: Pr
           <LineChart data={data} margin={{ top: 5, right: 14, bottom: 0, left: 0 }}>
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 10, fill: 'var(--fg-muted)' }}
+              tick={{ fontSize: CHART_TEXT_3XS, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: 'var(--fg-muted)' }}
+              tick={{ fontSize: CHART_TEXT_3XS, fill: 'var(--fg-muted)' }}
               axisLine={false}
               tickLine={false}
               width={44}

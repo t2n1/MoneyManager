@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { Guide } from '../../components/Guide'
-import { BackLink } from '../../components/BackLink'
 import { useCategories, useUpdateCategory } from '../../hooks/queries'
 import { showToast } from '../../lib/dialog'
 import type { CostType, NeedLevel } from '../../types/database.types'
 import { ClassificationToggle, COST_OPTIONS, NEED_OPTIONS } from './ClassificationToggle'
 import { expenseLeaves, groupLeavesByParent } from './leaf'
-import { Card } from '../../components/ui'
+import { Card, EmptyState, PageHeader } from '../../components/ui'
 
 type Axis = 'need_level' | 'cost_type'
 /** Giá trị người dùng vừa chọn, chờ máy chủ xác nhận (để toggle ăn ngay). */
@@ -64,17 +63,14 @@ export function ClassifyCategoriesPage() {
 
   return (
     <div className="p-3 lg:p-6">
-      <div className="mb-3 flex items-center gap-2">
-        <BackLink to="/settings/categories" aria-label="Quay lại" />
-        <h1 className="flex-1 text-lg font-bold text-fg-primary">Phân loại chi tiêu</h1>
-      </div>
+      <PageHeader title="Phân loại chi tiêu" back="/settings/categories" />
 
-      <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-xs text-fg-secondary">
+      <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-sm text-fg-secondary">
         Gán mỗi danh mục Chi vào <b>Thiết yếu/Linh hoạt</b> và <b>Cố định/Biến đổi</b> để xem cơ cấu
         chi tiêu ở Báo cáo. Thay đổi được lưu ngay.
       </Guide>
 
-      <label className="mb-3 min-h-11 flex items-center gap-2 text-xs font-medium text-fg-secondary">
+      <label className="mb-3 min-h-11 flex items-center gap-2 text-sm font-medium text-fg-secondary">
         <input type="checkbox" className="h-5 w-5" checked={onlyTodo} onChange={(e) => setOnlyTodo(e.target.checked)} />
         Chỉ hiện chưa phân loại ({todoCount})
       </label>
@@ -84,7 +80,7 @@ export function ClassifyCategoriesPage() {
           <div key={g.parent ? g.parent.id : `leaf:${g.leaves[0].id}`} className="flex flex-col gap-2">
             {/* Tiêu đề nhóm: nhãn đọc, không phải hàng bấm được (đối tượng bấm là 2 toggle bên dưới) */}
             {g.parent && (
-              <div className="flex items-center gap-1.5 px-1 text-xs font-semibold text-fg-muted">
+              <div className="flex items-center gap-1.5 px-1 text-sm font-semibold text-fg-muted">
                 <span className="text-sm">{g.parent.icon}</span>
                 <span className="truncate">{g.parent.name}</span>
               </div>
@@ -116,8 +112,8 @@ export function ClassifyCategoriesPage() {
           </div>
         ))}
         {rows.length === 0 && (
-          <Card as="p" padding="none" className="px-3 py-6 text-center text-sm text-fg-muted">
-            {onlyTodo ? 'Đã phân loại hết 🎉' : 'Chưa có danh mục Chi'}
+          <Card padding="none">
+            <EmptyState compact>{onlyTodo ? 'Đã phân loại hết 🎉' : 'Chưa có danh mục Chi'}</EmptyState>
           </Card>
         )}
       </div>

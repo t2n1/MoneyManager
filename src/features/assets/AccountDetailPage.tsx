@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { BackLink } from '../../components/BackLink'
 import { ChevronLeft, ChevronRight, LineChart, Scale, Trash2 } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
 import { AccountTypeIcon } from '../../components/icons'
 import {
   ActionButton,
   Card,
+  EmptyState,
   IconButton,
   Money,
+  PageHeader,
   SectionTitle,
+  actionButtonClass,
 } from '../../components/ui'
 import type { TxFilter } from '../../data'
 import {
@@ -281,33 +283,32 @@ export function AccountDetailPage() {
 
   return (
     <div className="p-3 lg:p-6">
-      {/* Header */}
-      <div className="mb-3 flex items-center gap-2">
-        <BackLink to="/assets" aria-label="Quay lại" />
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-bold text-fg-primary">
-            {account ? (
-              <span className="inline-flex items-center gap-1.5">
-                <AccountTypeIcon type={account.type} className="h-5 w-5" /> {account.name}
-              </span>
-            ) : (
-              'Tài khoản'
-            )}
-          </h1>
-          {/* Dòng phụ của 19a: "Thẻ tín dụng · JPY · trả từ Rakuten Bank". Ba mẩu này
-              quyết định cách đọc MỌI con số bên dưới — loại tài khoản đổi nghĩa của số
-              lớn (số dư hay số nợ), loại tiền nói con số đang là ¥ hay ₫, và nguồn trả
-              nói tiền sẽ rời khỏi ví nào. Trước đây cả ba phải tự suy từ chính các con
-              số, hoặc mở Cài đặt → Tài khoản mới thấy. */}
-          {account && (
-            <p className="truncate text-xs text-fg-muted">
+      <PageHeader
+        back="/assets"
+        title={
+          account ? (
+            <span className="inline-flex items-center gap-1.5">
+              <AccountTypeIcon type={account.type} className="h-5 w-5" /> {account.name}
+            </span>
+          ) : (
+            'Tài khoản'
+          )
+        }
+        /* Dòng phụ của 19a: "Thẻ tín dụng · JPY · trả từ Rakuten Bank". Ba mẩu này
+           quyết định cách đọc MỌI con số bên dưới — loại tài khoản đổi nghĩa của số
+           lớn (số dư hay số nợ), loại tiền nói con số đang là ¥ hay ₫, và nguồn trả
+           nói tiền sẽ rời khỏi ví nào. Trước đây cả ba phải tự suy từ chính các con
+           số, hoặc mở Cài đặt → Tài khoản mới thấy. */
+        subtitle={
+          account && (
+            <>
               {ACCOUNT_TYPE_LABELS[account.type]} · {account.currency}
               {cardFundingGroup && ` · trả từ ${cardFundingGroup.sourceName}`}
               {account.asset_group && ` · ${account.asset_group}`}
-            </p>
-          )}
-        </div>
-      </div>
+            </>
+          )
+        }
+      />
 
       {/* Số dư hiện tại */}
       <Card as="section" padding="lg" className="mb-3">
@@ -334,7 +335,7 @@ export function AccountDetailPage() {
         {/* Tô màu vẫn theo `balance` (số sổ) chứ không theo con số đang hiện: với tài
             khoản đầu tư/cố định, số hiện là giá thị trường nhưng "âm hay không" là
             chuyện của số dư sổ. Giữ đúng hành vi cũ. */}
-        <p className="mt-1 text-2xl font-bold">
+        <p className="mt-1 text-kpi font-mono font-medium tracking-number tabular-nums">
           {account?.type === 'card' ? (
             <Money
               amount={balance < 0 ? -balance : 0}
@@ -406,7 +407,7 @@ export function AccountDetailPage() {
                 trên có thể đang rơi về invStats.marketValue (một bản định giá tay CŨ),
                 nên nói "chưa cập nhật" là bịa. */}
             {danhMuc.marketValue == null ? (
-              <p className="text-xs text-fg-muted">
+              <p className="text-sm text-fg-muted">
                 {danhMuc.cash != null && danhMuc.cash < 0
                   ? 'Chưa tính được — sổ lệnh đang mua nhiều hơn tiền đã nạp.'
                   : `Chưa tính được — chưa có giá cho ${danhMuc.kind === 'funds' ? 'quỹ' : 'mã'} nào đang giữ.`}
@@ -426,10 +427,10 @@ export function AccountDetailPage() {
               to={`/invest?tab=${danhMuc.kind}&account=${accountId}`}
               className="flex items-center justify-between gap-2 pt-1 text-fg-accent"
             >
-              <span className="text-xs font-medium">
+              <span className="text-sm font-medium">
                 Danh mục · {danhMuc.count} {danhMuc.kind === 'funds' ? 'quỹ' : 'mã'} · sổ lệnh
               </span>
-              <span className="text-xs font-medium">Xem →</span>
+              <span className="text-sm font-medium">Xem →</span>
             </Link>
           </div>
         )}
@@ -455,7 +456,7 @@ export function AccountDetailPage() {
               />
             </div>
             {invStats.unrealizedPnl == null ? (
-              <p className="text-xs text-fg-muted">
+              <p className="text-sm text-fg-muted">
                 Chưa cập nhật giá thị trường — đang tính theo vốn gốc.
               </p>
             ) : (
@@ -469,7 +470,7 @@ export function AccountDetailPage() {
             <button
               type="button"
               onClick={() => setShowValuation(true)}
-              className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold transition active:scale-95"
+              className={actionButtonClass('primary', 'mt-1')}
             >
               <LineChart className="h-3.5 w-3.5" /> Cập nhật giá trị
             </button>
@@ -483,7 +484,7 @@ export function AccountDetailPage() {
               <span className="min-w-0 truncate text-fg-muted">
                 {TAX_SHELTER_LABELS[account.tax_shelter]}
               </span>
-              <span className="shrink-0 text-xs text-fg-muted">
+              <span className="shrink-0 text-sm text-fg-muted">
                 năm {shelterYear}
               </span>
             </div>
@@ -495,7 +496,7 @@ export function AccountDetailPage() {
                 style={{ width: `${Math.min(100, (shelter.ratio ?? 0) * 100)}%` }}
               />
             </div>
-            <p className="mt-1.5 text-xs text-fg-secondary">
+            <p className="mt-1.5 text-sm text-fg-secondary">
               Đã nạp <b>{formatMoney(shelter.used, currency)}</b>
               {shelter.limit !== null && <> / {formatMoney(shelter.limit, currency)}</>}
               {shelter.remaining !== null && shelter.remaining > 0 && (
@@ -530,19 +531,19 @@ export function AccountDetailPage() {
                   <span>Đã khấu hao</span>
                   <span>
                     <Money amount={dep.accumulated} currency={currency} tone="out" showSign />
-                    <span className="ml-1 font-mono text-xs">
+                    <span className="ml-1 font-mono text-sm">
                       ({Math.round(dep.elapsedRatio * 100)}%)
                     </span>
                   </span>
                 </div>
-                <p className="text-xs text-fg-muted">
+                <p className="text-sm text-fg-muted">
                   {dep.monthsLeft > 0
                     ? `Còn ${dep.monthsLeft} tháng nữa là hết vòng đời khấu hao.`
                     : 'Đã hết vòng đời khấu hao — giá trị giữ ở mức còn lại.'}
                 </p>
               </>
             ) : (
-              <p className="text-xs text-fg-muted">
+              <p className="text-sm text-fg-muted">
                 Chưa đặt ngày mua / số tháng khấu hao nên giá trị giữ nguyên theo sổ. Sửa tài khoản
                 để bật khấu hao tự động.
               </p>
@@ -550,7 +551,7 @@ export function AccountDetailPage() {
             <button
               type="button"
               onClick={() => setShowValuation(true)}
-              className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold transition active:scale-95"
+              className={actionButtonClass('primary', 'mt-1')}
             >
               <LineChart className="h-3.5 w-3.5" /> Cập nhật giá trị thực tế
             </button>
@@ -697,8 +698,8 @@ export function AccountDetailPage() {
                     currency={currency}
                     className="text-sm font-medium"
                   />
-                  <span className="ml-2 text-xs text-fg-muted">{v.valued_on}</span>
-                  {v.note && <span className="block truncate text-xs text-fg-muted">{v.note}</span>}
+                  <span className="ml-2 text-sm text-fg-muted">{v.valued_on}</span>
+                  {v.note && <span className="block truncate text-sm text-fg-muted">{v.note}</span>}
                 </div>
                 <IconButton
                   variant="ghost"
@@ -727,12 +728,12 @@ export function AccountDetailPage() {
         </IconButton>
         {/* Thẻ: nói "sao kê" chứ không chỉ số tháng — bên dưới là giao dịch của
             THÁNG TRƯỚC, y như app thẻ, nên tiêu đề phải tự nó giải thích được */}
-        <h2 className="flex-1 text-center text-sm font-bold text-fg-primary">
+        <SectionTitle className="flex-1 text-center">
           {billing ? 'Sao kê ' : ''}
           {billing
             ? formatMonthLabel(activeMonthKey).toLowerCase()
             : formatMonthLabel(activeMonthKey)}
-        </h2>
+        </SectionTitle>
         <IconButton
           onClick={() => setMonthKey((k) => addMonths(k ?? activeMonthKey, 1))}
           aria-label="Tháng sau"
@@ -825,7 +826,7 @@ export function AccountDetailPage() {
           ) : (
             // Thiếu ngày chốt hoặc ngày trả thì không dựng được kỳ — nói thẳng
             // thay vì suy ra một ngày rút sai.
-            <p className="mt-1.5 text-xs text-fg-muted">
+            <p className="mt-1.5 text-sm text-fg-muted">
               Thẻ chưa có đủ ngày chốt sao kê và ngày đến hạn nên app đang đếm theo tháng lịch. Sửa
               tài khoản để xem đúng kỳ như app thẻ.
             </p>
@@ -837,17 +838,17 @@ export function AccountDetailPage() {
       )}
 
       {/* Lịch sử giao dịch trong tháng */}
-      <p className="mb-2 px-1 text-xs text-fg-muted">
+      <p className="mb-2 px-1 text-sm text-fg-muted">
         {isLoading ? 'Đang tải…' : `${results.length} giao dịch`}
       </p>
       {days.length === 0 && !isLoading ? (
-        <p className="py-10 text-center text-fg-muted">
+        <EmptyState>
           Không có giao dịch trong {billing ? 'kỳ này' : 'tháng này'}
-        </p>
+        </EmptyState>
       ) : (
         days.map(([day, txs]) => (
           <section key={day} className="mb-3">
-            <div className="mb-1 px-1 text-xs font-medium text-fg-muted">{day}</div>
+            <div className="mb-1 px-1 text-sm font-medium text-fg-muted">{day}</div>
             <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
               {txs.map((tx) => (
                 <TransactionItem

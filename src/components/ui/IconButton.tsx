@@ -10,8 +10,15 @@
 // :focus-visible với specificity 0, nên nó tự lấp vào đây.
 import type { ButtonHTMLAttributes } from 'react'
 
-/** 'surface' = nút nổi trên nền trang · 'ghost' = trong suốt, dùng trong thẻ */
-export type IconButtonVariant = 'surface' | 'ghost'
+/**
+ * 'surface' = nút nổi trên nền trang · 'ghost' = trong suốt, dùng trong thẻ ·
+ * 'accent' = nền xanh, hành động THÊM ở đầu một hàng ("+" thêm danh mục con).
+ *
+ * `accent` thêm 2026-08-25 khi gom nút: nút "+" thêm danh mục con đang tự viết nền xanh
+ * nhạt lên một nút icon. Không gộp được vào <ActionButton>: nó khai `px-4 py-2` cho nút
+ * CÓ CHỮ, còn nút icon cần vuông 44×44.
+ */
+export type IconButtonVariant = 'surface' | 'ghost' | 'accent'
 
 // 'surface' ở dark: bỏ bóng, thay bằng viền control — 1a không có shadow, và trên nền
 // #0e1014 thì shadow-sm chỉ còn là một vệt tối bẩn quanh nút. Light giữ nguyên.
@@ -21,6 +28,9 @@ const VARIANT: Record<IconButtonVariant, string> = {
   surface:
     'bg-surface shadow-sm hover:bg-surface-sunken dark:border dark:border-border-strong dark:shadow-none',
   ghost: 'text-fg-muted hover:bg-surface-sunken hover:text-fg-primary',
+  // Nền xanh NHẠT, không phải nền xanh đặc: nút này lặp trên mỗi dòng danh mục cha, một
+  // dãy nút xanh đặc xếp dọc thì thành bức tường màu và không còn là "hành động phụ".
+  accent: 'bg-accent-muted-bg text-fg-accent hover:opacity-90',
 }
 
 // rounded-md (6px): bán kính CONTROL của 1a, tách khỏi bán kính panel 8px (§1.3).

@@ -3,7 +3,7 @@ import { useDeleteMonthPlan, useRates, useUpsertMonthPlan } from '../../hooks/qu
 import { useEscClose } from '../../hooks/useEscClose'
 import { MoneyField, MONEY_FIELD_CLASS } from '../../components/MoneyField'
 import { Guide } from '../../components/Guide'
-import { ActionButton } from '../../components/ui'
+import { ActionButton, SectionTitle } from '../../components/ui'
 import { formatMoney } from '../../lib/money'
 
 interface Props {
@@ -65,7 +65,7 @@ export function ExpectedIncomeSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-fg-primary">Thu dự kiến {monthLabel}</h2>
+          <SectionTitle role="block">Thu dự kiến {monthLabel}</SectionTitle>
           <button
             type="button"
             onClick={onClose}
@@ -75,13 +75,13 @@ export function ExpectedIncomeSheet({
           </button>
         </div>
 
-        <Guide className="mb-2 text-xs text-fg-muted">
+        <Guide className="mb-2 text-sm text-fg-muted">
           Cả kế hoạch chia từ con số này. Tháng có thưởng thì khai tay — số trung bình
           của mấy tháng trước không biết trước được khoản thưởng.
         </Guide>
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">
+        <span className="mb-1 block text-sm font-medium text-fg-muted">
           Số dự kiến ({base})
         </span>
         <MoneyField

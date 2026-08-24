@@ -8,7 +8,7 @@
 // Dùng CHÍNH `LIFE_PRESETS`, không có bảng mẫu thứ hai — xem JSDoc `applyPreset`.
 import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 import { Guide } from '../../components/Guide'
-import { Card } from '../../components/ui'
+import { Card, SectionTitle } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
 import { formatCompact } from '../../lib/money'
 import { LIFE_PRESETS, type PresetContext, type PresetResult } from './presets'
@@ -55,7 +55,7 @@ export function PresetPanel({ buildCtx, defaultYear, currency, onAdd, variant = 
               type="button"
               title={p.hint}
               onClick={() => onAdd({ id: p.id, label: p.label }, result)}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border-strong bg-transparent px-2.5 py-1 text-xs font-medium text-fg-secondary transition hover:bg-surface-sunken active:scale-95"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border-strong bg-transparent px-2.5 py-1 text-sm font-medium text-fg-secondary transition hover:bg-surface-sunken active:scale-95"
             >
               {netOut ? (
                 <ArrowDownCircle className="h-3.5 w-3.5 shrink-0 text-money-out" aria-hidden="true" />
@@ -77,7 +77,7 @@ export function PresetPanel({ buildCtx, defaultYear, currency, onAdd, variant = 
   if (variant === 'inline') {
     return (
       <>
-        <p className="mb-1.5 text-3xs uppercase tracking-[.08em] text-fg-disabled">
+        <p className="mb-1.5 text-2xs uppercase tracking-label text-fg-disabled">
           Thêm nhanh từ mẫu
         </p>
         {chips}
@@ -87,7 +87,7 @@ export function PresetPanel({ buildCtx, defaultYear, currency, onAdd, variant = 
 
   return (
     <Card as="section" elevation="panel" padding="panel">
-      <h2 className="text-2xs uppercase tracking-[.1em] text-fg-muted">Thêm mốc cuộc đời</h2>
+      <SectionTitle role="micro">Thêm mốc cuộc đời</SectionTitle>
       <Guide className="mt-1 text-2xs leading-relaxed text-fg-muted">
         Bấm một mẫu để thêm vào bản nháp ở năm {defaultYear} — rồi kéo chip trên đồ thị tới
         đúng năm, bấm chip để sửa số. Chưa có gì được ghi cho tới khi bấm Lưu.

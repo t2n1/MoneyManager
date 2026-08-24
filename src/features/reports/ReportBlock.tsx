@@ -6,6 +6,7 @@
 // một đống thẻ ngang hàng.
 
 import type { ReactNode } from 'react'
+import { SectionTitle } from '../../components/ui'
 
 export function ReportBlock({
   no,
@@ -24,8 +25,8 @@ export function ReportBlock({
       {/* scroll-mt: khối được nhắm tới bằng mục lục chip, mà top bar dính nên không có
           nó thì tiêu đề khối bị chính top bar che. */}
       <div className="flex items-baseline gap-2.5 scroll-mt-16 border-b border-border-panel pb-1.5">
-        <span className="font-mono text-2xs font-semibold tracking-[.1em] text-fg-muted">{no}</span>
-        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-fg-primary">{title}</h2>
+        <span className="font-mono text-2xs font-semibold tracking-label text-fg-muted">{no}</span>
+        <SectionTitle className="min-w-0 flex-1 truncate">{title}</SectionTitle>
       </div>
       {children}
     </section>

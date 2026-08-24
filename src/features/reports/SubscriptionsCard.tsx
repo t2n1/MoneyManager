@@ -4,7 +4,7 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { ExplainBox } from '../../components/ExplainBox'
-import { Card, Money } from '../../components/ui'
+import { Card, Money, SectionTitle } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { SubscriptionSummary } from './behavior'
 import { hoursOfWork } from './behavior'
@@ -28,23 +28,23 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
   return (
     <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-fg-primary">
+        <SectionTitle>
           Tiền tự động trừ mỗi tháng
-        </h2>
+        </SectionTitle>
         <Link
           to="/recurring"
-          className="shrink-0 inline-flex items-center gap-0.5 text-xs font-medium text-fg-accent"
+          className="shrink-0 inline-flex items-center gap-0.5 text-sm font-medium text-fg-accent"
         >
           {data.count} khoản
           <ChevronRight className="h-3.5 w-3.5" aria-hidden />
         </Link>
       </div>
 
-      <p className="text-2xl font-bold tabular-nums text-fg-primary">
+      <p className="text-kpi font-mono font-medium tracking-number tabular-nums text-fg-primary">
         {money(data.monthly)}
         <span className="ml-1 text-sm font-normal text-fg-muted">/tháng</span>
       </p>
-      <p className="mt-0.5 text-xs text-fg-secondary">
+      <p className="mt-0.5 text-sm text-fg-secondary">
         Tức <b>{money(data.yearly)}</b> mỗi năm
         {shareOfIncome !== null && <> · {Math.round(shareOfIncome * 100)}% thu nhập</>}
         {hours !== null && <> · ≈ {hours.toFixed(1).replace('.', ',')} giờ làm mỗi tháng</>}.
@@ -54,7 +54,7 @@ export function SubscriptionsCard({ data, base, monthlyIncome, hourlyWage }: Pro
         {data.items.slice(0, 6).map((item) => (
           <li
             key={item.id}
-            className="flex items-center gap-2 rounded-lg bg-surface-page px-2 py-1.5 text-xs"
+            className="flex items-center gap-2 rounded-lg bg-surface-page px-2 py-1.5 text-sm"
           >
             <span className="min-w-0 flex-1 truncate text-fg-primary">
               {item.note || 'Khoản định kỳ'}

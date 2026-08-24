@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { BackLink } from '../../components/BackLink'
 import { Guide } from '../../components/Guide'
 import { Card } from '../../components/ui/Card'
 import { useDensity } from '../../hooks/useDensity'
@@ -8,6 +7,7 @@ import { showToast } from '../../lib/dialog'
 import { BLOCKER_MESSAGE } from './pushEligibility'
 import { getPushState, subscribeThisDevice, unsubscribeThisDevice, type PushState } from './pushClient'
 import { NOTIFICATION_META, NOTIFICATION_TYPES, type NotificationType } from './types'
+import { PageHeader, SectionTitle, Select } from '../../components/ui'
 
 /** Công tắc dùng lại cho cả danh sách loại và khối đẩy thông báo. */
 function Switch({
@@ -120,14 +120,12 @@ function PushSection() {
 
   const blocker = state?.blocker ?? 'ok'
   const canToggle = state !== null && blocker === 'ok'
-  const inputClass =
-    'mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-fg-primary'
 
   return (
     <section className="mb-5">
-      <h2 className="mb-2 px-1 text-2xs font-bold uppercase tracking-wide text-fg-muted">
+      <SectionTitle role="micro" className="mb-2 px-1">
         Đẩy ra ngoài app
-      </h2>
+      </SectionTitle>
       {/* padding="none" vì các hàng bên trong tự có px-3 py-2 và có đường kẻ chia —
           giống hệt <ul> của Group bên dưới. */}
       <Card padding="none" className="overflow-hidden">
@@ -137,7 +135,7 @@ function PushSection() {
               Nhận thông báo trên máy này
             </p>
             {!visual && (
-              <p id="push-toggle-hint" className="mt-0.5 text-xs text-fg-muted">
+              <p id="push-toggle-hint" className="mt-0.5 text-sm text-fg-muted">
                 Chỉ đẩy nhóm “Việc cần làm”, mỗi ngày một lần, mỗi việc chỉ một lần. Bật/tắt
                 riêng cho từng máy.
               </p>
@@ -153,37 +151,37 @@ function PushSection() {
         </div>
 
         {blocker !== 'ok' && (
-          <p className="border-t border-border-subtle px-3 py-3 text-xs text-fg-muted">
+          <p className="border-t border-border-subtle px-3 py-3 text-sm text-fg-muted">
             {BLOCKER_MESSAGE[blocker]}
           </p>
         )}
 
         {profile && (
           <div className="border-t border-border-subtle px-3 py-3">
-            <label htmlFor="push-hour" className="block text-xs font-medium text-fg-muted">
+            <label htmlFor="push-hour" className="block text-sm font-medium text-fg-muted">
               Giờ gửi mỗi ngày
             </label>
-            <select
+            <Select
               id="push-hour"
               value={profile.push_hour}
               onChange={(e) => saveSchedule({ push_hour: Number(e.target.value) })}
-              className={inputClass}
+              wrapClassName="mt-1 w-full"
             >
               {HOUR_OPTIONS.map((h) => (
                 <option key={h} value={h}>
                   {String(h).padStart(2, '0')}:00
                 </option>
               ))}
-            </select>
+            </Select>
 
-            <label htmlFor="push-tz" className="mt-3 block text-xs font-medium text-fg-muted">
+            <label htmlFor="push-tz" className="mt-3 block text-sm font-medium text-fg-muted">
               Giờ ở đâu
             </label>
-            <select
+            <Select
               id="push-tz"
               value={profile.push_tz}
               onChange={(e) => saveSchedule({ push_tz: e.target.value })}
-              className={inputClass}
+              wrapClassName="mt-1 w-full"
             >
               {timezoneOptions(profile.push_tz).map((tz) => (
                 <option key={tz} value={tz}>
@@ -192,8 +190,8 @@ function PushSection() {
                   {tz.replaceAll('_', ' ')}
                 </option>
               ))}
-            </select>
-            <Guide className="mt-1 text-xs text-fg-muted">
+            </Select>
+            <Guide className="mt-1 text-sm text-fg-muted">
               Giờ gửi tính theo nơi này, không phải theo máy — đổi nước thì sửa ở đây một lần,
               không phải sửa lại giờ.
             </Guide>
@@ -222,9 +220,9 @@ function Group({
 
   return (
     <section className="mb-5">
-      <h2 className="mb-2 px-1 text-2xs font-bold uppercase tracking-wide text-fg-muted">
+      <SectionTitle role="micro" className="mb-2 px-1">
         {title}
-      </h2>
+      </SectionTitle>
       <ul className="divide-y divide-border-subtle overflow-hidden rounded-xl bg-surface">
         {types.map((t) => {
           const meta = NOTIFICATION_META[t]
@@ -242,7 +240,7 @@ function Group({
                   {meta.label}
                 </p>
                 {!visual && (
-                  <p id={hintId} className="mt-0.5 text-xs text-fg-muted">
+                  <p id={hintId} className="mt-0.5 text-sm text-fg-muted">
                     {meta.hint}
                   </p>
                 )}
@@ -302,10 +300,7 @@ export function NotificationSettingsPage() {
       {/* Hàng đầu giống mọi trang con khác của Cài đặt: nút lùi + tên trang. Thiếu nút
           này thì trên điện thoại lối ra duy nhất là thanh tab dưới — mà nó nhả về gốc
           Cài đặt, không phải chỗ vừa đến. */}
-      <div className="mb-1 flex items-center gap-2">
-        <BackLink to="/settings" aria-label="Quay lại" />
-        <h1 className="flex-1 text-lg font-bold text-fg-primary">Thông báo</h1>
-      </div>
+      <PageHeader title="Thông báo" back="/settings" />
       <Guide className="mb-4 text-sm text-fg-muted">
         Tắt loại nào thì loại đó không hiện trong chuông nữa. Mặc định bật hết.
       </Guide>

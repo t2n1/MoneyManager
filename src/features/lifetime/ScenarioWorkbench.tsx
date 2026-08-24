@@ -20,7 +20,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, MoreVertical, Plus, Star, Trash2, X } from 'lucide-react'
 import { MoneyField } from '../../components/MoneyField'
 import { Guide } from '../../components/Guide'
-import { ActionButton, IconButton, Money, SegmentedControl } from '../../components/ui'
+import { ActionButton, IconButton, Money, SectionTitle, SegmentedControl, Select } from '../../components/ui'
 import { useAccounts, useCategories, useRangeTransactions, useUpdateProfile } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import { confirmDialog, showToast } from '../../lib/dialog'
@@ -99,7 +99,7 @@ const PHASE_TONES = [
 const FIELD_BOX =
   'rounded-md border border-border-strong bg-surface px-2 py-1.5 text-sm text-fg-primary'
 const FIELD_INPUT = `mt-0.5 block w-full ${FIELD_BOX}`
-const FIELD_LABEL = 'block text-3xs uppercase tracking-[.08em] text-fg-muted'
+const FIELD_LABEL = 'block text-2xs uppercase tracking-label text-fg-muted'
 const PANEL_NOTE = 'text-2xs leading-relaxed text-fg-disabled'
 
 /** Nới biên thanh trượt vừa đủ chứa `value` — xem JSDoc `RETURN_MIN_BPS`. */
@@ -575,7 +575,7 @@ export function ScenarioWorkbench({
       <section className="rounded-xl bg-surface shadow-sm dark:border dark:border-border-panel dark:shadow-none">
         {/* ---------- Đầu thẻ ---------- */}
         <div className="flex flex-wrap items-center gap-2.5 px-4 pb-2 pt-3">
-          <h2 className="shrink-0 text-sm font-semibold text-fg-muted">Sửa kịch bản</h2>
+          <SectionTitle className="shrink-0">Sửa kịch bản</SectionTitle>
           <input
             value={working.name}
             onChange={(e) => {
@@ -660,7 +660,7 @@ export function ScenarioWorkbench({
                 {t.label}
                 {t.badge && (
                   <span
-                    className={`rounded-full border px-1.5 font-mono text-3xs font-semibold tabular-nums ${
+                    className={`rounded-full border px-1.5 font-mono text-2xs font-semibold tabular-nums ${
                       on
                         ? 'border-state-good-border bg-state-good-bg text-state-good-fg'
                         : 'border-border-panel bg-surface-page text-fg-muted'
@@ -694,7 +694,7 @@ export function ScenarioWorkbench({
                     title={`${p.label} · ${p.startYear}–${phaseEnd(i)} · thu ${formatCompact(p.annualIncomeMinor, p.currency)} / chi ${formatCompact(p.annualExpenseMinor, p.currency)}`}
                     className={`flex min-w-0 items-center justify-center border-border-panel ${PHASE_TONES[i % PHASE_TONES.length]} ${i + 1 < phases.length ? 'border-r' : ''}`}
                   >
-                    <span className="truncate px-1 text-3xs font-medium text-fg-secondary">
+                    <span className="truncate px-1 text-2xs font-medium text-fg-secondary">
                       {p.label}
                     </span>
                   </div>
@@ -750,7 +750,7 @@ export function ScenarioWorkbench({
                           cuộc đời không còn tiền riêng, chúng đọc theo chặng. */}
                       <label className={`${FIELD_LABEL} min-w-0 lg:w-[6.5rem] lg:shrink-0`}>
                         Tiền
-                        <select
+                        <Select
                           value={p.currency}
                           aria-label={`Đơn vị tiền của chặng ${p.label}`}
                           onChange={(e) => {
@@ -759,15 +759,13 @@ export function ScenarioWorkbench({
                             // của chặng phải gắn nhãn lại mọi mốc rơi vào nó, không thì
                             // màn hình và bản chiếu nói hai con số khác nhau.
                             onEdit((d) => setPhaseCurrency(d, p.id, v))
-                          }}
-                          className={FIELD_INPUT}
-                        >
+                          }} wrapClassName="mt-0.5 block w-full">
                           {(Object.keys(CURRENCIES) as CurrencyCode[]).map((c) => (
                             <option key={c} value={c}>
                               {CURRENCIES[c].symbol} {c}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                       </label>
                       <span className={`${FIELD_LABEL} min-w-0 text-money-in lg:w-[8rem] lg:shrink-0`}>
                         Thu / năm ({sym})
@@ -982,7 +980,7 @@ export function ScenarioWorkbench({
                   <div className="flex items-baseline justify-between gap-2">
                     <label
                       htmlFor={`${uid}-retire`}
-                      className="min-w-0 truncate text-3xs uppercase tracking-[.08em] text-fg-muted"
+                      className="min-w-0 truncate text-2xs uppercase tracking-label text-fg-muted"
                     >
                       {phases[phases.length - 1].label} từ tuổi
                     </label>
@@ -1098,7 +1096,7 @@ export function ScenarioWorkbench({
                         })
                       }
                     />
-                    <span className="shrink-0 text-xs text-fg-disabled" aria-hidden="true">
+                    <span className="shrink-0 text-sm text-fg-disabled" aria-hidden="true">
                       →
                     </span>
                     <EndYearInput
@@ -1111,7 +1109,7 @@ export function ScenarioWorkbench({
                         hàng số trần không nói được 4.200.000 là yên hay đồng. */}
                     <span
                       title={`Tính bằng ${evCur} — theo chặng mà năm ${ev.startYear} rơi vào`}
-                      className="shrink-0 font-mono text-xs text-fg-disabled"
+                      className="shrink-0 font-mono text-sm text-fg-disabled"
                     >
                       {CURRENCIES[evCur].symbol}
                     </span>
@@ -1172,7 +1170,7 @@ export function ScenarioWorkbench({
             <Guide className={PANEL_NOTE}>Điểm bắt đầu của đường và tốc độ nó lớn lên.</Guide>
             <div className="mt-2.5 flex flex-wrap gap-6">
               <div className="min-w-[17.5rem] max-w-[25rem] flex-1">
-                <p className="mb-1 text-3xs uppercase tracking-[.08em] text-fg-muted">
+                <p className="mb-1 text-2xs uppercase tracking-label text-fg-muted">
                   Tài sản khởi điểm
                 </p>
                 <div className="flex gap-1.5">
@@ -1249,7 +1247,7 @@ export function ScenarioWorkbench({
                 <div className="flex items-baseline justify-between gap-2">
                   <label
                     htmlFor={`${uid}-return`}
-                    className="text-3xs uppercase tracking-[.08em] text-fg-muted"
+                    className="text-2xs uppercase tracking-label text-fg-muted"
                   >
                     Lợi suất thực / năm
                   </label>
@@ -1277,7 +1275,7 @@ export function ScenarioWorkbench({
                 <div className="flex items-baseline justify-between gap-2">
                   <label
                     htmlFor={`${uid}-spread`}
-                    className="text-3xs uppercase tracking-[.08em] text-fg-muted"
+                    className="text-2xs uppercase tracking-label text-fg-muted"
                   >
                     Dải dao động ±
                   </label>
@@ -1335,7 +1333,7 @@ export function ScenarioWorkbench({
             </Guide>
             <div className="mt-2.5 flex flex-wrap items-start gap-6">
               <div className="min-w-[15rem] max-w-[21.25rem] flex-1">
-                <span className="block text-3xs uppercase tracking-[.08em] text-fg-muted">
+                <span className="block text-2xs uppercase tracking-label text-fg-muted">
                   Giá hiển thị
                 </span>
                 <div className="mt-1 w-fit">
@@ -1356,7 +1354,7 @@ export function ScenarioWorkbench({
                     <div className="flex items-baseline justify-between gap-2">
                       <label
                         htmlFor={`${uid}-infl`}
-                        className="text-3xs uppercase tracking-[.08em] text-fg-muted"
+                        className="text-2xs uppercase tracking-label text-fg-muted"
                       >
                         Lạm phát
                       </label>
@@ -1382,7 +1380,7 @@ export function ScenarioWorkbench({
                 <div className="flex items-baseline justify-between gap-2">
                   <label
                     htmlFor={`${uid}-endage`}
-                    className="text-3xs uppercase tracking-[.08em] text-fg-muted"
+                    className="text-2xs uppercase tracking-label text-fg-muted"
                   >
                     Chiếu đến tuổi
                   </label>
@@ -1418,18 +1416,16 @@ export function ScenarioWorkbench({
 
               <label className={`${FIELD_LABEL} min-w-0 max-w-[13.75rem] flex-1`}>
                 Tiền hiển thị
-                <select
+                <Select
                   value={currency}
                   disabled={switchingCurrency}
-                  onChange={(e) => void handleCurrencyChange(e.target.value as CurrencyCode)}
-                  className={FIELD_INPUT}
-                >
+                  onChange={(e) => void handleCurrencyChange(e.target.value as CurrencyCode)} wrapClassName="mt-0.5 block w-full">
                   {(Object.keys(CURRENCIES) as CurrencyCode[]).map((c) => (
                     <option key={c} value={c}>
                       {CURRENCIES[c].label} ({c})
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             </div>
             {!birthYearValid && (

@@ -98,7 +98,7 @@ export function MoneyField({
         {text}
       </button>
       {showExpr && (
-        <span className="text-right text-xs text-fg-muted lg:hidden">
+        <span className="text-right text-sm text-fg-muted lg:hidden">
           = {formatMoney(result, currency)}
         </span>
       )}

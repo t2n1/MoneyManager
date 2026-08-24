@@ -112,7 +112,7 @@ function TagRow({
         approx={approx}
         className={`text-2xs font-medium ${TOTAL_COL}`}
       />
-      <span className={`font-mono text-3xs text-fg-muted ${CAP_COL}`}>{capLabel(line)}</span>
+      <span className={`font-mono text-2xs text-fg-muted ${CAP_COL}`}>{capLabel(line)}</span>
     </div>
   )
 }
@@ -150,7 +150,7 @@ export function DayTagStrip({
               {days.map((d, i) => (
                 <span
                   key={d.date}
-                  className={`min-w-0 flex-1 text-center font-mono text-3xs ${
+                  className={`min-w-0 flex-1 text-center font-mono text-2xs ${
                     i % dayStep === 0 || i === days.length - 1
                       ? 'text-fg-muted'
                       : 'text-transparent'
@@ -168,7 +168,7 @@ export function DayTagStrip({
             <div key={g.groupId ?? '__other__'}>
               <div className="flex items-center gap-2 pb-0.5 pt-2">
                 <span
-                  className={`text-3xs font-semibold uppercase tracking-[.06em] text-fg-muted ${NAME_COL}`}
+                  className={`text-2xs font-semibold uppercase tracking-label text-fg-muted ${NAME_COL}`}
                 >
                   {g.title}
                 </span>
@@ -188,12 +188,12 @@ export function DayTagStrip({
           ))}
 
           {cells.hidden > 0 && (
-            <p className="pt-1 text-3xs text-fg-muted">còn {cells.hidden} nhãn nữa</p>
+            <p className="pt-1 text-2xs text-fg-muted">còn {cells.hidden} nhãn nữa</p>
           )}
 
           {/* HAI con số, không phải một (B44.2). Bỏ câu cuối thì "¥86.100 có nhãn" và
               "bốn nhãn cộng ¥126.700" đọc ra như một lỗi tính. */}
-          <p className="pt-1.5 text-3xs text-fg-muted">
+          <p className="pt-1.5 text-2xs text-fg-muted">
             {pct}% chi có nhãn (
             <Money amount={cells.taggedTotal} currency={base} approx={approx} /> /{' '}
             <Money amount={spendTotal} currency={base} approx={approx} />)
@@ -213,7 +213,7 @@ export function DayTagStrip({
           trống trơn là bỏ mất đường sửa. */}
       {untagged > 0 && (
         <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-3xs text-fg-muted">
+          <p className="text-2xs text-fg-muted">
             <Money
               amount={untagged}
               currency={base}

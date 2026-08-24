@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowRightLeft, Pause, Play, Plus, Sparkles, Trash2, X } from 'lucide-react'
-import { BackLink } from '../../components/BackLink'
 import {
   useAccounts,
   useCategories,
@@ -22,7 +21,7 @@ import { billStatuses, nextDueDate, type RecurringFrequency } from '../../lib/re
 import { detectRecurring, ruleKey, type RecurringSuggestion } from '../../lib/recurringRadar'
 import type { RecurringRuleRow } from '../../types/database.types'
 import { RecurringFormSheet } from './RecurringFormSheet'
-import { Card } from '../../components/ui'
+import { Card, PageHeader, SectionTitle, actionButtonClass } from '../../components/ui'
 
 const RADAR_DISMISS_KEY = 'sct-radar-dismissed'
 
@@ -211,42 +210,46 @@ export function RecurringPage() {
 
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
-      <div className="flex items-center gap-2">
-        <BackLink to="/so" aria-label="Quay lại" />
-        {/* Con số của 22c ("¥98,110/tháng tự ghi") — thứ người ta mở trang này để hỏi:
-            mỗi tháng tự động rời khỏi ví bao nhiêu. Tự cộng thì phải quy đổi tần suất
-            trong đầu, mà hàng tuần với hàng năm không cộng thẳng vào hàng tháng được.
-            Chữ "tự ghi" là một phần của con số, không phải trang trí: quy tắc "chỉ nhắc"
-            bị loại khỏi tổng vì nó không tự trừ tiền — mọi phép lọc ở monthlyLoad.ts. */}
-        <h1 className="flex-1 text-lg font-bold text-fg-primary">
-          Giao dịch định kỳ
-          {load.counted > 0 && (
-            <span className="ml-2 text-sm font-normal text-fg-muted">
-              {load.hasMissingRate && '≈ '}
-              {formatMoney(load.perMonth, base)}/tháng tự ghi
-            </span>
-          )}
-        </h1>
+      <PageHeader
+        back="/so"
+        flush
+        title={
+          /* Con số của 22c ("¥98,110/tháng tự ghi") — thứ người ta mở trang này để hỏi:
+             mỗi tháng tự động rời khỏi ví bao nhiêu. Tự cộng thì phải quy đổi tần suất
+             trong đầu, mà hàng tuần với hàng năm không cộng thẳng vào hàng tháng được.
+             Chữ "tự ghi" là một phần của con số, không phải trang trí: quy tắc "chỉ nhắc"
+             bị loại khỏi tổng vì nó không tự trừ tiền — mọi phép lọc ở monthlyLoad.ts. */
+          <>
+            Giao dịch định kỳ
+            {load.counted > 0 && (
+              <span className="ml-2 text-sm font-normal text-fg-muted">
+                {load.hasMissingRate && '≈ '}
+                {formatMoney(load.perMonth, base)}/tháng tự ghi
+              </span>
+            )}
+          </>
+        }
+      >
         {/* Khoản MỘT LẦN là anh em với khoản lặp mãi — ai đang ở đây tìm chỗ ghi
             "đóng phí vệ sinh 20/8" thì phải thấy lối sang. */}
-        <Link to="/planned" className="-my-2 shrink-0 py-2 text-xs font-medium text-fg-accent">
+        <Link to="/planned" className="-my-2 shrink-0 py-2 text-sm font-medium text-fg-accent">
           Sắp chi
         </Link>
         <button
           type="button"
           onClick={() => setSheet({ open: true, rule: null })}
-          className="flex items-center gap-1 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold shadow-sm transition active:scale-95"
+          className={actionButtonClass('primary')}
         >
           <Plus className="h-4 w-4" /> Thêm
         </button>
-      </div>
+      </PageHeader>
 
       {suggestions.length > 0 && (
         <section className="overflow-hidden rounded-xl border border-green-200 bg-state-good-bg dark:border-green-900">
-          <h2 className="flex items-center gap-1.5 px-3 pt-3 text-sm font-bold text-green-800 dark:text-green-200">
+          <SectionTitle className="flex items-center gap-1.5 px-3 pt-3 text-green-800 dark:text-green-200">
             <Sparkles className="h-4 w-4" /> Gợi ý khoản định kỳ
-          </h2>
-          <p className="px-3 pt-0.5 text-xs text-green-700/80 dark:text-green-300/80">
+          </SectionTitle>
+          <p className="px-3 pt-0.5 text-sm text-green-700/80 dark:text-green-300/80">
             Phát hiện từ lịch sử — tạo quy tắc để tự sinh giao dịch kỳ tới.
           </p>
           <ul className="mt-2 divide-y divide-green-100 dark:divide-green-900/50">
@@ -261,7 +264,7 @@ export function RecurringPage() {
                       {cat?.name ?? '?'}
                       {s.note && <span className="text-fg-muted"> · {s.note}</span>}
                     </span>
-                    <span className="block text-xs text-fg-muted">
+                    <span className="block text-sm text-fg-muted">
                       {formatMoney(s.amount, acc?.currency ?? 'JPY')} ·{' '}
                       {s.frequency === 'monthly' ? 'hàng tháng' : 'hàng tuần'} · {s.occurrences} lần
                     </span>
@@ -269,7 +272,7 @@ export function RecurringPage() {
                   <button
                     type="button"
                     onClick={() => createFromSuggestion(s)}
-                    className="shrink-0 rounded-md bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold transition active:scale-95"
+                    className={actionButtonClass('primary', 'shrink-0')}
                   >
                     Tạo
                   </button>
@@ -330,7 +333,7 @@ export function RecurringPage() {
                       <span className="text-fg-muted"> · {rule.note}</span>
                     )}
                   </span>
-                  <span className="block text-xs text-fg-muted">
+                  <span className="block text-sm text-fg-muted">
                     {scheduleLabel(rule)} ·{' '}
                     {rule.is_paused ? 'Tạm dừng' : next ? `kỳ tới ${fmtDate(next)}` : 'Đã kết thúc'}
                     {rule.mode === 'remind' && ' · chỉ nhắc'}
@@ -363,7 +366,7 @@ export function RecurringPage() {
               {bill && (
                 <Link
                   to={`/entry?rule=${rule.id}&on=${bill.dueISO}`}
-                  className={`flex items-center gap-2 px-3 py-2 text-xs font-medium ${
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium ${
  bill.daysLeft < 0
  ? 'bg-state-bad-bg text-state-bad-fg hover:bg-red-100 dark:hover:bg-red-900/50'
  : 'bg-state-warn-bg text-amber-800 hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-900/50'

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, ChevronLeft, ChevronRight, Repeat, Search } from 'lucide-react'
-import { IconButton, Money, SegmentedControl, iconButtonClass } from '../../components/ui'
+import { IconButton, Money, PageHeader, SegmentedControl, iconButtonClass } from '../../components/ui'
 import { repo } from '../../data'
 import {
   useAccounts,
@@ -324,7 +324,6 @@ export function LedgerPage() {
           có `justify-between` + truncate nên không vỡ, và một trạm điều khiển có dải
           trống 440px thì sai nặng hơn. */}
       <div className="min-w-0 flex-1">
-      <h1 className="sr-only">Sổ</h1>
       <NotificationBoundary>
         <RemindersBanner />
       </NotificationBoundary>
@@ -339,21 +338,27 @@ export function LedgerPage() {
           hàng trên (nhãn tháng canh giữa cả bề rộng, gọn hơn hàng cũ), bốn nút hành động
           xuống hàng dưới canh phải; từ ~768px trở lên vẫn đủ chỗ cho một hàng.
           Guard: src/features/transactions/ledgerHeaderFit.test.ts */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <PageHeader title="Sổ">
         {/* Bộ chuyển kỳ chỉ còn ở mobile: từ bản 1a desktop đổi tháng bằng bộ ‹ › trên
             top bar. Bốn nút hành động bên phải thì Ở LẠI cả hai cỡ — top bar chỉ mang
             ô tìm kiếm, còn Sắp chi / Định kỳ / chuông là đường đi riêng của màn này.
             Ở tab Tháng nút này bước 12 (năm) chứ không 1 — top bar luôn bước 1, nên
             hai bộ KHÔNG trùng chức năng hoàn toàn; đó là lý do nó ở lại mobile nguyên
-            vẹn thay vì bị xoá. */}
-        <div className="flex flex-1 items-center gap-2 lg:hidden">
+            vẹn thay vì bị xoá.
+
+            Nhãn kỳ KHÔNG còn `flex-1 text-center text-lg font-bold`: từ 2026-08-25 tiêu
+            đề "Sổ" mới là thứ giữ `flex-1` ở mép trái (trước đây màn này không có tiêu đề
+            nhìn thấy được — chỉ nhãn tháng canh giữa). Nhãn kỳ về đúng vai DỮ LIỆU: mono
+            14px, bề ngang bằng chữ. Hàng vẫn `flex-wrap`, nên ở 375px nó xuống hai dòng
+            đúng như trước — tiêu đề thêm vào không tốn thêm chiều cao. */}
+        <div className="flex items-center gap-1 lg:hidden">
           <IconButton
             onClick={() => stepMonth(-step)}
             aria-label={yearNav ? 'Năm trước' : 'Tháng trước'}
           >
             <ChevronLeft className="h-5 w-5" />
           </IconButton>
-          <p aria-live="polite" className="flex-1 text-center text-lg font-bold text-fg-primary">
+          <p aria-live="polite" className="font-mono text-sm text-fg-muted">
             {label}
           </p>
           <IconButton
@@ -381,7 +386,7 @@ export function LedgerPage() {
             <NotificationBell className="lg:hidden" />
           </NotificationBoundary>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Tab đổi cách xem. Ở tab Lịch, hàng này gánh thêm ba con số của kỳ và ba nút
           hành động cỡ 36px (bản vẽ 1a §1.1): lưới lịch đã phủ kín màn, nên nếu tổng
@@ -400,7 +405,7 @@ export function LedgerPage() {
           className="basis-full lg:basis-auto"
         />
         {view === 'calendar' && (
-          <div className="ml-auto hidden items-center gap-5 text-[0.8125rem] lg:flex">
+          <div className="ml-auto hidden items-center gap-5 text-sm lg:flex">
             <span className="flex items-baseline gap-1.5 text-fg-muted">
               Thu
               {periodIncome ? (

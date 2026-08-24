@@ -13,7 +13,7 @@
 // hành vi thật của cái nút, không phải chữ hướng dẫn.
 import { LayoutGrid, Text } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Card } from '../../components/ui'
+import { Card, SectionTitle } from '../../components/ui'
 import { useDensityControl } from '../../hooks/useDensity'
 import type { DensityPref } from '../../lib/density'
 
@@ -28,7 +28,7 @@ export function DensityToggle() {
   return (
     <Card as="section" padding="none" className="overflow-hidden">
       <div className="flex items-baseline justify-between gap-2 px-3 pt-3">
-        <h2 className="text-sm font-semibold text-fg-muted">Cách trình bày</h2>
+        <SectionTitle>Cách trình bày</SectionTitle>
         <span className="shrink-0 text-2xs text-fg-muted">dùng chung mọi thiết bị</span>
       </div>
       <div className="flex gap-1 p-3">
@@ -43,7 +43,7 @@ export function DensityToggle() {
               // lượt về sau cùng thắng — tức chế độ cuối có thể không phải cái vừa bấm.
               disabled={saving}
               aria-pressed={active}
-              className={`flex flex-1 flex-col items-center gap-1 rounded-md border px-2 py-2.5 text-xs font-medium transition disabled:opacity-60 ${
+              className={`flex flex-1 flex-col items-center gap-1 rounded-md border px-2 py-2.5 text-sm font-medium transition disabled:opacity-60 ${
  active
  ? 'border-green-500 bg-state-good-bg text-state-good-fg dark:border-green-500'
  : 'border-border-panel text-fg-secondary hover:bg-surface-sunken'
@@ -54,7 +54,7 @@ export function DensityToggle() {
               {/* Câu mô tả nằm TRONG nút, không phải một dòng chú thích dưới khối: đây
                   chính là cài đặt quyết định chữ hướng dẫn còn hay mất, nên nó phải tự
                   giải thích được ngay cả khi đang ở chế độ Gọn. */}
-              <span className="text-center text-3xs font-normal text-fg-on-track">{opt.hint}</span>
+              <span className="text-center text-2xs font-normal text-fg-on-track">{opt.hint}</span>
             </button>
           )
         })}

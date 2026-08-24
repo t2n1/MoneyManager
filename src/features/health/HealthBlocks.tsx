@@ -8,7 +8,7 @@
 // rủi ro nằm ở dòng thứ hai của danh sách cùng cỡ chữ với "Thuế & an sinh 20% · Tốt".
 
 import { useMemo, useState } from 'react'
-import { Card, Money, Num, StatusChip } from '../../components/ui'
+import { Card, Money, Num, SectionTitle, StatusChip } from '../../components/ui'
 import { Guide } from '../../components/Guide'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { STATUS_FILL } from '../../components/ui/statusColors'
@@ -48,7 +48,7 @@ export function ScoreBand({
         <div className="flex items-end gap-2">
           {/* 44px mono thay cung tròn: con số LÀ nội dung, cung tròn chỉ là bao bì —
               và bao bì đó tốn 150px chiều cao ở đúng đầu trang. */}
-          <Num tone="neutral" className="text-[2.75rem] font-medium leading-none tracking-[-.02em]">
+          <Num tone="neutral" className="text-hero font-medium tracking-number">
             {score}
           </Num>
           <span className="pb-1 text-sm text-fg-muted">/100</span>
@@ -74,14 +74,14 @@ export function ScoreBand({
           style={{ left: `calc(${Math.min(100, Math.max(0, score))}% - 1px)` }}
         />
       </div>
-      <div aria-hidden className="mt-1 flex justify-between text-3xs text-fg-muted">
+      <div aria-hidden className="mt-1 flex justify-between text-2xs text-fg-muted">
         <span>0 · Rủi ro</span>
         <span>40</span>
         <span>70</span>
         <span>100 · Tốt</span>
       </div>
 
-      <p className="mt-2.5 text-[0.8125rem] text-fg-secondary">
+      <p className="mt-2.5 text-sm text-fg-secondary">
         Chấm được <b>{counted}/{total}</b> chỉ số.
         {trend !== null && (
           <>
@@ -136,15 +136,15 @@ export function WeakestCard({
       className="border-state-danger-border bg-state-danger-bg"
     >
       <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-[0.8125rem] font-semibold text-fg-primary">Chỗ yếu nhất</h2>
+        <SectionTitle>Chỗ yếu nhất</SectionTitle>
         <span className="text-2xs text-fg-muted">{title}</span>
       </div>
-      <p className="text-[0.8125rem] text-fg-primary">{headline}</p>
+      <p className="text-sm text-fg-primary">{headline}</p>
 
       <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
         {facts.map((f) => (
           <div key={f.label} className="rounded-md border border-border-panel bg-surface px-2.5 py-2">
-            <dt className="text-2xs uppercase tracking-[.1em] text-fg-muted">{f.label}</dt>
+            <dt className="text-2xs uppercase tracking-label text-fg-muted">{f.label}</dt>
             <dd className="mt-0.5">
               {f.text !== undefined ? (
                 <Num>{f.text}</Num>
@@ -262,9 +262,9 @@ export function JobLossPanel({
   return (
     <Card as="section" elevation="panel" padding="panel">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-[0.8125rem] font-semibold text-fg-primary">
+        <SectionTitle>
           Tài sản cạn sau bao lâu
-        </h2>
+        </SectionTitle>
         <span className="text-2xs text-fg-muted">mô phỏng · không có thu nhập mới</span>
       </div>
 
@@ -299,7 +299,7 @@ export function JobLossPanel({
           )
         })}
       </ul>
-      <div aria-hidden className="mt-1 flex justify-between text-3xs text-fg-muted">
+      <div aria-hidden className="mt-1 flex justify-between text-2xs text-fg-muted">
         <span>0</span>
         <span>15</span>
         <span>30</span>
@@ -311,7 +311,7 @@ export function JobLossPanel({
         <label className="flex flex-col gap-1">
           <span className="flex flex-wrap items-baseline justify-between gap-x-2">
             <span className="text-2xs text-fg-muted">Chi mỗi tháng</span>
-            <Money amount={expense} currency={base} className="text-xs" />
+            <Money amount={expense} currency={base} className="text-sm" />
           </span>
           <input
             type="range"
@@ -322,7 +322,7 @@ export function JobLossPanel({
             onChange={(e) => setExpense(Number(e.target.value))}
             className="min-h-11 w-full accent-[var(--accent)]"
           />
-          <span aria-hidden className="flex justify-between text-3xs text-fg-muted">
+          <span aria-hidden className="flex justify-between text-2xs text-fg-muted">
             <span>{formatMoney(MIN, base)}</span>
             <span>{formatMoney(MAX, base)}</span>
           </span>
@@ -343,14 +343,14 @@ export function JobLossPanel({
             className="min-h-11 w-full accent-[var(--accent)]"
             disabled={investableAssets <= 0}
           />
-          <span aria-hidden className="flex justify-between text-3xs text-fg-muted">
+          <span aria-hidden className="flex justify-between text-2xs text-fg-muted">
             <span>0%</span>
             <span>100%</span>
           </span>
         </label>
       </div>
 
-      <p className="mt-2 text-[0.8125rem] text-fg-secondary">
+      <p className="mt-2 text-sm text-fg-secondary">
         Đang tính trên <b>{formatMoney(assets, base)}</b> tài sản dùng được
         {investableAssets > 0 && (
           <>

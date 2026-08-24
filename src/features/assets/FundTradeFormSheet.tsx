@@ -9,7 +9,7 @@ import { useId, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
 import { DateField } from '../../components/DateField'
-import { ActionButton, SegmentedControl } from '../../components/ui'
+import { ActionButton, SectionTitle, SegmentedControl, Select, actionButtonClass } from '../../components/ui'
 import { confirmDialog } from '../../lib/dialog'
 import {
   useCreateFundTrade,
@@ -72,7 +72,7 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
   )
 
   // Quỹ của lệnh đang sửa có thể không còn trong useFunds() (quỹ bị xoá hoặc đổi mã
-  // qua fund_aliases). Không xử lý thì <select value={assocFundCd}> không khớp option
+  // qua fund_aliases). Không xử lý thì <Select value={assocFundCd}> không khớp option
   // nào — hành vi của browser lúc đó KHÔNG được chuẩn hoá (một số trình duyệt tự chọn
   // option đầu), nên có thể đổi lệnh sang quỹ khác chỉ vì người dùng mở sheet ra sửa số
   // tiền. Thêm hẳn một option (vô hiệu hoá) đúng mã cũ để `value` luôn khớp một option
@@ -150,10 +150,10 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
         className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-base font-bold text-fg-primary">
+        <SectionTitle role="block" className="mb-1">
           {trade ? 'Sửa lệnh' : 'Ghi lệnh'}
-        </h2>
-        <p className="mb-3 text-xs text-fg-muted">{account.name}</p>
+        </SectionTitle>
+        <p className="mb-3 text-sm text-fg-muted">{account.name}</p>
 
         <div className="mb-3">
           <SegmentedControl items={KINDS} value={kind} onChange={setKind} label="Loại lệnh" />
@@ -167,14 +167,14 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
           </Guide>
         )}
 
-        <label htmlFor={`${uid}-fund`} className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-fund`} className="mb-1 block text-sm font-medium text-fg-muted">
           Quỹ
         </label>
-        <select
+        <Select
           id={`${uid}-fund`}
           value={assocFundCd}
           onChange={(e) => setAssocFundCd(e.target.value)}
-          className="mb-3 w-full min-h-11 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm font-medium"
+          wrapClassName="mb-3 w-full"
         >
           <option value="" disabled>
             Chọn quỹ…
@@ -189,10 +189,10 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
               {f.name}
             </option>
           ))}
-        </select>
+        </Select>
 
         {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">Ngày khớp (約定日)</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">Ngày khớp (約定日)</span>
         <DateField
           ariaLabel="Ngày khớp (約定日)"
           value={tradedOn}
@@ -201,7 +201,7 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
           className="mb-3 w-full px-3 py-2"
         />
 
-        <label htmlFor={`${uid}-units`} className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-units`} className="mb-1 block text-sm font-medium text-fg-muted">
           口数 {isAdjust && <span className="text-fg-muted">(âm = giảm 口 do gộp/điều chỉnh)</span>}
         </label>
         <input
@@ -217,7 +217,7 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
           <>
             {/* Hai nhãn dưới đây là <span>: MoneyField có hai ô (chạm mobile / input
                 desktop) nên `htmlFor` luôn trỏ vào ô đang bị CSS ẩn. Tên ô = `ariaLabel`. */}
-            <span className="mb-1 block text-xs font-medium text-fg-muted">
+            <span className="mb-1 block text-sm font-medium text-fg-muted">
               基準価額 <span className="text-fg-muted">(¥ / 10.000 口)</span>
             </span>
             <div className="mb-3">
@@ -231,7 +231,7 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
             </div>
 
             <div className="mb-1 flex items-baseline justify-between">
-              <span className="text-xs font-medium text-fg-muted">Số tiền</span>
+              <span className="text-sm font-medium text-fg-muted">Số tiền</span>
               {!amountTouched && suggestedAmount > 0 && (
                 <span className="text-2xs text-fg-muted">gợi ý theo 口数 × 基準価額</span>
               )}
@@ -249,14 +249,14 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
                 className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold"
               />
             </div>
-            <Guide className="mb-3 text-3xs text-fg-muted">
+            <Guide className="mb-3 text-2xs text-fg-muted">
               Gợi ý tính từ 口数 × 基準価額 ÷ 10.000. Sao kê Rakuten thường lệch vài yên do
               làm tròn — cứ sửa cho khớp số thật, app lấy số bạn nhập làm giá vốn.
             </Guide>
           </>
         )}
 
-        <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-note`} className="mb-1 block text-sm font-medium text-fg-muted">
           Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
         <input
@@ -267,13 +267,13 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
           className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
         />
 
-        <Guide className="mb-3 text-xs text-fg-muted">
+        <Guide className="mb-3 text-sm text-fg-muted">
           Lệnh không tạo giao dịch thu/chi và không đổi số dư — nó chỉ nói tiền trong tài
           khoản đang nằm ở quỹ nào.
         </Guide>
 
         {missing && !saving && (
-          <p className="mb-2 px-1 text-xs text-fg-warn">{missing}</p>
+          <p className="mb-2 px-1 text-sm text-fg-warn">{missing}</p>
         )}
 
         <div className="mt-1 flex items-center justify-end gap-2">
@@ -282,7 +282,7 @@ export function FundTradeFormSheet({ account, trade, onClose }: Props) {
               type="button"
               onClick={handleDelete}
               disabled={saving}
-              className="mr-auto rounded-md px-3 py-2 text-sm text-money-out disabled:opacity-50"
+              className={actionButtonClass('danger', 'mr-auto')}
             >
               Xóa
             </button>

@@ -6,6 +6,7 @@ import { DateField } from '../../components/DateField'
 import type { AccountRow, SavingsGoalRow } from '../../types/database.types'
 import { confirmDialog } from '../../lib/dialog'
 import { useEscClose } from '../../hooks/useEscClose'
+import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
 
 interface Props {
   accounts: AccountRow[]
@@ -74,24 +75,24 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
         className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-fg-primary">
+        <SectionTitle role="block" className="mb-3">
           {goal ? 'Sửa mục tiêu' : 'Mục tiêu tiết kiệm mới'}
-        </h2>
+        </SectionTitle>
 
-        <label htmlFor={`${uid}-name`} className="mb-1 block text-xs font-medium text-fg-muted">Tên mục tiêu</label>
+        <label htmlFor={`${uid}-name`} className="mb-1 block text-sm font-medium text-fg-muted">Tên mục tiêu</label>
         <input id={`${uid}-name`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ví dụ: Quỹ du lịch" className={`mb-3 ${field}`} />
 
-        <label htmlFor={`${uid}-acc`} className="mb-1 block text-xs font-medium text-fg-muted">Theo dõi qua tài khoản</label>
-        <select id={`${uid}-acc`} value={accountId} onChange={(e) => setAccountId(e.target.value)} className={`mb-3 ${field}`}>
+        <label htmlFor={`${uid}-acc`} className="mb-1 block text-sm font-medium text-fg-muted">Theo dõi qua tài khoản</label>
+        <Select id={`${uid}-acc`} value={accountId} onChange={(e) => setAccountId(e.target.value)} wrapClassName="mb-3 w-full">
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name} ({a.currency})
             </option>
           ))}
-        </select>
+        </Select>
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">Số tiền đích</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">Số tiền đích</span>
         <div className="mb-3">
           <MoneyField
             value={target}
@@ -104,7 +105,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
         </div>
 
         {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">
+        <span className="mb-1 block text-sm font-medium text-fg-muted">
           Hạn hoàn thành <span className="text-fg-muted">(không bắt buộc)</span>
         </span>
         <DateField
@@ -115,14 +116,14 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
           className={`mb-3 ${field}`}
         />
 
-        <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-note`} className="mb-1 block text-sm font-medium text-fg-muted">
           Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
         <input id={`${uid}-note`} value={note} onChange={(e) => setNote(e.target.value)} className={`mb-4 ${field}`} />
 
         <div className="flex items-center justify-between gap-2">
           {goal ? (
-            <button type="button" onClick={handleDelete} disabled={saving} className="rounded-md px-3 py-2 text-sm font-medium text-money-out hover:bg-state-bad-bg disabled:opacity-50">
+            <button type="button" onClick={handleDelete} disabled={saving} className={actionButtonClass('danger')}>
               Xóa
             </button>
           ) : (
@@ -132,7 +133,7 @@ export function SavingsGoalFormSheet({ accounts, goal, onClose }: Props) {
             <button type="button" onClick={onClose} className="min-h-11 rounded-md px-3 py-2 text-sm text-fg-muted hover:bg-surface-sunken">
               Hủy
             </button>
-            <button type="button" onClick={handleSubmit} disabled={!canSave} className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold transition active:scale-95 disabled:opacity-50">
+            <button type="button" onClick={handleSubmit} disabled={!canSave} className={actionButtonClass('primary')}>
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>
           </div>

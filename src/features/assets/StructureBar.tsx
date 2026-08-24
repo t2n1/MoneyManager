@@ -14,7 +14,7 @@
 // Đổi lại, vạch không đọc được thứ tự "lát nào lớn hơn lát nào" bằng mắt tốt như góc
 // tròn. Nên chú giải bên dưới xếp GIẢM DẦN theo số tiền, và vạch xếp CÙNG thứ tự đó —
 // hai thứ đọc cùng chiều thì mắt không phải bắc cầu.
-import { Card, Money } from '../../components/ui'
+import { Card, Money, SectionTitle } from '../../components/ui'
 import { formatMoney } from '../../lib/money'
 import type { AssetGroup } from './aggregate'
 import type { MoneyView } from './moneyView'
@@ -50,16 +50,16 @@ export function StructureBar({ groups, colorOf, modeLabel, view, isLoading }: Pr
       className="flex min-w-0 flex-col overflow-hidden"
     >
       <div className="flex items-center justify-between gap-2 border-b border-border-panel px-4 py-2.5">
-        <h2 className="text-2xs uppercase tracking-[.1em] text-fg-muted">
+        <SectionTitle role="micro">
           Cơ cấu · theo {modeLabel}
-        </h2>
+        </SectionTitle>
         <span className="shrink-0 text-2xs text-fg-muted">
           {counted.length} nhóm được tính vào tổng
         </span>
       </div>
 
       {counted.length === 0 ? (
-        <p className="px-4 py-8 text-center text-xs text-fg-muted">
+        <p className="px-4 py-8 text-center text-sm text-fg-muted">
           {isLoading ? 'Đang tải…' : 'Chưa có tài sản để hiển thị'}
         </p>
       ) : (
@@ -82,7 +82,7 @@ export function StructureBar({ groups, colorOf, modeLabel, view, isLoading }: Pr
 
           <ul className="flex flex-col gap-2 px-4 py-3">
             {counted.map((g) => (
-              <li key={g.name} className="flex items-center gap-2 text-xs">
+              <li key={g.name} className="flex items-center gap-2 text-sm">
                 <span
                   className="h-2 w-2 shrink-0 rounded-sm"
                   style={{ backgroundColor: colorOf(g.name) }}

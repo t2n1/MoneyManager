@@ -9,7 +9,8 @@ import { VerdictNote } from '../../components/VerdictNote'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { foldUncategorized, type ClassificationBreakdown } from './aggregate'
 import { BreakdownRow } from './BreakdownRow'
-import { Card } from '../../components/ui'
+import { Card, SectionTitle } from '../../components/ui'
+import { CHART_TEXT_XS } from '../../lib/chartText'
 
 const C = {
   need: '#16a34a',
@@ -65,11 +66,11 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
   return (
     <Card as="section">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-fg-muted">Cơ cấu chi tiêu</h2>
+        <SectionTitle>Cơ cấu chi tiêu</SectionTitle>
         {unclassifiedCount > 0 && (
           <Link
             to="/settings/categories/classify"
-            className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-state-good-fg hover:bg-state-good-bg"
+            className="shrink-0 rounded-md px-2 py-1 text-sm font-medium text-state-good-fg hover:bg-state-good-bg"
           >
             Phân loại {unclassifiedCount} danh mục →
           </Link>
@@ -77,11 +78,11 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
       </div>
 
       {/* C1 — 50/30/20 trên thu nhập */}
-      <h3 className="mb-2 text-xs font-medium text-fg-muted">
+      <SectionTitle as="h3" className="mb-2">
         Thiết yếu vs Linh hoạt <span className="text-fg-muted">(% thu nhập · quy tắc 50/30/20)</span>
-      </h3>
+      </SectionTitle>
       {income <= 0 ? (
-        <p className="mb-3 rounded-lg bg-surface-page px-3 py-3 text-center text-xs text-fg-muted">
+        <p className="mb-3 rounded-lg bg-surface-page px-3 py-3 text-center text-sm text-fg-muted">
           Cần có thu nhập trong {periodNoun} để tính tỷ lệ 50/30/20.
         </p>
       ) : (
@@ -167,11 +168,11 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
       )}
 
       {/* C2 — Cố định vs Biến đổi trên tổng chi (donut + thanh) */}
-      <h3 className="mb-2 text-xs font-medium text-fg-muted">
+      <SectionTitle as="h3" className="mb-2">
         Cố định vs Biến đổi <span className="text-fg-muted">(% chi tiêu)</span>
-      </h3>
+      </SectionTitle>
       {totalExpense <= 0 ? (
-        <p className="rounded-lg bg-surface-page px-3 py-3 text-center text-xs text-fg-muted">
+        <p className="rounded-lg bg-surface-page px-3 py-3 text-center text-sm text-fg-muted">
           Chưa có chi tiêu trong {periodNoun}.
         </p>
       ) : (
@@ -201,7 +202,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
                     `${formatMoney(Number(v), base)} · ${pctOfExpense(Number(v)).toFixed(0)}%`,
                     String(n),
                   ]}
-                  contentStyle={{ borderRadius: 8, fontSize: 12 }}
+                  contentStyle={{ borderRadius: 8, fontSize: CHART_TEXT_XS }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -211,7 +212,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
               className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
               aria-hidden="true"
             >
-              <span className="text-3xs leading-none text-fg-muted">Tổng chi</span>
+              <span className="text-2xs leading-none text-fg-muted">Tổng chi</span>
               <span className="mt-0.5 text-sm font-bold leading-none tabular-nums text-fg-primary">
                 {formatCompact(totalExpense, base)}
               </span>
@@ -241,7 +242,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
 
       {/* Van xả khẩn cấp */}
       {folded.emergencyCut > 0 ? (
-        <p className="mt-3 rounded-lg bg-state-warn-bg px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+        <p className="mt-3 rounded-lg bg-state-warn-bg px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
           {visual ? (
             <>
               Cắt gấp được tối đa <b>{formatMoney(folded.emergencyCut, base)}</b> (
@@ -257,7 +258,7 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
         </p>
       ) : (
         totalExpense > 0 && (
-          <p className="mt-3 text-center text-xs text-fg-muted">
+          <p className="mt-3 text-center text-sm text-fg-muted">
             Phân loại chi tiêu để xem gợi ý cắt giảm khẩn cấp.
           </p>
         )

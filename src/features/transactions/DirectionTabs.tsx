@@ -90,7 +90,7 @@ export function DirectionTabs({
                 // nhất một chip đang bật) — giống chip danh mục con.
                 // whitespace-nowrap: thiếu nó thì chip bị co và nhãn vỡ GIỮA TỪ bên
                 // trong viên pill ("Chi / thường") ngay khi bật Cỡ chữ lớn.
-                className={`flex min-h-8 items-center whitespace-nowrap rounded-full border px-2 text-xs font-medium transition active:scale-95 ${
+                className={`flex min-h-8 items-center whitespace-nowrap rounded-full border px-2 text-sm font-medium transition active:scale-95 ${
                   on
                     ? 'border-accent bg-state-good-bg text-state-good-fg'
                     : 'border-border-strong bg-surface text-fg-secondary'

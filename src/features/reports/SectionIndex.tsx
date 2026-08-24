@@ -137,7 +137,7 @@ export function SectionIndex({ items }: Props) {
               }}
               // min-h-11 = 44px vùng chạm, cùng chuẩn với IconButton. Chip mục lục là
               // thứ người ta bấm giữa lúc đang cuộn, đúng lúc dễ trượt tay nhất.
-              className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs transition ${
+              className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm transition ${
                 on
                   ? 'bg-surface font-medium text-fg-primary shadow-sm'
                   : 'text-fg-on-track hover:bg-surface'

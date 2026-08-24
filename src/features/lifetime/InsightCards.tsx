@@ -58,7 +58,7 @@ interface Props {
 // Cỡ chữ viết bằng rem (không phải px) vì `--app-font-scale` (Cài đặt → Cỡ chữ) chỉ co
 // giãn được những gì tính theo em/rem từ font-size gốc của <html> (xem index.css) —
 // arbitrary theo px sẽ đứng yên khi người dùng phóng chữ. 1.375rem = 22px ở cỡ mặc định.
-const VALUE_SIZE = 'text-[1.375rem]'
+const VALUE_SIZE = 'text-kpi'
 
 /**
  * Một ô trong dải bốn số — khuôn dùng chung cho cả bốn (brief Task 9 Step 1).
@@ -106,7 +106,7 @@ function InsightTile({
   const warn = alert === true || (amountMinor != null && amountMinor < 0)
   const body = (
     <>
-      <p className="text-xs text-fg-secondary">{label}</p>
+      <p className="text-sm text-fg-secondary">{label}</p>
       <p
         className={`mt-0.5 flex items-center gap-1 ${VALUE_SIZE} font-medium tabular-nums ${
           warn ? 'text-money-out' : good ? 'text-money-in' : 'text-fg-primary'
@@ -206,12 +206,12 @@ export function InsightCards({
       </ConclusionLine>
 
       {stressNote && (
-        <p className="mt-1.5 flex items-start gap-1.5 text-xs text-fg-warn">
+        <p className="mt-1.5 flex items-start gap-1.5 text-sm text-fg-warn">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           {stressNote}
         </p>
       )}
-      {actionLine && <p className="mt-1.5 text-xs font-medium text-fg-accent">{actionLine}</p>}
+      {actionLine && <p className="mt-1.5 text-sm font-medium text-fg-accent">{actionLine}</p>}
 
       {/* Dưới `sm`: lưới 2×2 có khoảng cách, không kẻ vạch — bốn vạch dọc trên một cột
           hẹp chia màn thành những mảnh 80px. Từ `sm`: một hàng bốn ô ngăn bằng vạch,

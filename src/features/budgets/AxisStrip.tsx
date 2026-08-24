@@ -55,7 +55,7 @@ export function AxisStrip({ data, monthKey, base, linkToDetail = true }: Props) 
                   <span className="shrink-0 whitespace-nowrap text-2xs text-fg-muted">
                     {AXIS_LABEL[l.key]}
                   </span>
-                  <span className="shrink-0 text-xs tabular-nums">
+                  <span className="shrink-0 text-sm tabular-nums">
                     <span className={`font-semibold ${l.ok ? 'text-money-in' : 'text-fg-warn'}`}>
                       {shareLabel(l.share)}
                     </span>

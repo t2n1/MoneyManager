@@ -49,7 +49,7 @@ interface Props {
 }
 
 /** Cỡ và nhịp của câu — một chỗ, vì cả ba nhánh phải cùng cỡ mới ra một khối. */
-const CAU = 'text-[1.125rem] font-semibold leading-snug text-fg-secondary lg:text-[1.25rem]'
+const CAU = 'text-lg font-semibold leading-snug text-fg-secondary'
 
 export function PaydayStrip({ data, base, approx = false, monthStartDay }: Props) {
   const { soNgay, conLai, moiNgay, nhipHienTai, hutTruocLuong, chuaDatHanMuc } = data

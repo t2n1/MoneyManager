@@ -25,6 +25,7 @@ import { DensityToggle } from './DensityToggle'
 import { FontSizeToggle } from './FontSizeToggle'
 import { ProfileEditSheet } from './ProfileEditSheet'
 import { ThemeToggle } from './ThemeToggle'
+import { PageHeader, SectionTitle } from '../../components/ui'
 
 export function SettingsPage() {
   const { data: profile } = useProfile()
@@ -65,7 +66,7 @@ export function SettingsPage() {
   //   phải  — tình trạng dữ liệu (tỷ giá, sao lưu).
   return (
     <div className="flex w-full flex-col gap-3 p-3 lg:p-4">
-      <h1 className="text-lg font-bold text-fg-primary lg:hidden">Cài đặt</h1>
+      <PageHeader title="Cài đặt" flush />
 
       {isDemoMode && (
         <div className="rounded-lg border border-state-warn-border bg-state-warn-bg p-3 text-sm text-state-warn-fg">
@@ -90,7 +91,7 @@ export function SettingsPage() {
               qc.clear()
               navigate('/')
             }}
-            className="mt-2 min-h-11 rounded-md border border-state-warn-border px-3 py-1.5 text-xs font-medium text-state-warn-fg transition hover:bg-state-warn-bg"
+            className="mt-2 min-h-11 rounded-md border border-state-warn-border px-3 py-1.5 text-sm font-medium text-state-warn-fg transition hover:bg-state-warn-bg"
           >
             Xóa dữ liệu demo
           </button>
@@ -108,7 +109,7 @@ export function SettingsPage() {
         {/* TRÁI — đi tới đâu */}
         <div className="flex flex-col gap-3">
           <section className="overflow-hidden rounded-lg border border-border-panel bg-surface">
-            <h2 className="px-3 pt-3 text-sm font-semibold text-fg-muted">Quản lý</h2>
+            <SectionTitle className="px-3 pt-3">Quản lý</SectionTitle>
             <div className="mt-1 divide-y divide-border-subtle">
               <Link
                 to="/settings/accounts"
@@ -175,7 +176,7 @@ export function SettingsPage() {
               <Database className="h-5 w-5 text-fg-muted" />
               <span className="flex-1">
                 <span className="block">Dữ liệu &amp; sao lưu</span>
-                <span className="block text-xs text-fg-muted">
+                <span className="block text-sm text-fg-muted">
                   Xuất CSV / PDF · Sao lưu, khôi phục · Nhập CSV
                 </span>
               </span>
@@ -192,7 +193,7 @@ export function SettingsPage() {
               <UserRound className="h-5 w-5 text-fg-muted" />
               <span className="flex-1">
                 <span className="block text-sm text-fg-primary">{profile?.display_name ?? '—'}</span>
-                <span className="block text-xs text-fg-muted">
+                <span className="block text-sm text-fg-muted">
                   Tháng bắt đầu ngày {profile?.month_start_day ?? 1} · Tiền gốc {profile?.base_currency ?? '—'}
                 </span>
               </span>
@@ -227,7 +228,7 @@ export function SettingsPage() {
                   {/* h2 để có tên landmark cho <Card as="section">, đồng bộ với khối "Quản
                       lý" — nhưng KHÔNG copy class px-3 pt-3 của khối đó: Card đã có p-3
                       sẵn, copy vào sẽ đúp lề. */}
-                  <h2 className="text-sm font-semibold text-fg-muted">Tỷ giá quy đổi</h2>
+                  <SectionTitle>Tỷ giá quy đổi</SectionTitle>
                   {rateLines.map((line) => (
                     // CỐ Ý không có tabular-nums: khối này chỉ 1-2 dòng ngắn, không phải
                     // cột số cần thẳng hàng, mà ngưỡng `tabular-nums` ở
@@ -242,7 +243,7 @@ export function SettingsPage() {
                       chỉ báo tuổi mà còn là chỗ duy nhất làm được gì đó về việc tỷ giá cũ. */}
                   {rateStale && rateAge !== null && (
                     <div className="mt-2 rounded-md border border-state-warn-border bg-state-warn-bg p-2">
-                      <p className="text-xs text-state-warn-fg">
+                      <p className="text-sm text-state-warn-fg">
                         Cập nhật {rateAge.age} — mạng hoặc nguồn tỷ giá đang lỗi, số quy đổi có
                         thể sai.
                       </p>
@@ -250,7 +251,7 @@ export function SettingsPage() {
                         type="button"
                         disabled={ratesFetching > 0}
                         onClick={() => qc.invalidateQueries({ queryKey: ['rates'] })}
-                        className="mt-2 min-h-11 rounded-md border border-state-warn-border px-3 py-1.5 text-xs font-medium text-state-warn-fg transition hover:bg-state-warn-bg disabled:opacity-50"
+                        className="mt-2 min-h-11 rounded-md border border-state-warn-border px-3 py-1.5 text-sm font-medium text-state-warn-fg transition hover:bg-state-warn-bg disabled:opacity-50"
                       >
                         {/* Offline, bấm nút này refetch rồi lại rơi vào catch của fetchRates
                             (trả nguyên cache cũ) — màn hình không đổi gì cả nên nút coi như

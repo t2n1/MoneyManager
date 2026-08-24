@@ -12,7 +12,7 @@ import { categoryBreakdown, sumIncomeExpense } from '../reports/aggregate'
 import { TagBreakdownCard } from '../reports/TagBreakdownCard'
 import { tagBreakdown } from '../tags/aggregate'
 import { uncategorizedAmount, type CurrencyOf } from './ledgerShared'
-import { Card } from '../../components/ui'
+import { Card, EmptyState, SectionTitle } from '../../components/ui'
 
 // Bảng màu đồng bộ với ReportsPage / AssetsPage
 const PALETTE = [
@@ -125,11 +125,11 @@ export function SummaryView({
 
       {/* Tổng */}
       <Card padding="lg" className="text-center">
-        <div className="text-xs text-fg-muted">
+        <div className="text-sm text-fg-muted">
           Tổng {kind === 'expense' ? 'chi' : 'thu'} tháng này
         </div>
         <div
-          className={`mt-1 text-2xl font-bold tabular-nums ${kind === 'expense' ? 'text-money-out' : 'text-money-in'}`}
+          className={`mt-1 text-kpi font-mono font-medium tracking-number tabular-nums ${kind === 'expense' ? 'text-money-out' : 'text-money-in'}`}
         >
           {approx}
           {formatMoney(Math.round(total), base)}
@@ -137,31 +137,31 @@ export function SummaryView({
       </Card>
 
       {breakdown.hasMissingRate && (
-        <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-xs">
+        <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-sm">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
 
       {isLoading ? (
-        <p className="py-10 text-center text-fg-muted">Đang tải…</p>
+        <EmptyState>Đang tải…</EmptyState>
       ) : rows.length === 0 ? (
-        <p className="py-10 text-center text-sm text-fg-muted">
+        <EmptyState>
           Chưa có {kind === 'expense' ? 'chi tiêu' : 'thu nhập'} trong tháng này
-        </p>
+        </EmptyState>
       ) : (
         // Có hai cách chia dưới đây (danh mục rồi nhãn) nên khối này cần tên,
         // không còn là danh sách duy nhất như trước.
         <Card as="section" padding="lg">
-        <h2 className="mb-3 text-sm font-semibold text-fg-primary">
+        <SectionTitle className="mb-3">
           {kind === 'expense' ? 'Chi' : 'Thu'} theo danh mục
-        </h2>
+        </SectionTitle>
         <ul className="flex flex-col gap-3">
           {rows.map((r) => (
             <li key={r.id}>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-base">{r.icon}</span>
                 <span className="min-w-0 flex-1 truncate font-medium text-fg-secondary">{r.name}</span>
-                <span className="shrink-0 text-xs tabular-nums text-fg-muted">
+                <span className="shrink-0 text-sm tabular-nums text-fg-muted">
                   {r.pct.toFixed(0)}%
                 </span>
                 <span className="shrink-0 text-sm font-semibold tabular-nums text-fg-primary">

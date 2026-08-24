@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react'
-import { BackLink } from '../../components/BackLink'
+import { ChevronDown, ChevronRight, ChevronUp, Plus } from 'lucide-react'
 import { useDebtPayments, useDebts, useRates } from '../../hooks/queries'
 import { dayMonthLabel, daysBetween, toISODate } from '../../lib/dates'
 import { CURRENCIES, formatMoney } from '../../lib/money'
-import { Card, STATUS_FILL } from '../../components/ui'
+import { Card, EmptyState, PageHeader, STATUS_FILL, SectionTitle, actionButtonClass } from '../../components/ui'
 import type { DebtRow } from '../../types/database.types'
 import { debtSummary, disbursedOf, remainingOf } from './aggregate'
 
@@ -28,21 +27,19 @@ export function DebtsPage() {
 
   return (
     <div className="p-3 lg:p-6">
-      <div className="mb-3 flex items-center gap-2">
-        <BackLink to="/assets" aria-label="Quay lại" />
-        <h1 className="flex-1 text-lg font-bold text-fg-primary">Nợ / cho vay</h1>
+      <PageHeader title="Nợ / cho vay" back="/assets">
         <Link
           to="/entry?role=debt"
-          className="rounded-lg bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold transition active:scale-95"
+          className={actionButtonClass('primary')}
         >
-          + Thêm
+          <Plus className="h-4 w-4" /> Thêm
         </Link>
-      </div>
+      </PageHeader>
 
       {/* Tổng quan quy đổi base */}
       <div className="mb-4 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-surface p-4 shadow-sm">
-          <p className="text-xs font-medium text-fg-muted">Mình nợ</p>
+          <p className="text-sm font-medium text-fg-muted">Mình nợ</p>
           <p className="mt-1 text-lg font-bold tabular-nums text-money-out">
             {isLoading ? '…' : `${approx}${formatMoney(summary.iOwe, base)}`}
           </p>
@@ -50,14 +47,14 @@ export function DebtsPage() {
         <div className="rounded-2xl bg-surface p-4 shadow-sm">
           {/* "Cho vay" là nhãn CŨ, và nó sai kể từ 0049: con số này giờ gộp hai thứ
               khác bản chất — tiền mình đưa ra, và tiền công người ta chưa trả. */}
-          <p className="text-xs font-medium text-fg-muted">Người ta nợ tôi</p>
+          <p className="text-sm font-medium text-fg-muted">Người ta nợ tôi</p>
           <p className="mt-1 text-lg font-bold tabular-nums text-money-in">
             {isLoading ? '…' : `${approx}${formatMoney(summary.owedToMe, base)}`}
           </p>
         </div>
       </div>
       {summary.hasOpen && (
-        <p className="-mt-2 mb-4 px-1 text-xs text-fg-muted">
+        <p className="-mt-2 mb-4 px-1 text-sm text-fg-muted">
           {summary.net < 0 ? 'Nợ ròng' : 'Cho vay ròng'} {approx}
           {formatMoney(Math.abs(summary.net), base)} · quy đổi {CURRENCIES[base].label}
           {summary.hasMissingRate && ' · một phần chưa có tỷ giá'}
@@ -84,7 +81,7 @@ export function DebtsPage() {
           <button
             type="button"
             onClick={() => setShowSettled((v) => !v)}
-            className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-fg-muted"
+            className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-fg-muted"
           >
             {showSettled ? 'Ẩn đã tất toán' : `Đã tất toán (${settled.length})`}
             {showSettled ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -100,7 +97,7 @@ export function DebtsPage() {
                   <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary line-through">
                     {d.counterparty}
                   </span>
-                  <span className="shrink-0 text-xs tabular-nums text-fg-muted">
+                  <span className="shrink-0 text-sm tabular-nums text-fg-muted">
                     {formatMoney(disbursedOf(d, payments), d.currency)}
                   </span>
                   <ChevronRight className="h-4 w-4 shrink-0 text-fg-muted" />
@@ -125,9 +122,9 @@ interface SectionProps {
 function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionProps) {
   return (
     <section className="mb-4">
-      <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+      <SectionTitle role="micro" className="mb-2 px-1">
         {title}
-      </h2>
+      </SectionTitle>
       <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
         {debts.map((d) => {
           const remaining = Math.max(remainingOf(d, payments), 0)
@@ -143,13 +140,13 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
               <div className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg-primary">
                   {d.counterparty}
-                  {d.note && <span className="ml-1 text-xs font-normal text-fg-muted">· {d.note}</span>}
+                  {d.note && <span className="ml-1 text-sm font-normal text-fg-muted">· {d.note}</span>}
                 </span>
                 {/* KHÔNG phải chip trang trí: `earned` là khác biệt làm ĐỔI CÁCH GHI SỔ
                     lúc thu tiền (lần trả vào Thu thật, không phải dòng tiền nợ), nên
                     người dùng phải phân biệt được nó với một khoản cho vay bằng mắt. */}
                 {d.origin === 'earned' && (
-                  <span className="shrink-0 rounded-full bg-state-warn-bg px-2 py-0.5 text-xs font-semibold text-state-warn-fg">
+                  <span className="shrink-0 rounded-full bg-state-warn-bg px-2 py-0.5 text-sm font-semibold text-state-warn-fg">
                     tiền công
                   </span>
                 )}
@@ -175,7 +172,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
                     style={{ width: `${Math.min(Math.max(paidRatio * 100, 0), 100)}%` }}
                   />
                 </div>
-                <span className="shrink-0 text-xs text-fg-muted">
+                <span className="shrink-0 text-sm text-fg-muted">
                   gốc {formatMoney(disbursed, d.currency)}
                 </span>
                 {/* NGÀY đi qua `dayMonthLabel` như mọi chỗ khác trong app. Trước đây là
@@ -188,7 +185,7 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
                     thứ quyết định gọi ngay hay để cuối tuần. */}
                 {d.due_on && (
                   <span
-                    className={`shrink-0 rounded px-1 text-xs ${
+                    className={`shrink-0 rounded px-1 text-sm ${
                       overdue ? 'bg-state-bad-bg text-state-bad-fg' : 'bg-surface-sunken text-fg-on-track'
                     }`}
                   >
@@ -202,9 +199,9 @@ function DebtSection({ title, emptyLabel, debts, payments, loading }: SectionPro
           )
         })}
         {debts.length === 0 && (
-          <p className="px-3 py-6 text-center text-sm text-fg-muted">
+          <EmptyState compact>
             {loading ? 'Đang tải…' : emptyLabel}
-          </p>
+          </EmptyState>
         )}
       </Card>
     </section>

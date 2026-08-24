@@ -6,7 +6,7 @@
 //
 // Phép tính ở `notifications/reliability.ts` (thuần, có test). Ở đây chỉ bày.
 import { Link } from 'react-router-dom'
-import { Card } from '../../components/ui'
+import { Card, SectionTitle } from '../../components/ui'
 import type { Reliability } from '../notifications/reliability'
 
 /** Mỗi thành phần thiếu dẫn đi đâu để sửa. */
@@ -23,7 +23,7 @@ export function ReliabilityPanel({ data }: { data: Reliability }) {
   return (
     <Card elevation="panel" padding="panel" as="section">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-[0.8125rem] font-semibold text-fg-primary">Độ tin cậy dữ liệu</h2>
+        <SectionTitle>Độ tin cậy dữ liệu</SectionTitle>
         <span
           className={`font-mono text-lg font-medium leading-none ${
             data.pct >= 80 ? 'text-money-in' : data.pct >= 50 ? 'text-fg-warn' : 'text-money-out'
@@ -52,7 +52,7 @@ export function ReliabilityPanel({ data }: { data: Reliability }) {
       </div>
 
       {thieu.length === 0 ? (
-        <p className="mt-2.5 text-[0.8125rem] text-fg-muted">
+        <p className="mt-2.5 text-sm text-fg-muted">
           Không còn chỗ nào thiếu — mọi con số trong app đang tính trên dữ liệu đủ.
         </p>
       ) : (
@@ -61,9 +61,9 @@ export function ReliabilityPanel({ data }: { data: Reliability }) {
             <li key={p.key}>
               <Link
                 to={TO[p.key] ?? '/'}
-                className="-my-1 flex items-baseline gap-2 py-1 text-[0.8125rem] text-fg-secondary hover:underline"
+                className="-my-1 flex items-baseline gap-2 py-1 text-sm text-fg-secondary hover:underline"
               >
-                <span className="shrink-0 text-2xs uppercase tracking-[.1em] text-fg-muted">
+                <span className="shrink-0 text-2xs uppercase tracking-label text-fg-muted">
                   {p.label}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{p.gap}</span>

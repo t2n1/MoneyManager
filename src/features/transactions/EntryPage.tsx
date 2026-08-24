@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, ChevronLeft } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
+import { EmptyState, PageHeader, actionButtonClass } from '../../components/ui'
 import {
   useAccounts,
   useCategories,
@@ -289,41 +290,47 @@ export function EntryPage() {
     // (đúng bằng bề rộng cũ) và cột phải 320px. Vẫn CÓ trần: màn nhập là một việc một
     // dòng nhìn, kéo hết 1440px thì mắt phải quét ngang cả sải tay giữa hai bước bắt buộc.
     <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:h-dvh lg:max-w-5xl lg:p-6">
-      <div className="mb-2 flex items-center gap-2">
-        {/* "Đóng" = bỏ dở màn nhập → trả người dùng về đúng chỗ họ bấm "+", chứ không
-            phải luôn luôn về Sổ (nút này mở được từ Nợ, Sắp chi, thông báo…).
-            `to` chỉ là đường lui khi không có lịch sử: về Bản tin, vì từ bản 1a nút "+"
-            là nút TOÀN CỤC (giữa thanh tab / trên top bar) nên "chỗ bấm +" gần như luôn
-            là một màn bất kỳ, không riêng Sổ. Còn LƯU xong thì về `/so` — ở đó mới thấy
-            giao dịch vừa ghi. */}
-        <BackLink
-          to="/"
-          aria-label="Đóng, quay lại trang trước"
-          className="flex min-h-11 items-center gap-1 rounded-md border border-border-strong bg-surface px-3 py-1.5 text-sm text-fg-secondary transition active:scale-95"
-        >
-          <ChevronLeft className="h-5 w-5" /> Đóng
-        </BackLink>
-        <h1 className="flex-1 text-center text-base font-bold text-fg-primary">
-          {billRule || planned ? 'Ghi khoản đến hạn' : 'Nhập giao dịch'}
-          {/* Đếm cạnh tiêu đề — người về nhà ghi cả ngày 3-4 khoản một lượt cần thấy
-              mình đã ghi bao nhiêu TRONG LƯỢT NÀY, không lục lại Sổ để biết. */}
-          {savedCountLabel && (
-            // Dấu cách TRƯỚC "·" là một ký tự thật, không phải `ml-1.5`: lề chỉ là khoảng
-            // trắng cho MẮT, còn tên đọc được (accessible name) nối thẳng hai chuỗi lại
-            // thành "Nhập giao dịch· 1 khoản lượt này".
-            <span className="ml-1.5 align-middle text-xs font-normal text-fg-muted">
-              {' '}· {savedCountLabel}
-            </span>
-          )}
-        </h1>
-        {/* Ô bên phải tiêu đề: rỗng để `h1` không lệch tâm (nút "Đóng" bên trái là CHỮ
-            nên giãn theo --app-font-scale — theo REM chứ px, §13, để cỡ "Rất lớn" không
-            làm lệch tâm). Trước đây đây là nơi TransactionForm portal nút mở dropdown
-            chọn loại vào; dropdown đó đã bỏ.
-            Khi ĐÃ ghi ít nhất một khoản, ô này đổi thành nút "Xong" — dùng LẠI đúng ô
-            này (không thêm hàng mới) để khỏi ăn vào vùng cuộn 410px đã tràn sẵn 27px
-            (ruling task 13): thêm một hàng riêng cho nút sẽ cộng thêm ~44px overflow,
-            còn tái dùng ô rỗng này thì overflow không đổi một ly. */}
+      {/* Đầu trang qua <PageHeader> như 24 màn còn lại. Trước 2026-08-25 màn này là kiểu
+          thứ bảy: tiêu đề CANH GIỮA ở 16px — cỡ nhỏ nhất trong app và là chỗ duy nhất
+          canh giữa. Nay canh trái 18px; nút "Đóng" đi vào slot `left` thay chỗ nút quay
+          lại, nên vẫn là nút chữ chứ không phải mũi tên trần.
+          Vì tiêu đề không còn canh giữa, ô đệm bên phải KHÔNG còn nhiệm vụ giữ tâm — nó
+          ở lại vì lý do thứ hai vẫn đúng: chỗ đặt nút "Xong" khi đã ghi được một khoản,
+          tái dùng thay vì thêm một hàng ~44px vào vùng cuộn vốn đã tràn 27px. */}
+      <PageHeader
+        className="mb-2"
+        flush
+        left={
+          /* "Đóng" = bỏ dở màn nhập → trả người dùng về đúng chỗ họ bấm "+", chứ không
+             phải luôn luôn về Sổ (nút này mở được từ Nợ, Sắp chi, thông báo…).
+             `to` chỉ là đường lui khi không có lịch sử: về Bản tin, vì từ bản 1a nút "+"
+             là nút TOÀN CỤC (giữa thanh tab / trên top bar) nên "chỗ bấm +" gần như luôn
+             là một màn bất kỳ, không riêng Sổ. Còn LƯU xong thì về `/so` — ở đó mới thấy
+             giao dịch vừa ghi. */
+          <BackLink
+            to="/"
+            aria-label="Đóng, quay lại trang trước"
+            className={actionButtonClass('outline')}
+          >
+            <ChevronLeft className="h-5 w-5" /> Đóng
+          </BackLink>
+        }
+        title={
+          <>
+            {billRule || planned ? 'Ghi khoản đến hạn' : 'Nhập giao dịch'}
+            {/* Đếm cạnh tiêu đề — người về nhà ghi cả ngày 3-4 khoản một lượt cần thấy
+                mình đã ghi bao nhiêu TRONG LƯỢT NÀY, không lục lại Sổ để biết. */}
+            {savedCountLabel && (
+              // Dấu cách TRƯỚC "·" là một ký tự thật, không phải `ml-1.5`: lề chỉ là khoảng
+              // trắng cho MẮT, còn tên đọc được (accessible name) nối thẳng hai chuỗi lại
+              // thành "Nhập giao dịch· 1 khoản lượt này".
+              <span className="ml-1.5 align-middle text-sm font-normal text-fg-muted">
+                {' '}· {savedCountLabel}
+              </span>
+            )}
+          </>
+        }
+      >
         <div className="w-[5.25rem] shrink-0">
           {savedList.length > 0 && (
             <button
@@ -335,9 +342,9 @@ export function EntryPage() {
             </button>
           )}
         </div>
-      </div>
+      </PageHeader>
       {waitingForRule || waitingForPlanned ? (
-        <p className="py-10 text-center text-sm text-fg-muted">Đang tải khoản đến hạn…</p>
+        <EmptyState>Đang tải khoản đến hạn…</EmptyState>
       ) : (
       <TransactionForm
         // Khoá theo kỳ: mở lời nhắc khác trong cùng một lần vào màn (từ chuông sang
@@ -435,7 +442,7 @@ export function EntryPage() {
           {savedList.map((s) => (
             <li
               key={s.id}
-              className="flex shrink-0 items-center gap-1 rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs"
+              className="flex shrink-0 items-center gap-1 rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-sm"
             >
               <span aria-hidden="true">{s.icon}</span>
               <span className="max-w-[5rem] truncate text-fg-primary">{s.label}</span>

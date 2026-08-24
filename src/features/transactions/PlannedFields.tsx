@@ -14,6 +14,7 @@ import { anchoredDueOn } from './plannedDraftDefaults'
 import { PadMoneyField } from './roleFields'
 import { CURRENCIES, type CurrencyCode } from '../../lib/currencies'
 import type { CategoryRow, DuePrecision } from '../../types/database.types'
+import { Select } from '../../components/ui'
 
 const PRECISION: readonly (readonly [DuePrecision, string, string])[] = [
   ['day', 'Đúng ngày', 'Biết chắc ngày nào — vd hạn đóng phí 20/8'],
@@ -65,7 +66,7 @@ export function PlannedFields({
     >
       {/* <span>: hàng này có HAI ô (MoneyField + chọn loại tiền) nên không có một đích
           duy nhất cho `htmlFor`; mỗi ô tự mang tên qua `ariaLabel` (giống PlannedFormSheet). */}
-      <span className="mb-1 block text-xs font-medium text-fg-muted">
+      <span className="mb-1 block text-sm font-medium text-fg-muted">
         Ước tính <span className="text-fg-muted">(để trống nếu chưa biết)</span>
       </span>
       <div className="mb-3 flex gap-2" data-pad-row>
@@ -88,18 +89,16 @@ export function PlannedFields({
             autoFocusDesktop
           />
         </div>
-        <select
+        <Select
           value={value.currency}
           onChange={(e) => onChange({ ...value, currency: e.target.value as CurrencyCode })}
-          aria-label="Loại tiền"
-          className="w-24 shrink-0 rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
-        >
+          aria-label="Loại tiền" wrapClassName="w-24 shrink-0">
           {Object.keys(CURRENCIES).map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {/* "Chi cái gì" đứng SAU "Ước tính" (đảo lại 2026-08-20, theo yêu cầu): trên màn
@@ -109,7 +108,7 @@ export function PlannedFields({
           PlannedFormSheet (đường tạo khoản sắp chi từ trang Sắp chi) vẫn giữ thứ tự cũ:
           sheet đó không có bàn số ghim nào, nên lý lẽ trên không áp vào. Hai form chỉ bị
           buộc phải khớp CHỮ (tests/plannedCopy.test.ts), không buộc khớp thứ tự. */}
-      <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="entry-planned-title">
+      <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="entry-planned-title">
         Chi cái gì
       </label>
       <input
@@ -124,7 +123,7 @@ export function PlannedFields({
         className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-base sm:text-sm"
       />
 
-      <span className="mb-1 block text-xs font-medium text-fg-muted">Chắc tới đâu</span>
+      <span className="mb-1 block text-sm font-medium text-fg-muted">Chắc tới đâu</span>
       <div
         role="group"
         aria-label="Chắc tới đâu"
@@ -159,7 +158,7 @@ export function PlannedFields({
           </button>
         ))}
       </div>
-      <p className="mb-3 text-xs text-fg-muted">
+      <p className="mb-3 text-sm text-fg-muted">
         {value.precision === 'day'
           ? 'Danh sách hiện đúng ngày này.'
           : 'Danh sách chỉ hiện tháng — không bịa ra một ngày cụ thể.'}
@@ -168,7 +167,7 @@ export function PlannedFields({
       {/* Cặp nhãn ô ngày sống Ở ĐÂY, không ở PHASE_LABEL (entryShape.ts): nó đọc theo
           `precision` — một field của PlannedDraft — chứ không theo hướng tiền, nên một
           bảng theo hướng không nói được cặp này. */}
-      <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="entry-planned-due">
+      <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="entry-planned-due">
         {value.precision === 'day' ? 'Ngày đến hạn' : 'Tháng dự kiến'}
       </label>
       <input
@@ -201,7 +200,7 @@ export function PlannedFields({
       </label>
       {value.remind ? (
         <div className="mb-3 flex items-center gap-2">
-          <label className="text-xs text-fg-muted" htmlFor="entry-planned-remind">
+          <label className="text-sm text-fg-muted" htmlFor="entry-planned-remind">
             Nhắc trước
           </label>
           {/* Ô TỰ DO (`type="number"`), không phải bốn chip mốc dựng sẵn — chip mốc
@@ -220,32 +219,30 @@ export function PlannedFields({
             onChange={(e) => onChange({ ...value, remindDays: e.target.value })}
             className="w-16 rounded-md border border-border-strong px-2 py-1.5 text-right text-base sm:text-sm"
           />
-          <span className="text-xs text-fg-muted">ngày (0 = đúng ngày đến hạn)</span>
+          <span className="text-sm text-fg-muted">ngày (0 = đúng ngày đến hạn)</span>
         </div>
       ) : (
-        <p className="mb-3 text-xs text-fg-muted">
+        <p className="mb-3 text-sm text-fg-muted">
           Không kêu gì cả — chỉ nằm trong danh sách để bạn nhìn.
         </p>
       )}
 
-      <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="entry-planned-cat">
+      <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="entry-planned-cat">
         Danh mục <span className="text-fg-muted">(không bắt buộc)</span>
       </label>
-      <select
+      <Select
         id="entry-planned-cat"
         value={value.categoryId ?? ''}
-        onChange={(e) => onChange({ ...value, categoryId: e.target.value || null })}
-        className="mb-3 w-full rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
-      >
+        onChange={(e) => onChange({ ...value, categoryId: e.target.value || null })} wrapClassName="mb-3 w-full">
         <option value="">— Chưa chọn —</option>
         {expenseCats.map((c) => (
           <option key={c.id} value={c.id}>
             {c.icon} {c.name}
           </option>
         ))}
-      </select>
+      </Select>
 
-      <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="entry-planned-note">
+      <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="entry-planned-note">
         Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
       </label>
       <input

@@ -11,7 +11,7 @@
 // lên khi bật cú sốc.
 import { AlertTriangle } from 'lucide-react'
 import { Guide } from '../../components/Guide'
-import { Card } from '../../components/ui'
+import { Card, SectionTitle } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
 import { formatCompact } from '../../lib/money'
 import type { StressConfig } from './project'
@@ -102,7 +102,7 @@ function Toggle({
         />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[0.8125rem] font-medium text-fg-primary">{label}</span>
+        <span className="block text-sm font-medium text-fg-primary">{label}</span>
         <span className="block text-2xs text-fg-muted">{sub}</span>
       </span>
     </button>
@@ -110,7 +110,7 @@ function Toggle({
 }
 
 const FIELD =
-  'mt-0.5 block w-full rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-fg-primary tabular-nums'
+  'mt-0.5 block w-full rounded-md border border-border-strong bg-surface px-2 py-1.5 text-sm text-fg-primary tabular-nums'
 
 function NumField({
   label,
@@ -329,7 +329,7 @@ export function StressPanel({
       {/* Kết luận của cú sốc, viết thành CÂU chứ không để người dùng tự so hai đường:
           đường phủ nói "đi thấp hơn", còn câu này nói thấp hơn thì HẬU QUẢ là gì. */}
       {anyOn && (
-        <p className="mt-2 flex items-start gap-1.5 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-xs leading-relaxed text-state-warn-fg">
+        <p className="mt-2 flex items-start gap-1.5 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-sm leading-relaxed text-state-warn-fg">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span>
             {stressNegativeYear === null
@@ -347,7 +347,7 @@ export function StressPanel({
 
   return (
     <Card as="section" elevation="panel" padding="panel">
-      <h2 className="mb-1 text-2xs uppercase tracking-[.1em] text-fg-muted">Stress test</h2>
+      <SectionTitle role="micro" className="mb-1">Stress test</SectionTitle>
       {body}
     </Card>
   )

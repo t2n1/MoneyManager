@@ -35,7 +35,7 @@ import { useRatesFreshness } from '../../hooks/useDataFreshness'
 import { remitMonthlyTotals, remitStrip } from '../reports/longRange'
 import { AccountPicker } from '../../components/AccountPicker'
 import { DateField } from '../../components/DateField'
-import { IconButton, SegmentedControl } from '../../components/ui'
+import { IconButton, SegmentedControl, Select } from '../../components/ui'
 import { TagPicker } from '../tags/TagPicker'
 import { CategoryRow } from './CategoryRow'
 import { recentCategories } from './recentCategories'
@@ -1117,7 +1117,7 @@ export function TransactionForm({
     const body = mobileText.slice(leadSign.length, mobileText.length - trailSign.length)
     return (
       <div className="flex flex-col gap-0.5">
-        {label && <span className="px-1 text-xs text-fg-muted">{label}</span>}
+        {label && <span className="px-1 text-sm text-fg-muted">{label}</span>}
         <button
           type="button"
           onClick={() => setActiveField(field)}
@@ -1125,8 +1125,8 @@ export function TransactionForm({
           // 30px mono/600 canh phải (§4.6). rem chứ không px: Cài đặt → Cỡ chữ chỉ co
           // giãn được cái tính theo rem. Ô nhập của 1a là `--surface` + viền control,
           // bán kính 8px, KHÔNG bóng.
-          className={`truncate rounded-md border border-border-strong bg-surface px-4 py-2.5 text-right font-mono font-semibold tracking-[-.02em] ${
-            showExpr ? 'text-xl' : 'text-[1.875rem]'
+          className={`truncate rounded-md border border-border-strong bg-surface px-4 py-2.5 text-right font-mono font-semibold tracking-number ${
+            showExpr ? 'text-xl' : 'text-hero'
           } ${isEmpty ? 'text-fg-muted' : amountColor} ${ring} lg:hidden`}
         >
           {leadSign && (
@@ -1186,7 +1186,7 @@ export function TransactionForm({
           // 1a bỏ hẳn shadow). `outline-accent` một mình chỉ đặt MÀU cho viền mặc định
           // của trình duyệt, mà viền đó mỗi trình duyệt một bề dày — ô chính của màn thì
           // không để trình duyệt quyết định nó dày mỏng ra sao.
-          className={`hidden rounded-md border border-border-strong bg-surface px-4 py-3 text-right font-mono text-[1.875rem] font-semibold tracking-[-.02em] focus:outline-2 focus:-outline-offset-2 focus:outline-accent lg:block ${amountColor}`}
+          className={`hidden rounded-md border border-border-strong bg-surface px-4 py-3 text-right font-mono text-hero font-semibold tracking-number focus:outline-2 focus:-outline-offset-2 focus:outline-accent lg:block ${amountColor}`}
         />
       </div>
     )
@@ -1240,7 +1240,7 @@ export function TransactionForm({
                 <button
                   type="button"
                   onClick={() => applyTemplate(t)}
-                  className="flex items-center gap-1 rounded-full border border-border-strong bg-surface py-1.5 pl-3 pr-6 text-xs font-medium text-fg-secondary transition active:scale-95"
+                  className="flex items-center gap-1 rounded-full border border-border-strong bg-surface py-1.5 pl-3 pr-6 text-sm font-medium text-fg-secondary transition active:scale-95"
                 >
                   <Star className="h-3 w-3 text-amber-400" fill="currentColor" />
                   <span className="max-w-[9rem] truncate">{t.label}</span>
@@ -1318,10 +1318,10 @@ export function TransactionForm({
           {/* Chip cảnh báo: khoản này CHƯA xảy ra — không đụng tới ví, không đụng tới
               trần ngân sách, không đụng tới bất kỳ con số Báo cáo nào của kỳ này. */}
           <div className="mb-1.5 flex items-center gap-2 px-1">
-            <span className="shrink-0 rounded-full bg-state-warn-bg px-2 py-0.5 text-xs font-semibold text-state-warn-fg">
+            <span className="shrink-0 rounded-full bg-state-warn-bg px-2 py-0.5 text-sm font-semibold text-state-warn-fg">
               chưa xảy ra
             </span>
-            <span className="text-xs text-fg-muted">Chưa trừ tiền, chưa vào trần.</span>
+            <span className="text-sm text-fg-muted">Chưa trừ tiền, chưa vào trần.</span>
           </div>
           <PlannedFields
             value={plannedDraft}
@@ -1348,18 +1348,16 @@ export function TransactionForm({
               <div className="min-w-0 flex-1">
                 {amountBox('main', digits, debtCurrency, setDigits, shape.amountLabel)}
               </div>
-              <select
+              <Select
                 value={owedCurrency}
                 onChange={(e) => setOwedCurrency(e.target.value as CurrencyCode)}
-                aria-label="Loại tiền của khoản nợ"
-                className="w-24 shrink-0 rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
-              >
+                aria-label="Loại tiền của khoản nợ" wrapClassName="w-24 shrink-0">
                 {Object.keys(CURRENCIES).map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           ) : (
             <>
@@ -1447,7 +1445,7 @@ export function TransactionForm({
           `roleSeed` trong entryShape: split→SplitFields · lend|borrow→DebtFields ·
           family|ownvn→RemitFields. Map sai là bug im lặng (form hiện đúng nhưng ghi sai). */}
       {remitLike && pickerAccounts.length === 0 && (
-        <p className="rounded-lg border border-state-bad-border bg-state-bad-bg px-3 py-2 text-xs text-state-bad-fg">
+        <p className="rounded-lg border border-state-bad-border bg-state-bad-bg px-3 py-2 text-sm text-state-bad-fg">
           Chưa có tài khoản JPY. Hãy tạo một tài khoản JPY trước khi gửi tiền về VN.
         </p>
       )}
@@ -1554,7 +1552,7 @@ export function TransactionForm({
           viết hex (§index.css), và cặp token có sẵn cả bản sáng lẫn bản tối, trong khi
           spec chỉ cho ba giá trị dark. */}
       {capWarning && (
-        <p className="flex min-h-11 items-center gap-2 rounded-lg border border-state-warn-border bg-state-warn-bg px-3 py-2 text-xs text-state-warn-fg">
+        <p className="flex min-h-11 items-center gap-2 rounded-lg border border-state-warn-border bg-state-warn-bg px-3 py-2 text-sm text-state-warn-fg">
           <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden />
           {capWarning}
         </p>
@@ -1671,7 +1669,7 @@ export function TransactionForm({
           />
           <span>
             Đây là khoản <b>hoàn tiền</b>
-            <Guide as="span" className="block text-xs text-fg-muted">
+            <Guide as="span" className="block text-sm text-fg-muted">
               Trả hàng, hủy vé, hoàn phí… Tiền quay lại ví và TRỪ vào chi của danh mục đã chọn, thay
               vì bị tính thành thu nhập.
             </Guide>
@@ -1683,7 +1681,7 @@ export function TransactionForm({
           ở màn Nhập (nơi ô đó chưa bao giờ hiện) nó là lời giải thích cho cái không ai
           thấy — chỉ thêm một dòng chữ vào đúng màn đang muốn gọn lại. */}
       {showRefundOption && kind === 'spend' && refundDropped && (
-        <p className="px-1 text-xs text-fg-muted">{refundNote}</p>
+        <p className="px-1 text-sm text-fg-muted">{refundNote}</p>
       )}
       </div>
 
@@ -1735,7 +1733,7 @@ export function TransactionForm({
           của Trả hộ) thì VẪN HIỆN: chúng nói một ràng buộc không đoán ra được bằng cách
           nhìn quanh màn. */}
       {!error && missing && (
-        <p className={shortMissing ? 'sr-only' : 'px-1 text-xs text-fg-warn'}>{missing}</p>
+        <p className={shortMissing ? 'sr-only' : 'px-1 text-sm text-fg-warn'}>{missing}</p>
       )}
 
       {/* Hàng nút: ⌫ (chỉ mobile, thay cho hàng xóa lùi riêng) + Lưu và nhập tiếp / Lưu */}

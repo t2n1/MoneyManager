@@ -11,7 +11,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChartColumn, Settings } from 'lucide-react'
-import { Card, iconButtonClass } from '../../components/ui'
+import { Card, PageHeader, SectionTitle, iconButtonClass } from '../../components/ui'
 import { ConclusionLine } from '../../components/VerdictNote'
 import { useMonthKey } from '../../hooks/useMonthKey'
 import {
@@ -328,7 +328,7 @@ export function BulletinPage() {
   if (laLanDau) {
     return (
       <div className="flex flex-col gap-2.5 p-3 lg:p-4">
-        <h1 className="sr-only">Bản tin</h1>
+        <PageHeader title="Bản tin" flush mobileOnly />
         <FirstRunPanel hasBirthYear={profile?.birth_year != null} />
       </div>
     )
@@ -336,16 +336,13 @@ export function BulletinPage() {
 
   return (
     <div className="flex flex-col gap-2.5 p-3 lg:p-4">
-      <h1 className="sr-only">Bản tin</h1>
-
       {/* Tiêu đề màn cho MOBILE (top bar chỉ có từ lg). Bản vẽ 17a: mỗi màn mobile tự
           mang tiêu đề + một dòng meta bên phải.
           Hai nút bên phải là ĐƯỜNG VÀO MOBILE của hai màn không có tab (§3 chốt bốn tab
           + "+"; xem NAV_ITEMS). Đặt ở Bản tin vì đây là màn mở đầu tiên — bỏ khỏi thanh
           tab mà không mở lối khác thì trên mobile hai màn đó biến mất hẳn. */}
-      <div className="flex items-center gap-2 lg:hidden">
-        <p className="text-lg font-bold text-fg-primary">Bản tin</p>
-        <p aria-live="polite" className="ml-auto font-mono text-xs text-fg-muted">
+      <PageHeader title="Bản tin" flush mobileOnly>
+        <p aria-live="polite" className="ml-auto font-mono text-sm text-fg-muted">
           {formatMonthLabel(activeMonthKey)}
         </p>
         {/* iconButtonClass() chứ không viết tay: <Link> là thẻ <a> nên không dùng được
@@ -356,7 +353,7 @@ export function BulletinPage() {
         <Link to="/settings" aria-label="Cài đặt" className={iconButtonClass('ghost')}>
           <Settings className="h-5 w-5" strokeWidth={1.6} />
         </Link>
-      </div>
+      </PageHeader>
 
       {/* Khối 1 — Việc cần làm (§4.9). Nó THAY banner nhắc nhở cũ, không đứng cạnh: hai
           chỗ cùng nhắc một việc là đúng cái 16a đi dẹp.
@@ -455,13 +452,13 @@ export function BulletinPage() {
           className="min-w-0 flex-1 basis-full xl:basis-0"
         >
           <div className="flex items-baseline justify-between gap-2">
-            <h2 className="text-[0.8125rem] font-semibold text-fg-primary">Giao dịch gần đây</h2>
+            <SectionTitle>Giao dịch gần đây</SectionTitle>
             <Link to="/so" className="-my-2 py-2 text-2xs font-medium text-fg-accent hover:underline">
               Mở Sổ →
             </Link>
           </div>
           {recent.length === 0 ? (
-            <p className="mt-3 text-[0.8125rem] text-fg-muted">
+            <p className="mt-3 text-sm text-fg-muted">
               Chưa ghi giao dịch nào {formatMonthLabel(activeMonthKey)}.{' '}
               <Link to="/entry" className="font-medium text-fg-accent hover:underline">
                 Ghi một khoản

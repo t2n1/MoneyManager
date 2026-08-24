@@ -5,6 +5,7 @@ import { MoneyField } from '../../components/MoneyField'
 import type { DebtDirection, DebtRow } from '../../types/database.types'
 import { DebtDetailInputs } from '../transactions/roleFields'
 import { useEscClose } from '../../hooks/useEscClose'
+import { SectionTitle, actionButtonClass } from '../../components/ui'
 
 interface Props {
   debt: DebtRow
@@ -70,7 +71,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
         className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-fg-primary">Sửa khoản nợ</h2>
+        <SectionTitle role="block" className="mb-3">Sửa khoản nợ</SectionTitle>
 
         {/* Chiều */}
         <div className="mb-3 grid grid-cols-2 gap-2 rounded-lg bg-surface-sunken p-1">
@@ -95,7 +96,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           ))}
         </div>
 
-        <label htmlFor={`${uid}-party`} className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-party`} className="mb-1 block text-sm font-medium text-fg-muted">
           {direction === 'i_owe' ? 'Chủ nợ (mình nợ ai)' : 'Con nợ (ai nợ mình)'}
         </label>
         <input
@@ -108,7 +109,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
         />
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">
+        <span className="mb-1 block text-sm font-medium text-fg-muted">
           Số tiền gốc ({CURRENCIES[debt.currency].symbol})
         </span>
         <div className="mb-3">
@@ -135,7 +136,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           />
         </div>
 
-        <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-note`} className="mb-1 block text-sm font-medium text-fg-muted">
           Ghi chú (không bắt buộc)
         </label>
         <input
@@ -146,7 +147,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
           className="mb-1 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg-primary"
         />
 
-        <p className="mt-2 text-xs text-fg-muted">
+        <p className="mt-2 text-sm text-fg-muted">
           Không đổi được loại tiền của khoản nợ đã tạo.
         </p>
 
@@ -162,7 +163,7 @@ export function DebtEditSheet({ debt, onClose }: Props) {
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
+            className={actionButtonClass('primary')}
           >
             {saving ? 'Đang lưu…' : 'Lưu'}
           </button>

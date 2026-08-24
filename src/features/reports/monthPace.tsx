@@ -30,7 +30,8 @@ import { cumulativeDailyBalance, dailyExpenseTotals } from './aggregate'
 import { pickBudgetVerdict } from './budgetVerdict'
 import { forecastMonthEnd, type Forecast } from './insights'
 import { SpendVsBudgetCard } from './SpendVsBudgetCard'
-import { Card } from '../../components/ui'
+import { Card, SectionTitle } from '../../components/ui'
+import { CHART_TEXT_2XS, CHART_TEXT_XS } from '../../lib/chartText'
 
 export interface MonthPace {
   base: CurrencyCode
@@ -264,7 +265,7 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
               nó lại chỉ vẽ phần đã đặt hạn mức — hai phạm vi trong một thẻ. Đo trên demo
               hai số lệch ¥47,054 (¥239,245 so với ¥192,191) mà trước đây không có chữ nào
               nói vì sao, nên đọc thành "thẻ này tự mâu thuẫn". */}
-          <p className="text-xs text-fg-muted">
+          <p className="text-sm text-fg-muted">
             {scoped ? 'Cả tháng đã chi ' : 'Đã chi '}
             {formatMoney(forecast.spentSoFar, base)} sau {forecast.daysElapsed}/
             {forecast.daysInMonth} ngày{scoped ? ' — gồm cả mục chưa đặt hạn mức.' : '.'}
@@ -272,7 +273,7 @@ export function SpendPaceSection({ pace }: { pace: MonthPace }) {
           {/* Nói KHOẢNG chứ không một con số: cùng một mức chi trung bình, người tiêu đều
               mỗi ngày và người dồn vào cuối tuần cho ra độ tin cậy khác hẳn nhau. */}
           {forecast.hasRange && (
-            <p className="mt-1 text-xs text-fg-secondary">
+            <p className="mt-1 text-sm text-fg-secondary">
               {visual ? (
                 <>
                   Cuối tháng ≈ <b>{formatMoney(forecast.projected, base)}</b> (
@@ -313,7 +314,7 @@ export function BudgetVerdictLine({ pace }: { pace: MonthPace }) {
 
   if (verdict.kind === 'unset') {
     return (
-      <Guide className="mt-2 text-xs text-fg-muted">
+      <Guide className="mt-2 text-sm text-fg-muted">
         Đặt ngân sách tháng để so sánh với dự báo.
       </Guide>
     )
@@ -322,7 +323,7 @@ export function BudgetVerdictLine({ pace }: { pace: MonthPace }) {
   const { totalBudgeted, budgetedCount } = verdict
   if (verdict.kind === 'over') {
     return (
-      <p className="mt-2 rounded-lg bg-state-bad-bg px-2 py-1.5 text-xs text-money-out">
+      <p className="mt-2 rounded-lg bg-state-bad-bg px-2 py-1.5 text-sm text-money-out">
         {visual ? (
           <>
             Với đà này sẽ vượt trần {formatMoney(totalBudgeted, base)} khoảng{' '}
@@ -339,7 +340,7 @@ export function BudgetVerdictLine({ pace }: { pace: MonthPace }) {
   }
   if (verdict.kind === 'near') {
     return (
-      <p className="mt-2 rounded-lg bg-state-warn-bg text-state-warn-fg px-2 py-1.5 text-xs">
+      <p className="mt-2 rounded-lg bg-state-warn-bg text-state-warn-fg px-2 py-1.5 text-sm">
         {visual ? (
           <>Với đà này có thể vượt trần {formatMoney(totalBudgeted, base)}</>
         ) : (
@@ -352,7 +353,7 @@ export function BudgetVerdictLine({ pace }: { pace: MonthPace }) {
     )
   }
   return (
-    <p className="mt-2 rounded-lg bg-accent-muted-bg px-2 py-1.5 text-xs text-fg-accent">
+    <p className="mt-2 rounded-lg bg-accent-muted-bg px-2 py-1.5 text-sm text-fg-accent">
       {visual ? (
         <>Với đà này vẫn trong trần {formatMoney(totalBudgeted, base)}</>
       ) : (
@@ -380,9 +381,9 @@ export function CumulativeCashflowCard({ pace }: { pace: MonthPace }) {
     <>
       {hasCashflow && (
         <Card as="section">
-          <h2 className="mb-2 text-sm font-semibold text-fg-muted">
+          <SectionTitle className="mb-2">
             Dòng tiền tích lũy trong tháng
-          </h2>
+          </SectionTitle>
           <div className="h-52 w-full">
             <ResponsiveContainer width="100%" height="100%">
               {/* right: 14 chứ không 8 — điểm cuối của LineChart nằm ĐÚNG mép phải vùng vẽ,
@@ -392,14 +393,14 @@ export function CumulativeCashflowCard({ pace }: { pace: MonthPace }) {
               <LineChart data={cashflowData} margin={{ top: 8, right: 14, left: -8, bottom: 0 }}>
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
+                  tick={{ fontSize: CHART_TEXT_2XS, fill: 'var(--fg-muted)' }}
                   axisLine={false}
                   tickLine={false}
                   interval={4}
                 />
                 <YAxis
                   tickFormatter={(v: number) => formatCompact(v, base)}
-                  tick={{ fontSize: 11, fill: 'var(--fg-muted)' }}
+                  tick={{ fontSize: CHART_TEXT_2XS, fill: 'var(--fg-muted)' }}
                   axisLine={false}
                   tickLine={false}
                   width={44}
@@ -408,7 +409,7 @@ export function CumulativeCashflowCard({ pace }: { pace: MonthPace }) {
                 <Tooltip
                   formatter={(v) => formatMoney(Number(v), base)}
                   labelFormatter={(l) => String(l)}
-                  contentStyle={{ borderRadius: 8, fontSize: 12, border: '1px solid #e5e7eb' }}
+                  contentStyle={{ borderRadius: 8, fontSize: CHART_TEXT_XS, border: '1px solid #e5e7eb' }}
                 />
                 {/* sky-600 chứ không sky-500: sky-500 chỉ 2,77:1 trên nền trắng, dưới
                     ngưỡng 3:1 cho đối tượng đồ hoạ. sky-600 đạt 4,02:1 / 4,41:1. */}

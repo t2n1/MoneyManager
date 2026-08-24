@@ -9,7 +9,7 @@ import {
 } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
-import { ActionButton, Money } from '../../components/ui'
+import { ActionButton, Money, SectionTitle } from '../../components/ui'
 import { useEscClose } from '../../hooks/useEscClose'
 import { MoneyField } from '../../components/MoneyField'
 import { DateField } from '../../components/DateField'
@@ -107,14 +107,14 @@ export function CardMonthAdjustSheet({
         className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-base font-bold text-fg-primary">Chỉnh cho khớp sao kê</h2>
-        <p className="mb-3 text-xs text-fg-muted">
+        <SectionTitle role="block" className="mb-1">Chỉnh cho khớp sao kê</SectionTitle>
+        <p className="mb-3 text-sm text-fg-muted">
           {account.name} · sao kê {monthLabel.toLowerCase()} ({periodLabel}) · app đang tính{' '}
           {formatMoney(charged, currency)}
         </p>
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">
+        <span className="mb-1 block text-sm font-medium text-fg-muted">
           Tổng thật trên sao kê
         </span>
         <div className="mb-3">
@@ -129,7 +129,7 @@ export function CardMonthAdjustSheet({
         </div>
 
         {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">Ghi vào ngày</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">Ghi vào ngày</span>
         {/* Kẹp trong kỳ: khoản bù rơi sang tháng khác thì tháng này vẫn lệch */}
         <DateField
           ariaLabel="Ghi vào ngày"
@@ -139,7 +139,7 @@ export function CardMonthAdjustSheet({
           onChange={setOccurredOn}
           className="mb-1 w-full px-3 py-2"
         />
-        <p className="mb-3 text-xs text-fg-muted">
+        <p className="mb-3 text-sm text-fg-muted">
           {suggestedDate === todayISO
             ? 'Ghi vào hôm nay — vẫn nằm trong kỳ.'
             : `Ghi vào ngày chốt kỳ (${dayMonthLabel(lastDayISO)}), để khoản bù nằm đúng trong kỳ.`}{' '}
@@ -158,7 +158,7 @@ export function CardMonthAdjustSheet({
               className="font-semibold"
             />
           </div>
-          <p className="mt-1 text-xs text-fg-muted">
+          <p className="mt-1 text-sm text-fg-muted">
             {diff === 0
               ? 'Số đã khớp — không cần chỉnh.'
               : diff > 0

@@ -6,7 +6,7 @@
 // Tài sản (đã lọc nhóm ẩn / tài khoản ẩn, đã quy đổi base), nên hai màn không bao giờ
 // nói hai số dư khác nhau cho cùng một tài khoản.
 import { Link } from 'react-router-dom'
-import { Card, Money } from '../../components/ui'
+import { Card, Money, SectionTitle } from '../../components/ui'
 import { AccountTypeIcon } from '../../components/icons'
 import type { AssetGroup } from '../assets/aggregate'
 
@@ -29,14 +29,14 @@ export function AccountsPanel({ groups }: { groups: AssetGroup[] }) {
       className="min-w-0 flex-1 basis-full xl:max-w-[23.75rem] xl:basis-0"
     >
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-[0.8125rem] font-semibold text-fg-primary">Tài khoản</h2>
+        <SectionTitle>Tài khoản</SectionTitle>
         <Link to="/assets" className="-my-2 py-2 text-2xs font-medium text-fg-accent hover:underline">
           Xem tất cả →
         </Link>
       </div>
 
       {shown.length === 0 ? (
-        <p className="mt-3 text-[0.8125rem] text-fg-muted">
+        <p className="mt-3 text-sm text-fg-muted">
           Chưa có tài khoản nào.{' '}
           <Link to="/settings/accounts" className="font-medium text-fg-accent hover:underline">
             Thêm tài khoản
@@ -51,7 +51,7 @@ export function AccountsPanel({ groups }: { groups: AssetGroup[] }) {
                 className="flex items-center gap-2.5 py-2 transition hover:bg-surface-sunken"
               >
                 <AccountTypeIcon type={a.type} className="h-4 w-4 shrink-0 text-fg-muted" />
-                <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-fg-secondary">
+                <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">
                   {a.name}
                 </span>
                 {/* Số dư ở đồng tiền gốc: đây là danh sách "ví nào còn bao nhiêu", mà
@@ -60,7 +60,7 @@ export function AccountsPanel({ groups }: { groups: AssetGroup[] }) {
                   amount={a.value}
                   currency={a.currency}
                   tone={a.value < 0 ? 'out' : 'neutral'}
-                  className="shrink-0 text-xs"
+                  className="shrink-0 text-sm"
                 />
               </Link>
             </li>

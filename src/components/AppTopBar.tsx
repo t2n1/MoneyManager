@@ -55,7 +55,7 @@ export function AppTopBar() {
 
           min-w giữ mọi thứ phía sau đứng yên khi đổi trang: tiêu đề dài ngắn khác nhau
           mà không chốt bề rộng thì ô tìm kiếm nhảy ngang mỗi lần điều hướng. */}
-      <p className="min-w-24 shrink-0 text-[0.875rem] font-semibold text-fg-primary">{title}</p>
+      <p className="min-w-24 shrink-0 text-sm font-semibold text-fg-primary">{title}</p>
 
       {usesMonth(location.pathname) && (
         <div className="flex shrink-0 items-center gap-1">
@@ -64,7 +64,7 @@ export function AppTopBar() {
           </button>
           {/* Mã tháng đi bằng mono như mọi con số khác (§1.2) — nó là dữ liệu, và ở
               dạng mono thì bề ngang không đổi khi bấm qua các tháng. */}
-          <span className="rounded-md border border-border-strong bg-surface-sunken px-3 py-1.5 font-mono text-xs text-fg-primary">
+          <span className="rounded-md border border-border-strong bg-surface-sunken px-3 py-1.5 font-mono text-sm text-fg-primary">
             {formatMonthLabel(activeMonthKey)}
           </span>
           <button type="button" onClick={() => stepMonth(1)} aria-label="Tháng sau" className={STEP_BTN}>
@@ -88,13 +88,13 @@ export function AppTopBar() {
           onChange={(e) => setQ(e.target.value)}
           placeholder="Tìm giao dịch"
           aria-label="Tìm giao dịch"
-          className="min-w-0 flex-1 bg-transparent text-xs text-fg-primary placeholder:text-fg-muted"
+          className="min-w-0 flex-1 bg-transparent text-sm text-fg-primary placeholder:text-fg-muted"
         />
         {/* Nhắc phím tắt, không phải nút. aria-hidden vì trình đọc màn hình đọc "⌘K"
             thành một chuỗi vô nghĩa, mà ô đã có nhãn rồi. */}
         <kbd
           aria-hidden
-          className="shrink-0 rounded border border-border-strong px-1 py-px font-mono text-3xs text-fg-muted"
+          className="shrink-0 rounded border border-border-strong px-1 py-px font-mono text-2xs text-fg-muted"
         >
           ⌘K
         </kbd>
@@ -118,7 +118,7 @@ export function AppTopBar() {
         <button
           type="button"
           onClick={() => navigate('/entry')}
-          className="ml-1 flex h-[1.875rem] items-center gap-1.5 rounded-md bg-accent px-3.5 text-[0.8125rem] font-semibold text-fg-on-accent transition active:scale-95"
+          className="ml-1 flex h-[1.875rem] items-center gap-1.5 rounded-md bg-accent px-3.5 text-sm font-semibold text-fg-on-accent transition active:scale-95"
         >
           <Plus className="h-[0.9375rem] w-[0.9375rem]" strokeWidth={2.2} />
           Giao dịch

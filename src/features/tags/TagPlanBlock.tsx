@@ -12,7 +12,7 @@
 import { Link } from 'react-router-dom'
 import { TriangleAlert } from 'lucide-react'
 import { Guide } from '../../components/Guide'
-import { Money, STATUS_FILL } from '../../components/ui'
+import { Money, STATUS_FILL, SectionTitle } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { TagPlanLine } from './budget'
 import { TAG_CHIP_CLASS, tagColor } from './colors'
@@ -29,8 +29,8 @@ export function TagPlanBlock({ lines, base, hasMissingRate }: Props) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border-panel bg-surface-chrome px-4 py-2.5">
-        <h3 className="text-xs font-bold text-fg-primary">Trần theo nhãn</h3>
-        <span className="text-3xs text-fg-muted">
+        <SectionTitle as="h3">Trần theo nhãn</SectionTitle>
+        <span className="text-2xs text-fg-muted">
           cắt ngang danh mục · {lines.length} nhãn
         </span>
         {/* -my-3 để vùng chạm 44px không đẩy hàng header giãn ra — cùng mẹo với "Đổi mốc"
@@ -66,7 +66,7 @@ export function TagPlanBlock({ lines, base, hasMissingRate }: Props) {
                   {/* Số danh mục đang phủ (B35.1): không có nó thì `#❤️ ¥50,000` không nói
                       được nó chồng lên những hạn mức nào — mà đó chính là câu hỏi duy nhất
                       một trần cắt ngang đặt ra. */}
-                  <span className="min-w-0 truncate text-3xs text-fg-muted">
+                  <span className="min-w-0 truncate text-2xs text-fg-muted">
                     {laDot ? 'cả đợt' : 'mỗi tháng'}
                     {l.categoryCount > 0
                       ? ` · đang phủ ${l.categoryCount} danh mục`
@@ -74,12 +74,12 @@ export function TagPlanBlock({ lines, base, hasMissingRate }: Props) {
                   </span>
                 </span>
                 {l.exhausted ? (
-                  <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-money-out">
+                  <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-money-out">
                     <TriangleAlert className="h-3.5 w-3.5" aria-hidden />
                     đã cạn
                   </span>
                 ) : (
-                  <span className="shrink-0 text-xs">
+                  <span className="shrink-0 text-sm">
                     <Money
                       amount={Math.round(l.available)}
                       currency={base}

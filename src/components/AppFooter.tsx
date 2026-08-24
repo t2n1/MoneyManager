@@ -18,7 +18,7 @@ export function AppFooter() {
   const freshness = useDataFreshness()
 
   return (
-    <footer className="mt-8 flex flex-col items-center gap-1 px-3 pb-2 text-center text-xs text-fg-muted print:hidden">
+    <footer className="mt-8 flex flex-col items-center gap-1 px-3 pb-2 text-center text-sm text-fg-muted print:hidden">
       {/* Chú thích chế độ demo — trước đây nằm ở chân thanh bên 240px nên CHỈ desktop
           thấy, trong khi "số trên màn không phải tiền thật" là câu quan trọng nhất ở
           chế độ đó. Rail 52px không chứa nổi một câu, và đây vốn là chỗ của những câu

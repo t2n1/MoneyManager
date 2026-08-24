@@ -3,7 +3,7 @@ import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { Plus, Target } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
-import { Card } from '../../components/ui'
+import { Card, SectionTitle, actionButtonClass } from '../../components/ui'
 import {
   useAccountBalances,
   useAccounts,
@@ -82,21 +82,21 @@ export function SavingsGoalsSection({ view }: Props) {
     <Card as="section" padding="lg">
       <div className="flex items-center gap-2">
         <Target className="h-5 w-5 text-money-in" />
-        <h2 className="flex-1 text-sm font-semibold text-fg-secondary">
+        <SectionTitle className="flex-1">
           Mục tiêu tiết kiệm
-        </h2>
+        </SectionTitle>
         <button
           type="button"
           onClick={() => setSheet({ open: true })}
           disabled={selectableAccounts.length === 0}
-          className="inline-flex items-center gap-1 rounded-md bg-accent text-fg-on-accent px-2.5 py-1 text-xs font-semibold transition active:scale-95 disabled:opacity-40"
+          className={actionButtonClass('primary')}
         >
-          <Plus className="h-3.5 w-3.5" /> Thêm
+          <Plus className="h-4 w-4" /> Thêm
         </button>
       </div>
 
       {goals.length === 0 ? (
-        <p className="mt-3 text-center text-xs text-fg-muted">
+        <p className="mt-3 text-center text-sm text-fg-muted">
           Chưa có mục tiêu nào.
           <Guide as="span"> Đặt một đích tiết kiệm để theo dõi tiến độ.</Guide>
         </p>
@@ -127,7 +127,7 @@ export function SavingsGoalsSection({ view }: Props) {
                     {g.name}
                   </span>
                   <span
-                    className={`text-xs font-semibold ${f.done ? 'text-money-in' : 'text-fg-muted'}`}
+                    className={`text-sm font-semibold ${f.done ? 'text-money-in' : 'text-fg-muted'}`}
                   >
                     {pct}%
                   </span>
@@ -138,7 +138,7 @@ export function SavingsGoalsSection({ view }: Props) {
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <div className="mt-1 flex items-center justify-between text-xs text-fg-muted">
+                <div className="mt-1 flex items-center justify-between text-sm text-fg-muted">
                   <span className="tabular-nums">
                     {view.fmt(f.current, currency)} / {view.fmt(g.target_amount, currency)}
                   </span>

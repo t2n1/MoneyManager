@@ -477,7 +477,11 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     // bỏ qua tất thì <label> bọc <Guide> (chỉ có chữ) cũng lọt.
     //   AccountToggle (AccountsPage:707) và Toggle (AssetGroupsPage:34): cả hai render
     //   <button type="button" role="switch" aria-label>.
-    const BOC_CONTROL_BEN_TRONG = ['AccountToggle', 'Toggle']
+    //   Select (components/ui/Select.tsx): render <select> GỐC bên trong — cố ý, để trên
+    //   điện thoại vẫn mở bộ chọn của hệ điều hành. Nó vào danh sách này khi 25 ô chọn
+    //   viết tay gom về primitive (2026-08-25); trước đó nguồn có chữ `<select` nên phép
+    //   quét thấy, sau đó thì không.
+    const BOC_CONTROL_BEN_TRONG = ['AccountToggle', 'Toggle', 'Select']
     const moCoi: string[] = []
     for (const file of sourceFiles()) {
       // Che comment nhưng GIỮ số ký tự, để số dòng báo lỗi vẫn đúng. Cần vì chính các
@@ -688,16 +692,52 @@ describe('design system — ban cứng (phải bằng 0)', () => {
     }
   })
 
-  // Lý do: đã có tên text-2xs (11px) / text-3xs (10px). Giá trị tuỳ ý quay lại là
-  // scale lại bị chọc lỗ.
+  // Luật này TỪNG chỉ cấm hai giá trị (0.6875rem, 0.625rem) — và đúng vì thế mà
+  // `text-[0.8125rem]` (13px) mọc lên 91 chỗ ở 28 file mà không ai thấy: nó là một bậc
+  // thứ mười, không tên, chen giữa 12 và 14. Cùng lúc đó bảy cỡ tuỳ ý khác đang phục vụ
+  // đúng MỘT vai trò "số chính của màn" (22, 24, 26, 30, 32, 44).
+  //
+  // Nên luật giờ cấm CẢ DẠNG, không liệt kê giá trị. Thang chỉ còn sáu bậc, mỗi bậc cách
+  // nhau ít nhất 2px và đều có tên:
+  //   text-2xs 11 · text-sm 14 · text-base 16 · text-lg 18 · text-kpi 22 · text-hero 30
+  // (text-3xs 10 vẫn còn trong @theme nhưng CHỈ cho biểu đồ — xem chartText.ts.)
   it('dùng bậc chữ đã đặt tên, không chêm giá trị tuỳ ý', () => {
-    for (const [needle, token] of [
-      ['text-[0.6875rem]', 'text-2xs'],
-      ['text-[0.625rem]', 'text-3xs'],
-    ]) {
-      const { count, where } = occurrences(needle)
-      expect(count, `Dùng ${token}.\n${where.join('\n')}`).toBe(0)
+    const hits: string[] = []
+    for (const f of sourceFiles()) {
+      const raw = readFileSync(f, 'utf8')
+      for (const m of stripComments(raw).matchAll(/text-\[[\d.]+(rem|px|em)\]/g)) {
+        hits.push(`${f.slice(SRC.length + 1)} — ${m[0]}`)
+      }
     }
+    expect(
+      hits,
+      `Dùng bậc đã đặt tên: text-2xs / text-sm / text-base / text-lg / text-kpi / text-hero.`,
+    ).toEqual([])
+  })
+
+  // Số chính của màn từng có ba công thức khác nhau cho CÙNG con số ¥58,670: 18/600/Mono
+  // ở câu mở Bản tin, 26/500/Mono ở ô Ngân sách, và 30/700/SANS ở trang Ngân sách. Hai
+  // chỗ dùng Sans phá đúng câu đầu tiên của mục Kiểu chữ trong index.css ("IBM Plex Mono
+  // cho MỌI con số") — và đó là lý do cột số ở hai màn đó không thẳng hàng như màn khác.
+  //
+  // `text-kpi`/`text-hero` chỉ đứng trên SỐ, nên chỗ nào mang chúng cũng phải mang mono:
+  // hoặc trực tiếp bằng `font-mono`, hoặc gián tiếp qua <Money>/<Num> (hai component đó
+  // tự khai `font-mono tabular-nums`).
+  it('bậc số (text-kpi/text-hero) luôn đi với font mono', () => {
+    const hits: string[] = []
+    for (const f of sourceFiles()) {
+      const raw = readFileSync(f, 'utf8')
+      const text = stripComments(raw)
+      // Một thẻ mở: từ '<' tới '>' gần nhất không nằm trong chuỗi. Đủ cho mục đích ở đây.
+      for (const m of text.matchAll(/<[A-Za-z][^>]*?(text-kpi|text-hero)[^>]*?>/g)) {
+        const tag = m[0]
+        const viaComponent = /^<(Money|Num)\b/.test(tag)
+        if (!viaComponent && !tag.includes('font-mono')) {
+          hits.push(`${f.slice(SRC.length + 1)} — ${tag.slice(0, 80)}…`)
+        }
+      }
+    }
+    expect(hits, `Thêm font-mono, hoặc render qua <Money>/<Num>.`).toEqual([])
   })
 
   // Lý do: §13 — cỡ chữ viết bằng PX đứng yên khi người dùng phóng chữ ở Cài đặt → Cỡ
@@ -711,6 +751,86 @@ describe('design system — ban cứng (phải bằng 0)', () => {
       .filter(([, src]) => /text-\[\d+px\]/.test(src))
       .map(([f]) => f.replace(SRC, ''))
     expect(hits, `Quy về rem, hoặc dùng bậc đã đặt tên (text-2xs / text-3xs).`).toEqual([])
+  })
+
+  // Lý do: CÙNG luật ngay trên, nhưng ở lối vào mà luật đó không nhìn thấy. Recharts nhận
+  // cỡ chữ qua PROP chứ không qua className — `tick={{fontSize: 11}}`, `fontSize={10}`,
+  // `contentStyle={{fontSize: 12}}` — và một SỐ THUẦN ở đó ra `font-size="11"`, tức 11px
+  // cứng. Chữ thân co theo Cỡ chữ, nhãn trục đứng yên: đo ở scale 1.25 thì chữ thân
+  // 11 → 13,75px còn nhãn trục vẫn 11px. Người chọn cỡ chữ lớn nhất là người cần nhãn
+  // biểu đồ to nhất, và họ là người duy nhất không được nó to lên.
+  //
+  // 27 chỗ ở 9 file đã quy về hằng số chuỗi rem trong src/lib/chartText.ts.
+  it('không truyền cỡ chữ dạng số vào biểu đồ (không co theo Cỡ chữ)', () => {
+    const hits: string[] = []
+    for (const f of sourceFiles()) {
+      const raw = readFileSync(f, 'utf8')
+      for (const m of stripComments(raw).matchAll(/fontSize\s*[:=]\s*\{?\s*\d/g)) {
+        hits.push(`${f.slice(SRC.length + 1)} — ${m[0].trim()}`)
+      }
+    }
+    expect(hits, `Dùng CHART_TEXT_3XS / CHART_TEXT_2XS / CHART_TEXT_XS (src/lib/chartText.ts).`).toEqual(
+      [],
+    )
+  })
+
+  // Bản sao JS của bậc chữ thì sớm muộn lệch bản CSS — canh như motion.ts đang được canh.
+  it('hằng số cỡ chữ biểu đồ khớp bậc đã đặt tên trong index.css', () => {
+    const chartText = readFileSync(join(SRC, 'lib', 'chartText.ts'), 'utf8')
+    const indexCss = readFileSync(join(SRC, 'index.css'), 'utf8')
+    // text-xs là bậc của Tailwind (0.75rem), không khai trong index.css; hai bậc kia có.
+    const CAP: [konst: string, css: string | null, fallback: string][] = [
+      ['CHART_TEXT_3XS', '--text-3xs', '0.625rem'],
+      ['CHART_TEXT_2XS', '--text-2xs', '0.6875rem'],
+      ['CHART_TEXT_XS', null, '0.75rem'],
+    ]
+    for (const [konst, cssVar, fallback] of CAP) {
+      const want = cssVar ? indexCss.match(new RegExp(`${cssVar}:\\s*([\\d.]+rem)`))?.[1] : fallback
+      expect(want, `index.css phải khai ${cssVar}`).toBeTruthy()
+      expect(chartText, `${konst} phải bằng ${want}`).toMatch(
+        new RegExp(`${konst}\\s*=\\s*'${want!.replace('.', '\\.')}'`),
+      )
+    }
+  })
+
+  // Lý do: <SectionTitle> ra đời để dàn xếp hai quy ước tiêu đề đang đánh nhau, rồi được
+  // dùng ở 4/137 file — nên hai quy ước đó cứ tiếp tục đẻ. Đo 2026-08-25: 110 <h2>/<h3>
+  // viết tay, MƯỜI tổ hợp cho BA vai trò, mà lệch rõ nhất là màu: 35 chỗ text-fg-primary
+  // và 24 chỗ text-fg-muted ở CÙNG cỡ, CÙNG độ đậm, không có ranh giới nghĩa nào.
+  //
+  // Đã đưa cả 110 chỗ về component. Luật này giữ nó ở đó — một component ai cũng bỏ qua
+  // thì không phải primitive, nó chỉ là một file.
+  //
+  // <h1> KHÔNG nằm trong luật: nó là tiêu đề TRANG, không phải tiêu đề khối.
+  it('tiêu đề khối đi qua <SectionTitle>, không viết tay <h2>/<h3>', () => {
+    const hits: string[] = []
+    for (const f of sourceFiles()) {
+      if (f.endsWith('SectionTitle.tsx')) continue
+      const raw = readFileSync(f, 'utf8')
+      for (const m of stripComments(raw).matchAll(/<h[23][\s>]/g)) {
+        hits.push(`${f.slice(SRC.length + 1)}:${raw.slice(0, m.index).split('\n').length}`)
+      }
+    }
+    expect(hits, `Dùng <SectionTitle role="micro" | "card" | "block">.`).toEqual([])
+  })
+
+  // Lý do: giãn chữ có ĐÚNG HAI vai trò trong app — nhãn chữ hoa (giãn ra) và số lớn
+  // (kéo lại) — nhưng từng có SÁU giá trị phục vụ hai vai trò đó: .1em (33), tracking-wide
+  // (19), .08em (9), .06em (6), -.02em (11), tracking-tight (1). Trên cùng màn Tài sản,
+  // "TÀI SẢN RÒNG" giãn 1,1px còn "THẺ" ngay dưới giãn 0,25px.
+  //
+  // Giờ chỉ còn `tracking-label` / `tracking-number` (khai ở @theme). `tracking-normal`
+  // KHÔNG bị cấm: nó là phép ĐẶT LẠI cho huy hiệu nằm trong một nhãn đã giãn.
+  it('giãn chữ đi qua token, không chêm giá trị tuỳ ý', () => {
+    const BANNED = /tracking-(wide|tight|wider|widest)\b|tracking-\[[^\]]+\]/g
+    const hits: string[] = []
+    for (const f of sourceFiles()) {
+      const raw = readFileSync(f, 'utf8')
+      for (const m of stripComments(raw).matchAll(BANNED)) {
+        hits.push(`${f.slice(SRC.length + 1)} — ${m[0]}`)
+      }
+    }
+    expect(hits, `Dùng tracking-label (nhãn chữ hoa) hoặc tracking-number (số lớn).`).toEqual([])
   })
 
   // Lý do: 0.5625rem = 9px, mà --app-font-scale nhỏ nhất là 0.9 → 8,1px.

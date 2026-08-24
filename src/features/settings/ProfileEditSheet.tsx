@@ -5,6 +5,7 @@ import { clampMonthStartDay } from '../../lib/dates'
 import { CURRENCIES, formatMoney } from '../../lib/money'
 import type { ProfileRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
+import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
 
 interface Props {
   profile: ProfileRow
@@ -82,7 +83,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold text-fg-primary">Hồ sơ</h2>
+          <SectionTitle role="block">Hồ sơ</SectionTitle>
           <button
             type="button"
             onClick={onClose}
@@ -92,7 +93,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           </button>
         </div>
 
-        <label htmlFor={`${uid}-name`} className="block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-name`} className="block text-sm font-medium text-fg-muted">
           Tên hiển thị
         </label>
         <input
@@ -104,24 +105,22 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-fg-primary"
         />
 
-        <label htmlFor={`${uid}-day`} className="mt-3 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-day`} className="mt-3 block text-sm font-medium text-fg-muted">
           Ngày bắt đầu tháng
         </label>
-        <select
+        <Select
           id={`${uid}-day`}
           value={day}
-          onChange={(e) => setDay(Number(e.target.value))}
-          className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-fg-primary"
-        >
+          onChange={(e) => setDay(Number(e.target.value))} wrapClassName="mt-1 w-full">
           {DAY_OPTIONS.map((d) => (
             <option key={d} value={d}>
               Ngày {d}
             </option>
           ))}
-        </select>
-        <p className="mt-1 text-xs text-fg-muted">Ảnh hưởng cách tính tháng trong báo cáo.</p>
+        </Select>
+        <p className="mt-1 text-sm text-fg-muted">Ảnh hưởng cách tính tháng trong báo cáo.</p>
 
-        <label htmlFor={`${uid}-base`} className="mt-3 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-base`} className="mt-3 block text-sm font-medium text-fg-muted">
           Loại tiền gốc
         </label>
         <input
@@ -130,14 +129,14 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           disabled
           className="mt-1 w-full rounded-md border border-border-panel bg-surface-sunken p-3 text-fg-muted"
         />
-        <p className="mt-1 text-xs text-fg-muted">Không đổi được.</p>
+        <p className="mt-1 text-sm text-fg-muted">Không đổi được.</p>
 
         {/* Tham số cho các chỉ số nâng cao — để trống thì phần đó tự ẩn đi */}
-        <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+        <SectionTitle role="micro" as="h3" className="mt-5">
           Cho báo cáo nâng cao
-        </h3>
+        </SectionTitle>
 
-        <label htmlFor={`${uid}-wage`} className="mt-2 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-wage`} className="mt-2 block text-sm font-medium text-fg-muted">
           Thu nhập mỗi giờ làm
         </label>
         <input
@@ -148,13 +147,13 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           placeholder="Để trống nếu không dùng"
           className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-right text-fg-primary"
         />
-        <Guide className="mt-1 text-xs text-fg-muted">
+        <Guide className="mt-1 text-sm text-fg-muted">
           Để báo cáo quy đổi “món này = mấy giờ làm”. Lương tháng ÷ số giờ làm thực tế trong tháng.
         </Guide>
 
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor={`${uid}-infl`} className="block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-infl`} className="block text-sm font-medium text-fg-muted">
               Lạm phát năm (%)
             </label>
             <input
@@ -167,7 +166,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
             />
           </div>
           <div>
-            <label htmlFor={`${uid}-tax`} className="block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-tax`} className="block text-sm font-medium text-fg-muted">
               Thuế lãi vốn (%)
             </label>
             <input
@@ -180,15 +179,15 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
             />
           </div>
         </div>
-        <Guide className="mt-1 text-xs text-fg-muted">
+        <Guide className="mt-1 text-sm text-fg-muted">
           Dùng để tính lợi nhuận đầu tư sau thuế và sau trượt giá. Ở Nhật thuế lãi vốn là 20,32%;
           lạm phát vài năm gần đây quanh 2–3%.
         </Guide>
 
         {/* Mốc cơ cấu chi — hiện ở đầu tab Ngân sách */}
-        <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+        <SectionTitle role="micro" as="h3" className="mt-5">
           Mốc cơ cấu chi (% thu nhập)
-        </h3>
+        </SectionTitle>
         <div className="mt-2 grid grid-cols-3 gap-2">
           {/* `slug` chứ không dùng `label` làm id: id HTML không được chứa khoảng trắng,
               mà nhãn ở đây là "Thiết yếu" / "Tiết kiệm". */}
@@ -198,7 +197,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
             { slug: 'savings', label: 'Tiết kiệm', value: savings, set: setSavings, ph: '20' },
           ].map((f) => (
             <div key={f.slug}>
-              <label htmlFor={`${uid}-${f.slug}`} className="block text-xs font-medium text-fg-muted">
+              <label htmlFor={`${uid}-${f.slug}`} className="block text-sm font-medium text-fg-muted">
                 {f.label}
               </label>
               <input
@@ -212,7 +211,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
             </div>
           ))}
         </div>
-        <Guide className="mt-1 text-xs text-fg-muted">
+        <Guide className="mt-1 text-sm text-fg-muted">
           Mặc định là quy tắc 50/30/20. Hai mốc đầu là <b>trần</b> (chi dưới mức là tốt), tiết kiệm
           là <b>sàn</b> (vượt mức là tốt).
         </Guide>
@@ -220,7 +219,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
             đứng RIÊNG, không nằm trong <Guide> ở trên: nó nói về con số vừa gõ, nên chế độ
             Gọn cũng phải thấy — gộp vào khối hướng dẫn là mất cảnh báo. */}
         {Math.abs(axisSum - 100) > 0.5 && (
-          <p className="mt-1 text-xs text-fg-warn">
+          <p className="mt-1 text-sm text-fg-warn">
             Tổng hiện là {Math.round(axisSum)}% — không bắt buộc bằng 100%, nhưng lệch nhiều thì ba
             mốc khó dùng chung.
           </p>
@@ -230,7 +229,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           type="button"
           onClick={handleSave}
           disabled={update.isPending}
-          className="mt-4 w-full rounded-md bg-accent text-fg-on-accent py-3 text-sm font-semibold active:scale-[0.99] disabled:opacity-60"
+          className={actionButtonClass('primary', 'mt-4 w-full')}
         >
           Lưu
         </button>

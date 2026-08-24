@@ -5,7 +5,7 @@ import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../type
 import { approxLabel, formatDayHeader, groupByDay, sumInBase, type CurrencyOf } from './ledgerShared'
 import { PeriodTotalsBar } from './PeriodTotalsBar'
 import { TransactionItem } from './TransactionItem'
-import { Card } from '../../components/ui'
+import { Card, EmptyState } from '../../components/ui'
 
 interface Props {
   transactions: TransactionRow[]
@@ -73,7 +73,7 @@ export function DailyView({
           <button
             type="button"
             onClick={onToggleSelecting}
-            className="inline-flex min-h-11 items-center justify-center px-2 text-xs font-medium text-fg-accent"
+            className="inline-flex min-h-11 items-center justify-center px-2 text-sm font-medium text-fg-accent"
           >
             {selecting ? 'Xong' : 'Chọn'}
           </button>
@@ -83,9 +83,9 @@ export function DailyView({
       {aboveList}
 
       {isLoading ? (
-        <p className="py-10 text-center text-fg-muted">Đang tải…</p>
+        <EmptyState>Đang tải…</EmptyState>
       ) : days.length === 0 ? (
-        <p className="py-10 text-center text-fg-muted">Chưa có giao dịch trong tháng này</p>
+        <EmptyState>Chưa có giao dịch trong tháng này</EmptyState>
       ) : (
         days.map(([day, txs]) => {
           const dayIncome = sumInBase(txs, 'income', currencyOf, base, rates)
@@ -94,7 +94,7 @@ export function DailyView({
             <section key={day}>
               {/* Header nhóm ngày — nền `--surface-chrome` theo §4.2: nó là khung của
                   bảng, phải lùi ra sau các dòng giao dịch chứ không nổi lên như một thẻ. */}
-              <div className="mb-1 flex items-baseline gap-2 rounded-md bg-surface-chrome px-2.5 py-1.5 text-xs text-fg-muted">
+              <div className="mb-1 flex items-baseline gap-2 rounded-md bg-surface-chrome px-2.5 py-1.5 text-sm text-fg-muted">
                 <span className="font-medium">{formatDayHeader(day)}</span>
                 {/* Số dư chạy (§4.2 mục 1): cộng dồn thu − chi từ đầu kỳ tới HẾT ngày
                     này. Đứng cạnh tổng ngày vì hai con số trả lời hai câu khác nhau —

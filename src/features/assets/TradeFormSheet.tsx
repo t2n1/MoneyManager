@@ -7,7 +7,7 @@ import { useId, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
 import { DateField } from '../../components/DateField'
-import { SegmentedControl } from '../../components/ui'
+import { SectionTitle, SegmentedControl, actionButtonClass } from '../../components/ui'
 import { confirmDialog } from '../../lib/dialog'
 import { useCreateStockTrade, useDeleteStockTrade, useUpdateStockTrade } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
@@ -139,10 +139,10 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
         className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-base font-bold text-fg-primary">
+        <SectionTitle role="block" className="mb-1">
           {trade ? 'Sửa lệnh' : 'Ghi lệnh'}
-        </h2>
-        <p className="mb-3 text-xs text-fg-muted">{account.name}</p>
+        </SectionTitle>
+        <p className="mb-3 text-sm text-fg-muted">{account.name}</p>
 
         <div className="mb-3">
           <SegmentedControl items={KINDS} value={kind} onChange={setKind} label="Loại lệnh" />
@@ -156,7 +156,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           </Guide>
         )}
 
-        <label htmlFor={`${uid}-symbol`} className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-symbol`} className="mb-1 block text-sm font-medium text-fg-muted">
           Mã cổ phiếu
         </label>
         <input
@@ -174,7 +174,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
                 <button
                   type="button"
                   onClick={() => setSymbol(s)}
-                  className="flex w-full items-baseline justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-surface-page"
+                  className="flex w-full items-baseline justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-surface-page"
                 >
                   <b className="text-fg-primary">{s}</b>
                   <span className="truncate text-2xs text-fg-muted">{name}</span>
@@ -185,7 +185,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
         )}
 
         {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">Ngày</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">Ngày</span>
         <DateField
           ariaLabel="Ngày"
           value={tradedOn}
@@ -194,7 +194,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           className="mb-3 w-full px-3 py-2"
         />
 
-        <label htmlFor={`${uid}-qty`} className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-qty`} className="mb-1 block text-sm font-medium text-fg-muted">
           Số cổ {isAdjust && <span className="text-fg-muted">(âm = gộp cổ phiếu)</span>}
         </label>
         <input
@@ -210,7 +210,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           <>
             {/* Ba nhãn dưới đây là <span>: MoneyField có hai ô (chạm mobile / input
                 desktop) nên `htmlFor` luôn trỏ vào ô đang bị CSS ẩn. Tên ô = `ariaLabel`. */}
-            <span className="mb-1 block text-xs font-medium text-fg-muted">Giá mỗi cổ</span>
+            <span className="mb-1 block text-sm font-medium text-fg-muted">Giá mỗi cổ</span>
             <div className="mb-3">
               <MoneyField
                 value={price}
@@ -222,7 +222,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
             </div>
 
             <div className="mb-1 flex items-baseline justify-between">
-              <span className="text-xs font-medium text-fg-muted">Phí giao dịch</span>
+              <span className="text-sm font-medium text-fg-muted">Phí giao dịch</span>
               {!feeTouched && <span className="text-2xs text-fg-muted">gợi ý 0,15%</span>}
             </div>
             <div className="mb-3">
@@ -242,7 +242,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
             {kind === 'sell' && (
               <>
                 <div className="mb-1 flex items-baseline justify-between">
-                  <span className="text-xs font-medium text-fg-muted">Thuế bán</span>
+                  <span className="text-sm font-medium text-fg-muted">Thuế bán</span>
                   {!taxTouched && <span className="text-2xs text-fg-muted">gợi ý 0,1%</span>}
                 </div>
                 <div className="mb-3">
@@ -263,7 +263,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           </>
         )}
 
-        <label htmlFor={`${uid}-note`} className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-note`} className="mb-1 block text-sm font-medium text-fg-muted">
           Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
         <input
@@ -274,7 +274,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
           className="mb-3 w-full rounded-md border border-border-strong px-3 py-2 text-sm"
         />
 
-        <Guide className="mb-3 text-xs text-fg-muted">
+        <Guide className="mb-3 text-sm text-fg-muted">
           Lệnh không tạo giao dịch thu/chi và không đổi số dư — nó chỉ nói tiền trong tài
           khoản đang nằm ở cổ phiếu nào.
         </Guide>
@@ -285,7 +285,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
               type="button"
               onClick={handleDelete}
               disabled={saving}
-              className="mr-auto rounded-md px-3 py-2 text-sm text-money-out disabled:opacity-50"
+              className={actionButtonClass('danger', 'mr-auto')}
             >
               Xóa
             </button>
@@ -301,7 +301,7 @@ export function TradeFormSheet({ account, trade, onClose }: Props) {
             type="button"
             onClick={handleSubmit}
             disabled={!canSave}
-            className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold transition active:scale-95 disabled:opacity-50"
+            className={actionButtonClass('primary')}
           >
             {saving ? 'Đang lưu…' : 'Lưu'}
           </button>

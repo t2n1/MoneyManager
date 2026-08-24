@@ -8,7 +8,6 @@ import { useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { Bell, BellOff, Check, Plus, X } from 'lucide-react'
-import { BackLink } from '../../components/BackLink'
 import {
   ActionButton,
   Card,
@@ -29,6 +28,7 @@ import { showToast } from '../../lib/dialog'
 import type { PlannedExpenseRow } from '../../types/database.types'
 import { daysUntil, groupPlannedByMonth, plannedOutlook } from './planned'
 import { PlannedFormSheet } from './PlannedFormSheet'
+import { EmptyState, PageHeader } from '../../components/ui'
 
 /** Cửa sổ của con số ở đầu màn. 3 tháng = đủ xa để lo, đủ gần để tin. */
 const OUTLOOK_MONTHS = 3
@@ -92,21 +92,24 @@ export function PlannedPage() {
   }
 
   const header = (
-    <div className="mb-3 flex items-center gap-2">
-      <BackLink to="/so" aria-label="Quay lại" />
-      <h1 className="flex-1 text-lg font-bold text-fg-primary">Sắp chi</h1>
+    <PageHeader title="Sắp chi" back="/so">
       <ActionButton variant="primary" onClick={() => setSheet({ planned: null })}>
         <Plus className="h-4 w-4" /> Thêm
       </ActionButton>
-    </div>
+    </PageHeader>
   )
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 p-3 lg:p-6">
+    // KHÔNG chặn `max-w-2xl` (672px): AppLayout chốt khung app nở tự do và chỉ những
+    // trang CẦN hẹp mới tự bó (Nhập — một cột form; Sổ giao dịch — mạch đọc). Sắp chi
+    // không thuộc nhóm đó: nó là danh sách khoản, cùng hình dạng với Nợ và Định kỳ, mà
+    // hai trang kia đều nở. Vào Nợ rồi bấm sang Sắp chi thì nội dung tự co lại ~176px —
+    // ba trang anh em, hai bề rộng.
+    <div className="flex w-full flex-col gap-3 p-3 lg:p-6">
       {header}
 
       {isLoading ? (
-        <p className="py-10 text-center text-sm text-fg-muted">Đang tải…</p>
+        <EmptyState>Đang tải…</EmptyState>
       ) : months.length === 0 ? (
         <Card as="section">
           {/* Câu CHỈ ĐƯỜNG dưới đây KHÔNG bọc Guide — xem chú thích trong components/Guide.tsx:
@@ -130,8 +133,8 @@ export function PlannedPage() {
           <Card as="section">
             <SectionTitle>{OUTLOOK_MONTHS} tháng tới cần chừng</SectionTitle>
             <p className="mt-1 flex items-baseline gap-2">
-              <Money amount={outlook.totalBase} currency={base} className="text-2xl font-bold" />
-              <span className="text-xs text-fg-muted">{outlook.count} khoản</span>
+              <Money amount={outlook.totalBase} currency={base} className="text-kpi font-medium tracking-number" />
+              <span className="text-sm text-fg-muted">{outlook.count} khoản</span>
             </p>
             {outlook.hasMissingRate && (
               <p className="mt-1 text-2xs text-fg-muted">

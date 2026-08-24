@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
-import { Card, IconButton, Money } from '../../components/ui'
+import { Card, EmptyState, IconButton, Money, PageHeader, SectionTitle } from '../../components/ui'
 import {
   useAccounts,
   useCategories,
@@ -179,21 +179,23 @@ export function CategoryDetailPage() {
         >
           <ChevronLeft className="h-5 w-5" /> {fromBudget ? 'Về ngân sách' : 'Về báo cáo'}
         </BackLink>
-        <p className="py-16 text-center text-sm text-fg-muted">Không tìm thấy danh mục này.</p>
+        <EmptyState>Không tìm thấy danh mục này.</EmptyState>
       </div>
     )
   }
 
   return (
     <div className="flex flex-col gap-4 p-3 lg:p-6">
-      {/* Thanh đầu: quay lại + tên danh mục */}
-      <div className="flex items-center gap-2">
-        <BackLink to={backTo} aria-label="Quay lại" />
-        <h1 className="flex min-w-0 flex-1 items-center gap-2 text-lg font-bold text-fg-primary">
-          {category?.icon && <span>{category.icon}</span>}
-          <span className="truncate">{category?.name ?? '…'}</span>
-        </h1>
-      </div>
+      <PageHeader
+        back={backTo}
+        flush
+        title={
+          <span className="inline-flex min-w-0 items-center gap-2">
+            {category?.icon && <span>{category.icon}</span>}
+            <span className="truncate">{category?.name ?? '…'}</span>
+          </span>
+        }
+      />
 
       {/* Mũi chuyển kỳ + tổng */}
       <Card as="section">
@@ -207,7 +209,7 @@ export function CategoryDetailPage() {
           </IconButton>
         </div>
         <p className="mt-1 text-center">
-          <span className="text-xs text-fg-muted">{kind === 'expense' ? 'Đã chi' : 'Đã thu'} · </span>
+          <span className="text-sm text-fg-muted">{kind === 'expense' ? 'Đã chi' : 'Đã thu'} · </span>
           <Money
             amount={total}
             currency={base}
@@ -219,7 +221,7 @@ export function CategoryDetailPage() {
       </Card>
 
       {missingRate && (
-        <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-xs">
+        <div className="rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-sm">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên có thể thiếu.
         </div>
       )}
@@ -237,20 +239,20 @@ export function CategoryDetailPage() {
 
       {/* Danh sách giao dịch trong kỳ */}
       <section>
-        <h2 className="mb-2 px-1 text-sm font-semibold text-fg-muted">
+        <SectionTitle className="mb-2 px-1">
           Giao dịch {periodLabel.toLowerCase()}
           {txsFetched && <span className="font-normal"> · {periodTxs.length} khoản</span>}
-        </h2>
+        </SectionTitle>
         {!txsFetched ? (
-          <p className="py-10 text-center text-sm text-fg-muted">Đang tải…</p>
+          <EmptyState>Đang tải…</EmptyState>
         ) : days.length === 0 ? (
-          <p className="py-10 text-center text-sm text-fg-muted">
+          <EmptyState>
             Không có giao dịch trong {periodLabel.toLowerCase()}.
-          </p>
+          </EmptyState>
         ) : (
           days.map(([day, txs]) => (
             <section key={day} className="mb-3">
-              <div className="mb-1 px-1 text-xs font-medium text-fg-muted">{day}</div>
+              <div className="mb-1 px-1 text-sm font-medium text-fg-muted">{day}</div>
               <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
                 {txs.map((tx) => (
                   <TransactionItem

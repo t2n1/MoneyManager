@@ -6,7 +6,7 @@
 import { useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
-import { ActionButton } from '../../components/ui'
+import { ActionButton, SectionTitle, Select } from '../../components/ui'
 import { useEscClose } from '../../hooks/useEscClose'
 import {
   useCategories,
@@ -128,11 +128,11 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
         className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-fg-primary">
+        <SectionTitle role="block" className="mb-3">
           {planned ? 'Sửa khoản sắp chi' : 'Thêm khoản sắp chi'}
-        </h2>
+        </SectionTitle>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="planned-title">
+        <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="planned-title">
           Chi cái gì
         </label>
         <input
@@ -145,7 +145,7 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
 
         {/* <span>: hàng này có HAI ô (MoneyField + chọn loại tiền) nên không có một đích
             duy nhất cho `htmlFor`; mỗi ô tự mang tên qua `ariaLabel`. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">
+        <span className="mb-1 block text-sm font-medium text-fg-muted">
           Ước tính <span className="text-fg-muted">(để trống nếu chưa biết)</span>
         </span>
         <div className="mb-3 flex gap-2">
@@ -157,22 +157,20 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
             ariaLabel="Số tiền ước tính"
             className="flex-1 rounded-lg border border-border-strong px-3 py-2 text-right text-sm font-semibold"
           />
-          <select
+          <Select
             value={currency}
             onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
-            aria-label="Loại tiền"
-            className="w-24 shrink-0 rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
-          >
+            aria-label="Loại tiền" wrapClassName="w-24 shrink-0">
             {Object.keys(CURRENCIES).map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {/* Nhãn cho một HÀNG NÚT → <span> + role="group" mang tên. */}
-        <span className="mb-1 block text-xs font-medium text-fg-muted">Chắc tới đâu</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">Chắc tới đâu</span>
         <div
           role="group"
           aria-label="Chắc tới đâu"
@@ -195,13 +193,13 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
             </button>
           ))}
         </div>
-        <p className="mb-3 text-xs text-fg-muted">
+        <p className="mb-3 text-sm text-fg-muted">
           {precision === 'day'
             ? 'Danh sách hiện đúng ngày này.'
             : 'Danh sách chỉ hiện tháng — không bịa ra một ngày cụ thể.'}
         </p>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="planned-due">
+        <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="planned-due">
           {precision === 'day' ? 'Ngày đến hạn' : 'Tháng dự kiến'}
         </label>
         <input
@@ -225,7 +223,7 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
         </label>
         {remind ? (
           <div className="mb-3 flex items-center gap-2">
-            <label className="text-xs text-fg-muted" htmlFor="planned-remind">
+            <label className="text-sm text-fg-muted" htmlFor="planned-remind">
               Nhắc trước
             </label>
             <input
@@ -235,32 +233,30 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
               onChange={(e) => setRemindDays(e.target.value.replace(/[^\d]/g, '').slice(0, 2))}
               className="w-16 rounded-md border border-border-strong px-2 py-1.5 text-right text-base sm:text-sm"
             />
-            <span className="text-xs text-fg-muted">ngày (0 = đúng ngày đến hạn)</span>
+            <span className="text-sm text-fg-muted">ngày (0 = đúng ngày đến hạn)</span>
           </div>
         ) : (
-          <Guide className="mb-3 text-xs text-fg-muted">
+          <Guide className="mb-3 text-sm text-fg-muted">
             Không kêu gì cả — chỉ nằm trong danh sách để bạn nhìn.
           </Guide>
         )}
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="planned-cat">
+        <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="planned-cat">
           Danh mục <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
-        <select
+        <Select
           id="planned-cat"
           value={categoryId ?? ''}
-          onChange={(e) => setCategoryId(e.target.value || null)}
-          className="mb-3 w-full rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
-        >
+          onChange={(e) => setCategoryId(e.target.value || null)} wrapClassName="mb-3 w-full">
           <option value="">— Chưa chọn —</option>
           {expenseCats.map((c) => (
             <option key={c.id} value={c.id}>
               {c.icon} {c.name}
             </option>
           ))}
-        </select>
+        </Select>
 
-        <label className="mb-1 block text-xs font-medium text-fg-muted" htmlFor="planned-note">
+        <label className="mb-1 block text-sm font-medium text-fg-muted" htmlFor="planned-note">
           Ghi chú <span className="text-fg-muted">(không bắt buộc)</span>
         </label>
         <input
@@ -276,11 +272,11 @@ export function PlannedFormSheet({ planned, onClose }: Props) {
           <TagPicker value={effectiveTagIds} onChange={setTagIds} />
         </div>
 
-        {error && <p className="mb-2 text-xs text-money-out">{error}</p>}
+        {error && <p className="mb-2 text-sm text-money-out">{error}</p>}
 
         <div className="flex gap-2">
           {planned && (
-            <ActionButton onClick={handleDelete} className="text-money-out">
+            <ActionButton variant="danger" onClick={handleDelete}>
               Xóa
             </ActionButton>
           )}

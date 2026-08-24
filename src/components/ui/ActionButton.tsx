@@ -1,7 +1,8 @@
-// Nút có CHỮ (khác <IconButton> chỉ có icon) — gom hai dáng đang bị chép tay khắp
+// Nút có CHỮ (khác <IconButton> chỉ có icon) — gom ba dáng đang bị chép tay khắp
 // các sheet và trang chi tiết:
 //   'outline'  viền mảnh, chữ nhỏ — hành động phụ nằm trong thẻ ("Điều chỉnh số nợ")
 //   'primary'  nền xanh — hành động chính của một sheet ("Lưu", "Điều chỉnh")
+//   'danger'   chữ đỏ, không nền — hành động PHÁ HỦY ("Xóa khoản nợ", "Xóa quy tắc")
 //
 // Lý do gom: `active:scale-95` và `transition` phải đi cùng nhau, chép tay thì
 // luôn có chỗ quên `transition` và nút giật cục. Cỡ chữ/độ đậm KHÔNG nằm trong
@@ -9,7 +10,7 @@
 // không đảm bảo.
 import type { ButtonHTMLAttributes } from 'react'
 
-export type ActionButtonVariant = 'outline' | 'primary'
+export type ActionButtonVariant = 'outline' | 'primary' | 'danger'
 
 // min-h-11 = 44px: chuẩn vùng chạm, nằm ở BASE để mọi nút chữ tự đạt không cần nhớ.
 //
@@ -31,11 +32,17 @@ const VARIANT: Record<ActionButtonVariant, string> = {
   // thẳng lên nền nó đang đứng. Hover đổi nền thay vì đổi màu viền — cùng ý "nút này
   // sống", nhưng không cần thêm một token viền chỉ dùng cho hover.
   outline:
-    'border border-border-strong bg-transparent px-3 py-1.5 text-xs font-medium text-fg-secondary hover:bg-surface-sunken',
+    'border border-border-strong bg-transparent px-3 py-1.5 text-sm font-medium text-fg-secondary hover:bg-surface-sunken',
   // bg-accent + text-fg-on-accent, không phải bg-green-700 + text-white: token đã lật
   // sẵn theo chế độ, còn chữ trắng trên --accent ở dark chỉ được 2,22:1 (bẫy ghi ở
   // tests/contrast.test.ts). 13px/600 là bậc chữ nút của 1a.
-  primary: 'bg-accent px-4 py-2 text-[0.8125rem] font-semibold text-fg-on-accent',
+  primary: 'bg-accent px-4 py-2 text-sm font-semibold text-fg-on-accent',
+  // Chữ đỏ trên nền TRONG SUỐT, không phải nút đỏ đặc: hành động phá hủy phải đọc được
+  // là phá hủy mà KHÔNG được bắt mắt hơn hành động chính ngay cạnh nó. Đo 2026-08-25: 11
+  // nút loại này đang có TÁM dáng — px-2 py-1 / px-3 py-2 / px-4 py-3 / min-h-9 /
+  // min-h-11 / có viền / không hover / và một chỗ dùng `hover:bg-red-50` thô (bảng màu
+  // trần, không lật theo Sáng-Tối) thay cho token `state-bad-bg`.
+  danger: 'px-4 py-2 text-sm font-medium text-money-out hover:bg-state-bad-bg',
 }
 
 export function actionButtonClass(variant: ActionButtonVariant = 'outline', extra = ''): string {

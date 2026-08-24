@@ -10,7 +10,7 @@
 
 import { useState } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
-import { Card, Money, Num, deltaTone, signedPct, Sparkline } from '../../components/ui'
+import { SectionTitle, Card, Money, Num, deltaTone, signedPct, Sparkline } from '../../components/ui'
 import { Guide } from '../../components/Guide'
 import type { CurrencyCode } from '../../lib/money'
 import {
@@ -62,7 +62,7 @@ export function MonthCategoryTable({
   if (rows.length === 0) {
     return (
       <Card as="section" elevation="panel" padding="panel">
-        <p className="text-[0.8125rem] text-fg-muted">Kỳ này chưa có khoản chi nào có danh mục.</p>
+        <p className="text-sm text-fg-muted">Kỳ này chưa có khoản chi nào có danh mục.</p>
       </Card>
     )
   }
@@ -78,7 +78,7 @@ export function MonthCategoryTable({
       type="button"
       onClick={() => setSort(value)}
       aria-pressed={sort === value}
-      className={`inline-flex min-h-11 items-center justify-end gap-0.5 text-right text-2xs uppercase tracking-[.1em] transition lg:min-h-0 ${extra} ${
+      className={`inline-flex min-h-11 items-center justify-end gap-0.5 text-right text-2xs uppercase tracking-label transition lg:min-h-0 ${extra} ${
         sort === value ? 'text-fg-primary' : 'text-fg-muted hover:text-fg-secondary'
       }`}
     >
@@ -94,13 +94,13 @@ export function MonthCategoryTable({
   return (
     <Card as="section" elevation="panel" padding="none">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-b border-border-panel px-4 py-3">
-        <h3 className="text-[0.8125rem] font-semibold text-fg-primary">Chi tiêu {monthLabel}</h3>
+        <SectionTitle as="h3">Chi tiêu {monthLabel}</SectionTitle>
         <Money
           amount={total}
           currency={base}
           tone="out"
           approx={approx}
-          className="text-[0.8125rem] font-semibold"
+          className="text-sm font-semibold"
         />
         {/* Thay hẳn thẻ "Ít danh mục, nhiều tiền": nó vẽ lại đúng mấy dòng đầu của bảng
             này ở một thẻ riêng. Ở đây nó là một mệnh đề trong chính tiêu đề bảng. */}
@@ -126,13 +126,13 @@ export function MonthCategoryTable({
           </span>
           <span
             role="columnheader"
-            className="text-right text-2xs uppercase tracking-[.1em] text-fg-muted"
+            className="text-right text-2xs uppercase tracking-label text-fg-muted"
           >
             %
           </span>
           <span
             role="columnheader"
-            className="text-right text-2xs uppercase tracking-[.1em] text-fg-muted"
+            className="text-right text-2xs uppercase tracking-label text-fg-muted"
           >
             TB 3 th
           </span>
@@ -141,13 +141,13 @@ export function MonthCategoryTable({
           </span>
           <span
             role="columnheader"
-            className="hidden text-right text-2xs uppercase tracking-[.1em] text-fg-muted lg:block"
+            className="hidden text-right text-2xs uppercase tracking-label text-fg-muted lg:block"
           >
             6 th
           </span>
           <span
             role="columnheader"
-            className="text-right text-2xs uppercase tracking-[.1em] text-fg-muted"
+            className="text-right text-2xs uppercase tracking-label text-fg-muted"
           >
             Hạn mức
           </span>
@@ -166,17 +166,17 @@ export function MonthCategoryTable({
                   <span aria-hidden className="shrink-0 text-sm">
                     {r.icon}
                   </span>
-                  <span className="min-w-0 truncate text-[0.8125rem] text-fg-primary">{r.name}</span>
+                  <span className="min-w-0 truncate text-sm text-fg-primary">{r.name}</span>
                 </span>
                 <span role="cell" className="text-right">
                   <Money
                     amount={r.thisMonth}
                     currency={base}
                     approx={approx}
-                    className="text-xs"
+                    className="text-sm"
                   />
                 </span>
-                <span role="cell" className="text-right text-xs">
+                <span role="cell" className="text-right text-sm">
                   <Num tone="muted">{r.pct}</Num>
                 </span>
                 <span role="cell" className="text-right">
@@ -184,10 +184,10 @@ export function MonthCategoryTable({
                     amount={r.avg3}
                     currency={base}
                     approx={approx}
-                    className="text-xs text-fg-muted"
+                    className="text-sm text-fg-muted"
                   />
                 </span>
-                <span role="cell" className="text-right text-xs">
+                <span role="cell" className="text-right text-sm">
                   <DeltaCell deltaPct={r.deltaPct} isNew={r.isNew} />
                 </span>
                 <span role="cell" className="hidden justify-end lg:flex">
@@ -195,7 +195,7 @@ export function MonthCategoryTable({
                     <Sparkline values={r.spark} label={`Chi 6 tháng của ${r.name}`} />
                   )}
                 </span>
-                <span role="cell" className={`text-right text-xs ${TONE_CLASS[budget.tone]}`}>
+                <span role="cell" className={`text-right text-sm ${TONE_CLASS[budget.tone]}`}>
                   <Num tone="neutral" className="text-inherit">
                     {budget.text}
                   </Num>
@@ -217,16 +217,16 @@ export function MonthCategoryTable({
               currency={base}
               tone="out"
               approx={approx}
-              className="text-xs font-semibold"
+              className="text-sm font-semibold"
             />
           </span>
-          <span role="cell" className="text-right text-xs">
+          <span role="cell" className="text-right text-sm">
             <Num tone="muted">100</Num>
           </span>
           <span role="cell" className="text-right" />
           <span role="cell" className="text-right" />
           <span role="cell" className="hidden lg:block" />
-          <span role="cell" className="text-right text-xs">
+          <span role="cell" className="text-right text-sm">
             <Num tone={overCount > 0 ? 'out' : 'muted'}>
               {overCount > 0 ? `${overCount} vượt` : '—'}
             </Num>

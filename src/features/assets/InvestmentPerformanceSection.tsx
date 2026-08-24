@@ -5,7 +5,7 @@ import { useMemo } from 'react'
 import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { ExplainBox } from '../../components/ExplainBox'
-import { Card, pct1, signedPct } from '../../components/ui'
+import { Card, SectionTitle, pct1, signedPct } from '../../components/ui'
 import { useAccounts, useProfile, useRangeTransactions, useRates } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
@@ -133,7 +133,7 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
   return (
     <Card as="section" elevation="panel" padding="lg">
       <div className="mb-3 flex items-baseline justify-between gap-2">
-        <h2 className="text-2xs uppercase tracking-[.1em] text-fg-muted">Hiệu quả đầu tư</h2>
+        <SectionTitle role="micro">Hiệu quả đầu tư</SectionTitle>
         {/* Khu này nói về TIỀN (bỏ vào bao nhiêu, sinh ra bao nhiêu, %/năm). Câu
             "đang giữ mã nào / quỹ nào" nằm ở trang Đầu tư. */}
         <Link to="/invest" className="shrink-0 text-2xs font-medium text-fg-accent">
@@ -146,7 +146,7 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
         <div className="h-full bg-sky-500" style={{ width: `${capitalPct}%` }} />
         <div className="h-full bg-green-500" style={{ width: `${100 - capitalPct}%` }} />
       </div>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 text-xs">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
         <span className="flex items-center gap-1.5 text-fg-secondary">
           <span className="h-2 w-2 rounded-full bg-sky-500" aria-hidden />
           Vốn bỏ vào <b className="tabular-nums">{money(costBasis)}</b>
@@ -200,7 +200,7 @@ export function InvestmentPerformanceSection({ accounts, base, view, purposeGrou
                   {signedPct(row.value === null ? null : pct1(row.value))}
                 </p>
                 <p className="mt-0.5 text-2xs font-medium text-fg-secondary">{row.label}</p>
-                <p className="mt-0.5 text-3xs leading-tight text-fg-muted">{row.note}</p>
+                <p className="mt-0.5 text-2xs leading-tight text-fg-muted">{row.note}</p>
               </div>
             ))}
           </div>

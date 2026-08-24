@@ -2,7 +2,6 @@ import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type
 import { Guide } from '../../components/Guide'
 import { Check, ChevronDown, ChevronRight, GripVertical, Plus } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
-import { BackLink } from '../../components/BackLink'
 import { DragList, type DragHandleProps } from '../../components/DragList'
 import { useEscClose } from '../../hooks/useEscClose'
 import {
@@ -26,7 +25,7 @@ import {
   type AssetGroup,
   type AssetGroupSetting,
 } from './aggregate'
-import { Card } from '../../components/ui'
+import { Card, EmptyState, PageHeader, SectionTitle, Select, actionButtonClass } from '../../components/ui'
 
 const NEW_GROUP = '__new__'
 
@@ -406,14 +405,14 @@ export function AssetGroupsPage() {
                 <button
                   type="button"
                   onClick={() => submitRename(g.name)}
-                  className="rounded-md bg-accent text-fg-on-accent px-2 py-1 text-xs font-semibold"
+                  className={actionButtonClass('primary')}
                 >
                   Lưu
                 </button>
                 <button
                   type="button"
                   onClick={() => setRenaming(null)}
-                  className="min-h-11 rounded-md px-2 py-1 text-xs text-fg-muted"
+                  className="min-h-11 rounded-md px-2 py-1 text-sm text-fg-muted"
                 >
                   Hủy
                 </button>
@@ -441,7 +440,7 @@ export function AssetGroupsPage() {
                     <ChevronRight className="h-4 w-4 shrink-0" />
                   )}
                 </span>
-                <span className="block text-xs text-fg-muted">
+                <span className="block text-sm text-fg-muted">
                   {g.accounts.length} tài khoản · {g.hasMissingRate ? '≈ ' : ''}
                   {formatMoney(g.total, base)}
                 </span>
@@ -457,14 +456,14 @@ export function AssetGroupsPage() {
                   setRenaming(g.name)
                   setRenameValue(g.name)
                 }}
-                className="min-h-11 rounded-md px-2 py-1 text-xs text-fg-muted hover:bg-surface-sunken"
+                className="min-h-11 rounded-md px-2 py-1 text-sm text-fg-muted hover:bg-surface-sunken"
               >
                 Đổi tên
               </button>
               <button
                 type="button"
                 onClick={() => setDeleting(g)}
-                className="rounded-md px-2 py-1 text-xs text-money-out hover:bg-state-bad-bg"
+                className={actionButtonClass('danger')}
               >
                 Xóa
               </button>
@@ -474,7 +473,7 @@ export function AssetGroupsPage() {
 
         {/* Công tắc tính vào tổng / ẩn */}
         <div className="flex items-center gap-4 border-t border-border-subtle px-3 py-2">
-          <label className="flex items-center gap-2 text-xs text-fg-secondary">
+          <label className="flex items-center gap-2 text-sm text-fg-secondary">
             <Toggle
               label="Tính vào tổng"
               checked={g.includeInTotals}
@@ -482,7 +481,7 @@ export function AssetGroupsPage() {
             />
             Tính vào tổng
           </label>
-          <label className="flex items-center gap-2 text-xs text-fg-secondary">
+          <label className="flex items-center gap-2 text-sm text-fg-secondary">
             <Toggle
               label="Ẩn nhóm"
               checked={g.hidden}
@@ -520,16 +519,14 @@ export function AssetGroupsPage() {
                     <span className="flex min-w-0 flex-1 items-center gap-1 text-sm text-fg-secondary">
                       <AccountTypeIcon type={a.type} className="h-4 w-4 shrink-0" />
                       <span className="truncate">{a.name}</span>
-                      <span className="text-xs text-fg-muted">
+                      <span className="text-sm text-fg-muted">
                         {formatMoney(a.balance, a.currency)}
                       </span>
                     </span>
-                    <select
+                    <Select
                       value={g.name}
                       onChange={(e) => moveAccount(a.id, e.target.value)}
-                      className="shrink-0 rounded-md border border-border-strong bg-surface px-2 py-1 text-xs"
-                      aria-label={`Chuyển ${a.name} sang nhóm khác`}
-                    >
+                      aria-label={`Chuyển ${a.name} sang nhóm khác`} wrapClassName="shrink-0">
                       {allGroupNames.map((name) => (
                         <option key={name} value={name}>
                           {name}
@@ -537,13 +534,13 @@ export function AssetGroupsPage() {
                       ))}
                       <option value={UNGROUPED_LABEL}>{UNGROUPED_LABEL}</option>
                       <option value={NEW_GROUP}>+ Nhóm mới…</option>
-                    </select>
+                    </Select>
                   </div>
                 )
               })}
             </div>
             {displayIdsOf(g.name).length === 0 && (
-              <p className="px-3 py-3 text-center text-xs text-fg-muted">
+              <p className="px-3 py-3 text-center text-sm text-fg-muted">
                 {dragAcc != null ? 'Thả vào đây để chuyển nhóm' : 'Không có tài khoản'}
               </p>
             )}
@@ -562,7 +559,7 @@ export function AssetGroupsPage() {
                 <button
                   type="button"
                   onClick={() => openAddAccounts(g.name)}
-                  className="flex w-full items-center justify-center gap-1 border-t border-border-subtle px-3 py-2.5 text-xs font-semibold text-state-good-fg hover:bg-green-50 dark:hover:bg-green-900/20"
+                  className="flex w-full items-center justify-center gap-1 border-t border-border-subtle px-3 py-2.5 text-sm font-semibold text-state-good-fg hover:bg-green-50 dark:hover:bg-green-900/20"
                 >
                   <Plus className="h-4 w-4" /> Thêm tài khoản vào nhóm
                 </button>
@@ -583,22 +580,20 @@ export function AssetGroupsPage() {
       onPointerUp={onAccPointerEnd}
       onPointerCancel={onAccPointerEnd}
     >
-      <div className="mb-3 flex items-center gap-2">
-        <BackLink to="/assets" aria-label="Quay lại" />
-        <h1 className="flex-1 text-lg font-bold text-fg-primary">Nhóm tài sản</h1>
+      <PageHeader title="Nhóm tài sản" back="/assets">
         <button
           type="button"
           onClick={() => {
             setAdding(true)
             setNewName('')
           }}
-          className="flex items-center gap-1 rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold shadow-sm transition active:scale-95"
+          className={actionButtonClass('primary')}
         >
           <Plus className="h-4 w-4" /> Thêm nhóm
         </button>
-      </div>
+      </PageHeader>
 
-      <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-xs text-fg-secondary">
+      <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-sm text-fg-secondary">
         Bật/tắt <b>Tính vào tổng</b> để một nhóm có được cộng vào Tổng tài sản hay không.
         Bật <b>Ẩn</b> để giấu nhóm khỏi trang Tài sản (vẫn quản lý được ở đây). Nhấn giữ
         biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự nhóm, sắp tài khoản trong nhóm,
@@ -621,14 +616,14 @@ export function AssetGroupsPage() {
           <button
             type="button"
             onClick={submitNewGroup}
-            className="rounded-md bg-accent text-fg-on-accent px-2 py-1 text-xs font-semibold"
+            className={actionButtonClass('primary')}
           >
             Lưu
           </button>
           <button
             type="button"
             onClick={() => setAdding(false)}
-            className="min-h-11 rounded-md px-2 py-1 text-xs text-fg-muted"
+            className="min-h-11 rounded-md px-2 py-1 text-sm text-fg-muted"
           >
             Hủy
           </button>
@@ -636,11 +631,11 @@ export function AssetGroupsPage() {
       )}
 
       {isLoading ? (
-        <p className="py-10 text-center text-fg-muted">Đang tải…</p>
+        <EmptyState>Đang tải…</EmptyState>
       ) : groups.length === 0 ? (
-        <p className="py-10 text-center text-fg-muted">
+        <EmptyState>
           Chưa có nhóm nào. Bấm "Thêm nhóm" để tạo, hoặc thêm tài khoản rồi gán nhóm.
-        </p>
+        </EmptyState>
       ) : (
         <>
           <DragList
@@ -688,7 +683,7 @@ function AddAccountsPanel({
   return (
     <div className="bg-surface-sunken px-3 py-2">
       {candidates.length === 0 ? (
-        <p className="py-2 text-center text-xs text-fg-muted">
+        <p className="py-2 text-center text-sm text-fg-muted">
           Không còn tài khoản nào ở nhóm khác để thêm.
         </p>
       ) : (
@@ -716,7 +711,7 @@ function AddAccountsPanel({
                 <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">
                   {a.name}
                 </span>
-                <span className="shrink-0 text-xs text-fg-muted">
+                <span className="shrink-0 text-sm text-fg-muted">
                   {formatMoney(a.balance, a.currency)}
                 </span>
               </button>
@@ -729,7 +724,7 @@ function AddAccountsPanel({
         <button
           type="button"
           onClick={onCancel}
-          className="min-h-11 rounded-md px-3 py-1.5 text-xs text-fg-muted"
+          className="min-h-11 rounded-md px-3 py-1.5 text-sm text-fg-muted"
         >
           Hủy
         </button>
@@ -737,7 +732,7 @@ function AddAccountsPanel({
           type="button"
           onClick={onConfirm}
           disabled={picked.size === 0}
-          className="rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+          className={actionButtonClass('primary')}
         >
           Thêm{picked.size > 0 ? ` (${picked.size})` : ''}
         </button>
@@ -770,23 +765,21 @@ function DeleteGroupSheet({
         className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-1 text-base font-bold text-fg-primary">Xóa nhóm "{group.name}"</h2>
+        <SectionTitle role="block" className="mb-1">Xóa nhóm "{group.name}"</SectionTitle>
         <p className="mb-3 text-sm text-fg-muted">
           {group.accounts.length} tài khoản trong nhóm sẽ được chuyển sang:
         </p>
 
-        <select
+        <Select
           value={target}
-          onChange={(e) => setTarget(e.target.value)}
-          className="mb-4 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm"
-        >
+          onChange={(e) => setTarget(e.target.value)} wrapClassName="mb-4 w-full">
           <option value="">{UNGROUPED_LABEL}</option>
           {otherGroups.map((name) => (
             <option key={name} value={name}>
               Gộp vào: {name}
             </option>
           ))}
-        </select>
+        </Select>
 
         <div className="flex justify-end gap-2">
           <button

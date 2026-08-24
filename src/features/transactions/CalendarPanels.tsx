@@ -16,7 +16,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarClock, ChevronDown, Plus } from 'lucide-react'
 import { Guide } from '../../components/Guide'
-import { Card, Collapse, Money } from '../../components/ui'
+import { Card, Collapse, Money, SectionTitle } from '../../components/ui'
 import { STATUS_CHIP, STATUS_FILL } from '../../components/ui/statusColors'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { usePrivacyMode } from '../../lib/privacy'
@@ -30,14 +30,13 @@ import { formatDayHeader } from './ledgerShared'
 import { TransactionItem } from './TransactionItem'
 
 /** Tiêu đề panel của 1a: 11px HOA, giãn chữ — cùng khuôn với `LedgerAside`. */
-const PANEL_TITLE = 'text-2xs uppercase tracking-[.1em] text-fg-muted'
 /** Chân khối: một dòng số liệu tách bằng kẻ mảnh. */
-const PANEL_FOOT = 'mt-3 flex justify-between gap-2 border-t border-border-subtle pt-2.5 text-xs'
+const PANEL_FOOT = 'mt-3 flex justify-between gap-2 border-t border-border-subtle pt-2.5 text-sm'
 /** Cùng chân khối, nhưng cho dòng NHIỀU mảnh — chúng phải xuống hàng được ở 420px. */
 const PANEL_FOOT_WRAP =
-  'mt-3 flex flex-wrap items-baseline gap-x-1 border-t border-border-subtle pt-2.5 text-xs'
+  'mt-3 flex flex-wrap items-baseline gap-x-1 border-t border-border-subtle pt-2.5 text-sm'
 /** Dòng chân thứ hai — không kẻ lại, chỉ nối tiếp dòng trên. */
-const FOOT_NEXT = 'mt-1 flex justify-between gap-2 text-xs'
+const FOOT_NEXT = 'mt-1 flex justify-between gap-2 text-sm'
 
 /**
  * Ba màu của thanh "Còn được tiêu" và của chú giải dưới nó — khai MỘT chỗ để hai thứ
@@ -95,7 +94,7 @@ export function SpendableBlock({
 
   return (
     <Card elevation="panel" padding="panel" as="section" className={className}>
-      <h2 className={PANEL_TITLE}>Còn được tiêu</h2>
+      <SectionTitle role="micro">Còn được tiêu</SectionTitle>
 
       {info.budgeted <= 0 ? (
         <>
@@ -104,9 +103,9 @@ export function SpendableBlock({
               amount={info.spent}
               currency={base}
               tone="out"
-              className="text-2xl font-semibold leading-none lg:text-3xl"
+              className="text-kpi font-medium tracking-number"
             />
-            <span className="text-xs text-fg-secondary">đã chi tháng này</span>
+            <span className="text-sm text-fg-secondary">đã chi tháng này</span>
           </p>
           <Link
             to="/budget"
@@ -122,9 +121,9 @@ export function SpendableBlock({
               <Money
                 amount={allowance.perDay}
                 currency={base}
-                className="text-2xl font-semibold leading-none lg:text-3xl"
+                className="text-kpi font-medium tracking-number"
               />
-              <span className="text-[0.8125rem] text-fg-muted">
+              <span className="text-sm text-fg-muted">
                 /ngày · {allowance.daysLeft} ngày còn lại
               </span>
             </p>
@@ -134,9 +133,9 @@ export function SpendableBlock({
                 amount={Math.abs(Math.round(info.budgeted - info.spent))}
                 currency={base}
                 tone={info.spent > info.budgeted ? 'out' : 'neutral'}
-                className="text-2xl font-semibold leading-none lg:text-3xl"
+                className="text-kpi font-medium tracking-number"
               />
-              <span className="text-[0.8125rem] text-fg-muted">
+              <span className="text-sm text-fg-muted">
                 {info.spent > info.budgeted ? 'đã vượt trần' : 'còn lại trong trần'}
               </span>
             </p>
@@ -182,7 +181,7 @@ export function SpendableBlock({
           {/* B36.2 · Câu RIÊNG, không phải một dòng biến mất: "còn ¥12.000 trong trần mà
               ¥18.600 đã hứa" là tin quan trọng nhất của tháng. */}
           {info.short !== null && (
-            <p className="mt-2 text-xs font-medium text-money-out">
+            <p className="mt-2 text-sm font-medium text-money-out">
               Đã hứa hết phần còn lại — thiếu {formatMoney(info.short, base)} trước cuối tháng.
             </p>
           )}
@@ -273,11 +272,11 @@ export function SelectedDayBlock({
       className={`overflow-hidden ${className}`.trim()}
     >
       <div className="flex items-baseline justify-between gap-2 px-4 pb-2 pt-3.5">
-        <h2 className={PANEL_TITLE}>
+        <SectionTitle role="micro">
           {formatDayHeader(dateISO)}
           {isToday && ' · hôm nay'}
-        </h2>
-        <span className="shrink-0 text-xs">
+        </SectionTitle>
+        <span className="shrink-0 text-sm">
           {income !== null && income > 0 && (
             <Money amount={income} currency={base} tone="in" showSign />
           )}
@@ -322,7 +321,7 @@ export function SelectedDayBlock({
           Việc đó thuộc gói ENTRY, nơi màn Nhập được dựng lại. */}
       <Link
         to="/entry"
-        className="flex items-center justify-center gap-1.5 border-t border-border-subtle py-2.5 text-xs font-medium text-fg-accent hover:underline"
+        className="flex items-center justify-center gap-1.5 border-t border-border-subtle py-2.5 text-sm font-medium text-fg-accent hover:underline"
       >
         <Plus className="h-3.5 w-3.5" aria-hidden />
         Thêm giao dịch
@@ -347,7 +346,7 @@ export function TagSpendBlock({
   return (
     <Card elevation="panel" padding="panel" as="section" className={className}>
       <div className="mb-2.5 flex items-baseline justify-between gap-2">
-        <h2 className={PANEL_TITLE}>Chi theo nhãn · {monthLabel.toLowerCase()}</h2>
+        <SectionTitle role="micro">Chi theo nhãn · {monthLabel.toLowerCase()}</SectionTitle>
         <Link
           to="/settings/tags"
           className="shrink-0 text-2xs font-medium text-fg-accent hover:underline"
@@ -372,7 +371,7 @@ export function TagSpendBlock({
   )
 }
 
-const CHIP_BASE = 'shrink-0 rounded-full px-1.5 text-3xs leading-[1.4]'
+const CHIP_BASE = 'shrink-0 rounded-full px-1.5 text-2xs leading-snug'
 
 /**
  * "Sắp tới trong tháng" — cam kết chưa ra, cộng thêm ngày rút thẻ.
@@ -435,7 +434,7 @@ export function UpcomingBlock({
           <Money amount={cardTotal} currency={base} className="font-medium" />
         </p>
       )}
-      <Guide className="mt-1.5 text-3xs text-fg-muted">
+      <Guide className="mt-1.5 text-2xs text-fg-muted">
         Tiền rút thẻ đứng thành dòng riêng vì nó không phải một khoản tiêu mới: mỗi lần quẹt
         đã được tính là một khoản chi từ lúc nó xảy ra, còn ngày rút chỉ là tiền chuyển từ
         thẻ sang ngân hàng.
@@ -457,14 +456,14 @@ export function UpcomingBlock({
             className="flex w-full items-center gap-2 px-3.5 py-3 text-left"
           >
             <CalendarClock className="h-4 w-4 shrink-0 text-fg-warn" aria-hidden />
-            <span className="flex-1 text-[0.8125rem] text-fg-primary">
+            <span className="flex-1 text-sm text-fg-primary">
               Sắp tới trong tháng · {rows.length} khoản
             </span>
             <Money
               amount={outgoing}
               currency={base}
               tone="warn"
-              className="shrink-0 text-[0.8125rem]"
+              className="shrink-0 text-sm"
             />
             <ChevronDown
               className={`h-4 w-4 shrink-0 text-fg-muted transition ${open ? 'rotate-180' : ''}`}
@@ -487,7 +486,7 @@ export function UpcomingBlock({
         as="section"
         className={`hidden lg:block ${className}`.trim()}
       >
-        <h2 className={PANEL_TITLE}>Sắp tới trong tháng</h2>
+        <SectionTitle role="micro">Sắp tới trong tháng</SectionTitle>
         <div className="mt-2.5">{list}</div>
         {foot}
       </Card>
@@ -523,7 +522,7 @@ function RowList({ rows, base }: { rows: Row[]; base: CurrencyCode }) {
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-2xs text-fg-muted">
             {Number(r.dayISO.slice(8, 10))}
           </span>
-          <span className="min-w-0 flex-1 truncate text-[0.8125rem] text-fg-secondary">
+          <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">
             {r.title}
           </span>
           <span className={`${CHIP_BASE} ${STATUS_CHIP[r.tone]}`}>{r.chip}</span>
@@ -533,7 +532,7 @@ function RowList({ rows, base }: { rows: Row[]; base: CurrencyCode }) {
             <Money
               amount={r.amount}
               currency={base}
-              className="shrink-0 text-[0.8125rem] font-medium"
+              className="shrink-0 text-sm font-medium"
             />
           )}
         </li>

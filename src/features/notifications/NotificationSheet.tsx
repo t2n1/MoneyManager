@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Bell, ChevronDown, Settings2, X } from 'lucide-react'
-import { Collapse } from '../../components/ui'
+import { Collapse, SectionTitle } from '../../components/ui'
 import { NOTIFICATION_META, type AppNotification } from './types'
 
 interface Props {
@@ -52,7 +52,7 @@ function Row({
       )}
       <Link to={n.to} onClick={onClose} className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-fg-primary">{n.title}</p>
-        {n.detail && <p className="mt-0.5 text-xs text-fg-secondary">{n.detail}</p>}
+        {n.detail && <p className="mt-0.5 text-sm text-fg-secondary">{n.detail}</p>}
         {/* Nút ngữ cảnh của 22a. Là <span> BÊN TRONG cùng một <Link>, không phải một
             <button> riêng: đích của nút trùng đúng đích của cả dòng, nên một phần tử bấm
             được lồng trong phần tử bấm được vừa là HTML sai vừa cho bàn phím hai chặng
@@ -105,7 +105,7 @@ function MoreButton({
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      className="flex min-h-11 w-full items-center justify-center gap-1 rounded-md text-xs font-medium text-fg-muted hover:bg-surface-sunken hover:text-fg-secondary"
+      className="flex min-h-11 w-full items-center justify-center gap-1 rounded-md text-sm font-medium text-fg-muted hover:bg-surface-sunken hover:text-fg-secondary"
     >
       {open ? 'Thu gọn' : `Xem thêm ${count} ${label}`}
       <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -155,9 +155,9 @@ export function NotificationSheet({
   return (
     <div className="flex max-h-[70vh] flex-col">
       <div className="mb-2 flex items-baseline gap-2 px-1">
-        <h2 className="text-base font-bold text-fg-primary">Thông báo</h2>
+        <SectionTitle role="block">Thông báo</SectionTitle>
         {actionsAll.length > 0 && (
-          <span className="text-xs text-fg-muted">
+          <span className="text-sm text-fg-muted">
             {actionsAll.length} việc cần làm
           </span>
         )}
@@ -182,7 +182,7 @@ export function NotificationSheet({
         )}
 
         {actionsAll.length > 0 && (
-          <p className="pt-1 text-3xs font-bold uppercase tracking-wide text-fg-muted">
+          <p className="pt-1 text-2xs font-bold uppercase tracking-label text-fg-muted">
             Việc cần làm
           </p>
         )}
@@ -211,7 +211,7 @@ export function NotificationSheet({
         )}
 
         {infosAll.length > 0 && (
-          <p className="pt-2 text-3xs font-bold uppercase tracking-wide text-fg-muted">
+          <p className="pt-2 text-2xs font-bold uppercase tracking-label text-fg-muted">
             Tin để biết
           </p>
         )}

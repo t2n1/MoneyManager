@@ -4,7 +4,7 @@
 import { Link } from 'react-router-dom'
 import { Guide } from '../../components/Guide'
 import { ExplainBox } from '../../components/ExplainBox'
-import { Card, Money } from '../../components/ui'
+import { Card, Money, SectionTitle } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { hoursOfWork, type SpendPercentiles } from './behavior'
 import { spendHistogram } from './histogram'
@@ -41,9 +41,9 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
   return (
     <Card as="section">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-fg-primary">
+        <SectionTitle>
           Một lần chi to cỡ nào
-        </h2>
+        </SectionTitle>
         <span className="shrink-0 text-2xs text-fg-muted">
           {data.count} lần chi {periodNoun}
         </span>
@@ -55,7 +55,7 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
           return (
             <li key={row.label} className="rounded-lg bg-surface-page px-2.5 py-2">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-xs text-fg-secondary">{row.label}</span>
+                <span className="text-sm text-fg-secondary">{row.label}</span>
                 <Money
                   amount={Math.round(row.value)}
                   currency={base}
@@ -86,7 +86,7 @@ export function SpendSizeCard({ data, base, periodNoun, hourlyWage }: Props) {
           gọi cả thư viện chỉ để vẽ 12 hình chữ nhật là phí. */}
       {bins.length > 1 && (
         <div className="mt-3">
-          <p className="mb-1 text-2xs font-semibold uppercase tracking-wide text-fg-muted">
+          <p className="mb-1 text-2xs font-semibold uppercase tracking-label text-fg-muted">
             Các lần chi rải thế nào
           </p>
           <svg

@@ -16,7 +16,7 @@
 
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Card, Money, Num, actionButtonClass } from '../../components/ui'
+import { Card, EmptyState, Money, Num, SectionTitle, actionButtonClass } from '../../components/ui'
 import { ConclusionLine, VerdictNote } from '../../components/VerdictNote'
 import { Guide } from '../../components/Guide'
 import {
@@ -277,13 +277,13 @@ export function DecideView() {
   )
 
   if (!isFetched) {
-    return <p className="py-10 text-center text-sm text-fg-muted">Đang tính…</p>
+    return <EmptyState>Đang tính…</EmptyState>
   }
   if (monthsCounted === 0) {
     return (
-      <p className="py-10 text-center text-sm text-fg-muted">
+      <EmptyState>
         Chưa có giao dịch nào trong {WINDOW} tháng gần đây nên chưa đo được nhịp nào.
-      </p>
+      </EmptyState>
     )
   }
 
@@ -291,7 +291,7 @@ export function DecideView() {
 
   return (
     <div className="flex flex-col gap-2.5">
-      <Num tone="muted" className="text-2xs tracking-[.06em]">
+      <Num tone="muted" className="text-2xs">
         nhịp {monthsCounted} tháng · cập nhật {dayMonthLabel(todayISO)}
       </Num>
 
@@ -333,8 +333,8 @@ export function DecideView() {
       <ReportBlock no="01" title={`Phần giữ lại ${monthsCounted} tháng đi đâu`}>
         <Card as="section" elevation="panel" padding="panel">
           <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-            <span className="text-[0.8125rem] font-semibold text-fg-primary">
-              Giữ lại {monthsCounted} tháng <Money amount={kept} currency={base} className="text-[0.8125rem]" />
+            <span className="text-sm font-semibold text-fg-primary">
+              Giữ lại {monthsCounted} tháng <Money amount={kept} currency={base} className="text-sm" />
             </span>
             <span className="text-2xs text-fg-muted">rút ra được ngay ↔ không</span>
           </div>
@@ -346,7 +346,7 @@ export function DecideView() {
               >
                 <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
                   <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${TIER_DOT[t.liquid]}`} />
-                  <span className="text-[0.8125rem] text-fg-primary">{t.label}</span>
+                  <span className="text-sm text-fg-primary">{t.label}</span>
                   {t.perMonth !== null && monthsCounted > 1 && (
                     <span className="text-2xs text-fg-muted">
                       · <Money amount={t.perMonth} currency={base} className="text-2xs" />
@@ -359,9 +359,9 @@ export function DecideView() {
                 <Money
                   amount={t.amount}
                   currency={base}
-                  className="text-right text-xs"
+                  className="text-right text-sm"
                 />
-                <span className="text-right text-xs">
+                <span className="text-right text-sm">
                   <Num tone="muted">{t.pct === null ? '—' : `${t.pct}%`}</Num>
                 </span>
               </li>
@@ -390,11 +390,11 @@ export function DecideView() {
       <ReportBlock no="02" title="Làm gì thì đổi được gì">
         <Card as="section" elevation="panel" padding="none">
           <div className="border-b border-border-panel px-4 py-3">
-            <h3 className="text-[0.8125rem] font-semibold text-fg-primary">
+            <SectionTitle as="h3">
               {gap <= 0
                 ? 'Tiền mặt đã đủ trả hết nợ tới hạn'
                 : `Còn thiếu ${money(gap)} để đủ 1× trả nợ`}
-            </h3>
+            </SectionTitle>
             <p className="mt-0.5 text-2xs text-fg-muted">
               {gap <= 0 ? (
                 <>Không còn khoảng nào phải lấp, nên bảng đòn bẩy dưới đây trống.</>
@@ -414,7 +414,7 @@ export function DecideView() {
           </div>
 
           {leverRows.length === 0 ? (
-            <p className="px-4 py-3 text-[0.8125rem] text-fg-muted">
+            <p className="px-4 py-3 text-sm text-fg-muted">
               {gap <= 0
                 ? 'Không có gì cần đổi.'
                 : 'Chưa đủ dữ liệu để dựng đòn bẩy nào: cần có tài khoản đầu tư, khoản định kỳ, hoặc lịch gửi tiền để biết chỗ nào dịch được.'}
@@ -423,7 +423,7 @@ export function DecideView() {
             <div role="table" aria-label="Nếu làm X thì rút ngắn còn bao lâu">
               <div
                 role="row"
-                className="grid grid-cols-[minmax(0,1fr)_minmax(4.5rem,auto)_minmax(4rem,auto)] items-baseline gap-x-2 border-b border-border-panel bg-surface-chrome px-4 py-2.5 text-2xs uppercase tracking-[.1em] text-fg-muted lg:grid-cols-[minmax(0,1.1fr)_minmax(4.5rem,auto)_minmax(4rem,auto)_minmax(0,1.2fr)]"
+                className="grid grid-cols-[minmax(0,1fr)_minmax(4.5rem,auto)_minmax(4rem,auto)] items-baseline gap-x-2 border-b border-border-panel bg-surface-chrome px-4 py-2.5 text-2xs uppercase tracking-label text-fg-muted lg:grid-cols-[minmax(0,1.1fr)_minmax(4.5rem,auto)_minmax(4rem,auto)_minmax(0,1.2fr)]"
               >
                 <span role="columnheader">Nếu làm</span>
                 <span role="columnheader" className="text-right">
@@ -443,17 +443,17 @@ export function DecideView() {
                       role="row"
                       className="grid grid-cols-[minmax(0,1fr)_minmax(4.5rem,auto)_minmax(4rem,auto)] items-baseline gap-x-2 px-4 py-2 lg:grid-cols-[minmax(0,1.1fr)_minmax(4.5rem,auto)_minmax(4rem,auto)_minmax(0,1.2fr)]"
                     >
-                      <span role="cell" className="min-w-0 text-[0.8125rem] text-fg-primary">
+                      <span role="cell" className="min-w-0 text-sm text-fg-primary">
                         {row.label}
                       </span>
-                      <span role="cell" className="text-right text-xs">
+                      <span role="cell" className="text-right text-sm">
                         {row.cashPerMonth === null ? (
                           <Num tone="muted">—</Num>
                         ) : (
-                          <Money amount={row.cashPerMonth} currency={base} showSign tone="in" className="text-xs" />
+                          <Money amount={row.cashPerMonth} currency={base} showSign tone="in" className="text-sm" />
                         )}
                       </span>
-                      <span role="cell" className="text-right text-xs">
+                      <span role="cell" className="text-right text-sm">
                         <Num tone={row.monthsAfter === 0 ? 'in' : 'neutral'}>
                           {row.monthsAfter === null
                             ? 'không tới'
@@ -493,7 +493,7 @@ export function DecideView() {
             </div>
             <div
               role="row"
-              className="grid grid-cols-[minmax(0,1fr)_minmax(5.5rem,auto)_minmax(3.5rem,auto)_minmax(5rem,auto)] items-baseline gap-x-2 border-b border-border-panel bg-surface-chrome px-4 py-2.5 text-2xs uppercase tracking-[.1em] text-fg-muted"
+              className="grid grid-cols-[minmax(0,1fr)_minmax(5.5rem,auto)_minmax(3.5rem,auto)_minmax(5rem,auto)] items-baseline gap-x-2 border-b border-border-panel bg-surface-chrome px-4 py-2.5 text-2xs uppercase tracking-label text-fg-muted"
             >
               <span role="columnheader">Khoản</span>
               <span role="columnheader" className="text-right">
@@ -513,22 +513,22 @@ export function DecideView() {
                   className="grid grid-cols-[minmax(0,1fr)_minmax(5.5rem,auto)_minmax(3.5rem,auto)_minmax(5rem,auto)] items-baseline gap-x-2 border-b border-border-subtle px-4 py-2 last:border-0"
                 >
                   <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
-                    <span className="min-w-0 truncate text-[0.8125rem] text-fg-primary">{l.label}</span>
+                    <span className="min-w-0 truncate text-sm text-fg-primary">{l.label}</span>
                     {l.termsLeft !== null && (
                       <span className="text-2xs text-fg-muted">· còn {l.termsLeft} kỳ</span>
                     )}
                   </span>
-                  <Money amount={l.remaining} currency={l.currency} className="text-right text-xs" />
-                  <span className="text-right text-xs">
+                  <Money amount={l.remaining} currency={l.currency} className="text-right text-sm" />
+                  <span className="text-right text-sm">
                     <Num tone={l.ratePct === null ? 'muted' : l.ratePct > 10 ? 'out' : 'neutral'}>
                       {l.ratePct === null ? 'chưa khai' : `${l.ratePct.toFixed(1).replace('.', ',')}%`}
                     </Num>
                   </span>
-                  <span className="text-right text-xs">
+                  <span className="text-right text-sm">
                     {l.interestLeft === null ? (
                       <Num tone="muted">—</Num>
                     ) : (
-                      <Money amount={l.interestLeft} currency={l.currency} tone="out" className="text-xs" />
+                      <Money amount={l.interestLeft} currency={l.currency} tone="out" className="text-sm" />
                     )}
                   </span>
                 </li>
@@ -576,7 +576,7 @@ export function DecideView() {
       <ReportBlock no="04" title="Tiến độ mục tiêu">
         {goalLines.length === 0 ? (
           <Card as="section" elevation="panel" padding="panel">
-            <p className="text-[0.8125rem] text-fg-secondary">
+            <p className="text-sm text-fg-secondary">
               Chưa có mục tiêu nào. Cả trang này đang đo bạn bằng <b>chuẩn sách vở</b> (6 tháng
               đệm, 50/30/20) vì chưa biết bạn muốn gì — và với người Việt ở Nhật gửi tiền về nhà
               thì mục tiêu thật có thể khác hẳn.
@@ -595,7 +595,7 @@ export function DecideView() {
               {goalLines.map((g) => (
                 <li key={g.id} className="flex flex-col gap-1">
                   <span className="flex flex-wrap items-baseline justify-between gap-x-2">
-                    <span className="min-w-0 truncate text-[0.8125rem] text-fg-primary">{g.name}</span>
+                    <span className="min-w-0 truncate text-sm text-fg-primary">{g.name}</span>
                     <Num tone={g.done ? 'in' : 'neutral'}>{Math.round(g.ratio * 100)}%</Num>
                   </span>
                   <span className="h-2 overflow-hidden rounded-full bg-surface-sunken">

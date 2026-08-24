@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
-import { BackLink } from '../../components/BackLink'
 import { DateField } from '../../components/DateField'
 import type { TxFilter } from '../../data'
 import {
@@ -27,7 +26,7 @@ import { EditTransactionSheet } from './EditTransactionSheet'
 import { SelectionActionBar } from './SelectionActionBar'
 import { TransactionItem } from './TransactionItem'
 import { useTxSelection } from './useTxSelection'
-import { Card } from '../../components/ui'
+import { Card, EmptyState, PageHeader, filterChipClass } from '../../components/ui'
 
 const TYPE_TABS: { value: TransactionType | 'all'; label: string }[] = [
   { value: 'all', label: 'Tất cả' },
@@ -215,18 +214,11 @@ export function SearchPage() {
   const toggle = (list: string[], id: string) =>
     list.includes(id) ? list.filter((x) => x !== id) : [...list, id]
 
-  const chip = (active: boolean) =>
-    `rounded-full px-3 py-2.5 text-xs font-medium transition ${
-      active ? 'bg-accent text-fg-on-accent' : 'bg-surface text-fg-secondary shadow-sm'
-    }`
 
   return (
     <div className="p-3 lg:p-6">
       {/* Header */}
-      <div className="mb-3 flex items-center gap-2">
-        <BackLink to="/so" aria-label="Quay lại" />
-        <h1 className="flex-1 text-lg font-bold text-fg-primary">Tìm kiếm</h1>
-      </div>
+      <PageHeader title="Tìm kiếm" back="/so" />
 
       {/* Ô tìm ghi chú */}
       <Card padding="none" className="mb-2 flex items-center gap-2 px-3 py-2 focus-within:ring-2 focus-within:ring-accent">
@@ -257,7 +249,8 @@ export function SearchPage() {
               setTypeFilter(t.value)
               setCategoryIds([]) // đổi loại → bỏ chọn danh mục cũ
             }}
-            className={chip(typeFilter === t.value)}
+            aria-pressed={typeFilter === t.value}
+            className={filterChipClass(typeFilter === t.value)}
           >
             {t.label}
           </button>
@@ -293,7 +286,7 @@ export function SearchPage() {
       <button
         type="button"
         onClick={() => setShowMore((v) => !v)}
-        className="-my-1 mb-1 inline-flex items-center gap-1 py-2 text-xs font-medium text-fg-accent"
+        className="-my-1 mb-1 inline-flex items-center gap-1 py-2 text-sm font-medium text-fg-accent"
       >
         {showMore ? 'Ẩn bộ lọc' : 'Lọc theo danh mục / nhãn / tài khoản'}
         {showMore ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -302,7 +295,7 @@ export function SearchPage() {
         <div className="mb-3 space-y-3 rounded-xl bg-surface-sunken p-3">
           {tagSections.length > 0 && (
             <div>
-              <p className="mb-1.5 text-xs font-semibold text-fg-muted">
+              <p className="mb-1.5 text-sm font-semibold text-fg-muted">
                 Nhãn{' '}
                 <span className="font-normal text-fg-muted">
                   (trong cùng nhóm = khớp bất kỳ · khác nhóm = phải khớp đủ)
@@ -321,7 +314,7 @@ export function SearchPage() {
                             type="button"
                             onClick={() => setTagIds((l) => toggle(l, t.id))}
                             aria-pressed={active}
-                            className={`rounded-full px-3 py-2.5 text-xs font-medium transition ${
+                            className={`rounded-full px-3 py-2.5 text-sm font-medium transition ${
                               active
                                 ? 'bg-accent text-fg-on-accent'
                                 : TAG_CHIP_CLASS[tagColor(t.color)]
@@ -339,14 +332,15 @@ export function SearchPage() {
           )}
           {typeFilter !== 'transfer' && (
             <div>
-              <p className="mb-1.5 text-xs font-semibold text-fg-muted">Danh mục</p>
+              <p className="mb-1.5 text-sm font-semibold text-fg-muted">Danh mục</p>
               <div className="flex flex-wrap gap-1.5">
                 {visibleCategories.map((c) => (
                   <button
                     key={c.id}
                     type="button"
                     onClick={() => setCategoryIds((l) => toggle(l, c.id))}
-                    className={chip(categoryIds.includes(c.id))}
+                    aria-pressed={categoryIds.includes(c.id)}
+                    className={filterChipClass(categoryIds.includes(c.id))}
                   >
                     {c.icon} {c.name}
                   </button>
@@ -355,7 +349,7 @@ export function SearchPage() {
             </div>
           )}
           <div>
-            <p className="mb-1.5 text-xs font-semibold text-fg-muted">
+            <p className="mb-1.5 text-sm font-semibold text-fg-muted">
               Số tiền ({CURRENCIES[base].symbol})
             </p>
             <div className="flex items-center gap-2 text-sm text-fg-secondary">
@@ -379,14 +373,15 @@ export function SearchPage() {
             </div>
           </div>
           <div>
-            <p className="mb-1.5 text-xs font-semibold text-fg-muted">Tài khoản</p>
+            <p className="mb-1.5 text-sm font-semibold text-fg-muted">Tài khoản</p>
             <div className="flex flex-wrap gap-1.5">
               {accounts.map((a) => (
                 <button
                   key={a.id}
                   type="button"
                   onClick={() => setAccountIds((l) => toggle(l, a.id))}
-                  className={chip(accountIds.includes(a.id))}
+                  aria-pressed={accountIds.includes(a.id)}
+                  className={filterChipClass(accountIds.includes(a.id))}
                 >
                   <span className="inline-flex items-center gap-1">
                     <AccountTypeIcon type={a.type} className="h-4 w-4" /> {a.name} ·{' '}
@@ -400,7 +395,7 @@ export function SearchPage() {
           {/* Chỉ khoản chưa gắn danh mục — cửa vào từ bảng "còn tồn" ở tab Thấu hiểu,
               và cũng để tự dọn tay khi muốn. Ô tích chứ không phải chip: đây là bật/tắt
               một điều kiện, không phải chọn trong một tập. */}
-          <label className="flex min-h-11 items-center gap-2 text-xs text-fg-secondary">
+          <label className="flex min-h-11 items-center gap-2 text-sm text-fg-secondary">
             <input
               type="checkbox"
               checked={uncategorized}
@@ -414,7 +409,7 @@ export function SearchPage() {
 
       {/* Kết quả */}
       <div className="mb-2 flex items-center justify-between gap-2 px-1">
-        <p className="flex flex-wrap items-center gap-x-2 text-xs text-fg-muted">
+        <p className="flex flex-wrap items-center gap-x-2 text-sm text-fg-muted">
           <span>{isLoading ? 'Đang tìm…' : `${results.length} kết quả`}</span>
           {/* Nhãn đang lọc phải thấy được cả khi khối bộ lọc đang thu gọn */}
           {tagIds.length > 0 && (
@@ -441,7 +436,7 @@ export function SearchPage() {
             type="button"
             onClick={() => (selection.selecting ? selection.exit() : selection.enter())}
             // -my-2 để vùng chạm 44px không đội dòng "n kết quả" ra xa danh sách
-            className="-my-2 inline-flex min-h-11 shrink-0 items-center justify-center px-2 text-xs font-medium text-fg-accent"
+            className="-my-2 inline-flex min-h-11 shrink-0 items-center justify-center px-2 text-sm font-medium text-fg-accent"
           >
             {selection.selecting ? 'Xong' : 'Chọn'}
           </button>
@@ -464,18 +459,18 @@ export function SearchPage() {
             </span>
           </div>
           {totals.hasMissingRate && (
-            <p className="mt-2 text-xs text-state-warn-fg">
+            <p className="mt-2 text-sm text-state-warn-fg">
               Một phần ngoại tệ chưa quy đổi được (đang chờ tỷ giá).
             </p>
           )}
         </Card>
       )}
       {days.length === 0 && !isLoading ? (
-        <p className="py-10 text-center text-fg-muted">Không có giao dịch khớp bộ lọc</p>
+        <EmptyState>Không có giao dịch khớp bộ lọc</EmptyState>
       ) : (
         days.map(([day, txs]) => (
           <section key={day} className="mb-3">
-            <div className="mb-1 px-1 text-xs font-medium text-fg-muted">{day}</div>
+            <div className="mb-1 px-1 text-sm font-medium text-fg-muted">{day}</div>
             <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
               {txs.map((tx) => (
                 <TransactionItem

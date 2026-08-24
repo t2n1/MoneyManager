@@ -8,7 +8,7 @@
 // Chỉ bốn ô (tên, hai năm, số tiền). Tỷ giá, ghi chú, cờ lạm phát vẫn thuộc trình sửa
 // đầy đủ: chúng không phải thứ người ta vặn khi đang nhìn đường đồ thị chạy.
 import { X } from 'lucide-react'
-import { ActionButton, IconButton } from '../../components/ui'
+import { ActionButton, IconButton, actionButtonClass } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
 import { CURRENCIES } from '../../lib/currencies'
 import type { DraftEvent } from './draft'
@@ -31,7 +31,7 @@ interface Props {
 const WIDTH = 268
 
 const FIELD =
-  'mt-0.5 block w-full rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs text-fg-primary'
+  'mt-0.5 block w-full rounded-md border border-border-strong bg-surface px-2 py-1.5 text-sm text-fg-primary'
 
 /** Số tiền nhập theo đơn vị LỚN (¥, ₫) rồi quy về minor — người dùng không gõ "cent". */
 function toMinor(major: string, currency: CurrencyCode): number {
@@ -67,7 +67,7 @@ export function EventEditorPopover({
       onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="flex items-center justify-between gap-2">
-        <p className="text-2xs uppercase tracking-[.1em] text-fg-muted">Sửa mốc</p>
+        <p className="text-2xs uppercase tracking-label text-fg-muted">Sửa mốc</p>
         <IconButton
           variant="ghost"
           onClick={onClose}
@@ -139,7 +139,7 @@ export function EventEditorPopover({
         <button
           type="button"
           onClick={onDelete}
-          className="min-h-9 text-xs font-medium text-money-out transition active:scale-95"
+          className={actionButtonClass('danger')}
         >
           Xoá mốc
         </button>

@@ -31,19 +31,19 @@ export function PeriodTotalsBar({ transactions, currencyOf, base, rates }: Props
   return (
     <Card className="grid grid-cols-3 gap-2 text-center">
       <div>
-        <div className="text-xs text-fg-muted">Thu</div>
+        <div className="text-sm text-fg-muted">Thu</div>
         <div className="mt-0.5 text-sm font-semibold tabular-nums text-money-in">
           {income ? approxLabel(income, base) : sumPerCurrency(transactions, 'income', currencyOf)}
         </div>
       </div>
       <div className="border-x border-border-subtle">
-        <div className="text-xs text-fg-muted">Chi</div>
+        <div className="text-sm text-fg-muted">Chi</div>
         <div className="mt-0.5 text-sm font-semibold tabular-nums text-money-out">
           {expense ? approxLabel(expense, base) : sumPerCurrency(transactions, 'expense', currencyOf)}
         </div>
       </div>
       <div>
-        <div className="text-xs text-fg-muted">Chênh lệch</div>
+        <div className="text-sm text-fg-muted">Chênh lệch</div>
         <div
           className={`mt-0.5 text-sm font-semibold tabular-nums ${netNegative ? 'text-money-out' : 'text-fg-primary'}`}
         >

@@ -12,8 +12,7 @@
 // đã lazy ở App.tsx nên thêm một lớp Suspense nữa chỉ làm nhấp nháy lúc gạt tab.
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { BackLink } from '../../components/BackLink'
-import { SegmentedControl, type SegmentedItem } from '../../components/ui'
+import { PageHeader, SegmentedControl, type SegmentedItem } from '../../components/ui'
 import { useAccounts } from '../../hooks/queries'
 import { InvestFundsTab } from './InvestFundsTab'
 import { InvestStocksTab } from './InvestStocksTab'
@@ -79,10 +78,7 @@ export function InvestPage() {
 
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
-      <div className="flex items-center gap-2">
-        <BackLink to="/assets" aria-label="Quay lại" />
-        <h1 className="flex-1 text-lg font-bold text-fg-primary">Đầu tư</h1>
-      </div>
+      <PageHeader title="Đầu tư" back="/assets" flush />
 
       {tab && (
         <>

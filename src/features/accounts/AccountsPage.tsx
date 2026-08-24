@@ -1,7 +1,6 @@
 import { useId, useState } from 'react'
 import { Guide } from '../../components/Guide'
-import { AlertTriangle, ChevronDown, ChevronUp, GripVertical } from 'lucide-react'
-import { BackLink } from '../../components/BackLink'
+import { AlertTriangle, ChevronDown, ChevronUp, GripVertical, Plus } from 'lucide-react'
 import { ClassificationToggle } from '../categories/ClassificationToggle'
 import { LIQUID_OPTIONS, needsLiquidityAnswer } from '../assets/liquidity'
 import { AccountTypeIcon } from '../../components/icons'
@@ -29,7 +28,7 @@ import {
 } from '../assets/shelter'
 import { groupAccountsByType, type CurrencyTotal } from './groupByType'
 import { useEscClose } from '../../hooks/useEscClose'
-import { Card } from '../../components/ui'
+import { Card, EmptyState, PageHeader, SectionTitle, Select, actionButtonClass } from '../../components/ui'
 
 /** Ghép tổng theo loại tiền thành chuỗi hiển thị: "¥545,860" hoặc "¥X · ₫Y". */
 function formatTotals(totals: CurrencyTotal[]): string {
@@ -72,20 +71,18 @@ export function AccountsPage() {
 
   return (
     <div className="p-3 lg:p-6">
-      <div className="mb-3 flex items-center gap-2">
-        <BackLink to="/settings" aria-label="Quay lại" />
-        <h1 className="flex-1 text-lg font-bold text-fg-primary">Tài khoản</h1>
+      <PageHeader title="Tài khoản" back="/settings">
         <button
           type="button"
           onClick={() => setEditing('new')}
-          className="rounded-md bg-accent text-fg-on-accent px-3 py-1.5 text-sm font-semibold transition active:scale-95"
+          className={actionButtonClass('primary')}
         >
-          + Thêm
+          <Plus className="h-4 w-4" /> Thêm
         </button>
-      </div>
+      </PageHeader>
 
       {active.length > 0 && (
-        <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-xs text-fg-secondary">
+        <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-sm text-fg-secondary">
           Nhấn giữ biểu tượng <b>⁚⁚</b> rồi kéo–thả để sắp thứ tự tài khoản trong cùng một
           loại. Muốn đổi sang loại khác thì mở tài khoản và chỉnh mục <b>Loại</b>.
         </Guide>
@@ -93,17 +90,17 @@ export function AccountsPage() {
 
       {active.length === 0 && (
         <Card padding="none" className="overflow-hidden">
-          <p className="px-3 py-6 text-center text-sm text-fg-muted">Chưa có tài khoản</p>
+          <EmptyState compact>Chưa có tài khoản</EmptyState>
         </Card>
       )}
 
       {groups.map((g) => (
         <div key={g.type} className="mb-3">
           <div className="mb-1.5 flex items-baseline justify-between px-1">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+            <SectionTitle role="micro">
               {g.label}
-            </h2>
-            <span className="text-xs font-medium text-fg-secondary">
+            </SectionTitle>
+            <span className="text-sm font-medium text-fg-secondary">
               {formatTotals(g.totalsByCurrency)}
             </span>
           </div>
@@ -134,12 +131,12 @@ export function AccountsPage() {
                       <span className="flex items-center gap-1 truncate text-sm font-medium text-fg-primary">
                         <span className="truncate">{a.name}</span>
                         {a.is_hidden && (
-                          <span className="shrink-0 rounded bg-surface-sunken px-1 text-xs text-fg-muted">
+                          <span className="shrink-0 rounded bg-surface-sunken px-1 text-sm text-fg-muted">
                             ẩn
                           </span>
                         )}
                         {!a.include_in_totals && (
-                          <span className="shrink-0 rounded bg-surface-sunken px-1 text-xs text-fg-muted">
+                          <span className="shrink-0 rounded bg-surface-sunken px-1 text-sm text-fg-muted">
                             ngoài tổng
                           </span>
                         )}
@@ -150,19 +147,19 @@ export function AccountsPage() {
                             `needsLiquidityAnswer` với con số đếm bên kia, nên hai chỗ không
                             lệch nhau được. Dấu tự mất khi khai xong. */}
                         {needsLiquidityAnswer(a) && (
-                          <span className="shrink-0 rounded bg-state-warn-bg px-1 text-xs text-state-warn-fg">
+                          <span className="shrink-0 rounded bg-state-warn-bg px-1 text-sm text-state-warn-fg">
                             rút ngay?
                           </span>
                         )}
                       </span>
-                      <span className="block text-xs text-fg-muted">
+                      <span className="block text-sm text-fg-muted">
                         {formatMoney(balanceOf(a.id), a.currency)} · {a.currency}
                       </span>
                     </button>
                     <button
                       type="button"
                       onClick={() => update.mutate({ id: a.id, patch: { is_archived: true } })}
-                      className="inline-flex min-h-11 items-center justify-center min-h-11 rounded-md px-2 py-1 text-xs text-fg-muted hover:bg-surface-sunken"
+                      className="inline-flex min-h-11 items-center justify-center min-h-11 rounded-md px-2 py-1 text-sm text-fg-muted hover:bg-surface-sunken"
                     >
                       Lưu trữ
                     </button>
@@ -179,7 +176,7 @@ export function AccountsPage() {
           <button
             type="button"
             onClick={() => setShowArchived((v) => !v)}
-            className="mb-2 inline-flex min-h-11 items-center gap-1 text-xs font-medium text-fg-muted"
+            className="mb-2 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-fg-muted"
           >
             {showArchived ? (
               <>
@@ -202,7 +199,7 @@ export function AccountsPage() {
                   <button
                     type="button"
                     onClick={() => update.mutate({ id: a.id, patch: { is_archived: false } })}
-                    className="inline-flex min-h-11 items-center justify-center rounded-md px-2 py-1 text-xs text-fg-accent hover:bg-accent-muted-bg"
+                    className="inline-flex min-h-11 items-center justify-center rounded-md px-2 py-1 text-sm text-fg-accent hover:bg-accent-muted-bg"
                   >
                     Khôi phục
                   </button>
@@ -371,11 +368,11 @@ function AccountForm({ account, onClose }: FormProps) {
         className="w-full max-w-md rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-bold text-fg-primary">
+        <SectionTitle role="block" className="mb-3">
           {account ? 'Sửa tài khoản' : 'Thêm tài khoản'}
-        </h2>
+        </SectionTitle>
 
-        <label htmlFor={`${uid}-name`} className="mb-1 block text-xs font-medium text-fg-muted">
+        <label htmlFor={`${uid}-name`} className="mb-1 block text-sm font-medium text-fg-muted">
           Tên
         </label>
         <input
@@ -388,15 +385,13 @@ function AccountForm({ account, onClose }: FormProps) {
 
         <div className="mb-3 grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor={`${uid}-type`} className="mb-1 block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-type`} className="mb-1 block text-sm font-medium text-fg-muted">
               Loại
             </label>
-            <select
+            <Select
               id={`${uid}-type`}
               value={type}
-              onChange={(e) => setType(e.target.value as AccountType)}
-              className="w-full rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
-            >
+              onChange={(e) => setType(e.target.value as AccountType)} wrapClassName="w-full">
               <option value="cash">Tiền mặt</option>
               <option value="bank">Ngân hàng</option>
               <option value="card">Thẻ tín dụng</option>
@@ -404,30 +399,28 @@ function AccountForm({ account, onClose }: FormProps) {
               <option value="ewallet">Ví điện tử</option>
               <option value="investment">Đầu tư</option>
               <option value="fixed">Tài sản cố định</option>
-            </select>
+            </Select>
           </div>
           <div>
-            <label htmlFor={`${uid}-currency`} className="mb-1 block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-currency`} className="mb-1 block text-sm font-medium text-fg-muted">
               Loại tiền
             </label>
-            <select
+            <Select
               id={`${uid}-currency`}
               value={currency}
-              onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
-              className="w-full rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
-            >
+              onChange={(e) => setCurrency(e.target.value as CurrencyCode)} wrapClassName="w-full">
               {CURRENCY_LIST.map((c) => (
                 <option key={c} value={c}>
                   {CURRENCIES[c].symbol} {c}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 
         {!isCard && (
           <>
-            <label htmlFor={`${uid}-group`} className="mb-1 block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-group`} className="mb-1 block text-sm font-medium text-fg-muted">
               Nhóm tài sản <span className="text-fg-muted">(không bắt buộc)</span>
             </label>
             <input
@@ -451,7 +444,7 @@ function AccountForm({ account, onClose }: FormProps) {
             {/* <span> chứ không <label htmlFor>: MoneyField có HAI ô (hộp chạm mobile +
                 input desktop) luôn cùng nằm trong DOM, nên `for` chắc chắn trỏ vào ô đang
                 bị CSS ẩn. Tên ô đến từ `ariaLabel` — phải khớp chữ ở đây. */}
-            <span className="mb-1 block text-xs font-medium text-fg-muted">
+            <span className="mb-1 block text-sm font-medium text-fg-muted">
               Hạn mức tín dụng <span className="text-fg-muted">(không bắt buộc)</span>
             </span>
             <div className="mb-3">
@@ -467,7 +460,7 @@ function AccountForm({ account, onClose }: FormProps) {
 
             <div className="mb-3 grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor={`${uid}-stmt`} className="mb-1 block text-xs font-medium text-fg-muted">
+                <label htmlFor={`${uid}-stmt`} className="mb-1 block text-sm font-medium text-fg-muted">
                   Ngày chốt sao kê
                 </label>
                 <input
@@ -480,7 +473,7 @@ function AccountForm({ account, onClose }: FormProps) {
                 />
               </div>
               <div>
-                <label htmlFor={`${uid}-due`} className="mb-1 block text-xs font-medium text-fg-muted">
+                <label htmlFor={`${uid}-due`} className="mb-1 block text-sm font-medium text-fg-muted">
                   Ngày đến hạn
                 </label>
                 <input
@@ -494,23 +487,21 @@ function AccountForm({ account, onClose }: FormProps) {
               </div>
             </div>
 
-            <label htmlFor={`${uid}-payacc`} className="mb-1 block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-payacc`} className="mb-1 block text-sm font-medium text-fg-muted">
               Tài khoản trả thẻ <span className="text-fg-muted">(không bắt buộc)</span>
             </label>
-            <select
+            <Select
               id={`${uid}-payacc`}
               value={paymentAccountId}
-              onChange={(e) => setPaymentAccountId(e.target.value)}
-              className="mb-1 w-full rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
-            >
+              onChange={(e) => setPaymentAccountId(e.target.value)} wrapClassName="mb-1 w-full">
               <option value="">— Không tự trả —</option>
               {paymentSourceOptions.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>
               ))}
-            </select>
-            <p className="mb-3 flex items-start gap-1 text-xs text-fg-muted">
+            </Select>
+            <p className="mb-3 flex items-start gap-1 text-sm text-fg-muted">
               {autopayNeedsDays ? (
                 <>
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -528,7 +519,7 @@ function AccountForm({ account, onClose }: FormProps) {
           <label className="flex items-center justify-between text-sm text-fg-secondary">
             <span>
               {isCard ? 'Trừ vào Tài sản ròng' : 'Tính vào Tổng tài sản'}
-              <span className="block text-xs text-fg-muted">
+              <span className="block text-sm text-fg-muted">
                 {isCard
                   ? 'Trừ số đang nợ khỏi Tài sản ròng ở trang Tài sản'
                   : 'Cộng số dư vào tổng ở trang Tài sản'}
@@ -543,7 +534,7 @@ function AccountForm({ account, onClose }: FormProps) {
           <label className="flex items-center justify-between text-sm text-fg-secondary">
             <span>
               Ẩn khỏi trang Tài sản
-              <span className="block text-xs text-fg-muted">Vẫn dùng bình thường khi nhập giao dịch</span>
+              <span className="block text-sm text-fg-muted">Vẫn dùng bình thường khi nhập giao dịch</span>
             </span>
             <AccountToggle checked={isHidden} onChange={setIsHidden} label="Ẩn khỏi trang Tài sản" />
           </label>
@@ -573,7 +564,7 @@ function AccountForm({ account, onClose }: FormProps) {
           </div>
         )}
 
-        <span className="mb-1 block text-xs font-medium text-fg-muted">
+        <span className="mb-1 block text-sm font-medium text-fg-muted">
           {isCard ? 'Số nợ ban đầu' : 'Số dư ban đầu'}
         </span>
         <div className="mb-2">
@@ -586,14 +577,14 @@ function AccountForm({ account, onClose }: FormProps) {
           />
         </div>
         {isCard && (
-          <Guide className="mb-2 text-xs text-fg-muted">
+          <Guide className="mb-2 text-sm text-fg-muted">
             Số nợ tại thời điểm bắt đầu ghi sổ (để 0 nếu chưa nợ). Chi tiêu bằng thẻ và trả
             thẻ ghi như giao dịch bình thường. Muốn khớp lại nợ hiện tại thì mở thẻ trong
             trang Tài sản và bấm “Điều chỉnh số nợ” — sửa ô này sẽ dịch cả lịch sử cũ.
           </Guide>
         )}
         {isInvestment && (
-          <Guide className="mb-2 text-xs text-fg-muted">
+          <Guide className="mb-2 text-sm text-fg-muted">
             Nhập vốn gốc ban đầu (tiền đã bỏ vào). Sau khi tạo, vào trang tài khoản để
             “Cập nhật giá trị” theo giá thị trường — chênh lệch là lãi/lỗ chưa thực hiện.
           </Guide>
@@ -602,10 +593,10 @@ function AccountForm({ account, onClose }: FormProps) {
         {/* Tài khoản ưu đãi thuế Nhật — theo dõi hạn mức nạp mỗi năm */}
         {isInvestment && (
           <div className="mb-3 rounded-lg bg-surface-page p-2.5">
-            <label htmlFor={`${uid}-shelter`} className="mb-1 block text-xs font-medium text-fg-muted">
+            <label htmlFor={`${uid}-shelter`} className="mb-1 block text-sm font-medium text-fg-muted">
               Ưu đãi thuế <span className="text-fg-muted">(không bắt buộc)</span>
             </label>
-            <select
+            <Select
               id={`${uid}-shelter`}
               value={taxShelter}
               onChange={(e) => {
@@ -615,19 +606,17 @@ function AccountForm({ account, onClose }: FormProps) {
                 if (next && shelterLimit === 0 && currency === 'JPY') {
                   setShelterLimit(SHELTER_DEFAULT_LIMIT_JPY[next])
                 }
-              }}
-              className="w-full rounded-md border border-border-strong bg-surface px-2 py-2 text-sm"
-            >
+              }} wrapClassName="w-full">
               <option value="">Tài khoản thường</option>
               {TAX_SHELTER_LIST.map((s) => (
                 <option key={s} value={s}>
                   {TAX_SHELTER_LABELS[s]}
                 </option>
               ))}
-            </select>
+            </Select>
             {taxShelter !== '' && (
               <>
-                <span className="mb-1 mt-2 block text-xs font-medium text-fg-muted">
+                <span className="mb-1 mt-2 block text-sm font-medium text-fg-muted">
                   Hạn mức nạp mỗi năm
                 </span>
                 <MoneyField
@@ -650,7 +639,7 @@ function AccountForm({ account, onClose }: FormProps) {
         {/* Tài sản cố định — khấu hao tuyến tính */}
         {isFixed && (
           <div className="mb-3 rounded-lg bg-surface-page p-2.5">
-            <Guide className="mb-2 text-xs text-fg-muted">
+            <Guide className="mb-2 text-sm text-fg-muted">
               Nhập <b>giá mua</b> ở ô số tiền phía trên. App sẽ tự giảm dần giá trị theo thời gian.
               Bất cứ lúc nào bạn tự “Cập nhật giá trị” trong trang tài khoản thì con số nhập tay được
               ưu tiên.
@@ -658,7 +647,7 @@ function AccountForm({ account, onClose }: FormProps) {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 {/* <span> chứ không <label>: ô ngày là <button>, tên đi qua ariaLabel. */}
-                <span className="mb-1 block text-xs font-medium text-fg-muted">Ngày mua</span>
+                <span className="mb-1 block text-sm font-medium text-fg-muted">Ngày mua</span>
                 <DateField
                   ariaLabel="Ngày mua"
                   value={depFrom}
@@ -667,7 +656,7 @@ function AccountForm({ account, onClose }: FormProps) {
                 />
               </div>
               <div>
-                <label htmlFor={`${uid}-depmonths`} className="mb-1 block text-xs font-medium text-fg-muted">
+                <label htmlFor={`${uid}-depmonths`} className="mb-1 block text-sm font-medium text-fg-muted">
                   Khấu hao (tháng)
                 </label>
                 <input
@@ -680,7 +669,7 @@ function AccountForm({ account, onClose }: FormProps) {
                 />
               </div>
             </div>
-            <span className="mb-1 mt-2 block text-xs font-medium text-fg-muted">
+            <span className="mb-1 mt-2 block text-sm font-medium text-fg-muted">
               Giá trị còn lại cuối vòng đời
             </span>
             <MoneyField
@@ -699,7 +688,7 @@ function AccountForm({ account, onClose }: FormProps) {
         )}
 
         {currencyChanged && hasActivity && (
-          <p className="mb-2 rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-xs">
+          <p className="mb-2 rounded-lg bg-state-warn-bg text-state-warn-fg p-2 text-sm">
             Tài khoản đã có giao dịch. Đổi loại tiền không tự quy đổi số tiền các giao dịch cũ.
           </p>
         )}
@@ -727,7 +716,7 @@ function AccountForm({ account, onClose }: FormProps) {
               type="button"
               onClick={handleSubmit}
               disabled={!canSave}
-              className="min-h-11 rounded-md bg-accent text-fg-on-accent px-4 py-2 text-sm font-semibold disabled:opacity-40"
+              className={actionButtonClass('primary')}
             >
               {saving ? 'Đang lưu…' : 'Lưu'}
             </button>

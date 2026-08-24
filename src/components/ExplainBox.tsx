@@ -29,7 +29,7 @@ export function ExplainBox({ label = 'Cách tính & nên làm gì', children }: 
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={bodyId}
-        className="mt-2 inline-flex min-h-11 items-center gap-1 rounded-md text-xs font-medium text-fg-muted hover:text-fg-secondary"
+        className="mt-2 inline-flex min-h-11 items-center gap-1 rounded-md text-sm font-medium text-fg-muted hover:text-fg-secondary"
       >
         {label}
         <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -39,7 +39,7 @@ export function ExplainBox({ label = 'Cách tính & nên làm gì', children }: 
       <Collapse
         open={open}
         id={bodyId}
-        className="text-xs leading-relaxed text-fg-muted"
+        className="text-sm leading-relaxed text-fg-muted"
       >
         <div className="mt-1 space-y-1.5 rounded-lg bg-surface-page p-2.5">{children}</div>
       </Collapse>

@@ -79,6 +79,16 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
   const netApprox =
     breakdown.hasForeign || debtsSummary.hasMissingRate || breakdown.cardHasMissingRate
 
+  // Ba con số này về tay đã tính bằng TIỀN GỐC (useAssetsData gộp mọi tài khoản về base),
+  // nên chúng phải đi qua `mv.view` y như các ô còn lại của dải. Bỏ sót đúng chỗ này một
+  // lần rồi: bấm nút ¥/₫/$ thì chân ô đổi mà hai con số to nhất trang đứng yên, tức màn
+  // hình trộn hai đồng tiền mà không nói ra. Guard: tests/assetsKpiDoiTien.test.ts.
+  // Cờ ≈ thì CỘNG chứ không thay: quy đổi thêm một lý do ước chừng, không xoá lý do cũ.
+  const netView = mv.view(netWorth)
+  const totalView = mv.view(breakdown.total)
+  const pnlView = mv.view(Math.abs(pnl))
+  const loanView = mv.view(debtsSummary.owedToMe > 0 ? debtsSummary.owedToMe : cardOwed)
+
   // Ô "Phải trả" chỉ dựng khi có thẻ đang nợ: một ô "—" chiếm một phần tư dải để nói
   // "không có gì" là đổi chỗ đắt nhất trang lấy một tin rỗng.
   const showDue = summary.billedBase != null
@@ -93,7 +103,7 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
         {isLoading ? (
           <span className="text-fg-muted">…</span>
         ) : (
-          <Money amount={netWorth} currency={base} approx={netApprox} />
+          <Money {...netView} approx={netApprox || netView.approx} />
         )}
       </KpiCell>
 
@@ -107,11 +117,10 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
                 <>
                   {' '}· lãi đầu tư{' '}
                   <Money
-                    amount={Math.abs(pnl)}
-                    currency={base}
+                    {...pnlView}
                     tone={pnl >= 0 ? 'in' : 'out'}
                     showSign
-                    approx={breakdown.pnlHasMissingRate}
+                    approx={breakdown.pnlHasMissingRate || pnlView.approx}
                   />
                 </>
               )}
@@ -123,9 +132,8 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
           <span className="text-fg-muted">…</span>
         ) : (
           <Money
-            amount={breakdown.total}
-            currency={base}
-            approx={breakdown.hasForeign}
+            {...totalView}
+            approx={breakdown.hasForeign || totalView.approx}
             className="text-fg-secondary"
           />
         )}
@@ -196,9 +204,9 @@ export function AssetsKpi({ viewCur, netWorthFoot, tail }: Props) {
           }
         >
           <Money
-            {...mv.view(debtsSummary.owedToMe > 0 ? debtsSummary.owedToMe : cardOwed)}
+            {...loanView}
             tone={debtsSummary.owedToMe > 0 ? 'neutral' : 'out'}
-            approx={debtsSummary.hasMissingRate}
+            approx={debtsSummary.hasMissingRate || loanView.approx}
             className={debtsSummary.owedToMe > 0 ? 'text-fg-secondary' : ''}
           />
         </KpiCell>

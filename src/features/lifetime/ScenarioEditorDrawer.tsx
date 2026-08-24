@@ -116,8 +116,21 @@ function sliderBound(min: number, max: number, value: number, step: number) {
  *  mốc gói xuống dòng. Dùng `sm:`/`md:` của Tailwind thay vì đo `window.innerWidth`:
  *  media query không cần state, không cần listener, và đúng ngay ở lần render đầu. */
 const FIELD_LABEL = 'block text-3xs uppercase tracking-[.08em] text-fg-muted'
-const FIELD_INPUT =
-  'mt-0.5 block w-full rounded-md border border-border-strong bg-surface px-2 py-1.5 text-sm text-fg-primary'
+/**
+ * DÁNG của một ô nhập — CỐ Ý không mang bề rộng và không mang lề.
+ *
+ * Bản đầu gộp luôn `mt-0.5 block w-full` vào đây, rồi chỗ nào cần khác thì nối thêm
+ * `w-[4.625rem]` / `flex-1` phía sau. KHÔNG ĂN: hai tiện ích bề rộng cùng hạng đấu nhau
+ * thì THỨ TỰ TRONG CSS quyết định, không phải thứ tự trong chuỗi class — `w-full` thắng,
+ * nên cả bốn ô của một hàng mốc cùng rộng 501px, mỗi ô rơi một dòng, và hàng tràn ngang
+ * phải kéo mới thấy hết (đo trên màn 562px). Cùng lớp bẫy với `mt-0.5` vs `mt-0`.
+ *
+ * Nên bề rộng và lề là quyết định của CHỖ DÙNG, không nằm trong hằng số này.
+ */
+const FIELD_BOX =
+  'rounded-md border border-border-strong bg-surface px-2 py-1.5 text-sm text-fg-primary'
+/** Ô nhập chiếm hết bề ngang của nhãn bọc nó — dạng dùng nhiều nhất. */
+const FIELD_INPUT = `mt-0.5 block w-full ${FIELD_BOX}`
 const SECTION_HEAD = 'text-2xs font-semibold uppercase tracking-[.1em] text-fg-muted'
 
 /**
@@ -169,7 +182,7 @@ function YearInput({
         if (Number.isInteger(n) && n >= MIN_YEAR && n <= MAX_YEAR) onCommit(n)
       }}
       onBlur={() => setEditing(false)}
-      className={`${FIELD_INPUT} font-mono tabular-nums ${className}`}
+      className={`font-mono tabular-nums ${className}`}
     />
   )
 }
@@ -217,7 +230,7 @@ function EndYearInput({
         if (Number.isInteger(n) && n >= MIN_YEAR && n <= MAX_YEAR) onCommit(Math.max(startYear, n))
       }}
       onBlur={() => setEditing(false)}
-      className={`${FIELD_INPUT} w-[4.625rem] shrink-0 text-center font-mono tabular-nums`}
+      className={`${FIELD_BOX} w-[4.625rem] shrink-0 text-center font-mono tabular-nums`}
     />
   )
 }
@@ -934,6 +947,7 @@ export function ScenarioEditorDrawer({
                           id={`${uid}-py-${p.id}`}
                           value={p.startYear}
                           ariaLabel={`Năm bắt đầu chặng ${p.label}`}
+                          className={`mt-0.5 block w-full ${FIELD_BOX}`}
                           onCommit={(y) => onEdit((d) => patchDraftPhase(d, p.id, { startYear: y }))}
                         />
                       </label>
@@ -1200,12 +1214,12 @@ export function ScenarioEditorDrawer({
                       const v = e.target.value
                       onEdit((d) => patchDraftEvent(d, ev.id, { label: v }))
                     }}
-                    className={`${FIELD_INPUT} mt-0 min-w-0 flex-1`}
+                    className={`${FIELD_BOX} min-w-0 flex-1`}
                   />
                   <YearInput
                     value={ev.startYear}
                     ariaLabel="Từ năm"
-                    className="mt-0 w-[4.625rem] shrink-0 text-center"
+                    className={`${FIELD_BOX} w-[4.625rem] shrink-0 text-center`}
                     onCommit={(y) =>
                       onEdit((d) => {
                         // GIỮ NGUYÊN độ dài: dời một mốc 22 năm sang trước hai năm là
@@ -1229,34 +1243,43 @@ export function ScenarioEditorDrawer({
                     startYear={ev.startYear}
                     onCommit={(y) => onEdit((d) => patchDraftEvent(d, ev.id, { endYear: y }))}
                   />
-                  <span className="w-full shrink-0 md:w-[7.25rem]">
-                    <MoneyField
-                      value={ev.amountMinor}
-                      currency={ev.currency}
-                      autoOpen={false}
-                      ariaLabel={`Số tiền mỗi năm của mốc ${ev.label}`}
-                      onChange={(v) => onEdit((d) => patchDraftEvent(d, ev.id, { amountMinor: v }))}
-                      className={`w-full rounded-md border border-border-strong bg-surface px-2 py-1.5 text-right text-sm font-medium ${
-                        ev.kind === 'income' ? 'text-money-in' : 'text-money-out'
-                      }`}
-                    />
-                  </span>
-                  <div className="flex shrink-0 gap-1">
-                    <IconButton
-                      aria-label={`Chi tiết mốc ${ev.label}`}
-                      title="Tiền, tỷ giá, lạm phát, ghi chú…"
-                      onClick={() => setEventSheet(ev)}
-                    >
-                      <MoreVertical className="h-4 w-4" aria-hidden="true" />
-                    </IconButton>
-                    <IconButton
-                      aria-label={`Xóa mốc ${ev.label}`}
-                      variant="ghost"
-                      title="Xóa"
-                      onClick={() => onEdit((d) => removeDraftEvent(d, ev.id))}
-                    >
-                      <X className="h-4 w-4" aria-hidden="true" />
-                    </IconButton>
+                  {/* Ô tiền + hai nút gộp trong MỘT khay chỉ tồn tại ở màn hẹp: bản vẽ
+                      nói số tiền xuống dòng riêng full-width dưới 720px, nhưng để rời
+                      thì hai nút icon rơi tiếp xuống dòng THỨ BA và một hàng mốc cao
+                      142px. `md:contents` cho khay tan biến từ md trở lên, nên hàng rộng
+                      vẫn đúng một dòng như bản vẽ. */}
+                  <div className="flex w-full items-center gap-1.5 md:contents">
+                    <span className="min-w-0 flex-1 md:w-[7.25rem] md:flex-none">
+                      <MoneyField
+                        value={ev.amountMinor}
+                        currency={ev.currency}
+                        autoOpen={false}
+                        ariaLabel={`Số tiền mỗi năm của mốc ${ev.label}`}
+                        onChange={(v) =>
+                          onEdit((d) => patchDraftEvent(d, ev.id, { amountMinor: v }))
+                        }
+                        className={`w-full rounded-md border border-border-strong bg-surface px-2 py-1.5 text-right text-sm font-medium ${
+                          ev.kind === 'income' ? 'text-money-in' : 'text-money-out'
+                        }`}
+                      />
+                    </span>
+                    <div className="flex shrink-0 gap-1">
+                      <IconButton
+                        aria-label={`Chi tiết mốc ${ev.label}`}
+                        title="Tiền, tỷ giá, lạm phát, ghi chú…"
+                        onClick={() => setEventSheet(ev)}
+                      >
+                        <MoreVertical className="h-4 w-4" aria-hidden="true" />
+                      </IconButton>
+                      <IconButton
+                        aria-label={`Xóa mốc ${ev.label}`}
+                        variant="ghost"
+                        title="Xóa"
+                        onClick={() => onEdit((d) => removeDraftEvent(d, ev.id))}
+                      >
+                        <X className="h-4 w-4" aria-hidden="true" />
+                      </IconButton>
+                    </div>
                   </div>
                 </div>
               ))}

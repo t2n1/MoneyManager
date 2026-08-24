@@ -808,6 +808,59 @@ describe('design system — ban cứng (phải bằng 0)', () => {
    * Chỉ soi tiện ích BỀ RỘNG: `left-[18px]`/`left-[22px]` (vị trí núm công tắc) không
    * nằm trong luật này — chúng đo theo đường ray, mà đường ray là hình chứ không phải chữ.
    */
+  /**
+   * HAI tiện ích BỀ RỘNG trong cùng một `className` thì THỨ TỰ TRONG CSS quyết định cái
+   * nào thắng, KHÔNG phải thứ tự trong chuỗi — nên `${FIELD_INPUT} w-[4.625rem]` với
+   * `FIELD_INPUT` chứa `w-full` không cho ra 74px, nó cho ra full width.
+   *
+   * Đo 2026-08-24 trên trình sửa kịch bản ở màn 562px: cả bốn ô của một hàng mốc cùng
+   * rộng 501px, mỗi ô rơi một dòng, hàng tràn ngang phải kéo mới thấy hết. Class có mặt
+   * đủ trong DOM, `getComputedStyle` mới nói ra sự thật — đúng lớp bẫy mà không có gì
+   * trong toolchain báo (Tailwind sinh CSS cho CẢ HAI class, không hề cảnh báo).
+   *
+   * Cách sửa: tách bề rộng RA KHỎI hằng số dùng chung, để mỗi chỗ dùng tự khai. Bề rộng
+   * là quyết định của bố cục tại chỗ, không phải của "dáng một ô nhập".
+   *
+   * Luật này soi CẢ hằng số được nội suy vào: đó chính là ca đã xảy ra, và một luật chỉ
+   * đọc chuỗi trần sẽ bỏ sót nó.
+   *
+   * Tiện ích có TIỀN TỐ biến thể (`md:w-…`, `sm:w-…`) không tính: `w-full md:w-[7.25rem]`
+   * là cách khai responsive đúng, hai class đó không bao giờ cùng hiệu lực.
+   */
+  it('không có hai tiện ích bề rộng cùng hiệu lực trong một className', () => {
+    const WIDTH = /^w-(?:full|screen|fit|min|max|auto|px|\[[^\]]+\]|\d+(?:\.\d+)?|\d+\/\d+)$/
+    const bareWidths = (s: string) =>
+      s.split(/\s+/).filter((t) => !t.includes(':') && WIDTH.test(t))
+
+    const hits: string[] = []
+    for (const f of FILES) {
+      // Hằng số chuỗi trong CHÍNH file đó có mang tiện ích bề rộng nào.
+      const consts = new Map<string, string[]>()
+      for (const m of f.text.matchAll(
+        /const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:'([^']*)'|"([^"]*)"|`([^`]*)`)/g,
+      )) {
+        const w = bareWidths(m[2] ?? m[3] ?? m[4] ?? '')
+        if (w.length > 0) consts.set(m[1], w)
+      }
+      for (const m of f.text.matchAll(/className=\{`([^`]*)`\}/g)) {
+        const own = bareWidths(m[1].replace(/\$\{[^}]*\}/g, ' '))
+        const inherited = [...m[1].matchAll(/\$\{([A-Za-z_$][\w$]*)\}/g)].flatMap(
+          (v) => consts.get(v[1]) ?? [],
+        )
+        if (own.length + inherited.length > 1) {
+          const line = f.text.slice(0, m.index).split('\n').length
+          hits.push(
+            `${f.path.replace(SRC, '')}:${line} — ${[...inherited, ...own].join(' + ')}`,
+          )
+        }
+      }
+    }
+    expect(
+      hits,
+      `Tách bề rộng ra khỏi hằng số dùng chung, để chỗ dùng tự khai.\n${hits.join('\n')}`,
+    ).toEqual([])
+  })
+
   it('không đặt bề rộng cột bằng px (không co theo Cỡ chữ)', () => {
     const hits: string[] = []
     const RE = /\b(?:w|min-w|max-w|basis|grid-cols)-\[([^\]]*)\]/g

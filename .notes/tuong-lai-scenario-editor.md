@@ -95,3 +95,32 @@ template, logic ở block `// ---- scenario editor drawer ----`).
 - Xoá kịch bản vẫn có `confirmDialog` (bản vẽ ghi "nên có confirm ở app thật").
 - Sparkline ẩn dưới `sm`; cỡ chữ 13px→`text-sm`, 17px→`text-lg` (bậc đã đặt tên);
   620px/132px/74px… quy về `rem` (designSystem.test.ts chặn px ≥ 16 cho bề rộng).
+
+## Loi thu nam: hang moc tran ngang (user bao, 2026-08-24)
+
+Tren man ~562px, hang "MOC CUOC DOI" phai keo ngang moi thay het — o ten moc bi bop con
+mot vach, o nam phinh ra 501px.
+
+**Nguyen nhan:** `FIELD_INPUT` (hang so dung chung) mang san `w-full`, roi cho nao can
+khac thi noi them `w-[4.625rem]` / `flex-1` phia sau. Hai tien ich BE RONG cung hang thi
+THU TU TRONG CSS quyet dinh, khong phai thu tu trong chuoi class — `w-full` thang, nen ca
+bon o cua mot hang cung rong 501px, moi o roi mot dong, hang tran ngang.
+
+Class co mat du trong DOM; chi `getComputedStyle` moi noi ra su that. Khong co gi trong
+toolchain bao: Tailwind sinh CSS cho CA HAI class, khong canh bao gi.
+
+**Sua:** tach be rong ra khoi hang so (`FIELD_BOX` = chi dang, khong be rong khong le;
+`FIELD_INPUT` = `mt-0.5 block w-full ${FIELD_BOX}` cho ca thuong dung). Be rong la quyet
+dinh cua BO CUC TAI CHO.
+
+**Chan hoi quy:** `tests/designSystem.test.ts` — "khong co hai tien ich be rong cung hieu
+luc trong mot className". Luat nay soi CA hang so duoc noi suy vao (do la ca da xay ra;
+mot luat chi doc chuoi tran se bo sot). Da kiem: fail dung tren ban cu, pass tren ban moi.
+
+**Kem theo:** o tien + hai nut icon gom vao mot khay `md:contents` — de roi thi o man hep
+hai nut roi tiep xuong dong THU BA va mot hang moc cao 142px (nay 103px). Tu md tro len
+khay tan bien, hang van dung mot dong nhu ban ve.
+
+**Con lai, chua sua:** o "Ten moc" chi rong 84px o drawer 608px. Ban ve khong co nut "..."
+nen no co ~130px; nut do la cai gia cua lua chon giu hai sheet chi tiet. Doc duoc ~10 ky
+tu; muon rong hon thi phai bo mui "→" hoac thu hep hai o nam.

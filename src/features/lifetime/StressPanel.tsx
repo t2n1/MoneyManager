@@ -59,6 +59,14 @@ interface Props {
   baseNegativeYear: number | null
   stressNegativeYear: number | null
   birthYear: number
+  /**
+   * 'card' (mặc định) = khối riêng trong cột Giả định.
+   * 'inline' = chỉ RUỘT, không thẻ không tiêu đề — dùng trong tab "Stress test" của bàn
+   * sửa kịch bản, nơi tên tab đã nói nó là gì và một thẻ lồng trong thẻ chỉ thêm một
+   * tầng viền. Một prop chứ hai component: sáu cú sốc và câu kết luận là phần đáng dùng
+   * chung, chép sang chỗ thứ hai là hai bảng cú sốc trôi lệch nhau.
+   */
+  variant?: 'card' | 'inline'
 }
 
 /** Công tắc gạt. `<button role="switch">` chứ không `<input type=checkbox>`: cần một
@@ -149,6 +157,7 @@ export function StressPanel({
   baseNegativeYear,
   stressNegativeYear,
   birthYear,
+  variant = 'card',
 }: Props) {
   const set = <K extends keyof StressConfig>(k: K, patch: Partial<StressConfig[K]>) =>
     onChange({ ...value, [k]: { ...value[k], ...patch } })
@@ -161,10 +170,9 @@ export function StressPanel({
     value.paycut.on ||
     value.longevity.on
 
-  return (
-    <Card as="section" elevation="panel" padding="panel">
-      <h2 className="text-2xs uppercase tracking-[.1em] text-fg-muted">Stress test</h2>
-      <Guide className="mt-1 text-2xs leading-relaxed text-fg-muted">
+  const body = (
+    <>
+      <Guide className="text-2xs leading-relaxed text-fg-muted">
         Lớp phủ thử — vẽ thêm một đường trên đồ thị, không đụng dữ liệu kịch bản và không
         cần lưu.
       </Guide>
@@ -332,6 +340,15 @@ export function StressPanel({
           </span>
         </p>
       )}
+    </>
+  )
+
+  if (variant === 'inline') return body
+
+  return (
+    <Card as="section" elevation="panel" padding="panel">
+      <h2 className="mb-1 text-2xs uppercase tracking-[.1em] text-fg-muted">Stress test</h2>
+      {body}
     </Card>
   )
 }

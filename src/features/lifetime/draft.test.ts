@@ -16,6 +16,7 @@ import {
   removeDraftPhase,
   savePlanIsEmpty,
   setDraftCurrency,
+  setPhaseCurrency,
   type ScenarioDraft,
 } from './draft'
 import type { LifetimeInput } from './project'
@@ -488,6 +489,46 @@ describe('patchDraftPhase / removeDraftPhase / addDraftPhase', () => {
     const plan = planDraftSave(base(), removeDraftPhase(base(), 'p2'))
     expect(plan.phaseDeletes).toEqual(['p2'])
     expect(plan.phasePatches).toEqual([])
+  })
+})
+
+describe('setPhaseCurrency', () => {
+  // Hồi quy: không gắn nhãn lại mốc thì màn hình hiện ₫3.000.000 trong khi bản chiếu
+  // (qua `normalizeToPhaseCurrency`) nhân lên thành ₫516.000.000. Bắt được khi chạy app
+  // thật, 2026-08-24.
+  it('đổi tiền chặng thì gắn nhãn lại MỌI mốc rơi vào chặng đó', () => {
+    const d = setPhaseCurrency(base(), 'p2', 'VND')
+    expect(d.phases.find((p) => p.id === 'p2')!.currency).toBe('VND')
+    // e1 (2028) và e2 (2031) thuộc chặng p1 (2024) → không đụng.
+    expect(d.events.find((e) => e.id === 'e1')!.currency).toBe('JPY')
+    expect(d.events.find((e) => e.id === 'e2')!.currency).toBe('JPY')
+  })
+
+  it('chặng ĐẦU TIÊN nuốt luôn mốc nằm trước nó', () => {
+    const withOld = patchDraftEvent(base(), 'e1', { startYear: 1999 })
+    const d = setPhaseCurrency(withOld, 'p1', 'USD')
+    expect(d.events.find((e) => e.id === 'e1')!.currency).toBe('USD')
+  })
+
+  it('KHÔNG quy đổi số tiền — chỉ đổi đơn vị', () => {
+    const d = setPhaseCurrency(base(), 'p1', 'VND')
+    expect(d.phases.find((p) => p.id === 'p1')!.annualIncomeMinor).toBe(6_800_000)
+    expect(d.events.find((e) => e.id === 'e1')!.amountMinor).toBe(2_500_000)
+  })
+
+  it('đặt tỷ giá của mốc về 1: mốc nay CÙNG tiền với chặng nên không còn gì để quy', () => {
+    const withFx = patchDraftEvent(base(), 'e1', { fxToDisplay: 0.0057 })
+    expect(setPhaseCurrency(withFx, 'p1', 'VND').events.find((e) => e.id === 'e1')!.fxToDisplay).toBe(1)
+  })
+
+  it('đổi sang chính tiền đang có thì trả về nguyên bản nháp', () => {
+    const b = base()
+    expect(setPhaseCurrency(b, 'p1', 'JPY')).toBe(b)
+  })
+
+  it('chặng không còn thì trả về nguyên bản nháp', () => {
+    const b = base()
+    expect(setPhaseCurrency(b, 'khong-co', 'USD')).toBe(b)
   })
 })
 

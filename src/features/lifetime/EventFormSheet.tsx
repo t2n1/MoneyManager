@@ -1,27 +1,21 @@
-// Sheet "chi tiết mốc" — mở từ nút "⋯" trên một dòng sự kiện trong trình sửa kịch bản
-// (`ScenarioEditorDrawer`).
+// Sheet "chi tiết mốc" — mở từ nút "⋯" trên một dòng mốc ở bàn sửa kịch bản
+// (`ScenarioWorkbench`).
 //
-// VÌ SAO CÒN TỒN TẠI khi bản vẽ đã cho sửa mốc ngay trên một dòng: dòng inline mang năm
-// trường hay dùng (thu/chi · tên · từ · đến · số tiền), còn dòng dưới DB có thêm TIỀN
-// của mốc, TỶ GIÁ GIẢ ĐỊNH, cờ THEO LẠM PHÁT và GHI CHÚ. Bốn thứ đó không nhét nổi vào
-// một hàng, nhưng bỏ hẳn thì một mốc "Hỗ trợ bố mẹ ở VN" tính bằng ₫ không còn đường
-// nào khai — và dòng xem trước quy đổi ở đây là chốt kiểm DUY NHẤT bắt được ca tỷ giá
-// bị đảo chiều.
+// CÒN LẠI GÌ. Hàng inline mang loại · tên · từ → đến · số tiền. Hai trường nó không chứa
+// nổi là THEO LẠM PHÁT và GHI CHÚ. Cờ lạm phát không phải trang trí: nó đổi con số của
+// bản chiếu ở chế độ giá danh nghĩa, và các mẫu (`presets.ts`) đặt nó khác nhau tuỳ mốc
+// — bỏ hẳn ô này là để người dùng không có đường nào sửa một thứ đang tính vào tiền.
 //
-// GHI VÀO BẢN NHÁP, KHÔNG GHI DB — lý do đầy đủ ghi ở đầu `PhaseFormSheet.tsx`.
+// ĐÃ BỎ ô tiền và ô TỶ GIÁ GIẢ ĐỊNH. Từ bản vẽ v5, mốc KHÔNG còn tiền riêng: nó tính
+// bằng tiền của chặng phủ năm nó bắt đầu, và quy đổi đi qua tỷ giá hôm nay của app (xem
+// `fxModel.ts`). Muốn mốc tính bằng đồng khác thì đổi tiền của CHẶNG.
 //
-// ĐÃ BỎ đường "Chọn mẫu" trong sheet này. Mẫu (`LIFE_PRESETS`) nay vào qua hai chỗ đều
-// ghi vào NHÁP: dải chip "Thêm nhanh từ mẫu" trong trình sửa kịch bản, và `PresetPanel`
-// ngoài trang. Bản cũ ở đây tạo THẲNG bản ghi DB tuần tự — đúng thứ mà lớp nháp sinh ra
-// để thay, và giữ lại là có hai đường thêm mẫu cho ra hai kết quả khác nhau.
+// GHI VÀO BẢN NHÁP, KHÔNG GHI DB — lý do đầy đủ ở đầu `PhaseFormSheet.tsx`.
 import { useEffect, useId, useState } from 'react'
-import { AlertCircle } from 'lucide-react'
 import { Guide } from '../../components/Guide'
-import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
+import { CURRENCIES, type CurrencyCode } from '../../lib/money'
 import type { DraftEvent } from './draft'
-import { fxAfterCurrencyChange, isFxValid } from './fxField'
-import { convertLifetimeMinor } from './project'
 
 /** Khớp `check (start_year between 1900 and 2200)` và `check (end_year between 1900
  *  and 2200)` của `life_events` (migration 0031). */
@@ -29,10 +23,10 @@ const MIN_YEAR = 1900
 const MAX_YEAR = 2200
 
 interface Props {
-  /** Tiền hiển thị của kịch bản — quyết định ô tỷ giá có hiện hay không. */
-  displayCurrency: CurrencyCode
-  /** Mốc đang sửa. Không có ca "tạo mới": mốc mới thêm từ dải chip mẫu hoặc dòng inline. */
+  /** Mốc đang sửa. Không có ca "tạo mới": mốc mới thêm từ dải chip mẫu. */
   event: DraftEvent
+  /** Tiền của CHẶNG phủ năm bắt đầu — mốc tính bằng đơn vị này, không tự khai. */
+  currency: CurrencyCode
   /** Ghi các trường đã sửa vào bản nháp. */
   onApply: (patch: Partial<Omit<DraftEvent, 'id'>>) => void
   /** Bỏ mốc này khỏi bản nháp. */
@@ -40,33 +34,19 @@ interface Props {
   onClose: () => void
 }
 
-/** Sheet sửa một SỰ KIỆN đầy đủ trường — ghi vào bản nháp của trình sửa kịch bản. */
-export function EventFormSheet({ displayCurrency, event, onApply, onRemove, onClose }: Props) {
+/** Sheet sửa một MỐC CUỘC ĐỜI — ghi vào bản nháp của bàn sửa kịch bản. */
+export function EventFormSheet({ event, currency, onApply, onRemove, onClose }: Props) {
   const [label, setLabel] = useState(event.label)
   const [kind, setKind] = useState<'income' | 'expense'>(event.kind)
   const [startYear, setStartYear] = useState(String(event.startYear))
   const [forever, setForever] = useState(event.endYear === null)
   const [endYear, setEndYear] = useState(String(event.endYear ?? event.startYear))
   const [amount, setAmount] = useState(event.amountMinor)
-  const [currency, setCurrency] = useState<CurrencyCode>(event.currency)
-  const [fx, setFx] = useState(String(event.fxToDisplay))
   const [inflate, setInflate] = useState(event.inflate)
   const [note, setNote] = useState(event.note)
 
-  // Cùng tiền hiển thị thì tỷ giá luôn là 1 và KHÔNG hỏi.
-  const showFx = currency !== displayCurrency
-
-  /** Đổi tiền của SỰ KIỆN NÀY → đặt lại ô tỷ giá. Cùng luật với `PhaseFormSheet`, xem
-   *  `fxAfterCurrencyChange` để biết vì sao effect theo boolean `showFx` bỏ sót đúng ca
-   *  đổi giữa hai ngoại tệ (VND → USD) — và vì sao không guard nào bắt được ca đó. */
-  function handleCurrencyChange(next: CurrencyCode) {
-    setCurrency(next)
-    setFx(fxAfterCurrencyChange(next, displayCurrency))
-  }
-
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      // `stopPropagation`: trình sửa kịch bản có Esc riêng — xem PhaseFormSheet.
       if (e.key === 'Escape') {
         e.stopPropagation()
         onClose()
@@ -85,12 +65,10 @@ export function EventFormSheet({ displayCurrency, event, onApply, onRemove, onCl
       endYearNum >= MIN_YEAR &&
       endYearNum <= MAX_YEAR &&
       endYearNum >= yearNum)
-  const fxNum = Number(fx)
-  const fxValid = isFxValid(fx)
   const labelValid = label.trim() !== ''
   const amountValid = amount >= 0
 
-  const canSave = labelValid && yearValid && endYearValid && amountValid && (!showFx || fxValid)
+  const canSave = labelValid && yearValid && endYearValid && amountValid
 
   function handleSubmit() {
     if (!canSave) return
@@ -99,10 +77,13 @@ export function EventFormSheet({ displayCurrency, event, onApply, onRemove, onCl
       endYear: forever ? null : endYearNum,
       kind,
       amountMinor: amount,
+      // Ghi kèm `currency`: dòng dưới DB có thể còn mang tiền cũ (không có migration
+      // hàng loạt — xem `fxModel.ts`), nên lần người dùng chạm vào nó là lúc nó tự lành
+      // về mô hình mới.
       currency,
+      fxToDisplay: 1,
       label: label.trim(),
       note: note.trim(),
-      fxToDisplay: showFx ? fxNum : 1,
       inflate,
     })
     onClose()
@@ -121,12 +102,9 @@ export function EventFormSheet({ displayCurrency, event, onApply, onRemove, onCl
   const title = 'Chi tiết mốc cuộc đời'
   const uid = useId()
 
-  const amountPreview =
-    showFx && fxValid ? convertLifetimeMinor(amount, currency, displayCurrency, fxNum) : null
-
   return (
     <div
-      className="fixed inset-0 z-[62] flex items-end justify-center bg-black/40 lg:items-center animate-overlay-in"
+      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center animate-overlay-in"
       onClick={onClose}
     >
       <div
@@ -138,8 +116,8 @@ export function EventFormSheet({ displayCurrency, event, onApply, onRemove, onCl
       >
         <h2 className="mb-1 text-base font-bold text-fg-primary">{title}</h2>
         <Guide className="mb-3 text-xs text-fg-muted">
-          Bấm Xong là ghi vào bản nháp — kịch bản chỉ đổi khi bấm "Lưu thay đổi" ở chân
-          trình sửa.
+          Bấm Xong là ghi vào bản nháp — kịch bản chỉ đổi khi bấm Lưu ở thanh nháp trên đồ
+          thị.
         </Guide>
 
         <label htmlFor={`${uid}-label`} className={label_}>
@@ -159,14 +137,11 @@ export function EventFormSheet({ displayCurrency, event, onApply, onRemove, onCl
         )}
         {labelValid && <div className="mb-2" />}
 
-        {/* KHÔNG phải <label htmlFor>: đây là hai cái NÚT, không phải một form
-            control, nên không có gì để `for` trỏ vào. Cách đúng là nhãn nhóm
-            (`role="group"` + `aria-labelledby`) — cùng cách với `switchLabelId` ở
-            YearTableView.
-            `aria-pressed` là phần BẮT BUỘC, không phải thêm cho đẹp: trạng thái đang
-            chọn ở đây chỉ thể hiện bằng MÀU (bg-accent vs viền), nên thiếu nó thì
-            người dùng screen reader nghe được "Chi, Thu" mà không biết cái nào đang
-            bật — tệ hơn cả việc thiếu nhãn. */}
+        {/* KHÔNG phải <label htmlFor>: đây là hai cái NÚT, không phải một form control,
+            nên không có gì để `for` trỏ vào. Cách đúng là nhãn nhóm (`role="group"` +
+            `aria-labelledby`). `aria-pressed` là phần BẮT BUỘC: trạng thái đang chọn chỉ
+            thể hiện bằng MÀU, thiếu nó thì người dùng screen reader nghe được "Chi, Thu"
+            mà không biết cái nào đang bật. */}
         <span id={`${uid}-kind`} className={label_}>
           Loại
         </span>
@@ -244,79 +219,18 @@ export function EventFormSheet({ displayCurrency, event, onApply, onRemove, onCl
           </>
         )}
 
-        <label htmlFor={`${uid}-currency`} className={label_}>
-          Tiền của sự kiện này
-        </label>
-        <select
-          id={`${uid}-currency`}
-          value={currency}
-          onChange={(e) => handleCurrencyChange(e.target.value as CurrencyCode)}
-          className={`mb-3 ${field}`}
-        >
-          {(Object.keys(CURRENCIES) as CurrencyCode[]).map((c) => (
-            <option key={c} value={c}>
-              {CURRENCIES[c].label} ({c})
-            </option>
-          ))}
-        </select>
-
-        {/* Khối tỷ giá nằm TRÊN ô tiền, không phải dưới. Đo thật ở 375×812 với bàn số
-            đang bung: khi khối này ở dưới, nhãn tỷ giá rơi xuống 838px, ô nhập 858px và
-            dòng quy đổi 902px — trong khi vùng thấy được chỉ tới 812px. Tức là đúng lúc
-            người dùng nhập số tiền thì cả ba biến mất khỏi màn hình, mà dòng quy đổi là
-            cách DUY NHẤT phát hiện tỷ giá bị đảo chiều (xem PhaseFormSheet).
-            `autoOpen={false}` một mình KHÔNG đủ: nó chỉ chặn bàn số tự bung, còn người
-            dùng vẫn buộc phải bấm vào ô tiền để nhập. Đặt lên trên thì bàn số bung ra
-            bên dưới không che được nó nữa. */}
-        {showFx && (
-          <>
-            <label htmlFor={`${uid}-fx`} className={`${label_} flex items-center gap-1`}>
-              Tỷ giá giả định: 1 {CURRENCIES[currency].label} = ? {CURRENCIES[displayCurrency].label}
-              {fxValid && fxNum === 1 && (
-                <AlertCircle className="h-3.5 w-3.5 shrink-0 text-fg-warn" aria-hidden="true" />
-              )}
-            </label>
-            <input
-              id={`${uid}-fx`}
-              inputMode="decimal"
-              value={fx}
-              onChange={(e) => setFx(e.target.value)}
-              className={`mb-1 ${field}`}
-            />
-            {/* Ô RỖNG có câu riêng — cùng lý do đã ghi ở PhaseFormSheet. */}
-            {!fxValid && (
-              <p role="alert" className="mb-2 text-xs text-money-out">
-                {fx.trim() === ''
-                  ? 'Chưa có tỷ giá. Đổi tiền của sự kiện là tỷ giá cũ hết nghĩa (nó quy về đơn vị khác) — khai lại rồi mới lưu được.'
-                  : 'Tỷ giá phải là một số lớn hơn 0.'}
-              </p>
-            )}
-            {fxValid && fxNum === 1 && (
-              <p className="mb-2 flex items-start gap-1 text-xs text-fg-warn">
-                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                Tỷ giá 1:1 giữa hai tiền khác nhau gần như chắc chắn là ô chưa ai khai — kiểm tra lại.
-              </p>
-            )}
-            {/* Chốt kiểm bắt buộc — xem PhaseFormSheet để biết vì sao dòng này
-                không phải tiện nghi: fx_to_display ngược chiều lib/rates.ts. */}
-            {amountPreview !== null && (
-              <p className="mb-3 text-xs tabular-nums text-fg-muted">
-                {formatMoney(amount, currency)} ≈ {formatMoney(amountPreview, displayCurrency)}
-              </p>
-            )}
-          </>
-        )}
-
-        {/* <span> chứ không <label htmlFor> — lý do đầy đủ ghi ở PhaseFormSheet:
-            MoneyField có hai ô (chạm/desktop) nên `for` luôn trỏ được vào ô đang ẩn. */}
-        <span className={label_}>Số tiền mỗi năm</span>
+        {/* <span> chứ không <label htmlFor> — lý do đầy đủ ở PhaseFormSheet. */}
+        <span className={label_}>
+          Số tiền mỗi năm{' '}
+          <span className="font-normal text-fg-muted">
+            (tính bằng {CURRENCIES[currency].label} — theo chặng của năm {yearValid ? yearNum : '…'})
+          </span>
+        </span>
         <div className="mb-1">
           <MoneyField
             value={amount}
             onChange={setAmount}
             currency={currency}
-            // Vẫn `false` dù khối tỷ giá đã lên trên: bàn số tự bung giữa form đẩy mọi
-            // thứ phía sau xuống và chiếm 257px của một sheet vốn đã dài nhất app.
             autoOpen={false}
             ariaLabel="Số tiền mỗi năm"
             className={`text-right font-semibold ${field}`}

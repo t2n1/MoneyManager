@@ -16,6 +16,7 @@ import {
 } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
 import { addDaysISO, toISODate } from '../../lib/dates'
+import { fetchRates } from '../../lib/rates'
 import { showToast } from '../../lib/dialog'
 import type { LifeScenarioRow } from '../../types/database.types'
 import { assetBreakdown, type AssetGroupSetting } from '../assets/aggregate'
@@ -23,6 +24,7 @@ import { debtSummary } from '../debts/aggregate'
 import type { CurrencyOf } from '../reports/aggregate'
 import { suggestBaseline } from './baseline'
 import { DEFAULT_INFLATION_BPS, pickActive } from './buildInput'
+import { fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { duplicateScenario } from './duplicate'
 import {
   projectLifetime,
@@ -73,6 +75,7 @@ export function useLifetime() {
   const phasesQ = useQuery({ queryKey: ['lifePhases'], queryFn: () => repo.getLifePhases() })
   const eventsQ = useQuery({ queryKey: ['lifeEvents'], queryFn: () => repo.getLifeEvents() })
 
+
   // useMemo (không phải `?? []` trần) để giữ NGUYÊN tham chiếu mảng rỗng qua các lần
   // render khi scenariosQ.data còn undefined (đang tải) — projectScenario ở dưới nhận
   // `scenarios` làm dep của useCallback, tham chiếu đổi mỗi render sẽ làm nó không bao
@@ -83,6 +86,24 @@ export function useLifetime() {
   // Bản cũ viết `find(is_primary) ?? scenarios[0]`, tức luật hoà (nhiều bản cùng
   // is_primary, hoặc không bản nào) nằm ẩn trong câu `order by` của tầng dữ liệu.
   const active = scenarios.find((s) => s.id === activeId) ?? pickActive(scenarios)
+
+  // Tỷ giá HÔM NAY, nền là tiền hiển thị của kịch bản đang xem.
+  //
+  // Từ bản vẽ v5, tỷ giá KHÔNG còn là thứ người dùng gõ tay vào từng dòng — mọi phép quy
+  // đổi của bản chiếu đi qua bảng này (xem `fxModel.ts`). Nên nó phải nạp ở ĐÂY, cạnh ba
+  // query kia, chứ không nạp trong component: `projectScenario` (chế độ so sánh) cũng
+  // cần đúng bảng đó, và hai chỗ nạp riêng là hai bản chiếu của cùng một kịch bản có thể
+  // dùng hai tỷ giá khác nhau.
+  //
+  // `staleTime` 12 giờ: nguồn chỉ đổi số một lần mỗi ngày (xem lib/rates.ts).
+  const ratesQ = useQuery({
+    queryKey: ['lifetime-rates-for', active?.display_currency],
+    queryFn: () => fetchRates(active?.display_currency as CurrencyCode),
+    enabled: !!active,
+    staleTime: 12 * 3600_000,
+    gcTime: 24 * 3600_000,
+    retry: 1,
+  })
 
   const phases = useMemo(
     () => (phasesQ.data ?? []).filter((p) => p.scenario_id === active?.id),
@@ -99,8 +120,47 @@ export function useLifetime() {
   // thẳng `phasesQ.data`/`eventsQ.data` chưa lọc), vì `phases`/`events` ở trên chỉ lọc
   // sẵn cho `active` — kịch bản so sánh cần một scenario_id khác.
   const buildInputFor = useCallback(
-    (scenario: LifeScenarioRow, birthYear: number): LifetimeInput => ({
-      // Năm hiện tại đọc một lần ở tầng UI. project.ts KHÔNG được gọi Date.
+    (scenario: LifeScenarioRow, birthYear: number): LifetimeInput => {
+      const display = scenario.display_currency as CurrencyCode
+      const rawPhases = (phasesQ.data ?? [])
+        .filter((p) => p.scenario_id === scenario.id)
+        .map(
+          (p): LifetimePhase => ({
+            startYear: p.start_year,
+            label: p.label,
+            country: p.country,
+            currency: p.currency as CurrencyCode,
+            annualIncomeMinor: p.annual_income_minor,
+            annualExpenseMinor: p.annual_expense_minor,
+            fxToDisplay: p.fx_to_display,
+          }),
+        )
+      const rawEvents = (eventsQ.data ?? [])
+        .filter((e) => e.scenario_id === scenario.id)
+        .map(
+          (e): LifetimeEvent => ({
+            id: e.id,
+            startYear: e.start_year,
+            endYear: e.end_year,
+            kind: e.kind,
+            amountMinor: e.amount_minor,
+            currency: e.currency as CurrencyCode,
+            label: e.label,
+            fxToDisplay: e.fx_to_display,
+            inflate: e.inflate,
+          }),
+        )
+      // Tiền nằm trên CHẶNG, mốc suy từ chặng, tỷ giá lấy hôm nay — xem `fxModel.ts`.
+      // Đặt ở ĐÂY, chỗ duy nhất ráp input, nên mọi bản chiếu của tầng UI (kể cả chế độ
+      // so sánh) đều đã chuẩn hoá; engine bên dưới không biết gì về luật này.
+      const norm = normalizeToPhaseCurrency(
+        rawPhases,
+        rawEvents,
+        display,
+        fxOfRates(display, ratesQ.data ?? {}),
+      )
+      return {
+        // Năm hiện tại đọc một lần ở tầng UI. project.ts KHÔNG được gọi Date.
       // Đây là ranh giới CÓ Ý: `useLifetime.ts` được đọc đồng hồ, `project.ts` và
       // `insights.ts` thì không. `purity.test.ts` canh đúng hai file kia theo TÊN chứ
       // không quét cả thư mục, nên dòng này hợp lệ — nếu nó làm phép thử đỏ thì ai đó
@@ -117,37 +177,12 @@ export function useLifetime() {
       // con số cho cùng một giá trị rơi về, một cái có test một cái không, là cách bản
       // chiếu của màn Lifetime và bản chiếu của bộ luật thông báo bắt đầu lệch nhau.
       inflationBps: profileQ.data?.annual_inflation_bps ?? DEFAULT_INFLATION_BPS,
-      nominalTerms: scenario.nominal_terms,
-      phases: (phasesQ.data ?? [])
-        .filter((p) => p.scenario_id === scenario.id)
-        .map(
-          (p): LifetimePhase => ({
-            startYear: p.start_year,
-            label: p.label,
-            country: p.country,
-            currency: p.currency as CurrencyCode,
-            annualIncomeMinor: p.annual_income_minor,
-            annualExpenseMinor: p.annual_expense_minor,
-            fxToDisplay: p.fx_to_display,
-          }),
-        ),
-      events: (eventsQ.data ?? [])
-        .filter((e) => e.scenario_id === scenario.id)
-        .map(
-          (e): LifetimeEvent => ({
-            id: e.id,
-            startYear: e.start_year,
-            endYear: e.end_year,
-            kind: e.kind,
-            amountMinor: e.amount_minor,
-            currency: e.currency as CurrencyCode,
-            label: e.label,
-            fxToDisplay: e.fx_to_display,
-            inflate: e.inflate,
-          }),
-        ),
-    }),
-    [phasesQ.data, eventsQ.data, profileQ.data],
+        nominalTerms: scenario.nominal_terms,
+        phases: norm.phases,
+        events: norm.events,
+      }
+    },
+    [phasesQ.data, eventsQ.data, profileQ.data, ratesQ.data],
   )
 
   // `input` được nhớ đệm và trả ra CÙNG với `rows` (thay vì chỉ trả `rows`) vì Task 9

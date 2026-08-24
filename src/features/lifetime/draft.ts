@@ -599,6 +599,42 @@ export function patchDraftPhase(
   }
 }
 
+/**
+ * Đổi TIỀN của một chặng — và gắn nhãn lại mọi mốc rơi vào chặng đó.
+ *
+ * VÌ SAO KHÔNG chỉ đặt `phase.currency`. Từ bản vẽ v5, tiền của một mốc SUY RA từ chặng
+ * phủ năm nó bắt đầu, còn `event.currency` dưới DB chỉ là dấu vết của mô hình cũ. Lúc
+ * đọc, `normalizeToPhaseCurrency` thấy hai giá trị lệch nhau thì QUY ĐỔI — đúng cho một
+ * dòng cũ thật sự khai bằng ₫ nằm trong chặng ¥ (mẫu "Hỗ trợ bố mẹ ở VN").
+ *
+ * Nhưng người dùng bấm đổi tiền của chặng thì ý họ là ĐỔI ĐƠN VỊ, không phải quy đổi:
+ * ô "Thu / năm" giữ nguyên con số và chỉ đổi nhãn từ ¥ sang ₫ (bản vẽ không quy đổi thu
+ * chi của chặng). Không gắn nhãn lại mốc thì hai bên nói hai chuyện — màn hình hiện
+ * ₫3.000.000 trong khi bản chiếu nhân lên thành ₫516.000.000. Bắt được khi chạy app
+ * thật, 2026-08-24.
+ *
+ * Chỉ động vào mốc nằm TRONG khoảng của chặng này, và mốc của chặng đầu tiên nuốt luôn
+ * mọi mốc nằm trước nó — cùng luật với `currencyAt`.
+ */
+export function setPhaseCurrency(
+  draft: ScenarioDraft,
+  phaseId: string,
+  next: CurrencyCode,
+): ScenarioDraft {
+  const sorted = [...draft.phases].sort((a, b) => a.startYear - b.startYear)
+  const i = sorted.findIndex((p) => p.id === phaseId)
+  if (i === -1 || sorted[i].currency === next) return draft
+  const from = i === 0 ? -Infinity : sorted[i].startYear
+  const to = i + 1 < sorted.length ? sorted[i + 1].startYear : Infinity
+  return {
+    ...draft,
+    phases: draft.phases.map((p) => (p.id === phaseId ? { ...p, currency: next } : p)),
+    events: draft.events.map((e) =>
+      e.startYear >= from && e.startYear < to ? { ...e, currency: next, fxToDisplay: 1 } : e,
+    ),
+  }
+}
+
 /** Bỏ một chặng khỏi nháp. */
 export function removeDraftPhase(draft: ScenarioDraft, id: string): ScenarioDraft {
   return { ...draft, phases: draft.phases.filter((p) => p.id !== id) }

@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Pencil, Plus, Sparkles, SlidersHorizontal, Star } from 'lucide-react'
+import { Plus, Sparkles, Star } from 'lucide-react'
 import { ActionButton, Card } from '../../components/ui'
 import { repo } from '../../data'
 import { useNetWorthSnapshots } from '../../hooks/queries'
-import { useEscClose } from '../../hooks/useEscClose'
 import type { CurrencyCode } from '../../lib/currencies'
 import { showToast } from '../../lib/dialog'
 import { formatMoney } from '../../lib/money'
 import { fetchRates } from '../../lib/rates'
-import { AssumptionSliders } from './AssumptionSliders'
 import { CompareStrip } from './CompareStrip'
 import {
   applyPreset,
@@ -30,9 +28,10 @@ import type { PresetContext } from './presets'
 import { PresetPanel } from './PresetPanel'
 import { hasStress, NO_STRESS, projectLifetime, type StressConfig } from './project'
 import { commitDraft, saveDraftAsNewScenario } from './saveDraft'
-import { ScenarioEditorDrawer } from './ScenarioEditorDrawer'
-import { defaultStress, StressPanel } from './StressPanel'
+import { ScenarioWorkbench } from './ScenarioWorkbench'
+import { defaultStress } from './StressPanel'
 import { pickActive } from './buildInput'
+import { fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { lifetimeVerdict } from './summary'
 import { useLifetime } from './useLifetime'
 import { YearTableSection, YearTableView } from './YearTableView'
@@ -79,10 +78,11 @@ export function LifetimeView() {
     duplicatingScenario,
   } = useLifetime()
 
-  const [editorOpen, setEditorOpen] = useState(false)
-  // Mốc cần đưa vào tầm mắt khi drawer vừa mở — vào từ chip mốc trên đồ thị hoặc từ
-  // Bảng theo năm. Đi CÙNG `editorOpen` chứ không thay nó: mở trình sửa mà không nhắm
-  // vào mốc nào là ca thường gặp nhất.
+  // Mốc cần nhắm tới khi vào từ một chip mốc trên đồ thị hoặc từ Bảng theo năm: bàn sửa
+  // chuyển sang tab "Mốc cuộc đời" và cuộn đúng dòng đó vào tầm mắt.
+  //
+  // Không còn `editorOpen`: bàn sửa nằm THẲNG trong trang nên nó luôn hiện — không có
+  // trạng thái đóng/mở nào để nhớ.
   const [editorFocusEventId, setEditorFocusEventId] = useState<string | undefined>(undefined)
   const [tableOpen, setTableOpen] = useState(false)
   /** Năm mà Bảng theo năm (sheet) phải cuộn tới khi mở — đặt từ hai ô kết luận có NĂM. */
@@ -150,10 +150,42 @@ export function LifetimeView() {
     [nominal, inflationBps],
   )
 
-  const shownInput = useMemo(
-    () => (input && working ? priceOpts(draftToInput(input, working)) : null),
-    [input, working, priceOpts],
+  // Tỷ giá "hôm nay" — nền là tiền hiển thị của kịch bản. Dùng cho CẢ bản chiếu (chuẩn
+  // hoá tiền theo chặng) lẫn thư viện mẫu. Cùng `queryKey` với `useLifetime` nên React
+  // Query trả thẳng từ cache, không có lượt tải thứ hai.
+  const ratesQ = useQuery({
+    queryKey: ['lifetime-rates-for', active?.display_currency],
+    queryFn: () => fetchRates(active?.display_currency as CurrencyCode),
+    enabled: !!active,
+    staleTime: 12 * 3600_000,
+    gcTime: 24 * 3600_000,
+    retry: 1,
+  })
+
+  /**
+   * `FxOf` của trang — tỷ giá HÔM NAY, nền là tiền hiển thị của kịch bản.
+   *
+   * Dùng CHUNG một `queryKey` với `useLifetime` nên hai chỗ đọc đúng một bảng; React
+   * Query trả thẳng từ cache, không có lượt tải thứ hai.
+   */
+  const pageFxOf = useMemo(
+    () => fxOfRates((active?.display_currency as CurrencyCode) ?? 'JPY', ratesQ.data ?? {}),
+    [active?.display_currency, ratesQ.data],
   )
+
+  /**
+   * Bản chiếu ĐANG XEM. `draftToInput` đè phases/events của bản nháp lên input đã ráp,
+   * mà nháp mang `fxToDisplay` ĐÃ LƯU — con số người dùng từng gõ tay, không phải tỷ giá
+   * hôm nay. Nên phải chuẩn hoá LẠI sau đó, đúng như `buildInputFor` làm cho bản đã lưu:
+   * thiếu bước này thì đổi tiền của một chặng xong, bản chiếu vẫn nhân theo tỷ giá cũ và
+   * dòng "≈ … theo JPY" nói một con số sai (bắt được khi chạy app thật, 2026-08-24).
+   */
+  const shownInput = useMemo(() => {
+    if (!input || !working) return null
+    const base = draftToInput(input, working)
+    const norm = normalizeToPhaseCurrency(base.phases, base.events, base.displayCurrency, pageFxOf)
+    return priceOpts({ ...base, phases: norm.phases, events: norm.events })
+  }, [input, working, priceOpts, pageFxOf])
   const shownRows = useMemo(() => (shownInput ? projectLifetime(shownInput) : []), [shownInput])
 
   const currentYear = input?.currentYear ?? new Date().getFullYear()
@@ -187,7 +219,6 @@ export function LifetimeView() {
    */
   function openEditor(focusEventId?: string) {
     setEditorFocusEventId(focusEventId)
-    setEditorOpen(true)
   }
 
   /** Mở Bảng theo năm dạng sheet, cuộn thẳng tới một năm. */
@@ -206,18 +237,6 @@ export function LifetimeView() {
       })
     },
     [savedDraft],
-  )
-
-  /** Đè một trường của chặng đang chạy. */
-  const editCurrentPhase = useCallback(
-    (patch: { annualIncomeMinor?: number; annualExpenseMinor?: number }) => {
-      editDraft((d) => {
-        const i = draftPhaseIndex(d, currentYear)
-        if (i < 0) return d
-        return { ...d, phases: d.phases.map((p, j) => (j === i ? { ...p, ...patch } : p)) }
-      })
-    },
-    [editDraft, currentYear],
   )
 
   async function refreshTree() {
@@ -327,35 +346,6 @@ export function LifetimeView() {
     [effectiveCompareId, projectScenario],
   )
   const compareScenario = scenarios.find((s) => s.id === effectiveCompareId) ?? null
-  // Điều kiện banner cảnh báo tỷ giá bằng 1: bất kỳ chặng/sự kiện nào của kịch bản ĐANG
-  // CHỌN có tiền khác tiền hiển thị nhưng tỷ giá vẫn còn 1 — gần như chắc chắn là ô chưa
-  // ai khai, không phải giả định thật.
-  const mismatchCount = useMemo(() => {
-    if (!active) return 0
-    const inPhases = phases.filter(
-      (p) => p.currency !== active.display_currency && p.fx_to_display === 1,
-    ).length
-    const inEvents = events.filter(
-      (e) => e.currency !== active.display_currency && e.fx_to_display === 1,
-    ).length
-    return inPhases + inEvents
-  }, [active, phases, events])
-
-  // Tỷ giá "hôm nay" cho thư viện mẫu — tra được thì dùng, không tra được thì để 1 và
-  // banner cảnh báo ở trên bắt ngay. Sai một cách nhìn thấy được, không sai âm thầm
-  // (xem `fxForEvent` trong presets.ts).
-  const ratesQ = useQuery({
-    queryKey: ['lifetime-rates-for', active?.display_currency],
-    queryFn: () => fetchRates(active?.display_currency as CurrencyCode),
-    enabled: !!active,
-    staleTime: 12 * 3600_000,
-    gcTime: 24 * 3600_000,
-    retry: 1,
-  })
-
-  /** Sheet đáy chứa cả ba panel vặn — chỉ dùng dưới `xl`. */
-  const [sheetOpen, setSheetOpen] = useState(false)
-  useEscClose(() => setSheetOpen(false), sheetOpen)
 
   if (isLoading) {
     return <p className="p-6 text-center text-fg-muted">Đang tải…</p>
@@ -489,91 +479,6 @@ export function LifetimeView() {
     },
   })
 
-  const panels = shownPhase ? (
-    <>
-      <AssumptionSliders
-        input={shownInput}
-        phase={shownPhase}
-        birthYear={birthYear}
-        lastPhase={
-          working.phases.length > 0
-            ? {
-                label: working.phases[working.phases.length - 1].label,
-                startYear: working.phases[working.phases.length - 1].startYear,
-              }
-            : null
-        }
-        prevPhaseStartYear={
-          working.phases.length > 1
-            ? working.phases[working.phases.length - 2].startYear
-            : null
-        }
-        onIncome={(v) => editCurrentPhase({ annualIncomeMinor: v })}
-        onExpense={(v) => editCurrentPhase({ annualExpenseMinor: v })}
-        onReturn={(bps) => editDraft((d) => ({ ...d, realReturnBps: bps }))}
-        onRetireYear={(year) =>
-          editDraft((d) => ({
-            ...d,
-            phases: d.phases.map((p, i) =>
-              i === d.phases.length - 1 ? { ...p, startYear: year } : p,
-            ),
-          }))
-        }
-        onEndAge={(age) => editDraft((d) => ({ ...d, endAge: age }))}
-        nominal={nominal}
-        onNominal={setNominal}
-        inflationBps={inflationBps}
-        onInflation={setInflationBps}
-        // `undefined` khi thiếu profile: trình sửa lấy năm sinh từ đó, và thiếu nó thì
-        // sheet thành một ngõ cụt (nút Lưu tắt vĩnh viễn). Ca này chỉ xảy ra khi query
-        // profile LỖI — `needsBirthYear` ở trên chỉ bắt ca đã tải mà chưa khai.
-        onEditScenario={profile ? () => openEditor() : undefined}
-      />
-
-      <StressPanel
-        value={stress}
-        onChange={setStress}
-        currency={currency}
-        minYear={currentYear}
-        maxYear={maxYear}
-        baseNegativeYear={negYear}
-        stressNegativeYear={stressNegYear}
-        birthYear={birthYear}
-      />
-
-      <PresetPanel
-        buildCtx={buildPresetCtx}
-        // Mặc định 2 năm nữa, không phải năm nay: mốc cuộc đời gần như luôn ở tương lai,
-        // và một mốc rơi đúng năm hiện tại thì chip của nó dán vào mép trái đồ thị, chỗ
-        // khó kéo nhất.
-        defaultYear={currentYear + 2}
-        currency={currency}
-        onAdd={(preset, result) => {
-          const seed = ++presetSeed.current
-          editDraft((d) => applyPreset(d, result, seed))
-          setSheetOpen(false)
-          showToast(
-            `Đã thêm "${preset.label}" vào bản nháp ở năm ${currentYear + 2} — kéo chip trên đồ thị tới đúng năm.`,
-            'success',
-          )
-        }}
-      />
-    </>
-  ) : (
-    /* Kịch bản chưa có chặng nào thì KHÔNG có thanh trượt (không biết vặn thu/chi của
-       chặng nào), và lúc đó cột phải trống trơn bên cạnh một đồ thị rỗng. */
-    profile && (
-      <Card elevation="panel" padding="panel">
-        <p className="text-xs text-fg-secondary">
-          Kịch bản chưa có chặng thu chi nào nên chưa chiếu được gì.
-        </p>
-        <ActionButton onClick={() => openEditor()} className="mt-2">
-          Thêm chặng
-        </ActionButton>
-      </Card>
-    )
-  )
-
   return (
     <div className="space-y-3">
       {/* Header: một dòng chú thích canh phải. Không có <h1>: tab "Tương lai" ngay trên
@@ -585,14 +490,13 @@ export function LifetimeView() {
         </p>
       )}
 
-      {/* Dải thẻ kịch bản, cuộn ngang. Mỗi thẻ hai dòng: TÊN và KẾT QUẢ của chính kịch
-          bản đó. Kịch bản CHÍNH (cái mà thông báo và thẻ ở trang Tài sản đọc theo) mang
-          ngôi sao; suy từ `pickActive` — một luật với engine/bộ luật thông báo.
-          `basis-full` dưới `sm`: ở 375px hai nút bên phải ăn ~211px và dải chip còn
-          140px, tức đúng MỘT chip rưỡi — kịch bản thứ hai trở đi chỉ tới được bằng một
-          cú vuốt mà không có gì báo là còn thứ nằm khuất. */}
+      {/* Dải thẻ kịch bản, XUỐNG DÒNG (bản vẽ v5) thay vì cuộn ngang. Cuộn ngang giấu
+          kịch bản thứ hai trở đi sau một cú vuốt mà không có gì báo là còn thứ nằm
+          khuất; ở đây một dòng thừa còn hơn một danh sách vô hình.
+          Kịch bản CHÍNH (cái mà thông báo và thẻ ở trang Tài sản đọc theo) mang ngôi
+          sao; suy từ `pickActive` — một luật với engine/bộ luật thông báo. */}
       <div className="flex flex-wrap items-stretch gap-2">
-        <div className="flex min-w-0 basis-full gap-2 overflow-x-auto pb-1 sm:basis-0 sm:flex-1">
+        <div className="flex min-w-0 flex-1 flex-wrap gap-2">
           {scenarios.map((s) => {
             const isPrimary = pickActive(scenarios)?.id === s.id
             const sum = scenarioSummaries.get(s.id)
@@ -604,7 +508,11 @@ export function LifetimeView() {
               // anh em ở chỗ không ai lường trước.
               <div
                 key={s.id}
-                className={`flex shrink-0 items-center gap-2 rounded-md border px-3 py-1.5 transition ${
+                // `max-w-full` + `min-w-0`, KHÔNG `shrink-0`: dải chip nay XUỐNG DÒNG
+                // thay vì cuộn ngang, nên một cái tên dài ("Kịch bản của tôi (bản sao)
+                // (thử)" = 267px) không co lại được sẽ thò ra khỏi khung 224px ở 375px.
+                // Cuộn ngang thì đó không phải vấn đề — xuống dòng thì phải cắt.
+                className={`flex min-w-0 max-w-full items-center gap-2 rounded-md border px-3 py-1.5 transition ${
                   isActive
                     ? 'border-accent bg-state-good-bg'
                     : 'border-border-strong bg-surface'
@@ -614,11 +522,24 @@ export function LifetimeView() {
                   type="button"
                   onClick={() => setActiveId(s.id)}
                   aria-pressed={isActive}
-                  className="min-h-11 text-left"
+                  // Kết quả của kịch bản chuyển vào `title`: bản vẽ v5 rút chip xuống
+                  // một dòng. Dải chip nay xuống dòng chứ không cuộn, nên chip hai dòng
+                  // ×4 kịch bản đẩy đồ thị xuống gần một màn hình — mà cùng hai con số
+                  // đó đã nằm ngay trong băng kết luận ngay dưới, cho kịch bản ĐANG xem.
+                  title={
+                    sum
+                      ? `${sum.fireYear !== null ? `FIRE ${sum.fireYear}` : 'FIRE không đạt'} · ${
+                          sum.negativeYear !== null
+                            ? `âm từ ${sum.negativeYear}`
+                            : 'không năm nào âm'
+                        }`
+                      : undefined
+                  }
+                  className="min-w-0 min-h-11 text-left"
                 >
-                  <span className="flex items-center gap-1 text-sm font-medium text-fg-primary">
+                  <span className="flex min-w-0 items-center gap-1 text-sm font-medium text-fg-primary">
                     {isPrimary && <Star className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
-                    {s.name}
+                    <span className="truncate">{s.name}</span>
                     {isPrimary && <span className="sr-only">(kịch bản chính)</span>}
                     {isActive && dirty && (
                       <span className="rounded-full border border-state-warn-border bg-state-warn-bg px-1.5 text-3xs font-semibold text-state-warn-fg">
@@ -626,19 +547,6 @@ export function LifetimeView() {
                       </span>
                     )}
                   </span>
-                  {/* Dòng tóm tắt vắng mặt khi kịch bản chưa chiếu được năm nào — viết
-                      "FIRE không đạt" lúc đó là kết luận về một bản chiếu không tồn tại. */}
-                  {sum && (
-                    <span className="mt-0.5 block whitespace-nowrap font-mono text-2xs text-fg-muted">
-                      {sum.fireYear !== null ? `FIRE ${sum.fireYear}` : 'FIRE không đạt'}
-                      {' · '}
-                      <span className={sum.negativeYear !== null ? 'text-money-out' : ''}>
-                        {sum.negativeYear !== null
-                          ? `âm từ ${sum.negativeYear}`
-                          : 'không năm nào âm'}
-                      </span>
-                    </span>
-                  )}
                 </button>
                 {/* Nút "So" nằm TRÊN CHÍNH thẻ kịch bản muốn so, không phải một nút "So
                     sánh" chung rồi mở một hộp chọn: hộp chọn đó lặp lại đúng danh sách
@@ -665,18 +573,6 @@ export function LifetimeView() {
         </div>
 
         <div className="flex shrink-0 items-start gap-2">
-          {/* "Sửa kịch bản" đứng NGAY CẠNH dải chip, không nằm khuất trong panel Giả
-              định: nó là đường vào chính của trình sửa, mà panel đó trên màn hẹp nằm sau
-              cả đồ thị và bốn thẻ kết luận. `disabled` khi thiếu profile — trình sửa lấy
-              năm sinh từ đó, thiếu thì nó thành ngõ cụt (nút Lưu tắt vĩnh viễn). */}
-          <ActionButton
-            onClick={() => openEditor()}
-            disabled={!profile}
-            className="whitespace-nowrap"
-          >
-            <Pencil className="h-4 w-4" aria-hidden="true" />
-            Sửa kịch bản
-          </ActionButton>
           <ActionButton
             onClick={() => void duplicateActiveScenario()}
             disabled={duplicatingScenario}
@@ -687,29 +583,6 @@ export function LifetimeView() {
           </ActionButton>
         </div>
       </div>
-
-      {dirty && savedDraft && (
-        <DraftBanner
-          scenarioName={active.name}
-          changes={changes}
-          endBeforeMinor={
-            baselineRows && baselineRows.length > 0
-              ? baselineRows[baselineRows.length - 1].assetsEndMinor
-              : null
-          }
-          endAfterMinor={
-            shownRows.length > 0 ? shownRows[shownRows.length - 1].assetsEndMinor : null
-          }
-          currency={currency}
-          onCommit={handleCommit}
-          onSaveAsNew={() => void handleSaveAsNew()}
-          onDiscard={() => {
-            setDraft(null)
-            setEditingEventId(null)
-          }}
-          saving={saving}
-        />
-      )}
 
       {/* Băng kết luận đứng TRƯỚC đồ thị và trước cả hai cột: người dùng không phải cuộn
           qua cả bản chiếu 60 năm mới đọc được KẾT LUẬN của chính bản chiếu đó ("kết luận
@@ -735,13 +608,38 @@ export function LifetimeView() {
         />
       )}
 
-      {/* HAI CỘT từ `xl`: đồ thị nở lấy phần còn lại, cột phụ 25rem = 400px theo §1.4.
-          Theo REM chứ px vì cột này toàn chữ và số — ở cỡ chữ "Rất lớn" một bề ngang px
-          cứng không giãn theo và ba dòng nhãn thanh trượt bị ép xuống hai hàng.
-          `xl` chứ không `lg`: trong khoảng 1024–1280 cột phụ tụt xuống dưới 320px và
-          khối thanh trượt phải cuộn ngang. */}
-      <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_25rem] xl:items-start">
-        <div className="flex min-w-0 flex-col gap-3">
+      {/* MỘT CỘT (bản vẽ v5). Trước đây là lưới hai cột: đồ thị bên trái, ba panel vặn
+          bên phải — và dưới `xl` ba panel đó phải chui vào một sheet đáy, tức cùng một
+          bộ điều khiển tồn tại ở hai chỗ với hai bố cục. Nay mọi ô sửa nằm trong BÀN SỬA
+          ngay dưới đồ thị, cùng một mặt phẳng, một bản duy nhất ở mọi bề ngang. */}
+      <div className="flex min-w-0 flex-col gap-3">
+        <div className="flex min-w-0 flex-col">
+          {/* Thanh nháp DÁN vào đầu thẻ đồ thị (bo góc trên, không viền dưới) thay vì
+              đứng rời ở đầu trang: nó nói về chính bản chiếu ngay dưới nó, và đặt rời
+              thì ở màn hẹp nó trôi khỏi tầm mắt đúng lúc người dùng đang vặn. */}
+          {dirty && savedDraft && (
+            <DraftBanner
+              scenarioName={active.name}
+              changes={changes}
+              endBeforeMinor={
+                baselineRows && baselineRows.length > 0
+                  ? baselineRows[baselineRows.length - 1].assetsEndMinor
+                  : null
+              }
+              endAfterMinor={
+                shownRows.length > 0 ? shownRows[shownRows.length - 1].assetsEndMinor : null
+              }
+              currency={currency}
+              onCommit={handleCommit}
+              onSaveAsNew={() => void handleSaveAsNew()}
+              onDiscard={() => {
+                setDraft(null)
+                setEditingEventId(null)
+              }}
+              saving={saving}
+              attached
+            />
+          )}
           <LifetimeChartCard
             rows={shownRows}
             historyRows={historyRows}
@@ -803,85 +701,89 @@ export function LifetimeView() {
               )
             }
           />
+        </div>
 
-
-          {compareScenario && compareRows && compareRows.length > 0 && (
-            <CompareStrip
-              left={{
-                name: `${active.name}${dirty ? ' (nháp)' : ''}`,
-                rows: shownRows,
-                currency,
-                active: true,
-              }}
-              right={{
-                name: compareScenario.name,
-                rows: compareRows,
-                currency: compareScenario.display_currency as CurrencyCode,
-                active: false,
-              }}
-              endAge={shownInput.endAge}
-              currencyMismatch={compareScenario.display_currency !== active.display_currency}
-            />
-          )}
-
-          <YearTableSection
-            rows={shownRows}
-            currency={currency}
-            scenarioName={active.name}
-            onEditEvent={(eventId) => openEditor(eventId)}
+        {compareScenario && compareRows && compareRows.length > 0 && (
+          <CompareStrip
+            left={{
+              name: `${active.name}${dirty ? ' (nháp)' : ''}`,
+              rows: shownRows,
+              currency,
+              active: true,
+            }}
+            right={{
+              name: compareScenario.name,
+              rows: compareRows,
+              currency: compareScenario.display_currency as CurrencyCode,
+              active: false,
+            }}
+            endAge={shownInput.endAge}
+            currencyMismatch={compareScenario.display_currency !== active.display_currency}
           />
-        </div>
+        )}
 
-        <div className="flex flex-col gap-3">
-          {/* Từ `xl` ba panel đứng NGAY CẠNH đồ thị: vặn ở đây thì thứ đổi ngay bên trái
-              là bản chiếu, và thứ đổi ngay phía trên là kết luận.
-              Dưới `xl` chúng đi vào sheet đáy. Lý do cũ vẫn đúng và nay còn mạnh hơn: ở
-              390px riêng khối thanh trượt đã 268px trong khi đồ thị 208px — thứ để LÁI
-              chiếm nhiều chỗ hơn thứ nó lái — và giờ có thêm hai panel nữa. Hai bản dùng
-              CHUNG một `draft`/`stress` nên không có đường nào để chúng lệch nhau, và mỗi
-              bề ngang chỉ có đúng một bản nằm trong cây a11y. */}
-          <div className="hidden xl:contents">{panels}</div>
+        {/* BÀN SỬA KỊCH BẢN — ngay dưới đồ thị, cùng một mặt phẳng. Sửa tới đâu nhìn lên
+            thấy tới đó; không còn lớp phủ nào che mất thứ đang được lái. */}
+        {profile && savedDraft && working && (
+          <ScenarioWorkbench
+            // `key`: bàn sửa giữ vài state khởi tạo MỘT LẦN lúc gắn (tab đang mở, năm
+            // sinh đang gõ). `active` đổi danh tính thì phải dựng lại, không thì ô năm
+            // sinh còn giữ chuỗi của kịch bản trước.
+            key={active.id}
+            scenario={active}
+            scenarios={scenarios}
+            phaseRows={phases}
+            eventRows={events}
+            profile={profile}
+            netWorth={netWorth}
+            netWorthReliable={netWorthReliable}
+            netWorthLoading={netWorthLoading}
+            working={working}
+            changes={changes}
+            input={shownInput}
+            currentYear={currentYear}
+            onEdit={editDraft}
+            onSelectScenario={setActiveId}
+            refreshTree={refreshTree}
+            stress={stress}
+            onStress={setStress}
+            stressNegativeYear={stressNegYear}
+            baseNegativeYear={negYear}
+            nominal={nominal}
+            onNominal={setNominal}
+            inflationBps={inflationBps}
+            onInflation={setInflationBps}
+            fxOf={pageFxOf}
+            focusEventId={editorFocusEventId}
+            presetChips={
+              <PresetPanel
+                variant="inline"
+                buildCtx={buildPresetCtx}
+                // Mặc định 2 năm nữa, không phải năm nay: mốc cuộc đời gần như luôn ở
+                // tương lai, và một mốc rơi đúng năm hiện tại thì chip của nó dán vào
+                // mép trái đồ thị, chỗ khó kéo nhất.
+                defaultYear={currentYear + 2}
+                currency={currency}
+                onAdd={(preset, result) => {
+                  const seed = ++presetSeed.current
+                  editDraft((d) => applyPreset(d, result, seed))
+                  showToast(
+                    `Đã thêm "${preset.label}" vào năm ${currentYear + 2} — kéo chip trên đồ thị tới đúng năm.`,
+                    'success',
+                  )
+                }}
+              />
+            }
+          />
+        )}
 
-          <ActionButton onClick={() => setSheetOpen(true)} className="self-start xl:hidden">
-            <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
-            Vặn thử
-            {dirty && <span className="text-fg-warn"> · chưa lưu</span>}
-          </ActionButton>
+        <YearTableSection
+          rows={shownRows}
+          currency={currency}
+          scenarioName={active.name}
+          onEditEvent={(eventId) => openEditor(eventId)}
+        />
 
-          {sheetOpen && (
-            <div
-              className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center animate-overlay-in"
-              onClick={() => setSheetOpen(false)}
-            >
-              <div
-                className="flex max-h-[92vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-t-2xl bg-surface-page p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {panels}
-                <ActionButton onClick={() => setSheetOpen(false)} className="w-full">
-                  Đóng
-                </ActionButton>
-              </div>
-            </div>
-          )}
-
-          {/* Banner cảnh báo tỷ giá bằng 1 — BẮT BUỘC, không có nút tắt. Trên mobile chỉ
-              hiện SỐ LƯỢNG, không liệt kê từng khoản. */}
-          {mismatchCount > 0 && (
-            <button
-              type="button"
-              onClick={() => openEditor()}
-              disabled={!profile}
-              className="flex min-h-11 w-full items-start gap-2 rounded-md bg-state-warn-bg text-state-warn-fg px-3 py-2 text-left text-sm transition active:scale-95 disabled:active:scale-100"
-            >
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>
-                {mismatchCount} khoản đang dùng tỷ giá giả định bằng 1 — gần như chắc chắn sai.
-                Bấm để sửa.
-              </span>
-            </button>
-          )}
-        </div>
       </div>
 
       {/* Bảng theo năm dạng sheet — đường vào từ hai ô kết luận có NĂM. Bản gấp mở trong
@@ -903,64 +805,6 @@ export function LifetimeView() {
         />
       )}
 
-      {/* Trình sửa kịch bản — drawer bên phải. Mở từ nút "Sửa kịch bản" ở hàng hành
-          động, từ link trong panel Giả định, từ banner cảnh báo tỷ giá, hoặc từ một chip
-          mốc trên đồ thị / trong Bảng theo năm.
-
-          Bản nháp và bản chiếu truyền XUỐNG chứ không để drawer tự dựng: đồ thị, thẻ kết
-          luận và thanh nháp ở trên đọc CÙNG bản nháp đó, và một bản thứ hai (kèm cả một
-          bản chiếu 60 năm tính song song) là hai chỗ nói hai chuyện về một kịch bản. */}
-      {editorOpen && active && profile && savedDraft && working && (
-        <ScenarioEditorDrawer
-          // `key`: drawer giữ vài state khởi tạo MỘT LẦN lúc gắn (năm sinh đang gõ, mốc
-          // cần cuộn tới). `active` có thể đổi danh tính trong lúc drawer đang mở — không
-          // có `key` thì React DÙNG LẠI instance cũ, và ô năm sinh còn giữ chuỗi của
-          // kịch bản trước.
-          key={active.id}
-          scenario={active}
-          scenarios={scenarios}
-          phaseRows={phases}
-          eventRows={events}
-          profile={profile}
-          netWorth={netWorth}
-          netWorthReliable={netWorthReliable}
-          netWorthLoading={netWorthLoading}
-          saved={savedDraft}
-          working={working}
-          changes={changes}
-          rows={shownRows}
-          savedRows={baselineRows}
-          currentYear={currentYear}
-          onEdit={editDraft}
-          onCommit={handleCommit}
-          onDiscard={() => {
-            setDraft(null)
-            setEditingEventId(null)
-            showToast('Đã bỏ thay đổi.', 'success')
-          }}
-          saving={saving}
-          onSelectScenario={setActiveId}
-          refreshTree={refreshTree}
-          presetChips={
-            <PresetPanel
-              variant="inline"
-              buildCtx={buildPresetCtx}
-              defaultYear={currentYear + 2}
-              currency={currency}
-              onAdd={(preset, result) => {
-                const seed = ++presetSeed.current
-                editDraft((d) => applyPreset(d, result, seed))
-                showToast(
-                  `Đã thêm "${preset.label}" vào năm ${currentYear + 2} — kéo chip trên đồ thị tới đúng năm.`,
-                  'success',
-                )
-              }}
-            />
-          }
-          focusEventId={editorFocusEventId}
-          onClose={() => setEditorOpen(false)}
-        />
-      )}
 
     </div>
   )

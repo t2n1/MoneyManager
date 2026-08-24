@@ -26,6 +26,12 @@ interface Props {
   onSaveAsNew: () => void
   onDiscard: () => void
   saving: boolean
+  /**
+   * true = thanh này DÁN vào đầu thẻ ngay dưới nó (bo góc trên, không bo góc dưới, bỏ
+   * viền dưới). Bản vẽ v5 gắn nó lên thẻ đồ thị: nó nói về chính bản chiếu ngay dưới,
+   * còn để rời thì ở màn hẹp nó trôi khỏi tầm mắt đúng lúc người dùng đang vặn.
+   */
+  attached?: boolean
 }
 
 export function DraftBanner({
@@ -38,12 +44,17 @@ export function DraftBanner({
   onSaveAsNew,
   onDiscard,
   saving,
+  attached = false,
 }: Props) {
   // Cùng hàm với dòng tóm tắt ở chân trình sửa kịch bản — xem `draftText.ts`.
   const parts = changeParts(changes, currency, endBeforeMinor, endAfterMinor)
 
   return (
-    <div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-state-warn-border bg-state-warn-bg px-3 py-2">
+    <div
+      className={`flex flex-wrap items-center gap-2.5 border border-state-warn-border bg-state-warn-bg px-3 py-2 ${
+        attached ? 'rounded-t-xl border-b-0' : 'rounded-lg'
+      }`}
+    >
       <AlertTriangle className="h-4 w-4 shrink-0 text-state-warn-fg" aria-hidden="true" />
       <p className="min-w-[12rem] flex-1 text-[0.8125rem] text-state-warn-fg">
         <b>Đang thử trên bản nháp</b> — kịch bản "{scenarioName}" gốc chưa bị đụng.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { childCounts, recentCategories } from './recentCategories'
+import { categoryChips, childCounts, recentCategories } from './recentCategories'
 
 const CATS = [
   { id: 'an', name: 'Ăn uống', icon: '🍜', parent_id: null, type: 'expense', is_archived: false },
@@ -91,5 +91,46 @@ describe('childCounts — badge so con thay chevron', () => {
       { id: 'y', name: 'Cũ', icon: '📦', parent_id: 'di', type: 'expense', is_archived: true },
     ] as never[]
     expect(childCounts(allArchivedChild)).not.toHaveProperty('di')
+  })
+})
+
+describe('categoryChips — danh muc dang chon phai CON THAY DUOC sau khi luoi thu lai', () => {
+  const chip = (id: string, name: string) => ({ id, parentId: 'di', name, icon: '🚕' })
+  const recent = recentCategories(
+    [...tx('com', 18), ...tx('cho', 9), ...tx('di', 5)], CATS, 'expense',
+  )
+
+  it('bay gio recent dung la 3 cai — tien de cua ca khoi nay', () => {
+    expect(recent.map((r) => r.id)).toEqual(['com', 'cho', 'di'])
+  })
+
+  it('chon mot danh muc NGOAI top-3 thi no duoc chen vao DAU hang', () => {
+    // Day la ca sinh bug (bao 2026-08-24): mo "Khac" -> vao nhom -> chon con. Truoc day
+    // hang chip chi ve `recent`, nen luoi thu lai la tren man khong con chu nao noi minh
+    // vua chon gi — `categoryId` van dung, nhung nguoi dung doc man thi thay no mat.
+    const out = categoryChips(recent, chip('taxi', 'Taxi'))
+    expect(out[0].id).toBe('taxi')
+    expect(out.map((r) => r.id)).toContain('taxi')
+  })
+
+  it('van CAT o 3 — chip "Khac" phai con cho tren man (do that o 375px)', () => {
+    // 4 chip + "Khac" = 427px trong mot hang 351px, tuc "Khac" ra HAN ngoai man.
+    expect(categoryChips(recent, chip('taxi', 'Taxi'))).toHaveLength(3)
+    // Cai bi day ra la chip GAN DAY it dung nhat, khong phai cai dang chon.
+    expect(categoryChips(recent, chip('taxi', 'Taxi')).map((r) => r.id))
+      .toEqual(['taxi', 'com', 'cho'])
+  })
+
+  it('chon mot danh muc DA co trong top-3 thi khong chen gi — khong hai vien cung mot danh muc', () => {
+    const out = categoryChips(recent, { id: 'com', parentId: 'an', name: 'Cơm ngoài', icon: '🍜' })
+    expect(out.map((r) => r.id)).toEqual(['com', 'cho', 'di'])
+  })
+
+  it('chua chon gi thi hang chip dung la "Gan day"', () => {
+    expect(categoryChips(recent, null).map((r) => r.id)).toEqual(['com', 'cho', 'di'])
+  })
+
+  it('chua co lich su nao thi hang chip chi con dung chip dang chon', () => {
+    expect(categoryChips([], chip('taxi', 'Taxi')).map((r) => r.id)).toEqual(['taxi'])
   })
 })

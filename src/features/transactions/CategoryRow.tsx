@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronLeft } from 'lucide-react'
 import { Card } from '../../components/ui'
-import { childCounts, type RecentCategory } from './recentCategories'
+import { categoryChips, childCounts, type RecentCategory } from './recentCategories'
 
 /** Sườn tối thiểu component cần — không đòi `type` như `Category` của recentCategories.ts,
  *  vì `TransactionForm` đã lọc đúng loại trước khi truyền vào (`activeOfType`). */
@@ -46,6 +46,13 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
   const selected = categories.find((c) => c.id === value) ?? null
   const drillParent = drillId ? topCategories.find((c) => c.id === drillId) ?? null : null
   const drillChildren = drillParent ? childrenOf(drillParent.id) : []
+  // Hàng chip = 3 chip "Gần đây" + chip ĐANG CHỌN nếu nó không nằm trong ba cái đó.
+  // Xem `categoryChips` cho lý do: thiếu nó thì chọn một danh mục ngoài top-3 là lưới thu
+  // lại và trên màn không còn gì nói mình vừa chọn cái gì.
+  const chips = categoryChips(
+    recent,
+    selected && { id: selected.id, parentId: selected.parent_id ?? null, name: selected.name, icon: selected.icon },
+  )
 
   /** Chọn xong một danh mục (chip Gần đây, tile không con, hoặc tile con trong lưới) →
    *  thu lưới lại. Mở sẵn cho lần sau là giữ nguyên 250px, đúng cái task này xoá. */
@@ -86,7 +93,7 @@ export function CategoryRow({ categories, recent, value, onChange, emptyNote }: 
           mà hàng này phải giữ MỘT hàng ~42px (xem ngân sách chiều cao ở task-13-brief)
           — vỡ hai hàng ăn hết khoảng thu được từ việc gộp lưới. Cuộn ngang thay vỡ hàng. */}
       <div className="flex items-center gap-1.5 overflow-x-auto">
-        {recent.map((r) => (
+        {chips.map((r) => (
           <button
             key={r.id}
             type="button"

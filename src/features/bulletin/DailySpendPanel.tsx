@@ -40,6 +40,7 @@ import { daySpanLabel, dailyHeadline } from '../reports/dailyHeadline'
 import type { DayTagCells } from '../reports/dayTagCells'
 import type { TagBudgetLine } from '../tags/budget'
 import { TAG_HEX, tagColor } from '../tags/colors'
+import { AXIS_CAP, AXIS_GAP, AXIS_LEAD, AXIS_TOTAL, CELL_GAP_PX, dayLabelStep } from './dayAxisCols'
 import { DayTagStrip } from './DayTagStrip'
 
 /** 'all' = mọi khoản · 'flex' = bỏ danh mục `cost_type = 'fixed'`. */
@@ -86,9 +87,6 @@ const SCOPE_ITEMS = [
 const NEG_PCT = 12.5
 const LABEL_PCT = 7.95
 const POS_PCT = 100 - NEG_PCT - LABEL_PCT
-
-/** Khe giữa hai cột, phải ĐỨNG YÊN khi người dùng phóng cỡ chữ — xem `gap-[3px]` ở §13. */
-const GAP_PX = 3
 
 /** Vạch chéo trên đầu cột bị cắt (B42.2). Cột phẳng đọc ra "đúng bằng mức đó". */
 const HATCH = 'repeating-linear-gradient(135deg, var(--money-out) 0 3px, var(--surface) 3px 6px)'
@@ -141,7 +139,7 @@ function useColumnWidth(count: number): [(el: HTMLDivElement | null) => void, nu
   useLayoutEffect(() => {
     if (!node || count <= 0) return
     const measure = () => {
-      const next = (node.clientWidth - GAP_PX * (count - 1)) / count
+      const next = (node.clientWidth - CELL_GAP_PX * (count - 1)) / count
       // Chốt an toàn: trả về CHÍNH giá trị cũ khi số đo không nhúc nhích, nếu không
       // ResizeObserver + setState thành một vòng bày-lại.
       setW((cur) => (Math.abs(next - cur) < 0.5 ? cur : next))
@@ -308,12 +306,15 @@ export function DailySpendPanel({
   return (
     <Card elevation="panel" padding="panel" as="section" className="min-w-0">
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-        <h2 className="text-[0.8125rem] font-semibold text-fg-primary">
-          Chi từng ngày
-          {/* B46.2: tiêu đề PHẢI nói đang lọc. Không ai được đọc một biểu đồ đã lọc rồi
-              tưởng đó là chi cả tháng. */}
-          {filtered && <span className="font-normal text-fg-muted"> · đã bỏ khoản cố định</span>}
-        </h2>
+        {/* Chữ "đã bỏ khoản cố định" KHÔNG nằm trong <h2>.
+            Nằm trong đó thì bật công tắc là tiêu đề dài thêm ~140px và đẩy chính hai cái
+            chip sang phải — con trỏ vừa bấm "Bỏ cố định" xong thì nút đã trượt khỏi ngón
+            tay, và bấm lần nữa để tắt là bấm trúng chỗ khác. Một control không bao giờ
+            được tự dời chỗ vì hệ quả của chính cú bấm vào nó.
+            B46.2 vẫn được giữ nguyên: câu đó chuyển sang góc phải, dính liền hai con số
+            mà nó giải thích ("đã bỏ khoản cố định · ¥151.218 / ¥270.311 tổng"). Góc phải
+            là `ml-auto` nên nó nở về BÊN TRÁI, không đụng tới hai chip. */}
+        <h2 className="text-[0.8125rem] font-semibold text-fg-primary">Chi từng ngày</h2>
         <SegmentedControl
           items={SCOPE_ITEMS}
           value={scope}
@@ -334,6 +335,9 @@ export function DailySpendPanel({
             <>
               {' / '}
               <Money amount={fullTotal} currency={base} approx={approx} /> tổng
+              <span className="ml-1.5 rounded-full bg-surface-sunken px-1.5 py-0.5 font-sans text-fg-secondary">
+                đã bỏ khoản cố định
+              </span>
             </>
           ) : (
             compare !== null && (
@@ -391,13 +395,18 @@ export function DailySpendPanel({
             )}
           </p>
 
-          <div className="mt-3 flex gap-0 md:gap-2.5">
+          {/* Cùng bộ cột với dải nhãn ở dưới (`dayAxisCols.ts`): cột đầu · vùng ngày · hai
+              cột số. Nhờ vậy ô nhãn `#Osaka` nằm THẲNG TRỤC với đúng những cột vọt lên —
+              đó là toàn bộ lý do B44 bắt hai khối dùng chung một trục ngày. */}
+          <div className={`mt-3 flex ${AXIS_GAP}`}>
             {/* Trục tung. `right-0` để mọi nhãn canh phải sát vùng vẽ, không so le.
                 ẨN dưới md, và đó là quyết định về BỀ RỘNG chứ không phải về chữ: cột này
-                ăn 56px của 323px còn lại ở 375px, tức mỗi cột ngày tụt từ 7,5px xuống
-                5,5px. B48 chốt giữ đủ 31 ngày ở mobile, nên 56px đó phải trả về cho cột.
+                ăn hơn 100px của 323px còn lại ở 375px, tức mỗi cột ngày tụt xuống dưới
+                4px. B48 chốt giữ đủ 31 ngày ở mobile, nên chỗ đó phải trả về cho cột.
                 Mức cắt vẫn nói ra ở nhãn "cắt ở …" trong khung, và đường 0 vẫn được vẽ. */}
-            <div className="relative hidden h-44 w-[2.875rem] flex-none font-mono text-3xs text-fg-muted md:block">
+            <div
+              className={`relative hidden h-44 font-mono text-3xs text-fg-muted md:block ${AXIS_LEAD}`}
+            >
               <span className="absolute right-0 top-0">{formatCompact(ceiling, base)}</span>
               {typical > 0 && (
                 <span
@@ -433,7 +442,8 @@ export function DailySpendPanel({
                   danh sách "ba ngày đáng hỏi" dưới đây, đầy đủ hơn cả hình. */}
               <div
                 ref={plotRef}
-                className="flex h-44 items-end gap-[3px]"
+                className="flex h-44 items-end"
+                style={{ gap: `${CELL_GAP_PX}px` }}
                 // Rời ở HÀNG chứ không ở từng cột: rê ngang qua khe 3px giữa hai cột sẽ bắn
                 // ra một cặp leave/enter, và thẻ chi tiết nhấp nháy suốt dọc biểu đồ.
                 onMouseLeave={() => setHover(null)}
@@ -560,6 +570,12 @@ export function DailySpendPanel({
                 </span>
               )}
             </div>
+
+            {/* Hai cột rỗng đúng bề rộng cột `tổng` và `trần` của dải nhãn. Không có chúng
+                thì vùng vẽ kéo dài thêm ~176px so với hàng ô ở dưới, và cả trục lệch đi
+                năm ngày. */}
+            <span className={`hidden md:block ${AXIS_TOTAL}`} aria-hidden />
+            <span className={`hidden md:block ${AXIS_CAP}`} aria-hidden />
           </div>
 
           {/* Trục ngày cho màn hẹp: năm mốc thay 31 số. Từ md trục ngày nằm ở dải nhãn,
@@ -625,6 +641,7 @@ export function DailySpendPanel({
             untaggedCount={Math.max(0, series.txCount - cells.taggedCount)}
             fromISO={days[0].date}
             toISO={days[days.length - 1].date}
+            dayStep={dayLabelStep(colWidth)}
           />
         </>
       )}

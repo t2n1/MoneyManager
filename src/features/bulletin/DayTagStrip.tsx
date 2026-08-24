@@ -17,6 +17,7 @@ import { dayLabel, type DaySpend } from '../reports/dailySpike'
 import type { DayTagCells, TagDayRow } from '../reports/dayTagCells'
 import type { TagBudgetLine } from '../tags/budget'
 import { TAG_HEX, tagColor } from '../tags/colors'
+import { AXIS_CAP, AXIS_GAP, AXIS_LEAD, AXIS_TOTAL, CELL_GAP_PX } from './dayAxisCols'
 
 interface Props {
   cells: DayTagCells
@@ -32,12 +33,16 @@ interface Props {
   /** Khoảng ngày của tháng đang xem — cho deep-link `/search?tags=…&from=…&to=…`. */
   fromISO: string
   toISO: string
+  /** In nhãn ngày cách mấy ngày một lần. Biểu đồ đo bề rộng cột rồi đưa xuống — xem
+   *  `dayLabelStep`; đo ở đây lần nữa là hai phép đo cho cùng một trục. */
+  dayStep: number
 }
 
-/** Cột tên nhãn và hai cột số bên phải. `rem` chứ không px: §13 — cột px cứng vỡ đầu tiên ở cỡ chữ lớn. */
-const NAME_COL = 'w-full md:w-[6.5rem] md:flex-none'
-const TOTAL_COL = 'w-[3.5rem] flex-none text-right'
-const CAP_COL = 'w-[7.5rem] flex-none text-right'
+// Bề rộng cột lấy từ `dayAxisCols.ts` — nguồn chung với biểu đồ ngay trên, để ô nhãn thẳng
+// hàng với cột ngày. Đặt lại ở đây là mở đường cho hai khối trôi khỏi nhau.
+const NAME_COL = AXIS_LEAD
+const TOTAL_COL = AXIS_TOTAL
+const CAP_COL = AXIS_CAP
 
 /** "83% trần tháng" · "97% trần đợt" · "không trần". */
 function capLabel(line: TagBudgetLine | undefined): string {
@@ -60,7 +65,7 @@ function TagRow({
 }) {
   const hex = TAG_HEX[tagColor(row.color)]
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 py-1 md:flex-nowrap">
+    <div className={`flex flex-wrap items-center gap-y-0.5 py-1 md:flex-nowrap ${AXIS_GAP}`}>
       <span className={`flex min-w-0 items-center gap-1.5 ${NAME_COL}`}>
         <span
           className="size-2 flex-none rounded-[2px]"
@@ -72,7 +77,11 @@ function TagRow({
 
       {/* Ô rời, mỗi ngày một ô, THẲNG chỉ số với `days`. Ẩn dưới md: ở 375px mỗi ô rộng
           8px, và ba dòng "ngày đáng hỏi" ở trên đã nói phần con số (B48.3). */}
-      <div className="hidden min-w-0 flex-1 gap-[3px] md:flex" aria-hidden>
+      <div
+        className="hidden min-w-0 flex-1 md:flex"
+        style={{ gap: `${CELL_GAP_PX}px` }}
+        aria-hidden
+      >
         {row.cells.map((v, i) => {
           const day = days[i]
           if (v === 0) {
@@ -118,6 +127,7 @@ export function DayTagStrip({
   untaggedCount,
   fromISO,
   toISO,
+  dayStep,
 }: Props) {
   const lineOf = new Map(tagLines.map((l) => [l.tagId, l]))
   const untagged = spendTotal - cells.taggedTotal
@@ -134,14 +144,16 @@ export function DayTagStrip({
           {/* Trục ngày của dải nhãn. Chỉ in mốc 5 ngày một lần: 31 số trong một hàng
               ~1.100px là 31 chữ cách nhau 26px — đọc được, nhưng không ai đọc, và nó
               cạnh tranh với chính nhãn số trên cột ngay trên. */}
-          <div className="hidden items-center gap-2 md:flex" aria-hidden>
+          <div className={`hidden items-center md:flex ${AXIS_GAP}`} aria-hidden>
             <span className={NAME_COL} />
-            <div className="flex min-w-0 flex-1 gap-[3px]">
+            <div className="flex min-w-0 flex-1" style={{ gap: `${CELL_GAP_PX}px` }}>
               {days.map((d, i) => (
                 <span
                   key={d.date}
                   className={`min-w-0 flex-1 text-center font-mono text-3xs ${
-                    i % 5 === 0 || i === days.length - 1 ? 'text-fg-muted' : 'text-transparent'
+                    i % dayStep === 0 || i === days.length - 1
+                      ? 'text-fg-muted'
+                      : 'text-transparent'
                   }`}
                 >
                   {d.date.slice(8)}

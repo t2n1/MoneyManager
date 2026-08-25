@@ -1,102 +1,568 @@
-# Design system
+# Design system — Sổ Gạo
 
-Ba tầng: **nguyên thuỷ** (palette Tailwind v4) → **ngữ nghĩa** (`src/index.css`) → **component** (`src/components/ui`).
+Sổ tra cứu để **dựng màn mới**. Ba tầng: nguyên thuỷ (palette Tailwind v4) → ngữ nghĩa
+(`src/index.css`) → component (`src/components/ui`).
 
-Ràng buộc được kiểm tự động bằng `tests/designSystem.test.ts` — không phải tài liệu để đọc rồi quên.
-(Ở `tests/` chứ không phải `src/`: file đó đọc filesystem bằng `node:fs`, xem chú thích đầu file.)
+> **Một luật bao trùm:** đừng phát minh giá trị mới. Mọi màu, cỡ chữ, bán kính, khoảng
+> cách và thời lượng đã có tên. Cần một cái chưa có tên → đặt tên nó ở tầng token trước,
+> đừng chêm giá trị tuỳ ý vào `className`. `tests/designSystem.test.ts` canh đúng điều đó
+> và nó chạy trong `npm test`.
+
+| | |
+|---|---|
+| **[Phần I — Dựng một màn mới](#phần-i--dựng-một-màn-mới)** | công thức, khuôn màn, checklist trước khi commit |
+| **[Phần II — Tra cứu](#phần-ii--tra-cứu)** | màu · chữ · hình học · chuyển động · primitive · khung app |
+| **[Phần III — Luật](#phần-iii--luật-guardrail)** | guardrail: ban cứng, ngưỡng, sửa sao khi đỏ |
+| **[Phần IV — Vì sao lại thế](#phần-iv--vì-sao-lại-thế)** | bẫy đã ĐO, đừng đạp lại |
+| **[Chưa làm](#chưa-làm)** | nợ còn treo |
 
 ---
+---
 
-## Nguyên tắc: đặt tên cho cái đã có, đừng phát minh scale mới
+# Phần I — Dựng một màn mới
 
-Trước khi dựng tầng này, app đã có một hệ thống **ngầm và khá nhất quán**. Đo trên 92 file `.tsx`:
+## Công thức
 
-| Trục | Thực tế đang dùng | Kết luận |
+Tám bước, theo thứ tự. Mỗi bước nói **dùng cái gì**, không nói tại sao — lý do ở Phần IV.
+
+**1. Vỏ trang.** Padding `p-3` ở mobile, `lg:p-6` ở desktop (`lg:p-4` cho màn dày như Sổ /
+Cài đặt). Xếp dọc bằng `gap`, đừng dùng `mb-*` trên từng khối.
+
+```tsx
+<div className="flex flex-col gap-3 p-3 lg:p-6">
+```
+
+Đừng chặn `max-w-*`. Khung app cố ý nở hết bề ngang (xem [Khung app](#khung-app)). Chỉ
+màn một-cột-form mới bó (Nhập: `max-w-2xl lg:max-w-5xl`).
+
+**2. Đầu trang — luôn là `<PageHeader>`.** Không tự viết `<h1>`; guardrail chặn.
+
+```tsx
+<PageHeader title="Nợ / cho vay" back="/assets">
+  <ActionButton variant="primary" onClick={...}>
+    <Plus className="h-4 w-4" /> Thêm
+  </ActionButton>
+</PageHeader>
+```
+
+- `back` = trang con. Bỏ trống = màn gốc (rail / thanh tab đã nói đang ở đâu).
+- Tiêu đề tự thành `sr-only` ở `lg` **chỉ khi** trùng chữ top bar đang in.
+- `flush` khi khối cha đã giãn bằng `gap`.
+
+**3. Nội dung gói trong `<Card>`.** Đừng viết `rounded-xl bg-surface shadow-sm` bằng tay.
+
+```tsx
+<Card as="section" padding="lg">
+  <SectionTitle>Giao dịch gần đây</SectionTitle>
+  …
+</Card>
+```
+
+**4. Tiêu đề trong thẻ — `<SectionTitle>`, chọn vai trò:**
+
+| `role` | Dùng khi | Ra hình |
 |---|---|---|
-| Bán kính | `rounded-lg` 278 · `rounded-xl` 130 · `rounded-full` 78 · `rounded-2xl` ~30 | 4 tầng: control / thẻ / pill / **hero+sheet**. `rounded-2xl` không phải lạc — nó dùng nhất quán cho thẻ hero (Tổng tài sản, Nợ ròng…) và ~20 sheet trượt lên (`rounded-t-2xl` mobile). Chỉ `rounded-md` (16) là lạc |
-| Độ nổi | `shadow-sm` 163 · còn lại ≤ 10 | thực chất một tầng |
-| Trọng lượng | `medium` 227 · `semibold` 166 · `bold` 83 | 3 bậc |
-| Khoảng cách | `gap-2` 174 · `gap-1` 88 · `gap-3` 43 | 4 giá trị chiếm hầu hết |
-| Padding thẻ | `p-3` 96 · `p-4` 31 · `p-6` 24 (desktop) | 3 bậc |
+| `micro` | nhãn đứng ngay **trên một con số** ("TÀI SẢN RÒNG") | 11px CHỮ HOA, giãn `tracking-label`, xám |
+| `card` *(mặc định)* | **tên của một thẻ** ("Ngân sách", "Tài khoản") | 14px semibold, sáng |
+| `block` | **tiêu đề một khối** gồm nhiều thẻ | 16px bold, sáng |
 
-Nên tầng token **không đổi** mấy trục này. Việc của nó là (a) đặt tên cho hai chỗ scale bị thiếu, (b) khoá các quyết định contrast lại thành cấu trúc.
+**5. Mọi con số qua `<Money>` hoặc `<Num>`.** Không bao giờ tự ghép `font-mono
+tabular-nums`.
+
+```tsx
+<Money amount={remaining} currency={base} tone="out" approx={hasMissingRate} />
+<Num tone="muted">{soThang} tháng</Num>   {/* đếm, %, số tháng — KHÔNG phải tiền */}
+```
+
+`<Money>` đi qua chế độ riêng tư (che số) và tự in dấu `-`. `<Num>` thì không — đó là lý
+do trục thời gian và mẫu số phải dùng `<Num>`, che chúng là con số bên cạnh hết nghĩa.
+
+**6. Chọn đúng họ control** — xem [Ba họ "chọn 1 trong N"](#ba-họ-cho-câu-hỏi-chọn-1-trong-n).
+
+**7. Nút.** `<ActionButton>` cho nút có chữ, `<IconButton>` cho nút chỉ icon. Cả hai tự
+mang 44px vùng chạm + `transition` + `active:scale-95`.
+
+```tsx
+<ActionButton variant="primary">Lưu</ActionButton>
+<ActionButton variant="danger" onClick={handleDelete}>Xóa khoản nợ</ActionButton>
+<IconButton aria-label="Tháng trước" onClick={...}><ChevronLeft className="h-5 w-5" /></IconButton>
+```
+
+`<Link>` là thẻ `<a>` nên không dùng component được → dùng hàm class:
+
+```tsx
+<Link to="/search" className={iconButtonClass()} aria-label="Tìm kiếm giao dịch">
+```
+
+**8. Trạng thái rỗng / đang tải — `<EmptyState>`.**
+
+```tsx
+<EmptyState>Đang tải…</EmptyState>
+<EmptyState compact>Chưa có lần trả nào</EmptyState>   {/* thay ruột MỘT thẻ */}
+```
+
+## Khuôn màn chuẩn
+
+Dán cái này rồi sửa. Nó đã đi qua mọi guardrail.
+
+```tsx
+import { Plus } from 'lucide-react'
+import {
+  ActionButton, Card, EmptyState, Money, PageHeader, SectionTitle,
+} from '../../components/ui'
+
+export function ManMoiPage() {
+  const { data, isLoading } = useThuGiDo()
+
+  return (
+    <div className="flex flex-col gap-3 p-3 lg:p-6">
+      <PageHeader title="Màn mới" back="/so">
+        <ActionButton variant="primary" onClick={() => setSheet(true)}>
+          <Plus className="h-4 w-4" /> Thêm
+        </ActionButton>
+      </PageHeader>
+
+      {isLoading ? (
+        <EmptyState>Đang tải…</EmptyState>
+      ) : data.length === 0 ? (
+        <Card as="section">
+          <EmptyState compact>Chưa có khoản nào.</EmptyState>
+        </Card>
+      ) : (
+        <Card as="section" padding="none">
+          {data.map((row) => (
+            <div key={row.id} className="flex items-center gap-2 border-t border-border-subtle px-3 py-2.5 first:border-t-0">
+              <span className="min-w-0 flex-1 truncate text-sm text-fg-primary">{row.name}</span>
+              <Money amount={row.amount} currency={row.currency} tone="out" />
+            </div>
+          ))}
+        </Card>
+      )}
+    </div>
+  )
+}
+```
+
+## Trước khi commit
+
+```bash
+npm test && npx tsc -b && npx oxlint src
+```
+
+Rồi mở app và soát bằng MẮT — guardrail là quét nguồn, nó không thấy được ba loại lỗi sau:
+
+1. **Cả hai chế độ màu.** Nhiều luật chỉ đúng ở một chế độ. Đổi bằng Cài đặt → Giao diện,
+   đừng bật class `.dark` bằng JS (xem [bẫy đo contrast](#cách-đo-contrast-cho-đúng)).
+2. **Cỡ chữ 1,25×** (Cài đặt → Cỡ chữ → Rất lớn) ở bề ngang **375px**. Tìm
+   `document.documentElement.scrollWidth > clientWidth` — trang không bao giờ được cuộn ngang.
+3. **Trang cần ID** (chi tiết nợ / tài khoản / danh mục). Chúng hay là chỗ duy nhất có
+   biểu thức JSX trong tiêu đề, và `tsc` không bắt được `title="{debt.counterparty}"`.
 
 ---
+---
 
-## Token ngữ nghĩa
+# Phần II — Tra cứu
 
-Khai ở `src/index.css`. Đọc `--fg-muted` chứ đừng đọc `gray-500`: đổi một chỗ là đổi cả app, và tên nói lên **vai trò** nên khó dùng sai.
+## Màu
+
+Khai ở `src/index.css`. Đọc `--fg-muted` chứ đừng đọc `gray-500`: đổi một chỗ là đổi cả
+app, và tên nói lên **vai trò** nên khó dùng sai. Dùng qua tiện ích Tailwind:
+`text-fg-muted`, `bg-surface`, `border-border-subtle`.
 
 | Token | Light | Dark | Đo được |
 |---|---|---|---|
 | `fg-primary` | gray-800 | `#e6e9ee` | 14,7 / 14,7:1 |
 | `fg-secondary` | gray-600 | `#c9cfd8` | 7,6 / 11,4:1 |
-| `fg-muted` | gray-500 | `#99a1af` (= gray-400) | **4,84:1 — sàn ở light** |
+| `fg-muted` | gray-500 | `#99a1af` | **4,84:1 — sàn ở light** |
 | `fg-on-track` | gray-600 | `#99a1af` | 6,87 / 6,85:1 |
 | `money-in` | green-800 | green-400 | 7,13 / 10,0:1 |
 | `money-out` | red-700 | red-400 | 6,42 / 6,2:1 |
 | `surface-page` | gray-50 | `#08090b` | nền trang |
 | `surface-chrome` | gray-50 | `#0b0d10` | top bar, rail, header nhóm trong bảng |
 | `surface` | white | `#0e1014` | thẻ / panel |
-| `surface-sunken` | gray-100 | `#14181d` | track của segmented control, nút phụ |
+| `surface-sunken` | gray-100 | `#14181d` | track segmented, nút phụ |
 | `border-subtle` | gray-100 | `#14171c` | đường kẻ giữa các dòng |
 | `border-panel` | gray-200 | `#1b1e24` | viền panel & khung |
 | `border-strong` | gray-300 | `#232830` | viền control, viền nút |
-| `accent` | green-700 | green-500 | nền nút chính, focus ring |
-| `fg-accent` | green-700 | green-400 | **chữ** màu nhấn (link, hành động phụ) |
+| `accent` | green-700 | green-500 | nền nút chính, focus ring, chip đang bật |
+| `fg-accent` | green-700 | green-400 | **chữ** bấm được (link, hành động phụ) |
+| `fg-on-accent` | white | `#08090b` | chữ ĐÈ LÊN nền accent |
 
-Số ở cột dark là của **thang tối bản 1a** (2026-08-16), đo ở ca xấu nhất — chữ trên
-`surface-sunken`, nấc lún nhất. Thang cũ (gray-950/900/800) đã bỏ: 1a dùng bốn nấc tối
-hơn và lệch xanh nhẹ, không sắc độ Tailwind nào rơi đúng vào đó nên **dark là chỗ duy
-nhất trong repo được viết hex trần** — và chỉ trong `:root`/`.dark` của `index.css`.
+Bốn nấc bề mặt xếp lún → nổi: `page` → `chrome` → `surface` → `sunken`. Ở **light không
+có nấc thứ tư** (`chrome` = `page`), khung phân biệt bằng `border-panel`.
 
-Bốn nấc bề mặt xếp theo thứ tự lún → nổi: `page` → `chrome` → `surface` → `sunken`.
-`chrome` nằm **giữa** page và surface vì khung app (thanh trên, rail trái) phải lùi ra
-sau panel nội dung mà vẫn tách khỏi nền trang — 1a bỏ hẳn `shadow`, nên nền là kênh
-phân cấp duy nhất còn lại. Ở **light không có nấc thứ tư**: `surface-chrome` = gray-50,
-trùng `surface-page`, và khung phân biệt bằng `border-panel`.
+### Ba token xanh, đừng trộn
 
-**Đánh đổi đã biết:** viền mờ đi. `border-strong` trên `surface` ở dark tụt từ 1,72:1
-(gray-700 trên gray-900) xuống **1,29:1**. Cả hai đều dưới 3:1 của WCAG 1.4.11 nên không
-đổi trạng thái đạt/trượt, nhưng nó chốt một luật: **viền không được là thứ duy nhất chỉ
-ra ranh giới một control** — control phải có nền (`surface-sunken`) hoặc chữ của chính nó.
+- `accent` — **nền** nút chính, chip đang bật. Bậc 700 vì có chữ đè lên.
+- `fg-accent` — **chữ** bấm được: link, nút text.
+- `money-in` — "đây là khoản **thu**".
 
-### Kiểu chữ: IBM Plex
+Nút trùng màu số thu nhập thì mất phân biệt *hành động* với *giá trị*.
 
-`--font-sans` = IBM Plex Sans, `--font-mono` = IBM Plex Mono (khai trong `@theme` của
-`index.css`, nạp bằng `<link>` Google Fonts ở `index.html`). **Mọi con số** — tiền, ngày,
-%, mã tháng — đi bằng mono; đó là thay đổi nhìn thấy rõ nhất của 1a.
+### Hai luật màu bắt buộc
 
-Ghi đè hai biến đó là đủ cho cả tiện ích `font-sans`/`font-mono` lẫn font mặc định của
-trang: preflight v4 đặt `--default-font-family: var(--font-sans)`.
+- **Chữ mờ trên bất kỳ nền lún nào phải dùng `fg-on-track`**, không phải `fg-muted`.
+  gray-500 đạt 4,84:1 trên trắng nhưng chỉ 4,39:1 trên `surface-sunken` → trượt AA.
+- **Không có bậc xám nào mờ hơn gray-500 mà vẫn đạt AA.** Muốn phân cấp thêm thì dùng
+  **cỡ chữ**, đừng làm nhạt màu. App cố ý không có bậc chữ "tam cấp" bằng màu.
 
-Hai điều **đừng** đổi khi đụng vào:
+## Chữ
 
-- **Không chốt `subset=` trong URL css2.** App viết tiếng Việt nên cần subset
-  `vietnamese` (U+1EA0–1EF9, và ₫ U+20AB). Chốt `latin,latin-ext` là mọi chữ có dấu
-  nặng/hỏi rơi về font hệ thống — lộ ra chữ lệch nét ngay giữa một câu. Để mặc định
-  không tốn thêm byte: css2 chia `@font-face` theo `unicode-range`.
-- **Luật `runtimeCaching` cho hai origin font trong `vite.config.ts`** giữ font sống
-  khi offline. Bỏ nó thì mở offline rơi về font hệ thống, và cột số mất bề rộng mono
-  nên bảng tiền lệch hàng.
+**Font:** `--font-sans` = IBM Plex Sans · `--font-mono` = IBM Plex Mono. **Mọi con số** —
+tiền, ngày, %, mã tháng — đi bằng mono.
 
-### `accent` vs `money-in` — cùng xanh, khác nghĩa
+Hai điều **đừng** đổi khi đụng vào phần nạp font:
 
-Ba token xanh, đừng trộn:
+- **Không chốt `subset=` trong URL css2.** App viết tiếng Việt nên cần subset `vietnamese`
+  (U+1EA0–1EF9, và ₫ U+20AB). Chốt `latin,latin-ext` là mọi chữ có dấu nặng/hỏi rơi về
+  font hệ thống — lộ ra chữ lệch nét ngay giữa một câu. Để mặc định không tốn thêm byte:
+  css2 chia `@font-face` theo `unicode-range`.
+- **Luật `runtimeCaching` cho hai origin font trong `vite.config.ts`** giữ font sống khi
+  offline. Bỏ nó thì mở offline rơi về font hệ thống, và cột số mất bề rộng mono nên bảng
+  tiền lệch hàng.
 
-- `--accent` (green-700) — nền nút chính. Bậc 700 vì nút có **chữ trắng** đè lên, cần 4,5:1 với trắng; green-600 chỉ 3,22:1.
-- `--fg-accent` (green-700) — chữ "bấm được": link, nút text.
-- `--money-in` (green-800) — "đây là khoản thu".
+**Độ đậm:** 400 · 500 · 600 · 700. Thêm bậc mới thì **phải sửa URL font trong
+`index.html` cùng lúc**, không thì trình duyệt bôi đậm giả.
 
-Cố ý **không** để nút dùng green-800: nút trùng màu số thu nhập thì mất phân biệt *hành động* với *giá trị*.
+### Sáu bậc cỡ chữ, mỗi bậc cách nhau ít nhất 2px
 
-Dùng qua tiện ích Tailwind: `text-fg-muted`, `bg-surface`, `border-border-subtle`.
+| Tên | Giá trị | Dùng cho |
+|---|---|---|
+| `text-2xs` | 0.6875rem (11px) | **sàn dưới** — nhãn chữ hoa, chú thích, dòng meta |
+| `text-sm` | 0.875rem (14px) | chữ thân: tên giao dịch, số tiền trong danh sách, mọi câu |
+| `text-base` | 1rem (16px) | tiêu đề một khối gồm nhiều thẻ |
+| `text-lg` | 1.125rem (18px) | tiêu đề trang |
+| `text-kpi` | 1.375rem (22px) | số trong **một ô** (StatTile, KpiRow, tổng tab) |
+| `text-hero` | 1.875rem (30px) | số **chính của cả màn** — mỗi màn nhiều nhất một |
 
-### Ba cái bẫy đã đo, đừng đạp lại
+`text-3xs` (10px) còn trong `@theme` nhưng **chỉ cho biểu đồ** (`src/lib/chartText.ts`).
+Trong `className` thì đừng dùng: ở `--app-font-scale` 0,9 nó tụt xuống 9px.
 
-**1. Chiều màu ở dark mode bị đảo.** `text-gray-400 dark:text-gray-500` là **sai** — nền tối thì chữ phụ phải *sáng* hơn. Chiều đúng: `text-gray-500 dark:text-gray-400`. Đã dọn 64 chỗ.
+Mọi cỡ chữ dùng `rem`. **Đừng dùng `px`**, và đừng chêm `text-[…rem]` tuỳ ý.
 
-**2. `fg-muted` CHỈ an toàn trên nền trắng.** gray-500 đạt 4,84:1 trên trắng, nhưng:
+### Số: một font, hai cỡ
+
+`text-kpi` / `text-hero` chỉ đứng trên **số**, nên chỗ nào mang chúng cũng phải mang
+`font-mono` — trực tiếp, hoặc gián tiếp qua `<Money>`/`<Num>`. Guardrail canh cặp này.
+
+### Giãn chữ: hai token
+
+| Tên | Giá trị | Dùng cho |
+|---|---|---|
+| `tracking-label` | 0.1em | nhãn CHỮ HOA — chữ hoa 10–11px dính vào nhau nếu để mặc định |
+| `tracking-number` | −0.02em | số lớn — chữ số 22px+ để mặc định thì rời rạc |
+
+`tracking-normal` không bị cấm: nó là phép **đặt lại** cho huy hiệu nằm trong nhãn đã giãn.
+
+## Hình học
+
+### Bán kính — bốn tầng, theo VAI TRÒ không theo cỡ
+
+| Class | px | Dùng cho | Đếm được |
+|---|---|---|---|
+| `rounded-md` | 6 | **control**: nút, tab, ô nhập, ô chọn, banner | 215 |
+| `rounded-lg` | 8 | **panel**: khung 1a, khối trạng thái | 101 |
+| `rounded-xl` | 12 | **thẻ** (qua `<Card>`) | 29 |
+| `rounded-2xl` | 16 | **thẻ hero** và **sheet trượt lên** (`rounded-t-2xl`) | 25 + 24 |
+| `rounded-full` | ∞ | chip, chấm, thanh tiến trình | 153 |
+
+Control mang bán kính panel là **ban cứng** — 200 chỗ đã dọn, đừng dựng lại.
+
+### Khoảng cách
+
+| | Giá trị | Dùng cho |
+|---|---|---|
+| Giữa các khối trong trang | `gap-3` (12px) · `gap-4` khi khối lớn | xếp dọc bằng `gap`, không `mb-*` |
+| Trong một hàng | `gap-2` (8px) mặc định · `gap-1.5` khi chật | |
+| Padding trang | `p-3` mobile · `lg:p-6` (hoặc `lg:p-4` cho màn dày) | |
+| Padding thẻ | qua `<Card padding>`: `sm` 10px · `md` 12px *(mặc định)* · `lg` 16px · `panel` 16/14px | |
+
+### Cỡ icon
+
+| Class | Dùng cho |
+|---|---|
+| `h-4 w-4` | icon **trong nút có chữ** (`<Plus/> Thêm`) |
+| `h-5 w-5` | icon **đứng một mình** trong `<IconButton>` |
+| `h-3.5 w-3.5` | dải chip chật, dòng meta |
+
+### Breakpoint
+
+**`lg` (1024px) là ranh giới mobile ↔ desktop** và là breakpoint duy nhất mang nghĩa cấu
+trúc — nó quyết định rail hiện hay thanh tab hiện, top bar có tiêu đề hay không, vùng chạm
+được phép nhỏ hơn 44px hay không. `sm` / `md` / `xl` chỉ dùng để tinh chỉnh cục bộ.
+
+## Chuyển động
+
+Bảy token trong `index.css`, đặt tên **theo VIỆC** chứ không theo con số.
+
+| Token | Việc | Nơi dùng |
+| --- | --- | --- |
+| `--motion-period` 140ms | đổi tháng/kỳ: số mới **bật** lên | `<Swap>`, `CashflowPanel` |
+| `--motion-segment` 120ms | nền ô đang chọn trượt trong track | `SegmentedControl` |
+| `--motion-sheet` 180ms | mở sheet / modal | 26 sheet, `lib/dialog` |
+| `--motion-group` 160ms | xổ nhóm `grid-template-rows: 0fr→1fr` | `<Collapse>` |
+| `--motion-todo` 200ms | việc cần làm: gạch ngang rồi co về 0 | `TodoPanel` |
+| `--motion-drag` 120ms | các dòng nhường chỗ khi kéo–thả (FLIP) | `DragList` |
+| `--motion-assume` 220ms | thả thanh trượt giả định | `LifetimeChartCard` |
+
+Cộng `--motion-progress` 300ms cho vòng tải. **Đừng viết thời lượng bằng tay** —
+`duration-300` là ban cứng.
+
+**Ba tiện ích, ba việc khác nhau:**
+
+| | Việc |
+|---|---|
+| `motion-*` | gói cả `transition-property` — biết nội suy CÁI GÌ |
+| `animate-*` | bốn keyframes có tên: `sheet-in` · `sheet-pop` · `overlay-in` · `swap-in` |
+| `src/lib/motion.ts` | bản sao JS cho hai chỗ CSS không tới được — recharts nhận số ms qua prop, và React phải chờ CSS co xong mới tháo hàng. Guardrail so bản sao JS với CSS, lệch là đỏ |
+
+`prefers-reduced-motion` **không phải khai lại**: block cuối `index.css` đè cả
+`animation-duration` lẫn `transition-duration` về 0.01ms, kể cả inline style.
+
+## Component primitive
+
+`import { Card, Money, … } from '../../components/ui'`
+
+| Component | Props chính | Dùng ở |
+|---|---|---|
+| `PageHeader` | `title` `back` `left` `subtitle` `flush` `mobileOnly` | 24 file |
+| `Card` | `elevation` (`raised`\|`flat`\|`panel`) · `padding` (`none`\|`sm`\|`md`\|`lg`\|`panel`) · `as` | 78 |
+| `SectionTitle` | `role` (`micro`\|`card`\|`block`) · `as` · `id` | 85 |
+| `Money` | `amount` `currency` `tone` `showSign` `compact` `approx` | 43 |
+| `Num` | `tone` — cho số KHÔNG phải tiền (đếm, %, số tháng) | 10 |
+| `ActionButton` | `variant` (`outline`\|`primary`\|`danger`) · `actionButtonClass()` cho `<Link>` | 21 |
+| `IconButton` | `variant` (`surface`\|`ghost`\|`accent`) · `aria-label` **bắt buộc** · `iconButtonClass()` | 12 |
+| `SegmentedControl` | `items` `value` `onChange` `label` **bắt buộc** `size` `stretch` | 16 |
+| `FilterChip` | `on` · `size` (`md`\|`sm`) · `aria` (`pressed`\|`selected`) · `filterChipClass()` | 5 |
+| `Select` | mọi prop của `<select>` + `wrapClassName` (bề rộng/lề cho khung bao) | 17 |
+| `EmptyState` | `compact` | 26 |
+| `StatTile` | `label` `children` `center` | 3 |
+| `StatusChip` / `StatusDot` | `tone` `label` — `label` **bắt buộc** ở Dot (màu là kênh duy nhất) | 6 / 3 |
+| `Guide` / `FullOnly` | chữ để dạy, ẩn ở chế độ Gọn | 56 |
+| `Collapse` · `Swap` · `Sparkline` | | 3 · 3 · 5 |
+
+### Ba họ cho câu hỏi "chọn 1 trong N"
+
+Đừng trộn — chúng khác nhau về **nghĩa**, không chỉ về hình:
+
+| Họ | Dùng khi | Hình |
+|---|---|---|
+| `SegmentedControl` | đổi **cách xem** cùng một dữ liệu (Ngày · Lịch · Tháng) | dải liền khối, chia đều, luôn đúng một ô bật |
+| `FilterChip` | **lọc / bật tắt** một tập con (Chi · Thu · Chuyển khoản) | chip rời, bo tròn, có thể không mục nào bật |
+| `Select` | chọn từ **danh sách dài** (tài khoản, múi giờ, danh mục) | ô xổ xuống, mở bộ chọn của hệ điều hành trên mobile |
+
+### `Money` — lưu ý về dấu
+
+`formatMoney` **tự in dấu `-`** cho số âm. Nên:
+
+- Số lưu **dương**, chiều nằm ở `tone` (dòng giao dịch) → bật `showSign`
+- Số **đã có dấu** (số dư, chênh lệch) → **đừng** bật `showSign`, không thì ra `--`
+
+Dấu dùng ASCII `-`/`+`. Đừng trộn `−` (U+2212): hai glyph lệch bề rộng dù đã `tabular-nums`.
+
+### `<Collapse>` — một chỗ KHÔNG được dùng
+
+Nó giữ nội dung trong DOM khi đóng (điều kiện để nội suy được) nên phải gắn `inert`. Vì
+vậy **không** dùng cho cây danh mục (`BudgetView`, `CategoryBreakdownCard`): ở đó gập lại
+chính là để KHỎI dựng hàng chục dòng con của 60 danh mục.
+
+## Khung app
+
+`AppLayout` → `AppRail` (52px, trái) · `AppTopBar` (52px, trên) · `BottomNav` (mobile).
+Danh sách đích và tiêu đề màn ở `components/navItems.ts` — **một** bảng cho cả ba.
+
+Ba luật, đừng đạp lại:
+
+1. **Khung app đứng NGOÀI phần cuộn**, không `position:sticky`, không `z-index`. Rail và
+   top bar là anh em của `<main>` trong khung `h-dvh overflow-hidden` nên chúng dính sẵn.
+   Hệ quả: khung app không bao giờ chạm dải z-40 của sheet — `tests/overlayLayers.test.ts`
+   canh điều đó.
+2. **Top bar KHÔNG dùng `<h1>`.** Nó là khung ("đang ở đâu"); tiêu đề tài liệu thuộc về
+   trang, và `<PageHeader>` lo phần đó.
+3. **Vùng chạm nhỏ hơn 44px chỉ được phép ở phần CHỈ-DESKTOP.** Rail 34px, control top bar
+   28–30px — cả hai `hidden lg:flex`, tức chỉ tồn tại khi thiết bị trỏ là chuột (ngưỡng
+   WCAG 2.5.8 là 24px). Bản mobile của rail là thanh tab dưới, ở đó **46px**.
+
+**Khung app không chặn bề ngang.** Cột chính nở lấp phần còn lại; mỗi cặp panel là
+`flex-wrap` với `flex-1 min-w-0` cạnh một cột phụ có `basis` cố định. Trang nào CẦN hẹp
+thì tự bó (`max-w-2xl` ở Nhập và Sổ giao dịch).
+
+## Màu biểu đồ: hằng số JS, không phải token
+
+Recharts nhận màu qua prop (`fill`, `stroke`) nên **không dùng được biến CSS**. Đó là giới
+hạn của thư viện, không phải nợ kỹ thuật. Hai luật:
+
+- **Đừng đặt màu chú giải bằng class Tailwind.** Luôn trỏ vào đúng hằng số đã tô cho biểu
+  đồ (`style={{ backgroundColor: HANG_SO }}`) — không thì chú giải sai màu chính cái nó
+  gán nhãn.
+- **Cỡ chữ biểu đồ đi qua `src/lib/chartText.ts`** (chuỗi rem). Truyền SỐ là chữ đứng yên
+  khi người dùng phóng Cỡ chữ.
+
+**Ngoại lệ — SVG viết tay.** Đồ hoạ không qua Recharts thì `stroke-*` là class Tailwind
+bình thường, **lật được** theo `.dark` — ở đó phải dùng class, đừng viết hex.
+
+### Bộ màu trạng thái
+
+`src/components/ui/statusColors.ts` — **một** nguồn cho ba mặt của cùng ba tông
+(tốt / cần chú ý / rủi ro). Hai chỗ vẽ cùng một ý nghĩa thì không được lệch màu.
+
+| Hằng số | Dùng cho | Ngưỡng |
+|---|---|---|
+| `STATUS_FILL` | đồ hoạ: chấm, thanh, vùng thang đo | ≥ 3:1 (WCAG 1.4.11) |
+| `STATUS_STROKE` | nét SVG | ≥ 3:1 |
+| `STATUS_CHIP` | chip **có chữ** — đọc token `--state-{good,warn,bad}-{bg,border,fg}` | ≥ 4,5:1 |
+
+`STATUS_CHIP` đi qua token vì **banner** của form Nhập dùng đúng bộ mặt đó; để ở
+`statusColors.ts` thì banner sẽ chép tay lại. Ở dark, **viền** mới là thứ vẽ ra hình cái
+chip (nền chip chỉ hơn nền thẻ vài phần trăm, và 1a không có shadow).
+
+`STATUS_FILL` **giữ nền đặc** — §2.6 nói chip *và* dot cùng đổi sang "nền tối + viền",
+nhưng áp vào chấm 8px là xoá luôn cái chấm.
+
+## Chế độ trình bày: Gọn / Đầy đủ
+
+Cài đặt → **Cách trình bày**. Mặc định **Gọn**. Nguồn sự thật là **hồ sơ người dùng**
+(`profiles.density_pref`) — đặt một lần dùng mọi thiết bị.
+
+|  | Gọn (`visual`) | Đầy đủ (`full`) |
+|---|---|---|
+| Chữ chỉ để dạy | ẩn | hiện |
+| Câu kết luận | chip: icon + `short` | cả câu |
+| "Cách tính & nên làm gì" | không có | mở ra được |
+
+### Ranh giới: cái gì được ẩn
+
+Sai ranh giới thì "gọn" biến thành "mất chức năng".
+
+| Bọc `<Guide>` / `<FullOnly>` | KHÔNG bọc |
+|---|---|
+| cách tính, ý nghĩa con số | nhãn ô nhập, câu báo lỗi, câu xác nhận xoá |
+| mẹo dùng, "vì sao lại thế" | cảnh báo dữ liệu (thiếu tỷ giá, chưa quy đổi) |
+| câu chỉ đường trong trạng thái rỗng | câu nói ra chính trạng thái đó |
+| gợi ý quy ước nhập liệu | câu giải thích một ô đang bị vô hiệu |
+
+Trạng thái rỗng thường phải **tách**: giữ "Chưa có khoản nào.", bọc phần "Thêm những thứ
+bạn biết là sắp phải chi…".
+
+**Đừng tách theo MẢNH câu.** Viết **hai câu hoàn chỉnh**, mỗi chế độ một câu — bọc
+`<Guide as="span">` quanh mấy từ nối để lại chữ thường sau dấu chấm và cụm link mất chủ ngữ.
+
+Ba hook, ba vai (gộp lại thì mỗi chỗ đọc kéo theo một `useQuery`):
+
+| Hook | Ai dùng | Việc |
+|---|---|---|
+| `useDensity()` | ~62 chỗ | chỉ ĐỌC bản sao localStorage |
+| `useDensitySync()` | **một lần** ở AppLayout | bơm hồ sơ → bản sao |
+| `useDensityControl()` | chỉ nút Cài đặt | đọc + ghi hồ sơ, lỗi thì trả về cũ + toast |
+
+## Nhãn ô nhập: chọn thẻ nào
+
+Theo đúng spec HTML, không theo cảm giác:
+
+| Nhãn cho | Thẻ | Vì sao |
+|---|---|---|
+| MỘT `<input>`/`<Select>`/`<textarea>` | `<label htmlFor={`${uid}-x`}>` + `id` trên ô | dạng duy nhất cho screen reader tên ô chắc chắn |
+| `MoneyField` | `<span>` + `ariaLabel` trên component | nó render **hai** ô (nút chạm mobile + input desktop), `htmlFor` sẽ trỏ vào ô đang bị CSS ẩn |
+| `AccountPicker` | `<span>` + `ariaLabel` | nó là `<button>`; tên đọc được tính **từ nội dung** (HTML-AAM) |
+| một HÀNG NÚT (segmented, chip) | `<span>` + `role="group" aria-label` trên khung | không có ô nào để trỏ vào |
+| cả một KHỐI (TagPicker) | `<span>` | từng control bên trong tự mang `aria-label` |
+| công tắc `role="switch"` | **giữ `<label>` bọc nút** | `button` NẰM TRONG danh sách labelable → nhãn vừa đặt tên vừa là vùng chạm |
+
+**`useId`, không phải id viết cứng:** hai sheet có thể cùng trong DOM, và id trùng thì
+`htmlFor` bắt vào ô **đầu tiên** khớp — nhãn trỏ sai ô còn tệ hơn không có nhãn. Id không
+được chứa khoảng trắng, nên nhãn tiếng Việt cần thêm trường `slug`.
+
+---
+---
+
+# Phần III — Luật (guardrail)
+
+`tests/designSystem.test.ts`, chạy trong `npm test`. Scanner **bỏ comment trước khi đếm** —
+không thì chính lời giải thích "đừng dùng X" lại làm test đỏ.
+
+## Ban cứng — phải bằng 0
+
+Dành cho thứ đã dọn sạch; tái xuất hiện là hồi quy.
+
+**Màu**
+- `text-gray-400 dark:text-gray-500` — sai chiều sáng/tối
+- `text-green-600 dark:text-green-400`, `text-red-600 dark:text-red-400` — trượt AA
+- `text-green-800 dark:text-green-400`, `text-red-700 dark:text-red-400` — đúng màu nhưng viết lại cặp bằng tay, dùng `text-money-in`/`text-money-out`
+- `bg-green-600` làm nền nút — trắng trên nó chỉ 3,22:1
+
+**Chữ**
+- `text-[…rem/px/em]` — **cấm cả dạng**, dùng bậc đã đặt tên
+- `text-[0.5625rem]` — dưới sàn đọc được
+- `fontSize: 11` truyền vào biểu đồ — dùng `CHART_TEXT_*`
+- `text-kpi`/`text-hero` mà thiếu `font-mono` (hoặc không qua `<Money>`/`<Num>`)
+- `tracking-wide/tight/wider/widest` và `tracking-[…]` — dùng `tracking-label`/`tracking-number`
+
+**Cấu trúc**
+- `<h2>`/`<h3>` viết tay — dùng `<SectionTitle>`
+- `<label>` mồ côi (không `htmlFor`, không bọc thẻ labelable)
+- control mang bán kính panel (`rounded-lg/xl/2xl` trên `<button|input|select|textarea>`)
+- `active:scale-95` thiếu `transition` — nút sẽ **nhảy** một nhịp thay vì co giãn
+- tự chế focus style (`outline-green-500`, `focus:outline-none` + đổi viền)
+
+**Kích thước**
+- `w-[420px]` và họ hàng — bề rộng px ≥ 16 (dưới 16 là vạch/mốc, phải đứng yên)
+- `duration-300` / `duration-[140ms]` — thời lượng viết tay
+
+## Ngưỡng — chỉ được giảm
+
+Idiom còn nhiều chỗ chưa gộp. Đặt về 0 ngay thì phải refactor 92 file trong một lần, mà
+repo **không có test UI nào** (không có `@testing-library`). Ngưỡng cho phép gộp dần mà
+vẫn chặn thêm mới.
+
+**Gộp bớt được chỗ nào thì HẠ số trong file test xuống.** Để nguyên thì ngưỡng thành chỗ
+trú cho nợ kỹ thuật.
+
+> **Một trần chỉ có nghĩa khi nó đo được chiều nợ.** Trần đếm phần đã đúng thì càng dọn
+> càng đỏ — xem [chuyện trần `rounded-md`](#hai-lần-trần-đo-sai-chiều).
+
+## Luật ngoài `designSystem.test.ts`
+
+| File | Canh cái gì |
+|---|---|
+| `tests/contrast.test.ts` · `tokenContrast.test.ts` | mọi cặp chữ/nền đạt AA ở cả hai chế độ |
+| `tests/overlayLayers.test.ts` | khung app không chạm dải z-index của sheet |
+| `tests/navMobile.test.ts` | thanh tab đúng **bốn** mục; màn không có tab vẫn còn lối vào ở Bản tin |
+| `src/backLink.test.ts` | mọi nút quay lại là `<BackLink>` / `<PageHeader back>`, không phải `<Link>` tự viết |
+| `tests/backupCompleteness.test.ts` | mọi cột của `ProfileRow` được đường KHÔI PHỤC nhắc tới — `exportAll` dùng `select('*')` nên cột mới tự vào bản lưu, nhưng `importAll` liệt kê từng cột |
+| `tests/pushBundle.test.ts` · `mcpBundle.test.ts` | bundle đã commit khớp nguồn trong `src/` |
+
+Bốn luật của **chế độ trình bày** nằm trong `designSystem.test.ts`, cả bốn đã thử gây lỗi
+để chắc chúng đỏ được: khối hướng dẫn nền xanh luôn là `<Guide>` → **0**; không viết lại
+sắc độ trạng thái ngoài `statusColors.ts` → **0**; mỗi `<VerdictNote>` có `short` hoặc
+`label` → trần **1**; văn xuôi trong `<p class="…fg-muted…">` → trần **49** (không phải nợ
+cần dọn hết — đã xét từng chỗ, phần lớn phải ở lại theo bảng ranh giới).
+
+## Vòng đời mong muốn của một ngưỡng
+
+đo → chặn mọc thêm → dọn hết → **hoá luật cứng**. Trần bán kính control đã đi trọn vòng
+đó (200 → 0 → ban cứng).
+
+---
+---
+
+# Phần IV — Vì sao lại thế
+
+Phần này là **bẫy đã đo trên máy thật**. Không cần đọc để dựng màn; cần đọc trước khi
+định đổi một luật ở Phần III.
+
+## Nguyên tắc gốc: đặt tên cho cái đã có
+
+Trước khi dựng tầng token, app đã có một hệ thống **ngầm và khá nhất quán**. Đo trên 92
+file `.tsx`: bán kính 4 tầng, độ nổi thực chất một tầng, 3 bậc độ đậm, `gap-2` chiếm đa
+số. Nên tầng token **không đổi** mấy trục đó. Việc của nó là (a) đặt tên cho chỗ scale bị
+thiếu, (b) khoá các quyết định contrast lại thành cấu trúc.
+
+## Ba cái bẫy màu
+
+**1. Chiều màu ở dark bị đảo.** `text-gray-400 dark:text-gray-500` là **sai** — nền tối
+thì chữ phụ phải *sáng* hơn. Chiều đúng: `text-gray-500 dark:text-gray-400`. Đã dọn 64 chỗ.
+
+**2. `fg-muted` CHỈ an toàn trên nền trắng.**
 
 | nền | tỉ số | |
 |---|---|---|
@@ -105,308 +571,150 @@ Dùng qua tiện ích Tailwind: `text-fg-muted`, `bg-surface`, `border-border-su
 | gray-100 (`surface-sunken`) | 4,39 | ✗ |
 | gray-200 | 3,91 | ✗ |
 
-**Chữ mờ nằm trên bất kỳ nền lún nào phải dùng `fg-on-track`** (gray-600). Đây là lỗi hay gặp nhất: một lần sửa `ClassificationToggle` đã xoá 196 vi phạm cùng lúc. Kiểm bằng cách đo nền THỰC TẾ (leo cây DOM tìm background), đừng giả định là trắng.
+Đây là lỗi hay gặp nhất: một lần sửa `ClassificationToggle` đã xoá **196 vi phạm** cùng
+lúc. Kiểm bằng cách đo nền THỰC TẾ (leo cây DOM tìm background), đừng giả định là trắng.
 
-**3. Không có bậc xám nào mờ hơn gray-500 mà vẫn đạt AA.** Nên app **không có** bậc chữ "tam cấp" bằng màu. Muốn phân cấp thêm thì dùng **cỡ chữ**, đừng làm nhạt màu.
+**3. Đánh đổi đã biết — viền mờ đi ở dark.** `border-strong` trên `surface` tụt từ 1,72:1
+xuống **1,29:1**. Cả hai đều dưới 3:1 nên không đổi trạng thái đạt/trượt, nhưng nó chốt
+một luật: **viền không được là thứ duy nhất chỉ ra ranh giới một control** — control phải
+có nền hoặc chữ của chính nó.
 
-### Cỡ chữ — sáu bậc, mỗi bậc cách nhau ít nhất 2px
+## Bốn quyết định cấu trúc của bản 1a
 
-Đo 2026-08-25 trên **một** màn Bản tin: **mười** cỡ chữ khác nhau (10, 11, 12, 13, 14, 16, 18, 20, 22, 26), và **111 trong 146** khối chữ nằm gọn trong dải 10–13px. Bốn bậc cách nhau đúng 1px gánh 80% chữ của app — mắt không phân biệt được, nên không có gì nổi lên trước và cả màn đọc ra là một mảng xám đều. Trong đó có `text-[0.8125rem]` (13px) dùng **91 lần ở 28 file**: một bậc thứ mười, không tên, chen giữa 12 và 14, mọc lên được vì guardrail lúc đó chỉ liệt kê hai giá trị bị cấm.
-
-Thang giờ có sáu bậc:
-
-| Tên | Giá trị | Dùng cho |
-|---|---|---|
-| `text-2xs` | 0.6875rem (11px) | **sàn dưới** — nhãn chữ hoa, chú thích, dòng meta |
-| `text-sm` | 0.875rem (14px) | chữ thân: tên giao dịch, số tiền trong danh sách, mọi câu |
-| `text-base` | 1rem (16px) | tiêu đề một khối gồm nhiều thẻ |
-| `text-lg` | 1.125rem (18px) | tiêu đề trang |
-| `text-kpi` | 1.375rem (22px) | số trong một ô (StatTile, KpiRow, tổng tab) |
-| `text-hero` | 1.875rem (30px) | số **chính** của cả màn — mỗi màn nhiều nhất một |
-
-`text-3xs` (10px) vẫn còn trong `@theme` nhưng **chỉ cho biểu đồ** — xem `src/lib/chartText.ts`. Trong `className` thì đừng dùng: dưới `--app-font-scale` 0,9 nó tụt xuống 9px.
-
-Cố ý **không** có tên cho 9px: `--app-font-scale` nhỏ nhất là `0.9`, nên 9px tụt xuống 8,1px. Guardrail chặn `text-[0.5625rem]` về 0.
-
-Mọi cỡ chữ dùng `rem` để co giãn theo Cài đặt → Cỡ chữ. **Đừng dùng `px`** cho chữ — và đừng chêm `text-[…rem]` tuỳ ý, guardrail chặn cả dạng chứ không liệt kê giá trị nữa.
-
-### Số: một font, hai cỡ
-
-`text-kpi`/`text-hero` chỉ đứng trên **số**, nên chỗ nào mang chúng cũng phải mang `font-mono` — trực tiếp, hoặc gián tiếp qua `<Money>`/`<Num>` (hai component đó tự khai `font-mono tabular-nums`). Guardrail canh cặp này.
-
-Vì sao cần luật: cùng con số ¥58,670 từng hiện **ba** kiểu tuỳ chỗ đứng — 18px/600/Mono ở câu mở Bản tin, 26px/500/Mono ở ô Ngân sách, 30px/**700/Sans** ở trang Ngân sách. Hai chỗ dùng Sans phá đúng câu đầu của mục *Kiểu chữ* ngay trên ("IBM Plex Mono cho MỌI con số"), và đó là lý do cột số ở hai màn đó không thẳng hàng như màn khác.
-
-### Giãn chữ: hai token, không giá trị tuỳ ý
-
-Giãn chữ có đúng **hai** vai trò, nhưng từng có **sáu** giá trị phục vụ chúng: `.1em` (33), `tracking-wide` (19), `.08em` (9), `.06em` (6), `-.02em` (11), `tracking-tight` (1). Trên cùng màn Tài sản, "TÀI SẢN RÒNG" giãn 1,1px còn "THẺ" ngay dưới giãn 0,25px.
-
-| Tên | Giá trị | Dùng cho |
-|---|---|---|
-| `tracking-label` | 0.1em | nhãn CHỮ HOA — chữ hoa cỡ 10–11px dính vào nhau nếu để mặc định |
-| `tracking-number` | −0.02em | số lớn — chữ số cỡ 22px+ để mặc định thì rời rạc |
-
-`tracking-normal` không bị cấm: nó là phép **đặt lại** cho huy hiệu nằm trong một nhãn đã giãn.
-
-### Độ đậm: 700 phải có file font
-
-`index.html` từng chỉ nạp `wght@400;500;600` trong khi code dùng `font-bold` (700) **83 lần**, trong đó **21 lần là `<h1>`** — tức mọi tiêu đề trang trong app đang hiện bằng chữ đậm **giả** do trình duyệt tự bôi, nét dày và nhoè so với bản thiết kế. Đã thêm `700` cho cả Sans và Mono. Thêm bậc đậm mới thì phải sửa URL font cùng lúc.
-
----
-
-## Component primitive
-
-`import { Card, Money, ... } from '../../components/ui'`
-
-| Component | Thay cho | Vì sao cần |
-|---|---|---|
-| `Money` | ~107 chỗ tự ghép `tabular-nums` + màu | `font-mono` + `tabular-nums` luôn bật; màu thu/chi từ token. Bọc `formatMoney` nên **giữ chế độ riêng tư** |
-| `Card` | 86 chỗ `rounded-xl bg-white ... shadow-sm` | prop `elevation`: `raised` thẻ chính · `flat` thẻ phụ · `panel` khung 1a (8px, viền panel, không bóng) |
-| `SegmentedControl` | 6 bản chép tay | `role="tablist"` + `aria-selected` đúng; track trong suốt, ô đang chọn mới có nền |
-| `IconButton` | 32 chỗ `min-h-11 min-w-11` | 44px vùng chạm + `transition` + `hover` — ba thứ hay quên |
-| `StatTile` | 8 ô KPI | nhãn 11px hoa (eyebrow) cách giá trị 22px mono **ba bậc**, để số nổi hơn nhãn |
-| `SectionTitle` | 110 `<h2>/<h3>` viết tay, **10 tổ hợp cho 3 vai trò** | `role="micro"` (nhãn trên một con số) · `"card"` (tên một thẻ) · `"block"` (tiêu đề khối) |
-| `PageHeader` | **7 kiểu đầu trang** cho 25 màn | tiêu đề luôn ra `<h1>` thật; tự thành `sr-only` ở `lg` **chỉ khi** trùng chữ top bar đang in. Props: `back` · `left` · `subtitle` · `flush` · `mobileOnly` |
-| `FilterChip` | **5 dáng "đang bật"** khác nhau | một dáng bật (nền `accent`); `size="sm"` cho dải chip trong thẻ chật |
-| `Select` | 25 `<select>` trần, **~10 biến thể class** | `<select>` gốc bên trong (giữ bộ chọn native trên mobile) + khung 44px + mũi tên của app thay mũi tên hệ điều hành |
-| `EmptyState` | **4 dáng** màn trống | `compact` cho câu thay ruột một thẻ; sửa luôn 5 chỗ thiếu `text-sm` nên chữ rơi về 16px |
-
-Hai dáng thêm 2026-08-25: `ActionButton variant="danger"` (11 nút phá hủy đang có **8 dáng**, một chỗ còn dùng `hover:bg-red-50` thô) và `IconButton variant="accent"`.
-
-### Ba họ control cho câu hỏi "chọn 1 trong N"
-
-Đừng trộn — chúng khác nhau về NGHĨA, không chỉ về hình:
-
-| Họ | Dùng khi | Hình |
-|---|---|---|
-| `SegmentedControl` | đổi **cách xem** cùng một dữ liệu (Ngày · Lịch · Tháng · Tổng hợp) | dải liền khối, chia đều, luôn đúng một ô bật |
-| `FilterChip` | **lọc / bật tắt** một tập con (Chi · Thu · Chuyển khoản) | chip rời, bo tròn, có thể không mục nào bật |
-| `Select` | chọn từ **danh sách dài** (tài khoản, múi giờ, danh mục) | ô xổ xuống, mở bộ chọn của hệ điều hành trên mobile |
-
-### Bản 1a đổi gì trong primitive
-
-Bốn quyết định ở đây là quyết định **cấu trúc**, không phải trang trí — chúng lan ra
-mọi màn mà không phải sửa màn nào:
-
-**1. Số đi bằng mono.** `Money` thêm `font-mono`. `tabular-nums` chỉ khoá bề rộng chữ
-số; mono khoá cả dấu phẩy nghìn, dấu trừ và ký hiệu tiền, nên cột số đọc như bảng.
+**1. Số đi bằng mono.** `tabular-nums` chỉ khoá bề rộng chữ số; mono khoá cả dấu phẩy
+nghìn, dấu trừ và ký hiệu tiền, nên cột số đọc như bảng.
 
 **2. Dark không còn thẻ "nổi".** `Card` dáng `raised` ở dark bỏ `shadow-sm`, thay bằng
-`border-border-panel`. Bóng trên nền `#0e1014` chỉ còn là vệt tối bẩn. Light **giữ
-nguyên** — viền chỉ mọc ở dark, nơi cả thang bề mặt đã đổi.
+`border-border-panel`. Bóng trên nền `#0e1014` chỉ còn là vệt tối bẩn. Light **giữ nguyên**.
 
-**3. Bán kính tách làm hai.** Control (nút, tab) **6px = `rounded-md`**; panel **8px =
-`rounded-lg`**; thẻ cũ vẫn 12px. Trước 1a cả control lẫn panel đều 8px, nên trần
-`rounded-md` trong guardrail **đổi chiều** — đọc kỹ chú thích tại chỗ trước khi sửa.
+**3. Bán kính tách làm hai.** Control 6px, panel 8px. Trước 1a cả hai đều 8px.
 
-**4. Segmented đảo hai bề mặt.** Track trong suốt + viền panel; ô **đang chọn** mới có
-nền `surface-sunken` + viền `border-strong`. Không còn `shadow` làm tín hiệu "đang
-chọn". Hệ quả a11y: nhãn ô không hoạt động đổi `fg-on-track` → `fg-muted` được, vì
-track không còn nền gray-100 của riêng nó. Đo trên app đang chạy, 20 tab ở 8 route
-light: thấp nhất **4,63:1** (trên gray-50), không cái nào trượt.
+**4. Segmented đảo hai bề mặt.** Track trong suốt + viền panel; ô **đang chọn** mới có nền.
+Viền của ô luôn có ở **cả hai** trạng thái, chỉ đổi màu — cho riêng ô đang chọn một viền
+thì mỗi lần bấm tab, chữ của mọi ô xê 1px.
 
-Viền của ô luôn có ở **cả hai** trạng thái, chỉ đổi màu — cho riêng ô đang chọn một
-viền thì mỗi lần bấm tab, chữ của mọi ô xê 1px.
+**Nút không lấy chiều cao 30px của 1a.** §2.5 tả nút trên top bar desktop; §4.6 của cùng
+bộ tài liệu lại nói "mọi vùng chạm giữ min-h-11". `ActionButton` dùng cho ~90 chỗ, phần
+lớn là sheet trên điện thoại → **44px thắng**.
 
-**Nút không lấy chiều cao 30px của 1a.** §2.5 của bộ tài liệu tả nút `+ Giao dịch` trên
-top bar desktop; §4.6 của cùng bộ tài liệu lại nói "mọi vùng chạm giữ min-h-11 (44px)".
-`ActionButton` dùng chung cho ~90 chỗ, phần lớn là sheet trên điện thoại → **44px
-thắng**. Nút 30px là dáng riêng của top bar, dựng cùng PR khung app.
+## Đợt thống nhất 2026-08-25: đo được gì
 
-## Khung app: rail + top bar (bản 1a)
+Đây là đợt sinh ra `PageHeader`, `FilterChip`, `Select`, `EmptyState`, thang chữ sáu bậc
+và hai token giãn chữ. Số liệu để hiểu vì sao các luật đó chặt đến vậy:
 
-`AppLayout` → `AppRail` (52px, trái) · `AppTopBar` (52px, trên) · `BottomNav` (mobile).
-Danh sách đích và tiêu đề màn ở `components/navItems.ts` — **một** bảng cho cả ba.
+| Trục | Trước | Sau |
+|---|---|---|
+| Cỡ chữ trên **một** màn Bản tin | **10 cỡ**; 111/146 khối chữ dồn vào dải 10–13px | 5 cỡ |
+| `text-[0.8125rem]` (13px) — bậc thứ mười, **không tên** | 91 lần ở 28 file | 0 |
+| "Số chính của màn" | 7 cỡ · 3 độ đậm · **2 font** | `text-kpi` \| `text-hero`, luôn mono |
+| Giãn chữ cho 2 vai trò | 6 giá trị | 2 token |
+| Kiểu đầu trang cho 25 màn | **7** | 1 |
+| `<h2>/<h3>` viết tay | 110 chỗ, **10 tổ hợp cho 3 vai trò** | 0 |
+| Dáng "chip đang bật" | **5** | 1 |
+| `<select>` trần | 25 chỗ, ~10 biến thể class | 0 |
+| Dáng nút phá hủy | **8** | 1 |
+| Dáng màn trống | 4 | 1 |
 
-Ba luật đã đo, đừng đạp lại khi dựng tiếp:
+Ba chi tiết đáng nhớ:
 
-**1. Khung app đứng NGOÀI phần cuộn, không `position:sticky`, không `z-index`.** Rail và
-top bar là anh em của `<main>` trong một khung `h-dvh overflow-hidden`, nên chúng dính sẵn.
-Thanh tab dưới cũng nằm trong luồng — bản cũ `fixed` rồi chừa `pb-28` ở `<main>`, hai con
-số ở hai file, lệch nhau là dòng cuối chui xuống dưới thanh. Hệ quả: khung app không bao
-giờ chạm dải z-40 của sheet — `tests/overlayLayers.test.ts` canh đúng điều đó.
+- **`font-bold` không có file font.** Code dùng 700 **83 lần**, 21 lần là `<h1>`, mà
+  `index.html` chỉ nạp `400;500;600`. Mọi tiêu đề trang đang hiện bằng chữ đậm **giả** do
+  trình duyệt tự bôi. Sửa là một dòng URL.
+- **Cùng con số ¥58.670 hiện ba kiểu** tuỳ chỗ đứng: 18px/600/Mono ở câu mở Bản tin,
+  26px/500/Mono ở ô Ngân sách, 30px/**700/Sans** ở trang Ngân sách. Hai chỗ dùng Sans phá
+  đúng luật "mono cho MỌI con số", và đó là lý do cột số ở hai màn đó không thẳng hàng.
+- **Chữ biểu đồ không co theo Cỡ chữ.** 27 chỗ truyền `fontSize` dạng SỐ → ra px cứng. Đo
+  ở scale 1,25: chữ thân 11 → 13,75px, nhãn trục **đứng yên 11px**. Người chọn cỡ chữ lớn
+  nhất là người cần nhãn biểu đồ to nhất.
 
-**2. Top bar KHÔNG dùng `<h1>`.** 18 trang đã tự có `<h1>` của chúng, nên top bar thành
-h1 nữa là hai h1 hiện cùng lúc trên hầu hết route. Top bar là khung ("đang ở đâu"), tiêu
-đề tài liệu thuộc về trang. Hai trang mà h1 vốn là **nhãn tháng** (Sổ, Ngân sách) nay
-dùng `<h1 className="sr-only">` cho tên màn và `<p aria-live>` cho nhãn tháng.
-
-**3. Vùng chạm nhỏ hơn 44px chỉ được phép ở phần CHỈ-DESKTOP.** Rail 34px, control top
-bar 28–30px — cả hai `hidden lg:flex`, tức chỉ tồn tại khi thiết bị trỏ là chuột (ngưỡng
-WCAG 2.5.8 là 24px). Bản mobile của rail là thanh tab dưới, ở đó **46px**.
-
-### `Money` — lưu ý về dấu
-
-`formatMoney` **tự in dấu `-`** cho số âm. Nên:
-
-- Số lưu **dương**, chiều nằm ở `tone` (như dòng giao dịch) → bật `showSign`
-- Số **đã có dấu** (số dư, chênh lệch) → **đừng** bật `showSign`, không thì ra `--`
-
-Dấu dùng ASCII `-`/`+` cho khớp với chính `formatMoney`. Đừng trộn `−` (U+2212) vào cùng danh sách: hai glyph lệch bề rộng dù đã `tabular-nums`.
-
-### `IconButton` với `<Link>`
-
-`<Link>` của react-router là thẻ `<a>`, không dùng `IconButton` được. Dùng `iconButtonClass()`:
-
-```tsx
-<Link to="/search" className={iconButtonClass()} aria-label="Tìm kiếm giao dịch">
-```
-
----
-
-## Chuyển động (§12): console không trôi, chỉ bật
-
-Bảng §12 của bản 1a gán **mỗi việc một thời lượng**. Bảy con số đó là token trong `index.css`, đặt tên theo VIỆC chứ theo con số — hai việc tình cờ cùng 120ms mà chung một tên là khoá cứng chúng vào nhau, lần sau muốn tách phải đi tìm từng chỗ dùng.
-
-| Token | Việc | Nơi dùng |
-| --- | --- | --- |
-| `--motion-period` 140ms | đổi tháng/kỳ: số mới **bật** lên, cột nội suy chiều cao | `<Swap>`, `CashflowPanel` |
-| `--motion-segment` 120ms | nền ô đang chọn trượt trong track | `SegmentedControl` |
-| `--motion-sheet` 180ms | mở sheet (mobile trượt đáy) / modal (desktop fade + scale .98→1) | 26 sheet, `lib/dialog` |
-| `--motion-group` 160ms | xổ nhóm `grid-template-rows: 0fr→1fr` | `<Collapse>` |
-| `--motion-todo` 200ms | việc cần làm: gạch ngang rồi co về 0 | `TodoPanel` |
-| `--motion-drag` 120ms | các dòng khác nhường chỗ khi kéo–thả (FLIP) | `DragList` |
-| `--motion-assume` 220ms | thả thanh trượt giả định 13b | `LifetimeChartCard` |
-
-Cộng thêm `--motion-progress` 300ms cho vòng tải — **không** phải một dòng của §12, chỉ có tên để luật "không viết thời lượng bằng tay" không phải chừa ngoại lệ.
-
-**Ba tiện ích, ba việc khác nhau.** `motion-*` gói cả `transition-property` (biết nội suy CÁI GÌ), `animate-*` cho bốn keyframes có tên (`sheet-in`, `sheet-pop`, `overlay-in`, `swap-in`), và `src/lib/motion.ts` là bản sao JS cho hai chỗ CSS không tới được — recharts nhận số ms qua prop, còn React phải chờ CSS co xong mới tháo hàng. Guardrail so bản sao JS với CSS, lệch là đỏ.
-
-**`prefers-reduced-motion` không phải khai lại:** block ở cuối `index.css` đè cả `animation-duration` lẫn `transition-duration` về 0.01ms, kể cả inline style (nó `!important`).
-
-**Hai nửa cố ý CHƯA làm**, ghi lý do tại chỗ trong code:
-
-- **Đóng sheet 120ms.** 26 sheet đều tự dựng lớp phủ tại chỗ và tự gọi `onClose` từ vài chỗ bên trong. Hoạt ảnh đóng đòi phần tử sống thêm 120ms sau khi người dùng đã đóng → phải có primitive `<Sheet>` giữ quyền tháo lắp. Đó là việc dựng primitive; làm cho một sheet mà 25 cái kia không có thì tệ hơn không làm.
-- **"Số cũ mờ đi" khi đổi kỳ.** Cần con số cũ còn trên màn trong lúc số mới đang tới, mà truy vấn theo kỳ không giữ dữ liệu kỳ trước (không `placeholderData`) — với tháng chưa có trong cache thì thứ thay chỗ là trạng thái đang tải, và làm nó mờ đi là hoạt ảnh cho một khoảng trống. Đổi cách nạp dữ liệu là quyết định về DỮ LIỆU, không phải về chuyển động.
-
-**`<Collapse>` giữ nội dung trong DOM khi đóng** (điều kiện để có cái mà nội suy) nên nó gắn `inert` — thiếu thì Tab vẫn nhảy vào một danh sách link vô hình. Vì vậy **không** dùng nó cho cây danh mục (`BudgetView`, `CategoryBreakdownCard`): ở đó gập lại chính là để KHỎI dựng hàng chục dòng con của 60 danh mục.
-
-**Đo hoạt ảnh trong khung xem trước thì cẩn thận:** tab bị ẩn (`document.hidden`) đóng băng đồng hồ hoạt ảnh — `transition` đứng ở giá trị đầu và `ResizeObserver` không nổ. Đo LAYOUT thì tắt transition trước (`style.transitionProperty = 'none'`), đừng đọc số giữa lúc frozen rồi tưởng là lỗi bố cục.
-
----
+**Lỗi mà `tsc` không bắt được.** Codemod gom 25 đầu trang biến biểu thức thành chuỗi:
+`title="{debt.counterparty}"`. Vẫn là JSX hợp lệ, vẫn hợp kiểu → 3237 test xanh, tsc 0
+lỗi, và trang in ra đúng chữ `{debt.counterparty}`. Chỉ render mới thấy. Sau mỗi đợt
+codemod JSX: `grep -rn '="{[^"]*}"' src/` **và** mở app xem các trang cần ID.
 
 ## Cỡ chữ lớn (§13): cái gì tính bằng px thì đứng yên
 
-`--app-font-scale` (Cài đặt → Cỡ chữ) chỉ co giãn được cái tính theo **rem**. Bốn mức: 0,9 · 1 · 1,1 · **1,25** — spec §13 nói "scale 1,3×", nhưng mức lớn nhất người dùng chọn được thật là 1,25.
+`--app-font-scale` chỉ co giãn được cái tính theo **rem**. Bốn mức: 0,9 · 1 · 1,1 ·
+**1,25** — spec §13 nói "1,3×", nhưng mức lớn nhất người dùng chọn được thật là 1,25.
 
-**Ba luật, cả ba đã thành guardrail:**
+**Hàng một dòng phải chịu được xuống hai dòng.** Không có cách quét tĩnh; cách đo là chạy
+app ở 1,25× rồi tìm `scrollWidth > clientWidth`, bỏ qua `truncate`, `sr-only`, và khối
+`overflow-x-auto`.
 
-1. Cỡ chữ px → rem (`text-[13px]` là ban cứng, xem Guardrail).
-2. **Bề rộng cột px → rem/ch/minmax** — ban cứng cho `w-`/`min-w-`/`max-w-`/`basis-`/`grid-cols-` có px **≥ 16**. Dưới 16px thì không còn là cột chứa chữ mà là vạch/mốc (`min-w-[3px]` của cột biểu đồ, `gap-[3px]`) và những cái đó **phải** đứng yên — không thì biểu đồ đổi hình vì người dùng phóng chữ.
-3. **Hàng một dòng phải chịu được xuống hai dòng.** Không có cách quét tĩnh cho luật này; cách đo là chạy app ở 1,25× rồi tìm `scrollWidth > clientWidth`, bỏ qua `truncate` (ellipsis có chủ ý), `sr-only`, và khối `overflow-x-auto` (cuộn ngang có chủ ý).
+**Ba lỗi thật tìm được bằng phép đo đó**, cả ba cùng một sai lầm về flex:
 
-**Ba lỗi thật tìm được bằng phép đo đó** (2026-08-18), cả ba đều là cùng một sai lầm về flex:
+- **`flex-wrap` + `flex-1 min-w-0` KHÔNG làm nên bố cục dọc.** Mục flex co được thì flex
+  cho co, chứ không cho `flex-wrap` chạy. Ở 375px hai panel đứng cạnh nhau mỗi cái 166px.
+  Sửa: `basis-full xl:basis-0` — `basis-full` theo phần trăm nên miễn nhiễm với cỡ chữ.
+- **`truncate` trong flex không có tác dụng nếu thiếu `min-w-0`** (mục flex mặc định
+  `min-width: auto`).
+- **Nhưng chỉ `min-w-0` thì mục teo về 0.** Công thức đủ: **sàn `min-w-*` ở mục +
+  `min-w-0` ở phần chữ bên trong + `flex-wrap` ở hàng cha.**
 
-- **Cặp panel của Bản tin không bao giờ xuống dòng.** `flex-wrap` + `flex-1 min-w-0` **không** làm nên bố cục dọc: mục flex co được thì flex cho co, chứ không cho `flex-wrap` chạy. Đo trên máy: ở 375px hai panel đứng cạnh nhau mỗi cái 166px — trái hẳn với §6 và với chính comment ở trên chúng. Ở 1,25× thì số `¥54.118` bị cắt 8px và dòng giao dịch tràn 39px. Sửa: `basis-full xl:basis-0` — dọc dưới xl, ngang từ xl, và `basis-full` theo phần trăm nên miễn nhiễm với cỡ chữ.
-- **`truncate` trong flex không có tác dụng nếu thiếu `min-w-0`** (mục flex mặc định `min-width: auto`): nhãn tài khoản tràn ra ngoài viền nút 31px thay vì hiện dấu …
-- **Nhưng chỉ `min-w-0` thì mục teo về 0.** Cùng hàng có ô ngày rộng 7,5rem cố định, nên picker bị bóp còn 36px — vừa đủ hai icon, tên tài khoản mất sạch. Phải có **sàn** (`min-w-[7rem]`) để `flex-wrap` có việc làm. Công thức đủ là: **sàn `min-w-*` ở mục + `min-w-0` ở phần chữ bên trong + `flex-wrap` ở hàng cha.**
+## Vùng chạm: đo thật, đừng đoán theo class
 
-Kết quả sau khi sửa: 12 màn × {320px, 375px, 1100px, 1400px} ở 1,25× không còn chỗ nào tràn, và `document.scrollWidth` không vượt `innerWidth` ở bất kỳ màn nào — trang không bao giờ cuộn ngang.
+Đếm class (`min-h-11`…) ra 22 chỗ "nghi nhỏ", nhưng phần lớn là đoán sai. Cách đúng là
+**đo `getBoundingClientRect` trên máy thật**, ở 375px, qua 14 màn.
 
----
+Đo theo **WCAG 2.5.8 AA (24×24)**, bỏ hai ngoại lệ chính đáng của chuẩn: liên kết nằm
+trong câu văn, và ô tích trong `<label>` cao ≥24. Kết quả: **8 chỗ** dưới ngưỡng — sáu
+liên kết đầu-thẻ chỉ cao 15–16px.
 
-## Guardrail
+Chữa bằng idiom sẵn có: **`py-2` cộng `-my-2`** — vùng bấm cao thêm, bố cục không xê một
+pixel. Đo lại: **0 chỗ** dưới 24×24.
 
-`tests/designSystem.test.ts`, chạy trong `npm test`. Hai loại luật:
+## Chỉ báo tiêu điểm: một ring cho cả app
 
-**Ban cứng — phải bằng 0.** Dành cho thứ đã dọn sạch; tái xuất hiện là hồi quy.
-
-- `text-gray-400 dark:text-gray-500` (sai chiều sáng/tối)
-- `text-green-600 dark:text-green-400`, `text-red-600 dark:text-red-400` (trượt AA)
-- `text-green-800 dark:text-green-400`, `text-red-700 dark:text-red-400` (đúng màu nhưng **viết lại cặp bằng tay** — dùng `text-money-in`/`text-money-out`)
-- `bg-green-600` (nút: trắng trên nó chỉ 3,22:1)
-- `text-[0.5625rem]` (dưới sàn đọc được)
-- `w-[420px]` và họ hàng — bề rộng px ≥ 16 trong tiện ích bề rộng (§13)
-- `duration-300` / `duration-[140ms]` — thời lượng viết tay, phải qua token §12
-
-Scanner **bỏ comment trước khi đếm** — nếu không thì chính lời giải thích "đừng dùng X" trong comment lại làm test đỏ, mà comment tại chỗ là nơi tốt nhất để ghi lý do.
-
-**Ngưỡng — chỉ được giảm.** Idiom còn nhiều chỗ chưa gộp. Đặt về 0 ngay thì phải refactor 92 file trong một lần, mà repo **không có test UI nào** (54 file test đều là logic thuần, không có `@testing-library`). Ngưỡng cho phép gộp dần mà vẫn chặn thêm mới.
-
-**Gộp bớt được chỗ nào thì hạ số trong file test xuống.** Để nguyên thì ngưỡng thành chỗ trú cho nợ kỹ thuật.
-
-### `active:scale-95` — trần này đo cái gì (2026-08-18)
-
-Chấm điểm cả **73** thẻ mở có `active:scale-95` so với bốn dáng của primitive: **không cái nào lệch dưới 3 class**. Tức đây không phải 73 bản chép tay của `<ActionButton>`/`<IconButton>` — chúng là những nút có **dáng riêng**, chỉ dùng chung một idiom nhấn. Gộp vào primitive nghĩa là **đổi diện mạo** từng nút, không phải dọn dẹp. Trần vì thế chỉ còn một việc: chặn mọc thêm.
-
-Nợ THẬT trong đám đó tách ra thành luật riêng: **51/73 nút thiếu `transition`** — đúng cái mà comment của cả hai primitive dự đoán sẽ quên ("hai thứ này phải đi cùng nhau, chép tay thì luôn có chỗ quên"). Thiếu nó thì nút không co giãn, nó **nhảy** một nhịp rồi nhảy về. Đã thêm cho cả 51, và có ban cứng giữ cặp đó dính nhau.
-
-### Vùng chạm: đo thật, đừng đoán theo class
-
-Đếm class (`min-h-11`…) ra 22 chỗ "nghi nhỏ", nhưng phần lớn là đoán sai — nút cao 46px viết bằng `h-[2.875rem]`, nút 30px của top bar vốn là ngoại lệ có chủ ý. Cách đúng là **đo `getBoundingClientRect` trên máy thật**, ở 375px, qua 14 màn.
-
-Đo theo **WCAG 2.5.8 AA (24×24)**, bỏ hai ngoại lệ chính đáng của chuẩn: liên kết nằm trong câu văn, và ô tích nằm trong `<label>` cao ≥24 (nhãn mới là vùng bấm). Kết quả: **8 chỗ** dưới ngưỡng — sáu liên kết đầu-thẻ ("Xem cả tháng →", "Chọn loại nhắc", "Sắp chi"…) chỉ cao 15–16px, một dòng "độ tin cậy" cao 20px, một nút tên danh mục cao 20px.
-
-Chữa bằng idiom sẵn có trong app: **`py-2` cộng `-my-2`** — vùng bấm cao thêm, bố cục không xê một pixel. Đo lại: **0 chỗ** dưới 24×24 trên cả 14 màn.
-
-### Chỉ báo tiêu điểm: một ring cho cả app (2026-08-18)
-
-Bộ test từng có **đúng một `it.skip`**, kèm ghi chú nói rõ phải làm gì trước khi mở: *nới `:focus-visible` ra input/select/textarea, đo lại tương phản bằng cách vẽ ra pixel, rồi mới xoá các chỗ tự chế.* Đã làm đủ ba bước, đúng thứ tự đó — giờ bộ test **không còn phép thử nào bị bỏ qua**.
-
-Cái đã xoá và vì sao mỗi cái là một lỗi thật:
-
-| Kiểu tự chế | Số chỗ | Hỏng ở đâu |
+| Kiểu tự chế đã xoá | Số chỗ | Hỏng ở đâu |
 |---|---|---|
-| `outline-green-500` | 51 | green-500 trên nền trắng ~1,9:1 — dưới hẳn 3:1 của WCAG 1.4.11 |
+| `outline-green-500` | 51 | green-500 trên trắng ~1,9:1 — dưới hẳn 3:1 |
 | `focus:outline-none` + `focus:border-green-500` | 8 | tắt outline, đổi màu viền **1px** làm chỉ báo |
-| `outline-none` trong ô tìm | 5 | xem đính chính ngay dưới |
+| `outline-none` trong ô tìm | 5 | hai chỗ thật sự không có gì hiện lên; ba chỗ có ring nhưng sai màu |
 
-**Đính chính** (lượt sau đo lại từng chỗ): năm ô tìm đó không giống nhau. **Hai** chỗ — ô tìm ở top bar và ô tìm trong panel `AccountPicker` — khung bao là `<form>`/`<div>` trơn, không có `focus-within`, nên Tab vào thật sự **không có gì hiện lên**. **Ba** chỗ còn lại (`TagPicker` ×2, `SearchPage`) thì khung bao CÓ `focus-within:ring` — lỗi ở đó là **tương phản** (ring tô green-500, ~1,9:1), không phải thiếu chỉ báo. Câu "Tab vào thì không có gì hiện lên" ở lượt trước đúng với hai chỗ, sai với ba chỗ.
+Ring token đo được (canvas pixel readback, bốn nấc bề mặt): light `green-700` **4,95 /
+4,45 / 4,14**; dark `green-500` **8,59 / 8,98 / 8,04 / 8,77**. Chỗ mỏng nhất còn dư 38%.
 
-Cách chữa vì thế cũng khác nhau: hai chỗ đầu để ô tự vẽ ring token; ba chỗ sau giữ ring của khung bao (đổi sang `focus-within:ring-accent`) và **trả lại** `outline-none` cho ô — không thì hai vòng ring lồng nhau.
+**Vì sao `outline-none` thắng được ring:** nó là tiện ích thường (specificity 0,1,0) còn
+ring đi qua `:where()` (specificity 0). Nên luật có ngoại lệ kiểm được: **ô nhập chỉ được
+tắt outline khi file có `focus-within:ring`**.
 
-Ring token đo được (canvas pixel readback, bốn nấc bề mặt): light `green-700` **4,95 / 4,45 / 4,14**; dark `green-500` **8,59 / 8,98 / 8,04 / 8,77**. Chỗ mỏng nhất còn dư 38%.
+## Hai lần trần đo sai chiều
 
-**Vì sao `outline-none` thắng được ring:** nó là tiện ích thường (specificity 0,1,0) còn ring đi qua `:where()` (specificity 0). Luật vì thế có ngoại lệ, và ngoại lệ đó kiểm được: **ô nhập chỉ được tắt outline khi file có `focus-within:ring`**. Kiểm theo file là thô — muốn chặt hơn phải dựng cây JSX — nhưng đúng hướng và không phải đoán. Trên `<div>` thì `outline-none` vẫn hợp lệ: tấm sheet nhận focus bằng script lúc mở, vẽ ring quanh cả tấm ở đó là nhiễu.
+- **`bg-green-700` treo ở trần 21 trong khi thực tế còn 1** — 20 chỗ đã theo một đợt dọn
+  khác đi hết mà không ai hạ trần. Hạ về 1 thì luật đổi nghĩa và chặt hơn hẳn.
+- **Trần `rounded-md` đếm ngược chiều.** Từ §1.3, `rounded-md` là bán kính ĐÚNG của
+  control, nên mỗi lần một nút đi theo quy ước thì test lại đỏ và cách "sửa" là nới trần —
+  13 → 47 qua 12 lần nới. Đã **bỏ**, thay bằng luật thật: đếm control còn mang bán kính
+  PANEL — **200 chỗ**, đó mới là chiều nợ còn lại.
 
-Cùng đợt: **13 chỗ `ring-green-500`** (viền sáng khi kéo–thả, khi bàn phím số mở, ô đang chọn) đổi sang `ring-accent`. Ở dark hai thứ tình cờ trùng nhau — cùng là green-500 — nên trước đó chúng **đang đúng vì may**, không phải vì có luật. Kèm 4 control còn mang `rounded` trần (4px) → `rounded-md`.
+**Điểm mù, đã thử để biết chắc:** bán kính đi tới control qua một HẰNG SỐ (`BASE` trong
+`IconButton`/`ActionButton`) thì luật không thấy. Chấp nhận được vì hằng số kiểu đó chỉ có
+ở hai primitive, nhưng ai đổi ở đó phải biết mình đang đổi cho cả app.
 
-**Hai lần đã xảy ra đúng chuyện đó, ghi lại để nhận ra sớm hơn:**
+## Hai bẫy của codemod, đã đạp cả hai
 
-- `bg-green-700` treo ở trần **21** trong khi thực tế còn **1** — 20 chỗ đã theo đợt dọn bảng màu thô đi hết mà không ai hạ trần. Hạ về 1 thì luật đổi nghĩa và chặt hơn hẳn: sắc độ này chỉ được khai ở NGUỒN token (`statusColors.ts`).
-- Trần `rounded-md` **đếm ngược chiều**. Từ §1.3, `rounded-md` là bán kính ĐÚNG của control, nên mỗi lần một nút đi theo quy ước thì test lại đỏ và cách "sửa" là nới trần — 13 → 47 qua 12 lần nới. Đã **bỏ**, thay bằng luật thật: đếm control (`<button|input|select|textarea>`) còn mang bán kính PANEL (`rounded-lg/xl/2xl`) — **200 chỗ**, đó mới là chiều nợ còn lại. Không đếm `<Link>`: một `<Link>` có thể là cả một thẻ bấm được, và bán kính panel ở đó là đúng.
-
-Bài học chung: **một trần chỉ có nghĩa khi nó đo được chiều nợ.** Trần đếm phần đã đúng thì càng dọn càng đỏ.
-
-**Đợt gộp thẻ (2026-08-18): `rounded-xl bg-surface` 74 → 10.** Codemod đổi 64 thẻ viết tay ở 40 file sang `<Card>`. Việc này KHÔNG chỉ là dọn code — nó **sửa một lỗi nhìn thấy được ở dark**: `<Card elevation="raised">` mang `dark:border dark:border-border-panel dark:shadow-none`, tức bỏ bóng và thay bằng viền (quyết định của 1a), còn 64 thẻ viết tay vẫn giữ `shadow-sm` ở dark — mà bóng trên nền `#0e1014` gần như vô hình, nên chúng **không có ranh giới nào cả**. Đo lại sau khi đổi: viền 1px `#1b1e24`, đúng `border-panel`.
-
-**Đợt bán kính control (2026-08-18): 200 → 0, và luật LÊN HẠNG.** §1.3 tách bán kính CONTROL 6px khỏi PANEL 8px; 200 nút/ô nhập dựng từ trước 1a vẫn mang 8px. Codemod đổi cả 200 (144 `<button>`, 40 `<input>`, 16 `<select>`) sang `rounded-md`, chỉ đụng chữ nằm TRONG thẻ mở nên `rounded-full` (chip, công tắc) và `rounded-sm` (vạch) không bị chạm. Ngưỡng hết việc → chuyển thành **ban cứng**. Đó là vòng đời mong muốn của một ngưỡng: đo → chặn mọc thêm → dọn hết → hoá luật cứng.
-
-**Điểm mù của luật này, đã thử để biết chắc:** bán kính đi tới control qua một HẰNG SỐ (`BASE` trong `IconButton`/`ActionButton`) thì luật không thấy — sửa `rounded-md` → `rounded-lg` trong `IconButton.tsx` mà test vẫn xanh; sửa đúng class đó trên một `<button>` thật thì test đỏ ngay. Chấp nhận được vì hằng số kiểu đó chỉ có ở hai primitive, nhưng ai đổi ở đó phải biết mình đang đổi cho cả app.
-
-Còn **4 control** mang `rounded` trần (4px) — nhỏ hơn 6px chứ không phải bán kính panel, nên luật hiện tại không tính. Một lát dọn khác.
-
-Mười chỗ còn lại không máy móc đổi được: hai chỗ class là template literal (đổi theo trạng thái kéo–thả), một chỗ có `key=` ngay trên thẻ, bảy chỗ không có `shadow-sm` (dáng `flat`/`panel` viết tay). Mỗi cái cần xét nghĩa riêng.
-
-Hai cái bẫy của codemod loại này, đã đạp cả hai:
-
-- **Chèn `import` sai chỗ.** Chèn sau "dòng cuối bắt đầu bằng `import `" là chèn vào GIỮA một `import {` nhiều dòng — vỡ hai file. Phải chèn sau dòng KẾT THÚC của import cuối (`} from '…'`).
-- **Trùng tên với component cục bộ.** `TrendsView.tsx` có sẵn một component tên `Card`; import primitive vào là nó che chính mình, và codemod còn đổi `<section>` bên trong thành `<Card>` — thành đệ quy. Đã đổi tên cục bộ thành `TrendCard`.
-
----
-
-## Màu biểu đồ: hằng số JS, không phải token
-
-Recharts nhận màu qua prop (`fill`, `stroke`) nên **không dùng được biến CSS**. Vì vậy màu biểu đồ vẫn là hằng số JS — đó là giới hạn của thư viện, không phải nợ kỹ thuật.
-
-Nhưng phải có **một nguồn duy nhất cho nét vẽ và chú giải**. Bẫy đã xảy ra thật: nét vẽ dùng hex cứng `#16a34a` (green-600 của Tailwind **v3**) còn chấm chú giải dùng class `bg-green-600` (v4 = `#00a63e`) → từ hồi nâng v4, chú giải chỉ sai màu chính cái nó gán nhãn. Đã sửa ở `MonthlyBarsCard`, `NetCashflowCard`, `SpendVsBudgetCard` bằng cách cho chấm đọc `style={{ backgroundColor: HANG_SO }}`.
-
-**Đừng đặt màu chú giải bằng class Tailwind.** Luôn trỏ vào đúng hằng số đã tô cho biểu đồ.
-
-**Ngoại lệ: SVG viết tay.** Đồ hoạ không qua Recharts (vd `ScoreGauge`) thì `stroke-*` là class Tailwind bình thường, **lật được** theo `.dark` — nên ở đó phải dùng class, đừng viết hex. Ba sắc độ vùng thang đo sức khỏe khai một chỗ ở `src/features/health/zoneColors.ts` cho cả thanh ngang (`ZONE_BAR`) và cung đồng hồ (`ZONE_STROKE`); hai chỗ vẽ cùng một ý nghĩa thì không được lệch màu.
-
-Ba vùng đó là **đồ hoạ mang thông tin** nên cần 3:1 (WCAG 1.4.11). Bộ cũ (red-400 / amber-400 / green-500) đo thật là **2,89 / 1,72 / 2,22** trên trắng — trượt cả ba, vùng vàng gần như biến mất. Bộ hiện tại: light `red-600 / amber-600 / green-700` = 4,77 / 3,20 / 4,95; dark `red-400/70 / amber-500/70 / green-500/70` = 3,57 / 4,56 / 4,50. Vùng đỏ **phải** đổi bậc giữa hai chế độ: không bậc đỏ nào đạt 3:1 ở cả hai (red-400 chỉ 2,89 trên trắng, red-600 chỉ 2,27 trên gray-900 khi có alpha).
+- **Chèn `import` sai chỗ.** Chèn sau "dòng cuối bắt đầu bằng `import `" là chèn vào GIỮA
+  một `import {` nhiều dòng. Phải chèn sau dòng KẾT THÚC (`} from '…'`).
+- **Trùng tên với component cục bộ.** `TrendsView.tsx` có sẵn một component tên `Card`;
+  import primitive vào là nó che chính mình, và codemod còn đổi `<section>` bên trong
+  thành `<Card>` — thành đệ quy.
 
 ## Cách đo contrast cho đúng
 
-Bốn cái bẫy đã làm mình đọc sai số, ghi lại để khỏi mất thời gian lần nữa:
+**1. Đừng bật class `.dark` bằng JS rồi đo ngay.** Chrome cập nhật `background-color`
+nhưng **chưa** cập nhật biến CSS thừa kế trong cùng một task → ra số vô nghĩa. Phải **tải
+trang thật** với `localStorage.theme = 'dark'`. Quét nhiều route thì tải một lần ở dark rồi
+điều hướng bằng `history.pushState` + `PopStateEvent`.
 
-**1. Đừng bật class `.dark` bằng JS rồi đo ngay.** Chrome cập nhật `background-color` nhưng **chưa** cập nhật biến CSS thừa kế trong cùng một task, nên ra những số vô nghĩa (gray-600 trên gray-800 = 1,94). Phải **tải trang thật** với `localStorage.theme = 'dark'`. Muốn quét nhiều route thì tải một lần ở dark rồi điều hướng bằng `history.pushState` + `PopStateEvent` — class giữ nguyên, DOM được style lại từ đầu.
+**2. Gradient không nằm ở `background-color`.** `bg-gradient-*` đặt `background-image` →
+hàm leo cây tìm nền bỏ qua nó và rơi về trắng, ra tỉ số 1,0 giả.
 
-**2. Gradient không nằm ở `background-color`.** `bg-gradient-to-br` đặt `background-image`, nên hàm leo cây tìm nền sẽ bỏ qua nó và rơi về trắng → ra tỉ số 1,0 giả. Phải đọc các chặng màu từ `backgroundImage` và tính với chặng **sáng nhất** (ca xấu nhất cho chữ trắng).
+**3. Ngưỡng AA không phải luôn 4,5.** Chữ ≥24px, hoặc ≥18,66px mà bold, chỉ cần **3:1**.
 
-**3. Ngưỡng AA không phải luôn 4,5.** Chữ ≥24px, hoặc ≥18,66px mà bold, chỉ cần **3:1**. Bỏ qua điều này sẽ báo sai các con số lớn — ví dụ `≈ ¥1,973,890` ở 32px bold trên thẻ hero.
-
-**4. Đừng parse chuỗi màu, hãy vẽ ra pixel rồi đọc lại.** Tailwind v4 nên `getComputedStyle` trả về `oklab(0.637 0.214 0.101)`. Gán chuỗi đó cho `canvas.fillStyle` rồi đọc `fillStyle` **không** ra hex — cách bóc số bằng regex sẽ lấy `0.637, 0.214, 0.101` làm RGB, tức gần như đen, và mọi tỉ số ra ~20:1. Đúng cái đã xảy ra hôm 2026-08-01: bộ màu vùng thang đo được báo là 20,7:1 trong khi thật ra 2,89:1. Cách đúng:
+**4. Đừng parse chuỗi màu, hãy vẽ ra pixel rồi đọc lại.** Tailwind v4 trả về
+`oklab(0.637 0.214 0.101)`; bóc số bằng regex sẽ lấy `0.637, 0.214, 0.101` làm RGB, tức
+gần như đen, và mọi tỉ số ra ~20:1. Đúng cái đã xảy ra: bộ màu thang đo được báo 20,7:1
+trong khi thật ra **2,89:1**.
 
 ```js
 ctx.fillStyle = nenThat      // tô nền trước — bắt buộc nếu màu có alpha (vd /70)
@@ -416,170 +724,75 @@ ctx.fillRect(0, 0, 1, 1)
 const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data  // màu THẬT, đã composite
 ```
 
-Alpha là phần thứ hai của cái bẫy: `bg-red-500/70` trên gray-900 chỉ còn 2,76:1 chứ không phải 4,66:1 của red-500 đặc.
+Alpha là phần thứ hai của bẫy: `bg-red-500/70` trên gray-900 chỉ còn 2,76:1 chứ không phải
+4,66:1 của red-500 đặc. Và **bỏ emoji khỏi phép đo** — emoji tự mang màu.
 
-Ngoài ra: bỏ emoji khỏi phép đo. Emoji tự mang màu, `color` thừa kế của chúng vô nghĩa.
+**Đo hoạt ảnh trong khung xem trước thì cẩn thận:** tab bị ẩn (`document.hidden`) đóng băng
+đồng hồ hoạt ảnh — `transition` đứng ở giá trị đầu và `ResizeObserver` không nổ. Đo LAYOUT
+thì tắt transition trước (`style.transitionProperty = 'none'`).
 
-## Chế độ trình bày: Gọn / Đầy đủ
+## Chế độ trình bày: quét theo class KHÔNG đủ
 
-Cài đặt → **Cách trình bày**. Mặc định **Gọn**.
+Lượt rà đầu quét `<p className="…fg-muted…">` và bỏ sót ba loại, chỉ bản CHẠY THẬT mới lộ:
 
-Nguồn sự thật là **hồ sơ người dùng** (`profiles.density_pref`, migration 0040) — đặt một lần dùng mọi thiết bị. Cố ý khác Sáng/Tối và Cỡ chữ: hai cái đó phụ thuộc THIẾT BỊ (màn hình ngoài trời, chữ to trên điện thoại) nên ở lại localStorage; cách trình bày phụ thuộc NGƯỜI.
+1. **Chữ dạy nằm trong hằng số** — `HINT`, `note`, `SORT_HINT`. Không phải JSX.
+2. **Câu số dài đáng NÉN, không phải ẩn** — giữ cả ba con số, bỏ mệnh đề giải thích.
+3. **Câu lặp nhiều lần trên một màn** — `NeedMore` hiện 5 lần, mệnh đề lặp y nguyên cả 5.
 
-`src/lib/density.ts` giữ một **bản sao** ở localStorage. Nó không phải nguồn sự thật, chỉ để (a) vẽ đúng ngay lần sơn đầu, (b) đổi hiện ra tức thì khi bấm, (c) mở offline vẫn đúng chế độ. Ba hook, ba vai:
-
-| Hook | Ai dùng | Việc |
-|---|---|---|
-| `useDensity()` | ~62 chỗ | chỉ ĐỌC bản sao, không chạm React Query |
-| `useDensitySync()` | **một lần** ở AppLayout | bơm hồ sơ → bản sao |
-| `useDensityControl()` | chỉ nút Cài đặt | đọc + ghi hồ sơ, lỗi thì trả bản sao về cũ + toast |
-
-Gộp ba cái thành một thì mỗi chỗ đọc cũng kéo theo một `useQuery(['profile'])` và một `useMutation`. `setMirroredDensity` thoát ngay khi trùng giá trị — không chặn thì mỗi lần hồ sơ refetch là cả cây render lại.
-
-### Hai bẫy của "cột hồ sơ mới", đã đạp cả hai
-
-**1. Thiếu cột ≠ giá trị mặc định.** Cache hồ sơ được persist xuống localStorage (24h). Một máy có thể đang giữ bản tải TRƯỚC migration — bản đó không có `density_pref`. Coi `undefined` là `'visual'` thì `useDensitySync` **ghi đè lựa chọn của người dùng** về Gọn. Dùng `densityFromProfile()`: không phải chuỗi → `null` = "hồ sơ chưa nói gì", để bản sao ở máy quyết. Chuỗi RÁC thì vẫn về mặc định (DB có `check`, giá trị lạ là bất thường — khác hẳn cột chưa tồn tại).
-
-**2. `staleTime: Infinity` giết đồng bộ giữa máy.** `useProfile` từng đặt vậy với lý do "hồ sơ hầu như không đổi". Lý do đó hết đúng khi hồ sơ mang một cài đặt người dùng đổi được: đổi trên điện thoại thì laptop không bao giờ tải lại, hiện chế độ cũ cả ngày. Đã đổi sang **60 giây**. React Query không hẹn giờ — nó chỉ tải lại khi có observer mới mount hoặc khi cửa sổ được focus lại, nên phiên đang dùng liên tục gần như không thêm lượt nào, còn đúng lúc cần (nhấc máy khác lên) thì luôn có bản mới.
-
-Kèm theo: `useDensitySync` **tạm ngừng bơm khi đang có lượt ghi hồ sơ** (`useIsMutating` với `PROFILE_MUTATION_KEY`). Từ khi `staleTime` hữu hạn, một lượt tải nền bắt đầu trước lúc bấm có thể về sau và mang giá trị cũ → công tắc lật ngược rồi lật lại. Bản sao ở máy chính là "bản nháp" của cài đặt này, giống cách `NotificationSettingsPage` cho `pendingOff` thắng hồ sơ trong lúc chờ.
-
-Đo trên app thật (localhost + Supabase thật): ghi `full` từ "máy A", rồi dựng "máy B" (bản sao `visual`, cache hồ sơ cũ 10 phút nói `visual`) → tải lại thì máy B nhận `full`. Lùi `staleTime` về `Infinity` rồi chạy lại đúng phép thử đó: máy B **đứng ở `visual`** — tức phép thử phân biệt được, không phải xanh vì may.
-
-Phạm vi đã kiểm: đường **mount** (mở app / tải lại). Đường **focus** (tab đang mở sẵn) chưa kiểm được — sự kiện `visibilitychange` phát bằng tay không làm đổi trạng thái focus nội bộ của React Query nên bộ đếm request nằm im, và đó là giới hạn của phép thử chứ không phải bằng chứng app sai.
-
-Đo trên app đang chạy: hồ sơ `full` + bản sao `visual` → sau khi tải, bản sao thành `full` và trang Báo cáo về đúng 1.694 ký tự của chế độ Đầy đủ. Chặn lượt ghi hồ sơ cho lỗi → bản sao đổi tức thì rồi trả về cũ, kèm toast.
-
-|  | Gọn (`visual`) | Đầy đủ (`full`) |
-|---|---|---|
-| Chữ chỉ để dạy | ẩn | hiện |
-| Câu kết luận | chip: icon + `short` (vài chữ, có số) | cả câu |
-| "Cách tính & nên làm gì" | không có | mở ra được |
-
-Đo trên 12 route với dữ liệu demo: **5.227 → 1.121 ký tự văn xuôi (−79%)**.
-
-| Màn | Đầy đủ | Gọn | Giảm |
-|---|---|---|---|
-| Thông báo | 1.695 | 136 | 92% |
-| Ngân sách | 560 | 80 | 86% |
-| Sức khỏe | 677 | 167 | 75% |
-| Biểu đồ | 543 | 232 | 57% |
-| Thấu hiểu | 579 | 258 | 55% |
-| Xu hướng | 320 | 145 | 55% |
-| Tài sản | 191 | 103 | 46% |
-| Nhãn · Sắp chi · Định kỳ · Nhập | 662 | 0 | 100% |
-
-### Bài học: quét theo class KHÔNG đủ
-
-Lượt rà đầu quét `<p className="…fg-muted…">` và bỏ sót ba loại, chỉ bản CHẠY THẬT mới lộ ra:
-
-1. **Chữ dạy nằm trong hằng số** — `HINT` ở `AxisTargetsCard`, `note` ở `SpendSizeCard`,
-   `SORT_HINT` ở `BudgetView`. Không phải JSX nên máy quét theo class không thấy.
-2. **Câu số dài đáng NÉN, không phải ẩn** — "Còn ¥58.670 cho 21 ngày nữa — tiêu
-   ¥2.793/ngày thì vừa đủ." → "Còn ¥58.670 · ¥2.793/ngày × 21 ngày". Giữ cả ba con số,
-   bỏ mệnh đề giải thích.
-3. **Câu lặp nhiều lần trên một màn** — `NeedMore` ở Xu hướng hiện 5 lần, mà mệnh đề
-   "Ghi chép thêm… tự hiện ra" lặp y nguyên cả 5.
-
-Cách đo đúng: chạy app, đi hết route, gom text node ≥25 ký tự rồi lọc lấy phần tử **lá**
-(không chứa phần tử nào khác cũng có văn xuôi).
-
-### Hai bẫy khi tách câu
-
-**Đừng tách theo MẢNH câu.** Bọc `<Guide as="span">` quanh mấy từ nối để lại đúng cái này
-trên màn hình: *"Chưa ghi khoản thuế/bảo hiểm nào. tạo bộ danh mục Thuế & An sinh."* — chữ
-thường sau dấu chấm, cụm link mất chủ ngữ. Viết **hai câu hoàn chỉnh**, mỗi chế độ một câu.
+Cách đo đúng: chạy app, đi hết route, gom text node ≥25 ký tự rồi lọc lấy phần tử **lá**.
+Kết quả đợt đó: **5.227 → 1.121 ký tự văn xuôi (−79%)** trên 12 route.
 
 **Ẩn một phần tử có thể đổi layout.** Bỏ dòng giải nghĩa trong hàng `justify-between` thì
-phần tử còn lại trượt về bên trái — đo được **819px**. Dùng `ml-auto` ở ô bên phải, đừng
-dựa vào `justify-between`.
+phần tử còn lại trượt về bên trái — đo được **819px**. Dùng `ml-auto` ở ô bên phải.
 
-### Ranh giới: cái gì được ẩn
+**Hai bẫy của "cột hồ sơ mới":**
 
-Đây là phần quan trọng nhất, vì sai ranh giới thì "gọn" biến thành "mất chức năng".
+- **Thiếu cột ≠ giá trị mặc định.** Cache hồ sơ persist 24h; một máy có thể giữ bản tải
+  TRƯỚC migration. Coi `undefined` là `'visual'` thì `useDensitySync` **ghi đè lựa chọn
+  của người dùng**. Dùng `densityFromProfile()`: không phải chuỗi → `null` = "hồ sơ chưa
+  nói gì".
+- **`staleTime: Infinity` giết đồng bộ giữa máy.** Đổi trên điện thoại thì laptop không
+  bao giờ tải lại. Đã đổi sang **60 giây**.
 
-| Bọc `<Guide>` / `<FullOnly>` | KHÔNG bọc |
-|---|---|
-| cách tính, ý nghĩa con số | nhãn ô nhập, câu báo lỗi, câu xác nhận xoá |
-| mẹo dùng, "vì sao lại thế" | cảnh báo dữ liệu (thiếu tỷ giá, chưa quy đổi) |
-| câu chỉ đường trong trạng thái rỗng | câu nói ra chính trạng thái đó |
-| gợi ý quy ước nhập liệu | câu giải thích một ô đang bị vô hiệu |
+## Ba lần suýt sai khi dọn nhãn ô nhập
 
-Trạng thái rỗng thường phải **tách**: giữ "Chưa có khoản nào.", bọc phần "Thêm những thứ bạn biết là sắp phải chi…".
+1. **Quên `button` là labelable.** Lần quét đầu xếp 4 nhãn công tắc vào diện mồ côi; đổi
+   sang `<div>` là **mất vùng chạm** đang chạy tốt.
+2. **`aria-checked` đọc ngay sau `.click()` là sai.** React chưa render lại → kết luận
+   "bấm vào chữ không có tác dụng" tuy thật ra có. Phải `await` một nhịp.
+3. **Chú thích cũng chứa chữ `<label>`.** Phải che chú thích — nhưng che bằng khoảng trắng
+   để **giữ số dòng**.
 
-Hai chỗ **không** dùng `<Guide>` mà đọc thẳng `useDensity()`, có lý do: câu mô tả ở trang Thông báo có `id` được `aria-describedby` của nút gạt trỏ vào — ẩn `<p>` mà giữ `describedBy` là tạo tham chiếu treo, nên hai thứ phải tắt cùng lúc.
+**Nhãn không phải cái duy nhất thiếu.** Sau khi dọn hết 71 nhãn, chạy thuật toán tính
+accessible name trên 19 route của app đang chạy thì còn **9 ô không có tên nào** — chỉ có
+`placeholder` (mà placeholder mất ngay khi bắt đầu gõ). Trong đó có **ô số tiền chính của
+form Nhập** ở desktop. Cách quét: `el.labels`, `aria-label`, `aria-labelledby`; **không**
+tính `placeholder`. Chạy trên app thật, không đọc nguồn.
 
-### Ba primitive
+---
 
-- `<Guide as="p" className=…>` — một đoạn chữ để dạy. `<FullOnly>` cho cả khối.
-- `<StatusChip tone icon>` — huy hiệu trạng thái. `VerdictNote` ở chế độ Gọn render đúng cái này.
-- `<StatusDot tone label>` — chấm 8px cho dòng danh sách, `label` **bắt buộc** (màu là kênh duy nhất).
+# Chưa làm
 
-Bộ màu ở `components/ui/statusColors.ts` (trước đây là `features/health/zoneColors.ts`): `STATUS_FILL` cho đồ hoạ (≥3:1), `STATUS_STROKE` cho SVG, `STATUS_CHIP` cho chip (≥4,5:1 vì có chữ). Số đo thật ghi trong file.
+- **Trạng thái rỗng dùng gray-300** (`TransactionForm` `¥0`, `MonthlyView` tháng trống) —
+  1,47:1 ở light. Đây là **de-emphasize cố ý**: tháng trống gần như biến mất khỏi bảng để
+  mắt quét nhanh. Sửa cho đạt AA sẽ đổi cách đọc bảng → quyết định thẩm mỹ, không phải dọn dẹp.
+- **Toán tử NumPad**: green-700 trên gray-100 = **4,49:1**, thiếu 0,01. Trong sai số làm tròn.
+- **Hex Tailwind v3 còn ở 10 file biểu đồ** (`#16a34a`/`#ef4444`). Không sai contrast,
+  nhưng lạc thời so với palette v4. Có trần trong guardrail để không phình tiếp.
+- **14 chỗ `rounded` trần (4px).** Đo lại 2026-08-25: **không chỗ nào là control** — 12 chỗ
+  là huy hiệu `<span>` và ô màu chú giải (4px ở đó là đúng), một `<kbd>` gợi ý phím tắt,
+  và một `<Link>` mà luật cố ý không đếm. Tức món này **đã xong**; giữ dòng ở đây để lần
+  sau ai đếm ra 14 thì biết là đã xét rồi.
 
-Từ bản 1a, `STATUS_CHIP` đọc token `--state-{good,warn,bad}-{bg,border,fg}` thay vì viết
-cặp sáng/tối tại chỗ — vì **banner** của form Nhập (§4.6) dùng đúng bộ mặt đó, và để ở
-`statusColors.ts` thì banner sẽ chép tay lại. Ở dark, viền mới là thứ vẽ ra hình cái chip
-(nền chip chỉ hơn nền thẻ vài phần trăm, và 1a không có shadow). Đo lại ở dark:
-good 10,97 · warn 10,84 · bad 10,92 — ba tông giờ đồng đều, khác bảng cũ (8,09 … 10,19)
-vốn lệch vì mỗi tông một bậc alpha. Light **không đổi màu**: token light trỏ đúng bộ
-green-100/amber-100/red-100 + chữ bậc 700, viền trùng màu nền nên vô hình.
-
-`STATUS_FILL` **giữ nền đặc** — §2.6 của bộ tài liệu nói chip *và* dot cùng đổi sang
-"nền tối + viền", nhưng áp vào chấm 8px là xoá luôn cái chấm, và bản vẽ 1a cũng để chấm
-đặc. Đo lại trên thang mới (đã composite alpha, ca xấu nhất trên `sunken`): bad 3,60 ·
-warn 4,66 · good 4,52 · info 6,85 — cả bốn vẫn ≥3:1.
-
-### Guardrail
-
-`tests/designSystem.test.ts` — bốn luật, cả bốn đã thử gây lỗi để chắc chúng đỏ được:
-
-- khối hướng dẫn nền xanh (`bg-blue-50`) luôn là `<Guide>`, không phải `<p>` → **0**
-- không viết lại sắc độ trạng thái bằng tay ngoài `statusColors.ts` → **0**
-- mỗi `<VerdictNote>` có `short` hoặc `label` → trần **1** (một chỗ cố ý, nằm trong `<FullOnly>`)
-- văn xuôi trong `<p class="…fg-muted…">` → trần **49**
-
-Ngoài bốn luật của chế độ trình bày, `tests/designSystem.test.ts` còn luật **không có `<label>` mồ côi** (xem mục "Nhãn ô nhập" bên dưới): nó phân loại từng `<label>` theo spec — có `htmlFor`, hay bọc thẻ labelable — và phải bằng **0**. Đã thử 6 hình dạng (3 phải đỏ, 3 phải xanh) để chắc nó phân biệt được. Luật này thay cho trần `<label className` = 106 trước đây, vốn chỉ là đại diện gần đúng: nó đếm cả nhãn hợp lệ và bỏ sót nhãn viết `className` sau `htmlFor`.
-
-Thêm `tests/backupCompleteness.test.ts`: mọi cột của `ProfileRow` phải được đường KHÔI PHỤC nhắc tới. `exportAll` dùng `select('*')` nên cột mới tự vào bản lưu, nhưng `importAll` liệt kê từng cột — bỏ sót thì khôi phục âm thầm trả cột đó về default. Đúng lỗi đã xảy ra với `density_pref`.
-
-Trần 49 **không** phải nợ cần dọn hết: đã xét từng chỗ, phần lớn là thứ phải ở lại theo bảng ranh giới trên.
-
-## Nhãn ô nhập: chọn thẻ nào
-
-Dọn xong 2026-08-11 (71 chỗ, 16 file). Quy tắc, theo đúng spec HTML chứ không theo cảm giác:
-
-| Nhãn cho | Thẻ | Vì sao |
-|---|---|---|
-| MỘT `<input>` / `<select>` / `<textarea>` | `<label htmlFor={`${uid}-x`}>` + `id` trên ô | dạng duy nhất cho screen reader tên ô một cách chắc chắn |
-| `MoneyField` | `<span>` + `ariaLabel` trên component | MoneyField render **hai** ô (nút chạm mobile + input desktop) luôn cùng trong DOM, chỉ ẩn/hiện bằng `lg:hidden` → `htmlFor` chắc chắn trỏ vào ô đang bị CSS ẩn |
-| `AccountPicker` | `<span>` + `ariaLabel` trên component | nó là `<button>`; tên đọc được của `<button>` tính **từ nội dung** (HTML-AAM), `<label for>` không phải nguồn tên của nó |
-| một HÀNG NÚT (segmented, chip) | `<span>` + `role="group" aria-label` trên khung | không có một ô nào để trỏ vào |
-| cả một KHỐI (TagPicker) | `<span>` | từng control bên trong tự mang `aria-label` |
-| một công tắc `role="switch"` | **giữ `<label>` bọc nút** | `button` NẰM TRONG danh sách labelable của spec → nhãn vừa đặt tên vừa là vùng chạm. Đã đo trên app đang chạy: bấm vào chữ có bật/tắt |
-
-`useId`, không phải id viết cứng: hai sheet có thể cùng trong DOM (sheet chặng mở từ trong `ScenarioEditorSheet`; `DebtDetailInputs` dùng ở cả form Nhập và sheet Sửa nợ), và id trùng thì `htmlFor` bắt vào ô **đầu tiên** khớp — nhãn trỏ sai ô còn tệ hơn không có nhãn.
-
-Id không được chứa khoảng trắng. Nhãn tiếng Việt ("Thiết yếu") không dùng làm id được → thêm trường `slug` (xem `ProfileEditSheet`).
-
-### Ba lần suýt sai khi làm đợt này
-
-1. **Quên `button` là labelable.** Lần quét đầu xếp 4 nhãn công tắc vào diện mồ côi; đổi chúng sang `<div>` là **mất vùng chạm** đang chạy tốt. Kiểm bằng cách bấm vào chữ trên app thật.
-2. **`aria-checked` đọc ngay sau `.click()` là sai.** React chưa render lại → kết luận "bấm vào chữ không có tác dụng" tuy thật ra có. Phải `await` một nhịp.
-3. **Chú thích cũng chứa chữ `<label>`.** Chính lời giải thích "chỗ này dùng `<span>` chứ không `<label>`" làm công cụ quét báo 3 vi phạm không tồn tại. Phải che chú thích — nhưng che bằng khoảng trắng để **giữ số dòng**.
-
-### Nhãn không phải cái duy nhất thiếu
-
-Quét theo `<label>` **không thấy** ô nào hoàn toàn không có nhãn. Sau khi dọn hết 71 nhãn, chạy thuật toán tính accessible name trên 19 route của app đang chạy thì còn **9 ô không có tên nào** — chỉ có `placeholder` (mà placeholder mất ngay khi bắt đầu gõ, không phải tên). Trong đó có **ô số tiền chính của form Nhập** ở desktop: `TransactionForm` có bản copy riêng của `MoneyField` và bản copy đó bị bỏ sót khi sửa `MoneyField` hôm 2026-07-30.
-
-Cách quét: `el.labels`, `aria-label`, `aria-labelledby`; **không** tính `placeholder`. Chạy trên app thật, không đọc nguồn.
-
-## Chưa làm
-
-- **Trạng thái rỗng dùng gray-300** (`TransactionForm` `¥0`, `MonthlyView` tháng trống, `roleFields`) — 1,47:1 ở light, 2,35:1 ở dark. Đây là **de-emphasize cố ý**: tháng trống gần như biến mất khỏi bảng để mắt quét nhanh. Sửa cho đạt AA sẽ đổi cách đọc bảng → là quyết định thẩm mỹ, không phải dọn dẹp.
-- **Toán tử NumPad**: green-700 trên nền gray-100 = **4,49:1**, thiếu 0,01. Nằm trong sai số làm tròn. Muốn sạch tuyệt đối thì dùng green-800 cho light.
-- **35 chỗ `text-green-700 dark:text-green-400` cần tách nghĩa** thành `fg-accent` (link, hành động — đa số) hoặc `money-in` (giá trị tiền — vài chỗ). Việc **xét từng chỗ**, không quét máy móc được: link không phải thu nhập. Không gấp — 4,95:1 đã đạt AA. *(Đo lại 2026-08-06: con số TĂNG từ 29 → 35 kể từ lúc dựng hệ thống, nên đã thêm trần trong guardrail để không phình tiếp.)*
-- **Hex v3 còn ở 16 file biểu đồ** (`#16a34a`/`#ef4444` trong `CategoryBreakdownCard` `PALETTE`, `SummaryView`, `AssetsNowView`, `LifetimeChartCard`…). Không sai contrast, nhưng lạc thời so với palette v4. *(Cũng tăng từ 12+ → 16 file; đã thêm trần trong guardrail.)*
-- **`ActionButton` đã có** (gom dáng nút-có-chữ) nhưng mới áp vào vài chỗ — 93 chỗ `active:scale-95` viết tay là số nợ còn lại trong guardrail, gộp dần và hạ trần theo.
-- **Tên ô chỉ được kiểm bằng tay.** Luật `<label>` mồ côi chặn được ở mức nguồn, nhưng "ô không có nhãn nào cả" thì không — repo không có test render (không có `@testing-library`), nên phải chạy app rồi tính accessible name như đợt 2026-08-11. Muốn tự động thì cần thêm jsdom + một test render, là quyết định về hạ tầng test chứ không phải dọn dẹp.
-- Đã áp primitive vào `LedgerPage`, `ReportsPage`, `AccountDetailPage`, `AssetsPage`, `AssetGroupsPage`. Các màn còn lại đã đổi sang token màu nhưng thẻ/nút vẫn viết tay — ngưỡng trong guardrail là số nợ còn lại.
+> Hai món từng nằm ở đây đã hết: *35 chỗ `text-green-700 dark:text-green-400` cần tách
+> nghĩa* → nay **0**, đã thành ban cứng; *`ActionButton` mới áp vào vài chỗ* → nay 33 nút
+> chính đã qua primitive.
+- **Đóng sheet 120ms.** 26 sheet đều tự dựng lớp phủ tại chỗ và tự gọi `onClose` từ vài
+  chỗ bên trong. Hoạt ảnh đóng đòi phần tử sống thêm 120ms sau khi người dùng đã đóng →
+  phải có primitive `<Sheet>` giữ quyền tháo lắp.
+- **"Số cũ mờ đi" khi đổi kỳ.** Cần con số cũ còn trên màn trong lúc số mới đang tới, mà
+  truy vấn theo kỳ không giữ dữ liệu kỳ trước. Đổi cách nạp dữ liệu là quyết định về DỮ
+  LIỆU, không phải về chuyển động.
+- **Tên ô chỉ được kiểm bằng tay.** Luật `<label>` mồ côi chặn ở mức nguồn, nhưng "ô không
+  có nhãn nào cả" thì không — repo không có test render. Muốn tự động thì cần thêm jsdom,
+  là quyết định về hạ tầng test.

@@ -111,6 +111,26 @@ tương đối có đuôi — bản deploy đầu tiên chết đúng vì thế 
 /var/task/src/mcp/env`). Nguồn tên `_handler.ts` là cố ý: Vercel bỏ qua file trong `api/` bắt đầu
 bằng `_`, nên chỉ có đúng một function. Guard: [tests/mcpBundle.test.ts](tests/mcpBundle.test.ts).
 
+## Đụng tới giao diện thì mở [docs/design-system.md](docs/design-system.md) trước
+
+Đó là **sổ tra cứu**, không phải ghi chép: Phần I có công thức tám bước và một khuôn màn
+dán-là-chạy (khuôn đó đã được biên dịch và chạy qua guardrail thật, không phải viết mẫu).
+
+Ba luật hay bị vi phạm nhất, nói luôn ở đây để khỏi phải mở file mới biết:
+
+- **Đừng chêm giá trị tuỳ ý.** Mọi màu, cỡ chữ, bán kính, giãn chữ, thời lượng đều đã có
+  tên. `text-[0.8125rem]` từng mọc lên 91 chỗ ở 28 file đúng vì guardrail cũ liệt kê giá
+  trị thay vì cấm cả dạng. Cần cỡ chưa có → đặt tên ở `src/index.css` trước.
+- **Đừng tự viết `<h1>`, `<h2>`, `<select>`, hay nút nền xanh.** Dùng `<PageHeader>`,
+  `<SectionTitle>`, `<Select>`, `<ActionButton>`. Cả bốn đều là ban cứng trong
+  `tests/designSystem.test.ts`.
+- **Mọi con số đi qua `<Money>` (tiền) hoặc `<Num>` (đếm, %, số tháng).** Khác nhau ở chỗ
+  `<Money>` đi qua chế độ riêng tư — che một trục thời gian là con số bên cạnh hết nghĩa.
+
+`npm test` bắt được vi phạm ở mức nguồn, nhưng **không** thấy ba thứ: chế độ Sáng (mặc
+định của phiên xem là Tối), cỡ chữ 1,25× ở 375px, và biểu thức JSX bị codemod biến thành
+chuỗi (`title="{debt.counterparty}"` — hợp kiểu nên tsc xanh). Phải mở app xem.
+
 ## Toán thuần nằm ngoài React
 
 Hàm tính tiền sống trong file `.ts` riêng, không JSX, có unit test (`aggregate.ts`, `amortization.ts`,

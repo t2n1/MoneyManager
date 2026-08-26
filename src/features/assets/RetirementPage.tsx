@@ -17,7 +17,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { EstimateMark } from '../../components/EstimateMark'
 import { Guide } from '../../components/Guide'
-import { MoneyField } from '../../components/MoneyField'
+import { MoneyField, MONEY_FIELD_CLASS } from '../../components/MoneyField'
 import {
   Card,
   EmptyState,
@@ -33,6 +33,13 @@ const JPY = 'JPY' as const
 
 /** 'YYYY-MM' → '2026/08'. Dùng `formatMonthLabel` để mọi màn nói một kiểu. */
 const thang = (key: string) => formatMonthLabel(parseMonthKey(key))
+
+/**
+ * 30 bps → '0,30'. Dấu PHẨY, không phải dấu chấm — cả app dùng phẩy cho phần thập phân
+ * (xem `investFormat.pct` và `signedPct`), và một màn nói '0.30' giữa những màn nói '15,4'
+ * là một chỗ lệch mà mắt bắt được ngay.
+ */
+const suat = (bps: number) => (bps / 100).toFixed(2).replace('.', ',')
 
 export function RetirementPage() {
   const d = useRetirementData()
@@ -171,7 +178,7 @@ export function RetirementPage() {
               {d.projection.minorAtRate !== null && (
                 <div className="col-span-2">
                   <dt className="text-fg-muted">
-                    Có lãi <Num tone="muted">{(d.rateBps / 100).toFixed(2)}</Num>
+                    Có lãi <Num tone="muted">{suat(d.rateBps)}</Num>
                     <span className="text-2xs text-fg-muted">%/năm</span>
                   </dt>
                   <dd className="flex items-baseline">
@@ -181,7 +188,7 @@ export function RetirementPage() {
                       className="font-semibold"
                     />
                     <EstimateMark
-                      reason={`給付利率 ${d.rateIsDefault ? 'của 事業年度 2025' : 'bạn đã khai'} = ${(d.rateBps / 100).toFixed(2)}%/năm. 基金 đặt lại mỗi năm tài chính và không bảo đảm cho tương lai.`}
+                      reason={`給付利率 ${d.rateIsDefault ? 'của 事業年度 2025' : 'bạn đã khai'} = ${suat(d.rateBps)}%/năm. 基金 đặt lại mỗi năm tài chính và không bảo đảm cho tương lai.`}
                     />
                   </dd>
                 </div>
@@ -299,12 +306,15 @@ export function RetirementPage() {
       <Card as="section">
         <SectionTitle>Thử mức đóng khác</SectionTitle>
         <div className="mt-2">
+          {/* `className` BẮT BUỘC: `MONEY_FIELD_CLASS` là hằng số riêng, không phải mặc
+              định của component — bỏ nó thì ô ra một nút 30px không viền không đệm. */}
           <MoneyField
             value={mucThu}
             onChange={setThuMuc}
             currency={JPY}
             autoOpen={false}
             ariaLabel="Mức đóng mỗi tháng để thử"
+            className={MONEY_FIELD_CLASS}
           />
         </div>
         <p className="mt-1 text-2xs text-fg-muted">

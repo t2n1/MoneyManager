@@ -250,3 +250,48 @@ describe('buildBudgetReport (base = JPY)', () => {
     expect(r2.lines[0].status).toBe('warn')
   })
 })
+
+describe('hạn mức ¥0 — người dùng CHỦ Ý không tiêu ở danh mục này', () => {
+  it('tiêu vào danh mục có hạn mức ¥0 là VƯỢT, không phải "ok"', () => {
+    // Trước bản này `ratio = budgeted > 0 ? spent/budgeted : 0` cho ratio 0 → status 'ok',
+    // nên đặt ¥0 để bị nhắc mà app báo xanh dù tiêu bao nhiêu. Đúng là hạn mức duy nhất
+    // KHÔNG THỂ tuân thủ nếu đã tiêu một đồng.
+    const r = buildBudgetReport([budget('anngoai', 0)], [
+      tx({ type: 'expense', amount: 500, category_id: 'anngoai' }),
+    ], currencyOf, 'JPY', RATES)
+    expect(r.lines[0].status).toBe('over')
+    expect(r.lines[0].spent).toBe(500)
+    expect(r.lines[0].budgeted).toBe(0)
+    expect(r.overCount).toBe(1)
+  })
+
+  it('hạn mức ¥0 mà chưa tiêu đồng nào thì KHÔNG báo vượt', () => {
+    const r = buildBudgetReport([budget('anngoai', 0)], [], currencyOf, 'JPY', RATES)
+    expect(r.lines[0].status).toBe('ok')
+    expect(r.lines[0].ratio).toBe(0)
+    expect(r.overCount).toBe(0)
+  })
+
+  it('ratio giữ HỮU HẠN — bốn chỗ in `Math.round(ratio * 100)%` không được ra "Infinity%"', () => {
+    const r = buildBudgetReport([budget('anngoai', 0)], [
+      tx({ type: 'expense', amount: 500, category_id: 'anngoai' }),
+    ], currencyOf, 'JPY', RATES)
+    expect(Number.isFinite(r.lines[0].ratio)).toBe(true)
+  })
+
+  it('trần nhóm ¥0 vẫn là trần THẬT: mục con thành mốc, không cộng vào tổng', () => {
+    // `plannedSlices`/`progress` xét CÓ DÒNG hạn mức, không xét `> 0` — luật này phải giữ.
+    const parentOf = (id: string) => (id === 'comngoai' ? 'anuong' : null)
+    const r = buildBudgetReport(
+      [budget('anuong', 0), budget('comngoai', 3_000)],
+      [tx({ type: 'expense', amount: 1_000, category_id: 'comngoai' })],
+      currencyOf,
+      'JPY',
+      RATES,
+      parentOf,
+    )
+    expect(r.lines.find((l) => l.categoryId === 'comngoai')!.isMarker).toBe(true)
+    expect(r.totalBudgeted).toBe(0)
+    expect(r.totalSpent).toBe(1_000)
+  })
+})

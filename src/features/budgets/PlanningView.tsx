@@ -191,6 +191,10 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
       shareBefore: line?.share ?? null,
       committed: row.limit,
     })
+    // Đặt `draft` NGAY khi mở, không đợi tới lúc kéo: `placeAt` là thứ ghim dòng lại đúng
+    // chỗ, và nó phải có hiệu lực từ lúc thanh xuất hiện. Chưa kéo thì `amount` bằng đúng
+    // hạn mức hiện tại nên không con số nào đổi.
+    setDraft({ categoryId: row.cat.id, amount: row.limit, placeAt: row.limit })
   }
 
   /** Nhả tay = ghi. Không đổi gì thì không ghi — chạm vào núm cũng sinh một lượt nhả tay. */
@@ -205,7 +209,11 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
     } catch {
       // Toast lỗi toàn cục đã nói. Việc ở đây là bật số về chỗ cũ, không để màn hình
       // hiện một hạn mức mà máy chủ không có.
-      setDraft({ categoryId, amount: slider.committed })
+      setDraft((d) => ({
+        categoryId,
+        amount: slider.committed,
+        placeAt: d?.categoryId === categoryId ? d.placeAt : slider.committed,
+      }))
     }
   }
 
@@ -226,7 +234,12 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
         axisShareNow: line?.share ?? null,
         axisTargetShare: line?.targetShare ?? null,
         axisOk: line?.ok ?? true,
-        onDrag: (v) => setDraft({ categoryId: row.cat.id, amount: v }),
+        onDrag: (v) =>
+          setDraft((d) => ({
+            categoryId: row.cat.id,
+            amount: v,
+            placeAt: d?.categoryId === row.cat.id ? d.placeAt : row.limit,
+          })),
         onCommit: (v) => void commitLimit(row.cat.id, v),
         onDetail: () => setEditing(row.cat.id),
       }
@@ -836,7 +849,10 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                lặng ở tab này, trong khi tab Ngân sách vẫn nói rõ. */
           currentRollover={data.rolloverByCat.get(editing)}
           budgetId={data.budgetIdByCat.get(editing)}
-          hint={budgetHint(editing, categories, (id) => (data.budgetedByCat.get(id) ?? 0) > 0)}
+          /* `hint` dùng `.has` chứ không phải `> 0`: trần nhóm ¥0 vẫn là trần thật, nên mục
+             con của nó vẫn chỉ là mốc theo dõi. Xét `> 0` là nói ngược lại — và BudgetView
+             vốn đã xét đúng bằng `budgets.some(...)`, hai màn lệch nhau từ trước. */
+          hint={budgetHint(editing, categories, (id) => data.budgetedByCat.has(id))}
           suggestion={data.suggestions.get(editing) ?? null}
           onClose={() => setEditing(null)}
         />

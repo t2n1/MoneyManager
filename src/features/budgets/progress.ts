@@ -102,7 +102,15 @@ export function buildBudgetReport(
     const budgeted = b.amount + carried
     // Marker: chỉ tính chi riêng của con. Dòng tính-vào-tổng: cả nhóm (cha + con).
     const spent = isMarker ? (spentByCat.get(b.category_id) ?? 0) : groupSpent(b.category_id)
-    const ratio = budgeted > 0 ? spent / budgeted : 0
+    // Hạn mức ¥0 là hạn mức THẬT, không phải "chưa đặt": người dùng chủ ý khai tháng này
+    // không tiêu ở đây. Nên tiêu một đồng vào đó là VƯỢT — đây là hạn mức duy nhất không
+    // thể tuân thủ nếu đã tiêu. Bản trước cho `ratio = 0` nên `statusOf` trả 'ok' và app
+    // báo xanh dù tiêu bao nhiêu, tức cái hạn mức đó không làm gì cả.
+    //
+    // Quy về 1 chứ KHÔNG phải Infinity: bốn chỗ in `Math.round(ratio * 100)%` (BudgetView
+    // ×2, BudgetPanel, DayTagStrip) sẽ ra "Infinity%". Con số thật của dòng nằm ở "vượt ¥X"
+    // lấy từ `spent − budgeted`, không lấy từ tỷ lệ.
+    const ratio = budgeted > 0 ? spent / budgeted : spent > 0 ? 1 : 0
     const status = statusOf(ratio)
     if (!isMarker) {
       if (status === 'over') overCount++

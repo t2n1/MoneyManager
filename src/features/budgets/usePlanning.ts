@@ -62,11 +62,21 @@ export interface PlanningData {
   hasMissingRate: boolean
 }
 
-/** Hạn mức đang được kéo dở, chưa ghi xuống máy chủ. */
+/** Dòng hạn mức đang mở thanh trượt. */
 export interface PlanDraft {
   categoryId: string
-  /** base minor */
+  /** số đang hiện trên thanh (base minor) — chưa chắc đã ghi xuống máy chủ */
   amount: number
+  /**
+   * Hạn mức lúc MỞ thanh. Chỉ dùng để ghim vị trí (xem `pinned` trong planGroups), không
+   * bao giờ dùng làm số hiện hay số cộng.
+   *
+   * Vì sao không lấy hạn mức đã lưu: kéo về ¥0 rồi nhả tay thì số đã lưu THÀNH 0, mà 0 nằm
+   * dưới `TAIL_LIMIT` nên dòng rơi vào đuôi đang gấp và biến mất ngay sau khi người dùng
+   * vừa chủ ý đặt nó. Lấy mốc lúc mở thì dòng đứng nguyên chỗ suốt lúc thanh còn mở, kể cả
+   * sau khi đã ghi.
+   */
+  placeAt: number
 }
 
 /**
@@ -159,15 +169,8 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
       gaps,
       axis: summary.axis,
       markerSlices: markers,
-      // Ghim VỊ TRÍ dòng đang kéo theo hạn mức đã lưu — xem `pinned` trong planGroups.
-      pinned: draft
-        ? {
-            categoryId: draft.categoryId,
-            limit:
-              savedBudgets.find((b) => b.category_id === draft.categoryId)?.amount ??
-              draft.amount,
-          }
-        : null,
+      // Ghim VỊ TRÍ dòng đang mở thanh, theo mốc lúc mở — xem `placeAt` và `pinned`.
+      pinned: draft ? { categoryId: draft.categoryId, limit: draft.placeAt } : null,
     })
 
     // Danh mục ĐẶT ĐƯỢC hạn mức mà chưa đặt, và có lịch sử để gợi ý. Cùng bộ lọc với
@@ -220,7 +223,6 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
     }
   }, [
     budgets,
-    savedBudgets,
     draft,
     plan,
     baseline,

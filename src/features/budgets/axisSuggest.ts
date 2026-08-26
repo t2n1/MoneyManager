@@ -80,6 +80,16 @@ function niceFloor(v: number): number {
 const STEPS = 200
 
 /**
+ * Bề rộng thang nhỏ nhất (base minor).
+ *
+ * Cần vì hạn mức ¥0 là một lựa chọn THẬT (xem `progress.ts`): người dùng khai tháng này
+ * không tiêu ở đây. Nhưng `0 × 1,25` làm mép phải tụt về ¥2, và một thang rộng hai đồng
+ * là đặt xong không đổi ý lại được. Cùng con số với `TAIL_LIMIT` không phải trùng hợp —
+ * dưới ngưỡng đó thì app đã coi là số không đáng đọc riêng.
+ */
+const MIN_SPAN = 1000
+
+/**
  * Thang riêng cho MỖI dòng, không dùng chung một thang toàn màn: Nhà ở ¥132.760 và
  * Cây & Cá ¥37 trên cùng một thang thì cái thứ hai không kéo được — cả dải của nó nằm
  * trong một pixel đầu tiên.
@@ -94,7 +104,11 @@ export function sliderScale(
   suggest: number | null,
   historyMax: number,
 ): SliderScale {
-  const ceiling = Math.max(limit, suggest ?? 0, historyMax, 1)
+  // Sàn chỉ áp khi KHÔNG CÓ GÌ để căn. Áp làm sàn chung là kéo tụt độ chính xác của dòng
+  // bé: `Cây & Cá ¥37` vốn có thang ¥50 bước ¥1, sàn chung đẩy nó thành ¥2.000 bước ¥10 và
+  // núm nằm ở 1,85% chiều dài — không kéo nổi.
+  const known = Math.max(limit, suggest ?? 0, historyMax)
+  const ceiling = known > 0 ? known : MIN_SPAN
   const max = niceCeil(ceiling * 1.25)
   return { max, step: niceFloor(max / STEPS) }
 }

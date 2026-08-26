@@ -1640,7 +1640,7 @@ function buildBudgetReport(allBudgets, monthTxs, currencyOf, base, rates, parent
     const carried = b.rollover ? Math.max(0, carryByCat.get(b.category_id) ?? 0) : 0;
     const budgeted = b.amount + carried;
     const spent = isMarker ? spentByCat.get(b.category_id) ?? 0 : groupSpent(b.category_id);
-    const ratio = budgeted > 0 ? spent / budgeted : 0;
+    const ratio = budgeted > 0 ? spent / budgeted : spent > 0 ? 1 : 0;
     const status = statusOf(ratio);
     if (!isMarker) {
       if (status === "over") overCount++;

@@ -44,12 +44,15 @@ export function BudgetEditSheet({
   // báo), không được vừa đóng sheet vừa im lặng như trước — người dùng tưởng đã lưu.
   async function handleSave() {
     try {
-      if (amount <= 0) {
-        // Nhập 0/để trống + đang có hạn mức → coi như xóa
-        if (budgetId) await remove.mutateAsync(budgetId)
-      } else {
-        await upsert.mutateAsync({ categoryId, monthKey, amount, rollover })
-      }
+      // ¥0 LÀ MỘT HẠN MỨC, không phải "xoá". Bản trước coi `<= 0` là xoá nên không có cách
+      // nào khai "tháng này tôi chắc chắn không tiêu ở đây" — mà đó là một lời khai khác
+      // hẳn "chưa đặt hạn mức": chưa đặt thì tiêu bao nhiêu cũng không ai nhắc, còn ¥0 thì
+      // tiêu một đồng là vượt (xem `progress.ts`). Xoá vẫn làm được, bằng nút Xóa bên dưới.
+      //
+      // Âm thì chặn ở đây: máy chủ có `check (amount >= 0)` nên gửi xuống chỉ nhận về một
+      // câu lỗi Postgres thô.
+      if (amount < 0) return
+      await upsert.mutateAsync({ categoryId, monthKey, amount, rollover })
     } catch {
       return
     }

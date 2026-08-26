@@ -128,9 +128,17 @@ describe('sliderScale', () => {
     expect(s.max).toBeGreaterThanOrEqual(12_156)
   })
 
-  it('bước kéo tối thiểu là 1 — không có nửa đồng yên', () => {
-    expect(sliderScale(37, null, 0).step).toBe(1)
-    expect(sliderScale(0, null, 0).step).toBe(1)
+  it('bước kéo là số nguyên >= 1 — không có nửa đồng yên', () => {
+    for (const [l, h] of [[37, 0], [0, 0], [620, 0], [0, 50_000]] as const) {
+      const s = sliderScale(l, null, h)
+      expect(Number.isInteger(s.step)).toBe(true)
+      expect(s.step).toBeGreaterThanOrEqual(1)
+    }
+  })
+
+  it('dòng bé giữ được độ chính xác — sàn thang KHÔNG kéo tụt nó', () => {
+    // `Cây & Cá ¥37`: sàn ¥1.000 áp chung sẽ cho thang ¥2.000 bước ¥10, núm nằm ở 1,85%.
+    expect(sliderScale(37, null, 0)).toEqual({ max: 50, step: 1 })
   })
 
   it('mép phải luôn chia hết cho bước kéo', () => {
@@ -149,5 +157,16 @@ describe('sliderScale', () => {
     const s = sliderScale(0, null, 0)
     expect(s.max).toBeGreaterThan(0)
     expect(s.step).toBeGreaterThan(0)
+  })
+
+  it('dòng ¥0 không có lịch sử vẫn có thang ĐỦ RỘNG để kéo lên lại', () => {
+    // Hạn mức ¥0 là một lựa chọn thật (xem progress.ts). Nhưng thang mà mép phải chỉ ¥2
+    // thì đặt xong là không đổi ý được nữa — cả dải nằm trong hai đồng.
+    const s = sliderScale(0, null, 0)
+    expect(s.max).toBeGreaterThanOrEqual(1_000)
+  })
+
+  it('dòng ¥0 CÓ lịch sử thì thang theo lịch sử, không bị sàn kéo tụt', () => {
+    expect(sliderScale(0, null, 50_000).max).toBeGreaterThanOrEqual(50_000)
   })
 })

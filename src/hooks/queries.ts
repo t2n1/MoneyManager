@@ -489,6 +489,22 @@ export function useAccountValuations() {
   })
 }
 
+/**
+ * Chặng cuộc đời của trang Tương lai. `queryKey` cố ý TRÙNG với `useLifetime.ts:75` (nơi
+ * gọi `repo.getLifePhases()` thẳng qua `useQuery` từ trước) — cùng khoá thì hai màn dùng
+ * chung một lượt đọc và một bản cache, không phải hai.
+ *
+ * Ngoài trang Tương lai thì màn khác dùng nó để biết NĂM người dùng dự tính ngừng làm:
+ * năm đó chỉ có một chỗ trong app, và ở đây.
+ */
+export function useLifePhases() {
+  return useQuery({
+    queryKey: ['lifePhases'],
+    queryFn: () => repo.getLifePhases(),
+    staleTime: 5 * 60_000,
+  })
+}
+
 function invalidateValuations(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['valuations'] })
   // Số dư (view) lộ market_value → Tổng tài sản / Tài sản ròng phụ thuộc snapshot

@@ -143,3 +143,49 @@ export function buildFundPortfolio(
     oversold: [...oversold].sort(),
   }
 }
+
+/**
+ * Một tài khoản đầu tư JPY **không có sổ lệnh quỹ**. `退職金` (DB掛金 — hưu trí doanh
+ * nghiệp, hagukumikikin.jp) là ca thật và là lý do file này có thêm khu này: nó được
+ * trang Nhập phiếu lương tạo ra với `type: 'investment'` + JPY (xem `TK_HUU_MOI`), nên
+ * rơi đúng vào bộ lọc của tab Quỹ Nhật — nhưng nó không có 協会コード, không có
+ * 基準価額, không có 口数, và sổ lệnh của nó rỗng VĨNH VIỄN. Giá trị của nó LÀ số dư.
+ *
+ * Dấu hiệu phân loại là "có sổ lệnh quỹ hay không", KHÔNG phải tên tài khoản hay một cờ
+ * mới trong DB: một tài khoản Rakuten vừa mở cũng chưa có lệnh nào, và nó phải tự chuyển
+ * sang bên quỹ ngay khi lệnh đầu tiên được ghi — không cần ai đi gắn cờ.
+ */
+export interface FundBalanceAccount {
+  accountId: string
+  accountName: string
+  /** yên — `market_value` nếu có ảnh chụp, không thì số dư sổ. */
+  value: number
+}
+
+export interface FundTabTotal {
+  /** Con số ở đầu tab. null = chưa có gì để nói. */
+  value: number | null
+  /** Tổng số dư các tài khoản không có sổ lệnh — ĐÃ nằm trong `value`. */
+  balanceTotal: number
+}
+
+/**
+ * Tổng của cả tab Quỹ Nhật = giá trị quỹ + số dư những tài khoản không có sổ lệnh.
+ *
+ * Hàm RIÊNG, không cộng thẳng vào `FundPortfolio.marketValue`: `buildFundPortfolio` cũng
+ * cấp số cho trang chi tiết MỘT tài khoản (`useAccountPortfolio`), nơi không có khái
+ * niệm "tài khoản khác" — thêm vào đó là làm trang chi tiết nói số của trang khác.
+ *
+ * Không có tài khoản số dư nào thì trả **y nguyên** `marketValue`, kể cả `null`: đó là
+ * hợp đồng cũ và cả tab đang dựa vào nó để nói "chưa có 基準価額 cho quỹ nào đang giữ".
+ *
+ * CÓ tài khoản số dư thì dùng `fundValue`, KHÔNG `marketValue`: `marketValue` là `null`
+ * khi thiếu giá MỌI quỹ đang giữ, và một `null` ở đó sẽ nuốt luôn phần số dư — phần duy
+ * nhất trong con số này biết chắc là đúng. `missingNavs` vẫn bật dấu ước tính, nên con
+ * số không tự nhận là chắc chắn.
+ */
+export function fundTabTotal(p: FundPortfolio, balances: FundBalanceAccount[]): FundTabTotal {
+  const balanceTotal = balances.reduce((s, b) => s + b.value, 0)
+  if (balances.length === 0) return { value: p.marketValue, balanceTotal: 0 }
+  return { value: p.fundValue + balanceTotal, balanceTotal }
+}

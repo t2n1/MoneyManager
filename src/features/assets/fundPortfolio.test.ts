@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { FundTrade } from './fundHoldings'
-import { buildFundPortfolio, type FundAccountTrades } from './fundPortfolio'
+import {
+  buildFundPortfolio,
+  fundTabTotal,
+  type FundAccountTrades,
+  type FundBalanceAccount,
+} from './fundPortfolio'
 
 // Mã thật của hai quỹ chủ app đang giữ — để bài test đọc được như sao kê.
 const SP500 = '9I31223A'
@@ -150,5 +155,55 @@ describe('buildFundPortfolio', () => {
     expect(p.positions).toEqual([])
     expect(p.marketValue).toBe(0)
     expect(p.realizedPnl).toBe(50_000)
+  })
+})
+
+describe('fundTabTotal', () => {
+  const soDu = (accountId: string, accountName: string, value: number): FundBalanceAccount => ({
+    accountId,
+    accountName,
+    value,
+  })
+
+  it('không có tài khoản số dư nào → trả y nguyên marketValue, kể cả null', () => {
+    const p = buildFundPortfolio([tk('a', [mua(SP500, 100_000, 20_000, 200_000)])], new Map())
+    expect(p.marketValue).toBeNull()
+    expect(fundTabTotal(p, [])).toEqual({ value: null, balanceTotal: 0 })
+  })
+
+  /**
+   * Ca thật của chủ app: 退職金 (DB掛金 — hưu trí doanh nghiệp) là tài khoản `investment`
+   * + JPY nên bị hút vào tab này, mà sổ lệnh quỹ của nó rỗng VĨNH VIỄN — không có
+   * 協会コード, không có 基準価額. Trước khi có khu "tính theo số dư", tab hiện ¥0 cho
+   * một tài khoản đang giữ ¥50.000.
+   */
+  it('退職金 ¥50.000 mà không giữ quỹ nào → tổng là ¥50.000, không phải ¥0', () => {
+    const p = buildFundPortfolio([], new Map())
+    expect(fundTabTotal(p, [soDu('c', '退職金', 50_000)])).toEqual({
+      value: 50_000,
+      balanceTotal: 50_000,
+    })
+  })
+
+  it('cộng số dư vào giá trị quỹ', () => {
+    const p = buildFundPortfolio(
+      [tk('a', [mua(SP500, 100_000, 20_000, 200_000)])],
+      new Map([[SP500, 25_000]]),
+    )
+    expect(p.fundValue).toBe(250_000)
+    expect(fundTabTotal(p, [soDu('c', '退職金', 50_000)]).value).toBe(300_000)
+  })
+
+  it('thiếu giá MỌI quỹ đang giữ nhưng có số dư → vẫn ra số, không nuốt phần đã biết', () => {
+    const p = buildFundPortfolio([tk('a', [mua(SP500, 100_000, 20_000, 200_000)])], new Map())
+    expect(p.marketValue).toBeNull()
+    // 200.000 (quỹ tạm tính theo giá vốn, `missingNavs` đã bật dấu ước tính) + 50.000
+    expect(fundTabTotal(p, [soDu('c', '退職金', 50_000)]).value).toBe(250_000)
+  })
+
+  it('cộng nhiều tài khoản số dư, kể cả tài khoản đang rỗng', () => {
+    const p = buildFundPortfolio([], new Map())
+    const t = fundTabTotal(p, [soDu('c', '退職金', 50_000), soDu('d', '楽天証券', 0)])
+    expect(t).toEqual({ value: 50_000, balanceTotal: 50_000 })
   })
 })

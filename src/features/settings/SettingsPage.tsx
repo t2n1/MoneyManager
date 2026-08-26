@@ -266,10 +266,6 @@ export function SettingsPage() {
             </Card>
           )}
 
-          {/* Dòng "Sổ Gạo · Giai đoạn 1 (MVP) · …" đã dời lên components/AppFooter.tsx: nó
-              đúng ở mọi trang chứ không riêng trang này, và để lại đây thì trang Cài đặt có
-              hai dòng chân nối đuôi nhau. */}
-
         </div>
       </div>
 

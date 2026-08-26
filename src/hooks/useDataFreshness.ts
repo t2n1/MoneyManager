@@ -2,13 +2,15 @@
 //
 // Hai hook, hai vai:
 //
-// `useDataFreshness` đủ ba nguồn — cho chân trang, tức là cho MỌI trang. Nó tự gọi
-// useStockPrices/useAccountValuations chứ không đợi component con nào gọi trước, nên app
-// tải hai bảng đó ngay từ trang đầu kể cả người không bao giờ mở Tài sản. Cái giá đó là
-// CỐ Ý và đã cân: react-query dùng chung cache theo query key nên chỉ tốn hai request mỗi
-// phiên, không phải mỗi trang; đổi lại chân trang nói cùng một câu ở khắp nơi thay vì mỗi
-// trang biết một phần. (Bản trước tách hai hook vì dòng này còn nằm ở đầu từng trang —
-// lúc đó gọi thêm hai query cho một trang không dùng tới chúng mới là lãng phí thật.)
+// `useDataFreshness` đủ cả hai nguồn — cho chân trang, tức là cho MỌI trang. Nó tự gọi
+// useStockPrices chứ không đợi component con nào gọi trước, nên app tải bảng giá ngay từ
+// trang đầu kể cả người không bao giờ mở Tài sản. Cái giá đó là CỐ Ý và đã cân: react-query
+// dùng chung cache theo query key nên chỉ tốn một request mỗi phiên, không phải mỗi trang;
+// đổi lại chân trang nói cùng một câu ở khắp nơi thay vì mỗi trang biết một phần.
+//
+// Nguồn thứ ba — nhãn "Giá trị tự khai", tức ngày định giá nhập tay gần nhất — ĐÃ BỎ. Bỏ
+// nó thì `useAccountValuations` cũng rời khỏi mọi trang: bảng đó giờ chỉ tải khi thật sự
+// mở Tài sản. Đừng thêm lại nguồn nào vào hook này mà không tính lại cái giá đó.
 //
 // `useRatesFreshness` chỉ tỷ giá — còn đúng một nơi dùng: trang Cài đặt cần biết tỷ giá
 // có cũ không để bật khối cảnh báo kèm nút "Thử lấy lại".
@@ -19,7 +21,7 @@ import { freshnessSummary, type FreshnessSummary } from '../lib/freshness'
 import type { CurrencyCode } from '../lib/currencies'
 import { readRatesMeta } from '../lib/rates'
 import { sessionPrices } from '../features/assets/holdings'
-import { useAccountValuations, useRates, useStockPrices } from './queries'
+import { useRates, useStockPrices } from './queries'
 
 /**
  * Tuổi của con số tỷ giá đang dùng.
@@ -67,7 +69,6 @@ export function useRatesFreshness(): FreshnessSummary | null {
         ratesFetchedAt: readRatesFetchedAt(base),
         priceSession: null,
         staleSymbolCount: 0,
-        lastValuationOn: null,
         nowMs: Date.now(),
         todayISO: toISODate(new Date()),
       })
@@ -84,17 +85,8 @@ export function useDataFreshness(): FreshnessSummary | null {
   const { base, rates } = useRates()
   const fetchTick = useRatesRefetchTick()
   const { data: prices = [] } = useStockPrices()
-  const { data: valuations = [] } = useAccountValuations()
 
   const { session, staleSymbols } = useMemo(() => sessionPrices(prices), [prices])
-
-  // Chỉ tính bản tự khai: bản 'auto' do cron stock-refresh ghi, gộp vào đây thì nhãn
-  // "giá trị tự khai" sẽ luôn trông như mới trong khi con số người dùng gõ tay đã cũ.
-  const lastValuationOn = useMemo(() => {
-    const manual = valuations.filter((v) => v.source === 'manual')
-    if (manual.length === 0) return null
-    return manual.reduce((max, v) => (v.valued_on > max ? v.valued_on : max), manual[0].valued_on)
-  }, [valuations])
 
   return useMemo(
     () => {
@@ -103,11 +95,10 @@ export function useDataFreshness(): FreshnessSummary | null {
         ratesFetchedAt: readRatesFetchedAt(base),
         priceSession: session,
         staleSymbolCount: staleSymbols.size,
-        lastValuationOn,
         nowMs: Date.now(),
         todayISO: toISODate(new Date()),
       })
     },
-    [base, rates, fetchTick, session, staleSymbols, lastValuationOn],
+    [base, rates, fetchTick, session, staleSymbols],
   )
 }

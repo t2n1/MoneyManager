@@ -39,7 +39,6 @@ describe('freshnessSummary', () => {
     ratesFetchedAt: NOW - 3 * HOUR,
     priceSession: '2026-08-06',
     staleSymbolCount: 0,
-    lastValuationOn: '2026-08-01',
     nowMs: NOW,
     todayISO: TODAY,
   }
@@ -50,7 +49,6 @@ describe('freshnessSummary', () => {
         ratesFetchedAt: null,
         priceSession: null,
         staleSymbolCount: 0,
-        lastValuationOn: null,
         nowMs: NOW,
         todayISO: TODAY,
       }),
@@ -60,7 +58,7 @@ describe('freshnessSummary', () => {
   it('mọi thứ đều mới → tone ok', () => {
     const r = freshnessSummary(base)
     expect(r?.tone).toBe('ok')
-    expect(r?.details).toHaveLength(3)
+    expect(r?.details).toHaveLength(2)
   })
 
   it('nêu tuổi tỷ giá', () => {
@@ -75,7 +73,6 @@ describe('freshnessSummary', () => {
     expect(r?.tone).toBe('warn')
     expect(r?.details.find((d) => d.label === 'Giá cổ phiếu')?.tone).toBe('warn')
     expect(r?.details.find((d) => d.label === 'Tỷ giá')?.tone).toBe('ok')
-    expect(r?.details.find((d) => d.label === 'Giá trị tự khai')?.tone).toBe('ok')
   })
 
   it(`tỷ giá quá ${STALE_RATE_DAYS} ngày → tone warn`, () => {
@@ -89,13 +86,8 @@ describe('freshnessSummary', () => {
     expect(r?.tone).toBe('warn')
   })
 
-  it('giá trị tự khai quá 90 ngày → tone warn', () => {
-    const r = freshnessSummary({ ...base, lastValuationOn: '2026-01-01' })
-    expect(r?.details.find((d) => d.label === 'Giá trị tự khai')?.tone).toBe('warn')
-  })
-
   it('thiếu nguồn nào thì bỏ nguồn đó, không bịa', () => {
-    const r = freshnessSummary({ ...base, priceSession: null, lastValuationOn: null })
+    const r = freshnessSummary({ ...base, priceSession: null })
     expect(r?.details).toHaveLength(1)
     expect(r?.details[0].label).toBe('Tỷ giá')
   })

@@ -1,9 +1,8 @@
-// Tuổi của dữ liệu lấy từ ngoài (tỷ giá, giá cổ phiếu, giá trị tự khai).
+// Tuổi của dữ liệu lấy từ ngoài (tỷ giá, giá cổ phiếu).
 //
-// Vì sao có file này: app trộn ba loại số có tuổi rất khác nhau trong cùng một màn —
-// số dư sổ (luôn đúng), tỷ giá (vài giờ), giá cổ phiếu (theo phiên), giá trị tự khai
-// (có khi cả năm). Nhìn vào không có gì phân biệt, nên người đọc mặc định coi tất cả
-// đều mới.
+// Vì sao có file này: app trộn nhiều loại số có tuổi rất khác nhau trong cùng một màn —
+// số dư sổ (luôn đúng), tỷ giá (vài giờ), giá cổ phiếu (theo phiên). Nhìn vào không có gì
+// phân biệt, nên người đọc mặc định coi tất cả đều mới.
 //
 // Module này KHÔNG tự đọc cache tỷ giá: nó nhận mốc thời gian qua tham số, nên test được
 // mà không cần localStorage, và nơi gọi (hooks/useDataFreshness.ts) tự chọn nguồn mốc.
@@ -16,8 +15,6 @@ const DAY = 86_400_000
 // Ngưỡng "tỷ giá đã cũ" lấy thẳng từ lib/rates.ts, không khai lại: cảnh báo ở trang Cài
 // đặt dùng cùng con số này, hai bản sao sẽ trôi khỏi nhau lúc nào không biết.
 export { STALE_RATE_DAYS }
-/** Ngưỡng giá trị tự khai bị coi là cũ — một quý. */
-export const STALE_VALUATION_DAYS = 90
 
 /** "3 giờ trước" / "hôm qua" / "5 ngày trước". Mốc ở tương lai → "vừa xong". */
 export function ageLabel(ms: number): string {
@@ -36,8 +33,6 @@ export interface FreshnessInput {
   priceSession: string | null
   /** Số mã còn kẹt ở giá của phiên cũ hơn. */
   staleSymbolCount: number
-  /** Ngày định giá tay gần nhất (ISO). null = không có tài sản tự khai. */
-  lastValuationOn: string | null
   nowMs: number
   todayISO: string
 }
@@ -67,7 +62,7 @@ function daysSinceISO(fromISO: string, todayISO: string): number {
 }
 
 /**
- * Gom tuổi của cả ba nguồn thành một dòng đọc được.
+ * Gom tuổi của các nguồn thành một dòng đọc được.
  * Trả null khi KHÔNG có nguồn nào — để nơi gọi khỏi hiện một dòng rỗng.
  */
 export function freshnessSummary(input: FreshnessInput): FreshnessSummary | null {
@@ -90,15 +85,6 @@ export function freshnessSummary(input: FreshnessInput): FreshnessSummary | null
       // Mã kẹt giá cũ là tín hiệu mạnh hơn tuổi của phiên: phiên có thể mới mà vài mã
       // vẫn chưa có giá, và đó mới là lúc tổng tài sản bị tính hụt.
       tone: input.staleSymbolCount > 0 ? 'warn' : 'ok',
-    })
-  }
-
-  if (input.lastValuationOn !== null) {
-    const days = daysSinceISO(input.lastValuationOn, input.todayISO)
-    details.push({
-      label: 'Giá trị tự khai',
-      age: days === 0 ? 'hôm nay' : ageLabel(days * DAY),
-      tone: days > STALE_VALUATION_DAYS ? 'warn' : 'ok',
     })
   }
 

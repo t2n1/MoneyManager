@@ -263,6 +263,10 @@ export type ProfilePatch = Partial<
     | 'target_flexible_bps'
     | 'target_savings_bps'
     | 'notif_off'
+    // Hai tham số của 企業年金 (migration 0051): 給付利率 và ba điểm hiệu chuẩn từ
+    // sheet của 基金. Người dùng sửa được vì 基金 đổi cả hai theo thời gian.
+    | 'kikin_give_rate_bps'
+    | 'kikin_sheet'
     // birth_year (mục Lifetime, migration 0031): cột đã có ở DB Update type từ đầu,
     // nhưng sót khỏi Pick này — không thêm thì màn Lifetime không lưu được năm sinh.
     | 'birth_year'

@@ -922,6 +922,12 @@ function seed(): DemoDB {
       push_tz: 'Asia/Tokyo',
       push_last_sent_at: null,
       density_pref: DEFAULT_DENSITY,
+      // null = chưa khai (migration 0051) → màn 退職金 dùng hằng số dựng sẵn trong code
+      // và nói rõ đang dùng số của 事業年度 nào. KHÔNG bump khoá localStorage vì hai cột
+      // này nullable: bản demo cũ trong máy người dùng đọc lên là `undefined`, và mọi
+      // nơi dùng đều có `?? mặc_định`.
+      kikin_give_rate_bps: null,
+      kikin_sheet: null,
       created_at: nowISO(),
     },
     accounts,

@@ -32,6 +32,17 @@ export type DebtStatus = 'open' | 'settled'
  */
 export type DebtOrigin = 'lent' | 'earned'
 
+/**
+ * Sheet mô phỏng cá nhân của 企業年金, người dùng gõ lại vào app (migration 0051).
+ * `dated` là ngày IN TRÊN SHEET ('YYYY-MM'), không phải ngày gõ — màn hình hiện nó cạnh
+ * con số để "tiết kiệm được bao nhiêu" không âm thầm cũ đi khi lương đã đổi.
+ */
+export type KikinSheet = {
+  dated: string
+  /** m = 掛金/tháng, si = 社会保険料/năm, tax = 所得税+住民税/năm. */
+  points: { m: number; si: number; tax: number }[]
+}
+
 export type ProfileRow = {
   user_id: string
   display_name: string | null
@@ -53,6 +64,16 @@ export type ProfileRow = {
   notif_off: string[]
   /** Năm sinh — cần cho Lifetime. null = chưa khai. */
   birth_year: number | null
+  /**
+   * 給付利率 của 企業年金 (basis points, 30 = 0,30%/năm) — 基金 đặt lại theo từng 事業年度.
+   * null = chưa khai → app dùng `KIKIN_GIVE_RATE_BPS_2025`. Migration 0051.
+   */
+  kikin_give_rate_bps: number | null
+  /**
+   * Ba điểm hiệu chuẩn từ sheet của 企業年金; null = chưa khai → app dùng `SHEET_2025_08`.
+   * Migration 0051.
+   */
+  kikin_sheet: KikinSheet | null
   /** Giờ gửi push mỗi ngày (0..23), tính theo `push_tz` chứ không phải UTC. */
   push_hour: number
   /**
@@ -753,6 +774,8 @@ export type Database = {
           | 'push_tz'
           | 'push_last_sent_at'
           | 'density_pref'
+          | 'kikin_give_rate_bps'
+          | 'kikin_sheet'
         >
         Update: Partial<
           Pick<
@@ -772,6 +795,8 @@ export type Database = {
             | 'push_tz'
             | 'push_last_sent_at'
           | 'density_pref'
+          | 'kikin_give_rate_bps'
+          | 'kikin_sheet'
           >
         >
         Relationships: []

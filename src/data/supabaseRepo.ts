@@ -2416,6 +2416,11 @@ export const supabaseRepo: Repo = {
             // có thể mang giá trị lạ, mà DB có check in ('visual','full') — gửi thẳng lên
             // là cả lượt khôi phục nổ vì một cột trình bày.
             density_pref: parseDensity(data.profile.density_pref), // 0040
+            // 0051. Hai tham số của 企業年金. `?? null` chứ không bỏ qua: null có nghĩa
+            // riêng ("chưa khai" → app dùng hằng số dựng sẵn và nói ra), nên bỏ sót cột
+            // là biến một lựa chọn đã khai thành mặc định mà không ai thấy.
+            kikin_give_rate_bps: data.profile.kikin_give_rate_bps ?? null, // 0051
+            kikin_sheet: data.profile.kikin_sheet ?? null, // 0051
           })
           .eq('user_id', uid)
       ).error,

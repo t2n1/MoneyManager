@@ -170,3 +170,27 @@ describe('sliderScale', () => {
     expect(sliderScale(0, null, 50_000).max).toBeGreaterThanOrEqual(50_000)
   })
 })
+
+describe('sliderScale — vì sao KHÔNG được gọi với số đang kéo', () => {
+  it('đưa mép phải trở lại làm đầu vào thì thang phình ra mãi', () => {
+    // Đây là lỗi đã xảy ra thật: LimitSlider gọi `sliderScale(value, ...)` với `value` là
+    // số ĐANG KÉO. Đẩy núm tới mép → `ceiling` lớn lên → mép phải nới → núm giật về giữa
+    // → còn chỗ đẩy tiếp. Một lần kéo liền tay đưa ¥20.000 lên ¥1.000.000.
+    //
+    // Hàm này KHÔNG sai — nó đúng là "thang cho một hạn mức". Sai là chỗ GỌI. Test này
+    // chốt lại cơ chế phình để lần sau ai định tính thang trong lúc kéo thì thấy ngay.
+    const buoc: number[] = []
+    let v = 20_000
+    for (let i = 0; i < 5; i++) {
+      v = sliderScale(v, null, 0).max
+      buoc.push(v)
+    }
+    expect(buoc).toEqual([50_000, 100_000, 200_000, 500_000, 1_000_000])
+
+    // Cách dùng ĐÚNG: một hạn mức cố định luôn cho cùng một thang, gọi bao nhiêu lần cũng vậy.
+    const a = sliderScale(20_000, null, 0)
+    const b = sliderScale(20_000, null, 0)
+    expect(a).toEqual(b)
+    expect(a.max).toBe(50_000)
+  })
+})

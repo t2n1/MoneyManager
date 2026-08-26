@@ -42,7 +42,7 @@ import { confirmDialog, showToast } from '../../lib/dialog'
 import { monthlyNeeded } from '../assets/goals'
 import { TagPlanBlock } from '../tags/TagPlanBlock'
 import { AXIS_LABEL, BASELINE_MONTHS, shareLabel, type AxisKey } from './axisTargets'
-import { axisSuggestions } from './axisSuggest'
+import { axisSuggestions, sliderScale } from './axisSuggest'
 import { LimitSlider, type LimitSliderProps } from './LimitSlider'
 import { budgetHint } from './budgetHint'
 import { nameList } from './capOverflow'
@@ -98,6 +98,9 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
    * · `committed` — số đã ghi xuống máy chủ gần nhất, để nhả tay mà không đổi gì thì
    *   không ghi, và ghi lỗi thì biết bật về đâu. KHÔNG đọc lại từ `budgetedByCat`: cái đó
    *   đã bị `draft` vá nên nó là số đang kéo, không phải số đã lưu.
+   * · `max`/`step` — THANG của thanh. Cũng phải đứng yên: tính từ số đang kéo thì đẩy núm
+   *   tới mép làm thang nới ra, núm giật về giữa, và còn chỗ đẩy tiếp — một lần kéo liền
+   *   tay đưa ¥20.000 lên ¥1.000.000. Xem `LimitSliderProps.max`.
    */
   const [slider, setSlider] = useState<{
     id: string
@@ -105,6 +108,8 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
     axisKey: AxisKey | null
     shareBefore: number | null
     committed: number
+    max: number
+    step: number
   } | null>(null)
   const [draft, setDraft] = useState<PlanDraft | null>(null)
   /**
@@ -190,6 +195,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
       axisKey,
       shareBefore: line?.share ?? null,
       committed: row.limit,
+      ...sliderScale(row.limit, suggest, row.suggestion?.max ?? 0),
     })
     // Đặt `draft` NGAY khi mở, không đợi tới lúc kéo: `placeAt` là thứ ghim dòng lại đúng
     // chỗ, và nó phải có hiệu lực từ lúc thanh xuất hiện. Chưa kéo thì `amount` bằng đúng
@@ -228,7 +234,8 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
         base,
         value: row.limit,
         suggest: slider?.suggest ?? null,
-        historyMax: row.suggestion?.max ?? 0,
+        max: slider?.max ?? 0,
+        step: slider?.step ?? 1,
         axisLabel: slider?.axisKey ? AXIS_LABEL[slider.axisKey] : null,
         axisShareBefore: slider?.shareBefore ?? null,
         axisShareNow: line?.share ?? null,

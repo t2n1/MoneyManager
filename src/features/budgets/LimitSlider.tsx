@@ -16,7 +16,6 @@
 import { Money } from '../../components/ui'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { sharePct } from './axisTargets'
-import { sliderScale } from './axisSuggest'
 
 export interface LimitSliderProps {
   base: CurrencyCode
@@ -24,8 +23,20 @@ export interface LimitSliderProps {
   value: number
   /** vạch gợi ý; null = trục này đang trong trần nên không có gì phải đạt */
   suggest: number | null
-  /** tháng tốn nhất trong cửa sổ gợi ý; 0 = chưa có lịch sử */
-  historyMax: number
+  /**
+   * Mép phải và bước kéo, do nơi gọi CHỤP LẠI lúc mở thanh (`sliderScale`).
+   *
+   * Nhận qua prop chứ KHÔNG tự tính từ `value`, và đây là chỗ đã có lỗi thật: tính từ số
+   * đang kéo thì đẩy núm tới mép làm `ceiling` lớn lên → mép phải nới ra → núm giật về
+   * giữa thanh → còn chỗ để đẩy tiếp. Một lần kéo liền tay đưa ¥20.000 lên ¥1.000.000
+   * qua năm nhịp giật (50k → 100k → 200k → 500k → 1tr), và người dùng phải kéo ngược lại
+   * để hạ. Thang đứng yên suốt lúc thanh còn mở thì không có nhịp giật nào.
+   *
+   * Muốn vượt mép phải thì nhả tay rồi bấm mở lại — thang mới tính từ số vừa đặt — hoặc
+   * gõ số thẳng ở "Sửa chi tiết".
+   */
+  max: number
+  step: number
   /** tên trục của danh mục này; null = chưa phân loại nên không thuộc trục nào */
   axisLabel: string | null
   /** tỷ lệ trục LÚC MỞ thanh (0..1); null khi không biết thu nhập */
@@ -46,7 +57,8 @@ export function LimitSlider({
   base,
   value,
   suggest,
-  historyMax,
+  max,
+  step,
   axisLabel,
   axisShareBefore,
   axisShareNow,
@@ -56,7 +68,6 @@ export function LimitSlider({
   onCommit,
   onDetail,
 }: LimitSliderProps) {
-  const { max, step } = sliderScale(value, suggest, historyMax)
   // Vạch chỉ vẽ khi nằm trong thang. `sliderScale` đã phủ `suggest` nên điều kiện này chỉ
   // đúng-cho-chắc, không phải một nhánh thật.
   const markPct = suggest !== null && max > 0 ? Math.min((suggest / max) * 100, 100) : null

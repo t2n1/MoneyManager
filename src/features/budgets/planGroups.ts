@@ -108,6 +108,18 @@ export interface PlanGroupsInput {
   axis: AxisProgress | null
   /** mốc con từ `plannedSlices().markers` — để bắt được đứa không nằm trong nhóm nào đang hiện */
   markerSlices: CategorySlice[]
+  /**
+   * Dòng đang kéo dở trên thanh trượt, kèm hạn mức ĐÃ LƯU của nó.
+   *
+   * Chỉ dùng cho VỊ TRÍ: thứ tự trong khối và phép chia đầu/đuôi. Số hiện ra và mọi tổng
+   * vẫn là `limit` (số đang kéo), nên tiểu tổng khối vẫn khớp dòng trục từng đồng.
+   *
+   * Vì sao cần: cả hai phép trên đều lấy khoá từ `limit`, nên kéo qua mức của dòng bên
+   * cạnh là ĐỔI CHỖ ngay giữa lúc kéo — trên điện thoại dòng chạy ra khỏi ngón tay, và
+   * kéo xuống dưới `TAIL_LIMIT` thì dòng rơi vào đuôi đang gấp, thanh trượt biến mất
+   * trong tay người dùng. Vị trí phải đứng yên tới khi nhả tay.
+   */
+  pinned?: { categoryId: string; limit: number } | null
 }
 
 export interface PlanGroups {
@@ -142,6 +154,7 @@ export function planGroups({
   gaps,
   axis,
   markerSlices,
+  pinned,
 }: PlanGroupsInput): PlanGroups {
   const byId = new Map(categories.map((c) => [c.id, c]))
   const gapOf = new Map(gaps.map((g) => [g.categoryId, g.short]))
@@ -241,6 +254,10 @@ export function planGroups({
       ? (axis?.lines.find((l) => l.key === key)?.target ?? null)
       : null
 
+  /** Khoá VỊ TRÍ của một dòng — khác `limit` đúng ở dòng đang kéo (xem `pinned`). */
+  const placeOf = (r: PlanRow) =>
+    pinned && r.cat.id === pinned.categoryId ? pinned.limit : r.limit
+
   const blocks: PlanBlock[] = []
   for (const key of ORDER) {
     const picked =
@@ -252,12 +269,12 @@ export function planGroups({
     // KHÔNG dùng `sortBudgetItems()` — ba chế độ của nó (`pace`/`money`/`manual`) đều
     // tính trên `spent`, mà tháng chưa bắt đầu thì `spent = 0` với mọi dòng, nên hai chế
     // độ đầu ra cùng một thứ tự tuỳ ý.
-    picked.sort((a, b) => b.limit - a.limit || a.cat.sort_order - b.cat.sort_order)
+    picked.sort((a, b) => placeOf(b) - placeOf(a) || a.cat.sort_order - b.cat.sort_order)
 
     // Dòng trần nhóm KHÔNG bị gấp kể cả khi nhỏ: nó mang danh sách mốc con xổ ra được,
     // mà gấp nó lại là chôn luôn cả nhánh đó.
-    const rows = picked.filter((r) => r.limit >= TAIL_LIMIT || r.groupCap)
-    const tail = picked.filter((r) => r.limit < TAIL_LIMIT && !r.groupCap)
+    const rows = picked.filter((r) => placeOf(r) >= TAIL_LIMIT || r.groupCap)
+    const tail = picked.filter((r) => placeOf(r) < TAIL_LIMIT && !r.groupCap)
     const total = picked.reduce((s, r) => s + r.limit, 0)
     const target = targetOf(key)
 

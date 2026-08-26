@@ -41,7 +41,9 @@ import { convertToBase } from '../../lib/rates'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { monthlyNeeded } from '../assets/goals'
 import { TagPlanBlock } from '../tags/TagPlanBlock'
-import { AXIS_LABEL, BASELINE_MONTHS, shareLabel } from './axisTargets'
+import { AXIS_LABEL, BASELINE_MONTHS, shareLabel, type AxisKey } from './axisTargets'
+import { axisSuggestions } from './axisSuggest'
+import { LimitSlider, type LimitSliderProps } from './LimitSlider'
 import { budgetHint } from './budgetHint'
 import { nameList } from './capOverflow'
 import { LimitSparkline } from './LimitSparkline'
@@ -51,7 +53,7 @@ import { planVerdict } from './planVerdict'
 import { isOffAverage } from './suggest'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { ExpectedIncomeSheet } from './ExpectedIncomeSheet'
-import { SUGGEST_MONTHS, usePlanning } from './usePlanning'
+import { SUGGEST_MONTHS, usePlanning, type PlanDraft } from './usePlanning'
 import { STATUS_FILL } from '../../components/ui/statusColors'
 
 /** Chế độ xem panel hạn mức. Sở thích XEM nên ở máy (localStorage), không vào hồ sơ. */
@@ -87,9 +89,41 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   const { data: categories = [] } = useCategories()
   const { data: goals = [] } = useSavingsGoals()
   const { data: balances = [] } = useAccountBalances()
-  const data = usePlanning(monthKey)
+  /**
+   * Thanh trượt đang mở. Chụp lại LÚC MỞ, không tính lại mỗi lần render:
+   *
+   * · `suggest` — vạch gợi ý phải ĐỨNG YÊN trong lúc kéo. Tính lại theo số đang kéo thì
+   *   trục co lại làm vạch dịch, người dùng kéo tới đâu vạch chạy tới đó.
+   * · `shareBefore` — để in "51% → 45%". Chụp trước khi có `draft` nên nó là số thật.
+   * · `committed` — số đã ghi xuống máy chủ gần nhất, để nhả tay mà không đổi gì thì
+   *   không ghi, và ghi lỗi thì biết bật về đâu. KHÔNG đọc lại từ `budgetedByCat`: cái đó
+   *   đã bị `draft` vá nên nó là số đang kéo, không phải số đã lưu.
+   */
+  const [slider, setSlider] = useState<{
+    id: string
+    suggest: number | null
+    axisKey: AxisKey | null
+    shareBefore: number | null
+    committed: number
+  } | null>(null)
+  const [draft, setDraft] = useState<PlanDraft | null>(null)
+  /**
+   * MỘT bản phân bổ vạch gợi ý, đóng băng cho cả lượt — không tính lại mỗi lần mở một dòng.
+   *
+   * Vì sao phải đóng băng: vạch là "phần theo tỷ lệ của dòng này trong trần trục", nên tính
+   * lại theo tình trạng hiện tại thì sau khi một dòng đã co, dòng còn lại chỉ cần co ít hơn.
+   * Đo trên ca thật (Linh hoạt ¥205.000 / trần ¥120.100, 5 dòng): kéo cả 5 dòng về đúng vạch
+   * mà tổng vẫn còn ¥141.942 — vượt ¥21.842. Người dùng làm đúng từng thứ app bảo, xong app
+   * vẫn báo vượt. Một bản phân bổ đóng băng thì 5 vạch cộng lại bằng ĐÚNG ¥120.100.
+   *
+   * `null` = chưa dựng, hoặc người dùng vừa đi lệch khỏi bản cũ nên phải lập lại (xem
+   * `commitLimit`): bản cũ chỉ cộng đúng trần khi mọi dòng còn theo nó.
+   */
+  const [marks, setMarks] = useState<Map<string, number> | null>(null)
+  const data = usePlanning(monthKey, draft)
   const copy = useCopyBudgetsFromPreviousMonth()
   const upsert = useUpsertBudget()
+  const { summary, projection, groups } = data
 
   const [editing, setEditing] = useState<string | null>(null)
   const [incomeOpen, setIncomeOpen] = useState(false)
@@ -120,6 +154,85 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   const toggleTail = toggleIn(tailOpen, setTailOpen)
   const toggleGroup = toggleIn(groupOpen, setGroupOpen)
 
+  /**
+   * Mở / đóng thanh trượt của một dòng. Bấm lại chính dòng đó thì đóng, và ĐÓNG LÀ BỎ
+   * `draft`: từ đó trở đi cả mặt tính lại theo số đã lưu, không giữ một số treo lơ lửng.
+   *
+   * `draft` KHÔNG bị bỏ khi chuyển sang dòng khác: nó luôn bằng số vừa ghi thành công, nên
+   * giữ lại tránh một nhịp nhảy số trong khi query chưa kịp về.
+   */
+  function toggleSlider(row: PlanRow) {
+    if (slider?.id === row.cat.id) {
+      setSlider(null)
+      setDraft(null)
+      return
+    }
+    const axisKey = catOf(row.cat.id)?.need_level ?? null
+    const line = axisKey ? (summary.axis?.lines.find((l) => l.key === axisKey) ?? null) : null
+    // Trục còn trong trần thì KHÔNG có vạch: không có gì phải đạt, và vẽ một vạch trên mức
+    // hiện tại là app đang gợi ý tiêu thêm. Cũng chặn luôn vạch cũ đã đóng băng từ lúc trục
+    // còn vượt — nó đúng lúc đó, sai bây giờ.
+    const over = !!line && line.direction === 'cap' && line.actual > line.target
+    let suggest: number | null = null
+    if (over) {
+      // Dựng bản phân bổ khi chưa có, hoặc khi dòng này chưa nằm trong bản cũ (mới đặt
+      // hạn mức sau khi bản đó lập).
+      let m = marks
+      if (!m || !m.has(row.cat.id)) {
+        m = axisSuggestions(summary.axis)
+        setMarks(m)
+      }
+      suggest = m.get(row.cat.id) ?? null
+    }
+    setSlider({
+      id: row.cat.id,
+      suggest,
+      axisKey,
+      shareBefore: line?.share ?? null,
+      committed: row.limit,
+    })
+  }
+
+  /** Nhả tay = ghi. Không đổi gì thì không ghi — chạm vào núm cũng sinh một lượt nhả tay. */
+  async function commitLimit(categoryId: string, amount: number) {
+    if (!slider || slider.id !== categoryId || amount === slider.committed) return
+    try {
+      await upsert.mutateAsync({ categoryId, monthKey: monthKeyStr, amount })
+      setSlider((s) => (s && s.id === categoryId ? { ...s, committed: amount } : s))
+      // Đi lệch khỏi vạch thì bản phân bổ cũ hết đúng — các vạch còn lại cộng vào con số
+      // vừa bị đổi sẽ không ra trần nữa. Bỏ đi để dòng mở tiếp theo lập bản mới.
+      if (amount !== marks?.get(categoryId)) setMarks(null)
+    } catch {
+      // Toast lỗi toàn cục đã nói. Việc ở đây là bật số về chỗ cũ, không để màn hình
+      // hiện một hạn mức mà máy chủ không có.
+      setDraft({ categoryId, amount: slider.committed })
+    }
+  }
+
+  const sliderCtl: SliderCtl = {
+    openId: slider?.id ?? null,
+    toggle: toggleSlider,
+    propsFor: (row) => {
+      const line = slider?.axisKey
+        ? (summary.axis?.lines.find((l) => l.key === slider.axisKey) ?? null)
+        : null
+      return {
+        base,
+        value: row.limit,
+        suggest: slider?.suggest ?? null,
+        historyMax: row.suggestion?.max ?? 0,
+        axisLabel: slider?.axisKey ? AXIS_LABEL[slider.axisKey] : null,
+        axisShareBefore: slider?.shareBefore ?? null,
+        axisShareNow: line?.share ?? null,
+        axisTargetShare: line?.targetShare ?? null,
+        axisOk: line?.ok ?? true,
+        onDrag: (v) => setDraft({ categoryId: row.cat.id, amount: v }),
+        onCommit: (v) => void commitLimit(row.cat.id, v),
+        onDetail: () => setEditing(row.cat.id),
+      }
+    },
+  }
+
   // Mục tiêu tiết kiệm gửi sang đúng MỘT con số: cần để riêng bao nhiêu mỗi tháng.
   // Trang này không cần biết mục tiêu tên gì hay tới bao giờ — chuyện đó ở tab Tài sản.
   const goalNeed = useMemo(() => {
@@ -139,7 +252,6 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
     return sum
   }, [goals, balances, monthKey, base, rates])
 
-  const { summary, projection, groups } = data
   const over = summary.unallocated < 0
   // Câu phán: ngưỡng, cách nối mệnh đề và ca "chưa biết thu nhập" nằm ở planVerdict.ts
   // cùng test của nó — ở đây chỉ có việc bày ra.
@@ -678,6 +790,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                 groupOpen={groupOpen}
                 onToggleGroup={toggleGroup}
                 onEdit={setEditing}
+                slider={sliderCtl}
               />
             ))}
 
@@ -971,6 +1084,21 @@ function DecisionRow({
 }
 
 /** Một khối nhóm: header có tiểu tổng, rồi các dòng, rồi đuôi dài gấp lại. */
+/**
+ * Cần điều khiển thanh trượt, gói thành MỘT prop.
+ *
+ * Vì sao gói: bốn thứ (dòng nào đang mở, mở/đóng, dựng props, và số đang kéo) phải xuyên
+ * qua `BlockBody` → `ListRow`/`TableRow`. Rải thành bốn prop là bốn chỗ phải sửa mỗi lần
+ * thêm một mảnh, và `propsFor` giữ toàn bộ phần TÍNH ở lại `PlanningView` — hai dòng chỉ
+ * còn việc gọi nó.
+ */
+interface SliderCtl {
+  /** id dòng đang xổ thanh; null = không dòng nào */
+  openId: string | null
+  toggle: (row: PlanRow) => void
+  propsFor: (row: PlanRow) => LimitSliderProps
+}
+
 function BlockBody({
   block,
   base,
@@ -981,6 +1109,7 @@ function BlockBody({
   groupOpen,
   onToggleGroup,
   onEdit,
+  slider,
 }: {
   block: PlanBlock
   base: Parameters<typeof Money>[0]['currency']
@@ -991,7 +1120,12 @@ function BlockBody({
   groupOpen: Set<string>
   onToggleGroup: (id: string) => void
   onEdit: (id: string) => void
+  slider: SliderCtl
 }) {
+  // Khối "Mốc con" KHÔNG có thanh trượt: mốc con bị loại khỏi `counted` (xem plannedSlices)
+  // nên kéo nó không làm trục nhúc nhích, mà dòng "Linh hoạt 45%" đứng im trong lúc kéo
+  // đọc ra như app bị treo. Bấm mốc con vẫn mở tấm trượt như trước.
+  const rowSlider = block.key === 'markers' ? null : slider
   const pct =
     block.target && block.target > 0 ? Math.min(100, (block.total / block.target) * 100) : null
 
@@ -1068,7 +1202,7 @@ function BlockBody({
         )}
         {block.rows.map((r) =>
           viewMode === 'table' ? (
-            <TableRow key={r.cat.id} row={r} base={base} onEdit={onEdit} />
+            <TableRow key={r.cat.id} row={r} base={base} onEdit={onEdit} slider={rowSlider} />
           ) : (
             <ListRow
               key={r.cat.id}
@@ -1078,6 +1212,7 @@ function BlockBody({
               open={groupOpen.has(r.cat.id)}
               onToggle={() => onToggleGroup(r.cat.id)}
               onEdit={onEdit}
+              slider={rowSlider}
             />
           ),
         )}
@@ -1108,7 +1243,7 @@ function BlockBody({
               <ul>
                 {block.tail.map((r) =>
                   viewMode === 'table' ? (
-                    <TableRow key={r.cat.id} row={r} base={base} onEdit={onEdit} />
+                    <TableRow key={r.cat.id} row={r} base={base} onEdit={onEdit} slider={rowSlider} />
                   ) : (
                     <ListRow
                       key={r.cat.id}
@@ -1118,6 +1253,7 @@ function BlockBody({
                       open={false}
                       onToggle={() => undefined}
                       onEdit={onEdit}
+                      slider={rowSlider}
                     />
                   ),
                 )}
@@ -1161,6 +1297,7 @@ function ListRow({
   open,
   onToggle,
   onEdit,
+  slider,
 }: {
   row: PlanRow
   base: Parameters<typeof Money>[0]['currency']
@@ -1168,8 +1305,10 @@ function ListRow({
   open: boolean
   onToggle: () => void
   onEdit: (id: string) => void
+  slider: SliderCtl | null
 }) {
   const note = rowNote(row, money)
+  const sliderOpen = slider?.openId === row.cat.id
   return (
     <li className="border-t border-border-subtle">
       <div className="flex items-center gap-2 px-4">
@@ -1194,9 +1333,13 @@ function ListRow({
             {row.cat.icon}
           </span>
         )}
+        {/* Bấm dòng giờ XỔ THANH TRƯỢT, không mở tấm trượt nữa: kéo là việc làm nhiều
+            lần trong một lượt lập kế hoạch, còn gõ số chính xác / bật cờ dồn / xoá là
+            việc làm một lần — chúng lùi vào "Sửa chi tiết" trong vùng xổ ra. */}
         <button
           type="button"
-          onClick={() => onEdit(row.cat.id)}
+          onClick={() => (slider ? slider.toggle(row) : onEdit(row.cat.id))}
+          aria-expanded={slider ? sliderOpen : undefined}
           className="flex min-h-11 min-w-0 flex-1 items-center gap-2 py-1 text-left"
         >
           <span className="min-w-0 flex-1">
@@ -1223,6 +1366,8 @@ function ListRow({
           />
         </button>
       </div>
+
+      {sliderOpen && slider && <LimitSlider {...slider.propsFor(row)} />}
 
       {open && row.markers.length > 0 && (
         <ul className="ml-9 mb-2 divide-y divide-border-strong rounded-md bg-surface-sunken px-3">
@@ -1257,18 +1402,22 @@ function TableRow({
   row,
   base,
   onEdit,
+  slider,
 }: {
   row: PlanRow
   base: Parameters<typeof Money>[0]['currency']
   onEdit: (id: string) => void
+  slider: SliderCtl | null
 }) {
   const avg = row.suggestion?.average ?? 0
   const off = isOffAverage(row.limit, avg)
+  const sliderOpen = slider?.openId === row.cat.id
   return (
     <li className="border-t border-border-subtle">
       <button
         type="button"
-        onClick={() => onEdit(row.cat.id)}
+        onClick={() => (slider ? slider.toggle(row) : onEdit(row.cat.id))}
+        aria-expanded={slider ? sliderOpen : undefined}
         className={`${TABLE_COLS} min-h-11 w-full px-4 py-1 text-left`}
       >
         <span aria-hidden className="text-center text-sm">
@@ -1298,6 +1447,7 @@ function TableRow({
         </span>
         <Money amount={row.limit} currency={base} className="text-right text-sm font-semibold" />
       </button>
+      {sliderOpen && slider && <LimitSlider {...slider.propsFor(row)} />}
     </li>
   )
 }

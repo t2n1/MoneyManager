@@ -62,6 +62,13 @@ export interface PlanningData {
   hasMissingRate: boolean
 }
 
+/** Hạn mức đang được kéo dở, chưa ghi xuống máy chủ. */
+export interface PlanDraft {
+  categoryId: string
+  /** base minor */
+  amount: number
+}
+
 /**
  * Dữ liệu để lập kế hoạch cho `monthKey`.
  *
@@ -70,20 +77,41 @@ export interface PlanningData {
  * duyệt cây cha/con đúng luật "đặt ở cha trước", nên trần đặt ở danh mục CHA ra một dòng
  * thật. Bản trước lọc `!categories.some(k => k.parent_id === c.id)` nên cảnh báo "Trần
  * nhóm Nhà ở đang ¥0" trỏ tới một cái tên không có dòng nào trong danh sách bên cạnh.
+ *
+ * `draft` là hạn mức đang kéo dở của MỘT danh mục. Truyền vào thì cả mặt lập kế hoạch tính
+ * lại theo số đó ngay, chưa cần ghi xuống máy chủ.
  */
-export function usePlanning(monthKey: MonthKey): PlanningData {
+export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): PlanningData {
   const { data: profile } = useProfile()
   const { data: categories = [] } = useCategories()
   const { base, rates } = useRates()
   const transferIds = useTransferCategoryIds()
   const monthKeyStr = monthKeyString(monthKey)
-  const { data: budgets = [] } = useBudgets(monthKeyStr)
+  const { data: savedBudgets = [] } = useBudgets(monthKeyStr)
   const { data: plan } = useMonthPlan(monthKeyStr)
   // Dựng cho ĐÚNG tháng đang lập: trần kỳ 'monthly' phải soi vào tháng đó (chưa tiêu
   // gì → còn nguyên trần), còn kỳ 'total' vốn tính cả đời nên không phụ thuộc kỳ nào.
   const tagBudgets = useTagBudgets(monthKey)
   const commitments = useCommitments(monthKey)
   const { suggestions, baseline } = useSuggestions()
+
+  // Số đang KÉO vá vào `budgets` ngay tại cửa vào của hook, TRƯỚC mọi phép tính. Nhờ vậy
+  // "đã chia", "chưa phân bổ", ba thanh trục và cả `projection` cùng nhúc nhích trong một
+  // lần kéo — chúng là một phép tính, không phải năm phép được canh cho khớp (xem ghi chú
+  // ở PlanningView, khối "Cơ cấu theo kế hoạch"). Vá ở cuối, chỗ nào cần thì tự cộng, là
+  // cách chắc chắn có chỗ bị bỏ sót.
+  //
+  // Danh mục chưa có dòng hạn mức thì KHÔNG vá: dựng một dòng giả kéo theo một `id` giả,
+  // mà `budgetIdByCat` chính là thứ tấm trượt dùng để xoá. Thanh trượt cũng chỉ mở ở dòng
+  // của bốn khối hạn mức — dòng nào cũng đã có hạn mức thật.
+  const budgets = useMemo(() => {
+    if (!draft) return savedBudgets
+    const i = savedBudgets.findIndex((b) => b.category_id === draft.categoryId)
+    if (i < 0) return savedBudgets
+    const next = savedBudgets.slice()
+    next[i] = { ...next[i], amount: draft.amount }
+    return next
+  }, [savedBudgets, draft])
 
   return useMemo(() => {
     const parentOf = (id: string) => categories.find((c) => c.id === id)?.parent_id ?? null
@@ -131,6 +159,15 @@ export function usePlanning(monthKey: MonthKey): PlanningData {
       gaps,
       axis: summary.axis,
       markerSlices: markers,
+      // Ghim VỊ TRÍ dòng đang kéo theo hạn mức đã lưu — xem `pinned` trong planGroups.
+      pinned: draft
+        ? {
+            categoryId: draft.categoryId,
+            limit:
+              savedBudgets.find((b) => b.category_id === draft.categoryId)?.amount ??
+              draft.amount,
+          }
+        : null,
     })
 
     // Danh mục ĐẶT ĐƯỢC hạn mức mà chưa đặt, và có lịch sử để gợi ý. Cùng bộ lọc với
@@ -183,6 +220,8 @@ export function usePlanning(monthKey: MonthKey): PlanningData {
     }
   }, [
     budgets,
+    savedBudgets,
+    draft,
     plan,
     baseline,
     suggestions,

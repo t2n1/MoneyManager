@@ -56,7 +56,11 @@ const CATS = [
 const parentOf = (id: string) => CATS.find((c) => c.id === id)?.parent_id ?? null
 
 /** Dựng đúng chuỗi mà `usePlanning` dùng: báo cáo spent = 0 → cây hiển thị → khối. */
-function build(budgets: BudgetRow[], committed = new Map<string, number>()) {
+function build(
+  budgets: BudgetRow[],
+  committed = new Map<string, number>(),
+  pinned: { categoryId: string; limit: number } | null = null,
+) {
   const report = buildBudgetReport(budgets, [], () => 'JPY', 'JPY', {}, parentOf)
   const items = buildBudgetDisplay(
     [...CATS].sort((a, b) => a.sort_order - b.sort_order),
@@ -81,6 +85,7 @@ function build(budgets: BudgetRow[], committed = new Map<string, number>()) {
       gaps,
       axis,
       markerSlices: slices.markers,
+      pinned,
     }),
     axis,
     gaps,
@@ -200,5 +205,46 @@ describe('planGroups · đuôi dài', () => {
     const { groups } = build([bud('dien', 3_000), bud('gas', 13_070)])
     const b = groups.blocks.find((x) => x.key === 'essential')!
     expect(b.rows.map((r) => r.cat.id)).toEqual(['gas', 'dien'])
+  })
+})
+
+describe('ghim dòng đang kéo (thanh trượt)', () => {
+  // `dien` và `gas` cùng khối Thiết yếu, cùng là lá độc lập — hai dòng sạch để so thứ tự.
+  const keo = (dienDangKeo: number) => [bud('dien', dienDangKeo), bud('gas', 3_000)]
+  const idsOf = (g: ReturnType<typeof build>['groups']) =>
+    g.blocks.find((b) => b.key === 'essential')!.rows.map((r) => r.cat.id)
+
+  it('không ghim thì kéo xuống dưới dòng khác là ĐỔI CHỖ giữa lúc kéo', () => {
+    // Đây là hành vi phải chặn: trên điện thoại dòng chạy ra khỏi ngón tay đang kéo.
+    expect(idsOf(build([bud('dien', 5_000), bud('gas', 3_000)]).groups)).toEqual(['dien', 'gas'])
+    expect(idsOf(build(keo(1_000)).groups)).toEqual(['gas', 'dien'])
+  })
+
+  it('ghim theo hạn mức ĐÃ LƯU thì dòng giữ nguyên chỗ dù số đang kéo nhỏ hơn', () => {
+    const g = build(keo(1_000), new Map(), { categoryId: 'dien', limit: 5_000 }).groups
+    expect(idsOf(g)).toEqual(['dien', 'gas'])
+  })
+
+  it('số HIỆN và tổng khối vẫn theo số đang kéo, không theo số ghim', () => {
+    const g = build(keo(1_000), new Map(), { categoryId: 'dien', limit: 5_000 }).groups
+    const block = g.blocks.find((b) => b.key === 'essential')!
+    expect(block.rows.find((r) => r.cat.id === 'dien')!.limit).toBe(1_000)
+    expect(block.total).toBe(4_000)
+  })
+
+  it('ghim giữ dòng ở ngoài ĐUÔI GẤP — kéo xuống dưới ngưỡng không làm thanh biến mất', () => {
+    const chuaGhim = build(keo(500)).groups.blocks.find((b) => b.key === 'essential')!
+    expect(chuaGhim.tail.map((r) => r.cat.id)).toEqual(['dien'])
+
+    const daGhim = build(keo(500), new Map(), { categoryId: 'dien', limit: 5_000 }).groups.blocks.find(
+      (b) => b.key === 'essential',
+    )!
+    expect(daGhim.rows.map((r) => r.cat.id)).toEqual(['dien', 'gas'])
+    expect(daGhim.tail).toEqual([])
+  })
+
+  it('ghim một danh mục không có dòng nào thì không ảnh hưởng gì', () => {
+    const g = build(keo(1_000), new Map(), { categoryId: 'khong-ton-tai', limit: 9_000 }).groups
+    expect(idsOf(g)).toEqual(['gas', 'dien'])
   })
 })

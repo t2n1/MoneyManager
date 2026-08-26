@@ -15,18 +15,21 @@
 // quyết định của người dùng với 基金 hoặc phòng nhân sự.
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Pencil } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
 import { Guide } from '../../components/Guide'
 import { MoneyField, MONEY_FIELD_CLASS } from '../../components/MoneyField'
 import {
   Card,
   EmptyState,
+  IconButton,
   Money,
   Num,
   PageHeader,
   SectionTitle,
 } from '../../components/ui'
 import { formatMonthLabel, parseMonthKey } from '../../lib/dates'
+import { KikinSourceSheet } from './KikinSourceSheet'
 import { KIKIN_MAX_MONTHLY, useRetirementData } from './useRetirementData'
 
 const JPY = 'JPY' as const
@@ -45,6 +48,7 @@ export function RetirementPage() {
   const d = useRetirementData()
   /** Mức đang thử ở khối cuối; null = chưa thử, dùng mức đang đóng thật. */
   const [thuMuc, setThuMuc] = useState<number | null>(null)
+  const [suaNguon, setSuaNguon] = useState(false)
 
   if (d.isLoading) {
     return (
@@ -79,7 +83,11 @@ export function RetirementPage() {
 
   return (
     <div className="flex flex-col gap-3 p-3 lg:p-6">
-      <PageHeader title="退職金" back="/invest?tab=funds" flush />
+      <PageHeader title="退職金" back="/invest?tab=funds" flush>
+        <IconButton aria-label="Sửa số của 基金" onClick={() => setSuaNguon(true)}>
+          <Pencil className="h-5 w-5" />
+        </IconButton>
+      </PageHeader>
 
       {/* ── ĐANG CÓ ───────────────────────────────────────────────────── */}
       <Card as="section">
@@ -375,6 +383,15 @@ export function RetirementPage() {
           </p>
         )}
       </Card>
+
+      {suaNguon && (
+        <KikinSourceSheet
+          rateBps={d.rateBps}
+          dated={d.sheet.dated}
+          points={d.sheet.points}
+          onClose={() => setSuaNguon(false)}
+        />
+      )}
     </div>
   )
 }

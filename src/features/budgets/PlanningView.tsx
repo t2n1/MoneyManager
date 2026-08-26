@@ -44,6 +44,7 @@ import { TagPlanBlock } from '../tags/TagPlanBlock'
 import { AXIS_LABEL, BASELINE_MONTHS, shareLabel, type AxisKey } from './axisTargets'
 import { axisSuggestions, sliderScale } from './axisSuggest'
 import { LimitSlider, type LimitSliderProps } from './LimitSlider'
+import { PlanStickyBar } from './PlanStickyBar'
 import { budgetHint } from './budgetHint'
 import { nameList } from './capOverflow'
 import { LimitSparkline } from './LimitSparkline'
@@ -652,6 +653,10 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
           {/* 4 — Panel hạn mức. `padding="none"` để dòng và header nhóm kéo hết bề rộng
               panel: vạch chia đứt đoạn giữa các khối làm mất luôn tín hiệu "đây là một
               nhóm liền mạch". Padding chuyển vào từng dòng. */}
+          {/* Dải ghim (mobile) — PHẢI ở ngoài Card dưới đây: Card đặt `overflow: hidden`,
+              mà `sticky` trong khối bị cắt thì không dính, và chết im lặng. */}
+          <PlanStickyBar axis={summary.axis} monthKey={monthKey} base={base} />
+
           <Card as="section" padding="none" className="order-4 overflow-hidden">
             <div className="border-b border-border-panel px-4 py-3.5">
               <div className="flex flex-wrap items-baseline justify-between gap-2">

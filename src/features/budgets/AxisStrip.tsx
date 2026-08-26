@@ -1,14 +1,17 @@
 // Dải gọn "50/30/20".
 //
 // Hai chỗ dùng, hai vai:
-//   · Đầu tab SỔ — cơ cấu chi chỉ có tác dụng khi nhìn thấy TRƯỚC lúc tiêu, mà tab
-//     người ta mở hằng ngày là Sổ. Ở đó nó bấm được, dẫn sang khối đầy đủ.
-//   · Ngay dưới câu kết luận ở tab NGÂN SÁCH (§4.3 của bản 1a). Ở đó nó KHÔNG bấm
-//     được: khối đầy đủ đã nằm cùng màn, một liên kết trỏ về chính trang đang mở là
-//     cái bẫy cho người dùng bàn phím và trình đọc màn hình.
-// Dải cố ý chỉ có ba con số ở cả hai chỗ: nó là cái liếc mắt, không phải chỗ đọc kỹ.
+//   · Mặt THEO DÕI, ngay dưới câu kết luận (§4.3 của bản 1a). Ở đó nó KHÔNG bấm được:
+//     khối đầy đủ đã nằm cùng màn, một liên kết trỏ về chính trang đang mở là cái bẫy
+//     cho người dùng bàn phím và trình đọc màn hình. Chỉ ba con số — cái liếc mắt.
+//   · Mặt LẬP KẾ HOẠCH, trong dải ghim đầu màn ở điện thoại (`PlanStickyBar`). Ở đó nó
+//     bật `showAmount` vì là thứ DUY NHẤT còn thấy được trong lúc kéo thanh trượt.
+//
+// `linkToDetail` mặc định true cho một vai thứ ba đã bị bỏ: dải từng nằm ở đầu tab Sổ và
+// dẫn sang khối đầy đủ. Giữ nhánh đó vì nó là mặc định của API, nhưng hôm nay KHÔNG chỗ
+// nào truyền true — đừng đọc comment này như "có ba chỗ dùng".
 import { Link } from 'react-router-dom'
-import { Card } from '../../components/ui'
+import { Card, Money } from '../../components/ui'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { AXIS_LABEL, shareLabel, sharePct, type AxisProgress } from './axisTargets'
@@ -20,10 +23,35 @@ interface Props {
   base: CurrencyCode
   /** false = đang ở chính tab Ngân sách, dải không dẫn đi đâu nữa. Mặc định true. */
   linkToDetail?: boolean
+  /**
+   * true = mỗi trục in thêm SỐ TIỀN dưới phần trăm. Mặc định false.
+   *
+   * Chỉ `PlanStickyBar` bật cái này, và vì một lý do hẹp: ở đó dải là thứ duy nhất còn
+   * thấy được trong lúc người dùng kéo thanh trượt ở dưới, nên nó phải trả lời cả "bao
+   * nhiêu phần trăm" lẫn "bao nhiêu tiền". Chỗ dùng còn lại (mặt theo dõi, dưới câu kết
+   * luận) cố ý CHỈ có phần trăm — ở đó khối đầy đủ với đủ số tiền nằm ngay cùng màn, nên
+   * dải chỉ cần là cái liếc mắt.
+   */
+  showAmount?: boolean
 }
 
-export function AxisStrip({ data, monthKey, base, linkToDetail = true }: Props) {
-  const parts = data.lines.map((l) => `${AXIS_LABEL[l.key]} ${shareLabel(l.share)}`).join(', ')
+export function AxisStrip({
+  data,
+  monthKey,
+  base,
+  linkToDetail = true,
+  showAmount = false,
+}: Props) {
+  // Số tiền vào LUÔN câu này khi bật `showAmount`: cả lưới ba cột là `aria-hidden`, chữ
+  // thật của khối nằm ở đây. Thêm vào lưới mà quên chỗ này là trình đọc màn hình mất hẳn
+  // con số vừa thêm.
+  const parts = data.lines
+    .map(
+      (l) =>
+        `${AXIS_LABEL[l.key]} ${shareLabel(l.share)}` +
+        (showAmount ? ` (${formatMoney(Math.round(l.actual), base)})` : ''),
+    )
+    .join(', ')
   // Chi chưa gắn "mức cần thiết" KHÔNG nằm trong hai dòng đầu, nên ba con số có thể
   // cộng lại không tới 100% mà không có gì giải thích. Khối đầy đủ ở tab Ngân sách có
   // hẳn một dòng cảnh báo; ở đây chỉ đủ chỗ cho một mẩu chữ, nhưng có còn hơn không.
@@ -81,6 +109,13 @@ export function AxisStrip({ data, monthKey, base, linkToDetail = true }: Props) 
                     style={{ left: `${markPct}%` }}
                   />
                 </div>
+                {showAmount && (
+                  <Money
+                    amount={Math.round(l.actual)}
+                    currency={base}
+                    className={`mt-0.5 block text-2xs ${l.ok ? '!text-fg-muted' : '!text-fg-warn'}`}
+                  />
+                )}
               </div>
             )
           })}

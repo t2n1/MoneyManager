@@ -25,6 +25,9 @@ const AssetsPage = lazy(() =>
 const AccountDetailPage = lazy(() =>
   import('./features/assets/AccountDetailPage').then((m) => ({ default: m.AccountDetailPage })),
 )
+const RetirementPage = lazy(() =>
+  import('./features/assets/RetirementPage').then((m) => ({ default: m.RetirementPage })),
+)
 const PlannedPage = lazy(() =>
   import('./features/planned/PlannedPage').then((m) => ({ default: m.PlannedPage })),
 )
@@ -140,6 +143,7 @@ function App() {
           <Route path="/invest" element={lazyRoute(<InvestPage />)} />
           <Route path="/planned" element={lazyRoute(<PlannedPage />, 'list')} />
           <Route path="/assets/account/:accountId" element={lazyRoute(<AccountDetailPage />)} />
+          <Route path="/assets/retirement" element={lazyRoute(<RetirementPage />)} />
           <Route path="/debts" element={lazyRoute(<DebtsPage />, 'table')} />
           <Route path="/debts/:debtId" element={lazyRoute(<DebtDetailPage />)} />
           <Route path="/recurring" element={lazyRoute(<RecurringPage />, 'table')} />

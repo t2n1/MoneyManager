@@ -259,7 +259,15 @@ function stripComments(text: string): string {
  * Cả năm đều không phải chữ để DẠY, nên bọc <Guide> là sai: <Guide> ẩn ở chế độ Gọn, và ẩn
  * một câu nói "con số này lệch vì lý do X" là để lại đúng con số lệch mà bỏ mất lý do.
  */
-const PROSE_MAX = 78
+// 80 (từ 78, 2026-08-26): trang 退職金 thêm ba đoạn PHẢI hiện, không bọc <Guide> được vì
+// <Guide> ẩn được ở chế độ Gọn:
+//   · "sheet 2025-08 dựng sẵn … không tính 子ども・子育て支援金" — cảnh báo con số đang
+//     nghiêng về đâu; ẩn nó là để người đọc tin một số lạc quan mà không biết.
+//   · "Từ ¥1.000 tới ¥73.000 (プラン③, mức MAX)" — khoảng hợp lệ của ô nhập; ẩn là bắt
+//     người dùng đoán ô nhận số nào.
+//   · "Bạn đang đóng thật ¥…/tháng. Đổi mức đóng là việc làm với 基金 …" — chốt ranh giới
+//     rằng ô thử KHÔNG đổi mức đóng thật; đây là chỗ dễ hiểu nhầm nhất của màn đó.
+const PROSE_MAX = 80
 
 const FILES = sourceFiles().map((path) => ({
   path,

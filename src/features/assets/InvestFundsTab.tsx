@@ -19,6 +19,7 @@ import { ActionButton, Card, EmptyState, Money, SectionTitle } from '../../compo
 import { FundTradeFormSheet } from './FundTradeFormSheet'
 import { InvestAccountChips } from './InvestAccountChips'
 import { InvestTradeAccountPicker } from './InvestTradeAccountPicker'
+import { TEN_TK_HUU } from '../phieu-luong/nhap'
 import { useFundInvestData } from './useFundInvestData'
 import { KIND_CLASS, KIND_LABEL, ngay, pct, share } from './investFormat'
 import type { FundTradeRow } from '../../types/database.types'
@@ -280,8 +281,15 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
             {balanceAccounts.map((b) => (
               <li key={b.accountId} className="py-2">
                 <div className="flex items-baseline justify-between gap-3">
+                  {/* 退職金 có màn riêng nói được gì / mất gì / tới lúc nghỉ bao nhiêu —
+                      trang chi tiết tài khoản chỉ nói số dư và giao dịch. Tài khoản khác
+                      thì vẫn về trang chi tiết như cũ. */}
                   <Link
-                    to={`/assets/account/${b.accountId}`}
+                    to={
+                      b.accountName === TEN_TK_HUU
+                        ? '/assets/retirement'
+                        : `/assets/account/${b.accountId}`
+                    }
                     className="min-w-0 truncate text-sm font-semibold text-fg-primary"
                   >
                     {b.accountName}

@@ -594,6 +594,12 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 describe('projectBalance — phần lãi hiệu chuẩn', () => {
   const NAY = { year: 2026, month: 8 }
+  /**
+   * Ba mốc neo là 36 / 108 / 180 tháng, đều chia hết cho 12. Với `month = 8` thì số tháng
+   * đạt được luôn `≡ 4 (mod 12)` nên KHÔNG mốc nào tới được; phải đứng ở tháng 12, lúc đó
+   * `months = 12 × (toYear − 2027)` và ba mốc ứng với 2030 / 2036 / 2042.
+   */
+  const CUOI_NAM = { year: 2026, month: 12 }
   const DEU_20K = { minorPerMonth: 20_000, monthsObserved: 12 }
 
   it('không truyền suất lãi → minorAtRate là null, số sàn không đổi', () => {
@@ -611,14 +617,11 @@ describe('projectBalance — phần lãi hiệu chuẩn', () => {
    * chốt hiệu chuẩn theo chính ba điểm đó (Q2).
    */
   it.each([
-    [36, 4_328],
-    [108, 32_660],
-    [180, 87_622],
-  ])('dựng lại đúng lãi của đồ thị 基金 ở mốc %i tháng: ¥%i', (months, expected) => {
-    // toYear sao cho `months` đúng bằng số tháng còn đóng: months = (toYear − 2026) × 12 − 8
-    const toYear = 2026 + (months + 8) / 12
-    expect(Number.isInteger(toYear)).toBe(true)
-    const p = projectBalance(0, DEU_20K, toYear, NAY, KIKIN_GIVE_RATE_BPS_2025)!
+    [2030, 36, 4_328],
+    [2036, 108, 32_660],
+    [2042, 180, 87_622],
+  ])('dựng lại đúng lãi của đồ thị 基金: %i → %i tháng → ¥%i', (toYear, months, expected) => {
+    const p = projectBalance(0, DEU_20K, toYear, CUOI_NAM, KIKIN_GIVE_RATE_BPS_2025)!
     expect(p.months).toBe(months)
     expect(p.minorAtRate! - p.minor).toBe(expected)
   })

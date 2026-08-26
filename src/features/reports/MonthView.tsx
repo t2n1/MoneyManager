@@ -59,7 +59,7 @@ import {
 import { convertToBase } from '../../lib/rates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { collectCommitments } from '../budgets/commitments'
-import { expenseLeaves } from '../categories/leaf'
+import { classifiableExpenses } from '../categories/leaf'
 import { tagBreakdown } from '../tags/aggregate'
 import {
   categoryBreakdown,
@@ -361,8 +361,12 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
       })
     : null
 
+  // Cùng tập với màn Phân loại nhanh (`classifiableExpenses` — lá VÀ cha). Đếm theo
+  // `expenseLeaves` là nói "còn 0" trong khi trang kia còn 3 dòng phải bấm.
   const unclassifiedCount = useMemo(
-    () => expenseLeaves(categories).filter((c) => c.need_level == null || c.cost_type == null).length,
+    () =>
+      classifiableExpenses(categories).filter((c) => c.need_level == null || c.cost_type == null)
+        .length,
     [categories],
   )
 

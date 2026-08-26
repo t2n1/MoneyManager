@@ -2,8 +2,9 @@
 //
 // Ngân sách theo danh mục trả lời "tháng này ăn uống bao nhiêu là đủ".
 // Ngân sách theo trục trả lời câu khác hẳn: "cơ cấu chi của mình có lành mạnh
-// không" — và nó dùng lại đúng need_level đã gắn cho danh mục lá, nên người
-// dùng không phải khai báo thêm lần nào nữa.
+// không" — và nó dùng lại đúng need_level đã gắn cho danh mục, nên người dùng
+// không phải khai báo thêm lần nào nữa. "Danh mục" ở đây gồm cả CHA: trần nhóm
+// và giao dịch ghi thẳng vào cha đều lấy nhãn của chính cha (xem planGroups.ts).
 
 import type { CategorySlice, ClassificationBreakdown } from '../reports/aggregate'
 import type { CategoryRow } from '../../types/database.types'

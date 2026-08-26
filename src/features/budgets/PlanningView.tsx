@@ -1035,12 +1035,17 @@ function BlockBody({
       />
 
       {/* Nút Phân loại ngay tại HEADER của chính nhóm đó (B30.3), không phải một hộp vàng
-          ở cột trái cách chỗ sửa được nó ~1.400px. `?todo=1` mở màn Phân loại nhanh đã
-          bật sẵn bộ lọc "chỉ hiện chưa phân loại". */}
+          ở cột trái cách chỗ sửa được nó ~1.400px.
+          `?ids=` gửi ĐÚNG những danh mục đang đếm ở dòng trên, không phải `?todo=1`: các
+          danh mục này là danh mục CHA (trần nhóm), và bộ lọc "chưa phân loại" chung còn
+          kéo theo cả cha của những nhóm không đặt trần — nút nói 3 mà trang mở ra 11 thì
+          lại là một con số thứ hai để người đọc tự đối chiếu. */}
       {block.key === 'unclassified' && (
         <div className="border-t border-border-subtle px-4 py-2">
           <Link
-            to="/settings/categories/classify?todo=1"
+            to={`/settings/categories/classify?ids=${[...block.rows, ...block.tail]
+              .map((r) => r.cat.id)
+              .join(',')}`}
             className="-my-2 inline-flex min-h-11 items-center text-2xs font-medium text-fg-accent underline"
           >
             Phân loại {block.rows.length + block.tail.length} danh mục này

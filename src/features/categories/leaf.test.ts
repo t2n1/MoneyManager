@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { CategoryRow } from '../../types/database.types'
-import { expenseLeaves, groupLeavesByParent, hasActiveChildren } from './leaf'
+import {
+  classifiableExpenses,
+  classifyGroups,
+  expenseLeaves,
+  groupLeavesByParent,
+  hasActiveChildren,
+} from './leaf'
 
 function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
   return {
@@ -121,5 +127,80 @@ describe('groupLeavesByParent', () => {
 
   it('mảng rỗng trả về mảng nhóm rỗng', () => {
     expect(groupLeavesByParent([], [])).toEqual([])
+  })
+})
+
+describe('classifiableExpenses', () => {
+  it('gồm CẢ danh mục cha — đây là điểm khác duy nhất so với expenseLeaves', () => {
+    const nhaO = cat({ id: 'nha-o', sort_order: 0 })
+    const tienNha = cat({ id: 'tien-nha', parent_id: 'nha-o', sort_order: 1 })
+    const cats = [nhaO, tienNha]
+    expect(expenseLeaves(cats).map((c) => c.id)).toEqual(['tien-nha'])
+    expect(classifiableExpenses(cats).map((c) => c.id)).toEqual(['nha-o', 'tien-nha'])
+  })
+
+  it('bỏ danh mục Thu và danh mục đã lưu trữ', () => {
+    const cats = [
+      cat({ id: 'luong', type: 'income', sort_order: 0 }),
+      cat({ id: 'cu', is_archived: true, sort_order: 1 }),
+      cat({ id: 'con-dung', sort_order: 2 }),
+    ]
+    expect(classifiableExpenses(cats).map((c) => c.id)).toEqual(['con-dung'])
+  })
+
+  it('sắp theo sort_order tăng dần', () => {
+    const cats = [cat({ id: 'b', sort_order: 5 }), cat({ id: 'a', sort_order: 1 })]
+    expect(classifiableExpenses(cats).map((c) => c.id)).toEqual(['a', 'b'])
+  })
+})
+
+describe('classifyGroups', () => {
+  it('cha đứng ĐẦU khối của chính nó, không thành khối riêng trùng tên', () => {
+    // sort_order của cha LỚN hơn con: nếu chỉ dựa vào thứ tự đầu vào thì cha rơi
+    // xuống cuối khối, đúng cái bẫy mà `rows.unshift` ở classifyGroups chặn.
+    const nhaO = cat({ id: 'nha-o', sort_order: 9 })
+    const tienNha = cat({ id: 'tien-nha', parent_id: 'nha-o', sort_order: 1 })
+    const dien = cat({ id: 'dien', parent_id: 'nha-o', sort_order: 2 })
+    const cats = [nhaO, tienNha, dien]
+    const groups = classifyGroups(classifiableExpenses(cats), cats)
+    expect(groups).toHaveLength(1)
+    expect(groups[0].parent).toEqual(nhaO)
+    expect(groups[0].rows.map((c) => c.id)).toEqual(['nha-o', 'tien-nha', 'dien'])
+  })
+
+  it('nhóm còn hiện khi mọi con bị lọc hết mà cha thì không (ca ?ids=)', () => {
+    const nhaO = cat({ id: 'nha-o', sort_order: 0 })
+    const tienNha = cat({ id: 'tien-nha', parent_id: 'nha-o', sort_order: 1 })
+    const cats = [nhaO, tienNha]
+    const groups = classifyGroups([nhaO], cats)
+    expect(groups).toEqual([{ parent: nhaO, rows: [nhaO] }])
+  })
+
+  it('lá không có cha đứng riêng, không dồn vào một nhóm gộp chung', () => {
+    const khac = cat({ id: 'khac', sort_order: 0 })
+    const taiChinh = cat({ id: 'tai-chinh', sort_order: 1 })
+    const groups = classifyGroups([khac, taiChinh], [khac, taiChinh])
+    expect(groups).toEqual([
+      { parent: null, rows: [khac] },
+      { parent: null, rows: [taiChinh] },
+    ])
+  })
+
+  it('thứ tự khối theo sort_order của cha, trộn chung trục với lá không cha', () => {
+    const anUong = cat({ id: 'an-uong', sort_order: 5 })
+    const comNgoai = cat({ id: 'com-ngoai', parent_id: 'an-uong', sort_order: 6 })
+    const khac = cat({ id: 'khac', sort_order: 1 })
+    const cats = [anUong, comNgoai, khac]
+    const groups = classifyGroups(classifiableExpenses(cats), cats)
+    expect(groups.map((g) => g.rows[0].id)).toEqual(['khac', 'an-uong'])
+  })
+
+  it('cha mồ côi (không có trong categories) → khối không cha', () => {
+    const orphan = cat({ id: 'c', parent_id: 'khong-ton-tai', sort_order: 0 })
+    expect(classifyGroups([orphan], [orphan])).toEqual([{ parent: null, rows: [orphan] }])
+  })
+
+  it('mảng rỗng trả về mảng khối rỗng', () => {
+    expect(classifyGroups([], [])).toEqual([])
   })
 })

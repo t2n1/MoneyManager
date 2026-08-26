@@ -12,10 +12,17 @@
 // Nên khối của một dòng lấy theo `need_level` của CHÍNH danh mục mang hạn mức, không suy
 // từ cha, không gộp lên cha.
 //
-// Hệ quả đã biết và cố ý: trần đặt ở danh mục CHA luôn rơi vào "Chưa phân loại", vì màn
-// Phân loại nhanh chỉ hỏi danh mục lá (`canClassify = !hasChildren`) nên cha không bao
-// giờ có `need_level`. Đó không phải lỗi của file này — `axisProgress` đã đếm nó vào
-// `unclassified` từ trước, và sửa chỗ đó là đổi số của CẢ mặt theo dõi.
+// Trần đặt ở danh mục CHA vẫn rơi vào "Chưa phân loại" khi CHÍNH cha đó chưa có
+// `need_level` — đúng luật ở đoạn trên, không suy từ con. Cho tới 2026-08-26 đó là một
+// ngõ cụt: màn Phân loại nhanh chỉ hỏi danh mục lá (`canClassify = !hasChildren`) nên cha
+// không bao giờ gán được, và nút "Phân loại N danh mục này" ở header khối mở ra một trang
+// báo "(0)". Ca thật tháng 9/2026: ¥192.760 = 67% kế hoạch nằm ngoài mọi trục, dòng Thiết
+// yếu hiện 3% trong khi tiền nhà một mình đã là 46% thu nhập.
+//
+// Giờ cha phân loại được (`classifiableExpenses` trong features/categories/leaf.ts), nên
+// khối này chỉ còn chứa thứ THẬT SỰ chưa gắn nhãn. Đừng khôi phục lối suy từ con: tiểu
+// tổng của khối phải khớp `axisSlices` từng đồng, mà `axisSlices` đọc `need_level` của
+// chính danh mục mang tiền.
 
 import type { CategoryRow } from '../../types/database.types'
 import type { CategorySlice } from '../reports/aggregate'

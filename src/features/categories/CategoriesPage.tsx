@@ -584,12 +584,16 @@ function CategoryForm({
       ? selectedParent.type
       : topType
   const listType = effectiveType
-  // Form cho phép gắn nhãn phân loại khi: đang là (hoặc sẽ là) danh mục Chi và
-  // không còn con đang hoạt động. Khác với `isExpenseLeaf`-style helper trong ./leaf
-  // (dùng cho Chi lá đã lưu, không tính danh mục lưu trữ): ở đây `category` có thể
-  // là null (đang tạo mới — chưa có is_archived), và khi sửa một danh mục Chi đã lưu
-  // trữ, form vẫn cho sửa nhãn để không mất dữ liệu — is_archived cố tình KHÔNG xét.
-  const canClassify = effectiveType === 'expense' && !hasChildren
+  // Form cho phép gắn nhãn phân loại cho MỌI danh mục Chi, kể cả cha còn con đang
+  // hoạt động. `hasChildren` cố tình KHÔNG xét nữa: trần nhóm đặt ở CHA và giao dịch
+  // ghi thẳng vào cha đều lấy `need_level` của chính cha, nên chặn ở đây là để tiền
+  // rơi ra ngoài mọi trục mà không ai báo — ca thật tháng 9/2026 có ¥192.760 (67% kế
+  // hoạch) nằm ngoài cả Thiết yếu lẫn Linh hoạt vì đúng lý do này. Xem
+  // `classifiableExpenses` trong ./leaf.
+  //
+  // is_archived cũng KHÔNG xét: `category` có thể là null (đang tạo mới), và khi sửa
+  // một danh mục Chi đã lưu trữ thì form vẫn cho sửa nhãn để không mất dữ liệu.
+  const canClassify = effectiveType === 'expense'
   const availableParents = parentOptions.filter(
     (p) => p.type === listType && p.id !== category?.id,
   )
@@ -694,7 +698,7 @@ function CategoryForm({
 
         {/* `kind` hỏi cho MỌI danh mục Chi, kể cả danh mục cha có con: cha là chỗ đặt
             trần nhóm, nên một nhóm "chuyển tài sản" phải loại được cả nhóm khỏi tổng chi.
-            Khác `need_level`/`cost_type` — hai cái đó chỉ hỏi ở danh mục LÁ. */}
+            `need_level`/`cost_type` ngay dưới cũng vậy — xem `canClassify`. */}
         {effectiveType === 'expense' && (
           <div className="mb-3">
             <ClassificationToggle

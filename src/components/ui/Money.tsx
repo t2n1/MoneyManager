@@ -84,8 +84,15 @@ export function Money({
   // Dấu ASCII cho khớp với chính formatMoney (nó in '-'), không dùng '−' U+2212 —
   // trộn hai glyph trong cùng một danh sách sẽ lệch bề rộng dù đã tabular-nums.
   const prefix = showSign ? (resolved === 'out' ? '-' : '+') : ''
+  // whitespace-nowrap: một số tiền KHÔNG được gãy giữa chừng. Chuỗi của `formatMoney`
+  // chỉ có đúng hai chỗ gãy được — khoảng trắng trước ký hiệu hậu tố (VND: "43.853.709 ₫")
+  // và khoảng trắng sau '≈' — nên khi không có nó, cột hẹp đẩy riêng chữ "₫" xuống dòng
+  // dưới và con số đọc ra như thiếu một phần. Dãy chữ số thì vốn không có chỗ gãy, nên
+  // dòng này không làm rộng thêm bất cứ số ¥/$ nào đang hiển thị.
   return (
-    <span className={`font-mono tabular-nums ${TONE_CLASS[resolved]} ${className}`.trim()}>
+    <span
+      className={`font-mono tabular-nums whitespace-nowrap ${TONE_CLASS[resolved]} ${className}`.trim()}
+    >
       {approx ? '≈ ' : ''}
       {prefix}
       {body}

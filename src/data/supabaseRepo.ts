@@ -120,15 +120,18 @@ async function nextTagSortOrder(): Promise<number> {
 }
 
 /**
- * Moi cau loi that ra khoi `FunctionsHttpError.context` — moi khi `functions.invoke()`
- * gap ma non-2xx, no nem `FunctionsHttpError` TRUOC khi doc body, nen `error.message`
- * chi la cau chung "Edge Function returned a non-2xx status code". Cau loi that (truong
- * `loi` cua edge function `tra-so`) nam chua doc trong `error.context`, mot `Response`
- * chua consume.
+ * Móc câu lỗi thật ra khỏi `FunctionsHttpError.context` — mỗi khi `functions.invoke()`
+ * gặp mã non-2xx, nó ném `FunctionsHttpError` TRƯỚC khi đọc body, nên `error.message`
+ * chỉ là câu chung "Edge Function returned a non-2xx status code". Câu lỗi thật (trường
+ * `loi` của edge function `tra-so`) nằm chưa đọc trong `error.context`, một `Response`
+ * chưa consume.
  *
- * An toan la yeu cau bat buoc: `context` co the khong ton tai, khong phai JSON, hoac da
- * bi doc roi (vi du do mot lop middleware khac). Ham nay KHONG duoc tu nem — no dang o
- * tren duong xu ly loi, nem o day la nuot mat loi goc.
+ * An toàn là yêu cầu bắt buộc: `context` có thể không tồn tại, không phải JSON, hoặc đã
+ * bị đọc rồi (ví dụ do một lớp middleware khác). Một `loi` rỗng / toàn khoảng trắng /
+ * không phải chuỗi cũng phải rơi về `null` — nếu không, chỗ gọi (`loi ?? error.message`)
+ * sẽ ném ra một lỗi RỖNG (`??` không bắt chuỗi rỗng), tức người dùng thấy hộp lỗi trống
+ * trơn thay vì rơi về câu chung của `error.message`. Hàm này KHÔNG được tự ném — nó
+ * đang ở trên đường xử lý lỗi, ném ở đây là nuốt mất lỗi gốc.
  */
 async function docLoiTuContext(error: unknown): Promise<string | null> {
   try {
@@ -136,7 +139,7 @@ async function docLoiTuContext(error: unknown): Promise<string | null> {
     if (!(context instanceof Response)) return null
     const body: unknown = await context.clone().json()
     const loi = (body as { loi?: unknown } | null)?.loi
-    return typeof loi === 'string' ? loi : null
+    return typeof loi === 'string' && loi.trim().length > 0 ? loi : null
   } catch {
     return null
   }

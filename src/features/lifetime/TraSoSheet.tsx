@@ -6,10 +6,18 @@
 //   lỗi bất kỳ     → không có nút Lấy, nói thẳng hỏng ở đâu
 //   có kết quả     → ba nút Lấy, mỗi nút kèm sẵn ghi chú nguồn
 //
-// Khuôn lớp phủ chép từ EventFormSheet.tsx (đóng bằng Esc và bấm ra ngoài) — không tự
-// nghĩ khuôn mới. Đây là "sheet nhỏ" (không có form nhiều trường, không cuộn), nên
-// dùng rounded-xl (bán kính scale chuẩn) chứ không phải rounded-2xl dành riêng cho sheet
-// trượt lên có form — xem docs/design-system.md §Bán kính.
+// Khuôn lớp phủ chép NGUYÊN SI (từng token) từ EventFormSheet.tsx:110-116 — không tự
+// nghĩ khuôn mới, kể cả các phần trông như "không cần" ở một sheet nhỏ:
+//   - max-h-[92vh] + overflow-y-auto: dienGiai và canhBao không giới hạn độ dài/số
+//     lượng — thiếu cuộn thì nội dung dài đẩy ba nút Thấp/Giữa/Cao ra khỏi màn hình.
+//   - pb-[max(1rem,env(safe-area-inset-bottom))]: tránh nút Bỏ qua đè lên vạch home
+//     iPhone.
+//   - animate-sheet-in / lg:animate-sheet-pop: khớp hoạt ảnh với mọi sheet khác.
+//   - rounded-t-2xl / lg:rounded-2xl: docs/design-system.md gán 2xl theo VAI TRÒ
+//     ("thẻ hero và sheet trượt lên"), không theo kích cỡ — sheet này trượt lên
+//     (items-end, rounded-t-*) nên thuộc vai trò đó dù nội dung ngắn.
+//   - aria-modal="true": không có thì một số trình đọc màn hình không coi nền là
+//     bất hoạt khi sheet mở.
 import { useEffect } from 'react'
 import { ActionButton, Money } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
@@ -48,8 +56,9 @@ export function TraSoSheet({ dangChay, ketQua, tien, canhBaoRiengTu, onChon, onD
     >
       <div
         role="dialog"
+        aria-modal="true"
         aria-label="Tra số cho mốc"
-        className="w-full max-w-md rounded-t-xl bg-surface p-4 lg:rounded-xl"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
         {canhBaoRiengTu && (

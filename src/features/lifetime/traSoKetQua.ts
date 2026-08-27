@@ -9,6 +9,8 @@
 // JPY nghĩa là nó đã hiểu sai câu hỏi, nên con số đó sai ở tầng NGHĨA chứ không phải sai
 // đơn vị — quy đổi chỉ làm một câu trả lời sai trông như đúng.
 import { CURRENCIES, type CurrencyCode } from '../../lib/currencies'
+import { toISODate } from '../../lib/dates'
+import { formatMoneyReal } from '../../lib/money'
 
 export interface KetQuaTra {
   thapMinor: number
@@ -49,6 +51,20 @@ function laChuoiCo(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0
 }
 
+/**
+ * Trần cho MỘT mức, tính ở đơn vị LỚN.
+ *
+ * Vì sao phải có: mọi phép kiểm khác ở đây soi hình dạng ("là số dương", "tăng dần"), nên
+ * `1e18` lọt qua sạch sẽ. Nhưng `sangMinor` còn nhân thêm tới 100 lần (USD), và trên
+ * `Number.MAX_SAFE_INTEGER` thì phép cộng của JS im lặng sai — bất biến "tiền là số
+ * nguyên minor units" của cả repo vỡ ở một chỗ không ai nhìn. Chia 100 vì đó là `decimals`
+ * lớn nhất trong `CURRENCIES`; lấy trần chung cho mọi đồng thì không phải nhớ ngoại lệ.
+ *
+ * Một con số thật không bao giờ chạm tới đây (¥90 nghìn tỷ), nên chặn ở mức này chỉ bắt
+ * đúng thứ đáng bắt: model trả về rác dạng số.
+ */
+const TRAN_MAJOR = Number.MAX_SAFE_INTEGER / 100
+
 export function docKetQua(tho: unknown, tienChang: CurrencyCode): KetQuaTra | LoiTra {
   if (typeof tho !== 'object' || tho === null) {
     return { loi: 'doc-khong-ra', noiDung: 'Kết quả không phải một đối tượng.' }
@@ -65,6 +81,9 @@ export function docKetQua(tho: unknown, tienChang: CurrencyCode): KetQuaTra | Lo
 
   if (!laSoDuong(o.thap) || !laSoDuong(o.giua) || !laSoDuong(o.cao)) {
     return { loi: 'doc-khong-ra', noiDung: 'Thiếu hoặc sai một trong ba mức thấp/giữa/cao.' }
+  }
+  if (o.thap > TRAN_MAJOR || o.giua > TRAN_MAJOR || o.cao > TRAN_MAJOR) {
+    return { loi: 'doc-khong-ra', noiDung: 'Có mức lớn đến mức không còn là một số tiền thật.' }
   }
   if (!(o.thap <= o.giua && o.giua <= o.cao)) {
     return { loi: 'doc-khong-ra', noiDung: 'Ba mức không tăng dần: thấp ≤ giữa ≤ cao.' }
@@ -98,4 +117,26 @@ export function docKetQua(tho: unknown, tienChang: CurrencyCode): KetQuaTra | Lo
     canhBao: Array.isArray(o.canh_bao) ? o.canh_bao.filter(laChuoiCo) : [],
     nguon: { ten: n.ten, url: n.url, nam: laSoDuong(n.nam) ? n.nam : null },
   }
+}
+
+/**
+ * Câu ghi vào ô Ghi chú của mốc. Sáu tháng sau mở lại còn biết số ở đâu ra và CŨ CHƯA.
+ *
+ * `ngayTra` là THAM SỐ chứ không phải `new Date()` bên trong: hàm giữ thuần nên test được,
+ * và đó là điều kiện để câu này đáng tin. Nó KHÁC `nguon.nam` — `nguon.nam` là năm KHẢO
+ * SÁT, nên một khảo sát 2024 tra năm 2026 và tra năm 2031 đọc ra giống hệt nhau, trong khi
+ * cái người đọc cần biết là "lần tra này cách đây bao lâu".
+ *
+ * Số đi qua `formatMoneyReal`, KHÔNG phải `formatMoney`: đây là dữ liệu ghi xuống DB, mà
+ * `formatMoney` che số khi chế độ riêng tư đang bật — một ghi chú "Tra hộ: •••" nằm lại
+ * vĩnh viễn sau khi tắt chế độ đó. Và tuyệt đối không nội suy `mucDaChon` thô: nó là minor
+ * units, in thẳng ra thì $1,50 thành "150 USD".
+ */
+export function ghiChuTu(k: KetQuaTra, mucDaChon: number, ngayTra: Date): string {
+  const nam = k.nguon.nam === null ? '' : ` ${k.nguon.nam}`
+  const canhBao = k.canhBao.length > 0 ? ` — ${k.canhBao.join(' ')}` : ''
+  return (
+    `Tra hộ ngày ${toISODate(ngayTra)}: ${formatMoneyReal(mucDaChon, k.tien)}. ` +
+    `Nguồn: ${k.nguon.ten}${nam} (${k.nguon.url}). ${k.dienGiai}${canhBao}`
+  )
 }

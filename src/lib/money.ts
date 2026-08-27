@@ -33,16 +33,40 @@ function maskDigits(body: string): string {
   return '•'.repeat(body.length)
 }
 
-/** minor units → chuỗi hiển thị: ¥1,234 · 1.234.000 ₫ · $1.234,56 */
-export function formatMoney(minor: number, currency: CurrencyCode): string {
-  const { symbol, decimals, position, group, decimal } = CURRENCIES[currency]
-  const sign = minor < 0 ? '-' : ''
+/** Chỉ phần SỐ (chữ số + dấu phân cách), chưa có dấu âm và ký hiệu tiền. */
+function bodyOf(minor: number, currency: CurrencyCode): string {
+  const { decimals, group, decimal } = CURRENCIES[currency]
   const abs = Math.trunc(Math.abs(minor)).toString().padStart(decimals + 1, '0')
   const intPart = decimals > 0 ? abs.slice(0, -decimals) : abs
   const fracPart = decimals > 0 ? `${decimal}${abs.slice(-decimals)}` : ''
-  const real = `${groupThousands(intPart, group)}${fracPart}`
-  const body = isPrivacyEnabled() ? maskDigits(real) : real
+  return `${groupThousands(intPart, group)}${fracPart}`
+}
+
+/** Ghép dấu âm + ký hiệu tiền quanh phần số, theo `position` của đồng tiền. */
+function boc(minor: number, currency: CurrencyCode, body: string): string {
+  const { symbol, position } = CURRENCIES[currency]
+  const sign = minor < 0 ? '-' : ''
   return position === 'prefix' ? `${sign}${symbol}${body}` : `${sign}${body} ${symbol}`
+}
+
+/**
+ * Cùng chuỗi với `formatMoney` nhưng KHÔNG bao giờ che số.
+ *
+ * Dùng khi con số đi vào DỮ LIỆU chứ không lên màn: ghi chú tự sinh, CSV, chuỗi máy đọc.
+ * Ở những chỗ đó '•••' không phải là "đã che" mà là một bản ghi SAI — nó nằm lại vĩnh
+ * viễn sau khi người dùng tắt chế độ riêng tư, và không còn gì khôi phục được con số.
+ * `src/mcp/format.ts` đã ghi đúng luật này cho phía MCP; đây là bản dùng chung.
+ *
+ * Lên màn thì luôn dùng `formatMoney` (hoặc <Money>) — che số là một lời hứa với người dùng.
+ */
+export function formatMoneyReal(minor: number, currency: CurrencyCode): string {
+  return boc(minor, currency, bodyOf(minor, currency))
+}
+
+/** minor units → chuỗi hiển thị: ¥1,234 · 1.234.000 ₫ · $1.234,56 */
+export function formatMoney(minor: number, currency: CurrencyCode): string {
+  const real = bodyOf(minor, currency)
+  return boc(minor, currency, isPrivacyEnabled() ? maskDigits(real) : real)
 }
 
 /** Chuỗi bất kỳ → minor units (chỉ giữ chữ số). Không có chữ số → 0. */

@@ -7,6 +7,9 @@
 //
 // Chỉ bốn ô (tên, hai năm, số tiền). Tỷ giá, ghi chú, cờ lạm phát vẫn thuộc trình sửa
 // đầy đủ: chúng không phải thứ người ta vặn khi đang nhìn đường đồ thị chạy.
+//
+// Ngoại lệ: nhận số từ "Tra hộ" thì ghi kèm `currency`/`fxToDisplay` (số phải đi cùng
+// đồng tiền của nó) và NỐI thêm nguồn vào `note`. Không ô nào ở đây sửa ba trường đó.
 import { useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { ActionButton, IconButton, actionButtonClass } from '../../components/ui'
@@ -68,6 +71,10 @@ export function EventEditorPopover({
 
   const [moSheet, setMoSheet] = useState(false)
   const [ketQua, setKetQua] = useState<KetQuaTra | LoiTra | null>(null)
+  // true = sheet đang mở nhưng CHƯA gửi gì đi. Xem `batDauTra`.
+  const [choXacNhan, setChoXacNhan] = useState(false)
+  // Đếm số lần nhận số từ sheet — chỉ để làm `key` cho ô nhập, xem chỗ dùng.
+  const [lanNhanSo, setLanNhanSo] = useState(0)
   const traSo = useTraSo()
   // Thẻ lượt: đóng sheet giữa chừng rồi bấm "Tra hộ" lại là một đường có thật (Esc/bấm ra
   // ngoài không huỷ request đang bay). Không có thẻ này, lượt cũ về muộn hơn sẽ đè kết quả
@@ -86,11 +93,54 @@ export function EventEditorPopover({
           tien: chang.tien,
         })
 
+  /**
+   * Đồng tiền của Ô SỐ TIỀN — của CHẶNG, không phải `event.currency`.
+   *
+   * Từ bản v5 (`fxModel.ts`) tiền nằm trên chặng chứ không trên mốc, và `event.currency`
+   * có thể còn mang đồng CŨ (không có migration hàng loạt — ca 年金 giữ ¥ trong chặng $ là
+   * trạng thái HỢP LỆ). Đọc ô theo `event.currency` trong khi lượt tra hỏi theo tiền của
+   * chặng thì hai bên nói hai đồng khác nhau, và số tra về ghi vào một ô đang tính bằng
+   * đồng khác — ra một con số người dùng chưa bao giờ chọn, không cảnh báo gì.
+   * `ScenarioWorkbench` (MoneyField, `currencyAt`) đã đọc theo chặng; đây đọc y như vậy.
+   */
+  const tienO = chang?.tien ?? event.currency
+
+  /**
+   * Ghi số tiền KÈM đồng tiền, y hệt `ScenarioWorkbench.tsx` — lần người dùng chạm vào là
+   * lúc dòng dữ liệu tự lành về mô hình v5. Không có `chang` thì không biết lành về đâu,
+   * nên chỉ ghi con số (giữ nguyên hành vi cũ).
+   */
+  function ghiSoTien(minor: number) {
+    onPatch(
+      chang === null
+        ? { amountMinor: minor }
+        : { amountMinor: minor, currency: chang.tien, fxToDisplay: 1 },
+    )
+  }
+
+  /**
+   * Bấm "Tra hộ".
+   *
+   * Mốc TỰ ĐẶT TÊN dừng ở màn xác nhận, chưa gửi gì: nhãn mốc là chữ người dùng gõ, và
+   * bản thiết kế đòi cảnh báo "trước khi gửi — người dùng bấm tiếp hay thôi". Mốc có sẵn
+   * dựng câu hỏi TỪ LUẬT (không mang chữ người dùng) nên gửi thẳng, không hỏi lại.
+   */
   function batDauTra() {
     if (cauHoi === null || chang === null) return
-    const luot = ++luotRef.current // mỗi lần bấm là một lượt mới
     setKetQua(null)
     setMoSheet(true)
+    if (!cauHoi.laMocCoSan) {
+      setChoXacNhan(true)
+      return
+    }
+    setChoXacNhan(false)
+    gui()
+  }
+
+  function gui() {
+    if (cauHoi === null || chang === null) return
+    setChoXacNhan(false)
+    const luot = ++luotRef.current // mỗi lần gửi là một lượt mới
     // Truyền cả `tien`: bản demo dội lại đúng đồng đó, nếu không `docKetQua` sẽ từ chối
     // với `sai-tien` ở mọi chặng không phải JPY. Xem JSDoc `Repo.traSo`.
     traSo.mutate(
@@ -180,12 +230,16 @@ export function EventEditorPopover({
         </div>
 
         <label className="mt-1.5 block text-2xs text-fg-muted">
-          Số tiền mỗi năm ({event.currency})
+          Số tiền mỗi năm ({tienO})
           <div className="flex items-end gap-1.5">
             <input
+              // `key` nhảy khi số ĐẾN TỪ SHEET, không nhảy khi người dùng đang gõ: ô này
+              // là uncontrolled (defaultValue), nên không có nó thì bấm "Lấy" xong ô vẫn
+              // in số cũ trong khi đồ thị đã đổi — hai con số khác nhau trên cùng màn.
+              key={lanNhanSo}
               inputMode="decimal"
-              defaultValue={toMajor(event.amountMinor, event.currency)}
-              onChange={(e) => onPatch({ amountMinor: toMinor(e.target.value, event.currency) })}
+              defaultValue={toMajor(event.amountMinor, tienO)}
+              onChange={(e) => ghiSoTien(toMinor(e.target.value, tienO))}
               className={`${FIELD} tabular-nums`}
             />
             {cauHoi !== null && (
@@ -215,10 +269,27 @@ export function EventEditorPopover({
           dangChay={traSo.isPending}
           ketQua={ketQua}
           tien={chang.tien}
+          choXacNhan={choXacNhan}
           canhBaoRiengTu={!cauHoi.laMocCoSan}
-          onDong={() => setMoSheet(false)}
+          onXacNhan={gui}
+          onDong={() => {
+            setMoSheet(false)
+            setChoXacNhan(false)
+          }}
           onChon={(minor, ghiChu) => {
-            onPatch({ amountMinor: minor, note: ghiChu })
+            onPatch({
+              amountMinor: minor,
+              // Đồng tiền đi CÙNG con số. `docKetQua` đã kiểm câu trả lời đúng
+              // `chang.tien`, nên số này là số của chặng — ghi thiếu `currency` là để nó
+              // rơi vào một ô còn mang đồng cũ và bị quy đổi tiếp một lần nữa.
+              currency: chang.tien,
+              fxToDisplay: 1,
+              // NỐI THÊM, không thay: `draft.ts` mang `note` theo chỉ để không ghi đè
+              // mất, và `planDraftSave` đẩy nó xuống DB lúc Lưu — ghi đè ở đây là xoá
+              // sạch ghi chú người dùng tự viết trong mốc đó.
+              note: event.note.trim() === '' ? ghiChu : `${event.note}\n\n${ghiChu}`,
+            })
+            setLanNhanSo((n) => n + 1)
             setMoSheet(false)
           }}
         />

@@ -206,6 +206,30 @@ export function LifetimeView() {
     return projectLifetime({ ...shownInput, stress })
   }, [shownInput, stress])
 
+  const editingEvent = useMemo(
+    () => working?.events.find((e) => e.id === editingEventId) ?? null,
+    [working, editingEventId],
+  )
+
+  /**
+   * Chặng phủ năm bắt đầu của mốc đang sửa — nguồn NƯỚC và TIỀN cho nút "Tra hộ".
+   *
+   * Phải là `useMemo`: trước đây đây là một IIFE nằm trong JSX, nên mỗi lần render nó sắp
+   * lại cả `working.phases` và trao một OBJECT MỚI cho popover — popover thấy prop đổi ở
+   * mọi render dù chặng không hề đổi.
+   */
+  const changCuaMoc = useMemo(() => {
+    if (working === null || editingEvent === null) return null
+    const sorted = [...working.phases].sort((a, b) => a.startYear - b.startYear)
+    const p = phaseForYear(sorted, editingEvent.startYear)
+    return p === undefined
+      ? null
+      : {
+          nuoc: p.country,
+          tien: currencyAt(sorted, editingEvent.startYear, working.displayCurrency),
+        }
+  }, [working, editingEvent])
+
   const shownPhaseIndex = working ? draftPhaseIndex(working, currentYear) : -1
   const shownPhase =
     shownInput && shownPhaseIndex >= 0 ? shownInput.phases[shownPhaseIndex] : null
@@ -440,7 +464,6 @@ export function LifetimeView() {
   const currency = active.display_currency as CurrencyCode
   const birthYear = profile?.birth_year ?? shownInput.birthYear
   const maxYear = birthYear + shownInput.endAge
-  const editingEvent = working.events.find((e) => e.id === editingEventId) ?? null
 
   // --- Hai câu phụ của băng kết luận --------------------------------------------------
   const negYear = firstNegativeYear(shownRows, 'low')
@@ -684,16 +707,7 @@ export function LifetimeView() {
                   top={pos.top}
                   minYear={currentYear}
                   maxYear={maxYear}
-                  chang={(() => {
-                    const sorted = [...working.phases].sort((a, b) => a.startYear - b.startYear)
-                    const p = phaseForYear(sorted, editingEvent.startYear)
-                    return p === undefined
-                      ? null
-                      : {
-                          nuoc: p.country,
-                          tien: currencyAt(sorted, editingEvent.startYear, working.displayCurrency),
-                        }
-                  })()}
+                  chang={changCuaMoc}
                   onPatch={(patch) =>
                     editDraft((d) => patchDraftEvent(d, editingEvent.id, patch))
                   }

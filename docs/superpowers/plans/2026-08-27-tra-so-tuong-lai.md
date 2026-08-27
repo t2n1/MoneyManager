@@ -928,6 +928,11 @@ Run: `sed -n '100,140p' src/features/lifetime/EventFormSheet.tsx`
 
 Chép nguyên lớp phủ, lớp `role="dialog"`, cách đóng bằng phím Esc và bằng bấm ra ngoài.
 
+**Đối chiếu `className` của lớp `role="dialog"` TỪNG TOKEN** với chuỗi ở Bước 2 — cùng một
+chuỗi đang chạy ở `PhaseFormSheet.tsx` và `assets/CardMonthAdjustSheet.tsx`. Lệch token nào
+thì tin `EventFormSheet`, không tin kế hoạch này. `designSystem.test.ts` **không** bắt được
+kiểu lệch này (nó đặt trần số lần dùng `rounded-2xl`, không đặt sàn), nên mắt bạn là lưới duy nhất.
+
 - [ ] **Bước 2: Viết `TraSoSheet.tsx`**
 
 Tạo `src/features/lifetime/TraSoSheet.tsx`. Ba trạng thái, và không trạng thái nào dẫn
@@ -977,10 +982,28 @@ export function TraSoSheet({ dangChay, ketQua, tien, canhBaoRiengTu, onChon, onD
       className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center animate-overlay-in"
       onClick={onDong}
     >
+      {/*
+        Chuỗi className dưới đây chép NGUYÊN SI từ EventFormSheet.tsx — cùng một chuỗi
+        đang chạy ở PhaseFormSheet và CardMonthAdjustSheet. Đừng rút gọn:
+
+        · `max-h-[92vh]` + `overflow-y-auto` KHÔNG phải trang trí. Thân sheet này dài
+          tuỳ ý (đoạn diễn giải + danh sách cảnh báo không chặn số lượng), mà khung
+          ngoài là `fixed inset-0 items-end` không có overflow. Bỏ hai lớp này thì ở
+          375px với vài cảnh báo, nội dung nở quá đỉnh màn và ba nút "Lấy" bị đẩy ra
+          ngoài, không cuộn tới được — tức component hỏng đúng việc nó sinh ra để làm.
+        · `pb-[max(1rem,env(...))]` giữ nút cuối khỏi nằm đè vạch home trên iPhone.
+        · `rounded-2xl` là bán kính theo VAI TRÒ "sheet trượt lên"
+          (docs/design-system.md:266), không theo kích cỡ sheet.
+
+        `max-h-[92vh]` và `pb-[max(...)]` đúng là giá trị tuỳ ý, và vẫn hợp lệ: luật
+        "không chêm giá trị tuỳ ý" nhắm vào màu / cỡ chữ / bán kính — những thứ CÓ
+        token. Chiều cao khung nhìn và safe-area không có token nào.
+      */}
       <div
         role="dialog"
+        aria-modal="true"
         aria-label="Tra số cho mốc"
-        className="w-full max-w-md rounded-t-xl bg-surface p-4 lg:rounded-xl"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
         onClick={(e) => e.stopPropagation()}
       >
         {canhBaoRiengTu && (

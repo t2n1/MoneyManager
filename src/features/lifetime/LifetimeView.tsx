@@ -26,12 +26,12 @@ import { InsightCards } from './InsightCards'
 import { LifetimeChartCard } from './LifetimeChartCard'
 import type { PresetContext } from './presets'
 import { PresetPanel } from './PresetPanel'
-import { hasStress, NO_STRESS, projectLifetime, type StressConfig } from './project'
+import { hasStress, NO_STRESS, phaseForYear, projectLifetime, type StressConfig } from './project'
 import { commitDraft, saveDraftAsNewScenario } from './saveDraft'
 import { ScenarioWorkbench } from './ScenarioWorkbench'
 import { defaultStress } from './StressPanel'
 import { pickActive } from './buildInput'
-import { fxOfRates, normalizeToPhaseCurrency } from './fxModel'
+import { currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { lifetimeVerdict } from './summary'
 import { useLifetime } from './useLifetime'
 import { YearTableSection, YearTableView } from './YearTableView'
@@ -684,6 +684,16 @@ export function LifetimeView() {
                   top={pos.top}
                   minYear={currentYear}
                   maxYear={maxYear}
+                  chang={(() => {
+                    const sorted = [...working.phases].sort((a, b) => a.startYear - b.startYear)
+                    const p = phaseForYear(sorted, editingEvent.startYear)
+                    return p === undefined
+                      ? null
+                      : {
+                          nuoc: p.country,
+                          tien: currencyAt(sorted, editingEvent.startYear, working.displayCurrency),
+                        }
+                  })()}
                   onPatch={(patch) =>
                     editDraft((d) => patchDraftEvent(d, editingEvent.id, patch))
                   }

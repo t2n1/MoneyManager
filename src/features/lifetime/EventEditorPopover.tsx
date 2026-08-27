@@ -7,7 +7,7 @@
 //
 // Chỉ bốn ô (tên, hai năm, số tiền). Tỷ giá, ghi chú, cờ lạm phát vẫn thuộc trình sửa
 // đầy đủ: chúng không phải thứ người ta vặn khi đang nhìn đường đồ thị chạy.
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { ActionButton, IconButton, actionButtonClass } from '../../components/ui'
 import { useTraSo } from '../../hooks/queries'
@@ -69,6 +69,10 @@ export function EventEditorPopover({
   const [moSheet, setMoSheet] = useState(false)
   const [ketQua, setKetQua] = useState<KetQuaTra | LoiTra | null>(null)
   const traSo = useTraSo()
+  // Thẻ lượt: đóng sheet giữa chừng rồi bấm "Tra hộ" lại là một đường có thật (Esc/bấm ra
+  // ngoài không huỷ request đang bay). Không có thẻ này, lượt cũ về muộn hơn sẽ đè kết quả
+  // của lượt mới — người dùng bấm "Lấy" một con số không thuộc câu mình vừa hỏi.
+  const luotRef = useRef(0)
 
   const cauHoi =
     chang === null
@@ -84,6 +88,7 @@ export function EventEditorPopover({
 
   function batDauTra() {
     if (cauHoi === null || chang === null) return
+    const luot = ++luotRef.current // mỗi lần bấm là một lượt mới
     setKetQua(null)
     setMoSheet(true)
     // Truyền cả `tien`: bản demo dội lại đúng đồng đó, nếu không `docKetQua` sẽ từ chối
@@ -91,11 +96,17 @@ export function EventEditorPopover({
     traSo.mutate(
       { van: cauHoi.van, tien: chang.tien },
       {
-        onSuccess: (tho) => setKetQua(docKetQua(tho, chang.tien)),
+        // Chỉ lượt MỚI NHẤT được phép ghi kết quả. Lượt cũ về muộn thì bỏ qua lặng lẽ.
+        onSuccess: (tho) => {
+          if (luot !== luotRef.current) return
+          setKetQua(docKetQua(tho, chang.tien))
+        },
         // Mất mạng / function lỗi / hết hạn mức đều dừng ở đây — dùng 'khong-goi-duoc',
         // KHÔNG dùng 'doc-khong-ra' (đó là mã cho kết quả đọc không ra, nói sai chỗ hỏng).
-        onError: (e) =>
-          setKetQua({ loi: 'khong-goi-duoc', noiDung: e instanceof Error ? e.message : String(e) }),
+        onError: (e) => {
+          if (luot !== luotRef.current) return
+          setKetQua({ loi: 'khong-goi-duoc', noiDung: e instanceof Error ? e.message : String(e) })
+        },
       },
     )
   }

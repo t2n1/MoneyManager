@@ -618,11 +618,12 @@ export interface Repo {
    * Trả `unknown` là cố ý: việc kiểm nằm ở `traSoKetQua.docKetQua`, nơi có unit test.
    * Repo không được kiểm hộ — hai chỗ kiểm là hai chỗ trôi lệch.
    *
-   * `tien` là đồng tiền của CHẶNG đang hỏi (không phải đồng edge function trả về —
-   * đó là việc của `docKetQua` kiểm sau). Phải truyền xuống vì hai lý do: (1) function
-   * cần biết hỏi đồng nào để không lẫn USD/JPY/VND, và (2) bản demo không gọi mạng nên
-   * không có cách nào khác để biết trả mẫu bằng đồng gì — đoán từ nội dung `van` là
-   * đoán chữ, mà cả `traSoKetQua.ts` được viết quanh đúng luật KHÔNG ĐOÁN.
+   * `tien` là đồng tiền của CHẶNG đang hỏi (không phải đồng edge function trả về — đó là
+   * việc của `docKetQua` kiểm sau). Nó KHÔNG đi ra ngoài: edge function không đọc trường
+   * này, và bản thân câu hỏi (`van`) đã nói rõ đồng tiền rồi. Lý do duy nhất nó có mặt
+   * trong chữ ký là bản DEMO: demo không gọi mạng nên không có cách nào khác để biết trả
+   * mẫu bằng đồng gì — đoán từ nội dung `van` là đoán chữ, mà cả `traSoKetQua.ts` được
+   * viết quanh đúng luật KHÔNG ĐOÁN.
    */
   traSo(van: string, tien: CurrencyCode): Promise<unknown>
 

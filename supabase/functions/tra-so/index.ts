@@ -11,8 +11,11 @@
 // Nếu để app gửi lên thì một lỗi vòng lặp phía app đốt sạch hạn mức trong vài giây.
 //
 // Chạy thử tại máy:  supabase functions serve tra-so
-// Deploy:            supabase functions deploy tra-so
+// Deploy:            supabase functions deploy tra-so   ← KHÔNG có --no-verify-jwt
 // Đặt khoá:          supabase secrets set AI_API_KEY=...
+//
+// Lệnh đầy đủ và VÌ SAO cờ --no-verify-jwt là sai ở đây (dù ba function kia đều dùng):
+// docs/tra-so.md
 
 // deno-lint-ignore-file no-explicit-any
 const AI_API_KEY = (Deno.env.get('AI_API_KEY') ?? '').trim()
@@ -41,8 +44,33 @@ function json(body: unknown, status = 200): Response {
 // thử THẬT cùng một câu hỏi qua hai bên. Một khung cắm dựng trước khi biết mình cần gì
 // là dựng sai. Khi đã chốt, ~30 dòng này là tất cả những gì phải đụng.
 // ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Hỏng ở tầng ĐỌC KẾT QUẢ, tách riêng khỏi hỏng ở tầng GỌI.
+ *
+ * Vì sao phải có kiểu riêng: catch ngoài trả 502, mà app ánh xạ 502 thành
+ * `khong-goi-duoc` ("mất mạng"). Một câu trả lời méo rơi vào nhánh đó thì người dùng
+ * đọc được một lời nói SAI CHỖ HỎNG — đúng thứ nhập nhằng mà taxonomy lỗi ở
+ * `traSoKetQua.ts` sinh ra để chặn.
+ */
+class LoiDocKetQua extends Error {}
+
+/**
+ * Nhà cung cấp từ chối. Câu trong `message` đã được viết sẵn ở đây nên nó AN TOÀN để
+ * trả về client — khác một `Error` bất kỳ, thứ có thể mang chuỗi của thư viện/Deno.
+ */
+class LoiNhaCungCap extends Error {}
+
+/** Câu trả về client khi nhà cung cấp từ chối. KHÔNG dội thân lỗi của họ ra ngoài. */
+function cauLoiTheoStatus(status: number): string {
+  if (status === 429) return 'Đã hết hạn mức tra tháng này. Không phải lỗi của bạn.'
+  if (status === 401 || status === 403) return 'Khoá API phía server không dùng được.'
+  return 'Nhà cung cấp không trả lời được lúc này.'
+}
+
 async function goiNhaCungCap(van: string): Promise<unknown> {
   const res = await fetch(
+    // TẠM — chưa chốt hãng, xem mục "Quyết định còn treo" trong spec. Chuỗi model dưới
+    // đây thuộc đúng hạng (Flash) mà spec lập luận là KHÔNG nên dùng cho việc này.
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent',
     {
       method: 'POST',
@@ -54,12 +82,29 @@ async function goiNhaCungCap(van: string): Promise<unknown> {
       }),
     },
   )
-  if (!res.ok) throw new Error(`Nhà cung cấp trả ${res.status}: ${await res.text()}`)
-  const data: any = await res.json()
+  if (!res.ok) {
+    // Ghi log thân lỗi cho người vận hành, KHÔNG trả nó về client: thân lỗi của nhà cung
+    // cấp có thể mang mảnh request, tên project và metadata khoá.
+    console.error(`tra-so: nhà cung cấp trả ${res.status}`, await res.text())
+    throw new LoiNhaCungCap(cauLoiTheoStatus(res.status))
+  }
+
+  let data: any
+  try {
+    data = await res.json()
+  } catch {
+    throw new LoiDocKetQua('Nhà cung cấp trả về nội dung không đọc được.')
+  }
   const text: string = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? ''
   // Model hay bọc JSON trong ```json … ``` dù đã dặn. Bóc ra trước khi parse.
   const sach = text.replace(/^```(?:json)?/m, '').replace(/```\s*$/m, '').trim()
-  return JSON.parse(sach)
+  try {
+    return JSON.parse(sach)
+  } catch {
+    // ĐÂY LÀ MỘT BƯỚC KIỂM, và nó chạy ở server nơi không có unit test — nên tối thiểu
+    // nó phải nói đúng tên cái hỏng. Xem khối chú thích của `LoiDocKetQua`.
+    throw new LoiDocKetQua('Nhà cung cấp trả lời không phải JSON đọc được.')
+  }
 }
 
 Deno.serve(async (req) => {
@@ -79,7 +124,7 @@ Deno.serve(async (req) => {
   try {
     van = (await req.json())?.van
   } catch {
-    return json({ ok: false, loi: 'Thân yêu cầu không phải JSON.' }, 400)
+    return json({ ok: false, loi: 'Nội dung yêu cầu không phải JSON.' }, 400)
   }
   if (typeof van !== 'string' || van.trim().length === 0) {
     return json({ ok: false, loi: 'Thiếu câu hỏi.' }, 400)
@@ -91,6 +136,13 @@ Deno.serve(async (req) => {
   try {
     return json({ ok: true, ketQua: await goiNhaCungCap(van) })
   } catch (e) {
-    return json({ ok: false, loi: e instanceof Error ? e.message : String(e) }, 502)
+    // 422, KHÔNG 502: gọi được, chỉ là đọc không ra. Hai chuyện khác nhau và người dùng
+    // phải đọc được đúng chuyện nào — 502 là câu dành cho "không tới được nhà cung cấp".
+    if (e instanceof LoiDocKetQua) return json({ ok: false, loi: e.message }, 422)
+    if (e instanceof LoiNhaCungCap) return json({ ok: false, loi: e.message }, 502)
+    // Câu lạ (lỗi mạng của Deno chẳng hạn) KHÔNG dội ra ngoài: nó là tiếng Anh, thô, và
+    // có thể mang chi tiết hạ tầng. Ghi log rồi trả một câu chung.
+    console.error('tra-so:', e)
+    return json({ ok: false, loi: 'Không gọi được nhà cung cấp.' }, 502)
   }
 })

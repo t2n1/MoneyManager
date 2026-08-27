@@ -768,8 +768,11 @@ export const supabaseRepo: Repo = {
     if (error) throw error
   },
 
-  async traSo(van: string, tien: CurrencyCode) {
-    const { data, error } = await getSupabase().functions.invoke('tra-so', { body: { van, tien } })
+  // `tien` KHÔNG vào thân request: edge function không đọc nó, và `van` đã nói rõ đồng
+  // tiền rồi. Gửi một trường không ai đọc chỉ tạo ảo giác là function có kiểm nó.
+  // Tham số vẫn phải nhận vì bản demo cần — xem JSDoc `Repo.traSo`.
+  async traSo(van: string, _tien: CurrencyCode) {
+    const { data, error } = await getSupabase().functions.invoke('tra-so', { body: { van } })
     if (error) {
       // Xem docLoiTuContext: error.message ở đây luôn là câu chung chung, câu lỗi thật
       // (nếu moi được) mới đáng hiện cho người dùng.

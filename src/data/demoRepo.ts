@@ -1718,18 +1718,26 @@ export const demoRepo: Repo = {
     save(db)
   },
 
-  async traSo(_van: string) {
+  async traSo(_van: string, tien: CurrencyCode) {
     // Bản demo không gọi mạng và không có khoá. Trả một kết quả mẫu để người xem thấy
-    // ĐÚNG luồng — số là số thật đã tra (ゼクシィ 2024), nhưng luôn là số này bất kể hỏi gì.
+    // ĐÚNG luồng. Số gốc (¥1.100.000 / 1.700.000 / 3.400.000) là số thật đã tra cho JPY
+    // (ゼクシィ 2024) — nhưng `docKetQua` (traSoKetQua.ts) từ chối nếu `tien` trả về khác
+    // đồng của chặng đang hỏi, nên phải trả ĐÚNG `tien` nhận vào, không được ghim cứng
+    // 'JPY'. Không tra số thật cho VND/USD ở đây (bản demo không gọi mạng để tra); khi
+    // `tien` khác JPY thì độ lớn dưới đây KHÔNG có nghĩa — `dien_giai` nói rõ điều đó
+    // thay vì giả vờ đây là một con số đã tra cho đồng đó.
     return {
       khong_biet: false,
-      tien: 'JPY',
+      tien,
       thap: 1_100_000,
       giua: 1_700_000,
       cao: 3_400_000,
       dien_giai:
-        'Tổng chi phí trung bình ¥3.439.000 cho 52 khách, đã trừ ご祝儀 ước tính để ra ' +
-        'số thực móc ra. (Bản demo: kết quả mẫu, không gọi mạng.)',
+        tien === 'JPY'
+          ? 'Tổng chi phí trung bình ¥3.439.000 cho 52 khách, đã trừ ご祝儀 ước tính để ra ' +
+            'số thực móc ra. (Bản demo: kết quả mẫu, không gọi mạng.)'
+          : `(Bản demo: kết quả mẫu cố định theo JPY, không gọi mạng — số hiển thị KHÔNG ` +
+            `phải số đã tra cho ${tien}, chỉ để xem đúng luồng.)`,
       canh_bao: [
         'Khảo sát 2025 đổi cách đo — số mới ¥2.986.000 không so trực tiếp được với 2024.',
         'Khoảng phổ biến nhất chỉ chiếm 18,6%, nên đây là dải rộng.',

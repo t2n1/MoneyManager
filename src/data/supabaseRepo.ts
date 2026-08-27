@@ -119,6 +119,29 @@ async function nextTagSortOrder(): Promise<number> {
   return (data?.[0]?.sort_order ?? -1) + 1
 }
 
+/**
+ * Moi cau loi that ra khoi `FunctionsHttpError.context` — moi khi `functions.invoke()`
+ * gap ma non-2xx, no nem `FunctionsHttpError` TRUOC khi doc body, nen `error.message`
+ * chi la cau chung "Edge Function returned a non-2xx status code". Cau loi that (truong
+ * `loi` cua edge function `tra-so`) nam chua doc trong `error.context`, mot `Response`
+ * chua consume.
+ *
+ * An toan la yeu cau bat buoc: `context` co the khong ton tai, khong phai JSON, hoac da
+ * bi doc roi (vi du do mot lop middleware khac). Ham nay KHONG duoc tu nem — no dang o
+ * tren duong xu ly loi, nem o day la nuot mat loi goc.
+ */
+async function docLoiTuContext(error: unknown): Promise<string | null> {
+  try {
+    const context = (error as { context?: unknown } | null)?.context
+    if (!(context instanceof Response)) return null
+    const body: unknown = await context.clone().json()
+    const loi = (body as { loi?: unknown } | null)?.loi
+    return typeof loi === 'string' ? loi : null
+  } catch {
+    return null
+  }
+}
+
 export const supabaseRepo: Repo = {
   async getProfile() {
     const { data, error } = await getSupabase().from('profiles').select('*').single()
@@ -742,9 +765,14 @@ export const supabaseRepo: Repo = {
     if (error) throw error
   },
 
-  async traSo(van: string) {
-    const { data, error } = await getSupabase().functions.invoke('tra-so', { body: { van } })
-    if (error) throw error
+  async traSo(van: string, tien: CurrencyCode) {
+    const { data, error } = await getSupabase().functions.invoke('tra-so', { body: { van, tien } })
+    if (error) {
+      // Xem docLoiTuContext: error.message ở đây luôn là câu chung chung, câu lỗi thật
+      // (nếu moi được) mới đáng hiện cho người dùng.
+      const loi = await docLoiTuContext(error)
+      throw new Error(loi ?? error.message)
+    }
     if (!data?.ok) throw new Error(data?.loi ?? 'Không tra được.')
     return data.ketQua as unknown
   },

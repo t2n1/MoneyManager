@@ -512,7 +512,7 @@ export function useLifePhases() {
  */
 export function useTraSo() {
   return useMutation({
-    mutationFn: (van: string) => repo.traSo(van),
+    mutationFn: ({ van, tien }: { van: string; tien: CurrencyCode }) => repo.traSo(van, tien),
   })
 }
 

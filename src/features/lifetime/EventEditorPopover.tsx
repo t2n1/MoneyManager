@@ -236,7 +236,15 @@ export function EventEditorPopover({
               // `key` nhảy khi số ĐẾN TỪ SHEET, không nhảy khi người dùng đang gõ: ô này
               // là uncontrolled (defaultValue), nên không có nó thì bấm "Lấy" xong ô vẫn
               // in số cũ trong khi đồ thị đã đổi — hai con số khác nhau trên cùng màn.
-              key={lanNhanSo}
+              //
+              // Ba mảnh, thiếu mảnh nào cũng hở: `event.id` remount khi đổi CHIP (popover
+              // không tự remount theo mốc); `tienO` remount khi sửa "Từ năm" đẩy mốc sang
+              // một CHẶNG khác đồng tiền — nhãn đổi mà DOM giữ số cũ thì phím tiếp theo ghi
+              // số cũ kèm đồng tiền mới, sai theo đúng tỷ giá; `lanNhanSo` remount khi số về
+              // từ sheet "Tra hộ", như lý do đã ghi ở trên. Cả `event.id` lẫn `tienO` đều
+              // không đổi được trong lúc đang gõ vào chính ô này, nên thêm chúng không làm
+              // sống lại lỗi con trỏ nhảy mà `key={lanNhanSo}` sinh ra để chặn.
+              key={`${event.id}-${tienO}-${lanNhanSo}`}
               inputMode="decimal"
               defaultValue={toMajor(event.amountMinor, tienO)}
               onChange={(e) => ghiSoTien(toMinor(e.target.value, tienO))}

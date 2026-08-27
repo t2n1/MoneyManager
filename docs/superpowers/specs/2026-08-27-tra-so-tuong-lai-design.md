@@ -53,7 +53,8 @@ Bốn luật cố định của luồng này:
 2. **Số vào bản nháp, không vào DB.** Đồ thị đổi ngay, ghi khi bấm Lưu — đúng cơ chế
    `draft.ts` đang chạy. Không dựng cơ chế duyệt mới; cơ chế duyệt đã tồn tại.
 3. **Nguồn + ngày tra tự ghi vào `note` của mốc.** Sáu tháng sau mở lại còn biết số ở đâu
-   ra và cũ chưa. Hiện `draft.ts` mang `note` theo mà không sửa — phải mở đường ghi.
+   ra và cũ chưa. Đường đã thông sẵn — `patchDraftEvent` nhận `note`, và `planDraftSave`
+   đã so `note` để ghi xuống DB. **Không phải sửa `draft.ts`.**
 4. **Tiền luôn là tiền của chặng.** Từ bản v5 (`fxModel.ts`, chốt 2026-08-24) tiền nằm
    trên CHẶNG chứ không trên mốc. Câu hỏi mang theo nước + tiền của chặng; câu trả lời
    sai đồng tiền thì bị chặn, không tự quy đổi.
@@ -99,8 +100,8 @@ có đều do cron gọi. Mẫu mới, cần làm cho đúng ngay lần đầu.
 | `src/features/lifetime/TraSoSheet.tsx` | Màn kết quả. Chỉ hiện số, không tính số. |
 | `supabase/functions/tra-so/index.ts` | Cầu giữ khoá. ~30 dòng cho đoạn "gọi hãng nào". |
 
-Sửa thêm: nút trong `EventEditorPopover`, đường ghi `note` trong `draft.ts`, `traSo()` +
-kiểu dữ liệu trong `repo.ts` / `supabaseRepo.ts` / `demoRepo.ts`, hook trong `queries.ts`.
+Sửa thêm: nút trong `EventEditorPopover`, `traSo()` + kiểu dữ liệu trong `repo.ts` /
+`supabaseRepo.ts` / `demoRepo.ts`, hook trong `queries.ts`. **`draft.ts` không đổi.**
 
 Toán thuần nằm ngoài React, đúng quy ước repo: hai file `.ts` không JSX mang toàn bộ luật,
 component chỉ render.

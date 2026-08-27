@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dungCauHoi, LUAT_HOI, type MocDeTra } from './traSo'
+import { docNuoc, dungCauHoi, LUAT_HOI, type MocDeTra } from './traSo'
 
 const moc = (over: Partial<MocDeTra> & Pick<MocDeTra, 'nhan'>): MocDeTra => ({
   kind: 'expense',
@@ -66,6 +66,27 @@ describe('khoá riêng tư', () => {
       const van = dungCauHoi(moc({ nhan, namBatDau: 2029, namKetThuc: null })).van
       expect(van).not.toContain(nhan)
     }
+  })
+
+  it('ô Quốc gia là chữ TỰ DO nên không được lọt vào câu hỏi', () => {
+    // `phase.country` là input tự do (PhaseFormSheet), tức người dùng gõ gì cũng được —
+    // kể cả chuyện riêng. Fixture cũ ghim 'JP' nên chưa bao giờ chạm vào đường này.
+    const THU_DICH = 'Nhật 123 <bí mật của tôi>'
+    for (const nhan of Object.keys(LUAT_HOI)) {
+      const van = dungCauHoi(moc({ nhan, nuoc: THU_DICH })).van
+      expect(van).not.toContain(THU_DICH)
+      expect(van).not.toContain('bí mật')
+      expect(van).toContain('không rõ nước')
+    }
+  })
+
+  it('docNuoc chỉ nhả tên đã biết, không nhả lại chữ nhận vào', () => {
+    expect(docNuoc('JP')).toBe('Nhật Bản')
+    expect(docNuoc('  vn  ')).toBe('Việt Nam')
+    expect(docNuoc('việt nam')).toBe('Việt Nam')
+    expect(docNuoc('USA')).toBe('Mỹ')
+    expect(docNuoc(null)).toBe('không rõ nước')
+    expect(docNuoc('Nhật 123 <bí mật của tôi>')).toBe('không rõ nước')
   })
 
   it('câu hỏi của mốc có sẵn không chứa số nào ngoài năm', () => {

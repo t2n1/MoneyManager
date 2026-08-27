@@ -19,7 +19,10 @@ export interface MocDeTra {
   kind: 'income' | 'expense'
   namBatDau: number
   namKetThuc: number | null
-  /** Nước của CHẶNG phủ năm bắt đầu (từ `phaseForYear`), không phải của mốc. */
+  /**
+   * Nước của CHẶNG phủ năm bắt đầu (từ `phaseForYear`), không phải của mốc.
+   * Đây là chữ NGƯỜI DÙNG GÕ (ô tự do) — nó đi qua `docNuoc` trước khi vào câu hỏi.
+   */
   nuoc: string | null
   /** Tiền của CHẶNG (từ `currencyAt`). Câu trả lời phải theo đúng đồng này. */
   tien: CurrencyCode
@@ -79,6 +82,45 @@ export const LUAT_HOI: Record<string, string> = {
     'Số theo mức sống ở Việt Nam, tra nguồn Việt Nam. KHÔNG quy từ số của Nhật sang.',
 }
 
+/** Câu dùng khi không nhận ra nước — cũng là giá trị khi chặng để trống ô Quốc gia. */
+const KHONG_RO_NUOC = 'không rõ nước'
+
+/**
+ * Nước ĐÃ BIẾT → tên dùng trong câu hỏi. Bảng này là một cái CỔNG, không phải tiện ích.
+ *
+ * VÌ SAO PHẢI CÓ. `phase.country` là ô nhập TỰ DO (`PhaseFormSheet` — placeholder "Ví dụ:
+ * JP, US, VN", không phải danh sách chọn), nên chữ người dùng gõ vào đó là chữ tuỳ ý.
+ * Chèn thẳng vào câu hỏi thì lời hứa "mốc sinh từ mẫu không gửi chữ nào người dùng gõ"
+ * (bản thiết kế, mục "Dữ liệu gửi đi") vỡ ngay ở đường mốc-CÓ-SẴN — đường lẽ ra an toàn
+ * nhất và không hề có cảnh báo nào. Qua bảng này, chữ đó chỉ còn là chìa để tra; cái đi
+ * ra ngoài luôn là một giá trị của MÌNH. Không khớp thì rơi về `KHONG_RO_NUOC`: thà câu
+ * hỏi thiếu một chi tiết còn hơn để chuyện riêng lọt ra.
+ *
+ * Chỉ ba nước vì app chỉ có ba đồng tiền (`CURRENCIES`). Thêm nước = thêm dòng ở đây.
+ */
+const NUOC_BIET: Record<string, string> = {
+  JP: 'Nhật Bản',
+  JPN: 'Nhật Bản',
+  JAPAN: 'Nhật Bản',
+  NHẬT: 'Nhật Bản',
+  'NHẬT BẢN': 'Nhật Bản',
+  日本: 'Nhật Bản',
+  VN: 'Việt Nam',
+  VNM: 'Việt Nam',
+  VIETNAM: 'Việt Nam',
+  'VIỆT NAM': 'Việt Nam',
+  US: 'Mỹ',
+  USA: 'Mỹ',
+  MỸ: 'Mỹ',
+  'HOA KỲ': 'Mỹ',
+}
+
+/** Ánh xạ ô Quốc gia của chặng về một tên đã biết. Xem khối chú thích của `NUOC_BIET`. */
+export function docNuoc(country: string | null): string {
+  if (country === null) return KHONG_RO_NUOC
+  return NUOC_BIET[country.trim().toUpperCase()] ?? KHONG_RO_NUOC
+}
+
 const CHUNG =
   'Tôi không rõ khoản này thường hết bao nhiêu. Đây là mốc do tôi tự đặt tên nên có thể ' +
   'có những cái bẫy tôi không biết — nếu con số phổ biến trên mạng là số gộp, số chưa trừ ' +
@@ -117,7 +159,7 @@ function khuonTraLoi(tien: CurrencyCode): string {
 export function dungCauHoi(moc: MocDeTra): CauHoi {
   const luat = LUAT_HOI[moc.nhan]
   const laMocCoSan = luat !== undefined
-  const nuoc = moc.nuoc ?? 'không rõ nước'
+  const nuoc = docNuoc(moc.nuoc)
   const loai = moc.kind === 'income' ? 'khoản THU' : 'khoản CHI'
   const khoang =
     moc.namKetThuc === null

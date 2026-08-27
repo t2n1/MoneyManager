@@ -612,6 +612,14 @@ export interface Repo {
   updateLifeEvent(id: string, patch: LifeEventPatch): Promise<LifeEventRow>
   deleteLifeEvent(id: string): Promise<void>
 
+  /**
+   * Gửi một câu hỏi tra số cho nhà cung cấp AI, trả về JSON THÔ.
+   *
+   * Trả `unknown` là cố ý: việc kiểm nằm ở `traSoKetQua.docKetQua`, nơi có unit test.
+   * Repo không được kiểm hộ — hai chỗ kiểm là hai chỗ trôi lệch.
+   */
+  traSo(van: string): Promise<unknown>
+
   // --- Lịch sử tài sản ròng (mục AF) ---
   getNetWorthSnapshots(): Promise<NetWorthSnapshotRow[]>
   /** Ghi/đè snapshot net worth (base) theo ngày (unique user_id+snapshot_on). */

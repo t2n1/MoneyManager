@@ -742,6 +742,13 @@ export const supabaseRepo: Repo = {
     if (error) throw error
   },
 
+  async traSo(van: string) {
+    const { data, error } = await getSupabase().functions.invoke('tra-so', { body: { van } })
+    if (error) throw error
+    if (!data?.ok) throw new Error(data?.loi ?? 'Không tra được.')
+    return data.ketQua as unknown
+  },
+
   async getNetWorthSnapshots() {
     // Phân trang: mỗi ngày mở app là một dòng snapshot (NetWorthHistorySection upsert
     // theo ngày) → ~2,7 năm dùng là vượt 1.000 và biểu đồ tài sản lặng lẽ mất điểm CŨ

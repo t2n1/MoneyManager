@@ -1718,6 +1718,26 @@ export const demoRepo: Repo = {
     save(db)
   },
 
+  async traSo(_van: string) {
+    // Bản demo không gọi mạng và không có khoá. Trả một kết quả mẫu để người xem thấy
+    // ĐÚNG luồng — số là số thật đã tra (ゼクシィ 2024), nhưng luôn là số này bất kể hỏi gì.
+    return {
+      khong_biet: false,
+      tien: 'JPY',
+      thap: 1_100_000,
+      giua: 1_700_000,
+      cao: 3_400_000,
+      dien_giai:
+        'Tổng chi phí trung bình ¥3.439.000 cho 52 khách, đã trừ ご祝儀 ước tính để ra ' +
+        'số thực móc ra. (Bản demo: kết quả mẫu, không gọi mạng.)',
+      canh_bao: [
+        'Khảo sát 2025 đổi cách đo — số mới ¥2.986.000 không so trực tiếp được với 2024.',
+        'Khoảng phổ biến nhất chỉ chiếm 18,6%, nên đây là dải rộng.',
+      ],
+      nguon: { ten: 'ゼクシィ結婚トレンド調査', url: 'https://souken.zexy.net/', nam: 2024 },
+    }
+  },
+
   async getNetWorthSnapshots() {
     return (load().networthSnapshots ?? []).slice().sort((a, b) => a.snapshot_on.localeCompare(b.snapshot_on))
   },

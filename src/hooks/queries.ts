@@ -505,6 +505,17 @@ export function useLifePhases() {
   })
 }
 
+/**
+ * Tra số cho một mốc. Là mutation chứ không phải query: nó chỉ chạy khi người dùng BẤM,
+ * và không có gì để invalidate — kết quả không được lưu ở đâu cả, nó vào bản nháp rồi
+ * người dùng tự quyết.
+ */
+export function useTraSo() {
+  return useMutation({
+    mutationFn: (van: string) => repo.traSo(van),
+  })
+}
+
 function invalidateValuations(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['valuations'] })
   // Số dư (view) lộ market_value → Tổng tài sản / Tài sản ròng phụ thuộc snapshot

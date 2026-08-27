@@ -755,9 +755,9 @@ git commit -m "feat(tra-so): edge function giu khoa API, khong co luat tien nao"
 - Modify: `src/hooks/queries.ts` — thêm `useTraSo()`
 
 **Interfaces:**
-- Consumes: `CauHoi` từ task 1 (chỉ dùng trường `van`)
-- Produces: `traSo(van: string): Promise<unknown>` trên `Repo`; `useTraSo()` trả về
-  mutation của TanStack Query
+- Consumes: `CauHoi` từ task 1 (chỉ dùng trường `van`); `CurrencyCode` từ `src/lib/currencies`
+- Produces: `traSo(van: string, tien: CurrencyCode): Promise<unknown>` trên `Repo`;
+  `useTraSo()` trả về mutation nhận `{ van, tien }`
 
 **Vì sao đi qua repo chứ không gọi thẳng:** luật của repo là feature không tự gọi mạng.
 Quan trọng hơn — bản demo phải bấm được nút này mà không cần mạng, không cần khoá. Gọi
@@ -774,8 +774,14 @@ Trong `src/data/repo.ts`, ngay sau khối `// --- Lifetime: chiếu tài sản r
    *
    * Trả `unknown` là cố ý: việc kiểm nằm ở `traSoKetQua.docKetQua`, nơi có unit test.
    * Repo không được kiểm hộ — hai chỗ kiểm là hai chỗ trôi lệch.
+   *
+   * `tien` phải truyền vào chứ không suy từ `van`: bản DEMO cần biết đồng tiền của chặng
+   * để trả về đúng đồng đó. Ghim cứng một đồng thì `docKetQua` sẽ từ chối với `sai-tien`
+   * ở mọi chặng dùng đồng khác — tức chế độ demo hiện LỖI thay vì hiện tính năng, đúng
+   * cái hỏng mà kiến trúc đi-qua-repo sinh ra để chặn. Dò đồng tiền trong chuỗi `van` là
+   * đoán, và cả `traSoKetQua.ts` được viết quanh luật KHÔNG ĐOÁN.
    */
-  traSo(van: string): Promise<unknown>
+  traSo(van: string, tien: CurrencyCode): Promise<unknown>
 ```
 
 - [ ] **Bước 2: Cài vào `supabaseRepo`**
@@ -783,12 +789,37 @@ Trong `src/data/repo.ts`, ngay sau khối `// --- Lifetime: chiếu tài sản r
 Trong `src/data/supabaseRepo.ts`, thêm cạnh các method lifetime khác:
 
 ```ts
-  async traSo(van: string) {
-    const { data, error } = await getSupabase().functions.invoke('tra-so', { body: { van } })
-    if (error) throw error
+  async traSo(van: string, tien: CurrencyCode) {
+    const { data, error } = await getSupabase().functions.invoke('tra-so', { body: { van, tien } })
+    if (error) {
+      // `invoke()` ném FunctionsHttpError ở MỌI mã non-2xx, và ném TRƯỚC khi đọc body —
+      // nên `data` là null và `error.message` chỉ là câu chung "non-2xx status code".
+      // Câu lỗi thật của function nằm chưa đọc trong `error.context`. Không moi nó ra thì
+      // người dùng luôn thấy một câu tiếng Anh vô nghĩa thay cho "Chưa đăng nhập" hay
+      // "Hết hạn mức" — tức app nói SAI chỗ hỏng, đúng thứ tiêu chí nghiệm thu cấm.
+      throw new Error((await docLoiTuContext(error)) ?? error.message)
+    }
     if (!data?.ok) throw new Error(data?.loi ?? 'Không tra được.')
     return data.ketQua as unknown
   },
+```
+
+Kèm hàm phụ. Nó nằm trên ĐƯỜNG XỬ LÝ LỖI nên tuyệt đối không được tự ném — ném ở đây là
+nuốt mất lỗi gốc. `context` có thể vắng, có thể không phải JSON, có thể đã bị consume:
+
+```ts
+/** Moi câu lỗi thật ra khỏi FunctionsHttpError. `null` khi không moi được. */
+async function docLoiTuContext(error: unknown): Promise<string | null> {
+  const ctx = (error as { context?: unknown })?.context
+  if (typeof (ctx as Response)?.json !== 'function') return null
+  try {
+    const body = await (ctx as Response).json()
+    const loi = (body as { loi?: unknown })?.loi
+    return typeof loi === 'string' && loi.trim().length > 0 ? loi : null
+  } catch {
+    return null
+  }
+}
 ```
 
 - [ ] **Bước 3: Cài vào `demoRepo`**
@@ -796,18 +827,27 @@ Trong `src/data/supabaseRepo.ts`, thêm cạnh các method lifetime khác:
 Trong `src/data/demoRepo.ts`, thêm cạnh các method lifetime khác:
 
 ```ts
-  async traSo(_van: string) {
+  async traSo(_van: string, tien: CurrencyCode) {
     // Bản demo không gọi mạng và không có khoá. Trả một kết quả mẫu để người xem thấy
-    // ĐÚNG luồng — số là số thật đã tra (ゼクシィ 2024), nhưng luôn là số này bất kể hỏi gì.
+    // ĐÚNG luồng — nhưng luôn là số này bất kể hỏi gì.
+    //
+    // PHẢI DỘI LẠI `tien` NHẬN VÀO, không được ghim cứng một đồng: `docKetQua` từ chối
+    // với `sai-tien` khi đồng trả về khác đồng của chặng, nên ghim JPY thì mọi chặng
+    // VND/USD ở chế độ demo hiện LỖI thay vì hiện tính năng.
+    //
+    // Đổi lại, ĐỘ LỚN của ba con số dưới đây viết theo JPY nên chỉ đúng nghĩa khi chặng
+    // là JPY. Không tra số mẫu riêng cho từng đồng: đây là bản demo, và `dien_giai` nói
+    // thẳng đó là số mẫu — thà lộ liễu là số giả còn hơn trông như số đã tra cho đồng đó.
     return {
       khong_biet: false,
-      tien: 'JPY',
+      tien,
       thap: 1_100_000,
       giua: 1_700_000,
       cao: 3_400_000,
       dien_giai:
-        'Tổng chi phí trung bình ¥3.439.000 cho 52 khách, đã trừ ご祝儀 ước tính để ra ' +
-        'số thực móc ra. (Bản demo: kết quả mẫu, không gọi mạng.)',
+        'SỐ MẪU CỦA BẢN DEMO — không phải số đã tra cho khoản bạn đang hỏi, và độ lớn ' +
+        'viết theo yên Nhật. Bản thật sẽ trả về: tổng chi phí trung bình ¥3.439.000 cho ' +
+        '52 khách, đã trừ ご祝儀 ước tính để ra số thực móc ra.',
       canh_bao: [
         'Khảo sát 2025 đổi cách đo — số mới ¥2.986.000 không so trực tiếp được với 2024.',
         'Khoảng phổ biến nhất chỉ chiếm 18,6%, nên đây là dải rộng.',
@@ -835,10 +875,13 @@ Trong `src/hooks/queries.ts`, thêm cạnh các hook lifetime:
  */
 export function useTraSo() {
   return useMutation({
-    mutationFn: (van: string) => repo.traSo(van),
+    mutationFn: ({ van, tien }: { van: string; tien: CurrencyCode }) => repo.traSo(van, tien),
   })
 }
 ```
+
+`CurrencyCode` phải có trong khối `import type` sẵn có ở đầu `queries.ts` — kiểm trước khi
+thêm, đừng thêm một dòng import trùng.
 
 - [ ] **Bước 6: Chạy toàn bộ test + build**
 
@@ -1122,7 +1165,9 @@ function batDauTra() {
   if (cauHoi === null || chang === null) return
   setKetQua(null)
   setMoSheet(true)
-  traSo.mutate(cauHoi.van, {
+  // Truyền cả `tien`: bản demo dội lại đúng đồng đó, nếu không `docKetQua` sẽ từ chối
+  // với `sai-tien` ở mọi chặng không phải JPY. Xem JSDoc `Repo.traSo`.
+  traSo.mutate({ van: cauHoi.van, tien: chang.tien }, {
     onSuccess: (tho) => setKetQua(docKetQua(tho, chang.tien)),
     // Mất mạng / function lỗi / hết hạn mức đều dừng ở đây — dùng 'khong-goi-duoc',
     // KHÔNG dùng 'doc-khong-ra' (đó là mã cho kết quả đọc không ra, nói sai chỗ hỏng).

@@ -192,9 +192,11 @@ export const LUAT_HOI: Record<string, string> = {
   'Trả trước mua nhà':
     'Nói rõ tỷ lệ trả trước thông thường và trên giá nhà bao nhiêu. Cộng cả các khoản ' +
     'thuế phí lúc mua (諸費用) và nói rõ chúng chiếm bao nhiêu phần trăm.',
+  // KHÔNG viết con số nào vào luật (kể cả "nhân 12"): luật nói model phải HỎI cái gì,
+  // không nói sẵn đáp án — và phép thử khoá ở traSo.test.ts cấm mọi chữ số ngoài năm.
   'Trả vay mua nhà':
     'Nói rõ lãi suất giả định, kỳ hạn bao nhiêu năm, và đây là số MỖI NĂM. Nếu nguồn cho ' +
-    'số mỗi tháng thì phải nhân 12 và nói rõ đã nhân.',
+    'số theo tháng thì phải quy sang số mỗi năm và nói rõ là đã quy.',
   'Lương hưu':
     'TÁCH 老齢基礎年金 (phần quốc dân) và 老齢厚生年金 (phần công ty) thành hai khoản, đừng ' +
     'gộp. Nói rõ số 満額 của phần cơ bản đổi HÀNG NĂM và đang lấy của năm nào.',
@@ -313,19 +315,29 @@ describe('khoá riêng tư', () => {
     )
   })
 
+  it('câu hỏi của mốc có sẵn KHÔNG chứa nhãn mốc', () => {
+    // Đây là tính chất riêng tư thật sự: với mốc có sẵn, câu hỏi dựng TỪ LUẬT, nên
+    // không có chữ nào của người dùng đi ra ngoài. Nếu ai đó về sau chèn nhãn vào câu
+    // hỏi, test này đỏ — và nó PHẢI đỏ, vì đó là đổi lời hứa.
+    for (const nhan of NHAN_CO_SAN) {
+      const van = dungCauHoi(moc({ nhan, namBatDau: 2029, namKetThuc: null })).van
+      expect(van).not.toContain(nhan)
+    }
+  })
+
   it('câu hỏi của mốc có sẵn không chứa số nào ngoài năm', () => {
     // Số dư, thu nhập, số tiền hiện tại của mốc KHÔNG được có đường nào lọt vào.
     // Năm là số duy nhất được phép, và nó nằm trong khoảng 1900–2200.
+    //
+    // KHÔNG có lối thoát "chữ số này có trong nhãn": test trên đã khẳng định nhãn không
+    // hề xuất hiện, nên một lối thoát như vậy chỉ che mất rò rỉ chứ không cứu ca thật nào.
     for (const nhan of NHAN_CO_SAN) {
       const van = dungCauHoi(moc({ nhan, namBatDau: 2029, namKetThuc: null })).van
-      // Bỏ phần khuôn trả lời (có số 1. 2. 3. và 10%) — chỉ soi phần mô tả mốc.
+      // Bỏ phần khuôn trả lời (có đánh số 1. 2. 3.) — chỉ soi phần mô tả mốc.
       const phanMoTa = van.split('CÁCH TRẢ LỜI')[0]
-      const soLa = phanMoTa.match(/\d+/g) ?? []
-      for (const s of soLa) {
+      for (const s of phanMoTa.match(/\d+/g) ?? []) {
         const n = Number(s)
-        const laNam = n >= 1900 && n <= 2200
-        const laTuoiTrongNhan = nhan.includes(s) // "0–6", "7–15", "16–17", "児童手当"
-        expect(laNam || laTuoiTrongNhan).toBe(true)
+        expect(n >= 1900 && n <= 2200).toBe(true)
       }
     }
   })
@@ -335,10 +347,14 @@ describe('khoá riêng tư', () => {
 - [ ] **Bước 7: Chạy toàn bộ test của file, xác nhận xanh**
 
 Run: `npx vitest run src/features/lifetime/traSo.test.ts`
-Expected: PASS — 8 test
+Expected: PASS — 9 test
 
 Nếu test "không chứa số nào ngoài năm" đỏ: có một luật trong `LUAT_HOI` chứa con số cụ
-thể. Bỏ con số đó ra khỏi luật — luật nói model phải hỏi cái gì, không nói đáp án.
+thể. **Bỏ con số đó ra khỏi luật — KHÔNG nới test.** Luật nói model phải hỏi cái gì,
+không nói sẵn đáp án; một con số trong luật là mầm của đúng thứ `presets.ts` cảnh báo.
+
+Nếu test "không chứa nhãn mốc" đỏ: `dungCauHoi` đang chèn `moc.nhan` vào câu hỏi của mốc
+có sẵn. Đó là rò rỉ chữ người dùng gõ ra ngoài — sửa mã, không sửa test.
 
 - [ ] **Bước 8: Lint và commit**
 
@@ -430,8 +446,15 @@ export interface KetQuaTra {
   nguon: { ten: string; url: string; nam: number | null }
 }
 
+/**
+ * Năm kiểu hỏng, khớp đúng năm dòng bảng "Xử lý hỏng" của bản thiết kế.
+ *
+ * `khong-goi-duoc` tách riêng khỏi `doc-khong-ra` là CỐ Ý: mất mạng và "kết quả lộn xộn"
+ * là hai chuyện khác nhau, và tiêu chí nghiệm thu của bản thiết kế là "hỏng thì hỏng ồn
+ * ào, nói rõ hỏng ở đâu". Gộp lỗi mạng vào lỗi phân tích là nói sai chỗ hỏng.
+ */
 export type LoiTra = {
-  loi: 'doc-khong-ra' | 'sai-tien' | 'khong-nguon' | 'khong-tim-duoc'
+  loi: 'khong-goi-duoc' | 'doc-khong-ra' | 'sai-tien' | 'khong-nguon' | 'khong-tim-duoc'
   noiDung: string
 }
 
@@ -1101,8 +1124,10 @@ function batDauTra() {
   setMoSheet(true)
   traSo.mutate(cauHoi.van, {
     onSuccess: (tho) => setKetQua(docKetQua(tho, chang.tien)),
+    // Mất mạng / function lỗi / hết hạn mức đều dừng ở đây — dùng 'khong-goi-duoc',
+    // KHÔNG dùng 'doc-khong-ra' (đó là mã cho kết quả đọc không ra, nói sai chỗ hỏng).
     onError: (e) =>
-      setKetQua({ loi: 'doc-khong-ra', noiDung: e instanceof Error ? e.message : String(e) }),
+      setKetQua({ loi: 'khong-goi-duoc', noiDung: e instanceof Error ? e.message : String(e) }),
   })
 }
 ```

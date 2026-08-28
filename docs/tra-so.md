@@ -26,13 +26,29 @@ function này tồn tại.
 cắt model theo đợt — nên mã đúng hôm nay có thể chết tháng sau, và mã đúng cho khoá này
 có thể sai cho khoá khác. Hỏi thẳng khoá của bạn:
 
-```bash
-curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=<khoá>"
+Máy này chạy **PowerShell**, ở đó `curl` là tên gọi tắt của `Invoke-WebRequest` và không
+hiểu cờ `-s` — nó sẽ ngồi hỏi `Uri:` chứ không chạy. Dùng bản PowerShell:
+
+```powershell
+$key = Read-Host "Dan khoa vao day"
+(Invoke-RestMethod "https://generativelanguage.googleapis.com/v1beta/models?key=$key").models | Where-Object { $_.supportedGenerationMethods -contains 'generateContent' } | ForEach-Object { $_.name -replace '^models/', '' }
 ```
 
-Trong kết quả, lấy `name` của model nào có `generateContent` trong
-`supportedGenerationMethods`, rồi **bỏ tiền tố `models/`** — ví dụ `models/gemini-2.5-flash`
-thì `AI_MODEL` là `gemini-2.5-flash`.
+`Read-Host` để khoá không lọt vào lịch sử lệnh, và **không bao giờ dán khoá vào chat**.
+
+Cảnh báo: **danh sách này liệt kê nhiều hơn số model bạn gọi được.** Có tên trong danh sách
+không có nghĩa là tier của bạn được phép gọi. Muốn biết chắc thì phải gọi thử.
+
+Hai điều đã học được lúc dò (2026-08-28):
+
+- **Khoá Gemini bây giờ bắt đầu bằng `AQ.`, không phải `AIza`.** Google đã đổi định dạng;
+  đừng lấy tiền tố `AIza` ra làm phép kiểm khoá đúng/sai như tài liệu cũ trên mạng.
+- **Khi model bị khai tử, Google nói thẳng tên bản thay thế trong thân lỗi 404.** Nên gọi
+  thử rồi đọc lỗi nhanh hơn là tra blog. PowerShell nuốt mất thân lỗi, phải moi ra:
+
+```powershell
+try { Invoke-RestMethod ... } catch { (New-Object IO.StreamReader($_.Exception.Response.GetResponseStream())).ReadToEnd() }
+```
 
 Sai mã model thì mọi lượt gọi trả **404**, và function nói thẳng
 *"Sai mã model phía server (AI_MODEL)"* thay vì một câu lỗi mạng chung chung — đây là kiểu
@@ -76,24 +92,47 @@ Function này không chứa luật tiền nào — không phép tính, không đ
 nằm ở `src/features/lifetime/traSoKetQua.ts`, nơi có unit test. Không có bản sao nào để
 trôi lệch, và đó là lý do ranh giới được đặt đúng ở chỗ này.
 
-## Hãng và hạng model: đã chốt Gemini bậc miễn phí (2026-08-28)
+## TRẠNG THÁI: chưa deploy — bậc miễn phí KHÔNG chạy được (dò thật 2026-08-28)
 
-Chốt **Gemini, bậc miễn phí**, tức hạng Flash — chủ nhà quyết sau khi đã nghe hai điều
-dưới đây và vẫn chọn vậy. Ghi lại để người sau khỏi tưởng là sót:
+**Tính năng đã xong và đã vào `master`, nhưng chưa deploy.** Nút "Tra hộ" chưa hiện ở bản
+thật. Chế độ demo thì bấm được (kết quả mẫu, không gọi mạng).
 
-- **Nội dung gửi lên vào diện huấn luyện.** Điều khoản Gemini bậc không trả tiền ghi rõ
-  Google dùng nội dung để cải thiện sản phẩm, và **người thật có thể đọc**. Thiết kế đã
-  giảm thiểu phần lộ: mốc sinh từ mẫu chỉ gửi mã mốc + năm + nước + tiền, không gửi chữ
-  người dùng gõ; mốc tự đặt tên có màn xác nhận trước khi gửi. **Không lượt tra nào mang
-  theo số dư, thu nhập, hay số tiền hiện tại của mốc** — có phép thử khoá điều đó.
-- **Hạng Flash hay đưa số sai một cách tự tin.** Spec gọi đây là kiểu hỏng tệ nhất, vì
-  con số sai đi vào bản chiếu 40 năm mà đồ thị vẫn vẽ ra thuyết phục.
+Lý do dừng, đã dò bằng lệnh thật với khoá thật — **đừng dò lại**:
 
-**Cái đỡ đòn cho lựa chọn này đã có sẵn trong mã:** câu hỏi buộc model ghi nguồn và cho
-phép trả lời "không biết"; `traSoKetQua.docKetQua` **từ chối mọi kết quả không kèm nguồn**;
-và không có nguồn thì UI **không hiện nút "Lấy"**. Nên đường "số bịa lặng lẽ vào kịch bản"
-vẫn bị chặn ở tầng kiến trúc, không phụ thuộc model giỏi hay dở.
+| Thử gì | Kết quả |
+|---|---|
+| `gemini-2.5-pro` | **404** — không có cho dự án bậc miễn phí |
+| `gemini-2.5-flash` | **404** — Google trả lời thẳng: *"no longer available to new users… use models/gemini-3.6-flash"* |
+| `gemini-3.6-flash`, KHÔNG có `google_search` | **Chạy tốt.** Trả lời bình thường. |
+| `gemini-3.6-flash`, CÓ `google_search` | **429 RESOURCE_EXHAUSTED** ngay lượt đầu, khoá mới tinh |
 
-Đổi ý lúc nào cũng được, và **không phải sửa mã**: gắn thẻ vào project Google (chuyển sang
-bậc trả tiền, hết chuyện huấn luyện) rồi `secrets set AI_MODEL=<mã hạng Pro>`. Đổi sang
-hãng khác thì mới phải sửa `goiNhaCungCap` — ~30 dòng, là chỗ duy nhất biết tên hãng.
+**Kết luận: bậc miễn phí cho model nhưng KHÔNG cho tra web.** Mà tra web là toàn bộ lý do
+tính năng này tồn tại — spec đã bác thẳng phương án trả lời từ trí nhớ model, vì trí nhớ
+cho một con số phẳng còn tra web cho ¥3.439.000 kèm ba cảnh báo quyết định đúng/sai.
+
+Tệ hơn nữa nếu cứ deploy: `traSoKetQua.docKetQua` **từ chối mọi kết quả không kèm nguồn**,
+và không nguồn thì UI **không hiện nút "Lấy"**. Nên nút sẽ gần như luôn báo "không tìm được
+nguồn" — chết lâm sàng, không phải chạy kém.
+
+⚠️ Con số "5.000 lượt tra Google miễn phí mỗi tháng" trôi nổi trên blog là của **Tier 1
+(đã gắn thẻ)**, KHÔNG phải bậc không trả tiền. Đã đọc nhầm một lần, đừng nhầm lần nữa.
+
+### Muốn bật thì làm gì
+
+1. **Gắn thẻ vào đúng project Google** đang cấp khoá này → mở Tier 1. Theo tài liệu, Tier 1
+   có sẵn hạn mức tra web miễn phí lớn hơn nhiều mức dùng của app này (vài chục lượt cả
+   đời), nên thực tế gần như chỉ tốn tiền token. **Đặt hạn mức chi ~¥2.000/tháng** để một
+   lỗi vòng lặp không đốt sạch.
+2. Gắn thẻ cũng giải luôn chuyện điều khoản: bậc không trả tiền thì Google dùng nội dung
+   để cải thiện sản phẩm và **người thật có thể đọc**; bậc trả tiền thì không.
+3. Rồi chạy hai lệnh ở mục "Hai bí mật phải đặt" và "Deploy" bên trên, với
+   `AI_MODEL=gemini-3.6-flash` (đã xác nhận gọi được).
+
+**Đổi hãng thì không thoát:** Claude API và OpenAI API đều **không có bậc miễn phí**. Không
+tồn tại đường miễn phí cho tính năng này.
+
+### Phần lộ dữ liệu — đã giảm thiểu sẵn trong thiết kế
+
+Dù chạy bậc nào: mốc sinh từ mẫu chỉ gửi mã mốc + năm + nước + tiền, **không gửi chữ người
+dùng gõ**; mốc tự đặt tên có màn xác nhận trước khi gửi. **Không lượt tra nào mang theo số
+dư, thu nhập, hay số tiền hiện tại của mốc** — `traSo.test.ts` có phép thử khoá điều đó.

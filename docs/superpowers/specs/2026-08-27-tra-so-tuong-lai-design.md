@@ -169,7 +169,14 @@ con số sai lặng lẽ đi vào kịch bản.** Hỏng thì hỏng ồn ào; s
 - Không test gọi mạng thật.
 - `tests/designSystem.test.ts` đã canh sẵn phần UI.
 
-## Quyết định còn treo: hãng và hạng
+## Hãng và hạng — ĐÃ CHỐT 2026-08-28
+
+> **Chốt: Gemini, bậc miễn phí (hạng Flash).** Chủ nhà quyết sau khi đã nghe cả hai điều
+> mục này cảnh báo, và vẫn chọn vậy. Chi tiết + cái đỡ đòn đã có trong mã, xem
+> [docs/tra-so.md](../../tra-so.md). Mã model không còn ghim trong mã nguồn nữa mà đọc từ
+> biến môi trường `AI_MODEL` — đổi hạng hay đổi sang bậc trả tiền không phải sửa mã.
+>
+> Phần dưới giữ nguyên làm hồ sơ lập luận lúc chưa chốt.
 
 **Chưa chốt, và spec này cố ý không gắn hãng.**
 

@@ -7,12 +7,13 @@
 // nằm ở src/features/lifetime/traSoKetQua.ts, nơi có unit test. Nhờ vậy KHÔNG phải gói
 // bundle như push-notify/stock-refresh — không có bản sao luật nào để trôi lệch.
 //
-// APP KHÔNG ĐƯỢC CHỌN MODEL. Model, độ dài tối đa và công tắc tra web đều ghim ở đây.
-// Nếu để app gửi lên thì một lỗi vòng lặp phía app đốt sạch hạn mức trong vài giây.
+// APP KHÔNG ĐƯỢC CHỌN MODEL. Model, độ dài tối đa và công tắc tra web đều quyết ở PHÍA
+// SERVER (model qua biến môi trường, hai cái kia ghim trong mã). Nếu để app gửi lên thì
+// một lỗi vòng lặp phía app đốt sạch hạn mức trong vài giây.
 //
 // Chạy thử tại máy:  supabase functions serve tra-so
 // Deploy:            supabase functions deploy tra-so   ← KHÔNG có --no-verify-jwt
-// Đặt khoá:          supabase secrets set AI_API_KEY=...
+// Đặt bí mật:        supabase secrets set AI_API_KEY=... AI_MODEL=...
 //
 // Lệnh đầy đủ và VÌ SAO cờ --no-verify-jwt là sai ở đây (dù ba function kia đều dùng):
 // docs/tra-so.md
@@ -64,14 +65,32 @@ class LoiNhaCungCap extends Error {}
 function cauLoiTheoStatus(status: number): string {
   if (status === 429) return 'Đã hết hạn mức tra tháng này. Không phải lỗi của bạn.'
   if (status === 401 || status === 403) return 'Khoá API phía server không dùng được.'
+  // 404 ở đây gần như luôn là SAI MÃ MODEL, không phải sai đường dẫn — và đó là kiểu
+  // hỏng dễ mất hàng giờ nhất nếu thông báo chỉ nói chung chung, vì nó trông y hệt một
+  // sự cố mạng. Nói thẳng ra tên biến phải sửa.
+  if (status === 404) return 'Sai mã model phía server (AI_MODEL). Xem docs/tra-so.md.'
   return 'Nhà cung cấp không trả lời được lúc này.'
 }
 
+/**
+ * Mã model, đọc từ biến môi trường chứ KHÔNG ghim trong mã.
+ *
+ * Vì sao: mã model của Google luôn mang số phụ (`gemini-2.5-flash`, `gemini-3.6-flash`,
+ * `gemini-3.1-flash-lite`) và ĐỔI theo thời gian — bậc miễn phí còn bị cắt model theo
+ * đợt. Ghim một chuỗi vào mã nghĩa là mỗi lần Google đổi tên là một lần sửa mã và
+ * deploy lại. Đọc từ env thì đổi một dòng `secrets set` là xong.
+ *
+ * Vẫn là bí mật PHÍA SERVER, app không đụng tới được — nên luật "app không được chọn
+ * model" (khối chú thích đầu file) vẫn nguyên vẹn.
+ *
+ * Không có mặc định: thà chết ngay lúc gọi với một câu nói rõ phải làm gì, còn hơn im
+ * lặng dùng một mã đoán bừa rồi 404 mọi lượt.
+ */
+const AI_MODEL = (Deno.env.get('AI_MODEL') ?? '').trim()
+
 async function goiNhaCungCap(van: string): Promise<unknown> {
   const res = await fetch(
-    // TẠM — chưa chốt hãng, xem mục "Quyết định còn treo" trong spec. Chuỗi model dưới
-    // đây thuộc đúng hạng (Flash) mà spec lập luận là KHÔNG nên dùng cho việc này.
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent',
+    `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODEL}:generateContent`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': AI_API_KEY },
@@ -118,6 +137,9 @@ Deno.serve(async (req) => {
   }
   if (!AI_API_KEY) {
     return json({ ok: false, loi: 'Thiếu AI_API_KEY phía server.' }, 500)
+  }
+  if (!AI_MODEL) {
+    return json({ ok: false, loi: 'Thiếu AI_MODEL phía server. Xem docs/tra-so.md.' }, 500)
   }
 
   let van: unknown

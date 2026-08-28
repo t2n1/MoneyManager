@@ -7,10 +7,10 @@ Cầu giữ khoá API cho nút **"Tra hộ"** ở màn Tương lai. Thiết kế
 function **đầu tiên do TRÌNH DUYỆT gọi**. Ba cái kia do cron gọi. Khác biệt đó quyết định
 lệnh deploy, nên đọc mục dưới trước khi chép lệnh từ file khác trong `docs/`.
 
-## Đặt khoá
+## Hai bí mật phải đặt
 
 ```bash
-npx supabase@latest secrets set AI_API_KEY=<khoá> --project-ref <project-ref>
+npx supabase@latest secrets set AI_API_KEY=<khoá> AI_MODEL=<mã model> --project-ref <project-ref>
 ```
 
 `<project-ref>` là phần đầu của `VITE_SUPABASE_URL` (`https://<project-ref>.supabase.co`).
@@ -18,6 +18,27 @@ npx supabase@latest secrets set AI_API_KEY=<khoá> --project-ref <project-ref>
 Khoá **chỉ** nằm ở đây. Không đặt vào `.env` phía app: mọi biến `VITE_*` bị nhúng vào
 bundle công khai, ai mở mã nguồn cũng lấy được và tiêu hạn mức. Đó là toàn bộ lý do
 function này tồn tại.
+
+### Lấy `<mã model>` cho ĐÚNG khoá của bạn
+
+Đừng chép mã model từ blog. Mã của Google luôn mang số phụ (`gemini-2.5-flash`,
+`gemini-3.6-flash`, `gemini-3.1-flash-lite`), **đổi theo thời gian**, và bậc miễn phí bị
+cắt model theo đợt — nên mã đúng hôm nay có thể chết tháng sau, và mã đúng cho khoá này
+có thể sai cho khoá khác. Hỏi thẳng khoá của bạn:
+
+```bash
+curl -s "https://generativelanguage.googleapis.com/v1beta/models?key=<khoá>"
+```
+
+Trong kết quả, lấy `name` của model nào có `generateContent` trong
+`supportedGenerationMethods`, rồi **bỏ tiền tố `models/`** — ví dụ `models/gemini-2.5-flash`
+thì `AI_MODEL` là `gemini-2.5-flash`.
+
+Sai mã model thì mọi lượt gọi trả **404**, và function nói thẳng
+*"Sai mã model phía server (AI_MODEL)"* thay vì một câu lỗi mạng chung chung — đây là kiểu
+hỏng dễ mất hàng giờ nhất nếu thông báo mập mờ.
+
+Đổi model về sau **không phải sửa mã**: chạy lại `secrets set AI_MODEL=…` là xong.
 
 ## Deploy — KHÔNG có `--no-verify-jwt`
 
@@ -55,8 +76,24 @@ Function này không chứa luật tiền nào — không phép tính, không đ
 nằm ở `src/features/lifetime/traSoKetQua.ts`, nơi có unit test. Không có bản sao nào để
 trôi lệch, và đó là lý do ranh giới được đặt đúng ở chỗ này.
 
-## Hãng và hạng model: CHƯA CHỐT
+## Hãng và hạng model: đã chốt Gemini bậc miễn phí (2026-08-28)
 
-`index.ts` đang ghim `gemini-3-flash` và có dấu `// TẠM` ở đúng dòng đó. Spec lập luận
-rằng hạng Flash/mini *trả lời tự tin và sai* — kiểu hỏng tệ nhất ở đây. Xem mục "Quyết
-định còn treo" trong spec trước khi coi lựa chọn hiện tại là quyết định cuối.
+Chốt **Gemini, bậc miễn phí**, tức hạng Flash — chủ nhà quyết sau khi đã nghe hai điều
+dưới đây và vẫn chọn vậy. Ghi lại để người sau khỏi tưởng là sót:
+
+- **Nội dung gửi lên vào diện huấn luyện.** Điều khoản Gemini bậc không trả tiền ghi rõ
+  Google dùng nội dung để cải thiện sản phẩm, và **người thật có thể đọc**. Thiết kế đã
+  giảm thiểu phần lộ: mốc sinh từ mẫu chỉ gửi mã mốc + năm + nước + tiền, không gửi chữ
+  người dùng gõ; mốc tự đặt tên có màn xác nhận trước khi gửi. **Không lượt tra nào mang
+  theo số dư, thu nhập, hay số tiền hiện tại của mốc** — có phép thử khoá điều đó.
+- **Hạng Flash hay đưa số sai một cách tự tin.** Spec gọi đây là kiểu hỏng tệ nhất, vì
+  con số sai đi vào bản chiếu 40 năm mà đồ thị vẫn vẽ ra thuyết phục.
+
+**Cái đỡ đòn cho lựa chọn này đã có sẵn trong mã:** câu hỏi buộc model ghi nguồn và cho
+phép trả lời "không biết"; `traSoKetQua.docKetQua` **từ chối mọi kết quả không kèm nguồn**;
+và không có nguồn thì UI **không hiện nút "Lấy"**. Nên đường "số bịa lặng lẽ vào kịch bản"
+vẫn bị chặn ở tầng kiến trúc, không phụ thuộc model giỏi hay dở.
+
+Đổi ý lúc nào cũng được, và **không phải sửa mã**: gắn thẻ vào project Google (chuyển sang
+bậc trả tiền, hết chuyện huấn luyện) rồi `secrets set AI_MODEL=<mã hạng Pro>`. Đổi sang
+hãng khác thì mới phải sửa `goiNhaCungCap` — ~30 dòng, là chỗ duy nhất biết tên hãng.

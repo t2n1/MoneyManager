@@ -10,6 +10,7 @@ import {
 import { validateBackupPayload } from './backupImport'
 import { DEFAULT_DENSITY, parseDensity } from '../lib/density'
 import { debtPaymentPosting } from '../features/debts/debtPaymentPosting'
+import { missingTradeTransfers, stockTradeCashFlow } from '../features/assets/stockTradePosting'
 import type { CurrencyCode } from '../lib/money'
 import type { Rates } from '../lib/rates'
 import type {
@@ -137,6 +138,46 @@ function assertStockTradeShape(input: Pick<NewStockTrade, 'kind' | 'quantity' | 
 }
 
 /**
+ * Ghi/sửa/xoá dòng tiền của một lệnh cho khớp với chính lệnh đó — gọi SAU khi
+ * `db.stockTrades` đã ở trạng thái mới. Sửa `db` tại chỗ; nơi gọi tự `save(db)`.
+ *
+ * Khớp hành vi bản thật: unique index `transactions_stock_trade_id_key` (migration 0054)
+ * cho phép tối đa một dòng mỗi lệnh, nên ở đây cũng đúng một dòng.
+ */
+function dongBoDongTienLenh(db: DemoDB, trade: StockTradeRow) {
+  const viId = db.accounts.find((a) => a.id === trade.account_id)?.cash_account_id ?? null
+  const flow = stockTradeCashFlow(trade, trade.account_id, viId)
+  const idx = db.transactions.findIndex((t) => t.stock_trade_id === trade.id)
+
+  if (!flow) {
+    if (idx >= 0) db.transactions.splice(idx, 1)
+    return
+  }
+  if (idx >= 0) {
+    db.transactions[idx] = { ...db.transactions[idx], ...flow, updated_at: nowISO() }
+    return
+  }
+  db.transactions.push({
+    ...flow,
+    id: uuid(),
+    user_id: DEMO_USER,
+    recurring_rule_id: null,
+    stock_trade_id: trade.id,
+    created_at: nowISO(),
+    updated_at: nowISO(),
+  })
+}
+
+/** Lệnh còn thiếu dòng tiền, tính trên trạng thái hiện tại của db. */
+function thieuDongTien(db: DemoDB) {
+  return missingTradeTransfers(
+    db.accounts.filter((a) => a.cash_account_id),
+    db.stockTrades ?? [],
+    new Set(db.transactions.map((t) => t.stock_trade_id).filter((id): id is string => !!id)),
+  )
+}
+
+/**
  * Soi hình dạng lệnh quỹ y như CHECK `fund_trades_shape` của Postgres (migration 0045):
  *   adjust → units <> 0 và nav = 0 và amount = 0
  *   khác   → units > 0 và amount > 0
@@ -257,6 +298,7 @@ function seed(): DemoDB {
     user_id: DEMO_USER,
     // null = để app suy từ `type` (liquidity.ts), đúng hành vi của người chưa đặt cờ.
     is_liquid: null,
+    cash_account_id: null,
     // Chưa lần nào đối chiếu qua sheet → app suy từ giao dịch bù, giống người dùng cũ.
     last_reconciled_at: null,
     name,
@@ -1137,10 +1179,12 @@ export const demoRepo: Repo = {
           asset_group: a.asset_group ?? null,
           is_hidden: a.is_hidden ?? false,
           include_in_totals: a.include_in_totals ?? true,
+          is_liquid: a.is_liquid ?? null,
           credit_limit: a.credit_limit ?? null,
           statement_day: a.statement_day ?? null,
           payment_due_day: a.payment_due_day ?? null,
           payment_account_id: a.payment_account_id ?? null,
+          cash_account_id: a.cash_account_id ?? null,
           is_archived: a.is_archived,
           sort_order: a.sort_order,
           cost_basis: a.initial_balance,
@@ -1287,6 +1331,7 @@ export const demoRepo: Repo = {
       statement_day: input.statement_day ?? null,
       payment_due_day: input.payment_due_day ?? null,
       payment_account_id: input.payment_account_id ?? null,
+      cash_account_id: input.cash_account_id ?? null,
       card_autopay_through: input.card_autopay_through ?? null,
       depreciation_months: input.depreciation_months ?? null,
       depreciation_from: input.depreciation_from ?? null,
@@ -1416,6 +1461,7 @@ export const demoRepo: Repo = {
       updated_at: nowISO(),
     }
     db.stockTrades.push(row)
+    dongBoDongTienLenh(db, row)
     save(db)
     return row
   },
@@ -1442,6 +1488,7 @@ export const demoRepo: Repo = {
     // sửa lệnh có thể đổi cả kind lẫn quantity/price, chỉ soi lúc tạo là không đủ.
     assertStockTradeShape(next)
     db.stockTrades[idx] = next
+    dongBoDongTienLenh(db, next)
     save(db)
     return next
   },
@@ -1449,7 +1496,31 @@ export const demoRepo: Repo = {
   async deleteStockTrade(id: string) {
     const db = load()
     db.stockTrades = (db.stockTrades ?? []).filter((t) => t.id !== id)
+    // Khớp FK `on delete cascade` của migration 0054 — bản thật không cần ai nhớ dọn.
+    db.transactions = db.transactions.filter((t) => t.stock_trade_id !== id)
     save(db)
+  },
+
+  async countStockTradesWithoutTransfer() {
+    return thieuDongTien(load()).length
+  },
+
+  async backfillStockTradeTransfers() {
+    const db = load()
+    const thieu = thieuDongTien(db)
+    for (const { tradeId, tx } of thieu) {
+      db.transactions.push({
+        ...tx,
+        id: uuid(),
+        user_id: DEMO_USER,
+        recurring_rule_id: null,
+        stock_trade_id: tradeId,
+        created_at: nowISO(),
+        updated_at: nowISO(),
+      })
+    }
+    if (thieu.length > 0) save(db)
+    return thieu.length
   },
 
   async getFunds() {

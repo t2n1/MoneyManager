@@ -8,8 +8,12 @@ import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
-import { ActionButton, Card, EmptyState, Money, SectionTitle } from '../../components/ui'
-import { useRates } from '../../hooks/queries'
+import { ActionButton, Card, EmptyState, Money, Num, SectionTitle } from '../../components/ui'
+import {
+  useBackfillStockTradeTransfers,
+  useRates,
+  useStockTradesWithoutTransfer,
+} from '../../hooks/queries'
 import { convertToBase } from '../../lib/rates'
 import { concentrationVerdict } from './concentration'
 import { HOSE_SYMBOLS } from './hoseSymbols'
@@ -62,11 +66,24 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
 
   const { base, rates } = useRates()
   const nameBySymbol = useMemo(() => new Map(HOSE_SYMBOLS), [])
-  // Giá trị danh mục quy về đồng tiền gốc. null = thiếu tỷ giá → nơi hiển thị im.
-  const giaTriBase =
+  const { data: soLenhThieu = 0 } = useStockTradesWithoutTransfer()
+  const ghiBu = useBackfillStockTradeTransfers()
+  /**
+   * Giá trị danh mục CỦA TAB NÀY gồm cả ví liên kết — câu hỏi ở đây là "tiền cổ phiếu VN
+   * của tôi đang là bao nhiêu". `portfolio.marketValue` (KHÔNG có ví) mới là con số mà
+   * dòng tài khoản ở tab Tài sản và `account_valuations` dùng; ví đã tự đứng thành một
+   * dòng ở đó rồi. Hai màn trả lời hai câu khác nhau, cố ý không bằng nhau.
+   *
+   * `null` giữ nguyên nghĩa cũ: cộng ví vào một con số đã biết là sai chỉ làm nó trông
+   * đáng tin hơn.
+   */
+  const giaTriVND =
     portfolio.marketValue === null
       ? null
-      : convertToBase(portfolio.marketValue, VND, base, rates ?? {})
+      : portfolio.marketValue + (portfolio.walletCash ?? 0)
+  // Quy về đồng tiền gốc. null = thiếu tỷ giá → nơi hiển thị im.
+  const giaTriBase =
+    giaTriVND === null ? null : convertToBase(giaTriVND, VND, base, rates ?? {})
   // Câu phán về mức tập trung (21a). Hàm thuần, ngưỡng và ca một-mã nằm ở
   // concentration.ts cùng test của nó.
   const tapTrung = useMemo(() => concentrationVerdict(portfolio.positions), [portfolio.positions])
@@ -113,13 +130,29 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
     <>
       {thanhCongCu}
 
+      {/* Lệnh chưa có dòng chuyển tiền (migration 0054).
+          Dải này hiện KỂ CẢ khi "Tiền chưa mua" đang dương: số dư ví lớn có thể che một
+          `cash` âm, và lúc đó con số trông lành lặn trong khi sổ vẫn thủng. Nó cũng là
+          câu thay cho con số âm đỏ khó hiểu trước đây — nói vì sao và bấm gì. */}
+      {soLenhThieu > 0 && (
+        <div className="rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
+          <p>
+            <Num>{soLenhThieu}</Num> lệnh chưa có dòng chuyển tiền, nên số dư ví đang cao
+            hơn tiền thật. Ghi bù để ví về đúng số — Tổng tài sản có thể đổi theo.
+          </p>
+          <ActionButton onClick={() => ghiBu.mutate()} disabled={ghiBu.isPending} className="mt-2">
+            {ghiBu.isPending ? 'Đang ghi…' : 'Ghi bù'}
+          </ActionButton>
+        </div>
+      )}
+
       {/* Tổng danh mục */}
       <Card as="section">
         <div className="flex items-baseline justify-between gap-2">
           <SectionTitle>Giá trị danh mục</SectionTitle>
           {session && <span className="text-2xs text-fg-muted">giá phiên {ngay(session)}</span>}
         </div>
-        {p.marketValue === null ? (
+        {giaTriVND === null ? (
           <p className="mt-1 text-sm text-fg-muted">
             {p.cash < 0
               ? 'Chưa tính được — sổ lệnh đang mua nhiều hơn tiền đã nạp.'
@@ -127,7 +160,7 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
           </p>
         ) : (
           <p className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <Money amount={p.marketValue} currency={VND} className="text-kpi font-medium tracking-number" />
+            <Money amount={giaTriVND} currency={VND} className="text-kpi font-medium tracking-number" />
             {p.missingPrices.length > 0 && (
               <EstimateMark
                 reason={`${p.missingPrices.join(', ')} chưa có giá, đang tạm tính theo giá vốn.`}
@@ -164,12 +197,19 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
           <div>
             <dt className="text-fg-muted">Tiền chưa mua</dt>
             <dd>
+              {/* Tiền ở công ty chứng khoán CỘNG tiền trong ví đã khai: người dùng mua cổ
+                  phiếu bằng tiền ở ví, nên tiền chờ mua nằm cả hai chỗ. */}
               <Money
-                amount={p.cash}
+                amount={p.cash + (p.walletCash ?? 0)}
                 currency={VND}
-                tone={p.cash < 0 ? 'out' : 'neutral'}
+                tone={p.cash + (p.walletCash ?? 0) < 0 ? 'out' : 'neutral'}
                 className="font-semibold"
               />
+              {p.walletCash !== null && (
+                <span className="block text-2xs text-fg-muted">
+                  gồm <Money amount={p.walletCash} currency={VND} /> ở ví
+                </span>
+              )}
             </dd>
           </div>
           <div>

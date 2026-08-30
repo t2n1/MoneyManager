@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Trade } from './holdings'
-import { buildPortfolio, type AccountTrades } from './portfolio'
+import { buildPortfolio, linkedWalletCash, type AccountTrades } from './portfolio'
 
 const buy = (symbol: string, quantity: number, price: number, tradedOn = '2026-01-05'): Trade => ({
   symbol,
@@ -190,5 +190,59 @@ describe('buildPortfolio', () => {
     expect(p.positions).toHaveLength(1)
     // Một tài khoản thì tỷ trọng của mã duy nhất phải là 100%, không phải 0.
     expect(p.positions[0].weight).toBe(1)
+  })
+})
+
+describe('walletCash — tiền ở ví liên kết', () => {
+  it('không truyền ví → null', () => {
+    expect(buildPortfolio([], new Map()).walletCash).toBeNull()
+  })
+
+  it('truyền ví → giữ nguyên số đó, và KHÔNG cộng vào marketValue', () => {
+    const p = buildPortfolio(
+      [acc('a', 10_000_000, [buy('FPT', 100, 60_000)])],
+      new Map([['FPT', 70_000]]),
+      25_000_000,
+    )
+    expect(p.walletCash).toBe(25_000_000)
+    // marketValue là con số mà dòng tài khoản ở tab Tài sản và account_valuations dùng —
+    // ví đã tự đứng thành một dòng ở đó rồi, cộng vào đây là đếm ngân hàng hai lần.
+    expect(p.marketValue).toBe(11_000_000)
+    // `cash` vẫn chỉ là tiền ở công ty chứng khoán, không lẫn ví.
+    expect(p.cash).toBe(4_000_000)
+  })
+})
+
+describe('linkedWalletCash — gom ví, không đếm hai lần', () => {
+  it('chưa tài khoản nào khai ví → null', () => {
+    expect(linkedWalletCash([{ id: 'a', cash_account_id: null }], new Map())).toBeNull()
+  })
+
+  it('hai tài khoản trỏ CHUNG một ví → ví chỉ đếm một lần', () => {
+    const ra = linkedWalletCash(
+      [
+        { id: 'a', cash_account_id: 'nh' },
+        { id: 'b', cash_account_id: 'nh' },
+      ],
+      new Map([['nh', 10_000_000]]),
+    )
+    expect(ra).toBe(10_000_000)
+  })
+
+  it('ví LẠI LÀ một tài khoản trong danh mục → không cộng, vì brokerCash đã đếm nó rồi', () => {
+    // `cash` của buildPortfolio đã gồm số dư của 'b'; cộng thêm ở đây là đếm hai lần và
+    // "Tiền chưa mua" phồng lên đúng bằng số dư của 'b'.
+    const ra = linkedWalletCash(
+      [
+        { id: 'a', cash_account_id: 'b' },
+        { id: 'b', cash_account_id: null },
+      ],
+      new Map([['b', 10_000_000]]),
+    )
+    expect(ra).toBeNull()
+  })
+
+  it('ví thiếu hàng số dư → coi như 0, không làm hỏng tổng', () => {
+    expect(linkedWalletCash([{ id: 'a', cash_account_id: 'nh' }], new Map())).toBe(0)
   })
 })

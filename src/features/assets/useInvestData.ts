@@ -12,7 +12,7 @@ import {
 } from '../../hooks/queries'
 import type { AccountRow, StockTradeRow } from '../../types/database.types'
 import { asTrade, sessionPrices } from './holdings'
-import { buildPortfolio, type AccountTrades, type Portfolio } from './portfolio'
+import { buildPortfolio, linkedWalletCash, type AccountTrades, type Portfolio } from './portfolio'
 
 export interface InvestData {
   /** Tài khoản chứng khoán VND đang mở (chưa lưu trữ). */
@@ -94,7 +94,7 @@ export function useInvestData(accountId?: string | null): InvestData {
       balance: balanceById.get(a.id) ?? 0,
       trades: allTrades.filter((t) => t.account_id === a.id).map(asTrade),
     }))
-    return buildPortfolio(input, priceBySymbol)
+    return buildPortfolio(input, priceBySymbol, linkedWalletCash(shown, balanceById))
   }, [shown, balances, allTrades, priceBySymbol])
 
   // Mã có giá hợp lệ nhưng giá đó cũ hơn phiên chung. Loại mã đã nằm trong

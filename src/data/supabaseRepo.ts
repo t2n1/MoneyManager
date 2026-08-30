@@ -6,6 +6,7 @@ import { parseDensity } from '../lib/density'
 import { getSupabase } from '../lib/supabase'
 import { IMPORT_CHUNK_SIZE, chunk, validateBackupPayload } from './backupImport'
 import { debtPaymentPosting } from '../features/debts/debtPaymentPosting'
+import { missingTradeTransfers, stockTradeCashFlow } from '../features/assets/stockTradePosting'
 import { pageOrderFor, type DataTable } from './exportTables'
 import { fetchAllPages, type Page } from './paging'
 import type {
@@ -143,6 +144,87 @@ async function docLoiTuContext(error: unknown): Promise<string | null> {
   } catch {
     return null
   }
+}
+
+/** Ví tiền đã khai của một tài khoản đầu tư; null = chưa khai (migration 0054). */
+async function viTienCuaTaiKhoan(accountId: string): Promise<string | null> {
+  const { data, error } = await getSupabase()
+    .from('accounts')
+    .select('cash_account_id')
+    .eq('id', accountId)
+    .single()
+  if (error) throw error
+  return data.cash_account_id
+}
+
+/**
+ * Ghi/sửa/xoá dòng tiền của một lệnh cho khớp — gọi SAU khi hàng `stock_trades` đã ở
+ * trạng thái mới. Cùng luật với `dongBoDongTienLenh` của demoRepo, và cùng MỘT hàm thuần
+ * quyết định (`stockTradeCashFlow`), nên hai bản repo không thể trôi khỏi nhau.
+ */
+async function dongBoDongTienLenh(trade: StockTradeRow, user_id: string) {
+  const flow = stockTradeCashFlow(
+    trade,
+    trade.account_id,
+    await viTienCuaTaiKhoan(trade.account_id),
+  )
+  const sb = getSupabase()
+  const { data: cu, error: docErr } = await sb
+    .from('transactions')
+    .select('id')
+    .eq('stock_trade_id', trade.id)
+    .maybeSingle()
+  if (docErr) throw docErr
+
+  if (!flow) {
+    if (cu) {
+      const { error } = await sb.from('transactions').delete().eq('id', cu.id)
+      if (error) throw error
+    }
+    return
+  }
+  if (cu) {
+    const { error } = await sb.from('transactions').update(flow).eq('id', cu.id)
+    if (error) throw error
+    return
+  }
+  const { error } = await sb
+    .from('transactions')
+    .insert({ ...flow, user_id, stock_trade_id: trade.id })
+  if (error) throw error
+}
+
+/**
+ * Lệnh còn thiếu dòng tiền — CÙNG phép tính cho cả đếm lẫn ghi, nên dải cảnh báo và nút
+ * ghi bù không thể nói hai số khác nhau.
+ */
+async function thieuDongTien() {
+  const sb = getSupabase()
+  const { data: accounts, error: accErr } = await sb
+    .from('accounts')
+    .select('id, cash_account_id')
+    .not('cash_account_id', 'is', null)
+  if (accErr) throw accErr
+  if (accounts.length === 0) return []
+
+  // Phân trang cả hai bảng: PostgREST cắt ở 1.000 dòng và cắt IM LẶNG. Đọc thiếu ở đây
+  // nghĩa là "còn thiếu 0 lệnh" trong khi sổ vẫn thủng. `id` làm chốt sắp xếp đơn trị.
+  const trades = await fetchAllPages<StockTradeRow>(async (from, to) =>
+    sb.from('stock_trades').select('*').order('id').range(from, to),
+  )
+  const daCo = await fetchAllPages<{ stock_trade_id: string | null }>(async (from, to) =>
+    sb
+      .from('transactions')
+      .select('stock_trade_id')
+      .not('stock_trade_id', 'is', null)
+      .order('stock_trade_id')
+      .range(from, to),
+  )
+  return missingTradeTransfers(
+    accounts,
+    trades,
+    new Set(daCo.map((r) => r.stock_trade_id).filter((id): id is string => !!id)),
+  )
 }
 
 export const supabaseRepo: Repo = {
@@ -514,6 +596,7 @@ export const supabaseRepo: Repo = {
       .select()
       .single()
     if (error) throw error
+    await dongBoDongTienLenh(data, user_id)
     return data
   },
 
@@ -528,12 +611,36 @@ export const supabaseRepo: Repo = {
       .select()
       .single()
     if (error) throw error
+    await dongBoDongTienLenh(data, data.user_id)
     return data
   },
 
+  // Không dọn dòng tiền ở đây: FK `on delete cascade` của migration 0054 lo, và lo được
+  // cả những đường xoá không đi qua repo (SQL tay, backup import).
   async deleteStockTrade(id: string) {
     const { error } = await getSupabase().from('stock_trades').delete().eq('id', id)
     if (error) throw error
+  },
+
+  async countStockTradesWithoutTransfer() {
+    return (await thieuDongTien()).length
+  },
+
+  async backfillStockTradeTransfers() {
+    const user_id = await currentUserId()
+    const thieu = await thieuDongTien()
+    // Chia lô 100 — cùng lý do như `deleteTransactions`: lô quá lớn dễ đụng giới hạn.
+    for (let i = 0; i < thieu.length; i += 100) {
+      const { error } = await getSupabase()
+        .from('transactions')
+        .insert(
+          thieu
+            .slice(i, i + 100)
+            .map(({ tradeId, tx }) => ({ ...tx, user_id, stock_trade_id: tradeId })),
+        )
+      if (error) throw error
+    }
+    return thieu.length
   },
 
   async getFunds() {

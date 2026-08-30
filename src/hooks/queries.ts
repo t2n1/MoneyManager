@@ -568,9 +568,14 @@ export function useStockTrades(enabled = true) {
 
 function invalidateStockTrades(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['stockTrades'] })
-  // Sổ lệnh đổi → tiền chưa đầu tư và giá trị danh mục đổi theo. Số dư (view) không
-  // đổi vì sổ lệnh không phải dòng tiền, nhưng snapshot giá trị thì có thể.
+  // Sổ lệnh đổi → tiền chưa mua và giá trị danh mục đổi theo.
   qc.invalidateQueries({ queryKey: ['valuations'] })
+  // Từ migration 0054, sổ lệnh KÉO THEO dòng tiền thật khi tài khoản đã khai ví (xem
+  // features/assets/stockTradePosting.ts) — nên số dư, danh sách giao dịch và bộ đếm
+  // "lệnh còn thiếu" đều đổi. Chú thích cũ ở đây nói "số dư (view) không đổi vì sổ lệnh
+  // không phải dòng tiền"; câu đó đúng cho tới 0054 và nay đã sai.
+  invalidateTransactionData(qc)
+  qc.invalidateQueries({ queryKey: ['stockTradesWithoutTransfer'] })
 }
 
 export function useCreateStockTrade() {
@@ -594,6 +599,27 @@ export function useDeleteStockTrade() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => repo.deleteStockTrade(id),
+    onSettled: () => invalidateStockTrades(qc),
+  })
+}
+
+/**
+ * Bao nhiêu lệnh cổ phiếu chưa có dòng chuyển tiền (migration 0054).
+ *
+ * Dải nhắc ở tab Cổ phiếu VN đọc đúng số này, và nút "Ghi bù" ghi đúng ngần ấy dòng —
+ * cùng một hàm thuần tính cả hai nên chúng không thể nói hai số khác nhau.
+ */
+export function useStockTradesWithoutTransfer() {
+  return useQuery({
+    queryKey: ['stockTradesWithoutTransfer'],
+    queryFn: () => repo.countStockTradesWithoutTransfer(),
+  })
+}
+
+export function useBackfillStockTradeTransfers() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => repo.backfillStockTradeTransfers(),
     onSettled: () => invalidateStockTrades(qc),
   })
 }

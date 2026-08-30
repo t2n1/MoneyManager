@@ -143,6 +143,16 @@ export type AccountRow = {
   payment_due_day: number | null
   /** Thẻ tín dụng: tài khoản nguồn tự trả thẻ (cùng currency, không phải thẻ); null = không tự trả */
   payment_account_id: string | null
+  /**
+   * Tài khoản đang giữ tiền mặt của tài khoản đầu tư này (migration 0054).
+   *
+   * Người dùng mua cổ phiếu VN bằng tiền ở ngân hàng nhưng chỉ ghi sổ lệnh, nên số dư
+   * ngân hàng cao hơn tiền thật còn `brokerCash` ra âm. Khai cột này thì mỗi lệnh tự kéo
+   * theo một chuyển khoản thật giữa hai tài khoản — xem `features/assets/stockTradePosting.ts`.
+   *
+   * null = không khai → không ghi gì, hành vi cũ giữ nguyên y hệt.
+   */
+  cash_account_id: string | null
   /** Thẻ tín dụng: ngày đến hạn cuối đã tự sinh giao dịch trả; null = chưa sinh kỳ nào */
   card_autopay_through: string | null
   /** Tài sản cố định: số tháng khấu hao tuyến tính; null = không khấu hao tự động */
@@ -314,6 +324,13 @@ export type TransactionRow = {
   exclude_from_stats?: boolean
   /** Hoàn tiền: giao dịch CHI mang dấu âm (tiền về ví, KHÔNG phải thu nhập). */
   is_refund?: boolean
+  /**
+   * Lệnh cổ phiếu đã sinh ra dòng tiền này (migration 0054); null/vắng = giao dịch thường.
+   *
+   * FK `on delete cascade`: xoá lệnh thì dòng tiền tự đi theo, không phải nhớ dọn ở tầng
+   * ứng dụng. Unique index chặn một lệnh có hai dòng.
+   */
+  stock_trade_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -327,6 +344,15 @@ export type AccountBalanceRow = {
   asset_group: string | null
   is_hidden: boolean
   include_in_totals: boolean
+  /**
+   * Rút ra tiêu được ngay? null = chưa đặt → suy từ `type`. Xem `features/assets/liquidity.ts`.
+   *
+   * PHẢI có ở đây: `buildHealthSnapshot`, `earmarked.ts` và bộ đếm "N tài khoản chưa khai"
+   * chỉ đọc view này. Migration 0047 thêm cột mà quên dựng lại view, nên trong 6 migration
+   * cột này là `undefined` ở mọi nơi đọc view — tiền gửi có kỳ hạn vẫn bị đếm là tiền tiêu
+   * ngay, và lời nhắc "chưa khai" không bao giờ tắt được. Sửa ở 0053.
+   */
+  is_liquid: boolean | null
   /** Thẻ tín dụng: hạn mức (minor units); null = không đặt / không phải thẻ */
   credit_limit: number | null
   /** Thẻ tín dụng: ngày chốt sao kê hằng tháng (1..31); null = chưa đặt */
@@ -335,6 +361,8 @@ export type AccountBalanceRow = {
   payment_due_day: number | null
   /** Thẻ tín dụng: tài khoản nguồn tự trả thẻ; null = không tự trả / không phải thẻ */
   payment_account_id: string | null
+  /** Ví tiền của tài khoản đầu tư (migration 0054); null = không khai. Xem `AccountRow`. */
+  cash_account_id: string | null
   is_archived: boolean
   sort_order: number
   /** Giá gốc nhập tay (accounts.initial_balance) — tài sản cố định dùng làm giá mua */
@@ -816,6 +844,7 @@ export type Database = {
           | 'statement_day'
           | 'payment_due_day'
           | 'payment_account_id'
+          | 'cash_account_id'
           | 'card_autopay_through'
           | 'depreciation_months'
           | 'depreciation_from'
@@ -841,6 +870,7 @@ export type Database = {
             | 'statement_day'
             | 'payment_due_day'
             | 'payment_account_id'
+            | 'cash_account_id'
             | 'card_autopay_through'
             | 'depreciation_months'
             | 'depreciation_from'
@@ -904,6 +934,7 @@ export type Database = {
           | 'is_debt_flow'
           | 'exclude_from_stats'
           | 'is_refund'
+          | 'stock_trade_id'
         >
         Update: Partial<
           Pick<
@@ -923,6 +954,7 @@ export type Database = {
             | 'is_debt_flow'
             | 'exclude_from_stats'
             | 'is_refund'
+            | 'stock_trade_id'
           >
         >
         Relationships: []

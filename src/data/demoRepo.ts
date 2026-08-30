@@ -1501,6 +1501,28 @@ export const demoRepo: Repo = {
     save(db)
   },
 
+  async countStockTradesWithoutTransfer() {
+    return thieuDongTien(load()).length
+  },
+
+  async backfillStockTradeTransfers() {
+    const db = load()
+    const thieu = thieuDongTien(db)
+    for (const { tradeId, tx } of thieu) {
+      db.transactions.push({
+        ...tx,
+        id: uuid(),
+        user_id: DEMO_USER,
+        recurring_rule_id: null,
+        stock_trade_id: tradeId,
+        created_at: nowISO(),
+        updated_at: nowISO(),
+      })
+    }
+    if (thieu.length > 0) save(db)
+    return thieu.length
+  },
+
   async getFunds() {
     return (load().funds ?? [])
       .slice()

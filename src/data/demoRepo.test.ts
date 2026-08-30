@@ -1531,4 +1531,40 @@ describe('lệnh cổ phiếu kéo theo dòng tiền khi đã khai ví', () => {
 
     expect(await dongTienCuaLenh(trade.id)).toEqual([])
   })
+  it('lệnh ghi TRƯỚC khi khai ví được đếm là thiếu, và ghi bù đúng ngày của lệnh', async () => {
+    const nganHang = await demoRepo.createAccount(
+      accountInput({
+        name: 'Ngân hàng VN',
+        type: 'bank',
+        currency: 'VND',
+        initial_balance: 50_000_000,
+      }),
+    )
+    const chungKhoan = await demoRepo.createAccount(
+      accountInput({ name: 'iDragon', type: 'investment', currency: 'VND', initial_balance: 0 }),
+    )
+    const trade = await demoRepo.createStockTrade(lenhMua(chungKhoan.id))
+    // Chưa khai ví thì không thiếu gì — app không đoán hộ tiền đi ra từ đâu.
+    expect(await demoRepo.countStockTradesWithoutTransfer()).toBe(0)
+
+    await demoRepo.updateAccount(chungKhoan.id, { cash_account_id: nganHang.id })
+    expect(await demoRepo.countStockTradesWithoutTransfer()).toBe(1)
+
+    expect(await demoRepo.backfillStockTradeTransfers()).toBe(1)
+    const sinhRa = await dongTienCuaLenh(trade.id)
+    expect(sinhRa).toHaveLength(1)
+    expect(sinhRa[0].occurred_on).toBe('2026-08-20')
+    expect(await demoRepo.countStockTradesWithoutTransfer()).toBe(0)
+  })
+
+  it('ghi bù lần hai không đẻ dòng thứ hai', async () => {
+    const { chungKhoan } = await dungHaiTaiKhoan()
+    await demoRepo.createStockTrade(lenhMua(chungKhoan.id))
+    expect(await demoRepo.countStockTradesWithoutTransfer()).toBe(0)
+    expect(await demoRepo.backfillStockTradeTransfers()).toBe(0)
+
+    // Lọc theo `stock_trade_id`: dữ liệu demo có sẵn chuyển khoản của riêng nó.
+    const txs = await demoRepo.listTransactions(KHOANG)
+    expect(txs.filter((t) => t.stock_trade_id)).toHaveLength(1)
+  })
 })

@@ -587,6 +587,15 @@ export interface Repo {
   createStockTrade(input: NewStockTrade): Promise<StockTradeRow>
   updateStockTrade(id: string, patch: StockTradePatch): Promise<StockTradeRow>
   deleteStockTrade(id: string): Promise<void>
+  /**
+   * Bao nhiêu lệnh cổ phiếu đáng có dòng tiền mà chưa có (migration 0054).
+   *
+   * Phạm vi là MỌI tài khoản đã khai ví, không nhận `accountId`: tab Đầu tư gộp nhiều
+   * tài khoản, bắt nơi gọi tự lặp là để lại một lỗ hổng không ai thấy.
+   */
+  countStockTradesWithoutTransfer(): Promise<number>
+  /** Ghi bù những dòng tiền đó, mỗi lệnh một dòng đúng ngày `traded_on`. Trả số dòng đã ghi. */
+  backfillStockTradeTransfers(): Promise<number>
 
   // --- Quỹ đầu tư Nhật: danh bạ + bảng giá + sổ lệnh (migration 0045) ---
   /** Danh bạ quỹ công khai. Chỉ đọc — chỉ service role ghi (seed + edge function). */

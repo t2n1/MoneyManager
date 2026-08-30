@@ -4,8 +4,26 @@
 // nó nằm dưới cả hai cửa ghi (form ghi lệnh, nút ghi bù) cùng cả hai repo (Supabase,
 // demo). Để quyết định này ở tầng gọi thì mỗi cửa phải tự nhớ, và cửa nào quên thì số dư
 // ngân hàng lặng lẽ cao hơn tiền thật — đúng cái sai mà cả đợt này sinh ra để sửa.
-import type { NewTransaction } from '../../data/repo'
 import type { StockTradeRow } from '../../types/database.types'
+
+/**
+ * Đúng những cột mà một lệnh quyết định — hẹp hơn `NewTransaction` một cách CỐ Ý.
+ *
+ * `NewTransaction` còn mang `tag_ids` (bảng liên kết riêng, không phải cột) và
+ * `recurring_rule_id`; đưa nguyên nó vào `insert` của PostgREST là bị chốt
+ * `RejectExcessProperties` chặn. Hẹp lại cũng nói thẳng ra rằng dòng tiền này không mang
+ * nhãn, không thuộc quy tắc định kỳ nào.
+ */
+export interface StockTradeTransfer {
+  type: 'transfer'
+  amount: number
+  to_amount: null
+  category_id: null
+  account_id: string
+  to_account_id: string
+  occurred_on: string
+  note: string
+}
 
 /** Phần của một lệnh quyết định dòng tiền. Nhận `Pick` để test khỏi phải dựng cả hàng. */
 export type StockTradeCash = Pick<
@@ -22,7 +40,7 @@ export interface WalletAccount {
 /** Một lệnh còn thiếu dòng tiền, kèm sẵn giao dịch để ghi. */
 export interface PendingTransfer {
   tradeId: string
-  tx: NewTransaction
+  tx: StockTradeTransfer
 }
 
 /**
@@ -41,7 +59,7 @@ export function stockTradeCashFlow(
   trade: StockTradeCash,
   investAccountId: string,
   cashAccountId: string | null | undefined,
-): NewTransaction | null {
+): StockTradeTransfer | null {
   if (!cashAccountId || cashAccountId === investAccountId) return null
   if (trade.kind === 'adjust') return null
 

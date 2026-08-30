@@ -1,5 +1,5 @@
 import { Monitor, Moon, Sun } from 'lucide-react'
-import { Card, SectionTitle } from '../../components/ui'
+import { Card, PanelHeader } from '../../components/ui'
 import type { LucideIcon } from 'lucide-react'
 import { useTheme } from '../../hooks/useTheme'
 import type { ThemePref } from '../../lib/theme'
@@ -14,8 +14,8 @@ export function ThemeToggle() {
   const { pref, setTheme } = useTheme()
 
   return (
-    <Card as="section" padding="none" className="overflow-hidden">
-      <SectionTitle className="px-3 pt-3">Giao diện</SectionTitle>
+    <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
+      <PanelHeader>Giao diện</PanelHeader>
       <div className="flex gap-1 p-3">
         {OPTIONS.map((opt) => {
           const active = pref === opt.value
@@ -27,7 +27,7 @@ export function ThemeToggle() {
               aria-pressed={active}
               className={`flex flex-1 flex-col items-center gap-1 rounded-md border py-2.5 text-sm font-medium transition ${
  active
- ? 'border-green-500 bg-state-good-bg text-state-good-fg dark:border-green-500'
+ ? 'border-accent bg-state-good-bg text-state-good-fg'
  : 'border-border-panel text-fg-secondary hover:bg-surface-sunken'
  }`}
             >

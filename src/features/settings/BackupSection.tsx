@@ -15,7 +15,7 @@ import { AlertTriangle, Check, Download, Upload } from 'lucide-react'
 import { BACKUP_VERSION, repo, type BackupData } from '../../data'
 import { confirmDialog } from '../../lib/dialog'
 import { ageLabel } from '../../lib/freshness'
-import { ActionButton, Card, SectionTitle } from '../../components/ui'
+import { ActionButton, Card, PanelHeader } from '../../components/ui'
 import { BACKUP_STALE_DAYS, readLastBackup, writeLastBackup } from './lastBackup'
 
 type Status = { kind: 'idle' | 'ok' | 'error'; message: string }
@@ -112,12 +112,7 @@ export function BackupSection() {
 
   return (
     <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
-      <SectionTitle
-        role="micro"
-        className="border-b border-border-panel bg-surface-chrome px-3 py-2.5"
-      >
-        Cất giữ
-      </SectionTitle>
+      <PanelHeader>Cất giữ</PanelHeader>
 
       <div className="flex flex-col gap-3 p-3">
         {/* Trạng thái đứng TRƯỚC hai cái nút: nó là câu trả lời, nút là việc làm sau đó. */}

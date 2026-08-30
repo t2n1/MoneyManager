@@ -46,7 +46,7 @@ import {
   IconButton,
   Num,
   PageHeader,
-  SectionTitle,
+  PanelHeader,
   SegmentedControl,
 } from '../../components/ui'
 
@@ -56,18 +56,6 @@ const PERIOD_ITEMS = [
   { value: 'month' as const, label: 'Tháng' },
   { value: 'year' as const, label: 'Năm' },
 ]
-
-/** Tiêu đề của một thẻ trên trang này — dải chữ hoa trên nền chrome, đồng bộ ba thẻ. */
-function CardTitle({ children }: { children: string }) {
-  return (
-    <SectionTitle
-      role="micro"
-      className="border-b border-border-panel bg-surface-chrome px-3 py-2.5"
-    >
-      {children}
-    </SectionTitle>
-  )
-}
 
 function ExportSection() {
   const navigate = useNavigate()
@@ -123,7 +111,7 @@ function ExportSection() {
 
   return (
     <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
-      <CardTitle>Lấy ra</CardTitle>
+      <PanelHeader>Lấy ra</PanelHeader>
       <div className="flex flex-col gap-3 p-3">
         <SegmentedControl
           items={PERIOD_ITEMS}
@@ -179,7 +167,7 @@ function ImportSection() {
     'flex min-h-12 items-center gap-3 border-b border-border-subtle px-3 py-3 text-sm text-fg-primary transition last:border-b-0 hover:bg-surface-sunken'
   return (
     <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
-      <CardTitle>Đưa vào</CardTitle>
+      <PanelHeader>Đưa vào</PanelHeader>
       <Link to="/settings/import" className={rowClass}>
         <FileUp className="h-5 w-5 shrink-0 text-fg-muted" />
         <span className="min-w-0 flex-1">Giao dịch từ CSV</span>

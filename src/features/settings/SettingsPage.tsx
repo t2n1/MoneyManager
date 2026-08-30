@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeftRight, ChevronRight, UserRound } from 'lucide-react'
-import { Card } from '../../components/ui/Card'
 import { resetDemoData } from '../../data/demoRepo'
 import { useRatesFreshness } from '../../hooks/useDataFreshness'
 import { useProfile, useRates } from '../../hooks/queries'
@@ -16,7 +15,7 @@ import { FontSizeToggle } from './FontSizeToggle'
 import { ProfileEditSheet } from './ProfileEditSheet'
 import { SETTINGS_NAV } from './SettingsLayout'
 import { ThemeToggle } from './ThemeToggle'
-import { PageHeader, SectionTitle } from '../../components/ui'
+import { Card, PageHeader, PanelHeader, SectionTitle } from '../../components/ui'
 
 export function SettingsPage() {
   const { data: profile } = useProfile()
@@ -116,21 +115,21 @@ export function SettingsPage() {
         </div>
       </section>
 
-      {/* Lưới hai cột. `xl` chứ không `lg`: từ `lg` cột trái của khung đã lấy 15rem, chia
-          tiếp ở 1024px là cột giữa hẹp hơn cả bản một cột cũ. items-start để cột ngắn
-          không bị kéo cao bằng cột dài.
-          Bề rộng theo REM chứ px (§13): ở cỡ chữ "Rất lớn" cột px cứng giữ nguyên trong
-          khi chữ trong nó to ra. 21.25rem là đúng 340px ở cỡ chữ thường. */}
-      <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[1fr_21.25rem] xl:items-start">
-        {/* TRÁI — vặn cái gì */}
-        <div className="flex flex-col gap-3">
+      {/* Lưới TỰ CHIA, không chốt số cột. Bản trước chốt hai cột `[1fr_21.25rem]` với cột
+          phải dành riêng cho Tỷ giá — mà Tỷ giá chỉ hiện khi CÓ tỷ giá ngoại tệ. Đo ở
+          1440px trên sổ không có ngoại tệ: cột phải rỗng, bốn thẻ bên trái mỗi thẻ 748px
+          để chứa một dải nút rộng chừng 300px, còn 640px bỏ trắng.
+          `auto-fit` + `minmax(19rem, …)` thì thẻ tự xếp: hẹp một cột, rộng hai–ba cột, và
+          thẻ Tỷ giá vắng mặt cũng không để lại lỗ hổng nào. rem chứ px (§13). */}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(19rem,1fr))] items-start gap-3">
           <ThemeToggle />
 
           <DensityToggle />
 
           <FontSizeToggle />
 
-          <section className="overflow-hidden rounded-lg border border-border-panel bg-surface">
+          <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
+            <PanelHeader>Hồ sơ</PanelHeader>
             <button
               type="button"
               onClick={() => setEditing(true)}
@@ -160,21 +159,14 @@ export function SettingsPage() {
                 </button>
               </div>
             )}
-          </section>
+          </Card>
 
-        </div>
-
-        {/* PHẢI — tình trạng dữ liệu */}
-        <div className="flex flex-col gap-3">
           {rateLines.length > 0 && (
-            <Card as="section" className="overflow-hidden">
-              <div className="flex items-start gap-3">
+            <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
+              <PanelHeader>Tỷ giá quy đổi</PanelHeader>
+              <div className="flex items-start gap-3 p-3">
                 <ArrowLeftRight className="mt-0.5 h-5 w-5 shrink-0 text-fg-muted" />
-                <div className="flex-1">
-                  {/* h2 để có tên landmark cho <Card as="section">, đồng bộ với khối "Quản
-                      lý" — nhưng KHÔNG copy class px-3 pt-3 của khối đó: Card đã có p-3
-                      sẵn, copy vào sẽ đúp lề. */}
-                  <SectionTitle>Tỷ giá quy đổi</SectionTitle>
+                <div className="min-w-0 flex-1">
                   {rateLines.map((line) => (
                     // CỐ Ý không có tabular-nums: khối này chỉ 1-2 dòng ngắn, không phải
                     // cột số cần thẳng hàng, mà ngưỡng `tabular-nums` ở
@@ -211,8 +203,6 @@ export function SettingsPage() {
               </div>
             </Card>
           )}
-
-        </div>
       </div>
 
       {editing && profile && <ProfileEditSheet profile={profile} onClose={() => setEditing(false)} />}

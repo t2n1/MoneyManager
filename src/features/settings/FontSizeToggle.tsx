@@ -1,4 +1,4 @@
-import { Card, SectionTitle } from '../../components/ui'
+import { Card, PanelHeader } from '../../components/ui'
 import { useFontScale } from '../../hooks/useFontScale'
 import { Guide } from '../../components/Guide'
 import type { FontScalePref } from '../../lib/fontScale'
@@ -16,8 +16,8 @@ export function FontSizeToggle() {
   const { pref, setFontScale } = useFontScale()
 
   return (
-    <Card as="section" padding="none" className="overflow-hidden">
-      <SectionTitle className="px-3 pt-3">Cỡ chữ</SectionTitle>
+    <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
+      <PanelHeader>Cỡ chữ</PanelHeader>
       <div className="flex gap-1 p-3">
         {OPTIONS.map((opt) => {
           const active = pref === opt.value
@@ -29,7 +29,7 @@ export function FontSizeToggle() {
               aria-pressed={active}
               className={`flex flex-1 flex-col items-center justify-end gap-1 rounded-md border py-2.5 text-sm font-medium transition ${
  active
- ? 'border-green-500 bg-state-good-bg text-state-good-fg dark:border-green-500'
+ ? 'border-accent bg-state-good-bg text-state-good-fg'
  : 'border-border-panel text-fg-secondary hover:bg-surface-sunken'
  }`}
             >

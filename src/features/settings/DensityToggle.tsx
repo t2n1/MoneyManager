@@ -13,7 +13,7 @@
 // hành vi thật của cái nút, không phải chữ hướng dẫn.
 import { LayoutGrid, Text } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Card, SectionTitle } from '../../components/ui'
+import { Card, PanelHeader } from '../../components/ui'
 import { useDensityControl } from '../../hooks/useDensity'
 import type { DensityPref } from '../../lib/density'
 
@@ -26,11 +26,8 @@ export function DensityToggle() {
   const { pref, setDensity, saving } = useDensityControl()
 
   return (
-    <Card as="section" padding="none" className="overflow-hidden">
-      <div className="flex items-baseline justify-between gap-2 px-3 pt-3">
-        <SectionTitle>Cách trình bày</SectionTitle>
-        <span className="shrink-0 text-2xs text-fg-muted">dùng chung mọi thiết bị</span>
-      </div>
+    <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
+      <PanelHeader right="dùng chung mọi thiết bị">Cách trình bày</PanelHeader>
       <div className="flex gap-1 p-3">
         {OPTIONS.map((opt) => {
           const active = pref === opt.value
@@ -45,7 +42,7 @@ export function DensityToggle() {
               aria-pressed={active}
               className={`flex flex-1 flex-col items-center gap-1 rounded-md border px-2 py-2.5 text-sm font-medium transition disabled:opacity-60 ${
  active
- ? 'border-green-500 bg-state-good-bg text-state-good-fg dark:border-green-500'
+ ? 'border-accent bg-state-good-bg text-state-good-fg'
  : 'border-border-panel text-fg-secondary hover:bg-surface-sunken'
  }`}
             >

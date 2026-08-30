@@ -92,6 +92,10 @@ export function AccountDetailPage() {
   const balance = balanceRow?.balance ?? 0
   const isInvestment = account?.type === 'investment'
   const isFixed = account?.type === 'fixed'
+  /** Ví tiền đã khai của tài khoản đầu tư này; undefined = chưa khai hoặc ví đã bị xoá. */
+  const viTien = account?.cash_account_id
+    ? accounts.find((a) => a.id === account.cash_account_id)
+    : undefined
   // Đầu tư: vốn gốc = balance (sổ), giá thị trường = snapshot mới nhất (view market_value)
   const invStats = investmentStats(balance, isInvestment ? (balanceRow?.market_value ?? null) : null)
   // Danh mục tính TẠI MÁY từ sổ lệnh + bảng giá, bằng đúng engine của trang Đầu tư.
@@ -419,6 +423,15 @@ export function AccountDetailPage() {
                 currency={currency}
                 percent={danhMuc.unrealizedPercent}
               />
+            )}
+            {/* Ví tiền đã khai (migration 0054) — chỉ NÓI RA nó là ai, KHÔNG cộng số dư ví
+                vào con số phía trên: trang này nói về MỘT tài khoản, còn ví đã tự đứng
+                thành một dòng riêng ở tab Tài sản. Cộng vào đây là đếm ngân hàng hai lần. */}
+            {viTien && (
+              <p className="flex items-center justify-between gap-2 text-sm">
+                <span className="text-fg-muted">Ví tiền</span>
+                <span className="text-fg-secondary">{viTien.name}</span>
+              </p>
             )}
             {/* Không in "Vốn gốc (đã bỏ vào)" ở đây nữa: đó là mốc theo SỐ DƯ SỔ, tức mốc
                 mà quyết định 1 đã loại. Câu "tiền tôi bỏ vào sinh lợi bao nhiêu" nằm ở ô

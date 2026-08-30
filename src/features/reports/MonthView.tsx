@@ -73,6 +73,8 @@ import {
 } from './aggregate'
 import { detectAnomalies } from './insights'
 import { headlineOf } from './headline'
+import { monthStory } from './monthStory'
+import { MonthStoryNote } from './MonthStoryNote'
 import { useMonthPace } from './monthPace'
 import { periodDaysLabel } from './periodCompare'
 import {
@@ -361,6 +363,25 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
       })
     : null
 
+  // Phần câu tổng KHÔNG nói được: tháng này lệch thế nào so với chính thói quen của người
+  // dùng. Đọc cả cửa sổ 6 tháng chứ không riêng tháng đang xem — không có mấy tháng trước
+  // thì không có "mức thường" nào để so, và bộ dò tự im.
+  const story = useMemo(
+    () =>
+      monthStory({
+        txs: rangeTxs,
+        months,
+        monthStartDay,
+        categories,
+        currencyOf,
+        base,
+        rates: r,
+        transferIds,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rangeTxs, months, monthStartDay, categories, accounts, base, rates, transferIds],
+  )
+
   // Cùng tập với màn Phân loại nhanh (`classifiableExpenses` — lá VÀ cha). Đếm theo
   // `expenseLeaves` là nói "còn 0" trong khi trang kia còn 3 dòng phải bấm.
   const unclassifiedCount = useMemo(
@@ -381,7 +402,8 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
     series.hasMissingRate ||
     comparison.hasMissingRate ||
     kept.hasMissingRate ||
-    anomalyResult.hasMissingRate
+    anomalyResult.hasMissingRate ||
+    story.hasMissingRate
 
   const moreItems: MoreItem[] = [
     ...(anomalies.length > 0
@@ -445,6 +467,11 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
           {headline.text}
         </ConclusionLine>
       )}
+
+      {/* Đứng ngay dưới câu tổng, KHÔNG nằm trong một thẻ riêng: nó là phần bổ nghĩa cho
+          câu đó ("vì đâu"), tách ra thành thẻ là biến nó thành một khối phải tìm. */}
+      <MonthStoryNote findings={story.findings} base={base} approx={story.hasMissingRate} />
+
 
       {/* BỐN ô, không năm: "Ngày không chi" bị bỏ vì với người chi hằng ngày nó luôn bằng
           0, và một ô luôn bằng 0 chỉ dạy người đọc bỏ qua cả hàng. Ô thứ tư là "Còn tự

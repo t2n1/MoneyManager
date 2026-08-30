@@ -147,9 +147,15 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           placeholder="Để trống nếu không dùng"
           className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-right text-fg-primary"
         />
-        <Guide className="mt-1 text-sm text-fg-muted">
-          Để báo cáo quy đổi “món này = mấy giờ làm”. Lương tháng ÷ số giờ làm thực tế trong tháng.
-        </Guide>
+        {/* Câu ĐỊNH NGHĨA con số phải gõ đứng ngoài <Guide>: ô này nhận một giá trị mơ hồ
+            (gộp hay thực lĩnh? giờ hợp đồng hay có tăng ca?) và người ta chỉ gõ nó MỘT lần,
+            nên nó không bao giờ thành "quy ước đã thuộc lòng". Mà Gọn là mặc định — bọc cả
+            đoạn thì đa số người dùng thấy một ô số không nhãn nghĩa. Phần nói ô này mở ra
+            báo cáo nào thì vẫn là chữ dạy, vẫn ẩn. */}
+        <p className="mt-1 text-sm text-fg-muted">
+          Lương tháng ÷ số giờ làm thực tế trong tháng.
+          <Guide as="span"> Để báo cáo quy đổi “món này = mấy giờ làm”.</Guide>
+        </p>
 
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
@@ -211,10 +217,14 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
             </div>
           ))}
         </div>
-        <Guide className="mt-1 text-sm text-fg-muted">
-          Mặc định là quy tắc 50/30/20. Hai mốc đầu là <b>trần</b> (chi dưới mức là tốt), tiết kiệm
-          là <b>sàn</b> (vượt mức là tốt).
-        </Guide>
+        {/* CHIỀU của ba ô này đứng ngoài <Guide>, cùng lý do với dòng cảnh báo tổng ở dưới:
+            ba ô đều là "%", nhìn không ra cái nào là trần cái nào là sàn. Gõ ngược thì mọi
+            câu phán trục ở Ngân sách đọc ngược lại — sai lặng lẽ. Con số mặc định 50/30/20
+            thì vẫn là chữ dạy, vẫn ẩn ở Gọn. */}
+        <p className="mt-1 text-sm text-fg-muted">
+          Hai mốc đầu là <b>trần</b>, tiết kiệm là <b>sàn</b>.
+          <Guide as="span"> Mặc định là quy tắc 50/30/20: chi dưới trần là tốt, vượt sàn là tốt.</Guide>
+        </p>
         {/* Không ép tổng = 100: có người muốn để đệm, nhưng lệch nhiều thì nhắc. Dòng này
             đứng RIÊNG, không nằm trong <Guide> ở trên: nó nói về con số vừa gõ, nên chế độ
             Gọn cũng phải thấy — gộp vào khối hướng dẫn là mất cảnh báo. */}

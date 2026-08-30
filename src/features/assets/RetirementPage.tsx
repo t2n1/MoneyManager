@@ -271,8 +271,13 @@ export function RetirementPage() {
           <p className="mt-2 rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
             Khoảng {thang(d.turns40In)} bạn bước sang 40 tuổi — từ đó 介護保険第2号 cộng
             thêm khoảng 1,62% vào dòng 健康保険料 (phần bạn trả một nửa). Tiền bảo hiểm TĂNG
-            vì lý do đó, không phải vì 掛金. Đây là lý do khối này đọc 標準報酬月額 chứ không
-            đọc số tiền 健康保険料.
+            vì lý do đó, không phải vì 掛金.
+            {/* Câu cuối là phương pháp luận thuần — cùng loại với <Guide> cách đây mươi
+                dòng. Hai câu trên thì ở lại: chúng báo tiền bảo hiểm sắp tăng. */}
+            <Guide as="span">
+              {' '}
+              Đây là lý do khối này đọc 標準報酬月額 chứ không đọc số tiền 健康保険料.
+            </Guide>
           </p>
         )}
 

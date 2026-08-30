@@ -1433,10 +1433,18 @@ export function ScenarioWorkbench({
                 Năm sinh phải là số nguyên trong khoảng {MIN_BIRTH_YEAR}–{MAX_BIRTH_YEAR}.
               </p>
             )}
+            {/* Tách hai vế. Vế đầu là NGỮ NGHĨA LƯU, phải hiện cả ở Gọn: cả màn này chạy
+                theo nếp nháp-rồi-Lưu, nên đúng một ô ghi thẳng là ngoại lệ — mà ngoại lệ
+                không nói ra thì người dùng gõ xong, không bấm Lưu, và vẫn bị ghi. Vế sau
+                (tỷ giá, đổi tiền hiển thị) là chữ dạy thuần. */}
             <p className="mt-3 border-t border-border-subtle pt-2 text-2xs leading-relaxed text-fg-muted">
               Năm sinh dùng chung cho mọi kịch bản (Cài đặt → Hồ sơ) nên nó ghi ngay, không
-              đợi Lưu. Bản chiếu coi như tỷ giá hôm nay giữ nguyên mãi — đổi tiền hiển thị
-              chỉ đổi cách đọc, không đụng số bạn đã nhập.
+              đợi Lưu.
+              <Guide as="span">
+                {' '}
+                Bản chiếu coi như tỷ giá hôm nay giữ nguyên mãi — đổi tiền hiển thị chỉ đổi
+                cách đọc, không đụng số bạn đã nhập.
+              </Guide>
             </p>
           </div>
         )}

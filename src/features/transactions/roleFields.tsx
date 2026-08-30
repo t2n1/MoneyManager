@@ -324,11 +324,13 @@ export function SplitFields({
               </option>
             ))}
           </Select>
-          <Guide className="mt-1 text-sm text-fg-muted">
+          {/* Cũng là hệ quả, không phải chữ dạy: câu này nói lựa chọn vừa rồi sẽ ghi MẤY
+              DÒNG vào sổ. Ẩn ở Gọn thì hai lựa chọn của ô trên trông như nhau. */}
+          <p className="mt-1 text-sm text-fg-muted">
             {value.receivedAccountId
               ? 'Thêm một chuyển khoản để tài khoản đã trả vẫn trừ đủ tổng (khớp sao kê thẻ).'
               : 'Tiền ra tiền vào cùng một chỗ → chỉ ghi một dòng chi phần của mình.'}
-          </Guide>
+          </p>
         </div>
       )}
 
@@ -561,11 +563,15 @@ export function DebtFields({
         <label className="flex cursor-pointer items-center justify-between gap-2 text-sm text-fg-secondary">
           <span>
             Có chuyển tiền thật
-            <Guide as="span" className="block text-sm text-fg-muted">
+            {/* KHÔNG bọc <Guide>: đây không phải chữ dạy mà là HỆ QUẢ của chính cái công
+                tắc bên cạnh — gạt nó là sinh một giao dịch và dịch số dư tài khoản. Mà Gọn
+                là mặc định, nên bọc lại tức là đa số người dùng gạt công tắc này mà không
+                biết nó ghi gì vào sổ. Cùng câu, cùng lý do ở DebtPickerField.tsx. */}
+            <span className="block text-sm text-fg-muted">
               {value.direction === 'owed_to_me'
                 ? 'Tạo giao dịch chi (trừ số dư tài khoản)'
                 : 'Tạo giao dịch thu (cộng số dư tài khoản)'}
-            </Guide>
+            </span>
           </span>
           <button
             type="button"

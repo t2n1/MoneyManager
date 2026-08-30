@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { FileUp } from 'lucide-react'
 import { BackLink } from '../../components/BackLink'
+import { Guide } from '../../components/Guide'
 import { ActionButton } from '../../components/ui/ActionButton'
 import { Card } from '../../components/ui/Card'
 import {
@@ -489,9 +490,11 @@ export function ImportPhieuLuongPage() {
           <p className="text-sm font-semibold text-fg-primary">
             {dat.length} phiếu sẵn sàng · {soDong} dòng
           </p>
-          <p className="mt-1 text-sm text-fg-muted">
+          {/* Chữ dạy: giải thích VÌ SAO số dư đứng yên. Bỏ đi vẫn nhập được, và danh sách
+              phiếu ngay dưới vẫn nói rõ từng dòng sẽ ghi gì. */}
+          <Guide className="mt-1 text-sm text-fg-muted">
             Số dư không đổi: thu vào chi ra cùng ngày cùng tài khoản, triệt tiêu.
-          </p>
+          </Guide>
           <ul className="mt-2 flex flex-col gap-2">
             {keHoach.map((k) => (
               <li key={k.phieu.file} className="border-t border-border-subtle pt-2 text-sm">

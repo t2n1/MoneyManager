@@ -271,7 +271,25 @@ function stripComments(text: string): string {
 // nhãn … một giao dịch mang hai nhãn được tính đủ vào cả hai, nên cộng cột này sẽ lớn hơn
 // tổng chi thật". Đây là cảnh báo về cách ĐỌC bảng, không phải chữ để dạy: ẩn nó ở chế độ
 // Gọn là để người đọc tự cộng cột rồi tin một con số cao hơn sự thật.
-const PROSE_MAX = 81
+// 83 (từ 81, 2026-08-30): rà lại toàn bộ chỗ <Guide> đang bọc và thấy bốn chỗ bọc QUÁ
+// TAY. Chúng không phải chữ dạy mà là HỆ QUẢ của cái điều khiển ngay bên cạnh, mà Gọn là
+// mặc định (DEFAULT_DENSITY = 'visual') — bọc lại tức là đa số người dùng không bao giờ
+// đọc được. Cùng lý lẽ với dòng "tổng ba mốc lệch 100" ở ProfileEditSheet, vốn đã đứng
+// riêng ngoài <Guide> từ trước:
+//   · ProfileEditSheet "Lương tháng ÷ số giờ làm thực tế" — ĐỊNH NGHĨA con số phải gõ.
+//     Ô này nhận một giá trị mơ hồ (gộp hay thực lĩnh? có tăng ca không?) và chỉ gõ MỘT
+//     lần, nên không bao giờ thành "quy ước đã thuộc lòng".
+//   · ProfileEditSheet "Hai mốc đầu là trần, tiết kiệm là sàn" — ba ô đều là "%", nhìn
+//     không ra cái nào ngược chiều. Gõ ngược thì mọi câu phán trục ở Ngân sách đọc ngược.
+//   · ValuationFormSheet "Số bạn gõ chỉ giữ cho đúng ngày này" — hôm sau app tự tính lại
+//     đè lên; ẩn đi thì trông như app nuốt mất số vừa nhập.
+//   · RecurringFormSheet "Thay đổi chỉ áp dụng cho các kỳ tương lai" — phạm vi của nút
+//     Lưu sắp bấm, và là câu hỏi khiến người ta mở sheet đó.
+//   · ScenarioWorkbench "Năm sinh … ghi ngay, không đợi Lưu" — cả màn chạy theo nếp
+//     nháp-rồi-Lưu, nên đúng một ô ghi thẳng là NGOẠI LỆ; không nói ra thì người dùng gõ
+//     xong, không bấm Lưu, và vẫn bị ghi.
+// Cùng lượt đó, hai đoạn văn xuôi CŨ đã được bọc <Guide> nên trần chỉ lên 3 chứ không 5.
+const PROSE_MAX = 84
 
 const FILES = sourceFiles().map((path) => ({
   path,

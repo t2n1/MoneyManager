@@ -418,10 +418,13 @@ export function RecurringFormSheet({ rule, onClose }: Props) {
           <TagPicker value={effectiveTagIds} onChange={setTagIds} />
         </div>
 
+        {/* KHÔNG bọc <Guide>: đây là phạm vi của nút Lưu sắp bấm, không phải chữ dạy. Ẩn ở
+            Gọn — chế độ mặc định — thì người sửa một quy tắc cũ không biết mấy kỳ đã sinh
+            có đổi theo hay không, mà đó chính là câu hỏi khiến họ mở sheet này. */}
         {rule && (
-          <Guide className="mt-2 text-sm text-fg-muted">
+          <p className="mt-2 text-sm text-fg-muted">
             Thay đổi chỉ áp dụng cho các kỳ tương lai; giao dịch đã sinh giữ nguyên.
-          </Guide>
+          </p>
         )}
         {error && <p className="mt-2 text-sm text-money-out">{error}</p>}
 

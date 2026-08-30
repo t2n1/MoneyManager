@@ -1,5 +1,4 @@
 import { useEffect, useId } from 'react'
-import { Guide } from '../../components/Guide'
 import { MoneyField } from '../../components/MoneyField'
 import { CURRENCIES, formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertBetween, formatRateLine, type Rates } from '../../lib/rates'
@@ -167,11 +166,13 @@ export function DebtPickerField({
         <label className="flex cursor-pointer items-center justify-between gap-2 text-sm text-fg-secondary">
           <span>
             Có chuyển tiền thật
-            <Guide as="span" className="block text-sm text-fg-muted">
+            {/* KHÔNG bọc <Guide> — hệ quả của công tắc, không phải chữ dạy. Xem chú thích
+                dài ở roleFields.tsx, cùng một câu và cùng một lý do. */}
+            <span className="block text-sm text-fg-muted">
               {direction === 'i_owe'
                 ? 'Tạo giao dịch chi (trừ số dư tài khoản)'
                 : 'Tạo giao dịch thu (cộng số dư tài khoản)'}
-            </Guide>
+            </span>
           </span>
           <button
             type="button"

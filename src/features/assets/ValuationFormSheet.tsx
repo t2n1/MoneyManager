@@ -117,12 +117,15 @@ export function ValuationFormSheet({ account, currentValue, onClose }: Props) {
           so với vốn gốc là lãi/lỗ chưa thực hiện.
         </Guide>
 
+        {/* Vế "số này chỉ giữ cho hôm nay" đứng ngoài <Guide>: hôm sau con số tự đổi lại,
+            mà Gọn là mặc định — ẩn đi thì người dùng thấy app ghi đè số mình vừa gõ và
+            không có cách nào biết đó là đúng ý. Cơ chế phía sau (tự tính mỗi chiều theo sổ
+            lệnh) mới là chữ dạy. */}
         {tuDongChay && (
-          <Guide className="mb-3 text-sm text-fg-muted">
-            Tài khoản này đang tự tính giá trị mỗi chiều theo sổ lệnh. Số bạn gõ ở đây sẽ
-            được giữ nguyên cho đúng ngày này — app tự tính lại bình thường từ những ngày
-            sau.
-          </Guide>
+          <p className="mb-3 text-sm text-fg-muted">
+            Số bạn gõ ở đây chỉ giữ cho đúng ngày này — từ những ngày sau app tự tính lại.
+            <Guide as="span"> Tài khoản này đang tự tính giá trị mỗi chiều theo sổ lệnh.</Guide>
+          </p>
         )}
 
         <div className="mt-1 flex justify-end gap-2">

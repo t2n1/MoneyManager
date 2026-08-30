@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 import { AccountTypeIcon } from '../../components/icons'
+import { Guide } from '../../components/Guide'
 import { DateField } from '../../components/DateField'
 import type { TxFilter } from '../../data'
 import {
@@ -295,11 +296,14 @@ export function SearchPage() {
         <div className="mb-3 space-y-3 rounded-xl bg-surface-sunken p-3">
           {tagSections.length > 0 && (
             <div>
+              {/* Quy ước AND/OR là chữ dạy: ẩn nó đi vẫn bấm chip lọc được như thường, và
+                  kết quả ngay dưới nói luôn còn bao nhiêu khoản. */}
               <p className="mb-1.5 text-sm font-semibold text-fg-muted">
-                Nhãn{' '}
-                <span className="font-normal text-fg-muted">
+                Nhãn
+                <Guide as="span" className="font-normal text-fg-muted">
+                  {' '}
                   (trong cùng nhóm = khớp bất kỳ · khác nhóm = phải khớp đủ)
-                </span>
+                </Guide>
               </p>
               <div className="flex flex-col gap-2">
                 {tagSections.map((s) => (

@@ -512,6 +512,10 @@ export function TagsPage() {
           {/* Cột "Đã chi" tính CẢ ĐỜI nhãn. Nói ra vì cột "Trần" ngay cạnh có thể đang đo
               theo THÁNG (nhãn kỳ 'monthly') — hai cột hai mốc thời gian mà không ai nói
               thì đọc ra mâu thuẫn. */}
+          {/* CỐ Ý không bọc <Guide>, dù CalendarPanels.tsx bọc đúng câu này: ở đó các dòng
+              nhãn có trần riêng nên không ai cộng chúng lại, còn ở đây là một CỘT số mời
+              người ta cộng. Ẩn ở chế độ Gọn là để người đọc tự cộng rồi tin một con số cao
+              hơn sự thật. Xem PROSE_MAX trong tests/designSystem.test.ts (mục 81). */}
           {tags.length > 0 && (
           <p className="text-2xs text-fg-muted">
             “Đã chi” là tổng cả đời nhãn, quy về {base}.

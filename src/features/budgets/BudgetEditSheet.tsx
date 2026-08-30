@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useDeleteBudget, useRates, useUpsertBudget } from '../../hooks/queries'
-import { useSyncedBudget } from './useSyncedBudget'
 import { useEscClose } from '../../hooks/useEscClose'
 import { MoneyField, MONEY_FIELD_CLASS } from '../../components/MoneyField'
 import { confirmDialog } from '../../lib/dialog'
 import { formatMoney } from '../../lib/money'
+import type { LimitPatch } from './capSplit'
 import type { Suggestion } from './suggest'
 import { SectionTitle, actionButtonClass } from '../../components/ui'
 
@@ -19,6 +19,14 @@ interface Props {
   hint?: string
   /** Lịch sử chi của danh mục này (mặt lập kế hoạch); null = không gợi ý. */
   suggestion?: Suggestion | null
+  /**
+   * Giữ luật "cha = tổng con" sau khi ghi (`useSyncedBudget().syncAfterWrite`).
+   *
+   * Sheet KHÔNG tự gọi `useSyncedBudget`: đặt số ở một danh mục có con sẽ mở màn chia,
+   * mà màn đó do màn cha render. Sheet gọi hook của chính nó thì sheet đóng là trạng
+   * thái "đang mở màn chia" chết theo, và màn chia không bao giờ hiện.
+   */
+  onAfterWrite?: (patch: LimitPatch[]) => Promise<void> | void
   onClose: () => void
 }
 
@@ -32,15 +40,13 @@ export function BudgetEditSheet({
   budgetId,
   hint,
   suggestion = null,
+  onAfterWrite,
   onClose,
 }: Props) {
   useEscClose(onClose)
   const { base } = useRates()
   const upsert = useUpsertBudget()
   const remove = useDeleteBudget()
-  // Luật "cha = tổng con" (xem `useSyncedBudget`): sheet này là chỗ DUY NHẤT đặt được
-  // hạn mức cho một danh mục CÓ CON, nên cũng là chỗ duy nhất hỏi câu chia xuống con.
-  const { syncAfterWrite } = useSyncedBudget(monthKey)
   const [amount, setAmount] = useState(current)
   const [rollover, setRollover] = useState(currentRollover ?? false)
 
@@ -60,9 +66,7 @@ export function BudgetEditSheet({
     } catch {
       return
     }
-    // Hỏi chia xuống con TRƯỚC khi đóng: đóng rồi mới hỏi thì câu hỏi mọc lên giữa màn
-    // trống, không dính gì tới việc người dùng vừa làm.
-    await syncAfterWrite([{ categoryId, amount }])
+    await onAfterWrite?.([{ categoryId, amount }])
     onClose()
   }
 
@@ -75,7 +79,7 @@ export function BudgetEditSheet({
       return
     }
     // Xoá mốc một mục con thì trần cha phải trừ đi đúng phần đó.
-    await syncAfterWrite([{ categoryId, amount: null }])
+    await onAfterWrite?.([{ categoryId, amount: null }])
     onClose()
   }
 

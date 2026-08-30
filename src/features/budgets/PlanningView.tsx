@@ -55,6 +55,7 @@ import { isOffAverage } from './suggest'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { ExpectedIncomeSheet } from './ExpectedIncomeSheet'
 import { SUGGEST_MONTHS, usePlanning, type PlanDraft } from './usePlanning'
+import { SplitGroupSheet } from './SplitGroupSheet'
 import { useSyncedBudget } from './useSyncedBudget'
 import { STATUS_FILL } from '../../components/ui/statusColors'
 
@@ -132,7 +133,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   const upsert = useUpsertBudget()
   // Luật "cha = tổng con" — xem `useSyncedBudget`. Bốn chỗ ghi hạn mức của màn này đều
   // phải đi qua nó, bỏ sót một chỗ là luật thủng đúng ở chỗ đó.
-  const { syncAfterWrite, splitToChildren } = useSyncedBudget(monthKeyStr)
+  const { syncAfterWrite, openSplit, splitSheetProps } = useSyncedBudget(monthKeyStr)
   const { summary, projection, groups } = data
 
   const [editing, setEditing] = useState<string | null>(null)
@@ -827,7 +828,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                 groupOpen={groupOpen}
                 onToggleGroup={toggleGroup}
                 onEdit={setEditing}
-                onSplit={splitToChildren}
+                onSplit={openSplit}
                 slider={sliderCtl}
               />
             ))}
@@ -879,9 +880,13 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
              vốn đã xét đúng bằng `budgets.some(...)`, hai màn lệch nhau từ trước. */
           hint={budgetHint(editing, categories, (id) => data.budgetedByCat.has(id))}
           suggestion={data.suggestions.get(editing) ?? null}
+          onAfterWrite={syncAfterWrite}
           onClose={() => setEditing(null)}
         />
       )}
+
+      {/* Xem ghi chú cùng chỗ ở BudgetView: trạng thái màn chia phải sống ở màn này. */}
+      {splitSheetProps && <SplitGroupSheet {...splitSheetProps} />}
 
       {incomeOpen && (
         <ExpectedIncomeSheet

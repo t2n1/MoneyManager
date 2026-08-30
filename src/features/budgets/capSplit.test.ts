@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   parentsToResync,
+  splitByAverage,
   splitCapToChildren,
+  splitEvenly,
   sumChildLimits,
   type SplitChild,
 } from './capSplit'
@@ -179,5 +181,45 @@ describe('parentsToResync', () => {
   it('danh mục không có cha thì không có gì để cộng', () => {
     const out = parentsToResync([{ categoryId: 'khac', amount: 5_000 }], opts({}))
     expect(out).toEqual([])
+  })
+})
+
+describe('splitEvenly', () => {
+  it('chia đều, tổng vẫn khớp từng đồng', () => {
+    const parts = splitEvenly(30_000, ['a', 'b', 'c'])
+    expect(parts.map((p) => p.amount)).toEqual([10_000, 10_000, 10_000])
+  })
+
+  it('không chia hết cho số con thì phần lẻ vào dòng đầu', () => {
+    // ¥1.000 cho 3 mục: mỗi mục ¥333,33 → làm tròn trăm còn ¥300, hụt ¥100. Dồn vào
+    // dòng đầu (bằng điểm thì đứa đứng trước thắng) để tổng vẫn đúng ¥1.000.
+    const parts = splitEvenly(1_000, ['a', 'b', 'c'])
+    expect(parts.map((p) => p.amount)).toEqual([400, 300, 300])
+  })
+
+  it('không có mục con nào thì không chia gì', () => {
+    expect(splitEvenly(30_000, [])).toEqual([])
+  })
+})
+
+describe('splitByAverage', () => {
+  it('chia theo TB 6 tháng, BỎ QUA hạn mức đang đặt', () => {
+    // Khác `splitCapToChildren`: nút này là "điền lại cả bảng theo thói quen chi", nên
+    // nó cố ý ghi đè cả những dòng đã khai — đó là lý do người dùng bấm nó.
+    const parts = splitByAverage(50_000, [
+      kid('comngoai', 9_999, 82_863),
+      kid('dicho', null, 10_952),
+      kid('anvat', null, 3_656),
+    ])
+    expect(parts).toEqual([
+      { categoryId: 'comngoai', amount: 42_500 },
+      { categoryId: 'dicho', amount: 5_600 },
+      { categoryId: 'anvat', amount: 1_900 },
+    ])
+  })
+
+  it('không mục con nào có lịch sử thì rơi về chia đều', () => {
+    const parts = splitByAverage(30_000, [kid('a', 5_000), kid('b', null), kid('c', null)])
+    expect(parts.map((p) => p.amount)).toEqual([10_000, 10_000, 10_000])
   })
 })

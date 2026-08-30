@@ -18,6 +18,7 @@ import { BudgetEditSheet } from './BudgetEditSheet'
 import { buildBudgetDisplay, type BudgetChildRow } from './budgetDisplay'
 import { budgetHint } from './budgetHint'
 import { capMismatchNotice } from './capOverflow'
+import { SplitGroupSheet } from './SplitGroupSheet'
 import { useSyncedBudget } from './useSyncedBudget'
 import { pickAttention, sortBudgetItems, type BudgetSortMode } from './budgetSort'
 import { classifyCommitments, coverageGaps, spendableRemaining } from './commitments'
@@ -203,7 +204,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   const commitments = useCommitments(monthKey)
   const { suggestions } = useSuggestions()
   // Nút "Chia … cho N mục con" của câu nhắc lệch — xem `useSyncedBudget`.
-  const { splitToChildren } = useSyncedBudget(monthKeyStr)
+  const { syncAfterWrite, openSplit, splitSheetProps } = useSyncedBudget(monthKeyStr)
 
   // Danh mục đang sửa hạn mức (null = đóng sheet)
   const [editing, setEditing] = useState<{
@@ -822,7 +823,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                         {mismatch.text}
                       </p>
                       {mismatch.childCount > 0 && (
-                        <ActionButton onClick={() => splitToChildren(item.cat.id)}>
+                        <ActionButton onClick={() => openSplit(item.cat.id)}>
                           Chia cho {mismatch.childCount} mục con
                         </ActionButton>
                       )}
@@ -950,9 +951,15 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
              không, nên sửa hạn mức giữa tháng là gõ số từ trí nhớ. Đúng cái việc suggest.ts
              được viết ra để bỏ. */
           suggestion={suggestions.get(editing.categoryId) ?? null}
+          onAfterWrite={syncAfterWrite}
           onClose={() => setEditing(null)}
         />
       )}
+
+      {/* Màn chia trần nhóm — mở từ nút "Chia cho N mục con", hoặc tự bật sau khi đặt
+          hạn mức cho một danh mục có con. Trạng thái nằm ở `useSyncedBudget` của MÀN
+          NÀY, không phải của sheet đặt hạn mức: sheet đó đóng ngay sau khi lưu. */}
+      {splitSheetProps && <SplitGroupSheet {...splitSheetProps} />}
     </div>
   )
 }

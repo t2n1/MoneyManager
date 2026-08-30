@@ -86,6 +86,23 @@ function spread(amount: number, weights: number[]): number[] {
 }
 
 /**
+ * Chia đều — nút "điền lại cả bảng" của màn chia nhóm.
+ *
+ * Cố ý ghi đè cả những dòng đã khai: đó chính là việc người dùng đang nhờ nó làm khi
+ * bấm. Khác `splitCapToChildren`, hàm kia giữ lời khai vì nó chạy TỰ ĐỘNG.
+ */
+export function splitEvenly(cap: number, categoryIds: string[]): SplitPart[] {
+  const amounts = spread(cap, categoryIds.map(() => 1))
+  return categoryIds.map((categoryId, i) => ({ categoryId, amount: amounts[i] }))
+}
+
+/** Chia theo TB 6 tháng — nút điền lại thứ hai. Không mục con nào có lịch sử → chia đều. */
+export function splitByAverage(cap: number, children: SplitChild[]): SplitPart[] {
+  const amounts = spread(cap, children.map((c) => Math.max(0, c.average)))
+  return children.map((c, i) => ({ categoryId: c.categoryId, amount: amounts[i] }))
+}
+
+/**
  * Tổng hạn mức ĐẶT TAY của các con — con số mà trần cha phải bằng.
  *
  * Nhận thẳng dòng `budgets` chứ không nhận số đã hiển thị: số trên màn đã cộng phần dồn

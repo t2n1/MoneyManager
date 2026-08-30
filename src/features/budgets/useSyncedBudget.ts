@@ -8,31 +8,30 @@
 // hạn mức, nút `Đặt`, thanh trượt, `Nhận hết gợi ý`, `Chia giữ sàn`). Luật chép ra năm
 // bản thì bỏ sót một bản là luật thủng đúng ở chỗ đó, và không ai thấy cho tới khi số
 // cộng ra sai.
+import { useState } from 'react'
 import { useBudgets, useCategories, useRates, useUpsertBudget } from '../../hooks/queries'
-import { confirmDialog } from '../../lib/dialog'
-import { formatMoney } from '../../lib/money'
 import {
   parentsToResync,
   splitCapToChildren,
   type LimitPatch,
   type SplitChild,
+  type SplitPart,
 } from './capSplit'
+import type { SplitGroupSheetProps } from './SplitGroupSheet'
 import { useSuggestions } from './useSuggestions'
 
 export interface SyncedBudget {
   /**
    * Gọi SAU khi đã ghi xong hạn mức, để hai chiều của luật được giữ:
-   *   · danh mục vừa ghi CÓ CON  → hỏi rồi chia số đó xuống các con
+   *   · danh mục vừa ghi CÓ CON  → mở màn chia để người dùng xem và sửa từng dòng
    *   · danh mục vừa ghi CÓ CHA  → cộng lại trần cha, im lặng
    * Nhận cả lô nên `Nhận hết gợi ý` (7 mục) vẫn chỉ ghi trần cha một lần.
    */
   syncAfterWrite: (patch: LimitPatch[]) => Promise<void>
-  /**
-   * Chia trần nhóm ĐANG LƯU của `categoryId` xuống các con — cho nút một-chạm ở câu
-   * nhắc lệch (`capMismatchNotice`). Dùng số ĐẶT TAY, không phải số trên màn: số trên
-   * màn đã cộng phần dồn tháng trước, chia nó xuống con là dồn thêm một lần nữa.
-   */
-  splitToChildren: (categoryId: string) => Promise<void>
+  /** Nút "Chia cho N mục con" ở câu nhắc lệch — mở đúng màn đó. */
+  openSplit: (categoryId: string) => void
+  /** Màn chia đang mở, hoặc null. Nơi gọi render `<SplitGroupSheet {...} />`. */
+  splitSheetProps: SplitGroupSheetProps | null
 }
 
 export function useSyncedBudget(monthKey: string): SyncedBudget {
@@ -41,38 +40,18 @@ export function useSyncedBudget(monthKey: string): SyncedBudget {
   const { suggestions } = useSuggestions()
   const upsert = useUpsertBudget()
   const { base } = useRates()
+  const [splitting, setSplitting] = useState<string | null>(null)
 
   const childrenOf = (id: string) =>
     categories.filter((c) => c.parent_id === id && !c.is_archived)
   const parentOf = (id: string) => categories.find((c) => c.id === id)?.parent_id ?? null
-  const nameOf = (id: string) => categories.find((c) => c.id === id)?.name ?? ''
+  const catOf = (id: string) => categories.find((c) => c.id === id) ?? null
   // `amount` là số ĐẶT TAY. Số trên màn đã cộng phần dồn tháng trước (`rollover`); chia
   // hay cộng ngược trên số đó là mỗi lần sửa lại nhân thêm một lần dồn nữa.
   const limits = new Map(budgets.map((b) => [b.category_id, b.amount]))
 
-  async function splitDown(categoryId: string, cap: number) {
-    const kids = childrenOf(categoryId)
-    if (kids.length === 0) return
-    const parts = splitCapToChildren(
-      cap,
-      kids.map(
-        (k): SplitChild => ({
-          categoryId: k.id,
-          limit: limits.get(k.id) ?? null,
-          average: suggestions.get(k.id)?.average ?? 0,
-        }),
-      ),
-    )
-    // Đã khớp sẵn thì không hỏi: bấm Lưu mà không đổi số cũng sinh một lượt ghi.
-    if (parts.every((p) => (limits.get(p.categoryId) ?? 0) === p.amount)) return
-
-    const ok = await confirmDialog({
-      title: `Chia ${formatMoney(cap, base)} cho ${kids.length} mục con?`,
-      message: parts.map((p) => `${nameOf(p.categoryId)} ${formatMoney(p.amount, base)}`).join(' · '),
-      confirmLabel: 'Chia',
-      cancelLabel: 'Để nguyên',
-    })
-    if (!ok) return
+  /** Ghi một lô hạn mức, bỏ qua dòng hỏng để dòng sau không bị chặn theo. */
+  async function writeAll(parts: SplitPart[]) {
     for (const p of parts) {
       try {
         await upsert.mutateAsync({ categoryId: p.categoryId, monthKey, amount: p.amount })
@@ -83,28 +62,62 @@ export function useSyncedBudget(monthKey: string): SyncedBudget {
   }
 
   async function syncAfterWrite(patch: LimitPatch[]) {
-    for (const p of patch) {
-      if (p.amount !== null && childrenOf(p.categoryId).length > 0) {
-        await splitDown(p.categoryId, p.amount)
-      }
-    }
+    // Đặt số ở một danh mục CÓ CON thì mở màn chia — số cha vừa ghi là mốc để chia,
+    // còn chia thế nào là việc của người dùng, không phải của app.
+    const withKids = patch.find((p) => p.amount !== null && childrenOf(p.categoryId).length > 0)
+    if (withKids) setSplitting(withKids.categoryId)
+
     const parents = parentsToResync(patch, {
       parentOf,
       childrenOf: (id) => childrenOf(id).map((c) => c.id),
       limits,
       hasCap: (id) => limits.has(id),
     })
-    for (const p of parents) {
-      try {
-        await upsert.mutateAsync({ categoryId: p.categoryId, monthKey, amount: p.amount })
-      } catch {
-        // Như trên: một trần cha hỏng không được chặn các trần cha còn lại.
-      }
-    }
+    await writeAll(parents)
   }
 
-  return {
-    syncAfterWrite,
-    splitToChildren: (categoryId: string) => splitDown(categoryId, limits.get(categoryId) ?? 0),
-  }
+  const parent = splitting ? catOf(splitting) : null
+  const cap = splitting ? (limits.get(splitting) ?? 0) : 0
+  const kids = splitting ? childrenOf(splitting) : []
+  // Số mở sẵn = phép chia tự động (giữ lời khai cũ, chia phần dư). Người dùng sửa từ đó
+  // chứ không gõ lại từ đầu — đây là khác biệt giữa "bày ra để sửa" và "bắt nhập tay".
+  const preset = new Map(
+    splitCapToChildren(
+      cap,
+      kids.map(
+        (k): SplitChild => ({
+          categoryId: k.id,
+          limit: limits.get(k.id) ?? null,
+          average: suggestions.get(k.id)?.average ?? 0,
+        }),
+      ),
+    ).map((p) => [p.categoryId, p.amount]),
+  )
+
+  const splitSheetProps: SplitGroupSheetProps | null =
+    parent && kids.length > 0
+      ? {
+          parentLabel: `${parent.icon} ${parent.name}`,
+          cap,
+          base,
+          rows: kids.map((k) => ({
+            categoryId: k.id,
+            label: `${k.icon} ${k.name}`,
+            amount: preset.get(k.id) ?? 0,
+            average: suggestions.get(k.id)?.average ?? 0,
+          })),
+          onSave: async (parts) => {
+            await writeAll(parts)
+            // Trần cha = tổng con, ghi ngay trong cùng lượt: tổng người dùng gõ có thể
+            // khác trần cũ, và luật nói bên con mới là số thật.
+            const total = parts.reduce((s, p) => s + p.amount, 0)
+            if (total !== cap) {
+              await writeAll([{ categoryId: parent.id, amount: total }])
+            }
+          },
+          onClose: () => setSplitting(null),
+        }
+      : null
+
+  return { syncAfterWrite, openSplit: setSplitting, splitSheetProps }
 }

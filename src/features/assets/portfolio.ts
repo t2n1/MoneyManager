@@ -80,6 +80,31 @@ export interface Portfolio {
   oversold: string[]
 }
 
+/**
+ * Tiền nằm ở các ví liên kết của những tài khoản đang được tính — `walletCash` của
+ * `buildPortfolio`. `null` = không tài khoản nào khai ví.
+ *
+ * Hai luật chống đếm hai lần, cả hai đều xảy ra thật:
+ * - **Một ví, nhiều tài khoản.** Hai tài khoản chứng khoán trỏ chung một ngân hàng là
+ *   chuyện bình thường; cộng theo từng tài khoản là bịa ra tiền.
+ * - **Ví LẠI LÀ một tài khoản trong danh mục.** Lúc đó số dư của nó đã nằm trong `cash`
+ *   qua `brokerCash`, nên cộng thêm ở đây làm "Tiền chưa mua" phồng lên đúng bằng số dư
+ *   ví. Bắt được khi mở app xem, không phải khi chạy test — `npm test` không có màn nào.
+ */
+export function linkedWalletCash(
+  shown: { id: string; cash_account_id: string | null }[],
+  balanceById: Map<string, number>,
+): number | null {
+  const trongDanhMuc = new Set(shown.map((a) => a.id))
+  const viIds = new Set(
+    shown
+      .map((a) => a.cash_account_id)
+      .filter((id): id is string => !!id && !trongDanhMuc.has(id)),
+  )
+  if (viIds.size === 0) return null
+  return [...viIds].reduce((s, id) => s + (balanceById.get(id) ?? 0), 0)
+}
+
 export function buildPortfolio(
   accounts: AccountTrades[],
   priceBySymbol: Map<string, number>,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Trade } from './holdings'
-import { buildPortfolio, type AccountTrades } from './portfolio'
+import { buildPortfolio, linkedWalletCash, type AccountTrades } from './portfolio'
 
 const buy = (symbol: string, quantity: number, price: number, tradedOn = '2026-01-05'): Trade => ({
   symbol,
@@ -210,5 +210,39 @@ describe('walletCash — tiền ở ví liên kết', () => {
     expect(p.marketValue).toBe(11_000_000)
     // `cash` vẫn chỉ là tiền ở công ty chứng khoán, không lẫn ví.
     expect(p.cash).toBe(4_000_000)
+  })
+})
+
+describe('linkedWalletCash — gom ví, không đếm hai lần', () => {
+  it('chưa tài khoản nào khai ví → null', () => {
+    expect(linkedWalletCash([{ id: 'a', cash_account_id: null }], new Map())).toBeNull()
+  })
+
+  it('hai tài khoản trỏ CHUNG một ví → ví chỉ đếm một lần', () => {
+    const ra = linkedWalletCash(
+      [
+        { id: 'a', cash_account_id: 'nh' },
+        { id: 'b', cash_account_id: 'nh' },
+      ],
+      new Map([['nh', 10_000_000]]),
+    )
+    expect(ra).toBe(10_000_000)
+  })
+
+  it('ví LẠI LÀ một tài khoản trong danh mục → không cộng, vì brokerCash đã đếm nó rồi', () => {
+    // `cash` của buildPortfolio đã gồm số dư của 'b'; cộng thêm ở đây là đếm hai lần và
+    // "Tiền chưa mua" phồng lên đúng bằng số dư của 'b'.
+    const ra = linkedWalletCash(
+      [
+        { id: 'a', cash_account_id: 'b' },
+        { id: 'b', cash_account_id: null },
+      ],
+      new Map([['b', 10_000_000]]),
+    )
+    expect(ra).toBeNull()
+  })
+
+  it('ví thiếu hàng số dư → coi như 0, không làm hỏng tổng', () => {
+    expect(linkedWalletCash([{ id: 'a', cash_account_id: 'nh' }], new Map())).toBe(0)
   })
 })

@@ -138,8 +138,7 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
         <div className="rounded-md border border-state-warn-border bg-state-warn-bg px-2.5 py-2 text-2xs text-state-warn-fg">
           <p>
             <Num>{soLenhThieu}</Num> lệnh chưa có dòng chuyển tiền, nên số dư ví đang cao
-            hơn tiền thật. Ghi bù xong, Tổng tài sản sẽ đổi: ví về đúng số, còn cổ phiếu được
-            tính theo giá thị trường.
+            hơn tiền thật. Ghi bù để ví về đúng số — Tổng tài sản có thể đổi theo.
           </p>
           <ActionButton onClick={() => ghiBu.mutate()} disabled={ghiBu.isPending} className="mt-2">
             {ghiBu.isPending ? 'Đang ghi…' : 'Ghi bù'}

@@ -94,7 +94,12 @@ export function useInvestData(accountId?: string | null): InvestData {
       balance: balanceById.get(a.id) ?? 0,
       trades: allTrades.filter((t) => t.account_id === a.id).map(asTrade),
     }))
-    return buildPortfolio(input, priceBySymbol)
+    // Ví của các tài khoản đang xét, mỗi ví đếm ĐÚNG MỘT LẦN: hai tài khoản chứng khoán
+    // trỏ chung một ngân hàng là chuyện bình thường, cộng hai lần là bịa ra tiền.
+    const viIds = new Set(shown.map((a) => a.cash_account_id).filter((id): id is string => !!id))
+    const walletCash =
+      viIds.size === 0 ? null : [...viIds].reduce((s, id) => s + (balanceById.get(id) ?? 0), 0)
+    return buildPortfolio(input, priceBySymbol, walletCash)
   }, [shown, balances, allTrades, priceBySymbol])
 
   // Mã có giá hợp lệ nhưng giá đó cũ hơn phiên chung. Loại mã đã nằm trong

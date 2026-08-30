@@ -192,3 +192,23 @@ describe('buildPortfolio', () => {
     expect(p.positions[0].weight).toBe(1)
   })
 })
+
+describe('walletCash — tiền ở ví liên kết', () => {
+  it('không truyền ví → null', () => {
+    expect(buildPortfolio([], new Map()).walletCash).toBeNull()
+  })
+
+  it('truyền ví → giữ nguyên số đó, và KHÔNG cộng vào marketValue', () => {
+    const p = buildPortfolio(
+      [acc('a', 10_000_000, [buy('FPT', 100, 60_000)])],
+      new Map([['FPT', 70_000]]),
+      25_000_000,
+    )
+    expect(p.walletCash).toBe(25_000_000)
+    // marketValue là con số mà dòng tài khoản ở tab Tài sản và account_valuations dùng —
+    // ví đã tự đứng thành một dòng ở đó rồi, cộng vào đây là đếm ngân hàng hai lần.
+    expect(p.marketValue).toBe(11_000_000)
+    // `cash` vẫn chỉ là tiền ở công ty chứng khoán, không lẫn ví.
+    expect(p.cash).toBe(4_000_000)
+  })
+})

@@ -59,6 +59,16 @@ export interface Portfolio {
   /** Tiền còn ở công ty chứng khoán, chưa mua gì. Âm = sổ lệnh thiếu lần nạp. */
   cash: number
   /**
+   * Số dư của tài khoản ví đã khai (`accounts.cash_account_id`, migration 0054);
+   * null = chưa khai ví.
+   *
+   * CỐ Ý đứng ngoài `marketValue`: `marketValue` là con số mà dòng tài khoản ở tab Tài
+   * sản và `account_valuations` dùng, mà tài khoản ví đã tự đứng thành một dòng ở đó
+   * rồi — cộng vào là đếm ngân hàng hai lần. Chỉ tab Cổ phiếu VN cộng nó vào, và đó là
+   * một câu hỏi khác: "tiền cổ phiếu VN của tôi đang là bao nhiêu".
+   */
+  walletCash: number | null
+  /**
    * stockValue + cash. null khi KHÔNG ĐÁNG TIN — cùng hai điều kiện với
    * `portfolioValue` của một tài khoản: tiền mặt âm (sổ lệnh có lỗ hổng), hoặc
    * thiếu giá mọi mã (lúc đó con số chỉ bằng vốn gốc, không nói thêm được gì).
@@ -73,6 +83,7 @@ export interface Portfolio {
 export function buildPortfolio(
   accounts: AccountTrades[],
   priceBySymbol: Map<string, number>,
+  walletCash: number | null = null,
 ): Portfolio {
   // symbol → tổng số cổ + tổng giá vốn, cộng từ kết quả RIÊNG của từng tài khoản
   const merged = new Map<string, { quantity: number; costBasis: number; accounts: string[] }>()
@@ -132,6 +143,7 @@ export function buildPortfolio(
     unrealizedPercent: stockCost > 0 ? (stockValue - stockCost) / stockCost : null,
     realizedPnl,
     cash,
+    walletCash,
     marketValue: reliableTotal(stockValue, cash, allMissing),
     missingPrices,
     oversold: [...oversold].sort(),

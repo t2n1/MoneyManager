@@ -1,9 +1,37 @@
+// Danh mục — cây cha/con, kéo–thả sắp thứ tự, thêm/sửa/lưu trữ.
+//
+// ---- Vì sao vẽ lại (redesign 2026-08-30) -------------------------------------------
+//
+// Đo bản trước ở 1440×900 trên sổ thật: 14 cha + 48 con, trang cao 3.380px = BỐN màn, và
+// tên danh mục kết thúc ở x≈471–544 trong khi nút cuối hàng đứng ở x=1345 — **801–874px
+// trống** giữa cái tên và nút của nó, lặp 48 lần.
+//
+// Hai cách chữa, và trang này cần cả hai:
+//   · CON THU GỌN sẵn. Mở một cha ra mới thấy con của nó. 14 hàng cha ≈ dưới một màn,
+//     thay cho bốn màn. Kéo con sang cha đang đóng thì cha đó TỰ MỞ (xem
+//     onChildPointerMove) — không thì hàng đang kéo biến mất khỏi màn.
+//   · BÓ BỀ NGANG. Đây là màn một cột có kéo–thả dọc: chia cột thì phép đo trung điểm
+//     của DragList sai ngay, mà để nó nở hết 1090px thì sinh ra đúng khoảng trống 800px
+//     ở trên. §Phần I cho phép bó với màn một-cột (Nhập đã bó `max-w-2xl lg:max-w-5xl`).
+//     Chỗ trống còn lại bên phải là ĐÁNH ĐỔI CÓ CHỦ Ý, không phải bỏ quên.
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Guide } from '../../components/Guide'
-import { Archive, ChevronDown, ChevronUp, GripVertical, Plus } from 'lucide-react'
+import { Archive, ChevronDown, ChevronRight, ChevronUp, GripVertical, Plus } from 'lucide-react'
 import type { NewCategory } from '../../data'
 import { DragList, type DragHandleProps } from '../../components/DragList'
-import { Card, EmptyState, IconButton, PageHeader, SectionTitle, Select, actionButtonClass, iconButtonClass } from '../../components/ui'
+import {
+  ActionButton,
+  Card,
+  EmptyState,
+  IconButton,
+  Num,
+  PageHeader,
+  SectionTitle,
+  SegmentedControl,
+  Select,
+  actionButtonClass,
+  iconButtonClass,
+} from '../../components/ui'
 import { useEscClose } from '../../hooks/useEscClose'
 import {
   useCategories,
@@ -32,6 +60,11 @@ const EMOJI_CHOICES = [
   '🐶', '🎵', '💇', '🏋️', '📱', '💳', '🍰', '🍺', '⚽', '🌸', '🧸', '📦',
 ]
 
+const TAB_ITEMS = [
+  { value: 'expense' as const, label: 'Chi' },
+  { value: 'income' as const, label: 'Thu' },
+]
+
 /** Trạng thái mở form: thêm mới (có thể kèm cha) hoặc sửa một danh mục. */
 type FormState =
   | { category: null; parent: CategoryRow | null }
@@ -45,6 +78,16 @@ export function CategoriesPage() {
   const [tab, setTab] = useState<CategoryType>('expense')
   const [form, setForm] = useState<FormState | null>(null)
   const [showArchived, setShowArchived] = useState(false)
+  // Cha ĐANG MỞ. Rỗng = thu gọn hết, và đó là mặc định: xem chú thích đầu file.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+
+  const toggleParent = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   const ofType = categories
     .filter((c) => c.type === tab)
@@ -170,6 +213,12 @@ export function CategoriesPage() {
       }
     }
     if (target == null) return // ngoài mọi cha → giữ xem trước cũ
+    // Kéo tới một cha đang THU GỌN thì mở nó ra: không mở thì hàng đang kéo biến mất
+    // khỏi màn (đã rời cha cũ, mà cha mới thì đang đóng) và người kéo mất dấu.
+    if (!expanded.has(target)) {
+      const cha = target
+      setExpanded((prev) => (prev.has(cha) ? prev : new Set(prev).add(cha)))
+    }
     const rowIds = displayChildIds(target).filter((id) => id !== dragChild)
     let index = rowIds.length
     for (let i = 0; i < rowIds.length; i++) {
@@ -247,12 +296,13 @@ export function CategoriesPage() {
     const kids = childrenOf(p.id)
     const childIds = displayChildIds(p.id)
     const isDropTarget = dragChild != null && childDropAt?.parent === p.id
+    const isOpen = expanded.has(p.id)
     return (
       <div
         ref={(el) => setZone(p.id, el)}
-        className={`overflow-hidden rounded-xl bg-surface ${
-          dragging ? 'shadow-lg ring-2 ring-accent/40' : 'shadow-sm'
-        } ${isDropTarget ? 'ring-2 ring-accent/60' : ''}`}
+        className={`overflow-hidden rounded-lg border border-border-panel bg-surface ${
+          dragging ? 'bg-surface-sunken' : ''
+        } ${isDropTarget ? 'ring-1 ring-inset ring-accent' : ''}`}
       >
         {/* Danh mục cha. Đệm dọc mỏng thôi: các nút bên trong đã cao 44px (chuẩn
             vùng chạm) tự quyết chiều cao hàng — đệm dày nữa chỉ thêm khí chết,
@@ -266,7 +316,26 @@ export function CategoriesPage() {
           >
             <GripVertical className="h-5 w-5" />
           </button>
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-xl">
+          {/* Nút mở/đóng RIÊNG, không gộp vào nút tên: tên mở form sửa, và một nút làm
+              hai việc tuỳ chỗ bấm là chỗ bấm nhầm. Cha không con thì không có gì để mở. */}
+          {kids.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => toggleParent(p.id)}
+              aria-expanded={isOpen}
+              aria-label={`${isOpen ? 'Thu gọn' : 'Mở'} danh mục con của ${p.name}`}
+              className="inline-flex min-h-11 w-5 shrink-0 items-center justify-center text-fg-muted"
+            >
+              {isOpen ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+          ) : (
+            <span className="w-5" />
+          )}
+          <span className="shrink-0 text-xl" aria-hidden>
             {p.icon}
           </span>
           <button
@@ -274,12 +343,22 @@ export function CategoriesPage() {
             onClick={() => setForm({ category: p, parent: null })}
             className="-my-1 min-w-0 flex-1 py-1 text-left"
           >
-            <span className="block truncate text-sm font-semibold text-fg-primary">{p.name}</span>
+            {/* Nhãn Cố định/Biến đổi đi LIỀN cái tên, không nằm trong cụm nút mép phải:
+                nó là TRẠNG THÁI của danh mục, mà bó trang còn 896px thì cụm phải vẫn cách
+                tên ~630px — đủ xa để mắt phải bắc cầu mỗi dòng. Nút thì cứ ở mép phải,
+                chúng là hành động và thẳng cột mới dễ nhắm. */}
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="min-w-0 truncate text-sm font-semibold text-fg-primary">
+                {p.name}
+              </span>
+              <CostTag cat={p} />
+            </span>
             {kids.length > 0 && (
-              <span className="text-sm text-fg-muted">{kids.length} danh mục con</span>
+              <span className="text-2xs text-fg-muted">
+                <Num tone="muted">{kids.length}</Num> danh mục con
+              </span>
             )}
           </button>
-          <CostTag cat={p} />
           <button
             type="button"
             onClick={() => setForm({ category: null, parent: p })}
@@ -301,7 +380,7 @@ export function CategoriesPage() {
         </div>
 
         {/* Danh mục con (kéo–thả để sắp trong cha hoặc chuyển sang cha khác) */}
-        {(childIds.length > 0 || dragChild != null) && (
+        {isOpen && (childIds.length > 0 || dragChild != null) && (
           <div className="ml-6 border-l-2 border-border-subtle">
             {childIds.map((cid) => {
               const ch = catById.get(cid)
@@ -319,7 +398,7 @@ export function CategoriesPage() {
                     type="button"
                     onPointerDown={(e) => onChildPointerDown(cid, e)}
                     style={{ touchAction: 'none' }}
-                    className="inline-flex min-h-11 min-w-9 shrink-0 cursor-grab touch-none items-center justify-center text-gray-300 active:cursor-grabbing dark:text-gray-600"
+                    className="inline-flex min-h-11 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-fg-muted active:cursor-grabbing"
                     aria-label={`Kéo để sắp thứ tự hoặc chuyển nhóm ${ch.name}`}
                   >
                     <GripVertical className="h-4 w-4" />
@@ -328,11 +407,11 @@ export function CategoriesPage() {
                   <button
                     type="button"
                     onClick={() => setForm({ category: ch, parent: p })}
-                    className="min-h-11 min-w-0 flex-1 truncate text-left text-sm text-fg-secondary"
+                    className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 text-left"
                   >
-                    {ch.name}
+                    <span className="min-w-0 truncate text-sm text-fg-secondary">{ch.name}</span>
+                    <CostTag cat={ch} />
                   </button>
-                  <CostTag cat={ch} />
                   <IconButton
                     variant="ghost"
                     onClick={() => archive(ch)}
@@ -358,7 +437,7 @@ export function CategoriesPage() {
   return (
     <div
       ref={rootRef}
-      className="p-3 lg:p-6"
+      className="max-w-4xl p-3 lg:p-6"
       onPointerMove={onChildPointerMove}
       onPointerUp={onChildPointerEnd}
       onPointerCancel={onChildPointerEnd}
@@ -385,20 +464,29 @@ export function CategoriesPage() {
         </button>
       </PageHeader>
 
-      {/* Chi / Thu */}
-      <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-surface-sunken p-1">
-        {(['expense', 'income'] as CategoryType[]).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={`rounded-md py-1.5 text-sm font-medium transition ${
- tab === t ? 'bg-surface text-fg-primary shadow-sm' : 'text-fg-on-track hover:text-fg-primary'
- }`}
+      {/* Chi / Thu — <SegmentedControl> chứ hai nút viết tay: đây đúng câu hỏi "đổi CÁCH
+          XEM cùng một dữ liệu" mà họ control đó sinh ra để trả lời. */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <SegmentedControl
+          items={TAB_ITEMS}
+          value={tab}
+          onChange={setTab}
+          label="Loại danh mục"
+          stretch="lg"
+          className="min-w-0 flex-1 lg:flex-none"
+        />
+        {parents.length > 0 && (
+          <ActionButton
+            className="shrink-0"
+            onClick={() =>
+              setExpanded((prev) =>
+                prev.size === parents.length ? new Set() : new Set(parents.map((x) => x.id)),
+              )
+            }
           >
-            {t === 'expense' ? 'Chi' : 'Thu'}
-          </button>
-        ))}
+            {expanded.size === parents.length ? 'Thu gọn hết' : 'Mở hết'}
+          </ActionButton>
+        )}
       </div>
       {/* MỘT dòng báo động thay cho 46 nhãn vàng. Nói ra HẬU QUẢ ("ba chỉ số đang tính
           thiếu") chứ không chỉ nói "chưa gắn": không có mệnh đề đó thì việc này đọc như
@@ -434,7 +522,7 @@ export function CategoriesPage() {
 
         {/* Con mồ côi (dữ liệu cũ) — hiển thị như danh mục thường để không mất */}
         {orphans.map((c) => (
-          <div key={c.id} className="flex items-center gap-2 rounded-xl bg-surface px-3 py-1 shadow-sm">
+          <div key={c.id} className="flex items-center gap-2 rounded-lg border border-border-panel bg-surface px-3 py-1">
             <span className="text-xl">{c.icon}</span>
             <button
               type="button"
@@ -482,7 +570,7 @@ export function CategoriesPage() {
             <Card padding="none" className="divide-y divide-border-subtle overflow-hidden">
               {archivedCats.map((c) => (
                 <div key={c.id} className="flex items-center gap-2 px-3 py-1 opacity-60">
-                  {c.parent_id && <span className="text-gray-300 dark:text-gray-600">↳</span>}
+                  {c.parent_id && <span className="text-fg-muted">↳</span>}
                   <span className="text-xl">{c.icon}</span>
                   <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">{c.name}</span>
                   <button

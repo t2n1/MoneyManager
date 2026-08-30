@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isOffAverage, suggestLimits, type MonthSlices } from './suggest'
+import { isOffAverage, rollUpParents, suggestLimits, type MonthSlices } from './suggest'
 
 const m = (monthKey: string, ...pairs: [string, number][]): MonthSlices => ({
   monthKey,
@@ -92,5 +92,63 @@ describe('isOffAverage', () => {
   it('chưa có lịch sử hoặc chưa đặt hạn mức → không có gì để so', () => {
     expect(isOffAverage(5_000, 0)).toBe(false)
     expect(isOffAverage(0, 5_000)).toBe(false)
+  })
+})
+
+describe('rollUpParents', () => {
+  // Cây thật rút gọn: Nhà ở > (Tiền nhà, Điện); Ăn uống > Cơm ngoài.
+  const parentOf = (id: string) =>
+    ({ rent: 'home', power: 'home', eatout: 'food' })[id] ?? null
+
+  it('cộng con theo TỪNG THÁNG rồi mới lấy trung bình và cao nhất', () => {
+    // Hai con đạt đỉnh ở hai tháng KHÁC nhau: cộng `max` của từng con ra ¥120.000,
+    // một tháng chưa từng xảy ra. Cộng theo tháng ra ¥110.000 — tháng thật sự đắt nhất.
+    const r = suggestLimits(
+      rollUpParents(
+        [
+          m('2026-06', ['rent', 100_000], ['power', 5_000]),
+          m('2026-07', ['rent', 90_000], ['power', 20_000]),
+        ],
+        parentOf,
+      ),
+    )
+    expect(r.get('home')).toMatchObject({ average: 107_500, max: 110_000 })
+    expect(r.get('home')!.months).toEqual([
+      { monthKey: '2026-06', amount: 105_000 },
+      { monthKey: '2026-07', amount: 110_000 },
+    ])
+  })
+
+  it('cha có khoản ghi thẳng vào nó thì CỘNG THÊM, không bị con đè mất', () => {
+    const r = suggestLimits(
+      rollUpParents([m('2026-06', ['home', 3_000], ['rent', 100_000])], parentOf),
+    )
+    expect(r.get('home')!.max).toBe(103_000)
+  })
+
+  it('con giữ nguyên số của chính nó', () => {
+    const r = suggestLimits(
+      rollUpParents([m('2026-06', ['rent', 100_000], ['power', 5_000])], parentOf),
+    )
+    expect(r.get('rent')!.max).toBe(100_000)
+    expect(r.get('power')!.max).toBe(5_000)
+  })
+
+  it('danh mục không có cha thì không đẻ thêm dòng nào', () => {
+    const out = rollUpParents([m('2026-06', ['misc', 500])], () => null)
+    expect(out).toEqual([m('2026-06', ['misc', 500])])
+  })
+
+  it('cây ba tầng: ông nhận cả cháu', () => {
+    const deep = (id: string) => ({ rent: 'home', home: 'living' })[id] ?? null
+    const r = suggestLimits(rollUpParents([m('2026-06', ['rent', 100_000])], deep))
+    expect(r.get('living')!.max).toBe(100_000)
+    expect(r.get('home')!.max).toBe(100_000)
+  })
+
+  it('cha trỏ vòng về con thì dừng, không treo máy', () => {
+    const loop = (id: string) => (id === 'a' ? 'b' : 'a')
+    const r = suggestLimits(rollUpParents([m('2026-06', ['a', 100])], loop))
+    expect(r.get('b')!.max).toBe(100)
   })
 })

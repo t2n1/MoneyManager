@@ -11,6 +11,7 @@
 import { useMemo } from 'react'
 import {
   useAccounts,
+  useCategories,
   useProfile,
   useRangeTransactions,
   useRates,
@@ -26,7 +27,7 @@ import {
 import type { CurrencyCode } from '../../lib/money'
 import { categoryBreakdown, monthlySeries } from '../reports/aggregate'
 import { baselineIncome, BASELINE_MONTHS } from './axisTargets'
-import { suggestLimits, type MonthSlices, type Suggestion } from './suggest'
+import { rollUpParents, suggestLimits, type MonthSlices, type Suggestion } from './suggest'
 
 /** Cửa sổ lịch sử cho GỢI Ý HẠN MỨC (§4.3: TB 6 tháng). Khác `BASELINE_MONTHS`. */
 export const SUGGEST_MONTHS = 6
@@ -35,7 +36,10 @@ export interface SuggestionsData {
   suggestions: Map<string, Suggestion>
   /** trung bình thu của các tháng đã đóng sổ; null = chưa đủ dữ liệu */
   baseline: number | null
-  /** chi theo danh mục của từng tháng lịch sử — nền của mọi gợi ý */
+  /**
+   * Chi theo danh mục của từng tháng lịch sử — nền của mọi gợi ý. ĐÃ gộp con lên cha,
+   * nên cộng hết các lát của một tháng sẽ RA GẤP ĐÔI: dùng để tra theo danh mục thôi.
+   */
   months: MonthSlices[]
 }
 
@@ -54,6 +58,7 @@ const EMPTY: SuggestionsData = { suggestions: new Map(), baseline: null, months:
 export function useSuggestions(): SuggestionsData {
   const { data: profile } = useProfile()
   const { data: accounts = [] } = useAccounts()
+  const { data: categories = [] } = useCategories()
   const { base, rates } = useRates()
   const transferIds = useTransferCategoryIds()
 
@@ -94,7 +99,7 @@ export function useSuggestions(): SuggestionsData {
       ).points,
     )
 
-    const months = histMonths.map((mk) => {
+    const leafMonths = histMonths.map((mk) => {
       const rng = getMonthRange(mk, monthStartDay)
       const txs = histTxs.filter((t) => t.occurred_on >= rng.start && t.occurred_on < rng.end)
       return {
@@ -102,8 +107,12 @@ export function useSuggestions(): SuggestionsData {
         slices: categoryBreakdown(txs, 'expense', currencyOf, base, r, transferIds).slices,
       }
     })
+    // Cha nhận tổng của các con (`rollUpParents`) TRƯỚC khi tính gợi ý — nếu không thì
+    // danh mục đặt TRẦN NHÓM không có gợi ý nào, vì không giao dịch nào ghi thẳng vào nó.
+    const parentOf = (id: string) => categories.find((c) => c.id === id)?.parent_id ?? null
+    const months = rollUpParents(leafMonths, parentOf)
 
     return { suggestions: suggestLimits(months), baseline, months }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, histTxs, histMonths, monthStartDay, accounts, base, rates, transferIds])
+  }, [profile, histTxs, histMonths, monthStartDay, accounts, categories, base, rates, transferIds])
 }

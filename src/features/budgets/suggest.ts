@@ -90,3 +90,43 @@ export function isOffAverage(limit: number, average: number): boolean {
   const r = limit / average
   return r < OFF_LOW || r > OFF_HIGH
 }
+
+/**
+ * Cộng chi của các con LÊN danh mục cha, giữ nguyên chiều tháng.
+ *
+ * `categoryBreakdown` cộng theo đúng `category_id` ghi trên giao dịch, không gộp ngược
+ * lên cha. Nên `Nhà ở` và `Ăn uống` — hai danh mục người dùng đặt TRẦN NHÓM — chưa từng
+ * có mặt trong `suggestLimits()`, và cột `TB 6 tháng`, `Cao nhất`, nhịp 6 tháng của
+ * chúng in ra `—` trong khi app biết thừa số đó nằm ở các con.
+ *
+ * Vì sao phải cộng theo TỪNG THÁNG rồi mới đưa cho `suggestLimits`, chứ không cộng
+ * `average`/`max` của các con: `average` cộng lại thì đúng, `max` thì SAI. Hai con đạt
+ * đỉnh ở hai tháng khác nhau (Tiền nhà tháng 6, Điện tháng 7) thì cộng hai đỉnh ra một
+ * tháng chưa từng xảy ra — và `Cao nhất` tồn tại đúng để trả lời "tháng đắt nhất tốn bao
+ * nhiêu".
+ *
+ * Khoản ghi THẲNG vào cha được CỘNG THÊM chứ không bị đè: `Sở thích` vừa là cha của
+ * `Nhiếp ảnh`, `Thể thao`… vừa có giao dịch của chính nó.
+ */
+export function rollUpParents(
+  months: MonthSlices[],
+  parentOf: (categoryId: string) => string | null,
+): MonthSlices[] {
+  return months.map((month) => {
+    const totals = new Map(month.slices.map((s) => [s.categoryId, s.amount]))
+    for (const s of month.slices) {
+      // Chặn vòng: dữ liệu hỏng (cha trỏ ngược về con) không được làm treo cả trang.
+      const seen = new Set<string>([s.categoryId])
+      let p = parentOf(s.categoryId)
+      while (p !== null && !seen.has(p)) {
+        seen.add(p)
+        totals.set(p, (totals.get(p) ?? 0) + s.amount)
+        p = parentOf(p)
+      }
+    }
+    return {
+      monthKey: month.monthKey,
+      slices: [...totals].map(([categoryId, amount]) => ({ categoryId, amount })),
+    }
+  })
+}

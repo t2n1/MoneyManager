@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useDeleteBudget, useRates, useUpsertBudget } from '../../hooks/queries'
+import { useSyncedBudget } from './useSyncedBudget'
 import { useEscClose } from '../../hooks/useEscClose'
 import { MoneyField, MONEY_FIELD_CLASS } from '../../components/MoneyField'
 import { confirmDialog } from '../../lib/dialog'
@@ -37,6 +38,9 @@ export function BudgetEditSheet({
   const { base } = useRates()
   const upsert = useUpsertBudget()
   const remove = useDeleteBudget()
+  // Luật "cha = tổng con" (xem `useSyncedBudget`): sheet này là chỗ DUY NHẤT đặt được
+  // hạn mức cho một danh mục CÓ CON, nên cũng là chỗ duy nhất hỏi câu chia xuống con.
+  const { syncAfterWrite } = useSyncedBudget(monthKey)
   const [amount, setAmount] = useState(current)
   const [rollover, setRollover] = useState(currentRollover ?? false)
 
@@ -56,6 +60,9 @@ export function BudgetEditSheet({
     } catch {
       return
     }
+    // Hỏi chia xuống con TRƯỚC khi đóng: đóng rồi mới hỏi thì câu hỏi mọc lên giữa màn
+    // trống, không dính gì tới việc người dùng vừa làm.
+    await syncAfterWrite([{ categoryId, amount }])
     onClose()
   }
 
@@ -67,6 +74,8 @@ export function BudgetEditSheet({
     } catch {
       return
     }
+    // Xoá mốc một mục con thì trần cha phải trừ đi đúng phần đó.
+    await syncAfterWrite([{ categoryId, amount: null }])
     onClose()
   }
 

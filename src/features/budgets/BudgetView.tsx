@@ -13,11 +13,12 @@ import { dayMonthLabel, daysBetween, monthKeyString, toISODate, type MonthKey } 
 import { formatMoney } from '../../lib/money'
 import { showToast } from '../../lib/dialog'
 import { Card } from '../../components/ui/Card'
-import { EmptyState, Money, SectionTitle } from '../../components/ui'
+import { ActionButton, EmptyState, Money, SectionTitle } from '../../components/ui'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { buildBudgetDisplay, type BudgetChildRow } from './budgetDisplay'
 import { budgetHint } from './budgetHint'
-import { capOverflowNotice } from './capOverflow'
+import { capMismatchNotice } from './capOverflow'
+import { useSyncedBudget } from './useSyncedBudget'
 import { pickAttention, sortBudgetItems, type BudgetSortMode } from './budgetSort'
 import { classifyCommitments, coverageGaps, spendableRemaining } from './commitments'
 import { dailyAllowance } from './dailyAllowance'
@@ -201,6 +202,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   // mặt bên kia của CHÍNH trang này.
   const commitments = useCommitments(monthKey)
   const { suggestions } = useSuggestions()
+  // Nút "Chia … cho N mục con" của câu nhắc lệch — xem `useSyncedBudget`.
+  const { splitToChildren } = useSyncedBudget(monthKeyStr)
 
   // Danh mục đang sửa hạn mức (null = đóng sheet)
   const [editing, setEditing] = useState<{
@@ -760,7 +763,18 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               }
 
               const isOpen = expanded.has(item.cat.id)
-              const overflow = capOverflowNotice(item, (v) => formatMoney(v, base))
+              const mismatch = capMismatchNotice(
+                {
+                  capped: item.capped,
+                  cap: item.budgeted,
+                  markerTotal: item.markerTotal,
+                  named: item.children
+                    .filter((k) => k.marker !== null)
+                    .map((k) => ({ name: k.cat.name, marker: k.marker!.budgeted })),
+                  childCount: item.children.length,
+                },
+                (v) => formatMoney(v, base),
+              )
               return (
                 <li key={item.cat.id} id={anchor} className={`py-2 first:pt-0 last:pb-0 ${mark}`}>
                   <div className="flex items-stretch gap-1">
@@ -800,7 +814,20 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                   {/* Mốc con chỉ chia nhỏ bên trong trần cha; cộng lại vượt trần thì nhắc.
                       Câu do capOverflow.ts dựng: nó GỌI TÊN mục con mang số đó, vì nhóm
                       có nhiều con thì một con số trơ trọi không chỉ được đứa nào. */}
-                  {overflow && <p className="ml-7 mt-1 text-sm text-fg-warn">{overflow}</p>}
+                  {mismatch && (
+                    <div className="ml-7 mt-1 flex flex-wrap items-center gap-2">
+                      <p
+                        className={`text-sm ${mismatch.kind === 'over' ? 'text-fg-warn' : 'text-fg-muted'}`}
+                      >
+                        {mismatch.text}
+                      </p>
+                      {mismatch.childCount > 0 && (
+                        <ActionButton onClick={() => splitToChildren(item.cat.id)}>
+                          Chia cho {mismatch.childCount} mục con
+                        </ActionButton>
+                      )}
+                    </div>
+                  )}
                   {/* Khối con: thụt vào PHẢI của tên cha + nền lún, để thấy rõ nhóm
                       bắt đầu và kết thúc ở đâu. Vạch chia trong khối phải là
                       border-strong, không phải border-subtle như danh sách ngoài:

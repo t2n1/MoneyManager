@@ -46,7 +46,7 @@ import { axisSuggestions, sliderScale } from './axisSuggest'
 import { LimitSlider, type LimitSliderProps } from './LimitSlider'
 import { PlanStickyBar } from './PlanStickyBar'
 import { budgetHint } from './budgetHint'
-import { nameList } from './capOverflow'
+import { capMismatchNotice, nameList } from './capOverflow'
 import { LimitSparkline } from './LimitSparkline'
 import { TAIL_LIMIT, type PlanBlock, type PlanRow } from './planGroups'
 import { distributeHeadroom } from './planProjection'
@@ -55,6 +55,7 @@ import { isOffAverage } from './suggest'
 import { BudgetEditSheet } from './BudgetEditSheet'
 import { ExpectedIncomeSheet } from './ExpectedIncomeSheet'
 import { SUGGEST_MONTHS, usePlanning, type PlanDraft } from './usePlanning'
+import { useSyncedBudget } from './useSyncedBudget'
 import { STATUS_FILL } from '../../components/ui/statusColors'
 
 /** Chế độ xem panel hạn mức. Sở thích XEM nên ở máy (localStorage), không vào hồ sơ. */
@@ -129,6 +130,9 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   const data = usePlanning(monthKey, draft)
   const copy = useCopyBudgetsFromPreviousMonth()
   const upsert = useUpsertBudget()
+  // Luật "cha = tổng con" — xem `useSyncedBudget`. Bốn chỗ ghi hạn mức của màn này đều
+  // phải đi qua nó, bỏ sót một chỗ là luật thủng đúng ở chỗ đó.
+  const { syncAfterWrite, splitToChildren } = useSyncedBudget(monthKeyStr)
   const { summary, projection, groups } = data
 
   const [editing, setEditing] = useState<string | null>(null)
@@ -209,6 +213,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
     if (!slider || slider.id !== categoryId || amount === slider.committed) return
     try {
       await upsert.mutateAsync({ categoryId, monthKey: monthKeyStr, amount })
+      await syncAfterWrite([{ categoryId, amount }])
       setSlider((s) => (s && s.id === categoryId ? { ...s, committed: amount } : s))
       // Đi lệch khỏi vạch thì bản phân bổ cũ hết đúng — các vạch còn lại cộng vào con số
       // vừa bị đổi sẽ không ra trần nữa. Bỏ đi để dòng mở tiếp theo lập bản mới.
@@ -328,6 +333,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
       // Toast lỗi toàn cục đã nói — thêm câu thứ hai chỉ là hai thông báo cho một lỗi.
       return
     }
+    await syncAfterWrite([{ categoryId, amount }])
     showToast(`${label} ${money(amount)}`, 'success')
   }
 
@@ -340,14 +346,20 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
    */
   async function writeMany(rows: { categoryId: string; amount: number }[], noun: string) {
     let ok = 0
+    const written: { categoryId: string; amount: number }[] = []
     for (const r of rows) {
       try {
         await upsert.mutateAsync({ categoryId: r.categoryId, monthKey: monthKeyStr, amount: r.amount })
+        written.push(r)
         ok++
       } catch {
         // Tiếp tục: mục sau không liên quan gì tới mục vừa hỏng.
       }
     }
+    // MỘT lượt cho cả lô: bảy mục con của cùng một nhóm vẫn chỉ ghi trần cha một lần.
+    // Chỉ tính những mục ĐÃ ghi được — cộng cả mục vừa hỏng vào là trần cha mang một
+    // con số không có dòng nào đỡ.
+    if (written.length > 0) await syncAfterWrite(written)
     if (ok === rows.length) {
       showToast(`Đã đặt ${ok} ${noun}`, 'success')
     } else if (ok > 0) {
@@ -815,6 +827,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                 groupOpen={groupOpen}
                 onToggleGroup={toggleGroup}
                 onEdit={setEditing}
+                onSplit={splitToChildren}
                 slider={sliderCtl}
               />
             ))}
@@ -1137,6 +1150,7 @@ function BlockBody({
   groupOpen,
   onToggleGroup,
   onEdit,
+  onSplit,
   slider,
 }: {
   block: PlanBlock
@@ -1148,6 +1162,7 @@ function BlockBody({
   groupOpen: Set<string>
   onToggleGroup: (id: string) => void
   onEdit: (id: string) => void
+  onSplit: (id: string) => void
   slider: SliderCtl
 }) {
   // Khối "Mốc con" KHÔNG có thanh trượt: mốc con bị loại khỏi `counted` (xem plannedSlices)
@@ -1230,7 +1245,15 @@ function BlockBody({
         )}
         {block.rows.map((r) =>
           viewMode === 'table' ? (
-            <TableRow key={r.cat.id} row={r} base={base} onEdit={onEdit} slider={rowSlider} />
+            <TableRow
+              key={r.cat.id}
+              row={r}
+              base={base}
+              money={money}
+              onEdit={onEdit}
+              onSplit={onSplit}
+              slider={rowSlider}
+            />
           ) : (
             <ListRow
               key={r.cat.id}
@@ -1240,6 +1263,7 @@ function BlockBody({
               open={groupOpen.has(r.cat.id)}
               onToggle={() => onToggleGroup(r.cat.id)}
               onEdit={onEdit}
+              onSplit={onSplit}
               slider={rowSlider}
             />
           ),
@@ -1271,7 +1295,15 @@ function BlockBody({
               <ul>
                 {block.tail.map((r) =>
                   viewMode === 'table' ? (
-                    <TableRow key={r.cat.id} row={r} base={base} onEdit={onEdit} slider={rowSlider} />
+                    <TableRow
+                      key={r.cat.id}
+                      row={r}
+                      base={base}
+                      money={money}
+                      onEdit={onEdit}
+                      onSplit={onSplit}
+                      slider={rowSlider}
+                    />
                   ) : (
                     <ListRow
                       key={r.cat.id}
@@ -1281,6 +1313,7 @@ function BlockBody({
                       open={false}
                       onToggle={() => undefined}
                       onEdit={onEdit}
+                      onSplit={onSplit}
                       slider={rowSlider}
                     />
                   ),
@@ -1301,6 +1334,27 @@ function BlockBody({
  * là 29 dòng trông giống nhau trong khi chỉ 3 dòng có gì đáng nói. Giữ lại đúng một mảnh
  * ngắn cho dòng lệch đáng kể, và KHÔNG in `cao nhất` ở đó — nó không phải thứ đang lệch.
  */
+/**
+ * Trần nhóm của dòng này có lệch tổng mốc con không (`capMismatchNotice`).
+ *
+ * Mặt Theo dõi dựng câu này từ `BudgetGroupItem`, mặt Lập kế hoạch từ `PlanRow` — hai
+ * kiểu khác nhau, MỘT hàm dựng câu. Nếu không thì cùng một nhóm sẽ được hai màn nói
+ * bằng hai câu khác nhau.
+ */
+function groupMismatch(row: PlanRow, money: (v: number) => string) {
+  if (!row.groupCap) return null
+  return capMismatchNotice(
+    {
+      capped: true,
+      cap: row.limit,
+      markerTotal: row.markers.reduce((t, m) => t + m.limit, 0),
+      named: row.markers.map((m) => ({ name: m.cat.name, marker: m.limit })),
+      childCount: row.childCount,
+    },
+    money,
+  )
+}
+
 function rowNote(row: PlanRow, money: (v: number) => string): { text: string; warn: boolean } | null {
   if (row.short > 0) {
     return { text: `đang chờ nâng lên ${money(row.limit + row.short)}`, warn: true }
@@ -1325,6 +1379,7 @@ function ListRow({
   open,
   onToggle,
   onEdit,
+  onSplit,
   slider,
 }: {
   row: PlanRow
@@ -1333,9 +1388,11 @@ function ListRow({
   open: boolean
   onToggle: () => void
   onEdit: (id: string) => void
+  onSplit: (id: string) => void
   slider: SliderCtl | null
 }) {
   const note = rowNote(row, money)
+  const mismatch = groupMismatch(row, money)
   const sliderOpen = slider?.openId === row.cat.id
   return (
     <li className="border-t border-border-subtle">
@@ -1395,6 +1452,8 @@ function ListRow({
         </button>
       </div>
 
+      {mismatch && <MismatchNote notice={mismatch} onSplit={() => onSplit(row.cat.id)} />}
+
       {sliderOpen && slider && <LimitSlider {...slider.propsFor(row)} />}
 
       {open && row.markers.length > 0 && (
@@ -1429,15 +1488,20 @@ function ListRow({
 function TableRow({
   row,
   base,
+  money,
   onEdit,
+  onSplit,
   slider,
 }: {
   row: PlanRow
   base: Parameters<typeof Money>[0]['currency']
+  money: (v: number) => string
   onEdit: (id: string) => void
+  onSplit: (id: string) => void
   slider: SliderCtl | null
 }) {
   const avg = row.suggestion?.average ?? 0
+  const mismatch = groupMismatch(row, money)
   const off = isOffAverage(row.limit, avg)
   const sliderOpen = slider?.openId === row.cat.id
   return (
@@ -1475,8 +1539,35 @@ function TableRow({
         </span>
         <Money amount={row.limit} currency={base} className="text-right text-sm font-semibold" />
       </button>
+      {mismatch && <MismatchNote notice={mismatch} onSplit={() => onSplit(row.cat.id)} />}
       {sliderOpen && slider && <LimitSlider {...slider.propsFor(row)} />}
     </li>
+  )
+}
+
+/**
+ * Câu "trần cha lệch tổng con" kèm nút chia một chạm.
+ *
+ * `under` để màu chìm chứ không phải màu cảnh báo: nó không sai, chỉ là chưa xong. Tô
+ * đỏ mọi nhóm chưa chia là biến một việc-chưa-làm thành một lỗi, và một cảnh báo lúc
+ * nào cũng kêu thì mất luôn cả lần nó đúng (cùng lý lẽ với `OFF_MIN_GAP` ở `suggest.ts`).
+ */
+function MismatchNote({
+  notice,
+  onSplit,
+}: {
+  notice: NonNullable<ReturnType<typeof groupMismatch>>
+  onSplit: () => void
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-4 pb-2">
+      <p className={`text-2xs ${notice.kind === 'over' ? 'text-fg-warn' : 'text-fg-muted'}`}>
+        {notice.text}
+      </p>
+      {notice.childCount > 0 && (
+        <ActionButton onClick={onSplit}>Chia cho {notice.childCount} mục con</ActionButton>
+      )}
+    </div>
   )
 }
 

@@ -212,7 +212,7 @@ export function AssetsPage() {
               nó là nút không liên quan tới thứ đang xem. */}
           {view === 'now' && (
             <Link
-              to="/assets/groups"
+              to="/settings/asset-groups"
               className="inline-flex items-center gap-1 rounded-md border border-border-strong px-3 py-1.5 text-sm font-medium text-fg-secondary transition active:scale-95"
             >
               <Settings2 className="h-4 w-4" /> Quản lý nhóm

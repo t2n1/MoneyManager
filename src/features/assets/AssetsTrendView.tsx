@@ -35,14 +35,9 @@ import { makeMoneyView } from './moneyView'
 import { netWorthSeries } from './netWorthSeries'
 import { NetWorthHistorySection } from './NetWorthHistorySection'
 import { SavingsGoalsSection } from './SavingsGoalsSection'
+import { GROUP_COLOR_NONE, groupColorMap } from './groupColors'
 import { useAssetsData } from './useAssetsData'
 
-
-/** Bảng màu lát cơ cấu — cùng dãy với chế độ Hôm nay để chấm màu hai màn khớp nhau. */
-const PALETTE = [
-  '#16a34a', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899',
-  '#14b8a6', '#f97316', '#6366f1', '#84cc16', '#06b6d4', '#a855f7',
-]
 
 interface Props {
   /** Đồng tiền đang xem thử — nút ¥/₫/$ ở header trang. */
@@ -137,17 +132,8 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
   const tapTrung = useMemo(() => concentrationNote(delta30), [delta30])
 
 
-  const colorByName = useMemo(() => {
-    const m = new Map<string, string>()
-    let i = 0
-    for (const g of purposeGroups) {
-      if (!g.includeInTotals || g.total <= 0) continue
-      m.set(g.name, PALETTE[i % PALETTE.length])
-      i++
-    }
-    return m
-  }, [purposeGroups])
-  const colorOf = (name: string) => colorByName.get(name) ?? '#cbd5e1'
+  const colorByName = useMemo(() => groupColorMap(purposeGroups), [purposeGroups])
+  const colorOf = (name: string) => colorByName.get(name) ?? GROUP_COLOR_NONE
 
   // Cột Δ thứ hai chỉ có nghĩa khi nó KHÁC cột Δ 30 ngày. Chọn "1 th" thì hai cột đo
   // gần như cùng một cửa sổ, và hai cột cùng một con số là một cột thừa.

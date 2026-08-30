@@ -14,7 +14,16 @@
 // danh sách mục nằm trong chính trang `/settings` (xem SettingsPage), tức điện thoại giữ
 // nguyên lối đi cũ.
 import { NavLink, Outlet } from 'react-router-dom'
-import { Bell, Database, Landmark, Scale, SlidersHorizontal, Tag as TagIcon, Tags } from 'lucide-react'
+import {
+  Bell,
+  Database,
+  Landmark,
+  Layers,
+  Scale,
+  SlidersHorizontal,
+  Tag as TagIcon,
+  Tags,
+} from 'lucide-react'
 
 export interface SettingsNavItem {
   to: string
@@ -39,6 +48,12 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     index: true,
   },
   { to: '/settings/accounts', label: 'Tài khoản', Icon: Landmark },
+  {
+    to: '/settings/asset-groups',
+    label: 'Nhóm tài sản',
+    Icon: Layers,
+    hint: 'Cách cắt lát Tổng tài sản · tính vào tổng, ẩn',
+  },
   { to: '/settings/categories', label: 'Danh mục', Icon: Tags },
   { to: '/settings/categories/classify', label: 'Phân loại chi tiêu', Icon: Scale },
   { to: '/settings/tags', label: 'Nhãn', Icon: TagIcon },
@@ -57,7 +72,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
 //
 // Viền trái 2px có ở CẢ hai trạng thái, chỉ đổi màu — cùng lý do với ô segmented (§1.3 và
 // chú thích trong SegmentedControl): tô viền cho riêng mục đang chọn thì mỗi lần đổi mục,
-// chữ của cả sáu mục kia xê 2px.
+// chữ của mọi mục kia xê 2px.
 //
 // Vạch màu `fg-accent` chứ không `state-good-border` như rail: đo trên nền Sáng,
 // state-good-border (#c9ecd4) trên thẻ trắng chỉ được ~1,2:1 — một vạch không nhìn thấy.

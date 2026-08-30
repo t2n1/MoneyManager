@@ -111,8 +111,9 @@ ngân sách, hạn mức từng danh mục lá, `MonthPaceCharts`, `SpendPaceSec
 | **Diễn biến** | `trend` | `NetWorthHistorySection` · `InvestmentValueHistorySection` · `InvestmentPerformanceSection` · `SavingsGoalsSection` |
 | **Tương lai** | `future` | Nội dung `LifetimePage` mount thẳng vào đây (bỏ `BackButton` của nó) |
 
-Màn con vào từ tab này: `/assets/account/:accountId` (chi tiết TK), `/assets/groups` (nhóm
-tài sản), `/debts` + `/debts/:debtId` (Nợ/cho vay).
+Màn con vào từ tab này: `/assets/account/:accountId` (chi tiết TK),
+`/settings/asset-groups` (nhóm tài sản — xem §3.1b), `/debts` + `/debts/:debtId`
+(Nợ/cho vay).
 
 Trang chi tiết tài khoản **không** hiện danh mục. Mọi câu "đang giữ gì" gom về `/invest`,
 hai tab:
@@ -178,6 +179,22 @@ Bỏ khỏi hub: Nợ/cho vay, Giao dịch định kỳ, Nhóm tài sản.
 | `/settings/debts/:debtId` | `/debts/:debtId` | ↑ |
 | `/settings/asset-groups` | `/assets/groups` | Là cấu hình của trang Tài sản, vào từ header trang đó |
 | `/settings/recurring` | `/recurring` | Giao dịch định kỳ là giao dịch, thuộc Sổ |
+
+### 3.1b Một mục đi ngược lại (2026-08-30)
+
+| Đường | Đổi thành | Vì sao đảo |
+| --- | --- | --- |
+| `/assets/groups` | `/settings/asset-groups` | Nhóm tài sản quay lại Cài đặt |
+
+Bảng §3.1 đưa nó ra khỏi Cài đặt với lý do "là cấu hình của trang Tài sản, vào từ header
+trang đó". Lý do đó **không sai** — nên nút "Quản lý nhóm" ở header Tài sản **vẫn còn**,
+chỉ trỏ vào địa chỉ mới. Cái đổi là nó có thêm lối vào thứ hai: từ 2026-08-30 Cài đặt có
+menu trái cố định trên PC (`SettingsLayout`), và ở đó nhóm tài sản đứng cạnh Tài khoản /
+Danh mục / Nhãn — cùng một loại việc "sắp xếp cái sổ", tìm ở một chỗ.
+
+Hệ quả cho luật "không link nội bộ nào trỏ vào route chuyển tiếp": `/assets/groups` nay
+LÀ route chuyển tiếp, nên `assets/AssetsPage.tsx` phải trỏ thẳng `/settings/asset-groups`.
+`src/routeLinks.test.ts` canh đúng chỗ này.
 
 **`/debts` để ở gốc, không để `/assets/debts`**: `/assets/:accountId` đã chiếm chỗ, và dựa
 vào luật "static thắng dynamic" của React Router để `/assets/debts` không bị bắt thành

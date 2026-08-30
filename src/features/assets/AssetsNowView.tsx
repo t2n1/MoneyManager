@@ -49,6 +49,7 @@ import { accountRowStats, DELTA_DAYS } from './accountRowStats'
 import { ACCOUNT_TYPE_LABELS, UNGROUPED_LABEL, type AssetAccount } from './aggregate'
 import { AssetsKpi } from './AssetsKpi'
 import { CardsSection } from './CardsSection'
+import { GROUP_COLOR_NONE, groupColorMap } from './groupColors'
 import { groupDeltas, investmentScope } from './groupInsight'
 import { makeMoneyView } from './moneyView'
 import { StructureBar } from './StructureBar'
@@ -56,12 +57,6 @@ import { useAssetsData } from './useAssetsData'
 import { useCardsPanel } from './useCardsPanel'
 import { accountRowPnl, useInvestPnlByAccount } from './useInvestPnl'
 import { SectionTitle } from '../../components/ui'
-
-// Bảng màu cho lát vạch cơ cấu (lặp lại nếu > 12 nhóm) — đồng bộ với ReportsPage
-const PALETTE = [
-  '#16a34a', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899',
-  '#14b8a6', '#f97316', '#6366f1', '#84cc16', '#06b6d4', '#a855f7',
-]
 
 /**
  * Bề rộng các cột của bảng tài khoản, khai MỘT lần ở đây.
@@ -330,17 +325,8 @@ export function AssetsNowView({ viewCur }: Props) {
   }
 
   // Màu lát: gán theo thứ tự nhóm ĐANG HIỆN, để chấm màu ở bảng khớp lát trên vạch.
-  const colorByName = useMemo(() => {
-    const m = new Map<string, string>()
-    let i = 0
-    for (const g of displayGroups) {
-      if (!g.includeInTotals || g.total <= 0) continue
-      m.set(g.name, PALETTE[i % PALETTE.length])
-      i++
-    }
-    return m
-  }, [displayGroups])
-  const colorOf = (name: string) => colorByName.get(name) ?? '#cbd5e1'
+  const colorByName = useMemo(() => groupColorMap(displayGroups), [displayGroups])
+  const colorOf = (name: string) => colorByName.get(name) ?? GROUP_COLOR_NONE
 
   // Lời/lỗ CHƯA BÁN theo từng tài khoản đầu tư — con số nhỏ cạnh tên tài khoản. Khác
   // con số "lãi đầu tư" của dải KPI (toàn đời, gồm đã bán) một cách CỐ Ý: ô KPI có chỗ

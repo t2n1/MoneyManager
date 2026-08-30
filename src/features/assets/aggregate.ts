@@ -571,3 +571,22 @@ export function assetCurrencyGroups(breakdown: AssetBreakdown): AssetGroup[] {
   result.sort((a, b) => b.total - a.total)
   return result
 }
+
+/**
+ * Tỷ trọng của một nhóm in ra chữ: "83%" · "1,9%" · "0,05%".
+ *
+ * Giữ chữ số có nghĩa đầu tiên thay vì làm tròn về 0 — làm tròn 0,05% thành "0%" là
+ * biến một nhóm CÓ tiền thành một nhóm không có. Sổ thật đã có đúng ca đó (bốn nhóm
+ * 83 / 16 / 1,9 / 0,05%).
+ *
+ * `share` 0 nghĩa là nhóm KHÔNG nằm trong mẫu số (đứng ngoài tổng), không phải "chiếm
+ * 0%" — nên nó in "—". Hai chuyện khác nhau, và in "0%" cho chuyện thứ hai là nói nhóm
+ * đó rỗng.
+ */
+export function formatShare(share: number): string {
+  if (share <= 0) return '—'
+  const pct = share * 100
+  if (pct >= 10) return `${Math.round(pct)}%`
+  if (pct >= 1) return `${pct.toFixed(1).replace('.', ',')}%`
+  return `${pct.toFixed(2).replace('.', ',')}%`
+}

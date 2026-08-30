@@ -16,7 +16,7 @@
 // hai thứ đọc cùng chiều thì mắt không phải bắc cầu.
 import { Card, Money, SectionTitle } from '../../components/ui'
 import { formatMoney } from '../../lib/money'
-import type { AssetGroup } from './aggregate'
+import { formatShare, type AssetGroup } from './aggregate'
 import type { MoneyView } from './moneyView'
 
 /** Lát nhỏ nhất vẫn phải thấy được. 2px = đủ một sợi nhìn ra màu, chưa tới mức nói dối. */
@@ -95,10 +95,8 @@ export function StructureBar({ groups, colorOf, modeLabel, view, isLoading }: Pr
                   approx={view.view(g.total).approx || g.hasMissingRate}
                   className="shrink-0"
                 />
-                {/* Tỷ trọng in tới một chữ số thập phân khi nó nhỏ hơn 10%: làm tròn
-                    0,05% thành "0%" là biến một nhóm CÓ tiền thành một nhóm không có. */}
                 <span className="w-11 shrink-0 text-right font-mono font-semibold text-fg-primary">
-                  {tyTrong(g.total / tong)}
+                  {formatShare(g.total / tong)}
                 </span>
               </li>
             ))}
@@ -121,14 +119,6 @@ export function StructureBar({ groups, colorOf, modeLabel, view, isLoading }: Pr
       )}
     </Card>
   )
-}
-
-/** 83% · 1,9% · 0,05% — giữ chữ số có nghĩa đầu tiên thay vì làm tròn về 0. */
-function tyTrong(share: number): string {
-  const pct = share * 100
-  if (pct >= 10) return `${Math.round(pct)}%`
-  if (pct >= 1) return `${pct.toFixed(1).replace('.', ',')}%`
-  return `${pct.toFixed(2).replace('.', ',')}%`
 }
 
 /**

@@ -149,7 +149,6 @@ function AppRoutes() {
           <Route path="/transactions" element={<Navigate to="/so" replace />} />
           <Route path="/entry" element={<EntryPage />} />
           <Route path="/assets" element={lazyRoute(<AssetsPage />)} />
-          <Route path="/assets/groups" element={lazyRoute(<AssetGroupsPage />)} />
           <Route path="/invest" element={lazyRoute(<InvestPage />)} />
           <Route path="/planned" element={lazyRoute(<PlannedPage />, 'list')} />
           <Route path="/assets/account/:accountId" element={lazyRoute(<AccountDetailPage />)} />
@@ -161,7 +160,7 @@ function AppRoutes() {
           <Route path="/budget" element={lazyRoute(<BudgetPage />)} />
           <Route path="/reports" element={<ReportsRoute />} />
           <Route path="/reports/category/:categoryId" element={lazyRoute(<CategoryDetailPage />)} />
-          {/* Cài đặt LỒNG trong <SettingsLayout>: từ 1024px nó vẽ menu bảy mục ở cột
+          {/* Cài đặt LỒNG trong <SettingsLayout>: từ 1024px nó vẽ menu Cài đặt ở cột
               trái CỐ ĐỊNH, còn <Outlet /> đổi nội dung cột phải. Bấm một mục vẫn đổi URL
               (bookmark, nút Back, link trong thông báo đều trỏ vào đó) nhưng KHÔNG thay
               cả màn — cột trái giữ nguyên DOM nên không nhấp nháy, không dựng lại.
@@ -179,6 +178,7 @@ function AppRoutes() {
               element={lazyRoute(<ClassifyCategoriesPage />)}
             />
             <Route path="/settings/tags" element={lazyRoute(<TagsPage />, 'table')} />
+            <Route path="/settings/asset-groups" element={lazyRoute(<AssetGroupsPage />)} />
             <Route path="/settings/data" element={lazyRoute(<DataPage />)} />
             <Route path="/settings/notifications" element={lazyRoute(<NotificationSettingsPage />)} />
           </Route>
@@ -190,7 +190,13 @@ function AppRoutes() {
               dùng gặp trang trắng. */}
           <Route path="/health" element={<Navigate to="/reports?view=health" replace />} />
           <Route path="/lifetime" element={<Navigate to="/assets?view=future" replace />} />
-          <Route path="/settings/asset-groups" element={<Navigate to="/assets/groups" replace />} />
+          {/* Đảo chiều so với đợt IA: Nhóm tài sản quay về Cài đặt (2026-08-30).
+              Lý do đưa nó ra ngoài hồi đó — "là cấu hình của trang Tài sản, vào từ
+              header trang đó" — vẫn còn, và nút "Quản lý nhóm" ở header Tài sản VẪN
+              ở nguyên; nó chỉ trỏ vào địa chỉ mới. Cái thêm được là nhóm tài sản
+              nằm cùng chỗ với Tài khoản / Danh mục / Nhãn trong menu Cài đặt, tức
+              có HAI lối vào thay vì một. */}
+          <Route path="/assets/groups" element={<Navigate to="/settings/asset-groups" replace />} />
           <Route path="/settings/debts" element={<Navigate to="/debts" replace />} />
           <Route path="/settings/debts/:debtId" element={<LegacyDebtRedirect />} />
           <Route path="/settings/recurring" element={<Navigate to="/recurring" replace />} />

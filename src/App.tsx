@@ -5,6 +5,7 @@ import { PageSkeleton } from './components/PageSkeleton'
 import { LoginPage } from './features/auth/LoginPage'
 import { RequireAuth } from './features/auth/RequireAuth'
 import { TrueLocationProvider, useEntryBackground } from './lib/entryOverlay'
+import { SettingsLayout } from './features/settings/SettingsLayout'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { EntryPage } from './features/transactions/EntryPage'
 import { LedgerPage } from './features/transactions/LedgerPage'
@@ -160,18 +161,29 @@ function AppRoutes() {
           <Route path="/budget" element={lazyRoute(<BudgetPage />)} />
           <Route path="/reports" element={<ReportsRoute />} />
           <Route path="/reports/category/:categoryId" element={lazyRoute(<CategoryDetailPage />)} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/settings/accounts" element={lazyRoute(<AccountsPage />, 'table')} />
-          <Route path="/settings/categories" element={lazyRoute(<CategoriesPage />, 'table')} />
-          <Route
-            path="/settings/categories/classify"
-            element={lazyRoute(<ClassifyCategoriesPage />)}
-          />
-          <Route path="/settings/tags" element={lazyRoute(<TagsPage />, 'table')} />
+          {/* Cài đặt LỒNG trong <SettingsLayout>: từ 1024px nó vẽ menu bảy mục ở cột
+              trái CỐ ĐỊNH, còn <Outlet /> đổi nội dung cột phải. Bấm một mục vẫn đổi URL
+              (bookmark, nút Back, link trong thông báo đều trỏ vào đó) nhưng KHÔNG thay
+              cả màn — cột trái giữ nguyên DOM nên không nhấp nháy, không dựng lại.
+              Đường con viết TUYỆT ĐỐI ('/settings/tags') chứ không tương đối ('tags'):
+              React Router nhận cả hai khi tiền tố khớp cha, mà src/routeLinks.test.ts đọc
+              chính chuỗi này để canh mọi link nội bộ trỏ vào route thật.
+              Hai màn NHẬP đứng NGOÀI khung: chúng là luồng việc nhiều bước với bảng rộng,
+              không phải một mặt cài đặt — nhét vào cột phải là bóp bảng mất 15rem. */}
+          <Route path="/settings" element={<SettingsLayout />}>
+            <Route index element={<SettingsPage />} />
+            <Route path="/settings/accounts" element={lazyRoute(<AccountsPage />, 'table')} />
+            <Route path="/settings/categories" element={lazyRoute(<CategoriesPage />, 'table')} />
+            <Route
+              path="/settings/categories/classify"
+              element={lazyRoute(<ClassifyCategoriesPage />)}
+            />
+            <Route path="/settings/tags" element={lazyRoute(<TagsPage />, 'table')} />
+            <Route path="/settings/data" element={lazyRoute(<DataPage />)} />
+            <Route path="/settings/notifications" element={lazyRoute(<NotificationSettingsPage />)} />
+          </Route>
           <Route path="/settings/import" element={lazyRoute(<ImportCsvPage />)} />
           <Route path="/settings/nhap-phieu-luong" element={lazyRoute(<ImportPhieuLuongPage />, 'list')} />
-          <Route path="/settings/data" element={lazyRoute(<DataPage />)} />
-          <Route path="/settings/notifications" element={lazyRoute(<NotificationSettingsPage />)} />
 
           {/* Chuyển tiếp đường CŨ (docs/information-architecture.md §3.4). Bookmark, lịch
               sử trình duyệt và ảnh chụp màn hình cũ đều còn trỏ vào đây — bỏ hẳn là người

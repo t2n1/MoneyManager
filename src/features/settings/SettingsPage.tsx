@@ -1,17 +1,7 @@
 import { useState } from 'react'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import {
-  ArrowLeftRight,
-  Bell,
-  ChevronRight,
-  Database,
-  Landmark,
-  Scale,
-  Tag as TagIcon,
-  Tags,
-  UserRound,
-} from 'lucide-react'
+import { ArrowLeftRight, ChevronRight, UserRound } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { resetDemoData } from '../../data/demoRepo'
 import { useRatesFreshness } from '../../hooks/useDataFreshness'
@@ -24,6 +14,7 @@ import { getSupabase } from '../../lib/supabase'
 import { DensityToggle } from './DensityToggle'
 import { FontSizeToggle } from './FontSizeToggle'
 import { ProfileEditSheet } from './ProfileEditSheet'
+import { SETTINGS_NAV } from './SettingsLayout'
 import { ThemeToggle } from './ThemeToggle'
 import { PageHeader, SectionTitle } from '../../components/ui'
 
@@ -53,19 +44,20 @@ export function SettingsPage() {
   const rateAge = useRatesFreshness()?.details.find((d) => d.label === 'Tỷ giá') ?? null
   const rateStale = rateAge?.tone === 'warn'
 
-  // BA CỘT từ xl (§4.7: 230px · 1fr · 340px), một cột ở dưới.
+  // Đây là mặt "Chung" — một trong bảy mục của Cài đặt. Từ `lg`, danh sách bảy mục nằm
+  // ở cột trái CỐ ĐỊNH (SettingsLayout) chứ không còn trong trang này, nên trang chỉ còn
+  // hai nhóm nội dung:
+  //   trái  — vặn cái gì (giao diện, mật độ, cỡ chữ, hồ sơ);
+  //   phải  — tình trạng dữ liệu (tỷ giá).
   //
-  // Trước đây trang này ép một cột hẹp kể cả trên PC, với lý do "kéo rộng ra thì nhãn
-  // và ô bật/tắt rời nhau hai đầu màn hình". Lý do đó vẫn đúng — và đó chính là lý do
-  // CHIA CỘT thay vì nới cột: mỗi cột giữ bề rộng đọc được, còn ba nhóm nội dung thì
-  // thôi xếp chồng thành một mạch cuộn dài bốn màn.
+  // Dưới `lg` không có cột trái, nên danh sách mục vẫn phải ở TRONG trang — đó là khối
+  // `lg:hidden` ngay dưới đây, vẽ từ cùng một mảng SETTINGS_NAV.
   //
-  // Ba cột chia theo VIỆC, không theo cỡ khối:
-  //   trái  — đi tới đâu (danh sách mục quản lý);
-  //   giữa  — vặn cái gì (giao diện, mật độ, cỡ chữ, hồ sơ);
-  //   phải  — tình trạng dữ liệu (tỷ giá, sao lưu).
+  // Vì sao chia cột chứ không nới một cột cho rộng: kéo rộng ra thì nhãn và ô bật/tắt rời
+  // nhau hai đầu màn hình. Mỗi cột giữ bề rộng đọc được, còn các nhóm thì thôi xếp chồng
+  // thành một mạch cuộn dài mấy màn.
   return (
-    <div className="flex w-full flex-col gap-3 p-3 lg:p-4">
+    <div className="flex w-full flex-col gap-3 p-3 lg:p-6">
       <PageHeader title="Cài đặt" flush />
 
       {isDemoMode && (
@@ -98,91 +90,45 @@ export function SettingsPage() {
         </div>
       )}
 
-      {/* Lưới ba cột. `xl` chứ không `lg`: ở 1024px, ba cột 230+1fr+340 để lại cột
-          giữa hẹp hơn cả bản một cột cũ. items-start để cột ngắn không bị kéo cao
-          bằng cột dài.
-          Bề rộng theo REM chứ px (§13): hai cột biên là danh sách CHỮ (tên trang, nhãn
-          tuỳ chọn), nên ở cỡ chữ "Rất lớn" cột px cứng giữ nguyên trong khi chữ trong nó
-          to ra — nhãn dài như "Nhập bảng lương" bị xuống dòng giữa từ. 14.375rem/21.25rem
-          là đúng 230px/340px ở cỡ chữ thường. */}
-      <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[14.375rem_1fr_21.25rem] xl:items-start">
-        {/* TRÁI — đi tới đâu */}
-        <div className="flex flex-col gap-3">
-          <section className="overflow-hidden rounded-lg border border-border-panel bg-surface">
-            <SectionTitle className="px-3 pt-3">Quản lý</SectionTitle>
-            <div className="mt-1 divide-y divide-border-subtle">
-              <Link
-                to="/settings/accounts"
-                className="flex min-h-12 items-center gap-3 px-3 py-3 text-sm text-fg-primary transition hover:bg-surface-sunken"
-              >
-                <Landmark className="h-5 w-5 text-fg-muted" />
-                <span className="flex-1">Tài khoản</span>
-                <ChevronRight className="h-5 w-5 text-fg-muted" />
-              </Link>
-              <Link
-                to="/settings/categories"
-                className="flex min-h-12 items-center gap-3 px-3 py-3 text-sm text-fg-primary transition hover:bg-surface-sunken"
-              >
-                <Tags className="h-5 w-5 text-fg-muted" />
-                <span className="flex-1">Danh mục</span>
-                <ChevronRight className="h-5 w-5 text-fg-muted" />
-              </Link>
-              <Link
-                to="/settings/categories/classify"
-                className="flex min-h-12 items-center gap-3 px-3 py-3 text-sm text-fg-primary transition hover:bg-surface-sunken"
-              >
-                <Scale className="h-5 w-5 text-fg-muted" />
-                <span className="flex-1">Phân loại chi tiêu</span>
-                <ChevronRight className="h-5 w-5 text-fg-muted" />
-              </Link>
-              <Link
-                to="/settings/tags"
-                className="flex min-h-12 items-center gap-3 px-3 py-3 text-sm text-fg-primary transition hover:bg-surface-sunken"
-              >
-                <TagIcon className="h-5 w-5 text-fg-muted" />
-                <span className="flex-1">Nhãn</span>
-                <ChevronRight className="h-5 w-5 text-fg-muted" />
-              </Link>
-              <Link
-                to="/settings/notifications"
-                className="flex min-h-12 items-center gap-3 px-3 py-3 text-sm text-fg-primary transition hover:bg-surface-sunken"
-              >
-                <Bell className="h-5 w-5 text-fg-muted" />
-                <span className="flex-1">Thông báo</span>
-                <ChevronRight className="h-5 w-5 text-fg-muted" />
-              </Link>
-            </div>
-          </section>
-
-          {/* Nhóm tài sản, Nợ/cho vay và Giao dịch định kỳ TỪNG nằm trong khối trên. Đã dời
-              sang đúng ngữ cảnh (Tài sản / Sổ) vì chúng là dữ liệu tài chính thật, không phải
-              cấu hình — xem docs/information-architecture.md §1.1. */}
-
+      {/* DANH SÁCH MỤC — chỉ dưới `lg`. Từ `lg` nó là cột trái cố định của
+          SettingsLayout, và để cả hai cùng hiện là hai bản sao của một menu cách nhau
+          60px trên cùng một màn.
+          Nhóm tài sản, Nợ/cho vay và Giao dịch định kỳ TỪNG nằm trong khối này. Đã dời
+          sang đúng ngữ cảnh (Tài sản / Sổ) vì chúng là dữ liệu tài chính thật, không phải
+          cấu hình — xem docs/information-architecture.md §1.1. */}
+      <section className="overflow-hidden rounded-lg border border-border-panel bg-surface lg:hidden">
+        <SectionTitle className="px-3 pt-3">Quản lý</SectionTitle>
+        <div className="mt-1 divide-y divide-border-subtle">
+          {SETTINGS_NAV.filter((item) => !item.index).map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className="flex min-h-12 items-center gap-3 px-3 py-3 text-sm text-fg-primary transition hover:bg-surface-sunken"
+            >
+              <item.Icon className="h-5 w-5 shrink-0 text-fg-muted" />
+              <span className="min-w-0 flex-1">
+                <span className="block">{item.label}</span>
+                {item.hint && <span className="block text-sm text-fg-muted">{item.hint}</span>}
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-fg-muted" />
+            </Link>
+          ))}
         </div>
+      </section>
 
-        {/* GIỮA — vặn cái gì */}
+      {/* Lưới hai cột. `xl` chứ không `lg`: từ `lg` cột trái của khung đã lấy 15rem, chia
+          tiếp ở 1024px là cột giữa hẹp hơn cả bản một cột cũ. items-start để cột ngắn
+          không bị kéo cao bằng cột dài.
+          Bề rộng theo REM chứ px (§13): ở cỡ chữ "Rất lớn" cột px cứng giữ nguyên trong
+          khi chữ trong nó to ra. 21.25rem là đúng 340px ở cỡ chữ thường. */}
+      <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[1fr_21.25rem] xl:items-start">
+        {/* TRÁI — vặn cái gì */}
         <div className="flex flex-col gap-3">
           <ThemeToggle />
 
           <DensityToggle />
 
           <FontSizeToggle />
-
-          <section className="overflow-hidden rounded-lg border border-border-panel bg-surface">
-            <Link
-              to="/settings/data"
-              className="flex min-h-12 items-center gap-3 px-3 py-3 text-sm text-fg-primary transition hover:bg-surface-sunken"
-            >
-              <Database className="h-5 w-5 text-fg-muted" />
-              <span className="flex-1">
-                <span className="block">Dữ liệu &amp; sao lưu</span>
-                <span className="block text-sm text-fg-muted">
-                  Xuất CSV / PDF · Sao lưu, khôi phục · Nhập CSV
-                </span>
-              </span>
-              <ChevronRight className="h-5 w-5 text-fg-muted" />
-            </Link>
-          </section>
 
           <section className="overflow-hidden rounded-lg border border-border-panel bg-surface">
             <button

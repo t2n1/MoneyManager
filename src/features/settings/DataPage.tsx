@@ -23,7 +23,6 @@ import { BackupSection } from './BackupSection'
 import { exportCsvFilename } from './exportFilename'
 import { buildTransactionsCsv } from '../reports/csv'
 import { downloadTextFile } from '../../lib/download'
-import { showToast } from '../../lib/dialog'
 import {
   useAccounts,
   useCategories,
@@ -91,15 +90,6 @@ function ExportSection() {
     accounts.find((a) => a.id === id)?.currency ?? profile?.base_currency ?? 'JPY'
 
   function handleCsv() {
-    // Kỳ rỗng thì NÓI ra, không khoá nút. `disabled` ở đây là một cái nút chết câm:
-    // preflight của Tailwind v4 khai `button { opacity: 1 }` ở @layer base, thắng
-    // `disabled:opacity-50` của <ActionButton> ở @layer utilities — đo trên app đang
-    // chạy, nút khoá cho ra đúng `opacity: 1`, tức trông y hệt nút bấm được. Class có
-    // trong DOM, CSS dựng ra vẫn không mờ, và không có lint nào bắt.
-    if (txs.length === 0) {
-      showToast('Kỳ này không có giao dịch nào để xuất.', 'error')
-      return
-    }
     const sorted = [...txs].sort((a, b) => a.occurred_on.localeCompare(b.occurred_on))
     const csv = buildTransactionsCsv(sorted, {
       categoryName: (id) => categories.find((c) => c.id === id)?.name ?? '',
@@ -167,7 +157,10 @@ function ExportSection() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <ActionButton onClick={handleCsv}>
+          {/* `disabled` ở đây LÀM VIỆC: đo 2026-08-30 trên app đang chạy, một
+              <ActionButton> khoá cho ra `opacity: 0.5` thật. Và lý do khoá nằm ngay
+              trên nút — dòng "0 giao dịch". */}
+          <ActionButton onClick={handleCsv} disabled={txs.length === 0}>
             <Download className="h-4 w-4" />
             Tải CSV
           </ActionButton>

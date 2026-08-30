@@ -805,10 +805,15 @@ export function TransactionForm({
   // Lưu mẫu: chỉ với chi/thu đã đủ số tiền + danh mục
   const canSaveTemplate = type !== 'transfer' && amount > 0 && !!categoryId
   async function saveCurrentAsTemplate() {
-    // Chưa đủ thì NÓI RA, không im. Trước đây nút mang `disabled` + `disabled:opacity-40`,
-    // mà class opacity đặt trực tiếp trên <button> bị preflight Tailwind v4 ghi đè
-    // (`button { opacity: 1 }` ở @layer base) — nút sáng như thường, bấm không ra gì, và
-    // không có chỗ nào nói vì sao. Báo về đúng là "ngôi sao không bấm được".
+    // Chưa đủ thì NÓI RA, không im. Trước đây nút mang `disabled` + `disabled:opacity-40`
+    // và người dùng báo "ngôi sao không bấm được" (2026-08-24) — một nút mờ đi vẫn không
+    // nói ra nó THIẾU gì, mà đây là chỗ thiếu một trong ba thứ khác nhau.
+    //
+    // Chú thích cũ ở đây quy lỗi cho preflight Tailwind v4 ("button { opacity: 1 } ở
+    // @layer base thắng utilities"). ĐO LẠI 2026-08-30 trên app đang chạy: KHÔNG tái hiện
+    // được — `@layer theme, base, components, utilities` xếp utilities sau base, và một
+    // <button disabled class="disabled:opacity-40"> cho ra đúng `opacity: 0.4`. Giữ cách
+    // làm này vì lý do đầu (nút mờ không nói được thiếu gì), không phải vì lý do đó.
     if (!canSaveTemplate) {
       showToast(
         type === 'transfer'
@@ -1622,12 +1627,9 @@ export function TransactionForm({
         />
         {/* "Lưu mẫu" ở ô cố định cạnh ghi chú: không nhảy layout như khi tự chèn
             hàng chip ở đầu form. */}
-        {/* KHÔNG `disabled` nữa (báo 2026-08-24: "ngôi sao không bấm được"). `disabled`
-            ở đây im lặng gấp đôi: `disabled:opacity-40` đặt TRỰC TIẾP trên <button> thì
-            preflight của Tailwind v4 (`button { opacity: 1 }` ở @layer base) thắng lớp
-            utilities, nên nút trông sáng y như bình thường mà bấm không ra gì — không một
-            dấu hiệu nào nói vì sao. Giờ nút luôn nhận cú bấm và TỰ NÓI ra nó còn thiếu gì;
-            trạng thái sẵn/chưa sẵn vẫn đọc được qua ngôi sao rỗng ↔ đầy. */}
+        {/* KHÔNG `disabled` nữa (báo 2026-08-24: "ngôi sao không bấm được"). Nút luôn
+            nhận cú bấm và TỰ NÓI ra nó còn thiếu gì — xem saveCurrentAsTemplate; trạng
+            thái sẵn/chưa sẵn vẫn đọc được qua ngôi sao rỗng ↔ đầy. */}
         {/* Mẫu nhanh chỉ chở được số tiền + danh mục + tài khoản, nên chỉ mở ở những
             dạng ghi MỘT giao dịch thường; các dạng khác lưu ra mẫu là mất field riêng. */}
         {enableTemplates && shape.roleSeed.role === 'none' && shape.writes === 'transaction' && (

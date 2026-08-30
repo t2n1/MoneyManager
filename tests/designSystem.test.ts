@@ -267,7 +267,11 @@ function stripComments(text: string): string {
 //     người dùng đoán ô nhận số nào.
 //   · "Bạn đang đóng thật ¥…/tháng. Đổi mức đóng là việc làm với 基金 …" — chốt ranh giới
 //     rằng ô thử KHÔNG đổi mức đóng thật; đây là chỗ dễ hiểu nhầm nhất của màn đó.
-const PROSE_MAX = 80
+// 81 (từ 80, 2026-08-30): trang Nhãn thêm một đoạn PHẢI hiện — "Đã chi là tổng cả đời
+// nhãn … một giao dịch mang hai nhãn được tính đủ vào cả hai, nên cộng cột này sẽ lớn hơn
+// tổng chi thật". Đây là cảnh báo về cách ĐỌC bảng, không phải chữ để dạy: ẩn nó ở chế độ
+// Gọn là để người đọc tự cộng cột rồi tin một con số cao hơn sự thật.
+const PROSE_MAX = 81
 
 const FILES = sourceFiles().map((path) => ({
   path,

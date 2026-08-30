@@ -1,26 +1,62 @@
-// Quản lý nhãn: đổi tên, đổi màu, lưu trữ, xóa. Tạo nhãn thì làm ngay trong form
-// nhập giao dịch cho nhanh, nên ở đây chỉ cần một ô thêm đơn giản.
-import { useState } from 'react'
+// Quản lý nhãn: đổi tên, đổi màu, xếp nhóm, đặt trần, lưu trữ, xóa.
+//
+// ---- Vì sao là một BẢNG có tiền (redesign 2026-08-30) ------------------------------
+//
+// Bản trước: mỗi nhãn là một THẺ ba hàng — hàng tên, hàng "Nhóm + Trần chi + kỳ", hàng
+// chip xem trước + BẢY chấm chọn màu. Trên sổ thật (5 nhãn) đó là 15 hàng và **35 chấm
+// màu** trên một màn, trong khi đổi màu là việc làm một lần lúc tạo nhãn.
+//
+// Và cái trần là một ô số trống không: nó KHÔNG đứng cạnh số đã tiêu, nên nhìn "50000"
+// không biết là còn nhiều hay sắp vượt. Đúng thứ trần sinh ra để trả lời.
+//
+// Bản này: một dòng một nhãn, đọc được ngay "nhãn này đã tốn bao nhiêu" và "đã ăn bao
+// nhiêu phần của trần". Mọi thứ SỬA (tên, màu, nhóm, trần, lưu trữ, xóa) dồn vào một
+// tấm trượt — mở ra mới thấy, nên bảy chấm màu chỉ vẽ một lần thay vì bảy lần số nhãn.
+//
+// ---- Không có dòng "tổng cộng" ------------------------------------------------------
+//
+// Cộng cột tiền của bảng này ra một số LỚN HƠN tổng chi thật: một giao dịch mang hai
+// nhãn được tính đủ vào cả hai (đúng nghĩa "chuyến về VN" ∩ "quà cáp"). Nên trang này
+// cố ý chỉ đếm nhãn, không cộng tiền — xem chú thích ở tagSpendTotals.
+import { useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
-import { Archive, ArchiveRestore, Trash2 } from 'lucide-react'
+import { Archive, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import {
+  useAccounts,
   useCreateTag,
   useCreateTagGroup,
   useDeleteTag,
   useDeleteTagGroup,
   useRates,
   useTagGroups,
+  useTagSpend,
   useTags,
   useTransactionTags,
   useUpdateTag,
   useUpdateTagGroup,
 } from '../../hooks/queries'
+import { useMonthKey } from '../../hooks/useMonthKey'
 import { confirmDialog, showToast } from '../../lib/dialog'
+import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { TagBudgetPeriod, TagRow } from '../../types/database.types'
-import { ActionButton } from '../../components/ui/ActionButton'
+import { useEscClose } from '../../hooks/useEscClose'
+import type { BudgetStatus } from '../budgets/progress'
+import { tagSpendTotals, type TagBudgetLine } from './budget'
+import { useTagBudgets } from './useTagBudgets'
 import { TAG_CHIP_CLASS, TAG_COLOR_KEYS, TAG_COLOR_LABELS, tagColor } from './colors'
 import { QuickSortStrip, readQuickSortDone, writeQuickSortDone } from './QuickSortStrip'
-import { EmptyState, PageHeader, SectionTitle, Select, actionButtonClass } from '../../components/ui'
+import {
+  ActionButton,
+  Card,
+  EmptyState,
+  IconButton,
+  Money,
+  Num,
+  PageHeader,
+  SectionTitle,
+  Select,
+} from '../../components/ui'
+import { STATUS_FILL } from '../../components/ui/statusColors'
 
 /** Hai kiểu kỳ của trần nhãn — xem migration 0036. */
 const PERIODS: readonly (readonly [TagBudgetPeriod, string, string])[] = [
@@ -28,25 +64,67 @@ const PERIODS: readonly (readonly [TagBudgetPeriod, string, string])[] = [
   ['monthly', 'Mỗi tháng', 'Trần cho từng tháng, hết tháng reset — hợp với nhãn lặp đều'],
 ]
 
+// Cùng bảng màu với khối tiến độ ở tab Ngân sách (TagBudgetLines): hai chỗ nói cùng một
+// chuyện thì "vàng" phải nghĩa như nhau, không thì người đọc phải học hai bảng màu.
+const BAR: Record<BudgetStatus, string> = {
+  ok: STATUS_FILL.good,
+  warn: STATUS_FILL.warn,
+  over: STATUS_FILL.bad,
+}
+
+// Điện thoại ba cột (nhãn · tổng chi · mũi tên), từ `lg` năm cột.
+//
+// `grid` KHÔNG nằm trong hằng số: `hidden` và `grid` đều là tiện ích display, cái nào
+// thắng do THỨ TỰ TRONG CSS chứ không do thứ tự trong chuỗi — nên hàng tiêu đề viết
+// `hidden … lg:grid`, không phải `hidden` cạnh một `grid` trần.
+const GRID =
+  'grid-cols-[minmax(0,1fr)_minmax(5rem,auto)_1rem] items-center gap-x-2 ' +
+  'lg:grid-cols-[minmax(0,1fr)_3.5rem_minmax(6rem,auto)_11rem_1rem]'
+
 export function TagsPage() {
   const { data: tags = [] } = useTags()
-  const { base } = useRates()
-  const { data: links = [] } = useTransactionTags()
-  const createTag = useCreateTag()
-  const updateTag = useUpdateTag()
-  const deleteTag = useDeleteTag()
-  const [draft, setDraft] = useState('')
-  const [error, setError] = useState<string | null>(null)
   const { data: groups = [] } = useTagGroups()
+  const { data: links = [] } = useTransactionTags()
+  const { data: accounts = [] } = useAccounts()
+  const { base, rates } = useRates()
+  const createTag = useCreateTag()
+  const deleteTag = useDeleteTag()
+  const updateTag = useUpdateTag()
   const createGroup = useCreateTagGroup()
   const updateGroup = useUpdateTagGroup()
   const deleteGroup = useDeleteTagGroup()
+
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [newTagGroup, setNewTagGroup] = useState<string>('')
+  const [error, setError] = useState<string | null>(null)
+  const [addingGroup, setAddingGroup] = useState(false)
   const [groupDraft, setGroupDraft] = useState('')
   const [groupError, setGroupError] = useState<string | null>(null)
-  const [newTagGroup, setNewTagGroup] = useState<string>('')
+  const [editing, setEditing] = useState<TagRow | null>(null)
   const [quickSortDone, setQuickSortDone] = useState(readQuickSortDone)
 
+  // Chi CẢ ĐỜI từng nhãn. Cùng truy vấn `['tagSpend']` mà useTagBudgets dùng, nên hai
+  // hook không tải hai lần — react-query gộp theo khóa.
+  const { data: spendRows = [] } = useTagSpend()
+  const totals = useMemo(() => {
+    const currencyOf = (id: string): CurrencyCode =>
+      accounts.find((a) => a.id === id)?.currency ?? base
+    return tagSpendTotals(spendRows, currencyOf, base, rates ?? {})
+  }, [spendRows, accounts, base, rates])
+
+  // Tiến độ trần đi qua useTagBudgets chứ không tự tính: nó là chỗ DUY NHẤT biết kỳ
+  // 'monthly' phải đo trong khoảng tháng nào (theo month_start_day của hồ sơ).
+  const { activeMonthKey } = useMonthKey()
+  const budgets = useTagBudgets(activeMonthKey)
+  const budgetByTag = useMemo(() => {
+    const m = new Map<string, TagBudgetLine>()
+    for (const l of budgets.lines) m.set(l.tagId, l)
+    return m
+  }, [budgets.lines])
+
   const usageOf = (tagId: string) => links.filter((l) => l.tag_id === tagId).length
+  const spentOf = (tagId: string) => Math.round(totals.byTag.get(tagId) ?? 0)
 
   const active = tags.filter((t) => !t.is_archived)
   const archived = tags.filter((t) => t.is_archived)
@@ -79,6 +157,7 @@ export function TagsPage() {
         group_id: newTagGroup || null,
       })
       setDraft('')
+      setAdding(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Không tạo được nhãn')
     }
@@ -91,6 +170,7 @@ export function TagsPage() {
     try {
       await createGroup.mutateAsync({ name })
       setGroupDraft('')
+      setAddingGroup(false)
     } catch (e) {
       setGroupError(e instanceof Error ? e.message : 'Không tạo được nhóm')
     }
@@ -113,10 +193,10 @@ export function TagsPage() {
     showToast(`Đã xóa nhóm "${name}"`)
   }
 
-  async function remove(id: string, name: string) {
-    const used = usageOf(id)
+  async function remove(t: TagRow) {
+    const used = usageOf(t.id)
     const ok = await confirmDialog({
-      title: `Xóa nhãn "${name}"?`,
+      title: `Xóa nhãn "${t.name}"?`,
       message:
         used > 0
           ? `${used} giao dịch đang mang nhãn này. Giao dịch vẫn giữ nguyên, nhưng MẤT nhãn — ` +
@@ -127,82 +207,480 @@ export function TagsPage() {
       danger: true,
     })
     if (!ok) return
-    await deleteTag.mutateAsync(id)
-    showToast(`Đã xóa nhãn "${name}"`)
+    await deleteTag.mutateAsync(t.id)
+    setEditing(null)
+    showToast(`Đã xóa nhãn "${t.name}"`)
   }
 
-  function setArchived(id: string, name: string, is_archived: boolean) {
-    updateTag.mutate({ id, patch: { is_archived } })
-    showToast(is_archived ? `Đã lưu trữ nhãn "${name}"` : `Đã dùng lại nhãn "${name}"`)
+  function setArchived(t: TagRow, is_archived: boolean) {
+    updateTag.mutate({ id: t.id, patch: { is_archived } })
+    setEditing(null)
+    showToast(is_archived ? `Đã lưu trữ nhãn "${t.name}"` : `Đã dùng lại nhãn "${t.name}"`)
   }
+
+  /** Ô cột "Trần" — thanh tiến độ + một dòng chữ, hoặc gạch ngang khi chưa đặt. */
+  function budgetCell(t: TagRow) {
+    const line = budgetByTag.get(t.id)
+    if (!line) return <span className="text-2xs text-fg-muted">—</span>
+    return (
+      <span className="block">
+        <span className="block h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+          {/* Vượt trần thì thanh dừng ở 100% — kéo dài ra ngoài khung là vẽ sai, còn
+              vượt bao nhiêu đã nói bằng con số ngay dưới. Cùng luật với TagBudgetLines. */}
+          <span
+            className={`block h-full rounded-full ${BAR[line.status]}`}
+            style={{ width: `${Math.min(line.ratio * 100, 100)}%` }}
+          />
+        </span>
+        <span className="mt-0.5 block truncate text-2xs text-fg-muted">
+          <Num tone={line.status === 'over' ? 'out' : 'muted'}>
+            {Math.round(line.ratio * 100)}%
+          </Num>{' '}
+          của {formatMoney(line.budget, base)}
+          {line.period === 'monthly' && ' · tháng này'}
+        </span>
+      </span>
+    )
+  }
+
+  /** Một dòng nhãn. Cả dòng là nút mở tấm trượt sửa — trong dòng không còn control nào
+   *  khác, nên không có chuyện nút lồng nút. */
+  function tagRow(t: TagRow) {
+    const line = budgetByTag.get(t.id)
+    return (
+      <button
+        key={t.id}
+        type="button"
+        onClick={() => setEditing(t)}
+        className={`grid ${GRID} min-h-12 w-full border-b border-border-subtle px-3 py-2 text-left transition last:border-b-0 hover:bg-surface-sunken`}
+      >
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span
+            className={`w-fit max-w-full truncate rounded-full px-2 py-0.5 text-sm font-medium ${
+              TAG_CHIP_CLASS[tagColor(t.color)]
+            } ${t.is_archived ? 'opacity-75' : ''}`}
+          >
+            {t.name}
+          </span>
+          {/* Dòng phụ chỉ ở điện thoại — từ `lg` hai con số này đã là hai cột. */}
+          <span className="text-2xs text-fg-muted lg:hidden">
+            <Num tone="muted">{usageOf(t.id)}</Num> gd
+            {line && (
+              <>
+                {' · '}
+                <Num tone={line.status === 'over' ? 'out' : 'muted'}>
+                  {Math.round(line.ratio * 100)}%
+                </Num>{' '}
+                trần
+              </>
+            )}
+          </span>
+        </span>
+
+        <span className="hidden justify-self-end text-sm lg:block">
+          <Num tone="muted">{usageOf(t.id)}</Num>
+        </span>
+
+        <span className="justify-self-end text-sm">
+          <Money amount={spentOf(t.id)} currency={base} />
+        </span>
+
+        <span className="hidden min-w-0 lg:block">{budgetCell(t)}</span>
+
+        <ChevronRight className="h-4 w-4 justify-self-end text-fg-muted" aria-hidden />
+      </button>
+    )
+  }
+
+  /** Hàng tiêu đề của một nhóm — tên sửa tại chỗ, kèm số nhãn và nút xóa. */
+  function groupHeader(s: (typeof sections)[number]) {
+    return (
+      <div className="flex items-center gap-2 border-b border-border-panel bg-surface-chrome px-3 py-1.5">
+        {s.groupId ? (
+          <input
+            defaultValue={s.title}
+            onBlur={async (e) => {
+              const name = e.target.value.trim()
+              const input = e.target
+              if (name && name !== s.title) {
+                setGroupError(null)
+                try {
+                  await updateGroup.mutateAsync({ id: s.groupId!, patch: { name } })
+                } catch (err) {
+                  setGroupError(err instanceof Error ? err.message : 'Không đổi được tên nhóm')
+                  input.value = s.title
+                }
+              } else {
+                input.value = s.title
+              }
+            }}
+            aria-label={`Tên nhóm ${s.title}`}
+            className="min-h-9 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-2xs uppercase tracking-label text-fg-muted hover:border-border-strong"
+          />
+        ) : (
+          <SectionTitle role="micro" className="min-w-0 flex-1 px-2">
+            {s.title}
+          </SectionTitle>
+        )}
+        <span className="shrink-0 text-2xs text-fg-muted">
+          <Num tone="muted">{s.rows.length}</Num> nhãn
+        </span>
+        {s.groupId && (
+          <IconButton
+            variant="ghost"
+            aria-label={`Xóa nhóm ${s.title}`}
+            onClick={() => removeGroup(s.groupId!, s.title)}
+            className="min-h-9 min-w-9 px-0 text-fg-muted hover:text-money-out"
+          >
+            <Trash2 className="h-4 w-4" />
+          </IconButton>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3 p-3 lg:p-6">
+      <PageHeader title="Nhãn" back="/settings">
+        <ActionButton
+          onClick={() => {
+            setAddingGroup(true)
+            setGroupDraft('')
+          }}
+        >
+          <Plus className="h-4 w-4" /> Nhóm
+        </ActionButton>
+        <ActionButton
+          variant="primary"
+          onClick={() => {
+            setAdding(true)
+            setDraft('')
+          }}
+        >
+          <Plus className="h-4 w-4" /> Nhãn
+        </ActionButton>
+      </PageHeader>
+
+      <Guide className="rounded-lg bg-surface-sunken p-3 text-sm text-fg-secondary">
+        Nhãn cắt ngang danh mục: một chuyến “Về VN 2026” gồm vé máy bay, quà và phong bì nằm ở ba
+        danh mục khác nhau, nhưng cùng một nhãn thì cuối năm cộng được tổng chi phí cả chuyến.
+        Nhóm là CÂU HỎI, nhãn là câu trả lời — nhóm “Với ai?” chứa “Người yêu”, “Bạn bè”, và khi
+        nhập giao dịch mỗi nhóm hiện thành một hàng chip riêng. Xong chuyến thì <b>lưu trữ</b>{' '}
+        nhãn: nó ẩn khỏi form nhập nhưng số liệu vẫn còn.
+      </Guide>
+
+      {!quickSortDone && <QuickSortStrip onDone={() => setQuickSortDone(true)} />}
+
+      {adding && (
+        // flex-wrap + basis-full: ba control này KHÔNG vừa một hàng ở 375px (đo được cần
+        // 403px trong khung 351px, nút "Thêm" chỉ còn thấy 41%). Hẹp thì ô tên chiếm trọn
+        // hàng trên, select + nút xuống hàng dưới cạnh nhau.
+        <Card as="section" elevation="panel" padding="sm" className="flex flex-wrap gap-2">
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void add()
+              if (e.key === 'Escape') setAdding(false)
+            }}
+            aria-label="Tên nhãn mới"
+            placeholder="Tên nhãn mới…"
+            className="min-h-11 min-w-0 flex-1 basis-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm sm:basis-48"
+          />
+          <Select
+            value={newTagGroup}
+            onChange={(e) => setNewTagGroup(e.target.value)}
+            aria-label="Nhóm cho nhãn mới"
+            wrapClassName="min-w-0 flex-1 basis-28"
+          >
+            <option value="">— Khác —</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </Select>
+          <ActionButton
+            variant="primary"
+            onClick={add}
+            disabled={!draft.trim() || createTag.isPending}
+          >
+            Thêm
+          </ActionButton>
+          <ActionButton onClick={() => setAdding(false)}>Hủy</ActionButton>
+        </Card>
+      )}
+      {error && <p className="text-sm text-money-out">{error}</p>}
+
+      {addingGroup && (
+        <Card as="section" elevation="panel" padding="sm" className="flex flex-wrap gap-2">
+          <input
+            autoFocus
+            value={groupDraft}
+            onChange={(e) => setGroupDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void addGroup()
+              if (e.key === 'Escape') setAddingGroup(false)
+            }}
+            aria-label="Tên nhóm mới"
+            placeholder="Tên nhóm mới… (“Với ai?”, “Ở đâu?”)"
+            className="min-h-11 min-w-0 flex-1 basis-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm sm:basis-48"
+          />
+          <ActionButton
+            variant="primary"
+            onClick={addGroup}
+            disabled={!groupDraft.trim() || createGroup.isPending}
+          >
+            Thêm nhóm
+          </ActionButton>
+          <ActionButton onClick={() => setAddingGroup(false)}>Hủy</ActionButton>
+        </Card>
+      )}
+      {groupError && <p className="text-sm text-money-out">{groupError}</p>}
+
+      {/* Cổng là "không nhãn VÀ không nhóm", không phải "không nhãn". Đo được lúc dọn dữ
+          liệu thử: tạo nhóm rồi xóa hết nhãn thì bảng biến mất, mà nút xóa nhóm nằm TRONG
+          bảng — nhóm thành thứ không nhìn thấy và không xóa được, chỉ còn cách tạo tạm một
+          nhãn để bảng hiện lại. Nhóm rỗng vẫn phải có mặt. */}
+      {tags.length === 0 && groups.length === 0 ? (
+        // Câu chỉ đường không bọc Guide: màn rỗng thì đây là thứ duy nhất trên màn hình
+        // (xem components/Guide.tsx). Màn Nhãn là chỗ thấy rõ nhất — rỗng thì cả trang
+        // trống trơn, chỉ còn đúng một câu này.
+        <EmptyState>
+          Chưa có nhãn nào. Bấm “Nhãn” ở trên để tạo — nhãn để gom giao dịch theo chuyến đi,
+          theo người, theo dự án.
+        </EmptyState>
+      ) : (
+        <>
+          <Card as="section" elevation="panel" padding="none" className="overflow-hidden">
+            {/* Hàng tiêu đề chỉ từ `lg`: ở điện thoại bảng còn ba cột và mỗi dòng đã tự
+                nói ra nhãn của nó ở dòng phụ. */}
+            <div
+              className={`hidden ${GRID} border-b border-border-panel bg-surface-chrome px-3 py-2.5 text-2xs uppercase tracking-label text-fg-muted lg:grid`}
+            >
+              <span>Nhãn</span>
+              <span className="justify-self-end">GD</span>
+              <span className="justify-self-end">Đã chi</span>
+              <span>Trần</span>
+              <span />
+            </div>
+
+            {active.length === 0 && archived.length > 0 && (
+              <EmptyState compact>
+                Mọi nhãn đang được lưu trữ. Dùng lại một nhãn để nó xuất hiện khi nhập giao dịch.
+              </EmptyState>
+            )}
+            {sections.map((s) =>
+                // Mục "Khác" rỗng thì biến mất; nhóm thật thì luôn hiện, kể cả rỗng —
+                // không thì nhóm vừa tạo vô hình, không rõ xếp vào đâu.
+                s.groupId === null && s.rows.length === 0 ? null : (
+                  <div key={s.key}>
+                    {groupHeader(s)}
+                    {s.rows.length === 0 ? (
+                      <p className="border-b border-border-subtle px-3 py-2.5 text-sm text-fg-muted">
+                        Chưa có nhãn nào trong nhóm này.
+                        <Guide as="span"> Mở một nhãn bên dưới rồi đổi ô “Nhóm”.</Guide>
+                      </p>
+                    ) : (
+                      s.rows.map(tagRow)
+                    )}
+                  </div>
+                ),
+            )}
+
+            {archived.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1.5 border-b border-border-panel bg-surface-chrome px-3 py-1.5">
+                  <Archive className="h-3.5 w-3.5 shrink-0 text-fg-muted" aria-hidden />
+                  <SectionTitle role="micro" className="min-w-0 flex-1">
+                    Đã lưu trữ
+                  </SectionTitle>
+                  <span className="shrink-0 text-2xs text-fg-muted">
+                    <Num tone="muted">{archived.length}</Num> nhãn
+                  </span>
+                </div>
+                <Guide className="border-b border-border-subtle px-3 py-2 text-2xs text-fg-muted">
+                  Không hiện khi nhập giao dịch nữa, nhưng vẫn còn nguyên trong Chi theo nhãn và
+                  lọc ở Tìm kiếm.
+                </Guide>
+                {archived.map(tagRow)}
+              </div>
+            )}
+          </Card>
+
+          {/* Cột "Đã chi" tính CẢ ĐỜI nhãn. Nói ra vì cột "Trần" ngay cạnh có thể đang đo
+              theo THÁNG (nhãn kỳ 'monthly') — hai cột hai mốc thời gian mà không ai nói
+              thì đọc ra mâu thuẫn. */}
+          {tags.length > 0 && (
+          <p className="text-2xs text-fg-muted">
+            “Đã chi” là tổng cả đời nhãn, quy về {base}.
+            {totals.hasMissingRate && ' Có khoản ngoại tệ thiếu tỷ giá nên tổng chưa đủ.'}{' '}
+            Một giao dịch mang hai nhãn được tính đủ vào cả hai, nên cộng cột này sẽ lớn hơn
+            tổng chi thật.
+          </p>
+          )}
+
+          {quickSortDone && (
+            <button
+              type="button"
+              onClick={() => {
+                writeQuickSortDone(false)
+                setQuickSortDone(false)
+              }}
+              className="min-h-11 w-fit text-sm font-medium text-fg-accent"
+            >
+              Mở lại dải xếp nhãn vào nhóm
+            </button>
+          )}
+        </>
+      )}
+
+      {editing && (
+        <TagEditSheet
+          tag={editing}
+          groups={groups}
+          base={base}
+          spent={spentOf(editing.id)}
+          usage={usageOf(editing.id)}
+          onArchive={(v) => setArchived(editing, v)}
+          onDelete={() => remove(editing)}
+          onClose={() => setEditing(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Tấm trượt sửa một nhãn. Bốn thứ sửa được (tên · màu · nhóm · trần) gom vào MỘT lần
+ * lưu, thay vì mỗi ô một mutation như bản trước — bản trước lưu tên lúc rời ô, lưu màu
+ * lúc bấm chấm, lưu trần lúc rời ô, tức ba lượt ghi cho một lần sửa và không có đường
+ * nào bỏ dở.
+ */
+function TagEditSheet({
+  tag,
+  groups,
+  base,
+  spent,
+  usage,
+  onArchive,
+  onDelete,
+  onClose,
+}: {
+  tag: TagRow
+  groups: { id: string; name: string }[]
+  base: CurrencyCode
+  spent: number
+  usage: number
+  onArchive: (v: boolean) => void
+  onDelete: () => void
+  onClose: () => void
+}) {
+  useEscClose(onClose)
+  const update = useUpdateTag()
+  const [name, setName] = useState(tag.name)
+  const [color, setColor] = useState(tagColor(tag.color))
+  const [groupId, setGroupId] = useState(tag.group_id ?? '')
+  const [budget, setBudget] = useState(tag.budget_amount != null ? String(tag.budget_amount) : '')
+  const [period, setPeriod] = useState<TagBudgetPeriod>(tag.budget_period ?? 'total')
 
   /**
-   * Lưu trần chi. Ô rỗng (hoặc số ≤ 0) = BỎ trần, không phải "trần bằng 0" —
-   * trần 0 nghĩa là cấm tiêu, chẳng ai đặt, mà gõ nhầm rồi xoá đi là chuyện thường.
+   * Ô rỗng (hoặc số ≤ 0) = BỎ trần, không phải "trần bằng 0" — trần 0 nghĩa là cấm
+   * tiêu, chẳng ai đặt, mà gõ nhầm rồi xoá đi là chuyện thường.
    */
-  function saveBudget(t: TagRow, raw: string) {
-    const digits = raw.replace(/[^\d]/g, '')
-    const next = digits === '' ? null : Number(digits)
-    const value = next != null && next > 0 ? next : null
-    if (value === t.budget_amount) return
-    updateTag.mutate({ id: t.id, patch: { budget_amount: value } })
+  function budgetValue(): number | null {
+    const digits = budget.replace(/[^\d]/g, '')
+    if (digits === '') return null
+    const n = Number(digits)
+    return n > 0 ? n : null
   }
 
-  /** Một dòng nhãn. Nhãn đã lưu trữ bỏ hàng chọn màu — nó không còn xuất hiện khi nhập. */
-  const row = (t: (typeof tags)[number]) => (
-    <li
-      key={t.id}
-      className={`rounded-xl bg-surface p-3 shadow-sm ${t.is_archived ? 'opacity-75' : ''}`}
+  async function save() {
+    const clean = name.trim()
+    try {
+      await update.mutateAsync({
+        id: tag.id,
+        patch: {
+          name: clean || tag.name,
+          color,
+          group_id: groupId || null,
+          budget_amount: budgetValue(),
+          budget_period: period,
+        },
+      })
+    } catch {
+      // Lưu hỏng thì GIỮ sheet mở (toast lỗi toàn cục đã báo), không đóng như thể xong.
+      return
+    }
+    onClose()
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 lg:items-center animate-overlay-in"
+      onClick={onClose}
     >
-      <div className="flex items-center gap-2">
+      <div
+        className="w-full max-w-lg rounded-t-2xl bg-surface-page p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:rounded-2xl animate-sheet-in lg:animate-sheet-pop"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <SectionTitle role="block">Sửa nhãn</SectionTitle>
+          <span className="text-2xs text-fg-muted">
+            <Num tone="muted">{usage}</Num> giao dịch · <Money amount={spent} currency={base} tone="muted" />
+          </span>
+        </div>
+
+        <label htmlFor="tag-name" className="block text-sm font-medium text-fg-muted">
+          Tên
+        </label>
         <input
-          defaultValue={t.name}
-          onBlur={(e) => {
-            const name = e.target.value.trim()
-            if (name && name !== t.name) {
-              updateTag.mutate({ id: t.id, patch: { name } })
-            } else {
-              e.target.value = t.name
-            }
+          id="tag-name"
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') void save()
           }}
-          aria-label={`Tên nhãn ${t.name}`}
-          className="min-h-9 min-w-0 flex-1 rounded-md border border-transparent px-2 py-1 text-sm text-fg-primary hover:border-gray-300 dark:hover:border-gray-700"
+          className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-fg-primary"
         />
-        <span className="shrink-0 text-2xs text-fg-muted">{usageOf(t.id)} giao dịch</span>
-        <button
-          type="button"
-          onClick={() => setArchived(t.id, t.name, !t.is_archived)}
-          aria-label={t.is_archived ? `Dùng lại nhãn ${t.name}` : `Lưu trữ nhãn ${t.name}`}
-          title={t.is_archived ? 'Dùng lại' : 'Lưu trữ (ẩn khỏi form nhập, giữ nguyên số liệu)'}
-          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md text-fg-muted hover:bg-surface-sunken"
-        >
-          {t.is_archived ? (
-            <ArchiveRestore className="h-4 w-4" />
-          ) : (
-            <Archive className="h-4 w-4" />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => remove(t.id, t.name)}
-          aria-label={`Xóa nhãn ${t.name}`}
-          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md text-red-600 hover:bg-state-bad-bg dark:text-red-400"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
-      {/* Trần chi — hiện cho CẢ nhãn đã lưu trữ: chuyến đi xong rồi vẫn cần xem
-          tổng cuối cùng so với dự trù, và có khi còn cần sửa lại con số dự trù. */}
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <label className="text-sm text-fg-muted" htmlFor={`group-${t.id}`}>
+
+        <p className="mt-3 text-sm font-medium text-fg-muted">Màu</p>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          {/* Chip xem trước đứng ngay cạnh dãy chấm: chọn màu xong thấy luôn nó ra hình
+              gì khi nhập giao dịch. */}
+          <span
+            className={`mr-1 shrink-0 rounded-full px-2 py-0.5 text-sm font-medium ${TAG_CHIP_CLASS[color]}`}
+          >
+            {name.trim() || tag.name}
+          </span>
+          {TAG_COLOR_KEYS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setColor(c)}
+              aria-label={`Màu ${TAG_COLOR_LABELS[c]}`}
+              aria-pressed={color === c}
+              className="inline-flex h-11 w-8 items-center justify-center"
+            >
+              <span
+                className={`block h-5 w-5 rounded-full ${TAG_CHIP_CLASS[c]} ${
+                  color === c ? 'ring-2 ring-fg-primary' : 'opacity-70'
+                }`}
+              />
+            </button>
+          ))}
+        </div>
+
+        <label htmlFor="tag-group" className="mt-3 block text-sm font-medium text-fg-muted">
           Nhóm
         </label>
         <Select
-          id={`group-${t.id}`}
-          value={t.group_id ?? ''}
-          onChange={(e) =>
-            updateTag.mutate({ id: t.id, patch: { group_id: e.target.value || null } })
-          }
+          id="tag-group"
+          value={groupId}
+          onChange={(e) => setGroupId(e.target.value)}
+          wrapClassName="mt-1 w-full"
         >
           <option value="">— Khác —</option>
           {groups.map((g) => (
@@ -211,30 +689,31 @@ export function TagsPage() {
             </option>
           ))}
         </Select>
-        <label className="text-sm text-fg-muted" htmlFor={`budget-${t.id}`}>
-          Trần chi
+
+        <label htmlFor="tag-budget" className="mt-3 block text-sm font-medium text-fg-muted">
+          Trần chi ({base})
         </label>
-        <input
-          id={`budget-${t.id}`}
-          inputMode="numeric"
-          defaultValue={t.budget_amount != null ? String(t.budget_amount) : ''}
-          onBlur={(e) => saveBudget(t, e.target.value)}
-          placeholder="không đặt"
-          // text-base (16px) để Safari iOS không phóng to trang khi bấm vào ô
-          className="min-h-9 w-28 rounded-md border border-border-strong px-2 py-1 text-right text-base sm:text-sm"
-        />
-        <span className="text-sm text-fg-muted">{base}</span>
-        {t.budget_amount != null && (
-          <div className="flex overflow-hidden rounded-lg border border-border-strong">
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <input
+            id="tag-budget"
+            inputMode="numeric"
+            value={budget}
+            onChange={(e) => setBudget(e.target.value)}
+            placeholder="không đặt"
+            // text-base (16px) để Safari iOS không phóng to trang khi bấm vào ô
+            className="min-h-11 w-32 rounded-md border border-border-strong bg-surface px-3 py-2 text-right text-base sm:text-sm"
+          />
+          <div className="flex overflow-hidden rounded-md border border-border-strong">
             {PERIODS.map(([value, label, title]) => (
               <button
                 key={value}
                 type="button"
                 title={title}
-                onClick={() => updateTag.mutate({ id: t.id, patch: { budget_period: value } })}
-                aria-pressed={t.budget_period === value}
-                className={`min-h-9 px-2 text-sm font-medium ${
-                  t.budget_period === value
+                onClick={() => setPeriod(value)}
+                aria-pressed={period === value}
+                disabled={budgetValue() === null}
+                className={`min-h-11 px-3 text-sm font-medium transition disabled:opacity-50 ${
+                  period === value
                     ? 'bg-accent text-fg-on-accent'
                     : 'text-fg-secondary hover:bg-surface-sunken'
                 }`}
@@ -243,229 +722,27 @@ export function TagsPage() {
               </button>
             ))}
           </div>
-        )}
-      </div>
-
-      {!t.is_archived && (
-        <div className="mt-2 flex items-center gap-2">
-          {/* Xem trước nhãn thật để biết chọn màu xong trông thế nào */}
-          <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-sm font-medium ${TAG_CHIP_CLASS[tagColor(t.color)]}`}
-          >
-            {t.name}
-          </span>
-          <div className="flex flex-wrap gap-1">
-            {TAG_COLOR_KEYS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => updateTag.mutate({ id: t.id, patch: { color: c } })}
-                aria-label={`Đổi màu nhãn ${t.name} sang ${TAG_COLOR_LABELS[c]}`}
-                aria-pressed={tagColor(t.color) === c}
-                className="inline-flex h-9 w-7 items-center justify-center"
-              >
-                <span
-                  className={`block h-5 w-5 rounded-full ${TAG_CHIP_CLASS[c]} ${
-                    tagColor(t.color) === c
-                      ? 'ring-2 ring-gray-800 dark:ring-gray-200'
-                      : 'opacity-70'
-                  }`}
-                />
-              </button>
-            ))}
-          </div>
         </div>
-      )}
-    </li>
-  )
+        <Guide className="mt-1 text-2xs text-fg-muted">
+          Để trống là bỏ trần. “Cả đợt” không reset — hợp nhãn theo dịp; “Mỗi tháng” hết tháng
+          reset — hợp nhãn lặp đều.
+        </Guide>
 
-  return (
-    <div className="p-3 lg:p-6">
-      <PageHeader title="Nhãn" back="/settings" />
-
-      <Guide className="mb-3 rounded-xl bg-surface-sunken p-3 text-sm text-fg-secondary">
-        Nhãn cắt ngang danh mục: một chuyến “Về VN 2026” gồm vé máy bay, quà và phong bì nằm ở ba
-        danh mục khác nhau, nhưng cùng một nhãn thì cuối năm cộng được tổng chi phí cả chuyến.
-        Xếp nhãn vào <b>nhóm</b> để lúc nhập đỡ phải lục: nhóm “Với ai?”, “Ở đâu?” mỗi nhóm một
-        hàng chip. Xong chuyến thì <b>lưu trữ</b> nhãn: nó ẩn khỏi form nhập nhưng số liệu vẫn còn.
-      </Guide>
-
-      {!quickSortDone && <QuickSortStrip onDone={() => setQuickSortDone(true)} />}
-
-      {/* flex-wrap + basis-*: ba control này KHÔNG vừa một hàng trên máy hẹp. Đo ở 375px:
-          cần 403px trong khung 351px, nút "Thêm" — hành động chính của màn — chỉ còn thấy
-          41%, ở 360px còn 19%, ở 320px mất hẳn. `flex-1` không tự co được vì min-width mặc
-          định là auto, còn <Select> thì rộng theo option dài nhất ("Tài sản Việt Nam"), nên
-          phải có min-w-0 mới co. Cho wrap thay vì cố nhồi: hẹp (basis-full) thì ô nhập chiếm
-          trọn hàng trên, select + Thêm xuống hàng dưới cạnh nhau — gom nút với ô chọn đọc
-          rõ hơn là để "Thêm" đứng một mình. Từ sm (640px) trở lên gọn lại một hàng. */}
-      <div className="mb-3 flex flex-wrap gap-2">
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') void add()
-          }}
-          aria-label="Tên nhãn mới"
-          placeholder="Tên nhãn mới…"
-          className="min-h-11 min-w-0 flex-1 basis-full rounded-md border border-border-strong px-3 py-2 text-sm sm:basis-48 dark:bg-gray-900"
-        />
-        <Select
-          value={newTagGroup}
-          onChange={(e) => setNewTagGroup(e.target.value)}
-          aria-label="Nhóm cho nhãn mới" wrapClassName="min-w-0 flex-1 basis-28">
-          <option value="">— Khác —</option>
-          {groups.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.name}
-            </option>
-          ))}
-        </Select>
-        <button
-          type="button"
-          onClick={add}
-          disabled={!draft.trim() || createTag.isPending}
-          className={actionButtonClass('primary', 'shrink-0')}
-        >
-          Thêm
-        </button>
+        <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-border-subtle pt-3">
+          <ActionButton onClick={() => onArchive(!tag.is_archived)}>
+            {tag.is_archived ? 'Dùng lại' : 'Lưu trữ'}
+          </ActionButton>
+          <ActionButton variant="danger" onClick={onDelete}>
+            Xóa nhãn
+          </ActionButton>
+          <span className="ml-auto flex gap-1.5">
+            <ActionButton onClick={onClose}>Đóng</ActionButton>
+            <ActionButton variant="primary" onClick={save} disabled={update.isPending}>
+              Lưu
+            </ActionButton>
+          </span>
+        </div>
       </div>
-      {error && <p className="mb-3 text-sm text-money-out">{error}</p>}
-
-      {tags.length === 0 ? (
-        // Câu chỉ đường không bọc Guide: màn rỗng thì đây là thứ duy nhất trên màn hình
-        // (xem components/Guide.tsx). Màn Nhãn là chỗ thấy rõ nhất — rỗng thì cả trang
-        // trống trơn, chỉ còn đúng một câu này.
-        <EmptyState>
-          Chưa có nhãn nào. Đặt tên nhãn ở trên rồi bấm Thêm — nhãn để gom giao dịch theo
-          chuyến đi, theo người, theo dự án.
-        </EmptyState>
-      ) : (
-        <>
-          {active.length === 0 ? (
-            <EmptyState compact>
-              Mọi nhãn đang được lưu trữ. Dùng lại một nhãn để nó xuất hiện khi nhập giao dịch.
-            </EmptyState>
-          ) : (
-            <div className="flex flex-col gap-5">
-              {sections.map((s) =>
-                // Mục "Khác" rỗng thì biến mất; nhóm thật thì luôn hiện, kể cả rỗng —
-                // không thì nhóm vừa tạo vô hình, không rõ xếp vào đâu.
-                s.groupId === null && s.rows.length === 0 ? null : (
-                  <section key={s.key}>
-                    <div className="mb-1 flex items-center gap-2 px-1">
-                      {s.groupId ? (
-                        <input
-                          defaultValue={s.title}
-                          onBlur={async (e) => {
-                            const name = e.target.value.trim()
-                            const input = e.target
-                            if (name && name !== s.title) {
-                              setGroupError(null)
-                              try {
-                                await updateGroup.mutateAsync({ id: s.groupId!, patch: { name } })
-                              } catch (err) {
-                                setGroupError(
-                                  err instanceof Error ? err.message : 'Không đổi được tên nhóm',
-                                )
-                                input.value = s.title
-                              }
-                            } else {
-                              input.value = s.title
-                            }
-                          }}
-                          aria-label={`Tên nhóm ${s.title}`}
-                          className="min-h-9 min-w-0 flex-1 rounded-md border border-transparent px-2 py-1 text-sm font-semibold text-fg-secondary hover:border-gray-300 dark:hover:border-gray-700"
-                        />
-                      ) : (
-                        <SectionTitle className="min-h-9 flex-1 px-2 py-1">
-                          {s.title}
-                        </SectionTitle>
-                      )}
-                      <span className="shrink-0 text-2xs text-fg-muted">{s.rows.length} nhãn</span>
-                      {s.groupId && (
-                        <button
-                          type="button"
-                          onClick={() => removeGroup(s.groupId!, s.title)}
-                          aria-label={`Xóa nhóm ${s.title}`}
-                          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md text-red-600 hover:bg-state-bad-bg dark:text-red-400"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                    {s.rows.length === 0 ? (
-                      <p className="px-2 text-sm text-fg-muted">
-                        Chưa có nhãn nào trong nhóm này.
-                        <Guide as="span">
-                          {' '}
-                          Đổi ô “Nhóm” ở một nhãn bên dưới để xếp nó vào đây.
-                        </Guide>
-                      </p>
-                    ) : (
-                      <ul className="flex flex-col gap-2">{s.rows.map(row)}</ul>
-                    )}
-                  </section>
-                ),
-              )}
-            </div>
-          )}
-
-          {archived.length > 0 && (
-            <section className="mt-5">
-              <SectionTitle className="mb-1 flex items-center gap-1.5 px-1">
-                <Archive className="h-4 w-4" aria-hidden />
-                Đã lưu trữ ({archived.length})
-              </SectionTitle>
-              <Guide className="mb-2 px-1 text-sm text-fg-muted">
-                Không hiện khi nhập giao dịch nữa, nhưng vẫn còn nguyên trong Chi theo nhãn và lọc
-                ở Tìm kiếm.
-              </Guide>
-              <ul className="flex flex-col gap-2">{archived.map(row)}</ul>
-            </section>
-          )}
-
-          <section className="mt-6">
-            <SectionTitle className="mb-1 px-1">Nhóm nhãn</SectionTitle>
-            <Guide className="mb-2 px-1 text-sm text-fg-muted">
-              Nhóm là CÂU HỎI, nhãn là câu trả lời: nhóm “Với ai?” chứa “Người yêu”, “Bạn bè”.
-              Khi nhập giao dịch, mỗi nhóm hiện thành một hàng chip riêng.
-            </Guide>
-            {quickSortDone && (
-              <button
-                type="button"
-                onClick={() => {
-                  writeQuickSortDone(false)
-                  setQuickSortDone(false)
-                }}
-                className="mb-2 min-h-9 px-1 text-sm font-medium text-fg-accent"
-              >
-                Mở lại dải xếp nhãn vào nhóm
-              </button>
-            )}
-            <div className="flex gap-2">
-              <input
-                value={groupDraft}
-                onChange={(e) => setGroupDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void addGroup()
-                }}
-                aria-label="Tên nhóm mới"
-                placeholder="Tên nhóm mới…"
-                className="min-h-11 flex-1 rounded-md border border-border-strong px-3 py-2 text-sm dark:bg-gray-900"
-              />
-              <ActionButton
-                variant="primary"
-                onClick={addGroup}
-                disabled={!groupDraft.trim() || createGroup.isPending}
-              >
-                Thêm nhóm
-              </ActionButton>
-            </div>
-            {groupError && <p className="mt-2 text-sm text-money-out">{groupError}</p>}
-          </section>
-        </>
-      )}
     </div>
   )
 }

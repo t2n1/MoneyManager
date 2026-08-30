@@ -257,6 +257,7 @@ function seed(): DemoDB {
     user_id: DEMO_USER,
     // null = để app suy từ `type` (liquidity.ts), đúng hành vi của người chưa đặt cờ.
     is_liquid: null,
+    cash_account_id: null,
     // Chưa lần nào đối chiếu qua sheet → app suy từ giao dịch bù, giống người dùng cũ.
     last_reconciled_at: null,
     name,
@@ -1137,10 +1138,12 @@ export const demoRepo: Repo = {
           asset_group: a.asset_group ?? null,
           is_hidden: a.is_hidden ?? false,
           include_in_totals: a.include_in_totals ?? true,
+          is_liquid: a.is_liquid ?? null,
           credit_limit: a.credit_limit ?? null,
           statement_day: a.statement_day ?? null,
           payment_due_day: a.payment_due_day ?? null,
           payment_account_id: a.payment_account_id ?? null,
+          cash_account_id: a.cash_account_id ?? null,
           is_archived: a.is_archived,
           sort_order: a.sort_order,
           cost_basis: a.initial_balance,
@@ -1287,6 +1290,7 @@ export const demoRepo: Repo = {
       statement_day: input.statement_day ?? null,
       payment_due_day: input.payment_due_day ?? null,
       payment_account_id: input.payment_account_id ?? null,
+      cash_account_id: input.cash_account_id ?? null,
       card_autopay_through: input.card_autopay_through ?? null,
       depreciation_months: input.depreciation_months ?? null,
       depreciation_from: input.depreciation_from ?? null,

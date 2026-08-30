@@ -13,6 +13,8 @@ function card(over: Partial<AccountBalanceRow> & { id: string }): AccountBalance
     asset_group: null,
     is_hidden: false,
     include_in_totals: true,
+    is_liquid: null,
+    cash_account_id: null,
     credit_limit: null,
     statement_day: over.statement_day !== undefined ? over.statement_day : 31,
     payment_due_day: 27,

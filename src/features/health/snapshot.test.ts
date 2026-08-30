@@ -23,6 +23,8 @@ function bal(p: Partial<AccountBalanceRow> & Pick<AccountBalanceRow, 'balance'>)
     asset_group: null,
     is_hidden: false,
     include_in_totals: true,
+    is_liquid: null,
+    cash_account_id: null,
     credit_limit: null,
     statement_day: null,
     payment_due_day: null,
@@ -108,6 +110,37 @@ describe('buildHealthSnapshot — bảng cân đối', () => {
       ],
     })
     expect(s.liquidAssets).toBe(540_000)
+  })
+
+  // Ca thật mà cột `is_liquid` (0047) được thêm để sửa, chốt ở tầng SNAPSHOT chứ không chỉ
+  // ở hàm thuần `isLiquidAccount`: giữa hai tầng có một cái view, và view đó đã bỏ rơi cột
+  // này suốt 0047→0052 (xem tests/accountBalancesView.test.ts).
+  it('cờ người dùng đặt THẮNG phép suy từ loại, ở cả hai chiều', () => {
+    const s = build({
+      balances: [
+        bal({ type: 'bank', balance: 500_000, is_liquid: false }), // tiền gửi CÓ KỲ HẠN
+        bal({ type: 'cash', balance: 30_000 }),
+        bal({ type: 'investment', balance: 200_000, is_liquid: true }), // ví rút T+0
+      ],
+    })
+    expect(s.liquidAssets).toBe(230_000)
+    // Đầu tư đã khai là lỏng thì KHÔNG được đếm lần thứ hai ở rổ "bán được".
+    expect(s.investableAssets).toBe(0)
+    expect(s.liquidityInferredAccounts).toBe(1) // chỉ còn tài khoản 'cash' để null
+  })
+
+  it('khai hết thì bộ đếm "chưa khai" về 0 — và thẻ/ẩn/lưu trữ không giữ nó ở lại', () => {
+    const s = build({
+      balances: [
+        bal({ type: 'bank', balance: 100_000, is_liquid: true }),
+        bal({ type: 'bank', balance: 500_000, is_liquid: false }),
+        bal({ type: 'card', balance: -12_000 }), // thẻ là nợ: cờ của nó không đổi số nào
+        bal({ type: 'bank', balance: 9_999, is_hidden: true }),
+        bal({ type: 'bank', balance: 9_999, is_archived: true }),
+        bal({ type: 'bank', balance: 9_999, include_in_totals: false }),
+      ],
+    })
+    expect(s.liquidityInferredAccounts).toBe(0)
   })
 
   it('bỏ tài khoản đã lưu trữ / bị ẩn / không tính vào tổng', () => {

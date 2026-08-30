@@ -15,6 +15,8 @@ function account(over: Partial<AccountBalanceRow> & { id: string }): AccountBala
     asset_group: null,
     is_hidden: false,
     include_in_totals: true,
+    is_liquid: null,
+    cash_account_id: null,
     credit_limit: over.credit_limit ?? null,
     statement_day: over.statement_day ?? null,
     payment_due_day: over.payment_due_day ?? null,

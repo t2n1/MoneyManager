@@ -138,6 +138,11 @@ export interface NewTransaction {
   /** true = loại khỏi mọi thống kê (số dư vẫn tính). Mục AM/X. */
   exclude_from_stats?: boolean
   /**
+   * Lệnh cổ phiếu sinh ra dòng tiền này (migration 0054).
+   * Chỉ repo đặt trường này — giao diện nhập giao dịch không bao giờ đặt.
+   */
+  stock_trade_id?: string | null
+  /**
    * Quy tắc định kỳ mà bút toán này thuộc về (migration 0008 đã có cột + index, nhưng tới
    * giờ chưa có gì ghi vào).
    *
@@ -185,6 +190,11 @@ export interface NewAccount {
   payment_due_day?: number | null
   /** Thẻ tín dụng: tài khoản nguồn tự trả thẻ (cùng currency); null = không tự trả */
   payment_account_id?: string | null
+  /**
+   * Tài khoản đầu tư: ví tiền — nơi tiền THẬT SỰ đi ra khi mua cổ phiếu (migration 0054).
+   * Cùng currency, không phải chính nó. null/bỏ trống = không khai → không ghi dòng tiền nào.
+   */
+  cash_account_id?: string | null
   /** Thẻ tín dụng: con trỏ kỳ đã tự trả; null = chưa sinh kỳ nào */
   card_autopay_through?: string | null
   /** Tài sản cố định: số tháng khấu hao tuyến tính; null = không khấu hao */

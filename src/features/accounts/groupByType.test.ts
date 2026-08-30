@@ -12,6 +12,7 @@ function acc(p: Partial<AccountRow> & Pick<AccountRow, 'type'>): AccountRow {
     user_id: 'u',
     name: `acc${seq}`,
     is_liquid: null,
+    cash_account_id: null,
     currency: 'JPY',
     initial_balance: 0,
     asset_group: null,

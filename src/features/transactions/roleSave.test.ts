@@ -653,7 +653,7 @@ describe('saveDebtPayment — trả nợ từ form Nhập', () => {
     const { deps, calls } = makeDeps([openDebt()], [cat('cat-tra-no', 'Trả nợ')])
     await saveDebtPayment(
       { ...base, amount: 30_000 },
-      { debtId: 'd1', withTransaction: true },
+      { debtId: 'd1', withTransaction: true, debtAmount: null },
       deps,
     )
     expect(calls.createDebtPayment).toHaveLength(1)
@@ -672,7 +672,7 @@ describe('saveDebtPayment — trả nợ từ form Nhập', () => {
     )
     await saveDebtPayment(
       { ...base, amount: 8_200 },
-      { debtId: 'd2', withTransaction: true },
+      { debtId: 'd2', withTransaction: true, debtAmount: null },
       deps,
     )
     expect(calls.createDebtPayment[0].transaction).toMatchObject({
@@ -685,7 +685,7 @@ describe('saveDebtPayment — trả nợ từ form Nhập', () => {
     const { deps, calls } = makeDeps([openDebt()])
     await saveDebtPayment(
       { ...base, amount: 30_000 },
-      { debtId: 'd1', withTransaction: false },
+      { debtId: 'd1', withTransaction: false, debtAmount: null },
       deps,
     )
     expect(calls.createDebtPayment[0].transaction).toBeNull()
@@ -696,7 +696,7 @@ describe('saveDebtPayment — trả nợ từ form Nhập', () => {
     const { deps, calls } = makeDeps([openDebt()], [cat('cat-tra-no', 'Trả nợ')])
     await saveDebtPayment(
       { ...base, amount: 30_000, tagIds: ['tag-lan'] },
-      { debtId: 'd1', withTransaction: true },
+      { debtId: 'd1', withTransaction: true, debtAmount: null },
       deps,
     )
     expect(calls.createDebtPayment[0].transaction).toMatchObject({ tag_ids: ['tag-lan'] })
@@ -705,9 +705,60 @@ describe('saveDebtPayment — trả nợ từ form Nhập', () => {
   it('không tìm thấy khoản nợ thì ném lỗi, không ghi im lặng', async () => {
     const { deps, calls } = makeDeps([])
     await expect(
-      saveDebtPayment({ ...base, amount: 1 }, { debtId: 'mat-tieu', withTransaction: true }, deps),
+      saveDebtPayment({ ...base, amount: 1 }, { debtId: 'mat-tieu', withTransaction: true, debtAmount: null }, deps),
     ).rejects.toThrow(/khoản nợ/i)
     expect(calls.createDebtPayment).toHaveLength(0)
+    expect(calls.createTransaction).toHaveLength(0)
+  })
+
+  /**
+   * Trả nợ XUYÊN TỆ: khoản nợ ghi bằng ¥, tiền về lại là ₫ vào ví Việt Nam.
+   * Hai số đi hai chỗ khác nhau và KHÔNG được lẫn: `debt_payments.amount` là số xoá
+   * nợ (tệ của KHOẢN NỢ), `transactions.amount` là số thật đổi số dư (tệ của VÍ).
+   * Lẫn một cái là sổ nợ nói 15 triệu yen còn được trả, hoặc ví VN cộng thêm 100
+   * nghìn đồng thay vì 15 triệu — cả hai đều sai lặng lẽ, không có gì báo.
+   */
+  it('nợ ¥ trả vào ví ₫: sổ nợ ghi số ¥, giao dịch ghi số ₫', async () => {
+    const { deps, calls } = makeDeps(
+      [openDebt({ direction: 'owed_to_me' })],
+      [cat('cat-thu-no', 'Thu nợ', 'income')],
+    )
+    // base.amount đi theo VÍ (ô số tiền của form đọc theo tệ ví đang chọn);
+    // debtAmount là số ¥ mà lần trả này xoá khỏi khoản nợ.
+    await saveDebtPayment(
+      { ...base, amount: 15_000_000 },
+      { debtId: 'd1', withTransaction: true, debtAmount: 100_000 },
+      deps,
+    )
+    expect(calls.createDebtPayment[0].amount).toBe(100_000)
+    expect(calls.createDebtPayment[0].transaction).toMatchObject({
+      type: 'income',
+      amount: 15_000_000,
+    })
+  })
+
+  it('cùng tệ (debtAmount null) thì vẫn dùng số của ô tiền — đường cũ không đổi', async () => {
+    const { deps, calls } = makeDeps([openDebt()], [cat('cat-tra-no', 'Trả nợ')])
+    await saveDebtPayment(
+      { ...base, amount: 30_000 },
+      { debtId: 'd1', withTransaction: true, debtAmount: null },
+      deps,
+    )
+    expect(calls.createDebtPayment[0].amount).toBe(30_000)
+    expect(calls.createDebtPayment[0].transaction).toMatchObject({ amount: 30_000 })
+  })
+
+  it('tắt chuyển tiền thật thì số xoá nợ vẫn là debtAmount, không có giao dịch nào', async () => {
+    // Không có ví nào tham gia nên không có tệ thứ hai — nhưng nếu người dùng đã gõ
+    // số ¥ rồi mới tắt công tắc, số đó vẫn phải là số đi vào sổ nợ.
+    const { deps, calls } = makeDeps([openDebt({ direction: 'owed_to_me' })])
+    await saveDebtPayment(
+      { ...base, amount: 15_000_000 },
+      { debtId: 'd1', withTransaction: false, debtAmount: 100_000 },
+      deps,
+    )
+    expect(calls.createDebtPayment[0].amount).toBe(100_000)
+    expect(calls.createDebtPayment[0].transaction).toBeNull()
     expect(calls.createTransaction).toHaveLength(0)
   })
 

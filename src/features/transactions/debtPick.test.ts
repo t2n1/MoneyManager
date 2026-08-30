@@ -34,24 +34,38 @@ describe('openDebtsFor — chi khoan DANG MO va DUNG CHIEU', () => {
   })
 })
 
-describe('accountsForDebt — v1 tranh xuyen te', () => {
+describe('accountsForDebt — cho tra xuyen te, vi cung te dung truoc', () => {
   const ACC = [
     { id: 'a1', currency: 'JPY', is_archived: false },
     { id: 'a2', currency: 'VND', is_archived: false },
     { id: 'a3', currency: 'JPY', is_archived: true },
+    { id: 'a4', currency: 'JPY', is_archived: false },
   ] as never[]
 
-  it('chi vi CUNG loai tien voi khoan no', () => {
-    expect(accountsForDebt(ACC, DEBTS[0]).map((a) => a.id)).toEqual(['a1'])
-    expect(accountsForDebt(ACC, DEBTS[3]).map((a) => a.id)).toEqual(['a2'])
+  it('vi KHAC te van hien ra — no ¥ ma tra vao vi ₫ la ca that', () => {
+    // Ca that: nguoi ta no minh bang Yen nhung tra bang VND vao tai khoan VN.
+    // Ban v1 loc mat vi ₫ nen khong cach nao ghi duoc lan tra do.
+    expect(accountsForDebt(ACC, DEBTS[0]).map((a) => a.id)).toContain('a2')
   })
 
-  it('chua chon khoan no thi bay het vi chua luu tru', () => {
-    expect(accountsForDebt(ACC, undefined).map((a) => a.id)).toEqual(['a1', 'a2'])
+  it('vi CUNG te xep truoc — vi mac dinh phai la vi thuong dung', () => {
+    // pickerAccounts[0] la vi mac dinh cua form Nhap; de vi ₫ len dau mot khoan no ¥
+    // la mac dinh sai te ma khong ai bam gi.
+    expect(accountsForDebt(ACC, DEBTS[0]).map((a) => a.id)).toEqual(['a1', 'a4', 'a2'])
+    expect(accountsForDebt(ACC, DEBTS[3]).map((a) => a.id)).toEqual(['a2', 'a1', 'a4'])
+  })
+
+  it('giu nguyen thu tu tuong doi trong tung nhom', () => {
+    expect(accountsForDebt(ACC, DEBTS[0]).map((a) => a.id)).toEqual(['a1', 'a4', 'a2'])
+  })
+
+  it('chua chon khoan no thi bay het vi chua luu tru, khong doi thu tu', () => {
+    expect(accountsForDebt(ACC, undefined).map((a) => a.id)).toEqual(['a1', 'a2', 'a4'])
   })
 
   it('bo vi da luu tru o ca hai nhanh', () => {
     expect(accountsForDebt(ACC, DEBTS[0]).map((a) => a.id)).not.toContain('a3')
+    expect(accountsForDebt(ACC, undefined).map((a) => a.id)).not.toContain('a3')
   })
 })
 

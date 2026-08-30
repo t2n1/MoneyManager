@@ -25,17 +25,30 @@ export function openDebtsFor(
 }
 
 /**
- * Ví cho được trả nợ — "v1 tránh xuyên tệ" (giống DebtPaymentSheet): chỉ ví CÙNG
- * loại tiền với khoản nợ, và không lưu trữ. Chưa chọn khoản nợ (`undefined`) → bày
- * hết ví chưa lưu trữ, vì chưa có currency nào để so.
+ * Ví cho được trả nợ: mọi ví chưa lưu trữ, ví CÙNG TỆ với khoản nợ xếp lên trước.
+ *
+ * Bản v1 lọc thẳng theo `a.currency === debt.currency` ("tránh xuyên tệ"). Nhưng
+ * xuyên tệ là ca THẬT, không phải ca hiếm: người ta nợ bằng Yên rồi trả bằng VNĐ vào
+ * tài khoản Việt Nam. Lọc như cũ thì ví ₫ không hiện ra và không có đường nào ghi lần
+ * trả đó — người dùng phải tự chẻ làm hai bút toán rời rồi mất luôn mối nối.
+ *
+ * Vì sao SẮP XẾP chứ không chỉ bỏ lọc: `pickerAccounts[0]` là ví mặc định của form
+ * Nhập (TransactionForm), và `matchingAccounts[0]` là mặc định của DebtPaymentSheet.
+ * Trả hết lượt theo thứ tự gốc thì một khoản nợ ¥ có thể mặc định vào ví ₫ — sai tệ
+ * mà người dùng không bấm gì cả. Cùng tệ vẫn là ca thường, nên nó phải đứng đầu.
+ *
+ * Chưa chọn khoản nợ (`undefined`) → giữ nguyên thứ tự gốc, chưa có tệ nào để so.
  */
 export function accountsForDebt(
   accounts: AccountRow[],
   debt: DebtRow | undefined,
 ): AccountRow[] {
-  return accounts.filter(
-    (a) => !a.is_archived && (debt === undefined || a.currency === debt.currency),
-  )
+  const active = accounts.filter((a) => !a.is_archived)
+  if (debt === undefined) return active
+  return [
+    ...active.filter((a) => a.currency === debt.currency),
+    ...active.filter((a) => a.currency !== debt.currency),
+  ]
 }
 
 /**

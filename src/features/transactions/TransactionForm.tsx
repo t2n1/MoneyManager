@@ -397,9 +397,10 @@ export function TransactionForm({
   }, [accounts, initial])
   // Gửi về VN: nguồn chỉ được là tài khoản JPY (không phải thẻ); đích là TK VND.
   const remitLike = shape.roleSeed.role === 'remit'
-  // "v1 tránh xuyên tệ" (DebtPaymentSheet): chỉ cho trả từ ví CÙNG loại tiền với
-  // khoản nợ. Nên ở repay/collect danh sách ví PHỤ THUỘC khoản nợ đã chọn — đây là
-  // chỗ DUY NHẤT của form có hai field phụ thuộc nhau (mọi quyết định lọc ở debtPick.ts).
+  // Trả nợ được từ ví BẤT KỲ, kể cả khác tệ (nợ ¥ trả bằng ₫ vào tài khoản Việt Nam
+  // là ca thật) — nhưng ví cùng tệ xếp lên trước để mặc định vẫn đúng. Nên ở
+  // repay/collect danh sách ví PHỤ THUỘC khoản nợ đã chọn — đây là chỗ DUY NHẤT của
+  // form có hai field phụ thuộc nhau (mọi quyết định lọc/xếp ở debtPick.ts).
   const payDebt =
     shape.writes === 'debtPayment'
       ? allDebts.find((d) => d.id === paymentVal.debtId)
@@ -1012,7 +1013,15 @@ export function TransactionForm({
           note,
           tagIds: effectiveTagIds,
         }
-        await onSubmitPayment({ kind, base, value: paymentVal }, keepGoing)
+        // Lưới an toàn: ví cùng tệ với khoản nợ thì `debtAmount` phải là null để
+        // saveDebtPayment dùng chính ô tiền. DebtPickerField đã xoá khi người dùng đổi
+        // ví về cùng tệ; chốt lại lần nữa ở đây vì cái giá của việc sót là một số ¥ cũ
+        // lặng lẽ ghi đè số vừa gõ — không có gì trên màn báo.
+        const payCross = !!payDebt && payDebt.currency !== srcCurrency
+        await onSubmitPayment(
+          { kind, base, value: { ...paymentVal, debtAmount: payCross ? paymentVal.debtAmount : null } },
+          keepGoing,
+        )
         // Không có ví thì không ghi: `setItem(key, null)` lưu ra chuỗi "null", và lần
         // mở màn sau đi tìm một ví có id "null".
         if (effectiveAccountId) localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId)
@@ -1527,6 +1536,12 @@ export function TransactionForm({
           // lại khoản họ ĐANG NỢ MÌNH (owed_to_me). Đọc từ `shape.direction` (bảng
           // entryShape) thay vì so `kind` viết tay — cùng lý do gộp cổng ở trên.
           direction={shape.direction === 'out' ? 'i_owe' : 'owed_to_me'}
+          // Ô tiền lớn của form đọc theo tệ VÍ, nên picker phải biết tệ đó để hỏi
+          // thêm số xoá nợ khi hai bên lệch tệ.
+          accountCurrency={srcCurrency}
+          amount={amount}
+          base={base}
+          rates={rates ?? {}}
         />
       )}
 

@@ -509,6 +509,16 @@ export interface PaymentValue {
   debtId: string
   /** Có chuyển tiền thật (đổi số dư) hay chỉ ghi sổ nợ. Giống DebtPaymentSheet. */
   withTransaction: boolean
+  /**
+   * Số XOÁ NỢ, theo tệ của KHOẢN NỢ — chỉ dùng khi ví khác tệ với khoản nợ.
+   * null = cùng tệ, số xoá nợ chính là số ở ô tiền (`base.amount`).
+   *
+   * Vì sao là field riêng chứ không tái dùng `base.amount`: ô tiền của form đọc theo
+   * tệ của VÍ đang chọn (`srcCurrency`), nên ở ca xuyên tệ nó giữ số ₫ thật vào ví.
+   * Số ¥ xoá khỏi sổ nợ là con số THỨ HAI, hai bên tự thoả thuận, không suy được từ
+   * số kia bằng tỷ giá nào cả.
+   */
+  debtAmount: number | null
   // KHÔNG có `fee` ở đây, CỐ Ý (bỏ 2026-08-19, fix round 1 task 8): đường vào thứ
   // nhất `DebtPaymentSheet.tsx` không hỗ trợ phí trả nợ (`grep -n fee` trên file đó
   // ra rỗng) và spec chưa từng đòi field này — bản đầu của Task 7 chép nhầm từ
@@ -520,6 +530,7 @@ export interface PaymentValue {
 export const initialPayment = (): PaymentValue => ({
   debtId: '',
   withTransaction: true,
+  debtAmount: null,
 })
 
 /**
@@ -542,6 +553,9 @@ export async function saveDebtPayment(
   if (!debt) throw new Error('Không tìm thấy khoản nợ đang mở này.')
 
   const txType = debt.direction === 'i_owe' ? 'expense' : 'income'
+  // Hai số, hai chỗ: `debt_payments.amount` theo tệ KHOẢN NỢ, `transactions.amount`
+  // theo tệ VÍ. Cùng tệ (`debtAmount` null) thì chúng là một số — đường cũ nguyên vẹn.
+  const debtAmount = v.debtAmount ?? base.amount
   let transaction: NewTransaction | null = null
   if (v.withTransaction) {
     const categoryId = await debtFlowCategoryId('repay', debt.direction, deps)
@@ -559,7 +573,7 @@ export async function saveDebtPayment(
   }
   await deps.createDebtPayment({
     debt_id: debt.id,
-    amount: base.amount,
+    amount: debtAmount,
     paid_on: base.occurredOn,
     note: base.note.trim(),
     transaction,

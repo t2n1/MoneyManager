@@ -5,14 +5,18 @@ import {
   useCategories,
   useCreateCategory,
   useCreateDebtPayment,
+  useRates,
 } from '../../hooks/queries'
 import { toISODate } from '../../lib/dates'
-import { formatMoney } from '../../lib/money'
+import { CURRENCIES, formatMoney } from '../../lib/money'
 import { MoneyField } from '../../components/MoneyField'
 import { DateField } from '../../components/DateField'
 import type { DebtRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
 import { debtFlowCategoryId } from '../transactions/roleSave'
+import { accountsForDebt } from '../transactions/debtPick'
+import { impliedRate, nextCounterAmount } from './crossPayment'
+import { formatRateLine } from '../../lib/rates'
 import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
 
 interface Props {
@@ -30,31 +34,64 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
   const createCategory = useCreateCategory()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
+  const { base, rates } = useRates()
 
-  // Chỉ cho trả từ tài khoản CÙNG loại tiền với khoản nợ (v1 tránh xuyên tệ)
-  const matchingAccounts = useMemo(
-    () => accounts.filter((a) => !a.is_archived && a.currency === debt.currency),
-    [accounts, debt.currency],
-  )
+  // Mọi ví chưa lưu trữ, ví cùng tệ với khoản nợ xếp trước (xem accountsForDebt).
+  // Trả nợ ¥ vào ví ₫ là ca thật — bản trước lọc mất ví khác tệ nên không ghi được.
+  const matchingAccounts = useMemo(() => accountsForDebt(accounts, debt), [accounts, debt])
   // Giao dịch: mình trả (i_owe) = chi; người ta trả mình (owed_to_me) = thu
   const txType = debt.direction === 'i_owe' ? 'expense' : 'income'
 
   const canRecordReal = matchingAccounts.length > 0
   // Mặc định bật; realOn còn phụ thuộc canRecordReal (accounts tải xong).
   const [withTransaction, setWithTransaction] = useState(true)
+  /** Số XOÁ NỢ — luôn theo tệ của khoản nợ. */
   const [amount, setAmount] = useState(Math.max(remaining, 0))
   const [paidOn, setPaidOn] = useState(toISODate(new Date()))
   const [accountId, setAccountId] = useState('')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
+  /** Số THẬT vào/ra ví — chỉ dùng khi ví khác tệ với khoản nợ. */
+  const [received, setReceived] = useState(0)
+  /** Đã gõ tay ô "thực nhận" chưa — gõ rồi thì tỷ giá thị trường không được đè lên. */
+  const [receivedTouched, setReceivedTouched] = useState(false)
 
   // Điền tài khoản mặc định khi dữ liệu về (useState không nhận được data async).
   useEffect(() => {
     if (!accountId && matchingAccounts[0]) setAccountId(matchingAccounts[0].id)
   }, [accountId, matchingAccounts])
 
+  const account = matchingAccounts.find((a) => a.id === accountId)
+  const accCurrency = account?.currency ?? debt.currency
+  /** Ví khác tệ với khoản nợ → một lần trả mang HAI số, phải hỏi cả hai. */
+  const cross = accCurrency !== debt.currency
+
+  // Gợi ý số thực nhận theo tỷ giá thị trường, nhưng KHÔNG đè lên số đã gõ tay:
+  // tỷ giá của lần trả là tỷ giá hai bên thoả thuận, chợ hôm nay không liên quan.
+  useEffect(() => {
+    if (!cross) return
+    setReceived((current) =>
+      nextCounterAmount({
+        current,
+        touched: receivedTouched,
+        source: amount,
+        from: debt.currency,
+        to: accCurrency,
+        base,
+        rates: rates ?? {},
+      }),
+    )
+  }, [cross, receivedTouched, amount, debt.currency, accCurrency, base, rates])
+
   const realOn = withTransaction && canRecordReal
-  const canSave = amount > 0 && !saving && (!realOn || !!accountId)
+  /** Số thật đổi số dư ví: cùng tệ thì chính là số xoá nợ. */
+  const txAmount = cross ? received : amount
+  const rateLine = formatRateLine(
+    debt.currency,
+    accCurrency,
+    impliedRate(amount, debt.currency, received, accCurrency) ?? 0,
+  )
+  const canSave = amount > 0 && !saving && (!realOn || (!!accountId && txAmount > 0))
 
   async function handleSave() {
     if (!canSave) return
@@ -70,7 +107,9 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
         })
         transaction = {
           type: txType,
-          amount, // cùng tệ vì tài khoản đã lọc theo currency của khoản nợ
+          // Số theo tệ VÍ. Khác tệ khoản nợ thì đây là số thật vào/ra ví (₫), còn số
+          // xoá nợ (¥) đi xuống `input.amount` bên dưới — hai số, hai chỗ.
+          amount: txAmount,
           to_amount: null,
           category_id: categoryId,
           account_id: accountId,
@@ -109,7 +148,9 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
         </p>
 
         {/* <span>: MoneyField có hai ô (chạm/desktop), tên đến từ `ariaLabel`. */}
-        <span className="mb-1 block text-sm font-medium text-fg-muted">Số tiền trả</span>
+        <span className="mb-1 block text-sm font-medium text-fg-muted">
+          {cross ? `Xoá bao nhiêu nợ (${CURRENCIES[debt.currency].label})` : 'Số tiền trả'}
+        </span>
         <div className="mb-3">
           <MoneyField
             value={amount}
@@ -166,8 +207,8 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
 
           {!canRecordReal && (
             <p className="mt-2 text-sm text-state-warn-fg">
-              Chưa có tài khoản {debt.currency} để tạo giao dịch thật. Vẫn ghi nhận được lần trả
-              (không đổi số dư).
+              Chưa có tài khoản nào để tạo giao dịch thật. Vẫn ghi nhận được lần trả (không đổi
+              số dư).
             </p>
           )}
 
@@ -186,6 +227,34 @@ export function DebtPaymentSheet({ debt, remaining, onClose }: Props) {
                   </option>
                 ))}
               </Select>
+
+              {/* Ví khác tệ với khoản nợ: hỏi số THẬT vào ví. Không suy từ tỷ giá thị
+                  trường rồi ghi thẳng — tỷ giá của lần trả là do hai bên chốt, chợ chỉ
+                  được quyền gợi ý (và ngừng gợi ý ngay khi người dùng gõ tay). */}
+              {cross && (
+                <div className="mt-3">
+                  <span className="mb-1 block text-sm font-medium text-fg-muted">
+                    {debt.direction === 'i_owe' ? 'Thực trả từ ví' : 'Thực nhận vào ví'} (
+                    {CURRENCIES[accCurrency].label})
+                  </span>
+                  <MoneyField
+                    value={received}
+                    onChange={(v) => {
+                      setReceived(v)
+                      setReceivedTouched(true)
+                    }}
+                    currency={accCurrency}
+                    ariaLabel={debt.direction === 'i_owe' ? 'Thực trả từ ví' : 'Thực nhận vào ví'}
+                    onEnter={handleSave}
+                    className="w-full rounded-lg border border-border-strong px-3 py-2 text-right text-lg font-semibold"
+                  />
+                  {rateLine && (
+                    // Tỷ giá ngầm của chính hai số vừa gõ — gõ thừa một số 0 thì dòng
+                    // này nhảy gấp mười và nhìn là thấy, hai con số rời thì không.
+                    <p className="mt-1 text-sm text-fg-muted">Tỷ giá lần này: {rateLine}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

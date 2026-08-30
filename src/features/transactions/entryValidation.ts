@@ -143,6 +143,11 @@ function kindMissing(s: EntryState): string | null {
         // Chưa chọn khoản nợ → không có gì để suy chiều bút toán (saveDebtPayment
         // ném lỗi nếu cứ lưu), nên chặn Ở ĐÂY, trước cả cổng danh mục chung.
         if (!s.payment.debtId) return 'Còn thiếu: chọn khoản nợ.'
+        // Trả xuyên tệ (nợ ¥, ví ₫): ô tiền lớn giữ số vào/ra ví, còn số xoá nợ là con
+        // số THỨ HAI. Thiếu nó thì saveDebtPayment rơi về `base.amount` — tức ghi 15
+        // triệu YEN vào một khoản nợ 100 nghìn yen, sổ nợ âm mà không có gì báo.
+        if (s.payment.debtAmount !== null && s.payment.debtAmount <= 0)
+          return 'Còn thiếu: lần trả này xoá bao nhiêu nợ.'
         break
     }
   }

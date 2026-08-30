@@ -1,9 +1,10 @@
 import { lazy, Suspense, type ReactNode } from 'react'
-import { Navigate, Route, Routes, useParams, useSearchParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { AppLayout } from './components/AppLayout'
 import { PageSkeleton } from './components/PageSkeleton'
 import { LoginPage } from './features/auth/LoginPage'
 import { RequireAuth } from './features/auth/RequireAuth'
+import { TrueLocationProvider, useEntryBackground } from './lib/entryOverlay'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { EntryPage } from './features/transactions/EntryPage'
 import { LedgerPage } from './features/transactions/LedgerPage'
@@ -124,9 +125,17 @@ function LegacyAccountRedirect() {
   return <Navigate to={`/assets/account/${accountId}`} replace />
 }
 
-function App() {
+function AppRoutes() {
+  // Màn Nhập mở dưới dạng lớp phủ (nút "+" trên thanh trên, chỉ có từ 1024px) thì URL
+  // là `/entry` nhưng cây route phải khớp MÀN NỀN — nếu không, <Outlet> trong AppLayout
+  // vẽ EntryPage vào giữa trang và màn nền biến mất, tức lại đúng chuyện chuyển trang mà
+  // lớp phủ sinh ra để tránh. Bản thân cái hộp do AppLayout vẽ (nó nằm trong RequireAuth
+  // và các provider), xem src/lib/entryOverlay.tsx.
+  const location = useLocation()
+  const background = useEntryBackground()
+
   return (
-    <Routes>
+    <Routes location={background ?? location}>
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
@@ -177,6 +186,19 @@ function App() {
         </Route>
       </Route>
     </Routes>
+  )
+}
+
+/**
+ * <TrueLocationProvider> phải bọc NGOÀI <AppRoutes>: bên trong AppRoutes, location đã bị
+ * `<Routes location={…}>` thay bằng màn nền, nên không còn ai dưới đó đọc lại được URL
+ * thật. Xem src/lib/entryOverlay.tsx.
+ */
+function App() {
+  return (
+    <TrueLocationProvider>
+      <AppRoutes />
+    </TrueLocationProvider>
   )
 }
 

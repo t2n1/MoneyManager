@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AppFooter } from './AppFooter'
 import { AppRail } from './AppRail'
 import { AppTopBar } from './AppTopBar'
@@ -19,6 +19,8 @@ import { useDensitySync } from '../hooks/useDensity'
 import { runUndo, useUndoToast } from '../lib/undoToast'
 import { dismissErrorToast, useErrorToast } from '../lib/errorToast'
 import { DialogHost } from '../lib/dialog'
+import { useEntryBackground, useTrueLocation } from '../lib/entryOverlay'
+import { EntrySheet } from '../features/transactions/EntrySheet'
 import { useNotifications } from '../features/notifications/useNotifications'
 import { planNotificationCleanup } from '../features/notifications/state'
 import { addDaysISO, toISODate } from '../lib/dates'
@@ -59,8 +61,16 @@ export function AppLayout() {
   // Đọc ở đây (không phải trong LoadProgress) vì toast định kỳ bên dưới phải né nó.
   const loadPercent = useLoadProgress()
 
+  // Màn Nhập mở dưới dạng lớp phủ: URL là `/entry` nhưng KHUNG APP vẫn phải là khung
+  // của màn nền — tiêu đề tab, thanh nav dưới, chân trang, vùng cuộn, và cả việc đưa
+  // <main> về đầu khi đổi trang. Đọc `/entry` từ URL ở đây sẽ tháo hết những thứ đó ra
+  // khỏi màn nền đang nằm nguyên phía sau cái hộp. Xem src/lib/entryOverlay.ts.
+  const trueLocation = useTrueLocation()
+  const entryBackground = useEntryBackground()
+  const shown = entryBackground ?? location
+
   // Trang nhập giao dịch: ẩn thanh nav dưới để có tối đa không gian
-  const onEntry = location.pathname === '/entry'
+  const onEntry = shown.pathname === '/entry'
 
   const catchUp = useRunRecurringCatchUp()
   const [recurringToast, setRecurringToast] = useState<string | null>(null)
@@ -72,12 +82,12 @@ export function AppLayout() {
   const mainRef = useRef<HTMLElement>(null)
   useEffect(() => {
     mainRef.current?.scrollTo(0, 0)
-  }, [location.pathname])
+  }, [shown.pathname])
 
   useEffect(() => {
-    const hit = pageTitle(location.pathname)
+    const hit = pageTitle(shown.pathname)
     document.title = hit ? `${hit} — Sổ Gạo` : 'Sổ Gạo'
-  }, [location.pathname])
+  }, [shown.pathname])
 
   // Sinh các kỳ định kỳ đến hạn kể từ lần mở trước; N > 0 → toast
   useEffect(() => {
@@ -278,6 +288,20 @@ export function AppLayout() {
           </div>
         </div>
       )}
+
+        {/* Màn Nhập dạng lớp phủ. Vẽ Ở ĐÂY chứ không ở App.tsx: chỗ này nằm trong
+            RequireAuth và trong MonthKeyProvider, nên cái hộp dùng chung đúng phiên và
+            đúng kỳ đang xem với màn nền.
+            Bọc thêm một <Routes> ghim vào URL THẬT: cây này đang bị App ghi đè location
+            thành màn nền, mà EntryPage đọc `useSearchParams()` để biết `?role=`,
+            `?planned=`, `?rule=`, `?type=`. Không ghim thì form trong hộp đọc trúng
+            tham số của màn nền — mở hộp từ một trang có `?type=` là form tự chọn sẵn
+            Thu/Chi mà không ai bấm. */}
+        {entryBackground && (
+          <Routes location={trueLocation}>
+            <Route path="/entry" element={<EntrySheet background={entryBackground} />} />
+          </Routes>
+        )}
 
         {/* Hộp thoại confirm/prompt + toast thông báo dùng chung (thay window.*) */}
         <DialogHost />

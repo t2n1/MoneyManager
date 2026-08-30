@@ -38,8 +38,18 @@ import {
 import { addSaved, countLabel, removeSaved, type SavedEntry } from './savedRound'
 import { TransactionForm, type PaymentSubmit, type RoleSubmit } from './TransactionForm'
 
+interface Props {
+  /**
+   * Có mặt = màn này đang nằm TRONG lớp phủ (<EntrySheet>), không phải trang đầy đủ.
+   * Xem src/lib/entryOverlay.ts. Khi có, mọi đường "rời màn nhập" — nút Đóng, nút
+   * Xong, và cả bốn nhánh lưu xong — chỉ đóng lớp phủ, không điều hướng đi đâu:
+   * người dùng đang đứng ở màn nào thì trả họ về đúng màn đó.
+   */
+  onClose?: () => void
+}
+
 /** Màn hình mặc định khi mở app — nhập một giao dịch phải < 5 giây. */
-export function EntryPage() {
+export function EntryPage({ onClose }: Props = {}) {
   const navigate = useNavigate()
   const create = useCreateTransaction()
   const del = useDeleteTransaction()
@@ -255,6 +265,21 @@ export function EntryPage() {
     toastTimer.current = setTimeout(() => setToast(null), 5000)
   }
 
+  /**
+   * Rời màn nhập sau khi xong việc. MỘT chỗ cho cả sáu lối ra (Xong, và năm nhánh lưu),
+   * vì hai kiểu mở màn này rời đi theo hai cách khác nhau:
+   *
+   *   Trang đầy đủ — điều hướng tới `to`, nơi thấy được kết quả vừa ghi (`/so`,
+   *                  `/planned`…). Màn nhập chiếm cả màn hình nên phải đi đâu đó.
+   *   Lớp phủ      — chỉ đóng hộp. Màn nền vẫn nằm nguyên đó phía sau; kéo người dùng
+   *                  sang `/so` là cướp mất chỗ họ đang đứng, đúng cái mà lớp phủ sinh
+   *                  ra để tránh.
+   */
+  function leave(to: string) {
+    if (onClose) onClose()
+    else navigate(to)
+  }
+
   // Lưu một dạng đi qua orchestrator riêng (Trả hộ / Cho vay-Nợ / Gửi về VN).
   // `keepGoing` = bấm "Lưu và nhập tiếp" → ở lại màn, y hợp đồng với onSubmitWithFee.
   // Không tôn trọng cờ này thì nhãn nút nói ngược việc nó làm.
@@ -264,7 +289,7 @@ export function EntryPage() {
     else if (payload.role === 'debt') await saveDebtEntry(payload.kind, payload.base, payload.value, deps)
     else await saveRemit(payload.base, payload.value, deps)
     if (!keepGoing) {
-      navigate('/so')
+      leave('/so')
       return
     }
     recordSaved(roleSavedEntry(payload.kind, payload.base))
@@ -276,7 +301,7 @@ export function EntryPage() {
   async function handlePayment(payload: PaymentSubmit, keepGoing: boolean) {
     await saveDebtPayment(payload.base, payload.value, roleDeps())
     if (!keepGoing) {
-      navigate('/so')
+      leave('/so')
       return
     }
     recordSaved(roleSavedEntry(payload.kind, payload.base))
@@ -289,7 +314,18 @@ export function EntryPage() {
     // bản mobile, và lưới danh mục rớt xuống hai cột con. 1024px cho cột trái ~660px
     // (đúng bằng bề rộng cũ) và cột phải 320px. Vẫn CÓ trần: màn nhập là một việc một
     // dòng nhìn, kéo hết 1440px thì mắt phải quét ngang cả sải tay giữa hai bước bắt buộc.
-    <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:h-dvh lg:max-w-5xl lg:p-6">
+    //
+    // Trong lớp phủ thì bề rộng, chiều cao, nền và bo góc là việc của <EntrySheet> — ở
+    // đây chỉ còn "đầy khung cha". Không giữ `h-dvh`: cao bằng cả khung nhìn trong một
+    // cái hộp chỉ cao 90dvh thì đáy ghim (hàng nút + bàn số) rơi ra ngoài hộp. Cũng
+    // không giữ dải an toàn tai thỏ — hộp không chạm mép màn.
+    <div
+      className={
+        onClose
+          ? 'flex min-h-0 w-full flex-1 flex-col overflow-hidden p-4 lg:p-6'
+          : 'mx-auto flex h-dvh w-full max-w-2xl flex-col overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:h-dvh lg:max-w-5xl lg:p-6'
+      }
+    >
       {/* Đầu trang qua <PageHeader> như 24 màn còn lại. Trước 2026-08-25 màn này là kiểu
           thứ bảy: tiêu đề CANH GIỮA ở 16px — cỡ nhỏ nhất trong app và là chỗ duy nhất
           canh giữa. Nay canh trái 18px; nút "Đóng" đi vào slot `left` thay chỗ nút quay
@@ -306,14 +342,28 @@ export function EntryPage() {
              `to` chỉ là đường lui khi không có lịch sử: về Bản tin, vì từ bản 1a nút "+"
              là nút TOÀN CỤC (giữa thanh tab / trên top bar) nên "chỗ bấm +" gần như luôn
              là một màn bất kỳ, không riêng Sổ. Còn LƯU xong thì về `/so` — ở đó mới thấy
-             giao dịch vừa ghi. */
-          <BackLink
-            to="/"
-            aria-label="Đóng, quay lại trang trước"
-            className={actionButtonClass('outline')}
-          >
-            <ChevronLeft className="h-5 w-5" /> Đóng
-          </BackLink>
+             giao dịch vừa ghi.
+             Trong lớp phủ thì KHÔNG dùng <BackLink>: nó render ra thẻ <a href="/">, tức
+             chuột phải / Ctrl+bấm mở tab mới sang Bản tin — vô nghĩa cho một nút đóng hộp
+             thoại. Ở đó đóng là một hành động, nên nó là <button>. */
+          onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Đóng màn nhập giao dịch"
+              className={actionButtonClass('outline')}
+            >
+              <ChevronLeft className="h-5 w-5" /> Đóng
+            </button>
+          ) : (
+            <BackLink
+              to="/"
+              aria-label="Đóng, quay lại trang trước"
+              className={actionButtonClass('outline')}
+            >
+              <ChevronLeft className="h-5 w-5" /> Đóng
+            </BackLink>
+          )
         }
         title={
           <>
@@ -335,10 +385,12 @@ export function EntryPage() {
           {savedList.length > 0 && (
             <button
               type="button"
-              onClick={() => navigate('/')}
+              onClick={() => leave('/')}
               className="flex min-h-11 w-full items-center justify-center rounded-md border border-border-strong bg-surface px-1 text-center text-2xs font-semibold leading-tight text-fg-primary transition active:scale-95"
             >
-              Xong · về Bản tin
+              {/* Trong lớp phủ, "về Bản tin" là lời hứa sai: đóng hộp là trả người dùng
+                  về ĐÚNG màn họ đang đứng, không phải Bản tin. */}
+              {onClose ? 'Xong' : 'Xong · về Bản tin'}
             </button>
           )}
         </div>
@@ -376,7 +428,7 @@ export function EntryPage() {
         onSubmitWithFee={async (main, fee, keepGoing) => {
           await saveWithFee(main, fee, 'Phí chuyển khoản', roleDeps())
           if (!keepGoing) {
-            navigate('/so')
+            leave('/so')
             return
           }
           // 2 bút toán → id giả như các đường role (xem `roleSavedEntry`); nhãn thì dựng
@@ -406,7 +458,7 @@ export function EntryPage() {
           if (!billRule && !planned) {
             showUndoToast('Đã lưu giao dịch', () => del.mutateAsync(row.id).then(() => {}))
           }
-          navigate('/so')
+          leave('/so')
         }}
         // "Sẽ chi": chưa chi đồng nào, chỉ tạo một khoản sắp chi rồi về Sổ.
         onSubmitPlanned={async (input) => {
@@ -415,7 +467,7 @@ export function EntryPage() {
           clearTimeout(toastTimer.current)
           toastTimer.current = setTimeout(() => {
             setToast(null)
-            navigate('/planned')
+            leave('/planned')
           }, 1000)
         }}
         // Lưu và nhập tiếp: ghi giao dịch, hiện toast (kèm hoàn tác) rồi ở lại nhập tiếp.

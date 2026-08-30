@@ -128,8 +128,13 @@ describe('"Luu va nhap tiep" phai o LAI man o CA 11 dang', () => {
     // onSubmitWithFee ngay duoi cung co mot cong y het, nen assertion se xanh du
     // handleRole mat cong cua no. Chan bang khoang cach (than handleRole ~340 ky tu;
     // cong thu hai cach 3.700).
+    //
+    // `leave('/so')` chu khong con `navigate('/so')` (2026-08-30): man Nhap nay mo duoc
+    // theo hai kieu — trang day du va lop phu tren may tinh — nen "roi man" khong con
+    // luon luon la dieu huong. `leave()` la mot cho duy nhat quyet dinh dieu do; xem
+    // src/lib/entryOverlay.ts. Y cua luat nay khong doi: cong phai nam TRONG handleRole.
     expect(page).toMatch(
-      /handleRole\(payload: RoleSubmit, keepGoing: boolean\)[\s\S]{0,800}?if \(!keepGoing\) \{\s*navigate\('\/so'\)/,
+      /handleRole\(payload: RoleSubmit, keepGoing: boolean\)[\s\S]{0,800}?if \(!keepGoing\) \{\s*leave\('\/so'\)/,
     )
   })
 })

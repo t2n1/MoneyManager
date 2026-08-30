@@ -16,6 +16,7 @@ import { PrivacyToggle } from './PrivacyToggle'
 import { NotificationBell } from '../features/notifications/NotificationBell'
 import { NotificationBoundary } from '../features/notifications/NotificationBoundary'
 import { topBarTitle, usesMonth } from './navItems'
+import { useOpenEntryOverlay } from '../lib/entryOverlay'
 
 /** Nút ‹ › của bộ đổi tháng. 28px — control trong thanh 52px, chỉ dùng bằng chuột. */
 const STEP_BTN =
@@ -24,6 +25,7 @@ const STEP_BTN =
 export function AppTopBar() {
   const location = useLocation()
   const navigate = useNavigate()
+  const openEntry = useOpenEntryOverlay()
   const { activeMonthKey, stepMonth } = useMonthKey()
   const freshness = useDataFreshness()
   const [q, setQ] = useState('')
@@ -115,9 +117,13 @@ export function AppTopBar() {
         {/* Nút 30px của §2.5 — dáng RIÊNG của top bar, không phải <ActionButton>. Sàn
             vùng chạm 44px của app là ngưỡng ngón tay; thanh này chỉ có từ lg trở lên
             nên thiết bị trỏ là chuột, ngưỡng WCAG 2.5.8 ở đó là 24px. */}
+        {/* Nút này mở màn nhập dưới dạng LỚP PHỦ, không chuyển trang: thanh trên chỉ
+            có từ 1024px (`hidden … lg:flex` ở gốc file) nên đây đúng là "máy tính", còn
+            nút "+" của thanh tab dưới (`lg:hidden`) vẫn vào trang đầy đủ như cũ.
+            Xem src/lib/entryOverlay.ts. */}
         <button
           type="button"
-          onClick={() => navigate('/entry')}
+          onClick={openEntry}
           className="ml-1 flex h-[1.875rem] items-center gap-1.5 rounded-md bg-accent px-3.5 text-sm font-semibold text-fg-on-accent transition active:scale-95"
         >
           <Plus className="h-[0.9375rem] w-[0.9375rem]" strokeWidth={2.2} />

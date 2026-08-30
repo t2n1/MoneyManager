@@ -262,6 +262,8 @@ function AccountForm({ account, onClose }: FormProps) {
   // Giữ null làm mặc định để không tự ý xác nhận hộ người dùng — xem liquidity.ts.
   const [isLiquid, setIsLiquid] = useState<boolean | null>(account?.is_liquid ?? null)
   const [paymentAccountId, setPaymentAccountId] = useState(account?.payment_account_id ?? '')
+  // Tài khoản đầu tư VND: ví tiền — nơi tiền THẬT SỰ đi ra khi mua cổ phiếu (0054).
+  const [cashAccountId, setCashAccountId] = useState(account?.cash_account_id ?? '')
   // Với thẻ tín dụng, ô số dư nhập là SỐ ĐANG NỢ (dương); initial_balance lưu âm.
   const [balanceMagnitude, setBalanceMagnitude] = useState(
     account ? Math.abs(account.initial_balance) : 0,
@@ -305,6 +307,12 @@ function AccountForm({ account, onClose }: FormProps) {
   )
   // Tự trả cần đủ ngày chốt + đến hạn để tính số tiền theo sao kê
   const autopayNeedsDays = paymentAccountId !== '' && (statementDay === '' || paymentDueDay === '')
+  // Ví tiền của tài khoản đầu tư: cùng loại tiền, không phải chính nó, chưa lưu trữ.
+  // KHÔNG lọc theo `type`: điều kiện thật là "cùng loại tiền và không phải chính nó";
+  // chặn thêm theo loại là đoán hộ người dùng tiền của họ nằm ở đâu.
+  const cashWalletOptions = accounts.filter(
+    (a) => a.currency === currency && !a.is_archived && a.id !== account?.id,
+  )
 
   // Số tiền nhập luôn dương; dấu quyết định khi lưu theo loại tài khoản
   const initialBalance = isCard ? -balanceMagnitude : balanceMagnitude
@@ -324,6 +332,16 @@ function AccountForm({ account, onClose }: FormProps) {
       paymentSourceOptions.some((a) => a.id === paymentAccountId)
         ? paymentAccountId
         : null
+    // Chỉ nhận ví khi tài khoản là đầu tư VND và lựa chọn còn hợp lệ — đổi loại tiền hay
+    // đổi loại tài khoản xong mà vẫn giữ ví cũ là ghi một liên kết đã hết nghĩa, và mỗi
+    // lệnh sau đó sẽ ghi tiền đi ra từ một tài khoản không liên quan.
+    const validCashAccount =
+      isInvestment &&
+      currency === 'VND' &&
+      cashAccountId !== '' &&
+      cashWalletOptions.some((a) => a.id === cashAccountId)
+        ? cashAccountId
+        : null
     setSaving(true)
     try {
       const input: NewAccount = {
@@ -340,6 +358,7 @@ function AccountForm({ account, onClose }: FormProps) {
         statement_day: isCard && statementDay !== '' ? Number(statementDay) : null,
         payment_due_day: isCard && paymentDueDay !== '' ? Number(paymentDueDay) : null,
         payment_account_id: validPaymentAccount,
+        cash_account_id: validCashAccount,
         // Bật tự trả lần đầu → neo con trỏ từ hôm nay (không sinh bù quá khứ); đã bật thì giữ nguyên
         card_autopay_through: validPaymentAccount
           ? (account?.card_autopay_through ?? toISODate(new Date()))
@@ -511,6 +530,30 @@ function AccountForm({ account, onClose }: FormProps) {
                 'Vào ngày đến hạn, app tự tạo chuyển khoản từ tài khoản này sang thẻ, đúng bằng dư nợ chốt sao kê.'
               )}
             </p>
+          </>
+        )}
+
+        {isInvestment && currency === 'VND' && (
+          <>
+            <label htmlFor={`${uid}-vitien`} className="mb-1 block text-sm font-medium text-fg-muted">
+              Ví tiền <span className="text-fg-muted">(không bắt buộc)</span>
+            </label>
+            <Select
+              id={`${uid}-vitien`}
+              value={cashAccountId}
+              onChange={(e) => setCashAccountId(e.target.value)}
+              wrapClassName="mb-1 w-full">
+              <option value="">— Không nối —</option>
+              {cashWalletOptions.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </Select>
+            <Guide className="mb-3 text-sm text-fg-muted">
+              Tiền mua cổ phiếu đi ra từ tài khoản này. Mỗi lệnh bạn ghi, app tự ghi kèm một
+              lần chuyển tiền — số dư ví khỏi cao hơn tiền thật.
+            </Guide>
           </>
         )}
 

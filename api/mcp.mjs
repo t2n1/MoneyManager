@@ -52039,11 +52039,19 @@ async function handler(req, res) {
     res.status(401).json({ error: "Thi\u1EBFu ho\u1EB7c sai bearer token." });
     return;
   }
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    res.status(405).json({ error: "Ch\u1EC9 nh\u1EADn POST. Server n\xE0y kh\xF4ng m\u1EDF k\xEAnh SSE, kh\xF4ng c\xF3 phi\xEAn." });
+    return;
+  }
   try {
     const sb = taoClient(cauhinh);
     const du = await napDuLieu(sb, cauhinh.userId);
     const server = dungServer(du);
-    const transport = new NodeStreamableHTTPServerTransport({ sessionIdGenerator: void 0 });
+    const transport = new NodeStreamableHTTPServerTransport({
+      sessionIdGenerator: void 0,
+      enableJsonResponse: true
+    });
     await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
   } catch (e) {

@@ -7,6 +7,22 @@
 // Chặng 1 xác thực bằng bearer token trong header. Token đó là hàng rào DUY NHẤT (Supabase
 // đọc bằng service-role, đi vòng qua RLS) — bù lại server không có đường ghi nào, nên token
 // lộ thì thiệt hại là bị đọc, không bị sửa.
+//
+// GIỚI HẠN TÀI NGUYÊN nằm ở `functions` trong vercel.json (file đó là JSON thuần, không đặt
+// được ghi chú, nên lý do ghi ở đây):
+//
+//   maxDuration: 30   — cái chặn cứng, và là núm DUY NHẤT có. Hobby mặc định 300 giây, cũng
+//                       là trần. Vercel tính tiền RAM × thời gian function còn chạy, mà thời
+//                       gian đó "includes sending the response, including streamed responses"
+//                       — nên một stream bị giữ mở ăn trọn 300s × 2 GB = 0,167 GB-giờ MỘT
+//                       LẦN. Đó là cách hạn mức free bốc hơi hồi 8/2026: ~2.290 lần như thế
+//                       = 382 GB-giờ. Truy vấn thật mất 2–5 giây, nên 30 là dư 6 lần; có ngày
+//                       timeout thật thì xem lại đây, đừng vội nới.
+//
+// ĐỪNG thêm `memory` vào đó. Vercel từ chối: "Memory cannot be set in vercel.json with Fluid
+// compute enabled", và gói Hobby khoá cứng 2 GB / 1 vCPU — không đổi được cả ở dashboard. Đo
+// thật thì function chỉ dùng ~310 MB, tức 85% tiền RAM là trả cho không khí, nhưng đó là thứ
+// KHÔNG sửa được ở tầng này; cách duy nhất giảm là bớt thời gian sống, không phải bớt RAM.
 import { McpServer } from '@modelcontextprotocol/server'
 import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
@@ -161,6 +177,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
+  // CHỈ NHẬN POST — và chốt ở đây, TRƯỚC napDuLieu. Đây là chỗ đã đốt hết hạn mức Vercel:
+  //
+  // Client MCP mở một `GET` với `Accept: text/event-stream` để nghe thông báo do server tự
+  // đẩy. Ở chế độ không phiên, transport vẫn nhận GET đó (validateSession thoát ngay khi
+  // sessionIdGenerator === undefined), mở stream, rồi bơm keep-alive mỗi 15 giây MÃI MÃI —
+  // không có đường tự đóng. Vercel tính tiền theo RAM × thời gian function còn sống, nên một
+  // kênh ngồi không vẫn đốt y như đang chạy: 382 GB-giờ bộ nhớ trong khi CPU chỉ dùng 1,5%
+  // thời gian đó. Client bị Vercel cắt ở maxDuration rồi nối lại, lặp vô hạn.
+  //
+  // Server này có 5 tool CHỈ ĐỌC và không đẩy thông báo nào, nên kênh đó không chở gì cả.
+  // Spec MCP cho phép đúng câu trả lời này: server không mở SSE ở endpoint thì trả 405.
+  //
+  // Nằm trước napDuLieu cũng là chủ ý: trước đây mỗi lần client nối lại kênh, hàm vẫn phân
+  // trang kéo ~14.000 giao dịch + 7 bảng từ Supabase về để rồi mở một stream trống.
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST')
+    res.status(405).json({ error: 'Chỉ nhận POST. Server này không mở kênh SSE, không có phiên.' })
+    return
+  }
+
   try {
     const sb = taoClient(cauhinh)
     // Nạp dữ liệu MỘT LẦN mỗi request rồi truyền vào mọi tool: tool là hàm thuần, không tự
@@ -169,7 +205,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const server = dungServer(du)
     // sessionIdGenerator: undefined = chế độ không phiên. Đúng cho serverless: mỗi request là
     // một tiến trình mới, không có chỗ giữ phiên giữa hai lần gọi.
-    const transport = new NodeStreamableHTTPServerTransport({ sessionIdGenerator: undefined })
+    //
+    // enableJsonResponse: true = trả JSON thẳng thay vì mở SSE stream cho POST. Mặc định của
+    // thư viện là SSE (kèm keep-alive 15 giây), thứ chỉ có nghĩa khi server còn muốn nói thêm
+    // sau khi đã trả lời — mà ở đây thì không bao giờ. Một request, một câu trả lời, đóng.
+    const transport = new NodeStreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    })
     await server.connect(transport)
     await transport.handleRequest(req, res, req.body)
   } catch (e) {

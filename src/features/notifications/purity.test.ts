@@ -51,6 +51,10 @@ const ENTRY_POINTS = [
   'mcp/tools/thoiQuenGhiChep.ts',
   'mcp/tools/lichSuTyGia.ts',
   'mcp/tools/moc.ts',
+  // Task 4: hàm gom tinhQuyenLoi chạy ở HAI nơi — hook trình duyệt và loadInput.ts của
+  // edge function push (qua serverBundle, Task 11). Canh từ bây giờ để walk() phủ toàn bộ
+  // đồ thị import của nó (fuyo/refund/furusato/shelterYearEnd) suốt các task còn lại.
+  'features/quyen-loi/quyenLoi.ts',
 ]
 
 /**

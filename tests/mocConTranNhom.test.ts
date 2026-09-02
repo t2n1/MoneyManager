@@ -9,6 +9,12 @@
 // trong một khối, cùng chỗ đứng, khác nghĩa. Người dùng đọc số của dòng con là mốc
 // mình đặt và kết luận app tự bịa số.
 //
+// 2026-09-02 — danh sách đổi sang MỘT DÒNG MỘT CON SỐ: cả cha lẫn con đi qua cùng một ô
+// `RestCell` ("còn / vượt ¥…"), nên "một ngữ pháp cho cả hai" giờ được bảo đảm bằng cấu
+// trúc chứ không bằng hai chuỗi giống nhau. "Đã chi / trần" lùi vào lúc bấm mở thanh
+// trượt — vẫn in ở CẢ cha lẫn con, cùng dấu ` / `. Ba vế dưới vì thế đổi cách đo, không
+// đổi điều canh: con vẫn phải in TRẦN của chính nó, không được để người ta tự cộng ra.
+//
 // Đọc CHUỖI NGUỒN chứ không render: repo không có @testing-library. Cùng lối
 // budgetLayout.test.ts / overlayLayers.test.ts.
 import { readFileSync } from 'node:fs'
@@ -37,11 +43,17 @@ function sheetSrc(src: string, file: string): string {
 
 describe('dòng mục con trong khối hạn mức', () => {
   it('in TRẦN của mục con, không để người ta tự cộng ra', () => {
-    expect(childRowSrc()).toContain('formatMoney(m.budgeted, base)')
+    // Hai chỗ: ô "còn" nhận `budgeted={m.budgeted}`, và cụm "đã chi / trần" lúc mở thanh.
+    expect(childRowSrc()).toContain('budgeted={m.budgeted}')
+    expect(childRowSrc()).toContain('amount={m.budgeted}')
   })
 
-  it('dùng cùng ngữ pháp "đã chi / trần" như dòng cha', () => {
+  it('dùng cùng ô "còn / vượt" như dòng cha, và cùng cụm "đã chi / trần" lúc mở', () => {
+    expect(childRowSrc()).toContain('<RestCell')
     expect(childRowSrc()).toContain("{' / '}")
+    // Dòng cha cũng phải đi qua đúng ô đó — hai ô khác nhau là hai ngữ pháp trở lại.
+    const top = view.slice(view.indexOf('const topRow = (item: BudgetDisplayItem)'))
+    expect(top).toContain('<RestCell')
   })
 
   it('không quay lại lối "đã chi · còn" — đó là ngữ pháp gây ra ca 2.400', () => {

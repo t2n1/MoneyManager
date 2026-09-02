@@ -46,6 +46,13 @@ export interface LimitSliderProps {
   /** mốc của trục dưới dạng tỷ lệ (0..1) */
   axisTargetShare: number | null
   axisOk: boolean
+  /**
+   * Câu ở góc trái khi KHÔNG có vạch gợi ý và KHÔNG thuộc trục nào. Mặt theo dõi mở
+   * thanh này với `axisLabel = null` (trục ở đó đo chi THẬT, kéo trần không làm nó nhúc
+   * nhích, nên in ra là in một con số đứng im), và câu mặc định "chưa gắn nhóm nên không
+   * vào trần nào" lúc đó sai — danh mục có gắn nhóm, chỉ là mặt này không nói về trục.
+   */
+  emptyHint?: string
   /** kéo: chỉ đổi số đang hiện, chưa ghi */
   onDrag: (v: number) => void
   /** nhả tay: ghi xuống máy chủ */
@@ -64,6 +71,7 @@ export function LimitSlider({
   axisShareNow,
   axisTargetShare,
   axisOk,
+  emptyHint,
   onDrag,
   onCommit,
   onDetail,
@@ -118,7 +126,9 @@ export function LimitSlider({
           </button>
         ) : (
           <span className="text-fg-muted">
-            {axisLabel ? `${axisLabel} đang trong trần` : 'chưa gắn nhóm nên không vào trần nào'}
+            {axisLabel
+              ? `${axisLabel} đang trong trần`
+              : (emptyHint ?? 'chưa gắn nhóm nên không vào trần nào')}
           </span>
         )}
         <span className="shrink-0 text-fg-muted">

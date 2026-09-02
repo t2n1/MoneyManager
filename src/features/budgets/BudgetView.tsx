@@ -1,31 +1,46 @@
 import { useState } from 'react'
 import { Guide } from '../../components/Guide'
 import { useDensity } from '../../hooks/useDensity'
-import { ChevronDown, ChevronRight, TriangleAlert } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, TriangleAlert } from 'lucide-react'
 import {
   useBudgetReport,
   useBudgets,
   useCategories,
   useCopyBudgetsFromPreviousMonth,
   useRates,
+  useUpsertBudget,
 } from '../../hooks/queries'
 import { dayMonthLabel, daysBetween, monthKeyString, toISODate, type MonthKey } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import { showToast } from '../../lib/dialog'
 import { Card } from '../../components/ui/Card'
-import { ActionButton, EmptyState, Money, SectionTitle } from '../../components/ui'
+import { EmptyState, Money, SectionTitle, SegmentedControl } from '../../components/ui'
 import { BudgetEditSheet } from './BudgetEditSheet'
-import { buildBudgetDisplay, type BudgetChildRow } from './budgetDisplay'
+import {
+  buildBudgetDisplay,
+  type BudgetChildRow,
+  type BudgetDisplayItem,
+  type BudgetGroupItem,
+} from './budgetDisplay'
 import { budgetHint } from './budgetHint'
-import { capMismatchNotice } from './capOverflow'
+import { applyDraftLimit, childState, splitQuiet } from './budgetRows'
+import { capMismatchNotice, nameList } from './capOverflow'
+import { sliderScale } from './axisSuggest'
+import { LimitSlider, type LimitSliderProps } from './LimitSlider'
 import { SplitGroupSheet } from './SplitGroupSheet'
 import { useSyncedBudget } from './useSyncedBudget'
-import { pickAttention, sortBudgetItems, type BudgetSortMode } from './budgetSort'
+import {
+  budgetedOf,
+  pickAttention,
+  ratioOf,
+  sortBudgetItems,
+  spentOf,
+  type BudgetSortMode,
+} from './budgetSort'
 import { classifyCommitments, coverageGaps, spendableRemaining } from './commitments'
 import { dailyAllowance } from './dailyAllowance'
 import { useCommitments } from './useCommitments'
 import { SUGGEST_MONTHS, useSuggestions } from './useSuggestions'
-import { ClassificationToggle } from '../categories/ClassificationToggle'
 import type { BudgetStatus } from './progress'
 import {
   BudgetVerdictLine,
@@ -80,6 +95,7 @@ const BAR_COLOR: Record<BudgetStatus, string> = {
   warn: STATUS_FILL.warn,
   over: STATUS_FILL.bad,
 }
+/** Màu chữ theo trạng thái — chỉ còn thẻ tổng dùng; dòng hạn mức đi qua tone của <Money>. */
 const TEXT_COLOR: Record<BudgetStatus, string> = {
   ok: 'text-fg-primary',
   warn: 'text-fg-warn',
@@ -91,17 +107,59 @@ const TEXT_COLOR: Record<BudgetStatus, string> = {
 const restOf = (budgeted: number, spent: number) => Math.round(budgeted - spent)
 
 /**
- * Câu "còn / vượt bao nhiêu" của một mốc — MỘT chỗ quyết định, vì cả dòng cha lẫn dòng
- * con đều nói nó và hai bản chép tay sẽ lệch nhau sau vài lượt sửa.
+ * Ô "còn / vượt bao nhiêu" — CON SỐ DUY NHẤT của một dòng, và là MỘT chỗ quyết định vì
+ * cả dòng cha lẫn dòng con đều nói nó; hai bản chép tay sẽ lệch nhau sau vài lượt sửa.
+ *
+ * Vì sao dòng chỉ còn một con số (bản trước có ba: "còn ¥20,240", "85%", "¥112,760 /
+ * ¥133,000"): ba số ấy là một thông tin viết ba kiểu, mắt phải đọc cả ba mới yên tâm là
+ * chúng khớp nhau. Câu hỏi duy nhất của mặt theo dõi giữa tháng là "còn tiêu được bao
+ * nhiêu" — thanh mảnh bên cạnh đã nói phần trăm, còn "đã chi / trần" lùi vào lúc bấm mở.
  *
  * Ca ĐÚNG BẰNG TRẦN (rest = 0) không đi qua "còn"/"vượt": chi đúng bằng hạn mức thì
  * "vượt ¥0" là một câu tự phủ định (vượt bao nhiêu? không đồng nào), còn "còn ¥0" thì
  * đọc như vẫn tiêu được. Cả hai đều sai ở đúng cái điểm người dùng cần biết mình đang
  * đứng ở đâu — nên nó có câu riêng: "vừa hết hạn mức".
+ *
+ * `onSunken`: dòng con nằm trên nền lún, ở đó `fg-muted` trượt AA — chữ phụ đổi sang
+ * `fg-on-track` (cùng lý do với ghi chú ở `childRow`).
  */
-function restLabel(rest: number, fmt: (v: number) => string): string {
-  if (rest === 0) return 'vừa hết hạn mức'
-  return `${rest < 0 ? 'vượt ' : 'còn '}${fmt(Math.abs(rest))}`
+function RestCell({
+  budgeted,
+  spent,
+  status,
+  base,
+  onSunken = false,
+}: {
+  budgeted: number
+  spent: number
+  status: BudgetStatus
+  base: Parameters<typeof Money>[0]['currency']
+  onSunken?: boolean
+}) {
+  const label = `text-2xs ${onSunken ? 'text-fg-on-track' : 'text-fg-muted'}`
+  // `min-w` chứ không `w`: cột thẳng hàng ở bề rộng tối thiểu, số dài hơn (hay cỡ chữ
+  // 1,25×) thì ô nở ra thay vì tràn lên thanh bên cạnh. Đo ở 375px: `w-28` cứng làm tên
+  // danh mục chỉ còn 7 chữ ("Ăn uốn…").
+  const box = 'min-w-24 shrink-0 whitespace-nowrap text-right text-sm'
+  if (budgeted <= 0) {
+    // Nhóm tổng-con mà con chưa đặt gì, hoặc trần ¥0: không có "còn" để nói. Hiện số đã
+    // chi để dòng không trống, và gọi thẳng tên tình trạng.
+    return (
+      <span className={box}>
+        <Money amount={spent} currency={base} className={onSunken ? '!text-fg-on-track' : '!text-fg-muted'} />
+        <span className={`ml-1 ${label}`}>chưa trần</span>
+      </span>
+    )
+  }
+  const rest = restOf(budgeted, spent)
+  if (rest === 0) return <span className={`${box} text-2xs text-fg-warn`}>vừa hết hạn mức</span>
+  const tone = rest < 0 ? 'out' : status === 'warn' ? 'warn' : 'neutral'
+  return (
+    <span className={box}>
+      <span className={label}>{rest < 0 ? 'vượt ' : 'còn '}</span>
+      <Money amount={Math.abs(rest)} currency={base} tone={tone} />
+    </span>
+  )
 }
 
 /**
@@ -217,6 +275,28 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   // Các nhóm cha đang xổ (mở accordion). Mặc định thu gọn.
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [sortMode, setSortMode] = useState<BudgetSortMode>(readSortMode)
+  /** Dòng "N mục chưa chi gì tháng này" đang xổ ra hay không. Mặc định gấp. */
+  const [quietOpen, setQuietOpen] = useState(false)
+  /**
+   * Thanh trượt đang mở dưới MỘT dòng — cùng khuôn với mặt lập kế hoạch (xem `LimitSlider`
+   * và chú thích `slider` ở `PlanningView`): thang `max`/`step` chụp lúc mở và đứng yên
+   * suốt lúc kéo; `committed` là số đã ghi gần nhất để nhả tay không đổi gì thì không ghi,
+   * và ghi lỗi thì biết bật về đâu.
+   *
+   * `suggest` ở mặt này là TRUNG BÌNH 6 THÁNG (cùng con số chip "Chưa đặt hạn mức" và ô gợi
+   * ý trong sheet), không phải phần chia theo trục như mặt lập kế hoạch: trục bên này đo
+   * chi thật, kéo trần không làm nó nhúc nhích, nên không có "vạch để đạt" nào theo trục.
+   */
+  const [slider, setSlider] = useState<{
+    id: string
+    committed: number
+    suggest: number | null
+    max: number
+    step: number
+  } | null>(null)
+  /** Số đang kéo, chưa ghi — báo cáo NHÌN THẤY được vá bằng số này (`applyDraftLimit`). */
+  const [draft, setDraft] = useState<{ categoryId: string; amount: number } | null>(null)
+  const upsert = useUpsertBudget()
 
   function changeSort(m: BudgetSortMode) {
     setSortMode(m)
@@ -301,7 +381,13 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   const expenseCats = categories
     .filter((c) => c.type === 'expense' && !c.is_archived)
     .sort((a, b) => a.sort_order - b.sort_order)
-  const { items, unbudgeted } = buildBudgetDisplay(expenseCats, report)
+  // Danh sách dựng từ báo cáo ĐÃ VÁ số đang kéo: kéo Điện lên ¥5.000 thì "còn" của Điện,
+  // trần nhóm Nhà ở và "còn" của nhóm đổi ngay trong tay, đúng bằng số sẽ có sau khi nhả.
+  // Thẻ tổng phía trên vẫn đọc `report` gốc — xem chú thích `applyDraftLimit`.
+  const shownReport = draft
+    ? applyDraftLimit(report, categories, draft.categoryId, draft.amount)
+    : report
+  const { items, unbudgeted } = buildBudgetDisplay(expenseCats, shownReport)
 
   // Phần tháng đã trôi qua (0…1) — mốc để biết tiêu thế là nhanh hay chậm.
   // Tháng đã qua thì paceDaysElapsed = cả tháng → bằng 1, nhịp rơi về đúng % đã dùng.
@@ -315,6 +401,10 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   // B38.2 · Con số ở tiêu đề nhảy tới dòng ĐẦU TIÊN trong `attention`. Đếm mà không đi tới
   // được thì con số chỉ là một lời phàn nàn.
   const firstAttentionId = attention[0]?.item.cat.id ?? null
+  // Mục chưa chi một đồng nào gấp vào một dòng cuối danh sách. Ngày 2/30 có 10/13 mục như
+  // thế — để nguyên thì ba mục có chuyện để xem bị chôn giữa mười mục không có gì. Gấp SAU
+  // khi sắp, để lúc xổ ra chúng vẫn theo đúng kiểu sắp đang chọn.
+  const { shown, quiet, quietBudgeted } = splitQuiet(sortedItems, new Set(attentionTone.keys()))
 
   // B37 · Cam kết chưa ra, chia theo chỗ đứng so với HÔM NAY.
   const todayISO = toISODate(new Date())
@@ -341,113 +431,283 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     : []
   const lineOfCat = new Map(report.lines.map((l) => [l.categoryId, l]))
 
-  // Thân của một dòng cha / lá độc lập: tên + % ở dòng trên, thanh + "đã chi / trần"
-  // ở dòng dưới. Hai dòng chứ không phải ba — nhóm xổ ra 8 con thì ba dòng mỗi mục
-  // thành bức tường, không đọc được cái nào so với cái nào.
-  const meterBody = (m: {
-    label: string
-    meta?: string
-    spent: number
-    budgeted: number
-    carried?: number
-    ratio: number
-    status: BudgetStatus
-  }) => {
-    const rest = restOf(m.budgeted, m.spent)
-    return (
-    <>
-      <div className="flex items-baseline justify-between gap-2 text-sm">
-        <span className="min-w-0 truncate font-medium text-fg-primary">
-          {m.label}
-          {m.meta && <span className="ml-1 text-2xs font-normal text-fg-muted">{m.meta}</span>}
-        </span>
-        <span className="flex shrink-0 items-baseline gap-2">
-          {/* "Còn bao nhiêu" ở chỗ thoáng nhất của dòng: khoảng trống giữa tên và %.
-              Không thêm dòng thứ ba — nhóm xổ ra 8 con thì ba dòng mỗi mục thành
-              bức tường (xem chú thích ngay trên). */}
-          {m.budgeted > 0 && (
-            <span className={`text-2xs ${rest < 0 ? 'text-money-out' : 'text-fg-muted'}`}>
-              {restLabel(rest, (v) => formatMoney(v, base))}
-            </span>
-          )}
-          {/* % nằm trong ô cố định, canh phải — cột thẳng nhờ bề rộng ô, nên không
-              cần tabular-nums viết tay (guardrail đếm idiom đó, dùng <Money> thay).
-              <Money> lại không diễn được màu theo trạng thái ngân sách: nó không có
-              tone 'warn' cũng không có tone chữ mờ. */}
-          <span className={`w-10 text-right text-sm font-medium ${TEXT_COLOR[m.status]}`}>
-            {Math.round(m.ratio * 100)}%
-          </span>
-        </span>
-      </div>
-      <div className="mt-1 flex items-center gap-2">
-        <ProgressBar ratio={m.ratio} status={m.status} className="min-w-0 flex-1" />
-        <span className="shrink-0 text-2xs text-fg-muted">
-          <span className={TEXT_COLOR[m.status]}>{formatMoney(m.spent, base)}</span>
-          {' / '}
-          {formatMoney(m.budgeted, base)}
-          {m.carried && m.carried > 0 ? (
-            <span className="ml-1 text-money-in">(dồn +{formatMoney(m.carried, base)})</span>
-          ) : null}
-        </span>
-      </div>
-    </>
-    )
+  const money = (v: number) => formatMoney(v, base)
+  /** Hạn mức ĐẶT TAY đang lưu (chưa cộng dồn) — số mà thanh trượt kéo và ghi. */
+  const limitOf = (id: string) => budgets.find((b) => b.category_id === id)?.amount ?? 0
+  const hasLimit = (id: string) => budgets.some((b) => b.category_id === id)
+  /** Số đang hiện trên thanh: số kéo nếu đang kéo dòng này, không thì số đã lưu. */
+  const draftValue = (id: string) => (draft?.categoryId === id ? draft.amount : limitOf(id))
+
+  /**
+   * Bấm dòng = xổ thanh trượt dưới dòng đó (bấm lại thì đóng), MỘT thanh một lúc. Không
+   * phải mọi dòng đều có thanh sẵn: ngón tay kéo ngang trong danh sách cuộn dọc thì cứ
+   * hai lần lại thành cuộn trang, và một cái vuốt vô ý là đổi hạn mức mà không biết.
+   *
+   * Đóng là bỏ `draft`: từ đó cả danh sách đọc lại số đã lưu, không giữ một số treo.
+   */
+  function toggleSlider(categoryId: string) {
+    if (slider?.id === categoryId) {
+      setSlider(null)
+      setDraft(null)
+      return
+    }
+    const amount = limitOf(categoryId)
+    const sug = suggestions.get(categoryId)
+    const suggest = sug && sug.average > 0 ? sug.average : null
+    setSlider({
+      id: categoryId,
+      committed: amount,
+      suggest,
+      ...sliderScale(amount, suggest, sug?.max ?? 0),
+    })
+    setDraft({ categoryId, amount })
   }
 
-  // Một dòng con bên trong nhóm (khi xổ ra): GỌN MỘT DÒNG, không có thanh riêng.
+  /** Nhả tay = ghi. Không đổi gì thì không ghi — chạm vào núm cũng sinh một lượt nhả tay. */
+  async function commitLimit(categoryId: string, amount: number) {
+    if (!slider || slider.id !== categoryId || amount === slider.committed) return
+    try {
+      await upsert.mutateAsync({ categoryId, monthKey: monthKeyStr, amount })
+      // Mốc con vừa ghi → trần cha cộng lại, im lặng (chiều thứ hai của luật "cha = tổng
+      // con", xem `useSyncedBudget`). Trần NHÓM vừa ghi thì KHÔNG gọi: hook đó mở màn chia
+      // cho danh mục có con, mà bật một tấm trượt sau mỗi lần nhả tay là cắt ngang chính
+      // việc đang làm. Phần chưa chia hiện thành dòng "chia ¥… →" ngay trong nhóm — đó là
+      // lối vào, người dùng đi khi muốn.
+      if (catOf(categoryId)?.parent_id) await syncAfterWrite([{ categoryId, amount }])
+      setSlider((s) => (s && s.id === categoryId ? { ...s, committed: amount } : s))
+    } catch {
+      // Toast lỗi toàn cục đã nói. Việc ở đây là bật số về chỗ cũ, không để màn hình
+      // hiện một hạn mức mà máy chủ không có.
+      setDraft({ categoryId, amount: slider.committed })
+    }
+  }
+
+  const sliderPropsFor = (categoryId: string): LimitSliderProps => ({
+    base,
+    value: draftValue(categoryId),
+    suggest: slider?.suggest ?? null,
+    max: slider?.max ?? 0,
+    step: slider?.step ?? 1,
+    // Không nói về trục ở mặt này — xem chú thích `slider` ở trên.
+    axisLabel: null,
+    axisShareBefore: null,
+    axisShareNow: null,
+    axisTargetShare: null,
+    axisOk: true,
+    emptyHint: `chưa có lịch sử ${SUGGEST_MONTHS} tháng để gợi ý`,
+    onDrag: (v) => setDraft({ categoryId, amount: v }),
+    onCommit: (v) => void commitLimit(categoryId, v),
+    onDetail: () => openEdit(categoryId),
+  })
+
+  /** Bấm tên: có hạn mức thì xổ thanh; chưa có (nhóm tổng-con) thì mở sheet như trước —
+   *  kéo một thanh trên nhóm chưa có trần là lặng lẽ đổi nhóm sang kiểu trần-nhóm (xem
+   *  `parentsToResync`), việc đó phải đi qua một màn có chữ. */
+  const openLimit = (id: string) => (hasLimit(id) ? toggleSlider(id) : openEdit(id))
+
+  const chevron = (open: boolean) =>
+    open ? <ChevronDown className="h-4 w-4" aria-hidden /> : <ChevronRight className="h-4 w-4" aria-hidden />
+
+  // Một dòng con bên trong nhóm (khi xổ ra): MỘT DÒNG, không có thanh riêng.
   // Con không được to hơn cha — trước đây con còn thò rộng hơn cha 12px nên nhìn
-  // vào không biết nhóm bắt đầu từ đâu. Cột % bên phải cố định bề rộng để 8 con
+  // vào không biết nhóm bắt đầu từ đâu. Cột "còn" bên phải cố định bề rộng để 8 con
   // xếp thành một cột thẳng, quét mắt là thấy mục nào căng.
   // Chữ mờ ở đây dùng fg-on-track: khối con nằm trên nền lún, fg-muted trượt AA.
   const childRow = (child: BudgetChildRow) => {
+    const id = child.cat.id
     const m = child.marker
+    const state = childState(child)
+    const sliderOpen = slider?.id === id
     return (
-      <li key={child.cat.id}>
+      <li key={id}>
         <button
           type="button"
-          onClick={() => openEdit(child.cat.id)}
-          className="flex min-h-9 w-full items-center justify-between gap-2 text-left text-sm"
+          onClick={() => (m ? toggleSlider(id) : openEdit(id))}
+          aria-expanded={m ? sliderOpen : undefined}
+          className="flex min-h-11 w-full items-center gap-2 text-left text-sm"
         >
-          <span className="min-w-0 truncate text-fg-secondary">
+          <span className="min-w-0 flex-1 truncate text-fg-secondary">
             {child.cat.icon} {child.cat.name}
           </span>
-          <span className="flex shrink-0 items-center gap-2 text-2xs">
-            {m ? (
-              <>
-                {/* CÙNG ngữ pháp với dòng cha: "đã chi / trần". Bản cũ in "đã chi · còn"
-                    với lý lẽ là trần vẫn suy ra được (đã chi + còn) — nhưng đo trên ca
-                    thật tháng 8/2026 thì lý lẽ đó sai: nhóm trần ¥1.800, Cắt tóc mốc
-                    ¥2.400 đã chi ¥1.800, ra ba số 1.800 trên màn mang hai nghĩa khác
-                    nhau, còn 2.400 thì chỉ hiện trong câu cảnh báo. Người dùng đọc số
-                    của dòng con là mốc mình đặt và kết luận app tự bịa số.
-                    Hai cụm chứ không ba, nên không hẹp hơn bản cũ: "¥1,800 / ¥2,400"
-                    ngắn hơn "¥1,800 · còn ¥600". */}
-                <span className="text-fg-on-track">
-                  <span className={TEXT_COLOR[m.status]}>{formatMoney(m.spent, base)}</span>
+          {state === 'paid' && m ? (
+            <>
+              {/* Khoản cố định đã trả xong: không còn gì để phanh, nên không nói "còn"
+                  cũng không nói "vừa hết" — chỉ xác nhận là xong (`childState`). */}
+              <span className="text-2xs text-fg-on-track">
+                <Money amount={m.spent} currency={base} className="!text-2xs !text-fg-on-track" /> · đã trả
+              </span>
+              <Check className="h-4 w-4 shrink-0 text-money-in" aria-label="đã trả xong" />
+            </>
+          ) : m ? (
+            <>
+              {m.carried > 0 && (
+                <span className="text-2xs text-money-in">
+                  dồn +<Money amount={m.carried} currency={base} tone="in" className="!text-2xs" />
+                </span>
+              )}
+              {/* "đã chi / trần" lúc mở: ở điện thoại ẩn đi — hàng 375px không chứa nổi
+                  tên + hai cụm số, tên bị cắt còn một chữ. Con số này vẫn còn ở "Sửa chi
+                  tiết"; trên desktop thì hiện ngay tại dòng. */}
+              {sliderOpen && (
+                <span className="hidden text-2xs text-fg-on-track sm:inline">
+                  <Money amount={m.spent} currency={base} className="!text-2xs !text-fg-on-track" />
                   {' / '}
-                  {formatMoney(m.budgeted, base)}
-                  {m.carried > 0 ? (
-                    <span className="ml-1 text-money-in">(dồn +{formatMoney(m.carried, base)})</span>
-                  ) : null}
+                  <Money amount={m.budgeted} currency={base} className="!text-2xs !text-fg-on-track" />
                 </span>
-                <span className={`w-10 text-right text-sm font-medium ${TEXT_COLOR[m.status]}`}>
-                  {Math.round(m.ratio * 100)}%
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="text-fg-on-track">{formatMoney(child.spent, base)}</span>
-                {/* fg-accent (green-700) trên nền lún chỉ 4,49:1 — thiếu 0,01 so với
-                    AA, đúng cái bẫy đã ghi trong docs/design-system.md. Cả dòng là
-                    nút rồi nên không cần màu để báo "bấm được". */}
-                <span className="w-10 text-right text-fg-on-track">mốc +</span>
-              </>
-            )}
-          </span>
+              )}
+              <RestCell budgeted={m.budgeted} spent={m.spent} status={m.status} base={base} onSunken />
+            </>
+          ) : (
+            <>
+              {/* Con chưa đặt mốc nhưng ĐÃ có chi — vẫn đứng dòng riêng để số chi không
+                  mất; con chưa đặt mốc và chưa chi thì gộp vào dòng "chia" (groupBody). */}
+              <Money amount={child.spent} currency={base} className="!text-2xs !text-fg-on-track" />
+              <span className="w-10 shrink-0 text-right text-2xs text-fg-on-track">mốc +</span>
+            </>
+          )}
         </button>
+        {sliderOpen && m && <LimitSlider {...sliderPropsFor(id)} />}
       </li>
     )
   }
+
+  /**
+   * Khối con của một nhóm đang xổ: thụt vào PHẢI của tên cha + nền lún, để thấy rõ nhóm
+   * bắt đầu và kết thúc ở đâu. Vạch chia trong khối phải là border-strong, không phải
+   * border-subtle như danh sách ngoài: subtle = gray-100, đúng bằng màu nền lún ở light mode.
+   *
+   * Con CHƯA đặt mốc và CHƯA chi gộp thành MỘT dòng tên, bên phải là "chia ¥… →" (mở màn
+   * chia) khi trần nhóm còn phần chưa chia. Bản trước là một đoạn văn + nút "Chia cho 7 mục
+   * con" đứng sẵn trong danh sách: việc dựng ngân sách chen vào việc theo dõi, chiếm chỗ
+   * mỗi ngày cho một việc làm một lần trong tháng. Chỉ nhóm TRẦN-NHÓM mới gộp: nhóm tổng-con
+   * không có trần để chia, con của nó vẫn đứng riêng với "mốc +" mở sheet như cũ.
+   */
+  const groupBody = (item: BudgetGroupItem) => {
+    const mismatch = capMismatchNotice(
+      {
+        capped: item.capped,
+        cap: item.budgeted,
+        markerTotal: item.markerTotal,
+        named: item.children
+          .filter((k) => k.marker !== null)
+          .map((k) => ({ name: k.cat.name, marker: k.marker!.budgeted })),
+        childCount: item.children.length,
+      },
+      money,
+    )
+    const idle = item.capped
+      ? item.children.filter((k) => childState(k) === 'unset' && k.spent === 0)
+      : []
+    const idleIds = new Set(idle.map((k) => k.cat.id))
+    const rows = item.children.filter((k) => !idleIds.has(k.cat.id))
+    const unsplit = mismatch?.kind === 'under' ? mismatch.cap - item.markerTotal : 0
+    return (
+      <div className="ml-10 mb-2 mt-1 rounded-lg bg-surface-sunken px-3">
+        {/* Con cộng lại VƯỢT trần cha: câu do capOverflow.ts dựng, nó GỌI TÊN mục con
+            mang số đó, vì nhóm có nhiều con thì một con số trơ trọi không chỉ được đứa nào. */}
+        {mismatch?.kind === 'over' && <p className="py-2 text-2xs text-fg-warn">{mismatch.text}</p>}
+        <ul className="divide-y divide-border-strong">
+          {rows.map(childRow)}
+          {(idle.length > 0 || unsplit > 0) && (
+            <li>
+              <button
+                type="button"
+                onClick={() => openSplit(item.cat.id)}
+                className="flex min-h-11 w-full items-center justify-between gap-2 text-left text-sm"
+              >
+                <span className="min-w-0 truncate text-fg-on-track">
+                  {idle.length > 0 ? nameList(idle.map((k) => k.cat.name)) : 'Chia lại cho các mục con'}
+                </span>
+                <span className="shrink-0 text-2xs font-medium text-fg-on-track">
+                  {unsplit > 0 ? (
+                    <>
+                      chia <Money amount={unsplit} currency={base} className="!text-2xs !text-fg-on-track" /> →
+                    </>
+                  ) : (
+                    'mốc +'
+                  )}
+                </span>
+              </button>
+            </li>
+          )}
+        </ul>
+      </div>
+    )
+  }
+
+  /**
+   * Một dòng cấp cao nhất (nhóm hoặc lá): [chevron] tên + meta | thanh mảnh | "còn ¥…".
+   * Hai dòng thành MỘT so với bản trước — nhóm xổ ra 8 con thì hai dòng mỗi mục đã là bức
+   * tường. Bấm tên xổ thanh trượt; lúc đó meta đổi thành "đã chi / trần" để con số chi
+   * tiết không mất hẳn, chỉ lùi vào lúc cần.
+   */
+  const topRow = (item: BudgetDisplayItem) => {
+    const id = item.cat.id
+    // B38.1 · Vạch trái 2px cho dòng cần để ý, ở MỌI chế độ sắp xếp. Viền luôn có mặt
+    // (trong suốt khi không cần) để dòng không nhích ngang giữa hai trạng thái — nhích thì
+    // cả cột số lệch đi 10px mỗi lần một mục vượt trần.
+    const mark = markClass(attentionTone.get(id))
+    const anchor = id === firstAttentionId ? `hanmuc-${id}` : undefined
+    const sliderOpen = slider?.id === id
+    const isOpen = item.kind === 'group' && expanded.has(id)
+    const budgeted = budgetedOf(item)
+    const spent = spentOf(item)
+    const status = item.kind === 'leaf' ? item.line.status : item.status
+    const meta =
+      item.kind === 'group' ? (item.capped ? 'trần nhóm' : `${item.children.length} mục con`) : null
+    return (
+      <li key={id} id={anchor} className={mark}>
+        <div className="flex items-stretch gap-1">
+          {/* Nút xổ/thu con — kéo cao hết dòng cho dễ bấm. Rộng 36px (w-9) chứ không 24px:
+              đo được 24×40, hụt vùng chạm ở trục ngang. Lá không có nút nhưng giữ chỗ để
+              cột tên thẳng hàng với nhóm. */}
+          {item.kind === 'group' ? (
+            <button
+              type="button"
+              onClick={() => toggle(id)}
+              aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
+              aria-expanded={isOpen}
+              className="flex w-9 shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg-primary"
+            >
+              {chevron(isOpen)}
+            </button>
+          ) : (
+            <span aria-hidden className="w-9 shrink-0" />
+          )}
+          <button
+            type="button"
+            onClick={() => openLimit(id)}
+            aria-expanded={hasLimit(id) ? sliderOpen : undefined}
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left"
+          >
+            <span className="min-w-0 flex-1 text-sm font-medium text-fg-primary">
+              <span className="block truncate">
+                {item.cat.icon} {item.cat.name}
+                {/* Meta ("trần nhóm" / "3 mục con") chỉ từ sm: ở 375px nó tranh chỗ với
+                    tên, mà tên mới là thứ phải đọc được. Chevron đã nói đây là nhóm. */}
+                {meta && (
+                  <span className="ml-1 hidden text-2xs font-normal text-fg-muted sm:inline">{meta}</span>
+                )}
+              </span>
+              {/* "đã chi / trần" lúc mở thanh: dòng phụ dưới tên, không chen ngang. */}
+              {sliderOpen && (
+                <span className="block truncate text-2xs font-normal text-fg-muted">
+                  đã chi <Money amount={spent} currency={base} className="!text-2xs !text-fg-muted" />
+                  {' / '}
+                  <Money amount={budgeted} currency={base} className="!text-2xs !text-fg-muted" />
+                </span>
+              )}
+            </span>
+            <ProgressBar ratio={ratioOf(item)} status={status} className="w-12 shrink-0 sm:w-24" />
+            <RestCell budgeted={budgeted} spent={spent} status={status} base={base} />
+          </button>
+        </div>
+        {sliderOpen && <LimitSlider {...sliderPropsFor(id)} />}
+        {isOpen && item.kind === 'group' && groupBody(item)}
+      </li>
+    )
+  }
+
 
   return (
     <div className="flex flex-col gap-3">
@@ -695,25 +955,40 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
           {/* MẪU SỐ là của 11a: "3 / 5 mục có hạn mức" — trước ở tiêu đề khối "Cần để ý",
               nay gộp vào đây (B8). Riêng "3 mục cần để ý" không nói được 3 trên bao nhiêu,
               mà đó mới là thứ quyết định con số ấy đáng lo cỡ nào: 3/5 là hơn nửa ngân
-              sách đang chệch, 3/20 thì không. Danh sách dưới đã sắp "vượt trước" nên ba
-              mục ấy nằm ngay dòng đầu — không cần chỉ thêm chúng ở đâu. */}
-          <SectionTitle className="mb-1">
-            Hạn mức từng mục
-            {attention.length > 0 && (
-              <>
-                {' · '}
-                {/* B38.2 · Đếm mà không đi tới được thì con số chỉ là một lời phàn nàn.
-                    Neo trong trang chứ không sắp lại danh sách: sắp lại là lấy mất cái
-                    mặc định 'manual' đang có lý (xem chú thích ở `readSortMode`). */}
-                <a
-                  href={firstAttentionId ? `#hanmuc-${firstAttentionId}` : undefined}
-                  className="font-normal tabular-nums underline"
-                >
-                  {attention.length} / {items.length} mục cần để ý
-                </a>
-              </>
+              sách đang chệch, 3/20 thì không. */}
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <SectionTitle>
+              Hạn mức từng mục
+              {attention.length > 0 && (
+                <>
+                  {' · '}
+                  {/* B38.2 · Đếm mà không đi tới được thì con số chỉ là một lời phàn nàn.
+                      Neo trong trang chứ không sắp lại danh sách: sắp lại là lấy mất cái
+                      mặc định 'manual' đang có lý (xem chú thích ở `readSortMode`). */}
+                  <a
+                    href={firstAttentionId ? `#hanmuc-${firstAttentionId}` : undefined}
+                    className="font-normal tabular-nums underline"
+                  >
+                    {attention.length} / {items.length} mục cần để ý
+                  </a>
+                </>
+              )}
+            </SectionTitle>
+            {/* Kiểu sắp xếp: CO THEO CHỮ ở góc tiêu đề, không giãn hết hàng như bản trước —
+                nó là một lựa chọn hầu như không đổi, không đáng một hàng riêng. Chỉ hiện khi
+                có từ 2 mục trở lên: một mục thì sắp kiểu gì cũng thế. `SegmentedControl` vì
+                đây là đổi CÁCH XEM cùng một dữ liệu (docs/design-system.md, "ba họ"). */}
+            {items.length > 1 && (
+              <SegmentedControl
+                items={SORT_OPTIONS.map(([value, label]) => ({ value, label }))}
+                value={sortMode}
+                onChange={changeSort}
+                label="Sắp xếp hạn mức"
+                size="sm"
+                stretch={false}
+              />
             )}
-          </SectionTitle>
+          </div>
           {attention.length > 0 && (
             <Guide className="mb-2 text-sm text-fg-muted">
               "Cần để ý" = đã quá trần, hoặc đang tiêu nhanh hơn nhịp tháng — có vạch màu ở
@@ -721,129 +996,40 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
               còn gì để phanh.
             </Guide>
           )}
-          {/* Nút chọn kiểu sắp xếp: chỉ hiện khi có từ 2 mục trở lên — một mục thì
-              sắp kiểu gì cũng thế, bày thêm nút chỉ tổ rối. */}
           {items.length > 1 && (
-            <div className="mb-2">
-              <ClassificationToggle
-                groupLabel="Sắp xếp hạn mức"
-                options={SORT_OPTIONS}
-                value={sortMode}
-                onChange={changeSort}
-              />
-              <Guide className="mt-1 text-2xs text-fg-muted">{SORT_HINT[sortMode]}</Guide>
-            </div>
+            <Guide className="mb-2 text-2xs text-fg-muted">
+              {SORT_HINT[sortMode]} Bấm một dòng để kéo hạn mức; "Sửa chi tiết" để gõ số,
+              bật dồn hay xoá.
+            </Guide>
           )}
           <ul className="divide-y divide-border-subtle">
-            {sortedItems.map((item) => {
-              // B38.1 · Vạch trái 2px cho dòng cần để ý, ở MỌI chế độ sắp xếp. Viền luôn có
-              // mặt (trong suốt khi không cần) để dòng không nhích ngang giữa hai trạng thái
-              // — nhích thì cả cột số lệch đi 10px mỗi lần một mục vượt trần.
-              const mark = markClass(attentionTone.get(item.cat.id))
-              const anchor = item.cat.id === firstAttentionId ? `hanmuc-${item.cat.id}` : undefined
-
-              if (item.kind === 'leaf') {
-                return (
-                  <li key={item.cat.id} id={anchor} className={`py-2 first:pt-0 last:pb-0 ${mark}`}>
-                    <button
-                      type="button"
-                      onClick={() => openEdit(item.cat.id)}
-                      className="w-full text-left"
-                    >
-                      {meterBody({
-                        label: `${item.cat.icon} ${item.cat.name}`,
-                        spent: item.line.spent,
-                        budgeted: item.line.budgeted,
-                        carried: item.line.carried,
-                        ratio: item.line.ratio,
-                        status: item.line.status,
-                      })}
-                    </button>
-                  </li>
-                )
-              }
-
-              const isOpen = expanded.has(item.cat.id)
-              const mismatch = capMismatchNotice(
-                {
-                  capped: item.capped,
-                  cap: item.budgeted,
-                  markerTotal: item.markerTotal,
-                  named: item.children
-                    .filter((k) => k.marker !== null)
-                    .map((k) => ({ name: k.cat.name, marker: k.marker!.budgeted })),
-                  childCount: item.children.length,
-                },
-                (v) => formatMoney(v, base),
-              )
-              return (
-                <li key={item.cat.id} id={anchor} className={`py-2 first:pt-0 last:pb-0 ${mark}`}>
-                  <div className="flex items-stretch gap-1">
-                    {/* Nút xổ/thu con — kéo cao hết dòng cho dễ bấm. Rộng 36px (w-9) chứ
-                        không 24px: đo được 24×40, hụt vùng chạm ở trục ngang. 36 là bề
-                        rộng nút icon hẹp mà app đang dùng sẵn (min-w-9 ở các tay kéo sắp
-                        thứ tự) — theo quy ước có rồi, không đặt cỡ mới. */}
-                    <button
-                      type="button"
-                      onClick={() => toggle(item.cat.id)}
-                      aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
-                      aria-expanded={isOpen}
-                      className="flex w-9 shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg-primary"
-                    >
-                      {isOpen ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </button>
-                    {/* Vùng chính: đặt/sửa trần nhóm */}
-                    <button
-                      type="button"
-                      onClick={() => openEdit(item.cat.id)}
-                      className="min-h-11 min-w-0 flex-1 text-left"
-                    >
-                      {meterBody({
-                        label: `${item.cat.icon} ${item.cat.name}`,
-                        meta: item.capped ? 'trần nhóm' : `${item.children.length} mục con`,
-                        spent: item.spent,
-                        budgeted: item.budgeted,
-                        ratio: item.ratio,
-                        status: item.status,
-                      })}
-                    </button>
-                  </div>
-                  {/* Mốc con chỉ chia nhỏ bên trong trần cha; cộng lại vượt trần thì nhắc.
-                      Câu do capOverflow.ts dựng: nó GỌI TÊN mục con mang số đó, vì nhóm
-                      có nhiều con thì một con số trơ trọi không chỉ được đứa nào. */}
-                  {mismatch && (
-                    <div className="ml-7 mt-1 flex flex-wrap items-center gap-2">
-                      <p
-                        className={`text-sm ${mismatch.kind === 'over' ? 'text-fg-warn' : 'text-fg-muted'}`}
-                      >
-                        {mismatch.text}
-                      </p>
-                      {mismatch.childCount > 0 && (
-                        <ActionButton onClick={() => openSplit(item.cat.id)}>
-                          Chia cho {mismatch.childCount} mục con
-                        </ActionButton>
-                      )}
-                    </div>
-                  )}
-                  {/* Khối con: thụt vào PHẢI của tên cha + nền lún, để thấy rõ nhóm
-                      bắt đầu và kết thúc ở đâu. Vạch chia trong khối phải là
-                      border-strong, không phải border-subtle như danh sách ngoài:
-                      subtle = gray-100, đúng bằng màu nền lún ở light mode. */}
-                  {isOpen && (
-                    <ul className="ml-7 mt-2 divide-y divide-border-strong rounded-lg bg-surface-sunken px-3">
-                      {item.children.map(childRow)}
-                    </ul>
-                  )}
-                </li>
-              )
-            })}
+            {shown.map(topRow)}
+            {quiet.length > 0 && (
+              <li className={markClass(undefined)}>
+                <button
+                  type="button"
+                  onClick={() => setQuietOpen((o) => !o)}
+                  aria-expanded={quietOpen}
+                  className="flex min-h-11 w-full items-center gap-1 text-left"
+                >
+                  <span className="flex w-9 shrink-0 items-center justify-center text-fg-muted">
+                    {chevron(quietOpen)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">
+                    {quiet.length} mục chưa chi gì
+                  </span>
+                  <span className="w-28 shrink-0 text-right text-sm">
+                    <span className="text-2xs text-fg-muted">còn </span>
+                    <Money amount={quietBudgeted} currency={base} tone="muted" />
+                  </span>
+                </button>
+              </li>
+            )}
+            {quietOpen && quiet.map(topRow)}
           </ul>
         </Card>
       )}
+
 
       {/* Ngân sách theo nhãn — SAU danh sách danh mục vì danh mục mới là công cụ chính
           hằng tháng; nhãn là trần cắt ngang, dùng cho dịp/dự án. */}

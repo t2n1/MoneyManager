@@ -59,6 +59,7 @@ import {
 } from './bulletin'
 import { AccountsPanel } from './AccountsPanel'
 import { FirstRunPanel } from './FirstRunPanel'
+import { QuyenLoiPanel } from './QuyenLoiPanel'
 import { ReliabilityPanel } from './ReliabilityPanel'
 import { TodoPanel } from './TodoPanel'
 import { BudgetPanel } from './BudgetPanel'
@@ -78,6 +79,7 @@ export function BulletinPage() {
   const { activeMonthKey, setMonthKey } = useMonthKey()
   const { data: profile } = useProfile()
   const monthStartDay = profile?.month_start_day ?? 1
+  const todayISO = toISODate(new Date())
   const { base, rates } = useRates()
   const transferIds = useTransferCategoryIds()
   const { data: accounts = [] } = useAccounts()
@@ -368,6 +370,13 @@ export function BulletinPage() {
           cùng nhau (WCAG 2.4.3), cùng luật đã chốt ở BudgetView. */}
       <NotificationBoundary>
         <TodoPanel items={notif.actions} onDismiss={notif.dismiss} />
+      </NotificationBoundary>
+
+      {/* Khối Quyền lợi (spec 2026-09-03): tình trạng ba khoản năm nay. Đứng sau Việc cần làm
+          vì nó là TÌNH TRẠNG, còn việc đã nằm ở trên. Bọc NotificationBoundary cùng lý do:
+          query hỏng không được kéo sập trang chủ. */}
+      <NotificationBoundary>
+        <QuyenLoiPanel todayISO={todayISO} />
       </NotificationBoundary>
 
       {/* ConclusionLine, KHÔNG VerdictNote (§5.0 / R7): đây là kết luận của cả màn, và

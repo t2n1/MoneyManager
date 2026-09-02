@@ -24,6 +24,11 @@ export function GanNguoiNhanSheet({ txs, relatives, onClose }: Props) {
   const [nguoi, setNguoi] = useState(relatives[0]?.id ?? '')
   const [saving, setSaving] = useState(false)
 
+  // Giao với `txs` MỖI LẦN render: mỗi lần gán xong một dòng, invalidate ['transactions']
+  // làm cha tính lại danh sách chưa gán, `txs` co lại — nhưng `chon` (seed một lần lúc mở
+  // sheet) vẫn còn id cũ. Không giao thì nút hiện số sai và bấm lại gửi luôn id đã gán rồi.
+  const chonHienTai = useMemo(() => txs.filter((t) => chon.has(t.id)).map((t) => t.id), [txs, chon])
+
   function toggle(id: string) {
     setChon((s) => {
       const n = new Set(s)
@@ -34,14 +39,25 @@ export function GanNguoiNhanSheet({ txs, relatives, onClose }: Props) {
   }
 
   async function handleSave() {
-    if (!nguoi || chon.size === 0) return
+    if (!nguoi || chonHienTai.length === 0) return
     setSaving(true)
+    let daXong = 0
     try {
-      for (const id of chon) await update.mutateAsync({ id, patch: { remit_recipient_id: nguoi } })
-      showToast(`Đã gán ${chon.size} lần gửi`)
+      for (const id of chonHienTai) {
+        await update.mutateAsync({ id, patch: { remit_recipient_id: nguoi } })
+        daXong++
+        // Bỏ khỏi `chon` NGAY sau khi ghi xong: nếu một id sau đó lỗi, bấm lại chỉ gửi
+        // những dòng CÒN LẠI — không gửi lại những dòng đã ghi thành công.
+        setChon((s) => {
+          const n = new Set(s)
+          n.delete(id)
+          return n
+        })
+      }
+      showToast(`Đã gán ${daXong} lần gửi`)
       onClose()
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Gán thất bại, thử lại.', 'error')
+    } catch {
+      showToast(`Đã gán ${daXong} lần, lỗi ở lần còn lại — thử lại.`, 'error')
       setSaving(false)
     }
   }
@@ -79,8 +95,8 @@ export function GanNguoiNhanSheet({ txs, relatives, onClose }: Props) {
 
         <div className="mt-4 flex justify-end gap-2">
           <ActionButton variant="outline" onClick={onClose}>Đóng</ActionButton>
-          <ActionButton variant="primary" onClick={handleSave} disabled={!nguoi || chon.size === 0 || saving}>
-            Gán {chon.size} lần
+          <ActionButton variant="primary" onClick={handleSave} disabled={!nguoi || chonHienTai.length === 0 || saving}>
+            Gán {chonHienTai.length} lần
           </ActionButton>
         </div>
       </div>

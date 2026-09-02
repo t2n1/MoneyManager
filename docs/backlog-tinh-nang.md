@@ -587,3 +587,16 @@ nhiêu?" → trả lời từ dữ liệu.
   AB (undo xóa) + AK (ẩn số tiền) làm kèm vì rất nhẹ.
 
 Thứ tự và spec chi tiết sẽ quyết định khi tới từng nhóm.
+
+### Quyền lợi thuế Nhật — ĐÃ SHIP 2026-09-03
+
+Màn `/quyen-loi` + khung trên Bản tin + 4 loại thông báo (spec
+[2026-09-03-quyen-loi-thue-nhat-design.md](superpowers/specs/2026-09-03-quyen-loi-thue-nhat-design.md),
+plan [2026-09-03-quyen-loi-thue-nhat.md](superpowers/plans/2026-09-03-quyen-loi-thue-nhat.md)).
+Đã làm: ① khấu trừ người phụ thuộc ở nước ngoài (theo người, 38万, năm dương lịch),
+② đòi lại 5 năm cũ (還付申告), ③ trần ふるさと納税 + cảnh báo ワンストップ, ④ NISA/iDeCo còn hạn mức.
+Dữ liệu mới: bảng `relatives`, cột `transactions.remit_recipient_id`, `profiles.fuyo_claimed_years` (migration 0056).
+
+**Chưa làm, để đợt sau:** 医療費控除 (cùng đường 確定申告 như ②); iDeCo hạn mức theo loại doanh nghiệp
+(có 企業年金 thì khác); đọc 源泉徴収票 để thay số ước bằng số thật; thu nhập của người thân
+(điều kiện ≤ 58万) chỉ hỏi bằng chữ, không lưu.

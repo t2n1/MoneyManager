@@ -3,11 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Sparkles, Star } from 'lucide-react'
 import { ActionButton, Card, actionButtonClass, filterChipClass } from '../../components/ui'
 import { repo } from '../../data'
-import { useNetWorthSnapshots } from '../../hooks/queries'
+import { useAccounts, useCategories, useNetWorthSnapshots, useRangeTransactions } from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
+import { toISODate } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
 import { formatMoney } from '../../lib/money'
 import { fetchRates } from '../../lib/rates'
+import { suggestBaseline } from './baseline'
 import { CompareStrip } from './CompareStrip'
 import {
   applyPreset,
@@ -27,13 +29,15 @@ import { LifetimeChartCard } from './LifetimeChartCard'
 import type { PresetContext } from './presets'
 import { PresetPanel } from './PresetPanel'
 import { hasStress, NO_STRESS, phaseForYear, projectLifetime, type StressConfig } from './project'
+import { realityCheck } from './realityCheck'
 import { commitDraft, saveDraftAsNewScenario } from './saveDraft'
 import { ScenarioWorkbench } from './ScenarioWorkbench'
 import { defaultStress } from './StressPanel'
 import { pickActive } from './buildInput'
 import { currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { lifetimeVerdict } from './summary'
-import { useLifetime } from './useLifetime'
+import { applyRetireTrial, buildRetireTrial, RETIRE_TRIAL_MIN_END_AGE } from './tryRetire'
+import { baselineRange, makeCurrencyOf, useLifetime } from './useLifetime'
 import { YearTableSection, YearTableView } from './YearTableView'
 
 /** Ô nhập năm sinh khớp ràng buộc DB (migration 0031: `birth_year between 1900 and 2100`). */
@@ -233,6 +237,36 @@ export function LifetimeView() {
   const shownPhaseIndex = working ? draftPhaseIndex(working, currentYear) : -1
   const shownPhase =
     shownInput && shownPhaseIndex >= 0 ? shownInput.phases[shownPhaseIndex] : null
+
+  // --- Số thật 12 tháng từ sổ ----------------------------------------------------------
+  //
+  // Tính ở ĐÂY, không trong bàn sửa, vì hai chỗ đọc nó: thẻ chặng đang chạy ("Số thật…
+  // Dùng số này") và dòng "đời thật" trong hộp kết luận. Theo TIỀN của chặng đang chạy —
+  // `suggestBaseline` tự lọc giao dịch cùng tiền, không quy đổi (xem baseline.ts).
+  const { data: accounts = [] } = useAccounts()
+  const { data: categories = [] } = useCategories()
+  const todayISO = toISODate(new Date())
+  const txsRange = useMemo(() => baselineRange(todayISO), [todayISO])
+  const txsQ = useRangeTransactions(txsRange)
+  const baselineBase = (profile?.base_currency as CurrencyCode | undefined) ?? 'JPY'
+  const baseline = useMemo(
+    () =>
+      shownPhase
+        ? suggestBaseline(
+            txsQ.data ?? [],
+            categories,
+            makeCurrencyOf(accounts, baselineBase),
+            shownPhase.currency,
+            todayISO,
+          )
+        : null,
+    [shownPhase, txsQ.data, categories, accounts, baselineBase, todayISO],
+  )
+  /** Kế hoạch vs sổ thật — hộp kết luận hiện khi lệch đủ lớn (realityCheck.ts). */
+  const reality = useMemo(
+    () => (shownInput && baseline ? realityCheck(shownInput, baseline) : null),
+    [shownInput, baseline],
+  )
 
   /**
    * Mở trình sửa kịch bản, tuỳ chọn nhắm sẵn vào một mốc.
@@ -486,9 +520,30 @@ export function LifetimeView() {
         : `Gợi ý: để tự do tài chính trước tuổi ${FIRE_FALLBACK_AGE} cần để dành thêm ${formatMoney(Math.round(extraSavings / 12), currency)}/tháng.`
       : null
 
+  /**
+   * "Thử nghỉ việc từ <năm FIRE>": cắm mẫu Nghỉ hưu vào năm đó và kéo tuổi chiếu lên 90,
+   * trong BẢN NHÁP — thanh nháp bật lên như mọi lần sửa, Bỏ là về như cũ.
+   */
+  const handleTryRetire = (year: number) => {
+    const result = buildRetireTrial(shownInput, active.id, year, pageFxOf)
+    if (!result) {
+      showToast('Chưa có chặng nào để dựa vào — thêm chặng trước rồi thử lại.', 'error')
+      return
+    }
+    const seed = ++presetSeed.current
+    editDraft((d) => applyRetireTrial(d, result, seed))
+    const stretched = working.endAge < RETIRE_TRIAL_MIN_END_AGE
+    showToast(
+      `Đã thêm chặng Nghỉ hưu từ ${year}${stretched ? ` và kéo tuổi chiếu tới ${RETIRE_TRIAL_MIN_END_AGE}` : ''}. Đọc lại kết luận ở trên; không muốn giữ thì bấm Bỏ ở thanh nháp.`,
+      'success',
+      8000,
+    )
+  }
+
   const buildPresetCtx = (year: number): PresetContext => ({
     scenarioId: active.id,
     year,
+    birthYear,
     currency: shownPhase?.currency ?? currency,
     country: shownPhase?.country ?? null,
     currentIncomeMinor: shownPhase?.annualIncomeMinor ?? 0,
@@ -614,6 +669,9 @@ export function LifetimeView() {
           currency={currency}
           scenarioName={active.name}
           actionLine={actionLine}
+          reality={reality}
+          realityMonths={baseline?.monthsCovered ?? null}
+          onTryRetire={handleTryRetire}
           stressNote={
             stressRows
               ? stressNegYear !== null
@@ -755,6 +813,7 @@ export function LifetimeView() {
             phaseRows={phases}
             eventRows={events}
             profile={profile}
+            baseline={baseline}
             netWorth={netWorth}
             netWorthReliable={netWorthReliable}
             netWorthLoading={netWorthLoading}

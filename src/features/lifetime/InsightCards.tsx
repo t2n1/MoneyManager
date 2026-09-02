@@ -14,7 +14,7 @@ import type { ReactNode } from 'react'
 import { AlertCircle, AlertTriangle } from 'lucide-react'
 import { ExplainBox } from '../../components/ExplainBox'
 import { ConclusionLine } from '../../components/VerdictNote'
-import { Card } from '../../components/ui'
+import { ActionButton, Card, Money, Num } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
 import { formatMoney } from '../../lib/money'
 import {
@@ -25,6 +25,8 @@ import {
 } from './insights'
 import { lifetimeVerdict } from './summary'
 import type { LifetimeInput, YearRow } from './project'
+import type { RealityCheck } from './realityCheck'
+import { canOfferRetireTrial } from './tryRetire'
 
 interface Props {
   rows: YearRow[]
@@ -53,6 +55,56 @@ interface Props {
    * được ngay. Mọi thứ khác nói "chuyện gì sẽ xảy ra", cái này nói "làm gì thì khác đi".
    */
   actionLine?: string | null
+  /**
+   * Kế hoạch vs sổ thật 12 tháng (realityCheck.ts). Câu kết luận phía trên tính trên KẾ
+   * HOẠCH; dòng này nói kế hoạch đó xa số thật bao nhiêu và kết luận đổi thế nào nếu
+   * chạy theo số thật. null hoặc `meaningful === false` thì không hiện.
+   */
+  reality?: RealityCheck | null
+  /** Số tháng sổ thật đã dùng (1..12) — để câu nói đúng "N tháng qua", không nói bừa 12. */
+  realityMonths?: number | null
+  /**
+   * Có thì hiện nút "Thử nghỉ việc từ <năm FIRE>" (tryRetire.ts). "Không bao giờ âm" ở
+   * dải bốn số là câu trả lời dễ vì mô hình cho đi làm tới tuổi cuối — nút này mới hỏi
+   * câu thật: nghỉ đúng năm FIRE thì tiền có đủ tới già không.
+   */
+  onTryRetire?: (year: number) => void
+}
+
+/**
+ * Dòng "đời thật". Số tiền qua <Money> (chế độ riêng tư), số tháng/số năm qua <Num>;
+ * NĂM là nhãn thời gian nên để chữ thường, cùng quy ước với câu kết luận phía trên.
+ */
+function RealityLine({ reality, months }: { reality: RealityCheck; months: number }) {
+  const { fireYearPlan, fireYearReal, negativeYearReal } = reality
+  let fireClause: ReactNode
+  if (fireYearReal === null) {
+    fireClause = 'không năm nào đủ để tự do tài chính'
+  } else if (fireYearPlan === null) {
+    fireClause = <>tự do tài chính {fireYearReal}, kế hoạch cũ không đạt</>
+  } else if (fireYearReal === fireYearPlan) {
+    fireClause = <>tự do tài chính vẫn {fireYearReal}</>
+  } else {
+    const diff = fireYearReal - fireYearPlan
+    fireClause = (
+      <>
+        tự do tài chính {fireYearReal}, {diff > 0 ? 'muộn' : 'sớm'} <Num>{Math.abs(diff)}</Num> năm
+      </>
+    )
+  }
+  return (
+    <p className="flex min-w-0 items-start gap-1.5 text-sm text-fg-warn">
+      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span>
+        Kế hoạch để dành{' '}
+        <Money amount={reality.planSavingMinor} currency={reality.currency} tone="neutral" />
+        /năm ở chặng hiện tại, nhưng <Num>{months}</Num> tháng qua sổ ghi{' '}
+        <Money amount={reality.realSavingMinor} currency={reality.currency} tone="bySign" />
+        /năm. Chạy theo số thật: {fireClause}
+        {negativeYearReal !== null && <>, nhánh bi quan âm từ {negativeYearReal}</>}.
+      </span>
+    </p>
+  )
 }
 
 // Cỡ chữ viết bằng rem (không phải px) vì `--app-font-scale` (Cài đặt → Cỡ chữ) chỉ co
@@ -158,6 +210,9 @@ export function InsightCards({
   onJumpToYear,
   stressNote = null,
   actionLine = null,
+  reality = null,
+  realityMonths = null,
+  onTryRetire,
 }: Props) {
   // 'low' = biên DƯỚI của dải dao động — đáng lo hơn nhánh trung tâm, xem JSDoc
   // `firstNegativeYear` trong insights.ts (cùng lý do LifetimeChartCard tô đỏ theo biên
@@ -180,6 +235,11 @@ export function InsightCards({
     )
   const fireShort =
     verdict.fireYear !== null ? `FIRE ${verdict.fireYear}` : 'chưa đạt tự do tài chính'
+
+  const showReality = reality !== null && reality.meaningful
+  // Luật mời nằm ở tryRetire.ts (FIRE còn ở tương lai, chưa có chặng năm đó) — không
+  // chép lại đây để nút và mẫu không trôi lệch nhau.
+  const retireYear = onTryRetire && canOfferRetireTrial(input, verdict.fireYear) ? verdict.fireYear : null
 
   return (
     <Card as="section">
@@ -212,6 +272,20 @@ export function InsightCards({
         </p>
       )}
       {actionLine && <p className="mt-1.5 text-sm font-medium text-fg-accent">{actionLine}</p>}
+
+      {/* Dòng "đời thật" và nút thử nghỉ việc đứng CÙNG HÀNG, ngay dưới các câu phụ: cả
+          hai đều là "kết luận trên còn thiếu gì" — một cái nói kế hoạch xa sổ, một cái
+          hỏi tiếp câu mà mốc FIRE chưa trả lời. */}
+      {(showReality || retireYear !== null) && (
+        <div className="mt-1.5 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+          {showReality && <RealityLine reality={reality} months={realityMonths ?? 12} />}
+          {retireYear !== null && (
+            <ActionButton className="shrink-0" onClick={() => onTryRetire?.(retireYear)}>
+              Thử nghỉ việc từ {retireYear}
+            </ActionButton>
+          )}
+        </div>
+      )}
 
       {/* Dưới `sm`: lưới 2×2 có khoảng cách, không kẻ vạch — bốn vạch dọc trên một cột
           hẹp chia màn thành những mảnh 80px. Từ `sm`: một hàng bốn ô ngăn bằng vạch,

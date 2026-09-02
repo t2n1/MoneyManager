@@ -28,6 +28,12 @@ export interface PresetContext {
   scenarioId: string
   /** Năm sự kiện xảy ra (với sinh con: năm sinh của con). */
   year: number
+  /**
+   * Năm sinh của người dùng. Mẫu Nghỉ hưu cần nó: 年金 trả từ 65 tuổi, không phải từ năm
+   * nghỉ việc — bản cũ cho lương hưu chạy từ năm nghỉ, nên "thử nghỉ việc từ 2045" (51
+   * tuổi) cộng dư 14 năm lương hưu (bắt được trên app 2026-09-02).
+   */
+  birthYear: number
   /** Tiền của chặng đang hiệu lực — mẫu dùng làm mặc định cho sự kiện không ép cứng tiền. */
   currency: string
   country: string | null
@@ -132,6 +138,8 @@ const HOUSE_DOWN_PAYMENT_JPY = 5_000_000
 const HOUSE_LOAN_ANNUAL_JPY = 1_200_000
 /** Mức lương hưu (年金) bình quân giả định. Ước lượng, chưa tra nguồn (2026-07-29). */
 const PENSION_ANNUAL_JPY = 1_100_000
+/** Tuổi bắt đầu nhận 老齢年金 theo luật hiện hành (nhận sớm/muộn là lựa chọn, mẫu không đoán). */
+export const PENSION_START_AGE = 65
 /** Chi phí chuyển nhà + thủ tục giấy tờ khi đổi nước sinh sống. Ước lượng, chưa tra
  *  nguồn (2026-07-29). */
 const MOVING_COST_JPY = 2_500_000
@@ -283,6 +291,10 @@ export const LIFE_PRESETS: LifePreset[] = [
         ev(ctx, {
           label: 'Lương hưu',
           kind: 'income',
+          // Từ 65 tuổi, hoặc từ năm nghỉ nếu nghỉ SAU 65. Nghỉ sớm thì khoảng giữa hai
+          // mốc là những năm thu 0, sống bằng tài sản — đúng câu hỏi mà mẫu này phải
+          // trả lời được.
+          start_year: Math.max(ctx.year, ctx.birthYear + PENSION_START_AGE),
           end_year: null,
           amount_minor: PENSION_ANNUAL_JPY,
           // 年金 luôn trả bằng JPY, ép cứng bất kể ctx.currency — cùng cách tính với

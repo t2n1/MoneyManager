@@ -294,7 +294,11 @@ function stripComments(text: string): string {
 // một hạn mức, hoặc đổi mục tiêu để dành" là lời giải thích cho CHỖ TRỐNG đó — cùng loại
 // với câu giải thích ô bị vô hiệu ở trên. Bản cũ cũng có đúng câu này, chỉ không mang
 // fg-muted nên không bị đếm.
-const PROSE_MAX = 85
+// 86 (từ 85, 2026-09-02): hàng mốc trong bàn sửa kịch bản thêm dòng "Số mỗi năm × N năm =
+// … cả khoảng" khi mốc kéo nhiều năm. Đây là DỮ LIỆU (số năm, tổng), không phải chữ để dạy:
+// số tiền của mốc là số mỗi năm, hàng trên không nói ra nên "2029 → 2030 · ¥3,000,000" đọc
+// như 3M trong khi bản chiếu trừ 6M. Không bọc <Guide> vì ở chế độ Gọn con số này vẫn phải còn.
+const PROSE_MAX = 86
 
 const FILES = sourceFiles().map((path) => ({
   path,

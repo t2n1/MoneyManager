@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { LIFE_PRESETS, type PresetContext } from './presets'
+import { LIFE_PRESETS, PENSION_START_AGE, type PresetContext } from './presets'
 
 const ctx: PresetContext = {
   scenarioId: 's1',
   year: 2029,
+  // 35 tuổi năm 2029 → 65 tuổi năm 2059.
+  birthYear: 1994,
   currency: 'JPY',
   country: 'JP',
   currentIncomeMinor: 6_000_000,
@@ -83,6 +85,19 @@ describe('LIFE_PRESETS', () => {
     const luong = r.events.find((e) => e.kind === 'income')!
     expect(luong.end_year).toBeNull()
     expect(luong.inflate).toBe(false)
+  })
+
+  // Lỗi thật 2026-09-02: lương hưu chạy từ năm nghỉ việc, nên nghỉ ở 51 tuổi là nhận
+  // 年金 sớm 14 năm. Luật: từ 65 tuổi; nghỉ sau 65 thì từ năm nghỉ.
+  it('nghỉ sớm: lương hưu chỉ bắt đầu ở 65 tuổi, chặng thu 0 vẫn từ năm nghỉ', () => {
+    const r = preset('nghi-huu').build(ctx) // nghỉ 2029, 35 tuổi
+    expect(r.phases[0].start_year).toBe(2029)
+    expect(r.events.find((e) => e.kind === 'income')!.start_year).toBe(1994 + PENSION_START_AGE)
+  })
+
+  it('nghỉ sau 65: lương hưu từ đúng năm nghỉ', () => {
+    const r = preset('nghi-huu').build({ ...ctx, year: 2062 }) // 68 tuổi
+    expect(r.events.find((e) => e.kind === 'income')!.start_year).toBe(2062)
   })
 
   // Kỳ vọng ĐỔI CÓ Ý ĐỊNH (trước là `toBe('USD')` — "giữ nguyên tiền của ngữ cảnh"):

@@ -8,10 +8,10 @@
 // Dùng CHÍNH `LIFE_PRESETS`, không có bảng mẫu thứ hai — xem JSDoc `applyPreset`.
 import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
 import { Guide } from '../../components/Guide'
-import { Card, SectionTitle } from '../../components/ui'
+import { Card, Money, Num, SectionTitle } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
-import { formatCompact } from '../../lib/money'
 import { LIFE_PRESETS, type PresetContext, type PresetResult } from './presets'
+import { presetWeight } from './presetWeight'
 
 interface Props {
   /** Dựng ngữ cảnh cho mẫu ở một năm — chỗ gọi biết chặng đang chạy và tỷ giá. */
@@ -38,17 +38,11 @@ export function PresetPanel({ buildCtx, defaultYear, currency, onAdd, variant = 
     <div className={variant === 'card' ? 'mt-2 flex flex-wrap gap-2' : 'flex flex-wrap gap-1.5'}>
         {LIFE_PRESETS.map((p) => {
           const result = p.build(buildCtx(defaultYear))
-          // Tổng chi/thu của mẫu ở năm đầu — cho người dùng biết TRƯỚC khi bấm là mẫu
-          // này nặng cỡ nào. Một dải chip chỉ có tên thì mọi mẫu trông như nhau.
-          const events = result.events
-          const outMinor = events
-            .filter((e) => e.kind === 'expense')
-            .reduce((s, e) => s + e.amount_minor * (e.currency === currency ? 1 : e.fx_to_display), 0)
-          const inMinor = events
-            .filter((e) => e.kind === 'income')
-            .reduce((s, e) => s + e.amount_minor * (e.currency === currency ? 1 : e.fx_to_display), 0)
-          const netOut = outMinor >= inMinor
-          const amount = Math.round(Math.abs(outMinor - inMinor))
+          // Mẫu này nặng cỡ nào — cho người dùng biết TRƯỚC khi bấm. Tổng CẢ mẫu kèm số
+          // năm (không phải tổng các khoản mỗi năm cộng lại — xem presetWeight.ts, lỗi
+          // "Sinh con 436万"); mẫu chạy hết đời thì nói số mỗi năm.
+          const weight = presetWeight(result, currency)
+          const netOut = weight === null || weight.amountMinor >= 0
           return (
             <button
               key={p.id}
@@ -63,9 +57,17 @@ export function PresetPanel({ buildCtx, defaultYear, currency, onAdd, variant = 
                 <ArrowUpCircle className="h-3.5 w-3.5 shrink-0 text-money-in" aria-hidden="true" />
               )}
               {p.label}
-              {amount > 0 && (
+              {weight !== null && weight.amountMinor !== 0 && (
                 <span className="font-mono text-2xs text-fg-muted">
-                  {formatCompact(amount, currency)}
+                  <Money amount={Math.abs(weight.amountMinor)} currency={currency} compact tone="muted" />
+                  {weight.kind === 'perYear' ? (
+                    '/năm'
+                  ) : weight.years > 1 ? (
+                    <>
+                      {' · '}
+                      <Num tone="muted">{weight.years}</Num> năm
+                    </>
+                  ) : null}
                 </span>
               )}
             </button>

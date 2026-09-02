@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
+import { convertMinorToday, currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import type { LifetimeEvent, LifetimePhase } from './project'
 
 const phase = (over: Partial<LifetimePhase> & Pick<LifetimePhase, 'startYear'>): LifetimePhase => ({
@@ -162,5 +162,23 @@ describe('normalizeToPhaseCurrency', () => {
     normalizeToPhaseCurrency(phases, src, 'JPY', fx)
     expect(src[0].currency).toBe('JPY')
     expect(src[0].amountMinor).toBe(1_000)
+  })
+})
+
+describe('convertMinorToday', () => {
+  // Lỗi thật bắt được trên app 2026-09-02: dòng "≈ … theo JPY" của chặng Mỹ nhân THẲNG
+  // số cent với tỷ giá, ra "1.8億/năm" cho một khoản 11.000 $/năm (đúng là ~162万).
+  // USD có 2 chữ số lẻ, JPY có 0 — không đi qua major units là sai 100 lần.
+  it('USD → JPY đi qua major units, không nhân thẳng minor với tỷ giá', () => {
+    expect(convertMinorToday(11_000_00, 'USD', 'JPY', fx)).toBe(1_617_000)
+    expect(convertMinorToday(11_000_00, 'USD', 'JPY', fx)).not.toBe(161_700_000)
+  })
+
+  it('JPY → VND (0 lẻ sang 0 lẻ) nhân đúng một lần', () => {
+    expect(convertMinorToday(1_000, 'JPY', 'VND', fx)).toBe(172_000)
+  })
+
+  it('thiếu tỷ giá thì trả null, không quy 1:1', () => {
+    expect(convertMinorToday(500_00, 'USD', 'JPY', fxOfRates('JPY', {}))).toBeNull()
   })
 })

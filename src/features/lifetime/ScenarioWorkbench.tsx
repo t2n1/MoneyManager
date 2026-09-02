@@ -20,15 +20,14 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, MoreVertical, Plus, Star, Trash2, X } from 'lucide-react'
 import { MoneyField } from '../../components/MoneyField'
 import { Guide } from '../../components/Guide'
-import { ActionButton, IconButton, Money, SectionTitle, SegmentedControl, Select } from '../../components/ui'
-import { useAccounts, useCategories, useRangeTransactions, useUpdateProfile } from '../../hooks/queries'
-import { toISODate } from '../../lib/dates'
+import { ActionButton, IconButton, Money, Num, SectionTitle, SegmentedControl, Select } from '../../components/ui'
+import { useUpdateProfile } from '../../hooks/queries'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { CURRENCIES, formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase, fetchRates } from '../../lib/rates'
 import type { LifeEventRow, LifePhaseRow, LifeScenarioRow, ProfileRow } from '../../types/database.types'
 import { repo } from '../../data'
-import { suggestBaseline } from './baseline'
+import type { BaselineSuggestion } from './baseline'
 import { pickActive } from './buildInput'
 import {
   addDraftPhase,
@@ -44,14 +43,14 @@ import {
   type ScenarioDraft,
 } from './draft'
 import { changeParts } from './draftText'
+import { eventSpan } from './eventSpan'
 import { duplicateScenario } from './duplicate'
 import { EventFormSheet } from './EventFormSheet'
-import { currencyAt, type FxOf } from './fxModel'
+import { convertMinorToday, currencyAt, type FxOf } from './fxModel'
 import { minimumReturnBps } from './insights'
 import { PhaseFormSheet } from './PhaseFormSheet'
 import type { LifetimeInput, StressConfig } from './project'
 import { StressPanel } from './StressPanel'
-import { baselineRange, makeCurrencyOf } from './useLifetime'
 
 /** Ô nhập năm sinh khớp ràng buộc DB (migration 0031: `birth_year between 1900 and 2100`). */
 const MIN_BIRTH_YEAR = 1900
@@ -216,6 +215,9 @@ interface Props {
   phaseRows: LifePhaseRow[]
   eventRows: LifeEventRow[]
   profile: ProfileRow | undefined
+  /** Số thật 12 tháng từ sổ, theo tiền của chặng đang chạy — LifetimeView tính (cùng nguồn
+   *  với dòng "đời thật" trong hộp kết luận). null khi chưa có chặng. */
+  baseline: BaselineSuggestion | null
   netWorth: number
   netWorthReliable: boolean
   netWorthLoading: boolean
@@ -251,6 +253,7 @@ export function ScenarioWorkbench({
   phaseRows,
   eventRows,
   profile,
+  baseline,
   netWorth,
   netWorthReliable,
   netWorthLoading,
@@ -325,30 +328,10 @@ export function ScenarioWorkbench({
     for (let i = 0; i < phases.length; i++) if (phases[i].startYear <= currentYear) best = i
     return best === -1 && phases.length > 0 ? 0 : best
   }, [phases, currentYear])
-  const currentPhase = currentPhaseIndex === -1 ? null : phases[currentPhaseIndex]
 
-  const { data: accounts = [] } = useAccounts()
-  const { data: categories = [] } = useCategories()
-  const baselineBase = (profile?.base_currency as CurrencyCode | undefined) ?? 'JPY'
-  const todayISO = toISODate(new Date())
-  // Cùng khoảng ngày với useLifetime.ts — dùng chung helper thay vì chép lại hằng số.
-  const range = useMemo(() => baselineRange(todayISO), [todayISO])
-  const txsQ = useRangeTransactions(range)
-  // useMemo vì hàm này lọc tới 366 ngày giao dịch: không nhớ đệm thì mỗi ký tự gõ vào
-  // bất kỳ ô nào của bàn này đều chạy lại cả vòng lọc đó.
-  const baseline = useMemo(
-    () =>
-      currentPhase
-        ? suggestBaseline(
-            txsQ.data ?? [],
-            categories,
-            makeCurrencyOf(accounts, baselineBase),
-            currentPhase.currency,
-            todayISO,
-          )
-        : null,
-    [currentPhase, txsQ.data, categories, accounts, baselineBase, todayISO],
-  )
+  // `baseline` (số thật 12 tháng theo tiền của chặng đang chạy) đến từ props: LifetimeView
+  // tính MỘT lần cho cả thẻ chặng này và dòng "đời thật" trong hộp kết luận. Hai nơi tự
+  // tính là hai con số có thể lệch nhau trên cùng một màn.
   // Bỏ danh mục có `annualMinor` ÂM (hoàn ròng): thanh tỉ lệ với share âm cho width âm,
   // trình duyệt kẹp về 0 và mất thông tin một cách im lặng.
   const topCats = baseline ? baseline.byCategory.filter((c) => c.annualMinor > 0).slice(0, 3) : []
@@ -834,13 +817,15 @@ export function ScenarioWorkbench({
                             // Tỷ giá HÔM NAY, không phải `p.fxToDisplay` — trường đó
                             // trong bản nháp còn mang con số ĐÃ LƯU (người dùng từng gõ
                             // tay ở mô hình cũ), nên dùng nó cho ra một câu "≈" sai hẳn.
-                            const fx = fxOf(p.currency, currency)
-                            if (fx === null) return ' · chưa có tỷ giá để quy đổi'
+                            // Đi qua `convertMinorToday`, KHÔNG nhân thẳng minor × tỷ giá: USD 2 lẻ,
+                            // JPY 0 lẻ — nhân thẳng từng cho ra "1.8億/năm" thay vì ~162万.
+                            const inDisplay = convertMinorToday(savingMinor, p.currency, currency, fxOf)
+                            if (inDisplay === null) return ' · chưa có tỷ giá để quy đổi'
                             return (
                               <>
                                 {' · ≈ '}
                                 <Money
-                                  amount={Math.round(savingMinor * fx)}
+                                  amount={inDisplay}
                                   currency={currency}
                                   compact
                                   tone="muted"
@@ -1030,10 +1015,11 @@ export function ScenarioWorkbench({
                   <div
                     key={ev.id}
                     ref={ev.id === focusEventId ? focusRowRef : undefined}
-                    className={`flex flex-wrap items-center gap-2 rounded-lg border bg-surface p-2 md:flex-nowrap ${
+                    className={`flex flex-col gap-1 rounded-lg border bg-surface p-2 ${
                       ev.id === focusEventId ? 'border-accent' : 'border-border-panel'
                     }`}
                   >
+                  <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
                     {/* Cặp nút thu/chi trong MỘT khung: chúng là hai giá trị của cùng
                         một trường. `aria-pressed` bắt buộc — trạng thái chỉ thể hiện
                         bằng màu. */}
@@ -1155,6 +1141,32 @@ export function ScenarioWorkbench({
                         </IconButton>
                       </div>
                     </div>
+                  </div>
+                    {/* Số tiền của mốc là số MỖI NĂM. Kéo hai năm là trừ hai lần — hàng
+                        trên không nói ra nên "Chi phí cưới 2029 → 2030 · ¥3,000,000" đọc
+                        như cưới tốn 3M trong khi bản chiếu trừ 6M (2026-09-02). */}
+                    {(() => {
+                      const span = eventSpan(ev.startYear, ev.endYear, ev.amountMinor)
+                      if (span === null) return null
+                      return (
+                        <p className="text-2xs text-fg-muted">
+                          {span.kind === 'open' ? (
+                            'Số mỗi năm, chạy tới hết đời.'
+                          ) : (
+                            <>
+                              Số mỗi năm × <Num tone="muted">{span.years}</Num> năm ={' '}
+                              <Money
+                                amount={span.totalMinor}
+                                currency={evCur}
+                                tone={ev.kind === 'income' ? 'in' : 'out'}
+                                className="font-semibold"
+                              />{' '}
+                              cả khoảng.
+                            </>
+                          )}
+                        </p>
+                      )
+                    })()}
                   </div>
                 )
               })}

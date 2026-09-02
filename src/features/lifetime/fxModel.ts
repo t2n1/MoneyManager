@@ -143,3 +143,22 @@ export function fxOfRates(base: CurrencyCode, rates: Record<string, number | und
     return rt / rf
   }
 }
+
+/**
+ * Minor units của `from` → minor units của `to` theo tỷ giá HÔM NAY (`fxOf`).
+ * `null` khi thiếu tỷ giá — chỗ gọi tự chọn chữ, không quy 1:1.
+ *
+ * Tồn tại để KHÔNG ai nhân thẳng `minor * fxOf(...)` nữa: USD có 2 chữ số lẻ, JPY có 0,
+ * nên phép nhân thẳng sai 100 lần — dòng "≈ … theo JPY" của thẻ chặng từng nói "1.8億/năm"
+ * cho một khoản 11.000 $/năm đúng vì thế (bắt được trên app 2026-09-02).
+ */
+export function convertMinorToday(
+  minor: number,
+  from: CurrencyCode,
+  to: CurrencyCode,
+  fxOf: FxOf,
+): number | null {
+  const fx = fxOf(from, to)
+  if (fx === null) return null
+  return convertLifetimeMinor(minor, from, to, fx)
+}

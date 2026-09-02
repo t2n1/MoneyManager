@@ -61,7 +61,7 @@ export function QuyenLoiPage() {
 
   async function toggleDaKhai() {
     const cur = profile?.fuyo_claimed_years ?? []
-    const next = daKhai ? cur.filter((y) => y !== year) : [...cur, year].sort()
+    const next = daKhai ? cur.filter((y) => y !== year) : [...cur, year].sort((a, b) => a - b)
     await updateProfile.mutateAsync({ fuyo_claimed_years: next })
     showToast(daKhai ? `Bỏ đánh dấu năm ${year}` : `Đã ghi: năm ${year} đã nộp giấy`)
   }
@@ -135,7 +135,7 @@ export function QuyenLoiPage() {
               <ActionButton variant="primary" onClick={() => setSheetNguoi('new')}>
                 <Plus className="h-4 w-4" /> Thêm người thân
               </ActionButton>
-              {chuaGanTxs.length > 0 && relatives.length > 0 && (
+              {chuaGanTxs.length > 0 && relatives.some((r) => !r.is_archived) && (
                 <ActionButton variant="outline" onClick={() => setSheetGan(true)}>
                   Gán người nhận ({chuaGanTxs.length})
                 </ActionButton>
@@ -167,7 +167,7 @@ export function QuyenLoiPage() {
                     <Num>Năm {n.year}</Num>
                     <span className="text-fg-secondary">{n.nguoi.map((p) => p.name).join(', ')}</span>
                     <span className="ml-auto text-fg-muted">hạn {n.han.slice(8, 10)}/{n.han.slice(5, 7)}/{n.han.slice(0, 4)}</span>
-                    {n.tiet_kiem_uoc !== null && <Money amount={n.tiet_kiem_uoc} currency="JPY" tone="in" />}
+                    {n.tiet_kiem_uoc !== null && (<span><Money amount={n.tiet_kiem_uoc} currency="JPY" tone="in" /><EstimateMark reason={ketQua.refund.ketLuan.ly_do[1]} /></span>)}
                     {!n.co_nguong && <span className="basis-full text-2xs text-fg-muted">Năm này luật chưa có ngưỡng 38万 — chỉ cần chứng từ gửi tiền.</span>}
                   </li>
                 ))}

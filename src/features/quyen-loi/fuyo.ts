@@ -193,7 +193,11 @@ export function tinhFuyo(input: FuyoInput): FuyoKetQua {
         : `${thieu.length} người còn thiếu để đủ 38万 · ${thang_con_lai} tháng nữa`
   } else if (nguoi.some((n) => n.du)) {
     trang_thai = 'du'
-    viec = `Nộp ${[...new Set(nguoi.filter((n) => n.du).flatMap((n) => n.giay))].join(' + ')} cho công ty trước 年末調整`
+    if (input.year < namHomNay) {
+      viec = `Năm ${input.year} đủ điều kiện khấu trừ — chưa khai thì xem khoản "Đòi lại năm cũ"`
+    } else {
+      viec = `Nộp ${[...new Set(nguoi.filter((n) => n.du).flatMap((n) => n.giay))].join(' + ')} cho công ty trước nenmatsu-chosei`
+    }
   } else {
     trang_thai = 'thieu-du-lieu'
     viec = 'Chưa có lần gửi nào trong năm được gán cho người thân'

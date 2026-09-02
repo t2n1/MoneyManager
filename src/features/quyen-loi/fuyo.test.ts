@@ -77,6 +77,7 @@ describe('tinhFuyo — nhóm tuổi tại 31/12', () => {
   it('country JP → bỏ qua, nói rõ', () => {
     const r = tinhFuyo(input({ relatives: [nguoi({ country: 'JP' })] }))
     expect(r.nguoi).toHaveLength(0)
+    expect(r.ketLuan.trang_thai).toBe('thieu-du-lieu')
     expect(r.ketLuan.ly_do.join(' ')).toMatch(/cư trú ở Nhật/)
   })
 })
@@ -138,5 +139,19 @@ describe('tinhFuyo — dữ liệu', () => {
     const r = tinhFuyo(input({}))
     expect(r.ketLuan.trang_thai).toBe('thieu-du-lieu')
     expect(r.ketLuan.viec).toMatch(/Thêm người thân/)
+  })
+
+  it('năm cũ đủ → du nhưng câu việc không bảo nộp giấy cho nenmatsu-chosei', () => {
+    const txs = Array.from({ length: 13 }, (_, i) => tx({ amount: 30_500, remit_recipient_id: 'me', occurred_on: `2024-${String(i + 1).padStart(2, '0')}-01` }))
+    const r = tinhFuyo(input({
+      year: 2024,
+      todayISO: '2026-09-03',
+      relatives: [nguoi({ birth_year: 1956 })], // 68 tuổi năm 2024 = 30-69
+      txs,
+    }))
+    expect(r.nguoi[0]).toMatchObject({ nhom: '30-69', da_gui: 390_000, du: true })
+    expect(r.ketLuan.trang_thai).toBe('du')
+    expect(r.ketLuan.viec).toMatch(/Đòi lại năm cũ/)
+    expect(r.ketLuan.viec).not.toMatch(/nenmatsu-chosei/)
   })
 })

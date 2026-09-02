@@ -37,6 +37,7 @@ const EXPORTS_BAT_BUOC: Record<string, string[]> = {
     'addDaysISO',
     'toISODate',
     'RECENT_TXS_DAYS',
+    'tinhQuyenLoi',
   ],
   'supabase/functions/stock-refresh/_holdings.js': [
     'holdingsFromTrades',

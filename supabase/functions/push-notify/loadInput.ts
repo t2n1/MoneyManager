@@ -12,16 +12,21 @@ import {
   buildBudgetReport,
   buildLifetimeInput,
   buildTagBudgetReport,
+  calendarYearOf,
   carryFromPreviousMonth,
   earliestNeededDate,
   fetchAllPages,
+  FURUSATO_CATEGORY_NAME,
   getMonthRange,
   missingRateCurrencies,
   monthKeyForDate,
   monthKeyString,
   PAGE_SIZE,
   RECENT_TXS_DAYS,
+  SO_NAM_HOAN_THUE,
   splitTxWindows,
+  taxCategoryIds,
+  tinhQuyenLoi,
   // deno-lint-ignore no-explicit-any
 } from './_rules.js'
 
@@ -245,6 +250,43 @@ export async function loadNotificationInput(
     todayISO,
   })
 
+  // --- Quyền lợi thuế (spec 2026-09-03) ---
+  // KHÔNG tính gì ở đây: đọc bảng, xếp vào ô, gọi tinhQuyenLoi — đúng hàm useQuyenLoi gọi.
+  const relatives = await readAll(sb, 'relatives', userId, 'sort_order')
+  const namNay = calendarYearOf(todayISO)
+  const benefitCategoryIds: string[] = [...taxCategoryIds(categories)]
+  const fu = categories.find((c: Row) => c.type === 'expense' && c.name === FURUSATO_CATEGORY_NAME)
+  if (fu) benefitCategoryIds.push(fu.id)
+  const shelterIds: string[] = accounts.filter((a: Row) => a.tax_shelter != null).map((a: Row) => a.id)
+  const orParts = ['is_remittance.eq.true']
+  if (benefitCategoryIds.length) orParts.push(`category_id.in.(${benefitCategoryIds.join(',')})`)
+  if (shelterIds.length) orParts.push(`to_account_id.in.(${shelterIds.join(',')})`)
+  const benefitTxs = await fetchAllPages<Row>((from: number, to: number) =>
+    sb
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('occurred_on', `${namNay - SO_NAM_HOAN_THUE}-01-01`)
+      .lt('occurred_on', `${namNay + 1}-01-01`)
+      .or(orParts.join(','))
+      .order('occurred_on', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, to),
+  )
+  // `accounts` ở đây là view account_balances — có đủ id/name/currency/tax_shelter/
+  // shelter_annual_limit/is_archived (0053 liệt kê rõ), đúng các trường tinhQuyenLoi đọc.
+  const benefits = tinhQuyenLoi({
+    year: namNay,
+    todayISO,
+    relatives,
+    txs: benefitTxs,
+    categories,
+    accounts,
+    base,
+    rates,
+    fuyoClaimedYears: profile.fuyo_claimed_years ?? [],
+  }).ketLuan
+
   return {
     ok: true,
     input: {
@@ -265,6 +307,7 @@ export async function loadNotificationInput(
       networthSnapshots,
       recentTxs,
       lifetime,
+      benefits,
       offTypes: profile.notif_off ?? [],
     },
   }

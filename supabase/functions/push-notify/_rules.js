@@ -369,6 +369,15 @@ function daysBetween(aISO, bISO) {
   const b = Date.parse(bISO + "T00:00:00Z");
   return Math.round((b - a) / 864e5);
 }
+function addMonthsISO(iso2, n) {
+  const [y, m, d] = iso2.split("-").map(Number);
+  const base = m - 1 + n;
+  const year = y + Math.floor(base / 12);
+  const month = (base % 12 + 12) % 12;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const day = Math.min(d, lastDay);
+  return `${year}-${pad2(month + 1)}-${pad2(day)}`;
+}
 function addDaysISO2(iso2, delta) {
   const d = /* @__PURE__ */ new Date(iso2 + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() + delta);
@@ -388,6 +397,17 @@ function nextCardDuePeriod(dueDay, todayISO) {
   }
   const periodISO = `${ty}-${pad2(tm)}-${pad2(dueDay)}`;
   return { periodISO, payISO: shiftToBusinessDay(periodISO) };
+}
+function getYearRange(year, monthStartDay = 1) {
+  const start = getMonthRange({ year, month: 1 }, monthStartDay).start;
+  const end = getMonthRange({ year, month: 12 }, monthStartDay).end;
+  return { start, end };
+}
+function calendarYearRange(year) {
+  return getYearRange(year, 1);
+}
+function calendarYearOf(iso2) {
+  return Number(iso2.slice(0, 4));
 }
 
 // src/features/assets/depreciation.ts
@@ -1911,17 +1931,455 @@ async function fetchAllPages(page, opts = {}) {
     `\u0110\u1ECDc d\u1EEF li\u1EC7u v\u01B0\u1EE3t qu\xE1 nhi\u1EC1u trang (> ${maxPages * PAGE_SIZE} d\xF2ng) \u2014 d\u1EEBng \u0111\u1EC3 kh\xF4ng l\u1EB7p v\xF4 h\u1EA1n.`
   );
 }
+
+// src/features/quyen-loi/marginalRate.ts
+function suatBienTuThue(thueNam, luat) {
+  if (!Number.isFinite(thueNam) || thueNam <= 0) return null;
+  const thueGoc = thueNam / luat.phucHung;
+  let duoi = 0;
+  for (const bac of luat.shotokuBac) {
+    const x = (thueGoc + bac.tru) / bac.suat;
+    if (x > duoi && x <= bac.toiDa) return bac.suat;
+    duoi = bac.toiDa;
+  }
+  return luat.shotokuBac[luat.shotokuBac.length - 1].suat;
+}
+function tienTietKiem(khauTruShotoku, khauTruJumin, suatBien, luat) {
+  return Math.round(khauTruShotoku * suatBien * luat.phucHung + khauTruJumin * luat.jumin.suatShotokuWari);
+}
+
+// src/features/quyen-loi/rules/2026.ts
+var LUAT_2026 = {
+  nam: 2023,
+  nguon: [
+    // 扶養控除 — mức, điều kiện 国外居住親族 30–69 (38万), thu nhập ≤ 58万 từ 2025
+    "https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1180.htm",
+    // Giấy tờ theo nhóm tuổi (16–29 / 30–69 / 70+)
+    "https://www.city.ota.tokyo.jp/seikatsu/zeikin/kazei/kokugaifuyou.html",
+    // 還付申告 5 năm
+    "https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/2030.htm",
+    // ふるさと納税 công thức trần
+    "https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1155.htm",
+    // 均等割 5.000 gồm 森林環境税 từ 令和6年度
+    "https://www.city.sapporo.jp/citytax/syurui/shiminzei/kojin_2024zeikai.html",
+    // 速算表 所得税
+    "https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/2260.htm",
+    // NISA
+    "https://www.fsa.go.jp/policy/nisa2/know/index.html"
+  ],
+  fuyo: {
+    nguong30_69: 38e4,
+    khauTruShotoku: { thuong: 38e4, laoNhan: 48e4 },
+    khauTruJumin: { thuong: 33e4, laoNhan: 38e4 },
+    thuNhapToiDa: 58e4
+  },
+  jumin: { kinhToDan: 5e3, suatShotokuWari: 0.1 },
+  phucHung: 1.021,
+  shotokuBac: [
+    { toiDa: 1949e3, suat: 0.05, tru: 0 },
+    { toiDa: 3299e3, suat: 0.1, tru: 97500 },
+    { toiDa: 6949e3, suat: 0.2, tru: 427500 },
+    { toiDa: 8999e3, suat: 0.23, tru: 636e3 },
+    { toiDa: 17999e3, suat: 0.33, tru: 1536e3 },
+    { toiDa: 39999e3, suat: 0.4, tru: 2796e3 },
+    { toiDa: Infinity, suat: 0.45, tru: 4796e3 }
+  ],
+  furusato: { tuChiu: 2e3, tyLeShotokuWari: 0.2 },
+  nisa: { tsumitate: 12e5, growth: 24e5, tongDoi: 18e6 }
+};
+
+// src/features/quyen-loi/rules/2022.ts
+var LUAT_2022 = {
+  ...LUAT_2026,
+  nam: 0,
+  nguon: [
+    // Ghi rõ ngưỡng 38万 chỉ từ 令和5年分
+    "https://www.city.funabashi.lg.jp/kurashi/zei/001/03/p048568.html"
+  ],
+  fuyo: {
+    ...LUAT_2026.fuyo,
+    nguong30_69: null,
+    thuNhapToiDa: 48e4
+  }
+};
+
+// src/features/quyen-loi/rules/luat.ts
+var CAC_BO = [LUAT_2022, LUAT_2026];
+function luatChoNam(year) {
+  let chon = CAC_BO[0];
+  for (const bo of CAC_BO) if (bo.nam <= year) chon = bo;
+  return chon;
+}
+
+// src/features/quyen-loi/fuyo.ts
+function soGuiJpy(t, currencyOf, base, rates) {
+  const sent = Math.max(t.amount - (t.remit_fee_jpy ?? 0), 0);
+  const cur = currencyOf(t.account_id);
+  if (cur === "JPY") return sent;
+  if (base !== "JPY") return null;
+  return convertToBase(sent, cur, "JPY", rates);
+}
+function nhomTuoi(tuoi) {
+  if (tuoi < 16) return "<16";
+  if (tuoi < 30) return "16-29";
+  if (tuoi < 70) return "30-69";
+  return "70+";
+}
+function tinhFuyo(input) {
+  const luat = luatChoNam(input.year);
+  const byId = new Map(input.accounts.map((a) => [a.id, a.currency]));
+  const currencyOf = (id) => byId.get(id) ?? input.base;
+  const thangHomNay = Number(input.todayISO.slice(5, 7));
+  const namHomNay = calendarYearOf(input.todayISO);
+  const thang_con_lai = input.year === namHomNay ? 12 - thangHomNay : input.year > namHomNay ? 12 : 0;
+  const daGui = /* @__PURE__ */ new Map();
+  const chua_gan = { so_lan: 0, tong: 0 };
+  let thieu_ty_gia = false;
+  for (const t of input.txs) {
+    if (!t.is_remittance || calendarYearOf(t.occurred_on) !== input.year) continue;
+    const yen = soGuiJpy(t, currencyOf, input.base, input.rates);
+    if (yen === null) {
+      thieu_ty_gia = true;
+      continue;
+    }
+    if (t.remit_recipient_id == null) {
+      chua_gan.so_lan++;
+      chua_gan.tong += yen;
+      continue;
+    }
+    const cur = daGui.get(t.remit_recipient_id) ?? { tong: 0, so_lan: 0 };
+    cur.tong += yen;
+    cur.so_lan++;
+    daGui.set(t.remit_recipient_id, cur);
+  }
+  const bo_qua = [];
+  const nguoi = [];
+  for (const r of input.relatives) {
+    if (r.is_archived) continue;
+    if (r.country === "JP") {
+      bo_qua.push(r.name);
+      continue;
+    }
+    const tuoi = input.year - r.birth_year;
+    const nhom = nhomTuoi(tuoi);
+    const g = daGui.get(r.id) ?? { tong: 0, so_lan: 0 };
+    const nguong = nhom === "30-69" ? luat.fuyo.nguong30_69 ?? 0 : 0;
+    const coGui = g.so_lan > 0;
+    const du = nhom !== "<16" && coGui && g.tong >= nguong;
+    const laoNhan = nhom === "70+";
+    const khau_tru_shotoku = du ? laoNhan ? luat.fuyo.khauTruShotoku.laoNhan : luat.fuyo.khauTruShotoku.thuong : 0;
+    const khau_tru_jumin = du ? laoNhan ? luat.fuyo.khauTruJumin.laoNhan : luat.fuyo.khauTruJumin.thuong : 0;
+    const giay = nhom === "30-69" && nguong > 0 ? ["\u89AA\u65CF\u95A2\u4FC2\u66F8\u985E", "38\u4E07\u5186\u9001\u91D1\u66F8\u985E"] : ["\u89AA\u65CF\u95A2\u4FC2\u66F8\u985E", "\u9001\u91D1\u95A2\u4FC2\u66F8\u985E"];
+    nguoi.push({
+      id: r.id,
+      name: r.name,
+      tuoi,
+      nhom,
+      da_gui: g.tong,
+      so_lan: g.so_lan,
+      nguong,
+      con_thieu: nhom === "30-69" ? Math.max(0, nguong - g.tong) : 0,
+      du,
+      khau_tru_shotoku,
+      khau_tru_jumin,
+      tiet_kiem_uoc: input.suatBien === null || !du ? null : tienTietKiem(khau_tru_shotoku, khau_tru_jumin, input.suatBien, luat),
+      giay
+    });
+  }
+  const ly_do = [];
+  if (input.suatBien === null)
+    ly_do.push("Ch\u01B0a \u0111\u1EE7 12 th\xE1ng phi\u1EBFu l\u01B0\u01A1ng \u0111\u1EC3 \u01B0\u1EDBc thu\u1EBF su\u1EA5t \u2014 nh\u1EADp phi\u1EBFu l\u01B0\u01A1ng th\xEC m\u1EDBi c\xF3 s\u1ED1 ti\u1EC1n ti\u1EBFt ki\u1EC7m.");
+  else ly_do.push("Ti\u1EC1n ti\u1EBFt ki\u1EC7m l\xE0 s\u1ED1 \u01B0\u1EDBc t\u1EEB thu\u1EBF su\u1EA5t bi\xEAn tr\xEAn phi\u1EBFu l\u01B0\u01A1ng; c\xF4ng ty/s\u1EDF thu\u1EBF ra s\u1ED1 cu\u1ED1i.");
+  if (thieu_ty_gia) ly_do.push("C\xF3 l\u1EA7n g\u1EEDi t\u1EEB t\xE0i kho\u1EA3n ngo\u1EA1i t\u1EC7 thi\u1EBFu t\u1EF7 gi\xE1, \u0111\xE3 lo\u1EA1i kh\u1ECFi t\u1ED5ng.");
+  if (bo_qua.length) ly_do.push(`${bo_qua.join(", ")} \u0111ang c\u01B0 tr\xFA \u1EDF Nh\u1EADt \u2014 theo lu\u1EADt ng\u01B0\u1EDDi c\u01B0 tr\xFA, ngo\xE0i ph\u1EA1m vi kho\u1EA3n n\xE0y.`);
+  ly_do.push(`Ng\u01B0\u1EDDi th\xE2n ph\u1EA3i c\xF3 \u5408\u8A08\u6240\u5F97\u91D1\u984D \u2264 \xA5${luat.fuyo.thuNhapToiDa.toLocaleString("vi-VN")}/n\u0103m \u2014 app kh\xF4ng ki\u1EC3m \u0111\u01B0\u1EE3c \u0111i\u1EC1u n\xE0y.`);
+  const tongTietKiem = nguoi.some((n) => n.tiet_kiem_uoc !== null) ? nguoi.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0) : null;
+  const han = `${input.year}-12-31`;
+  const thieu = nguoi.filter((n) => n.nhom === "30-69" && !n.du);
+  const muc = thang_con_lai <= 2 ? "high" : "medium";
+  let trang_thai;
+  let viec;
+  if (nguoi.length === 0 && bo_qua.length === 0) {
+    trang_thai = "thieu-du-lieu";
+    viec = "Th\xEAm ng\u01B0\u1EDDi th\xE2n nh\u1EADn ti\u1EC1n \u0111\u1EC3 app t\xEDnh \u0111\u01B0\u1EE3c kh\u1EA5u tr\u1EEB ng\u01B0\u1EDDi ph\u1EE5 thu\u1ED9c";
+  } else if (chua_gan.so_lan > 0) {
+    trang_thai = "thieu-du-lieu";
+    viec = `G\xE1n ng\u01B0\u1EDDi nh\u1EADn cho ${chua_gan.so_lan} l\u1EA7n g\u1EEDi (\xA5${chua_gan.tong.toLocaleString("vi-VN")}) \u2014 ch\u01B0a g\xE1n th\xEC s\u1ED1 d\u01B0\u1EDBi \u0111\xE2y \u0111ang thi\u1EBFu`;
+  } else if (thieu.length > 0 && input.year < namHomNay) {
+    trang_thai = "het-han";
+    viec = `${thieu.map((n) => n.name).join(", ")} kh\xF4ng \u0111\u1EE7 38\u4E07 n\u0103m ${input.year}`;
+  } else if (thieu.length > 0) {
+    trang_thai = "thieu";
+    const n = thieu[0];
+    viec = thieu.length === 1 ? `C\xF2n \xA5${n.con_thieu.toLocaleString("vi-VN")} \u0111\u1EC3 ${n.name} \u0111\u1EE7 38\u4E07 \xB7 ${thang_con_lai} th\xE1ng n\u1EEFa` : `${thieu.length} ng\u01B0\u1EDDi c\xF2n thi\u1EBFu \u0111\u1EC3 \u0111\u1EE7 38\u4E07 \xB7 ${thang_con_lai} th\xE1ng n\u1EEFa`;
+  } else if (nguoi.some((n) => n.du)) {
+    trang_thai = "du";
+    if (input.year < namHomNay) {
+      viec = `N\u0103m ${input.year} \u0111\u1EE7 \u0111i\u1EC1u ki\u1EC7n kh\u1EA5u tr\u1EEB \u2014 ch\u01B0a khai th\xEC xem kho\u1EA3n "\u0110\xF2i l\u1EA1i n\u0103m c\u0169"`;
+    } else {
+      viec = `N\u1ED9p ${[...new Set(nguoi.filter((n) => n.du).flatMap((n) => n.giay))].join(" + ")} cho c\xF4ng ty tr\u01B0\u1EDBc \u5E74\u672B\u8ABF\u6574`;
+    }
+  } else {
+    trang_thai = "thieu-du-lieu";
+    viec = "Ch\u01B0a c\xF3 l\u1EA7n g\u1EEDi n\xE0o trong n\u0103m \u0111\u01B0\u1EE3c g\xE1n cho ng\u01B0\u1EDDi th\xE2n";
+  }
+  return {
+    ketLuan: { id: "fuyo", year: input.year, trang_thai, muc, tiet_kiem_uoc: tongTietKiem, han, viec, ly_do },
+    nguoi,
+    chua_gan,
+    thang_con_lai,
+    thieu_ty_gia,
+    bo_qua
+  };
+}
+
+// src/features/quyen-loi/furusato.ts
+var FURUSATO_CATEGORY_NAME = "\u3075\u308B\u3055\u3068\u7D0D\u7A0E (\u5BC4\u9644)";
+var SO_TAX_NAMES = { shotoku: "Thu\u1EBF thu nh\u1EADp (\u6240\u5F97\u7A0E)", jumin: "Thu\u1EBF c\u01B0 tr\xFA (\u4F4F\u6C11\u7A0E)" };
+var FURUSATO_NHAC_TU = 1e4;
+var THANG_NHAC_CUOI_NAM = 10;
+function tranFurusato(shotokuWari, suatBien, luat) {
+  const mau = 0.9 - suatBien * luat.phucHung;
+  return Math.floor(shotokuWari * luat.furusato.tyLeShotokuWari / mau) + luat.furusato.tuChiu;
+}
+function idsTheoTen(categories, name) {
+  return new Set(categories.filter((c) => c.type === "expense" && c.name === name).map((c) => c.id));
+}
+function tong(txs, ids, start, end) {
+  let t = 0;
+  let n = 0;
+  for (const x of txs) {
+    if (x.type !== "expense" || x.category_id == null || !ids.has(x.category_id)) continue;
+    if (x.occurred_on < start || x.occurred_on >= end) continue;
+    t += x.is_refund ? -x.amount : x.amount;
+    n++;
+  }
+  return { tong: t, so_lan: n };
+}
+function tinhFurusato(input) {
+  const luat = luatChoNam(input.year);
+  const namNay = calendarYearOf(input.todayISO);
+  const nam = calendarYearRange(input.year);
+  const cua_so = input.year === namNay ? { start: addMonthsISO(input.todayISO, -12), end: addDaysISO2(input.todayISO, 1) } : { start: nam.start, end: nam.end };
+  const juminIds = idsTheoTen(input.categories, SO_TAX_NAMES.jumin);
+  const furusatoIds = idsTheoTen(input.categories, FURUSATO_CATEGORY_NAME);
+  const co_danh_muc = furusatoIds.size > 0;
+  const jumin = tong(input.txs, juminIds, cua_so.start, cua_so.end);
+  const shotoku_wari = jumin.so_lan === 0 ? null : Math.max(0, jumin.tong - luat.jumin.kinhToDan);
+  const tran = shotoku_wari === null || input.suatBien === null ? null : tranFurusato(shotoku_wari, input.suatBien, luat);
+  const da_gui = tong(input.txs, furusatoIds, nam.start, nam.end).tong;
+  const con_lai = tran === null ? null : Math.max(0, tran - da_gui);
+  const onestop_rui_ro = input.deXuatKhaiThue && da_gui > 0;
+  const ly_do = [
+    "Tr\u1EA7n \u01B0\u1EDBc t\u1EEB \u4F4F\u6C11\u7A0E tr\xEAn phi\u1EBFu l\u01B0\u01A1ng 12 th\xE1ng g\u1EA7n nh\u1EA5t, t\u1EE9c thu nh\u1EADp N\u0102M TR\u01AF\u1EDAC; l\u01B0\u01A1ng t\u0103ng th\xEC tr\u1EA7n th\u1EADt cao h\u01A1n."
+  ];
+  if (!co_danh_muc) ly_do.push(`Ch\u01B0a c\xF3 danh m\u1EE5c "${FURUSATO_CATEGORY_NAME}" n\xEAn kh\xF4ng \u0111\u1EBFm \u0111\u01B0\u1EE3c \u0111\xE3 g\u1EEDi bao nhi\xEAu.`);
+  if (input.suatBien === null) ly_do.push("Ch\u01B0a \u01B0\u1EDBc \u0111\u01B0\u1EE3c thu\u1EBF su\u1EA5t (thi\u1EBFu phi\u1EBFu l\u01B0\u01A1ng \u6240\u5F97\u7A0E).");
+  const thang = Number(input.todayISO.slice(5, 7));
+  const muaNhac = input.year === namNay && thang >= THANG_NHAC_CUOI_NAM;
+  let trang_thai;
+  let viec;
+  if (onestop_rui_ro) {
+    trang_thai = "thieu";
+    viec = `N\u1EBFu n\u1ED9p \u78BA\u5B9A\u7533\u544A cho kho\u1EA3n ph\u1EE5 thu\u1ED9c th\xEC khai c\u1EA3 \xA5${da_gui.toLocaleString("vi-VN")} furusato v\xE0o \u0111\xF3 \u2014 \u30EF\u30F3\u30B9\u30C8\u30C3\u30D7 s\u1EBD v\xF4 hi\u1EC7u`;
+  } else if (shotoku_wari === null) {
+    trang_thai = "thieu-du-lieu";
+    viec = "Nh\u1EADp phi\u1EBFu l\u01B0\u01A1ng (\u4F4F\u6C11\u7A0E) \u0111\u1EC3 \u01B0\u1EDBc tr\u1EA7n \u3075\u308B\u3055\u3068\u7D0D\u7A0E";
+  } else if (tran === null) {
+    trang_thai = "thieu-du-lieu";
+    viec = "Nh\u1EADp phi\u1EBFu l\u01B0\u01A1ng (\u6240\u5F97\u7A0E) \u0111\u1EC3 \u01B0\u1EDBc tr\u1EA7n \u3075\u308B\u3055\u3068\u7D0D\u7A0E";
+  } else if (muaNhac && con_lai !== null && con_lai >= FURUSATO_NHAC_TU) {
+    trang_thai = "thieu";
+    viec = `C\xF2n \u2248 \xA5${con_lai.toLocaleString("vi-VN")} furusato ch\u01B0a d\xF9ng \xB7 h\u1EBFt 31/12`;
+  } else if (input.year < namNay) {
+    trang_thai = "het-han";
+    viec = `N\u0103m ${input.year} \u0111\xE3 g\u1EEDi \xA5${da_gui.toLocaleString("vi-VN")} tr\xEAn tr\u1EA7n \u2248 \xA5${tran.toLocaleString("vi-VN")}`;
+  } else {
+    trang_thai = "du";
+    viec = `Tr\u1EA7n \u2248 \xA5${tran.toLocaleString("vi-VN")} \xB7 \u0111\xE3 g\u1EEDi \xA5${da_gui.toLocaleString("vi-VN")}`;
+  }
+  return {
+    ketLuan: {
+      id: "furusato",
+      year: input.year,
+      trang_thai,
+      muc: onestop_rui_ro ? "high" : "low",
+      tiet_kiem_uoc: null,
+      han: input.year === namNay ? `${input.year}-12-31` : null,
+      viec,
+      ly_do
+    },
+    tran,
+    shotoku_wari,
+    da_gui,
+    con_lai,
+    co_danh_muc,
+    onestop_rui_ro,
+    cua_so
+  };
+}
+
+// src/features/quyen-loi/refund.ts
+var SO_NAM_HOAN_THUE = 5;
+function tinhRefund(input) {
+  const namNay = calendarYearOf(input.todayISO);
+  const nam = [];
+  for (let y = namNay - SO_NAM_HOAN_THUE; y <= namNay - 1; y++) {
+    if (input.fuyoClaimedYears.includes(y)) continue;
+    const r = tinhFuyo({ ...input, year: y });
+    const du = r.nguoi.filter((n) => n.du);
+    if (du.length === 0) continue;
+    const tk = du.some((n) => n.tiet_kiem_uoc !== null) ? du.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0) : null;
+    nam.push({ year: y, han: `${y + SO_NAM_HOAN_THUE}-12-31`, nguoi: du, tiet_kiem_uoc: tk, co_nguong: du.some((n) => n.nguong > 0) });
+  }
+  const tong2 = nam.some((n) => n.tiet_kiem_uoc !== null) ? nam.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0) : null;
+  const hetHanNamNay = nam.find((n) => n.han.startsWith(String(namNay)));
+  const ly_do = [
+    "\u0110\xE2y l\xE0 l\u1EA7n \u0111\u1EA7u t\u1EF1 khai v\u1EDBi s\u1EDF thu\u1EBF; n\u1ED9p \u78BA\u5B9A\u7533\u544A th\xEC \u30EF\u30F3\u30B9\u30C8\u30C3\u30D7 c\u1EE7a \u3075\u308B\u3055\u3068\u7D0D\u7A0E n\u0103m \u0111\xF3 v\xF4 hi\u1EC7u, ph\u1EA3i khai l\u1EA1i trong c\xF9ng t\u1EDD khai.",
+    input.suatBien === null ? "Ch\u01B0a \u01B0\u1EDBc \u0111\u01B0\u1EE3c ti\u1EC1n v\xEC thi\u1EBFu phi\u1EBFu l\u01B0\u01A1ng." : "Ti\u1EC1n \u01B0\u1EDBc theo thu\u1EBF su\u1EA5t bi\xEAn HI\u1EC6N T\u1EA0I; n\u0103m c\u0169 l\u01B0\u01A1ng kh\xE1c th\xEC s\u1ED1 kh\xE1c."
+  ];
+  const ketLuan = nam.length === 0 ? { id: "refund", year: namNay, trang_thai: "du", muc: "low", tiet_kiem_uoc: null, han: null, viec: "Kh\xF4ng c\xF3 n\u0103m c\u0169 n\xE0o c\xF2n \u0111\xF2i l\u1EA1i \u0111\u01B0\u1EE3c", ly_do } : {
+    id: "refund",
+    year: namNay,
+    trang_thai: "thieu",
+    muc: hetHanNamNay ? "high" : "medium",
+    tiet_kiem_uoc: tong2,
+    han: nam[0].han,
+    viec: `${nam.length} n\u0103m c\u0169 \u0111\u1EE7 \u0111i\u1EC1u ki\u1EC7n n\u1ED9p \u9084\u4ED8\u7533\u544A (${nam.map((n) => n.year).join(", ")})${hetHanNamNay ? ` \xB7 n\u0103m ${hetHanNamNay.year} h\u1EBFt h\u1EA1n 31/12` : ""}`,
+    ly_do
+  };
+  return { ketLuan, nam };
+}
+
+// src/features/assets/shelter.ts
+function shelterUsage(accountId, txs, year, limit) {
+  let used = 0;
+  let count = 0;
+  const prefix = `${year}-`;
+  for (const t of txs) {
+    if (t.type !== "transfer" || t.to_account_id !== accountId) continue;
+    if (!t.occurred_on.startsWith(prefix)) continue;
+    used += t.to_amount ?? t.amount;
+    count++;
+  }
+  return {
+    used,
+    limit,
+    remaining: limit === null ? null : Math.max(0, limit - used),
+    ratio: limit && limit > 0 ? used / limit : null,
+    count
+  };
+}
+
+// src/features/quyen-loi/shelterYearEnd.ts
+function tinhShelterYearEnd(input) {
+  const tai_khoan = input.accounts.filter((a) => a.tax_shelter != null && !a.is_archived).map((a) => {
+    const u = shelterUsage(a.id, input.txs, input.year, a.shelter_annual_limit);
+    return { id: a.id, name: a.name, loai: a.tax_shelter, used: u.used, limit: u.limit, remaining: u.remaining };
+  });
+  const con_lai = tai_khoan.reduce((s, t) => s + (t.remaining ?? 0), 0);
+  const namNay = calendarYearOf(input.todayISO);
+  const muaNhac = input.year === namNay && Number(input.todayISO.slice(5, 7)) >= THANG_NHAC_CUOI_NAM;
+  const ly_do = ["H\u1EA1n m\u1EE9c NISA kh\xF4ng d\xF9ng l\xE0 m\u1EA5t, kh\xF4ng d\u1ED3n sang n\u0103m sau (\u91D1\u878D\u5E81)."];
+  if (tai_khoan.some((t) => t.limit === null)) ly_do.push("C\xF3 t\xE0i kho\u1EA3n ch\u01B0a \u0111\u1EB7t h\u1EA1n m\u1EE9c n\u0103m \u2014 s\u1EEDa \u1EDF C\xE0i \u0111\u1EB7t \u203A T\xE0i kho\u1EA3n.");
+  let trang_thai = "du";
+  let viec = `\u0110\xE3 n\u1EA1p ${tai_khoan.length} t\xE0i kho\u1EA3n \u01B0u \u0111\xE3i thu\u1EBF n\u0103m nay`;
+  if (tai_khoan.length === 0) {
+    trang_thai = "thieu-du-lieu";
+    viec = "Ch\u01B0a t\xE0i kho\u1EA3n n\xE0o \u0111\u01B0\u1EE3c \u0111\xE1nh d\u1EA5u NISA/iDeCo";
+  } else if (muaNhac && con_lai > 0) {
+    trang_thai = "thieu";
+    viec = `C\xF2n \xA5${con_lai.toLocaleString("vi-VN")} h\u1EA1n m\u1EE9c NISA/iDeCo ch\u01B0a d\xF9ng \xB7 h\u1EBFt 31/12`;
+  }
+  return {
+    ketLuan: { id: "shelter", year: input.year, trang_thai, muc: "low", tiet_kiem_uoc: null, han: `${input.year}-12-31`, viec, ly_do },
+    tai_khoan,
+    con_lai
+  };
+}
+
+// src/features/quyen-loi/quyenLoi.ts
+function thueThuNhap12Thang(txs, categories, todayISO) {
+  const ids = new Set(categories.filter((c) => c.type === "expense" && c.name === SO_TAX_NAMES.shotoku).map((c) => c.id));
+  const start = addMonthsISO(todayISO, -12);
+  const thang = /* @__PURE__ */ new Set();
+  let tong2 = 0;
+  for (const t of txs) {
+    if (t.type !== "expense" || t.category_id == null || !ids.has(t.category_id)) continue;
+    if (t.occurred_on < start || t.occurred_on > todayISO) continue;
+    tong2 += t.is_refund ? -t.amount : t.amount;
+    thang.add(t.occurred_on.slice(0, 7));
+  }
+  return { tong: tong2, thangCoPhieu: thang.size };
+}
+function tinhQuyenLoi(input) {
+  const luat = luatChoNam(calendarYearOf(input.todayISO));
+  const thue = thueThuNhap12Thang(input.txs, input.categories, input.todayISO);
+  const suatBien = thue.thangCoPhieu >= 12 ? suatBienTuThue(thue.tong, luat) : null;
+  const chung = { todayISO: input.todayISO, relatives: input.relatives, txs: input.txs, accounts: input.accounts, base: input.base, rates: input.rates, suatBien };
+  const fuyo = tinhFuyo({ ...chung, year: input.year });
+  const refund = tinhRefund({ ...chung, fuyoClaimedYears: input.fuyoClaimedYears });
+  const deXuatKhaiThue = refund.nam.length > 0 && input.year === calendarYearOf(input.todayISO);
+  const furusato = tinhFurusato({ year: input.year, todayISO: input.todayISO, categories: input.categories, txs: input.txs, suatBien, deXuatKhaiThue });
+  const shelter = tinhShelterYearEnd({ year: input.year, todayISO: input.todayISO, accounts: input.accounts, txs: input.txs });
+  const chuaGan = {
+    id: "remit-unassigned",
+    year: input.year,
+    trang_thai: fuyo.chua_gan.so_lan > 0 ? "thieu" : "du",
+    muc: "low",
+    tiet_kiem_uoc: null,
+    han: null,
+    viec: fuyo.chua_gan.so_lan > 0 ? `${fuyo.chua_gan.so_lan} l\u1EA7n g\u1EEDi ti\u1EC1n ch\u01B0a g\xE1n ng\u01B0\u1EDDi nh\u1EADn` : "M\u1ECDi l\u1EA7n g\u1EEDi \u0111\xE3 c\xF3 ng\u01B0\u1EDDi nh\u1EADn",
+    ly_do: ["Ch\u01B0a g\xE1n th\xEC kh\u1EA5u tr\u1EEB ng\u01B0\u1EDDi ph\u1EE5 thu\u1ED9c \u0111ang t\xEDnh thi\u1EBFu."]
+  };
+  return {
+    fuyo,
+    refund,
+    furusato,
+    shelter,
+    ketLuan: [fuyo.ketLuan, chuaGan, refund.ketLuan, furusato.ketLuan, shelter.ketLuan],
+    suatBien,
+    thangCoPhieu: thue.thangCoPhieu
+  };
+}
+
+// src/features/tax/categories.ts
+var TAX_PARENT_NAME = "Thu\u1EBF & An sinh";
+var TAX_CHILDREN = [
+  { name: "Thu\u1EBF thu nh\u1EADp (\u6240\u5F97\u7A0E)", icon: "\u{1F9FE}" },
+  { name: "Thu\u1EBF c\u01B0 tr\xFA (\u4F4F\u6C11\u7A0E)", icon: "\u{1F3D9}\uFE0F" },
+  { name: "B\u1EA3o hi\u1EC3m y t\u1EBF (\u5065\u5EB7\u4FDD\u967A)", icon: "\u{1F3E5}" },
+  { name: "H\u01B0u tr\xED (\u5E74\u91D1)", icon: "\u{1F474}" },
+  { name: "B\u1EA3o hi\u1EC3m vi\u1EC7c l\xE0m (\u96C7\u7528\u4FDD\u967A)", icon: "\u{1F4BC}" },
+  { name: "B\u1EA3o hi\u1EC3m \u0111i\u1EC1u d\u01B0\u1EE1ng (\u4ECB\u8B77\u4FDD\u967A)", icon: "\u{1FA7A}" }
+];
+function taxCategoryIds(categories) {
+  const parentIds = new Set(
+    categories.filter((c) => c.type === "expense" && c.name === TAX_PARENT_NAME).map((c) => c.id)
+  );
+  const standardNames = new Set(TAX_CHILDREN.map((c) => c.name));
+  const ids = new Set(parentIds);
+  for (const c of categories) {
+    if (c.type !== "expense") continue;
+    if (c.parent_id && parentIds.has(c.parent_id)) ids.add(c.id);
+    else if (standardNames.has(c.name)) ids.add(c.id);
+  }
+  return ids;
+}
 export {
+  FURUSATO_CATEGORY_NAME,
   PAGE_SIZE,
   PUSH_LIST_ROUTE,
   PUSH_TAG,
   RECENT_TXS_DAYS,
+  SO_NAM_HOAN_THUE,
   addDaysISO2 as addDaysISO,
   addMonths,
   buildBudgetReport,
   buildLifetimeInput,
   buildNotifications,
   buildTagBudgetReport,
+  calendarYearOf,
   carryFromPreviousMonth,
   dueForPush,
   earliestNeededDate,
@@ -1933,5 +2391,7 @@ export {
   monthKeyString,
   planPush,
   splitTxWindows,
+  taxCategoryIds,
+  tinhQuyenLoi,
   toISODate
 };

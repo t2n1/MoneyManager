@@ -25,6 +25,12 @@ var NOTIFICATION_TYPES = [
   // Cuối mảng = hiển thị sau cùng trong nhóm việc-cần-làm: đây là tin ít gấp nhất
   // (lệch kế hoạch cả đời, không phải "hết tiền tuần này").
   "lifetime-drift",
+  // Quyền lợi thuế (spec 2026-09-03): không gấp theo ngày nhưng có hạn thật (31/12) — cùng
+  // lý lẽ với lifetime-drift ở trên, nên đứng ngay sau nó và trước hai luật độ-tin-cậy.
+  "benefit-fuyo-shortfall",
+  "benefit-refund-years",
+  "benefit-remit-unassigned",
+  "benefit-year-end",
   // Hai luật về ĐỘ TIN CẬY của dữ liệu (§4.9) đứng CUỐI: chúng không gấp — không có
   // hạn chót nào — nhưng chúng nói rằng những con số phía trên đang được đo bằng một
   // cái thước thiếu vạch, nên vẫn thuộc nhóm việc-cần-làm chứ không phải tin-để-biết.
@@ -167,6 +173,37 @@ var NOTIFICATION_META = {
     kind: "action",
     label: "Thu chi l\u1EC7ch k\u1EBF ho\u1EA1ch Lifetime",
     hint: `Thu ho\u1EB7c chi th\u1EF1c t\u1EBF ${RECENT_TXS_DAYS} ng\xE0y g\u1EA7n \u0111\xE2y l\u1EC7ch kh\u1ECFi gi\u1EA3 \u0111\u1ECBnh c\u1EE7a k\u1ECBch b\u1EA3n (k\u1EC3 c\u1EA3 khi k\u1EBF ho\u1EA1ch \u0111\u1EC3 thu 0 m\xE0 s\u1ED5 c\xF3 thu nh\u1EADp), k\xE8m m\u1ED1c \xE2m d\u1ECBch bao nhi\xEAu n\u0103m.`
+  },
+  "benefit-fuyo-shortfall": {
+    cta: "Xem",
+    badge: "QUY\u1EC0N L\u1EE2I",
+    source: "Quy\u1EC1n l\u1EE3i \xB7 n\u0103m nay",
+    kind: "action",
+    label: "Ng\u01B0\u1EDDi ph\u1EE5 thu\u1ED9c ch\u01B0a \u0111\u1EE7 38\u4E07",
+    hint: "Ng\u01B0\u1EDDi th\xE2n 30\u201369 tu\u1ED5i \u1EDF VN c\u1EA7n nh\u1EADn \u0111\u1EE7 \xA5380.000/n\u0103m \u0111\u1EC3 \u0111\u01B0\u1EE3c kh\u1EA5u tr\u1EEB \u2014 nh\u1EAFc khi c\xF2n thi\u1EBFu."
+  },
+  "benefit-remit-unassigned": {
+    cta: "G\xE1n ng\u01B0\u1EDDi",
+    badge: "QUY\u1EC0N L\u1EE2I",
+    source: "Quy\u1EC1n l\u1EE3i \xB7 n\u0103m nay",
+    kind: "action",
+    label: "L\u1EA7n g\u1EEDi ti\u1EC1n ch\u01B0a g\xE1n ng\u01B0\u1EDDi nh\u1EADn",
+    hint: "Ch\u01B0a g\xE1n th\xEC kh\u1EA5u tr\u1EEB ng\u01B0\u1EDDi ph\u1EE5 thu\u1ED9c \u0111ang t\xEDnh thi\u1EBFu."
+  },
+  "benefit-refund-years": {
+    cta: "Xem n\u0103m c\u0169",
+    badge: "QUY\u1EC0N L\u1EE2I",
+    source: "Quy\u1EC1n l\u1EE3i \xB7 n\u0103m c\u0169",
+    kind: "action",
+    label: "N\u0103m c\u0169 c\xF2n \u0111\xF2i l\u1EA1i \u0111\u01B0\u1EE3c",
+    hint: "N\u1ED9p \u9084\u4ED8\u7533\u544A trong 5 n\u0103m cho kh\u1EA5u tr\u1EEB ch\u01B0a khai \u2014 nh\u1EAFc khi c\xF3 n\u0103m \u0111\u1EE7 \u0111i\u1EC1u ki\u1EC7n."
+  },
+  "benefit-year-end": {
+    badge: "CU\u1ED0I N\u0102M",
+    source: "Quy\u1EC1n l\u1EE3i \xB7 n\u0103m nay",
+    kind: "info",
+    label: "Furusato / NISA c\xF2n h\u1EA1n m\u1EE9c",
+    hint: "T\u1EEB th\xE1ng 10: ph\u1EA7n \u3075\u308B\u3055\u3068\u7D0D\u7A0E v\xE0 NISA ch\u01B0a d\xF9ng, m\u1EA5t khi h\u1EBFt 31/12."
   },
   "data-uncategorized": {
     cta: "Ph\xE2n lo\u1EA1i",
@@ -1299,6 +1336,65 @@ function lifetimeRules(input) {
   return out;
 }
 
+// src/features/notifications/rules/benefitRules.ts
+var TO = "/quyen-loi";
+function benefitRules(input) {
+  const b = input.benefits;
+  if (!b) return [];
+  const out = [];
+  const boi = (id) => b.find((k) => k.id === id);
+  const fuyo = boi("fuyo");
+  if (fuyo?.trang_thai === "thieu")
+    out.push({
+      // Mã KHÔNG kèm kỳ: thiếu → đủ thì mã biến mất và trạng thái được dọn; năm sau lại
+      // thiếu thì đỏ như mới (vòng đời mục E).
+      key: "benefit-fuyo-shortfall:all",
+      kind: "action",
+      type: "benefit-fuyo-shortfall",
+      severity: fuyo.muc,
+      title: fuyo.viec,
+      detail: fuyo.ly_do[0],
+      onISO: fuyo.han ?? void 0,
+      to: TO
+    });
+  const chuaGan = boi("remit-unassigned");
+  if (chuaGan?.trang_thai === "thieu")
+    out.push({
+      key: "benefit-remit-unassigned:all",
+      kind: "action",
+      type: "benefit-remit-unassigned",
+      severity: "low",
+      title: chuaGan.viec,
+      detail: chuaGan.ly_do[0],
+      to: TO
+    });
+  const refund = boi("refund");
+  if (refund?.trang_thai === "thieu")
+    out.push({
+      key: "benefit-refund-years:all",
+      kind: "action",
+      type: "benefit-refund-years",
+      severity: refund.muc,
+      title: refund.viec,
+      detail: refund.ly_do[0],
+      onISO: refund.han ?? void 0,
+      to: TO
+    });
+  const cuoiNam = [boi("furusato"), boi("shelter")].filter((k) => k?.trang_thai === "thieu");
+  if (cuoiNam.length > 0)
+    out.push({
+      key: `benefit-year-end:${cuoiNam[0].year}`,
+      kind: "info",
+      type: "benefit-year-end",
+      severity: cuoiNam.some((k) => k.muc === "high") ? "high" : "low",
+      title: cuoiNam[0].viec,
+      detail: cuoiNam.length > 1 ? cuoiNam[1].viec : cuoiNam[0].ly_do[0],
+      onISO: cuoiNam[0].han ?? void 0,
+      to: TO
+    });
+  return out;
+}
+
 // src/features/categories/flowCategories.ts
 var DEBT_FLOW_CATEGORY_NAMES = {
   /** chi — mình cho người khác vay */
@@ -1490,6 +1586,7 @@ function buildNotifications(input) {
     ...cardRules(input),
     ...rhythmRules(input),
     ...lifetimeRules(input),
+    ...benefitRules(input),
     ...dataRules(input),
     ...levelShiftRule(input)
   ];

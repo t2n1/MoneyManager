@@ -17,6 +17,7 @@ import { tagRules } from './rules/tagRules'
 import { cardRules } from './rules/cardRules'
 import { rhythmRules } from './rules/rhythmRules'
 import { lifetimeRules } from './rules/lifetimeRules'
+import { benefitRules } from './rules/benefitRules'
 import { dataRules } from './rules/dataRules'
 import { levelShiftRule } from './rules/trendRules'
 
@@ -81,6 +82,7 @@ export function buildNotifications(input: NotificationInput): NotificationResult
     ...cardRules(input),
     ...rhythmRules(input),
     ...lifetimeRules(input),
+    ...benefitRules(input),
     ...dataRules(input),
     ...levelShiftRule(input),
   ]

@@ -6,6 +6,7 @@ import type { Rates } from '../../lib/rates'
 import type { BudgetReport } from '../budgets/progress'
 import type { TagBudgetLine } from '../tags/budget'
 import type { LifetimeInput } from '../lifetime/project'
+import type { KetLuan } from '../quyen-loi/ketLuan'
 import type {
   AccountBalanceRow,
   CategoryRow,
@@ -38,6 +39,10 @@ export type NotificationType =
   | 'data-uncategorized'
   | 'data-reconcile'
   | 'trend-level-shift'
+  | 'benefit-fuyo-shortfall'
+  | 'benefit-remit-unassigned'
+  | 'benefit-refund-years'
+  | 'benefit-year-end'
 
 /**
  * Cửa sổ giao dịch mà `NotificationInput.recentTxs` CHỨA THẬT.
@@ -93,6 +98,12 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   // Cuối mảng = hiển thị sau cùng trong nhóm việc-cần-làm: đây là tin ít gấp nhất
   // (lệch kế hoạch cả đời, không phải "hết tiền tuần này").
   'lifetime-drift',
+  // Quyền lợi thuế (spec 2026-09-03): không gấp theo ngày nhưng có hạn thật (31/12) — cùng
+  // lý lẽ với lifetime-drift ở trên, nên đứng ngay sau nó và trước hai luật độ-tin-cậy.
+  'benefit-fuyo-shortfall',
+  'benefit-refund-years',
+  'benefit-remit-unassigned',
+  'benefit-year-end',
   // Hai luật về ĐỘ TIN CẬY của dữ liệu (§4.9) đứng CUỐI: chúng không gấp — không có
   // hạn chót nào — nhưng chúng nói rằng những con số phía trên đang được đo bằng một
   // cái thước thiếu vạch, nên vẫn thuộc nhóm việc-cần-làm chứ không phải tin-để-biết.
@@ -293,6 +304,37 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
       `Thu hoặc chi thực tế ${RECENT_TXS_DAYS} ngày gần đây lệch khỏi giả định của kịch bản ` +
       '(kể cả khi kế hoạch để thu 0 mà sổ có thu nhập), kèm mốc âm dịch bao nhiêu năm.',
   },
+  'benefit-fuyo-shortfall': {
+    cta: 'Xem',
+    badge: 'QUYỀN LỢI',
+    source: 'Quyền lợi · năm nay',
+    kind: 'action',
+    label: 'Người phụ thuộc chưa đủ 38万',
+    hint: 'Người thân 30–69 tuổi ở VN cần nhận đủ ¥380.000/năm để được khấu trừ — nhắc khi còn thiếu.',
+  },
+  'benefit-remit-unassigned': {
+    cta: 'Gán người',
+    badge: 'QUYỀN LỢI',
+    source: 'Quyền lợi · năm nay',
+    kind: 'action',
+    label: 'Lần gửi tiền chưa gán người nhận',
+    hint: 'Chưa gán thì khấu trừ người phụ thuộc đang tính thiếu.',
+  },
+  'benefit-refund-years': {
+    cta: 'Xem năm cũ',
+    badge: 'QUYỀN LỢI',
+    source: 'Quyền lợi · năm cũ',
+    kind: 'action',
+    label: 'Năm cũ còn đòi lại được',
+    hint: 'Nộp 還付申告 trong 5 năm cho khấu trừ chưa khai — nhắc khi có năm đủ điều kiện.',
+  },
+  'benefit-year-end': {
+    badge: 'CUỐI NĂM',
+    source: 'Quyền lợi · năm nay',
+    kind: 'info',
+    label: 'Furusato / NISA còn hạn mức',
+    hint: 'Từ tháng 10: phần ふるさと納税 và NISA chưa dùng, mất khi hết 31/12.',
+  },
   'data-uncategorized': {
     cta: 'Phân loại',
     badge: 'PHÂN LOẠI',
@@ -384,6 +426,12 @@ export interface NotificationInput {
    * kịch bản / chưa khai năm sinh → luật im, không đoán.
    */
   lifetime?: LifetimeInput
+  /**
+   * Năm kết luận Quyền lợi (features/quyen-loi/quyenLoi.ts), ĐÃ TÍNH SẴN ở nơi gọi —
+   * useQuyenLoi trên trình duyệt, loadInput.ts phía server. undefined = chưa tải → luật im.
+   * Tính sẵn cùng lý do với `tagBudgets`: cần 6 năm lần gửi tiền, `recentTxs` chỉ có 90 ngày.
+   */
+  benefits?: KetLuan[]
   /** Loại đã tắt trong cài đặt. */
   offTypes: NotificationType[]
 }

@@ -21,12 +21,20 @@ import {
   useSavingsGoals,
   useTransferCategoryIds,
 } from '../../hooks/queries'
-import { addDaysISO, addMonths, getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
+import {
+  addDaysISO,
+  addMonths,
+  calendarYearOf,
+  getMonthRange,
+  monthKeyForDate,
+  toISODate,
+} from '../../lib/dates'
 import { useTagBudgets } from '../tags/useTagBudgets'
 import { formatMoney } from '../../lib/money'
 import type { CurrencyCode } from '../../lib/money'
 import { usePrivacyMode } from '../../lib/privacy'
 import { buildLifetimeInput } from '../lifetime/buildInput'
+import { useQuyenLoi } from '../quyen-loi/useQuyenLoi'
 import { ACTION_LIMIT, INFO_LIMIT, buildNotifications } from './rules'
 import {
   lifetimeQueriesSettled,
@@ -192,6 +200,11 @@ export function useNotifications(): UseNotificationsResult {
     [profile, scenariosQ.data, phasesQ.data, eventsQ.data, todayISO],
   )
 
+  // Quyền lợi thuế (spec 2026-09-03): bốn bộ kiểm chạy sẵn, luật chỉ chép. Cùng `todayISO`
+  // của hook này để mọi luật chung một "hôm nay".
+  const quyenLoi = useQuyenLoi(calendarYearOf(todayISO), todayISO, !!profile)
+  const benefits = quyenLoi.ketQua?.ketLuan
+
   /**
    * Chuỗi chi theo tháng cho luật điểm gãy (§4.9).
    *
@@ -279,6 +292,7 @@ export function useNotifications(): UseNotificationsResult {
         recentTxs,
         monthlyExpense,
         lifetime,
+        benefits,
         offTypes,
       })
     } catch (error) {
@@ -307,6 +321,7 @@ export function useNotifications(): UseNotificationsResult {
     recentTxs,
     monthlyExpense,
     lifetime,
+    benefits,
     offTypes,
     privacyOn,
   ])
@@ -365,6 +380,9 @@ export function useNotifications(): UseNotificationsResult {
     // công. Quyết định là hàm thuần `lifetimeQueriesSettled` (state.ts) để có phép thử
     // canh; JSDoc của nó nói vì sao "lỗi hẳn" cũng phải tính là sẵn sàng.
     lifetimeOk: lifetimeQueriesSettled([scenariosQ, phasesQ, eventsQ]),
+    // Lỗi hẳn cũng tính là ngã ngũ, cùng lý lẽ với lifetimeOk ở trên: không chặn dọn
+    // dẹp mãi mãi vì một query Quyền lợi hỏng.
+    benefitsOk: quyenLoi.isReady || quyenLoi.isError,
     notificationStateOk: stateQ.isSuccess,
   })
 

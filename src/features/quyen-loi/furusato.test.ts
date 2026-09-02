@@ -66,6 +66,13 @@ describe('tinhFurusato', () => {
     expect(r.onestop_rui_ro).toBe(true)
     expect(r.ketLuan.viec).toMatch(/ワンストップ/)
   })
+  it('onestop cảnh báo dù chưa có phiếu lương 住民税', () => {
+    const r = tinhFurusato({ ...base, txs: [tx({ category_id: 'fu', amount: 30_000 })], suatBien: null, deXuatKhaiThue: true })
+    expect(r.onestop_rui_ro).toBe(true)
+    expect(r.ketLuan.trang_thai).toBe('thieu')
+    expect(r.ketLuan.viec).toMatch(/ワンストップ/)
+    expect(r.tran).toBeNull()
+  })
   it('năm cũ dùng 住民税 của chính năm đó', () => {
     const r = tinhFurusato({ ...base, year: 2025, txs: phieu12(), suatBien: 0.05 })
     expect(r.shotoku_wari).toBe(4 * 12_000 - 5_000) // 9..12/2025 = 4 tháng

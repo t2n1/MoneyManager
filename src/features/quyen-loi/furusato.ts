@@ -96,12 +96,12 @@ export function tinhFurusato(input: FurusatoInput): FurusatoKetQua {
   const muaNhac = input.year === namNay && thang >= THANG_NHAC_CUOI_NAM
   let trang_thai: KetLuan['trang_thai']
   let viec: string
-  if (shotoku_wari === null) {
-    trang_thai = 'thieu-du-lieu'
-    viec = 'Nhập phiếu lương (住民税) để ước trần ふるさと納税'
-  } else if (onestop_rui_ro) {
+  if (onestop_rui_ro) {
     trang_thai = 'thieu'
     viec = `Nếu nộp 確定申告 cho khoản phụ thuộc thì khai cả ¥${da_gui.toLocaleString('vi-VN')} furusato vào đó — ワンストップ sẽ vô hiệu`
+  } else if (shotoku_wari === null) {
+    trang_thai = 'thieu-du-lieu'
+    viec = 'Nhập phiếu lương (住民税) để ước trần ふるさと納税'
   } else if (tran === null) {
     trang_thai = 'thieu-du-lieu'
     viec = 'Nhập phiếu lương (所得税) để ước trần ふるさと納税'

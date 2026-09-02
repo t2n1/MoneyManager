@@ -98,7 +98,7 @@ export function tinhFurusato(input: FurusatoInput): FurusatoKetQua {
   let viec: string
   if (onestop_rui_ro) {
     trang_thai = 'thieu'
-    viec = `Nếu nộp 確定申告 cho khoản phụ thuộc thì khai cả ¥${da_gui.toLocaleString('vi-VN')} furusato vào đó — ワンストップ sẽ vô hiệu`
+    viec = `Nếu nộp 確定申告 cho khoản phụ thuộc thì khai cả ¥${da_gui.toLocaleString('en-US')} furusato vào đó — ワンストップ sẽ vô hiệu`
   } else if (shotoku_wari === null) {
     trang_thai = 'thieu-du-lieu'
     viec = 'Nhập phiếu lương (住民税) để ước trần ふるさと納税'
@@ -107,13 +107,13 @@ export function tinhFurusato(input: FurusatoInput): FurusatoKetQua {
     viec = 'Nhập phiếu lương (所得税) để ước trần ふるさと納税'
   } else if (muaNhac && con_lai !== null && con_lai >= FURUSATO_NHAC_TU) {
     trang_thai = 'thieu'
-    viec = `Còn ≈ ¥${con_lai.toLocaleString('vi-VN')} furusato chưa dùng · hết 31/12`
+    viec = `Còn ≈ ¥${con_lai.toLocaleString('en-US')} furusato chưa dùng · hết 31/12`
   } else if (input.year < namNay) {
     trang_thai = 'het-han'
-    viec = `Năm ${input.year} đã gửi ¥${da_gui.toLocaleString('vi-VN')} trên trần ≈ ¥${tran.toLocaleString('vi-VN')}`
+    viec = `Năm ${input.year} đã gửi ¥${da_gui.toLocaleString('en-US')} trên trần ≈ ¥${tran.toLocaleString('en-US')}`
   } else {
     trang_thai = 'du'
-    viec = `Trần ≈ ¥${tran.toLocaleString('vi-VN')} · đã gửi ¥${da_gui.toLocaleString('vi-VN')}`
+    viec = `Trần ≈ ¥${tran.toLocaleString('en-US')} · đã gửi ¥${da_gui.toLocaleString('en-US')}`
   }
 
   return {

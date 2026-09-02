@@ -2092,7 +2092,7 @@ function tinhFuyo(input) {
   else ly_do.push("Ti\u1EC1n ti\u1EBFt ki\u1EC7m l\xE0 s\u1ED1 \u01B0\u1EDBc t\u1EEB thu\u1EBF su\u1EA5t bi\xEAn tr\xEAn phi\u1EBFu l\u01B0\u01A1ng; c\xF4ng ty/s\u1EDF thu\u1EBF ra s\u1ED1 cu\u1ED1i.");
   if (thieu_ty_gia) ly_do.push("C\xF3 l\u1EA7n g\u1EEDi t\u1EEB t\xE0i kho\u1EA3n ngo\u1EA1i t\u1EC7 thi\u1EBFu t\u1EF7 gi\xE1, \u0111\xE3 lo\u1EA1i kh\u1ECFi t\u1ED5ng.");
   if (bo_qua.length) ly_do.push(`${bo_qua.join(", ")} \u0111ang c\u01B0 tr\xFA \u1EDF Nh\u1EADt \u2014 theo lu\u1EADt ng\u01B0\u1EDDi c\u01B0 tr\xFA, ngo\xE0i ph\u1EA1m vi kho\u1EA3n n\xE0y.`);
-  ly_do.push(`Ng\u01B0\u1EDDi th\xE2n ph\u1EA3i c\xF3 \u5408\u8A08\u6240\u5F97\u91D1\u984D \u2264 \xA5${luat.fuyo.thuNhapToiDa.toLocaleString("vi-VN")}/n\u0103m \u2014 app kh\xF4ng ki\u1EC3m \u0111\u01B0\u1EE3c \u0111i\u1EC1u n\xE0y.`);
+  ly_do.push(`Ng\u01B0\u1EDDi th\xE2n ph\u1EA3i c\xF3 \u5408\u8A08\u6240\u5F97\u91D1\u984D \u2264 \xA5${luat.fuyo.thuNhapToiDa.toLocaleString("en-US")}/n\u0103m \u2014 app kh\xF4ng ki\u1EC3m \u0111\u01B0\u1EE3c \u0111i\u1EC1u n\xE0y.`);
   const tongTietKiem = nguoi.some((n) => n.tiet_kiem_uoc !== null) ? nguoi.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0) : null;
   const han = `${input.year}-12-31`;
   const thieu = nguoi.filter((n) => n.nhom === "30-69" && !n.du);
@@ -2104,14 +2104,14 @@ function tinhFuyo(input) {
     viec = "Th\xEAm ng\u01B0\u1EDDi th\xE2n nh\u1EADn ti\u1EC1n \u0111\u1EC3 app t\xEDnh \u0111\u01B0\u1EE3c kh\u1EA5u tr\u1EEB ng\u01B0\u1EDDi ph\u1EE5 thu\u1ED9c";
   } else if (chua_gan.so_lan > 0) {
     trang_thai = "thieu-du-lieu";
-    viec = `G\xE1n ng\u01B0\u1EDDi nh\u1EADn cho ${chua_gan.so_lan} l\u1EA7n g\u1EEDi (\xA5${chua_gan.tong.toLocaleString("vi-VN")}) \u2014 ch\u01B0a g\xE1n th\xEC s\u1ED1 d\u01B0\u1EDBi \u0111\xE2y \u0111ang thi\u1EBFu`;
+    viec = `G\xE1n ng\u01B0\u1EDDi nh\u1EADn cho ${chua_gan.so_lan} l\u1EA7n g\u1EEDi (\xA5${chua_gan.tong.toLocaleString("en-US")}) \u2014 ch\u01B0a g\xE1n th\xEC s\u1ED1 d\u01B0\u1EDBi \u0111\xE2y \u0111ang thi\u1EBFu`;
   } else if (thieu.length > 0 && input.year < namHomNay) {
     trang_thai = "het-han";
     viec = `${thieu.map((n) => n.name).join(", ")} kh\xF4ng \u0111\u1EE7 38\u4E07 n\u0103m ${input.year}`;
   } else if (thieu.length > 0) {
     trang_thai = "thieu";
     const n = thieu[0];
-    viec = thieu.length === 1 ? `C\xF2n \xA5${n.con_thieu.toLocaleString("vi-VN")} \u0111\u1EC3 ${n.name} \u0111\u1EE7 38\u4E07 \xB7 ${thang_con_lai} th\xE1ng n\u1EEFa` : `${thieu.length} ng\u01B0\u1EDDi c\xF2n thi\u1EBFu \u0111\u1EC3 \u0111\u1EE7 38\u4E07 \xB7 ${thang_con_lai} th\xE1ng n\u1EEFa`;
+    viec = thieu.length === 1 ? `C\xF2n \xA5${n.con_thieu.toLocaleString("en-US")} \u0111\u1EC3 ${n.name} \u0111\u1EE7 38\u4E07 \xB7 ${thang_con_lai} th\xE1ng n\u1EEFa` : `${thieu.length} ng\u01B0\u1EDDi c\xF2n thi\u1EBFu \u0111\u1EC3 \u0111\u1EE7 38\u4E07 \xB7 ${thang_con_lai} th\xE1ng n\u1EEFa`;
   } else if (nguoi.some((n) => n.du)) {
     trang_thai = "du";
     if (input.year < namHomNay) {
@@ -2181,7 +2181,7 @@ function tinhFurusato(input) {
   let viec;
   if (onestop_rui_ro) {
     trang_thai = "thieu";
-    viec = `N\u1EBFu n\u1ED9p \u78BA\u5B9A\u7533\u544A cho kho\u1EA3n ph\u1EE5 thu\u1ED9c th\xEC khai c\u1EA3 \xA5${da_gui.toLocaleString("vi-VN")} furusato v\xE0o \u0111\xF3 \u2014 \u30EF\u30F3\u30B9\u30C8\u30C3\u30D7 s\u1EBD v\xF4 hi\u1EC7u`;
+    viec = `N\u1EBFu n\u1ED9p \u78BA\u5B9A\u7533\u544A cho kho\u1EA3n ph\u1EE5 thu\u1ED9c th\xEC khai c\u1EA3 \xA5${da_gui.toLocaleString("en-US")} furusato v\xE0o \u0111\xF3 \u2014 \u30EF\u30F3\u30B9\u30C8\u30C3\u30D7 s\u1EBD v\xF4 hi\u1EC7u`;
   } else if (shotoku_wari === null) {
     trang_thai = "thieu-du-lieu";
     viec = "Nh\u1EADp phi\u1EBFu l\u01B0\u01A1ng (\u4F4F\u6C11\u7A0E) \u0111\u1EC3 \u01B0\u1EDBc tr\u1EA7n \u3075\u308B\u3055\u3068\u7D0D\u7A0E";
@@ -2190,13 +2190,13 @@ function tinhFurusato(input) {
     viec = "Nh\u1EADp phi\u1EBFu l\u01B0\u01A1ng (\u6240\u5F97\u7A0E) \u0111\u1EC3 \u01B0\u1EDBc tr\u1EA7n \u3075\u308B\u3055\u3068\u7D0D\u7A0E";
   } else if (muaNhac && con_lai !== null && con_lai >= FURUSATO_NHAC_TU) {
     trang_thai = "thieu";
-    viec = `C\xF2n \u2248 \xA5${con_lai.toLocaleString("vi-VN")} furusato ch\u01B0a d\xF9ng \xB7 h\u1EBFt 31/12`;
+    viec = `C\xF2n \u2248 \xA5${con_lai.toLocaleString("en-US")} furusato ch\u01B0a d\xF9ng \xB7 h\u1EBFt 31/12`;
   } else if (input.year < namNay) {
     trang_thai = "het-han";
-    viec = `N\u0103m ${input.year} \u0111\xE3 g\u1EEDi \xA5${da_gui.toLocaleString("vi-VN")} tr\xEAn tr\u1EA7n \u2248 \xA5${tran.toLocaleString("vi-VN")}`;
+    viec = `N\u0103m ${input.year} \u0111\xE3 g\u1EEDi \xA5${da_gui.toLocaleString("en-US")} tr\xEAn tr\u1EA7n \u2248 \xA5${tran.toLocaleString("en-US")}`;
   } else {
     trang_thai = "du";
-    viec = `Tr\u1EA7n \u2248 \xA5${tran.toLocaleString("vi-VN")} \xB7 \u0111\xE3 g\u1EEDi \xA5${da_gui.toLocaleString("vi-VN")}`;
+    viec = `Tr\u1EA7n \u2248 \xA5${tran.toLocaleString("en-US")} \xB7 \u0111\xE3 g\u1EEDi \xA5${da_gui.toLocaleString("en-US")}`;
   }
   return {
     ketLuan: {
@@ -2230,7 +2230,7 @@ function tinhRefund(input) {
     const du = r.nguoi.filter((n) => n.du);
     if (du.length === 0) continue;
     const tk = du.some((n) => n.tiet_kiem_uoc !== null) ? du.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0) : null;
-    nam.push({ year: y, han: `${y + SO_NAM_HOAN_THUE}-12-31`, nguoi: du, tiet_kiem_uoc: tk, co_nguong: du.some((n) => n.nguong > 0) });
+    nam.push({ year: y, han: `${y + SO_NAM_HOAN_THUE}-12-31`, nguoi: du, tiet_kiem_uoc: tk, co_nguong: luatChoNam(y).fuyo.nguong30_69 !== null });
   }
   const tong2 = nam.some((n) => n.tiet_kiem_uoc !== null) ? nam.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0) : null;
   const hetHanNamNay = nam.find((n) => n.han.startsWith(String(namNay)));
@@ -2289,7 +2289,7 @@ function tinhShelterYearEnd(input) {
     viec = "Ch\u01B0a t\xE0i kho\u1EA3n n\xE0o \u0111\u01B0\u1EE3c \u0111\xE1nh d\u1EA5u NISA/iDeCo";
   } else if (muaNhac && con_lai > 0) {
     trang_thai = "thieu";
-    viec = `C\xF2n \xA5${con_lai.toLocaleString("vi-VN")} h\u1EA1n m\u1EE9c NISA/iDeCo ch\u01B0a d\xF9ng \xB7 h\u1EBFt 31/12`;
+    viec = `C\xF2n \xA5${con_lai.toLocaleString("en-US")} h\u1EA1n m\u1EE9c NISA/iDeCo ch\u01B0a d\xF9ng \xB7 h\u1EBFt 31/12`;
   }
   return {
     ketLuan: { id: "shelter", year: input.year, trang_thai, muc: "low", tiet_kiem_uoc: null, han: `${input.year}-12-31`, viec, ly_do },

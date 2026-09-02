@@ -6,6 +6,7 @@
 import { calendarYearOf } from '../../lib/dates'
 import type { KetLuan } from './ketLuan'
 import { tinhFuyo, type FuyoInput, type FuyoNguoi } from './fuyo'
+import { luatChoNam } from './rules/luat'
 
 export const SO_NAM_HOAN_THUE = 5
 
@@ -19,7 +20,12 @@ export interface RefundNam {
   han: string
   nguoi: FuyoNguoi[]
   tiet_kiem_uoc: number | null
-  /** Luật năm đó có ngưỡng 38万 không — để màn hình nói "năm này chỉ cần chứng từ gửi tiền". */
+  /**
+   * Luật của NĂM ĐÓ có ngưỡng 38万 không — để màn hình nói "năm này chỉ cần chứng từ gửi
+   * tiền". Đọc từ `luatChoNam(y).fuyo.nguong30_69`, KHÔNG suy từ nhóm tuổi của người đủ:
+   * một năm có ngưỡng (vd 2024) mà chỉ người 16–29 (nhóm không ngưỡng) đủ điều kiện vẫn
+   * phải hiện `true`, vì luật năm đó vẫn đòi 38万 cho nhóm 30–69.
+   */
   co_nguong: boolean
 }
 
@@ -37,7 +43,7 @@ export function tinhRefund(input: RefundInput): RefundKetQua {
     const du = r.nguoi.filter((n) => n.du)
     if (du.length === 0) continue
     const tk = du.some((n) => n.tiet_kiem_uoc !== null) ? du.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0) : null
-    nam.push({ year: y, han: `${y + SO_NAM_HOAN_THUE}-12-31`, nguoi: du, tiet_kiem_uoc: tk, co_nguong: du.some((n) => n.nguong > 0) })
+    nam.push({ year: y, han: `${y + SO_NAM_HOAN_THUE}-12-31`, nguoi: du, tiet_kiem_uoc: tk, co_nguong: luatChoNam(y).fuyo.nguong30_69 !== null })
   }
 
   const tong = nam.some((n) => n.tiet_kiem_uoc !== null) ? nam.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0) : null

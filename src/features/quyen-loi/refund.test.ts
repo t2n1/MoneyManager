@@ -50,4 +50,14 @@ describe('tinhRefund — cửa sổ 5 năm', () => {
     expect(r.nam[0].tiet_kiem_uoc).toBe(71_798) // 38万×10%×1,021 + 33万×10%
     expect(r.ketLuan.tiet_kiem_uoc).toBe(71_798)
   })
+  it('co_nguong theo luật năm, không theo người', () => {
+    // Em sinh 1996 → 28 tuổi năm 2024 (nhóm 16–29, không ngưỡng), 25 tuổi năm 2021.
+    const em = { ...me, id: 'em', birth_year: 1996 }
+    const r2024 = tinhRefund({ ...base, relatives: [em], txs: [tx({ occurred_on: '2024-06-01', remit_recipient_id: 'em' })] })
+    expect(r2024.nam.map((n) => n.year)).toEqual([2024])
+    expect(r2024.nam[0].co_nguong).toBe(true) // luật 2024 CÓ ngưỡng 38万, dù người đủ thuộc nhóm không ngưỡng
+    const r2021 = tinhRefund({ ...base, relatives: [em], txs: [tx({ occurred_on: '2021-06-01', remit_recipient_id: 'em' })] })
+    expect(r2021.nam.map((n) => n.year)).toEqual([2021])
+    expect(r2021.nam[0].co_nguong).toBe(false) // luật 2021 chưa có ngưỡng
+  })
 })

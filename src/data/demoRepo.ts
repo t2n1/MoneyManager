@@ -483,6 +483,9 @@ function seed(): DemoDB {
   // Tài khoản NISA nằm cuối mảng accounts (thêm sau, không đổi thứ tự 4 tài khoản đầu ở
   // trên) — lấy bằng tên cho khỏi phụ thuộc chỉ số mảng.
   const nisaAcc = accounts.find((a) => a.name === 'NISA Rakuten')!
+  // spec F: tài khoản NISA mẫu phải có tax_shelter để khối ④ hiện
+  nisaAcc.tax_shelter = 'nisa_tsumitate'
+  nisaAcc.shelter_annual_limit = 1_200_000
 
   const tx = (
     partial: Pick<TransactionRow, 'type' | 'amount' | 'occurred_on' | 'note'> &
@@ -525,7 +528,7 @@ function seed(): DemoDB {
 
   // Người thân nhận tiền gửi về VN (migration 0056) — mẹ (70+, đã quá tuổi ngưỡng 30–69)
   // và em Hùng (30–69, đúng khoảng tuổi luật 国外居住親族 áp dụng).
-  const me = { id: uuid(), user_id: DEMO_USER, name: 'Mẹ', birth_year: 1958, relationship: 'parent' as const, country: 'VN', is_archived: false, sort_order: 0, created_at: nowISO() }
+  const me = { id: uuid(), user_id: DEMO_USER, name: 'Mẹ', birth_year: 1955, relationship: 'parent' as const, country: 'VN', is_archived: false, sort_order: 0, created_at: nowISO() }
   const em = { id: uuid(), user_id: DEMO_USER, name: 'Em Hùng', birth_year: 1995, relationship: 'sibling' as const, country: 'VN', is_archived: false, sort_order: 1, created_at: nowISO() }
   const relatives: RelativeRow[] = [me, em]
 

@@ -53,7 +53,7 @@ describe('tinhFuyo — nhóm tuổi tại 31/12', () => {
     expect(r.thang_con_lai).toBe(3)
     expect(r.ketLuan.trang_thai).toBe('thieu')
     expect(r.ketLuan.muc).toBe('medium')
-    expect(r.ketLuan.viec).toContain('180.000')
+    expect(r.ketLuan.viec).toContain('180,000')
     expect(r.ketLuan.han).toBe('2026-12-31')
   })
 

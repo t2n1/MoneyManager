@@ -17,7 +17,7 @@ describe('tinhShelterYearEnd', () => {
     const r = tinhShelterYearEnd({ year: 2026, todayISO: '2026-10-01', accounts: [acc({}), acc({ id: 'g', name: 'Growth', tax_shelter: 'nisa_growth', shelter_annual_limit: 2_400_000 })], txs: [nap(100_000, '2026-02-01')] })
     expect(r.ketLuan.trang_thai).toBe('thieu')
     expect(r.con_lai).toBe(1_100_000 + 2_400_000)
-    expect(r.ketLuan.viec).toContain('3.500.000')
+    expect(r.ketLuan.viec).toContain('3,500,000')
   })
   it('không tài khoản NISA/iDeCo → thieu-du-lieu', () => {
     const r = tinhShelterYearEnd({ year: 2026, todayISO: '2026-10-01', accounts: [acc({ tax_shelter: null })], txs: [] })

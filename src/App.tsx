@@ -33,6 +33,9 @@ const RetirementPage = lazy(() =>
 const PlannedPage = lazy(() =>
   import('./features/planned/PlannedPage').then((m) => ({ default: m.PlannedPage })),
 )
+const QuyenLoiPage = lazy(() =>
+  import('./features/quyen-loi/QuyenLoiPage').then((m) => ({ default: m.QuyenLoiPage })),
+)
 const InvestPage = lazy(() =>
   import('./features/assets/InvestPage').then((m) => ({ default: m.InvestPage })),
 )
@@ -151,6 +154,7 @@ function AppRoutes() {
           <Route path="/assets" element={lazyRoute(<AssetsPage />)} />
           <Route path="/invest" element={lazyRoute(<InvestPage />)} />
           <Route path="/planned" element={lazyRoute(<PlannedPage />, 'list')} />
+          <Route path="/quyen-loi" element={lazyRoute(<QuyenLoiPage />)} />
           <Route path="/assets/account/:accountId" element={lazyRoute(<AccountDetailPage />)} />
           <Route path="/assets/retirement" element={lazyRoute(<RetirementPage />)} />
           <Route path="/debts" element={lazyRoute(<DebtsPage />, 'table')} />

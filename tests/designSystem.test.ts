@@ -298,7 +298,11 @@ function stripComments(text: string): string {
 // … cả khoảng" khi mốc kéo nhiều năm. Đây là DỮ LIỆU (số năm, tổng), không phải chữ để dạy:
 // số tiền của mốc là số mỗi năm, hàng trên không nói ra nên "2029 → 2030 · ¥3,000,000" đọc
 // như 3M trong khi bản chiếu trừ 6M. Không bọc <Guide> vì ở chế độ Gọn con số này vẫn phải còn.
-const PROSE_MAX = 86
+// 89 (từ 86, 2026-09-03): trang Quyền lợi (QuyenLoiPage.tsx) thêm ba đoạn — "Thuế bớt được
+// ¥…", "Tổng có thể được hoàn ¥…" (khối ①/②) và dòng "Theo NTA · áp dụng từ năm thuế …"
+// (NguonLuat). Cả ba là DỮ LIỆU/nguồn luật đi kèm số tiền và trích dẫn, không phải chữ để
+// dạy — <Guide> ẩn ở chế độ Gọn thì đúng lúc người dùng cần nhất (đang xem số ước) lại mất.
+const PROSE_MAX = 89
 
 const FILES = sourceFiles().map((path) => ({
   path,

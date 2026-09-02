@@ -23,7 +23,7 @@ import {
   type BudgetGroupItem,
 } from './budgetDisplay'
 import { budgetHint } from './budgetHint'
-import { applyDraftLimit, childState, splitQuiet } from './budgetRows'
+import { applyDraftLimit, childState, splitQuiet, splitUnbudgeted } from './budgetRows'
 import { capMismatchNotice, nameList } from './capOverflow'
 import { sliderScale } from './axisSuggest'
 import { LimitSlider, type LimitSliderProps } from './LimitSlider'
@@ -42,6 +42,7 @@ import { dailyAllowance } from './dailyAllowance'
 import { useCommitments } from './useCommitments'
 import { SUGGEST_MONTHS, useSuggestions } from './useSuggestions'
 import type { BudgetStatus } from './progress'
+import type { CategoryRow } from '../../types/database.types'
 import {
   BudgetVerdictLine,
   CumulativeCashflowCard,
@@ -277,6 +278,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   const [sortMode, setSortMode] = useState<BudgetSortMode>(readSortMode)
   /** Dòng "N mục chưa chi gì tháng này" đang xổ ra hay không. Mặc định gấp. */
   const [quietOpen, setQuietOpen] = useState(false)
+  /** Dòng "N danh mục chưa phát sinh chi" ở thẻ mời đặt hạn mức. Mặc định gấp. */
+  const [dormantOpen, setDormantOpen] = useState(false)
   /**
    * Thanh trượt đang mở dưới MỘT dòng — cùng khuôn với mặt lập kế hoạch (xem `LimitSlider`
    * và chú thích `slider` ở `PlanningView`): thang `max`/`step` chụp lúc mở và đứng yên
@@ -405,6 +408,9 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   // thế — để nguyên thì ba mục có chuyện để xem bị chôn giữa mười mục không có gì. Gấp SAU
   // khi sắp, để lúc xổ ra chúng vẫn theo đúng kiểu sắp đang chọn.
   const { shown, quiet, quietBudgeted } = splitQuiet(sortedItems, new Set(attentionTone.keys()))
+  // Danh mục chưa có hạn mức, tách thành "mời đặt" và "chưa có chi nào để đặt" — xem
+  // `splitUnbudgeted` cho lý do (thuế trừ tại nguồn, danh mục chết).
+  const { invited, dormant } = splitUnbudgeted(unbudgeted, suggestions, report.spentByCategory)
 
   // B37 · Cam kết chưa ra, chia theo chỗ đứng so với HÔM NAY.
   const todayISO = toISODate(new Date())
@@ -704,6 +710,41 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
         </div>
         {sliderOpen && <LimitSlider {...sliderPropsFor(id)} />}
         {isOpen && item.kind === 'group' && groupBody(item)}
+      </li>
+    )
+  }
+
+  /** Một dòng của thẻ "Chưa đặt hạn mức": chip cha, xổ ra là chip từng mục con. */
+  const unbudgetedRow = ({ cat: c, children }: { cat: CategoryRow; children: CategoryRow[] }) => {
+    const isOpen = expanded.has(c.id)
+    return (
+      <li key={c.id}>
+        <div className="flex items-center gap-1">
+          {children.length > 0 && (
+            <button
+              type="button"
+              onClick={() => toggle(c.id)}
+              aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
+              aria-expanded={isOpen}
+              // 20×20 là quá nhỏ để bấm; min-h-11 min-w-9 là cỡ nút icon hẹp app đang
+              // dùng sẵn. -my-2 để vùng chạm cao 44px không đẩy dòng giãn ra (cùng mẹo
+              // với nút "Chọn" ở LedgerPage).
+              className="-my-2 flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg-primary"
+            >
+              {chevron(isOpen)}
+            </button>
+          )}
+          <UnbudgetedChip cat={c} base={base} suggestions={suggestions} onClick={openEdit} />
+        </div>
+        {isOpen && children.length > 0 && (
+          <ul className="mt-2 flex flex-wrap gap-2 border-l border-border-subtle pl-3">
+            {children.map((k) => (
+              <li key={k.id}>
+                <UnbudgetedChip cat={k} base={base} suggestions={suggestions} onClick={openEdit} />
+              </li>
+            ))}
+          </ul>
+        )}
       </li>
     )
   }
@@ -1062,58 +1103,41 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
       {unbudgeted.length > 0 && (
         <Card as="section">
           <SectionTitle className="mb-1">
-            Chưa đặt hạn mức{' '}
-            <span className="font-normal tabular-nums">· {unbudgeted.length} danh mục</span>
+            Chưa đặt hạn mức
+            {invited.length > 0 && (
+              <span className="font-normal tabular-nums"> · {invited.length} danh mục</span>
+            )}
           </SectionTitle>
           <Guide className="mb-2 text-sm text-fg-muted">
             Bấm tên nhóm để đặt trần chung, hoặc xổ ra (▸) để đặt riêng cho từng mục con — khi đó
             trần nhóm là tổng các con. Con số trên chip là trung bình {SUGGEST_MONTHS} tháng
-            đã ghi.
+            đã ghi. Danh mục chưa có khoản chi nào được tính thì gấp xuống dòng cuối, vì một
+            cái trần ở đó chưa nói được gì.
           </Guide>
-          <ul className="flex flex-col gap-2">
-            {unbudgeted.map(({ cat: c, children }) => {
-              const isOpen = expanded.has(c.id)
-              return (
-                <li key={c.id}>
-                  <div className="flex items-center gap-1">
-                    {children.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => toggle(c.id)}
-                        aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
-                        aria-expanded={isOpen}
-                        // 20×20 là quá nhỏ để bấm; min-h-11 min-w-9 là cỡ nút icon hẹp
-                        // app đang dùng sẵn. -my-2 để vùng chạm cao 44px không đẩy dòng
-                        // giãn ra (cùng mẹo với nút "Chọn" ở LedgerPage).
-                        className="-my-2 flex min-h-11 min-w-9 shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg-primary"
-                      >
-                        {isOpen ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </button>
-                    )}
-                    <UnbudgetedChip cat={c} base={base} suggestions={suggestions} onClick={openEdit} />
-                  </div>
-                  {isOpen && children.length > 0 && (
-                    <ul className="mt-2 flex flex-wrap gap-2 border-l border-border-subtle pl-3">
-                      {children.map((k) => (
-                        <li key={k.id}>
-                          <UnbudgetedChip
-                            cat={k}
-                            base={base}
-                            suggestions={suggestions}
-                            onClick={openEdit}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
+          {invited.length > 0 && (
+            <ul className="flex flex-col gap-2">{invited.map(unbudgetedRow)}</ul>
+          )}
+          {/* Gấp — KHÔNG ẩn hẳn. Thuế trừ tại nguồn thì trần vô nghĩa thật, nhưng một danh
+              mục chỉ đang ngủ (chưa dùng tới) vẫn phải đặt trần được: mặt Lập kế hoạch chỉ
+              hiện vào cuối tháng, nên đây là lối duy nhất giữa tháng. Xem `splitUnbudgeted`. */}
+          {dormant.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setDormantOpen((o) => !o)}
+              aria-expanded={dormantOpen}
+              className={`flex min-h-11 w-full items-center gap-1 text-left text-sm text-fg-muted ${
+                invited.length > 0 ? 'mt-1 border-t border-border-subtle pt-1' : ''
+              }`}
+            >
+              <span className="flex w-6 shrink-0 items-center justify-center">
+                {chevron(dormantOpen)}
+              </span>
+              {dormant.length} danh mục chưa phát sinh chi
+            </button>
+          )}
+          {dormantOpen && dormant.length > 0 && (
+            <ul className="flex flex-col gap-2">{dormant.map(unbudgetedRow)}</ul>
+          )}
         </Card>
       )}
 

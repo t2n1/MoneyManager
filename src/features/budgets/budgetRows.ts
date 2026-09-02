@@ -13,7 +13,7 @@
 //     lúc kéo.
 
 import type { CategoryRow } from '../../types/database.types'
-import type { BudgetChildRow, BudgetDisplayItem } from './budgetDisplay'
+import type { BudgetChildRow, BudgetDisplayItem, BudgetUnbudgetedGroup } from './budgetDisplay'
 import { spentOf } from './budgetSort'
 import { statusOf, type BudgetLine, type BudgetReport } from './progress'
 
@@ -50,6 +50,61 @@ export function splitQuiet(
       0,
     ),
   }
+}
+
+export interface UnbudgetedSplit {
+  /** Có chi thật để so — mời đặt trần, hiện thành chip kèm số gợi ý. */
+  invited: BudgetUnbudgetedGroup[]
+  /** Chưa có đồng chi nào được TÍNH — gấp lại, không mời. */
+  dormant: BudgetUnbudgetedGroup[]
+}
+
+/**
+ * Tách lời mời "đặt hạn mức" khỏi những danh mục mà một cái trần chưa nói được gì.
+ *
+ * Vì sao cần: thẻ này từng mời đặt trần cho MỌI danh mục chưa có hạn mức, kể cả hai loại
+ * mà con số sẽ vô nghĩa — đo trên sổ thật ngày 2/9/2026, cả hai mục còn lại đều thuộc
+ * loại đó:
+ *
+ *  · `Thuế & An sinh` (cha + 5 con) — mọi khoản thuế nhập từ phiếu lương mang cờ
+ *    `exclude_from_stats` (features/phieu-luong/nhap.ts), mà báo cáo ngân sách bỏ đúng
+ *    những dòng đó (progress.ts). 32 tháng không một khoản nào được đếm. Đặt trần ở đây
+ *    là dựng một thanh trống vĩnh viễn — đúng cái bệnh `isFlowCategory` được viết ra để
+ *    tránh.
+ *  · `Phí chuyển tiền` — 0 giao dịch từ 1/2024. Phí thật của app ghi vào danh mục
+ *    `Tài chính` (roleSave.ts), nên danh mục này không có gì chảy vào.
+ *
+ * Vì sao là MỘT QUY TẮC chứ không phải một danh sách tên (như `FLOW_NAMES`): quy tắc
+ * "chưa có chi được tính thì chưa mời" phủ cả hai ca trên mà không phải kể tên ca nào,
+ * và nó tự đúng theo chiều ngược lại — người dùng tự tay ghi một khoản thuế cư trú trả
+ * bằng giấy (không mang cờ, nên ĐƯỢC đếm) thì lời mời hiện lại đúng lúc nó có nghĩa.
+ * Chặn cứng theo tên thì ca đó bị ẩn luôn, và ẩn một khoản chi thật là lỗi nặng hơn.
+ *
+ * Hai tín hiệu, cùng ý "có chi thật", khác cửa sổ thời gian:
+ *  · `spentByCategory` — chi THÁNG NÀY. Không có nó thì danh mục lần đầu phát sinh trong
+ *    tháng sẽ biến mất khỏi cả trang: nó chưa có hạn mức nên không nằm trong danh sách
+ *    theo dõi, mà `suggestions` chỉ tính các tháng ĐÃ ĐÓNG nên cũng chưa thấy nó.
+ *  · `suggestions` — trung bình các tháng đã đóng, đúng con số chip đang in ra.
+ *
+ * Cha hay con có tín hiệu thì cả nhóm được mời: trần đặt ở cha là trần chung, nên một
+ * mục con có chi là cả nhóm có chuyện để đặt.
+ */
+export function splitUnbudgeted(
+  groups: readonly BudgetUnbudgetedGroup[],
+  suggestions: ReadonlyMap<string, { average: number }>,
+  spentByCategory: ReadonlyMap<string, number>,
+): UnbudgetedSplit {
+  // `> 0` chứ không `!= null`: hoàn tiền nhiều hơn đã chi cho ra số âm, và một danh mục
+  // chỉ có hoàn tiền thì vẫn chưa có gì để đặt trần.
+  const signal = (id: string) =>
+    (suggestions.get(id)?.average ?? 0) > 0 || (spentByCategory.get(id) ?? 0) > 0
+  const invited: BudgetUnbudgetedGroup[] = []
+  const dormant: BudgetUnbudgetedGroup[] = []
+  for (const g of groups) {
+    const has = signal(g.cat.id) || g.children.some((k) => signal(k.id))
+    ;(has ? invited : dormant).push(g)
+  }
+  return { invited, dormant }
 }
 
 export type ChildState = 'paid' | 'marker' | 'unset'

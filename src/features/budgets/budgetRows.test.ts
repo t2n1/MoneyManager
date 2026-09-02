@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CategoryRow } from '../../types/database.types'
-import { buildBudgetDisplay, type BudgetChildRow } from './budgetDisplay'
-import { applyDraftLimit, childState, splitQuiet } from './budgetRows'
+import { buildBudgetDisplay, type BudgetChildRow, type BudgetUnbudgetedGroup } from './budgetDisplay'
+import { applyDraftLimit, childState, splitQuiet, splitUnbudgeted } from './budgetRows'
 import { statusOf, type BudgetLine, type BudgetReport } from './progress'
 
 let seq = 0
@@ -107,6 +107,63 @@ describe('splitQuiet — gấp mục chưa chi gì', () => {
     const r = splitQuiet(sorted, new Set())
     expect(r.shown.map((i) => i.cat.id)).toEqual(['house', 'food'])
     expect(r.quiet.map((i) => i.cat.id)).toEqual(['gift', 'health'])
+  })
+})
+
+describe('splitUnbudgeted — chỉ mời đặt trần khi có chi thật', () => {
+  // Ca thật ngày 2/9/2026: hai mục còn sót trong thẻ đều là mục không đếm được chi.
+  const taxParent = cat({ id: 'tax', name: 'Thuế & An sinh' })
+  const taxKid = cat({ id: 'kokumin', name: 'Bảo hiểm y tế (健康保険)', parent_id: 'tax' })
+  const fee = cat({ id: 'fee', name: 'Phí chuyển tiền' })
+  const group = (c: CategoryRow, children: CategoryRow[] = []): BudgetUnbudgetedGroup => ({
+    cat: c,
+    children,
+  })
+  const sugg = (m: Record<string, number>) =>
+    new Map(Object.entries(m).map(([id, average]) => [id, { average }]))
+
+  it('nhóm Thuế & An sinh: chi bị loại khỏi thống kê nên không có tín hiệu → gấp lại', () => {
+    const r = splitUnbudgeted([group(taxParent, [taxKid])], sugg({}), new Map())
+    expect(r.invited).toEqual([])
+    expect(r.dormant.map((g) => g.cat.id)).toEqual(['tax'])
+  })
+
+  it('Phí chuyển tiền: 0 giao dịch suốt 32 tháng → gấp lại', () => {
+    const r = splitUnbudgeted([group(fee)], sugg({}), new Map())
+    expect(r.dormant.map((g) => g.cat.id)).toEqual(['fee'])
+  })
+
+  it('có trung bình các tháng đã đóng → mời', () => {
+    const r = splitUnbudgeted([group(gift)], sugg({ gift: 4_200 }), new Map())
+    expect(r.invited.map((g) => g.cat.id)).toEqual(['gift'])
+    expect(r.dormant).toEqual([])
+  })
+
+  it('chưa có lịch sử nhưng ĐÃ chi tháng này → mời (không thì mục đó mất khỏi cả trang)', () => {
+    // Chưa có hạn mức nên nó không ở danh sách theo dõi; `suggestions` chỉ tính tháng đã
+    // đóng nên cũng chưa thấy. Gấp nó lại là chi tháng này không hiện ở đâu.
+    const r = splitUnbudgeted([group(gift)], sugg({}), new Map([['gift', 1_500]]))
+    expect(r.invited.map((g) => g.cat.id)).toEqual(['gift'])
+  })
+
+  it('một mục CON có tín hiệu là cả nhóm được mời — trần cha là trần chung', () => {
+    const r = splitUnbudgeted([group(house, [rent, power])], sugg({ power: 3_100 }), new Map())
+    expect(r.invited.map((g) => g.cat.id)).toEqual(['house'])
+  })
+
+  it('chỉ có hoàn tiền (số âm) thì vẫn chưa có gì để đặt trần', () => {
+    const r = splitUnbudgeted([group(gift)], sugg({}), new Map([['gift', -800]]))
+    expect(r.dormant.map((g) => g.cat.id)).toEqual(['gift'])
+  })
+
+  it('giữ thứ tự đầu vào ở cả hai bên', () => {
+    const r = splitUnbudgeted(
+      [group(fee), group(gift), group(taxParent, [taxKid]), group(health)],
+      sugg({ gift: 4_200, health: 900 }),
+      new Map(),
+    )
+    expect(r.invited.map((g) => g.cat.id)).toEqual(['gift', 'health'])
+    expect(r.dormant.map((g) => g.cat.id)).toEqual(['fee', 'tax'])
   })
 })
 

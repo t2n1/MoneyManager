@@ -88,7 +88,7 @@ import { DirectionTabs } from './DirectionTabs'
 import { DebtFields, FeeField, RemitFields, RemitMonthStrip, SplitFields } from './roleFields'
 import { entryGate, plannedModeActive } from './entryValidation'
 import { initialPayment, type PaymentValue, type RoleBase } from './roleSave'
-import { NguoiThanSheet } from '../quyen-loi/NguoiThanSheet'
+import { NguoiThanSheet } from '../../components/NguoiThanSheet'
 
 const LAST_ACCOUNT_KEY = 'sct-last-account'
 const lastCategoryKey = (type: TransactionType) => `sct-last-category-${type}`
@@ -482,6 +482,13 @@ export function TransactionForm({
       .sort((a, b) => b.occurred_on.localeCompare(a.occurred_on))[0]
     return last?.remit_recipient_id ?? ''
   }, [remitTxs])
+  // Effect này chỉ bắt được mốc `remitTxs` VỪA TẢI XONG (lastRecipientId đổi từ '' sang có
+  // giá trị) — nó KHÔNG chạy lại khi form reset về remit lần 2 trở đi, vì lúc đó cả
+  // `remitLike` lẫn `lastRecipientId` đều giữ nguyên (vẫn cùng một người vừa gửi). Vì vậy
+  // MỌI chỗ gọi `setRemitVal(initialRemit())` (đổi dạng sang remit, và sau khi lưu) cũng
+  // phải tự điền `recipientId: lastRecipientId` ngay tại chỗ reset — xem các chỗ gọi bên
+  // dưới. Không thêm `remitVal.recipientId` vào deps: làm vậy sẽ đạp lại lựa chọn của
+  // người dùng mỗi khi họ tự xoá về "— chưa chọn —".
   useEffect(() => {
     if (remitLike && remitVal.recipientId === '' && lastRecipientId) {
       setRemitVal((v) => ({ ...v, recipientId: lastRecipientId }))
@@ -892,7 +899,7 @@ export function TransactionForm({
       // Sang một khối field khác → gieo lại từ đầu, không mang số của khối cũ sang.
       if (nextRole === 'split') setSplitVal(initialSplit())
       if (nextRole === 'debt') setDebtVal(initialDebt())
-      if (nextRole === 'remit') setRemitVal(initialRemit())
+      if (nextRole === 'remit') setRemitVal({ ...initialRemit(), recipientId: lastRecipientId })
       // Khối field mới dựng thêm ô ở trên → kéo về đầu (nếp cũ của enterRole).
       if (nextRole !== 'none' || nextShape.writes === 'debtPayment') {
         scrollRef.current?.scrollTo({ top: 0 })
@@ -1006,7 +1013,8 @@ export function TransactionForm({
           // hai số không còn khớp nhau, và cổng Lưu báo lỗi trước khi người ta gõ gì.
           if (shape.roleSeed.role === 'split') setSplitVal(initialSplit())
           if (shape.roleSeed.role === 'debt') setDebtVal(initialDebt())
-          if (shape.roleSeed.role === 'remit') setRemitVal(initialRemit())
+          if (shape.roleSeed.role === 'remit')
+            setRemitVal({ ...initialRemit(), recipientId: lastRecipientId })
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Lưu thất bại, thử lại.')

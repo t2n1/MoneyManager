@@ -1,12 +1,13 @@
 // Thêm / sửa một người thân nhận tiền. Ba ô: tên, năm sinh, quan hệ. Năm sinh BẮT BUỘC —
 // tuổi quyết định ngưỡng 38万 và mức khấu trừ, không có thì bộ kiểm không nói được gì.
+// Dùng chung bởi form gửi tiền và màn Quyền lợi — vì thế nằm ở components/, không ở một feature.
 import { useState } from 'react'
-import { ActionButton, SectionTitle, Select } from '../../components/ui'
-import { Guide } from '../../components/Guide'
-import { useEscClose } from '../../hooks/useEscClose'
-import { useCreateRelative, useUpdateRelative } from '../../hooks/queries'
-import { showToast } from '../../lib/dialog'
-import type { RelativeRow, Relationship } from '../../types/database.types'
+import { ActionButton, SectionTitle, Select } from './ui'
+import { Guide } from './Guide'
+import { useEscClose } from '../hooks/useEscClose'
+import { useCreateRelative, useUpdateRelative } from '../hooks/queries'
+import { showToast } from '../lib/dialog'
+import type { RelativeRow, Relationship } from '../types/database.types'
 
 export const QUAN_HE: readonly (readonly [Relationship, string])[] = [
   ['parent', 'Cha / mẹ'],

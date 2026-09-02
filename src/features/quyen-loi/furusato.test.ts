@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CategoryRow, TransactionRow } from '../../types/database.types'
 import { FURUSATO_CATEGORY_NAME, tinhFurusato, tranFurusato } from './furusato'
+import { fmtYen } from './quyenLoi'
 import { LUAT_2026 } from './rules/2026'
 
 let seq = 0
@@ -24,7 +25,7 @@ function phieu12(): TransactionRow[] {
   }
   return out
 }
-const base = { year: 2026, todayISO: '2026-09-03', categories, deXuatKhaiThue: false }
+const base = { year: 2026, todayISO: '2026-09-03', categories, deXuatKhaiThue: false, fmt: fmtYen }
 
 describe('tranFurusato — công thức NTA No.1155', () => {
   it('所得割 139.000, bậc 5%: 139.000 × 20% ÷ (90% − 5%×1,021) + 2.000 = 34.746', () => {

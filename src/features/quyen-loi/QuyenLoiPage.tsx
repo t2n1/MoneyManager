@@ -51,11 +51,17 @@ export function QuyenLoiPage() {
   const updateProfile = useUpdateProfile()
   const createCategory = useCreateCategory()
   const [sheetNguoi, setSheetNguoi] = useState<RelativeRow | null | 'new'>(null)
-  const [sheetGan, setSheetGan] = useState(false)
+  // Năm đang gán (không nhất thiết = `year` đang xem: khối ② có thể mở sheet cho một năm
+  // cũ khác), null = sheet đóng.
+  const [sheetGan, setSheetGan] = useState<number | null>(null)
 
   const chuaGanTxs = useMemo(
     () => txs.filter((t) => t.is_remittance && t.remit_recipient_id == null && calendarYearOf(t.occurred_on) === year),
     [txs, year],
+  )
+  const sheetGanTxs = useMemo(
+    () => (sheetGan === null ? [] : txs.filter((t) => t.is_remittance && t.remit_recipient_id == null && calendarYearOf(t.occurred_on) === sheetGan)),
+    [txs, sheetGan],
   )
   const daKhai = (profile?.fuyo_claimed_years ?? []).includes(year)
 
@@ -136,7 +142,7 @@ export function QuyenLoiPage() {
                 <Plus className="h-4 w-4" /> Thêm người thân
               </ActionButton>
               {chuaGanTxs.length > 0 && relatives.some((r) => !r.is_archived) && (
-                <ActionButton variant="outline" onClick={() => setSheetGan(true)}>
+                <ActionButton variant="outline" onClick={() => setSheetGan(year)}>
                   Gán người nhận ({chuaGanTxs.length})
                 </ActionButton>
               )}
@@ -169,6 +175,18 @@ export function QuyenLoiPage() {
                     <span className="ml-auto text-fg-muted">hạn {n.han.slice(8, 10)}/{n.han.slice(5, 7)}/{n.han.slice(0, 4)}</span>
                     {n.tiet_kiem_uoc !== null && (<span><Money amount={n.tiet_kiem_uoc} currency="JPY" tone="in" /><EstimateMark reason={ketQua.refund.ketLuan.ly_do[1]} /></span>)}
                     {!n.co_nguong && <span className="basis-full text-2xs text-fg-muted">Năm này luật chưa có ngưỡng 38万 — chỉ cần chứng từ gửi tiền.</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {ketQua.refund.chua_gan.length > 0 && relatives.some((r) => !r.is_archived) && (
+              <ul className="mt-3 divide-y divide-border-subtle">
+                {ketQua.refund.chua_gan.map((c) => (
+                  <li key={c.year} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                    <Num tone="muted">Năm {c.year} · {c.so_lan} lần chưa gán</Num>
+                    <ActionButton variant="outline" onClick={() => setSheetGan(c.year)}>
+                      Gán người nhận năm {c.year}
+                    </ActionButton>
                   </li>
                 ))}
               </ul>
@@ -234,8 +252,8 @@ export function QuyenLoiPage() {
       {sheetNguoi !== null && (
         <NguoiThanSheet relative={sheetNguoi === 'new' ? null : sheetNguoi} onClose={() => setSheetNguoi(null)} />
       )}
-      {sheetGan && (
-        <GanNguoiNhanSheet txs={chuaGanTxs} relatives={relatives.filter((r) => !r.is_archived)} onClose={() => setSheetGan(false)} />
+      {sheetGan !== null && (
+        <GanNguoiNhanSheet txs={sheetGanTxs} relatives={relatives.filter((r) => !r.is_archived)} onClose={() => setSheetGan(null)} />
       )}
     </div>
   )

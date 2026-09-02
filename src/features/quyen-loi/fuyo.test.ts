@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountRow, RelativeRow, TransactionRow } from '../../types/database.types'
 import { tinhFuyo, type FuyoInput } from './fuyo'
+import { fmtYen } from './quyenLoi'
 
 let seq = 0
 function tx(p: Partial<TransactionRow>): TransactionRow {
@@ -25,7 +26,7 @@ const accounts = [
 function input(p: Partial<FuyoInput>): FuyoInput {
   return {
     year: 2026, todayISO: '2026-09-03', relatives: [], txs: [], accounts, base: 'JPY', rates: {},
-    suatBien: 0.1, ...p,
+    suatBien: 0.1, fmt: fmtYen, ...p,
   }
 }
 
@@ -61,6 +62,18 @@ describe('tinhFuyo — nhóm tuổi tại 31/12', () => {
     const r = tinhFuyo(input({ todayISO: '2026-12-10', relatives: [nguoi({ id: 'em', birth_year: 1995 })] }))
     expect(r.thang_con_lai).toBe(0)
     expect(r.ketLuan.muc).toBe('high')
+  })
+
+  it('0 tháng còn lại (tháng 12) → câu việc nói "hết 31/12", không nói "0 tháng nữa"', () => {
+    const mot = tinhFuyo(input({ todayISO: '2026-12-10', relatives: [nguoi({ id: 'em', birth_year: 1995 })] }))
+    expect(mot.ketLuan.viec).toContain('hết 31/12')
+    expect(mot.ketLuan.viec).not.toMatch(/0 tháng nữa/)
+    const nhieu = tinhFuyo(input({
+      todayISO: '2026-12-10',
+      relatives: [nguoi({ id: 'em', birth_year: 1995 }), nguoi({ id: 'anh', name: 'Anh', birth_year: 1990 })],
+    }))
+    expect(nhieu.ketLuan.viec).toContain('hết 31/12')
+    expect(nhieu.ketLuan.viec).not.toMatch(/0 tháng nữa/)
   })
 
   it('biên tuổi: sinh 1997 → 29 tuổi năm 2026 là 16-29 (không ngưỡng); 1996 → 30', () => {

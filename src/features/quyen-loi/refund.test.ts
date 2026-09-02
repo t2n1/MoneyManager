@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RelativeRow, TransactionRow } from '../../types/database.types'
+import { fmtYen } from './quyenLoi'
 import { tinhRefund } from './refund'
 
 let seq = 0
@@ -9,7 +10,7 @@ const tx = (p: Partial<TransactionRow>): TransactionRow => ({
   created_at: '', updated_at: '', is_remittance: true, remit_fee_jpy: 500, remit_recipient_id: 'me', ...p,
 })
 const me: RelativeRow = { id: 'me', user_id: 'u', name: 'Mẹ', birth_year: 1958, relationship: 'parent', country: 'VN', is_archived: false, sort_order: 0, created_at: '' }
-const base = { todayISO: '2026-09-03', relatives: [me], accounts: [{ id: 'jpy', currency: 'JPY' as const }], base: 'JPY' as const, rates: {}, suatBien: 0.1, fuyoClaimedYears: [] as number[] }
+const base = { todayISO: '2026-09-03', relatives: [me], accounts: [{ id: 'jpy', currency: 'JPY' as const }], base: 'JPY' as const, rates: {}, suatBien: 0.1, fuyoClaimedYears: [] as number[], fmt: fmtYen }
 
 describe('tinhRefund — cửa sổ 5 năm', () => {
   it('9/2026 soát 2021..2025; năm nào có người đủ thì vào danh sách với hạn 31/12/(y+5)', () => {
@@ -59,5 +60,48 @@ describe('tinhRefund — cửa sổ 5 năm', () => {
     const r2021 = tinhRefund({ ...base, relatives: [em], txs: [tx({ occurred_on: '2021-06-01', remit_recipient_id: 'em' })] })
     expect(r2021.nam.map((n) => n.year)).toEqual([2021])
     expect(r2021.nam[0].co_nguong).toBe(false) // luật 2021 chưa có ngưỡng
+  })
+})
+
+// Finding 1 (soát tổng thể): migration 0056 không backfill, nên năm cũ có thể TOÀN lần
+// gửi chưa gán — soát chỉ `r.nguoi` (đã gán) thì bỏ sót và báo nhầm "không có gì để đòi".
+describe('tinhRefund — lần gửi chưa gán ở năm cũ (Finding 1)', () => {
+  it('chỉ có lần gửi CHƯA gán → thieu-du-lieu, không phải du; chua_gan liệt kê năm và số lần', () => {
+    const r = tinhRefund({ ...base, txs: [tx({ occurred_on: '2021-06-01', remit_recipient_id: null })] })
+    expect(r.nam).toHaveLength(0)
+    expect(r.chua_gan).toEqual([{ year: 2021, so_lan: 1, tong: 30_000 }])
+    expect(r.ketLuan.trang_thai).toBe('thieu-du-lieu')
+    expect(r.ketLuan.muc).toBe('medium')
+    expect(r.ketLuan.han).toBeNull()
+    expect(r.ketLuan.viec).toMatch(/chưa gán/)
+  })
+
+  it('nhiều năm chỉ có lần chưa gán → viec gộp khoảng năm đầu–cuối', () => {
+    const r = tinhRefund({
+      ...base,
+      txs: [
+        tx({ occurred_on: '2021-06-01', remit_recipient_id: null }),
+        tx({ occurred_on: '2023-06-01', remit_recipient_id: null }),
+      ],
+    })
+    expect(r.nam).toHaveLength(0)
+    expect(r.chua_gan.map((c) => c.year)).toEqual([2021, 2023])
+    expect(r.ketLuan.trang_thai).toBe('thieu-du-lieu')
+    expect(r.ketLuan.viec).toMatch(/2021–2023/)
+  })
+
+  it('có năm đủ điều kiện LẪN năm khác còn lần chưa gán → vẫn thieu, ly_do có thêm dòng "cao hơn"', () => {
+    const r = tinhRefund({
+      ...base,
+      txs: [
+        tx({ occurred_on: '2024-06-01', amount: 400_500 }), // mẹ 66 tuổi, đủ 38万
+        tx({ occurred_on: '2022-06-01', remit_recipient_id: null }), // năm khác, chưa gán
+      ],
+    })
+    expect(r.nam.map((n) => n.year)).toEqual([2024])
+    expect(r.chua_gan).toEqual([{ year: 2022, so_lan: 1, tong: 30_000 }])
+    expect(r.ketLuan.trang_thai).toBe('thieu')
+    expect(r.ketLuan.ly_do.join(' ')).toMatch(/chưa gán/)
+    expect(r.ketLuan.ly_do.join(' ')).toMatch(/cao hơn/)
   })
 })

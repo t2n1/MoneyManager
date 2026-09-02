@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountRow, CategoryRow, RelativeRow, TransactionRow } from '../../types/database.types'
 import { remittanceStats } from '../remittance/aggregate'
-import { tinhQuyenLoi, type QuyenLoiInput } from './quyenLoi'
+import { benefitRange, fmtYen, tinhQuyenLoi, type QuyenLoiInput } from './quyenLoi'
 
 let seq = 0
 const tx = (p: Partial<TransactionRow>): TransactionRow => ({
@@ -13,7 +13,7 @@ const me: RelativeRow = { id: 'me', user_id: 'u', name: 'Mẹ', birth_year: 1956
 const accounts = [{ id: 'jpy', name: 'Bank', currency: 'JPY', tax_shelter: null, shelter_annual_limit: null, is_archived: false }] as AccountRow[]
 const categories: CategoryRow[] = []
 function input(p: Partial<QuyenLoiInput>): QuyenLoiInput {
-  return { year: 2026, todayISO: '2026-09-03', relatives: [me], txs: [], categories, accounts, base: 'JPY', rates: {}, fuyoClaimedYears: [], ...p }
+  return { year: 2026, todayISO: '2026-09-03', relatives: [me], txs: [], categories, accounts, base: 'JPY', rates: {}, fuyoClaimedYears: [], fmt: fmtYen, ...p }
 }
 
 describe('tinhQuyenLoi', () => {
@@ -41,5 +41,16 @@ describe('tinhQuyenLoi', () => {
     // mẹ 68 tuổi năm 2024 → cần 38万 → không đủ → refund rỗng → không đề xuất
     expect(r.refund.nam).toHaveLength(0)
     expect(r.furusato.onestop_rui_ro).toBe(false)
+  })
+})
+
+// Finding 2: cửa sổ giao dịch phải phủ CẢ năm đang xem (chọn trên <Select>) lẫn cửa sổ 5
+// năm khoản ② soát từ HÔM NAY — chọn một năm cũ không được làm rơi mất các năm gần đây.
+describe('benefitRange', () => {
+  it('year cũ hơn namNay: vẫn phủ tới (namNay − 5) và (namNay + 1), không bị year kéo hẹp lại', () => {
+    expect(benefitRange(2024, 2026)).toEqual({ start: '2019-01-01', end: '2027-01-01' })
+  })
+  it('year = namNay: giống hệt hành vi cũ [namNay − 5, namNay + 1)', () => {
+    expect(benefitRange(2026, 2026)).toEqual({ start: '2021-01-01', end: '2027-01-01' })
   })
 })

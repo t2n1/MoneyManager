@@ -26,6 +26,7 @@ export function toNewTransaction(t: TransactionRow, tagIds: string[] = []): NewT
     remit_service: t.remit_service,
     remit_fee_jpy: t.remit_fee_jpy,
     remit_received_vnd: t.remit_received_vnd,
+    remit_recipient_id: t.remit_recipient_id ?? null,
     is_debt_flow: t.is_debt_flow,
     exclude_from_stats: t.exclude_from_stats,
     is_refund: t.is_refund,

@@ -55,7 +55,7 @@ export { fetchAllPages, PAGE_SIZE } from '../../data/paging'
 
 // Quyền lợi thuế (spec 2026-09-03): edge function dựng `benefits` bằng ĐÚNG hàm gom mà
 // useQuyenLoi dùng, để push và chuông không nói khác nhau về cùng một khoản.
-export { tinhQuyenLoi } from '../quyen-loi/quyenLoi'
+export { benefitRange, tinhQuyenLoi } from '../quyen-loi/quyenLoi'
 export { FURUSATO_CATEGORY_NAME } from '../quyen-loi/furusato'
 export { SO_NAM_HOAN_THUE } from '../quyen-loi/refund'
 export { taxCategoryIds } from '../tax/categories'

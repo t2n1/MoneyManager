@@ -119,7 +119,7 @@ export interface NotificationInputsReady {
   /**
    * Bốn bộ kiểm Quyền lợi (`input.benefits`) đã ngã ngũ chưa — thành công HOẶC lỗi hẳn,
    * cùng lý lẽ với `lifetimeOk`: một lỗi vĩnh viễn ở Quyền lợi không được phép làm đông
-   * cứng việc dọn dấu-đã-đọc của 17 loại thông báo còn lại.
+   * cứng việc dọn dấu-đã-đọc của 20 loại thông báo còn lại.
    */
   benefitsOk: boolean
   /** Bảng trạng thái đã đọc/đã tắt: không có nó thì không biết đang dọn cái gì. */

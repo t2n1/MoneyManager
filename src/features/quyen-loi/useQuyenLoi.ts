@@ -1,8 +1,8 @@
 // Gom dữ liệu cho màn Quyền lợi, khung Bản tin và bộ luật thông báo → tinhQuyenLoi().
 //
-// MỘT truy vấn giao dịch (listBenefitTransactions, OR ba nhánh) cho cửa sổ [year−5, year+1):
-// lần gửi tiền (~12/năm), khoản thuế trên phiếu lương (~24/năm), nạp NISA/iDeCo. Hook này
-// chạy trong useNotifications ở MỌI màn, nên không được kéo cả năm giao dịch.
+// MỘT truy vấn giao dịch (listBenefitTransactions, OR ba nhánh) cho cửa sổ benefitRange(year,
+// namNay): lần gửi tiền (~12/năm), khoản thuế trên phiếu lương (~24/năm), nạp NISA/iDeCo. Hook
+// này chạy trong useNotifications ở MỌI màn, nên không được kéo cả năm giao dịch.
 //
 // `todayISO` truyền vào, không đọc đồng hồ ở đây: useNotifications đã đọc một lần và
 // mọi luật phải cùng một "hôm nay" (hai lần đọc có thể rơi hai bên nửa đêm).
@@ -16,10 +16,12 @@ import {
   useRates,
   useRelatives,
 } from '../../hooks/queries'
+import { calendarYearOf } from '../../lib/dates'
+import { formatMoney } from '../../lib/money'
+import { usePrivacyMode } from '../../lib/privacy'
 import { taxCategoryIds } from '../tax/categories'
 import { FURUSATO_CATEGORY_NAME } from './furusato'
-import { tinhQuyenLoi, type QuyenLoiKetQua } from './quyenLoi'
-import { SO_NAM_HOAN_THUE } from './refund'
+import { benefitRange, tinhQuyenLoi, type QuyenLoiKetQua } from './quyenLoi'
 
 const EMPTY: never[] = []
 
@@ -29,11 +31,15 @@ export interface UseQuyenLoiResult {
   isReady: boolean
   isError: boolean
   furusatoCategoryId: string | null
-  /** Giao dịch đã tải cho [year−5, year+1) — trang Quyền lợi lọc lần gửi chưa gán từ đây. */
+  /** Giao dịch đã tải cho benefitRange(year, namNay) — trang Quyền lợi lọc lần gửi chưa gán từ đây. */
   txs: TransactionRow[]
 }
 
 export function useQuyenLoi(year: number, todayISO: string, enabled = true): UseQuyenLoiResult {
+  // formatMoney đọc trạng thái riêng tư toàn cục (mục J của spec useNotifications) —
+  // đăng ký ở đây để bật/tắt riêng tư làm tính lại `ketQua`, không thì tiền trong
+  // `viec`/`ly_do` bị "đứng hình" theo giá trị lúc build lần trước.
+  const privacyOn = usePrivacyMode()
   const { data: profile } = useProfile()
   const { base, rates, isSuccess: ratesOk } = useRates()
   const relativesQ = useRelatives()
@@ -51,9 +57,11 @@ export function useQuyenLoi(year: number, todayISO: string, enabled = true): Use
       toAccountIds: accounts.filter((a) => a.tax_shelter != null).map((a) => a.id).sort(),
     }
   }, [categories, accounts])
+  // Phủ CẢ năm đang xem lẫn cửa sổ 5 năm khoản ② soát từ hôm nay — chọn một năm cũ trên
+  // <Select> không được làm rơi mất mấy năm gần đây khỏi khoản ②, và ngược lại.
   const range = useMemo(
-    () => ({ start: `${year - SO_NAM_HOAN_THUE}-01-01`, end: `${year + 1}-01-01` }),
-    [year],
+    () => benefitRange(year, calendarYearOf(todayISO)),
+    [year, todayISO],
   )
   const txsQ = useBenefitTransactions(range, filter, enabled && !!profile && categoriesQ.isSuccess && accountsQ.isSuccess)
 
@@ -65,6 +73,10 @@ export function useQuyenLoi(year: number, todayISO: string, enabled = true): Use
   const isError = relativesQ.isError || accountsQ.isError || categoriesQ.isError || txsQ.isError
 
   const ketQua = useMemo(() => {
+    // Nhắc `privacyOn` ngay trong thân memo là CỐ Ý (cùng lý do useNotifications.ts):
+    // formatMoney đọc cờ riêng tư từ store NGOÀI React, nên bật/tắt riêng tư không đổi
+    // đối số nào bên dưới mà mọi chuỗi tiền trong `viec`/`ly_do` vẫn phải tính lại.
+    void privacyOn
     if (!isReady || !profile) return undefined
     return tinhQuyenLoi({
       year,
@@ -76,8 +88,9 @@ export function useQuyenLoi(year: number, todayISO: string, enabled = true): Use
       base,
       rates: rates ?? {},
       fuyoClaimedYears: profile.fuyo_claimed_years ?? [],
+      fmt: (n) => formatMoney(n, 'JPY'),
     })
-  }, [isReady, profile, year, todayISO, relativesQ.data, txsQ.data, categories, accounts, base, rates])
+  }, [isReady, profile, year, todayISO, relativesQ.data, txsQ.data, categories, accounts, base, rates, privacyOn])
 
   return { ketQua, isReady, isError, furusatoCategoryId, txs: txsQ.data ?? EMPTY }
 }

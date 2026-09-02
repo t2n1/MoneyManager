@@ -63,6 +63,13 @@ describe('toNewTransaction', () => {
     })
   })
 
+  // Rơi cột này thì hoàn tác sau khi xóa một lần gửi trả về giao dịch CHƯA gán người
+  // nhận — khấu trừ người phụ thuộc lại tính thiếu dù người dùng chưa đổi gì.
+  it('giữ người nhận của lần gửi tiền', () => {
+    const r = toNewTransaction(tx({ is_remittance: true, remit_recipient_id: 'me' }))
+    expect(r.remit_recipient_id).toBe('me')
+  })
+
   it('giữ chuyển khoản xuyên tệ (tài khoản đích + số tiền đích)', () => {
     const r = toNewTransaction(
       tx({ type: 'transfer', to_account_id: 'a2', to_amount: 8_250_000 }),

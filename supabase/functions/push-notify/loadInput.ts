@@ -9,6 +9,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import {
   addDaysISO,
   addMonths,
+  benefitRange,
   buildBudgetReport,
   buildLifetimeInput,
   buildTagBudgetReport,
@@ -23,7 +24,6 @@ import {
   monthKeyString,
   PAGE_SIZE,
   RECENT_TXS_DAYS,
-  SO_NAM_HOAN_THUE,
   splitTxWindows,
   taxCategoryIds,
   tinhQuyenLoi,
@@ -261,13 +261,16 @@ export async function loadNotificationInput(
   const orParts = ['is_remittance.eq.true']
   if (benefitCategoryIds.length) orParts.push(`category_id.in.(${benefitCategoryIds.join(',')})`)
   if (shelterIds.length) orParts.push(`to_account_id.in.(${shelterIds.join(',')})`)
+  // year === namNay ở đây (push chỉ nói về năm nay) → benefitRange(namNay, namNay), đối
+  // xứng với useQuyenLoi.ts đang chọn năm khác trên <Select>.
+  const benefitTxRange = benefitRange(namNay, namNay)
   const benefitTxs = await fetchAllPages<Row>((from: number, to: number) =>
     sb
       .from('transactions')
       .select('*')
       .eq('user_id', userId)
-      .gte('occurred_on', `${namNay - SO_NAM_HOAN_THUE}-01-01`)
-      .lt('occurred_on', `${namNay + 1}-01-01`)
+      .gte('occurred_on', benefitTxRange.start)
+      .lt('occurred_on', benefitTxRange.end)
       .or(orParts.join(','))
       .order('occurred_on', { ascending: true })
       .order('id', { ascending: true })
@@ -285,6 +288,7 @@ export async function loadNotificationInput(
     base,
     rates,
     fuyoClaimedYears: profile.fuyo_claimed_years ?? [],
+    fmt: (n: number) => serverFormatMoney(n, 'JPY'),
   }).ketLuan
 
   return {

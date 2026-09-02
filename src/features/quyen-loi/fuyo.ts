@@ -32,6 +32,9 @@ export interface FuyoInput {
   rates: Rates
   /** Thuế suất biên ước (marginalRate.ts); null = chưa đủ phiếu lương → không ước tiền. */
   suatBien: number | null
+  /** Định dạng tiền (minor JPY → chuỗi hiển thị, VD "¥380,000") — tiêm từ ngoài để module
+   * này không import formatMoney (formatMoney đọc chế độ riêng tư toàn cục, phá độ THUẦN). */
+  fmt: (minorJpy: number) => string
 }
 
 export interface FuyoNguoi {
@@ -164,7 +167,7 @@ export function tinhFuyo(input: FuyoInput): FuyoKetQua {
   else ly_do.push('Tiền tiết kiệm là số ước từ thuế suất biên trên phiếu lương; công ty/sở thuế ra số cuối.')
   if (thieu_ty_gia) ly_do.push('Có lần gửi từ tài khoản ngoại tệ thiếu tỷ giá, đã loại khỏi tổng.')
   if (bo_qua.length) ly_do.push(`${bo_qua.join(', ')} đang cư trú ở Nhật — theo luật người cư trú, ngoài phạm vi khoản này.`)
-  ly_do.push(`Người thân phải có 合計所得金額 ≤ ¥${luat.fuyo.thuNhapToiDa.toLocaleString('en-US')}/năm — app không kiểm được điều này.`)
+  ly_do.push(`Người thân phải có 合計所得金額 ≤ ${input.fmt(luat.fuyo.thuNhapToiDa)}/năm — app không kiểm được điều này.`)
 
   const tongTietKiem = nguoi.some((n) => n.tiet_kiem_uoc !== null)
     ? nguoi.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0)
@@ -180,17 +183,19 @@ export function tinhFuyo(input: FuyoInput): FuyoKetQua {
     viec = 'Thêm người thân nhận tiền để app tính được khấu trừ người phụ thuộc'
   } else if (chua_gan.so_lan > 0) {
     trang_thai = 'thieu-du-lieu'
-    viec = `Gán người nhận cho ${chua_gan.so_lan} lần gửi (¥${chua_gan.tong.toLocaleString('en-US')}) — chưa gán thì số dưới đây đang thiếu`
+    viec = `Gán người nhận cho ${chua_gan.so_lan} lần gửi (${input.fmt(chua_gan.tong)}) — chưa gán thì số dưới đây đang thiếu`
   } else if (thieu.length > 0 && input.year < namHomNay) {
     trang_thai = 'het-han'
     viec = `${thieu.map((n) => n.name).join(', ')} không đủ 38万 năm ${input.year}`
   } else if (thieu.length > 0) {
     trang_thai = 'thieu'
     const n = thieu[0]
+    // 0 tháng nữa (tháng 12) đọc lên như "hết hạn mà chưa nói": nói thẳng mốc 31/12.
+    const hanText = thang_con_lai === 0 ? 'hết 31/12' : `${thang_con_lai} tháng nữa`
     viec =
       thieu.length === 1
-        ? `Còn ¥${n.con_thieu.toLocaleString('en-US')} để ${n.name} đủ 38万 · ${thang_con_lai} tháng nữa`
-        : `${thieu.length} người còn thiếu để đủ 38万 · ${thang_con_lai} tháng nữa`
+        ? `Còn ${input.fmt(n.con_thieu)} để ${n.name} đủ 38万 · ${hanText}`
+        : `${thieu.length} người còn thiếu để đủ 38万 · ${hanText}`
   } else if (nguoi.some((n) => n.du)) {
     trang_thai = 'du'
     if (input.year < namHomNay) {

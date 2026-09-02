@@ -12,21 +12,38 @@ import { tinhFuyo, type FuyoKetQua } from './fuyo'
 import { SO_TAX_NAMES, tinhFurusato, type FurusatoKetQua } from './furusato'
 import type { KetLuan } from './ketLuan'
 import { suatBienTuThue } from './marginalRate'
-import { tinhRefund, type RefundKetQua } from './refund'
+import { SO_NAM_HOAN_THUE, tinhRefund, type RefundKetQua } from './refund'
 import { luatChoNam } from './rules/luat'
 import { tinhShelterYearEnd, type ShelterKetQua } from './shelterYearEnd'
+
+/** Định dạng tiền mặc định cho test — bản thật đi qua `formatMoney`/`serverFormatMoney`. */
+export const fmtYen = (n: number) => `¥${n.toLocaleString('en-US')}`
+
+/**
+ * Cửa sổ giao dịch cần tải cho Quyền lợi: phủ cả năm ĐANG XEM (`year`, có thể là năm cũ
+ * người dùng chọn trên `<Select>`) lẫn cửa sổ 5 năm khoản ② soát từ HÔM NAY (`namNay`).
+ * Chọn năm cũ không được làm rơi mất mấy năm gần đây khỏi khoản ②, và ngược lại.
+ */
+export function benefitRange(year: number, namNay: number): { start: string; end: string } {
+  return {
+    start: `${Math.min(year, namNay) - SO_NAM_HOAN_THUE}-01-01`,
+    end: `${Math.max(year, namNay) + 1}-01-01`,
+  }
+}
 
 export interface QuyenLoiInput {
   year: number
   todayISO: string
   relatives: RelativeRow[]
-  /** Kết quả của repo.listBenefitTransactions cho [year−5, year+1). */
+  /** Kết quả của repo.listBenefitTransactions cho benefitRange(year, namNay). */
   txs: TransactionRow[]
   categories: CategoryRow[]
   accounts: AccountRow[]
   base: CurrencyCode
   rates: Rates
   fuyoClaimedYears: number[]
+  /** Định dạng tiền (minor JPY → chuỗi hiển thị) — xem ghi chú ở FuyoInput. */
+  fmt: (minorJpy: number) => string
 }
 
 export interface QuyenLoiKetQua {
@@ -61,12 +78,12 @@ export function tinhQuyenLoi(input: QuyenLoiInput): QuyenLoiKetQua {
   const thue = thueThuNhap12Thang(input.txs, input.categories, input.todayISO)
   const suatBien = thue.thangCoPhieu >= 12 ? suatBienTuThue(thue.tong, luat) : null
 
-  const chung = { todayISO: input.todayISO, relatives: input.relatives, txs: input.txs, accounts: input.accounts, base: input.base, rates: input.rates, suatBien }
+  const chung = { todayISO: input.todayISO, relatives: input.relatives, txs: input.txs, accounts: input.accounts, base: input.base, rates: input.rates, suatBien, fmt: input.fmt }
   const fuyo = tinhFuyo({ ...chung, year: input.year })
   const refund = tinhRefund({ ...chung, fuyoClaimedYears: input.fuyoClaimedYears })
   const deXuatKhaiThue = refund.nam.length > 0 && input.year === calendarYearOf(input.todayISO)
-  const furusato = tinhFurusato({ year: input.year, todayISO: input.todayISO, categories: input.categories, txs: input.txs, suatBien, deXuatKhaiThue })
-  const shelter = tinhShelterYearEnd({ year: input.year, todayISO: input.todayISO, accounts: input.accounts, txs: input.txs })
+  const furusato = tinhFurusato({ year: input.year, todayISO: input.todayISO, categories: input.categories, txs: input.txs, suatBien, deXuatKhaiThue, fmt: input.fmt })
+  const shelter = tinhShelterYearEnd({ year: input.year, todayISO: input.todayISO, accounts: input.accounts, txs: input.txs, fmt: input.fmt })
 
   const chuaGan: KetLuan = {
     id: 'remit-unassigned',

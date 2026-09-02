@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountRow, TransactionRow } from '../../types/database.types'
+import { fmtYen } from './quyenLoi'
 import { tinhShelterYearEnd } from './shelterYearEnd'
 
 const acc = (p: Partial<AccountRow>): AccountRow =>
@@ -9,22 +10,22 @@ const nap = (amount: number, on: string): TransactionRow =>
 
 describe('tinhShelterYearEnd', () => {
   it('trước 1/10 im (du), vẫn trả từng tài khoản', () => {
-    const r = tinhShelterYearEnd({ year: 2026, todayISO: '2026-09-03', accounts: [acc({})], txs: [nap(100_000, '2026-02-01')] })
+    const r = tinhShelterYearEnd({ year: 2026, todayISO: '2026-09-03', accounts: [acc({})], txs: [nap(100_000, '2026-02-01')], fmt: fmtYen })
     expect(r.tai_khoan[0]).toMatchObject({ used: 100_000, remaining: 1_100_000 })
     expect(r.ketLuan.trang_thai).toBe('du')
   })
   it('từ 1/10 còn hạn mức → thieu, câu có tổng còn lại', () => {
-    const r = tinhShelterYearEnd({ year: 2026, todayISO: '2026-10-01', accounts: [acc({}), acc({ id: 'g', name: 'Growth', tax_shelter: 'nisa_growth', shelter_annual_limit: 2_400_000 })], txs: [nap(100_000, '2026-02-01')] })
+    const r = tinhShelterYearEnd({ year: 2026, todayISO: '2026-10-01', accounts: [acc({}), acc({ id: 'g', name: 'Growth', tax_shelter: 'nisa_growth', shelter_annual_limit: 2_400_000 })], txs: [nap(100_000, '2026-02-01')], fmt: fmtYen })
     expect(r.ketLuan.trang_thai).toBe('thieu')
     expect(r.con_lai).toBe(1_100_000 + 2_400_000)
     expect(r.ketLuan.viec).toContain('3,500,000')
   })
   it('không tài khoản NISA/iDeCo → thieu-du-lieu', () => {
-    const r = tinhShelterYearEnd({ year: 2026, todayISO: '2026-10-01', accounts: [acc({ tax_shelter: null })], txs: [] })
+    const r = tinhShelterYearEnd({ year: 2026, todayISO: '2026-10-01', accounts: [acc({ tax_shelter: null })], txs: [], fmt: fmtYen })
     expect(r.ketLuan.trang_thai).toBe('thieu-du-lieu')
   })
   it('chưa đặt hạn mức → remaining null, không cộng vào con_lai, có lý do', () => {
-    const r = tinhShelterYearEnd({ year: 2026, todayISO: '2026-10-01', accounts: [acc({ shelter_annual_limit: null })], txs: [] })
+    const r = tinhShelterYearEnd({ year: 2026, todayISO: '2026-10-01', accounts: [acc({ shelter_annual_limit: null })], txs: [], fmt: fmtYen })
     expect(r.tai_khoan[0].remaining).toBeNull()
     expect(r.ketLuan.ly_do.join(' ')).toMatch(/hạn mức/)
   })

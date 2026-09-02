@@ -16,6 +16,8 @@ export interface ShelterInput {
   accounts: AccountRow[]
   /** Giao dịch bất kỳ có chuyển khoản vào tài khoản NISA/iDeCo; shelterUsage tự lọc. */
   txs: TransactionRow[]
+  /** Định dạng tiền (minor JPY → chuỗi hiển thị) — xem ghi chú ở FuyoInput. */
+  fmt: (minorJpy: number) => string
 }
 
 export interface ShelterTaiKhoan {
@@ -54,7 +56,7 @@ export function tinhShelterYearEnd(input: ShelterInput): ShelterKetQua {
     viec = 'Chưa tài khoản nào được đánh dấu NISA/iDeCo'
   } else if (muaNhac && con_lai > 0) {
     trang_thai = 'thieu'
-    viec = `Còn ¥${con_lai.toLocaleString('en-US')} hạn mức NISA/iDeCo chưa dùng · hết 31/12`
+    viec = `Còn ${input.fmt(con_lai)} hạn mức NISA/iDeCo chưa dùng · hết 31/12`
   }
   return {
     ketLuan: { id: 'shelter', year: input.year, trang_thai, muc: 'low', tiet_kiem_uoc: null, han: `${input.year}-12-31`, viec, ly_do },

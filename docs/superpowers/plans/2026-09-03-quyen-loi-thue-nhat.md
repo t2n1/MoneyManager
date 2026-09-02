@@ -2411,7 +2411,8 @@ import { FURUSATO_CATEGORY_NAME } from './furusato'
 import { luatChoNam } from './rules/luat'
 import { useQuyenLoi } from './useQuyenLoi'
 import { GanNguoiNhanSheet } from './GanNguoiNhanSheet'
-import { NguoiThanSheet } from './NguoiThanSheet'
+// NguoiThanSheet nằm ở components/ (dùng chung với form gửi tiền — CLAUDE.md cấm feature import UI của nhau).
+import { NguoiThanSheet } from '../../components/NguoiThanSheet'
 import type { RelativeRow } from '../../types/database.types'
 
 const NHOM_NHAN: Record<string, string> = { '<16': 'dưới 16', '16-29': '16–29', '30-69': '30–69', '70+': 'từ 70' }

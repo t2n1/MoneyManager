@@ -289,7 +289,12 @@ function stripComments(text: string): string {
 //     nháp-rồi-Lưu, nên đúng một ô ghi thẳng là NGOẠI LỆ; không nói ra thì người dùng gõ
 //     xong, không bấm Lưu, và vẫn bị ghi.
 // Cùng lượt đó, hai đoạn văn xuôi CŨ đã được bọc <Guide> nên trần chỉ lên 3 chứ không 5.
-const PROSE_MAX = 84
+// 85 (từ 84, 2026-09-02): mặt Lập kế hoạch bỏ hộp vàng chiếu hệ quả, thay bằng bốn dòng
+// tóm tắt. Khi đã hết chỗ chia thì không còn nút chính nào, và câu "muốn chia thêm thì bớt
+// một hạn mức, hoặc đổi mục tiêu để dành" là lời giải thích cho CHỖ TRỐNG đó — cùng loại
+// với câu giải thích ô bị vô hiệu ở trên. Bản cũ cũng có đúng câu này, chỉ không mang
+// fg-muted nên không bị đếm.
+const PROSE_MAX = 85
 
 const FILES = sourceFiles().map((path) => ({
   path,

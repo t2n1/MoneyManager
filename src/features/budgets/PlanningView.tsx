@@ -18,13 +18,14 @@
 //   4. `TB · cao nhất` in 29 lần cho con số chỉ đọc MỘT lần lúc đặt hạn mức, và 12 dòng
 //      dưới ¥1,000 chiếm ~40% chiều cao panel cho 1,4% số tiền.
 //
-// Nên panel giờ là: hệ quả (chiếu) → việc cần quyết → số đã đặt xếp theo nhóm, đuôi gấp.
+// Nên panel giờ là: bốn dòng tóm tắt (thu − đã đặt − để dành = còn chia) → khoản chắc chắn
+// phải trả → mục chưa đặt (một câu, một nút, danh sách gấp) → số đã đặt xếp theo nhóm.
 // Phần TÍNH nằm ở `planProjection.ts` và `planGroups.ts`; ở đây chỉ có việc bày ra.
 
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronRight, Pencil, PiggyBank, Target, TriangleAlert } from 'lucide-react'
-import { ActionButton, Card, Money, SectionTitle, SegmentedControl } from '../../components/ui'
+import { ChevronDown, ChevronRight, Pencil, PiggyBank, Target } from 'lucide-react'
+import { ActionButton, Card, Money, Num, SectionTitle, SegmentedControl } from '../../components/ui'
 import { ConclusionLine } from '../../components/VerdictNote'
 import { Guide } from '../../components/Guide'
 import {
@@ -47,6 +48,7 @@ import { LimitSlider, type LimitSliderProps } from './LimitSlider'
 import { PlanStickyBar } from './PlanStickyBar'
 import { budgetHint } from './budgetHint'
 import { capMismatchNotice, nameList } from './capOverflow'
+import type { CoverageGap } from './commitments'
 import { LimitSparkline } from './LimitSparkline'
 import { TAIL_LIMIT, type PlanBlock, type PlanRow } from './planGroups'
 import { distributeHeadroom } from './planProjection'
@@ -141,6 +143,13 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   const [viewMode, setViewMode] = useState<LimitViewMode>(readViewMode)
   /** Đuôi dài đang mở, theo khối. Mặc định ĐÓNG, và ghi nhớ theo khối (B34.2). */
   const [tailOpen, setTailOpen] = useState<Set<string>>(new Set())
+  /**
+   * Danh sách "mục chưa đặt hạn mức" đang xổ ra từng dòng. Mặc định GẤP: 29 dòng cùng
+   * một nút xanh là 29 lần bắt người dùng quyết một việc mà thật ra chỉ có MỘT câu hỏi —
+   * chia phần còn lại thế nào. Câu hỏi đó trả lời bằng một nút trên đầu khối; ai muốn
+   * đặt tay từng mục thì mở ra.
+   */
+  const [unsetOpen, setUnsetOpen] = useState(false)
   /** Trần nhóm đang xổ ra mốc con. */
   const [groupOpen, setGroupOpen] = useState<Set<string>>(new Set())
 
@@ -376,7 +385,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
     if (data.unset.length === 0) return
     const ok = await confirmDialog({
       title: `Đặt hạn mức cho ${data.unset.length} danh mục?`,
-      message: `Dùng số trung bình ${SUGGEST_MONTHS} tháng cho những mục chưa đặt. Sửa lại từng mục sau vẫn được.`,
+      message: `Mỗi mục lấy đúng mức quen tiêu (trung bình ${SUGGEST_MONTHS} tháng qua). Sửa lại từng mục sau vẫn được.`,
       confirmLabel: 'Đặt hết',
     })
     if (!ok) return
@@ -399,7 +408,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
     const rows = [...headroomPlan].map(([categoryId, amount]) => ({ categoryId, amount }))
     const ok = await confirmDialog({
       title: `Chia ${money(projection!.headroom)} cho ${rows.length} danh mục?`,
-      message: `Chia theo tỉ lệ trung bình ${SUGGEST_MONTHS} tháng của từng mục, vừa đủ để Để dành không xuống dưới sàn ${Math.round(
+      message: `Mục nào quen tiêu nhiều thì nhận nhiều hơn, và tổng vừa đủ để Để dành không xuống dưới mục tiêu ${Math.round(
         (projection!.savingsFloor / summary.income) * 100,
       )}%. Sửa lại từng mục sau vẫn được.`,
       confirmLabel: 'Chia',
@@ -689,7 +698,9 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                   khi bỏ ¥14,826 ra (mốc con nằm trong trần cha, cộng cả hai là đếm một
                   đồng hai lần) — nhưng màn hình không nói dòng nào là mốc con, nên hai
                   con số cạnh nhau đọc ra như một lỗi tính. */}
-              {summary.incomeSource !== 'unknown' && (
+              {/* Chỉ khi KHÔNG có bốn dòng tóm tắt bên dưới: có rồi thì dòng này là hai
+                  con số đầu của bảng đó in lần thứ hai bằng chữ nhỏ hơn. */}
+              {summary.incomeSource !== 'unknown' && !projection && (
                 <p className="mt-1 text-2xs text-fg-muted">
                   tính vào kế hoạch{' '}
                   <Money amount={summary.allocated} currency={base} className="font-semibold text-fg-primary" />{' '}
@@ -704,53 +715,43 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
               )}
 
               {projection && (
-                <ProjectionBox
-                  projection={projection}
+                <PlanSummaryBox
                   income={summary.income}
-                  savingsNow={summary.unallocated}
+                  allocated={summary.allocated}
+                  floor={projection.savingsFloor}
                   floorPct={floorPct}
-                  money={money}
-                  onKeepFloor={handleKeepFloor}
-                  onUseAll={handleUseAllSuggestions}
-                  onCopy={handleCopy}
-                  busy={upsert.isPending || copy.isPending}
-                  headroomCount={headroomPlan?.size ?? 0}
+                  headroom={projection.headroom}
+                  base={base}
                 />
               )}
 
-              {/* Chưa biết thu nhập thì không chiếu được gì, nhưng hai nút ghi hạn mức
-                  vẫn phải dùng được — kế hoạch điền dở còn hơn không có kế hoạch. */}
-              {!projection && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <ActionButton onClick={handleCopy} disabled={copy.isPending}>
-                    Chép tháng trước
-                  </ActionButton>
-                  <ActionButton
-                    onClick={handleUseAllSuggestions}
-                    disabled={data.unset.length === 0 || upsert.isPending}
-                  >
-                    Nhận hết gợi ý{data.unset.length > 0 ? ` (${data.unset.length})` : ''}
-                  </ActionButton>
-                </div>
-              )}
+              {/* Chép tháng trước đứng một mình ở đây: nó là cách duy nhất điền kế hoạch
+                  KHÔNG dựa vào gợi ý, nên không thuộc khối "mục chưa đặt" bên dưới. Vẫn
+                  dùng được khi chưa biết thu nhập — kế hoạch điền dở hơn không có. */}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <ActionButton onClick={handleCopy} disabled={copy.isPending}>
+                  Chép tháng trước
+                </ActionButton>
+              </div>
             </div>
 
-            {/* KHỐI "CẦN BẠN QUYẾT" — trên tất cả các khối nhóm (B31).
+            {/* KHỐI "CHẮC CHẮN PHẢI TRẢ" — trên tất cả các khối nhóm (B31).
                 `coverageGaps()` là hàm đã viết kỹ (leo cam kết lên cha, bỏ mốc con, sắp
                 theo `short`) mà kết quả của nó tới nay chỉ được ĐẾM: `planVerdict` in ra
                 "2 danh mục chưa phủ hết khoản đã cam kết", rồi người dùng tự đi tìm hai
                 danh mục đó trong 29 dòng.
+                Tách khỏi khối "chưa đặt hạn mức" bên dưới vì đây là việc KHÁC HẲN: tiền
+                này chắc chắn ra, không đặt cũng phải trả — còn 29 mục kia là chọn chia bao
+                nhiêu. Bản trước xếp chung thành 31 dòng cùng một nút xanh nên tiền nhà
+                ¥300.000 (hơn cả thu dự kiến) chỉ là dòng 1 trong 31.
                 Rỗng thì biến mất hoàn toàn — không header, không "Không có việc nào"
-                (B31.5): kế hoạch đã xong thì panel mở thẳng vào danh sách nhóm. */}
-            {(data.gaps.length > 0 || data.unset.length > 0) && (
+                (B31.5). */}
+            {data.gaps.length > 0 && (
               <>
                 <BlockHeader
-                  title="Cần bạn quyết"
-                  meta={`${data.gaps.length + data.unset.length} việc`}
+                  title="Chắc chắn phải trả"
+                  meta={`${data.gaps.length} khoản hạn mức chưa đủ`}
                   tone="warn"
-                  right={
-                    <span className="text-2xs text-fg-muted">gợi ý = TB {SUGGEST_MONTHS} tháng</span>
-                  }
                 />
                 <ul>
                   {data.gaps.map((g) => {
@@ -767,50 +768,102 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                         note={`· ${laNhom ? 'nhóm ' : ''}${axisNote(g.categoryId)}`}
                         // Vì sao in CÂU chứ chỉ con số: y nguyên lý do đã ghi trong
                         // capOverflow.ts — in một con số mà không nói nó ở đâu ra thì
-                        // người dùng đọc như app tự bịa.
+                        // người dùng đọc như app tự bịa. Nhưng câu ngắn: tên khoản là đủ,
+                        // "đã cam kết" / "không phủ nổi" là từ trong code, không phải từ
+                        // người dùng nói.
                         reason={
                           chuaCoTran
-                            ? `chưa có trần nào mà ${money(g.committed)} đã cam kết (${commitmentNames(g.categoryId)})`
-                            : `hạn mức ${money(g.budgeted)} không phủ nổi ${money(g.committed)} đã cam kết (${commitmentNames(g.categoryId)})`
+                            ? `chưa có hạn mức · ${commitmentNames(g.categoryId)}`
+                            : `hạn mức ${money(g.budgeted)} chưa đủ · ${commitmentNames(g.categoryId)}`
                         }
                         tone="bad"
                         amount={g.committed}
                         base={base}
                         dashed={false}
-                        actionLabel={chuaCoTran ? 'Tạo trần' : 'Nâng lên'}
+                        actionLabel={chuaCoTran ? 'Đặt' : 'Nâng lên'}
                         busy={upsert.isPending}
                         onAmount={() => setEditing(g.categoryId)}
                         onAction={() =>
                           applyLimit(
                             g.categoryId,
                             g.committed,
-                            chuaCoTran ? 'Đã tạo trần' : 'Đã nâng hạn mức lên',
+                            chuaCoTran ? 'Đã đặt hạn mức' : 'Đã nâng hạn mức lên',
                           )
                         }
                       />
                     )
                   })}
-                  {data.unset.map((r) => (
-                    <DecisionRow
-                      key={`unset-${r.cat.id}`}
-                      icon={r.cat.icon}
-                      name={r.cat.name}
-                      note={`· ${axisNote(r.cat.id)}`}
-                      // ĐÂY là chỗ duy nhất `TB · cao nhất` còn đáng in ở dạng câu (B34.1):
-                      // hai con số đó dùng để CHỌN một hạn mức, mà đây là dòng chưa chọn.
-                      reason={`TB ${SUGGEST_MONTHS} tháng ${money(r.suggestion.average)} · cao nhất ${money(r.suggestion.max)}`}
-                      tone="muted"
-                      amount={r.suggestion.average}
-                      base={base}
-                      // Viền nét đứt phân biệt "gợi ý chưa nhận" với "số đã đặt" (B31.3).
-                      dashed
-                      actionLabel="Đặt"
-                      busy={upsert.isPending}
-                      onAmount={() => setEditing(r.cat.id)}
-                      onAction={() => applyLimit(r.cat.id, r.suggestion.average, 'Đã đặt hạn mức')}
-                    />
-                  ))}
                 </ul>
+                {projection && (
+                  <GapConsequence
+                    gaps={data.gaps}
+                    income={summary.income}
+                    allocated={summary.allocated}
+                    floor={projection.savingsFloor}
+                    money={money}
+                    nameOf={(id) => catOf(id)?.name ?? 'Danh mục'}
+                  />
+                )}
+              </>
+            )}
+
+            {/* KHỐI "CHƯA ĐẶT HẠN MỨC" — một câu, một nút chính, danh sách gấp (B31.3).
+                Câu nói ba con số người dùng cần để quyết: quen tiêu bao nhiêu, còn bao
+                nhiêu để chia, và chia ra thì mỗi mục được bao nhiêu phần. Bản trước đưa
+                ba con số đó vào hai dòng chữ mono trong hộp vàng ("→ để dành còn ¥125,957
+                âm · Âm 43%, sàn ¥58,000") rồi bắt đọc ba nút để đoán nút nào làm gì. */}
+            {data.unset.length > 0 && (
+              <>
+                <BlockHeader
+                  title={`${data.unset.length} mục chưa đặt hạn mức`}
+                  right={
+                    <span className="text-2xs text-fg-muted">
+                      quen tiêu = trung bình {SUGGEST_MONTHS} tháng qua
+                    </span>
+                  }
+                />
+                <UnsetSummary
+                  count={data.unset.length}
+                  suggestedTotal={projection?.suggestedTotal ?? data.unset.reduce((s, r) => s + r.suggestion.average, 0)}
+                  headroom={projection?.headroom ?? null}
+                  money={money}
+                  busy={upsert.isPending}
+                  open={unsetOpen}
+                  onToggle={() => setUnsetOpen((v) => !v)}
+                  onKeepFloor={handleKeepFloor}
+                  onUseAll={handleUseAllSuggestions}
+                />
+                {unsetOpen && (
+                  <ul id="plan-unset-rows">
+                    {data.unset.map((r) => {
+                      // Ô số hiện ĐÚNG con số nút "Đặt" sẽ ghi: có bản chia giữ mục tiêu
+                      // thì là phần của mục này trong bản chia, không thì là mức quen tiêu.
+                      // Hiện một số mà ghi số khác là cách chắc chắn nhất để mất lòng tin.
+                      const planned = headroomPlan?.get(r.cat.id) ?? r.suggestion.average
+                      return (
+                        <DecisionRow
+                          key={`unset-${r.cat.id}`}
+                          icon={r.cat.icon}
+                          name={r.cat.name}
+                          note={`· ${axisNote(r.cat.id)}`}
+                          // ĐÂY là chỗ duy nhất `quen tiêu · cao nhất` còn đáng in ở dạng
+                          // câu (B34.1): hai con số đó dùng để CHỌN một hạn mức, mà đây là
+                          // dòng chưa chọn.
+                          reason={`quen tiêu ${money(r.suggestion.average)} · cao nhất ${money(r.suggestion.max)}`}
+                          tone="muted"
+                          amount={planned}
+                          base={base}
+                          // Viền nét đứt phân biệt "gợi ý chưa nhận" với "số đã đặt" (B31.3).
+                          dashed
+                          actionLabel="Đặt"
+                          busy={upsert.isPending}
+                          onAmount={() => setEditing(r.cat.id)}
+                          onAction={() => applyLimit(r.cat.id, planned, 'Đã đặt hạn mức')}
+                        />
+                      )
+                    })}
+                  </ul>
+                )}
               </>
             )}
 
@@ -902,131 +955,212 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
 }
 
 /**
- * Khối chiếu hệ quả + ba nút, mỗi nút ĐÃ IN SẴN hệ quả của nó (B32, B35.2).
+ * Bốn dòng tóm tắt thay cho hộp vàng chiếu hệ quả (B32 → B41).
  *
- * Bản trước có hai nút cùng cỡ (`Chép tháng trước` / `Dùng hết gợi ý (7)`) và cả hai đều
- * không nói mình làm gì với Để dành. `Giữ sàn` là nút CHÍNH vì nó là hành động duy nhất
- * giữ được cả hai ràng buộc: phủ hết danh mục chưa đặt, và không phá sàn để dành.
+ * Hộp vàng cũ nói cùng một ý ba lần bằng ba giọng: câu "Để dành đang 61% — đạt sàn 20%",
+ * hai dòng mono "→ để dành còn ¥125,957 âm · Âm 43%", rồi ba nút và một link "Hạ sàn".
+ * Người đọc phải tự cộng trừ để biết mình đang ở đâu. Bốn dòng này LÀ phép trừ đó, bày
+ * ra: thu − đã đặt − để dành = còn được chia. Từ "sàn" / "trần" / "phủ" / "headroom" không
+ * còn trên màn; "mục tiêu để dành" là cách người dùng gọi con số họ tự đặt trong Cài đặt.
+ *
+ * Ba nút cũ đi đâu: "Chép tháng trước" đứng riêng ngay dưới (cách điền duy nhất không dựa
+ * gợi ý); "Giữ sàn" và "Nhận hết gợi ý" xuống khối "mục chưa đặt" — nơi có 29 mục mà
+ * chúng tác động. "Hạ sàn" thành một câu chỉ đường, chỉ hiện khi đã hết chỗ chia (B35.4:
+ * app không tự nới mục tiêu người dùng đặt).
  */
-function ProjectionBox({
-  projection,
+function PlanSummaryBox({
   income,
-  savingsNow,
+  allocated,
+  floor,
   floorPct,
-  money,
-  onKeepFloor,
-  onUseAll,
-  onCopy,
-  busy,
-  headroomCount,
+  headroom,
+  base,
 }: {
-  projection: import('./planProjection').PlanProjection
   income: number
-  savingsNow: number
+  allocated: number
+  floor: number
   floorPct: number
-  money: (v: number) => string
-  onKeepFloor: () => void
-  onUseAll: () => void
-  onCopy: () => void
-  busy: boolean
-  headroomCount: number
+  headroom: number
+  base: Parameters<typeof Money>[0]['currency']
 }) {
-  const p = projection
-  const nowShare = income > 0 ? savingsNow / income : 0
-  const daDatSan = savingsNow >= p.savingsFloor
-  const conViec: string[] = []
-  if (p.unsetCount > 0) conViec.push(`${p.unsetCount} danh mục chưa đặt`)
-  if (p.gapCount > 0) conViec.push(`${p.gapCount} trần chưa phủ cam kết`)
-  const chuaXong = conViec.length > 0
-
-  // Cả hai đều 0 → khối biến mất, panel gọn lại: kế hoạch đã điền xong thì `planVerdict`
-  // ở cột trái nói là đủ, và một khối chiếu "nếu điền tiếp" là chiếu một việc không còn.
-  if (!chuaXong) {
-    return (
-      <div className="mt-3 flex flex-wrap gap-2">
-        <ActionButton onClick={onCopy} disabled={busy}>
-          Chép tháng trước
-        </ActionButton>
-      </div>
-    )
-  }
-
-  const keepFloorLabel =
-    p.headroom > 0 && headroomCount > 0
-      ? `Giữ sàn ${floorPct}% — chia ${money(p.headroom)} cho ${headroomCount} mục`
-      : `Giữ sàn ${floorPct}%`
-
+  const row = (label: ReactNode, amount: number, strong = false, tone?: 'out') => (
+    <div className={`flex items-baseline justify-between gap-3 ${strong ? 'font-semibold' : ''}`}>
+      <span className={strong ? 'text-fg-primary' : 'text-fg-secondary'}>{label}</span>
+      <Money amount={amount} currency={base} tone={tone} className={strong ? 'font-semibold' : ''} />
+    </div>
+  )
   return (
-    <div className="mt-3 rounded-md border border-state-warn-border bg-state-warn-bg p-3 text-state-warn-fg">
-      <p className="flex items-start gap-2 text-sm font-semibold">
-        <TriangleAlert className="mt-px h-4 w-4 shrink-0" aria-hidden />
-        <span>
-          Để dành đang {shareLabel(nowShare)} — {daDatSan ? 'đạt' : 'chưa đạt'} sàn {floorPct}%.
-          {conViec.length > 0 && ` Nhưng kế hoạch chưa xong: ${conViec.join(', ')}.`}
-        </span>
-      </p>
-
-      {/* Hai dòng chiếu, mono và nhỏ hơn câu trên: chúng là BẰNG CHỨNG cho câu đó, và
-          mỗi dòng chỉ hiện khi việc tương ứng còn (B32). */}
-      <div className="mt-2 flex flex-col gap-0.5 text-2xs">
-        {p.unsetCount > 0 && (
-          <p>
-            Nhận hết {p.unsetCount} gợi ý ({money(p.suggestedTotal)}) → để dành còn{' '}
-            <b className={p.savingsIfSuggested < p.savingsFloor ? 'text-money-out' : undefined}>
-              {money(Math.abs(p.savingsIfSuggested))}
-              {p.savingsIfSuggested < 0 && ' âm'} ·{' '}
-              {shareLabel(income > 0 ? p.savingsIfSuggested / income : 0)}
-            </b>
-            , sàn {money(p.savingsFloor)}
-          </p>
-        )}
-        {p.gapTotal > 0 && (
-          <p>
-            Phủ luôn cam kết còn hụt (+{money(p.gapTotal)}) →{' '}
-            <b className="text-money-out">
-              {p.savingsIfCovered < 0
-                ? `chia quá thu ${money(-p.savingsIfCovered)}`
-                : `để dành còn ${money(p.savingsIfCovered)}`}
-            </b>
-          </p>
-        )}
+    <div className="mt-3 flex flex-col gap-1 text-sm">
+      {row('Thu dự kiến', income)}
+      {row('Đã đặt hạn mức', allocated)}
+      {row(
+        <>
+          Để dành <Num>{floorPct}%</Num>{' '}
+          <span className="text-2xs text-fg-muted">(mục tiêu của bạn)</span>
+        </>,
+        floor,
+      )}
+      <div className="mt-1 border-t border-border-subtle pt-1.5">
+        {headroom > 0
+          ? row('Còn được chia', headroom, true)
+          : row('Đã chia quá phần giữ được', -headroom, true, 'out')}
       </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <ActionButton
-          variant="primary"
-          onClick={onKeepFloor}
-          disabled={busy || p.headroom <= 0 || headroomCount === 0}
-        >
-          {keepFloorLabel}
-        </ActionButton>
-        <ActionButton onClick={onUseAll} disabled={busy || p.unsetCount === 0}>
-          Nhận hết gợi ý{p.unsetCount > 0 ? ` (${p.unsetCount})` : ''}
-        </ActionButton>
-        <ActionButton onClick={onCopy} disabled={busy}>
-          Chép tháng trước
-        </ActionButton>
-        {/* KHÔNG hạ sàn hộ người dùng (B35.4): sàn để dành là mục tiêu họ tự đặt, app tự
-            nới ra để kế hoạch "vừa" là làm hỏng đúng cái thước đang dùng để đo. Nên đây
-            là link phụ mở Cài đặt, không phải một nút cùng hạng. */}
-        <Link
-          to="/settings?edit=profile"
-          className="-my-2 ml-auto inline-flex min-h-11 items-center text-2xs font-medium underline"
-        >
-          Hạ sàn
-        </Link>
-      </div>
-
-      {/* Ẩn nút thì người dùng tưởng app thiếu tính năng — nên nó bị vô hiệu hoá kèm câu
-          nói vì sao, và câu đó nói ra hai đường thoát (B35.3). */}
-      {p.headroom <= 0 && (
-        <p className="mt-2 text-2xs">
-          Đã chia hết phần giữ được sàn — muốn thêm thì phải hạ sàn hoặc bớt một hạn mức.
+      {/* Ẩn đường thoát thì người dùng tưởng app kẹt — nên nói ra hai đường (B35.3),
+          và không tự đi đường nào hộ họ (B35.4). */}
+      {headroom <= 0 && (
+        <p className="text-2xs text-fg-muted">
+          Muốn chia thêm thì bớt một hạn mức đã đặt, hoặc{' '}
+          <Link to="/settings?edit=profile" className="underline">
+            đổi mục tiêu để dành
+          </Link>
+          .
         </p>
       )}
     </div>
   )
 }
+
+/**
+ * Câu hệ quả dưới các khoản chắc chắn phải trả: đặt đủ hết thì để dành ra sao.
+ *
+ * Tính RIÊNG trên `gaps`, không dùng `projection.savingsIfCovered` — số kia cộng cả 29
+ * gợi ý vào, tức trả lời một câu hỏi khác ("nếu làm HẾT mọi thứ"). Ở đây người dùng đang
+ * nhìn hai dòng và cần biết hai dòng đó làm gì với tiền của họ.
+ *
+ * Câu "riêng X đã hơn cả thu dự kiến" chỉ hiện khi đúng nghĩa đen: một khoản đơn lẻ lớn
+ * hơn thu. Với dữ liệu tháng 9/2026 đó là tiền nhà mới ¥300.000 trên thu ¥290.000 — thứ
+ * đáng thấy đầu tiên, mà bản trước để làm dòng 1 trong 31.
+ */
+function GapConsequence({
+  gaps,
+  income,
+  allocated,
+  floor,
+  money,
+  nameOf,
+}: {
+  gaps: CoverageGap[]
+  income: number
+  allocated: number
+  floor: number
+  money: (v: number) => string
+  nameOf: (categoryId: string) => string
+}) {
+  const gapTotal = gaps.reduce((s, g) => s + g.short, 0)
+  const savingsAfter = income - allocated - gapTotal
+  const over = gaps.find((g) => g.committed > income)
+  const n = gaps.length
+  let line: string | null = null
+  if (savingsAfter < 0) {
+    line = `Đặt đủ ${n} khoản này là chia quá thu ${money(-savingsAfter)}, tháng này không để dành được.`
+  } else if (savingsAfter < floor) {
+    line = `Đặt đủ ${n} khoản này thì để dành còn ${money(savingsAfter)}, dưới mục tiêu ${money(floor)}.`
+  }
+  if (!line && !over) return null
+  return (
+    <p className="border-t border-border-subtle bg-state-bad-bg px-4 py-2 text-2xs text-state-bad-fg">
+      {over && `Riêng ${nameOf(over.categoryId)} đã hơn cả thu dự kiến. `}
+      {line}
+    </p>
+  )
+}
+
+/**
+ * Câu + nút chính của khối "mục chưa đặt hạn mức", và nút mở danh sách từng mục.
+ *
+ * Nút chính đổi theo tình huống, vì "hành động đúng" phụ thuộc còn bao nhiêu để chia:
+ *   · còn đủ cho cả mức quen tiêu   → "Đặt theo mức quen tiêu"      (= nhận hết gợi ý)
+ *   · còn ít hơn                     → "Chia ¥X cho N mục"           (= giữ mục tiêu)
+ *   · hết chỗ                        → không có nút chính; câu nói hai đường thoát
+ *   · chưa biết thu nhập             → "Đặt theo mức quen tiêu" (không so được với gì)
+ * Bản trước bày cả ba nút cùng lúc và để người dùng đoán; ở đây nút phụ ("Đặt hết theo mức
+ * quen tiêu" khi nó không phải nút chính) chỉ hiện sau khi mở danh sách — ai mở là người
+ * muốn tự tay, và chỉ họ mới cần thêm lựa chọn.
+ */
+function UnsetSummary({
+  count,
+  suggestedTotal,
+  headroom,
+  money,
+  busy,
+  open,
+  onToggle,
+  onKeepFloor,
+  onUseAll,
+}: {
+  count: number
+  suggestedTotal: number
+  /** null = chưa biết thu nhập nên không có gì để so */
+  headroom: number | null
+  money: (v: number) => string
+  busy: boolean
+  open: boolean
+  onToggle: () => void
+  onKeepFloor: () => void
+  onUseAll: () => void
+}) {
+  const fits = headroom === null || headroom >= suggestedTotal
+  const sharePct =
+    headroom !== null && headroom > 0 && suggestedTotal > 0
+      ? Math.round((headroom / suggestedTotal) * 100)
+      : null
+  return (
+    <div className="border-t border-border-subtle px-4 py-3">
+      <p className="text-sm text-fg-secondary">
+        {SUGGEST_MONTHS} tháng qua bạn tiêu trung bình{' '}
+        <span className="font-semibold text-fg-primary">{money(suggestedTotal)}</span> cho{' '}
+        <Num>{count}</Num> mục này.
+        {headroom !== null && headroom <= 0 && (
+          <> Không còn gì để chia mà vẫn giữ mục tiêu để dành.</>
+        )}
+        {headroom !== null && headroom > 0 && !fits && sharePct !== null && (
+          <>
+            {' '}
+            Bạn còn <span className="font-semibold text-fg-primary">{money(headroom)}</span> để
+            chia, nên mỗi mục sẽ nhận khoảng <Num>{sharePct}%</Num> mức quen tiêu.
+          </>
+        )}
+        {headroom !== null && headroom > 0 && fits && (
+          <>
+            {' '}
+            Bạn còn <span className="font-semibold text-fg-primary">{money(headroom)}</span> để
+            chia — đủ cho cả <Num>{count}</Num> mục theo mức quen tiêu.
+          </>
+        )}
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {fits && (
+          <ActionButton variant="primary" onClick={onUseAll} disabled={busy}>
+            Đặt theo mức quen tiêu
+          </ActionButton>
+        )}
+        {!fits && headroom !== null && headroom > 0 && (
+          <ActionButton variant="primary" onClick={onKeepFloor} disabled={busy}>
+            Chia {money(headroom)} cho {count} mục
+          </ActionButton>
+        )}
+        <ActionButton
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-controls="plan-unset-rows"
+        >
+          Xem và đặt từng mục
+          {open ? (
+            <ChevronDown className="h-4 w-4" aria-hidden />
+          ) : (
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          )}
+        </ActionButton>
+        {open && !fits && (
+          <ActionButton onClick={onUseAll} disabled={busy}>
+            Đặt hết theo mức quen tiêu
+          </ActionButton>
+        )}
+      </div>
+    </div>
+  )
+}
+
 
 /** Header của một khối trong panel. Nền `surface-chrome` để mắt bắt ngay ranh giới nhóm. */
 function BlockHeader({

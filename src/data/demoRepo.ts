@@ -35,6 +35,7 @@ import type {
   NeedLevel,
   MonthPlanRow,
   HealthSnapshotRow,
+  LifetimeVerdictSnapshotRow,
   NetWorthSnapshotRow,
   PlannedExpenseRow,
   NotificationStateRow,
@@ -53,6 +54,7 @@ import type {
   TransactionTagRow,
 } from '../types/database.types'
 import {
+  type NewLifetimeVerdictSnapshot,
   BACKUP_VERSION,
   type AccountPatch,
   type AssetGroupSettingPatch,
@@ -224,6 +226,8 @@ interface DemoDB {
   savingsGoals: SavingsGoalRow[]
   networthSnapshots: NetWorthSnapshotRow[]
   healthSnapshots: HealthSnapshotRow[]
+  /** Lịch sử kết luận tab Tương lai (migration 0055); vắng mặt ở dữ liệu demo cũ. */
+  lifetimeVerdictSnapshots?: LifetimeVerdictSnapshotRow[]
   tags: TagRow[]
   transactionTags: TransactionTagRow[]
   /** Nhãn của quy tắc định kỳ (migration 0042); vắng mặt ở dữ liệu demo cũ. */
@@ -989,6 +993,7 @@ function seed(): DemoDB {
     savingsGoals,
     networthSnapshots: [],
     healthSnapshots: [],
+    lifetimeVerdictSnapshots: [],
     tags: [],
     transactionTags: [],
     lifeScenarios: [],
@@ -1873,6 +1878,35 @@ export const demoRepo: Repo = {
     return row
   },
 
+  async getLifetimeVerdictSnapshots(scenarioId: string) {
+    return (load().lifetimeVerdictSnapshots ?? [])
+      .filter((v) => v.scenario_id === scenarioId)
+      .sort((a, b) => a.month_on.localeCompare(b.month_on))
+  },
+
+  async upsertLifetimeVerdictSnapshot(input: NewLifetimeVerdictSnapshot) {
+    const db = load()
+    db.lifetimeVerdictSnapshots ??= []
+    const existing = db.lifetimeVerdictSnapshots.find(
+      (v) => v.scenario_id === input.scenario_id && v.month_on === input.month_on,
+    )
+    if (existing) {
+      Object.assign(existing, input, { updated_at: nowISO() })
+      save(db)
+      return existing
+    }
+    const row: LifetimeVerdictSnapshotRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      ...input,
+      created_at: nowISO(),
+      updated_at: nowISO(),
+    }
+    db.lifetimeVerdictSnapshots.push(row)
+    save(db)
+    return row
+  },
+
   async getNotificationState() {
     return (load().notificationState ?? []).slice()
   },
@@ -2732,6 +2766,7 @@ export const demoRepo: Repo = {
       savingsGoals: db.savingsGoals ?? [],
       networthSnapshots: db.networthSnapshots ?? [],
       healthSnapshots: db.healthSnapshots ?? [],
+      lifetimeVerdictSnapshots: db.lifetimeVerdictSnapshots ?? [],
       tagGroups: db.tagGroups ?? [],
       tags: db.tags ?? [],
       transactionTags: db.transactionTags ?? [],
@@ -2805,6 +2840,7 @@ export const demoRepo: Repo = {
       savingsGoals: stamp(data.savingsGoals ?? []),
       networthSnapshots: stamp(data.networthSnapshots ?? []),
       healthSnapshots: stamp(data.healthSnapshots ?? []),
+      lifetimeVerdictSnapshots: stamp(data.lifetimeVerdictSnapshots ?? []),
       tagGroups: stamp(data.tagGroups ?? []),
       tags: stamp(data.tags ?? []),
       transactionTags: stamp(data.transactionTags ?? []),

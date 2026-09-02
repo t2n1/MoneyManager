@@ -3,9 +3,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Sparkles, Star } from 'lucide-react'
 import { ActionButton, Card, actionButtonClass, filterChipClass } from '../../components/ui'
 import { repo } from '../../data'
-import { useAccounts, useCategories, useNetWorthSnapshots, useRangeTransactions } from '../../hooks/queries'
+import {
+  useAccounts,
+  useCategories,
+  useLifetimeVerdictSnapshots,
+  useNetWorthSnapshots,
+  useRangeTransactions,
+  useUpsertLifetimeVerdictSnapshot,
+} from '../../hooks/queries'
 import type { CurrencyCode } from '../../lib/currencies'
-import { toISODate } from '../../lib/dates'
+import { getMonthRange, monthKeyForDate, toISODate } from '../../lib/dates'
 import { showToast } from '../../lib/dialog'
 import { formatMoney } from '../../lib/money'
 import { fetchRates } from '../../lib/rates'
@@ -23,7 +30,7 @@ import {
 } from './draft'
 import { DraftBanner } from './DraftBanner'
 import { EventEditorPopover } from './EventEditorPopover'
-import { extraSavingsForFire, firstNegativeYear, fireYear } from './insights'
+import { assetsAtAge, extraSavingsForFire, firstNegativeYear, fireYear } from './insights'
 import { InsightCards } from './InsightCards'
 import { LifetimeChartCard } from './LifetimeChartCard'
 import type { PresetContext } from './presets'
@@ -37,6 +44,7 @@ import { pickActive } from './buildInput'
 import { currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { lifetimeVerdict } from './summary'
 import { applyRetireTrial, buildRetireTrial, RETIRE_TRIAL_MIN_END_AGE } from './tryRetire'
+import { verdictDrift, type VerdictPoint } from './verdictHistory'
 import { baselineRange, makeCurrencyOf, useLifetime } from './useLifetime'
 import { YearTableSection, YearTableView } from './YearTableView'
 
@@ -266,6 +274,48 @@ export function LifetimeView() {
   const reality = useMemo(
     () => (shownInput && baseline ? realityCheck(shownInput, baseline) : null),
     [shownInput, baseline],
+  )
+
+  // --- Lịch sử kết luận (migration 0055) -----------------------------------------------
+  //
+  // Ghi từ `input` (bản ĐÃ LƯU, chưa qua nháp, chưa qua cách đọc giá/lạm phát, chưa qua
+  // cú sốc): lịch sử phải là kế hoạch thật, không phải những lần vặn thử. Một dòng mỗi
+  // tháng tài chính mỗi kịch bản; mở lại trong tháng thì ghi đè.
+  const monthStartDay = profile?.month_start_day ?? 1
+  const thisMonthOn = useMemo(
+    () => getMonthRange(monthKeyForDate(todayISO, monthStartDay), monthStartDay).start,
+    [todayISO, monthStartDay],
+  )
+  const savedRows = useMemo(() => (input ? projectLifetime(input) : []), [input])
+  const verdictNow = useMemo((): VerdictPoint | null => {
+    if (!input || savedRows.length === 0) return null
+    const v = lifetimeVerdict(savedRows, input.birthYear)
+    const end = assetsAtAge(savedRows, input.endAge)
+    if (!end) return null
+    return {
+      month_on: thisMonthOn,
+      fire_year: v.fireYear,
+      negative_year: v.negativeYear,
+      end_age: input.endAge,
+      assets_end_minor: end.center,
+      display_currency: input.displayCurrency,
+    }
+  }, [input, savedRows, thisMonthOn])
+  const verdictHistoryQ = useLifetimeVerdictSnapshots(active?.id)
+  const upsertVerdict = useUpsertLifetimeVerdictSnapshot()
+  // Ghi một lần cho mỗi (kịch bản, tháng, kết luận) trong phiên — Lưu nháp làm kết luận
+  // đổi thì ghi lại, còn render lại thì không.
+  const recordedVerdict = useRef<string | null>(null)
+  useEffect(() => {
+    if (!active || !verdictNow) return
+    const key = `${active.id}|${JSON.stringify(verdictNow)}`
+    if (recordedVerdict.current === key) return
+    recordedVerdict.current = key
+    upsertVerdict.mutate({ scenario_id: active.id, ...verdictNow })
+  }, [active, verdictNow, upsertVerdict])
+  const drift = useMemo(
+    () => (verdictNow ? verdictDrift(verdictHistoryQ.data ?? [], thisMonthOn, verdictNow) : null),
+    [verdictNow, verdictHistoryQ.data, thisMonthOn],
   )
 
   /**
@@ -672,6 +722,10 @@ export function LifetimeView() {
           reality={reality}
           realityMonths={baseline?.monthsCovered ?? null}
           onTryRetire={handleTryRetire}
+          // Đang có nháp thì hộp trên nói về NHÁP, còn độ trôi so bản ĐÃ LƯU — hai câu về
+          // hai bản chiếu khác nhau đứng cạnh nhau là đánh đố. Ẩn cho tới khi Lưu hoặc Bỏ.
+          drift={dirty ? null : drift}
+          driftHistory={verdictHistoryQ.data ?? []}
           stressNote={
             stressRows
               ? stressNegYear !== null

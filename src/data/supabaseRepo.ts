@@ -24,6 +24,7 @@ import type {
   LifeScenarioRow,
   MonthPlanRow,
   HealthSnapshotRow,
+  LifetimeVerdictSnapshotRow,
   NetWorthSnapshotRow,
   NotificationStateRow,
   RecurringRuleRow,
@@ -40,6 +41,7 @@ import type {
   TransactionTagRow,
 } from '../types/database.types'
 import {
+  type NewLifetimeVerdictSnapshot,
   BACKUP_VERSION,
   type AccountPatch,
   type AssetGroupSettingPatch,
@@ -943,6 +945,28 @@ export const supabaseRepo: Repo = {
     return data
   },
 
+  async getLifetimeVerdictSnapshots(scenarioId: string) {
+    // Không phân trang: một dòng MỖI THÁNG mỗi kịch bản — 1.000 dòng là 83 năm.
+    const { data, error } = await getSupabase()
+      .from('lifetime_verdict_snapshots')
+      .select('*')
+      .eq('scenario_id', scenarioId)
+      .order('month_on')
+    if (error) throw error
+    return data
+  },
+
+  async upsertLifetimeVerdictSnapshot(input: NewLifetimeVerdictSnapshot) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('lifetime_verdict_snapshots')
+      .upsert({ user_id, ...input }, { onConflict: 'user_id,scenario_id,month_on' })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
   async getNotificationState() {
     // Phân trang + .order bắt buộc: dòng ĐÃ TẮT không bao giờ bị dọn (pruneNotificationState
     // cố ý chừa ra) nên bảng này chỉ phình. Không .order thì quá 1.000 dòng PostgREST trả
@@ -1819,6 +1843,7 @@ export const supabaseRepo: Repo = {
       savingsGoals,
       networthSnapshots,
       healthSnapshots,
+      lifetimeVerdictSnapshots,
       tagGroups,
       tags,
       transactionTags,
@@ -1845,6 +1870,7 @@ export const supabaseRepo: Repo = {
       selectAll<SavingsGoalRow>('savings_goals'),
       selectAll<NetWorthSnapshotRow>('networth_snapshots'),
       selectAll<HealthSnapshotRow>('health_snapshots'),
+      selectAll<LifetimeVerdictSnapshotRow>('lifetime_verdict_snapshots'),
       selectAll<TagGroupRow>('tag_groups'),
       selectAll<TagRow>('tags'),
       selectAll<TransactionTagRow>('transaction_tags'),
@@ -1874,6 +1900,7 @@ export const supabaseRepo: Repo = {
       savingsGoals,
       networthSnapshots,
       healthSnapshots,
+      lifetimeVerdictSnapshots,
       tagGroups,
       tags,
       transactionTags,
@@ -2053,6 +2080,8 @@ export const supabaseRepo: Repo = {
       'tags',
       'tag_groups',
       'life_phases',
+      // lifetime_verdict_snapshots: composite FK tới life_scenarios → xoá trước cha.
+      'lifetime_verdict_snapshots',
       'life_events',
       'life_scenarios',
       'debt_payments',
@@ -2382,6 +2411,25 @@ export const supabaseRepo: Repo = {
               inflate: e.inflate,
             })),
         (part) => sb.from('life_events').insert(part),
+      )
+    }
+
+    // lifetime_verdict_snapshots: composite FK (scenario_id, user_id) → life_scenarios,
+    // nên chèn SAU life_scenarios. Khai từng cột như mọi bảng khác ở đây.
+    if (data.lifetimeVerdictSnapshots?.length) {
+      await insertChunked(
+        data.lifetimeVerdictSnapshots.map((v) => ({
+          id: v.id,
+          user_id: uid,
+          scenario_id: v.scenario_id,
+          month_on: v.month_on,
+          fire_year: v.fire_year,
+          negative_year: v.negative_year,
+          end_age: v.end_age,
+          assets_end_minor: v.assets_end_minor,
+          display_currency: v.display_currency,
+        })),
+        (part) => sb.from('lifetime_verdict_snapshots').insert(part),
       )
     }
 

@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import type { NewLifetimeVerdictSnapshot } from '../data/repo'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   repo,
@@ -146,6 +147,29 @@ export function useUpsertHealthSnapshot() {
   return useMutation({
     mutationFn: (v: { monthOn: string; score: number; coverageBps: number }) =>
       repo.upsertHealthSnapshot(v.monthOn, v.score, v.coverageBps),
+  })
+}
+
+/** Lịch sử kết luận tab Tương lai của một kịch bản (migration 0055), cũ → mới. */
+export function useLifetimeVerdictSnapshots(scenarioId: string | undefined) {
+  return useQuery({
+    queryKey: ['lifetimeVerdictSnapshots', scenarioId],
+    queryFn: () => repo.getLifetimeVerdictSnapshots(scenarioId as string),
+    enabled: !!scenarioId,
+    staleTime: 5 * 60_000,
+  })
+}
+
+/**
+ * Ghi kết luận của tháng đang chạy cho một kịch bản.
+ *
+ * KHÔNG invalidate `lifetimeVerdictSnapshots` sau khi ghi — cùng lý do với
+ * `useUpsertHealthSnapshot`: dòng "so với N tháng trước" đọc lịch sử để so, và nạp lại
+ * ngay là đưa chính dòng vừa ghi vào làm mốc so. Dòng mới chỉ cần có mặt ở lần MỞ SAU.
+ */
+export function useUpsertLifetimeVerdictSnapshot() {
+  return useMutation({
+    mutationFn: (input: NewLifetimeVerdictSnapshot) => repo.upsertLifetimeVerdictSnapshot(input),
   })
 }
 

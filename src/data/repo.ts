@@ -22,6 +22,7 @@ import type {
   NeedLevel,
   MonthPlanRow,
   HealthSnapshotRow,
+  LifetimeVerdictSnapshotRow,
   NetWorthSnapshotRow,
   PlannedExpenseRow,
   NotificationStateRow,
@@ -49,6 +50,18 @@ import type {
   TransactionTagRow,
   TransactionType,
 } from '../types/database.types'
+
+/** Dòng kết luận cần ghi — không có id/user_id/thời gian, repo tự điền. */
+export type NewLifetimeVerdictSnapshot = Pick<
+  LifetimeVerdictSnapshotRow,
+  | 'scenario_id'
+  | 'month_on'
+  | 'fire_year'
+  | 'negative_year'
+  | 'end_age'
+  | 'assets_end_minor'
+  | 'display_currency'
+>
 
 /** Ảnh chụp toàn bộ dữ liệu người dùng để sao lưu / khôi phục (mục Z). */
 export interface BackupData {
@@ -79,6 +92,12 @@ export interface BackupData {
    * khôi phục là xoá sạch xu hướng — khác hẳn `stock_prices`, thứ server hút lại được.
    */
   healthSnapshots?: HealthSnapshotRow[]
+  /**
+   * Lịch sử kết luận tab Tương lai (migration 0055); vắng mặt ở mọi backup trước đó.
+   * PHẢI có trong file sao lưu, cùng lý do như `healthSnapshots`: kết luận quá khứ
+   * không chiếu lại được (kịch bản đã đổi, tỷ giá quá khứ không dựng lại).
+   */
+  lifetimeVerdictSnapshots?: LifetimeVerdictSnapshotRow[]
   /** Nhãn giao dịch; vắng mặt ở backup v1–v4. */
   tags?: TagRow[]
   /** Liên kết giao dịch ↔ nhãn; vắng mặt ở backup v1–v4. */
@@ -662,6 +681,16 @@ export interface Repo {
     score: number,
     coverageBps: number,
   ): Promise<HealthSnapshotRow>
+
+  /** Lịch sử kết luận của MỘT kịch bản, cũ → mới. Một dòng một tháng. */
+  getLifetimeVerdictSnapshots(scenarioId: string): Promise<LifetimeVerdictSnapshotRow[]>
+  /**
+   * Ghi kết luận của tháng đang chạy cho một kịch bản. Mở tab nhiều lần trong tháng thì
+   * ghi đè (unique user_id + scenario_id + month_on), không sinh nhiều dòng.
+   */
+  upsertLifetimeVerdictSnapshot(
+    input: NewLifetimeVerdictSnapshot,
+  ): Promise<LifetimeVerdictSnapshotRow>
 
   createCategory(input: NewCategory): Promise<CategoryRow>
   updateCategory(id: string, patch: CategoryPatch): Promise<CategoryRow>

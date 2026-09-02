@@ -26,6 +26,7 @@ export const DATA_TABLES = [
   'life_scenarios',
   'life_phases',
   'life_events',
+  'lifetime_verdict_snapshots',
   'stock_trades',
   'month_plans',
   'fund_trades',

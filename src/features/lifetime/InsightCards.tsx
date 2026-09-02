@@ -10,11 +10,11 @@
 // đã có test riêng, một hàm còn được review bằng brute-force 2000 bộ để xác nhận dò nhị
 // phân đúng — tính lại ở component là hai chỗ tính cùng một khái niệm, hai chỗ sẽ trôi
 // lệch nhau theo thời gian).
-import type { ReactNode } from 'react'
-import { AlertCircle, AlertTriangle } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { AlertCircle, AlertTriangle, ChevronDown, TrendingDown, TrendingUp } from 'lucide-react'
 import { ExplainBox } from '../../components/ExplainBox'
 import { ConclusionLine } from '../../components/VerdictNote'
-import { ActionButton, Card, Money, Num } from '../../components/ui'
+import { ActionButton, Card, Collapse, Money, Num } from '../../components/ui'
 import type { CurrencyCode } from '../../lib/currencies'
 import { formatMoney } from '../../lib/money'
 import {
@@ -27,6 +27,7 @@ import { lifetimeVerdict } from './summary'
 import type { LifetimeInput, YearRow } from './project'
 import type { RealityCheck } from './realityCheck'
 import { canOfferRetireTrial } from './tryRetire'
+import { ASSETS_CHANGE_THRESHOLD, type VerdictDrift, type VerdictPoint } from './verdictHistory'
 
 interface Props {
   rows: YearRow[]
@@ -69,6 +70,134 @@ interface Props {
    * câu thật: nghỉ đúng năm FIRE thì tiền có đủ tới già không.
    */
   onTryRetire?: (year: number) => void
+  /**
+   * Kết luận đã trôi thế nào so với vài tháng trước (verdictHistory.ts). Chỉ hiện khi
+   * `changed` — không đổi gì thì hộp không dài thêm vô ích. null = chưa có tháng để so.
+   */
+  drift?: VerdictDrift | null
+  /** Toàn bộ lịch sử của kịch bản, cũ → mới — bảng "từng tháng" khi bấm mở dòng trôi. */
+  driftHistory?: VerdictPoint[]
+}
+
+/** "T6/2026" từ ISO đầu tháng. Nhãn thời gian, để chữ thường như năm. */
+function monthLabel(iso: string): string {
+  const [y, m] = iso.split('-')
+  return `T${Number(m)}/${y}`
+}
+
+/**
+ * Dòng "So với N tháng trước: …" + bảng từng tháng gấp mở.
+ *
+ * Câu ghép từ tối đa ba vế (FIRE, tài sản cuối, năm âm), vế nào không đổi thì bỏ. Chiều
+ * xấu (FIRE lùi, mất FIRE, tài sản giảm, xuất hiện năm âm) là icon đi xuống + màu cảnh
+ * báo; còn lại là icon đi lên + màu tốt. Không dựa vào màu một mình — icon là kênh hai.
+ */
+function DriftLine({
+  drift,
+  history,
+  currency,
+}: {
+  drift: VerdictDrift
+  history: VerdictPoint[]
+  currency: CurrencyCode
+}) {
+  const [open, setOpen] = useState(false)
+  const parts: ReactNode[] = []
+  let bad = false
+
+  if (drift.fireThen !== drift.fireNow) {
+    if (drift.fireThen === null) {
+      parts.push(<>tự do tài chính nay đạt ({drift.fireNow}), trước không đạt</>)
+    } else if (drift.fireNow === null) {
+      bad = true
+      parts.push(<>tự do tài chính không còn đạt (trước {drift.fireThen})</>)
+    } else {
+      const diff = drift.fireNow - drift.fireThen
+      if (diff > 0) bad = true
+      parts.push(
+        <>
+          tự do tài chính {diff > 0 ? 'lùi' : 'sớm'} <Num>{Math.abs(diff)}</Num> năm ({drift.fireThen} →{' '}
+          {drift.fireNow})
+        </>,
+      )
+    }
+  }
+
+  const delta = drift.assetsNow - drift.assetsThen
+  const base = Math.abs(drift.assetsThen)
+  if (base === 0 ? delta !== 0 : Math.abs(delta) / base >= ASSETS_CHANGE_THRESHOLD) {
+    if (delta < 0) bad = true
+    parts.push(
+      <>
+        tài sản lúc {drift.endAge} tuổi {delta > 0 ? 'tăng' : 'giảm'}{' '}
+        <Money amount={Math.abs(delta)} currency={currency} tone={delta > 0 ? 'in' : 'out'} />
+      </>,
+    )
+  }
+
+  if (drift.negativeThen !== drift.negativeNow) {
+    if (drift.negativeThen === null) {
+      bad = true
+      parts.push(<>nhánh bi quan bắt đầu âm từ {drift.negativeNow}</>)
+    } else if (drift.negativeNow === null) {
+      parts.push(<>nhánh bi quan hết âm (trước âm từ {drift.negativeThen})</>)
+    } else {
+      if (drift.negativeNow < drift.negativeThen) bad = true
+      parts.push(
+        <>
+          năm âm {drift.negativeNow < drift.negativeThen ? 'sớm hơn' : 'lùi lại'} ({drift.negativeThen} →{' '}
+          {drift.negativeNow})
+        </>,
+      )
+    }
+  }
+  if (parts.length === 0) return null
+
+  const Icon = bad ? TrendingDown : TrendingUp
+  const rows = history.slice().sort((a, b) => b.month_on.localeCompare(a.month_on)).slice(0, 12)
+
+  return (
+    <div className="mt-1.5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className={`flex items-start gap-1.5 text-left text-sm ${bad ? 'text-fg-warn' : 'text-money-in'}`}
+      >
+        <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <span className="text-fg-secondary">
+          So với <Num>{drift.monthsAgo}</Num> tháng trước:{' '}
+          {parts.map((p, i) => (
+            <span key={i}>
+              {i > 0 && ', '}
+              {p}
+            </span>
+          ))}
+          .
+        </span>
+        <ChevronDown
+          className={`mt-0.5 h-3.5 w-3.5 shrink-0 text-fg-muted transition ${open ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        />
+      </button>
+      <Collapse open={open}>
+        <div className="mt-2 grid max-w-md grid-cols-[auto_auto_1fr] gap-x-4 gap-y-1 text-2xs tabular-nums">
+          <span className="text-fg-muted">Tháng</span>
+          <span className="text-fg-muted">Tự do TC</span>
+          <span className="text-right text-fg-muted">Lúc {drift.endAge} tuổi</span>
+          {rows.map((r) => (
+            <div key={r.month_on} className="contents">
+              <span className="text-fg-secondary">{monthLabel(r.month_on)}</span>
+              <span className="text-fg-primary">{r.fire_year ?? 'không đạt'}</span>
+              <span className="text-right">
+                <Money amount={r.assets_end_minor} currency={currency} compact />
+              </span>
+            </div>
+          ))}
+        </div>
+      </Collapse>
+    </div>
+  )
 }
 
 /**
@@ -213,6 +342,8 @@ export function InsightCards({
   reality = null,
   realityMonths = null,
   onTryRetire,
+  drift = null,
+  driftHistory = [],
 }: Props) {
   // 'low' = biên DƯỚI của dải dao động — đáng lo hơn nhánh trung tâm, xem JSDoc
   // `firstNegativeYear` trong insights.ts (cùng lý do LifetimeChartCard tô đỏ theo biên
@@ -285,6 +416,10 @@ export function InsightCards({
             </ActionButton>
           )}
         </div>
+      )}
+
+      {drift !== null && drift.changed && (
+        <DriftLine drift={drift} history={driftHistory} currency={currency} />
       )}
 
       {/* Dưới `sm`: lưới 2×2 có khoảng cách, không kẻ vạch — bốn vạch dọc trên một cột

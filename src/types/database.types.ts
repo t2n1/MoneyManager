@@ -525,6 +525,28 @@ export type HealthSnapshotRow = {
   updated_at: string
 }
 
+/**
+ * Lịch sử KẾT LUẬN của tab Tương lai (migration 0055): mỗi tháng một dòng cho mỗi kịch
+ * bản, ghi từ bản ĐÃ LƯU khi mở tab. Xem verdictHistory.ts cho phần so.
+ */
+export type LifetimeVerdictSnapshotRow = {
+  id: string
+  user_id: string
+  scenario_id: string
+  /** Ngày đầu của THÁNG TÀI CHÍNH. Một tháng một dòng mỗi kịch bản. */
+  month_on: string
+  /** Năm đạt tự do tài chính (quy tắc 4%). null = không đạt trong bản chiếu. */
+  fire_year: number | null
+  /** Năm đầu tiên nhánh bi quan âm. null = không năm nào. */
+  negative_year: number | null
+  end_age: number
+  /** Tài sản nhánh trung tâm lúc `end_age`, minor units của `display_currency`. */
+  assets_end_minor: number
+  display_currency: string
+  created_at: string
+  updated_at: string
+}
+
 /** Trạng thái thông báo (mục AO): chỉ nhớ đã đọc / đã tắt, không lưu nội dung. */
 export type NotificationStateRow = {
   user_id: string
@@ -1324,6 +1346,26 @@ export type Database = {
           'id' | 'coverage_bps'
         >
         Update: Partial<Pick<HealthSnapshotRow, 'score' | 'coverage_bps'>>
+        Relationships: []
+      }
+      lifetime_verdict_snapshots: {
+        Row: LifetimeVerdictSnapshotRow
+        Insert: InsertOf<
+          LifetimeVerdictSnapshotRow,
+          | 'user_id'
+          | 'scenario_id'
+          | 'month_on'
+          | 'end_age'
+          | 'assets_end_minor'
+          | 'display_currency',
+          'id' | 'fire_year' | 'negative_year'
+        >
+        Update: Partial<
+          Pick<
+            LifetimeVerdictSnapshotRow,
+            'fire_year' | 'negative_year' | 'end_age' | 'assets_end_minor' | 'display_currency'
+          >
+        >
         Relationships: []
       }
       notification_state: {

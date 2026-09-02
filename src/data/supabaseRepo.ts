@@ -31,6 +31,7 @@ import type {
   RecurringRuleTagRow,
   PlannedExpenseTagRow,
   PlannedExpenseRow,
+  RelativeRow,
   SavingsGoalRow,
   StockPriceRow,
   StockTradeRow,
@@ -46,7 +47,9 @@ import {
   type AccountPatch,
   type AssetGroupSettingPatch,
   type BackupData,
+  type BenefitTxFilter,
   type CategoryPatch,
+  type DateRange,
   type DebtPatch,
   type FundTradePatch,
   type LifeEventPatch,
@@ -63,6 +66,7 @@ import {
   type NewPushSubscription,
   type NewRecurringOccurrence,
   type NewRecurringRule,
+  type NewRelative,
   type NewSavingsGoal,
   type NewStockTrade,
   type NewPlannedExpense,
@@ -73,6 +77,7 @@ import {
   type NewValuation,
   type ProfilePatch,
   type RecurringRulePatch,
+  type RelativePatch,
   type Repo,
   type SavingsGoalPatch,
   type StockTradePatch,
@@ -761,6 +766,58 @@ export const supabaseRepo: Repo = {
   async deleteSavingsGoal(id: string) {
     const { error } = await getSupabase().from('savings_goals').delete().eq('id', id)
     if (error) throw error
+  },
+
+  async getRelatives() {
+    const { data, error } = await getSupabase().from('relatives').select('*').order('sort_order')
+    if (error) throw error
+    return data
+  },
+
+  async createRelative(input: NewRelative) {
+    const user_id = await currentUserId()
+    const { data: existing } = await getSupabase()
+      .from('relatives')
+      .select('sort_order')
+      .order('sort_order', { ascending: false })
+      .limit(1)
+    const sort_order = (existing?.[0]?.sort_order ?? -1) + 1
+    const { data, error } = await getSupabase()
+      .from('relatives')
+      .insert({ ...input, user_id, sort_order })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async updateRelative(id: string, patch: RelativePatch) {
+    const { data, error } = await getSupabase()
+      .from('relatives')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async listBenefitTransactions({ start, end }: DateRange, filter: BenefitTxFilter) {
+    // Ba nhánh OR, chỉ ghép nhánh có phần tử: `in.()` rỗng là lỗi cú pháp PostgREST.
+    const parts = ['is_remittance.eq.true']
+    if (filter.categoryIds.length) parts.push(`category_id.in.(${filter.categoryIds.join(',')})`)
+    if (filter.toAccountIds.length) parts.push(`to_account_id.in.(${filter.toAccountIds.join(',')})`)
+    return await fetchAllPages<TransactionRow>(async (from, to) =>
+      getSupabase()
+        .from('transactions')
+        .select('*')
+        .gte('occurred_on', start)
+        .lt('occurred_on', end)
+        .or(parts.join(','))
+        .order('occurred_on', { ascending: true })
+        .order('id')
+        .range(from, to),
+    )
   },
 
   async getLifeScenarios() {
@@ -1841,6 +1898,7 @@ export const supabaseRepo: Repo = {
       recurringRules,
       accountValuations,
       savingsGoals,
+      relatives,
       networthSnapshots,
       healthSnapshots,
       lifetimeVerdictSnapshots,
@@ -1868,6 +1926,7 @@ export const supabaseRepo: Repo = {
       selectAll<RecurringRuleRow>('recurring_rules'),
       selectAll<AccountValuationRow>('account_valuations'),
       selectAll<SavingsGoalRow>('savings_goals'),
+      selectAll<RelativeRow>('relatives'),
       selectAll<NetWorthSnapshotRow>('networth_snapshots'),
       selectAll<HealthSnapshotRow>('health_snapshots'),
       selectAll<LifetimeVerdictSnapshotRow>('lifetime_verdict_snapshots'),
@@ -1898,6 +1957,7 @@ export const supabaseRepo: Repo = {
       recurringRules,
       accountValuations,
       savingsGoals,
+      relatives,
       networthSnapshots,
       healthSnapshots,
       lifetimeVerdictSnapshots,
@@ -2088,6 +2148,7 @@ export const supabaseRepo: Repo = {
       'debts',
       'budgets',
       'transactions',
+      'relatives',
       'recurring_rules',
       'asset_group_settings',
       'categories',
@@ -2179,6 +2240,23 @@ export const supabaseRepo: Repo = {
       )
     }
 
+    // relatives: transactions.remit_recipient_id trỏ tới đây → chèn TRƯỚC transactions.
+    if (data.relatives?.length) {
+      await insertChunked(
+        data.relatives.map((r) => ({
+          id: r.id,
+          user_id: uid,
+          name: r.name,
+          birth_year: r.birth_year,
+          relationship: r.relationship,
+          country: r.country,
+          is_archived: r.is_archived,
+          sort_order: r.sort_order,
+        })),
+        (part) => sb.from('relatives').insert(part),
+      )
+    }
+
     if (data.transactions?.length) {
       await insertChunked(
             data.transactions.map((t) => ({
@@ -2197,6 +2275,7 @@ export const supabaseRepo: Repo = {
               remit_service: t.remit_service,
               remit_fee_jpy: t.remit_fee_jpy,
               remit_received_vnd: t.remit_received_vnd,
+              remit_recipient_id: t.remit_recipient_id ?? null,
               is_debt_flow: t.is_debt_flow,
               exclude_from_stats: t.exclude_from_stats,
               is_refund: t.is_refund,
@@ -2617,6 +2696,9 @@ export const supabaseRepo: Repo = {
             // là biến một lựa chọn đã khai thành mặc định mà không ai thấy.
             kikin_give_rate_bps: data.profile.kikin_give_rate_bps ?? null, // 0051
             kikin_sheet: data.profile.kikin_sheet ?? null, // 0051
+            // 0056. Bản lưu trước migration này thiếu hẳn cột → rơi về mảng rỗng, đúng
+            // nghĩa "chưa năm nào khai" của cột mới.
+            fuyo_claimed_years: data.profile.fuyo_claimed_years ?? [], // 0056
           })
           .eq('user_id', uid)
       ).error,

@@ -44,6 +44,7 @@ import type {
   RecurringRuleRow,
   RecurringRuleTagRow,
   PlannedExpenseTagRow,
+  RelativeRow,
   SavingsGoalRow,
   StockPriceRow,
   StockTradeRow,
@@ -59,7 +60,9 @@ import {
   type AccountPatch,
   type AssetGroupSettingPatch,
   type BackupData,
+  type BenefitTxFilter,
   type CategoryPatch,
+  type DateRange,
   type DebtPatch,
   type FundTradePatch,
   type LifeEventPatch,
@@ -76,6 +79,7 @@ import {
   type NewPushSubscription,
   type NewRecurringOccurrence,
   type NewRecurringRule,
+  type NewRelative,
   type NewSavingsGoal,
   type NewStockTrade,
   type NewPlannedExpense,
@@ -86,6 +90,7 @@ import {
   type NewValuation,
   type ProfilePatch,
   type RecurringRulePatch,
+  type RelativePatch,
   type Repo,
   type SavingsGoalPatch,
   type StockTradePatch,
@@ -248,6 +253,8 @@ interface DemoDB {
   plannedExpenses?: PlannedExpenseRow[]
   /** Thu dự kiến từng tháng (migration 0041); vắng mặt ở dữ liệu demo cũ. */
   monthPlans?: MonthPlanRow[]
+  /** Người thân nhận tiền (migration 0056); vắng mặt ở dữ liệu demo cũ (localStorage). */
+  relatives?: RelativeRow[]
 }
 
 // crypto.randomUUID() chỉ chạy trong secure context (HTTPS / localhost).
@@ -391,6 +398,10 @@ function seed(): DemoDB {
   const giayTo = category('Giấy tờ & Pháp lý', 'expense', '📄')
   const quaTang = category('Quà tặng', 'expense', '🎁')
   const khacChi = category('Khác', 'expense', '📦')
+  // ふるさと納税 (mục Quyền lợi, migration 0056): khoản quyên góp trừ vào thuế cư trú năm
+  // sau — không phải "cho không", nên cần lộ diện trong danh mục demo để màn Quyền lợi có
+  // gì mà đếm.
+  const furusato = category('ふるさと納税 (寄附)', 'expense', '🎁', null, 'flexible', 'variable')
   const categories = [
     nhaO,
     category('Tiền nhà', 'expense', '🔑', nhaO.id, 'essential', 'fixed'),
@@ -456,6 +467,7 @@ function seed(): DemoDB {
     category('Quà', 'expense', '🎀', quaTang.id),
     category('Hỗ trợ gia đình', 'expense', '👪', quaTang.id),
     khacChi,
+    furusato,
     // Thu
     category('Lương', 'income', '💰'),
     category('Thưởng', 'income', '🎉'),
@@ -511,6 +523,12 @@ function seed(): DemoDB {
     updated_at: nowISO(),
   }
 
+  // Người thân nhận tiền gửi về VN (migration 0056) — mẹ (70+, đã quá tuổi ngưỡng 30–69)
+  // và em Hùng (30–69, đúng khoảng tuổi luật 国外居住親族 áp dụng).
+  const me = { id: uuid(), user_id: DEMO_USER, name: 'Mẹ', birth_year: 1958, relationship: 'parent' as const, country: 'VN', is_archived: false, sort_order: 0, created_at: nowISO() }
+  const em = { id: uuid(), user_id: DEMO_USER, name: 'Em Hùng', birth_year: 1995, relationship: 'sibling' as const, country: 'VN', is_archived: false, sort_order: 1, created_at: nowISO() }
+  const relatives: RelativeRow[] = [me, em]
+
   const transactions = [
     // Chi tiêu hàng ngày bằng JPY
     tx({ type: 'expense', amount: 850, occurred_on: daysAgo(0), note: 'Cơm trưa', category_id: cat('Bữa trưa', 'expense').id }),
@@ -535,6 +553,7 @@ function seed(): DemoDB {
       remit_service: 'Wise',
       remit_fee_jpy: 500,
       remit_received_vnd: 29_500 * 166,
+      remit_recipient_id: me.id,
     },
     // Rút tiền mặt JPY (cùng loại tiền → to_amount null)
     tx({ type: 'transfer', amount: 30_000, occurred_on: daysAgo(4), note: 'Rút tiền mặt', account_id: bank.id, to_account_id: cash.id }),
@@ -546,6 +565,7 @@ function seed(): DemoDB {
     tx({ type: 'expense', amount: 1_800, occurred_on: daysAgo(32), note: 'Xem phim', category_id: cat('Đăng ký', 'expense').id }),
     tx({ type: 'expense', amount: 6_700, occurred_on: daysAgo(35), note: 'Siêu thị', category_id: cat('Đi chợ', 'expense').id, account_id: bank.id }),
     tx({ type: 'income', amount: 280_000, occurred_on: daysAgo(39), note: 'Lương tháng', category_id: cat('Lương', 'income').id, account_id: bank.id }),
+    tx({ type: 'expense', amount: 30_000, occurred_on: daysAgo(40), note: 'ふるさと納税', category_id: cat('ふるさと納税 (寄附)', 'expense').id, account_id: bank.id }),
     // ---------------------------------------------------------------- 24 THÁNG LỊCH SỬ
     //
     // VÌ SAO CẦN. Dữ liệu demo trước đây chỉ có ~2 tháng, nên SÁU khối của bản redesign
@@ -677,6 +697,9 @@ function seed(): DemoDB {
           // Tỷ giá THẬT của từng lần, lệch nhau theo `idx` — khối "được giá nhất / thiệt
           // nhất" so số VND người nhận THỰC NHẬN, nên không có hai đầu số thì nó tự ẩn.
           remit_received_vnd: Math.round((idx === 15 ? 39_500 : 29_500) * (160 + (idx % 7))),
+          // Người nhận (migration 0056): mẹ/em xen kẽ, một lần bỏ trống để màn Quyền lợi
+          // có "chưa gán" thật trong dữ liệu demo.
+          remit_recipient_id: idx === 2 ? null : idx % 2 === 0 ? me.id : em.id,
         })
       }
 
@@ -974,6 +997,7 @@ function seed(): DemoDB {
       // nơi dùng đều có `?? mặc_định`.
       kikin_give_rate_bps: null,
       kikin_sheet: null,
+      fuyo_claimed_years: [],
       created_at: nowISO(),
     },
     accounts,
@@ -990,6 +1014,7 @@ function seed(): DemoDB {
     funds,
     fundPrices,
     fundTrades,
+    relatives,
     savingsGoals,
     networthSnapshots: [],
     healthSnapshots: [],
@@ -1644,6 +1669,55 @@ export const demoRepo: Repo = {
     const db = load()
     db.savingsGoals = (db.savingsGoals ?? []).filter((g) => g.id !== id)
     save(db)
+  },
+
+  async getRelatives() {
+    return (load().relatives ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)
+  },
+
+  async createRelative(input: NewRelative) {
+    const db = load()
+    db.relatives ??= []
+    const sort_order = db.relatives.reduce((m, r) => Math.max(m, r.sort_order + 1), 0)
+    const row: RelativeRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      name: input.name,
+      birth_year: input.birth_year,
+      relationship: input.relationship,
+      country: input.country ?? 'VN',
+      is_archived: false,
+      sort_order,
+      created_at: nowISO(),
+    }
+    db.relatives.push(row)
+    save(db)
+    return row
+  },
+
+  async updateRelative(id: string, patch: RelativePatch) {
+    const db = load()
+    db.relatives ??= []
+    const idx = db.relatives.findIndex((r) => r.id === id)
+    if (idx < 0) throw new Error('Không tìm thấy người thân')
+    db.relatives[idx] = { ...db.relatives[idx], ...patch }
+    save(db)
+    return db.relatives[idx]
+  },
+
+  async listBenefitTransactions({ start, end }: DateRange, filter: BenefitTxFilter) {
+    const cats = new Set(filter.categoryIds)
+    const accs = new Set(filter.toAccountIds)
+    return load()
+      .transactions.filter(
+        (t) =>
+          t.occurred_on >= start &&
+          t.occurred_on < end &&
+          (t.is_remittance === true ||
+            (t.category_id != null && cats.has(t.category_id)) ||
+            (t.to_account_id != null && accs.has(t.to_account_id))),
+      )
+      .sort((a, b) => a.occurred_on.localeCompare(b.occurred_on) || a.id.localeCompare(b.id))
   },
 
   async getLifeScenarios() {
@@ -2764,6 +2838,7 @@ export const demoRepo: Repo = {
       stockTrades: db.stockTrades ?? [],
       fundTrades: db.fundTrades ?? [],
       savingsGoals: db.savingsGoals ?? [],
+      relatives: db.relatives ?? [],
       networthSnapshots: db.networthSnapshots ?? [],
       healthSnapshots: db.healthSnapshots ?? [],
       lifetimeVerdictSnapshots: db.lifetimeVerdictSnapshots ?? [],
@@ -2824,6 +2899,8 @@ export const demoRepo: Repo = {
         push_last_sent_at: data.profile.push_last_sent_at ?? null,
         // Cột của migration 0040 — bản lưu xuất trước đó không có nó.
         density_pref: parseDensity(data.profile.density_pref),
+        // Cột của migration 0056 — bản lưu xuất trước đó không có nó.
+        fuyo_claimed_years: data.profile.fuyo_claimed_years ?? [],
       },
       accounts: stamp(data.accounts ?? []),
       categories: stamp(data.categories ?? []),
@@ -2838,6 +2915,7 @@ export const demoRepo: Repo = {
       fundTrades: stamp(data.fundTrades ?? []),
       stockPrices,
       savingsGoals: stamp(data.savingsGoals ?? []),
+      relatives: stamp(data.relatives ?? []),
       networthSnapshots: stamp(data.networthSnapshots ?? []),
       healthSnapshots: stamp(data.healthSnapshots ?? []),
       lifetimeVerdictSnapshots: stamp(data.lifetimeVerdictSnapshots ?? []),

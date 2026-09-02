@@ -37,6 +37,8 @@ import type {
   RecurringRuleRow,
   RecurringRuleTagRow,
   PlannedExpenseTagRow,
+  RelativeRow,
+  Relationship,
   SavingsGoalRow,
   StockPriceRow,
   StockTradeKind,
@@ -82,6 +84,8 @@ export interface BackupData {
   accountValuations?: AccountValuationRow[]
   /** Mục tiêu tiết kiệm (mục AD); vắng mặt ở backup v1/v2. */
   savingsGoals?: SavingsGoalRow[]
+  /** Người thân nhận tiền (migration 0056); vắng mặt ở mọi backup trước đó. */
+  relatives?: RelativeRow[]
   /** Lịch sử tài sản ròng (mục AF); vắng mặt ở backup v1–v3. */
   networthSnapshots?: NetWorthSnapshotRow[]
   /**
@@ -152,6 +156,8 @@ export interface NewTransaction {
   remit_fee_jpy?: number | null
   /** Gửi tiền về VN: số VND người nhận nhận được (minor units VND). */
   remit_received_vnd?: number | null
+  /** Gửi tiền về VN: người thân nhận (migration 0056). */
+  remit_recipient_id?: string | null
   /** Dòng tiền nợ/cho vay/trả hộ: true = báo cáo Chi/Thu bỏ qua (số dư vẫn tính). */
   is_debt_flow?: boolean
   /** true = loại khỏi mọi thống kê (số dư vẫn tính). Mục AM/X. */
@@ -306,6 +312,8 @@ export type ProfilePatch = Partial<
     | 'push_tz'
     // Cách trình bày Gọn/Đầy đủ (migration 0040)
     | 'density_pref'
+    // Năm đã khai khấu trừ người phụ thuộc ở nước ngoài (migration 0056).
+    | 'fuyo_claimed_years'
   >
 >
 
@@ -461,6 +469,26 @@ export interface NewSavingsGoal {
 }
 
 export type SavingsGoalPatch = Partial<NewSavingsGoal>
+
+export interface NewRelative {
+  name: string
+  birth_year: number
+  relationship: Relationship
+  /** Bỏ trống = 'VN'. */
+  country?: string
+}
+export type RelativePatch = Partial<NewRelative & { is_archived: boolean; sort_order: number }>
+
+/**
+ * Bộ lọc của `listBenefitTransactions`: giao dịch mà màn Quyền lợi cần — lần gửi tiền,
+ * khoản thuộc vài danh mục (thuế trên phiếu lương, ふるさと納税), và chuyển khoản VÀO tài
+ * khoản NISA/iDeCo. Một truy vấn OR thay cho ba, vì hook thông báo chạy ở mọi màn và
+ * mỗi truy vấn thêm là thêm cho cả app.
+ */
+export interface BenefitTxFilter {
+  categoryIds: string[]
+  toAccountIds: string[]
+}
 
 /** Lifetime (mục Lifetime): một kịch bản đời. */
 export interface NewLifeScenario {
@@ -632,6 +660,13 @@ export interface Repo {
   createSavingsGoal(input: NewSavingsGoal): Promise<SavingsGoalRow>
   updateSavingsGoal(id: string, patch: SavingsGoalPatch): Promise<SavingsGoalRow>
   deleteSavingsGoal(id: string): Promise<void>
+
+  // --- Người thân nhận tiền (migration 0056) ---
+  getRelatives(): Promise<RelativeRow[]>
+  createRelative(input: NewRelative): Promise<RelativeRow>
+  updateRelative(id: string, patch: RelativePatch): Promise<RelativeRow>
+  /** Giao dịch cho màn Quyền lợi: is_remittance OR category_id in OR to_account_id in, trong [start, end). */
+  listBenefitTransactions(range: DateRange, filter: BenefitTxFilter): Promise<TransactionRow[]>
 
   // --- Lifetime: chiếu tài sản ròng cả đời ---
   getLifeScenarios(): Promise<LifeScenarioRow[]>

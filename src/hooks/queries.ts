@@ -5,6 +5,7 @@ import {
   repo,
   type AccountPatch,
   type AssetGroupSettingPatch,
+  type BenefitTxFilter,
   type CategoryPatch,
   type DateRange,
   type DebtPatch,
@@ -16,6 +17,7 @@ import {
   type NewFundTrade,
   type NewPlannedExpense,
   type NewRecurringRule,
+  type NewRelative,
   type NewSavingsGoal,
   type NewStockTrade,
   type NewTransaction,
@@ -23,6 +25,7 @@ import {
   type PlannedExpensePatch,
   type ProfilePatch,
   type RecurringRulePatch,
+  type RelativePatch,
   type NewTag,
   type NewTagGroup,
   type SavingsGoalPatch,
@@ -745,6 +748,49 @@ export function useDeleteSavingsGoal() {
   return useMutation({
     mutationFn: (id: string) => repo.deleteSavingsGoal(id),
     onSettled: () => invalidateSavingsGoals(qc),
+  })
+}
+
+// --- Người thân nhận tiền (migration 0056) ---
+
+export function useRelatives() {
+  return useQuery({
+    queryKey: ['relatives'],
+    queryFn: () => repo.getRelatives(),
+    staleTime: 5 * 60_000,
+  })
+}
+
+function invalidateRelatives(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['relatives'] })
+}
+
+export function useCreateRelative() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewRelative) => repo.createRelative(input),
+    onSettled: () => invalidateRelatives(qc),
+  })
+}
+
+export function useUpdateRelative() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: RelativePatch }) => repo.updateRelative(id, patch),
+    onSettled: () => invalidateRelatives(qc),
+  })
+}
+
+/**
+ * Giao dịch cho màn Quyền lợi. queryKey nằm dưới 'transactions' để `invalidateTransactionData`
+ * (ghi/sửa/xoá giao dịch) làm mới luôn — gán người nhận xong là số đổi ngay.
+ */
+export function useBenefitTransactions(range: DateRange, filter: BenefitTxFilter, enabled = true) {
+  return useQuery({
+    queryKey: ['transactions', 'benefit', range.start, range.end, filter.categoryIds, filter.toAccountIds],
+    queryFn: () => repo.listBenefitTransactions(range, filter),
+    enabled,
+    staleTime: 60_000,
   })
 }
 

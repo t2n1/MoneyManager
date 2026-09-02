@@ -1568,3 +1568,32 @@ describe('lệnh cổ phiếu kéo theo dòng tiền khi đã khai ví', () => {
     expect(txs.filter((t) => t.stock_trade_id)).toHaveLength(1)
   })
 })
+
+describe('relatives + listBenefitTransactions (0056)', () => {
+  it('seed có hai người thân, một lần gửi chưa gán', async () => {
+    const rel = await demoRepo.getRelatives()
+    expect(rel.map((r) => r.name)).toEqual(['Mẹ', 'Em Hùng'])
+    const txs = await demoRepo.listBenefitTransactions(
+      { start: '2000-01-01', end: '2100-01-01' },
+      { categoryIds: [], toAccountIds: [] },
+    )
+    expect(txs.every((t) => t.is_remittance)).toBe(true)
+    expect(txs.filter((t) => t.remit_recipient_id == null).length).toBe(1)
+  })
+  it('createRelative mặc định country VN, updateRelative đổi tên', async () => {
+    const r = await demoRepo.createRelative({ name: 'Bà', birth_year: 1940, relationship: 'grandparent' })
+    expect(r.country).toBe('VN')
+    const u = await demoRepo.updateRelative(r.id, { name: 'Bà ngoại' })
+    expect(u.name).toBe('Bà ngoại')
+  })
+  it('listBenefitTransactions gộp OR ba nhánh', async () => {
+    const accounts = await demoRepo.getAccounts()
+    const nisa = accounts.find((a) => a.name === 'NISA Rakuten')!
+    const txs = await demoRepo.listBenefitTransactions(
+      { start: '2000-01-01', end: '2100-01-01' },
+      { categoryIds: [], toAccountIds: [nisa.id] },
+    )
+    expect(txs.some((t) => t.to_account_id === nisa.id)).toBe(true)
+    expect(txs.some((t) => t.is_remittance)).toBe(true)
+  })
+})

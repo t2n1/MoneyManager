@@ -10,6 +10,8 @@ import type { RecurringFrequency } from '../lib/recurring'
 export type AccountType = 'cash' | 'bank' | 'card' | 'ic' | 'ewallet' | 'investment' | 'fixed'
 /** Tài khoản ưu đãi thuế Nhật có hạn mức nạp theo năm (mục khối 7). */
 export type TaxShelter = 'nisa_tsumitate' | 'nisa_growth' | 'ideco'
+/** Quan hệ với người thân nhận tiền (migration 0056). */
+export type Relationship = 'parent' | 'spouse' | 'child' | 'sibling' | 'grandparent' | 'other'
 export type CategoryType = 'expense' | 'income'
 /**
  * Danh mục là tiêu thật hay chỉ chuyển tài sản.
@@ -74,6 +76,8 @@ export type ProfileRow = {
    * Migration 0051.
    */
   kikin_sheet: KikinSheet | null
+  /** Năm thuế đã khai khấu trừ người phụ thuộc ở nước ngoài (migration 0056). Rỗng = chưa năm nào. */
+  fuyo_claimed_years: number[]
   /** Giờ gửi push mỗi ngày (0..23), tính theo `push_tz` chứ không phải UTC. */
   push_hour: number
   /**
@@ -318,6 +322,8 @@ export type TransactionRow = {
   remit_fee_jpy?: number | null
   /** Gửi tiền về VN: số VND người nhận nhận được (minor units VND = đồng). */
   remit_received_vnd?: number | null
+  /** Gửi tiền về VN: người thân nhận (relatives.id, migration 0056). null/thiếu = chưa gán. */
+  remit_recipient_id?: string | null
   /** Dòng tiền nợ/cho vay/trả hộ: true = báo cáo Chi/Thu bỏ qua (số dư vẫn tính). */
   is_debt_flow?: boolean
   /** true = loại khỏi mọi thống kê (báo cáo/ngân sách/insight); số dư vẫn tính. Mục AM/X. */
@@ -586,6 +592,21 @@ export type SavingsGoalRow = {
   created_at: string
 }
 
+/** Người thân nhận tiền gửi về VN (migration 0056). */
+export type RelativeRow = {
+  id: string
+  user_id: string
+  name: string
+  /** Bắt buộc: tuổi tại 31/12 quyết định ngưỡng 38万 và mức khấu trừ. */
+  birth_year: number
+  relationship: Relationship
+  /** ISO-2; 'JP' = đã cư trú ở Nhật → ngoài phạm vi luật 国外居住親族. */
+  country: string
+  is_archived: boolean
+  sort_order: number
+  created_at: string
+}
+
 /** Lifetime (mục Lifetime): một kịch bản đời. */
 export type LifeScenarioRow = {
   id: string
@@ -826,6 +847,7 @@ export type Database = {
           | 'density_pref'
           | 'kikin_give_rate_bps'
           | 'kikin_sheet'
+          | 'fuyo_claimed_years'
         >
         Update: Partial<
           Pick<
@@ -847,6 +869,7 @@ export type Database = {
           | 'density_pref'
           | 'kikin_give_rate_bps'
           | 'kikin_sheet'
+          | 'fuyo_claimed_years'
           >
         >
         Relationships: []
@@ -953,6 +976,7 @@ export type Database = {
           | 'remit_service'
           | 'remit_fee_jpy'
           | 'remit_received_vnd'
+          | 'remit_recipient_id'
           | 'is_debt_flow'
           | 'exclude_from_stats'
           | 'is_refund'
@@ -973,6 +997,7 @@ export type Database = {
             | 'remit_service'
             | 'remit_fee_jpy'
             | 'remit_received_vnd'
+            | 'remit_recipient_id'
             | 'is_debt_flow'
             | 'exclude_from_stats'
             | 'is_refund'
@@ -1172,6 +1197,18 @@ export type Database = {
         >
         Update: Partial<
           Pick<SavingsGoalRow, 'name' | 'account_id' | 'target_amount' | 'target_date' | 'note' | 'sort_order'>
+        >
+        Relationships: []
+      }
+      relatives: {
+        Row: RelativeRow
+        Insert: InsertOf<
+          RelativeRow,
+          'user_id' | 'name' | 'birth_year' | 'relationship',
+          'id' | 'country' | 'is_archived' | 'sort_order' | 'created_at'
+        >
+        Update: Partial<
+          Pick<RelativeRow, 'name' | 'birth_year' | 'relationship' | 'country' | 'is_archived' | 'sort_order'>
         >
         Relationships: []
       }

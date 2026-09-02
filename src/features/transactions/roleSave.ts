@@ -602,6 +602,7 @@ export async function saveRemit(base: RoleBase, v: RemitValue, deps: RoleSaveDep
       remit_service: v.service,
       remit_fee_jpy: v.fee,
       remit_received_vnd: v.received,
+      remit_recipient_id: v.recipientId || null,
       tag_ids: base.tagIds,
     }
   } else {
@@ -634,6 +635,7 @@ export async function saveRemit(base: RoleBase, v: RemitValue, deps: RoleSaveDep
       remit_service: v.service,
       remit_fee_jpy: v.fee,
       remit_received_vnd: v.received,
+      remit_recipient_id: v.recipientId || null,
       tag_ids: base.tagIds,
     }
   }

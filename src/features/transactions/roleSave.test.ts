@@ -631,6 +631,16 @@ describe('nhãn đi theo ở cả ba vai trò', () => {
   })
 })
 
+describe('saveRemit — người thân nhận', () => {
+  it('ghi remit_recipient_id khi có, null khi chưa chọn', async () => {
+    const { deps, calls } = makeDeps([], [cat('c1', 'Gửi tiền về VN')])
+    await saveRemit(base, { ...initialRemit(), recipientId: 'me' }, deps)
+    await saveRemit(base, { ...initialRemit(), recipientId: '' }, deps)
+    expect(calls.createTransaction[0].remit_recipient_id).toBe('me')
+    expect(calls.createTransaction[1].remit_recipient_id).toBeNull()
+  })
+})
+
 /**
  * saveDebtPayment: đường vào thứ hai cho DebtPaymentSheet từ form Nhập, dùng
  * ĐÚNG payload NewDebtPayment (nó bọc luôn transaction). `type` không lấy từ

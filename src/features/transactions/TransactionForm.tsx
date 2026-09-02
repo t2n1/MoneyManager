@@ -25,6 +25,7 @@ import {
   useProfile,
   useRangeTransactions,
   useRates,
+  useRelatives,
   useTransactionTags,
 } from '../../hooks/queries'
 import { convertToBase } from '../../lib/rates'
@@ -87,6 +88,7 @@ import { DirectionTabs } from './DirectionTabs'
 import { DebtFields, FeeField, RemitFields, RemitMonthStrip, SplitFields } from './roleFields'
 import { entryGate, plannedModeActive } from './entryValidation'
 import { initialPayment, type PaymentValue, type RoleBase } from './roleSave'
+import { NguoiThanSheet } from '../quyen-loi/NguoiThanSheet'
 
 const LAST_ACCOUNT_KEY = 'sct-last-account'
 const lastCategoryKey = (type: TransactionType) => `sct-last-category-${type}`
@@ -469,6 +471,23 @@ export function TransactionForm({
     return { start: getMonthRange(startKey, monthStartDay).start, end: addDaysISO(todayISO, 1) }
   }, [todayISO, monthStartDay])
   const { data: remitTxs = [] } = useRangeTransactions(remitStripRange, remitLike)
+  const { data: relatives = [] } = useRelatives()
+  const relativesActive = useMemo(() => relatives.filter((r) => !r.is_archived), [relatives])
+  const [relativeSheet, setRelativeSheet] = useState(false)
+  // Mặc định = người của lần gửi GẦN NHẤT — người gửi đều cho một người thì không phải
+  // bấm thêm gì (nguyên tắc dưới 5 giây). Chỉ điền khi ô còn trống, không đạp lên lựa chọn.
+  const lastRecipientId = useMemo(() => {
+    const last = remitTxs
+      .filter((t) => t.is_remittance && t.remit_recipient_id)
+      .sort((a, b) => b.occurred_on.localeCompare(a.occurred_on))[0]
+    return last?.remit_recipient_id ?? ''
+  }, [remitTxs])
+  useEffect(() => {
+    if (remitLike && remitVal.recipientId === '' && lastRecipientId) {
+      setRemitVal((v) => ({ ...v, recipientId: lastRecipientId }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remitLike, lastRecipientId])
   const remitMonthStrip = useMemo(() => {
     if (!remitLike) return null
     const amountOf = remitMonthlyTotals(remitTxs, activeAccounts, base, rates ?? {}, monthStartDay)
@@ -1513,6 +1532,8 @@ export function TransactionForm({
           onEnter={() => handleSubmit()}
           rate={remitRate}
           rateAge={remitRateAge}
+          relatives={relativesActive}
+          onAddRelative={() => setRelativeSheet(true)}
         />
       )}
       {/* Trả nợ / thu lại: DẠNG DUY NHẤT có field phụ thuộc nhau (chọn nợ trước, chọn
@@ -1802,6 +1823,13 @@ export function TransactionForm({
         </button>
       </div>
       </div>
+      {relativeSheet && (
+        <NguoiThanSheet
+          relative={null}
+          onClose={() => setRelativeSheet(false)}
+          onSaved={(r) => setRemitVal((v) => ({ ...v, recipientId: r.id }))}
+        />
+      )}
     </div>
   )
 }

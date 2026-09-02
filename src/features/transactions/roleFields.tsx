@@ -1,10 +1,10 @@
 import { useEffect, useId, useState } from 'react'
 import { Guide } from '../../components/Guide'
-import { ChevronDown } from 'lucide-react'
-import { SegmentedControl, Select } from '../../components/ui'
+import { ChevronDown, Plus } from 'lucide-react'
+import { ActionButton, SegmentedControl, Select } from '../../components/ui'
 import { DateField } from '../../components/DateField'
 import { formatMoney, parseMoney, type CurrencyCode } from '../../lib/money'
-import type { DebtOrigin } from '../../types/database.types'
+import type { DebtOrigin, RelativeRow } from '../../types/database.types'
 import type { DebtValue, RemitValue, SplitValue } from './entryRoles'
 import { deriveReceived, nextReceived } from './remitDerive'
 import type { RemitStrip } from '../reports/longRange'
@@ -659,6 +659,8 @@ export function RemitFields({
   onEnter,
   rate,
   rateAge,
+  relatives,
+  onAddRelative,
 }: {
   value: RemitValue
   onChange: (v: RemitValue) => void
@@ -678,6 +680,10 @@ export function RemitFields({
   /** "3 giờ trước" — đọc qua useRatesFreshness() (cửa duy nhất tính tuổi tỷ giá, xem
    *  dataFreshness.test.ts). null = không rõ tuổi. */
   rateAge: string | null
+  /** Người thân để chọn "Gửi cho" (đã lọc is_archived). */
+  relatives: RelativeRow[]
+  /** Mở sheet thêm người thân nhanh. */
+  onAddRelative: () => void
 }) {
   const uid = useId()
   // Tài khoản bị trừ THẬT = số gửi + phí (roleSave cộng phí vào amount) — phải nói
@@ -725,6 +731,31 @@ export function RemitFields({
   const estimate = deriveReceived(sent, rate)
   return (
     <div className={blockCls('remit')}>
+      <div>
+        <label htmlFor={`${uid}-nguoi`} className={labelCls}>
+          Gửi cho
+        </label>
+        <div className="flex items-center gap-2">
+          <Select
+            id={`${uid}-nguoi`}
+            value={value.recipientId}
+            onChange={(e) => onChange({ ...value, recipientId: e.target.value })}
+            wrapClassName="min-w-0 flex-1"
+          >
+            <option value="">— chưa chọn —</option>
+            {relatives.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </Select>
+          <ActionButton variant="outline" onClick={onAddRelative} aria-label="Thêm người thân">
+            <Plus className="h-4 w-4" /> Người
+          </ActionButton>
+        </div>
+        {/* Vì sao hỏi ở đây: khấu trừ người phụ thuộc tính RIÊNG từng người (NTA No.1180). */}
+      </div>
+
       {value.kind === 'transfer' && (
         <div>
           {/* Nhãn nằm TRONG từng nhánh, không đứng chung phía trên: nhánh "chưa có tài

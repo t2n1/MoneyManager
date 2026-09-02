@@ -57,6 +57,8 @@ export interface RemitValue {
   /** số nhận, minor units VND. */
   received: number
   service: string
+  /** Người thân nhận (relatives.id); '' = chưa chọn → ghi null. */
+  recipientId: string
 }
 
 export const SERVICES = ['Wise', 'SBI Remit', 'Brastel', 'DCOM', 'Khác'] as const
@@ -86,6 +88,7 @@ export const initialRemit = (): RemitValue => ({
   fee: 0,
   received: 0,
   service: SERVICES[0],
+  recipientId: '',
 })
 
 // Ba hàm dẫn xuất theo vai trò (loại giao dịch · nhãn ô số tiền · có ẩn lưới danh mục)

@@ -121,7 +121,7 @@ export function QuyenLoiPage() {
                       )}
                     </span>
                     <span className="basis-full text-2xs text-fg-muted">
-                      {n.du ? `Giấy: ${n.giay.join(' + ')}` : n.nhom === '<16' ? 'Dưới 16 tuổi không thuộc khấu trừ này' : `Cần ≥ ¥${n.nguong.toLocaleString('vi-VN')}/năm để được tính`}
+                      {n.du ? `Giấy: ${n.giay.join(' + ')}` : n.nhom === '<16' ? 'Dưới 16 tuổi không thuộc khấu trừ này' : <>Cần ≥ <Money amount={n.nguong} currency="JPY" />/năm để được tính</>}
                     </span>
                   </li>
                 ))}

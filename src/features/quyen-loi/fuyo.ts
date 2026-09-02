@@ -196,7 +196,7 @@ export function tinhFuyo(input: FuyoInput): FuyoKetQua {
     if (input.year < namHomNay) {
       viec = `Năm ${input.year} đủ điều kiện khấu trừ — chưa khai thì xem khoản "Đòi lại năm cũ"`
     } else {
-      viec = `Nộp ${[...new Set(nguoi.filter((n) => n.du).flatMap((n) => n.giay))].join(' + ')} cho công ty trước nenmatsu-chosei`
+      viec = `Nộp ${[...new Set(nguoi.filter((n) => n.du).flatMap((n) => n.giay))].join(' + ')} cho công ty trước 年末調整`
     }
   } else {
     trang_thai = 'thieu-du-lieu'

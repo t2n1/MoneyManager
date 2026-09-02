@@ -152,6 +152,6 @@ describe('tinhFuyo — dữ liệu', () => {
     expect(r.nguoi[0]).toMatchObject({ nhom: '30-69', da_gui: 390_000, du: true })
     expect(r.ketLuan.trang_thai).toBe('du')
     expect(r.ketLuan.viec).toMatch(/Đòi lại năm cũ/)
-    expect(r.ketLuan.viec).not.toMatch(/nenmatsu-chosei/)
+    expect(r.ketLuan.viec).not.toMatch(/年末調整/)
   })
 })

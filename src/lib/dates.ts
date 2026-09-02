@@ -179,3 +179,21 @@ export function getYearRange(year: number, monthStartDay = 1): MonthRange {
 export function formatYearLabel(year: number): string {
   return `Năm ${year}`
 }
+
+/**
+ * Năm DƯƠNG LỊCH 1/1–31/12 — trục thời gian THỨ HAI của app, dành cho thuế Nhật (所得税,
+ * 住民税, ふるさと納税, NISA đều chốt theo lịch, không theo ngày lương).
+ *
+ * Tồn tại để CÓ TÊN GỌI: đọc code thấy `calendarYearRange` là biết chỗ đó cố ý không theo
+ * `month_start_day`, không phải ai quên. Dùng `getMonthRange`/`getYearRange` với
+ * monthStartDay của người dùng ở đây là báo "đã đủ 38万" khi một lần gửi ngày 28/12 bị
+ * đẩy sang "tháng 1" của app.
+ */
+export function calendarYearRange(year: number): MonthRange {
+  return getYearRange(year, 1)
+}
+
+/** Năm dương lịch của một ngày ISO — cặp với `calendarYearRange`. */
+export function calendarYearOf(iso: string): number {
+  return Number(iso.slice(0, 4))
+}

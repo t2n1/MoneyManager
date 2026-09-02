@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   addDaysISO,
   addMonths,
+  calendarYearOf,
+  calendarYearRange,
   clampMonthStartDay,
   daysBetween,
   dueDateLabel,
@@ -238,5 +240,14 @@ describe('nextCardDueDate', () => {
   it('dời qua kỳ nghỉ Tết dương sang năm mới', () => {
     // 31/12/2026 ngân hàng đóng, 1–3/1/2027 cũng đóng → 4/1/2027 (T2)
     expect(nextCardDueDate(31, '2026-12-01')).toBe('2027-01-04')
+  })
+})
+
+describe('calendarYearRange / calendarYearOf', () => {
+  it('năm dương lịch: 1/1 tới 1/1 năm sau (end loại trừ), bất kể month_start_day', () => {
+    expect(calendarYearRange(2026)).toEqual({ start: '2026-01-01', end: '2027-01-01' })
+  })
+  it('calendarYearOf đọc 4 ký tự đầu', () => {
+    expect(calendarYearOf('2025-12-28')).toBe(2025)
   })
 })

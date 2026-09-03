@@ -154,6 +154,8 @@ export function clampBps(bps: number | null, fallback: number): number {
  * là cột text (id lạ → 50/30/20), `budget_targets` là jsonb (không phải object, hoặc
  * giá trị không phải số → bỏ qua khoá đó). Khoá THIẾU nghĩa là "theo mặc định của
  * phương pháp" — nên đổi mặc định trong code thì người chưa chỉnh đi theo luôn.
+ *
+ * TODO Task 3: Thay param type thành Pick<ProfileRow, 'budget_method' | 'budget_targets'> khi ProfileRow có các field này.
  */
 export function resolveMethod(
   profile: { budget_method: string; budget_targets: Record<string, number> } | null | undefined,

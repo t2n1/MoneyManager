@@ -187,7 +187,9 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
       setDraft(null)
       return
     }
-    const axisKey = catOf(row.cat.id)?.need_level ?? null
+    const need = catOf(row.cat.id)?.need_level ?? null
+    // TẠM (task 5 plan 2026-09-03 viết lại chỗ này): 3 nhãn mới chưa có trục riêng, coi như chưa phân loại
+    const axisKey = need === 'essential' || need === 'flexible' ? need : null
     const line = axisKey ? (summary.axis?.lines.find((l) => l.key === axisKey) ?? null) : null
     // Trục còn trong trần thì KHÔNG có vạch: không có gì phải đạt, và vẽ một vạch trên mức
     // hiện tại là app đang gợi ý tiêu thêm. Cũng chặn luôn vạch cũ đã đóng băng từ lúc trục
@@ -319,7 +321,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   /** Trục mà một danh mục sẽ rơi vào — nâng hạn mức ở đây làm dịch thanh trục cột trái. */
   const axisNote = (categoryId: string): string => {
     const need = catOf(categoryId)?.need_level ?? null
-    return need ? AXIS_LABEL[need] : 'chưa phân loại'
+    return need === 'essential' || need === 'flexible' ? AXIS_LABEL[need] : 'chưa phân loại'
   }
 
   async function handleCopy() {

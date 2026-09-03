@@ -6,7 +6,7 @@ import { CURRENCIES, formatMoney } from '../../lib/money'
 import type { ProfileRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
 import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
-import { clampBps, resolveMethod } from '../budgets/budgetMethods'
+import { BUDGET_METHODS, clampBps, resolveMethod } from '../budgets/budgetMethods'
 
 interface Props {
   profile: ProfileRow
@@ -29,16 +29,26 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
     profile.annual_inflation_bps != null ? (profile.annual_inflation_bps / 100).toString() : '',
   )
   const [tax, setTax] = useState(((profile.capital_gains_tax_bps ?? 2032) / 100).toString())
-  // Mốc cơ cấu chi (tab Ngân sách). Nhập theo % cho dễ, lưu xuống bps.
-  const m0 = resolveMethod(profile)
-  const bps0 = (k: string, fb: number) => m0.buckets.find((b) => b.key === k)?.bps ?? fb
-  const [essential, setEssential] = useState((bps0('essential', 5000) / 100).toString())
-  const [flexible, setFlexible] = useState((bps0('flexible', 3000) / 100).toString())
-  const [savings, setSavings] = useState((bps0('savings', 2000) / 100).toString())
-  const axisSum =
-    (Number(essential.replace(',', '.')) || 0) +
-    (Number(flexible.replace(',', '.')) || 0) +
-    (Number(savings.replace(',', '.')) || 0)
+  // Phương pháp + % theo khoá khoản của PHƯƠNG PHÁP ĐANG CHỌN.
+  // Đổi phương pháp là nạp lại số chuẩn của nó — mốc đã chỉnh của phương pháp cũ
+  // nằm yên trong budget_targets? KHÔNG: lưu là ghi đè toàn bộ, xem handleSave.
+  const resolved = resolveMethod(profile)
+  const [methodId, setMethodId] = useState(resolved.id)
+  const [pct, setPct] = useState<Record<string, string>>(() =>
+    Object.fromEntries(resolved.buckets.map((b) => [b.key, (b.bps / 100).toString()])),
+  )
+  const method = BUDGET_METHODS.find((m) => m.id === methodId) ?? BUDGET_METHODS[0]
+
+  function pickMethod(id: string) {
+    const m = BUDGET_METHODS.find((x) => x.id === id) ?? BUDGET_METHODS[0]
+    setMethodId(m.id)
+    setPct(Object.fromEntries(m.buckets.map((b) => [b.key, (b.bps / 100).toString()])))
+  }
+
+  const axisSum = method.buckets.reduce(
+    (s, b) => s + (Number((pct[b.key] ?? '').replace(',', '.')) || 0),
+    0,
+  )
 
   /** "2,5" hoặc "2.5" → 250 bps; rỗng/không hợp lệ → null. */
   function toBps(raw: string): number | null {
@@ -57,12 +67,13 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
         hourly_wage: wage.trim() === '' ? null : Number(wage),
         annual_inflation_bps: toBps(inflation),
         capital_gains_tax_bps: toBps(tax) ?? 2032,
-        budget_method: profile.budget_method,
-        budget_targets: {
-          essential: clampBps(toBps(essential), 5000),
-          flexible: clampBps(toBps(flexible), 3000),
-          savings: clampBps(toBps(savings), 2000),
-        },
+        budget_method: method.id,
+        // Chỉ lưu mốc LỆCH mặc định — khoá thiếu nghĩa là "theo phương pháp".
+        budget_targets: Object.fromEntries(
+          method.buckets
+            .map((b) => [b.key, clampBps(toBps(pct[b.key] ?? ''), b.bps)] as const)
+            .filter(([, v], i) => v !== method.buckets[i].bps),
+        ),
       })
     } catch {
       return
@@ -191,36 +202,57 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
         <SectionTitle role="micro" as="h3" className="mt-5">
           Mốc cơ cấu chi (% thu nhập)
         </SectionTitle>
+        <label htmlFor={`${uid}-method`} className="mt-2 block text-sm font-medium text-fg-muted">
+          Phương pháp phân bổ
+        </label>
+        <Select
+          id={`${uid}-method`}
+          value={methodId}
+          onChange={(e) => pickMethod(e.target.value)}
+          wrapClassName="mt-1 w-full"
+        >
+          {BUDGET_METHODS.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </Select>
+        <Guide className="mt-1 text-sm text-fg-muted">{method.blurb}</Guide>
+
+        {/* Ô % sinh theo khoản của phương pháp: 2 ô (80/20) tới 6 ô (Tự đặt).
+            grid-cols-3 tĩnh, thừa thì tự xuống hàng — không grid-cols-${n} động. */}
         <div className="mt-2 grid grid-cols-3 gap-2">
-          {/* `slug` chứ không dùng `label` làm id: id HTML không được chứa khoảng trắng,
-              mà nhãn ở đây là "Thiết yếu" / "Tiết kiệm". */}
-          {[
-            { slug: 'essential', label: 'Thiết yếu', value: essential, set: setEssential, ph: '50' },
-            { slug: 'flexible', label: 'Linh hoạt', value: flexible, set: setFlexible, ph: '30' },
-            { slug: 'savings', label: 'Tiết kiệm', value: savings, set: setSavings, ph: '20' },
-          ].map((f) => (
-            <div key={f.slug}>
-              <label htmlFor={`${uid}-${f.slug}`} className="block text-sm font-medium text-fg-muted">
-                {f.label}
+          {method.buckets.map((b) => (
+            <div key={b.key}>
+              <label htmlFor={`${uid}-${b.key}`} className="block text-sm font-medium text-fg-muted">
+                {b.label}
               </label>
               <input
-                id={`${uid}-${f.slug}`}
+                id={`${uid}-${b.key}`}
                 inputMode="decimal"
-                value={f.value}
-                onChange={(e) => f.set(e.target.value)}
-                placeholder={f.ph}
+                value={pct[b.key] ?? ''}
+                onChange={(e) => setPct((p) => ({ ...p, [b.key]: e.target.value }))}
+                placeholder={(b.bps / 100).toString()}
                 className="mt-1 w-full rounded-md border border-border-strong bg-surface p-3 text-right text-fg-primary"
               />
             </div>
           ))}
         </div>
-        {/* CHIỀU của ba ô này đứng ngoài <Guide>, cùng lý do với dòng cảnh báo tổng ở dưới:
-            ba ô đều là "%", nhìn không ra cái nào là trần cái nào là sàn. Gõ ngược thì mọi
-            câu phán trục ở Ngân sách đọc ngược lại — sai lặng lẽ. Con số mặc định 50/30/20
-            thì vẫn là chữ dạy, vẫn ẩn ở Gọn. */}
+        <button
+          type="button"
+          onClick={() => pickMethod(method.id)}
+          className="mt-1 text-sm font-medium text-fg-accent"
+        >
+          ↺ Về mặc định của phương pháp
+        </button>
+        {/* CHIỀU của các ô này đứng ngoài <Guide>, cùng lý do với dòng cảnh báo tổng ở dưới:
+            mỗi ô đều là "%", nhìn không ra cái nào là trần cái nào là sàn. Gõ ngược thì mọi
+            câu phán trục ở Ngân sách đọc ngược lại — sai lặng lẽ. Con số mặc định của từng
+            phương pháp thì vẫn là chữ dạy, vẫn ẩn ở Gọn. */}
         <p className="mt-1 text-sm text-fg-muted">
-          Hai mốc đầu là <b>trần</b>, tiết kiệm là <b>sàn</b>.
-          <Guide as="span"> Mặc định là quy tắc 50/30/20: chi dưới trần là tốt, vượt sàn là tốt.</Guide>
+          Các khoản chi là <b>trần</b>, {method.buckets.find((b) => b.direction === 'floor')!.label} là{' '}
+          <b>sàn</b>.
+          <Guide as="span"> Chi dưới trần là tốt, vượt sàn là tốt. Đổi phương pháp là các ô nạp lại số chuẩn của nó.</Guide>
         </p>
         {/* Không ép tổng = 100: có người muốn để đệm, nhưng lệch nhiều thì nhắc. Dòng này
             đứng RIÊNG, không nằm trong <Guide> ở trên: nó nói về con số vừa gõ, nên chế độ

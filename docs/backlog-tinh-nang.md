@@ -600,3 +600,16 @@ Dữ liệu mới: bảng `relatives`, cột `transactions.remit_recipient_id`, 
 **Chưa làm, để đợt sau:** 医療費控除 (cùng đường 確定申告 như ②); iDeCo hạn mức theo loại doanh nghiệp
 (có 企業年金 thì khác); đọc 源泉徴収票 để thay số ước bằng số thật; thu nhập của người thân
 (điều kiện ≤ 58万) chỉ hỏi bằng chữ, không lưu.
+
+### Phương pháp phân bổ ngân sách — ĐÃ SHIP 2026-09-03
+
+Sáu phương pháp chọn trong Cài đặt → Hồ sơ (spec
+[2026-09-03-phuong-phap-phan-bo-design.md](superpowers/specs/2026-09-03-phuong-phap-phan-bo-design.md),
+plan [2026-09-03-phuong-phap-phan-bo.md](superpowers/plans/2026-09-03-phuong-phap-phan-bo.md)):
+50/30/20 · 80/20 · 70/20/10 · 6 cái lọ (JARS) · Kakeibo · Tự đặt. `need_level` nới 2 → 5 nhãn
+(thêm Giáo dục, Cho đi, Dự phòng — gắn MỘT lần, mọi phương pháp gom theo bảng riêng);
+`profiles.budget_method` + `budget_targets` thay 3 cột bps rời (migration 0057). Toàn bộ
+tab Ngân sách, thẻ Cơ cấu ở Báo cáo, mốc "Giữ lại" ở Bảng tin và headline chạy theo phương pháp.
+
+**Chưa làm, để đợt sau:** tách hũ Đầu tư / Tiết kiệm dài hạn của JARS theo tài khoản tiền
+chảy vào; trình tự dựng khoản tuỳ ý (custom bucket builder); mỗi tháng một phương pháp.

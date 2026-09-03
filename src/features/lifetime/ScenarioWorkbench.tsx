@@ -836,9 +836,13 @@ export function ScenarioWorkbench({
                           })()}
                       </p>
                       {/* Số THẬT từ sổ, ngay trong thẻ chặng đang chạy. Bản v1 dành cả
-                          một CỘT THỨ BA cho khối này ("số này ở đâu ra"). */}
+                          một CỘT THỨ BA cho khối này ("số này ở đâu ra").
+                          KHÔNG để `shrink-0` ở đây: bề ngang tự nhiên của khối là ~500px,
+                          nên trên điện thoại nó không chịu co, đẩy `<main>` (overflow-y-auto
+                          → overflow-x thành auto) thành cuộn NGANG cả trang. `min-w-0` cho
+                          nó xuống dòng riêng rồi co vừa thẻ. */}
                       {isCurrent && baseline && (
-                        <div className="flex shrink-0 flex-wrap items-center gap-2.5 rounded-md border border-state-good-border bg-surface px-2.5 py-1.5">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2.5 rounded-md border border-state-good-border bg-surface px-2.5 py-1.5">
                           <p className="text-2xs leading-relaxed text-fg-secondary">
                             Số thật {baseline.monthsCovered} tháng gần nhất: thu{' '}
                             <Money

@@ -51,7 +51,7 @@ export interface HealthSnapshot {
   monthlyFixedExpense: number
   /** tổng chi trung bình mỗi tháng */
   monthlyExpense: number
-  /** chi LINH HOẠT trung bình mỗi tháng — phần về lý thuyết cắt được khi túng */
+  /** chi CẮT ĐƯỢC trung bình mỗi tháng (flexible/education/giving) — phần về lý thuyết cắt được khi túng */
   monthlyFlexibleExpense: number
   /** thu nhập trung bình mỗi tháng */
   monthlyIncome: number
@@ -62,9 +62,10 @@ export interface HealthSnapshot {
   /** dòng tiền ròng từng tháng đã hoàn tất (đầu vào cho Monte Carlo) */
   netFlows: number[]
   /**
-   * Như `netFlows` nhưng đã bỏ hết chi mang need_level='flexible' — kịch bản
-   * "thắt lưng buộc bụng". Danh mục CHƯA phân loại vẫn tính là thiết yếu để
-   * không hứa hão rằng cắt được thứ mình chưa hề gắn nhãn.
+   * Như `netFlows` nhưng đã bỏ hết chi mang need_level cắt được (flexible/
+   * education/giving) — kịch bản "thắt lưng buộc bụng". Danh mục CHƯA phân
+   * loại vẫn tính là thiết yếu để không hứa hão rằng cắt được thứ mình chưa
+   * hề gắn nhãn.
    */
   essentialNetFlows: number[]
   /** thu nhập theo danh mục (cho chỉ số tập trung thu nhập) */
@@ -228,9 +229,14 @@ export function buildHealthSnapshot(input: SnapshotInput): HealthSnapshot {
     const cost = t.category_id ? costTypeOf.get(t.category_id) : null
     if (cost === 'fixed') fixedExpense.set(id, (fixedExpense.get(id) ?? 0) + signed)
     else if (!cost) hasUnclassifiedExpense = true
-    // Chỉ cắt thứ ĐƯỢC GẮN RÕ là linh hoạt; chưa gắn thì coi như không cắt được
+    // Chỉ cắt thứ ĐƯỢC GẮN RÕ là cắt được; chưa gắn thì coi như không cắt được.
+    // Trước khi need_level nới từ 2 nhãn lên 5, Quà/Hỗ trợ gia đình/Sách vở đều
+    // mang nhãn flexible và vẫn được coi là cắt được — education/giving tách ra
+    // chỉ để PHÂN BỔ (JARS, 70/20/10...), không đổi bản chất "cắt được khi cần".
+    // `buffer` KHÔNG vào đây: nó tách từ essential (thuốc men, phí bắt buộc).
     const need = t.category_id ? needLevelOf.get(t.category_id) : null
-    if (need === 'flexible') flexExpense.set(id, (flexExpense.get(id) ?? 0) + signed)
+    if (need === 'flexible' || need === 'education' || need === 'giving')
+      flexExpense.set(id, (flexExpense.get(id) ?? 0) + signed)
     else if (!need) hasUnclassifiedNeed = true
   }
 

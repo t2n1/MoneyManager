@@ -10,7 +10,7 @@ import { shortCompare } from '../reports/headline'
 import { keptBarPct } from './bulletin'
 import type { CurrencyCode } from '../../lib/money'
 import { useProfile } from '../../hooks/queries'
-import { resolveMethod } from '../budgets/budgetMethods'
+import { resolveMethod, savingsTargetShare } from '../budgets/budgetMethods'
 
 /** Nhãn eyebrow + số 26px mono — khung chung của cả bốn ô. */
 function Tile({
@@ -89,9 +89,7 @@ export function KpiRow({
   approx,
 }: Props) {
   const { data: profile } = useProfile()
-  const keptTargetPct = Math.round(
-    ((resolveMethod(profile).buckets.find((b) => b.key === 'savings')?.bps ?? 2000) / 10_000) * 100,
-  )
+  const keptTargetPct = Math.round(savingsTargetShare(resolveMethod(profile)) * 100)
   return (
     <div className="flex flex-wrap gap-2.5">
       <Tile

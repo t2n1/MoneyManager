@@ -17,7 +17,7 @@ import {
 } from '../../hooks/queries'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
 import type { CategoryRow } from '../../types/database.types'
-import { resolveMethod, type BudgetMethod } from './budgetMethods'
+import { resolveMethod, savingsTargetShare, type BudgetMethod } from './budgetMethods'
 import { buildBudgetDisplay, type BudgetDisplay } from './budgetDisplay'
 import { coverageGaps, type CommitmentReport, type CoverageGap } from './commitments'
 import { planGroups, type PlanGroups } from './planGroups'
@@ -116,7 +116,7 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
   //
   // Danh mục chưa có dòng hạn mức thì KHÔNG vá: dựng một dòng giả kéo theo một `id` giả,
   // mà `budgetIdByCat` chính là thứ tấm trượt dùng để xoá. Thanh trượt cũng chỉ mở ở dòng
-  // của bốn khối hạn mức — dòng nào cũng đã có hạn mức thật.
+  // của các khối hạn mức (số khối theo phương pháp) — dòng nào cũng đã có hạn mức thật.
   const budgets = useMemo(() => {
     if (!draft) return savedBudgets
     const i = savedBudgets.findIndex((b) => b.category_id === draft.categoryId)
@@ -197,10 +197,7 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
       suggestions,
       budgetedByCat,
       gaps,
-      // TẠM: Để dành không phải luôn là khoản 'savings' ở mọi phương pháp, nhưng mọi
-      // phương pháp hiện có đều đặt residual ở khoá đó (xem budgetMethods.ts) — task 5
-      // đọc thẳng khoản `direction === 'floor'` thay vì tra theo khoá cứng.
-      savingsBps: method.buckets.find((b) => b.key === 'savings')?.bps ?? 2000,
+      savingsBps: Math.round(savingsTargetShare(method) * 10_000),
       isMarker: (id) => markerIds.has(id),
       isBudgetable: (id) => {
         const c = catById.get(id)

@@ -17,7 +17,7 @@ import { expenseTrend, savingsRateVerdict } from './verdicts'
 import { Card, SectionTitle } from '../../components/ui'
 import { CHART_TEXT_2XS, CHART_TEXT_XS } from '../../lib/chartText'
 import { useProfile } from '../../hooks/queries'
-import { resolveMethod } from '../budgets/budgetMethods'
+import { resolveMethod, savingsTargetShare } from '../budgets/budgetMethods'
 
 // MỘT nguồn cho cả cột và chấm chú giải. Trước đây cột dùng hex cứng còn chấm dùng
 // class `bg-green-600`, nên từ hồi nâng Tailwind v3 → v4 (green-600 đổi từ #16a34a
@@ -56,8 +56,7 @@ export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = nul
     }
   })
   const { data: profile } = useProfile()
-  const savingsShare =
-    (resolveMethod(profile).buckets.find((b) => b.key === 'savings')?.bps ?? 2000) / 10_000
+  const savingsShare = savingsTargetShare(resolveMethod(profile))
   const trend = expenseTrend(series.points, currentKey)
   const saving = savingsRateVerdict(series.points, currentKey, savingsShare)
 

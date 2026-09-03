@@ -1,4 +1,4 @@
-// Nguồn DUY NHẤT của khối "Cơ cấu chi so với mốc" (50/30/20).
+// Nguồn DUY NHẤT của khối "Cơ cấu chi so với mốc" (nói theo phương pháp đang chọn).
 //
 // Tách khỏi BudgetView vì giờ có hai chỗ hiện cùng con số: khối đầy đủ ở tab Ngân
 // sách và dải gọn ở tab Sổ. Hai chỗ tính riêng là sớm muộn cũng lệch nhau — mà lệch

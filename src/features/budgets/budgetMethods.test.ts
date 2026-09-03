@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { BUDGET_METHODS, bucketForNeed, clampBps, resolveMethod } from './budgetMethods'
+import {
+  BUDGET_METHODS,
+  bucketForNeed,
+  clampBps,
+  resolveMethod,
+  savingsTargetShare,
+} from './budgetMethods'
 import type { NeedLevel } from '../../types/database.types'
 
 const NEED_LEVELS: readonly NeedLevel[] = ['essential', 'flexible', 'education', 'giving', 'buffer']
@@ -99,6 +105,17 @@ describe('bucketForNeed', () => {
 
   it('nhãn null ở phương pháp needs → null (chưa phân loại)', () => {
     expect(bucketForNeed(by('jars'), null)).toBeNull()
+  })
+})
+
+describe('savingsTargetShare', () => {
+  it('0.2 cho mọi phương pháp mặc định', () => {
+    for (const m of BUDGET_METHODS) expect(savingsTargetShare(m)).toBe(0.2)
+  })
+
+  it('phản ánh mốc người dùng đã đè', () => {
+    const m = resolveMethod(profile('jars', { savings: 2500 }))
+    expect(savingsTargetShare(m)).toBe(0.25)
   })
 })
 

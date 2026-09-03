@@ -1627,7 +1627,8 @@ function ListRow({
  * Dòng chế độ Bảng (38b) — cùng dữ liệu, xếp thành lưới số.
  *
  * Vì sao có chế độ thứ hai: so `TB` với `hạn mức` thành MỘT lần quét dọc thay vì đọc 29
- * câu. Không phải hai màn — cùng `usePlanning()`, cùng bốn khối, khác cách render một dòng.
+ * câu. Không phải hai màn — cùng `usePlanning()`, cùng các khối (số khối theo phương
+ * pháp), khác cách render một dòng.
  */
 function TableRow({
   row,

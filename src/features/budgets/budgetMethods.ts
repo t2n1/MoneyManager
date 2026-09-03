@@ -172,6 +172,15 @@ export function resolveMethod(
 }
 
 /**
+ * Tỷ lệ (0..1) của khoản Để dành — MỘT chỗ tra cho mọi màn cần mốc giữ lại.
+ * Mọi phương pháp đều có đúng một khoản residual key 'savings' (test chặn),
+ * nên nhánh ?? 0.2 chỉ là dây an toàn kiểu.
+ */
+export function savingsTargetShare(method: BudgetMethod): number {
+  return (method.buckets.find((b) => b.key === 'savings')?.bps ?? 2000) / 10_000
+}
+
+/**
  * Khoản chứa một nhãn — nguồn DUY NHẤT của phép "danh mục này thuộc khoản nào",
  * dùng chung cho `axisSlices` và `planGroups` để hai bên khớp nhau từng đồng.
  *

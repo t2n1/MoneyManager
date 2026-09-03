@@ -1,4 +1,4 @@
-// Dải gọn "50/30/20".
+// Dải gọn — nói theo phương pháp đang chọn.
 //
 // Hai chỗ dùng, hai vai:
 //   · Mặt THEO DÕI, ngay dưới câu kết luận (§4.3 của bản 1a). Ở đó nó KHÔNG bấm được:
@@ -58,7 +58,7 @@ export function AxisStrip({
         (showAmount ? ` (${formatMoney(Math.round(l.actual), base)})` : ''),
     )
     .join(', ')
-  // Chi chưa gắn "mức cần thiết" KHÔNG nằm trong hai dòng đầu, nên ba con số có thể
+  // Chi chưa gắn "mức cần thiết" KHÔNG nằm trong các dòng chi, nên các con số có thể
   // cộng lại không tới 100% mà không có gì giải thích. Khối đầy đủ ở tab Ngân sách có
   // hẳn một dòng cảnh báo; ở đây chỉ đủ chỗ cho một mẩu chữ, nhưng có còn hơn không.
   const missing = data.unclassified > 0 ? formatMoney(Math.round(data.unclassified), base) : null

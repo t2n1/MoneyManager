@@ -565,6 +565,9 @@ export function foldUncategorized(
   if (noCategory <= 0) return data
   return {
     ...data,
+    // Bản sao — classificationBreakdown vừa dựng object này bằng cách cộng dồn tại
+    // chỗ, trả alias là mời một chỗ khác sửa lây.
+    needByLevel: { ...data.needByLevel },
     needUnclassified: data.needUnclassified + noCategory,
     costUnclassified: data.costUnclassified + noCategory,
     totalExpense,

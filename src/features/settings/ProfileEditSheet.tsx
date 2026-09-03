@@ -259,7 +259,7 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
             Gọn cũng phải thấy — gộp vào khối hướng dẫn là mất cảnh báo. */}
         {Math.abs(axisSum - 100) > 0.5 && (
           <p className="mt-1 text-sm text-fg-warn">
-            Tổng hiện là {Math.round(axisSum)}% — không bắt buộc bằng 100%, nhưng lệch nhiều thì ba
+            Tổng hiện là {Math.round(axisSum)}% — không bắt buộc bằng 100%, nhưng lệch nhiều thì các
             mốc khó dùng chung.
           </p>
         )}

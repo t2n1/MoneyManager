@@ -343,7 +343,14 @@ describe('buildHealthSnapshot — dòng tiền chỉ-chi-thiết-yếu', () => {
     ...cat(id, null),
     need_level,
   })
-  const CATS = [need('thiet-yeu', 'essential'), need('linh-hoat', 'flexible'), need('chua-gan', null)]
+  const CATS = [
+    need('thiet-yeu', 'essential'),
+    need('linh-hoat', 'flexible'),
+    need('chua-gan', null),
+    need('giao-duc', 'education'),
+    need('cho-di', 'giving'),
+    need('du-phong', 'buffer'),
+  ]
 
   it('cắt đúng phần linh hoạt, giữ lại thiết yếu', () => {
     const s = build({
@@ -406,6 +413,22 @@ describe('buildHealthSnapshot — dòng tiền chỉ-chi-thiết-yếu', () => {
   it('mỗi tháng một phần tử, đúng thứ tự cũ → mới', () => {
     const s = build({ categories: CATS })
     expect(s.essentialNetFlows).toHaveLength(MONTHS.length)
+  })
+
+  it('education/giving vẫn cắt được (tách từ flexible chỉ để phân bổ) — buffer thì không', () => {
+    const s = build({
+      categories: CATS,
+      txs: [
+        tx({ type: 'income', amount: 500_000, occurred_on: '2026-05-10', category_id: 'luong' }),
+        tx({ type: 'expense', amount: 200_000, occurred_on: '2026-05-11', category_id: 'thiet-yeu' }),
+        tx({ type: 'expense', amount: 30_000, occurred_on: '2026-05-12', category_id: 'giao-duc' }),
+        tx({ type: 'expense', amount: 20_000, occurred_on: '2026-05-13', category_id: 'cho-di' }),
+        tx({ type: 'expense', amount: 10_000, occurred_on: '2026-05-14', category_id: 'du-phong' }),
+      ],
+    })
+    // Chi cắt được = 30k (giáo dục) + 20k (cho đi) = 50k; dự phòng (buffer) vẫn tính là thiết yếu.
+    expect(s.monthlyFlexibleExpense).toBe(50_000 / 3)
+    expect(s.essentialNetFlows[1]).toBe(500_000 - 200_000 - 10_000)
   })
 })
 

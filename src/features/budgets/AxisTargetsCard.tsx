@@ -1,5 +1,5 @@
 // Khối "Cơ cấu chi so với mốc" ở đầu tab Ngân sách.
-// Ba dòng dùng chung một khuôn với danh sách hạn mức bên dưới (tên · % · thanh
+// Các dòng dùng chung một khuôn với danh sách hạn mức bên dưới (tên · % · thanh
 // tiến độ · số tiền / mốc) để mắt không phải học lại cách đọc.
 import { Link, useSearchParams } from 'react-router-dom'
 import { ChevronDown, ChevronRight } from 'lucide-react'
@@ -34,7 +34,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
   // phương pháp đang chọn (8 khả năng, không còn cứng essential/flexible/savings).
   const open = data.lines.some((l) => l.key === openParam) ? (openParam as AxisKey) : null
   const ym = monthKeyString(monthKey)
-  // Ba mốc đang thế nào — một mệnh đề, tính ở hàm thuần (axisTargets.ts).
+  // Các mốc đang thế nào — một mệnh đề, tính ở hàm thuần (axisTargets.ts).
   const miss = axisMissSummary(data.lines)
 
   const toggle = (key: AxisKey) =>
@@ -164,7 +164,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
               )}
               <Guide className="mt-0.5 text-2xs text-fg-muted">{l.hint}</Guide>
 
-              {/* Xổ nhóm bằng <Collapse> (§12): ba trục × vài danh mục là chặn trên nhỏ,
+              {/* Xổ nhóm bằng <Collapse> (§12): các trục × vài danh mục là chặn trên nhỏ,
                   giữ trong DOM lúc đóng không tốn gì. */}
               <Collapse open={isOpen} id={listId}>
                 <ul className="mt-1 border-t border-border-subtle">

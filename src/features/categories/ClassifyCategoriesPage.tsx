@@ -38,13 +38,18 @@ type PendingRow = { need_level?: NeedLevel | null; cost_type?: CostType | null }
 
 const isTodo = (c: CategoryRow) => c.need_level == null || c.cost_type == null
 
-/** Bốn tổ hợp của nút "Áp cho cả nhóm" — hai trục nhân nhau, không có ô "Chưa". */
-const COMBOS: readonly (readonly [NeedLevel, CostType, string])[] = [
-  ['essential', 'fixed', 'Thiết yếu · Cố định'],
-  ['essential', 'variable', 'Thiết yếu · Biến đổi'],
-  ['flexible', 'fixed', 'Linh hoạt · Cố định'],
-  ['flexible', 'variable', 'Linh hoạt · Biến đổi'],
-]
+/**
+ * `NEED_OPTIONS`/`COST_OPTIONS` mỗi cái đều gồm cả mục "Chưa" (giá trị `null`) — hợp lý cho
+ * ô gạt từng dòng, nhưng bảng "Áp cho cả nhóm" áp một giá trị THẬT cho cả nhóm nên bỏ "Chưa"
+ * ra khỏi danh sách nút. Ép kiểu tường minh vì phần tử của hai hằng trên là union các tuple
+ * literal (do `as const satisfies`) — type predicate không tự thu hẹp được từ đó.
+ */
+const BULK_NEED_CHOICES = (
+  NEED_OPTIONS as readonly (readonly [NeedLevel | null, string])[]
+).filter((o): o is readonly [NeedLevel, string] => o[0] !== null)
+const BULK_COST_CHOICES = (
+  COST_OPTIONS as readonly (readonly [CostType | null, string])[]
+).filter((o): o is readonly [CostType, string] => o[0] !== null)
 
 // Điện thoại một cột (tên trên, hai ô gạt dưới); từ `lg` ba cột chung một hàng.
 //
@@ -63,6 +68,15 @@ export function ClassifyCategoriesPage() {
   const [pending, setPending] = useState<Record<string, PendingRow>>({})
   /** Nhóm đang mở bảng "Áp cho cả nhóm" — mỗi lúc nhiều nhất một. */
   const [bulkFor, setBulkFor] = useState<string | null>(null)
+  /** Bước 1 của bảng (chọn nhãn nhu cầu) đã chọn gì — null = chưa chọn, còn ở bước 1. */
+  const [bulkNeed, setBulkNeed] = useState<NeedLevel | null>(null)
+
+  /** Đóng bảng "Áp cho cả nhóm", luôn kèm reset bước 1 — mở lại (kể cả cho nhóm khác) mà
+   *  còn giữ bước đã chọn của lần trước là lẫn ngữ cảnh. */
+  const closeBulk = () => {
+    setBulkFor(null)
+    setBulkNeed(null)
+  }
 
   // `?todo=1` và `?ids=` là trạng thái của ĐỊA CHỈ, không phải của component: nút
   // "Phân loại N danh mục này" ở mặt lập kế hoạch gửi sang đúng N id, và trước bản này
@@ -150,7 +164,7 @@ export function ClassifyCategoriesPage() {
       confirmLabel: 'Gán',
     })
     if (!ok) return
-    setBulkFor(null)
+    closeBulk()
     setPending((p) => {
       const next = { ...p }
       for (const c of members) next[c.id] = { need_level: need, cost_type: cost }
@@ -284,28 +298,56 @@ export function ClassifyCategoriesPage() {
                       </span>
                       <ActionButton
                         className="shrink-0"
-                        onClick={() => setBulkFor(bulkFor === parent.id ? null : parent.id)}
+                        onClick={() => {
+                          if (bulkFor === parent.id) {
+                            closeBulk()
+                          } else {
+                            setBulkFor(parent.id)
+                            setBulkNeed(null)
+                          }
+                        }}
                         aria-expanded={bulkFor === parent.id}
                       >
                         Áp cho cả nhóm
                       </ActionButton>
                     </div>
-                    {/* Bốn tổ hợp mở ra NGAY TẠI CHỖ chứ không trong một menu thả xuống:
-                        repo chưa có primitive menu nào, mà dựng riêng một cái cho bốn nút
-                        thì vừa là control mới vừa là một bẫy trợ năng mới. */}
-                    {bulkFor === parent.id && (
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {COMBOS.map(([need, cost, label]) => (
-                          <ActionButton
-                            key={label}
-                            onClick={() => applyToGroup(parent, need, cost, label)}
-                          >
-                            {label}
-                          </ActionButton>
-                        ))}
-                        <ActionButton onClick={() => setBulkFor(null)}>Hủy</ActionButton>
-                      </div>
-                    )}
+                    {/* Mở ra NGAY TẠI CHỖ chứ không trong một menu thả xuống: repo chưa có
+                        primitive menu nào, mà dựng riêng một cái thì vừa là control mới
+                        vừa là một bẫy trợ năng mới.
+                        5 nhãn × 2 loại = 10 tổ hợp — liệt kê phẳng không ai đọc nổi. Chia
+                        hai bước, mỗi bước tối đa 5 nút: bước 1 chọn nhãn nhu cầu, bước 2
+                        chọn cố định/biến đổi rồi áp luôn. */}
+                    {bulkFor === parent.id &&
+                      (bulkNeed === null ? (
+                        <div className="mt-1.5 grid grid-cols-2 gap-1.5 lg:grid-cols-3">
+                          {BULK_NEED_CHOICES.map(([need, label]) => (
+                            <ActionButton key={need} onClick={() => setBulkNeed(need)}>
+                              {label}…
+                            </ActionButton>
+                          ))}
+                          <ActionButton onClick={closeBulk}>Hủy</ActionButton>
+                        </div>
+                      ) : (
+                        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                          {BULK_COST_CHOICES.map(([cost, label]) => (
+                            <ActionButton
+                              key={cost}
+                              onClick={() =>
+                                applyToGroup(
+                                  parent,
+                                  bulkNeed,
+                                  cost,
+                                  `${NEED_OPTIONS.find(([n]) => n === bulkNeed)![1]} · ${label}`,
+                                )
+                              }
+                            >
+                              {label}
+                            </ActionButton>
+                          ))}
+                          <ActionButton onClick={() => setBulkNeed(null)}>‹ Đổi nhãn</ActionButton>
+                          <ActionButton onClick={closeBulk}>Hủy</ActionButton>
+                        </div>
+                      ))}
                   </div>
                 )}
                 {g.rows.map((c) =>

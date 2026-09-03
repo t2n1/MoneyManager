@@ -3,6 +3,9 @@ import type { CategoryKind, CostType, NeedLevel } from '../../types/database.typ
 export const NEED_OPTIONS = [
   ['essential', 'Thiết yếu'],
   ['flexible', 'Linh hoạt'],
+  ['education', 'Giáo dục'],
+  ['giving', 'Cho đi'],
+  ['buffer', 'Dự phòng'],
   [null, 'Chưa'],
 ] as const satisfies readonly (readonly [NeedLevel | null, string])[]
 

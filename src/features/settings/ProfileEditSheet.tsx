@@ -5,8 +5,10 @@ import { clampMonthStartDay } from '../../lib/dates'
 import { CURRENCIES, formatMoney } from '../../lib/money'
 import type { ProfileRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
-import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
+import { Collapse, SectionTitle, Select, actionButtonClass } from '../../components/ui'
 import { BUDGET_METHODS, clampBps, resolveMethod } from '../budgets/budgetMethods'
+import { fitPhrase } from '../budgets/methodFit'
+import { useMethodFit } from '../budgets/useMethodFit'
 
 interface Props {
   profile: ProfileRow
@@ -38,6 +40,10 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
     Object.fromEntries(resolved.buckets.map((b) => [b.key, (b.bps / 100).toString()])),
   )
   const method = BUDGET_METHODS.find((m) => m.id === methodId) ?? BUDGET_METHODS[0]
+  // Bảng "phương pháp nào hợp với tôi" — chỉ xổ khi được hỏi, dữ liệu 3 tháng thì
+  // hook cứ kéo sẵn từ lúc mở sheet (rẻ, và tránh giật lúc bấm).
+  const [fitOpen, setFitOpen] = useState(false)
+  const fit = useMethodFit()
 
   function pickMethod(id: string) {
     const m = BUDGET_METHODS.find((x) => x.id === id) ?? BUDGET_METHODS[0]
@@ -218,6 +224,72 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
           ))}
         </Select>
         <Guide className="mt-1 text-sm text-fg-muted">{method.blurb}</Guide>
+
+        <button
+          type="button"
+          onClick={() => setFitOpen((v) => !v)}
+          aria-expanded={fitOpen}
+          aria-controls={`${uid}-fit`}
+          className="mt-1 block text-sm font-medium text-fg-accent"
+        >
+          Phương pháp nào hợp với tôi?
+        </button>
+        <Collapse open={fitOpen} id={`${uid}-fit`}>
+          <div className="mt-1 rounded-lg bg-surface-sunken p-3">
+            {fit === undefined ? (
+              <p className="text-sm text-fg-muted">Đang gom số liệu 3 tháng gần nhất…</p>
+            ) : fit === null ? (
+              <p className="text-sm text-fg-muted">
+                Chưa có khoản thu nào trong 3 tháng gần nhất nên chưa ướm được — hãy đọc mô tả
+                từng phương pháp rồi chọn.
+              </p>
+            ) : (
+              <>
+                {/* Câu ĐỊNH NGHĨA cách đọc bảng đứng ngoài <Guide>: thiếu nó thì "lệch nhiều"
+                    đọc như "phương pháp tồi", trong khi lệch nhiều có thể chính là thứ người
+                    ta muốn — một cái mốc kéo mình đổi nếp chi. */}
+                <p className="text-sm text-fg-muted">
+                  Số liệu 3 tháng gần nhất của bạn, ướm vào từng phương pháp. Ít lệch = mốc tả
+                  đúng nếp chi hiện tại; nhiều lệch = mốc sẽ kéo bạn đổi nếp — chọn theo điều
+                  bạn muốn.
+                </p>
+                <ul className="mt-2 space-y-2">
+                  {fit.map((f) => (
+                    <li key={f.method.id} className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm text-fg-primary">
+                          {f.method.name}
+                          <span
+                            className={
+                              f.method.id !== 'custom' && f.missed.length === 0
+                                ? 'ml-1 text-money-in'
+                                : 'ml-1 text-fg-muted'
+                            }
+                          >
+                            {/* Tự đặt không ướm trước được: mốc của nó là thứ người dùng sắp gõ */}
+                            · {f.method.id === 'custom' ? 'bạn tự đặt %' : fitPhrase(f)}
+                          </span>
+                        </p>
+                        <Guide className="text-sm text-fg-muted">{f.method.blurb}</Guide>
+                      </div>
+                      {f.method.id === methodId ? (
+                        <span className="shrink-0 text-sm text-fg-muted">đang chọn</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => pickMethod(f.method.id)}
+                          className="shrink-0 text-sm font-medium text-fg-accent"
+                        >
+                          Dùng
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </Collapse>
 
         {/* Ô % sinh theo khoản của phương pháp: 2 ô (80/20) tới 6 ô (Tự đặt).
             grid-cols-3 tĩnh, thừa thì tự xuống hàng — không grid-cols-${n} động. */}

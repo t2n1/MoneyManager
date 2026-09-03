@@ -302,7 +302,12 @@ function stripComments(text: string): string {
 // ¥…", "Tổng có thể được hoàn ¥…" (khối ①/②) và dòng "Theo NTA · áp dụng từ năm thuế …"
 // (NguonLuat). Cả ba là DỮ LIỆU/nguồn luật đi kèm số tiền và trích dẫn, không phải chữ để
 // dạy — <Guide> ẩn ở chế độ Gọn thì đúng lúc người dùng cần nhất (đang xem số ước) lại mất.
-const PROSE_MAX = 89
+// 90 (từ 89, 2026-09-03): bảng "Phương pháp nào hợp với tôi?" (ProfileEditSheet) thêm hai
+// đoạn nhưng chỉ một đoạn vượt ngưỡng đếm — câu ĐỊNH NGHĨA cách đọc bảng ướm ("ít lệch = tả đúng nếp, nhiều lệch = kéo đổi
+// nếp") và trạng thái rỗng khi 3 tháng không có khoản thu. Câu đầu mà ẩn ở Gọn thì bảng
+// số đọc ngược nghĩa ("lệch nhiều" thành "phương pháp tồi"); câu sau là trạng thái dữ
+// liệu, không phải chữ dạy.
+const PROSE_MAX = 90
 
 const FILES = sourceFiles().map((path) => ({
   path,

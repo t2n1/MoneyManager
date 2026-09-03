@@ -179,6 +179,16 @@ export function resolveMethod(profile: ProfileRow | undefined): BudgetMethod
 ([`src/lib/density.ts`](../../../src/lib/density.ts)) — cột là `text`, dữ liệu cũ có thể
 chứa bất cứ gì.
 
+### `aggregate.ts` — đếm theo từng nhãn, không chỉ hai
+
+`ClassificationBreakdown` ([`aggregate.ts:506`](../../../src/features/reports/aggregate.ts))
+hiện chỉ có hai ô `needEssential` / `needFlexible` — ba nhãn mới sẽ rơi vào
+`needUnclassified` nếu để nguyên, tức tiền có nhãn mà bị đếm là "chưa phân loại".
+Thay hai ô đó bằng `needByLevel: Record<NeedLevel, number>` (giữ `needUnclassified`
+riêng). Compiler sẽ chỉ ra đủ chỗ phải theo: `axisTargets.ts` và
+`SpendClassificationCard.tsx` là hai nơi đọc. `axisSlices` cũng chia lát theo cả 5
+nhãn thay vì 2.
+
 ### `axisTargets.ts` — bỏ ba dòng viết cứng
 
 `axisProgress` lặp trên `method.buckets` thay vì ba lời gọi `line(...)` viết tay.
@@ -191,6 +201,14 @@ Ba nơi đang import nó ([`planGroups.ts:29`](../../../src/features/budgets/pla
 [`PlanningView.tsx:45`](../../../src/features/budgets/PlanningView.tsx),
 [`planVerdict.ts:13`](../../../src/features/budgets/planVerdict.ts)) nhận `method` qua
 tham số. `axisMissSummary` giữ nguyên chữ ký nhưng đọc nhãn từ `AxisLine`.
+
+Riêng `planGroups.ts` không chỉ đổi nhãn: `ORDER`
+([`planGroups.ts:135`](../../../src/features/budgets/planGroups.ts)) viết cứng hai khối
+chi `['essential', 'flexible', 'unclassified', 'markers']`, và `isClassified` cùng chỗ
+tra trần (dòng 138, 253) cũng chỉ biết hai nhãn. Danh sách khối phải sinh từ các khoản
+chi của phương pháp (khoản `allExpense` → một khối gộp; khoản `savings` vẫn không có
+khối, giữ B30.2). Luật "tiểu tổng khối khớp `axisSlices` từng đồng" giữ nguyên và giờ
+được thoả tự nhiên: cả hai cùng đọc bảng gom nhãn của phương pháp.
 
 `AxisSliceMap` từ `Record<AxisKey, CategorySlice[]>` thành `Partial<Record<…>>` — số
 khoản thay đổi theo phương pháp, `Record` đầy đủ ép khai cả những khoá phương pháp
@@ -284,10 +302,19 @@ Ba chỗ đang viết thẳng con số của 50/30/20 vào code. Để nguyên l
 | [`verdicts.ts:129`](../../../src/features/reports/verdicts.ts) | mốc `20` | `bps` của khoản `savings` |
 | [`KpiRow.tsx:122`](../../../src/features/bulletin/KpiRow.tsx) | vạch mốc `20%` | `bps` của khoản `savings` |
 
+### MCP server — sửa một câu mô tả, phải gói lại
+
+[`api/_handler.ts:91`](../../../api/_handler.ts) mô tả bộ lọc `need_level` là
+"'essential' (bắt buộc) / 'flexible' (sở thích)". Bộ lọc nhận chuỗi thô nên **chạy vẫn
+đúng** với nhãn mới, nhưng mô tả sai sẽ làm agent gọi tool không biết lọc được
+`education`/`giving`/`buffer`. Sửa câu đó → `npm run bundle:mcp` → commit `api/mcp.mjs`
+cùng lần (guard: [`tests/mcpBundle.test.ts`](../../../tests/mcpBundle.test.ts)).
+
 ### Không đụng tới
 
 - **Không** phải chạy `npm run bundle:rules` — đã kiểm: `supabase/functions/` không
-  tham chiếu `need_level` hay mốc trục nào.
+  tham chiếu `need_level` hay mốc trục nào. (Khác với `bundle:mcp` ở trên — cái đó
+  **có** phải chạy.)
 - `cost_type` (Cố định / Biến đổi) là trục **độc lập**, không liên quan phương pháp phân bổ.
 - `emergencyCut` (`flexible` ∧ `variable`) giữ định nghĩa cũ, vẫn dựa trên nhãn
   `flexible` chứ không phải khoản của phương pháp.

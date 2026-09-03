@@ -21,7 +21,7 @@ export type CategoryType = 'expense' | 'income'
  * Xem migration 0046 và `features/categories/kind.ts`.
  */
 export type CategoryKind = 'expense' | 'transfer'
-export type NeedLevel = 'essential' | 'flexible'
+export type NeedLevel = 'essential' | 'flexible' | 'education' | 'giving' | 'buffer'
 export type CostType = 'fixed' | 'variable'
 export type TransactionType = 'expense' | 'income' | 'transfer'
 /** i_owe = mình nợ người ta · owed_to_me = người ta nợ mình */

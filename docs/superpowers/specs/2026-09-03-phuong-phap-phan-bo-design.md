@@ -46,7 +46,7 @@ Mỗi phương pháp có **đúng một** khoản Để dành (`residual` = thu 
 | 70/20/10 | `70-20-10` | Sinh hoạt 7000 · Cho đi 1000 · Để dành 2000 |
 | 6 cái lọ (JARS) | `jars` | Thiết yếu 5500 · Hưởng thụ 1000 · Giáo dục 1000 · Cho đi 500 · Để dành 2000 |
 | Kakeibo | `kakeibo` | Sinh tồn 5000 · Hưởng thụ 2000 · Văn hóa 500 · Dự phòng 500 · Để dành 2000 |
-| Tự đặt | `custom` | Thiết yếu 5000 · Hưởng thụ 2000 · Giáo dục 500 · Cho đi 500 · Dự phòng 500 · Để dành 2000 |
+| Tự đặt | `custom` | Thiết yếu 5000 · Hưởng thụ 1500 · Giáo dục 500 · Cho đi 500 · Dự phòng 500 · Để dành 2000 |
 
 **Kakeibo được thêm dòng Để dành** dù bản gốc chỉ có bốn khoản chi (生存・浪費・文化・
 予備). Lý do: tab Báo cáo ([`verdicts.ts:129`](../../../src/features/reports/verdicts.ts))

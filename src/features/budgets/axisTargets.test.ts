@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptyNeedByLevel, type ClassificationBreakdown } from '../reports/aggregate'
-import type { CategoryRow } from '../../types/database.types'
+import type { CategoryRow, NeedLevel } from '../../types/database.types'
 import {
   AXIS_LABEL,
   type AxisKey,
@@ -9,10 +9,20 @@ import {
   axisProgress,
   axisSlices,
   baselineIncome,
-  DEFAULT_AXIS_TARGETS,
   shareLabel,
   sharePct,
 } from './axisTargets'
+import { BUDGET_METHODS, type BudgetMethod } from './budgetMethods'
+
+const M503020 = BUDGET_METHODS.find((m) => m.id === '50-30-20')!
+
+/** Đè `bps` của một vài khoản trong `method` — dựng nhanh một "mốc tự đặt" cho test. */
+function withBps(method: BudgetMethod, overrides: Partial<Record<AxisKey, number>>): BudgetMethod {
+  return {
+    ...method,
+    buckets: method.buckets.map((b) => (b.key in overrides ? { ...b, bps: overrides[b.key]! } : b)),
+  }
+}
 
 function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
   return {
@@ -31,10 +41,10 @@ function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
   }
 }
 
-// Chỗ gọi vẫn truyền needEssential/needFlexible (cơ học, giữ nguyên hành vi) — helper tự
-// đổ vào needByLevel qua emptyNeedByLevel() rồi đè 2 khoá đang dùng.
 const cls = (
-  p: Partial<Omit<ClassificationBreakdown, 'needByLevel'>> & { needEssential?: number; needFlexible?: number } = {},
+  p: Partial<Omit<ClassificationBreakdown, 'needByLevel'>> & {
+    needByLevel?: Partial<Record<NeedLevel, number>>
+  } = {},
 ): ClassificationBreakdown => ({
   needUnclassified: 0,
   costFixed: 0,
@@ -43,33 +53,34 @@ const cls = (
   emergencyCut: 0,
   totalExpense: 0,
   ...p,
-  needByLevel: { ...emptyNeedByLevel(), essential: p.needEssential ?? 0, flexible: p.needFlexible ?? 0 },
+  needByLevel: { ...emptyNeedByLevel(), ...p.needByLevel },
 })
 
 describe('axisProgress', () => {
   it('không có thu nhập thì không có mẫu số → null', () => {
-    expect(axisProgress(0, cls({ needEssential: 100 }), DEFAULT_AXIS_TARGETS)).toBeNull()
-    expect(axisProgress(-5, cls(), DEFAULT_AXIS_TARGETS)).toBeNull()
+    expect(axisProgress(0, cls({ needByLevel: { essential: 100 } }), M503020)).toBeNull()
+    expect(axisProgress(-5, cls(), M503020)).toBeNull()
   })
 
   it('đúng 50/30/20 thì cả ba dòng đều đạt', () => {
     const r = axisProgress(
       1_000_000,
-      cls({ needEssential: 500_000, needFlexible: 300_000, totalExpense: 800_000 }),
-      DEFAULT_AXIS_TARGETS,
+      cls({ needByLevel: { essential: 500_000, flexible: 300_000 }, totalExpense: 800_000 }),
+      M503020,
     )!
     expect(r.lines.map((l) => [l.key, l.actual, l.target, l.ok])).toEqual([
       ['essential', 500_000, 500_000, true],
       ['flexible', 300_000, 300_000, true],
       ['savings', 200_000, 200_000, true],
     ])
+    expect(r.method.id).toBe('50-30-20')
   })
 
   it('chi vượt trần → dòng đó không đạt, các dòng khác không bị ảnh hưởng', () => {
     const r = axisProgress(
       1_000_000,
-      cls({ needEssential: 400_000, needFlexible: 450_000, totalExpense: 850_000 }),
-      DEFAULT_AXIS_TARGETS,
+      cls({ needByLevel: { essential: 400_000, flexible: 450_000 }, totalExpense: 850_000 }),
+      M503020,
     )!
     const by = Object.fromEntries(r.lines.map((l) => [l.key, l]))
     expect(by.essential.ok).toBe(true)
@@ -78,16 +89,16 @@ describe('axisProgress', () => {
   })
 
   it('tiết kiệm là SÀN: bằng mốc là đạt, dưới mốc là không', () => {
-    const at = axisProgress(1_000_000, cls({ totalExpense: 800_000 }), DEFAULT_AXIS_TARGETS)!
+    const at = axisProgress(1_000_000, cls({ totalExpense: 800_000 }), M503020)!
     expect(at.lines[2].direction).toBe('floor')
     expect(at.lines[2].ok).toBe(true)
 
-    const below = axisProgress(1_000_000, cls({ totalExpense: 850_000 }), DEFAULT_AXIS_TARGETS)!
+    const below = axisProgress(1_000_000, cls({ totalExpense: 850_000 }), M503020)!
     expect(below.lines[2].ok).toBe(false)
   })
 
   it('chi nhiều hơn thu → tiết kiệm âm, vẫn tính được (không kẹp về 0)', () => {
-    const r = axisProgress(500_000, cls({ totalExpense: 700_000 }), DEFAULT_AXIS_TARGETS)!
+    const r = axisProgress(500_000, cls({ totalExpense: 700_000 }), M503020)!
     expect(r.lines[2].actual).toBe(-200_000)
     expect(r.lines[2].ok).toBe(false)
   })
@@ -95,8 +106,8 @@ describe('axisProgress', () => {
   it('phần chưa phân loại được báo riêng, không nhét vào thiết yếu hay linh hoạt', () => {
     const r = axisProgress(
       1_000_000,
-      cls({ needEssential: 300_000, needUnclassified: 200_000, totalExpense: 500_000 }),
-      DEFAULT_AXIS_TARGETS,
+      cls({ needByLevel: { essential: 300_000 }, needUnclassified: 200_000, totalExpense: 500_000 }),
+      M503020,
     )!
     expect(r.unclassified).toBe(200_000)
     expect(r.lines[0].actual).toBe(300_000)
@@ -108,25 +119,25 @@ describe('axisProgress', () => {
   it('mốc tự đặt được, không cứng 50/30/20', () => {
     const r = axisProgress(
       1_000_000,
-      cls({ needFlexible: 250_000, totalExpense: 250_000 }),
-      { essentialBps: 6000, flexibleBps: 2000, savingsBps: 2000 },
+      cls({ needByLevel: { flexible: 250_000 }, totalExpense: 250_000 }),
+      withBps(M503020, { flexible: 2000 }),
     )!
     expect(r.lines[1].target).toBe(200_000)
     expect(r.lines[1].ok).toBe(false)
   })
 
   it('mốc 0% nghĩa là không cho phép đồng nào', () => {
-    const r = axisProgress(1_000_000, cls({ needFlexible: 1, totalExpense: 1 }), {
-      essentialBps: 8000,
-      flexibleBps: 0,
-      savingsBps: 2000,
-    })!
+    const r = axisProgress(
+      1_000_000,
+      cls({ needByLevel: { flexible: 1 }, totalExpense: 1 }),
+      withBps(M503020, { flexible: 0 }),
+    )!
     expect(r.lines[1].target).toBe(0)
     expect(r.lines[1].ok).toBe(false)
   })
 
   it('không truyền nền thì thu thực tế vừa là mẫu số vừa là số đã nhận', () => {
-    const r = axisProgress(1_000_000, cls({ totalExpense: 800_000 }), DEFAULT_AXIS_TARGETS)!
+    const r = axisProgress(1_000_000, cls({ totalExpense: 800_000 }), M503020)!
     expect(r.estimated).toBe(false)
     expect(r.income).toBe(1_000_000)
     expect(r.actualIncome).toBe(1_000_000)
@@ -135,8 +146,8 @@ describe('axisProgress', () => {
   it('chưa tới ngày lương: thu = 0 nhưng có nền thì vẫn tính, và đánh dấu ước tính', () => {
     const r = axisProgress(
       0,
-      cls({ needEssential: 200_000, totalExpense: 200_000 }),
-      DEFAULT_AXIS_TARGETS,
+      cls({ needByLevel: { essential: 200_000 }, totalExpense: 200_000 }),
+      M503020,
       1_000_000,
     )!
     expect(r.estimated).toBe(true)
@@ -150,24 +161,19 @@ describe('axisProgress', () => {
   })
 
   it('lương đã về cao hơn nền thì dùng số thật, không ước tính nữa', () => {
-    const r = axisProgress(
-      1_200_000,
-      cls({ totalExpense: 600_000 }),
-      DEFAULT_AXIS_TARGETS,
-      1_000_000,
-    )!
+    const r = axisProgress(1_200_000, cls({ totalExpense: 600_000 }), M503020, 1_000_000)!
     expect(r.estimated).toBe(false)
     expect(r.income).toBe(1_200_000)
     expect(r.lines[2].actual).toBe(600_000)
   })
 
   it('nền cũng bằng 0 (chưa có gì để dựa vào) thì vẫn không hiện', () => {
-    expect(axisProgress(0, cls(), DEFAULT_AXIS_TARGETS, 0)).toBeNull()
-    expect(axisProgress(0, cls(), DEFAULT_AXIS_TARGETS, null)).toBeNull()
+    expect(axisProgress(0, cls(), M503020, 0)).toBeNull()
+    expect(axisProgress(0, cls(), M503020, null)).toBeNull()
   })
 
   it('không truyền danh mục thì mỗi dòng có slices rỗng, không phải undefined', () => {
-    const r = axisProgress(1_000_000, cls({ needEssential: 100 }), DEFAULT_AXIS_TARGETS)!
+    const r = axisProgress(1_000_000, cls({ needByLevel: { essential: 100 } }), M503020)!
     // Chỗ gọi nào cũng .length được — không phải thêm `?.` rải rác
     expect(r.lines.map((l) => l.slices)).toEqual([[], [], []])
   })
@@ -179,17 +185,40 @@ describe('axisProgress', () => {
         { categoryId: 'fun', amount: 50 },
       ],
       [cat({ id: 'rent', need_level: 'essential' }), cat({ id: 'fun', need_level: 'flexible' })],
+      M503020,
     )
     const r = axisProgress(
       1_000_000,
-      cls({ needEssential: 300, needFlexible: 50, totalExpense: 350 }),
-      DEFAULT_AXIS_TARGETS,
+      cls({ needByLevel: { essential: 300, flexible: 50 }, totalExpense: 350 }),
+      M503020,
       null,
       parts,
     )!
     expect(r.lines[0].slices).toEqual([{ categoryId: 'rent', amount: 300 }])
     expect(r.lines[1].slices).toEqual([{ categoryId: 'fun', amount: 50 }])
     expect(r.lines[2].slices).toEqual([])
+  })
+
+  it('tổng các khoản chi + chưa phân loại = tổng chi, với MỌI phương pháp', () => {
+    const data = cls({
+      needByLevel: { essential: 200, flexible: 150, education: 50, giving: 30, buffer: 20 },
+      needUnclassified: 40,
+      totalExpense: 490,
+    })
+    for (const m of BUDGET_METHODS) {
+      const r = axisProgress(1_000, data, m)!
+      const spend = r.lines.filter((l) => l.key !== 'savings').reduce((s, l) => s + l.actual, 0)
+      expect(spend + r.unclassified, m.id).toBe(490)
+      expect(r.lines.find((l) => l.key === 'savings')!.actual).toBe(510)
+      expect(r.method.id).toBe(m.id)
+    }
+  })
+
+  it('phương pháp allExpense không báo "chưa phân loại" — mọi đồng chi đã được đếm', () => {
+    const m8020 = BUDGET_METHODS.find((m) => m.id === '80-20')!
+    const r = axisProgress(1_000, cls({ needUnclassified: 40, totalExpense: 40 }), m8020)!
+    expect(r.unclassified).toBe(0)
+    expect(r.lines.find((l) => l.key === 'allSpend')!.actual).toBe(40)
   })
 })
 
@@ -209,9 +238,10 @@ describe('axisSlices', () => {
         { categoryId: 'fun', amount: 50 },
       ],
       cats,
+      M503020,
     )
-    expect(r.essential.map((s) => s.categoryId)).toEqual(['rent', 'food'])
-    expect(r.flexible.map((s) => s.categoryId)).toEqual(['fun'])
+    expect(r.essential?.map((s) => s.categoryId)).toEqual(['rent', 'food'])
+    expect(r.flexible?.map((s) => s.categoryId)).toEqual(['fun'])
   })
 
   it('tổng mỗi trục khớp đúng số của dòng trục', () => {
@@ -221,27 +251,42 @@ describe('axisSlices', () => {
       { categoryId: 'fun', amount: 50 },
       { categoryId: 'misc', amount: 77 },
     ]
-    const r = axisSlices(slices, cats)
-    const sum = (xs: { amount: number }[]) => xs.reduce((s, x) => s + x.amount, 0)
+    const r = axisSlices(slices, cats, M503020)
+    const sum = (xs: { amount: number }[] = []) => xs.reduce((s, x) => s + x.amount, 0)
     expect(sum(r.essential)).toBe(1100)
     expect(sum(r.flexible)).toBe(50)
   })
 
   it('danh mục chưa phân loại không lọt vào trục nào', () => {
-    const r = axisSlices([{ categoryId: 'misc', amount: 77 }], cats)
-    expect(r.essential).toEqual([])
-    expect(r.flexible).toEqual([])
+    const r = axisSlices([{ categoryId: 'misc', amount: 77 }], cats, M503020)
+    expect(r.essential).toBeUndefined()
+    expect(r.flexible).toBeUndefined()
   })
 
   it('danh mục không còn trong danh sách (đã xoá) cũng không lọt vào đâu', () => {
-    const r = axisSlices([{ categoryId: 'ghost', amount: 10 }], cats)
-    expect(r.essential).toEqual([])
-    expect(r.flexible).toEqual([])
+    const r = axisSlices([{ categoryId: 'ghost', amount: 10 }], cats, M503020)
+    expect(r.essential).toBeUndefined()
+    expect(r.flexible).toBeUndefined()
   })
 
-  it('tiết kiệm luôn rỗng — nó là hiệu, không phải tổng của danh mục nào', () => {
-    const r = axisSlices([{ categoryId: 'rent', amount: 900 }], cats)
-    expect(r.savings).toEqual([])
+  it('tiết kiệm luôn vắng mặt — nó là hiệu, không phải tổng của danh mục nào', () => {
+    const r = axisSlices([{ categoryId: 'rent', amount: 900 }], cats, M503020)
+    expect(r.savings).toBeUndefined()
+  })
+
+  it('axisSlices chia lát theo bảng gom nhãn của phương pháp', () => {
+    const jars = BUDGET_METHODS.find((m) => m.id === 'jars')!
+    const r = axisSlices(
+      [
+        { categoryId: 'qua', amount: 100 },
+        { categoryId: 'com', amount: 200 },
+      ],
+      [cat({ id: 'qua', need_level: 'giving' }), cat({ id: 'com', need_level: 'essential' })],
+      jars,
+    )
+    expect(r.giving?.map((s) => s.categoryId)).toEqual(['qua'])
+    expect(r.essential?.map((s) => s.categoryId)).toEqual(['com'])
+    expect(r.savings).toBeUndefined()
   })
 })
 
@@ -318,6 +363,8 @@ describe('sharePct', () => {
 describe('axisMissSummary', () => {
   const line = (key: AxisKey, ok: boolean): AxisLine => ({
     key,
+    label: AXIS_LABEL[key],
+    hint: '',
     actual: 0,
     target: 0,
     share: 0,

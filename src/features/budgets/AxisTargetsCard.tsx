@@ -9,7 +9,6 @@ import { monthKeyString, type MonthKey } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import {
   axisMissSummary,
-  AXIS_LABEL,
   BASELINE_MONTHS,
   shareLabel,
   type AxisKey,
@@ -17,20 +16,6 @@ import {
 } from './axisTargets'
 import { Card, Collapse, SectionTitle } from '../../components/ui'
 import { STATUS_FILL } from '../../components/ui/statusColors'
-
-/** Giải nghĩa mỗi trục — chữ CHỈ ĐỂ DẠY, ẩn ở chế độ Gọn.
- *
- *  Lọt lần rà đầu vì nó là hằng số, không phải một <p> có class chữ phụ: máy quét theo
- *  class không thấy được. Chỉ bản CHẠY THẬT mới lộ ra. */
-const HINT: Record<AxisKey, string> = {
-  essential: 'tiền nhà, điện nước, đi lại — cắt là ảnh hưởng cuộc sống',
-  flexible: 'ăn ngoài, mua sắm, giải trí — cắt được khi cần',
-  savings: 'phần còn lại sau khi tiêu',
-}
-
-function isAxisKey(s: string | null): s is AxisKey {
-  return s === 'essential' || s === 'flexible' || s === 'savings'
-}
 
 interface Props {
   data: AxisProgress
@@ -45,7 +30,9 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
   // trang, quay lại phải thấy đúng chỗ vừa mở — state trong component thì mất sạch.
   const [searchParams, setSearchParams] = useSearchParams()
   const openParam = searchParams.get('axis')
-  const open = isAxisKey(openParam) ? openParam : null
+  // Validate bằng chính dữ liệu đang có, không bằng một hàm gõ cứng: khoá hợp lệ tuỳ
+  // phương pháp đang chọn (8 khả năng, không còn cứng essential/flexible/savings).
+  const open = data.lines.some((l) => l.key === openParam) ? (openParam as AxisKey) : null
   const ym = monthKeyString(monthKey)
   // Ba mốc đang thế nào — một mệnh đề, tính ở hàm thuần (axisTargets.ts).
   const miss = axisMissSummary(data.lines)
@@ -121,7 +108,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
                     ) : (
                       <ChevronRight className="mr-1 inline h-4 w-4 -translate-y-px text-fg-muted" aria-hidden />
                     ))}
-                  {AXIS_LABEL[l.key]}
+                  {l.label}
                 </span>
                 <span
                   className={`text-sm font-medium ${
@@ -175,7 +162,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
               ) : (
                 body
               )}
-              <Guide className="mt-0.5 text-2xs text-fg-muted">{HINT[l.key]}</Guide>
+              <Guide className="mt-0.5 text-2xs text-fg-muted">{l.hint}</Guide>
 
               {/* Xổ nhóm bằng <Collapse> (§12): ba trục × vài danh mục là chặn trên nhỏ,
                   giữ trong DOM lúc đóng không tốn gì. */}
@@ -223,7 +210,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
 
       {data.unclassified > 0 && (
         <p className="mt-3 rounded-lg bg-state-warn-bg text-state-warn-fg px-2 py-1.5 text-sm">
-          Còn {formatMoney(Math.round(data.unclassified), base)} chi chưa phân loại nên hai dòng đầu
+          Còn {formatMoney(Math.round(data.unclassified), base)} chi chưa phân loại nên các dòng chi
           đang thiếu.{' '}
           <Link to="/settings/categories/classify" className="font-medium underline">
             Phân loại nhanh

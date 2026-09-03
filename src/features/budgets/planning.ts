@@ -9,12 +9,8 @@
 
 import type { BudgetRow, CategoryRow } from '../../types/database.types'
 import { classificationBreakdown, type CategorySlice } from '../reports/aggregate'
-import {
-  axisProgress,
-  axisSlices,
-  type AxisProgress,
-  type AxisTargets,
-} from './axisTargets'
+import { axisProgress, axisSlices, type AxisProgress } from './axisTargets'
+import type { BudgetMethod } from './budgetMethods'
 
 /** Mẫu số đến từ đâu — quyết định câu chú thích dưới con số thu. */
 export type IncomeSource =
@@ -114,7 +110,7 @@ export function planSummary(
   baseline: number | null,
   budgets: BudgetRow[],
   categories: CategoryRow[],
-  targets: AxisTargets,
+  method: BudgetMethod,
   parentOf: (categoryId: string) => string | null = () => null,
 ): PlanSummary {
   // Chỉ `.counted` — `allocated` không đổi một đồng nào so với bản trước khi
@@ -134,9 +130,9 @@ export function planSummary(
     axis: axisProgress(
       income,
       classificationBreakdown(slices, categories),
-      targets,
+      method,
       null,
-      axisSlices(slices, categories),
+      axisSlices(slices, categories, method),
     ),
   }
 }

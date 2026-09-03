@@ -17,7 +17,6 @@ import {
 } from '../../hooks/queries'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
 import type { CategoryRow } from '../../types/database.types'
-import { legacyTargets } from './axisTargets'
 import { resolveMethod } from './budgetMethods'
 import { buildBudgetDisplay, type BudgetDisplay } from './budgetDisplay'
 import { coverageGaps, type CommitmentReport, type CoverageGap } from './commitments'
@@ -127,15 +126,13 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
 
   return useMemo(() => {
     const parentOf = (id: string) => categories.find((c) => c.id === id)?.parent_id ?? null
-    // CẦU TẠM tới khi axisProgress nhận thẳng method (task 4/5 của plan này):
-    // dựng lại AxisTargets cũ từ phương pháp đã giải, hành vi không đổi.
-    const targets = legacyTargets(resolveMethod(profile))
+    const method = resolveMethod(profile)
     const summary = planSummary(
       plan?.expected_income ?? null,
       baseline,
       budgets,
       categories,
-      targets,
+      method,
       parentOf,
     )
 
@@ -197,7 +194,10 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
       suggestions,
       budgetedByCat,
       gaps,
-      savingsBps: targets.savingsBps,
+      // TẠM: Để dành không phải luôn là khoản 'savings' ở mọi phương pháp, nhưng mọi
+      // phương pháp hiện có đều đặt residual ở khoá đó (xem budgetMethods.ts) — task 5
+      // đọc thẳng khoản `direction === 'floor'` thay vì tra theo khoá cứng.
+      savingsBps: method.buckets.find((b) => b.key === 'savings')?.bps ?? 2000,
       isMarker: (id) => markerIds.has(id),
       isBudgetable: (id) => {
         const c = catById.get(id)

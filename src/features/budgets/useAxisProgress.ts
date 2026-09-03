@@ -34,7 +34,6 @@ import {
   axisSlices,
   baselineIncome,
   BASELINE_MONTHS,
-  legacyTargets,
   type AxisProgress,
 } from './axisTargets'
 import { resolveMethod } from './budgetMethods'
@@ -83,6 +82,7 @@ export function useAxisProgress(monthKey: MonthKey): AxisProgress | null {
     const currencyOf = (id: string): CurrencyCode =>
       accounts.find((a) => a.id === id)?.currency ?? base
     const r = rates ?? {}
+    const method = resolveMethod(profile)
 
     const sums = sumIncomeExpense(monthTxs, currencyOf, base, r, transferIds)
     const expense = categoryBreakdown(monthTxs, 'expense', currencyOf, base, r, transferIds)
@@ -102,13 +102,11 @@ export function useAxisProgress(monthKey: MonthKey): AxisProgress | null {
     return axisProgress(
       sums.income,
       cls,
-      // CẦU TẠM tới khi axisProgress nhận thẳng method (task 4/5 của plan này):
-      // dựng lại AxisTargets cũ từ phương pháp đã giải, hành vi không đổi.
-      legacyTargets(resolveMethod(profile)),
+      method,
       baseline,
-      // Cùng một `expense.slices` đã dùng để cộng tổng — dòng trục và danh sách xổ ra
+      // Cùng một `expense.slices` đã dùng để cộng tổng — dòng khoản và danh sách xổ ra
       // không thể lệch nhau.
-      axisSlices(expense.slices, categories),
+      axisSlices(expense.slices, categories, method),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [

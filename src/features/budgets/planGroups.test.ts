@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { BudgetRow, CategoryRow } from '../../types/database.types'
-import { axisProgress, axisSlices, DEFAULT_AXIS_TARGETS } from './axisTargets'
+import { axisProgress, axisSlices } from './axisTargets'
+import { BUDGET_METHODS } from './budgetMethods'
 import { buildBudgetDisplay } from './budgetDisplay'
+
+const M503020 = BUDGET_METHODS.find((m) => m.id === '50-30-20')!
 import { coverageGaps } from './commitments'
 import { planGroups } from './planGroups'
 import { plannedSlices } from './planning'
@@ -71,9 +74,9 @@ function build(
   const axis = axisProgress(
     290_000,
     classificationBreakdown(slices.counted, CATS),
-    DEFAULT_AXIS_TARGETS,
+    M503020,
     null,
-    axisSlices(slices.counted, CATS),
+    axisSlices(slices.counted, CATS, M503020),
   )
   const gaps = coverageGaps(committed, budgetedByCat, parentOf)
   return {

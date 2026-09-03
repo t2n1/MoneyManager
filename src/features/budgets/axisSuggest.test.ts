@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { AxisKey, AxisLine, AxisProgress } from './axisTargets'
+import { AXIS_LABEL, type AxisKey, type AxisLine, type AxisProgress } from './axisTargets'
+import { BUDGET_METHODS } from './budgetMethods'
 import { axisSuggestions, sliderScale } from './axisSuggest'
+
+const M503020 = BUDGET_METHODS.find((m) => m.id === '50-30-20')!
 
 function line(
   key: AxisKey,
@@ -11,6 +14,8 @@ function line(
 ): AxisLine {
   return {
     key,
+    label: AXIS_LABEL[key],
+    hint: '',
     actual,
     target,
     share: actual / 290_000,
@@ -22,7 +27,14 @@ function line(
 }
 
 function axis(lines: AxisLine[]): AxisProgress {
-  return { lines, income: 290_000, actualIncome: 290_000, estimated: false, unclassified: 0 }
+  return {
+    lines,
+    income: 290_000,
+    actualIncome: 290_000,
+    estimated: false,
+    unclassified: 0,
+    method: M503020,
+  }
 }
 
 describe('axisSuggestions', () => {

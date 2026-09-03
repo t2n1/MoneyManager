@@ -46,8 +46,8 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
   const pctOfExpense = (v: number) => (totalExpense > 0 ? (v / totalExpense) * 100 : 0)
 
   // Trạng thái vượt/dưới mục tiêu — phải đọc được từ CHỮ, không chỉ dựa vào màu (yêu cầu a11y).
-  const essentialPct = pctOfIncome(folded.needEssential)
-  const flexiblePct = pctOfIncome(folded.needFlexible)
+  const essentialPct = pctOfIncome(folded.needByLevel.essential)
+  const flexiblePct = pctOfIncome(folded.needByLevel.flexible)
   const savingsPct = pctOfIncome(savings)
   const essentialOver = essentialPct > 50
   const flexibleOver = flexiblePct > 30
@@ -90,14 +90,14 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
           <BreakdownRow
             icon=""
             name={essentialOver ? 'Nhu cầu (thiết yếu) — vượt mục tiêu' : 'Nhu cầu (thiết yếu)'}
-            pct={essentialPct} value={folded.needEssential}
+            pct={essentialPct} value={folded.needByLevel.essential}
             barPct={essentialPct} color={C.need} base={base}
             targetPct={50} warn={essentialOver}
           />
           <BreakdownRow
             icon=""
             name={flexibleOver ? 'Sở thích (linh hoạt) — vượt mục tiêu' : 'Sở thích (linh hoạt)'}
-            pct={flexiblePct} value={folded.needFlexible}
+            pct={flexiblePct} value={folded.needByLevel.flexible}
             barPct={flexiblePct} color={C.want} base={base}
             targetPct={30} warn={flexibleOver}
           />

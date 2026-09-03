@@ -236,8 +236,8 @@ export function axisProgress(
     estimated: basis !== income,
     unclassified: data.needUnclassified,
     lines: [
-      line('essential', data.needEssential, targets.essentialBps, 'cap'),
-      line('flexible', data.needFlexible, targets.flexibleBps, 'cap'),
+      line('essential', data.needByLevel.essential, targets.essentialBps, 'cap'),
+      line('flexible', data.needByLevel.flexible, targets.flexibleBps, 'cap'),
       line('savings', basis - data.totalExpense, targets.savingsBps, 'floor'),
     ],
   }

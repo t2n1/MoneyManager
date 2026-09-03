@@ -10,6 +10,7 @@ import {
   classificationBreakdown,
   cumulativeDailyBalance,
   dailyExpenseTotals,
+  emptyNeedByLevel,
   foldUncategorized,
   groupByParent,
   monthDaysElapsed,
@@ -693,8 +694,8 @@ describe('classificationBreakdown', () => {
       ],
       cats,
     )
-    expect(r.needEssential).toBe(1400)
-    expect(r.needFlexible).toBe(400)
+    expect(r.needByLevel.essential).toBe(1400)
+    expect(r.needByLevel.flexible).toBe(400)
     expect(r.needUnclassified).toBe(0)
     expect(r.costFixed).toBe(1100)
     expect(r.costVariable).toBe(700)
@@ -715,12 +716,27 @@ describe('classificationBreakdown', () => {
     expect(r.emergencyCut).toBe(0)
     expect(r.totalExpense).toBe(700)
   })
+
+  it('nhãn mới (education/giving/buffer) vào đúng ô riêng, không rơi vào chưa-phân-loại', () => {
+    const r = classificationBreakdown(
+      [
+        { categoryId: 'c1', amount: 100 },
+        { categoryId: 'c2', amount: 50 },
+      ],
+      [
+        cat({ id: 'c1', need_level: 'education' }),
+        cat({ id: 'c2', need_level: 'giving' }),
+      ],
+    )
+    expect(r.needByLevel.education).toBe(100)
+    expect(r.needByLevel.giving).toBe(50)
+    expect(r.needUnclassified).toBe(0)
+  })
 })
 
 describe('foldUncategorized', () => {
   const data = {
-    needEssential: 1000,
-    needFlexible: 400,
+    needByLevel: { ...emptyNeedByLevel(), essential: 1000, flexible: 400 },
     needUnclassified: 100,
     costFixed: 900,
     costVariable: 500,
@@ -739,8 +755,8 @@ describe('foldUncategorized', () => {
     expect(r.needUnclassified).toBe(400) // 100 + 300
     expect(r.costUnclassified).toBe(400) // 100 + 300
     // các nhóm đã phân loại không đổi
-    expect(r.needEssential).toBe(1000)
-    expect(r.needFlexible).toBe(400)
+    expect(r.needByLevel.essential).toBe(1000)
+    expect(r.needByLevel.flexible).toBe(400)
     expect(r.costFixed).toBe(900)
     expect(r.costVariable).toBe(500)
     expect(r.emergencyCut).toBe(200)
@@ -757,7 +773,7 @@ describe('foldUncategorized', () => {
     for (const real of [1500, 1800, 1000, 0]) {
       const r = foldUncategorized(data, real)
       const expected = Math.max(real, data.totalExpense)
-      expect(r.needEssential + r.needFlexible + r.needUnclassified).toBe(expected)
+      expect(r.needByLevel.essential + r.needByLevel.flexible + r.needUnclassified).toBe(expected)
       expect(r.costFixed + r.costVariable + r.costUnclassified).toBe(expected)
     }
   })

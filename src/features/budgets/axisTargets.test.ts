@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ClassificationBreakdown } from '../reports/aggregate'
+import { emptyNeedByLevel, type ClassificationBreakdown } from '../reports/aggregate'
 import type { CategoryRow } from '../../types/database.types'
 import {
   AXIS_LABEL,
@@ -31,9 +31,11 @@ function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
   }
 }
 
-const cls = (p: Partial<ClassificationBreakdown> = {}): ClassificationBreakdown => ({
-  needEssential: 0,
-  needFlexible: 0,
+// Chỗ gọi vẫn truyền needEssential/needFlexible (cơ học, giữ nguyên hành vi) — helper tự
+// đổ vào needByLevel qua emptyNeedByLevel() rồi đè 2 khoá đang dùng.
+const cls = (
+  p: Partial<Omit<ClassificationBreakdown, 'needByLevel'>> & { needEssential?: number; needFlexible?: number } = {},
+): ClassificationBreakdown => ({
   needUnclassified: 0,
   costFixed: 0,
   costVariable: 0,
@@ -41,6 +43,7 @@ const cls = (p: Partial<ClassificationBreakdown> = {}): ClassificationBreakdown 
   emergencyCut: 0,
   totalExpense: 0,
   ...p,
+  needByLevel: { ...emptyNeedByLevel(), essential: p.needEssential ?? 0, flexible: p.needFlexible ?? 0 },
 })
 
 describe('axisProgress', () => {

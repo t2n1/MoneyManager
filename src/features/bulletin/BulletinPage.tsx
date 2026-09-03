@@ -45,6 +45,7 @@ import { dailySpendSeries } from '../reports/dailySpike'
 import { dayTagCells } from '../reports/dayTagCells'
 import { headlineOf } from '../reports/headline'
 import { useMonthPace } from '../reports/monthPace'
+import { resolveMethod } from '../budgets/budgetMethods'
 import { useAssetsData } from '../assets/useAssetsData'
 import { useTagBudgets } from '../tags/useTagBudgets'
 import { TransactionItem } from '../transactions/TransactionItem'
@@ -188,6 +189,10 @@ export function BulletinPage() {
   // Cùng hook dự báo mà tab Ngân sách và Báo cáo dùng — ba màn phải nói CÙNG một con số
   // dự báo, không phải ba phép tính song song (xem chú thích ở ReportsPage).
   const bulletinPace = useMonthPace(activeMonthKey)
+  // Cùng mốc với KpiRow ("Giữ lại") — lấy từ khoản Để dành của phương pháp đang chọn,
+  // không phải hằng số 20% cứng.
+  const savingsTargetShare =
+    (resolveMethod(profile).buckets.find((b) => b.key === 'savings')?.bps ?? 2000) / 10_000
   const headline = headlineOf({
     income: incomeKpi.value,
     expense: expenseKpi.value,
@@ -197,6 +202,7 @@ export function BulletinPage() {
       bulletinPace.forecast && report
         ? { forecast: bulletinPace.forecast.projected, budgeted: report.totalBudgeted }
         : null,
+    savingsTargetShare,
   })
   // Lấy % từ chính `headline` chứ không gọi `savingsRate` rồi tự nhân 100: savingsRate
   // trả về TỶ LỆ (0,685), còn ô KPI cần PHẦN TRĂM đã làm tròn (69) — và quan trọng hơn,

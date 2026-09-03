@@ -28,6 +28,14 @@ export interface HeadlineInput {
    * tổng mất tín nhiệm.
    */
   pace?: { forecast: number; budgeted: number } | null
+  /**
+   * Mốc "giữ lại bao nhiêu % thì gọi là Tốt" — lấy từ khoản Để dành của phương pháp
+   * phân bổ đang chọn trong hồ sơ (0,2 = 20%, mặc định khi không ai truyền). Cùng mốc
+   * với `savingsRateTone`/`savingsRateVerdict` (verdicts.ts) và thanh "Giữ lại" của Bản
+   * tin (KpiRow) — ba chỗ đọc cùng một tỷ lệ mà lệch mốc thì câu tổng khen "Tốt" ngay
+   * trên một ô đang cảnh báo.
+   */
+  savingsTargetShare?: number
 }
 
 export interface Headline {
@@ -47,10 +55,11 @@ export interface Headline {
 
 /** Trả null khi kỳ chưa có gì để nói (không thu, không chi). */
 export function headlineOf(input: HeadlineInput): Headline | null {
-  const { income, expense, priorExpense, periodNoun, pace } = input
+  const { income, expense, priorExpense, periodNoun, pace, savingsTargetShare = 0.2 } = input
   if (income === 0 && expense === 0) return null
 
   const ratePct = income > 0 ? Math.round(((income - expense) / income) * 100) : null
+  const savingsTargetPct = Math.round(savingsTargetShare * 100)
   // Kỳ trước bằng 0 thì mọi mức chi đều là "tăng vô hạn" — không nói gì còn hơn nói sai.
   const deltaPct =
     priorExpense !== null && priorExpense > 0
@@ -65,16 +74,16 @@ export function headlineOf(input: HeadlineInput): Headline | null {
   const overBudget = overPct !== null && overPct > 0
 
   let tone: Headline['tone'] =
-    ratePct === null ? 'info' : ratePct < 0 ? 'bad' : ratePct >= 20 ? 'good' : 'warn'
+    ratePct === null ? 'info' : ratePct < 0 ? 'bad' : ratePct >= savingsTargetPct ? 'good' : 'warn'
   // TRẦN 'warn' khi đang trên đà vượt ngân sách: giữ lại nhiều mà vẫn tiêu quá trần là
   // chuyện có thật (thu tăng đột biến, hoặc trần đặt quá chặt), nhưng gắn nhãn "Tốt" cho
   // nó là nói một nửa. Không hạ xuống 'bad' — tiền vẫn đang dư, chưa có gì cháy.
   if (overBudget && tone === 'good') tone = 'warn'
 
   const parts: string[] = []
-  // Cố ý KHÔNG nhắc mốc 20% của quy tắc 50/30/20 ở đây: thẻ "Giữ lại được bao nhiêu"
-  // ngay bên dưới đã nói đúng câu đó. Câu tổng chỉ giữ phần mà không thẻ nào khác nói —
-  // con số của kỳ và so sánh với kỳ trước.
+  // Cố ý KHÔNG nhắc mốc Để dành (savingsTargetPct, theo phương pháp đang chọn) ở đây:
+  // thẻ "Giữ lại được bao nhiêu" ngay bên dưới đã nói đúng câu đó. Câu tổng chỉ giữ
+  // phần mà không thẻ nào khác nói — con số của kỳ và so sánh với kỳ trước.
   if (ratePct === null) {
     parts.push(`Chưa ghi khoản thu nào ${periodNoun}`)
   } else if (ratePct < 0) {

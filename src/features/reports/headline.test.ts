@@ -60,6 +60,16 @@ describe('headlineOf', () => {
     expect(headlineOf(base)?.text).not.toContain('50/30/20')
   })
 
+  it('savingsTargetShare tùy chỉnh đổi mốc tone, mặc định vẫn là 20%', () => {
+    // base giữ lại 25% (400.000 − 300.000 = 100.000 / 400.000)
+    // Mặc định (không truyền) — 25% ≥ 20% → good
+    expect(headlineOf(base)?.tone).toBe('good')
+    // Mốc nâng lên 30%: cùng 25% giờ chưa tới → warn
+    expect(headlineOf({ ...base, savingsTargetShare: 0.3 })?.tone).toBe('warn')
+    // Mốc hạ xuống 10%: vẫn đạt → good
+    expect(headlineOf({ ...base, savingsTargetShare: 0.1 })?.tone).toBe('good')
+  })
+
   it('chi gấp nhiều lần kỳ trước → đọc theo SỐ LẦN, không theo phần trăm', () => {
     // kỳ trước 25.000, kỳ này 300.000 → +1100%, đọc thành "gấp 12,0 lần"
     const r = headlineOf({ ...base, priorExpense: 25_000 })

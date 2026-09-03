@@ -59,6 +59,7 @@ import {
 import { convertToBase } from '../../lib/rates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import { collectCommitments } from '../budgets/commitments'
+import { resolveMethod } from '../budgets/budgetMethods'
 import { classifiableExpenses } from '../categories/leaf'
 import { tagBreakdown } from '../tags/aggregate'
 import {
@@ -350,6 +351,10 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
   )
 
   // ---------------------------------------------------------------- câu kết luận
+  // Cùng mốc với thẻ "Cơ cấu chi tiêu" và thanh "Giữ lại" — lấy từ khoản Để dành của
+  // phương pháp đang chọn, không phải hằng số 20% cứng.
+  const savingsTargetShare =
+    (resolveMethod(profile).buckets.find((b) => b.key === 'savings')?.bps ?? 2000) / 10_000
   const headline = monthFetched
     ? headlineOf({
         income: sums.income,
@@ -360,6 +365,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
           pace.forecast && budgetReport
             ? { forecast: pace.forecast.projected, budgeted: budgetReport.totalBudgeted }
             : null,
+        savingsTargetShare,
       })
     : null
 

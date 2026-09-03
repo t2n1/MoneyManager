@@ -294,9 +294,8 @@ export type ProfilePatch = Partial<
     | 'hourly_wage'
     | 'annual_inflation_bps'
     | 'capital_gains_tax_bps'
-    | 'target_essential_bps'
-    | 'target_flexible_bps'
-    | 'target_savings_bps'
+    | 'budget_method'
+    | 'budget_targets'
     | 'notif_off'
     // Hai tham số của 企業年金 (migration 0051): 給付利率 và ba điểm hiệu chuẩn từ
     // sheet của 基金. Người dùng sửa được vì 基金 đổi cả hai theo thời gian.

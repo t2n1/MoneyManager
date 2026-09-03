@@ -6,6 +6,7 @@ import { CURRENCIES, formatMoney } from '../../lib/money'
 import type { ProfileRow } from '../../types/database.types'
 import { useEscClose } from '../../hooks/useEscClose'
 import { SectionTitle, Select, actionButtonClass } from '../../components/ui'
+import { clampBps, resolveMethod } from '../budgets/budgetMethods'
 
 interface Props {
   profile: ProfileRow
@@ -29,11 +30,11 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
   )
   const [tax, setTax] = useState(((profile.capital_gains_tax_bps ?? 2032) / 100).toString())
   // Mốc cơ cấu chi (tab Ngân sách). Nhập theo % cho dễ, lưu xuống bps.
-  const [essential, setEssential] = useState(
-    ((profile.target_essential_bps ?? 5000) / 100).toString(),
-  )
-  const [flexible, setFlexible] = useState(((profile.target_flexible_bps ?? 3000) / 100).toString())
-  const [savings, setSavings] = useState(((profile.target_savings_bps ?? 2000) / 100).toString())
+  const m0 = resolveMethod(profile)
+  const bps0 = (k: string, fb: number) => m0.buckets.find((b) => b.key === k)?.bps ?? fb
+  const [essential, setEssential] = useState((bps0('essential', 5000) / 100).toString())
+  const [flexible, setFlexible] = useState((bps0('flexible', 3000) / 100).toString())
+  const [savings, setSavings] = useState((bps0('savings', 2000) / 100).toString())
   const axisSum =
     (Number(essential.replace(',', '.')) || 0) +
     (Number(flexible.replace(',', '.')) || 0) +
@@ -46,12 +47,6 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
     return Math.round(n * 100)
   }
 
-  /** bps trong khoảng 0–10000; null hoặc ngoài khoảng → mặc định. */
-  function clampBps(bps: number | null, fallback: number): number {
-    if (bps === null) return fallback
-    return Math.min(10_000, Math.max(0, bps))
-  }
-
   async function handleSave() {
     // try/catch: lưu hỏng thì GIỮ sheet mở (toast lỗi toàn cục đã báo),
     // không đóng sheet như thể đã lưu xong.
@@ -62,10 +57,12 @@ export function ProfileEditSheet({ profile, onClose }: Props) {
         hourly_wage: wage.trim() === '' ? null : Number(wage),
         annual_inflation_bps: toBps(inflation),
         capital_gains_tax_bps: toBps(tax) ?? 2032,
-        // Kẹp 0–100%: giá trị ngoài khoảng làm mọi thanh tiến độ thành vô nghĩa
-        target_essential_bps: clampBps(toBps(essential), 5000),
-        target_flexible_bps: clampBps(toBps(flexible), 3000),
-        target_savings_bps: clampBps(toBps(savings), 2000),
+        budget_method: profile.budget_method,
+        budget_targets: {
+          essential: clampBps(toBps(essential), 5000),
+          flexible: clampBps(toBps(flexible), 3000),
+          savings: clampBps(toBps(savings), 2000),
+        },
       })
     } catch {
       return

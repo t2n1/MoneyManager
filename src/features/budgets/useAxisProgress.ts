@@ -34,8 +34,10 @@ import {
   axisSlices,
   baselineIncome,
   BASELINE_MONTHS,
+  legacyTargets,
   type AxisProgress,
 } from './axisTargets'
+import { resolveMethod } from './budgetMethods'
 
 /**
  * Cơ cấu chi của `monthKey` so với mốc trong hồ sơ. null = chưa đủ dữ liệu để nói
@@ -100,11 +102,9 @@ export function useAxisProgress(monthKey: MonthKey): AxisProgress | null {
     return axisProgress(
       sums.income,
       cls,
-      {
-        essentialBps: profile?.target_essential_bps ?? 5000,
-        flexibleBps: profile?.target_flexible_bps ?? 3000,
-        savingsBps: profile?.target_savings_bps ?? 2000,
-      },
+      // CẦU TẠM tới khi axisProgress nhận thẳng method (task 4/5 của plan này):
+      // dựng lại AxisTargets cũ từ phương pháp đã giải, hành vi không đổi.
+      legacyTargets(resolveMethod(profile)),
       baseline,
       // Cùng một `expense.slices` đã dùng để cộng tổng — dòng trục và danh sách xổ ra
       // không thể lệch nhau.

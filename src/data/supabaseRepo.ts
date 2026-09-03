@@ -27,6 +27,7 @@ import type {
   LifetimeVerdictSnapshotRow,
   NetWorthSnapshotRow,
   NotificationStateRow,
+  ProfileRow,
   RecurringRuleRow,
   RecurringRuleTagRow,
   PlannedExpenseTagRow,
@@ -2680,9 +2681,10 @@ export const supabaseRepo: Repo = {
             hourly_wage: data.profile.hourly_wage ?? null,
             annual_inflation_bps: data.profile.annual_inflation_bps ?? null,
             capital_gains_tax_bps: data.profile.capital_gains_tax_bps ?? 2032,
-            target_essential_bps: data.profile.target_essential_bps ?? 5000, // 0027
-            target_flexible_bps: data.profile.target_flexible_bps ?? 3000, // 0027
-            target_savings_bps: data.profile.target_savings_bps ?? 2000, // 0027
+            budget_method: data.profile.budget_method ?? '50-30-20', // 0057
+            // Bản sao lưu TRƯỚC 0057 mang ba cột bps rời — dịch sang budget_targets,
+            // chỉ giữ mốc lệch mặc định, đúng như migration đã làm với dữ liệu sống.
+            budget_targets: data.profile.budget_targets ?? legacyBudgetTargets(data.profile),
             notif_off: data.profile.notif_off ?? [], // 0029
             birth_year: data.profile.birth_year ?? null, // 0031 — thiếu là Lifetime ngừng chạy
             push_hour: data.profile.push_hour ?? 8, // 0034
@@ -2704,4 +2706,18 @@ export const supabaseRepo: Repo = {
       ).error,
     )
   },
+}
+
+/** Sao lưu trước migration 0057: ba cột mốc rời → budget_targets (chỉ giữ mốc đã chỉnh). */
+function legacyBudgetTargets(profile: ProfileRow): Record<string, number> {
+  const p = profile as ProfileRow & {
+    target_essential_bps?: number
+    target_flexible_bps?: number
+    target_savings_bps?: number
+  }
+  const out: Record<string, number> = {}
+  if (p.target_essential_bps != null && p.target_essential_bps !== 5000) out.essential = p.target_essential_bps
+  if (p.target_flexible_bps != null && p.target_flexible_bps !== 3000) out.flexible = p.target_flexible_bps
+  if (p.target_savings_bps != null && p.target_savings_bps !== 2000) out.savings = p.target_savings_bps
+  return out
 }

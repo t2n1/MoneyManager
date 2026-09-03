@@ -17,6 +17,8 @@ import {
 } from '../../hooks/queries'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
 import type { CategoryRow } from '../../types/database.types'
+import { legacyTargets } from './axisTargets'
+import { resolveMethod } from './budgetMethods'
 import { buildBudgetDisplay, type BudgetDisplay } from './budgetDisplay'
 import { coverageGaps, type CommitmentReport, type CoverageGap } from './commitments'
 import { planGroups, type PlanGroups } from './planGroups'
@@ -125,16 +127,15 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
 
   return useMemo(() => {
     const parentOf = (id: string) => categories.find((c) => c.id === id)?.parent_id ?? null
+    // CẦU TẠM tới khi axisProgress nhận thẳng method (task 4/5 của plan này):
+    // dựng lại AxisTargets cũ từ phương pháp đã giải, hành vi không đổi.
+    const targets = legacyTargets(resolveMethod(profile))
     const summary = planSummary(
       plan?.expected_income ?? null,
       baseline,
       budgets,
       categories,
-      {
-        essentialBps: profile?.target_essential_bps ?? 5000,
-        flexibleBps: profile?.target_flexible_bps ?? 3000,
-        savingsBps: profile?.target_savings_bps ?? 2000,
-      },
+      targets,
       parentOf,
     )
 
@@ -196,7 +197,7 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
       suggestions,
       budgetedByCat,
       gaps,
-      savingsBps: profile?.target_savings_bps ?? 2000,
+      savingsBps: targets.savingsBps,
       isMarker: (id) => markerIds.has(id),
       isBudgetable: (id) => {
         const c = catById.get(id)

@@ -8,6 +8,7 @@
 
 import type { CategorySlice, ClassificationBreakdown } from '../reports/aggregate'
 import type { CategoryRow } from '../../types/database.types'
+import { type BudgetMethod } from './budgetMethods'
 
 export type AxisKey = 'essential' | 'flexible' | 'savings'
 
@@ -72,6 +73,16 @@ export const DEFAULT_AXIS_TARGETS: AxisTargets = {
   essentialBps: 5000,
   flexibleBps: 3000,
   savingsBps: 2000,
+}
+
+/** CẦU TẠM cho task 3 của plan 2026-09-03: method → AxisTargets 3 số cũ. */
+export function legacyTargets(m: BudgetMethod): AxisTargets {
+  const bps = (key: string, fb: number) => m.buckets.find((b) => b.key === key)?.bps ?? fb
+  return {
+    essentialBps: bps('essential', 5000),
+    flexibleBps: bps('flexible', 3000),
+    savingsBps: bps('savings', 2000),
+  }
 }
 
 export interface AxisLine {

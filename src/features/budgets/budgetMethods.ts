@@ -7,7 +7,7 @@
 // đếm hai lần. Chi tiết và mockup bằng số thật:
 // docs/superpowers/specs/2026-09-03-phuong-phap-phan-bo-design.md
 
-import type { NeedLevel } from '../../types/database.types'
+import type { NeedLevel, ProfileRow } from '../../types/database.types'
 
 export type BudgetMethodId = '50-30-20' | '80-20' | '70-20-10' | 'jars' | 'kakeibo' | 'custom'
 
@@ -154,11 +154,9 @@ export function clampBps(bps: number | null, fallback: number): number {
  * là cột text (id lạ → 50/30/20), `budget_targets` là jsonb (không phải object, hoặc
  * giá trị không phải số → bỏ qua khoá đó). Khoá THIẾU nghĩa là "theo mặc định của
  * phương pháp" — nên đổi mặc định trong code thì người chưa chỉnh đi theo luôn.
- *
- * TODO Task 3: Thay param type thành Pick<ProfileRow, 'budget_method' | 'budget_targets'> khi ProfileRow có các field này.
  */
 export function resolveMethod(
-  profile: { budget_method: string; budget_targets: Record<string, number> } | null | undefined,
+  profile: Pick<ProfileRow, 'budget_method' | 'budget_targets'> | null | undefined,
 ): BudgetMethod {
   const method = BUDGET_METHODS.find((m) => m.id === profile?.budget_method) ?? DEFAULT_METHOD
   const raw = profile?.budget_targets

@@ -21,7 +21,7 @@ export type CategoryType = 'expense' | 'income'
  * Xem migration 0046 và `features/categories/kind.ts`.
  */
 export type CategoryKind = 'expense' | 'transfer'
-export type NeedLevel = 'essential' | 'flexible'
+export type NeedLevel = 'essential' | 'flexible' | 'education' | 'giving' | 'buffer'
 export type CostType = 'fixed' | 'variable'
 export type TransactionType = 'expense' | 'income' | 'transfer'
 /** i_owe = mình nợ người ta · owed_to_me = người ta nợ mình */
@@ -56,12 +56,17 @@ export type ProfileRow = {
   annual_inflation_bps: number | null
   /** Thuế lãi vốn áp lên phần lời (basis points); mặc định 2032 = 20.32% (Nhật). */
   capital_gains_tax_bps: number
-  /** Trần chi thiết yếu trên thu nhập tháng (basis points); mặc định 5000 = 50%. */
-  target_essential_bps: number
-  /** Trần chi linh hoạt trên thu nhập tháng (basis points); mặc định 3000 = 30%. */
-  target_flexible_bps: number
-  /** Sàn tiết kiệm trên thu nhập tháng (basis points); mặc định 2000 = 20%. Cần VƯỢT. */
-  target_savings_bps: number
+  /**
+   * Phương pháp phân bổ (migration 0057): '50-30-20' | '80-20' | '70-20-10' | 'jars'
+   * | 'kakeibo' | 'custom'. Cột là text nên bản lưu có thể mang id lạ — app luôn đi
+   * qua resolveMethod() (features/budgets/budgetMethods.ts) để về một phương pháp thật.
+   */
+  budget_method: string
+  /**
+   * Mốc đã chỉnh, bps theo khoá khoản ({"essential": 5500}); khoá thiếu = dùng mặc
+   * định của phương pháp. jsonb nên giá trị lạ có thể lọt vào — resolveMethod kẹp/bỏ.
+   */
+  budget_targets: Record<string, number>
   /** Loại thông báo đã tắt (mục AO); mảng rỗng = bật hết. */
   notif_off: string[]
   /** Năm sinh — cần cho Lifetime. null = chưa khai. */
@@ -836,9 +841,8 @@ export type Database = {
           | 'hourly_wage'
           | 'annual_inflation_bps'
           | 'capital_gains_tax_bps'
-          | 'target_essential_bps'
-          | 'target_flexible_bps'
-          | 'target_savings_bps'
+          | 'budget_method'
+          | 'budget_targets'
           | 'notif_off'
           | 'birth_year'
           | 'push_hour'
@@ -858,9 +862,8 @@ export type Database = {
             | 'hourly_wage'
             | 'annual_inflation_bps'
             | 'capital_gains_tax_bps'
-            | 'target_essential_bps'
-            | 'target_flexible_bps'
-            | 'target_savings_bps'
+            | 'budget_method'
+            | 'budget_targets'
             | 'notif_off'
             | 'birth_year'
             | 'push_hour'

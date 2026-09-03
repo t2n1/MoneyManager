@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import type { BudgetRow, CategoryRow } from '../../types/database.types'
-import { DEFAULT_AXIS_TARGETS } from './axisTargets'
+import { BUDGET_METHODS, type AxisKey, type BudgetMethod } from './budgetMethods'
 import { isPlanningMonth, planSummary, plannedSlices } from './planning'
+
+const M503020 = BUDGET_METHODS.find((m) => m.id === '50-30-20')!
+
+/** Đè `bps` của một vài khoản trong `method` — dựng nhanh một "mốc tự đặt" cho test. */
+function withBps(method: BudgetMethod, overrides: Partial<Record<AxisKey, number>>): BudgetMethod {
+  return {
+    ...method,
+    buckets: method.buckets.map((b) => (b.key in overrides ? { ...b, bps: overrides[b.key]! } : b)),
+  }
+}
 
 function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
   return {
@@ -102,21 +112,21 @@ describe('plannedSlices', () => {
 
 describe('planSummary', () => {
   it('chưa khai, không có nền → chưa lập kế hoạch được', () => {
-    const r = planSummary(null, null, [], CATS, DEFAULT_AXIS_TARGETS)
+    const r = planSummary(null, null, [], CATS, M503020)
     expect(r.incomeSource).toBe('unknown')
     expect(r.income).toBe(0)
     expect(r.axis).toBeNull()
   })
 
   it('chưa khai thì rơi về nền', () => {
-    const r = planSummary(null, 400_000, [bud('rent', 100_000)], CATS, DEFAULT_AXIS_TARGETS)
+    const r = planSummary(null, 400_000, [bud('rent', 100_000)], CATS, M503020)
     expect(r.incomeSource).toBe('baseline')
     expect(r.income).toBe(400_000)
     expect(r.unallocated).toBe(300_000)
   })
 
   it('số khai tay thắng nền', () => {
-    const r = planSummary(900_000, 400_000, [], CATS, DEFAULT_AXIS_TARGETS)
+    const r = planSummary(900_000, 400_000, [], CATS, M503020)
     expect(r.incomeSource).toBe('declared')
     expect(r.income).toBe(900_000)
   })
@@ -124,7 +134,7 @@ describe('planSummary', () => {
   it('khai 0 là số THẬT (nghỉ không lương), không phải "chưa khai"', () => {
     // Cái bẫy: `declared ?? baseline` với declared = 0 thì vẫn ra 0, nhưng viết
     // `declared || baseline` là rơi về nền và cả kế hoạch sai mẫu số.
-    const r = planSummary(0, 400_000, [bud('rent', 100_000)], CATS, DEFAULT_AXIS_TARGETS)
+    const r = planSummary(0, 400_000, [bud('rent', 100_000)], CATS, M503020)
     expect(r.incomeSource).toBe('declared')
     expect(r.income).toBe(0)
     expect(r.unallocated).toBe(-100_000)
@@ -138,7 +148,7 @@ describe('planSummary', () => {
       null,
       [bud('transport', 300), bud('taxi', 120), bud('fun', 700)],
       CATS,
-      DEFAULT_AXIS_TARGETS,
+      M503020,
       parentOf,
     )
     expect(r.allocated).toBe(1000)
@@ -146,7 +156,7 @@ describe('planSummary', () => {
   })
 
   it('chia quá tay → chưa phân bổ ÂM, không kẹp về 0', () => {
-    const r = planSummary(100_000, null, [bud('rent', 150_000)], CATS, DEFAULT_AXIS_TARGETS)
+    const r = planSummary(100_000, null, [bud('rent', 150_000)], CATS, M503020)
     expect(r.unallocated).toBe(-50_000)
   })
 
@@ -159,7 +169,7 @@ describe('planSummary', () => {
       null,
       [bud('rent', 200_000), bud('fun', 110_000)],
       CATS,
-      DEFAULT_AXIS_TARGETS,
+      M503020,
     )
     const savings = r.axis!.lines.find((l) => l.key === 'savings')!
     expect(savings.actual).toBe(r.unallocated)
@@ -172,7 +182,7 @@ describe('planSummary', () => {
       null,
       [bud('rent', 400_000), bud('fun', 200_000)],
       CATS,
-      DEFAULT_AXIS_TARGETS,
+      M503020,
     )
     const by = Object.fromEntries(r.axis!.lines.map((l) => [l.key, l]))
     expect(by.essential.actual).toBe(400_000)
@@ -187,7 +197,7 @@ describe('planSummary', () => {
       null,
       [bud('rent', 600_000), bud('fun', 300_000)],
       CATS,
-      DEFAULT_AXIS_TARGETS,
+      M503020,
     )
     const by = Object.fromEntries(r.axis!.lines.map((l) => [l.key, l]))
     expect(by.essential.ok).toBe(false)
@@ -202,7 +212,7 @@ describe('planSummary', () => {
       null,
       [bud('misc', 300_000)],
       CATS,
-      DEFAULT_AXIS_TARGETS,
+      M503020,
     )
     expect(r.axis!.unclassified).toBe(300_000)
     expect(r.axis!.lines[0].actual).toBe(0)
@@ -218,7 +228,7 @@ describe('planSummary', () => {
       null,
       [bud('rent', 300_000), bud('food', 100_000), bud('fun', 50_000)],
       CATS,
-      DEFAULT_AXIS_TARGETS,
+      M503020,
     )
     const by = Object.fromEntries(r.axis!.lines.map((l) => [l.key, l]))
     expect(by.essential.slices.map((s) => s.categoryId)).toEqual(['rent', 'food'])
@@ -227,23 +237,21 @@ describe('planSummary', () => {
   })
 
   it('mốc tự đặt được, không cứng 50/30/20', () => {
-    const r = planSummary(1_000_000, null, [bud('rent', 550_000)], CATS, {
-      essentialBps: 5000,
-      flexibleBps: 3000,
-      savingsBps: 2000,
-    })
+    const r = planSummary(1_000_000, null, [bud('rent', 550_000)], CATS, M503020)
     expect(r.axis!.lines[0].ok).toBe(false)
 
-    const nhieuHon = planSummary(1_000_000, null, [bud('rent', 550_000)], CATS, {
-      essentialBps: 6000,
-      flexibleBps: 2000,
-      savingsBps: 2000,
-    })
+    const nhieuHon = planSummary(
+      1_000_000,
+      null,
+      [bud('rent', 550_000)],
+      CATS,
+      withBps(M503020, { essential: 6000, flexible: 2000 }),
+    )
     expect(nhieuHon.axis!.lines[0].ok).toBe(true)
   })
 
   it('chưa đặt hạn mức nào thì cả thu nhập là phần chưa phân bổ', () => {
-    const r = planSummary(420_000, null, [], CATS, DEFAULT_AXIS_TARGETS)
+    const r = planSummary(420_000, null, [], CATS, M503020)
     expect(r.allocated).toBe(0)
     expect(r.unallocated).toBe(420_000)
     expect(r.axis!.lines[2].actual).toBe(420_000)

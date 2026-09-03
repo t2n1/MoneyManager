@@ -17,6 +17,7 @@ import {
 } from '../../hooks/queries'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
 import type { CategoryRow } from '../../types/database.types'
+import { resolveMethod, savingsTargetShare, type BudgetMethod } from './budgetMethods'
 import { buildBudgetDisplay, type BudgetDisplay } from './budgetDisplay'
 import { coverageGaps, type CommitmentReport, type CoverageGap } from './commitments'
 import { planGroups, type PlanGroups } from './planGroups'
@@ -44,8 +45,10 @@ export interface PlanningData {
   commitments: CommitmentReport
   /** danh mục có cam kết vượt hạn mức đang đặt */
   gaps: CoverageGap[]
+  /** phương pháp phân bổ đang dùng — hồ sơ người dùng, đã áp mốc tự chỉnh */
+  method: BudgetMethod
   suggestions: Map<string, Suggestion>
-  /** bốn khối hạn mức đã xếp theo trục (B30) */
+  /** khối hạn mức đã xếp theo trục (B30), số khối theo phương pháp đang dùng */
   groups: PlanGroups
   /** hạn mức đang đặt theo danh mục — cho danh sách và cho phép đối chiếu */
   budgetedByCat: Map<string, number>
@@ -113,7 +116,7 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
   //
   // Danh mục chưa có dòng hạn mức thì KHÔNG vá: dựng một dòng giả kéo theo một `id` giả,
   // mà `budgetIdByCat` chính là thứ tấm trượt dùng để xoá. Thanh trượt cũng chỉ mở ở dòng
-  // của bốn khối hạn mức — dòng nào cũng đã có hạn mức thật.
+  // của các khối hạn mức (số khối theo phương pháp) — dòng nào cũng đã có hạn mức thật.
   const budgets = useMemo(() => {
     if (!draft) return savedBudgets
     const i = savedBudgets.findIndex((b) => b.category_id === draft.categoryId)
@@ -125,16 +128,13 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
 
   return useMemo(() => {
     const parentOf = (id: string) => categories.find((c) => c.id === id)?.parent_id ?? null
+    const method = resolveMethod(profile)
     const summary = planSummary(
       plan?.expected_income ?? null,
       baseline,
       budgets,
       categories,
-      {
-        essentialBps: profile?.target_essential_bps ?? 5000,
-        flexibleBps: profile?.target_flexible_bps ?? 3000,
-        savingsBps: profile?.target_savings_bps ?? 2000,
-      },
+      method,
       parentOf,
     )
 
@@ -171,6 +171,7 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
       markerSlices: markers,
       // Ghim VỊ TRÍ dòng đang mở thanh, theo mốc lúc mở — xem `placeAt` và `pinned`.
       pinned: draft ? { categoryId: draft.categoryId, limit: draft.placeAt } : null,
+      method,
     })
 
     // Danh mục ĐẶT ĐƯỢC hạn mức mà chưa đặt, và có lịch sử để gợi ý. Cùng bộ lọc với
@@ -196,7 +197,7 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
       suggestions,
       budgetedByCat,
       gaps,
-      savingsBps: profile?.target_savings_bps ?? 2000,
+      savingsBps: Math.round(savingsTargetShare(method) * 10_000),
       isMarker: (id) => markerIds.has(id),
       isBudgetable: (id) => {
         const c = catById.get(id)
@@ -211,6 +212,7 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
       baseline,
       commitments,
       gaps,
+      method,
       suggestions,
       groups,
       budgetedByCat,

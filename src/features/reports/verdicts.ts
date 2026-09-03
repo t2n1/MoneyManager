@@ -126,12 +126,13 @@ export function netFlowVerdict(
 }
 
 /**
- * Mức của một tỷ lệ tiết kiệm. Mốc 20% lấy từ quy tắc 50/30/20 mà thẻ "Cơ cấu chi tiêu"
- * đang dùng. Tách riêng vì có hai chỗ chấm cùng con số này (thẻ donut mở đầu kỳ và
- * biểu đồ 6 tháng) — hai chỗ mà lệch ngưỡng thì một chỗ khen còn chỗ kia cảnh báo.
+ * Mức của một tỷ lệ tiết kiệm. Mốc lấy từ khoản Để dành của phương pháp phân bổ đang
+ * chọn trong hồ sơ (xem `budgetMethods.ts`); `0.2` chỉ là mặc định khi không ai truyền.
+ * Tách riêng vì có hai chỗ chấm cùng con số này (thẻ donut mở đầu kỳ và biểu đồ 6
+ * tháng) — hai chỗ mà lệch ngưỡng thì một chỗ khen còn chỗ kia cảnh báo.
  */
-export function savingsRateTone(rate: number): NoteTone {
-  if (rate >= 0.2) return 'good'
+export function savingsRateTone(rate: number, targetShare = 0.2): NoteTone {
+  if (rate >= targetShare) return 'good'
   if (rate > 0) return 'warn'
   return 'bad'
 }
@@ -148,9 +149,10 @@ export interface SavingsRateVerdict {
 }
 
 /**
- * Tỷ lệ tiết kiệm cả kỳ + xu hướng. Mốc 20% lấy từ quy tắc 50/30/20 mà thẻ "Cơ cấu
- * chi tiêu" đang dùng — hai thẻ phải cùng một mốc, không thì một thẻ khen còn thẻ
- * kia cảnh báo trên cùng con số.
+ * Tỷ lệ tiết kiệm cả kỳ + xu hướng. Mốc lấy từ khoản Để dành của phương pháp phân bổ
+ * đang chọn trong hồ sơ (mặc định `0.2` khi không ai truyền) — thẻ này và thẻ "Cơ cấu
+ * chi tiêu" phải cùng một mốc, không thì một thẻ khen còn thẻ kia cảnh báo trên cùng
+ * con số.
  *
  * Tính trên TỔNG thu và TỔNG chi cả kỳ, không phải trung bình các tỷ lệ tháng: tháng
  * thu 0 sẽ làm tỷ lệ tháng đó vô nghĩa, mà trung bình của các tỷ lệ thì tháng thu
@@ -159,6 +161,7 @@ export interface SavingsRateVerdict {
 export function savingsRateVerdict(
   points: readonly MonthlyPoint[],
   currentKey: MonthKey | null,
+  targetShare = 0.2,
 ): SavingsRateVerdict | null {
   const done = completedPoints(points, currentKey)
   if (done.length === 0) return null
@@ -182,5 +185,5 @@ export function savingsRateVerdict(
       trend = trendDelta > 0.03 ? 'up' : trendDelta < -0.03 ? 'down' : 'flat'
     }
   }
-  return { tone: savingsRateTone(rate), rate, trend, trendDelta, months: done.length }
+  return { tone: savingsRateTone(rate, targetShare), rate, trend, trendDelta, months: done.length }
 }

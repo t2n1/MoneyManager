@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { planVerdict } from './planVerdict'
-import type { AxisKey, AxisLine, AxisProgress } from './axisTargets'
+import { type AxisKey, type AxisLine, type AxisProgress } from './axisTargets'
+import { BUDGET_METHODS } from './budgetMethods'
 import type { PlanSummary } from './planning'
+
+const M503020 = BUDGET_METHODS.find((m) => m.id === '50-30-20')!
+/** Nhãn của khoản 50/30/20 — dùng để dựng fixture, không phải bảng phẳng nào nữa. */
+const labelOf = (key: AxisKey): string => M503020.buckets.find((b) => b.key === key)!.label
 
 const line = (key: AxisKey, ok: boolean): AxisLine => ({
   key,
+  label: labelOf(key),
+  hint: '',
   actual: 0,
   target: 0,
   share: 0,
@@ -20,6 +27,7 @@ const axis = (...oks: [AxisKey, boolean][]): AxisProgress => ({
   actualIncome: 480_000,
   estimated: false,
   unclassified: 0,
+  method: M503020,
 })
 
 const BA_MOC_DAT = axis(['essential', true], ['flexible', true], ['savings', true])

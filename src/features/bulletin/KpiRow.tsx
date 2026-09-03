@@ -9,6 +9,8 @@ import { Card, Money, Sparkline, Swap } from '../../components/ui'
 import { shortCompare } from '../reports/headline'
 import { keptBarPct } from './bulletin'
 import type { CurrencyCode } from '../../lib/money'
+import { useProfile } from '../../hooks/queries'
+import { resolveMethod, savingsTargetShare } from '../budgets/budgetMethods'
 
 /** Nhãn eyebrow + số 26px mono — khung chung của cả bốn ô. */
 function Tile({
@@ -86,6 +88,8 @@ export function KpiRow({
   netWorthSpark,
   approx,
 }: Props) {
+  const { data: profile } = useProfile()
+  const keptTargetPct = Math.round(savingsTargetShare(resolveMethod(profile)) * 100)
   return (
     <div className="flex flex-wrap gap-2.5">
       <Tile
@@ -119,17 +123,21 @@ export function KpiRow({
         swapOn={keptPct}
         foot={
           <>
-            {/* Thanh 4px có VẠCH MỐC 20% (§4.1) — mốc của quy tắc 50/30/20. Vạch nằm
-                trong cùng khung với thanh nên nó đọc được là "còn bao xa tới mốc", chứ
-                một con số 20% viết rời thì phải tự nhẩm. */}
+            {/* Thanh 4px có VẠCH MỐC (§4.1) — mốc Để dành của phương pháp trong hồ sơ.
+                Vạch nằm trong cùng khung với thanh nên nó đọc được là "còn bao xa tới
+                mốc", chứ một con số viết rời thì phải tự nhẩm. */}
             <span className="relative h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-sunken">
               <span
                 className={`absolute inset-y-0 left-0 rounded-full ${
-                  keptPct !== null && keptPct >= 20 ? 'bg-money-in' : 'bg-fg-warn'
+                  keptPct !== null && keptPct >= keptTargetPct ? 'bg-money-in' : 'bg-fg-warn'
                 }`}
                 style={{ width: `${keptBarPct(keptPct)}%` }}
               />
-              <span className="absolute inset-y-0 left-[20%] w-px bg-fg-muted" aria-hidden />
+              <span
+                className="absolute inset-y-0 w-px bg-fg-muted"
+                style={{ left: `${keptTargetPct}%` }}
+                aria-hidden
+              />
             </span>
             <Sparkline values={keptSpark} label="Tiền giữ lại 8 tháng gần đây" />
           </>

@@ -1,4 +1,4 @@
-// Dải gọn "50/30/20".
+// Dải gọn — nói theo phương pháp đang chọn.
 //
 // Hai chỗ dùng, hai vai:
 //   · Mặt THEO DÕI, ngay dưới câu kết luận (§4.3 của bản 1a). Ở đó nó KHÔNG bấm được:
@@ -14,7 +14,7 @@ import { Link } from 'react-router-dom'
 import { Card, Money } from '../../components/ui'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
-import { AXIS_LABEL, shareLabel, sharePct, type AxisProgress } from './axisTargets'
+import { shareLabel, sharePct, type AxisProgress } from './axisTargets'
 import { STATUS_FILL } from '../../components/ui/statusColors'
 
 interface Props {
@@ -35,6 +35,12 @@ interface Props {
   showAmount?: boolean
 }
 
+// Tailwind quét chuỗi tĩnh — liệt kê tường minh, không grid-cols-${n}.
+// 2-3 dòng một hàng; 4 dòng chia 2×2; 5-6 dòng chia 3×2.
+const GRID_BY_COUNT: Record<number, string> = {
+  2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-2', 5: 'grid-cols-3', 6: 'grid-cols-3',
+}
+
 export function AxisStrip({
   data,
   monthKey,
@@ -48,11 +54,11 @@ export function AxisStrip({
   const parts = data.lines
     .map(
       (l) =>
-        `${AXIS_LABEL[l.key]} ${shareLabel(l.share)}` +
+        `${l.label} ${shareLabel(l.share)}` +
         (showAmount ? ` (${formatMoney(Math.round(l.actual), base)})` : ''),
     )
     .join(', ')
-  // Chi chưa gắn "mức cần thiết" KHÔNG nằm trong hai dòng đầu, nên ba con số có thể
+  // Chi chưa gắn "mức cần thiết" KHÔNG nằm trong các dòng chi, nên các con số có thể
   // cộng lại không tới 100% mà không có gì giải thích. Khối đầy đủ ở tab Ngân sách có
   // hẳn một dòng cảnh báo; ở đây chỉ đủ chỗ cho một mẩu chữ, nhưng có còn hơn không.
   const missing = data.unclassified > 0 ? formatMoney(Math.round(data.unclassified), base) : null
@@ -70,7 +76,7 @@ export function AxisStrip({
 
         {/* aria-hidden: nội dung đã nằm gọn trong aria-label của thẻ liên kết, đọc lại
             từng ô rời rạc ("Thiết yếu, 28, %, /, 50") chỉ làm rối trình đọc màn hình. */}
-        <div className="grid grid-cols-3 gap-2" aria-hidden>
+        <div className={`grid gap-2 ${GRID_BY_COUNT[data.lines.length] ?? 'grid-cols-3'}`} aria-hidden>
           {data.lines.map((l) => {
             const barPct = Math.min(Math.max(l.share, 0) * 100, 100)
             const markPct = Math.min(l.targetShare * 100, 100)
@@ -81,7 +87,7 @@ export function AxisStrip({
                     trục — ở 375px trở lên vẫn đủ chỗ cho một hàng. */}
                 <div className="flex flex-wrap items-baseline justify-between gap-x-1">
                   <span className="shrink-0 whitespace-nowrap text-2xs text-fg-muted">
-                    {AXIS_LABEL[l.key]}
+                    {l.label}
                   </span>
                   <span className="shrink-0 text-sm tabular-nums">
                     <span className={`font-semibold ${l.ok ? 'text-money-in' : 'text-fg-warn'}`}>
@@ -124,7 +130,7 @@ export function AxisStrip({
     </>
   )
 
-  const nhan = `Cơ cấu chi: ${parts}.${missing ? ` Còn ${missing} chi chưa phân loại nên hai dòng đầu đang thiếu.` : ''}`
+  const nhan = `Cơ cấu chi: ${parts}.${missing ? ` Còn ${missing} chi chưa phân loại nên các dòng chi đang thiếu.` : ''}`
 
   if (!linkToDetail) {
     // <section> chứ không <div>: đây là một khối có nội dung riêng, và `aria-label` chỉ

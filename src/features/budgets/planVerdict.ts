@@ -96,7 +96,7 @@ export function planVerdict({ summary, gapCount }: PlanVerdictInput): PlanVerdic
 }
 
 /**
- * Mệnh đề về ba mốc, ĐÃ mang liên từ.
+ * Mệnh đề về các mốc, ĐÃ mang liên từ.
  *
  * Phần chữ lấy từ `axisMissSummary` — dùng CHUNG với tiêu đề thẻ Cơ cấu của mặt theo
  * dõi, nên hai mặt không thể đếm ra hai kết luận khác nhau trên cùng dữ liệu. Ở đây chỉ

@@ -12,7 +12,7 @@ import {
 import { periodCompare, type PeriodCompare } from './periodCompare'
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
-import type { CategoryRow, TransactionRow } from '../../types/database.types'
+import type { CategoryRow, NeedLevel, TransactionRow } from '../../types/database.types'
 import { NO_TRANSFER_CATEGORIES } from '../categories/kind'
 
 export type CurrencyOf = (accountId: string) => CurrencyCode
@@ -504,8 +504,8 @@ export function dailyExpenseTotals(
 }
 
 export interface ClassificationBreakdown {
-  needEssential: number
-  needFlexible: number
+  /** chi theo TỪNG nhãn nhu cầu — đủ 5 khoá, nhãn chưa gắn nằm ở needUnclassified */
+  needByLevel: Record<NeedLevel, number>
   needUnclassified: number
   costFixed: number
   costVariable: number
@@ -514,6 +514,11 @@ export interface ClassificationBreakdown {
   emergencyCut: number
   totalExpense: number
 }
+
+/** Đủ 5 khoá từ đầu — chỗ đọc không phải `?? 0`, và thiếu nhãn là lỗi biên dịch. */
+export const emptyNeedByLevel = (): Record<NeedLevel, number> => ({
+  essential: 0, flexible: 0, education: 0, giving: 0, buffer: 0,
+})
 
 /**
  * Gom chi theo 2 trục độc lập từ slices (đã quy đổi base).
@@ -525,7 +530,7 @@ export function classificationBreakdown(
 ): ClassificationBreakdown {
   const byId = new Map(categories.map((c) => [c.id, c]))
   const r: ClassificationBreakdown = {
-    needEssential: 0, needFlexible: 0, needUnclassified: 0,
+    needByLevel: emptyNeedByLevel(), needUnclassified: 0,
     costFixed: 0, costVariable: 0, costUnclassified: 0,
     emergencyCut: 0, totalExpense: 0,
   }
@@ -534,8 +539,7 @@ export function classificationBreakdown(
     const need = c?.need_level ?? null
     const cost = c?.cost_type ?? null
     r.totalExpense += s.amount
-    if (need === 'essential') r.needEssential += s.amount
-    else if (need === 'flexible') r.needFlexible += s.amount
+    if (need !== null) r.needByLevel[need] += s.amount
     else r.needUnclassified += s.amount
     if (cost === 'fixed') r.costFixed += s.amount
     else if (cost === 'variable') r.costVariable += s.amount
@@ -561,6 +565,9 @@ export function foldUncategorized(
   if (noCategory <= 0) return data
   return {
     ...data,
+    // Bản sao — classificationBreakdown vừa dựng object này bằng cách cộng dồn tại
+    // chỗ, trả alias là mời một chỗ khác sửa lây.
+    needByLevel: { ...data.needByLevel },
     needUnclassified: data.needUnclassified + noCategory,
     costUnclassified: data.costUnclassified + noCategory,
     totalExpense,

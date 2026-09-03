@@ -1,5 +1,5 @@
 // Thẻ "Cơ cấu chi tiêu" — 2 trục độc lập:
-// C1 Thiết yếu vs Linh hoạt (thanh, % thu nhập, mốc 50/30/20) — thanh vì cần vẽ vạch mục tiêu, donut không làm được.
+// C1 Cơ cấu theo phương pháp đang chọn (thanh, % thu nhập, mốc theo phương pháp) — thanh vì cần vẽ vạch mục tiêu, donut không làm được.
 // C2 Cố định vs Biến đổi (donut + thanh, % tổng chi).
 // + "Van xả khẩn cấp": phần Linh hoạt × Biến đổi — khoản dễ cắt nhất khi cần gấp.
 import { Link } from 'react-router-dom'
@@ -11,6 +11,9 @@ import { foldUncategorized, type ClassificationBreakdown } from './aggregate'
 import { BreakdownRow } from './BreakdownRow'
 import { Card, SectionTitle } from '../../components/ui'
 import { CHART_TEXT_XS } from '../../lib/chartText'
+import { useProfile } from '../../hooks/queries'
+import { resolveMethod, type AxisKey } from '../budgets/budgetMethods'
+import { axisMissSummary, axisProgress, sharePct } from '../budgets/axisTargets'
 
 const C = {
   need: '#16a34a',
@@ -19,6 +22,18 @@ const C = {
   // var(--fg-muted): gray-400 chỉ 2,54:1, không đạt 3:1 cho đồ hoạ mang thông tin.
   unknown: 'var(--fg-muted)',
 } as const
+
+/** Màu theo khoá khoản của C1 — hex trần là quy ước sẵn của file này cho màu đồ thị (xem `C` ở trên). */
+const BUCKET_COLOR: Record<AxisKey, string> = {
+  essential: C.need,
+  flexible: C.want,
+  education: '#8b5cf6',
+  giving: '#ec4899',
+  buffer: '#64748b',
+  living: C.want,
+  allSpend: C.want,
+  savings: C.save,
+}
 
 interface Props {
   data: ClassificationBreakdown
@@ -33,25 +48,20 @@ interface Props {
 /** Thẻ báo cáo: cơ cấu chi tiêu theo 2 trục Thiết yếu/Linh hoạt và Cố định/Biến đổi. */
 export function SpendClassificationCard({ data, income, expense, base, periodNoun, unclassifiedCount }: Props) {
   const { visual } = useDensity()
+  const { data: profile } = useProfile()
+  const method = resolveMethod(profile)
   // `data` chỉ gom được chi CÓ danh mục (categoryBreakdown bỏ giao dịch thiếu category_id,
   // vd hàng nhập từ CSV). Phần chênh so với tổng chi thật được gộp vào nhóm "Chưa phân loại"
   // để mẫu số của cả 2 trục = tổng chi thật và Tiết kiệm không bị thổi phồng.
   const folded = foldUncategorized(data, expense)
   const totalExpense = folded.totalExpense
-  const needUnclassified = folded.needUnclassified
   const costUnclassified = folded.costUnclassified
 
-  const savings = income - totalExpense
-  const pctOfIncome = (v: number) => (income > 0 ? (v / income) * 100 : 0)
   const pctOfExpense = (v: number) => (totalExpense > 0 ? (v / totalExpense) * 100 : 0)
 
-  // Trạng thái vượt/dưới mục tiêu — phải đọc được từ CHỮ, không chỉ dựa vào màu (yêu cầu a11y).
-  const essentialPct = pctOfIncome(folded.needEssential)
-  const flexiblePct = pctOfIncome(folded.needFlexible)
-  const savingsPct = pctOfIncome(savings)
-  const essentialOver = essentialPct > 50
-  const flexibleOver = flexiblePct > 30
-  const savingsUnder = savings < income * 0.2
+  // Dùng LẠI đúng phép tính của tab Ngân sách — hai tab không thể lệch nhau.
+  const axis = axisProgress(income, folded, method)
+  const miss = axis ? axisMissSummary(axis.lines) : null
 
   // Donut C2 (Cố định/Biến đổi) — chỉ lát > 0
   const c2Slices = [
@@ -77,91 +87,73 @@ export function SpendClassificationCard({ data, income, expense, base, periodNou
         )}
       </div>
 
-      {/* C1 — 50/30/20 trên thu nhập */}
+      {/* C1 — cơ cấu theo phương pháp đang chọn, trên thu nhập */}
       <SectionTitle as="h3" className="mb-2">
-        Thiết yếu vs Linh hoạt <span className="text-fg-muted">(% thu nhập · quy tắc 50/30/20)</span>
+        Cơ cấu so với mốc <span className="text-fg-muted">(% thu nhập · {method.name})</span>
       </SectionTitle>
-      {income <= 0 ? (
+      {income <= 0 || !axis ? (
         <p className="mb-3 rounded-lg bg-surface-page px-3 py-3 text-center text-sm text-fg-muted">
-          Cần có thu nhập trong {periodNoun} để tính tỷ lệ 50/30/20.
+          Cần có thu nhập trong {periodNoun} để tính cơ cấu.
         </p>
       ) : (
         <div className="mb-4 space-y-2.5">
-          <BreakdownRow
-            icon=""
-            name={essentialOver ? 'Nhu cầu (thiết yếu) — vượt mục tiêu' : 'Nhu cầu (thiết yếu)'}
-            pct={essentialPct} value={folded.needEssential}
-            barPct={essentialPct} color={C.need} base={base}
-            targetPct={50} warn={essentialOver}
-          />
-          <BreakdownRow
-            icon=""
-            name={flexibleOver ? 'Sở thích (linh hoạt) — vượt mục tiêu' : 'Sở thích (linh hoạt)'}
-            pct={flexiblePct} value={folded.needFlexible}
-            barPct={flexiblePct} color={C.want} base={base}
-            targetPct={30} warn={flexibleOver}
-          />
-          <BreakdownRow
-            icon=""
-            name={savingsUnder ? 'Tiết kiệm — dưới mục tiêu' : 'Tiết kiệm'}
-            pct={savingsPct} value={savings}
-            barPct={Math.max(savingsPct, 0)} color={C.save} base={base}
-            targetPct={20} warn={savingsUnder}
-          />
-          {needUnclassified > 0 && (
+          {axis.lines.map((l) => {
+            const over = !l.ok
+            const suffix = over ? (l.direction === 'cap' ? ' — vượt mục tiêu' : ' — dưới mục tiêu') : ''
+            return (
+              <BreakdownRow
+                key={l.key}
+                icon=""
+                name={`${l.label}${suffix}`}
+                pct={sharePct(l.share)}
+                value={l.actual}
+                barPct={Math.max(l.share, 0) * 100}
+                color={BUCKET_COLOR[l.key]}
+                base={base}
+                targetPct={Math.round(l.targetShare * 100)}
+                warn={over}
+              />
+            )
+          })}
+          {axis.unclassified > 0 && (
             <BreakdownRow
               icon="" name="Chi chưa phân loại"
-              pct={pctOfIncome(needUnclassified)} value={needUnclassified}
-              barPct={pctOfIncome(needUnclassified)} color={C.unknown} base={base}
+              pct={sharePct(axis.unclassified / axis.income)} value={axis.unclassified}
+              barPct={(axis.unclassified / axis.income) * 100} color={C.unknown} base={base}
             />
           )}
 
-          {/* Ba thanh trên đã có vạch mục tiêu và chữ "vượt/dưới mục tiêu", nhưng người
-              đọc vẫn phải tự tổng hợp ba dòng đó thành một kết luận. Nói thẳng ra đây. */}
+          {/* Các thanh trên đã có vạch mục tiêu và chữ "vượt/dưới mục tiêu", nhưng người
+              đọc vẫn phải tự tổng hợp thành một kết luận. Nói thẳng ra đây. */}
           <div className="space-y-1.5 pt-0.5">
-            {!essentialOver && !flexibleOver && !savingsUnder ? (
-              <VerdictNote tone="good" short="Cơ cấu 50/30/20 đạt cả ba">
-                Cả ba nhóm đều trong mục tiêu 50/30/20 — cơ cấu {periodNoun} không có gì phải sửa.
+            {miss && miss.missed.length === 0 ? (
+              <VerdictNote tone="good" short={`Cơ cấu ${method.name} đạt cả ${axis.lines.length} mốc`}>
+                Cả {axis.lines.length} khoản đều trong mốc {method.name} — cơ cấu {periodNoun} không có gì phải sửa.
               </VerdictNote>
             ) : (
-              <>
-                {savingsUnder && (
+              miss?.missed.map((l) =>
+                l.key === 'savings' ? (
                   <VerdictNote
-                    tone={savings < 0 ? 'bad' : 'warn'}
-                    label="Tiết kiệm dưới mục tiêu"
-                    short={
-                      savings < 0
-                        ? 'Chi vượt thu'
-                        : `Tiết kiệm ${Math.round(savingsPct)}% / mục tiêu 20%`
-                    }
+                    key={l.key}
+                    tone={l.actual < 0 ? 'bad' : 'warn'}
+                    label="Để dành dưới mục tiêu"
+                    short={l.actual < 0 ? 'Chi vượt thu' : `Để dành ${sharePct(l.share)}% / mục tiêu ${Math.round(l.targetShare * 100)}%`}
                   >
-                    {savings < 0
+                    {l.actual < 0
                       ? `chi vượt thu ${periodNoun}, tức là đang rút vào tiền cũ.`
-                      : `giữ được ${Math.round(savingsPct)}% thu nhập, mục tiêu là 20%.`}
+                      : `giữ được ${sharePct(l.share)}% thu nhập, mục tiêu là ${Math.round(l.targetShare * 100)}%.`}
                   </VerdictNote>
-                )}
-                {essentialOver && (
+                ) : (
                   <VerdictNote
+                    key={l.key}
                     tone="warn"
-                    label="Chi thiết yếu chiếm nhiều"
-                    short={`Thiết yếu ${Math.round(essentialPct)}% / mục tiêu 50%`}
+                    label={`${l.label} vượt mục tiêu`}
+                    short={`${l.label} ${sharePct(l.share)}% / mục tiêu ${Math.round(l.targetShare * 100)}%`}
                   >
-                    {Math.round(essentialPct)}% thu nhập (mục tiêu ≤ 50%). Đây là nhóm khó cắt trong
-                    ngắn hạn — nếu kéo dài thì phải giải quyết ở mức lớn (tiền nhà, bảo hiểm) chứ
-                    không phải bằng tiết kiệm hằng ngày.
+                    {sharePct(l.share)}% thu nhập (mục tiêu ≤ {Math.round(l.targetShare * 100)}%) — {l.hint}.
                   </VerdictNote>
-                )}
-                {flexibleOver && (
-                  <VerdictNote
-                    tone="warn"
-                    label="Chi linh hoạt vượt mục tiêu"
-                    short={`Linh hoạt ${Math.round(flexiblePct)}% / mục tiêu 30%`}
-                  >
-                    {Math.round(flexiblePct)}% thu nhập (mục tiêu ≤ 30%). Đây lại là nhóm cắt được
-                    nhanh nhất nếu cần.
-                  </VerdictNote>
-                )}
-              </>
+                ),
+              )
             )}
           </div>
         </div>

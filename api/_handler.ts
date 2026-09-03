@@ -88,7 +88,7 @@ function dungServer(du: DuLieu): McpServer {
             need_level: z
               .array(z.string())
               .optional()
-              .describe("Mức nhu cầu của danh mục: 'essential' (bắt buộc) / 'flexible' (sở thích)"),
+              .describe("Mức nhu cầu của danh mục: 'essential' (thiết yếu) / 'flexible' (linh hoạt) / 'education' (giáo dục) / 'giving' (cho đi) / 'buffer' (dự phòng)"),
             cost_type: z
               .array(z.string())
               .optional()

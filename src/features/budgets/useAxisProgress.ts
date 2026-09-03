@@ -1,4 +1,4 @@
-// Nguồn DUY NHẤT của khối "Cơ cấu chi so với mốc" (50/30/20).
+// Nguồn DUY NHẤT của khối "Cơ cấu chi so với mốc" (nói theo phương pháp đang chọn).
 //
 // Tách khỏi BudgetView vì giờ có hai chỗ hiện cùng con số: khối đầy đủ ở tab Ngân
 // sách và dải gọn ở tab Sổ. Hai chỗ tính riêng là sớm muộn cũng lệch nhau — mà lệch
@@ -36,6 +36,7 @@ import {
   BASELINE_MONTHS,
   type AxisProgress,
 } from './axisTargets'
+import { resolveMethod } from './budgetMethods'
 
 /**
  * Cơ cấu chi của `monthKey` so với mốc trong hồ sơ. null = chưa đủ dữ liệu để nói
@@ -81,6 +82,7 @@ export function useAxisProgress(monthKey: MonthKey): AxisProgress | null {
     const currencyOf = (id: string): CurrencyCode =>
       accounts.find((a) => a.id === id)?.currency ?? base
     const r = rates ?? {}
+    const method = resolveMethod(profile)
 
     const sums = sumIncomeExpense(monthTxs, currencyOf, base, r, transferIds)
     const expense = categoryBreakdown(monthTxs, 'expense', currencyOf, base, r, transferIds)
@@ -100,15 +102,11 @@ export function useAxisProgress(monthKey: MonthKey): AxisProgress | null {
     return axisProgress(
       sums.income,
       cls,
-      {
-        essentialBps: profile?.target_essential_bps ?? 5000,
-        flexibleBps: profile?.target_flexible_bps ?? 3000,
-        savingsBps: profile?.target_savings_bps ?? 2000,
-      },
+      method,
       baseline,
-      // Cùng một `expense.slices` đã dùng để cộng tổng — dòng trục và danh sách xổ ra
+      // Cùng một `expense.slices` đã dùng để cộng tổng — dòng khoản và danh sách xổ ra
       // không thể lệch nhau.
-      axisSlices(expense.slices, categories),
+      axisSlices(expense.slices, categories, method),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [

@@ -51978,7 +51978,7 @@ function dungServer(du) {
           tai_khoan: external_exports.array(external_exports.string()).optional().describe("T\xCAN t\xE0i kho\u1EA3n"),
           tien_te: external_exports.array(external_exports.enum(["JPY", "VND", "USD"])).optional(),
           la_gui_tien: external_exports.boolean().optional().describe("true = ch\u1EC9 kho\u1EA3n g\u1EEDi ti\u1EC1n v\u1EC1 VN"),
-          need_level: external_exports.array(external_exports.string()).optional().describe("M\u1EE9c nhu c\u1EA7u c\u1EE7a danh m\u1EE5c: 'essential' (b\u1EAFt bu\u1ED9c) / 'flexible' (s\u1EDF th\xEDch)"),
+          need_level: external_exports.array(external_exports.string()).optional().describe("M\u1EE9c nhu c\u1EA7u c\u1EE7a danh m\u1EE5c: 'essential' (thi\u1EBFt y\u1EBFu) / 'flexible' (linh ho\u1EA1t) / 'education' (gi\xE1o d\u1EE5c) / 'giving' (cho \u0111i) / 'buffer' (d\u1EF1 ph\xF2ng)"),
           cost_type: external_exports.array(external_exports.string()).optional().describe("Chi c\u1ED1 \u0111\u1ECBnh vs bi\u1EBFn \u0111\u1ED5i: 'fixed' / 'variable'")
         }).optional(),
         khoang: KHOANG,

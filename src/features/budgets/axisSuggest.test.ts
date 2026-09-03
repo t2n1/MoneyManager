@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { AXIS_LABEL, type AxisKey, type AxisLine, type AxisProgress } from './axisTargets'
+import { type AxisKey, type AxisLine, type AxisProgress } from './axisTargets'
 import { BUDGET_METHODS } from './budgetMethods'
 import { axisSuggestions, sliderScale } from './axisSuggest'
 
 const M503020 = BUDGET_METHODS.find((m) => m.id === '50-30-20')!
+/** Nhãn của khoản 50/30/20 — dùng để dựng fixture, không phải bảng phẳng nào nữa. */
+const labelOf = (key: AxisKey): string => M503020.buckets.find((b) => b.key === key)!.label
 
 function line(
   key: AxisKey,
@@ -14,7 +16,7 @@ function line(
 ): AxisLine {
   return {
     key,
-    label: AXIS_LABEL[key],
+    label: labelOf(key),
     hint: '',
     actual,
     target,

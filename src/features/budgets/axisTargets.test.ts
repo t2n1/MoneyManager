@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { emptyNeedByLevel, type ClassificationBreakdown } from '../reports/aggregate'
 import type { CategoryRow, NeedLevel } from '../../types/database.types'
 import {
-  AXIS_LABEL,
   type AxisKey,
   type AxisLine,
   axisMissSummary,
@@ -15,6 +14,8 @@ import {
 import { BUDGET_METHODS, type BudgetMethod } from './budgetMethods'
 
 const M503020 = BUDGET_METHODS.find((m) => m.id === '50-30-20')!
+/** Nhãn của khoản 50/30/20 — dùng để dựng fixture, không phải bảng phẳng nào nữa. */
+const labelOf = (key: AxisKey): string => M503020.buckets.find((b) => b.key === key)!.label
 
 /** Đè `bps` của một vài khoản trong `method` — dựng nhanh một "mốc tự đặt" cho test. */
 function withBps(method: BudgetMethod, overrides: Partial<Record<AxisKey, number>>): BudgetMethod {
@@ -363,7 +364,7 @@ describe('sharePct', () => {
 describe('axisMissSummary', () => {
   const line = (key: AxisKey, ok: boolean): AxisLine => ({
     key,
-    label: AXIS_LABEL[key],
+    label: labelOf(key),
     hint: '',
     actual: 0,
     target: 0,
@@ -410,6 +411,6 @@ describe('axisMissSummary', () => {
 
   it('trục thứ ba gọi là "Để dành" ở mọi màn — một bảng tên duy nhất', () => {
     expect(axisMissSummary([line('savings', false)])?.phrase).toBe('chưa đạt mốc Để dành')
-    expect(AXIS_LABEL.savings).toBe('Để dành')
+    expect(labelOf('savings')).toBe('Để dành')
   })
 })

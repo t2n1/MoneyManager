@@ -42,8 +42,9 @@ import { convertToBase } from '../../lib/rates'
 import { confirmDialog, showToast } from '../../lib/dialog'
 import { monthlyNeeded } from '../assets/goals'
 import { TagPlanBlock } from '../tags/TagPlanBlock'
-import { AXIS_LABEL, BASELINE_MONTHS, shareLabel, type AxisKey } from './axisTargets'
+import { BASELINE_MONTHS, shareLabel, type AxisKey } from './axisTargets'
 import { axisSuggestions, sliderScale } from './axisSuggest'
+import { bucketForNeed } from './budgetMethods'
 import { LimitSlider, type LimitSliderProps } from './LimitSlider'
 import { PlanStickyBar } from './PlanStickyBar'
 import { budgetHint } from './budgetHint'
@@ -136,7 +137,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   // Luật "cha = tổng con" — xem `useSyncedBudget`. Bốn chỗ ghi hạn mức của màn này đều
   // phải đi qua nó, bỏ sót một chỗ là luật thủng đúng ở chỗ đó.
   const { syncAfterWrite, openSplit, splitSheetProps } = useSyncedBudget(monthKeyStr)
-  const { summary, projection, groups } = data
+  const { summary, projection, groups, method } = data
 
   const [editing, setEditing] = useState<string | null>(null)
   const [incomeOpen, setIncomeOpen] = useState(false)
@@ -187,9 +188,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
       setDraft(null)
       return
     }
-    const need = catOf(row.cat.id)?.need_level ?? null
-    // TẠM (task 5 plan 2026-09-03 viết lại chỗ này): 3 nhãn mới chưa có trục riêng, coi như chưa phân loại
-    const axisKey = need === 'essential' || need === 'flexible' ? need : null
+    const axisKey = bucketForNeed(method, catOf(row.cat.id)?.need_level ?? null)?.key ?? null
     const line = axisKey ? (summary.axis?.lines.find((l) => l.key === axisKey) ?? null) : null
     // Trục còn trong trần thì KHÔNG có vạch: không có gì phải đạt, và vẽ một vạch trên mức
     // hiện tại là app đang gợi ý tiêu thêm. Cũng chặn luôn vạch cũ đã đóng băng từ lúc trục
@@ -254,7 +253,9 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
         suggest: slider?.suggest ?? null,
         max: slider?.max ?? 0,
         step: slider?.step ?? 1,
-        axisLabel: slider?.axisKey ? AXIS_LABEL[slider.axisKey] : null,
+        axisLabel: slider?.axisKey
+          ? (method.buckets.find((b) => b.key === slider.axisKey)?.label ?? null)
+          : null,
         axisShareBefore: slider?.shareBefore ?? null,
         axisShareNow: line?.share ?? null,
         axisTargetShare: line?.targetShare ?? null,
@@ -321,7 +322,8 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   /** Trục mà một danh mục sẽ rơi vào — nâng hạn mức ở đây làm dịch thanh trục cột trái. */
   const axisNote = (categoryId: string): string => {
     const need = catOf(categoryId)?.need_level ?? null
-    return need === 'essential' || need === 'flexible' ? AXIS_LABEL[need] : 'chưa phân loại'
+    const b = bucketForNeed(method, need)
+    return b ? b.label : 'chưa phân loại'
   }
 
   async function handleCopy() {
@@ -546,7 +548,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
                   return (
                     <li key={l.key}>
                       <div className="flex items-baseline justify-between gap-2 text-sm">
-                        <span className="text-fg-primary">{AXIS_LABEL[l.key]}</span>
+                        <span className="text-fg-primary">{l.label}</span>
                         <span
                           className={`text-sm font-medium ${l.ok ? 'text-money-in' : 'text-fg-warn'}`}
                         >
@@ -869,8 +871,9 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
               </>
             )}
 
-            {/* BỐN KHỐI theo trục. Tên khối lấy từ `PLAN_BLOCK_LABEL` (gói `AXIS_LABEL`)
-                chứ không viết chuỗi mới — đây là lý do bảng đó tồn tại. */}
+            {/* Khối theo trục, số lượng và nhãn phụ thuộc PHƯƠNG PHÁP đang dùng (xem
+                `planGroups.ts`). `block.label` đã mang sẵn tên đúng của phương pháp —
+                không tra thêm bảng nào ở đây. */}
             {groups.blocks.map((b) => (
               <BlockBody
                 key={b.key}

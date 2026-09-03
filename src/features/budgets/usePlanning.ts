@@ -17,7 +17,7 @@ import {
 } from '../../hooks/queries'
 import { monthKeyString, type MonthKey } from '../../lib/dates'
 import type { CategoryRow } from '../../types/database.types'
-import { resolveMethod } from './budgetMethods'
+import { resolveMethod, type BudgetMethod } from './budgetMethods'
 import { buildBudgetDisplay, type BudgetDisplay } from './budgetDisplay'
 import { coverageGaps, type CommitmentReport, type CoverageGap } from './commitments'
 import { planGroups, type PlanGroups } from './planGroups'
@@ -45,8 +45,10 @@ export interface PlanningData {
   commitments: CommitmentReport
   /** danh mục có cam kết vượt hạn mức đang đặt */
   gaps: CoverageGap[]
+  /** phương pháp phân bổ đang dùng — hồ sơ người dùng, đã áp mốc tự chỉnh */
+  method: BudgetMethod
   suggestions: Map<string, Suggestion>
-  /** bốn khối hạn mức đã xếp theo trục (B30) */
+  /** khối hạn mức đã xếp theo trục (B30), số khối theo phương pháp đang dùng */
   groups: PlanGroups
   /** hạn mức đang đặt theo danh mục — cho danh sách và cho phép đối chiếu */
   budgetedByCat: Map<string, number>
@@ -169,6 +171,7 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
       markerSlices: markers,
       // Ghim VỊ TRÍ dòng đang mở thanh, theo mốc lúc mở — xem `placeAt` và `pinned`.
       pinned: draft ? { categoryId: draft.categoryId, limit: draft.placeAt } : null,
+      method,
     })
 
     // Danh mục ĐẶT ĐƯỢC hạn mức mà chưa đặt, và có lịch sử để gợi ý. Cùng bộ lọc với
@@ -212,6 +215,7 @@ export function usePlanning(monthKey: MonthKey, draft?: PlanDraft | null): Plann
       baseline,
       commitments,
       gaps,
+      method,
       suggestions,
       groups,
       budgetedByCat,

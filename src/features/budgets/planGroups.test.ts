@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { BudgetRow, CategoryRow } from '../../types/database.types'
 import { axisProgress, axisSlices } from './axisTargets'
-import { BUDGET_METHODS } from './budgetMethods'
+import { BUDGET_METHODS, type BudgetMethod } from './budgetMethods'
 import { buildBudgetDisplay } from './budgetDisplay'
-
-const M503020 = BUDGET_METHODS.find((m) => m.id === '50-30-20')!
 import { coverageGaps } from './commitments'
 import { planGroups } from './planGroups'
 import { plannedSlices } from './planning'
 import { buildBudgetReport } from './progress'
 import { classificationBreakdown } from '../reports/aggregate'
+
+const M503020 = BUDGET_METHODS.find((m) => m.id === '50-30-20')!
 
 function cat(p: Partial<CategoryRow> & Pick<CategoryRow, 'id'>): CategoryRow {
   return {
@@ -54,6 +54,8 @@ const CATS = [
   cat({ id: 'dien', name: 'Điện', need_level: 'essential', sort_order: 7 }),
   cat({ id: 'gas', name: 'Gas', need_level: 'essential', sort_order: 8 }),
   cat({ id: 'comngoai', name: 'Cơm ngoài', sort_order: 9 }),
+  // Nhãn `giving` — chỉ JARS/70-20-10/Kakeibo mới có khoản riêng cho nó.
+  cat({ id: 'quatang', name: 'Quà tặng', need_level: 'giving', sort_order: 10 }),
 ]
 
 const parentOf = (id: string) => CATS.find((c) => c.id === id)?.parent_id ?? null
@@ -63,6 +65,7 @@ function build(
   budgets: BudgetRow[],
   committed = new Map<string, number>(),
   pinned: { categoryId: string; limit: number } | null = null,
+  method: BudgetMethod = M503020,
 ) {
   const report = buildBudgetReport(budgets, [], () => 'JPY', 'JPY', {}, parentOf)
   const items = buildBudgetDisplay(
@@ -74,9 +77,9 @@ function build(
   const axis = axisProgress(
     290_000,
     classificationBreakdown(slices.counted, CATS),
-    M503020,
+    method,
     null,
-    axisSlices(slices.counted, CATS, M503020),
+    axisSlices(slices.counted, CATS, method),
   )
   const gaps = coverageGaps(committed, budgetedByCat, parentOf)
   return {
@@ -89,6 +92,7 @@ function build(
       axis,
       markerSlices: slices.markers,
       pinned,
+      method,
     }),
     axis,
     gaps,
@@ -183,6 +187,28 @@ describe('planGroups · khối theo trục', () => {
   it('khối rỗng bị loại hẳn, thứ tự khối còn lại vẫn cố định', () => {
     const { groups } = build([bud('cattoc', 1_800), bud('comngoai', 50_000)])
     expect(groups.blocks.map((b) => b.key)).toEqual(['flexible', 'unclassified'])
+  })
+})
+
+describe('planGroups · khối theo PHƯƠNG PHÁP (không cứng essential/flexible)', () => {
+  it('jars: danh mục nhãn giving vào khối Cho đi, không vào Linh hoạt', () => {
+    const jars = BUDGET_METHODS.find((m) => m.id === 'jars')!
+    const { groups } = build([bud('quatang', 5_000)], new Map(), null, jars)
+    expect(groups.blocks.map((b) => b.key)).toContain('giving')
+    const giving = groups.blocks.find((b) => b.key === 'giving')!
+    expect(giving.rows.map((r) => r.cat.id)).toEqual(['quatang'])
+  })
+
+  it('80-20: mọi dòng (kể cả chưa gắn nhãn) vào MỘT khối Chi tiêu, không còn khối chưa-phân-loại', () => {
+    const m8020 = BUDGET_METHODS.find((m) => m.id === '80-20')!
+    const { groups } = build(
+      [bud('dien', 3_000), bud('comngoai', 50_000), bud('quatang', 5_000)],
+      new Map(),
+      null,
+      m8020,
+    )
+    const keys = groups.blocks.map((b) => b.key)
+    expect(keys.filter((k) => k !== 'markers')).toEqual(['allSpend'])
   })
 })
 

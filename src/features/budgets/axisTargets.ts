@@ -17,26 +17,6 @@ import { bucketForNeed, type AxisKey, type BudgetMethod, type MethodBucket } fro
 
 export type { AxisKey } from './budgetMethods'
 
-/**
- * TẠM — task 5 của plan 2026-09-03 xoá.
- *
- * Tên hiển thị của một khoản giờ thuộc về PHƯƠNG PHÁP (`MethodBucket.label`, đọc qua
- * `AxisLine.label`): cùng khoá `essential` đọc là "Thiết yếu" ở 50/30/20 và JARS, nhưng
- * là "Sinh tồn" ở Kakeibo. Bảng phẳng này chỉ còn sống vì `planGroups.ts` và
- * `PlanningView.tsx` chưa chuyển sang đọc theo phương pháp — đủ 8 khoá để không vỡ dù
- * đang dùng phương pháp nào.
- */
-export const AXIS_LABEL: Record<AxisKey, string> = {
-  essential: 'Thiết yếu',
-  flexible: 'Linh hoạt',
-  education: 'Giáo dục',
-  giving: 'Cho đi',
-  buffer: 'Dự phòng',
-  living: 'Sinh hoạt',
-  allSpend: 'Chi tiêu',
-  savings: 'Để dành',
-}
-
 /** Mấy mốc đang thế nào — một mệnh đề ĐỘC LẬP, chưa có liên từ. */
 export interface AxisMissSummary {
   /** Các dòng chưa đạt mốc, giữ thứ tự của `lines`. */

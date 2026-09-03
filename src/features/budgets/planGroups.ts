@@ -26,22 +26,13 @@
 
 import type { CategoryRow } from '../../types/database.types'
 import type { CategorySlice } from '../reports/aggregate'
-import { AXIS_LABEL, type AxisKey, type AxisProgress } from './axisTargets'
+import type { AxisKey, AxisProgress } from './axisTargets'
+import { bucketForNeed, type BudgetMethod } from './budgetMethods'
 import type { BudgetDisplayItem } from './budgetDisplay'
 import type { CoverageGap } from './commitments'
 import type { Suggestion } from './suggest'
 
 export type PlanBlockKey = AxisKey | 'unclassified' | 'markers'
-
-/**
- * Nhãn của khối. Ba trục lấy từ `AXIS_LABEL` — đây là lý do bảng đó tồn tại (đã từng có
- * 4 bản sao và chúng lệch thật: "Tiết kiệm" ở mặt theo dõi, "Để dành" ở mặt lập kế hoạch).
- */
-export const PLAN_BLOCK_LABEL: Record<PlanBlockKey, string> = {
-  ...AXIS_LABEL,
-  unclassified: 'Chưa phân loại',
-  markers: 'Mốc con',
-}
 
 /** Mốc con nằm BÊN TRONG một trần nhóm — hiện khi xổ dòng cha ra. */
 export interface PlanMarkerRow {
@@ -120,10 +111,12 @@ export interface PlanGroupsInput {
    * trong tay người dùng. Vị trí phải đứng yên tới khi nhả tay.
    */
   pinned?: { categoryId: string; limit: number } | null
+  /** phương pháp đang dùng — quyết định khối nào tồn tại và nhãn của chúng */
+  method: BudgetMethod
 }
 
 export interface PlanGroups {
-  /** bốn khối theo THỨ TỰ CỐ ĐỊNH; khối rỗng đã bị loại */
+  /** khối theo THỨ TỰ CỐ ĐỊNH của phương pháp đang dùng; khối rỗng đã bị loại */
   blocks: PlanBlock[]
   /** tổng mọi dòng in ra, GỒM mốc con — con số "29 dòng dưới đây cộng lại" của B30.4 */
   lineTotal: number
@@ -131,16 +124,8 @@ export interface PlanGroups {
   markerTotal: number
 }
 
-/** Thứ tự khối là CỐ ĐỊNH, không sắp theo tiền: nó là thứ tự người đọc học một lần. */
-const ORDER: PlanBlockKey[] = ['essential', 'flexible', 'unclassified', 'markers']
-
-const needKeyOf = (cat: CategoryRow): PlanBlockKey =>
-  cat.need_level === 'essential' || cat.need_level === 'flexible'
-    ? cat.need_level
-    : 'unclassified'
-
 /**
- * Bốn khối của cột hạn mức.
+ * Khối của cột hạn mức.
  *
  * KHÔNG có khối `Để dành` (B30.2): `axisSlices().savings` luôn rỗng theo thiết kế — để
  * dành = thu − tổng chi, không phải tổng của danh mục nào. Nó đã có thanh riêng ở cột
@@ -155,10 +140,25 @@ export function planGroups({
   axis,
   markerSlices,
   pinned,
+  method,
 }: PlanGroupsInput): PlanGroups {
   const byId = new Map(categories.map((c) => [c.id, c]))
   const gapOf = new Map(gaps.map((g) => [g.categoryId, g.short]))
   const parentOf = (id: string) => byId.get(id)?.parent_id ?? null
+
+  // Khối sinh từ các khoản CHI của phương pháp — khoản Để dành vẫn không có khối
+  // (B30.2 giữ nguyên: để dành là hiệu, không phải tổng của danh mục nào).
+  const expenseBuckets = method.buckets.filter((b) => b.source.kind !== 'residual')
+  const order: PlanBlockKey[] = [...expenseBuckets.map((b) => b.key), 'unclassified', 'markers']
+  const labelOf = (key: PlanBlockKey): string =>
+    key === 'unclassified'
+      ? 'Chưa phân loại'
+      : key === 'markers'
+        ? 'Mốc con'
+        : expenseBuckets.find((b) => b.key === key)!.label
+  // MỘT phép tra dùng chung với axisSlices — tiểu tổng khối khớp dòng trục từng đồng.
+  const blockKeyOf = (cat: CategoryRow): PlanBlockKey =>
+    bucketForNeed(method, cat.need_level)?.key ?? 'unclassified'
 
   /** Trần GOVERNING một danh mục đang hụt bao nhiêu — cam kết đã gộp lên cha (xem `coverageGaps`). */
   const shortOf = (id: string) => {
@@ -250,18 +250,18 @@ export function planGroups({
     orphans.reduce((t, r) => t + r.limit, 0)
 
   const targetOf = (key: PlanBlockKey): number | null =>
-    key === 'essential' || key === 'flexible'
-      ? (axis?.lines.find((l) => l.key === key)?.target ?? null)
-      : null
+    key === 'unclassified' || key === 'markers'
+      ? null
+      : (axis?.lines.find((l) => l.key === key)?.target ?? null)
 
   /** Khoá VỊ TRÍ của một dòng — khác `limit` đúng ở dòng đang kéo (xem `pinned`). */
   const placeOf = (r: PlanRow) =>
     pinned && r.cat.id === pinned.categoryId ? pinned.limit : r.limit
 
   const blocks: PlanBlock[] = []
-  for (const key of ORDER) {
+  for (const key of order) {
     const picked =
-      key === 'markers' ? orphans : all.filter((r) => needKeyOf(r.cat) === key)
+      key === 'markers' ? orphans : all.filter((r) => blockKeyOf(r.cat) === key)
     if (picked.length === 0) continue
 
     // Trong mỗi khối: giảm dần theo HẠN MỨC, bằng nhau thì thứ tự Cài đặt.
@@ -280,7 +280,7 @@ export function planGroups({
 
     blocks.push({
       key,
-      label: PLAN_BLOCK_LABEL[key],
+      label: labelOf(key),
       rows,
       tail,
       tailTotal: tail.reduce((s, r) => s + r.limit, 0),

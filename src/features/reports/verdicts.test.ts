@@ -5,6 +5,7 @@ import {
   expenseTrend,
   netFlowVerdict,
   paretoTone,
+  savingsRateTone,
   savingsRateVerdict,
 } from './verdicts'
 
@@ -136,6 +137,22 @@ describe('netFlowVerdict', () => {
   })
 })
 
+describe('savingsRateTone', () => {
+  it('mặc định mốc 20%', () => {
+    expect(savingsRateTone(0.2)).toBe('good')
+    expect(savingsRateTone(0.19)).toBe('warn')
+    expect(savingsRateTone(0)).toBe('bad')
+  })
+
+  it('mốc tùy chỉnh theo phương pháp (vd 80/20 giữ 20% cũng, nhưng Kakeibo có thể khác)', () => {
+    // Mốc 10% (vd 70/20/10 dùng cho khoản khác, ở đây chỉ kiểm tham số hoạt động)
+    expect(savingsRateTone(0.15, 0.1)).toBe('good')
+    expect(savingsRateTone(0.05, 0.1)).toBe('warn')
+    // Mốc cao hơn (vd 30%) — rate cũ từng là 'good' ở mốc 20% giờ phải là 'warn'
+    expect(savingsRateTone(0.25, 0.3)).toBe('warn')
+  })
+})
+
 describe('savingsRateVerdict', () => {
   it('tính trên TỔNG cả kỳ, không phải trung bình các tỷ lệ tháng', () => {
     // Tháng thu 100 giữ 50% và tháng thu 900 giữ 0% → trung bình tỷ lệ là 25%,
@@ -187,5 +204,15 @@ describe('savingsRateVerdict', () => {
   it('không có thu nhập → null (không phải 0%)', () => {
     expect(savingsRateVerdict([p(6, 0, 100), p(7, 0, 100)], AUG)).toBeNull()
     expect(savingsRateVerdict([], AUG)).toBeNull()
+  })
+
+  it('targetShare tùy chỉnh đổi mốc tone, mặc định vẫn là 20%', () => {
+    const points = [p(6, 100, 90), p(7, 100, 90)] // giữ lại 10%
+    // Mặc định (0.2): 10% chưa tới mốc → warn
+    expect(savingsRateVerdict(points, AUG)!.tone).toBe('warn')
+    // Mốc hạ xuống 10%: cùng tỷ lệ giờ đạt → good
+    expect(savingsRateVerdict(points, AUG, 0.1)!.tone).toBe('good')
+    // Mốc nâng lên 15%: vẫn chưa tới → warn
+    expect(savingsRateVerdict(points, AUG, 0.15)!.tone).toBe('warn')
   })
 })

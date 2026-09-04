@@ -608,7 +608,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     const rows = item.children.filter((k) => !idleIds.has(k.cat.id))
     const unsplit = mismatch?.kind === 'under' ? mismatch.cap - item.markerTotal : 0
     return (
-      <div className="ml-10 mb-2 mt-1 rounded-lg bg-surface-sunken px-3">
+      <div className="ml-7 mb-2 mt-1 rounded-lg bg-surface-sunken px-3">
         {/* Con cộng lại VƯỢT trần cha: câu do capOverflow.ts dựng, nó GỌI TÊN mục con
             mang số đó, vì nhóm có nhiều con thì một con số trơ trọi không chỉ được đứa nào. */}
         {mismatch?.kind === 'over' && <p className="py-2 text-2xs text-fg-warn">{mismatch.text}</p>}
@@ -664,21 +664,23 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
     return (
       <li key={id} id={anchor} className={mark}>
         <div className="flex items-stretch gap-1">
-          {/* Nút xổ/thu con — kéo cao hết dòng cho dễ bấm. Rộng 36px (w-9) chứ không 24px:
-              đo được 24×40, hụt vùng chạm ở trục ngang. Lá không có nút nhưng giữ chỗ để
-              cột tên thẳng hàng với nhóm. */}
+          {/* Nút xổ/thu con — kéo cao hết dòng cho dễ bấm. Vùng chạm giữ 36px (w-9) vì
+              24×40 đo được là hụt trục ngang, nhưng CHỖ THẬT chỉ 24px: -ml-2 tràn vào
+              pl-2 của vạch đánh dấu, -mr-1 tràn vào gap — không thì cột tên lùi sâu 40px
+              so với các thẻ khác trên trang. Lá không có nút nhưng giữ chỗ (w-6 = đúng
+              24px đó) để cột tên thẳng hàng với nhóm. */}
           {item.kind === 'group' ? (
             <button
               type="button"
               onClick={() => toggle(id)}
               aria-label={isOpen ? 'Thu gọn' : 'Xem các mục con'}
               aria-expanded={isOpen}
-              className="flex w-9 shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg-primary"
+              className="-ml-2 -mr-1 flex w-9 shrink-0 items-center justify-center rounded-md text-fg-muted hover:text-fg-primary"
             >
               {chevron(isOpen)}
             </button>
           ) : (
-            <span aria-hidden className="w-9 shrink-0" />
+            <span aria-hidden className="w-6 shrink-0" />
           )}
           <button
             type="button"
@@ -1053,7 +1055,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
                   aria-expanded={quietOpen}
                   className="flex min-h-11 w-full items-center gap-1 text-left"
                 >
-                  <span className="flex w-9 shrink-0 items-center justify-center text-fg-muted">
+                  <span className="-ml-2 -mr-1 flex w-9 shrink-0 items-center justify-center text-fg-muted">
                     {chevron(quietOpen)}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-sm text-fg-secondary">

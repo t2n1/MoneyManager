@@ -302,12 +302,15 @@ function stripComments(text: string): string {
 // ¥…", "Tổng có thể được hoàn ¥…" (khối ①/②) và dòng "Theo NTA · áp dụng từ năm thuế …"
 // (NguonLuat). Cả ba là DỮ LIỆU/nguồn luật đi kèm số tiền và trích dẫn, không phải chữ để
 // dạy — <Guide> ẩn ở chế độ Gọn thì đúng lúc người dùng cần nhất (đang xem số ước) lại mất.
+// 91 (từ 90, 2026-09-04): sheet Phân bổ ngân sách — câu định nghĩa kỳ ướm ('Mỗi tấm dưới
+// đây đã ướm sẵn số 3 tháng…') và trạng thái rỗng khi kỳ ướm không có khoản thu. Cả hai
+// nói về DỮ LIỆU đang hiện, ẩn ở Gọn là các huy hiệu số mất mẫu số.
 // 90 (từ 89, 2026-09-03): bảng "Phương pháp nào hợp với tôi?" (ProfileEditSheet) thêm hai
 // đoạn nhưng chỉ một đoạn vượt ngưỡng đếm — câu ĐỊNH NGHĨA cách đọc bảng ướm ("ít lệch = tả đúng nếp, nhiều lệch = kéo đổi
 // nếp") và trạng thái rỗng khi 3 tháng không có khoản thu. Câu đầu mà ẩn ở Gọn thì bảng
 // số đọc ngược nghĩa ("lệch nhiều" thành "phương pháp tồi"); câu sau là trạng thái dữ
 // liệu, không phải chữ dạy.
-const PROSE_MAX = 90
+const PROSE_MAX = 91
 
 const FILES = sourceFiles().map((path) => ({
   path,
@@ -1248,7 +1251,9 @@ describe('design system — ngưỡng (chỉ được giảm)', () => {
     // đổi sang <Card as="section" padding="lg">. Phải đổi cả bốn cùng lúc, không lẻ cái
     // nào: chúng xếp dọc liền nhau trong một mạch cuộn nên để lẫn hai bán kính là thấy
     // ngay — và khối thứ năm vừa thêm (InvestmentValueHistorySection) dùng <Card> từ đầu.
-    { needle: 'rounded-2xl', max: 32, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
+    // 33 (từ 32, 2026-09-04): BudgetMethodSheet — sheet mới tách từ Hồ sơ, dùng đúng khuôn
+    // sheet chuẩn (rounded-t-2xl / lg:rounded-2xl) nên thuộc ngoại lệ 'sheet'.
+    { needle: 'rounded-2xl', max: 33, use: 'rounded-xl (scale chuẩn), trừ thẻ hero / sheet' },
     // ⚠️ TRẦN NÀY ĐANG TĂNG THEO KẾ HOẠCH, không phải nới cho dễ thở. Luật ở đầu file
     // là 'chỉ được giảm', nên phải nói rõ vì sao chỗ này khác.
     //

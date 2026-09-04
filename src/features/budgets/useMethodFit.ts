@@ -28,7 +28,13 @@ import { BASELINE_MONTHS } from './axisTargets'
 import { BUDGET_METHODS, resolveMethod } from './budgetMethods'
 import { methodFit, type MethodFit } from './methodFit'
 
-export function useMethodFit(): MethodFit[] | null | undefined {
+export interface MethodFitData {
+  fits: MethodFit[]
+  /** thu TRUNG BÌNH THÁNG của kỳ ướm (base minor) — để quy "X% ≈ ¥Y/tháng" */
+  avgIncome: number
+}
+
+export function useMethodFit(): MethodFitData | null | undefined {
   const { data: profile } = useProfile()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
@@ -65,6 +71,8 @@ export function useMethodFit(): MethodFit[] | null | undefined {
     const resolved = resolveMethod(profile)
     const methods = BUDGET_METHODS.map((m) => (m.id === resolved.id ? resolved : m))
 
-    return methodFit(sums.income, cls, methods)
+    const fits = methodFit(sums.income, cls, methods, expense.slices, categories)
+    if (fits === null) return null
+    return { fits, avgIncome: Math.round(sums.income / BASELINE_MONTHS) }
   }, [profile, isPending, txs, accounts, categories, base, rates, transferIds])
 }

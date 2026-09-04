@@ -13,6 +13,7 @@ import { getSupabase } from '../../lib/supabase'
 import { DensityToggle } from './DensityToggle'
 import { FontSizeToggle } from './FontSizeToggle'
 import { ProfileEditSheet } from './ProfileEditSheet'
+import { BudgetMethodSheet } from './BudgetMethodSheet'
 import { SETTINGS_NAV } from './SettingsLayout'
 import { ThemeToggle } from './ThemeToggle'
 import { Card, PageHeader, PanelHeader, SectionTitle } from '../../components/ui'
@@ -21,9 +22,13 @@ export function SettingsPage() {
   const { data: profile } = useProfile()
   const qc = useQueryClient()
   const navigate = useNavigate()
-  // ?edit=profile mở thẳng sheet Hồ sơ (link "Đổi mốc" từ tab Ngân sách)
+  // ?edit=profile mở thẳng sheet Hồ sơ; ?edit=budget-method mở sheet Phân bổ ngân sách
+  // (nút "Đổi mốc" ở tab Ngân sách trỏ vào cái sau).
   const [searchParams] = useSearchParams()
   const [editing, setEditing] = useState(() => searchParams.get('edit') === 'profile')
+  const [editingBudget, setEditingBudget] = useState(
+    () => searchParams.get('edit') === 'budget-method',
+  )
 
   const { base, rates } = useRates()
   // Chỉ để khoá nút "Thử lấy lại" trong lúc đang lấy. Việc ĐỌC LẠI mốc thời gian sau mỗi
@@ -205,7 +210,19 @@ export function SettingsPage() {
           )}
       </div>
 
-      {editing && profile && <ProfileEditSheet profile={profile} onClose={() => setEditing(false)} />}
+      {editing && profile && (
+        <ProfileEditSheet
+          profile={profile}
+          onClose={() => setEditing(false)}
+          onOpenBudget={() => {
+            setEditing(false)
+            setEditingBudget(true)
+          }}
+        />
+      )}
+      {editingBudget && profile && (
+        <BudgetMethodSheet profile={profile} onClose={() => setEditingBudget(false)} />
+      )}
     </div>
   )
 }

@@ -68,7 +68,7 @@ export function AxisTargetsCard({ data, base, monthKey }: Props) {
         {/* -my-3 để vùng chạm 44px không đẩy hàng tiêu đề giãn ra (cùng mẹo với nút
             "Chọn" ở LedgerPage) — đo được 42×16 khi để trần. */}
         <Link
-          to="/settings?edit=profile"
+          to="/settings?edit=budget-method"
           className="-my-3 inline-flex min-h-11 shrink-0 items-center text-2xs font-medium text-fg-accent"
         >
           Đổi mốc

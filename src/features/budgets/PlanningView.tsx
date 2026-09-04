@@ -1015,7 +1015,7 @@ function PlanSummaryBox({
       {headroom <= 0 && (
         <p className="text-2xs text-fg-muted">
           Muốn chia thêm thì bớt một hạn mức đã đặt, hoặc{' '}
-          <Link to="/settings?edit=profile" className="underline">
+          <Link to="/settings?edit=budget-method" className="underline">
             đổi mục tiêu để dành
           </Link>
           .

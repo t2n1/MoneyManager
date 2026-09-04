@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { emptyNeedByLevel, type ClassificationBreakdown } from '../reports/aggregate'
 import { BUDGET_METHODS } from './budgetMethods'
-import { fitPhrase, methodFit } from './methodFit'
+import { fitBadges, methodFit } from './methodFit'
 
 const cls = (p: Partial<ClassificationBreakdown> = {}): ClassificationBreakdown => ({
   needByLevel: emptyNeedByLevel(),
@@ -14,37 +14,49 @@ const cls = (p: Partial<ClassificationBreakdown> = {}): ClassificationBreakdown 
   ...p,
 })
 
+// Thu 1000: thiết yếu 60%, linh hoạt 30% (bằng đúng trần 30 của 50/30/20 = ĐẠT),
+// để dành 10% (< sàn 20 của mọi phương pháp).
+const DATA = cls({
+  needByLevel: { ...emptyNeedByLevel(), essential: 600, flexible: 300 },
+  totalExpense: 900,
+})
+
 describe('methodFit', () => {
   it('không có thu nhập thì không ướm — null, không hiện số bịa', () => {
     expect(methodFit(0, cls())).toBeNull()
     expect(methodFit(-5, cls())).toBeNull()
   })
 
-  it('đếm đúng mốc lệch cho từng phương pháp trên cùng một cơ cấu', () => {
-    // Thu 1000: thiết yếu 60% (quá trần 50 của 50/30/20, quá 55 của jars),
-    // linh hoạt 30% (bằng đúng trần 30 = ĐẠT), để dành 10% (< sàn 20 mọi phương pháp).
-    const data = cls({
-      needByLevel: { ...emptyNeedByLevel(), essential: 600, flexible: 300 },
-      totalExpense: 900,
-    })
-    const fits = methodFit(1_000, data)!
-    const by = (id: string) => fits.find((f) => f.method.id === id)!
+  it('mỗi phương pháp một dòng, giữ thứ tự, axis tính đúng theo phương pháp đó', () => {
+    const fits = methodFit(1_000, DATA)!
+    expect(fits.map((f) => f.method.id)).toEqual(BUDGET_METHODS.map((m) => m.id))
 
-    const f503020 = by('50-30-20')
-    expect(f503020.total).toBe(3)
-    expect(f503020.missed).toEqual(['Thiết yếu', 'Để dành'])
-
-    // 80/20: tổng chi 90% > trần 80, để dành hụt — lệch cả 2.
-    expect(by('80-20').missed).toEqual(['Chi tiêu', 'Để dành'])
-
-    // jars: thiết yếu 60% > 55; hưởng thụ 30% > 10; giáo dục/cho đi 0% dưới trần = đạt.
-    expect(by('jars').missed).toEqual(['Thiết yếu', 'Hưởng thụ', 'Để dành'])
-    expect(by('jars').total).toBe(5)
+    const jars = fits.find((f) => f.method.id === 'jars')!
+    // jars: thiết yếu 60% > 55, hưởng thụ 30% > 10, để dành 10% < 20 — lệch 3
+    expect(jars.axis.lines.filter((l) => !l.ok).map((l) => l.label)).toEqual([
+      'Thiết yếu',
+      'Hưởng thụ',
+      'Để dành',
+    ])
   })
 
-  it('mỗi phương pháp trong danh sách truyền vào ra đúng một dòng, giữ thứ tự', () => {
-    const fits = methodFit(1_000, cls({ totalExpense: 100 }))!
-    expect(fits.map((f) => f.method.id)).toEqual(BUDGET_METHODS.map((m) => m.id))
+  it('có slices + categories thì dòng khoản xổ ra được danh mục đã góp vào', () => {
+    const fits = methodFit(
+      1_000,
+      DATA,
+      BUDGET_METHODS,
+      [
+        { categoryId: 'nha', amount: 600 },
+        { categoryId: 'quan-ao', amount: 300 },
+      ],
+      [
+        { id: 'nha', need_level: 'essential' } as never,
+        { id: 'quan-ao', need_level: 'flexible' } as never,
+      ],
+    )!
+    const f503020 = fits.find((f) => f.method.id === '50-30-20')!
+    const essential = f503020.axis.lines.find((l) => l.key === 'essential')!
+    expect(essential.slices.map((s) => s.categoryId)).toEqual(['nha'])
   })
 
   it('tôn trọng mốc ĐÃ CHỈNH khi phương pháp truyền vào mang bps riêng', () => {
@@ -55,27 +67,41 @@ describe('methodFit', () => {
         b.key === 'essential' ? { ...b, bps: 7000 } : b,
       ),
     }
-    const data = cls({
-      needByLevel: { ...emptyNeedByLevel(), essential: 600, flexible: 300 },
-      totalExpense: 900,
-    })
-    const [f] = methodFit(1_000, data, [custom503020])!
-    expect(f.missed).toEqual(['Để dành'])
+    const [f] = methodFit(1_000, DATA, [custom503020])!
+    expect(f.axis.lines.filter((l) => !l.ok).map((l) => l.key)).toEqual(['savings'])
   })
 })
 
-describe('fitPhrase', () => {
-  it('đạt hết thì nói đạt, lệch thì đếm kèm TÊN mốc', () => {
-    const data = cls({
-      needByLevel: { ...emptyNeedByLevel(), essential: 400, flexible: 250 },
-      totalExpense: 650, // để dành 35% — 50/30/20 đạt cả ba
-    })
-    const fits = methodFit(1_000, data)!
-    const ok = fits.find((f) => f.method.id === '50-30-20')!
-    expect(fitPhrase(ok)).toBe('đạt cả 3 mốc')
+describe('fitBadges', () => {
+  it('lệch thì mỗi mốc một huy hiệu warn, viết bằng lời thường kèm số', () => {
+    const fits = methodFit(1_000, DATA)!
+    const f503020 = fits.find((f) => f.method.id === '50-30-20')!
+    expect(fitBadges(f503020.axis)).toEqual([
+      { tone: 'warn', text: 'Thiết yếu 60% — quá trần 50%' },
+      { tone: 'warn', text: 'giữ lại 10% — chưa tới sàn 20%' },
+    ])
+  })
 
-    const jars = fits.find((f) => f.method.id === 'jars')!
-    // hưởng thụ 25% > 10 — chỉ lệch một mốc chi, để dành 35% vượt sàn
-    expect(fitPhrase(jars)).toBe('lệch 1/5 mốc — Hưởng thụ')
+  it('đạt hết thì đúng một huy hiệu good', () => {
+    const ok = cls({
+      needByLevel: { ...emptyNeedByLevel(), essential: 400, flexible: 250 },
+      totalExpense: 650, // để dành 35%
+    })
+    const f = methodFit(1_000, ok)!.find((x) => x.method.id === '50-30-20')!
+    expect(fitBadges(f.axis)).toEqual([
+      { tone: 'good', text: 'hợp nếp chi hiện tại — đạt cả 3 mốc' },
+    ])
+  })
+
+  it('để dành ÂM viết "Âm", không để dấu trừ trần trụi', () => {
+    const over = cls({
+      needByLevel: { ...emptyNeedByLevel(), essential: 1_100 },
+      totalExpense: 1_100,
+    })
+    const f = methodFit(1_000, over)!.find((x) => x.method.id === '80-20')!
+    const badges = fitBadges(f.axis)
+    expect(badges.find((b) => b.text.includes('giữ lại'))!.text).toBe(
+      'giữ lại Âm 10% — chưa tới sàn 20%',
+    )
   })
 })

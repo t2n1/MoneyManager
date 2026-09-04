@@ -401,6 +401,36 @@ function sameLineOccurrences(a: string, b: string) {
 }
 
 describe('design system — ban cứng (phải bằng 0)', () => {
+  // Lý do (bug sổ thật trên điện thoại, 2026-09-04): sheet render NGAY TRONG <main> cuộn
+  // được, nên cử chỉ kéo trên sheet mà sheet không có gì (hoặc hết chỗ) để cuộn sẽ TRUYỀN
+  // XUYÊN xuống main — người dùng kéo, sheet đứng im, trang mờ sau lưng chạy.
+  // 'overscroll-contain' trên đúng phần tử cuộn của sheet chặn chuỗi truyền đó
+  // (AccountPicker đã dùng đúng cách này cho listbox của nó).
+  it('sheet cuộn (max-h-[92vh]) phải mang overscroll-contain', () => {
+    const bad: string[] = []
+    for (const f of FILES) {
+      for (const m of f.text.matchAll(/className="([^"]*max-h-\[92vh\][^"]*)"/g)) {
+        if (!m[1].includes('overscroll-contain')) bad.push(f.path.replace(SRC, ''))
+      }
+    }
+    expect(
+      bad,
+      `Thiếu overscroll-contain trên phần tử cuộn của sheet.\n${bad.join('\n')}`,
+    ).toEqual([])
+  })
+
+  // Lý do (cùng bug trên): autoFocus trong bottom-sheet bật bàn phím NGAY KHI MỞ trên
+  // điện thoại — bàn phím chiếm nửa màn mà 92vh tính theo layout viewport không co lại,
+  // nửa trên sheet bị đẩy khuất. Muốn focus sẵn trên desktop thì làm có điều kiện qua
+  // JS sau khi sheet đã vào chỗ, đừng bằng thuộc tính.
+  it('sheet cuộn không autoFocus lúc mở', () => {
+    const bad: string[] = []
+    for (const f of FILES) {
+      if (f.text.includes('max-h-[92vh]') && /\bautoFocus\b/.test(f.text)) bad.push(f.path.replace(SRC, ''))
+    }
+    expect(bad, `Bỏ autoFocus khỏi sheet cuộn.\n${bad.join('\n')}`).toEqual([])
+  })
+
   // Lý do: gray-400 trên nền trắng chỉ 2,5:1, cần 4,5:1. Chiều đúng là
   // `text-gray-500 dark:text-gray-400` — nền tối thì chữ phụ phải SÁNG hơn.
   it('không dùng gray-400 làm chữ phụ ở light mode', () => {

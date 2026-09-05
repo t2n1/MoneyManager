@@ -44,8 +44,11 @@ describe('Chi từng ngày — chỗ đứng trong Bản tin', () => {
     expect(doan).not.toContain('basis-full xl:basis-0')
   })
 
+  // `cutoffISO` nay là BIẾN ở BulletinPage (chế độ "So năm ngoái" cũng cần nó cho
+  // cumulativeCompare) — ràng buộc giữ nguyên: cutoff phải phân biệt tháng hiện tại
+  // (hôm nay) với tháng đã qua (ngày cuối tháng), và mọi hình chỉ vẽ tới cutoff.
   it('đường chỉ vẽ tới hôm nay ở tháng hiện tại', () => {
-    expect(trang).toMatch(/cutoffISO=\{dangXemThangNay \?/)
+    expect(trang).toMatch(/const cutoffISO = dangXemThangNay \?/)
     expect(the).toContain('d.date <= cutoffISO')
   })
 })

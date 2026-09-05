@@ -28,6 +28,7 @@ import { Card, Money, Num, SectionTitle, SegmentedControl, deltaTone, signedPct 
 import { formatCompact, type CurrencyCode } from '../../lib/money'
 import type { CategoryRow } from '../../types/database.types'
 import type { PeriodCompare } from '../reports/periodCompare'
+import type { CumulativeCompare } from '../reports/cumulativeCompare'
 import {
   axisCeiling,
   dayLabel,
@@ -81,6 +82,34 @@ const SCOPE_ITEMS = [
   { value: 'flex' as const, label: 'Bỏ cố định' },
 ]
 
+/** 'bars' = cột từng ngày (mặc định) · 'yoy' = đường lũy kế so cùng kỳ năm ngoái. */
+export type DailyChart = 'bars' | 'yoy'
+
+const CHART_KEY = 'bulletin.dailySpend.chart'
+
+/** Cùng khuôn localStorage với công tắc phạm vi: sở thích XEM, giữ ở máy, không vào DB. */
+function readDailyChart(): DailyChart {
+  try {
+    return localStorage.getItem(CHART_KEY) === 'yoy' ? 'yoy' : 'bars'
+  } catch {
+    return 'bars'
+  }
+}
+
+function writeDailyChart(chart: DailyChart): void {
+  try {
+    if (chart === 'yoy') localStorage.setItem(CHART_KEY, 'yoy')
+    else localStorage.removeItem(CHART_KEY)
+  } catch {
+    // bỏ qua
+  }
+}
+
+const CHART_ITEMS = [
+  { value: 'bars' as const, label: 'Cột ngày' },
+  { value: 'yoy' as const, label: 'So năm ngoái' },
+]
+
 // Vùng vẽ 11rem. Ba dải cộng lại đúng 100%, đừng đổi một số mà quên hai số kia:
 //   NEG  1,375rem dưới đường 0 — chỗ cho cột hoàn tiền mọc XUỐNG (B47.2).
 //   LABEL 0,875rem trên đỉnh cột cao nhất — chỗ cho nhãn số, để nó không tràn khỏi thẻ.
@@ -101,6 +130,12 @@ interface Props {
   tagLines: readonly TagBudgetLine[]
   /** So với cùng số ngày của tháng trước (B47.3). null = không có tháng trước để so. */
   compare: PeriodCompare | null
+  /** Lũy kế so cùng kỳ NĂM NGOÁI. null = năm ngoái không có dữ liệu tháng này → giấu công tắc. */
+  yoy: CumulativeCompare | null
+  /** Tháng cùng kỳ có khoản thiếu tỷ giá → số của đường mờ là ước chừng. */
+  yoyApprox: boolean
+  /** Nhãn tháng cùng kỳ, ví dụ "2025/09" — cùng khuôn formatMonthLabel của cả app. */
+  priorLabel: string
   /** Ngày cuối ĐÃ XẢY RA: hôm nay nếu đang xem tháng này, ngày cuối tháng nếu tháng đã qua. */
   cutoffISO: string
   base: CurrencyCode
@@ -273,6 +308,140 @@ function DayCard({
   )
 }
 
+/**
+ * Chế độ "So năm ngoái": đường LŨY KẾ năm nay (đậm, dừng ở hôm nay) đè lên cùng tháng
+ * năm ngoái (mờ, vẽ trọn tháng để thấy trước đích đến).
+ *
+ * Vì sao đường ở đây không phạm B41 ("cột chứ không đường"): B41 nói về chi TỪNG NGÀY —
+ * sự kiện rời rạc, nội suy giữa hai ngày là vẽ ra dòng tiền không có thật. Lũy kế thì
+ * ngược lại: nó là một đại lượng chạy liên tục theo ngày (tụt khi hoàn tiền), và đoạn
+ * nằm ngang giữa hai ngày có nghĩa thật — "không tiêu thêm gì".
+ *
+ * So theo NGÀY-THỨ-MẤY-CỦA-THÁNG chứ không so từng ngày: ngày lương, cuối tuần, ngày lễ
+ * hai năm rơi lệch nhau nên cặp cột ngày-3-vs-ngày-3 chỉ ra nhiễu (đã cân khi chọn dạng).
+ *
+ * SVG viết tay chứ không recharts — cùng lý do SpendSizeCard: hai đường một chấm, gọi cả
+ * thư viện là phí. `preserveAspectRatio="none"` cho hình giãn theo thẻ, nên mọi nét mang
+ * `vector-effect="non-scaling-stroke"` (giữ đúng px), và chấm "hôm nay" là một đoạn DÀI 0
+ * với mũ tròn — <circle> sẽ méo thành bầu dục khi SVG giãn ngang.
+ *
+ * Hình là aria-hidden cùng nguyên tắc với hàng cột: con số nói ở dòng kết luận ngay trên,
+ * đầy đủ hơn cả hình.
+ */
+function YoyBlock({
+  yoy,
+  days,
+  base,
+  approx,
+  priorLabel,
+}: {
+  yoy: CumulativeCompare
+  /** Dải ngày của tháng ĐANG XEM — trục x phủ trọn tháng dù đường năm nay mới đi vài ngày. */
+  days: DaySpend[]
+  base: CurrencyCode
+  approx: boolean
+  priorLabel: string
+}) {
+  const { current, prior, priorAtSameDay, deltaPct, priorTotal } = yoy
+  // Hai năm cùng đi qua getMonthRange nên n thường bằng nhau; lệch (tháng 2 nhuận, ngày
+  // bắt đầu tháng tùy chỉnh) thì trục lấy bên dài hơn, đường ngắn dừng sớm — không bịa thêm.
+  const n = Math.max(days.length, prior.length)
+  const nowTotal = current[current.length - 1]
+  const hi = Math.max(1, ...current, ...prior)
+  const lo = Math.min(0, ...current, ...prior)
+  const x = (i: number) => (n > 1 ? (i / (n - 1)) * 100 : 0)
+  const y = (v: number) => 100 - ((v - lo) / (hi - lo)) * 100
+  const pathOf = (vals: readonly number[]) =>
+    vals.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(2)},${y(v).toFixed(2)}`).join(' ')
+
+  return (
+    <>
+      {/* Kết luận trước, biểu đồ sau (§14) — cùng khuôn câu của chế độ cột. */}
+      <p className="mt-1.5 text-sm text-fg-secondary">
+        <Num>{current.length}</Num> ngày:{' '}
+        <Money
+          amount={nowTotal}
+          currency={base}
+          tone="out"
+          approx={approx}
+          className="font-semibold"
+        />
+        {' — cùng kỳ '}
+        <Money amount={priorAtSameDay} currency={base} approx={approx} />{' '}
+        <Num tone={deltaTone(deltaPct)}>
+          {signedPct(deltaPct === null ? null : Math.round(deltaPct * 10) / 10)}
+        </Num>
+        <span className="font-mono text-2xs text-fg-muted">
+          {' · '}cả tháng {priorLabel}{' '}
+          <Money amount={priorTotal} currency={base} approx={approx} />
+        </span>
+      </p>
+
+      <div className="relative mt-3">
+        {/* Thang đọc được: mép trên của khung là bao nhiêu tiền. Một nhãn là đủ — hai con
+            số người ta thật sự cần đã nằm ở dòng kết luận. */}
+        <span className="absolute left-0 top-0 font-mono text-2xs text-fg-muted">
+          {formatCompact(hi, base)}
+        </span>
+        {/* Đường 0 vẽ bằng span tuyệt đối như chế độ cột — nó chỉ rời đáy khi có tháng
+            hoàn tiền nhiều hơn chi (lo < 0). */}
+        <span
+          className="absolute inset-x-0 border-t border-border-strong"
+          style={{ top: `${y(0)}%` }}
+          aria-hidden
+        />
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          className="h-44 w-full"
+          aria-hidden
+        >
+          <path
+            d={pathOf(prior)}
+            fill="none"
+            stroke="var(--fg-muted)"
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+          <path
+            d={pathOf(current)}
+            fill="none"
+            stroke="var(--money-out)"
+            strokeWidth={2}
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+          <path
+            d={`M${x(current.length - 1).toFixed(2)},${y(nowTotal).toFixed(2)} h0.01`}
+            stroke="var(--money-out)"
+            strokeWidth={7}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+      </div>
+
+      {/* Trục ngày: năm mốc như trục hẹp của chế độ cột, dùng chung dải ngày tháng này. */}
+      <div className="mt-1 flex justify-between font-mono text-2xs text-fg-muted">
+        {[0, 7, 14, 22, days.length - 1].map((i) => (
+          <span key={i}>{days[i]?.date.slice(8)}</span>
+        ))}
+      </div>
+
+      <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-2xs text-fg-muted">
+        <span className="flex items-center gap-1.5">
+          <span className="h-0.5 w-4 rounded-full bg-money-out" aria-hidden /> năm nay, cộng dồn
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-0.5 w-4 rounded-full bg-fg-muted" aria-hidden /> {priorLabel}, trọn
+          tháng
+        </span>
+      </p>
+    </>
+  )
+}
+
 export function DailySpendPanel({
   series,
   fullTotal,
@@ -280,6 +449,9 @@ export function DailySpendPanel({
   tagLines,
   compare,
   cutoffISO,
+  yoy,
+  yoyApprox,
+  priorLabel,
   base,
   categoryOf,
   approx,
@@ -291,6 +463,15 @@ export function DailySpendPanel({
   // Cột đang rê chuột. Giữ CHỈ SỐ chứ không giữ cả ngày: thẻ chi tiết cần biết cột nằm ở
   // đâu trên trục để tự né hai mép, mà chỉ có chỉ số nói được điều đó.
   const [hover, setHover] = useState<number | null>(null)
+
+  // Chế độ vẽ. Ưu tiên đã lưu chỉ ăn khi CÓ dữ liệu năm ngoái — không thì rơi về cột và
+  // công tắc giấu luôn: một nút dẫn tới màn "không có gì" là một nút không nên bấm được.
+  const [chartPref, setChartPref] = useState<DailyChart>(readDailyChart)
+  const pickChart = (c: DailyChart) => {
+    setChartPref(c)
+    writeDailyChart(c)
+  }
+  const chart: DailyChart = yoy !== null && chartPref === 'yoy' ? 'yoy' : 'bars'
 
   const ceiling = axisCeiling(days, typical)
   const peak = peakIndex >= 0 ? days[peakIndex] : null
@@ -331,6 +512,16 @@ export function DailySpendPanel({
           size="sm"
           stretch={false}
         />
+        {yoy !== null && (
+          <SegmentedControl
+            items={CHART_ITEMS}
+            value={chart}
+            onChange={pickChart}
+            label="Kiểu biểu đồ chi từng ngày"
+            size="sm"
+            stretch={false}
+          />
+        )}
         <p className="ml-auto font-mono text-2xs text-fg-muted">
           {elapsed.length} ngày ·{' '}
           <Money
@@ -374,6 +565,14 @@ export function DailySpendPanel({
         <p className="mt-3 text-sm text-fg-muted">
           Chưa ghi khoản chi nào trong tháng này.
         </p>
+      ) : chart === 'yoy' && yoy !== null ? (
+        <YoyBlock
+          yoy={yoy}
+          days={days}
+          base={base}
+          approx={approx || yoyApprox}
+          priorLabel={priorLabel}
+        />
       ) : (
         <>
           {/* Kết luận trước, biểu đồ sau (§14).

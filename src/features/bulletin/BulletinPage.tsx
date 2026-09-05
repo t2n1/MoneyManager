@@ -48,6 +48,7 @@ import { reliability } from '../notifications/reliability'
 import { monthExpenseCompare, monthlySeries } from '../reports/aggregate'
 import { ngayDiVang } from '../reports/ngayDiVang'
 import { dailySpendSeries } from '../reports/dailySpike'
+import { cumulativeCompare } from '../reports/cumulativeCompare'
 import { dayTagCells } from '../reports/dayTagCells'
 import { headlineOf } from '../reports/headline'
 import { useMonthPace } from '../reports/monthPace'
@@ -282,6 +283,46 @@ export function BulletinPage() {
   // song cho cùng một tháng là chỗ để chúng trôi khỏi nhau.
   const fullSpendTotal = expenseKpi.value
 
+  // CÙNG KỲ NĂM NGOÁI — nguồn của chế độ "So năm ngoái" trong thẻ Chi từng ngày.
+  //
+  // Tải qua chính `useMonthTransactions` để "một tháng" của cả hai năm cùng đi qua
+  // `getMonthRange` (tôn trọng ngày bắt đầu tháng tùy chỉnh) — tự cắt khoảng ngày ở đây
+  // là chép tay định nghĩa "một tháng" lần thứ hai. react-query giữ cache theo khoảng
+  // ngày nên lượt tải thêm này không lặp lại khi qua về giữa các tháng.
+  //
+  // Cùng `excludeIds` với chuỗi năm nay: công tắc "bỏ cố định" mà chỉ áp một bên thì
+  // hai đường không còn so được với nhau.
+  const priorYearKey = { year: activeMonthKey.year - 1, month: activeMonthKey.month }
+  const { data: priorTxs = [], range: priorRange } = useMonthTransactions(priorYearKey)
+  const priorLastISO = addDaysISO(priorRange.end, -1)
+  const priorSpend = useMemo(
+    () =>
+      dailySpendSeries(
+        priorTxs,
+        priorRange.start,
+        priorLastISO,
+        currencyOf,
+        base,
+        rates ?? {},
+        transferIds,
+        excludeIds,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [priorTxs, priorRange.start, priorLastISO, accounts, base, rates, transferIds, excludeIds],
+  )
+
+  const cutoffISO = dangXemThangNay ? toISODate(new Date()) : monthLastISO
+
+  // `txCount === 0` = năm ngoái KHÔNG ghi khoản nào trong tháng đó (sổ chỉ có từ 6/2025)
+  // → không có gì để so, thẻ giấu hẳn công tắc thay vì vẽ một đường nằm bẹp ở 0.
+  const yoy = useMemo(
+    () =>
+      priorSpend.txCount === 0
+        ? null
+        : cumulativeCompare(dailySpend.days, cutoffISO, priorSpend.days),
+    [priorSpend, dailySpend.days, cutoffISO],
+  )
+
   // Dải nhãn dưới biểu đồ (B44). `useTagSpend` dùng chung khoá truy vấn với `useTagBudgets`
   // ngay dưới — react-query gộp thành một lượt tải, không phải hai.
   const { data: tags = [] } = useTags()
@@ -475,7 +516,10 @@ export function BulletinPage() {
         cells={dailyTagCells}
         tagLines={tagBudgets.lines}
         compare={expenseCmp}
-        cutoffISO={dangXemThangNay ? toISODate(new Date()) : monthLastISO}
+        cutoffISO={cutoffISO}
+        yoy={yoy}
+        yoyApprox={priorSpend.hasMissingRate}
+        priorLabel={formatMonthLabel(priorYearKey)}
         base={base}
         categoryOf={categoryOf}
         approx={dailySpend.hasMissingRate || dailyTagCells.hasMissingRate}

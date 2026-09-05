@@ -316,7 +316,11 @@ function stripComments(text: string): string {
 // 93 (từ 92, 2026-09-05): dòng chi tiết mỗi bậc giá (GiaDoiBacCard) — "Đổi từ 2026/03 ·
 // đã trả N lần · ±X/năm". Là DỮ LIỆU của chính bậc giá, mất nó là mất một nửa kết luận;
 // dòng chỉ hiện khi có bậc thật. Xem spec gia-doi-bac §5.1.
-const PROSE_MAX = 93
+// 94 (từ 93, 2026-09-05): chú giải hai đường của chế độ "So năm ngoái" (DailySpendPanel)
+// — "— năm nay, cộng dồn · — 2025/09, trọn tháng". Cùng loại với lời ghi 92: NHÃN DỮ LIỆU
+// của biểu đồ, không có nó thì đường mờ vẽ trọn tháng đọc như lỗi (đường kia mới đi 5
+// ngày); chỉ hiện khi chế độ so được bật và có dữ liệu năm ngoái.
+const PROSE_MAX = 94
 
 const FILES = sourceFiles().map((path) => ({
   path,

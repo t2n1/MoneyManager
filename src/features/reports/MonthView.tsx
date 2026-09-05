@@ -89,7 +89,7 @@ import {
   type MonthTableRow,
 } from './monthReport'
 import { spendPercentiles, subscriptionSummary } from './behavior'
-import { tinhChiChuaGhi, tongChiCoPhanChuaGhi } from './chiChuaGhi'
+import { dongChiChuaGhi, tinhChiChuaGhi, tongChiCoPhanChuaGhi } from './chiChuaGhi'
 import { MonthCategoryTable } from './MonthCategoryTable'
 import {
   KeptWhereCard,
@@ -634,6 +634,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
               base={base}
               overCount={budgetReport?.overCount ?? 0}
               approx={sums.hasForeign || chuaGhi.hasMissingRate}
+              chuaGhi={dongChiChuaGhi(chuaGhi)}
             />
           </ReportBlock>
 

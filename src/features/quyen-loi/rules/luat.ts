@@ -37,6 +37,19 @@ export interface LuatNam {
   shotokuBac: BacThue[]
   furusato: { tuChiu: number; tyLeShotokuWari: number }
   nisa: { tsumitate: number; growth: number; tongDoi: number }
+  iryohi: {
+    /** Ngưỡng trừ nhánh chính (yên). Vế min-5%-tổng-thu-nhập cố ý bỏ — mọi số của
+     *  khoản ⑤ là CẬN DƯỚI (spec iryohi §4): thu nhập thấp thì ngưỡng thật thấp hơn,
+     *  khấu trừ thật chỉ lớn hơn. */
+    nguong: number
+    tranKhauTru: number
+    selfMed: {
+      nguong: number
+      tran: number
+      /** ISO ngày cuối hiệu lực; null = không hạn. 2026-12-31 theo 令和4年度改正. */
+      hetHan: string | null
+    }
+  }
 }
 
 /** Bộ luật MỚI NHẤT trước hoặc bằng `year`. Xếp tăng theo `nam`. */

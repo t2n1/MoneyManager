@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   assetsAtAge,
+  coastAssetsMinor,
   compareAtEnd,
   fireYear,
   firstNegativeYear,
@@ -294,5 +295,116 @@ describe('extraSavingsForFire', () => {
     // về phải nằm trong khoảng đó, không phải một số lớn hơn hàng nghìn lần.
     expect(extra as number).toBeGreaterThan(0)
     expect(extra as number).toBeLessThanOrEqual(4_200_000)
+  })
+})
+
+describe('coastAssetsMinor', () => {
+  const inputOf = (over: Partial<LifetimeInput> = {}): LifetimeInput => ({
+    currentYear: 2026,
+    birthYear: 1994,
+    endAge: 70,
+    displayCurrency: 'JPY',
+    startingAssetsMinor: 2_500_000,
+    realReturnBps: 200,
+    bandSpreadBps: 0,
+    inflationBps: 200,
+    nominalTerms: false,
+    phases: [
+      {
+        startYear: 2026,
+        label: 'Nhật',
+        country: 'JP',
+        currency: 'JPY',
+        annualIncomeMinor: 4_800_000,
+        annualExpenseMinor: 3_000_000,
+        fxToDisplay: 1,
+      },
+    ],
+    events: [],
+    ...over,
+  })
+
+  it('đóng dạng: chi cuối × 25 chia lãi kép số năm còn lại', () => {
+    // Đích = 3tr × 25 = 75tr; còn 1994+70−2026 = 38 năm; 75tr ÷ 1,02^38
+    const coast = coastAssetsMinor(inputOf()) as number
+    expect(coast).toBe(Math.round(75_000_000 / Math.pow(1.02, 38)))
+  })
+
+  it('tự nhất quán với fireYear: có đúng số Coast, không góp thêm, vẫn đạt trước tuổi cuối', () => {
+    const coast = coastAssetsMinor(inputOf()) as number
+    // "Không góp thêm" = thu bằng chi từ nay về sau.
+    const khongGop = inputOf({
+      startingAssetsMinor: coast,
+      bandSpreadBps: 0,
+      phases: [
+        {
+          startYear: 2026,
+          label: 'Nhật',
+          country: 'JP',
+          currency: 'JPY',
+          annualIncomeMinor: 3_000_000,
+          annualExpenseMinor: 3_000_000,
+          fxToDisplay: 1,
+        },
+      ],
+    })
+    const dat = fireYear(projectLifetime(khongGop))
+    expect(dat).not.toBeNull()
+    expect(dat as number).toBeLessThanOrEqual(1994 + 70)
+    // Thiếu 20% so với Coast thì KHÔNG kịp — mốc không phải con số tuỳ hứng.
+    const thieu = fireYear(
+      projectLifetime({ ...khongGop, startingAssetsMinor: Math.round(coast * 0.8) }),
+    )
+    expect(thieu).toBeNull()
+  })
+
+  it('dùng chi của CHẶNG CUỐI, quy về tiền hiển thị', () => {
+    const coast = coastAssetsMinor(
+      inputOf({
+        phases: [
+          {
+            startYear: 2026,
+            label: 'Nhật',
+            country: 'JP',
+            currency: 'JPY',
+            annualIncomeMinor: 4_800_000,
+            annualExpenseMinor: 3_000_000,
+            fxToDisplay: 1,
+          },
+          {
+            startYear: 2040,
+            label: 'VN',
+            country: 'VN',
+            currency: 'VND',
+            annualIncomeMinor: 0,
+            annualExpenseMinor: 400_000_000,
+            fxToDisplay: 0.006,
+          },
+        ],
+      }),
+    ) as number
+    // Chi cuối hiển thị = 400tr₫ × 0,006 = 2,4tr¥ → đích 60tr¥
+    expect(coast).toBe(Math.round(60_000_000 / Math.pow(1.02, 38)))
+  })
+
+  it('null khi hết năm để lớn hoặc chi ≤ 0', () => {
+    expect(coastAssetsMinor(inputOf({ endAge: 32 }))).toBeNull()
+    expect(
+      coastAssetsMinor(
+        inputOf({
+          phases: [
+            {
+              startYear: 2026,
+              label: 'Nhật',
+              country: 'JP',
+              currency: 'JPY',
+              annualIncomeMinor: 1,
+              annualExpenseMinor: 0,
+              fxToDisplay: 1,
+            },
+          ],
+        }),
+      ),
+    ).toBeNull()
   })
 })

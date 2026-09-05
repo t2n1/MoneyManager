@@ -20,6 +20,7 @@ import { formatMoney } from '../../lib/money'
 import {
   DEFAULT_SWR_BPS,
   assetsAtAge,
+  coastAssetsMinor,
   firstNegativeYear,
   minimumReturnBps,
 } from './insights'
@@ -352,6 +353,14 @@ export function InsightCards({
   const minReturn = minimumReturnBps(input)
   const atEndAge = assetsAtAge(rows, input.endAge)
   const verdict = lifetimeVerdict(rows, birthYear)
+  // Mốc Coast (insights.coastAssetsMinor): chỉ đáng nói khi CHƯA đạt — đạt rồi thì phần
+  // trăm ≥100% không thêm tin gì mà chiếm một dòng.
+  const coast = coastAssetsMinor(input)
+  const coastPct =
+    coast !== null && coast > 0
+      ? Math.round((input.startingAssetsMinor / coast) * 100)
+      : null
+  const showCoast = coast !== null && coastPct !== null && coastPct < 100
 
   // Vế thứ hai của câu kết luận, dùng chung cho cả ba nhánh tone: dù tiền có đủ hay
   // không thì "bao giờ không cần đi làm nữa" vẫn là câu hỏi người dùng mang tới màn này.
@@ -520,6 +529,21 @@ export function InsightCards({
         />
       </div>
 
+      {/* Mốc Coast — cùng họ với ô "Tự do tài chính" nhưng trả lời câu hỏi ngược: không
+          phải "bao giờ tới" mà "cần CÓ SẴN bao nhiêu hôm nay để ngừng góp vẫn kịp". */}
+      {showCoast && coast !== null && (
+        <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-border-subtle pt-2">
+          <span className="text-sm text-fg-secondary">
+            Mốc Coast — có sẵn từng này thì ngừng góp vẫn tự do ở tuổi{' '}
+            <Num tone="muted">{input.endAge}</Num>
+          </span>
+          <span className="flex items-baseline gap-2 text-sm">
+            <Money amount={coast} currency={currency} tone="neutral" />
+            <Num tone="muted">đang có {coastPct}%</Num>
+          </span>
+        </div>
+      )}
+
       {/* Khối "cách đọc" gấp mở — cùng khuôn ExplainBox của các thẻ báo cáo. Lời giải
           thích cho từ chuyên ngành ("bi quan", "quy tắc 4%"…) nằm ở MỘT nút duy nhất
           dưới dải thay vì rải icon vào từng ô; trong tile, sub bị `truncate` nên không
@@ -546,6 +570,12 @@ export function InsightCards({
           <b>Tự do tài chính</b> — năm đầu tiên mà chỉ cần rút {DEFAULT_SWR_BPS / 100}% tài
           sản mỗi năm là đủ chi tiêu (giới tài chính gọi là "quy tắc {DEFAULT_SWR_BPS / 100}%"),
           tức về lý thuyết không cần đi làm nữa cũng đủ sống.
+        </p>
+        <p>
+          <b>Mốc Coast</b> — số tài sản mà nếu đã có sẵn hôm nay, chỉ riêng lãi kép (không
+          góp thêm đồng nào) cũng đưa bạn tới tự do tài chính ở tuổi cuối kịch bản. Vượt
+          mốc này nghĩa là tiền để dành từ đây chỉ để tự do SỚM HƠN, không còn là điều kiện
+          bắt buộc.
         </p>
       </ExplainBox>
     </Card>

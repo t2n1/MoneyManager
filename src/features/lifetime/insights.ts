@@ -86,6 +86,39 @@ export function minimumReturnBps(input: LifetimeInput): number | null {
   return hi
 }
 
+/**
+ * Mốc Coast: tài sản cần CÓ SẴN hôm nay để — không góp thêm đồng nào — lãi kép tự đưa
+ * tới tự do tài chính ở TUỔI CUỐI của kịch bản. Đơn vị: minor của displayCurrency.
+ *
+ * Đóng dạng: chi năm cuối × (10000/swr) ÷ (1+r)^(số năm còn lại). Dùng chi của CHẶNG
+ * CUỐI (mức sống lúc về già, không phải mức hôm nay) và lợi suất THỰC của kịch bản —
+ * mọi con số đều ở giá hôm nay nên không nhân lạm phát, y hệt quy ước projectLifetime
+ * khi nominalTerms=false.
+ *
+ * CỐ Ý bỏ qua sự kiện/mốc: Coast trả lời "nếu từ mai tôi chỉ tiêu bằng thu, khối tài
+ * sản hiện có tự lớn tới đích không" — các mốc chi lớn phía trước thuộc về Bản đồ khoản
+ * lớn, trộn chúng vào đây là hai câu hỏi giẫm chân nhau. null = không tính được (hết
+ * năm để lớn, chi ≤ 0, hay lợi suất ≤ −100%).
+ */
+export function coastAssetsMinor(input: LifetimeInput, swrBps = DEFAULT_SWR_BPS): number | null {
+  const yearsLeft = input.birthYear + input.endAge - input.currentYear
+  if (yearsLeft <= 0) return null
+  const phases = [...input.phases].sort((a, b) => a.startYear - b.startYear)
+  const last = phases[phases.length - 1]
+  if (!last) return null
+  const expense = convertLifetimeMinor(
+    last.annualExpenseMinor,
+    last.currency,
+    input.displayCurrency,
+    last.fxToDisplay,
+  )
+  if (expense <= 0) return null
+  const r = input.realReturnBps / 10_000
+  if (1 + r <= 0) return null
+  const target = expense * (10_000 / swrBps)
+  return Math.round(target / Math.pow(1 + r, yearsLeft))
+}
+
 /** Hiệu tài sản cuối đời giữa hai bản chiếu (a − b). null nếu một bên rỗng. */
 export function compareAtEnd(a: YearRow[], b: YearRow[]): number | null {
   if (a.length === 0 || b.length === 0) return null

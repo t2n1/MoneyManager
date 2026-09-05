@@ -17,6 +17,7 @@ import { showToast } from '../../lib/dialog'
 import { formatMoney } from '../../lib/money'
 import { fetchRates } from '../../lib/rates'
 import { suggestBaseline } from './baseline'
+import { BigExpenseMapSection } from './BigExpenseMapSection'
 import { CompareStrip } from './CompareStrip'
 import {
   applyPreset,
@@ -41,7 +42,7 @@ import { commitDraft, saveDraftAsNewScenario } from './saveDraft'
 import { ScenarioWorkbench } from './ScenarioWorkbench'
 import { defaultStress } from './StressPanel'
 import { pickActive } from './buildInput'
-import { currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
+import { convertMinorToday, currencyAt, fxOfRates, normalizeToPhaseCurrency } from './fxModel'
 import { lifetimeVerdict } from './summary'
 import { applyRetireTrial, buildRetireTrial, RETIRE_TRIAL_MIN_END_AGE } from './tryRetire'
 import { verdictDrift, type VerdictPoint } from './verdictHistory'
@@ -275,6 +276,25 @@ export function LifetimeView() {
     () => (shownInput && baseline ? realityCheck(shownInput, baseline) : null),
     [shownInput, baseline],
   )
+
+  /**
+   * Phần dư mỗi tháng cho Bản đồ khoản lớn — ưu tiên số THẬT 12 tháng qua, thiếu thì
+   * rơi về số kế hoạch của chặng đang chạy. Cả hai đều theo TIỀN CỦA CHẶNG (suggestBaseline
+   * tính vậy), nên quy về tiền hiển thị bằng đúng tỷ giá trang này đang dùng.
+   */
+  const surplusForMap = useMemo(() => {
+    if (!shownPhase || !shownInput) return null
+    const mk = (annualIncome: number, annualExpense: number, real: boolean) => {
+      const perMonth = Math.round((annualIncome - annualExpense) / 12)
+      const v = convertMinorToday(perMonth, shownPhase.currency, shownInput.displayCurrency, pageFxOf)
+      return v === null ? null : { monthlyMinor: v, real }
+    }
+    if (baseline && baseline.monthsCovered > 0) {
+      const real = mk(baseline.annualIncomeMinor, baseline.annualExpenseMinor, true)
+      if (real !== null) return real
+    }
+    return mk(shownPhase.annualIncomeMinor, shownPhase.annualExpenseMinor, false)
+  }, [baseline, shownPhase, shownInput, pageFxOf])
 
   // --- Lịch sử kết luận (migration 0055) -----------------------------------------------
   //
@@ -915,6 +935,14 @@ export function LifetimeView() {
           currency={currency}
           scenarioName={active.name}
           onEditEvent={(eventId) => openEditor(eventId)}
+        />
+
+        <BigExpenseMapSection
+          events={shownInput?.events ?? []}
+          displayCurrency={currency}
+          fxOf={pageFxOf}
+          todayISO={todayISO}
+          surplus={surplusForMap}
         />
 
       </div>

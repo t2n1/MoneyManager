@@ -313,7 +313,10 @@ function stripComments(text: string): string {
 // 92 (từ 91, 2026-09-05): chú giải "Cột mờ = tháng có chuyến đi" (MonthlyBarsCard). Là
 // NHÃN DỮ LIỆU, không phải chữ dạy: cột mờ mà không có chú giải thì đọc như lỗi vẽ, và
 // nhãn chỉ hiện khi thật sự có tháng chuyến đi trong chuỗi. Xem spec chuyen-di §5.3.
-const PROSE_MAX = 92
+// 93 (từ 92, 2026-09-05): dòng chi tiết mỗi bậc giá (GiaDoiBacCard) — "Đổi từ 2026/03 ·
+// đã trả N lần · ±X/năm". Là DỮ LIỆU của chính bậc giá, mất nó là mất một nửa kết luận;
+// dòng chỉ hiện khi có bậc thật. Xem spec gia-doi-bac §5.1.
+const PROSE_MAX = 93
 
 const FILES = sourceFiles().map((path) => ({
   path,

@@ -43,7 +43,11 @@ var NOTIFICATION_TYPES = [
   // Cuối cùng: điểm gãy mức chi nói về NHIỀU THÁNG, không có hạn chót nào, và việc nó
   // đề nghị (sửa hạn mức) là việc ngồi xuống mới làm được. Đứng trên hai luật độ-tin-cậy
   // thì nó đẩy một việc "khi nào rảnh" lên trên một việc đang làm sai số liệu hôm nay.
-  "trend-level-shift"
+  "trend-level-shift",
+  // Bậc giá của MỘT khoản lặp đều (spec gia-doi-bac): cùng họ tin nhiều-tháng với
+  // trend-level-shift ở trên, nhưng hẹp hơn (một khoản, không phải cả mức chi) nên
+  // đứng sau cùng.
+  "price-step"
 ];
 var NOTIFICATION_META = {
   "account-shortfall": {
@@ -132,6 +136,13 @@ var NOTIFICATION_META = {
     kind: "info",
     label: "Ng\xE0y ch\u1ED1t sao k\xEA th\u1EBB",
     hint: "H\xF4m nay th\u1EBB ch\u1ED1t k\u1EF3 \u2014 mua t\u1EEB mai s\u1EBD tr\u1EA3 v\xE0o th\xE1ng sau."
+  },
+  "price-step": {
+    badge: "\u0110\u1ED4I GI\xC1",
+    source: "B\xE1o c\xE1o \xB7 D\xE0i h\u1EA1n",
+    kind: "info",
+    label: "Kho\u1EA3n l\u1EB7p \u0111\u1EC1u v\u1EEBa \u0111\u1ED5i gi\xE1",
+    hint: "M\u1ED9t kho\u1EA3n tr\u1EA3 \u0111\u1EC1u \u0111\u1EB7n v\u1EEBa chuy\u1EC3n sang m\u1EE9c gi\xE1 m\u1EDBi \u2014 t\u0103ng hay gi\u1EA3m \u0111\u1EC1u b\xE1o, m\u1ED7i b\u1EADc \u0111\xFAng m\u1ED9t l\u1EA7n."
   },
   "trip-gap": {
     cta: "Xem l\u1EA1i",
@@ -1557,6 +1568,119 @@ function tripRules(input) {
   }));
 }
 
+// src/features/reports/giaDoiBac.ts
+var PERIODS_PER_MONTH = {
+  weekly: 52 / 12,
+  monthly: 1,
+  yearly: 1 / 12
+};
+function timBac(items) {
+  if (items.length < 4) return null;
+  const sorted = [...items].sort((a, b) => a.occurred_on.localeCompare(b.occurred_on));
+  const runs = [];
+  for (const it of sorted) {
+    const last = runs[runs.length - 1];
+    if (last && last.amount === it.amount) last.count++;
+    else runs.push({ amount: it.amount, count: 1, firstISO: it.occurred_on });
+  }
+  if (runs.length < 2) return null;
+  const cuoi = runs[runs.length - 1];
+  const truoc = runs[runs.length - 2];
+  if (cuoi.count < 2 || truoc.count < 2) return null;
+  return {
+    giaCu: truoc.amount,
+    giaMoi: cuoi.amount,
+    tuNgayISO: cuoi.firstISO,
+    soLanGiaMoi: cuoi.count
+  };
+}
+function nhipThang(items) {
+  const dates = items.map((i) => i.occurred_on).sort();
+  if (dates.length < 2) return false;
+  const gaps = [];
+  for (let i = 1; i < dates.length; i++) gaps.push(daysBetween(dates[i - 1], dates[i]));
+  gaps.sort((a, b) => a - b);
+  const med = gaps[Math.floor(gaps.length / 2)];
+  return med >= 25 && med <= 35;
+}
+var duocXet = (t) => t.type === "expense" && !t.is_debt_flow && !t.exclude_from_stats && !t.is_refund;
+function doBacGia(txs, rules, categories, currencyOf, base, rates) {
+  const ruleById = new Map(rules.map((r) => [r.id, r]));
+  const iconOf = (categoryId) => categoryId === null ? null : categories.find((c) => c.id === categoryId)?.icon ?? null;
+  const theoRule = /* @__PURE__ */ new Map();
+  const theoNote = /* @__PURE__ */ new Map();
+  for (const t of txs) {
+    if (!duocXet(t)) continue;
+    if (t.recurring_rule_id) {
+      const arr2 = theoRule.get(t.recurring_rule_id) ?? [];
+      arr2.push(t);
+      theoRule.set(t.recurring_rule_id, arr2);
+      continue;
+    }
+    const note = t.note.trim();
+    if (note === "") continue;
+    const key = `${note}\0${t.account_id}\0${t.category_id ?? ""}`;
+    const arr = theoNote.get(key) ?? [];
+    arr.push(t);
+    theoNote.set(key, arr);
+  }
+  const out = [];
+  const them = (bac, nhan, accountId, categoryId, kyMoiThang) => {
+    const chenhMoiNam = Math.round((bac.giaMoi - bac.giaCu) * kyMoiThang * 12);
+    const currency = currencyOf(accountId);
+    out.push({
+      bac: {
+        nhan,
+        icon: iconOf(categoryId),
+        currency,
+        giaCu: bac.giaCu,
+        giaMoi: bac.giaMoi,
+        tuNgayISO: bac.tuNgayISO,
+        soLanGiaMoi: bac.soLanGiaMoi,
+        chenhMoiNam
+      },
+      khoaSap: convertToBase(Math.abs(chenhMoiNam), currency, base, rates)
+    });
+  };
+  for (const [ruleId, arr] of theoRule) {
+    const bac = timBac(arr);
+    if (!bac) continue;
+    const r = ruleById.get(ruleId);
+    const kyMoiThang = r ? PERIODS_PER_MONTH[r.frequency] : 1;
+    const nhan = r?.note || arr[0].note || "(kh\xF4ng t\xEAn)";
+    them(bac, nhan, arr[0].account_id, r?.category_id ?? arr[0].category_id, kyMoiThang);
+  }
+  for (const [, arr] of theoNote) {
+    if (!nhipThang(arr)) continue;
+    const bac = timBac(arr);
+    if (!bac) continue;
+    them(bac, arr[0].note.trim(), arr[0].account_id, arr[0].category_id, 1);
+  }
+  out.sort((a, b) => {
+    if (a.khoaSap === null && b.khoaSap === null) return 0;
+    if (a.khoaSap === null) return 1;
+    if (b.khoaSap === null) return -1;
+    return b.khoaSap - a.khoaSap;
+  });
+  return out.map((o) => o.bac);
+}
+
+// src/features/notifications/rules/priceStepRules.ts
+function priceStepRules(input) {
+  const { recentTxs, recurringRules, categories, currencyOf, base, rates, formatMoney } = input;
+  const bacs = doBacGia(recentTxs, recurringRules, categories, currencyOf, base, rates);
+  return bacs.map((b) => ({
+    key: `price-step:${b.nhan}:${b.tuNgayISO}`,
+    kind: "info",
+    type: "price-step",
+    severity: "low",
+    title: `${b.nhan} \u0111\u1ED5i gi\xE1: ${formatMoney(b.giaCu, b.currency)} \u2192 ${formatMoney(b.giaMoi, b.currency)}`,
+    detail: `${b.chenhMoiNam > 0 ? "N\u1EB7ng th\xEAm" : "Nh\u1EB9 \u0111i"} ${formatMoney(Math.abs(b.chenhMoiNam), b.currency)}/n\u0103m n\u1EBFu gi\u1EEF gi\xE1 n\xE0y.`,
+    onISO: b.tuNgayISO,
+    to: "/reports?view=long"
+  }));
+}
+
 // src/features/reports/trends.ts
 var DEFAULT_CP = { minSegment: 3, threshold: 2.5, maxPoints: 3 };
 var mean = (xs) => xs.length === 0 ? 0 : xs.reduce((s, x) => s + x, 0) / xs.length;
@@ -1672,6 +1796,7 @@ function buildNotifications(input) {
     ...benefitRules(input),
     ...dataRules(input),
     ...tripRules(input),
+    ...priceStepRules(input),
     ...levelShiftRule(input)
   ];
   return arrangeNotifications(all, input.offTypes);

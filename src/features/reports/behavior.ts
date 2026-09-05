@@ -284,11 +284,11 @@ export function noSpendPattern(
 // ------------------------------------------------------------
 
 /** Số kỳ mỗi tháng của một tần suất (tuần ≈ 52/12 kỳ). */
-export const PERIODS_PER_MONTH: Record<RecurringFrequency, number> = {
-  weekly: 52 / 12,
-  monthly: 1,
-  yearly: 1 / 12,
-}
+// PERIODS_PER_MONTH đã dời sang giaDoiBac.ts (file thuần) — bộ luật thông báo import
+// nó, mà file này chạm window nên không được đứng trong đồ thị của luật. Re-export
+// để chỗ gọi cũ khỏi đổi.
+export { PERIODS_PER_MONTH } from './giaDoiBac'
+import { PERIODS_PER_MONTH } from './giaDoiBac'
 
 export interface SubscriptionSummary {
   /** tổng quy về MỖI THÁNG (base minor) */

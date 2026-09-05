@@ -45,6 +45,7 @@ export type NotificationType =
   | 'benefit-refund-years'
   | 'benefit-year-end'
   | 'trip-gap'
+  | 'price-step'
 
 /**
  * Cửa sổ giao dịch mà `NotificationInput.recentTxs` CHỨA THẬT.
@@ -119,6 +120,10 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   // đề nghị (sửa hạn mức) là việc ngồi xuống mới làm được. Đứng trên hai luật độ-tin-cậy
   // thì nó đẩy một việc "khi nào rảnh" lên trên một việc đang làm sai số liệu hôm nay.
   'trend-level-shift',
+  // Bậc giá của MỘT khoản lặp đều (spec gia-doi-bac): cùng họ tin nhiều-tháng với
+  // trend-level-shift ở trên, nhưng hẹp hơn (một khoản, không phải cả mức chi) nên
+  // đứng sau cùng.
+  'price-step',
 ]
 
 export interface NotificationTypeMeta {
@@ -262,6 +267,13 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     kind: 'info',
     label: 'Ngày chốt sao kê thẻ',
     hint: 'Hôm nay thẻ chốt kỳ — mua từ mai sẽ trả vào tháng sau.',
+  },
+  'price-step': {
+    badge: 'ĐỔI GIÁ',
+    source: 'Báo cáo · Dài hạn',
+    kind: 'info',
+    label: 'Khoản lặp đều vừa đổi giá',
+    hint: 'Một khoản trả đều đặn vừa chuyển sang mức giá mới — tăng hay giảm đều báo, mỗi bậc đúng một lần.',
   },
   'trip-gap': {
     cta: 'Xem lại',

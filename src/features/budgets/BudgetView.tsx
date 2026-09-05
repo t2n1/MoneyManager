@@ -30,6 +30,7 @@ import { capMismatchNotice, nameList } from './capOverflow'
 import { sliderScale } from './axisSuggest'
 import { LimitSlider, type LimitSliderProps } from './LimitSlider'
 import { SplitGroupSheet } from './SplitGroupSheet'
+import { useLastYearSpend } from './useLastYearSpend'
 import { useSyncedBudget } from './useSyncedBudget'
 import {
   budgetedOf,
@@ -268,6 +269,17 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   const { suggestions } = useSuggestions()
   // Nút "Chia … cho N mục con" của câu nhắc lệch — xem `useSyncedBudget`.
   const { syncAfterWrite, openSplit, splitSheetProps } = useSyncedBudget(monthKeyStr)
+
+  // Mốc "cùng tháng năm ngoái" cho sheet đặt hạn mức — xem chú thích ở lastYearSpend.ts.
+  // Chỉ đưa khi năm ngoái CÓ dữ liệu và mục này năm ngoái CÓ chi: nút "Dùng ¥0" là một
+  // gợi ý không ai cần.
+  const namNgoai = useLastYearSpend(monthKey)
+  const lastYearFor = (categoryId: string) => {
+    const amount = namNgoai.amounts.get(categoryId)
+    return namNgoai.hasData && amount !== undefined && amount > 0
+      ? { label: namNgoai.label, amount, approx: namNgoai.hasMissingRate }
+      : null
+  }
 
   // Danh mục đang sửa hạn mức (null = đóng sheet)
   const [editing, setEditing] = useState<{
@@ -1170,6 +1182,7 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
              không, nên sửa hạn mức giữa tháng là gõ số từ trí nhớ. Đúng cái việc suggest.ts
              được viết ra để bỏ. */
           suggestion={suggestions.get(editing.categoryId) ?? null}
+          lastYear={lastYearFor(editing.categoryId)}
           onAfterWrite={syncAfterWrite}
           onClose={() => setEditing(null)}
         />

@@ -20,6 +20,13 @@ interface Props {
   /** Lịch sử chi của danh mục này (mặt lập kế hoạch); null = không gợi ý. */
   suggestion?: Suggestion | null
   /**
+   * Chi của danh mục này CÙNG THÁNG NĂM NGOÁI — mốc tham chiếu thứ hai, cạnh trung
+   * bình 6 tháng. Trung bình mù mùa vụ (Điện tháng 12 đặt theo ba tháng thu là thấp
+   * hệ thống); số năm ngoái nói thẳng mùa đó tốn bao nhiêu. null = năm ngoái không
+   * có dữ liệu tháng này, hoặc mục này năm ngoái không chi → không hiện gì.
+   */
+  lastYear?: { label: string; amount: number; approx: boolean } | null
+  /**
    * Giữ luật "cha = tổng con" sau khi ghi (`useSyncedBudget().syncAfterWrite`).
    *
    * Sheet KHÔNG tự gọi `useSyncedBudget`: đặt số ở một danh mục có con sẽ mở màn chia,
@@ -40,6 +47,7 @@ export function BudgetEditSheet({
   budgetId,
   hint,
   suggestion = null,
+  lastYear = null,
   onAfterWrite,
   onClose,
 }: Props) {
@@ -118,33 +126,63 @@ export function BudgetEditSheet({
 
         {/* Ô trống bắt người ta bịa số từ trí nhớ, trong khi app biết rõ mấy tháng qua
             danh mục này tốn bao nhiêu. Bày cả trung bình lẫn cao nhất: chọn đúng trung
-            bình thì một nửa số tháng sẽ vượt trần. */}
-        {suggestion && suggestion.months.length > 0 && (
+            bình thì một nửa số tháng sẽ vượt trần. Cùng hộp có mốc CÙNG THÁNG NĂM NGOÁI
+            (xem chú thích prop `lastYear`): hai mốc kề nhau, người đặt tự chọn tin bên
+            nào — mục theo mùa thì năm ngoái nói đúng hơn trung bình. */}
+        {((suggestion && suggestion.months.length > 0) || lastYear) && (
           <div className="mt-3 rounded-lg bg-surface-sunken p-2.5">
-            <p className="text-2xs text-fg-muted">
-              {suggestion.months.length} tháng gần đây:{' '}
-              {suggestion.months
-                .map((m) => `${m.monthKey} ${formatMoney(m.amount, base)}`)
-                .join(' · ')}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setAmount(suggestion.average)}
-                className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary"
-              >
-                Dùng {formatMoney(suggestion.average, base)} (trung bình)
-              </button>
-              {suggestion.max !== suggestion.average && (
-                <button
-                  type="button"
-                  onClick={() => setAmount(suggestion.max)}
-                  className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary"
+            {suggestion && suggestion.months.length > 0 && (
+              <>
+                <p className="text-2xs text-fg-muted">
+                  {suggestion.months.length} tháng gần đây:{' '}
+                  {suggestion.months
+                    .map((m) => `${m.monthKey} ${formatMoney(m.amount, base)}`)
+                    .join(' · ')}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAmount(suggestion.average)}
+                    className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary"
+                  >
+                    Dùng {formatMoney(suggestion.average, base)} (trung bình)
+                  </button>
+                  {suggestion.max !== suggestion.average && (
+                    <button
+                      type="button"
+                      onClick={() => setAmount(suggestion.max)}
+                      className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary"
+                    >
+                      Dùng {formatMoney(suggestion.max, base)} (cao nhất)
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+            {lastYear && (
+              <>
+                <p
+                  className={`text-2xs text-fg-muted ${
+                    suggestion && suggestion.months.length > 0
+                      ? 'mt-2.5 border-t border-border-subtle pt-2'
+                      : ''
+                  }`}
                 >
-                  Dùng {formatMoney(suggestion.max, base)} (cao nhất)
-                </button>
-              )}
-            </div>
+                  Cùng tháng năm ngoái ({lastYear.label}):{' '}
+                  {lastYear.approx && '≈'}
+                  {formatMoney(lastYear.amount, base)}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAmount(lastYear.amount)}
+                    className="min-h-11 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-fg-secondary"
+                  >
+                    Dùng {formatMoney(lastYear.amount, base)} (năm ngoái)
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 

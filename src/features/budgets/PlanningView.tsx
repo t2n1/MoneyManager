@@ -59,6 +59,7 @@ import { BudgetEditSheet } from './BudgetEditSheet'
 import { ExpectedIncomeSheet } from './ExpectedIncomeSheet'
 import { SUGGEST_MONTHS, usePlanning, type PlanDraft } from './usePlanning'
 import { SplitGroupSheet } from './SplitGroupSheet'
+import { useLastYearSpend } from './useLastYearSpend'
 import { useSyncedBudget } from './useSyncedBudget'
 import { STATUS_FILL } from '../../components/ui/statusColors'
 
@@ -138,6 +139,16 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
   // phải đi qua nó, bỏ sót một chỗ là luật thủng đúng ở chỗ đó.
   const { syncAfterWrite, openSplit, splitSheetProps } = useSyncedBudget(monthKeyStr)
   const { summary, projection, groups, method } = data
+
+  // Mốc "cùng tháng năm ngoái" cho sheet đặt hạn mức — cùng luật với BudgetView: chỉ
+  // đưa khi năm ngoái CÓ dữ liệu và mục này năm ngoái CÓ chi.
+  const namNgoai = useLastYearSpend(monthKey)
+  const lastYearFor = (categoryId: string) => {
+    const amount = namNgoai.amounts.get(categoryId)
+    return namNgoai.hasData && amount !== undefined && amount > 0
+      ? { label: namNgoai.label, amount, approx: namNgoai.hasMissingRate }
+      : null
+  }
 
   const [editing, setEditing] = useState<string | null>(null)
   const [incomeOpen, setIncomeOpen] = useState(false)
@@ -938,6 +949,7 @@ export function PlanningView({ monthKey }: { monthKey: MonthKey }) {
              vốn đã xét đúng bằng `budgets.some(...)`, hai màn lệch nhau từ trước. */
           hint={budgetHint(editing, categories, (id) => data.budgetedByCat.has(id))}
           suggestion={data.suggestions.get(editing) ?? null}
+          lastYear={lastYearFor(editing)}
           onAfterWrite={syncAfterWrite}
           onClose={() => setEditing(null)}
         />

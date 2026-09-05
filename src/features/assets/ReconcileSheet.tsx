@@ -238,7 +238,12 @@ export function ReconcileSheet({
                 : 'Số dư đã khớp — không cần điều chỉnh. Lưu để ghi nhận là đã đối chiếu hôm nay.'
               : isCard
                 ? `Nợ thật ${diff > 0 ? 'ít' : 'nhiều'} hơn sổ — sẽ tạo một giao dịch bù ${formatMoney(Math.abs(diff), currency)} trên thẻ vào danh mục ${ADJUST_CATEGORY_NAME}, không tính vào thống kê thu chi.`
-                : `Sổ đang ghi ${diff > 0 ? 'ít' : 'nhiều'} hơn thực tế — sẽ tạo một giao dịch bù ${formatMoney(Math.abs(diff), currency)} vào danh mục ${ADJUST_CATEGORY_NAME}, không tính vào thống kê thu chi.`}
+                : // Ví/tài khoản thường: khoản bù KHÔNG còn vô hình. Báo cáo tháng kể nó
+                  // vào tổng Chi ở dòng "Chưa ghi rõ" / "Ghi thừa" (xem chiChuaGhi.ts).
+                  // Câu này phải nói ra, không thì người dùng bấm Điều chỉnh xong thấy
+                  // tổng Chi nhảy mà không hiểu vì sao. Nhánh THẺ ở trên giữ nguyên chữ
+                  // "không tính vào thống kê" — tính năng đó cố ý loại thẻ tín dụng.
+                  `Sổ đang ghi ${diff > 0 ? 'ít' : 'nhiều'} hơn thực tế — sẽ tạo một giao dịch bù ${formatMoney(Math.abs(diff), currency)} vào danh mục ${ADJUST_CATEGORY_NAME}, và Báo cáo tháng ${diff > 0 ? 'trừ nó khỏi' : 'kể nó vào'} tổng Chi ở dòng "${diff > 0 ? 'Ghi thừa' : 'Chưa ghi rõ'}".`}
           </p>
         </div>
 

@@ -2,7 +2,7 @@
 // thông báo cùng đọc một kiểu này, nên luật thông báo không cần biết từng khoản tính thế nào.
 // THUẦN: không React, không Date.
 
-export type KetLuanId = 'fuyo' | 'remit-unassigned' | 'refund' | 'furusato' | 'shelter'
+export type KetLuanId = 'fuyo' | 'remit-unassigned' | 'refund' | 'furusato' | 'shelter' | 'iryohi'
 
 /**
  * 'du'           = đủ điều kiện / không còn việc gì

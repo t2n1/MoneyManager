@@ -23,7 +23,7 @@
 //      8px — nên nó nằm ở danh sách "ba ngày đáng hỏi" bên dưới, luôn có mặt (ở desktop
 //      danh sách đó là `sr-only`, vì ở đó mỗi cột đã có nhãn số riêng).
 //   3. Đường ngang là TRUNG VỊ ngày có chi, không phải trung bình (xem dailySpike.ts).
-import { useLayoutEffect, useState, type MouseEvent } from 'react'
+import { useLayoutEffect, useState, type MouseEvent, type TouchEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, Money, Num, SectionTitle, SegmentedControl, deltaTone, signedPct } from '../../components/ui'
 import { formatCompact, type CurrencyCode } from '../../lib/money'
@@ -365,15 +365,24 @@ function YoyBlock({
   const pathOf = (vals: readonly number[]) =>
     vals.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(2)},${y(v).toFixed(2)}`).join(' ')
 
-  // Ngày đang rê chuột — cùng vai với `hover` của chế độ cột: thẻ số là PHẦN THÊM, con
-  // số chính đã nói ở dòng kết luận. Suy chỉ số từ toạ độ chuột vì đường không có 31 ô
-  // riêng như hàng cột; `round` chứ không `floor` để bắt vào điểm GẦN nhất.
+  // Ngày đang rê chuột / chạm — cùng vai với `hover` của chế độ cột: thẻ số là PHẦN
+  // THÊM, con số chính đã nói ở dòng kết luận. Suy chỉ số từ toạ độ vì đường không có
+  // 31 ô riêng như hàng cột; `round` chứ không `floor` để bắt vào điểm GẦN nhất.
   const [hover, setHover] = useState<number | null>(null)
-  const onMove = (e: MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
+  const setFromClientX = (el: HTMLElement, clientX: number) => {
+    const rect = el.getBoundingClientRect()
     if (rect.width <= 0) return
-    const rel = (e.clientX - rect.left) / rect.width
+    const rel = (clientX - rect.left) / rect.width
     setHover(Math.min(n - 1, Math.max(0, Math.round(rel * (n - 1)))))
+  }
+  const onMove = (e: MouseEvent<HTMLDivElement>) => setFromClientX(e.currentTarget, e.clientX)
+  // Chạm: đặt ngay từ touchstart (không đợi kéo) rồi dò theo touchmove. KHÔNG tự xoá ở
+  // touchend — ngón tay che màn hình nên phải nhấc tay mới đọc được; thẻ tắt khi chạm
+  // ra NGOÀI khung nhờ mouseleave tổng hợp mà trình duyệt di động bắn cho cú chạm kế.
+  // Kéo DỌC vẫn cuộn trang: khung mang `touch-pan-y`, và không có preventDefault nào.
+  const onTouch = (e: TouchEvent<HTMLDivElement>) => {
+    const t = e.touches[0]
+    if (t) setFromClientX(e.currentTarget, t.clientX)
   }
   // % chênh tại NGÀY ĐANG TRỎ, cùng công thức với `deltaPct` của ngày hiện tại.
   const hoverPct = (i: number): number | null =>
@@ -406,7 +415,13 @@ function YoyBlock({
 
       {/* onMouseMove ở KHUNG chứ không ở svg: svg là hình aria-hidden, còn khung mới là
           vùng người ta rê — và cần cả rìa trái/phải nơi đường chưa/đã đi qua. */}
-      <div className="relative mt-3" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
+      <div
+        className="relative mt-3 touch-pan-y"
+        onMouseMove={onMove}
+        onMouseLeave={() => setHover(null)}
+        onTouchStart={onTouch}
+        onTouchMove={onTouch}
+      >
         {/* Thang đọc được: mép trên của khung là bao nhiêu tiền. Một nhãn là đủ — hai con
             số người ta thật sự cần đã nằm ở dòng kết luận. */}
         <span className="absolute left-0 top-0 font-mono text-2xs text-fg-muted">

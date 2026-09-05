@@ -31,6 +31,7 @@ var NOTIFICATION_TYPES = [
   "benefit-refund-years",
   "benefit-remit-unassigned",
   "benefit-year-end",
+  "benefit-iryohi",
   // Hai luật về ĐỘ TIN CẬY của dữ liệu (§4.9) đứng CUỐI: chúng không gấp — không có
   // hạn chót nào — nhưng chúng nói rằng những con số phía trên đang được đo bằng một
   // cái thước thiếu vạch, nên vẫn thuộc nhóm việc-cần-làm chứ không phải tin-để-biết.
@@ -143,6 +144,14 @@ var NOTIFICATION_META = {
     kind: "info",
     label: "Kho\u1EA3n l\u1EB7p \u0111\u1EC1u v\u1EEBa \u0111\u1ED5i gi\xE1",
     hint: "M\u1ED9t kho\u1EA3n tr\u1EA3 \u0111\u1EC1u \u0111\u1EB7n v\u1EEBa chuy\u1EC3n sang m\u1EE9c gi\xE1 m\u1EDBi \u2014 t\u0103ng hay gi\u1EA3m \u0111\u1EC1u b\xE1o, m\u1ED7i b\u1EADc \u0111\xFAng m\u1ED9t l\u1EA7n."
+  },
+  "benefit-iryohi": {
+    cta: "Xem quy\u1EC1n l\u1EE3i",
+    badge: "Y T\u1EBE",
+    source: "Quy\u1EC1n l\u1EE3i",
+    kind: "action",
+    label: "Chi y t\u1EBF v\u01B0\u1EE3t ng\u01B0\u1EE1ng kh\u1EA5u tr\u1EEB",
+    hint: "Chi y t\u1EBF trong n\u0103m \u0111\xE3 v\u01B0\u1EE3t ng\u01B0\u1EE1ng \u2014 gi\u1EEF ho\xE1 \u0111\u01A1n v\xE0 khai \u533B\u7642\u8CBB\u63A7\u9664 trong \u78BA\u5B9A\u7533\u544A."
   },
   "trip-gap": {
     cta: "Xem l\u1EA1i",
@@ -1449,6 +1458,18 @@ function benefitRules(input) {
       title: refund.viec,
       detail: refund.ly_do[0],
       onISO: refund.han ?? void 0,
+      to: TO
+    });
+  const iryohi = boi("iryohi");
+  if (iryohi?.trang_thai === "thieu")
+    out.push({
+      key: "benefit-iryohi:all",
+      kind: "action",
+      type: "benefit-iryohi",
+      severity: iryohi.muc,
+      title: iryohi.viec,
+      detail: iryohi.ly_do[0],
+      onISO: iryohi.han ?? void 0,
       to: TO
     });
   const cuoiNam = [boi("furusato"), boi("shelter")].filter((k) => k?.trang_thai === "thieu");

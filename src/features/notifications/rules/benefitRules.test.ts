@@ -44,4 +44,11 @@ describe('benefitRules', () => {
     const [n] = benefitRules(input([k({ id: 'furusato', muc: 'high', viec: 'Nếu nộp 確定申告 … ワンストップ sẽ vô hiệu' })]))
     expect(n.severity).toBe('high')
   })
+
+  it('iryohi thieu → benefit-iryohi action; du → im', () => {
+    const [n] = benefitRules(input([k({ id: 'iryohi', muc: 'low', han: '2027-03-15', viec: 'Chi y tế đã vượt ngưỡng — giữ hoá đơn' })]))
+    expect(n).toMatchObject({ type: 'benefit-iryohi', kind: 'action', severity: 'low', key: 'benefit-iryohi:all', onISO: '2027-03-15', to: '/quyen-loi' })
+    expect(benefitRules(input([k({ id: 'iryohi', trang_thai: 'du' })]))).toEqual([])
+    expect(benefitRules(input([k({ id: 'iryohi', trang_thai: 'het-han' })]))).toEqual([])
+  })
 })

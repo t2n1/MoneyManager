@@ -54,6 +54,19 @@ export function benefitRules(input: NotificationInput): AppNotification[] {
       to: TO,
     })
 
+  const iryohi = boi('iryohi')
+  if (iryohi?.trang_thai === 'thieu')
+    out.push({
+      key: 'benefit-iryohi:all',
+      kind: 'action',
+      type: 'benefit-iryohi',
+      severity: iryohi.muc,
+      title: iryohi.viec,
+      detail: iryohi.ly_do[0],
+      onISO: iryohi.han ?? undefined,
+      to: TO,
+    })
+
   // Cuối năm: một tin gộp furusato + NISA. Kỳ = năm, để năm sau lại là tin mới.
   const cuoiNam = [boi('furusato'), boi('shelter')].filter((k): k is KetLuan => k?.trang_thai === 'thieu')
   if (cuoiNam.length > 0)

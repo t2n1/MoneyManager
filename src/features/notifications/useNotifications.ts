@@ -19,6 +19,7 @@ import {
   useRates,
   useRecurringRules,
   useSavingsGoals,
+  useTrips,
   useTransferCategoryIds,
 } from '../../hooks/queries'
 import {
@@ -119,6 +120,8 @@ export function useNotifications(): UseNotificationsResult {
   const debtsQ = useDebts()
   const rulesQ = useRecurringRules()
   const goalsQ = useSavingsGoals()
+  // Chuyến đi — đầu vào TUỲ CHỌN theo mẫu tagBudgets: undefined = chưa tải, luật im.
+  const tripsQ = useTrips()
   const snapshotsQ = useNetWorthSnapshots()
   const accounts = balancesQ.data ?? EMPTY
   const accountRows = accountRowsQ.data ?? EMPTY
@@ -290,6 +293,7 @@ export function useNotifications(): UseNotificationsResult {
         savingsGoals,
         networthSnapshots,
         recentTxs,
+        trips: tripsQ.data,
         monthlyExpense,
         lifetime,
         benefits,
@@ -319,6 +323,7 @@ export function useNotifications(): UseNotificationsResult {
     savingsGoals,
     networthSnapshots,
     recentTxs,
+    tripsQ.data,
     monthlyExpense,
     lifetime,
     benefits,

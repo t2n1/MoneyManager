@@ -612,6 +612,22 @@ export type RelativeRow = {
   created_at: string
 }
 
+/**
+ * Chuyến đi (migration 0058): dải ngày người dùng đi vắng.
+ * `dismissed = true` = dải đã hỏi rồi, KHÔNG phải chuyến đi — mọi phép tính bỏ qua.
+ */
+export type TripRow = {
+  id: string
+  user_id: string
+  start_on: string
+  end_on: string
+  label: string
+  /** ISO-2 nơi đến. Đợt 2b dùng để biết quy đổi sang tiền nào. */
+  country: string
+  dismissed: boolean
+  created_at: string
+}
+
 /** Lifetime (mục Lifetime): một kịch bản đời. */
 export type LifeScenarioRow = {
   id: string
@@ -1213,6 +1229,16 @@ export type Database = {
         Update: Partial<
           Pick<RelativeRow, 'name' | 'birth_year' | 'relationship' | 'country' | 'is_archived' | 'sort_order'>
         >
+        Relationships: []
+      }
+      trips: {
+        Row: TripRow
+        Insert: InsertOf<
+          TripRow,
+          'user_id' | 'start_on' | 'end_on',
+          'id' | 'label' | 'country' | 'dismissed' | 'created_at'
+        >
+        Update: Partial<Pick<TripRow, 'start_on' | 'end_on' | 'label' | 'country' | 'dismissed'>>
         Relationships: []
       }
       life_scenarios: {

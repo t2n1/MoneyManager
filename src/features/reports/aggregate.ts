@@ -10,12 +10,19 @@ import {
   type MonthKey,
 } from '../../lib/dates'
 import { periodCompare, type PeriodCompare } from './periodCompare'
+import { boNgayDiVang } from './ngayDiVang'
 import type { CurrencyCode } from '../../lib/money'
 import { convertToBase, type Rates } from '../../lib/rates'
 import type { CategoryRow, NeedLevel, TransactionRow } from '../../types/database.types'
 import { NO_TRANSFER_CATEGORIES } from '../categories/kind'
 
 export type CurrencyOf = (accountId: string) => CurrencyCode
+
+// Mặc định RỖNG của hai tham số loại-trừ chuyến đi = hành vi cũ, để test hiện có khỏi
+// sửa. Cái giá của mặc định: quên truyền không gây lỗi biên dịch — nên có chốt canh
+// nguồn tests/chuyenDiPhamVi.test.ts, cùng bài với transferIds/categoryKind.test.ts.
+const KHONG_THANG_VANG: ReadonlySet<string> = new Set()
+const KHONG_NGAY_VANG: ReadonlySet<string> = new Set()
 
 /**
  * Id của những danh mục `kind = 'transfer'` — CHUYỂN TÀI SẢN, không phải tiêu.
@@ -156,7 +163,9 @@ export interface MonthlySeries {
   hasMissingRate: boolean
 }
 
-const monthId = (k: MonthKey) => `${k.year}-${k.month}`
+// export cho ngayDiVang.ts: tập "tháng có chuyến đi" phải dùng ĐÚNG định dạng khoá này —
+// hai nơi tự chế hai định dạng ('2026-2' vs '2026-02') là loại lỗi so sánh im lặng.
+export const monthId = (k: MonthKey) => `${k.year}-${k.month}`
 
 /**
  * Chuỗi thu/chi theo từng tháng trong danh sách `months` (đã quy đổi base).
@@ -364,6 +373,11 @@ export function categoryComparison(
   rates: Rates,
   cutoffDay: number | null = null,
   transferIds: TransferIds = NO_TRANSFER_CATEGORIES,
+  /**
+   * Khoá tháng (monthId) có chuyến đi — bỏ khỏi avg3 và Δ (spec chuyen-di §5.2).
+   * Mặc định rỗng = hành vi cũ; tests/chuyenDiPhamVi.test.ts canh chỗ gọi phải truyền.
+   */
+  thangVang: ReadonlySet<string> = KHONG_THANG_VANG,
 ): CategoryComparison {
   const m0 = monthId(activeMonth)
   const m1 = monthId(addMonths(activeMonth, -1))
@@ -400,10 +414,20 @@ export function categoryComparison(
   for (const [categoryId, inner] of byCat) {
     const thisMonth = inner.get(m0) ?? 0
     const prevMonth = inner.get(m1) ?? 0
-    const avg3 = Math.round(((inner.get(m1) ?? 0) + (inner.get(m2) ?? 0) + (inner.get(m3) ?? 0)) / 3)
+    // Tháng có chuyến đi không được làm mốc: bỏ khỏi CẢ tử lẫn mẫu của avg3. Mẫu rỗng
+    // (cả 3 tháng đều có chuyến) → avg3 = 0, cùng nghĩa với danh mục chưa có lịch sử.
+    const mocSo = [m1, m2, m3].filter((m) => !thangVang.has(m))
+    const avg3 =
+      mocSo.length === 0
+        ? 0
+        : Math.round(mocSo.reduce((s, m) => s + (inner.get(m) ?? 0), 0) / mocSo.length)
     if (thisMonth === 0 && prevMonth === 0 && avg3 === 0) continue
-    const deltaPct = prevMonth > 0 ? Math.round(((thisMonth - prevMonth) / prevMonth) * 100) : null
-    const isNew = prevMonth === 0 && thisMonth > 0
+    // Tháng liền trước là tháng chuyến đi → không có mốc để so: Δ null (bảng in "—"),
+    // và cũng KHÔNG được nói "mới" — danh mục không mới, chỉ là mốc so bị thiếu.
+    const prevLaMoc = !thangVang.has(m1)
+    const deltaPct =
+      prevLaMoc && prevMonth > 0 ? Math.round(((thisMonth - prevMonth) / prevMonth) * 100) : null
+    const isNew = prevLaMoc && prevMonth === 0 && thisMonth > 0
     rows.push({ categoryId, thisMonth, prevMonth, avg3, deltaPct, isNew })
   }
   rows.sort((a, b) => b.thisMonth - a.thisMonth)
@@ -600,10 +624,16 @@ export function monthExpenseCompare(
   base: CurrencyCode,
   rates: Rates,
   transferIds: TransferIds = NO_TRANSFER_CATEGORIES,
+  /**
+   * Ngày ISO đi vắng (chuyến đi) — bỏ khỏi CẢ HAI vế trước khi so (spec chuyen-di §5.2):
+   * để nguyên thì 7 ngày số 0 của kỳ trước kéo mốc so xuống và mọi dòng đọc ra "▲" giả.
+   * Mặc định rỗng = hành vi cũ; tests/chuyenDiPhamVi.test.ts canh chỗ gọi phải truyền.
+   */
+  vang: ReadonlySet<string> = KHONG_NGAY_VANG,
 ): PeriodCompare | null {
   const cur = getMonthRange(activeMonth, monthStartDay)
   const prev = getMonthRange(addMonths(activeMonth, -1), monthStartDay)
-  const { daysElapsed, daysInPeriod } = monthDaysElapsed(activeMonth, monthStartDay, todayISO)
+  const { daysElapsed } = monthDaysElapsed(activeMonth, monthStartDay, todayISO)
 
   // `MonthRange.end` là mốc LOẠI TRỪ (repo truy vấn `.gte(start).lt(end)`), nên ngày
   // cuối thật của kỳ là end − 1. Lấy đúng `end` sẽ nhặt thêm ngày đầu của tháng sau vào
@@ -618,14 +648,23 @@ export function monthExpenseCompare(
       base,
       rates,
       transferIds,
-    ).points.map((p) => p.expense)
+    ).points
   }
 
+  // Sau khi bỏ ngày đi vắng, "ngày thứ N của kỳ" là N tính trên NGÀY THƯỜNG — cả
+  // daysElapsed lẫn daysInPeriod phải đếm lại trên cùng thước đó, không thì phép cắt
+  // "cùng số ngày" của periodCompare so hai thước khác nhau.
+  const curPts = boNgayDiVang(dailyOf(cur), vang)
+  const prevPts = boNgayDiVang(dailyOf(prev), vang)
+  const lastElapsedISO = daysElapsed === 0 ? null : addDaysISO(cur.start, daysElapsed - 1)
+  const daysElapsedKeep =
+    lastElapsedISO === null ? 0 : curPts.filter((p) => p.date <= lastElapsedISO).length
+
   return periodCompare({
-    current: dailyOf(cur),
-    prior: dailyOf(prev),
-    daysElapsed,
-    daysInPeriod,
+    current: curPts.map((p) => p.expense),
+    prior: prevPts.map((p) => p.expense),
+    daysElapsed: daysElapsedKeep,
+    daysInPeriod: curPts.length,
   })
 }
 

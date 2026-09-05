@@ -1,4 +1,5 @@
 import {
+  Cell,
   Bar,
   ComposedChart,
   Line,
@@ -11,7 +12,7 @@ import {
 import { VerdictNote } from '../../components/VerdictNote'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import type { MonthKey } from '../../lib/dates'
-import type { MonthlySeries } from './aggregate'
+import { monthId, type MonthlySeries } from './aggregate'
 import { savingsRate } from './insights'
 import { expenseTrend, savingsRateVerdict } from './verdicts'
 import { Card, SectionTitle } from '../../components/ui'
@@ -41,9 +42,23 @@ interface Props {
    * thì mọi tháng trong chuỗi được coi là đã hoàn tất.
    */
   currentKey?: MonthKey | null
+  /**
+   * Khoá tháng (monthId) có chuyến đi — cột MỜ ĐI chứ không biến mất (spec chuyen-di
+   * quyết định 4: giấu một cột trong dãy 12 tháng khiến người đọc tưởng tháng đó không
+   * có dữ liệu). Cùng một tập với chỗ loại avg3 — hai định nghĩa "tháng chuyến đi" là
+   * hai nguồn cãi nhau.
+   */
+  markedKeys?: ReadonlySet<string>
 }
 
-export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = null }: Props) {
+export function MonthlyBarsCard({
+  series,
+  base,
+  title,
+  labelOf,
+  currentKey = null,
+  markedKeys,
+}: Props) {
   const barData = series.points.map((p) => {
     const r = savingsRate(p.income, p.expense)
     return {
@@ -53,8 +68,10 @@ export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = nul
       // Tháng chưa có thu → null, KHÔNG phải 0: `connectNulls={false}` để đường đứt đoạn
       // ở đó thay vì cắm xuống 0% như thể tháng đó tiêu hết sạch thu nhập.
       rate: r === null ? null : Math.round(r * 100),
+      marked: markedKeys?.has(monthId(p.key)) ?? false,
     }
   })
+  const coThangChuyenDi = barData.some((d) => d.marked)
   const { data: profile } = useProfile()
   const savingsShare = savingsTargetShare(resolveMethod(profile))
   const trend = expenseTrend(series.points, currentKey)
@@ -124,8 +141,18 @@ export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = nul
               // là xám sáng, nháy chói trong dark mode)
               cursor={{ fill: 'rgba(148,163,184,0.15)' }}
             />
-            <Bar yAxisId="money" dataKey="income" fill={INCOME} radius={[3, 3, 0, 0]} />
-            <Bar yAxisId="money" dataKey="expense" fill={EXPENSE} radius={[3, 3, 0, 0]} />
+            {/* Tháng có chuyến đi: cột mờ 45% ở CẢ thu lẫn chi — mờ một cột thì trông
+                như lỗi vẽ, mờ cả cặp mới đọc ra "tháng này khác loại". */}
+            <Bar yAxisId="money" dataKey="income" fill={INCOME} radius={[3, 3, 0, 0]}>
+              {barData.map((d, i) => (
+                <Cell key={i} fillOpacity={d.marked ? 0.45 : 1} />
+              ))}
+            </Bar>
+            <Bar yAxisId="money" dataKey="expense" fill={EXPENSE} radius={[3, 3, 0, 0]}>
+              {barData.map((d, i) => (
+                <Cell key={i} fillOpacity={d.marked ? 0.45 : 1} />
+              ))}
+            </Bar>
             {hasRate && (
               <Line
                 yAxisId="rate"
@@ -141,6 +168,13 @@ export function MonthlyBarsCard({ series, base, title, labelOf, currentKey = nul
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+      {/* Chú giải cột mờ — KHÔNG bọc Guide: thiếu nó thì cột mờ đọc như lỗi vẽ, đây là
+          nhãn dữ liệu chứ không phải chữ dạy. Chỉ hiện khi thật sự có tháng như vậy. */}
+      {coThangChuyenDi && (
+        <p className="mt-1 text-center text-2xs text-fg-muted">
+          Cột mờ = tháng có chuyến đi, không so được với tháng thường.
+        </p>
+      )}
       <div className="mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm text-fg-muted">
         <span className="flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: INCOME }} /> Thu

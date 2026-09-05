@@ -45,6 +45,7 @@ import type {
   RecurringRuleTagRow,
   PlannedExpenseTagRow,
   RelativeRow,
+  TripRow,
   SavingsGoalRow,
   StockPriceRow,
   StockTradeRow,
@@ -80,6 +81,7 @@ import {
   type NewRecurringOccurrence,
   type NewRecurringRule,
   type NewRelative,
+  type NewTrip,
   type NewSavingsGoal,
   type NewStockTrade,
   type NewPlannedExpense,
@@ -255,6 +257,8 @@ interface DemoDB {
   monthPlans?: MonthPlanRow[]
   /** Người thân nhận tiền (migration 0056); vắng mặt ở dữ liệu demo cũ (localStorage). */
   relatives?: RelativeRow[]
+  /** Chuyến đi (migration 0058); vắng mặt ở dữ liệu demo cũ. Seed KHÔNG có chuyến nào. */
+  trips?: TripRow[]
 }
 
 // crypto.randomUUID() chỉ chạy trong secure context (HTTPS / localhost).
@@ -1673,6 +1677,34 @@ export const demoRepo: Repo = {
     save(db)
   },
 
+  async listTrips() {
+    return (load().trips ?? []).slice().sort((a, b) => a.start_on.localeCompare(b.start_on))
+  },
+
+  async createTrip(input: NewTrip) {
+    const db = load()
+    db.trips ??= []
+    const row: TripRow = {
+      id: uuid(),
+      user_id: DEMO_USER,
+      start_on: input.start_on,
+      end_on: input.end_on,
+      label: input.label ?? '',
+      country: input.country ?? 'VN',
+      dismissed: input.dismissed ?? false,
+      created_at: nowISO(),
+    }
+    db.trips.push(row)
+    save(db)
+    return row
+  },
+
+  async deleteTrip(id: string) {
+    const db = load()
+    db.trips = (db.trips ?? []).filter((t) => t.id !== id)
+    save(db)
+  },
+
   async getRelatives() {
     return (load().relatives ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)
   },
@@ -2841,6 +2873,7 @@ export const demoRepo: Repo = {
       fundTrades: db.fundTrades ?? [],
       savingsGoals: db.savingsGoals ?? [],
       relatives: db.relatives ?? [],
+      trips: db.trips ?? [],
       networthSnapshots: db.networthSnapshots ?? [],
       healthSnapshots: db.healthSnapshots ?? [],
       lifetimeVerdictSnapshots: db.lifetimeVerdictSnapshots ?? [],
@@ -2918,6 +2951,7 @@ export const demoRepo: Repo = {
       stockPrices,
       savingsGoals: stamp(data.savingsGoals ?? []),
       relatives: stamp(data.relatives ?? []),
+      trips: stamp(data.trips ?? []),
       networthSnapshots: stamp(data.networthSnapshots ?? []),
       healthSnapshots: stamp(data.healthSnapshots ?? []),
       lifetimeVerdictSnapshots: stamp(data.lifetimeVerdictSnapshots ?? []),

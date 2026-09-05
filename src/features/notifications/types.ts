@@ -15,6 +15,7 @@ import type {
   PlannedExpenseRow,
   RecurringRuleRow,
   SavingsGoalRow,
+  TripRow,
   TransactionRow,
 } from '../../types/database.types'
 
@@ -43,6 +44,7 @@ export type NotificationType =
   | 'benefit-remit-unassigned'
   | 'benefit-refund-years'
   | 'benefit-year-end'
+  | 'trip-gap'
 
 /**
  * Cửa sổ giao dịch mà `NotificationInput.recentTxs` CHỨA THẬT.
@@ -107,6 +109,10 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   // Hai luật về ĐỘ TIN CẬY của dữ liệu (§4.9) đứng CUỐI: chúng không gấp — không có
   // hạn chót nào — nhưng chúng nói rằng những con số phía trên đang được đo bằng một
   // cái thước thiếu vạch, nên vẫn thuộc nhóm việc-cần-làm chứ không phải tin-để-biết.
+  // Chuyến đi (spec chuyen-di): cùng họ độ-tin-cậy — một dải ngày trống chưa được gọi
+  // tên nghĩa là mọi phép so sánh phía trên đang lấy nhầm mốc. Đứng đầu nhóm này vì
+  // trả lời nó chỉ mất một cú bấm, còn hai luật dưới đòi ngồi phân loại/đối chiếu.
+  'trip-gap',
   'data-uncategorized',
   'data-reconcile',
   // Cuối cùng: điểm gãy mức chi nói về NHIỀU THÁNG, không có hạn chót nào, và việc nó
@@ -257,6 +263,14 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     label: 'Ngày chốt sao kê thẻ',
     hint: 'Hôm nay thẻ chốt kỳ — mua từ mai sẽ trả vào tháng sau.',
   },
+  'trip-gap': {
+    cta: 'Xem lại',
+    badge: 'ĐI VẮNG?',
+    source: 'Sổ · dải ngày trống',
+    kind: 'action',
+    label: 'Dải ngày không có giao dịch nào',
+    hint: 'Đánh dấu là chuyến đi thì các phép so sánh bỏ những ngày này ra — tháng đó thôi trông rẻ giả.',
+  },
   'recurring-suggestion': {
     cta: 'Tạo quy tắc',
     badge: 'ĐỊNH KỲ',
@@ -403,6 +417,11 @@ export interface NotificationInput {
   /** Khoản sắp chi. undefined = chưa tải xong → luật im. */
   plannedExpenses?: PlannedExpenseRow[]
   savingsGoals: SavingsGoalRow[]
+  /**
+   * Chuyến đi đã lưu — KỂ CẢ hàng dismissed, vì luật cần biết dải nào đã hỏi rồi.
+   * undefined = chưa tải xong; luật chuyến đi im (cùng mẫu với tagBudgets).
+   */
+  trips?: TripRow[]
   networthSnapshots: NetWorthSnapshotRow[]
   /** Giao dịch `RECENT_TXS_DAYS` ngày gần nhất. */
   recentTxs: TransactionRow[]

@@ -15,6 +15,7 @@ import {
   useProfile,
   useRates,
   useTransferCategoryIds,
+  useTrips,
 } from '../../hooks/queries'
 import {
   addDaysISO,
@@ -27,6 +28,7 @@ import {
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
 import { convertToBase } from '../../lib/rates'
 import { cumulativeDailyBalance, dailyExpenseTotals } from './aggregate'
+import { ngayDiVang } from './ngayDiVang'
 import { pickBudgetVerdict } from './budgetVerdict'
 import { forecastMonthEnd, type Forecast } from './insights'
 import { SpendVsBudgetCard } from './SpendVsBudgetCard'
@@ -71,6 +73,9 @@ export function useMonthPace(monthKey: MonthKey): MonthPace {
   const monthStartDay = profile?.month_start_day ?? 1
   const { base, rates } = useRates()
   const transferIds = useTransferCategoryIds()
+  // Ngày đi vắng (chuyến đi) — chỉ dự báo dùng, biểu đồ giữ nguyên. Xem chỗ forecast.
+  const { data: trips = [] } = useTrips()
+  const vang = useMemo(() => ngayDiVang(trips), [trips])
   const r = rates ?? {}
   const { data: accounts = [] } = useAccounts()
   const { data: monthTxs = [] } = useMonthTransactions(monthKey)
@@ -180,22 +185,34 @@ export function useMonthPace(monthKey: MonthKey): MonthPace {
 
   // Dự báo đứng SAU các chuỗi ngày vì nó cần chi từng ngày để đo độ chênh — chỉ lấy
   // những ngày ĐÃ trôi, ngày chưa tới thì bằng 0 và sẽ kéo độ chênh xuống sai.
+  //
+  // NGÀY ĐI VẮNG (chuyến đi) bị bỏ khỏi đầu vào dự báo — cả tử (chuỗi ngày, số ngày đã
+  // trôi) lẫn mẫu (số ngày của tháng): 7 ngày số 0 giữa tháng không nói "nhịp chi chậm
+  // lại", nó nói "không có ai ở nhà". monthDaily/budgetDaily cho BIỂU ĐỒ giữ nguyên.
+  const nKeepMonth = monthDaily.points.filter((p) => !vang.has(p.date)).length
+  const vpKeep = variableDaily.points
+    .slice(0, daysElapsed)
+    .filter((p) => !vang.has(p.date))
   const forecast = isCurrentMonth
     ? forecastMonthEnd(
         spentSoFar,
-        daysElapsed,
-        daysInMonth,
-        variableDaily.points.slice(0, daysElapsed).map((p) => p.expense),
+        vpKeep.length,
+        nKeepMonth,
+        vpKeep.map((p) => p.expense),
         fixedSoFar,
       )
     : null
+  const bvpKeep =
+    budgetVariableDaily === null
+      ? null
+      : budgetVariableDaily.points.slice(0, daysElapsed).filter((p) => !vang.has(p.date))
   const budgetForecast =
-    isCurrentMonth && budgetVariableDaily !== null
+    isCurrentMonth && bvpKeep !== null
       ? forecastMonthEnd(
           budgetSpentSoFar,
-          daysElapsed,
-          daysInMonth,
-          budgetVariableDaily.points.slice(0, daysElapsed).map((p) => p.expense),
+          bvpKeep.length,
+          nKeepMonth,
+          bvpKeep.map((p) => p.expense),
           budgetFixedSoFar,
         )
       : null

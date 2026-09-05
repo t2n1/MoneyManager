@@ -1597,3 +1597,33 @@ describe('relatives + listBenefitTransactions (0056)', () => {
     expect(txs.some((t) => t.is_remittance)).toBe(true)
   })
 })
+
+describe('trips (migration 0058)', () => {
+  it('create → list → delete tròn vòng', async () => {
+    const t = await demoRepo.createTrip({ start_on: '2026-02-16', end_on: '2026-02-22' })
+    expect(t.dismissed).toBe(false)
+    expect(t.country).toBe('VN')
+    expect(t.label).toBe('')
+    const all = await demoRepo.listTrips()
+    expect(all.map((x) => x.id)).toContain(t.id)
+    await demoRepo.deleteTrip(t.id)
+    expect((await demoRepo.listTrips()).map((x) => x.id)).not.toContain(t.id)
+  })
+
+  it('dismissed lưu được — trí nhớ "đã hỏi, không phải chuyến đi"', async () => {
+    const t = await demoRepo.createTrip({
+      start_on: '2026-03-01',
+      end_on: '2026-03-05',
+      dismissed: true,
+    })
+    expect(t.dismissed).toBe(true)
+  })
+
+  it('list sắp theo start_on tăng dần', async () => {
+    await demoRepo.createTrip({ start_on: '2026-05-01', end_on: '2026-05-03' })
+    await demoRepo.createTrip({ start_on: '2026-01-01', end_on: '2026-01-03' })
+    const all = await demoRepo.listTrips()
+    const starts = all.map((t) => t.start_on)
+    expect(starts).toEqual([...starts].sort())
+  })
+})

@@ -310,7 +310,10 @@ function stripComments(text: string): string {
 // nếp") và trạng thái rỗng khi 3 tháng không có khoản thu. Câu đầu mà ẩn ở Gọn thì bảng
 // số đọc ngược nghĩa ("lệch nhiều" thành "phương pháp tồi"); câu sau là trạng thái dữ
 // liệu, không phải chữ dạy.
-const PROSE_MAX = 91
+// 92 (từ 91, 2026-09-05): chú giải "Cột mờ = tháng có chuyến đi" (MonthlyBarsCard). Là
+// NHÃN DỮ LIỆU, không phải chữ dạy: cột mờ mà không có chú giải thì đọc như lỗi vẽ, và
+// nhãn chỉ hiện khi thật sự có tháng chuyến đi trong chuỗi. Xem spec chuyen-di §5.3.
+const PROSE_MAX = 92
 
 const FILES = sourceFiles().map((path) => ({
   path,

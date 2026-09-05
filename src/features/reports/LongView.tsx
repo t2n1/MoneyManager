@@ -47,6 +47,7 @@ import {
   useCategories,
   useProfile,
   useRangeTransactions,
+  useRecurringRules,
   useRates,
   useTransferCategoryIds,
 } from '../../hooks/queries'
@@ -73,6 +74,7 @@ import {
 } from './longRange'
 import { BASKET_COST_CAVEAT, basketCost, halfPeriodShift, rollingAverage } from './trends'
 import { ReportBlock } from './ReportBlock'
+import { GiaDoiBacCard } from './GiaDoiBacCard'
 import { TripGapCard } from './TripGapCard'
 import { CHART_TEXT_3XS, CHART_TEXT_XS } from '../../lib/chartText'
 import { EmptyState, SectionTitle } from '../../components/ui'
@@ -98,6 +100,7 @@ export function LongView() {
   const transferIds = useTransferCategoryIds()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
+  const { data: recurringRules = [] } = useRecurringRules()
 
   const currencyOf = (id: string): CurrencyCode =>
     accounts.find((a) => a.id === id)?.currency ?? base
@@ -288,6 +291,16 @@ export function LongView() {
           tay để dò cả dải cũ, và câu hỏi này quyết định mọi mốc so phía dưới đúng hay
           lệch. Không có dải nào thì component tự trả null — tab y hệt hôm nay. */}
       <TripGapCard txs={txs} windowStartISO={range.start} todayISO={todayISO} />
+      {/* Khoản lặp đều đã đổi giá — đứng cạnh thẻ chuyến đi vì cùng loại câu hỏi
+          nhiều-tháng; không có bậc nào thì component tự trả null. */}
+      <GiaDoiBacCard
+        txs={txs}
+        rules={recurringRules}
+        categories={categories}
+        currencyOf={currencyOf}
+        base={base}
+        rates={r}
+      />
       {series.hasMissingRate && (
         <div className="rounded-lg bg-state-warn-bg p-2 text-sm text-state-warn-fg">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên số liệu có thể

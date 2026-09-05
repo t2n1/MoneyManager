@@ -69,6 +69,7 @@ import {
 } from './bulletin'
 import { AccountsPanel } from './AccountsPanel'
 import { FirstRunPanel } from './FirstRunPanel'
+import { DriftPanel } from './DriftPanel'
 import { QuyenLoiPanel } from './QuyenLoiPanel'
 import { ReliabilityPanel } from './ReliabilityPanel'
 import { TodoPanel } from './TodoPanel'
@@ -580,6 +581,13 @@ export function BulletinPage() {
           </NotificationBoundary>
 
           <BudgetPanel report={report} isLoading={budgetLoading} base={base} nameOf={nameOf} />
+
+          {/* Thu nhập & nếp chi (drift.ts): tự ẩn khi không có gì đáng nói — đứng sau
+              Ngân sách vì cùng nói về NẾP, khác Ngân sách ở chỗ nhìn 12 tháng chứ không
+              phải tháng này. Bọc NotificationBoundary: đọc 12 tháng giao dịch. */}
+          <NotificationBoundary>
+            <DriftPanel />
+          </NotificationBoundary>
 
           <AccountsPanel
             groups={purposeGroups}

@@ -97,7 +97,14 @@ export function KpiRow({
         swapOn={income.value}
         foot={
           <>
-            <Delta pct={income.deltaPct} />
+            {/* Thu bằng 0 thì KHÔNG in "-100%" đỏ: đầu tháng lương chưa về là chuyện
+                bình thường, mà "-100%" đọc như tai nạn. Câu kết luận đầu màn đã dùng
+                đúng chữ "chưa có thu" — hai chỗ phải nói cùng một giọng. */}
+            {income.value === 0 ? (
+              <span className="font-mono text-2xs text-fg-muted">chưa có thu</span>
+            ) : (
+              <Delta pct={income.deltaPct} />
+            )}
             <Sparkline values={income.spark} label="Thu 8 tháng gần đây" />
           </>
         }

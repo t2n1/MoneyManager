@@ -116,7 +116,11 @@ export function TodoPanel({ items, onDismiss }: Props) {
               className={`h-4 w-4 shrink-0 text-fg-muted transition-transform ${open ? "rotate-180" : ""}`}
               aria-hidden
             />
-            <span className="min-w-0 flex-1 truncate">
+            {/* Dưới lg: HAI DÒNG, không cắt — cùng luật với tiêu đề việc bên dưới. Ở
+                375px `truncate` cắt thành "· 2 có h…", tức bỏ đúng mệnh đề trả lời "có
+                gì gấp không" mà chú thích trên vừa nói là phải giữ. Từ lg mới đủ rộng
+                để một dòng. */}
+            <span className="min-w-0 flex-1 line-clamp-2 lg:line-clamp-none lg:truncate">
               Việc cần làm ({items.length})
               {soon > 0 && (
                 <span className="font-normal text-fg-muted">

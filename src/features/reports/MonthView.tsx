@@ -89,6 +89,8 @@ import {
   type MonthTableRow,
 } from './monthReport'
 import { spendPercentiles, subscriptionSummary } from './behavior'
+import { dongChiChuaGhi, tongChiCoPhanChuaGhi } from './chiChuaGhi'
+import { useChiChuaGhi } from './useChiChuaGhi'
 import { MonthCategoryTable } from './MonthCategoryTable'
 import {
   KeptWhereCard,
@@ -166,6 +168,12 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [monthTxs, accounts, base, rates, transferIds],
   )
+  // Phần đã rời ví mà chưa ai ghi sổ — khoản bù của "Điều chỉnh số dư" đã nằm sẵn trong
+  // giao dịch của tháng, chỉ bị vòng lặp của aggregate.ts bỏ qua vì exclude_from_stats.
+  // Cố ý KHÔNG sửa sumIncomeExpense: hàm đó có 11 file gọi, tính cả src/mcp/.
+  // Dùng chung hook với màn Ngân sách để hai màn không ra hai con số. Xem chiChuaGhi.ts.
+  const chuaGhi = useChiChuaGhi(monthKey)
+  const chiCoPhanChuaGhi = tongChiCoPhanChuaGhi(sums.expense, chuaGhi)
   const breakdown = useMemo(
     () => categoryBreakdown(monthTxs, 'expense', currencyOf, base, r, transferIds),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -202,8 +210,8 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
 
   // ---------------------------------------------------------------- khối 01
   const tiers = useMemo(
-    () => outflowTiers(sums.income, sums.expense, sums.transfer, breakdown.slices.length),
-    [sums, breakdown.slices.length],
+    () => outflowTiers(sums.income, chiCoPhanChuaGhi, sums.transfer, breakdown.slices.length),
+    [sums, chiCoPhanChuaGhi, breakdown.slices.length],
   )
   const income = useMemo(
     () => incomeSplit(monthTxs, sums.expense, currencyOf, base, r),
@@ -618,11 +626,12 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
           <ReportBlock id="m-danh-muc" no="02" title="Chi tiêu đi vào đâu">
             <MonthCategoryTable
               rows={tableRows}
-              total={sums.expense}
+              total={chiCoPhanChuaGhi}
               monthLabel={monthLabel}
               base={base}
               overCount={budgetReport?.overCount ?? 0}
-              approx={sums.hasForeign}
+              approx={sums.hasForeign || chuaGhi.hasMissingRate}
+              chuaGhi={dongChiChuaGhi(chuaGhi)}
             />
           </ReportBlock>
 

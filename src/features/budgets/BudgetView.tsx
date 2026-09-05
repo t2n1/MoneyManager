@@ -15,7 +15,9 @@ import { formatMoney } from '../../lib/money'
 import { showToast } from '../../lib/dialog'
 import { Card } from '../../components/ui/Card'
 import { EmptyState, Money, SectionTitle, SegmentedControl } from '../../components/ui'
+import { useChiChuaGhi } from '../reports/useChiChuaGhi'
 import { BudgetEditSheet } from './BudgetEditSheet'
+import { ChiChuaGhiLine } from './ChiChuaGhiLine'
 import {
   buildBudgetDisplay,
   type BudgetChildRow,
@@ -248,6 +250,8 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
   const { report, isLoading } = useBudgetReport(monthKey)
   const { data: budgets = [] } = useBudgets(monthKeyStr)
   const { data: categories = [] } = useCategories()
+  // Dùng chung hook với màn Báo cáo — hai màn phải ra CÙNG một con số cho cùng một tháng.
+  const chuaGhi = useChiChuaGhi(monthKey)
   const copy = useCopyBudgetsFromPreviousMonth()
   // Gọi trước mọi early-return để giữ đúng thứ tự hook
   const pace = useMonthPace(monthKey)
@@ -864,6 +868,9 @@ export function BudgetView({ monthKey }: { monthKey: MonthKey }) {
             chỉ kể chuyện đã ghi; câu này mới nói đà tháng về đâu. Để rời nhau thì trên
             mobile một vế ở y=347 còn một vế ở y=803, dưới mép gấp 732. */}
         <BudgetVerdictLine pace={pace} />
+        {/* Phần đã rời ví mà chưa ai ghi sổ. Đứng NGOÀI phán quyết trên: nó không thuộc
+            danh mục nào nên không so được với trần nào — xem ChiChuaGhiLine. */}
+        <ChiChuaGhiLine chuaGhi={chuaGhi} base={base} />
         {/* Dải trục NGAY DƯỚI câu kết luận (§4.3). Cùng component với dải ở tab Sổ, chỉ
             khác `linkToDetail={false}` — khối đầy đủ nằm cuối chính màn này, một liên
             kết trỏ về trang đang mở là cái bẫy.

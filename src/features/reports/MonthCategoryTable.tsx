@@ -8,7 +8,7 @@
 // việc: VND dài gấp đôi ¥ cùng hàng (`₫291,400,000`) và đây là chỗ tràn đã gặp khi dựng
 // prototype.
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { SectionTitle, Card, Money, Num, deltaTone, signedPct, Sparkline } from '../../components/ui'
 import { Guide } from '../../components/Guide'
@@ -28,6 +28,56 @@ const TONE_CLASS: Record<ReturnType<typeof budgetCellLabel>['tone'], string> = {
   muted: 'text-fg-muted',
 }
 
+/**
+ * Dòng "Chưa ghi rõ" / "Ghi thừa" — phần chi KHÔNG rõ tiêu vào đâu.
+ *
+ * Vì sao là component riêng chứ không phải một phần tử nhét vào `rows`: `MonthTableRow`
+ * bắt buộc có `deltaPct`, `spark`, `budgeted`, `fixed`. Dòng giả sẽ khiến cột Δ in ra
+ * "mới" và cột Hạn mức in ra một trạng thái không có thật — nói dối về một con số vốn
+ * đã là "không biết".
+ *
+ * Bảy ô, ba ô ẩn dưới `lg`, đúng như hàng tổng ở chân bảng: cột nào ẩn phải ẩn ở CẢ
+ * template lẫn từng ô, không thì con của grid trôi sang nhầm track.
+ */
+function DongChuaGhi({
+  dong,
+  base,
+  approx,
+  grid,
+}: {
+  dong: { nhan: string; soTien: number }
+  base: CurrencyCode
+  approx: boolean
+  grid: string
+}) {
+  return (
+    <li role="row" className={`${grid} border-b border-border-subtle bg-state-warn-bg px-4 py-2.5`}>
+      <span role="cell" className="flex min-w-0 items-center gap-1.5">
+        <span aria-hidden className="shrink-0 text-sm">
+          ⚖️
+        </span>
+        <span className="min-w-0 truncate text-sm text-fg-warn">{dong.nhan}</span>
+      </span>
+      <span role="cell" className="text-right">
+        <Money
+          amount={dong.soTien}
+          currency={base}
+          tone="warn"
+          approx={approx}
+          className="text-sm"
+        />
+      </span>
+      {/* Bốn ô cuối để TRỐNG có chủ ý: %, TB 3 tháng, Δ, hạn mức đều là câu hỏi chỉ trả
+          lời được cho một danh mục thật. Điền số vào đây là bịa. */}
+      <span role="cell" className="hidden text-right lg:block" />
+      <span role="cell" className="hidden text-right lg:block" />
+      <span role="cell" className="text-right" />
+      <span role="cell" className="hidden lg:block" />
+      <span role="cell" className="text-right" />
+    </li>
+  )
+}
+
 /** Δ: dương là chi TĂNG nên tô màu chi; không so được thì in "mới", không in 0%. */
 function DeltaCell({ deltaPct, isNew }: { deltaPct: number | null; isNew: boolean }) {
   if (deltaPct === null && isNew) {
@@ -43,6 +93,7 @@ export function MonthCategoryTable({
   base,
   overCount,
   approx = false,
+  chuaGhi = null,
 }: {
   rows: readonly MonthTableRow[]
   /** Tổng chi của kỳ — hàng chân bảng. Truyền riêng vì nó là tổng THẬT (gồm cả khoản
@@ -54,12 +105,28 @@ export function MonthCategoryTable({
   /** Số danh mục vượt hạn mức — hiện ở ô Hạn mức của hàng tổng. */
   overCount: number
   approx?: boolean
+  /** Phần chi không rõ tiêu vào đâu (từ khoản đối chiếu) — KHÔNG phải một danh mục, nên
+   *  đi riêng chứ không qua `rows`. null = không có gì để nói. Xem DongChuaGhi. */
+  chuaGhi?: { nhan: string; soTien: number } | null
 }) {
   const [sort, setSort] = useState<MonthTableSort>('amount')
   const sorted = sortMonthTable(rows, sort)
   const conc = concentration(rows)
 
-  if (rows.length === 0) {
+  // Chèn theo TRỊ TUYỆT ĐỐI khi đang sắp theo tiền: dòng "Ghi thừa" mang số âm, xếp theo
+  // số có dấu sẽ rơi xuống đáy bảng trong khi độ lớn của nó mới là thứ đáng chú ý.
+  // Sắp theo tên hoặc theo Δ thì nó đứng cuối — nó không có tên để so, không có Δ để so.
+  const viTriTho =
+    chuaGhi === null
+      ? -1
+      : sort === 'amount'
+        ? sorted.findIndex((r) => r.thisMonth < Math.abs(chuaGhi.soTien))
+        : sorted.length
+  // findIndex trả -1 khi MỌI dòng đều lớn hơn → dòng chưa ghi đứng cuối, không phải đầu.
+  const viTriChen = chuaGhi !== null && viTriTho === -1 ? sorted.length : viTriTho
+
+  // Tháng chỉ có khoản đối chiếu mà không có danh mục nào vẫn phải hiện được dòng đó.
+  if (rows.length === 0 && chuaGhi === null) {
     return (
       <Card as="section" elevation="panel" padding="panel">
         <p className="text-sm text-fg-muted">Kỳ này chưa có khoản chi nào có danh mục.</p>
@@ -167,11 +234,14 @@ export function MonthCategoryTable({
         </div>
 
         <ul>
-          {sorted.map((r) => {
+          {sorted.map((r, i) => {
             const budget = budgetCellLabel(r)
             return (
+              <Fragment key={r.categoryId}>
+                {chuaGhi !== null && i === viTriChen && (
+                  <DongChuaGhi dong={chuaGhi} base={base} approx={approx} grid={GRID} />
+                )}
               <li
-                key={r.categoryId}
                 role="row"
                 className={`${GRID} border-b border-border-subtle px-4 py-2.5 transition hover:bg-surface-sunken`}
               >
@@ -214,8 +284,12 @@ export function MonthCategoryTable({
                   </Num>
                 </span>
               </li>
+              </Fragment>
             )
           })}
+          {chuaGhi !== null && viTriChen === sorted.length && (
+            <DongChuaGhi dong={chuaGhi} base={base} approx={approx} grid={GRID} />
+          )}
         </ul>
 
         {/* Hàng tổng ở CHÂN bảng, nền chrome như header: tổng ở đầu bảng thì mắt đọc nó

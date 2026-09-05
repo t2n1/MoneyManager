@@ -91,6 +91,7 @@ import {
 } from './monthReport'
 import { spendPercentiles, subscriptionSummary } from './behavior'
 import { dongChiChuaGhi, tongChiCoPhanChuaGhi } from './chiChuaGhi'
+import { GhiChuChuyenDi } from './GhiChuChuyenDi'
 import { ngayDiVang, thangCoChuyenDi } from './ngayDiVang'
 import { useChiChuaGhi } from './useChiChuaGhi'
 import { MonthCategoryTable } from './MonthCategoryTable'
@@ -630,6 +631,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
           </ReportBlock>
 
           <ReportBlock id="m-danh-muc" no="02" title="Chi tiêu đi vào đâu">
+            <GhiChuChuyenDi trips={trips} range={range} />
             <MonthCategoryTable
               rows={tableRows}
               total={chiCoPhanChuaGhi}
@@ -644,6 +646,7 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
           <ReportBlock id="m-so-truoc" no="03" title="So với trước — cùng số ngày">
             <MonthlyBarsCard
               series={series}
+              markedKeys={thangVang}
               base={base}
               title={`Thu / chi ${WINDOW} tháng gần nhất`}
               labelOf={(k) => `${k.year}/${k.month}`}

@@ -30,6 +30,7 @@ import { RANGE_NOUN, type AssetsRange, type RangeSpan } from './assetsRange'
 import { concentrationNote, groupDeltas, type GroupDelta } from './groupInsight'
 import { investTxRange } from './investHistory'
 import { InvestmentPerformanceSection } from './InvestmentPerformanceSection'
+import { FxSplitSection } from './FxSplitSection'
 import { InvestmentValueHistorySection } from './InvestmentValueHistorySection'
 import { makeMoneyView } from './moneyView'
 import { netWorthSeries } from './netWorthSeries'
@@ -182,6 +183,8 @@ export function AssetsTrendView({ viewCur, range, span }: Props) {
         view={mv}
         span={span}
       />
+
+      <FxSplitSection accounts={investmentAccounts} base={base} />
 
       {/* Hai khối "bản chốt" đứng cạnh nhau: cả hai đều là một con số kết luận cộng một
           thanh, và cả hai đều ngắn. Xếp dọc là chừa hai dải trắng bằng nửa bề ngang. */}

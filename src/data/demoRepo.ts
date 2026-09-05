@@ -2128,6 +2128,33 @@ export const demoRepo: Repo = {
     save(db)
   },
 
+  async listFxHistory(from: string, to: string) {
+    // Bản demo tự sinh tỷ giá từng ngày (xấp xỉ mức các dòng gửi tiền demo dùng:
+    // 160 + dao động nhỏ) để các thẻ đọc lịch sử tỷ giá có gì mà hiện; dòng đã ghi
+    // bằng recordFxRates thì thắng dòng tự sinh cùng ngày.
+    const db = load()
+    const stored = new Map((db.fxHistory ?? []).map((r) => [r.on_date, r]))
+    const out: FxHistoryRow[] = []
+    const start = new Date(`${from}T00:00:00Z`)
+    const end = new Date(`${to}T00:00:00Z`)
+    for (let d = start; d <= end; d = new Date(d.getTime() + 86_400_000)) {
+      const iso = d.toISOString().slice(0, 10)
+      const hit = stored.get(iso)
+      if (hit) {
+        out.push(hit)
+        continue
+      }
+      const wobble = d.getUTCDate() % 7
+      out.push({
+        user_id: DEMO_USER,
+        on_date: iso,
+        base: 'JPY',
+        rates: { VND: 160 + wobble, USD: 0.0063 },
+      })
+    }
+    return out
+  },
+
   async createCategory(input: NewCategory) {
     const db = load()
     const sort_order = db.categories

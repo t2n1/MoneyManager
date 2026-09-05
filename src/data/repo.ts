@@ -27,6 +27,7 @@ import type {
   PlannedExpenseRow,
   NotificationStateRow,
   DuePrecision,
+  FxHistoryRow,
   FundPriceRow,
   FundRow,
   FundTradeKind,
@@ -886,6 +887,12 @@ export interface Repo {
   // --- Lịch sử tỷ giá ---
   /** Ghi/đè tỷ giá của một ngày (unique user_id + on_date + base). */
   recordFxRates(onDate: string, base: CurrencyCode, rates: Rates): Promise<void>
+  /**
+   * Đọc lịch sử tỷ giá trong [from, to] (ISO, tính cả hai đầu), cũ → mới. Bảng chỉ tích
+   * từ cuối 07/2026 và chỉ có dòng ở ngày người dùng mở app — khoảng trống là bình
+   * thường, chỗ đọc phải tự chọn dòng gần nhất thay vì đòi đủ từng ngày.
+   */
+  listFxHistory(from: string, to: string): Promise<FxHistoryRow[]>
 
   // --- Sao lưu / khôi phục (mục Z) ---
   /** Gom toàn bộ dữ liệu người dùng thành một ảnh chụp để tải xuống. */

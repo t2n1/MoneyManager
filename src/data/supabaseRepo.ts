@@ -1152,6 +1152,19 @@ export const supabaseRepo: Repo = {
     if (error) throw error
   },
 
+  async listFxHistory(from: string, to: string) {
+    // Tối đa ~1 dòng/ngày/base nên một trang là đủ cho mọi khoảng thực tế — không cần
+    // fetchAllPages như các bảng giao dịch.
+    const { data, error } = await getSupabase()
+      .from('fx_history')
+      .select('*')
+      .gte('on_date', from)
+      .lte('on_date', to)
+      .order('on_date', { ascending: true })
+    if (error) throw error
+    return data ?? []
+  },
+
   async createCategory(input: NewCategory) {
     const user_id = await currentUserId()
     const sort_order = await nextSortOrder('categories', input.type)

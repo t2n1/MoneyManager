@@ -92,6 +92,21 @@ export function useRates() {
   return { base, rates: query.data, isLoading: query.isLoading, isSuccess: query.isSuccess }
 }
 
+/**
+ * Lịch sử tỷ giá đã tích (fx_history) trong [from, to]. Bảng chỉ có dòng ở ngày người
+ * dùng mở app và chỉ tích từ cuối 07/2026 — chỗ đọc tự chọn dòng gần nhất, không đòi đủ
+ * từng ngày. Lịch sử không đổi ngược về quá khứ nên cache lâu được.
+ */
+export function useFxHistory(from: string, to: string, enabled = true) {
+  return useQuery({
+    queryKey: ['fxHistory', from, to],
+    queryFn: () => repo.listFxHistory(from, to),
+    enabled,
+    staleTime: 12 * 3600_000,
+    gcTime: 24 * 3600_000,
+  })
+}
+
 export function useAccounts() {
   return useQuery({
     queryKey: ['accounts'],

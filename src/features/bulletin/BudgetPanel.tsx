@@ -87,7 +87,11 @@ export function BudgetPanel({ report, isLoading, base, nameOf }: Props) {
                     {nameOf(l.categoryId)}
                   </span>
                   <span className="shrink-0 font-mono text-sm text-fg-muted">
-                    {Math.round(l.ratio * 100)}%
+                    {/* Hạn mức ¥0 là hạn mức thật ("tháng này không tiêu ở đây") và ratio
+                        của nó bị kẹp về 1 (progress.ts) — in "100%" cho nó đọc như "vừa
+                        chạm trần" trong khi trang Ngân sách nói "chưa trần"/"vượt". Con
+                        số thật của dòng đó là tiền đã tiêu, không phải tỷ lệ. */}
+                    {l.budgeted === 0 ? 'vượt' : `${Math.round(l.ratio * 100)}%`}
                   </span>
                 </li>
               ))}

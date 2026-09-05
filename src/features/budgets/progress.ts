@@ -66,7 +66,10 @@ export function buildBudgetReport(
   const spentByCat = new Map<string, number>()
   let hasMissingRate = false
   for (const t of monthTxs) {
-    if (t.type !== 'expense' || !t.category_id || t.exclude_from_stats) continue
+    // `is_debt_flow` (cho vay / trả nợ) bị loại Ở MỌI phép tổng chi của repo (xem
+    // aggregate.ts) — bỏ sót ở đây làm "Đã chi" của ngân sách LỚN HƠN tổng chi của
+    // chính tháng đó in ngay cạnh nó (đo được: lệch đúng một khoản cho vay ¥1,450).
+    if (t.type !== 'expense' || !t.category_id || t.is_debt_flow || t.exclude_from_stats) continue
     if (transferIds.has(t.category_id)) continue
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates)
     if (v === null) {

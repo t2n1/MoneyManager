@@ -51773,7 +51773,7 @@ function buildBudgetReport(allBudgets, monthTxs, currencyOf, base, rates, parent
   const spentByCat = /* @__PURE__ */ new Map();
   let hasMissingRate = false;
   for (const t of monthTxs) {
-    if (t.type !== "expense" || !t.category_id || t.exclude_from_stats) continue;
+    if (t.type !== "expense" || !t.category_id || t.is_debt_flow || t.exclude_from_stats) continue;
     if (transferIds.has(t.category_id)) continue;
     const v = convertToBase(t.amount, currencyOf(t.account_id), base, rates);
     if (v === null) {

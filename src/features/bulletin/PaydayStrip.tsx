@@ -52,7 +52,7 @@ interface Props {
 const CAU = 'text-lg font-semibold leading-snug text-fg-secondary'
 
 export function PaydayStrip({ data, base, approx = false, monthStartDay }: Props) {
-  const { soNgay, conLai, moiNgay, nhipHienTai, hutTruocLuong, chuaDatHanMuc } = data
+  const { soNgay, conLai, camKet, moiNgay, nhipHienTai, hutTruocLuong, chuaDatHanMuc } = data
 
   // Số trong câu: mono + đậm, nổi lên khỏi nền câu fg-secondary. Màu CHỈ đi qua `tone`
   // (`neutral` đã là fg-primary) — truyền thêm một class màu qua `className` là hai
@@ -118,7 +118,17 @@ export function PaydayStrip({ data, base, approx = false, monthStartDay }: Props
     <Card elevation="panel" padding="panel" as="section">
       <p className={CAU}>
         {moiNgay === null ? (
-          <>Hạn mức còn {so(conLai)} tới {moc} — còn {ngay}.</>
+          // Không còn gì để chia. Có cam kết thì nói rõ vì sao: "còn ¥12,000 trong trần
+          // mà ¥18,600 đã hứa" là tin quan trọng nhất tháng (B36.2), giấu vế sau đi thì
+          // con số đầu câu đọc như vẫn ổn.
+          camKet > 0 ? (
+            <>
+              Hạn mức còn {so(conLai)} tới {moc} nhưng {so(camKet, 'warn')} đã cam kết —
+              còn {ngay}.
+            </>
+          ) : (
+            <>Hạn mức còn {so(conLai)} tới {moc} — còn {ngay}.</>
+          )
         ) : (
           <>
             {/* Màu của con số này LÀ lời cảnh báo: hổ phách khi giữ nhịp hiện tại sẽ
@@ -128,6 +138,10 @@ export function PaydayStrip({ data, base, approx = false, monthStartDay }: Props
             Mỗi ngày còn {so(moiNgay, hutTruocLuong ? 'warn' : 'good')} cho tới {moc} —{' '}
             {ngay} nữa, hạn mức còn{' '}
             {so(conLai)}
+            {/* Bằng chứng cho phép chia: không có vế này thì người đọc lấy hạn mức còn
+                chia số ngày ra một con số KHÁC và tưởng app tính sai. Cùng câu chữ với
+                trang Ngân sách ("đã trừ … cam kết chưa ra"). */}
+            {camKet > 0 && <> (đã trừ {so(camKet)} cam kết chưa ra)</>}
             {/* Nhịp hiện tại CHỈ hiện khi nó là tin xấu, và lúc đó nó chính là bằng chứng
                 cho lời cảnh báo: đặt cạnh mức chia đều ở đầu câu, người đọc tự thấy
                 10.000 > 4.190 mà không cần app phán câu nào. Nhịp "ổn" thì không có tin

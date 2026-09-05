@@ -20,9 +20,11 @@ import {
   useCategories,
   useMonthTransactions,
   useNetWorthSnapshots,
+  usePlannedExpenses,
   useProfile,
   useRangeTransactions,
   useRates,
+  useRecurringRules,
   useTagGroups,
   useTags,
   useTagSpend,
@@ -37,6 +39,8 @@ import {
   toISODate,
 } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
+import { convertToBase } from '../../lib/rates'
+import { collectCommitments } from '../budgets/commitments'
 import { NotificationBoundary } from '../notifications/NotificationBoundary'
 import { useNotifications } from '../notifications/useNotifications'
 import { reliability } from '../notifications/reliability'
@@ -173,6 +177,20 @@ export function BulletinPage() {
   const dangXemThangNay =
     activeMonthKey.year === currentMonthKey.year && activeMonthKey.month === currentMonthKey.month
   const kyHienTai = getMonthRange(currentMonthKey, monthStartDay)
+  // Cam kết CHƯA RA của kỳ hiện tại — CÙNG đường với trang Ngân sách và tab Lịch
+  // (`collectCommitments` đã tự bỏ kỳ đã sinh giao dịch và khoản sắp chi đã ghi).
+  // Thiếu nó thì "mỗi ngày còn" ở đây chia cả phần đã hứa, và Bản tin in một con số
+  // /ngày KHÁC với hai màn kia cho cùng một kỳ.
+  const { data: recurringRules = [] } = useRecurringRules()
+  const { data: plannedExpenses = [] } = usePlannedExpenses()
+  const camKet = useMemo(() => {
+    if (!dangXemThangNay) return 0
+    const r = rates ?? {}
+    return collectCommitments(recurringRules, plannedExpenses, kyHienTai, currencyOf, (amount, c) =>
+      convertToBase(amount, c, base, r),
+    ).total
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dangXemThangNay, recurringRules, plannedExpenses, kyHienTai.start, kyHienTai.end, accounts, base, rates])
   const luong =
     dangXemThangNay && report && !budgetLoading
       ? toiNgayLuong({
@@ -181,6 +199,7 @@ export function BulletinPage() {
           ngayLuongISO: kyHienTai.end,
           hanMuc: report.totalBudgeted,
           daTieu: report.totalSpent,
+          camKet,
         })
       : null
 

@@ -60,6 +60,18 @@ describe('buildBudgetReport (base = JPY)', () => {
     expect(r.hasMissingRate).toBe(false)
   })
 
+  it('dòng tiền cho vay / trả nợ (is_debt_flow) KHÔNG vào spent — cùng luật với aggregate', () => {
+    // Lỗi đã in ra thật: "Đã chi ¥142,794" trên trang Ngân sách LỚN HƠN "cả tháng đã chi
+    // ¥141,344" ngay cạnh nó, lệch đúng một khoản cho vay ¥1,450 mang danh mục Cơm ngoài.
+    const txs = [
+      tx({ type: 'expense', amount: 8_000, category_id: 'food' }),
+      tx({ type: 'expense', amount: 1_450, category_id: 'food', is_debt_flow: true }),
+    ]
+    const r = buildBudgetReport([budget('food', 10_000)], txs, currencyOf, 'JPY', RATES)
+    expect(r.lines[0].spent).toBe(8_000)
+    expect(r.totalSpent).toBe(8_000)
+  })
+
   it('danh mục có hạn mức nhưng chưa chi → spent 0, status ok', () => {
     const r = buildBudgetReport([budget('food', 10_000)], [], currencyOf, 'JPY', RATES)
     expect(r.lines).toEqual([

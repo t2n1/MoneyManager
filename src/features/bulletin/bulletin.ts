@@ -156,7 +156,14 @@ export interface ToiNgayLuong {
   soNgay: number
   /** Tổng hạn mức − đã tiêu, trong kỳ này (minor units, base). Âm = đã vượt trần. */
   conLai: number
-  /** Chia đều phần còn lại cho số ngày còn lại. null khi không còn gì để chia. */
+  /** Cam kết CHƯA RA của kỳ (định kỳ chưa sinh giao dịch + khoản sắp chi). */
+  camKet: number
+  /**
+   * Chia đều phần TỰ DO (conLai − camKet) cho số ngày còn lại — CÙNG phép tính với
+   * trang Ngân sách và tab Lịch (spendableRemaining + dailyAllowance). null khi
+   * không còn gì để chia. Ba màn in ba con số "mỗi ngày còn" khác nhau là lỗi tệ
+   * nhất khối này có thể mắc — xem chú thích ở CalendarView.
+   */
   moiNgay: number | null
   /** Nhịp chi thực tế mỗi ngày trong PHẠM VI hạn mức, từ đầu kỳ tới hôm nay. */
   nhipHienTai: number
@@ -176,6 +183,11 @@ export interface ToiNgayLuongInput {
   hanMuc: number
   /** Đã tiêu trong phạm vi các hạn mức đó — `BudgetReport.totalSpent`. */
   daTieu: number
+  /**
+   * Cam kết chưa ra của kỳ — `collectCommitments(...).total`, cùng nguồn với khối
+   * "Còn phải trả" của trang Ngân sách. Không truyền = 0 (tương thích ngược).
+   */
+  camKet?: number
 }
 
 /**
@@ -184,13 +196,18 @@ export interface ToiNgayLuongInput {
  * ≠ 0".
  */
 export function toiNgayLuong(input: ToiNgayLuongInput): ToiNgayLuong | null {
-  const { todayISO, kyBatDauISO, ngayLuongISO, hanMuc, daTieu } = input
+  const { todayISO, kyBatDauISO, ngayLuongISO, hanMuc, daTieu, camKet = 0 } = input
   const soNgay = daysBetween(todayISO, ngayLuongISO)
   const daQua = daysBetween(kyBatDauISO, todayISO)
   // Ngoài kỳ, hoặc mốc ngược đời.
   if (soNgay < 0 || daQua < 0 || !Number.isFinite(soNgay) || !Number.isFinite(daQua)) return null
 
   const conLai = hanMuc - daTieu
+  // Phần chia được cho các ngày còn lại là phần TỰ DO: trừ nốt cam kết chưa ra, cùng
+  // phép `spendableRemaining` của trang Ngân sách. Chia cả phần đã hứa (tiền điện ngày
+  // 25, khoản định kỳ chưa sinh giao dịch) là nói dư đúng bằng số cam kết — và Bản tin
+  // in ¥5,294/ngày trong khi Ngân sách in ¥4,413/ngày cho CÙNG một kỳ (đo được).
+  const tuDo = conLai - camKet
   // `daQua + 1` kể cả hôm nay: hôm nay đã tiêu rồi thì nó là một ngày có thật trong nhịp.
   // Cùng quy ước với `paceDaysElapsed` của useMonthPace và `daysElapsed` của
   // dailyAllowance — ba chỗ đếm khác nhau là ba con số "mỗi ngày" khác nhau trên cùng
@@ -200,9 +217,9 @@ export function toiNgayLuong(input: ToiNgayLuongInput): ToiNgayLuong | null {
   // trang Ngân sách, kể cả quyết định làm tròn XUỐNG và trả null khi đã vượt trần. Hai
   // mẫu số khớp nhau chứ không phải trùng hợp: `ngayLuongISO` là mốc loại trừ, nên
   // `daysLeft = (daQua + soNgay) − (daQua + 1) + 1 = soNgay`.
-  const moiNgay = dailyAllowance(conLai, daQua + 1, daQua + soNgay)?.perDay ?? null
+  const moiNgay = dailyAllowance(tuDo, daQua + 1, daQua + soNgay)?.perDay ?? null
   // Nhịp 0 (chưa tiêu gì) thì không thể hụt — tránh chia cho 0 ra Infinity.
-  const hutTruocLuong = conLai > 0 && nhipHienTai > 0 && conLai / nhipHienTai < soNgay
+  const hutTruocLuong = tuDo > 0 && nhipHienTai > 0 && tuDo / nhipHienTai < soNgay
 
-  return { soNgay, conLai, moiNgay, nhipHienTai, hutTruocLuong, chuaDatHanMuc: hanMuc <= 0 }
+  return { soNgay, conLai, camKet, moiNgay, nhipHienTai, hutTruocLuong, chuaDatHanMuc: hanMuc <= 0 }
 }

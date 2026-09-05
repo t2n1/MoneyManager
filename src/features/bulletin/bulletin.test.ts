@@ -206,4 +206,26 @@ describe('toiNgayLuong', () => {
     expect(co({ todayISO: '2026-08-14' })).toBeNull() // trước đầu kỳ
     expect(co({ todayISO: '2026-09-16' })).toBeNull() // sau ngày lương
   })
+
+  // B36 áp cho CẢ Bản tin: "mỗi ngày còn" chia phần TỰ DO (trần − đã tiêu − cam kết
+  // chưa ra), không chia cả phần đã hứa. Đây là lỗi đã in ra thật: Bản tin ¥5,294/ngày
+  // trong khi trang Ngân sách ¥4,413/ngày cho cùng một kỳ, lệch đúng phần cam kết.
+  it('cam kết chưa ra bị trừ khỏi phép chia mỗi ngày — cùng số với trang Ngân sách', () => {
+    const r = co({ camKet: 22_900 })!
+    expect(r.conLai).toBe(140_000) // "hạn mức còn" vẫn là trần − đã tiêu
+    expect(r.camKet).toBe(22_900)
+    expect(r.moiNgay).toBe(dailyAllowance(140_000 - 22_900, 6, 31)!.perDay)
+  })
+
+  it('cam kết nuốt hết phần còn lại → không còn gì để chia, nhưng vẫn nói được vì sao', () => {
+    const r = co({ camKet: 150_000 })! // conLai 140.000 < cam kết
+    expect(r.moiNgay).toBeNull()
+    expect(r.conLai).toBe(140_000)
+    expect(r.camKet).toBe(150_000)
+  })
+
+  it('không truyền cam kết thì như cũ (tương thích ngược)', () => {
+    expect(co()!.camKet).toBe(0)
+    expect(co()!.moiNgay).toBe(Math.floor(140_000 / 26))
+  })
 })

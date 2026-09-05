@@ -39,4 +39,9 @@ export const LUAT_2026: LuatNam = {
   ],
   furusato: { tuChiu: 2_000, tyLeShotokuWari: 0.2 },
   nisa: { tsumitate: 1_200_000, growth: 2_400_000, tongDoi: 18_000_000 },
+  iryohi: {
+    nguong: 100_000,
+    tranKhauTru: 2_000_000,
+    selfMed: { nguong: 12_000, tran: 88_000, hetHan: '2026-12-31' },
+  },
 }

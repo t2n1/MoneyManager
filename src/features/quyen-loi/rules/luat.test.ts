@@ -29,6 +29,16 @@ describe('LUAT_2026 — số đúng như nguồn NTA (tra 2026-09-02)', () => {
     expect(LUAT_2026.furusato).toEqual({ tuChiu: 2_000, tyLeShotokuWari: 0.2 })
     expect(LUAT_2026.nisa).toEqual({ tsumitate: 1_200_000, growth: 2_400_000, tongDoi: 18_000_000 })
   })
+
+  it('医療費控除: ngưỡng 10万, trần 200万 (No.1120); self-med 1,2万/8,8万 hết hạn 2026-12-31 (No.1132)', () => {
+    expect(LUAT_2026.iryohi).toEqual({
+      nguong: 100_000,
+      tranKhauTru: 2_000_000,
+      selfMed: { nguong: 12_000, tran: 88_000, hetHan: '2026-12-31' },
+    })
+    expect(LUAT_2022.iryohi).toEqual(LUAT_2026.iryohi)
+  })
+
   it('mỗi bộ luật có ít nhất một URL nguồn', () => {
     expect(LUAT_2026.nguon.length).toBeGreaterThan(0)
     expect(LUAT_2022.nguon.length).toBeGreaterThan(0)

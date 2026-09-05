@@ -44,6 +44,7 @@ export type NotificationType =
   | 'benefit-remit-unassigned'
   | 'benefit-refund-years'
   | 'benefit-year-end'
+  | 'benefit-iryohi'
   | 'trip-gap'
   | 'price-step'
 
@@ -107,6 +108,7 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   'benefit-refund-years',
   'benefit-remit-unassigned',
   'benefit-year-end',
+  'benefit-iryohi',
   // Hai luật về ĐỘ TIN CẬY của dữ liệu (§4.9) đứng CUỐI: chúng không gấp — không có
   // hạn chót nào — nhưng chúng nói rằng những con số phía trên đang được đo bằng một
   // cái thước thiếu vạch, nên vẫn thuộc nhóm việc-cần-làm chứ không phải tin-để-biết.
@@ -274,6 +276,14 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationTypeMeta> =
     kind: 'info',
     label: 'Khoản lặp đều vừa đổi giá',
     hint: 'Một khoản trả đều đặn vừa chuyển sang mức giá mới — tăng hay giảm đều báo, mỗi bậc đúng một lần.',
+  },
+  'benefit-iryohi': {
+    cta: 'Xem quyền lợi',
+    badge: 'Y TẾ',
+    source: 'Quyền lợi',
+    kind: 'action',
+    label: 'Chi y tế vượt ngưỡng khấu trừ',
+    hint: 'Chi y tế trong năm đã vượt ngưỡng — giữ hoá đơn và khai 医療費控除 trong 確定申告.',
   },
   'trip-gap': {
     cta: 'Xem lại',

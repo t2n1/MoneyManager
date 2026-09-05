@@ -246,6 +246,41 @@ export function QuyenLoiPage() {
               {ketQua.shelter.ketLuan.ly_do.map((l) => <li key={l}>{l}</li>)}
             </ul>
           </Card>
+
+          {/* ⑤ 医療費控除 — chi y tế so với ngưỡng, hai nhánh chọn một (spec iryohi-kojo) */}
+          <Card as="section" padding="lg">
+            <div className="flex items-baseline justify-between gap-2">
+              <SectionTitle>Khấu trừ chi phí y tế (医療費控除)</SectionTitle>
+              <TrangThaiChu k={ketQua.iryohi.ketLuan} />
+            </div>
+            <p className="mt-2 text-base font-medium text-fg-primary">{ketQua.iryohi.ketLuan.viec}</p>
+            <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
+              <div>
+                <dt className="text-2xs text-fg-muted">Chi y tế</dt>
+                <dd><Money amount={ketQua.iryohi.chi_y} currency="JPY" /></dd>
+              </div>
+              <div>
+                <dt className="text-2xs text-fg-muted">Ngưỡng</dt>
+                <dd><Money amount={ketQua.iryohi.nguong} currency="JPY" /></dd>
+              </div>
+              <div>
+                <dt className="text-2xs text-fg-muted">Khấu trừ</dt>
+                <dd>
+                  <Money amount={ketQua.iryohi.khau_tru} currency="JPY" tone={ketQua.iryohi.khau_tru > 0 ? 'in' : 'neutral'} />
+                  <EstimateMark reason={ketQua.iryohi.ketLuan.ly_do[0]} />
+                </dd>
+              </div>
+            </dl>
+            {ketQua.iryohi.ketLuan.tiet_kiem_uoc !== null && (
+              <p className="mt-2 text-sm text-fg-secondary">
+                Thuế bớt được ≈ <Money amount={ketQua.iryohi.ketLuan.tiet_kiem_uoc} currency="JPY" tone="in" />
+                {ketQua.iryohi.nhanh === 'self' && <> · theo nhánh セルフメディケーション</>}
+              </p>
+            )}
+            <ul className="mt-2 list-disc pl-5 text-2xs text-fg-muted">
+              {ketQua.iryohi.ketLuan.ly_do.map((l) => <li key={l}>{l}</li>)}
+            </ul>
+          </Card>
         </>
       )}
 

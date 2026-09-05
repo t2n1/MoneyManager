@@ -28,11 +28,30 @@ Phần hụt bị giấu kỹ tới mức chính MCP server cũng không thấy:
 
 | # | Quyết định |
 |---|-----------|
-| 1 | Phần hụt **cộng vào tổng Chi**, và hiện thành **một dòng riêng** trong bảng danh mục (cách C). Lý do: giữ tính chất "bảng danh mục cộng lại đúng bằng tổng Chi" — cách chỉ-cộng-vào-tổng phá tính chất này. |
-| 2 | Ngân sách: **có** ăn vào hạn mức TỔNG của tháng, và câu phán **nói rõ lý do** khi chính phần chưa ghi là thứ đẩy qua hạn mức. |
+| 1 | Phần hụt **cộng vào tổng Chi**, và hiện thành **một dòng riêng** trong bảng danh mục (cách C). Lý do: nó kéo bảng **gần** khớp tổng hơn, và đặt con số không-biết vào đúng chỗ mắt so được với các khoản thật. Xem đính chính ở §2b. |
+| 2 | Ngân sách: phán quyết **giữ nguyên phạm vi cũ**; phần chưa ghi đứng thành **một dòng cảnh báo riêng bên cạnh**. Xem §5.3 — bản chốt đầu tiên ("ăn vào hạn mức tổng") dựa trên một giả định sai và đã bị bác. |
 | 3 | Bù trên **thẻ tín dụng: loại**. Đó là lệch sao kê, không phải tiền mặt quên ghi — khoản quẹt thẻ vốn đã vào sổ qua import. |
 | 4 | Chiều **thu** (đếm ra nhiều hơn sổ = ghi thừa một khoản chi): **đối xứng**. Bù trừ trong tháng; dư ra thì dòng đổi tên `Ghi thừa` và **trừ** vào tổng, không làm tròn về 0. |
 | 5 | Không đổi schema. |
+
+### 2b. Hai đính chính sau khi đọc code
+
+Cả hai đều phát hiện lúc viết kế hoạch thi công, sau khi bản chốt đầu tiên đã xong. Ghi lại
+nguyên văn thay vì sửa lặng lẽ, vì bản sai đã được dùng để quyết định.
+
+**Đính chính 1 — "bảng danh mục cộng lại đúng bằng tổng Chi" là SAI.**
+Tính chất đó hiện không tồn tại. Chú thích ở
+[MonthCategoryTable.tsx:47](../../../src/features/reports/MonthCategoryTable.tsx:47) nói rõ tổng
+chân bảng là *"tổng THẬT (gồm cả khoản không có danh mục), không phải tổng của mấy dòng trên"*.
+Cách C vẫn đúng, nhưng vì lý do khác: thêm dòng này kéo bảng **gần** khớp tổng hơn trước, chứ
+không phải giữ một tính chất đã có.
+
+**Đính chính 2 — không có "hạn mức TỔNG của tháng".**
+`totalBudgeted` chỉ là tổng các trần người dùng đã đặt, và
+[budgetVerdict.ts:8](../../../src/features/reports/budgetVerdict.ts:8) **cố ý** so nó chỉ với chi
+của chính các mục đó, kèm hậu quả đã ghi sẵn: *"ai mới đặt vài hạn mức cũng thấy 'vượt' khổng lồ,
+rồi thôi tin cả thẻ"*. Phần "Chưa ghi rõ" không thuộc danh mục nào nên trộn vào phán quyết chính
+là lỗi lệch phạm vi mà đoạn code đó được viết ra để chặn. Bản chốt mới ở §5.3.
 
 ## 3. Kiến trúc: đầu vào riêng, không sửa hàm dùng chung
 
@@ -115,9 +134,17 @@ tương ứng — đó là điểm chính: tiền đã ra khỏi ví thì không
 
 ### 5.2 Dòng trong bảng danh mục
 
-`MonthCategoryTable.tsx` thêm một dòng, xếp hạng lẫn với các danh mục thật theo **trị tuyệt đối**
-của số tiền — dòng `Ghi thừa` mang số âm, xếp theo số có dấu sẽ đẩy nó xuống đáy bảng trong khi
-độ lớn của nó mới là thứ đáng chú ý:
+`MonthCategoryTable.tsx` nhận thêm **một prop riêng**, KHÔNG phải một phần tử nhét vào mảng
+`rows`. Lý do: `MonthTableRow` bắt buộc có `deltaPct`, `spark`, `budgeted`, `fixed` — dòng giả
+sẽ khiến cột Δ in ra "mới" và cột Hạn mức in ra một trạng thái không có thật. Prop riêng cũng
+chính là thứ thoả yêu cầu "phải nhìn ra ngay là nó khác các dòng kia" ở cuối mục này.
+
+Dòng chèn vào đúng vị trí theo **trị tuyệt đối** của số tiền khi bảng đang sắp theo tiền — dòng
+`Ghi thừa` mang số âm, xếp theo số có dấu sẽ đẩy nó xuống đáy bảng trong khi độ lớn của nó mới là
+thứ đáng chú ý. Khi bảng sắp theo tên hoặc theo Δ, dòng này đứng **cuối cùng**: nó không có tên
+để so và không có Δ để so.
+
+Nhãn:
 
 - `huong === 'chua_ghi'` → **Chưa ghi rõ**
 - `huong === 'ghi_thua'` → **Ghi thừa** (số âm)
@@ -127,15 +154,19 @@ Dòng này **không bấm vào được** như danh mục thật (không có tra
 mang một dấu hiệu nhìn ra ngay là nó khác các dòng kia — nó là phần *không biết*, không phải một
 danh mục.
 
-### 5.3 Câu phán ngân sách tổng
+### 5.3 Dòng cảnh báo cạnh phán quyết ngân sách
 
-Ăn vào hạn mức tổng. Khi **chính phần chưa ghi** là thứ đẩy qua hạn mức — tức
-`đã_chi_không_kể_phần_hụt <= hạn_mức < đã_chi_kể_cả_phần_hụt` — câu phán phải nói ra:
+`pickBudgetVerdict` và `MonthPace` **không đổi một dòng nào**. Phần chưa ghi đứng riêng, ngay
+dưới câu phán:
 
-> Vượt ¥4.000 — trong đó ¥18.000 chưa rõ tiêu vào đâu
+> Với đà này sẽ vượt trần ¥4.000 *(tính trên 6 mục có hạn mức)*
+> ⚠ Ngoài ra ¥18.000 chưa rõ tiêu vào đâu — không nằm trong phán quyết trên
 
-Không được chỉ nói "vượt ¥4.000". Người dùng cần phân biệt "tiêu nhiều hơn dự tính" với "quên ghi
-sổ" — hai việc đó sửa bằng hai cách khác nhau.
+Vế *"không nằm trong phán quyết trên"* là bắt buộc, không phải chữ trang trí: thiếu nó thì người
+đọc tự cộng hai số và tưởng mình vượt ¥22.000.
+
+Dòng này hiện **kể cả khi phán quyết là `unset` hoặc `null`** — chưa đặt hạn mức nào không có
+nghĩa là không cần biết ví đang hụt. Nó **không** hiện khi `soLanDoiChieu === 0`.
 
 ## 6. Các ca biên phải xử đúng
 
@@ -177,8 +208,10 @@ Unit test cho `chiChuaGhi.ts` (thuần, không cần render):
 - thiếu tỷ giá → dòng bị loại, `hasMissingRate === true`
 - tháng trống → `net === 0`, `soLanDoiChieu === 0`, `huong === null`
 
-Test cho câu phán ngân sách: đúng ca "phần chưa ghi là thứ đẩy qua hạn mức" phải sinh câu có nêu
-lý do; ca vượt hạn mức bằng chi thật thì giữ câu cũ.
+Test cho dòng cảnh báo ngân sách (§5.3): hiện khi `soLanDoiChieu > 0` kể cả lúc phán quyết là
+`unset`/`null`; **không** hiện khi `soLanDoiChieu === 0`. Và một phép thử canh bất biến: giá trị
+`totalBudgeted` cùng kết quả `pickBudgetVerdict` **không đổi** trước và sau khi có phần chưa ghi —
+đây là bất biến §2b đính chính 2 tồn tại để bảo vệ.
 
 Sau khi code: `npm run build` (`tsc -b` — **không** dùng `tsc --noEmit`, lệnh đó không kiểm gì ở
 repo này), `npm test`, `npm run lint`. Và **mở app xem mắt** — guardrail nguồn không bắt được chế

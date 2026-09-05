@@ -156,7 +156,9 @@ export interface MonthlySeries {
   hasMissingRate: boolean
 }
 
-const monthId = (k: MonthKey) => `${k.year}-${k.month}`
+// export cho ngayDiVang.ts: tập "tháng có chuyến đi" phải dùng ĐÚNG định dạng khoá này —
+// hai nơi tự chế hai định dạng ('2026-2' vs '2026-02') là loại lỗi so sánh im lặng.
+export const monthId = (k: MonthKey) => `${k.year}-${k.month}`
 
 /**
  * Chuỗi thu/chi theo từng tháng trong danh sách `months` (đã quy đổi base).

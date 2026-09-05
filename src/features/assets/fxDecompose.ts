@@ -42,8 +42,12 @@ function daysBetween(a: string, b: string): number {
   return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000)
 }
 
-/** Dòng tỷ giá gần `on` nhất trong ±maxGapDays; hoà thì lấy dòng SỚM hơn. */
-function nearestRate(
+/**
+ * Dòng tỷ giá gần `on` nhất trong ±maxGapDays; hoà thì lấy dòng SỚM hơn.
+ * Export cho các phép so cần "tỷ giá thị trường quanh một ngày" (kiều hối dùng chung) —
+ * viết lại ở chỗ khác là hai định nghĩa "gần nhất" trôi lệch nhau.
+ */
+export function nearestFxRate(
   fxDays: FxDayRates[],
   on: string,
   currency: CurrencyCode,
@@ -91,7 +95,7 @@ export function decomposeFxReturn(args: {
   const usable = [...points]
     .filter((p) => p.valueMinor > 0)
     .sort((a, b) => (a.on < b.on ? -1 : 1))
-    .map((p) => ({ ...p, rate: nearestRate(fxDays, p.on, currency, maxGapDays) }))
+    .map((p) => ({ ...p, rate: nearestFxRate(fxDays, p.on, currency, maxGapDays) }))
     .filter((p): p is typeof p & { rate: number } => p.rate !== null)
   if (usable.length < 2) return null
 

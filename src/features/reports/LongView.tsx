@@ -45,6 +45,7 @@ import { ConclusionLine } from '../../components/VerdictNote'
 import {
   useAccounts,
   useCategories,
+  useFxHistory,
   useProfile,
   useRangeTransactions,
   useRecurringRules,
@@ -60,7 +61,7 @@ import {
   type MonthKey,
 } from '../../lib/dates'
 import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
-import { remittanceStats, remittanceTiming } from '../remittance/aggregate'
+import { remitTrueCost, remittanceStats, remittanceTiming } from '../remittance/aggregate'
 import { categoryBreakdown, monthlySeries } from './aggregate'
 import {
   findRegime,
@@ -211,19 +212,41 @@ export function LongView() {
    * Không cần nhập tỷ giá thị trường ở đâu cả: số VND người nhận THỰC NHẬN đã là tỷ giá
    * thật. Chỉ những lần gửi có ghi đủ hai đầu (số JPY gửi + số VND nhận) mới vào phép so.
    */
+  const remitTxsInScope = useMemo(
+    () =>
+      txs.filter((t) => {
+        if (!t.is_remittance) return false
+        const k = monthKeyForDate(t.occurred_on, monthStartDay)
+        return remit.months.some((m) => m.key.year === k.year && m.key.month === k.month)
+      }),
+    [txs, remit.months, monthStartDay],
+  )
+
   const remitRate = useMemo(() => {
-    const inScope = txs.filter((t) => {
-      if (!t.is_remittance) return false
-      const k = monthKeyForDate(t.occurred_on, monthStartDay)
-      return remit.months.some((m) => m.key.year === k.year && m.key.month === k.month)
-    })
-    const stats = remittanceStats(inScope)
-    const timing = remittanceTiming(inScope, stats.avgRate)
+    const stats = remittanceStats(remitTxsInScope)
+    const timing = remittanceTiming(remitTxsInScope, stats.avgRate)
     if (timing.length < 2 || stats.avgRate === null) return null
     const sorted = [...timing].sort((a, b) => b.vsAvgPct - a.vsAvgPct)
     return { stats, best: sorted[0], worst: sorted[sorted.length - 1] }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [txs, remit.months, monthStartDay])
+  }, [remitTxsInScope])
+
+  /**
+   * Chi phí THẬT của việc chuyển tiền = phí + phần ẩn trong tỷ giá, so với tỷ giá thị
+   * trường CÙNG NGÀY từ fx_history (khác remitRate ở trên: kia so với trung bình của
+   * chính mình). Chỉ hỏi bảng khi khối Gửi về VN có gì để nói.
+   */
+  const fxTo = toISODate(new Date())
+  const fxFrom = useMemo(() => {
+    const first = remit.months[0]?.key
+    if (!first) return fxTo
+    return `${first.year}-${String(first.month).padStart(2, '0')}-01`
+  }, [remit.months, fxTo])
+  const { data: fxDays = [] } = useFxHistory(fxFrom, fxTo, remitTxsInScope.length > 0)
+  const remitCost = useMemo(() => {
+    if (remitTxsInScope.length === 0 || fxDays.length === 0) return null
+    const c = remitTrueCost(remitTxsInScope, fxDays)
+    return c.items.length > 0 ? c : null
+  }, [remitTxsInScope, fxDays])
 
   // Biểu đồ LUÔN vẽ cả 24 tháng; phạm vi chỉ quyết định phần nào là "kỳ đang xem".
   const rolling = useMemo(() => rollingAverage(active.map((p) => p.expense), ROLL), [active])
@@ -870,12 +893,56 @@ export function LongView() {
               </ul>
             </div>
           )}
+          {/* Chi phí thật — phí niêm yết chỉ là phần nhìn thấy; phần ẩn nằm ở khoảng
+              cách giữa tỷ giá được áp và tỷ giá thị trường cùng ngày (Chặng 14 của giáo
+              trình đã đối chiếu). Ba dòng số, không phải đoạn văn. */}
+          {remitCost !== null && (
+            <div className="mt-2.5 border-t border-border-subtle pt-2.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-sm text-fg-secondary">
+                  Chi phí thật (<Num>{remitCost.items.length} lần</Num> tính được)
+                </span>
+                <span className="text-sm font-medium">
+                  <Money amount={remitCost.totalCostJpy} currency={base} tone="out" />{' '}
+                  {remitCost.totalSentJpy > 0 && (
+                    <Num tone="muted">
+                      · {signedPct(Math.round((remitCost.totalCostJpy / remitCost.totalSentJpy) * 1000) / 10)}
+                    </Num>
+                  )}
+                </span>
+              </div>
+              <ul className="mt-1 flex flex-col gap-0.5 text-2xs text-fg-muted">
+                <li className="flex items-baseline justify-between gap-2">
+                  <span>Phí niêm yết</span>
+                  <Money amount={remitCost.totalFeeJpy} currency={base} tone="muted" />
+                </li>
+                <li className="flex items-baseline justify-between gap-2">
+                  <span>Ẩn trong tỷ giá (so thị trường cùng ngày)</span>
+                  <Money
+                    amount={remitCost.totalFxLossJpy}
+                    currency={base}
+                    tone={remitCost.totalFxLossJpy > 0 ? 'out' : 'in'}
+                    showSign
+                  />
+                </li>
+              </ul>
+            </div>
+          )}
           <Guide className="mt-1.5 text-2xs text-fg-muted">
             Đọc theo cờ <b>gửi về VN</b> trên từng giao dịch, nên nó gồm cả lần ghi dạng chuyển
             khoản lẫn lần ghi dạng chi. Con số này KHÔNG nằm trong tổng chi tiêu của các khối
             trên — xem tầng riêng ở tab Tháng này.
             {remitRate === null &&
               ' Phần so tỷ giá cần ít nhất hai lần gửi có ghi số VND người nhận thực nhận.'}
+            {remitCost !== null && (
+              <>
+                {' '}Chi phí thật so với tỷ giá thị trường app tự ghi mỗi phiên (có từ cuối
+                07/2026); số ẩn ÂM nghĩa là lần đó đổi được giá hơn thị trường.
+                {remitCost.missingRateCount > 0 && (
+                  <> {remitCost.missingRateCount} lần gửi cũ hơn lịch sử tỷ giá nên chưa tính được.</>
+                )}
+              </>
+            )}
           </Guide>
         </Card>
       )}

@@ -1,6 +1,7 @@
 // Thống kê gửi tiền về VN — thuần, không phụ thuộc React, để unit-test được.
 // Nhận danh sách giao dịch bất kỳ; tự lọc is_remittance. Số gửi gốc = amount − phí.
 
+import { nearestFxRate, type FxDayRates } from '../assets/fxDecompose'
 import type { TransactionRow } from '../../types/database.types'
 
 export interface RemittanceStats {
@@ -71,6 +72,96 @@ export function remittanceShareOfIncome(
 ): number | null {
   if (annualIncomeJpy <= 0) return null
   return (stats.totalSentJpy + stats.totalFeeJpy) / annualIncomeJpy
+}
+
+export interface RemitTrueCostItem {
+  transactionId: string
+  date: string
+  /** Số gửi gốc (amount − phí), minor JPY. */
+  sentJpy: number
+  feeJpy: number
+  receivedVnd: number
+  /** VND/JPY thị trường quanh ngày gửi (fx_history, ±3 ngày). */
+  marketRate: number
+  /** VND/JPY thực nhận = received ÷ sent. */
+  appliedRate: number
+  /**
+   * Phần hụt vào tỷ giá, quy JPY minor: (thị trường − thực nhận) × sent ÷ thị trường.
+   * ÂM được — nghĩa là lần đó đổi ĐƯỢC GIÁ hơn tỷ giá giữa, cứ nói thật.
+   */
+  fxLossJpy: number
+  /** Chi phí thật của lần gửi = phí + phần hụt tỷ giá (minor JPY). */
+  totalCostJpy: number
+  /** Chi phí thật trên số gửi gốc, ví dụ 0.026 = 2,6%. */
+  costPct: number
+}
+
+export interface RemitTrueCost {
+  items: RemitTrueCostItem[]
+  totalFeeJpy: number
+  totalFxLossJpy: number
+  totalCostJpy: number
+  /** Σ sent của những lần TÍNH ĐƯỢC — mẫu số của costPct tổng. */
+  totalSentJpy: number
+  /** Lần gửi đủ hai đầu số nhưng THIẾU tỷ giá thị trường quanh ngày gửi. */
+  missingRateCount: number
+}
+
+/** fx_history được phép lệch mấy ngày so với ngày gửi. */
+export const REMIT_RATE_MAX_GAP_DAYS = 3
+
+/**
+ * Chi phí THẬT của từng lần gửi — so với tỷ giá THỊ TRƯỜNG cùng ngày, không phải với
+ * trung bình của chính mình như `remittanceTiming`. Hai phép so trả lời hai câu khác
+ * nhau: timing nói "lần nào canh khéo hơn lần nào", cái này nói "dịch vụ lấy của tôi
+ * bao nhiêu" — gồm phí niêm yết CỘNG phần ẩn trong tỷ giá, phần mà biên lai không in
+ * và (bài học Chặng 14) thường lớn hơn phí.
+ *
+ * Nguồn tỷ giá là fx_history — chỉ tích từ cuối 07/2026, nên lần gửi cũ hơn sẽ rơi vào
+ * `missingRateCount` thay vì bị đoán bằng một tỷ giá không tồn tại.
+ */
+export function remitTrueCost(txs: TransactionRow[], fxDays: FxDayRates[]): RemitTrueCost {
+  const items: RemitTrueCostItem[] = []
+  let missingRateCount = 0
+  for (const t of txs) {
+    if (!t.is_remittance) continue
+    const feeJpy = t.remit_fee_jpy ?? 0
+    const sentJpy = Math.max(t.amount - feeJpy, 0)
+    const receivedVnd = t.remit_received_vnd ?? 0
+    if (sentJpy <= 0 || receivedVnd <= 0) continue
+    const marketRate = nearestFxRate(fxDays, t.occurred_on, 'VND', REMIT_RATE_MAX_GAP_DAYS)
+    if (marketRate === null) {
+      missingRateCount++
+      continue
+    }
+    const appliedRate = receivedVnd / sentJpy
+    const fxLossJpy = Math.round(((marketRate - appliedRate) * sentJpy) / marketRate)
+    const totalCostJpy = feeJpy + fxLossJpy
+    items.push({
+      transactionId: t.id,
+      date: t.occurred_on,
+      sentJpy,
+      feeJpy,
+      receivedVnd,
+      marketRate,
+      appliedRate,
+      fxLossJpy,
+      totalCostJpy,
+      costPct: totalCostJpy / sentJpy,
+    })
+  }
+  items.sort((a, b) => b.date.localeCompare(a.date))
+  const totalFeeJpy = items.reduce((s, i) => s + i.feeJpy, 0)
+  const totalFxLossJpy = items.reduce((s, i) => s + i.fxLossJpy, 0)
+  const totalSentJpy = items.reduce((s, i) => s + i.sentJpy, 0)
+  return {
+    items,
+    totalFeeJpy,
+    totalFxLossJpy,
+    totalCostJpy: totalFeeJpy + totalFxLossJpy,
+    totalSentJpy,
+    missingRateCount,
+  }
 }
 
 export function remittanceStats(txs: TransactionRow[]): RemittanceStats {

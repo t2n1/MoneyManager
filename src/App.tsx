@@ -205,6 +205,13 @@ function AppRoutes() {
           <Route path="/settings/debts/:debtId" element={<LegacyDebtRedirect />} />
           <Route path="/settings/recurring" element={<Navigate to="/recurring" replace />} />
           <Route path="/assets/:accountId" element={<LegacyAccountRedirect />} />
+          {/* Lưới đỡ cuối: URL không khớp route nào (gõ nhầm, link cũ chưa kịp có dòng
+              chuyển tiếp) trước đây render ĐÚNG KHÔNG GÌ CẢ — một màn đen tuyền không
+              thanh điều hướng, không lối ra (đo được với /settings/classify, đường sai
+              của /settings/categories/classify). Về Bản tin thay vì dựng trang 404: mọi
+              đường cũ có nghĩa đều đã có dòng chuyển tiếp riêng ở trên, phần rơi tới
+              đây không còn gì để đoán. */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Route>
     </Routes>

@@ -34,6 +34,10 @@ var NOTIFICATION_TYPES = [
   // Hai luật về ĐỘ TIN CẬY của dữ liệu (§4.9) đứng CUỐI: chúng không gấp — không có
   // hạn chót nào — nhưng chúng nói rằng những con số phía trên đang được đo bằng một
   // cái thước thiếu vạch, nên vẫn thuộc nhóm việc-cần-làm chứ không phải tin-để-biết.
+  // Chuyến đi (spec chuyen-di): cùng họ độ-tin-cậy — một dải ngày trống chưa được gọi
+  // tên nghĩa là mọi phép so sánh phía trên đang lấy nhầm mốc. Đứng đầu nhóm này vì
+  // trả lời nó chỉ mất một cú bấm, còn hai luật dưới đòi ngồi phân loại/đối chiếu.
+  "trip-gap",
   "data-uncategorized",
   "data-reconcile",
   // Cuối cùng: điểm gãy mức chi nói về NHIỀU THÁNG, không có hạn chót nào, và việc nó
@@ -128,6 +132,14 @@ var NOTIFICATION_META = {
     kind: "info",
     label: "Ng\xE0y ch\u1ED1t sao k\xEA th\u1EBB",
     hint: "H\xF4m nay th\u1EBB ch\u1ED1t k\u1EF3 \u2014 mua t\u1EEB mai s\u1EBD tr\u1EA3 v\xE0o th\xE1ng sau."
+  },
+  "trip-gap": {
+    cta: "Xem l\u1EA1i",
+    badge: "\u0110I V\u1EAENG?",
+    source: "S\u1ED5 \xB7 d\u1EA3i ng\xE0y tr\u1ED1ng",
+    kind: "action",
+    label: "D\u1EA3i ng\xE0y kh\xF4ng c\xF3 giao d\u1ECBch n\xE0o",
+    hint: "\u0110\xE1nh d\u1EA5u l\xE0 chuy\u1EBFn \u0111i th\xEC c\xE1c ph\xE9p so s\xE1nh b\u1ECF nh\u1EEFng ng\xE0y n\xE0y ra \u2014 th\xE1ng \u0111\xF3 th\xF4i tr\xF4ng r\u1EBB gi\u1EA3."
   },
   "recurring-suggestion": {
     cta: "T\u1EA1o quy t\u1EAFc",
@@ -382,6 +394,10 @@ function addDaysISO2(iso2, delta) {
   const d = /* @__PURE__ */ new Date(iso2 + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() + delta);
   return d.toISOString().slice(0, 10);
+}
+function dayMonthLabel(iso2) {
+  const [, m, d] = iso2.split("-").map(Number);
+  return `${m}/${d}`;
 }
 function nextCardDueDate(dueDay, todayISO) {
   return nextCardDuePeriod(dueDay, todayISO).payISO;
@@ -991,6 +1007,30 @@ function detectRecurring(txs, existingKeys, todayISO, opts = {}) {
   return out;
 }
 
+// src/features/reports/ngayDiVang.ts
+var NGUONG_NGAY_VANG = 4;
+function doKhoangVang(txDatesISO, windowStartISO, todayISO, trips) {
+  const coGiaoDich = new Set(txDatesISO);
+  const daXet = (a, b) => trips.some((t) => a <= t.end_on && b >= t.start_on);
+  const out = [];
+  let runStart = null;
+  for (let d = windowStartISO; d <= todayISO; d = addDaysISO2(d, 1)) {
+    if (!coGiaoDich.has(d)) {
+      runStart ??= d;
+      continue;
+    }
+    if (runStart !== null) {
+      const runEnd = addDaysISO2(d, -1);
+      const soNgay = daysBetween(runStart, runEnd) + 1;
+      if (soNgay >= NGUONG_NGAY_VANG && runStart !== windowStartISO && !daXet(runStart, runEnd)) {
+        out.push({ startISO: runStart, endISO: runEnd, soNgay });
+      }
+      runStart = null;
+    }
+  }
+  return out;
+}
+
 // src/features/reports/aggregate.ts
 var expenseSign = (t) => t.is_refund ? -1 : 1;
 
@@ -1494,6 +1534,29 @@ function dataRules(input) {
   return [...uncategorizedRule(input), ...reconcileStaleRule(input)];
 }
 
+// src/features/notifications/rules/tripRules.ts
+function tripRules(input) {
+  const { trips, recentTxs, todayISO } = input;
+  if (!trips) return [];
+  const windowStart = addDaysISO2(todayISO, -RECENT_TXS_DAYS);
+  const gaps = doKhoangVang(
+    recentTxs.map((t) => t.occurred_on),
+    windowStart,
+    todayISO,
+    trips
+  );
+  return gaps.map((g) => ({
+    key: `trip-gap:${g.startISO}`,
+    kind: "action",
+    type: "trip-gap",
+    severity: "low",
+    title: `${g.soNgay} ng\xE0y kh\xF4ng c\xF3 giao d\u1ECBch n\xE0o (${dayMonthLabel(g.startISO)} \u2192 ${dayMonthLabel(g.endISO)}) \u2014 \u0111i v\u1EAFng?`,
+    detail: "\u0110\xE1nh d\u1EA5u l\xE0 chuy\u1EBFn \u0111i th\xEC c\xE1c ph\xE9p so s\xE1nh b\u1ECF nh\u1EEFng ng\xE0y n\xE0y ra.",
+    onISO: g.startISO,
+    to: "/reports?view=long"
+  }));
+}
+
 // src/features/reports/trends.ts
 var DEFAULT_CP = { minSegment: 3, threshold: 2.5, maxPoints: 3 };
 var mean = (xs) => xs.length === 0 ? 0 : xs.reduce((s, x) => s + x, 0) / xs.length;
@@ -1608,6 +1671,7 @@ function buildNotifications(input) {
     ...lifetimeRules(input),
     ...benefitRules(input),
     ...dataRules(input),
+    ...tripRules(input),
     ...levelShiftRule(input)
   ];
   return arrangeNotifications(all, input.offTypes);

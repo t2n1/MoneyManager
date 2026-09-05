@@ -19,6 +19,7 @@ import { rhythmRules } from './rules/rhythmRules'
 import { lifetimeRules } from './rules/lifetimeRules'
 import { benefitRules } from './rules/benefitRules'
 import { dataRules } from './rules/dataRules'
+import { tripRules } from './rules/tripRules'
 import { levelShiftRule } from './rules/trendRules'
 
 /**
@@ -84,6 +85,7 @@ export function buildNotifications(input: NotificationInput): NotificationResult
     ...lifetimeRules(input),
     ...benefitRules(input),
     ...dataRules(input),
+    ...tripRules(input),
     ...levelShiftRule(input),
   ]
   return arrangeNotifications(all, input.offTypes)

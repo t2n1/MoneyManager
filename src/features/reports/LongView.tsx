@@ -73,6 +73,7 @@ import {
 } from './longRange'
 import { BASKET_COST_CAVEAT, basketCost, halfPeriodShift, rollingAverage } from './trends'
 import { ReportBlock } from './ReportBlock'
+import { TripGapCard } from './TripGapCard'
 import { CHART_TEXT_3XS, CHART_TEXT_XS } from '../../lib/chartText'
 import { EmptyState, SectionTitle } from '../../components/ui'
 
@@ -283,6 +284,10 @@ export function LongView() {
 
   return (
     <div className="flex flex-col gap-2.5">
+      {/* Thẻ hỏi chuyến đi đứng ĐẦU tab: đây là nơi duy nhất có cả năm giao dịch trong
+          tay để dò cả dải cũ, và câu hỏi này quyết định mọi mốc so phía dưới đúng hay
+          lệch. Không có dải nào thì component tự trả null — tab y hệt hôm nay. */}
+      <TripGapCard txs={txs} windowStartISO={range.start} todayISO={todayISO} />
       {series.hasMissingRate && (
         <div className="rounded-lg bg-state-warn-bg p-2 text-sm text-state-warn-fg">
           Một phần giao dịch ngoại tệ chưa quy đổi được (đang chờ tỷ giá) nên số liệu có thể

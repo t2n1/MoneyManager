@@ -29,6 +29,7 @@ import {
   useTags,
   useTagSpend,
   useTransferCategoryIds,
+  useTrips,
 } from '../../hooks/queries'
 import {
   addDaysISO,
@@ -45,6 +46,7 @@ import { NotificationBoundary } from '../notifications/NotificationBoundary'
 import { useNotifications } from '../notifications/useNotifications'
 import { reliability } from '../notifications/reliability'
 import { monthExpenseCompare, monthlySeries } from '../reports/aggregate'
+import { ngayDiVang } from '../reports/ngayDiVang'
 import { dailySpendSeries } from '../reports/dailySpike'
 import { dayTagCells } from '../reports/dayTagCells'
 import { headlineOf } from '../reports/headline'
@@ -87,6 +89,9 @@ export function BulletinPage() {
   const todayISO = toISODate(new Date())
   const { base, rates } = useRates()
   const transferIds = useTransferCategoryIds()
+  // Ngày đi vắng (chuyến đi) — mốc so 'cùng số ngày' phải bỏ chúng ra, xem ngayDiVang.ts
+  const { data: trips = [] } = useTrips()
+  const vang = useMemo(() => ngayDiVang(trips), [trips])
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const [editing, setEditing] = useState<TransactionRow | null>(null)
@@ -144,9 +149,10 @@ export function BulletinPage() {
         base,
         rates ?? {},
         transferIds,
+        vang,
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rangeTxs, activeMonthKey, monthStartDay, accounts, base, rates, transferIds],
+    [rangeTxs, activeMonthKey, monthStartDay, accounts, base, rates, transferIds, vang],
   )
   const expenseRaw = kpiFromSeries(upTo.map((p) => p.expense))
   const expenseKpi =

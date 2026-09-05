@@ -20,6 +20,7 @@ import {
   netFlowSummary,
   sumIncomeExpense,
 } from './aggregate'
+import { NO_TRANSFER_CATEGORIES } from '../categories/kind'
 
 // base = JPY: 1 ¥ = 165 ₫ = 0.0065 $
 const RATES: Rates = { JPY: 1, VND: 165, USD: 0.0065 }
@@ -836,5 +837,106 @@ describe('netFlowSeries & netFlowSummary', () => {
 
   it('summary của chuỗi rỗng: 0 và worst null (không chia cho 0)', () => {
     expect(netFlowSummary([])).toEqual({ total: 0, avg: 0, negativeMonths: 0, worst: null })
+  })
+})
+
+describe('loại ngày đi vắng khỏi mốc so (chuyến đi)', () => {
+  it('categoryComparison: tháng trước là tháng chuyến đi → Δ null, avg3 bỏ tháng đó', () => {
+    const key: MonthKey = { year: 2026, month: 3 }
+    const txs = [
+      tx({ type: 'expense', amount: 900, category_id: 'food', occurred_on: '2026-03-05' }),
+      tx({ type: 'expense', amount: 100, category_id: 'food', occurred_on: '2026-02-05' }),
+      tx({ type: 'expense', amount: 500, category_id: 'food', occurred_on: '2026-01-05' }),
+      tx({ type: 'expense', amount: 700, category_id: 'food', occurred_on: '2025-12-05' }),
+    ]
+    const thangVang = new Set(['2026-2'])
+    const r = categoryComparison(
+      txs, key, 1, currencyOf, 'JPY', RATES, null, NO_TRANSFER_CATEGORIES, thangVang,
+    )
+    const food = r.rows.find((x) => x.categoryId === 'food')!
+    // avg3 = (500 + 700) / 2, KHÔNG phải (100 + 500 + 700) / 3
+    expect(food.avg3).toBe(600)
+    // tháng liền trước là tháng chuyến đi → không có mốc để so, và cũng KHÔNG phải "mới"
+    expect(food.deltaPct).toBeNull()
+    expect(food.isNew).toBe(false)
+  })
+
+  it('categoryComparison: cả 3 tháng mốc đều là tháng chuyến đi → avg3 = 0', () => {
+    const key: MonthKey = { year: 2026, month: 3 }
+    const txs = [
+      tx({ type: 'expense', amount: 900, category_id: 'food', occurred_on: '2026-03-05' }),
+      tx({ type: 'expense', amount: 100, category_id: 'food', occurred_on: '2026-02-05' }),
+    ]
+    const thangVang = new Set(['2026-2', '2026-1', '2025-12'])
+    const r = categoryComparison(
+      txs, key, 1, currencyOf, 'JPY', RATES, null, NO_TRANSFER_CATEGORIES, thangVang,
+    )
+    expect(r.rows.find((x) => x.categoryId === 'food')!.avg3).toBe(0)
+  })
+
+  it('categoryComparison: không truyền thangVang → y hệt hành vi cũ', () => {
+    const key: MonthKey = { year: 2026, month: 3 }
+    const txs = [
+      tx({ type: 'expense', amount: 900, category_id: 'food', occurred_on: '2026-03-05' }),
+      tx({ type: 'expense', amount: 100, category_id: 'food', occurred_on: '2026-02-05' }),
+    ]
+    const r = categoryComparison(txs, key, 1, currencyOf, 'JPY', RATES)
+    expect(r.rows.find((x) => x.categoryId === 'food')!.deltaPct).toBe(800)
+  })
+
+  it('monthExpenseCompare: mốc so kỳ trước thôi bị các ngày đi vắng kéo xuống', () => {
+    // Kỳ trước (tháng 2): 100/ngày ở 1–15 và 23–28, đi vắng 16–22 (bảy ngày 0).
+    // Kỳ xem (tháng 3): 100/ngày, hôm nay 20/3 → đã trôi 20 ngày.
+    const txs: TransactionRow[] = []
+    for (let d = 1; d <= 28; d++) {
+      const iso = `2026-02-${String(d).padStart(2, '0')}`
+      if (iso >= '2026-02-16' && iso <= '2026-02-22') continue
+      txs.push(tx({ type: 'expense', amount: 100, category_id: 'food', occurred_on: iso }))
+    }
+    for (let d = 1; d <= 31; d++) {
+      const iso = `2026-03-${String(d).padStart(2, '0')}`
+      txs.push(tx({ type: 'expense', amount: 100, category_id: 'food', occurred_on: iso }))
+    }
+    const key: MonthKey = { year: 2026, month: 3 }
+    const vang = new Set<string>()
+    for (let d = 16; d <= 22; d++) vang.add(`2026-02-${d}`)
+
+    const khongLoai = monthExpenseCompare(txs, key, 1, '2026-03-20', currencyOf, 'JPY', RATES)!
+    // 20 ngày đầu tháng 2 chứa 5 ngày đi vắng (16–20) → mốc bị kéo còn 1.500
+    expect(khongLoai.priorSameDays).toBe(1_500)
+    expect(khongLoai.deltaPct).toBe(33)
+
+    const coLoai = monthExpenseCompare(
+      txs, key, 1, '2026-03-20', currencyOf, 'JPY', RATES, NO_TRANSFER_CATEGORIES, vang,
+    )!
+    // bỏ ngày đi vắng: 20 ngày-thường đầu của kỳ trước đều 100 → mốc 2.000, Δ = 0%
+    expect(coLoai.spent).toBe(2_000)
+    expect(coLoai.priorSameDays).toBe(2_000)
+    expect(coLoai.deltaPct).toBe(0)
+  })
+
+  it('monthExpenseCompare: ngày đi vắng nằm trong KỲ XEM thì daysElapsed cũng co lại', () => {
+    // Tháng 3 đang dở, đi vắng 5–11/3 (7 ngày, đã qua). Chi 100/ngày các ngày còn lại.
+    const txs: TransactionRow[] = []
+    for (let d = 1; d <= 28; d++) {
+      txs.push(tx({ type: 'expense', amount: 100, category_id: 'food', occurred_on: `2026-02-${String(d).padStart(2, '0')}` }))
+    }
+    for (let d = 1; d <= 20; d++) {
+      const iso = `2026-03-${String(d).padStart(2, '0')}`
+      if (iso >= '2026-03-05' && iso <= '2026-03-11') continue
+      txs.push(tx({ type: 'expense', amount: 100, category_id: 'food', occurred_on: iso }))
+    }
+    const key: MonthKey = { year: 2026, month: 3 }
+    const vang = new Set<string>()
+    for (let d = 5; d <= 11; d++) vang.add(`2026-03-${String(d).padStart(2, '0')}`)
+
+    const r = monthExpenseCompare(
+      txs, key, 1, '2026-03-20', currencyOf, 'JPY', RATES, NO_TRANSFER_CATEGORIES, vang,
+    )!
+    // đã trôi 20 ngày lịch nhưng chỉ 13 ngày-thường → so 13 ngày với 13 ngày
+    expect(r.daysElapsed).toBe(13)
+    expect(r.spent).toBe(1_300)
+    expect(r.priorSameDays).toBe(1_300)
+    expect(r.deltaPct).toBe(0)
   })
 })

@@ -45,6 +45,7 @@ import {
   useRates,
   useRecurringRules,
   useTags,
+  useTrips,
   useTransactionTags,
   useTransferCategoryIds,
 } from '../../hooks/queries'
@@ -90,6 +91,7 @@ import {
 } from './monthReport'
 import { spendPercentiles, subscriptionSummary } from './behavior'
 import { dongChiChuaGhi, tongChiCoPhanChuaGhi } from './chiChuaGhi'
+import { ngayDiVang, thangCoChuyenDi } from './ngayDiVang'
 import { useChiChuaGhi } from './useChiChuaGhi'
 import { MonthCategoryTable } from './MonthCategoryTable'
 import {
@@ -131,6 +133,10 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const { data: tags = [] } = useTags()
+  // Chuyến đi: tập ngày/tháng loại khỏi mốc so (spec chuyen-di). Biểu đồ giữ nguyên.
+  const { data: trips = [] } = useTrips()
+  const vang = useMemo(() => ngayDiVang(trips), [trips])
+  const thangVang = useMemo(() => thangCoChuyenDi(trips, monthStartDay), [trips, monthStartDay])
   const { data: tagLinks = [] } = useTransactionTags()
   const { data: recurringRules = [] } = useRecurringRules()
   const { data: plannedExpenses = [] } = usePlannedExpenses()
@@ -200,9 +206,9 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
   )
   const cutoffDay = daysElapsed >= daysInPeriod ? null : daysElapsed
   const cmp = useMemo(
-    () => monthExpenseCompare(rangeTxs, monthKey, monthStartDay, todayISO, currencyOf, base, r, transferIds),
+    () => monthExpenseCompare(rangeTxs, monthKey, monthStartDay, todayISO, currencyOf, base, r, transferIds, vang),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rangeTxs, monthKey, monthStartDay, todayISO, accounts, base, rates, transferIds],
+    [rangeTxs, monthKey, monthStartDay, todayISO, accounts, base, rates, transferIds, vang],
   )
 
   const { report: budgetReport } = useBudgetReport(monthKey)
@@ -222,9 +228,9 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
   // ---------------------------------------------------------------- khối 02: bảng
   const comparison = useMemo(
     () =>
-      categoryComparison(rangeTxs, monthKey, monthStartDay, currencyOf, base, r, cutoffDay, transferIds),
+      categoryComparison(rangeTxs, monthKey, monthStartDay, currencyOf, base, r, cutoffDay, transferIds, thangVang),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rangeTxs, monthKey, monthStartDay, accounts, base, rates, cutoffDay, transferIds],
+    [rangeTxs, monthKey, monthStartDay, accounts, base, rates, cutoffDay, transferIds, thangVang],
   )
   // Đường tí hon 6 tháng cho ĐÚNG những danh mục có mặt trong bảng — không fetch thêm.
   const sparkIds = useMemo(

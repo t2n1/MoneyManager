@@ -26,6 +26,36 @@ export interface CumulativeCompare {
   priorTotal: number
 }
 
+/**
+ * Câu kết của thẻ số khi rê/chạm: so lũy kế năm nay với cùng ngày năm ngoái, trả về
+ * DỮ KIỆN đã phân loại — chữ ("đang ít hơn…") là việc của UI.
+ *
+ * Vì sao không đưa thẳng một con số %: người đọc phải tự dịch "−69,6%" thành "mình
+ * đang tiêu ít hơn" — đúng bước dịch mà thẻ này tồn tại để làm hộ. Và từ GẤP ĐÔI trở
+ * lên thì "+211,7%" đọc chậm hơn hẳn "gấp 3,1 lần" — nên có `gapLan` riêng.
+ */
+export type SoVoiCungKy =
+  | { kind: 'it'; chenh: number; pct: number }
+  | { kind: 'nhieu'; chenh: number; pct: number; gapLan: number | null }
+  | { kind: 'bang' }
+  /** năm ngoái tới ngày đó chưa chi đồng nào — không có mẫu số, không bịa % */
+  | { kind: 'ngoai-0' }
+
+export function soVoiCungKy(nay: number, ngoai: number): SoVoiCungKy {
+  if (nay === ngoai) return { kind: 'bang' }
+  if (ngoai === 0) return { kind: 'ngoai-0' }
+  const chenh = Math.abs(nay - ngoai)
+  const pct = Math.round((chenh / ngoai) * 1000) / 10
+  if (nay < ngoai) return { kind: 'it', chenh, pct }
+  const ratio = nay / ngoai
+  return {
+    kind: 'nhieu',
+    chenh,
+    pct,
+    gapLan: ratio >= 2 ? Math.round(ratio * 10) / 10 : null,
+  }
+}
+
 function cumulate(days: readonly DaySpend[]): number[] {
   const out: number[] = []
   let sum = 0

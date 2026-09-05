@@ -29,7 +29,7 @@ import { Card, Money, Num, SectionTitle, SegmentedControl, deltaTone, signedPct 
 import { formatCompact, type CurrencyCode } from '../../lib/money'
 import type { CategoryRow } from '../../types/database.types'
 import type { PeriodCompare } from '../reports/periodCompare'
-import type { CumulativeCompare } from '../reports/cumulativeCompare'
+import { soVoiCungKy, type CumulativeCompare } from '../reports/cumulativeCompare'
 import {
   axisCeiling,
   dayLabel,
@@ -320,6 +320,45 @@ function DayCard({
 }
 
 /**
+ * Câu kết của thẻ số: dịch cặp lũy kế thành LỜI — "đang ít hơn năm ngoái ¥47.330
+ * (−69,6%)". Phân loại (ít/nhiều/bằng/không có mẫu số) là toán thuần ở `soVoiCungKy`,
+ * đây chỉ chọn chữ. Từ gấp đôi trở lên nói "gấp 3,1 lần" thay vì "+211,7%" — dấu phẩy
+ * thập phân kiểu Việt, cùng quy ước với `signedPct`.
+ */
+function HoverVerdict({
+  nay,
+  ngoai,
+  base,
+  approx,
+}: {
+  nay: number
+  ngoai: number
+  base: CurrencyCode
+  approx: boolean
+}) {
+  const v = soVoiCungKy(nay, ngoai)
+  return (
+    <p className="mt-1.5 border-t border-border-subtle pt-1.5 text-2xs text-fg-secondary">
+      {v.kind === 'bang' && 'bằng đúng năm ngoái'}
+      {v.kind === 'ngoai-0' && 'năm ngoái tới ngày này chưa chi'}
+      {(v.kind === 'it' || v.kind === 'nhieu') && (
+        <>
+          đang <b>{v.kind === 'it' ? 'ít' : 'nhiều'} hơn</b> năm ngoái{' '}
+          <Money amount={v.chenh} currency={base} approx={approx} className="font-medium" />{' '}
+          {v.kind === 'nhieu' && v.gapLan !== null ? (
+            <Num tone={deltaTone(v.pct)}>(gấp {String(v.gapLan).replace('.', ',')} lần)</Num>
+          ) : (
+            <Num tone={deltaTone(v.kind === 'it' ? -v.pct : v.pct)}>
+              ({signedPct(v.kind === 'it' ? -v.pct : v.pct)})
+            </Num>
+          )}
+        </>
+      )}
+    </p>
+  )
+}
+
+/**
  * Chế độ "So năm ngoái": đường LŨY KẾ năm nay (đậm, dừng ở hôm nay) đè lên cùng tháng
  * năm ngoái (mờ, vẽ trọn tháng để thấy trước đích đến).
  *
@@ -384,11 +423,6 @@ function YoyBlock({
     const t = e.touches[0]
     if (t) setFromClientX(e.currentTarget, t.clientX)
   }
-  // % chênh tại NGÀY ĐANG TRỎ, cùng công thức với `deltaPct` của ngày hiện tại.
-  const hoverPct = (i: number): number | null =>
-    i >= current.length || i >= prior.length || prior[i] === 0
-      ? null
-      : ((current[i] - prior[i]) / prior[i]) * 100
 
   return (
     <>
@@ -507,28 +541,49 @@ function YoyBlock({
                   : { left: `${x(hover)}%`, transform: 'translateX(-50%)' }
             }
           >
+            {/* Bố cục chốt với người dùng (2026-09-05): mỗi số một dòng có NHÃN và vạch
+                màu khớp đúng màu đường trên biểu đồ, rồi một CÂU KẾT bằng lời — hai con
+                số trần với một dấu % bắt người đọc tự dịch "−69,6%" thành "mình đang
+                tiêu ít hơn", đúng bước dịch mà thẻ này tồn tại để làm hộ. */}
             <Card elevation="panel" padding="sm" className="bg-surface">
               <p className="font-mono text-2xs text-fg-muted">
-                {days[hover] ? `tới ${dayLabel(days[hover].date)}` : `tới ngày ${hover + 1}`}
+                {days[hover] ? `tới ngày ${dayLabel(days[hover].date)}` : `tới ngày ${hover + 1}`}
                 {' · cộng dồn'}
               </p>
-              <p className="text-sm font-semibold">
+              <p className="mt-1 flex items-center gap-1.5 text-2xs text-fg-secondary">
+                <span className="h-0.5 w-4 shrink-0 rounded-full bg-money-out" aria-hidden />
+                <span>năm nay</span>
                 {hover < current.length ? (
-                  <Money amount={current[hover]} currency={base} tone="out" approx={approx} />
+                  <Money
+                    amount={current[hover]}
+                    currency={base}
+                    tone="out"
+                    approx={approx}
+                    className="ml-auto pl-3 text-sm font-semibold"
+                  />
                 ) : (
-                  <span className="text-2xs font-normal text-fg-muted">năm nay: chưa tới</span>
-                )}
-                {hoverPct(hover) !== null && (
-                  <Num tone={deltaTone(hoverPct(hover))} className="ml-1.5 text-2xs">
-                    {signedPct(Math.round((hoverPct(hover) as number) * 10) / 10)}
-                  </Num>
+                  <span className="ml-auto pl-3 text-fg-muted">chưa tới</span>
                 )}
               </p>
               {hover < prior.length && (
-                <p className="mt-0.5 flex gap-2 text-2xs text-fg-secondary">
+                <p className="mt-0.5 flex items-center gap-1.5 text-2xs text-fg-secondary">
+                  <span className="h-0.5 w-4 shrink-0 rounded-full bg-fg-muted" aria-hidden />
                   <span>{priorLabel}</span>
-                  <Money amount={prior[hover]} currency={base} approx={approx} />
+                  <Money
+                    amount={prior[hover]}
+                    currency={base}
+                    approx={approx}
+                    className="ml-auto pl-3"
+                  />
                 </p>
+              )}
+              {hover < current.length && hover < prior.length && (
+                <HoverVerdict
+                  nay={current[hover]}
+                  ngoai={prior[hover]}
+                  base={base}
+                  approx={approx}
+                />
               )}
             </Card>
           </div>

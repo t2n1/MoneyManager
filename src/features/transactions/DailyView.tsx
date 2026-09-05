@@ -113,13 +113,17 @@ export function DailyView({
                     — khi ấy đổi dấu và màu, chứ đừng in ra "-¥-400".
                     `font-mono` thay `tabular-nums` (§4.2: số phải mono): trong font đơn
                     cách mọi chữ số vốn cùng bề rộng, nên tabular-nums thành thừa. */}
+                {/* `whitespace-nowrap` ở TỪNG vế: trình duyệt được phép ngắt dòng ngay
+                    SAU dấu gạch nối, nên ở 375px "-¥69,060" từng gãy thành "· -" /
+                    "¥69,060" — dấu trừ nằm lại dòng trên một mình. Chỗ được gãy là giữa
+                    hai vế (quanh dấu ·), không phải giữa dấu và số. */}
                 <span className="ml-auto font-mono">
                   {dayIncome && dayIncome.value > 0 && (
-                    <span className="text-money-in">+{approxLabel(dayIncome, base)}</span>
+                    <span className="whitespace-nowrap text-money-in">+{approxLabel(dayIncome, base)}</span>
                   )}
                   {dayIncome && dayIncome.value > 0 && dayExpense && dayExpense.value !== 0 && ' · '}
                   {dayExpense && dayExpense.value !== 0 && (
-                    <span className={dayExpense.value > 0 ? 'text-money-out' : 'text-money-in'}>
+                    <span className={`whitespace-nowrap ${dayExpense.value > 0 ? 'text-money-out' : 'text-money-in'}`}>
                       {dayExpense.value > 0 ? '-' : '+'}
                       {approxLabel({ ...dayExpense, value: Math.abs(dayExpense.value) }, base)}
                     </span>

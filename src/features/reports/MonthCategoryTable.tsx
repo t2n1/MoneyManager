@@ -70,8 +70,19 @@ export function MonthCategoryTable({
   // Một lưới cho CẢ header, các dòng và hàng tổng — ba lưới riêng là ba chỗ để lệch cột.
   // Đường tí hon ẩn dưới `lg`: ở 390px nó lấy chỗ của cột tiền, mà cột tiền mới là cột
   // người ta mở bảng để đọc (§6 · mobile 17a).
+  //
+  // Dưới `lg` ẩn thêm "%" và "TB 3 th": tổng min của sáu cột cũ là ~400px — hơn cả màn
+  // 375px — nên cột tên (minmax(0,1fr)) bị bóp về 0: bảng chỉ còn emoji không tên, và
+  // chữ "Danh mục" ở header tràn đè lên "Tháng 9" (đo được ở 375px). Δ đã nói điều
+  // "TB 3 th" nói, còn % đọc lại được từ thứ tự sắp xếp. Cột nào ẩn thì phải ẩn ở CẢ
+  // template lẫn từng ô, không thì con của grid trôi sang nhầm track.
+  //
+  // Cột tên min 7rem chứ không minmax(0,…): 0 nghĩa là "cột này hy sinh trước", mà tên
+  // là thứ cho biết dòng nói về cái gì. Khi bốn cột vẫn không đủ chỗ (cỡ chữ Rất lớn
+  // trên 375px — rem phình theo cỡ chữ), bảng CUỘN NGANG trong thẻ (overflow-x-auto ở
+  // wrapper dưới) thay vì bóp tên — đúng luật "nội dung rộng cuộn trong hộp của nó".
   const GRID =
-    'grid grid-cols-[minmax(0,1fr)_minmax(5.5rem,auto)_2.5rem_minmax(5rem,auto)_minmax(4rem,auto)_minmax(3.5rem,auto)] items-center gap-x-2 lg:grid-cols-[minmax(0,1fr)_minmax(5.5rem,auto)_2.5rem_minmax(5rem,auto)_minmax(4rem,auto)_3.75rem_minmax(3.5rem,auto)]'
+    'grid grid-cols-[minmax(7rem,1fr)_minmax(5.5rem,auto)_minmax(4rem,auto)_minmax(3.5rem,auto)] items-center gap-x-2 lg:grid-cols-[minmax(7rem,1fr)_minmax(5.5rem,auto)_2.5rem_minmax(5rem,auto)_minmax(4rem,auto)_3.75rem_minmax(3.5rem,auto)]'
 
   const sortBtn = (value: MonthTableSort, label: string, extra = '') => (
     <button
@@ -112,8 +123,10 @@ export function MonthCategoryTable({
       </div>
 
       {/* role="table" + aria-sort: bảng dựng bằng grid nên trình đọc màn hình không tự
-          suy ra được cấu trúc; không khai thì nó đọc thành một dãy chữ liền. */}
-      <div role="table" aria-label={`Chi theo danh mục ${monthLabel}`}>
+          suy ra được cấu trúc; không khai thì nó đọc thành một dãy chữ liền.
+          overflow-x-auto: khi min của các cột vượt bề ngang (cỡ chữ Rất lớn ở 375px),
+          bảng cuộn ngang trong thẻ — thân trang không bao giờ cuộn ngang. */}
+      <div role="table" aria-label={`Chi theo danh mục ${monthLabel}`} className="overflow-x-auto">
         <div
           role="row"
           className={`${GRID} border-b border-border-panel bg-surface-chrome px-4 py-2.5`}
@@ -126,13 +139,13 @@ export function MonthCategoryTable({
           </span>
           <span
             role="columnheader"
-            className="text-right text-2xs uppercase tracking-label text-fg-muted"
+            className="hidden text-right text-2xs uppercase tracking-label text-fg-muted lg:block"
           >
             %
           </span>
           <span
             role="columnheader"
-            className="text-right text-2xs uppercase tracking-label text-fg-muted"
+            className="hidden text-right text-2xs uppercase tracking-label text-fg-muted lg:block"
           >
             TB 3 th
           </span>
@@ -176,10 +189,10 @@ export function MonthCategoryTable({
                     className="text-sm"
                   />
                 </span>
-                <span role="cell" className="text-right text-sm">
+                <span role="cell" className="hidden text-right text-sm lg:block">
                   <Num tone="muted">{r.pct}</Num>
                 </span>
-                <span role="cell" className="text-right">
+                <span role="cell" className="hidden text-right lg:block">
                   <Money
                     amount={r.avg3}
                     currency={base}
@@ -220,10 +233,10 @@ export function MonthCategoryTable({
               className="text-sm font-semibold"
             />
           </span>
-          <span role="cell" className="text-right text-sm">
+          <span role="cell" className="hidden text-right text-sm lg:block">
             <Num tone="muted">100</Num>
           </span>
-          <span role="cell" className="text-right" />
+          <span role="cell" className="hidden text-right lg:block" />
           <span role="cell" className="text-right" />
           <span role="cell" className="hidden lg:block" />
           <span role="cell" className="text-right text-sm">

@@ -57,6 +57,7 @@ export { fetchAllPages, PAGE_SIZE } from '../../data/paging'
 // useQuyenLoi dùng, để push và chuông không nói khác nhau về cùng một khoản.
 export { benefitRange, tinhQuyenLoi } from '../quyen-loi/quyenLoi'
 export { FURUSATO_CATEGORY_NAME } from '../quyen-loi/furusato'
+export { IRYOHI_CATEGORY_NAMES } from '../quyen-loi/iryohi'
 export { SO_NAM_HOAN_THUE } from '../quyen-loi/refund'
 export { taxCategoryIds } from '../tax/categories'
 export { calendarYearOf } from '../../lib/dates'

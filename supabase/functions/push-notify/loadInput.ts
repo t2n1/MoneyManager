@@ -18,6 +18,7 @@ import {
   earliestNeededDate,
   fetchAllPages,
   FURUSATO_CATEGORY_NAME,
+  IRYOHI_CATEGORY_NAMES,
   getMonthRange,
   missingRateCurrencies,
   monthKeyForDate,
@@ -257,6 +258,12 @@ export async function loadNotificationInput(
   const benefitCategoryIds: string[] = [...taxCategoryIds(categories)]
   const fu = categories.find((c: Row) => c.type === 'expense' && c.name === FURUSATO_CATEGORY_NAME)
   if (fu) benefitCategoryIds.push(fu.id)
+  // Khoản ⑤ đếm hai danh mục y tế — thiếu dòng này thì push tính iryohi trên tập rỗng
+  // trong khi màn hình có số.
+  for (const ten of IRYOHI_CATEGORY_NAMES) {
+    const c = categories.find((x: Row) => x.type === 'expense' && x.name === ten)
+    if (c) benefitCategoryIds.push(c.id)
+  }
   const shelterIds: string[] = accounts.filter((a: Row) => a.tax_shelter != null).map((a: Row) => a.id)
   const orParts = ['is_remittance.eq.true']
   if (benefitCategoryIds.length) orParts.push(`category_id.in.(${benefitCategoryIds.join(',')})`)

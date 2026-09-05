@@ -17,9 +17,9 @@ function input(p: Partial<QuyenLoiInput>): QuyenLoiInput {
 }
 
 describe('tinhQuyenLoi', () => {
-  it('trả 5 kết luận theo thứ tự fuyo, remit-unassigned, refund, furusato, shelter', () => {
+  it('trả 6 kết luận theo thứ tự fuyo, remit-unassigned, refund, furusato, shelter, iryohi', () => {
     const r = tinhQuyenLoi(input({}))
-    expect(r.ketLuan.map((k) => k.id)).toEqual(['fuyo', 'remit-unassigned', 'refund', 'furusato', 'shelter'])
+    expect(r.ketLuan.map((k) => k.id)).toEqual(['fuyo', 'remit-unassigned', 'refund', 'furusato', 'shelter', 'iryohi'])
   })
   it('remit-unassigned: thieu khi có lần chưa gán trong năm, du khi không', () => {
     expect(tinhQuyenLoi(input({ txs: [tx({})] })).ketLuan[1].trang_thai).toBe('thieu')

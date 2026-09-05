@@ -2174,7 +2174,12 @@ var LUAT_2026 = {
     { toiDa: Infinity, suat: 0.45, tru: 4796e3 }
   ],
   furusato: { tuChiu: 2e3, tyLeShotokuWari: 0.2 },
-  nisa: { tsumitate: 12e5, growth: 24e5, tongDoi: 18e6 }
+  nisa: { tsumitate: 12e5, growth: 24e5, tongDoi: 18e6 },
+  iryohi: {
+    nguong: 1e5,
+    tranKhauTru: 2e6,
+    selfMed: { nguong: 12e3, tran: 88e3, hetHan: "2026-12-31" }
+  }
 };
 
 // src/features/quyen-loi/rules/2022.ts
@@ -2424,7 +2429,7 @@ function tinhRefund(input) {
     const tk = du.some((n) => n.tiet_kiem_uoc !== null) ? du.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0) : null;
     nam.push({ year: y, han: `${y + SO_NAM_HOAN_THUE}-12-31`, nguoi: du, tiet_kiem_uoc: tk, co_nguong: luatChoNam(y).fuyo.nguong30_69 !== null });
   }
-  const tong2 = nam.some((n) => n.tiet_kiem_uoc !== null) ? nam.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0) : null;
+  const tong3 = nam.some((n) => n.tiet_kiem_uoc !== null) ? nam.reduce((s, n) => s + (n.tiet_kiem_uoc ?? 0), 0) : null;
   const hetHanNamNay = nam.find((n) => n.han.startsWith(String(namNay)));
   const ly_do = [
     "\u0110\xE2y l\xE0 l\u1EA7n \u0111\u1EA7u t\u1EF1 khai v\u1EDBi s\u1EDF thu\u1EBF; n\u1ED9p \u78BA\u5B9A\u7533\u544A th\xEC \u30EF\u30F3\u30B9\u30C8\u30C3\u30D7 c\u1EE7a \u3075\u308B\u3055\u3068\u7D0D\u7A0E n\u0103m \u0111\xF3 v\xF4 hi\u1EC7u, ph\u1EA3i khai l\u1EA1i trong c\xF9ng t\u1EDD khai.",
@@ -2458,7 +2463,7 @@ function tinhRefund(input) {
       year: namNay,
       trang_thai: "thieu",
       muc: hetHanNamNay ? "high" : "medium",
-      tiet_kiem_uoc: tong2,
+      tiet_kiem_uoc: tong3,
       han: nam[0].han,
       viec: `${nam.length} n\u0103m c\u0169 \u0111\u1EE7 \u0111i\u1EC1u ki\u1EC7n n\u1ED9p \u9084\u4ED8\u7533\u544A (${nam.map((n) => n.year).join(", ")})${hetHanNamNay ? ` \xB7 n\u0103m ${hetHanNamNay.year} h\u1EBFt h\u1EA1n 31/12` : ""}`,
       ly_do: lyDoDay
@@ -2514,6 +2519,87 @@ function tinhShelterYearEnd(input) {
   };
 }
 
+// src/features/quyen-loi/iryohi.ts
+var IRYOHI_CATEGORY_NAMES = ["Thu\u1ED1c", "B\u1EC7nh vi\u1EC7n"];
+function idsTheoTen2(categories, names) {
+  return new Set(
+    categories.filter((c) => c.type === "expense" && names.includes(c.name)).map((c) => c.id)
+  );
+}
+function tong2(txs, ids, start, end) {
+  let t = 0;
+  for (const x of txs) {
+    if (x.type !== "expense" || x.category_id == null || !ids.has(x.category_id)) continue;
+    if (x.occurred_on < start || x.occurred_on >= end) continue;
+    t += x.is_refund ? -x.amount : x.amount;
+  }
+  return t;
+}
+var clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+function tinhIryohi(input) {
+  const luat = luatChoNam(input.year);
+  const namNay = calendarYearOf(input.todayISO);
+  const nam = calendarYearRange(input.year);
+  const idsY = idsTheoTen2(input.categories, IRYOHI_CATEGORY_NAMES);
+  const idsThuoc = idsTheoTen2(input.categories, ["Thu\u1ED1c"]);
+  const co_danh_muc = idsY.size > 0;
+  const chi_y = tong2(input.txs, idsY, nam.start, nam.end);
+  const chi_thuoc = tong2(input.txs, idsThuoc, nam.start, nam.end);
+  const khau_tru_chinh = clamp(chi_y - luat.iryohi.nguong, 0, luat.iryohi.tranKhauTru);
+  const selfConHieuLuc = luat.iryohi.selfMed.hetHan === null || `${input.year}-12-31` <= luat.iryohi.selfMed.hetHan;
+  const khau_tru_self = selfConHieuLuc ? clamp(chi_thuoc - luat.iryohi.selfMed.nguong, 0, luat.iryohi.selfMed.tran) : 0;
+  const khau_tru = Math.max(khau_tru_chinh, khau_tru_self);
+  const nhanh = khau_tru === 0 ? null : khau_tru_chinh >= khau_tru_self ? "chinh" : "self";
+  const tiet_kiem_uoc = khau_tru > 0 && input.suatBien !== null ? tienTietKiem(khau_tru, khau_tru, input.suatBien, luat) : null;
+  const ly_do = [
+    "S\u1ED1 \u01B0\u1EDBc l\xE0 C\u1EACN D\u01AF\u1EDAI: app \u0111\u1EBFm c\u1EA3 kho\u1EA3n kh\xF4ng thu\u1ED9c di\u1EC7n (th\u1EF1c ph\u1EA9m ch\u1EE9c n\u0103ng\u2026), b\u1ECF s\xF3t ti\u1EC1n t\xE0u \u0111i vi\u1EC7n (n\u1EB1m \u1EDF T\xE0u \u0111i\u1EC7n), v\xE0 kh\xF4ng tr\u1EEB \u0111\u01B0\u1EE3c ti\u1EC1n b\u1EA3o hi\u1EC3m b\xF9 \u2014 ng\u01B0\u1EE1ng th\u1EADt c\xF2n c\xF3 th\u1EC3 th\u1EA5p h\u01A1n 10\u4E07 n\u1EBFu thu nh\u1EADp th\u1EA5p."
+  ];
+  if (!co_danh_muc)
+    ly_do.push(`Ch\u01B0a c\xF3 danh m\u1EE5c "${IRYOHI_CATEGORY_NAMES.join('" / "')}" n\xEAn kh\xF4ng \u0111\u1EBFm \u0111\u01B0\u1EE3c.`);
+  if (nhanh === "self")
+    ly_do.push(
+      "Nh\xE1nh \u30BB\u30EB\u30D5\u30E1\u30C7\u30A3\u30B1\u30FC\u30B7\u30E7\u30F3 ch\u1EC9 t\xEDnh thu\u1ED1c OTC c\xF3 d\u1EA5u \u2605 v\xE0 c\u1EA7n \u5065\u5EB7\u8A3A\u65AD trong n\u0103m \u2014 app \u0111\u1EBFm c\u1EA3 danh m\u1EE5c Thu\u1ED1c n\xEAn s\u1ED1 th\u1EADt th\u1EA5p h\u01A1n."
+    );
+  if (nhanh === "chinh" && khau_tru_self > 0)
+    ly_do.push(`Nh\xE1nh OTC \u0111\u01B0\u1EE3c \u2248 ${input.fmt(khau_tru_self)} nh\u01B0ng nh\xE1nh ch\xEDnh l\u1EE3i h\u01A1n \u2014 ch\u1EC9 \u0111\u01B0\u1EE3c ch\u1ECDn m\u1ED9t.`);
+  if (khau_tru > 0 && input.suatBien === null)
+    ly_do.push("Ch\u01B0a \u01B0\u1EDBc \u0111\u01B0\u1EE3c ti\u1EC1n thu\u1EBF b\u1EDBt (thi\u1EBFu phi\u1EBFu l\u01B0\u01A1ng \u6240\u5F97\u7A0E) \u2014 kh\u1EA5u tr\u1EEB th\xEC v\u1EABn ch\u1EAFc.");
+  let trang_thai;
+  let viec;
+  let han = null;
+  if (khau_tru > 0 && input.year === namNay) {
+    trang_thai = "thieu";
+    han = `${input.year + 1}-03-15`;
+    viec = `Chi y t\u1EBF \u0111\xE3 v\u01B0\u1EE3t ng\u01B0\u1EE1ng \u2014 gi\u1EEF ho\xE1 \u0111\u01A1n, khai \u533B\u7642\u8CBB\u63A7\u9664 ${input.deXuatKhaiThue ? "c\xF9ng t\u1EDD \u78BA\u5B9A\u7533\u544A c\u1EE7a kho\u1EA3n ph\u1EE5 thu\u1ED9c" : "trong \u78BA\u5B9A\u7533\u544A"} tr\u01B0\u1EDBc 15/3`;
+  } else if (khau_tru > 0) {
+    trang_thai = "het-han";
+    viec = `N\u0103m ${input.year} chi y t\u1EBF ${input.fmt(chi_y)}, kh\u1EA5u tr\u1EEB \u0111\u01B0\u1EE3c \u2248 ${input.fmt(khau_tru)}`;
+  } else {
+    trang_thai = "du";
+    viec = `Chi y t\u1EBF ${input.fmt(chi_y)} / ng\u01B0\u1EE1ng ${input.fmt(luat.iryohi.nguong)} \u2014 ch\u01B0a t\u1EDBi m\u1EE9c kh\u1EA5u tr\u1EEB`;
+  }
+  return {
+    ketLuan: {
+      id: "iryohi",
+      year: input.year,
+      trang_thai,
+      muc: "low",
+      tiet_kiem_uoc,
+      han,
+      viec,
+      ly_do
+    },
+    chi_y,
+    chi_thuoc,
+    nguong: luat.iryohi.nguong,
+    khau_tru_chinh,
+    khau_tru_self,
+    khau_tru,
+    nhanh,
+    co_danh_muc
+  };
+}
+
 // src/features/quyen-loi/quyenLoi.ts
 function benefitRange(year, namNay) {
   return {
@@ -2525,14 +2611,14 @@ function thueThuNhap12Thang(txs, categories, todayISO) {
   const ids = new Set(categories.filter((c) => c.type === "expense" && c.name === SO_TAX_NAMES.shotoku).map((c) => c.id));
   const start = addMonthsISO(todayISO, -12);
   const thang = /* @__PURE__ */ new Set();
-  let tong2 = 0;
+  let tong3 = 0;
   for (const t of txs) {
     if (t.type !== "expense" || t.category_id == null || !ids.has(t.category_id)) continue;
     if (t.occurred_on < start || t.occurred_on > todayISO) continue;
-    tong2 += t.is_refund ? -t.amount : t.amount;
+    tong3 += t.is_refund ? -t.amount : t.amount;
     thang.add(t.occurred_on.slice(0, 7));
   }
-  return { tong: tong2, thangCoPhieu: thang.size };
+  return { tong: tong3, thangCoPhieu: thang.size };
 }
 function tinhQuyenLoi(input) {
   const luat = luatChoNam(calendarYearOf(input.todayISO));
@@ -2544,6 +2630,7 @@ function tinhQuyenLoi(input) {
   const deXuatKhaiThue = refund.nam.length > 0 && input.year === calendarYearOf(input.todayISO);
   const furusato = tinhFurusato({ year: input.year, todayISO: input.todayISO, categories: input.categories, txs: input.txs, suatBien, deXuatKhaiThue, fmt: input.fmt });
   const shelter = tinhShelterYearEnd({ year: input.year, todayISO: input.todayISO, accounts: input.accounts, txs: input.txs, fmt: input.fmt });
+  const iryohi = tinhIryohi({ year: input.year, todayISO: input.todayISO, categories: input.categories, txs: input.txs, suatBien, deXuatKhaiThue, fmt: input.fmt });
   const chuaGan = {
     id: "remit-unassigned",
     year: input.year,
@@ -2559,7 +2646,8 @@ function tinhQuyenLoi(input) {
     refund,
     furusato,
     shelter,
-    ketLuan: [fuyo.ketLuan, chuaGan, refund.ketLuan, furusato.ketLuan, shelter.ketLuan],
+    iryohi,
+    ketLuan: [fuyo.ketLuan, chuaGan, refund.ketLuan, furusato.ketLuan, shelter.ketLuan, iryohi.ketLuan],
     suatBien,
     thangCoPhieu: thue.thangCoPhieu
   };
@@ -2590,6 +2678,7 @@ function taxCategoryIds(categories) {
 }
 export {
   FURUSATO_CATEGORY_NAME,
+  IRYOHI_CATEGORY_NAMES,
   PAGE_SIZE,
   PUSH_LIST_ROUTE,
   PUSH_TAG,

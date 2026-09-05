@@ -15,6 +15,7 @@ import { suatBienTuThue } from './marginalRate'
 import { SO_NAM_HOAN_THUE, tinhRefund, type RefundKetQua } from './refund'
 import { luatChoNam } from './rules/luat'
 import { tinhShelterYearEnd, type ShelterKetQua } from './shelterYearEnd'
+import { tinhIryohi, type IryohiKetQua } from './iryohi'
 
 /** Định dạng tiền mặc định cho test — bản thật đi qua `formatMoney`/`serverFormatMoney`. */
 export const fmtYen = (n: number) => `¥${n.toLocaleString('en-US')}`
@@ -51,7 +52,8 @@ export interface QuyenLoiKetQua {
   refund: RefundKetQua
   furusato: FurusatoKetQua
   shelter: ShelterKetQua
-  /** 5 kết luận, thứ tự cố định — bộ luật thông báo và khung Bản tin đọc mảng này. */
+  iryohi: IryohiKetQua
+  /** 6 kết luận, thứ tự cố định — bộ luật thông báo và khung Bản tin đọc mảng này. */
   ketLuan: KetLuan[]
   suatBien: number | null
   /** Số tháng có phiếu 所得税 trong cửa sổ 12 tháng — < 12 thì suatBien null. */
@@ -84,6 +86,7 @@ export function tinhQuyenLoi(input: QuyenLoiInput): QuyenLoiKetQua {
   const deXuatKhaiThue = refund.nam.length > 0 && input.year === calendarYearOf(input.todayISO)
   const furusato = tinhFurusato({ year: input.year, todayISO: input.todayISO, categories: input.categories, txs: input.txs, suatBien, deXuatKhaiThue, fmt: input.fmt })
   const shelter = tinhShelterYearEnd({ year: input.year, todayISO: input.todayISO, accounts: input.accounts, txs: input.txs, fmt: input.fmt })
+  const iryohi = tinhIryohi({ year: input.year, todayISO: input.todayISO, categories: input.categories, txs: input.txs, suatBien, deXuatKhaiThue, fmt: input.fmt })
 
   const chuaGan: KetLuan = {
     id: 'remit-unassigned',
@@ -101,7 +104,8 @@ export function tinhQuyenLoi(input: QuyenLoiInput): QuyenLoiKetQua {
     refund,
     furusato,
     shelter,
-    ketLuan: [fuyo.ketLuan, chuaGan, refund.ketLuan, furusato.ketLuan, shelter.ketLuan],
+    iryohi,
+    ketLuan: [fuyo.ketLuan, chuaGan, refund.ketLuan, furusato.ketLuan, shelter.ketLuan, iryohi.ketLuan],
     suatBien,
     thangCoPhieu: thue.thangCoPhieu,
   }

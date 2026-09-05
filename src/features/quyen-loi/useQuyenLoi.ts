@@ -21,6 +21,7 @@ import { formatMoney } from '../../lib/money'
 import { usePrivacyMode } from '../../lib/privacy'
 import { taxCategoryIds } from '../tax/categories'
 import { FURUSATO_CATEGORY_NAME } from './furusato'
+import { IRYOHI_CATEGORY_NAMES } from './iryohi'
 import { benefitRange, tinhQuyenLoi, type QuyenLoiKetQua } from './quyenLoi'
 
 const EMPTY: never[] = []
@@ -52,6 +53,12 @@ export function useQuyenLoi(year: number, todayISO: string, enabled = true): Use
     const ids = [...taxCategoryIds(categories)]
     const fu = categories.find((c) => c.type === 'expense' && c.name === FURUSATO_CATEGORY_NAME)
     if (fu) ids.push(fu.id)
+    // Khoản ⑤ đếm hai danh mục y tế — thiếu khối này thì tinhIryohi chạy trên tập rỗng
+    // trong khi màn Quyền lợi vẫn vẽ khối ⑤: hai nơi nói hai câu.
+    for (const ten of IRYOHI_CATEGORY_NAMES) {
+      const c = categories.find((x) => x.type === 'expense' && x.name === ten)
+      if (c) ids.push(c.id)
+    }
     return {
       categoryIds: ids.sort(),
       toAccountIds: accounts.filter((a) => a.tax_shelter != null).map((a) => a.id).sort(),

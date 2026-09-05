@@ -1,4 +1,5 @@
-// Canh cái TÊN của mốc trên thanh "tới ngày lương" (PaydayStrip) không quay lại chỗ cũ.
+// Canh cái TÊN của mốc trong khối "Hôm nay" (HomNayPanel, tiền thân là PaydayStrip)
+// không quay lại chỗ cũ.
 //
 // Vì sao có luật này: mốc là `getMonthRange().end`, tức đầu kỳ SAU, và app cố tình không có
 // trường "ngày lương" riêng (xem khối chú thích trong src/features/bulletin/bulletin.ts) —
@@ -22,8 +23,8 @@ function boChuThich(nguon: string): string {
   return nguon.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '')
 }
 
-describe('PaydayStrip — tên mốc', () => {
-  const code = boChuThich(readFileSync(`${ROOT}src/features/bulletin/PaydayStrip.tsx`, 'utf8'))
+describe('HomNayPanel — tên mốc', () => {
+  const code = boChuThich(readFileSync(`${ROOT}src/features/bulletin/HomNayPanel.tsx`, 'utf8'))
 
   it('chữ "ngày lương" chỉ còn đúng một chỗ: dòng đặt tên mốc', () => {
     const dong = code.split(/\r?\n/).filter((d) => d.includes('ngày lương'))
@@ -37,6 +38,6 @@ describe('PaydayStrip — tên mốc', () => {
 
   it('BulletinPage truyền monthStartDay xuống', () => {
     const trang = boChuThich(readFileSync(`${ROOT}src/features/bulletin/BulletinPage.tsx`, 'utf8'))
-    expect(trang).toMatch(/<PaydayStrip[^>]*monthStartDay=\{monthStartDay\}/)
+    expect(trang).toMatch(/<HomNayPanel[\s\S]{0,400}monthStartDay=\{monthStartDay\}/)
   })
 })

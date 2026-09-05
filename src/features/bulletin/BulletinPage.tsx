@@ -45,6 +45,8 @@ import { collectCommitments } from '../budgets/commitments'
 import { NotificationBoundary } from '../notifications/NotificationBoundary'
 import { useNotifications } from '../notifications/useNotifications'
 import { reliability } from '../notifications/reliability'
+import { lastReconciledMap } from '../notifications/reconciledAt'
+import { RECONCILE_STALE_DAYS } from '../notifications/rules/dataRules'
 import { monthExpenseCompare, monthlySeries } from '../reports/aggregate'
 import { ngayDiVang } from '../reports/ngayDiVang'
 import { dailySpendSeries } from '../reports/dailySpike'
@@ -71,10 +73,9 @@ import { QuyenLoiPanel } from './QuyenLoiPanel'
 import { ReliabilityPanel } from './ReliabilityPanel'
 import { TodoPanel } from './TodoPanel'
 import { BudgetPanel } from './BudgetPanel'
-import { CashflowPanel } from './CashflowPanel'
 import { DailySpendPanel, readDailyScope, writeDailyScope, type DailyScope } from './DailySpendPanel'
 import { KpiRow } from './KpiRow'
-import { PaydayStrip } from './PaydayStrip'
+import { HomNayPanel } from './HomNayPanel'
 import type { TransactionRow } from '../../types/database.types'
 
 /** Số dòng ở khối Giao dịch gần đây. */
@@ -395,6 +396,26 @@ export function BulletinPage() {
     [rangeTxs, categories, accounts, series.points, profile?.birth_year],
   )
 
+  // Chấm "chưa đối chiếu" cạnh từng dòng ở panel Tài khoản. CÙNG nguồn và CÙNG tập tài
+  // khoản với `doTinCay` và chuông nhắc (`lastReconciledMap` + RECONCILE_STALE_DAYS) —
+  // ba chỗ trên một màn nói về "tài khoản cũ" mà ba danh sách khác nhau thì người dùng
+  // thôi tin cả ba. Không có mục trong map = chưa đối chiếu bao giờ → cũng là cũ.
+  const staleIds = useMemo(() => {
+    const cutoff = addDaysISO(todayISO, -RECONCILE_STALE_DAYS)
+    const lanCuoi = lastReconciledMap(
+      accounts.filter((a) => !a.is_archived && !a.is_hidden && a.include_in_totals),
+      rangeTxs,
+      categories,
+    )
+    const out = new Set<string>()
+    for (const a of accounts) {
+      if (a.is_archived || a.is_hidden || !a.include_in_totals) continue
+      const ngay = lanCuoi.get(a.id)
+      if (!ngay || ngay < cutoff) out.add(a.id)
+    }
+    return out
+  }, [accounts, rangeTxs, categories, todayISO])
+
   // Chưa có tài khoản → MỘT việc duy nhất, không phải sáu khối rỗng (§4.8 / 20b).
   // Thoát sớm hẳn chứ không lồng điều kiện vào từng khối: mỗi khối tự lo trạng thái
   // rỗng của nó là đúng khi thiếu MỘT loại dữ liệu, còn đây là chưa có gì cả.
@@ -428,150 +449,141 @@ export function BulletinPage() {
         </Link>
       </PageHeader>
 
-      {/* Khối 1 — Việc cần làm (§4.9). Nó THAY banner nhắc nhở cũ, không đứng cạnh: hai
-          chỗ cùng nhắc một việc là đúng cái 16a đi dẹp.
-          NotificationBoundary vẫn bọc: bộ luật đọc gần hết bảng dữ liệu, một query hỏng
-          không được kéo sập cả trang chủ.
-
-          ĐỨNG SAU tiêu đề mobile, không đứng đầu trang. Trên desktop khác biệt này bằng
-          không (tiêu đề là <h1 class="sr-only"> + top bar), nhưng dưới lg thì khối này
-          cao gần một màn: đặt nó trước thì chữ "Bản tin" rơi xuống giữa trang, sau một
-          tấm thẻ — người mở app không đọc được mình đang ở màn nào cho tới khi cuộn.
-          Đổi bằng THỨ TỰ DOM chứ không order-*: thứ tự đọc và thứ tự tiêu điểm phải đi
-          cùng nhau (WCAG 2.4.3), cùng luật đã chốt ở BudgetView. */}
-      <NotificationBoundary>
-        <TodoPanel items={notif.actions} onDismiss={notif.dismiss} />
-      </NotificationBoundary>
-
-      {/* Khối Quyền lợi (spec 2026-09-03): tình trạng ba khoản năm nay. Đứng sau Việc cần làm
-          vì nó là TÌNH TRẠNG, còn việc đã nằm ở trên. Bọc NotificationBoundary cùng lý do:
-          query hỏng không được kéo sập trang chủ. */}
-      <NotificationBoundary>
-        <QuyenLoiPanel todayISO={todayISO} />
-      </NotificationBoundary>
-
-      {/* ConclusionLine, KHÔNG VerdictNote (§5.0 / R7): đây là kết luận của cả màn, và
-          Gọn là chế độ mặc định — đưa nó qua VerdictNote thì mặc định người dùng chỉ
-          thấy một cái chip thay cho kết luận. */}
-      {headline && (
-        <ConclusionLine tone={headline.tone} short={headline.short}>
-          {headline.text}
-        </ConclusionLine>
-      )}
-
-      {/* ĐỨNG TRƯỚC bốn ô, không phải sau. §14: kết luận trước, bằng chứng sau — bốn ô
-          là tổng của kỳ (bằng chứng), câu này là kết luận về hôm nay.
-
-          Từng đặt SAU bốn ô với lập luận ngược lại ("bốn ô nói kỳ này đã đi tới đâu,
-          dòng này nói từ đây tới ngày lương thì sao"). Lập luận đó chỉ đứng vững khi câu
-          này còn là một dòng 0.8125rem; từ lúc nó thành chữ LỚN NHẤT màn thì thứ tự cũ
-          bắt thứ to nhất nằm thứ ba — cỡ chữ nói một đằng, thứ tự đọc nói một nẻo.
-
-          Vẫn đứng SAU ConclusionLine: §5.0 chốt câu kết luận đứng đầu màn, và hai câu
-          này khác kỳ hạn — trên nói cả tháng đã ra sao, dưới nói hôm nay tiêu được bao
-          nhiêu. Đổi bằng THỨ TỰ DOM chứ không order-*: thứ tự đọc và thứ tự tiêu điểm
-          phải đi cùng nhau (WCAG 2.4.3), cùng luật đã chốt ở TodoPanel ngay trên. */}
-      {luong && (
-        <PaydayStrip
-          data={luong}
-          base={base}
-          approx={report?.hasMissingRate ?? false}
-          monthStartDay={monthStartDay}
-        />
-      )}
-
-      <KpiRow
-        base={base}
-        income={incomeKpi}
-        expense={expenseKpi}
-        keptPct={keptPct}
-        keptAmount={incomeKpi.value - expenseKpi.value}
-        keptSpark={keptSpark}
-        netWorth={netWorthReliable ? netWorth : null}
-        netWorthSpark={netWorthSpark}
-        approx={series.hasMissingRate}
-      />
-
-      {/* Cặp panel: xếp ngang từ xl, dọc ở dưới (§6). `flex-wrap` + `flex-1` với
-          `min-w-0` là công thức chống tràn đã chốt ở §6. */}
-      <div className="flex flex-wrap gap-2.5">
-        <CashflowPanel
-          points={series.points}
-          active={activeMonthKey}
-          base={base}
-          onPick={setMonthKey}
-          approx={series.hasMissingRate}
-        />
-        <BudgetPanel report={report} isLoading={budgetLoading} base={base} nameOf={nameOf} />
-      </div>
-
-      {/* Chi từng ngày — NGAY DƯỚI "Dòng tiền 8 tháng", và chiếm HẾT chiều ngang.
-          Đứng dưới thẻ kia vì hai thẻ là một cặp thu-phóng: trên mỗi cột một tháng, dưới
-          mỗi điểm một ngày của tháng đang chọn — bấm một cột ở trên là đường dưới đổi theo.
-          Không nhét vào cặp hai cột: 31 điểm ngày trong một panel ~380px (bề rộng của
-          panel ở xl) là nhãn trục đè lên nhau. */}
-      <DailySpendPanel
-        series={dailySpend}
-        fullTotal={fullSpendTotal}
-        cells={dailyTagCells}
-        tagLines={tagBudgets.lines}
-        compare={expenseCmp}
-        cutoffISO={cutoffISO}
-        yoy={yoy}
-        yoyApprox={priorSpend.hasMissingRate}
-        priorLabel={formatMonthLabel(priorYearKey)}
-        base={base}
-        categoryOf={categoryOf}
-        approx={dailySpend.hasMissingRate || dailyTagCells.hasMissingRate}
-        scope={dailyScope}
-        onScope={pickDailyScope}
-      />
-
-      <div className="flex flex-wrap gap-2.5">
-        <Card
-          elevation="panel"
-          padding="panel"
-          as="section"
-          className="min-w-0 flex-1 basis-full xl:basis-0"
-        >
-          <div className="flex items-baseline justify-between gap-2">
-            <SectionTitle>Giao dịch gần đây</SectionTitle>
-            <Link to="/so" className="-my-2 py-2 text-2xs font-medium text-fg-accent hover:underline">
-              Mở Sổ →
-            </Link>
-          </div>
-          {recent.length === 0 ? (
-            <p className="mt-3 text-sm text-fg-muted">
-              Chưa ghi giao dịch nào {formatMonthLabel(activeMonthKey)}.{' '}
-              <Link to="/entry" className="font-medium text-fg-accent hover:underline">
-                Ghi một khoản
-              </Link>
-            </p>
+      {/* Bố cục bản vẽ redesign (2026-09-05): từ xl là HAI CỘT — nội dung chính co giãn,
+          cột phụ 23.75rem (380px của bản vẽ, quy về rem để Cài đặt → Cỡ chữ còn co giãn
+          được). Dưới xl cả hai cột xếp dọc theo đúng THỨ TỰ DOM — không order-*: thứ tự
+          đọc và thứ tự tiêu điểm phải đi cùng nhau (WCAG 2.4.3), cùng luật đã chốt ở
+          BudgetView. Hệ quả có cân nhắc: trên mobile khối Việc cần làm đứng sau cột
+          chính (bản vẽ chốt "hôm nay tiêu được bao nhiêu" là câu mở màn). */}
+      <div className="grid items-start gap-2.5 xl:grid-cols-[minmax(0,1fr)_23.75rem]">
+        {/* ===== CỘT CHÍNH ===== */}
+        <div className="flex min-w-0 flex-col gap-2.5">
+          {/* Khối Hôm nay — mở màn bằng câu người ta mở app ra để hỏi. Nó mang luôn câu
+              kết luận của cả màn (ConclusionLine, §5.0 / R7 — không đi qua VerdictNote)
+              ở góc phải. Chỉ dựng được khi đang xem đúng kỳ hiện tại; xem tháng khác thì
+              còn lại một mình câu kết luận. */}
+          {luong ? (
+            <HomNayPanel
+              data={luong}
+              base={base}
+              approx={report?.hasMissingRate ?? false}
+              monthStartDay={monthStartDay}
+              todayISO={todayISO}
+              kyBatDauISO={kyHienTai.start}
+              ngayLuongISO={kyHienTai.end}
+              daTieu={report?.totalSpent ?? 0}
+              hanMuc={report?.totalBudgeted ?? 0}
+              headline={headline}
+            />
           ) : (
-            <ul className="mt-1 divide-y divide-border-subtle">
-              {recent.map((t) => (
-                <li key={t.id}>
-                  {/* Dùng lại đúng dòng của Sổ: hai màn vẽ cùng một giao dịch thì không
-                      được lệch cách đọc dấu, màu hay chip nhãn. */}
-                  <TransactionItem
-                    tx={t}
-                    categoryOf={categoryOf}
-                    accountOf={accountOf}
-                    base={base}
-                    onClick={() => setEditing(t)}
-                  />
-                </li>
-              ))}
-            </ul>
+            headline && (
+              <ConclusionLine tone={headline.tone} short={headline.short}>
+                {headline.text}
+              </ConclusionLine>
+            )
           )}
-        </Card>
 
-        <AccountsPanel groups={purposeGroups} />
+          <KpiRow
+            base={base}
+            income={incomeKpi}
+            expense={expenseKpi}
+            keptPct={keptPct}
+            keptAmount={incomeKpi.value - expenseKpi.value}
+            keptSpark={keptSpark}
+            netWorth={netWorthReliable ? netWorth : null}
+            netWorthSpark={netWorthSpark}
+            approx={series.hasMissingRate}
+          />
+
+          {/* Thẻ Chi tiêu — GỘP dải 8 tháng với chi từng ngày trong một khung, vì hai
+              hình là một cặp thu-phóng: trên mỗi cột một tháng, dưới mỗi cột một ngày
+              của tháng đang chọn — bấm một cột ở trên là phần dưới đổi theo. Chiếm hết
+              bề ngang cột chính: 31 cột ngày trong một panel hẹp là nhãn trục đè nhau. */}
+          <DailySpendPanel
+            points={series.points}
+            activeMonth={activeMonthKey}
+            onPickMonth={setMonthKey}
+            series={dailySpend}
+            fullTotal={fullSpendTotal}
+            cells={dailyTagCells}
+            tagLines={tagBudgets.lines}
+            compare={expenseCmp}
+            cutoffISO={cutoffISO}
+            yoy={yoy}
+            yoyApprox={priorSpend.hasMissingRate}
+            priorLabel={formatMonthLabel(priorYearKey)}
+            base={base}
+            categoryOf={categoryOf}
+            approx={dailySpend.hasMissingRate || dailyTagCells.hasMissingRate}
+            scope={dailyScope}
+            onScope={pickDailyScope}
+          />
+
+          <Card elevation="panel" padding="panel" as="section" className="min-w-0">
+            <div className="flex items-baseline justify-between gap-2">
+              <SectionTitle>Giao dịch gần đây</SectionTitle>
+              <Link to="/so" className="-my-2 py-2 text-2xs font-medium text-fg-accent hover:underline">
+                Mở Sổ →
+              </Link>
+            </div>
+            {recent.length === 0 ? (
+              <p className="mt-3 text-sm text-fg-muted">
+                Chưa ghi giao dịch nào {formatMonthLabel(activeMonthKey)}.{' '}
+                <Link to="/entry" className="font-medium text-fg-accent hover:underline">
+                  Ghi một khoản
+                </Link>
+              </p>
+            ) : (
+              <ul className="mt-1 divide-y divide-border-subtle">
+                {recent.map((t) => (
+                  <li key={t.id}>
+                    {/* Dùng lại đúng dòng của Sổ: hai màn vẽ cùng một giao dịch thì không
+                        được lệch cách đọc dấu, màu hay chip nhãn. */}
+                    <TransactionItem
+                      tx={t}
+                      categoryOf={categoryOf}
+                      accountOf={accountOf}
+                      base={base}
+                      onClick={() => setEditing(t)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+
+        {/* ===== CỘT PHỤ ===== */}
+        <div className="flex min-w-0 flex-col gap-2.5">
+          {/* Việc cần làm đứng ĐẦU cột phụ, MỞ SẴN (xem TodoPanel). Nó THAY banner nhắc
+              nhở cũ, không đứng cạnh: hai chỗ cùng nhắc một việc là đúng cái 16a đi dẹp.
+              NotificationBoundary vẫn bọc: bộ luật đọc gần hết bảng dữ liệu, một query
+              hỏng không được kéo sập cả trang chủ. */}
+          <NotificationBoundary>
+            <TodoPanel items={notif.actions} onDismiss={notif.dismiss} />
+          </NotificationBoundary>
+
+          <BudgetPanel report={report} isLoading={budgetLoading} base={base} nameOf={nameOf} />
+
+          <AccountsPanel
+            groups={purposeGroups}
+            netWorth={netWorthReliable ? netWorth : null}
+            base={base}
+            staleIds={staleIds}
+          />
+
+          {/* Khối Quyền lợi (spec 2026-09-03): tình trạng ba khoản năm nay — TÌNH TRẠNG,
+              không phải việc; việc đã nằm ở khối trên cùng. Bọc NotificationBoundary
+              cùng lý do. */}
+          <NotificationBoundary>
+            <QuyenLoiPanel todayISO={todayISO} />
+          </NotificationBoundary>
+
+          {/* Độ tin cậy dữ liệu (§4.9). Đứng CUỐI vì nó nói về cái thước, không phải về
+              tiền: đọc sau khi đã xem xong các con số thì mới có nghĩa. */}
+          <ReliabilityPanel data={doTinCay} />
+        </div>
       </div>
-
-      {/* Khối 5 — Độ tin cậy dữ liệu (§4.9). Đứng CUỐI vì nó nói về cái thước, không
-          phải về tiền: đọc sau khi đã xem xong các con số thì mới có nghĩa. */}
-      <ReliabilityPanel data={doTinCay} />
 
       {editing && (
         <EditTransactionSheet tx={editing} onClose={() => setEditing(null)} />

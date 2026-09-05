@@ -228,4 +228,24 @@ describe('toiNgayLuong', () => {
     expect(co()!.camKet).toBe(0)
     expect(co()!.moiNgay).toBe(Math.floor(140_000 / 26))
   })
+
+  // Hai thanh "Thời gian / Hạn mức" của khối Hôm nay đọc ba trường này. Hôm nay nằm
+  // trong CẢ hai vế (đã qua kể hôm nay, còn lại kể hôm nay) nên tổng = đã qua + còn − 1.
+  it('đếm thanh Thời gian: đã qua kể hôm nay, tổng ngày của kỳ', () => {
+    const r = co()!
+    expect(r.ngayDaQua).toBe(6) // 15→20/08, kể cả hôm nay
+    expect(r.tongNgay).toBe(31) // kỳ 15/08 → 15/09
+    expect(r.tongNgay).toBe(r.ngayDaQua + r.soNgay - 1)
+  })
+
+  it('cạn trước lương mấy ngày — chỉ nói khi có hụt', () => {
+    // nhịp 10.000/ngày, tự do 140.000 → đủ 14 ngày nữa, còn 26 ngày ⇒ cạn trước 12 ngày.
+    expect(co()!.canTruocLuong).toBe(12)
+    // Không hụt thì null, không phải 0 — §14 "chưa biết ≠ 0".
+    expect(co({ daTieu: 18_000 })!.canTruocLuong).toBeNull()
+    expect(co({ daTieu: 0 })!.canTruocLuong).toBeNull()
+    // Cam kết chưa ra cũng ăn vào phần tự do: cùng mẫu với moiNgay.
+    const r = co({ camKet: 100_000 })! // tự do 40.000, nhịp 10.000 → đủ 4 ngày
+    expect(r.canTruocLuong).toBe(26 - 4)
+  })
 })

@@ -1,9 +1,10 @@
 // "Chi từng ngày trong tháng" — CỘT mỗi ngày, để thấy ngày nào vọt lên và vì sao (B41–B48).
 //
 // Vì sao ở Bản tin mà không ở Ngân sách: Bản tin trả lời "tình hình thế nào", đúng câu
-// hỏi này; Ngân sách trả lời "có vượt trần không". Nó cũng ghép cặp thu-phóng với "Dòng
-// tiền 8 tháng" ngay trên — thẻ kia mỗi cột một tháng, thẻ này mỗi cột một ngày, và cả
-// hai đọc cùng `activeMonthKey` nên bấm một cột là thẻ này đổi theo.
+// hỏi này; Ngân sách trả lời "có vượt trần không". Từ bản vẽ redesign (2026-09-05) thẻ
+// này GỘP luôn dải "Dòng tiền 8 tháng" (CashflowStrip) lên đầu — hai hình là một cặp
+// thu-phóng: trên mỗi cột một tháng, dưới mỗi cột một ngày, cùng đọc `activeMonthKey`
+// nên bấm một cột tháng là phần ngày đổi theo.
 //
 // CỘT chứ không ĐƯỜNG (B41). Đường nội suy giữa hai ngày, tức vẽ ra một dòng tiền "chảy"
 // từ ¥124.696 xuống ¥0 qua ngày 2–5 — nhưng chi mỗi ngày là SỰ KIỆN RỜI RẠC, không phải
@@ -11,7 +12,7 @@
 // `connectNulls={false}` để tránh đoạn phẳng giả, và ngày `total = 0` vẽ ra một điểm nằm
 // trên trục không phân biệt được với ngày chưa tới.
 //
-// Vẽ bằng div chứ KHÔNG recharts — cùng ba lý do đã ghi ở CashflowPanel, cộng ba lý do
+// Vẽ bằng div chứ KHÔNG recharts — cùng ba lý do đã ghi ở CashflowStrip, cộng ba lý do
 // riêng của thẻ này: cột bị cắt cần một mũ vạch chéo, ngày chưa tới cần viền nét đứt, và
 // cột âm phải mọc xuống dưới đường 0. Cả ba đều là hình vẽ mà `<Bar>` không nhận.
 //
@@ -43,7 +44,10 @@ import type { DayTagCells } from '../reports/dayTagCells'
 import type { TagBudgetLine } from '../tags/budget'
 import { TAG_HEX, tagColor } from '../tags/colors'
 import { AXIS_CAP, AXIS_GAP, AXIS_LEAD, AXIS_TOTAL, CELL_GAP_PX, dayLabelStep } from './dayAxisCols'
+import { CashflowStrip } from './CashflowStrip'
 import { DayTagStrip } from './DayTagStrip'
+import type { MonthlyPoint } from '../reports/aggregate'
+import type { MonthKey } from '../../lib/dates'
 
 /** 'all' = mọi khoản · 'flex' = bỏ danh mục `cost_type = 'fixed'`. */
 export type DailyScope = 'all' | 'flex'
@@ -122,6 +126,13 @@ const POS_PCT = 100 - NEG_PCT - LABEL_PCT
 const HATCH = 'repeating-linear-gradient(135deg, var(--money-out) 0 3px, var(--surface) 3px 6px)'
 
 interface Props {
+  /**
+   * Dải 8 tháng đứng ĐẦU thẻ (bản vẽ redesign 2026-09-05): thẻ "Chi tiêu" gộp cặp
+   * thu-phóng tháng ↔ ngày vào một khung. Ba prop này đi thẳng xuống <CashflowStrip>.
+   */
+  points: MonthlyPoint[]
+  activeMonth: MonthKey
+  onPickMonth: (key: MonthKey) => void
   /** Chuỗi ĐÃ áp công tắc — `typical` và `peakIndex` phải tính trên tập đã lọc (B46.3). */
   series: DailySpendSeries
   /** Tổng chi khi KHÔNG lọc. Chỉ để in cạnh số đã lọc, không dùng để tính gì (B46.2). */
@@ -443,6 +454,9 @@ function YoyBlock({
 }
 
 export function DailySpendPanel({
+  points,
+  activeMonth,
+  onPickMonth,
   series,
   fullTotal,
   cells,
@@ -503,7 +517,7 @@ export function DailySpendPanel({
             B46.2 vẫn được giữ nguyên: câu đó chuyển sang góc phải, dính liền hai con số
             mà nó giải thích ("đã bỏ khoản cố định · ¥151.218 / ¥270.311 tổng"). Góc phải
             là `ml-auto` nên nó nở về BÊN TRÁI, không đụng tới hai chip. */}
-        <SectionTitle>Chi từng ngày</SectionTitle>
+        <SectionTitle>Chi tiêu</SectionTitle>
         <SegmentedControl
           items={SCOPE_ITEMS}
           value={scope}
@@ -559,6 +573,12 @@ export function DailySpendPanel({
             )
           )}
         </p>
+      </div>
+
+      {/* Dải 8 tháng đứng TRÊN phần ngày, và đứng NGOÀI mọi nhánh: tháng trắng vẫn phải
+          bấm sang tháng khác được — dải chính là điều khiển đổi tháng của cả thẻ. */}
+      <div className="mt-3">
+        <CashflowStrip points={points} active={activeMonth} base={base} onPick={onPickMonth} />
       </div>
 
       {peak === null ? (

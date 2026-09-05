@@ -50,10 +50,11 @@ interface Props {
 }
 
 export function TodoPanel({ items, onDismiss }: Props) {
-  // MẶC ĐỊNH THU GỌN, và KHÔNG nhớ lựa chọn qua localStorage. Nhớ thì từ lần thứ hai trở
-  // đi nó không còn mặc định thu gọn nữa — đúng thứ vừa bị yêu cầu bỏ. Cùng cách
-  // `CardsSection` (Tài sản) làm: `useState(false)`, không đọc gì lúc dựng.
-  const [open, setOpen] = useState(false);
+  // MẶC ĐỊNH MỞ SẴN (bản vẽ redesign 2026-09-05): khối này giờ đứng đầu cột phụ của
+  // desktop, và một danh sách việc phải bấm mới thấy là một danh sách không ai bấm.
+  // Vẫn KHÔNG nhớ lựa chọn qua localStorage — nhớ thì từ lần thứ hai trở đi nó không
+  // còn mặc định mở nữa, tức người đóng một lần là mất luôn mặc định.
+  const [open, setOpen] = useState(true);
 
   // §12: "dòng gạch ngang rồi co chiều cao về 0 — 200ms". Việc bị ẩn phải sống thêm bấy
   // nhiêu lâu để có cái mà co lại, nên nút ẩn đi qua trạng thái trung gian này trước khi

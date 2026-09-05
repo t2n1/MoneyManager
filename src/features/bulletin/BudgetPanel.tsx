@@ -30,14 +30,7 @@ export function BudgetPanel({ report, isLoading, base, nameOf }: Props) {
     .slice(0, MAX_LINES)
 
   return (
-    <Card
-      elevation="panel"
-      padding="panel"
-      as="section"
-      // `basis-full xl:basis-0`: xem chú thích ở CashflowPanel — cặp panel phải DỌC ở
-      // dưới xl, mà `flex-1` một mình thì chỉ co lại chứ không xuống dòng.
-      className="min-w-0 flex-1 basis-full xl:max-w-[23.75rem] xl:basis-0"
-    >
+    <Card elevation="panel" padding="panel" as="section" className="min-w-0">
       <div className="flex items-baseline justify-between gap-2">
         <SectionTitle>Ngân sách</SectionTitle>
         <Link to="/budget" className="-my-2 py-2 text-2xs font-medium text-fg-accent hover:underline">
@@ -76,22 +69,46 @@ export function BudgetPanel({ report, isLoading, base, nameOf }: Props) {
           </p>
 
           {attention.length > 0 ? (
-            <ul className="mt-3 flex flex-col gap-1.5 border-t border-border-subtle pt-3">
+            <ul className="mt-3 flex flex-col gap-2.5 border-t border-border-subtle pt-3">
               {attention.map((l) => (
-                <li key={l.categoryId} className="flex items-center gap-2 text-sm">
-                  <StatusDot
-                    tone={l.status === 'over' ? 'bad' : 'warn'}
-                    label={l.status === 'over' ? 'Đã vượt hạn mức' : 'Sắp vượt hạn mức'}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-fg-secondary">
-                    {nameOf(l.categoryId)}
-                  </span>
-                  <span className="shrink-0 font-mono text-sm text-fg-muted">
-                    {/* Hạn mức ¥0 là hạn mức thật ("tháng này không tiêu ở đây") và ratio
-                        của nó bị kẹp về 1 (progress.ts) — in "100%" cho nó đọc như "vừa
-                        chạm trần" trong khi trang Ngân sách nói "chưa trần"/"vượt". Con
-                        số thật của dòng đó là tiền đã tiêu, không phải tỷ lệ. */}
-                    {l.budgeted === 0 ? 'vượt' : `${Math.round(l.ratio * 100)}%`}
+                <li key={l.categoryId}>
+                  <div className="flex items-center gap-2 text-sm">
+                    <StatusDot
+                      tone={l.status === 'over' ? 'bad' : 'warn'}
+                      label={l.status === 'over' ? 'Đã vượt hạn mức' : 'Sắp vượt hạn mức'}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-fg-secondary">
+                      {nameOf(l.categoryId)}
+                    </span>
+                    {/* Bằng chứng của con số %: đã tiêu / trần, cùng khuôn compact với
+                        dòng tổng ngay trên (bản vẽ redesign). */}
+                    <span className="shrink-0 font-mono text-2xs text-fg-muted">
+                      <Money amount={l.spent} currency={base} tone="neutral" compact /> /{' '}
+                      <Money amount={l.budgeted} currency={base} tone="neutral" compact />
+                    </span>
+                    <span
+                      className={`shrink-0 font-mono text-sm ${
+                        l.status === 'over' ? 'text-money-out' : 'text-fg-primary'
+                      }`}
+                    >
+                      {/* Hạn mức ¥0 là hạn mức thật ("tháng này không tiêu ở đây") và ratio
+                          của nó bị kẹp về 1 (progress.ts) — in "100%" cho nó đọc như "vừa
+                          chạm trần" trong khi trang Ngân sách nói "chưa trần"/"vượt". Con
+                          số thật của dòng đó là tiền đã tiêu, không phải tỷ lệ. */}
+                      {l.budgeted === 0 ? 'vượt' : `${Math.round(l.ratio * 100)}%`}
+                    </span>
+                  </div>
+                  {/* Thanh 4px dưới dòng — kẹp 100%: phần vượt đã nói bằng % đỏ, thanh
+                      tràn khung thì đọc ra lỗi vẽ. Thụt trái bằng bề chấm + gap để thẳng
+                      cột với tên. */}
+                  <span className="ml-4 mt-1 block h-1 overflow-hidden rounded-full bg-surface-sunken">
+                    <span
+                      className={`block h-full rounded-full ${
+                        l.status === 'over' ? 'bg-money-out' : 'bg-fg-warn'
+                      }`}
+                      style={{ width: `${Math.min(l.ratio, 1) * 100}%` }}
+                      aria-hidden
+                    />
                   </span>
                 </li>
               ))}

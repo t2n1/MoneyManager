@@ -169,6 +169,23 @@ export interface ToiNgayLuong {
   nhipHienTai: number
   /** Giữ nhịp này thì cạn hạn mức TRƯỚC ngày lương. */
   hutTruocLuong: boolean
+  /**
+   * Giữ nhịp hiện tại thì hạn mức cạn TRƯỚC mốc lương bấy nhiêu ngày. null khi không
+   * hụt (`hutTruocLuong = false`) — §14 "chưa biết ≠ 0": không hụt thì không có con số
+   * nào để in, chứ không phải "cạn trước 0 ngày".
+   */
+  canTruocLuong: number | null
+  /**
+   * Số ngày ĐÃ QUA của kỳ, kể cả hôm nay — tử số của thanh "Thời gian" và cũng là mẫu
+   * số của `nhipHienTai`. Hai chỗ phải cùng một cách đếm, không thì thanh nói 12 ngày
+   * mà nhịp chia cho 11.
+   */
+  ngayDaQua: number
+  /**
+   * Tổng số ngày của kỳ — mẫu số thanh "Thời gian". Bằng `ngayDaQua + soNgay − 1` vì
+   * HÔM NAY nằm trong cả hai vế (đã qua kể cả hôm nay, còn lại kể cả hôm nay).
+   */
+  tongNgay: number
   /** Kỳ này chưa đặt hạn mức nào — mọi kết luận về "còn lại" đều vô nghĩa. */
   chuaDatHanMuc: boolean
 }
@@ -220,6 +237,20 @@ export function toiNgayLuong(input: ToiNgayLuongInput): ToiNgayLuong | null {
   const moiNgay = dailyAllowance(tuDo, daQua + 1, daQua + soNgay)?.perDay ?? null
   // Nhịp 0 (chưa tiêu gì) thì không thể hụt — tránh chia cho 0 ra Infinity.
   const hutTruocLuong = tuDo > 0 && nhipHienTai > 0 && tuDo / nhipHienTai < soNgay
+  // "Cạn trước lương mấy ngày": phần tự do đủ cho floor(tuDo/nhịp) ngày nữa, phần thiếu
+  // là số ngày trắng trước mốc. `hutTruocLuong` đã bảo đảm thương < soNgay nên hiệu ≥ 1.
+  const canTruocLuong = hutTruocLuong ? soNgay - Math.floor(tuDo / nhipHienTai) : null
 
-  return { soNgay, conLai, camKet, moiNgay, nhipHienTai, hutTruocLuong, chuaDatHanMuc: hanMuc <= 0 }
+  return {
+    soNgay,
+    conLai,
+    camKet,
+    moiNgay,
+    nhipHienTai,
+    hutTruocLuong,
+    canTruocLuong,
+    ngayDaQua: daQua + 1,
+    tongNgay: daQua + soNgay,
+    chuaDatHanMuc: hanMuc <= 0,
+  }
 }

@@ -12,7 +12,7 @@ import type { CurrencyCode } from '../../lib/money'
 import { useProfile } from '../../hooks/queries'
 import { resolveMethod, savingsTargetShare } from '../budgets/budgetMethods'
 
-/** Nhãn eyebrow + số 26px mono — khung chung của cả bốn ô. */
+/** Nhãn eyebrow + số 22px mono — khung chung của cả bốn ô. */
 function Tile({
   label,
   swapOn,
@@ -26,22 +26,24 @@ function Tile({
   foot: ReactNode
 }) {
   return (
-    <Card elevation="panel" padding="panel" className="min-w-0 flex-1 basis-40">
+    // Ô là một Ô TRONG PANEL CHUNG (bản vẽ redesign 2026-09-05), không phải bốn thẻ
+    // rời: bốn con số là một câu trả lời "kỳ này ra sao", tách bốn khung là bốn viền
+    // chen giữa một câu. Padding của ô lặp đúng bậc `panel` của Card (px-4 py-3.5).
+    <div className="min-w-0 px-4 py-3.5">
       <p className="text-2xs uppercase tracking-label text-fg-muted">{label}</p>
       {/* KHÔNG kèm `tabular-nums`: ô này đã là `font-mono`, mà trong một font đơn cách
           mọi glyph vốn cùng bề rộng — thêm nữa chỉ là nhân bản một quyết định đã có
           trong <Money>. (Ở font sans thì nó vẫn cần, và <Money> vẫn tự bật.) */}
-      {/* 26px là bậc của bản DESKTOP (8a). Ở mobile hai ô nằm cạnh nhau trong 375px nên
-          lòng ô chỉ còn ~139px, mà "¥2,605,070" ở 26px cần ~156px — đo thật, số bị tràn
-          ra ngoài thẻ. Hạ về 22px cho vừa, thay vì rút gọn thành "2.6M": bản rút gọn
-          không có ký hiệu tiền (formatCompact cố ý bỏ, nó sinh ra cho nhãn trục), mà app
-          này trộn ¥ với ₫ nên một con số không đơn vị là câu đố. §6 cũng chốt mobile là
-          bố cục riêng chứ không phải bản thu nhỏ của desktop. */}
+      {/* 22px (text-kpi): ở mobile hai ô nằm cạnh nhau trong 375px nên lòng ô chỉ còn
+          ~139px, mà "¥2,605,070" ở 26px cần ~156px — đo thật, số bị tràn ra ngoài thẻ.
+          22px cho vừa, thay vì rút gọn thành "2.6M": bản rút gọn không có ký hiệu tiền
+          (formatCompact cố ý bỏ, nó sinh ra cho nhãn trục), mà app này trộn ¥ với ₫ nên
+          một con số không đơn vị là câu đố. */}
       <div className="mt-1.5 font-mono text-kpi font-medium tracking-number">
         <Swap on={swapOn}>{children}</Swap>
       </div>
       <div className="mt-2 flex items-end justify-between gap-2">{foot}</div>
-    </Card>
+    </div>
   )
 }
 
@@ -91,7 +93,15 @@ export function KpiRow({
   const { data: profile } = useProfile()
   const keptTargetPct = Math.round(savingsTargetShare(resolveMethod(profile)) * 100)
   return (
-    <div className="flex flex-wrap gap-2.5">
+    // MỘT panel chia bốn cột (bản vẽ redesign), không phải bốn thẻ flex-wrap. Kẻ dọc
+    // bằng `md:divide-x` — cùng idiom với InsightCards: divide chỉ đúng khi các ô là anh
+    // em TRÊN CÙNG MỘT HÀNG, nên ở mobile (lưới 2×2) tắt divide, khoảng padding tự tách.
+    <Card
+      elevation="panel"
+      padding="none"
+      as="section"
+      className="grid grid-cols-2 md:grid-cols-4 md:divide-x md:divide-border-subtle"
+    >
       <Tile
         label="Thu tháng"
         swapOn={income.value}
@@ -185,6 +195,6 @@ export function KpiRow({
           <Money amount={netWorth} currency={base} tone="neutral" />
         )}
       </Tile>
-    </div>
+    </Card>
   )
 }

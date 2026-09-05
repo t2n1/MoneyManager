@@ -26,20 +26,24 @@ function at(nguon: string, moc: string): number {
 }
 
 describe('Chi từng ngày — chỗ đứng trong Bản tin', () => {
-  // Hai thẻ là một CẶP THU-PHÓNG: trên mỗi cột một tháng, dưới mỗi điểm một ngày của
-  // tháng đang chọn, và cả hai đọc cùng `activeMonthKey` nên bấm một cột ở trên là đường
-  // dưới đổi theo. Rời nhau ra thì mối liên hệ đó không còn đọc được từ màn hình.
-  it('đứng ngay sau cặp "Dòng tiền 8 tháng" + "Ngân sách"', () => {
-    expect(at(trang, '<DailySpendPanel')).toBeGreaterThan(at(trang, '<BudgetPanel'))
+  // Từ bản vẽ redesign (2026-09-05) hai hình của CẶP THU-PHÓNG nằm chung MỘT thẻ: dải
+  // 8 tháng (CashflowStrip) đứng đầu thẻ Chi tiêu, phần ngày ngay dưới, cùng đọc
+  // `activeMonthKey` nên bấm một cột tháng là phần ngày đổi theo. Tách chúng ra hai thẻ
+  // lại là mất mối liên hệ đó khỏi màn hình.
+  it('dải 8 tháng nằm TRONG thẻ, trên phần ngày', () => {
+    const strip = at(the, '<CashflowStrip')
+    expect(strip).toBeGreaterThan(at(the, '<SectionTitle>Chi tiêu'))
+    expect(strip).toBeLessThan(the.indexOf('ref={plotRef}'))
   })
 
-  it('đứng TRƯỚC khối "Giao dịch gần đây"', () => {
+  it('thẻ đứng sau bốn ô KPI và TRƯỚC khối "Giao dịch gần đây"', () => {
+    expect(at(trang, '<DailySpendPanel')).toBeGreaterThan(at(trang, '<KpiRow'))
     expect(at(trang, '<DailySpendPanel')).toBeLessThan(at(trang, 'Giao dịch gần đây'))
   })
 
   // Nhét vào cặp hai cột (`basis-full xl:basis-0`) thì panel chỉ ~380px ở xl, mà đường
-  // này có tới 31 điểm ngày — nhãn trục đè lên nhau.
-  it('chiếm hết chiều ngang, không vào cặp hai cột', () => {
+  // này có tới 31 điểm ngày — nhãn trục đè lên nhau. Thẻ phải nằm ở CỘT CHÍNH co giãn.
+  it('chiếm hết chiều ngang cột chính, không vào cặp hai cột', () => {
     const doan = trang.slice(at(trang, '<DailySpendPanel'), at(trang, '<DailySpendPanel') + 400)
     expect(doan).not.toContain('basis-full xl:basis-0')
   })
@@ -70,7 +74,7 @@ describe('Chi từng ngày — cột, không phải đường', () => {
   // ngày sau — nhưng chi mỗi ngày là sự kiện RỜI RẠC.
   it('không còn LineChart, không còn recharts trong thẻ này', () => {
     expect(the, 'B41: cột thay đường').not.toMatch(/LineChart|<Line|ReferenceDot/)
-    expect(the, 'vẽ bằng div — cùng lý do CashflowPanel').not.toContain("from 'recharts'")
+    expect(the, 'vẽ bằng div — cùng lý do CashflowStrip').not.toContain("from 'recharts'")
   })
 
   // `ReferenceDot` đánh dấu đỉnh là vẽ HAI LẦN cùng một điều: với cột thì cột cao nhất tự

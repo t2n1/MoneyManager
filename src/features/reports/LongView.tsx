@@ -917,11 +917,17 @@ export function LongView() {
                   <Money amount={remitCost.totalFeeJpy} currency={base} tone="muted" />
                 </li>
                 <li className="flex items-baseline justify-between gap-2">
-                  <span>Ẩn trong tỷ giá (so thị trường cùng ngày)</span>
+                  <span>
+                    {remitCost.totalFxLossJpy >= 0
+                      ? 'Ẩn trong tỷ giá (so thị trường cùng ngày)'
+                      : 'Được giá hơn thị trường cùng ngày'}
+                  </span>
+                  {/* Money.showSign đòi số DƯƠNG, chiều nằm ở tone (xem Money.tsx) —
+                      truyền số có dấu vào đây là dấu bị lật. */}
                   <Money
-                    amount={remitCost.totalFxLossJpy}
+                    amount={Math.abs(remitCost.totalFxLossJpy)}
                     currency={base}
-                    tone={remitCost.totalFxLossJpy > 0 ? 'out' : 'in'}
+                    tone={remitCost.totalFxLossJpy >= 0 ? 'out' : 'in'}
                     showSign
                   />
                 </li>

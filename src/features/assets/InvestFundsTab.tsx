@@ -16,6 +16,7 @@ import { Plus } from 'lucide-react'
 import { Guide } from '../../components/Guide'
 import { EstimateMark } from '../../components/EstimateMark'
 import { ActionButton, Card, EmptyState, Money, SectionTitle } from '../../components/ui'
+import { FundFeeSection } from './FundFeeSection'
 import { FundTradeFormSheet } from './FundTradeFormSheet'
 import { InvestAccountChips } from './InvestAccountChips'
 import { InvestTradeAccountPicker } from './InvestTradeAccountPicker'
@@ -270,6 +271,15 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
           </ul>
         )}
       </Card>
+
+      {p.positions.length > 0 && (
+        <FundFeeSection
+          positions={p.positions}
+          trades={trades}
+          session={session}
+          fundName={fundName}
+        />
+      )}
 
       {/* Tài khoản đầu tư JPY KHÔNG có sổ lệnh quỹ — xem `FundBalanceAccount`. Khu riêng
           chứ không trộn vào "Đang giữ": ở đó mọi con số là ¥/1万口, còn đây là số dư, và

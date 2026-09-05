@@ -659,6 +659,14 @@ export const supabaseRepo: Repo = {
     return data
   },
 
+  async updateFundExpenseRatio(assocFundCd: string, ppm: number | null) {
+    const { error } = await getSupabase()
+      .from('funds')
+      .update({ expense_ratio_ppm: ppm })
+      .eq('assoc_fund_cd', assocFundCd)
+    if (error) throw error
+  },
+
   async getFundPrices() {
     const { data, error } = await getSupabase()
       .from('fund_prices')

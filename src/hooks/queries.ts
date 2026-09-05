@@ -676,6 +676,16 @@ export function useFunds() {
   })
 }
 
+/** Khai 信託報酬 một quỹ — chỉ đổi bảng danh bạ quỹ, không chạm giá hay sổ lệnh. */
+export function useUpdateFundExpenseRatio() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ assocFundCd, ppm }: { assocFundCd: string; ppm: number | null }) =>
+      repo.updateFundExpenseRatio(assocFundCd, ppm),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['funds'] }),
+  })
+}
+
 /** `enabled`: cùng lý do như `useStockPrices` — xem chú thích ở đó. */
 export function useFundPrices(enabled = true) {
   return useQuery({

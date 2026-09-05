@@ -841,6 +841,8 @@ function seed(): DemoDB {
       last_status: 'ok',
       last_checked_at: '2026-08-12T13:00:00.000Z',
       created_at: '2026-08-12T13:00:00.000Z',
+      // 信託報酬 công bố 0,077%/năm — số thật của quỹ này.
+      expense_ratio_ppm: 770,
     },
     {
       assoc_fund_cd: '9I314241',
@@ -849,6 +851,8 @@ function seed(): DemoDB {
       last_status: 'ok',
       last_checked_at: '2026-08-12T13:00:00.000Z',
       created_at: '2026-08-12T13:00:00.000Z',
+      // 信託報酬 công bố 0,198%/năm — số thật của quỹ này.
+      expense_ratio_ppm: 1980,
     },
   ]
   const fundPrices: FundPriceRow[] = [
@@ -1563,6 +1567,15 @@ export const demoRepo: Repo = {
     return (load().funds ?? [])
       .slice()
       .sort((a, b) => a.assoc_fund_cd.localeCompare(b.assoc_fund_cd))
+  },
+
+  async updateFundExpenseRatio(assocFundCd: string, ppm: number | null) {
+    const db = load()
+    const f = (db.funds ?? []).find((x) => x.assoc_fund_cd === assocFundCd)
+    if (f) {
+      f.expense_ratio_ppm = ppm
+      save(db)
+    }
   },
 
   async getFundPrices() {

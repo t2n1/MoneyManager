@@ -662,6 +662,8 @@ export interface Repo {
   // --- Quỹ đầu tư Nhật: danh bạ + bảng giá + sổ lệnh (migration 0045) ---
   /** Danh bạ quỹ công khai. Chỉ đọc — chỉ service role ghi (seed + edge function). */
   getFunds(): Promise<FundRow[]>
+  /** Khai/đổi 信託報酬 của một quỹ (ppm, xem FundRow); null = xoá về "chưa khai". */
+  updateFundExpenseRatio(assocFundCd: string, ppm: number | null): Promise<void>
   /** Bảng 基準価額 công khai. Chỉ đọc — edge function fund-refresh ghi. */
   getFundPrices(): Promise<FundPriceRow[]>
   /** Toàn bộ sổ lệnh quỹ của user (mọi tài khoản); UI tự lọc theo account_id. */

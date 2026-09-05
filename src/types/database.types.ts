@@ -456,6 +456,11 @@ export type FundRow = {
   last_status: 'chua-kiem' | 'ok' | 'ma-sai' | 'loi-mang'
   last_checked_at: string | null
   created_at: string
+  /**
+   * 信託報酬 %/năm × 10.000 (ppm): 0,0938%/năm = 938. null = chưa khai (migration 0059).
+   * ppm chứ không bps vì con số Nhật niêm yết có 4 chữ số lẻ — 9,38 bps không nguyên.
+   */
+  expense_ratio_ppm: number | null
 }
 
 /**
@@ -1170,8 +1175,14 @@ export type Database = {
       }
       funds: {
         Row: FundRow
-        Insert: InsertOf<FundRow, 'assoc_fund_cd' | 'isin_cd', 'name' | 'last_status' | 'last_checked_at'>
-        Update: Partial<Pick<FundRow, 'isin_cd' | 'name' | 'last_status' | 'last_checked_at'>>
+        Insert: InsertOf<
+          FundRow,
+          'assoc_fund_cd' | 'isin_cd',
+          'name' | 'last_status' | 'last_checked_at' | 'expense_ratio_ppm'
+        >
+        Update: Partial<
+          Pick<FundRow, 'isin_cd' | 'name' | 'last_status' | 'last_checked_at' | 'expense_ratio_ppm'>
+        >
         Relationships: []
       }
       fund_aliases: {

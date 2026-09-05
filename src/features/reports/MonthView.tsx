@@ -89,7 +89,8 @@ import {
   type MonthTableRow,
 } from './monthReport'
 import { spendPercentiles, subscriptionSummary } from './behavior'
-import { dongChiChuaGhi, tinhChiChuaGhi, tongChiCoPhanChuaGhi } from './chiChuaGhi'
+import { dongChiChuaGhi, tongChiCoPhanChuaGhi } from './chiChuaGhi'
+import { useChiChuaGhi } from './useChiChuaGhi'
 import { MonthCategoryTable } from './MonthCategoryTable'
 import {
   KeptWhereCard,
@@ -167,15 +168,11 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [monthTxs, accounts, base, rates, transferIds],
   )
-  // Phần đã rời ví mà chưa ai ghi sổ. Đọc từ chính `monthTxs` — khoản bù của "Điều chỉnh
-  // số dư" đã nằm sẵn trong đó, chỉ bị vòng lặp của aggregate.ts bỏ qua vì
-  // exclude_from_stats. Cố ý KHÔNG sửa sumIncomeExpense: hàm đó có 11 file gọi, tính cả
-  // src/mcp/. Xem chiChuaGhi.ts.
-  const chuaGhi = useMemo(
-    () => tinhChiChuaGhi(monthTxs, categories, accounts, base, r),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [monthTxs, categories, accounts, base, rates],
-  )
+  // Phần đã rời ví mà chưa ai ghi sổ — khoản bù của "Điều chỉnh số dư" đã nằm sẵn trong
+  // giao dịch của tháng, chỉ bị vòng lặp của aggregate.ts bỏ qua vì exclude_from_stats.
+  // Cố ý KHÔNG sửa sumIncomeExpense: hàm đó có 11 file gọi, tính cả src/mcp/.
+  // Dùng chung hook với màn Ngân sách để hai màn không ra hai con số. Xem chiChuaGhi.ts.
+  const chuaGhi = useChiChuaGhi(monthKey)
   const chiCoPhanChuaGhi = tongChiCoPhanChuaGhi(sums.expense, chuaGhi)
   const breakdown = useMemo(
     () => categoryBreakdown(monthTxs, 'expense', currencyOf, base, r, transferIds),

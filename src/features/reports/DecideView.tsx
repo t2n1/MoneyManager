@@ -131,6 +131,20 @@ export function DecideView() {
     [txs, accounts, range.start, range.end, base, rates],
   )
   const typeOf = useMemo(() => new Map(accounts.map((a) => [a.id, a.type])), [accounts])
+  // Tài khoản được ĐẾM vào các nhịp của tab này: còn dùng, không ẩn, và TÍNH-VÀO-TỔNG.
+  // "Tài khoản đứng ngoài tổng đứng ngoài mọi tổng" (cùng luật với assetBreakdown và
+  // chính totalGrowth của keptDestinations) — bỏ điều kiện này thì một tài khoản ngoài
+  // tổng nhận tiền bán chứng khoán làm "tiền mặt dày thêm" đọc ra 4637% phần giữ lại
+  // (đo được trên sổ thật: +¥4,6M từ đúng một tài khoản ngoài tổng).
+  const countedIds = useMemo(
+    () =>
+      new Set(
+        accounts
+          .filter((a) => !a.is_archived && !a.is_hidden && a.include_in_totals !== false)
+          .map((a) => a.id),
+      ),
+    [accounts],
+  )
   // Tổng RÒNG, không phải tổng phần dương.
   //
   // Lấy `Math.max(0, delta)` là đếm hai lần mọi lần chuyển khoản: nạp NISA ¥45.000/tháng
@@ -138,7 +152,7 @@ export function DecideView() {
   // còn phần trừ thì không — nên "tiền mặt dày thêm" đọc ra 126% phần giữ lại.
   const growthBy = (pick: (type: string | undefined) => boolean) =>
     dest.rows
-      .filter((row) => pick(typeOf.get(row.accountId)))
+      .filter((row) => countedIds.has(row.accountId) && pick(typeOf.get(row.accountId)))
       .reduce((s, row) => s + (row.deltaBase ?? 0), 0)
 
   // Đọc CỜ `is_liquid` trước, chỉ suy từ `type` khi cờ còn null — cùng phép hỏi với tab
@@ -154,7 +168,7 @@ export function DecideView() {
     [accounts],
   )
   const cashGrowth = dest.rows
-    .filter((row) => liquidIds.has(row.accountId))
+    .filter((row) => countedIds.has(row.accountId) && liquidIds.has(row.accountId))
     .reduce((s, row) => s + (row.deltaBase ?? 0), 0)
   const investGrowth = growthBy((t) => t === 'investment')
 
@@ -572,8 +586,10 @@ export function DecideView() {
         </VerdictNote>
       )}
 
-      {/* ---------------------------------------------------------------- 04 */}
-      <ReportBlock no="04" title="Tiến độ mục tiêu">
+      {/* ---------------------------------------------------------------- 04
+          (03 khi khối Nợ ẩn — trang đánh số 01→02→04 là mời người đọc đi tìm cái 03
+          không tồn tại) */}
+      <ReportBlock no={debtInfo.lines.length > 0 ? '04' : '03'} title="Tiến độ mục tiêu">
         {goalLines.length === 0 ? (
           <Card as="section" elevation="panel" padding="panel">
             <p className="text-sm text-fg-secondary">

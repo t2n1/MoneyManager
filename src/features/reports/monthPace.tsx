@@ -398,12 +398,16 @@ export function CumulativeCashflowCard({ pace }: { pace: MonthPace }) {
                   tickLine={false}
                   interval={4}
                 />
+                {/* width 56 chứ không 44: dòng tiền tích lũy ÂM là chuyện thường (tiền
+                    nhà ngày 1), và nhãn "-13.8万" rộng hơn 44px nên bị cắt mất "-1" —
+                    trục đọc thành "2.6万" trong khi số thật là -12.6万 (đo được trên
+                    production 09/2026). */}
                 <YAxis
                   tickFormatter={(v: number) => formatCompact(v, base)}
                   tick={{ fontSize: CHART_TEXT_2XS, fill: 'var(--fg-muted)' }}
                   axisLine={false}
                   tickLine={false}
-                  width={44}
+                  width={56}
                 />
                 <ReferenceLine y={0} stroke="var(--fg-muted)" />
                 <Tooltip

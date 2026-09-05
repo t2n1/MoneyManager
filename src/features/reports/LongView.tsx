@@ -741,7 +741,10 @@ export function LongView() {
                   <b>{shift.keptRateAfter >= shift.keptRateBefore ? 'tăng' : 'giảm'}</b> từ{' '}
                   {/* `pctText`, không phải `${n}%`: tỷ lệ giữ lại ÂM là chuyện thật (chi
                       vượt thu) và `${-3}%` của JS ra "-3%" với dấu hyphen. */}
-                  <b>{pctText(shift.keptRateBefore)}</b> lên{' '}
+                  <b>{pctText(shift.keptRateBefore)}</b>{' '}
+                  {/* "lên"/"xuống" phải theo chiều: "giảm từ 33% lên 0%" là câu đã in ra
+                      thật trên production 09/2026. */}
+                  {shift.keptRateAfter >= shift.keptRateBefore ? 'lên' : 'xuống'}{' '}
                   <b>{pctText(shift.keptRateAfter)}</b>.
                 </p>
               )}

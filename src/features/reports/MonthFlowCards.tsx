@@ -335,8 +335,8 @@ export function RemainingCard({ plan, base }: { plan: RemainingPlan; base: Curre
       </ul>
 
       <Guide className="mt-2 text-2xs text-fg-muted">
-        Nhịp dự kiến suy từ chính kỳ này, nên nếu phần đã trôi có một chuyến đi thì nhịp
-        đang bị kéo lên. Con số “còn tự do” là thu đã nhận trừ chi đã tiêu, trừ cam kết và
+        Nhịp dự kiến suy từ dự báo cuối tháng ở đầu trang — cùng một con số, không phải một
+        mô hình thứ hai. Con số “còn tự do” là thu đã nhận trừ chi đã tiêu, trừ cam kết và
         trừ nhịp dự kiến — âm nghĩa là theo nhịp này kỳ sẽ hụt.
       </Guide>
     </Card>

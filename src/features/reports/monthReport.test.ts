@@ -345,6 +345,23 @@ describe('remainingPlan', () => {
     const r = remainingPlan({ ...base, incomeSoFar: 100_000 })!
     expect(r.free).toBeLessThan(0)
   })
+
+  // Cùng trang không được có hai mô hình dự báo cãi nhau: có `projectedMonthEnd` (từ
+  // forecastMonthEnd, chính là ô "Dự báo cuối tháng") thì nhịp dự kiến suy từ nó —
+  // KHÔNG chia trung bình thô, vì trung bình gồm cả tiền nhà trả-một-lần rồi nhân tiếp
+  // 13 ngày là chiếu tiền nhà thêm 13 lần.
+  it('có dự báo cuối tháng thì nhịp dự kiến suy từ dự báo, không chia trung bình', () => {
+    const r = remainingPlan({ ...base, projectedMonthEnd: 284_264 })!
+    expect(r.dailyPace).toBe(Math.round((284_264 - 222_236) / 13))
+    expect(r.expected).toBe(r.dailyPace * 13)
+    expect(r.free).toBe(409_251 - 222_236 - 6_317 - r.expected)
+  })
+
+  it('dự báo thấp hơn số đã chi → phần còn lại là 0, không phải chi âm', () => {
+    const r = remainingPlan({ ...base, projectedMonthEnd: 200_000 })!
+    expect(r.dailyPace).toBe(0)
+    expect(r.expected).toBe(0)
+  })
 })
 
 describe('sortMonthTable', () => {

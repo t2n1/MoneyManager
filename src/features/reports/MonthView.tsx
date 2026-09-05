@@ -309,8 +309,11 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
         daysElapsed,
         daysInPeriod,
         periodStartISO: range.start,
+        // CÙNG dự báo với ô "Dự báo cuối tháng" cách vài trăm px — hai mô hình song song
+        // trong một trang là hai con số cãi nhau về cùng phần còn lại của kỳ.
+        projectedMonthEnd: pace.forecast?.projected ?? null,
       }),
-    [sums, committed, daysElapsed, daysInPeriod, range.start],
+    [sums, committed, daysElapsed, daysInPeriod, range.start, pace.forecast],
   )
 
   // ---------------------------------------------------------------- khối 05

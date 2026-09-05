@@ -255,6 +255,13 @@ export interface RemainingPlan {
  * `spentSoFar` / `incomeSoFar` là số ĐÃ xảy ra; `committed` là khoản định kỳ đã biết mà
  * chưa bị trừ. Trả null khi kỳ đã xong — "còn tự do bao nhiêu" của một kỳ đã kết thúc là
  * một câu không có nghĩa.
+ *
+ * `projectedMonthEnd` là dự báo cuối kỳ của `forecastMonthEnd` (qua useMonthPace) — CÙNG
+ * con số mà ô "Dự báo cuối tháng" ngay trên thẻ này in ra. Có nó thì "nhịp dự kiến" suy
+ * từ dự báo đó thay vì chia trung bình thô: chia trung bình gồm cả khoản cố định trả
+ * một-lần (tiền nhà ngày 1) rồi nhân tiếp 25 ngày là chiếu tiền nhà thêm 25 lần — đo
+ * được trên sổ thật: "Còn tự do −85,1万" đứng cùng trang với "Dự báo cuối tháng 28,4万".
+ * Không truyền (kỳ đã qua, hoặc chưa có dự báo) thì lùi về phép chia trung bình cũ.
  */
 export function remainingPlan(input: {
   incomeSoFar: number
@@ -263,11 +270,20 @@ export function remainingPlan(input: {
   daysElapsed: number
   daysInPeriod: number
   periodStartISO: string
+  projectedMonthEnd?: number | null
 }): RemainingPlan | null {
-  const { incomeSoFar, spentSoFar, committed, daysElapsed, daysInPeriod, periodStartISO } = input
+  const {
+    incomeSoFar, spentSoFar, committed, daysElapsed, daysInPeriod, periodStartISO,
+    projectedMonthEnd = null,
+  } = input
   const daysLeft = daysInPeriod - daysElapsed
   if (daysLeft <= 0 || daysElapsed <= 0) return null
-  const dailyPace = Math.round(spentSoFar / daysElapsed)
+  // max(0, …): dự báo có thể THẤP hơn số đã chi (tháng dồn chi vào đầu kỳ) — phần còn
+  // lại của kỳ không thể là chi âm.
+  const dailyPace =
+    projectedMonthEnd !== null
+      ? Math.round(Math.max(0, projectedMonthEnd - spentSoFar) / daysLeft)
+      : Math.round(spentSoFar / daysElapsed)
   const expected = dailyPace * daysLeft
   return {
     daysLeft,

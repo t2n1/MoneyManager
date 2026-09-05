@@ -23,7 +23,7 @@
 //      8px — nên nó nằm ở danh sách "ba ngày đáng hỏi" bên dưới, luôn có mặt (ở desktop
 //      danh sách đó là `sr-only`, vì ở đó mỗi cột đã có nhãn số riêng).
 //   3. Đường ngang là TRUNG VỊ ngày có chi, không phải trung bình (xem dailySpike.ts).
-import { useLayoutEffect, useState } from 'react'
+import { useLayoutEffect, useState, type MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, Money, Num, SectionTitle, SegmentedControl, deltaTone, signedPct } from '../../components/ui'
 import { formatCompact, type CurrencyCode } from '../../lib/money'
@@ -365,6 +365,22 @@ function YoyBlock({
   const pathOf = (vals: readonly number[]) =>
     vals.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(2)},${y(v).toFixed(2)}`).join(' ')
 
+  // Ngày đang rê chuột — cùng vai với `hover` của chế độ cột: thẻ số là PHẦN THÊM, con
+  // số chính đã nói ở dòng kết luận. Suy chỉ số từ toạ độ chuột vì đường không có 31 ô
+  // riêng như hàng cột; `round` chứ không `floor` để bắt vào điểm GẦN nhất.
+  const [hover, setHover] = useState<number | null>(null)
+  const onMove = (e: MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    if (rect.width <= 0) return
+    const rel = (e.clientX - rect.left) / rect.width
+    setHover(Math.min(n - 1, Math.max(0, Math.round(rel * (n - 1)))))
+  }
+  // % chênh tại NGÀY ĐANG TRỎ, cùng công thức với `deltaPct` của ngày hiện tại.
+  const hoverPct = (i: number): number | null =>
+    i >= current.length || i >= prior.length || prior[i] === 0
+      ? null
+      : ((current[i] - prior[i]) / prior[i]) * 100
+
   return (
     <>
       {/* Kết luận trước, biểu đồ sau (§14) — cùng khuôn câu của chế độ cột. */}
@@ -388,7 +404,9 @@ function YoyBlock({
         </span>
       </p>
 
-      <div className="relative mt-3">
+      {/* onMouseMove ở KHUNG chứ không ở svg: svg là hình aria-hidden, còn khung mới là
+          vùng người ta rê — và cần cả rìa trái/phải nơi đường chưa/đã đi qua. */}
+      <div className="relative mt-3" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
         {/* Thang đọc được: mép trên của khung là bao nhiêu tiền. Một nhãn là đủ — hai con
             số người ta thật sự cần đã nằm ở dòng kết luận. */}
         <span className="absolute left-0 top-0 font-mono text-2xs text-fg-muted">
@@ -401,6 +419,15 @@ function YoyBlock({
           style={{ top: `${y(0)}%` }}
           aria-hidden
         />
+        {/* Vạch dọc ngày đang trỏ. `pointer-events-none` cho cả vạch lẫn thẻ số: chúng
+            nổi trong vùng rê, nhận chuột là onMouseLeave của khung bắn giữa lúc đang đọc. */}
+        {hover !== null && (
+          <span
+            className="pointer-events-none absolute inset-y-0 border-l border-dashed border-border-strong"
+            style={{ left: `${x(hover)}%` }}
+            aria-hidden
+          />
+        )}
         <svg
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
@@ -430,7 +457,67 @@ function YoyBlock({
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
           />
+          {/* Chấm tại ngày đang trỏ, trên TỪNG đường còn dữ liệu — cùng thủ thuật đoạn
+              dài 0 mũ tròn như chấm "hôm nay" ngay trên, cùng lý do (circle bị méo). */}
+          {hover !== null && hover < prior.length && (
+            <path
+              d={`M${x(hover).toFixed(2)},${y(prior[hover]).toFixed(2)} h0.01`}
+              stroke="var(--fg-muted)"
+              strokeWidth={5}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+          {hover !== null && hover < current.length && (
+            <path
+              d={`M${x(hover).toFixed(2)},${y(current[hover]).toFixed(2)} h0.01`}
+              stroke="var(--money-out)"
+              strokeWidth={5}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
         </svg>
+
+        {/* Thẻ số của ngày đang trỏ — cùng khuôn DayCard: nổi TRÊN vùng vẽ, tự né hai
+            mép, và là PHẦN THÊM (đường lũy kế hôm nay đã nói ở dòng kết luận). */}
+        {hover !== null && (
+          <div
+            className="pointer-events-none absolute bottom-full z-10 mb-1.5 w-max max-w-[14rem]"
+            style={
+              hover < n / 4
+                ? { left: 0 }
+                : hover > (n * 3) / 4
+                  ? { right: 0 }
+                  : { left: `${x(hover)}%`, transform: 'translateX(-50%)' }
+            }
+          >
+            <Card elevation="panel" padding="sm" className="bg-surface">
+              <p className="font-mono text-2xs text-fg-muted">
+                {days[hover] ? `tới ${dayLabel(days[hover].date)}` : `tới ngày ${hover + 1}`}
+                {' · cộng dồn'}
+              </p>
+              <p className="text-sm font-semibold">
+                {hover < current.length ? (
+                  <Money amount={current[hover]} currency={base} tone="out" approx={approx} />
+                ) : (
+                  <span className="text-2xs font-normal text-fg-muted">năm nay: chưa tới</span>
+                )}
+                {hoverPct(hover) !== null && (
+                  <Num tone={deltaTone(hoverPct(hover))} className="ml-1.5 text-2xs">
+                    {signedPct(Math.round((hoverPct(hover) as number) * 10) / 10)}
+                  </Num>
+                )}
+              </p>
+              {hover < prior.length && (
+                <p className="mt-0.5 flex gap-2 text-2xs text-fg-secondary">
+                  <span>{priorLabel}</span>
+                  <Money amount={prior[hover]} currency={base} approx={approx} />
+                </p>
+              )}
+            </Card>
+          </div>
+        )}
       </div>
 
       {/* Trục ngày: năm mốc như trục hẹp của chế độ cột, dùng chung dải ngày tháng này. */}

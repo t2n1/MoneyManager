@@ -63,6 +63,17 @@ export interface KhoangVang {
 }
 
 /**
+ * Nhãn ngày CÓ NĂM cho câu hỏi về một dải: "2025/6/7". Cửa sổ dò dài tới 24 tháng nên
+ * nhãn chỉ tháng/ngày là mơ hồ — người đọc (kể cả người viết tính năng này, lúc kiểm
+ * bằng mắt) tưởng "6/7" là tháng 6 năm nay trong khi nó là năm ngoái. Cùng thứ tự
+ * lớn-trước với "2026/09" mà app đang dùng cho tháng.
+ */
+export const nhanNgayVang = (iso: string): string => {
+  const [y, m, d] = iso.split('-').map(Number)
+  return `${y}/${m}/${d}`
+}
+
+/**
  * Dò các dải ≥ NGUONG_NGAY_VANG ngày liên tiếp không có giao dịch nào, trong
  * [windowStartISO, todayISO] (đều gồm).
  *

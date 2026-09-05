@@ -395,10 +395,6 @@ function addDaysISO2(iso2, delta) {
   d.setUTCDate(d.getUTCDate() + delta);
   return d.toISOString().slice(0, 10);
 }
-function dayMonthLabel(iso2) {
-  const [, m, d] = iso2.split("-").map(Number);
-  return `${m}/${d}`;
-}
 function nextCardDueDate(dueDay, todayISO) {
   return nextCardDuePeriod(dueDay, todayISO).payISO;
 }
@@ -1009,6 +1005,10 @@ function detectRecurring(txs, existingKeys, todayISO, opts = {}) {
 
 // src/features/reports/ngayDiVang.ts
 var NGUONG_NGAY_VANG = 4;
+var nhanNgayVang = (iso2) => {
+  const [y, m, d] = iso2.split("-").map(Number);
+  return `${y}/${m}/${d}`;
+};
 function doKhoangVang(txDatesISO, windowStartISO, todayISO, trips) {
   const coGiaoDich = new Set(txDatesISO);
   const daXet = (a, b) => trips.some((t) => a <= t.end_on && b >= t.start_on);
@@ -1550,7 +1550,7 @@ function tripRules(input) {
     kind: "action",
     type: "trip-gap",
     severity: "low",
-    title: `${g.soNgay} ng\xE0y kh\xF4ng c\xF3 giao d\u1ECBch n\xE0o (${dayMonthLabel(g.startISO)} \u2192 ${dayMonthLabel(g.endISO)}) \u2014 \u0111i v\u1EAFng?`,
+    title: `${g.soNgay} ng\xE0y kh\xF4ng c\xF3 giao d\u1ECBch n\xE0o (${nhanNgayVang(g.startISO)} \u2192 ${nhanNgayVang(g.endISO)}) \u2014 \u0111i v\u1EAFng?`,
     detail: "\u0110\xE1nh d\u1EA5u l\xE0 chuy\u1EBFn \u0111i th\xEC c\xE1c ph\xE9p so s\xE1nh b\u1ECF nh\u1EEFng ng\xE0y n\xE0y ra.",
     onISO: g.startISO,
     to: "/reports?view=long"

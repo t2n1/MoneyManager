@@ -8,8 +8,8 @@
 // Dài hạn lo, nơi cả năm giao dịch đã nằm sẵn trong tay, không tốn truy vấn mới nào.
 // Cửa sổ dò lùi thêm 1 ngày so với cửa sổ dữ liệu: doKhoangVang cố ý im với dải chạm
 // mép đầu (không biết nó dài từ trước không), nên mép phải nằm NGOÀI vùng dữ liệu thật.
-import { addDaysISO, dayMonthLabel } from '../../../lib/dates'
-import { doKhoangVang } from '../../reports/ngayDiVang'
+import { addDaysISO } from '../../../lib/dates'
+import { doKhoangVang, nhanNgayVang } from '../../reports/ngayDiVang'
 import { RECENT_TXS_DAYS, type AppNotification, type NotificationInput } from '../types'
 
 export function tripRules(input: NotificationInput): AppNotification[] {
@@ -28,7 +28,7 @@ export function tripRules(input: NotificationInput): AppNotification[] {
     kind: 'action' as const,
     type: 'trip-gap' as const,
     severity: 'low' as const,
-    title: `${g.soNgay} ngày không có giao dịch nào (${dayMonthLabel(g.startISO)} → ${dayMonthLabel(g.endISO)}) — đi vắng?`,
+    title: `${g.soNgay} ngày không có giao dịch nào (${nhanNgayVang(g.startISO)} → ${nhanNgayVang(g.endISO)}) — đi vắng?`,
     detail: 'Đánh dấu là chuyến đi thì các phép so sánh bỏ những ngày này ra.',
     onISO: g.startISO,
     to: '/reports?view=long',

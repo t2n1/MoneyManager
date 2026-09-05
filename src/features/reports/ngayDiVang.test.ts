@@ -6,6 +6,7 @@ import {
   doKhoangVang,
   ngayDiVang,
   thangCoChuyenDi,
+  nhanNgayVang,
 } from './ngayDiVang'
 
 let seq = 0
@@ -134,5 +135,12 @@ describe('doKhoangVang', () => {
   it('trips chỉ GIAO một phần với dải cũng đủ để im', () => {
     const giao = [trip({ start_on: '2026-02-20', end_on: '2026-02-25' })]
     expect(doKhoangVang(days, '2026-02-01', '2026-02-28', giao)).toEqual([])
+  })
+})
+
+describe('nhanNgayVang', () => {
+  it('nhãn có NĂM — cửa sổ dò dài 24 tháng, chỉ tháng/ngày là mơ hồ', () => {
+    expect(nhanNgayVang('2025-06-07')).toBe('2025/6/7')
+    expect(nhanNgayVang('2026-12-31')).toBe('2026/12/31')
   })
 })

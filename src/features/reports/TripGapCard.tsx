@@ -3,14 +3,13 @@
 // ngoài cửa sổ 90 ngày của luật thông báo). Không tốn truy vấn mới: nhận txs từ chính
 // LongView.
 //
-// Mỗi lúc MỘT câu hỏi (gaps[0]): trả lời xong, invalidate trips → dải sau tự hiện.
-// Hai dải cùng lúc là bắt người dùng đọc một danh sách thay vì trả lời một câu.
+// Mỗi lúc MỘT câu hỏi, dải MỚI NHẤT trước: trả lời xong, invalidate trips → dải kế tự
+// hiện. Hai dải cùng lúc là bắt người dùng đọc một danh sách thay vì trả lời một câu.
 import { Guide } from '../../components/Guide'
 import { ActionButton, Card, Num } from '../../components/ui'
 import { useCreateTrip, useTrips } from '../../hooks/queries'
-import { dayMonthLabel } from '../../lib/dates'
 import type { TransactionRow } from '../../types/database.types'
-import { doKhoangVang } from './ngayDiVang'
+import { doKhoangVang, nhanNgayVang } from './ngayDiVang'
 
 export function TripGapCard({
   txs,
@@ -32,7 +31,10 @@ export function TripGapCard({
     trips,
   )
   if (gaps.length === 0) return null
-  const g = gaps[0]
+  // Dải MỚI NHẤT trước: thông báo ở Bản tin (cửa sổ 90 ngày) nói về dải gần đây — bấm
+  // vào mà thẻ hỏi một dải của hai năm trước là hỏi một đằng trả lời một nẻo. Dải mới
+  // cũng là dải còn nhớ được; dải cũ lần lượt hiện sau khi trả lời xong.
+  const g = gaps[gaps.length - 1]
 
   // Cả hai nút đều GHI một hàng trips — khác nhau đúng một cờ. dismissed = true là trí
   // nhớ "đã hỏi, không phải chuyến đi", để dải này không bao giờ bị hỏi lại.
@@ -43,7 +45,7 @@ export function TripGapCard({
     <Card as="section" elevation="panel" padding="panel">
       <p className="text-sm text-fg-primary">
         <Num tone="neutral">{g.soNgay}</Num> ngày không có giao dịch nào (
-        {dayMonthLabel(g.startISO)} → {dayMonthLabel(g.endISO)}) — anh đi vắng?
+        {nhanNgayVang(g.startISO)} → {nhanNgayVang(g.endISO)}) — anh đi vắng?
       </p>
       {/* Chữ DẠY — bọc Guide (biến mất ở chế độ Gọn là đúng): câu hỏi + hai nút ở trên
           và dưới tự đứng được, đoạn này chỉ giải thích cơ chế. designSystem.test.ts canh

@@ -449,12 +449,23 @@ export function BulletinPage() {
         </Link>
       </PageHeader>
 
+      {/* Việc cần làm phải đứng ĐẦU ở mobile (như trước redesign — nó cao gần một màn
+          và là thứ cần hành động) nhưng lại thuộc ĐỈNH CỘT PHỤ ở desktop. Đổi chỗ theo
+          breakpoint bằng HAI LẦN BÀY (`xl:hidden` ở đây / `hidden xl:block` trong cột
+          phụ), KHÔNG bằng order-*: `display:none` rút hẳn bản kia khỏi cây a11y, nên ở
+          mọi bề rộng chỉ có đúng một bản — thứ tự đọc và thứ tự tiêu điểm vẫn đi cùng
+          thứ tự nhìn (WCAG 2.4.3), đúng luật đã chốt ở BudgetView. Giá phải trả là một
+          lần render thừa; trạng thái đóng/mở của hai bản độc lập nhau nhưng không bao
+          giờ cùng hiện nên không lệch được trước mắt ai. */}
+      <NotificationBoundary>
+        <TodoPanel items={notif.actions} onDismiss={notif.dismiss} className="xl:hidden" />
+      </NotificationBoundary>
+
       {/* Bố cục bản vẽ redesign (2026-09-05): từ xl là HAI CỘT — nội dung chính co giãn,
           cột phụ 23.75rem (380px của bản vẽ, quy về rem để Cài đặt → Cỡ chữ còn co giãn
           được). Dưới xl cả hai cột xếp dọc theo đúng THỨ TỰ DOM — không order-*: thứ tự
           đọc và thứ tự tiêu điểm phải đi cùng nhau (WCAG 2.4.3), cùng luật đã chốt ở
-          BudgetView. Hệ quả có cân nhắc: trên mobile khối Việc cần làm đứng sau cột
-          chính (bản vẽ chốt "hôm nay tiêu được bao nhiêu" là câu mở màn). */}
+          BudgetView. */}
       <div className="grid items-start gap-2.5 xl:grid-cols-[minmax(0,1fr)_23.75rem]">
         {/* ===== CỘT CHÍNH ===== */}
         <div className="flex min-w-0 flex-col gap-2.5">
@@ -555,12 +566,17 @@ export function BulletinPage() {
 
         {/* ===== CỘT PHỤ ===== */}
         <div className="flex min-w-0 flex-col gap-2.5">
-          {/* Việc cần làm đứng ĐẦU cột phụ, MỞ SẴN (xem TodoPanel). Nó THAY banner nhắc
+          {/* Việc cần làm đứng ĐẦU cột phụ, MỞ SẴN (xem TodoPanel) — bản DESKTOP của
+              khối `xl:hidden` trên đầu trang, xem chú thích ở đó. Nó THAY banner nhắc
               nhở cũ, không đứng cạnh: hai chỗ cùng nhắc một việc là đúng cái 16a đi dẹp.
               NotificationBoundary vẫn bọc: bộ luật đọc gần hết bảng dữ liệu, một query
               hỏng không được kéo sập cả trang chủ. */}
           <NotificationBoundary>
-            <TodoPanel items={notif.actions} onDismiss={notif.dismiss} />
+            <TodoPanel
+              items={notif.actions}
+              onDismiss={notif.dismiss}
+              className="hidden xl:block"
+            />
           </NotificationBoundary>
 
           <BudgetPanel report={report} isLoading={budgetLoading} base={base} nameOf={nameOf} />

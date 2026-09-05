@@ -47,9 +47,15 @@ interface Props {
   items: AppNotification[];
   /** Ẩn một việc. Bộ luật sinh lại nó khi tình huống tái diễn — xem state.ts. */
   onDismiss: (key: string) => void;
+  /**
+   * Vào thẳng Card bọc ngoài. BulletinPage dùng để bày khối này ở HAI chỗ theo
+   * breakpoint (`xl:hidden` đầu trang / `hidden xl:block` đỉnh cột phụ) — xem chú
+   * thích ở đó vì sao đó không phải hai bản trong cây a11y.
+   */
+  className?: string;
 }
 
-export function TodoPanel({ items, onDismiss }: Props) {
+export function TodoPanel({ items, onDismiss, className }: Props) {
   // MẶC ĐỊNH MỞ SẴN (bản vẽ redesign 2026-09-05): khối này giờ đứng đầu cột phụ của
   // desktop, và một danh sách việc phải bấm mới thấy là một danh sách không ai bấm.
   // Vẫn KHÔNG nhớ lựa chọn qua localStorage — nhớ thì từ lần thứ hai trở đi nó không
@@ -95,7 +101,7 @@ export function TodoPanel({ items, onDismiss }: Props) {
   if (items.length === 0) return null;
 
   return (
-    <Card elevation="panel" padding="panel" as="section">
+    <Card elevation="panel" padding="panel" as="section" className={className}>
       <div className="flex items-center justify-between gap-2">
         {/* <button> NẰM TRONG <h2>, không phải <h2> nằm trong <button>: tiêu đề phải ở
             lại cây tiêu đề của trang để đọc màn bằng danh sách heading còn thấy khối này

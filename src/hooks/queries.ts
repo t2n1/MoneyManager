@@ -18,6 +18,7 @@ import {
   type NewPlannedExpense,
   type NewRecurringRule,
   type NewRelative,
+  type NewTrip,
   type NewSavingsGoal,
   type NewStockTrade,
   type NewTransaction,
@@ -752,6 +753,36 @@ export function useDeleteSavingsGoal() {
 }
 
 // --- Người thân nhận tiền (migration 0056) ---
+
+// --- Chuyến đi (migration 0058) ---
+
+export function useTrips() {
+  return useQuery({
+    queryKey: ['trips'],
+    queryFn: () => repo.listTrips(),
+    staleTime: 5 * 60_000,
+  })
+}
+
+function invalidateTrips(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['trips'] })
+}
+
+export function useCreateTrip() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: NewTrip) => repo.createTrip(input),
+    onSettled: () => invalidateTrips(qc),
+  })
+}
+
+export function useDeleteTrip() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => repo.deleteTrip(id),
+    onSettled: () => invalidateTrips(qc),
+  })
+}
 
 export function useRelatives() {
   return useQuery({

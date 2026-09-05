@@ -33,6 +33,7 @@ import type {
   PlannedExpenseTagRow,
   PlannedExpenseRow,
   RelativeRow,
+  TripRow,
   SavingsGoalRow,
   StockPriceRow,
   StockTradeRow,
@@ -68,6 +69,7 @@ import {
   type NewRecurringOccurrence,
   type NewRecurringRule,
   type NewRelative,
+  type NewTrip,
   type NewSavingsGoal,
   type NewStockTrade,
   type NewPlannedExpense,
@@ -766,6 +768,28 @@ export const supabaseRepo: Repo = {
 
   async deleteSavingsGoal(id: string) {
     const { error } = await getSupabase().from('savings_goals').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  async listTrips() {
+    const { data, error } = await getSupabase().from('trips').select('*').order('start_on')
+    if (error) throw error
+    return data
+  },
+
+  async createTrip(input: NewTrip) {
+    const user_id = await currentUserId()
+    const { data, error } = await getSupabase()
+      .from('trips')
+      .insert({ ...input, user_id })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async deleteTrip(id: string) {
+    const { error } = await getSupabase().from('trips').delete().eq('id', id)
     if (error) throw error
   },
 
@@ -1900,6 +1924,7 @@ export const supabaseRepo: Repo = {
       accountValuations,
       savingsGoals,
       relatives,
+      trips,
       networthSnapshots,
       healthSnapshots,
       lifetimeVerdictSnapshots,
@@ -1928,6 +1953,7 @@ export const supabaseRepo: Repo = {
       selectAll<AccountValuationRow>('account_valuations'),
       selectAll<SavingsGoalRow>('savings_goals'),
       selectAll<RelativeRow>('relatives'),
+      selectAll<TripRow>('trips'),
       selectAll<NetWorthSnapshotRow>('networth_snapshots'),
       selectAll<HealthSnapshotRow>('health_snapshots'),
       selectAll<LifetimeVerdictSnapshotRow>('lifetime_verdict_snapshots'),
@@ -1959,6 +1985,7 @@ export const supabaseRepo: Repo = {
       accountValuations,
       savingsGoals,
       relatives,
+      trips,
       networthSnapshots,
       healthSnapshots,
       lifetimeVerdictSnapshots,
@@ -2150,6 +2177,9 @@ export const supabaseRepo: Repo = {
       'budgets',
       'transactions',
       'relatives',
+      // trips: không gì trỏ tới, không trỏ tới gì ngoài user — xoá ở đâu cũng được,
+      // khai tường minh vì mảng này là bản đồ phụ thuộc, bảng vắng mặt là bảng vô hình.
+      'trips',
       'recurring_rules',
       'asset_group_settings',
       'categories',
@@ -2255,6 +2285,22 @@ export const supabaseRepo: Repo = {
           sort_order: r.sort_order,
         })),
         (part) => sb.from('relatives').insert(part),
+      )
+    }
+
+    // trips: không gì tham chiếu tới → chèn lúc nào cũng được, để cạnh relatives cho dễ dò.
+    if (data.trips?.length) {
+      await insertChunked(
+        data.trips.map((t) => ({
+          id: t.id,
+          user_id: uid,
+          start_on: t.start_on,
+          end_on: t.end_on,
+          label: t.label,
+          country: t.country,
+          dismissed: t.dismissed,
+        })),
+        (part) => sb.from('trips').insert(part),
       )
     }
 

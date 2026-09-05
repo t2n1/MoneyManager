@@ -22,6 +22,7 @@ export type {
   NewRecurringOccurrence,
   NewRecurringRule,
   NewRelative,
+  NewTrip,
   NewSavingsGoal,
   NewStockTrade,
   NewTag,

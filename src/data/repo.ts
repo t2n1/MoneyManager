@@ -40,6 +40,7 @@ import type {
   RelativeRow,
   Relationship,
   SavingsGoalRow,
+  TripRow,
   StockPriceRow,
   StockTradeKind,
   StockTradeRow,
@@ -86,6 +87,8 @@ export interface BackupData {
   savingsGoals?: SavingsGoalRow[]
   /** Người thân nhận tiền (migration 0056); vắng mặt ở mọi backup trước đó. */
   relatives?: RelativeRow[]
+  /** Chuyến đi (migration 0058); vắng mặt ở mọi backup trước đó. */
+  trips?: TripRow[]
   /** Lịch sử tài sản ròng (mục AF); vắng mặt ở backup v1–v3. */
   networthSnapshots?: NetWorthSnapshotRow[]
   /**
@@ -478,6 +481,18 @@ export interface NewRelative {
 }
 export type RelativePatch = Partial<NewRelative & { is_archived: boolean; sort_order: number }>
 
+/** Chuyến đi (migration 0058). */
+export interface NewTrip {
+  start_on: string
+  end_on: string
+  /** Bỏ trống = ''. */
+  label?: string
+  /** Bỏ trống = 'VN'. */
+  country?: string
+  /** true = "đã hỏi, không phải chuyến đi". Bỏ trống = false. */
+  dismissed?: boolean
+}
+
 /**
  * Bộ lọc của `listBenefitTransactions`: giao dịch mà màn Quyền lợi cần — lần gửi tiền,
  * khoản thuộc vài danh mục (thuế trên phiếu lương, ふるさと納税), và chuyển khoản VÀO tài
@@ -659,6 +674,11 @@ export interface Repo {
   createSavingsGoal(input: NewSavingsGoal): Promise<SavingsGoalRow>
   updateSavingsGoal(id: string, patch: SavingsGoalPatch): Promise<SavingsGoalRow>
   deleteSavingsGoal(id: string): Promise<void>
+
+  // --- Chuyến đi (migration 0058) ---
+  listTrips(): Promise<TripRow[]>
+  createTrip(input: NewTrip): Promise<TripRow>
+  deleteTrip(id: string): Promise<void>
 
   // --- Người thân nhận tiền (migration 0056) ---
   getRelatives(): Promise<RelativeRow[]>

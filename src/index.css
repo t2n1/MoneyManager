@@ -63,10 +63,13 @@
   --tracking-number: -0.02em;
 }
 
-/* --- Kiểu chữ (redesign 1a) ----------------------------------------------
-   IBM Plex Sans cho chữ, IBM Plex Mono cho MỌI con số (tiền, ngày, %, mã tháng).
-   Đây là thay đổi nhìn thấy rõ nhất của 1a: cột số thẳng hàng theo glyph chứ không
-   chỉ theo `tabular-nums`, và số đọc ra là "dữ liệu" chứ không phải văn bản.
+/* --- Kiểu chữ (redesign 2 — handoff "Sổ redesign mới") ---------------------
+   Be Vietnam Pro cho chữ, JetBrains Mono cho MỌI con số (tiền, ngày, %, mã tháng).
+   Đổi từ IBM Plex theo bản vẽ redesign 2 (2026-09-05); luật "số đi bằng mono" giữ
+   nguyên: cột số thẳng hàng theo glyph chứ không chỉ theo `tabular-nums`, và số đọc
+   ra là "dữ liệu" chứ không phải văn bản.
+   ĐÃ KIỂM css2 trước khi đổi: cả hai font đều có subset `vietnamese` (8 khối
+   @font-face) — JetBrains Mono không phải font "chỉ Latin".
 
    Ghi đè `--font-sans`/`--font-mono` là đủ cho CẢ hai đường: tiện ích `font-sans`/
    `font-mono`, VÀ font mặc định của trang — preflight của Tailwind v4 đặt
@@ -80,8 +83,8 @@
    unicode-range nên để mặc định KHÔNG tốn thêm byte: trình duyệt chỉ tải subset nó
    thật sự cần. */
 @theme {
-  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+  --font-sans: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
 }
 
 /* --- Token ngữ nghĩa -----------------------------------------------------
@@ -218,67 +221,76 @@
      "trông vừa mắt ở dark" là tự động trượt AA ở light, và ngược lại. Đây chính là
      cái bẫy đã có thật ở 11 chỗ trong app trước 2026-07-30. */
   --fg-warn: var(--color-amber-700); /* 5,03:1 trên trắng; 4,81:1 trên gray-50; 4,85:1 trên amber-50 */
+
+  /* Mục ĐANG CHỌN của redesign 2 (segmented, ô rail, tab dưới): nền accent pha loãng +
+     ring cùng tông đậm hơn, chữ đọc bằng --fg-accent-on-track. Là token riêng chứ không
+     phải bg-accent/10 viết tay ở từng chỗ: alpha đặt ở đây thì đo lại một lần là xong,
+     và light/dark cần HAI cặp alpha khác nhau (nền sáng cần accent đậm + alpha thấp hơn
+     để không thành một vệt xanh loè). */
+  --accent-soft-bg: rgba(0, 130, 54, 0.08);
+  --accent-soft-ring: rgba(0, 130, 54, 0.28);
+
+  /* Chặng cuối của gradient panel (redesign 2: thẻ tổng và panel cột phụ đổ dốc nhẹ
+     từ --surface xuống đây). Ở light gradient gần như không thấy — đúng chủ ý, thẻ
+     light vốn phẳng. Dùng qua tiện ích bg-panel-gradient bên dưới. */
+  --surface-grad-to: #fbfbfc;
 }
 
-/* Thang tối của bản redesign 1a. Đây là hex THẲNG chứ không phải palette Tailwind:
-   1a dùng một thang tối hơn và lệch xanh nhẹ so với gray-950/900/800 của v4, không sắc
-   độ nào trong palette rơi đúng vào bốn nấc đó. Hex chỉ được phép ở ĐÂY — token là chỗ
-   duy nhất màu được viết trần, mọi nơi khác đọc qua tiện ích (guardrail
-   tests/designSystem.test.ts cấm hex trong src/**.tsx).
+/* Thang tối của redesign 2 (handoff "Sổ redesign mới", 2026-09-05). Đây là hex THẲNG
+   chứ không phải palette Tailwind: thang này ám XANH LÁ nhẹ (kênh lục nhỉnh hơn hai kênh
+   kia vài bậc) — không sắc độ nào trong palette v4 rơi đúng vào. Hex chỉ được phép ở
+   ĐÂY — token là chỗ duy nhất màu được viết trần, mọi nơi khác đọc qua tiện ích
+   (guardrail tests/designSystem.test.ts cấm hex trong src/**.tsx).
 
-   Bốn nấc, đo bằng độ sáng tương đối (theo thứ tự lún → nổi):
-     --surface-page   #08090b  nền trang
-     --surface-chrome #0b0d10  top bar, rail trái, header nhóm trong bảng
-     --surface        #0e1014  thẻ / panel
-     --surface-sunken #14181d  track segmented, nút phụ, phím số
-   Nấc `chrome` nằm GIỮA page và surface: khung app (thanh trên, rail) phải lùi ra sau
-   panel nội dung, nhưng vẫn tách khỏi nền trang — 1a bỏ hẳn shadow nên đây là kênh
-   phân cấp duy nhất còn lại.
+   Giá trị lấy TRỰC TIẾP từ bản vẽ .dc.html trong handoff (dịch bản vẽ = tra bảng này,
+   đừng chọn màu "trông giống"):
+     --surface-page   #0b0d0c  nền trang
+     --surface-chrome #0e110f  top bar, rail trái, header nhóm trong bảng, track segmented
+     --surface        #121613  thẻ / panel
+     --surface-sunken #1a201c  track thanh tiến trình, nút phụ, phím số
+   Nấc `chrome` vẫn nằm GIỮA page và surface: khung app phải lùi ra sau panel nội dung
+   nhưng tách khỏi nền trang — không có shadow nên đây là kênh phân cấp duy nhất.
 
-   Tương phản chữ đo lại toàn bộ (tính thẳng từ sRGB — hex nên phép tính chính xác,
-   không dính bẫy oklch ghi ở đầu tests/contrast.test.ts). Ca XẤU NHẤT là nền lún nhất
-   (sunken), và mọi cặp đều CAO HƠN bảng cũ:
-     fg-primary   16,4 (page) … 14,7 (sunken)   — cũ 16,1 trên gray-900
-     fg-secondary 12,7 … 11,4                   — cũ 12,1
-     fg-muted      7,7 …  6,9                   — cũ 6,8 / 5,6 trên gray-800
-     money-in     11,2 … 10,0 · money-out 6,9 … 6,2 · fg-warn 11,6 … 10,4
-   Sàn tuyệt đối vẫn là fg-muted 6,9:1 — dư 4,5:1 kể cả cho chữ 10px.
+   Tương phản chữ đo lại toàn bộ (scratchpad contrast.mjs, tính thẳng từ sRGB — hex nên
+   phép tính chính xác, không dính bẫy oklch ghi ở đầu tests/contrast.test.ts). Ca XẤU
+   NHẤT là nền lún nhất (sunken):
+     fg-primary   17,2 (page) … 14,6 (sunken)
+     fg-secondary 13,0 … 11,0
+     fg-muted      7,7 …  6,6
+     money-in     11,6 …  9,9 · money-out 7,7 … 6,6 · fg-warn 12,7 … 10,8
+   Sàn tuyệt đối là fg-muted 6,55:1 — dư 4,5:1 kể cả cho chữ 10px.
 
-   ĐÁNH ĐỔI ĐÃ BIẾT: viền mờ đi. --border-strong trên --surface tụt từ 1,72:1 (gray-700
-   trên gray-900) xuống 1,29:1. Cả hai đều dưới 3:1 của WCAG 1.4.11 nên KHÔNG phải hồi
-   quy về mức đạt/trượt, nhưng nó nói rằng viền một mình không được là thứ duy nhất chỉ
-   ra ranh giới một control: control phải có nền (--surface-sunken) hoặc chữ của chính
-   nó. Đây là quyết định của 1a — phân cấp bằng nền, không bằng viền. */
+   ĐÁNH ĐỔI ĐÃ BIẾT (giữ nguyên từ 1a): viền mờ — border-strong trên surface ~1,4:1,
+   dưới 3:1 của WCAG 1.4.11, nên viền một mình không được là thứ duy nhất chỉ ra ranh
+   giới một control: control phải có nền hoặc chữ của chính nó. */
 .dark {
-  /* Chốt theo giá trị trong mock. fg-muted = #99a1af CHÍNH LÀ gray-400 (giữ đúng
-     "sàn tuyệt đối" cũ); hai bậc trên chỉ dịu hơn gray-100/gray-300 một chút để
-     bớt chói trên nền tối hơn — vẫn thừa AA, xem số đo ở trên. */
-  --fg-primary: #e6e9ee;
-  --fg-secondary: #c9cfd8;
-  --fg-muted: #99a1af; /* ĐẢO chiều so với light: nền tối thì chữ phụ phải SÁNG hơn */
-  --fg-on-track: #99a1af; /* 6,85:1 trên --surface-sunken mới (cũ: 5,64:1 trên gray-800) */
-  --fg-inverse: var(--color-gray-950);
+  /* Chốt theo giá trị trong bản vẽ. Ba bậc chữ cùng ám lục như thang nền —
+     lấy bậc xám trung tính đặt lên nền ám lục là chữ ngả TÍM nhẹ so với nền. */
+  --fg-primary: #eef2ec;
+  --fg-secondary: #cdd5cc;
+  --fg-muted: #9aa69b; /* ĐẢO chiều so với light: nền tối thì chữ phụ phải SÁNG hơn */
+  --fg-on-track: #9aa69b; /* 6,55:1 trên --surface-sunken mới */
+  --fg-inverse: #0b0d0c;
 
-  --money-in: var(--color-green-400); /* #05df72 — 10,0:1 (ca xấu nhất, trên sunken) */
-  --money-out: var(--color-red-400); /* #ff6467 — 6,2:1 */
+  --money-in: #5ce08a; /* 9,9:1 (ca xấu nhất, trên sunken) */
+  --money-out: #ff7a76; /* 6,6:1 */
 
-  --surface: #0e1014;
-  --surface-sunken: #14181d;
-  --surface-page: #08090b;
-  --surface-chrome: #0b0d10;
-  --border-subtle: #14171c; /* đường kẻ giữa các dòng trong bảng */
-  --border-panel: #1b1e24; /* viền panel & đường phân chia khung */
-  --border-strong: #232830; /* viền control, viền nút */
+  --surface: #121613;
+  --surface-sunken: #1a201c;
+  --surface-page: #0b0d0c;
+  --surface-chrome: #0e110f;
+  --border-subtle: #1b211d; /* đường kẻ giữa các dòng trong bảng */
+  --border-panel: #232a25; /* viền panel & đường phân chia khung */
+  --border-strong: #2e372f; /* viền control, viền nút */
 
-  --accent: var(--color-green-500);
-  --accent-hover: var(--color-green-400);
-  --fg-accent: var(--color-green-400);
-  /* Nền tương ứng ở dark là --surface-sunken; green-400 trên đó dư sáng (10,0:1). */
-  --fg-accent-on-track: var(--color-green-400);
-  /* ĐẢO chiều: nền accent ở dark là green-500 (sáng) nên chữ đè lên phải TỐI.
-     Dùng chính --surface-page của 1a (#08090b) thay gray-950: cùng vai "gần như đen"
-     nhưng đúng tông của thang mới, và vẫn 8,98:1 trên green-500 (trắng chỉ 2,22:1). */
-  --fg-on-accent: #08090b;
+  --accent: #46d97e;
+  --accent-hover: #5ce08a;
+  --fg-accent: #5ce08a;
+  /* Nền tương ứng ở dark là --surface-sunken / --accent-soft-bg; #5ce08a dư sáng. */
+  --fg-accent-on-track: #5ce08a;
+  /* ĐẢO chiều: nền accent ở dark là #46d97e (sáng) nên chữ đè lên phải TỐI.
+     Dùng chính --surface-page (#0b0d0c): 10,66:1 trên #46d97e (trắng thì trượt). */
+  --fg-on-accent: #0b0d0c;
 
   /* Bề mặt trạng thái ở dark. Cùng một công thức cho cả ba: nền ám sắc, viền cùng tông
      đậm hơn, chữ sáng.
@@ -309,15 +321,19 @@
      phải sơ suất: cả hai vẫn dư gần gấp đôi ngưỡng 4,5:1. Đổi phần thừa lấy phần thiếu.
      Ba tông giờ lệch nhau ở cột chữ (10,97 / 8,90 / 8,96) thay vì ở cột nền như trước —
      và lệch ở cột còn dư thì tốt hơn lệch ở cột đang thiếu. */
-  --state-good-bg: #0f2a1a;
-  --state-good-border: #17482b;
-  --state-good-fg: #7bf1a8; /* = green-300 */
+  --state-good-bg: #12301d;
+  --state-good-border: #1d4a2c;
+  --state-good-fg: #7bf1a8; /* 10,2:1 trên nền mới */
   --state-warn-bg: #2c2414;
   --state-warn-border: #4e3d1e;
-  --state-warn-fg: #ffb900; /* = amber-400, cùng giá trị --fg-warn */
-  --state-bad-bg: #3c191d;
-  --state-bad-border: #682c31;
-  --state-bad-fg: #f0b6b8;
+  --state-warn-fg: #ffc84d; /* cùng giá trị --fg-warn mới; 9,95:1 trên warn-bg */
+  /* Banner trong bản vẽ là #38191c, nhưng nâng lên #3d1b1e cùng lý do đợt 2026-08-17
+     ở trên: #38191c trên nền lún mới (#1a201c) chỉ 1,045:1 — chip mất ruột đúng ở cái
+     hố độ chói đã ghi. #3d1b1e giữ nguyên sắc, chỉ nhích độ chói (mắt không phân biệt
+     được với mock, nhưng ruột chip còn). */
+  --state-bad-bg: #3d1b1e;
+  --state-bad-border: #5d2b2e;
+  --state-bad-fg: #f4b8b6;
 
   /* #6b8f78 trên #0d3a1d chỉ 3,55:1 — trượt AA cho chữ 16px semibold (cần 4,5).
      #7fae8e cho 5,09:1.
@@ -328,15 +344,22 @@
      lỗi — nhưng "được miễn" khác "đạt", và nút Lưu ở trên đã được sửa đúng vì nó là
      trạng thái người dùng NHÌN LÂU NHẤT, còn phím ÷×−+ mờ thì chỉ nói "ô này không nhận
      phép tính". Con số ghi ra để lần sau ai đổi thì biết mình đang đứng ở đâu. */
-  --accent-muted-bg: #0d3a1d;
-  --accent-muted-fg: #7fae8e;
-  --fg-disabled: #4a5460;
+  --accent-muted-bg: #12301d;
+  --accent-muted-fg: #86b39a; /* 6,09:1 trên nền muted mới — tokenContrast.test.ts cần ≥4,5 */
+  --fg-disabled: #4d5a50;
 
   /* ĐẢO chiều như --fg-muted. Trên thang 1a: page 11,56:1 · chrome 11,30 · surface
      11,05 · sunken 10,35 — tức sàn NÂNG từ 8,52:1 (trên gray-800 cũ) lên 10,35:1.
      Nền amber-900/40 phủ surface vẫn còn dùng ở vài banner: 8,56:1 lúc trước, và nền
      mới tối hơn nên chỉ tăng. */
-  --fg-warn: var(--color-amber-400);
+  --fg-warn: #ffc84d; /* vàng cảnh báo của redesign 2: page 12,7 · sunken 10,8 */
+
+  /* Mục đang chọn (xem :root): nền accent pha loãng trên thang tối cần alpha CAO hơn
+     light một chút mới nhìn ra, và ring lấy đúng #5ce08a của --fg-accent. */
+  --accent-soft-bg: rgba(92, 224, 138, 0.14);
+  --accent-soft-ring: rgba(92, 224, 138, 0.3);
+
+  --surface-grad-to: #0f120f; /* gradient panel: --surface → đây, dốc xuống rất nhẹ */
 }
 
 /* Map var ngữ nghĩa thành tiện ích Tailwind. `inline` để Tailwind nhả ra
@@ -375,6 +398,17 @@
   --color-accent-muted-bg: var(--accent-muted-bg);
   --color-accent-muted-fg: var(--accent-muted-fg);
   --color-fg-disabled: var(--fg-disabled);
+  --color-accent-soft: var(--accent-soft-bg);
+  --color-accent-soft-ring: var(--accent-soft-ring);
+}
+
+/* Gradient panel của redesign 2: thẻ tổng Thu/Chi và panel cột phụ đổ dốc rất nhẹ từ
+   --surface xuống --surface-grad-to. Là tiện ích có tên chứ không phải
+   `bg-gradient-to-b from-… to-…` viết tay ở từng chỗ: hai chặng đều là token nên tự
+   lật theo chế độ, và cảnh báo "gradient không nằm ở background-color" của phép đo
+   contrast (Phần IV design-system.md) chỉ phải ghi cho MỘT cái tên. */
+@utility bg-panel-gradient {
+  background-image: linear-gradient(180deg, var(--surface), var(--surface-grad-to));
 }
 
 /* --- Chuyển động (§12) ----------------------------------------------------

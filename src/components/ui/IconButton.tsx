@@ -25,17 +25,21 @@ export type IconButtonVariant = 'surface' | 'ghost' | 'accent'
 // hover đi bằng token thay vì `dark:hover:bg-gray-800` viết tay: sắc độ đó là thang cũ,
 // giữ lại thì nút hover sáng hơn hẳn thang mới.
 const VARIANT: Record<IconButtonVariant, string> = {
+  // Viền ở CẢ hai chế độ từ redesign 2 (nút tròn không viền trên nền trang chỉ là một
+  // hình mờ): light viền panel rất nhạt + shadow như cũ, dark viền control.
   surface:
-    'bg-surface shadow-sm hover:bg-surface-sunken dark:border dark:border-border-strong dark:shadow-none',
+    'border border-border-panel bg-surface shadow-sm hover:bg-surface-sunken dark:border-border-strong dark:shadow-none',
   ghost: 'text-fg-muted hover:bg-surface-sunken hover:text-fg-primary',
   // Nền xanh NHẠT, không phải nền xanh đặc: nút này lặp trên mỗi dòng danh mục cha, một
   // dãy nút xanh đặc xếp dọc thì thành bức tường màu và không còn là "hành động phụ".
   accent: 'bg-accent-muted-bg text-fg-accent hover:opacity-90',
 }
 
-// rounded-md (6px): bán kính CONTROL của 1a, tách khỏi bán kính panel 8px (§1.3).
+// rounded-full: redesign 2 pill hoá NÚT (điểm mù có chủ đích của guardrail bán kính —
+// đổi ở hằng số này là đổi cho cả app, xem chú thích trong tests/designSystem.test.ts).
+// Ô NHẬP thì vẫn rounded-md: pill chỉ dành cho thứ bấm được, không dành cho chỗ gõ chữ.
 const BASE =
-  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-3 transition active:scale-95'
+  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-full px-3 transition active:scale-95'
 
 /**
  * Lớp CSS của IconButton, cho những chỗ KHÔNG render ra <button>: `<Link>` của

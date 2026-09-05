@@ -17,6 +17,16 @@ export function formatDayHeader(dateISO: string): string {
   return `${WEEKDAYS[new Date(y, m - 1, d).getDay()]}, ${m}/${d}`
 }
 
+/**
+ * Hai NỬA của header ngày (redesign 2): số "9/5" đi bằng mono đậm, thứ đi bằng nhãn
+ * chữ hoa — hai kiểu chữ khác nhau nên không ghép được thành một chuỗi như
+ * formatDayHeader (bản đó còn dùng ở màn Tìm kiếm, giữ nguyên).
+ */
+export function splitDayHeader(dateISO: string): { date: string; weekday: string } {
+  const [y, m, d] = dateISO.split('-').map(Number)
+  return { date: `${m}/${d}`, weekday: WEEKDAYS[new Date(y, m - 1, d).getDay()] }
+}
+
 export interface Sum {
   value: number
   hasForeign: boolean

@@ -11,7 +11,7 @@
          (@media max-width:1023px buộc input/select/textarea ≥16px), nên không cần khoá nữa.
          Nút Cài đặt → Cỡ chữ vẫn giữ, giờ là tiện thêm chứ không còn là đường thoát duy nhất. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <!-- IBM Plex Sans (chữ) + IBM Plex Mono (mọi con số) — kiểu chữ của bản redesign 1a.
+    <!-- Be Vietnam Pro (chữ) + JetBrains Mono (mọi con số) — kiểu chữ của redesign 2.
          Khai vào --font-sans/--font-mono ở src/index.css; ở đây chỉ nạp file.
          · preconnect tách làm hai: css2 nằm ở fonts.googleapis.com, file .woff2 ở
            fonts.gstatic.com (khác origin, cần crossorigin vì font tải theo CORS).
@@ -27,7 +27,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
     />
     <meta name="theme-color" content="#008236" />
     <!-- Mở toàn màn hình như app thật khi thêm vào Màn hình chính (iPhone) -->
@@ -47,9 +47,9 @@
           if (dark) {
             document.documentElement.classList.add('dark')
             var m = document.querySelector('meta[name="theme-color"]')
-            // = --surface-page của thang 1a. Phải viết trần: script này chạy TRƯỚC khi
-            // CSS nạp, mà thanh trạng thái trình duyệt lấy màu từ chính thuộc tính này.
-            if (m) m.setAttribute('content', '#08090b')
+            // = --surface-page của thang redesign 2. Phải viết trần: script này chạy
+            // TRƯỚC khi CSS nạp, mà thanh trạng thái trình duyệt lấy màu từ thuộc tính này.
+            if (m) m.setAttribute('content', '#0b0d0c')
           }
         } catch (e) {}
       })()

@@ -1439,17 +1439,19 @@ describe('design system — token phải tồn tại', () => {
     expect(css).toContain('--color-border-panel: var(--border-panel)')
   })
 
-  // Kiểu chữ của bản 1a: IBM Plex Sans cho chữ, IBM Plex Mono cho mọi con số.
-  it('font IBM Plex khai trong @theme và được nạp ở index.html', () => {
-    expect(css, '--font-sans phải trỏ IBM Plex Sans').toMatch(
-      /--font-sans:\s*['"]IBM Plex Sans['"]/,
+  // Kiểu chữ của redesign 2: Be Vietnam Pro cho chữ, JetBrains Mono cho mọi con số.
+  // Guard canh việc CSS khai font nào thì index.html phải nạp ĐÚNG font đó — lệch nhau
+  // là cả app rơi về font hệ thống mà không có lỗi nào báo.
+  it('font khai trong @theme khớp font nạp ở index.html', () => {
+    expect(css, '--font-sans phải trỏ Be Vietnam Pro').toMatch(
+      /--font-sans:\s*['"]Be Vietnam Pro['"]/,
     )
-    expect(css, '--font-mono phải trỏ IBM Plex Mono').toMatch(
-      /--font-mono:\s*['"]IBM Plex Mono['"]/,
+    expect(css, '--font-mono phải trỏ JetBrains Mono').toMatch(
+      /--font-mono:\s*['"]JetBrains Mono['"]/,
     )
     const html = readFileSync(join(SRC, '..', 'index.html'), 'utf8')
-    expect(html, 'index.html phải nạp css2 của Google Fonts').toMatch(
-      /fonts\.googleapis\.com\/css2\?[^"']*IBM\+Plex/,
+    expect(html, 'index.html phải nạp css2 của Google Fonts với cả hai font').toMatch(
+      /fonts\.googleapis\.com\/css2\?[^"']*Be\+Vietnam\+Pro[^"']*JetBrains\+Mono/,
     )
   })
 

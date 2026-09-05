@@ -24,20 +24,20 @@ export function AppRail() {
   return (
     <nav
       aria-label="Điều hướng chính"
-      // w cố định 52px (§3) chứ không để padding tự cộng ra: rail là cột NGOÀI CÙNG,
-      // lệch 1px ở đây là cả vùng nội dung lệch theo.
-      className="hidden w-[3.25rem] shrink-0 flex-col items-center gap-1.5 border-r border-border-panel bg-surface-chrome py-2.5 lg:flex print:hidden"
+      // w cố định 56px (redesign 2) chứ không để padding tự cộng ra: rail là cột NGOÀI
+      // CÙNG, lệch 1px ở đây là cả vùng nội dung lệch theo.
+      className="hidden w-14 shrink-0 flex-col items-center gap-2 border-r border-border-panel bg-surface-chrome py-3 lg:flex print:hidden"
     >
       {/* Logo là DẤU HIỆU, không phải nút. Trước đây nó là <NavLink to="/"> — cùng đích
           với mục "Bản tin" ngay dưới, nên cột rail có BẢY ô bấm được cho SÁU màn, và hai
           ô đầu đi cùng một chỗ. Đếm trên màn Báo cáo ra đúng bảy hình vẽ xếp dọc: người
           đọc không có cách nào biết ô nào là điều hướng, ô nào là nhãn.
           Bỏ liên kết chứ không bỏ hình: hình còn giữ vai "đây là app nào", mà đường về
-          trang chủ thì mục "Bản tin" đã mang sẵn, cách nó 6px.
-          `mb-1.5` + kẻ dưới: tách nhãn khỏi cột nút để mắt không đọc nó thành mục thứ
-          bảy. tests/navMobile.test.ts canh đúng con số sáu. */}
-      <span aria-hidden className="mb-1.5 border-b border-border-panel pb-1.5">
-        <AppLogo className="h-6 w-6" />
+          trang chủ thì mục "Bản tin" đã mang sẵn, cách nó 8px.
+          `mb-1.5` tách nhãn khỏi cột nút (redesign 2 bỏ đường kẻ dưới logo — khoảng
+          cách đủ nói). tests/navMobile.test.ts canh đúng con số sáu. */}
+      <span aria-hidden className="mb-1.5">
+        <AppLogo className="h-6.5 w-6.5 rounded-lg" />
       </span>
       {NAV_ITEMS.map((item) => (
         <NavLink
@@ -47,13 +47,14 @@ export function AppRail() {
           title={item.label}
           aria-label={item.label}
           className={({ isActive }) =>
-            // 34px = 2.125rem, bán kính 7px = 0.4375rem (§3). Viền có ở CẢ hai trạng
-            // thái, chỉ đổi màu — cho riêng nút đang chọn một viền thì cả cột icon xê
-            // 1px mỗi lần đổi trang.
-            `flex h-[2.125rem] w-[2.125rem] items-center justify-center rounded-[0.4375rem] border transition ${
+            // Ô 36px bo 12px (redesign 2). Trạng thái chọn = nền accent pha loãng +
+            // ring TRONG (box-shadow, không chiếm chỗ) — không có viền thật nên không
+            // có chuyện cột icon xê 1px khi đổi trang. Màu chữ là fg-accent (hành
+            // động), không phải money-in (giá trị tiền) — hai token đã tách nghĩa.
+            `flex h-9 w-9 items-center justify-center rounded-xl transition ${
               isActive
-                ? 'border-state-good-border bg-state-good-bg text-money-in'
-                : 'border-transparent text-fg-muted hover:bg-surface-sunken hover:text-fg-primary'
+                ? 'bg-accent-soft text-fg-accent-on-track ring-1 ring-accent-soft-ring ring-inset'
+                : 'text-fg-muted hover:bg-surface-sunken hover:text-fg-primary'
             }`
           }
         >

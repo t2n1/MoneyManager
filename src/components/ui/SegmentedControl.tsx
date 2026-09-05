@@ -145,7 +145,10 @@ export function SegmentedControl<T extends string>({
       ref={trackRef}
       role="tablist"
       aria-label={label}
-      className={`relative flex rounded-lg border border-border-panel bg-transparent p-0.5 font-medium ${s.track} ${w.track} ${className}`.trim()}
+      // Pill track của redesign 2: nền chrome (lùi sau nội dung) + viền panel, bo tròn
+      // hết cỡ. font-semibold cho MỌI mục — active không được đổi độ đậm riêng, không
+      // thì bề rộng nhãn đổi theo và nền trượt phải đo lại giữa chừng.
+      className={`relative flex rounded-full border border-border-panel bg-surface-chrome p-0.5 font-semibold ${s.track} ${w.track} ${className}`.trim()}
     >
       {/* Nền ô đang chọn. Chỉ vẽ sau lần đo đầu: vẽ trước khi biết chỗ thì nó xuất hiện
           ở mép trái rồi trượt sang — một chuyển động lúc MỞ MÀN, đúng thứ "console
@@ -158,7 +161,9 @@ export function SegmentedControl<T extends string>({
           // phần tử flex, tức mép CONTENT box (đã trừ padding p-0.5 của track), trong khi
           // `offsetLeft` đo từ mép PADDING box — cộng hai thứ vào nhau là đếm padding hai
           // lần và nền lệch phải đúng 2px. Đo được trên /so trước khi thêm.
-          className="pointer-events-none absolute inset-y-0.5 left-0 rounded-md border border-border-strong bg-surface-sunken motion-segment"
+          // Ô đang chọn của redesign 2: nền accent pha loãng + ring TRONG (box-shadow,
+          // không chiếm chỗ nên không có chuyện chữ xê 1px khi đổi tab).
+          className="pointer-events-none absolute inset-y-0.5 left-0 rounded-full bg-accent-soft ring-1 ring-accent-soft-ring ring-inset motion-segment"
           style={{ width: pill.width, transform: `translateX(${pill.left}px)` }}
         />
       )}
@@ -175,7 +180,7 @@ export function SegmentedControl<T extends string>({
             // `relative` để chữ nằm TRÊN nền tuyệt đối ở trên. Viền trong suốt ở cả hai
             // trạng thái (nền mới là thứ mang viền đậm): cho riêng ô đang chọn một viền
             // thì mỗi lần bấm tab, chữ của mọi ô xê 1px — thấy rõ trên dải 4 tab của Sổ.
-            className={`relative rounded-md border border-transparent ${s.item} ${w.item} ${active ? (item.activeClassName ?? 'text-fg-primary') : 'text-fg-muted hover:text-fg-primary'}`}
+            className={`relative rounded-full border border-transparent ${s.item} ${w.item} ${active ? (item.activeClassName ?? 'text-fg-accent-on-track') : 'text-fg-muted hover:text-fg-primary'}`}
           >
             {item.label}
           </button>

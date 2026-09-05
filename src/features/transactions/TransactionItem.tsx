@@ -3,6 +3,7 @@ import { ArrowRightLeft, CheckCircle2, Circle, Copy, HandCoins, Repeat, Undo2 } 
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
 import { TAG_CHIP_CLASS, tagColor } from '../tags/colors'
+import { categoryTint } from './categoryTint'
 import { amountDisplay, type AmountDisplay } from './ledgerShared'
 
 const TONE_CLASS: Record<AmountDisplay['tone'], string> = {
@@ -129,9 +130,24 @@ export function TransactionItem({
           )}
         </span>
       )}
-      <span className="text-xl">{tx.type === 'transfer' ? <ArrowRightLeft className="h-5 w-5" /> : cat?.icon}</span>
+      {/* Ô emoji 32px lót màu theo danh mục (redesign 2): emoji trần trên nền tối gần
+          như tan vào dòng, ô màu cho mắt một cột "đây là loại gì" để quét dọc.
+          Chuyển khoản không có danh mục → ô trung tính với icon mũi tên như cũ. */}
+      {tx.type === 'transfer' ? (
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-sunken text-fg-secondary">
+          <ArrowRightLeft className="h-4 w-4" />
+        </span>
+      ) : (
+        <span
+          aria-hidden
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base leading-none"
+          style={{ backgroundColor: categoryTint(tx.category_id).tile }}
+        >
+          {cat?.icon}
+        </span>
+      )}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm text-fg-primary">
+        <span className="block truncate text-sm font-medium text-fg-primary">
           {/* Không có danh mục (hàng nhập từ CSV/Zaim hay thiếu) thì viết hẳn ra
               "Chưa phân loại" — dấu "?" trơ trọi làm cả dòng đọc như dữ liệu lỗi.
               Có id mà tra không ra (danh mục đã xóa) mới là "?" thật. */}
@@ -169,7 +185,7 @@ export function TransactionItem({
             đã gắn nhãn hay chưa. Chip đứng cùng dòng tài khoản, tự xuống dòng khi
             chật thay vì chiếm thêm một hàng cố định. */}
         {(tx.type !== 'transfer' || tags.length > 0) && (
-          <span className="mt-0.5 flex flex-wrap items-center gap-1 text-sm text-fg-muted">
+          <span className="mt-0.5 flex flex-wrap items-center gap-1 text-2xs text-fg-muted">
             {tx.type !== 'transfer' && (
               <span className="min-w-0 truncate">{accountName(tx.account_id)}</span>
             )}

@@ -59,9 +59,9 @@ const VIEWS = [
 
 type LedgerView = (typeof VIEWS)[number]['key']
 
-/** Nút icon 36px của hàng tab (bản vẽ 1a §1.1) — chỉ desktop, xem chú thích tại chỗ dùng. */
+/** Nút icon 36px của hàng tab — pill (redesign 2), chỉ desktop, xem chú thích tại chỗ dùng. */
 const DESK_ICON =
-  'inline-flex h-9 w-9 items-center justify-center rounded-md border border-border-strong bg-surface text-fg-primary transition hover:bg-surface-sunken'
+  'inline-flex h-9 w-9 items-center justify-center rounded-full border border-border-panel bg-surface text-fg-secondary transition hover:bg-surface-sunken hover:text-fg-primary'
 
 const isView = (v: string | null): v is LedgerView => VIEWS.some((x) => x.key === v)
 
@@ -580,6 +580,7 @@ export function LedgerPage() {
           heat={heat}
           topCategories={topCategories}
           nameOf={(id) => categoryOf(id)?.name ?? 'Chưa rõ'}
+          iconOf={(id) => categoryOf(id)?.icon}
           expenseTotal={expenseBreakdown.total}
           base={base}
           filterBar={

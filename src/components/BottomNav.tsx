@@ -38,8 +38,10 @@ export function BottomNav({ hidden }: { hidden: boolean }) {
             end={tab.to === '/'}
             className={({ isActive }) =>
               // h-[2.875rem] = 46px: trên sàn vùng chạm 44px của app.
+              // fg-accent chứ không money-in (redesign 2): tab đang mở là HÀNH ĐỘNG
+              // điều hướng, không phải giá trị tiền — hai token đã tách nghĩa.
               `flex h-[2.875rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-2xs transition ${
-                isActive ? 'font-semibold text-money-in' : 'text-fg-muted'
+                isActive ? 'font-semibold text-fg-accent' : 'text-fg-muted'
               }`
             }
           >
@@ -57,7 +59,9 @@ export function BottomNav({ hidden }: { hidden: boolean }) {
             type="button"
             onClick={() => navigate('/entry')}
             aria-label="Nhập giao dịch"
-            className="mx-1 flex h-[2.875rem] w-[3.25rem] shrink-0 items-center justify-center self-center rounded-md bg-accent text-fg-on-accent transition active:scale-95"
+            // rounded-full chứ không 16px của bản vẽ: guardrail cấm cứng bán kính panel
+            // trên <button>, và pill cũng đúng ngôn ngữ nút của redesign 2 hơn.
+            className="mx-1.5 flex h-[2.875rem] w-[3.25rem] shrink-0 items-center justify-center self-center rounded-full bg-accent text-fg-on-accent transition active:scale-95"
           >
             <Plus className="h-5 w-5" strokeWidth={2.2} />
           </button>,

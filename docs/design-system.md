@@ -169,24 +169,29 @@ Khai ở `src/index.css`. Đọc `--fg-muted` chứ đừng đọc `gray-500`: �
 app, và tên nói lên **vai trò** nên khó dùng sai. Dùng qua tiện ích Tailwind:
 `text-fg-muted`, `bg-surface`, `border-border-subtle`.
 
+Thang DARK là của **redesign 2** (handoff "Sổ redesign mới", 2026-09-05) — ám xanh lá
+nhẹ, hex lấy thẳng từ bản vẽ. Light gần như giữ nguyên từ 1a.
+
 | Token | Light | Dark | Đo được |
 |---|---|---|---|
-| `fg-primary` | gray-800 | `#e6e9ee` | 14,7 / 14,7:1 |
-| `fg-secondary` | gray-600 | `#c9cfd8` | 7,6 / 11,4:1 |
-| `fg-muted` | gray-500 | `#99a1af` | **4,84:1 — sàn ở light** |
-| `fg-on-track` | gray-600 | `#99a1af` | 6,87 / 6,85:1 |
-| `money-in` | green-800 | green-400 | 7,13 / 10,0:1 |
-| `money-out` | red-700 | red-400 | 6,42 / 6,2:1 |
-| `surface-page` | gray-50 | `#08090b` | nền trang |
-| `surface-chrome` | gray-50 | `#0b0d10` | top bar, rail, header nhóm trong bảng |
-| `surface` | white | `#0e1014` | thẻ / panel |
-| `surface-sunken` | gray-100 | `#14181d` | track segmented, nút phụ |
-| `border-subtle` | gray-100 | `#14171c` | đường kẻ giữa các dòng |
-| `border-panel` | gray-200 | `#1b1e24` | viền panel & khung |
-| `border-strong` | gray-300 | `#232830` | viền control, viền nút |
-| `accent` | green-700 | green-500 | nền nút chính, focus ring, chip đang bật |
-| `fg-accent` | green-700 | green-400 | **chữ** bấm được (link, hành động phụ) |
-| `fg-on-accent` | white | `#08090b` | chữ ĐÈ LÊN nền accent |
+| `fg-primary` | gray-800 | `#eef2ec` | 14,7 / 14,6:1 |
+| `fg-secondary` | gray-600 | `#cdd5cc` | 7,6 / 11,0:1 |
+| `fg-muted` | gray-500 | `#9aa69b` | **4,84:1 — sàn ở light** |
+| `fg-on-track` | gray-600 | `#9aa69b` | 6,87 / 6,55:1 |
+| `money-in` | green-800 | `#5ce08a` | 7,13 / 9,9:1 |
+| `money-out` | red-700 | `#ff7a76` | 6,42 / 6,6:1 |
+| `surface-page` | gray-50 | `#0b0d0c` | nền trang |
+| `surface-chrome` | gray-50 | `#0e110f` | top bar, rail, track segmented |
+| `surface` | white | `#121613` | thẻ / panel |
+| `surface-sunken` | gray-100 | `#1a201c` | track thanh tiến trình, nút phụ |
+| `border-subtle` | gray-100 | `#1b211d` | đường kẻ giữa các dòng |
+| `border-panel` | gray-200 | `#232a25` | viền panel & khung |
+| `border-strong` | gray-300 | `#2e372f` | viền control, viền nút |
+| `accent` | green-700 | `#46d97e` | nền nút chính, focus ring, chip đang bật |
+| `fg-accent` | green-700 | `#5ce08a` | **chữ** bấm được (link, hành động phụ) |
+| `fg-on-accent` | white | `#0b0d0c` | chữ ĐÈ LÊN nền accent |
+| `accent-soft` (+`-ring`) | rgba(green-700, .08/.28) | rgba(#5ce08a, .14/.3) | nền + ring mục ĐANG CHỌN (segmented, ô rail, tab) |
+| `bg-panel-gradient` | surface→`#fbfbfc` | surface→`#0f120f` | tiện ích gradient panel (thẻ tổng, panel cột phụ) |
 
 Bốn nấc bề mặt xếp lún → nổi: `page` → `chrome` → `surface` → `sunken`. Ở **light không
 có nấc thứ tư** (`chrome` = `page`), khung phân biệt bằng `border-panel`.
@@ -208,7 +213,8 @@ Nút trùng màu số thu nhập thì mất phân biệt *hành động* với *
 
 ## Chữ
 
-**Font:** `--font-sans` = IBM Plex Sans · `--font-mono` = IBM Plex Mono. **Mọi con số** —
+**Font:** `--font-sans` = Be Vietnam Pro · `--font-mono` = JetBrains Mono (redesign 2;
+cả hai đều có subset `vietnamese` trên Google Fonts — đã kiểm css2). **Mọi con số** —
 tiền, ngày, %, mã tháng — đi bằng mono.
 
 Hai điều **đừng** đổi khi đụng vào phần nạp font:
@@ -256,17 +262,18 @@ Mọi cỡ chữ dùng `rem`. **Đừng dùng `px`**, và đừng chêm `text-[�
 
 ## Hình học
 
-### Bán kính — bốn tầng, theo VAI TRÒ không theo cỡ
+### Bán kính — theo VAI TRÒ không theo cỡ
 
-| Class | px | Dùng cho | Đếm được |
-|---|---|---|---|
-| `rounded-md` | 6 | **control**: nút, tab, ô nhập, ô chọn, banner | 215 |
-| `rounded-lg` | 8 | **panel**: khung 1a, khối trạng thái | 101 |
-| `rounded-xl` | 12 | **thẻ** (qua `<Card>`) | 29 |
-| `rounded-2xl` | 16 | **thẻ hero** và **sheet trượt lên** (`rounded-t-2xl`) | 25 + 24 |
-| `rounded-full` | ∞ | chip, chấm, thanh tiến trình | 153 |
+| Class | px | Dùng cho |
+|---|---|---|
+| `rounded-full` | ∞ | **NÚT & CHIP** (redesign 2 pill hoá mọi thứ bấm được — qua BASE của `<IconButton>`/`<ActionButton>`/`<FilterChip>`/`<SegmentedControl>`), chấm, thanh tiến trình |
+| `rounded-md` | 6 | **ô nhập, ô chọn, banner** — pill chỉ dành cho thứ BẤM, không dành cho chỗ GÕ |
+| `rounded-lg` | 8 | **panel**: khung, khối trạng thái, ô emoji danh mục |
+| `rounded-xl` | 12 | **thẻ** (qua `<Card>`), ô đang chọn của rail |
+| `rounded-2xl` | 16 | **thẻ hero** và **sheet trượt lên** (`rounded-t-2xl`) |
 
-Control mang bán kính panel là **ban cứng** — 200 chỗ đã dọn, đừng dựng lại.
+Control mang bán kính panel (`rounded-lg/xl/2xl` trên thẻ control) vẫn là **ban cứng**.
+Pill đến từ BASE của primitive — muốn nút pill thì đi qua primitive, đừng tự viết.
 
 ### Khoảng cách
 
@@ -368,7 +375,7 @@ chính là để KHỎI dựng hàng chục dòng con của 60 danh mục.
 
 ## Khung app
 
-`AppLayout` → `AppRail` (52px, trái) · `AppTopBar` (52px, trên) · `BottomNav` (mobile).
+`AppLayout` → `AppRail` (56px, trái) · `AppTopBar` (56px, trên) · `BottomNav` (mobile).
 Danh sách đích và tiêu đề màn ở `components/navItems.ts` — **một** bảng cho cả ba.
 
 Ba luật, đừng đạp lại:
@@ -379,8 +386,8 @@ Ba luật, đừng đạp lại:
    canh điều đó.
 2. **Top bar KHÔNG dùng `<h1>`.** Nó là khung ("đang ở đâu"); tiêu đề tài liệu thuộc về
    trang, và `<PageHeader>` lo phần đó.
-3. **Vùng chạm nhỏ hơn 44px chỉ được phép ở phần CHỈ-DESKTOP.** Rail 34px, control top bar
-   28–30px — cả hai `hidden lg:flex`, tức chỉ tồn tại khi thiết bị trỏ là chuột (ngưỡng
+3. **Vùng chạm nhỏ hơn 44px chỉ được phép ở phần CHỈ-DESKTOP.** Rail 36px, control top bar
+   32px — cả hai `hidden lg:flex`, tức chỉ tồn tại khi thiết bị trỏ là chuột (ngưỡng
    WCAG 2.5.8 là 24px). Bản mobile của rail là thanh tab dưới, ở đó **46px**.
 
 **Khung app không chặn bề ngang.** Cột chính nở lấp phần còn lại; mỗi cặp panel là

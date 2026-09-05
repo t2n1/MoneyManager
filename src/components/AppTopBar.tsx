@@ -18,9 +18,10 @@ import { NotificationBoundary } from '../features/notifications/NotificationBoun
 import { topBarTitle, usesMonth } from './navItems'
 import { useOpenEntryOverlay } from '../lib/entryOverlay'
 
-/** Nút ‹ › của bộ đổi tháng. 28px — control trong thanh 52px, chỉ dùng bằng chuột. */
+/** Nút ‹ › của bộ đổi tháng — hai đầu của MỘT viên pill liền khối (redesign 2), ngăn
+ *  với nhãn tháng bằng kẻ dọc thay vì đứng rời. 32px, chỉ dùng bằng chuột. */
 const STEP_BTN =
-  'flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-fg-muted transition hover:border-border-strong hover:text-fg-primary'
+  'flex h-8 w-8 items-center justify-center text-fg-muted transition hover:bg-surface-sunken hover:text-fg-primary'
 
 export function AppTopBar() {
   const location = useLocation()
@@ -47,7 +48,7 @@ export function AppTopBar() {
   const title = topBarTitle(location.pathname)
 
   return (
-    <header className="hidden h-[3.25rem] shrink-0 items-center gap-4 border-b border-border-panel bg-surface-chrome px-[1.125rem] lg:flex print:hidden">
+    <header className="hidden h-14 shrink-0 items-center gap-4 border-b border-border-panel bg-surface-chrome px-5 lg:flex print:hidden">
       {/* <p> chứ KHÔNG <h1>. Thử <h1> trước rồi bỏ: gần như MỌI trang đã tự có <h1> của
           nó (18 chỗ — "Tài sản", "Tài khoản", "Nợ / cho vay"…), nên top bar thành h1 nữa
           là hai h1 hiện cùng lúc trên hầu hết route — đúng cái ReportsPage đã ghi chú
@@ -57,20 +58,30 @@ export function AppTopBar() {
 
           min-w giữ mọi thứ phía sau đứng yên khi đổi trang: tiêu đề dài ngắn khác nhau
           mà không chốt bề rộng thì ô tìm kiếm nhảy ngang mỗi lần điều hướng. */}
-      <p className="min-w-24 shrink-0 text-sm font-semibold text-fg-primary">{title}</p>
+      <p className="min-w-24 shrink-0 text-sm font-bold text-fg-primary">{title}</p>
 
       {usesMonth(location.pathname) && (
-        <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => stepMonth(-1)} aria-label="Tháng trước" className={STEP_BTN}>
-            <ChevronLeft className="h-4 w-4" strokeWidth={1.6} />
+        <div className="flex shrink-0 items-center overflow-hidden rounded-full border border-border-strong bg-surface">
+          <button
+            type="button"
+            onClick={() => stepMonth(-1)}
+            aria-label="Tháng trước"
+            className={`${STEP_BTN} border-r border-border-subtle`}
+          >
+            <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
           </button>
           {/* Mã tháng đi bằng mono như mọi con số khác (§1.2) — nó là dữ liệu, và ở
               dạng mono thì bề ngang không đổi khi bấm qua các tháng. */}
-          <span className="rounded-md border border-border-strong bg-surface-sunken px-3 py-1.5 font-mono text-sm text-fg-primary">
+          <span className="px-3.5 font-mono text-sm font-medium text-fg-primary">
             {formatMonthLabel(activeMonthKey)}
           </span>
-          <button type="button" onClick={() => stepMonth(1)} aria-label="Tháng sau" className={STEP_BTN}>
-            <ChevronRight className="h-4 w-4" strokeWidth={1.6} />
+          <button
+            type="button"
+            onClick={() => stepMonth(1)}
+            aria-label="Tháng sau"
+            className={`${STEP_BTN} border-l border-border-subtle`}
+          >
+            <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
           </button>
         </div>
       )}
@@ -81,7 +92,7 @@ export function AppTopBar() {
           e.preventDefault()
           navigate(q.trim() ? `/search?q=${encodeURIComponent(q.trim())}` : '/search')
         }}
-        className="flex h-[1.875rem] min-w-0 max-w-[23.75rem] flex-1 items-center gap-2 rounded-md border border-border-panel bg-surface px-2.5"
+        className="flex h-8 min-w-0 max-w-[26.25rem] flex-1 items-center gap-2 rounded-full border border-border-panel bg-surface px-3.5"
       >
         <Search className="h-[0.9375rem] w-[0.9375rem] shrink-0 text-fg-muted" strokeWidth={1.6} />
         <input
@@ -96,7 +107,7 @@ export function AppTopBar() {
             thành một chuỗi vô nghĩa, mà ô đã có nhãn rồi. */}
         <kbd
           aria-hidden
-          className="shrink-0 rounded border border-border-strong px-1 py-px font-mono text-2xs text-fg-muted"
+          className="shrink-0 rounded-md border border-border-strong px-1 py-px font-mono text-2xs text-fg-muted"
         >
           ⌘K
         </kbd>
@@ -113,10 +124,10 @@ export function AppTopBar() {
         <NotificationBoundary>
           <NotificationBell />
         </NotificationBoundary>
-        <PrivacyToggle className="flex h-7 w-7 items-center justify-center rounded-md text-fg-muted transition hover:bg-surface-sunken hover:text-fg-primary" />
-        {/* Nút 30px của §2.5 — dáng RIÊNG của top bar, không phải <ActionButton>. Sàn
-            vùng chạm 44px của app là ngưỡng ngón tay; thanh này chỉ có từ lg trở lên
-            nên thiết bị trỏ là chuột, ngưỡng WCAG 2.5.8 ở đó là 24px. */}
+        <PrivacyToggle className="flex h-8 w-8 items-center justify-center rounded-full border border-border-panel bg-surface text-fg-secondary transition hover:bg-surface-sunken hover:text-fg-primary" />
+        {/* Nút 32px — dáng RIÊNG của top bar, không phải <ActionButton>. Sàn vùng chạm
+            44px của app là ngưỡng ngón tay; thanh này chỉ có từ lg trở lên nên thiết bị
+            trỏ là chuột, ngưỡng WCAG 2.5.8 ở đó là 24px. */}
         {/* Nút này mở màn nhập dưới dạng LỚP PHỦ, không chuyển trang: thanh trên chỉ
             có từ 1024px (`hidden … lg:flex` ở gốc file) nên đây đúng là "máy tính", còn
             nút "+" của thanh tab dưới (`lg:hidden`) vẫn vào trang đầy đủ như cũ.
@@ -124,7 +135,7 @@ export function AppTopBar() {
         <button
           type="button"
           onClick={openEntry}
-          className="ml-1 flex h-[1.875rem] items-center gap-1.5 rounded-md bg-accent px-3.5 text-sm font-semibold text-fg-on-accent transition active:scale-95"
+          className="ml-1 flex h-8 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-bold text-fg-on-accent transition active:scale-95"
         >
           <Plus className="h-[0.9375rem] w-[0.9375rem]" strokeWidth={2.2} />
           Giao dịch

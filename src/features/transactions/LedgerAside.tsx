@@ -10,10 +10,11 @@
 // không hiện — 390px không có chỗ cho một cột phụ, và cuộn qua chúng để tới danh sách
 // thì chúng đang chắn đường tới thứ người ta mở màn này để xem.
 import { Link } from 'react-router-dom'
-import { Card, Money, SectionTitle } from '../../components/ui'
+import { Card, Money, Num, SectionTitle } from '../../components/ui'
 import { formatMonthLabel, type MonthKey } from '../../lib/dates'
 import type { CurrencyCode } from '../../lib/money'
 import type { CategorySlice } from '../reports/aggregate'
+import { categoryTint } from './categoryTint'
 import { HEAT_LEVELS, type Heatmap } from './ledgerHeat'
 
 /** Nhãn hàng thứ, CN đứng đầu — khớp `leadingBlanks` của `monthHeatmap`. */
@@ -42,6 +43,8 @@ interface Props {
   topCategories: CategorySlice[]
   /** Tên danh mục theo id — `CategorySlice` chỉ mang id và số tiền. */
   nameOf: (categoryId: string) => string
+  /** Emoji của danh mục (redesign 2: tên đi kèm icon trong Top danh mục). */
+  iconOf: (categoryId: string) => string | undefined
   /** Tổng chi của kỳ — mẫu số của thanh so sánh. */
   expenseTotal: number
   base: CurrencyCode
@@ -54,25 +57,26 @@ export function LedgerAside({
   heat,
   topCategories,
   nameOf,
+  iconOf,
   expenseTotal,
   base,
   filterBar,
 }: Props) {
   return (
-    // 26.25rem = 420px của bản vẽ 10a, nhưng theo REM chứ px (§13): cột này chứa toàn
+    // 25rem = 400px của bản vẽ redesign 2, theo REM chứ px (§13): cột này chứa toàn
     // chữ và số, nên ở cỡ chữ "Rất lớn" (--app-font-scale 1,25) một bề rộng px cứng
     // không giãn theo — dòng "Chi nhiều nhất" bị ép xuống ba dòng và nhãn tháng bị cắt.
     // Theo rem thì cột rộng ra cùng nhịp với chữ trong nó.
-    <aside className="hidden w-[26.25rem] shrink-0 flex-col gap-2.5 lg:flex">
+    <aside className="hidden w-[25rem] shrink-0 flex-col gap-3.5 lg:flex">
       {/* --- Tháng trong một hình --------------------------------------------------- */}
-      <Card elevation="panel" padding="panel" as="section">
+      <Card padding="panel" as="section" className="bg-panel-gradient">
         <SectionTitle role="micro">
           {formatMonthLabel(monthKey)} trong một hình
         </SectionTitle>
 
-        <div className="mt-2 grid grid-cols-7 gap-1">
+        <div className="mt-2.5 grid grid-cols-7 gap-1.5">
           {WEEKDAYS.map((w) => (
-            <span key={w} className="text-center text-2xs text-fg-muted">
+            <span key={w} className="text-center text-2xs font-semibold text-fg-muted">
               {w}
             </span>
           ))}
@@ -90,7 +94,7 @@ export function LedgerAside({
                   ? `${c.iso} · chưa tới`
                   : `${c.iso} · chi ${c.expense.toLocaleString('en-US')}`
               }
-              className={`flex h-6 items-center justify-center rounded text-2xs tabular-nums text-fg-primary ${
+              className={`flex h-7 items-center justify-center rounded-lg font-mono text-2xs text-fg-primary ${
                 c.future
                   ? 'border border-dashed border-border-panel text-fg-muted'
                   : c.netIn
@@ -103,7 +107,7 @@ export function LedgerAside({
           ))}
         </div>
 
-        <div className="mt-2 flex items-center gap-3 border-t border-border-subtle pt-2 text-2xs text-fg-muted">
+        <div className="mt-2.5 flex items-center gap-3 border-t border-border-subtle pt-2.5 text-2xs text-fg-muted">
           <span className="flex items-center gap-1">
             <span className="h-2.5 w-2.5 rounded bg-money-out/35" aria-hidden /> chi
           </span>
@@ -125,35 +129,50 @@ export function LedgerAside({
 
       {/* --- Top danh mục ---------------------------------------------------------- */}
       {topCategories.length > 0 && (
-        <Card elevation="panel" padding="panel" as="section">
+        <Card padding="panel" as="section" className="bg-panel-gradient">
           <SectionTitle role="micro">
             Top danh mục {formatMonthLabel(monthKey).toLowerCase()}
           </SectionTitle>
-          <ul className="mt-2 flex flex-col gap-2">
+          <ul className="mt-2.5 flex flex-col gap-3">
             {topCategories.map((s) => {
               const pct = expenseTotal > 0 ? Math.round((s.amount / expenseTotal) * 100) : 0
               return (
                 <li key={s.categoryId}>
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="min-w-0 truncate text-sm text-fg-secondary">
-                      {nameOf(s.categoryId)}
+                    <span className="flex min-w-0 items-center gap-2 truncate text-sm font-medium text-fg-secondary">
+                      {iconOf(s.categoryId) && (
+                        <span aria-hidden className="text-sm">
+                          {iconOf(s.categoryId)}
+                        </span>
+                      )}
+                      <span className="min-w-0 truncate">{nameOf(s.categoryId)}</span>
                     </span>
-                    <Money
-                      amount={s.amount}
-                      currency={base}
-                      tone="neutral"
-                      className="shrink-0 text-sm font-medium"
-                    />
+                    <span className="flex shrink-0 items-baseline gap-1">
+                      <Money
+                        amount={s.amount}
+                        currency={base}
+                        tone="neutral"
+                        className="text-sm font-semibold"
+                      />
+                      <Num tone="muted" className="text-2xs">
+                        · {pct}%
+                      </Num>
+                    </span>
                   </div>
                   {/* Thanh so sánh: tỷ lệ trên TỔNG CHI của kỳ, không trên danh mục lớn
                       nhất — "Nhà ở chiếm 34% tiền ra" nói được điều gì, còn "Nhà ở dài
-                      bằng 100% của chính nó" thì không. */}
+                      bằng 100% của chính nó" thì không. Màu theo tint danh mục (cùng
+                      màu với ô emoji của nó trong danh sách) chứ không đồng loạt đỏ:
+                      ba thanh cùng đỏ đọc thành "ba mức cảnh báo". */}
                   <div
-                    className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-sunken"
+                    className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-sunken"
                     role="img"
                     aria-label={`${pct}% tổng chi`}
                   >
-                    <div className="h-full rounded-full bg-money-out" style={{ width: `${pct}%` }} />
+                    <div
+                      className={`h-full rounded-full ${categoryTint(s.categoryId).bar}`}
+                      style={{ width: `${pct}%` }}
+                    />
                   </div>
                 </li>
               )
@@ -161,7 +180,7 @@ export function LedgerAside({
           </ul>
           <Link
             to="/reports?view=month"
-            className="mt-2.5 inline-block text-2xs font-medium text-fg-accent hover:underline"
+            className="mt-3 inline-block text-2xs font-semibold text-fg-accent hover:underline"
           >
             Xem cơ cấu đầy đủ →
           </Link>

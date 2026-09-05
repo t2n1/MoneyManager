@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from 'react'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
 import type { Rates } from '../../lib/rates'
 import type { AccountRow, CategoryRow, TagRow, TransactionRow } from '../../types/database.types'
-import { approxLabel, formatDayHeader, groupByDay, sumInBase, type CurrencyOf } from './ledgerShared'
+import { approxLabel, groupByDay, splitDayHeader, sumInBase, type CurrencyOf } from './ledgerShared'
 import { PeriodTotalsBar } from './PeriodTotalsBar'
 import { TransactionItem } from './TransactionItem'
 import { Card, EmptyState } from '../../components/ui'
@@ -90,23 +90,33 @@ export function DailyView({
         days.map(([day, txs]) => {
           const dayIncome = sumInBase(txs, 'income', currencyOf, base, rates)
           const dayExpense = sumInBase(txs, 'expense', currencyOf, base, rates)
+          const header = splitDayHeader(day)
           return (
             <section key={day}>
-              {/* Header nhóm ngày — nền `--surface-chrome` theo §4.2: nó là khung của
-                  bảng, phải lùi ra sau các dòng giao dịch chứ không nổi lên như một thẻ. */}
-              <div className="mb-1 flex items-baseline gap-2 rounded-md bg-surface-chrome px-2.5 py-1.5 text-sm text-fg-muted">
-                <span className="font-medium">{formatDayHeader(day)}</span>
+              {/* Header nhóm ngày (redesign 2): KHÔNG còn nền chrome — ngày là một dòng
+                  chữ trần trên nền trang, đứng NGOÀI thẻ danh sách; số ngày đi mono đậm
+                  để mắt bám vào khi cuộn, thứ là nhãn chữ hoa lùi lại phía sau. */}
+              <div className="mb-1.5 flex items-baseline gap-2.5 px-1">
+                <span className="font-mono text-base font-semibold text-fg-primary">
+                  {header.date}
+                </span>
+                <span className="text-2xs font-semibold uppercase tracking-label text-fg-muted">
+                  {header.weekday}
+                </span>
                 {/* Số dư chạy (§4.2 mục 1): cộng dồn thu − chi từ đầu kỳ tới HẾT ngày
-                    này. Đứng cạnh tổng ngày vì hai con số trả lời hai câu khác nhau —
-                    "hôm nay tiêu bao nhiêu" và "từ đầu tháng tới giờ còn dư bao nhiêu".
-                    Danh sách xếp ngày mới nhất trước, nên đọc từ trên xuống là đi ngược
-                    thời gian và số dư giảm dần về 0 ở dòng cuối. */}
+                    này, có ký hiệu Σ đứng trước để tách khỏi tổng ngày bên phải. Ẩn
+                    dưới sm: ở 375px ba con số + nhãn thứ không xếp nổi một hàng. */}
                 {balanceOfDay?.get(day) !== undefined && (
                   <span
-                    className={`font-mono ${(balanceOfDay.get(day) ?? 0) < 0 ? 'text-money-out' : 'text-fg-muted'}`}
+                    className="hidden font-mono text-2xs text-fg-muted sm:inline"
                     title="Số dư chạy từ đầu kỳ tới hết ngày này"
                   >
-                    {formatMoney(balanceOfDay.get(day) ?? 0, base)}
+                    Σ{' '}
+                    <span
+                      className={(balanceOfDay.get(day) ?? 0) < 0 ? 'text-money-out' : undefined}
+                    >
+                      {formatMoney(balanceOfDay.get(day) ?? 0, base)}
+                    </span>
                   </span>
                 )}
                 {/* Chi của một ngày có thể ÂM (hoàn tiền nhiều hơn chi trong ngày đó)
@@ -117,7 +127,7 @@ export function DailyView({
                     SAU dấu gạch nối, nên ở 375px "-¥69,060" từng gãy thành "· -" /
                     "¥69,060" — dấu trừ nằm lại dòng trên một mình. Chỗ được gãy là giữa
                     hai vế (quanh dấu ·), không phải giữa dấu và số. */}
-                <span className="ml-auto font-mono">
+                <span className="ml-auto font-mono text-sm font-semibold text-fg-muted">
                   {dayIncome && dayIncome.value > 0 && (
                     <span className="whitespace-nowrap text-money-in">+{approxLabel(dayIncome, base)}</span>
                   )}

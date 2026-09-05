@@ -22,10 +22,10 @@ export type ActionButtonVariant = 'outline' | 'primary' | 'danger'
 // desktop là đổi vùng chạm của tất cả — 44px thắng.
 // Nút 30px của top bar dựng cùng PR khung app (PR 3), ở đó nó là một dáng riêng.
 //
-// rounded-md (6px) chứ không rounded-lg: 1a tách bán kính CONTROL (5–7px) khỏi bán
-// kính PANEL (8px) — xem §1.3. Trước đây app dùng 8px cho cả hai.
+// rounded-full: redesign 2 pill hoá nút có chữ (cùng nhịp với IconButton — đổi ở hằng
+// số này là đổi cho cả ~90 nút của app, có chủ đích). Ô nhập vẫn rounded-md.
 const BASE =
-  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md transition active:scale-95 disabled:opacity-50'
+  'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full transition active:scale-95 disabled:opacity-50'
 
 const VARIANT: Record<ActionButtonVariant, string> = {
   // Nền TRONG SUỐT, không phải bg-surface: nút phụ của 1a chỉ là một khung viền đặt

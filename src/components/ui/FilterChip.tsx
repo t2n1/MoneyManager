@@ -36,7 +36,9 @@ const BASE =
   'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border font-medium transition active:scale-95'
 
 const ON = 'border-accent bg-accent text-fg-on-accent'
-const OFF = 'border-border-strong bg-transparent text-fg-secondary hover:bg-surface-sunken'
+// Tắt có NỀN thẻ (redesign 2) chứ không trong suốt: chip đứng thẳng trên nền trang,
+// mà viền ở dark chỉ ~1,4:1 — không có nền thì hình cái chip gần như biến mất.
+const OFF = 'border-border-strong bg-surface text-fg-secondary hover:bg-surface-sunken'
 
 export function filterChipClass(on: boolean, size: FilterChipSize = 'md', extra = ''): string {
   return `${BASE} ${SIZE[size]} ${on ? ON : OFF} ${extra}`.trim()

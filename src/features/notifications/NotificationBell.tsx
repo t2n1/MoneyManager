@@ -97,11 +97,14 @@ export function NotificationBell({ className = '' }: { className?: string }) {
         aria-label={unreadCount > 0 ? `Thông báo, ${unreadCount} việc cần làm` : 'Thông báo'}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className={`relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-md bg-surface px-3 shadow-sm transition active:scale-95 ${className}`}
+        className={`relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border-panel bg-surface px-3 shadow-sm transition active:scale-95 dark:shadow-none ${className}`}
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-2xs font-bold text-white">
+          // bg-money-out + fg-inverse thay bg-red-600 + text-white (redesign 2): token
+          // lật theo chế độ — dark nền đỏ SÁNG (#ff7a76) nên chữ phải tối (7,7:1),
+          // light nền red-700 chữ trắng như cũ.
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-money-out px-1 text-2xs font-bold text-fg-inverse">
             {unreadCount}
           </span>
         )}

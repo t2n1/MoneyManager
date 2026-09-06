@@ -525,6 +525,18 @@ export type FundPriceRow = {
   updated_at: string
 }
 
+/**
+ * Một phiên trong lịch sử 基準価額 của một quỹ — migration 0062.
+ *
+ * Khác `fund_prices`: ở đó PK là `assoc_fund_cd` một mình nên chỉ giữ được phiên mới nhất.
+ */
+export type FundPriceHistoryRow = {
+  assoc_fund_cd: string
+  nav_date: string
+  /** ¥ trên 10.000 口, cùng đơn vị `fund_prices.nav`; luôn > 0 */
+  nav: number
+}
+
 export type FundTradeKind = 'buy' | 'sell' | 'adjust'
 
 /** Một lệnh mua/bán/điều chỉnh quỹ — migration 0045. */
@@ -1267,6 +1279,12 @@ export type Database = {
         Update: Partial<
           Pick<FundPriceRow, 'nav' | 'prior_nav' | 'net_assets_m' | 'nav_date' | 'updated_at'>
         >
+        Relationships: []
+      }
+      fund_price_history: {
+        Row: FundPriceHistoryRow
+        Insert: InsertOf<FundPriceHistoryRow, 'assoc_fund_cd' | 'nav_date' | 'nav', never>
+        Update: Partial<Pick<FundPriceHistoryRow, 'nav'>>
         Relationships: []
       }
       fund_trades: {

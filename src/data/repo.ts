@@ -42,6 +42,7 @@ import type {
   Relationship,
   SavingsGoalRow,
   TripRow,
+  FundPriceHistoryRow,
   StockPriceHistoryRow,
   IndexPriceRow,
   StockPriceRow,
@@ -683,6 +684,13 @@ export interface Repo {
   updateFundExpenseRatio(assocFundCd: string, ppm: number | null): Promise<void>
   /** Bảng 基準価額 công khai. Chỉ đọc — edge function fund-refresh ghi. */
   getFundPrices(): Promise<FundPriceRow[]>
+  /**
+   * Lịch sử 基準価額 theo phiên của những quỹ đã nêu, từ `from` tới nay (migration 0062).
+   *
+   * NHẬN `codes` và `from` chứ không đọc cả bảng — cùng lý do `getStockPriceHistory`:
+   * bảng này dài gấp hàng trăm lần bảng giá hiện tại (700 phiên mỗi quỹ).
+   */
+  getFundPriceHistory(codes: string[], from: string): Promise<FundPriceHistoryRow[]>
   /** Toàn bộ sổ lệnh quỹ của user (mọi tài khoản); UI tự lọc theo account_id. */
   getFundTrades(): Promise<FundTradeRow[]>
   createFundTrade(input: NewFundTrade): Promise<FundTradeRow>

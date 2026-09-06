@@ -47,6 +47,7 @@ import type {
   RelativeRow,
   TripRow,
   SavingsGoalRow,
+  FundPriceHistoryRow,
   StockPriceHistoryRow,
   IndexPriceRow,
   StockPriceRow,
@@ -1623,6 +1624,31 @@ export const demoRepo: Repo = {
     return (load().fundPrices ?? [])
       .slice()
       .sort((a, b) => a.assoc_fund_cd.localeCompare(b.assoc_fund_cd))
+  },
+
+  async getFundPriceHistory(codes: string[], from: string) {
+    if (codes.length === 0) return []
+    const db = load()
+    const bangGia = db.fundPrices ?? []
+    const soLenh = db.fundTrades ?? []
+    const phien = demoSessions(from, daysAgo(0))
+    const viTri = new Map(phien.map((d, i) => [d, i]))
+    const out: FundPriceHistoryRow[] = []
+    for (const assoc_fund_cd of codes) {
+      const hienTai = bangGia.find((p) => p.assoc_fund_cd === assoc_fund_cd)?.nav
+      if (hienTai == null) continue
+      // Neo vào 基準価額 của từng lệnh MUA, cùng lý do đã ghi ở demoWalk: không neo thì
+      // ngày mua, tiền đổi thành 口 ở một giá còn danh mục được định giá ở giá khác, và
+      // biểu đồ hiện một vách dựng đứng chưa từng xảy ra.
+      const neo = soLenh
+        .filter((t) => t.assoc_fund_cd === assoc_fund_cd && t.kind === 'buy' && t.nav > 0)
+        .map((t) => ({ index: viTri.get(t.traded_on) ?? -1, value: t.nav }))
+        .filter((a) => a.index >= 0)
+      // Biến động nhỏ hơn cổ phiếu lẻ: quỹ chỉ số vốn êm hơn một mã đơn.
+      const nav = demoWalk(assoc_fund_cd, phien.length, hienTai, 0.012, neo)
+      phien.forEach((nav_date, i) => out.push({ assoc_fund_cd, nav_date, nav: nav[i] }))
+    }
+    return out
   },
 
   async getFundTrades() {

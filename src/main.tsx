@@ -56,7 +56,11 @@ function Providers({ children }: { children: ReactNode }) {
         dehydrateOptions: {
           shouldDehydrateQuery: (q) => {
             const root = q.queryKey[0]
-            return root !== 'stockPriceHistory' && root !== 'indexPrices'
+            return (
+              root !== 'stockPriceHistory' &&
+              root !== 'indexPrices' &&
+              root !== 'fundPriceHistory'
+            )
           },
         },
       }}

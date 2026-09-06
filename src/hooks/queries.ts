@@ -727,6 +727,23 @@ export function useFundPrices(enabled = true) {
   })
 }
 
+/**
+ * Lịch sử 基準価額 theo phiên (migration 0062) — cho ba đường của khu Quỹ chạy vs tiền vào.
+ *
+ * Khoá cache mang cả danh sách mã ĐÃ SẮP và `from`, cùng khuôn `useStockPriceHistory`:
+ * `['A','B']` với `['B','A']` là cùng một câu hỏi, không sắp thì thành hai lượt đọc.
+ */
+export function useFundPriceHistory(codes: string[], from: string, enabled = true) {
+  const key = codes.slice().sort().join(',')
+  return useQuery({
+    queryKey: ['fundPriceHistory', key, from],
+    queryFn: () => repo.getFundPriceHistory(codes, from),
+    // 基準価額 chỉ đổi sau khi quỹ công bố buổi tối — 5 phút là dư sức tươi.
+    staleTime: 5 * 60_000,
+    enabled: enabled && codes.length > 0,
+  })
+}
+
 export function useFundTrades(enabled = true) {
   return useQuery({
     queryKey: ['fundTrades'],

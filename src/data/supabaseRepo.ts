@@ -35,6 +35,7 @@ import type {
   RelativeRow,
   TripRow,
   SavingsGoalRow,
+  FundPriceHistoryRow,
   StockPriceHistoryRow,
   IndexPriceRow,
   StockPriceRow,
@@ -704,6 +705,22 @@ export const supabaseRepo: Repo = {
       .order('assoc_fund_cd')
     if (error) throw error
     return data
+  },
+
+  async getFundPriceHistory(codes: string[], from: string) {
+    // Mảng rỗng thì `in()` sinh `assoc_fund_cd in ()` — PostgREST trả lỗi cú pháp, không
+    // trả rỗng. Cùng cái bẫy đã chặn ở getStockPriceHistory.
+    if (codes.length === 0) return []
+    return await fetchAllPages<FundPriceHistoryRow>(async (a, b) =>
+      getSupabase()
+        .from('fund_price_history')
+        .select('*')
+        .in('assoc_fund_cd', codes)
+        .gte('nav_date', from)
+        .order('nav_date')
+        .order('assoc_fund_cd')
+        .range(a, b),
+    )
   },
 
   async getFundTrades() {

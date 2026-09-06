@@ -17,6 +17,7 @@ import { Guide } from '../../components/Guide'
 import { EstimateMark } from '../../components/EstimateMark'
 import { ActionButton, Card, EmptyState, Money, SectionTitle } from '../../components/ui'
 import { FundFeeSection } from './FundFeeSection'
+import { FundGrowthSection } from './FundGrowthSection'
 import { FundReturnSection } from './FundReturnSection'
 import { FundTradeFormSheet } from './FundTradeFormSheet'
 import { InvestAccountChips } from './InvestAccountChips'
@@ -281,6 +282,9 @@ export function InvestFundsTab({ accountId, onPickAccount }: Props) {
             session={session}
             fundName={fundName}
           />
+          {/* Thẻ RIÊNG, đặt ngay sau ba con số vì nó là bản có hình của chúng — nhưng
+              KHÔNG chịu cổng một năm của thẻ kia (nó tích luỹ, không năm hoá). */}
+          <FundGrowthSection positions={p.positions} trades={trades} fundName={fundName} />
           <FundFeeSection
             positions={p.positions}
             trades={trades}

@@ -138,6 +138,21 @@ Deno.serve(async (req) => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`)
           const diem = parseNavHistory(new Uint8Array(await res.arrayBuffer()))
           lichSu.set(f.assocFundCd, new Map(diem.map((d) => [d.navDate, d.nav])))
+
+          // Migration 0062: LƯU LẠI lịch sử vừa tải, thay vì dùng xong bỏ đi. CSV này đã
+          // nằm trong tay ở đúng đây rồi — không thêm một cuộc gọi mạng nào. Nó là nguồn
+          // của ba đường ở khu "Quỹ chạy vs tiền vào" (fundGrowth.ts).
+          for (let i = 0; i < diem.length; i += 500) {
+            const { error } = await sb.from('fund_price_history').upsert(
+              diem.slice(i, i + 500).map((d) => ({
+                assoc_fund_cd: f.assocFundCd,
+                nav_date: d.navDate,
+                nav: d.nav,
+              })),
+              { onConflict: 'assoc_fund_cd,nav_date' },
+            )
+            if (error) throw error
+          }
         } catch (err) {
           kqLap.loi.push(`${f.assocFundCd}: ${err instanceof Error ? err.message : String(err)}`)
         }
@@ -221,6 +236,16 @@ Deno.serve(async (req) => {
         .upsert(payload, { onConflict: 'assoc_fund_cd' })
       if (error) throw error
       kq.soQuyCoGia = rows.length
+
+      // Nối phiên vừa hút vào lịch sử (migration 0062). Lượt chạy đêm chỉ lấy giá MỚI
+      // NHẤT nên đây là cách lịch sử dài thêm mỗi ngày mà không phải tải lại cả CSV.
+      // `nav_date` lấy từ chính hàng giá — KHÔNG đóng dấu "hôm nay": nguồn trễ tối đa một
+      // phiên, và đóng dấu sai ngày là gán giá hôm qua cho hôm nay.
+      const { error: errLS } = await sb.from('fund_price_history').upsert(
+        rows.map((r) => ({ assoc_fund_cd: r.assoc_fund_cd, nav_date: r.nav_date, nav: r.nav })),
+        { onConflict: 'assoc_fund_cd,nav_date' },
+      )
+      if (errLS) kq.loi.push(`lich su: ${errLS.message}`)
     } else if (errors.length === 0 && !hetNganSach) {
       // Danh bạ rỗng (chưa seed) — khác hẳn "gọi lỗi" và khác hẳn "hết giờ giữa chừng",
       // nên nói rõ. Đọc `hetNganSach` tường minh thay vì tin rằng fetchFundNavs luôn

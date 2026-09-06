@@ -50,8 +50,8 @@ import {
   BudgetVerdictLine,
   CumulativeCashflowCard,
   SpendPaceSection,
-  useMonthPace,
 } from '../reports/monthPace'
+import { useMonthPace } from '../reports/useMonthPace'
 import { AxisStrip } from './AxisStrip'
 import { AxisTargetsCard } from './AxisTargetsCard'
 import { useAxisProgress } from './useAxisProgress'

@@ -10,7 +10,7 @@
 // nhìn vào `forecast`. Phép thử cuối trong file này là phép thử đó.
 import { describe, expect, it } from 'vitest'
 import type { Forecast } from './insights'
-import type { MonthPace } from './monthPace'
+import type { MonthPace } from './useMonthPace'
 import { pickBudgetVerdict } from './budgetVerdict'
 
 function forecast(spentSoFar: number, low: number, projected: number, high: number): Forecast {

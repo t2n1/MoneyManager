@@ -38,7 +38,7 @@ import { dailyAllowance, spendableSegments } from '../budgets/dailyAllowance'
 import { tagBreakdown } from '../tags/aggregate'
 import { useTagBudgets } from '../tags/useTagBudgets'
 import { TAG_HEX, tagColor, type TagColorKey } from '../tags/colors'
-import { useMonthPace } from '../reports/monthPace'
+import { useMonthPace } from '../reports/useMonthPace'
 import {
   buildCalendarMonth,
   recentPace,

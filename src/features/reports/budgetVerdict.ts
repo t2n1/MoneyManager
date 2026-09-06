@@ -9,7 +9,7 @@
 // Phán quyết chỉ được nhìn cái thứ hai. Lấy toàn bộ chi đem so với trần của vài mục là so
 // lệch phạm vi: ai mới đặt vài hạn mức cũng thấy "vượt" khổng lồ, rồi thôi tin cả thẻ.
 
-import type { MonthPace } from './monthPace'
+import type { MonthPace } from './useMonthPace'
 
 export type BudgetVerdict =
   /** Cả kịch bản chi ít nhất cũng vượt — nói chắc. */

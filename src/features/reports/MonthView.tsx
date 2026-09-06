@@ -77,7 +77,7 @@ import { detectAnomalies } from './insights'
 import { headlineOf } from './headline'
 import { monthStory } from './monthStory'
 import { MonthStoryNote } from './MonthStoryNote'
-import { useMonthPace } from './monthPace'
+import { useMonthPace } from './useMonthPace'
 import { periodDaysLabel } from './periodCompare'
 import {
   categorySparks,

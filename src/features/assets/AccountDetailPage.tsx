@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Guide } from '../../components/Guide'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, LineChart, Scale, Trash2 } from 'lucide-react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, LineChart, Pencil, Scale, Trash2 } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
 import { AccountTypeIcon } from '../../components/icons'
 import {
@@ -39,6 +39,7 @@ import {
 } from '../../lib/dates'
 import { formatMoney } from '../../lib/money'
 import type { TransactionRow } from '../../types/database.types'
+import { AccountFormSheet } from '../accounts/AccountFormSheet'
 import { EditTransactionSheet } from '../transactions/EditTransactionSheet'
 import { TransactionItem } from '../transactions/TransactionItem'
 import { CardMonthAdjustSheet } from './CardMonthAdjustSheet'
@@ -71,8 +72,11 @@ export function AccountDetailPage() {
   const { base } = useRates()
   const { data: valuations = [] } = useAccountValuations()
   const deleteValuation = useDeleteValuation()
+  const navigate = useNavigate()
   const [editing, setEditing] = useState<TransactionRow | null>(null)
   const [showValuation, setShowValuation] = useState(false)
+  // Sửa tài khoản tại chỗ — cùng form với Cài đặt → Tài khoản, khỏi phải đi vòng.
+  const [showEditAccount, setShowEditAccount] = useState(false)
   // Mở sẵn sheet Đối chiếu khi vào bằng ?doi-chieu=1 — đường vào của nút "Đối chiếu"
   // ở từng dòng trong danh sách tài khoản (§4.4). Đọc MỘT LẦN lúc khởi tạo: sau đó
   // trạng thái thuộc về người dùng, không phải thanh địa chỉ, nên đóng sheet rồi mà URL
@@ -312,7 +316,13 @@ export function AccountDetailPage() {
             </>
           )
         }
-      />
+      >
+        {account && (
+          <ActionButton onClick={() => setShowEditAccount(true)}>
+            <Pencil className="h-3.5 w-3.5" /> Sửa
+          </ActionButton>
+        )}
+      </PageHeader>
 
       {/* Số dư hiện tại */}
       <Card as="section" padding="lg" className="mb-3">
@@ -879,6 +889,14 @@ export function AccountDetailPage() {
       )}
 
       {editing && <EditTransactionSheet tx={editing} onClose={() => setEditing(null)} />}
+      {showEditAccount && account && (
+        <AccountFormSheet
+          account={account}
+          onClose={() => setShowEditAccount(false)}
+          // Xóa xong thì trang này nói về một tài khoản không còn nữa — về trang Tài sản.
+          onDeleted={() => navigate('/assets')}
+        />
+      )}
       {showValuation && account && (
         <ValuationFormSheet
           account={account}

@@ -613,6 +613,34 @@ export function useStockTrades(enabled = true) {
   })
 }
 
+/**
+ * Lịch sử giá theo phiên (migration 0061) — cho biểu đồ NAV vs VN-Index.
+ *
+ * Khoá cache mang CẢ danh sách mã ĐÃ SẮP và `from`: `['HPG','MBB']` với `['MBB','HPG']`
+ * là cùng một câu hỏi, mà không sắp thì thành hai lượt đọc. `from` nằm trong khoá vì
+ * đổi chip khoảng thời gian là đổi câu hỏi — không phải lọc lại dữ liệu đã có.
+ */
+export function useStockPriceHistory(symbols: string[], from: string, enabled = true) {
+  const key = symbols.slice().sort().join(',')
+  return useQuery({
+    queryKey: ['stockPriceHistory', key, from],
+    queryFn: () => repo.getStockPriceHistory(symbols, from),
+    // Cùng lý do với `useStockPrices`: chỉ đổi sau khi sàn đóng cửa và cron chạy.
+    staleTime: 5 * 60_000,
+    enabled: enabled && symbols.length > 0,
+  })
+}
+
+/** Lịch sử chỉ số. Chuỗi này cũng là LỊCH GIAO DỊCH mà biểu đồ dùng làm trục ngày. */
+export function useIndexPrices(from: string, code = 'VNINDEX', enabled = true) {
+  return useQuery({
+    queryKey: ['indexPrices', code, from],
+    queryFn: () => repo.getIndexPrices(code, from),
+    staleTime: 5 * 60_000,
+    enabled,
+  })
+}
+
 function invalidateStockTrades(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['stockTrades'] })
   // Sổ lệnh đổi → tiền chưa mua và giá trị danh mục đổi theo.

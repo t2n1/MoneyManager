@@ -320,7 +320,11 @@ function stripComments(text: string): string {
 // — "— năm nay, cộng dồn · — 2025/09, trọn tháng". Cùng loại với lời ghi 92: NHÃN DỮ LIỆU
 // của biểu đồ, không có nó thì đường mờ vẽ trọn tháng đọc như lỗi (đường kia mới đi 5
 // ngày); chỉ hiện khi chế độ so được bật và có dữ liệu năm ngoái.
-const PROSE_MAX = 94
+// 95 (từ 94, 2026-09-06): InvestDividendTagger in "Còn N khoản cũ hơn — sửa trực tiếp
+// trong Sổ." khi danh sách gắn mã bị cắt ở 30 dòng. KHÔNG bọc <Guide> được: bỏ nó đi thì
+// người dùng thấy 30 dòng và tưởng đó là tất cả — mất TRẠNG THÁI, không phải gọn hơn
+// (ranh giới ghi ở src/components/Guide.tsx). Đoạn giải thích đi kèm thì đã bọc Guide.
+const PROSE_MAX = 95
 
 const FILES = sourceFiles().map((path) => ({
   path,

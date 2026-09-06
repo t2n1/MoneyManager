@@ -42,6 +42,8 @@ import type {
   Relationship,
   SavingsGoalRow,
   TripRow,
+  StockPriceHistoryRow,
+  IndexPriceRow,
   StockPriceRow,
   StockTradeKind,
   StockTradeRow,
@@ -171,6 +173,11 @@ export interface NewTransaction {
    * Chỉ repo đặt trường này — giao diện nhập giao dịch không bao giờ đặt.
    */
   stock_trade_id?: string | null
+  /**
+   * Mã cổ phiếu mà khoản thu/chi này thuộc về (migration 0061) — cổ tức tiền, phí lưu ký.
+   * null/vắng = chưa gán. Xem `dividendsBySymbol` ở features/assets/positionTable.ts.
+   */
+  stock_symbol?: string | null
   /**
    * Quy tắc định kỳ mà bút toán này thuộc về (migration 0008 đã có cột + index, nhưng tới
    * giờ chưa có gì ghi vào).
@@ -644,6 +651,16 @@ export interface Repo {
   // --- Cổ phiếu Việt Nam: bảng giá + sổ lệnh (migration 0035) ---
   /** Bảng giá công khai (mọi mã, mọi sàn). Chỉ đọc — edge function stock-refresh ghi. */
   getStockPrices(): Promise<StockPriceRow[]>
+  /**
+   * Lịch sử giá theo phiên của những mã đã nêu, từ `from` tới nay (migration 0061).
+   *
+   * NHẬN `symbols` và `from` chứ không đọc cả bảng như `getStockPrices`: bảng này dài
+   * gấp hàng nghìn lần (2.600 phiên mỗi mã). Khung 1 năm × 5 mã ≈ 1.250 dòng ≈ 40KB;
+   * đọc trọn lịch sử mọi mã là ~350KB nhét vào bộ nhớ đệm mỗi lần mở app.
+   */
+  getStockPriceHistory(symbols: string[], from: string): Promise<StockPriceHistoryRow[]>
+  /** Lịch sử chỉ số từ `from` tới nay. `code` là 'VNINDEX' (migration 0061). */
+  getIndexPrices(code: string, from: string): Promise<IndexPriceRow[]>
   /** Toàn bộ sổ lệnh của user (mọi tài khoản); UI tự lọc theo account_id. */
   getStockTrades(): Promise<StockTradeRow[]>
   createStockTrade(input: NewStockTrade): Promise<StockTradeRow>

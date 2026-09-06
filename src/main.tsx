@@ -46,7 +46,20 @@ function Providers({ children }: { children: ReactNode }) {
   return (
     <PersistQueryClientProvider
       client={queryClient}
-      persistOptions={{ persister, maxAge: 24 * 3600_000 }}
+      persistOptions={{
+        persister,
+        maxAge: 24 * 3600_000,
+        // Lịch sử giá KHÔNG persist: trọn lịch sử một danh mục vài mã là ~10.000 dòng
+        // (~300KB) mỗi lần mở trang Đầu tư, mà hạn localStorage chỉ khoảng 5MB và cả sổ
+        // giao dịch cũng đang nằm trong đó. Nó cũng là dữ liệu công khai, tải lại được,
+        // và chỉ MỘT trang cần — khác hẳn sổ giao dịch (mục AA: mở offline vẫn xem được).
+        dehydrateOptions: {
+          shouldDehydrateQuery: (q) => {
+            const root = q.queryKey[0]
+            return root !== 'stockPriceHistory' && root !== 'indexPrices'
+          },
+        },
+      }}
     >
       {children}
     </PersistQueryClientProvider>

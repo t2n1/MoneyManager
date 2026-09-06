@@ -342,6 +342,15 @@ export type TransactionRow = {
    * ứng dụng. Unique index chặn một lệnh có hai dòng.
    */
   stock_trade_id?: string | null
+  /**
+   * Mã cổ phiếu mà khoản thu/chi này thuộc về (migration 0061) — cổ tức tiền, phí lưu ký.
+   * null/vắng = chưa gán.
+   *
+   * KHÔNG phải một loại lệnh trong `stock_trades`: `brokerCash()` tính tiền mặt bằng số dư
+   * sổ trừ tiền đã mua, nên cổ tức đã vào tiền mặt qua chính giao dịch này rồi. Thêm lệnh
+   * mang tiền vào sổ lệnh là đếm hai lần.
+   */
+  stock_symbol?: string | null
   created_at: string
   updated_at: string
 }
@@ -420,7 +429,36 @@ export type StockPriceRow = {
   prior_close: number | null
   /** ngày PHIÊN của giá này (không phải ngày hút) */
   trading_date: string
+  /** Tên ngành tiếng Việt (VNDirect) — migration 0061. Rỗng = chưa tra được. */
+  industry: string
   updated_at: string
+}
+
+/**
+ * Một phiên trong lịch sử giá của một mã — migration 0061.
+ *
+ * Giá ĐÃ ĐIỀU CHỈNH cổ tức/chia tách (nguồn dchart VNDirect trả vậy). Bảng này khác
+ * `stock_prices`: ở đó PK là `symbol` một mình nên chỉ giữ được giá mới nhất.
+ */
+export type StockPriceHistoryRow = {
+  symbol: string
+  trading_date: string
+  /** đồng/cổ, cùng đơn vị `stock_prices.price`; luôn > 0 */
+  close: number
+}
+
+/**
+ * Một phiên của chỉ số thị trường — migration 0061.
+ *
+ * Tách khỏi `stock_price_history` vì ĐƠN VỊ khác: chỉ số là điểm có hai số lẻ, cổ phiếu
+ * là đồng. Xem lời giải thích trong migration.
+ */
+export type IndexPriceRow = {
+  /** 'VNINDEX' */
+  index_code: string
+  trading_date: string
+  /** điểm × 100 (1853,08 → 185308) */
+  close_x100: number
 }
 
 export type StockTradeKind = 'buy' | 'sell' | 'adjust'
@@ -1007,6 +1045,7 @@ export type Database = {
           | 'exclude_from_stats'
           | 'is_refund'
           | 'stock_trade_id'
+          | 'stock_symbol'
         >
         Update: Partial<
           Pick<
@@ -1028,6 +1067,7 @@ export type Database = {
             | 'exclude_from_stats'
             | 'is_refund'
             | 'stock_trade_id'
+            | 'stock_symbol'
           >
         >
         Relationships: []
@@ -1159,11 +1199,32 @@ export type Database = {
         Insert: InsertOf<
           StockPriceRow,
           'symbol' | 'exchange' | 'price' | 'trading_date',
-          'name' | 'prior_close' | 'updated_at'
+          'name' | 'prior_close' | 'industry' | 'updated_at'
         >
         Update: Partial<
-          Pick<StockPriceRow, 'exchange' | 'name' | 'price' | 'prior_close' | 'trading_date' | 'updated_at'>
+          Pick<
+            StockPriceRow,
+            | 'exchange'
+            | 'name'
+            | 'price'
+            | 'prior_close'
+            | 'trading_date'
+            | 'industry'
+            | 'updated_at'
+          >
         >
+        Relationships: []
+      }
+      stock_price_history: {
+        Row: StockPriceHistoryRow
+        Insert: InsertOf<StockPriceHistoryRow, 'symbol' | 'trading_date' | 'close', never>
+        Update: Partial<Pick<StockPriceHistoryRow, 'close'>>
+        Relationships: []
+      }
+      index_prices: {
+        Row: IndexPriceRow
+        Insert: InsertOf<IndexPriceRow, 'index_code' | 'trading_date' | 'close_x100', never>
+        Update: Partial<Pick<IndexPriceRow, 'close_x100'>>
         Relationships: []
       }
       stock_trades: {

@@ -4,24 +4,33 @@
 // bằng đồng và có "tiền chưa mua", quỹ tính bằng yên trên 10.000 口 và không có tiền dư.
 // Nhồi cả hai vào một file là mời hai bộ điều kiện lồng nhau trong cùng một JSX.
 import { useMemo, useState } from 'react'
-import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
 import { ActionButton, Card, EmptyState, Money, Num, SectionTitle } from '../../components/ui'
 import {
   useBackfillStockTradeTransfers,
+  useRangeTransactions,
   useRates,
+  useStockPrices,
   useStockTradesWithoutTransfer,
 } from '../../hooks/queries'
 import { convertToBase } from '../../lib/rates'
 import { concentrationVerdict } from './concentration'
 import { HOSE_SYMBOLS } from './hoseSymbols'
 import { InvestAccountChips } from './InvestAccountChips'
+import { InvestAllocationSection } from './InvestAllocationSection'
+import { InvestPerformanceSection } from './InvestPerformanceSection'
+import { InvestRiskSection } from './InvestRiskSection'
+import { InvestWeightDonut } from './InvestWeightDonut'
+import { useInvestChartData } from './useInvestChartData'
+import { dividendsBySymbol, positionTable, taggableCashflows } from './positionTable'
+import { investTxRange } from './investHistory'
+import { toISODate } from '../../lib/dates'
 import { InvestTradeAccountPicker } from './InvestTradeAccountPicker'
 import { TradeFormSheet } from './TradeFormSheet'
 import { useInvestData } from './useInvestData'
-import { KIND_CLASS, KIND_LABEL, ngay, pct, share } from './investFormat'
+import { KIND_CLASS, KIND_LABEL, ngay, pct } from './investFormat'
 import type { StockTradeRow } from '../../types/database.types'
 
 interface Props {
@@ -87,6 +96,45 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
   // Câu phán về mức tập trung (21a). Hàm thuần, ngưỡng và ca một-mã nằm ở
   // concentration.ts cùng test của nó.
   const tapTrung = useMemo(() => concentrationVerdict(portfolio.positions), [portfolio.positions])
+
+  // Bảng Cơ cấu cần hai thứ mà `useInvestData` không trả: giá tham chiếu phiên trước (để
+  // ra cột Biến động) và các khoản thu/chi ĐÃ GẮN MÃ (để ra cột Cổ tức). Gọi hook ở đây
+  // chứ không nhồi vào `useInvestData`: cả hai đều là query ĐÃ có nơi khác dùng, nên khoá
+  // cache trùng và không sinh thêm một lượt đọc nào.
+  const { data: priceRows = [] } = useStockPrices()
+  const todayISO = toISODate(new Date())
+  const accountIds = useMemo(() => new Set(shown.map((a) => a.id)), [shown])
+  const { data: txs = [] } = useRangeTransactions(investTxRange(todayISO), accountIds.size > 0)
+
+  const bangCoCau = useMemo(
+    () =>
+      positionTable({
+        positions: portfolio.positions,
+        dividends: dividendsBySymbol(txs, accountIds),
+        priorClose: new Map(
+          priceRows
+            .filter((r) => r.prior_close != null && r.prior_close > 0)
+            .map((r) => [r.symbol, r.prior_close as number]),
+        ),
+      }),
+    [portfolio.positions, txs, accountIds, priceRows],
+  )
+
+  const dongTienGanMa = useMemo(() => taggableCashflows(txs, accountIds), [txs, accountIds])
+  // Mọi mã ĐÃ TỪNG giao dịch, không chỉ mã đang giữ: cổ tức của mã đã bán hết vẫn phải
+  // gắn được vào đâu đó.
+  const moiMa = useMemo(
+    () => [...new Set(trades.map((t) => t.symbol))].sort(),
+    [trades],
+  )
+
+  // MỘT lượt dựng chuỗi NAV cho cả khu Hiệu quả và khu Rủi ro — xem useInvestChartData.ts.
+  const chartData = useInvestChartData(shown, trades)
+
+  const nganhTheoMa = useMemo(
+    () => new Map(priceRows.filter((r) => r.industry).map((r) => [r.symbol, r.industry])),
+    [priceRows],
+  )
   const shownTrades = useMemo(
     () => (symbolFilter ? trades.filter((t) => t.symbol === symbolFilter) : trades),
     [trades, symbolFilter],
@@ -214,7 +262,12 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
           </div>
           <div>
             <dt className="text-fg-muted">Lời/lỗ chưa bán</dt>
-            <dd className="flex items-baseline gap-1">
+            {/* `flex-wrap` chứ không `flex` trơn: ô này là ô DUY NHẤT trong lưới có HAI
+                con số cạnh nhau (số tiền + phần trăm), nên ở 375px với cỡ chữ 1,25× nó
+                đòi 192px trong cột 150px và tràn đè lên ô "Lời/lỗ đã bán" bên cạnh — đo
+                thật trong app. Cho xuống dòng thì phần trăm rơi xuống dưới, còn khi rộng
+                rãi hai số vẫn nằm cùng hàng như cũ. */}
+            <dd className="flex flex-wrap items-baseline gap-x-1">
               <Money
                 amount={Math.abs(p.unrealizedPnl)}
                 currency={VND}
@@ -256,103 +309,33 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
         )}
       </Card>
 
-      {/* Từng mã */}
-      <Card as="section">
-        <SectionTitle>Đang giữ ({p.positions.length} mã)</SectionTitle>
-        {p.positions.length === 0 ? (
-          <p className="mt-2 text-sm text-fg-muted">
-            Chưa giữ mã nào.
-            <Guide as="span"> Ghi lệnh mua để app tự lấy giá và tính lời/lỗ.</Guide>
-          </p>
-        ) : (
-          <ul className="mt-1 divide-y divide-border-subtle">
-            {p.positions.map((pos) => (
-              <li key={pos.symbol}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSymbolFilter((cur) => (cur === pos.symbol ? null : pos.symbol))
-                  }
-                  aria-pressed={symbolFilter === pos.symbol}
-                  className="w-full py-2 text-left"
-                >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-fg-primary">
-                        {pos.symbol}
-                        <span className="ml-1.5 text-2xs font-normal text-fg-muted">
-                          {share(pos.weight)}
-                        </span>
-                      </p>
-                      <p className="truncate text-2xs text-fg-muted">
-                        {nameBySymbol.get(pos.symbol) ?? '—'}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <Money amount={pos.value} currency={VND} className="text-sm font-semibold" />
-                      <p className="text-2xs">
-                        <Money
-                          amount={Math.abs(pos.pnl)}
-                          currency={VND}
-                          tone={pos.pnl >= 0 ? 'in' : 'out'}
-                          showSign
-                          className="text-2xs"
-                        />
-                        {pos.pnlPercent !== null && (
-                          <span className="ml-1 text-fg-muted">{pct(pos.pnlPercent)}</span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  {/* Thanh tỷ trọng: mắt so hai thanh nhanh hơn so hai con số phần trăm */}
-                  <div className="mt-1 h-1 overflow-hidden rounded-full bg-surface-sunken">
-                    <div
-                      className="h-full rounded-full bg-sky-500"
-                      style={{ width: `${Math.min(pos.weight * 100, 100)}%` }}
-                    />
-                  </div>
-                  <p className="mt-1 flex flex-wrap items-baseline gap-x-1 text-2xs text-fg-secondary">
-                    <span>{pos.quantity.toLocaleString('vi-VN')} cổ</span>
-                    <span>· vốn</span>
-                    <Money amount={pos.avgCost} currency={VND} className="text-2xs" />
-                    {pos.price === null ? (
-                      <span>· chưa có giá</span>
-                    ) : (
-                      <>
-                        <span>· nay</span>
-                        <Money amount={pos.price} currency={VND} className="text-2xs" />
-                      </>
-                    )}
-                    {/* Chỉ nói tên tài khoản khi mã nằm ở NHIỀU nơi — một tài khoản thì
-                        câu đó đúng với mọi dòng, tức là không nói thêm được gì. */}
-                    {pos.accountNames.length > 1 && (
-                      <span>· {pos.accountNames.join(' + ')}</span>
-                    )}
-                  </p>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+      {/* Hiệu quả: năm con số + đường danh mục so với VN-Index */}
+      <InvestPerformanceSection
+        data={chartData}
+        hasAccounts={shown.length > 0}
+        marketValue={p.marketValue}
+        cashNegative={p.cash < 0}
+        hasTrades={trades.length > 0}
+      />
 
-        {/* KẾT LUẬN về tỷ trọng (21a). Đứng SAU danh sách vì nó nói về cả danh sách —
-            và đây là thứ duy nhất khối này thêm được so với mấy thanh tỷ trọng ở từng
-            dòng: mắt so được hai thanh, nhưng "một mã đang chiếm gần một nửa" thì phải
-            có ai đó nói ra.
+      {/* Cơ cấu danh mục: bảng đủ cột (desktop) / thẻ từng mã (điện thoại) */}
+      <InvestAllocationSection
+        table={bangCoCau}
+        nameBySymbol={nameBySymbol}
+        symbolFilter={symbolFilter}
+        onToggleSymbol={(sym) => setSymbolFilter((cur) => (cur === sym ? null : sym))}
+        concentration={tapTrung}
+        cashflows={dongTienGanMa}
+        allSymbols={moiMa}
+      />
 
-            KHÔNG bọc <Guide>: đây là câu phán về dữ liệu của chính người dùng, không
-            phải chữ để dạy — ẩn ở chế độ Gọn thì bốn thanh màu lại trở về im lặng như
-            trước. Ca 'single' vẫn in, vì im hẳn ở đó khiến người dùng tưởng khối này
-            hỏng khi mới mua mã đầu tiên. */}
-        {tapTrung && (
-          <p className="mt-2 border-t border-border-subtle pt-2 text-2xs text-fg-secondary">
-            {tapTrung.text}
-            {tapTrung.estimated && (
-              <EstimateMark reason="Có mã chưa có giá nên tỷ trọng đang tính một phần theo giá vốn." />
-            )}
-          </p>
-        )}
-      </Card>
+      <InvestWeightDonut
+        positions={bangCoCau.rows}
+        cash={p.cash + (p.walletCash ?? 0)}
+        industryBySymbol={nganhTheoMa}
+      />
+
+      <InvestRiskSection data={chartData} positions={bangCoCau.rows} />
 
       {/* Sổ lệnh */}
       <Card as="section">

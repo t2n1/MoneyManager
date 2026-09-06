@@ -215,7 +215,12 @@ export function InvestStocksTab({ accountId, onPickAccount }: Props) {
           </div>
           <div>
             <dt className="text-fg-muted">Lời/lỗ chưa bán</dt>
-            <dd className="flex items-baseline gap-1">
+            {/* `flex-wrap` chứ không `flex` trơn: ô này là ô DUY NHẤT trong lưới có HAI
+                con số cạnh nhau (số tiền + phần trăm), nên ở 375px với cỡ chữ 1,25× nó
+                đòi 192px trong cột 150px và tràn đè lên ô "Lời/lỗ đã bán" bên cạnh — đo
+                thật trong app. Cho xuống dòng thì phần trăm rơi xuống dưới, còn khi rộng
+                rãi hai số vẫn nằm cùng hàng như cũ. */}
+            <dd className="flex flex-wrap items-baseline gap-x-1">
               <Money
                 amount={Math.abs(p.unrealizedPnl)}
                 currency={VND}

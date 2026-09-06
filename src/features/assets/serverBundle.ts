@@ -15,6 +15,11 @@ export {
 } from './holdings'
 export type { Holding, HoldingsResult, PortfolioValue, SessionPrices, Trade } from './holdings'
 
+// Đọc dchart + quy đổi thang (migration 0061). Nằm ở src/ vì đây LÀ phép tính: dchart trả
+// giá cổ phiếu bằng nghìn đồng và chỉ số bằng điểm hai số lẻ, trên cùng một hình dạng JSON.
+export { DCHART_INDEX_SCALE, DCHART_STOCK_SCALE, parseDchart, unixDay } from './dchart'
+export type { DchartBar } from './dchart'
+
 // Ngày tháng: bắt buộc đi qua đây, không tự cộng trừ ngày ở edge function.
 export { toISODate } from '../../lib/dates'
 

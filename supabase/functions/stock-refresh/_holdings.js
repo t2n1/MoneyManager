@@ -82,6 +82,30 @@ function portfolioValue(holdings, priceBySymbol, cash) {
   return { marketValue, stockValue, cash, missingPrices };
 }
 
+// src/features/assets/dchart.ts
+var DCHART_STOCK_SCALE = 1e3;
+var DCHART_INDEX_SCALE = 100;
+function unixDay(iso) {
+  return Math.floor(Date.parse(`${iso}T00:00:00Z`) / 1e3);
+}
+function parseDchart(json, scale) {
+  if (typeof json !== "object" || json === null) return [];
+  const o = json;
+  if (o.s !== "ok" || !Array.isArray(o.t) || !Array.isArray(o.c)) return [];
+  const theoNgay = /* @__PURE__ */ new Map();
+  const n = Math.min(o.t.length, o.c.length);
+  for (let i = 0; i < n; i++) {
+    const ts = o.t[i];
+    const gia = o.c[i];
+    if (typeof ts !== "number" || !Number.isFinite(ts)) continue;
+    if (typeof gia !== "number" || !Number.isFinite(gia) || gia <= 0) continue;
+    const close = Math.round(gia * scale);
+    if (close <= 0) continue;
+    theoNgay.set(new Date(ts * 1e3).toISOString().slice(0, 10), close);
+  }
+  return [...theoNgay].map(([trading_date, close]) => ({ trading_date, close })).sort((a, b) => a.trading_date.localeCompare(b.trading_date));
+}
+
 // src/lib/dates.ts
 var pad = (n) => String(n).padStart(2, "0");
 function toISODate(d) {
@@ -495,10 +519,14 @@ var HOSE_SYMBOLS = [
   ["YEG", "C\xF4ng ty C\u1ED5 ph\u1EA7n T\u1EADp \u0111o\xE0n Yeah1"]
 ];
 export {
+  DCHART_INDEX_SCALE,
+  DCHART_STOCK_SCALE,
   HOSE_SYMBOLS,
   brokerCash,
   holdingsFromTrades,
+  parseDchart,
   portfolioValue,
   sessionPrices,
-  toISODate
+  toISODate,
+  unixDay
 };

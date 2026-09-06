@@ -5,6 +5,7 @@ import type { TransactionRow } from '../../types/database.types'
 import { formatCompact } from '../../lib/money'
 import {
   axisCeiling,
+  budgetPerDay,
   dailySpendSeries,
   daysWorthAsking,
   labelThreshold,
@@ -211,6 +212,24 @@ describe('dailySpendSeries — mấy khoản lớn nhất trong ngày', () => {
 
 /** Chuỗi ngày trần cho ba hàm hình học — không cần dựng giao dịch để thử một phép clamp. */
 const day = (date: string, total: number): DaySpend => ({ date, total, top: [] })
+
+describe('budgetPerDay — đường hạn mức của biểu đồ ngày', () => {
+  it('chia đều tổng hạn mức cho số ngày trong kỳ', () => {
+    // Số thật tháng 9/2026: tổng hạn mức ¥280.448 (đã gồm phần dồn từ tháng 8), kỳ 30 ngày.
+    expect(budgetPerDay(280_448, 30)).toBe(9_348)
+  })
+
+  it('chưa đặt hạn mức nào thì null, KHÔNG phải 0', () => {
+    // 0 vẽ ra một đường nằm trùng trục 0 — đọc thành "hạn mức bằng không", trong khi
+    // sự thật là "chưa đặt". null là tín hiệu ĐỪNG VẼ.
+    expect(budgetPerDay(0, 30)).toBeNull()
+    expect(budgetPerDay(-1, 30)).toBeNull()
+  })
+
+  it('không ngày nào thì null, không chia cho 0', () => {
+    expect(budgetPerDay(280_448, 0)).toBeNull()
+  })
+})
 
 describe('axisCeiling — cắt trục (B42)', () => {
   it('MỘT ngày dị thường thì mức cắt bám ngày CAO THỨ HAI', () => {

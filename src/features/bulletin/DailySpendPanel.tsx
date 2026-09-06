@@ -32,6 +32,7 @@ import type { PeriodCompare } from '../reports/periodCompare'
 import { soVoiCungKy, type CumulativeCompare } from '../reports/cumulativeCompare'
 import {
   axisCeiling,
+  budgetPerDay,
   dayLabel,
   daysWorthAsking,
   labelThreshold,
@@ -137,6 +138,16 @@ interface Props {
   series: DailySpendSeries
   /** Tổng chi khi KHÔNG lọc. Chỉ để in cạnh số đã lọc, không dùng để tính gì (B46.2). */
   fullTotal: number
+  /**
+   * Tổng hạn mức của kỳ đang xem (`report.totalBudgeted`) — nguồn của đường hạn mức.
+   * 0 = chưa đặt hạn mức nào, hoặc ngân sách chưa tải xong → không vẽ đường.
+   *
+   * Nhận TỔNG chứ không nhận số ¥/ngày đã chia sẵn: mẫu số phải là `days.length`, tức
+   * đúng số cột mà thẻ này vẽ. Chia ở ngoài rồi truyền vào là mở đường cho một mẫu số
+   * thứ hai (số ngày của kỳ lương, số ngày đã qua…) và lúc đó đường không còn khớp với
+   * trục nó đang nằm trên.
+   */
+  monthBudget: number
   cells: DayTagCells
   tagLines: readonly TagBudgetLine[]
   /** So với cùng số ngày của tháng trước (B47.3). null = không có tháng trước để so. */
@@ -616,6 +627,7 @@ export function DailySpendPanel({
   onPickMonth,
   series,
   fullTotal,
+  monthBudget,
   cells,
   tagLines,
   compare,
@@ -660,6 +672,18 @@ export function DailySpendPanel({
   // dùng vừa tạo ra và đang đi tìm.
   const lastWithData = days.reduce((k, d, i) => (d.date <= cutoffISO && d.total !== 0 ? i : k), -1)
   const filtered = scope === 'flex'
+  // Đường hạn mức. CHỈ ở phạm vi "Tất cả", và đó là luật cùng họ với B46.2: `totalBudgeted`
+  // là tổng trần của MỌI danh mục, trong đó có tiền nhà. Bật "Bỏ cố định" là cột tụt đi cả
+  // trăm nghìn yên trong khi đường đứng yên — một đường nằm cao vượt mọi cột, đọc ra "tháng
+  // nào cũng dư dả". Trần của riêng phần linh hoạt thì phải cộng lại từ từng danh mục, tức
+  // dựng một con số hạn mức THỨ HAI cạnh con số mà trang Ngân sách đang nói — đúng thứ mà
+  // chú thích `useBudgetReport` ở BulletinPage cấm.
+  const perDay = filtered ? null : budgetPerDay(monthBudget, days.length)
+  // Vẽ được hay không là chuyện khác với NÓI được hay không: hạn mức nằm trên mức cắt của
+  // trục (tháng đều đều, trần rộng) thì đường sẽ dính vào mép trên và đè nhãn mức cắt —
+  // lúc đó bỏ HÌNH, giữ CHỮ. Cùng thứ tự ưu tiên đã ghi ở đầu file: kết luận nói bằng chữ,
+  // hình chỉ là phần thêm.
+  const perDayFits = perDay !== null && ceiling > 0 && perDay <= ceiling
 
   const pctOf = (v: number) => (ceiling > 0 ? Math.min(Math.abs(v) / ceiling, 1) : 0)
 
@@ -769,6 +793,19 @@ export function DailySpendPanel({
                 {' · '}ngày thường <Money amount={typical} currency={base} approx={approx} />
               </span>
             )}
+            {/* Hạn mức mỗi ngày. Màu vàng cảnh báo TRÙNG với màu đường trên biểu đồ, và đó là
+                thứ duy nhất nối chữ với hình: hai đường nét đứt cạnh nhau (xám = ngày thường,
+                vàng = hạn mức) mà không có mã màu thì người đọc phải đoán đường nào là đường
+                nào. Không thêm nhãn số ở trục tung cho nó: trục đã có ba nhãn (mức cắt · ngày
+                thường · 0), và hạn mức thường rơi sát ngày thường — hai số mono chồng nhau
+                đọc ra như lỗi vẽ. Chữ ở đây không bao giờ chồng lên gì.
+                In cả khi đường không vẽ được (`perDayFits` sai): con số vẫn đúng và vẫn đáng
+                đọc, chỉ là trục không đủ chỗ cho nó. */}
+            {perDay !== null && (
+              <span className="font-mono text-2xs text-fg-warn">
+                {' · '}hạn mức <Money amount={perDay} currency={base} approx={approx} />/ngày
+              </span>
+            )}
             {future.length > 0 && typical > 0 && (
               // "theo nhịp" chứ không "dự báo": trung vị KHÔNG biết khoản định kỳ cuối
               // tháng — phần cam kết là việc của khối Ngân sách. Không nói rõ cách tính
@@ -838,6 +875,16 @@ export function DailySpendPanel({
               </div>
 
               <div className="relative">
+                {/* Đứng TRƯỚC đường trung vị trong DOM: hai đường sát nhau thì đường sau vẽ
+                    lên trên, và cái phải thắng là trung vị — nó là số của chính người dùng,
+                    hạn mức chỉ là mốc đối chiếu. */}
+                {perDayFits && (
+                  <span
+                    className="absolute inset-x-0 border-t border-dashed border-fg-warn"
+                    style={{ bottom: `calc(${NEG_PCT}% + ${pctOf(perDay) * POS_PCT}%)` }}
+                    aria-hidden
+                  />
+                )}
                 {typical > 0 && (
                   <span
                     className="absolute inset-x-0 border-t border-dashed border-border-strong"

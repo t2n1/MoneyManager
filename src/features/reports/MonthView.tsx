@@ -104,6 +104,8 @@ import {
   type MoreItem,
 } from './MonthFlowCards'
 import { MonthlyBarsCard } from './MonthlyBarsCard'
+import { groupSlicesByParent } from './sankey'
+import { SankeyCard } from './SankeyCard'
 import { Section, SectionIndex, type IndexItem } from './SectionIndex'
 import { SpendClassificationCard } from './SpendClassificationCard'
 import { SpendSizeCard } from './SpendSizeCard'
@@ -224,6 +226,22 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
     () => incomeSplit(monthTxs, sums.expense, currencyOf, base, r),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [monthTxs, sums.expense, accounts, base, rates],
+  )
+  // Sơ đồ dòng tiền: cùng ba đường với OutflowTiersCard, thêm hai đầu — nguồn thu ở
+  // trái, nhóm chi ở phải. Dùng ĐÚNG `chiCoPhanChuaGhi` như thẻ ba đường để hai hình
+  // cạnh nhau không nói hai con số chi khác nhau.
+  const incomeByCategory = useMemo(
+    () => categoryBreakdown(monthTxs, 'income', currencyOf, base, r, transferIds),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [monthTxs, accounts, base, rates, transferIds],
+  )
+  const sankeyIncome = useMemo(
+    () => groupSlicesByParent(incomeByCategory.slices, categories),
+    [incomeByCategory, categories],
+  )
+  const sankeyGroups = useMemo(
+    () => groupSlicesByParent(breakdown.slices, categories),
+    [breakdown, categories],
   )
 
   // ---------------------------------------------------------------- khối 02: bảng
@@ -565,6 +583,18 @@ export function MonthView({ monthKey }: { monthKey: MonthKey }) {
               income={sums.income}
               base={base}
               approx={sums.hasForeign}
+            />
+            {/* Đặt NGAY SAU thẻ ba đường, không thay nó: thẻ kia là câu kết luận đọc
+                được trong hai giây, còn sơ đồ là chỗ soi tiếp khi muốn biết vì sao. */}
+            <SankeyCard
+              base={base}
+              approx={sums.hasForeign || chuaGhi.hasMissingRate}
+              income={sums.income}
+              incomeSlices={sankeyIncome}
+              expense={chiCoPhanChuaGhi}
+              expenseGroups={sankeyGroups}
+              chuaGhi={Math.max(0, chuaGhi.net)}
+              transfer={sums.transfer}
             />
             {/* Thu định kỳ vs một lần. ẨN khi chưa khoản thu nào gắn quy tắc định kỳ —
                 lúc đó mọi khoản thu rơi hết vào cột "một lần" và khối này chỉ nói lại tổng

@@ -964,6 +964,26 @@ export function useUpdateCategory() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: CategoryPatch }) =>
       repo.updateCategory(id, patch),
+    // Ghi trước vào cache. Cần cho kéo danh mục con sang cha khác: không có bước này
+    // thì con bật về cha cũ một nhịp rồi mới sang cha mới. Trộn nông là đúng vì
+    // `repo.updateCategory` đưa thẳng `patch` vào `.update()` — khoá của patch CHÍNH LÀ
+    // tên cột, nên máy chủ cũng sẽ trộn y hệt. Xem `optimisticOrder` về lý do đồng bộ.
+    onMutate: ({ id, patch }: { id: string; patch: CategoryPatch }) => {
+      const prev = qc.getQueryData<CategoryRow[]>(['categories'])
+      if (prev)
+        qc.setQueryData<CategoryRow[]>(
+          ['categories'],
+          prev.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+        )
+      return { prev }
+    },
+    onError: (
+      _e: unknown,
+      _v: { id: string; patch: CategoryPatch },
+      ctx: { prev: CategoryRow[] | undefined } | undefined,
+    ) => {
+      if (ctx?.prev) qc.setQueryData(['categories'], ctx.prev)
+    },
     onSettled: () => qc.invalidateQueries({ queryKey: ['categories'] }),
   })
 }

@@ -33,10 +33,11 @@
 import {
   useMemo,
   useRef,
+  useLayoutEffect,
   useState,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
+import { contentTop, useDragPointer } from '../../hooks/useDragPointer'
 import { Guide } from '../../components/Guide'
 import { Archive, ChevronDown, ChevronRight, ChevronUp, GripVertical, Plus } from 'lucide-react'
 import type { NewCategory } from '../../data'
@@ -366,7 +367,16 @@ export function CategoriesPage() {
   const rootRef = useRef<HTMLDivElement>(null)
   const childRowRefs = useRef(new Map<string, HTMLElement>())
   const zoneRefs = useRef(new Map<string, HTMLElement>())
-  const dragPointer = useRef<number | null>(null)
+  // Vị trí NGHỈ của từng dòng con, quy về hệ nội dung của `rootRef` (xem `contentTop`).
+  // Mốc chèn đọc từ đây chứ không đo lại lúc kéo: đo giữa lúc các dòng đang trôi thì
+  // trung điểm nhấp nhô theo hiệu ứng và danh sách rung qua rung lại giữa hai vị trí.
+  const childRest = useRef(new Map<string, { top: number; mid: number }>())
+  // Điểm cầm: con trỏ và vị trí nghỉ của dòng, đều lúc vừa nhấc lên.
+  const grabChild = useRef<{ y: number; top: number } | null>(null)
+  const atY = useRef(0)
+  // Một lượt bố cục nữa SAU khi thả, để dòng vừa cầm trôi về chỗ thay vì rơi phịch.
+  const settle = useRef(false)
+  const dragGen = useRef(0)
   const [dragChild, setDragChild] = useState<string | null>(null)
   const [childDropAt, setChildDropAt] = useState<{ parent: string; index: number } | null>(null)
 
@@ -393,89 +403,161 @@ export function CategoriesPage() {
     return without
   }
 
-  function onChildPointerDown(id: string, e: ReactPointerEvent) {
-    if (e.pointerType === 'mouse' && e.button !== 0) return
-    e.preventDefault()
-    const pid = parentOfChild(id)
-    if (!pid) return
-    rootRef.current?.setPointerCapture(e.pointerId)
-    dragPointer.current = e.pointerId
-    const idx = childrenOf(pid).findIndex((c) => c.id === id)
-    setDragChild(id)
-    setChildDropAt({ parent: pid, index: Math.max(0, idx) })
+  /** Dán lại thế bám ngón tay cho dòng đang cầm. Ghi thẳng DOM, không qua React. */
+  function followChild() {
+    const root = rootRef.current
+    const g = grabChild.current
+    if (!root || !g || dragChild == null) return
+    const el = childRowRefs.current.get(dragChild)
+    const slot = childRest.current.get(dragChild)
+    if (!el || !slot) return
+    // Trừ đi phần ô đã tự dịch: dòng đổi chỗ thì ô của nó cũng đi, không trừ ra thì
+    // mỗi lần đổi chỗ dòng lại nhảy thêm một khoảng bằng chiều cao một dòng.
+    el.style.transition = 'none'
+    el.style.transform = `translateY(${atY.current - contentTop(root) - g.y - (slot.top - g.top)}px)`
   }
 
-  function onChildPointerMove(e: ReactPointerEvent) {
-    if (dragChild == null || e.pointerId !== dragPointer.current) return
-    const x = e.clientX
-    const y = e.clientY
-    let target: string | null = null
-    for (const [pid, el] of zoneRefs.current) {
+  /** Đo lại vị trí nghỉ của mọi dòng con. Gọi trước khi đo là phải gỡ hết transform. */
+  function measureChildren(root: HTMLElement) {
+    const base = contentTop(root)
+    const rest = new Map<string, { top: number; mid: number }>()
+    for (const [id, el] of childRowRefs.current) {
       const r = el.getBoundingClientRect()
-      if (y >= r.top && y <= r.bottom && x >= r.left && x <= r.right) {
-        target = pid
-        break
-      }
+      const top = r.top - base
+      rest.set(id, { top, mid: top + r.height / 2 })
     }
-    if (target == null) return // ngoài mọi cha → giữ xem trước cũ
-    // Kéo tới một cha đang THU GỌN thì mở nó ra: không mở thì hàng đang kéo biến mất
-    // khỏi màn (đã rời cha cũ, mà cha mới thì đang đóng) và người kéo mất dấu.
-    if (!expanded.has(target)) {
-      const cha = target
-      setExpanded((prev) => (prev.has(cha) ? prev : new Set(prev).add(cha)))
-    }
-    const rowIds = displayChildIds(target).filter((id) => id !== dragChild)
-    let index = rowIds.length
-    for (let i = 0; i < rowIds.length; i++) {
-      const el = childRowRefs.current.get(rowIds[i])
-      if (!el) continue
-      const r = el.getBoundingClientRect()
-      if (y < r.top + r.height / 2) {
-        index = i
-        break
-      }
-    }
-    setChildDropAt((prev) =>
-      prev && prev.parent === target && prev.index === index ? prev : { parent: target, index },
-    )
+    childRest.current = rest
+    return base
   }
 
-  function onChildPointerEnd(e: ReactPointerEvent) {
-    if (dragChild == null) return
-    if (dragPointer.current != null && e.pointerId !== dragPointer.current) return
-    const id = dragChild
-    const at = childDropAt
-    setDragChild(null)
-    setChildDropAt(null)
-    dragPointer.current = null
-    if (!at) return
-    const src = parentOfChild(id)
-    if (!src) return
+  // Chỉ chạy khi đang kéo (và đúng một lượt nữa sau khi thả): trang này render lại
+  // theo nhiều thứ khác, đo lại mọi dòng ở mỗi lần render là bắt trình duyệt tính bố
+  // cục hai lượt không vì gì.
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+    if (dragChild == null && !settle.current) return
+    settle.current = false
+    const gen = ++dragGen.current
 
-    if (at.parent === src) {
-      // Sắp lại trong cùng một cha.
-      const cur = childrenOf(src).map((c) => c.id)
-      const without = cur.filter((x) => x !== id)
-      const j = Math.min(at.index, without.length)
-      const next = [...without.slice(0, j), id, ...without.slice(j)]
-      if (next.some((x, k) => x !== cur[k])) {
-        commitOrder(parents, (pid) => (pid === src ? rowsFromIds(next) : childrenOf(pid)))
-      }
-    } else {
-      // Chuyển sang cha khác: đổi parent_id và chèn vào đúng vị trí ở cha đích.
-      const dstIds = childrenOf(at.parent)
-        .map((c) => c.id)
-        .filter((x) => x !== id)
-      const j = Math.min(at.index, dstIds.length)
-      const nextDst = [...dstIds.slice(0, j), id, ...dstIds.slice(j)]
-      update.mutate({ id, patch: { parent_id: at.parent } })
-      commitOrder(parents, (pid) => {
-        if (pid === src) return childrenOf(src).filter((c) => c.id !== id)
-        if (pid === at.parent) return rowsFromIds(nextDst)
-        return childrenOf(pid)
+    // Chỗ mắt ĐANG THẤY — tính cả hiệu ứng còn chạy dở. FLIP từ đây chứ không từ vị
+    // trí nghỉ cũ: dòng bị đổi chỗ lần nữa giữa chừng sẽ đi tiếp từ chỗ nó đang ở.
+    const seen = new Map<string, number>()
+    for (const [id, el] of childRowRefs.current) seen.set(id, el.getBoundingClientRect().top)
+    for (const [, el] of childRowRefs.current) {
+      el.style.transition = 'none'
+      el.style.transform = ''
+    }
+    const base = measureChildren(root)
+
+    for (const [id, el] of childRowRefs.current) {
+      if (id === dragChild) continue
+      const from = seen.get(id)
+      const to = childRest.current.get(id)
+      if (from === undefined || !to || Math.abs(from - (to.top + base)) < 0.5) continue
+      el.style.transform = `translateY(${from - (to.top + base)}px)`
+      requestAnimationFrame(() => {
+        if (dragGen.current !== gen) return
+        el.style.transition = 'transform var(--motion-drag) var(--ease-out)'
+        el.style.transform = ''
       })
     }
-  }
+    // Vòng lặp trên vừa xoá thế bám ngón tay của dòng đang cầm; dán lại ngay trong
+    // cùng một lượt bố cục nên mắt không kịp thấy nó nhấp nháy về ô.
+    if (dragChild != null) followChild()
+  })
+
+  const childDrag = useDragPointer<string>({
+    withinRef: rootRef,
+    onLift(id, _x, y) {
+      const root = rootRef.current
+      const pid = parentOfChild(id)
+      if (!root || !pid) return
+      // Đo lại tại chỗ: có thể vừa thả lượt trước và hiệu ứng trôi về còn đang chạy.
+      for (const [, el] of childRowRefs.current) {
+        el.style.transition = 'none'
+        el.style.transform = ''
+      }
+      const base = measureChildren(root)
+      atY.current = y
+      grabChild.current = { y: y - base, top: childRest.current.get(id)?.top ?? 0 }
+      const idx = childrenOf(pid).findIndex((c) => c.id === id)
+      setDragChild(id)
+      setChildDropAt({ parent: pid, index: Math.max(0, idx) })
+    },
+    onMove(x, y) {
+      const root = rootRef.current
+      if (!root || dragChild == null) return
+      atY.current = y
+      followChild()
+      let target: string | null = null
+      for (const [pid, el] of zoneRefs.current) {
+        // Vùng của cha không bị transform (chỉ các DÒNG CON bị), đo trực tiếp vẫn đúng.
+        const r = el.getBoundingClientRect()
+        if (y >= r.top && y <= r.bottom && x >= r.left && x <= r.right) {
+          target = pid
+          break
+        }
+      }
+      if (target == null) return // ngoài mọi cha → giữ xem trước cũ
+      // Kéo tới một cha đang THU GỌN thì mở nó ra: không mở thì hàng đang kéo biến mất
+      // khỏi màn (đã rời cha cũ, mà cha mới thì đang đóng) và người kéo mất dấu.
+      if (!expanded.has(target)) {
+        const cha = target
+        setExpanded((prev) => (prev.has(cha) ? prev : new Set(prev).add(cha)))
+      }
+      const rowIds = displayChildIds(target).filter((id) => id !== dragChild)
+      const py = y - contentTop(root)
+      let index = rowIds.length
+      for (let i = 0; i < rowIds.length; i++) {
+        const m = childRest.current.get(rowIds[i])
+        if (!m) continue
+        if (py < m.mid) {
+          index = i
+          break
+        }
+      }
+      setChildDropAt((prev) =>
+        prev && prev.parent === target && prev.index === index ? prev : { parent: target, index },
+      )
+    },
+    onDrop(lifted) {
+      grabChild.current = null
+      if (!lifted || dragChild == null) return
+      const id = dragChild
+      const at = childDropAt
+      settle.current = true
+      setDragChild(null)
+      setChildDropAt(null)
+      if (!at) return
+      const src = parentOfChild(id)
+      if (!src) return
+
+      if (at.parent === src) {
+        // Sắp lại trong cùng một cha.
+        const cur = childrenOf(src).map((c) => c.id)
+        const without = cur.filter((x) => x !== id)
+        const j = Math.min(at.index, without.length)
+        const next = [...without.slice(0, j), id, ...without.slice(j)]
+        if (next.some((x, k) => x !== cur[k])) {
+          commitOrder(parents, (pid) => (pid === src ? rowsFromIds(next) : childrenOf(pid)))
+        }
+      } else {
+        // Chuyển sang cha khác: đổi parent_id và chèn vào đúng vị trí ở cha đích.
+        const dstIds = childrenOf(at.parent)
+          .map((c) => c.id)
+          .filter((x) => x !== id)
+        const j = Math.min(at.index, dstIds.length)
+        const nextDst = [...dstIds.slice(0, j), id, ...dstIds.slice(j)]
+        update.mutate({ id, patch: { parent_id: at.parent } })
+        commitOrder(parents, (pid) => {
+          if (pid === src) return childrenOf(src).filter((c) => c.id !== id)
+          if (pid === at.parent) return rowsFromIds(nextDst)
+          return childrenOf(pid)
+        })
+      }
+    },
+  })
 
   /** Lưu trữ: cha kéo theo tất cả con đang hoạt động (ẩn cả nhóm). */
   function archive(c: CategoryRow) {
@@ -639,12 +721,12 @@ export function CategoriesPage() {
                   key={cid}
                   ref={(el) => setChildRow(cid, el)}
                   className={`flex flex-wrap items-center gap-2 py-0.5 pr-3 pl-2 ${
-                    isDragging ? 'bg-accent-muted-bg shadow-md' : ''
+                    isDragging ? 'relative z-10 bg-accent-muted-bg shadow-md will-change-transform' : ''
                   }`}
                 >
                   <button
                     type="button"
-                    onPointerDown={(e) => onChildPointerDown(cid, e)}
+                    onPointerDown={(e) => childDrag.start(cid, e)}
                     style={{ touchAction: 'none' }}
                     className="inline-flex min-h-11 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-fg-muted active:cursor-grabbing"
                     aria-label={`Kéo để sắp thứ tự hoặc chuyển nhóm ${ch.name}`}
@@ -688,9 +770,7 @@ export function CategoriesPage() {
     <div
       ref={rootRef}
       className="max-w-4xl p-3 lg:p-6"
-      onPointerMove={onChildPointerMove}
-      onPointerUp={onChildPointerEnd}
-      onPointerCancel={onChildPointerEnd}
+      {...childDrag.surface}
     >
       <PageHeader
         back="/settings"

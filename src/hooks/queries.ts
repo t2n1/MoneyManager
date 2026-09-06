@@ -36,6 +36,8 @@ import {
   type TransactionPatch,
   type TxFilter,
 } from '../data'
+import { applyOrder } from '../data/sortOrder'
+import type { AccountRow, AssetGroupSettingRow, CategoryRow } from '../types/database.types'
 import { addMonths, getMonthRange, monthKeyString, toISODate, type MonthKey } from '../lib/dates'
 import { transferCategoryIds } from '../features/categories/kind'
 import { buildBudgetReport, carryFromPreviousMonth, type BudgetReport } from '../features/budgets/progress'
@@ -510,10 +512,41 @@ export function useUpdateAccount() {
   })
 }
 
+/**
+ * Cập nhật trước cho một lệnh sắp thứ tự: ghi thứ tự mới vào cache ngay, rồi mới gọi
+ * máy chủ; hỏng thì trả lại nguyên trạng.
+ *
+ * Vì sao cần: kéo–thả không có bước này thì lúc thả tay danh sách nhảy về thứ tự CŨ
+ * và đứng đó tới khi máy chủ trả lời (~0,1–0,4 giây) mới nhảy sang thứ tự mới. Chớp
+ * hai lần mỗi lần kéo, và mắt đọc ra là "app không nhận thao tác của mình".
+ *
+ * `onMutate` cố ý ĐỒNG BỘ, không `await cancelQueries`: kéo một tài khoản sang nhóm
+ * khác bắn hai lệnh liên tiếp cùng chạm `['accounts']` (đổi nhóm rồi sắp lại), mà
+ * chờ ở đây thì cả hai cùng chụp ảnh cache trước khi ai kịp ghi — lệnh sau đè mất
+ * lệnh trước. `onSettled` vẫn nạp lại nên không lệch với máy chủ.
+ */
+function optimisticOrder<T extends { sort_order: number }>(
+  qc: ReturnType<typeof useQueryClient>,
+  queryKey: string,
+  keyOf: (row: T) => string,
+) {
+  return {
+    onMutate: (ordered: string[]) => {
+      const prev = qc.getQueryData<T[]>([queryKey])
+      if (prev) qc.setQueryData([queryKey], applyOrder(prev, ordered, keyOf))
+      return { prev }
+    },
+    onError: (_e: unknown, _v: string[], ctx: { prev: T[] | undefined } | undefined) => {
+      if (ctx?.prev) qc.setQueryData([queryKey], ctx.prev)
+    },
+  }
+}
+
 export function useReorderAccounts() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (orderedIds: string[]) => repo.reorderAccounts(orderedIds),
+    ...optimisticOrder<AccountRow>(qc, 'accounts', (a) => a.id),
     onSettled: () => invalidateAccounts(qc),
   })
 }
@@ -939,6 +972,7 @@ export function useReorderCategories() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (orderedIds: string[]) => repo.reorderCategories(orderedIds),
+    ...optimisticOrder<CategoryRow>(qc, 'categories', (c) => c.id),
     onSettled: () => qc.invalidateQueries({ queryKey: ['categories'] }),
   })
 }
@@ -1001,7 +1035,9 @@ export function useDeleteAssetGroup() {
 export function useReorderAssetGroups() {
   const qc = useQueryClient()
   return useMutation({
+    // Nhóm tài sản khoá theo TÊN chứ theo id — bảng asset_group_settings không có id.
     mutationFn: (orderedNames: string[]) => repo.reorderAssetGroups(orderedNames),
+    ...optimisticOrder<AssetGroupSettingRow>(qc, 'assetGroupSettings', (g) => g.name),
     onSettled: () => invalidateAssetGroups(qc),
   })
 }
@@ -1011,6 +1047,26 @@ export function useAssignAccountsToGroup() {
   return useMutation({
     mutationFn: ({ accountIds, group }: { accountIds: string[]; group: string | null }) =>
       repo.assignAccountsToGroup(accountIds, group),
+    // Kéo một thẻ sang nhóm khác: không ghi trước thì thẻ bật về nhóm cũ một nhịp rồi
+    // mới sang nhóm mới. Xem `optimisticOrder` về lý do không chờ `cancelQueries`.
+    onMutate: ({ accountIds, group }: { accountIds: string[]; group: string | null }) => {
+      const prev = qc.getQueryData<AccountRow[]>(['accounts'])
+      if (prev) {
+        const moving = new Set(accountIds)
+        qc.setQueryData<AccountRow[]>(
+          ['accounts'],
+          prev.map((a) => (moving.has(a.id) ? { ...a, asset_group: group } : a)),
+        )
+      }
+      return { prev }
+    },
+    onError: (
+      _e: unknown,
+      _v: { accountIds: string[]; group: string | null },
+      ctx: { prev: AccountRow[] | undefined } | undefined,
+    ) => {
+      if (ctx?.prev) qc.setQueryData(['accounts'], ctx.prev)
+    },
     onSettled: () => invalidateAssetGroups(qc),
   })
 }

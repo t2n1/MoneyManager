@@ -21,7 +21,8 @@
 // Và một chỗ thêm vào, đúng nghĩa "không còn lỗ đen": bảng tài khoản nay có cột TỶ TRỌNG
 // vẽ thành thanh thật cạnh con số %, thay vì một chữ "83%" trơ mà mắt không so được với
 // "16%" ở dòng dưới.
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { contentTop, useDragPointer } from '../../hooks/useDragPointer'
 import { Guide } from '../../components/Guide'
 import { Link } from 'react-router-dom'
 import { ArrowUpDown, ChevronRight, GripVertical } from 'lucide-react'
@@ -211,9 +212,18 @@ export function AssetsNowView({ viewCur }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const rowRefs = useRef(new Map<string, HTMLElement>())
   const zoneRefs = useRef(new Map<string, HTMLElement>())
-  const dragPointer = useRef<number | null>(null)
   const [dragAcc, setDragAcc] = useState<string | null>(null)
   const [dropAt, setDropAt] = useState<{ group: string; index: number } | null>(null)
+  // Vị trí NGHỈ của từng dòng, quy về hệ nội dung của `rootRef` (xem `contentTop`).
+  // Mốc chèn đọc từ đây chứ không đo lại lúc kéo: đo giữa lúc các dòng đang trôi thì
+  // trung điểm nhấp nhô theo hiệu ứng và danh sách rung qua rung lại giữa hai vị trí.
+  const rowRest = useRef(new Map<string, { top: number; mid: number }>())
+  // Điểm cầm: con trỏ và vị trí nghỉ của dòng, đều lúc vừa nhấc lên.
+  const grabAcc = useRef<{ y: number; top: number } | null>(null)
+  const atY = useRef(0)
+  // Một lượt bố cục nữa SAU khi thả, để dòng vừa cầm trôi về chỗ thay vì rơi phịch.
+  const settle = useRef(false)
+  const dragGen = useRef(0)
 
   const accountById = useMemo(() => {
     const m = new Map<string, AssetAccount>()
@@ -283,73 +293,145 @@ export function AssetsNowView({ viewCur }: Props) {
     reorderAccounts.mutate([...globalIds, ...archivedIds])
   }
 
-  function onAccPointerDown(id: string, e: ReactPointerEvent) {
-    if (e.pointerType === 'mouse' && e.button !== 0) return
-    e.preventDefault()
-    rootRef.current?.setPointerCapture(e.pointerId)
-    dragPointer.current = e.pointerId
-    const gname = groupOf(id)
-    const idx = (displayGroups.find((g) => g.name === gname)?.accounts ?? []).findIndex(
-      (a) => a.id === id,
-    )
-    setDragAcc(id)
-    setDropAt({ group: gname, index: Math.max(0, idx) })
+  /** Dán lại thế bám ngón tay cho dòng đang cầm. Ghi thẳng DOM, không qua React. */
+  function followAcc() {
+    const root = rootRef.current
+    const g = grabAcc.current
+    if (!root || !g || dragAcc == null) return
+    const el = rowRefs.current.get(dragAcc)
+    const slot = rowRest.current.get(dragAcc)
+    if (!el || !slot) return
+    // Trừ đi phần ô đã tự dịch: dòng đổi chỗ thì ô của nó cũng đi, không trừ ra thì
+    // mỗi lần đổi chỗ dòng lại nhảy thêm một khoảng bằng chiều cao một dòng.
+    el.style.transition = 'none'
+    el.style.transform = `translateY(${atY.current - contentTop(root) - g.y - (slot.top - g.top)}px)`
   }
 
-  function onAccPointerMove(e: ReactPointerEvent) {
-    if (dragAcc == null || e.pointerId !== dragPointer.current) return
-    const x = e.clientX
-    const y = e.clientY
-    // Ở chế độ "Loại", không cho kéo xuyên nhóm → chỉ nhận vùng của nhóm nguồn.
-    const srcGroup = groupOf(dragAcc)
-    let targetGroup: string | null = null
-    for (const [name, el] of zoneRefs.current) {
-      if (!allowCross && name !== srcGroup) continue
+  /** Đo lại vị trí nghỉ của mọi dòng. Gọi trước khi đo là phải gỡ hết transform. */
+  function measureRows(root: HTMLElement) {
+    const base = contentTop(root)
+    const rest = new Map<string, { top: number; mid: number }>()
+    for (const [id, el] of rowRefs.current) {
       const r = el.getBoundingClientRect()
-      if (y >= r.top && y <= r.bottom && x >= r.left && x <= r.right) {
-        targetGroup = name
-        break
-      }
+      const top = r.top - base
+      rest.set(id, { top, mid: top + r.height / 2 })
     }
-    if (targetGroup == null) return
-    const rowIds = displayIdsOf(targetGroup).filter((id) => id !== dragAcc)
-    let index = rowIds.length
-    for (let i = 0; i < rowIds.length; i++) {
-      const el = rowRefs.current.get(rowIds[i])
-      if (!el) continue
-      const r = el.getBoundingClientRect()
-      if (y < r.top + r.height / 2) {
-        index = i
-        break
-      }
-    }
-    setDropAt((prev) =>
-      prev && prev.group === targetGroup && prev.index === index
-        ? prev
-        : { group: targetGroup, index },
-    )
+    rowRest.current = rest
+    return base
   }
 
-  function onAccPointerEnd(e: ReactPointerEvent) {
-    if (dragAcc == null) return
-    if (dragPointer.current != null && e.pointerId !== dragPointer.current) return
-    const id = dragAcc
-    const at = dropAt
-    setDragAcc(null)
-    setDropAt(null)
-    dragPointer.current = null
-    if (!at) return
-    const src = groupOf(id)
-    if (at.group === src) {
-      const cur = (displayGroups.find((g) => g.name === src)?.accounts ?? []).map((a) => a.id)
-      const without = cur.filter((x) => x !== id)
-      const j = Math.min(at.index, without.length)
-      const next = [...without.slice(0, j), id, ...without.slice(j)]
-      if (next.some((x, k) => x !== cur[k])) reorderAccountsInGroup(next)
-    } else if (allowCross) {
-      moveAccountToGroupAt(id, at.group, at.index)
+  // Chỉ chạy khi đang kéo (và đúng một lượt nữa sau khi thả): đây là trang nặng, đo
+  // lại mọi dòng ở mỗi lần render là bắt trình duyệt tính bố cục hai lượt không vì gì.
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    if (!root || !dragEnabled) return
+    if (dragAcc == null && !settle.current) return
+    settle.current = false
+    const gen = ++dragGen.current
+
+    // Chỗ mắt ĐANG THẤY — tính cả hiệu ứng còn chạy dở. FLIP từ đây chứ không từ vị
+    // trí nghỉ cũ: dòng bị đổi chỗ lần nữa giữa chừng sẽ đi tiếp từ chỗ nó đang ở.
+    const seen = new Map<string, number>()
+    for (const [id, el] of rowRefs.current) seen.set(id, el.getBoundingClientRect().top)
+    for (const [, el] of rowRefs.current) {
+      el.style.transition = 'none'
+      el.style.transform = ''
     }
-  }
+    const base = measureRows(root)
+
+    for (const [id, el] of rowRefs.current) {
+      if (id === dragAcc) continue
+      const from = seen.get(id)
+      const to = rowRest.current.get(id)
+      if (from === undefined || !to || Math.abs(from - (to.top + base)) < 0.5) continue
+      el.style.transform = `translateY(${from - (to.top + base)}px)`
+      requestAnimationFrame(() => {
+        if (dragGen.current !== gen) return
+        el.style.transition = 'transform var(--motion-drag) var(--ease-out)'
+        el.style.transform = ''
+      })
+    }
+    // Vòng lặp trên vừa xoá thế bám ngón tay của dòng đang cầm; dán lại ngay trong
+    // cùng một lượt bố cục nên mắt không kịp thấy nó nhấp nháy về ô.
+    if (dragAcc != null) followAcc()
+  })
+
+  const accDrag = useDragPointer<string>({
+    withinRef: rootRef,
+    onLift(id, _x, y) {
+      const root = rootRef.current
+      if (!root) return
+      // Đo lại tại chỗ: có thể vừa thả lượt trước và hiệu ứng trôi về còn đang chạy.
+      for (const [, el] of rowRefs.current) {
+        el.style.transition = 'none'
+        el.style.transform = ''
+      }
+      const base = measureRows(root)
+      atY.current = y
+      grabAcc.current = { y: y - base, top: rowRest.current.get(id)?.top ?? 0 }
+      const gname = groupOf(id)
+      const idx = (displayGroups.find((g) => g.name === gname)?.accounts ?? []).findIndex(
+        (a) => a.id === id,
+      )
+      setDragAcc(id)
+      setDropAt({ group: gname, index: Math.max(0, idx) })
+    },
+    onMove(x, y) {
+      const root = rootRef.current
+      if (!root || dragAcc == null) return
+      atY.current = y
+      followAcc()
+      // Ở chế độ "Loại", không cho kéo xuyên nhóm → chỉ nhận vùng của nhóm nguồn.
+      const srcGroup = groupOf(dragAcc)
+      let targetGroup: string | null = null
+      for (const [name, el] of zoneRefs.current) {
+        if (!allowCross && name !== srcGroup) continue
+        // Vùng nhóm không bị transform (chỉ các DÒNG bị), nên đo trực tiếp vẫn đúng.
+        const r = el.getBoundingClientRect()
+        if (y >= r.top && y <= r.bottom && x >= r.left && x <= r.right) {
+          targetGroup = name
+          break
+        }
+      }
+      if (targetGroup == null) return
+      const rowIds = displayIdsOf(targetGroup).filter((id) => id !== dragAcc)
+      const py = y - contentTop(root)
+      let index = rowIds.length
+      for (let i = 0; i < rowIds.length; i++) {
+        const m = rowRest.current.get(rowIds[i])
+        if (!m) continue
+        if (py < m.mid) {
+          index = i
+          break
+        }
+      }
+      setDropAt((prev) =>
+        prev && prev.group === targetGroup && prev.index === index
+          ? prev
+          : { group: targetGroup, index },
+      )
+    },
+    onDrop(lifted) {
+      grabAcc.current = null
+      if (!lifted || dragAcc == null) return
+      const id = dragAcc
+      const at = dropAt
+      settle.current = true
+      setDragAcc(null)
+      setDropAt(null)
+      if (!at) return
+      const src = groupOf(id)
+      if (at.group === src) {
+        const cur = (displayGroups.find((g) => g.name === src)?.accounts ?? []).map((a) => a.id)
+        const without = cur.filter((x) => x !== id)
+        const j = Math.min(at.index, without.length)
+        const next = [...without.slice(0, j), id, ...without.slice(j)]
+        if (next.some((x, k) => x !== cur[k])) reorderAccountsInGroup(next)
+      } else if (allowCross) {
+        moveAccountToGroupAt(id, at.group, at.index)
+      }
+    },
+  })
 
   // Màu lát: gán theo thứ tự nhóm ĐANG HIỆN, để chấm màu ở bảng khớp lát trên vạch.
   const colorByName = useMemo(() => groupColorMap(displayGroups), [displayGroups])
@@ -425,9 +507,7 @@ export function AssetsNowView({ viewCur }: Props) {
     <div
       ref={rootRef}
       className="flex flex-col gap-3"
-      onPointerMove={onAccPointerMove}
-      onPointerUp={onAccPointerEnd}
-      onPointerCancel={onAccPointerEnd}
+      {...accDrag.surface}
     >
       {/* MỘT dòng cảnh báo thiếu tỷ giá cho cả tab. Trước đây câu này in HAI lần, gần
           như y hệt, ở hai độ cao khác nhau — người đọc lần thứ hai không biết nó có
@@ -680,14 +760,14 @@ export function AssetsNowView({ viewCur }: Props) {
                     // đầu nhóm đều `px-4`). Dưới lg lề vẫn do <Link> gánh như cũ, vì ở đó
                     // <Link> là phần tử đầu tiên của dòng khi chưa bật Sắp xếp.
                     className={`flex flex-col border-b border-border-subtle lg:pl-4 ${
-                      isDragging ? 'bg-accent-muted-bg' : ''
+                      isDragging ? 'relative z-10 bg-accent-muted-bg will-change-transform' : ''
                     }`}
                   >
                     <div className="flex items-center">
                       {dragEnabled && (
                         <button
                           type="button"
-                          onPointerDown={(e) => onAccPointerDown(id, e)}
+                          onPointerDown={(e) => accDrag.start(id, e)}
                           style={{ touchAction: 'none' }}
                           // Dưới lg: chỉ hiện trong chế độ Sắp xếp (17a — xem `sortMode`).
                           // Từ lg: luôn hiện, 36px trên màn 1440 không đáng kể.

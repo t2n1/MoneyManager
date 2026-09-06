@@ -26,7 +26,7 @@
 import { useLayoutEffect, useState, type MouseEvent, type TouchEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, Money, Num, SectionTitle, SegmentedControl, deltaTone, signedPct } from '../../components/ui'
-import { formatCompact, formatMoney, type CurrencyCode } from '../../lib/money'
+import { formatCompact, type CurrencyCode } from '../../lib/money'
 import type { CategoryRow } from '../../types/database.types'
 import type { PeriodCompare } from '../reports/periodCompare'
 import { soVoiCungKy, type CumulativeCompare } from '../reports/cumulativeCompare'
@@ -492,17 +492,21 @@ function YoyBlock({
           </span>
         )}
         {budgetHidden && (
-          // `title` mang CON SỐ + lý lẽ đầy đủ, dòng nhìn thấy chỉ mang kết luận và đường
-          // ra: một câu hai dòng về cấu trúc danh mục cha/lá không thuộc dòng kết luận của
-          // một biểu đồ. Con số đi qua `formatMoney` chứ không nội suy tay — hàm đó tự che
-          // thành ••• khi bật chế độ riêng tư, nên tooltip không làm thủng chế độ đó (title
-          // là attribute nên không dùng được <Money>; đây là ngoại lệ duy nhất của luật
-          // "mọi con số đi qua <Money>", và nó vẫn đi qua cùng một hàm định dạng).
+          // CON SỐ hiện thẳng trên màn, không nằm trong tooltip: `title` chỉ mở ra khi có
+          // CHUỘT, nên trên điện thoại một con số đặt ở đó là một con số không tồn tại.
+          // Tooltip ở lại nhưng chỉ giữ phần VÌ SAO — một câu hai dòng về cấu trúc danh mục
+          // cha/lá không thuộc dòng kết luận của một biểu đồ, mà cũng không đáng mất đi.
+          //
+          // `tone="muted"` chứ không neutral: đây là con số PHỤ trong một dòng meta, đúng ca
+          // mà tone đó tồn tại để phục vụ (xem TONE_CLASS ở Money.tsx). Và KHÔNG tô vàng —
+          // ở trạng thái này trên hình không có nét vàng nào, nên một chữ vàng là mã màu trỏ
+          // vào chỗ trống.
           <span
             className="font-mono text-2xs text-fg-muted"
-            title={`Hạn mức cả tháng ${formatMoney(monthBudget, base)} — gồm cả khoản cố định. Trần đặt ở danh mục cha, còn “cố định” đánh ở danh mục lá, nên một trần thường phủ cả tiền nhà (cố định) lẫn điện nước (biến đổi) — không tách ra được phần trần của riêng khoản linh hoạt. Bỏ lọc để xem đường hạn mức.`}
+            title="Trần này gồm cả khoản cố định. Trần đặt ở danh mục cha, còn “cố định” đánh ở danh mục lá, nên một trần thường phủ cả tiền nhà (cố định) lẫn điện nước (biến đổi) — không tách ra được phần trần của riêng khoản linh hoạt. Bỏ lọc để xem đường hạn mức."
           >
-            {' · '}hạn mức chỉ so được ở “Tất cả”
+            {' · '}hạn mức <Money amount={monthBudget} currency={base} tone="muted" approx={approx} />
+            {' — chỉ so được ở “Tất cả”'}
           </span>
         )}
       </p>

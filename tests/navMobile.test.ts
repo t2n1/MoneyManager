@@ -32,7 +32,7 @@ function navItems(): { to: string; onMobile: boolean }[] {
 describe('thanh tab mobile', () => {
   it('đọc được NAV_ITEMS từ nguồn', () => {
     // Regex mà trượt thì mọi phép thử dưới đây im lặng đúng. Chốt số mục trước.
-    expect(navItems()).toHaveLength(6)
+    expect(navItems()).toHaveLength(7)
   })
 
   it('đúng bốn tab', () => {
@@ -84,10 +84,10 @@ describe('thanh tab mobile', () => {
   })
 })
 
-// Rail desktop: SÁU nút cho sáu màn, không bảy. Từng có một <NavLink to="/"> bọc logo —
-// cùng đích với mục "Bản tin" ngay dưới nó — nên cột rail đếm ra bảy hình vẽ xếp dọc và
-// hai ô đầu đi cùng một chỗ. Canh bằng số <NavLink> trong nguồn: rail chỉ được có ĐÚNG
-// một, cái nằm trong vòng map NAV_ITEMS.
+// Thanh bên desktop: BẢY nút cho bảy màn, không tám. Từng có một <NavLink to="/"> bọc
+// logo — cùng đích với mục "Bản tin" ngay dưới nó — nên cột đếm ra một ô thừa và hai ô
+// đầu đi cùng một chỗ. Canh bằng số <NavLink> trong nguồn: thanh chỉ được có ĐÚNG một,
+// cái nằm trong vòng map NAV_ITEMS.
 describe('rail desktop', () => {
   // Bỏ chú thích trước khi đếm: chú thích trong AppRail.tsx CHÉP LẠI cách viết cũ
   // (`<NavLink to="/">` bọc logo) để người sau khỏi dựng lại nó — đếm cả chú thích thì

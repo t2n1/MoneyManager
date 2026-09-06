@@ -3,7 +3,7 @@
 //
 // Tách khỏi AppLayout vì từ bản 1a có ba chỗ đọc thay vì một. Ba bản chép tay của cùng
 // danh sách này là cách chắc chắn nhất để rail và thanh tab lệch nhau sau vài lượt sửa.
-import { ChartColumn, LayoutDashboard, NotebookText, Settings, Target, Wallet } from 'lucide-react'
+import { ChartColumn, LayoutDashboard, LineChart, NotebookText, Settings, Target, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export interface NavItem {
@@ -17,20 +17,23 @@ export interface NavItem {
 // Icon theo §2.7 của bản 1a. `ChartColumn` CHÍNH LÀ `BarChart3` mà tài liệu gọi tên —
 // lucide v1 đổi tên, cả hai còn xuất ra được, dùng tên mới cho khỏi lệ thuộc alias cũ.
 //
-// Sáu mục kể từ PR 4: Bản tin chiếm `/`, Sổ dời sang `/so`.
+// Bảy mục: Bản tin chiếm `/` (từ PR 4, Sổ dời sang `/so`), và Đầu tư vào bảng này khi
+// rail desktop có nhãn chữ — trước đó nó chỉ có lối vào từ trang Tài sản.
 //
 // `onMobile: false` là quyết định của §3 + bản vẽ 17a: thanh tab mobile của 1a có ĐÚNG
 // BỐN tab + nút "+", không phải sáu. Sáu tab ở 320px thì mỗi ô còn ~43px, hẹp hơn chữ
 // "Ngân sách" — nhãn bị cắt là mất luôn thứ duy nhất phân biệt các tab.
 //
-// Hai mục nhường chỗ, cùng một lý do: chúng là màn vào theo CHỦ ĐÍCH, không phải màn
+// Ba mục nhường chỗ, cùng một lý do: chúng là màn vào theo CHỦ ĐÍCH, không phải màn
 // liếc hằng ngày.
 //   Cài đặt — vài lần một tháng.
+//   Đầu tư — giá quỹ/cổ phiếu đổi theo ngày, không theo lần tiêu tiền.
 //   Báo cáo — màn đọc sâu. Bốn số đầu tháng, dòng tiền 8 tháng và khối ngân sách đã nằm
 //     sẵn trên Bản tin, nên cái Báo cáo thêm vào là phần PHÂN TÍCH, thứ người ta ngồi
 //     xuống mới xem. Bỏ Tài sản thay nó thì sai: số dư là thứ bị liếc trước khi tiêu.
-// Cả hai đều có nút riêng ở đầu Bản tin trên mobile (xem BulletinPage) — bỏ khỏi thanh
-// tab mà không mở lối khác thì trên mobile chúng biến mất hẳn.
+// Cả ba đều có nút riêng ở đầu Bản tin trên mobile (xem BulletinPage) — bỏ khỏi thanh
+// tab mà không mở lối khác thì trên mobile chúng biến mất hẳn. (Đầu tư còn một lối nữa
+// ở trang Tài sản, nhưng lối đó CÓ ĐIỀU KIỆN `hasPortfolio` nên không tính là lối vào.)
 //
 // tests/designSystem.test.ts canh đúng con số bốn: đây là ràng buộc bề rộng, không phải
 // sở thích, nên nó phải gãy khi có người thêm tab thứ năm.
@@ -39,6 +42,10 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/so', label: 'Sổ', Icon: NotebookText, onMobile: true },
   { to: '/budget', label: 'Ngân sách', Icon: Target, onMobile: true },
   { to: '/assets', label: 'Tài sản', Icon: Wallet, onMobile: true },
+  // `LineChart` cùng hình với nút vào Danh mục đầu tư trên trang Tài sản — một màn thì
+  // một hình, dù bấm vào từ hai chỗ. Đứng ngay sau Tài sản vì nó là lát cắt SÂU của
+  // cùng một câu hỏi ("tôi đang có gì"), không phải một khu riêng.
+  { to: '/invest', label: 'Đầu tư', Icon: LineChart, onMobile: false },
   { to: '/reports', label: 'Báo cáo', Icon: ChartColumn, onMobile: false },
   { to: '/settings', label: 'Cài đặt', Icon: Settings, onMobile: false },
 ]

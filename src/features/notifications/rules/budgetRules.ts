@@ -79,7 +79,10 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
           key: `budget-parent-over:${l.categoryId}`,
           kind: 'action',
           type: 'budget-parent-over',
-          severity: 'high',
+          // 'medium', không phải 'high' — xem ghi chú ở nhánh budget-over bên dưới.
+          // Hai nhánh này LOẠI TRỪ NHAU cho cùng một dòng ngân sách, nên chúng phải
+          // cùng mức: để lệch là cùng một sự việc lúc đỏ lúc vàng tuỳ mục có con hay không.
+          severity: 'medium',
           title: `Nhóm ${nameOf(l.categoryId)} vượt trần ${over}${blame}`,
           detail: usage,
           to: BUDGET_ROUTE,
@@ -89,7 +92,14 @@ export function budgetRules(input: NotificationInput): AppNotification[] {
           key: `budget-over:${l.categoryId}`,
           kind: 'action',
           type: 'budget-over',
-          severity: 'high',
+          // 'medium', KHÔNG phải 'high'. Tiền đã tiêu xong rồi — dòng này không còn
+          // đổi được gì của tháng này, nó chỉ ghi nhận. Mức 'high' để dành cho việc
+          // còn kịp làm gì đó: ví không đủ trả thẻ tuần sau, nợ quá hạn, ví đang âm.
+          //
+          // Cụ thể hơn: xếp nó ngang "mai bị trừ tiền thẻ" thì mục 6 (tiêu nhanh hơn
+          // nhịp, mức 'medium') — dòng DUY NHẤT của nhóm ngân sách đến lúc còn ghìm
+          // lại được — luôn bị đẩy xuống dưới chính cái dòng nói rằng đã quá muộn.
+          severity: 'medium',
           title: `${nameOf(l.categoryId)} đã vượt ngân sách ${over}`,
           detail: usage,
           to: BUDGET_ROUTE,

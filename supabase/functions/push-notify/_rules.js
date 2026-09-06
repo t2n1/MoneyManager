@@ -12,8 +12,14 @@ var NOTIFICATION_TYPES = [
   "debt-due-soon",
   "bill-due",
   "planned-due",
-  "budget-over",
+  // 'budget-pace' đứng TRƯỚC 'budget-over' — cố ý ngược thứ tự đánh số của spec.
+  // Cả bốn dòng ngân sách giờ cùng mức 'medium' (xem budgetRules.ts), nên thứ tự ở
+  // đây là thứ duy nhất còn quyết định dòng nào lên trước. Mục 6 là dòng DUY NHẤT
+  // của nhóm này đến lúc còn ghìm lại được ("mới qua 40% tháng đã dùng 78% hạn
+  // mức"); ba dòng còn lại đều nói về số tiền đã tiêu xong. Để mục 5 lên đầu là mỗi
+  // tháng người dùng đọc "đã quá muộn" trước khi đọc "vẫn còn kịp".
   "budget-pace",
+  "budget-over",
   "budget-parent-over",
   "tag-budget-over",
   "card-statement-day",
@@ -852,7 +858,10 @@ function budgetRules(input) {
           key: `budget-parent-over:${l.categoryId}`,
           kind: "action",
           type: "budget-parent-over",
-          severity: "high",
+          // 'medium', không phải 'high' — xem ghi chú ở nhánh budget-over bên dưới.
+          // Hai nhánh này LOẠI TRỪ NHAU cho cùng một dòng ngân sách, nên chúng phải
+          // cùng mức: để lệch là cùng một sự việc lúc đỏ lúc vàng tuỳ mục có con hay không.
+          severity: "medium",
           title: `Nh\xF3m ${nameOf(l.categoryId)} v\u01B0\u1EE3t tr\u1EA7n ${over}${blame}`,
           detail: usage,
           to: BUDGET_ROUTE
@@ -862,7 +871,14 @@ function budgetRules(input) {
           key: `budget-over:${l.categoryId}`,
           kind: "action",
           type: "budget-over",
-          severity: "high",
+          // 'medium', KHÔNG phải 'high'. Tiền đã tiêu xong rồi — dòng này không còn
+          // đổi được gì của tháng này, nó chỉ ghi nhận. Mức 'high' để dành cho việc
+          // còn kịp làm gì đó: ví không đủ trả thẻ tuần sau, nợ quá hạn, ví đang âm.
+          //
+          // Cụ thể hơn: xếp nó ngang "mai bị trừ tiền thẻ" thì mục 6 (tiêu nhanh hơn
+          // nhịp, mức 'medium') — dòng DUY NHẤT của nhóm ngân sách đến lúc còn ghìm
+          // lại được — luôn bị đẩy xuống dưới chính cái dòng nói rằng đã quá muộn.
+          severity: "medium",
           title: `${nameOf(l.categoryId)} \u0111\xE3 v\u01B0\u1EE3t ng\xE2n s\xE1ch ${over}`,
           detail: usage,
           to: BUDGET_ROUTE
@@ -1861,10 +1877,13 @@ function splitTxWindows(txs, todayISO, monthStartDay, recentDays) {
 var PUSH_BODY_ITEMS = 3;
 var PUSH_TAG = "sct-viec-can-lam";
 var PUSH_LIST_ROUTE = "/?notif=1";
+var PUSH_MIN_SEVERITY = "medium";
 var SEVERITY_RANK2 = { high: 0, medium: 1, low: 2 };
 function planPush(actions, stateRows) {
   const pushed = new Set(stateRows.filter((r) => r.pushed_at).map((r) => r.key));
-  const fresh = actions.filter((n) => n.kind === "action" && !pushed.has(n.key));
+  const fresh = actions.filter(
+    (n) => n.kind === "action" && SEVERITY_RANK2[n.severity] <= SEVERITY_RANK2[PUSH_MIN_SEVERITY] && !pushed.has(n.key)
+  );
   if (fresh.length === 0) return null;
   const severity = fresh.reduce(
     (worst, n) => SEVERITY_RANK2[n.severity] < SEVERITY_RANK2[worst] ? n.severity : worst,

@@ -75,13 +75,17 @@ function input(over: Partial<NotificationInput>): NotificationInput {
 }
 
 describe('budget-over', () => {
-  it('vượt hạn mức thì báo mức cao', () => {
+  // Mức 'medium' chứ KHÔNG phải 'high', và phép thử này là chỗ ghim điều đó: tiền đã
+  // tiêu xong nên dòng này không còn đổi được gì của tháng này. Mức 'high' để dành cho
+  // việc còn kịp làm — và từ khi push chỉ gõ cửa từ 'medium' trở lên, mức ở đây cũng
+  // là thứ quyết định dòng nào được đánh thức điện thoại.
+  it('vượt hạn mức thì báo mức trung bình, không phải mức cao', () => {
     const out = budgetRules(
       input({ budgetReport: report([line({ categoryId: 'c1', spent: 43_200 })]) }),
     )
     const hit = out.find((n) => n.type === 'budget-over')
     expect(hit?.key).toBe('budget-over:c1')
-    expect(hit?.severity).toBe('high')
+    expect(hit?.severity).toBe('medium')
     expect(hit?.title).toContain('Ăn ngoài')
   })
 
@@ -233,7 +237,9 @@ describe('budget-parent-over', () => {
     )
     const hit = out.find((n) => n.type === 'budget-parent-over')
     expect(hit?.key).toBe('budget-parent-over:p1')
-    expect(hit?.severity).toBe('high')
+    // Cùng mức với nhánh budget-over: hai nhánh loại trừ nhau cho cùng một dòng ngân
+    // sách, để lệch là cùng một sự việc lúc đỏ lúc vàng tuỳ mục có con hay không.
+    expect(hit?.severity).toBe('medium')
     // c2 tiêu nhiều hơn c1 nên phải đứng trước
     expect(hit?.title).toBe('Nhóm Sinh hoạt vượt trần 8400 — chủ yếu do Giải trí và Ăn ngoài')
   })

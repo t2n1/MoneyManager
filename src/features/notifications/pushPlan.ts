@@ -20,6 +20,17 @@ export const PUSH_TAG = 'sct-viec-can-lam'
 /** Đường dẫn mở tấm trượt chuông — dùng khi gộp nhiều việc, không nhảy vào việc lẻ. */
 export const PUSH_LIST_ROUTE = '/?notif=1'
 
+/**
+ * Mức thấp nhất còn được gõ cửa. Dưới mức này thì việc ở lại trong chuông.
+ *
+ * Mức 'low' là những việc không có hạn chót nào trong hôm nay: "tài khoản chưa đối
+ * chiếu quá 30 ngày", "4 ngày không có giao dịch nào — đi vắng?", "lần gửi tiền chưa
+ * gán người nhận". Đánh thức điện thoại vì một việc "khi nào rảnh" là dạy người dùng
+ * rằng push của app này không đáng mở — và cái họ tắt sau đó là CẢ push nói "mai thẻ
+ * trừ tiền mà ví không đủ".
+ */
+export const PUSH_MIN_SEVERITY: NotificationSeverity = 'medium'
+
 /** Một lượt gửi: đúng MỘT thông báo hệ thống, dù gom bao nhiêu việc. */
 export interface PushPayload {
   title: string
@@ -58,10 +69,24 @@ export function planPush(
   // Chỉ 'action'. Tin-để-biết ở lại trong chuông: nguyên tắc mục A của spec là chỉ
   // báo việc người dùng làm được gì đó.
   //
+  // VÀ chỉ từ `PUSH_MIN_SEVERITY` trở lên. Lọc ở ĐÂY chứ không ở bộ luật, đúng ranh
+  // giới ghi ở đầu file: `rules.ts` quyết định CÓ việc gì cần để ý (mức 'low' vẫn
+  // phải hiện trong chuông), file này quyết định việc đó có đáng gõ cửa không.
+  //
+  // Hệ quả CÓ CHỦ Ý: việc mức 'low' không bao giờ vào `keys`, nên không bao giờ được
+  // ghi `pushed_at`. Khi nó lên mức cao hơn mà mã không đổi — `bill-due` còn 3 ngày là
+  // 'low', tới ngày thành 'medium' — nó vẫn đẩy được. Đó đúng là hành vi muốn có: im
+  // lúc còn xa, gõ cửa đúng ngày.
+  //
   // KHÔNG lọc theo read_at. Đọc trong app và nhận push là hai việc khác nhau — mở app
   // lúc 7 giờ thấy dòng đó rồi lướt qua không có nghĩa là 8 giờ khỏi cần nhắc. Chỉ
   // `pushed_at` mới chặn đẩy, và nó chỉ mất khi tình huống hết (vòng đời mục E).
-  const fresh = actions.filter((n) => n.kind === 'action' && !pushed.has(n.key))
+  const fresh = actions.filter(
+    (n) =>
+      n.kind === 'action' &&
+      SEVERITY_RANK[n.severity] <= SEVERITY_RANK[PUSH_MIN_SEVERITY] &&
+      !pushed.has(n.key),
+  )
   if (fresh.length === 0) return null
 
   const severity = fresh.reduce<NotificationSeverity>(

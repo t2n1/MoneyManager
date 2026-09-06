@@ -7,7 +7,8 @@ mỗi lần mở app; phần này gửi thông báo tới khoá màn hình khi a
 
 | Quyết định | Vì sao |
 |---|---|
-| Chỉ đẩy nhóm **“việc cần làm”** (8 loại `kind: 'action'`) | Nguyên tắc mục A của spec: chỉ báo việc người dùng làm được gì đó. Tin-để-biết ở lại trong chuông. |
+| Chỉ đẩy nhóm **“việc cần làm”** (`kind: 'action'`) | Nguyên tắc mục A của spec: chỉ báo việc người dùng làm được gì đó. Tin-để-biết ở lại trong chuông. |
+| …và chỉ từ mức **`medium`** trở lên (`PUSH_MIN_SEVERITY`) | Mức `low` là việc không có hạn chót nào hôm nay — “chưa đối chiếu quá 30 ngày”, “4 ngày không giao dịch — đi vắng?”. Đánh thức điện thoại vì một việc “khi nào rảnh” là dạy người dùng rằng push của app không đáng mở, và cái họ tắt sau đó là cả push nói “mai thẻ trừ tiền mà ví không đủ”. Việc mức `low` không vào `keys` nên không bị ghi `pushed_at`: `bill-due` im lúc còn 3 ngày (`low`), vẫn gõ cửa đúng ngày tới hạn (`medium`). |
 | **Một việc đẩy một lần** | Cột `pushed_at` trên `notification_state`. Mã việc-cần-làm không kèm kỳ, nên nó chỉ được đẩy lại sau khi tình huống đã hết và mã bị dọn (vòng đời mục E). |
 | **Một lượt gửi = một thông báo** | Nhiều việc thì gộp: “3 việc cần để ý · …”. Gửi mỗi việc một push là biến app thành thứ người ta đi tắt thông báo. |
 | Người dùng **chọn giờ + múi giờ** | `profiles.push_hour` + `profiles.push_tz`. Lưu ý định (“8 giờ sáng nơi tôi ở”) chứ không lưu mốc UTC — xem [pushSchedule.ts](../src/lib/pushSchedule.ts). |
@@ -245,7 +246,7 @@ và trả JSON kèm độ dài từng khoá; ba biến VAPID được cắt kho�
 
 | Phần | Trạng thái |
 |---|---|
-| `pushPlan`, `pushSchedule`, `pushEligibility`, `pushInputPlan` | ✅ 62 test, mỗi guard đã chứng minh đỏ được |
+| `pushPlan`, `pushSchedule`, `pushEligibility`, `pushInputPlan` | ✅ 65 test, mỗi guard đã chứng minh đỏ được |
 | Lớp repo + migration + khôi phục backup cũ | ✅ test demoRepo |
 | Cửa sổ giao dịch + cổng tỷ giá của edge function | ✅ kéo về [pushInputPlan.ts](../src/features/notifications/pushInputPlan.ts) nên test được; bản viết tay trong `loadInput.ts` từng sai với `month_start_day ≠ 1` |
 | Bundle bộ luật chạy ngoài trình duyệt | ✅ chạy thật trên Node: `buildNotifications` → `planPush` ra payload đúng |

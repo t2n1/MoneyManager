@@ -135,6 +135,59 @@ describe('planPush', () => {
     expect(out?.keys).toEqual(['budget-over:c'])
   })
 
+  it('việc mức low một mình thì KHÔNG gõ cửa (ở lại trong chuông)', () => {
+    const out = planPush(
+      [
+        action('data-reconcile:all', 'Yucho chưa đối chiếu quá 30 ngày', {
+          type: 'data-reconcile',
+          severity: 'low',
+        }),
+        action('trip-gap:2026-08-14', '4 ngày không có giao dịch nào — đi vắng?', {
+          type: 'trip-gap',
+          severity: 'low',
+        }),
+      ],
+      [],
+    )
+    expect(out).toBeNull()
+  })
+
+  it('việc mức low KHÔNG bị kể vào lượt đẩy của việc khác', () => {
+    const out = planPush(
+      [
+        action('account-shortfall:a', 'Yucho thiếu ¥15.000', { severity: 'high' }),
+        action('data-reconcile:all', 'Chưa đối chiếu', {
+          type: 'data-reconcile',
+          severity: 'low',
+        }),
+      ],
+      [],
+    )
+    // Chỉ một việc còn lại → nhánh "một việc", nói thẳng tiêu đề của nó.
+    expect(out?.title).toBe('Yucho thiếu ¥15.000')
+    expect(out?.keys).toEqual(['account-shortfall:a'])
+  })
+
+  // Hệ quả của việc KHÔNG ghi keys cho mức low, và là lý do phép lọc nằm ở đây chứ
+  // không ở bộ luật: `bill-due` giữ NGUYÊN mã suốt kỳ (`bill-due:<rule>:<dueISO>`) mà
+  // mức thì đổi theo ngày — 'low' khi còn xa, 'medium' đúng ngày tới hạn. Vì lần im
+  // lặng không ghi `pushed_at`, ngày tới hạn nó vẫn đẩy được.
+  it('cùng một mã: im lúc còn low, gõ cửa khi lên medium', () => {
+    const key = 'bill-due:r1:2026-09-10'
+    const conXa = planPush(
+      [action(key, '3 ngày nữa tới hạn "Gửi tiền về nhà"', { type: 'bill-due', severity: 'low' })],
+      [],
+    )
+    expect(conXa).toBeNull()
+
+    // Không có dòng pushed_at nào được ghi ở lượt trên, nên trạng thái vẫn rỗng.
+    const toiNgay = planPush(
+      [action(key, 'Hôm nay tới hạn "Gửi tiền về nhà"', { type: 'bill-due', severity: 'medium' })],
+      [],
+    )
+    expect(toiNgay?.keys).toEqual([key])
+  })
+
   it('mức cao nhất trong nhóm được đưa ra ngoài để service worker dùng', () => {
     const out = planPush(
       [

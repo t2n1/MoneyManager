@@ -89,8 +89,14 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
   'debt-due-soon',
   'bill-due',
   'planned-due',
-  'budget-over',
+  // 'budget-pace' đứng TRƯỚC 'budget-over' — cố ý ngược thứ tự đánh số của spec.
+  // Cả bốn dòng ngân sách giờ cùng mức 'medium' (xem budgetRules.ts), nên thứ tự ở
+  // đây là thứ duy nhất còn quyết định dòng nào lên trước. Mục 6 là dòng DUY NHẤT
+  // của nhóm này đến lúc còn ghìm lại được ("mới qua 40% tháng đã dùng 78% hạn
+  // mức"); ba dòng còn lại đều nói về số tiền đã tiêu xong. Để mục 5 lên đầu là mỗi
+  // tháng người dùng đọc "đã quá muộn" trước khi đọc "vẫn còn kịp".
   'budget-pace',
+  'budget-over',
   'budget-parent-over',
   'tag-budget-over',
   'card-statement-day',

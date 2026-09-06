@@ -29,8 +29,12 @@ interface DragPointerOptions<K> {
    * khi ngón tay đứng yên mà trang đang tự cuộn — lúc đó vị trí tương đối vẫn đổi.
    */
   onMove: (x: number, y: number) => void
-  /** Thả tay (kể cả bị huỷ). `lifted` = đã thực sự kéo, phân biệt với chạm hụt. */
-  onDrop: (lifted: boolean) => void
+  /**
+   * Thả tay (kể cả bị huỷ). `lifted` = đã thực sự kéo, phân biệt với chạm hụt; `key`
+   * là thứ đã nhấn xuống — có cả khi KHÔNG nhấc lên, nên nhánh "bấm chứ không kéo"
+   * vẫn biết mình vừa bấm vào cái gì.
+   */
+  onDrop: (lifted: boolean, key: K) => void
   /**
    * Phần tử bọc danh sách — chính là nơi spread `surface`. Dùng vào hai việc: giữ con
    * trỏ trong suốt lượt kéo (xem `start`), và làm điểm xuất phát để dò ngược lên tìm
@@ -145,7 +149,7 @@ export function useDragPointer<K>({ onLift, onMove, onDrop, withinRef }: DragPoi
     press.current = null
     dirty.current = false
     setLifted(false)
-    cb.current.onDrop(p.lifted)
+    cb.current.onDrop(p.lifted, p.key)
   }, [])
 
   return {

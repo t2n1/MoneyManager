@@ -15,7 +15,17 @@
 // Phần KHÔNG đổi khi bỏ Recharts, và cố ý giữ nguyên: luật "đường nào được vẽ" vẫn là
 // `chartSeriesPlan` (chartSeries.ts), câu `aria-label` vẫn sinh từ dữ liệu thật, và
 // bảng theo năm vẫn là bản dự phòng đọc được bằng bàn phím.
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import { useDragPointer } from '../../hooks/useDragPointer'
 import { Maximize2, Minimize2, TrendingDown, TrendingUp } from 'lucide-react'
 import { EstimateMark } from '../../components/EstimateMark'
 import type { CurrencyCode } from '../../lib/currencies'
@@ -314,21 +324,27 @@ export function LifetimeChartCard({
   const [opts, setOpts] = useState<ChartOpts>(DEFAULT_OPTS)
   const [hoverYear, setHoverYear] = useState<number | null>(null)
   const [pinnedYear, setPinnedYear] = useState<number | null>(null)
-  const [dragId, setDragId] = useState<string | null>(null)
   const [plotW, setPlotW] = useState(760)
   const [viewportH, setViewportH] = useState(800)
   const plotRef = useRef<HTMLDivElement>(null)
   /** Đã nhích chuột trong lượt kéo này chưa — phân biệt "kéo" với "bấm". */
   const dragMoved = useRef(false)
   /**
-   * Mốc đang được kéo, bản REF. `dragId` (state) chỉ để vẽ; mọi phép SO SÁNH trong tay
-   * xử lý con trỏ phải đọc ref này.
+   * Mốc đang được kéo. Cố ý là REF chứ không phải state: không có gì trong lần VẼ phụ
+   * thuộc nó nữa (chip đi theo ngón tay bằng ghi DOM thẳng, xem `followChip`), nên một
+   * state ở đây chỉ tổ bắt cả thẻ đồ thị vẽ lại hai lượt mỗi lần cầm–thả.
    *
-   * Lý do: `setDragId` trong `pointerdown` chưa kịp vào closure của `pointerup` nếu hai
-   * sự kiện rơi cùng một lượt xử lý — và lúc đó `pointerup` thoát sớm, tức BẤM vào chip
-   * không mở được form sửa. Đã dựng lại được bằng cách phát hai sự kiện liền nhau.
+   * Và kể cả khi còn là state thì mọi phép SO SÁNH trong tay xử lý con trỏ vẫn phải đọc
+   * ref: `setState` trong `pointerdown` chưa kịp vào closure của `pointerup` nếu hai sự
+   * kiện rơi cùng một lượt xử lý — lúc đó `pointerup` thoát sớm, tức BẤM vào chip không
+   * mở được form sửa. Đã dựng lại được bằng cách phát hai sự kiện liền nhau.
    */
   const dragIdRef = useRef<string | null>(null)
+  /** Nút chip theo id — để dịch nó bằng tay, không qua React. */
+  const chipRefs = useRef(new Map<string, HTMLButtonElement>())
+  /** Điểm cầm: hoành độ con trỏ và `left` của chip, đều lúc vừa nhấc lên. */
+  const grabChip = useRef<{ x: number; cx: number } | null>(null)
+  const atX = useRef(0)
   const titleId = useId()
 
   /**
@@ -581,6 +597,91 @@ export function LifetimeChartCard({
     [x0, x1, plotLeft, plotRight],
   )
 
+  /**
+   * Dán lại thế bám ngón tay cho chip đang cầm.
+   *
+   * Đây là toàn bộ ý của cách làm này: dời một mốc bắt tính lại CẢ bản chiếu cuộc đời
+   * (~16ms mỗi năm, đo trên bản production), tức mỗi bước ăn trọn một khung hình. Nếu
+   * để vị trí chip phụ thuộc lần vẽ đó thì chip lết sau ngón tay đúng bằng chừng ấy.
+   * Tách ra: chip đi theo ngón tay ngay bằng một phép ghi DOM rẻ, còn đường đồ thị
+   * cập nhật theo nhịp của nó và được phép trễ một hai nhịp — mắt không bắt được.
+   *
+   * Dùng property `translate` chứ KHÔNG dùng `transform`: `transform` do React quản
+   * (`translateX(-50%)` để căn giữa chip trên mốc năm), ghi đè lên là đánh nhau với
+   * lần vẽ sau. `translate` là property riêng, cộng dồn với `transform`.
+   */
+  const followChip = useCallback(() => {
+    const id = dragIdRef.current
+    if (id == null) return
+    const el = chipRefs.current.get(id)
+    const g = grabChip.current
+    if (!el || !g) return
+    // `left` chính là cx mà React vừa tính cho năm hiện tại — đọc thẳng từ đó, khỏi
+    // phải dựng lại phép chiếu năm→toạ độ ở đây.
+    const cx = Number.parseFloat(el.style.left) || 0
+    // Trừ đi phần chip đã tự đi khi năm được ghi nhận: không trừ thì mỗi lần đổi năm
+    // chip nhảy thêm một khoảng bằng bề rộng một năm.
+    const raw = cx + (atX.current - g.x) - (cx - g.cx)
+    const clamped = Math.min(Math.max(raw, plotLeft + 30), plotRight - 30)
+    el.style.transition = 'none'
+    el.style.translate = `${clamped - cx}px`
+  }, [plotLeft, plotRight])
+
+  // Năm vừa được ghi nhận → React vẽ lại chip ở `left` mới. Dán lại thế bám ngay trong
+  // cùng một lượt bố cục nên mắt không kịp thấy nó giật một cái về mốc năm.
+  useLayoutEffect(followChip)
+
+  const chipDrag = useDragPointer<string>({
+    withinRef: plotRef,
+    onLift(id, x) {
+      const el = chipRefs.current.get(id)
+      if (!el) return
+      atX.current = x
+      grabChip.current = { x, cx: Number.parseFloat(el.style.left) || 0 }
+      dragIdRef.current = id
+      dragMoved.current = false
+      // Dấu "đang cầm" ghi thẳng vào DOM, không qua state: một `setState` ở đây bắt cả
+      // thẻ đồ thị vẽ lại (~16ms) chỉ để đổi con trỏ chuột.
+      el.style.cursor = 'grabbing'
+      el.style.zIndex = '20'
+      setHoverYear(null)
+    },
+    onMove(x) {
+      const id = dragIdRef.current
+      if (id == null || !onMoveEvent) return
+      atX.current = x
+      followChip()
+      const ev = events.find((e) => e.id === id)
+      if (!ev) return
+      const y = yearAt(x)
+      if (y === null || y === ev.startYear) return
+      dragMoved.current = true
+      // Kẹp từ NĂM NAY: kéo một mốc về quá khứ là dựng một kế hoạch cho một năm đã
+      // qua, mà bản chiếu bắt đầu từ năm nay nên nó sẽ biến mất khỏi đồ thị ngay khi
+      // thả tay.
+      onMoveEvent(id, Math.max(currentYear, y))
+    },
+    // `id` lấy từ hook chứ không từ `dragIdRef`: ref kia chỉ được đặt khi ĐÃ nhấc lên,
+    // mà nhánh dưới đây phải phục vụ cả cú BẤM (chưa qua ngưỡng, chưa từng nhấc).
+    onDrop(lifted, id) {
+      dragIdRef.current = null
+      grabChip.current = null
+      const el = chipRefs.current.get(id)
+      if (el) {
+        // Trả `transition` về cho class Tailwind của nút: chip trượt nốt quãng lẻ về
+        // đúng mốc năm thay vì búng một cái.
+        el.style.transition = ''
+        el.style.translate = '0px'
+        el.style.cursor = ''
+        el.style.zIndex = ''
+      }
+      // Chưa qua ngưỡng nhấc = một cú BẤM, mở form sửa mốc.
+      if (!lifted) onSelectEvent?.(id)
+      // Cú click tổng hợp ngay sau khi thả không được hiểu là "ghim năm".
+      dragMoved.current = lifted
+    },
+  })
+
   const shownYear = pinnedYear ?? hoverYear
   const hoverRow = shownYear !== null ? dRows.find((r) => r.year === shownYear) : undefined
   const stressHoverRow =
@@ -699,10 +800,15 @@ export function LifetimeChartCard({
             paddingBottom: opts.lane && phases.length > 0 ? LANE_H : 0,
           }}
           onPointerMove={(e) => {
-            if (dragId !== null) return
+            chipDrag.surface.onPointerMove(e)
+            // `dragIdRef` chứ không `dragId`: state chưa kịp vào closure này nếu
+            // pointerdown và pointermove rơi cùng một lượt xử lý.
+            if (dragIdRef.current !== null) return
             const y = yearAt(e.clientX)
             if (y !== null && y !== hoverYear) setHoverYear(y)
           }}
+          onPointerUp={chipDrag.surface.onPointerUp}
+          onPointerCancel={chipDrag.surface.onPointerCancel}
           onPointerLeave={() => setHoverYear(null)}
           onClick={(e) => {
             // Vừa kéo xong thì cú click tổng hợp sau đó không được hiểu là "ghim năm".
@@ -969,32 +1075,18 @@ export function LifetimeChartCard({
                     ? 'bg-state-good-bg text-state-good-fg'
                     : 'bg-state-bad-bg text-state-bad-fg'
                 } ${editing ? 'ring-2 ring-accent' : 'border border-border-strong'}`}
+                ref={(el) => {
+                  if (el) chipRefs.current.set(e.id, el)
+                  else chipRefs.current.delete(e.id)
+                }}
                 onClick={(ev) => ev.stopPropagation()}
                 onPointerDown={(ev) => {
                   if (!onMoveEvent) return
                   ev.stopPropagation()
-                  ev.currentTarget.setPointerCapture(ev.pointerId)
-                  dragMoved.current = false
-                  dragIdRef.current = e.id
-                  setDragId(e.id)
-                  setHoverYear(null)
-                }}
-                onPointerMove={(ev) => {
-                  if (dragIdRef.current !== e.id || !onMoveEvent) return
-                  const y = yearAt(ev.clientX)
-                  if (y === null || y === e.startYear) return
-                  dragMoved.current = true
-                  // Kẹp từ NĂM NAY: kéo một mốc về quá khứ là dựng một kế hoạch cho một
-                  // năm đã qua, mà bản chiếu bắt đầu từ năm nay nên nó sẽ biến mất khỏi
-                  // đồ thị ngay khi thả tay.
-                  onMoveEvent(e.id, Math.max(currentYear, y))
-                }}
-                onPointerUp={(ev) => {
-                  if (dragIdRef.current !== e.id) return
-                  ev.stopPropagation()
-                  dragIdRef.current = null
-                  setDragId(null)
-                  if (!dragMoved.current) onSelectEvent?.(e.id)
+                  chipDrag.start(e.id, ev)
+                  // `start` gọi preventDefault (chặn bôi đen lúc kéo), mà thế thì trình
+                  // duyệt không tự đặt tiêu điểm nữa — mất luôn đường bàn phím ở dưới.
+                  ev.currentTarget.focus()
                 }}
                 onKeyDown={(ev) => {
                   // Bàn phím phải làm được đúng việc mà chuột làm bằng cách kéo. Không

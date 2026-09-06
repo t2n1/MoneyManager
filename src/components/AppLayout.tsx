@@ -18,6 +18,7 @@ import { usePrivacyMode } from '../lib/privacy'
 import { useDensitySync } from '../hooks/useDensity'
 import { runUndo, useUndoToast } from '../lib/undoToast'
 import { dismissErrorToast, useErrorToast } from '../lib/errorToast'
+import { applyPwaUpdate, initPwaUpdate, usePwaUpdate } from '../lib/pwaUpdate'
 import { DialogHost } from '../lib/dialog'
 import { useEntryBackground, useTrueLocation } from '../lib/entryOverlay'
 import { EntrySheet } from '../features/transactions/EntrySheet'
@@ -39,6 +40,10 @@ let notifCleanupDone = false
 // không phụ thuộc bất cứ thứ gì bộ luật sinh ra.
 let prunedThisOpen = false
 
+// Đăng ký service worker + kênh "có bản mới" — một lần cho cả vòng đời trang (cùng
+// khuôn recurringCatchUpDone; StrictMode gọi effect hai lần nên phải có cờ).
+let pwaInitDone = false
+
 /** Nút trong toast (Hoàn tác / Đóng): nằm trên nền toast ĐẶC nên không dùng được
  *  <ActionButton> — hai dáng của nó đều tính trên nền thẻ. Gom một hằng số ở đây để
  *  hai toast không trôi khác nhau, và để `active:scale-95` chỉ viết một lần. */
@@ -58,6 +63,9 @@ export function AppLayout() {
   // Lưới an toàn lỗi: query/mutation thất bại ở BẤT KỲ đâu cũng nổi một toast, thay vì
   // im lặng để người dùng tưởng đã lưu được. Lấy từ nhánh fix/toan-bo-audit.
   const errorToast = useErrorToast()
+  // Có bản build mới đang chờ (src/lib/pwaUpdate.ts) → toast một chạm, hết cảnh
+  // đóng-mở app hai lần mới thấy bản mới.
+  const coBanMoi = usePwaUpdate()
   // Đọc ở đây (không phải trong LoadProgress) vì toast định kỳ bên dưới phải né nó.
   const loadPercent = useLoadProgress()
 
@@ -88,6 +96,12 @@ export function AppLayout() {
     const hit = pageTitle(shown.pathname)
     document.title = hit ? `${hit} — Sổ Gạo` : 'Sổ Gạo'
   }, [shown.pathname])
+
+  useEffect(() => {
+    if (pwaInitDone) return
+    pwaInitDone = true
+    initPwaUpdate()
+  }, [])
 
   // Sinh các kỳ định kỳ đến hạn kể từ lần mở trước; N > 0 → toast
   useEffect(() => {
@@ -237,6 +251,27 @@ export function AppLayout() {
         </div>
 
         <LoadProgress percent={loadPercent} />
+
+      {/* Bản build mới đang chờ — cùng vị trí đỉnh màn với hai toast dưới, và cùng luật
+          né: có viên tiến độ HAY toast định kỳ thì tụt xuống một bậc. Không tự ẩn theo
+          giờ: nó chỉ biến mất khi người dùng bấm (tải lại) — một lời nhắc có nút làm
+          ngay thì để đó tốt hơn là trôi đi mất. */}
+      {coBanMoi && (
+        <div
+          className={`fixed inset-x-0 z-50 flex justify-center ${
+            loadPercent === null && !recurringToast
+              ? 'top-[calc(1rem+env(safe-area-inset-top))]'
+              : 'top-[calc(3.75rem+env(safe-area-inset-top))]'
+          }`}
+        >
+          <div className="flex items-center gap-3 rounded-full bg-gray-900/95 py-2 pl-4 pr-2 text-sm font-medium text-white shadow-lg">
+            <span>Có bản mới</span>
+            <button type="button" onClick={applyPwaUpdate} className={TOAST_BTN}>
+              Tải lại
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Toast này dùng chung chỗ với viên thuốc tiến độ. Nút đang hiện thì toast tụt
           xuống một bậc, thay vì hai cái chồng lên nhau. */}

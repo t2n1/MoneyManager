@@ -26,8 +26,14 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // 'prompt' + toast "Có bản mới — tải lại" (src/lib/pwaUpdate.ts): trước đây
+      // 'autoUpdate' chỉ đổi service worker Ở NỀN, còn trang đang mở vẫn chạy bản cũ —
+      // người dùng phải đóng-mở app HAI LẦN mới thấy bản mới, và không bao giờ biết
+      // mình đang xem bản nào. Giờ bản mới về là nổi toast, một chạm là xong.
+      registerType: 'prompt',
+      // Tự đăng ký trong pwaUpdate.ts (cần callback onNeedRefresh) — script tiêm tự
+      // động sẽ đăng ký TRÙNG lần thứ hai, nên tắt.
+      injectRegister: false,
       workbox: {
         // App shell: precache toàn bộ asset build; điều hướng offline về index.html
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],

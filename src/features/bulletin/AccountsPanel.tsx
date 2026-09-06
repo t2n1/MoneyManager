@@ -47,10 +47,14 @@ export function AccountsPanel({ groups, netWorth, base, staleIds }: Props) {
     const targets = new Map<string, number>()
     for (const s of groupSettings)
       if (s.target_bps !== null && s.target_bps > 0) targets.set(s.name, s.target_bps)
+    // Truyền CẢ nhóm ngoài tổng: chính rebalancePlan quyết định mẫu số, và Bản tin phải
+    // dùng đúng mẫu số của thẻ Cơ cấu — hai màn nói lệch nhau là lỗi nặng hơn im lặng.
     const plan = rebalancePlan(
-      groups
-        .filter((g) => g.includeInTotals)
-        .map((g) => ({ name: g.name, total: g.total, includeInTotals: true })),
+      groups.map((g) => ({
+        name: g.name,
+        total: g.total,
+        includeInTotals: g.includeInTotals,
+      })),
       targets,
     )
     return plan !== null && plan.alert ? plan.worst : null

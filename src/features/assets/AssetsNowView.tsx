@@ -36,11 +36,13 @@ import {
 } from '../../components/ui'
 import {
   useAccounts,
+  useAssetGroupSettings,
   useAssignAccountsToGroup,
   useCategories,
   useNetWorthSnapshots,
   useRangeTransactions,
   useReorderAccounts,
+  useUpsertAssetGroupSetting,
 } from '../../hooks/queries'
 import { addDaysISO, dayMonthLabel } from '../../lib/dates'
 import { formatMoney, type CurrencyCode } from '../../lib/money'
@@ -52,8 +54,8 @@ import { CardsSection } from './CardsSection'
 import { GROUP_COLOR_NONE, groupColorMap } from './groupColors'
 import { groupDeltas, investmentScope } from './groupInsight'
 import { makeMoneyView } from './moneyView'
-import { RebalanceSection } from './RebalanceSection'
-import { StructureBar } from './StructureBar'
+import { StructureBar, type RebalanceUi } from './StructureBar'
+import { rebalancePlan } from './rebalance'
 import { useAssetsData } from './useAssetsData'
 import { useCardsPanel } from './useCardsPanel'
 import { accountRowPnl, useInvestPnlByAccount } from './useInvestPnl'
@@ -134,6 +136,30 @@ export function AssetsNowView({ viewCur }: Props) {
     groupMode === 'purpose' ? purposeGroups : groupMode === 'type' ? typeGroups : currencyGroups
   // Nhãn của lát đang cắt, in trên thẻ Cơ cấu.
   const modeLabel = (GROUP_MODES.find(([m]) => m === groupMode)?.[1] ?? '').toLowerCase()
+
+  // Tỷ trọng mục tiêu — sống TRONG thẻ Cơ cấu, nhưng chỉ ở lát "mục đích": mục tiêu khai
+  // theo nhóm của người dùng, không theo loại tài khoản hay loại tiền. Truyền cả nhóm
+  // NGOÀI tổng vào rebalancePlan — chính nó quyết định mẫu số nào (xem rebalance.ts).
+  const { data: groupSettings = [] } = useAssetGroupSettings()
+  const upsertGroup = useUpsertAssetGroupSetting()
+  const targets = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const s of groupSettings)
+      if (s.target_bps !== null && s.target_bps > 0) m.set(s.name, s.target_bps)
+    return m
+  }, [groupSettings])
+  const rebalance = useMemo<RebalanceUi | null>(() => {
+    if (groupMode !== 'purpose') return null
+    const plan = rebalancePlan(purposeGroups, targets)
+    // Dưới hai nhóm thì "tỷ trọng" không có nghĩa gì để khai.
+    if (plan === null || plan.rows.length < 2) return null
+    return {
+      plan,
+      targets,
+      onSetTarget: (name, bps) => upsertGroup.mutate({ name, patch: { target_bps: bps } }),
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupMode, purposeGroups, targets])
   // Kéo–thả sắp thứ tự tài khoản bật ở mọi chế độ NHÓM. Nhưng chỉ "Mục đích" cho kéo
   // XUYÊN nhóm (đổi asset_group); ở "Loại"/"Tiền tệ", kéo sang nhóm khác nghĩa là
   // đổi loại/đồng tiền tài khoản (làm trong form), nên chỉ cho sắp TRONG một nhóm.
@@ -443,6 +469,7 @@ export function AssetsNowView({ viewCur }: Props) {
             modeLabel={modeLabel}
             view={mv}
             isLoading={isLoading}
+            rebalance={rebalance}
           />
         </div>
       </div>
@@ -828,10 +855,6 @@ export function AssetsNowView({ viewCur }: Props) {
           )
         })}
       </Card>
-
-      {/* Tỷ trọng mục tiêu (rebalance.ts): tính trên nhóm MỤC ĐÍCH bất kể lát đang cắt —
-          mục tiêu khai theo nhóm của người dùng, không theo loại tài khoản. */}
-      <RebalanceSection groups={purposeGroups} view={mv} />
 
       {(breakdown.hasForeign || mv.converted) && rates && (
         <p className="text-center text-2xs text-fg-muted">
